@@ -72,6 +72,39 @@ export async function attachJson(name: string, data: Record<string, unknown>): P
   await test.info().attach(name, { body: JSON.stringify(data, null, 2), contentType: 'application/json' });
 }
 
+const CAPTION_ID = 'qa-evidence-caption';
+
+/**
+ * BUG-034 / BUG-102: a claim the screen cannot show (URL, request count, cookie) is written ON the shot — a fixed
+ * strip at the bottom edge with the page URL first (token values masked), then `lines`. Added just before the screenshot and removed
+ * right after (also on failure), so it never takes part in the test. Inline styles: the app's tokens are not
+ * guaranteed on every page this runs on.
+ */
+async function withCaption(page: Page, lines: readonly string[], shoot: () => Promise<void>): Promise<void> {
+  await page.evaluate(
+    ([id, text]) => {
+      const strip = document.createElement('div');
+      strip.id = id;
+      strip.setAttribute('aria-hidden', 'true');
+      // A one-time token in the URL is a secret (qa-evidence rule 5): its value never reaches the image.
+      const url = `${location.pathname}${location.search}${location.hash}`.replace(/(token=)[^&#]*/gu, '$1…');
+      strip.textContent = `[QA evidence] URL: ${url}\n${text}`;
+      strip.style.cssText = [
+        'position:fixed', 'left:0', 'right:0', 'bottom:0', 'z-index:2147483647', 'pointer-events:none',
+        'padding:6px 10px', 'white-space:pre-wrap', 'word-break:break-all', 'font:12px/16px monospace',
+        'background:rgba(0,0,0,0.85)', 'color:#fff',
+      ].join(';');
+      document.body.append(strip);
+    },
+    [CAPTION_ID, lines.join('\n')] as const,
+  );
+  try {
+    await shoot();
+  } finally {
+    await page.evaluate((id) => document.getElementById(id)?.remove(), CAPTION_ID).catch(() => undefined);
+  }
+}
+
 /**
  * Screenshot named exactly as the Master Matrix "Evidence Name Pattern" (E2E-TEST-PLAN.md §4),
  * attached to the current test so the report traces it back to its test case.
@@ -80,7 +113,7 @@ export async function attachJson(name: string, data: Record<string, unknown>): P
 export async function captureEvidence(
   page: Page,
   name: string,
-  { fullPage = false }: { readonly fullPage?: boolean } = {},
+  { fullPage = false, caption }: { readonly fullPage?: boolean; readonly caption?: string | readonly string[] } = {},
 ): Promise<string> {
   if (!EVIDENCE_NAME.test(name)) {
     throw new Error(`Evidence name "${name}" does not match the Master Matrix pattern (<id>_<slug>.png)`);
@@ -95,7 +128,11 @@ export async function captureEvidence(
   await waitForHeroFrame(page);
   // Finite CSS animations/transitions jump to their end state, so an entrance fade (RecoveryShell
   // `animate-panel-rise`, 340 ms) is never captured half-transparent. JS-driven (motion) animations are not affected.
-  await page.screenshot({ path, fullPage, animations: 'disabled' });
+  const shoot = async (): Promise<void> => {
+    await page.screenshot({ path, fullPage, animations: 'disabled' });
+  };
+  if (caption === undefined) await shoot();
+  else await withCaption(page, typeof caption === 'string' ? [caption] : caption, shoot);
   await test.info().attach(name, { path, contentType: 'image/png' });
 
   return path;

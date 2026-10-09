@@ -252,8 +252,9 @@ test.describe('SCR-01 Session gate', () => {
     await expect.poll(() => pathOf(page.url())).toBe(loginUrl(GATED_PATH));
     expect(loginUrl(GATED_PATH)).toBe('/login?next=%2Fprojects%2Fx%2Ffloors');
     await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
-    await attachJson('01_gate_redirect.json', { gatedPath: GATED_PATH, landedUrl: pathOf(page.url()) }); // BUG-034: URL not in the shot
-    await captureEvidence(page, '01_gate_redirect.png');
+    await attachJson('01_gate_redirect.json', { gatedPath: GATED_PATH, landedUrl: pathOf(page.url()) });
+    // The URL is written on the shot (BUG-034); the hero canvas is awaited by captureEvidence (BUG-061).
+    await captureEvidence(page, '01_gate_redirect.png', { caption: `requested ${GATED_PATH} → ${pathOf(page.url())}` });
   });
 });
 
@@ -430,7 +431,9 @@ test.describe('SCR-02 Login', () => {
       landed[next] = page.url();
     }
     await attachJson('02_login_next_open_redirect.json', { appOrigin, landedUrlByNext: landed }); // BUG-034
-    await captureEvidence(page, '02_login_next_open_redirect.png');
+    await captureEvidence(page, '02_login_next_open_redirect.png', {
+      caption: Object.entries(landed).map(([next, url]) => `next=${next} → ${url}`),
+    }); // BUG-034
     await persistSession(context);
   });
 

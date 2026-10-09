@@ -71,7 +71,7 @@ import { ROUTES, UNKNOWN_PATH, loginUrl, pathOf } from '../../e2e/fixtures/route
 import { EMAIL_LABEL, PASSWORD_LABEL, SIGN_IN_LABEL } from '../../e2e/fixtures/session';
 import { readBaseUrl } from '../../e2e/fullstack/env';
 import { apiBaseUrl, newApiContext, signedInApi } from './support/api';
-import { readAdminCredentials, signInAdmin } from './support/auth';
+import { DASHBOARD_TITLE, dashboardLoaded, readAdminCredentials, signInAdmin } from './support/auth';
 import { TEST_DATA_PREFIX, TEST_EMAIL_DOMAIN, attachJson, captureEvidence, testEmail } from './support/evidence';
 import { deleteMails, linkFrom, waitForMail, type Mail } from './support/mailpit';
 
@@ -171,9 +171,6 @@ const OPENING_SESSION = 'Đang mở phiên'; // :238 → PendingShell aria-label
 const CONNECTION_REGION = 'Trạng thái kết nối'; // :95
 const MID_SESSION_LOST = 'Mất kết nối máy chủ. Thay đổi chưa lưu vẫn được giữ, đừng tải lại trang.'; // :100
 const HIDE_CONNECTION_STRIP = 'Ẩn thông báo kết nối'; // :111
-
-/** `ProjectDashboard.tsx:196` h1 — proof the destination painted (as in Phase 1). */
-const DASHBOARD_TITLE = 'Dự án của tôi';
 
 /** BE:apps/api/auth/sessions.py:61 REMEMBER_IDLE = 7 days → cookie Max-Age (sessions.py:189). */
 const REMEMBER_IDLE_S = 7 * 24 * 60 * 60;
@@ -308,6 +305,7 @@ async function landsOnDashboard(page: Page, message: string): Promise<void> {
   await expect.poll(() => pathOf(page.url()), { message }).toBe(ROUTES.dashboard);
   expect(new URL(page.url()).origin, message).toBe(new URL(readBaseUrl()).origin);
   await expect(h1(page, DASHBOARD_TITLE), message).toBeVisible();
+  await dashboardLoaded(page); // the shot that follows shows the list, not skeleton cards (BUG-089)
 }
 
 async function refreshCookie(page: Page) {
@@ -410,8 +408,8 @@ test.describe('E01 SCR-01 Session gate', () => {
     expect(loginUrl(gated)).toBe('/login?next=%2Fthong-bao%3Fe01%3Dgate');
     await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
     await expect(alertWith(page, SIGN_IN_REQUIRED_NOTICE)).toBeVisible();
-    await attachJson('E01_gate_redirect_query.json', { gated, landedUrl: pathOf(page.url()) }); // BUG-034: URL not in the shot
-    await captureEvidence(page, 'E01_gate_redirect_query.png');
+    await attachJson('E01_gate_redirect_query.json', { gated, landedUrl: pathOf(page.url()) });
+    await captureEvidence(page, 'E01_gate_redirect_query.png', { caption: `requested ${gated} → next keeps path AND query` }); // BUG-034
     await refresh.stop();
   });
 
@@ -497,7 +495,8 @@ test.describe('E01 SCR-01 Session gate', () => {
       await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
       await expect(page.getByText(SIGN_IN_REQUIRED_NOTICE, { exact: true }), 'next = / → no notice').toHaveCount(0);
       await attachJson('E01_gate_setup_reloaded.json', { landedUrl: pathOf(page.url()) }); // BUG-034
-      await captureEvidence(page, 'E01_gate_setup_reloaded.png');
+      // captureEvidence waits for the hero canvas's first frame (waitForHeroFrame, BUG-061).
+      await captureEvidence(page, 'E01_gate_setup_reloaded.png', { caption: `"${RELOAD_PAGE}" → app recovered, gated / → /login?next=%2F, no notice` });
     } finally {
       requests.stop();
     }
@@ -743,7 +742,9 @@ test.describe('E01 SCR-02 Login form', () => {
       await expect(passwordBox(page), 'focus returned to "Mật khẩu" after the attempt').toBeFocused();
       await nextFrame(page);
       expect(posts(requests.sent, LOGIN_API)).toHaveLength(1);
-      await captureEvidence(page, 'E01_enter_submits.png');
+      await captureEvidence(page, 'E01_enter_submits.png', {
+        caption: `Enter in "Mật khẩu" → POST ${LOGIN_API} × ${posts(requests.sent, LOGIN_API).length} (${status}); focus back in "Mật khẩu"`,
+      }); // BUG-034
 
       await button(page, RESET_PASSWORD_ACTION).focus();
       await page.keyboard.press('Enter');
@@ -784,7 +785,9 @@ test.describe('E01 SCR-02 Login form', () => {
       await nextFrame(page);
       expect(posts(requests.sent, LOGIN_API), 'login requests after a double submit').toHaveLength(1);
       await attachJson('E01_double_submit.json', { status, loginRequests: posts(requests.sent, LOGIN_API).length });
-      await captureEvidence(page, 'E01_double_submit.png');
+      await captureEvidence(page, 'E01_double_submit.png', {
+        caption: `two clicks on "Đăng nhập" in one tick → POST ${LOGIN_API} × ${posts(requests.sent, LOGIN_API).length} (${status})`,
+      }); // BUG-034
     } finally {
       requests.stop();
     }
@@ -806,7 +809,9 @@ test.describe('E01 SCR-02 Login form', () => {
     expect(status, `POST ${LOGIN_API}`).toBe(401);
     await expect(page.getByText(INVALID_CREDENTIALS_TITLE, { exact: true })).toBeVisible();
     await attachJson('E01_email_spaces_case.json', { typed: `  ${address}  `, sentEmail: sent.email, status });
-    await captureEvidence(page, 'E01_email_spaces_case.png');
+    await captureEvidence(page, 'E01_email_spaces_case.png', {
+      caption: [`typed: "  ${address}  "`, `sent:  "${String(sent.email)}" → ${status}`],
+    }); // BUG-034
   });
 
   test('E01 · unknown address → the SAME 401 and copy as a known address with a wrong password (no enumeration); the strip and its reset button sit UNDER "Đăng nhập", fields do not move; the reset button is as wide and as tall as "Đăng nhập" (BUG-059)', async ({ page }) => {
@@ -955,12 +960,12 @@ test.describe('E01 SCR-02 Login form', () => {
     await attachJson('E01_notice_session_ended.json', { // BUG-034: history state is not in the shot
       historyNoticeAfterRead: await page.evaluate(() => (history.state as { usr?: { notice?: unknown } | null } | null)?.usr?.notice ?? null),
     });
-    await captureEvidence(page, 'E01_notice_session_ended.png');
+    await captureEvidence(page, 'E01_notice_session_ended.png', { caption: 'history.state.usr.notice = "sessionEnded" → strip shown, entry dropped once read' }); // BUG-034
 
     await emailBox(page).press('Enter');
     await expect(emailBox(page)).toHaveAccessibleDescription(EMAIL_REQUIRED);
     await expect(page.getByText(SESSION_ENDED_NOTICE, { exact: true })).toBeVisible();
-    await captureEvidence(page, 'E01_notice_after_empty_submit.png'); // BUG-034: the "survives a submit" half
+    await captureEvidence(page, 'E01_notice_after_empty_submit.png', { caption: 'after an EMPTY submit (Enter): notice still shown, no request' }); // BUG-034: the "survives a submit" half
 
     await emailBox(page).fill(nobody('notice'));
     await passwordBox(page).fill(PROBE_PASSWORD);
@@ -1776,7 +1781,9 @@ test.describe('E01 signing in — SCR-01 / SCR-02', () => {
     expect(status, `POST ${LOGIN_API}`).toBe(204);
     await landsOnDashboard(page, 'uppercase sign-in');
     await attachJson('E01_email_uppercase_admin.json', { sentEmailIsUppercase: sent.email === upper, status, landed: pathOf(page.url()) });
-    await captureEvidence(page, 'E01_email_uppercase_admin.png');
+    await captureEvidence(page, 'E01_email_uppercase_admin.png', {
+      caption: `admin address sent in UPPERCASE (${sent.email === upper ? 'verbatim' : 'CHANGED'}) → POST ${LOGIN_API} ${status} → signed in`,
+    }); // BUG-034
 
     const requests = recordApiRequests(page);
     try {
@@ -1827,7 +1834,9 @@ test.describe('E01 signing in — SCR-01 / SCR-02', () => {
       status: off.status,
       refreshCookieExpires: (await refreshCookie(page))?.expires,
     });
-    await captureEvidence(page, 'E01_remember_off.png');
+    await captureEvidence(page, 'E01_remember_off.png', {
+      caption: `"${REMEMBER_ME}" off → rememberMe=${String(off.sent.rememberMe)}, ${off.status}; ${REFRESH_COOKIE} expires=-1 (session cookie)`,
+    }); // BUG-034
 
     // Signed in now: a signed-in /login still shows the form (main "signed in, /login shows the form"),
     // with the "already signed in" strip and its way back.
@@ -1892,7 +1901,9 @@ test.describe('E01 signing in — SCR-01 / SCR-02', () => {
       status: on.status,
       refreshCookieExpiresInDays: Number(((expires - Date.now() / 1000) / 86_400).toFixed(3)),
     });
-    await captureEvidence(page, 'E01_remember_on.png');
+    await captureEvidence(page, 'E01_remember_on.png', {
+      caption: `"${REMEMBER_ME}" on → rememberMe=${String(on.sent.rememberMe)}, ${on.status}; ${REFRESH_COOKIE} persistent, ${((expires - Date.now() / 1000) / 86_400).toFixed(2)} days`,
+    }); // BUG-034
   });
 
   /*
@@ -1926,7 +1937,7 @@ test.describe('E01 signing in — SCR-01 / SCR-02', () => {
       expect(status, `POST ${LOGIN_API} (next=${next})`).toBe(204);
       await landsOnDashboard(page, `next=${next}`);
       landed[next] = page.url();
-      await captureEvidence(page, `E01_next_${slug}.png`);
+      await captureEvidence(page, `E01_next_${slug}.png`, { caption: `opened ${loginUrl(next)} → signed in (${status}) → landed in-app at /` }); // BUG-034
     }
     expect(dialogs, 'no script ran from ?next=').toEqual([]);
     await attachJson('E01_next_cases.json', { landedUrlByNext: landed, dialogs });
@@ -2743,7 +2754,7 @@ test.describe('E01 FE refresh f748afb0 — SCR-01..SCR-04 (+ the gate in front o
       await expect(alertWith(page, SIGN_IN_REQUIRED_NOTICE), slug).toBeVisible();
       await expect(page.getByRole('heading', { level: 1 }), `${slug}: the sign-in title is the only h1`).toHaveCount(1);
       landed[slug] = pathOf(page.url());
-      await captureEvidence(page, `E01_gate_family_${slug}.png`);
+      await captureEvidence(page, `E01_gate_family_${slug}.png`, { caption: `requested ${path} → ${landed[slug]}` }); // BUG-102
     }
     await attachJson('E01_gate_family.json', landed);
   });
@@ -2793,7 +2804,12 @@ test.describe('E01 FE refresh f748afb0 — SCR-01..SCR-04 (+ the gate in front o
       await page.clock.resume(); // time flows again (screenshots, the /login hero); nothing is scheduled any more
       await expect(h1(page, GATE_UNREACHABLE_TITLE)).toBeVisible();
       await attachJson('E01_gate_ladder_spent.json', { refreshes, fakeSecondsAfterLast: 200 });
-      await captureEvidence(page, 'E01_gate_ladder_spent.png');
+      await captureEvidence(page, 'E01_gate_ladder_spent.png', {
+        caption: [
+          `POST ${REFRESH_PATH} attempts: ${refreshes} / ${REFRESH_MAX_TRANSIENT_ATTEMPTS} (all failed: network) — ladder spent`,
+          '"online" mid-ladder: no extra attempt; 200 s (fake clock) after the last: nothing scheduled',
+        ],
+      }); // BUG-102
       expect(refreshes, 'still spent after resuming the clock').toBe(REFRESH_MAX_TRANSIENT_ATTEMPTS);
 
       mode = 'pass';
@@ -2804,7 +2820,9 @@ test.describe('E01 FE refresh f748afb0 — SCR-01..SCR-04 (+ the gate in front o
       await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
       expect(refreshes, '"online" after the ladder → exactly one fresh attempt').toBe(REFRESH_MAX_TRANSIENT_ATTEMPTS + 1);
       await attachJson('E01_gate_online_recovers.json', { refreshes, landedUrl: pathOf(page.url()) });
-      await captureEvidence(page, 'E01_gate_online_recovers.png');
+      await captureEvidence(page, 'E01_gate_online_recovers.png', {
+        caption: `"online" after the spent ladder → attempt ${refreshes} → real 401 → /login`,
+      });
     } finally {
       await page.unroute(matcher, handler);
     }
