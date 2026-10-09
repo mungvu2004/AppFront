@@ -75,7 +75,7 @@ export function InlineAlert({
             variant={action.variant || 'secondary'}
             onClick={action.onClick}
             className={cn(
-              'h-8 text-[13px]',
+              'text-[13px]',
               isVerified && 'border-state-verified text-state-verified-text hover:bg-state-verified-10',
               isAttention && 'border-state-attention text-state-attention-text hover:bg-state-attention-10',
               isViolation && 'border-state-violation text-state-violation-text hover:bg-state-violation-10'
