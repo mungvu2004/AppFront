@@ -37,15 +37,15 @@ describe('RULE_PRESETS', () => {
   });
 
   it('gives each preset its Vietnamese label', () => {
-    expect(presetFor('residential').label).toBe('nhà ở');
-    expect(presetFor('commercial').label).toBe('văn phòng');
-    expect(presetFor('industrial').label).toBe('nhà xưởng');
+    expect(presetFor('residential').label).toBe('Nhà ở');
+    expect(presetFor('commercial').label).toBe('Văn phòng');
+    expect(presetFor('industrial').label).toBe('Nhà xưởng');
   });
 
-  it('gives each preset a non-empty, lower-case-style caption', () => {
+  it('gives each preset a non-empty caption that opens with a capital (A6)', () => {
     for (const preset of RULE_PRESETS) {
       expect(preset.caption.length).toBeGreaterThan(0);
-      expect(preset.caption[0]).toBe(preset.caption[0]?.toLowerCase());
+      expect(preset.caption[0]).toBe(preset.caption[0]?.toLocaleUpperCase('vi'));
     }
   });
 

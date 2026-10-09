@@ -1045,7 +1045,7 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
       }
 
       const diff = diffPreset(config, preset);
-      const label = `Áp bộ luật ${preset.label}`;
+      const label = `Áp bộ luật ${preset.label.toLocaleLowerCase('vi')}`;
 
       applyConfig(
         preset.config,

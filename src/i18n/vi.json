@@ -829,9 +829,9 @@
       "floorChanged": "Đang xem bản vẽ tầng {{floorName}}"
     },
     "shortcut": {
-      "previousFloor": "xem bản vẽ của tầng liền trước",
-      "nextFloor": "xem bản vẽ của tầng liền sau",
-      "exitCornerMode": "thoát chế độ chọn bốn góc khung bản vẽ"
+      "previousFloor": "Xem bản vẽ của tầng liền trước",
+      "nextFloor": "Xem bản vẽ của tầng liền sau",
+      "exitCornerMode": "Thoát chế độ chọn bốn góc khung bản vẽ"
     },
     "confirm": {
       "cancel": "Huỷ",

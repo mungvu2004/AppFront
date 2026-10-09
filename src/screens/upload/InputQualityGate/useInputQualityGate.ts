@@ -162,8 +162,8 @@ const COPY = Object.freeze({
   cornersConfirmBody:
     'Máy chủ sẽ cắt, nắn lại bản vẽ theo bốn góc và xử lý lại tầng này; việc này không hoàn tác được.',
   cornersConfirmLabel: 'Cắt và nắn',
-  notMeasured: 'chưa đo',
-  noFinding: 'không có phát hiện',
+  notMeasured: 'Chưa đo',
+  noFinding: 'Không có phát hiện',
   straightenAction: 'Tự động nắn',
   pickCornersAction: 'Chọn góc thủ công',
   sendCornersAction: 'Gửi bốn góc đã chọn',
@@ -1090,7 +1090,7 @@ export function useInputQualityGate(
     id: 'inputQualityGate.previousFloor',
     combo: 'ArrowLeft',
     scope: 'canvas',
-    description: 'xem bản vẽ của tầng liền trước',
+    description: 'Xem bản vẽ của tầng liền trước',
     onTrigger: stepBack,
   });
 
@@ -1098,7 +1098,7 @@ export function useInputQualityGate(
     id: 'inputQualityGate.nextFloor',
     combo: 'ArrowRight',
     scope: 'canvas',
-    description: 'xem bản vẽ của tầng liền sau',
+    description: 'Xem bản vẽ của tầng liền sau',
     onTrigger: stepForward,
   });
 
@@ -1110,7 +1110,7 @@ export function useInputQualityGate(
       id: 'inputQualityGate.exitCornerMode',
       combo: 'Escape',
       scope: 'canvas',
-      description: 'thoát chế độ chọn bốn góc khung bản vẽ',
+      description: 'Thoát chế độ chọn bốn góc khung bản vẽ',
       onTrigger: exitCornerMode,
     },
     { enabled: isPickingCorners && pendingWrite === null },
