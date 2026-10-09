@@ -103,7 +103,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             {error ? (
               <>
                 <span className="mt-[6px] mr-2 h-[6px] w-[6px] flex-shrink-0 rounded-full bg-state-violation" aria-hidden="true" />
-                <p id={`${inputId}-error`} role="alert" className="text-[13px] leading-[18px] text-state-violation-text">{error}</p>
+                <p id={`${inputId}-error`} role="alert" className="text-balance text-[13px] leading-[18px] text-state-violation-text">{error}</p>
               </>
             ) : hint ? (
               <p className="text-[13px] leading-[18px] text-text-muted">{hint}</p>
