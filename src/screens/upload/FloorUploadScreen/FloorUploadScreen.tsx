@@ -50,6 +50,7 @@ import { clsx } from 'clsx';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { Breadcrumb } from '@/components/shell/Breadcrumb';
 import { Skeleton } from '@/components/feedback/Skeleton';
 
 import { FloorUploadCard } from './FloorUploadCard';
@@ -190,11 +191,12 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
       }}
     >
       <div className="mx-auto flex max-w-[1120px] flex-col gap-6 p-8">
-        <nav aria-label={BREADCRUMB_UPLOAD} className="text-[13px] text-text-secondary">
-          <span>{BREADCRUMB_PROJECTS}</span>
-          <span aria-hidden="true"> › </span>
-          <span className="text-text-primary">{BREADCRUMB_UPLOAD}</span>
-        </nav>
+        <Breadcrumb
+          items={[
+            { id: 'projects', label: BREADCRUMB_PROJECTS },
+            { id: 'current', label: BREADCRUMB_UPLOAD },
+          ]}
+        />
 
         {props.offlineNotice !== null && (
           <InlineAlert level="attention" message={props.offlineNotice} />

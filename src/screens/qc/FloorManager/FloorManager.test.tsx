@@ -537,6 +537,17 @@ describe('màu lấy từ token (A1)', () => {
   });
 });
 
+describe('breadcrumb chung (BUG-079)', () => {
+  it('dùng breadcrumb chung: dấu "›", cấp "Dự án" không giả làm nút', () => {
+    renderWithProviders(<FloorManager {...scenarioArgsFor('success')} />);
+
+    const nav = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
+    expect(nav).toHaveTextContent('Dự án›Quản lý tầng');
+    expect(nav.textContent).not.toContain('>');
+    expect(within(nav).queryByRole('button')).toBeNull();
+  });
+});
+
 describe('dự án không tồn tại (BUG-032)', () => {
   it('nói không tìm thấy dự án và đưa lối về danh sách, không đưa "Thử lại"', () => {
     const onBackToProjects = vi.fn();

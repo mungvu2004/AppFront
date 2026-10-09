@@ -44,6 +44,7 @@ import { clsx } from 'clsx';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { Breadcrumb } from '@/components/shell/Breadcrumb';
 import { BACK_TO_PROJECTS_LABEL, PROJECT_NOT_FOUND_TITLE } from '@/components/feedback/ProjectSpatialGate';
 import { Skeleton } from '@/components/feedback/Skeleton';
 
@@ -199,11 +200,12 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
   return (
     <div className="min-h-screen bg-bg-app" ref={rootRef}>
       <div className="mx-auto flex max-w-[1280px] flex-col gap-6 p-8">
-        <nav aria-label={BREADCRUMB_QUALITY} className="text-[13px] text-text-secondary">
-          <span>{BREADCRUMB_PROJECTS}</span>
-          <span aria-hidden="true"> › </span>
-          <span className="text-text-primary">{BREADCRUMB_QUALITY}</span>
-        </nav>
+        <Breadcrumb
+          items={[
+            { id: 'projects', label: BREADCRUMB_PROJECTS },
+            { id: 'current', label: BREADCRUMB_QUALITY },
+          ]}
+        />
 
         {body}
 
