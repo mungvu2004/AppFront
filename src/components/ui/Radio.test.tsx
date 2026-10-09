@@ -74,4 +74,16 @@ describe('Radio', () => {
     const focusable = container.querySelectorAll('input, [tabindex]:not([tabindex="-1"])');
     expect(Array.from(focusable)).toEqual(screen.getAllByRole('radio'));
   });
+
+  it('joins a caller aria-describedby to its own description', () => {
+    render(
+      <>
+        <p id="note">Ghi chú</p>
+        <RadioGroup value="a" onChange={() => {}}>
+          <Radio.Item value="a" label="A" description="Mô tả" aria-describedby="note" />
+        </RadioGroup>
+      </>
+    );
+    expect(screen.getByRole('radio')).toHaveAccessibleDescription('Ghi chú Mô tả');
+  });
 });

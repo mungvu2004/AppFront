@@ -25,6 +25,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
     label,
     error,
     hint,
+    'aria-describedby': callerDescribedBy,
     ...props
   },
   forwardedRef
@@ -33,7 +34,10 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
   const defaultId = React.useId();
   const internalId = id || defaultId;
   const errorId = error ? `${internalId}-error` : undefined;
-  const hintId = hint ? `${internalId}-hint` : undefined;
+  // Gợi ý nhường chỗ cho lỗi (khối dưới ô), nên chỉ trỏ tới nó khi nó đang hiện.
+  const hintId = hint && !error ? `${internalId}-hint` : undefined;
+  // Ghép, không đè: `{...props}` từng thay hẳn chuỗi này bằng của nơi gọi.
+  const describedBy = [callerDescribedBy, errorId, hintId].filter(Boolean).join(' ') || undefined;
 
   // Merge refs
   const setRef = React.useCallback(
@@ -87,7 +91,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
             readOnly={effectiveReadOnly}
             maxLength={maxLength}
             aria-invalid={error ? true : undefined}
-            aria-describedby={[errorId, hintId].filter(Boolean).join(' ') || undefined}
+            aria-describedby={describedBy}
             className={cn(
               'w-full min-h-[72px] max-h-[240px] px-3 py-2.5 text-[14px] leading-[22px] bg-bg-surface border rounded-lg outline-none resize-none',
               'transition-[height,border-color,box-shadow] duration-180',

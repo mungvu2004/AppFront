@@ -49,4 +49,14 @@ describe('Textarea', () => {
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'abc' } });
     expect(onChange).toHaveBeenCalled();
   });
+
+  it('joins a caller aria-describedby to its own error, and drops the hidden hint', () => {
+    render(
+      <>
+        <p id="note">Ghi chú</p>
+        <Textarea label="Mô tả" hint="Gợi ý" error="Trường bắt buộc" aria-describedby="note" />
+      </>
+    );
+    expect(screen.getByRole('textbox')).toHaveAccessibleDescription('Ghi chú Trường bắt buộc');
+  });
 });

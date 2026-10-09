@@ -53,7 +53,7 @@ export interface RadioItemProps extends Omit<React.InputHTMLAttributes<HTMLInput
 }
 
 const RadioItem = forwardRef<HTMLInputElement, RadioItemProps>(
-  ({ value, label, description, disabled = false, className = '', id, ...props }, ref) => {
+  ({ value, label, description, disabled = false, className = '', id, 'aria-describedby': callerDescribedBy, ...props }, ref) => {
     const context = useRadioContext('Radio.Item');
     const defaultId = useId();
     const internalId = id || defaultId;
@@ -87,7 +87,7 @@ const RadioItem = forwardRef<HTMLInputElement, RadioItemProps>(
             value={value}
             checked={isChecked}
             disabled={isDisabled}
-            aria-describedby={descId}
+            aria-describedby={[callerDescribedBy, descId].filter(Boolean).join(' ') || undefined}
             onChange={() => context.onChange(value)}
             onKeyDown={handleKeyDown}
             className="peer sr-only"
