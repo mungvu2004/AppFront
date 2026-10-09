@@ -272,7 +272,7 @@ function ValuePill({ at, text, dimmed, settling, stale, staleReason }: ValuePill
     >
       <div
         className={cn(
-          'flex items-center gap-1.5 whitespace-nowrap rounded-full bg-white/90 px-2.5 py-1 shadow-float',
+          'flex items-center gap-1.5 whitespace-nowrap rounded-full bg-white-90 px-2.5 py-1 shadow-float',
           'font-mono text-[13px] leading-none tabular-nums text-black',
           'transition-opacity duration-instant motion-reduce:transition-none',
         )}

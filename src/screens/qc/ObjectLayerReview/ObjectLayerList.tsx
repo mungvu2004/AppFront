@@ -205,7 +205,7 @@ function ObjectLayerListGroup({
         )}
         <span
           aria-hidden="true"
-          className="h-3 w-3 shrink-0 rounded-sm border border-border-default/50"
+          className="h-3 w-3 shrink-0 rounded-sm border border-border-default-50"
           style={{ backgroundColor: OBJECT_LAYER_COLOR_TOKENS[layer] }}
         />
         <span className="truncate">{label}</span>

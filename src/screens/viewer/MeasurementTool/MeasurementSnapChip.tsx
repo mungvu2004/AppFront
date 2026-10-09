@@ -50,7 +50,7 @@ export function MeasurementSnapChip({ snap, className }: MeasurementSnapChipProp
   return (
     <div
       className={cn(
-        'pointer-events-none flex items-center gap-2 rounded-full bg-bg-surface/90 px-3 py-1.5 shadow-float',
+        'pointer-events-none flex items-center gap-2 rounded-full bg-bg-surface-90 px-3 py-1.5 shadow-float',
         className,
       )}
       role="status"

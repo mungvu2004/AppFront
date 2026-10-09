@@ -124,9 +124,9 @@ export function MeasurementLabel({
             'block font-mono text-[13px] text-text-primary leading-none',
             'px-2 py-1 rounded-[6px]',
             // Nền bg-surface 92% opacity
-            'bg-bg-surface/[0.92]',
+            'bg-bg-surface-92',
             // Viền hairline nhẹ
-            'border border-border-default/50',
+            'border border-border-default-50',
             'shadow-panel'
           )}
         >

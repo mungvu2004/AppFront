@@ -160,7 +160,7 @@ export function ViewerShell(props: ViewerShellProps) {
         >
           {/* Ray công cụ nổi lên khung nhìn khi hai ray đã thu gọn. */}
           {isCollapsed && (
-            <div className={cn('absolute left-2 top-2 rounded-[12px] bg-bg-surface/90 shadow-float')}>
+            <div className={cn('absolute left-2 top-2 rounded-[12px] bg-bg-surface-90 shadow-float')}>
               <ViewerToolRail
                 activeToolId={activeToolId}
                 onToolChange={onToolChange}
