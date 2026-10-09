@@ -12,9 +12,10 @@
  * - **The failure is a strip inside the form, not a toast and not a modal.**
  *   Invariant A9 keeps blocking modals for create, delete and publish, and a
  *   toast for a wrong password would take the message away on a timer while the
- *   person is still reading it. An opening sentence sits above the fields;
- *   what an attempt answered sits under the button that was pressed, so it
- *   pushes nothing under the cursor (BUG-008). Both stay until the attempt changes.
+ *   person is still reading it. Every strip — an opening sentence or what an
+ *   attempt answered — sits under the button, and each field keeps room for its
+ *   own complaint, so nothing appearing or going moves a field or the button
+ *   under the cursor (BUG-008). A strip stays until the attempt changes.
  * - **The left column is decoration that costs nothing.** It is a flat sunken
  *   panel with seven hairlines on it — no gradient, no image, no canvas (rule
  *   B). Below 1024 it is gone entirely rather than stacked, because a value
@@ -49,6 +50,7 @@ import {
   type UseAuthScreenOptions,
 } from './useAuthScreen';
 import { PasswordField } from '../PasswordField';
+import { FIELD_ERROR_SLOT } from '../RecoveryShell';
 import { ForgotPasswordPanel } from './ForgotPasswordPanel';
 import { ValuePanel } from './ValuePanel';
 
@@ -104,42 +106,24 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
     [actions],
   );
 
-  /* The reset button goes under the strip, not into its `action` slot: beside the text it
-     squeezes the sentence into a ~100 px column at 360 px and below (BUG-003). */
-  const strip = notice !== null && (
-    <div className="flex flex-col gap-3">
-      <InlineAlert
-        level={notice.tone}
-        {...(notice.title !== undefined ? { title: notice.title } : {})}
-        message={notice.message}
-      />
-      {notice.showResetAction === true && (
-        <Button type="button" variant="secondary" size="sm" className="self-start" onClick={actions.forgotPassword}>
-          {AUTH_MESSAGES.actions.resetPassword}
-        </Button>
-      )}
-      {notice.showResetAction !== true && notice.action !== undefined && (
-        <Button type="button" variant="secondary" size="sm" className="self-start" onClick={notice.action.onClick}>
-          {notice.action.label}
-        </Button>
-      )}
-    </div>
-  );
-
-  /* What the last press said goes under the button that was pressed: above the fields it pushed
-     them and the button 80–130 px down from under the cursor (BUG-008). Opening sentences stay on top. */
-  const isAttemptResult = state === 'error' || state === 'success';
+  /* A strip's way out goes under it, full width and the height of "Đăng nhập" (BUG-059), not into
+     its `action` slot: beside the text it squeezes the sentence into a ~100 px column at 360 px (BUG-003). */
+  const stripAction =
+    notice?.showResetAction === true
+      ? { label: AUTH_MESSAGES.actions.resetPassword, onClick: actions.forgotPassword }
+      : notice?.action;
 
   return (
     <form className="flex flex-col gap-6" noValidate onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
-      {!isAttemptResult && strip}
-
-      <div className="flex flex-col gap-4">
+      {/* No gap here: each field keeps room for a two-line complaint, and that room is the spacing,
+          so a complaint appearing or going moves nothing under the cursor (BUG-008). */}
+      <div className="flex flex-col">
         <Input
           ref={registerFirstField}
           type="email"
           label={AUTH_MESSAGES.fields.email}
           autoComplete="username"
+          wrapperClassName={FIELD_ERROR_SLOT}
           value={values.email}
           disabled={fieldsDisabled}
           {...(problems.email !== undefined ? { error: problems.email } : {})}
@@ -152,6 +136,7 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
         <PasswordField
           label={AUTH_MESSAGES.fields.password}
           autoComplete="current-password"
+          wrapperClassName={FIELD_ERROR_SLOT}
           value={values.password}
           disabled={fieldsDisabled}
           {...(problems.password !== undefined ? { error: problems.password } : {})}
@@ -160,24 +145,40 @@ function CredentialForm({ model, actions, registerFirstField }: CredentialFormPr
           }}
           onBlur={blur('password')}
         />
+
+        <div className="flex flex-col gap-4">
+          <Checkbox
+            label={AUTH_MESSAGES.fields.rememberMe}
+            checked={values.rememberMe}
+            disabled={fieldsDisabled}
+            onChange={actions.setRememberMe}
+          />
+
+          {/* `fullWidth` plus a fixed height is what keeps the button the same
+              shape while it is sending — the label swaps, the box does not. */}
+          <Button type="submit" size="lg" fullWidth loading={isSubmitting} disabled={!canSubmit}>
+            {isSubmitting ? AUTH_MESSAGES.actions.submitting : submitLabel}
+          </Button>
+        </div>
       </div>
 
-      <div className="flex flex-col gap-4">
-        <Checkbox
-          label={AUTH_MESSAGES.fields.rememberMe}
-          checked={values.rememberMe}
-          disabled={fieldsDisabled}
-          onChange={actions.setRememberMe}
-        />
-
-        {/* `fullWidth` plus a fixed height is what keeps the button the same
-            shape while it is sending — the label swaps, the box does not. */}
-        <Button type="submit" size="lg" fullWidth loading={isSubmitting} disabled={!canSubmit}>
-          {isSubmitting ? AUTH_MESSAGES.actions.submitting : submitLabel}
-        </Button>
-      </div>
-
-      {isAttemptResult && strip}
+      {/* Every strip under the button, the opening ones too: above the fields, one appearing — or
+          going, as the opening one does on submit — moved the fields and the button under the
+          cursor (BUG-008). */}
+      {notice !== null && (
+        <div className="flex flex-col gap-3">
+          <InlineAlert
+            level={notice.tone}
+            {...(notice.title !== undefined ? { title: notice.title } : {})}
+            message={notice.message}
+          />
+          {stripAction !== undefined && (
+            <Button type="button" variant="secondary" size="lg" fullWidth onClick={stripAction.onClick}>
+              {stripAction.label}
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Under the button too: it appears while the address is being typed (BUG-008). */}
       {state === 'partial' && (
@@ -290,9 +291,10 @@ export function AuthScreenView(props: AuthScreenViewProps) {
 
       {/* Anchored from the top, not centred: centred, every strip that appears lifts the whole form
           and the field being typed in slides out from under the caret (BUG-008). The top padding
-          puts the empty form where centring used to — 13.75rem is about half its height (~438 px with
-          no SSO button). */}
-      <div className="flex w-full flex-col items-center p-12 pt-[max(3rem,calc(50vh_-_13.75rem))] lg:w-[55%]">
+          sits the empty form (~478 px, no SSO button) a little above centre, leaving room under the
+          button for a strip and its action inside 1024×768 without a scroll bar (BUG-058).
+          24 px sides under 640, as `RecoveryShell`: 48 px left a ~279 px column at 375 (BUG-052). */}
+      <div className="flex w-full flex-col items-center px-6 pb-6 pt-[max(3rem,calc(50vh_-_18.5rem))] sm:px-12 lg:w-[55%]">
         <div className="flex w-[360px] max-w-full flex-col gap-6 animate-panel-rise motion-reduce:animate-none">
           {/* The mark, and the screen's own name beside it. There is deliberately
               no "thu gọn" button: `isCollapsed` is set by whoever mounts the

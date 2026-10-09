@@ -13,6 +13,7 @@ import { createSevenStateScenarios, type SevenState } from '@/lib/testing/sevenS
 
 import { ROUTES } from '@/routes/paths';
 
+import { FIELD_ERROR_SLOT } from '../RecoveryShell';
 import { AuthScreen, AuthScreenView, type AuthScreenViewProps } from './AuthScreen';
 import { AuthRoute, createHttpAuthGateway, safeDestination } from './AuthScreen.container';
 import { MIN_PASSWORD_LENGTH, type AuthGateway } from './useAuthScreen';
@@ -275,7 +276,7 @@ describe('AuthScreenView — a strip never pushes the form down (BUG-008)', () =
     ).toBe(true);
   });
 
-  it('keeps an opening sentence above the fields', () => {
+  it('puts an opening sentence under the button too, so it going away on submit moves nothing (nợ #19)', () => {
     render(
       <AuthScreenView
         {...baseProps()}
@@ -283,7 +284,81 @@ describe('AuthScreenView — a strip never pushes the form down (BUG-008)', () =
       />,
     );
 
-    expect(follows(screen.getByRole('alert'), screen.getByLabelText(AUTH_MESSAGES.fields.email))).toBe(true);
+    const signIn = screen.getByRole('button', { name: AUTH_MESSAGES.actions.signIn });
+
+    expect(follows(signIn, screen.getByRole('alert'))).toBe(true);
+  });
+
+  it('puts the signed-in strip under the button, its way back full width right under it (BUG-058, BUG-059)', () => {
+    render(
+      <AuthScreenView
+        {...baseProps()}
+        notice={{
+          tone: 'attention',
+          message: AUTH_MESSAGES.notices.signedIn,
+          action: { label: AUTH_MESSAGES.actions.goToProjects, onClick: noop },
+        }}
+      />,
+    );
+
+    const signIn = screen.getByRole('button', { name: AUTH_MESSAGES.actions.signIn });
+    const back = screen.getByRole('button', { name: AUTH_MESSAGES.actions.goToProjects });
+    const strip = screen.getByRole('alert');
+
+    expect(follows(signIn, strip)).toBe(true);
+    expect(follows(strip, back)).toBe(true);
+    // In the strip's own group, edge to edge, the height of "Đăng nhập" — not a small button off on its own.
+    expect(back.parentElement).toBe(strip.parentElement);
+    expect(back).toHaveClass('w-full', 'h-11', 'sm:h-10');
+  });
+
+  it('keeps room for a two-line complaint under each field, so one appearing pushes nothing (nợ #15)', () => {
+    const slotOf = (name: string): HTMLElement | null =>
+      screen.getByText(name, { selector: 'label' }).parentElement;
+    const names = [AUTH_MESSAGES.fields.email, AUTH_MESSAGES.fields.password];
+
+    const { rerender } = render(<AuthScreenView {...baseProps()} />);
+
+    for (const name of names) {
+      expect(slotOf(name)).toHaveClass(FIELD_ERROR_SLOT);
+    }
+
+    rerender(
+      <AuthScreenView
+        {...baseProps()}
+        problems={{ email: AUTH_MESSAGES.problems.emailInvalid, password: AUTH_MESSAGES.problems.passwordRequired }}
+      />,
+    );
+
+    for (const name of names) {
+      expect(slotOf(name)).toHaveClass(FIELD_ERROR_SLOT);
+    }
+    // No gap between the slots: the reserved room is the spacing, so it is not paid for twice.
+    expect(slotOf(AUTH_MESSAGES.fields.email)?.parentElement).not.toHaveClass('gap-4');
+  });
+
+  it('puts the forgot panel\'s strip and "đã gửi" block under its send button (nợ #18)', () => {
+    render(
+      <AuthScreenView
+        {...baseProps()}
+        panel="forgotPassword"
+        forgot={{
+          ...forgotBase,
+          email: EMAIL,
+          notice: { tone: 'violation', message: AUTH_MESSAGES.errors.recoveryFailed },
+          sentMessage: AUTH_MESSAGES.forgotPassword.sent,
+        }}
+      />,
+    );
+
+    const send = screen.getByRole('button', { name: AUTH_MESSAGES.actions.sendResetLink });
+
+    expect(follows(screen.getByLabelText(AUTH_MESSAGES.fields.email), send)).toBe(true);
+    expect(follows(send, screen.getByRole('alert'))).toBe(true);
+    expect(follows(send, screen.getByText(AUTH_MESSAGES.forgotPassword.sent))).toBe(true);
+    expect(screen.getByText(AUTH_MESSAGES.fields.email, { selector: 'label' }).parentElement).toHaveClass(
+      FIELD_ERROR_SLOT,
+    );
   });
 
   it('says "còn thiếu mật khẩu" under the button, not over the field being typed in', () => {
