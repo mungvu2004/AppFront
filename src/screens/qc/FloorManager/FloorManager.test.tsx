@@ -235,9 +235,11 @@ describe('[NGHIEM-1] bảy trạng thái của A11', () => {
         `trạng thái ${state} mất vỏ màn`,
       ).toBeInTheDocument();
 
-      /* Thu gọn là trạng thái DUY NHẤT không có lát cắt — và nó phải còn đường bung lại. */
+      /* Thu gọn còn đường bung lại; lỗi đọc không có tầng nào để cắt (BUG-060). Mọi trạng thái khác có lát cắt. */
       if (state === 'collapsed') {
         expect(screen.getByRole('button', { name: EXPAND_SECTION_LABEL })).toBeInTheDocument();
+      } else if (state === 'error') {
+        expect(screen.queryByLabelText(SECTION_ARIA_LABEL)).not.toBeInTheDocument();
       } else {
         expect(
           screen.getAllByLabelText(SECTION_ARIA_LABEL).length,
@@ -572,6 +574,18 @@ describe('dự án không tồn tại (BUG-032)', () => {
     );
 
     expect(screen.getByText('Không tìm thấy dự án này')).toBeInTheDocument();
+    for (const notice of FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES) {
+      expect(screen.queryByText(notice)).not.toBeInTheDocument();
+    }
+    expect(screen.queryByLabelText(SECTION_ARIA_LABEL)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: EXPAND_SECTION_LABEL })).not.toBeInTheDocument();
+  });
+
+  it('BUG-060: lỗi đọc khác 404 (mạng/5xx) cũng không vẽ câu "chỉ sống trong phiên" lẫn lát cắt', () => {
+    renderWithProviders(
+      <FloorManager {...scenarioArgsFor('error')} unsupportedNotices={FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES} />,
+    );
+
     for (const notice of FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES) {
       expect(screen.queryByText(notice)).not.toBeInTheDocument();
     }
