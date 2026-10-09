@@ -12,6 +12,7 @@
  */
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { useEffect } from 'react';
 import {
   MemoryRouter,
@@ -173,16 +174,18 @@ function LoginProbe() {
 /**
  * A12: nút phải nằm trong luồng Tab tự nhiên, không phải chỉ bấm được bằng chuột.
  *
- * Kiểm bằng chính hai điều kiện làm nên điều đó — có mặt trong thứ tự tab
- * (`tabIndex >= 0`, không `disabled`) và nhận được tiêu điểm — chứ không gõ một
- * phím Tab giả: repo không có `@testing-library/user-event`, và jsdom không tự
- * di chuyển tiêu điểm theo `keydown`.
+ * Gõ Tab thật bằng `userEvent` (nó đi đúng thứ tự tab của trình duyệt, bỏ qua phần tử
+ * `disabled` và `tabIndex={-1}`) cho tới khi tiêu điểm tới nút, trong giới hạn số phần
+ * tử của trang.
  */
-function expectTabbable(element: HTMLElement): void {
-  expect(element).not.toBeDisabled();
-  expect(element.tabIndex).toBeGreaterThanOrEqual(0);
+async function expectReachedByTab(element: HTMLElement): Promise<void> {
+  const user = userEvent.setup();
+  const budget = document.querySelectorAll('*').length;
 
-  element.focus();
+  for (let pressed = 0; pressed < budget && document.activeElement !== element; pressed += 1) {
+    await user.tab();
+  }
+
   expect(document.activeElement).toBe(element);
 }
 
@@ -236,7 +239,7 @@ describe('SessionGate — năm nhánh', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Chưa mở được ứng dụng' })).toBeInTheDocument();
     expect(screen.queryByTestId('man-con')).not.toBeInTheDocument();
 
-    expectTabbable(button);
+    await expectReachedByTab(button);
 
     expect(container.querySelectorAll('main')).toHaveLength(1);
     expectVietnamese(container);
@@ -555,7 +558,7 @@ describe('SessionBootstrap', () => {
     const button = await screen.findByRole('button', { name: 'Tải lại trang' });
     expect(screen.queryByTestId('man-con')).not.toBeInTheDocument();
 
-    expectTabbable(button);
+    await expectReachedByTab(button);
     expectVietnamese(container);
   });
 
