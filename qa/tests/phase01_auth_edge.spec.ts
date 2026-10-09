@@ -1317,6 +1317,8 @@ test.describe('E01 SCR-02 Forgot password', () => {
       await emailBox(page).fill('khong-hop-le');
       await button(page, SEND_RESET_LINK).click();
       await expect(page.getByText(EMAIL_INVALID, { exact: true })).toBeVisible();
+      // BUG-096: the malformed-address state, before the box is emptied for the "required" half.
+      await captureEvidence(page, 'E01_forgot_invalid_format.png', { caption: `"khong-hop-le" sent → format problem; POST ${PASSWORD_RESET_API} × ${posts(requests.sent, PASSWORD_RESET_API).length}` });
 
       await emailBox(page).fill('');
       await button(page, SEND_RESET_LINK).click();
