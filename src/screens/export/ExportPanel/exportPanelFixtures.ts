@@ -247,7 +247,7 @@ export function buildSampleExportedFile(overrides: Partial<ExportedFileRow> = {}
  * ========================================================================== */
 
 export const SAMPLE_EXPORT_ERROR: ExportErrorView = {
-  message: 'Xuất dữ liệu chưa xong. Kiểm tra tệp đích rồi thử lại.',
+  message: 'Quá trình xuất bị gián đoạn. Kiểm tra tệp đích rồi thử lại.',
   code: APP_ERROR_KIND_CONFIG.export.code,
   hint: 'Giảm mức chi tiết trong mục Tuỳ chọn rồi thử lại, hoặc chọn ít tầng hơn.',
 };

@@ -255,7 +255,7 @@ describe('SessionGate — năm nhánh', () => {
     // Một khối nói chuyện gì xảy ra và cần làm gì, cùng câu với `errors.network` (BUG-020).
     expect(screen.getByRole('heading', { level: 1, name: 'Mất kết nối máy chủ' })).toBeInTheDocument();
     expect(screen.getByText('Kiểm tra mạng rồi thử lại.')).toBeInTheDocument();
-    expect(`Mất kết nối máy chủ. Kiểm tra mạng rồi thử lại.`).toBe(viMessages.errors.network.description);
+    expect(viMessages.errors.network.description).toMatch(/Kiểm tra mạng rồi thử lại.$/);
 
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
 

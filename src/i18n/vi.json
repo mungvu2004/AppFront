@@ -12,7 +12,7 @@
   "errors": {
     "network": {
       "title": "Mất kết nối",
-      "description": "Mất kết nối máy chủ. Kiểm tra mạng rồi thử lại."
+      "description": "Không liên lạc được với máy chủ. Kiểm tra mạng rồi thử lại."
     },
     "timeout": {
       "title": "Phản hồi chậm",
@@ -24,7 +24,7 @@
     },
     "forbidden": {
       "title": "Không có quyền",
-      "description": "Bạn không có quyền thực hiện thao tác này. Liên hệ quản trị dự án."
+      "description": "Tài khoản của bạn chưa được phép làm thao tác này. Liên hệ quản trị dự án."
     },
     "notFound": {
       "title": "Không tìm thấy",
@@ -52,11 +52,11 @@
     },
     "geometry": {
       "title": "Không dựng được hình",
-      "description": "Không dựng được hình cho {{count}} tường. Kiểm tra lại lớp tường ở tầng {{floor}}."
+      "description": "Có {{count}} tường chưa dựng được thành khối. Kiểm tra lại lớp tường ở tầng {{floor}}."
     },
     "export": {
       "title": "Xuất dữ liệu chưa xong",
-      "description": "Xuất dữ liệu chưa xong. Kiểm tra tệp đích rồi thử lại."
+      "description": "Quá trình xuất bị gián đoạn. Kiểm tra tệp đích rồi thử lại."
     },
     "unknown": {
       "title": "Có trục trặc",
@@ -3204,7 +3204,7 @@
     "loadingMore": "Đang tải thêm dữ liệu bộ luật…",
     "missingParams": {
       "title": "Thiếu mã dự án",
-      "description": "Đường dẫn thiếu mã dự án, nên chưa mở được cài đặt bộ luật. Quay lại danh sách dự án rồi chọn lại dự án cần chỉnh."
+      "description": "Đường dẫn không mang mã dự án, nên chưa mở được cài đặt bộ luật. Quay lại danh sách dự án rồi chọn lại dự án cần chỉnh."
     },
     "actions": {
       "enableRule": "Bật luật {{rule}}",
@@ -3272,7 +3272,7 @@
     "permissionCaption": "Chỉ quản trị viên và kỹ sư mới xuất được bản vẽ. Liên hệ quản trị dự án nếu bạn cần một tệp xuất.",
     "missingParams": {
       "title": "Thiếu mã dự án",
-      "description": "Đường dẫn thiếu mã dự án, nên chưa mở được màn xuất. Quay lại danh sách dự án rồi chọn lại dự án cần xuất."
+      "description": "Đường dẫn không mang mã dự án, nên chưa mở được màn xuất. Quay lại danh sách dự án rồi chọn lại dự án cần xuất."
     }
   },
   "shareDialog": {

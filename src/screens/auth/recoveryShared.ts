@@ -111,7 +111,7 @@ export function noticeForRecovery(failure: RecoveryFailure | null): RecoveryNoti
 
       const described = describeError(appError);
 
-      // Câu mất mạng đã mở bằng chính tiêu đề ("Mất kết nối máy chủ. …"): không lặp tiêu đề (BUG-021).
+      // Câu mất mạng tự nói đủ chuyện gì xảy ra ("Không liên lạc được với máy chủ. …"): bỏ tiêu đề (BUG-021).
       // Tông cảnh báo như dải mất kết nối của màn và của cổng phiên: cùng sự cố, cùng màu (BUG-020).
       return appError.kind === 'network'
         ? { tone: 'attention', message: described.description }
