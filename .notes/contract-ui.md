@@ -505,7 +505,7 @@ addToast({
 |---------|-------|------|-----------------|
 | **Primary text** | `#33322f` | `#ece9e3` | `text-text-primary` |
 | **Secondary text** | `#6b6862` | `#b2ada4` | `text-text-secondary` |
-| **Muted text** | `#726f6c` | `#969189` | `text-text-muted` |
+| **Muted text** (≥ 4,5:1 trên mọi nền, bảng ở `globals.css`) | `#6d6a67` | `#9d9891` | `text-text-muted` |
 
 ### Three State Colors (A4: exactly three, never four)
 
