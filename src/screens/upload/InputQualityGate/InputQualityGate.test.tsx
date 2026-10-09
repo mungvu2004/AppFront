@@ -666,7 +666,11 @@ describe('InputQualityGate — hỏi trước khi nắn thẳng, không toast ho
 
     expect(within(panel).queryByText('Ảnh bị nghiêng')).toBeNull();
     expect(within(panel).getByText('Độ phân giải thấp')).toBeInTheDocument();
-    expect(screen.getByText(/^2 phát hiện còn lại/u)).toBeInTheDocument();
+    // Đếm qua vùng `role="status"` (số cuối), không qua chữ hiển thị: bản `aria-hidden`
+    // chạy `useCountUp`, tính tiến độ theo `performance.now` THẬT — đồng hồ giả không giữ
+    // nó — nên máy rảnh thì chữ còn đang ở 3, máy tải nặng thì đã về 2 và `getByText`
+    // thấy hai nút ("Found multiple elements", verify-1 QA-01c).
+    expect(within(panel).getByText(/^2 phát hiện còn lại/u, { selector: '[role="status"]' })).toBeInTheDocument();
   });
 
   /**
