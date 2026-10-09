@@ -25,3 +25,19 @@ describe('InlineAlert — nút hành động (NO-373)', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 });
+
+describe('InlineAlert — khung hẹp (QA-01 nợ #3)', () => {
+  it('cho nút xuống hàng dưới thay vì ép chữ thành cột: hàng ngoài wrap, chữ giữ bề rộng tối thiểu', () => {
+    render(
+      <InlineAlert level="violation" title="Sai mật khẩu" message="Thử lại" action={{ label: 'Đặt lại', onClick: vi.fn() }} />,
+    );
+
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveClass('flex-wrap');
+
+    const text = screen.getByText('Sai mật khẩu').parentElement?.parentElement;
+    expect(text?.parentElement).toBe(alert);
+    expect(text).toHaveClass('basis-60', 'flex-1');
+    expect(text).not.toHaveClass('flex-wrap');
+  });
+});
