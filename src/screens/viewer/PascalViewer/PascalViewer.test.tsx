@@ -153,7 +153,7 @@ describe('máy không dựng được 3D — nhánh riêng, không có nút th�
       />,
     );
 
-    expect(screen.queryByRole('button', { name: 'thử lại' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Thử lại' })).not.toBeInTheDocument();
   });
 
   it('không sót chữ Anh và không mất dấu — thẻ dự phòng của Pascal thì có cả hai', () => {
@@ -215,7 +215,7 @@ describe('lỗi và thu gọn đều có đường đi tiếp', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'thử lại' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
