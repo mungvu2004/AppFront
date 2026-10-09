@@ -41,6 +41,7 @@ import {
   USER_MANAGEMENT_ACTIONS,
   USER_MANAGEMENT_SCENARIOS,
   USER_MANAGEMENT_SCENARIO_FORBIDDEN,
+  USER_MANAGEMENT_SCENARIO_PARTIAL,
   USER_MANAGEMENT_SCENARIO_SUCCESS,
   userManagementScenarioFor,
 } from './userManagementScenarios';
@@ -365,8 +366,10 @@ describe('Lớp trên cùng (A9/A12) — lỗi B-V12b-01, B-V12b-02', () => {
 
     expect(await screen.findByRole('heading', { name: 'Không tìm thấy người dùng' })).toBeInTheDocument();
     expect(screen.queryByText('Không có dữ liệu')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Xoá tìm kiếm' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá tìm kiếm và bộ lọc' }));
     expect(actions.onClearSearch).toHaveBeenCalledTimes(1);
+    // Khối không-khớp biến mất cùng nút: tiêu điểm về ô tìm, không rơi về `body` (A12).
+    expect(document.activeElement).toBe(screen.getByLabelText('Tìm người dùng'));
   });
 
   it('BUG-075: thẻ ở khổ hẹp không cắt email bằng "…"', async () => {
@@ -378,6 +381,17 @@ describe('Lớp trên cùng (A9/A12) — lỗi B-V12b-01, B-V12b-02', () => {
 
     const email = await screen.findByText(row.email);
     expect(email).not.toHaveClass('truncate');
+  });
+
+  it('BUG-071: câu lý do bị chặn chỉ giới hạn 160 px ở bảng (lg), thẻ hẹp dùng hết bề ngang', async () => {
+    const model: UserManagementViewModel = { ...USER_MANAGEMENT_SCENARIO_SUCCESS, detail: null, isCollapsed: true };
+    const row = requireRow(model, (candidate) => candidate.removeBlockedReason !== null, 'một hàng có removeBlockedReason');
+    const UserManagementView = await loadUserManagementView();
+    renderWithProviders(<UserManagementView actions={buildActions()} model={model} />);
+
+    const reason = (await screen.findAllByText(row.removeBlockedReason ?? '')).find((node) => node.tagName === 'SPAN');
+    expect(reason).toHaveClass('lg:max-w-[160px]');
+    expect(reason).not.toHaveClass('max-w-[160px]');
   });
 
   it('BUG-071: panel chi tiết mở thì bảng bỏ cột phụ, gộp trạng thái vào ô người dùng', async () => {
@@ -402,6 +416,18 @@ describe('Lớp trên cùng (A9/A12) — lỗi B-V12b-01, B-V12b-02', () => {
 
     expect((await screen.findAllByRole('button', { name: 'Xoá' })).length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: 'xoá' })).toBeNull();
+  });
+
+  it('BUG-077: link "Gửi lại" lời mời có vùng chạm 44 px dưới 640, 24 px từ đó, ở cả bảng lẫn thẻ', async () => {
+    const UserManagementView = await loadUserManagementView();
+    for (const isCollapsed of [false, true]) {
+      const model: UserManagementViewModel = { ...USER_MANAGEMENT_SCENARIO_PARTIAL, detail: null, isCollapsed };
+      const { unmount } = renderWithProviders(<UserManagementView actions={buildActions()} model={model} />);
+      const links = await screen.findAllByRole('button', { name: 'Gửi lại' });
+      for (const link of links) expect(link).toHaveClass('inline-flex', 'min-h-[44px]', 'sm:min-h-6');
+      expect(screen.queryByRole('button', { name: 'gửi lại' })).toBeNull();
+      unmount();
+    }
   });
 
   it('Esc đóng khối mời khi nó đang mở', async () => {

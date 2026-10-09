@@ -95,7 +95,7 @@ async function openDeleteProjectDialog(page: Page): Promise<Locator> {
 
 /** Gõ thêm vào cuối ô "địa chỉ"; trả giá trị TRƯỚC khi gõ. */
 async function appendToAddress(page: Page, suffix: string): Promise<string> {
-  const address = page.getByLabel('địa chỉ');
+  const address = page.getByLabel('Địa chỉ');
   const before = await address.inputValue();
   await address.click();
   await address.press('End');
@@ -124,7 +124,7 @@ test.describe('cài đặt dự án — tự lưu và hoàn tác (A7, A8)', () =
   }) => {
     await openSettings(page);
     const before = await appendToAddress(page, ' tầng 3');
-    const address = page.getByLabel('địa chỉ');
+    const address = page.getByLabel('Địa chỉ');
     await expect(address).toHaveValue(`${before} tầng 3`);
 
     const toast = toasts(page).getByRole('status').filter({ hasText: SAVED_TOAST });

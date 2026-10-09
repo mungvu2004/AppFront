@@ -28,7 +28,8 @@ const THREE_FLOORS = [pngFile('tang-ham.png'), pngFile('tang-2.png'), pngFile('t
 async function openUpload(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(UPLOAD);
-  await expect(page.getByRole('navigation', { name: 'Tải lên bản vẽ' })).toBeVisible({
+  // Breadcrumb dùng chung (BUG-079): `nav` tên "Đường dẫn trang", cấp cuối là tên màn.
+  await expect(page.getByRole('navigation', { name: 'Đường dẫn trang' })).toContainText('Tải lên bản vẽ', {
     timeout: FIRST_PAINT_TIMEOUT_MS,
   });
 }

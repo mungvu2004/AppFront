@@ -26,6 +26,7 @@
  * thuộc việc có đang mở panel chi tiết hay không.
  */
 import { ShieldCheck, UserPlus } from 'lucide-react';
+import { useRef } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -124,6 +125,17 @@ function renderContent(model: UserManagementViewModel, actions: UserManagementAc
 }
 
 export function UserManagement({ model, actions }: UserManagementProps) {
+  // "Xoá tìm kiếm và bộ lọc" nằm trong khối không-khớp, khối ấy biến mất ngay khi bấm: đưa tiêu điểm về ô
+  // tìm, đừng để nó rơi về `body` (BUG-082, A12).
+  const searchRef = useRef<HTMLInputElement>(null);
+  const contentActions: UserManagementActions = {
+    ...actions,
+    onClearSearch: () => {
+      actions.onClearSearch();
+      searchRef.current?.focus();
+    },
+  };
+
   // A12 — Esc đóng lớp trên cùng. Khối mời và tấm chi tiết ở bố cục rộng đều là lớp
   // CẠNH bảng (phạm vi `sidePanel`, như `ModelLibraryDetail.tsx`); hộp thoại xoá hẳn nằm
   // ở phạm vi `dialog` nên vẫn được Esc trước. Một đăng ký cho cả hai lớp: hai đăng ký
@@ -169,10 +181,16 @@ export function UserManagement({ model, actions }: UserManagementProps) {
         </Button>
       </div>
 
-      <UserManagementToolbar actions={actions} invite={model.invite} summary={model.summary} toolbar={model.toolbar} />
+      <UserManagementToolbar
+        actions={actions}
+        invite={model.invite}
+        searchRef={searchRef}
+        summary={model.summary}
+        toolbar={model.toolbar}
+      />
 
       <div className="flex items-start gap-4">
-        <div className="min-w-0 flex-1">{renderContent(model, actions)}</div>
+        <div className="min-w-0 flex-1">{renderContent(model, contentActions)}</div>
         {model.detail !== null && (
           <UserManagementDetail
             actions={actions}

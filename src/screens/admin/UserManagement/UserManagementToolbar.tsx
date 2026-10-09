@@ -40,7 +40,7 @@ const SUMMARY_USER_LABEL = 'Người dùng';
 const SUMMARY_ADMIN_LABEL = 'Quản trị';
 const SUMMARY_PENDING_LABEL = 'Lời mời đang chờ';
 
-export function UserManagementToolbar({ actions, invite, summary, toolbar }: UserManagementToolbarProps) {
+export function UserManagementToolbar({ actions, invite, searchRef, summary, toolbar }: UserManagementToolbarProps) {
   const roleFilterOptions = [
     { label: ALL_OPTION_LABEL, value: FILTER_ALL as string },
     ...toolbar.roleOptions.map((option) => ({ label: option.label, value: option.role as string })),
@@ -56,6 +56,7 @@ export function UserManagementToolbar({ actions, invite, summary, toolbar }: Use
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-wrap items-end gap-4">
           <Input
+            ref={searchRef}
             className="w-[240px]"
             label={SEARCH_LABEL}
             onChange={(event) => actions.onSearchChange(event.target.value)}

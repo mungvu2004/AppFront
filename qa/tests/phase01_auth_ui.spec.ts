@@ -28,7 +28,7 @@ import { EMAIL_LABEL, PASSWORD_LABEL, SIGN_IN_LABEL } from '../../e2e/fixtures/s
 import { readBaseUrl } from '../../e2e/fullstack/env';
 import { signedInApi } from './support/api';
 import { readAdminCredentials } from './support/auth';
-import { EVIDENCE_DIR, TEST_DATA_PREFIX, attachJson, testEmail } from './support/evidence';
+import { EVIDENCE_DIR, TEST_DATA_PREFIX, TEST_EMAIL_DOMAIN, attachJson, testEmail } from './support/evidence';
 import { deleteMails, waitForMail } from './support/mailpit';
 import { ADMIN_STORAGE_STATE_FILE } from './support/state';
 import { verifyUi } from './support/ui-verify';
@@ -53,12 +53,17 @@ const FULL_NAME_LABEL = 'Họ và tên';
 const LOGIN_API = '/api/auth/login';
 const STRIP_VIEWPORT = { width: 1024, height: 768 } as const;
 const INVALID_CREDENTIALS_TITLE = 'Sai thư điện tử hoặc mật khẩu'; // vi:148
-const RESET_PASSWORD_ACTION = 'Đặt lại mật khẩu'; // vi:129
 const ORIGIN_MISMATCH_TITLE = 'Máy chủ từ chối yêu cầu'; // vi:156
 const ORIGIN_MISMATCH_DESCRIPTION =
-  'Máy chủ từ chối yêu cầu gửi từ địa chỉ trang này. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống.'; // vi:157
-/** 255 chars, well-formed: only `too_big` fires (`MAX_EMAIL_LENGTH` 254, `src/api/schemas/auth.ts`). */
-const EMAIL_255 = `${TEST_DATA_PREFIX.padEnd(64, 'a')}@${['b', 'c', 'd'].map((c) => c.repeat(61)).join('.')}.test`;
+  'Địa chỉ của trang này không nằm trong danh sách máy chủ chấp nhận. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống.'; // vi:157 (BUG-021)
+/**
+ * 255 chars, well-formed: only `too_big` fires (`MAX_EMAIL_LENGTH` 254, `src/api/schemas/auth.ts`). Ends in the run's
+ * test domain; the third label takes up the rest: 64 + "@" + 61 + "." + 61 + "." + (65 − domain) + "." + domain = 255.
+ */
+const EMAIL_255 = `${TEST_DATA_PREFIX.padEnd(64, 'a')}@${[61, 61, 65 - TEST_EMAIL_DOMAIN.length]
+  .map((size, index) => 'bcd'.charAt(index).repeat(size))
+  .join('.')}.${TEST_EMAIL_DOMAIN}`;
+if (EMAIL_255.length !== 255) throw new Error(`EMAIL_255 is ${EMAIL_255.length} chars, not 255`);
 
 const authMain = (page: Page, state: string) => page.locator(`main[data-auth-state="${state}"]`);
 const email = (page: Page) => page.getByLabel(EMAIL_LABEL, { exact: true });
@@ -183,11 +188,11 @@ test.describe('U01 UI verify — SCR-01 / SCR-02', () => {
       await p.getByRole('button', { name: SIGN_IN_LABEL, exact: true }).click();
     };
 
-    // (a) wrong password + "Đặt lại mật khẩu" under the strip.
+    // (a) wrong password: the strip, and the "Quên mật khẩu" text button stays the one way to recovery (BUG-090).
     await checkStrip(page, 'wrong', async (p) => {
       await submitWithMock(p);
       await expect(p.getByText(INVALID_CREDENTIALS_TITLE, { exact: true })).toBeVisible();
-      await expect(p.getByRole('button', { name: RESET_PASSWORD_ACTION, exact: true })).toBeVisible();
+      await expect(p.getByRole('button', { name: FORGOT_PASSWORD, exact: true })).toBeVisible();
     });
 
     // (b) originMismatch: the longest strip sentence, no action.
@@ -237,18 +242,17 @@ const UNKNOWN_PROJECT_ID = 'x';
 const PROJECT_NOT_FOUND_TITLE = 'Không tìm thấy dự án này'; // components/feedback/ProjectSpatialGate.tsx:36
 const SETTINGS_LOAD_ERROR = 'Không tải được cài đặt dự án'; // ProjectSettings.tsx:113
 const UPLOAD_LOAD_ERROR = 'Không tải được danh sách tầng'; // FloorUploadScreen.tsx:67
-const QUALITY_LOAD_ERROR = 'Không đọc được kết quả kiểm tra chất lượng'; // InputQualityGate.tsx:59
-const QUALITY_EMPTY_TITLE = 'Chưa có kết quả để xem'; // InputQualityGate.tsx:60
 // SCR-37 copy: UserManagement.tsx:49-53, UserManagementToolbar.tsx:26-37, UserManagementTable.tsx:36, UserManagementDetail.tsx:107.
 const USERS_LIST_PATH = /^\/api\/users$/u;
 const USERS_SEARCH_LABEL = 'Tìm người dùng';
 const USERS_EMPTY_TITLE = 'Chưa có người dùng nào khác';
-const USERS_NO_MATCH = 'Không tìm thấy người dùng phù hợp.';
+const USERS_NO_MATCH = 'Không tìm thấy người dùng'; // UserManagementTable.tsx NO_MATCH_TITLE (BUG-082)
 const PERMISSION_MATRIX_BUTTON = 'Xem ma trận quyền';
 const PERMISSION_MATRIX_TITLE = 'Ma trận quyền theo vai trò';
 const INVITE_LABEL = 'Mời người dùng';
 const INVITE_EMAILS_LABEL = 'Email người được mời';
-const INVITE_INVALID_PREFIX = /^Không hợp lệ:/u;
+// useUserManagement.ts inviteFeedback (BUG-083): one sentence, with the right form.
+const INVITE_INVALID_ERROR = 'Chưa đúng dạng địa chỉ thư: khong-hop-le. Viết theo dạng ten@congty.vn';
 const CLOSE_USER_DETAIL = 'Đóng chi tiết người dùng';
 // SCR-38 copy: AccessDenied/useAccessDenied.ts:98,109-110.
 const ACCESS_DENIED_TITLE = 'Bạn chưa có quyền truy cập';
@@ -304,12 +308,12 @@ test.describe('U01 UI verify — signed-in screens (SCR-08..11, SCR-37..41)', ()
     });
   });
 
-  test('U01 · SCR-11 quality gate, unknown project → load error', async ({ browser }) => {
+  test('U01 · SCR-11 quality gate, unknown project → "Không tìm thấy dự án này"', async ({ browser }) => {
     await verifyAsAdmin(browser, 'U01_quality_unknown_project', async (p) => {
       await p.goto(ROUTES.project.quality(UNKNOWN_PROJECT_ID));
-      // useInputQualityGate.ts:856-871: the floors read fails → 'error' (alert + empty state with "upload another").
-      await expect(p.getByText(QUALITY_LOAD_ERROR, { exact: true })).toBeVisible({ timeout: 15_000 });
-      await expect(p.getByText(QUALITY_EMPTY_TITLE, { exact: true })).toBeVisible();
+      // BUG-074: floors read 404 → one alert titled PROJECT_NOT_FOUND_TITLE with one way out (InputQualityGate.tsx).
+      await expect(p.getByText(PROJECT_NOT_FOUND_TITLE, { exact: true })).toBeVisible({ timeout: 15_000 });
+      await expect(p.getByRole('button', { name: GO_TO_PROJECTS, exact: true })).toBeVisible();
     });
   });
 
@@ -330,9 +334,11 @@ test.describe('U01 UI verify — signed-in screens (SCR-08..11, SCR-37..41)', ()
       const address = testEmail('u01-second-user');
       const res = await admin.post('/api/users/invitations', { data: { emails: [address], role: 'viewer' } });
       expect(res.status(), 'setup: POST /api/users/invitations').toBe(201);
-      const created = ((await res.json()) as { id: unknown; email: unknown }[]).find((u) => u.email === address);
-      expect(created, 'setup: the invited user is in the answer').toBeDefined();
-      second = { id: String(created!.id), email: address };
+      const answer = (await res.json()) as { id?: unknown; email?: unknown }[];
+      const created = answer.find((u) => u.email === address) ?? answer[0];
+      // Recorded BEFORE the checks below: if one fails, `afterAll` can still delete whoever was created (review-1).
+      if (created?.id !== undefined) second = { id: String(created.id), email: String(created.email ?? address) };
+      expect(created?.email, 'setup: the invited user is in the answer').toBe(address);
     });
 
     test.afterAll(async () => {
@@ -382,7 +388,7 @@ test.describe('U01 UI verify — signed-in screens (SCR-08..11, SCR-37..41)', ()
         await p.getByRole('button', { name: INVITE_LABEL, exact: true }).first().click();
         // Parsed live (useUserManagement.ts:894-905); "Gửi lời mời" is never clicked.
         await p.getByLabel(INVITE_EMAILS_LABEL, { exact: true }).fill('khong-hop-le');
-        await expect(p.getByText(INVITE_INVALID_PREFIX)).toBeVisible();
+        await expect(p.getByText(INVITE_INVALID_ERROR, { exact: true })).toBeVisible();
       });
     });
 

@@ -38,7 +38,8 @@ const HEADER_STATUS = 'Trạng thái';
 const HEADER_ACTIONS = 'Hành động';
 const NO_MATCH_TITLE = 'Không tìm thấy người dùng';
 const NO_MATCH_DESCRIPTION = 'Không ai khớp với từ khoá hoặc bộ lọc đang chọn.';
-const CLEAR_SEARCH_LABEL = 'Xoá tìm kiếm';
+// Nút đặt lại cả ô tìm lẫn hai bộ lọc (`onClearSearch`), nên nhãn nói đủ cả hai.
+const CLEAR_SEARCH_LABEL = 'Xoá tìm kiếm và bộ lọc';
 const INVITE_EXPIRED_LABEL = 'Lời mời đã hết hạn';
 const RESEND_INVITE_LABEL = 'Gửi lại';
 const DISABLE_LABEL = 'Vô hiệu hoá';
@@ -50,7 +51,8 @@ const ROW_HEIGHT = 'h-12';
  * dài ("Bạn không thể tự…") và email dài phải xuống dòng để bảng vừa khung (BUG-071).
  */
 const WRAP_CELL = cn(ROW_HEIGHT, 'whitespace-normal');
-const BLOCKED_REASON_CLASS = 'max-w-[160px] text-[13px] text-text-secondary';
+// Trần 160 px chỉ cho cột hành động của bảng (≥ 1024); trong thẻ hẹp câu lý do dùng hết bề ngang (review-1).
+const BLOCKED_REASON_CLASS = 'text-[13px] text-text-secondary lg:max-w-[160px]';
 const FOCUS_RING =
   'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
@@ -116,8 +118,12 @@ function StatusCell({ actions, row }: StatusCellProps) {
         </div>
       )}
       {row.inviteExpired && row.canResendInvite && (
+        // Link chữ, nhưng vùng chạm 44 px dưới 640 và 24 px từ đó — như link chữ của màn đăng nhập (BUG-077, BUG-041).
         <button
-          className={cn('text-left text-[13px] font-medium text-accent hover:underline', FOCUS_RING)}
+          className={cn(
+            'inline-flex min-h-[44px] items-center text-left text-[13px] font-medium text-accent hover:underline sm:min-h-6',
+            FOCUS_RING,
+          )}
           onClick={() => actions.onResendInvite(row.id)}
           type="button"
         >

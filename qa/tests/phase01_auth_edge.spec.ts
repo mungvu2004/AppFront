@@ -103,7 +103,8 @@ const SUBMITTING = 'Đang gửi…'; // :124
 const OR_DIVIDER = 'Hoặc'; // :126
 const SSO_SIGN_IN = 'Đăng nhập bằng SSO công ty'; // :127
 const FORGOT_PASSWORD = 'Quên mật khẩu'; // :128 (also the panel title :171)
-const RESET_PASSWORD_ACTION = 'Đặt lại mật khẩu'; // :129
+// Removed by BUG-090 (80a0ea95): no strip shows it any more; kept only for the `toHaveCount(0)` checks.
+const RESET_PASSWORD_ACTION = 'Đặt lại mật khẩu';
 const SHOW_PASSWORD = 'Hiện mật khẩu'; // :130
 const HIDE_PASSWORD = 'Ẩn mật khẩu'; // :131
 const SIGN_IN_ANOTHER_ACCOUNT = 'Đăng nhập bằng tài khoản khác'; // :132
@@ -116,15 +117,15 @@ const FULL_NAME_INVALID =
   'Họ và tên có ký tự không dùng được, như ký tự điều khiển hoặc ký tự đảo chiều chữ. Gõ lại họ tên rồi thử lại.'; // :144
 const INVALID_CREDENTIALS_TITLE = 'Sai thư điện tử hoặc mật khẩu'; // :148
 const INVALID_CREDENTIALS_DESCRIPTION =
-  'Kiểm tra lại rồi nhập mật khẩu một lần nữa. Chữ bạn đã nhập vẫn được giữ nguyên.'; // :149
+  'Kiểm tra lại thư điện tử và mật khẩu rồi thử lại. Thông tin bạn đã nhập vẫn được giữ.'; // :149 (BUG-091)
 const TOO_MANY_TITLE = 'Đã thử quá nhiều lần'; // :152
 const TOO_MANY_LOGIN = 'Hãy đợi vài phút rồi đăng nhập lại.'; // :153
 const ORIGIN_MISMATCH_TITLE = 'Máy chủ từ chối yêu cầu'; // :156
 const ORIGIN_MISMATCH_DESCRIPTION =
-  'Máy chủ từ chối yêu cầu gửi từ địa chỉ trang này. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống.'; // :157
+  'Địa chỉ của trang này không nằm trong danh sách máy chủ chấp nhận. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống.'; // :157 (BUG-021)
 const TOO_MANY_RECOVERY = 'Hãy đợi vài phút rồi thử lại.'; // :159
 const RECOVERY_FAILED =
-  'Máy chủ chưa xử lý được yêu cầu. Chữ bạn đã nhập vẫn được giữ — đợi giây lát rồi bấm gửi lại.'; // :160
+  'Máy chủ chưa xử lý được yêu cầu. Đợi giây lát rồi bấm gửi lại — những gì đã nhập vẫn còn nguyên.'; // :160 (BUG-091)
 const VALIDATION_OTHER_TITLE = 'Dữ liệu chưa phù hợp'; // :162
 const VALIDATION_OTHER_DESCRIPTION =
   'Máy chủ chưa nhận dữ liệu đăng nhập vừa gửi. Kiểm tra lại thư điện tử và mật khẩu rồi thử lại.'; // :163
@@ -169,7 +170,7 @@ const GATE_UNREACHABLE_DESCRIPTION = 'Kiểm tra mạng rồi thử lại.'; // 
 const RETRY = 'Thử lại'; // :231, :103
 const OPENING_SESSION = 'Đang mở phiên'; // :238 → PendingShell aria-label :174, visible "…" line :186-192
 const CONNECTION_REGION = 'Trạng thái kết nối'; // :95
-const MID_SESSION_LOST = 'Mất kết nối máy chủ. Thay đổi chưa lưu vẫn được giữ, đừng tải lại trang.'; // :100
+const MID_SESSION_LOST = 'Mất kết nối máy chủ. Kiểm tra mạng rồi bấm Thử lại.'; // :145 (BUG-093)
 const HIDE_CONNECTION_STRIP = 'Ẩn thông báo kết nối'; // :111
 
 /** BE:apps/api/auth/sessions.py:61 REMEMBER_IDLE = 7 days → cookie Max-Age (sessions.py:189). */
@@ -196,7 +197,8 @@ const rememberBox = (page: Page) => page.getByRole('checkbox', { name: REMEMBER_
 /** The panel's always-mounted live region, a `div` since 7735bcda (ForgotPasswordPanel.tsx:57-65). */
 const forgotStatus = (page: Page) => page.locator('form [role="status"]');
 /** The recovery forms' always-mounted live line (InvitationAccept.tsx:109-114, PasswordReset.tsx:75-77). */
-const recoveryStatus = (page: Page) => page.locator('form p[role="status"]');
+// RecoveryStatus (RecoveryShell.tsx) is a `div[role=status]` since BUG-097.
+const recoveryStatus = (page: Page) => page.locator('form [role="status"]');
 /** An InlineAlert carrying `text`; its title, when there is one, is an `h4` (InlineAlert.tsx:40-61). */
 const alertWith = (page: Page, text: string) => page.getByRole('alert').filter({ hasText: text });
 
@@ -749,12 +751,13 @@ test.describe('E01 SCR-02 Login form', () => {
         caption: `Enter in "Mật khẩu" → POST ${LOGIN_API} × ${posts(requests.sent, LOGIN_API).length} (${status}); focus back in "Mật khẩu"`,
       }); // BUG-034
 
-      await button(page, RESET_PASSWORD_ACTION).focus();
+      // BUG-090: the strip has no reset button; "Quên mật khẩu" (type="button") is the one route.
+      await button(page, FORGOT_PASSWORD).focus();
       await page.keyboard.press('Enter');
       await expect(h1(page, FORGOT_PASSWORD)).toBeVisible();
       await expect(emailBox(page)).toHaveValue(address);
       await nextFrame(page);
-      expect(posts(requests.sent, LOGIN_API), 'Enter on the reset button is not a sign-in').toHaveLength(1);
+      expect(posts(requests.sent, LOGIN_API), 'Enter on "Quên mật khẩu" is not a sign-in').toHaveLength(1);
       await attachJson('E01_enter_submits.json', {
         status,
         loginRequestsAfterEnterInPassword: 1,
@@ -817,16 +820,15 @@ test.describe('E01 SCR-02 Login form', () => {
     }); // BUG-034
   });
 
-  test('E01 · unknown address → the SAME 401 and copy as a known address with a wrong password (no enumeration); the strip and its reset button sit UNDER "Đăng nhập", fields do not move; the reset button is as wide and as tall as "Đăng nhập" (BUG-059)', async ({ page }) => {
-    // f748afb0: the strip's way out is a `size="lg" fullWidth` button under it (AuthScreen.tsx:111-116, 184-188,
-    // BUG-059), the same box as the submit button (:168).
+  test('E01 · unknown address → the SAME 401 and copy as a known address with a wrong password (no enumeration); the strip sits UNDER "Đăng nhập" with no button of its own, fields do not move; "Quên mật khẩu" stays the way out (BUG-090)', async ({ page }) => {
+    // BUG-090 (80a0ea95): a wrong password no longer gets a "Đặt lại mật khẩu" button under the strip;
+    // the form's "Quên mật khẩu" text button is the one way to recover (AuthScreen.tsx stripAction comment).
     // BE:router.py:6-8,173-177: unknown email, `pending` user and wrong password share one path and
     // raise the same INVALID_CREDENTIALS (401, BE:packages/core/error_codes.py:19). The known-address
-    // half is Phase 1 ("ONE wrong password", same title + reset action) — not repeated here so the admin
+    // half is Phase 1 ("ONE wrong password", same title, no reset action) — not repeated here so the admin
     // address spends no failed attempt. FE: useAuthScreen.ts:265-266, 294-300; typed values are kept.
     // An attempt result (state error/success) renders the strip AFTER the submit button (AuthScreen.tsx:129-131,
-    // 180, BUG-008) and the reset action is its own button under the strip (:107-120, BUG-003); the form is
-    // anchored from the top (:291-295), so the email box keeps its place.
+    // 180, BUG-008); the form is anchored from the top, so the email box keeps its place.
     // The 401 body (code) is unreadable in Chromium, so the code itself is asserted from source only.
     const address = nobody('enum');
 
@@ -840,21 +842,20 @@ test.describe('E01 SCR-02 Login form', () => {
     const strip = alertWith(page, INVALID_CREDENTIALS_TITLE);
     await expect(strip).toBeVisible();
     await expect(page.getByText(INVALID_CREDENTIALS_DESCRIPTION, { exact: true })).toBeVisible();
-    await expect(button(page, RESET_PASSWORD_ACTION)).toBeVisible();
-    await expect(strip.getByRole('button'), 'the action is not inside the strip').toHaveCount(0);
+    await expect(button(page, RESET_PASSWORD_ACTION), 'no reset button under the strip (BUG-090)').toHaveCount(0);
+    await expect(strip.getByRole('button'), 'no action inside the strip').toHaveCount(0);
+    await expect(button(page, FORGOT_PASSWORD)).toBeVisible();
     await expect(authMain(page, 'error')).toBeVisible();
     await expect(emailBox(page)).toHaveValue(address);
     await expect(passwordBox(page)).toHaveValue(PROBE_PASSWORD);
 
     const submitBox = await button(page, SIGN_IN_LABEL).boundingBox();
     const stripBox = await strip.boundingBox();
-    const resetBox = await button(page, RESET_PASSWORD_ACTION).boundingBox();
+    const forgotBox = await button(page, FORGOT_PASSWORD).boundingBox();
     const emailTopAfter = (await emailBox(page).boundingBox())?.y;
-    expect(submitBox && stripBox && resetBox, 'boxes').toBeTruthy();
+    expect(submitBox && stripBox && forgotBox, 'boxes').toBeTruthy();
     expect(stripBox!.y, 'strip below the submit button').toBeGreaterThanOrEqual(submitBox!.y + submitBox!.height);
-    expect(resetBox!.y, 'reset button below the strip').toBeGreaterThanOrEqual(stripBox!.y + stripBox!.height);
-    expect(Math.abs(resetBox!.width - submitBox!.width), 'reset button full width like "Đăng nhập", px').toBeLessThanOrEqual(1);
-    expect(Math.abs(resetBox!.height - submitBox!.height), 'reset button as tall as "Đăng nhập", px').toBeLessThanOrEqual(1);
+    expect(forgotBox!.y, '"Quên mật khẩu" below the strip').toBeGreaterThanOrEqual(stripBox!.y + stripBox!.height);
     expect(
       Math.abs((emailTopAfter ?? Number.NaN) - (emailTopBefore ?? Number.NaN)),
       'email box did not move (BUG-008), px',
@@ -863,8 +864,7 @@ test.describe('E01 SCR-02 Login form', () => {
       status,
       submitBottom: submitBox!.y + submitBox!.height,
       stripTop: stripBox!.y,
-      resetTop: resetBox!.y,
-      resetSize: { width: resetBox!.width, height: resetBox!.height },
+      forgotTop: forgotBox!.y,
       submitSize: { width: submitBox!.width, height: submitBox!.height },
       emailTopBefore,
       emailTopAfter,
@@ -1543,9 +1543,10 @@ test.describe('E01 SCR-02 compact 375×812', () => {
     await captureEvidence(page, 'E01_compact_login_375.png', { fullPage: true });
   });
 
-  test('E01 · 375×812: wrong-credentials strip and its "Đặt lại mật khẩu" fit; the action opens the panel with the typed address', async ({ page }) => {
-    // Real 401 (budget: "375 wrong"). The reset button under the strip (AuthScreen.tsx:107-120, BUG-003) →
-    // openForgot (:260-263, 348) → address carried (useAuthScreen.ts:594-597), focus in the panel box.
+  test('E01 · 375×812: wrong-credentials strip and "Quên mật khẩu" fit; the link opens the panel with the typed address', async ({ page }) => {
+    // Real 401 (budget: "375 wrong"). BUG-090: no reset button under the strip any more; "Quên mật khẩu" →
+    // openForgot → address carried (useAuthScreen.ts), focus in the panel box. Below 640 px the text button is
+    // a 44 px touch target (BUG-041, `min-h-[44px] sm:min-h-6`).
     const address = nobody('compact');
 
     await openAnonymousLogin(page);
@@ -1555,13 +1556,15 @@ test.describe('E01 SCR-02 compact 375×812', () => {
 
     expect(status, `POST ${LOGIN_API}`).toBe(401);
     await expect(page.getByText(INVALID_CREDENTIALS_TITLE, { exact: true })).toBeVisible();
-    const action = await button(page, RESET_PASSWORD_ACTION).boundingBox();
-    expect(action, '"Đặt lại mật khẩu" box').not.toBeNull();
+    await expect(button(page, RESET_PASSWORD_ACTION), 'no reset button under the strip (BUG-090)').toHaveCount(0);
+    const action = await button(page, FORGOT_PASSWORD).boundingBox();
+    expect(action, '"Quên mật khẩu" box').not.toBeNull();
     expect(action!.x + action!.width).toBeLessThanOrEqual(COMPACT.width);
+    expect(action!.height, '"Quên mật khẩu" touch target below 640 px (BUG-041), px').toBeGreaterThanOrEqual(44);
     expect(await horizontalOverflow(page), 'horizontal overflow (px)').toBeLessThanOrEqual(0);
     await captureEvidence(page, 'E01_compact_wrong_375.png', { fullPage: true });
 
-    await button(page, RESET_PASSWORD_ACTION).click();
+    await button(page, FORGOT_PASSWORD).click();
     await expect(h1(page, FORGOT_PASSWORD)).toBeVisible();
     await expect(emailBox(page)).toHaveValue(address);
     await expect(emailBox(page)).toBeFocused();
@@ -2650,14 +2653,15 @@ test.describe('E01 FE refresh 7735bcda — SCR-01..SCR-04', () => {
   test.describe('375×812', () => {
     test.use({ viewport: COMPACT });
 
-    test('E01 · 375×812 · touch targets below 640 px: 46 px field boxes (44 px inside the border), "Đăng nhập" 44 px, eye button 44×44, "Quên mật khẩu", "Ghi nhớ máy này" and "Về trang đăng nhập" on the reset form ≥ 24 px; recovery screens use 24 px side margins (BUG-048/040/052/098)', async ({ page }) => {
+    test('E01 · 375×812 · touch targets below 640 px: 46 px field boxes (44 px inside the border), "Đăng nhập" 44 px, eye button 44×44, "Quên mật khẩu" and "Về trang đăng nhập" on the reset form 44 px tall (BUG-041), "Ghi nhớ máy này" ≥ 24 px; recovery screens use 24 px side margins (BUG-048/040/052/098)', async ({ page }) => {
       // Input.tsx:61-64 `h-[46px] sm:h-[38px]`; buttonVariants.ts:16-17 lg `h-11 … sm:h-10`; PasswordField.tsx:65-66
-      // `h-11 w-11 … sm:h-6 sm:w-6`; AuthScreen.tsx:211-215 `py-1` text button; RecoveryShell.tsx:21-24 `px-6 … sm:px-12`.
+      // `h-11 w-11 … sm:h-6 sm:w-6`; text links/buttons `min-h-[44px] sm:min-h-6` (AuthScreen.tsx, RecoveryShell.tsx
+      // RecoveryLink, BUG-041); RecoveryShell.tsx `px-6 … sm:px-12`.
       // Run-06 measured 44 for the 46 px box: the panel was still in `animate-panel-rise` (a transform scale,
       // AuthScreen.tsx:296 / RecoveryShell.tsx:27, tailwind.config.ts:132,200) and boundingBox() includes the
       // transform. So: reduced motion (`motion-reduce:animate-none` on both panels), wait for every finite
       // animation to end, and read LAYOUT sizes (offsetWidth/offsetHeight ignore transforms).
-      // Hand-measured on the stack: field box 46, "Đăng nhập" 44, eye 44×44, "Quên mật khẩu" 88×26.
+      // Hand-measured on the stack before BUG-041: field box 46, "Đăng nhập" 44, eye 44×44, "Quên mật khẩu" 88×26 (now 44 tall).
       await page.emulateMedia({ reducedMotion: 'reduce' });
       await openAnonymousLogin(page);
       await animationsSettled(page);
@@ -2671,7 +2675,7 @@ test.describe('E01 FE refresh 7735bcda — SCR-01..SCR-04', () => {
       expect(submit.height, '"Đăng nhập"').toBe(44);
       expect(eye.width, 'eye width').toBe(44);
       expect(eye.height, 'eye height').toBe(44);
-      expect(forgot.height, '"Quên mật khẩu"').toBeGreaterThanOrEqual(24);
+      expect(forgot.height, '"Quên mật khẩu" below 640 px (BUG-041)').toBeGreaterThanOrEqual(44);
       // BUG-098: every control on the shot is measured. The checkbox input is `sr-only` inside its label
       // (Checkbox.tsx:40-57, label `min-h-[32px]`), so the touch target is the label; the drawn box is 18 px.
       // Bug threshold 24 px (WCAG 2.5.8, soft so the shot is still taken); 44 px is the recommendation, recorded.
@@ -2697,7 +2701,7 @@ test.describe('E01 FE refresh 7735bcda — SCR-01..SCR-04', () => {
       expect(Math.round(titleBox!.x), 'title starts at the 24 px margin').toBe(24);
       // BUG-098: the reset form's "Về trang đăng nhập" (RecoveryLink, PasswordReset.tsx:104-110) is measured too.
       const backLink = await layoutSize(page.getByRole('link', { name: GO_TO_SIGN_IN, exact: true }));
-      expect.soft(backLink.height, `"${GO_TO_SIGN_IN}" height`).toBeGreaterThanOrEqual(24);
+      expect.soft(backLink.height, `"${GO_TO_SIGN_IN}" height below 640 px (BUG-041)`).toBeGreaterThanOrEqual(44);
       expect(await horizontalOverflow(page), 'horizontal overflow (px)').toBeLessThanOrEqual(0);
       await attachJson('E01_touch_targets_375.json', {
         measuredWith: 'offsetWidth/offsetHeight, reducedMotion=reduce, animations settled',
@@ -2863,7 +2867,7 @@ test.describe('E01 FE refresh f748afb0 — SCR-01..SCR-04 (+ the gate in front o
   });
 
   test('E01 · SCR-02 · every field keeps room for its complaint: an empty submit and an invalid address in the forgot panel move neither the next field nor the buttons; no collapsed-state control; no request', async ({ page }) => {
-    // f748afb0: FIELD_ERROR_SLOT (RecoveryShell.tsx:41-48, min-h 112 px from sm) on both sign-in boxes and on the
+    // f748afb0: FIELD_ERROR_SLOT (RecoveryShell.tsx, min-h 124 px from sm since BUG-073, was 112) on both sign-in boxes and on the
     // panel box (AuthScreen.tsx:127-157; ForgotPasswordPanel.tsx:65-70), no `gap` between them — the reserved room is
     // the spacing, so a complaint appearing moves nothing (BUG-008). Empty submit → both "chưa nhập"
     // (useAuthScreen.ts:613-635); panel submit → emailInvalid (useForgotPassword.ts:94-106). `collapsed` needs a host
@@ -3092,7 +3096,7 @@ test.describe('E01 FE refresh f748afb0 — SCR-01..SCR-04 (+ the gate in front o
 
     test('E01 · 375×812 · /login uses 24 px side margins (BUG-052); the longest two-line complaint (bad address) + "Chưa nhập mật khẩu." move neither the password box nor "Đăng nhập"; no request', async ({ page }) => {
       // AuthScreen.tsx:309-314: column `px-6 … sm:px-12` (24 px below 640, like RecoveryShell); FIELD_ERROR_SLOT is
-      // `min-h-[120px]` below 640 = room for a two-line complaint in a ~258 px column (RecoveryShell.tsx:41-48).
+      // `min-h-[132px]` below 640 (BUG-073, was 120) = room for a two-line complaint in a ~258 px column (RecoveryShell.tsx).
       await page.emulateMedia({ reducedMotion: 'reduce' });
       await openAnonymousLogin(page);
       await animationsSettled(page);
