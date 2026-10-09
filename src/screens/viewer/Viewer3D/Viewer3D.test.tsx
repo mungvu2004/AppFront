@@ -13,6 +13,9 @@ import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { createSevenStateScenarios, SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
 
+// Nạp tĩnh, ở pha collect, hộp thoại A9 mà `FloorLayerSaveBanner` `lazy()`: không thì bài đầu tiên mở
+// nó biên dịch module BÊN TRONG 5 000 ms của mình — máy tải nặng là hết giờ (verify QA-01c).
+import '@/screens/qc/WallLayerReview/FloorLayerSaveConfirm';
 import { Viewer3D, Viewer3DSaveStrip } from './Viewer3D';
 import { saveBlockFor, scenarioPropsFor } from './Viewer3D.stories';
 import {
