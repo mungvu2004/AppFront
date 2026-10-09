@@ -37,6 +37,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
+import { initialsOf } from '@/lib/format/initials';
 import { MOTION_DURATIONS_MS } from '@/lib/motion/tokens';
 import { cn } from '@/lib/utils';
 
@@ -141,14 +142,9 @@ export function AccessDenied({
 
         {showOwnerPanel && (
           <div className={cn(PANEL_CLASS, 'flex-row items-center gap-3')}>
-            {/* CHỈ `alt`, không `initials` — đã chạy thử, không suy luận.
-                `Avatar` VẼ chữ tắt ra màn hình, mà `expectVietnamese` bỏ hoa
-                thường trước khi so, nên không cách viết nào của chữ tắt sống
-                sót được phép kiểm ("Tr" trượt y hệt "tr"). Cùng kết luận
-                `HistoryItemAvatar` đã ghi lại sau một lần chạy thật. Vòng tròn
-                để trống, `alt` — tên người, tiếng Việt — mang danh tính. */}
             <Avatar
               alt={owner.name}
+              initials={initialsOf(owner.name, owner.email)}
               {...(owner.avatarUrl === undefined ? {} : { src: owner.avatarUrl })}
             />
             <div className="flex min-w-0 flex-col">
