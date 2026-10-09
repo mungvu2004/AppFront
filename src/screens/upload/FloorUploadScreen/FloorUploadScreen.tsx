@@ -15,7 +15,7 @@
  * |-------------|------------------------------------------------------|
  * | `loading`   | khung xương, vùng thả vẫn còn                        |
  * | `error`     | một `InlineAlert` cho lượt đọc danh sách tầng hỏng    |
- * | `empty`     | `EmptyState` mời thả tệp đầu tiên                     |
+ * | `empty`     | câu mời thả tệp; dự án chưa có tầng thì `EmptyState`  |
  * | `partial`   | danh sách thẻ, chân trang nói còn thiếu bao nhiêu     |
  * | `success`   | danh sách thẻ đủ                                     |
  * | `forbidden` | danh sách chỉ đọc, không vùng thả                    |
@@ -55,7 +55,7 @@ import { Skeleton } from '@/components/feedback/Skeleton';
 import { FloorUploadCard } from './FloorUploadCard';
 import { FloorUploadDropZone } from './FloorUploadDropZone';
 import { FloorUploadFooter } from './FloorUploadFooter';
-import { UploadGlyph } from './FloorUploadGlyphs';
+import { SheetGlyph } from './FloorUploadGlyphs';
 import { FloorUploadTray } from './FloorUploadTray';
 import type { FloorUploadActions, FloorUploadScreenViewProps } from './types';
 
@@ -65,6 +65,14 @@ const BREADCRUMB_UPLOAD = 'Tải lên bản vẽ';
 
 /** Tiêu đề của lượt đọc danh sách tầng hỏng — `state === 'error'`, không phải lỗi tệp. */
 const LOAD_ERROR_TITLE = 'Không tải được danh sách tầng';
+
+/**
+ * Dự án chưa có tầng nào — `floorUpload.noFloors.*` trong `vi.json`. Chữ riêng, không
+ * dùng lại tiêu đề vùng thả, để khối này không trông như đích thả thứ hai (BUG-100).
+ */
+const NO_FLOORS_TITLE = 'Dự án chưa có tầng nào';
+const NO_FLOORS_MESSAGE =
+  'Bản vẽ được gán theo tầng. Thêm tầng ở màn Quản lý tầng; tệp thả vào trước đó chờ ở mục “Tệp chưa gán tầng”.';
 
 /** Bao nhiêu khung xương lúc chưa biết có mấy tầng. */
 const SKELETON_ROW_COUNT = 3;
@@ -138,11 +146,7 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
         ))}
       </div>
     ) : props.floors.length === 0 ? (
-      <EmptyState
-        description={props.emptyMessage}
-        icon={<UploadGlyph />}
-        title={props.dropZone.title}
-      />
+      <EmptyState description={NO_FLOORS_MESSAGE} icon={<SheetGlyph />} title={NO_FLOORS_TITLE} />
     ) : (
       <>
         {/* Dự án có tầng nhưng chưa tầng nào có bản vẽ: câu mời đi TRƯỚC danh
