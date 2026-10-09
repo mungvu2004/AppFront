@@ -47,6 +47,12 @@ export function RecoveryShell({ title, subtitle, state, children }: RecoveryShel
  */
 export const FIELD_ERROR_SLOT = 'min-h-[120px] sm:min-h-[112px]';
 
+/**
+ * Như {@link FIELD_ERROR_SLOT} nhưng cho câu lỗi BA dòng: thêm một dòng 18. Dành cho ô họ tên của
+ * lời mời — `fullNameInvalid` (109 ký tự) xuống ba dòng ở cột 375 px (QA-01c nợ #10).
+ */
+export const FIELD_ERROR_SLOT_THREE_LINES = 'min-h-[138px] sm:min-h-[130px]';
+
 export function RecoveryNoticeStrip({ notice }: { readonly notice: RecoveryNotice | null }) {
   if (notice === null) {
     return null;
