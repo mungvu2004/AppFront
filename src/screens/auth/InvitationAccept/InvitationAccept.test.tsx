@@ -493,6 +493,18 @@ describe('InvitationAccept — the session around it', () => {
     expect(screen.getByText(AUTH.invitation.signedInWarning)).toBeInTheDocument();
   });
 
+  it('puts the lost-session strip under the submit button: appearing, it moves no box (BUG-008)', () => {
+    render(<InvitationAcceptView {...baseProps()} isSessionUnavailable />);
+
+    const strip = screen.getByRole('alert');
+    for (const control of [
+      screen.getByLabelText(AUTH.fields.fullName),
+      screen.getByRole('button', { name: AUTH.actions.acceptInvitation }),
+    ]) {
+      expect(control.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+  });
+
   it('says why and offers a retry when the session could not be opened (NO-357)', () => {
     const { port } = makePort({ isSessionUnavailable: true });
 

@@ -98,8 +98,64 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
           onLinkClick={goToSignIn}
         />
       ) : (
-        <>
-          {/* Ngoài `<form>`: dải nói về phiên, không phải về biểu mẫu — bấm "Thử lại" không dính gì tới lượt gửi. */}
+        <form
+          ref={focusReturn.ref}
+          className="flex flex-col gap-6"
+          noValidate
+          aria-busy={isSessionPending}
+          onSubmit={handleSubmit}
+          onFocus={focusReturn.onFocus}
+        >
+          {/* Không `gap`: mỗi ô giữ sẵn chỗ cho câu lỗi dài nhất của nó, chỗ ấy là khoảng cách — câu
+              lỗi hiện hay mất không đẩy ô dưới và nút gửi (BUG-008, QA-01c nợ #10). */}
+          <div className="flex flex-col">
+            <Input
+              label={AUTH_MESSAGES.fields.fullName}
+              ref={fullNameRef}
+              autoComplete="name"
+              wrapperClassName={FIELD_ERROR_SLOT_THREE_LINES}
+              autoFocus
+              value={values.fullName}
+              disabled={fieldsDisabled}
+              {...(problems.fullName !== undefined ? { error: problems.fullName } : {})}
+              onChange={(event) => {
+                setFullName(event.target.value);
+              }}
+            />
+            <PasswordField
+              label={AUTH_MESSAGES.fields.password}
+              hint={passwordTooShort()}
+              autoComplete="new-password"
+              wrapperClassName={FIELD_ERROR_SLOT}
+              value={values.password}
+              disabled={fieldsDisabled}
+              {...(problems.password !== undefined ? { error: problems.password } : {})}
+              onChange={(event) => {
+                setPassword(event.target.value);
+              }}
+            />
+            <PasswordField
+              label={AUTH_MESSAGES.fields.confirmPassword}
+              autoComplete="new-password"
+              wrapperClassName={FIELD_ERROR_SLOT}
+              value={values.confirmPassword}
+              disabled={fieldsDisabled}
+              {...(problems.confirmPassword !== undefined
+                ? { error: problems.confirmPassword }
+                : {})}
+              onChange={(event) => {
+                setConfirmPassword(event.target.value);
+              }}
+            />
+          </div>
+
+          <Button type="submit" size="lg" fullWidth loading={isSubmitting} disabled={!canSubmit}>
+            {isSubmitting
+              ? AUTH_MESSAGES.actions.submitting
+              : AUTH_MESSAGES.actions.acceptInvitation}
+          </Button>
+          {/* Dải mất kết nối phiên cũng dưới nút: trên ô nhập nó đẩy cả biểu mẫu xuống ~100 px khi hiện (BUG-008).
+              Nút "Thử lại" của nó là `type="button"` (InlineAlert) — không gửi biểu mẫu, không tiêu mã. */}
           {isSessionUnavailable && (
             <InlineAlert
               level="attention"
@@ -107,83 +163,26 @@ export function InvitationAcceptView(props: InvitationAcceptViewProps) {
               action={{ label: COMMON_MESSAGES.retry, onClick: retrySession }}
             />
           )}
-          <form
-            ref={focusReturn.ref}
-            className="flex flex-col gap-6"
-            noValidate
-            aria-busy={isSessionPending}
-            onSubmit={handleSubmit}
-            onFocus={focusReturn.onFocus}
+          {/* Dưới nút gửi, không trên ô nhập: dải hiện ra không đẩy nút và ô khỏi chỗ con trỏ vừa bấm
+              (BUG-008) — cả dải cảnh báo lẫn câu thử lại (QA-01c nợ #11). Câu trạng thái luôn gắn sẵn,
+              điền sau, để trình đọc màn hình đọc ra. */}
+          <p
+            role="status"
+            className="text-[13px] leading-[18px] text-text-secondary empty:sr-only"
           >
-            {/* Không `gap`: mỗi ô giữ sẵn chỗ cho câu lỗi dài nhất của nó, chỗ ấy là khoảng cách — câu
-                lỗi hiện hay mất không đẩy ô dưới và nút gửi (BUG-008, QA-01c nợ #10). */}
-            <div className="flex flex-col">
-              <Input
-                label={AUTH_MESSAGES.fields.fullName}
-                ref={fullNameRef}
-                autoComplete="name"
-                wrapperClassName={FIELD_ERROR_SLOT_THREE_LINES}
-                autoFocus
-                value={values.fullName}
-                disabled={fieldsDisabled}
-                {...(problems.fullName !== undefined ? { error: problems.fullName } : {})}
-                onChange={(event) => {
-                  setFullName(event.target.value);
-                }}
-              />
-              <PasswordField
-                label={AUTH_MESSAGES.fields.password}
-                hint={passwordTooShort()}
-                autoComplete="new-password"
-                wrapperClassName={FIELD_ERROR_SLOT}
-                value={values.password}
-                disabled={fieldsDisabled}
-                {...(problems.password !== undefined ? { error: problems.password } : {})}
-                onChange={(event) => {
-                  setPassword(event.target.value);
-                }}
-              />
-              <PasswordField
-                label={AUTH_MESSAGES.fields.confirmPassword}
-                autoComplete="new-password"
-                wrapperClassName={FIELD_ERROR_SLOT}
-                value={values.confirmPassword}
-                disabled={fieldsDisabled}
-                {...(problems.confirmPassword !== undefined
-                  ? { error: problems.confirmPassword }
-                  : {})}
-                onChange={(event) => {
-                  setConfirmPassword(event.target.value);
-                }}
-              />
-            </div>
+            {isDone ? AUTH_MESSAGES.invitation.success : retryNotice}
+          </p>
+          <RecoveryNoticeStrip notice={warning} />
+          <RecoveryNoticeStrip notice={notice} />
 
-            <Button type="submit" size="lg" fullWidth loading={isSubmitting} disabled={!canSubmit}>
-              {isSubmitting
-                ? AUTH_MESSAGES.actions.submitting
-                : AUTH_MESSAGES.actions.acceptInvitation}
-            </Button>
-            {/* Dưới nút gửi, không trên ô nhập: dải hiện ra không đẩy nút và ô khỏi chỗ con trỏ vừa bấm
-                (BUG-008) — cả dải cảnh báo lẫn câu thử lại (QA-01c nợ #11). Câu trạng thái luôn gắn sẵn,
-                điền sau, để trình đọc màn hình đọc ra. */}
-            <p
-              role="status"
-              className="text-[13px] leading-[18px] text-text-secondary empty:sr-only"
-            >
-              {isDone ? AUTH_MESSAGES.invitation.success : retryNotice}
-            </p>
-            <RecoveryNoticeStrip notice={warning} />
-            <RecoveryNoticeStrip notice={notice} />
-
-            {needsSignIn && (
-              <RecoveryLink
-                label={AUTH_MESSAGES.actions.goToSignIn}
-                href={ROUTES.login}
-                onClick={goToSignIn}
-              />
-            )}
-          </form>
-        </>
+          {needsSignIn && (
+            <RecoveryLink
+              label={AUTH_MESSAGES.actions.goToSignIn}
+              href={ROUTES.login}
+              onClick={goToSignIn}
+            />
+          )}
+        </form>
       )}
     </RecoveryShell>
   );
