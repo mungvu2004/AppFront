@@ -323,5 +323,6 @@ export interface UserManagementDetailProps {
 
 export interface UserManagementPermissionMatrixProps {
   readonly matrix: PermissionMatrixModel;
-  readonly captionLabel: string;
+  /** Bỏ trống khi khối đã có tiêu đề bên ngoài (hộp thoại) — không lặp tiêu đề (BUG-080). */
+  readonly captionLabel?: string;
 }

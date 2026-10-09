@@ -347,6 +347,15 @@ describe('Lớp trên cùng (A9/A12) — lỗi B-V12b-01, B-V12b-02', () => {
     expect(await screen.findByRole('dialog', { name: `Xoá hẳn ${target.name}?` })).toBeInTheDocument();
   });
 
+  it('BUG-080: hộp ma trận quyền nói tiêu đề một lần, không lặp làm chú thích', async () => {
+    const UserManagementView = await loadUserManagementView();
+    const model: UserManagementViewModel = { ...USER_MANAGEMENT_SCENARIO_SUCCESS, detail: null, isPermissionReferenceOpen: true };
+    renderWithProviders(<UserManagementView actions={buildActions()} model={model} />);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Ma trận quyền theo vai trò' });
+    expect(within(dialog).getAllByText('Ma trận quyền theo vai trò')).toHaveLength(1);
+  });
+
   it('BUG-076: nút hàng viết hoa chữ đầu (A6), không còn "xoá" viết thường', async () => {
     const UserManagementView = await loadUserManagementView();
     renderWithProviders(<UserManagementView actions={buildActions()} model={USER_MANAGEMENT_SCENARIO_SUCCESS} />);
