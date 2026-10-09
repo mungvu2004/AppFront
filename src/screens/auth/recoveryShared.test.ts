@@ -19,6 +19,15 @@ describe('a strip never says its title twice (BUG-021)', () => {
     },
   );
 
+  // Đọc chữ từ vi.json thì câu cũ cũng qua: khẳng định chính câu chữ (BUG-091).
+  it('auth.errors.invalidCredentials names both fields, not the old "Chữ bạn…" sentence', () => {
+    const { description } = AUTH_MESSAGES.errors.invalidCredentials;
+
+    expect(description).toContain('thư điện tử');
+    expect(description).toContain('mật khẩu');
+    expect(description).not.toContain('Chữ bạn');
+  });
+
   // `describeError` dựng mọi dải "khác" của /login và nhóm khôi phục từ khối này (BUG-021).
   it.each(Object.entries(ERROR_MESSAGES))('errors.%s: the description does not repeat the title', (_key, value) => {
     expect(repeatsTitle(value.title, value.description)).toBe(false);
