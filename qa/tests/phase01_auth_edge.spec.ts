@@ -1188,7 +1188,9 @@ test.describe('E01 SCR-02 Login failures', () => {
     expect(login.seen).toHaveLength(1);
     expect(refresh.seen.length, `POST ${REFRESH_PATH} after the 204`).toBeGreaterThan(0);
     expect(pathOf(page.url())).toBe(ROUTES.login);
-    await captureEvidence(page, 'E01_login_signed_in_offline.png');
+    await captureEvidence(page, 'E01_login_signed_in_offline.png', {
+      caption: `[mocked response] press 1: POST ${LOGIN_API} × ${login.seen.length} (204), POST ${REFRESH_PATH} × ${refresh.seen.length} (network failed)`,
+    });
 
     const refreshesBefore = refresh.seen.length;
     await button(page, SIGN_IN_LABEL).click();
@@ -1202,7 +1204,11 @@ test.describe('E01 SCR-02 Login failures', () => {
       refreshRequests: refresh.seen.length,
       landed: pathOf(page.url()),
     });
-    await captureEvidence(page, 'E01_login_signed_in_offline_retry.png');
+    // BUG-095: same screen by design (BUG-013: the strip stays, the button stays enabled) — the counts on the shot
+    // are what shows the second attempt really went out.
+    await captureEvidence(page, 'E01_login_signed_in_offline_retry.png', {
+      caption: `[mocked response] press 2 (retry): POST ${LOGIN_API} × ${login.seen.length} (204 each), POST ${REFRESH_PATH} × ${refresh.seen.length} (was ${refreshesBefore}); still /login, "Đăng nhập" enabled`,
+    });
     await refresh.stop();
     await login.stop();
   });
