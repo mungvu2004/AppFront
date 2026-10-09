@@ -377,6 +377,45 @@ describe('SessionGate — mất kết nối khi đang đăng nhập', () => {
     expect(screenMounts).toBe(1);
   });
 
+  it('ẩn dải trả tiêu điểm về chỗ nó đến, không để rơi về body (nợ QA-01 #20)', () => {
+    renderGate({
+      children: (
+        <main>
+          <button type="button">Nút của màn con</button>
+        </main>
+      ),
+      serverUnreachable: true,
+    });
+
+    const origin = screen.getByRole('button', { name: 'Nút của màn con' });
+    const hide = screen.getByRole('button', { name: 'Ẩn thông báo kết nối' });
+
+    origin.focus();
+    hide.focus();
+    fireEvent.click(hide);
+
+    expect(screen.queryByRole('region', { name: 'Trạng thái kết nối' })).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(origin);
+  });
+
+  it('ẩn dải khi tiêu điểm vào thẳng nó (không có chỗ đến): về `main` nhận tiêu điểm của màn con (nợ QA-01 #20)', () => {
+    renderGate({
+      children: (
+        <main tabIndex={-1} aria-label="màn con">
+          <ProbeScreen />
+        </main>
+      ),
+      serverUnreachable: true,
+    });
+
+    const hide = screen.getByRole('button', { name: 'Ẩn thông báo kết nối' });
+
+    hide.focus();
+    fireEvent.click(hide);
+
+    expect(document.activeElement).toBe(screen.getByRole('main'));
+  });
+
   it('gắn lại màn con khi đổi người', () => {
     const { update } = renderGate({ userId: 'u1' });
 

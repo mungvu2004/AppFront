@@ -86,6 +86,17 @@ export interface SessionGateProps {
  */
 function ConnectionStrip({ onRetry }: { onRetry: () => void }) {
   const [dismissed, setDismissed] = useState(false);
+  /** Chỗ tiêu điểm đứng trước khi vào dải — nút "Ẩn" gỡ cả dải, nên trả tiêu điểm về đó. */
+  const cameFrom = useRef<HTMLElement | null>(null);
+
+  const dismiss = useCallback(() => {
+    // Không có chỗ đến (Tab thẳng vào dải, đứng đầu trang) thì về `main` của màn con nếu nó nhận
+    // tiêu điểm; không thì thôi. Trước đây tiêu điểm luôn rơi về `body` (nợ QA-01 #20).
+    const target = cameFrom.current?.isConnected === true ? cameFrom.current : document.querySelector<HTMLElement>('main[tabindex]');
+
+    setDismissed(true);
+    target?.focus();
+  }, []);
 
   if (dismissed) {
     return null;
@@ -95,6 +106,11 @@ function ConnectionStrip({ onRetry }: { onRetry: () => void }) {
     <div
       role="region"
       aria-label="Trạng thái kết nối"
+      onFocus={(event) => {
+        if (event.relatedTarget instanceof HTMLElement && !event.currentTarget.contains(event.relatedTarget)) {
+          cameFrom.current = event.relatedTarget;
+        }
+      }}
       className="fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center gap-2 rounded-[8px] border border-state-attention bg-state-attention-tint py-1 pl-3 pr-1 shadow-float"
     >
       <WifiOff aria-hidden="true" className="shrink-0 text-state-attention" size={16} />
@@ -111,7 +127,7 @@ function ConnectionStrip({ onRetry }: { onRetry: () => void }) {
         iconOnly
         icon={<X aria-hidden="true" size={16} />}
         aria-label="Ẩn thông báo kết nối"
-        onClick={() => setDismissed(true)}
+        onClick={dismiss}
       />
     </div>
   );
