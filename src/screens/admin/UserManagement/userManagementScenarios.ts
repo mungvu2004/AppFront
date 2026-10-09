@@ -647,6 +647,7 @@ const noop = (): void => {
 
 export const USER_MANAGEMENT_ACTIONS: UserManagementActions = {
   onSearchChange: noop,
+  onClearSearch: noop,
   onRoleFilterChange: noop,
   onStatusFilterChange: noop,
   onSelectUser: noop,

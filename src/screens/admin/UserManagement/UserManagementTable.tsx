@@ -14,6 +14,9 @@
  * Vai và trạng thái không bao giờ đứng một mình bằng màu (đặc tả cấm tuyệt đối): `Badge`
  * dùng `variant="neutral"` cho cả hai, chữ đọc được luôn đi kèm dấu chấm màu.
  */
+import { SearchX } from 'lucide-react';
+
+import { EmptyState } from '@/components/feedback/EmptyState';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -33,7 +36,9 @@ const HEADER_PROJECTS = 'Số dự án';
 const HEADER_LAST_ACTIVE = 'Lần hoạt động cuối';
 const HEADER_STATUS = 'Trạng thái';
 const HEADER_ACTIONS = 'Hành động';
-const EMPTY_MESSAGE = 'Không tìm thấy người dùng phù hợp.';
+const NO_MATCH_TITLE = 'Không tìm thấy người dùng';
+const NO_MATCH_DESCRIPTION = 'Không ai khớp với từ khoá hoặc bộ lọc đang chọn.';
+const CLEAR_SEARCH_LABEL = 'Xoá tìm kiếm';
 const INVITE_EXPIRED_LABEL = 'Lời mời đã hết hạn';
 const RESEND_INVITE_LABEL = 'Gửi lại';
 const DISABLE_LABEL = 'Vô hiệu hoá';
@@ -147,6 +152,18 @@ function RowActions({ actions, row }: RowActionsProps) {
   );
 }
 
+/** Tìm không thấy ai: cùng một khối ở mọi khổ, có lối thoát (BUG-082). */
+function NoMatchState({ onClearSearch }: { readonly onClearSearch: () => void }) {
+  return (
+    <EmptyState
+      action={{ label: CLEAR_SEARCH_LABEL, onClick: onClearSearch, variant: 'secondary' }}
+      description={NO_MATCH_DESCRIPTION}
+      icon={<SearchX aria-hidden="true" />}
+      title={NO_MATCH_TITLE}
+    />
+  );
+}
+
 interface UserListProps {
   readonly actions: UserManagementActions;
   readonly roleOptions: readonly RoleOption[];
@@ -155,10 +172,6 @@ interface UserListProps {
 
 /** Dưới 1024: bảng thành một cột thẻ xếp chồng. */
 function UserManagementCardList({ actions, roleOptions, rows }: UserListProps) {
-  if (rows.length === 0) {
-    return <p className="p-4 text-[13px] text-text-secondary">{EMPTY_MESSAGE}</p>;
-  }
-
   return (
     <ul className="flex flex-col gap-2">
       {rows.map((row) => (
@@ -240,6 +253,10 @@ export function UserManagementTable({
     );
   }
 
+  if (rows.length === 0) {
+    return <NoMatchState onClearSearch={actions.onClearSearch} />;
+  }
+
   if (isCollapsed) {
     return <UserManagementCardList actions={actions} roleOptions={roleOptions} rows={rows} />;
   }
@@ -260,47 +277,43 @@ export function UserManagementTable({
         </Table.Row>
       </Table.Header>
       <Table.Body>
-        {rows.length === 0 ? (
-          <Table.Empty colSpan={COLUMN_COUNT} message={EMPTY_MESSAGE} />
-        ) : (
-          rows.map((row) => (
-            <Table.Row
-              className={cn(ROW_HEIGHT, row.justChanged && 'duration-340')}
-              isFlash={row.justChanged}
-              key={row.id}
-              selected={row.id === selectedUserId}
-            >
-              <Table.Cell className={ROW_HEIGHT}>
-                <div className="flex items-center gap-3">
-                  <Avatar alt={row.name} initials={initialsOf(row.name, row.email)} size="default" {...avatarSrcProp(row.avatarUrl)} />
-                  <button
-                    className={cn('truncate text-left font-medium text-text-primary', FOCUS_RING)}
-                    onClick={() => actions.onSelectUser(row.id)}
-                    type="button"
-                  >
-                    {row.name}
-                  </button>
-                </div>
-              </Table.Cell>
-              <Table.Cell className={cn(ROW_HEIGHT, 'text-text-secondary')}>{row.email}</Table.Cell>
-              <Table.Cell className={ROW_HEIGHT}>
-                <RoleCell actions={actions} roleOptions={roleOptions} row={row} />
-              </Table.Cell>
-              <Table.Cell className={cn(ROW_HEIGHT, 'font-mono tabular-nums')}>{row.projectCountLabel}</Table.Cell>
-              <Table.Cell className={ROW_HEIGHT}>
-                <Tooltip label={row.lastActiveExactLabel}>
-                  <span>{row.lastActiveLabel}</span>
-                </Tooltip>
-              </Table.Cell>
-              <Table.Cell className={ROW_HEIGHT}>
-                <StatusCell actions={actions} row={row} />
-              </Table.Cell>
-              <Table.Cell className={ROW_HEIGHT}>
-                <RowActions actions={actions} row={row} />
-              </Table.Cell>
-            </Table.Row>
-          ))
-        )}
+        {rows.map((row) => (
+          <Table.Row
+            className={cn(ROW_HEIGHT, row.justChanged && 'duration-340')}
+            isFlash={row.justChanged}
+            key={row.id}
+            selected={row.id === selectedUserId}
+          >
+            <Table.Cell className={ROW_HEIGHT}>
+              <div className="flex items-center gap-3">
+                <Avatar alt={row.name} initials={initialsOf(row.name, row.email)} size="default" {...avatarSrcProp(row.avatarUrl)} />
+                <button
+                  className={cn('truncate text-left font-medium text-text-primary', FOCUS_RING)}
+                  onClick={() => actions.onSelectUser(row.id)}
+                  type="button"
+                >
+                  {row.name}
+                </button>
+              </div>
+            </Table.Cell>
+            <Table.Cell className={cn(ROW_HEIGHT, 'text-text-secondary')}>{row.email}</Table.Cell>
+            <Table.Cell className={ROW_HEIGHT}>
+              <RoleCell actions={actions} roleOptions={roleOptions} row={row} />
+            </Table.Cell>
+            <Table.Cell className={cn(ROW_HEIGHT, 'font-mono tabular-nums')}>{row.projectCountLabel}</Table.Cell>
+            <Table.Cell className={ROW_HEIGHT}>
+              <Tooltip label={row.lastActiveExactLabel}>
+                <span>{row.lastActiveLabel}</span>
+              </Tooltip>
+            </Table.Cell>
+            <Table.Cell className={ROW_HEIGHT}>
+              <StatusCell actions={actions} row={row} />
+            </Table.Cell>
+            <Table.Cell className={ROW_HEIGHT}>
+              <RowActions actions={actions} row={row} />
+            </Table.Cell>
+          </Table.Row>
+        ))}
       </Table.Body>
     </Table.Root>
   );

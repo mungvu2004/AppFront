@@ -84,6 +84,7 @@ async function loadUserManagementView(): Promise<ComponentType<UserManagementPro
 function buildActions(overrides: Partial<UserManagementActions> = {}): UserManagementActions {
   return {
     onSearchChange: vi.fn(),
+    onClearSearch: vi.fn(),
     onRoleFilterChange: vi.fn(),
     onStatusFilterChange: vi.fn(),
     onSelectUser: vi.fn(),
@@ -354,6 +355,18 @@ describe('Lớp trên cùng (A9/A12) — lỗi B-V12b-01, B-V12b-02', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'Ma trận quyền theo vai trò' });
     expect(within(dialog).getAllByText('Ma trận quyền theo vai trò')).toHaveLength(1);
+  });
+
+  it.each([false, true])('BUG-082: tìm không thấy ai → cùng EmptyState có nút xoá tìm kiếm (isCollapsed=%s)', async (isCollapsed) => {
+    const actions = buildActions();
+    const model: UserManagementViewModel = { ...USER_MANAGEMENT_SCENARIO_SUCCESS, detail: null, isCollapsed, rows: [] };
+    const UserManagementView = await loadUserManagementView();
+    renderWithProviders(<UserManagementView actions={actions} model={model} />);
+
+    expect(await screen.findByRole('heading', { name: 'Không tìm thấy người dùng' })).toBeInTheDocument();
+    expect(screen.queryByText('Không có dữ liệu')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá tìm kiếm' }));
+    expect(actions.onClearSearch).toHaveBeenCalledTimes(1);
   });
 
   it('BUG-076: nút hàng viết hoa chữ đầu (A6), không còn "xoá" viết thường', async () => {

@@ -1063,6 +1063,11 @@ export function useUserManagement(options: UseUserManagementOptions): UserManage
   const actions = useMemo(
     (): UserManagementActions => ({
       onSearchChange: setSearch,
+      onClearSearch: (): void => {
+        setSearch('');
+        setRoleFilter(FILTER_ALL);
+        setStatusFilter(FILTER_ALL);
+      },
       onRoleFilterChange: setRoleFilter,
       onStatusFilterChange: setStatusFilter,
       onSelectUser: setSelectedUserId,

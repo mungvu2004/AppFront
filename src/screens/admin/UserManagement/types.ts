@@ -264,6 +264,8 @@ export interface UserManagementViewModel {
  */
 export interface UserManagementActions {
   readonly onSearchChange: (value: string) => void;
+  /** Trạng thái "không ai khớp": xoá ô tìm và đưa hai bộ lọc về "Tất cả" (BUG-082). */
+  readonly onClearSearch: () => void;
   readonly onRoleFilterChange: (value: RoleFilter) => void;
   readonly onStatusFilterChange: (value: StatusFilter) => void;
   readonly onSelectUser: (userId: string | null) => void;
