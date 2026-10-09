@@ -383,6 +383,17 @@ describe('Lớp trên cùng (A9/A12) — lỗi B-V12b-01, B-V12b-02', () => {
     expect(email).not.toHaveClass('truncate');
   });
 
+  it('BUG-071: câu lý do bị chặn chỉ giới hạn 160 px ở bảng (lg), thẻ hẹp dùng hết bề ngang', async () => {
+    const model: UserManagementViewModel = { ...USER_MANAGEMENT_SCENARIO_SUCCESS, detail: null, isCollapsed: true };
+    const row = requireRow(model, (candidate) => candidate.removeBlockedReason !== null, 'một hàng có removeBlockedReason');
+    const UserManagementView = await loadUserManagementView();
+    renderWithProviders(<UserManagementView actions={buildActions()} model={model} />);
+
+    const reason = (await screen.findAllByText(row.removeBlockedReason ?? '')).find((node) => node.tagName === 'SPAN');
+    expect(reason).toHaveClass('lg:max-w-[160px]');
+    expect(reason).not.toHaveClass('max-w-[160px]');
+  });
+
   it('BUG-071: panel chi tiết mở thì bảng bỏ cột phụ, gộp trạng thái vào ô người dùng', async () => {
     const row = USER_MANAGEMENT_SCENARIO_SUCCESS.rows[0];
     if (row === undefined) throw new Error('kịch bản thành công phải có ít nhất một hàng');
