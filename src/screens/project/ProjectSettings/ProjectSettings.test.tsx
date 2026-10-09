@@ -86,6 +86,8 @@ function baseProps(): ProjectSettingsViewProps {
     canDelete: true,
     isReadOnly: false,
     errorMessage: null,
+    isProjectMissing: false,
+    canRetryLoad: false,
     saveState: 'saved',
     saveLabel: 'Đã lưu lúc 14:32',
     conflictMessage: null,
@@ -156,6 +158,7 @@ function baseProps(): ProjectSettingsViewProps {
     setScaleMmPerPx: noop,
     saveNow: noop,
     retryLoad: noop,
+    backToProjects: null,
     reloadSettings: noop,
     confirmReload: noop,
     cancelReload: noop,
@@ -209,6 +212,7 @@ const PROPS_BY_STATE: Readonly<Record<SevenState, () => ProjectSettingsViewProps
     ...baseProps(),
     state: 'error',
     errorMessage: 'Mất kết nối máy chủ. Kiểm tra mạng rồi thử lại.',
+    canRetryLoad: true,
   }),
   success: () => baseProps(),
   forbidden: () => ({
@@ -277,7 +281,7 @@ describe('ProjectSettingsView, bảy trạng thái', () => {
     render(<ProjectSettingsView {...PROPS_BY_STATE.loading()} />);
 
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
-    expect(screen.getByText('Trạng thái: đang tải')).toBeInTheDocument();
+    expect(screen.getByText('Trạng thái: Đang tải')).toBeInTheDocument();
   });
 
   it('giữ nguyên dữ liệu nhưng bỏ quyền sửa với vai người xem', () => {
@@ -301,6 +305,29 @@ describe('ProjectSettingsView, bảy trạng thái', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
 
     expect(retryLoad).toHaveBeenCalledTimes(1);
+  });
+
+  it('lỗi tải: không vẽ chỉ báo lưu, nhãn trạng thái viết hoa (BUG-078, A6)', () => {
+    render(<ProjectSettingsView {...PROPS_BY_STATE.error()} />);
+
+    expect(screen.queryByText('Chưa có thay đổi')).toBeNull();
+    expect(screen.getByText('Trạng thái: Lỗi')).toBeInTheDocument();
+  });
+
+  it('dự án không tồn tại: lối về danh sách dự án thay cho "Thử lại" (BUG-078)', () => {
+    const backToProjects = vi.fn();
+    render(
+      <ProjectSettingsView
+        {...PROPS_BY_STATE.error()}
+        isProjectMissing
+        canRetryLoad={false}
+        backToProjects={backToProjects}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Về danh sách dự án' }));
+    expect(backToProjects).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -582,6 +609,25 @@ describe('ProjectSettings đã nối dây', () => {
     expect(screen.getByText('Không tải được cài đặt dự án')).toBeInTheDocument();
     expect(screen.queryByRole('textbox', { name: 'Tên dự án' })).toBeNull();
     expect(screen.queryByRole('combobox', { name: 'Nhóm cài đặt' })).toBeNull();
+  });
+
+  it('đọc trả 404: có lối về danh sách, không "Thử lại"; lỗi mạng thì ngược lại (BUG-078)', async () => {
+    const onBackToProjects = vi.fn();
+    const missing = spyGateway({
+      read: async () => ({ ok: false, error: httpError(404, 'PROJECT_NOT_FOUND') }),
+    });
+    await mountSettings({ gateway: missing, projectId: 'project-404', roles: ['admin'], onBackToProjects });
+
+    expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Về danh sách dự án' }));
+    expect(onBackToProjects).toHaveBeenCalledTimes(1);
+    cleanup();
+
+    const offline = spyGateway({ read: async () => ({ ok: false, error: NETWORK_ERROR }) });
+    await mountSettings({ gateway: offline, projectId: 'project-offline', roles: ['admin'], onBackToProjects });
+
+    expect(screen.getByRole('button', { name: 'Thử lại' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Về danh sách dự án' })).toBeNull();
   });
 
   it('gửi thay đổi đi 800 ms sau thao tác cuối, không cần ai bấm gì (D-07, A7)', async () => {

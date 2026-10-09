@@ -44,7 +44,7 @@ import { millimetresPerPixel, pixels, scaleFromRatio } from '@/domain/units/scal
 import type { AutosaveState } from '@/lib/autosave/createAutosave';
 import { createAutosave } from '@/lib/autosave/createAutosave';
 import { can } from '@/lib/auth/permissions';
-import { describeError, toAppError } from '@/lib/errors';
+import { describeError, toAppError, type AppError } from '@/lib/errors';
 import { initialsOf } from '@/lib/format/initials';
 import { formatArea, formatLength } from '@/lib/format/measure';
 import { formatNumber, formatPercent } from '@/lib/format/number';
@@ -175,6 +175,10 @@ export interface ProjectSettingsModel extends ProjectMembersModel {
   readonly canDelete: boolean;
   readonly isReadOnly: boolean;
   readonly errorMessage: string | null;
+  /** Lỗi đọc là 404: thử lại vô ích, lối ra là danh sách dự án (BUG-078). */
+  readonly isProjectMissing: boolean;
+  /** Lỗi đọc thử lại được (mạng, hết giờ, 5xx…) — chỉ khi ấy mới có nút "Thử lại". */
+  readonly canRetryLoad: boolean;
   readonly saveState: SaveState;
   /** `null` khi màn tự ép `pending` vì còn lỗi nhập — viên chỉ báo dùng câu chờ của nó. */
   readonly saveLabel: string | null;
@@ -233,6 +237,8 @@ export interface ProjectSettingsActions extends ProjectMembersActions {
   readonly setScaleMmPerPx: (value: number | undefined) => void;
   readonly saveNow: () => void;
   readonly retryLoad: () => void;
+  /** Về danh sách dự án khi dự án không tồn tại; `null` khi nơi gọi không nối điều hướng. */
+  readonly backToProjects: (() => void) | null;
   readonly reloadSettings: () => void;
   readonly confirmReload: () => void;
   readonly cancelReload: () => void;
@@ -272,6 +278,15 @@ export interface UseProjectSettingsOptions {
   readonly currentUserId?: string;
   /** Gọi sau khi chính người dùng bị gỡ khỏi dự án; nơi gọi điều hướng đi. */
   readonly onSelfRemoved?: () => void;
+  /** Lối về danh sách dự án khi lượt đọc trả 404; nơi gọi điều hướng đi. */
+  readonly onBackToProjects?: () => void;
+}
+
+/** Lỗi đọc giữ nguyên `AppError` để màn biết đó là 404 hay lỗi thử lại được (BUG-078). */
+class SettingsLoadError extends Error {
+  constructor(readonly appError: AppError) {
+    super(describeError(appError).description);
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -720,7 +735,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
       const result = await gateway.read({ projectId });
 
       if (!result.ok) {
-        throw new Error(describeError(toAppError(result.error)).description);
+        throw new SettingsLoadError(toAppError(result.error));
       }
 
       return result.data;
@@ -1219,6 +1234,8 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
       : LOAD_FAILURE_FALLBACK
     : null;
 
+  const loadAppError = settingsQuery.error instanceof SettingsLoadError ? settingsQuery.error.appError : null;
+
   const state = useMemo<SevenState>(() => {
     // Chưa có dữ liệu thì không có gì để xếp lại hay khoá: tải và lỗi tải thắng hai
     // lớp phủ, nếu không màn hẹp vẽ biểu mẫu trống thay cho lỗi (BUG-072).
@@ -1275,6 +1292,8 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     canDelete,
     isReadOnly: !canEdit,
     errorMessage: state === 'error' ? loadFailure : null,
+    isProjectMissing: state === 'error' && loadAppError?.kind === 'notFound',
+    canRetryLoad: state === 'error' && (loadAppError?.retryable ?? true),
     saveState,
     // Ép `pending` vì lỗi nhập thì nhãn của tự lưu (có thể là "Đã lưu lúc …" cũ) không còn đúng (B-V1-47).
     saveLabel: hasLocalProblem ? null : indicator.label,
@@ -1338,6 +1357,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     setScaleMmPerPx: (value) => editDraft({ scaleMmPerPx: value ?? null }),
     saveNow: () => void autosave.saveNow(),
     retryLoad: () => void settingsQuery.refetch(),
+    backToProjects: options.onBackToProjects ?? null,
     // A9: tải lại bỏ bản nháp chưa lưu, nên có nháp thì hỏi trước.
     reloadSettings: () => {
       if (hasUnsavedChanges) {

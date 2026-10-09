@@ -44,6 +44,8 @@ const base: ProjectSettingsViewProps = {
   canDelete: true,
   isReadOnly: false,
   errorMessage: null,
+  isProjectMissing: false,
+  canRetryLoad: false,
   saveState: 'saved',
   saveLabel: 'Đã lưu lúc 14:32',
   conflictMessage: null,
@@ -113,6 +115,7 @@ const base: ProjectSettingsViewProps = {
   setScaleMmPerPx: noop,
   saveNow: noop,
   retryLoad: noop,
+  backToProjects: null,
   reloadSettings: noop,
   confirmReload: noop,
   cancelReload: noop,
@@ -177,6 +180,7 @@ export const ErrorState: Story = {
     ...base,
     state: 'error',
     errorMessage: 'Mất kết nối máy chủ. Kiểm tra mạng rồi thử lại.',
+    canRetryLoad: true,
   },
 };
 
