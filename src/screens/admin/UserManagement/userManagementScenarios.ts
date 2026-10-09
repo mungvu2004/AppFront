@@ -93,13 +93,13 @@ function activityMoment(at: Date): { readonly atLabel: string; readonly atExactL
 }
 
 /* ==========================================================================
- * 1. Nhãn vai/trạng thái — A6 (viết thường, kiểu câu). Nguồn duy nhất cho cả file.
+ * 1. Nhãn vai/trạng thái — A6 (viết hoa chữ đầu, kiểu câu). Nguồn duy nhất cho cả file.
  * ========================================================================== */
 
 const ROLE_LABEL: Readonly<Record<ProjectRole, string>> = {
-  admin: 'quản trị',
-  engineer: 'kỹ sư',
-  viewer: 'người xem',
+  admin: 'Quản trị',
+  engineer: 'Kỹ sư',
+  viewer: 'Người xem',
 };
 
 const STATUS_LABEL: Readonly<Record<UserAccountStatus, string>> = {
@@ -142,7 +142,7 @@ const RULESET_EDIT_POLICY: Readonly<Record<ProjectRole, boolean>> = {
 const PERMISSION_ROW_SEEDS: readonly PermissionRowSeed[] = [
   { key: 'floor.upload', label: 'Tải bản vẽ', values: permissionMatrix['floor.upload'] },
   { key: 'layer.edit', label: 'Sửa hình học', values: permissionMatrix['layer.edit'] },
-  { key: 'qc.approve', label: 'duyệt QC', values: QC_APPROVE_POLICY },
+  { key: 'qc.approve', label: 'Duyệt QC', values: QC_APPROVE_POLICY },
   { key: 'ruleset.edit', label: 'Đổi bộ luật', values: RULESET_EDIT_POLICY },
   { key: 'model.export', label: 'Xuất', values: permissionMatrix['model.export'] },
   { key: 'share.create', label: 'Chia sẻ', values: permissionMatrix['share.create'] },
@@ -161,7 +161,7 @@ function buildPermissionMatrix(): PermissionMatrixModel {
         return {
           role,
           allowed,
-          srLabel: `${ROLE_LABEL[role]}: ${allowed ? 'được phép' : 'không được phép'} ${lowerFirst(seed.label)}`,
+          srLabel: `${lowerFirst(ROLE_LABEL[role])}: ${allowed ? 'được phép' : 'không được phép'} ${lowerFirst(seed.label)}`,
         };
       }),
     })),

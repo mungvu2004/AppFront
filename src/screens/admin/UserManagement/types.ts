@@ -60,7 +60,7 @@ export type StatusFilter = UserAccountStatus | typeof FILTER_ALL;
 
 export interface RoleOption {
   readonly role: ProjectRole;
-  /** `quản trị` · `kỹ sư` · `người xem` — viết thường, kiểu câu (A6). */
+  /** `Quản trị` · `Kỹ sư` · `Người xem` — viết hoa chữ đầu khi đứng làm nhãn (A6). */
   readonly label: string;
 }
 
@@ -85,7 +85,7 @@ export interface PermissionMatrixCell {
 export interface PermissionMatrixRowModel {
   /** `PermissionKey` thật của `src/lib/auth/permissions.ts`, ví dụ `floor.upload`. */
   readonly key: string;
-  /** `tải bản vẽ` · `sửa hình học` · `duyệt QC` · … */
+  /** `Tải bản vẽ` · `Sửa hình học` · `Duyệt QC` · … */
   readonly label: string;
   readonly cells: readonly PermissionMatrixCell[];
 }
