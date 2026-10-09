@@ -1152,19 +1152,6 @@ const HELP_DIALOG_NAME = 'Phím tắt';
 const dialogScopeBindingCount = (): number =>
   appShortcutRegistry.listShortcuts().filter((entry) => entry.scope === 'dialog').length;
 
-/** Trần chờ rộng rãi cho chunk tải muộn và cho hoạt cảnh thoát của bảng. */
-const ASYNC_TIMEOUT_MS = 5000;
-
-/**
- * Trần của cả bài `[N8]`, rộng hơn hẳn {@link ASYNC_TIMEOUT_MS}.
- *
- * Bài này chờ HAI lượt bất đồng bộ dài — chunk `LazyGlobalShortcutHelp` tải
- * lần đầu, rồi hoạt cảnh thoát của `AnimatePresence` — nên trần mặc định 5 giây
- * của vitest bằng đúng trần của MỘT lượt chờ, và bài hết giờ trước khi lượt thứ
- * hai kịp xong.
- */
-const N8_TIMEOUT_MS = 20_000;
-
 describe('[N8] bốn phím tắt', () => {
   beforeEach(() => {
     seedStore(createCleanBuildingScenario().graph);
@@ -1205,11 +1192,7 @@ describe('[N8] bốn phím tắt', () => {
       fireEvent.keyDown(document.body, { key: '?', shiftKey: true });
     });
 
-    const help = await view.findByRole(
-      'dialog',
-      { name: HELP_DIALOG_NAME },
-      { timeout: ASYNC_TIMEOUT_MS },
-    );
+    const help = await view.findByRole('dialog', { name: HELP_DIALOG_NAME });
     const helpOpened = help !== null;
 
     /* ---- 2. Escape đóng đúng lớp trên cùng ------------------------------- */
@@ -1231,19 +1214,14 @@ describe('[N8] bốn phím tắt', () => {
 
     /* Và phải ĐỢI sổ trống, không đọc một lần ngay sau `act`.
      *
-     * `ASYNC_TIMEOUT_MS` ở trên tự khai là trần chờ "cho chunk tải muộn VÀ cho hoạt cảnh thoát
-     * của bảng", nhưng đường đóng chưa bao giờ dùng nó: nó đọc sổ đồng bộ. Lượt mở có `findByRole`
-     * để chờ, lượt đóng thì không — nên bài này đạt khi máy rảnh và đỏ khi máy có tải, ở đúng một
-     * dòng, mà không phải vì A12 hỏng. Đo được: đạt ở tải nền 25,9 %, đỏ ở 30,7 %.
+     * Lượt mở có `findByRole` để chờ, lượt đóng thì không — nên bài này đạt khi máy rảnh và đỏ khi
+     * máy có tải, ở đúng một dòng, mà không phải vì A12 hỏng. Đo được: đạt ở tải nền 25,9 %, đỏ ở 30,7 %.
      *
      * `waitFor` không nới một khẳng định nào — nó vẫn đòi sổ về **0**, tức bảng thật sự đóng. Nó
      * chỉ thôi đòi điều đó xảy ra trong cùng một nhịp flush, mà A12 chưa bao giờ hứa nhịp. */
-    await waitFor(
-      () => {
-        expect(dialogScopeBindingCount()).toBe(0);
-      },
-      { timeout: ASYNC_TIMEOUT_MS },
-    );
+    await waitFor(() => {
+      expect(dialogScopeBindingCount()).toBe(0);
+    });
 
     const dialogBindingsAfter = dialogScopeBindingCount();
     const helpClosed = dialogBindingsAfter === 0;
@@ -1299,7 +1277,7 @@ describe('[N8] bốn phím tắt', () => {
     expect(view.queryAllByRole('button', SAVE_BUTTON_QUERY)).toHaveLength(0);
 
     view.unmount();
-  }, N8_TIMEOUT_MS);
+  });
 });
 
 /* -------------------------------------------------------------------------- */

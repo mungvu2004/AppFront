@@ -227,7 +227,7 @@ describe('dải lưu lớp (F-04x-1)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tải lại' }));
     expect(onReload).toHaveBeenCalledTimes(1);
 
-    expect(await screen.findByRole('dialog', { name: 'Bỏ thay đổi chưa lưu của tầng này?' }, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: 'Bỏ thay đổi chưa lưu của tầng này?' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Tải lại và bỏ thay đổi' }));
     expect(onConfirm).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
