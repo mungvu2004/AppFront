@@ -145,7 +145,7 @@
     "errors": {
       "invalidCredentials": {
         "title": "Sai thư điện tử hoặc mật khẩu",
-        "description": "Kiểm tra lại rồi nhập mật khẩu một lần nữa. Chữ bạn đã nhập vẫn được giữ nguyên."
+        "description": "Kiểm tra lại thư điện tử và mật khẩu rồi thử lại. Thông tin bạn đã nhập vẫn được giữ."
       },
       "tooManyAttempts": {
         "title": "Đã thử quá nhiều lần",
@@ -156,7 +156,7 @@
         "description": "Địa chỉ của trang này không nằm trong danh sách máy chủ chấp nhận. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống."
       },
       "tooManyRecovery": "Hãy đợi vài phút rồi thử lại.",
-      "recoveryFailed": "Máy chủ chưa xử lý được yêu cầu. Chữ bạn đã nhập vẫn được giữ — đợi giây lát rồi bấm gửi lại.",
+      "recoveryFailed": "Máy chủ chưa xử lý được yêu cầu. Đợi giây lát rồi bấm gửi lại — những gì đã nhập vẫn còn nguyên.",
       "validationOther": {
         "title": "Dữ liệu chưa phù hợp",
         "description": "Máy chủ chưa nhận dữ liệu đăng nhập vừa gửi. Kiểm tra lại thư điện tử và mật khẩu rồi thử lại."
