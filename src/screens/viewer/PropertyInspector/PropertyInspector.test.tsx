@@ -39,6 +39,7 @@
 
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { __resetMockLayerState, createMockApiClient } from '@/api/__mocks__/client';
@@ -116,7 +117,10 @@ function renderFromProps(state: SevenState) {
 
 /** Panel ĐÃ NỐI DÂY: hook thật, store thật, ngăn xếp hoàn tác thật. */
 function WiredInspector(
-  props: Pick<PropertyInspectorContainerProps, 'selectedEntityId' | 'selectedEntityIds' | 'saveLabel'> & {
+  props: Pick<
+    PropertyInspectorContainerProps,
+    'selectedEntityId' | 'selectedEntityIds' | 'saveLabel'
+  > & {
     readonly canEdit?: boolean;
     readonly gateway?: PropertyInspectorGateway | undefined;
   },
@@ -147,7 +151,10 @@ function HostedInspector(
     readonly gateway: PropertyInspectorGateway;
   },
 ) {
-  const { label } = useFloorLayerAutosave({ apiClient: props.apiClient, projectId: ACCEPTANCE_PROJECT_ID });
+  const { label } = useFloorLayerAutosave({
+    apiClient: props.apiClient,
+    projectId: ACCEPTANCE_PROJECT_ID,
+  });
 
   return (
     <WiredInspector
@@ -280,7 +287,13 @@ async function renderWired(selectedIds: readonly string[], options: RenderWiredO
   );
 
   const result = render(
-    options.shellKeyboard === true ? <UndoShortcuts>{panel}</UndoShortcuts> : panel,
+    options.shellKeyboard === true ? (
+      <MemoryRouter>
+        <UndoShortcuts>{panel}</UndoShortcuts>
+      </MemoryRouter>
+    ) : (
+      panel
+    ),
   );
 
   await waitFor(() => {
@@ -468,12 +481,9 @@ describe('[PI-1] bốn bộ khẳng định dùng chung', () => {
     for (const state of PROPERTY_INSPECTOR_STATE_NAMES) {
       const { container, unmount } = renderFromProps(state);
 
-      expect(
-        () => {
-          expectAccessible(container);
-        },
-        `trạng thái "${SEVEN_STATE_LABELS[state]}" hỏng khả năng tiếp cận`,
-      ).not.toThrow();
+      expect(() => {
+        expectAccessible(container);
+      }, `trạng thái "${SEVEN_STATE_LABELS[state]}" hỏng khả năng tiếp cận`).not.toThrow();
 
       unmount();
     }
@@ -487,12 +497,9 @@ describe('[PI-1] bốn bộ khẳng định dùng chung', () => {
     for (const state of PROPERTY_INSPECTOR_STATE_NAMES) {
       const { container, unmount } = renderFromProps(state);
 
-      expect(
-        () => {
-          expectVietnamese(container);
-        },
-        `trạng thái "${SEVEN_STATE_LABELS[state]}" còn chuỗi chưa phải tiếng Việt có dấu`,
-      ).not.toThrow();
+      expect(() => {
+        expectVietnamese(container);
+      }, `trạng thái "${SEVEN_STATE_LABELS[state]}" còn chuỗi chưa phải tiếng Việt có dấu`).not.toThrow();
 
       unmount();
     }
@@ -690,9 +697,13 @@ describe('[N3] đổi qua lại tường ↔ phòng mười lần', () => {
       rowCounts.push(visibleRowCount(container));
 
       const footer = container.querySelector('[class*="border-t"][class*="p-5"]');
-      footerTops.push(footer instanceof HTMLElement ? footer.getBoundingClientRect().top : Number.NaN);
+      footerTops.push(
+        footer instanceof HTMLElement ? footer.getBoundingClientRect().top : Number.NaN,
+      );
       footerPinned.push(footer?.parentElement?.className.includes('shrink-0') === true);
-      scrollingRegions.push(container.querySelectorAll('[class*="flex-1"][class*="overflow-y-auto"]').length);
+      scrollingRegions.push(
+        container.querySelectorAll('[class*="flex-1"][class*="overflow-y-auto"]').length,
+      );
 
       for (const cell of container.querySelectorAll('[class*="w-[40%]"]')) {
         labelWidths.add(cell.className.includes('w-[40%]') ? '40%' : cell.className);
@@ -707,7 +718,9 @@ describe('[N3] đổi qua lại tường ↔ phòng mười lần', () => {
 
     const wallRows = rowCounts.filter((_count, index) => index % 2 === 0);
     const roomRows = rowCounts.filter((_count, index) => index % 2 === 1);
-    const jumps = rowCounts.filter((count, index) => index > 0 && count !== rowCounts[index - 1]).length;
+    const jumps = rowCounts.filter(
+      (count, index) => index > 0 && count !== rowCounts[index - 1],
+    ).length;
 
     console.log(
       `[PROPERTY-INSPECTOR][N3] ${String(SWITCH_COUNT)} lượt đổi — số dòng mỗi lượt: ${rowCounts.join(', ')}`,
@@ -1046,7 +1059,9 @@ describe('[N6] chiều cao tường', () => {
     /* Câu gọi cửa bằng mã của danh sách, không bằng mã máy (B-V7-05). */
     const graphNow = useStore.getState().spatial;
     expect(graphNow).not.toBeNull();
-    expect(refusalSentence).toContain(displayCodeIn(graphNow as NonNullable<typeof graphNow>, HEIGHT_DOOR_ID));
+    expect(refusalSentence).toContain(
+      displayCodeIn(graphNow as NonNullable<typeof graphNow>, HEIGHT_DOOR_ID),
+    );
     expect(refusalSentence).not.toContain(HEIGHT_DOOR_ID);
     expect(refusalSentence).toContain(String(headMm - HEIGHT_REFUSED_MM));
   });
@@ -1180,6 +1195,7 @@ describe('[N8] bốn phím tắt', () => {
           />
         </QueryClientProvider>
       </UndoShortcuts>,
+      { wrapper: MemoryRouter },
     );
 
     await waitFor(() => {
@@ -1252,7 +1268,9 @@ describe('[N8] bốn phím tắt', () => {
       /* Không đổi gì thì không có gì để gửi (B-V8-41) — một lượt sửa trước đã. */
       await act(async () => {
         fireEvent.click(
-          within(view.container).getByRole('radio', { name: new RegExp(String(THICKNESS_AFTER_MM)) }),
+          within(view.container).getByRole('radio', {
+            name: new RegExp(String(THICKNESS_AFTER_MM)),
+          }),
         );
         await clock.flushMicrotasks();
       });
@@ -1318,7 +1336,10 @@ describe('[N9] tự lưu', () => {
 
   it('gửi lớp không gian của tầng có tường bị sửa — không phải tầng đang xem — và chân panel hiện "Đã lưu lúc …"', async () => {
     const spied = createSpiedGateway();
-    const { container } = await renderWired([WALL_ID], { gateway: spied.gateway, hostApiClient: spied.apiClient });
+    const { container } = await renderWired([WALL_ID], {
+      gateway: spied.gateway,
+      hostApiClient: spied.apiClient,
+    });
 
     clock = installFakeClock();
 
