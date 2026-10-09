@@ -1849,7 +1849,10 @@
   },
   "floorManager": {
     "screen": {
-      "breadcrumb": "Dự án > Quản lý tầng",
+      "breadcrumb": {
+        "projects": "Dự án",
+        "current": "Quản lý tầng"
+      },
       "title": "Quản lý tầng",
       "description": "Xem cao độ, chiều cao và tiến độ của từng tầng, rồi sắp xếp lại ngăn xếp nếu cần."
     },
