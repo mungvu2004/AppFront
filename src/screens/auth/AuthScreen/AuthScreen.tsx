@@ -300,10 +300,10 @@ export function AuthScreenView(props: AuthScreenViewProps) {
 
       {/* Anchored from the top, not centred: centred, every strip that appears lifts the whole form
           and the field being typed in slides out from under the caret (BUG-008). The top padding
-          sits the empty form (~478 px, no SSO button) a little above centre, leaving room under the
-          button for a strip and its action inside 1024×768 without a scroll bar (BUG-058).
+          sits the empty form (~486 px, no SSO button) a little above centre, leaving room under the
+          button for the tallest strip and its action inside 1024×768 without a scroll bar (BUG-058).
           24 px sides under 640, as `RecoveryShell`: 48 px left a ~279 px column at 375 (BUG-052). */}
-      <div className="flex w-full flex-col items-center px-6 pb-6 pt-[max(3rem,calc(50vh_-_18.5rem))] sm:px-12 lg:w-[55%]">
+      <div className="flex w-full flex-col items-center px-6 pb-6 pt-[max(3rem,calc(50vh_-_19.5rem))] sm:px-12 lg:w-[55%]">
         <div className="flex w-[360px] max-w-full flex-col gap-6 animate-panel-rise motion-reduce:animate-none">
           {/* The mark, and the screen's own name beside it. There is deliberately
               no "thu gọn" button: `isCollapsed` is set by whoever mounts the
