@@ -51,6 +51,10 @@ const FILES = sourceFiles(SRC).map((file) => ({ file: file.slice(SRC.length + 1)
 const GLOBALS = readFileSync(join(SRC, 'styles/globals.css'), 'utf8');
 
 describe('lớp màu có độ mờ trên token var()', () => {
+  it('đọc được bảng token từ tailwind.config.ts (không thì hai bài dưới xanh rỗng)', () => {
+    expect(TOKENS.split('|').length).toBeGreaterThan(20);
+  });
+
   it('không dùng hậu tố `/NN` (Tailwind bỏ im lặng)', () => {
     const hits = FILES.flatMap(({ file, text }) => (text.match(SLASH_OPACITY) ?? []).map((m) => `${file}: ${m}`));
     expect(hits).toEqual([]);
@@ -60,5 +64,15 @@ describe('lớp màu có độ mờ trên token var()', () => {
     const used = new Set(FILES.flatMap(({ text }) => text.match(DASH_OPACITY) ?? []));
     const missing = [...used].filter((cls) => !GLOBALS.includes(`.${cls} {`));
     expect(missing).toEqual([]);
+  });
+
+  it('mỗi lớp `-NN` trong globals.css trộn đúng token và đúng phần trăm', () => {
+    const rule = new RegExp(`\\.((?:${PREFIXES})-(${TOKENS})-(\\d+)) \\{([^}]*)\\}`, 'g');
+    const rules = [...GLOBALS.matchAll(rule)];
+    expect(rules.length).toBeGreaterThan(0);
+    const wrong = rules
+      .filter((m) => !(m[4] ?? '').includes(`var(--${m[2] ?? ''}) ${m[3] ?? ''}%`))
+      .map((m) => m[1]);
+    expect(wrong).toEqual([]);
   });
 });

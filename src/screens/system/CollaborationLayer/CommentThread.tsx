@@ -130,7 +130,7 @@ function CommentPin({ comment, isOpen, onToggle, onRegisterRef }: CommentPinProp
         ROW_FOCUS_STYLES,
         // Ghim nổi trên canvas: `hover:bg-bg-hover` trong suốt sẽ làm lộ canvas.
         'hover:bg-hover-over-surface',
-        isOpen && 'bg-bg-selected',
+        isOpen && 'bg-bg-selected hover:bg-bg-selected',
         comment.isResolved && 'text-text-muted',
       )}
       style={{ left: comment.at.x, top: comment.at.y, width: PIN_SIZE_PX, height: PIN_SIZE_PX }}

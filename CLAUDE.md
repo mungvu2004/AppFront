@@ -85,9 +85,9 @@ Tất cả ở mức `error`. Nguồn: `eslint-rules/`, ghép vào qua `plugin:l
 | `local/no-fetch-outside-http` | mọi truy cập mạng đi qua `src/lib/http` |
 | `local/no-framer-outside-motion` | R-39 — `framer-motion` nhập ở đúng `src/components/motion` |
 
-**Sổ nợ** nằm ở `project.js:254-267`: bốn file được miễn `no-raw-number`. Danh sách này
-**chỉ được ngắn đi**. Thêm một dòng vào đó là quyết định của người duyệt, không phải của
-người đang vội. Sổ nợ của `no-fetch-outside-http` đã trả hết và bị xoá — đừng dựng lại nó.
+Sổ nợ của `no-raw-number` và của `no-fetch-outside-http` đều đã trả hết và bị xoá — đừng
+dựng lại chúng. Miễn luật cho một file mới là quyết định của người duyệt, không phải của
+người đang vội.
 
 ---
 
