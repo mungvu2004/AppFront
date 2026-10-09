@@ -76,8 +76,9 @@ Phím: ArrowLeft/Right. Con trượt trượt 180ms.
 | Prop | Kiểu | Mặc định | Mô tả |
 |---|---|---|---|
 | `label` | `ReactNode` | — | Nhãn trên ô |
-| `error` | `ReactNode` | — | Lỗi (viền violation, caption) |
-| `hint` | `ReactNode` | — | Gợi ý bên dưới |
+| `error` | `ReactNode` | — | Lỗi (viền violation, caption, `id` `<id>-error`) |
+| `hint` | `ReactNode` | — | Gợi ý bên dưới (`id` `<id>-hint`, ẩn khi có lỗi) |
+| `aria-describedby` | `string` | — | Ghép (không đè) với id lỗi/gợi ý của ô, bỏ id trùng |
 | `prefix` | `ReactNode` | — | Bên trái |
 | `suffix` | `ReactNode` | — | Bên phải |
 | `isLoading` | `boolean` | `false` | Skeleton |

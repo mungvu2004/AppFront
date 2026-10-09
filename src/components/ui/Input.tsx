@@ -29,6 +29,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       wrapperClassName,
       flash,
       id,
+      'aria-describedby': callerDescribedBy,
       ...props
     },
     ref
@@ -36,6 +37,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     const defaultId = React.useId();
     const inputId = id || defaultId;
     const isError = !!error;
+    const errorId = isError ? `${inputId}-error` : undefined;
+    // Gợi ý chỉ hiện khi không có lỗi (xem khối dưới ô), nên chỉ trỏ tới nó lúc ấy.
+    const hintId = !isError && hint ? `${inputId}-hint` : undefined;
+    // Ghép, không đè: mô tả nơi gọi đưa vào vẫn đứng cạnh câu lỗi/gợi ý của chính ô; bỏ id trùng
+    // (nơi gọi như `PasswordField` có thể đã ghép sẵn id lỗi này).
+    const describedBy =
+      [...new Set([callerDescribedBy, errorId, hintId].join(' ').split(/\s+/).filter(Boolean))].join(' ') ||
+      undefined;
 
     return (
       <div className={cn('flex flex-col', wrapperClassName)}>
@@ -80,7 +89,6 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                 ref={ref}
                 disabled={disabled}
                 aria-invalid={isError || undefined}
-                aria-describedby={isError ? `${inputId}-error` : undefined}
                 className={cn(
                   'flex-1 h-full min-w-0 bg-transparent px-3 text-text-primary outline-none placeholder:text-text-muted',
                   prefix && 'pl-1',
@@ -88,6 +96,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                   className
                 )}
                 {...props}
+                aria-describedby={describedBy}
               />
               {suffix && (
                 <div className="pr-3 pl-1 text-[13px] font-mono text-text-muted flex items-center justify-center">
@@ -106,7 +115,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                 <p id={`${inputId}-error`} role="alert" className="text-[13px] leading-[18px] text-state-violation-text">{error}</p>
               </>
             ) : hint ? (
-              <p className="text-[13px] leading-[18px] text-text-muted">{hint}</p>
+              <p id={hintId} className="text-[13px] leading-[18px] text-text-muted">{hint}</p>
             ) : null}
           </div>
         )}
