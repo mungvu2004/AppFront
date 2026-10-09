@@ -97,7 +97,11 @@
      ## A2 và A4 vẫn nguyên
 
      `--accent` sáng lên để đọc được trên nền tối (6,01:1 trên `--bg-surface`)
-     nhưng vẫn là màu DUY NHẤT dành cho thứ tương tác được. Và đúng BA màu trạng
+     và ở chủ đề sáng tối đi một nấc (#567a96 → #4d6e87, FIX-654) để chữ `text-accent`
+     đạt 4,5:1 trên mọi nền: app 4,91, surface 5,39, sunken 4,66, accent-wash/selected
+     4,78, flash 4,83, hover/app 4,61 (trước: 4,14 · 4,55 · 3,93 · 4,03 · 4,07 · 3,89).
+     Hover/active tối theo cùng tỉ lệ (#436078, #395468), nấc giữa chúng vẫn ~1,2:1.
+     Chữ trên nút chính (`--bg-surface` trên `--accent`) nay 5,39:1. Vẫn là màu DUY NHẤT dành cho thứ tương tác được. Và đúng BA màu trạng
      thái — verified, attention, violation. Màu thứ tư là thứ A4 tồn tại để chặn.
      ------------------------------------------------------------------------ */
   html.dark {
@@ -172,9 +176,10 @@
     --shadow-color-panel: rgba(43, 42, 40, 0.04);
     --shadow-color-modal: rgba(0, 0, 0, 0.15);
 
-    --accent: #567a96;
-    --accent-hover: #4a6b85;
-    --accent-active: #3f5d74;
+    /* #567a96 cũ chỉ 3,93–4,14:1 với chữ trên sunken/wash/app (bảng ở mục A2). */
+    --accent: #4d6e87;
+    --accent-hover: #436078;
+    --accent-active: #395468;
     --accent-wash: #edf2f6;
 
     --bg-app: #f6f4f0;
