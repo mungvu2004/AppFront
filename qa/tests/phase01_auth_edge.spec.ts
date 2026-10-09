@@ -2652,14 +2652,15 @@ test.describe('E01 FE refresh 7735bcda — SCR-01..SCR-04', () => {
   test.describe('375×812', () => {
     test.use({ viewport: COMPACT });
 
-    test('E01 · 375×812 · touch targets below 640 px: 46 px field boxes (44 px inside the border), "Đăng nhập" 44 px, eye button 44×44, "Quên mật khẩu", "Ghi nhớ máy này" and "Về trang đăng nhập" on the reset form ≥ 24 px; recovery screens use 24 px side margins (BUG-048/040/052/098)', async ({ page }) => {
+    test('E01 · 375×812 · touch targets below 640 px: 46 px field boxes (44 px inside the border), "Đăng nhập" 44 px, eye button 44×44, "Quên mật khẩu" and "Về trang đăng nhập" on the reset form 44 px tall (BUG-041), "Ghi nhớ máy này" ≥ 24 px; recovery screens use 24 px side margins (BUG-048/040/052/098)', async ({ page }) => {
       // Input.tsx:61-64 `h-[46px] sm:h-[38px]`; buttonVariants.ts:16-17 lg `h-11 … sm:h-10`; PasswordField.tsx:65-66
-      // `h-11 w-11 … sm:h-6 sm:w-6`; AuthScreen.tsx:211-215 `py-1` text button; RecoveryShell.tsx:21-24 `px-6 … sm:px-12`.
+      // `h-11 w-11 … sm:h-6 sm:w-6`; text links/buttons `min-h-[44px] sm:min-h-6` (AuthScreen.tsx, RecoveryShell.tsx
+      // RecoveryLink, BUG-041); RecoveryShell.tsx `px-6 … sm:px-12`.
       // Run-06 measured 44 for the 46 px box: the panel was still in `animate-panel-rise` (a transform scale,
       // AuthScreen.tsx:296 / RecoveryShell.tsx:27, tailwind.config.ts:132,200) and boundingBox() includes the
       // transform. So: reduced motion (`motion-reduce:animate-none` on both panels), wait for every finite
       // animation to end, and read LAYOUT sizes (offsetWidth/offsetHeight ignore transforms).
-      // Hand-measured on the stack: field box 46, "Đăng nhập" 44, eye 44×44, "Quên mật khẩu" 88×26.
+      // Hand-measured on the stack before BUG-041: field box 46, "Đăng nhập" 44, eye 44×44, "Quên mật khẩu" 88×26 (now 44 tall).
       await page.emulateMedia({ reducedMotion: 'reduce' });
       await openAnonymousLogin(page);
       await animationsSettled(page);
@@ -2673,7 +2674,7 @@ test.describe('E01 FE refresh 7735bcda — SCR-01..SCR-04', () => {
       expect(submit.height, '"Đăng nhập"').toBe(44);
       expect(eye.width, 'eye width').toBe(44);
       expect(eye.height, 'eye height').toBe(44);
-      expect(forgot.height, '"Quên mật khẩu"').toBeGreaterThanOrEqual(24);
+      expect(forgot.height, '"Quên mật khẩu" below 640 px (BUG-041)').toBeGreaterThanOrEqual(44);
       // BUG-098: every control on the shot is measured. The checkbox input is `sr-only` inside its label
       // (Checkbox.tsx:40-57, label `min-h-[32px]`), so the touch target is the label; the drawn box is 18 px.
       // Bug threshold 24 px (WCAG 2.5.8, soft so the shot is still taken); 44 px is the recommendation, recorded.
@@ -2699,7 +2700,7 @@ test.describe('E01 FE refresh 7735bcda — SCR-01..SCR-04', () => {
       expect(Math.round(titleBox!.x), 'title starts at the 24 px margin').toBe(24);
       // BUG-098: the reset form's "Về trang đăng nhập" (RecoveryLink, PasswordReset.tsx:104-110) is measured too.
       const backLink = await layoutSize(page.getByRole('link', { name: GO_TO_SIGN_IN, exact: true }));
-      expect.soft(backLink.height, `"${GO_TO_SIGN_IN}" height`).toBeGreaterThanOrEqual(24);
+      expect.soft(backLink.height, `"${GO_TO_SIGN_IN}" height below 640 px (BUG-041)`).toBeGreaterThanOrEqual(44);
       expect(await horizontalOverflow(page), 'horizontal overflow (px)').toBeLessThanOrEqual(0);
       await attachJson('E01_touch_targets_375.json', {
         measuredWith: 'offsetWidth/offsetHeight, reducedMotion=reduce, animations settled',
@@ -2865,7 +2866,7 @@ test.describe('E01 FE refresh f748afb0 — SCR-01..SCR-04 (+ the gate in front o
   });
 
   test('E01 · SCR-02 · every field keeps room for its complaint: an empty submit and an invalid address in the forgot panel move neither the next field nor the buttons; no collapsed-state control; no request', async ({ page }) => {
-    // f748afb0: FIELD_ERROR_SLOT (RecoveryShell.tsx:41-48, min-h 112 px from sm) on both sign-in boxes and on the
+    // f748afb0: FIELD_ERROR_SLOT (RecoveryShell.tsx, min-h 124 px from sm since BUG-073, was 112) on both sign-in boxes and on the
     // panel box (AuthScreen.tsx:127-157; ForgotPasswordPanel.tsx:65-70), no `gap` between them — the reserved room is
     // the spacing, so a complaint appearing moves nothing (BUG-008). Empty submit → both "chưa nhập"
     // (useAuthScreen.ts:613-635); panel submit → emailInvalid (useForgotPassword.ts:94-106). `collapsed` needs a host
@@ -3094,7 +3095,7 @@ test.describe('E01 FE refresh f748afb0 — SCR-01..SCR-04 (+ the gate in front o
 
     test('E01 · 375×812 · /login uses 24 px side margins (BUG-052); the longest two-line complaint (bad address) + "Chưa nhập mật khẩu." move neither the password box nor "Đăng nhập"; no request', async ({ page }) => {
       // AuthScreen.tsx:309-314: column `px-6 … sm:px-12` (24 px below 640, like RecoveryShell); FIELD_ERROR_SLOT is
-      // `min-h-[120px]` below 640 = room for a two-line complaint in a ~258 px column (RecoveryShell.tsx:41-48).
+      // `min-h-[132px]` below 640 (BUG-073, was 120) = room for a two-line complaint in a ~258 px column (RecoveryShell.tsx).
       await page.emulateMedia({ reducedMotion: 'reduce' });
       await openAnonymousLogin(page);
       await animationsSettled(page);
