@@ -17,7 +17,7 @@ const AvatarRoot = forwardRef<HTMLDivElement, AvatarProps>(
     const sizeClass = size === 'profile' ? 'w-16 h-16' : 'w-7 h-7';
     const textClass = size === 'profile' ? 'text-2xl' : 'text-[12px]';
 
-    // Initials: max 2 characters, keep as-is (do NOT uppercase per AGENTS.md rule)
+    // Initials: max 2 characters, shown as given — callers pass `initialsOf()` (lib/format/initials), already upper-case (A6)
     const displayInitials = initials?.substring(0, 2) ?? '';
 
     return (
