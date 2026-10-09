@@ -75,6 +75,62 @@ describe('[GlobalShortcutHelp] đang mở', () => {
     }
   });
 
+  it('chip phím đọc được: Ctrl thay cho Mod, Esc thay cho ESCAPE (BUG-085)', () => {
+    const disposers = [
+      appShortcutRegistry.register({
+        id: 'fixture.redoLike',
+        combo: 'Ctrl+Shift+Y',
+        scope: 'global',
+        description: 'ví dụ phím có Ctrl',
+        onTrigger: () => {},
+      }),
+      appShortcutRegistry.register({
+        id: 'fixture.escape',
+        combo: 'Escape',
+        scope: 'canvas',
+        description: 'ví dụ phím Esc',
+        onTrigger: () => {},
+      }),
+    ];
+
+    try {
+      render(<GlobalShortcutHelp isOpen onClose={() => {}} />);
+
+      const chips = screen.getAllByText(/^(Mod|Ctrl|ESCAPE|Esc)$/u).map((node) => node.textContent);
+      expect(chips).toContain('Ctrl');
+      expect(chips).not.toContain('Mod');
+      expect(chips).not.toContain('ESCAPE');
+    } finally {
+      for (const dispose of disposers) {
+        dispose();
+      }
+    }
+  });
+
+  it('ngoài dự án không liệt kê hoàn tác, làm lại, lưu ngay; trong dự án thì có (BUG-085)', () => {
+    const dispose = appShortcutRegistry.register({
+      id: 'global.undo',
+      combo: 'Ctrl+Z',
+      scope: 'global',
+      description: 'Hoàn tác thao tác gần nhất',
+      onTrigger: () => {},
+    });
+
+    try {
+      window.history.pushState({}, '', '/login');
+      render(<GlobalShortcutHelp isOpen onClose={() => {}} />);
+      expect(screen.queryByText('Hoàn tác thao tác gần nhất')).not.toBeInTheDocument();
+      cleanup();
+
+      window.history.pushState({}, '', '/projects/project-1/floors');
+      render(<GlobalShortcutHelp isOpen onClose={() => {}} />);
+      expect(screen.getByText('Hoàn tác thao tác gần nhất')).toBeInTheDocument();
+    } finally {
+      window.history.pushState({}, '', '/');
+      dispose();
+    }
+  });
+
   it('đóng bằng một cú Esc thật, nổi bọt lên registry dùng chung', () => {
     const onClose = vi.fn();
 

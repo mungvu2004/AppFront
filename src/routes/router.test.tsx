@@ -81,7 +81,8 @@ describe('[UndoShortcuts] phím ?', () => {
     pressHelp();
 
     expect(await findHelpDialog()).toBeInTheDocument();
-    expect(screen.getByText('Hoàn tác thao tác gần nhất')).toBeInTheDocument();
+    // Ngoài dự án (jsdom ở `/`) bảng bỏ hoàn tác/làm lại/lưu ngay (BUG-085); Esc thì luôn có.
+    expect(screen.getByText('Đóng lớp trên cùng')).toBeInTheDocument();
   });
 
   it('gõ ? lần hai trong lúc bảng đang mở thì đóng lại', async () => {
