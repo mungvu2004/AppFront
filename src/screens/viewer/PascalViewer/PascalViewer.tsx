@@ -38,7 +38,7 @@ function Skeleton() {
   return (
     <div
       aria-hidden="true"
-      className="h-full w-full animate-pulse rounded-md bg-bg-sunken"
+      className="h-full w-full animate-pulse rounded-md motion-reduce:animate-none bg-border-default"
     />
   );
 }

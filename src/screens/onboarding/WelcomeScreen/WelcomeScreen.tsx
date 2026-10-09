@@ -249,7 +249,7 @@ function LoadingCards({ isCollapsed }: { readonly isCollapsed: boolean }) {
         <div
           key={slot}
           aria-hidden="true"
-          className={cn(CARD_SIZE_CLASS, 'rounded-2xl bg-bg-sunken animate-pulse motion-reduce:animate-none')}
+          className={cn(CARD_SIZE_CLASS, 'rounded-2xl bg-border-default animate-pulse motion-reduce:animate-none')}
         />
       ))}
     </div>

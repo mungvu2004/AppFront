@@ -122,7 +122,7 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
     model.status === 'loading' ? (
       <div className="flex flex-col gap-3">
         <div className="h-1 w-full overflow-hidden rounded-full bg-bg-sunken" role="presentation">
-          <div className="h-full w-1/3 animate-pulse rounded-full bg-bg-hover motion-reduce:animate-none" />
+          <div className="h-full w-1/3 animate-pulse rounded-full bg-border-default motion-reduce:animate-none" />
         </div>
         {Array.from({ length: SKELETON_ROW_COUNT }, (_unused, index) => (
           <Skeleton key={index} preset="table-row" />

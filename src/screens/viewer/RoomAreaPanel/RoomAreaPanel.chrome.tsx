@@ -276,8 +276,8 @@ export function RoomAreaPanelSkeleton() {
   return (
     <div aria-busy="true" aria-label={LOADING_LABEL} className="flex min-h-0 flex-1 flex-col">
       <div className="px-4 pb-3 pt-4">
-        <div className="h-6 w-32 animate-pulse rounded-lg bg-bg-sunken motion-reduce:animate-none" />
-        <div className="mt-2 h-4 w-48 animate-pulse rounded bg-bg-sunken motion-reduce:animate-none" />
+        <div className="h-6 w-32 animate-pulse rounded-lg bg-border-default motion-reduce:animate-none" />
+        <div className="mt-2 h-4 w-48 animate-pulse rounded bg-border-default motion-reduce:animate-none" />
       </div>
       <div className="flex flex-col gap-1 px-2">
         {Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => (
