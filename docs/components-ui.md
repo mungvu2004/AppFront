@@ -67,7 +67,7 @@ Phím: ArrowLeft/Right. Con trượt trượt 180ms.
 | `description` | `ReactNode` | — | Mô tả phụ |
 | `aria-label` | `string` | — | Nhãn khi không có label |
 
-36×20 px track, núm 16 px, trượt 180ms, bật = nền accent.
+36×20 px track, núm 16 px, trượt 180ms, bật = nền accent, tắt = nền `border-control` (≥ 3:1 với nền và núm).
 
 ---
 
