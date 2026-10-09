@@ -60,6 +60,9 @@ import { ROUTES } from '@/routes/paths';
 import { resetSelectorCaches } from '@/store/selectors';
 import { useStore } from '@/store';
 
+// Nạp tĩnh, ở pha collect, hộp thoại mà `FloorLayerSaveBanner` `lazy()`: không thì bài xung đột
+// biên dịch nó BÊN TRONG `findByRole` của mình, và dưới tải lượt ấy dài hơn trần chờ (QA-01c nợ #12).
+import './FloorLayerSaveConfirm';
 import { WallLayerReviewContainer } from './WallLayerReview.container';
 import { ProvisionalScale, scenarioArgsFor } from './WallLayerReview.stories';
 import {
