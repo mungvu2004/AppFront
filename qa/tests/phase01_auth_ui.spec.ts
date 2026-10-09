@@ -328,9 +328,11 @@ test.describe('U01 UI verify — signed-in screens (SCR-08..11, SCR-37..41)', ()
       const address = testEmail('u01-second-user');
       const res = await admin.post('/api/users/invitations', { data: { emails: [address], role: 'viewer' } });
       expect(res.status(), 'setup: POST /api/users/invitations').toBe(201);
-      const created = ((await res.json()) as { id: unknown; email: unknown }[]).find((u) => u.email === address);
-      expect(created, 'setup: the invited user is in the answer').toBeDefined();
-      second = { id: String(created!.id), email: address };
+      const answer = (await res.json()) as { id?: unknown; email?: unknown }[];
+      const created = answer.find((u) => u.email === address) ?? answer[0];
+      // Recorded BEFORE the checks below: if one fails, `afterAll` can still delete whoever was created (review-1).
+      if (created?.id !== undefined) second = { id: String(created.id), email: String(created.email ?? address) };
+      expect(created?.email, 'setup: the invited user is in the answer').toBe(address);
     });
 
     test.afterAll(async () => {
