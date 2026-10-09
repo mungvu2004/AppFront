@@ -28,7 +28,7 @@ import { EMAIL_LABEL, PASSWORD_LABEL, SIGN_IN_LABEL } from '../../e2e/fixtures/s
 import { readBaseUrl } from '../../e2e/fullstack/env';
 import { signedInApi } from './support/api';
 import { readAdminCredentials } from './support/auth';
-import { EVIDENCE_DIR, TEST_DATA_PREFIX, attachJson, testEmail } from './support/evidence';
+import { EVIDENCE_DIR, TEST_DATA_PREFIX, TEST_EMAIL_DOMAIN, attachJson, testEmail } from './support/evidence';
 import { deleteMails, waitForMail } from './support/mailpit';
 import { ADMIN_STORAGE_STATE_FILE } from './support/state';
 import { verifyUi } from './support/ui-verify';
@@ -56,8 +56,14 @@ const INVALID_CREDENTIALS_TITLE = 'Sai thư điện tử hoặc mật khẩu'; /
 const ORIGIN_MISMATCH_TITLE = 'Máy chủ từ chối yêu cầu'; // vi:156
 const ORIGIN_MISMATCH_DESCRIPTION =
   'Địa chỉ của trang này không nằm trong danh sách máy chủ chấp nhận. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống.'; // vi:157 (BUG-021)
-/** 255 chars, well-formed: only `too_big` fires (`MAX_EMAIL_LENGTH` 254, `src/api/schemas/auth.ts`). */
-const EMAIL_255 = `${TEST_DATA_PREFIX.padEnd(64, 'a')}@${['b', 'c', 'd'].map((c) => c.repeat(61)).join('.')}.test`;
+/**
+ * 255 chars, well-formed: only `too_big` fires (`MAX_EMAIL_LENGTH` 254, `src/api/schemas/auth.ts`). Ends in the run's
+ * test domain; the third label takes up the rest: 64 + "@" + 61 + "." + 61 + "." + (65 − domain) + "." + domain = 255.
+ */
+const EMAIL_255 = `${TEST_DATA_PREFIX.padEnd(64, 'a')}@${[61, 61, 65 - TEST_EMAIL_DOMAIN.length]
+  .map((size, index) => 'bcd'.charAt(index).repeat(size))
+  .join('.')}.${TEST_EMAIL_DOMAIN}`;
+if (EMAIL_255.length !== 255) throw new Error(`EMAIL_255 is ${EMAIL_255.length} chars, not 255`);
 
 const authMain = (page: Page, state: string) => page.locator(`main[data-auth-state="${state}"]`);
 const email = (page: Page) => page.getByLabel(EMAIL_LABEL, { exact: true });
