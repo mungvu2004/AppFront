@@ -72,6 +72,12 @@ export function RecoveryLink({ label, href, onClick }: RecoveryLinkProps) {
     <a
       href={href}
       onClick={(event) => {
+        // Chỉ cú bấm trái trơn đi trong ứng dụng; Ctrl/Cmd/Shift/Alt hay nút giữa là trình duyệt
+        // mở tab/cửa sổ mới hoặc tải xuống — để nó làm (nợ QA-01b #10).
+        if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
+          return;
+        }
+
         event.preventDefault();
         onClick();
       }}

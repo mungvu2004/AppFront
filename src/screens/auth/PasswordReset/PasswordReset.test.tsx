@@ -446,4 +446,32 @@ describe('PasswordReset — checks before sending', () => {
 
     expect(navigate).toHaveBeenCalledWith('/login');
   });
+
+  it.each([
+    ['Ctrl', { ctrlKey: true }],
+    ['Cmd', { metaKey: true }],
+    ['Shift', { shiftKey: true }],
+    ['Alt', { altKey: true }],
+    ['the middle button', { button: 1 }],
+  ])('leaves a click with %s to the browser — new tab or window, no in-app jump (nợ QA-01b #10)', (_name, init) => {
+    setUrl('');
+
+    const { navigate, port } = makePort();
+
+    let cancelledByApp: boolean | undefined;
+    // Runs after React's root listener: read what the screen did, then stop jsdom's own
+    // navigation, which it does not implement and would only print an error.
+    const stopJsdom = (event: MouseEvent): void => {
+      cancelledByApp = event.defaultPrevented;
+      event.preventDefault();
+    };
+
+    window.addEventListener('click', stopJsdom);
+    render(<PasswordReset port={port} />);
+    fireEvent.click(screen.getByRole('link', { name: AUTH.actions.goToSignIn }), init);
+    window.removeEventListener('click', stopJsdom);
+
+    expect(cancelledByApp).toBe(false);
+    expect(navigate).not.toHaveBeenCalled();
+  });
 });
