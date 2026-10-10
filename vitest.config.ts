@@ -46,6 +46,28 @@ export default defineConfig({
     environment: 'jsdom',
 
     /**
+     * `pool: 'threads'` thay `forks` (mặc định của vitest). Số đo A-pool
+     * (TEST-SPEED-ISSUES.md) trên cả bộ: 149 s so với 192–207 s (−25 %),
+     * 8.905/8.905 xanh — chỉ đổi pool, không đổi gì khác. Chỉ áp cho
+     * `pnpm test`; khối `coverage` không chạm (coverage + threads từng sập,
+     * nghi hết bộ nhớ — FE-10 lo).
+     *
+     * `maxThreads: 8`: máy đo có 12 lõi logic (`os.cpus().length`). `pnpm
+     * verify` chạy toàn bộ trên mọi lõi cùng lúc và **thường có agent khác
+     * chạy song song** (đã nói ở chú thích `testTimeout` dưới) — để trần ở
+     * 8 chứ không phải 12 là chừa ~4 lõi cho IDE/dev server/agent khác, cùng
+     * hướng với mức 4–6 mà A14 gợi ý cho nhánh coverage (nặng hơn vì có v8).
+     * `minThreads: 1` để không giữ luồng rảnh khi chạy một nhóm file nhỏ.
+     */
+    pool: 'threads',
+    poolOptions: {
+      threads: {
+        maxThreads: 8,
+        minThreads: 1,
+      },
+    },
+
+    /**
      * Test hàm thuần chạy `node`, không dựng jsdom.
      *
      * `src/domain` là mô hình nghiệp vụ thuần — không DOM, không React, không
@@ -62,12 +84,14 @@ export default defineConfig({
      *
      * Danh sách dưới đây **đo từng thư mục một**, không suy từ tên tầng. Mỗi
      * mục đã được chạy với `--environment node` và xanh trọn vẹn trước khi được
-     * thêm vào. Những thư mục KHÔNG có mặt ở đây đã được thử và hỏng — chúng
-     * chạm `window`, `IndexedDB`, `canvas`, `EventSource` hoặc React:
+     * thêm vào. Những thư mục/tệp KHÔNG có mặt ở đây đã được thử **nguyên cả
+     * thư mục** và hỏng — chúng chạm `window`, `IndexedDB`, `canvas`,
+     * `EventSource` hoặc React. Vẫn còn hỏng nguyên thư mục (có file lẻ xanh,
+     * liệt kê riêng dưới "PERF-01/FE-1" bên dưới):
      *
-     *     lib/errors · lib/screen-state · lib/auth · lib/upload · lib/telemetry
-     *     lib/autosave · lib/three · lib/testing · api · store · components
-     *     hooks · screens
+     *     lib/screen-state · lib/three (trừ build/camera/interaction/perf/preview)
+     *     api/__tests__ (trừ contracts) · store/__tests__ · components · hooks
+     *     screens (trừ các tệp lẻ liệt kê dưới)
      *
      * Đừng thêm thư mục vào đây bằng phán đoán. Chạy
      * `npx vitest run <đường dẫn> --environment node` trước; nếu đỏ thì nó
@@ -93,6 +117,104 @@ export default defineConfig({
       // `npx vitest run src/lib/pascal --environment node` trước khi thêm dòng
       // này — 36/36 xanh, 0,9 s so với 36 s dưới jsdom.
       ['src/lib/pascal/**', 'node'],
+
+      /**
+       * PERF-01/FE-1 — 116 tệp đo ở TEST-SPEED-ISSUES A12 (`do-cu/node-ok-files.txt`,
+       * đo 2026-10-09 trên `origin/master` cũ). Kiểm lại trên nhánh này 2026-10-10
+       * bằng `--environment node --maxWorkers=2`: 115/116 còn xanh —
+       * `src/screens/admin/UserManagement/useUserManagement.test.ts` nay dùng
+       * `renderHook` (chạm `document`), bỏ khỏi danh sách, ở lại jsdom. 115 tệp
+       * còn lại xanh trọn vẹn, 2.772/2.772 bài. Nguyên cả thư mục xanh thì ghi
+       * một dòng; còn lại (thư mục có file jsdom trộn với file node) thì ghi
+       * đích danh từng tệp.
+       */
+      ['eslint-rules/__tests__/**', 'node'],
+      ['scripts/__tests__/**', 'node'],
+      ['src/api/__tests__/contracts/**', 'node'],
+      ['src/api/schemas/__tests__/**', 'node'],
+      ['src/lib/export/__tests__/**', 'node'],
+      ['src/lib/three/build/__tests__/**', 'node'],
+      ['src/lib/three/camera/__tests__/**', 'node'],
+      ['src/lib/three/interaction/__tests__/**', 'node'],
+      ['src/lib/three/perf/__tests__/**', 'node'],
+      ['src/lib/three/preview/__tests__/**', 'node'],
+      ['src/mocks/**', 'node'],
+      ['src/screens/pipeline/pipelineErrorText.test.ts', 'node'],
+      ['src/store/*.test.ts', 'node'],
+
+      // `src/api/__tests__` còn 3 tệp jsdom (adminMlClient, adminMlJobsClient,
+      // appClient) — không nguyên cả thư mục được, nên liệt tên 14 tệp xanh.
+      [
+        'src/api/__tests__/{authRecovery,client,drawings,floorLayerGraph,library,me,mockLayerState,notifications,projectGroups,quality,spatial,urlJoiners,users,versions}.test.ts',
+        'node',
+      ],
+      ['src/components/canvas/materialMap.test.ts', 'node'],
+      ['src/components/pascal/__tests__/pascalScene.test.ts', 'node'],
+      ['src/hooks/useGridLayer.test.ts', 'node'],
+      ['src/i18n/vi.units.test.ts', 'node'],
+      ['src/lib/auth/__tests__/{bootstrap,permissionMatrix,permissions}.test.ts', 'node'],
+      [
+        'src/lib/autosave/__tests__/{beforeUnload,spatialLayerSave,toSaveIndicatorState}.test.ts',
+        'node',
+      ],
+      ['src/lib/errors/__tests__/{describeError,kinds,toAppError,wireError}.test.ts', 'node'],
+      [
+        'src/lib/input/__tests__/{dragDrop,shortcutRegistry,shortcutRegistryListing}.test.ts',
+        'node',
+      ],
+      ['src/lib/telemetry/__tests__/userRoleChangeEvent.test.ts', 'node'],
+      ['src/lib/testing/__tests__/{fixtures,noRawColor}.test.ts', 'node'],
+      [
+        'src/lib/three/present/__tests__/{assets,director,occlusion,plan,planLoader}.test.ts',
+        'node',
+      ],
+      ['src/lib/upload/__tests__/{index,uploadTask,validate}.test.ts', 'node'],
+      [
+        'src/screens/account/AccountSettings/{accountAuthGateway,accountSettingsGateway}.test.ts',
+        'node',
+      ],
+      // `useUserManagement.test.ts` dùng `renderHook`/React — chạm `document`,
+      // ở lại jsdom. Chỉ `activityKindLabel.test.ts` (hàm thuần) qua node.
+      ['src/screens/admin/UserManagement/activityKindLabel.test.ts', 'node'],
+      ['src/screens/auth/fragmentToken.test.ts', 'node'],
+      ['src/screens/dashboard/ProjectDashboard/projectsGateway.test.ts', 'node'],
+      [
+        'src/screens/export/VersionHistory/{versionHistoryFixtures,versionHistoryGateway,versionSnapshotAdapter}.test.ts',
+        'node',
+      ],
+      ['src/screens/project/ProjectSettings/{projectSettingsGateway,settingsErrors}.test.ts', 'node'],
+      ['src/screens/qc/DimensionOcrReview/dimensionOcrReviewGateway.nullGraph.test.ts', 'node'],
+      ['src/screens/qc/RoomLabelReview/roomLabelFixture.test.ts', 'node'],
+      ['src/screens/rules/RuleSettings/ruleSettingsGateway.test.ts', 'node'],
+      ['src/screens/system/CollaborationLayer/conflictChain.test.tsx', 'node'],
+      ['src/screens/upload/InputQualityGate/inputQualityWriteErrors.test.ts', 'node'],
+      ['src/screens/viewer/MeasurementTool/measurementToolGateway.test.ts', 'node'],
+      ['src/screens/viewer/OverlayComparison/overlayComparisonGateway.test.ts', 'node'],
+      ['src/screens/viewer/Viewer3D/roomSearch.test.ts', 'node'],
+      ['src/screens/viewer/ViewerShell/viewerShellGateway.test.ts', 'node'],
+      [
+        'src/store/__tests__/{commitRun,draftPreview,projectHydration,resetUserScopedState,ruleConfig,selectors,slices}.test.ts',
+        'node',
+      ],
+
+      /**
+       * PERF-01/FE-11 A15 — `happy-dom` thay `jsdom` cho 3 thư mục render React
+       * còn lại (`screens`, `components`, `routes`). Đo 2026-10-11 trên nhánh
+       * này, `--maxWorkers=2 --minWorkers=1`:
+       *
+       *     135 tệp (92 screens + 35 components + 8 routes), 2.379 bài:
+       *     jsdom 128,5 s (hai lượt) · happy-dom 104,7–110,6 s (ba lượt xanh)
+       *
+       * `environmentMatchGlobs` thắng theo thứ tự KHỚP ĐẦU TIÊN trong mảng, nên
+       * ba mục trên đã xếp screens/components/routes vào `node` khi là hàm
+       * thuần — các mục đó đứng trước, vẫn thắng. Ba tệp còn đỏ trên happy-dom
+       * (ShareDialog F-06, FloorManager NGHIEM-4, usePascalViewer B-V10-01) tự
+       * ghim lại `jsdom` bằng pragma `// @vitest-environment jsdom` đầu tệp —
+       * không cần liệt ở đây.
+       */
+      ['src/screens/**', 'happy-dom'],
+      ['src/components/**', 'happy-dom'],
+      ['src/routes/**', 'happy-dom'],
     ],
 
     /**

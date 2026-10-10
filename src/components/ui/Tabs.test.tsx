@@ -35,7 +35,7 @@ describe('Tabs', () => {
   });
 
   it('navigates with ArrowRight key', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const onChange = vi.fn();
     render(<Tabs tabs={tabs} activeId="walls" onChange={onChange} />);
     const tab = screen.getByRole('tab', { name: 'Tường' });
@@ -45,7 +45,7 @@ describe('Tabs', () => {
   });
 
   it('navigates with ArrowLeft key', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const onChange = vi.fn();
     render(<Tabs tabs={tabs} activeId="objects" onChange={onChange} />);
     const tab = screen.getByRole('tab', { name: 'Đối tượng' });

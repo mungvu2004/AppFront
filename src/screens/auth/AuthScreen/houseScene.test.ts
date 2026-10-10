@@ -12,7 +12,7 @@
  */
 
 import { Mesh, PointLight, SpotLight } from 'three';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { readPartData } from '@/lib/three/build/scene';
 import {
@@ -34,16 +34,18 @@ const plan = rawPlan as PresentationPlan;
 
 let assembled: AssembledHouse;
 
-beforeEach(() => {
+beforeAll(() => {
   // jsdom has no 2D canvas and says so on the console every time it is asked;
   // `null` is the answer the texture code is written for, so give it quietly.
+  // `assembled` is read-only across every test below, so building it once
+  // instead of per-test saves nine redundant geometry builds.
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
 
   const palette = readPalette(() => '');
   assembled = assembleHouse(plan, palette, createMaterials(palette));
 });
 
-afterEach(() => {
+afterAll(() => {
   vi.restoreAllMocks();
 });
 

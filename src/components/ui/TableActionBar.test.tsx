@@ -67,7 +67,7 @@ describe('TableActionBar', () => {
   });
 
   it('calls onDeselect when Escape is pressed', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const onDeselect = vi.fn();
     render(
       <div className="relative">

@@ -1,3 +1,7 @@
+// @vitest-environment jsdom
+// PERF-01/FE-11 A15: dưới happy-dom F-06 đọc `state` ra 'collapsed' thay vì
+// 'success' — khác do engine xử lý tập hợp trạng thái render, không phải lỗi
+// test. Giữ tệp này ở jsdom.
 /**
  * Bộ kiểm của L2-W4 cho màn `ShareDialog` — bảy trạng thái, cộng năm điều cấm của đặc tả.
  *

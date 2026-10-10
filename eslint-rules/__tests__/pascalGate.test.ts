@@ -1,4 +1,10 @@
 /**
+ * @vitest-environment node
+ *
+ * Gọi ESLint thật, không chạm DOM — dựng jsdom cho tệp này là trả tiền cho thứ
+ * không bao giờ được chạm tới (xem lý do đầy đủ ở `vitest.config.ts:48-74`,
+ * cùng lớp với `src/lib/pascal`). Đo 2026-10-10: 36,2 s dưới jsdom so với dưới 2 s ở node.
+ *
  * Cổng nhập gói Pascal (Bước 8.1) — kiểm **cấu hình đang chạy**, không kiểm ý định.
  *
  * Khác ba file cạnh nó: chúng kiểm một luật nội bộ bằng `RuleTester`, còn đây

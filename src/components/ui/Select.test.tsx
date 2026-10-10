@@ -50,7 +50,7 @@ describe('Select', () => {
   });
 
   it('closes on Escape key', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<Select options={options} />);
     const trigger = screen.getByRole('combobox');
     await user.click(trigger);

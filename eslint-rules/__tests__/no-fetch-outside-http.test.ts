@@ -1,3 +1,11 @@
+/**
+ * @vitest-environment node
+ *
+ * `RuleTester` parses source text in memory; it never touches the DOM. Running
+ * it under jsdom pays for an environment this file never uses (same class of
+ * cost as `vitest.config.ts:48-74` and `src/lib/pascal`).
+ */
+
 import { createRequire } from 'node:module';
 
 import { RuleTester } from 'eslint';

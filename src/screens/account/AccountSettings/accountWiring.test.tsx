@@ -198,13 +198,23 @@ describe('N12 422 — lỗi buộc vào đúng ô, không thử lại bằng l�
     mount(settingsGateway({ save }));
     await loaded();
 
-    fireEvent.change(screen.getByLabelText('Điện thoại'), { target: { value: 'x'.repeat(40) } });
-    expect(await screen.findByText('Số điện thoại tối đa 32 ký tự.')).toBeTruthy();
+    vi.useFakeTimers();
 
-    fireEvent.change(screen.getByLabelText('Điện thoại'), { target: { value: '0912' } });
-    await waitFor(() => {
-      expect(save).toHaveBeenCalledTimes(2);
+    act(() => {
+      fireEvent.change(screen.getByLabelText('Điện thoại'), { target: { value: 'x'.repeat(40) } });
     });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ACCOUNT_AUTOSAVE_DEBOUNCE_MS);
+    });
+    expect(screen.getByText('Số điện thoại tối đa 32 ký tự.')).toBeTruthy();
+
+    act(() => {
+      fireEvent.change(screen.getByLabelText('Điện thoại'), { target: { value: '0912' } });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ACCOUNT_AUTOSAVE_DEBOUNCE_MS);
+    });
+    expect(save).toHaveBeenCalledTimes(2);
     expect(screen.queryByText('Số điện thoại tối đa 32 ký tự.')).toBeNull();
   });
 
@@ -215,13 +225,18 @@ describe('N12 422 — lỗi buộc vào đúng ô, không thử lại bằng l�
     const { queryClient } = mount(settingsGateway({ save }));
     const field = await loaded();
 
-    fireEvent.change(field, { target: { value: 'Bình An' } });
+    vi.useFakeTimers();
 
-    await waitFor(() => {
-      const cached = queryClient.getQueryData<AccountDraft>(queryKeys.me.profile());
-
-      expect(cached?.profile['fullName']).toBe('Bình An');
+    act(() => {
+      fireEvent.change(field, { target: { value: 'Bình An' } });
     });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ACCOUNT_AUTOSAVE_DEBOUNCE_MS);
+    });
+
+    const cached = queryClient.getQueryData<AccountDraft>(queryKeys.me.profile());
+
+    expect(cached?.profile['fullName']).toBe('Bình An');
   });
 });
 
@@ -482,6 +497,9 @@ describe('N14 — ảnh đại diện qua hộp thoại A9', () => {
     await waitFor(() => {
       expect(replaceAvatar).toHaveBeenCalledTimes(1);
     });
+
+    // Ngủ thật, không đồng hồ giả: debounce (nếu hồi quy làm ảnh lọt vào bản nháp) đã được xếp
+    // bằng `setTimeout` thật lúc bấm "Thay ảnh", cài đồng hồ giả lúc này sẽ không bắn nó.
     await new Promise((resolve) => setTimeout(resolve, ACCOUNT_AUTOSAVE_DEBOUNCE_MS + 200));
 
     expect(save).not.toHaveBeenCalled();
@@ -533,14 +551,17 @@ describe('chủ đề và chỉ báo lưu của hai khối chưa có dây', () =
     mount(settingsGateway({ save }), { announcer });
     await loaded();
 
-    fireEvent.click(screen.getByRole('switch', { name: 'Hiện lưới 100 mm' }));
+    vi.useFakeTimers();
 
-    await waitFor(() => {
-      expect(save).toHaveBeenCalledTimes(1);
+    act(() => {
+      fireEvent.click(screen.getByRole('switch', { name: 'Hiện lưới 100 mm' }));
     });
-    await waitFor(() => {
-      expect(screen.getAllByText(ACCOUNT_LOCAL_ONLY_LABEL).length).toBeGreaterThan(0);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ACCOUNT_AUTOSAVE_DEBOUNCE_MS);
     });
+
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByText(ACCOUNT_LOCAL_ONLY_LABEL).length).toBeGreaterThan(0);
 
     const spoken = announcer.announce.mock.calls.map((call) => String(call[0]));
 
@@ -555,11 +576,16 @@ describe('chủ đề và chỉ báo lưu của hai khối chưa có dây', () =
     mount(settingsGateway({ save }), { announcer });
     const field = await loaded();
 
-    fireEvent.change(field, { target: { value: 'Bình' } });
+    vi.useFakeTimers();
 
-    await waitFor(() => {
-      expect(announcer.announce).toHaveBeenCalled();
+    act(() => {
+      fireEvent.change(field, { target: { value: 'Bình' } });
     });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ACCOUNT_AUTOSAVE_DEBOUNCE_MS);
+    });
+
+    expect(announcer.announce).toHaveBeenCalled();
 
     expect(announcer.announce.mock.calls.map((call) => String(call[0]))).not.toContain(
       ACCOUNT_LOCAL_ONLY_LABEL,
@@ -811,12 +837,18 @@ describe('vào lại màn khi bộ đệm còn tươi', () => {
     await screen.findByDisplayValue('Phạm An');
     expect(readProfile).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole('switch', { name: 'Hiện lưới 100 mm' }));
-    await waitFor(() => {
-      expect(
-        client.getQueryData<AccountDraft>(queryKeys.me.profile())?.appearance['showGrid'],
-      ).toBe(false);
+    vi.useFakeTimers();
+
+    act(() => {
+      fireEvent.click(screen.getByRole('switch', { name: 'Hiện lưới 100 mm' }));
     });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ACCOUNT_AUTOSAVE_DEBOUNCE_MS);
+    });
+
+    expect(
+      client.getQueryData<AccountDraft>(queryKeys.me.profile())?.appearance['showGrid'],
+    ).toBe(false);
 
     expect(updateProfile).not.toHaveBeenCalled();
   });

@@ -51,10 +51,10 @@
   "apiSpecPattern": "tests/phase{NN}_{name}_api.spec.ts",
   "apiEvidencePrefix": "A{NN}_",
   "backend": {
-    "$comment": "Lớp backend (skill qa-api-test). pytest của AppBack chỉ chạy trên Linux (pyproject: environments linux x86_64, Python 3.12) → chạy trong container verify của AppBack (tools/verify/run.sh shell, Testcontainers qua docker.sock). Không song song với lượt E2E.",
+    "$comment": "Lớp backend (skill qa-api-test). pytest của AppBack chỉ chạy trên Linux (pyproject: environments linux x86_64, Python 3.12) → chạy trong container verify của AppBack (tools/verify/run.sh shell, Testcontainers qua docker.sock). Không song song với lượt E2E. `-n 4 --dist loadfile` (PERF-01): 361 test chạy tuần tự 86 s; loadfile giữ fixture scope=module theo tệp.",
     "routesGlob": "apps/api/*/router.py",
     "schemasGlob": "apps/api/*/{schemas,router,services}.py",
-    "testCommand": "bash tools/verify/run.sh shell <<< 'pytest {paths} -q -p no:cacheprovider'",
+    "testCommand": "bash tools/verify/run.sh shell <<< 'pytest {paths} -q -p no:cacheprovider -n 4 --dist loadfile'",
     "testCwd": "{backendSourceRoot}",
     "testTimeoutMin": 20
   },

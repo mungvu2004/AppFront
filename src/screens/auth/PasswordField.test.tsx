@@ -42,7 +42,7 @@ describe('PasswordField — the eye button (BUG-051)', () => {
    * hoạt KHÔNG rỗng: nếu nút là `type="submit"` thì nó gửi biểu mẫu và `onSubmit` bị gọi.
    */
   it('never sends the form it sits in when Enter activates it (BUG-011)', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const onSubmit = vi.fn((event: React.FormEvent) => {
       event.preventDefault();
     });

@@ -227,3 +227,17 @@ Dùng chúng thay vì viết lại phép kiểm:
 | `lib/testing/render` · `fixtures` · `fakeClock` · `sevenStateScenarios` | Bộ dựng và dữ liệu mẫu |
 
 ---
+
+## Viết test nhanh (PERF-01, đo 2026-10-10)
+
+Mỗi dòng là một chỗ đã đo được làm bộ test chậm; viết test mới theo đúng cách nhanh, phép kiểm không đổi.
+
+- Tệp không render React/không đọc DOM → môi trường `node` (thêm vào `environmentMatchGlobs` của `vitest.config.ts` **sau khi**
+  `pnpm exec vitest run <tệp> --environment node` xanh, hoặc `/** @vitest-environment node */` đầu tệp). jsdom tốn ~2,8 s CPU/tệp.
+- `userEvent.setup({ delay: null })` (fake timers thì `advanceTimers`); mặc định `delay: 0` là một `setTimeout` thật mỗi phím
+  (DimensionOcrReview 28 → 15 s).
+- Không ngủ thật trong test: `vi.useFakeTimers()` + `await vi.advanceTimersByTimeAsync(n)` (accountWiring 11 → 6 s).
+- Dữ liệu/cảnh bất biến dựng một lần (`beforeAll`/hằng module), không trong `beforeEach` (houseScene 6,1 → 1,0 s).
+- Tệp gom quá nhiều màn/route thì tách theo nhóm để chạy song song (mainLandmark 21 → 12 s).
+- `waitFor`/`findBy*` đã hỏi mỗi 5 ms (`vitest.setup.dom.ts`); vẫn ưu tiên `getBy*` khi dữ liệu đã có đồng bộ.
+- Đo trước khi tối ưu: `pnpm exec vitest run <tệp> --maxWorkers=2 --minWorkers=1 --reporter=verbose`.

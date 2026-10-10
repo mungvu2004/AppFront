@@ -23,7 +23,7 @@ describe('TreeItem', () => {
   });
 
   it('calls onClick when Enter key is pressed', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const onClick = vi.fn();
     render(<TreeItem label="Item" onClick={onClick} />);
     const item = screen.getByRole('treeitem');
@@ -33,7 +33,7 @@ describe('TreeItem', () => {
   });
 
   it('calls onClick when Space key is pressed', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const onClick = vi.fn();
     render(<TreeItem label="Item" onClick={onClick} />);
     const item = screen.getByRole('treeitem');

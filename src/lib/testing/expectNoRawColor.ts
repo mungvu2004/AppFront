@@ -217,6 +217,29 @@ function isIgnored(line: string, ignore: readonly (string | RegExp)[]): boolean 
 }
 
 /**
+ * `maskComments` memoized by path, so a file scanned under several option
+ * presets in the same process — `noRawColor.test.ts` does this on purpose, to
+ * check both the shipping tree and the repository as a whole — only pays for
+ * masking once. The entry is reused only when the text is the same text: callers
+ * (the masker's own tests among them) pass different sources under one path, and
+ * a path-only key let one test's fixture answer for another's.
+ */
+const maskedCache = new Map<string, { source: string; masked: string }>();
+
+function maskedLinesOf(source: string, path: string): string {
+  const cached = maskedCache.get(path);
+
+  if (cached?.source === source) {
+    return cached.masked;
+  }
+
+  const masked = maskComments(source);
+  maskedCache.set(path, { source, masked });
+
+  return masked;
+}
+
+/**
  * Every colour literal in one file's text.
  *
  * Pure — takes the source rather than a path, so the checker itself is testable
@@ -229,9 +252,16 @@ export function findRawColors(
 ): RawColorFinding[] {
   const ignore = options.ignore ?? [];
   const findings: RawColorFinding[] = [];
-  const lines = maskComments(source).split('\n');
+  const lines = maskedLinesOf(source, path).split('\n');
 
   lines.forEach((line, offset) => {
+    // A line with none of these markers cannot match RAW_COLOR_PATTERN, and
+    // `includes` is far cheaper than running the regex on every line of every
+    // scanned file.
+    if (!line.includes('#') && !line.includes('rgb') && !line.includes('hsl')) {
+      return;
+    }
+
     if (isIgnored(line, ignore)) {
       return;
     }
@@ -283,12 +313,31 @@ function collectFiles(root: string, options: NoRawColorOptions): string[] {
   return found;
 }
 
+/**
+ * A file's text, read once per process. The same file is routinely scanned
+ * under more than one option preset — `noRawColor.test.ts` holds both the
+ * shipping tree and the repository as a whole to this check — and the file's
+ * content on disk cannot change between those scans within one test run.
+ */
+const fileContentCache = new Map<string, string>();
+
+function cachedRead(path: string): string {
+  let content = fileContentCache.get(path);
+
+  if (content === undefined) {
+    content = readFileSync(path, 'utf8');
+    fileContentCache.set(path, content);
+  }
+
+  return content;
+}
+
 /** Every colour literal under a file or directory. */
 export function scanForRawColors(target: string, options: NoRawColorOptions = {}): RawColorFinding[] {
   const absolute = resolve(target);
   const paths = statSync(absolute).isDirectory() ? collectFiles(absolute, options) : [absolute];
 
-  return paths.flatMap((path) => findRawColors(readFileSync(path, 'utf8'), path, options));
+  return paths.flatMap((path) => findRawColors(cachedRead(path), path, options));
 }
 
 /**

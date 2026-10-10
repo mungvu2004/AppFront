@@ -6,7 +6,7 @@ import { Slider } from './Slider';
 /** Tiêu điểm lên phần tử rồi gõ phím thật qua user-event (keydown → keyup, đúng thứ tự trình duyệt). */
 async function press(element: HTMLElement, keys: string) {
   act(() => element.focus());
-  await userEvent.setup().keyboard(keys);
+  await userEvent.setup({ delay: null }).keyboard(keys);
 }
 
 describe('Slider', () => {

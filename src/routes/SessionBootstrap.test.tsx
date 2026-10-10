@@ -181,7 +181,7 @@ function LoginProbe() {
  * tử của trang.
  */
 async function expectReachedByTab(element: HTMLElement): Promise<void> {
-  const user = userEvent.setup();
+  const user = userEvent.setup({ delay: null });
   const budget = document.querySelectorAll('*').length;
 
   for (let pressed = 0; pressed < budget && document.activeElement !== element; pressed += 1) {

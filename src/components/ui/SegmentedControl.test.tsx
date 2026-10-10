@@ -48,7 +48,7 @@ describe('SegmentedControl', () => {
   });
 
   it('navigates with ArrowRight key', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const onChange = vi.fn();
     render(<SegmentedControl options={options} defaultValue="2d" onChange={onChange} aria-label="Nav" />);
     act(() => screen.getByRole('radio', { checked: true }).focus());
@@ -57,7 +57,7 @@ describe('SegmentedControl', () => {
   });
 
   it('navigates with ArrowLeft key', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const onChange = vi.fn();
     render(<SegmentedControl options={options} defaultValue="3d" onChange={onChange} aria-label="Nav" />);
     act(() => screen.getByRole('radio', { checked: true }).focus());

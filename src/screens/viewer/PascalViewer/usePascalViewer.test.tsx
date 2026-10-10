@@ -1,3 +1,7 @@
+// @vitest-environment jsdom
+// PERF-01/FE-11 A15: dưới happy-dom, giả `<script>` mount không bắn `onload`
+// cho bài B-V10-01 ("Thử lại" ở URL khác) — `mountScript()` treo ở null tới
+// hết `waitFor`. Giữ tệp này ở jsdom.
 /**
  * Máy trạng thái và phím tắt của màn xem Pascal.
  *
@@ -222,6 +226,7 @@ describe('máy trạng thái', () => {
 
     // Xem `ADAPTER_SETTLE_MS`: không có mốc dương cho "không làm gì".
     await import('@/lib/pascal/toPascal');
+    // Ngủ thật, không đồng hồ giả: thứ cần chờ là `import()` thật chứ không phải timer.
     await new Promise((resolve) => {
       setTimeout(resolve, ADAPTER_SETTLE_MS);
     });

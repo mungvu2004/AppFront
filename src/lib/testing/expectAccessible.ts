@@ -346,13 +346,36 @@ export function parseColor(value: string): Rgba | null {
   return null;
 }
 
+/**
+ * `getComputedStyle` memoized per element for the lifetime of one
+ * {@link inspectAccessibility} pass.
+ *
+ * The same element is asked for its computed style many times over — once per
+ * descendant walking back up to find its background, again for its foreground,
+ * again for every custom property it might inherit. jsdom recomputes the whole
+ * declaration from scratch on every call, so caching it here is the difference
+ * between one computation per element and one per element per visit.
+ */
+type StyleCache = Map<Element, CSSStyleDeclaration>;
+
+function cachedStyle(element: Element, cache: StyleCache): CSSStyleDeclaration {
+  let style = cache.get(element);
+
+  if (style === undefined) {
+    style = window.getComputedStyle(element);
+    cache.set(element, style);
+  }
+
+  return style;
+}
+
 /** The value of a custom property, looked for where jsdom actually keeps it. */
-function lookupVariable(element: Element, name: string, root: Element): string | null {
+function lookupVariable(element: Element, name: string, root: Element, styles: StyleCache): string | null {
   let current: Element | null = element;
 
   while (current !== null) {
     const inline = current instanceof HTMLElement ? current.style.getPropertyValue(name) : '';
-    const computed = window.getComputedStyle(current).getPropertyValue(name);
+    const computed = cachedStyle(current, styles).getPropertyValue(name);
     const value = inline.trim() !== '' ? inline : computed;
 
     if (value.trim() !== '') {
@@ -382,6 +405,7 @@ function resolveColor(
   element: Element,
   root: Element,
   options: AccessibilityOptions,
+  styles: StyleCache,
   depth = 0,
 ): Rgba | null {
   const text = value.trim();
@@ -398,10 +422,10 @@ function resolveColor(
 
   const name = reference[1] ?? '';
   const fallback = reference[2];
-  const declared = options.variables?.[name] ?? lookupVariable(element, name, root);
+  const declared = options.variables?.[name] ?? lookupVariable(element, name, root, styles);
   const next = declared ?? fallback ?? null;
 
-  return next === null ? null : resolveColor(next, element, root, options, depth + 1);
+  return next === null ? null : resolveColor(next, element, root, options, styles, depth + 1);
 }
 
 /** One colour laid over another, as a browser would paint it. */
@@ -456,13 +480,14 @@ function backgroundBehind(
   element: Element,
   root: Element,
   options: AccessibilityOptions,
+  styles: StyleCache,
 ): Rgba | null {
   const layers: Rgba[] = [];
   let current: Element | null = element;
 
   while (current !== null) {
-    const declared = window.getComputedStyle(current).backgroundColor;
-    const color = resolveColor(declared, current, root, options);
+    const declared = cachedStyle(current, styles).backgroundColor;
+    const color = resolveColor(declared, current, root, options, styles);
 
     if (color !== null && color.alpha > 0) {
       layers.push(color);
@@ -487,11 +512,12 @@ function foregroundOf(
   element: Element,
   root: Element,
   options: AccessibilityOptions,
+  styles: StyleCache,
 ): Rgba | null {
   let current: Element | null = element;
 
   while (current !== null) {
-    const color = resolveColor(window.getComputedStyle(current).color, current, root, options);
+    const color = resolveColor(cachedStyle(current, styles).color, current, root, options, styles);
 
     if (color !== null && color.alpha > 0) {
       return color;
@@ -903,14 +929,15 @@ export function inspectAccessibility(
   // Text stands off its background — where the background is knowable at all.
   let contrastChecked = 0;
   let contrastSkipped = 0;
+  const styles: StyleCache = new Map();
 
   for (const element of [root, ...root.querySelectorAll('*')]) {
     if (!ownsText(element) || skip(element)) {
       continue;
     }
 
-    const foreground = foregroundOf(element, root, options);
-    const background = backgroundBehind(element, root, options);
+    const foreground = foregroundOf(element, root, options, styles);
+    const background = backgroundBehind(element, root, options, styles);
 
     if (foreground === null || background === null) {
       contrastSkipped += 1;

@@ -1,3 +1,7 @@
+// @vitest-environment jsdom
+// PERF-01/FE-11 A15: dưới happy-dom, `style.flexGrow` đọc ngược ra từ inline
+// style chỉ giữ ~7 chữ số thập phân (khác jsdom), làm [NGHIEM-4] lệch ở
+// `toBeCloseTo(…, 10)`. Giữ tệp này ở jsdom.
 /**
  * Lượt kiểm của màn S-16 "Quản lý tầng" đã RÁP.
  *

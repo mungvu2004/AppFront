@@ -396,7 +396,10 @@ async function editByKeyboard(user: UserEvent, field: HTMLElement): Promise<{ ta
 
 describe('[NGHIEM-2] sửa 5 giá trị chỉ bằng bàn phím', () => {
   it('đi hết 5 chuỗi bằng Tab / ArrowUp / Enter, số lần dùng chuột bằng 0', async () => {
-    const user = userEvent.setup();
+    /* `delay: null` bỏ `setTimeout` thật giữa mỗi phím — ~235 lượt Tab/gõ phím
+     * của bài này mới là thứ chiếm 14 s, không phải việc render (R-70: không
+     * một khẳng định nào đổi, chỉ bỏ độ trễ giả giữa hai sự kiện). */
+    const user = userEvent.setup({ delay: null });
 
     renderState('partial');
 
@@ -455,7 +458,7 @@ describe('[NGHIEM-2] sửa 5 giá trị chỉ bằng bàn phím', () => {
 
 describe('[NGHIEM-3] chế độ duyệt bàn phím', () => {
   it('gõ số rồi Enter là XONG một chuỗi — đúng 2 lần gõ phím', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const registry = createShortcutRegistry();
 
     renderState('partial', registry);

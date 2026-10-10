@@ -56,6 +56,27 @@ import i18next, { type TFunction } from 'i18next';
 import viMessages from '@/i18n/vi.json';
 import { createQueryClient } from '@/lib/query/queryClient';
 
+/**
+ * Dấu hiệu cho `vitest.setup.dom.ts` biết tệp đang chạy có dùng bộ dựng này.
+ *
+ * Phần nối store của bộ chuẩn bị — `configureTestProviders({ resetStore: … })`
+ * — phải biết cả `src/lib/testing` và `src/store`, nên nó nằm ở đó. Nhưng làm
+ * việc ấy ở tầng module bắt MỌI tệp jsdom trả giá nạp `@/store` (đo 2026-10-10:
+ * 68–227 ms/tệp) cùng `@tanstack/react-query`, `i18next` và 207 KB
+ * `src/i18n/vi.json` qua chính file này (84–155 ms), kể cả tệp `src/api` hay
+ * `src/lib/upload` không render một dòng nào.
+ *
+ * Nên `vitest.setup.dom.ts` dời phần ấy xuống `beforeAll` và đọc dấu hiệu này:
+ * nó được đặt lúc module này được tính, tức lúc tệp test được collect — xong
+ * trước `beforeAll` và trước bài đầu tiên. Thấy dấu thì hai `await import(...)`
+ * chỉ là một lượt tra bộ nhớ đệm; không thấy thì không có gì để reset, vì không
+ * ai gọi `renderWithProviders`.
+ *
+ * Chuỗi được viết lại ở `vitest.setup.dom.ts` thay vì `import` từ đây, vì chính
+ * dòng `import` ấy là thứ cả cơ chế này tồn tại để tránh.
+ */
+(globalThis as Record<string, unknown>)['__appfrontTestHarnessLoaded'] = true;
+
 /** Whatever `render()` accepts — taken from `render()` so the two cannot drift. */
 export type RenderableUi = Parameters<typeof renderToDom>[0];
 

@@ -951,18 +951,25 @@ describe('tự lưu lớp đối tượng (B-V6-03, F-04x-1)', () => {
     const { gateway, writeLayer } = savingGateway();
     const mounted = await mountSettled({ gateway });
 
-    await run(() => mounted.result.current.onApprove('D-004'));
-    await run(() => mounted.result.current.onDelete('D-002'));
+    /* Đồng hồ đóng băng SAU khi lượt đọc đã lắng, trước khi hai thao tác tạo
+     * đồng hồ chờ 800 ms của A7 — cùng khuôn mẫu NGHIEM-1 ở trên. */
+    const clock = installFakeClock();
 
-    await waitFor(() => {
+    try {
+      await run(() => mounted.result.current.onApprove('D-004'));
+      await run(() => mounted.result.current.onDelete('D-002'));
+
       expect(entityInStore('D-002', 'door')).toBeUndefined();
-    });
-    expect(writeLayer).not.toHaveBeenCalled();
+      expect(writeLayer).not.toHaveBeenCalled();
 
-    /* Qua cửa sổ 800 ms của A7: đúng MỘT lượt lưu cho cả hai thao tác. */
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    });
+      /* Qua cửa sổ 800 ms của A7: đúng MỘT lượt lưu cho cả hai thao tác. */
+      await act(async () => {
+        await clock.advance(1000);
+        await clock.flushMicrotasks();
+      });
+    } finally {
+      clock.restore();
+    }
 
     expect(writeLayer).toHaveBeenCalledTimes(1);
 
