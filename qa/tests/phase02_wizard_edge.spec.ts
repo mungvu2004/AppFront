@@ -1,0 +1,1245 @@
+/**
+ * Phase 2 — create-project wizard EDGE CASES, Track A (admin): the SCR-05 "Tạo dự án mới" dialog opened from `/`.
+ * Second edge file for the wizard: `phase02_dashboard_edge.spec.ts` already holds 11 wizard tests (step 1 validation +
+ * slug, Esc/close controls on step 1, apply-field heights, basement/add/delete rows, 50-floor cap, review + Back,
+ * [held response] busy + double click + undo, 33-char code 422, [mocked response] network lost on every attempt).
+ * Nothing here repeats them. Inventory rows: `qa/coverage/.phase02-edge-wizard.rows.md` (W42…, merge into phase02.md).
+ *
+ * Every expected result cites the FE source of this worktree (5afd8b8a) or, written `BE:`, the AppBack source.
+ * Source abbreviations (same as coverage/phase02.md):
+ *   CPM  src/screens/project/CreateProjectModal/CreateProjectModal.tsx   UCPM useCreateProjectModal.ts (same folder)
+ *   SF   StepFloors.tsx (same folder)   CPC CreateProjectModal.container.tsx (same folder)
+ *   NF   src/hooks/useNumericField.ts   NFC src/components/ui/NumericField.tsx   NUM src/lib/format/number.ts
+ *   INP  src/components/ui/Input.tsx    SEL src/hooks/useSelect.ts   MOD src/components/overlay/Modal.tsx
+ *   FT   src/lib/input/focusTrap.ts     FR  src/components/ui/FieldRow.tsx   LIM src/domain/project/limits.ts
+ *   RTY  src/lib/http/retry.ts          HTC src/lib/http/client.ts   TAE src/lib/errors/toAppError.ts
+ *   CON  src/api/contracts.ts           UPD src/screens/dashboard/ProjectDashboard/useProjectDashboard.ts
+ *   BE:schemas  AppBack apps/api/projects/schemas.py   BE:service  apps/api/projects/service.py
+ *
+ * ## Known bugs pinned here (F:/App/qa-results/BUG-LOG.md)
+ * Titles starting `[BUG-NNN]` assert the bug log's "Mong đợi" and are EXPECTED TO FAIL while that bug is open. The
+ * evidence shot is taken BEFORE the failing assertion, and source-behaviour checks run first (or as `expect.soft`
+ * where the bug check has to come early), so a failing run still documents the whole state.
+ *
+ * ## Non-serial
+ * Every test opens its OWN browser context, its own viewport and its own data (`qa-<runId>-…` names, deleted in
+ * `finally` — the fixture project AND anything the wizard created in that context). No test reads another's result.
+ * Only the session is carried: the storage state of the previous test's context is handed to the next one; when its
+ * cookie is refused (a test died before saving it) the helper signs in again. Same approach as the dashboard edge file.
+ *
+ * ## Mocks ("[mocked response]" in the title) — only states the shared stack cannot produce safely (3 of 27 = 11 %)
+ * - `POST /api/projects` 500 — unpairable: 5xx.
+ * - `POST /api/projects` 503 on the first attempt, the real create on the retry — unpairable: 5xx (503).
+ * - `POST /api/projects` network abort on the first attempt, the real create on the retry — unpairable: network loss.
+ * "[held response]" = the real response, only delayed, to see a transient state (busy, Esc while busy, double Enter).
+ *
+ * ## Real-backend request budget per run (BE:apps/api/auth/settings.py:31-36, login_guard.py)
+ * - `POST /api/auth/login` (30 / 60 s per IP): ONE UI sign-in when the worker starts this file; Playwright restarts
+ *   the worker after a failed test, so +1 per failed test (10 are expected to fail while the bugs are open: the 9
+ *   `[BUG-…]` tests + the cap-with-basement case → ≤ 11 sign-ins, each ≥ 10 s apart, ≤ 6 a minute). +1 if a carried cookie is refused. No failed login attempt at all.
+ * - `POST /api/auth/refresh` (300 / 60 s per IP): one per page load, ~2 per test (~60 for the file) — far from the cap.
+ * - `POST /api/projects` reaching the server: 1 API fixture + 7 UI creates that succeed (all deleted in `finally`)
+ *   + 3 refused 422 (address 201, code 33, blank floor name — none writes). The mocked 500 and the mocked first
+ *   attempts of the 503/abort tests never reach the server; each of those retries creates one project (counted above).
+ * - `DELETE /api/projects/{id}`: one per created project (8). No notification, recovery, invitation or mail call.
+ * Access tokens live 600 s (BE settings.py:31): each test reuses the token of its own sign-in/refresh.
+ */
+import { expect, test } from '@playwright/test';
+import type { Browser, BrowserContext, Locator, Page, Response, Route } from '@playwright/test';
+
+import { ROUTES } from '../../e2e/fixtures/routes';
+import { navigateThenWaitForApi, waitForApi, watchApi } from '../../e2e/fullstack/apiWatch';
+import type { ApiEntry } from '../../e2e/fullstack/apiWatch';
+import { readBaseUrl } from '../../e2e/fullstack/env';
+import { apiBaseUrl } from './support/api';
+import { dashboardLoaded, signInAdmin } from './support/auth';
+import { TEST_DATA_PREFIX, attachJson, captureEvidence } from './support/evidence';
+
+/* ---------------------------------------------------------------- constants (each cites its source) */
+
+/** `src/api/endpoints.ts` under the `/api` base (create = CON:202-211 body); refresh = `src/lib/auth/session.ts:43`. */
+const SUMMARIES_RE = /^\/api\/project-summaries$/u;
+const PROJECTS_API = '/api/projects';
+const PROJECTS_RE = /^\/api\/projects$/u;
+const REFRESH_PATH = '/api/auth/refresh';
+const SESSION_TIMEOUT_MS = 30_000;
+
+const DESKTOP = { width: 1440, height: 900 } as const;
+const COMPACT = { width: 375, height: 812 } as const;
+type Viewport = { readonly width: number; readonly height: number };
+
+/** Sr-only screen state, CPM:75-83, UCPM:493-511. */
+const STATE = { loading: 'đang tải', error: 'lỗi', partial: 'một phần', success: 'thành công', collapsed: 'thu gọn' } as const;
+const STATE_RE = /^(rỗng|đang tải|một phần|lỗi|thành công|Không có quyền|thu gọn)$/u;
+
+/* Wizard copy. */
+const WIZARD_TITLE = 'Tạo dự án mới'; // CPM:245
+const stepLabel = (step: number): string => `Bước ${String(step)} / 3`; // UCPM:684, CPM:259-262
+const DISCARD_TITLE = 'Đóng và bỏ các thay đổi chưa lưu?'; // CPM:252
+const DISCARD_HINT = 'Nhấn Esc lần nữa, hoặc bấm nút bên cạnh, để xác nhận đóng.'; // CPM:253
+const DISCARD_ACTION = 'Đóng, bỏ thay đổi'; // CPM:254
+const CLOSE_DIALOG = 'Đóng hộp thoại'; // MOD:167
+const HEIGHT_MISSING = 'Chưa nhập chiều cao thông thuỷ.'; // UCPM:113
+const CHAIN_BROKEN = 'Chưa tính được cao độ vì tầng bên dưới còn thiếu chiều cao hợp lệ.'; // UCPM:235
+const NUMERIC_MIN = 'Giá trị phải >= 2'; // NF:43, LIM:34
+const NUMERIC_MAX = 'Giá trị phải <= 10'; // NF:44, LIM:35
+const APPLY_LABEL = 'Chiều cao áp cho mọi tầng'; // SF:131
+const APPLY_ALL = 'Áp cho mọi tầng'; // SF:145
+const ADD_FLOOR = 'Thêm tầng'; // SF:127
+const BASEMENT_TOGGLE = 'Có tầng hầm'; // SF:38
+const BASEMENT_NAME = 'Tầng hầm'; // UCPM:602
+const BUILDING_TYPES = ['Nhà ở', 'Thương mại', 'Công nghiệp', 'Hỗn hợp', 'Khác'] as const; // UCPM:71-77
+const VALIDATION_DESCRIPTION = 'Kiểm tra lại các trường được đánh dấu rồi thử lại.'; // vi.json:39 (errors.validation)
+const UNKNOWN_DESCRIPTION = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Bạn có thể tải lại rồi thử lại.'; // vi.json:63 (errors.unknown)
+const FLOOR_COUNT_MAX = 50; // LIM:25-27 "basement included"
+const createdToast = (name: string): string => `Đã tạo dự án "${name}".`; // UCPM:669
+/** BE:schemas:27-28 — code ≤ 32, address ≤ 200; floor name ≥ 1 after trim (:54, `clean_text` :31-39). */
+const BE_CODE_MAX = 32;
+const BE_ADDRESS_MAX = 200;
+/** FT:39-46 — what a Tab press can reach inside the dialog (negative tabindex excluded at :62-64). */
+const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]';
+
+/* ---------------------------------------------------------------- small helpers */
+
+type Json = Record<string, unknown>;
+
+const asRecord = (value: unknown, what: string): Json => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error(`${what}: body is not a JSON object`);
+  }
+  return value as Json;
+};
+
+const stringField = (record: Json, key: string, what: string): string => {
+  const value = record[key];
+  if (typeof value !== 'string' || value === '') throw new Error(`${what}: missing string field "${key}"`);
+  return value;
+};
+
+const uniqueName = (slug: string): string => `${TEST_DATA_PREFIX}${slug}-${Date.now().toString(36)}`;
+const countApi = (api: readonly ApiEntry[], method: string, path: string, status?: number): number =>
+  api.filter((e) => e.method === method && e.path === path && (status === undefined || e.status === status)).length;
+/** ASCII only, so the FE `.length` and the BE `len()` (code points, after NFC) agree; never ends in a space. */
+const asciiText = (seed: string, length: number): string => `${seed.repeat(Math.ceil(length / seed.length)).slice(0, length - 1)}X`;
+
+/** A promise the test opens by hand — holds a real response ("[held response]"). */
+function gate(): { readonly wait: Promise<void>; readonly open: () => void } {
+  let open: () => void = () => undefined;
+  const wait = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  return { wait, open };
+}
+
+/** Every `POST /api/projects` this page sends goes through `handler` (attempt = 1, 2, …); other methods pass. */
+async function routeCreate(page: Page, handler: (route: Route, attempt: number) => Promise<void>): Promise<string[]> {
+  const keys: string[] = [];
+  await page.route((url) => url.pathname === PROJECTS_API, async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.fallback();
+      return;
+    }
+    keys.push(route.request().headers()['idempotency-key'] ?? '');
+    await handler(route, keys.length);
+  });
+  return keys;
+}
+
+/* ---------------------------------------------------------------- locators (labels verified in src/) */
+
+const dashboardHeading = (page: Page): Locator => page.getByRole('heading', { name: 'Dự án của tôi', exact: true }); // PD:198
+const newProjectButton = (page: Page): Locator => page.getByRole('button', { name: /^Dự án mới/u }); // PD:188-190 (+ "N" hint)
+const projectList = (page: Page): Locator => page.getByRole('list', { name: 'Danh sách dự án', exact: true }); // PD:151
+const projectCard = (page: Page, name: string): Locator => projectList(page).getByRole('listitem', { name, exact: true }); // PCT:68-72
+const wizard = (page: Page): Locator => page.getByRole('dialog', { name: WIZARD_TITLE, exact: true }); // CPM:243-245
+const toastWith = (page: Page, text: string): Locator => page.getByRole('status').filter({ hasText: text }); // TST:117
+const stateAnnouncement = (scope: Locator): Locator => scope.getByRole('status').filter({ hasText: STATE_RE }); // CPM:298-300
+const nameField = (dialog: Locator): Locator => dialog.getByLabel('Tên dự án'); // CPM:100-108
+const codeField = (dialog: Locator): Locator => dialog.getByLabel('Mã dự án'); // CPM:109-115
+const addressField = (dialog: Locator): Locator => dialog.getByLabel('Địa chỉ'); // CPM:118-123
+const notesField = (dialog: Locator): Locator => dialog.getByLabel('Ghi chú'); // CPM:143-149
+const buildingType = (dialog: Locator): Locator => dialog.getByRole('combobox'); // CPM:124-141, Select.tsx:136
+const nextButton = (dialog: Locator): Locator => dialog.getByRole('button', { name: 'Tiếp tục', exact: true }); // CPM:288-290
+const createButton = (dialog: Locator): Locator => dialog.getByRole('button', { name: 'Tạo dự án', exact: true }); // CPM:292-294
+const backButton = (dialog: Locator): Locator => dialog.getByRole('button', { name: 'Quay lại', exact: true }); // CPM:278-280
+const cancelButton = (dialog: Locator): Locator => dialog.getByRole('button', { name: 'Huỷ', exact: true }); // CPM:284-286
+const stepText = (dialog: Locator, step: number): Locator => dialog.getByText(stepLabel(step), { exact: true }).first();
+const discardWarning = (dialog: Locator): Locator => dialog.getByText(DISCARD_TITLE, { exact: true });
+const applyField = (dialog: Locator): Locator => dialog.getByLabel(APPLY_LABEL); // SF:130-138
+const applyButton = (dialog: Locator): Locator => dialog.getByRole('button', { name: APPLY_ALL, exact: true }); // SF:139-146
+const addFloorButton = (dialog: Locator): Locator => dialog.getByRole('button', { name: ADD_FLOOR, exact: true }); // SF:120-128
+const basementSwitch = (dialog: Locator): Locator => dialog.getByRole('switch', { name: BASEMENT_TOGGLE }); // SF:34-40, Toggle.tsx:80-86
+const floorNameBoxes = (dialog: Locator): Locator => dialog.getByRole('textbox', { name: /^Tên tầng/u }); // SF:87-92
+const floorNameBox = (dialog: Locator, floor: string): Locator => dialog.getByRole('textbox', { name: `Tên tầng ${floor}`, exact: true });
+const heightBox = (dialog: Locator, floor: string): Locator =>
+  dialog.getByRole('textbox', { name: `Chiều cao thông thuỷ tầng ${floor}`, exact: true }); // SF:95-104
+const deleteFloorButton = (dialog: Locator, floor: string): Locator => dialog.getByRole('button', { name: `Xoá ${floor}`, exact: true }); // SF:108-113
+/** One floor row of step 2, found by its name box (SF:78-115). */
+const floorRow = (dialog: Locator, page: Page, floor: string): Locator =>
+  dialog.getByRole('row').filter({ has: page.getByRole('textbox', { name: `Tên tầng ${floor}`, exact: true }) });
+const elevationCell = (row: Locator): Locator => row.getByRole('cell').nth(2); // SF:106
+/** Step 3 value cell: FieldRow label span → its column div → the sibling value column (FR:66-76). */
+const reviewValue = (dialog: Locator, label: string): Locator =>
+  dialog.getByText(label, { exact: true }).locator('xpath=../following-sibling::div[1]');
+/** `Modal.Body` (MOD:182-191): header, body, footer, then the sr-only state span. */
+const modalBody = (dialog: Locator): Locator => dialog.locator('xpath=./div[2]');
+
+async function openWizard(page: Page): Promise<Locator> {
+  await newProjectButton(page).click();
+  const dialog = wizard(page);
+  await expect(stepText(dialog, 1)).toBeVisible();
+  return dialog;
+}
+
+/** The `N` shortcut (UPD:382-385): from the heading so no text field has the focus (shortcutRegistry.ts:23-26). */
+async function openWizardWithN(page: Page): Promise<Locator> {
+  await dashboardHeading(page).click();
+  await page.keyboard.press('n');
+  const dialog = wizard(page);
+  await expect(stepText(dialog, 1)).toBeVisible();
+  return dialog;
+}
+
+/** Dirty form: "Huỷ" asks first, "Đóng, bỏ thay đổi" closes (UCPM:624-639). */
+async function discardWizard(dialog: Locator): Promise<void> {
+  await cancelButton(dialog).click();
+  await dialog.getByRole('button', { name: DISCARD_ACTION, exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+}
+
+/** Keyboard press of a button — used at 375 px where the 560 px dialog puts it off screen (CPM:63-64). */
+async function pressButton(page: Page, button: Locator): Promise<void> {
+  await button.focus();
+  await page.keyboard.press('Enter');
+}
+
+async function toStep2(dialog: Locator, name: string): Promise<void> {
+  await nameField(dialog).fill(name);
+  await nextButton(dialog).click();
+  await expect(stepText(dialog, 2)).toBeVisible();
+}
+
+/** Types a height into a NumericField and blurs: NF:105-111 commits on blur. */
+async function typeHeight(field: Locator, text: string): Promise<void> {
+  await field.fill(text);
+  await field.press('Tab');
+}
+
+/** Shared height, committed then applied to every row (UCPM:590-594). */
+async function applyHeight(dialog: Locator, metres: string): Promise<void> {
+  await typeHeight(applyField(dialog), metres);
+  await expect(applyButton(dialog)).toBeEnabled();
+  await applyButton(dialog).click();
+}
+
+/** Step 1 → 3 with a 3 m stack, the shortest valid path. */
+async function toReview(dialog: Locator, name: string): Promise<void> {
+  await toStep2(dialog, name);
+  await applyHeight(dialog, '3');
+  await nextButton(dialog).click();
+  await expect(stepText(dialog, 3)).toBeVisible();
+}
+
+/** The Tab ring of the dialog (FT:56-68) and where the focus sits in it (-1 = not on a ring element). */
+interface FocusRing {
+  readonly labels: readonly string[];
+  readonly index: number;
+}
+const focusRing = (dialog: Locator): Promise<FocusRing> =>
+  dialog.evaluate((root, selector) => {
+    const describe = (el: HTMLElement): string => {
+      const labelled = el.id === '' ? null : document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
+      return el.getAttribute('aria-label') ?? labelled?.textContent ?? ((el.textContent ?? '').trim() || el.tagName);
+    };
+    const ring = Array.from(root.querySelectorAll<HTMLElement>(selector)).filter(
+      (el) => !(Number.parseInt(el.getAttribute('tabindex') ?? '0', 10) < 0) && el.closest('[hidden], [aria-hidden="true"]') === null,
+    );
+    return { labels: ring.map(describe), index: ring.indexOf(document.activeElement as HTMLElement) };
+  }, FOCUSABLE_SELECTOR);
+const focusIsInside = (dialog: Locator): Promise<boolean> =>
+  dialog.evaluate((root) => root !== document.activeElement && root.contains(document.activeElement));
+const focusedLabel = async (dialog: Locator): Promise<string> => {
+  const ring = await focusRing(dialog);
+  return ring.labels[ring.index] ?? '(outside the Tab ring)';
+};
+const topOf = async (locator: Locator): Promise<number> => (await locator.boundingBox())?.y ?? Number.NaN;
+
+/* ---------------------------------------------------------------- session + fixtures (same as phase02_dashboard_edge) */
+
+type StorageState = Awaited<ReturnType<BrowserContext['storageState']>>;
+
+/** Storage state of the last closed context — its refresh cookie is the live one. Reset with the worker. */
+let carriedState: StorageState | undefined;
+
+interface Admin {
+  readonly context: BrowserContext;
+  readonly page: Page;
+  readonly api: ApiEntry[];
+  /** Access token of this context's latest refresh — sent as Bearer by the fixture calls, never logged. */
+  readonly token: string;
+  /** Project ids this test owns; deleted when the context closes. */
+  readonly cleanup: string[];
+}
+
+/** Refresh body: `accessToken`/`access_token`, optional `data` wrapper (src/lib/auth/refresh.ts:85-100). */
+function readToken(json: unknown): string {
+  const body = asRecord(json, 'POST /api/auth/refresh');
+  const root = typeof body.data === 'object' && body.data !== null ? asRecord(body.data, 'refresh.data') : body;
+  const token =
+    typeof root.accessToken === 'string' ? root.accessToken : typeof root.access_token === 'string' ? root.access_token : '';
+  if (token === '') throw new Error('POST /api/auth/refresh: no access token in the body');
+  return token;
+}
+
+const waitToken = (page: Page): Promise<string> => {
+  const pending = page
+    .waitForResponse(
+      (r: Response) => r.request().method() === 'POST' && new URL(r.url()).pathname === REFRESH_PATH && r.status() === 200,
+      { timeout: SESSION_TIMEOUT_MS },
+    )
+    .then(async (r) => readToken(await r.json()));
+  pending.catch(() => undefined);
+  return pending;
+};
+
+async function openAdmin(browser: Browser, viewport: Viewport): Promise<Admin> {
+  const context = await browser.newContext({
+    baseURL: readBaseUrl(),
+    viewport,
+    ...(carriedState !== undefined ? { storageState: carriedState } : {}),
+  });
+  try {
+    const page = await context.newPage();
+    const api = watchApi(page);
+    let token = waitToken(page);
+    let landed: 'session' | 'login' = 'login';
+    if (carriedState !== undefined) {
+      await page.goto(ROUTES.dashboard, { waitUntil: 'commit' });
+      landed = await Promise.race([
+        token.then(() => 'session' as const),
+        page.waitForURL((url) => url.pathname === ROUTES.login, { timeout: SESSION_TIMEOUT_MS }).then(() => 'login' as const),
+      ]);
+    }
+    if (landed === 'login') {
+      // No carried state, or its cookie was refused (SessionBootstrap sent us to /login): one real sign-in.
+      token = waitToken(page);
+      await signInAdmin(page);
+    }
+    const resolved = await token;
+    await dashboardLoaded(page);
+    return { context, page, api, token: resolved, cleanup: [] };
+  } catch (error) {
+    await context.close();
+    throw error;
+  }
+}
+
+const bearer = (admin: Admin): Record<string, string> => ({ Origin: apiBaseUrl(), Authorization: `Bearer ${admin.token}` });
+
+/** Fixture project through the real API (BE:router.py:54-63, `name` 3–80 chars, BE:schemas:25-26). */
+async function createProject(admin: Admin, name: string): Promise<string> {
+  const response = await admin.page.request.post(PROJECTS_API, { headers: bearer(admin), data: { name } });
+  expect(response.status(), `fixture POST ${PROJECTS_API} "${name}"`).toBe(201);
+  const id = stringField(asRecord(await response.json(), 'POST /api/projects'), 'id', 'POST /api/projects');
+  admin.cleanup.push(id);
+  return id;
+}
+
+async function closeAdmin(admin: Admin): Promise<void> {
+  // Anything the wizard created in this context is test data too.
+  for (const entry of admin.api) {
+    if (entry.method === 'POST' && entry.path === PROJECTS_API && (entry.status === 200 || entry.status === 201)) {
+      const id = typeof entry.json === 'object' && entry.json !== null ? (entry.json as Json).id : undefined;
+      if (typeof id === 'string' && !admin.cleanup.includes(id)) admin.cleanup.push(id);
+    }
+  }
+  for (const id of admin.cleanup) {
+    await admin.page.request.delete(`${PROJECTS_API}/${id}`, { headers: bearer(admin) }).catch(() => undefined);
+  }
+  try {
+    carriedState = await admin.context.storageState();
+  } catch {
+    carriedState = undefined;
+  }
+  await admin.context.close().catch(() => undefined);
+}
+
+async function withAdmin(browser: Browser, body: (admin: Admin) => Promise<void>, viewport: Viewport = DESKTOP): Promise<void> {
+  const admin = await openAdmin(browser, viewport);
+  try {
+    await body(admin);
+  } finally {
+    await unrouteAll(admin.page);
+    await closeAdmin(admin);
+  }
+}
+
+async function unrouteAll(page: Page): Promise<void> {
+  await page.unrouteAll({ behavior: 'ignoreErrors' }).catch(() => undefined);
+}
+
+/* ================================================================= step 1 + keyboard + focus */
+
+test.describe('E02 SCR-05 wizard edge — step 1, keyboard and focus', () => {
+  test('[BUG-133] E02 · wizard opened with "N" is pristine (no error, focus in "Tên dự án"); "n" off-field is swallowed by the dialog, in-field it types', async ({ browser }) => {
+    // EXPECTED TO FAIL while BUG-133 is open: CPM:105 passes `problems.name` unconditionally and UCPM:142-146 returns
+    // "Chưa nhập tên dự án." for '' — the error shows before any touch; FT:179 focuses the first focusable (MOD:163-171 X).
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizardWithN(page);
+      await expect.poll(() => focusIsInside(dialog), 'focus trap activated (MOD:59-72)').toBe(true);
+      const pristine = {
+        alerts: await dialog.getByRole('alert').allInnerTexts(),
+        nameInvalid: await nameField(dialog).getAttribute('aria-invalid'),
+        focused: await focusedLabel(dialog),
+      };
+      await captureEvidence(page, 'E02_wiz_n_pristine.png', { caption: `opened with "n"; focus on "${pristine.focused}"` });
+      await attachJson('E02_wiz_n_pristine.json', pristine);
+      expect.soft(pristine.alerts, 'no error on a form nobody touched (BUG-133)').toEqual([]);
+      expect.soft(pristine.nameInvalid, '"Tên dự án" not aria-invalid (INP:91) before a touch').toBeNull();
+      expect.soft(pristine.focused, 'initial focus in "Tên dự án" (BUG-133)').toBe('Tên dự án');
+
+      // Source behaviour: the dialog scope is modal (shortcutRegistry.ts:16-21, MOD:77-80) — "n" off a text field opens
+      // nothing and changes nothing; inside the field it is plain typing.
+      await nameField(dialog).fill('ab');
+      await dialog.getByRole('button', { name: CLOSE_DIALOG, exact: true }).focus();
+      await page.keyboard.press('n');
+      await expect(page.getByRole('dialog')).toHaveCount(1);
+      await expect(nameField(dialog)).toHaveValue('ab');
+      await expect(stepText(dialog, 1)).toBeVisible();
+      await nameField(dialog).press('End');
+      await page.keyboard.press('n');
+      await expect(nameField(dialog)).toHaveValue('abn');
+      await expect(dialog.getByRole('alert')).toHaveCount(0); // 3 chars → UCPM:147-149 satisfied
+      await discardWizard(dialog);
+    });
+  });
+
+  test('E02 · wizard focus trap: Tab / Shift+Tab wrap inside the dialog on steps 1 and 2; closing returns focus to "Dự án mới"', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      await expect.poll(() => focusIsInside(dialog)).toBe(true);
+      const report: Record<string, unknown> = {};
+
+      for (const step of [1, 2] as const) {
+        if (step === 2) {
+          await nameField(dialog).fill('Dự án bẫy focus');
+          await nextButton(dialog).click();
+          await expect(stepText(dialog, 2)).toBeVisible();
+        }
+        const ring = await focusRing(dialog);
+        report[`step${String(step)}`] = ring.labels;
+        const last = ring.labels.length - 1;
+        expect(last, `step ${String(step)} has several focusable controls`).toBeGreaterThan(0);
+        // FT:131-134: Shift+Tab on the first lands on the last, Tab on the last lands on the first.
+        await dialog.getByRole('button', { name: CLOSE_DIALOG, exact: true }).focus(); // first in DOM (MOD:163-171)
+        expect((await focusRing(dialog)).index).toBe(0);
+        await page.keyboard.press('Shift+Tab');
+        expect((await focusRing(dialog)).index, `step ${String(step)}: Shift+Tab from the first`).toBe(last);
+        await page.keyboard.press('Tab');
+        expect((await focusRing(dialog)).index, `step ${String(step)}: Tab from the last`).toBe(0);
+        for (let press = 0; press <= last + 1; press += 1) {
+          await page.keyboard.press('Tab');
+          expect(await focusIsInside(dialog), `step ${String(step)} Tab #${String(press + 1)} stays inside`).toBe(true);
+        }
+      }
+      await captureEvidence(page, 'E02_wiz_focus_trap.png', { caption: `step 2 focus cycle: ${(report.step2 as string[]).join(' → ')}` });
+      await attachJson('E02_wiz_focus_trap.json', report);
+
+      await discardWizard(dialog);
+      await expect(newProjectButton(page), 'focus goes home to the opener (FT:138-142)').toBeFocused();
+    });
+  });
+
+  test('E02 · wizard "Loại công trình" by keyboard: arrows open on the current value and wrap, Enter selects, Tab closes without selecting; review shows it', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      const combo = buildingType(dialog);
+      const listbox = page.getByRole('listbox');
+      await expect(combo).toContainText(BUILDING_TYPES[0]); // UCPM:79
+
+      await combo.focus();
+      await page.keyboard.press('ArrowDown'); // SEL:42-46 opens, highlight = current (SEL:24-29)
+      await expect(listbox).toBeVisible();
+      await expect(combo).toHaveAttribute('aria-expanded', 'true'); // Select.tsx:139
+      await expect(listbox.getByRole('option', { name: BUILDING_TYPES[0] })).toHaveAttribute('aria-selected', 'true');
+      await page.keyboard.press('ArrowDown');
+      await page.keyboard.press('ArrowDown'); // 0 → 2
+      await page.keyboard.press('Enter'); // SEL:63-71
+      await expect(listbox).toHaveCount(0);
+      await expect(combo).toContainText(BUILDING_TYPES[2]);
+      await expect(combo).toBeFocused(); // SEL:31-34
+
+      await page.keyboard.press('ArrowUp'); // opens on "Công nghiệp" (2)
+      await expect(listbox).toBeVisible();
+      for (let press = 0; press < 3; press += 1) await page.keyboard.press('ArrowUp'); // 2 → 1 → 0 → 4 (SEL:59-62 wraps)
+      await page.keyboard.press('Enter');
+      await expect(combo).toContainText(BUILDING_TYPES[4]);
+
+      await page.keyboard.press('Enter'); // opens on "Khác" (4)
+      await expect(listbox).toBeVisible();
+      await page.keyboard.press('ArrowDown'); // 4 → 0, not chosen
+      await captureEvidence(page, 'E02_wiz_type_keyboard.png', { caption: 'list open, highlight moved to "Nhà ở", not chosen yet' });
+      await page.keyboard.press('Tab'); // SEL:72-74 closes, keeps the value
+      await expect(listbox).toHaveCount(0);
+      await expect(combo).toContainText(BUILDING_TYPES[4]);
+      await expect(dialog, 'Tab closing the list never closes the dialog').toBeVisible();
+
+      await toReview(dialog, 'Dự án loại khác');
+      await expect(reviewValue(dialog, 'Loại công trình')).toHaveText(BUILDING_TYPES[4]); // CPM:164-165,177
+      await discardWizard(dialog);
+    });
+  });
+
+  test('[BUG-122] E02 · wizard header: the gap between "Tạo dự án mới" and "Bước 1 / 3" fits one 24 px grid step', async ({ browser }) => {
+    // EXPECTED TO FAIL while BUG-122 is open: MOD:157 header pb-4 + CPM:247 body py-6 + CPM:259 mb-4 stack up.
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      const title = dialog.getByRole('heading', { name: WIZARD_TITLE, exact: true }); // MOD:160
+      const indicator = dialog.locator('p').filter({ hasText: /^Bước 1 \/ 3$/u }); // CPM:259
+      const titleBox = await title.boundingBox();
+      const indicatorBox = await indicator.boundingBox();
+      if (titleBox === null || indicatorBox === null) throw new Error('title or step indicator not laid out');
+      const gap = indicatorBox.y - (titleBox.y + titleBox.height);
+      const fontSize = await indicator.evaluate((el) => getComputedStyle(el).fontSize);
+      await captureEvidence(page, 'E02_wiz_header_gap.png', { caption: `title → "Bước 1 / 3" gap ${gap.toFixed(1)} px, indicator ${fontSize}` });
+      await attachJson('E02_wiz_header_gap.json', { gapPx: gap, titleBox, indicatorBox, indicatorFontSize: fontSize });
+      expect(gap, 'header gap ≤ one 24 px grid step (BUG-122 "Mong đợi")').toBeLessThanOrEqual(24);
+      await page.keyboard.press('Escape');
+      await expect(dialog).toHaveCount(0);
+    });
+  });
+});
+
+/* ================================================================= step 2 floors */
+
+test.describe('E02 SCR-05 wizard edge — step 2 floors', () => {
+  test('E02 · wizard row height parsing: "3,5" / "  2,5 " / "1e1" commit; "-3" and "3.5" are refused and keep the height; "" and "abc" erase it', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      await toStep2(dialog, 'Dự án nhập chiều cao');
+      await applyHeight(dialog, '3');
+      const ground = heightBox(dialog, 'Tầng trệt');
+      const groundRow = floorRow(dialog, page, 'Tầng trệt');
+      const floor1 = elevationCell(floorRow(dialog, page, 'Tầng 1'));
+      await expect(floor1).toHaveText('3,0 m');
+
+      // NUM:255-266: trim, drop ".", first "," → "."; parseFloat. The next floor sits on this one's ceiling (UCPM:256-276).
+      for (const [typed, level] of [['3,5', '3,5 m'], ['  2,5 ', '2,5 m'], ['1e1', '10,0 m']] as const) {
+        await typeHeight(ground, typed);
+        await expect(floor1, `"${typed}" on "Tầng trệt"`).toHaveText(level);
+      }
+      // "1e1" is parseFloat's scientific notation — accepted as 10 m (NUM:263), worth knowing.
+
+      // NF:41-46 refuses out-of-range and never commits (NF:58): the row keeps 10 m, the field shows the local error
+      // (row.problem is null so NFC:62 `error || props.error` is not overridden by the spread at NFC:71).
+      for (const [typed, message] of [['-3', NUMERIC_MIN], ['3.5', NUMERIC_MAX]] as const) {
+        await typeHeight(ground, typed);
+        await expect(groundRow.getByRole('alert'), `"${typed}" refused`).toHaveText(message);
+        await expect(floor1, `"${typed}" keeps the committed 10 m`).toHaveText('10,0 m');
+      }
+      await captureEvidence(page, 'E02_wiz_row_height_refused.png', { caption: '"3.5" on "Tầng trệt" read as 35 → "Giá trị phải <= 10", 10 m kept' });
+
+      // "" → parseNumber undefined → onChange(undefined) → height erased (UCPM:578-583): the row says so, the chain above breaks.
+      await typeHeight(heightBox(dialog, 'Tầng 2'), '');
+      await expect(floorRow(dialog, page, 'Tầng 2').getByRole('alert')).toHaveText(HEIGHT_MISSING);
+      await expect(elevationCell(floorRow(dialog, page, 'Tầng 2'))).toHaveText('—');
+      await expect(floorRow(dialog, page, 'Tầng 3').getByRole('alert')).toHaveText(CHAIN_BROKEN);
+      await expect(floor1).toHaveText('10,0 m');
+      await typeHeight(heightBox(dialog, 'Tầng 2'), '3');
+      await expect(floorRow(dialog, page, 'Tầng 3').getByRole('alert')).toHaveCount(0);
+
+      // "abc" is NOT refused like "-3": parseFloat gives NaN → undefined → the committed height is silently erased.
+      await typeHeight(ground, 'abc');
+      await expect(groundRow.getByRole('alert')).toHaveText(HEIGHT_MISSING);
+      for (const floor of ['Tầng 1', 'Tầng 2', 'Tầng 3']) {
+        await expect(floorRow(dialog, page, floor).getByRole('alert')).toHaveText(CHAIN_BROKEN);
+      }
+      await expect(floor1).toHaveText('—');
+      await expect(nextButton(dialog)).toBeDisabled(); // UCPM:487
+      await captureEvidence(page, 'E02_wiz_row_height_erased.png', { caption: '"abc" on "Tầng trệt" erased the 10 m height' });
+      await discardWizard(dialog);
+    });
+  });
+
+  test('[BUG-132] E02 · wizard apply field: "3.5" after a 3 m apply keeps the floors and applies 3,5 m', async ({ browser }) => {
+    // EXPECTED TO FAIL while BUG-132 is open: NUM:262 drops "." as a thousands mark → 35 → NF:44 refuses, never commits
+    // (applyHeightM stays 3, UCPM:585-587) — so "Áp cho mọi tầng" re-applies the stale 3 m while the user typed 3.5.
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      await toStep2(dialog, 'Dự án áp 3.5');
+      await applyHeight(dialog, '3');
+      const floor1 = elevationCell(floorRow(dialog, page, 'Tầng 1'));
+      await expect(floor1).toHaveText('3,0 m');
+
+      await typeHeight(applyField(dialog), '3.5');
+      const state = {
+        fieldShows: await applyField(dialog).inputValue(),
+        fieldErrors: await applyField(dialog).locator('xpath=ancestor::div[contains(@class,"flex-col")][1]').getByRole('alert').allInnerTexts(),
+        applyEnabled: await applyButton(dialog).isEnabled(),
+      };
+      await captureEvidence(page, 'E02_wiz_apply_3dot5.png', { caption: `apply field after "3.5"+Tab shows "${state.fieldShows}", errors ${JSON.stringify(state.fieldErrors)}` });
+      await attachJson('E02_wiz_apply_3dot5.json', state);
+      await expect(floor1, 'typing in the apply field never erases the floors (BUG-132 "Mong đợi")').toHaveText('3,0 m');
+      expect.soft(state.fieldErrors, '3.5 is inside 2–10 m: no "<= 10" error').not.toContain(NUMERIC_MAX);
+
+      await applyButton(dialog).click();
+      await expect(floor1, '"3.5" applied as 3,5 m (BUG-132 "Mong đợi")').toHaveText('3,5 m');
+      await discardWizard(dialog);
+    });
+  });
+
+  test('E02 · wizard "Áp cho mọi tầng" then edit one row restacks the levels; applying again overwrites the edit; a new row starts empty', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      await toStep2(dialog, 'Dự án sửa một tầng');
+      await applyHeight(dialog, '3');
+      const level = (floor: string): Locator => elevationCell(floorRow(dialog, page, floor));
+
+      await typeHeight(heightBox(dialog, 'Tầng 1'), '4'); // UCPM:578-583
+      // 0 → 3 → 3+4 → 7+3 (UCPM:256-276, alignFloors.ts:451-453)
+      for (const [floor, at] of [['Tầng trệt', '0,0 m'], ['Tầng 1', '3,0 m'], ['Tầng 2', '7,0 m'], ['Tầng 3', '10,0 m']] as const) {
+        await expect(level(floor)).toHaveText(at);
+      }
+      await expect(applyField(dialog), 'the apply field keeps its value (UCPM:468, :585-587)').toHaveValue('3');
+      await captureEvidence(page, 'E02_wiz_apply_then_edit.png', { caption: 'apply 3 m, then "Tầng 1" = 4 m' });
+
+      await addFloorButton(dialog).click(); // UCPM:559-566: new row, no height
+      await expect(floorRow(dialog, page, 'Tầng 4').getByRole('alert')).toHaveText(HEIGHT_MISSING);
+      await applyButton(dialog).click(); // UCPM:593 writes EVERY row — the 4 m edit is gone too
+      await expect(heightBox(dialog, 'Tầng 1')).toHaveValue('3');
+      await expect(level('Tầng 2')).toHaveText('6,0 m');
+      await expect(level('Tầng 4')).toHaveText('12,0 m');
+      await expect(dialog.getByRole('table').getByRole('alert')).toHaveCount(0);
+      await expect(nextButton(dialog)).toBeEnabled();
+      await captureEvidence(page, 'E02_wiz_apply_overwrites.png');
+      await discardWizard(dialog);
+    });
+  });
+
+  test('E02 · wizard basement by keyboard: Space toggles it, its own height sets a negative level, "Thêm tầng" still names "Tầng 4", deleting the row unticks the switch', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      await toStep2(dialog, 'Dự án tầng hầm');
+      const basement = basementSwitch(dialog);
+      await basement.focus();
+      await page.keyboard.press('Space'); // Toggle.tsx:80-92 is a <button role=switch>
+      await expect(basement).toHaveAttribute('aria-checked', 'true');
+      await expect(floorNameBoxes(dialog)).toHaveCount(5);
+      await expect(floorNameBoxes(dialog).first()).toHaveAttribute('aria-label', `Tên tầng ${BASEMENT_NAME}`); // UCPM:602 first
+
+      await applyHeight(dialog, '3');
+      await typeHeight(heightBox(dialog, BASEMENT_NAME), '4');
+      await expect(elevationCell(floorRow(dialog, page, BASEMENT_NAME))).toHaveText(/^[-−]4,0 m$/u); // UCPM:285-289
+      await expect(elevationCell(floorRow(dialog, page, 'Tầng trệt'))).toHaveText('0,0 m'); // the datum never moves
+      await typeHeight(heightBox(dialog, BASEMENT_NAME), '10');
+      await expect(elevationCell(floorRow(dialog, page, BASEMENT_NAME))).toHaveText(/^[-−]10,0 m$/u); // ≥ -30 m (LIM:30)
+
+      await addFloorButton(dialog).click(); // aboveCount counts kind 'floor' only (UCPM:563)
+      await expect(floorNameBox(dialog, 'Tầng 4')).toBeVisible();
+      await expect(floorNameBox(dialog, 'Tầng 5')).toHaveCount(0);
+      await captureEvidence(page, 'E02_wiz_basement_keyboard.png', { caption: 'basement -10,0 m; "Thêm tầng" → "Tầng 4"' });
+
+      await deleteFloorButton(dialog, BASEMENT_NAME).click(); // hasBasement is derived from the rows (UCPM:697)
+      await expect(basement).toHaveAttribute('aria-checked', 'false');
+      await basement.focus();
+      await page.keyboard.press('Space');
+      // A fresh basement row, no height (UCPM:602) — the rest of the stack is untouched.
+      await expect(floorRow(dialog, page, BASEMENT_NAME).getByRole('alert')).toHaveText(HEIGHT_MISSING);
+      await expect(elevationCell(floorRow(dialog, page, 'Tầng 1'))).toHaveText('3,0 m');
+      await expect(nextButton(dialog)).toBeDisabled();
+      await discardWizard(dialog);
+    });
+  });
+
+  test('E02 · wizard floor rows by keyboard: typing a new name keeps the focus, Enter on "Xoá Tầng 2" removes it, focus stays trapped; the next "Thêm tầng" repeats "Tầng 3"', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      await toStep2(dialog, 'Dự án đổi tên tầng');
+
+      const box = floorNameBox(dialog, 'Tầng 1');
+      await box.focus();
+      await page.keyboard.press('Control+A');
+      await page.keyboard.type('Tầng lửng'); // UCPM:573-576; the label follows the value (SF:91)
+      // MOD:45-55: onClose kept in a ref so typing never re-activates the trap and steals the focus.
+      await expect(floorNameBox(dialog, 'Tầng lửng')).toBeFocused();
+      await expect(deleteFloorButton(dialog, 'Tầng lửng')).toBeVisible(); // SF:110
+
+      await pressButton(page, deleteFloorButton(dialog, 'Tầng 2')); // SF:108-113 → UCPM:568-571
+      await expect(floorNameBox(dialog, 'Tầng 2')).toHaveCount(0);
+      await expect(floorNameBoxes(dialog)).toHaveCount(3);
+      await page.keyboard.press('Tab'); // the pressed button is gone; FT:129-134 pulls the focus back in
+      expect(await focusIsInside(dialog), 'focus inside the dialog after the row left').toBe(true);
+
+      // nextFloorName(aboveCount) (UCPM:185-187, :563) counts rows, not names: 3 rows → "Tầng 3", already taken.
+      await addFloorButton(dialog).click();
+      await expect(floorNameBox(dialog, 'Tầng 3')).toHaveCount(2);
+      await expect(deleteFloorButton(dialog, 'Tầng 3')).toHaveCount(2);
+      await captureEvidence(page, 'E02_wiz_rows_keyboard.png', { caption: 'after deleting "Tầng 2", "Thêm tầng" adds a second "Tầng 3"' });
+      await attachJson('E02_wiz_rows_keyboard.json', { names: await floorNameBoxes(dialog).evaluateAll((els) => els.map((el) => (el as HTMLInputElement).value)) });
+      await discardWizard(dialog);
+    });
+  });
+
+  test('E02 · wizard floor cap with a basement: 50 floors then "Có tầng hầm" must not make 51 rows (LIM:25 "basement included")', async ({ browser }) => {
+    // Source: setHasBasement (UCPM:596-606) never checks canAddFloor (UCPM:490) — likely a NEW finding when this fails.
+    test.setTimeout(240_000);
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      await toStep2(dialog, 'Dự án năm mươi tầng hầm');
+      const add = addFloorButton(dialog);
+      for (let floors = 4; floors < FLOOR_COUNT_MAX; floors += 1) await add.click();
+      await expect(floorNameBoxes(dialog)).toHaveCount(FLOOR_COUNT_MAX);
+      await expect(add).toBeDisabled(); // UCPM:490, SF:125
+
+      await basementSwitch(dialog).click();
+      const rows = await floorNameBoxes(dialog).count();
+      await expect(add).toBeDisabled();
+      await captureEvidence(page, 'E02_wiz_cap_basement.png', { caption: `50 floors + "Có tầng hầm" → ${String(rows)} rows` });
+      await attachJson('E02_wiz_cap_basement.json', { rows, limit: FLOOR_COUNT_MAX, basementChecked: await basementSwitch(dialog).getAttribute('aria-checked') });
+      expect(rows, `at most ${String(FLOOR_COUNT_MAX)} rows, basement included (LIM:25-27)`).toBeLessThanOrEqual(FLOOR_COUNT_MAX);
+      await discardWizard(dialog);
+    });
+  });
+
+  test('[BUG-120] E02 · wizard step 2 opens neutral: no row is flagged before any height is typed', async ({ browser }) => {
+    // EXPECTED TO FAIL while BUG-120 is open: UCPM:239-243 flags "Tầng trệt" and UCPM:234-236 every row above at once.
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      await toStep2(dialog, 'Dự án tầng chưa nhập');
+      const table = dialog.getByRole('table');
+      await expect(floorNameBoxes(dialog)).toHaveCount(4);
+      const fresh = {
+        alerts: await table.getByRole('alert').allInnerTexts(),
+        invalidFields: await table.locator('[aria-invalid="true"]').count(),
+        nextEnabled: await nextButton(dialog).isEnabled(),
+        nextDescribedBy: await nextButton(dialog).getAttribute('aria-describedby'),
+      };
+      await captureEvidence(page, 'E02_wiz_step2_fresh.png', { caption: `fresh step 2: ${String(fresh.alerts.length)} row errors` });
+      await attachJson('E02_wiz_step2_fresh.json', fresh);
+      expect.soft(fresh.alerts, 'no row error before a touch (BUG-120 "Mong đợi")').toEqual([]);
+      expect.soft(fresh.invalidFields, 'no red field before a touch').toBe(0);
+
+      // Source behaviour after one apply: every row clean, "Tiếp tục" enabled (UCPM:487).
+      await applyHeight(dialog, '3');
+      await expect(table.getByRole('alert')).toHaveCount(0);
+      await expect(nextButton(dialog)).toBeEnabled();
+      await discardWizard(dialog);
+    });
+  });
+
+  test('E02 · wizard "Quay lại" to step 1 and back keeps every step-2 edit: basement, renamed and added rows, per-row and shared heights', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      await toStep2(dialog, 'Dự án khứ hồi');
+      await basementSwitch(dialog).focus();
+      await page.keyboard.press('Space');
+      await applyHeight(dialog, '3');
+      await typeHeight(heightBox(dialog, 'Tầng 1'), '4');
+      await floorNameBox(dialog, 'Tầng 3').fill('Tầng mái');
+      await addFloorButton(dialog).click();
+      await typeHeight(heightBox(dialog, 'Tầng 4'), '3');
+      const expected = [[BASEMENT_NAME, /^[-−]3,0 m$/u], ['Tầng trệt', '0,0 m'], ['Tầng 1', '3,0 m'], ['Tầng 2', '7,0 m'], ['Tầng mái', '10,0 m'], ['Tầng 4', '13,0 m']] as const;
+
+      await backButton(dialog).click(); // UCPM:614-616 — only the step changes
+      await expect(stepText(dialog, 1)).toBeVisible();
+      await nameField(dialog).press('End');
+      await page.keyboard.type(' B'); // a step-1 edit must not reset the floors (UCPM:528-536 touches name/code only)
+      await nextButton(dialog).click();
+      await expect(stepText(dialog, 2)).toBeVisible();
+
+      await expect(basementSwitch(dialog)).toHaveAttribute('aria-checked', 'true');
+      await expect(heightBox(dialog, 'Tầng 1')).toHaveValue('4');
+      await expect(applyField(dialog)).toHaveValue('3');
+      for (const [floor, at] of expected) await expect(elevationCell(floorRow(dialog, page, floor))).toHaveText(at);
+      await captureEvidence(page, 'E02_wiz_back_keeps_floors.png');
+
+      await nextButton(dialog).click();
+      await expect(reviewValue(dialog, 'Tên dự án')).toHaveText('Dự án khứ hồi B');
+      await expect(reviewValue(dialog, 'Số tầng')).toHaveText('6'); // CPM:179-181
+      await expect(dialog.getByText('Tầng mái', { exact: true })).toBeVisible(); // CPM:184-189
+      await discardWizard(dialog);
+    });
+  });
+});
+
+/* ================================================================= step 3 review + discard + compact */
+
+test.describe('E02 SCR-05 wizard edge — review, discard, compact', () => {
+  test('E02 · wizard review shows long values whole: 80-char name, 200-char address, 32-char code, 3-line notes — nothing clipped, no sideways scroll', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      const name = `${`${TEST_DATA_PREFIX}review Chung cu Binh Minh `.repeat(4).slice(0, 79)}Z`; // LIM:23 = 80
+      const address = asciiText('So 12 duong Lang, Dong Da, Ha Noi; ', BE_ADDRESS_MAX);
+      const code = `DA-${'ABCDEFGHIJKLMNOPQRSTUVWXYZ012'}`; // 32 = BE:schemas:27
+      const notes = 'Dòng một\nDòng hai\nDòng ba';
+      expect([name.length, address.length, code.length]).toEqual([80, BE_ADDRESS_MAX, BE_CODE_MAX]);
+      await nameField(dialog).fill(name);
+      await codeField(dialog).fill(code);
+      await addressField(dialog).fill(address);
+      await notesField(dialog).fill(notes);
+      await nextButton(dialog).click();
+      await applyHeight(dialog, '3');
+      await nextButton(dialog).click();
+      await expect(stepText(dialog, 3)).toBeVisible();
+
+      // CPM:174-178: raw values, `toHaveText` compares whitespace-normalised text (the notes' line breaks too).
+      await expect(reviewValue(dialog, 'Tên dự án')).toHaveText(name);
+      await expect(reviewValue(dialog, 'Mã dự án')).toHaveText(code);
+      await expect(reviewValue(dialog, 'Địa chỉ')).toHaveText(address);
+      await expect(reviewValue(dialog, 'Ghi chú')).toHaveText(notes);
+      const overflow = {
+        cells: await dialog.evaluate((root) =>
+          Array.from(root.querySelectorAll<HTMLElement>('.w-\\[60\\%\\]')).map((el) => ({ text: (el.textContent ?? '').slice(0, 24), scroll: el.scrollWidth, client: el.clientWidth })),
+        ), // FR:71
+        body: await modalBody(dialog).evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth })),
+        notesShownAs: await reviewValue(dialog, 'Ghi chú').innerText(), // line breaks are not kept (no pre-line on FR:71)
+      };
+      await captureEvidence(page, 'E02_wiz_review_long.png', { caption: 'step 3 with 80/32/200-char values and 3-line notes' });
+      await attachJson('E02_wiz_review_long.json', overflow);
+      for (const cell of overflow.cells) expect.soft(cell.scroll, `value "${cell.text}…" not clipped`).toBeLessThanOrEqual(cell.client + 1);
+      expect(overflow.body.scroll, 'no sideways scroll in the dialog body').toBeLessThanOrEqual(overflow.body.client + 1);
+      await discardWizard(dialog);
+    });
+  });
+
+  test('[BUG-121] E02 · wizard review: each label sits on its value\'s line, and the floor levels say they are "Cao độ"', async ({ browser }) => {
+    // EXPECTED TO FAIL while BUG-121 is open: FR:66 pads the label column `pt-[9px]`, the value column has none (FR:71);
+    // the floor list (CPM:183-190) prints "0,0 m…" with no heading.
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      await toReview(dialog, 'Dự án căn hàng');
+      const offsets: Record<string, number> = {};
+      for (const label of ['Tên dự án', 'Loại công trình', 'Số tầng']) {
+        const labelTop = await dialog.getByText(label, { exact: true }).evaluate((el) => el.getBoundingClientRect().top);
+        const valueTop = await reviewValue(dialog, label).evaluate((el) => {
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          return range.getClientRects()[0]?.top ?? el.getBoundingClientRect().top;
+        });
+        offsets[label] = labelTop - valueTop;
+      }
+      const elevationHeading = await dialog.getByText('Cao độ', { exact: true }).count();
+      await captureEvidence(page, 'E02_wiz_review_alignment.png', { caption: `label − value top: ${JSON.stringify(offsets)} px` });
+      await attachJson('E02_wiz_review_alignment.json', { offsets, elevationHeading });
+      for (const [label, offset] of Object.entries(offsets)) expect.soft(Math.abs(offset), `"${label}" label vs value (BUG-121)`).toBeLessThanOrEqual(3);
+      expect(elevationHeading, 'the floor list names its numbers "Cao độ" like step 2 (SF:72)').toBeGreaterThan(0);
+      await discardWizard(dialog);
+    });
+  });
+
+  test('E02 · wizard discard on steps 2 and 3: "Huỷ" twice closes step 2; Esc on step 3 warns, the warning survives "Quay lại", the backdrop then closes; reopen is blank; no POST', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      let dialog = await openWizard(page);
+      await toStep2(dialog, 'Dự án bỏ ở bước 2');
+      await cancelButton(dialog).click(); // UCPM:630-634 dirty → warn
+      await expect(discardWarning(dialog)).toBeVisible();
+      await cancelButton(dialog).click(); // UCPM:630-632 already warned → close
+      await expect(dialog).toHaveCount(0);
+
+      dialog = await openWizard(page);
+      await toReview(dialog, 'Dự án bỏ ở bước 3');
+      await page.keyboard.press('Escape');
+      await expect(discardWarning(dialog)).toBeVisible();
+      await expect(dialog.getByText(DISCARD_HINT, { exact: true })).toBeVisible();
+      await backButton(dialog).click(); // goBack never calls markDirty (UCPM:614-616) → still confirming
+      await expect(stepText(dialog, 2)).toBeVisible();
+      await expect(discardWarning(dialog)).toBeVisible();
+      await captureEvidence(page, 'E02_wiz_discard_step2_3.png', { caption: 'Esc on step 3, then "Quay lại": warning still shown on step 2' });
+      await page.mouse.click(8, DESKTOP.height / 2); // backdrop (MOD:108-117) → requestClose → close
+      await expect(dialog).toHaveCount(0);
+
+      dialog = await openWizard(page); // CPM:309-328 new key per opening
+      await expect(nameField(dialog)).toHaveValue('');
+      await expect(discardWarning(dialog)).toHaveCount(0);
+      await page.keyboard.press('Escape'); // pristine → closes at once
+      await expect(dialog).toHaveCount(0);
+      expect(countApi(admin.api, 'POST', PROJECTS_API)).toBe(0);
+    });
+  });
+
+  test('[BUG-123] E02 · wizard 375 px discard warning: the fields do not jump, and "bấm nút bên cạnh" matches where the button is', async ({ browser }) => {
+    // EXPECTED TO FAIL while BUG-123 is open: the alert is inserted as the first child of Modal.Body (CPM:248-257),
+    // above the fields, and CPM:253 says "bên cạnh" whatever the layout.
+    await withAdmin(
+      browser,
+      async (admin) => {
+        const { page } = admin;
+        const dialog = await openWizardWithN(page);
+        await nameField(dialog).fill('Dự án nháp 375');
+        const before = await topOf(nameField(dialog));
+        await page.keyboard.press('Escape');
+        await expect(discardWarning(dialog)).toBeVisible();
+        const after = await topOf(nameField(dialog));
+        const hintLocator = dialog.getByText(/^Nhấn Esc lần nữa/u); // CPM:253
+        const hintText = await hintLocator.innerText();
+        const action = await dialog.getByRole('button', { name: DISCARD_ACTION, exact: true }).boundingBox();
+        const hint = await hintLocator.boundingBox();
+        if (action === null || hint === null) throw new Error('discard alert not laid out');
+        const buttonBelow = action.y >= hint.y + hint.height - 1;
+        await captureEvidence(page, 'E02_wiz_discard_375.png', { caption: `fields moved ${(after - before).toFixed(0)} px; button ${buttonBelow ? 'below' : 'beside'} the hint` });
+        await attachJson('E02_wiz_discard_375.json', { nameTopBefore: before, nameTopAfter: after, action, hint, buttonBelow, hintText });
+        expect.soft(after - before, 'the warning does not push the fields down (BUG-123)').toBeLessThanOrEqual(1);
+        if (buttonBelow) expect(hintText, 'the button sits below the hint, so the copy cannot say "bên cạnh"').not.toContain('bên cạnh');
+        await page.keyboard.press('Escape');
+        await expect(dialog).toHaveCount(0);
+      },
+      COMPACT,
+    );
+  });
+
+  test('[BUG-110] E02 · wizard 375 px: step 2 has no sideways scroll and "Tiếp tục" is on screen and clickable to step 3', async ({ browser }) => {
+    // EXPECTED TO FAIL while BUG-110 is open: Modal width pinned 560 (CPM:63-64, MOD:132) inside a 375 px viewport,
+    // and the floor table (SF:67) is wider than the dialog. The setup uses the keyboard so it can reach step 2 at all.
+    await withAdmin(
+      browser,
+      async (admin) => {
+        const { page } = admin;
+        const dialog = await openWizardWithN(page);
+        await nameField(dialog).fill('Dự án 375');
+        await pressButton(page, nextButton(dialog));
+        await expect(stepText(dialog, 2)).toBeVisible();
+        await typeHeight(applyField(dialog), '3');
+        await pressButton(page, applyButton(dialog));
+        await expect(elevationCell(floorRow(dialog, page, 'Tầng 1'))).toHaveText('3,0 m');
+
+        const layout = {
+          viewport: COMPACT,
+          dialog: await dialog.boundingBox(),
+          next: await nextButton(dialog).boundingBox(),
+          body: await modalBody(dialog).evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth })),
+        };
+        await captureEvidence(page, 'E02_wiz_375_step2.png', { caption: `375 px step 2: "Tiếp tục" at x=${String(layout.next?.x ?? 'n/a')}` });
+        await attachJson('E02_wiz_375_step2.json', layout);
+        expect.soft(layout.body.scroll, 'no sideways scroll inside the dialog').toBeLessThanOrEqual(layout.body.client + 1);
+        const next = layout.next;
+        expect(next !== null && next.x >= 0 && next.x + next.width <= COMPACT.width, '"Tiếp tục" fully on screen').toBe(true);
+        await nextButton(dialog).click({ timeout: 5_000 });
+        await expect(stepText(dialog, 3)).toBeVisible();
+        await discardWizard(dialog);
+      },
+      COMPACT,
+    );
+  });
+});
+
+/* ================================================================= create */
+
+test.describe('E02 SCR-05 wizard edge — create', () => {
+  test('E02 · wizard [held response] keyboard create: Enter on "Tiếp tục" leaves the focus on "Tạo dự án"; Enter twice sends ONE POST; toast + card; reopen is blank', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const name = uniqueName('wiz-keys');
+      const hold = gate();
+      const keys = await routeCreate(page, async (route) => {
+        await hold.wait;
+        await route.continue();
+      });
+
+      const dialog = await openWizard(page);
+      await buildingType(dialog).click();
+      await page.getByRole('option', { name: BUILDING_TYPES[3], exact: true }).click();
+      await notesField(dialog).fill('Ghi chú không có trường trên dây');
+      await toStep2(dialog, name);
+      await applyHeight(dialog, '3');
+      await pressButton(page, nextButton(dialog));
+      await expect(stepText(dialog, 3)).toBeVisible();
+      // CPM:287-295: both buttons are a `Button` in the same slot, so React keeps the DOM node — focus stays on it.
+      await expect(createButton(dialog), 'focus now on "Tạo dự án": one more Enter creates without a look at the review').toBeFocused();
+
+      const created = waitForApi(page, 'POST', PROJECTS_RE, [201]);
+      await page.keyboard.press('Enter');
+      await page.keyboard.press('Enter');
+      await expect(createButton(dialog)).toBeDisabled(); // CPM:292, UCPM:489
+      await expect(stateAnnouncement(dialog)).toHaveText(STATE.loading); // UCPM:496
+      await captureEvidence(page, 'E02_wiz_keyboard_create_busy.png', { caption: 'Enter, Enter on "Tạo dự án" — POST held' });
+      hold.open();
+      const { response, json } = await created;
+      const body = asRecord(response.request().postDataJSON() as unknown, 'POST /api/projects body');
+      expect(keys.length, 'one POST for two Enters (UCPM:641-643)').toBe(1);
+      expect(Object.keys(body), 'CPC:71: "Loại công trình" has no wire field — dropped').not.toContain('buildingType');
+      expect(Object.keys(body), 'CPC:71: "Ghi chú" has no wire field — dropped').not.toContain('notes');
+      await unrouteAll(page);
+
+      await expect(dialog).toHaveCount(0);
+      await expect(projectCard(page, name)).toBeVisible();
+      await expect(toastWith(page, createdToast(name))).toBeVisible(); // UCPM:668-673
+      await captureEvidence(page, 'E02_wiz_keyboard_create_done.png', { caption: `1 POST → 201 ${stringField(asRecord(json, 'POST'), 'id', 'POST')}` });
+      await attachJson('E02_wiz_keyboard_create.json', { posts: keys.length, idempotencyKey: keys[0] !== '', bodyKeys: Object.keys(body) });
+
+      const again = await openWizard(page); // CPM:309-328: a created project never comes back on reopen (B-V3-02)
+      await expect(nameField(again)).toHaveValue('');
+      await expect(codeField(again)).toHaveValue('');
+      await expect(buildingType(again)).toContainText(BUILDING_TYPES[0]);
+      await expect(again.getByRole('button', { name: 'Quay lại' })).toHaveCount(0); // step 1 (CPM:277)
+      await page.keyboard.press('Escape');
+      await expect(again).toHaveCount(0);
+    });
+  });
+
+  test('E02 · wizard padded and whitespace-only fields: name/code are trimmed, blank address is not sent, toast and card use the trimmed name', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const name = uniqueName('wiz-trim');
+      const dialog = await openWizard(page);
+      await nameField(dialog).fill(`   ${name}   `);
+      await codeField(dialog).fill('  QA-TRIM  ');
+      await addressField(dialog).fill('     ');
+      await notesField(dialog).fill('   ');
+      await nextButton(dialog).click();
+      await applyHeight(dialog, '3');
+      await nextButton(dialog).click();
+      await expect(reviewValue(dialog, 'Tên dự án')).toHaveText(name);
+      // CPM:176 compares the RAW value to '' — a spaces-only address shows a blank cell, not "—", though nothing is sent.
+      const addressCell = (await reviewValue(dialog, 'Địa chỉ').innerText()).trim();
+
+      const created = waitForApi(page, 'POST', PROJECTS_RE, [201]);
+      await createButton(dialog).click();
+      const { response } = await created;
+      const body = asRecord(response.request().postDataJSON() as unknown, 'POST /api/projects body');
+      expect(body.name, 'UCPM:647 trims the name').toBe(name);
+      expect(body.code, 'UCPM:649 trims the code').toBe('QA-TRIM');
+      expect(Object.keys(body), 'CPC:72: an address trimmed to "" is left out').not.toContain('address');
+      await expect(toastWith(page, createdToast(name))).toBeVisible(); // UCPM:669 uses request.name
+      await expect(projectCard(page, name)).toBeVisible();
+      await captureEvidence(page, 'E02_wiz_trimmed_create.png', { caption: `sent name "${name}", code "QA-TRIM", no address` });
+      await attachJson('E02_wiz_trimmed_create.json', { body, reviewAddressCell: addressCell });
+      expect(addressCell, 'review of a spaces-only address (CPM:176) — blank, not "—"').toBe('');
+    });
+  });
+
+  test('E02 · wizard duplicate name: a name another project already has is accepted (201, no "trùng" message) and both cards show', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const name = uniqueName('wiz-dup');
+      await createProject(admin, name); // BE:service:243-244 — no unique-name rule, no 409 on this route
+      await navigateThenWaitForApi(page, () => page.reload({ waitUntil: 'commit' }), 'GET', SUMMARIES_RE, [200]);
+      await dashboardLoaded(page);
+      await expect(projectCard(page, name)).toHaveCount(1);
+
+      const dialog = await openWizard(page);
+      await toReview(dialog, name);
+      const created = waitForApi(page, 'POST', PROJECTS_RE, [201]);
+      await createButton(dialog).click();
+      await created;
+      await expect(dialog).toHaveCount(0);
+      await expect(page.getByText(/trùng/u)).toHaveCount(0); // UCPM:204-206 only on 409
+      await expect(projectCard(page, name)).toHaveCount(2);
+      await captureEvidence(page, 'E02_wiz_duplicate_name.png', { caption: `two cards named "${name}"` });
+    });
+  });
+
+  test('E02 · wizard "Địa chỉ" boundary: 201 characters → server 422 + "Kiểm tra lại…" notice; 200 characters → created', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      // No FE cap on the address (CPM:118-123); BE:schemas:28,53 caps it at 200 after trim + NFC.
+      const tooLong = asciiText('So 12 duong Lang, Dong Da, Ha Noi; ', BE_ADDRESS_MAX + 1);
+      const dialog = await openWizard(page);
+      await nameField(dialog).fill(uniqueName('wiz-addr'));
+      await addressField(dialog).fill(tooLong);
+      await nextButton(dialog).click();
+      await applyHeight(dialog, '3');
+      await nextButton(dialog).click();
+      const rejected = waitForApi(page, 'POST', PROJECTS_RE, [422]);
+      await createButton(dialog).click();
+      const refused = await rejected;
+      expect(String(asRecord(refused.response.request().postDataJSON() as unknown, 'POST body').address).length).toBe(BE_ADDRESS_MAX + 1);
+      await expect(dialog.getByText(VALIDATION_DESCRIPTION, { exact: true }).first()).toBeVisible(); // UCPM:658-663
+      await expect(stateAnnouncement(dialog)).toHaveText(STATE.error); // UCPM:497
+      await captureEvidence(page, 'E02_wiz_address_201.png', { caption: 'address 201 chars → 422' });
+      await attachJson('E02_wiz_address_201.json', { status: refused.response.status(), body: refused.json as unknown });
+
+      // Back to step 1: a new name clears serverNameProblem (UCPM:531-532), the address goes to exactly 200.
+      await backButton(dialog).click();
+      await backButton(dialog).click();
+      const name = uniqueName('wiz-addr200');
+      await nameField(dialog).fill(name);
+      await addressField(dialog).fill(tooLong.slice(0, BE_ADDRESS_MAX - 1) + 'X');
+      await nextButton(dialog).click();
+      await nextButton(dialog).click(); // heights kept (UCPM:614-616)
+      const created = waitForApi(page, 'POST', PROJECTS_RE, [201]);
+      await createButton(dialog).click();
+      const ok = await created;
+      expect(String(asRecord(ok.response.request().postDataJSON() as unknown, 'POST body').address).length).toBe(BE_ADDRESS_MAX);
+      await expect(projectCard(page, name)).toBeVisible();
+      await captureEvidence(page, 'E02_wiz_address_200.png', { caption: 'address 200 chars → 201' });
+    });
+  });
+
+  test('[BUG-129] E02 · wizard code 422: the server refusal marks "Mã dự án" (not "Tên dự án"), and fixing the code alone unlocks the create', async ({ browser }) => {
+    // EXPECTED TO FAIL while BUG-129 is open: UCPM:658-663 puts every create failure on the NAME (serverNameProblem),
+    // only setName clears it (UCPM:531), and canSubmit needs the name clean (UCPM:486, :489).
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      await nameField(dialog).fill(uniqueName('wiz-code'));
+      await codeField(dialog).fill('C'.repeat(BE_CODE_MAX + 1)); // BE:schemas:27,52
+      await nextButton(dialog).click();
+      await applyHeight(dialog, '3');
+      await nextButton(dialog).click();
+      const rejected = waitForApi(page, 'POST', PROJECTS_RE, [422]);
+      await createButton(dialog).click();
+      const refused = await rejected;
+      await expect(dialog.getByText(VALIDATION_DESCRIPTION, { exact: true }).first()).toBeVisible();
+
+      await backButton(dialog).click();
+      await backButton(dialog).click();
+      await expect(stepText(dialog, 1)).toBeVisible();
+      const marks = {
+        codeInvalid: await codeField(dialog).getAttribute('aria-invalid'),
+        nameInvalid: await nameField(dialog).getAttribute('aria-invalid'),
+        alerts: await dialog.getByRole('alert').allInnerTexts(),
+      };
+      await captureEvidence(page, 'E02_wiz_code_422_marks.png', { caption: `after 422 on the code: code aria-invalid=${String(marks.codeInvalid)}, name aria-invalid=${String(marks.nameInvalid)}` });
+      await attachJson('E02_wiz_code_422_marks.json', { ...marks, status: refused.response.status(), body: refused.json as unknown });
+      expect.soft(marks.codeInvalid, '"Mã dự án" is the field the server refused (BUG-129)').toBe('true');
+      expect.soft(marks.nameInvalid, '"Tên dự án" was fine').toBeNull();
+
+      await codeField(dialog).fill('C'.repeat(BE_CODE_MAX));
+      await expect(nextButton(dialog), 'a valid code alone makes the form submittable again (BUG-129)').toBeEnabled();
+      await discardWizard(dialog);
+    });
+  });
+
+  test('E02 · wizard blank floor name: FE lets "   " through to review, the server refuses it (422) with the generic notice', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      await toStep2(dialog, uniqueName('wiz-floorname'));
+      await applyHeight(dialog, '3');
+      await floorNameBoxes(dialog).nth(3).fill('   '); // UCPM:573-576 — no name rule on a floor (UCPM:482-489)
+      await expect(nextButton(dialog), 'FE has no floor-name check').toBeEnabled();
+      await nextButton(dialog).click();
+      await expect(reviewValue(dialog, 'Số tầng')).toHaveText('4');
+
+      const rejected = waitForApi(page, 'POST', PROJECTS_RE, [422]);
+      await createButton(dialog).click();
+      const refused = await rejected;
+      const floors = asRecord(refused.response.request().postDataJSON() as unknown, 'POST body').floors;
+      expect(Array.isArray(floors) ? (asRecord(floors[3], 'floors[3]').name as unknown) : undefined, 'CPC:60 sends the floor name untrimmed').toBe('   ');
+      // BE:schemas:54 FloorDraftName min_length 1 after clean_text trim (:31-39) → 422.
+      await expect(dialog.getByText(VALIDATION_DESCRIPTION, { exact: true }).first()).toBeVisible();
+      await expect(stateAnnouncement(dialog)).toHaveText(STATE.error);
+      await expect(createButton(dialog)).toBeDisabled(); // UCPM:661 → name problem → canSubmit false
+      await captureEvidence(page, 'E02_wiz_floor_name_blank_422.png', { caption: 'floor 4 named "   " → POST 422' });
+      await attachJson('E02_wiz_floor_name_blank_422.json', { status: refused.response.status(), body: refused.json as unknown });
+      await discardWizard(dialog);
+    });
+  });
+
+  test('E02 · wizard [held response] Esc while creating: the discard warning shows, a second Esc closes, the held POST still creates the project and its toast', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const name = uniqueName('wiz-escbusy');
+      const hold = gate();
+      await routeCreate(page, async (route) => {
+        await hold.wait;
+        await route.continue();
+      });
+      const dialog = await openWizard(page);
+      await toReview(dialog, name);
+      await createButton(dialog).click();
+      await expect(stateAnnouncement(dialog)).toHaveText(STATE.loading);
+      await expect(cancelButton(dialog)).toBeDisabled(); // CPM:284
+
+      // requestClose (UCPM:624-635) has no isSubmitting guard: Esc reaches it while "Huỷ" is locked.
+      await page.keyboard.press('Escape');
+      await expect(discardWarning(dialog)).toBeVisible();
+      await captureEvidence(page, 'E02_wiz_esc_while_busy.png', { caption: 'POST held; Esc → "Đóng và bỏ các thay đổi chưa lưu?"' });
+      await page.keyboard.press('Escape');
+      await expect(dialog).toHaveCount(0);
+
+      const created = waitForApi(page, 'POST', PROJECTS_RE, [201]);
+      hold.open();
+      await created; // the hook stays mounted (CPM:313-316 keeps the key on close) and finishes UCPM:655-675
+      await unrouteAll(page);
+      await expect(toastWith(page, createdToast(name))).toBeVisible();
+      await expect(projectCard(page, name)).toBeVisible();
+      await captureEvidence(page, 'E02_wiz_esc_while_busy_created.png', { caption: '"discarded" dialog — project created anyway' });
+      await attachJson('E02_wiz_esc_while_busy.json', { created: countApi(admin.api, 'POST', PROJECTS_API, 201) });
+    });
+  });
+
+  test('[BUG-129] E02 · wizard [mocked response] create 500 (unpairable: 5xx): one POST, generic notice, review kept — and "Tạo dự án" usable to retry', async ({ browser }) => {
+    // EXPECTED TO FAIL (last assertion) while BUG-129 is open: UCPM:661 → name problem → canSubmit false (UCPM:489).
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const keys = await routeCreate(page, (route) => route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }));
+      const name = uniqueName('wiz-500');
+      const dialog = await openWizard(page);
+      await toReview(dialog, name);
+      await createButton(dialog).click();
+      // 500 is not in RTY:3 → no retry; TAE:10-18 has no 500 → 'unknown' → vi.json:63.
+      await expect(dialog.getByText(UNKNOWN_DESCRIPTION, { exact: true }).first()).toBeVisible();
+      await expect(stateAnnouncement(dialog)).toHaveText(STATE.error);
+      await expect(stepText(dialog, 3)).toBeVisible();
+      await expect(reviewValue(dialog, 'Tên dự án')).toHaveText(name);
+      expect(keys.length, 'a 500 is not retried (RTY:3, :91-93)').toBe(1);
+      await captureEvidence(page, 'E02_wiz_create_500.png', { caption: 'POST /api/projects → 500 [mocked]' });
+      await attachJson('E02_wiz_create_500.json', { posts: keys.length, createEnabled: await createButton(dialog).isEnabled() });
+      await expect(createButton(dialog), '"Tạo dự án" can be pressed again to retry (BUG-129 "Mong đợi")').toBeEnabled();
+      await discardWizard(dialog);
+    });
+  });
+
+  test('E02 · wizard [mocked response] create 503 once (unpairable: 5xx) is retried with the SAME Idempotency-Key; one project, toast', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const keys = await routeCreate(page, async (route, attempt) => {
+        if (attempt === 1) await route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+        else await route.continue();
+      });
+      const name = uniqueName('wiz-503');
+      const dialog = await openWizard(page);
+      await toReview(dialog, name);
+      const created = waitForApi(page, 'POST', PROJECTS_RE, [201]);
+      await createButton(dialog).click();
+      await created; // RTY:3 503 retryable; POST with an Idempotency-Key is (RTY:25-26, CPC:90); delay 300 ms + jitter (RTY:5)
+      expect(keys.length).toBe(2);
+      expect(keys[0], 'Idempotency-Key present').not.toBe('');
+      expect(keys[1], 'the retry reuses the key (HTC:400-411)').toBe(keys[0]);
+      await expect(dialog).toHaveCount(0);
+      await expect(toastWith(page, createdToast(name))).toBeVisible();
+      await expect(projectCard(page, name)).toHaveCount(1);
+      await captureEvidence(page, 'E02_wiz_create_503_retry.png', { caption: '503 [mocked] then 201 with the same Idempotency-Key' });
+      await attachJson('E02_wiz_create_503_retry.json', { attempts: keys.length, sameKey: keys[0] === keys[1], created: countApi(admin.api, 'POST', PROJECTS_API, 201) });
+    });
+  });
+
+  test('E02 · wizard [mocked response] network abort on the first create attempt (unpairable: network loss) is retried silently; exactly one project', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const keys = await routeCreate(page, async (route, attempt) => {
+        if (attempt === 1) await route.abort('failed');
+        else await route.continue();
+      });
+      const name = uniqueName('wiz-abort');
+      const dialog = await openWizard(page);
+      await toReview(dialog, name);
+      const created = waitForApi(page, 'POST', PROJECTS_RE, [201]);
+      await createButton(dialog).click();
+      await created; // RTY:17-23 TypeError = network → retried for a keyed POST (RTY:95), HTC:568-583
+      expect(keys.length).toBe(2);
+      expect(keys[1]).toBe(keys[0]);
+      await expect(dialog).toHaveCount(0);
+      await expect(page.getByText('Không liên lạc được với máy chủ', { exact: false })).toHaveCount(0); // no notice for a recovered loss
+      await expect(projectCard(page, name)).toHaveCount(1);
+      await captureEvidence(page, 'E02_wiz_create_abort_retry.png', { caption: 'first POST aborted [mocked], retry 201, one card' });
+      await attachJson('E02_wiz_create_abort_retry.json', { attempts: keys.length, sameKey: keys[0] === keys[1], created: countApi(admin.api, 'POST', PROJECTS_API, 201) });
+    });
+  });
+});
