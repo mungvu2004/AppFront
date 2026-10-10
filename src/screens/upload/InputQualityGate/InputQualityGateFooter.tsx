@@ -21,7 +21,8 @@
  * ## `areActionsHidden` ẩn hẳn, không mờ đi
  *
  * Trạng thái thứ sáu (`'forbidden'`) không có quyền hành động: hai nút biến
- * mất khỏi cây DOM, không phải `disabled` hay `opacity-50`.
+ * mất khỏi cây DOM, không phải `disabled` hay `opacity-50`. Lỗi đọc cũng ẩn
+ * chúng: dải lỗi đã mang lối ra của nó (BUG-074).
  */
 
 import { Button } from '@/components/ui/Button';
@@ -54,14 +55,15 @@ export function InputQualityGateFooter({ actions, footer }: InputQualityFooterPr
       )}
 
       {!footer.areActionsHidden && (
-        <div className="flex flex-col items-end gap-2">
+        // Dưới 640px: chữ căn trái, hai nút xếp dọc đủ bề ngang, nút chính trên cùng (BUG-074).
+        <div className="flex flex-col gap-2 sm:items-end">
           {showBlockedNote && (
             <p className="text-[13px] text-state-attention-text" id={CONTINUE_BLOCKED_NOTE_ID}>
               {blockedText}
             </p>
           )}
 
-          <div className="flex items-center justify-end gap-3">
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
             <Button onClick={actions.onUploadAnother} variant="secondary">
               {footer.secondaryLabel}
             </Button>

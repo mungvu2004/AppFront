@@ -320,7 +320,24 @@ describe('useFloorUploadScreen — danh sách tầng', () => {
     });
 
     expect(result.current.errorMessage).not.toBeNull();
-    expect(result.current.errorMessage).toContain('kết nối');
+    expect(result.current.errorMessage).toContain('máy chủ');
+  });
+
+  it('khổ hẹp: lỗi đọc danh sách tầng vẫn thắng thu gọn (BUG-072)', async () => {
+    const harness = createHarness({
+      readFloors: async () => ({
+        ok: false,
+        error: { kind: 'http', status: 404, code: 'PROJECT_NOT_FOUND', requestId: 'r-404', retryable: false, raw: {} },
+      }),
+    });
+    const { result } = renderScreen({ ...harness.options, forceCollapsed: true });
+
+    await waitFor(() => {
+      expect(result.current.state).toBe('error');
+    });
+
+    expect(result.current.errorMessage).not.toBeNull();
+    expect(result.current.isCollapsed).toBe(true);
   });
 });
 

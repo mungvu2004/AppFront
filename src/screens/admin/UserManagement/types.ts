@@ -44,6 +44,8 @@
  * phải một thứ đã được ai đó duyệt.
  */
 
+import type { Ref } from 'react';
+
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import type { ProjectRole } from '@/types/project';
 
@@ -60,7 +62,7 @@ export type StatusFilter = UserAccountStatus | typeof FILTER_ALL;
 
 export interface RoleOption {
   readonly role: ProjectRole;
-  /** `quản trị` · `kỹ sư` · `người xem` — viết thường, kiểu câu (A6). */
+  /** `Quản trị` · `Kỹ sư` · `Người xem` — viết hoa chữ đầu khi đứng làm nhãn (A6). */
   readonly label: string;
 }
 
@@ -85,7 +87,7 @@ export interface PermissionMatrixCell {
 export interface PermissionMatrixRowModel {
   /** `PermissionKey` thật của `src/lib/auth/permissions.ts`, ví dụ `floor.upload`. */
   readonly key: string;
-  /** `tải bản vẽ` · `sửa hình học` · `duyệt QC` · … */
+  /** `Tải bản vẽ` · `Sửa hình học` · `Duyệt QC` · … */
   readonly label: string;
   readonly cells: readonly PermissionMatrixCell[];
 }
@@ -143,10 +145,9 @@ export interface UserActivityRowModel {
   readonly id: string;
   /** Việc đã làm, tiếng Việt viết thường. */
   readonly kindLabel: string;
+  /** Ngày và giờ, luôn đủ cả hai (BUG-084). */
   readonly atLabel: string;
-  readonly atExactLabel: string;
-  /** Mã đối tượng, hiện bằng chữ đều khi trỏ vào dòng. */
-  readonly objectCode: string;
+  /** Nhãn đọc được của đối tượng (email, tên tầng…). Mã nội bộ `objectCode` không lên màn. */
   readonly objectLabel: string;
   /** Dựng từ `@/routes/paths`. `null` khi đối tượng không còn mở được. R-65 cấm chuỗi thô. */
   readonly objectHref: string | null;
@@ -193,6 +194,8 @@ export interface InviteFormModel {
   readonly canSubmit: boolean;
   readonly hintLabel: string;
   readonly errorLabel: string | null;
+  /** Vì sao "Gửi lời mời" đang khoá; `null` khi gửi được. Đặc tả cấm nút vô hiệu không lý do. */
+  readonly submitBlockedReason: string | null;
   readonly isSubmitting: boolean;
 }
 
@@ -263,6 +266,8 @@ export interface UserManagementViewModel {
  */
 export interface UserManagementActions {
   readonly onSearchChange: (value: string) => void;
+  /** Trạng thái "không ai khớp": xoá ô tìm và đưa hai bộ lọc về "Tất cả" (BUG-082). */
+  readonly onClearSearch: () => void;
   readonly onRoleFilterChange: (value: RoleFilter) => void;
   readonly onStatusFilterChange: (value: StatusFilter) => void;
   readonly onSelectUser: (userId: string | null) => void;
@@ -301,6 +306,8 @@ export interface UserManagementToolbarProps {
   readonly summary: SummaryModel;
   readonly invite: InviteFormModel;
   readonly actions: UserManagementActions;
+  /** Ô "Tìm người dùng" — view đưa tiêu điểm về đây sau "Xoá tìm kiếm và bộ lọc" (BUG-082, A12). */
+  readonly searchRef?: Ref<HTMLInputElement> | undefined;
 }
 
 export interface UserManagementTableProps {
@@ -323,5 +330,6 @@ export interface UserManagementDetailProps {
 
 export interface UserManagementPermissionMatrixProps {
   readonly matrix: PermissionMatrixModel;
-  readonly captionLabel: string;
+  /** Bỏ trống khi khối đã có tiêu đề bên ngoài (hộp thoại) — không lặp tiêu đề (BUG-080). */
+  readonly captionLabel?: string;
 }

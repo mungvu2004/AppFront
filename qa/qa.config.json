@@ -1,12 +1,12 @@
 {
   "$comment": "Cấu hình dự án cho skill/workflow chung e2e-qa-run. Đường dẫn tương đối tính từ suiteDir. Kết quả mỗi lượt: {resultsDir}/{runId}/{tag}/ (results.json, run.log, report/, artifacts/); ảnh: {resultsDir}/{runId}/evidence/.",
   "project": "AppFront",
-  "suiteDir": "C:/Users/mxuan/orca/workspaces/AppFront/qa-e2e/qa",
+  "suiteDir": "F:/App/AppFront/qa",
   "sourceRoots": [
-    "C:/Users/mxuan/orca/workspaces/AppFront/qa-e2e/src",
-    "C:/Users/mxuan/orca/workspaces/AppFront/qa-e2e/e2e"
+    "F:/App/AppFront/src",
+    "F:/App/AppFront/e2e"
   ],
-  "backendSourceRoot": "C:/Users/mxuan/orca/workspaces/AppBack/qa-main",
+  "backendSourceRoot": "F:/App/AppBack",
   "planFile": "E2E-TEST-PLAN.md",
   "specPattern": "tests/phase{NN}_*.spec.ts",
   "edgeSpecPattern": "tests/phase{NN}_{name}_edge.spec.ts",

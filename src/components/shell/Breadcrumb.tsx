@@ -12,8 +12,11 @@ export type { BreadcrumbItem, BreadcrumbOption };
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface BreadcrumbProps {
-  items: BreadcrumbItem[];
+  items: readonly BreadcrumbItem[];
 }
+
+/** Một tên cho mọi breadcrumb, cùng chữ với các màn quản trị. */
+const NAV_LABEL = 'Đường dẫn trang';
 
 // ─── Breadcrumb ───────────────────────────────────────────────────────────────
 
@@ -21,7 +24,7 @@ export function Breadcrumb({ items }: BreadcrumbProps) {
   const { openDropdownId, openDropdown, closeDropdown, dropdownZIndex } = useBreadcrumb();
 
   return (
-    <nav className="flex items-center" aria-label="Breadcrumb">
+    <nav className="flex items-center" aria-label={NAV_LABEL}>
       <ol className="flex items-center gap-0">
         {items.map((item, index) => {
           const isLast = index === items.length - 1;
@@ -56,7 +59,7 @@ export function Breadcrumb({ items }: BreadcrumbProps) {
                     type="button"
                     onClick={() => isDropdownOpen ? closeDropdown() : openDropdown(item.id)}
                     className={cn(
-                      'text-[13px] font-medium text-text-secondary leading-none',
+                      'inline-flex min-h-11 items-center sm:min-h-6 text-[13px] font-medium text-text-secondary leading-none',
                       'hover:text-text-primary transition-colors duration-120',
                       'rounded-[4px] px-0.5 -mx-0.5',
                       'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
@@ -119,13 +122,17 @@ export function Breadcrumb({ items }: BreadcrumbProps) {
                     </>
                   )}
                 </div>
+              ) : item.onClick === undefined ? (
+                /* Cấp trước không có đích — chữ thường, không giả làm nút (BUG-079) */
+                <span className="text-[13px] font-medium text-text-secondary leading-none">{item.label}</span>
               ) : (
                 /* Cấp đầu — click được, không có dropdown */
                 <button
                   type="button"
                   onClick={item.onClick}
                   className={cn(
-                    'text-[13px] font-medium text-text-secondary leading-none',
+                    // Dưới 640 px vùng chạm 44 px như mọi nút (BUG-108); từ 640 px giữ dòng chữ 24 px.
+                    'inline-flex min-h-11 items-center sm:min-h-6 text-[13px] font-medium text-text-secondary leading-none',
                     'hover:text-text-primary transition-colors duration-120',
                     'rounded-[4px] px-0.5 -mx-0.5',
                     'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2'

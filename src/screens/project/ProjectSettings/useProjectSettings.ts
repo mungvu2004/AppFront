@@ -44,7 +44,7 @@ import { millimetresPerPixel, pixels, scaleFromRatio } from '@/domain/units/scal
 import type { AutosaveState } from '@/lib/autosave/createAutosave';
 import { createAutosave } from '@/lib/autosave/createAutosave';
 import { can } from '@/lib/auth/permissions';
-import { describeError, toAppError } from '@/lib/errors';
+import { describeError, toAppError, type AppError } from '@/lib/errors';
 import { initialsOf } from '@/lib/format/initials';
 import { formatArea, formatLength } from '@/lib/format/measure';
 import { formatNumber, formatPercent } from '@/lib/format/number';
@@ -137,17 +137,18 @@ export interface ProjectSettingsProblems {
  *
  * **Bất biến, và bậc thang quyết định.** Điều (11) chạy trước: `state` lấy
  * giá trị đầu tiên khớp trong dãy
- * `collapsed → forbidden → loading → error → empty → partial → success`.
+ * `loading → error → collapsed → forbidden → empty → partial → success`.
  * Mười điều còn lại đọc *ở bậc mà chúng thắng* — hai lớp phủ `collapsed` và
  * `forbidden` không bao giờ làm dữ liệu biến mất, chúng chỉ đổi cách xếp và
- * quyền sửa.
+ * quyền sửa; nên khi chưa có dữ liệu (đang tải, tải hỏng) chúng đứng sau
+ * (BUG-072).
  *
  * 1. `errorMessage !== null` ⟺ `state === 'error'`. Đây là lỗi ĐỌC, và
  *    `errorMessage` được đặt sau khi bậc thang chạy xong nên hai vế khớp đúng.
  * 2. `state === 'loading'` ⇒ mọi ô dữ liệu mang mặc định rỗng, và view vẽ
  *    khung xương thay cho biểu mẫu.
- * 3. `canEdit === false` ⟺ `isReadOnly === true`, và khi màn không thu gọn thì
- *    cả hai ⟺ `state === 'forbidden'`. Dữ liệu vẫn hiện đầy đủ; chỉ mất quyền
+ * 3. `canEdit === false` ⟺ `isReadOnly === true`, và khi màn đã tải xong, không
+ *    thu gọn thì cả hai ⟺ `state === 'forbidden'`. Dữ liệu vẫn hiện đầy đủ; chỉ mất quyền
  *    sửa. (Người xem trên màn hẹp rơi vào `collapsed` theo điều 11, `canEdit`
  *    vẫn `false`.)
  * 4. `state === 'collapsed'` không đổi dữ liệu, chỉ đổi cách xếp: dải thẻ thành
@@ -174,6 +175,10 @@ export interface ProjectSettingsModel extends ProjectMembersModel {
   readonly canDelete: boolean;
   readonly isReadOnly: boolean;
   readonly errorMessage: string | null;
+  /** Lỗi đọc là 404: thử lại vô ích, lối ra là danh sách dự án (BUG-078). */
+  readonly isProjectMissing: boolean;
+  /** Lỗi đọc thử lại được (mạng, hết giờ, 5xx…) — chỉ khi ấy mới có nút "Thử lại". */
+  readonly canRetryLoad: boolean;
   readonly saveState: SaveState;
   /** `null` khi màn tự ép `pending` vì còn lỗi nhập — viên chỉ báo dùng câu chờ của nó. */
   readonly saveLabel: string | null;
@@ -232,6 +237,8 @@ export interface ProjectSettingsActions extends ProjectMembersActions {
   readonly setScaleMmPerPx: (value: number | undefined) => void;
   readonly saveNow: () => void;
   readonly retryLoad: () => void;
+  /** Về danh sách dự án khi dự án không tồn tại; `null` khi nơi gọi không nối điều hướng. */
+  readonly backToProjects: (() => void) | null;
   readonly reloadSettings: () => void;
   readonly confirmReload: () => void;
   readonly cancelReload: () => void;
@@ -271,6 +278,15 @@ export interface UseProjectSettingsOptions {
   readonly currentUserId?: string;
   /** Gọi sau khi chính người dùng bị gỡ khỏi dự án; nơi gọi điều hướng đi. */
   readonly onSelfRemoved?: () => void;
+  /** Lối về danh sách dự án khi lượt đọc trả 404; nơi gọi điều hướng đi. */
+  readonly onBackToProjects?: () => void;
+}
+
+/** Lỗi đọc giữ nguyên `AppError` để màn biết đó là 404 hay lỗi thử lại được (BUG-078). */
+class SettingsLoadError extends Error {
+  constructor(readonly appError: AppError) {
+    super(describeError(appError).description);
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -476,16 +492,16 @@ function scaleProblemFor(value: number | null): string | null {
 /* -------------------------------------------------------------------------- */
 
 const BUILDING_TYPE_OPTIONS: readonly SelectOption[] = [
-  { value: 'residential', label: 'nhà ở' },
-  { value: 'commercial', label: 'thương mại' },
-  { value: 'industrial', label: 'công nghiệp' },
-  { value: 'mixed', label: 'hỗn hợp' },
-  { value: 'other', label: 'khác' },
+  { value: 'residential', label: 'Nhà ở' },
+  { value: 'commercial', label: 'Thương mại' },
+  { value: 'industrial', label: 'Công nghiệp' },
+  { value: 'mixed', label: 'Hỗn hợp' },
+  { value: 'other', label: 'Khác' },
 ];
 
 const LENGTH_UNIT_OPTIONS: readonly SelectOption[] = [
   { value: 'mm', label: 'Milimét (mm)' },
-  { value: 'm', label: 'mét (m)' },
+  { value: 'm', label: 'Mét (m)' },
 ];
 
 const TAB_LABELS: Readonly<Record<ProjectSettingsTabId, string>> = {
@@ -496,9 +512,9 @@ const TAB_LABELS: Readonly<Record<ProjectSettingsTabId, string>> = {
 };
 
 const ROLE_LABELS: Readonly<Record<ProjectRole, string>> = {
-  admin: 'quản trị',
-  engineer: 'kỹ sư',
-  viewer: 'người xem',
+  admin: 'Quản trị',
+  engineer: 'Kỹ sư',
+  viewer: 'Người xem',
 };
 
 const DANGER_TITLES: Readonly<Record<ProjectSettingsDangerAction, string>> = {
@@ -719,7 +735,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
       const result = await gateway.read({ projectId });
 
       if (!result.ok) {
-        throw new Error(describeError(toAppError(result.error)).description);
+        throw new SettingsLoadError(toAppError(result.error));
       }
 
       return result.data;
@@ -1218,11 +1234,15 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
       : LOAD_FAILURE_FALLBACK
     : null;
 
+  const loadAppError = settingsQuery.error instanceof SettingsLoadError ? settingsQuery.error.appError : null;
+
   const state = useMemo<SevenState>(() => {
-    if (isCollapsed) return 'collapsed';
-    if (!canEdit) return 'forbidden';
+    // Chưa có dữ liệu thì không có gì để xếp lại hay khoá: tải và lỗi tải thắng hai
+    // lớp phủ, nếu không màn hẹp vẽ biểu mẫu trống thay cho lỗi (BUG-072).
     if (settingsQuery.isPending) return 'loading';
     if (loadFailure !== null) return 'error';
+    if (isCollapsed) return 'collapsed';
+    if (!canEdit) return 'forbidden';
     if (floorCount === 0) return 'empty';
     if (saveState === 'saving' || saveState === 'pending' || hasProblem || saveFailureMessage !== null) {
       return 'partial';
@@ -1272,6 +1292,8 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     canDelete,
     isReadOnly: !canEdit,
     errorMessage: state === 'error' ? loadFailure : null,
+    isProjectMissing: state === 'error' && loadAppError?.kind === 'notFound',
+    canRetryLoad: state === 'error' && (loadAppError?.retryable ?? true),
     saveState,
     // Ép `pending` vì lỗi nhập thì nhãn của tự lưu (có thể là "Đã lưu lúc …" cũ) không còn đúng (B-V1-47).
     saveLabel: hasLocalProblem ? null : indicator.label,
@@ -1335,6 +1357,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     setScaleMmPerPx: (value) => editDraft({ scaleMmPerPx: value ?? null }),
     saveNow: () => void autosave.saveNow(),
     retryLoad: () => void settingsQuery.refetch(),
+    backToProjects: options.onBackToProjects ?? null,
     // A9: tải lại bỏ bản nháp chưa lưu, nên có nháp thì hỏi trước.
     reloadSettings: () => {
       if (hasUnsavedChanges) {

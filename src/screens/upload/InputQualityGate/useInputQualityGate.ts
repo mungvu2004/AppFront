@@ -110,6 +110,7 @@ import { createOptimisticMutation } from '@/lib/mutations/createOptimisticMutati
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
+import { PROJECT_NOT_FOUND_DESCRIPTION } from '@/components/feedback/ProjectSpatialGate';
 import { ROUTES } from '@/routes/paths';
 import type { ProjectRole } from '@/types/project';
 
@@ -161,8 +162,8 @@ const COPY = Object.freeze({
   cornersConfirmBody:
     'Máy chủ sẽ cắt, nắn lại bản vẽ theo bốn góc và xử lý lại tầng này; việc này không hoàn tác được.',
   cornersConfirmLabel: 'Cắt và nắn',
-  notMeasured: 'chưa đo',
-  noFinding: 'không có phát hiện',
+  notMeasured: 'Chưa đo',
+  noFinding: 'Không có phát hiện',
   straightenAction: 'Tự động nắn',
   pickCornersAction: 'Chọn góc thủ công',
   sendCornersAction: 'Gửi bốn góc đã chọn',
@@ -171,12 +172,12 @@ const COPY = Object.freeze({
   regionLabelPrefix: 'Vùng ảnh có vấn đề:',
 });
 
-/** Nhãn bốn phép kiểm — tiếng Việt, viết thường kiểu câu (A6). */
+/** Nhãn bốn phép kiểm — tiếng Việt, viết hoa chữ đầu (A6). */
 const METRIC_LABELS: Readonly<Record<QualityMetricId, string>> = {
-  contrast: 'độ tương phản',
-  noise: 'nhiễu',
-  resolution: 'độ phân giải',
-  skew: 'độ nghiêng',
+  contrast: 'Độ tương phản',
+  noise: 'Nhiễu',
+  resolution: 'Độ phân giải',
+  skew: 'Độ nghiêng',
 };
 
 /**
@@ -850,10 +851,12 @@ export function useInputQualityGate(
   /* ---------------------------------------------------------------------- */
 
   const failedRead = floorsQuery.error ?? assessmentQuery.error;
-  const failureSentence =
-    failedRead === null
-      ? COPY.loadFailureFallback
-      : gateway.describeApiFailure(failedRead).sentence || COPY.loadFailureFallback;
+  const failure = failedRead === null ? null : gateway.describeApiFailure(failedRead);
+  // Danh sách tầng trả 404 = dự án không có: một câu "không tìm thấy" như màn Tầng (BUG-074).
+  const isProjectMissing = floorsQuery.error !== null && failure?.kind === 'notFound';
+  const failureSentence = isProjectMissing
+    ? PROJECT_NOT_FOUND_DESCRIPTION
+    : failure?.sentence || COPY.loadFailureFallback;
 
   // 404 `upload` (đọc trả `null`), hoặc dự án không có tầng nào để làm mồi.
   const hasNoDrawing =
@@ -1031,7 +1034,8 @@ export function useInputQualityGate(
     acknowledgementLabel: COPY.acknowledgement,
     primaryLabel: COPY.primary,
     secondaryLabel: COPY.secondary,
-    areActionsHidden: status === 'forbidden' || (hasNoDrawing && !canEdit),
+    // Lỗi đọc: lối ra nằm ngay trong dải lỗi; nhắc lại ở chân trang là nói lỗi lần nữa (BUG-074).
+    areActionsHidden: status === 'forbidden' || status === 'error' || (hasNoDrawing && !canEdit),
   };
 
   /* ---------------------------------------------------------------------- */
@@ -1086,7 +1090,7 @@ export function useInputQualityGate(
     id: 'inputQualityGate.previousFloor',
     combo: 'ArrowLeft',
     scope: 'canvas',
-    description: 'xem bản vẽ của tầng liền trước',
+    description: 'Xem bản vẽ của tầng liền trước',
     onTrigger: stepBack,
   });
 
@@ -1094,7 +1098,7 @@ export function useInputQualityGate(
     id: 'inputQualityGate.nextFloor',
     combo: 'ArrowRight',
     scope: 'canvas',
-    description: 'xem bản vẽ của tầng liền sau',
+    description: 'Xem bản vẽ của tầng liền sau',
     onTrigger: stepForward,
   });
 
@@ -1106,7 +1110,7 @@ export function useInputQualityGate(
       id: 'inputQualityGate.exitCornerMode',
       combo: 'Escape',
       scope: 'canvas',
-      description: 'thoát chế độ chọn bốn góc khung bản vẽ',
+      description: 'Thoát chế độ chọn bốn góc khung bản vẽ',
       onTrigger: exitCornerMode,
     },
     { enabled: isPickingCorners && pendingWrite === null },
@@ -1264,6 +1268,10 @@ export function useInputQualityGate(
       options.onNavigate?.(ROUTES.project.pipeline(projectId));
     },
     onUploadAnother: () => options.onNavigate?.(ROUTES.project.upload(projectId)),
+    onRetryLoad: () => {
+      void (floorsQuery.isError ? floorsQuery.refetch() : assessmentQuery.refetch());
+    },
+    onBackToProjects: () => options.onNavigate?.(ROUTES.dashboard),
     onConfirmWrite,
     onCancelWrite,
   };
@@ -1292,6 +1300,9 @@ export function useInputQualityGate(
     floors: visibleFloors,
     footer,
     errorMessage: status === 'error' ? failureSentence : null,
+    isProjectMissing: status === 'error' && isProjectMissing,
+    // Không rõ thì cho thử lại, như `useProjectSettings`: nút thừa rẻ hơn ngõ cụt.
+    canRetryLoad: status === 'error' && (failure?.isRetryable ?? true),
     partialNotice,
     remainingFindingCount,
     passNotice,

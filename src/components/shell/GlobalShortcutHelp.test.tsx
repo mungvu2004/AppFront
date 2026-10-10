@@ -8,6 +8,7 @@
  */
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { expectAccessible } from '@/lib/testing/expectAccessible';
@@ -22,7 +23,9 @@ afterEach(() => {
 
 describe('[GlobalShortcutHelp] không mở', () => {
   it('không vẽ gì — không lớp phủ nào đứng chắn màn', () => {
-    const { container } = render(<GlobalShortcutHelp isOpen={false} onClose={() => {}} />);
+    const { container } = render(<GlobalShortcutHelp isOpen={false} onClose={() => {}} />, {
+      wrapper: MemoryRouter,
+    });
 
     expect(container).toBeEmptyDOMElement();
   });
@@ -61,7 +64,7 @@ describe('[GlobalShortcutHelp] đang mở', () => {
     ];
 
     try {
-      render(<GlobalShortcutHelp isOpen onClose={() => {}} />);
+      render(<GlobalShortcutHelp isOpen onClose={() => {}} />, { wrapper: MemoryRouter });
 
       expect(screen.getByText('Toàn cục')).toBeInTheDocument();
       expect(screen.getByText('Khung nhìn 3D')).toBeInTheDocument();
@@ -75,10 +78,72 @@ describe('[GlobalShortcutHelp] đang mở', () => {
     }
   });
 
+  it('chip phím đọc được: Ctrl thay cho Mod, Esc thay cho ESCAPE (BUG-085)', () => {
+    const disposers = [
+      appShortcutRegistry.register({
+        id: 'fixture.redoLike',
+        combo: 'Ctrl+Shift+Y',
+        scope: 'global',
+        description: 'ví dụ phím có Ctrl',
+        onTrigger: () => {},
+      }),
+      appShortcutRegistry.register({
+        id: 'fixture.escape',
+        combo: 'Escape',
+        scope: 'canvas',
+        description: 'ví dụ phím Esc',
+        onTrigger: () => {},
+      }),
+    ];
+
+    try {
+      render(<GlobalShortcutHelp isOpen onClose={() => {}} />, { wrapper: MemoryRouter });
+
+      const chips = screen.getAllByText(/^(Mod|Ctrl|ESCAPE|Esc)$/u).map((node) => node.textContent);
+      expect(chips).toContain('Ctrl');
+      expect(chips).not.toContain('Mod');
+      expect(chips).not.toContain('ESCAPE');
+    } finally {
+      for (const dispose of disposers) {
+        dispose();
+      }
+    }
+  });
+
+  it('ngoài dự án không liệt kê hoàn tác, làm lại, lưu ngay; trong dự án thì có (BUG-085)', () => {
+    const dispose = appShortcutRegistry.register({
+      id: 'global.undo',
+      combo: 'Ctrl+Z',
+      scope: 'global',
+      description: 'Hoàn tác thao tác gần nhất',
+      onTrigger: () => {},
+    });
+
+    try {
+      // Route của router, không phải `window.location`: hai thứ lệch nhau trong MemoryRouter.
+      render(
+        <MemoryRouter initialEntries={['/login']}>
+          <GlobalShortcutHelp isOpen onClose={() => {}} />
+        </MemoryRouter>,
+      );
+      expect(screen.queryByText('Hoàn tác thao tác gần nhất')).not.toBeInTheDocument();
+      cleanup();
+
+      render(
+        <MemoryRouter initialEntries={['/projects/project-1/floors']}>
+          <GlobalShortcutHelp isOpen onClose={() => {}} />
+        </MemoryRouter>,
+      );
+      expect(screen.getByText('Hoàn tác thao tác gần nhất')).toBeInTheDocument();
+    } finally {
+      dispose();
+    }
+  });
+
   it('đóng bằng một cú Esc thật, nổi bọt lên registry dùng chung', () => {
     const onClose = vi.fn();
 
-    render(<GlobalShortcutHelp isOpen onClose={onClose} />);
+    render(<GlobalShortcutHelp isOpen onClose={onClose} />, { wrapper: MemoryRouter });
 
     fireEvent.keyDown(document.body, { key: 'Escape' });
 
@@ -86,7 +151,9 @@ describe('[GlobalShortcutHelp] đang mở', () => {
   });
 
   it('qua được expectAccessible và expectVietnamese', () => {
-    const rendered = render(<GlobalShortcutHelp isOpen onClose={() => {}} />);
+    const rendered = render(<GlobalShortcutHelp isOpen onClose={() => {}} />, {
+      wrapper: MemoryRouter,
+    });
 
     expectAccessible(rendered);
     expectVietnamese(rendered);

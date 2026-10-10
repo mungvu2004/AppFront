@@ -533,7 +533,7 @@ describe('InputQualityGate — liên kết hai chiều báo cáo ↔ ảnh', () 
     await mountScreen(clock);
     await selectMeasuredFloor(clock);
 
-    const metricRow = screen.getByText('độ nghiêng').closest('div[tabindex]');
+    const metricRow = screen.getByText('Độ nghiêng').closest('div[tabindex]');
 
     expect(metricRow).not.toBeNull();
 
@@ -839,7 +839,7 @@ describe('InputQualityGate — NO-361: chưa có bản vẽ thì không đi ti�
     expect(button).toHaveFocus();
   });
 
-  it('đọc kết quả hỏng: nút vô hiệu kèm lý do, bấm không điều hướng', async () => {
+  it('đọc kết quả hỏng: một dải lỗi, một lối ra, chân trang không nhắc lại (BUG-074)', async () => {
     const client = createMockApiClient();
     const onNavigate = vi.fn();
 
@@ -857,13 +857,75 @@ describe('InputQualityGate — NO-361: chưa có bản vẽ thì không đi ti�
 
     await mountScreen(clock, { client, onNavigate });
 
-    const button = screen.getByRole('button', { name: 'Tiếp tục xử lý' });
-
-    expect(button).toHaveAttribute('aria-disabled', 'true');
-    expect(button).toHaveAccessibleDescription(/chưa đọc được kết quả/iu);
-
-    fireEvent.click(button);
+    expect(screen.getByText('Không đọc được kết quả kiểm tra chất lượng')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tiếp tục xử lý' })).toBeNull();
+    expect(screen.queryByText(/chưa đọc được kết quả kiểm tra/iu)).toBeNull();
+    // Không thử lại được: lối ra duy nhất là tải bản vẽ khác.
+    expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Tải bản vẽ khác' })).toHaveLength(1);
     expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('đọc kết quả hỏng nhưng thử lại được: "Thử lại" gọi lại API (review-1)', async () => {
+    const client = createMockApiClient();
+    const assess = vi.spyOn(client.quality, 'assess').mockResolvedValue({
+      error: {
+        code: 'INTERNAL_ERROR',
+        kind: 'http',
+        raw: { code: 'INTERNAL_ERROR', requestId: 'req-read-2' },
+        requestId: 'req-read-2',
+        retryable: true,
+        status: 503,
+      },
+      ok: false,
+    });
+
+    await mountScreen(clock, { client });
+
+    const callsBefore = assess.mock.calls.length;
+
+    expect(screen.queryByRole('button', { name: 'Tải bản vẽ khác' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    await settle(clock);
+
+    expect(assess.mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+
+  it('dự án không tồn tại: "Không tìm thấy dự án này" và lối về danh sách dự án (BUG-074)', async () => {
+    const client = createMockApiClient();
+    const onNavigate = vi.fn();
+
+    vi.spyOn(client.projects, 'read').mockResolvedValue({
+      error: {
+        code: 'PROJECT_NOT_FOUND',
+        kind: 'http',
+        raw: { code: 'PROJECT_NOT_FOUND', requestId: 'req-404' },
+        requestId: 'req-404',
+        retryable: false,
+        status: 404,
+      },
+      ok: false,
+    });
+
+    await mountScreen(clock, { client, onNavigate });
+
+    expect(screen.getByText('Không tìm thấy dự án này')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tải bản vẽ khác' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Tiếp tục xử lý' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Về danh sách dự án' }));
+    expect(onNavigate).toHaveBeenCalledWith('/');
+  });
+
+  it('cấp "Dự án" của breadcrumb về danh sách dự án (review-1)', async () => {
+    const onNavigate = vi.fn();
+
+    await mountScreen(clock, { onNavigate });
+
+    const nav = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
+    fireEvent.click(within(nav).getByRole('button', { name: 'Dự án' }));
+
+    expect(onNavigate).toHaveBeenCalledWith('/');
   });
 
   it('có bản vẽ thì nút bấm được', async () => {

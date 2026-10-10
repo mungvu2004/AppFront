@@ -166,6 +166,14 @@ describe('FloorUploadScreenView — bảy trạng thái (A11, R-63)', () => {
     expect(screen.getByRole('button', { name: /bắt đầu xử lý/iu })).toBeEnabled();
   });
 
+  it('dự án chưa có tầng: trạng thái rỗng có chữ riêng, tiêu đề vùng thả chỉ hiện một lần (BUG-100)', () => {
+    const props = scenarioFor('empty');
+    renderWithProviders(<FloorUploadScreenView {...props} floors={[]} />);
+
+    expect(screen.getAllByText(props.dropZone.title)).toHaveLength(1);
+    expect(screen.getByText('Dự án chưa có tầng nào')).toBeInTheDocument();
+  });
+
   it('màn chỉ đọc không vẽ vùng kéo thả, nhưng vẫn nói ra vì sao', () => {
     renderWithProviders(<FloorUploadScreenView {...scenarioFor('forbidden')} />);
 
@@ -177,6 +185,18 @@ describe('FloorUploadScreenView — bảy trạng thái (A11, R-63)', () => {
 /* -------------------------------------------------------------------------- */
 /* Bộ khẳng định dùng chung (R-72).                                            */
 /* -------------------------------------------------------------------------- */
+
+describe('FloorUploadScreenView — breadcrumb', () => {
+  it('cấp "Dự án" về danh sách dự án khi có lối về (review-1)', () => {
+    const onBackToProjects = vi.fn();
+    renderWithProviders(<FloorUploadScreenView {...scenarioFor('success')} onBackToProjects={onBackToProjects} />);
+
+    const nav = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
+    fireEvent.click(within(nav).getByRole('button', { name: 'Dự án' }));
+
+    expect(onBackToProjects).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe('FloorUploadScreenView — khả năng tiếp cận và tiếng Việt (R-72)', () => {
   it('nút tuỳ chọn của thẻ nói bảng đang mở hay đóng, và chỉ có mặt khi có mục để chọn (B-V4-07)', () => {

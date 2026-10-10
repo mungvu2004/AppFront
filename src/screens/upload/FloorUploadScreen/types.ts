@@ -255,9 +255,10 @@ export interface FloorUploadBlockNotice {
  * Mọi thứ view vẽ.
  *
  * **Bậc thang quyết định `state`** (A11, R-63): giá trị đầu tiên khớp trong dãy
- * `collapsed → forbidden → loading → error → empty → partial → success`.
+ * `loading → error → collapsed → forbidden → empty → partial → success`.
  * Hai lớp phủ `collapsed` và `forbidden` không làm dữ liệu biến mất — `floors`
- * vẫn đầy đủ, chỉ mất quyền sửa và đổi cách xếp.
+ * vẫn đầy đủ, chỉ mất quyền sửa và đổi cách xếp; nên chúng đứng sau tải và lỗi
+ * tải, lúc chưa có dữ liệu nào (BUG-072).
  *
  * Bất biến đi kèm:
  *
@@ -265,8 +266,8 @@ export interface FloorUploadBlockNotice {
  *    danh sách tầng** — không bao giờ là lỗi của một tệp. Lỗi tệp sống trong
  *    {@link FloorUploadRowModel.error}.
  * 2. `state === 'loading'` ⇒ `floors` rỗng và view vẽ khung xương.
- * 3. `isReadOnly === true` ⟺ `canEdit === false`; khi màn không thu gọn thì cả
- *    hai ⟺ `state === 'forbidden'`.
+ * 3. `isReadOnly === true` ⟺ `canEdit === false`; khi màn đã tải xong, không thu
+ *    gọn thì cả hai ⟺ `state === 'forbidden'`.
  * 4. `state === 'empty'` ⟺ không tầng nào có tệp và khay cũng rỗng.
  * 5. `state === 'partial'` ⟺ có tệp nhưng chưa đủ mọi tầng, hoặc còn tệp đang tải.
  * 6. `isDragActive === true` chỉ khi `isReadOnly === false`.
@@ -325,6 +326,8 @@ export interface FloorUploadActions {
   /** Xoá ngay, có toast hoàn tác (A8, D-05). Không hộp thoại xác nhận. */
   readonly onRemoveFile: (fileId: string) => void;
   readonly onSubmit: () => void;
+  /** Cấp "Dự án" của breadcrumb: về danh sách dự án. Vắng thì cấp ấy là chữ trơn. */
+  readonly onBackToProjects?: (() => void) | undefined;
   /** Đóng lỗi trong thẻ của một tệp. Không đụng tới tệp khác. */
   readonly onDismissError: (fileId: string) => void;
 }

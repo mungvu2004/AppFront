@@ -148,6 +148,18 @@ describe('useProjectDashboard states', () => {
 
     await waitFor(() => expect(dash().model.state).toBe('error'));
   });
+
+  it('narrow: a failed read still wins over collapsed (BUG-072)', async () => {
+    mount({ fetchList: () => Promise.reject(new Error('mạng hỏng')), forceNarrow: true });
+
+    await waitFor(() => expect(dash().model.state).toBe('error'));
+  });
+
+  it('narrow: a successful read is collapsed', async () => {
+    mount({ gateway: fakeServer([project()]).gateway, forceNarrow: true });
+
+    await waitFor(() => expect(dash().model.state).toBe('collapsed'));
+  });
 });
 
 describe('useProjectDashboard navigation', () => {

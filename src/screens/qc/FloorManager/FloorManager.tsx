@@ -16,13 +16,13 @@
  * | `empty`     | khung + thang cao độ chỉ có vạch "0,0 m"               | `EmptyState` thay chỗ cả bảng           |
  * | `loading`   | một `Skeleton` lấp kín khung                            | khung bảng + bốn dòng `Skeleton`        |
  * | `partial`   | bốn dải đúng tỷ lệ, dải chưa có bản vẽ tô cảnh báo      | bảng đầy đủ, dòng thiếu bản vẽ có nhãn  |
- * | `error`     | khung + thang cao độ, không dải nào                     | `InlineAlert` thay thân bảng            |
+ * | `error`     | ẨN HẲN (không có tầng nào để cắt)                       | `InlineAlert` thay thân bảng            |
  * | `success`   | bốn dải đủ, tổng tỷ lệ = 1                              | bảng đầy đủ, dòng đã duyệt có huy hiệu  |
  * | `forbidden` | vẽ đầy đủ, mất viền chọn/nút                            | bảng chỉ đọc, ẩn mọi hành động sửa      |
  * | `collapsed` | ẨN HẲN, thay bằng nút "hiện lát cắt"                    | chiếm cả bề ngang khung                 |
  *
- * `error` vì 404 của dự án (`isProjectMissing`): ẩn cả lát cắt lẫn câu "chỉ sống
- * trong phiên", bảng chiếm cả bề ngang và chỉ nói "không tìm thấy dự án" (BUG-060).
+ * `error` (mọi lỗi đọc, không chỉ 404 của dự án): ẩn cả lát cắt lẫn câu "chỉ sống trong
+ * phiên", bảng chiếm cả bề ngang và chỉ nói lỗi; 404 thì nói "không tìm thấy dự án" (BUG-060).
  *
  * Không nhánh nào trả `null` cho cả màn — canh đúng A11: màn trắng là thất bại
  * duy nhất bất biến này tồn tại để chặn.
@@ -56,14 +56,16 @@
  */
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { Breadcrumb } from '@/components/shell/Breadcrumb';
 import { cn } from '@/lib/utils';
 
 import { FloorSectionCut } from './FloorSectionCut';
 import { FloorTable } from './FloorTable';
 import type { FloorManagerViewProps } from './floorManagerTypes';
 
-const SCREEN_BREADCRUMB = 'Dự án > Quản lý tầng';
 const SCREEN_TITLE = 'Quản lý tầng';
+/** Cùng component, cùng dấu "›" với màn tải bản vẽ và cổng chất lượng (BUG-079). */
+const BREADCRUMB_PROJECTS = 'Dự án';
 const SCREEN_DESCRIPTION =
   'Xem cao độ, chiều cao và tiến độ của từng tầng, rồi sắp xếp lại ngăn xếp nếu cần.';
 const EXPAND_SECTION_LABEL = 'Hiện lát cắt';
@@ -86,14 +88,24 @@ export function FloorManager(props: FloorManagerViewProps) {
     unsupportedNotices,
     onToggleCollapsed,
   } = props;
-  /* 404 của dự án: chỉ còn câu "không tìm thấy" và lối về — câu "chỉ sống trong phiên" và
-     lát cắt trống cạnh nó là nói về một dự án không có (BUG-060). */
-  const isProjectMissing = state === 'error' && props.isProjectMissing === true;
+  /* Đọc hỏng (404, mạng, 5xx): chỉ còn câu lỗi và lối đi — câu "chỉ sống trong phiên" và
+     lát cắt trống cạnh nó là nói về những tầng chưa đọc được (BUG-060). */
+  const isLoadError = state === 'error';
 
   return (
     <div aria-label={SCREEN_TITLE} className="flex h-full min-h-0 w-full flex-col overflow-y-auto bg-bg-app" role="region">
-      <header className="mx-auto w-full max-w-[1120px] shrink-0 px-8 pb-1 pt-6">
-        <p className="text-[12px] text-text-muted">{SCREEN_BREADCRUMB}</p>
+      <header className="mx-auto flex w-full max-w-[1120px] shrink-0 flex-col gap-1 px-8 pb-1 pt-8">
+        <Breadcrumb
+          items={[
+            // Cấp "Dự án" về được danh sách dự án khi nơi gọi cho lối về.
+            {
+              id: 'projects',
+              label: BREADCRUMB_PROJECTS,
+              ...(props.onBackToProjects ? { onClick: props.onBackToProjects } : {}),
+            },
+            { id: 'floors', label: SCREEN_TITLE },
+          ]}
+        />
         <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
         <p className="text-[13px] text-text-secondary">{SCREEN_DESCRIPTION}</p>
       </header>
@@ -109,7 +121,7 @@ export function FloorManager(props: FloorManagerViewProps) {
         </div>
       )}
 
-      {isProjectMissing || unsupportedNotices.length === 0 ? null : (
+      {isLoadError || unsupportedNotices.length === 0 ? null : (
         <div className="mx-auto flex w-full max-w-[1120px] shrink-0 flex-col gap-2 px-8 pb-2">
           <h3 className="text-[13px] font-semibold text-text-secondary">
             {UNSUPPORTED_NOTICES_HEADING}
@@ -128,7 +140,7 @@ export function FloorManager(props: FloorManagerViewProps) {
 
       <div className="mx-auto w-full max-w-[1120px] flex-1 px-8 pb-8">
         <div className={cn('flex min-h-[480px] items-stretch gap-6', isCompact ? 'flex-col' : 'flex-row')}>
-          {isProjectMissing ? null : isCollapsed ? (
+          {isLoadError ? null : isCollapsed ? (
             <button className={EXPAND_BUTTON_CLASS_NAME} onClick={onToggleCollapsed} type="button">
               {EXPAND_SECTION_LABEL}
             </button>

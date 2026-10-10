@@ -87,19 +87,18 @@ function momentLabels(at: Date | null): { readonly label: string; readonly exact
   };
 }
 
-function activityMoment(at: Date): { readonly atLabel: string; readonly atExactLabel: string } {
-  const moment = momentLabels(at);
-  return { atLabel: moment.label, atExactLabel: moment.exactLabel };
+function activityMoment(at: Date): { readonly atLabel: string } {
+  return { atLabel: momentLabels(at).exactLabel };
 }
 
 /* ==========================================================================
- * 1. Nhãn vai/trạng thái — A6 (viết thường, kiểu câu). Nguồn duy nhất cho cả file.
+ * 1. Nhãn vai/trạng thái — A6 (viết hoa chữ đầu, kiểu câu). Nguồn duy nhất cho cả file.
  * ========================================================================== */
 
 const ROLE_LABEL: Readonly<Record<ProjectRole, string>> = {
-  admin: 'quản trị',
-  engineer: 'kỹ sư',
-  viewer: 'người xem',
+  admin: 'Quản trị',
+  engineer: 'Kỹ sư',
+  viewer: 'Người xem',
 };
 
 const STATUS_LABEL: Readonly<Record<UserAccountStatus, string>> = {
@@ -142,7 +141,7 @@ const RULESET_EDIT_POLICY: Readonly<Record<ProjectRole, boolean>> = {
 const PERMISSION_ROW_SEEDS: readonly PermissionRowSeed[] = [
   { key: 'floor.upload', label: 'Tải bản vẽ', values: permissionMatrix['floor.upload'] },
   { key: 'layer.edit', label: 'Sửa hình học', values: permissionMatrix['layer.edit'] },
-  { key: 'qc.approve', label: 'duyệt QC', values: QC_APPROVE_POLICY },
+  { key: 'qc.approve', label: 'Duyệt QC', values: QC_APPROVE_POLICY },
   { key: 'ruleset.edit', label: 'Đổi bộ luật', values: RULESET_EDIT_POLICY },
   { key: 'model.export', label: 'Xuất', values: permissionMatrix['model.export'] },
   { key: 'share.create', label: 'Chia sẻ', values: permissionMatrix['share.create'] },
@@ -161,7 +160,7 @@ function buildPermissionMatrix(): PermissionMatrixModel {
         return {
           role,
           allowed,
-          srLabel: `${ROLE_LABEL[role]}: ${allowed ? 'được phép' : 'không được phép'} ${lowerFirst(seed.label)}`,
+          srLabel: `${lowerFirst(ROLE_LABEL[role])}: ${allowed ? 'được phép' : 'không được phép'} ${lowerFirst(seed.label)}`,
         };
       }),
     })),
@@ -374,7 +373,6 @@ const OTHER_ADMIN_ACTIVITIES: readonly UserActivityRowModel[] = [
     id: 'activity-1',
     kindLabel: 'Tải bản vẽ lên dự án',
     ...activityMoment(TWELVE_MINUTES_AGO),
-    objectCode: 'P-014',
     objectLabel: 'Tháp hà nội',
     objectHref: ROUTES.project.floors('project-hanoi-tower'),
   },
@@ -382,7 +380,6 @@ const OTHER_ADMIN_ACTIVITIES: readonly UserActivityRowModel[] = [
     id: 'activity-2',
     kindLabel: 'Duyệt qc cho tầng ba',
     ...activityMoment(SAME_DAY_EARLIER),
-    objectCode: 'P-014',
     objectLabel: 'Tháp hà nội',
     objectHref: ROUTES.project.quality('project-hanoi-tower'),
   },
@@ -390,7 +387,6 @@ const OTHER_ADMIN_ACTIVITIES: readonly UserActivityRowModel[] = [
     id: 'activity-3',
     kindLabel: 'Mời người dùng mới',
     ...activityMoment(THREE_DAYS_AGO),
-    objectCode: 'P-021',
     objectLabel: 'Trung tâm thương mại đà nẵng',
     objectHref: null,
   },
@@ -429,6 +425,7 @@ function buildInvite(overrides: Partial<InviteFormModel> = {}): InviteFormModel 
     canSubmit: false,
     hintLabel: INVITE_HINT_LABEL,
     errorLabel: null,
+    submitBlockedReason: 'Nhập ít nhất một địa chỉ thư để gửi lời mời',
     isSubmitting: false,
     ...overrides,
   };
@@ -650,6 +647,7 @@ const noop = (): void => {
 
 export const USER_MANAGEMENT_ACTIONS: UserManagementActions = {
   onSearchChange: noop,
+  onClearSearch: noop,
   onRoleFilterChange: noop,
   onStatusFilterChange: noop,
   onSelectUser: noop,

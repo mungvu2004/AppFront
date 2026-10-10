@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/Input';
 /* Nhập THEO TÊN, không default — xem ghi chú ở `useAuthScreen.ts`. */
 import { auth as AUTH_MESSAGES } from '@/i18n/vi.json';
 
-import { FIELD_ERROR_SLOT, RecoveryNoticeStrip } from '../RecoveryShell';
+import { FIELD_ERROR_SLOT, RecoveryNoticeStrip, RecoveryStatus } from '../RecoveryShell';
 import { useReturnFocus } from '../useReturnFocus';
 import type { ForgotPasswordActions, ForgotPasswordModel } from './useForgotPassword';
 
@@ -82,15 +82,7 @@ export function ForgotPasswordPanel({ model, actions, onBack, registerEmailField
         {/* Under the button, as on the sign-in form: above the field, the strip and the "đã gửi"
             block pushed the field and the button down from under the cursor (BUG-008). */}
         <RecoveryNoticeStrip notice={notice} />
-        {/* Always mounted, filled later: a region inserted together with its text is often not read. */}
-        <div role="status" className="empty:sr-only">
-          {sentMessage !== null && (
-            <div className="flex items-start gap-3 rounded-[8px] border border-border-default p-3">
-              <Mail aria-hidden="true" className="mt-0.5 h-[18px] w-[18px] shrink-0 text-text-secondary" strokeWidth={2} />
-              <p className="text-[14px] leading-relaxed text-text-primary">{sentMessage}</p>
-            </div>
-          )}
-        </div>
+        <RecoveryStatus success={sentMessage} icon={Mail} />
         {/* The button is locked after a send (a second identical letter helps no one): say how to unlock it. */}
         {isSent && (
           <p className="text-center text-[13px] leading-[18px] text-text-secondary">
@@ -100,7 +92,7 @@ export function ForgotPasswordPanel({ model, actions, onBack, registerEmailField
         <button
           type="button"
           onClick={onBack}
-          className="self-center py-1 text-[13px] leading-[18px] text-accent-hover transition-colors duration-120 hover:text-accent-active rounded outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app"
+          className="inline-flex min-h-[44px] items-center self-center py-1 text-[13px] sm:min-h-6 leading-[18px] text-accent-hover transition-colors duration-120 hover:text-accent-active rounded outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app"
         >
           {AUTH_MESSAGES.actions.backToSignIn}
         </button>

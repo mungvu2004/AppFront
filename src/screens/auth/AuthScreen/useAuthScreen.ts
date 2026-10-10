@@ -138,8 +138,6 @@ export interface AuthNotice {
   /** Absent when the message says the whole thing on its own. */
   readonly title?: string;
   readonly message: string;
-  /** True only for a wrong password: the one failure a person can act on right away. */
-  readonly showResetAction?: boolean;
   /** A way out the strip offers on its own — today only "already signed in" (BUG-006). */
   readonly action?: { readonly label: string; readonly onClick: () => void };
 }
@@ -226,7 +224,7 @@ export const LOCKOUT_SECONDS = RECOVERY_LOCKOUT_SECONDS;
 const TOO_MANY_REQUESTS_STATUS = 429;
 
 /** What the server said, reduced to the cases this screen answers differently. */
-type AuthFailure =
+export type AuthFailure =
   | { readonly kind: 'invalidCredentials' }
   | { readonly kind: 'accountDisabled' }
   | { readonly kind: 'originMismatch' }
@@ -289,14 +287,13 @@ function classifyFailure(error: unknown): { failure: AuthFailure; field?: AuthFi
  * which owns the rest of the product's error wording, so a dropped connection
  * reads the same here as it does anywhere else and no raw code reaches a person.
  */
-function noticeFor(failure: AuthFailure): AuthNotice | null {
+export function noticeFor(failure: AuthFailure): AuthNotice | null {
   switch (failure.kind) {
     case 'invalidCredentials':
       return {
         tone: 'violation',
         title: AUTH_MESSAGES.errors.invalidCredentials.title,
         message: AUTH_MESSAGES.errors.invalidCredentials.description,
-        showResetAction: true,
       };
     case 'accountDisabled':
       return {
@@ -332,8 +329,8 @@ function noticeFor(failure: AuthFailure): AuthNotice | null {
       const appError = toAppError(failure.cause);
       const described = describeError(appError);
 
-      // Same as `noticeForRecovery` and the session gate: the network sentence already opens with
-      // its heading (BUG-021), and a lost server is a warning there, so it is one here (BUG-020).
+      // Same as `noticeForRecovery` and the session gate: the network sentence says on its own what
+      // happened, so no heading (BUG-021), and a lost server is a warning there, so it is one here (BUG-020).
       return appError.kind === 'network'
         ? { tone: 'attention', message: described.description }
         : { tone: 'violation', title: described.title, message: described.description };

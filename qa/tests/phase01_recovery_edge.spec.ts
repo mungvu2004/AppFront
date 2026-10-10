@@ -31,7 +31,7 @@ import type { Page, Request, Response, Route } from '@playwright/test';
 
 import { ROUTES, pathOf } from '../../e2e/fixtures/routes';
 import { PASSWORD_LABEL, SIGN_IN_LABEL } from '../../e2e/fixtures/session';
-import { signInAdmin } from './support/auth';
+import { BE_SHORT_PASSWORD, signInAdmin } from './support/auth';
 import { attachJson, captureEvidence } from './support/evidence';
 
 /** `src/api/endpoints.ts:86-91` under the `/api` base; logout = `src/lib/auth/session.ts:42,200`. */
@@ -59,10 +59,10 @@ const FULL_NAME_INVALID =
 const TOO_MANY_TITLE = 'Đã thử quá nhiều lần'; // :152
 const TOO_MANY_RECOVERY = 'Hãy đợi vài phút rồi thử lại.'; // auth.errors.tooManyRecovery :159 (title no longer repeated)
 const RECOVERY_FAILED =
-  'Máy chủ chưa xử lý được yêu cầu. Chữ bạn đã nhập vẫn được giữ — đợi giây lát rồi bấm gửi lại.'; // :160 (BUG-015)
+  'Máy chủ chưa xử lý được yêu cầu. Đợi giây lát rồi bấm gửi lại — những gì đã nhập vẫn còn nguyên.'; // :160 (BUG-015, BUG-091)
 const ORIGIN_MISMATCH_TITLE = 'Máy chủ từ chối yêu cầu'; // :156
 const ORIGIN_MISMATCH_DESCRIPTION =
-  'Máy chủ từ chối yêu cầu gửi từ địa chỉ trang này. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống.'; // :157
+  'Địa chỉ của trang này không nằm trong danh sách máy chủ chấp nhận. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống.'; // :157 (BUG-021)
 const INVITATION_EXPIRED =
   'Lời mời đã hết hạn hoặc đã được dùng. Nhờ quản trị viên gửi lại lời mời. Nếu bạn vừa đặt mật khẩu ở lượt trước, hãy đăng nhập.'; // :180
 const INVITATION_INCOMPLETE =
@@ -72,15 +72,17 @@ const SESSION_NOT_OPENED =
   'Đã nhận lời mời nhưng chưa mở được phiên. Hãy đăng nhập bằng mật khẩu vừa đặt.'; // :183
 const INVITATION_RETRY_FAILED = 'Đã thử lại nhưng vẫn chưa kết nối được máy chủ.'; // :184 (BUG-024)
 const INVITATION_SUCCESS = 'Đã nhận lời mời. Đang mở tài khoản của bạn.'; // :185
+const INVITATION_DONE_SUBTITLE = 'Tài khoản của bạn đã sẵn sàng.'; // auth.invitation.doneSubtitle (BUG-097)
 const RESET_LINK_EXPIRED =
   'Liên kết đã hết hạn hoặc đã được dùng. Hãy yêu cầu liên kết mới ở trang đăng nhập.'; // :191
 const RESET_LINK_INCOMPLETE =
   'Trang này không còn mã của liên kết đặt lại mật khẩu (trang đã được tải lại hoặc liên kết bị cắt). Hãy mở lại đúng liên kết trong thư, hoặc yêu cầu liên kết mới ở trang đăng nhập.'; // :192 (BUG-005)
 const RESET_SUCCESS = 'Đã đổi mật khẩu. Đang chuyển tới trang đăng nhập.'; // :193
+const RESET_DONE_SUBTITLE = 'Mật khẩu mới đã có hiệu lực.'; // auth.passwordReset.doneSubtitle (BUG-097)
 const PASSWORD_RESET_NOTICE = 'Đã đổi mật khẩu. Hãy đăng nhập lại bằng mật khẩu mới.'; // :197
 const RETRY = 'Thử lại'; // common.retry :8
 const NETWORK_TITLE = 'Mất kết nối'; // errors.network.title :14 — asserted ABSENT from the strips (BUG-021)
-const NETWORK_DESCRIPTION = 'Mất kết nối máy chủ. Kiểm tra mạng rồi thử lại.'; // :15
+const NETWORK_DESCRIPTION = 'Không liên lạc được với máy chủ. Kiểm tra mạng rồi thử lại.'; // :15
 const UNKNOWN_TITLE = 'Có trục trặc'; // errors.unknown :62
 const UNKNOWN_DESCRIPTION = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Bạn có thể tải lại rồi thử lại.'; // :63 — ABSENT (BUG-015)
 const CHECKING = 'Đang kiểm tra kết nối.'; // connectionStates.checking :4197
@@ -100,7 +102,8 @@ const h1 = (page: Page, name: string) => page.getByRole('heading', { level: 1, n
 const button = (page: Page, name: string) => page.getByRole('button', { name, exact: true });
 const field = (page: Page, label: string) => page.getByLabel(label, { exact: true });
 /** The always-mounted live line inside the form (InvitationAccept.tsx:107-112, PasswordReset.tsx:68-70). */
-const formStatus = (page: Page) => page.locator('form p[role="status"]');
+// RecoveryStatus (RecoveryShell.tsx) is a `div[role=status]` since BUG-097.
+const formStatus = (page: Page) => page.locator('form [role="status"]');
 
 /* ------------------------------------------------------------------ helpers */
 
@@ -527,10 +530,15 @@ test.describe('SCR-03 InvitationAccept edges', () => {
     await expect(page.getByText(FULL_NAME_REQUIRED, { exact: true }), 'not "chưa nhập" under a typed name').toHaveCount(0);
     await expect(authMain(page, 'partial')).toBeVisible();
 
+    // BUG-094: the password half with a password the real BE answers 422 for (4 code points, 8 UTF-16 units).
+    await field(page, PASSWORD_LABEL).fill(BE_SHORT_PASSWORD);
+    await field(page, CONFIRM_PASSWORD_LABEL).fill(BE_SHORT_PASSWORD);
     await button(page, ACCEPT_INVITATION).click();
     await expect(field(page, PASSWORD_LABEL)).toHaveAccessibleDescription(PASSWORD_TOO_SHORT);
     await expect(field(page, FULL_NAME_LABEL)).toHaveValue('E2E QA');
-    await captureEvidence(page, 'E01_rec_invite_server_field.png');
+    await captureEvidence(page, 'E01_rec_invite_server_field.png', {
+      caption: '[mocked response] 422 VALIDATION field "password"; boxes: 4 astral chars (BE counts 4 < 8) — real pair A01_accept_422_password',
+    });
   });
 
   test('SCR-03 · real BE: name with U+202E (bidi override) → 422 field fullName → "Họ và tên có ký tự không dùng được…" under the typed name (BUG-016)', async ({ page }) => {
@@ -680,6 +688,9 @@ test.describe('SCR-03 InvitationAccept edges', () => {
 
     await expect(authMain(page, 'success')).toBeVisible();
     await expect(formStatus(page)).toHaveText(INVITATION_SUCCESS);
+    // BUG-097: the fields are locked, so the "fill this in" subtitle gives way to the done one.
+    await expect(page.getByText(INVITE.subtitle, { exact: true })).toHaveCount(0);
+    await expect(page.getByText(INVITATION_DONE_SUBTITLE, { exact: true })).toBeVisible();
     await expect(page.getByText(SIGNED_IN_WARNING, { exact: true })).toHaveCount(0);
     await expect(field(page, FULL_NAME_LABEL)).toBeDisabled();
     await captureEvidence(page, 'E01_rec_invite_success.png');
@@ -746,13 +757,17 @@ test.describe('SCR-04 PasswordReset edges', () => {
     await mockPost(page, PASSWORD_RESET_CONFIRM_API, wire(422, { code: 'VALIDATION', field: 'newPassword', count: 1 }));
 
     await openForm(page, RESET, fakeToken('reset-vfield'));
-    await RESET.fillValid(page);
+    // BUG-094: a new password the real BE answers 422 for (4 code points) and the FE still sends (8 UTF-16 units).
+    await field(page, NEW_PASSWORD_LABEL).fill(BE_SHORT_PASSWORD);
+    await field(page, CONFIRM_PASSWORD_LABEL).fill(BE_SHORT_PASSWORD);
     await button(page, SET_NEW_PASSWORD).click();
 
     await expect(field(page, NEW_PASSWORD_LABEL)).toHaveAccessibleDescription(PASSWORD_TOO_SHORT);
     await expect(authMain(page, 'partial')).toBeVisible();
     await expect(button(page, SET_NEW_PASSWORD)).toBeEnabled();
-    await captureEvidence(page, 'E01_rec_reset_server_field.png');
+    await captureEvidence(page, 'E01_rec_reset_server_field.png', {
+      caption: '[mocked response] 422 VALIDATION field "newPassword"; boxes: 4 astral chars (BE counts 4 < 8) — real pair A01_confirm_422_new_password',
+    });
   });
 
   test('SCR-04 · [mocked response] 204 → success line → signOut (POST logout) → /login with "Đã đổi mật khẩu. Hãy đăng nhập lại bằng mật khẩu mới."; F5 drops the notice', async ({ page }) => {
@@ -776,6 +791,8 @@ test.describe('SCR-04 PasswordReset edges', () => {
 
     await expect(authMain(page, 'success')).toBeVisible();
     await expect(formStatus(page)).toHaveText(RESET_SUCCESS);
+    await expect(page.getByText(RESET.subtitle, { exact: true })).toHaveCount(0);
+    await expect(page.getByText(RESET_DONE_SUBTITLE, { exact: true })).toBeVisible(); // BUG-097
     await expect(field(page, NEW_PASSWORD_LABEL)).toBeDisabled();
     await captureEvidence(page, 'E01_rec_reset_success_line.png');
     expect(seen).toHaveLength(1);

@@ -25,7 +25,7 @@
  */
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { createMemoryRouter, RouterProvider } from 'react-router-dom';
+import { createMemoryRouter, MemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { useStore } from '@/store';
@@ -74,6 +74,7 @@ describe('[UndoShortcuts] phím ?', () => {
       <UndoShortcuts>
         <div>nội dung màn</div>
       </UndoShortcuts>,
+      { wrapper: MemoryRouter },
     );
 
     expect(screen.queryByRole('dialog', { name: 'Phím tắt' })).not.toBeInTheDocument();
@@ -81,7 +82,8 @@ describe('[UndoShortcuts] phím ?', () => {
     pressHelp();
 
     expect(await findHelpDialog()).toBeInTheDocument();
-    expect(screen.getByText('Hoàn tác thao tác gần nhất')).toBeInTheDocument();
+    // Ngoài dự án (jsdom ở `/`) bảng bỏ hoàn tác/làm lại/lưu ngay (BUG-085); Esc thì luôn có.
+    expect(screen.getByText('Đóng lớp trên cùng')).toBeInTheDocument();
   });
 
   it('gõ ? lần hai trong lúc bảng đang mở thì đóng lại', async () => {
@@ -89,6 +91,7 @@ describe('[UndoShortcuts] phím ?', () => {
       <UndoShortcuts>
         <div>nội dung màn</div>
       </UndoShortcuts>,
+      { wrapper: MemoryRouter },
     );
 
     pressHelp();
@@ -113,6 +116,7 @@ describe('[UndoShortcuts] Escape ở tầng vỏ', () => {
       <UndoShortcuts>
         <div>nội dung màn</div>
       </UndoShortcuts>,
+      { wrapper: MemoryRouter },
     );
 
     pressHelp();
@@ -139,6 +143,7 @@ describe('[UndoShortcuts] Escape ở tầng vỏ', () => {
       <UndoShortcuts>
         <div>nội dung màn</div>
       </UndoShortcuts>,
+      { wrapper: MemoryRouter },
     );
 
     expect(useStore.getState().openDialog).toBe('createProject');

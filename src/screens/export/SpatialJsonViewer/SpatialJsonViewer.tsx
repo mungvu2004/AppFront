@@ -84,8 +84,10 @@ export function SpatialJsonViewer({ actions, model }: SpatialJsonViewerProps) {
 
   return (
     <div className="flex h-full flex-col bg-bg-app">
-      <header className="flex h-14 shrink-0 items-center gap-3 px-5">
-        <div className="w-[280px]">
+      {/* Dưới `sm` hàng công cụ xuống dòng thay vì đẩy trang cuộn ngang: ô tìm co lại, cụm mở/thu/
+          kiểu xem/sao chép sang hàng hai. */}
+      <header className="flex min-h-14 shrink-0 flex-wrap items-center gap-3 px-5 py-2">
+        <div className="min-w-[180px] flex-1 sm:w-[280px] sm:flex-none">
           <Input
             aria-label="Tìm theo khoá hoặc giá trị"
             placeholder="Tìm theo khoá hoặc giá trị"
@@ -210,8 +212,8 @@ export function SpatialJsonViewer({ actions, model }: SpatialJsonViewerProps) {
         )}
       </div>
 
-      <footer className="flex h-8 shrink-0 items-center gap-4 px-5 pb-3">
-        <span className="font-mono text-[13px] leading-5 text-text-secondary">{model.sizeLabel}</span>
+      <footer className="flex min-h-8 shrink-0 flex-wrap items-center gap-x-4 px-5 pb-3">
+        <span className="whitespace-nowrap font-mono text-[13px] leading-5 text-text-secondary">{model.sizeLabel}</span>
         <span className="text-[13px] leading-[18px] text-text-muted">{model.countsLabel}</span>
         <span className="flex-1" />
         {model.canDownload && actions.onDownload !== null ? (

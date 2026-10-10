@@ -35,6 +35,7 @@
  */
 import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
+import { matchPath, useLocation } from 'react-router-dom';
 
 import { AnimatePresence, motion } from '@/components/motion';
 import { IconButton } from '@/components/ui/IconButton';
@@ -44,12 +45,14 @@ import { useShortcut } from '@/hooks/useShortcut';
 import { createFocusTrap } from '@/lib/input/focusTrap';
 import {
   appShortcutRegistry,
+  keyCapLabels,
   type RegisteredShortcut,
   type ShortcutScope,
 } from '@/lib/input/shortcutRegistry';
 import { DURATION, EASE } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import { Z_INDEX } from '@/lib/zIndex';
+import { ROUTE_PATTERNS } from '@/routes/paths';
 
 /** Thứ tự hiển thị — toàn cục trước vì nó đúng ở mọi màn, `dialog` không vào bảng này. */
 const DISPLAY_SCOPES: readonly Exclude<ShortcutScope, 'dialog'>[] = ['global', 'canvas', 'sidePanel'];
@@ -72,9 +75,24 @@ interface ShortcutHelpGroup {
 const hasDescription = (row: RegisteredShortcut): row is ShortcutHelpRow =>
   row.description !== undefined;
 
+/**
+ * Ba phím toàn cục chỉ có việc khi một dự án đang mở: hoàn tác/làm lại sửa đổi của dự án, Ctrl+S
+ * xả bộ tự lưu của nó. Vỏ đăng ký chúng ở mọi route, nên ở đăng nhập hay 404 bảng không liệt kê
+ * chúng — liệt kê một phím không làm gì là hứa suông (BUG-085).
+ */
+const PROJECT_ONLY_IDS: ReadonlySet<string> = new Set(['global.undo', 'global.redo', 'global.save']);
+const PROJECT_PATTERNS = Object.values(ROUTE_PATTERNS).filter((pattern) => pattern.includes(':projectId'));
+
+const isInProject = (pathname: string): boolean =>
+  PROJECT_PATTERNS.some((pattern) => matchPath(pattern, pathname) !== null);
+
 /** Đọc registry sống — không có bản chép nào của danh sách này ở nơi khác. */
-function buildGroups(): readonly ShortcutHelpGroup[] {
-  const rows = appShortcutRegistry.listShortcuts().filter(hasDescription);
+function buildGroups(pathname: string): readonly ShortcutHelpGroup[] {
+  const inProject = isInProject(pathname);
+  const rows = appShortcutRegistry
+    .listShortcuts()
+    .filter(hasDescription)
+    .filter((row) => inProject || !PROJECT_ONLY_IDS.has(row.id));
 
   return DISPLAY_SCOPES.map((scope) => ({
     scope,
@@ -91,6 +109,8 @@ export function GlobalShortcutHelp({ isOpen, onClose }: GlobalShortcutHelpProps)
   const prefersReducedMotion = useReducedMotion();
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = React.useId();
+  // Theo route của router, không đọc `window.location` lúc vẽ (review-1).
+  const { pathname } = useLocation();
 
   // Việc MỞ bảng bằng phím `?` thuộc về vỏ (`routes/router.tsx` đăng ký `?`
   // phạm vi `global`). Ở đây chỉ đăng ký các phím ĐÓNG khi bảng đang mở; hai
@@ -130,7 +150,7 @@ export function GlobalShortcutHelp({ isOpen, onClose }: GlobalShortcutHelpProps)
     };
   }, [isOpen, onClose]);
 
-  const groups = isOpen ? buildGroups() : [];
+  const groups = isOpen ? buildGroups(pathname) : [];
 
   const overlayVariants = { hidden: { opacity: 0 }, visible: { opacity: 1 } };
   const dialogVariants = prefersReducedMotion
@@ -200,7 +220,7 @@ export function GlobalShortcutHelp({ isOpen, onClose }: GlobalShortcutHelpProps)
                   </h3>
                   <dl className="flex flex-col gap-1">
                     {group.rows.map((row) => {
-                      const keys = row.combo.split('+');
+                      const keys = keyCapLabels(row.combo);
 
                       return (
                         <div key={row.id} className="flex items-center justify-between py-1.5">

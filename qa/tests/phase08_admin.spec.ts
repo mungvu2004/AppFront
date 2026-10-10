@@ -516,7 +516,7 @@ test.describe('SCR-37 User Management (/admin/users)', () => {
 
     const role = page.getByRole('combobox', { name: 'Vai', exact: true });
     const status = page.getByRole('combobox', { name: 'Trạng thái', exact: true });
-    await pickOption(role, 'quản trị');
+    await pickOption(role, 'Quản trị'); // ROLE_LABELS (BUG-081, A6)
     await pickOption(status, 'Đang hoạt động');
     await expect(ownRow()).toHaveCount(1);
     await expect(page.locator('tbody tr').filter({ hasNotText: 'Đang hoạt động' })).toHaveCount(0);

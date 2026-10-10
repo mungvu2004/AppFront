@@ -17,7 +17,9 @@ const speed = (name: keyof typeof MOTION_DURATIONS_MS): string =>
   `${MOTION_DURATIONS_MS[name]}ms`;
 
 const config: Config = {
-  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  // Tệp test không vẽ gì ra màn: lớp chỉ có trong chúng (vd `bg-[#fafafa]`, hằng
+  // khẳng định lớp) không được vào gói CSS. Stories giữ lại cho Storybook.
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}', '!./src/**/*.test.{ts,tsx}'],
   theme: {
     colors: {
       transparent: 'transparent',

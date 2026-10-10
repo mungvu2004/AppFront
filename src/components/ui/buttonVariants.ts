@@ -11,10 +11,12 @@ export const buttonVariants = {
 };
 
 export const buttonSizes = {
-  sm: 'h-8 min-h-8 text-sm px-3',
+  // 44 px under `sm` (640 px) like md/lg (BUG-077): toolbars, table rows and alert actions ask for
+  // `sm`, and on a phone those are thumb targets too. From 640 px up it is the dense 32 px.
+  sm: 'h-11 min-h-11 sm:h-8 sm:min-h-8 text-sm px-3',
   // 44 px under `sm` (640 px), like lg (BUG-048): md is the default size, so it is what dialog
-  // footers, form submits and empty-state calls to action use on a phone. Toolbars and table
-  // rows ask for `sm` and keep 32 px; icon-only buttons use `buttonIconOnlySizes`.
+  // footers, form submits and empty-state calls to action use on a phone. Icon-only buttons use
+  // `buttonIconOnlySizes`.
   md: 'h-11 min-h-11 sm:h-9 sm:min-h-9 text-sm px-4',
   // 44 px under `sm` (640 px): the touch-target size for phones (BUG-048).
   lg: 'h-11 min-h-11 sm:h-10 sm:min-h-10 text-base px-5',

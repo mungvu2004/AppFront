@@ -60,6 +60,9 @@ import { ROUTES } from '@/routes/paths';
 import { resetSelectorCaches } from '@/store/selectors';
 import { useStore } from '@/store';
 
+// Nạp tĩnh, ở pha collect, hộp thoại mà `FloorLayerSaveBanner` `lazy()`: không thì bài xung đột
+// biên dịch nó BÊN TRONG `findByRole` của mình, và dưới tải lượt ấy dài hơn trần chờ (QA-01c nợ #12).
+import './FloorLayerSaveConfirm';
 import { WallLayerReviewContainer } from './WallLayerReview.container';
 import { ProvisionalScale, scenarioArgsFor } from './WallLayerReview.stories';
 import {
@@ -227,7 +230,7 @@ describe('dải lưu lớp (F-04x-1)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tải lại' }));
     expect(onReload).toHaveBeenCalledTimes(1);
 
-    expect(await screen.findByRole('dialog', { name: 'Bỏ thay đổi chưa lưu của tầng này?' }, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: 'Bỏ thay đổi chưa lưu của tầng này?' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Tải lại và bỏ thay đổi' }));
     expect(onConfirm).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));

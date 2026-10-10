@@ -356,9 +356,11 @@ export function useProjectDashboard(
     : null;
 
   const state = useMemo<SevenState>(() => {
-    if (isNarrow) return 'collapsed';
+    // Loading and a failed read beat the narrow overlay: with no list there is nothing
+    // to re-lay out, and a narrow screen must still say the read failed (BUG-072).
     if (listQuery.isPending) return 'loading';
     if (errorMessage !== null) return 'error';
+    if (isNarrow) return 'collapsed';
     if (allProjects.length === 0 && droppedCount === 0) return 'empty';
     // A viewer may read N1, so `forbidden` waits for data — it never hides the loading state.
     if (role === 'viewer') return 'forbidden';

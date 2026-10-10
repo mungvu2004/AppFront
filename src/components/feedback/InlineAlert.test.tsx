@@ -41,3 +41,11 @@ describe('InlineAlert — khung hẹp (QA-01 nợ #3)', () => {
     expect(text).not.toHaveClass('flex-wrap');
   });
 });
+
+describe('InlineAlert — ngắt dòng thân (BUG-087)', () => {
+  it('thân dùng text-pretty: không để một từ đứng riêng ở dòng cuối khi khung hẹp', () => {
+    render(<InlineAlert level="attention" message="Hãy yêu cầu liên kết mới ở trang đăng nhập." />);
+
+    expect(screen.getByText('Hãy yêu cầu liên kết mới ở trang đăng nhập.')).toHaveClass('text-pretty');
+  });
+});

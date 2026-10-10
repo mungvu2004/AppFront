@@ -51,8 +51,6 @@ const PROFILE: AccountDraft = {
   profile: { fullName: 'An', jobTitle: '', phone: '', language: 'vi' },
 };
 
-const SAVE_WAIT = { timeout: 3000 };
-
 const newMe = (avatarUrl: string): Me => ({
   avatarUrl,
   email: 'an@congty.vn',
@@ -201,12 +199,12 @@ describe('N12 422 — lỗi buộc vào đúng ô, không thử lại bằng l�
     await loaded();
 
     fireEvent.change(screen.getByLabelText('Điện thoại'), { target: { value: 'x'.repeat(40) } });
-    expect(await screen.findByText('Số điện thoại tối đa 32 ký tự.', {}, SAVE_WAIT)).toBeTruthy();
+    expect(await screen.findByText('Số điện thoại tối đa 32 ký tự.')).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText('Điện thoại'), { target: { value: '0912' } });
     await waitFor(() => {
       expect(save).toHaveBeenCalledTimes(2);
-    }, SAVE_WAIT);
+    });
     expect(screen.queryByText('Số điện thoại tối đa 32 ký tự.')).toBeNull();
   });
 
@@ -223,7 +221,7 @@ describe('N12 422 — lỗi buộc vào đúng ô, không thử lại bằng l�
       const cached = queryClient.getQueryData<AccountDraft>(queryKeys.me.profile());
 
       expect(cached?.profile['fullName']).toBe('Bình An');
-    }, SAVE_WAIT);
+    });
   });
 });
 
@@ -539,7 +537,7 @@ describe('chủ đề và chỉ báo lưu của hai khối chưa có dây', () =
 
     await waitFor(() => {
       expect(save).toHaveBeenCalledTimes(1);
-    }, SAVE_WAIT);
+    });
     await waitFor(() => {
       expect(screen.getAllByText(ACCOUNT_LOCAL_ONLY_LABEL).length).toBeGreaterThan(0);
     });
@@ -561,7 +559,7 @@ describe('chủ đề và chỉ báo lưu của hai khối chưa có dây', () =
 
     await waitFor(() => {
       expect(announcer.announce).toHaveBeenCalled();
-    }, SAVE_WAIT);
+    });
 
     expect(announcer.announce.mock.calls.map((call) => String(call[0]))).not.toContain(
       ACCOUNT_LOCAL_ONLY_LABEL,
@@ -818,7 +816,7 @@ describe('vào lại màn khi bộ đệm còn tươi', () => {
       expect(
         client.getQueryData<AccountDraft>(queryKeys.me.profile())?.appearance['showGrid'],
       ).toBe(false);
-    }, SAVE_WAIT);
+    });
 
     expect(updateProfile).not.toHaveBeenCalled();
   });

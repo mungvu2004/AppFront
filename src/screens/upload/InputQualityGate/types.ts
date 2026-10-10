@@ -289,6 +289,10 @@ export interface InputQualityGateModel {
   readonly footer: InputQualityFooterModel;
   /** Lỗi đọc phép đo chất lượng. `null` ở mọi trạng thái khác `'error'`. */
   readonly errorMessage: string | null;
+  /** `'error'` vì danh sách tầng trả 404 — dự án không tồn tại; lối ra là danh sách dự án (BUG-074). */
+  readonly isProjectMissing: boolean;
+  /** `'error'` mà lượt đọc thử lại được (mạng, hết giờ, 5xx…). */
+  readonly canRetryLoad: boolean;
   readonly partialNotice: string | null;
   readonly remainingFindingCount: number;
   readonly passNotice: string | null;
@@ -335,6 +339,10 @@ export interface InputQualityGateActions {
   readonly onToggleAcknowledgement: (next: boolean) => void;
   readonly onContinue: () => void;
   readonly onUploadAnother: () => void;
+  /** Đọc lại sau lỗi đọc thử lại được. */
+  readonly onRetryLoad: () => void;
+  /** Về danh sách dự án khi dự án không tồn tại. */
+  readonly onBackToProjects: () => void;
   /** Xác nhận trong hộp thoại A9 — gửi lượt ghi đang chờ. */
   readonly onConfirmWrite: () => void;
   /** Huỷ hoặc Esc trong hộp thoại A9 — không gửi gì. */

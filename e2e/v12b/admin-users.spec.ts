@@ -72,7 +72,7 @@ for (const row of ROLE_ROWS) {
     await expect(page.getByRole('row')).toHaveCount(0);
     await expect(invite).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Vô hiệu hoá' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'xoá' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Xoá' })).toHaveCount(0);
   });
 }
 
@@ -89,7 +89,7 @@ test.describe('admin', () => {
     await row.getByRole('button', { name: 'Vô hiệu hoá' }).click();
 
     await expect(row).toContainText('Đã vô hiệu hoá');
-    await expect(row.getByRole('button', { name: 'bật lại' })).toBeVisible();
+    await expect(row.getByRole('button', { name: 'Bật lại', exact: true })).toBeVisible();
     const toast = page.getByRole('status').filter({ hasText: `đã vô hiệu hoá tài khoản — ${TARGET.name}` });
     await expect(toast).toBeVisible();
 
@@ -101,14 +101,14 @@ test.describe('admin', () => {
     await expect(toast).toHaveCount(0);
   });
 
-  test('UM-3 · B-V12b-01 bấm "xoá" trên hàng hỏi trước bằng hộp thoại; Esc đóng nó, người vẫn còn (A9, A12)', async ({
+  test('UM-3 · B-V12b-01 bấm "Xoá" trên hàng hỏi trước bằng hộp thoại; Esc đóng nó, người vẫn còn (A9, A12)', async ({
     page,
   }) => {
     const row = targetRow(page);
-    const opener = row.getByRole('button', { name: 'xoá' });
+    const opener = row.getByRole('button', { name: 'Xoá', exact: true });
     await opener.click();
 
-    const dialog = page.getByRole('dialog', { name: `xoá hẳn ${TARGET.name}?` });
+    const dialog = page.getByRole('dialog', { name: `Xoá hẳn ${TARGET.name}?` });
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText('không hoàn tác được');
     await expect(dialog.getByRole('button', { name: 'Xác nhận xoá vĩnh viễn' })).toBeDisabled();
@@ -128,8 +128,8 @@ test.describe('admin', () => {
     const detail = page.getByRole('complementary', { name: 'Chi tiết người dùng' });
     await expect(detail).toBeVisible();
 
-    await targetRow(page).getByRole('button', { name: 'xoá' }).click();
-    const dialog = page.getByRole('dialog', { name: `xoá hẳn ${TARGET.name}?` });
+    await targetRow(page).getByRole('button', { name: 'Xoá', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: `Xoá hẳn ${TARGET.name}?` });
     await expect(dialog.locator(':focus')).toHaveCount(1);
 
     await page.keyboard.press('Escape');

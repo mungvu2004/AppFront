@@ -39,6 +39,7 @@
 
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { __resetMockLayerState, createMockApiClient } from '@/api/__mocks__/client';
@@ -56,7 +57,7 @@ import {
 import type { SpatialGraph } from '@/domain/spatial/types';
 import { __resetFloorLayerSavers, useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { MERGE_WINDOW_MS } from '@/lib/commands/mergeCommands';
-import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
+import { installFakeClock, withFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
 import { createCleanBuildingScenario } from '@/lib/testing/fixtures';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
@@ -116,7 +117,10 @@ function renderFromProps(state: SevenState) {
 
 /** Panel ĐÃ NỐI DÂY: hook thật, store thật, ngăn xếp hoàn tác thật. */
 function WiredInspector(
-  props: Pick<PropertyInspectorContainerProps, 'selectedEntityId' | 'selectedEntityIds' | 'saveLabel'> & {
+  props: Pick<
+    PropertyInspectorContainerProps,
+    'selectedEntityId' | 'selectedEntityIds' | 'saveLabel'
+  > & {
     readonly canEdit?: boolean;
     readonly gateway?: PropertyInspectorGateway | undefined;
   },
@@ -147,7 +151,10 @@ function HostedInspector(
     readonly gateway: PropertyInspectorGateway;
   },
 ) {
-  const { label } = useFloorLayerAutosave({ apiClient: props.apiClient, projectId: ACCEPTANCE_PROJECT_ID });
+  const { label } = useFloorLayerAutosave({
+    apiClient: props.apiClient,
+    projectId: ACCEPTANCE_PROJECT_ID,
+  });
 
   return (
     <WiredInspector
@@ -280,7 +287,13 @@ async function renderWired(selectedIds: readonly string[], options: RenderWiredO
   );
 
   const result = render(
-    options.shellKeyboard === true ? <UndoShortcuts>{panel}</UndoShortcuts> : panel,
+    options.shellKeyboard === true ? (
+      <MemoryRouter>
+        <UndoShortcuts>{panel}</UndoShortcuts>
+      </MemoryRouter>
+    ) : (
+      panel
+    ),
   );
 
   await waitFor(() => {
@@ -468,12 +481,9 @@ describe('[PI-1] bốn bộ khẳng định dùng chung', () => {
     for (const state of PROPERTY_INSPECTOR_STATE_NAMES) {
       const { container, unmount } = renderFromProps(state);
 
-      expect(
-        () => {
-          expectAccessible(container);
-        },
-        `trạng thái "${SEVEN_STATE_LABELS[state]}" hỏng khả năng tiếp cận`,
-      ).not.toThrow();
+      expect(() => {
+        expectAccessible(container);
+      }, `trạng thái "${SEVEN_STATE_LABELS[state]}" hỏng khả năng tiếp cận`).not.toThrow();
 
       unmount();
     }
@@ -487,12 +497,9 @@ describe('[PI-1] bốn bộ khẳng định dùng chung', () => {
     for (const state of PROPERTY_INSPECTOR_STATE_NAMES) {
       const { container, unmount } = renderFromProps(state);
 
-      expect(
-        () => {
-          expectVietnamese(container);
-        },
-        `trạng thái "${SEVEN_STATE_LABELS[state]}" còn chuỗi chưa phải tiếng Việt có dấu`,
-      ).not.toThrow();
+      expect(() => {
+        expectVietnamese(container);
+      }, `trạng thái "${SEVEN_STATE_LABELS[state]}" còn chuỗi chưa phải tiếng Việt có dấu`).not.toThrow();
 
       unmount();
     }
@@ -690,9 +697,13 @@ describe('[N3] đổi qua lại tường ↔ phòng mười lần', () => {
       rowCounts.push(visibleRowCount(container));
 
       const footer = container.querySelector('[class*="border-t"][class*="p-5"]');
-      footerTops.push(footer instanceof HTMLElement ? footer.getBoundingClientRect().top : Number.NaN);
+      footerTops.push(
+        footer instanceof HTMLElement ? footer.getBoundingClientRect().top : Number.NaN,
+      );
       footerPinned.push(footer?.parentElement?.className.includes('shrink-0') === true);
-      scrollingRegions.push(container.querySelectorAll('[class*="flex-1"][class*="overflow-y-auto"]').length);
+      scrollingRegions.push(
+        container.querySelectorAll('[class*="flex-1"][class*="overflow-y-auto"]').length,
+      );
 
       for (const cell of container.querySelectorAll('[class*="w-[40%]"]')) {
         labelWidths.add(cell.className.includes('w-[40%]') ? '40%' : cell.className);
@@ -707,7 +718,9 @@ describe('[N3] đổi qua lại tường ↔ phòng mười lần', () => {
 
     const wallRows = rowCounts.filter((_count, index) => index % 2 === 0);
     const roomRows = rowCounts.filter((_count, index) => index % 2 === 1);
-    const jumps = rowCounts.filter((count, index) => index > 0 && count !== rowCounts[index - 1]).length;
+    const jumps = rowCounts.filter(
+      (count, index) => index > 0 && count !== rowCounts[index - 1],
+    ).length;
 
     console.log(
       `[PROPERTY-INSPECTOR][N3] ${String(SWITCH_COUNT)} lượt đổi — số dòng mỗi lượt: ${rowCounts.join(', ')}`,
@@ -1046,7 +1059,9 @@ describe('[N6] chiều cao tường', () => {
     /* Câu gọi cửa bằng mã của danh sách, không bằng mã máy (B-V7-05). */
     const graphNow = useStore.getState().spatial;
     expect(graphNow).not.toBeNull();
-    expect(refusalSentence).toContain(displayCodeIn(graphNow as NonNullable<typeof graphNow>, HEIGHT_DOOR_ID));
+    expect(refusalSentence).toContain(
+      displayCodeIn(graphNow as NonNullable<typeof graphNow>, HEIGHT_DOOR_ID),
+    );
     expect(refusalSentence).not.toContain(HEIGHT_DOOR_ID);
     expect(refusalSentence).toContain(String(headMm - HEIGHT_REFUSED_MM));
   });
@@ -1152,19 +1167,6 @@ const HELP_DIALOG_NAME = 'Phím tắt';
 const dialogScopeBindingCount = (): number =>
   appShortcutRegistry.listShortcuts().filter((entry) => entry.scope === 'dialog').length;
 
-/** Trần chờ rộng rãi cho chunk tải muộn và cho hoạt cảnh thoát của bảng. */
-const ASYNC_TIMEOUT_MS = 5000;
-
-/**
- * Trần của cả bài `[N8]`, rộng hơn hẳn {@link ASYNC_TIMEOUT_MS}.
- *
- * Bài này chờ HAI lượt bất đồng bộ dài — chunk `LazyGlobalShortcutHelp` tải
- * lần đầu, rồi hoạt cảnh thoát của `AnimatePresence` — nên trần mặc định 5 giây
- * của vitest bằng đúng trần của MỘT lượt chờ, và bài hết giờ trước khi lượt thứ
- * hai kịp xong.
- */
-const N8_TIMEOUT_MS = 20_000;
-
 describe('[N8] bốn phím tắt', () => {
   beforeEach(() => {
     seedStore(createCleanBuildingScenario().graph);
@@ -1193,6 +1195,7 @@ describe('[N8] bốn phím tắt', () => {
           />
         </QueryClientProvider>
       </UndoShortcuts>,
+      { wrapper: MemoryRouter },
     );
 
     await waitFor(() => {
@@ -1205,11 +1208,7 @@ describe('[N8] bốn phím tắt', () => {
       fireEvent.keyDown(document.body, { key: '?', shiftKey: true });
     });
 
-    const help = await view.findByRole(
-      'dialog',
-      { name: HELP_DIALOG_NAME },
-      { timeout: ASYNC_TIMEOUT_MS },
-    );
+    const help = await view.findByRole('dialog', { name: HELP_DIALOG_NAME });
     const helpOpened = help !== null;
 
     /* ---- 2. Escape đóng đúng lớp trên cùng ------------------------------- */
@@ -1222,7 +1221,17 @@ describe('[N8] bốn phím tắt', () => {
      * `requestAnimationFrame` THẬT: tệp này có những bài trước dùng đồng hồ
      * giả, và vòng lặp khung hình của framer-motion không sống lại sau khi
      * `vi.useFakeTimers()` đi qua nó. Bám vào nút DOM ở đây là bám vào thứ
-     * tự chạy của cả tệp; bám vào sổ đăng ký là bám vào chính cơ chế A12. */
+     * tự chạy của cả tệp; bám vào sổ đăng ký là bám vào chính cơ chế A12.
+     *
+     * Và ĐỢI hai binding ấy có mặt trước khi gõ Escape. `findByRole` trả về ngay khi hộp thoại
+     * vào DOM, còn binding đăng ký trong `useEffect` thụ động, chạy SAU lượt commit ấy. Dưới tải
+     * khe giữa hai việc đủ rộng để Escape rơi vào lúc phạm vi `dialog` còn trống: nó xuống
+     * `closeTopLayer` toàn cục, bảng không đóng, rồi binding mới đăng ký và sổ đứng ở 2 mãi
+     * ("expected 2 to be +0", QA-01c nợ #12). */
+    await waitFor(() => {
+      expect(dialogScopeBindingCount()).toBeGreaterThan(0);
+    });
+
     const dialogBindingsBefore = dialogScopeBindingCount();
 
     await act(async () => {
@@ -1231,19 +1240,14 @@ describe('[N8] bốn phím tắt', () => {
 
     /* Và phải ĐỢI sổ trống, không đọc một lần ngay sau `act`.
      *
-     * `ASYNC_TIMEOUT_MS` ở trên tự khai là trần chờ "cho chunk tải muộn VÀ cho hoạt cảnh thoát
-     * của bảng", nhưng đường đóng chưa bao giờ dùng nó: nó đọc sổ đồng bộ. Lượt mở có `findByRole`
-     * để chờ, lượt đóng thì không — nên bài này đạt khi máy rảnh và đỏ khi máy có tải, ở đúng một
-     * dòng, mà không phải vì A12 hỏng. Đo được: đạt ở tải nền 25,9 %, đỏ ở 30,7 %.
+     * Lượt mở có `findByRole` để chờ, lượt đóng thì không — nên bài này đạt khi máy rảnh và đỏ khi
+     * máy có tải, ở đúng một dòng, mà không phải vì A12 hỏng. Đo được: đạt ở tải nền 25,9 %, đỏ ở 30,7 %.
      *
      * `waitFor` không nới một khẳng định nào — nó vẫn đòi sổ về **0**, tức bảng thật sự đóng. Nó
      * chỉ thôi đòi điều đó xảy ra trong cùng một nhịp flush, mà A12 chưa bao giờ hứa nhịp. */
-    await waitFor(
-      () => {
-        expect(dialogScopeBindingCount()).toBe(0);
-      },
-      { timeout: ASYNC_TIMEOUT_MS },
-    );
+    await waitFor(() => {
+      expect(dialogScopeBindingCount()).toBe(0);
+    });
 
     const dialogBindingsAfter = dialogScopeBindingCount();
     const helpClosed = dialogBindingsAfter === 0;
@@ -1256,25 +1260,38 @@ describe('[N8] bốn phím tắt', () => {
 
     /* ---- 4. Ctrl+S xả bộ tự lưu — một lượt ghi THẬT ra endpoint ---------- */
 
-    /* Không đổi gì thì không có gì để gửi (B-V8-41) — một lượt sửa trước đã. */
-    await act(async () => {
-      fireEvent.click(
-        within(view.container).getByRole('radio', { name: new RegExp(String(THICKNESS_AFTER_MM)) }),
-      );
-      await Promise.resolve();
-    });
+    /* Đồng hồ giả từ lượt sửa tới hết Ctrl+S. Trên đồng hồ thật, lượt sửa hẹn bộ đếm 800 ms của
+     * A7, và dưới tải chính `act` của cú bấm dài hơn 800 ms: bộ tự lưu tự xả TRƯỚC Ctrl+S, Ctrl+S
+     * không còn gì để gửi, và bài đỏ "expected 1 to be greater than 1" (QA-01c nợ #12). Đồng hồ
+     * đứng yên thì lượt ghi chỉ có thể đến từ Ctrl+S. */
+    const writesBefore = await withFakeClock(async (clock) => {
+      /* Không đổi gì thì không có gì để gửi (B-V8-41) — một lượt sửa trước đã. */
+      await act(async () => {
+        fireEvent.click(
+          within(view.container).getByRole('radio', {
+            name: new RegExp(String(THICKNESS_AFTER_MM)),
+          }),
+        );
+        await clock.flushMicrotasks();
+      });
 
-    const writesBefore = spied.layerWrites.length;
+      const before = spied.layerWrites.length;
 
-    await act(async () => {
-      fireEvent.keyDown(document.body, { key: 's', ctrlKey: true });
-      await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
+      await act(async () => {
+        fireEvent.keyDown(document.body, { key: 's', ctrlKey: true });
+        await clock.flushMicrotasks();
+      });
 
-    await waitFor(() => {
-      expect(spied.layerWrites.length).toBeGreaterThan(writesBefore);
+      /* Ống lưu nạp lười bằng `import()` (`useAutosave.ts`): chờ chính lượt nạp ấy — điều kiện,
+       * không phải giờ. `dynamicImportSettled` dùng bộ hẹn giờ thật vitest giữ riêng. */
+      for (let turn = 0; turn < 50 && spied.layerWrites.length <= before; turn += 1) {
+        await act(async () => {
+          await vi.dynamicImportSettled();
+          await clock.flushMicrotasks();
+        });
+      }
+
+      return before;
     });
 
     const flushed = spied.layerWrites.length - writesBefore;
@@ -1299,7 +1316,7 @@ describe('[N8] bốn phím tắt', () => {
     expect(view.queryAllByRole('button', SAVE_BUTTON_QUERY)).toHaveLength(0);
 
     view.unmount();
-  }, N8_TIMEOUT_MS);
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -1319,7 +1336,10 @@ describe('[N9] tự lưu', () => {
 
   it('gửi lớp không gian của tầng có tường bị sửa — không phải tầng đang xem — và chân panel hiện "Đã lưu lúc …"', async () => {
     const spied = createSpiedGateway();
-    const { container } = await renderWired([WALL_ID], { gateway: spied.gateway, hostApiClient: spied.apiClient });
+    const { container } = await renderWired([WALL_ID], {
+      gateway: spied.gateway,
+      hostApiClient: spied.apiClient,
+    });
 
     clock = installFakeClock();
 

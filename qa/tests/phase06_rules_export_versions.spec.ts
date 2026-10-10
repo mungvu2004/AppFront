@@ -289,8 +289,8 @@ test.describe('SCR-29 Rule Settings', () => {
     await captureEvidence(page, '29_rulesettings_toggle.png');
   });
 
-  test('SCR-29 Rule Settings — preset "văn phòng", then "Khôi phục mặc định"', async () => {
-    const preset = page.getByRole('region', { name: 'Bộ luật sẵn', exact: true }).getByRole('button', { name: /^văn phòng/u });
+  test('SCR-29 Rule Settings — preset "Văn phòng", then "Khôi phục mặc định"', async () => {
+    const preset = page.getByRole('region', { name: 'Bộ luật sẵn', exact: true }).getByRole('button', { name: /^Văn phòng/u });
 
     const presetPut = waitForApi(page, 'PUT', ruleConfigPath(), [200], AUTOSAVE_TIMEOUT_MS);
     await preset.click();

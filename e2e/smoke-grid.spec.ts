@@ -104,7 +104,8 @@ const ROWS = {
   adminModels: { anchor: { label: 'tìm model' } },
   adminTrainingJobs: { anchor: { role: 'heading', name: 'Huấn luyện model AI' } },
   adminTrainingModels: { anchor: { role: 'heading', name: 'Model AI của chuỗi xử lý' } },
-  projectUpload: { anchor: { role: 'navigation', name: 'Tải lên bản vẽ' } },
+  // FIX-775 (BUG-079): breadcrumb dùng chung, `nav` tên "Đường dẫn trang"; chữ của cấp cuối mới nói đây là màn nào.
+  projectUpload: { anchor: { text: 'Tải lên bản vẽ' } },
   projectQuality: { anchor: { role: 'region', name: 'Báo cáo chất lượng' } },
   // F-05b: màn chỉ mở SSE cho tầng đang xem chưa xong sau lượt #8 mồi; bộ mẫu dev không có
   // lượt nào đang chạy nên không còn lượt mở luồng 404 (B-V4-10) để chờ.

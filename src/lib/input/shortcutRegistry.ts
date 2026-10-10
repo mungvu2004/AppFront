@@ -177,6 +177,38 @@ export function formatCombo(parsed: ParsedCombo): string {
   return parts.join('+');
 }
 
+/** Codes whose canonical spelling is not what the key cap reads. */
+const KEY_CAP_LABELS: Readonly<Record<string, string>> = {
+  ESCAPE: 'Esc',
+  ENTER: 'Enter',
+  SPACE: 'Space',
+  DELETE: 'Delete',
+  BACKSPACE: 'Backspace',
+  ARROWUP: '↑',
+  ARROWDOWN: '↓',
+  ARROWLEFT: '←',
+  ARROWRIGHT: '→',
+};
+
+/** Apple keyboards: the primary modifier is Command, Alt is Option. */
+export function isApplePlatform(): boolean {
+  return typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/u.test(navigator.userAgent);
+}
+
+/**
+ * A canonical combo as the key caps someone actually presses: `Mod` reads "Ctrl", or "⌘" on
+ * an Apple keyboard, `Alt` reads "⌥" there, and `ESCAPE` reads "Esc" (BUG-085). `Mod` is how
+ * the registry stores the combo, never a key anyone can find.
+ */
+export function keyCapLabels(combo: string, apple: boolean = isApplePlatform()): readonly string[] {
+  return combo.split('+').map((token) => {
+    if (token === 'Mod') return apple ? '⌘' : 'Ctrl';
+    if (token === 'Alt') return apple ? '⌥' : 'Alt';
+
+    return KEY_CAP_LABELS[token] ?? token;
+  });
+}
+
 /* -------------------------------------------------------------------------- */
 /* Events and definitions.                                                     */
 /* -------------------------------------------------------------------------- */

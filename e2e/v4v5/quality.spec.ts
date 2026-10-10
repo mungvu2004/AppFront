@@ -120,7 +120,8 @@ test('"Tải bản vẽ khác" quay về màn tải lên của cùng dự án', 
     .click({ timeout: FIRST_PAINT_TIMEOUT_MS });
 
   await expect.poll(() => pathOf(page.url())).toBe(ROUTES.project.upload(PROJECT_ID));
-  await expect(page.getByRole('navigation', { name: 'Tải lên bản vẽ' })).toBeVisible();
+  // Breadcrumb dùng chung (BUG-079): `nav` tên "Đường dẫn trang", cấp cuối là tên màn.
+  await expect(page.getByRole('navigation', { name: 'Đường dẫn trang' })).toContainText('Tải lên bản vẽ');
 });
 
 test('vai Người xem đọc được báo cáo nhưng hai nút hành động biến khỏi màn; cụm thu phóng nói tiếng Việt (B-V1-48)', async ({

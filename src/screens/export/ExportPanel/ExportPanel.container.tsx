@@ -85,7 +85,7 @@ const SCREEN_ID = 'export-panel';
 
 const MISSING_PARAMS_TITLE = 'Thiếu mã dự án';
 const MISSING_PARAMS_MESSAGE =
-  'Đường dẫn thiếu mã dự án, nên chưa mở được màn xuất. Quay lại danh sách dự án rồi chọn lại dự án cần xuất.';
+  'Đường dẫn không mang mã dự án, nên chưa mở được màn xuất. Quay lại danh sách dự án rồi chọn lại dự án cần xuất.';
 
 /** Props thật của container — mọi thứ một màn khác cần để mở màn này (R-73). */
 export interface ExportPanelContainerProps {

@@ -1145,10 +1145,12 @@ export function useFloorUploadScreen(
   const hasUploading = rows.some((row) => row.status === 'uploading');
 
   const state = useMemo<SevenState>(() => {
-    if (isCollapsed) return 'collapsed';
-    if (!canEdit) return 'forbidden';
+    // Tải và lỗi tải thắng hai lớp phủ: thu gọn chỉ đổi cách xếp danh sách, mà
+    // chưa có danh sách thì màn hẹp phải nói lỗi chứ không vẽ vùng thả trống (BUG-072).
     if (floorsQuery.isPending) return 'loading';
     if (loadFailure !== null) return 'error';
+    if (isCollapsed) return 'collapsed';
+    if (!canEdit) return 'forbidden';
     if (!hasAnyFile) return 'empty';
     // Lỗi của MỘT tệp không bao giờ leo lên đây: nó ở lại trong `row.error`.
     // `'error'` của cả màn chỉ dành cho lượt đọc danh sách tầng hỏng.
@@ -1227,6 +1229,8 @@ export function useFloorUploadScreen(
     },
     onRemoveFile: removeFile,
     onSubmit: submit,
+    onBackToProjects:
+      options.onNavigate === undefined ? undefined : () => options.onNavigate?.(ROUTES.dashboard),
     // Lỗi của một tệp đóng lại một mình; không hàng nào khác đổi.
     onDismissError: (fileId) => patchAttachment(fileId, { problem: null }),
   };

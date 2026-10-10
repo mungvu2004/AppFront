@@ -183,7 +183,6 @@ const PROPS_BY_STATE: Readonly<Record<SevenState, () => AuthScreenViewProps>> = 
       tone: 'violation',
       title: AUTH_MESSAGES.errors.invalidCredentials.title,
       message: AUTH_MESSAGES.errors.invalidCredentials.description,
-      showResetAction: true,
     },
   }),
   success: () => ({
@@ -265,15 +264,11 @@ describe('AuthScreenView — a strip never pushes the form down (BUG-008)', () =
     expect(follows(screen.getByLabelText(AUTH_MESSAGES.fields.email), button)).toBe(true);
   });
 
-  it('keeps the reset action with the error strip, under the button', () => {
+  it('offers one way to recover from a wrong password: the "Quên mật khẩu" link, no second button (BUG-090)', () => {
     render(<AuthScreenView {...PROPS_BY_STATE.error()} />);
 
-    expect(
-      follows(
-        screen.getByRole('button', { name: AUTH_MESSAGES.actions.signIn }),
-        screen.getByRole('button', { name: AUTH_MESSAGES.actions.resetPassword }),
-      ),
-    ).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Đặt lại mật khẩu' })).toBeNull();
+    expect(screen.getAllByRole('button', { name: AUTH_MESSAGES.actions.forgotPassword })).toHaveLength(1);
   });
 
   it('puts an opening sentence under the button too, so it going away on submit moves nothing (nợ #19)', () => {
@@ -337,10 +332,21 @@ describe('AuthScreenView — a strip never pushes the form down (BUG-008)', () =
     expect(slotOf(AUTH_MESSAGES.fields.email)?.parentElement).not.toHaveClass('gap-4');
   });
 
-  it('balances a two-line complaint, so no word is left alone on the second line at 375 (BUG-057)', () => {
+  it('wraps a complaint across the full field, no lone last word, not balanced into a narrow column (BUG-057, BUG-073)', () => {
     render(<AuthScreenView {...baseProps()} problems={{ email: AUTH_MESSAGES.problems.emailTooLong }} />);
 
-    expect(screen.getByText(AUTH_MESSAGES.problems.emailTooLong)).toHaveClass('text-balance');
+    const complaint = screen.getByText(AUTH_MESSAGES.problems.emailTooLong);
+    expect(complaint).toHaveClass('text-pretty');
+    expect(complaint).not.toHaveClass('text-balance');
+  });
+
+  it('gives the text actions a 44 px target under 640 and 24 px from sm, without a bigger font (BUG-041)', () => {
+    const TARGET = ['inline-flex', 'items-center', 'min-h-[44px]', 'sm:min-h-6'];
+    const { rerender } = render(<AuthScreenView {...baseProps()} />);
+    expect(screen.getByRole('button', { name: AUTH_MESSAGES.actions.forgotPassword })).toHaveClass(...TARGET, 'text-[13px]');
+
+    rerender(<AuthScreenView {...baseProps()} panel="forgotPassword" forgot={forgotBase} />);
+    expect(screen.getByRole('button', { name: AUTH_MESSAGES.actions.backToSignIn })).toHaveClass(...TARGET, 'text-[13px]');
   });
 
   it('puts the forgot panel\'s strip and "đã gửi" block under its send button (nợ #18)', () => {
@@ -604,7 +610,7 @@ describe('AuthScreen — SSO and password reset', () => {
     expect(screen.queryByLabelText(AUTH_MESSAGES.fields.password)).toBeNull();
   });
 
-  it('offers the same panel from under the wrong-password strip', async () => {
+  it('opens the same panel from "Quên mật khẩu" after a wrong password', async () => {
     const { gateway } = stubGateway(httpFailure(UNAUTHORIZED_STATUS, 'INVALID_CREDENTIALS'));
     renderScreen({ gateway });
 
@@ -612,8 +618,8 @@ describe('AuthScreen — SSO and password reset', () => {
     type(passwordField(), PASSWORD);
     fireEvent.keyDown(passwordField(), { key: 'Enter' });
 
-    const action = await screen.findByRole('button', { name: AUTH_MESSAGES.actions.resetPassword });
-    fireEvent.click(action);
+    await screen.findByText(AUTH_MESSAGES.errors.invalidCredentials.title);
+    fireEvent.click(screen.getByRole('button', { name: AUTH_MESSAGES.actions.forgotPassword }));
 
     expect(screen.getByRole('button', { name: AUTH_MESSAGES.actions.sendResetLink })).toBeInTheDocument();
   });

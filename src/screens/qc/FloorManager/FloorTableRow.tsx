@@ -53,7 +53,7 @@ type FloorRowHandlers = Pick<
 const NEEDS_DRAWING_LABEL = 'Chưa có bản vẽ';
 const UPLOAD_LINK_LABEL = 'Tải lên';
 const COPY_FURNITURE_LABEL = 'Sao chép nội thất sang tầng mới';
-const CONFIRM_DUPLICATE_LABEL = 'nhân bản';
+const CONFIRM_DUPLICATE_LABEL = 'Nhân bản';
 
 function reorderedIds(rows: readonly FloorRowVm[], index: number, direction: -1 | 1): readonly string[] | null {
   const targetIndex = index + direction;
@@ -202,7 +202,7 @@ export function FloorTableRow({
       tabIndex={0}
     >
       {canEdit && (
-        <Table.Cell className="w-8">
+        <Table.Cell className="w-10 sm:w-8">
           <IconButton
             aria-label={`Đổi thứ tự tầng ${row.name}`}
             className="cursor-grab active:cursor-grabbing"

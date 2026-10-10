@@ -12,7 +12,7 @@
   "errors": {
     "network": {
       "title": "Mất kết nối",
-      "description": "Mất kết nối máy chủ. Kiểm tra mạng rồi thử lại."
+      "description": "Không liên lạc được với máy chủ. Kiểm tra mạng rồi thử lại."
     },
     "timeout": {
       "title": "Phản hồi chậm",
@@ -24,7 +24,7 @@
     },
     "forbidden": {
       "title": "Không có quyền",
-      "description": "Bạn không có quyền thực hiện thao tác này. Liên hệ quản trị dự án."
+      "description": "Tài khoản của bạn chưa được phép làm thao tác này. Liên hệ quản trị dự án."
     },
     "notFound": {
       "title": "Không tìm thấy",
@@ -52,11 +52,11 @@
     },
     "geometry": {
       "title": "Không dựng được hình",
-      "description": "Không dựng được hình cho {{count}} tường. Kiểm tra lại lớp tường ở tầng {{floor}}."
+      "description": "Có {{count}} tường chưa dựng được thành khối. Kiểm tra lại lớp tường ở tầng {{floor}}."
     },
     "export": {
       "title": "Xuất dữ liệu chưa xong",
-      "description": "Xuất dữ liệu chưa xong. Kiểm tra tệp đích rồi thử lại."
+      "description": "Quá trình xuất bị gián đoạn. Kiểm tra tệp đích rồi thử lại."
     },
     "unknown": {
       "title": "Có trục trặc",
@@ -126,7 +126,6 @@
       "or": "Hoặc",
       "ssoSignIn": "Đăng nhập bằng SSO công ty",
       "forgotPassword": "Quên mật khẩu",
-      "resetPassword": "Đặt lại mật khẩu",
       "showPassword": "Hiện mật khẩu",
       "hidePassword": "Ẩn mật khẩu",
       "signInWithAnotherAccount": "Đăng nhập bằng tài khoản khác"
@@ -146,7 +145,7 @@
     "errors": {
       "invalidCredentials": {
         "title": "Sai thư điện tử hoặc mật khẩu",
-        "description": "Kiểm tra lại rồi nhập mật khẩu một lần nữa. Chữ bạn đã nhập vẫn được giữ nguyên."
+        "description": "Kiểm tra lại thư điện tử và mật khẩu rồi thử lại. Thông tin bạn đã nhập vẫn được giữ."
       },
       "tooManyAttempts": {
         "title": "Đã thử quá nhiều lần",
@@ -154,10 +153,10 @@
       },
       "originMismatch": {
         "title": "Máy chủ từ chối yêu cầu",
-        "description": "Máy chủ từ chối yêu cầu gửi từ địa chỉ trang này. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống."
+        "description": "Địa chỉ của trang này không nằm trong danh sách máy chủ chấp nhận. Đây là lỗi cấu hình, không phải lỗi tài khoản — hãy báo quản trị hệ thống."
       },
       "tooManyRecovery": "Hãy đợi vài phút rồi thử lại.",
-      "recoveryFailed": "Máy chủ chưa xử lý được yêu cầu. Chữ bạn đã nhập vẫn được giữ — đợi giây lát rồi bấm gửi lại.",
+      "recoveryFailed": "Máy chủ chưa xử lý được yêu cầu. Đợi giây lát rồi bấm gửi lại — những gì đã nhập vẫn còn nguyên.",
       "validationOther": {
         "title": "Dữ liệu chưa phù hợp",
         "description": "Máy chủ chưa nhận dữ liệu đăng nhập vừa gửi. Kiểm tra lại thư điện tử và mật khẩu rồi thử lại."
@@ -177,6 +176,7 @@
       "title": "Nhận lời mời",
       "subtitle": "Đặt họ tên và mật khẩu để bắt đầu làm việc.",
       "deadEndSubtitle": "Liên kết này không mở được lời mời.",
+      "doneSubtitle": "Tài khoản của bạn đã sẵn sàng.",
       "expired": "Lời mời đã hết hạn hoặc đã được dùng. Nhờ quản trị viên gửi lại lời mời. Nếu bạn vừa đặt mật khẩu ở lượt trước, hãy đăng nhập.",
       "incomplete": "Trang này không còn mã của liên kết lời mời (trang đã được tải lại hoặc liên kết bị cắt). Hãy mở lại đúng liên kết trong thư mời, hoặc nhờ quản trị viên gửi lại lời mời.",
       "signedInWarning": "Nhận lời mời sẽ đăng xuất tài khoản đang đăng nhập.",
@@ -188,6 +188,7 @@
       "title": "Đặt lại mật khẩu",
       "subtitle": "Nhập mật khẩu mới cho tài khoản của bạn.",
       "deadEndSubtitle": "Liên kết này không đặt lại được mật khẩu.",
+      "doneSubtitle": "Mật khẩu mới đã có hiệu lực.",
       "expired": "Liên kết đã hết hạn hoặc đã được dùng. Hãy yêu cầu liên kết mới ở trang đăng nhập.",
       "incomplete": "Trang này không còn mã của liên kết đặt lại mật khẩu (trang đã được tải lại hoặc liên kết bị cắt). Hãy mở lại đúng liên kết trong thư, hoặc yêu cầu liên kết mới ở trang đăng nhập.",
       "success": "Đã đổi mật khẩu. Đang chuyển tới trang đăng nhập."
@@ -664,6 +665,10 @@
     "autoMatch": "Ghép tự động từ tên tệp — kiểm tra lại",
     "unassignedTray": "Tệp chưa gán tầng",
     "emptyState": "Chưa có tầng nào có bản vẽ. Kéo thả tệp đầu tiên để bắt đầu.",
+    "noFloors": {
+      "title": "Dự án chưa có tầng nào",
+      "description": "Bản vẽ được gán theo tầng. Thêm tầng ở màn Quản lý tầng; tệp thả vào trước đó chờ ở mục “Tệp chưa gán tầng”."
+    },
     "offlineBanner": "Đang làm việc ngoại tuyến",
     "footer": {
       "counter": "{{done}} / {{total}} tầng đã có bản vẽ",
@@ -699,9 +704,7 @@
       "current": "Kiểm tra chất lượng đầu vào"
     },
     "loadError": {
-      "title": "Không đọc được kết quả kiểm tra chất lượng",
-      "emptyTitle": "Chưa có kết quả để xem",
-      "emptyDescription": "Thử tải lại bản vẽ để hệ thống đo lại chất lượng đầu vào."
+      "title": "Không đọc được kết quả kiểm tra chất lượng"
     },
     "missingProjectTitle": "Không xác định được dự án",
     "missingProjectMessage": "Đường dẫn thiếu mã dự án, nên không biết phải mở màn kiểm tra chất lượng của dự án nào.",
@@ -824,9 +827,9 @@
       "floorChanged": "Đang xem bản vẽ tầng {{floorName}}"
     },
     "shortcut": {
-      "previousFloor": "xem bản vẽ của tầng liền trước",
-      "nextFloor": "xem bản vẽ của tầng liền sau",
-      "exitCornerMode": "thoát chế độ chọn bốn góc khung bản vẽ"
+      "previousFloor": "Xem bản vẽ của tầng liền trước",
+      "nextFloor": "Xem bản vẽ của tầng liền sau",
+      "exitCornerMode": "Thoát chế độ chọn bốn góc khung bản vẽ"
     },
     "confirm": {
       "cancel": "Huỷ",
@@ -1846,7 +1849,10 @@
   },
   "floorManager": {
     "screen": {
-      "breadcrumb": "Dự án > Quản lý tầng",
+      "breadcrumb": {
+        "projects": "Dự án",
+        "current": "Quản lý tầng"
+      },
       "title": "Quản lý tầng",
       "description": "Xem cao độ, chiều cao và tiến độ của từng tầng, rồi sắp xếp lại ngăn xếp nếu cần."
     },
@@ -3199,7 +3205,7 @@
     "loadingMore": "Đang tải thêm dữ liệu bộ luật…",
     "missingParams": {
       "title": "Thiếu mã dự án",
-      "description": "Đường dẫn thiếu mã dự án, nên chưa mở được cài đặt bộ luật. Quay lại danh sách dự án rồi chọn lại dự án cần chỉnh."
+      "description": "Đường dẫn không mang mã dự án, nên chưa mở được cài đặt bộ luật. Quay lại danh sách dự án rồi chọn lại dự án cần chỉnh."
     },
     "actions": {
       "enableRule": "Bật luật {{rule}}",
@@ -3267,7 +3273,7 @@
     "permissionCaption": "Chỉ quản trị viên và kỹ sư mới xuất được bản vẽ. Liên hệ quản trị dự án nếu bạn cần một tệp xuất.",
     "missingParams": {
       "title": "Thiếu mã dự án",
-      "description": "Đường dẫn thiếu mã dự án, nên chưa mở được màn xuất. Quay lại danh sách dự án rồi chọn lại dự án cần xuất."
+      "description": "Đường dẫn không mang mã dự án, nên chưa mở được màn xuất. Quay lại danh sách dự án rồi chọn lại dự án cần xuất."
     }
   },
   "shareDialog": {
@@ -3734,19 +3740,22 @@
       "submitLabel": "Gửi lời mời",
       "cancelLabel": "Huỷ",
       "hint": "Ngăn cách nhiều địa chỉ bằng dấu phẩy hoặc xuống dòng",
-      "invalidEmailsPrefix": "Không hợp lệ:",
-      "invalidEmailsErrorPrefix": "Chưa đọc được các địa chỉ sau:",
-      "validEmailCountSuffix": "Địa chỉ hợp lệ"
+      "invalidEmailsErrorPrefix": "Chưa đúng dạng địa chỉ thư:",
+      "formatExample": "Viết theo dạng ten@congty.vn",
+      "validEmailCountSuffix": "địa chỉ hợp lệ",
+      "needsEmail": "Nhập ít nhất một địa chỉ thư để gửi lời mời",
+      "fixInvalid": "Sửa địa chỉ chưa đúng dạng rồi mới gửi được"
     },
     "table": {
-      "headerUser": "Họ tên",
-      "headerEmail": "Email",
+      "headerUser": "Người dùng",
       "headerRole": "Vai",
       "headerProjects": "Số dự án",
       "headerLastActive": "Lần hoạt động cuối",
       "headerStatus": "Trạng thái",
       "headerActions": "Hành động",
-      "emptyMessage": "Không tìm thấy người dùng phù hợp.",
+      "noMatchTitle": "Không tìm thấy người dùng",
+      "noMatchDescription": "Không ai khớp với từ khoá hoặc bộ lọc đang chọn.",
+      "clearSearch": "Xoá tìm kiếm và bộ lọc",
       "inviteExpiredLabel": "Lời mời đã hết hạn",
       "resendInviteLabel": "Gửi lại",
       "disableUserLabel": "Vô hiệu hoá",
@@ -3763,7 +3772,7 @@
       "activitiesEmpty": "Chưa có hoạt động nào",
       "removeSectionLabel": "Xoá người dùng",
       "removeDescription": "Xoá hẳn người dùng này khỏi hệ thống.",
-      "removeButton": "Gỡ người dùng khỏi hệ thống",
+      "removeButton": "Xoá",
       "removeDialogTitle": "Xoá hẳn {{name}}?",
       "removeConfirmPrefix": "Gõ lại {{email}} để xác nhận.",
       "removeInputLabel": "Địa chỉ thư",

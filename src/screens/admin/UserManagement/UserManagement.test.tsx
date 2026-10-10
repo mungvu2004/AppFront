@@ -41,6 +41,7 @@ import {
   USER_MANAGEMENT_ACTIONS,
   USER_MANAGEMENT_SCENARIOS,
   USER_MANAGEMENT_SCENARIO_FORBIDDEN,
+  USER_MANAGEMENT_SCENARIO_PARTIAL,
   USER_MANAGEMENT_SCENARIO_SUCCESS,
   userManagementScenarioFor,
 } from './userManagementScenarios';
@@ -84,6 +85,7 @@ async function loadUserManagementView(): Promise<ComponentType<UserManagementPro
 function buildActions(overrides: Partial<UserManagementActions> = {}): UserManagementActions {
   return {
     onSearchChange: vi.fn(),
+    onClearSearch: vi.fn(),
     onRoleFilterChange: vi.fn(),
     onStatusFilterChange: vi.fn(),
     onSelectUser: vi.fn(),
@@ -344,7 +346,88 @@ describe('Lớp trên cùng (A9/A12) — lỗi B-V12b-01, B-V12b-02', () => {
     const UserManagementView = await loadUserManagementView();
     renderWithProviders(<UserManagementView actions={buildActions()} model={model} />);
 
-    expect(await screen.findByRole('dialog', { name: `xoá hẳn ${target.name}?` })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: `Xoá hẳn ${target.name}?` })).toBeInTheDocument();
+  });
+
+  it('BUG-080: hộp ma trận quyền nói tiêu đề một lần, không lặp làm chú thích', async () => {
+    const UserManagementView = await loadUserManagementView();
+    const model: UserManagementViewModel = { ...USER_MANAGEMENT_SCENARIO_SUCCESS, detail: null, isPermissionReferenceOpen: true };
+    renderWithProviders(<UserManagementView actions={buildActions()} model={model} />);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Ma trận quyền theo vai trò' });
+    expect(within(dialog).getAllByText('Ma trận quyền theo vai trò')).toHaveLength(1);
+  });
+
+  it.each([false, true])('BUG-082: tìm không thấy ai → cùng EmptyState có nút xoá tìm kiếm (isCollapsed=%s)', async (isCollapsed) => {
+    const actions = buildActions();
+    const model: UserManagementViewModel = { ...USER_MANAGEMENT_SCENARIO_SUCCESS, detail: null, isCollapsed, rows: [] };
+    const UserManagementView = await loadUserManagementView();
+    renderWithProviders(<UserManagementView actions={actions} model={model} />);
+
+    expect(await screen.findByRole('heading', { name: 'Không tìm thấy người dùng' })).toBeInTheDocument();
+    expect(screen.queryByText('Không có dữ liệu')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá tìm kiếm và bộ lọc' }));
+    expect(actions.onClearSearch).toHaveBeenCalledTimes(1);
+    // Khối không-khớp biến mất cùng nút: tiêu điểm về ô tìm, không rơi về `body` (A12).
+    expect(document.activeElement).toBe(screen.getByLabelText('Tìm người dùng'));
+  });
+
+  it('BUG-075: thẻ ở khổ hẹp không cắt email bằng "…"', async () => {
+    const model: UserManagementViewModel = { ...USER_MANAGEMENT_SCENARIO_SUCCESS, detail: null, isCollapsed: true };
+    const row = model.rows[0];
+    if (row === undefined) throw new Error('kịch bản thành công phải có ít nhất một hàng');
+    const UserManagementView = await loadUserManagementView();
+    renderWithProviders(<UserManagementView actions={buildActions()} model={model} />);
+
+    const email = await screen.findByText(row.email);
+    expect(email).not.toHaveClass('truncate');
+  });
+
+  it('BUG-071: câu lý do bị chặn chỉ giới hạn 160 px ở bảng (lg), thẻ hẹp dùng hết bề ngang', async () => {
+    const model: UserManagementViewModel = { ...USER_MANAGEMENT_SCENARIO_SUCCESS, detail: null, isCollapsed: true };
+    const row = requireRow(model, (candidate) => candidate.removeBlockedReason !== null, 'một hàng có removeBlockedReason');
+    const UserManagementView = await loadUserManagementView();
+    renderWithProviders(<UserManagementView actions={buildActions()} model={model} />);
+
+    const reason = (await screen.findAllByText(row.removeBlockedReason ?? '')).find((node) => node.tagName === 'SPAN');
+    expect(reason).toHaveClass('lg:max-w-40');
+    expect(reason).not.toHaveClass('max-w-40');
+  });
+
+  it('BUG-071: panel chi tiết mở thì bảng bỏ cột phụ, gộp trạng thái vào ô người dùng', async () => {
+    const row = USER_MANAGEMENT_SCENARIO_SUCCESS.rows[0];
+    if (row === undefined) throw new Error('kịch bản thành công phải có ít nhất một hàng');
+    const UserManagementView = await loadUserManagementView();
+    const closed: UserManagementViewModel = { ...USER_MANAGEMENT_SCENARIO_SUCCESS, detail: null, isCollapsed: false, selectedUserId: null };
+    const { unmount } = renderWithProviders(<UserManagementView actions={buildActions()} model={closed} />);
+    expect(await screen.findAllByRole('columnheader')).toHaveLength(6);
+    unmount();
+
+    renderWithProviders(
+      <UserManagementView actions={buildActions()} model={{ ...closed, selectedUserId: row.id }} />,
+    );
+    const headers = await screen.findAllByRole('columnheader');
+    expect(headers.map((header) => header.textContent)).toEqual(['Người dùng', 'Vai', 'Hành động']);
+  });
+
+  it('BUG-076: nút hàng viết hoa chữ đầu (A6), không còn "xoá" viết thường', async () => {
+    const UserManagementView = await loadUserManagementView();
+    renderWithProviders(<UserManagementView actions={buildActions()} model={USER_MANAGEMENT_SCENARIO_SUCCESS} />);
+
+    expect((await screen.findAllByRole('button', { name: 'Xoá' })).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: 'xoá' })).toBeNull();
+  });
+
+  it('BUG-077: link "Gửi lại" lời mời có vùng chạm 44 px dưới 640, 24 px từ đó, ở cả bảng lẫn thẻ', async () => {
+    const UserManagementView = await loadUserManagementView();
+    for (const isCollapsed of [false, true]) {
+      const model: UserManagementViewModel = { ...USER_MANAGEMENT_SCENARIO_PARTIAL, detail: null, isCollapsed };
+      const { unmount } = renderWithProviders(<UserManagementView actions={buildActions()} model={model} />);
+      const links = await screen.findAllByRole('button', { name: 'Gửi lại' });
+      for (const link of links) expect(link).toHaveClass('inline-flex', 'min-h-[44px]', 'sm:min-h-6');
+      expect(screen.queryByRole('button', { name: 'gửi lại' })).toBeNull();
+      unmount();
+    }
   });
 
   it('Esc đóng khối mời khi nó đang mở', async () => {
@@ -414,6 +497,9 @@ describe('Ô mời (Đ-8/mục 2.5 types.ts): nhận dấu phẩy/xuống dòng,
         rawEmails: 'an@vi-du.vn, khong-hop-le',
         validEmails: ['an@vi-du.vn'],
         invalidEmails: ['khong-hop-le'],
+        canSubmit: false,
+        errorLabel: 'Chưa đúng dạng địa chỉ thư: khong-hop-le. Viết theo dạng ten@congty.vn',
+        submitBlockedReason: 'Sửa địa chỉ chưa đúng dạng rồi mới gửi được',
       },
     };
 
@@ -434,6 +520,33 @@ describe('Ô mời (Đ-8/mục 2.5 types.ts): nhận dấu phẩy/xuống dòng,
 
       expect(shown.length, 'địa chỉ hỏng phải hiện ngoài ô nhập').toBeGreaterThan(0);
     });
+  });
+
+  it('BUG-083: địa chỉ hỏng nói đúng một lần kèm dạng đúng; chip ẩn khi 0; nút khoá có lý do', async () => {
+    const model: UserManagementViewModel = {
+      ...USER_MANAGEMENT_SCENARIO_SUCCESS,
+      invite: {
+        ...USER_MANAGEMENT_SCENARIO_SUCCESS.invite,
+        isOpen: true,
+        rawEmails: 'khong-hop-le',
+        validEmails: [],
+        invalidEmails: ['khong-hop-le'],
+        canSubmit: false,
+        errorLabel: 'Chưa đúng dạng địa chỉ thư: khong-hop-le. Viết theo dạng ten@congty.vn',
+        submitBlockedReason: 'Sửa địa chỉ chưa đúng dạng rồi mới gửi được',
+      },
+    };
+
+    const UserManagementView = await loadUserManagementView();
+    renderWithProviders(<UserManagementView actions={USER_MANAGEMENT_ACTIONS} model={model} />);
+
+    const shown = (await screen.findAllByText(/khong-hop-le/iu)).filter((node) => node.tagName !== 'TEXTAREA');
+    expect(shown).toHaveLength(1);
+    expect(shown[0]).toHaveTextContent('ten@congty.vn');
+    expect(screen.queryByText(/hợp lệ$/iu)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Gửi lời mời' })).toHaveAccessibleDescription(
+      'Sửa địa chỉ chưa đúng dạng rồi mới gửi được',
+    );
   });
 });
 

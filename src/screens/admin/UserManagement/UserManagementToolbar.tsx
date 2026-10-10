@@ -34,13 +34,13 @@ const INVITE_EMAILS_LABEL = 'Email người được mời';
 const INVITE_EMAILS_PLACEHOLDER = 'Nhập email, cách nhau bằng dấu phẩy hoặc xuống dòng...';
 const INVITE_SUBMIT_LABEL = 'Gửi lời mời';
 const INVITE_CANCEL_LABEL = 'Huỷ';
-const INVALID_EMAILS_PREFIX = 'Không hợp lệ:';
-const VALID_EMAIL_COUNT_SUFFIX = 'Địa chỉ hợp lệ';
+const VALID_EMAIL_COUNT_SUFFIX = 'địa chỉ hợp lệ';
+const SUBMIT_BLOCKED_REASON_ID = 'user-invite-submit-blocked-reason';
 const SUMMARY_USER_LABEL = 'Người dùng';
 const SUMMARY_ADMIN_LABEL = 'Quản trị';
 const SUMMARY_PENDING_LABEL = 'Lời mời đang chờ';
 
-export function UserManagementToolbar({ actions, invite, summary, toolbar }: UserManagementToolbarProps) {
+export function UserManagementToolbar({ actions, invite, searchRef, summary, toolbar }: UserManagementToolbarProps) {
   const roleFilterOptions = [
     { label: ALL_OPTION_LABEL, value: FILTER_ALL as string },
     ...toolbar.roleOptions.map((option) => ({ label: option.label, value: option.role as string })),
@@ -56,6 +56,7 @@ export function UserManagementToolbar({ actions, invite, summary, toolbar }: Use
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-wrap items-end gap-4">
           <Input
+            ref={searchRef}
             className="w-[240px]"
             label={SEARCH_LABEL}
             onChange={(event) => actions.onSearchChange(event.target.value)}
@@ -119,16 +120,12 @@ export function UserManagementToolbar({ actions, invite, summary, toolbar }: Use
             {...(invite.errorLabel !== null ? { error: invite.errorLabel } : {})}
           />
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="neutral">
+          {/* BUG-083: địa chỉ sai chỉ nói một lần (lỗi của ô nhập); chip chỉ đếm khi có gì để đếm. */}
+          {invite.validEmails.length > 0 && (
+            <Badge className="w-fit" variant="neutral">
               {invite.validEmails.length} {VALID_EMAIL_COUNT_SUFFIX}
             </Badge>
-            {invite.invalidEmails.length > 0 && (
-              <p className="text-[13px] text-text-secondary">
-                {INVALID_EMAILS_PREFIX} {invite.invalidEmails.join(', ')}
-              </p>
-            )}
-          </div>
+          )}
 
           <div className="flex flex-wrap items-end gap-4">
             <Select
@@ -140,6 +137,7 @@ export function UserManagementToolbar({ actions, invite, summary, toolbar }: Use
             />
             <div className="flex items-center gap-2">
               <Button
+                {...(invite.submitBlockedReason !== null ? { 'aria-describedby': SUBMIT_BLOCKED_REASON_ID } : {})}
                 disabled={!invite.canSubmit}
                 iconBefore={<Send aria-hidden="true" size={16} />}
                 loading={invite.isSubmitting}
@@ -153,6 +151,11 @@ export function UserManagementToolbar({ actions, invite, summary, toolbar }: Use
               </Button>
             </div>
           </div>
+          {invite.submitBlockedReason !== null && !invite.isSubmitting && (
+            <p className="text-[13px] text-text-secondary" id={SUBMIT_BLOCKED_REASON_ID}>
+              {invite.submitBlockedReason}
+            </p>
+          )}
         </div>
       )}
     </div>

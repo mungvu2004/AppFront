@@ -27,6 +27,7 @@
  */
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { BACK_TO_PROJECTS_LABEL } from '@/components/feedback/ProjectSpatialGate';
 import { SaveIndicator } from '@/components/feedback/SaveIndicator';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { Toast, useToast } from '@/components/feedback/Toast';
@@ -58,13 +59,13 @@ import {
  * dùng thật sự nghe.
  */
 const STATE_LABELS: Readonly<Record<SevenState, string>> = {
-  empty: 'rỗng',
-  loading: 'đang tải',
-  partial: 'một phần',
-  error: 'lỗi',
-  success: 'thành công',
+  empty: 'Rỗng',
+  loading: 'Đang tải',
+  partial: 'Một phần',
+  error: 'Lỗi',
+  success: 'Thành công',
   forbidden: 'Không có quyền',
-  collapsed: 'thu gọn',
+  collapsed: 'Thu gọn',
 };
 
 const TAB_GROUP_LABEL = 'Nhóm cài đặt';
@@ -73,6 +74,15 @@ const TAB_GROUP_LABEL = 'Nhóm cài đặt';
 export function ProjectSettingsView(props: ProjectSettingsViewProps) {
   const { state } = props;
   const isCollapsed = state === 'collapsed';
+  // Lỗi tải thì không có gì để lưu: viên "Chưa có thay đổi" tích xanh đọc như "ổn" (BUG-078).
+  const showSaveIndicator = state !== 'error';
+  // 404 thì thử lại vô ích — lối ra là danh sách dự án; lỗi khác chỉ có "Thử lại" khi thử lại được.
+  const loadErrorAction =
+    props.isProjectMissing && props.backToProjects !== null
+      ? { label: BACK_TO_PROJECTS_LABEL, onClick: props.backToProjects, variant: 'secondary' as const }
+      : props.canRetryLoad
+        ? { label: 'Thử lại', onClick: props.retryLoad, variant: 'secondary' as const }
+        : null;
   const selectTab = (value: string): void => props.setActiveTab(value as ProjectSettingsTabId);
 
   return (
@@ -85,7 +95,7 @@ export function ProjectSettingsView(props: ProjectSettingsViewProps) {
               Thông tin chung, đơn vị đo, thành viên và hai việc không hoàn tác được.
             </p>
           </div>
-          <SaveIndicator saveState={props.saveState} label={props.saveLabel} />
+          {showSaveIndicator && <SaveIndicator saveState={props.saveState} label={props.saveLabel} />}
         </header>
 
         {props.isReadOnly && (
@@ -112,7 +122,7 @@ export function ProjectSettingsView(props: ProjectSettingsViewProps) {
             level="violation"
             title="Không tải được cài đặt dự án"
             message={props.errorMessage ?? ''}
-            action={{ label: 'Thử lại', onClick: props.retryLoad, variant: 'secondary' }}
+            {...(loadErrorAction !== null ? { action: loadErrorAction } : {})}
           />
         ) : state === 'loading' ? (
           <Skeleton preset="property-panel" />
@@ -155,7 +165,7 @@ export function ProjectSettingsView(props: ProjectSettingsViewProps) {
         )}
 
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border-default pt-4">
-          <SaveIndicator saveState={props.saveState} label={props.saveLabel} />
+          {showSaveIndicator && <SaveIndicator saveState={props.saveState} label={props.saveLabel} />}
           <span className="text-[13px] text-text-secondary">Trạng thái: {STATE_LABELS[state]}</span>
         </footer>
       </div>

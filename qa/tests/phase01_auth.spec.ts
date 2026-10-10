@@ -28,7 +28,7 @@ import { EMAIL_LABEL, PASSWORD_LABEL, SIGN_IN_LABEL } from '../../e2e/fixtures/s
 import { waitForApiWhere, watchApi } from '../../e2e/fullstack/apiWatch';
 import type { ApiEntry } from '../../e2e/fullstack/apiWatch';
 import { readBaseUrl } from '../../e2e/fullstack/env';
-import { readAdminCredentials } from './support/auth';
+import { dashboardLoaded, readAdminCredentials } from './support/auth';
 import { attachJson, captureEvidence } from './support/evidence';
 import { ADMIN_STORAGE_STATE_FILE, resetState, updateState } from './support/state';
 
@@ -49,7 +49,6 @@ const PARTIAL_NOTICE = 'Đã có thư điện tử, còn thiếu mật khẩu.';
 const SHOW_PASSWORD = 'Hiện mật khẩu';
 const HIDE_PASSWORD = 'Ẩn mật khẩu';
 const INVALID_CREDENTIALS_TITLE = 'Sai thư điện tử hoặc mật khẩu';
-const RESET_PASSWORD_ACTION = 'Đặt lại mật khẩu';
 const FORGOT_PASSWORD = 'Quên mật khẩu';
 const BACK_TO_SIGN_IN = 'Quay lại đăng nhập';
 const SSO_SIGN_IN = 'Đăng nhập bằng SSO công ty'; // vi.json:127 — asserted ABSENT (BUG-002)
@@ -252,8 +251,9 @@ test.describe('SCR-01 Session gate', () => {
     await expect.poll(() => pathOf(page.url())).toBe(loginUrl(GATED_PATH));
     expect(loginUrl(GATED_PATH)).toBe('/login?next=%2Fprojects%2Fx%2Ffloors');
     await expect(h1(page, SIGN_IN_LABEL)).toBeVisible();
-    await attachJson('01_gate_redirect.json', { gatedPath: GATED_PATH, landedUrl: pathOf(page.url()) }); // BUG-034: URL not in the shot
-    await captureEvidence(page, '01_gate_redirect.png');
+    await attachJson('01_gate_redirect.json', { gatedPath: GATED_PATH, landedUrl: pathOf(page.url()) });
+    // The URL is written on the shot (BUG-034); the hero canvas is awaited by captureEvidence (BUG-061).
+    await captureEvidence(page, '01_gate_redirect.png', { caption: `requested ${GATED_PATH} → ${pathOf(page.url())}` });
   });
 });
 
@@ -301,7 +301,7 @@ test.describe('SCR-02 Login', () => {
     await expect(button(page, SHOW_PASSWORD)).toBeVisible();
   });
 
-  test('SCR-02 · ONE wrong password → "Sai thư điện tử hoặc mật khẩu" + "Đặt lại mật khẩu"', async () => {
+  test('SCR-02 · ONE wrong password → "Sai thư điện tử hoặc mật khẩu" + "Quên mật khẩu" (BUG-090)', async () => {
     // Exactly one attempt: the server locks the address out with a 429 after repeated failures.
     const { email, password } = readAdminCredentials();
 
@@ -317,7 +317,8 @@ test.describe('SCR-02 Login', () => {
     // `AuthScreen.container.tsx`: "on ENDPOINTS.auth.login a 401 *is* the answer".
     expect((await login).status(), `POST ${LOGIN_API} with a wrong password`).toBe(401);
     await expect(page.getByText(INVALID_CREDENTIALS_TITLE, { exact: true })).toBeVisible();
-    await expect(button(page, RESET_PASSWORD_ACTION)).toBeVisible();
+    // BUG-090: no recovery button inside the strip; the form's "Quên mật khẩu" stays the one route.
+    await expect(button(page, FORGOT_PASSWORD)).toBeVisible();
     await expect(authMain(page, 'error')).toBeVisible();
     await captureEvidence(page, '02_login_wrong.png');
   });
@@ -370,8 +371,9 @@ test.describe('SCR-02 Login', () => {
     await submitAdminCredentials(page, api);
 
     await expect.poll(() => pathOf(page.url())).toBe(ROUTES.dashboard);
-    // The URL flips before the lazy screen paints; capture the dashboard, not the "Đang tải màn hình" shell.
-    await expect(h1(page, DASHBOARD_TITLE)).toBeVisible();
+    // The URL flips before the lazy screen paints, and the h1 before the list: capture the loaded dashboard,
+    // not the "Đang tải màn hình" shell nor the skeleton cards (BUG-089).
+    await dashboardLoaded(page);
     await captureEvidence(page, '02_login_submitted.png');
 
     const cookie = await refreshCookie(context);
@@ -429,7 +431,9 @@ test.describe('SCR-02 Login', () => {
       landed[next] = page.url();
     }
     await attachJson('02_login_next_open_redirect.json', { appOrigin, landedUrlByNext: landed }); // BUG-034
-    await captureEvidence(page, '02_login_next_open_redirect.png');
+    await captureEvidence(page, '02_login_next_open_redirect.png', {
+      caption: Object.entries(landed).map(([next, url]) => `next=${next} → ${url}`),
+    }); // BUG-034
     await persistSession(context);
   });
 

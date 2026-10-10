@@ -110,7 +110,7 @@ import { describeError, toAppError } from '@/lib/errors';
 import { formatArea, formatDrawingScaleRatio, formatLength, formatScaleDensity } from '@/lib/format/measure';
 import { formatNumber, formatPercent, MISSING_VALUE } from '@/lib/format/number';
 import { CONFIDENCE_SUGGESTED_THRESHOLD } from '@/lib/format/semantic';
-import { formatCombo, parseCombo } from '@/lib/input/shortcutRegistry';
+import { formatCombo, keyCapLabels, parseCombo } from '@/lib/input/shortcutRegistry';
 import { MODIFIER_SHORTCUTS } from '@/lib/tools/shortcuts';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { provisionalScaleNoticeOf } from '@/lib/viewmodel/provisionalScale';
@@ -1606,7 +1606,8 @@ export function useScaleCalibration(
       ] as const
     ).map(([id, combo, description]) => ({
       id,
-      comboLabel: formatCombo(parseCombo(combo)),
+      // Mặt phím người ta bấm ("Esc", "←"), không phải cách registry lưu ("ESCAPE") — BUG-085.
+      comboLabel: keyCapLabels(formatCombo(parseCombo(combo))).join(' + '),
       description,
     }));
 

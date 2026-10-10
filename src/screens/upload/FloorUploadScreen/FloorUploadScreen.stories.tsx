@@ -335,7 +335,7 @@ export function scenarioFor(state: SevenState): FloorUploadScreenViewProps {
 
     case 'error':
       return modelOf('error', [], {
-        errorMessage: 'Mất kết nối máy chủ. Kiểm tra mạng rồi thử lại.',
+        errorMessage: 'Không liên lạc được với máy chủ. Kiểm tra mạng rồi thử lại.',
       });
 
     case 'success':
