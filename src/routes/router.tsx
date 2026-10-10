@@ -16,6 +16,7 @@ import {
 import { useStore } from '@/store';
 
 import { ROUTE_PATTERNS } from './paths';
+import { RouteErrorScreen } from './RouteErrorScreen';
 import { PendingShell, SessionBootstrap } from './SessionBootstrap';
 
 /**
@@ -330,6 +331,7 @@ export function UndoShortcuts({ children }: { children: React.ReactNode }): Reac
 /** Bảng route — xuất riêng để bài kiểm dựng nó trên `createMemoryRouter`. */
 export const routes: RouteObject[] = [
   {
+    errorElement: <RouteErrorScreen />,
     element: (
       <SessionBootstrap>
         <UndoShortcuts>
