@@ -316,7 +316,8 @@ test.describe('A01 POST /api/auth/login — body rules (SignInBody, BE:apps/api/
     const api = await newApiContext();
     try {
       const raw = '{"email":';
-      const res = await api.post('/api/auth/login', { data: raw, headers: { 'Content-Type': 'application/json' } });
+      // A string `data` with a JSON content type is JSON-encoded again by Playwright (a valid JSON string → 422); send raw bytes.
+      const res = await api.post('/api/auth/login', { data: Buffer.from(raw), headers: { 'Content-Type': 'application/json' } });
       await captureExchange('A01_login_400_malformed_json.json', { method: 'POST', path: '/api/auth/login', body: raw }, res, [
         'truncated JSON body → 400 code MALFORMED_JSON, body keys exactly {code, requestId}',
       ]);
