@@ -52,7 +52,7 @@ const ROW_HEIGHT = 'h-12';
  */
 const WRAP_CELL = cn(ROW_HEIGHT, 'whitespace-normal');
 // Trần 160 px chỉ cho cột hành động của bảng (≥ 1024); trong thẻ hẹp câu lý do dùng hết bề ngang (review-1).
-const BLOCKED_REASON_CLASS = 'text-[13px] text-text-secondary lg:max-w-[160px]';
+const BLOCKED_REASON_CLASS = 'text-[13px] text-text-secondary lg:max-w-40';
 const FOCUS_RING =
   'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 

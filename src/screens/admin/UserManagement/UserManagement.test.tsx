@@ -390,8 +390,8 @@ describe('Lớp trên cùng (A9/A12) — lỗi B-V12b-01, B-V12b-02', () => {
     renderWithProviders(<UserManagementView actions={buildActions()} model={model} />);
 
     const reason = (await screen.findAllByText(row.removeBlockedReason ?? '')).find((node) => node.tagName === 'SPAN');
-    expect(reason).toHaveClass('lg:max-w-[160px]');
-    expect(reason).not.toHaveClass('max-w-[160px]');
+    expect(reason).toHaveClass('lg:max-w-40');
+    expect(reason).not.toHaveClass('max-w-40');
   });
 
   it('BUG-071: panel chi tiết mở thì bảng bỏ cột phụ, gộp trạng thái vào ô người dùng', async () => {

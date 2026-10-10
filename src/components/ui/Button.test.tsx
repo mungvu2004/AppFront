@@ -101,7 +101,6 @@ describe('Button', () => {
     const primaryKbd = screen.getByRole('button', { name: /Dự án mới/u }).querySelector('span.absolute kbd');
     const secondaryKbd = screen.getByRole('button', { name: /Xuất/u }).querySelector('span.absolute kbd');
 
-    expect(primaryKbd).toHaveClass('text-current');
     expect(primaryKbd).not.toHaveClass('text-text-muted');
     expect(secondaryKbd).toHaveClass('text-text-muted');
   });

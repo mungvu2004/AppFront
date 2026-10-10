@@ -101,7 +101,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
               )}
               {shortcut && !loading && (
                 // Trên nền nhấn, chữ muted gần như vô hình: theo màu chữ của nút (BUG-088).
-                <kbd className={`text-[13px] font-mono ${variant === 'primary' ? 'text-current' : 'text-text-muted'}`}>
+                <kbd className={`text-[13px] font-mono ${variant === 'primary' ? '' : 'text-text-muted'}`}>
                   {shortcut}
                 </kbd>
               )}
