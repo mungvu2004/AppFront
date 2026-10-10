@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import os from 'os';
 import path from 'path';
 
 /**
@@ -39,6 +40,20 @@ const PASCAL_ENV_DEFINES = {
   'process.env.NEXT_PUBLIC_ASSETS_CDN_URL': '"/pascal"',
 };
 
+/**
+ * Trần luồng theo RAM trống lúc khởi chạy, không cố định 8. Đo 2026-10-11:
+ * `src/screens` với 4 luồng đỉnh ~5,5 GB tiến trình node → ~1,3 GB mỗi luồng
+ * (jsdom/happy-dom + React + bản dựng module riêng của luồng). 8 luồng cố
+ * định cần ~10 GB; máy 24 GB đang chạy Docker + vài phiên agent thường chỉ
+ * trống 5–7 GB, và Claude Code dừng lệnh nền khi RAM cạn (PERF-01 fe-verify2).
+ * Chừa 3 GB cho hệ thống, phần còn lại chia 1,3 GB/luồng, kẹp trong [2, 8].
+ * `--maxWorkers` trên dòng lệnh vẫn thắng.
+ */
+const MB = 1024 * 1024;
+const THREAD_MB = 1300;
+const RESERVE_MB = 3000;
+const MAX_THREADS = Math.max(2, Math.min(8, Math.floor((os.freemem() / MB - RESERVE_MB) / THREAD_MB)));
+
 export default defineConfig({
   plugins: [react()],
   define: PASCAL_ENV_DEFINES,
@@ -52,7 +67,7 @@ export default defineConfig({
      * `pnpm test`; khối `coverage` không chạm (coverage + threads từng sập,
      * nghi hết bộ nhớ — FE-10 lo).
      *
-     * `maxThreads: 8`: máy đo có 12 lõi logic (`os.cpus().length`). `pnpm
+     * Trần 8 (khi RAM đủ, xem `MAX_THREADS`): máy đo có 12 lõi logic (`os.cpus().length`). `pnpm
      * verify` chạy toàn bộ trên mọi lõi cùng lúc và **thường có agent khác
      * chạy song song** (đã nói ở chú thích `testTimeout` dưới) — để trần ở
      * 8 chứ không phải 12 là chừa ~4 lõi cho IDE/dev server/agent khác, cùng
@@ -62,7 +77,7 @@ export default defineConfig({
     pool: 'threads',
     poolOptions: {
       threads: {
-        maxThreads: 8,
+        maxThreads: MAX_THREADS,
         minThreads: 1,
       },
     },
