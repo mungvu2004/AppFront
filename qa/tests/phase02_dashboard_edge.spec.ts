@@ -107,7 +107,8 @@ const STATE_RE = /^(rỗng|đang tải|một phần|lỗi|thành công|Không c�
 
 /* SCR-05 dashboard copy. */
 const MENU_LABEL = 'Tuỳ chọn'; // CM:102 (NOT "Tùy chọn": tone-mark placement changed in c6e6b126)
-const RENAME_RANGE_MESSAGE = 'Tên dự án cần từ 3 đến 80 ký tự.'; // UPD:198, LIM:22-23
+const RENAME_RANGE_MESSAGE = 'Tên dự án cần từ 3 đến 80 ký tự.'; // UPD:198, LIM:22-23 (FE length check, before any request)
+const RENAME_CHARS_MESSAGE = 'Tên dự án có ký tự không dùng được, như ký tự điều khiển hoặc ký tự đảo chiều chữ. Tên cũ đã được giữ lại.'; // useProjectDashboard.ts (BUG-168: server 422 on control / bidi characters)
 const RENAME_GONE = 'Dự án này không còn nữa.'; // UPD:208
 const RENAME_FORBIDDEN = 'Bạn không có quyền đổi tên dự án này.'; // UPD:205-206
 const RENAME_FAILED = 'Không đổi được tên dự án. Hãy thử lại.'; // UPD:209-210 (any other code, or none)
@@ -142,14 +143,14 @@ const NAME_REQUIRED = 'Chưa nhập tên dự án.'; // UCPM:145
 const NAME_TOO_SHORT = 'Tên dự án cần ít nhất 3 ký tự.'; // UCPM:148, LIM:22
 const CODE_HINT = 'Tự tạo từ tên, sửa được'; // CPM:114
 const DISCARD_TITLE = 'Đóng và bỏ các thay đổi chưa lưu?'; // CPM:252
-const DISCARD_HINT = 'Nhấn Esc lần nữa, hoặc bấm nút bên cạnh, để xác nhận đóng.'; // CPM:253
+const DISCARD_HINT = 'Nhấn Esc lần nữa hoặc bấm "Đóng, bỏ thay đổi" để đóng.'; // CPM:253
 const DISCARD_ACTION = 'Đóng, bỏ thay đổi'; // CPM:254
 const CLOSE_DIALOG = 'Đóng hộp thoại'; // MOD:167
 const HEIGHT_MISSING = 'Chưa nhập chiều cao thông thuỷ.'; // UCPM:113
 const CHAIN_BROKEN = 'Chưa tính được cao độ vì tầng bên dưới còn thiếu chiều cao hợp lệ.'; // UCPM:235
 const ELEVATION_LIMIT = /^Cao độ vượt giới hạn cho phép \([-−]30 đến 300 mét\)\.$/u; // UCPM:131-132, LIM:30-31
-const NUMERIC_MIN = 'Giá trị phải >= 2'; // NF:43, LIM:34 (SF:98,134 pass min)
-const NUMERIC_MAX = 'Giá trị phải <= 10'; // NF:44, LIM:35
+const NUMERIC_MIN = 'Giá trị không nhỏ hơn 2 m.'; // NF:43, LIM:34 (SF:98,134 pass min)
+const NUMERIC_MAX = 'Giá trị không quá 10 m.'; // NF:44, LIM:35
 const APPLY_LABEL = 'Chiều cao áp cho mọi tầng'; // SF:131
 const APPLY_ALL = 'Áp cho mọi tầng'; // SF:145
 const ADD_FLOOR = 'Thêm tầng'; // SF:63,127
@@ -157,7 +158,8 @@ const BASEMENT_TOGGLE = 'Có tầng hầm'; // SF:38
 const BASEMENT_NAME = 'Tầng hầm'; // UCPM:602
 const NO_FLOORS = 'Chưa có tầng nào'; // SF:61
 const NO_FLOORS_HINT = 'Thêm ít nhất một tầng để sang bước xem lại.'; // SF:62
-const VALIDATION_DESCRIPTION = 'Kiểm tra lại các trường được đánh dấu rồi thử lại.'; // src/i18n/vi.json:39 (errors.validation)
+const VALIDATION_DESCRIPTION = 'Kiểm tra lại các trường được đánh dấu rồi thử lại.'; // src/i18n/vi.json errors.validation (the wizard shows it only for a 422 that names no field)
+const CODE_TOO_LONG = 'Mã dự án không quá 32 ký tự.'; // vi.json project.createModal.problems.codeTooLong
 const NETWORK_DESCRIPTION = 'Không liên lạc được với máy chủ. Kiểm tra mạng rồi thử lại.'; // src/i18n/vi.json:15 (errors.network)
 const FLOOR_COUNT_MAX = 50; // LIM:27
 
@@ -167,8 +169,11 @@ const MARK_ALL_READ = 'Đánh dấu tất cả đã đọc'; // NC:55
 const NOTIF_SETTINGS = 'Mở cài đặt thông báo'; // NC:57
 const NOTIF_FILTER = 'Lọc thông báo'; // NC:58
 const VIEW_ALL = 'Xem tất cả'; // NC:59
-const NOTIF_EMPTY = 'Không có thông báo mới'; // NC:64
-const NOTIF_PARTIAL = 'Có thể chưa cập nhật'; // NC:66
+const NOTIF_EMPTY = 'Không có thông báo mới'; // NotificationCenter.tsx EMPTY_COPY.all
+const NOTIF_PARTIAL = 'Có thể chưa cập nhật'; // NotificationCenter.tsx PARTIAL_NOTICE (a failed write; a filter with no match is no longer "partial", BUG-179)
+/** One empty-state sentence per tab (BUG-126), with "Hiện mọi thông báo" on the two filtered ones. */
+const NOTIF_EMPTY_BY_FILTER = { all: NOTIF_EMPTY, unread: 'Không có thông báo chưa đọc', mentions: 'Chưa có ai nhắc đến bạn' } as const;
+const NOTIF_SHOW_EVERYTHING = 'Hiện mọi thông báo';
 const NOTIF_ERROR_TITLE = 'Không tải được thông báo'; // NC:68
 const NOTIF_FILTERS = { all: 'Tất cả', unread: 'Chưa đọc', mentions: 'Nhắc đến tôi' } as const; // NM:114-118
 const MENTION_ACTION = 'Xem bình luận'; // NCG:181 (the only kind filtered by "Nhắc đến tôi", UNC:331-332)
@@ -324,13 +329,13 @@ const toastWith = (page: Page, text: string): Locator => page.getByRole('status'
 const statusFilterButton = (page: Page, label: string): Locator =>
   page.getByRole('button', { name: new RegExp(`^${escapeRegExp(label)}\\s*\\d+$`, 'u') });
 const stateAnnouncement = (scope: Page | Locator): Locator => scope.getByRole('status').filter({ hasText: STATE_RE });
-const countLine = (page: Page): Locator => page.getByText(/^\d+ dự án$/u); // PD:199-201
+const countLine = (page: Page): Locator => page.getByText(/^\d+ dự án$/u); // PD:187
 const sortCombobox = (page: Page, current: string): Locator => page.getByRole('combobox').filter({ hasText: current }); // PD:204-209
 const viewMode = (page: Page): Locator => page.getByRole('radiogroup', { name: 'Kiểu xem', exact: true }); // PD:210-218
 /** Sidebar stat card value: the number span right before its label (DS:44-57). */
 const statValue = (page: Page, label: string): Locator =>
   page.locator('aside > div').first().getByText(label, { exact: true }).locator('xpath=preceding-sibling::span[1]');
-/** Table view rows (PD:291-314); `thead th` because a `<th>` without `scope` is no columnheader for PW 1.45.2 (BUG-115). */
+/** Table view rows (PD:291-314); `thead th` (BUG-115 fixed: `th` now has scope="col", so getByRole('columnheader') would find the same cells). */
 const tableRows = (page: Page): Locator => page.getByRole('main').locator('tbody tr');
 const tableHeads = (page: Page): Locator => page.getByRole('main').locator('thead th');
 const tableRow = (page: Page, name: string): Locator =>
@@ -665,7 +670,7 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
       const list = await reloadDashboard(page);
       const counts = countsOf(list); // UPD:339-350
 
-      await expect(page.getByText(`${String(counts.all)} dự án`, { exact: true })).toBeVisible(); // PD:199-201
+      await expect(page.getByText(`${String(counts.all)} dự án`, { exact: true })).toBeVisible(); // PD:187
       for (const key of ['all', 'done', 'qc', 'processing'] as const) {
         await expect(statValue(page, STATS[key]), `stat card "${STATS[key]}"`).toHaveText(String(counts[key])); // DS:44-57
         await expect(statusFilterButton(page, FILTERS[key])).toHaveText(endsWithCount(counts[key])); // BUG-140
@@ -902,24 +907,24 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
     });
   });
 
-  test('E02 · SCR-05 rename with a bidi control character: server 422, toast "Tên dự án cần từ 3 đến 80 ký tự.", old name back', async ({ browser }) => {
+  test('E02 · SCR-05 rename with a bidi control character: server 422, toast "Tên dự án có ký tự không dùng được…", old name back', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const project = await createProject(admin, 'bidi');
       await reloadDashboard(page);
 
-      // BE:apps/api/projects/schemas.py:30-38 rejects bidi marks → 422 VALIDATION; FE maps it (UPD:201-204) and
-      // puts the old name back (UPD:416-420).
-      const bidi = 'qa‮edge';
+      // BE:apps/api/projects/schemas.py:30-38 rejects bidi marks → 422 VALIDATION; the FE maps it to the characters
+      // message (BUG-168; the length is checked before sending, so this is not the length copy) and puts the old name back.
+      const bidi = 'qa\u202Eedge';
       const input = await startRename(page, project.name);
       await input.fill(bidi);
       const rejected = waitForApi(page, 'PATCH', projectPathRe(project.id), [422]);
       await input.press('Enter');
       const { json } = await rejected;
-      await expect(toastWith(page, RENAME_RANGE_MESSAGE)).toBeVisible();
+      await expect(toastWith(page, RENAME_CHARS_MESSAGE)).toBeVisible();
       await expect(projectCard(page, project.name)).toBeVisible();
       await expect(projectCard(page, bidi)).toHaveCount(0);
-      await captureEvidence(page, 'E02_rename_bidi_422.png', { caption: 'PATCH name "qa\\u202Eedge" → 422; toast = length copy; old name restored' });
+      await captureEvidence(page, 'E02_rename_bidi_422.png', { caption: 'PATCH name "qa\\u202Eedge" → 422; toast = characters copy; old name restored' });
       await attachJson('E02_rename_bidi_422.json', { status: 422, body: json as unknown });
     });
   });
@@ -1019,10 +1024,10 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
       });
       await page.reload({ waitUntil: 'commit' });
       await expect(dashboardHeading(page)).toBeVisible();
-      await expect(stateAnnouncement(page)).toHaveText(STATE.loading); // UPD:361, PD:355-357
+      await expect(stateAnnouncement(page)).toHaveText(STATE.loading); // UPD:390, PD:355-357
       await expect(page.locator('main .animate-pulse').first()).toBeVisible(); // PD:245-250
       await expect(statusFilterButton(page, FILTERS.all)).toHaveCount(0); // PD:101
-      await expect(countLine(page)).toHaveCount(0); // PD:199
+      await expect(countLine(page)).toHaveCount(0); // PD:187: no count line while loading
       await captureEvidence(page, 'E02_dash_loading.png');
       hold.open();
       await dashboardLoaded(page);
@@ -1059,7 +1064,7 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
       await page.reload({ waitUntil: 'commit' });
       await expect(page.getByText(EMPTY_TITLE, { exact: true })).toBeVisible(); // PD:258-268
       await expect(page.getByText(EMPTY_DESCRIPTION, { exact: true })).toBeVisible();
-      await expect(stateAnnouncement(page)).toHaveText(STATE.empty); // UPD:364
+      await expect(stateAnnouncement(page)).toHaveText(STATE.empty); // UPD:393
       await expect(statusFilterButton(page, FILTERS.all)).toHaveText(/0$/u);
       await captureEvidence(page, 'E02_dash_empty.png');
       await page.getByRole('button', { name: EMPTY_ACTION, exact: true }).click();
@@ -1095,7 +1100,7 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
       await expect(page.getByText(unreadRowsNotice(1), { exact: true })).toBeVisible(); // UPD:482, PD:244, PG:100
       await expect(page.getByText(LIST_ERROR_TITLE, { exact: true })).toHaveCount(0);
       await expect(projectCards(page)).toHaveCount(readable); // A11: one bad row never locks the rest (PG:10-12)
-      await expect(countLine(page)).toHaveCount(0); // state partial (UPD:367) → no count line (PD:199)
+      await expect(countLine(page)).toHaveText(`${String(readable)} dự án`); // PD:187: drawn in "partial" too (BUG-117), counting the readable rows
       await captureEvidence(page, 'E02_dash_unreadable_row.png', { caption: `N1: ${String(readable)} readable + 1 undecodable row (mocked) → notice, ${String(readable)} cards` });
       await attachJson('E02_dash_unreadable_row.json', { readable, invalid: 1, ratio: 1 / (readable + 1) });
       await page.unrouteAll({ behavior: 'ignoreErrors' });
@@ -1107,11 +1112,11 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
       browser,
       async (admin) => {
         const { page } = admin;
-        await expect(stateAnnouncement(page)).toHaveText(STATE.collapsed); // UPD:90-107, :363
+        await expect(stateAnnouncement(page)).toHaveText(STATE.collapsed); // UPD:90-107, :392
         const filter = page.getByRole('radiogroup', { name: COMPACT_FILTER, exact: true }); // PD:229-236
         await expect(filter.getByRole('radio')).toHaveText([FILTERS.all, FILTERS.processing, FILTERS.qc, FILTERS.done]);
         await expect(statusFilterButton(page, FILTERS.all)).toHaveCount(0); // PD:101
-        await expect(countLine(page)).toBeVisible(); // PD:199 (collapsed)
+        await expect(countLine(page)).toBeVisible(); // PD:187 (collapsed)
         await filter.getByRole('radio', { name: FILTERS.processing, exact: true }).click();
         await expect(filter.getByRole('radio', { name: FILTERS.processing, exact: true })).toHaveAttribute('aria-checked', 'true');
         await captureEvidence(page, 'E02_dash_compact_375.png');
@@ -1575,7 +1580,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
     });
   });
 
-  test('E02 · SCR-05 search with no result: state "một phần" and no "{n} dự án" line; emptying the box brings the list, the line and "thành công" back', async ({ browser }) => {
+  test('E02 · SCR-05 search with no result: state "một phần" and a "0 dự án" line; emptying the box brings the list, the full count and "thành công" back', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       await createProject(admin, 'empty-search'); // at least one card, so the reset lands on "success"
@@ -1585,8 +1590,8 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       const query = `zz-khong-co-${Date.now().toString(36)}`;
       await searchBox(page).fill(query);
       await expect(noMatch(page)).toBeVisible(); // PD:269-275
-      await expect(stateAnnouncement(page)).toHaveText(STATE.partial); // UPD:367
-      await expect(countLine(page)).toHaveCount(0); // PD:199: not drawn in "partial"
+      await expect(stateAnnouncement(page)).toHaveText(STATE.partial); // UPD:396
+      await expect(countLine(page)).toHaveText('0 dự án'); // PD:187: drawn in "partial" too (BUG-117)
       await captureEvidence(page, 'E02_search_empty.png', { caption: `search "${query}" → no match, state "${STATE.partial}"` });
 
       await searchBox(page).press('Control+A');
@@ -1594,7 +1599,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await expect(searchBox(page)).toHaveValue('');
       await expect(projectCards(page)).toHaveCount(list.length);
       await expect(countLine(page)).toHaveText(`${String(list.length)} dự án`);
-      await expect(stateAnnouncement(page)).toHaveText(STATE.success); // UPD:368
+      await expect(stateAnnouncement(page)).toHaveText(STATE.success); // UPD:397
       await captureEvidence(page, 'E02_search_empty_reset.png', { caption: `box emptied → ${String(list.length)} cards, "${String(list.length)} dự án"` });
     });
   });
@@ -1649,7 +1654,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await page.reload({ waitUntil: 'commit' });
       const title = page.getByText(LIST_ERROR_TITLE, { exact: true });
       await expect(title).toBeVisible({ timeout: SLOW_STATE_MS }); // PD:251-257
-      await expect(stateAnnouncement(page)).toHaveText(STATE.error); // UPD:362
+      await expect(stateAnnouncement(page)).toHaveText(STATE.error); // UPD:391
       await expect(statusFilterButton(page, FILTERS.all)).toHaveCount(0); // PD:101
       // lib/http/retry.ts:25-26, :70-96: a GET that hits a network error is retried before the screen gives up.
       expect(aborted, 'N1 attempts while offline').toBeGreaterThanOrEqual(2);
@@ -1686,7 +1691,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
 
       await page.reload({ waitUntil: 'commit' });
       await expect(dashboardHeading(page)).toBeVisible();
-      await expect(stateAnnouncement(page)).toHaveText(STATE.loading); // UPD:361
+      await expect(stateAnnouncement(page)).toHaveText(STATE.loading); // UPD:390
       await expect(skeleton).toBeVisible(); // PD:245-250
       await captureEvidence(page, 'E02_dash_held_then_500_loading.png', { caption: 'N1 held → skeleton cards' });
 
@@ -1699,7 +1704,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       const reread = waitForApi(page, 'GET', SUMMARIES_RE, [200]);
       await page.getByRole('button', { name: RETRY, exact: true }).click(); // UPD:509
       // @tanstack/query-core 5.53.1 query.js:351-360 (`fetchState`): a refetch with no data yet puts the query back to
-      // "pending", so the screen is "loading" again (UPD:361) while the retry is held — the error card gives way.
+      // "pending", so the screen is "loading" again (UPD:390) while the retry is held — the error card gives way.
       await expect(skeleton).toBeVisible();
       await expect(stateAnnouncement(page)).toHaveText(STATE.loading);
       await expect(title).toHaveCount(0);
@@ -1939,7 +1944,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       // 900, not 1023: this test is about the menu across the breakpoint, not the 1023/1024 edge itself.
       const narrow = { width: 900, height: DESKTOP.height };
       await page.setViewportSize(narrow);
-      await expect(stateAnnouncement(page)).toHaveText(STATE.collapsed); // UPD:90-107, :363
+      await expect(stateAnnouncement(page)).toHaveText(STATE.collapsed); // UPD:90-107, :392
       await expect(page.getByRole('radiogroup', { name: COMPACT_FILTER, exact: true })).toBeVisible(); // PD:229-236
       await expect(menu).toBeVisible();
       // CM:43-45: left = min(x, innerWidth − 220 − 8), worked out again on the re-render the collapse causes.
@@ -2070,32 +2075,33 @@ test.describe('E02 SCR-05 create-project wizard', () => {
     });
   });
 
-  test('E02 · wizard step 2 heights: four rows start without height; 1,99 / 10,01 / "3.5" are refused; 2 and 10 accepted; "2,5" stacks 0,0–7,5 m', async ({ browser }) => {
+  test('E02 · wizard step 2 heights: four rows start without height and without errors; 1,99 / 10,01 are refused; "3.5" (= 3,5), 2 and 10 accepted; "2,5" stacks 0,0–7,5 m', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const dialog = await openWizard(page);
       await toStep2(dialog, 'Dự án chiều cao');
       await expect(nextButton(dialog)).toBeDisabled();
-      await expect(floorRow(dialog, page, 'Tầng trệt').getByRole('alert')).toHaveText(HEIGHT_MISSING); // UCPM:239-243
+      // BUG-120: step 2 opens neutral — a row complains once the stack has been edited, and the shared field is not such an edit.
+      await expect(dialog.getByRole('table').getByRole('alert')).toHaveCount(0);
       for (const name of ['Tầng 1', 'Tầng 2', 'Tầng 3']) {
-        await expect(floorRow(dialog, page, name).getByRole('alert')).toHaveText(CHAIN_BROKEN); // UCPM:234-236
         await expect(elevationCell(floorRow(dialog, page, name))).toHaveText('—'); // SF:106
       }
 
       const field = dialog.getByLabel(APPLY_LABEL);
       const apply = dialog.getByRole('button', { name: APPLY_ALL, exact: true });
-      // NF:41-46 refuses out-of-range; `parseNumber` drops "." as a thousands mark, so "3.5" is 35 (number.ts:262).
-      for (const [typed, message] of [['1,99', NUMERIC_MIN], ['10,01', NUMERIC_MAX], ['3.5', NUMERIC_MAX]] as const) {
+      // useNumericField refuses out-of-range; `parseNumber` keeps a lone "." as the decimal point, so "3.5" is 3,5 (BUG-132).
+      for (const [typed, message] of [['1,99', NUMERIC_MIN], ['10,01', NUMERIC_MAX]] as const) {
         await field.fill(typed);
         await field.press('Tab');
         await expect(dialog.getByText(message, { exact: true })).toBeVisible();
         await expect(apply).toBeDisabled(); // never committed → applyHeightM null (UCPM:491)
       }
-      await captureEvidence(page, 'E02_wizard_heights_refused.png', { caption: 'apply field "3.5" → read as 35' });
-      for (const typed of ['2', '10']) {
+      await captureEvidence(page, 'E02_wizard_heights_refused.png', { caption: `apply field "10,01" → "${NUMERIC_MAX}", nothing committed` });
+      for (const typed of ['3.5', '2', '10']) {
         await field.fill(typed);
         await field.press('Tab');
-        await expect(dialog.getByText(/^Giá trị phải/u)).toHaveCount(0);
+        await expect(dialog.getByText(/^Giá trị không/u), `"${typed}" is inside 2–10 m`).toHaveCount(0);
+        await expect(apply, `"${typed}" is committed`).toBeEnabled();
       }
       await applyHeight(dialog, '2,5');
       const expected = [['Tầng trệt', '0,0 m'], ['Tầng 1', '2,5 m'], ['Tầng 2', '5,0 m'], ['Tầng 3', '7,5 m']] as const; // UCPM:138-140, alignFloors.ts:451-453
@@ -2277,34 +2283,25 @@ test.describe('E02 SCR-05 create-project wizard', () => {
     });
   });
 
-  test('E02 · wizard: a 33-character "Mã dự án" is refused by the server (422) — violation notice, "Tạo dự án" locked, message under the name', async ({ browser }) => {
+  test('E02 · wizard: a 33-character "Mã dự án" is refused at step 1 — "Mã dự án" names the limit, "Tiếp tục" is locked, nothing is sent; 32 passes', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
-      // FE puts no cap on the code (CPM:109-115); BE caps it at 32 (BE:apps/api/projects/schemas.py:27,52).
-      const longCode = 'C'.repeat(33);
+      // BUG-176: the FE counts like the BE (trim + NFC, BE:apps/api/projects/schemas.py:27,52) and refuses at step 1.
+      // The server-422 → field mapping has its [mocked response] tests in phase02_wizard_edge.spec.ts and the U02 spec.
       const dialog = await openWizard(page);
       await nameField(dialog).fill(uniqueName('code'));
-      await codeField(dialog).fill(longCode);
-      await nextButton(dialog).click();
-      await applyHeight(dialog, '3');
-      await nextButton(dialog).click();
-      const rejected = waitForApi(page, 'POST', PROJECTS_RE, [422]);
-      await createButton(dialog).click();
-      const { response, json } = await rejected;
-      expect(asRecord(response.request().postDataJSON() as unknown, 'POST body').code).toBe(longCode); // CPC:226
+      await codeField(dialog).fill('C'.repeat(33));
+      await expect(dialog.getByText(CODE_TOO_LONG, { exact: true })).toBeVisible();
+      await expect(codeField(dialog)).toHaveAttribute('aria-invalid', 'true');
+      await expect(nameField(dialog)).not.toHaveAttribute('aria-invalid', 'true');
+      await expect(nextButton(dialog)).toBeDisabled();
+      await expect(dialog.getByText(VALIDATION_DESCRIPTION, { exact: true })).toHaveCount(0);
+      await captureEvidence(page, 'E02_wizard_code_33.png', { caption: 'code 33×"C" → "Mã dự án không quá 32 ký tự.", "Tiếp tục" locked' });
+      expect(countApi(admin.api, 'POST', PROJECTS_API), 'nothing was sent').toBe(0);
 
-      // UCPM:658-663: describeError(validation) → notice (violation) + serverNameProblem.
-      await expect(dialog.getByText(VALIDATION_DESCRIPTION, { exact: true }).first()).toBeVisible();
-      await expect(createButton(dialog)).toBeDisabled();
-      await expect(stateAnnouncement(dialog)).toHaveText(STATE.error); // UCPM:497
-      await captureEvidence(page, 'E02_wizard_code_422.png', { caption: 'POST /api/projects code=33×"C" → 422' });
-      await attachJson('E02_wizard_code_422.json', { sentCodeLength: longCode.length, status: response.status(), body: json as unknown });
-
-      await dialog.getByRole('button', { name: 'Quay lại', exact: true }).click();
-      await dialog.getByRole('button', { name: 'Quay lại', exact: true }).click();
-      await expect(dialog.getByRole('alert').filter({ hasText: VALIDATION_DESCRIPTION })).toBeVisible(); // UCPM:484, :661
-      await nameField(dialog).fill(uniqueName('code2')); // setName clears it (UCPM:531)
-      await expect(dialog.getByRole('alert').filter({ hasText: VALIDATION_DESCRIPTION })).toHaveCount(0);
+      await codeField(dialog).fill('C'.repeat(32));
+      await expect(dialog.getByText(CODE_TOO_LONG, { exact: true })).toHaveCount(0);
+      await expect(nextButton(dialog)).toBeEnabled();
       await discardWizard(dialog);
     });
   });
@@ -2326,7 +2323,7 @@ test.describe('E02 SCR-05 create-project wizard', () => {
       await createButton(dialog).click();
       // UCPM:199-208 → describeError(network) (src/lib/http/client.ts:591-598, vi.json:15).
       await expect(dialog.getByText(NETWORK_DESCRIPTION, { exact: true }).first()).toBeVisible({ timeout: SLOW_STATE_MS });
-      await expect(createButton(dialog)).toBeDisabled();
+      await expect(createButton(dialog), 'a failure that names no field marks nothing: "Tạo dự án" stays usable to retry (BUG-129)').toBeEnabled();
       await expect(stateAnnouncement(dialog)).toHaveText(STATE.error);
       await captureEvidence(page, 'E02_wizard_network_lost.png');
       await page.unrouteAll({ behavior: 'ignoreErrors' });
@@ -2377,7 +2374,7 @@ test.describe('E02 SCR-06 notifications', () => {
     });
   });
 
-  test('E02 · SCR-06 filters by keyboard: "Chưa đọc" keeps unread rows, "Nhắc đến tôi" keeps comment mentions, no match → "Có thể chưa cập nhật"', async ({ browser }) => {
+  test('E02 · SCR-06 filters by keyboard: "Chưa đọc" keeps unread rows, "Nhắc đến tôi" keeps comment mentions, no match → an empty state worded per tab', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const drawer = await openDrawer(page);
@@ -2387,11 +2384,12 @@ test.describe('E02 SCR-06 notifications', () => {
       const mentions = await rows.filter({ has: page.getByRole('button', { name: MENTION_ACTION, exact: true }) }).count();
       const group = drawer.getByRole('radiogroup', { name: NOTIF_FILTER, exact: true });
 
-      const expectFiltered = async (expected: number, marker: string): Promise<void> => {
-        if (all === 0) {
-          await expect(drawer.getByText(NOTIF_EMPTY, { exact: true })).toBeVisible(); // UNC:877-879 beats the filter
-        } else if (expected === 0) {
-          await expect(drawer.getByText(NOTIF_PARTIAL, { exact: true })).toBeVisible(); // UNC:881-883
+      // No row to show (empty inbox or no match) is the 'empty' state, worded per tab (BUG-126/179); never the "partial" strip.
+      const expectFiltered = async (expected: number, marker: string, tab: keyof typeof NOTIF_EMPTY_BY_FILTER): Promise<void> => {
+        if (expected === 0) {
+          await expect(drawer.getByText(NOTIF_EMPTY_BY_FILTER[tab], { exact: true })).toBeVisible();
+          await expect(drawer.getByRole('button', { name: NOTIF_SHOW_EVERYTHING, exact: true })).toBeVisible(); // filtered tabs only
+          await expect(drawer.getByText(NOTIF_PARTIAL, { exact: true })).toHaveCount(0);
           await expect(rows).toHaveCount(0);
         } else {
           await expect(rows).toHaveCount(expected);
@@ -2402,12 +2400,12 @@ test.describe('E02 SCR-06 notifications', () => {
       await group.getByRole('radio', { name: NOTIF_FILTERS.all, exact: true }).focus();
       await page.keyboard.press('ArrowRight'); // NM:109 order all → unread → mentions
       await expect(group.getByRole('radio', { name: NOTIF_FILTERS.unread, exact: true })).toHaveAttribute('aria-checked', 'true');
-      await expectFiltered(unread, MARK_READ); // UNC:329-330
+      await expectFiltered(unread, MARK_READ, 'unread'); // UNC:329-330
       await captureEvidence(page, 'E02_notif_filters.png', { caption: `filter "Chưa đọc": ${String(unread)} of ${String(all)}` });
 
       await page.keyboard.press('ArrowRight');
       await expect(group.getByRole('radio', { name: NOTIF_FILTERS.mentions, exact: true })).toHaveAttribute('aria-checked', 'true');
-      await expectFiltered(mentions, MENTION_ACTION); // UNC:331-332
+      await expectFiltered(mentions, MENTION_ACTION, 'mentions'); // UNC:331-332
 
       await page.keyboard.press('ArrowRight'); // wraps
       await expect(group.getByRole('radio', { name: NOTIF_FILTERS.all, exact: true })).toHaveAttribute('aria-checked', 'true');

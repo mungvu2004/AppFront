@@ -158,13 +158,13 @@ non-serial; the SCR-05 dashboard block plus the earlier wizard / SCR-06 / SCR-07
 | W32 | Logic | double click → one POST | `UCPM:641-643` | E [held response] create | covered |
 | W33 | Toast | "Đã tạo dự án "{name}"." | `UCPM:668-673` | M create CP-2 · M full create · U `U02_dash_create_toast` | covered |
 | W34 | Toast | create "Hoàn tác" → `DELETE`; card should leave (A8) | `UCPM:670-672`, `CPC:101-111` | E [held response] create (own project only, R6) | covered (F3 suspected) |
-| W35 | Error | 422 (code > 32) → violation notice, "Tạo dự án" locked, message under name; editing the name clears it | `UCPM:199-208, 484, 531, 658-663` | U `U02_wizard_server_422` (real 422, no mock) · E 33-character code | covered (UI layer) (F5) |
+| W35 | Error | code > 32 is refused at step 1 ("Mã dự án không quá 32 ký tự.", "Tiếp tục" locked, nothing sent); a server 422 naming `code` gets its own sentence + "Sửa ở bước 1" and marks "Mã dự án" | `useCreateProjectModal.ts` lengthProblemFor, describeCreateFailure (BUG-176, BUG-129) | U `U02_wizard_code_too_long` · U `U02_wizard_server_422` (mocked 422, paired "create body rules") · E 33-character code | covered (UI layer) (F5) |
 | W36 | Error | 409 → "Tên dự án đã trùng…" | `UCPM:204-206` | — | n/a-by-design on this BE (BE `projects/service.py:244`: no route answers 409) |
 | W37 | Error | network loss → "Không liên lạc được với máy chủ…" | `UCPM:207`, `lib/http/client.ts:591-598`, `vi.json:15` | E [mocked response] network lost | covered |
 | W38 | Forbidden | viewer: "Không có quyền tạo dự án" | `CPM:214-240` | Phase 09 | n/a-by-design (Phase 09) |
 | W39 | Compact | < 1024: step 1 one column, state "thu gọn"; width pinned 560 | `CPM:10-19, 95`, `UCPM:334-351, 494` | E compact | covered (F8) |
 | W40 | Error | wizard crash fallback | `CPC:285-300` | — | UNKNOWN — NEED VERIFICATION (not producible) |
-| W41 | Validation | "Địa chỉ" 201 chars → BE 422 → "Kiểm tra lại…" notice, state "lỗi"; 200 chars → 201 created | `CPM:118-123`, `UCPM:658-663`, BE `schemas.py:28, 53` | EW "Địa chỉ" boundary | covered (was gap) |
+| W41 | Validation | "Địa chỉ" 201 chars → refused at step 1 ("Địa chỉ không quá 200 ký tự.", no POST); 200 chars → 201 created; a server 422 naming `address` marks the field | `CPM:118-123`, `useCreateProjectModal.ts` lengthProblemFor, BE `schemas.py:28, 53` (BUG-186) | EW "Địa chỉ" boundary · EW [mocked response] 422 field address | covered (was gap) |
 | W42 | Keyboard | wizard opened with `N`: pristine form shows no error, focus in "Tên dự án" | `CPM:105`, `UCPM:142-146, 483-484`, `FT:179`, `MOD:163-171` | EW [BUG-133] | covered — expected to FAIL (BUG-133) |
 | W43 | Keyboard | `n` inside the open wizard: off a text field swallowed (dialog scope modal), in a field it types | `shortcutRegistry.ts:16-21`, `MOD:77-80`, `UPD:382-385` | EW [BUG-133] | covered |
 | W44 | a11y | focus trap: Shift+Tab on first → last, Tab on last → first, Tab never leaves (steps 1 and 2); close returns focus to "Dự án mới" | `FT:56-68, 114-134, 138-142`, `MOD:59-72` | EW focus trap | covered |
@@ -189,9 +189,9 @@ non-serial; the SCR-05 dashboard block plus the earlier wizard / SCR-06 / SCR-07
 | W63 | Logic | reopen after a successful create starts blank at step 1 (B-V3-02) | `CPM:309-328` | EW [held response] keyboard create | covered |
 | W64 | Logic | padded name/code trimmed in POST, spaces-only address omitted; toast/card use trimmed name; review shows a blank cell (not "—") for the spaces-only address | `UCPM:646-653, 669`, `CPC:72-73`, `CPM:176` | EW padded and whitespace-only fields | covered (review blank vs "—" = finding candidate UI/Info) |
 | W65 | Logic | duplicate project name accepted (201), no "trùng" message, two cards | BE `service.py:243-244`, `UCPM:204-206` | EW duplicate name | covered |
-| W66 | Error | 422 on the code marks "Mã dự án" (not "Tên dự án"); fixing the code alone unlocks the form | `UCPM:484, 486, 531, 658-663` | EW [BUG-129] code 422 | covered — expected to FAIL (BUG-129) |
-| W67 | Validation | blank ("   ") floor name: FE has no check, POST sends it untrimmed, BE 422 → generic notice, form locked | `UCPM:482-489, 573-576`, `CPC:60`, BE `schemas.py:31-39, 54` | EW blank floor name | covered (FE↔BE gap = finding candidate Logic/Low) |
-| W68 | Logic | Esc while creating: requestClose has no isSubmitting guard → discard warning, second Esc closes; the held POST still creates the project + toast | `UCPM:624-635, 655-675`, `CPM:313-316` | EW [held response] Esc while creating | covered (pinned; "bỏ thay đổi" that still saves = finding candidate Logic/Low) |
+| W66 | Error | 422 on the code marks "Mã dự án" (not "Tên dự án"); fixing the code alone unlocks the form | `UCPM:484, 486, 531, 658-663` | EW [BUG-129] [mocked response] 422 field code (paired "create body rules") | covered |
+| W67 | Validation | blank ("   ") floor name: step 2 says "Chưa nhập tên tầng." on the row and locks "Tiếp tục" (BUG-185); a server 422 naming `floors.N.name` shows "Máy chủ không nhận tầng …" + "Sửa ở bước 2" | `useCreateProjectModal.ts` describeCreateFailure, BE `schemas.py:31-39, 54` | EW blank floor name · EW [mocked response] 422 field floors.3.name (paired "create body rules") | covered |
+| W68 | Logic | Esc while creating is ignored (requestClose returns while submitting, BUG-184): no discard warning, the held POST creates the project, the dialog closes itself + toast | `useCreateProjectModal.ts` requestClose, `CPM:313-316` | EW [held response] Esc while creating | covered |
 | W69 | Error | create 500: one POST (not retried), "Hệ thống đã ghi nhận…" notice, review kept; expected "Tạo dự án" usable to retry | `RTY:3, 91-93`, `TAE:10-18`, `vi.json:63`, `UCPM:489, 661` | EW [BUG-129] [mocked response] create 500 | covered — unpairable: 5xx; last assertion expected to FAIL (BUG-129) |
 | W70 | Network | create 503 once → retried with the same Idempotency-Key, one project | `RTY:3-5, 25-26`, `HTC:400-411, 487-524`, `CPC:90` | EW [mocked response] create 503 once | covered — unpairable: 5xx (503) |
 | W71 | Network | network abort on the first attempt → silent retry, same key, one project, no notice | `RTY:17-23, 95`, `HTC:568-583` | EW [mocked response] network abort on the first create attempt | covered — unpairable: network loss |
@@ -211,7 +211,7 @@ non-serial; the SCR-05 dashboard block plus the earlier wizard / SCR-06 / SCR-07
 | N7 | Loading | skeleton rows; "Đánh dấu tất cả đã đọc" disabled | `NC:239, 243-244` | E [mocked response] list held then 500 | covered |
 | N8 | Error | "Không tải được thông báo" + "Thử lại" | `NC:245-253`, `UNC:902-904` | U `U02_notif_load_error` [mocked response] · E [mocked response] list | covered (UI layer); unpairable: 5xx |
 | N9 | Empty | "Không có thông báo mới" + description; same under every filter (BUG-126 copy question) | `NC:254-255`, `UNC:877-879` | X empty inbox (real) · U `U02_notif_empty` · E filters (when no row) · M settle | covered (real empty inbox) |
-| N10 | Partial | non-empty inbox, filter matches nothing → "Có thể chưa cập nhật", no row | `NC:259`, `UNC:881-883` | X filter "Nhắc đến tôi" · U `U02_notif_filter_mentions` · E filters | covered (real) |
+| N10 | Empty | non-empty inbox, filter matches nothing → that tab's own empty state ("Chưa có ai nhắc đến bạn" / "Không có thông báo chưa đọc") + "Hiện mọi thông báo", no row, no "Có thể chưa cập nhật" strip (BUG-126, BUG-179) | `NotificationCenter.tsx` EMPTY_COPY | X filter "Nhắc đến tôi" · X empty inbox · U `U02_notif_filter_mentions` · E filters | covered (real) |
 | N11 | Forbidden | `enabledKinds` empty | `NC:260-262`, `UNC:873-875` | — | n/a-by-design (not wired: `UNC:58-64`, all kinds on) |
 | N12 | Filter | radiogroup "Lọc thông báo": Tất cả / Chưa đọc / Nhắc đến tôi, ArrowRight wraps | `NC:322-328`, `NM:109-118`, `UNC:325-334` | M bell · E filters | covered |
 | N13 | Button | "Đánh dấu đã đọc" + toast "Hoàn tác" → no POST | `NC:187-198`, `UNC:687-715` | M mark-read + undo (F2 fixed) · U `U02_notif_row_hover` | covered (data-dependent: both skip with reason until the admin has notifications (Phase 3 / CP-5)) |
@@ -219,7 +219,7 @@ non-serial; the SCR-05 dashboard block plus the earlier wizard / SCR-06 / SCR-07
 | N15 | Button | "Đánh dấu tất cả đã đọc" with unread: rows read at once, ONE `POST /read` with the visible ids after 8 s, no `read-all`; persisted | `UNC:644-647, 687-708, 793-798` | X mark all (2 real unread) · M mark-all + undo (`06_notif_mark_all`) · E mark all | covered (send path; undo path stays in E) |
 | N16 | Error | mark-read POST 500 → rollback (row unread, badge back) + "Có thể chưa cập nhật" | `UNC:598-611, 678, 881`, `createOptimisticMutation.ts:54-58` | X [mocked response] POST /read 500 | covered (unpairable: 5xx) |
 | N17 | Navigation | unread row click → immediate `POST /read {ids:[id]}` → `/projects/{id}/settings` → drawer closed; read after reload | `UNC:726-738`, `NCG:96-101, 135-136`, `PS:93` | X row click in the drawer · E clicking a notification | covered (real; E's admin version is data-dependent) |
-| N18 | Button | "chấp nhận" → `POST /api/notifications/{id}/accept-invite` `{}` 200, drawer and route kept, row read, badge cleared; idempotent | `NCG:178-184, 297-302`, `UNC:613-632, 755-765`, `NC:231-236`, BE `notifications/service.py:191-210` | X "chấp nhận" | covered (real) |
+| N18 | Button | "Chấp nhận" → `POST /api/notifications/{id}/accept-invite` `{}` 200, drawer and route kept, row read, "Đã chấp nhận" replaces the button, badge cleared (second accept = API "accept" test) | `NCG:178-184, 297-302`, `UNC:613-632, 755-765`, `NC:231-236`, BE `notifications/service.py:191-210` | X "Chấp nhận" | covered (real) |
 | N18b | Button | "Xem kết quả" / "xem lỗi" / "Xem bình luận" navigate | `NCG:180-183`, `UNC:757-759` | — | gap (aiCompleted / violationFound / commentMention need Phase 3/4 data) |
 | N19 | Button | "Mở cài đặt thông báo" → `/tai-khoan`, drawer closes | `UNC:772-775` | E settings | covered |
 | N20 | Button | "Xem tất cả" → `/thong-bao` | `UNC:767-770` | E "Xem tất cả" | covered |
@@ -302,10 +302,10 @@ X and its N/O rows use a second real user (invitee made through the real invitat
 - FE rows: **208** (SCR-05 dashboard 78, wizard 73, SCR-06 36, SCR-07 21) — covered **182**, gap **3**, UNKNOWN **8**, n/a-by-design **15**.
   Per screen (covered / gap / UNKNOWN / n/a): dashboard 70 / 0 / 2 / 6 · wizard 65 / 0 / 3 / 5 · SCR-06 32 / 1 / 1 / 2 · SCR-07 15 / 2 / 2 / 2.
 - BE rows: see `coverage/phase02-be.md` (separate agent).
-- Tests per spec: `phase02_dashboard.spec.ts` 16 · `phase02_dashboard_ui.spec.ts` 33 · `phase02_dashboard_edge.spec.ts` 69 (68 runnable
-  + 1 fixme) · `phase02_wizard_edge.spec.ts` 27 · `phase02_notify_edge.spec.ts` 19 · `phase02_dashboard_api.spec.ts` 26 (API layer).
-- Mocked share: 24 mocked of 164 phase-02 UI tests (16 M + 33 U + 69 E + 27 EW + 19 X) = **14.6 %** (limit 35 %). By file: U 5, E 15, EW 3,
-  X 1, M 0. Pairing: 7 paired with an API test, 17 unpairable with reason, 0 pair needed (one API test: user with no project → `items: []`,
+- Tests per spec: `phase02_dashboard.spec.ts` 16 · `phase02_dashboard_ui.spec.ts` 35 · `phase02_dashboard_edge.spec.ts` 69 (68 runnable
+  + 1 fixme) · `phase02_wizard_edge.spec.ts` 30 · `phase02_notify_edge.spec.ts` 19 · `phase02_dashboard_api.spec.ts` 26 (API layer).
+- Mocked share: 28 mocked of 169 phase-02 UI tests (16 M + 35 U + 69 E + 30 EW + 19 X) = **16.6 %** (limit 35 %). By file: U 6, E 15, EW 6,
+  X 1, M 0. Pairing: 11 paired with an API test, 17 unpairable with reason, 0 pair needed (one API test: user with no project → `items: []`,
   covers E no project, U `U02_dash_empty`, U `U02_onboarding_no_project`).
 - Open gaps, by priority: (main flow) O4 / O7 later onboarding steps (2 done / 3 open / "Duyệt kết quả"), N18b inline actions
   "Xem kết quả" / "xem lỗi" / "Xem bình luận" — all blocked by Phase 3/4 data (re-run after CP-5); #55 / #26 qc and done open routes are

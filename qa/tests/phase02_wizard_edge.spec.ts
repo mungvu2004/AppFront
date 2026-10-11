@@ -2,7 +2,7 @@
  * Phase 2 — create-project wizard EDGE CASES, Track A (admin): the SCR-05 "Tạo dự án mới" dialog opened from `/`.
  * Second edge file for the wizard: `phase02_dashboard_edge.spec.ts` already holds 11 wizard tests (step 1 validation +
  * slug, Esc/close controls on step 1, apply-field heights, basement/add/delete rows, 50-floor cap, review + Back,
- * [held response] busy + double click + undo, 33-char code 422, [mocked response] network lost on every attempt).
+ * [held response] busy + double click + undo, 33-char code blocked at step 1, [mocked response] network lost on every attempt).
  * Nothing here repeats them. Inventory rows: `qa/coverage/.phase02-edge-wizard.rows.md` (W42…, merge into phase02.md).
  *
  * Every expected result cites the FE source of this worktree (5afd8b8a) or, written `BE:`, the AppBack source.
@@ -27,7 +27,9 @@
  * Only the session is carried: the storage state of the previous test's context is handed to the next one; when its
  * cookie is refused (a test died before saving it) the helper signs in again. Same approach as the dashboard edge file.
  *
- * ## Mocks ("[mocked response]" in the title) — only states the shared stack cannot produce safely (3 of 27 = 11 %)
+ * ## Mocks ("[mocked response]" in the title) — only states the shared stack cannot produce safely (6 of 30 = 20 %)
+ * - `POST /api/projects` 422 `VALIDATION` with `field` `address` / `code` / `floors.3.name` — paired with the API "create body rules" test
+ *   (the real stack cannot reach these 422s any more: the FE blocks 201-char addresses, 33-char codes and blank floor names first).
  * - `POST /api/projects` 500 — unpairable: 5xx.
  * - `POST /api/projects` 503 on the first attempt, the real create on the retry — unpairable: 5xx (503).
  * - `POST /api/projects` network abort on the first attempt, the real create on the retry — unpairable: network loss.
@@ -39,7 +41,7 @@
  *   `[BUG-…]` tests + the cap-with-basement case → ≤ 11 sign-ins, each ≥ 10 s apart, ≤ 6 a minute). +1 if a carried cookie is refused. No failed login attempt at all.
  * - `POST /api/auth/refresh` (300 / 60 s per IP): one per page load, ~2 per test (~60 for the file) — far from the cap.
  * - `POST /api/projects` reaching the server: 1 API fixture + 7 UI creates that succeed (all deleted in `finally`)
- *   + 3 refused 422 (address 201, code 33, blank floor name — none writes). The mocked 500 and the mocked first
+ *   + no refused 422 (address 201, code 33 and blank floor names are blocked at step 1/2; the 422 mapping is mocked). The mocked 500 and the mocked first
  *   attempts of the 503/abort tests never reach the server; each of those retries creates one project (counted above).
  * - `DELETE /api/projects/{id}`: one per created project (8). No notification, recovery, invitation or mail call.
  * Access tokens live 600 s (BE settings.py:31): each test reuses the token of its own sign-in/refresh.
@@ -76,13 +78,13 @@ const STATE_RE = /^(rỗng|đang tải|một phần|lỗi|thành công|Không c�
 const WIZARD_TITLE = 'Tạo dự án mới'; // CPM:245
 const stepLabel = (step: number): string => `Bước ${String(step)} / 3`; // UCPM:684, CPM:259-262
 const DISCARD_TITLE = 'Đóng và bỏ các thay đổi chưa lưu?'; // CPM:252
-const DISCARD_HINT = 'Nhấn Esc lần nữa, hoặc bấm nút bên cạnh, để xác nhận đóng.'; // CPM:253
+const DISCARD_HINT = 'Nhấn Esc lần nữa hoặc bấm "Đóng, bỏ thay đổi" để đóng.'; // CPM:253
 const DISCARD_ACTION = 'Đóng, bỏ thay đổi'; // CPM:254
 const CLOSE_DIALOG = 'Đóng hộp thoại'; // MOD:167
 const HEIGHT_MISSING = 'Chưa nhập chiều cao thông thuỷ.'; // UCPM:113
 const CHAIN_BROKEN = 'Chưa tính được cao độ vì tầng bên dưới còn thiếu chiều cao hợp lệ.'; // UCPM:235
-const NUMERIC_MIN = 'Giá trị phải >= 2'; // NF:43, LIM:34
-const NUMERIC_MAX = 'Giá trị phải <= 10'; // NF:44, LIM:35
+const NUMERIC_MIN = 'Giá trị không nhỏ hơn 2 m.'; // NF:43, LIM:34
+const NUMERIC_MAX = 'Giá trị không quá 10 m.'; // NF:44, LIM:35
 const APPLY_LABEL = 'Chiều cao áp cho mọi tầng'; // SF:131
 const APPLY_ALL = 'Áp cho mọi tầng'; // SF:145
 const ADD_FLOOR = 'Thêm tầng'; // SF:127
@@ -90,7 +92,14 @@ const BASEMENT_TOGGLE = 'Có tầng hầm'; // SF:38
 const BASEMENT_NAME = 'Tầng hầm'; // UCPM:602
 const BUILDING_TYPES = ['Nhà ở', 'Thương mại', 'Công nghiệp', 'Hỗn hợp', 'Khác'] as const; // UCPM:71-77
 const VALIDATION_DESCRIPTION = 'Kiểm tra lại các trường được đánh dấu rồi thử lại.'; // vi.json:39 (errors.validation)
-const UNKNOWN_DESCRIPTION = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Bạn có thể tải lại rồi thử lại.'; // vi.json:63 (errors.unknown)
+const UNKNOWN_DESCRIPTION = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Bấm "Tạo dự án" để thử lại — những gì đã nhập vẫn còn.'; // vi.json project.createModal.problems.unknownKeepsForm
+const ADDRESS_TOO_LONG = 'Địa chỉ không quá 200 ký tự.'; // vi.json project.createModal.problems.addressTooLong
+const CODE_TOO_LONG = 'Mã dự án không quá 32 ký tự.'; // vi.json project.createModal.problems.codeTooLong
+const FLOOR_NAME_MISSING = 'Chưa nhập tên tầng.'; // vi.json project.createModal.floors.missingName
+const FIX_AT_STEP_1 = 'Sửa ở bước 1'; // vi.json project.createModal.problems.fixAtStep
+/** 422 sentences on step 3 / on the field (problems.serverRefusedFieldNotice / serverRefusedField). */
+const serverRefusedNotice = (label: string): string => `Máy chủ không nhận ${label} này. Sửa ô được đánh dấu ở bước 1 rồi thử lại.`;
+const serverRefusedField = (label: string): string => `Máy chủ không nhận ${label} này. Sửa rồi thử lại.`;
 const FLOOR_COUNT_MAX = 50; // LIM:25-27 "basement included"
 const createdToast = (name: string): string => `Đã tạo dự án "${name}".`; // UCPM:669
 /** BE:schemas:27-28 — code ≤ 32, address ≤ 200; floor name ≥ 1 after trim (:54, `clean_text` :31-39). */
@@ -121,6 +130,13 @@ const countApi = (api: readonly ApiEntry[], method: string, path: string, status
   api.filter((e) => e.method === method && e.path === path && (status === undefined || e.status === status)).length;
 /** ASCII only, so the FE `.length` and the BE `len()` (code points, after NFC) agree; never ends in a space. */
 const asciiText = (seed: string, length: number): string => `${seed.repeat(Math.ceil(length / seed.length)).slice(0, length - 1)}X`;
+
+/** The BE 422 envelope `{code, requestId, field}` (BE:apps/api/core/errors.py:80-85, :136-157), as a `route.fulfill` argument. */
+const validation422 = (field: string): Parameters<Route['fulfill']>[0] => ({
+  status: 422,
+  contentType: 'application/json',
+  body: JSON.stringify({ code: 'VALIDATION', requestId: 'qa-mocked-response', field }),
+});
 
 /** A promise the test opens by hand — holds a real response ("[held response]"). */
 function gate(): { readonly wait: Promise<void>; readonly open: () => void } {
@@ -398,8 +414,8 @@ async function unrouteAll(page: Page): Promise<void> {
 
 test.describe('E02 SCR-05 wizard edge — step 1, keyboard and focus', () => {
   test('[BUG-133] E02 · wizard opened with "N" is pristine (no error, focus in "Tên dự án"); "n" off-field is swallowed by the dialog, in-field it types', async ({ browser }) => {
-    // EXPECTED TO FAIL while BUG-133 is open: CPM:105 passes `problems.name` unconditionally and UCPM:142-146 returns
-    // "Chưa nhập tên dự án." for '' — the error shows before any touch; FT:179 focuses the first focusable (MOD:163-171 X).
+    // BUG-133 fixed: the name's complaint ("Chưa nhập tên dự án.") waits for the first keystroke (`nameTouched`);
+    // a neutral hint (nameHint) shows instead. FT:179 focuses the first focusable (MOD:163-171 X).
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const dialog = await openWizardWithN(page);
@@ -533,7 +549,7 @@ test.describe('E02 SCR-05 wizard edge — step 1, keyboard and focus', () => {
 /* ================================================================= step 2 floors */
 
 test.describe('E02 SCR-05 wizard edge — step 2 floors', () => {
-  test('E02 · wizard row height parsing: "3,5" / "  2,5 " / "1e1" commit; "-3" and "3.5" are refused and keep the height; "" and "abc" erase it', async ({ browser }) => {
+  test('E02 · wizard row height parsing: "3,5" / "3.5" / "  2,5 " / "1e1" commit; "-3" and "10,01" are refused and keep the height; "" and "abc" erase it', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const dialog = await openWizard(page);
@@ -544,8 +560,8 @@ test.describe('E02 SCR-05 wizard edge — step 2 floors', () => {
       const floor1 = elevationCell(floorRow(dialog, page, 'Tầng 1'));
       await expect(floor1).toHaveText('3,0 m');
 
-      // NUM:255-266: trim, drop ".", first "," → "."; parseFloat. The next floor sits on this one's ceiling (UCPM:256-276).
-      for (const [typed, level] of [['3,5', '3,5 m'], ['  2,5 ', '2,5 m'], ['1e1', '10,0 m']] as const) {
+      // number.ts parseNumber: trim; a dot is a thousands mark only beside a comma or in exact 3-digit groups ("3.5" = 3,5, BUG-132); parseFloat. The next floor sits on this one's ceiling (UCPM:256-276).
+      for (const [typed, level] of [['3,5', '3,5 m'], ['3.5', '3,5 m'], ['  2,5 ', '2,5 m'], ['1e1', '10,0 m']] as const) {
         await typeHeight(ground, typed);
         await expect(floor1, `"${typed}" on "Tầng trệt"`).toHaveText(level);
       }
@@ -553,12 +569,12 @@ test.describe('E02 SCR-05 wizard edge — step 2 floors', () => {
 
       // NF:41-46 refuses out-of-range and never commits (NF:58): the row keeps 10 m, the field shows the local error
       // (row.problem is null so NFC:62 `error || props.error` is not overridden by the spread at NFC:71).
-      for (const [typed, message] of [['-3', NUMERIC_MIN], ['3.5', NUMERIC_MAX]] as const) {
+      for (const [typed, message] of [['-3', NUMERIC_MIN], ['10,01', NUMERIC_MAX]] as const) {
         await typeHeight(ground, typed);
         await expect(groundRow.getByRole('alert'), `"${typed}" refused`).toHaveText(message);
         await expect(floor1, `"${typed}" keeps the committed 10 m`).toHaveText('10,0 m');
       }
-      await captureEvidence(page, 'E02_wiz_row_height_refused.png', { caption: '"3.5" on "Tầng trệt" read as 35 → "Giá trị phải <= 10", 10 m kept' });
+      await captureEvidence(page, 'E02_wiz_row_height_refused.png', { caption: `"10,01" on "Tầng trệt" → "${NUMERIC_MAX}", 10 m kept` });
 
       // "" → parseNumber undefined → onChange(undefined) → height erased (UCPM:578-583): the row says so, the chain above breaks.
       await typeHeight(heightBox(dialog, 'Tầng 2'), '');
@@ -583,8 +599,8 @@ test.describe('E02 SCR-05 wizard edge — step 2 floors', () => {
   });
 
   test('[BUG-132] E02 · wizard apply field: "3.5" after a 3 m apply keeps the floors and applies 3,5 m', async ({ browser }) => {
-    // EXPECTED TO FAIL while BUG-132 is open: NUM:262 drops "." as a thousands mark → 35 → NF:44 refuses, never commits
-    // (applyHeightM stays 3, UCPM:585-587) — so "Áp cho mọi tầng" re-applies the stale 3 m while the user typed 3.5.
+    // BUG-132 fixed: parseNumber reads a lone dot as a decimal point, so "3.5" commits as 3,5 m (it used to drop the dot → 35 → refused,
+    // leaving the stale 3 m for "Áp cho mọi tầng").
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const dialog = await openWizard(page);
@@ -602,7 +618,7 @@ test.describe('E02 SCR-05 wizard edge — step 2 floors', () => {
       await captureEvidence(page, 'E02_wiz_apply_3dot5.png', { caption: `apply field after "3.5"+Tab shows "${state.fieldShows}", errors ${JSON.stringify(state.fieldErrors)}` });
       await attachJson('E02_wiz_apply_3dot5.json', state);
       await expect(floor1, 'typing in the apply field never erases the floors (BUG-132 "Mong đợi")').toHaveText('3,0 m');
-      expect.soft(state.fieldErrors, '3.5 is inside 2–10 m: no "<= 10" error').not.toContain(NUMERIC_MAX);
+      expect.soft(state.fieldErrors, '3.5 is inside 2–10 m: no max-range error').not.toContain(NUMERIC_MAX);
 
       await applyButton(dialog).click();
       await expect(floor1, '"3.5" applied as 3,5 m (BUG-132 "Mong đợi")').toHaveText('3,5 m');
@@ -857,7 +873,7 @@ test.describe('E02 SCR-05 wizard edge — review, discard, compact', () => {
     });
   });
 
-  test('E02 · wizard discard on steps 2 and 3: "Huỷ" twice closes step 2; Esc on step 3 warns, the warning survives "Quay lại", the backdrop then closes; reopen is blank; no POST', async ({ browser }) => {
+  test('E02 · wizard discard on steps 2 and 3: "Huỷ" twice closes step 2; Esc on step 3 warns, "Quay lại" clears the warning, the backdrop warns again and Esc then closes; reopen is blank; no POST', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       let dialog = await openWizard(page);
@@ -872,11 +888,14 @@ test.describe('E02 SCR-05 wizard edge — review, discard, compact', () => {
       await page.keyboard.press('Escape');
       await expect(discardWarning(dialog)).toBeVisible();
       await expect(dialog.getByText(DISCARD_HINT, { exact: true })).toBeVisible();
-      await backButton(dialog).click(); // goBack never calls markDirty (UCPM:614-616) → still confirming
+      await backButton(dialog).click(); // moving through the wizard answers the prompt: keep editing (BUG-189, goBack)
       await expect(stepText(dialog, 2)).toBeVisible();
+      await expect(discardWarning(dialog)).toHaveCount(0);
+      await captureEvidence(page, 'E02_wiz_discard_step2_3.png', { caption: 'Esc on step 3, then "Quay lại": step 2 without the discard warning' });
+      await page.mouse.click(8, DESKTOP.height / 2); // backdrop (MOD:108-117) → requestClose → dirty again → warns, does not close
       await expect(discardWarning(dialog)).toBeVisible();
-      await captureEvidence(page, 'E02_wiz_discard_step2_3.png', { caption: 'Esc on step 3, then "Quay lại": warning still shown on step 2' });
-      await page.mouse.click(8, DESKTOP.height / 2); // backdrop (MOD:108-117) → requestClose → close
+      await expect(dialog).toBeVisible();
+      await page.keyboard.press('Escape'); // already warned → second Esc closes
       await expect(dialog).toHaveCount(0);
 
       dialog = await openWizard(page); // CPM:309-328 new key per opening
@@ -1059,34 +1078,29 @@ test.describe('E02 SCR-05 wizard edge — create', () => {
     });
   });
 
-  test('E02 · wizard "Địa chỉ" boundary: 201 characters → server 422 + "Kiểm tra lại…" notice; 200 characters → created', async ({ browser }) => {
+  test('[BUG-186] E02 · wizard "Địa chỉ" boundary: 201 characters → step 1 names the limit and blocks "Tiếp tục" (no POST); 200 characters → created', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
-      // No FE cap on the address (CPM:118-123); BE:schemas:28,53 caps it at 200 after trim + NFC.
+      // The FE counts like the BE (BE:schemas:28,53: after trim + NFC) and caps the address at 200 at step 1 (BUG-186).
       const tooLong = asciiText('So 12 duong Lang, Dong Da, Ha Noi; ', BE_ADDRESS_MAX + 1);
       const dialog = await openWizard(page);
       await nameField(dialog).fill(uniqueName('wiz-addr'));
       await addressField(dialog).fill(tooLong);
-      await nextButton(dialog).click();
-      await applyHeight(dialog, '3');
-      await nextButton(dialog).click();
-      const rejected = waitForApi(page, 'POST', PROJECTS_RE, [422]);
-      await createButton(dialog).click();
-      const refused = await rejected;
-      expect(String(asRecord(refused.response.request().postDataJSON() as unknown, 'POST body').address).length).toBe(BE_ADDRESS_MAX + 1);
-      await expect(dialog.getByText(VALIDATION_DESCRIPTION, { exact: true }).first()).toBeVisible(); // UCPM:658-663
-      await expect(stateAnnouncement(dialog)).toHaveText(STATE.error); // UCPM:497
-      await captureEvidence(page, 'E02_wiz_address_201.png', { caption: 'address 201 chars → 422' });
-      await attachJson('E02_wiz_address_201.json', { status: refused.response.status(), body: refused.json as unknown });
+      await expect(dialog.getByText(ADDRESS_TOO_LONG, { exact: true })).toBeVisible();
+      await expect(addressField(dialog)).toHaveAttribute('aria-invalid', 'true');
+      await expect(nextButton(dialog), '201 characters cannot leave step 1').toBeDisabled();
+      await captureEvidence(page, 'E02_wiz_address_201.png', { caption: `address 201 chars → "${ADDRESS_TOO_LONG}", "Tiếp tục" locked` });
+      expect(countApi(admin.api, 'POST', PROJECTS_API), 'nothing was sent').toBe(0);
 
-      // Back to step 1: a new name clears serverNameProblem (UCPM:531-532), the address goes to exactly 200.
-      await backButton(dialog).click();
-      await backButton(dialog).click();
+      // Exactly 200 passes the FE and the BE.
       const name = uniqueName('wiz-addr200');
       await nameField(dialog).fill(name);
       await addressField(dialog).fill(tooLong.slice(0, BE_ADDRESS_MAX - 1) + 'X');
+      await expect(dialog.getByText(ADDRESS_TOO_LONG, { exact: true })).toHaveCount(0);
+      await expect(nextButton(dialog)).toBeEnabled();
       await nextButton(dialog).click();
-      await nextButton(dialog).click(); // heights kept (UCPM:614-616)
+      await applyHeight(dialog, '3');
+      await nextButton(dialog).click();
       const created = waitForApi(page, 'POST', PROJECTS_RE, [201]);
       await createButton(dialog).click();
       const ok = await created;
@@ -1096,21 +1110,66 @@ test.describe('E02 SCR-05 wizard edge — create', () => {
     });
   });
 
-  test('[BUG-129] E02 · wizard code 422: the server refusal marks "Mã dự án" (not "Tên dự án"), and fixing the code alone unlocks the create', async ({ browser }) => {
-    // EXPECTED TO FAIL while BUG-129 is open: UCPM:658-663 puts every create failure on the NAME (serverNameProblem),
-    // only setName clears it (UCPM:531), and canSubmit needs the name clean (UCPM:486, :489).
+  test('[BUG-129] E02 · wizard [mocked response] create 422 field "address" (paired: API "create body rules"): the server refusal marks "Địa chỉ" and "Sửa ở bước 1" leads there', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const keys = await routeCreate(page, (route) => route.fulfill(validation422('address')));
+      const dialog = await openWizard(page);
+      await toReview(dialog, uniqueName('wiz-addr422'));
+      await createButton(dialog).click();
+      await expect(dialog.getByText(serverRefusedNotice('địa chỉ'), { exact: true })).toBeVisible();
+      await expect(dialog.getByText(VALIDATION_DESCRIPTION, { exact: true }), 'a 422 with a field gets its own sentence').toHaveCount(0);
+      await expect(stateAnnouncement(dialog)).toHaveText(STATE.error);
+      expect(keys.length, 'one POST').toBe(1);
+      await captureEvidence(page, 'E02_wiz_address_422_mocked.png', { caption: 'POST /api/projects → 422 field address [mocked]' });
+      await dialog.getByRole('button', { name: FIX_AT_STEP_1, exact: true }).click();
+      await expect(stepText(dialog, 1)).toBeVisible();
+      await expect(addressField(dialog)).toHaveAttribute('aria-invalid', 'true');
+      await expect(dialog.getByText(serverRefusedField('địa chỉ'), { exact: true })).toBeVisible();
+      await expect(nameField(dialog)).not.toHaveAttribute('aria-invalid', 'true');
+      await addressField(dialog).fill('So 1 Tran Hung Dao');
+      await expect(dialog.getByText(serverRefusedField('địa chỉ'), { exact: true }), 'editing the refused value retires the refusal').toHaveCount(0);
+      await expect(nextButton(dialog)).toBeEnabled();
+      await discardWizard(dialog);
+    });
+  });
+
+  test('[BUG-176] E02 · wizard code boundary: 33 characters → "Mã dự án" names the limit, not "Tên dự án", and blocks "Tiếp tục" (no POST); 32 unlocks it', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const dialog = await openWizard(page);
       await nameField(dialog).fill(uniqueName('wiz-code'));
       await codeField(dialog).fill('C'.repeat(BE_CODE_MAX + 1)); // BE:schemas:27,52
-      await nextButton(dialog).click();
-      await applyHeight(dialog, '3');
-      await nextButton(dialog).click();
-      const rejected = waitForApi(page, 'POST', PROJECTS_RE, [422]);
+      await expect(dialog.getByText(CODE_TOO_LONG, { exact: true })).toBeVisible();
+      const marks = {
+        codeInvalid: await codeField(dialog).getAttribute('aria-invalid'),
+        nameInvalid: await nameField(dialog).getAttribute('aria-invalid'),
+        next: await nextButton(dialog).isEnabled(),
+      };
+      await captureEvidence(page, 'E02_wiz_code_33.png', { caption: `code 33 chars: code aria-invalid=${String(marks.codeInvalid)}, name aria-invalid=${String(marks.nameInvalid)}, "Tiếp tục" enabled=${String(marks.next)}` });
+      await attachJson('E02_wiz_code_33.json', marks);
+      expect(marks.codeInvalid, '"Mã dự án" is the field to fix').toBe('true');
+      expect(marks.nameInvalid, '"Tên dự án" was fine').toBeNull();
+      expect(marks.next, '33 characters cannot leave step 1').toBe(false);
+      expect(countApi(admin.api, 'POST', PROJECTS_API), 'nothing was sent').toBe(0);
+
+      await codeField(dialog).fill('C'.repeat(BE_CODE_MAX));
+      await expect(dialog.getByText(CODE_TOO_LONG, { exact: true })).toHaveCount(0);
+      await expect(nextButton(dialog), 'a code of 32 characters passes').toBeEnabled();
+      await discardWizard(dialog);
+    });
+  });
+
+  test('[BUG-129] E02 · wizard [mocked response] create 422 field "code" (paired: API "create body rules"): the refusal marks "Mã dự án" (not "Tên dự án"); fixing the code alone unlocks the create', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const keys = await routeCreate(page, (route) => route.fulfill(validation422('code')));
+      const dialog = await openWizard(page);
+      await toReview(dialog, uniqueName('wiz-code422'));
       await createButton(dialog).click();
-      const refused = await rejected;
-      await expect(dialog.getByText(VALIDATION_DESCRIPTION, { exact: true }).first()).toBeVisible();
+      await expect(dialog.getByText(serverRefusedNotice('mã dự án'), { exact: true })).toBeVisible();
+      await expect(dialog.getByText(VALIDATION_DESCRIPTION, { exact: true })).toHaveCount(0);
+      expect(keys.length, 'one POST').toBe(1);
 
       await backButton(dialog).click();
       await backButton(dialog).click();
@@ -1120,44 +1179,55 @@ test.describe('E02 SCR-05 wizard edge — create', () => {
         nameInvalid: await nameField(dialog).getAttribute('aria-invalid'),
         alerts: await dialog.getByRole('alert').allInnerTexts(),
       };
-      await captureEvidence(page, 'E02_wiz_code_422_marks.png', { caption: `after 422 on the code: code aria-invalid=${String(marks.codeInvalid)}, name aria-invalid=${String(marks.nameInvalid)}` });
-      await attachJson('E02_wiz_code_422_marks.json', { ...marks, status: refused.response.status(), body: refused.json as unknown });
+      await captureEvidence(page, 'E02_wiz_code_422_marks.png', { caption: `422 field code [mocked]: code aria-invalid=${String(marks.codeInvalid)}, name aria-invalid=${String(marks.nameInvalid)}` });
+      await attachJson('E02_wiz_code_422_marks.json', marks);
       expect.soft(marks.codeInvalid, '"Mã dự án" is the field the server refused (BUG-129)').toBe('true');
       expect.soft(marks.nameInvalid, '"Tên dự án" was fine').toBeNull();
 
-      await codeField(dialog).fill('C'.repeat(BE_CODE_MAX));
-      await expect(nextButton(dialog), 'a valid code alone makes the form submittable again (BUG-129)').toBeEnabled();
+      await codeField(dialog).fill('DA-OTHER');
+      await expect(nextButton(dialog), 'a different code alone makes the form submittable again (BUG-129)').toBeEnabled();
       await discardWizard(dialog);
     });
   });
 
-  test('E02 · wizard blank floor name: FE lets "   " through to review, the server refuses it (422) with the generic notice', async ({ browser }) => {
+  test('[BUG-185] E02 · wizard blank floor name: step 2 says "Chưa nhập tên tầng." on the row and locks "Tiếp tục" (no POST); a name unlocks it', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const dialog = await openWizard(page);
       await toStep2(dialog, uniqueName('wiz-floorname'));
       await applyHeight(dialog, '3');
-      await floorNameBoxes(dialog).nth(3).fill('   '); // UCPM:573-576 — no name rule on a floor (UCPM:482-489)
-      await expect(nextButton(dialog), 'FE has no floor-name check').toBeEnabled();
-      await nextButton(dialog).click();
-      await expect(reviewValue(dialog, 'Số tầng')).toHaveText('4');
-
-      const rejected = waitForApi(page, 'POST', PROJECTS_RE, [422]);
-      await createButton(dialog).click();
-      const refused = await rejected;
-      const floors = asRecord(refused.response.request().postDataJSON() as unknown, 'POST body').floors;
-      expect(Array.isArray(floors) ? (asRecord(floors[3], 'floors[3]').name as unknown) : undefined, 'CPC:60 sends the floor name untrimmed').toBe('   ');
-      // BE:schemas:54 FloorDraftName min_length 1 after clean_text trim (:31-39) → 422.
-      await expect(dialog.getByText(VALIDATION_DESCRIPTION, { exact: true }).first()).toBeVisible();
-      await expect(stateAnnouncement(dialog)).toHaveText(STATE.error);
-      await expect(createButton(dialog)).toBeDisabled(); // UCPM:661 → name problem → canSubmit false
-      await captureEvidence(page, 'E02_wiz_floor_name_blank_422.png', { caption: 'floor 4 named "   " → POST 422' });
-      await attachJson('E02_wiz_floor_name_blank_422.json', { status: refused.response.status(), body: refused.json as unknown });
+      await expect(nextButton(dialog)).toBeEnabled();
+      await floorNameBoxes(dialog).nth(3).fill('   '); // blank after trim
+      await expect(dialog.getByText(FLOOR_NAME_MISSING, { exact: true })).toBeVisible();
+      await expect(nextButton(dialog), 'a floor without a name cannot continue').toBeDisabled();
+      await captureEvidence(page, 'E02_wiz_floor_name_blank.png', { caption: 'floor 4 named "   " → "Chưa nhập tên tầng.", "Tiếp tục" locked' });
+      expect(countApi(admin.api, 'POST', PROJECTS_API), 'nothing was sent').toBe(0);
+      await floorNameBoxes(dialog).nth(3).fill('Tầng 3');
+      await expect(dialog.getByText(FLOOR_NAME_MISSING, { exact: true })).toHaveCount(0);
+      await expect(nextButton(dialog)).toBeEnabled();
       await discardWizard(dialog);
     });
   });
 
-  test('E02 · wizard [held response] Esc while creating: the discard warning shows, a second Esc closes, the held POST still creates the project and its toast', async ({ browser }) => {
+  test('[BUG-129] E02 · wizard [mocked response] create 422 field "floors.3.name" (paired: API "floors bounds"): the notice names the floor and "Sửa ở bước 2" leads back', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const keys = await routeCreate(page, (route) => route.fulfill(validation422('floors.3.name')));
+      const dialog = await openWizard(page);
+      await toReview(dialog, uniqueName('wiz-floor422'));
+      await createButton(dialog).click();
+      await expect(dialog.getByText('Máy chủ không nhận tầng "Tầng 3". Sửa ở bước 2 rồi thử lại.', { exact: true })).toBeVisible();
+      await expect(dialog.getByText(VALIDATION_DESCRIPTION, { exact: true })).toHaveCount(0);
+      await expect(stateAnnouncement(dialog)).toHaveText(STATE.error);
+      expect(keys.length, 'one POST').toBe(1);
+      await captureEvidence(page, 'E02_wiz_floor_name_422_mocked.png', { caption: 'POST /api/projects → 422 field floors.3.name [mocked]' });
+      await dialog.getByRole('button', { name: 'Sửa ở bước 2', exact: true }).click();
+      await expect(stepText(dialog, 2)).toBeVisible();
+      await discardWizard(dialog);
+    });
+  });
+
+  test('[BUG-184] E02 · wizard [held response] Esc while creating: the dialog stays shut to closing (no discard warning), the held POST creates the project and the dialog then closes itself with its toast', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const name = uniqueName('wiz-escbusy');
@@ -1172,26 +1242,27 @@ test.describe('E02 SCR-05 wizard edge — create', () => {
       await expect(stateAnnouncement(dialog)).toHaveText(STATE.loading);
       await expect(cancelButton(dialog)).toBeDisabled(); // CPM:284
 
-      // requestClose (UCPM:624-635) has no isSubmitting guard: Esc reaches it while "Huỷ" is locked.
+      // requestClose returns early while isSubmitting (BUG-184): the POST cannot be taken back, so Esc closes nothing.
       await page.keyboard.press('Escape');
-      await expect(discardWarning(dialog)).toBeVisible();
-      await captureEvidence(page, 'E02_wiz_esc_while_busy.png', { caption: 'POST held; Esc → "Đóng và bỏ các thay đổi chưa lưu?"' });
       await page.keyboard.press('Escape');
-      await expect(dialog).toHaveCount(0);
+      await expect(dialog).toBeVisible();
+      await expect(discardWarning(dialog)).toHaveCount(0);
+      await captureEvidence(page, 'E02_wiz_esc_while_busy.png', { caption: 'POST held; Esc twice → dialog still open, no discard warning' });
 
       const created = waitForApi(page, 'POST', PROJECTS_RE, [201]);
       hold.open();
-      await created; // the hook stays mounted (CPM:313-316 keeps the key on close) and finishes UCPM:655-675
+      await created;
       await unrouteAll(page);
+      await expect(dialog).toHaveCount(0); // closed by the finished create, not by Esc
       await expect(toastWith(page, createdToast(name))).toBeVisible();
       await expect(projectCard(page, name)).toBeVisible();
-      await captureEvidence(page, 'E02_wiz_esc_while_busy_created.png', { caption: '"discarded" dialog — project created anyway' });
+      await captureEvidence(page, 'E02_wiz_esc_while_busy_created.png', { caption: 'Esc ignored while creating — project created, dialog closed, toast' });
       await attachJson('E02_wiz_esc_while_busy.json', { created: countApi(admin.api, 'POST', PROJECTS_API, 201) });
     });
   });
 
   test('[BUG-129] E02 · wizard [mocked response] create 500 (unpairable: 5xx): one POST, generic notice, review kept — and "Tạo dự án" usable to retry', async ({ browser }) => {
-    // EXPECTED TO FAIL (last assertion) while BUG-129 is open: UCPM:661 → name problem → canSubmit false (UCPM:489).
+    // BUG-129 fixed: a failure that names no field marks nothing, so "Tạo dự án" stays usable.
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const keys = await routeCreate(page, (route) => route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }));
@@ -1199,7 +1270,7 @@ test.describe('E02 SCR-05 wizard edge — create', () => {
       const dialog = await openWizard(page);
       await toReview(dialog, name);
       await createButton(dialog).click();
-      // 500 is not in RTY:3 → no retry; TAE:10-18 has no 500 → 'unknown' → vi.json:63.
+      // 500 is not in RTY:3 → no retry; TAE:10-18 has no 500 → 'unknown' → the wizard's own sentence (problems.unknownKeepsForm).
       await expect(dialog.getByText(UNKNOWN_DESCRIPTION, { exact: true }).first()).toBeVisible();
       await expect(stateAnnouncement(dialog)).toHaveText(STATE.error);
       await expect(stepText(dialog, 3)).toBeVisible();

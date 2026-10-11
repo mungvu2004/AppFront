@@ -227,11 +227,17 @@ test.describe('SCR-05 Dashboard (/)', () => {
     await captureEvidence(page, '05_dash_loaded.png');
   });
 
-  test('SCR-05 wizard validation: empty name shows "Chưa nhập tên dự án."', async () => {
+  test('SCR-05 wizard validation: pristine step 1 shows only the hint; a name typed then erased shows "Chưa nhập tên dự án."', async () => {
     const dialog = await openWizard(page);
 
-    // Step 1 has no "Tạo dự án" button (it only exists on step 3, CreateProjectModal.tsx:291):
-    // with an empty name the step is blocked — the error is rendered and "Tiếp tục" is disabled.
+    // Step 1 has no "Tạo dự án" button (it only exists on step 3, CreateProjectModal.tsx:291).
+    // BUG-133: a form nobody typed into is not wrong yet — a neutral hint, no error, "Tiếp tục" disabled.
+    await expect(dialog.getByText('Bắt buộc, từ 3 đến 80 ký tự.', { exact: true })).toBeVisible();
+    await expect(dialog.getByRole('alert')).toHaveCount(0);
+    await expect(dialog.getByRole('button', { name: 'Tiếp tục', exact: true })).toBeDisabled();
+    // The complaint arrives with the first keystroke: with an empty name the step stays blocked.
+    await dialog.getByLabel('Tên dự án').fill('a');
+    await dialog.getByLabel('Tên dự án').fill('');
     await expect(dialog.getByRole('alert').filter({ hasText: 'Chưa nhập tên dự án.' })).toBeVisible();
     await expect(dialog.getByRole('button', { name: 'Tiếp tục', exact: true })).toBeDisabled();
     await settled(dialog);
@@ -334,8 +340,8 @@ test.describe('SCR-05 Dashboard (/)', () => {
     const viewMode = page.getByRole('radiogroup', { name: 'Kiểu xem', exact: true });
     await viewMode.getByRole('radio', { name: 'Bảng', exact: true }).click();
     await expect(viewMode.getByRole('radio', { name: 'Bảng', exact: true })).toHaveAttribute('aria-checked', 'true');
-    // BUG-139: PW 1.45.2 maps a `<th>` without `scope` (Table.tsx:167) to role "cell", so
-    // getByRole('columnheader') finds nothing; the header row is read from the markup instead.
+    // BUG-115 fixed: `Table.Head` carries scope="col" (getByRole('columnheader') works); the header row is still read
+    // from the markup (`thead th`), the same cells.
     await expect(page.getByRole('main').locator('thead th')).toHaveText([...TABLE_HEADERS]);
 
     const rows = page.getByRole('main').locator('tbody tr');

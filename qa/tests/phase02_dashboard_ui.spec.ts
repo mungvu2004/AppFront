@@ -10,14 +10,17 @@
  *   - `U02_dash_rename_toast`: 1 `POST` (API) + 4 `PATCH /api/projects/:id` (one rename per width, UI) + 1 `DELETE` (API);
  *   - `U02_dash_create_toast`: up to 4 `POST /api/projects` through the wizard (one per width) + as many `DELETE` (API);
  *     the create toast's "Hoàn tác" is never clicked;
- *   - `U02_wizard_server_422`: up to 4 `POST /api/projects` the server refuses with 422 (33-char "Mã dự án"): no write.
+ *   - `U02_wizard_server_422` is a `[mocked response]` (422 field "code"): no write; the real 33-char code is blocked at
+ *     step 1 (`U02_wizard_code_too_long`), nothing is sent.
  * Nothing else is sent: the delete dialog is never confirmed, the 80-char rename field is left unchanged
  * (`commitRename` returns early, `useProjectDashboard.ts`), "Đánh dấu (tất cả) đã đọc" is never clicked.
  * Sessions: every screen reads Phase 1's admin storage state (`support/state.ts`); each test opens its OWN context
  * and writes the rotated refresh cookie back in `finally` (same chain as `phase01_auth_ui.spec.ts`), 4 loads per
  * test → 33 tests × 4 = 132 `POST /api/auth/refresh` over several minutes (`auth_refresh_total` 300 / 60 s per sid).
  *
- * Faked responses (6 of 34 states = 18 %, suite limit 35 %), each titled `[mocked response]` with its pair:
+ * Faked responses (7 of 35 states = 20 %, suite limit 35 %), each titled `[mocked response]` with its pair:
+ *   - `U02_wizard_server_422` (`POST /api/projects` 422 field "code", BUG-129): PAIR in `phase02_dashboard_api.spec.ts`
+ *     "create body rules" (the real BE answers 422 `VALIDATION` with `field: "code"`; the FE now blocks a 33-char code first);
  *   - `U02_notif_rows*` (`GET /api/notifications` with 3 rows, BUG-174): PAIR in `phase02_notify_edge.spec.ts` (a second real
  *     user's inbox holds real `projectInvite` rows; the admin's own inbox is empty on the shared stack);
  *   - `U02_dash_load_error` (N1 500) and `U02_notif_load_error` (`GET /api/notifications` 500): unpairable, a 5xx
@@ -89,6 +92,10 @@ const NEW_PROJECT = /^Dự án mới/u; // Button carries the `N` shortcut hint 
 const NAME_LABEL = 'Tên dự án';
 const CODE_LABEL = 'Mã dự án'; // CreateProjectModal.tsx:110
 const NAME_REQUIRED = 'Chưa nhập tên dự án.';
+const NAME_HINT = 'Bắt buộc, từ 3 đến 80 ký tự.'; // vi.json project.createModal.fields.nameHint
+const CODE_TOO_LONG = 'Mã dự án không quá 32 ký tự.'; // vi.json project.createModal.problems.codeTooLong
+const FIX_AT_STEP_1 = 'Sửa ở bước 1'; // problems.fixAtStep
+const SERVER_REFUSED_CODE_NOTICE = 'Máy chủ không nhận mã dự án này. Sửa ô được đánh dấu ở bước 1 rồi thử lại.'; // problems.serverRefusedFieldNotice
 const NEXT = 'Tiếp tục';
 const CANCEL = 'Huỷ';
 const SHARED_HEIGHT_LABEL = 'Chiều cao áp cho mọi tầng'; // StepFloors.tsx:131
@@ -96,14 +103,14 @@ const APPLY_HEIGHT = 'Áp cho mọi tầng'; // StepFloors.tsx:145
 const ADD_FLOOR = 'Thêm tầng'; // StepFloors.tsx:127
 const DEFAULT_FLOORS = ['Tầng trệt', 'Tầng 1', 'Tầng 2', 'Tầng 3'] as const; // useCreateProjectModal.ts:82, :185-197
 const HEIGHT_MISSING = 'Chưa nhập chiều cao thông thuỷ.'; // useCreateProjectModal.ts:113
-const NUMERIC_MAX = 'Giá trị phải <= 10'; // useNumericField.ts:44, limits.ts:35
+const NUMERIC_MAX = 'Giá trị không quá 10 m.'; // useNumericField.ts:44, limits.ts:35
 const NO_FLOORS = 'Chưa có tầng nào'; // StepFloors.tsx:61
 const NO_FLOORS_HINT = 'Thêm ít nhất một tầng để sang bước xem lại.'; // StepFloors.tsx:62
 const FLOOR_COUNT_MAX = 50; // limits.ts:27, useCreateProjectModal.ts:490
 const VALIDATION_DESCRIPTION = 'Kiểm tra lại các trường được đánh dấu rồi thử lại.'; // src/i18n/vi.json:39 (errors.validation)
 const CREATE_PROJECT = 'Tạo dự án';
 const DISCARD_TITLE = 'Đóng và bỏ các thay đổi chưa lưu?'; // CreateProjectModal.tsx:252
-const DISCARD_HINT = 'Nhấn Esc lần nữa, hoặc bấm nút bên cạnh, để xác nhận đóng.'; // CreateProjectModal.tsx:253
+const DISCARD_HINT = 'Nhấn Esc lần nữa hoặc bấm "Đóng, bỏ thay đổi" để đóng.'; // CreateProjectModal.tsx:253
 const DISCARD_CONFIRM = 'Đóng, bỏ thay đổi';
 const FLOOR_HEIGHT_M = '3';
 /* SCR-06: NotificationCenter.tsx:54-68, notificationModel.ts:114-118. */
@@ -115,7 +122,10 @@ const MARK_READ = 'Đánh dấu đã đọc'; // NotificationCenter.tsx:56
 const MARK_ALL_READ = 'Đánh dấu tất cả đã đọc'; // NotificationCenter.tsx:55
 const NOTIFICATIONS_EMPTY = 'Không có thông báo mới';
 const NOTIFICATIONS_EMPTY_DESCRIPTION = 'Chúng tôi sẽ báo khi AI xử lý xong hoặc có người nhắc đến bạn.'; // NotificationCenter.tsx:65
-const NOTIFICATIONS_PARTIAL = 'Có thể chưa cập nhật'; // NotificationCenter.tsx:66
+const NOTIFICATIONS_PARTIAL = 'Có thể chưa cập nhật'; // NotificationCenter.tsx PARTIAL_NOTICE (a failed write, no longer a filter with no match)
+const NOTIFICATIONS_EMPTY_UNREAD = 'Không có thông báo chưa đọc'; // NotificationCenter.tsx EMPTY_COPY.unread (BUG-126)
+const NOTIFICATIONS_EMPTY_MENTIONS = 'Chưa có ai nhắc đến bạn'; // NotificationCenter.tsx EMPTY_COPY.mentions
+const SHOW_EVERYTHING = 'Hiện mọi thông báo'; // NotificationCenter.tsx SHOW_EVERYTHING_LABEL (a filtered empty state)
 const NOTIFICATIONS_ERROR = 'Không tải được thông báo';
 /* SCR-07: useWelcomeScreen.ts:122-146, :164. */
 const WELCOME_SEEN_PREFIX = 'appfront:onboarding-welcome-seen:';
@@ -278,7 +288,7 @@ async function applySharedHeight(dialog: Locator): Promise<void> {
   await activate(dialog.getByRole('button', { name: APPLY_HEIGHT, exact: true }));
 }
 
-/** Notification drawer settled: a day group, the empty / no-match state, or the error state (NotificationCenter.tsx). */
+/** Notification drawer settled: a day group, an empty state (one sentence per filter), or the error state (NotificationCenter.tsx). */
 async function expectDrawerSettled(page: Page): Promise<void> {
   const panel = drawer(page);
   await expect(panel).toBeVisible();
@@ -287,6 +297,8 @@ async function expectDrawerSettled(page: Page): Promise<void> {
       .locator('section')
       .first()
       .or(panel.getByText(NOTIFICATIONS_EMPTY, { exact: true }))
+      .or(panel.getByText(NOTIFICATIONS_EMPTY_UNREAD, { exact: true }))
+      .or(panel.getByText(NOTIFICATIONS_EMPTY_MENTIONS, { exact: true }))
       .or(panel.getByText(NOTIFICATIONS_PARTIAL, { exact: true }))
       .or(panel.getByText(NOTIFICATIONS_ERROR, { exact: true }))
       .first(),
@@ -396,8 +408,8 @@ test.describe('U02 UI verify — SCR-05 dashboard (with an 80-character project 
       const table = p.getByRole('radiogroup', { name: VIEW_MODE, exact: true }).getByRole('radio', { name: 'Bảng', exact: true });
       await table.click();
       await expect(table).toHaveAttribute('aria-checked', 'true');
-      // BUG-139: PW 1.45.2 maps a `<th>` without `scope` (components/ui/Table.tsx:167) to role "cell",
-      // so getByRole('columnheader') finds nothing; the first header cell is read from the markup.
+      // BUG-115 fixed: `Table.Head` carries scope="col", so `getByRole('columnheader')` works; the first header cell is
+      // still read from the markup (`thead th`), which is the same cell.
       await expect(p.getByRole('main').locator('thead th').first()).toHaveText(NAME_LABEL);
       await expect(p.getByRole('main').locator('tbody tr').filter({ hasText: longProject().name })).toBeVisible();
     });
@@ -427,8 +439,7 @@ test.describe('U02 UI verify — SCR-05 dashboard (with an 80-character project 
         await expect(button).toHaveAttribute('aria-pressed', 'true');
       }
       // Either the matching cards or the no-match state, depending on the run's projects. Below 1024 px a filter with
-      // no match shows "Chưa có dự án nào" instead (BUG-111, useProjectDashboard.ts:362-369 `collapsed` beats `partial`):
-      // that width then records an openError — the product bug, not this case.
+      // no match shows the no-match state at every width (BUG-111 fixed: it used to read "Chưa có dự án nào" below 1024 px).
       await expect(
         p.getByRole('list', { name: PROJECT_LIST, exact: true }).or(p.getByText(NO_MATCH_TITLE, { exact: true })).first(),
       ).toBeVisible();
@@ -439,7 +450,7 @@ test.describe('U02 UI verify — SCR-05 dashboard (with an 80-character project 
     await verifyAsAdmin(browser, 'U02_dash_search_no_match', async (p) => {
       await openWithLongProject(p);
       await p.getByRole('searchbox', { name: SEARCH_LABEL, exact: true }).fill(NO_MATCH_TERM);
-      // < 1024 px: BUG-111 ("Chưa có dự án nào" instead of the no-match state) → openError at 768/375.
+      // BUG-111 fixed: the no-match state also shows below 1024 px (it used to read "Chưa có dự án nào" and record an openError).
       await expect(p.getByText(NO_MATCH_TITLE, { exact: true })).toBeVisible();
       await expect(p.getByRole('button', { name: CLEAR_FILTERS, exact: true })).toBeVisible();
     });
@@ -616,11 +627,18 @@ test.describe('U02 UI verify — SCR-05 dashboard (with an 80-character project 
   });
 });
 
-test.describe('U02 UI verify — SCR-05 create-project wizard (never sent, except the 422 state)', () => {
-  test('U02 · SCR-05 wizard step 1, empty name → "Chưa nhập tên dự án."', async ({ browser }) => {
+test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 422 state is mocked)', () => {
+  test('U02 · SCR-05 wizard step 1: pristine shows only the hint; a name typed then erased → "Chưa nhập tên dự án."', async ({ browser }) => {
     await verifyAsAdmin(browser, 'U02_wizard_name_required', async (p) => {
       const dialog = await openWizard(p);
-      // Pristine step 1 already shows the complaint and locks "Tiếp tục" (phase02_dashboard.spec.ts validation case).
+      // BUG-133: a form nobody typed into is not wrong yet — a neutral hint, no error, "Tiếp tục" locked.
+      await expect(dialog.getByText(NAME_HINT, { exact: true })).toBeVisible();
+      await expect(dialog.getByRole('alert')).toHaveCount(0);
+      await expect(dialog.getByRole('button', { name: NEXT, exact: true })).toBeDisabled();
+      // The complaint arrives with the first keystroke (phase02_dashboard.spec.ts validation case).
+      const name = dialog.getByLabel(NAME_LABEL);
+      await name.fill('a');
+      await name.fill('');
       await expect(dialog.getByRole('alert').filter({ hasText: NAME_REQUIRED })).toBeVisible();
       await expect(dialog.getByRole('button', { name: NEXT, exact: true })).toBeDisabled();
       await settled(dialog);
@@ -636,7 +654,7 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent, excep
     });
   });
 
-  test('U02 · SCR-05 wizard step 2 validation: shared height "10,01" → "Giá trị phải <= 10", rows "Chưa nhập chiều cao thông thuỷ."', async ({ browser }) => {
+  test('U02 · SCR-05 wizard step 2 validation: shared height "10,01" → "Giá trị không quá 10 m."; rows stay neutral until a floor is edited, then "Chưa nhập chiều cao thông thuỷ."', async ({ browser }) => {
     await verifyAsAdmin(browser, 'U02_wizard_height_refused', async (p) => {
       const dialog = await openWizard(p);
       await toStep2(dialog, `${TEST_DATA_PREFIX}u02-cao`);
@@ -644,7 +662,10 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent, excep
       await field.fill('10,01');
       await field.press('Tab'); // useNumericField.ts:41-46 refuses out of range on blur
       await expect(dialog.getByText(NUMERIC_MAX, { exact: true })).toBeVisible();
-      await expect(dialog.getByRole('alert').filter({ hasText: HEIGHT_MISSING }).first()).toBeVisible(); // useCreateProjectModal.ts:239-243
+      // BUG-120: step 2 opens neutral, and the shared field is not an edit of the stack (floorsTouched stays false).
+      await expect(dialog.getByRole('table').getByRole('alert')).toHaveCount(0);
+      await dialog.getByRole('textbox', { name: /^Tên tầng /u }).first().fill('Tầng trệt A'); // first edit of a floor
+      await expect(dialog.getByRole('alert').filter({ hasText: HEIGHT_MISSING }).first()).toBeVisible();
       await expect(dialog.getByRole('button', { name: APPLY_HEIGHT, exact: true })).toBeDisabled(); // useCreateProjectModal.ts:491
       await settled(dialog);
     });
@@ -691,26 +712,56 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent, excep
     });
   });
 
-  test('U02 · SCR-05 wizard server 422 (33-char "Mã dự án"): violation notice, "Tạo dự án" locked', async ({ browser }) => {
-    test.setTimeout(240_000);
-    await verifyAsAdmin(browser, 'U02_wizard_server_422', async (p) => {
-      // FE puts no cap on the code (CreateProjectModal.tsx:109-115); BE caps it at 32 (BE apps/api/projects/schemas.py:27,52).
+  test('U02 · SCR-05 wizard 33-char "Mã dự án": the limit is named at step 1 and "Tiếp tục" is locked (nothing sent)', async ({ browser }) => {
+    await verifyAsAdmin(browser, 'U02_wizard_code_too_long', async (p) => {
+      // BUG-176: the FE counts like the BE (trim + NFC, 32 max, apps/api/projects/schemas.py:27,52) and refuses at step 1.
       const dialog = await openWizard(p);
-      await dialog.getByLabel(NAME_LABEL).fill(shortName('u02-422'));
+      await dialog.getByLabel(NAME_LABEL).fill(shortName('u02-code'));
       await dialog.getByLabel(CODE_LABEL).fill('C'.repeat(33));
-      await activate(dialog.getByRole('button', { name: NEXT, exact: true }));
-      await expect(stepLabel(dialog, 2)).toBeVisible();
-      await applySharedHeight(dialog);
-      await activate(dialog.getByRole('button', { name: NEXT, exact: true }));
-      await expect(stepLabel(dialog, 3)).toBeVisible();
-      const refused = p.waitForResponse((r) => r.request().method() === 'POST' && pathnameOf(r) === PROJECTS_PATH);
-      await activate(dialog.getByRole('button', { name: CREATE_PROJECT, exact: true }));
-      expect((await refused).status(), 'POST /api/projects with a 33-char code').toBe(422);
-      // useCreateProjectModal.ts:658-663: describeError(validation) → violation notice; submit locked.
-      await expect(dialog.getByText(VALIDATION_DESCRIPTION, { exact: true }).first()).toBeVisible();
-      await expect(dialog.getByRole('button', { name: CREATE_PROJECT, exact: true })).toBeDisabled();
+      await expect(dialog.getByText(CODE_TOO_LONG, { exact: true })).toBeVisible();
+      await expect(dialog.getByLabel(CODE_LABEL)).toHaveAttribute('aria-invalid', 'true');
+      await expect(dialog.getByRole('button', { name: NEXT, exact: true })).toBeDisabled();
       await settled(dialog);
     });
+  });
+
+  test('U02 · SCR-05 wizard [mocked response] server 422 field "code": violation notice, "Sửa ở bước 1", "Tạo dự án" stays usable', async ({ browser }) => {
+    test.setTimeout(240_000);
+    // pair: phase02_dashboard_api.spec.ts "create body rules" — the real BE answers 422 VALIDATION with field "code" (see file header).
+    await verifyAsAdmin(
+      browser,
+      'U02_wizard_server_422',
+      async (p) => {
+        const dialog = await openWizard(p);
+        await dialog.getByLabel(NAME_LABEL).fill(shortName('u02-422'));
+        await activate(dialog.getByRole('button', { name: NEXT, exact: true }));
+        await expect(stepLabel(dialog, 2)).toBeVisible();
+        await applySharedHeight(dialog);
+        await activate(dialog.getByRole('button', { name: NEXT, exact: true }));
+        await expect(stepLabel(dialog, 3)).toBeVisible();
+        const refused = p.waitForResponse((r) => r.request().method() === 'POST' && pathnameOf(r) === PROJECTS_PATH);
+        await activate(dialog.getByRole('button', { name: CREATE_PROJECT, exact: true }));
+        expect((await refused).status(), 'POST /api/projects [mocked]').toBe(422);
+        // describeCreateFailure: a validation error naming a step-1 field → its own sentence, not errors.validation.
+        await expect(dialog.getByText(SERVER_REFUSED_CODE_NOTICE, { exact: true })).toBeVisible();
+        await expect(dialog.getByText(VALIDATION_DESCRIPTION, { exact: true })).toHaveCount(0);
+        await expect(dialog.getByRole('button', { name: FIX_AT_STEP_1, exact: true })).toBeVisible();
+        await expect(dialog.getByRole('button', { name: CREATE_PROJECT, exact: true })).toBeEnabled();
+        await settled(dialog);
+      },
+      (context) =>
+        context.route(
+          (url) => url.pathname === PROJECTS_PATH,
+          (route) =>
+            route.request().method() === 'POST'
+              ? route.fulfill({
+                  status: 422,
+                  contentType: 'application/json',
+                  body: JSON.stringify({ code: 'VALIDATION', requestId: 'qa-mocked-response', field: 'code' }),
+                })
+              : route.fallback(),
+        ),
+    );
   });
 
   test('U02 · SCR-05 wizard dirty → "Huỷ" → discard prompt (not confirmed)', async ({ browser }) => {
@@ -755,11 +806,15 @@ test.describe('U02 UI verify — SCR-06 notifications', () => {
       await unread.click();
       await expect(unread).toHaveAttribute('aria-checked', 'true');
       await expectDrawerSettled(p);
+      if ((await panel.locator('li').count()) === 0) {
+        await expect(panel.getByText(NOTIFICATIONS_EMPTY_UNREAD, { exact: true })).toBeVisible();
+        await expect(panel.getByText(NOTIFICATIONS_PARTIAL, { exact: true })).toHaveCount(0);
+      }
       await settled(panel);
     });
   });
 
-  test('U02 · SCR-06 drawer filter "Nhắc đến tôi" (no match → "Có thể chưa cập nhật", or empty)', async ({ browser }) => {
+  test('U02 · SCR-06 drawer filter "Nhắc đến tôi" (no match → its own empty state "Chưa có ai nhắc đến bạn", or rows)', async ({ browser }) => {
     await verifyAsAdmin(browser, 'U02_notif_filter_mentions', async (p) => {
       const panel = await openBellDrawer(p);
       const mentions = panel
@@ -767,7 +822,12 @@ test.describe('U02 UI verify — SCR-06 notifications', () => {
         .getByRole('radio', { name: FILTER_MENTIONS, exact: true }); // notificationModel.ts:114-118
       await mentions.click();
       await expect(mentions).toHaveAttribute('aria-checked', 'true');
-      await expectDrawerSettled(p); // useNotificationCenter.ts:877-883: empty beats the filter, else "partial"
+      await expectDrawerSettled(p); // useNotificationCenter.ts screenState: no row → 'empty', worded per filter (BUG-126/179)
+      if ((await panel.locator('li').count()) === 0) {
+        await expect(panel.getByText(NOTIFICATIONS_EMPTY_MENTIONS, { exact: true })).toBeVisible();
+        await expect(panel.getByRole('button', { name: SHOW_EVERYTHING, exact: true })).toBeVisible();
+        await expect(panel.getByText(NOTIFICATIONS_PARTIAL, { exact: true })).toHaveCount(0);
+      }
       await settled(panel);
     });
   });
