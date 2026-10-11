@@ -122,6 +122,33 @@ describe('useUndoableToast', () => {
     expect(storedThickness(wall.id)).toBe(wall.thicknessMm + 100);
   });
 
+  it('does not replay a commit made before it mounted', () => {
+    // A wall edit on the canvas, then the user opens a route that mounts its own
+    // `Toast.Provider` (/versions, export, settings, dashboard, account). The old
+    // commit is still in `historySlice`; replaying it would offer an Undo that
+    // runs `temporal.undo()` on a screen that never made that change.
+    const wall = firstSampleWall();
+
+    commit(
+      { op: 'update', kind: 'wall', id: wall.id, changes: { thicknessMm: wall.thicknessMm + 100 } },
+      'Đổi độ dày tường',
+    );
+
+    const { result } = renderHook(() => useUndoableToast());
+
+    expect(result.current).toBeNull();
+
+    // A commit made after mount still gets its toast.
+    act(() => {
+      commit(
+        { op: 'update', kind: 'wall', id: wall.id, changes: { thicknessMm: wall.thicknessMm + 200 } },
+        'Đổi độ dày tường lần nữa',
+      );
+    });
+
+    expect(result.current?.label).toBe('Đổi độ dày tường lần nữa');
+  });
+
   it('offers no toast for a commit that hands over no way back', () => {
     const { result } = renderHook(() => useUndoableToast());
 

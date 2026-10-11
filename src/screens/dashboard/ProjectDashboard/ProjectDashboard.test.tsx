@@ -322,6 +322,8 @@ describe('ProjectDashboardView, seven states', () => {
     expect(box).toHaveClass('invisible', 'line-clamp-2', 'max-sm:line-clamp-1', 'max-sm:leading-8');
     expect(box).toHaveAttribute('aria-hidden', 'true');
     expect(field).toHaveClass('absolute', 'inset-0');
+    // A 1-line name at >= sm is a 20 px box; the field reaches 2 px past it each way, so 24 px (WCAG 2.5.8) inside the 40 px row.
+    expect(field).toHaveClass('sm:-inset-y-0.5');
     expect(field.className.split(' ').filter((name) => /(^|:)h-/u.test(name))).toEqual([]);
     expect(field.parentElement).toBe(box?.parentElement);
     expect(field.parentElement).toHaveClass('relative');

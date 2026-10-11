@@ -65,6 +65,7 @@ import { readBaseUrl } from '../../e2e/fullstack/env';
 import { signedInApi } from './support/api';
 import { ensureAdminSession, readAdminCredentials } from './support/auth';
 import { TEST_DATA_PREFIX } from './support/evidence';
+import { typeHeight } from './support/numeric-field';
 import { ADMIN_STORAGE_STATE_FILE } from './support/state';
 import { UI_VIEWPORTS, verifyUi } from './support/ui-verify';
 
@@ -725,12 +726,7 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
       const dialog = await openWizard(p);
       await toStep2(dialog, `${TEST_DATA_PREFIX}u02-cao`);
       const field = dialog.getByLabel(SHARED_HEIGHT_LABEL);
-      // BUG-224: focus, wait for useNumericField's focus handler, then select all and insert (a bare fill() races it).
-      await field.focus();
-      await p.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-      await field.press('Control+A');
-      await p.keyboard.insertText('10,01');
-      await field.press('Tab'); // useNumericField.ts:41-46 refuses out of range on blur
+      await typeHeight(field, '10,01'); // BUG-224 typing; useNumericField.ts:41-46 refuses out of range on blur
       await expect(dialog.getByText(NUMERIC_MAX, { exact: true })).toBeVisible();
       await expect(field).toHaveValue('10,01'); // BUG-160: the refused value stays beside its message (useNumericField.ts displayValue)
       // BUG-120: step 2 opens neutral, and the shared field is not an edit of the stack (floorsTouched stays false).
@@ -742,13 +738,7 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
       await expect(dialog.getByRole('table').getByRole('alert')).toHaveCount(0);
       await nameBox.fill(DEFAULT_FLOORS[0]);
       const groundHeight = dialog.getByRole('textbox', { name: `Chiều cao thông thuỷ tầng ${DEFAULT_FLOORS[0]}`, exact: true }); // StepFloors.tsx:131
-      // BUG-224: focus, wait for useNumericField's focus handler, then select all and insert (a bare fill() races it).
-      await groundHeight.focus();
-      await p.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-      await groundHeight.press('Control+A');
-      await p.keyboard.insertText('3');
-      await expect(groundHeight).toHaveValue('3');
-      await groundHeight.press('Tab');
+      await typeHeight(groundHeight, '3'); // BUG-224 typing
       await expect(dialog.getByRole('alert').filter({ hasText: HEIGHT_MISSING }).first()).toBeVisible(); // "Tầng 1" upward
       await expect(dialog.getByRole('button', { name: APPLY_HEIGHT, exact: true })).toBeDisabled(); // useCreateProjectModal.ts:491
       await settled(dialog);
