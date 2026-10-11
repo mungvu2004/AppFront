@@ -310,7 +310,7 @@
       "general": {
         "name": "Tên dự án",
         "code": "Mã dự án",
-        "codeHint": "Mã ngắn để tra cứu nhanh; bỏ trống cũng được",
+        "codeHint": "Mã ngắn để tra cứu nhanh",
         "address": "Địa chỉ",
         "buildingType": "Loại công trình",
         "notes": "Ghi chú",
@@ -391,7 +391,7 @@
         "addressTooLong": "Địa chỉ không quá {{max}} ký tự.",
         "notesTooLong": "Ghi chú không quá {{max}} ký tự.",
         "snapRequired": "Chưa nhập dung sai bắt điểm.",
-        "emptyBlocked": "Bản này chưa xoá trống được.",
+        "emptyBlocked": "Giá trị đã lưu không xoá trống được; hãy nhập giá trị khác.",
         "snapNotInteger": "Dung sai bắt điểm phải là số nguyên.",
         "snapOutOfRange": "Dung sai bắt điểm áp dụng từ {{min}} đến {{max}}.",
         "confidenceOutOfRange": "Ngưỡng tin cậy nằm trong khoảng {{min}} đến {{max}}.",

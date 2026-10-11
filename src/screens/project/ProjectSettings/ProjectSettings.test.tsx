@@ -868,6 +868,14 @@ describe('ProjectSettingsView, lưu dở và tải lại', () => {
     expect(screen.getByText('Đã lưu thông tin chung, chưa lưu đơn vị đo.')).toBeInTheDocument();
   });
 
+  it('BUG-299: gợi ý mã dự án không hứa "bỏ trống cũng được" vì máy chủ không cho xoá trống', () => {
+    render(<ProjectSettingsView {...baseProps()} />);
+
+    expect(screen.getByText(viMessages.project.settings.general.codeHint)).toBeInTheDocument();
+    expect(screen.queryByText(/bỏ trống/u)).not.toBeInTheDocument();
+    expect(viMessages.project.settings.problems.emptyBlocked).not.toMatch(/^Bản này/u);
+  });
+
   it('không dựng dải lưu dở khi không có phần hỏng', () => {
     render(<ProjectSettingsView {...baseProps()} />);
 

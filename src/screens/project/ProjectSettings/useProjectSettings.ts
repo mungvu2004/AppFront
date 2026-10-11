@@ -430,7 +430,10 @@ function nameProblemFor(name: string): string | null {
   return null;
 }
 
-/** #26 không nhận chuỗi rỗng, nên một giá trị đã lưu chưa xoá trống được. */
+/**
+ * #26 không nhận chuỗi rỗng lẫn `null` (BE `projects/schemas.py`: `min_length=1`, `_reject_null`),
+ * nên mã/địa chỉ đã lưu không xoá trống được — gợi ý của ô không được hứa điều ngược lại (BUG-299).
+ */
 function codeProblemFor(code: string, savedCode: string): string | null {
   if (code.length === 0 && savedCode.length > 0) return SETTINGS_SENTENCES.emptyBlocked;
   if (code.length > LIMITS.codeMaxLength) {
