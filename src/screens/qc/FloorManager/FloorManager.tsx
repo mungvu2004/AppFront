@@ -145,7 +145,7 @@ export function FloorManager(props: FloorManagerViewProps) {
               {EXPAND_SECTION_LABEL}
             </button>
           ) : (
-            <div className={cn('shrink-0 self-stretch', isCompact ? 'order-2 w-full' : 'order-1 w-[360px]')}>
+            <div className={cn('shrink-0 self-stretch', isCompact ? 'order-2 h-[400px] w-full' : 'order-1 w-[360px]')}>
               <FloorSectionCut
                 bands={props.bands}
                 elevationTicks={props.elevationTicks}

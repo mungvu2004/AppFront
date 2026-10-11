@@ -49,6 +49,7 @@
  */
 
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
@@ -68,7 +69,7 @@ import { resetSelectorCaches } from '@/store/selectors';
 import { useStore } from '@/store';
 
 import { FloorManager } from './FloorManager';
-import { FloorManagerContainer } from './FloorManager.container';
+import { FloorManagerContainer, FloorManagerRoute } from './FloorManager.container';
 import { scenarioArgsFor } from './FloorManager.stories';
 import {
   FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES,
@@ -605,5 +606,33 @@ describe('dự án không tồn tại (BUG-032)', () => {
     }
     expect(screen.queryByLabelText(SECTION_ARIA_LABEL)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: EXPAND_SECTION_LABEL })).not.toBeInTheDocument();
+  });
+});
+
+describe('bố cục gọn đo ở route (BUG-251)', () => {
+  it.each([
+    { matches: true, layout: 'flex-col', sectionOrder: 'order-2' },
+    { matches: false, layout: 'flex-row', sectionOrder: 'order-1' },
+  ])('(width < 1024px) = $matches → $layout, lát cắt $sectionOrder', async ({ matches, layout, sectionOrder }) => {
+    vi.stubGlobal('fetch', () => new Promise<never>(() => undefined));
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(width < 1024px)' && matches,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+
+    renderWithProviders(
+      <MemoryRouter initialEntries={[`/projects/${PROJECT_ID}/floors`]}>
+        <Routes>
+          <Route element={<FloorManagerRoute />} path="/projects/:projectId/floors" />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const section = await screen.findByLabelText(SECTION_ARIA_LABEL);
+    expect(section.parentElement).toHaveClass(sectionOrder);
+    expect(section.parentElement?.parentElement).toHaveClass(layout);
+    vi.unstubAllGlobals();
   });
 });
