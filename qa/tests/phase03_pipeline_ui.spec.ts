@@ -88,6 +88,7 @@ const TRAY_TITLE = 'Tệp chưa gán tầng'; // useFloorUploadScreen.ts:103
 const ASSIGN_FLOOR = 'Gán cho tầng khác';
 const REJECTED = /^Định dạng .+ chưa nhận được\./u;
 const UPLOAD_NO_FLOORS = 'Dự án chưa có tầng nào'; // FloorUploadScreen.tsx NO_FLOORS_TITLE
+const UPLOAD_ADD_FLOORS = 'Thêm tầng'; // FloorUploadScreen.tsx:80 ADD_FLOORS_LABEL (FIX-1400, BUG-298)
 const BREADCRUMB_NAV = 'Đường dẫn trang'; // Breadcrumb.tsx:19 NAV_LABEL
 /* SCR-11: InputQualityGate.tsx, useInputQualityGate.ts COPY, InputQualityGateFooter.tsx. */
 const QUALITY_REPORT = 'Báo cáo chất lượng';
@@ -632,10 +633,15 @@ test.describe('U03 UI verify — empty project with an 80-character name (this f
     });
   });
 
-  test('U03 · SCR-10 upload, no floor → "Dự án chưa có tầng nào" + long name in the breadcrumb', async ({ browser }) => {
+  test('U03 · SCR-10 upload, no floor → "Dự án chưa có tầng nào" + "Thêm tầng" + long name in the breadcrumb', async ({ browser }) => {
     await verifyAsAdmin(browser, 'U03_upload_no_floors', async (p) => {
-      await openUpload(p, ownProject());
-      await expect(p.getByText(UPLOAD_NO_FLOORS, { exact: true })).toBeVisible();
+      // No `openUpload`: with no floor there is no drop zone to wait for (useFloorUploadScreen.ts:437 canDrop,
+      // FloorUploadScreen.tsx:229-235); the empty state offers "Thêm tầng" instead (FloorUploadScreen.tsx:160-166,
+      // FIX-1400 / BUG-298).
+      await p.goto(ROUTES.project.upload(ownProject()));
+      await expect(p.getByText(UPLOAD_NO_FLOORS, { exact: true })).toBeVisible({ timeout: 15_000 });
+      await expect(p.getByRole('button', { name: UPLOAD_ADD_FLOORS, exact: true })).toBeVisible();
+      await expect(p.getByTestId(DROPZONE)).toHaveCount(0);
       // FIX-1304 (BUG-165): a deep link reads #24 for the name (useFloorUploadScreen.ts:362-373); the breadcrumb level
       // cuts it with "…" and keeps it whole in `title` (Breadcrumb.tsx:129-134).
       await expect(
