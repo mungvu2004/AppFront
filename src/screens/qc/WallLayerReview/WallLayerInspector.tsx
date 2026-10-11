@@ -97,7 +97,7 @@ export function WallLayerInspector({ panel }: WallLayerInspectorProps) {
   const isSelectedReviewed = inspector !== null && (rows.find((row) => row.id === inspector.id)?.isReviewed ?? false);
 
   return (
-    <div className="flex h-full w-[344px] shrink-0 flex-col overflow-hidden rounded-[12px] bg-bg-surface shadow-panel">
+    <div className="order-2 flex w-full shrink-0 flex-col overflow-hidden rounded-[12px] bg-bg-surface shadow-panel xl:order-none xl:h-full xl:w-[344px]">
       <div className="flex h-14 shrink-0 items-center px-5">
         <h3 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h3>
       </div>

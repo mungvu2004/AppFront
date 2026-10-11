@@ -127,7 +127,11 @@ export function WallLayerReview({
           <ProvisionalScaleBanner notice={provisionalScaleNotice} />
         </div>
       )}
-      <div className="relative flex min-h-0 flex-1 gap-2 p-2">
+      {/*
+        Dưới 1280px bốn cột (ray + 280 + bản vẽ + 344) không vừa: hàng đầu là ray + bản vẽ, hai panel
+        xuống dòng (\`order-*\` trên gốc của chúng), cả vùng cuộn dọc — không cuộn ngang (BUG-317).
+      */}
+      <div className="relative flex min-h-0 flex-1 flex-wrap content-start gap-2 overflow-y-auto p-2 xl:flex-nowrap xl:overflow-visible">
         {isCollapsed ? (
           <div className="absolute left-4 top-4 z-10 rounded-[12px] bg-bg-surface shadow-panel">
             <WallLayerToolRail {...toolRail} readOnly={panel.isViewerRole} />
@@ -147,7 +151,7 @@ export function WallLayerReview({
 
         <section
           aria-label={canvas.backgroundImageAlt || CANVAS_REGION_FALLBACK_ALT}
-          className="min-h-0 min-w-[640px] flex-1 overflow-hidden rounded-[16px] bg-bg-sunken"
+          className="h-[60vh] min-h-[320px] min-w-0 flex-1 overflow-hidden rounded-[16px] bg-bg-sunken xl:h-auto xl:min-h-0"
         >
           {canvasSlot ?? <CanvasFallback canvas={canvas} />}
         </section>

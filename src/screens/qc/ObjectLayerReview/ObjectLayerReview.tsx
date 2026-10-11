@@ -201,7 +201,11 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
           <ProvisionalScaleBanner notice={model.provisionalScaleNotice} />
         </div>
       )}
-      <div className="relative flex min-h-0 flex-1 gap-2 p-2">
+      {/*
+        Dưới 1280px bốn cột (ray + 280 + bản vẽ + 344) không vừa: hàng đầu là ray + bản vẽ, hai panel
+        xuống dòng (\`order-*\` trên gốc của chúng), cả vùng cuộn dọc — không cuộn ngang (BUG-317).
+      */}
+      <div className="relative flex min-h-0 flex-1 flex-wrap content-start gap-2 overflow-y-auto p-2 xl:flex-nowrap xl:overflow-visible">
         {isCollapsed ? (
           <div className="absolute left-4 top-4 z-10 rounded-[12px] bg-bg-surface shadow-panel">
             <ObjectLayerToolRail
@@ -223,7 +227,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
         )}
 
         {isCollapsed ? null : (
-          <div className="flex h-full w-[280px] shrink-0 flex-col gap-2 overflow-y-auto">
+          <div className="order-1 flex h-[560px] w-full shrink-0 flex-col gap-2 overflow-y-auto xl:order-none xl:h-full xl:w-[280px]">
             <div className="shrink-0">
               <ObjectLayerLeftPanel
                 counts={model.counts}
@@ -245,7 +249,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
 
         <section
           aria-label={CANVAS_REGION_LABEL}
-          className="relative min-h-0 min-w-[640px] flex-1 overflow-hidden rounded-[16px] bg-bg-sunken"
+          className="relative h-[60vh] min-h-[320px] min-w-0 flex-1 overflow-hidden rounded-[16px] bg-bg-sunken xl:h-auto xl:min-h-0"
         >
           <ObjectLayerCanvasRegion model={model} />
         </section>

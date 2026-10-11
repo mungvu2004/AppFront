@@ -271,7 +271,7 @@ export function WallLayerLeftPanel({
   const isComplete = panel.state === 'success';
 
   return (
-    <div className="flex h-full w-[280px] shrink-0 flex-col overflow-hidden rounded-[12px] bg-bg-surface shadow-panel">
+    <div className="order-1 flex h-[560px] w-full shrink-0 flex-col overflow-hidden rounded-[12px] bg-bg-surface shadow-panel xl:order-none xl:h-full xl:w-[280px]">
       <div className="flex shrink-0 flex-col gap-4 px-5 pb-3 pt-4">
         <div aria-label={reviewProgressLabel} className="flex flex-col gap-1.5">
           <p className="text-[13px] text-text-primary">
