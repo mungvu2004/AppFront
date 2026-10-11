@@ -2,8 +2,18 @@
  * Phase 4: QC layers (E2E-TEST-PLAN.md v2, §4 Phase 4), Track A, admin.
  * SCR-16 → SCR-17 → SCR-18 → SCR-19 → SCR-20 → SCR-21 → SCR-14 → SCR-22, matrix row order.
  *
- * Needs (runtime-session.json): project.projectId, floors.workFloorId, checkpoints.pipelineComplete (CP-5).
- * Produces: checkpoints.restorableVersion (CP-6) after the SCR-16 approve PUT returns 200.
+ * Data (BUG-346): `beforeAll` creates its OWN `qa-<runId>-m04-…` project (two floors) through the real API and writes the
+ * first floor's layer through #35 (`support/layerSeed.ts` qcLayer: walls, a door and a window, two rooms, a table); the
+ * project is deleted in `afterAll`. SCR-16, SCR-17, SCR-19, SCR-20 and SCR-21 run on that floor. Only the cases that need the
+ * pipeline itself read Phase 3's CP-5 work floor (runtime-session.json project.projectId, floors.workFloorId,
+ * checkpoints.pipelineComplete): SCR-18 (OCR dimensions), SCR-14 (the warped drawing), SCR-22 (the source scan) and CP-6.
+ * They SKIP with an "Environment:" reason when CP-5 is not recorded or the work floor's GET …/spatial/layer is not 200.
+ * Produces: checkpoints.restorableVersion (CP-6) after an approve PUT 200 on the CP-5 work floor (Phase 6 restores it).
+ * Serial per describe only: a failure skips the rest of its own screen, never the next screens (Playwright then starts a
+ * new worker, which runs `beforeAll` again on a fresh project).
+ *
+ * Budget per worker: `POST /api/auth/login` 2 (`signInAdmin` + `signedInApi` for the fixture calls; a failed test starts a
+ * new worker: 2 more); 1 project + 1 #35 seed PUT + 1 DELETE; the CP-5 probe is 1 N16 GET per gated test.
  *
  * Contracts verified in source (c4978eb4):
  * - Layer read/write: `GET|PUT /api/projects/:p/floors/:f/spatial/layer` (`api/endpoints.ts` spatial.layer).
@@ -25,7 +35,7 @@
  * - Checkbox/Radio.Item are `sr-only` inputs under a drawn box: driven by focus + Space, the proven
  *   path of `e2e/v7/thickness-standardization.spec.ts`.
  */
-import { expect, test, type BrowserContext, type Locator, type Page, type Response } from '@playwright/test';
+import { expect, test, type APIRequestContext, type BrowserContext, type Locator, type Page, type Response } from '@playwright/test';
 
 import { FloorLayerWriteResultSchema } from '../../src/api/schemas/spatialLayer';
 import { displayCodesOf } from '../../src/domain/spatial/ids';
@@ -39,11 +49,11 @@ import {
   type ApiResult,
 } from '../../e2e/fullstack/apiWatch';
 import { ACTION_TIMEOUT_MS, AUTOSAVE_TIMEOUT_MS, NAVIGATION_TIMEOUT_MS, readBaseUrl } from '../../e2e/fullstack/env';
-import { signInAdmin } from './support/auth';
+import { signedInApi } from './support/api';
+import { readAdminCredentials, signInAdmin } from './support/auth';
 import { captureEvidence } from './support/evidence';
-import { readState, requireState, updateState } from './support/state';
-
-test.describe.configure({ mode: 'serial' });
+import { createQcProject, deleteProject, layerStatus, type LayerApi, type SeededFloor } from './support/layerSeed';
+import { readState, updateState } from './support/state';
 
 const VIEWPORT = { width: 1440, height: 900 } as const;
 
@@ -127,16 +137,26 @@ interface WriteRequest {
 
 let context: BrowserContext;
 let page: Page;
-let projectId: string;
-let workFloorId: string;
+/** Fixture calls (own admin API login; `support/layerSeed.ts`). */
+let fixtureApi: APIRequestContext | undefined;
+/** This file's own project: floor 0 carries `qcLayer`, floor 1 is empty (floor-nav target). */
+let seeded: readonly SeededFloor[] = [];
+/** The floor under test, set by each describe's `beforeEach` (`useSeededFloor` / `useWorkFloor`). */
+let projectId = '';
+let floorId = '';
 /** Every non-GET request under `/api/projects/` (request time, not response time). */
 const writes: WriteRequest[] = [];
 let tourPending = true;
 
+const layerApi = (): LayerApi => {
+  if (fixtureApi === undefined) throw new Error('setup: no fixture API context');
+  return { request: fixtureApi, headers: {} };
+};
+
 test.beforeAll(async ({ browser }) => {
-  projectId = requireState((s) => s.project.projectId, 'project.projectId', 'Phase 2 (SCR-05)');
-  workFloorId = requireState((s) => s.floors.workFloorId, 'floors.workFloorId', 'Phase 3 (SCR-09)');
-  requireState((s) => s.checkpoints.pipelineComplete, 'checkpoints.pipelineComplete (CP-5)', 'Phase 3 (SCR-12)');
+  const { email, password } = readAdminCredentials();
+  fixtureApi = await signedInApi(email, password);
+  seeded = await createQcProject(layerApi(), 'm04', ['Tầng QC', 'Tầng QC phụ']);
 
   context = await browser.newContext({ baseURL: readBaseUrl(), viewport: VIEWPORT });
   context.setDefaultTimeout(ACTION_TIMEOUT_MS);
@@ -155,11 +175,48 @@ test.beforeAll(async ({ browser }) => {
 });
 
 test.afterAll(async () => {
-  await context?.close();
+  try {
+    const own = seeded[0];
+    if (own !== undefined && fixtureApi !== undefined) {
+      const failed = await deleteProject(layerApi(), own.projectId);
+      if (failed !== null) test.info().annotations.push({ type: 'cleanup', description: failed });
+    }
+  } finally {
+    await fixtureApi?.dispose();
+    await context?.close();
+  }
 });
 
-const layerPath = (floorId: string = workFloorId): RegExp =>
-  new RegExp(`^/api/projects/${projectId}/floors/${floorId}/spatial/layer$`, 'u');
+/** SCR-16/17/19/20/21: the seeded floor (no pipeline needed). */
+function useSeededFloor(): void {
+  const own = seeded[0];
+  if (own === undefined) throw new Error('setup: the seeded project was not created');
+  projectId = own.projectId;
+  floorId = own.floorId;
+}
+
+let workFloorStatus: Promise<number> | undefined;
+
+/**
+ * Cases that need the pipeline output (drawing, OCR, AI version): Phase 3's CP-5 work floor, or SKIP with the reason.
+ * BUG-346: run-22 recorded CP-5 while that floor answered GET …/spatial/layer 404 — probed once per worker here.
+ */
+async function useWorkFloor(): Promise<void> {
+  const state = readState();
+  const work = { projectId: state.project.projectId ?? '', floorId: state.floors.workFloorId ?? '' };
+  if (!state.checkpoints.pipelineComplete || work.projectId === '' || work.floorId === '') {
+    test.skip(true, 'Environment: CP-5 not recorded by Phase 3 (checkpoints.pipelineComplete / work floor id missing)');
+    return;
+  }
+  workFloorStatus ??= layerStatus(layerApi(), work.projectId, work.floorId);
+  const status = await workFloorStatus;
+  test.skip(status !== 200, `Environment: CP-5 work floor GET …/spatial/layer answered ${String(status)}, not 200 (no pipeline layer on the stack)`);
+  projectId = work.projectId;
+  floorId = work.floorId;
+}
+
+const layerPath = (floor: string = floorId): RegExp =>
+  new RegExp(`^/api/projects/${projectId}/floors/${floor}/spatial/layer$`, 'u');
 
 const isLayerPut = (response: Response): boolean =>
   response.request().method() === 'PUT' && layerPath().test(new URL(response.url()).pathname);
@@ -251,12 +308,12 @@ const wallIdOf = (code: string): string => {
   return id;
 };
 
-async function openWalls(floorId: string = workFloorId): Promise<Json[]> {
+async function openWalls(floor: string = floorId): Promise<Json[]> {
   const read = await navigateThenWaitForApi(
     page,
-    () => page.goto(ROUTES.project.walls(projectId, floorId), { waitUntil: 'commit' }),
+    () => page.goto(ROUTES.project.walls(projectId, floor), { waitUntil: 'commit' }),
     'GET',
-    layerPath(floorId),
+    layerPath(floor),
     [200],
   );
   const loaded = wallsOf(read.json, 'N16');
@@ -266,7 +323,7 @@ async function openWalls(floorId: string = workFloorId): Promise<Json[]> {
   // G6: the tour mounts lazily on the first visit; later visits only re-check.
   await dismissTour(page, { waitMs: tourPending ? TOUR_APPEAR_TIMEOUT_MS : 0 });
   tourPending = false;
-  if (floorId === workFloorId) indexWalls(loaded);
+  if (floor === floorId) indexWalls(loaded);
   return loaded;
 }
 
@@ -384,9 +441,12 @@ function findMergePair(all: readonly Json[]): readonly [WireWall, WireWall] | nu
 }
 
 test.describe('SCR-16 Wall Layer Review', () => {
+  test.describe.configure({ mode: 'serial' });
+  test.beforeEach(useSeededFloor);
+
   test('SCR-16 select: option in "Danh sách đoạn tường", then J / K with focus on the list → inspector "Đoạn tường" follows', async () => {
     await openWalls();
-    expect(walls.length, 'N16 layer.walls of the work floor (CP-5)').toBeGreaterThan(0);
+    expect(walls.length, 'N16 layer.walls of the seeded floor').toBeGreaterThan(0);
 
     const first = wallList().getByRole('option').first();
 
@@ -414,7 +474,7 @@ test.describe('SCR-16 Wall Layer Review', () => {
     await captureEvidence(page, '16_walls_select.png');
   });
 
-  test('SCR-16 approve: "Duyệt đoạn này" on an unapproved wall → PUT …/spatial/layer 200, status changes, auto-advances, no "Lưu" (CP-6)', async () => {
+  test('SCR-16 approve: "Duyệt đoạn này" on an unapproved wall → PUT …/spatial/layer 200, status changes, auto-advances, no "Lưu"', async () => {
     const unreviewed = walls.filter((wall) => wall.reviewed !== true).length;
 
     expect(unreviewed, 'an unapproved wall in the N16 body').toBeGreaterThan(0);
@@ -436,9 +496,6 @@ test.describe('SCR-16 Wall Layer Review', () => {
 
     expect(wallById(wallsOf(sent, '#35'), id, '#35').reviewed, `#35 wall ${code} reviewed`).toBe(true);
     approvedWallId = id;
-    updateState((draft) => {
-      draft.checkpoints.restorableVersion = true;
-    });
 
     await expect(wallOption(code)).toHaveAccessibleName(`${code} — Đã duyệt`);
     if (unreviewed > 1) await expect(wallOption(code)).toHaveAttribute('aria-selected', 'false');
@@ -545,8 +602,7 @@ test.describe('SCR-16 Wall Layer Review', () => {
 
     if (pair === null) {
       await captureEvidence(page, '16_walls_merge.png');
-      test.skip(true, 'data-dependent: the real N16 layer has no collinear same-kind/thickness walls sharing an endpoint');
-      return;
+      throw new Error('seeded floor: N16 has no collinear same-kind/thickness walls sharing an endpoint (qcLayer seeds four)');
     }
     const [a, b] = pair;
     const codeA = wallCodeById.get(a.id);
@@ -602,14 +658,14 @@ test.describe('SCR-16 Wall Layer Review', () => {
     }
 
     const targets: readonly (readonly [string, string])[] = [
-      ['Cửa và nội thất', ROUTES.project.objects(projectId, workFloorId)],
-      ['Kích thước', ROUTES.project.dimensions(projectId, workFloorId)],
-      ['Trục', ROUTES.project.grids(projectId, workFloorId)],
-      ['Phòng', ROUTES.project.rooms(projectId, workFloorId)],
+      ['Cửa và nội thất', ROUTES.project.objects(projectId, floorId)],
+      ['Kích thước', ROUTES.project.dimensions(projectId, floorId)],
+      ['Trục', ROUTES.project.grids(projectId, floorId)],
+      ['Phòng', ROUTES.project.rooms(projectId, floorId)],
     ];
 
     for (const [label, target] of targets) {
-      if (pathnameOf(page) !== ROUTES.project.walls(projectId, workFloorId)) await openWalls();
+      if (pathnameOf(page) !== ROUTES.project.walls(projectId, floorId)) await openWalls();
       await page
         .getByRole('tree', { name: 'Cây lớp', exact: true })
         .getByRole('treeitem', { name: label, exact: true })
@@ -620,14 +676,15 @@ test.describe('SCR-16 Wall Layer Review', () => {
     await openWalls();
     const floorNav = page.getByRole('navigation', { name: 'Tầng của bản vẽ', exact: true });
     const others = floorNav.locator('button:not([aria-current="page"])');
-    const scratchName = readState().floors.scratchFloorName;
-    const scratch = scratchName === null ? null : others.filter({ hasText: scratchName });
-    const other = scratch !== null && (await scratch.count()) > 0 ? scratch.first() : others.first();
+    // The seeded project's second (empty) floor when the nav lists it.
+    const secondName = seeded[1]?.floorName;
+    const second = secondName === undefined ? null : others.filter({ hasText: secondName });
+    const other = second !== null && (await second.count()) > 0 ? second.first() : others.first();
 
     if ((await floorNav.count()) === 0 || (await others.count()) === 0) {
       test.info().annotations.push({
         type: 'branch',
-        description: 'floor nav lists no other floor (graph holds only the work floor level)',
+        description: 'floor nav lists no other floor (graph holds only the seeded floor level)',
       });
       await captureEvidence(page, '16_walls_layer_nav.png');
       return;
@@ -635,9 +692,37 @@ test.describe('SCR-16 Wall Layer Review', () => {
     await other.click();
     await expect
       .poll(() => pathnameOf(page), { message: 'floor nav opens another floor’s walls' })
-      .toMatch(new RegExp(`^/projects/${projectId}/floors/(?!${workFloorId}/)[^/]+/layers/walls$`, 'u'));
+      .toMatch(new RegExp(`^/projects/${projectId}/floors/(?!${floorId}/)[^/]+/layers/walls$`, 'u'));
     await dismissTour(page);
     await captureEvidence(page, '16_walls_layer_nav.png');
+  });
+});
+
+test.describe('CP-6 on the CP-5 work floor', () => {
+  test.beforeEach(useWorkFloor);
+
+  test('CP-6: "Duyệt đoạn này" on an unapproved wall of the CP-5 work floor → PUT …/spatial/layer 200 (Phase 6 restores the AI version)', async () => {
+    const current = await openWalls();
+    const target = current.find((wall) => wall.reviewed !== true);
+
+    if (target === undefined || typeof target.id !== 'string') {
+      await captureEvidence(page, '16_walls_cp6.png');
+      test.skip(true, 'data-dependent: every wall of the CP-5 work floor is already approved');
+      return;
+    }
+    const code = wallCodeById.get(target.id);
+
+    if (code === undefined) throw new Error(`no list code for wall ${target.id}`);
+    await (await revealWallOption(code)).click();
+    const put = waitForLayerPut((body) => wallById(wallsOf(body, '#35'), target.id as string, '#35').reviewed === true);
+
+    await approveWallButton().click();
+    expectLayerWrite(await put);
+    updateState((draft) => {
+      draft.checkpoints.restorableVersion = true;
+    });
+    await expect(wallOption(code)).toHaveAccessibleName(`${code} — Đã duyệt`);
+    await captureEvidence(page, '16_walls_cp6.png');
   });
 });
 
@@ -657,7 +742,7 @@ const OBJECTS_EMPTY = 'Chưa nhận ra đối tượng nào';
 let objectCount = 0;
 
 async function openObjects(): Promise<void> {
-  const body = await openLayerScreen(ROUTES.project.objects(projectId, workFloorId));
+  const body = await openLayerScreen(ROUTES.project.objects(projectId, floorId));
   const layer = layerOf(body, 'N16');
 
   objectCount = arrayOf(layer.openings, 'N16.layer.openings').length + arrayOf(layer.furniture, 'N16.layer.furniture').length;
@@ -667,13 +752,15 @@ async function openObjects(): Promise<void> {
 }
 
 test.describe('SCR-17 Object Layer Review', () => {
+  test.describe.configure({ mode: 'serial' });
+  test.beforeEach(useSeededFloor);
+
   test('SCR-17 filter: "Lọc theo loại" chips, "Mở nhóm …", list option → inspector "Đối tượng"', async () => {
     await openObjects();
     if (objectCount === 0) {
       await expect(page.getByText(OBJECTS_EMPTY, { exact: true })).toBeVisible();
       await captureEvidence(page, '17_objects_filter.png');
-      test.skip(true, 'data-dependent: N16 has no openings/furniture (fake ML); empty state asserted');
-      return;
+      throw new Error('seeded floor: N16 has no openings/furniture (qcLayer seeds a door, a window and a table)');
     }
     const total = await objectOptions().count();
     const chip = page.getByRole('group', { name: 'Lọc theo loại', exact: true }).getByRole('button').first();
@@ -709,8 +796,7 @@ test.describe('SCR-17 Object Layer Review', () => {
   test('SCR-17 edit: "Duyệt đối tượng này"; "hướng mở" → mở trái; "Loại đối tượng" → PUT per change', async () => {
     if (objectCount === 0) {
       await captureEvidence(page, '17_objects_edit.png');
-      test.skip(true, 'data-dependent: no objects on the work floor');
-      return;
+      throw new Error('seeded floor: no objects (see the SCR-17 filter case)');
     }
     const doors = page.getByRole('listbox', { name: 'Cửa đi', exact: true }).getByRole('option');
     const windows = page.getByRole('listbox', { name: 'Cửa sổ', exact: true }).getByRole('option');
@@ -776,8 +862,7 @@ test.describe('SCR-17 Object Layer Review', () => {
   test('SCR-17 delete + undo: right-click g[aria-label="<code>"], "Xoá", then status bar "Hoàn tác"', async () => {
     if (objectCount === 0) {
       await captureEvidence(page, '17_objects_delete_undo.png');
-      test.skip(true, 'data-dependent: no objects on the work floor');
-      return;
+      throw new Error('seeded floor: no objects (see the SCR-17 filter case)');
     }
     const code = await codeOfOption(objectOptions().first());
 
@@ -799,8 +884,11 @@ test.describe('SCR-17 Object Layer Review', () => {
 /* ======================================================================== */
 
 test.describe('SCR-18 Dimension OCR Review', () => {
+  test.describe.configure({ mode: 'serial' });
+  test.beforeEach(useWorkFloor);
+
   test('SCR-18 local only: "Chưa duyệt"; "Giá trị kích thước <code>" + Enter; "Duyệt kích thước <code>" → saved, NO PUT (F-08)', async () => {
-    await page.goto(ROUTES.project.dimensions(projectId, workFloorId));
+    await page.goto(ROUTES.project.dimensions(projectId, floorId));
     await dismissTour(page);
     const rows = page.getByRole('group', { name: 'Danh sách kích thước đọc được', exact: true }).getByRole('option');
     const empty = page.getByText('Chưa đọc được chuỗi kích thước nào', { exact: true });
@@ -855,8 +943,11 @@ test.describe('SCR-18 Dimension OCR Review', () => {
 const AXIS_LABEL_PATTERN = /^Trục (.+?), cách trục kế là /u;
 
 test.describe('SCR-19 Axis Grid Manager', () => {
+  test.describe.configure({ mode: 'serial' });
+  test.beforeEach(useSeededFloor);
+
   test('SCR-19 local only: "Thêm trục ngang"; "Ẩn trục X"; "Xoá trục X", then undo → in memory, NO PUT', async () => {
-    await page.goto(ROUTES.project.grids(projectId, workFloorId));
+    await page.goto(ROUTES.project.grids(projectId, floorId));
     await dismissTour(page);
     const add = page.getByRole('button', { name: 'Thêm trục ngang', exact: true });
     const empty = page.getByText('Chưa có trục nào', { exact: true });
@@ -867,8 +958,7 @@ test.describe('SCR-19 Axis Grid Manager', () => {
     if (await empty.isVisible()) {
       await expectNoProjectWritesSince(mark, 'SCR-19 empty grid');
       await captureEvidence(page, '19_grids_local_only.png');
-      test.skip(true, 'data-dependent: no axis on the work floor; empty state asserted');
-      return;
+      throw new Error('seeded floor: no axis previewed from the load-bearing rectangle (qcLayer)');
     }
     const axisRows = page.getByRole('option', { name: AXIS_LABEL_PATTERN });
     const labels = async (): Promise<string[]> =>
@@ -913,8 +1003,11 @@ const roomsOf = (body: Json): Json[] => arrayOf(layerOf(body, '#35').rooms, '#35
 let roomCount = 0;
 
 test.describe('SCR-20 Room Label Review', () => {
+  test.describe.configure({ mode: 'serial' });
+  test.beforeEach(useSeededFloor);
+
   test('SCR-20 edit: option in "Danh sách phòng"; "Tên phòng"; "Công năng"; "Duyệt phòng này" → PUT layer', async () => {
-    const body = await openLayerScreen(ROUTES.project.rooms(projectId, workFloorId));
+    const body = await openLayerScreen(ROUTES.project.rooms(projectId, floorId));
 
     roomCount = arrayOf(layerOf(body, 'N16').rooms, 'N16.layer.rooms').length;
     await expect(page.getByRole('region', { name: 'Duyệt tên phòng', exact: true })).toBeVisible();
@@ -922,8 +1015,7 @@ test.describe('SCR-20 Room Label Review', () => {
     if (roomCount === 0) {
       await expect(page.getByRole('heading', { name: 'Chưa dò ra phòng nào' })).toBeVisible();
       await captureEvidence(page, '20_rooms_edit.png');
-      test.skip(true, 'data-dependent: no room detected on the work floor (fake ML); empty state asserted');
-      return;
+      throw new Error('seeded floor: N16 has no room (qcLayer seeds two)');
     }
 
     await roomOptions().first().click();
@@ -967,8 +1059,7 @@ test.describe('SCR-20 Room Label Review', () => {
   test('SCR-20 modals: "Chuẩn hoá tên" then "Huỷ"/"Đóng"; "Gộp phòng" then cancel → closed, NO PUT', async () => {
     if (roomCount === 0) {
       await captureEvidence(page, '20_rooms_modals_cancel.png');
-      test.skip(true, 'data-dependent: no room on the work floor');
-      return;
+      throw new Error('seeded floor: no room (see the SCR-20 edit case)');
     }
     const mark = writes.length;
 
@@ -1000,11 +1091,14 @@ test.describe('SCR-20 Room Label Review', () => {
 /* ======================================================================== */
 
 test.describe('SCR-21 Thickness Standardization', () => {
+  test.describe.configure({ mode: 'serial' });
+  test.beforeEach(useSeededFloor);
+
   test('SCR-21 apply: slider "Ngưỡng giữa 110 mm và 220 mm"; tick "Đồng ý chuẩn hoá …"; "Xem trước" → "Áp dụng" → bulk PUT, "Hoàn tác"', async () => {
     // Group rows are `motion.tr` with layoutId: no click on a sliding row (as e2e/v7).
     await page.emulateMedia({ reducedMotion: 'reduce' });
     try {
-      await openLayerScreen(ROUTES.project.thickness(projectId, workFloorId));
+      await openLayerScreen(ROUTES.project.thickness(projectId, floorId));
       await expect(page.getByRole('heading', { name: 'Chuẩn hoá độ dày tường' })).toBeVisible();
       await dismissTour(page);
 
@@ -1029,8 +1123,7 @@ test.describe('SCR-21 Thickness Standardization', () => {
 
       if ((await accept.count()) === 0) {
         await captureEvidence(page, '21_thickness_apply.png');
-        test.skip(true, 'data-dependent: no non-standard wall group; empty state asserted');
-        return;
+        throw new Error('seeded floor: no non-standard wall group (qcLayer seeds two 200 mm partitions)');
       }
 
       await pressSpaceOn(accept);
@@ -1062,7 +1155,7 @@ const applyScale = (): Locator => page.getByRole('button', { name: 'Áp dụng t
 
 /** Fresh load, method "Vẽ đường tham chiếu", box-relative drag 20 % → 80 % at 50 %, 5000 mm + Enter. */
 async function openScaleAndDraw(): Promise<void> {
-  await openLayerScreen(ROUTES.project.scale(projectId, workFloorId));
+  await openLayerScreen(ROUTES.project.scale(projectId, floorId));
   await dismissTour(page);
   await expect(scaleCanvas()).toBeVisible();
   await page
@@ -1088,6 +1181,9 @@ async function openScaleAndDraw(): Promise<void> {
 }
 
 test.describe('SCR-14 Scale Calibration', () => {
+  test.describe.configure({ mode: 'serial' });
+  test.beforeEach(useWorkFloor);
+
   test('SCR-14 refline: "Vẽ đường tham chiếu"; drag 20 % → 80 % at 50 %; "Chiều dài thật" = 5000 + Enter → two handles, scale computed', async () => {
     await openScaleAndDraw();
     await expect(applyScale()).toBeEnabled();
@@ -1136,8 +1232,11 @@ test.describe('SCR-14 Scale Calibration', () => {
 /* ======================================================================== */
 
 test.describe('SCR-22 Overlay Comparison', () => {
+  test.describe.configure({ mode: 'serial' });
+  test.beforeEach(useWorkFloor);
+
   test('SCR-22 swipe: "Kiểu đối chiếu" → "Trượt"; divider slider + arrows; "Độ mờ ảnh nguồn" → divider moves, "Chưa đo được vùng lệch nào."', async () => {
-    await page.goto(ROUTES.project.overlay(projectId, workFloorId));
+    await page.goto(ROUTES.project.overlay(projectId, floorId));
     await dismissTour(page);
     await expect(page.getByRole('region', { name: 'Màn đối chiếu bản vẽ', exact: true })).toBeVisible();
 

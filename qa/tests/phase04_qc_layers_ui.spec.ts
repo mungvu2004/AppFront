@@ -6,19 +6,25 @@
  * `phase03_pipeline_ui.spec.ts` (helpers `verifyAsAdmin` / `settled` copied from there).
  *
  * Data:
- *   - Data states read the work floor of CP-2 (`project.projectId` + `floors.workFloorId`, Phase 2/3). They need CP-5 (a
- *     spatial layer from the pipeline): without `checkpoints.pipelineComplete` they SKIP before loading anything
- *     (`requireCp5`); with it, a state whose rows the work floor lacks (fake ML) SKIPS with a `data:` reason.
+ *   - BUG-323: walls, objects, axes, rooms and thickness states run on the test's OWN project (`qa-<runId>-u04-…`, one floor),
+ *     created through the API and its layer written through #35 (`support/layerSeed.ts` qcLayer) before the page opens,
+ *     deleted in `finally` (`verifySeeded`). They never read Phase 3, so they reach their state whatever CP-5 did.
+ *   - Only the states that need the pipeline output read Phase 3's CP-5 work floor (`project.projectId` +
+ *     `floors.workFloorId`): dimensions (OCR), scale (the warped drawing), overlay (the source scan). `verifyOnWorkFloor`
+ *     SKIPS them with an `Environment:` reason when CP-5 is not recorded or that floor's GET …/spatial/layer is not 200
+ *     (run-22: CP-5 recorded, 404 — BUG-346); a state whose rows the floor lacks (fake ML) SKIPS with a `data:` reason.
  *   - One run-unique project with an 80-character name and ONE floor with a 65-character name (`qa-<runId>-u04-…`),
  *     created through the API before its group and deleted after it. Its floor has no drawing and no layer: GET
  *     `…/spatial/layer` answers an empty document (BE apps/api/spatial_read/router.py:71-86 `empty_document`), so every
  *     screen shows its empty state there — with the long names in floor nav / floor select. Scale and overlay read the
  *     floor's drawing, which it lacks: scale shows its `error` notice (NOT_FOUND), overlay "Không đọc được ảnh bản vẽ gốc…".
  *
- * Budget — logins: 1 real admin API login (`signedInApi`, empty-project group); a browser login only to replace a dead
- * stored session (`ensureAdminSession`). Writes: 1 `POST /api/projects` (with 1 floor, BE #25 `floors`) + 1
- * `DELETE /api/projects/:id` (API), nothing else — every test also asserts that the browser sent NO non-GET request under
- * `/api/projects/` (`verifyAsAdmin` guard):
+ * Budget — logins: 1 real admin API login (`signedInApi`, empty-project group; again after a failed test, which starts a new
+ * worker); a browser login only to replace a dead stored session (`ensureAdminSession`). The seeded and work-floor states
+ * take their fixture token from their own context (`layerApiOf`, 1 refresh, no login). Writes through the API only: the
+ * empty project (1 `POST /api/projects` with 1 floor, BE #25 `floors`, + 1 DELETE) and 14 seeded projects (each 1 POST +
+ * 1 #35 PUT + 1 DELETE, no rate limit) — every test also asserts that the browser sent NO non-GET request under
+ * `/api/projects/` (`verifyIn` guard):
  *   - selection, filters, "Thu gọn hai panel", "Thông số nâng cao", "Lọc theo loại", keyboard mode, "Thu gọn bảng" are view
  *     state; "Thêm trục ngang" is in memory only (F-08, `useAxisGridManager.ts` persistAxisGrid unsupported);
  *   - dialogs are opened and never confirmed: "Xem trước chuẩn hoá tên", "Gộp hai phòng", "Áp tỉ lệ này cho N tầng…"
@@ -26,13 +32,13 @@
  *     is "Áp dụng", never clicked); the reference line is drawn and its length typed, "Áp dụng tỷ lệ" is not clicked
  *     for this-floor scope.
  * Sessions: every test opens its OWN context from Phase 1's admin storage state and writes the rotated refresh cookie back
- * in `finally` (phase03 chain): 31 tests × (4 loads + 1 session check) = 155 `POST /api/auth/refresh` over several minutes
- * (`auth_refresh_total` 300 / 60 s per sid).
+ * in `finally` (phase03 chain): 31 tests × (4 loads + 1 session check) + at most 15 fixture tokens (14 seeded tests + 1
+ * work-floor probe) = 170 `POST /api/auth/refresh` over several minutes (`auth_refresh_total` 300 / 60 s per sid).
  * No faked response: every state is the real stack. Non-serial: each test uses its own context and page.
  * G6: the editor tour only mounts on the walls screen (`EditorTourContainer hostId="wall-layer-review"`); it is dismissed
  * with the product's own "Bỏ qua hướng dẫn" (`e2e/fixtures/tour.ts`). BUG-143: framer-motion overlays end with `settled()`.
  */
-import { expect, test, type APIRequestContext, type Browser, type Locator, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { TOUR_APPEAR_TIMEOUT_MS, dismissTour } from '../../e2e/fixtures/tour';
@@ -40,7 +46,8 @@ import { readBaseUrl } from '../../e2e/fullstack/env';
 import { signedInApi } from './support/api';
 import { ensureAdminSession, readAdminCredentials } from './support/auth';
 import { TEST_DATA_PREFIX } from './support/evidence';
-import { ADMIN_STORAGE_STATE_FILE, readState, requireState } from './support/state';
+import { createQcProject, deleteProject, layerApiOf, layerStatus } from './support/layerSeed';
+import { ADMIN_STORAGE_STATE_FILE, readState } from './support/state';
 import { UI_VIEWPORTS, verifyUi } from './support/ui-verify';
 
 /* Copy — every string checked in src/ (file noted). */
@@ -89,7 +96,6 @@ const MERGE_DIALOG = 'Gộp hai phòng';
 /* SCR-21: ThicknessStandardization.tsx, ThicknessGroupTable.tsx, ThicknessApplyBar.tsx. */
 const THICKNESS_TITLE = 'Chuẩn hoá độ dày tường';
 const THICKNESS_EMPTY_TITLE = 'Chưa có đoạn tường nào để chuẩn hoá';
-const THICKNESS_NO_GROUPS = 'Chưa có nhóm nào để chuẩn hoá.';
 const THICKNESS_ACCEPT = /^Đồng ý chuẩn hoá \d+ tường /u;
 const THICKNESS_PREVIEW = 'Xem trước';
 const THICKNESS_APPLY = 'Áp dụng'; // never clicked
@@ -132,42 +138,87 @@ const LONG_FLOOR_NAME = 'Tầng kỹ thuật mái và phòng máy bơm nước s
 
 /* ---- helpers ---- */
 
-/**
- * Data states need CP-5 (Phase 3 SCR-12). Without it the stored work floor may have no layer — or no longer exist (run-20
- * author run: "Tầng này không còn tồn tại." on every screen) — so the state is not reachable: skip before any page load.
- */
-function requireCp5(): void {
-  test.skip(!readState().checkpoints.pipelineComplete, 'data: CP-5 not reached (checkpoints.pipelineComplete false); the empty states are the U04_*_empty cases');
+/** A floor a state opens on: this test's seeded one, or Phase 3's CP-5 work floor. */
+interface Floor {
+  readonly projectId: string;
+  readonly floorId: string;
 }
+type Shot = { readonly fullPage?: boolean };
 
-const cp2 = (): string => requireState((s) => s.project.projectId, 'project.projectId', 'Phase 2');
-const workFloor = (): string => requireState((s) => s.floors.workFloorId, 'floors.workFloorId', 'Phase 3 (SCR-09)');
-
-/**
- * Own context from the admin storage state; the rotated refresh cookie goes back to the file (phase03 `verifyAsAdmin`).
- * Also records every non-GET request under `/api/projects/`: a UI case never writes (budget above).
- */
-async function verifyAsAdmin(
-  browser: Browser,
-  name: string,
-  open: (page: Page) => Promise<void>,
-  shot: { readonly fullPage?: boolean } = {},
-): Promise<void> {
+/** Own context from the admin storage state; the rotated refresh cookie goes back to the file (phase03 `verifyAsAdmin`). */
+async function inAdminContext(browser: Browser, body: (context: BrowserContext) => Promise<void>): Promise<void> {
   const context = await browser.newContext({ baseURL: readBaseUrl(), storageState: ADMIN_STORAGE_STATE_FILE });
-  const writes: string[] = [];
   try {
     await ensureAdminSession(context, ADMIN_STORAGE_STATE_FILE);
-    const page = await context.newPage();
-    page.on('request', (request) => {
-      const path = new URL(request.url()).pathname;
-      if (request.method() !== 'GET' && path.startsWith(`${PROJECTS_PATH}/`)) writes.push(`${request.method()} ${path}`);
-    });
-    await verifyUi(page, name, open, UI_VIEWPORTS, shot);
+    await body(context);
   } finally {
     await context.storageState({ path: ADMIN_STORAGE_STATE_FILE });
     await context.close();
   }
+}
+
+/** `verifyUi` on a new page of `context`, recording every non-GET request under `/api/projects/`: a UI case never writes. */
+async function verifyIn(context: BrowserContext, name: string, open: (page: Page) => Promise<void>, shot: Shot): Promise<void> {
+  const page = await context.newPage();
+  const writes: string[] = [];
+  page.on('request', (request) => {
+    const path = new URL(request.url()).pathname;
+    if (request.method() !== 'GET' && path.startsWith(`${PROJECTS_PATH}/`)) writes.push(`${request.method()} ${path}`);
+  });
+  await verifyUi(page, name, open, UI_VIEWPORTS, shot);
   expect.soft(writes, 'a UI case sends no write under /api/projects/').toEqual([]);
+}
+
+async function verifyAsAdmin(browser: Browser, name: string, open: (page: Page) => Promise<void>, shot: Shot = {}): Promise<void> {
+  await inAdminContext(browser, (context) => verifyIn(context, name, open, shot));
+}
+
+/** BUG-323: a state the layer alone produces, on this test's OWN seeded project (`qcLayer`), deleted in `finally`. */
+async function verifySeeded(
+  browser: Browser,
+  name: string,
+  open: (page: Page, floor: Floor) => Promise<void>,
+  shot: Shot = {},
+): Promise<void> {
+  await inAdminContext(browser, async (context) => {
+    // Before the first page: the fixture token's refresh rotates the context's cookie (`layerApiOf`).
+    const api = await layerApiOf(context);
+    const [floor] = await createQcProject(api, name.toLowerCase().replace(/_/gu, '-'));
+    if (floor === undefined) throw new Error('setup: the seeded project has no floor');
+    try {
+      await verifyIn(context, name, (page) => open(page, floor), shot);
+    } finally {
+      const failed = await deleteProject(api, floor.projectId);
+      if (failed !== null) test.info().annotations.push({ type: 'cleanup', description: failed });
+    }
+  });
+}
+
+let workFloorStatus: Promise<number> | undefined;
+
+/**
+ * A state that needs the pipeline output (OCR dimensions, the warped drawing, the source scan): Phase 3's CP-5 work floor.
+ * SKIPS with an `Environment:` reason when CP-5 is not recorded or that floor's N16 read is not 200 (BUG-346; probed once
+ * per worker) — the no-data states are the U04_*_empty / _no_drawing cases.
+ */
+async function verifyOnWorkFloor(
+  browser: Browser,
+  name: string,
+  open: (page: Page, floor: Floor) => Promise<void>,
+  shot: Shot = {},
+): Promise<void> {
+  const state = readState();
+  const floor: Floor = { projectId: state.project.projectId ?? '', floorId: state.floors.workFloorId ?? '' };
+  test.skip(
+    !state.checkpoints.pipelineComplete || floor.projectId === '' || floor.floorId === '',
+    'Environment: CP-5 not recorded by Phase 3 (checkpoints.pipelineComplete / work floor id missing)',
+  );
+  await inAdminContext(browser, async (context) => {
+    workFloorStatus ??= layerApiOf(context).then((api) => layerStatus(api, floor.projectId, floor.floorId));
+    const status = await workFloorStatus;
+    test.skip(status !== 200, `Environment: CP-5 work floor GET …/spatial/layer answered ${String(status)}, not 200 (no pipeline layer on the stack)`);
+    await verifyIn(context, name, (page) => open(page, floor), shot);
+  });
 }
 
 /** BUG-143: finite animations under `target` done, then its box and opacity hold still for 3 frames (phase03 `settled`). */
@@ -222,15 +273,21 @@ function wallsOpener(): (page: Page, projectId: string, floorId: string) => Prom
   };
 }
 
-/** Walls of the CP-2 work floor with at least one wall; SKIPS otherwise (CP-5 not reached). */
-async function openWallsData(page: Page, openWalls: ReturnType<typeof wallsOpener>): Promise<Locator> {
-  await openWalls(page, cp2(), workFloor());
+/** Walls of the seeded floor; its first row (qcLayer seeds ten walls, so an empty list fails the open). */
+async function openWallsData(page: Page, openWalls: ReturnType<typeof wallsOpener>, floor: Floor): Promise<Locator> {
+  await openWalls(page, floor.projectId, floor.floorId);
   const first = page.getByRole('listbox', { name: WALL_LIST, exact: true }).getByRole('option').first();
-  test.skip((await first.count()) === 0, 'data: the work floor has no wall (CP-5 not reached); the empty state is U04_walls_empty');
+  await expect(first, 'seeded walls listed').toBeVisible();
   return first;
 }
 
-/** A layer screen of the CP-2 work floor: waits for `ready` or `empty`, SKIPS when `empty` shows. */
+/** A layer screen of the seeded floor, waited for until `ready` (its seeded rows) shows. */
+async function openSeeded(page: Page, url: string, ready: Locator): Promise<void> {
+  await page.goto(url);
+  await expect(ready).toBeVisible({ timeout: 15_000 });
+}
+
+/** A layer screen of the CP-5 work floor: waits for `ready` or `empty`, SKIPS when `empty` shows. */
 async function openDataOrSkip(page: Page, url: string, ready: Locator, empty: Locator, reason: string): Promise<void> {
   await page.goto(url);
   await expect(ready.or(empty).first()).toBeVisible({ timeout: 15_000 });
@@ -242,60 +299,39 @@ const dimOptions = (page: Page): Locator => page.getByRole('group', { name: DIM_
 const roomOptions = (page: Page): Locator => page.getByRole('listbox', { name: ROOM_LIST, exact: true }).getByRole('option');
 const axisRows = (page: Page): Locator => page.getByRole('option', { name: AXIS_ROW });
 
-async function openObjectsData(page: Page): Promise<void> {
-  await openDataOrSkip(
-    page,
-    ROUTES.project.objects(cp2(), workFloor()),
-    objectOptions(page).first(),
-    page.getByText(OBJECTS_EMPTY_TITLE, { exact: true }),
-    'the work floor has no opening/furniture (CP-5 not reached or fake ML); the empty state is U04_objects_empty',
-  );
+async function openObjectsData(page: Page, floor: Floor): Promise<void> {
+  await openSeeded(page, ROUTES.project.objects(floor.projectId, floor.floorId), objectOptions(page).first());
 }
 
-async function openDimsData(page: Page): Promise<void> {
+async function openDimsData(page: Page, floor: Floor): Promise<void> {
   await openDataOrSkip(
     page,
-    ROUTES.project.dimensions(cp2(), workFloor()),
+    ROUTES.project.dimensions(floor.projectId, floor.floorId),
     dimOptions(page).first(),
     page.getByText(DIMS_EMPTY_TITLE, { exact: true }),
     'OCR read no dimension string on the work floor (fake ML); the empty state is U04_dims_empty',
   );
 }
 
-async function openRoomsData(page: Page): Promise<void> {
-  await openDataOrSkip(
-    page,
-    ROUTES.project.rooms(cp2(), workFloor()),
-    roomOptions(page).first(),
-    page.getByRole('heading', { name: ROOMS_EMPTY_TITLE }),
-    'no room on the work floor (CP-5 not reached or fake ML); the empty state is U04_rooms_empty',
-  );
+async function openRoomsData(page: Page, floor: Floor): Promise<void> {
+  await openSeeded(page, ROUTES.project.rooms(floor.projectId, floor.floorId), roomOptions(page).first());
 }
 
-async function openGridsData(page: Page): Promise<void> {
-  await openDataOrSkip(
-    page,
-    ROUTES.project.grids(cp2(), workFloor()),
-    page.getByRole('button', { name: ADD_HORIZONTAL_AXIS, exact: true }),
-    page.getByText(GRIDS_EMPTY_TITLE, { exact: true }),
-    'no axis on the work floor (BE N16 sends `axes: []`); the empty state is U04_grids_empty',
-  );
+/** N16 sends `axes: []`; the rows are previewed from the seeded load-bearing rectangle (useAxisGridManager.ts:447-458). */
+async function openGridsData(page: Page, floor: Floor): Promise<void> {
+  await openSeeded(page, ROUTES.project.grids(floor.projectId, floor.floorId), axisRows(page).first());
+  await expect(page.getByRole('button', { name: ADD_HORIZONTAL_AXIS, exact: true })).toBeVisible();
 }
 
-async function openThicknessData(page: Page): Promise<void> {
+/** qcLayer's two 200 mm partitions form one group to standardise (the accept box). */
+async function openThicknessData(page: Page, floor: Floor): Promise<void> {
   await page.emulateMedia({ reducedMotion: 'reduce' }); // group rows are `motion.tr` (phase04_qc_layers.spec.ts SCR-21)
-  await openDataOrSkip(
-    page,
-    ROUTES.project.thickness(cp2(), workFloor()),
-    page.getByRole('checkbox', { name: THICKNESS_ACCEPT }).first().or(page.getByText(THICKNESS_NO_GROUPS, { exact: true })),
-    page.getByRole('heading', { name: THICKNESS_EMPTY_TITLE }),
-    'no wall on the work floor (CP-5 not reached); the empty state is U04_thickness_empty',
-  );
+  await openSeeded(page, ROUTES.project.thickness(floor.projectId, floor.floorId), page.getByRole('checkbox', { name: THICKNESS_ACCEPT }).first());
 }
 
 /** Scale screen of the work floor with its drawing; SKIPS when the floor has none (CP-4 not reached). */
-async function openScaleData(page: Page): Promise<void> {
-  await page.goto(ROUTES.project.scale(cp2(), workFloor()));
+async function openScaleData(page: Page, floor: Floor): Promise<void> {
+  await page.goto(ROUTES.project.scale(floor.projectId, floor.floorId));
   await expect(page.getByRole('region', { name: SCALE_SCREEN, exact: true })).toBeVisible({ timeout: 15_000 });
   const drawing = page.getByRole('img', { name: SCALE_DRAWING_ALT });
   // Loaded = the drawing, or a notice (loading has no notice, `NOTICE_LEVELS.loading` null).
@@ -322,8 +358,8 @@ async function drawReferenceLine(page: Page): Promise<void> {
 }
 
 /** Overlay of the work floor with a scan; SKIPS when the floor has none (CP-4 not reached). */
-async function openOverlayData(page: Page): Promise<void> {
-  await page.goto(ROUTES.project.overlay(cp2(), workFloor()));
+async function openOverlayData(page: Page, floor: Floor): Promise<void> {
+  await page.goto(ROUTES.project.overlay(floor.projectId, floor.floorId));
   await expect(page.getByRole('toolbar', { name: OVERLAY_TOOLBAR, exact: true })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(OVERLAY_LOADING, { exact: true })).toHaveCount(0, { timeout: 15_000 });
   test.skip(
@@ -334,24 +370,22 @@ async function openOverlayData(page: Page): Promise<void> {
 }
 
 /* ========================================================================== */
-/* Data states on the CP-2 work floor (need CP-5)                             */
+/* Data states: seeded floor per test (BUG-323); pipeline states on CP-5     */
 /* ========================================================================== */
 
-test.describe('U04 UI verify — SCR-16 walls (CP-2 work floor, needs CP-5)', () => {
-  test.beforeEach(requireCp5);
-
+test.describe('U04 UI verify — SCR-16 walls (own seeded floor)', () => {
   test('U04 · SCR-16 walls, list', async ({ browser }) => {
     const openWalls = wallsOpener();
-    await verifyAsAdmin(browser, 'U04_walls_list', async (p) => {
-      await openWallsData(p, openWalls);
+    await verifySeeded(browser, 'U04_walls_list', async (p, floor) => {
+      await openWallsData(p, openWalls, floor);
       await expect(p.getByRole('navigation', { name: FLOOR_NAV, exact: true })).toBeVisible();
     });
   });
 
   test('U04 · SCR-16 walls, wall selected → inspector "Đoạn tường"', async ({ browser }) => {
     const openWalls = wallsOpener();
-    await verifyAsAdmin(browser, 'U04_walls_selected', async (p) => {
-      const first = await openWallsData(p, openWalls);
+    await verifySeeded(browser, 'U04_walls_selected', async (p, floor) => {
+      const first = await openWallsData(p, openWalls, floor);
       await first.click();
       await expect(first).toHaveAttribute('aria-selected', 'true');
       await expect(p.getByRole('button', { name: APPROVE_WALL, exact: true })).toBeVisible();
@@ -360,8 +394,8 @@ test.describe('U04 UI verify — SCR-16 walls (CP-2 work floor, needs CP-5)', ()
 
   test('U04 · SCR-16 walls, "Thông số nâng cao" open', async ({ browser }) => {
     const openWalls = wallsOpener();
-    await verifyAsAdmin(browser, 'U04_walls_advanced', async (p) => {
-      const first = await openWallsData(p, openWalls);
+    await verifySeeded(browser, 'U04_walls_advanced', async (p, floor) => {
+      const first = await openWallsData(p, openWalls, floor);
       await first.click();
       const advanced = p.getByRole('button', { name: WALL_ADVANCED, exact: true });
       await advanced.click();
@@ -372,8 +406,8 @@ test.describe('U04 UI verify — SCR-16 walls (CP-2 work floor, needs CP-5)', ()
 
   test('U04 · SCR-16 walls, "Chỉ hiện độ tin cậy thấp" on', async ({ browser }) => {
     const openWalls = wallsOpener();
-    await verifyAsAdmin(browser, 'U04_walls_low_confidence', async (p) => {
-      await openWallsData(p, openWalls);
+    await verifySeeded(browser, 'U04_walls_low_confidence', async (p, floor) => {
+      await openWallsData(p, openWalls, floor);
       const box = p.getByRole('checkbox', { name: WALL_LOW_CONFIDENCE, exact: true });
       await pressSpaceOn(box);
       await expect(box).toBeChecked();
@@ -386,8 +420,8 @@ test.describe('U04 UI verify — SCR-16 walls (CP-2 work floor, needs CP-5)', ()
 
   test('U04 · SCR-16 walls, "Thu gọn hai panel"', async ({ browser }) => {
     const openWalls = wallsOpener();
-    await verifyAsAdmin(browser, 'U04_walls_collapsed', async (p) => {
-      await openWallsData(p, openWalls);
+    await verifySeeded(browser, 'U04_walls_collapsed', async (p, floor) => {
+      await openWallsData(p, openWalls, floor);
       await p.getByRole('button', { name: COLLAPSE_PANELS, exact: true }).click();
       await expect(p.getByRole('button', { name: EXPAND_PANELS, exact: true })).toBeVisible();
       await expect(p.getByRole('listbox', { name: WALL_LIST, exact: true })).toHaveCount(0);
@@ -395,12 +429,10 @@ test.describe('U04 UI verify — SCR-16 walls (CP-2 work floor, needs CP-5)', ()
   });
 });
 
-test.describe('U04 UI verify — SCR-17 objects (CP-2 work floor, needs CP-5)', () => {
-  test.beforeEach(requireCp5);
-
+test.describe('U04 UI verify — SCR-17 objects (own seeded floor)', () => {
   test('U04 · SCR-17 objects, object selected → inspector "Đối tượng"', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U04_objects_selected', async (p) => {
-      await openObjectsData(p);
+    await verifySeeded(browser, 'U04_objects_selected', async (p, floor) => {
+      await openObjectsData(p, floor);
       const first = objectOptions(p).first();
       await first.click();
       await expect(first).toHaveAttribute('aria-selected', 'true');
@@ -409,8 +441,8 @@ test.describe('U04 UI verify — SCR-17 objects (CP-2 work floor, needs CP-5)', 
   });
 
   test('U04 · SCR-17 objects, "Lọc theo loại" chip on', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U04_objects_filter', async (p) => {
-      await openObjectsData(p);
+    await verifySeeded(browser, 'U04_objects_filter', async (p, floor) => {
+      await openObjectsData(p, floor);
       const chip = p.getByRole('group', { name: OBJECT_FILTER, exact: true }).getByRole('button').first();
       await chip.click();
       await expect(chip).toHaveAttribute('aria-pressed', 'true');
@@ -418,36 +450,32 @@ test.describe('U04 UI verify — SCR-17 objects (CP-2 work floor, needs CP-5)', 
   });
 });
 
-test.describe('U04 UI verify — SCR-18 dimensions (CP-2 work floor, needs CP-5)', () => {
-  test.beforeEach(requireCp5);
-
+test.describe('U04 UI verify — SCR-18 dimensions (CP-5 work floor)', () => {
   test('U04 · SCR-18 dimensions, list', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U04_dims_list', async (p) => {
-      await openDimsData(p);
+    await verifyOnWorkFloor(browser, 'U04_dims_list', async (p, floor) => {
+      await openDimsData(p, floor);
     });
   });
 
   test('U04 · SCR-18 dimensions, row selected → "Thanh so sánh với hình học"', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U04_dims_selected', async (p) => {
-      await openDimsData(p);
+    await verifyOnWorkFloor(browser, 'U04_dims_selected', async (p, floor) => {
+      await openDimsData(p, floor);
       await dimOptions(p).first().click();
       await expect(p.getByLabel(DIMS_COMPARE_BAR, { exact: true })).toBeVisible();
     });
   });
 });
 
-test.describe('U04 UI verify — SCR-19 axes (CP-2 work floor, needs CP-5)', () => {
-  test.beforeEach(requireCp5);
-
+test.describe('U04 UI verify — SCR-19 axes (own seeded floor)', () => {
   test('U04 · SCR-19 axes, list', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U04_grids_list', async (p) => {
-      await openGridsData(p);
+    await verifySeeded(browser, 'U04_grids_list', async (p, floor) => {
+      await openGridsData(p, floor);
     });
   });
 
   test('U04 · SCR-19 axes, "Thêm trục ngang" → new row (in memory, F-08)', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U04_grids_axis_added', async (p) => {
-      await openGridsData(p);
+    await verifySeeded(browser, 'U04_grids_axis_added', async (p, floor) => {
+      await openGridsData(p, floor);
       const before = await axisRows(p).count();
       await p.getByRole('button', { name: ADD_HORIZONTAL_AXIS, exact: true }).click();
       await expect(axisRows(p)).toHaveCount(before + 1);
@@ -455,28 +483,26 @@ test.describe('U04 UI verify — SCR-19 axes (CP-2 work floor, needs CP-5)', () 
   });
 });
 
-test.describe('U04 UI verify — SCR-20 rooms (CP-2 work floor, needs CP-5)', () => {
-  test.beforeEach(requireCp5);
-
+test.describe('U04 UI verify — SCR-20 rooms (own seeded floor)', () => {
   test('U04 · SCR-20 rooms, room selected → inspector "Phòng"', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U04_rooms_selected', async (p) => {
-      await openRoomsData(p);
+    await verifySeeded(browser, 'U04_rooms_selected', async (p, floor) => {
+      await openRoomsData(p, floor);
       await roomOptions(p).first().click();
       await expect(p.getByRole('button', { name: APPROVE_ROOM, exact: true })).toBeVisible();
     });
   });
 
   test('U04 · SCR-20 rooms, "Chuẩn hoá tên" → preview dialog (not applied)', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U04_rooms_normalize_preview', async (p) => {
-      await openRoomsData(p);
+    await verifySeeded(browser, 'U04_rooms_normalize_preview', async (p, floor) => {
+      await openRoomsData(p, floor);
       await p.getByRole('button', { name: NORMALIZE, exact: true }).click();
       await settled(p.getByRole('dialog', { name: NORMALIZE_DIALOG, exact: true }));
     });
   });
 
   test('U04 · SCR-20 rooms, "Gộp phòng" → dialog "Gộp hai phòng" (not confirmed)', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U04_rooms_merge_dialog', async (p) => {
-      await openRoomsData(p);
+    await verifySeeded(browser, 'U04_rooms_merge_dialog', async (p, floor) => {
+      await openRoomsData(p, floor);
       await roomOptions(p).first().click();
       await p.getByRole('button', { name: MERGE_ROOM, exact: true }).click();
       await settled(p.getByRole('dialog', { name: MERGE_DIALOG, exact: true }));
@@ -484,21 +510,18 @@ test.describe('U04 UI verify — SCR-20 rooms (CP-2 work floor, needs CP-5)', ()
   });
 });
 
-test.describe('U04 UI verify — SCR-21 thickness (CP-2 work floor, needs CP-5)', () => {
-  test.beforeEach(requireCp5);
-
+test.describe('U04 UI verify — SCR-21 thickness (own seeded floor)', () => {
   test('U04 · SCR-21 thickness, histogram + groups', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U04_thickness_groups', async (p) => {
-      await openThicknessData(p);
+    await verifySeeded(browser, 'U04_thickness_groups', async (p, floor) => {
+      await openThicknessData(p, floor);
       await expect(p.getByRole('heading', { name: THICKNESS_TITLE })).toBeVisible();
     });
   });
 
   test('U04 · SCR-21 thickness, group ticked + "Xem trước" (not applied)', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U04_thickness_preview', async (p) => {
-      await openThicknessData(p);
+    await verifySeeded(browser, 'U04_thickness_preview', async (p, floor) => {
+      await openThicknessData(p, floor);
       const accept = p.getByRole('checkbox', { name: THICKNESS_ACCEPT }).first();
-      test.skip((await accept.count()) === 0, 'data: no non-standard wall group ("Chưa có nhóm nào để chuẩn hoá.")');
       await pressSpaceOn(accept);
       await expect(accept).toBeChecked();
       await p.getByRole('button', { name: THICKNESS_PREVIEW, exact: true }).click();
@@ -507,16 +530,14 @@ test.describe('U04 UI verify — SCR-21 thickness (CP-2 work floor, needs CP-5)'
   });
 });
 
-test.describe('U04 UI verify — SCR-14 scale (CP-2 work floor, needs CP-5)', () => {
-  test.beforeEach(requireCp5);
-
+test.describe('U04 UI verify — SCR-14 scale (CP-5 work floor)', () => {
   test('U04 · SCR-14 scale, drawing loaded', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U04_scale_drawing', openScaleData);
+    await verifyOnWorkFloor(browser, 'U04_scale_drawing', openScaleData);
   });
 
   test('U04 · SCR-14 scale, "Thu gọn bảng" → panel collapsed', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U04_scale_panel_collapsed', async (p) => {
-      await openScaleData(p);
+    await verifyOnWorkFloor(browser, 'U04_scale_panel_collapsed', async (p, floor) => {
+      await openScaleData(p, floor);
       // Not on the empty floor: there the screen is in `error` (NOT_FOUND), which outranks `collapsed`
       // (useScaleCalibration.ts:1466-1476, 1735 `isPanelCollapsed: state === 'collapsed'`), so the button does nothing.
       await p.getByRole('button', { name: SCALE_COLLAPSE, exact: true }).click();
@@ -525,16 +546,16 @@ test.describe('U04 UI verify — SCR-14 scale (CP-2 work floor, needs CP-5)', ()
   });
 
   test('U04 · SCR-14 scale, reference line drawn + "Chiều dài thật" 5000 (not applied)', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U04_scale_refline', async (p) => {
-      await openScaleData(p);
+    await verifyOnWorkFloor(browser, 'U04_scale_refline', async (p, floor) => {
+      await openScaleData(p, floor);
       await drawReferenceLine(p);
       await expect(p.getByRole('button', { name: SCALE_APPLY, exact: true })).toBeEnabled();
     });
   });
 
   test('U04 · SCR-14 scale, "Áp cho mọi tầng" → confirm dialog (not confirmed)', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U04_scale_all_floors_dialog', async (p) => {
-      await openScaleData(p);
+    await verifyOnWorkFloor(browser, 'U04_scale_all_floors_dialog', async (p, floor) => {
+      await openScaleData(p, floor);
       await drawReferenceLine(p);
       const all = p.getByRole('radiogroup', { name: SCALE_SCOPE, exact: true }).getByRole('radio', { name: SCALE_ALL_FLOORS, exact: true });
       await all.click();
@@ -546,16 +567,14 @@ test.describe('U04 UI verify — SCR-14 scale (CP-2 work floor, needs CP-5)', ()
   });
 });
 
-test.describe('U04 UI verify — SCR-22 overlay (CP-2 work floor, needs CP-5)', () => {
-  test.beforeEach(requireCp5);
-
+test.describe('U04 UI verify — SCR-22 overlay (CP-5 work floor)', () => {
   test('U04 · SCR-22 overlay, scan + model', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U04_overlay_default', openOverlayData);
+    await verifyOnWorkFloor(browser, 'U04_overlay_default', openOverlayData);
   });
 
   test('U04 · SCR-22 overlay, "Kiểu đối chiếu" → "Trượt" (divider)', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U04_overlay_swipe', async (p) => {
-      await openOverlayData(p);
+    await verifyOnWorkFloor(browser, 'U04_overlay_swipe', async (p, floor) => {
+      await openOverlayData(p, floor);
       const swipe = p.getByRole('radiogroup', { name: OVERLAY_MODES, exact: true }).getByRole('radio', { name: OVERLAY_SWIPE, exact: true });
       test.skip(await swipe.isDisabled(), 'data: swipe mode disabled for this floor ("Trượt — <reason>")');
       await swipe.click();
