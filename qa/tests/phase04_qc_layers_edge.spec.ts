@@ -179,6 +179,13 @@ const THICK = {
   apply: 'Áp dụng', // TAB:58
   undo: 'Hoàn tác', // TAB:55
   accept: /^Đồng ý chuẩn hoá \d+ tường /u, // TGT:43
+  /** Preview line of no accepted row: `${n} tường → ${g} nhóm chuẩn.` (thicknessStandardizationGateway.ts:786). */
+  previewNothing: '0 tường → 0 nhóm chuẩn.',
+  previewTwo: /^2 tường → 1 nhóm chuẩn\./u,
+  /** Toast title of the bulk apply (thicknessStandardizationGateway.ts:836-837 standardizeDescription). */
+  appliedTwo: 'Chuẩn hoá độ dày 2 tường.',
+  /** Segment row "Độ dày đo được" of a 200 mm wall: one decimal, comma (thicknessStandardizationGateway.ts:516-533). */
+  measured200: /^200,0\s*mm$/u,
 } as const;
 
 /* SCR-14 / SCR-22 copy. */
@@ -209,6 +216,9 @@ const OVERLAY = {
   confirm: 'Xác nhận mô hình khớp bản vẽ', // UV:104
   lock: 'Khoá căn', // VT:61
 } as const;
+
+/** SCR-11 quality gate empty state, the target of "Quay lại bước tiền xử lý" (InputQualityGate.tsx:65, vi.json:856). */
+const QUALITY_NO_DRAWING = 'Chưa có bản vẽ để kiểm tra';
 
 /* SCR-10 upload (fixture for the scale test, same path as phase03 edge). */
 const FILE_INPUT = 'floor-upload-file-input'; // FloorUploadDropZone.tsx:33
@@ -1250,27 +1260,48 @@ test.describe('E04 SCR-21 thickness standardization', () => {
       const accept = page.getByRole('checkbox', { name: THICK.accept }).first();
       await expect(accept).not.toBeChecked();
       const region = thicknessRegion(page);
+      const measured200 = region.getByText(THICK.measured200);
+      const applied = toastsRegion(page).getByText(THICK.appliedTwo, { exact: true });
+      const putsSince = (from: number): number => countSince(api, from, 'PUT', layerRe(project.id, project.floor.id));
       const mark = api.length;
 
+      // BUG-344: the screen's answer to "nothing to apply" is the preview line itself (TAB:163, UT:703-706) — shot open.
       await region.getByRole('button', { name: THICK.preview, exact: true }).click();
+      await expect(region.getByText(THICK.previewNothing, { exact: true })).toBeVisible();
       await expect(region.getByRole('button', { name: THICK.apply, exact: true })).toBeVisible(); // TAB:194-204
+      await captureEvidence(page, 'E04_thickness_apply_nothing.png', {
+        caption: 'No group accepted: "Xem trước" says 0 tường → 0 nhóm chuẩn; "Áp dụng" is clicked next and sends no PUT',
+      });
       await region.getByRole('button', { name: THICK.apply, exact: true }).click(); // UT:613-614 empty batch → return
       await quiet(page);
-      expect(countSince(api, mark, 'PUT', layerRe(project.id, project.floor.id)), 'nothing accepted → no PUT').toBe(0);
-      await captureEvidence(page, 'E04_thickness_apply_nothing.png');
+      expect(putsSince(mark), 'nothing accepted → no PUT').toBe(0);
+      await expect(applied).toHaveCount(0);
+      await expect(measured200).toHaveCount(2);
+      await attachJson('E04_thickness_apply_nothing.json', { putsAfterApply: putsSince(mark), writes: writesSince(api, mark) });
 
-      if ((await region.getByRole('button', { name: THICK.preview, exact: true }).count()) > 0) {
-        await region.getByRole('button', { name: THICK.preview, exact: true }).click();
-      }
+      // Accepted group, preview open ("2 tường → 1 nhóm chuẩn."), then closed by Esc and by "Huỷ": nothing applied.
+      await pressSpaceOn(accept);
+      await expect(accept).toBeChecked();
+      const previewTwo = region.getByText(THICK.previewTwo);
+      await region.getByRole('button', { name: THICK.preview, exact: true }).click();
+      await expect(previewTwo).toBeVisible();
       await accept.focus(); // canvas-scope Esc is inert inside an input; the sr-only checkbox is not a text input
       await page.keyboard.press('Escape'); // UT:829-842 → setPreview(null)
+      await expect(previewTwo).toHaveCount(0);
       await expect(region.getByRole('button', { name: THICK.preview, exact: true })).toBeVisible(); // TAB:122-126
       await region.getByRole('button', { name: THICK.preview, exact: true }).click();
+      await expect(previewTwo).toBeVisible();
       await region.getByRole('button', { name: THICK.cancel, exact: true }).click(); // TAB:88-91
+      await expect(previewTwo).toHaveCount(0);
+      await expect(region.getByRole('button', { name: THICK.apply, exact: true })).toHaveCount(0);
       await expect(region.getByRole('button', { name: THICK.preview, exact: true })).toBeVisible();
       await quiet(page);
-      expect(countSince(api, mark, 'PUT', layerRe(project.id, project.floor.id)), 'previews write nothing').toBe(0);
-      await captureEvidence(page, 'E04_thickness_preview_closed.png');
+      expect(putsSince(mark), 'previews write nothing').toBe(0);
+      await expect(applied).toHaveCount(0);
+      await expect(measured200, 'both walls still 200 mm').toHaveCount(2);
+      await captureEvidence(page, 'E04_thickness_preview_closed.png', {
+        caption: 'Group accepted, preview closed by Esc and by "Huỷ": no preview panel, both walls still 200,0 mm, no PUT',
+      });
     });
   });
 
@@ -1286,7 +1317,9 @@ test.describe('E04 SCR-21 thickness standardization', () => {
         }));
         await openThickness(page, project);
         const region = thicknessRegion(page);
+        const measured200 = region.getByText(THICK.measured200);
         const accept = page.getByRole('checkbox', { name: THICK.accept }).first();
+        await expect(measured200).toHaveCount(2);
         await pressSpaceOn(accept);
         await expect(accept).toBeChecked();
         await region.getByRole('button', { name: THICK.preview, exact: true }).click();
@@ -1296,14 +1329,23 @@ test.describe('E04 SCR-21 thickness standardization', () => {
         );
         await region.getByRole('button', { name: THICK.apply, exact: true }).click();
         expect((await applied).response.status(), 'apply PUT').toBe(200);
+        // BUG-344: the applied state, shot before it is undone (UT:617-640 toast with its own "Hoàn tác").
+        await expect(toastsRegion(page).getByText(THICK.appliedTwo, { exact: true })).toBeVisible();
+        await expect(measured200, 'no wall left at 200 mm after the apply').toHaveCount(0);
+        await captureEvidence(page, 'E04_thickness_applied.png', {
+          caption: '"Áp dụng": toast "Chuẩn hoá độ dày 2 tường." and no row at 200,0 mm (PUT with 220 mm sent)',
+        });
 
         const restored = waitForLayerPut(page, project, (body) =>
           sentWalls(body).filter((wall) => ids.includes(wall.id as string)).every((wall) => wall.thicknessMm === 200),
         );
         await region.getByRole('button', { name: THICK.undo, exact: true }).first().click(); // TAB:116-118 → UT:598-600 applyUndo
         expect((await restored).response.status(), 'undo PUT').toBe(200);
+        await expect(measured200, 'both walls back to 200 mm after "Hoàn tác"').toHaveCount(2);
         await expect(page.getByRole('checkbox', { name: THICK.accept }).first()).toBeVisible();
-        await captureEvidence(page, 'E04_thickness_apply_undo.png');
+        await captureEvidence(page, 'E04_thickness_apply_undo.png', {
+          caption: '"Hoàn tác" after "Áp dụng": both walls back at 200,0 mm (PUT restoring 200 mm sent); applied state: E04_thickness_applied',
+        });
       },
       { reducedMotion: 'reduce' }, // group rows are motion.tr (main spec SCR-21)
     );
@@ -1330,6 +1372,8 @@ test.describe('E04 SCR-14 scale calibration', () => {
       await reread;
       await notice.getByRole('button', { name: SCALE.backToPreprocessing, exact: true }).click(); // US:1029
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.quality(project.id));
+      // BUG-343: the lazy route first paints "Đang tải màn hình…"; shoot the quality gate itself (no drawing on this floor).
+      await expect(page.getByText(QUALITY_NO_DRAWING, { exact: true })).toBeVisible();
       expect(writesSince(api, mark), 'scale error state writes nothing').toEqual([]);
       await captureEvidence(page, 'E04_scale_back_to_quality.png');
     });
