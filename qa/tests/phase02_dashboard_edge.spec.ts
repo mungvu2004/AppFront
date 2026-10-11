@@ -3605,13 +3605,17 @@ test.describe('E02 QA-02 FE changes (d18eb884) — SCR-05 / SCR-06 / SCR-07', ()
       await body.evaluate((el) => {
         el.scrollTop = el.scrollHeight;
       });
+      // A sticky header sits at max(its natural place = the table top, the body top). With 12 floors the scroll range can
+      // stop before the table reaches the body top (BUG-202 run-16: 4 / 0 / 116 / 0 px at 1440/1024/768/375), so the
+      // header is pinned only once the table has scrolled past; a plain |thead - body| <= 1 was wrong there.
+      const table = dialog.getByRole('table');
       await expect
         .poll(async () => {
-          const [b, h] = [await body.boundingBox(), await head.boundingBox()];
-          return b === null || h === null ? Number.POSITIVE_INFINITY : Math.abs(h.y - b.y);
+          const [b, h, t] = [await body.boundingBox(), await head.boundingBox(), await table.boundingBox()];
+          return b === null || h === null || t === null ? Number.POSITIVE_INFINITY : Math.abs(h.y - Math.max(b.y, t.y));
         })
         .toBeLessThanOrEqual(1);
-      await captureEvidence(page, 'E02_wiz_sticky_head.png', { caption: 'body scrolled to the end: "Tầng / Chiều cao thông thuỷ / Cao độ" still pinned at its top' });
+      await captureEvidence(page, 'E02_wiz_sticky_head.png', { caption: 'body scrolled to the end: "Tầng / Chiều cao thông thuỷ / Cao độ" pinned at its top once the table scrolled past (else in place)' });
 
       // CPM:303 `scroll-pt-10`: a field reached by Shift+Tab is scrolled clear of the 40 px sticky header.
       await dialog.getByRole('textbox', { name: 'Tên tầng Tầng 11', exact: true }).focus();
