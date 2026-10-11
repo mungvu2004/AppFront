@@ -611,7 +611,9 @@ test.describe('SCR-11 Input Quality Gate', () => {
     }
 
     const current = report().locator('[aria-current="true"]');
-    const before = (await current.count()) > 0 ? await current.first().innerText() : null;
+    // textContent, not innerText: `toHaveText` matches the row's textContent, and innerText puts tabs / newlines between the
+    // cells ("Tầng 4\t2 phát hiện…" vs "Tầng 42 phát hiện…"), so the same row never matched (BUG-363, run-23).
+    const before = (await current.count()) > 0 ? await current.first().textContent() : null;
     // Focus is on the document after load (not an input), so the canvas-scope floor keys fire.
     await page.keyboard.press('ArrowRight');
     await page.keyboard.press('ArrowLeft');
