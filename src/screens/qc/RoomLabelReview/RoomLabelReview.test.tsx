@@ -549,3 +549,30 @@ describe('dải tỉ lệ tạm (F-04x-2)', () => {
     expect(screen.queryByText(PROVISIONAL_MEASURE_TEXT)).not.toBeInTheDocument();
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* Bộ lọc "Chưa đặt tên" lọc sạch danh sách (BUG-321).                         */
+/* -------------------------------------------------------------------------- */
+
+describe('[BUG-321] bộ lọc "Chưa đặt tên" không còn phòng nào', () => {
+  it('câu rỗng bảo tắt bộ lọc, và công tắc vẫn còn trên màn để tắt', async () => {
+    await renderSettled('success');
+
+    const filter = (): HTMLElement => screen.getByRole('button', { name: /^Chưa đặt tên/u });
+
+    fireEvent.click(filter());
+
+    expect(
+      await screen.findByText(
+        'Không còn phòng nào chưa đặt tên. Tắt bộ lọc "Chưa đặt tên" để xem lại toàn bộ phòng của tầng.',
+      ),
+    ).toBeInTheDocument();
+    expect(filter()).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(filter());
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('option').length).toBeGreaterThan(0);
+    });
+  });
+});

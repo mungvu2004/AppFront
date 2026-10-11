@@ -37,6 +37,8 @@ import type { RoomLabelGapViewModel, RoomLabelLeftPanelProps, RoomLabelListProps
 export interface RoomLabelLeftPanelViewProps {
   readonly panel: RoomLabelLeftPanelProps;
   readonly list: RoomLabelListProps;
+  /** Câu rỗng khi bộ lọc "Chưa đặt tên" lọc sạch danh sách (BUG-321); `null` thì vẽ danh sách. */
+  readonly emptyListNotice: string | null;
 }
 
 const SUMMARY_PREFIX = 'Tổng diện tích sàn';
@@ -81,7 +83,7 @@ function RoomLabelGapRow({ gap, onNavigateToWalls }: RoomLabelGapRowProps) {
   );
 }
 
-export function RoomLabelLeftPanel({ panel, list }: RoomLabelLeftPanelViewProps) {
+export function RoomLabelLeftPanel({ panel, list, emptyListNotice }: RoomLabelLeftPanelViewProps) {
   const { summary, gaps, showOnlyUnnamed, onToggleUnnamedFilter, onOpenNormalizePreview } = panel;
 
   return (
@@ -137,13 +139,19 @@ export function RoomLabelLeftPanel({ panel, list }: RoomLabelLeftPanelViewProps)
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
-        <RoomLabelList
-          isViewerRole={list.isViewerRole}
-          onHover={list.onHover}
-          onSelect={list.onSelect}
-          rooms={list.rooms}
-          selectedRoomId={list.selectedRoomId}
-        />
+        {emptyListNotice !== null ? (
+          <p className="px-3 py-4 text-[13px] text-text-secondary" role="status">
+            {emptyListNotice}
+          </p>
+        ) : (
+          <RoomLabelList
+            isViewerRole={list.isViewerRole}
+            onHover={list.onHover}
+            onSelect={list.onSelect}
+            rooms={list.rooms}
+            selectedRoomId={list.selectedRoomId}
+          />
+        )}
       </div>
     </div>
   );

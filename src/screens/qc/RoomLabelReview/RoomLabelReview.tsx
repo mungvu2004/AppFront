@@ -139,7 +139,11 @@ function RoomLabelLeftColumn(props: RoomLabelReviewViewProps) {
     );
   }
 
-  if (emptyNotice !== null) {
+  /*
+   * BUG-321: rỗng vì bộ lọc "Chưa đặt tên" thì câu rỗng bảo tắt bộ lọc — nên
+   * panel (có công tắc) vẫn phải hiện, câu rỗng nằm ở chỗ danh sách.
+   */
+  if (emptyNotice !== null && !showOnlyUnnamed) {
     return (
       <div className={LEFT_COLUMN_CLASS_NAME}>
         <EmptyState
@@ -175,6 +179,7 @@ function RoomLabelLeftColumn(props: RoomLabelReviewViewProps) {
 
       <div className="min-h-0 flex-1">
         <RoomLabelLeftPanel
+          emptyListNotice={emptyNotice}
           list={{ rooms, selectedRoomId, onSelect, onHover, isViewerRole }}
           panel={{
             summary,
