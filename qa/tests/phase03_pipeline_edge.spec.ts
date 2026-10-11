@@ -1409,7 +1409,15 @@ test.describe('E03 SCR-10 floor upload', () => {
         // UPR:781-783 joins "<time> <text>" per log line: an empty log copies "", a non-empty one copies its lines.
         if (emptyLog) expect(copied).toBe('');
         else expect(copied.trim().length, 'clipboard holds the log').toBeGreaterThan(0);
-        await captureEvidence(page, 'E03_pipeline_submit_log_copy.png');
+        // BUG-361: the screen gives no visible copy feedback (UPR onCopyLog → gateway.copyText only), so the shot carries what
+        // the clipboard holds; without it the image equals E03_pipeline_done_summary.
+        const copiedLines = copied === '' ? [] : copied.split('\n');
+        await captureEvidence(page, 'E03_pipeline_submit_log_copy.png', {
+          caption: [
+            `"${PROCESSING.copyLog}" clicked → clipboard: ${String(copiedLines.length)} line(s)${emptyLog ? ' (empty log)' : ''}`,
+            ...copiedLines.slice(0, 4),
+          ],
+        });
         await attachJson('E03_pipeline_submit_log_copy.json', {
           submitWrites,
           logEmpty: emptyLog,
