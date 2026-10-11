@@ -331,6 +331,10 @@ test.describe('U03 UI verify — SCR-09 floors (CP-2)', () => {
       await auto.click();
       await expect(auto).toHaveAttribute('aria-checked', 'false');
       await expect(elevationInputs.first()).toBeVisible();
+      // BUG-264 (run-20): "off" alone still shoots like the plain table, so focus the first elevation field — the shot shows
+      // a field taking manual input. Focus without typing commits nothing (useNumericField.ts handleBlur: only `isTyping`).
+      await elevationInputs.first().focus();
+      await expect(elevationInputs.first()).toBeFocused();
     });
   });
 
