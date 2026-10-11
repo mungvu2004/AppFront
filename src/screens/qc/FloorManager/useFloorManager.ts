@@ -33,8 +33,8 @@
  * ## Trạng thái máy chủ (R-64)
  *
  * Không `useState` nào giữ cờ đang-tải hay cờ hỏng. Danh sách tầng đi qua
- * `useQuery` dưới khoá `queryKeys.floor.list(projectId)` — đúng khoá
- * `invalidationMap.editFloor` dọn — và mọi lượt ghi gọi
+ * `useQuery` dưới khoá con `[...queryKeys.floor.list(projectId), 'manager']` —
+ * `invalidationMap.editFloor` dọn nó theo tiền tố — và mọi lượt ghi gọi
  * `applyInvalidation(queryClient, 'editFloor', …)`, không `invalidateQueries`
  * trần. `useShareLinks.ts` tự khai `isLoading`/`error` bằng tay; đó là ngoại lệ
  * đi trước, KHÔNG phải khuôn mẫu, và không một dòng nào ở đây chép nó.
@@ -562,7 +562,10 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
   /* ---------------------------------------------------------------------- */
 
   const floorListQuery = useQuery({
-    queryKey: queryKeys.floor.list(projectId),
+    // Khoá CON, không phải `floor.list` trần: ảnh chụp ở đây là `{ graph, floors, … }`, còn Tải bản vẽ
+    // và cổng chất lượng đọc `floor.list` là `Floor[]` — chung khoá thì đi từ màn này sang màn kia
+    // làm màn kia trải một object và sập (BUG-348). Làm mất hiệu lực `floor.list` vẫn chạm khoá này.
+    queryKey: [...queryKeys.floor.list(projectId), 'manager'],
     queryFn: ({ signal }) => gateway.readFloorList({ projectId, signal }),
   });
 
