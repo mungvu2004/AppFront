@@ -1546,8 +1546,8 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
         clientWidth: document.documentElement.clientWidth,
       }));
       const lastHead = await tableHeads(page).last().boundingBox();
-      // ProjectTable.tsx:90 (FIX-1075): the name wraps (`whitespace-normal break-words`, up to 2 lines) instead of one cut
-      // line; only the wrap is asserted here, not how much of the name shows.
+      // ProjectTable.tsx:80 (FIX-1075): the name wraps (`whitespace-normal break-words`, up to 2 lines from `sm`, 1 below)
+      // instead of one cut line; only the wrap is asserted here, not how much of the name shows.
       const nameCell = await tableRow(page, name).locator('h3').evaluate((el) => {
         const cs = getComputedStyle(el);
         return { whiteSpace: cs.whiteSpace, overflowWrap: cs.overflowWrap, scroll: el.scrollWidth, client: el.clientWidth };
