@@ -127,6 +127,18 @@ function DrawerRoot({ isOpen, onClose, children, size, label }: DrawerRootProps)
     };
   }, [isOpen, onClose, isMobile]);
 
+  // Ngăn/tờ là modal: trang nền không cuộn, và không còn thanh cuộn của nó đứng cạnh ngăn hay đè lên tờ
+  // (BUG-235). Trả lại giá trị cũ, không xoá, để một lớp modal khác đang khoá vẫn giữ khoá của nó.
+  useEffect(() => {
+    if (!isOpen) return;
+    const root = document.documentElement;
+    const previous = root.style.overflow;
+    root.style.overflow = 'hidden';
+    return () => {
+      root.style.overflow = previous;
+    };
+  }, [isOpen]);
+
   // Esc khi focus nằm ngoài drawer — qua trọng tài phím tắt. Binding scope
   // 'dialog' cũng làm tầng dialog thành modal chừng nào drawer còn mở.
   useShortcut(
