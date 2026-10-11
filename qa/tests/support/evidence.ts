@@ -207,3 +207,14 @@ export async function captureEvidence(
 
   return path;
 }
+
+/**
+ * BUG-223: Playwright's own `test-failed-1.png` is taken after the test body ends, once the dialog, sheet or wizard the
+ * test opened is closed again, so a failed `expect.soft` shows a bare page. Runs `check` (its soft expectations) and,
+ * when that added a failure, shoots `name` right away with the broken state still on screen.
+ */
+export async function shootOnSoftFail(page: Page, name: string, caption: string, check: () => unknown): Promise<void> {
+  const before = test.info().errors.length;
+  await check();
+  if (test.info().errors.length > before) await captureEvidence(page, name, { caption: `SOFT FAIL: ${caption}` });
+}

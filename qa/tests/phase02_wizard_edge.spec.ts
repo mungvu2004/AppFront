@@ -59,7 +59,7 @@ import type { ApiEntry, ApiResult } from '../../e2e/fullstack/apiWatch';
 import { readBaseUrl } from '../../e2e/fullstack/env';
 import { apiBaseUrl } from './support/api';
 import { dashboardLoaded, signInAdmin } from './support/auth';
-import { TEST_DATA_PREFIX, attachJson, captureEvidence } from './support/evidence';
+import { TEST_DATA_PREFIX, attachJson, captureEvidence, shootOnSoftFail } from './support/evidence';
 
 /* ---------------------------------------------------------------- constants (each cites its source) */
 
@@ -1540,7 +1540,10 @@ test.describe('E02 SCR-05 wizard edge — QA-02 shared components (FE 271538cb)'
       // Finding candidate (a11y/Low) when this fails: TG:69 joins the extra id into `descId`, and TG:130 reuses that joined
       // string as the description span's own id ("…-desc create-project-floor-cap"), so "…-desc" resolves to nothing
       // and the switch loses its own sentence exactly when it is locked (TG:15-16 promises it is read first).
-      await expect.soft(basement, 'own description, then the cap note').toHaveAccessibleDescription(`${BASEMENT_DESCRIPTION} ${FLOOR_CAP_NOTE}`);
+      await basement.scrollIntoViewIfNeeded();
+      await shootOnSoftFail(page, 'E02_wiz_cap_switch_desc_softfail.png', `locked "Có tầng hầm" at 50 floors: describedby ${JSON.stringify(describedBy)} (own sentence expected first)`, () =>
+        expect.soft(basement, 'own description, then the cap note').toHaveAccessibleDescription(`${BASEMENT_DESCRIPTION} ${FLOOR_CAP_NOTE}`),
+      );
 
       await deleteFloorButton(dialog, 'Tầng 49').click(); // UCPM removeFloor
       await expect(floorNameBoxes(dialog)).toHaveCount(FLOOR_COUNT_MAX - 1);

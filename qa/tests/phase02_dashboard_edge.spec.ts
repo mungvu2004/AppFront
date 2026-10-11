@@ -70,7 +70,7 @@ import type { ApiEntry, ApiResult } from '../../e2e/fullstack/apiWatch';
 import { readBaseUrl } from '../../e2e/fullstack/env';
 import { apiBaseUrl } from './support/api';
 import { dashboardLoaded, signInAdmin } from './support/auth';
-import { TEST_DATA_PREFIX, attachJson, captureEvidence } from './support/evidence';
+import { TEST_DATA_PREFIX, attachJson, captureEvidence, shootOnSoftFail } from './support/evidence';
 
 /* ---------------------------------------------------------------- constants (each cites its source) */
 
@@ -3010,7 +3010,9 @@ test.describe('E02 QA-02 shared components (FE 271538cb) — SCR-05 / SCR-06 / S
         expect(box !== null && box.x >= 15 && box.x + box.width <= COMPACT.width - 15, 'dialog inside the 16 px gutters').toBe(true);
         expect(layout.page.scroll, 'no page-level sideways scroll').toBeLessThanOrEqual(layout.page.client);
         // Finding candidate (UI/Low) when this fails: the unbroken name overflows the sentence box inside the dialog.
-        expect.soft(layout.bodyLine.scroll, 'the delete sentence wraps the long name inside the dialog').toBeLessThanOrEqual(layout.bodyLine.client + 1);
+        await shootOnSoftFail(page, 'E02_dash_delete_375_long_softfail.png', `delete sentence scroll ${String(layout.bodyLine.scroll)} > client ${String(layout.bodyLine.client)} inside the open dialog`, () => {
+          expect.soft(layout.bodyLine.scroll, 'the delete sentence wraps the long name inside the dialog').toBeLessThanOrEqual(layout.bodyLine.client + 1);
+        });
         await dialog.getByRole('button', { name: KEEP, exact: true }).click();
         await expect(dialog).toHaveCount(0);
         expect(countApi(admin.api, 'DELETE', `${PROJECTS_API}/${project.id}`)).toBe(0);
@@ -3098,8 +3100,12 @@ test.describe('E02 QA-02 shared components (FE 271538cb) — SCR-05 / SCR-06 / S
         await attachJson('E02_notif_snap_keyboard.json', { viewport: COMPACT, shown, after });
         // Finding candidate (UI/Low): TT measures its anchor only when it shows (TT:66-77); a tooltip still shown after
         // the sheet dropped stays where the dot used to be.
-        if (after.tipVisible && after.tip !== null && after.dot !== null) {
-          expect.soft(Math.abs(after.tip.y + after.tip.height - after.dot.y), 'a shown tooltip follows its dot after the snap').toBeLessThanOrEqual(24);
+        const { tip: tipBox, dot: dotBox } = after;
+        if (after.tipVisible && tipBox !== null && dotBox !== null) {
+          const gap = Math.abs(tipBox.y + tipBox.height - dotBox.y);
+          await shootOnSoftFail(page, 'E02_notif_snap_peek_softfail.png', `tooltip bottom ${String(Math.round(gap))} px from "Mức 1" after the snap (≤ 24 expected), sheet still open`, () => {
+            expect.soft(gap, 'a shown tooltip follows its dot after the snap').toBeLessThanOrEqual(24);
+          });
         }
         await page.keyboard.press('Escape');
         await expect.poll(() => pathname(page)).toBe(ROUTES.dashboard);
