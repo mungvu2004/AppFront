@@ -85,6 +85,9 @@ const STATE_ANNOUNCEMENT: Readonly<Record<SevenState, string>> = {
 
 const TITLE_ID = 'create-project-modal-title';
 
+/** What each step is about, beside "Bước n / 3" — the indicator is more than a grey number (BUG-122). */
+const STEP_TITLES = ['Thông tin công trình', 'Tầng', 'Xem lại'] as const;
+
 /** Re-exported so every existing caller of `CreateProjectModal.tsx` keeps its import path. */
 export type { CreateProjectModalViewProps } from './useCreateProjectModal';
 
@@ -244,10 +247,11 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
 
   return (
     <Modal.Root isOpen={isOpen} onClose={props.requestClose} width={MODAL_WIDTH} titleId={TITLE_ID}>
-      <Modal.Header>
+      {/* `pb-3` + a body with no top padding: the step indicator sits one 24 px grid step under the title, and `px-6` lines the title up with the fields (BUG-122). */}
+      <Modal.Header className="px-6 pb-3">
         <span id={TITLE_ID}>Tạo dự án mới</span>
       </Modal.Header>
-      <Modal.Body className="px-6 py-6 min-h-[320px]">
+      <Modal.Body className="px-6 pt-0 pb-6 min-h-[320px]">
         {props.isConfirmingDiscard && (
           <div className="mb-4">
             <InlineAlert
@@ -259,7 +263,20 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
           </div>
         )}
 
-        <p className="mb-4 text-[13px] text-text-secondary">{props.stepLabel}</p>
+        <div className="mb-5 flex flex-col gap-2">
+          <div className="flex items-baseline gap-2">
+            <p className="text-[13px] font-semibold leading-[18px] text-text-primary">{props.stepLabel}</p>
+            <span className="text-[13px] leading-[18px] text-text-secondary">{STEP_TITLES[step - 1]}</span>
+          </div>
+          <div className="flex gap-1" aria-hidden="true">
+            {STEP_TITLES.map((title, index) => (
+              <span
+                key={title}
+                className={cn('h-1 flex-1 rounded-full', index < step ? 'bg-text-primary' : 'bg-border-default')}
+              />
+            ))}
+          </div>
+        </div>
         <span className="sr-only" role="status">
           {props.stepLabel}
         </span>
