@@ -110,6 +110,8 @@ export const SETTINGS_SENTENCES = {
   conflict: 'Cài đặt dự án vừa được đổi ở nơi khác. Tải lại để xem bản mới nhất.',
   fieldRejected: 'Máy chủ không nhận giá trị này. Kiểm tra lại ô này.',
   saveFallback: 'Không lưu được cài đặt dự án.',
+  /** Viên chỉ báo khi lỗi nhập chặn tự lưu: không nói "chờ đồng bộ" cho thứ sẽ không đồng bộ (BUG-286). */
+  unsavedProblems: 'Chưa lưu vì còn ô cần sửa',
   emptyBlocked: 'Giá trị đã lưu không xoá trống được; hãy nhập giá trị khác.',
   snapNotInteger: 'Dung sai bắt điểm phải là số nguyên.',
 } as const;

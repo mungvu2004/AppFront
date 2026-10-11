@@ -180,7 +180,7 @@ export interface ProjectSettingsModel extends ProjectMembersModel {
   /** Lỗi đọc thử lại được (mạng, hết giờ, 5xx…) — chỉ khi ấy mới có nút "Thử lại". */
   readonly canRetryLoad: boolean;
   readonly saveState: SaveState;
-  /** `null` khi màn tự ép `pending` vì còn lỗi nhập — viên chỉ báo dùng câu chờ của nó. */
+  /** Khi màn tự ép `pending` vì còn lỗi nhập, nhãn nói "chưa lưu vì còn ô cần sửa" (BUG-286). */
   readonly saveLabel: string | null;
   readonly conflictMessage: string | null;
   /** Câu nói phần nào đã lưu, phần nào chưa; `null` khi không có phần hỏng. */
@@ -1300,8 +1300,9 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     isProjectMissing: state === 'error' && loadAppError?.kind === 'notFound',
     canRetryLoad: state === 'error' && (loadAppError?.retryable ?? true),
     saveState,
-    // Ép `pending` vì lỗi nhập thì nhãn của tự lưu (có thể là "Đã lưu lúc …" cũ) không còn đúng (B-V1-47).
-    saveLabel: hasLocalProblem ? null : indicator.label,
+    // Ép `pending` vì lỗi nhập thì nhãn của tự lưu (có thể là "Đã lưu lúc …" cũ) không còn đúng (B-V1-47),
+    // và câu chờ mặc định "Có thay đổi chờ đồng bộ" hứa một lượt đồng bộ sẽ không xảy ra (BUG-286).
+    saveLabel: hasLocalProblem ? SETTINGS_SENTENCES.unsavedProblems : indicator.label,
     conflictMessage,
     saveFailureMessage,
     isReloadDialogOpen,

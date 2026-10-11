@@ -405,6 +405,7 @@
         "conflictTitle": "Cài đặt đã đổi ở nơi khác",
         "conflictMessage": "Cài đặt dự án vừa được đổi ở nơi khác. Tải lại để xem bản mới nhất.",
         "fieldRejected": "Máy chủ không nhận giá trị này. Kiểm tra lại ô này.",
+        "unsavedProblems": "Chưa lưu vì còn ô cần sửa",
         "partGeneral": "Thông tin chung",
         "partUnits": "Đơn vị đo",
         "reloadDialogMessage": "Những thay đổi chưa lưu trên màn này sẽ mất, và bản mới nhất từ máy chủ sẽ thay vào chỗ đó.",

@@ -78,6 +78,7 @@ describe('câu chữ', () => {
     expect(SETTINGS_SENTENCES.conflict).toBe(settings.load.conflictMessage);
     expect(SETTINGS_SENTENCES.fieldRejected).toBe(settings.load.fieldRejected);
     expect(SETTINGS_SENTENCES.emptyBlocked).toBe(settings.problems.emptyBlocked);
+    expect(SETTINGS_SENTENCES.unsavedProblems).toBe(settings.load.unsavedProblems);
     expect(SETTINGS_SENTENCES.snapNotInteger).toBe(settings.problems.snapNotInteger);
   });
 
