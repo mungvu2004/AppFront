@@ -513,6 +513,25 @@ describe('CreateProjectModal, wired to its hook', () => {
     expect(screen.queryByText('Đóng và bỏ các thay đổi chưa lưu?')).not.toBeInTheDocument();
   });
 
+  it('stays open on Esc while "Tạo dự án" is in flight, and offers no discard (BUG-184)', async () => {
+    const onDismiss = vi.fn();
+    const held = { create: () => new Promise<never>(() => undefined), remove: vi.fn() };
+    render(<CreateProjectModal isOpen gateway={held} forceCompact={false} onDismiss={onDismiss} />);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    goToStep2('Chung cư Đang Tạo');
+    setHeight('Chiều cao áp cho mọi tầng', '3');
+    fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo dự án' }));
+
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+
+    expect(screen.queryByText('Đóng và bỏ các thay đổi chưa lưu?')).not.toBeInTheDocument();
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
+
   it('warns before discarding, and only closes on the second "huỷ"', () => {
     const onDismiss = vi.fn();
     render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={onDismiss} />);

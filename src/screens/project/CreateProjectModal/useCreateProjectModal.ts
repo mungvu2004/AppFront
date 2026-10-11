@@ -655,13 +655,16 @@ export function useCreateProjectModal(
   };
 
   /**
-   * Invariant A12: Esc reaches here through `Modal.Root`'s `onClose`. A first
+   * Invariant A12: Esc reaches here through `Modal.Root`'s `onClose`. Locked
+   * while a create is in flight (see the first guard). A first
    * Esc on a dirty form only warns — the inline alert `CreateProjectModal.tsx`
    * renders when `isConfirmingDiscard` is true; a second Esc, or the alert's
    * own button (both land here), really closes.
    */
   const requestClose = (): void => {
-    if (isSelectOpen) return;
+    // While "Tạo dự án" is in flight the dialog stays shut to closing: the POST
+    // cannot be taken back, so "bỏ thay đổi" would be a promise it breaks (BUG-184).
+    if (isSelectOpen || isSubmitting) return;
     if (!isDirty) {
       options.onDismiss();
       return;
@@ -674,12 +677,14 @@ export function useCreateProjectModal(
   };
 
   const confirmDiscard = (): void => {
+    if (isSubmitting) return;
     options.onDismiss();
   };
 
   const submit = (): void => {
     if (!canSubmit) return;
     setIsSubmitting(true);
+    setIsConfirmingDiscard(false);
     setNotice(null);
 
     const request: CreateProjectRequest = {
