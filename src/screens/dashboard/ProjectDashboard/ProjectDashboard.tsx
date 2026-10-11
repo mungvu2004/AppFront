@@ -277,7 +277,8 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
         </Modal.Header>
         {/* 24 px to the footer rule like the header and body gutters, not 8 (BUG-155). */}
         <Modal.Body className="pb-6">
-          <div className="flex flex-col gap-2">
+          {/* break-words: an 80-char name with no space overflowed the sentence and scrolled the body sideways (BUG-195). */}
+          <div className="flex flex-col gap-2 break-words">
             <p className="text-sm text-text-primary">
               {pendingDeleteName === null ? '' : `"${pendingDeleteName}" và toàn bộ bản vẽ, mô hình liên quan sẽ bị xoá vĩnh viễn.`}
             </p>

@@ -429,6 +429,15 @@ describe('ProjectDashboardView — F-07', () => {
     expect(within(screen.getByRole('dialog')).getByRole('alert')).toHaveTextContent('Không xoá được dự án');
   });
 
+  // BUG-195: an 80-char name with no space ran out of the sentence and scrolled the dialog body sideways at 375 px.
+  it('wraps a long unbroken name inside the delete sentence', () => {
+    const name = 'X'.repeat(80);
+    render(<ProjectDashboardView {...baseProps()} rows={[SAMPLE_ROW]} pendingDeleteId={SAMPLE_ROW.id} pendingDeleteName={name} />);
+
+    const sentence = within(screen.getByRole('dialog')).getByText(new RegExp(name, 'u'));
+    expect(sentence.closest('.break-words')).not.toBeNull();
+  });
+
   it('không có "Nhân bản" trong menu của dự án', () => {
     render(<ProjectDashboardView {...baseProps()} rows={[SAMPLE_ROW]} />);
 
