@@ -513,9 +513,18 @@ async function createProject(
   admin: Admin,
   slug: string,
   name: string = uniqueName(slug),
+  floorCount?: number,
 ): Promise<{ readonly id: string; readonly name: string }> {
   expect(name.startsWith(TEST_DATA_PREFIX), `fixture name "${name}" carries the run's test-data prefix`).toBe(true);
-  const response = await admin.page.request.post(PROJECTS_API, { headers: bearer(admin), data: { name } });
+  // `floorCount` (BUG-171): n stacked 3 m floors (`ProjectCreateIn.floors`, wire keys camelCase) so a sort has something to order.
+  const floors =
+    floorCount === undefined
+      ? undefined
+      : Array.from({ length: floorCount }, (_unused, index) => ({ name: `Tầng ${String(index + 1)}`, order: index, elevationMm: index * 3000, heightMm: 3000 }));
+  const response = await admin.page.request.post(PROJECTS_API, {
+    headers: bearer(admin),
+    data: floors === undefined ? { name } : { name, floors },
+  });
   expect(response.status(), `fixture POST ${PROJECTS_API} "${name}"`).toBe(201);
   const id = stringField(asRecord(await response.json(), 'POST /api/projects'), 'id', 'POST /api/projects');
   admin.cleanup.push(id);
@@ -671,6 +680,13 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
   test('E02 · SCR-05 sort "Số tầng nhiều nhất" / "Diện tích lớn nhất" follow N1; the sort list opens on Enter and closes on Esc', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
+      // BUG-171: three fixtures whose floor-count order differs from the default "newest first" order (6, then 1, then 3
+      // floors → newest first is 3,1,6; "Số tầng nhiều nhất" must give 6,3,1), so the shot can tell the two apart.
+      const fixtures = [
+        await createProject(admin, 'sort-six', undefined, 6),
+        await createProject(admin, 'sort-one', undefined, 1),
+        await createProject(admin, 'sort-three', undefined, 3),
+      ];
       const list = gatewayOrder(await reloadDashboard(page));
       const cardNames = (): Promise<string[]> =>
         projectCards(page).evaluateAll((cards) => cards.map((card) => card.getAttribute('aria-label') ?? ''));
@@ -690,12 +706,19 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
       await expect(sortCombobox(page, SORT.floors)).toBeVisible();
       const byFloors = [...list].sort((a, b) => b.floorCount - a.floorCount).map((s) => s.name);
       await expect.poll(cardNames).toEqual(byFloors);
+      const fixtureOrder = (names: readonly string[]): string[] => names.filter((n) => fixtures.some((f) => f.name === n));
+      expect(fixtureOrder(byFloors), 'fixtures by floor count: 6, 3, 1').toEqual([fixtures[0]!.name, fixtures[2]!.name, fixtures[1]!.name]);
+      await captureEvidence(page, 'E02_sort_floors.png', { caption: `"${SORT.floors}": ${fixtureOrder(byFloors).map((n) => n.slice(-12)).join(' > ')} (6 > 3 > 1 floors)` });
 
       await sortCombobox(page, SORT.floors).click();
       await page.getByRole('option', { name: SORT.area, exact: true }).click();
       const byArea = [...list].sort((a, b) => b.areaM2 - a.areaM2).map((s) => s.name);
       await expect.poll(cardNames).toEqual(byArea);
-      await captureEvidence(page, 'E02_sort_floors_area.png');
+      // Area is the sum of the floors' drawing areas (BE:summaries.py:218), which a fixture without drawings never gets:
+      // every card says 0,00 m², so "Diện tích lớn nhất" is a tie that keeps the order — the caption says so.
+      await captureEvidence(page, 'E02_sort_floors_area.png', {
+        caption: `"${SORT.area}": every area is ${[...new Set(list.map((s) => s.areaM2))].join(', ')} m² → ties keep the gateway order`,
+      });
       await attachJson('E02_sort_floors_area.json', { byFloors, byArea });
     });
   });
