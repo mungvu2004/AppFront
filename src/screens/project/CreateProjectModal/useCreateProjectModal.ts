@@ -473,6 +473,9 @@ export const FLOORS_HINT_ID = 'create-project-floors-hint';
 
 const FLOORS_HINT = 'Nhập chiều cao thông thuỷ cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.';
 
+/** The same line once every height is in and something else still blocks step 2 (BUG-120). */
+const FLOORS_FIX_HINT = 'Sửa các tầng đang báo lỗi để sang bước xem lại.';
+
 export interface CreateProjectNotice {
   readonly level: 'attention' | 'violation';
   readonly message: string;
@@ -506,7 +509,7 @@ export interface CreateProjectModel {
   readonly nameHint: string;
   readonly notice: CreateProjectNotice | null;
   readonly floorRows: readonly CreateProjectFloorRowModel[];
-  /** Why step 2 cannot continue while no row has been touched yet; `null` otherwise. */
+  /** Why step 2 cannot continue — shown for as long as it cannot, so the locked "Tiếp tục" always says why (BUG-120). */
   readonly floorsHint: string | null;
   readonly hasBasement: boolean;
   readonly collision: string | null;
@@ -691,12 +694,17 @@ export function useCreateProjectModal(
     kind: row.kind,
     clearHeightM: row.clearHeightM,
     elevationLabel: floorStack.elevationLabelById.get(row.id) ?? null,
-    // Step 2 opens neutral (BUG-120): a row complains once the stack has been edited — or the server refused it.
+    // Step 2 opens neutral (BUG-120): a row complains once a height has been typed or applied — or the server refused it.
     problem:
       serverFloorMessage(row.id, false) ?? (floorsTouched ? (floorStack.problemById.get(row.id) ?? null) : null),
     nameProblem: row.name.trim() === '' ? 'Chưa nhập tên tầng.' : serverFloorMessage(row.id, true),
   }));
-  const floorsHint = !floorsTouched && floorRows.length > 0 && !canGoNextStep2 ? FLOORS_HINT : null;
+  const floorsHint =
+    floorRows.length === 0 || canGoNextStep2
+      ? null
+      : floorRows.some((row) => row.clearHeightM === null)
+        ? FLOORS_HINT
+        : FLOORS_FIX_HINT;
 
   /** Every mutating action goes through this: it marks the form worth confirming before a close. */
   const markDirty = (): void => {
@@ -706,7 +714,11 @@ export function useCreateProjectModal(
     setNotice(null);
   };
 
-  /** Every edit of the floor stack: the form is dirty and the rows may now complain. */
+  /**
+   * A height typed or applied: the form is dirty and the rows may now complain. Renaming,
+   * adding, removing a row or the basement switch are not — before any height they
+   * turned every empty cell red at once (BUG-120, run-15).
+   */
   const touchFloors = (): void => {
     markDirty();
     setFloorsTouched(true);
@@ -744,7 +756,7 @@ export function useCreateProjectModal(
 
   const addFloor = (): void => {
     if (!canAddFloor) return;
-    touchFloors();
+    markDirty();
     setFloorRows((current) => {
       const aboveCount = current.filter((row) => row.kind === 'floor').length;
       return [...current, { id: createUuid(), name: nextFloorName(aboveCount), kind: 'floor', clearHeightM: null }];
@@ -752,12 +764,12 @@ export function useCreateProjectModal(
   };
 
   const removeFloor = (id: string): void => {
-    touchFloors();
+    markDirty();
     setFloorRows((current) => current.filter((row) => row.id !== id));
   };
 
   const setFloorName = (id: string, value: string): void => {
-    touchFloors();
+    markDirty();
     setFloorRows((current) => current.map((row) => (row.id === id ? { ...row, name: value } : row)));
   };
 
@@ -780,7 +792,7 @@ export function useCreateProjectModal(
   };
 
   const setHasBasement = (value: boolean): void => {
-    touchFloors();
+    markDirty();
     setFloorRows((current) => {
       const already = current.some((row) => row.kind === 'basement');
       if (value === already) return current;

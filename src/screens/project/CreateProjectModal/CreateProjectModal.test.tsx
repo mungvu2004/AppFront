@@ -397,8 +397,21 @@ describe('CreateProjectModal, wired to its hook', () => {
       'Nhập chiều cao thông thuỷ cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.',
     );
 
+    // Renaming, adding, the basement switch are not heights: still neutral (run-15 reopened it).
+    fireEvent.change(screen.getByLabelText('Tên tầng Tầng trệt'), { target: { value: 'Tầng trệt A' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm tầng' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Có tầng hầm' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('switch', { name: 'Có tầng hầm' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá Tầng 4' }));
+    fireEvent.change(screen.getByLabelText('Tên tầng Tầng trệt A'), { target: { value: 'Tầng trệt' } });
+
     setHeight('Chiều cao thông thuỷ tầng Tầng 1', '3');
 
+    // The locked button keeps saying why once the rows speak, too.
+    expect(next).toHaveAccessibleDescription(
+      'Nhập chiều cao thông thuỷ cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.',
+    );
     expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng trệt')).toHaveAccessibleDescription('Chưa nhập chiều cao thông thuỷ.');
     expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng 1')).toHaveAccessibleDescription(
       'Chưa tính được cao độ vì tầng bên dưới còn thiếu chiều cao hợp lệ.',
@@ -454,6 +467,9 @@ describe('CreateProjectModal, wired to its hook', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('Chưa nhập tên tầng.');
     expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toHaveAccessibleDescription(
+      'Sửa các tầng đang báo lỗi để sang bước xem lại.',
+    );
   });
 
   it('applies one height to every floor with "áp cho mọi tầng"', () => {

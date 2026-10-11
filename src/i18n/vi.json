@@ -253,6 +253,7 @@
         "emptyTitle": "Chưa có tầng nào",
         "emptyDescription": "Thêm ít nhất một tầng để sang bước xem lại.",
         "continueHint": "Nhập chiều cao thông thuỷ cho từng tầng, hoặc dùng \"Áp cho mọi tầng\", để sang bước xem lại.",
+        "continueFixHint": "Sửa các tầng đang báo lỗi để sang bước xem lại.",
         "missingName": "Chưa nhập tên tầng.",
         "missingHeight": "Chưa nhập chiều cao thông thuỷ.",
         "missingHeightBelow": "Chưa tính được cao độ vì tầng bên dưới còn thiếu chiều cao hợp lệ.",
