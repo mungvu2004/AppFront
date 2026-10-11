@@ -737,8 +737,9 @@ test.describe('E02 SCR-05 wizard edge — step 2 floors', () => {
     });
   });
 
-  test('E02 · wizard floor cap with a basement: 50 floors then "Có tầng hầm" must not make 51 rows (LIM:25 "basement included")', async ({ browser }) => {
-    // Source: setHasBasement (UCPM:596-606) never checks canAddFloor (UCPM:490) — likely a NEW finding when this fails.
+  test('E02 · wizard floor cap with a basement: at 50 floors "Có tầng hầm" is locked, so no 51st row (LIM:25 "basement included")', async ({ browser }) => {
+    // BUG-221: since BUG-150/BUG-177 the switch is disabled at the cap (described by the cap note); clicking a disabled
+    // button only times out, so the case asserts the lock and the 50 rows instead.
     test.setTimeout(240_000);
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
@@ -749,10 +750,10 @@ test.describe('E02 SCR-05 wizard edge — step 2 floors', () => {
       await expect(floorNameBoxes(dialog)).toHaveCount(FLOOR_COUNT_MAX);
       await expect(add).toBeDisabled(); // UCPM:490, SF:125
 
-      await basementSwitch(dialog).click();
+      await expect(basementSwitch(dialog)).toBeDisabled();
+      await expect(basementSwitch(dialog)).toHaveAttribute('aria-checked', 'false');
       const rows = await floorNameBoxes(dialog).count();
-      await expect(add).toBeDisabled();
-      await captureEvidence(page, 'E02_wiz_cap_basement.png', { caption: `50 floors + "Có tầng hầm" → ${String(rows)} rows` });
+      await captureEvidence(page, 'E02_wiz_cap_basement.png', { caption: `50 floors: "Thêm tầng" and "Có tầng hầm" locked → ${String(rows)} rows` });
       await attachJson('E02_wiz_cap_basement.json', { rows, limit: FLOOR_COUNT_MAX, basementChecked: await basementSwitch(dialog).getAttribute('aria-checked') });
       expect(rows, `at most ${String(FLOOR_COUNT_MAX)} rows, basement included (LIM:25-27)`).toBeLessThanOrEqual(FLOOR_COUNT_MAX);
       await discardWizard(dialog);
