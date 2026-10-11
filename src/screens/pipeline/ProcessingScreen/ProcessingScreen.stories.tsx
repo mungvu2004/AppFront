@@ -260,6 +260,8 @@ function baseScenario(): ProcessingScreenProps {
     onConfirmCancel: NO_OP,
     onDismissCancel: NO_OP,
     onRunInBackground: NO_OP,
+    canRunInBackground: true,
+    onUploadDrawings: NO_OP,
     isCompact: false,
     prefersReducedMotion: false,
   };
@@ -289,6 +291,7 @@ export function scenarioFor(state: SevenState): ProcessingScreenProps {
         logLines: [],
         overallSummaryLine: 'Chưa có lượt xử lý nào đang chạy.',
         canCancel: false,
+        canRunInBackground: false,
       };
 
     case 'loading':
@@ -343,6 +346,7 @@ export function scenarioFor(state: SevenState): ProcessingScreenProps {
         summary: SAMPLE_SUMMARY,
         overallSummaryLine: 'Đã xong 4/4 tầng.',
         canCancel: false,
+        canRunInBackground: false,
       };
 
     case 'forbidden':

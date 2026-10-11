@@ -884,7 +884,8 @@
     },
     "empty": {
       "title": "Chưa có bước nào để theo dõi",
-      "description": "Khi bản vẽ được đưa vào hàng đợi, các bước xử lý sẽ hiện ở đây."
+      "description": "Khi bản vẽ được đưa vào hàng đợi, các bước xử lý sẽ hiện ở đây.",
+      "action": "Tải bản vẽ"
     },
     "floorChips": {
       "ariaLabel": "Tiến độ theo tầng"
@@ -943,7 +944,8 @@
     },
     "overall": {
       "doneFloors": "Đã xong {{done}}/{{total}} tầng",
-      "withRemaining": "{{doneClause}} · Còn lại khoảng {{duration}}"
+      "withRemaining": "{{doneClause}} · Còn lại khoảng {{duration}}",
+      "noRun": "Chưa có lượt xử lý nào đang chạy."
     },
     "queue": {
       "waiting": "Đang chờ hàng đợi — vị trí {{position}}"

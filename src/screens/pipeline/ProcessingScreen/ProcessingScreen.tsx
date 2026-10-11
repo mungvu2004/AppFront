@@ -77,6 +77,7 @@ const FLOOR_OBJECTS_ARIA_LABEL = 'Số đối tượng đã nhận theo tầng';
 
 const EMPTY_TITLE = 'Chưa có bước nào để theo dõi';
 const EMPTY_DESCRIPTION = 'Khi bản vẽ được đưa vào hàng đợi, các bước xử lý sẽ hiện ở đây.';
+const EMPTY_ACTION_LABEL = 'Tải bản vẽ';
 
 /** Bao nhiêu khung xương lúc chưa biết bước nào đã xong. */
 const SKELETON_ROW_COUNT = 4;
@@ -87,13 +88,15 @@ const BOTTOM_SHEET_CLASSES =
 const BOTTOM_SHEET_RESET_AT_DESKTOP =
   'lg:static lg:max-h-none lg:overflow-visible lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0';
 
-/** Hàng hành động đầu trang: nút chìm chạy nền LUÔN có, nút huỷ thì tuỳ quyền. */
+/** Hàng hành động đầu trang: nút chìm chạy nền khi còn lượt đang chạy, nút huỷ thì tuỳ quyền. */
 function ProcessingActions(props: ProcessingScreenProps) {
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      <Button onClick={props.onRunInBackground} size="sm" variant="ghost">
-        {RUN_IN_BACKGROUND_LABEL}
-      </Button>
+      {props.canRunInBackground ? (
+        <Button onClick={props.onRunInBackground} size="sm" variant="ghost">
+          {RUN_IN_BACKGROUND_LABEL}
+        </Button>
+      ) : null}
 
       {!props.canCancel ? null : props.isCancelConfirming ? (
         <div
@@ -190,6 +193,7 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
       </div>
     ) : props.state === 'empty' ? (
       <EmptyState
+        action={{ label: EMPTY_ACTION_LABEL, onClick: props.onUploadDrawings }}
         description={EMPTY_DESCRIPTION}
         icon={<ScanLine aria-hidden="true" />}
         title={EMPTY_TITLE}

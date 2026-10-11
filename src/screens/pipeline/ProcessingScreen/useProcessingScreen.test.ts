@@ -768,6 +768,9 @@ describe('useProcessingScreen', () => {
     expect(props.summary).toBeUndefined();
     expect(props.previewPanel.detectedGeometryPaths).toHaveLength(0);
     expect(props.steps).toHaveLength(0);
+    // BUG-165: nothing runs, so no "Đã xong 0/0 tầng" and no promise to notify.
+    expect(props.overallSummaryLine).toBe('Chưa có lượt xử lý nào đang chạy.');
+    expect(props.canRunInBackground).toBe(false);
 
     mounted.unmount();
   });
