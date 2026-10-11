@@ -133,6 +133,9 @@ const NOTIFICATION_ENTITY_ID = 'notification-inbox';
  */
 const MARK_READ_MAX_IDS = 200;
 
+/** `id` của thẻ "Thông báo" ở `/tai-khoan` (`AccountSettings.tsx`) — đích của bánh răng. */
+const ACCOUNT_NOTIFICATIONS_ANCHOR = 'account-notifications';
+
 /** Loại thông báo của toast "đã đánh dấu" trên kênh chung. */
 const MARK_READ_NOTIFICATION_TYPE = 'notification-mark-read';
 
@@ -820,7 +823,8 @@ export function useNotificationCenter(
   }, [onNavigate, closeDrawer]);
 
   const onOpenSettings = useCallback((): void => {
-    onNavigate?.(ROUTES.account);
+    // Neo tới thẻ "Thông báo" của /tai-khoan (`id` của `AccountBlock`), không phải đầu trang (BUG-178).
+    onNavigate?.(`${ROUTES.account}#${ACCOUNT_NOTIFICATIONS_ANCHOR}`);
     closeDrawer();
   }, [onNavigate, closeDrawer]);
 

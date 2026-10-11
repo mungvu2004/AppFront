@@ -558,6 +558,20 @@ describe('BUG-126/179 — bộ lọc không khớp là trạng thái rỗng củ
   });
 });
 
+describe('BUG-178 — bánh răng đưa tới thẻ thông báo của /tai-khoan', () => {
+  it('onOpenSettings điều hướng tới neo của thẻ "Thông báo"', async () => {
+    const onNavigate = vi.fn();
+
+    mountNotificationCenter({ gateway: createFakeGateway([]).gateway, onNavigate });
+
+    act(() => {
+      notificationProps().onOpenSettings();
+    });
+
+    expect(onNavigate).toHaveBeenCalledWith(`${ROUTES.account}#account-notifications`);
+  });
+});
+
 describe('B-V2-03 — tấm trượt có tên truy cập', () => {
   it('role="dialog" mang tên "Thông báo", không phải một hộp thoại không tên', () => {
     renderWithProviders(<NotificationCenter {...baseProps()} />);
