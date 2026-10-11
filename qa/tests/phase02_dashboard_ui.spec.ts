@@ -17,7 +17,9 @@
  * and writes the rotated refresh cookie back in `finally` (same chain as `phase01_auth_ui.spec.ts`), 4 loads per
  * test → 33 tests × 4 = 132 `POST /api/auth/refresh` over several minutes (`auth_refresh_total` 300 / 60 s per sid).
  *
- * Faked responses (5 of 33 states = 15 %, suite limit 35 %), each titled `[mocked response]` with its pair:
+ * Faked responses (6 of 34 states = 18 %, suite limit 35 %), each titled `[mocked response]` with its pair:
+ *   - `U02_notif_rows*` (`GET /api/notifications` with 3 rows, BUG-174): PAIR in `phase02_notify_edge.spec.ts` (a second real
+ *     user's inbox holds real `projectInvite` rows; the admin's own inbox is empty on the shared stack);
  *   - `U02_dash_load_error` (N1 500) and `U02_notif_load_error` (`GET /api/notifications` 500): unpairable, a 5xx
  *     cannot be produced on the shared stack;
  *   - `U02_dash_partial` (real N1 + one row the client cannot decode): unpairable, the BE never emits a row that
@@ -110,6 +112,7 @@ const NOTIFICATION_FILTER = 'Lọc thông báo';
 const FILTER_UNREAD = 'Chưa đọc';
 const FILTER_MENTIONS = 'Nhắc đến tôi';
 const MARK_READ = 'Đánh dấu đã đọc'; // NotificationCenter.tsx:56
+const MARK_ALL_READ = 'Đánh dấu tất cả đã đọc'; // NotificationCenter.tsx:55
 const NOTIFICATIONS_EMPTY = 'Không có thông báo mới';
 const NOTIFICATIONS_EMPTY_DESCRIPTION = 'Chúng tôi sẽ báo khi AI xử lý xong hoặc có người nhắc đến bạn.'; // NotificationCenter.tsx:65
 const NOTIFICATIONS_PARTIAL = 'Có thể chưa cập nhật'; // NotificationCenter.tsx:66
@@ -767,6 +770,57 @@ test.describe('U02 UI verify — SCR-06 notifications', () => {
       await expectDrawerSettled(p); // useNotificationCenter.ts:877-883: empty beats the filter, else "partial"
       await settled(panel);
     });
+  });
+
+  /**
+   * BUG-174: the admin's inbox is empty on the shared stack, so every real drawer shot is the empty state. These three rows
+   * (2 unread, 1 read; 1 of them a comment mention) give the row layout, the unread dots, "Đánh dấu tất cả đã đọc" enabled and
+   * filters that each keep their own rows. Wire shape: `NotificationSchema` (src/api/schemas/notifications.ts, `.strict()`).
+   */
+  const notificationRows = (): unknown[] => {
+    const at = (minutesAgo: number): string => new Date(Date.now() - minutesAgo * 60_000).toISOString();
+    const base = { objectLabel: 'Tầng trệt', place: 'walls', projectId: 'prj_QA02UIROWS', projectName: `${TEST_DATA_PREFIX}u02-rows` };
+    return [
+      { ...base, id: 'ntf_qa02_1', kind: 'aiCompleted', isRead: false, message: 'AI đã xử lý xong bản vẽ tầng trệt', createdAt: at(5) },
+      { ...base, id: 'ntf_qa02_2', kind: 'commentMention', isRead: false, message: 'Lan nhắc đến bạn trong một bình luận', excerpt: 'Kiểm tra lại tường trục B giúp mình', createdAt: at(30) },
+      { ...base, id: 'ntf_qa02_3', kind: 'violationFound', isRead: true, message: 'Phát hiện một vi phạm ở tầng trệt', createdAt: at(90) },
+    ];
+  };
+  const routeNotificationRows = (context: BrowserContext): Promise<void> =>
+    context.route(
+      (url) => url.pathname === NOTIFICATIONS_PATH,
+      (route) =>
+        route.request().method() === 'GET'
+          ? route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(notificationRows()) })
+          : route.fallback(),
+    );
+
+  test('U02 · SCR-06 [mocked response] drawer with 3 rows: unread dots, "Đánh dấu tất cả đã đọc" enabled, "Chưa đọc" keeps 2, "Nhắc đến tôi" keeps 1', async ({ browser }) => {
+    // pair: phase02_notify_edge.spec.ts — the invitee's real inbox rows (see file header).
+    test.setTimeout(240_000);
+    const filters = [
+      { slug: 'U02_notif_rows', label: null, rows: 3 },
+      { slug: 'U02_notif_rows_unread', label: FILTER_UNREAD, rows: 2 },
+      { slug: 'U02_notif_rows_mentions', label: FILTER_MENTIONS, rows: 1 },
+    ] as const;
+    for (const { slug, label, rows } of filters) {
+      await verifyAsAdmin(
+        browser,
+        slug,
+        async (p) => {
+          const panel = await openBellDrawer(p);
+          if (label !== null) {
+            const radio = panel.getByRole('radiogroup', { name: NOTIFICATION_FILTER, exact: true }).getByRole('radio', { name: label, exact: true });
+            await radio.click();
+            await expect(radio).toHaveAttribute('aria-checked', 'true');
+          }
+          await expect(panel.locator('li')).toHaveCount(rows);
+          await expect(panel.getByRole('button', { name: MARK_ALL_READ, exact: true })).toBeEnabled();
+          await settled(panel);
+        },
+        routeNotificationRows,
+      );
+    }
   });
 
   test('U02 · SCR-06 drawer empty: "Không có thông báo mới" (skips when the admin has notifications)', async ({ browser }) => {
