@@ -91,6 +91,16 @@ describe('Toast.Provider and Toast.Item', () => {
     if (state !== 'verified') expect(dot?.className).not.toContain('bg-state-verified');
   });
 
+  // BUG-229: an 80-char name ran to 5 lines with the dot in the middle of the block.
+  it('caps a long message at three lines and hangs the dot beside its first line', () => {
+    const message = `Đã đổi tên thành "${'KhuPhucHopBinhMinh'.repeat(4)}"`;
+    render(<Toast.Item toast={{ id: 't', message, onUndo: vi.fn() }} index={0} onRemove={vi.fn()} />);
+
+    const text = screen.getByText(message);
+    expect(text.className).toContain('line-clamp-3');
+    expect(text.querySelector('[aria-hidden="true"].rounded-full')?.className).toContain('top-2');
+  });
+
   it('bấm "Hoàn tác" thì toast rời đi, kể cả khi chuột còn nằm trên nó (B-V4-11)', () => {
     const onUndo = vi.fn();
     const UndoComponent = () => {
