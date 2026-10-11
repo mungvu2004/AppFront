@@ -157,7 +157,7 @@ No phase-03 `_ui` spec exists at this stamp. Test names are shortened to their l
 | U21 | Drag | dragenter lights the drop zone, dragleave clears it, drop accepts files | `FU:177-191`, `FUD:61`, `UFU:1208-1218` | E · SCR-10 drag over the page | covered |
 | U22 | Footer | counter "N / M tầng đã có bản vẽ" (count-up + sr-only status) | `FUF:64-111`, `UFU:1120-1127` | E · SCR-10 floors without drawings / no floor / every floor attached | covered |
 | U23 | Footer | "Bắt đầu xử lý" blocked → notice lists file-less floors | `FUF:73-88`, `UFU:876-959` | M · SCR-10 "Bắt đầu xử lý"; E · floors without drawings | covered |
-| U24 | Footer | blocked reason "… chưa tải xong bản vẽ." (unfinished file) | `UFU:889-900` | E · SCR-10 3-page .pdf | covered |
+| U24 | Footer | blocked reason "… chưa chọn trang của bản vẽ." (multi-page PDF, no page; "… chưa tải xong bản vẽ." stays for a waiting/failed file) | `UFU:945-961` | E · SCR-10 3-page .pdf | covered |
 | U25 | Footer | blocked reason "… chưa nhập cao độ." / elevation out of range / duplicate elevation | `UFU:904-948` | — | gap (needs floors with bad elevations; BE refuses most at write) |
 | U26 | Footer | "Bắt đầu xử lý" ready → navigate /pipeline only (F7) | `UFU:980-983` | E · SCR-10 every floor attached | covered |
 | U27 | Footer | zero floors → silent no-op (F4) | `UFU:960-978` | E · SCR-10 project with no floor | covered |

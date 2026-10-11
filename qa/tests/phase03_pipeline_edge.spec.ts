@@ -1236,7 +1236,7 @@ test.describe('E03 SCR-10 floor upload', () => {
     });
   });
 
-  test('E03 · SCR-10 3-page .pdf assigned to a floor waits for "Chọn trang" (no init); submit says "… chưa tải xong bản vẽ."', async ({ browser }, testInfo) => {
+  test('E03 · SCR-10 3-page .pdf assigned to a floor waits for "Chọn trang" (no init); submit says "… chưa chọn trang của bản vẽ." (BUG-303)', async ({ browser }, testInfo) => {
     const threePages = testInfo.outputPath('ba-trang.pdf');
     writeFileSync(threePages, '%PDF-1.4\n1 0 obj << /Type /Pages /Count 3 >> endobj\n%%EOF\n', 'utf8');
     await withAdmin(browser, async (admin) => {
@@ -1262,7 +1262,7 @@ test.describe('E03 SCR-10 floor upload', () => {
       expect(countSince(api, mark, 'POST', uploadInitRe(project.id)), 'no init before a page is chosen').toBe(0);
 
       await page.getByRole('button', { name: SUBMIT, exact: true }).click();
-      await expect(page.getByTestId(BLOCK_NOTICE)).toContainText(`${floor.name} chưa tải xong bản vẽ.`); // UFU:903-914
+      await expect(page.getByTestId(BLOCK_NOTICE)).toContainText(`${floor.name} chưa chọn trang của bản vẽ.`); // UFU:945-961 (FIX-1403, BUG-303)
       await captureEvidence(page, 'E03_upload_pdf_pick_page.png');
     });
   });
