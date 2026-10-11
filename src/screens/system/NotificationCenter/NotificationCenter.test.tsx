@@ -40,7 +40,7 @@
  *     hồ giả, nên không giẫm vào bẫy "đặt trước waitFor".
  */
 
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { expectAccessible } from '@/lib/testing/expectAccessible';
@@ -515,6 +515,63 @@ describe('BÀI NGHIỆM THU — mở tấm trượt rồi đóng thì số chưa
   });
 });
 
+describe('BUG-126/179 — bộ lọc không khớp là trạng thái rỗng của bộ lọc, không phải cảnh báo', () => {
+  it('mỗi bộ lọc có câu rỗng riêng, và bộ lọc khác "Tất cả" có đường về', () => {
+    const onFilterChange = vi.fn();
+    const { rerender } = render(
+      <NotificationCenter {...baseProps({ screenState: 'empty', groups: [], filter: 'all' })} />,
+    );
+
+    expect(screen.getByText('Không có thông báo mới')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Hiện mọi thông báo' })).not.toBeInTheDocument();
+
+    rerender(
+      <NotificationCenter
+        {...baseProps({ screenState: 'empty', groups: [], filter: 'unread', onFilterChange })}
+      />,
+    );
+    expect(screen.getByText('Không có thông báo chưa đọc')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hiện mọi thông báo' }));
+    expect(onFilterChange).toHaveBeenCalledWith('all');
+
+    rerender(<NotificationCenter {...baseProps({ screenState: 'empty', groups: [], filter: 'mentions' })} />);
+    expect(screen.getByText('Chưa có ai nhắc đến bạn')).toBeInTheDocument();
+  });
+
+  it('hook: có mục nhưng bộ lọc "Nhắc đến tôi" không khớp → empty, không phải partial', async () => {
+    const invite = buildItem({ id: 'invite-f', kind: 'projectInvite', isRead: false });
+    const fake = createFakeGateway([invite]);
+
+    mountNotificationCenter({ gateway: fake.gateway });
+
+    await waitFor(() => {
+      expect(allItems(notificationProps().groups)).toHaveLength(1);
+    });
+
+    act(() => {
+      notificationProps().onFilterChange('mentions');
+    });
+
+    expect(notificationProps().screenState).toBe('empty');
+    expect(notificationProps().unreadBadge).toBe('1');
+  });
+});
+
+describe('BUG-178 — bánh răng đưa tới thẻ thông báo của /tai-khoan', () => {
+  it('onOpenSettings điều hướng tới neo của thẻ "Thông báo"', async () => {
+    const onNavigate = vi.fn();
+
+    mountNotificationCenter({ gateway: createFakeGateway([]).gateway, onNavigate });
+
+    act(() => {
+      notificationProps().onOpenSettings();
+    });
+
+    expect(onNavigate).toHaveBeenCalledWith(`${ROUTES.account}#account-notifications`);
+  });
+});
+
 describe('B-V2-03 — tấm trượt có tên truy cập', () => {
   it('role="dialog" mang tên "Thông báo", không phải một hộp thoại không tên', () => {
     renderWithProviders(<NotificationCenter {...baseProps()} />);
@@ -799,18 +856,27 @@ describe('createNotificationCenterGateway — dây thật', () => {
     expect(item.relativeTime).not.toBe('');
   });
 
-  it('chỉ lời mời mang hành động "chấp nhận"; ba loại kia điều hướng', () => {
+  it('chỉ lời mời mang hành động "Chấp nhận"; ba loại kia điều hướng', () => {
     const byKind = new Map(
       MOCK_NOTIFICATIONS.map((wire) => [wire.kind, toNotificationItemVm(wire, GATEWAY_NOW_MS)]),
     );
 
     expect(byKind.get('projectInvite')?.inlineAction).toEqual({
-      label: 'chấp nhận',
+      label: 'Chấp nhận',
       kind: 'accept',
     });
     expect(byKind.get('aiCompleted')?.inlineAction?.kind).toBe('navigate');
     expect(byKind.get('violationFound')?.inlineAction?.kind).toBe('navigate');
     expect(byKind.get('commentMention')?.inlineAction?.kind).toBe('navigate');
+  });
+
+  it('lời mời đã đọc không còn nút "Chấp nhận" — #22 chỉ lật isRead, nên tải lại vẫn đúng (nợ C ND-C1)', () => {
+    const invite = MOCK_NOTIFICATIONS.find((wire) => wire.kind === 'projectInvite');
+
+    if (invite === undefined) throw new Error('bộ mẫu thiếu lời mời');
+
+    expect(toNotificationItemVm({ ...invite, isRead: false }, GATEWAY_NOW_MS).inlineAction?.kind).toBe('accept');
+    expect(toNotificationItemVm({ ...invite, isRead: true }, GATEWAY_NOW_MS).inlineAction).toBeUndefined();
   });
 
   it('markRead, markAllRead và acceptInvite đều đi ra client thật', async () => {
@@ -921,16 +987,16 @@ describe('createNotificationCenterGateway — dây thật', () => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* (e2) Nhãn "chấp nhận" GHI thật — nó không phải một nút điều hướng đội lốt.  */
+/* (e2) Nhãn "Chấp nhận" GHI thật — nó không phải một nút điều hướng đội lốt.  */
 /* -------------------------------------------------------------------------- */
 
-describe('nút hành động "chấp nhận" của một lời mời', () => {
+describe('nút hành động "Chấp nhận" của một lời mời', () => {
   it('gọi gateway.acceptInvite với đúng mã thông báo, KHÔNG điều hướng', async () => {
     const invite = buildItem({
       id: 'invite-1',
       kind: 'projectInvite',
       isRead: false,
-      inlineAction: { label: 'chấp nhận', kind: 'accept' },
+      inlineAction: { label: 'Chấp nhận', kind: 'accept' },
     });
 
     const fake = createFakeGateway([invite]);
@@ -954,6 +1020,34 @@ describe('nút hành động "chấp nhận" của một lời mời', () => {
     expect(onNavigate).not.toHaveBeenCalled();
   });
 
+  it('BUG-180: xong thì dòng đổi thành "Đã chấp nhận", nút biến mất và có toast', async () => {
+    const invite = buildItem({
+      id: 'invite-2',
+      kind: 'projectInvite',
+      isRead: false,
+      inlineAction: { label: 'Chấp nhận', kind: 'accept' },
+    });
+    const fake = createFakeGateway([invite]);
+    const bus: NotificationBus = createNotificationBus();
+
+    mountNotificationCenter({ gateway: fake.gateway, notifications: bus });
+
+    await waitFor(() => {
+      expect(allItems(notificationProps().groups)).toHaveLength(1);
+    });
+
+    act(() => {
+      notificationProps().onInlineAction(firstItem(notificationProps().groups));
+    });
+
+    await waitFor(() => {
+      expect(firstItem(notificationProps().groups).statusNote).toBe('Đã chấp nhận');
+    });
+
+    expect(firstItem(notificationProps().groups).inlineAction).toBeUndefined();
+    expect(bus.list().map((entry) => entry.title)).toContain('Đã chấp nhận lời mời');
+  });
+
   it('một hành động "navigate" vẫn đi đường cũ và KHÔNG gọi acceptInvite', async () => {
     const expectedTo = ROUTES.project.rules('p-thao-dien');
 
@@ -963,7 +1057,7 @@ describe('nút hành động "chấp nhận" của một lời mời', () => {
       isRead: false,
       projectId: 'p-thao-dien',
       targetTo: expectedTo,
-      inlineAction: { label: 'xem lỗi', kind: 'navigate' },
+      inlineAction: { label: 'Xem lỗi', kind: 'navigate' },
     });
 
     const fake = createFakeGateway([violation]);

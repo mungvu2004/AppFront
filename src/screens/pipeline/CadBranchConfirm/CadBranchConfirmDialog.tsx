@@ -5,20 +5,12 @@
  * `Modal.Root` tự lo bẫy tiêu điểm, Esc, và hoạt ảnh mở/đóng — hộp thoại này
  * không tự bắt phím hay tự gọi `.focus()`.
  *
- * **Nút chính KHÔNG tự nhận tiêu điểm, và ở đây không có `autoFocus`.** Đặc tả
- * đòi nút chính nhận tiêu điểm lúc mở, nhưng `Modal.Root` chưa có đường nào
- * nhận lấy mong muốn đó: `createFocusTrap(...).activate()` chạy trong
- * `requestAnimationFrame` (`Modal.tsx:66-67`) và luôn lấy phần tử focus được
- * ĐẦU TIÊN trong khung hộp thoại — nút "Đóng hộp thoại" của `Modal.Header`.
- * Một `autoFocus` đặt ở đây vì thế không bao giờ giữ được tiêu điểm; tệ hơn,
- * nó đẩy tiêu điểm vào trong hộp thoại TRƯỚC lượt `activate()`, nên bẫy ghi
- * nhớ nhầm "nơi đã mở" là chính nút bên trong, và lúc đóng thì tiêu điểm rơi
- * về `body` thay vì quay lại nút đã mở màn — hỏng đúng lời hứa của A12.
- * Bản sửa đúng còn thiếu: thêm prop `initialFocus` cho `Modal.Root` rồi chuyển
- * thẳng xuống `createFocusTrap`. Việc đó đụng component dùng chung nên nằm
- * ngoài lượt này. Test `[NGHIEM-5]` của màn khẳng định đúng phần đang đạt: tiêu
- * điểm nằm TRONG hộp thoại, Tab vòng trong đó, Esc đóng, và đóng thì tiêu điểm
- * quay về đúng nút đã mở.
+ * **Nút chính nhận tiêu điểm lúc mở qua `data-autofocus`, không qua `autoFocus`.**
+ * `createFocusTrap(...).activate()` chạy trong `requestAnimationFrame` và ưu tiên
+ * phần tử focus được mang `data-autofocus` (`focusTrap.ts`). Một `autoFocus` sẽ
+ * đẩy tiêu điểm vào TRƯỚC lượt `activate()`, bẫy ghi nhớ nhầm "nơi đã mở", và lúc
+ * đóng tiêu điểm rơi về `body` — hỏng lời hứa của A12. Khi nhánh CAD bị khoá, nút
+ * chính `disabled` không nhận được tiêu điểm, nên dấu chuyển sang nút "AI" (nợ B #6).
  *
  * Không hộp thoại nào được mở từ trong hộp thoại này (cấm tuyệt đối của đặc tả).
  */
@@ -82,11 +74,16 @@ export function CadBranchConfirmDialog({ model, actions }: CadBranchConfirmDialo
           <Button variant="ghost" onClick={actions.onDismiss}>
             {TEXT.buttons.dismiss}
           </Button>
-          <Button variant="secondary" onClick={() => actions.onChooseBranch('ai')}>
+          <Button
+            variant="secondary"
+            data-autofocus={model.isCadChoiceDisabled ? true : undefined}
+            onClick={() => actions.onChooseBranch('ai')}
+          >
             {TEXT.buttons.secondary}
           </Button>
           <Button
             variant="primary"
+            data-autofocus={model.isCadChoiceDisabled ? undefined : true}
             disabled={model.isCadChoiceDisabled}
             onClick={() => actions.onChooseBranch('cad')}
           >

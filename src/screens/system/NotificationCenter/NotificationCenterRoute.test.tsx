@@ -4,7 +4,7 @@
  * Tệp riêng vì nó thay cổng dữ liệu của cả mô-đun bằng `vi.mock`: route không nhận
  * cổng tiêm vào, còn `NotificationCenter.test.tsx` cần cổng thật cho các bài dây.
  */
-import { act, fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -79,5 +79,24 @@ describe('NotificationCenterRoute', () => {
 
     expect(screen.getByText(`đang ở ${target}`)).toBeInTheDocument();
     vi.useRealTimers();
+  });
+
+  it('BUG-113: "Xem tất cả" ở /thong-bao ở lại route, và Esc sau đó vẫn rời được', async () => {
+    renderWithProviders(
+      <MemoryRouter initialEntries={[ROUTES.notifications]}>
+        <Routes>
+          <Route path={ROUTES.notifications} element={<NotificationCenterRoute />} />
+          <Route path="*" element={<Landing />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Xem tất cả' }));
+    expect(screen.queryByText(/đang ở/)).not.toBeInTheDocument();
+
+    // Bẫy tiêu điểm kích hoạt ở khung hình kế tiếp — chờ nó trước khi nhấn phím.
+    await waitFor(() => expect(screen.getByRole('dialog')).toContainElement(document.activeElement as HTMLElement));
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+    expect(await screen.findByText(`đang ở ${ROUTES.dashboard}`)).toBeInTheDocument();
   });
 });

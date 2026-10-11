@@ -36,7 +36,6 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Tabs } from '@/components/ui/Tabs';
-import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 
 import { DangerZoneTab } from './DangerZoneTab';
 import { GeneralTab } from './GeneralTab';
@@ -49,24 +48,6 @@ import {
   type ProjectSettingsViewProps,
   type UseProjectSettingsOptions,
 } from './useProjectSettings';
-
-/**
- * Tên tiếng Việt của bảy trạng thái, đọc lên ở thanh trạng thái.
- *
- * Bản chép riêng chứ không nhập `SEVEN_STATE_LABELS` từ
- * `@/lib/testing/sevenStateScenarios`: module đó là hạ tầng test, bị loại khỏi
- * bản dựng độ phủ và không định đi vào sản phẩm, còn dòng chữ này là thứ người
- * dùng thật sự nghe.
- */
-const STATE_LABELS: Readonly<Record<SevenState, string>> = {
-  empty: 'Rỗng',
-  loading: 'Đang tải',
-  partial: 'Một phần',
-  error: 'Lỗi',
-  success: 'Thành công',
-  forbidden: 'Không có quyền',
-  collapsed: 'Thu gọn',
-};
 
 const TAB_GROUP_LABEL = 'Nhóm cài đặt';
 
@@ -163,11 +144,6 @@ export function ProjectSettingsView(props: ProjectSettingsViewProps) {
             </Tabs.Root>
           </>
         )}
-
-        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border-default pt-4">
-          {showSaveIndicator && <SaveIndicator saveState={props.saveState} label={props.saveLabel} />}
-          <span className="text-[13px] text-text-secondary">Trạng thái: {STATE_LABELS[state]}</span>
-        </footer>
       </div>
 
       <ProjectSettingsReloadDialog

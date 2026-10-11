@@ -545,9 +545,14 @@ export function createShortcutRegistry(
 
       // A modal floor swallows what it does not bind — except Escape, which
       // must always reach the global close-top-layer handler (invariant A12).
-      // The swallow still blocks the browser's own action on the key.
+      // The swallow also blocks the browser's own CHORD (Ctrl+S's save dialog,
+      // H4-3), but never a lone key's native action: Enter/Space activating
+      // the focused button or switch inside the dialog is the keyboard path
+      // A12 promises (BUG-151).
       if (MODAL_SCOPES.has(scope) && code !== 'ESCAPE') {
-        event.preventDefault?.();
+        if (event.ctrlKey === true || event.metaKey === true || event.altKey === true) {
+          event.preventDefault?.();
+        }
         return false;
       }
     }

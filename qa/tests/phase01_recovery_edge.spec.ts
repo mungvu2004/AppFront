@@ -84,7 +84,7 @@ const RETRY = 'Thử lại'; // common.retry :8
 const NETWORK_TITLE = 'Mất kết nối'; // errors.network.title :14 — asserted ABSENT from the strips (BUG-021)
 const NETWORK_DESCRIPTION = 'Không liên lạc được với máy chủ. Kiểm tra mạng rồi thử lại.'; // :15
 const UNKNOWN_TITLE = 'Có trục trặc'; // errors.unknown :62
-const UNKNOWN_DESCRIPTION = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Bạn có thể tải lại rồi thử lại.'; // :63 — ABSENT (BUG-015)
+const UNKNOWN_DESCRIPTION = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại thao tác vừa làm.'; // :63 — ABSENT (BUG-015)
 const CHECKING = 'Đang kiểm tra kết nối.'; // connectionStates.checking :4197
 
 /** `ProjectDashboard.tsx:196` h1 — proof `/` painted (as in Phase 1). */
@@ -397,7 +397,7 @@ for (const screen of [INVITE, RESET]) {
       await expect(strip).toBeVisible();
       await expect(strip.getByRole('heading', { name: UNKNOWN_TITLE, exact: true })).toBeVisible();
       await expect(strip.getByText(RECOVERY_FAILED, { exact: true })).toBeVisible();
-      await expect(page.getByText(UNKNOWN_DESCRIPTION, { exact: true }), 'no reload advice (BUG-015)').toHaveCount(0);
+      await expect(page.getByText(/tải lại/), 'no reload advice (BUG-015)').toHaveCount(0);
       await expect(authMain(page, 'error')).toBeVisible();
       await expectStripUnderSubmit(page, strip, screen.submit);
       await expect(button(page, screen.submit)).toBeEnabled();

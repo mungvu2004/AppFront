@@ -16,6 +16,8 @@
  * khuôn `ProjectDashboard.container.tsx` và `ProjectSettings.container.tsx`.
  */
 
+import { useEffect } from 'react';
+
 import { EmptyState } from '@/components/feedback/EmptyState';
 import {
   ScreenErrorBoundary,
@@ -47,9 +49,46 @@ function AccountSettingsCrashFallback({ report, retry }: ScreenErrorFallback) {
   );
 }
 
+/**
+ * Địa chỉ có neo (`/tai-khoan#account-notifications`, bánh răng của ngăn thông báo —
+ * BUG-178): cuộn tới thẻ ấy và đặt tiêu điểm vào tiêu đề của nó sau khi trang tải xong.
+ * Đọc `window.location.hash` chứ không `useLocation` — container này không đòi router.
+ */
+function useScrollToHashBlock(isLoading: boolean): void {
+  useEffect(() => {
+    if (isLoading) {
+      return undefined;
+    }
+
+    const scrollToHash = (): void => {
+      const id = window.location.hash.slice(1);
+      const target = id === '' ? null : document.getElementById(id);
+
+      if (target === null) {
+        return;
+      }
+
+      if (typeof target.scrollIntoView === 'function') {
+        target.scrollIntoView({ block: 'start' });
+      }
+
+      // Tiêu đề không nằm trong thứ tự Tab: chỉ nhận tiêu điểm khi được trỏ tới bằng neo.
+      target.setAttribute('tabindex', '-1');
+      target.focus({ preventScroll: true });
+    };
+
+    scrollToHash();
+    // Đang ở sẵn /tai-khoan mà bấm bánh răng: chỉ hash đổi, trang không tải lại (review QA-02 P2-7).
+    window.addEventListener('hashchange', scrollToHash);
+    return () => window.removeEventListener('hashchange', scrollToHash);
+  }, [isLoading]);
+}
+
 /** Hook cộng view, không có provider nào ở giữa. */
 function WiredAccountSettings(props: AccountSettingsContainerProps) {
   const vm = useAccountSettings(props);
+
+  useScrollToHashBlock(vm.isLoading);
 
   return <AccountSettings vm={vm} />;
 }

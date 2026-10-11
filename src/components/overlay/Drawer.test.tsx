@@ -45,6 +45,19 @@ describe('Drawer — tấm trượt điện thoại (B-V1-46)', () => {
     expect(within(group).getByRole('button', { name: 'Mức 3', pressed: false })).toBeInTheDocument();
   });
 
+  it('mỗi chấm nói việc của nó cho trình đọc màn hình, tên vẫn là "Mức N" (nợ C ND-C2)', () => {
+    render(
+      <Drawer.Root isOpen label="Bộ lọc" onClose={() => undefined}>
+        <p>Nội dung</p>
+      </Drawer.Root>,
+    );
+
+    const group = screen.getByRole('group', { name: 'Chiều cao tấm trượt' });
+    expect(within(group).getByRole('button', { name: 'Mức 1' })).toHaveAccessibleDescription('Thu gọn');
+    expect(within(group).getByRole('button', { name: 'Mức 2' })).toHaveAccessibleDescription('Nửa màn hình');
+    expect(within(group).getByRole('button', { name: 'Mức 3' })).toHaveAccessibleDescription('Gần toàn màn hình');
+  });
+
   it('không nút nào bị rút khỏi thứ tự Tab — đó là đường bàn phím duy nhất để đổi mức (A12)', () => {
     render(
       <Drawer.Root isOpen label="Bộ lọc" onClose={() => undefined}>

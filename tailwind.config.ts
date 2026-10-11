@@ -16,10 +16,22 @@ const beats = (count: number): string => `${AMBIENT_LOOP_MS * count}ms`;
 const speed = (name: keyof typeof MOTION_DURATIONS_MS): string =>
   `${MOTION_DURATIONS_MS[name]}ms`;
 
+/** Bản dựng gói sản phẩm (`vite build`), không phải Storybook — `storybook build` cũng chạy với NODE_ENV=production. */
+const PRODUCT_BUNDLE =
+  process.env.NODE_ENV === 'production' && !process.argv.some((arg) => arg.includes('storybook'));
+
 const config: Config = {
   // Tệp test không vẽ gì ra màn: lớp chỉ có trong chúng (vd `bg-[#fafafa]`, hằng
-  // khẳng định lớp) không được vào gói CSS. Stories giữ lại cho Storybook.
-  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}', '!./src/**/*.test.{ts,tsx}'],
+  // khẳng định lớp) không được vào gói CSS. Bản dựng sản phẩm còn bỏ thêm stories và
+  // màn demo chỉ bản dev (`App.tsx`, `buildDevOnlyRoutes`): không cái nào vào gói JS,
+  // nên lớp chỉ có trong chúng cũng không được vào gói CSS (ngân sách 12 KiB, QA-02).
+  // Bản dev, vitest và Storybook (kể cả `storybook build`) vẫn quét đủ.
+  content: [
+    './index.html',
+    './src/**/*.{js,ts,jsx,tsx}',
+    '!./src/**/*.test.{ts,tsx}',
+    ...(PRODUCT_BUNDLE ? ['!./src/App.tsx', '!./src/screens/*Demo*.tsx', '!./src/**/*.stories.tsx'] : []),
+  ],
   theme: {
     colors: {
       transparent: 'transparent',

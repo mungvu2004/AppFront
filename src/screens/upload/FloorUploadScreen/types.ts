@@ -277,6 +277,8 @@ export interface FloorUploadBlockNotice {
 export interface FloorUploadModel {
   readonly state: SevenState;
   readonly projectId: string;
+  /** Tên dự án cho breadcrumb, lấy từ bộ đệm (BUG-165). Vắng khi bộ đệm chưa có: breadcrumb bỏ cấp ấy. */
+  readonly projectName?: string;
   readonly canEdit: boolean;
   readonly isReadOnly: boolean;
   readonly isCollapsed: boolean;

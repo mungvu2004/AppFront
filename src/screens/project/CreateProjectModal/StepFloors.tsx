@@ -18,8 +18,17 @@ import { Input } from '@/components/ui/Input';
 import { NumericField } from '@/components/ui/NumericField';
 import { Table } from '@/components/ui/Table';
 import { Toggle } from '@/components/ui/Toggle';
+import { cn } from '@/lib/utils';
 
-import { PROJECT_LIMITS, type CreateProjectModalViewProps } from './useCreateProjectModal';
+import {
+  FLOOR_CAP_NOTE_ID,
+  FLOORS_HINT_ID,
+  PROJECT_LIMITS,
+  type CreateProjectModalViewProps,
+} from './useCreateProjectModal';
+
+/** Cell padding: tighter below `sm`, where the dialog is the viewport minus its gutter. */
+const CELL_PAD = 'px-1.5 sm:px-3';
 
 export interface StepFloorsProps extends CreateProjectModalViewProps {
   readonly rowRefs: React.MutableRefObject<Map<string, HTMLTableRowElement>>;
@@ -34,10 +43,17 @@ export function StepFloors(props: StepFloorsProps) {
       <Toggle
         checked={props.hasBasement}
         onChange={props.setHasBasement}
-        disabled={isSubmitting}
+        disabled={isSubmitting || !props.canToggleBasement}
+        aria-describedby={!props.canToggleBasement && props.floorCapNote !== null ? FLOOR_CAP_NOTE_ID : undefined}
         label="Có tầng hầm"
         description="Tầng hầm luôn nằm dưới tầng trệt; cao độ của nó là số âm."
       />
+
+      {props.floorsHint !== null && (
+        <p id={FLOORS_HINT_ID} className="text-[13px] leading-[18px] text-text-secondary">
+          {props.floorsHint}
+        </p>
+      )}
 
       {props.collision !== null && (
         <InlineAlert
@@ -64,13 +80,17 @@ export function StepFloors(props: StepFloorsProps) {
         />
       ) : (
         <>
+          {/* Fits the dialog at every width, 375 px included (BUG-110): the two fields
+              take `w-full` so they shrink with their column instead of forcing the
+              table wider than the dialog, the long header may wrap, and cells pad
+              tighter below `sm`. */}
           <Table.Root>
             <Table.Header>
               <tr>
-                <Table.Head>Tầng</Table.Head>
-                <Table.Head>Chiều cao thông thuỷ</Table.Head>
-                <Table.Head>Cao độ</Table.Head>
-                <Table.Head aria-label="Xoá tầng" />
+                <Table.Head className={CELL_PAD}>Tầng</Table.Head>
+                <Table.Head className={cn(CELL_PAD, 'w-1/3 whitespace-normal')}>Chiều cao thông thuỷ</Table.Head>
+                <Table.Head className={CELL_PAD}>Cao độ</Table.Head>
+                <Table.Head className={CELL_PAD} aria-label="Xoá tầng" />
               </tr>
             </Table.Header>
             <Table.Body>
@@ -81,18 +101,21 @@ export function StepFloors(props: StepFloorsProps) {
                     if (node) rowRefs.current.set(row.id, node);
                     else rowRefs.current.delete(row.id);
                   }}
-                  isAttention={row.problem !== null}
+                  isAttention={row.problem !== null || row.nameProblem !== null}
                 >
-                  <Table.Cell>
+                  <Table.Cell className={CELL_PAD}>
                     <Input
+                      className="w-full"
                       value={row.name}
                       onChange={(event) => props.setFloorName(row.id, event.target.value)}
+                      error={row.nameProblem}
                       disabled={isSubmitting}
                       aria-label={`Tên tầng ${row.name}`}
                     />
                   </Table.Cell>
-                  <Table.Cell>
+                  <Table.Cell className={CELL_PAD}>
                     <NumericField
+                      className="w-full"
                       value={row.clearHeightM ?? undefined}
                       onChange={(value) => props.setFloorHeight(row.id, value)}
                       min={PROJECT_LIMITS.storeyHeightMinM}
@@ -103,8 +126,8 @@ export function StepFloors(props: StepFloorsProps) {
                       {...(row.problem !== null ? { error: row.problem } : {})}
                     />
                   </Table.Cell>
-                  <Table.Cell className="text-text-secondary">{row.elevationLabel ?? '—'}</Table.Cell>
-                  <Table.Cell>
+                  <Table.Cell className={cn(CELL_PAD, 'text-text-secondary')}>{row.elevationLabel ?? '—'}</Table.Cell>
+                  <Table.Cell className={CELL_PAD}>
                     <IconButton
                       icon={<Trash2 size={16} aria-hidden="true" />}
                       aria-label={`Xoá ${row.name}`}
@@ -117,18 +140,27 @@ export function StepFloors(props: StepFloorsProps) {
             </Table.Body>
           </Table.Root>
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <Button
-              variant="secondary"
-              size="sm"
-              iconBefore={<Plus size={16} aria-hidden="true" />}
-              onClick={props.addFloor}
-              disabled={isSubmitting || !props.canAddFloor}
-            >
-              Thêm tầng
-            </Button>
+            <div className="flex flex-col gap-1">
+              <Button
+                variant="secondary"
+                size="sm"
+                iconBefore={<Plus size={16} aria-hidden="true" />}
+                onClick={props.addFloor}
+                disabled={isSubmitting || !props.canAddFloor}
+                aria-describedby={props.floorCapNote !== null ? FLOOR_CAP_NOTE_ID : undefined}
+              >
+                Thêm tầng
+              </Button>
+              {props.floorCapNote !== null && (
+                <p id={FLOOR_CAP_NOTE_ID} className="text-[13px] leading-[18px] text-text-secondary">
+                  {props.floorCapNote}
+                </p>
+              )}
+            </div>
             <div className="flex items-end gap-2">
               <NumericField
                 label="Chiều cao áp cho mọi tầng"
+                className="w-full"
                 value={props.applyHeightM ?? undefined}
                 onChange={props.setApplyHeightM}
                 min={PROJECT_LIMITS.storeyHeightMinM}

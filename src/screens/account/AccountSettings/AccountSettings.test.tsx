@@ -462,6 +462,7 @@ function vmFor(
         jobTitle: isEmpty ? '' : 'Kỹ sư kết cấu',
         onJobTitleChange: vi.fn(),
         jobTitlePlaceholder: 'Chưa đặt',
+        phonePlaceholder: 'Chưa đặt',
         email: SAMPLE_EMAIL,
         emailReadOnlyReason: 'Thư điện tử là tên đăng nhập nên chỉ đọc ở đây.',
         onChangeEmail: vi.fn(),

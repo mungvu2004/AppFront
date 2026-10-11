@@ -281,7 +281,7 @@ describe('ProjectSettingsView, bảy trạng thái', () => {
     render(<ProjectSettingsView {...PROPS_BY_STATE.loading()} />);
 
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
-    expect(screen.getByText('Trạng thái: Đang tải')).toBeInTheDocument();
+    expect(screen.queryByText(/^Trạng thái:/)).toBeNull();
   });
 
   it('giữ nguyên dữ liệu nhưng bỏ quyền sửa với vai người xem', () => {
@@ -307,11 +307,18 @@ describe('ProjectSettingsView, bảy trạng thái', () => {
     expect(retryLoad).toHaveBeenCalledTimes(1);
   });
 
-  it('lỗi tải: không vẽ chỉ báo lưu, nhãn trạng thái viết hoa (BUG-078, A6)', () => {
+  it('lỗi tải: không vẽ chỉ báo lưu và không lộ tên trạng thái nội bộ (BUG-078, BUG-182)', () => {
     render(<ProjectSettingsView {...PROPS_BY_STATE.error()} />);
 
     expect(screen.queryByText('Chưa có thay đổi')).toBeNull();
-    expect(screen.getByText('Trạng thái: Lỗi')).toBeInTheDocument();
+    expect(screen.queryByText(/^Trạng thái:/)).toBeNull();
+  });
+
+  it('BUG-182: chỉ báo lưu xuất hiện đúng một lần và không có nhãn "Trạng thái: …"', () => {
+    render(<ProjectSettingsView {...PROPS_BY_STATE.success()} saveLabel="Chưa có thay đổi" />);
+
+    expect(screen.getAllByText('Chưa có thay đổi')).toHaveLength(1);
+    expect(screen.queryByText(/^Trạng thái:/)).toBeNull();
   });
 
   it('dự án không tồn tại: lối về danh sách dự án thay cho "Thử lại" (BUG-078)', () => {

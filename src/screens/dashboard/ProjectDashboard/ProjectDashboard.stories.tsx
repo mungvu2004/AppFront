@@ -40,6 +40,7 @@ const hqRenovation: ProjectCardModel = {
     { id: 'm-binh', initials: 'NB' },
   ],
   planVariant: 0,
+  hasPlan: true,
 };
 
 const sunriseBlockB: ProjectCardModel = {
@@ -58,6 +59,7 @@ const sunriseBlockB: ProjectCardModel = {
     { id: 'm-chi', initials: 'TC' },
   ],
   planVariant: 1,
+  hasPlan: true,
 };
 
 const bacNinhFactory: ProjectCardModel = {
@@ -72,6 +74,7 @@ const bacNinhFactory: ProjectCardModel = {
   progressPercentLabel: '100%',
   members: [{ id: 'm-binh', initials: 'NB' }],
   planVariant: 2,
+  hasPlan: true,
 };
 
 const base: ProjectDashboardViewProps = {
@@ -93,6 +96,7 @@ const base: ProjectDashboardViewProps = {
   pendingDeleteId: null,
   pendingDeleteName: null,
   deleteErrorMessage: null,
+    isDeleting: false,
   unreadNotice: null,
   setSearchQuery: noop,
   setStatusFilter: noop,

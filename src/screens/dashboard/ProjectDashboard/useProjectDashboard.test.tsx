@@ -149,10 +149,27 @@ describe('useProjectDashboard states', () => {
     await waitFor(() => expect(dash().model.state).toBe('error'));
   });
 
+  it('explains a failed read with its cause and next step, never the heading again (BUG-130)', async () => {
+    mount({ fetchList: () => Promise.reject(httpError(500, 'INTERNAL')) });
+
+    await waitFor(() => expect(dash().model.state).toBe('error'));
+    expect(dash().model.errorMessage).toBe('Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại thao tác vừa làm.');
+  });
+
   it('narrow: a failed read still wins over collapsed (BUG-072)', async () => {
     mount({ fetchList: () => Promise.reject(new Error('mạng hỏng')), forceNarrow: true });
 
     await waitFor(() => expect(dash().model.state).toBe('error'));
+  });
+
+  it('says which projects have a traced plan to draw: walls detected, not floors promised (BUG-119)', async () => {
+    mount({ gateway: fakeServer([project(), project({ id: 'prj-2', name: 'Chưa dò', floorCount: 4, wallsTotalCount: 0, wallsReviewedCount: 0 })]).gateway });
+
+    await waitFor(() => expect(dash().model.rows).toHaveLength(2));
+    expect(dash().model.rows.map((row) => [row.name, row.hasPlan])).toEqual([
+      [NAME_HQ, true],
+      ['Chưa dò', false],
+    ]);
   });
 
   it('narrow: a successful read is collapsed', async () => {
@@ -214,6 +231,18 @@ describe('useProjectDashboard rename', () => {
     await waitFor(() => expect(names()).toEqual([NAME_HQ]));
   });
 
+  it('quotes a long new name whole in the toast — Toast wraps it (BUG-131)', async () => {
+    const server = fakeServer([project()]);
+    const onToast = await startRename(server);
+    const longName = `qa-run-11-b80-${'y'.repeat(66)}`;
+
+    act(() => dash().actions.setRenameDraft(longName));
+    act(() => dash().actions.commitRename());
+
+    await waitFor(() => expect(onToast).toHaveBeenCalledWith(expect.objectContaining({ message: `Đã đổi tên thành "${longName}"` })));
+    expect(names()).toEqual([longName]);
+  });
+
   it('cancels in-flight summaries reads before the optimistic patch', async () => {
     const server = fakeServer([project()]);
     const { queryClient } = mount({ role: roleEngineer, gateway: server.gateway, onToast: vi.fn() });
@@ -236,6 +265,22 @@ describe('useProjectDashboard rename', () => {
     act(() => dash().actions.commitRename());
 
     await waitFor(() => expect(onToast).toHaveBeenCalledWith({ message: 'Bạn không có quyền đổi tên dự án này.' }));
+    expect(names()).toEqual([NAME_HQ]);
+  });
+
+  it('names the characters, not the length, when #26 refuses a name of valid length (BUG-168)', async () => {
+    const server = fakeServer([project()]);
+    server.rename.mockRejectedValueOnce(httpError(422, 'VALIDATION'));
+    const onToast = await startRename(server);
+
+    act(() => dash().actions.setRenameDraft('qa\u202Eedge'));
+    act(() => dash().actions.commitRename());
+
+    await waitFor(() =>
+      expect(onToast).toHaveBeenCalledWith({
+        message: 'Tên dự án có ký tự không dùng được, như ký tự điều khiển hoặc ký tự đảo chiều chữ. Tên cũ đã được giữ lại.',
+      }),
+    );
     expect(names()).toEqual([NAME_HQ]);
   });
 
@@ -290,6 +335,31 @@ describe('useProjectDashboard delete', () => {
     await waitFor(() => expect(dash().model.rows).toHaveLength(0));
     expect(dash().model.pendingDeleteId).toBeNull();
     expect(onToast).not.toHaveBeenCalled();
+  });
+
+  it('sends one #27 for a double click on "Xoá dự án", and says it is busy meanwhile (BUG-146)', async () => {
+    const server = fakeServer([project()]);
+    let finish: () => void = () => undefined;
+    server.remove.mockImplementationOnce(() => new Promise<void>((resolve) => {
+        finish = resolve;
+      }));
+    mount({ gateway: server.gateway });
+    await waitFor(() => expect(dash().model.rows).toHaveLength(1));
+
+    act(() => dash().actions.requestDelete('prj-1'));
+    const { confirmDelete } = dash().actions;
+    act(() => {
+      confirmDelete();
+      confirmDelete();
+    });
+
+    expect(server.remove).toHaveBeenCalledTimes(1);
+    expect(dash().model.isDeleting).toBe(true);
+    await act(async () => {
+      finish();
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(dash().model.isDeleting).toBe(false));
   });
 
   it('keeps the dialog and the row, and explains, when #27 fails', async () => {

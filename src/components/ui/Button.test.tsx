@@ -18,7 +18,7 @@ describe('Button', () => {
   it('applies danger variant', () => {
     render(<Button variant="danger">Xoá</Button>);
     const btn = screen.getByRole('button');
-    expect(btn.className).toMatch(/text-state-violation-text/);
+    expect(btn.className).toMatch(/bg-state-violation-text/);
   });
 
   it('is disabled when disabled prop is set', () => {

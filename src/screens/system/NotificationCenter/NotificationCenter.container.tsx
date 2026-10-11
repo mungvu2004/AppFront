@@ -194,23 +194,37 @@ export function NotificationBellContainer(props: NotificationCenterContainerProp
  */
 export function NotificationCenterRoute() {
   const navigate = useNavigate();
-  const { key: historyKey } = useLocation();
+  const { key: historyKey, pathname } = useLocation();
   // Hook gọi `onNavigate(đích)` rồi `onClose()` liền sau (và view gọi `onClose` thêm
   // một lần nữa sau quãng mờ). Ở route, "đóng" là "rời route" — nên lượt đóng ấy
   // từng đè lên chính lượt điều hướng vừa đi và đưa người dùng về `/` thay vì tới
   // màn của thông báo (B-V2-04). Đã điều hướng đi thì không còn gì để đóng.
   const hasLeftRef = useRef(false);
 
+  // "Xem tất cả" ngay trên `/thong-bao` điều hướng tới chính route này: không đi đâu cả,
+  // nên không được đánh dấu là đã rời (BUG-113 — Esc từng hết tác dụng vĩnh viễn), và
+  // lượt `onClose` ngay sau nó không được đóng route — người dùng chọn "xem tất cả", chứ
+  // không phải "đóng".
+  const isStayingRef = useRef(false);
+
   const goTo = useCallback(
     (to: string): void => {
+      if (to === pathname) {
+        isStayingRef.current = true;
+        queueMicrotask(() => {
+          isStayingRef.current = false;
+        });
+        return;
+      }
+
       hasLeftRef.current = true;
       navigate(to);
     },
-    [navigate],
+    [navigate, pathname],
   );
 
   const goBack = useCallback((): void => {
-    if (hasLeftRef.current) return;
+    if (hasLeftRef.current || isStayingRef.current) return;
 
     if (historyKey === 'default') {
       navigate(ROUTES.dashboard, { replace: true });

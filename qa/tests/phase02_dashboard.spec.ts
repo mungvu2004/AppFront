@@ -5,16 +5,24 @@
  * read from the real `POST /api/projects` response (`ProjectSchema.id` / `.name`, `src/api/schemas/index.ts`).
  *
  * R6: the create-project toast's "Hoàn tác" deletes CP-2 and is NEVER clicked here. The only "Hoàn tác"
- * clicks target the rename toast and the mark-read toast, each located by its own message text.
+ * clicks target the rename toast and the mark-read / mark-all toasts, each located by its own message text.
+ *
+ * Request budget (serial, one context): 1 UI login (`signInAdmin`, `POST /api/auth/login`), then one
+ * `POST /api/auth/refresh` per full page load (≈ 8). Writes: 2 `POST /api/projects` (CP-2 + one
+ * `qa-<runId>-m02-full-…` project), 2 `PATCH /api/projects/:id` (rename + its undo), 1 `DELETE /api/projects/:id`
+ * (the `m02-full` project, through the UI; `afterAll` deletes it with the page's own access token if the delete
+ * test did not). Mark-read / mark-all are always undone inside the 8 s window: 0 `POST /api/notifications/read*`.
+ * Read-after-navigate waits register BEFORE the navigation (`gotoThenApi`): BUG-141 (`navigateThenWaitForApi` used to
+ * register after `goto` and missed a fast N1; it registers first since FIX-986, this file keeps its local helper).
  */
 import { expect, test } from '@playwright/test';
 import type { BrowserContext, Locator, Page, Response } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
-import { navigateThenWaitForApi, waitForApi, watchApi } from '../../e2e/fullstack/apiWatch';
-import type { ApiEntry } from '../../e2e/fullstack/apiWatch';
+import { waitForApi, watchApi } from '../../e2e/fullstack/apiWatch';
+import type { ApiEntry, ApiResult } from '../../e2e/fullstack/apiWatch';
 import { signInAdmin } from './support/auth';
-import { captureEvidence } from './support/evidence';
+import { TEST_DATA_PREFIX, attachJson, captureEvidence } from './support/evidence';
 import { readState, requireState, updateState } from './support/state';
 
 /** `src/lib/mutations/undoTicket.ts:18` (not imported: that module pulls `@/` aliases at runtime). */
@@ -27,6 +35,20 @@ const WELCOME_SEEN_PREFIX = 'appfront:onboarding-welcome-seen:';
 /** Sidebar status filters (`PROJECT_STATUS_FILTER_OPTIONS`, `useProjectDashboard.ts:76`). */
 const STATUS_FILTERS = ['Đang xử lý', 'Cần QC', 'Hoàn thành'] as const;
 const TABLE_HEADERS = ['Tên dự án', 'Trạng thái', 'Chi tiết', 'Tiến độ duyệt', 'Cập nhật'] as const;
+/** `ContextMenu.tsx:102` aria-label (NOT "Tùy chọn": tone-mark placement changed in c6e6b126, coverage F1). */
+const CARD_MENU = 'Tuỳ chọn';
+/* SCR-06 copy: NotificationCenter.tsx:55-56, useNotificationCenter.ts:160-161. */
+const MARK_READ = 'Đánh dấu đã đọc';
+const MARK_ALL_READ = 'Đánh dấu tất cả đã đọc';
+const MARKED_ALL_READ = 'Đã đánh dấu tất cả là đã đọc';
+/* SCR-07 copy: useWelcomeScreen.ts:128-140 (STRINGS). */
+const ONBOARD_UPLOAD = 'Tải bản vẽ';
+const ONBOARD_REVIEW = 'Duyệt kết quả';
+const ONBOARD_REVIEW_LOCKED = 'Cần tải bản vẽ trước.';
+/* Wizard step 1 extras: CreateProjectModal.tsx:109-149, useCreateProjectModal.ts:71-79 (types), :602 (basement). */
+const FULL_ADDRESS = 'Số 1 Phố Huế';
+const FULL_TYPE = 'Thương mại';
+const BASEMENT_NAME = 'Tầng hầm';
 
 type Json = Record<string, unknown>;
 
@@ -83,11 +105,83 @@ async function openWizard(page: Page): Promise<Locator> {
   return dialog;
 }
 
+/** BUG-141: the wait is registered BEFORE the navigation, so a fast response is never missed. */
+async function gotoThenApi(page: Page, url: string, method: string, path: RegExp, statuses: readonly number[]): Promise<ApiResult> {
+  const pending = waitForApi(page, method, path, statuses);
+  pending.catch(() => undefined);
+  await page.goto(url, { waitUntil: 'commit' });
+  return pending;
+}
+
+/**
+ * BUG-143: Drawer / Modal / BottomSheet enter with framer-motion (JS transform, `Drawer.tsx`, `Modal.tsx:109-135`),
+ * which `animations: 'disabled'` does not stop. Waits for the finite animations under `target` and for its box and
+ * opacity to hold still for 3 frames before a shot.
+ */
+async function settled(target: Locator): Promise<void> {
+  await expect(target).toBeVisible();
+  const still = await target.evaluate(async (el, budgetMs) => {
+    const deadline = performance.now() + budgetMs;
+    const finite = el
+      .getAnimations({ subtree: true })
+      .filter((animation) => Number.isFinite(Number(animation.effect?.getComputedTiming().endTime)));
+    await Promise.race([
+      Promise.all(finite.map((animation) => animation.finished.catch(() => undefined))),
+      new Promise((resolve) => setTimeout(resolve, budgetMs)),
+    ]);
+    const sample = (): string => {
+      const r = el.getBoundingClientRect();
+      return `${r.x},${r.y},${r.width},${r.height},${getComputedStyle(el).opacity}`;
+    };
+    let last = sample();
+    let steady = 0;
+    while (steady < 3) {
+      if (performance.now() > deadline) return false;
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const now = sample();
+      steady = now === last ? steady + 1 : 0;
+      last = now;
+    }
+    return true;
+  }, 5_000);
+  expect(still, 'overlay still moving after 5 s').toBe(true);
+}
+
+/** Access token of the page's latest `POST /api/auth/refresh` (refresh.ts:85-100, optional `data`); never logged. */
+function latestAccessToken(log: readonly ApiEntry[]): string | undefined {
+  for (const entry of [...log].reverse()) {
+    if (entry.method !== 'POST' || entry.path !== '/api/auth/refresh' || entry.status !== 200) continue;
+    if (typeof entry.json !== 'object' || entry.json === null) continue;
+    const body = entry.json as Json;
+    const root = typeof body.data === 'object' && body.data !== null ? (body.data as Json) : body;
+    const token = typeof root.accessToken === 'string' ? root.accessToken : root.access_token;
+    if (typeof token === 'string' && token !== '') return token;
+  }
+  return undefined;
+}
+
+/** N1 rows as the onboarding hook reads them (`mostRecentProject`, useWelcomeScreen.ts:222-228). */
+function newestSummary(json: unknown): Json {
+  const items = asRecord(json, 'GET /api/project-summaries').items;
+  const rows = (Array.isArray(items) ? items : []).map((item, index) => asRecord(item, `items[${String(index)}]`));
+  const newest = rows.reduce<Json | undefined>(
+    (best, row) =>
+      best === undefined || Date.parse(stringField(row, 'updatedAt', 'N1 row')) > Date.parse(stringField(best, 'updatedAt', 'N1 row'))
+        ? row
+        : best,
+    undefined,
+  );
+  if (newest === undefined) throw new Error('GET /api/project-summaries: no project (CP-2 should exist)');
+  return newest;
+}
+
 test.describe.configure({ mode: 'serial' });
 
 let context: BrowserContext;
 let page: Page;
 let api: ApiEntry[];
+/** The `m02-full` project the full-create test makes; the delete test removes it, `afterAll` if it did not. */
+let fullProject: { id: string; name: string; deleted: boolean } | undefined;
 
 test.beforeAll(async ({ browser }, testInfo) => {
   const { baseURL, viewport } = testInfo.project.use;
@@ -101,18 +195,29 @@ test.beforeAll(async ({ browser }, testInfo) => {
 });
 
 test.afterAll(async () => {
-  await context?.close();
+  try {
+    if (fullProject !== undefined && !fullProject.deleted) {
+      const token = latestAccessToken(api);
+      const origin = new URL(page.url()).origin;
+      const res = token === undefined
+        ? undefined
+        : await page.request.delete(`/api/projects/${fullProject.id}`, {
+            headers: { Origin: origin, Authorization: `Bearer ${token}` },
+          });
+      if (res?.status() !== 200) {
+        test.info().annotations.push({ type: 'cleanup', description: `DELETE ${fullProject.id} → ${String(res?.status() ?? 'no token')}` });
+      }
+    }
+  } catch (error) {
+    test.info().annotations.push({ type: 'cleanup', description: String(error) });
+  } finally {
+    await context?.close();
+  }
 });
 
 test.describe('SCR-05 Dashboard (/)', () => {
   test('SCR-05 load: h1 "Dự án của tôi"; list "Danh sách dự án" or "Chưa có dự án nào"', async () => {
-    const summaries = await navigateThenWaitForApi(
-      page,
-      () => page.goto(ROUTES.dashboard, { waitUntil: 'commit' }),
-      'GET',
-      /^\/api\/project-summaries$/u,
-      [200],
-    );
+    const summaries = await gotoThenApi(page, ROUTES.dashboard, 'GET', /^\/api\/project-summaries$/u, [200]);
 
     expect(Array.isArray(asRecord(summaries.json, 'GET /api/project-summaries').items)).toBe(true);
     await expect(dashboardHeading(page)).toBeVisible();
@@ -122,13 +227,20 @@ test.describe('SCR-05 Dashboard (/)', () => {
     await captureEvidence(page, '05_dash_loaded.png');
   });
 
-  test('SCR-05 wizard validation: empty name shows "Chưa nhập tên dự án."', async () => {
+  test('SCR-05 wizard validation: pristine step 1 shows only the hint; a name typed then erased shows "Chưa nhập tên dự án."', async () => {
     const dialog = await openWizard(page);
 
-    // Step 1 has no "Tạo dự án" button (it only exists on step 3, CreateProjectModal.tsx:291):
-    // with an empty name the step is blocked — the error is rendered and "Tiếp tục" is disabled.
+    // Step 1 has no "Tạo dự án" button (it only exists on step 3, CreateProjectModal.tsx:291).
+    // BUG-133: a form nobody typed into is not wrong yet — a neutral hint, no error, "Tiếp tục" disabled.
+    await expect(dialog.getByText('Bắt buộc, từ 3 đến 80 ký tự.', { exact: true })).toBeVisible();
+    await expect(dialog.getByRole('alert')).toHaveCount(0);
+    await expect(dialog.getByRole('button', { name: 'Tiếp tục', exact: true })).toBeDisabled();
+    // The complaint arrives with the first keystroke: with an empty name the step stays blocked.
+    await dialog.getByLabel('Tên dự án').fill('a');
+    await dialog.getByLabel('Tên dự án').fill('');
     await expect(dialog.getByRole('alert').filter({ hasText: 'Chưa nhập tên dự án.' })).toBeVisible();
     await expect(dialog.getByRole('button', { name: 'Tiếp tục', exact: true })).toBeDisabled();
+    await settled(dialog);
     await captureEvidence(page, '05_wizard_validation.png');
 
     // Pristine form: "Huỷ" closes without the discard prompt (`requestClose`, useCreateProjectModal.ts).
@@ -181,9 +293,10 @@ test.describe('SCR-05 Dashboard (/)', () => {
     const before = api.filter((entry) => entry.method === 'POST' && entry.path === '/api/projects').length;
     const dialog = await openWizard(page);
 
-    await dialog.getByLabel('Tên dự án').fill(`discard-${String(Date.now())}`);
+    await dialog.getByLabel('Tên dự án').fill(`${TEST_DATA_PREFIX}discard-${Date.now().toString(36)}`);
     await dialog.getByRole('button', { name: 'Huỷ', exact: true }).click();
     await expect(dialog.getByText('Đóng và bỏ các thay đổi chưa lưu?', { exact: true })).toBeVisible();
+    await settled(dialog);
     await captureEvidence(page, '05_wizard_discard.png');
 
     await dialog.getByRole('button', { name: 'Đóng, bỏ thay đổi', exact: true }).click();
@@ -227,7 +340,9 @@ test.describe('SCR-05 Dashboard (/)', () => {
     const viewMode = page.getByRole('radiogroup', { name: 'Kiểu xem', exact: true });
     await viewMode.getByRole('radio', { name: 'Bảng', exact: true }).click();
     await expect(viewMode.getByRole('radio', { name: 'Bảng', exact: true })).toHaveAttribute('aria-checked', 'true');
-    await expect(page.getByRole('columnheader')).toHaveText([...TABLE_HEADERS]);
+    // BUG-115 fixed: `Table.Head` carries scope="col" (getByRole('columnheader') works); the header row is still read
+    // from the markup (`thead th`), the same cells.
+    await expect(page.getByRole('main').locator('thead th')).toHaveText([...TABLE_HEADERS]);
 
     const rows = page.getByRole('main').locator('tbody tr');
     for (const label of STATUS_FILTERS) {
@@ -243,11 +358,16 @@ test.describe('SCR-05 Dashboard (/)', () => {
         await expect(rows.filter({ hasNotText: label })).toHaveCount(0);
       }
     }
-    await captureEvidence(page, '05_dash_view_controls.png');
 
-    // Back to the defaults the next rows rely on (card grid, all statuses, newest first).
+    // BUG-166: the loop above ends on the last filter ("Hoàn thành", usually 0 rows → only the no-match state). The shot is
+    // taken back on "Tất cả" so it shows what the case claims: "Bảng" on, header row and the rows in "Tên A–Z" order.
     await statusFilterButton(page, 'Tất cả').click();
     await expect(statusFilterButton(page, 'Tất cả')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('main').locator('thead th')).toHaveText([...TABLE_HEADERS]);
+    await expect(rows.first()).toBeVisible();
+    await captureEvidence(page, '05_dash_view_controls.png', { caption: 'view "Bảng", sort "Tên A–Z", filter "Tất cả"' });
+
+    // Back to the defaults the next rows rely on (card grid, all statuses, newest first).
     await viewMode.getByRole('radio', { name: 'Lưới', exact: true }).click();
     await page.getByRole('combobox').filter({ hasText: 'Tên A–Z' }).click();
     await page.getByRole('option', { name: 'Cập nhật gần đây', exact: true }).click();
@@ -265,7 +385,7 @@ test.describe('SCR-05 Dashboard (/)', () => {
     await expect(toastWith(page, `Đã tạo dự án "${projectName}".`)).toHaveCount(0, { timeout: UNDO_WINDOW_MS * 2 });
 
     await page.getByRole('button', { name: `Tuỳ chọn cho ${projectName}`, exact: true }).click();
-    await page.getByRole('menu', { name: 'Tùy chọn' }).getByRole('menuitem', { name: 'Đổi tên', exact: true }).click();
+    await page.getByRole('menu', { name: CARD_MENU, exact: true }).getByRole('menuitem', { name: 'Đổi tên', exact: true }).click();
     const input = page.getByRole('textbox', { name: `Đổi tên ${projectName}`, exact: true });
     await input.fill(renamed);
 
@@ -296,13 +416,7 @@ test.describe('SCR-05 Dashboard (/)', () => {
     const projectId = requireState((s) => s.project.projectId, 'project.projectId', 'Phase 2 (SCR-05 create)');
     const projectName = requireState((s) => s.project.projectName, 'project.projectName', 'Phase 2 (SCR-05 create)');
 
-    const { json } = await navigateThenWaitForApi(
-      page,
-      () => page.goto(ROUTES.dashboard, { waitUntil: 'commit' }),
-      'GET',
-      /^\/api\/project-summaries$/u,
-      [200],
-    );
+    const { json } = await gotoThenApi(page, ROUTES.dashboard, 'GET', /^\/api\/project-summaries$/u, [200]);
     const items = asRecord(json, 'GET /api/project-summaries').items;
     const summary = (Array.isArray(items) ? items : [])
       .map((item, index) => asRecord(item, `items[${String(index)}]`))
@@ -333,6 +447,90 @@ test.describe('SCR-05 Dashboard (/)', () => {
     await expect.poll(() => pathOf(page)).toBe(expectedPath);
     await captureEvidence(page, '05_dash_open_project.png');
   });
+
+  test('SCR-05 wizard full create: address, type "Thương mại", notes, basement → POST body with 5 floors; card + toast "Đã tạo dự án"', async () => {
+    await page.goto(ROUTES.dashboard);
+    await expect(dashboardHeading(page)).toBeVisible();
+    const name = `${TEST_DATA_PREFIX}m02-full-${Date.now().toString(36)}`;
+    const dialog = await openWizard(page);
+
+    // Step 1 (CreateProjectModal.tsx:100-149): name, the auto code, address, "Loại công trình" Select, notes.
+    await dialog.getByLabel('Tên dự án').fill(name);
+    await dialog.getByLabel('Địa chỉ').fill(FULL_ADDRESS);
+    await dialog.getByRole('combobox').click();
+    await page.getByRole('option', { name: FULL_TYPE, exact: true }).click();
+    await dialog.getByLabel('Ghi chú').fill('Ghi chú QA');
+    const code = await dialog.getByLabel('Mã dự án').inputValue(); // auto from the name (useCreateProjectModal.ts:533-535)
+    await dialog.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
+
+    // Step 2: "Có tầng hầm" puts "Tầng hầm" first (StepFloors.tsx:34-40, useCreateProjectModal.ts:596-606).
+    const basement = dialog.getByRole('switch', { name: 'Có tầng hầm' });
+    await basement.click();
+    await expect(basement).toHaveAttribute('aria-checked', 'true');
+    const height = dialog.getByLabel('Chiều cao áp cho mọi tầng');
+    await height.fill(FLOOR_HEIGHT_M);
+    await height.press('Tab'); // useNumericField commits on blur (useNumericField.ts:105-111)
+    await dialog.getByRole('button', { name: 'Áp cho mọi tầng', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
+    await expect(dialog.getByText('Bước 3 / 3', { exact: true }).first()).toBeVisible(); // useCreateProjectModal.ts:684
+
+    const created = waitForApi(page, 'POST', /^\/api\/projects$/u, [200, 201]);
+    await dialog.getByRole('button', { name: 'Tạo dự án', exact: true }).click();
+    const { response, json } = await created;
+    const body = asRecord(json, 'POST /api/projects response');
+    // Recorded before the checks, so the delete test / afterAll removes it even if one fails.
+    fullProject = { id: stringField(body, 'id', 'POST /api/projects response'), name, deleted: false };
+
+    // `toProjectWriteBody` (CreateProjectModal.container.tsx:57-75) → `toProjectWirePayload` (api/contracts.ts:202-211):
+    // address and code go out; type and notes have no wire field yet and are dropped.
+    const sent = asRecord(response.request().postDataJSON() as unknown, 'POST /api/projects request');
+    const floors = [BASEMENT_NAME, ...DEFAULT_FLOOR_NAMES];
+    expect(stringField(sent, 'name', 'request')).toBe(name);
+    expect(sent.address).toBe(FULL_ADDRESS);
+    if (code !== '') expect(sent.code).toBe(code);
+    expect(floorNamesOf(sent.floors, 'request')).toEqual(floors);
+    expect(floorNamesOf(body.floors, 'response').sort()).toEqual([...floors].sort());
+
+    await expect(dialog).toHaveCount(0);
+    await expect(projectCard(page, name)).toBeVisible();
+    await expect(toastWith(page, `Đã tạo dự án "${name}".`)).toBeVisible(); // useCreateProjectModal.ts:668-673
+    await captureEvidence(page, '05_dash_full_create.png');
+    await attachJson('05_dash_full_create.json', {
+      status: response.status(),
+      id: fullProject.id,
+      sentKeys: Object.keys(sent).sort(),
+      floors,
+    });
+    await page.mouse.move(0, 0); // never hover the toast: its "Hoàn tác" would delete the project (A8)
+  });
+
+  test('SCR-05 delete (A9): "Xoá" → "Xoá dự án?" → "Xoá dự án" → DELETE 200, the card leaves, no undo toast', async () => {
+    const target = fullProject;
+    if (target === undefined) throw new Error('the full-create test did not create its project');
+
+    // The create toast carries the name; it must be gone before "no toast with the name" means anything.
+    await page.mouse.move(0, 0);
+    await expect(toastWith(page, `Đã tạo dự án "${target.name}".`)).toHaveCount(0, { timeout: UNDO_WINDOW_MS * 2 });
+
+    await page.getByRole('button', { name: `Tuỳ chọn cho ${target.name}`, exact: true }).click(); // ProjectCardTile.tsx:97-107
+    await page.getByRole('menu', { name: CARD_MENU, exact: true }).getByRole('menuitem', { name: 'Xoá', exact: true }).click(); // projectMenuGroups.ts:25
+    const dialog = page.getByRole('dialog', { name: 'Xoá dự án?', exact: true }); // ProjectDashboard.tsx:329-353
+    await expect(
+      dialog.getByText(`"${target.name}" và toàn bộ bản vẽ, mô hình liên quan sẽ bị xoá vĩnh viễn.`, { exact: true }),
+    ).toBeVisible();
+    await expect(dialog.getByText('Không hoàn tác được.', { exact: true })).toBeVisible();
+    await settled(dialog);
+    await captureEvidence(page, '05_dash_delete_confirm.png');
+
+    const removed = waitForApi(page, 'DELETE', new RegExp(`^/api/projects/${escapeRegExp(target.id)}$`, 'u'), [200]);
+    await dialog.getByRole('button', { name: 'Xoá dự án', exact: true }).click();
+    await removed;
+    target.deleted = true;
+    await expect(dialog).toHaveCount(0);
+    await expect(projectCard(page, target.name)).toHaveCount(0);
+    await expect(toastWith(page, target.name)).toHaveCount(0); // A9 asked first, so no undo toast (useProjectDashboard.ts:442)
+    await captureEvidence(page, '05_dash_deleted.png', { caption: `DELETE /api/projects/${target.id} → 200; card gone; no toast` });
+  });
 });
 
 test.describe('SCR-06 Notifications', () => {
@@ -345,6 +543,7 @@ test.describe('SCR-06 Notifications', () => {
     await expect(drawer).toBeVisible();
     await expect(bell(page)).toHaveAttribute('aria-expanded', 'true');
     await expect(drawer.getByRole('radiogroup', { name: 'Lọc thông báo', exact: true })).toBeVisible();
+    await settled(drawer);
     await captureEvidence(page, '06_notif_drawer.png');
   });
 
@@ -366,7 +565,7 @@ test.describe('SCR-06 Notifications', () => {
     expect(await errorTitle.count(), 'notification list failed to load').toBe(0);
 
     // `exact`: excludes "Đánh dấu tất cả đã đọc". Only unread rows carry this button.
-    const markButtons = drawer.getByRole('button', { name: 'Đánh dấu đã đọc', exact: true });
+    const markButtons = drawer.getByRole('button', { name: MARK_READ, exact: true });
     const unread = await markButtons.count();
     test.skip(unread === 0, 'data: no unread notification for the admin right now (needs e.g. CP-5); nothing to mark read');
 
@@ -376,9 +575,10 @@ test.describe('SCR-06 Notifications', () => {
       api.filter((entry) => entry.method === 'POST' && entry.path === '/api/notifications/read').length;
     const before = markReadRequests();
 
-    const row = drawer.locator('li').filter({ has: markButtons }).first();
+    // Coverage F2: a `has` locator is resolved INSIDE each <li>, so it must be page-rooted, not drawer-rooted.
+    const row = drawer.locator('li').filter({ has: page.getByRole('button', { name: MARK_READ, exact: true }) }).first();
     await row.hover();
-    await row.getByRole('button', { name: 'Đánh dấu đã đọc', exact: true }).click();
+    await row.getByRole('button', { name: MARK_READ, exact: true }).click();
     await expect(markButtons).toHaveCount(unread - 1);
 
     // The undo lives on the app-wide NotificationHost toast, message `NOTIFICATION_CENTER_TEXT.markedRead`.
@@ -397,11 +597,59 @@ test.describe('SCR-06 Notifications', () => {
     await expect(markButtons).toHaveCount(unread);
   });
 
+  test('SCR-06 "Đánh dấu tất cả đã đọc" + "Hoàn tác": every unread row comes back, no POST /api/notifications/read*', async () => {
+    await page.goto(ROUTES.dashboard);
+    await expect(dashboardHeading(page)).toBeVisible();
+    await bell(page).click();
+    const drawer = notificationDrawer(page);
+    const errorTitle = drawer.getByText('Không tải được thông báo', { exact: true });
+    await expect(
+      drawer.locator('section').first().or(drawer.getByText('Không có thông báo mới', { exact: true })).or(errorTitle).first(),
+    ).toBeVisible();
+    expect(await errorTitle.count(), 'notification list failed to load').toBe(0);
+
+    const markAll = drawer.getByRole('button', { name: MARK_ALL_READ, exact: true }); // NotificationCenter.tsx:239, :310
+    const markButtons = drawer.getByRole('button', { name: MARK_READ, exact: true }); // unread rows only (NotificationCenter.tsx:187-198)
+    const unread = await markButtons.count();
+    if (unread === 0) {
+      // Data branch (no unread notification before Phase 3): the control is there and disabled.
+      await expect(markAll).toBeDisabled();
+      await settled(drawer);
+      await captureEvidence(page, '06_notif_mark_all.png', { caption: 'no unread notification → "Đánh dấu tất cả đã đọc" disabled' });
+      await attachJson('06_notif_mark_all.json', { unread, branch: 'disabled' });
+      return;
+    }
+
+    const isMarkRead = (response: Response): boolean =>
+      response.request().method() === 'POST' && new URL(response.url()).pathname.startsWith('/api/notifications/read');
+    const sentBefore = api.filter((entry) => entry.method === 'POST' && entry.path.startsWith('/api/notifications/read')).length;
+
+    await markAll.click(); // useNotificationCenter.ts:793-798 → deferMarkRead (8 s window)
+    await expect(markButtons).toHaveCount(0);
+    // The drawer overlay sits above the app-wide toast (NotificationHost): close it first.
+    await page.keyboard.press('Escape');
+    await expect(drawer).toHaveCount(0);
+    await toastWith(page, MARKED_ALL_READ).getByRole('button', { name: 'Hoàn tác', exact: true }).click();
+    await page.mouse.move(0, 0);
+    await bell(page).click();
+    await expect(markButtons).toHaveCount(unread);
+    await settled(drawer);
+    await captureEvidence(page, '06_notif_mark_all.png', { caption: `mark all (${String(unread)}) → "Hoàn tác" → ${String(unread)} unread again` });
+
+    const leaked = await page
+      .waitForResponse(isMarkRead, { timeout: UNDO_WINDOW_MS + 2_000 })
+      .then(() => true, () => false);
+    expect(leaked, 'POST /api/notifications/read* sent despite "Hoàn tác"').toBe(false);
+    expect(api.filter((entry) => entry.method === 'POST' && entry.path.startsWith('/api/notifications/read')).length).toBe(sentBefore);
+    await attachJson('06_notif_mark_all.json', { unread, branch: 'undone', postSent: leaked });
+  });
+
   test('SCR-06 /thong-bao: drawer forced open; Esc leaves to / (no in-app history)', async () => {
     await page.goto(ROUTES.notifications);
     const drawer = notificationDrawer(page);
     await expect(drawer).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Thông báo', exact: true })).toBeVisible();
+    await settled(drawer); // BUG-143: not while the drawer still slides in
     await captureEvidence(page, '06_notif_route.png');
 
     // Direct load ⇒ `location.key === 'default'` ⇒ `navigate('/', { replace: true })` (NotificationCenter.container.tsx).
@@ -413,6 +661,44 @@ test.describe('SCR-06 Notifications', () => {
 });
 
 test.describe('SCR-07 Onboarding (/onboarding)', () => {
+  test('SCR-07 cards follow the newest project: "Tải bản vẽ" → /projects/{newest}/upload, "Duyệt kết quả" locked until walls exist; flag not set', async () => {
+    await page.evaluate((prefix) => {
+      for (const key of Object.keys(window.localStorage)) {
+        if (key.startsWith(prefix)) window.localStorage.removeItem(key);
+      }
+    }, WELCOME_SEEN_PREFIX);
+
+    const { json } = await gotoThenApi(page, ROUTES.onboarding, 'GET', /^\/api\/project-summaries$/u, [200]);
+    // The hook's own rule: most recently updated project (useWelcomeScreen.ts:222-228, :268-273).
+    const newest = newestSummary(json);
+    const newestId = stringField(newest, 'id', 'newest N1 row');
+    const walls = Number(newest.wallsTotalCount);
+    const reviewed = Number(newest.wallsReviewedCount);
+
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^Chào .+, bắt đầu trong ba bước$/u);
+    const upload = page.getByRole('button', { name: ONBOARD_UPLOAD, exact: true });
+    const review = page.getByRole('button', { name: ONBOARD_REVIEW, exact: true });
+    await expect(upload).toBeEnabled(); // card 2 is locked only with no project (WelcomeScreen.tsx:226)
+    if (walls > 0) {
+      await expect(review).toBeEnabled();
+    } else {
+      await expect(review).toBeDisabled();
+      await expect(review).toHaveAccessibleDescription(ONBOARD_REVIEW_LOCKED); // WelcomeScreen.tsx:226-237
+    }
+    await settled(page.getByRole('listitem').last()); // cards enter with a staggered motion (WelcomeScreen.tsx:204-207)
+    await captureEvidence(page, '07_onboard_cards.png', { caption: `newest ${newestId}: walls ${String(walls)}, reviewed ${String(reviewed)}` });
+
+    await upload.click(); // goUpload → leave() → ROUTES.project.upload(latest.id) (useWelcomeScreen.ts:325-328)
+    await expect.poll(() => pathOf(page)).toBe(ROUTES.project.upload(newestId));
+    const allDone = walls > 0 && reviewed === walls; // only then does the screen write the flag itself (useWelcomeScreen.ts:294-297)
+    const flags = await page.evaluate(
+      (prefix) => Object.keys(window.localStorage).filter((key) => key.startsWith(prefix)).length,
+      WELCOME_SEEN_PREFIX,
+    );
+    if (!allDone) expect(flags, 'seen flag after partial progress').toBe(0);
+    await attachJson('07_onboard_cards.json', { newestId, walls, reviewed, landed: pathOf(page), seenFlags: flags });
+  });
+
   test('SCR-07 flag cleared → three steps → "Bỏ qua" sets the seen flag, lands on /; reload redirects to /', async () => {
     // Clear every per-user seen flag on this origin (the uid is not known before the refresh below).
     await page.evaluate((prefix) => {
@@ -422,13 +708,7 @@ test.describe('SCR-07 Onboarding (/onboarding)', () => {
     }, WELCOME_SEEN_PREFIX);
 
     // `session.user.id` comes only from the refresh payload, `data` wrapper optional (src/lib/auth/refresh.ts).
-    const { json } = await navigateThenWaitForApi(
-      page,
-      () => page.goto(ROUTES.onboarding, { waitUntil: 'commit' }),
-      'POST',
-      /^\/api\/auth\/refresh$/u,
-      [200],
-    );
+    const { json } = await gotoThenApi(page, ROUTES.onboarding, 'POST', /^\/api\/auth\/refresh$/u, [200]);
     const body = asRecord(json, 'POST /api/auth/refresh');
     const root = typeof body.data === 'object' && body.data !== null ? asRecord(body.data, 'refresh.data') : body;
     const uid = stringField(asRecord(root.user, 'refresh.user'), 'id', 'refresh.user');

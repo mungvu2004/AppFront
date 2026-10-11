@@ -853,3 +853,27 @@ describe('vào lại màn khi bộ đệm còn tươi', () => {
     expect(updateProfile).not.toHaveBeenCalled();
   });
 });
+
+describe('BUG-178 — địa chỉ có neo cuộn tới thẻ và đặt tiêu điểm vào tiêu đề của nó', () => {
+  afterEach(() => {
+    window.location.hash = '';
+  });
+
+  it('/tai-khoan#account-notifications → cuộn tới "Thông báo" sau khi tải xong', async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    window.location.hash = '#account-notifications';
+
+    mount(settingsGateway());
+    await loaded();
+
+    const heading = screen.getByRole('heading', { name: 'Thông báo' });
+
+    await waitFor(() => {
+      expect(heading).toHaveFocus();
+    });
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView.mock.instances[0]).toBe(heading);
+  });
+});
+

@@ -153,6 +153,9 @@ const EMAIL_REASON_LONG =
   'Liên hệ quản trị viên của công ty để đổi.';
 
 const JOB_TITLE_PLACEHOLDER = 'Chưa đặt';
+
+/** Điện thoại cũng là trường tuỳ chọn: cùng chữ mồi với chức danh (BUG-138). */
+const PHONE_PLACEHOLDER = JOB_TITLE_PLACEHOLDER;
 const AVATAR_UPLOADING_LABEL = 'Đang tải ảnh lên…';
 const AVATAR_FALLBACK_ALT = 'Ảnh đại diện';
 
@@ -623,6 +626,7 @@ export function useAccountPreferences(
     jobTitle: values.jobTitle,
     onJobTitleChange: (value) => commit('profile', 'jobTitle', value, 'jobTitle'),
     jobTitlePlaceholder: JOB_TITLE_PLACEHOLDER,
+    phonePlaceholder: PHONE_PLACEHOLDER,
     email: email === '' ? MISSING_VALUE : email,
     emailReadOnlyReason: emailReason,
     onChangeEmail: () => setEmailReason(EMAIL_REASON_LONG),

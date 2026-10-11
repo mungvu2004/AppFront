@@ -55,6 +55,7 @@ import {
   type Millimetres,
 } from '@/domain/units/types';
 import { describeError, toAppError } from '@/lib/errors';
+import { readWireError } from '@/lib/errors/wireError';
 import { can } from '@/lib/auth/permissions';
 import { createUuid } from '@/lib/http/ids';
 import type { Result } from '@/lib/http';
@@ -102,6 +103,8 @@ export interface CreateProjectFloorRowModel {
   readonly elevationLabel: string | null;
   /** This row's own complaint — missing height, out of range, or a collision naming it. */
   readonly problem: string | null;
+  /** A blank floor name — the server refuses one (`FloorDraftName` min 1 after trim, BUG-185). */
+  readonly nameProblem: string | null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -139,8 +142,24 @@ function formatElevationLabel(elevationMm: Millimetres): string {
   return `${formatNumber(millimetresToMetres(elevationMm), { fractionDigits: 1 })} m`;
 }
 
+/**
+ * A free-text field longer than the server accepts — counted the server's way,
+ * after trim + NFC — names its own limit at step 1 instead of becoming an
+ * unmarked 422 at step 3 (BUG-176, BUG-186).
+ */
+function lengthProblemFor(label: string, value: string, maxLength: number): string | null {
+  return value.trim().normalize('NFC').length > maxLength
+    ? `${label} không quá ${formatNumber(maxLength)} ký tự.`
+    : null;
+}
+
+const NAME_HINT =
+  `Bắt buộc, từ ${formatNumber(PROJECT_LIMITS.nameMinLength)} ` +
+  `đến ${formatNumber(PROJECT_LIMITS.nameMaxLength)} ký tự.`;
+
 function localNameProblemFor(name: string): string | null {
-  const trimmed = name.trim();
+  // Counted like the server and like code/address: trim, then NFC (AppBack projects/schemas.py).
+  const trimmed = name.trim().normalize('NFC');
   if (trimmed.length === 0) {
     return 'Chưa nhập tên dự án.';
   }
@@ -171,8 +190,9 @@ function generateProjectCode(name: string): string {
   const slug = withoutDiacritics
     .toUpperCase()
     .replace(/[^A-Z0-9]+/gu, '-')
-    .replace(/^-+|-+$/gu, '')
-    .slice(0, CODE_SLUG_MAX_LENGTH);
+    .slice(0, CODE_SLUG_MAX_LENGTH)
+    // Trimmed AFTER the cut, so a cut that lands on a word gap leaves no "-" dangling.
+    .replace(/^-+|-+$/gu, '');
 
   return slug === '' ? '' : `DA-${slug}`;
 }
@@ -196,15 +216,97 @@ function createDefaultFloorRows(): DraftFloorRow[] {
   }));
 }
 
-function describeCreateFailure(error: unknown): string {
+/** The step-1 fields a 422 can name (`field` on the wire, AppBack `schemas.py`). */
+type ServerField = 'name' | 'code' | 'address';
+
+const SERVER_FIELD_LABELS: Readonly<Record<ServerField, string>> = {
+  name: 'tên dự án',
+  code: 'mã dự án',
+  address: 'địa chỉ',
+};
+
+/** A server refusal pinned to the step-1 value it was about; editing that value retires it. */
+interface ServerProblem {
+  readonly field: ServerField;
+  readonly value: string;
+  readonly message: string;
+}
+
+/** A server refusal of one floor row (`floors.<n>.<key>`); editing that row retires it. */
+interface ServerFloorProblem {
+  readonly rowId: string;
+  /** `floors.<n>.name` marks the name cell; any other key, the height cell. */
+  readonly onName: boolean;
+  readonly message: string;
+}
+
+interface CreateFailure {
+  readonly notice: CreateProjectNotice;
+  readonly fieldProblem: Omit<ServerProblem, 'value'> | null;
+  readonly floorProblem?: ServerFloorProblem;
+}
+
+/**
+ * Turns a failed create into the notice step 3 shows and, when the server
+ * named a step-1 field, the complaint that field carries (BUG-129, BUG-187):
+ * every failure used to land on "Tên dự án", whatever the server refused.
+ */
+function describeCreateFailure(error: unknown, floors: readonly FloorPlan[]): CreateFailure {
   const appError = toAppError(error);
   // A 409 from `projects.create` is, in practice, always a name already taken
-  // — the one field this form can collide on. Every other kind falls back to
-  // the shared, already-Vietnamese wording `describeError` owns.
+  // — the one field this form can collide on.
   if (appError.kind === 'conflict') {
-    return 'Tên dự án đã trùng với một dự án khác. Đổi tên rồi thử lại.';
+    const message = 'Tên dự án đã trùng với một dự án khác. Đổi tên rồi thử lại.';
+    return {
+      notice: { level: 'violation', message, fixStep: 1, actionLabel: 'Sửa ở bước 1' },
+      fieldProblem: { field: 'name', message },
+    };
   }
-  return describeError(appError).description;
+
+  const field = appError.kind === 'validation' ? (readWireError(error)?.field ?? null) : null;
+  if (field === 'name' || field === 'code' || field === 'address') {
+    const label = SERVER_FIELD_LABELS[field];
+    return {
+      notice: {
+        level: 'violation',
+        message: `Máy chủ không nhận ${label} này. Sửa ô được đánh dấu ở bước 1 rồi thử lại.`,
+        fixStep: 1,
+        actionLabel: 'Sửa ở bước 1',
+      },
+      fieldProblem: { field, message: `Máy chủ không nhận ${label} này. Sửa rồi thử lại.` },
+    };
+  }
+
+  // `floors.<n>.<key>`: n indexes the floors exactly as they were sent.
+  const floorIndex = field !== null && field.startsWith('floors.') ? Number(field.split('.')[1]) : Number.NaN;
+  const floor = Number.isInteger(floorIndex) ? floors[floorIndex] : undefined;
+  if (floor !== undefined) {
+    const floorName = floor.name.trim() === '' ? `thứ ${formatNumber(floorIndex + 1)}` : `"${floor.name}"`;
+    return {
+      notice: {
+        level: 'violation',
+        message: `Máy chủ không nhận tầng ${floorName}. Sửa ở bước 2 rồi thử lại.`,
+        fixStep: 2,
+        actionLabel: 'Sửa ở bước 2',
+      },
+      fieldProblem: null,
+      floorProblem: {
+        rowId: rowIdFromLevelId(floor.levelId),
+        onName: field?.split('.')[2] === 'name',
+        message: 'Máy chủ không nhận giá trị này. Sửa rồi thử lại.',
+      },
+    };
+  }
+
+  // Nothing is marked from here on: "Tạo dự án" stays usable to retry. The
+  // shared "unknown" advice says to reload, which would wipe this unsaved form
+  // (BUG-188), so the wizard words that one itself; the rest keep the shared,
+  // already-Vietnamese wording `describeError` owns.
+  const message =
+    appError.kind === 'unknown'
+      ? 'Hệ thống đã ghi nhận và sẽ kiểm tra. Bấm "Tạo dự án" để thử lại — những gì đã nhập vẫn còn.'
+      : describeError(appError).description;
+  return { notice: { level: 'violation', message }, fieldProblem: null };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -232,7 +334,14 @@ function computeFloorStack(rows: readonly DraftFloorRow[]): FloorStack {
 
   aboveRows.forEach((row, index) => {
     if (chainBroken) {
-      problemById.set(row.id, 'Chưa tính được cao độ vì tầng bên dưới còn thiếu chiều cao hợp lệ.');
+      // A row with no height of its own says so; only a row that HAS one is
+      // waiting on the floor below (BUG-120).
+      problemById.set(
+        row.id,
+        row.clearHeightM === null
+          ? 'Chưa nhập chiều cao thông thuỷ.'
+          : 'Chưa tính được cao độ vì tầng bên dưới còn thiếu chiều cao hợp lệ.',
+      );
       return;
     }
 
@@ -354,9 +463,22 @@ function useNarrowViewport(): boolean {
 /* The model and the actions.                                                  */
 /* -------------------------------------------------------------------------- */
 
+/** The id of the cap note — "Thêm tầng" and the basement switch point at it while it shows. */
+export const FLOOR_CAP_NOTE_ID = 'create-project-floor-cap';
+
+const FLOOR_CAP_NOTE = `Đã đủ ${formatNumber(PROJECT_LIMITS.floorCountMax)} tầng, mức tối đa (kể cả tầng hầm).`;
+
+/** The id of step 2's "why can I not continue yet" line — `Tiếp tục` points at it. */
+export const FLOORS_HINT_ID = 'create-project-floors-hint';
+
+const FLOORS_HINT = 'Nhập chiều cao thông thuỷ cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.';
+
 export interface CreateProjectNotice {
   readonly level: 'attention' | 'violation';
   readonly message: string;
+  /** The step that holds what the server refused; the notice's button goes there. */
+  readonly fixStep?: 1 | 2;
+  readonly actionLabel?: string;
 }
 
 export interface CreateProjectModel {
@@ -374,14 +496,27 @@ export interface CreateProjectModel {
   readonly buildingType: string;
   readonly notes: string;
   readonly buildingTypeOptions: SelectOption[];
-  readonly problems: { readonly name: string | null };
+  /** Shown on a field nobody has typed into yet; `null` once its value says it all. */
+  readonly problems: {
+    readonly name: string | null;
+    readonly code: string | null;
+    readonly address: string | null;
+  };
+  /** Why "Tên dự án" is required — the reason a pristine step 1 cannot continue yet. */
+  readonly nameHint: string;
   readonly notice: CreateProjectNotice | null;
   readonly floorRows: readonly CreateProjectFloorRowModel[];
+  /** Why step 2 cannot continue while no row has been touched yet; `null` otherwise. */
+  readonly floorsHint: string | null;
   readonly hasBasement: boolean;
   readonly collision: string | null;
   readonly collisionRowId: string | null;
   readonly focusFloorId: string | null;
   readonly canAddFloor: boolean;
+  /** Why "Thêm tầng" is locked once the stack is full (BUG-177); `null` below the cap. */
+  readonly floorCapNote: string | null;
+  /** Turning the basement ON adds a row, so it obeys the same cap; turning it off always works. */
+  readonly canToggleBasement: boolean;
   /** The height typed into the "áp cho mọi tầng" field; `null` while empty. */
   readonly applyHeightM: number | null;
   readonly canApplyHeight: boolean;
@@ -407,7 +542,11 @@ export interface CreateProjectActions {
   readonly acknowledgeFocus: () => void;
   readonly goNext: () => void;
   readonly goBack: () => void;
+  /** The notice's "Sửa ở bước n": straight to the step that holds what the server refused. */
+  readonly goToFixStep: () => void;
   readonly requestClose: () => void;
+  /** The discard prompt's "tiếp tục sửa": the prompt goes, the form stays as it is. */
+  readonly keepEditing: () => void;
   readonly confirmDiscard: () => void;
   readonly submit: () => void;
 }
@@ -458,6 +597,7 @@ export function useCreateProjectModal(
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [name, setNameState] = useState('');
+  const [nameTouched, setNameTouched] = useState(false);
   const [address, setAddressState] = useState('');
   const [code, setCodeState] = useState('');
   const [codeManuallyEdited, setCodeManuallyEdited] = useState(false);
@@ -465,11 +605,15 @@ export function useCreateProjectModal(
   const [notes, setNotesState] = useState('');
   const [isSelectOpen, setIsSelectOpen] = useState(false);
   const [floorRows, setFloorRows] = useState<readonly DraftFloorRow[]>(createDefaultFloorRows);
+  const [floorsTouched, setFloorsTouched] = useState(false);
   const [applyHeightM, setApplyHeightMState] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConfirmingDiscard, setIsConfirmingDiscard] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
-  const [serverNameProblem, setServerNameProblem] = useState<string | null>(null);
+  const [serverProblem, setServerProblem] = useState<ServerProblem | null>(null);
+  const [serverFloorProblem, setServerFloorProblem] = useState<
+    (ServerFloorProblem & { readonly refused: DraftFloorRow }) | null
+  >(null);
   const [notice, setNotice] = useState<CreateProjectNotice | null>(null);
   const [focusFloorId, setFocusFloorId] = useState<string | null>(null);
 
@@ -479,15 +623,46 @@ export function useCreateProjectModal(
   const canCreate = can('create', 'project', { roles: [role] });
 
   const floorStack = useMemo(() => computeFloorStack(floorRows), [floorRows]);
-  const hasAnyRowProblem = floorRows.some((row) => floorStack.problemById.has(row.id));
-  const nameProblem = localNameProblemFor(name);
-  const problems = { name: serverNameProblem ?? nameProblem };
+  // The server's complaint about a floor, while that row still holds the values it refused.
+  const serverFloor =
+    serverFloorProblem !== null &&
+    floorRows.some(
+      (row) =>
+        row.id === serverFloorProblem.rowId &&
+        row.name === serverFloorProblem.refused.name &&
+        row.clearHeightM === serverFloorProblem.refused.clearHeightM,
+    )
+      ? serverFloorProblem
+      : null;
+  const serverFloorMessage = (rowId: string, onName: boolean): string | null =>
+    serverFloor !== null && serverFloor.rowId === rowId && serverFloor.onName === onName ? serverFloor.message : null;
+  const hasAnyRowProblem =
+    serverFloor !== null || floorRows.some((row) => floorStack.problemById.has(row.id) || row.name.trim() === '');
+  /** The server's complaint about `field`, while that field still holds the value it refused. */
+  const serverProblemFor = (field: ServerField, value: string): string | null =>
+    serverProblem !== null && serverProblem.field === field && serverProblem.value === value
+      ? serverProblem.message
+      : null;
+  const serverNameProblem = serverProblemFor('name', name);
+  const nameProblem = serverNameProblem ?? localNameProblemFor(name);
+  const codeProblem =
+    serverProblemFor('code', code) ?? lengthProblemFor('Mã dự án', code, PROJECT_LIMITS.codeMaxLength);
+  const addressProblem =
+    serverProblemFor('address', address) ?? lengthProblemFor('Địa chỉ', address, PROJECT_LIMITS.addressMaxLength);
+  // A form nobody has typed into is not wrong yet (BUG-133): the name's own
+  // complaint waits for the first keystroke; a server refusal shows at once.
+  const problems = {
+    name: nameTouched || serverNameProblem !== null ? nameProblem : null,
+    code: codeProblem,
+    address: addressProblem,
+  };
 
-  const canGoNextStep1 = problems.name === null;
+  const canGoNextStep1 = nameProblem === null && codeProblem === null && addressProblem === null;
   const canGoNextStep2 = floorRows.length > 0 && !hasAnyRowProblem && floorStack.collision === null;
   const canGoNext = step === 1 ? canGoNextStep1 : step === 2 ? canGoNextStep2 : true;
   const canSubmit = canGoNextStep1 && canGoNextStep2 && !isSubmitting;
   const canAddFloor = floorRows.length < PROJECT_LIMITS.floorCountMax;
+  const hasBasement = floorRows.some((row) => row.kind === 'basement');
   const canApplyHeight = applyHeightM !== null && floorRows.length > 0;
 
   const state = useMemo<SevenState>(() => {
@@ -496,7 +671,7 @@ export function useCreateProjectModal(
     if (isSubmitting) return 'loading';
     if (notice !== null && notice.level === 'violation') return 'error';
     if (step === 2 && floorRows.length === 0) return 'empty';
-    if (problems.name !== null || floorStack.collision !== null || hasAnyRowProblem) return 'partial';
+    if (!canGoNextStep1 || floorStack.collision !== null || hasAnyRowProblem) return 'partial';
     return 'success';
   }, [
     isCompact,
@@ -505,7 +680,7 @@ export function useCreateProjectModal(
     notice,
     step,
     floorRows.length,
-    problems.name,
+    canGoNextStep1,
     floorStack.collision,
     hasAnyRowProblem,
   ]);
@@ -516,20 +691,31 @@ export function useCreateProjectModal(
     kind: row.kind,
     clearHeightM: row.clearHeightM,
     elevationLabel: floorStack.elevationLabelById.get(row.id) ?? null,
-    problem: floorStack.problemById.get(row.id) ?? null,
+    // Step 2 opens neutral (BUG-120): a row complains once the stack has been edited — or the server refused it.
+    problem:
+      serverFloorMessage(row.id, false) ?? (floorsTouched ? (floorStack.problemById.get(row.id) ?? null) : null),
+    nameProblem: row.name.trim() === '' ? 'Chưa nhập tên tầng.' : serverFloorMessage(row.id, true),
   }));
+  const floorsHint = !floorsTouched && floorRows.length > 0 && !canGoNextStep2 ? FLOORS_HINT : null;
 
   /** Every mutating action goes through this: it marks the form worth confirming before a close. */
   const markDirty = (): void => {
     setIsDirty(true);
     setIsConfirmingDiscard(false);
+    // Any edit makes the last server answer stale.
+    setNotice(null);
+  };
+
+  /** Every edit of the floor stack: the form is dirty and the rows may now complain. */
+  const touchFloors = (): void => {
+    markDirty();
+    setFloorsTouched(true);
   };
 
   const setName = (value: string): void => {
     markDirty();
+    setNameTouched(true);
     setNameState(value);
-    setServerNameProblem(null);
-    setNotice(null);
     if (!codeManuallyEdited) {
       setCodeState(generateProjectCode(value));
     }
@@ -558,7 +744,7 @@ export function useCreateProjectModal(
 
   const addFloor = (): void => {
     if (!canAddFloor) return;
-    markDirty();
+    touchFloors();
     setFloorRows((current) => {
       const aboveCount = current.filter((row) => row.kind === 'floor').length;
       return [...current, { id: createUuid(), name: nextFloorName(aboveCount), kind: 'floor', clearHeightM: null }];
@@ -566,17 +752,17 @@ export function useCreateProjectModal(
   };
 
   const removeFloor = (id: string): void => {
-    markDirty();
+    touchFloors();
     setFloorRows((current) => current.filter((row) => row.id !== id));
   };
 
   const setFloorName = (id: string, value: string): void => {
-    markDirty();
+    touchFloors();
     setFloorRows((current) => current.map((row) => (row.id === id ? { ...row, name: value } : row)));
   };
 
   const setFloorHeight = (id: string, valueM: number | undefined): void => {
-    markDirty();
+    touchFloors();
     setFloorRows((current) =>
       current.map((row) => (row.id === id ? { ...row, clearHeightM: valueM ?? null } : row)),
     );
@@ -589,15 +775,17 @@ export function useCreateProjectModal(
   /** The one place a height is written to every row at once, rather than row by row. */
   const applyHeightToAllFloors = (): void => {
     if (!canApplyHeight || applyHeightM === null) return;
-    markDirty();
+    touchFloors();
     setFloorRows((current) => current.map((row) => ({ ...row, clearHeightM: applyHeightM })));
   };
 
   const setHasBasement = (value: boolean): void => {
-    markDirty();
+    touchFloors();
     setFloorRows((current) => {
       const already = current.some((row) => row.kind === 'basement');
       if (value === already) return current;
+      // The basement counts toward the cap like any floor (LIM "basement included", BUG-150).
+      if (value && current.length >= PROJECT_LIMITS.floorCountMax) return current;
       if (value) {
         return [{ id: createUuid(), name: 'Tầng hầm', kind: 'basement', clearHeightM: null }, ...current];
       }
@@ -608,21 +796,27 @@ export function useCreateProjectModal(
   const goNext = (): void => {
     if (step === 1 && !canGoNextStep1) return;
     if (step === 2 && !canGoNextStep2) return;
+    // Moving through the wizard is an answer to the discard prompt: keep editing (BUG-189).
+    setIsConfirmingDiscard(false);
     setStep((current) => (current < 3 ? ((current + 1) as 1 | 2 | 3) : current));
   };
 
   const goBack = (): void => {
+    setIsConfirmingDiscard(false);
     setStep((current) => (current > 1 ? ((current - 1) as 1 | 2 | 3) : current));
   };
 
   /**
-   * Invariant A12: Esc reaches here through `Modal.Root`'s `onClose`. A first
+   * Invariant A12: Esc reaches here through `Modal.Root`'s `onClose`. Locked
+   * while a create is in flight (see the first guard). A first
    * Esc on a dirty form only warns — the inline alert `CreateProjectModal.tsx`
    * renders when `isConfirmingDiscard` is true; a second Esc, or the alert's
    * own button (both land here), really closes.
    */
   const requestClose = (): void => {
-    if (isSelectOpen) return;
+    // While "Tạo dự án" is in flight the dialog stays shut to closing: the POST
+    // cannot be taken back, so "bỏ thay đổi" would be a promise it breaks (BUG-184).
+    if (isSelectOpen || isSubmitting) return;
     if (!isDirty) {
       options.onDismiss();
       return;
@@ -635,12 +829,14 @@ export function useCreateProjectModal(
   };
 
   const confirmDiscard = (): void => {
+    if (isSubmitting) return;
     options.onDismiss();
   };
 
   const submit = (): void => {
     if (!canSubmit) return;
     setIsSubmitting(true);
+    setIsConfirmingDiscard(false);
     setNotice(null);
 
     const request: CreateProjectRequest = {
@@ -656,9 +852,15 @@ export function useCreateProjectModal(
       setIsSubmitting(false);
 
       if (!result.ok) {
-        const message = describeCreateFailure(result.error);
-        setNotice({ level: 'violation', message });
-        setServerNameProblem(message);
+        const failure = describeCreateFailure(result.error, request.floors);
+        const refused = failure.fieldProblem;
+        setNotice(failure.notice);
+        setServerProblem(refused === null ? null : { ...refused, value: { name, code, address }[refused.field] });
+        const floorRefused = failure.floorProblem;
+        const refusedRow = floorRows.find((row) => row.id === floorRefused?.rowId);
+        setServerFloorProblem(
+          floorRefused === undefined || refusedRow === undefined ? null : { ...floorRefused, refused: refusedRow },
+        );
         return;
       }
 
@@ -692,13 +894,17 @@ export function useCreateProjectModal(
     notes,
     buildingTypeOptions: BUILDING_TYPE_OPTIONS,
     problems,
+    nameHint: NAME_HINT,
     notice,
     floorRows: floorRowModels,
-    hasBasement: floorRows.some((row) => row.kind === 'basement'),
+    floorsHint,
+    hasBasement,
     collision: floorStack.collision,
     collisionRowId: floorStack.collisionRowId,
     focusFloorId,
     canAddFloor,
+    floorCapNote: canAddFloor ? null : FLOOR_CAP_NOTE,
+    canToggleBasement: hasBasement || canAddFloor,
     applyHeightM,
     canApplyHeight,
     canGoNext,
@@ -723,7 +929,11 @@ export function useCreateProjectModal(
     acknowledgeFocus: () => setFocusFloorId(null),
     goNext,
     goBack,
+    goToFixStep: () => {
+      if (notice?.fixStep !== undefined) setStep(notice.fixStep);
+    },
     requestClose,
+    keepEditing: () => setIsConfirmingDiscard(false),
     confirmDiscard,
     submit,
   };

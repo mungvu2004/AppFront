@@ -101,7 +101,7 @@ const SelectLabel = forwardRef<HTMLLabelElement, React.LabelHTMLAttributes<HTMLL
       <label
         ref={ref}
         htmlFor={triggerId}
-        className={cn('mb-2 text-[14px] font-medium text-text-secondary', className)}
+        className={cn('mb-2 text-[14px] font-medium leading-[20px] text-text-secondary', className)}
         {...props}
       >
         {children}

@@ -4,13 +4,15 @@
  * `ProjectDashboard.tsx` once that file crossed R-22's 400-line cap (mục D);
  * nothing here is a new abstraction beyond the card the view already drew.
  *
- * The image area is the plan-outline sketch, not a photo: sized generously
- * for the hero, it's a real trace of the project's own drawing rather than a
- * stock render — this project has no picture of the building to show yet.
+ * The image area is a plan-outline sketch, not a photo: one of four fixed
+ * outlines picked from the id (`planVariantOf`), drawn only once the project
+ * has a traced plan (`hasPlan`); before that the card says so instead of
+ * showing rooms that do not exist (BUG-119).
  */
 
-import { ArrowUpRight, Building2, Clock, MoreHorizontal } from 'lucide-react';
+import { ArrowUpRight, Building2, Clock, FileImage, MoreHorizontal } from 'lucide-react';
 
+import { CONTEXT_MENU_WIDTH } from '@/components/canvas/ContextMenu';
 import { motion } from '@/components/motion';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
@@ -22,6 +24,8 @@ import { PLAN_OUTLINE_SEGMENTS } from './projectsGateway';
 import type { ProjectCardModel } from './useProjectDashboard';
 
 export type ProjectCardSize = 'hero' | 'compact';
+
+const NO_PLAN_LABEL = 'Chưa có mặt bằng';
 
 function PlanPreview({ variant }: { readonly variant: 0 | 1 | 2 | 3 }) {
   return (
@@ -72,7 +76,8 @@ export function ProjectCardTile({
       aria-label={project.name}
       onClick={() => onOpen(project.id)}
       onKeyDown={(event) => {
-        if (event.key === 'Enter') onOpen(project.id);
+        // Only the card's own Enter: one bubbling up from the menu or "Mở" button is theirs (BUG-147).
+        if (event.key === 'Enter' && event.target === event.currentTarget) onOpen(project.id);
       }}
       onContextMenu={(event) => {
         event.preventDefault();
@@ -90,7 +95,17 @@ export function ProjectCardTile({
       )}
     >
       <div className={cn('relative shrink-0 border-b border-border-default bg-bg-sunken', size === 'hero' ? 'h-[360px]' : 'h-[132px]')}>
-        <PlanPreview variant={project.planVariant} />
+        {/* Below the badge/menu row, so no stroke runs through the status label (BUG-119). */}
+        <div className="absolute left-4 right-4 bottom-3 top-14">
+          {project.hasPlan ? (
+            <PlanPreview variant={project.planVariant} />
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-1.5 text-[12px] text-text-muted">
+              <FileImage size={20} aria-hidden="true" />
+              {NO_PLAN_LABEL}
+            </div>
+          )}
+        </div>
         <span className="absolute left-3 top-3">
           <Badge variant={project.statusVariant}>{project.statusLabel}</Badge>
         </span>
@@ -99,9 +114,13 @@ export function ProjectCardTile({
           aria-label={`Tuỳ chọn cho ${project.name}`}
           onClick={(event) => {
             event.stopPropagation();
-            onMenu(project, event.clientX, event.clientY);
+            // Anchored under the button, right edges aligned: the pointer spot put the menu over its own
+            // button (BUG-116), and a keyboard click reports 0,0 — the window's corner (BUG-148).
+            const anchor = event.currentTarget.getBoundingClientRect();
+            onMenu(project, anchor.right - CONTEXT_MENU_WIDTH, anchor.bottom + 4);
           }}
-          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-bg-surface text-text-secondary shadow-rest hover:text-text-primary"
+          // 44 px below `sm`, like `Button` (BUG-156); 32 px on a pointer screen.
+          className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full bg-bg-surface text-text-secondary shadow-rest hover:text-text-primary sm:h-8 sm:w-8"
         >
           <MoreHorizontal size={16} aria-hidden="true" />
         </button>
@@ -121,7 +140,7 @@ export function ProjectCardTile({
                 if (event.key === 'Enter') onRenameCommit();
                 if (event.key === 'Escape') onRenameCancel();
               }}
-              className={cn(titleClassName, 'rounded border border-accent bg-bg-surface px-1 outline-none')}
+              className={cn(titleClassName, 'h-11 rounded border border-accent bg-bg-surface px-1 outline-none sm:h-auto')}
             />
           ) : (
             <h3 className={cn(titleClassName, 'truncate')}>{project.name}</h3>
@@ -155,7 +174,7 @@ export function ProjectCardTile({
               event.stopPropagation();
               onOpen(project.id);
             }}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-bg-sunken text-text-secondary hover:bg-accent hover:text-white"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-bg-sunken text-text-secondary hover:bg-accent hover:text-white sm:h-7 sm:w-7"
           >
             <ArrowUpRight size={14} aria-hidden="true" />
           </button>

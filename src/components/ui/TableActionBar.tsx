@@ -90,7 +90,9 @@ export function TableActionBar({
             {onReject && (
               <Button
                 size="sm"
-                variant="danger"
+                // Reversible (A8), so not the solid `danger`: same weight as "Duyệt", red only in its text.
+                variant="secondary"
+                className="text-state-violation-text"
                 iconBefore={<X size={15} />}
                 loading={isRejecting ?? false}
                 onClick={onReject}

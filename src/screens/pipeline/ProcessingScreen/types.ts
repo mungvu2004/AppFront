@@ -228,10 +228,16 @@ export interface ProcessingScreenProps {
   readonly onConfirmCancel: () => void;
   readonly onDismissCancel: () => void;
   readonly onRunInBackground: () => void;
+  /** Còn lượt chưa xong: không có thì nút chạy nền biến mất — không hứa báo về việc không chạy. */
+  readonly canRunInBackground: boolean;
+  /** Hành động của màn rỗng: sang trang tải bản vẽ của dự án. */
+  readonly onUploadDrawings: () => void;
   /** Dưới 1024px — cùng mốc `InputQualityGate`/`FloorUploadScreen`/`ProjectSettings`. */
   readonly isCompact: boolean;
   /** Có thì thay vạch quét bằng thanh tĩnh — không animate khi bật (mục B). */
   readonly prefersReducedMotion: boolean;
+  /** Tên dự án cho breadcrumb, lấy từ bộ đệm (BUG-165). Vắng khi bộ đệm chưa có: breadcrumb bỏ cấp ấy. */
+  readonly projectName?: string;
 }
 
 /* -------------------------------------------------------------------------- */

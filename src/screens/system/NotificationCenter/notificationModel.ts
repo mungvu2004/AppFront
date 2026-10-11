@@ -61,13 +61,13 @@ export interface NotificationTarget {
 }
 
 export interface NotificationInlineAction {
-  /** Nhãn tiếng Việt viết thường kiểu câu (A6): "xem kết quả", "xem lời mời". */
+  /** Nhãn tiếng Việt, viết hoa chữ đầu (A6): "Xem kết quả", "Chấp nhận". */
   readonly label: string;
   /**
    * `'navigate'` chỉ mở một màn; `'accept'` GHI trước rồi mới mở.
    *
    * `'accept'` có nguồn sinh ra thật kể từ lượt nối dây: mục `projectInvite`
-   * mang nhãn "chấp nhận", và bấm vào gọi
+   * mang nhãn "Chấp nhận", và bấm vào gọi
    * {@link NotificationCenterGateway.acceptInvite} → `client.notifications.acceptInvite`
    * → `ENDPOINTS.notifications.acceptInvite(notificationId)`. Trước đó nhãn là
    * "xem lời mời" với `'navigate'`, vì chưa có phép ghi nào để gọi và một nút
@@ -79,6 +79,8 @@ export interface NotificationInlineAction {
    * trạng thái.
    */
   readonly kind: 'navigate' | 'accept';
+  /** Đang chờ máy chủ trả lời: nút hiện nhưng khoá, để không gửi lượt thứ hai. */
+  readonly disabled?: boolean | undefined;
 }
 
 /** Một mục trong danh sách. Mọi định dạng đã xong trước khi tới view (A15). */
@@ -96,6 +98,8 @@ export interface NotificationItemVm {
   /** Chỉ `commentMention`: trích đoạn bình luận, view cắt tối đa hai dòng. */
   readonly excerpt?: string | undefined;
   readonly inlineAction?: NotificationInlineAction | undefined;
+  /** Kết cục hiện thay cho nút khi hành động đã xong ("Đã chấp nhận"). */
+  readonly statusNote?: string | undefined;
 }
 
 /** Nhóm theo ngày (P-03). `heading` đã là câu tiếng Việt. */

@@ -16,6 +16,11 @@ export interface FieldRowProps extends React.HTMLAttributes<HTMLDivElement> {
   flash?: boolean;
   /** Collapsed state — renders nothing */
   collapsed?: boolean;
+  /**
+   * The value is plain text, not a 36 px control: the label drops its 9 px offset and both
+   * columns share a 20 px line, so the first lines sit level (nợ B #3, BUG-121).
+   */
+  isText?: boolean;
 }
 
 export function FieldRow({
@@ -27,6 +32,7 @@ export function FieldRow({
   isLoading,
   flash,
   collapsed,
+  isText,
   className,
   ...props
 }: FieldRowProps) {
@@ -63,12 +69,12 @@ export function FieldRow({
       )}
       {...props}
     >
-      <div className="w-[40%] flex-shrink-0 pr-4 pt-[9px]">
+      <div className={cn('w-[40%] flex-shrink-0 pr-4', !isText && 'pt-[9px]')}>
         <span className="text-[14px] font-medium leading-[20px] text-text-secondary">
           {label}
         </span>
       </div>
-      <div className="w-[60%] flex-shrink-0">
+      <div className={cn('w-[60%] flex-shrink-0', isText && 'leading-[20px]')}>
         {isMixed ? (
           <span className="flex h-[36px] items-center text-[14px] text-text-muted">—</span>
         ) : (

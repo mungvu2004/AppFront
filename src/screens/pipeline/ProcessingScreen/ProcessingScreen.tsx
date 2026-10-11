@@ -58,6 +58,8 @@ import type { ProcessingScreenProps } from './types';
 
 const BREADCRUMB_PROJECTS = 'Dự án';
 const BREADCRUMB_PIPELINE = 'Xử lý';
+/** Tên dự án dài cắt "…" (title giữ đủ) để ba cấp vẫn một dòng ở 375 px, như `Breadcrumb`. */
+const BREADCRUMB_NAME_CLASS = 'inline-block max-w-[140px] truncate align-top sm:max-w-xs';
 
 const RUN_IN_BACKGROUND_LABEL = 'Để chạy nền và thông báo cho tôi';
 const CANCEL_LABEL = 'Huỷ xử lý';
@@ -77,6 +79,7 @@ const FLOOR_OBJECTS_ARIA_LABEL = 'Số đối tượng đã nhận theo tầng';
 
 const EMPTY_TITLE = 'Chưa có bước nào để theo dõi';
 const EMPTY_DESCRIPTION = 'Khi bản vẽ được đưa vào hàng đợi, các bước xử lý sẽ hiện ở đây.';
+const EMPTY_ACTION_LABEL = 'Tải bản vẽ';
 
 /** Bao nhiêu khung xương lúc chưa biết bước nào đã xong. */
 const SKELETON_ROW_COUNT = 4;
@@ -87,13 +90,15 @@ const BOTTOM_SHEET_CLASSES =
 const BOTTOM_SHEET_RESET_AT_DESKTOP =
   'lg:static lg:max-h-none lg:overflow-visible lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0';
 
-/** Hàng hành động đầu trang: nút chìm chạy nền LUÔN có, nút huỷ thì tuỳ quyền. */
+/** Hàng hành động đầu trang: nút chìm chạy nền khi còn lượt đang chạy, nút huỷ thì tuỳ quyền. */
 function ProcessingActions(props: ProcessingScreenProps) {
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      <Button onClick={props.onRunInBackground} size="sm" variant="ghost">
-        {RUN_IN_BACKGROUND_LABEL}
-      </Button>
+      {props.canRunInBackground ? (
+        <Button onClick={props.onRunInBackground} size="sm" variant="ghost">
+          {RUN_IN_BACKGROUND_LABEL}
+        </Button>
+      ) : null}
 
       {!props.canCancel ? null : props.isCancelConfirming ? (
         <div
@@ -190,6 +195,7 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
       </div>
     ) : props.state === 'empty' ? (
       <EmptyState
+        action={{ label: EMPTY_ACTION_LABEL, onClick: props.onUploadDrawings }}
         description={EMPTY_DESCRIPTION}
         icon={<ScanLine aria-hidden="true" />}
         title={EMPTY_TITLE}
@@ -214,9 +220,17 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
     <div className="min-h-screen bg-bg-app">
       <div className="mx-auto flex max-w-[1280px] flex-col gap-6 p-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <nav aria-label={BREADCRUMB_PIPELINE} className="text-[13px] text-text-secondary">
+          <nav aria-label={BREADCRUMB_PIPELINE} className="min-w-0 text-[13px] text-text-secondary">
             <span>{BREADCRUMB_PROJECTS}</span>
             <span aria-hidden="true"> › </span>
+            {props.projectName !== undefined ? (
+              <>
+                <span className={BREADCRUMB_NAME_CLASS} title={props.projectName}>
+                  {props.projectName}
+                </span>
+                <span aria-hidden="true"> › </span>
+              </>
+            ) : null}
             <span className="text-text-primary">{BREADCRUMB_PIPELINE}</span>
           </nav>
           <ProcessingActions {...props} />

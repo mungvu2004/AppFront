@@ -7,7 +7,9 @@ export const buttonVariants = {
   primary: 'bg-accent text-bg-surface border-transparent hover:bg-accent-hover active:bg-accent-active',
   secondary: 'bg-bg-surface text-text-primary border border-border-default hover:bg-bg-hover',
   ghost: 'bg-transparent text-text-secondary hover:bg-bg-hover hover:text-text-primary',
-  danger: 'bg-danger-tint text-state-violation-text border border-danger-border',
+  // Solid (BUG-155): an irreversible act must read louder than its "Để nguyên" neighbour.
+  // `--bg-surface` on `--state-violation-text`: 6,65:1 light, 7,68:1 dark (themeContrast.test.ts).
+  danger: 'bg-state-violation-text text-bg-surface border-transparent hover:opacity-90',
 };
 
 export const buttonSizes = {

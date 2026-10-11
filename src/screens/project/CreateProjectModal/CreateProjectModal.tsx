@@ -22,8 +22,8 @@
  * `Modal.Root` reaches `onClose` two ways — a focus-trap Escape handler and a
  * `scope: 'dialog'` shortcut — and both are wired to `props.requestClose`,
  * never to `onDismiss` directly. A first Esc on a dirty form only shows the
- * `isConfirmingDiscard` alert below, as the *first child* of `Modal.Body`
- * (never a nested dialog); a second Esc, or that alert's own button, both
+ * `isConfirmingDiscard` prompt ({@link DiscardPrompt}, floating above the
+ * footer — never a nested dialog); a second Esc, or that prompt's own button, both
  * call `requestClose`/`confirmDiscard` again and this time it closes. See
  * `useCreateProjectModal.ts`'s doc comment for why an open `Select` dropdown
  * defends itself first.
@@ -38,13 +38,13 @@
  * computation — legal in a view (mục D).
  */
 
+import { AlertTriangle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { motion } from '@/components/motion';
 import { Modal } from '@/components/overlay/Modal';
 import { Button } from '@/components/ui/Button';
-import { FieldRow } from '@/components/ui/FieldRow';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
@@ -53,7 +53,9 @@ import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import { cn } from '@/lib/utils';
 
 import { StepFloors } from './StepFloors';
+import { StepReview } from './StepReview';
 import {
+  FLOORS_HINT_ID,
   PROJECT_LIMITS,
   useCreateProjectModal,
   type CreateProjectModalViewProps,
@@ -84,6 +86,9 @@ const STATE_ANNOUNCEMENT: Readonly<Record<SevenState, string>> = {
 
 const TITLE_ID = 'create-project-modal-title';
 
+/** What each step is about, beside "Bước n / 3" — the indicator is more than a grey number (BUG-122). */
+const STEP_TITLES = ['Thông tin công trình', 'Tầng', 'Xem lại'] as const;
+
 /** Re-exported so every existing caller of `CreateProjectModal.tsx` keeps its import path. */
 export type { CreateProjectModalViewProps } from './useCreateProjectModal';
 
@@ -103,13 +108,16 @@ function StepInfo(props: CreateProjectModalViewProps) {
           onChange={(event) => props.setName(event.target.value)}
           maxLength={PROJECT_LIMITS.nameMaxLength}
           error={props.problems.name}
+          hint={props.nameHint}
           disabled={props.isSubmitting}
           placeholder="Ví dụ: Chung cư Bình Minh"
+          data-autofocus
         />
         <Input
           label="Mã dự án"
           value={props.code}
           onChange={(event) => props.setCode(event.target.value)}
+          error={props.problems.code}
           disabled={props.isSubmitting}
           hint="Tự tạo từ tên, sửa được"
         />
@@ -119,6 +127,7 @@ function StepInfo(props: CreateProjectModalViewProps) {
           label="Địa chỉ"
           value={props.address}
           onChange={(event) => props.setAddress(event.target.value)}
+          error={props.problems.address}
           disabled={props.isSubmitting}
         />
         <Select.Root
@@ -157,36 +166,45 @@ function StepInfo(props: CreateProjectModalViewProps) {
 /* -------------------------------------------------------------------------- */
 
 /* -------------------------------------------------------------------------- */
-/* Step 3 — xem lại.                                                           */
+/* Step 3 — xem lại. Split into `StepReview.tsx` when this file neared R-22's  */
+/* 400-line ceiling again (mục D).                                             */
 /* -------------------------------------------------------------------------- */
 
-function StepReview(props: CreateProjectModalViewProps) {
-  const buildingTypeLabel =
-    props.buildingTypeOptions.find((option) => option.value === props.buildingType)?.label ?? props.buildingType;
+/* -------------------------------------------------------------------------- */
+/* The discard prompt.                                                         */
+/* -------------------------------------------------------------------------- */
 
+/**
+ * Floats just above the footer (`bottom-full` of `Modal.Footer`) rather than
+ * being inserted into the body, so the fields never jump when it appears; it
+ * offers both answers as its own buttons, and its copy does not depend on
+ * where a button wraps to (BUG-123). `text-balance` keeps the title from
+ * leaving one word alone on its last line at 375 px (BUG-190).
+ */
+function DiscardPrompt(props: CreateProjectModalViewProps) {
   return (
-    <div className="flex flex-col">
-      {props.notice !== null && (
-        <div className="mb-4">
-          <InlineAlert level={props.notice.level} message={props.notice.message} />
+    <div
+      role="alert"
+      className="absolute left-4 right-4 sm:inset-x-6 bottom-full mb-3 flex flex-col gap-3 rounded-[8px] border border-state-attention bg-state-attention-tint p-3 shadow-modal"
+    >
+      <div className="flex items-start gap-3">
+        <AlertTriangle className="mt-0.5 shrink-0 text-state-attention" size={18} strokeWidth={2} aria-hidden="true" />
+        <div className="flex min-w-0 flex-col gap-1">
+          <h4 className="text-balance text-[14px] font-semibold leading-tight text-state-attention-text">
+            Đóng và bỏ các thay đổi chưa lưu?
+          </h4>
+          <p className="text-pretty text-[14px] leading-relaxed text-state-attention-text">
+            Nhấn Esc lần nữa hoặc bấm "Đóng, bỏ thay đổi" để đóng.
+          </p>
         </div>
-      )}
-      <FieldRow label="Tên dự án">{props.name}</FieldRow>
-      <FieldRow label="Mã dự án">{props.code === '' ? '—' : props.code}</FieldRow>
-      <FieldRow label="Địa chỉ">{props.address === '' ? '—' : props.address}</FieldRow>
-      <FieldRow label="Loại công trình">{buildingTypeLabel}</FieldRow>
-      <FieldRow label="Ghi chú">{props.notes === '' ? '—' : props.notes}</FieldRow>
-      <FieldRow label="Số tầng" isLast>
-        {props.floorRows.length}
-      </FieldRow>
-
-      <div className="mt-4 flex flex-col gap-1 rounded-lg border border-border-default p-3">
-        {props.floorRows.map((row) => (
-          <div key={row.id} className="flex items-center justify-between text-[13px]">
-            <span className="text-text-primary">{row.name}</span>
-            <span className="font-mono text-text-secondary">{row.elevationLabel ?? '—'}</span>
-          </div>
-        ))}
+      </div>
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button type="button" size="sm" variant="secondary" onClick={props.keepEditing}>
+          Tiếp tục sửa
+        </Button>
+        <Button type="button" size="sm" variant="danger" onClick={props.confirmDiscard}>
+          Đóng, bỏ thay đổi
+        </Button>
       </div>
     </div>
   );
@@ -241,22 +259,25 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
 
   return (
     <Modal.Root isOpen={isOpen} onClose={props.requestClose} width={MODAL_WIDTH} titleId={TITLE_ID}>
-      <Modal.Header>
+      {/* `pb-3` + a body with no top padding: the step indicator sits one 24 px grid step under the title, and `px-6` lines the title up with the fields (BUG-122). */}
+      <Modal.Header className="px-4 sm:px-6 pb-3">
         <span id={TITLE_ID}>Tạo dự án mới</span>
       </Modal.Header>
-      <Modal.Body className="px-6 py-6 min-h-[320px]">
-        {props.isConfirmingDiscard && (
-          <div className="mb-4">
-            <InlineAlert
-              level="attention"
-              title="Đóng và bỏ các thay đổi chưa lưu?"
-              message="Nhấn Esc lần nữa, hoặc bấm nút bên cạnh, để xác nhận đóng."
-              action={{ label: 'Đóng, bỏ thay đổi', onClick: props.confirmDiscard, variant: 'danger' }}
-            />
+      <Modal.Body className="px-4 sm:px-6 pt-0 pb-6 min-h-[320px]">
+        <div className="mb-4 flex flex-col gap-2">
+          <div className="flex items-baseline gap-2">
+            <p className="text-[13px] font-semibold leading-[18px] text-text-primary">{props.stepLabel}</p>
+            <span className="text-[13px] leading-[18px] text-text-secondary">{STEP_TITLES[step - 1]}</span>
           </div>
-        )}
-
-        <p className="mb-4 text-[13px] text-text-secondary">{props.stepLabel}</p>
+          <div className="flex gap-1" aria-hidden="true">
+            {STEP_TITLES.map((title, index) => (
+              <span
+                key={title}
+                className={cn('h-1 flex-1 rounded-full', index < step ? 'bg-text-primary' : 'bg-border-default')}
+              />
+            ))}
+          </div>
+        </div>
         <span className="sr-only" role="status">
           {props.stepLabel}
         </span>
@@ -272,7 +293,8 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
           {step === 3 && <StepReview {...props} />}
         </motion.div>
       </Modal.Body>
-      <Modal.Footer className="justify-between">
+      <Modal.Footer className="relative justify-between px-4 sm:px-6">
+        {props.isConfirmingDiscard && <DiscardPrompt {...props} />}
         <div>
           {step > 1 && (
             <Button variant="ghost" onClick={props.goBack} disabled={isSubmitting}>
@@ -285,7 +307,12 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
             Huỷ
           </Button>
           {step < 3 ? (
-            <Button variant="primary" onClick={props.goNext} disabled={!props.canGoNext || isSubmitting}>
+            <Button
+              variant="primary"
+              onClick={props.goNext}
+              disabled={!props.canGoNext || isSubmitting}
+              aria-describedby={step === 2 && props.floorsHint !== null ? FLOORS_HINT_ID : undefined}
+            >
               Tiếp tục
             </Button>
           ) : (

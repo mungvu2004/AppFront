@@ -51,6 +51,7 @@ function props(overrides: Partial<ProfileSectionProps> = {}): ProfileSectionProp
     jobTitle: '',
     onJobTitleChange: vi.fn(),
     jobTitlePlaceholder: 'chưa đặt',
+    phonePlaceholder: 'chưa đặt',
     email: SAMPLE_EMAIL,
     emailReadOnlyReason: 'Thư điện tử là tên đăng nhập nên chỉ đọc ở đây.',
     onChangeEmail: vi.fn(),
@@ -92,6 +93,12 @@ describe('trạng thái 1 — rỗng', () => {
 
     expect(sunken).not.toBeNull();
     expect(sunken?.textContent).toBe('NH');
+  });
+
+  it('BUG-138: điện thoại trống cũng mang chữ mờ như chức danh', () => {
+    render(<ProfileSection {...props()} />);
+
+    expect(screen.getByLabelText('Điện thoại').getAttribute('placeholder')).toBe('chưa đặt');
   });
 
   it('chưa có chức danh thì hàng vẫn còn, mang chữ mờ "chưa đặt"', () => {

@@ -22,6 +22,13 @@
 export const PROJECT_NAME_MIN_LENGTH = 3;
 export const PROJECT_NAME_MAX_LENGTH = 80;
 
+/**
+ * Longest a project code and address may be, counted after trim + NFC — the
+ * server's own `CODE_MAX`/`ADDRESS_MAX` (AppBack `apps/api/projects/schemas.py`).
+ */
+export const PROJECT_CODE_MAX_LENGTH = 32;
+export const PROJECT_ADDRESS_MAX_LENGTH = 200;
+
 /** Fewest and most floors a project may have, basement included. */
 export const PROJECT_FLOOR_COUNT_MIN = 1;
 export const PROJECT_FLOOR_COUNT_MAX = 50;
@@ -38,6 +45,8 @@ export const PROJECT_STOREY_HEIGHT_MAX_M = 10;
 export const PROJECT_LIMITS = Object.freeze({
   nameMinLength: PROJECT_NAME_MIN_LENGTH,
   nameMaxLength: PROJECT_NAME_MAX_LENGTH,
+  codeMaxLength: PROJECT_CODE_MAX_LENGTH,
+  addressMaxLength: PROJECT_ADDRESS_MAX_LENGTH,
   floorCountMin: PROJECT_FLOOR_COUNT_MIN,
   floorCountMax: PROJECT_FLOOR_COUNT_MAX,
   elevationMinM: PROJECT_ELEVATION_MIN_M,

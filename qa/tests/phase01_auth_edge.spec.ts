@@ -158,7 +158,7 @@ const SESSION_NOT_OPENED =
 const SIGNED_IN_SUCCESS = 'Đã đăng nhập. Đang mở lại trang bạn đang xem.'; // :203
 const NETWORK_DESCRIPTION = 'Không liên lạc được với máy chủ. Kiểm tra mạng rồi thử lại.'; // errors.network :15 (title :14 no longer shown)
 const UNKNOWN_TITLE = 'Có trục trặc'; // errors.unknown :62
-const UNKNOWN_DESCRIPTION = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Bạn có thể tải lại rồi thử lại.'; // :63
+const UNKNOWN_DESCRIPTION = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại thao tác vừa làm.'; // :63
 const CHECKING_CONNECTION = 'Đang kiểm tra kết nối.'; // connectionStates.checking :4197
 
 /* `src/routes/SessionBootstrap.tsx` @7735bcda literals. */
@@ -1486,7 +1486,7 @@ test.describe('E01 SCR-02 Forgot password', () => {
       } else {
         await expect(strip.getByRole('heading', { name: title, exact: true }), slug).toBeVisible();
       }
-      await expect(page.getByText(UNKNOWN_DESCRIPTION, { exact: true }), `${slug}: no reload advice`).toHaveCount(0);
+      await expect(page.getByText(/tải lại/), `${slug}: no reload advice`).toHaveCount(0);
       await expect(authMain(page, 'error'), slug).toBeVisible();
       await expect(button(page, SEND_RESET_LINK), slug).toBeEnabled();
       // f748afb0: strip under the send button (ForgotPasswordPanel.tsx:79-84, BUG-008); focus back on the
@@ -2544,7 +2544,7 @@ test.describe('E01 FE refresh 7735bcda — SCR-01..SCR-04', () => {
           } else {
             await expect(strip.getByRole('heading', { name: title, exact: true })).toBeVisible();
           }
-          await expect(page.getByText(UNKNOWN_DESCRIPTION, { exact: true }), 'no reload advice').toHaveCount(0);
+          await expect(page.getByText(/tải lại/), 'no reload advice').toHaveCount(0);
           await expect(authMain(page, 'error')).toBeVisible();
           await expect(page.getByLabel(CONFIRM_PASSWORD_LABEL, { exact: true })).toHaveValue(PROBE_PASSWORD);
           const stripBox = await strip.boundingBox();

@@ -73,7 +73,7 @@ const FORBIDDEN_NOTE = 'Vai người xem chỉ duyệt được kết quả, kh�
 const CARD_SIZE_CLASS = 'w-[300px] h-[220px]';
 
 /** Viền, nền, bo 16, đệm 20. Không thẻ nào có nền màu — đó là điều cấm tuyệt đối. */
-const CARD_CLASS = 'flex flex-col justify-between rounded-2xl border border-border-default bg-bg-surface p-5';
+const CARD_CLASS = 'flex flex-col gap-3 rounded-2xl border border-border-default bg-bg-surface p-5';
 
 /** Vòng tiêu điểm 2px offset 2px mà A12 đòi, cho hai nút không đi qua `Button`. */
 const FOCUS_RING_CLASS =
@@ -146,8 +146,18 @@ interface QuietLinkProps {
   readonly note?: string;
 }
 
+/** `id` của câu chú giải một liên kết chìm — nút và câu phải dùng chung đúng một chỗ dựng. */
+const noteIdOf = (id: string): string => `${id}-note`;
+
+/** Câu giải thích của một liên kết: lý do vô hiệu, hoặc câu `note` luôn hiện. */
+const noteOf = (link: OnboardingLink, note?: string): string | null => link.disabledReason ?? note ?? null;
+
 /**
- * Một liên kết chìm.
+ * Một liên kết chìm — chỉ cái nút, không kèm câu giải thích.
+ *
+ * Câu giải thích ở ngoài hàng (xem {@link QuietNote}): để trong cùng ô thì nó kéo
+ * ô rộng và cao hơn, làm cặp liên kết lệch tâm (BUG-127). Vùng chạm 44 px dưới
+ * 640 px, 24 px từ đó trở lên (WCAG 2.5.8), gạch chân để nhìn ra là liên kết.
  *
  * Không có token riêng cho "liên kết chìm" trong repo, nên nó ghép từ hai token
  * đã có. Liên kết vô hiệu KHÔNG mang thuộc tính `disabled`: nút bị `disabled`
@@ -157,29 +167,31 @@ interface QuietLinkProps {
  */
 function QuietLink({ link, id, toneClass, note }: QuietLinkProps) {
   const isDisabled = link.disabledReason !== null;
-  const description = link.disabledReason ?? note ?? null;
-  const descriptionId = `${id}-note`;
 
   return (
-    <span className="inline-flex flex-col items-center gap-1">
-      <button
-        type="button"
-        onClick={isDisabled ? undefined : link.onActivate}
-        aria-disabled={isDisabled ? true : undefined}
-        aria-describedby={description === null ? undefined : descriptionId}
-        className={cn(
-          'rounded-lg px-1 text-[13px] transition-colors duration-fast motion-reduce:transition-none',
-          FOCUS_RING_CLASS,
-          isDisabled ? 'cursor-not-allowed text-text-muted' : toneClass,
-        )}
-      >
-        {link.label}
-      </button>
-      {description !== null && (
-        <span id={descriptionId} className="text-[12px] text-text-muted">
-          {description}
-        </span>
+    <button
+      type="button"
+      onClick={isDisabled ? undefined : link.onActivate}
+      aria-disabled={isDisabled ? true : undefined}
+      aria-describedby={noteOf(link, note) === null ? undefined : noteIdOf(id)}
+      className={cn(
+        'inline-flex min-h-11 items-center justify-center rounded-lg px-2 text-[13px] underline underline-offset-2 sm:min-h-6',
+        'transition-colors duration-fast motion-reduce:transition-none',
+        FOCUS_RING_CLASS,
+        isDisabled ? 'cursor-not-allowed text-text-muted' : toneClass,
       )}
+    >
+      {link.label}
+    </button>
+  );
+}
+
+function QuietNote({ link, id, note }: Pick<QuietLinkProps, 'link' | 'id' | 'note'>) {
+  const text = noteOf(link, note);
+
+  return text === null ? null : (
+    <span id={noteIdOf(id)} className="text-center text-[12px] text-text-muted">
+      {text}
     </span>
   );
 }
@@ -213,15 +225,16 @@ function StepCard({ card, delaySeconds }: StepCardProps) {
         'motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100',
       )}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-3">
         <span className="text-[13px] font-medium tabular-nums text-text-muted">{card.ordinal}</span>
         <Glyph id={card.id} className={cn('h-6 w-6', isLocked ? 'text-text-muted' : 'text-text-secondary')} />
       </div>
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-1 flex-col gap-1.5">
         <h2 className="text-[15px] font-semibold text-text-primary">{card.title}</h2>
         <p className="text-[13px] leading-relaxed text-text-secondary">{card.sentence}</p>
       </div>
-      <div className="flex flex-col gap-1.5">
+      {/* Chừa sẵn chỗ cho câu "cần … trước": thẻ khoá và thẻ mở có nút và tiêu đề cùng hàng (BUG-128). */}
+      <div className="flex min-h-[56px] shrink-0 flex-col gap-1.5">
         <Button
           variant={card.isPrimary ? 'primary' : 'secondary'}
           size="sm"
@@ -320,8 +333,8 @@ export function WelcomeScreen({
         )}
 
         {!isLoading && (
-          <div className="flex flex-col items-center gap-4">
-            <div className="flex flex-wrap items-start justify-center gap-x-6 gap-y-2">
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-x-4">
               <QuietLink
                 id="onboarding-sample"
                 link={sampleProjectLink}
@@ -333,12 +346,15 @@ export function WelcomeScreen({
                 toneClass="text-text-secondary hover:text-text-primary"
               />
             </div>
+            <QuietNote id="onboarding-sample" link={sampleProjectLink} />
+            <QuietNote id="onboarding-tutorial" link={tutorialLink} />
             <QuietLink
               id="onboarding-skip"
               link={skipLink}
               toneClass="text-text-muted hover:text-text-primary"
               note={skipNotice}
             />
+            <QuietNote id="onboarding-skip" link={skipLink} note={skipNotice} />
           </div>
         )}
       </div>

@@ -12,6 +12,8 @@ export interface ToggleProps {
   className?: string;
   id?: string;
   'aria-label'?: string;
+  /** Extra description ids (e.g. why the switch is locked), read after `description`. */
+  'aria-describedby'?: string | undefined;
   /** Optional label displayed beside the toggle */
   label?: React.ReactNode;
   /** Optional description below the label */
@@ -64,7 +66,7 @@ export function Toggle(props: ToggleProps) {
 
   const defaultId = React.useId();
   const toggleId = id || defaultId;
-  const descId = description ? `${toggleId}-desc` : undefined;
+  const descId = [description ? `${toggleId}-desc` : undefined, props['aria-describedby']].filter(Boolean).join(' ') || undefined;
 
   if (isLoading) {
     return (
@@ -90,6 +92,9 @@ export function Toggle(props: ToggleProps) {
       }}
       className={cn(
         'relative flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 outline-none transition-colors duration-180',
+        // Vùng bấm 36×24 (WCAG 2.5.8 không cần ngoại lệ khoảng cách) mà rãnh nhìn thấy vẫn 36×20:
+        // lớp giả trải 2 px trên và dưới, không đổi bố cục của hàng nào (nợ B #1, BUG-158).
+        'hit-y-24',
         'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface focus-visible:animate-focus-ring',
         // Rãnh tắt bằng `--border-control` (≥ 3:1 với nền và với núm, cả hai chủ đề — WCAG 1.4.11);
         // `bg-sunken` cũ chỉ ~1,16:1 trên trắng nên công tắc tắt gần như vô hình.

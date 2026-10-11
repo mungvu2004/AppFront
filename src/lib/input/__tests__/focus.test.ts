@@ -83,6 +83,16 @@ describe('createFocusTrap', () => {
     expect(document.activeElement).toBe(middle);
   });
 
+  it('starts on the element the layer marks with data-autofocus (BUG-133)', () => {
+    const { opener, dialog, middle } = buildDialog();
+
+    middle.setAttribute('data-autofocus', '');
+    opener.focus();
+    createFocusTrap(dialog).activate();
+
+    expect(document.activeElement).toBe(middle);
+  });
+
   it('wraps Tab from the last element back to the first', () => {
     const { dialog, first, last } = buildDialog();
 
@@ -161,6 +171,38 @@ describe('createFocusTrap', () => {
     expect(reachedBody).not.toHaveBeenCalled();
 
     document.body.removeEventListener('keydown', reachedBody);
+  });
+
+  it('leaves Escape to an open popup inside the layer (BUG-152)', () => {
+    const { dialog, first } = buildDialog();
+    const onEscape = vi.fn();
+    const reachedBody = vi.fn();
+
+    document.body.addEventListener('keydown', reachedBody);
+    createFocusTrap(dialog, { onEscape }).activate();
+    first.setAttribute('role', 'combobox');
+    first.setAttribute('aria-expanded', 'true');
+    first.focus();
+
+    pressKey('Escape');
+
+    expect(onEscape).not.toHaveBeenCalled();
+    expect(reachedBody).toHaveBeenCalledTimes(1);
+
+    document.body.removeEventListener('keydown', reachedBody);
+  });
+
+  it('still closes the layer on Escape from an open disclosure button, which owns no popup', () => {
+    const { dialog, first } = buildDialog();
+    const onEscape = vi.fn();
+
+    createFocusTrap(dialog, { onEscape }).activate();
+    first.setAttribute('aria-expanded', 'true');
+    first.focus();
+
+    pressKey('Escape');
+
+    expect(onEscape).toHaveBeenCalledTimes(1);
   });
 
   it('lets Escape reach the window arbiter when the trap has no onEscape (H4-2)', () => {

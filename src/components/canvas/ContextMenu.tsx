@@ -1,9 +1,12 @@
-import React, { forwardRef, useRef, useEffect, useCallback } from 'react';
+import React, { forwardRef, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { cn } from '../../lib/utils';
 import type { ContextMenuGroup, ContextMenuItem as ContextMenuItemType } from '../../hooks/useContextMenu';
 
-const MENU_WIDTH = 220;
-const ROW_HEIGHT = 32;
+/** Menu width, for a caller that anchors the menu's right edge to its trigger. */
+export const CONTEXT_MENU_WIDTH = 220;
+const MENU_WIDTH = CONTEXT_MENU_WIDTH;
+/** Gap kept between the menu and the viewport edge. */
+const VIEWPORT_MARGIN = 8;
 
 // ─── Kbd ──────────────────────────────────────────────────────────────────────
 
@@ -40,9 +43,19 @@ const ContextMenuRoot = forwardRef<HTMLDivElement, ContextMenuRootProps>(
     const internalRef = useRef<HTMLDivElement>(null);
     const menuRef = (ref as React.RefObject<HTMLDivElement>) ?? internalRef;
 
-    // Viewport clamping — menu width 220
-    const safeLeft = Math.min(position.x, (typeof window !== 'undefined' ? window.innerWidth : 1440) - MENU_WIDTH - 8);
-    const safeTop  = Math.min(position.y, (typeof window !== 'undefined' ? window.innerHeight : 900) - 8);
+    // Viewport clamping — menu width 220. `clientWidth`, not `innerWidth`: the latter counts the
+    // vertical scrollbar, which then covered the menu's right edge (BUG-116 at 768 px).
+    const viewportWidth = typeof document !== 'undefined' ? document.documentElement.clientWidth : 1440;
+    const safeLeft = Math.max(VIEWPORT_MARGIN, Math.min(position.x, viewportWidth - MENU_WIDTH - VIEWPORT_MARGIN));
+    const safeTop = Math.max(VIEWPORT_MARGIN, position.y);
+
+    // The height is only known once drawn: lift a menu that would run past the bottom edge.
+    useLayoutEffect(() => {
+      const menu = menuRef.current;
+      if (!isVisible || !menu) return;
+      const maxTop = document.documentElement.clientHeight - menu.offsetHeight - VIEWPORT_MARGIN;
+      menu.style.top = `${String(Math.max(VIEWPORT_MARGIN, Math.min(safeTop, maxTop)))}px`;
+    }, [isVisible, menuRef, safeTop]);
 
     const handleKeyDown = useCallback(
       (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -83,14 +96,20 @@ const ContextMenuRoot = forwardRef<HTMLDivElement, ContextMenuRootProps>(
       [menuRef, onClose]
     );
 
-    // Focus item đầu tiên khi mở
+    // Focus item đầu tiên khi mở; đóng thì trả focus cho nơi đã mở (WCAG 2.4.3, A12) — trừ khi
+    // hành động vừa chọn đã tự đặt focus ở chỗ khác (ô đổi tên tự focus).
     useEffect(() => {
       if (!isVisible || !menuRef.current) return;
+      const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       const first = menuRef.current.querySelector<HTMLElement>(
         '[role="menuitem"]:not([disabled]):not([aria-disabled="true"])'
       );
       const raf = requestAnimationFrame(() => first?.focus());
-      return () => cancelAnimationFrame(raf);
+      return () => {
+        cancelAnimationFrame(raf);
+        const focused = document.activeElement;
+        if (focused === null || focused === document.body) opener?.focus();
+      };
     }, [isVisible, menuRef]);
 
     if (!isVisible) return null;
@@ -151,7 +170,8 @@ const ContextMenuItemComponent = forwardRef<HTMLButtonElement, ContextMenuItemPr
         disabled={disabled}
         aria-disabled={disabled}
         className={cn(
-          'w-full flex items-center gap-2 px-3 text-sm',
+          // 44 px rows below `sm` (a thumb target, like `Button`), 32 px from 640 px up (BUG-156).
+          'w-full flex h-11 items-center gap-2 px-3 text-sm sm:h-8',
           'transition-colors duration-120 text-left',
           'hover:bg-bg-hover',
           'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent',
@@ -159,7 +179,6 @@ const ContextMenuItemComponent = forwardRef<HTMLButtonElement, ContextMenuItemPr
           isDestructive ? 'text-state-violation-text' : 'text-text-primary',
           className
         )}
-        style={{ height: ROW_HEIGHT }}
         {...props}
       >
         {icon && (

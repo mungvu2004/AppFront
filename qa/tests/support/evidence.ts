@@ -104,7 +104,22 @@ async function withCaption(page: Page, lines: readonly string[], shoot: () => Pr
       ].join(';');
       document.body.append(strip);
       strip.dataset.bodyPaddingBottom = document.body.style.paddingBottom;
-      document.body.style.paddingBottom = `${strip.offsetHeight}px`;
+      // BUG-172: toasts / alerts sit on the bottom edge — a strip over them cuts their text. When one is under the
+      // strip it goes to the top edge instead (no padding then: it covers the header, not the page's last element).
+      const sr = strip.getBoundingClientRect();
+      const coversNotice = [...document.querySelectorAll('[role="status"], [role="alert"]')].some((el) => {
+        if (strip.contains(el)) return false;
+        const r = el.getBoundingClientRect();
+        const st = getComputedStyle(el);
+        const shown = r.width > 8 && r.height > 8 && st.visibility !== 'hidden' && Number(st.opacity) > 0;
+        return shown && r.bottom > sr.top && r.top < sr.bottom && r.right > sr.left && r.left < sr.right;
+      });
+      if (coversNotice) {
+        strip.style.top = '0';
+        strip.style.bottom = 'auto';
+      } else {
+        document.body.style.paddingBottom = `${strip.offsetHeight}px`;
+      }
     },
     [CAPTION_ID, lines.join('\n')] as const,
   );
@@ -120,6 +135,35 @@ async function withCaption(page: Page, lines: readonly string[], shoot: () => Pr
       }, CAPTION_ID)
       .catch(() => undefined);
   }
+}
+
+/**
+ * BUG-172: toasts (`[role=status]`) and list cards re-flow after a mutation (entrance, stacking, reorder). Waits until
+ * their boxes and opacity hold still for 3 frames so the shot is not taken mid-fade or with two cards stacked.
+ * Best effort: gives up after `budgetMs` and shoots anyway (a moving page must not fail the case here).
+ */
+async function waitForVisualRest(page: Page, budgetMs = 3_000): Promise<void> {
+  await page
+    .evaluate(async (budget) => {
+      const deadline = performance.now() + budget;
+      const sample = (): string =>
+        [...document.querySelectorAll('[role="status"], [role="listitem"], li')]
+          .slice(0, 80)
+          .map((el) => {
+            const r = el.getBoundingClientRect();
+            return `${Math.round(r.x)},${Math.round(r.y)},${Math.round(r.width)},${Math.round(r.height)},${getComputedStyle(el).opacity}`;
+          })
+          .join('|');
+      let last = sample();
+      let steady = 0;
+      while (steady < 3 && performance.now() < deadline) {
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        const now = sample();
+        steady = now === last ? steady + 1 : 0;
+        last = now;
+      }
+    }, budgetMs)
+    .catch(() => undefined);
 }
 
 /**
@@ -143,6 +187,7 @@ export async function captureEvidence(
   mkdirSync(EVIDENCE_DIR, { recursive: true });
   const path = join(EVIDENCE_DIR, name);
   await waitForHeroFrame(page);
+  await waitForVisualRest(page);
   // Finite CSS animations/transitions jump to their end state, so an entrance fade (RecoveryShell
   // `animate-panel-rise`, 340 ms) is never captured half-transparent. JS-driven (motion) animations are not affected.
   const shoot = async (): Promise<void> => {

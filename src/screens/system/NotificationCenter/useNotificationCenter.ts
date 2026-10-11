@@ -133,6 +133,9 @@ const NOTIFICATION_ENTITY_ID = 'notification-inbox';
  */
 const MARK_READ_MAX_IDS = 200;
 
+/** `id` của thẻ "Thông báo" ở `/tai-khoan` (`AccountSettings.tsx`) — đích của bánh răng. */
+const ACCOUNT_NOTIFICATIONS_ANCHOR = 'account-notifications';
+
 /** Loại thông báo của toast "đã đánh dấu" trên kênh chung. */
 const MARK_READ_NOTIFICATION_TYPE = 'notification-mark-read';
 
@@ -160,7 +163,13 @@ export const NOTIFICATION_CENTER_TEXT = {
   markedAllRead: 'Đã đánh dấu tất cả là đã đọc',
   markedRead: 'Đã đánh dấu là đã đọc',
   settingsLabel: 'Cài đặt thông báo',
+  inviteAccepted: 'Đã chấp nhận lời mời',
+  inviteStatus: 'Đã chấp nhận',
+  inviteAcceptFailed: 'Không chấp nhận được lời mời',
 } as const;
+
+/** Loại thông báo của toast kết quả "chấp nhận lời mời" trên kênh chung. */
+const ACCEPT_INVITE_NOTIFICATION_TYPE = 'notification-accept-invite';
 
 /** Câu của vùng `aria-live` khi còn mục chưa đọc. Một chỗ dựng, một chỗ sửa. */
 function unreadLiveMessage(badge: string): string {
@@ -458,17 +467,40 @@ export function useNotificationCenter(
    */
   const [pendingReadIds, setPendingReadIds] = useState<ReadonlySet<string>>(() => new Set());
 
+  /**
+   * Lời mời đang chấp nhận / đã chấp nhận. Máy chủ chỉ đánh dấu đã đọc, câu của
+   * dòng không đổi, nên kết cục phải được vẽ ở đây (BUG-180).
+   *
+   * Qua lượt tải lại: lời mời đã đọc không còn nút (`toNotificationItemVm`), nhưng
+   * dòng chữ "Đã chấp nhận" chỉ sống trong phiên — máy chủ không lưu gì ngoài
+   * `isRead`. ponytail: muốn dòng chữ bền thì máy chủ thêm `acceptedAt` vào gói tin.
+   */
+  const [acceptState, setAcceptState] = useState<ReadonlyMap<string, 'pending' | 'done'>>(
+    () => new Map(),
+  );
+
   const items = useMemo<readonly NotificationItemVm[]>(() => {
     const listed = listQuery.data ?? [];
 
-    if (pendingReadIds.size === 0) {
+    if (pendingReadIds.size === 0 && acceptState.size === 0) {
       return listed;
     }
 
-    return listed.map((item) =>
-      !item.isRead && pendingReadIds.has(item.id) ? { ...item, isRead: true } : item,
-    );
-  }, [listQuery.data, pendingReadIds]);
+    return listed.map((item) => {
+      const read = !item.isRead && pendingReadIds.has(item.id) ? { ...item, isRead: true } : item;
+      const accept = acceptState.get(item.id);
+
+      if (accept === 'done') {
+        return { ...read, inlineAction: undefined, statusNote: NOTIFICATION_CENTER_TEXT.inviteStatus };
+      }
+
+      if (accept === 'pending' && read.inlineAction !== undefined) {
+        return { ...read, inlineAction: { ...read.inlineAction, disabled: true } };
+      }
+
+      return read;
+    });
+  }, [listQuery.data, pendingReadIds, acceptState]);
 
   /* ---- Giữ vị trí cuộn khi mục mới chen vào ĐẦU danh sách ---------------- */
 
@@ -626,8 +658,29 @@ export function useNotificationCenter(
    */
   const acceptInviteMutation = useMutation({
     mutationFn: (item: NotificationItemVm) => gateway.acceptInvite(item.id),
+    onMutate: (item: NotificationItemVm) => {
+      setAcceptState((current) => new Map(current).set(item.id, 'pending'));
+    },
     onSuccess: (_result, item) => {
+      setAcceptState((current) => new Map(current).set(item.id, 'done'));
+      notifications.publish({
+        type: ACCEPT_INVITE_NOTIFICATION_TYPE,
+        title: NOTIFICATION_CENTER_TEXT.inviteAccepted,
+        description: item.target.projectName,
+      });
       applyInvalidation(queryClient, 'acceptInvite', { projectId: item.target.projectId });
+    },
+    onError: (_error, item) => {
+      setAcceptState((current) => {
+        const next = new Map(current);
+        next.delete(item.id);
+        return next;
+      });
+      notifications.publish({
+        type: ACCEPT_INVITE_NOTIFICATION_TYPE,
+        title: NOTIFICATION_CENTER_TEXT.inviteAcceptFailed,
+        description: item.target.projectName,
+      });
     },
   });
 
@@ -770,7 +823,8 @@ export function useNotificationCenter(
   }, [onNavigate, closeDrawer]);
 
   const onOpenSettings = useCallback((): void => {
-    onNavigate?.(ROUTES.account);
+    // Neo tới thẻ "Thông báo" của /tai-khoan (`id` của `AccountBlock`), không phải đầu trang (BUG-178).
+    onNavigate?.(`${ROUTES.account}#${ACCOUNT_NOTIFICATIONS_ANCHOR}`);
     closeDrawer();
   }, [onNavigate, closeDrawer]);
 
@@ -856,8 +910,8 @@ export function useNotificationCenter(
    * | 2 | `loading` | `isPending` — chưa có mục nào để vẽ |
    * | 4 | `error` | lượt đọc hỏng — không có danh sách |
    * | 6 | `forbidden` | `enabledKinds` rỗng: người dùng tắt hết ở S-05, màn không được phép hiện loại nào |
-   * | 1 | `empty` | hộp thư rỗng sau khi lọc theo `enabledKinds` |
-   * | 3 | `partial` | có mục, nhưng bộ lọc đang chọn không khớp mục nào, HOẶC một phép đánh dấu vừa hỏng và đã lùi lại |
+   * | 1 | `empty` | hộp thư rỗng sau khi lọc theo `enabledKinds`, HOẶC bộ lọc đang chọn không khớp mục nào |
+   * | 3 | `partial` | có mục khớp, nhưng một phép đánh dấu vừa hỏng và đã lùi lại |
    * | 7 | `collapsed` | bề ngang hẹp — view đo, hook đặt tên |
    * | 5 | `success` | còn lại |
    */
@@ -874,11 +928,13 @@ export function useNotificationCenter(
       return 'forbidden';
     }
 
-    if (visibleItems.length === 0) {
+    // Hộp thư rỗng, hay bộ lọc không khớp mục nào: cả hai là "không có gì để hiện" —
+    // view chọn câu theo bộ lọc. Không phải `partial`: không có gì hỏng (BUG-179).
+    if (visibleItems.length === 0 || filteredItems.length === 0) {
       return 'empty';
     }
 
-    if (filteredItems.length === 0 || (mutationError !== null && mutationError !== undefined)) {
+    if (mutationError !== null && mutationError !== undefined) {
       return 'partial';
     }
 

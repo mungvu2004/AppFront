@@ -327,6 +327,19 @@ describe('parseNumber', () => {
     expect(parseNumber('-3,45')).toBe(-3.45);
   });
 
+  it('reads a dot that groups nothing as a decimal point, not a thousands mark (BUG-132)', () => {
+    expect(parseNumber('3.5')).toBe(3.5);
+    expect(parseNumber('0.75')).toBe(0.75);
+    expect(parseNumber('10.01')).toBe(10.01);
+    // A dot that does group thousands is still one.
+    expect(parseNumber('4.250')).toBe(4250);
+    expect(parseNumber('-1.234.567')).toBe(-1234567);
+    // …also when a unit follows the number, as on the measurement labels (review QA-02 P1-1).
+    expect(parseNumber('4.250 mm')).toBe(4250);
+    expect(parseNumber(formatLength(3450, { unit: 'mm' }))).toBe(3450);
+    expect(parseNumber('3.5 m')).toBe(3.5);
+  });
+
   it('round-trips what formatNumber writes', () => {
     for (const value of [0, 220, 3450, 248.6, -3.45, 1234567.89]) {
       expect(parseNumber(formatNumber(value, { maxFractionDigits: 2 }))).toBe(value);

@@ -21,7 +21,9 @@
  * `CreateProjectModal.container.tsx`'s gateway calls
  * `applyInvalidation(queryClient, 'createProject', {})`, which invalidates
  * `queryKeys.project.summaries()` — the key `useProjectDashboard` reads (N1) —
- * so the list refetches on its own and the new project appears. The hook builds
+ * so the list refetches on its own and the new project appears. The toast's
+ * "Hoàn tác" deletes it through the same gateway, which invalidates the same
+ * key (`deleteProject`), so the card leaves the same way (BUG-112). The hook builds
  * its own N1 gateway from `createAppApiClient()`; nothing here wires data.
  */
 
