@@ -3397,7 +3397,9 @@ test.describe('E02 QA-02 FE changes (d18eb884) — SCR-05 / SCR-06 / SCR-07', ()
 
         // PT:53 `max-sm:[&_thead]:hidden`, PT:43 ROW_STACKED flex-wrap, PT:78 name cell `basis-full`, PT:46-49 StackedLabel.
         await expect(row.getByText(FILTERS.processing, { exact: true })).toBeVisible();
-        await expect(row.getByText(progress, { exact: true })).toBeVisible();
+        // BUG-240: the progress cell is a bare text node after its sr-only "Tiến độ duyệt: " label, so the cell's text is
+        // "Tiến độ duyệt: <progress>" — match the label + value, not the value alone.
+        await expect(row.getByText(new RegExp(`^Tiến độ duyệt: ${escapeRegExp(progress)}$`, 'u'))).toBeVisible();
         const stacked = await tableRowLayout(row);
         await captureEvidence(page, 'E02_table_stacked_375.png', { caption: `375 px table view: header row ${stacked.theadDisplay}, row ${stacked.rowDisplay}; name ${String(stacked.cells[0]?.width)} of ${String(stacked.rowWidth)} px; "${progress}" + update time under it` });
         expect(stacked.theadDisplay, 'no header row below 640 px').toBe('none');
