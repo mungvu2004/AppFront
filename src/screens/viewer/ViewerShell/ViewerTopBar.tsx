@@ -47,7 +47,8 @@ export function ViewerTopBar({
   return (
     <header
       aria-label="Thanh trên khung nhìn"
-      className="flex h-14 shrink-0 items-center gap-3 px-4"
+      /* Dưới `md` đường dẫn chiếm một dòng riêng, hai điều khiển xuống dòng dưới. */
+      className="flex min-h-14 shrink-0 flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 md:h-14 md:flex-nowrap md:py-0"
     >
       <ViewerBreadcrumb items={breadcrumbs} />
 

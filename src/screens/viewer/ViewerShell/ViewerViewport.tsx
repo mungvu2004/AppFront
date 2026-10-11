@@ -90,7 +90,10 @@ export function ViewerViewport({
       aria-busy={state === 'loading'}
       aria-label="Khung nhìn mô hình"
       className={cn(
-        'relative min-w-[480px] flex-1 overflow-hidden bg-canvas-3d',
+        'relative min-w-0 flex-1 overflow-hidden bg-canvas-3d',
+        /* Dưới `lg` vỏ cuộn dọc nên khung nhìn tự mang chiều cao; từ `lg` nó kéo
+           theo dòng ba cột và giữ bề ngang tối thiểu cũ (BUG-369, BUG-385). */
+        'h-[60vh] min-h-[320px] max-md:flex-none lg:h-auto lg:min-h-0 lg:min-w-[480px]',
         /* `tabIndex={-1}` cho phép lập trình đưa tiêu điểm vào khung nhìn (liên
            kết bỏ qua, và phím tắt phạm vi canvas). Đưa được tiêu điểm vào thì
            A12 đòi phải THẤY nó, nên viền tiêu điểm đi theo `focus-visible` của

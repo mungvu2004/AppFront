@@ -437,6 +437,25 @@ describe('[VS-8] panel phải trượt vào', () => {
     unmount();
   });
 
+  it('[BUG-369][BUG-385] dưới `lg` không cột nào giữ bề ngang cố định: panel trải dòng, khung nhìn co được', () => {
+    const { unmount } = renderState('success');
+
+    const wrapper = screen.getByRole('complementary', { name: 'Thanh tra đối tượng' })
+      .parentElement as HTMLElement;
+    const viewport = screen.getByRole('main', { name: 'Khung nhìn mô hình' });
+    const row = viewport.parentElement as HTMLElement;
+    const classesOf = (element: HTMLElement): string[] => element.className.split(/\s+/u);
+
+    // Bề ngang 344 nội tuyến chỉ còn hiệu lực từ `lg`; dưới đó `!w-full` thắng nó.
+    expect(classesOf(wrapper)).toContain('max-lg:!w-full');
+    // 480 px tối thiểu (cộng hai ray và panel ~960) là thứ đẩy vỏ tràn ở 768 và 375.
+    expect(classesOf(viewport)).not.toContain('min-w-[480px]');
+    expect(classesOf(viewport)).toContain('lg:min-w-[480px]');
+    expect(classesOf(row)).toEqual(expect.arrayContaining(['flex-wrap', 'max-md:flex-col']));
+
+    unmount();
+  });
+
   describe('giảm chuyển động', () => {
     let originalMatchMedia: typeof window.matchMedia;
 

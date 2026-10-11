@@ -43,21 +43,22 @@ export interface ViewerBreadcrumbProps {
 
 export function ViewerBreadcrumb({ items }: ViewerBreadcrumbProps) {
   return (
-    <nav aria-label="Đường dẫn màn hình" className="flex items-center gap-1">
+    /* Một dòng, chữ dài bị cắt bằng dấu ba chấm thay vì gãy mỗi dòng một từ (BUG-385). */
+    <nav aria-label="Đường dẫn màn hình" className="flex min-w-0 items-center gap-1 max-md:w-full">
       {items.map((item, index) => {
         const isLast = index === items.length - 1;
 
         return (
-          <span className="flex items-center gap-1" key={item.id}>
+          <span className={cn('flex min-w-0 items-center gap-1', isLast && 'shrink-0')} key={item.id}>
             {index > 0 && (
-              <ChevronRight aria-hidden="true" className="h-3.5 w-3.5 text-text-muted" />
+              <ChevronRight aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-text-muted" />
             )}
 
             {item.onClick === undefined || isLast ? (
               <span
                 aria-current={isLast ? 'page' : undefined}
                 className={cn(
-                  'text-[13px]',
+                  'truncate whitespace-nowrap text-[13px]',
                   isLast ? 'text-text-primary' : 'text-text-secondary',
                 )}
               >
@@ -66,7 +67,7 @@ export function ViewerBreadcrumb({ items }: ViewerBreadcrumbProps) {
             ) : (
               <button
                 className={cn(
-                  'rounded-[6px] px-1 text-[13px] text-text-secondary',
+                  'truncate whitespace-nowrap rounded-[6px] px-1 text-[13px] text-text-secondary',
                   'transition-colors duration-120 hover:text-text-primary',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app',
                 )}
