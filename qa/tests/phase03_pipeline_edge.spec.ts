@@ -1529,7 +1529,7 @@ test.describe('E03 SCR-12 processing', () => {
 /* ================================================================= SCR-13 pipeline graph / SCR-15 CAD */
 
 test.describe('E03 SCR-13 / SCR-15 dead routes', () => {
-  test('E03 · SCR-13 own project: empty story + reason line; no "Chi tiết kỹ thuật", no branch switch, no API read', async ({ browser }) => {
+  test('E03 · SCR-13 own project: empty story + reason line; no "Chi tiết kỹ thuật", no branch switch; only the #24 project read', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page, api } = admin;
       const project = await createProject(admin, 'graph', 1);
@@ -1541,8 +1541,9 @@ test.describe('E03 SCR-13 / SCR-15 dead routes', () => {
       await expect(page.getByRole('button', { name: GRAPH.detail })).toHaveCount(0); // PG:146-153 empty → no disclosure
       await expect(page.getByRole('button', { name: GRAPH.switch })).toHaveCount(0); // PGG:297 switchBranch false
       const projectReads = api.slice(mark).filter((entry) => entry.path.includes(project.id)).map((entry) => `${entry.method} ${entry.path}`);
-      // PGG:343-345: the real gateway answers "unsupported" without a request.
-      expect(projectReads, 'the graph never reads this project').toEqual([]);
+      // PGG:304-312 (FIX-1384, BUG-313): the one read is #24 "does this project exist"; branch report / comparison / node
+      // detail are still answered "unsupported" without a request (PGG:356-358).
+      expect(projectReads, 'the graph reads only #24 for this project').toEqual([`GET ${PROJECTS_API}/${project.id}`]);
       await captureEvidence(page, 'E03_graph_empty.png');
       await attachJson('E03_graph_empty.json', { projectReads });
     });
