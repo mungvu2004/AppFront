@@ -207,7 +207,9 @@ export function FloorUploadCard({
         animationDuration: `${String(row.revealDurationMs)}ms`,
       }}
     >
-      <div className={clsx('flex min-w-0 flex-1 items-center gap-4', isCollapsed && 'w-full')}>
+      {/* Wraps, and the text keeps a floor: at 375 px the badge drops under the thumbnail instead of
+          squeezing the floor name to "Tầng t…" and the subtitle to five lines (BUG-261). */}
+      <div className={clsx('flex min-w-0 flex-1 flex-wrap items-center gap-4', isCollapsed && 'w-full')}>
         <motion.div
           className="flex h-[72px] w-[96px] shrink-0 items-center justify-center rounded-[8px] bg-bg-sunken"
           {...(file === null ? {} : { layoutId: `floor-upload-thumb-${file.id}` })}
@@ -215,7 +217,7 @@ export function FloorUploadCard({
           <SheetGlyph />
         </motion.div>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex min-w-[96px] flex-1 flex-col gap-1">
           <h3 className="truncate text-[15px] font-medium text-text-primary">{row.name}</h3>
           <p className="text-[13px] text-text-muted">
             {LABEL_ELEVATION} {row.elevationLabel} · {LABEL_HEIGHT} {row.storeyHeightLabel}
