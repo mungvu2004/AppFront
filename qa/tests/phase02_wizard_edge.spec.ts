@@ -1639,28 +1639,41 @@ test.describe('E02 SCR-05 wizard edge — QA-02 shared components (FE 271538cb)'
       await toStep2(dialog, 'Dự án vùng bấm công tắc');
       const basement = basementSwitch(dialog);
       await expect(basement).toHaveAttribute('aria-checked', 'false');
-      // TG:94-97 `h-5 w-9` + `hit-y-24`; CSS:299 `.hit-y-24::before { inset: -2px 0 }`.
+      // TG:95-99 the switch element itself is `h-6 w-9 -my-0.5` (36×24); its first child is the visible 36×20 track
+      // (TG:104-106 `h-5`), centred in it (BUG-158, FIX-1013). Clicks 1 px off the track land inside the 24 px box.
       const probe = await basement.evaluate((el) => {
-        const r = el.getBoundingClientRect();
-        const x = r.left + r.width / 2;
+        const box = el.getBoundingClientRect();
+        const track = (el.firstElementChild ?? el).getBoundingClientRect();
+        const x = box.left + box.width / 2;
         const hits = (y: number): boolean => {
           const hit = document.elementFromPoint(x, y);
           return hit !== null && (hit === el || el.contains(hit));
         };
-        return { x, top: r.top, bottom: r.bottom, width: r.width, height: r.height, above1: hits(r.top - 1), below1: hits(r.bottom + 1), above4: hits(r.top - 4) };
+        return {
+          x,
+          top: track.top,
+          bottom: track.bottom,
+          width: box.width,
+          boxHeight: box.height,
+          trackHeight: track.height,
+          above1: hits(track.top - 1),
+          below1: hits(track.bottom + 1),
+          above4: hits(track.top - 4),
+        };
       });
       await attachJson('E02_wiz_switch_hit_area.json', probe);
-      expect(Math.round(probe.height), 'visible track stays 20 px').toBe(20);
+      expect(Math.round(probe.boxHeight), 'the switch element is 24 px tall (WCAG 2.5.8)').toBe(24);
+      expect(Math.round(probe.trackHeight), 'visible track stays 20 px').toBe(20);
       expect(probe.above1, '1 px above the track is still the switch').toBe(true);
       expect(probe.below1, '1 px below the track is still the switch').toBe(true);
-      expect(probe.above4, '4 px above is outside the 24 px area').toBe(false);
+      expect(probe.above4, '4 px above the track is outside the 24 px box').toBe(false);
 
       await page.mouse.click(probe.x, probe.top - 1);
       await expect(basement).toHaveAttribute('aria-checked', 'true');
       await expect(dialog.getByRole('textbox', { name: `Tên tầng ${BASEMENT_NAME}`, exact: true })).toHaveCount(1);
       await captureEvidence(page, 'E02_wiz_switch_hit_area.png', { caption: 'click 1 px above the 20 px track → "Có tầng hầm" on, "Tầng hầm" row added' });
-      const after = await basement.boundingBox();
-      await page.mouse.click(probe.x, (after?.y ?? probe.top) + (after?.height ?? probe.height) + 1);
+      const trackBottom = await basement.evaluate((el) => (el.firstElementChild ?? el).getBoundingClientRect().bottom);
+      await page.mouse.click(probe.x, trackBottom + 1);
       await expect(basement).toHaveAttribute('aria-checked', 'false');
       await discardWizard(dialog);
     });
