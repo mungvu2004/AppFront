@@ -1606,6 +1606,10 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       const gone = await createProject(admin, 'cnt-gone');
       const before = await reloadDashboard(page);
       const countsBefore = countsOf(before);
+      // BUG-175: the "before" state on its own shot (this card still there, "{n} dự án" with the old n), so the "after" shot has something to differ from.
+      await expect(projectCard(page, gone.name)).toBeVisible();
+      await expect(countLine(page)).toHaveText(`${String(before.length)} dự án`);
+      await captureEvidence(page, 'E02_delete_refreshes_counts_before.png', { caption: `before DELETE: ${String(countsBefore.all)} projects, "${gone.name}" listed` });
 
       const dialog = await askDelete(page, gone.name);
       const removed = waitForApi(page, 'DELETE', projectPathRe(gone.id), [200]);
@@ -1747,7 +1751,12 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       for (const key of ['all', 'done', 'qc', 'processing'] as const) {
         await expect(statValue(page, STATS[key])).toHaveText(String(counts[key]));
       }
-      await captureEvidence(page, 'E02_dash_two_pages.png', { caption: `N1 in 2 pages (${pageSizes.join(' + ')}) → ${String(all.length)} cards` });
+      await captureEvidence(page, 'E02_dash_two_pages.png', {
+        caption: [
+          `N1 in 2 pages (${pageSizes.join(' + ')}) → ${String(all.length)} cards, "${String(all.length)} dự án"`,
+          `GET ?limit=500 → 200 nextCursor "${PAGE2}"; GET ?limit=500&cursor=${PAGE2} → 200 (no cursor)`,
+        ],
+      });
       await attachJson('E02_dash_two_pages.json', { pageSizes, total: all.length, cursor: PAGE2 });
       await page.unrouteAll({ behavior: 'ignoreErrors' });
     });
@@ -1788,7 +1797,12 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await expect(page.getByText(LIST_ERROR_TITLE, { exact: true })).toHaveCount(0);
       await expect(projectCards(page)).toHaveCount(list.length);
       await expect(countLine(page)).toHaveText(`${String(list.length)} dự án`);
-      await captureEvidence(page, 'E02_dash_cursor_invalid.png', { caption: `page 2 → 422 CURSOR_INVALID (mocked) → restart → ${String(list.length)} cards, no error` });
+      await captureEvidence(page, 'E02_dash_cursor_invalid.png', {
+        caption: [
+          `page 2 → 422 CURSOR_INVALID (mocked) → restart → ${String(list.length)} cards, no error, "${String(list.length)} dự án"`,
+          `GET cursor sequence: ${cursors.map((c) => c ?? '(none)').join(' → ')} (1st 200 nextCursor, 2nd 422, 3rd 200)`,
+        ],
+      });
       await attachJson('E02_dash_cursor_invalid.json', { cursors, cards: list.length });
       await page.unrouteAll({ behavior: 'ignoreErrors' });
     });
