@@ -277,6 +277,17 @@ describe('ProjectDashboardView, seven states', () => {
     }
   });
 
+  // BUG-153: at 375 px three columns left the name 98 px; below `sm` the row now stacks instead of hiding cells.
+  it('keeps status, progress and update time in the table below `sm`, stacked under a name cell of its own', () => {
+    render(<ProjectDashboardView {...PROPS_BY_STATE.success()} viewMode="table" />);
+
+    const cells = within(screen.getByRole('row', { name: new RegExp(SAMPLE_ROW.name, 'u') })).getAllByRole('cell');
+    expect(cells[0]?.textContent).toBe(SAMPLE_ROW.name);
+    const shownBelowSm = cells.filter((cell) => !cell.className.split(' ').includes('hidden')).map((cell) => cell.textContent);
+    expect(shownBelowSm).toEqual([SAMPLE_ROW.name, SAMPLE_ROW.statusLabel, SAMPLE_ROW.progressLabel, SAMPLE_ROW.updatedLabel]);
+    expect(cells[0]?.closest('tr')?.className).toContain('max-sm:flex-wrap');
+  });
+
   // BUG-116/148: the menu opened where the pointer was (over its own button) or, from the keyboard, at 0,0.
   it('anchors the card menu under its button and gives focus back to it on Esc', async () => {
     const viewport = { clientWidth: 1440, clientHeight: 900 };

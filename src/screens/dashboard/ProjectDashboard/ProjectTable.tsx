@@ -3,8 +3,12 @@
  * file crossed R-22's 400-line cap again (mục D), the way the card and the sidebar were.
  *
  * The name column takes what the others leave and truncates (`w-full max-w-0`): an 80-char name
- * pushed "Cập nhật" past the 1440 px window (BUG-149). Below `sm` the two secondary columns go and
- * progress is a percentage, so status and progress stay on screen at 375 px (BUG-153).
+ * pushed "Cập nhật" past the 1440 px window (BUG-149).
+ *
+ * Below `sm` the table is laid out as blocks and each row stacks (`ROW_STACKED`): the name gets the full width on its own line, then
+ * status, progress and update time wrap under it, and the header row goes. Three columns side by
+ * side at 375 px left the name 98 px — "E2E-QA-20261011-0028" was cut and two rows read the same
+ * (BUG-153). The cells stay cells, so the name cell still holds only the name.
  */
 
 import { Badge } from '@/components/ui/Badge';
@@ -24,10 +28,12 @@ export interface ProjectTableProps {
 }
 
 const NAME_CLASS = 'w-full text-[14px] font-medium text-text-primary';
+const ROW_STACKED = 'max-sm:flex max-sm:h-auto max-sm:flex-wrap max-sm:items-center max-sm:gap-y-1 max-sm:py-2';
+const CELL_STACKED = 'max-sm:h-auto';
 
 export function ProjectTable({ rows, renamingId, renameDraft, onOpen, onMenu, onRenameChange, onRenameCommit, onRenameCancel }: ProjectTableProps) {
   return (
-    <Table.Root>
+    <Table.Root className="max-sm:[&_table]:block max-sm:[&_tbody]:block max-sm:[&_thead]:hidden">
       <Table.Header>
         <tr>
           <Table.Head>Tên dự án</Table.Head>
@@ -42,7 +48,7 @@ export function ProjectTable({ rows, renamingId, renameDraft, onOpen, onMenu, on
           <Table.Row
             key={project.id}
             tabIndex={0}
-            className="cursor-pointer"
+            className={`cursor-pointer ${ROW_STACKED}`}
             onClick={() => onOpen(project.id)}
             onKeyDown={(event) => {
               if (event.key === 'Enter') onOpen(project.id);
@@ -52,7 +58,7 @@ export function ProjectTable({ rows, renamingId, renameDraft, onOpen, onMenu, on
               onMenu(project, event.clientX, event.clientY);
             }}
           >
-            <Table.Cell className="w-full max-w-0 font-medium">
+            <Table.Cell className={`w-full max-w-0 font-medium max-sm:min-w-0 max-sm:max-w-full max-sm:basis-full ${CELL_STACKED}`}>
               {renamingId === project.id ? (
                 <input
                   autoFocus
@@ -72,15 +78,12 @@ export function ProjectTable({ rows, renamingId, renameDraft, onOpen, onMenu, on
                 <h3 className={`${NAME_CLASS} truncate`}>{project.name}</h3>
               )}
             </Table.Cell>
-            <Table.Cell>
+            <Table.Cell className={CELL_STACKED}>
               <Badge variant={project.statusVariant}>{project.statusLabel}</Badge>
             </Table.Cell>
             <Table.Cell className="hidden text-text-secondary sm:table-cell">{project.statsLabel}</Table.Cell>
-            <Table.Cell className="text-text-secondary">
-              <span className="sm:hidden">{project.progressPercentLabel}</span>
-              <span className="hidden sm:inline">{project.progressLabel}</span>
-            </Table.Cell>
-            <Table.Cell className="hidden text-text-muted sm:table-cell">{project.updatedLabel}</Table.Cell>
+            <Table.Cell className={`text-text-secondary ${CELL_STACKED}`}>{project.progressLabel}</Table.Cell>
+            <Table.Cell className={`text-text-muted max-sm:ml-auto ${CELL_STACKED}`}>{project.updatedLabel}</Table.Cell>
           </Table.Row>
         ))}
       </Table.Body>
