@@ -149,7 +149,7 @@ test('bấm một thông báo ở /thong-bao mở thẳng đưa người dùng t
   await openDirect(page);
 
   await panel(page)
-    .getByRole('button', { name: /hệ thống AI đã xử lý xong bản vẽ tầng trệt/ })
+    .getByRole('button', { name: /Hệ thống AI đã xử lý xong bản vẽ tầng trệt/ })
     .click();
 
   const target = ROUTES.project.walls('project-1', 'L1');

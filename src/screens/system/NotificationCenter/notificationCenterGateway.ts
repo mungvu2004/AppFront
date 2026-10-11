@@ -208,7 +208,7 @@ const INLINE_ACTION_BY_KIND: Readonly<Record<NotificationKind, NotificationInlin
 /**
  * Câu của máy chủ, bỏ đuôi trùng chữ liên kết (BUG-206).
  *
- * Máy chủ gửi câu CHƯA có tên đối tượng ("hệ thống AI đã xử lý xong bản vẽ", `messages.py`) và màn nối
+ * Máy chủ gửi câu CHƯA có tên đối tượng ("Hệ thống AI đã xử lý xong bản vẽ", `messages.py`) và màn nối
  * `objectLabel` làm liên kết. Một câu đã kết bằng chính tên ấy (không phân biệt hoa/thường, bỏ dấu câu
  * cuối) thì bỏ đuôi đó: "…bản vẽ tầng trệt" + "Tầng trệt" đọc thành "…bản vẽ Tầng trệt", tên chỉ một lần.
  */

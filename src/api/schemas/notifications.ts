@@ -16,7 +16,7 @@ import { z } from 'zod';
  * ## `message` là câu thiếu tên ở cuối, `objectLabel` là cái tên ấy
  *
  * `message` là câu tiếng Việt do máy chủ dựng, dừng ngay TRƯỚC tên đối tượng
- * ("hệ thống AI đã xử lý xong bản vẽ") — dựng một câu đúng ngữ pháp cho bốn loại
+ * ("Hệ thống AI đã xử lý xong bản vẽ") — dựng một câu đúng ngữ pháp cho bốn loại
  * khác nhau là việc của nơi biết đủ ngữ cảnh, không phải việc suy luận lại ở
  * client. FE in `message` rồi nối `objectLabel` ngay sau làm liên kết ("… bản vẽ
  * tầng trệt"), nên câu KHÔNG lặp lại tên (AppBack `apps/api/notifications/messages.py`).
