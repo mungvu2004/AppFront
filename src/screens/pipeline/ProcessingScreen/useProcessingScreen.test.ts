@@ -21,6 +21,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } fr
 import { createMockApiClient } from '@/api/__mocks__/client';
 import type { ApiClient, ApiResult, LatestFloorUpload } from '@/api/client';
 import type { Progress } from '@/api/schemas';
+import { SAMPLE_BUILDING, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import * as auth from '@/lib/auth';
 import type { HttpError } from '@/lib/http';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
@@ -49,6 +50,21 @@ import {
 import type { ProcessingScreenProps } from './types';
 
 const PROJECT_ID = 'project-1';
+
+/** Tầng đầu của bộ mẫu A14: có tường, ô mở, phòng, kích thước thật để đếm (lớp mock của `L1` rỗng). */
+const SAMPLE_LEVEL_ID = sampleLevelId(0);
+const onSampleLevel = <T extends { readonly levelId: string }>(items: readonly T[]): T[] =>
+  items.filter((item) => item.levelId === SAMPLE_LEVEL_ID);
+const SAMPLE_WALLS = onSampleLevel(SAMPLE_BUILDING.walls);
+const SAMPLE_LAYER_DOCUMENT = {
+  dimensions: onSampleLevel(SAMPLE_BUILDING.dimensions),
+  layer: {
+    furniture: onSampleLevel(SAMPLE_BUILDING.furniture),
+    openings: SAMPLE_BUILDING.openings.filter((opening) => SAMPLE_WALLS.some((wall) => wall.id === opening.wallId)),
+    rooms: onSampleLevel(SAMPLE_BUILDING.rooms),
+    walls: SAMPLE_WALLS,
+  },
+};
 const STAGES = getPipelineStages();
 
 /* -------------------------------------------------------------------------- */
@@ -672,6 +688,37 @@ describe('useProcessingScreen', () => {
 
     summary?.onReviewWalls();
     expect(onNavigate).toHaveBeenCalledWith(`/projects/${PROJECT_ID}/floors/${upload.floorId}/layers/walls`);
+
+    mounted.unmount();
+  });
+
+  // BUG-353: the floor chip counted walls + openings + rooms, the summary chip walls + openings —
+  // two numbers under one word. And "Chuỗi kích thước" was the one capitalised chip (A6).
+  it('a finished floor counts "đối tượng" the same in its chip and in the summary (BUG-353)', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 1);
+    const upload = uploads[0]!;
+    const layer = await harness.client.spatial.readLayer({ projectId: PROJECT_ID, floorId: upload.floorId });
+    if (!layer.ok) throw new Error('Không đọc được lớp tầng mẫu.');
+    const { dimensions, layer: sample } = SAMPLE_LAYER_DOCUMENT;
+    vi.spyOn(harness.client.spatial, 'readLayer').mockResolvedValue({
+      ok: true,
+      data: { ...layer.data, dimensions, layer: sample },
+    });
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+
+    await settle(clock);
+    await act(async () => {
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(finishedProgress(upload.uploadId));
+      await clock.advance(POLL_INTERVAL_MS);
+    });
+    await settle(clock);
+
+    const objectLabel = `${String(sample.walls.length + sample.openings.length + sample.rooms.length)} đối tượng`;
+    expect(mounted.result.current.floors[0]?.objectCountLabel).toBe(objectLabel);
+    expect(mounted.result.current.summary?.metricLabels[1]).toBe(objectLabel);
+    expect(mounted.result.current.summary?.metricLabels[2]).toBe(`${String(dimensions.length)} chuỗi kích thước`);
 
     mounted.unmount();
   });

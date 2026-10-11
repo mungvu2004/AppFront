@@ -167,7 +167,7 @@ const UNIT = {
   floor: 'tầng',
   wall: 'tường',
   object: 'đối tượng',
-  dimensionChain: 'Chuỗi kích thước',
+  dimensionChain: 'chuỗi kích thước',
   room: 'phòng',
 } as const;
 
@@ -181,6 +181,10 @@ const doneFloorsSentence = (done: string, total: string): string =>
 /** Ví dụ `"Đã xong 2/4 tầng · Còn lại khoảng 4 phút 20 giây"`. */
 const overallSentence = (doneClause: string, duration: string | null): string =>
   duration === null ? doneClause : `${doneClause} · Còn lại khoảng ${duration}`;
+
+/** Một cách đếm "đối tượng" cho cả chip tầng lẫn báo cáo tổng kết: tường + ô mở + phòng (BUG-353). */
+const objectTotalOf = (counts: Pick<ProcessingExtractionSummary, 'openingCount' | 'roomCount' | 'wallCount'>): number =>
+  counts.wallCount + counts.openingCount + counts.roomCount;
 
 /** Không lượt nào: "Đã xong 0/0 tầng" cạnh một thẻ ghi 4 tầng là câu sai (BUG-165). */
 const NO_RUN_SENTENCE = 'Chưa có lượt xử lý nào đang chạy.';
@@ -934,10 +938,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
           isActive: index === activeIndex,
           ...(objectCount !== undefined
             ? {
-                objectCountLabel: countLabel(
-                  objectCount.wallCount + objectCount.openingCount + objectCount.roomCount,
-                  UNIT.object,
-                ),
+                objectCountLabel: countLabel(objectTotalOf(objectCount), UNIT.object),
               }
             : {}),
         };
@@ -1261,7 +1262,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     return {
       metricLabels: [
         countLabel(total.wallCount, UNIT.wall),
-        countLabel(total.wallCount + total.openingCount, UNIT.object),
+        countLabel(objectTotalOf(total), UNIT.object),
         countLabel(total.dimensionCount, UNIT.dimensionChain),
         countLabel(total.roomCount, UNIT.room),
         formatArea(total.areaM2),
