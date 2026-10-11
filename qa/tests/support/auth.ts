@@ -53,11 +53,16 @@ export async function signInAdmin(page: Page, destination: string = ROUTES.dashb
  * session — the refresh cookie expired, or a test died before writing the rotated one back — sent every screen to
  * /login and the run hung there. One `POST /api/auth/refresh` in `context` checks it (a live one is rotated in the
  * context's own cookie jar, which the caller writes back as before); a 401 is answered once by a UI sign-in, and the new
- * state is written to `storagePath` at once. Costs one refresh per call (count it in the spec's refresh budget).
+ * state is written to `storagePath` at once; any other non-2xx status throws with that status. Costs one refresh per call (count it in the spec's refresh budget).
  */
 export async function ensureAdminSession(context: BrowserContext, storagePath: string): Promise<void> {
   const refreshed = await context.request.post('/api/auth/refresh', { headers: { Origin: readBaseUrl() } });
-  if (refreshed.status() !== 401) return;
+  if (refreshed.ok()) return;
+  // Only a 401 means "dead session". 403 (Origin/CSRF), 429 (refresh budget) or 5xx would land the screens on /login
+  // again with no reason given — fail here with the status instead (review-1 #26).
+  if (refreshed.status() !== 401) {
+    throw new Error(`ensureAdminSession: POST /api/auth/refresh answered ${String(refreshed.status())} (expected 2xx or 401): ${(await refreshed.text()).slice(0, 200)}`);
+  }
   const page = await context.newPage();
   try {
     await signInAdmin(page);
