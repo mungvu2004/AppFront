@@ -246,6 +246,13 @@ const uploadInitRe = (id: string): RegExp =>
 /** Toast / notice by its text (TST:120 `role="status"`; NH:59-61 joins title — description). */
 const toastWith = (page: Page, text: string): Locator => page.getByRole('status').filter({ hasText: text });
 
+/**
+ * BUG-307: the stack total counts up/down after a change (UFM:629 `useCountUp`, 260 ms) and is drawn twice (FSC:141, FT:319).
+ * Waits for the footer to read the final `{floors} tầng · tổng cao {metres}` before a shot, so it is not a mid-count frame.
+ */
+const expectSettledTotal = (page: Page, floors: number, metres: string): Promise<void> =>
+  expect(page.getByText(new RegExp(`^${String(floors)}\\s+tầng\\s+·\\s+tổng cao\\s+${escapeRegExp(metres)}\\s+m\\s+·`, 'u'))).toBeVisible();
+
 /** Page wider than the viewport = a horizontal scroll bar. */
 const horizontalOverflow = (page: Page): Promise<number> =>
   page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -856,6 +863,7 @@ test.describe('E03 SCR-09 floor manager', () => {
       await del; // inverse plan of an add = remove (UFM:885-889)
       await expect(floorRows(page)).toHaveCount(3);
       await expect(floorRow(page, added)).toHaveCount(0);
+      await expectSettledTotal(page, 3, '9,0'); // 3 × 3 m restored
       await captureEvidence(page, 'E03_floors_add_undo.png');
     });
   });
@@ -879,6 +887,7 @@ test.describe('E03 SCR-09 floor manager', () => {
       await toast.getByRole('button', { name: UNDO, exact: true }).click();
       await post; // inverse of a remove = create (UFM:890-891), within FLOOR_RESTORE_WINDOW_MS (UFM:204)
       await expect(floorRow(page, top.name)).toHaveCount(1);
+      await expectSettledTotal(page, 3, '9,0'); // 3 × 3 m restored
       await captureEvidence(page, 'E03_floors_delete_undo.png');
     });
   });
@@ -990,9 +999,11 @@ test.describe('E03 SCR-09 floor manager', () => {
       // An editor's row reads "Chưa có bản vẽ" once: the badge (FTR:314-317); the count text (UFM:267-270) is drawn only
       // for a reader (FTR:329-331), not next to the badge (BUG-250, FIX-1284).
       await expect(row.getByText('Chưa có bản vẽ', { exact: true })).toHaveCount(1);
-      await captureEvidence(page, 'E03_floors_upload_link.png');
       await row.getByRole('button', { name: 'Tải lên', exact: true }).click(); // FTR:318-327
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.upload(project.id)); // FMC handleNavigateToDrawings
+      // BUG-310: the shot shows where "Tải lên" led (the upload screen with this floor's card), not the untouched table.
+      await expect(card(page, floor)).toBeVisible();
+      await captureEvidence(page, 'E03_floors_upload_link.png');
     });
   });
 
@@ -1330,6 +1341,11 @@ test.describe('E03 SCR-10 floor upload', () => {
 
       await menuButton.click();
       await remove.click();
+      // BUG-310: the local removal itself on record (its toast, UFU:879-884) and still no request; then the reload below
+      // shows the server copy back.
+      await expect(toastWith(page, `Đã xoá bản vẽ ${file}`).first()).toBeVisible();
+      expect(writesSince(api, mark), 'the second removal sends no request either').toEqual([]);
+      await captureEvidence(page, 'E03_upload_remove_local_before_reload.png');
       await page.reload();
       await expect(card(page, floor).getByText(ATTACHED, { exact: true })).toBeVisible(); // UFU:1045-1050 server drawing
       // FUC:82-86: a server-side drawing offers nothing to remove → no menu button at all.
@@ -1435,9 +1451,11 @@ test.describe('E03 SCR-11 input quality gate', () => {
       await page.goto(ROUTES.project.quality(project.id));
       const secondary = page.getByRole('button', { name: QUALITY.secondary, exact: true }); // IQF:67-69
       await expect(secondary).toBeVisible();
-      await captureEvidence(page, 'E03_quality_footer_nav.png');
       await secondary.click();
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.upload(project.id));
+      // BUG-309: shot of the click's result (the upload screen), not of the quality page E03_quality_no_drawing already shows.
+      await expect(page.getByTestId(DROPZONE)).toBeVisible();
+      await captureEvidence(page, 'E03_quality_footer_nav.png');
       await page.goBack();
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.quality(project.id));
       await page.getByRole('navigation', { name: 'Đường dẫn trang' }).getByRole('button', { name: 'Dự án', exact: true }).click(); // IQ:203-208
