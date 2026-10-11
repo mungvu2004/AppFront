@@ -63,6 +63,8 @@ import { useStore } from '@/store';
 // Nạp tĩnh, ở pha collect, hộp thoại mà `FloorLayerSaveBanner` `lazy()`: không thì bài xung đột
 // biên dịch nó BÊN TRONG `findByRole` của mình, và dưới tải lượt ấy dài hơn trần chờ (QA-01c nợ #12).
 import './FloorLayerSaveConfirm';
+import type { WallLayerViewProps } from './types';
+import { WallLayerInspector } from './WallLayerInspector';
 import { WallLayerReviewContainer } from './WallLayerReview.container';
 import { ProvisionalScale, scenarioArgsFor } from './WallLayerReview.stories';
 import {
@@ -468,6 +470,34 @@ describe('nhãn mã tường', () => {
     const backendId = `W-01J${'A'.repeat(22)}`;
 
     expect(wallDisplayCode(backendId)).toBe(backendId);
+  });
+
+  it('nhãn panel Đoạn tường viết hoa chữ đầu (A6, BUG-339)', () => {
+    const panel = {
+      inspector: {
+        id: WALL_LAYER_FIXTURE_WALLS[0]?.id,
+        codeLabel: '#W-001',
+        thicknessMm: 220,
+        lengthLabel: '4.250,00 mm',
+        heightLabel: '3,00 m',
+        confidence: 0.71,
+        kindLabel: 'Tường gạch',
+        advanced: { elevationOffsetLabel: '0', startPointLabel: '0', endPointLabel: '0' },
+      },
+      thicknessChoices: THICKNESS_BANDS,
+      isViewerRole: false,
+      viewerRoleNotice: '',
+      onApprove: vi.fn(),
+      onSkip: vi.fn(),
+      onChangeThickness: vi.fn(),
+      rows: [],
+    } as unknown as WallLayerViewProps;
+
+    renderWithProviders(<WallLayerInspector panel={panel} />);
+
+    for (const label of ['Chiều dài', 'Chiều cao', 'Độ tin cậy', 'Vật liệu']) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
   });
 });
 

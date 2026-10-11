@@ -38,11 +38,11 @@ export interface WallLayerInspectorProps {
 
 const PANEL_TITLE = 'Đoạn tường';
 const ADVANCED_TITLE = 'Thông số nâng cao';
-const LENGTH_LABEL = 'chiều dài';
+const LENGTH_LABEL = 'Chiều dài';
 const HEIGHT_LABEL = 'Chiều cao';
 const CONFIDENCE_LABEL = 'Độ tin cậy';
-const MATERIAL_LABEL = 'vật liệu';
-const ELEVATION_OFFSET_LABEL = 'lệch Z';
+const MATERIAL_LABEL = 'Vật liệu';
+const ELEVATION_OFFSET_LABEL = 'Lệch Z';
 const START_POINT_LABEL = 'Toạ độ đầu';
 const END_POINT_LABEL = 'Toạ độ cuối';
 const THICKNESS_ARIA_LABEL = 'Độ dày tường';
