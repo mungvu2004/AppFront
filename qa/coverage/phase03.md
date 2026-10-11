@@ -179,9 +179,9 @@ No phase-03 `_ui` spec exists at this stamp. Test names are shortened to their l
 | Q3 | Table | "Các tầng đã đo" row click / Enter, aria-current | `IQR:216-259` | — | gap (needs a project with ≥ 2 measured floors) |
 | Q4 | Corners | "Chọn góc thủ công", handle arrows 1%, Esc | `IQO:280-300`, `UIQ:1105-1117` | M · SCR-11 "Chọn góc thủ công" (skips when no finding) | covered (data-dependent) |
 | Q5 | Corners | "Gửi bốn góc đã chọn" → confirm "Cắt và nắn bản vẽ tầng … theo bốn góc" | `UIQ:160-169` | — | n/a-by-design (destructive; Phase 11) |
-| Q6 | Dialog | "Tự động nắn" → "Nắn thẳng bản vẽ tầng …" → "Huỷ" (no POST) | `IQD:17-41`, `UIQ:155-159` | M · SCR-11 "Tự động nắn" (skips when no finding) | covered (data-dependent) |
+| Q6 | Dialog | "Tự động nắn" → "Nắn thẳng bản vẽ tầng …" → "Huỷ" (no POST) | `IQD:17-41`, `UIQ:155-159` | M · SCR-11 "Tự động nắn" (skips when no finding); U · U03_quality_straighten_dialog on an 8°-skewed drawing it uploads (`support/drawingSeed.ts`, BUG-364) | covered |
 | Q7 | Dialog | confirm "Nắn thẳng" / "Cắt và nắn" | `IQD:33-35` | — | n/a-by-design (destructive; Phase 11) |
-| Q8 | Footer | acknowledgement checkbox only with a `poor` metric; blocked note | `IQF:33-55`, `UIQ:1018-1040` | M · SCR-11 "Tiếp tục xử lý" (conditional) | covered (data-dependent) |
+| Q8 | Footer | acknowledgement checkbox only with a `poor` metric; blocked note | `IQF:33-55`, `UIQ:1018-1040` | M · SCR-11 "Tiếp tục xử lý" (conditional); U · U03_quality_ack_blocked on the 8°-skewed drawing ("poor" skew, BUG-364) | covered |
 | Q9 | Footer | "Tiếp tục xử lý" → /pipeline | `UIQ:1263-1269` | M · SCR-11 "Tiếp tục xử lý" | covered |
 | Q10 | Footer | aria-disabled + reason when no drawing / reading / read failed | `IQF:37-77`, `UIQ:1020-1027` | E · SCR-11 floors without a drawing | covered (no-drawing branch) |
 | Q11 | Footer | "Tải bản vẽ khác" → /upload | `IQF:67-69`, `UIQ:1270` | E · SCR-11 footer "Tải bản vẽ khác" | covered |
@@ -205,7 +205,7 @@ No phase-03 `_ui` spec exists at this stamp. Test names are shortened to their l
 | P3 | Button | "Khoá cuộn tự động" aria-pressed | `PLP:70-78` | M · SCR-12 tabs | covered |
 | P4 | Button | "Sao chép nhật ký" → clipboard | `PLP:79-84`, `UPR:770-772`, `PRG:986-997` | E · SCR-10 every floor attached … log copy | covered |
 | P5 | Empty log | "Chưa có dòng nhật ký nào" | `PLP:87-88` | E · log copy (branch recorded in JSON) | covered (data-dependent) |
-| P6 | Steps | "Mở chi tiết bước …" / "Đóng chi tiết bước …" | `PSL:195-205` | M · SCR-12 tabs (when a step has detail) | covered (data-dependent) |
+| P6 | Steps | "Mở chi tiết bước …" / "Đóng chi tiết bước …" | `PSL:195-205` | U · U03_pipeline_step_detail (skips: the real gateway answers `stepDetails` unsupported, `PRG` PROCESSING_MISSING_CAPABILITIES, so no step has detail lines — BUG-364) | n/a-by-design (capability not wired) |
 | P7 | Cancel | "Huỷ xử lý" not rendered (unsupported) | `PR:103-126`, `UPR:790` | M · SCR-12 "Huỷ xử lý"; E · SCR-12 project with no run | covered |
 | P8 | Background | "Để chạy nền và thông báo cho tôi" only while a run is not final | `PR:97-101`, `UPR:791-792` | E · SCR-12 project with no run (absent) | covered (absent branch); gap (present branch — run too fast with fake ML) |
 | P9 | Summary | "Duyệt lớp tường" → walls of the first done floor (FIX-1380, BUG-285) | `PSU:47-49`, `UPR:1220-1232` | M · [BUG-285] SCR-12 "Duyệt lớp tường" (last in the file); E · SCR-10 every floor attached (visible) | covered |

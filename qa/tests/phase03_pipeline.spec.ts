@@ -584,6 +584,9 @@ test.describe('SCR-10 Floor Upload (after CP-5)', () => {
     const tray = page.getByRole('region', { name: 'Tệp chưa gán tầng', exact: true });
     const rejection = tray.getByText(/^Định dạng .+ chưa nhận được\./u);
     await expect(rejection).toBeVisible();
+    // BUG-359: the previous test left the page scrolled to the footer's block notice, and `toBeVisible` does not mean "in the
+    // viewport" — run-23's shot showed the cards + notice again. Bring the tray's rejection into the frame first.
+    await rejection.scrollIntoViewIfNeeded();
     await captureEvidence(page, '10_upload_rejected.png');
 
     await tray.getByRole('button', { name: 'Đóng', exact: true }).click();
@@ -611,7 +614,9 @@ test.describe('SCR-11 Input Quality Gate', () => {
     }
 
     const current = report().locator('[aria-current="true"]');
-    const before = (await current.count()) > 0 ? await current.first().innerText() : null;
+    // textContent, not innerText: `toHaveText` matches the row's textContent, and innerText puts tabs / newlines between the
+    // cells ("Tầng 4\t2 phát hiện…" vs "Tầng 42 phát hiện…"), so the same row never matched (BUG-363, run-23).
+    const before = (await current.count()) > 0 ? await current.first().textContent() : null;
     // Focus is on the document after load (not an input), so the canvas-scope floor keys fire.
     await page.keyboard.press('ArrowRight');
     await page.keyboard.press('ArrowLeft');

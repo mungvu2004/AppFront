@@ -781,6 +781,11 @@ test.describe('E03 SCR-08 project settings', () => {
       await del;
       await expect.poll(() => pathOf(page)).toBe(ROUTES.dashboard); // container onProjectDeleted → navigate('/')
       await expect(toastWith(page, DANGER.deletedNotice).first()).toBeVisible();
+      // BUG-358: shoot the LOADED dashboard (a card or the "never had a project" state — ProjectDashboard.tsx:109,243), not
+      // its skeleton, and prove the deleted project's card is gone (`<article role="listitem" aria-label={name}>`).
+      const list = page.getByRole('list', { name: 'Danh sách dự án', exact: true });
+      await expect(list.getByRole('listitem').first().or(page.getByText('Chưa có dự án nào', { exact: true }))).toBeVisible();
+      await expect(list.getByRole('listitem', { name: project.name, exact: true })).toHaveCount(0);
       await captureEvidence(page, 'E03_settings_delete_project.png');
     });
   });
@@ -1404,7 +1409,15 @@ test.describe('E03 SCR-10 floor upload', () => {
         // UPR:781-783 joins "<time> <text>" per log line: an empty log copies "", a non-empty one copies its lines.
         if (emptyLog) expect(copied).toBe('');
         else expect(copied.trim().length, 'clipboard holds the log').toBeGreaterThan(0);
-        await captureEvidence(page, 'E03_pipeline_submit_log_copy.png');
+        // BUG-361: the screen gives no visible copy feedback (UPR onCopyLog → gateway.copyText only), so the shot carries what
+        // the clipboard holds; without it the image equals E03_pipeline_done_summary.
+        const copiedLines = copied === '' ? [] : copied.split('\n');
+        await captureEvidence(page, 'E03_pipeline_submit_log_copy.png', {
+          caption: [
+            `"${PROCESSING.copyLog}" clicked → clipboard: ${String(copiedLines.length)} line(s)${emptyLog ? ' (empty log)' : ''}`,
+            ...copiedLines.slice(0, 4),
+          ],
+        });
         await attachJson('E03_pipeline_submit_log_copy.json', {
           submitWrites,
           logEmpty: emptyLog,
