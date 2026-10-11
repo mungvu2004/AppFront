@@ -268,6 +268,7 @@
         "serverRefusedFieldNotice": "Máy chủ không nhận {{field}} này. Sửa ô được đánh dấu ở bước 1 rồi thử lại.",
         "serverRefusedFloorNotice": "Máy chủ không nhận tầng {{floor}}. Sửa ở bước 2 rồi thử lại.",
         "fixAtStep": "Sửa ở bước {{step}}",
+        "unknownKeepsForm": "Hệ thống đã ghi nhận và sẽ kiểm tra. Bấm \"Tạo dự án\" để thử lại — những gì đã nhập vẫn còn.",
         "duplicateName": "Tên dự án đã trùng với một dự án khác. Đổi tên rồi thử lại."
       },
       "summary": {

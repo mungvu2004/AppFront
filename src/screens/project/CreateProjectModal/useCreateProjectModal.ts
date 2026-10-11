@@ -282,9 +282,15 @@ function describeCreateFailure(error: unknown, floors: readonly FloorPlan[]): Cr
     };
   }
 
-  // Everything else falls back to the shared, already-Vietnamese wording
-  // `describeError` owns, and nothing is marked: "Tạo dự án" stays usable to retry.
-  return { notice: { level: 'violation', message: describeError(appError).description }, fieldProblem: null };
+  // Nothing is marked from here on: "Tạo dự án" stays usable to retry. The
+  // shared "unknown" advice says to reload, which would wipe this unsaved form
+  // (BUG-188), so the wizard words that one itself; the rest keep the shared,
+  // already-Vietnamese wording `describeError` owns.
+  const message =
+    appError.kind === 'unknown'
+      ? 'Hệ thống đã ghi nhận và sẽ kiểm tra. Bấm "Tạo dự án" để thử lại — những gì đã nhập vẫn còn.'
+      : describeError(appError).description;
+  return { notice: { level: 'violation', message }, fieldProblem: null };
 }
 
 /* -------------------------------------------------------------------------- */

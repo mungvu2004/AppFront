@@ -627,7 +627,7 @@ describe('CreateProjectModal, wired to its hook', () => {
     expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeEnabled();
   });
 
-  it('keeps "Tạo dự án" usable to retry after a 500, marking no field (BUG-129)', async () => {
+  it('keeps "Tạo dự án" usable to retry after a 500, marking no field, and never advises a reload (BUG-129, BUG-188)', async () => {
     const gateway = failingGateway(500, {});
     render(<CreateProjectModal isOpen gateway={gateway} forceCompact={false} onDismiss={noop} />);
 
@@ -635,7 +635,10 @@ describe('CreateProjectModal, wired to its hook', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tạo dự án' }));
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Tạo dự án' })).toBeEnabled());
-    expect(screen.getByRole('alert')).toBeInTheDocument();
+    // BUG-188: the advice keeps the form — no "tải lại", which would wipe it.
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Hệ thống đã ghi nhận và sẽ kiểm tra. Bấm "Tạo dự án" để thử lại — những gì đã nhập vẫn còn.',
+    );
     expect(gateway.create).toHaveBeenCalledTimes(1);
   });
 
