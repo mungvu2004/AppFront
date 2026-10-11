@@ -1047,6 +1047,31 @@ describe('useScaleCalibration — bảy trạng thái', () => {
   });
 });
 
+describe('useScaleCalibration — ngưỡng tin cậy của dự án (BUG-354)', () => {
+  /* Mọi hàng 0,8: trên 0,70 mặc định, dưới 0,85 của dự án. */
+  const rowsAt = (confidence: number) => sampleDimensionRows().map((row) => ({ ...row, confidence }));
+
+  it('gạch "độ tin cậy thấp" theo ngưỡng N5 của dự án, không theo hằng 0,70', async () => {
+    const harness = await makeHarness({ rows: rowsAt(0.8) });
+    const mounted = mountHook({ ...harness.gateway, readConfidenceThreshold: () => Promise.resolve(0.85) });
+
+    await settle(mounted);
+    await settleAsync();
+    expect(mounted.result.current.model.panel.dimension.rows.every((row) => row.isLowConfidence)).toBe(true);
+    mounted.unmount();
+  });
+
+  it('không đọc được cài đặt → rơi về ngưỡng mặc định 0,70', async () => {
+    const harness = await makeHarness({ rows: rowsAt(0.8) });
+    const mounted = mountHook({ ...harness.gateway, readConfidenceThreshold: () => Promise.resolve(null) });
+
+    await settle(mounted);
+    await settleAsync();
+    expect(mounted.result.current.model.panel.dimension.rows.some((row) => row.isLowConfidence)).toBe(false);
+    mounted.unmount();
+  });
+});
+
 describe('useScaleCalibration — bàn phím và phiên kéo', () => {
   it('Esc huỷ đoạn đang kéo, R đo lại', async () => {
     const harness = await makeHarness();

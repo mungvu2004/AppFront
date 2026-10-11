@@ -1308,6 +1308,36 @@ describe('ngưỡng "cần chú ý"', () => {
   });
 });
 
+describe('ngưỡng tin cậy của dự án (BUG-354)', () => {
+  it('N5 0,75: tường 0,71 là độ tin cậy thấp ở danh sách, bộ lọc và gạch chéo canvas', async () => {
+    const suggested = wallAt(13);
+    const mounted = await mountSettled({
+      gateway: {
+        ...createMockWallLayerReviewGateway({ graph: FIXTURE_GRAPH }),
+        readConfidenceThreshold: () => Promise.resolve(0.75),
+      },
+    });
+
+    await act(async () => {
+      mounted.result.current.panel.onToggleFilter('onlyLowConfidence');
+      await Promise.resolve();
+    });
+
+    const expected = FIXTURE_WALLS.filter((wall) => isLowConfidence(wall, 0.75)).length;
+
+    expect(suggested.confidence).toBe(0.71);
+    await waitFor(() => {
+      expect(mounted.result.current.panel.rows).toHaveLength(expected);
+    });
+    expect(mounted.result.current.panel.rows.some((row) => row.id === suggested.id)).toBe(true);
+    expect(
+      mounted.result.current.canvas.shapes.find((shape) => shape.id === suggested.id)?.isLowConfidence,
+    ).toBe(true);
+
+    mounted.unmount();
+  });
+});
+
 describe('tự lưu — bộ lưu lớp chung (F-04x-1)', () => {
   /*
    * Đổi so với bản B-V6-03: cổng không còn `persistWallLayer` để rình, nên bài

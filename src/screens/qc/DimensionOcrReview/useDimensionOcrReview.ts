@@ -79,6 +79,7 @@ import { useAutosave } from '@/hooks/useAutosave';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import { useCountUp } from '@/hooks/useCountUp';
 import { appNotificationBus } from '@/hooks/useNotifications';
+import { useProjectConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useShortcut } from '@/hooks/useShortcut';
 import { createAutosave, type Autosave } from '@/lib/autosave/createAutosave';
@@ -463,9 +464,11 @@ export function useDimensionOcrReview(
   );
 
   const reviewCounter = useMemo(() => reviewCounterOf(dimensions), [dimensions]);
+  /* Ngưỡng của dự án, không hằng 0,70 (BUG-354, như FIX-1603). */
+  const confidenceThreshold = useProjectConfidenceThreshold(projectId, gateway.readConfidenceThreshold);
   const lowConfidenceDimensions = useMemo(
-    () => lowConfidenceDimensionsOf(dimensions),
-    [dimensions],
+    () => lowConfidenceDimensionsOf(dimensions, confidenceThreshold),
+    [confidenceThreshold, dimensions],
   );
   const activeFilter: DimensionFilterId =
     filterChoice ?? (lowConfidenceDimensions.length > 0 ? 'lowConfidence' : 'all');
@@ -801,6 +804,7 @@ export function useDimensionOcrReview(
           imageUrl,
           draftValue,
           displayCodes,
+          confidenceThreshold,
         );
 
         return {
@@ -814,6 +818,7 @@ export function useDimensionOcrReview(
         };
       }),
     [
+      confidenceThreshold,
       dimensions,
       draft,
       graph,

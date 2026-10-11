@@ -58,8 +58,8 @@ import { resolveWallShapes } from '@/domain/walls/joints';
 import { centrelineLength, type Wall as SolidWall } from '@/domain/walls/types';
 import { millimetresPerPixel, pixels, scaleFromRatio, type Scale } from '@/domain/units/scale';
 import { millimetres } from '@/domain/units/types';
-import { isLowConfidence as hasLowConfidenceHatch } from '@/components/canvas/materialMap';
 import type { MeasurementState } from '@/hooks/useMeasurementLabel';
+import { readProjectConfidenceThreshold, type ReadConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
 import { WALL_COMMAND_TYPES } from '@/lib/commands/business/wallCommands';
 import {
   createDeleteWallCommand,
@@ -101,7 +101,7 @@ import {
 } from '@/lib/commands/history';
 import { formatLength, formatScaleDensity } from '@/lib/format/measure';
 import { formatNumber } from '@/lib/format/number';
-import { confidenceLevel } from '@/lib/format/semantic';
+import { CONFIDENCE_SUGGESTED_THRESHOLD } from '@/lib/format/semantic';
 import { createUndoTicket, UNDO_WINDOW_MS, type UndoTicket } from '@/lib/mutations/undoTicket';
 import { toWallViewModel } from '@/lib/viewmodel/toViewModel';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
@@ -253,6 +253,8 @@ export interface WallLayerReviewGateway {
   readonly actorId: string;
   /** Mốc giờ hiện tại. Tiêm được để test không phụ thuộc đồng hồ thật. */
   readonly now: () => number;
+  /** Ngưỡng tin cậy của dự án (N5). Vắng → ngưỡng mặc định 0,70 (BUG-354). */
+  readonly readConfidenceThreshold?: ReadConfidenceThreshold;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -372,6 +374,7 @@ export function createWallLayerReviewGateway(
     nextWallId: options.nextWallId ?? ((): WallId => createId('wall')),
     actorId: options.actorId ?? WALL_LAYER_DEFAULT_ACTOR_ID,
     now: options.now ?? ((): number => Date.now()),
+    readConfidenceThreshold: (input) => readProjectConfidenceThreshold(apiClient.projectSettings, input),
   };
 }
 
@@ -1036,6 +1039,7 @@ export function toCanvasShapes(
   level: Level,
   statusOf: (wall: Wall) => ViewStatusCode,
   wallCodes?: ReadonlyMap<string, string>,
+  threshold: number = CONFIDENCE_SUGGESTED_THRESHOLD,
 ): readonly WallLayerCanvasShape[] {
   const scale = scaleOfLevel(level);
   const outlines = new Map(toWallShapes(walls, level, statusOf).map((shape) => [shape.id, shape]));
@@ -1076,7 +1080,7 @@ export function toCanvasShapes(
        * chấm và khung nhìn nay đọc chung một phép.
        */
       attentionDotPx: centreOfBounds(bounds),
-      isLowConfidence: hasLowConfidenceHatch(wall.confidence),
+      isLowConfidence: isLowConfidence(wall, threshold),
     });
   }
 
@@ -1217,12 +1221,8 @@ export const isStandardThickness = (thicknessMm: number): boolean =>
   WALL_THICKNESS_CHOICES.some((choice) => choice === thicknessMm);
 
 /**
- * Tường này có dưới ngưỡng "cần chú ý" không — băng `needsReview`, tức **dưới
- * 0,70**.
- *
- * Ngưỡng KHÔNG được viết ở màn: `CONFIDENCE_SUGGESTED_THRESHOLD` của
- * `@/lib/format/semantic` là chỗ duy nhất con số đó tồn tại, và `confidenceLevel`
- * là hàm duy nhất phân loại.
+ * Tường này có dưới ngưỡng độ tin cậy của dự án không (N5 `confidenceThreshold`, BUG-354 — cùng nguồn
+ * câu đếm của màn Xử lý, FIX-1603). Chưa đọc được cài đặt → `CONFIDENCE_SUGGESTED_THRESHOLD` (0,70).
  *
  * ## Vì sao KHÔNG phải `!== 'certain'`
  *
@@ -1233,16 +1233,11 @@ export const isStandardThickness = (thicknessMm: number): boolean =>
  * thấp" thì gạch theo < 0,90. Một tường 0,80 bị gạch trong danh sách và không
  * gạch trên bản vẽ.
  *
- * Đặc tả đòi 0,75. Con số đó KHÔNG tồn tại ở đâu trong repo và R-71 cấm viết
- * thẳng nó vào màn; `needsReview` là băng có sẵn gần nó nhất. Người duyệt đã
- * chốt 0,70 — quyết định ghi ở đây vì đây là chỗ nó có hiệu lực.
- *
  * Một nguồn phân loại duy nhất: `WallRowViewModel.isLowConfidence`, bộ lọc
- * "Chỉ hiện độ tin cậy thấp" và gạch chéo của canvas nay đọc chung một câu trả
- * lời.
+ * "Chỉ hiện độ tin cậy thấp" và gạch chéo của canvas đọc chung hàm này với cùng ngưỡng.
  */
-export const isLowConfidence = (wall: Wall): boolean =>
-  confidenceLevel(wall.confidence) === 'needsReview';
+export const isLowConfidence = (wall: Wall, threshold: number = CONFIDENCE_SUGGESTED_THRESHOLD): boolean =>
+  wall.confidence < threshold;
 
 /**
  * Trạng thái màu của một tường.
@@ -1263,7 +1258,11 @@ export function wallStatusCode(wall: Wall): ViewStatusCode {
 }
 
 /** Một dòng của danh sách 48 tường. */
-export function toWallRow(wall: Wall, wallCodes?: ReadonlyMap<string, string>): WallRowViewModel {
+export function toWallRow(
+  wall: Wall,
+  wallCodes?: ReadonlyMap<string, string>,
+  threshold: number = CONFIDENCE_SUGGESTED_THRESHOLD,
+): WallRowViewModel {
   return {
     id: wall.id,
     codeLabel: wallLabelOf(wall.id, wallCodes),
@@ -1272,7 +1271,7 @@ export function toWallRow(wall: Wall, wallCodes?: ReadonlyMap<string, string>): 
     confidence: wall.confidence,
     statusCode: wallStatusCode(wall),
     isReviewed: wall.reviewed,
-    isLowConfidence: isLowConfidence(wall),
+    isLowConfidence: isLowConfidence(wall, threshold),
     isNonStandardThickness: !isStandardThickness(wall.thicknessMm),
   };
 }

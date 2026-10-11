@@ -30,8 +30,8 @@
  * - Chiều dài tim tường: `centrelineLength` (`src/domain/walls/types.ts`).
  * - Tách/nối: `splitWall`/`mergeWalls` (`src/domain/walls/edit.ts`), gọi qua
  *   chính hai hàm dựng lệnh của S-07.
- * - Ngưỡng độ tin cậy: `confidenceLevel` (`@/lib/format/semantic`) — cùng hàm
- *   `toWallViewModel` dùng, nên trạng thái màu và cờ lọc không thể lệch nhau.
+ * - Ngưỡng "độ tin cậy thấp": `confidenceThreshold` của dự án (N5, BUG-354), mặc định 0,70; lọc,
+ *   danh sách và gạch chéo canvas cùng đọc `isLowConfidence` với ngưỡng đó.
  * - Số: `formatLength`, `formatNumber`, `formatPoint`, `formatElevationM`,
  *   `formatScaleDensity`. Không một hàm định dạng số dựng sẵn nào của JavaScript
  *   được gọi thẳng trong màn — A15 đặt việc đó ở `src/lib/format`.
@@ -90,6 +90,7 @@ import { millimetresPerPixel } from '@/domain/units/scale';
 import { useFloorLayerAutosave, type FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import { useCountUp } from '@/hooks/useCountUp';
 import { useFloorLayer } from '@/hooks/useFloorLayer';
+import { useProjectConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
@@ -451,13 +452,14 @@ export function levelsOf(graph: NormalizedSpatial | null): readonly Level[] {
 export function applyWallFilters(
   walls: readonly Wall[],
   filters: WallLayerFilters,
+  threshold?: number,
 ): readonly Wall[] {
   return walls.filter((wall) => {
     if (filters.onlyUnreviewed && wall.reviewed) {
       return false;
     }
 
-    if (filters.onlyLowConfidence && !isLowConfidence(wall)) {
+    if (filters.onlyLowConfidence && !isLowConfidence(wall, threshold)) {
       return false;
     }
 
@@ -1178,16 +1180,23 @@ export function useWallLayerReview(
     [walls],
   );
 
-  const visibleWalls = useMemo(() => applyWallFilters(walls, filters), [filters, walls]);
+  /* Ngưỡng của dự án, không hằng 0,70 (BUG-354, như FIX-1603). */
+  const confidenceThreshold = useProjectConfidenceThreshold(projectId, gateway.readConfidenceThreshold);
+  const visibleWalls = useMemo(
+    () => applyWallFilters(walls, filters, confidenceThreshold),
+    [confidenceThreshold, filters, walls],
+  );
 
   const rows = useMemo<readonly WallRowViewModel[]>(
-    () => (hasError ? NO_ROWS : visibleWalls.map((wall) => toWallRow(wall, wallCodes))),
-    [hasError, visibleWalls, wallCodes],
+    () =>
+      hasError ? NO_ROWS : visibleWalls.map((wall) => toWallRow(wall, wallCodes, confidenceThreshold)),
+    [confidenceThreshold, hasError, visibleWalls, wallCodes],
   );
 
   const shapes = useMemo<readonly WallLayerCanvasShape[]>(
-    () => (level === null ? [] : toCanvasShapes(walls, level, wallStatusCode, wallCodes)),
-    [level, walls, wallCodes],
+    () =>
+      level === null ? [] : toCanvasShapes(walls, level, wallStatusCode, wallCodes, confidenceThreshold),
+    [confidenceThreshold, level, walls, wallCodes],
   );
 
   const inspector = useMemo(() => {

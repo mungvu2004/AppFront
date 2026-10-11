@@ -627,6 +627,31 @@ describe('ba bộ lọc của danh sách', () => {
     mounted.unmount();
   });
 
+  it('"độ tin cậy thấp" theo ngưỡng N5 của dự án, không hằng 0,70 (BUG-354)', async () => {
+    const strictThreshold = 0.95;
+    const mounted = await mountSettled({
+      gateway: {
+        ...createMockDimensionOcrReviewGateway(),
+        readConfidenceThreshold: () => Promise.resolve(strictThreshold),
+      },
+    });
+
+    await waitFor(() => {
+      expect(mounted.result.current.rows.length).toBeGreaterThan(DIMENSION_OCR_FIXTURE_LOW_CONFIDENCE);
+    });
+    const lowRows = mounted.result.current.rows;
+
+    await run(() => {
+      mounted.result.current.onFilterChange('all');
+    });
+    const expected = mounted.result.current.rows.filter((row) => row.confidence < strictThreshold);
+
+    expect(lowRows.map((row) => row.id)).toEqual(expected.map((row) => row.id));
+    expect(expected.every((row) => row.isLowConfidence)).toBe(true);
+
+    mounted.unmount();
+  });
+
   it('hàm lọc là hàm THUẦN, chạy được không cần dựng hook', () => {
     const rows = DIMENSION_OCR_FIXTURE_DIMENSIONS.map((dimension) => ({
       isReviewed: dimension.reviewed,

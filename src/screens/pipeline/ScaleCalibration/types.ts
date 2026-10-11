@@ -170,7 +170,7 @@ export interface DimensionStringRow extends ScaleMeasurement {
   /** Độ tin cậy của lần đọc, `0..1`. Cấp thẳng cho `ConfidenceMeter`. */
   readonly confidence: number;
   /**
-   * `true` khi độ tin cậy dưới ngưỡng `CONFIDENCE_SUGGESTED_THRESHOLD`. View gạch
+   * `true` khi độ tin cậy dưới ngưỡng của dự án (N5; mặc định 0,70). View gạch
    * chéo hàng và tô mức cần chú ý — đây là nửa thứ hai của trạng thái `partial`.
    */
   readonly isLowConfidence: boolean;

@@ -101,6 +101,7 @@ import {
 } from '@/domain/units/types';
 import { useAutosave, useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { useFloorLayer } from '@/hooks/useFloorLayer';
+import { useProjectConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import { useCountUp } from '@/hooks/useCountUp';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -110,7 +111,6 @@ import { describeError, toAppError } from '@/lib/errors';
 import { readWireError } from '@/lib/errors/wireError';
 import { formatArea, formatDrawingScaleRatio, formatLength, formatScaleDensity } from '@/lib/format/measure';
 import { formatNumber, formatPercent, MISSING_VALUE } from '@/lib/format/number';
-import { CONFIDENCE_SUGGESTED_THRESHOLD } from '@/lib/format/semantic';
 import { formatCombo, keyCapLabels, parseCombo } from '@/lib/input/shortcutRegistry';
 import { MODIFIER_SHORTCUTS } from '@/lib/tools/shortcuts';
 import { queryKeys } from '@/lib/query/queryKeys';
@@ -589,6 +589,8 @@ export function useScaleCalibration(
    * khung vẽ; "Áp dụng tỷ lệ" khi ấy nói lý do tại chỗ.
    */
   const floorLayer = useFloorLayer({ projectId, floorId, read: gateway.readLayer });
+  /* Gạch "độ tin cậy thấp" theo ngưỡng của dự án, không hằng 0,70 (BUG-354, như FIX-1603). */
+  const confidenceThreshold = useProjectConfidenceThreshold(projectId, gateway.readConfidenceThreshold);
   const levelId: string = floorLayer.data?.level.id ?? floorId;
   /** `'unresolved'`: tỉ lệ trong `Level` là tỉ lệ tạm của pipeline, chưa ai chốt. */
   const isProvisional = floorLayer.scaleStatus === 'unresolved';
@@ -1315,7 +1317,7 @@ export function useScaleCalibration(
   const rows = useMemo<readonly DimensionStringRow[]>(
     () =>
       rawRows.map((row) => {
-        const isLowConfidence = row.confidence < CONFIDENCE_SUGGESTED_THRESHOLD;
+        const isLowConfidence = row.confidence < confidenceThreshold;
 
         return {
           id: row.id,
@@ -1330,7 +1332,7 @@ export function useScaleCalibration(
           statusCode: isLowConfidence ? 'attention' : 'neutral',
         };
       }),
-    [rawRows],
+    [confidenceThreshold, rawRows],
   );
 
   const lowConfidenceCount = rows.filter((row) => row.isLowConfidence).length;
