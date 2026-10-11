@@ -20,9 +20,14 @@ export interface UseNumericFieldProps {
   max?: number | undefined;
   /** Named in the range message ("Giá trị không quá 10 m."), so a refusal says what it measures. */
   unit?: string | undefined;
+  /**
+   * Bump it when the caller writes a value that may equal the stored one ("Áp cho mọi tầng" twice): the
+   * `value` effect sees no change then, so a refusal still typed in the box would stay. A new key drops it.
+   */
+  resetKey?: number | undefined;
 }
 
-export function useNumericField({ value, onChange, min, max, unit }: UseNumericFieldProps) {
+export function useNumericField({ value, onChange, min, max, unit, resetKey }: UseNumericFieldProps) {
   const [localValue, setLocalValue] = useState<string>('');
   const [isFocused, setIsFocused] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -42,6 +47,15 @@ export function useNumericField({ value, onChange, min, max, unit }: UseNumericF
     if (value !== lastCommittedRef.current) setError(null);
     lastCommittedRef.current = value;
   }, [value]);
+
+  const resetKeyRef = useRef(resetKey);
+  useEffect(() => {
+    if (resetKey === resetKeyRef.current) return;
+    resetKeyRef.current = resetKey;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setIsTyping(false);
+    setError(null);
+  }, [resetKey]);
 
   // A sentence with the unit, not a bare operator: "Giá trị phải <= 10" told
   // nobody what was measured (BUG-160).
