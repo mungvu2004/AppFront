@@ -277,6 +277,18 @@ describe('ProjectDashboardView, seven states', () => {
     }
   });
 
+  // BUG-199: the 44 px rename field replaced a ~22 px title, so the card grew 16 px at 375 (2 px at 1440).
+  it('gives the card title and its rename field the same box, so renaming does not move the card', () => {
+    const heightClasses = (element: HTMLElement): string[] => element.className.split(' ').filter((name) => /(^|:)h-/u.test(name));
+    const { rerender } = render(<ProjectDashboardView {...PROPS_BY_STATE.success()} />);
+    const title = heightClasses(screen.getByRole('heading', { name: SAMPLE_ROW.name }));
+
+    rerender(<ProjectDashboardView {...PROPS_BY_STATE.success()} renamingId={SAMPLE_ROW.id} />);
+
+    expect(title).toEqual(['h-11', 'sm:h-6']);
+    expect(heightClasses(screen.getByRole('textbox', { name: `Đổi tên ${SAMPLE_ROW.name}` }))).toEqual(title);
+  });
+
   // BUG-153: at 375 px three columns left the name 98 px; below `sm` the row now stacks instead of hiding cells.
   it('keeps status, progress and update time in the table below `sm`, stacked under a name cell of its own', () => {
     render(<ProjectDashboardView {...PROPS_BY_STATE.success()} viewMode="table" />);

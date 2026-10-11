@@ -61,7 +61,9 @@ export function ProjectCardTile({
   onRenameCommit,
   onRenameCancel,
 }: ProjectCardTileProps) {
-  const titleClassName = 'text-[15px] font-semibold text-text-primary';
+  // Title and rename field share one box — 44 px below `sm` (the field's touch size, BUG-156), 24 px above —
+  // so swapping one for the other no longer pushes the card down (+16 px at 375, +2 at 1440: BUG-199).
+  const titleClassName = 'h-11 text-[15px] font-semibold text-text-primary sm:h-6';
 
   return (
     <motion.article
@@ -132,10 +134,10 @@ export function ProjectCardTile({
                 if (event.key === 'Enter') onRenameCommit();
                 if (event.key === 'Escape') onRenameCancel();
               }}
-              className={cn(titleClassName, 'h-11 rounded border border-accent bg-bg-surface px-1 outline-none sm:h-auto')}
+              className={cn(titleClassName, 'rounded border border-accent bg-bg-surface px-1 outline-none')}
             />
           ) : (
-            <h3 className={cn(titleClassName, 'truncate')}>{project.name}</h3>
+            <h3 className={cn(titleClassName, 'truncate leading-[44px] sm:leading-6')}>{project.name}</h3>
           )}
           <p className="flex items-center gap-1.5 truncate text-[12px] text-text-secondary">
             <Building2 size={12} aria-hidden="true" />
