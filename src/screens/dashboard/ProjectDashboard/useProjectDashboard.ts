@@ -44,6 +44,7 @@ import { PROJECT_NAME_MAX_LENGTH, PROJECT_NAME_MIN_LENGTH } from '@/domain/proje
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
 import { describeError } from '@/lib/errors/describeError';
+import type { AppErrorKind } from '@/lib/errors/kinds';
 import { toAppError } from '@/lib/errors/toAppError';
 import { readWireError } from '@/lib/errors/wireError';
 import { formatArea } from '@/lib/format/measure';
@@ -189,7 +190,8 @@ export interface UseProjectDashboardOptions {
   readonly onOpenProject?: (path: string) => void;
   readonly onCreateProject?: () => void;
   readonly onDuplicateProject?: (id: string) => void;
-  readonly onToast?: (toast: { readonly message: string; readonly onUndo?: () => void }) => void;
+  /** `state` marks a failure (`violation`) or a refused input (`attention`); a plain notice has none (BUG-207). */
+  readonly onToast?: (toast: { readonly message: string; readonly onUndo?: () => void; readonly state?: 'attention' | 'violation' }) => void;
 }
 
 /** Stable across renders, so a memo keyed on `allProjects` does not churn while `listQuery.data` is undefined. */
@@ -229,6 +231,20 @@ function deleteErrorMessageOf(error: unknown): string {
   return readWireError(error)?.code === 'FORBIDDEN'
     ? 'Bạn không có quyền xoá dự án này.'
     : 'Không xoá được dự án. Hãy thử lại.';
+}
+
+/** Kinds whose shared sentence is about the link, the server's pace or the session — true of a page load too. */
+const LOAD_ERROR_KINDS_WITH_OWN_SENTENCE: ReadonlySet<AppErrorKind> = new Set(['network', 'timeout', 'rateLimited', 'unauthenticated']);
+
+/**
+ * N1 failed while the page opened. Every other kind's shared sentence speaks of an action the person took
+ * ("Hãy thử lại thao tác vừa làm" for a 500) — they took none, so say what to do here instead (BUG-209).
+ */
+function listErrorMessageOf(error: unknown): string {
+  const appError = toAppError(error);
+  return LOAD_ERROR_KINDS_WITH_OWN_SENTENCE.has(appError.kind)
+    ? describeError(appError).description
+    : 'Máy chủ gặp lỗi khi đọc danh sách. Bấm "Thử lại" để tải lại.';
 }
 
 function routeForProject(project: DashboardProject, status: TelemetryPipelineStatus): string {
@@ -285,11 +301,12 @@ export function useProjectDashboard(
   // A11's "collapsed"/"forbidden" are overlays, not blank screens (ShareScreen's
   // precedent: they change what a person may do, not whether the list is
   // there) — filtering and rendering below run the same regardless of `state`.
-  const normalizedQuery = searchQuery.trim().toLowerCase();
+  // NFC on both sides: a pasted NFD query (letter + separate mark) never matched the name it shows (BUG-210).
+  const normalizedQuery = searchQuery.trim().normalize('NFC').toLowerCase();
   const filteredProjects = useMemo(
     () =>
       allProjects.filter((project) => {
-        if (normalizedQuery !== '' && !project.name.toLowerCase().includes(normalizedQuery)) return false;
+        if (normalizedQuery !== '' && !project.name.normalize('NFC').toLowerCase().includes(normalizedQuery)) return false;
         if (statusFilter !== 'all' && derivedStatusOf(project) !== statusFilter) return false;
         return true;
       }),
@@ -368,7 +385,7 @@ export function useProjectDashboard(
 
   // The cause and the next step, under the view's "Không tải được danh sách dự án" heading — the old
   // fallback repeated that heading word for word, and `Error.message` could be raw English (BUG-130).
-  const errorMessage = listQuery.isError ? describeError(toAppError(listQuery.error)).description : null;
+  const errorMessage = listQuery.isError ? listErrorMessageOf(listQuery.error) : null;
 
   const state = useMemo<SevenState>(() => {
     // Loading and a failed read beat the narrow overlay: with no list there is nothing
@@ -431,7 +448,7 @@ export function useProjectDashboard(
       await gateway.rename(id, name);
     } catch (error) {
       setName(id, previousName);
-      options.onToast?.({ message: renameErrorMessage(error) });
+      options.onToast?.({ message: renameErrorMessage(error), state: 'violation' });
       return;
     }
     applyInvalidation(queryClient, 'renameProject', { projectId: id });
@@ -449,7 +466,7 @@ export function useProjectDashboard(
     setRenamingId(null);
     if (project === undefined || trimmed === '' || trimmed === project.name) return;
     if (trimmed.length < PROJECT_NAME_MIN_LENGTH || trimmed.length > PROJECT_NAME_MAX_LENGTH) {
-      options.onToast?.({ message: RENAME_RANGE_MESSAGE });
+      options.onToast?.({ message: RENAME_RANGE_MESSAGE, state: 'attention' });
       return;
     }
     void renameTo(project.id, trimmed, project.name, true);

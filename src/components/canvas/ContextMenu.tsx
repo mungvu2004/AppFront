@@ -57,6 +57,21 @@ const ContextMenuRoot = forwardRef<HTMLDivElement, ContextMenuRootProps>(
       menu.style.top = `${String(Math.max(VIEWPORT_MARGIN, Math.min(safeTop, maxTop)))}px`;
     }, [isVisible, menuRef, safeTop]);
 
+    // The position was read from the trigger once, at open. A width change re-lays the page out under it
+    // (1440 -> 900: the card dropped ~60 px and the menu covered its own button), so close instead (BUG-211).
+    // Width only: a phone's toolbar hiding on scroll changes the height alone.
+    const onCloseRef = useRef(onClose);
+    onCloseRef.current = onClose;
+    useEffect(() => {
+      if (!isVisible) return;
+      const openedWidth = document.documentElement.clientWidth;
+      const handleResize = (): void => {
+        if (document.documentElement.clientWidth !== openedWidth) onCloseRef.current?.();
+      };
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }, [isVisible]);
+
     const handleKeyDown = useCallback(
       (e: React.KeyboardEvent<HTMLDivElement>) => {
         const menu = menuRef.current;

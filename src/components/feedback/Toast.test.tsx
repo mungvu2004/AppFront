@@ -75,6 +75,22 @@ describe('Toast.Provider and Toast.Item', () => {
     expect(screen.queryByText('Test message')).not.toBeInTheDocument();
   });
 
+  // BUG-207: a toast without a state fell back to the verified green, so error toasts wore A5's colour.
+  it.each([
+    [undefined, 'bg-text-muted'],
+    ['verified', 'bg-state-verified'],
+    ['attention', 'bg-state-attention'],
+    ['violation', 'bg-state-violation'],
+  ] as const)('dot for state %s is %s — green only when asked for', (state, dotClass) => {
+    const { container } = render(
+      <Toast.Item toast={{ id: 't', message: 'Thông báo', ...(state ? { state } : {}) }} index={0} onRemove={vi.fn()} />,
+    );
+
+    const dot = container.querySelector('[aria-hidden="true"].rounded-full');
+    expect(dot?.className).toContain(dotClass);
+    if (state !== 'verified') expect(dot?.className).not.toContain('bg-state-verified');
+  });
+
   it('bấm "Hoàn tác" thì toast rời đi, kể cả khi chuột còn nằm trên nó (B-V4-11)', () => {
     const onUndo = vi.fn();
     const UndoComponent = () => {

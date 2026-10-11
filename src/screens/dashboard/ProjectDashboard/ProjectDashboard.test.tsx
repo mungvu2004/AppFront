@@ -262,6 +262,69 @@ describe('ProjectDashboardView, seven states', () => {
     expect(within(card).queryByRole('img', { name: 'Sơ đồ mặt bằng' })).not.toBeInTheDocument();
   });
 
+  // BUG-119/157: a 730 px hero card, two 340 px side cards and a grid below drew three card widths on one screen.
+  it('lays every card out in one grid, at one size', () => {
+    const rows = ['a', 'b', 'c', 'd', 'e'].map((id) => ({ ...SAMPLE_ROW, id, name: `Dự án ${id}` }));
+    render(<ProjectDashboardView {...PROPS_BY_STATE.success()} rows={rows} />);
+
+    const list = screen.getByRole('list', { name: 'Danh sách dự án' });
+    const cards = within(list).getAllByRole('listitem');
+    expect(cards).toHaveLength(rows.length);
+    for (const card of cards) {
+      expect(card.parentElement).toBe(list);
+      expect(card.className).toBe(cards[0]?.className);
+      expect(card.firstElementChild?.className).toContain('h-[132px]');
+    }
+  });
+
+  // BUG-199: the 44 px rename field replaced a ~22 px title, so the card grew 16 px at 375 (2 px at 1440).
+  it('gives the card title and its rename field the same box, so renaming does not move the card', () => {
+    const heightClasses = (element: HTMLElement): string[] => element.className.split(' ').filter((name) => /(^|:)h-/u.test(name));
+    const { rerender } = render(<ProjectDashboardView {...PROPS_BY_STATE.success()} />);
+    const title = heightClasses(screen.getByRole('heading', { name: SAMPLE_ROW.name }));
+
+    rerender(<ProjectDashboardView {...PROPS_BY_STATE.success()} renamingId={SAMPLE_ROW.id} />);
+
+    expect(title).toEqual(['h-11', 'sm:h-6']);
+    expect(heightClasses(screen.getByRole('textbox', { name: `Đổi tên ${SAMPLE_ROW.name}` }))).toEqual(title);
+  });
+
+  // BUG-153: at 375 px three columns left the name 98 px; below `sm` the row now stacks instead of hiding cells.
+  it('keeps status, progress and update time in the table below `sm`, stacked under a name cell of its own', () => {
+    render(<ProjectDashboardView {...PROPS_BY_STATE.success()} viewMode="table" />);
+
+    const cells = within(screen.getByRole('row', { name: new RegExp(SAMPLE_ROW.name, 'u') })).getAllByRole('cell');
+    expect(cells[0]?.textContent).toBe(SAMPLE_ROW.name);
+    const shownBelowSm = cells.filter((cell) => !cell.className.split(' ').includes('hidden')).map((cell) => cell.textContent);
+    expect(shownBelowSm).toEqual([SAMPLE_ROW.name, SAMPLE_ROW.statusLabel, SAMPLE_ROW.progressLabel, SAMPLE_ROW.updatedLabel]);
+    expect(cells[0]?.closest('tr')?.className).toContain('max-sm:flex-wrap');
+  });
+
+  // BUG-211: the menu kept the spot read at open; narrowing the window moved the card under it.
+  it('closes the card menu when the window width changes, not when only the height does', () => {
+    const setViewport = (clientWidth: number, clientHeight: number): void => {
+      for (const [key, value] of Object.entries({ clientWidth, clientHeight })) {
+        Object.defineProperty(document.documentElement, key, { configurable: true, value });
+      }
+    };
+    setViewport(1440, 900);
+    try {
+      render(<ProjectDashboardView {...PROPS_BY_STATE.success()} />);
+      fireEvent.click(screen.getByRole('button', { name: `Tuỳ chọn cho ${SAMPLE_ROW.name}` }));
+      expect(screen.getByRole('menu', { name: 'Tuỳ chọn' })).toBeInTheDocument();
+
+      setViewport(1440, 700);
+      fireEvent(window, new Event('resize'));
+      expect(screen.getByRole('menu', { name: 'Tuỳ chọn' })).toBeInTheDocument();
+
+      setViewport(900, 700);
+      fireEvent(window, new Event('resize'));
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    } finally {
+      for (const key of ['clientWidth', 'clientHeight']) Reflect.deleteProperty(document.documentElement, key);
+    }
+  });
+
   // BUG-116/148: the menu opened where the pointer was (over its own button) or, from the keyboard, at 0,0.
   it('anchors the card menu under its button and gives focus back to it on Esc', async () => {
     const viewport = { clientWidth: 1440, clientHeight: 900 };
@@ -401,6 +464,15 @@ describe('ProjectDashboardView — F-07', () => {
     );
 
     expect(within(screen.getByRole('dialog')).getByRole('alert')).toHaveTextContent('Không xoá được dự án');
+  });
+
+  // BUG-195: an 80-char name with no space ran out of the sentence and scrolled the dialog body sideways at 375 px.
+  it('wraps a long unbroken name inside the delete sentence', () => {
+    const name = 'X'.repeat(80);
+    render(<ProjectDashboardView {...baseProps()} rows={[SAMPLE_ROW]} pendingDeleteId={SAMPLE_ROW.id} pendingDeleteName={name} />);
+
+    const sentence = within(screen.getByRole('dialog')).getByText(new RegExp(name, 'u'));
+    expect(sentence.closest('.break-words')).not.toBeNull();
   });
 
   it('không có "Nhân bản" trong menu của dự án', () => {
