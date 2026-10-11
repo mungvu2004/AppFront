@@ -999,9 +999,11 @@ test.describe('E03 SCR-09 floor manager', () => {
       // An editor's row reads "Chưa có bản vẽ" once: the badge (FTR:314-317); the count text (UFM:267-270) is drawn only
       // for a reader (FTR:329-331), not next to the badge (BUG-250, FIX-1284).
       await expect(row.getByText('Chưa có bản vẽ', { exact: true })).toHaveCount(1);
-      await captureEvidence(page, 'E03_floors_upload_link.png');
       await row.getByRole('button', { name: 'Tải lên', exact: true }).click(); // FTR:318-327
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.upload(project.id)); // FMC handleNavigateToDrawings
+      // BUG-310: the shot shows where "Tải lên" led (the upload screen with this floor's card), not the untouched table.
+      await expect(card(page, floor)).toBeVisible();
+      await captureEvidence(page, 'E03_floors_upload_link.png');
     });
   });
 
@@ -1339,6 +1341,11 @@ test.describe('E03 SCR-10 floor upload', () => {
 
       await menuButton.click();
       await remove.click();
+      // BUG-310: the local removal itself on record (its toast, UFU:879-884) and still no request; then the reload below
+      // shows the server copy back.
+      await expect(toastWith(page, `Đã xoá bản vẽ ${file}`).first()).toBeVisible();
+      expect(writesSince(api, mark), 'the second removal sends no request either').toEqual([]);
+      await captureEvidence(page, 'E03_upload_remove_local_before_reload.png');
       await page.reload();
       await expect(card(page, floor).getByText(ATTACHED, { exact: true })).toBeVisible(); // UFU:1045-1050 server drawing
       // FUC:82-86: a server-side drawing offers nothing to remove → no menu button at all.
