@@ -413,13 +413,15 @@ function applySnapshot(
 
   // Một nhịp đọc được xoá lỗi đọc tạm (503, mất mạng); chỉ 404/403 là vĩnh viễn.
   const { failure, ...rest } = record;
+  // Không còn gì để chờ thì không có "thời gian còn lại": 0 giây thành "Còn lại khoảng 0 giây" (BUG-352).
+  const remainingSeconds = estimateRemainingSeconds({ stages, highestProgressReached: totalPercent });
 
   return {
     ...rest,
     ...(failure?.isTerminal === true ? { failure } : {}),
     stages,
     totalPercent,
-    remainingSeconds: estimateRemainingSeconds({ stages, highestProgressReached: totalPercent }),
+    remainingSeconds: remainingSeconds === 0 ? null : remainingSeconds,
     progress,
     source,
     logLines: [...record.logLines, logLine],

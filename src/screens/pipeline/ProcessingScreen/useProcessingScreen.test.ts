@@ -609,6 +609,36 @@ describe('useProcessingScreen', () => {
     mounted.unmount();
   });
 
+  // BUG-352: every stage timed, so the estimate exists — and is 0 once all is done.
+  it('a run that finished stage by stage says only "Đã xong 1/1 tầng", no "Còn lại khoảng 0 giây" (BUG-352)', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 1);
+    const upload = uploads[0]!;
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+
+    await settle(clock);
+    await act(async () => {
+      latestSource().triggerOpen();
+    });
+
+    for (let stageIndex = 0; stageIndex < STAGES.length; stageIndex += 1) {
+      await act(async () => {
+        latestSource().triggerMessage(progressAt(upload.uploadId, stageIndex));
+        await clock.advance(POLL_INTERVAL_MS);
+      });
+    }
+
+    await act(async () => {
+      latestSource().triggerMessage(finishedProgress(upload.uploadId));
+      await clock.advance(POLL_INTERVAL_MS);
+    });
+
+    expect(mounted.result.current.state).toBe('success');
+    expect(mounted.result.current.overallSummaryLine).toBe('Đã xong 1/1 tầng');
+
+    mounted.unmount();
+  });
+
   // BUG-285: the real gateway answered `extractionSummary` "unsupported", so a finished run had no
   // "Báo cáo tổng kết" and no way on to "Duyệt lớp tường". The counts come from N16 once the floor is done.
   it('a finished floor shows the summary counted from its layer, and "Duyệt lớp tường" leads to that floor (BUG-285)', async () => {
