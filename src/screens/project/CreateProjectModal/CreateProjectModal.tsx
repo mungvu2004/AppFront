@@ -103,8 +103,10 @@ function StepInfo(props: CreateProjectModalViewProps) {
           onChange={(event) => props.setName(event.target.value)}
           maxLength={PROJECT_LIMITS.nameMaxLength}
           error={props.problems.name}
+          hint={props.nameHint}
           disabled={props.isSubmitting}
           placeholder="Ví dụ: Chung cư Bình Minh"
+          data-autofocus
         />
         <Input
           label="Mã dự án"

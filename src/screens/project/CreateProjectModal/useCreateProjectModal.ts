@@ -139,6 +139,10 @@ function formatElevationLabel(elevationMm: Millimetres): string {
   return `${formatNumber(millimetresToMetres(elevationMm), { fractionDigits: 1 })} m`;
 }
 
+const NAME_HINT =
+  `Bắt buộc, từ ${formatNumber(PROJECT_LIMITS.nameMinLength)} ` +
+  `đến ${formatNumber(PROJECT_LIMITS.nameMaxLength)} ký tự.`;
+
 function localNameProblemFor(name: string): string | null {
   const trimmed = name.trim();
   if (trimmed.length === 0) {
@@ -374,7 +378,10 @@ export interface CreateProjectModel {
   readonly buildingType: string;
   readonly notes: string;
   readonly buildingTypeOptions: SelectOption[];
+  /** Shown on a field nobody has typed into yet; `null` once its value says it all. */
   readonly problems: { readonly name: string | null };
+  /** Why "Tên dự án" is required — the reason a pristine step 1 cannot continue yet. */
+  readonly nameHint: string;
   readonly notice: CreateProjectNotice | null;
   readonly floorRows: readonly CreateProjectFloorRowModel[];
   readonly hasBasement: boolean;
@@ -458,6 +465,7 @@ export function useCreateProjectModal(
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [name, setNameState] = useState('');
+  const [nameTouched, setNameTouched] = useState(false);
   const [address, setAddressState] = useState('');
   const [code, setCodeState] = useState('');
   const [codeManuallyEdited, setCodeManuallyEdited] = useState(false);
@@ -480,10 +488,12 @@ export function useCreateProjectModal(
 
   const floorStack = useMemo(() => computeFloorStack(floorRows), [floorRows]);
   const hasAnyRowProblem = floorRows.some((row) => floorStack.problemById.has(row.id));
-  const nameProblem = localNameProblemFor(name);
-  const problems = { name: serverNameProblem ?? nameProblem };
+  const nameProblem = serverNameProblem ?? localNameProblemFor(name);
+  // A form nobody has typed into is not wrong yet (BUG-133): the name's own
+  // complaint waits for the first keystroke; a server refusal shows at once.
+  const problems = { name: nameTouched || serverNameProblem !== null ? nameProblem : null };
 
-  const canGoNextStep1 = problems.name === null;
+  const canGoNextStep1 = nameProblem === null;
   const canGoNextStep2 = floorRows.length > 0 && !hasAnyRowProblem && floorStack.collision === null;
   const canGoNext = step === 1 ? canGoNextStep1 : step === 2 ? canGoNextStep2 : true;
   const canSubmit = canGoNextStep1 && canGoNextStep2 && !isSubmitting;
@@ -496,7 +506,7 @@ export function useCreateProjectModal(
     if (isSubmitting) return 'loading';
     if (notice !== null && notice.level === 'violation') return 'error';
     if (step === 2 && floorRows.length === 0) return 'empty';
-    if (problems.name !== null || floorStack.collision !== null || hasAnyRowProblem) return 'partial';
+    if (nameProblem !== null || floorStack.collision !== null || hasAnyRowProblem) return 'partial';
     return 'success';
   }, [
     isCompact,
@@ -505,7 +515,7 @@ export function useCreateProjectModal(
     notice,
     step,
     floorRows.length,
-    problems.name,
+    nameProblem,
     floorStack.collision,
     hasAnyRowProblem,
   ]);
@@ -527,6 +537,7 @@ export function useCreateProjectModal(
 
   const setName = (value: string): void => {
     markDirty();
+    setNameTouched(true);
     setNameState(value);
     setServerNameProblem(null);
     setNotice(null);
@@ -692,6 +703,7 @@ export function useCreateProjectModal(
     notes,
     buildingTypeOptions: BUILDING_TYPE_OPTIONS,
     problems,
+    nameHint: NAME_HINT,
     notice,
     floorRows: floorRowModels,
     hasBasement: floorRows.some((row) => row.kind === 'basement'),

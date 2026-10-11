@@ -219,6 +219,7 @@
       "fields": {
         "name": "Tên dự án",
         "namePlaceholder": "Ví dụ: Chung cư Bình Minh",
+        "nameHint": "Bắt buộc, từ {{min}} đến {{max}} ký tự.",
         "address": "Địa chỉ",
         "code": "Mã dự án",
         "codeHint": "Tự tạo từ tên, sửa được",

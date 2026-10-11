@@ -70,7 +70,11 @@ export function getFocusableElements(container: HTMLElement): readonly HTMLEleme
 export interface FocusTrapOptions {
   /** Called on Escape. The owner decides what closing means. */
   onEscape?: () => void;
-  /** Focused on activate. Defaults to the first focusable, then the container. */
+  /**
+   * Focused on activate. Defaults to the element the layer marks with
+   * `data-autofocus` (the field a form opens on), then the first focusable,
+   * then the container.
+   */
   initialFocus?: HTMLElement;
   /** Focused on release when the opener has left the document. */
   fallbackFocus?: HTMLElement;
@@ -187,7 +191,10 @@ export function createFocusTrap(
 
     container.addEventListener('keydown', handleKeyDown);
 
-    (options.initialFocus ?? getFocusableElements(container)[0] ?? container).focus();
+    const focusable = getFocusableElements(container);
+    const marked = focusable.find((element) => element.hasAttribute('data-autofocus'));
+
+    (options.initialFocus ?? marked ?? focusable[0] ?? container).focus();
   };
 
   const release = (): void => {

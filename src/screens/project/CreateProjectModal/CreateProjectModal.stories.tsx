@@ -58,6 +58,7 @@ const base: CreateProjectModalViewProps = {
   notes: '',
   buildingTypeOptions: BUILDING_TYPE_OPTIONS,
   problems: { name: null },
+  nameHint: 'Bắt buộc, từ 3 đến 80 ký tự.',
   notice: null,
   floorRows: STACKED_FLOOR_ROWS,
   hasBasement: true,

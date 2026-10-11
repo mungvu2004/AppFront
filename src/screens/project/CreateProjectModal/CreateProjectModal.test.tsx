@@ -77,6 +77,7 @@ function baseProps(): CreateProjectModalViewProps {
     notes: '',
     buildingTypeOptions: BUILDING_TYPE_OPTIONS,
     problems: { name: null },
+    nameHint: 'Bắt buộc, từ 3 đến 80 ký tự.',
     notice: null,
     floorRows: STACKED_FLOOR_ROWS,
     hasBasement: true,
@@ -425,6 +426,23 @@ describe('CreateProjectModal, wired to its hook', () => {
     // A8: undo really removes what was just created, through the same mock client.
     await toast.onUndo?.();
     expect(deleteSpy).toHaveBeenCalledWith({ projectId: createdProjectId });
+  });
+
+  it('opens pristine: no complaint before a keystroke, the focus in "Tên dự án" (BUG-133)', async () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    const name = screen.getByLabelText('Tên dự án');
+    expect(name).toHaveFocus();
+    expect(name).not.toHaveAttribute('aria-invalid');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByText('Bắt buộc, từ 3 đến 80 ký tự.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeDisabled();
+
+    fireEvent.change(name, { target: { value: 'ab' } });
+    expect(screen.getByRole('alert')).toHaveTextContent('Tên dự án cần ít nhất 3 ký tự.');
+    fireEvent.change(name, { target: { value: '' } });
+    expect(screen.getByRole('alert')).toHaveTextContent('Chưa nhập tên dự án.');
   });
 
   it('closes an open "Loại công trình" list on Esc and keeps the dialog (BUG-152)', async () => {

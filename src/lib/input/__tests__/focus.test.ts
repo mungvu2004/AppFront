@@ -83,6 +83,16 @@ describe('createFocusTrap', () => {
     expect(document.activeElement).toBe(middle);
   });
 
+  it('starts on the element the layer marks with data-autofocus (BUG-133)', () => {
+    const { opener, dialog, middle } = buildDialog();
+
+    middle.setAttribute('data-autofocus', '');
+    opener.focus();
+    createFocusTrap(dialog).activate();
+
+    expect(document.activeElement).toBe(middle);
+  });
+
   it('wraps Tab from the last element back to the first', () => {
     const { dialog, first, last } = buildDialog();
 
