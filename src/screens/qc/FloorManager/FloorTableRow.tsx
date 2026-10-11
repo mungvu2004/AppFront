@@ -36,7 +36,7 @@ import { Toggle } from '@/components/ui/Toggle';
 import { formatNumber, parseNumber } from '@/lib/format/number';
 import { cn } from '@/lib/utils';
 
-import type { FloorEditableField, FloorManagerViewProps, FloorRowVm } from './floorManagerTypes';
+import { FLOOR_COLUMN_LABELS, type FloorEditableField, type FloorManagerViewProps, type FloorRowVm } from './floorManagerTypes';
 
 /** Chỉ chín hàm xử lý dòng cần — tránh `import type` vòng ngược với `FloorTable.tsx`. */
 type FloorRowHandlers = Pick<
@@ -51,9 +51,31 @@ type FloorRowHandlers = Pick<
 >;
 
 const NEEDS_DRAWING_LABEL = 'Chưa có bản vẽ';
+/** Đuôi nhãn dòng khi chưa có bản vẽ: chưa có gì để kiểm nên không đọc "— đã kiểm" (BUG-263). */
+const NEEDS_DRAWING_ROW_SUFFIX = 'chưa có bản vẽ';
 const UPLOAD_LINK_LABEL = 'Tải lên';
 const COPY_FURNITURE_LABEL = 'Sao chép nội thất sang tầng mới';
+
+
+/**
+ * Dòng xếp chồng (BUG-250): mười cột không vừa cạnh lát cắt hay dưới 1.024px, nên dòng
+ * xuống hàng như thẻ và mỗi ô tự mang tên cột (hàng tiêu đề ẩn hẳn, nên nhãn ô cũng là thứ trình đọc màn hình đọc).
+ */
+const STACKED_ROW = 'flex h-auto flex-wrap items-center py-2';
+/** Đệm ô 8px thay vì 12px của `Table.Cell`: mười cột vừa 958px (1.024px, lát cắt thu gọn). */
+export const CELL = 'px-2';
+const STACKED_CELL = 'flex h-auto items-center gap-2';
+
+function StackedLabel({ isStacked, column }: { readonly isStacked: boolean; readonly column: keyof typeof FLOOR_COLUMN_LABELS }) {
+  return isStacked ? (
+    <span className="text-[12px] text-text-muted">
+      {FLOOR_COLUMN_LABELS[column]}
+    </span>
+  ) : null;
+}
 const CONFIRM_DUPLICATE_LABEL = 'Nhân bản';
+/** Tường, phòng, diện tích, tiến độ QC, hành động. */
+const DUPLICATE_STRIP_COLUMNS = 5;
 
 function reorderedIds(rows: readonly FloorRowVm[], index: number, direction: -1 | 1): readonly string[] | null {
   const targetIndex = index + direction;
@@ -85,6 +107,8 @@ export interface FloorTableRowProps {
   readonly duplicatingFloorId: string | null;
   readonly copyFurniture: boolean;
   readonly showInsertionLineBefore: boolean;
+  /** Dòng xuống hàng như thẻ thay vì trải mười cột (BUG-250). */
+  readonly isStacked: boolean;
   readonly nameInputRef: (element: HTMLInputElement | null) => void;
   readonly onSelectFloor: FloorRowHandlers['onSelectFloor'];
   readonly onHoverFloor: FloorRowHandlers['onHoverFloor'];
@@ -124,6 +148,7 @@ export function FloorTableRow({
   duplicatingFloorId,
   copyFurniture,
   showInsertionLineBefore,
+  isStacked,
   nameInputRef,
   onSelectFloor,
   onHoverFloor,
@@ -142,6 +167,7 @@ export function FloorTableRow({
   onDragEnd,
 }: FloorTableRowProps) {
   const isDuplicating = duplicatingFloorId === row.id;
+  const cell = cn(CELL, isStacked && STACKED_CELL);
 
   const handleRowKeyDown = (event: KeyboardEvent<HTMLTableRowElement>) => {
     if (isDuplicating && event.key === 'Escape') {
@@ -170,7 +196,7 @@ export function FloorTableRow({
 
   return (
     <tr
-      aria-label={`${row.name}, cao độ ${row.elevationText}, cao ${row.heightText}, ${row.qcProgressText} đã kiểm`}
+      aria-label={`${row.name}, cao độ ${row.elevationText}, cao ${row.heightText}, ${row.hasDrawing ? `${row.qcProgressText} đã kiểm` : NEEDS_DRAWING_ROW_SUFFIX}`}
       aria-selected={row.isSelected}
       className={cn(
         'h-10 border-b border-border-default-50 outline-none transition-colors duration-120',
@@ -178,6 +204,7 @@ export function FloorTableRow({
         row.isSelected ? 'bg-bg-selected' : row.isHovered ? 'bg-bg-hover' : undefined,
         row.isHiddenIn3d && 'opacity-50',
         showInsertionLineBefore && 'border-t-2 border-t-accent',
+        isStacked && STACKED_ROW,
       )}
       onClick={() => onSelectFloor(row.id)}
       onDragOver={(event) => {
@@ -202,7 +229,7 @@ export function FloorTableRow({
       tabIndex={0}
     >
       {canEdit && (
-        <Table.Cell className="w-10 sm:w-8">
+        <Table.Cell className={cn(cell, !isStacked && 'w-10 sm:w-8')}>
           <IconButton
             aria-label={`Đổi thứ tự tầng ${row.name}`}
             className="cursor-grab active:cursor-grabbing"
@@ -220,11 +247,11 @@ export function FloorTableRow({
         </Table.Cell>
       )}
 
-      <Table.Cell>
+      <Table.Cell className={cell}>
         {canEdit ? (
           <Input
             aria-label={`Tên tầng ${row.name}`}
-            className="text-[13px]"
+            className="w-32 text-[13px]"
             onBlur={() => onFloorFieldCommit(row.id, 'name')}
             onChange={(event) => onFloorFieldChange(row.id, 'name', event.target.value)}
             onClick={(event) => event.stopPropagation()}
@@ -246,11 +273,12 @@ export function FloorTableRow({
         )}
       </Table.Cell>
 
-      <Table.Cell>
+      <Table.Cell className={cell}>
+        <StackedLabel column="elevation" isStacked={isStacked} />
         {canEdit && !isAutoElevation ? (
           <NumericField
             aria-label={`Cao độ tầng ${row.name}`}
-            className="w-24 text-[13px]"
+            className="w-16 text-[13px]"
             onChange={(value) =>
               commitNumericField(row.id, 'elevation', value, onFloorFieldChange, onFloorFieldCommit)
             }
@@ -263,11 +291,12 @@ export function FloorTableRow({
         )}
       </Table.Cell>
 
-      <Table.Cell>
+      <Table.Cell className={cell}>
+        <StackedLabel column="height" isStacked={isStacked} />
         {canEdit ? (
           <NumericField
             aria-label={`Chiều cao tầng ${row.name}`}
-            className="w-24 text-[13px]"
+            className="w-16 text-[13px]"
             onChange={(value) => commitNumericField(row.id, 'height', value, onFloorFieldChange, onFloorFieldCommit)}
             onClick={(event) => event.stopPropagation()}
             unit="m"
@@ -278,14 +307,16 @@ export function FloorTableRow({
         )}
       </Table.Cell>
 
-      <Table.Cell>
-        <div className="flex items-center gap-2">
-          <span className="text-[13px] text-text-secondary">{row.drawingCountText}</span>
-          {row.needsDrawing && canEdit && (
+      <Table.Cell className={cell}>
+        {/* Bảng đủ cột thì chip và "Tải lên" chồng lên nhau để cột hẹp lại (BUG-250). */}
+        <div className={cn('flex items-center gap-2', !isStacked && 'flex-col items-start gap-1')}>
+          <StackedLabel column="drawings" isStacked={isStacked} />
+          {row.needsDrawing && canEdit ? (
             <>
+              {/* Chip đã nói "Chưa có bản vẽ": không lặp chữ ấy lần nữa ngay cạnh nó (BUG-250). */}
               <Badge variant="attention">{NEEDS_DRAWING_LABEL}</Badge>
               <button
-                className="text-[12px] text-accent underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                className="inline-flex min-h-11 items-center rounded-[6px] px-1.5 text-[12px] text-accent underline-offset-2 sm:min-h-6 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                 onClick={(event) => {
                   event.stopPropagation();
                   onUploadDrawing(row.id);
@@ -295,54 +326,75 @@ export function FloorTableRow({
                 {UPLOAD_LINK_LABEL}
               </button>
             </>
-          )}
-        </div>
-      </Table.Cell>
-
-      <Table.Cell className="text-[13px] text-text-secondary">{row.wallCountText}</Table.Cell>
-      <Table.Cell className="text-[13px] text-text-secondary">{row.roomCountText}</Table.Cell>
-      <Table.Cell className="text-[13px] text-text-secondary">{row.areaText}</Table.Cell>
-
-      <Table.Cell>
-        <div className="flex items-center gap-2">
-          <div className="relative h-1.5 w-16 overflow-hidden rounded-full bg-bg-sunken">
-            <div
-              className="absolute inset-y-0 left-0 origin-left rounded-full bg-accent"
-              style={{ scale: `${row.qcProgressRatio} 1` }}
-            />
-          </div>
-          <span className="text-[13px] text-text-secondary">{row.qcProgressText}</span>
-          {row.qcProgressRatio === 1 && <Badge variant="verified">{row.qcProgressText}</Badge>}
-        </div>
-      </Table.Cell>
-
-      {canEdit && (
-        <Table.Cell>
-          {isDuplicating ? (
-            <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
-              <Toggle
-                aria-label={COPY_FURNITURE_LABEL}
-                checked={copyFurniture}
-                label={COPY_FURNITURE_LABEL}
-                onChange={onSetCopyFurniture}
-              />
-              <Button onClick={() => onConfirmDuplicate(row.id)} size="sm" variant="primary">
-                {CONFIRM_DUPLICATE_LABEL}
-              </Button>
-            </div>
           ) : (
-            <IconButton
-              aria-label={`Thao tác khác cho tầng ${row.name}`}
-              icon={<MoreVertical className="h-4 w-4" />}
-              onClick={(event) => {
-                event.stopPropagation();
-                onOpenMenu(event, row);
-              }}
-              size="sm"
-              tooltip={false}
-            />
+            <span className="text-[13px] text-text-secondary">{row.drawingCountText}</span>
           )}
+        </div>
+      </Table.Cell>
+
+      {isDuplicating ? (
+        /* Dải hỏi nhân bản thay chỗ năm ô cuối của chính dòng này: ô "Hành động" một mình không
+           đủ rộng, nhét vào đó thì bảng tràn ngang (BUG-250). */
+        <Table.Cell className={cell} colSpan={DUPLICATE_STRIP_COLUMNS}>
+          <div className="flex flex-wrap items-center gap-2" onClick={(event) => event.stopPropagation()}>
+            <Toggle
+              aria-label={COPY_FURNITURE_LABEL}
+              checked={copyFurniture}
+              label={COPY_FURNITURE_LABEL}
+              onChange={onSetCopyFurniture}
+            />
+            <Button onClick={() => onConfirmDuplicate(row.id)} size="sm" variant="primary">
+              {CONFIRM_DUPLICATE_LABEL}
+            </Button>
+          </div>
         </Table.Cell>
+      ) : (
+        <>
+          {(
+            [
+              ['walls', row.wallCountText],
+              ['rooms', row.roomCountText],
+              ['area', row.areaText],
+            ] as const
+          ).map(([column, text]) => (
+            <Table.Cell className={cn(cell, 'text-[13px] text-text-secondary')} key={column}>
+              <StackedLabel column={column} isStacked={isStacked} />
+              {text}
+            </Table.Cell>
+          ))}
+
+          <Table.Cell className={cell}>
+            <div className="flex items-center gap-2">
+              <StackedLabel column="qc" isStacked={isStacked} />
+              <div className="relative h-1.5 w-16 overflow-hidden rounded-full bg-bg-sunken">
+                <div
+                  className="absolute inset-y-0 left-0 origin-left rounded-full bg-accent"
+                  style={{ scale: `${row.qcProgressRatio} 1` }}
+                />
+              </div>
+              {row.qcProgressRatio === 1 ? (
+                <Badge variant="verified">{row.qcProgressText}</Badge>
+              ) : (
+                <span className="text-[13px] text-text-secondary">{row.qcProgressText}</span>
+              )}
+            </div>
+          </Table.Cell>
+
+          {canEdit && (
+            <Table.Cell className={cell}>
+              <IconButton
+                aria-label={`Thao tác khác cho tầng ${row.name}`}
+                icon={<MoreVertical className="h-4 w-4" />}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpenMenu(event, row);
+                }}
+                size="sm"
+                tooltip={false}
+              />
+            </Table.Cell>
+          )}
+        </>
       )}
     </tr>
   );

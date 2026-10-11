@@ -98,10 +98,10 @@ export interface FloorRowVm {
   /** Số thô, để chân bảng cộng tổng. `null` khi tầng chưa có bản vẽ. */
   readonly areaM2: SquareMetres | null;
 
-  /** Ví dụ `"45%"`. `formatPercent(qcProgressRatio, { fractionDigits: 0 })`. */
+  /** Ví dụ `"45%"`. `formatPercent(qcProgressRatio, { fractionDigits: 0 })`; `"—"` khi tầng chưa có bản vẽ. */
   readonly qcProgressText: string;
   /**
-   * 0..1. CHỈ để vẽ bề rộng thanh tiến độ và để chọn variant của `Badge`
+   * 0..1 (`0` khi tầng chưa có bản vẽ, BUG-263). CHỈ để vẽ bề rộng thanh tiến độ và để chọn variant của `Badge`
    * (`1` → `'verified'`; đây là việc của NGƯỜI DUYỆT nên A5 cho phép xanh
    * đã-xác-minh ở đúng chỗ này, và chỉ ở đây).
    */
@@ -434,3 +434,20 @@ export interface UseFloorManagerResult extends FloorManagerViewProps {
  * trường: `unsupportedNotices` chuyển từ `UseFloorManagerResult` xuống
  * `FloorManagerViewProps`. Không trường nào khác đổi trong lượt đó.
  */
+
+/**
+ * Tên mười cột: tiêu đề bảng (`FloorTable.tsx`) và nhãn ô của dòng xếp chồng (`FloorTableRow.tsx`)
+ * đọc cùng một chỗ. Đặt ở đây vì file component chỉ được xuất hằng nguyên thuỷ (react-refresh).
+ */
+export const FLOOR_COLUMN_LABELS = {
+  handle: 'Đổi thứ tự',
+  name: 'Tên tầng',
+  elevation: 'Cao độ (m)',
+  height: 'Chiều cao (m)',
+  drawings: 'Bản vẽ',
+  walls: 'Tường',
+  rooms: 'Phòng',
+  area: 'Diện tích',
+  qc: 'Tiến độ QC',
+  actions: 'Hành động',
+} as const;

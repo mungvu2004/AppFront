@@ -59,6 +59,7 @@ import {
   draftToMillimetres,
   FLOOR_MANAGER_TEXT,
   FLOOR_RESTORE_WINDOW_MS,
+  nextNewFloorName,
   useFloorManager,
   type UseFloorManagerOptions,
 } from './useFloorManager';
@@ -595,6 +596,14 @@ describe('bảng tầng', () => {
     expect(roof.roomCountText).toBe('—');
     expect(roof.areaText).toBe('—');
     expect(roof.areaM2).toBeNull();
+  });
+
+  it('BUG-263: tầng chưa có bản vẽ không có tiến độ QC (không phải 100%)', async () => {
+    const mounted = await mountSettled();
+    const roof = rowOf(mounted, String(FLOOR_MANAGER_SAMPLE_ROOF_ID));
+
+    expect(roof.qcProgressText).toBe('—');
+    expect(roof.qcProgressRatio).toBe(0);
   });
 
   it('tầng có bản vẽ đếm được tường, phòng và diện tích của chính nó', async () => {
@@ -1304,5 +1313,23 @@ describe('tên tầng', () => {
     expect(stackReadings(storeGraph())).toEqual(before);
     expect(descriptionsOf(mounted.notifications)).toContain(sentence);
     expect(mounted.spoken).toContain(sentence);
+  });
+});
+
+describe('tên tầng thêm mới (BUG-277)', () => {
+  const stack = (...names: readonly string[]) =>
+    names.map((name, index) => ({ name, elevationMm: millimetres(index * 3000) }));
+
+  it.each([
+    { label: 'trệt, 1, 2, 3 → Tầng 4 (không nhảy sang 5)', levels: stack('Tầng trệt', 'Tầng 1', 'Tầng 2', 'Tầng 3'), expected: 'Tầng 4' },
+    { label: 'Tầng 1..3 → Tầng 4 (bỏ qua tên đã có)', levels: stack('Tầng 1', 'Tầng 2', 'Tầng 3'), expected: 'Tầng 4' },
+    { label: 'chưa có tầng → Tầng 1', levels: [], expected: 'Tầng 1' },
+    {
+      label: 'tầng hầm không chiếm số',
+      levels: [{ name: 'Tầng hầm', elevationMm: millimetres(-3000) }, ...stack('Tầng trệt')],
+      expected: 'Tầng 1',
+    },
+  ])('$label', ({ levels, expected }) => {
+    expect(nextNewFloorName(levels)).toBe(expected);
   });
 });

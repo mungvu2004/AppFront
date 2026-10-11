@@ -49,6 +49,7 @@
  */
 
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
@@ -68,7 +69,7 @@ import { resetSelectorCaches } from '@/store/selectors';
 import { useStore } from '@/store';
 
 import { FloorManager } from './FloorManager';
-import { FloorManagerContainer } from './FloorManager.container';
+import { FloorManagerContainer, FloorManagerRoute } from './FloorManager.container';
 import { scenarioArgsFor } from './FloorManager.stories';
 import {
   FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES,
@@ -605,5 +606,75 @@ describe('dự án không tồn tại (BUG-032)', () => {
     }
     expect(screen.queryByLabelText(SECTION_ARIA_LABEL)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: EXPAND_SECTION_LABEL })).not.toBeInTheDocument();
+  });
+});
+
+describe('bố cục gọn đo ở route (BUG-251)', () => {
+  it.each([
+    { matches: true, layout: 'flex-col', sectionOrder: 'order-2' },
+    { matches: false, layout: 'flex-row', sectionOrder: 'order-1' },
+  ])('(width < 1024px) = $matches → $layout, lát cắt $sectionOrder', async ({ matches, layout, sectionOrder }) => {
+    vi.stubGlobal('fetch', () => new Promise<never>(() => undefined));
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(width < 1024px)' && matches,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+
+    renderWithProviders(
+      <MemoryRouter initialEntries={[`/projects/${PROJECT_ID}/floors`]}>
+        <Routes>
+          <Route element={<FloorManagerRoute />} path="/projects/:projectId/floors" />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const section = await screen.findByLabelText(SECTION_ARIA_LABEL);
+    expect(section.parentElement).toHaveClass(sectionOrder);
+    expect(section.parentElement?.parentElement).toHaveClass(layout);
+    vi.unstubAllGlobals();
+  });
+});
+
+describe('vùng chạm của nút chữ (BUG-257, BUG-270)', () => {
+  it('"Tải lên", "Thu gọn lát cắt" và "Hiện lát cắt" cao 24 px, 44 px dưới sm', () => {
+    const { unmount } = renderWithProviders(<FloorManager {...scenarioArgsFor('partial')} />);
+    const targets = [
+      ...screen.getAllByRole('button', { name: 'Tải lên' }),
+      screen.getByRole('button', { name: 'Thu gọn lát cắt' }),
+    ];
+    unmount();
+    renderWithProviders(<FloorManager {...scenarioArgsFor('collapsed')} />);
+    targets.push(screen.getByRole('button', { name: EXPAND_SECTION_LABEL }));
+
+    expect(targets.length).toBeGreaterThan(2);
+    for (const target of targets) {
+      expect(target).toHaveClass('min-h-11', 'sm:min-h-6');
+    }
+  });
+});
+
+describe('bảng tầng vừa khung (BUG-250)', () => {
+  it('lát cắt mở: dòng xếp chồng, mỗi ô mang tên cột, không lặp "Chưa có bản vẽ"', () => {
+    renderWithProviders(<FloorManager {...scenarioArgsFor('partial')} />);
+    const table = screen.getByRole('table');
+    const roof = within(table).getByRole('row', { name: /^Tầng mái, / });
+
+    expect(table.querySelector('thead')).toHaveClass('hidden');
+    expect(roof).toHaveClass('flex', 'flex-wrap');
+    expect(within(roof).getByText('Tường')).toBeInTheDocument();
+    expect(within(roof).getAllByText('Chưa có bản vẽ')).toHaveLength(1);
+  });
+
+  it('lát cắt thu gọn ở khổ rộng: đủ hàng tiêu đề, dòng không xếp chồng', () => {
+    renderWithProviders(<FloorManager {...scenarioArgsFor('collapsed')} />);
+    const table = screen.getByRole('table');
+
+    expect(table.querySelector('thead')).not.toHaveClass('hidden');
+    expect(within(table).getAllByRole('columnheader')).toHaveLength(10);
+    for (const row of within(table).getAllByRole('row', { name: /, cao độ / })) {
+      expect(row).not.toHaveClass('flex');
+    }
   });
 });

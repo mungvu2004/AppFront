@@ -144,7 +144,7 @@ export function FloorSectionCut({
         <button
           aria-label={COLLAPSE_LABEL}
           className={cn(
-            'shrink-0 rounded-[6px] px-1.5 py-0.5 text-[12px] text-text-secondary',
+            'inline-flex min-h-11 shrink-0 items-center rounded-[6px] px-1.5 text-[12px] text-text-secondary sm:min-h-6',
             'transition-colors duration-120 hover:bg-bg-hover hover:text-text-primary',
             'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
           )}
