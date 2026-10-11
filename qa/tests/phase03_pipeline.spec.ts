@@ -257,11 +257,11 @@ test.describe('SCR-09 Floor Manager', () => {
 
     await expect(floorRows(page)).toHaveCount(6);
     for (const floor of created) {
-      // The count cell (drawingsMissing) and the attention badge (FloorTableRow.tsx:286) both read
-      // "Chưa có bản vẽ" (BUG-278 strict mode): assert both, and that the badge (the later one) shows.
+      // An editor sees "Chưa có bản vẽ" once per row: only the attention badge (FloorTableRow.tsx:314-317);
+      // the count text next to it is no longer drawn (BUG-250, FIX-1284). Exactly one match (BUG-278 strict mode).
       const noDrawing = floorRow(page, floor.name).getByText('Chưa có bản vẽ', { exact: true });
-      await expect(noDrawing).toHaveCount(2);
-      await expect(noDrawing.last()).toBeVisible();
+      await expect(noDrawing).toHaveCount(1);
+      await expect(noDrawing).toBeVisible();
     }
     await captureEvidence(page, '09_floors_added.png');
   });
