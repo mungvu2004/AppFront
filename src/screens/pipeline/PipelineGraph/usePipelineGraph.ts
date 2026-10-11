@@ -121,6 +121,8 @@ export interface UsePipelineGraphOptions {
   readonly roles?: readonly ProjectRole[];
   /** Ép sơ đồ xếp dọc — cho story hoặc test muốn một câu trả lời cố định. */
   readonly forceCollapsed?: boolean;
+  /** Lối ra khi dự án không tồn tại (BUG-313). Vắng thì nút không làm gì. */
+  readonly onBackToProjects?: () => void;
 }
 
 export interface UsePipelineGraphResult {
@@ -133,6 +135,7 @@ export interface UsePipelineGraphResult {
 /* -------------------------------------------------------------------------- */
 
 const NO_ROLES: readonly ProjectRole[] = [];
+const NO_OP = (): void => undefined;
 
 /**
  * Dưới 1024 thì sơ đồ xếp dọc thành danh sách bước.
@@ -215,7 +218,7 @@ function countApprovedWalls(walls: readonly Wall[]): number {
 /* -------------------------------------------------------------------------- */
 
 export function usePipelineGraph(options: UsePipelineGraphOptions): UsePipelineGraphResult {
-  const { forceCollapsed, gateway, projectId, roles = NO_ROLES, run } = options;
+  const { forceCollapsed, gateway, onBackToProjects = NO_OP, projectId, roles = NO_ROLES, run } = options;
 
   const prefersReducedMotion = useReducedMotion();
   const detectedNarrow = useNarrowViewport();
@@ -258,6 +261,11 @@ export function usePipelineGraph(options: UsePipelineGraphOptions): UsePipelineG
   }, [gateway, projectId, retryToken, run]);
 
   /* ---- Ba lượt đọc, tất cả qua react-query (R-64) ------------------------ */
+
+  const projectExistsQuery = useQuery({
+    queryKey: ['pipeline', 'project-exists', projectId],
+    queryFn: ({ signal }) => gateway.readProjectExists({ projectId, signal }),
+  });
 
   const branchQuery = useQuery({
     queryKey: [...pipelineBranchQueryKey(projectId), retryToken],
@@ -621,8 +629,10 @@ export function usePipelineGraph(options: UsePipelineGraphOptions): UsePipelineG
       onPanGraph,
       onZoomGraph,
       onResetViewport,
+      onBackToProjects,
     }),
     [
+      onBackToProjects,
       onConfirmRerun,
       onConfirmSwitchBranch,
       onDismissRerun,
@@ -702,6 +712,7 @@ export function usePipelineGraph(options: UsePipelineGraphOptions): UsePipelineG
           },
         }
       : {}),
+    ...(projectExistsQuery.data === false ? { isProjectMissing: true } : {}),
     isCompact,
     prefersReducedMotion,
   };
