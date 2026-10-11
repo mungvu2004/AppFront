@@ -174,6 +174,46 @@ describe('FloorUploadScreenView — bảy trạng thái (A11, R-63)', () => {
     expect(screen.getByText('Dự án chưa có tầng nào')).toBeInTheDocument();
   });
 
+  it('dự án chưa có tầng: nút "Thêm tầng" dẫn tới Quản lý tầng (BUG-298)', () => {
+    const onAddFloors = vi.fn();
+    renderWithProviders(
+      <FloorUploadScreenView {...scenarioFor('empty')} floors={[]} onAddFloors={onAddFloors} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm tầng' }));
+
+    expect(onAddFloors).toHaveBeenCalledTimes(1);
+  });
+
+  it('dự án không tồn tại: "Không tìm thấy dự án này" + "Về danh sách dự án", không vùng thả, không nút chính (BUG-311)', () => {
+    const onBackToProjects = vi.fn();
+    renderWithProviders(
+      <FloorUploadScreenView
+        {...scenarioFor('error')}
+        canRetryLoad={false}
+        isProjectMissing
+        onBackToProjects={onBackToProjects}
+      />,
+    );
+
+    expect(screen.getByText('Không tìm thấy dự án này')).toBeInTheDocument();
+    expect(screen.queryByTestId(DROP_ZONE_TEST_ID)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Bắt đầu xử lý' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Về danh sách dự án' }));
+
+    expect(onBackToProjects).toHaveBeenCalledTimes(1);
+  });
+
+  it('lỗi đọc tầng thử lại được: dải lỗi có "Thử lại" (BUG-311)', () => {
+    const onRetryLoad = vi.fn();
+    renderWithProviders(<FloorUploadScreenView {...scenarioFor('error')} onRetryLoad={onRetryLoad} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+
+    expect(onRetryLoad).toHaveBeenCalledTimes(1);
+  });
+
   it('màn chỉ đọc không vẽ vùng kéo thả, nhưng vẫn nói ra vì sao', () => {
     renderWithProviders(<FloorUploadScreenView {...scenarioFor('forbidden')} />);
 

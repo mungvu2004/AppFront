@@ -230,6 +230,7 @@ const NO_ACTIONS = {
   onRetryUpload: noop,
   onRemoveFile: noop,
   onSubmit: noop,
+  onRetryLoad: noop,
   onDismissError: noop,
 };
 
@@ -291,6 +292,8 @@ function modelOf(
     isOffline: false,
     isDragActive: false,
     errorMessage: null,
+    isProjectMissing: false,
+    canRetryLoad: false,
     offlineNotice: null,
     offlineNoticeKey: 'floorUpload.offlineBanner',
     readOnlyNotice: null,
@@ -336,6 +339,8 @@ export function scenarioFor(state: SevenState): FloorUploadScreenViewProps {
     case 'error':
       return modelOf('error', [], {
         errorMessage: 'Không liên lạc được với máy chủ. Kiểm tra mạng rồi thử lại.',
+        canRetryLoad: true,
+        dropZone: { ...DROP_ZONE, isEnabled: false },
       });
 
     case 'success':

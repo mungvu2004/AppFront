@@ -72,7 +72,7 @@ export interface FloorUploadFileModel {
   readonly sizeLabel: string;
   /** Ví dụ `"3 trang"`. `null` khi không phải PDF hoặc không đọc được số trang. */
   readonly pageCountLabel: string | null;
-  /** `.dwg` — thẻ hiện chip "Nhánh CAD". Không bao giờ tự đọc đuôi tệp trong view. */
+  /** `.dwg` chưa lỗi — thẻ hiện chip "Bản vẽ CAD". Không bao giờ tự đọc đuôi tệp trong view. */
   readonly isCadBranch: boolean;
   /** Một dòng gộp tên · dung lượng · số trang, đã ghép sẵn. */
   readonly summaryLine: string;
@@ -188,12 +188,16 @@ export interface FloorUploadDropZoneModel {
 /* Chân trang và lý do chặn.                                                   */
 /* -------------------------------------------------------------------------- */
 
-/** Bốn lý do một lượt xử lý chưa bắt đầu được. Mỗi lý do luôn nêu đúng một tầng. */
+/**
+ * Năm lý do một lượt xử lý chưa bắt đầu được. Bốn lý do đầu nêu đúng một tầng;
+ * `noFloors` là lý do của cả dự án (chưa có tầng nào, BUG-298) và mang `floorId` rỗng.
+ */
 export type FloorUploadBlockReasonKind =
   | 'missingFile'
   | 'missingElevation'
   | 'duplicateElevation'
-  | 'uploading';
+  | 'uploading'
+  | 'noFloors';
 
 /**
  * Một lý do, đã nêu tên tầng và mang theo mã tầng.
@@ -286,6 +290,10 @@ export interface FloorUploadModel {
   readonly isDragActive: boolean;
   /** Lỗi đọc danh sách tầng. `null` ở mọi trạng thái khác `'error'`. */
   readonly errorMessage: string | null;
+  /** Lỗi đọc là 404 của dự án: tiêu đề "không tìm thấy dự án" và lối về danh sách (BUG-311). */
+  readonly isProjectMissing: boolean;
+  /** Lỗi đọc thử lại được (mạng, 5xx): dải lỗi có nút "Thử lại". */
+  readonly canRetryLoad: boolean;
   /** Câu "đang làm việc ngoại tuyến". `null` khi có mạng. */
   readonly offlineNotice: string | null;
   readonly offlineNoticeKey: string;
@@ -328,6 +336,10 @@ export interface FloorUploadActions {
   /** Xoá ngay, có toast hoàn tác (A8, D-05). Không hộp thoại xác nhận. */
   readonly onRemoveFile: (fileId: string) => void;
   readonly onSubmit: () => void;
+  /** Đọc lại danh sách tầng sau một lượt đọc hỏng. */
+  readonly onRetryLoad: () => void;
+  /** Dự án chưa có tầng: tới màn Quản lý tầng (BUG-298). Vắng khi không sửa được hoặc không có router. */
+  readonly onAddFloors?: (() => void) | undefined;
   /** Cấp "Dự án" của breadcrumb: về danh sách dự án. Vắng thì cấp ấy là chữ trơn. */
   readonly onBackToProjects?: (() => void) | undefined;
   /** Đóng lỗi trong thẻ của một tệp. Không đụng tới tệp khác. */

@@ -51,6 +51,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { Floor } from '@/api/client';
+import { PROJECT_NOT_FOUND_DESCRIPTION } from '@/components/feedback/ProjectSpatialGate';
 import type { SelectOption } from '@/components/ui/Select';
 import { alignFloors, ceilingElevationMm } from '@/domain/axes/alignFloors';
 import type { FloorPlan } from '@/domain/axes/alignFloors';
@@ -59,7 +60,7 @@ import type { LevelId } from '@/domain/spatial/types';
 import { millimetres, millimetresToMetres } from '@/domain/units/types';
 import type { Millimetres } from '@/domain/units/types';
 import { can } from '@/lib/auth/permissions';
-import { formatFileSize } from '@/lib/format/bytes';
+import { BYTES_PER_UNIT, formatFileSize } from '@/lib/format/bytes';
 import { formatLength } from '@/lib/format/measure';
 import { formatNumber, formatPercent, MISSING_VALUE, parseNumber } from '@/lib/format/number';
 import { getAppAnnouncer } from '@/lib/input/announcer';
@@ -113,6 +114,7 @@ const COPY = Object.freeze({
   submitKey: 'floorUpload.footer.submit',
   blockedTitle: 'Không thể bắt đầu xử lý',
   blockedTitleKey: 'floorUpload.blockedSubmit.title',
+  noFloors: 'Dự án chưa có tầng nào. Thêm tầng ở màn Quản lý tầng trước khi xử lý.',
   uploadErrorTitleKey: 'errors.upload.title',
   validationErrorTitleKey: 'errors.validation.title',
 });
@@ -174,12 +176,37 @@ function elevationProblemFor(elevationMm: Millimetres | null): string | null {
   return null;
 }
 
+/** Một chữ số lẻ — đúng độ chính xác `formatFileSize` hiện từ KB trở lên. */
+const SHOWN_DECIMAL_STEPS = 10;
+
+/**
+ * Dung lượng của một tệp vượt trần. Tệp chỉ hơn trần vài byte thì hai số làm tròn trùng nhau và câu
+ * "vượt trần" tự mâu thuẫn, nên làm tròn LÊN tới chữ số lẻ đang hiện — hơn trần đúng một bậc (BUG-302).
+ */
+function sizeOverCap(sizeBytes: number, maxSizeBytes: number): string {
+  const label = formatFileSize(sizeBytes);
+
+  if (label !== formatFileSize(maxSizeBytes)) {
+    return label;
+  }
+
+  let unitBytes = 1;
+
+  while (unitBytes * BYTES_PER_UNIT <= sizeBytes) {
+    unitBytes *= BYTES_PER_UNIT;
+  }
+
+  const stepBytes = unitBytes / SHOWN_DECIMAL_STEPS;
+
+  return formatFileSize(Math.ceil(sizeBytes / stepBytes) * stepBytes);
+}
+
 /** Câu cho một tệp bị từ chối. Số lấy từ chính lời từ chối, không viết tay (R-71). */
 function rejectionSentence(reason: UploadRejection): string {
   switch (reason.kind) {
     case 'tooLarge':
       return (
-        `Tệp nặng ${formatFileSize(reason.sizeBytes)}, vượt trần ` +
+        `Tệp nặng ${sizeOverCap(reason.sizeBytes, reason.maxSizeBytes)}, vượt trần ` +
         `${formatFileSize(reason.maxSizeBytes)} của một tệp.`
       );
     case 'unsupportedFormat':
@@ -389,8 +416,10 @@ export function useFloorUploadScreen(
     queryFn: async (): Promise<readonly Floor[]> => {
       const result = await gateway.readFloors({ projectId });
 
+      // Ném nguyên lỗi dây: 404 còn mang `kind` để màn nói "không tìm thấy dự án", và luật
+      // thử lại của bộ đệm không thử lại một 404 (BUG-311).
       if (!result.ok) {
-        throw new Error(gateway.describeApiFailure(result.error).sentence);
+        throw result.error;
       }
 
       return result.data;
@@ -401,6 +430,11 @@ export function useFloorUploadScreen(
     () => [...(floorsQuery.data ?? [])].sort((first, second) => first.order - second.order),
     [floorsQuery.data],
   );
+
+  // Chưa có tầng thì không có chỗ gán tệp, và tệp chỉ sống trong màn — đi thêm tầng là mất nó:
+  // vùng thả không mời thả, nút chính nói lý do, trạng thái rỗng dẫn tới Quản lý tầng (BUG-298).
+  const hasNoFloors = floorsQuery.isSuccess && floors.length === 0;
+  const canDrop = canEdit && !hasNoFloors && !floorsQuery.isError;
 
   /* ---------------------------------------------------------------------- */
   /* Mạng — không hook nào bọc `createNetworkMonitor`, nên nối tay ở đây.     */
@@ -755,7 +789,7 @@ export function useFloorUploadScreen(
   };
 
   const acceptFiles = (files: readonly File[]): void => {
-    if (!canEdit) {
+    if (!canDrop) {
       return;
     }
 
@@ -896,7 +930,8 @@ export function useFloorUploadScreen(
   /* ---------------------------------------------------------------------- */
 
   const blockReasons = useMemo<readonly FloorUploadBlockReason[]>(() => {
-    const reasons: FloorUploadBlockReason[] = [];
+    const reasons: FloorUploadBlockReason[] =
+      hasNoFloors ? [{ floorId: '', floorName: '', kind: 'noFloors', sentence: COPY.noFloors }] : [];
 
     // `floor.name` đã là nhãn đầy đủ — API trả về `Tầng 2`, `Tầng hầm`, chứ
     // không trả về `2`. Mẫu câu trong `.notes/copy.md` viết `Tầng {{floorName}}`
@@ -916,9 +951,13 @@ export function useFloorUploadScreen(
           floorId: floor.id,
           floorName: floor.name,
           kind: 'missingFile',
-          sentence: isUnfinished
-            ? `${floor.name} chưa tải xong bản vẽ.`
-            : `${floor.name} chưa có bản vẽ.`,
+          // PDF nhiều trang chưa chọn trang không "đang tải": nó chờ người chọn trang (BUG-303).
+          sentence:
+            attachment !== null && isAwaitingPage(attachment)
+              ? `${floor.name} chưa chọn trang của bản vẽ.`
+              : isUnfinished
+                ? `${floor.name} chưa tải xong bản vẽ.`
+                : `${floor.name} chưa có bản vẽ.`,
         });
       }
 
@@ -963,7 +1002,7 @@ export function useFloorUploadScreen(
     }
 
     return reasons;
-  }, [attachmentByFloor, floors, stack]);
+  }, [attachmentByFloor, floors, hasNoFloors, stack]);
 
   const canSubmit = canEdit && floors.length > 0 && blockReasons.length === 0;
 
@@ -1031,7 +1070,8 @@ export function useFloorUploadScreen(
       name: attachment.file.name,
       sizeLabel,
       pageCountLabel,
-      isCadBranch: attachment.branch === 'cad',
+      // Tệp CAD hỏng (vd. 422 chưa hỗ trợ) không chạy nhánh nào: không quảng cáo độ chính xác (BUG-304).
+      isCadBranch: attachment.branch === 'cad' && attachment.status !== 'error',
       summaryLine: [attachment.file.name, sizeLabel, pageCountLabel]
         .filter((part): part is string => part !== null)
         .join(' · '),
@@ -1157,11 +1197,15 @@ export function useFloorUploadScreen(
   /* Bảy trạng thái (A11, R-63).                                             */
   /* ---------------------------------------------------------------------- */
 
-  const loadFailure = floorsQuery.isError
-    ? floorsQuery.error instanceof Error
-      ? floorsQuery.error.message
-      : LOAD_FAILURE_FALLBACK
-    : null;
+  // Danh sách tầng trả 404 = dự án không có: cùng chữ và lối ra với Quản lý tầng (BUG-311).
+  const loadFailureInfo = floorsQuery.isError ? gateway.describeApiFailure(floorsQuery.error) : null;
+  const isProjectMissing = loadFailureInfo?.kind === 'notFound';
+  const loadFailure =
+    loadFailureInfo === null
+      ? null
+      : isProjectMissing
+        ? PROJECT_NOT_FOUND_DESCRIPTION
+        : loadFailureInfo.sentence || LOAD_FAILURE_FALLBACK;
 
   const hasAnyFile = doneCount > 0 || attachments.length > 0;
   const hasUploading = rows.some((row) => row.status === 'uploading');
@@ -1197,8 +1241,10 @@ export function useFloorUploadScreen(
     isReadOnly: !canEdit,
     isCollapsed,
     isOffline: !isOnline,
-    isDragActive: canEdit && dragDepth > 0,
+    isDragActive: canDrop && dragDepth > 0,
     errorMessage: state === 'error' ? loadFailure : null,
+    isProjectMissing,
+    canRetryLoad: !isProjectMissing && (loadFailureInfo?.isRetryable ?? false),
     // Có tệp đang chờ mạng thì nói rõ nó sẽ tự tải, và giới hạn của lời hứa ấy (NO-389).
     offlineNotice: isOnline ? null : isAwaitingNetwork ? AWAIT_NETWORK_SENTENCE : COPY.offline,
     offlineNoticeKey: isAwaitingNetwork ? AWAIT_NETWORK_KEY : COPY.offlineKey,
@@ -1216,7 +1262,7 @@ export function useFloorUploadScreen(
         `Định dạng hỗ trợ: ${PICKER_UPLOAD_EXTENSIONS.join(', ')}. ` +
         `Kích thước tối đa: ${formatFileSize(MAX_UPLOAD_FILE_SIZE_BYTES)}.`,
       acceptAttribute: PICKER_UPLOAD_EXTENSIONS.join(','),
-      isEnabled: canEdit,
+      isEnabled: canDrop,
     },
     floors: rows,
     tray,
@@ -1231,7 +1277,7 @@ export function useFloorUploadScreen(
     },
     onFilesChosen: acceptFiles,
     onDragEnter: () => {
-      if (canEdit) setDragDepth((depth) => depth + 1);
+      if (canDrop) setDragDepth((depth) => depth + 1);
     },
     onDragLeave: () => {
       setDragDepth((depth) => (depth > 0 ? depth - 1 : 0));
@@ -1252,6 +1298,13 @@ export function useFloorUploadScreen(
     },
     onRemoveFile: removeFile,
     onSubmit: submit,
+    onRetryLoad: () => {
+      void floorsQuery.refetch();
+    },
+    onAddFloors:
+      canEdit && options.onNavigate !== undefined
+        ? () => options.onNavigate?.(ROUTES.project.floors(projectId))
+        : undefined,
     onBackToProjects:
       options.onNavigate === undefined ? undefined : () => options.onNavigate?.(ROUTES.dashboard),
     // Lỗi của một tệp đóng lại một mình; không hàng nào khác đổi.

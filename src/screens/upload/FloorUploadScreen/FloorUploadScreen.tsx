@@ -50,6 +50,7 @@ import { clsx } from 'clsx';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { BACK_TO_PROJECTS_LABEL, PROJECT_NOT_FOUND_TITLE } from '@/components/feedback/ProjectSpatialGate';
 import { Breadcrumb } from '@/components/shell/Breadcrumb';
 import { Skeleton } from '@/components/feedback/Skeleton';
 
@@ -66,6 +67,7 @@ const BREADCRUMB_UPLOAD = 'Tải lên bản vẽ';
 
 /** Tiêu đề của lượt đọc danh sách tầng hỏng — `state === 'error'`, không phải lỗi tệp. */
 const LOAD_ERROR_TITLE = 'Không tải được danh sách tầng';
+const RETRY_LABEL = 'Thử lại';
 
 /**
  * Dự án chưa có tầng nào — `floorUpload.noFloors.*` trong `vi.json`. Chữ riêng, không
@@ -73,7 +75,9 @@ const LOAD_ERROR_TITLE = 'Không tải được danh sách tầng';
  */
 const NO_FLOORS_TITLE = 'Dự án chưa có tầng nào';
 const NO_FLOORS_MESSAGE =
-  'Bản vẽ được gán theo tầng. Thêm tầng ở màn Quản lý tầng; tệp thả vào trước đó chờ ở mục “Tệp chưa gán tầng”.';
+  'Bản vẽ được gán theo tầng. Thêm tầng ở màn Quản lý tầng rồi quay lại đây để tải bản vẽ.';
+/** Lối tới màn Quản lý tầng — cùng nhãn nút của trạng thái rỗng ở đó (BUG-298). */
+const ADD_FLOORS_LABEL = 'Thêm tầng';
 
 /** Bao nhiêu khung xương lúc chưa biết có mấy tầng. */
 const SKELETON_ROW_COUNT = 3;
@@ -97,6 +101,7 @@ function actionsOf(props: FloorUploadScreenViewProps): FloorUploadActions {
     onRemoveFile: props.onRemoveFile,
     onRetryUpload: props.onRetryUpload,
     onSubmit: props.onSubmit,
+    onRetryLoad: props.onRetryLoad,
   };
 }
 
@@ -135,10 +140,16 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
 
   const body =
     state === 'error' ? (
+      // Một dải lỗi, một lối ra; vùng thả và nút chính ẩn vì chưa có tầng nào để gán (BUG-311).
       <InlineAlert
+        {...(props.isProjectMissing && props.onBackToProjects
+          ? { action: { label: BACK_TO_PROJECTS_LABEL, onClick: props.onBackToProjects } }
+          : props.canRetryLoad
+            ? { action: { label: RETRY_LABEL, onClick: props.onRetryLoad } }
+            : {})}
         level="violation"
         message={props.errorMessage ?? ''}
-        title={LOAD_ERROR_TITLE}
+        title={props.isProjectMissing ? PROJECT_NOT_FOUND_TITLE : LOAD_ERROR_TITLE}
       />
     ) : state === 'loading' ? (
       <div className="flex flex-col gap-3">
@@ -147,7 +158,12 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
         ))}
       </div>
     ) : props.floors.length === 0 ? (
-      <EmptyState description={NO_FLOORS_MESSAGE} icon={<SheetGlyph />} title={NO_FLOORS_TITLE} />
+      <EmptyState
+        {...(props.onAddFloors ? { action: { label: ADD_FLOORS_LABEL, onClick: props.onAddFloors } } : {})}
+        description={NO_FLOORS_MESSAGE}
+        icon={<SheetGlyph />}
+        title={NO_FLOORS_TITLE}
+      />
     ) : (
       <>
         {/* Dự án có tầng nhưng chưa tầng nào có bản vẽ: câu mời đi TRƯỚC danh
@@ -229,7 +245,9 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
 
           <FloorUploadTray actions={actions} tray={tray} />
 
-          <FloorUploadFooter blockNotice={blockNotice} footer={footer} onSubmit={props.onSubmit} />
+          {state !== 'error' && (
+            <FloorUploadFooter blockNotice={blockNotice} footer={footer} onSubmit={props.onSubmit} />
+          )}
         </div>
       </div>
     </div>

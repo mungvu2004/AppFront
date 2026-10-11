@@ -38,7 +38,7 @@ const LABEL_ELEVATION = 'cao độ';
 const LABEL_HEIGHT = 'Chiều cao thông thuỷ';
 const LABEL_REASSIGN = 'Gán cho tầng khác';
 const LABEL_PAGE_PICKER = 'Chọn trang';
-const LABEL_CAD_PILL = 'Nhánh CAD · độ chính xác cao';
+const LABEL_CAD_PILL = 'Bản vẽ CAD · độ chính xác cao';
 const LABEL_MENU_PREFIX = 'Tuỳ chọn của tầng';
 const LABEL_CANCEL = 'Huỷ';
 const LABEL_RETRY = 'Thử lại';
@@ -58,7 +58,7 @@ export interface FloorUploadCardProps {
   readonly registerCard: (floorId: string, element: HTMLElement | null) => void;
 }
 
-/** Chip "Nhánh CAD" — hiện theo cờ của hook, thẻ không bao giờ tự đọc đuôi tệp. */
+/** Chip "Bản vẽ CAD" — hiện theo cờ của hook, thẻ không bao giờ tự đọc đuôi tệp. */
 function CadPill() {
   return (
     <span className="inline-flex h-[22px] items-center rounded-[6px] bg-bg-sunken px-2 text-[12px] text-text-secondary">

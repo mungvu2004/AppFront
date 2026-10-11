@@ -19,6 +19,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMockApiClient } from '@/api/__mocks__/client';
 import type { ApiResult, Progress } from '@/api/client';
 import { ApiErrorBodySchema } from '@/api/schemas/errors';
+import { PROJECT_NOT_FOUND_DESCRIPTION } from '@/components/feedback/ProjectSpatialGate';
 import { ProgressSchema } from '@/api/schemas';
 import type {
   NetworkMonitor,
@@ -31,7 +32,8 @@ import { addPendingCommand, deletePendingCommand, listPendingCommands } from '@/
 import { getAppAnnouncer } from '@/lib/input/announcer';
 import { createTestQueryClient } from '@/lib/testing/render';
 import type { HttpError } from '@/lib/http';
-import type { UploadTask, UploadTaskState } from '@/lib/upload';
+import { MAX_UPLOAD_FILE_SIZE_BYTES, type UploadTask, type UploadTaskState } from '@/lib/upload';
+import { formatFileSize } from '@/lib/format/bytes';
 import { createUploadTask } from '@/lib/upload/uploadTask';
 import type { UploadCandidate } from '@/lib/upload/validate';
 import { ROUTES } from '@/routes/paths';
@@ -370,6 +372,58 @@ describe('useFloorUploadScreen — danh sách tầng', () => {
     expect(result.current.errorMessage).not.toBeNull();
     expect(result.current.isCollapsed).toBe(true);
   });
+
+  it('dự án không tồn tại: "không tìm thấy dự án", không thả tệp, không "Thử lại" vô ích (BUG-311)', async () => {
+    const harness = createHarness({
+      readFloors: async () => ({
+        ok: false,
+        error: { kind: 'http', status: 404, code: 'NOT_FOUND', requestId: 'r-404', retryable: false, raw: {} },
+      }),
+    });
+    const { result } = renderScreen(harness.options);
+
+    await waitFor(() => {
+      expect(result.current.state).toBe('error');
+    });
+
+    expect(result.current.isProjectMissing).toBe(true);
+    expect(result.current.errorMessage).toBe(PROJECT_NOT_FOUND_DESCRIPTION);
+    expect(result.current.canRetryLoad).toBe(false);
+    expect(result.current.dropZone.isEnabled).toBe(false);
+
+    act(() => {
+      result.current.onBackToProjects?.();
+    });
+
+    expect(harness.navigations).toEqual([ROUTES.dashboard]);
+  });
+
+  it('lỗi mạng khi đọc tầng: "Thử lại" đọc lại danh sách (BUG-311)', async () => {
+    let calls = 0;
+    const harness = createHarness();
+    const readFloors: FloorUploadGateway['readFloors'] = async (input) => {
+      calls += 1;
+      return calls === 1
+        ? { ok: false, error: { kind: 'network', requestId: 'r-1', retryable: true, raw: null } }
+        : harness.gateway.readFloors(input);
+    };
+    const { result } = renderScreen({ ...harness.options, gateway: { ...harness.gateway, readFloors } });
+
+    await waitFor(() => {
+      expect(result.current.state).toBe('error');
+    });
+
+    expect(result.current.isProjectMissing).toBe(false);
+    expect(result.current.canRetryLoad).toBe(true);
+
+    act(() => {
+      result.current.onRetryLoad();
+    });
+
+    await waitFor(() => {
+      expect(result.current.floors).toHaveLength(4);
+    });
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -377,6 +431,35 @@ describe('useFloorUploadScreen — danh sách tầng', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('useFloorUploadScreen — nhận tệp', () => {
+  it('tệp hơn trần một byte: "vượt trần" nêu hai số khác nhau (BUG-302)', async () => {
+    const harness = createHarness({
+      validateFile: async () => ({
+        ok: false,
+        reason: { kind: 'tooLarge', sizeBytes: MAX_UPLOAD_FILE_SIZE_BYTES + 1, maxSizeBytes: MAX_UPLOAD_FILE_SIZE_BYTES },
+      }),
+    });
+    const { result } = renderScreen(harness.options);
+
+    await waitFor(() => {
+      expect(result.current.floors).toHaveLength(4);
+    });
+
+    act(() => {
+      result.current.onFilesDropped([makeFile('qua-nang.png')]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.tray.items[0]?.error?.kind).toBe('tooLarge');
+    });
+
+    const sentence = result.current.tray.items[0]?.error?.sentence ?? '';
+    const [, size, cap] = /^Tệp nặng (.+), vượt trần (.+) của một tệp\.$/u.exec(sentence) ?? [];
+
+    expect(cap).toBe(formatFileSize(MAX_UPLOAD_FILE_SIZE_BYTES));
+    expect(size).toBeDefined();
+    expect(size).not.toBe(cap);
+  });
+
   it('ghép tệp vào đúng tầng theo tên tệp và đánh dấu là ghép tự động', async () => {
     const harness = createHarness();
     const { result } = renderScreen(harness.options);
@@ -573,6 +656,54 @@ describe('useFloorUploadScreen — một lượt tải', () => {
     expect(row?.canRetryUpload).toBe(true);
     // Vẫn không phải trạng thái lỗi của cả màn.
     expect(result.current.state).not.toBe('error');
+  });
+
+  it('tệp .dwg bị từ chối: thẻ lỗi không còn chip CAD độ chính xác cao (BUG-304)', async () => {
+    const harness = createHarness({
+      validateFile: async () => ({ ok: true, branch: 'cad', extension: '.dwg', sizeBytes: 16 }),
+    });
+    const { result } = renderScreen(harness.options);
+
+    await waitFor(() => {
+      expect(result.current.floors).toHaveLength(4);
+    });
+
+    act(() => {
+      result.current.onFilesDropped([makeFile('mat-bang-tang-3.dwg')]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.floors[3]?.file?.isCadBranch).toBe(true);
+    });
+
+    act(() => {
+      [...harness.uploads.values()][0]?.finish({
+        percent: 0,
+        status: 'failed',
+        failure: {
+          stage: 'init',
+          chunkIndex: null,
+          attempts: 1,
+          terminal: true,
+          error: {
+            kind: 'validation',
+            code: 'CAD_NOT_SUPPORTED',
+            messageKey: 'errors.validation.description',
+            params: {},
+            requestId: 'r-422',
+            retryable: false,
+            severity: 'lỗi',
+            recovery: 'không',
+          },
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.floors[3]?.status).toBe('error');
+    });
+
+    expect(result.current.floors[3]?.file?.isCadBranch).toBe(false);
   });
 
   it('huỷ gọi đúng task của tệp đó', async () => {
@@ -1453,6 +1584,37 @@ describe('useFloorUploadScreen — nút chính', () => {
     expect(harness.navigations).toEqual([ROUTES.project.pipeline(PROJECT_ID)]);
     expect(result.current.blockNotice).toBeNull();
   });
+
+  it('dự án chưa có tầng: bấm nút chính nói lý do, vùng thả tắt, có lối tới Quản lý tầng (BUG-298)', async () => {
+    const harness = createHarness({ readFloors: async () => ({ ok: true, data: [] }) });
+    const { result } = renderScreen(harness.options);
+
+    await waitFor(() => {
+      expect(result.current.state).toBe('empty');
+    });
+
+    expect(result.current.dropZone.isEnabled).toBe(false);
+
+    act(() => {
+      result.current.onSubmit();
+    });
+
+    expect(result.current.blockNotice?.title).toBe('Không thể bắt đầu xử lý');
+    expect(result.current.blockNotice?.reasons.map((reason) => reason.kind)).toEqual(['noFloors']);
+    expect(harness.navigations).toHaveLength(0);
+
+    act(() => {
+      result.current.onFilesDropped([makeFile('tang-2.png')]);
+    });
+
+    expect(result.current.tray.items).toHaveLength(0);
+
+    act(() => {
+      result.current.onAddFloors?.();
+    });
+
+    expect(harness.navigations).toEqual([ROUTES.project.floors(PROJECT_ID)]);
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -1565,12 +1727,13 @@ describe('useFloorUploadScreen — trang PDF', () => {
     await waitFor(() => {
       expect(document.body.textContent).toContain(PICK_PAGE_SENTENCE);
     });
-    // B-V4-04: tệp chưa tải chưa phải bản vẽ của tầng — nút chính phải chặn.
+    // B-V4-04: tệp chưa tải chưa phải bản vẽ của tầng — nút chính phải chặn, và nói việc cần
+    // làm là chọn trang chứ không phải chờ tải (BUG-303).
     expect(result.current.footer.blockReasons).toContainEqual(
       expect.objectContaining({
         floorId: 'L2',
         kind: 'missingFile',
-        sentence: 'Tầng 2 chưa tải xong bản vẽ.',
+        sentence: 'Tầng 2 chưa chọn trang của bản vẽ.',
       }),
     );
   });
