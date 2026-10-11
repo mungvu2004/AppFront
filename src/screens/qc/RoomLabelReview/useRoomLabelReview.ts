@@ -127,6 +127,7 @@ import {
   type RoomLabelMeasures,
   type RoomLabelReviewGateway,
 } from './roomLabelReviewGateway';
+import { useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import type {
   RoomLabelMergeCandidate,
@@ -430,6 +431,7 @@ export function useRoomLabelReview(
   const floorLayer = useFloorLayer({ floorId, projectId, read: gateway.readLayer });
   const { scaleStatus } = floorLayer;
   const provisionalScaleNotice = useProvisionalScaleNotice(scaleStatus, projectId, floorId, options.onNavigate);
+  const readFailure = useFloorLayerReadFailure(floorLayer, projectId, options.onNavigate);
 
   /*
    * Lần đọc ảnh nền THÀNH CÔNG gần nhất, giữ lại qua mọi lượt hỏng sau đó.
@@ -942,6 +944,7 @@ export function useRoomLabelReview(
     onToggleCollapsed,
     saveBlock,
     provisionalScaleNotice,
+    readFailure,
   };
 }
 

@@ -12,7 +12,7 @@
  * />
  * ```
  *
- * ## Vì sao container này KHÔNG có `onNavigate`
+ * ## `onNavigate` tuỳ chọn — lối ra duy nhất là trạng thái đọc lớp hỏng
  *
  * Hai nút mang chữ "Xem trên bản vẽ" của màn đều Ở LẠI trên màn: hợp đồng props
  * đã đóng băng của T3 nói rõ `onViewFloorOnDrawing` là "bay khung nhìn tới tầng
@@ -20,12 +20,10 @@
  * nó", và `useAxisGridManager` cài đặt đúng như vậy — bật bóng ma, trỏ đúng
  * tầng, đọc độ lệch lên `aria-live`. Không nút nào rời màn.
  *
- * Nên màn này không có lối ra, và một `onNavigate` bắt buộc mà container không
- * gọi tới sẽ là prop chết — đúng thứ R-73 cấm ở chiều ngược lại. Tiền lệ:
- * `ObjectLayerReview.container.tsx` cũng không có. Khi nào màn mọc ra một lối
- * ra thật, `ROUTES` của `@/routes/paths` là chỗ tra nó (R-65) — nhập
- * `@/routes/paths` chứ KHÔNG nhập `@/routes`, vì `router.tsx` lazy-import mọi
- * màn và một màn nhập ngược `@/routes` khép một vòng làm `pnpm cycles` đỏ.
+ * Lối ra duy nhất là nút "Về quản lý tầng" / "Về danh sách dự án" của trạng
+ * thái đọc lớp hỏng (BUG-326, `qc/shared/floorLayerReadFailure`), nên
+ * `onNavigate` tuỳ chọn như `ThicknessStandardization.container.tsx`: route nối
+ * `useNavigate`, story/test vắng thì nút không đi đâu.
  *
  * ## Ranh giới lỗi: bản ở `@/components/feedback`
  *
@@ -57,7 +55,7 @@
  */
 
 import { useCallback, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -109,6 +107,8 @@ export interface AxisGridManagerContainerProps {
   readonly forceCollapsed?: boolean;
   /** Dưới 1.024px cột trái xếp dọc; màn cha đo bề rộng và truyền vào. */
   readonly isCompact?: boolean;
+  /** Lối ra của trạng thái đọc lớp hỏng (BUG-326). */
+  readonly onNavigate?: (path: string) => void;
 }
 
 /** Cùng khuôn `ScreenCrashFallback` của `src/App.tsx` — R-62. */
@@ -146,6 +146,7 @@ function WiredAxisGridManager(props: AxisGridManagerContainerProps) {
     ...(props.announcer !== undefined ? { announcer: props.announcer } : {}),
     ...(props.forceCollapsed !== undefined ? { forceCollapsed: props.forceCollapsed } : {}),
     ...(props.isCompact !== undefined ? { isCompact: props.isCompact } : {}),
+    ...(props.onNavigate !== undefined ? { onNavigate: props.onNavigate } : {}),
   });
 
   /*
@@ -178,6 +179,7 @@ function WiredAxisGridManager(props: AxisGridManagerContainerProps) {
       onUndo={result.onUndo}
       onViewFloorOnDrawing={result.onViewFloorOnDrawing}
       onViewOnDrawing={result.onViewOnDrawing}
+      readFailure={result.readFailure}
       spacingMessage={result.spacingMessage}
       viewModel={result.viewModel}
     />
@@ -215,11 +217,16 @@ function AxisGridManagerRouteBody({
    * tiên của đồ thị.
    */
   const levelId = useMemo(() => floorId as LevelId, [floorId]);
+  const navigate = useNavigate();
+  const onNavigate = useCallback((path: string) => {
+    navigate(path);
+  }, [navigate]);
 
   return (
     <AxisGridManagerContainer
       floorId={floorId}
       levelId={levelId}
+      onNavigate={onNavigate}
       projectId={projectId}
       roles={roles}
     />

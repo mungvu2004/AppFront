@@ -49,6 +49,9 @@ import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { cn } from '@/lib/utils';
 
+import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
+import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
+
 import { AxisGridCanvas, type AxisGridCanvasProps } from './AxisGridCanvas';
 import { AxisGridFloorAlignList } from './AxisGridFloorAlignList';
 import { AxisGridLeftPanel } from './AxisGridLeftPanel';
@@ -82,6 +85,8 @@ export interface AxisGridManagerViewProps
   /** Toạ độ thô của canvas; container gắn nhãn `Pixels` trước khi vào hook. */
   readonly onAxisDrag: AxisGridCanvasProps['onAxisDrag'];
   readonly spacingMessage: string | null;
+  /** Đọc lớp hỏng khi chưa có tài liệu → cả màn là một trạng thái lỗi (BUG-326). */
+  readonly readFailure?: FloorLayerReadFailure | null | undefined;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -209,6 +214,14 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
         ? CANVAS_EMPTY_NOTICE
         : null;
   const hasNoAxis = canvasNotice !== null;
+
+  if (props.readFailure != null) {
+    return (
+      <div aria-label={SCREEN_TITLE} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+        <FloorLayerReadFailureScreen failure={props.readFailure} />
+      </div>
+    );
+  }
 
   return (
     <div

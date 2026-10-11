@@ -68,6 +68,7 @@ import {
 } from '@/lib/coloring/legend';
 import type { ColorTokenName } from '@/lib/coloring/scales';
 import { formatNumber } from '@/lib/format/number';
+import type { HttpError } from '@/lib/http/types';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
@@ -81,7 +82,10 @@ import {
   type SevenStateScenario,
 } from '@/lib/testing/sevenStateScenarios';
 import { resetSelectorCaches } from '@/store/selectors';
+import { ROUTES } from '@/routes/paths';
 import { useStore } from '@/store';
+
+import { BACK_TO_FLOORS_LABEL, FLOOR_MISSING_TITLE, RETRY_READ_LABEL } from '../shared/floorLayerReadFailure';
 
 import { RoomLabelReviewContainer } from './RoomLabelReview.container';
 import { ProvisionalScale, scenarioArgsFor } from './RoomLabelReview.stories';
@@ -91,7 +95,7 @@ import {
   ROOM_LABEL_FIXTURE_TOTAL,
   ROOM_LABEL_FIXTURE_TOTAL_AREA_M2,
 } from './roomLabelFixture';
-import { roomCodeLabel } from './roomLabelReviewGateway';
+import { createMockRoomLabelReviewGateway, roomCodeLabel } from './roomLabelReviewGateway';
 
 /** Nền của khung canvas — thứ đa giác phòng ở `DIMMED_OPACITY` chồng lên. */
 const CANVAS_GROUND_TOKEN: ColorTokenName = '--bg-sunken';
@@ -588,7 +592,8 @@ describe('[BUG-328] câu "Chưa dò được phòng nào" không đi cùng trạ
     renderState(state);
 
     if (state === 'error') {
-      expect(await screen.findByText('Không đọc được lớp phòng')).toBeInTheDocument();
+      /* Đọc lớp hỏng: cả màn là trạng thái lỗi một lối ra (BUG-326). */
+      expect(await screen.findByRole('button', { name: RETRY_READ_LABEL })).toBeInTheDocument();
     }
 
     expect(screen.queryByText(EMPTY_CANVAS)).not.toBeInTheDocument();
@@ -598,5 +603,38 @@ describe('[BUG-328] câu "Chưa dò được phòng nào" không đi cùng trạ
     renderState('empty');
 
     expect(await screen.findByText(EMPTY_CANVAS)).toBeInTheDocument();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Đọc lớp hỏng khi chưa có tài liệu: cả màn là MỘT trạng thái lỗi (BUG-326).   */
+/* -------------------------------------------------------------------------- */
+
+describe('[BUG-326] đọc lớp hỏng thay cả màn bằng một trạng thái lỗi có lối ra', () => {
+  const FLOOR_GONE: HttpError = {
+    code: 'NOT_FOUND',
+    kind: 'http',
+    raw: { code: 'NOT_FOUND', resource: 'floor' },
+    requestId: 'r',
+    retryable: false,
+    status: 404,
+  };
+
+  it('404 tầng: một nút "Về quản lý tầng", không dựng canvas và panel', async () => {
+    const onNavigate = vi.fn();
+    const args = scenarioArgsFor('success');
+
+    renderWithProviders(
+      <RoomLabelReviewContainer
+        {...args}
+        gateway={{ ...createMockRoomLabelReviewGateway(), readLayer: () => Promise.reject(FLOOR_GONE) }}
+        onNavigate={onNavigate}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: BACK_TO_FLOORS_LABEL }));
+    expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.floors(args.projectId));
+    expect(screen.getByText(FLOOR_MISSING_TITLE)).toBeInTheDocument();
+    expect(screen.queryByLabelText(CANVAS_ARIA_LABEL)).toBeNull();
   });
 });

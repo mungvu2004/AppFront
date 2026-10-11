@@ -110,6 +110,7 @@ import type { RuleSeverity } from '@/domain/rules/registry';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import type { ColorTokenName } from '@/lib/coloring/scales';
 
+import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 
 /* -------------------------------------------------------------------------- */
@@ -581,6 +582,8 @@ export interface RoomLabelReviewProps {
   readonly saveBlock?: FloorLayerSaveBlock | null | undefined;
   /** Dải tỉ lệ tạm (F-04x-2); `null` khi tầng đã có tỉ lệ thật. */
   readonly provisionalScaleNotice?: ProvisionalScaleNotice | null | undefined;
+  /** Đọc lớp hỏng khi chưa có tài liệu → cả màn là một trạng thái lỗi (BUG-326). */
+  readonly readFailure?: FloorLayerReadFailure | null | undefined;
 }
 
 /* -------------------------------------------------------------------------- */

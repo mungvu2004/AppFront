@@ -109,6 +109,7 @@ import {
   type ThicknessStandardizationProps,
   type ThicknessThresholds,
 } from './thicknessTypes';
+import { useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 
 /* -------------------------------------------------------------------------- */
@@ -354,6 +355,7 @@ export function useThicknessStandardization(
     floorId,
     options.onNavigate,
   );
+  const readFailure = useFloorLayerReadFailure(floorLayer, projectId, options.onNavigate);
 
   /* ---------------------------------------------------------------------- */
   /* Đồ thị đang sửa — nơi `commit` ghi vào.                                  */
@@ -925,6 +927,7 @@ export function useThicknessStandardization(
     flashingWallIds,
     saveBlock,
     provisionalScaleNotice,
+    readFailure,
   };
 }
 

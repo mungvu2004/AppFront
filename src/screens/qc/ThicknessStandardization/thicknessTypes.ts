@@ -128,6 +128,7 @@ import type { WallThickness } from '@/types/spatial';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 
+import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 
 /* -------------------------------------------------------------------------- */
@@ -498,6 +499,8 @@ export interface ThicknessStandardizationProps {
   readonly saveBlock?: FloorLayerSaveBlock | null | undefined;
   /** Dải tỉ lệ tạm (F-04x-2); `null` khi tầng đã có tỉ lệ thật. */
   readonly provisionalScaleNotice?: ProvisionalScaleNotice | null | undefined;
+  /** Đọc lớp hỏng khi chưa có tài liệu → cả màn là một trạng thái lỗi (BUG-326). */
+  readonly readFailure?: FloorLayerReadFailure | null | undefined;
 
   /* -- Biểu đồ -------------------------------------------------------------- */
   readonly bins: readonly HistogramBin[];
