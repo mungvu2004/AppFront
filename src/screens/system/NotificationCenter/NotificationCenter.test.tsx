@@ -1184,6 +1184,10 @@ describe('Hàng thông báo không chừa cột cho nút ẩn (BUG-203)', () => 
     // Hộp gần nhất của nút là hàng giờ — có giờ, không có câu (cột cũ nằm cạnh câu, chung hàng `li`).
     expect(markRead.closest('div')).toHaveTextContent('30 phút trước');
     expect(markRead.closest('div')).not.toHaveTextContent(unread.sentence);
+    // run-16: giờ và nút hành động xuống dòng trong nhóm riêng; nút đánh dấu đứng ngoài nhóm, không rơi một mình xuống dòng.
+    const time = screen.getByText('30 phút trước');
+    expect(time.parentElement).not.toContainElement(markRead);
+    expect(time.parentElement?.parentElement).toContainElement(markRead);
     // BUG-234: lề 16 px dưới 640 px để tiêu đề, "Đánh dấu tất cả đã đọc" và bánh răng chung một hàng; nhóm nút căn phải.
     expect(screen.getByRole('heading', { name: 'Thông báo' }).closest('[class*="max-sm:px-4"]')).not.toBeNull();
     expect(screen.getByRole('button', { name: 'Đánh dấu tất cả đã đọc' }).parentElement).toHaveClass('ml-auto');
