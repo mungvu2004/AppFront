@@ -189,6 +189,8 @@ const PROCESSING = {
   copyLog: 'Sao chép nhật ký', // PLP:29
   logEmpty: 'Chưa có dòng nhật ký nào', // PLP:30
   calibrate: 'Hiệu chỉnh tỷ lệ', // PSU:20
+  reviewWalls: 'Duyệt lớp tường', // PSU:19
+  summary: 'Báo cáo tổng kết', // PSU:18 section aria-label
   tabs: 'Xem trước hoặc nhật ký', // PR:74
 } as const;
 const GRAPH = {
@@ -1372,7 +1374,7 @@ test.describe('E03 SCR-10 floor upload', () => {
     });
   });
 
-  test('E03 · SCR-10 every floor attached → "Bắt đầu xử lý" opens /pipeline with no request; SCR-12 log copy; no summary actions (extraction unsupported)', async ({ browser }) => {
+  test('E03 · SCR-10 every floor attached → "Bắt đầu xử lý" opens /pipeline with no request; SCR-12 log copy; "Báo cáo tổng kết" offers "Hiệu chỉnh tỷ lệ" + "Duyệt lớp tường" (BUG-285)', async ({ browser }) => {
     test.setTimeout(PIPELINE_TIMEOUT_MS + 180_000);
     await withAdmin(
       browser,
@@ -1409,11 +1411,17 @@ test.describe('E03 SCR-10 floor upload', () => {
           copiedLineCount: copied === '' ? 0 : copied.split('\n').length,
         });
 
-        // PRG:788, 975 `extractionSummary` unsupported → UPR:632-666 no `extraction` → UPR:1186-1193 summary undefined →
-        // PR:264 no "Báo cáo tổng kết": neither "Duyệt lớp tường" nor "Hiệu chỉnh tỷ lệ" (PSU:19-20) is offered after a
-        // finished run on the real stack (finding F10: /pipeline is a dead end once done).
-        await expect(page.getByRole('button', { name: PROCESSING.calibrate, exact: true })).toHaveCount(0);
-        await expect(page.getByRole('button', { name: 'Duyệt lớp tường', exact: true })).toHaveCount(0);
+        // FIX-1380 (BUG-285, was finding F10): PRG:808 `extractionSummary: true`, PRG:1006 reads N16 spatial/layer once a
+        // floor is done (UPR:733-745); UPR:1208-1276 shows the summary as soon as one floor is done, numbers or not (an
+        // N16 failure only drops the counts), and both actions go to that floor (PSU:47-53).
+        const summary = page.getByRole('region', { name: PROCESSING.summary, exact: true });
+        await expect(summary).toBeVisible();
+        await expect(summary.getByRole('button', { name: PROCESSING.reviewWalls, exact: true })).toBeVisible();
+        const calibrate = summary.getByRole('button', { name: PROCESSING.calibrate, exact: true });
+        await expect(calibrate).toBeVisible();
+        await captureEvidence(page, 'E03_pipeline_done_summary.png');
+        await calibrate.click();
+        await expect.poll(() => pathOf(page)).toBe(ROUTES.project.scale(project.id, floor.id));
       },
       { clipboard: true },
     );

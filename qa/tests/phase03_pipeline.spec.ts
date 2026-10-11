@@ -708,9 +708,10 @@ test.describe('SCR-15 CAD Branch Confirm', () => {
 /* ========================================================================== */
 
 test.describe('SCR-12 Processing summary', () => {
-  // [BUG-285] asserts the bug log's "Mong đợi" and FAILS while it is open: the real gateway answers
-  // `extractionSummary` unsupported, so no "Báo cáo tổng kết" and no "Duyệt lớp tường" (coverage F10). Kept last in this
-  // serial file so that failure skips nothing; CP-5 is read back from the API here, not from the screen of the CP-5 test.
+  // [BUG-285] asserts the bug log's "Mong đợi". Since FIX-1380 the processing screen derives "Báo cáo tổng kết" from N16
+  // spatial/layer once a floor's run is done (useProcessingScreen.ts:733-745, :1208-1276) and shows the block — with
+  // "Duyệt lớp tường" / "Hiệu chỉnh tỷ lệ" — even when N16 fails, so this should pass (coverage F10/P9). Kept last in
+  // this serial file so a regression skips nothing; CP-5 is read back from the API here, not from the CP-5 test's screen.
   test('[BUG-285] SCR-12 finished run (CP-5 from the API) → "Duyệt lớp tường" → /projects/:id/floors/{workId}/layers/walls', async () => {
     requireState((s) => s.checkpoints.pipelineComplete, 'checkpoints.pipelineComplete', 'Phase 3 SCR-12 (CP-5)');
     const uploadId = requireState((s) => s.checkpoints.uploadId, 'checkpoints.uploadId', 'Phase 3 SCR-10 upload');
