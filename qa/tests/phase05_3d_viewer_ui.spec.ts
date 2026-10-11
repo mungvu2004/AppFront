@@ -65,6 +65,7 @@ const EXPLODED_EMPTY_TEXT = 'Tách tầng xuất hiện khi bản vẽ có từ 
 const EXPLODED_ERROR_TEXT = 'Không tách được các tầng lúc này. Vui lòng thử lại sau.';
 const HIDE_FLOOR = /^Ẩn tầng /u;
 const EXPLODE_PRESETS = 'Mức tách sẵn'; // ExplodedViewRail.tsx
+const EXPLODE_MEDIUM = 'Tách vừa'; // explodedViewTypes.ts:136, separation 0,5 > LABEL_REVEAL_SEPARATION 0,2
 const EXPLODE_FULL = 'Tách hết';
 /** Floor cards show only past LABEL_REVEAL_SEPARATION (useExplodedView.ts:399 areLabelsVisible); default "Gộp" hides them. */
 const FLOOR_CARD = /^Chọn tầng .+, cao độ /u; // ExplodedViewFloorCards.tsx:121
@@ -202,14 +203,18 @@ async function openExplodedData(page: Page, projectId: string): Promise<void> {
   await expect(page.getByText(EXPLODED_EMPTY_TEXT, { exact: true }), 'two seeded storeys: exploded empty state').toHaveCount(0);
 }
 
-/** "Tách hết" (local view state) → the floor cards with their "Ẩn tầng …" buttons appear. */
-async function openExplodedFull(page: Page, projectId: string): Promise<void> {
+/** A preset (local view state) past the label threshold → the floor cards with their "Ẩn tầng …" buttons appear. */
+async function openExplodedAt(page: Page, projectId: string, preset: typeof EXPLODE_MEDIUM | typeof EXPLODE_FULL): Promise<void> {
   await openExplodedData(page, projectId);
-  const full = page.getByRole('radiogroup', { name: EXPLODE_PRESETS }).getByRole('radio', { name: EXPLODE_FULL, exact: true });
-  await full.click();
-  await expect(full).toHaveAttribute('aria-checked', 'true');
+  const radio = page.getByRole('radiogroup', { name: EXPLODE_PRESETS }).getByRole('radio', { name: preset, exact: true });
+  await radio.click();
+  await expect(radio).toHaveAttribute('aria-checked', 'true');
   await expect(page.getByRole('button', { name: FLOOR_CARD }).first()).toBeVisible();
 }
+
+/** BUG-390: the default preset is "Gộp" (separation 0, no card); "floors separated" means "Tách vừa" chosen first. */
+const openExplodedMedium = (page: Page, projectId: string): Promise<void> => openExplodedAt(page, projectId, EXPLODE_MEDIUM);
+const openExplodedFull = (page: Page, projectId: string): Promise<void> => openExplodedAt(page, projectId, EXPLODE_FULL);
 
 /** Measurement screen of `projectId`: overlay + "Phép đo" list, scene built. */
 async function openMeasure(page: Page, projectId: string): Promise<void> {
@@ -301,8 +306,8 @@ test.describe('U05 UI verify — SCR-23 viewer 3D (own seeded project)', () => {
 test.describe('U05 UI verify — SCR-24 exploded view (own seeded project)', () => {
   test.beforeEach(() => test.setTimeout(TEST_TIMEOUT_MS));
 
-  test('U05 · SCR-24 exploded, floors separated', async ({ browser }) => {
-    await verifySeeded(browser, 'U05_exploded_default', openExplodedData);
+  test('U05 · SCR-24 exploded, "Tách vừa" → floors separated', async ({ browser }) => {
+    await verifySeeded(browser, 'U05_exploded_medium', openExplodedMedium);
   });
 
   test('U05 · SCR-24 exploded, "Tách hết" → floor cards', async ({ browser }) => {
