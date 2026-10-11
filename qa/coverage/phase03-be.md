@@ -1,13 +1,18 @@
-<!-- qa-sources be=AppBack main (HEAD == origin/main, 0 behind; short sha not read) -->
+<!-- qa-sources be=bf83f815 -->
 # Phase 03 — Backend coverage (project settings, floors, drawing upload, pipeline stream)
 
-Source read: `F:/App/AppBack` (qa.config `backendSourceRoot`), branch `main`. Every `file:line` is under `apps/api/`
+Source read: `F:/App/AppBack` (qa.config `backendSourceRoot`), branch `main` at **bf83f815** (= `versionCheck.apiBuiltCommit`).
+Re-checked in run-18: `git log -1 -- apps/api/{projects,project_settings,floors,drawings,streams,quality,files,core} packages`
+-> bf83f815 itself, whose diff touches only `apps/api/notifications` + docs, so the inventory below (first written on this
+same commit in run-17) is unchanged except where a row says run-18. Every `file:line` is under `apps/api/`
 unless it starts with `packages/` or `deploy/`.
-API spec: `qa/tests/phase03_pipeline_api.spec.ts` — **13 tests** (`--list`), evidence prefix `A03_` (JSON exchanges;
+API spec: `qa/tests/phase03_pipeline_api.spec.ts` — **16 tests** (`--list`; 13 + 3 "gaps" added in run-18), evidence prefix `A03_` (JSON exchanges;
 SSE cases write `A03_<slug>.json` with the frames, no cookie value). Author run: `run-17-author`
 (`F:/App/qa-results/run-17-author/phase03-api/results.json`): **11 passed, 2 failed** (both on one app finding, F1);
 `run-17-author-r2` (all 13 again — the `--grep` with spaces did not filter) gave the same 11 / 2 and ran the
 pipeline test with the signed-URL fetch: completed, `sourceUrl` on `localhost:9000` (MinIO) served 200 `image/*`.
+`run-18-author` (`--grep "gaps:"`, only the 3 new tests, headless): **3 passed**
+(`F:/App/qa-results/run-18-author/phase03-api/results.json`; evidence `run-18-author/evidence/A03_pdf_*`, `A03_race_*`, `A03_gone_floor_*`).
 UI specs of the phase (layer main / ui / edge): `phase03_pipeline.spec.ts`, `phase03_pipeline_ui.spec.ts`,
 `phase03_pipeline_edge.spec.ts`.
 Endpoints called by the phase's screens (FE `src/api/endpoints.ts`, `src/lib/upload/uploadTask.ts:424-490`,
@@ -21,7 +26,7 @@ Status words: **pass** (asserted by a test that passed in `run-17-author`) · **
 **covered** (another spec asserts it) · **partial** · **not covered** (reason given) · **unpairable**.
 
 Test names below are shortened: "anon", "set-ver", "set-rules", "floor-create", "floor-patch", "reorder", "init-rules",
-"dedupe", "chunks", "reject", "pipeline", "sse-gates", "roles".
+"dedupe", "chunks", "reject", "pipeline", "sse-gates", "roles", and (run-18) "gaps-pdf", "gaps-race", "gaps-gone-floor".
 
 ## Shared rules (every phase-3 route)
 
@@ -55,6 +60,7 @@ Test names below are shortened: "anon", "set-ver", "set-rules", "floor-create", 
 | Own repeat (same writer + same normalised-body SHA-256 at revision = base+1) → 200 current, no write; NFD/NFC spellings hash the same | service.py:47-54,79-85,116-118 | set-ver (exact repeat, NFC spelling; activity count proves no 2nd write) | pass |
 | Stale or ahead base → 409 `VERSION_CONFLICT` `currentVersion` + `remoteChanges: []` | service.py:119; core/errors.py:82-87; packages/core/errors.py:171-185 | set-ver (stale 0 → current 1, ahead 9 → 3, old repeat → 3) ; ui edge — none | pass |
 | Same body + base by ANOTHER writer is not a repeat → 409 | service.py:79-85 (`last_writer_id`) | roles (admin writes, engineer sends the same → 409 currentVersion 1) | pass |
+| Concurrent writers on one base: base 0 = `INSERT … ON CONFLICT DO NOTHING`, base n = `UPDATE … WHERE revision = n` → exactly one 200 (revision+1), the other 409 `VERSION_CONFLICT` `currentVersion` = the winner's, `remoteChanges []`; N5 = the winner's body; one activity row per win | service.py:57-76,101-119 | gaps-race (base 0 and base 1, two parallel PUTs each) | pass (run-18) |
 | Side effects on a real write: activity `project.settings_update` (objectCode = project id), `touch_project` (updatedAt) — none on repeat / 409 / 422 | service.py:104-115; access/kinds.py:30,61 | set-ver (3 rows for 3 writes; updatedAt grows); set-rules (still revision 0 after 22 × 422) | pass |
 | Permission: viewer 403, non-member 404, engineer 200 | router.py:34 | roles | pass |
 
@@ -72,7 +78,7 @@ Test names below are shortened: "anon", "set-ver", "set-rules", "floor-create", 
 | `id` = `L-[0-9A-Z]{10,64}` (W-…, too short, lower case → 422 field `id`); 64-char body accepted | schemas.py:50-56; packages/core/ids.py:92-94 | floor-create | pass |
 | `name` trim + NFC, Cc / bidi → 422, 1..120 | schemas.py:16,26-33; packages/core/text.py:34-46 | floor-create (blank, 121, RLO; 120 accepted; NFD → NFC) | pass |
 | `order` 0..999, `elevationMm` −30000..300000, `heightMm` 2000..10000; JSON number only (string / bool → 422); ≤ 0.01 off an integer is rounded (2999.995 → 3000), more → 422 (3000.5); required | schemas.py:17-23,36-47,68-74 | floor-create (−1, 1000, −30001, 300001, 1999, 10001, 3000.5, "3000", true, missing; bounds accepted) | pass |
-| Same id live in the project → 409 `FLOOR_ID_TAKEN` field `id` (also on a unique-violation race) | service.py:76-96; errors.py:7-8 | floor-create | pass (race branch not covered: needs two concurrent inserts) |
+| Same id live in the project → 409 `FLOOR_ID_TAKEN` field `id` (also on a unique-violation race) | service.py:76-96; errors.py:7-8 | floor-create (sequential); gaps-race (two parallel POSTs of one id → one 201, one 409 field id, one live floor, one `floor.create`) | pass (run-18; `lock_project_floors` serialises, service.py:139-141 — which guard answered is not observable, both give the same body) |
 | 50 live floors (`FLOORS_MAX`) → 422 `FLOOR_LIMIT_REACHED` (no field) | service.py:86-89,142-143; settings.py:156 | floor-create (project created with 50 hook floors) | pass |
 | Soft-deleted id inside `FLOOR_RESTORE_WINDOW_S` 600 s → restored in place with the new body, 201 (not 409) | service.py:53-73,118-131; drawings/runs.py:330-338; settings.py:157 | floor-create (DELETE #11 then POST same id) | pass (window expiry 600 s not covered: too slow for a run) |
 | Side effects: summaries `register_floor`, `touch_project`, activity `floor.create` (objectCode = level id) | service.py:144-155 | floor-create (create / delete / create rows) | pass |
@@ -141,8 +147,9 @@ Test names below are shortened: "anon", "set-ver", "set-rules", "floor-create", 
 | Upload already complete / rejected → 200 current `Progress`, no 2nd run / activity | complete.py:253-265,302-304 | reject (rejected → 200 failed), pipeline (complete twice → 1 `floor.upload_complete`) | pass |
 | Missing chunk indexes → 422 `UPLOAD_INCOMPLETE` + `count`; total ≠ `sizeBytes` → 422 `UPLOAD_SIZE_MISMATCH`; both keep `receiving` | complete.py:113-131 | chunks | pass |
 | Magic bytes decide: DWG (`AC10` + 2 digits) → `CAD_NOT_SUPPORTED`; kind ≠ extension (incl. unknown) → `FILE_TYPE_MISMATCH`; no end marker (IEND / FFD9 / %%EOF) → `FILE_CORRUPT`; returned (not raised) so the row stays `rejected` with the code | complete.py:144-153,197-218,227-239,306-311; packages/vision/preprocess/sniff.py:23-39 | reject (3 cases; #8 → failed + error) | pass |
-| PDF: > 20 pages → 422 `VALIDATION` (no field); `pageIndex` ≥ pages → field `pageIndex`; unreadable → `PDF_UNREADABLE` / `FILE_CORRUPT` | complete.py:52-53,172-194 | — | not covered: needs crafted PDFs (no fixture in the repo; UNKNOWN - NEED VERIFICATION of a safe generator) |
-| Chunk object changed between check and finish → 409 `UPLOAD_CHUNKS_CHANGED`; floor deleted meanwhile → 404 floor | complete.py:258-267 | — | not covered: needs a race between two requests |
+| PDF: > 20 pages → 422 `VALIDATION` (no field); `pageIndex` ≥ pages → field `pageIndex`; `/Count 0` (pdfium err SUCCESS) → `PDF_UNREADABLE`; `%PDF-` + garbage with `%%EOF` (pdfium FORMAT) → `FILE_CORRUPT`; each returned, row kept `rejected` → #8 failed + code | complete.py:52-53,172-194,227-239; packages/vision/preprocess/pdf.py:30-60; sniff.py:37-38 | gaps-pdf (PDFs generated in the spec by a port of the BE fixture `packages/vision/preprocess/tests/synthetic.py` `make_pdf`) | pass (run-18; a user-password PDF → `PDF_UNREADABLE` not covered: needs RC4 encryption, same mapping as `/Count 0`) |
+| Chunk object changed between check and finish → 409 `UPLOAD_CHUNKS_CHANGED`; floor deleted meanwhile → 404 floor | complete.py:258-267 | — | not covered: needs a race inside one #7 (between its stage 2 and stage 3), not reproducible deterministically from outside |
+| Floor soft-deleted BEFORE #6 / #7 / #8 → 404 `resource:"upload"` (`load_upload` joins a live floor); re-creating the id inside the restore window keeps the floor pk → the same upload is reachable again (#8 200 = the old Progress) | uploads.py:118-142 (136-137); floors/service.py:53-73,118-131,174-194 | gaps-gone-floor | pass (run-18) |
 | Success: upload `complete`, `start_run` (pending run, supersedes live runs of the floor), activity `floor.upload_complete`, 200 `Progress` pending | complete.py:269-283; runs.py:218-256 | pipeline; ui main CP-4 | pass |
 | Permission: viewer 403, non-member 404 | router.py:80-82 | roles | pass |
 
@@ -160,9 +167,9 @@ Test names below are shortened: "anon", "set-ver", "set-rules", "floor-create", 
 | Public route, cookie `appback_stream` (Path /api/streams) — missing / forged → 401 `UNAUTHENTICATED` | streams/router.py:1-6,128; sse.py:161-169; auth/cookies.py:15-31 | anon | pass |
 | `Origin` absent → allowed (EventSource, K31); same origin → 200; foreign → 403 `ORIGIN_MISMATCH`, checked before the cookie | streams/router.py:127; core/origin.py:59-62 | sse-gates (absent, same, foreign), anon (foreign without cookie → 403) | pass |
 | Malformed `prj_` / `upl_` id → 404 `resource:"upload"` (after auth) | streams/router.py:129-130 | sse-gates | pass |
-| Not a member, unknown upload, upload of another project, deleted floor → 404 `resource:"upload"` (never 403) | stream_providers.py:43-62 | sse-gates (unknown upload, unknown project), pipeline (another project), roles (non-member) | pass (deleted-floor branch not covered) |
+| Not a member, unknown upload, upload of another project, deleted floor → 404 `resource:"upload"` (never 403) | stream_providers.py:43-62 | sse-gates (unknown upload, unknown project), pipeline (another project), roles (non-member), gaps-gone-floor (deleted floor) | pass |
 | 200 `text/event-stream`, `Cache-Control: no-store`; first frame = snapshot `Progress` with `id:` = stream tail (S08); frames `id:` + one `data:` line, never `event:`; `: ping` heartbeats | sse.py:60-62,79-86,279-311,408-427 | sse-gates (snapshot = #8), pipeline (frames until final) ; ui main SCR-12 | pass |
-| `lastEventId` resume (valid, trimmed, bigger than tail → snapshot) | sse.py:279-297 | — | not covered (FE reconnect path; needs a dropped connection mid-run) |
+| `lastEventId` (query, router.py:37) used only when well-formed (`[0-9]{1,20}-[0-9]{1,20}`), ≤ tail AND not trimmed; else the snapshot frame with `id` = tail. Empty stream → tail `0-0`, `is_trimmed` True | sse.py:279-311; packages/messaging/streams.py:23-24,45-47,168-179 | gaps-gone-floor (`not-an-id`, `0-0`, `99999999999999-0` → 200 snapshot, id = tail of a plain open, data = #8) | partial (run-18: the three fall-back branches pass; the real RESUME branch — valid id inside a non-empty stream → no snapshot — needs a live pipeline run's stream, not covered) |
 | ≤ 6 streams per user → 7th 429 `RATE_LIMITED` + `Retry-After: 5`; global 500 → 429; nginx 30 per IP → 429 | sse.py:65,172-221; connections.py:30-50; streams/settings.py:34-35; deploy/nginx/snippets/app_locations.conf:25-28,101-108 | roles (engineer's 7th stream) | pass (global / per-IP caps not covered: 500 / 30 concurrent streams) |
 | Membership rechecked every `STREAM_RECHECK_S` (≤ 5 s close after losing access) | sse.py:327-355; streams/settings.py:23-48 | — | not covered (needs a member removed while streaming; pytest BE S07) |
 
@@ -213,12 +220,13 @@ Real responses the edge spec gets from the stack (not mocked) and this spec also
 
 | Limit (key) | BE value | This spec | Other phase-3 specs | Verdict |
 |---|---|---|---|---|
-| `auth_login_ip` (per IP) | 30 / 60 s (auth/settings.py; QA override 120) | 12 admin logins (every test but "anon") | main 1, ui 1, edge 0 (+1 each only if the stored session is dead) | ≤ 17 per run, layers sequential |
-| `drawings_init` (per user) | 60 / 600 s (drawings/settings.py:135-136) | admin 24 (init-rules 13, dedupe 3, chunks 2, reject 3, pipeline 1, sse-gates 1, roles 1); engineer 61 (own bucket, deleted user) | main ≤ 2 (drawing.png, maybe .txt), edge 3, ui 0 (their headers) | 29 per run; two runs in 600 s = 58 ≤ 60; a third must wait 10 min. NOTE: the two author runs (23:00 and 23:03 local) spent 48 in one window → the next phase-3 run must not start before ~23:11 local |
+| `auth_login_ip` (per IP) | 30 / 60 s (auth/settings.py; QA override 120) | 15 admin logins (every test but "anon") | main 1, ui 1, edge 0 (+1 each only if the stored session is dead) | ≤ 20 per run, layers sequential |
+| `drawings_init` (per user) | 60 / 600 s (drawings/settings.py:135-136) | admin 29 (init-rules 13, dedupe 3, chunks 2, reject 3, pipeline 1, sse-gates 1, roles 1, gaps-pdf 4, gaps-gone-floor 1); engineer 61 (own bucket, deleted user) | main ≤ 2 (drawing.png, maybe .txt), edge 3, ui 0 (their headers) | 34 per run ≤ 60; a 2nd full run inside the same 600 s would be 68 → keep 10 min between full phase-3 runs. The run-18-author `--grep "gaps:"` run (~23:55 local) spent 5 → a full run right after fits (39 ≤ 60) |
 | `POST /api/users/invitations` (per admin) | 30 / 3600 s | 2 | 0 | Phases 1 (8) + 2 (≤ 15) + 3 (2) = 25 ≤ 30 per hour |
 | `recovery_ip` (per IP) | 10 / 900 s (override 60) | 2 accepts | 0 | fine |
 | `members_add` (per actor) | 60 / 3600 s | admin 2 | 0 | fine |
-| SSE per user / per IP | 6 / 30 concurrent | admin ≤ 1 at a time; engineer 7 (6 held + 1 refused) | main 1 | fine |
+| SSE per user / per IP | 6 / 30 concurrent | admin ≤ 1 at a time (gaps-gone-floor opens 5 streams one after another, each closed after its first frame); engineer 7 (6 held + 1 refused) | main 1 | fine |
+| Concurrency (no limit) | — | gaps-race: 3 pairs of parallel requests | — | fine |
 
 ## Findings
 
@@ -239,10 +247,15 @@ Real responses the edge spec gets from the stack (not mocked) and this spec also
 
 ## Gaps
 
-1. PDF branches of #7 (> 20 pages, `pageIndex` ≥ pages, unreadable) — no PDF fixture; UNKNOWN - NEED VERIFICATION.
-2. Races: `UPLOAD_CHUNKS_CHANGED` 409, `FLOOR_ID_TAKEN` on a unique-violation race, floor deleted between #7 steps,
-   N6 concurrent writers.
-3. S1 `lastEventId` resume, membership recheck close (S07), global / per-IP stream caps.
+Closed in run-18 (3 new tests, all pass): PDF branches of #7 (gaps-pdf); N6 concurrent writers and #10 concurrent
+creates (gaps-race); S1 deleted-floor branch, #6/#7/#8 after a floor delete, restore bringing the upload back, and the
+`lastEventId` fall-back branches (gaps-gone-floor). Still open:
+
+1. PDF with a user password → `PDF_UNREADABLE` (needs RC4-40 encryption in the spec; same mapping as `/Count 0`).
+2. Races inside one request: `UPLOAD_CHUNKS_CHANGED` 409 and "floor deleted between #7 stage 2 and 3" (complete.py:258-267)
+   are not reproducible deterministically from outside; which #10 guard (pre-check vs unique violation) answered a race
+   is not observable.
+3. S1 `lastEventId` real resume (needs a live run's stream), membership recheck close (S07), global / per-IP stream caps.
 4. Restore-window expiry (600 s) on #10.
 5. #31 / #32 happy paths and their 409 / 422 codes (plan never POSTs; would re-run the pipeline).
 6. #5 / #7 replay with an `Idempotency-Key` (FE sends none; generic rules in phase 2).
