@@ -117,6 +117,7 @@ function StepInfo(props: CreateProjectModalViewProps) {
           label="Mã dự án"
           value={props.code}
           onChange={(event) => props.setCode(event.target.value)}
+          error={props.problems.code}
           disabled={props.isSubmitting}
           hint="Tự tạo từ tên, sửa được"
         />
@@ -126,6 +127,7 @@ function StepInfo(props: CreateProjectModalViewProps) {
           label="Địa chỉ"
           value={props.address}
           onChange={(event) => props.setAddress(event.target.value)}
+          error={props.problems.address}
           disabled={props.isSubmitting}
         />
         <Select.Root

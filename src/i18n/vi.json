@@ -261,6 +261,8 @@
         "nameRequired": "Chưa nhập tên dự án.",
         "nameTooShort": "Tên dự án cần ít nhất {{min}} ký tự.",
         "nameTooLong": "Tên dự án không quá {{max}} ký tự.",
+        "codeTooLong": "Mã dự án không quá {{max}} ký tự.",
+        "addressTooLong": "Địa chỉ không quá {{max}} ký tự.",
         "duplicateName": "Tên dự án đã trùng với một dự án khác. Đổi tên rồi thử lại."
       },
       "summary": {

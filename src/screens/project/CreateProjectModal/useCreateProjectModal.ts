@@ -139,6 +139,17 @@ function formatElevationLabel(elevationMm: Millimetres): string {
   return `${formatNumber(millimetresToMetres(elevationMm), { fractionDigits: 1 })} m`;
 }
 
+/**
+ * A free-text field longer than the server accepts — counted the server's way,
+ * after trim + NFC — names its own limit at step 1 instead of becoming an
+ * unmarked 422 at step 3 (BUG-176, BUG-186).
+ */
+function lengthProblemFor(label: string, value: string, maxLength: number): string | null {
+  return value.trim().normalize('NFC').length > maxLength
+    ? `${label} không quá ${formatNumber(maxLength)} ký tự.`
+    : null;
+}
+
 const NAME_HINT =
   `Bắt buộc, từ ${formatNumber(PROJECT_LIMITS.nameMinLength)} ` +
   `đến ${formatNumber(PROJECT_LIMITS.nameMaxLength)} ký tự.`;
@@ -396,7 +407,11 @@ export interface CreateProjectModel {
   readonly notes: string;
   readonly buildingTypeOptions: SelectOption[];
   /** Shown on a field nobody has typed into yet; `null` once its value says it all. */
-  readonly problems: { readonly name: string | null };
+  readonly problems: {
+    readonly name: string | null;
+    readonly code: string | null;
+    readonly address: string | null;
+  };
   /** Why "Tên dự án" is required — the reason a pristine step 1 cannot continue yet. */
   readonly nameHint: string;
   readonly notice: CreateProjectNotice | null;
@@ -517,9 +532,15 @@ export function useCreateProjectModal(
   const nameProblem = serverNameProblem ?? localNameProblemFor(name);
   // A form nobody has typed into is not wrong yet (BUG-133): the name's own
   // complaint waits for the first keystroke; a server refusal shows at once.
-  const problems = { name: nameTouched || serverNameProblem !== null ? nameProblem : null };
+  const codeProblem = lengthProblemFor('Mã dự án', code, PROJECT_LIMITS.codeMaxLength);
+  const addressProblem = lengthProblemFor('Địa chỉ', address, PROJECT_LIMITS.addressMaxLength);
+  const problems = {
+    name: nameTouched || serverNameProblem !== null ? nameProblem : null,
+    code: codeProblem,
+    address: addressProblem,
+  };
 
-  const canGoNextStep1 = nameProblem === null;
+  const canGoNextStep1 = nameProblem === null && codeProblem === null && addressProblem === null;
   const canGoNextStep2 = floorRows.length > 0 && !hasAnyRowProblem && floorStack.collision === null;
   const canGoNext = step === 1 ? canGoNextStep1 : step === 2 ? canGoNextStep2 : true;
   const canSubmit = canGoNextStep1 && canGoNextStep2 && !isSubmitting;
@@ -533,7 +554,7 @@ export function useCreateProjectModal(
     if (isSubmitting) return 'loading';
     if (notice !== null && notice.level === 'violation') return 'error';
     if (step === 2 && floorRows.length === 0) return 'empty';
-    if (nameProblem !== null || floorStack.collision !== null || hasAnyRowProblem) return 'partial';
+    if (!canGoNextStep1 || floorStack.collision !== null || hasAnyRowProblem) return 'partial';
     return 'success';
   }, [
     isCompact,
@@ -542,7 +563,7 @@ export function useCreateProjectModal(
     notice,
     step,
     floorRows.length,
-    nameProblem,
+    canGoNextStep1,
     floorStack.collision,
     hasAnyRowProblem,
   ]);

@@ -76,7 +76,7 @@ function baseProps(): CreateProjectModalViewProps {
     buildingType: 'residential',
     notes: '',
     buildingTypeOptions: BUILDING_TYPE_OPTIONS,
-    problems: { name: null },
+    problems: { name: null, code: null, address: null },
     nameHint: 'Bắt buộc, từ 3 đến 80 ký tự.',
     notice: null,
     floorRows: STACKED_FLOOR_ROWS,
@@ -147,7 +147,7 @@ const PROPS_BY_STATE: Readonly<Record<SevenState, () => CreateProjectModalViewPr
     state: 'error',
     step: 1,
     stepLabel: 'bước 1 / 3',
-    problems: { name: 'Tên dự án đã trùng với một dự án khác. Đổi tên rồi thử lại.' },
+    problems: { name: 'Tên dự án đã trùng với một dự án khác. Đổi tên rồi thử lại.', code: null, address: null },
     notice: { level: 'violation', message: 'Tên dự án đã trùng với một dự án khác. Đổi tên rồi thử lại.' },
   }),
   success: () => ({ ...baseProps(), state: 'success' }),
@@ -485,6 +485,25 @@ describe('CreateProjectModal, wired to its hook', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Tên dự án cần ít nhất 3 ký tự.');
     fireEvent.change(name, { target: { value: '' } });
     expect(screen.getByRole('alert')).toHaveTextContent('Chưa nhập tên dự án.');
+  });
+
+  it('refuses a code over 32 and an address over 200 characters at step 1 (BUG-176, BUG-186)', () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+
+    fireEvent.change(screen.getByLabelText('Tên dự án'), { target: { value: 'Chung cư Dài' } });
+    const next = screen.getByRole('button', { name: 'Tiếp tục' });
+
+    fireEvent.change(screen.getByLabelText('Mã dự án'), { target: { value: 'C'.repeat(33) } });
+    expect(screen.getByLabelText('Mã dự án')).toHaveAccessibleDescription('Mã dự án không quá 32 ký tự.');
+    expect(next).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Mã dự án'), { target: { value: ` ${'C'.repeat(32)} ` } });
+    expect(next).toBeEnabled();
+
+    fireEvent.change(screen.getByLabelText('Địa chỉ'), { target: { value: 'A'.repeat(201) } });
+    expect(screen.getByLabelText('Địa chỉ')).toHaveAccessibleDescription('Địa chỉ không quá 200 ký tự.');
+    expect(next).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Địa chỉ'), { target: { value: 'A'.repeat(200) } });
+    expect(next).toBeEnabled();
   });
 
   it('closes an open "Loại công trình" list on Esc and keeps the dialog (BUG-152)', async () => {
