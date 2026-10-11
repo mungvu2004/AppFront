@@ -146,6 +146,9 @@ const WALL_EDITOR = {
 } as const;
 const WALLS_SCREEN = 'Duyệt lớp tường'; // src/screens/qc/WallLayerReview/WallLayerReview.tsx:84 (phase04 edge WALL.screen)
 
+/** UVS:167-169 `storeyInlineName` (BUG-384): "Tầng 1" → "tầng 1", "Mái" → "tầng Mái"; the rail eye reads "Ẩn {this}" (VSR:87-89). */
+const storeyInlineName = (name: string): string => (/^tầng(\s|$)/iu.test(name) ? `t${name.slice(1)}` : `tầng ${name}`);
+
 /* SCR-24 copy. */
 const EX = {
   empty: 'Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.', // UEX:143, EXV:42-48,85
@@ -759,7 +762,7 @@ test.describe('E05 SCR-23 Viewer 3D', () => {
     });
   });
 
-  test('E05 · SCR-23 storey rail: digit 2, Shift+click adds, eye "Ẩn {name}" ↔ "Hiện {name}"', async ({ browser }) => {
+  test('E05 · SCR-23 storey rail: digit 2, Shift+click adds, eye "Ẩn tầng {n}" ↔ "Hiện tầng {n}"', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const project = await createProject(admin, 'v3-storeys', ['Tầng 1', 'Tầng 2']);
@@ -779,12 +782,13 @@ test.describe('E05 SCR-23 Viewer 3D', () => {
       await expect(option(lower)).toHaveAttribute('aria-selected', 'true');
       await expect(option(upper)).toHaveAttribute('aria-selected', 'true');
 
-      await page.getByRole('button', { name: `Ẩn ${lower.name}`, exact: true }).click(); // VSR:82-85
-      const show = page.getByRole('button', { name: `Hiện ${lower.name}`, exact: true });
+      const lowerInline = storeyInlineName(lower.name); // "Tầng 1" → "tầng 1"
+      await page.getByRole('button', { name: `Ẩn ${lowerInline}`, exact: true }).click(); // VSR:86-90
+      const show = page.getByRole('button', { name: `Hiện ${lowerInline}`, exact: true });
       await expect(show).toHaveAttribute('aria-pressed', 'false');
       await captureEvidence(page, 'E05_viewer_storey_rail.png');
       await show.click();
-      await expect(page.getByRole('button', { name: `Ẩn ${lower.name}`, exact: true })).toHaveAttribute('aria-pressed', 'true');
+      await expect(page.getByRole('button', { name: `Ẩn ${lowerInline}`, exact: true })).toHaveAttribute('aria-pressed', 'true');
     });
   });
 
