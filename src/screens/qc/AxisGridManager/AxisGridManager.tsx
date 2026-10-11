@@ -99,6 +99,11 @@ const ERROR_TITLE = 'Không tính được trục';
 const ERROR_ACTION_LABEL = 'Thử lại';
 const FORBIDDEN_TITLE = 'Không có quyền sửa trục';
 const EXPAND_PANEL_LABEL = 'Bảng trục đang thu gọn';
+/** BUG-330, BUG-336: tầng chưa có trục thì nói thẳng, không hiện số 0 hay "Đã duyệt" như dữ liệu thật. */
+const ORIGIN_UNAVAILABLE_NOTICE = 'Chưa có trục nào nên chưa tính được gốc toạ độ.';
+const ALIGN_UNAVAILABLE_NOTICE = 'Chưa có trục nào nên chưa căn chỉnh được giữa các tầng.';
+const CANVAS_EMPTY_NOTICE = 'Chưa có trục nào để hiện trên bản vẽ.';
+const CANVAS_ERROR_NOTICE = 'Chưa vẽ được trục vì lớp trục của tầng này chưa đọc được.';
 
 /** Sáu dòng khung xương của cột trái lúc đang tải — hai nhóm trục, ba hàng mỗi nhóm. */
 const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
@@ -197,6 +202,13 @@ function AxisGridLeftColumn({
 export function AxisGridManager(props: AxisGridManagerViewProps) {
   const { viewModel, spacingMessage } = props;
   const isCollapsed = viewModel.isCollapsed;
+  const canvasNotice =
+    viewModel.errorMessage !== null
+      ? CANVAS_ERROR_NOTICE
+      : viewModel.emptyNotice !== null
+        ? CANVAS_EMPTY_NOTICE
+        : null;
+  const hasNoAxis = canvasNotice !== null;
 
   return (
     <div
@@ -227,7 +239,7 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
 
         <section
           aria-label={CANVAS_SECTION_LABEL}
-          className="min-h-0 min-w-0 flex-1 overflow-hidden rounded-[16px] bg-bg-sunken"
+          className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-[16px] bg-bg-sunken"
         >
           <AxisGridCanvas
             canvas={viewModel.canvas}
@@ -236,6 +248,11 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
             onAxisSelect={props.onAxisSelect}
             viewerRoleNotice={viewModel.viewerRoleNotice}
           />
+          {canvasNotice === null ? null : (
+            <p className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 text-center text-[13px] text-text-secondary">
+              {canvasNotice}
+            </p>
+          )}
         </section>
 
         {isCollapsed ? (
@@ -246,12 +263,17 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
           </div>
         ) : (
           <div className="flex h-full min-h-0 shrink-0 flex-col gap-2 overflow-y-auto">
-            <AxisGridOriginPanel onAnchorChange={props.onAnchorChange} origin={viewModel.origin} />
+            <AxisGridOriginPanel
+              onAnchorChange={props.onAnchorChange}
+              origin={viewModel.origin}
+              unavailableNotice={hasNoAxis ? ORIGIN_UNAVAILABLE_NOTICE : null}
+            />
             <AxisGridFloorAlignList
               floors={viewModel.floors}
               onAutoAlign={props.onAutoAlign}
               onFloorRowHover={props.onFloorRowHover}
               onViewFloorOnDrawing={props.onViewFloorOnDrawing}
+              unavailableNotice={hasNoAxis ? ALIGN_UNAVAILABLE_NOTICE : null}
               warningBanner={viewModel.warningBanner}
             />
           </div>

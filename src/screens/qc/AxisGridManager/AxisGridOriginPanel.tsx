@@ -35,6 +35,8 @@ import type { AxisGridManagerProps, OriginPanelViewModel } from './axisGridTypes
 
 export interface AxisGridOriginPanelProps extends Pick<AxisGridManagerProps, 'onAnchorChange'> {
   readonly origin: OriginPanelViewModel;
+  /** Tầng chưa có trục (rỗng/lỗi): nói ra thay cho ô neo trống và bốn số 0 giả (BUG-330, BUG-336). */
+  readonly unavailableNotice: string | null;
 }
 
 const PANEL_TITLE = 'Gốc toạ độ';
@@ -68,7 +70,11 @@ function OffsetFieldRow({ label, text, suffix, isLast = false }: OffsetFieldRowP
   );
 }
 
-export function AxisGridOriginPanel({ origin, onAnchorChange }: AxisGridOriginPanelProps) {
+export function AxisGridOriginPanel({
+  origin,
+  onAnchorChange,
+  unavailableNotice,
+}: AxisGridOriginPanelProps) {
   const offsetXPx = useCountUp(origin.offsetXPx);
   const offsetYPx = useCountUp(origin.offsetYPx);
   const offsetXMm = useCountUp(origin.offsetXMm, { format: { fractionDigits: MM_FRACTION_DIGITS } });
@@ -78,23 +84,34 @@ export function AxisGridOriginPanel({ origin, onAnchorChange }: AxisGridOriginPa
     <div className="flex w-[344px] shrink-0 flex-col gap-4 rounded-[12px] bg-bg-surface p-5 shadow-panel">
       <h3 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h3>
 
-      <div className="flex flex-col gap-1.5">
-        <Select
-          disabled={origin.anchorOptions.length === 0}
-          label={SELECT_LABEL}
-          onChange={onAnchorChange}
-          options={[...origin.anchorOptions]}
-          {...(origin.selectedAnchor !== null ? { value: origin.selectedAnchor } : {})}
-        />
-        <p className="text-[13px] text-text-secondary">{SELECT_DESCRIPTION}</p>
-      </div>
+      {unavailableNotice !== null ? (
+        <p className="text-[13px] text-text-secondary">{unavailableNotice}</p>
+      ) : (
+        <>
+          <div className="flex flex-col gap-1.5">
+            <Select
+              disabled={origin.anchorOptions.length === 0}
+              label={SELECT_LABEL}
+              onChange={onAnchorChange}
+              options={[...origin.anchorOptions]}
+              {...(origin.selectedAnchor !== null ? { value: origin.selectedAnchor } : {})}
+            />
+            <p className="text-[13px] text-text-secondary">{SELECT_DESCRIPTION}</p>
+          </div>
 
-      <div className="flex flex-col">
-        <OffsetFieldRow label={OFFSET_X_PX_LABEL} suffix={PX_SUFFIX} text={offsetXPx.text} />
-        <OffsetFieldRow label={OFFSET_Y_PX_LABEL} suffix={PX_SUFFIX} text={offsetYPx.text} />
-        <OffsetFieldRow label={OFFSET_X_MM_LABEL} suffix={MM_SUFFIX} text={offsetXMm.text} />
-        <OffsetFieldRow isLast label={OFFSET_Y_MM_LABEL} suffix={MM_SUFFIX} text={offsetYMm.text} />
-      </div>
+          <div className="flex flex-col">
+            <OffsetFieldRow label={OFFSET_X_PX_LABEL} suffix={PX_SUFFIX} text={offsetXPx.text} />
+            <OffsetFieldRow label={OFFSET_Y_PX_LABEL} suffix={PX_SUFFIX} text={offsetYPx.text} />
+            <OffsetFieldRow label={OFFSET_X_MM_LABEL} suffix={MM_SUFFIX} text={offsetXMm.text} />
+            <OffsetFieldRow
+              isLast
+              label={OFFSET_Y_MM_LABEL}
+              suffix={MM_SUFFIX}
+              text={offsetYMm.text}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }
