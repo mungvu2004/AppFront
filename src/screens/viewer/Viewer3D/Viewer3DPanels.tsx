@@ -72,10 +72,23 @@ const RoomAreaPanelContainer = lazy(async () => ({
  *
  * Một `Skeleton` chứ không phải khoảng trắng: A11 nói màn trắng là thất bại duy
  * nhất nó tồn tại để chặn, và một ô trống trong lúc chunk đang tải cũng là một
- * màn trắng thu nhỏ.
+ * màn trắng thu nhỏ. Kèm một câu `role="status"` nói ĐÚNG bảng nào đang tải:
+ * chỉ một khung xương câm thì ba bảng trông y hệt nhau và người dùng không biết
+ * đang chờ hay bảng rỗng (BUG-379).
  */
-function LazyPanel({ children }: { readonly children: ReactNode }) {
-  return <Suspense fallback={<Skeleton preset="property-panel" />}>{children}</Suspense>;
+function LazyPanel({ loadingLabel, children }: { readonly loadingLabel: string; readonly children: ReactNode }) {
+  return (
+    <Suspense
+      fallback={
+        <div role="status">
+          <p className="px-4 pt-4 text-[13px] text-text-secondary">{loadingLabel}</p>
+          <Skeleton preset="property-panel" />
+        </div>
+      }
+    >
+      {children}
+    </Suspense>
+  );
 }
 
 /** Ba bảng phụ bật/tắt được. `null` là không bảng nào đang mở. */
@@ -92,6 +105,14 @@ const PANEL_LABELS: Readonly<Record<Viewer3DPanelId, string>> = {
   rooms: VIEWER_3D_ROOMS_PANEL_LABEL,
   furniture: VIEWER_3D_FURNITURE_PANEL_LABEL,
   history: VIEWER_3D_HISTORY_PANEL_LABEL,
+};
+
+/** Câu của vỏ chờ, mỗi bảng một câu — xem {@link LazyPanel}. */
+const PANEL_LOADING_LABELS: Readonly<Record<Viewer3DPanelId | 'inspector', string>> = {
+  rooms: 'Đang tải bảng diện tích phòng…',
+  furniture: 'Đang tải thư viện đồ đạc…',
+  history: 'Đang tải lịch sử thao tác…',
+  inspector: 'Đang tải thuộc tính đối tượng…',
 };
 
 /** Nhãn vùng của cột panel phụ, cho trình đọc màn hình và cho bài kiểm. */
@@ -230,7 +251,7 @@ export function Viewer3DPanels(props: Viewer3DPanelsProps) {
           aria-label={VIEWER_3D_INSPECTOR_LABEL}
           className="min-h-0 max-h-[320px] overflow-y-auto"
         >
-          <LazyPanel>
+          <LazyPanel loadingLabel={PANEL_LOADING_LABELS.inspector}>
             <PropertyInspectorContainer
               onDismiss={props.onDismissInspector}
               onNavigateToObject={props.onNavigateToObject}
@@ -295,7 +316,7 @@ export function Viewer3DPanels(props: Viewer3DPanelsProps) {
 
       {openPanelId === 'rooms' && (
         <div className="min-h-0 max-h-[360px] overflow-y-auto" id="viewer-3d-panel-rooms">
-          <LazyPanel>
+          <LazyPanel loadingLabel={PANEL_LOADING_LABELS.rooms}>
             <RoomAreaPanelContainer
               onCheckWallGaps={props.onCheckWallGaps}
               onOpenExport={props.onOpenExport}
@@ -307,7 +328,7 @@ export function Viewer3DPanels(props: Viewer3DPanelsProps) {
 
       {openPanelId === 'furniture' && props.floorId !== null && (
         <div className="min-h-0 max-h-[360px] overflow-y-auto" id="viewer-3d-panel-furniture">
-          <LazyPanel>
+          <LazyPanel loadingLabel={PANEL_LOADING_LABELS.furniture}>
             <FurnitureLibraryPanelContainer
               floorId={props.floorId}
               onModelDropped={props.onModelDropped}
@@ -318,7 +339,7 @@ export function Viewer3DPanels(props: Viewer3DPanelsProps) {
 
       {openPanelId === 'history' && (
         <div className="min-h-0 max-h-[360px] overflow-y-auto" id="viewer-3d-panel-history">
-          <LazyPanel>
+          <LazyPanel loadingLabel={PANEL_LOADING_LABELS.history}>
             <HistoryPanelContainer layout="panel" />
           </LazyPanel>
         </div>
