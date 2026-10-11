@@ -21,7 +21,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Bell, MessageSquare, Settings, Sparkles, UserPlus } from 'lucide-react';
+import { Bell, Settings } from 'lucide-react';
 
 import { motion, useAnimation } from '@/components/motion';
 import { Drawer } from '@/components/overlay/Drawer';
@@ -39,12 +39,11 @@ import {
   BELL_NUDGE_DEGREES,
   NOTIFICATION_FILTERS,
   NOTIFICATION_FILTER_LABELS,
-  UNREAD_DOT_SIZE_PX,
-  UNREAD_DOT_STAGGER_MS,
   type NotificationDayGroup,
+  type NotificationFilter,
   type NotificationItemVm,
-  type NotificationKind,
 } from './notificationModel';
+import { NotificationRow } from './NotificationRow';
 import type { NotificationCenterProps } from './useNotificationCenter';
 
 /* -------------------------------------------------------------------------- */
@@ -53,16 +52,28 @@ import type { NotificationCenterProps } from './useNotificationCenter';
 
 const TITLE_LABEL = 'Thông báo';
 const MARK_ALL_READ_LABEL = 'Đánh dấu tất cả đã đọc';
-const MARK_READ_LABEL = 'Đánh dấu đã đọc';
 const SETTINGS_LABEL = 'Mở cài đặt thông báo';
 const FILTER_ARIA_LABEL = 'Lọc thông báo';
 const VIEW_ALL_LABEL = 'Xem tất cả';
 const RETRY_LABEL = 'Thử lại';
 const BELL_ARIA_LABEL = 'Thông báo';
-const UNREAD_SR_HINT = 'chưa đọc';
 
-const EMPTY_TITLE = 'Không có thông báo mới';
-const EMPTY_DESCRIPTION = 'Chúng tôi sẽ báo khi AI xử lý xong hoặc có người nhắc đến bạn.';
+/** Trạng thái rỗng theo bộ lọc (BUG-126): mỗi tab nói đúng điều nó đang lọc. */
+const EMPTY_COPY: Readonly<Record<NotificationFilter, { title: string; description: string }>> = {
+  all: {
+    title: 'Không có thông báo mới',
+    description: 'Chúng tôi sẽ báo khi AI xử lý xong hoặc có người nhắc đến bạn.',
+  },
+  unread: {
+    title: 'Không có thông báo chưa đọc',
+    description: 'Bạn đã đọc hết thông báo.',
+  },
+  mentions: {
+    title: 'Chưa có ai nhắc đến bạn',
+    description: 'Khi có người nhắc đến bạn trong bình luận, thông báo sẽ hiện ở đây.',
+  },
+};
+const SHOW_EVERYTHING_LABEL = 'Hiện mọi thông báo';
 const PARTIAL_NOTICE = 'Có thể chưa cập nhật';
 const FORBIDDEN_NOTICE = 'Bạn chỉ thấy thông báo của những dự án được chia sẻ với bạn.';
 const ERROR_TITLE = 'Không tải được thông báo';
@@ -74,18 +85,6 @@ const FILTER_OPTIONS = NOTIFICATION_FILTERS.map((value) => ({
 }));
 
 const LOADING_ROW_COUNT = 5;
-const ICON_SIZE = 20;
-const ICON_STROKE = 1.5;
-/** Mili giây sang giây cho framer-motion — cùng phép chia `HistoryPanel.rows.tsx:62`. */
-const MS_IN_ONE_SECOND = 1000;
-
-/** Bốn loại, bốn hình — bảng đóng: loại thứ năm sẽ hỏng ở bước typecheck. */
-const KIND_ICON: Readonly<Record<NotificationKind, typeof Sparkles>> = {
-  aiCompleted: Sparkles,
-  violationFound: AlertTriangle,
-  projectInvite: UserPlus,
-  commentMention: MessageSquare,
-};
 
 /** Vị trí phẳng của mỗi mục qua mọi nhóm ngày — nguồn của độ trễ so le. */
 function flatIndexOf(groups: readonly NotificationDayGroup[]): ReadonlyMap<string, number> {
@@ -99,114 +98,12 @@ function flatIndexOf(groups: readonly NotificationDayGroup[]): ReadonlyMap<strin
 }
 
 /* -------------------------------------------------------------------------- */
-/* Một mục.                                                                    */
-/* -------------------------------------------------------------------------- */
-
-interface NotificationRowProps {
-  readonly item: NotificationItemVm;
-  readonly flatIndex: number;
-  readonly isArrived: boolean;
-  readonly onItemAction: (item: NotificationItemVm) => void;
-  readonly onMarkRead: (id: string) => void;
-  readonly onInlineAction: (item: NotificationItemVm) => void;
-}
-
-function NotificationRow({
-  item,
-  flatIndex,
-  isArrived,
-  onItemAction,
-  onMarkRead,
-  onInlineAction,
-}: NotificationRowProps) {
-  const Icon = KIND_ICON[item.kind];
-  const dotDelaySeconds = (flatIndex * UNREAD_DOT_STAGGER_MS) / MS_IN_ONE_SECOND;
-
-  return (
-    <motion.li
-      className="group relative flex min-h-[64px] items-start gap-3 rounded-md px-2 py-3"
-      initial={isArrived ? { opacity: 0, y: -12 } : false}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: durationSeconds('standard') }}
-    >
-      {isArrived && (
-        <motion.span
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 rounded-md bg-selected"
-          initial={{ opacity: 1 }}
-          animate={{ opacity: 0 }}
-          transition={{ duration: durationSeconds('standard') }}
-        />
-      )}
-
-      <span className="relative mt-2 flex w-[6px] shrink-0 items-center justify-center">
-        <motion.span
-          aria-hidden="true"
-          className="rounded-full bg-accent"
-          style={{ width: UNREAD_DOT_SIZE_PX, height: UNREAD_DOT_SIZE_PX }}
-          initial={false}
-          animate={{ opacity: item.isRead ? 0 : 1 }}
-          transition={{ duration: durationSeconds('fast'), delay: dotDelaySeconds }}
-        />
-      </span>
-
-      <Icon
-        aria-hidden="true"
-        size={ICON_SIZE}
-        strokeWidth={ICON_STROKE}
-        className="relative mt-0.5 shrink-0 text-text-secondary"
-      />
-
-      <div className="relative flex min-w-0 flex-1 flex-col gap-1">
-        <button
-          type="button"
-          onClick={() => onItemAction(item)}
-          className="rounded text-left text-[15px] leading-[20px] text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
-        >
-          {!item.isRead && <span className="sr-only">{`${UNREAD_SR_HINT}. `}</span>}
-          {item.sentence}{' '}
-          <span className="text-accent underline underline-offset-2">{item.target.label}</span>
-        </button>
-
-        {item.excerpt !== undefined && (
-          <p className="line-clamp-2 rounded bg-bg-sunken px-2 py-1.5 text-[13px] leading-[18px] text-text-secondary">
-            {item.excerpt}
-          </p>
-        )}
-
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[13px] leading-[18px] text-text-muted">{item.relativeTime}</span>
-          {item.inlineAction !== undefined && (
-            <Button variant="ghost" size="sm" onClick={() => onInlineAction(item)}>
-              {item.inlineAction.label}
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {!item.isRead && (
-        <span
-          className={cn(
-            'shrink-0 opacity-0 transition-opacity duration-fast',
-            'group-hover:opacity-100 group-focus-within:opacity-100',
-          )}
-        >
-          <Button variant="ghost" size="sm" onClick={() => onMarkRead(item.id)}>
-            {MARK_READ_LABEL}
-          </Button>
-        </span>
-      )}
-    </motion.li>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
 /* Màn.                                                                        */
 /* -------------------------------------------------------------------------- */
 
 export function NotificationCenter(props: NotificationCenterProps) {
   const {
-    screenState, isOpen, isCollapsed, onClose, filter, onFilterChange, groups, unreadBadge,
+    screenState, isOpen, onClose, filter, onFilterChange, groups, unreadBadge,
     liveMessage, onMarkAllRead, onMarkRead, onItemClick, onInlineAction, onViewAll,
     onOpenSettings, errorMessage, onRetry, arrivedIds, scrollRef,
   } = props;
@@ -252,7 +149,18 @@ export function NotificationCenter(props: NotificationCenterProps) {
       />
     );
   } else if (screenState === 'empty') {
-    body = <EmptyState icon={<Bell />} title={EMPTY_TITLE} description={EMPTY_DESCRIPTION} />;
+    const copy = EMPTY_COPY[filter];
+
+    body = (
+      <EmptyState
+        icon={<Bell />}
+        title={copy.title}
+        description={copy.description}
+        {...(filter === 'all'
+          ? {}
+          : { action: { label: SHOW_EVERYTHING_LABEL, onClick: () => onFilterChange('all') } })}
+      />
+    );
   } else {
     body = (
       <>
@@ -286,68 +194,67 @@ export function NotificationCenter(props: NotificationCenterProps) {
 
   return (
     <Drawer.Root isOpen={isOpen} onClose={onClose} label={TITLE_LABEL}>
-      <Drawer.Header>
-        {/*
-          Trạng thái 7 ("thu gọn"): khung hẹp thì tiêu đề và nhóm nút xếp dọc
-          thay vì chen nhau trên một hàng. Bề ngang của chính tấm trượt là việc
-          của `Drawer` (nó tự đo bằng `useMediaQuery`), không phải của màn này.
-        */}
-        <div
-          className={cn(
-            'flex gap-3',
-            isCollapsed ? 'flex-col items-stretch' : 'items-center justify-between',
-          )}
-        >
-          <div className="flex items-center gap-2">
-            <h3 className="text-[15px] font-semibold text-text-primary">{TITLE_LABEL}</h3>
-            {unreadBadge !== '' && (
-              <span className="font-mono text-[13px] tabular-nums text-text-secondary">
-                {unreadBadge}
-              </span>
-            )}
+      {/* Cột đủ cao của tấm: thân cuộn riêng, chân "Xem tất cả" ghim đáy cả ở tờ dưới 1024px (BUG-161). */}
+      <div className="flex h-full min-h-0 flex-1 flex-col">
+        <Drawer.Header>
+          {/*
+            Trạng thái 7 ("thu gọn"): khung hẹp thì nhóm nút rơi xuống hàng dưới thay vì
+            ép tiêu đề gãy dòng. Dùng `flex-wrap` chứ không đọc `isCollapsed`: bề ngang
+            thật của tấm (400px ở desktop, cả `/thong-bao`) đủ cho một hàng, nên cùng
+            một bố cục với ngăn kéo (BUG-124/125). Tiêu đề không bao giờ gãy.
+          */}
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
+              <h3 className="text-[15px] font-semibold text-text-primary">{TITLE_LABEL}</h3>
+              {unreadBadge !== '' && (
+                <span className="font-mono text-[13px] tabular-nums text-text-secondary">
+                  {unreadBadge}
+                </span>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={onMarkAllRead} disabled={isMarkAllDisabled}>
+                {MARK_ALL_READ_LABEL}
+              </Button>
+              <IconButton
+                icon={<Settings size={18} />}
+                aria-label={SETTINGS_LABEL}
+                size="sm"
+                onClick={onOpenSettings}
+              />
+            </div>
           </div>
-          <div className="flex shrink-0 items-center gap-1">
-            <Button variant="ghost" size="sm" onClick={onMarkAllRead} disabled={isMarkAllDisabled}>
-              {MARK_ALL_READ_LABEL}
-            </Button>
-            <IconButton
-              icon={<Settings size={18} />}
-              aria-label={SETTINGS_LABEL}
-              size="sm"
-              onClick={onOpenSettings}
+          <div className="mt-3">
+            <SegmentedControl
+              aria-label={FILTER_ARIA_LABEL}
+              options={FILTER_OPTIONS}
+              value={filter}
+              onChange={onFilterChange}
             />
           </div>
-        </div>
-        <div className="mt-3">
-          <SegmentedControl
-            aria-label={FILTER_ARIA_LABEL}
-            options={FILTER_OPTIONS}
-            value={filter}
-            onChange={onFilterChange}
-          />
-        </div>
-      </Drawer.Header>
+        </Drawer.Header>
 
-      <Drawer.Body ref={scrollRef}>
-        {/* A7/A11: số chưa đọc đổi thì trình đọc màn hình nghe được, không phải đi dò lại. */}
-        <p className="sr-only" role="status" aria-live="polite">
-          {liveMessage}
-        </p>
+        <Drawer.Body ref={scrollRef}>
+          {/* A7/A11: số chưa đọc đổi thì trình đọc màn hình nghe được, không phải đi dò lại. */}
+          <p className="sr-only" role="status" aria-live="polite">
+            {liveMessage}
+          </p>
 
-        <div
-          className={cn(
-            'flex flex-col gap-1 transition-opacity duration-fast',
-            isClosing ? 'opacity-0' : 'opacity-100',
-          )}
-        >
-          {body}
+          <div
+            className={cn(
+              'flex flex-col gap-1 transition-opacity duration-fast',
+              isClosing ? 'opacity-0' : 'opacity-100',
+            )}
+          >
+            {body}
+          </div>
+        </Drawer.Body>
+
+        <div className="shrink-0 border-t border-border-default px-8 py-4">
+          <Button variant="ghost" size="sm" fullWidth onClick={onViewAll}>
+            {VIEW_ALL_LABEL}
+          </Button>
         </div>
-      </Drawer.Body>
-
-      <div className="shrink-0 border-t border-border-default px-8 py-4">
-        <Button variant="ghost" size="sm" fullWidth onClick={onViewAll}>
-          {VIEW_ALL_LABEL}
-        </Button>
       </div>
     </Drawer.Root>
   );
