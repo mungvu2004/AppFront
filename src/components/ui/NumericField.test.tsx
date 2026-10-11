@@ -129,4 +129,14 @@ describe('NumericField', () => {
     expect(field).toHaveValue('221');
     expectSentenceCase(container);
   });
+
+  it('pads to fractionDigits so the box reads like the table beside it (BUG-306)', () => {
+    render(<NumericField value={4} unit="m" fractionDigits={1} aria-label="Cao độ" onChange={() => undefined} />);
+    const field = screen.getByRole('textbox', { name: 'Cao độ' });
+
+    expect(field).toHaveValue('4,0');
+    fireEvent.focus(field);
+    fireEvent.keyDown(field, { key: 'ArrowUp' });
+    expect(field).toHaveValue('5,0');
+  });
 });
