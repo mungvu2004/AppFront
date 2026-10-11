@@ -842,7 +842,8 @@ test.describe('E03 SCR-09 floor manager', () => {
       await page.getByRole('button', { name: 'Thêm tầng', exact: true }).click();
       const { json } = await post;
       const added = stringField(json, 'name', 'POST floors');
-      expect(added, 'newFloorName(count + 1) (UFM:357-363)').toBe('Tầng 4');
+      // UFM:369-378 nextNewFloorName (BUG-277): 3 floors at elevation >= 0 → number 3; "Tầng 3" is taken → "Tầng 4".
+      expect(added, 'nextNewFloorName: floors at elevation >= 0, skipping taken names (UFM:369-378)').toBe('Tầng 4');
       await expect(floorRows(page)).toHaveCount(4);
 
       const del = waitForApi(page, 'DELETE', floorDeleteRe, [200, 204]);
