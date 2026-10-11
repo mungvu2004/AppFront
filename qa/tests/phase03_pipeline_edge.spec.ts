@@ -1677,12 +1677,17 @@ const UNKNOWN_CASES: readonly UnknownCase[] = [
     slug: 'graph',
     path: (id) => ROUTES.project.pipelineGraph(id),
     check: async (page, api, id) => {
-      // PGG:343-345: no read at all, so a missing project shows the same empty story (no 404 path).
-      await expect(page.getByText(GRAPH.emptyTitle, { exact: true })).toBeVisible();
+      // PGG:304-312 readProjectExists = #24 GET /api/projects/{id}; a 404 `project` → false → PG:136-148 renders only
+      // the PSGATE:36-39 not-found strip, never the empty graph story; PGC:136-139 → "/" (FIX-1384, BUG-313).
+      const alert = page.getByRole('alert').filter({ hasText: NOT_FOUND_TITLE });
+      await expect(alert).toContainText(NOT_FOUND_SENTENCE);
+      await expect(page.getByText(GRAPH.emptyTitle, { exact: true })).toHaveCount(0);
       const reads = api.filter((entry) => entry.path.includes(id)).map((entry) => `${entry.method} ${entry.path} ${String(entry.status)}`);
-      expect(reads, 'no request names the unknown project').toEqual([]);
+      expect(reads, 'the project read #24 answered 404').toContain(`GET ${PROJECTS_API}/${id} 404`);
       await captureEvidence(page, 'E03_unknown_graph.png');
       await attachJson('E03_unknown_graph.json', { reads });
+      await alert.getByRole('button', { name: BACK_TO_PROJECTS, exact: true }).click();
+      await expect.poll(() => pathOf(page)).toBe(ROUTES.dashboard);
     },
   },
 ];
