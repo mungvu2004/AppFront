@@ -191,3 +191,20 @@ describe('Toast.Provider and Toast.Item', () => {
     expect(screen.queryByText('Đã vô hiệu hoá tài khoản')).not.toBeInTheDocument();
   });
 });
+
+// BUG-227 follow-up: a screen's own Toast.Provider (AccountSettings, ModelLibrary, VersionHistory…) sat in the
+// bottom-right corner over an open drawer's footer. The viewport now steps aside like NotificationHost's.
+describe('Toast.Provider viewport', () => {
+  it('steps aside from an open drawer: left of a side panel, to the top over a sheet', () => {
+    render(<Toast.Provider><span /></Toast.Provider>);
+
+    const region = screen.getByRole('region', { name: 'Thông báo' });
+    expect(region).toHaveClass(
+      'bottom-4',
+      'right-4',
+      '[html[data-drawer=side]_&]:right-[calc(1rem+var(--drawer-inset))]',
+      '[html[data-drawer=sheet]_&]:bottom-auto',
+      '[html[data-drawer=sheet]_&]:top-4',
+    );
+  });
+});

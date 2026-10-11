@@ -163,6 +163,30 @@ ToastItem.displayName = 'Toast.Item';
 
 // ─── Toast.Provider ───────────────────────────────────────────────────────────
 
+// ─── Toast.Viewport ───────────────────────────────────────────────────────────
+
+/**
+ * Vùng neo toast, dùng chung cho `Toast.Provider` và `NotificationHost`. Ngăn đang mở
+ * (`Drawer` đặt `data-drawer` lên <html>) chiếm góc dưới-phải, nơi có nút chân của nó:
+ * ngăn bên → toast lùi sang trái ngăn; tờ dưới 1024 px → toast lên mép trên (BUG-227).
+ */
+function ToastViewport({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      aria-label="Thông báo"
+      aria-live="polite"
+      className={cn(
+        'pointer-events-none fixed bottom-4 right-4 z-50 flex flex-col-reverse items-end gap-2',
+        '[html[data-drawer=side]_&]:right-[calc(1rem+var(--drawer-inset))]',
+        '[html[data-drawer=sheet]_&]:bottom-auto [html[data-drawer=sheet]_&]:top-4',
+      )}
+      role="region"
+    >
+      {children}
+    </div>
+  );
+}
+
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [queue, setQueue] = useState<ToastMessage[]>([]);
   const [summaryResetKey, setSummaryResetKey] = useState(0);
@@ -245,12 +269,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ addToast, removeToast }}>
       {children}
-      <div
-        className="fixed bottom-4 right-4 z-50 flex flex-col-reverse items-end gap-2 pointer-events-none"
-        role="region"
-        aria-label="Thông báo"
-        aria-live="polite"
-      >
+      <ToastViewport>
         {displaySlots.map((toast, index) => (
           <ToastItem
             key={toast.id}
@@ -261,7 +280,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             keepAfterUndo={toast.id === 'summary-toast-group'}
           />
         ))}
-      </div>
+      </ToastViewport>
     </ToastContext.Provider>
   );
 }
@@ -272,4 +291,5 @@ ToastProvider.displayName = 'Toast.Provider';
 export const Toast = {
   Provider: ToastProvider,
   Item: ToastItem,
+  Viewport: ToastViewport,
 };
