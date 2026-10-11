@@ -43,6 +43,8 @@ import { ENDPOINTS } from '@/api/endpoints';
 import { PROJECT_NAME_MAX_LENGTH, PROJECT_NAME_MIN_LENGTH } from '@/domain/project/limits';
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
+import { describeError } from '@/lib/errors/describeError';
+import { toAppError } from '@/lib/errors/toAppError';
 import { readWireError } from '@/lib/errors/wireError';
 import { formatArea } from '@/lib/format/measure';
 import { formatNumber, formatPercent } from '@/lib/format/number';
@@ -352,11 +354,9 @@ export function useProjectDashboard(
     return { all: allProjects.length, processing, qc, done };
   }, [allProjects]);
 
-  const errorMessage = listQuery.isError
-    ? listQuery.error instanceof Error
-      ? listQuery.error.message
-      : 'Không tải được danh sách dự án.'
-    : null;
+  // The cause and the next step, under the view's "Không tải được danh sách dự án" heading — the old
+  // fallback repeated that heading word for word, and `Error.message` could be raw English (BUG-130).
+  const errorMessage = listQuery.isError ? describeError(toAppError(listQuery.error)).description : null;
 
   const state = useMemo<SevenState>(() => {
     // Loading and a failed read beat the narrow overlay: with no list there is nothing

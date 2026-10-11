@@ -149,6 +149,13 @@ describe('useProjectDashboard states', () => {
     await waitFor(() => expect(dash().model.state).toBe('error'));
   });
 
+  it('explains a failed read with its cause and next step, never the heading again (BUG-130)', async () => {
+    mount({ fetchList: () => Promise.reject(httpError(500, 'INTERNAL')) });
+
+    await waitFor(() => expect(dash().model.state).toBe('error'));
+    expect(dash().model.errorMessage).toBe('Hệ thống đã ghi nhận và sẽ kiểm tra. Bạn có thể tải lại rồi thử lại.');
+  });
+
   it('narrow: a failed read still wins over collapsed (BUG-072)', async () => {
     mount({ fetchList: () => Promise.reject(new Error('mạng hỏng')), forceNarrow: true });
 
