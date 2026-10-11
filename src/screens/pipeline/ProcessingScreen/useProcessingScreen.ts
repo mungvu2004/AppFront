@@ -150,6 +150,9 @@ const COPY = {
   previewAltEmpty: 'Chưa có bản vẽ nào để xem trước.',
   noFloorRunning: 'Chưa có tầng nào đang được xử lý.',
   backgroundStartedTitle: 'Sẽ báo cho bạn khi xử lý xong',
+  logCopied: 'Đã chép nhật ký',
+  logCopyFailed: 'Không chép được nhật ký',
+  logCopyFailedDescription: 'Trình duyệt chặn khay nhớ tạm. Chọn các dòng trong nhật ký rồi chép bằng tay.',
   backgroundStartedDescription:
     'Xử lý vẫn chạy khi bạn rời màn này. Đóng thẻ trình duyệt thì không báo được nữa.',
   backgroundDoneDescription: 'Mở lại màn xử lý để xem kết quả.',
@@ -227,6 +230,8 @@ const watchIdOf = (projectId: string, uploadId: string): string => `${projectId}
  * không bao giờ gộp, và không câu nào bị viết lại thành câu của chuyện khác.
  */
 const BACKGROUND_STARTED_TYPE = 'processing-background-started';
+/** Phản hồi của nút "Sao chép nhật ký" (SCR-12): một loại riêng, lượt chép sau thay lượt trước. */
+const LOG_COPY_TYPE = 'processing-log-copy';
 const backgroundSettledType = (watchId: string): string => `processing-background-done:${watchId}`;
 
 /** Nhịp cuối theo cách máy chủ báo — chỉ hai giá trị này kết thúc một lượt. */
@@ -809,8 +814,14 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   );
 
   const onCopyLog = useCallback(() => {
-    void gateway.copyText(logLines.map((line) => `${line.timeLabel} ${line.text}`).join('\n'));
-  }, [gateway, logLines]);
+    void gateway.copyText(logLines.map((line) => `${line.timeLabel} ${line.text}`).join('\n')).then((copied) => {
+      publish(
+        copied
+          ? { type: LOG_COPY_TYPE, title: COPY.logCopied, description: '' }
+          : { type: LOG_COPY_TYPE, title: COPY.logCopyFailed, description: COPY.logCopyFailedDescription },
+      );
+    });
+  }, [gateway, logLines, publish]);
 
   const onRetry = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.progress.latestUploads.root() });
