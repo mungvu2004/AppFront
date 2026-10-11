@@ -51,6 +51,13 @@ AvatarRoot.displayName = 'Avatar.Root';
 
 // ─── Avatar.Stack ─────────────────────────────────────────────────────────────
 
+/**
+ * How far each avatar tucks under the one before. With the 2 px ring the cover is overlap + 2 px; at -8 px those
+ * 10 px hid the first 4–5 px of a 28 px circle's initials ("QA" read as a cut Q, BUG-237). 2-letter initials
+ * start ~5.5 px in, so the cover stays at 4 px.
+ */
+const STACK_OVERLAP = '-2px';
+
 export interface AvatarStackProps {
   avatars: AvatarProps[];
   /** Max visible avatars before overflow "+N" chip (default: 3) */
@@ -74,7 +81,7 @@ const AvatarStack = forwardRef<HTMLDivElement, AvatarStackProps>(
           <div
             key={avatar.initials ?? avatar.alt ?? avatar.src ?? `avatar-${index}`}
             className="relative ring-2 ring-bg-surface rounded-full shrink-0"
-            style={{ marginLeft: index > 0 ? '-8px' : '0', zIndex: 10 - index }}
+            style={{ marginLeft: index > 0 ? STACK_OVERLAP : '0', zIndex: 10 - index }}
           >
             <AvatarRoot {...avatar} size="default" />
           </div>
@@ -82,7 +89,7 @@ const AvatarStack = forwardRef<HTMLDivElement, AvatarStackProps>(
         {remaining > 0 && (
           <div
             className="relative ring-2 ring-bg-surface rounded-full flex items-center justify-center bg-bg-sunken text-text-secondary text-[12px] font-medium w-7 h-7 select-none shrink-0"
-            style={{ marginLeft: '-8px', zIndex: 0 }}
+            style={{ marginLeft: STACK_OVERLAP, zIndex: 0 }}
             aria-label={`+${remaining} người khác`}
           >
             +{remaining}

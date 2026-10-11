@@ -164,6 +164,17 @@ describe('ProjectDashboardView, seven states', () => {
     expect(screen.queryByText('Chưa có dự án nào')).not.toBeInTheDocument();
   });
 
+  // BUG-228: the skeleton had no rail, no filter strip and no count line, so the page jumped when the list landed.
+  it('holds the rail (from 1024 px), the filter strip (below it) and the count line while loading', () => {
+    const { container } = render(<ProjectDashboardView {...PROPS_BY_STATE.loading()} />);
+    const placeholders = [...container.querySelectorAll('[aria-hidden="true"]')].map((element) => element.className);
+
+    expect(placeholders.some((name) => name.includes('w-[260px]') && name.includes('hidden') && name.includes('lg:flex'))).toBe(true);
+    expect(placeholders.some((name) => name.includes('h-14') && name.includes('lg:hidden'))).toBe(true);
+    expect(placeholders.some((name) => name.includes('h-5'))).toBe(true);
+    expect(screen.queryAllByRole('button', { pressed: true })).toHaveLength(0);
+  });
+
   it('teaches, with a create button, when there has never been a project', () => {
     render(<ProjectDashboardView {...PROPS_BY_STATE.empty()} />);
 
@@ -329,29 +340,52 @@ describe('ProjectDashboardView, seven states', () => {
     expect(field.parentElement).toHaveClass('relative');
   });
 
-  // BUG-211: the menu kept the spot read at open; narrowing the window moved the card under it.
-  it('closes the card menu when the window width changes, not when only the height does', () => {
-    const setViewport = (clientWidth: number, clientHeight: number): void => {
-      for (const [key, value] of Object.entries({ clientWidth, clientHeight })) {
-        Object.defineProperty(document.documentElement, key, { configurable: true, value });
-      }
-    };
-    setViewport(1440, 900);
+  // BUG-211: the menu kept the spot read at open; narrowing the window moved the card under it. QA-02b closed it
+  // instead, which lost the menu; it now stays open and moves with its button.
+  it('keeps the card menu open under its button when the layout moves the button', async () => {
+    for (const [key, value] of Object.entries({ clientWidth: 1440, clientHeight: 900 })) {
+      Object.defineProperty(document.documentElement, key, { configurable: true, value });
+    }
     try {
       render(<ProjectDashboardView {...PROPS_BY_STATE.success()} />);
-      fireEvent.click(screen.getByRole('button', { name: `Tuỳ chọn cho ${SAMPLE_ROW.name}` }));
-      expect(screen.getByRole('menu', { name: 'Tuỳ chọn' })).toBeInTheDocument();
+      const trigger = screen.getByRole('button', { name: `Tuỳ chọn cho ${SAMPLE_ROW.name}` });
+      const rect = vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue(new DOMRect(600, 100, 32, 32));
+      trigger.focus();
+      fireEvent.click(trigger);
+      const menu = screen.getByRole('menu', { name: 'Tuỳ chọn' });
+      expect([menu.style.left, menu.style.top]).toEqual(['412px', '136px']);
 
-      setViewport(1440, 700);
-      fireEvent(window, new Event('resize'));
-      expect(screen.getByRole('menu', { name: 'Tuỳ chọn' })).toBeInTheDocument();
-
-      setViewport(900, 700);
-      fireEvent(window, new Event('resize'));
-      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      // 1440 -> 900: the card drops 60 px and moves 240 px left.
+      rect.mockReturnValue(new DOMRect(360, 160, 32, 32));
+      await waitFor(() => expect([menu.style.left, menu.style.top]).toEqual(['172px', '196px']));
+      expect(screen.getByRole('menu', { name: 'Tuỳ chọn' })).toBe(menu);
     } finally {
       for (const key of ['clientWidth', 'clientHeight']) Reflect.deleteProperty(document.documentElement, key);
     }
+  });
+
+  // BUG-118: four counter tiles repeated the filter's four counts above it.
+  it('shows the status counts once, on the filter', () => {
+    const { container } = render(<ProjectDashboardView {...PROPS_BY_STATE.success()} />);
+    const rail = container.querySelector('aside');
+
+    expect(rail?.children).toHaveLength(1);
+    expect(within(rail as HTMLElement).getAllByRole('button')).toHaveLength(4);
+    expect(screen.queryByText('Tổng dự án')).not.toBeInTheDocument();
+  });
+
+  // BUG-169: a scrolled query is cut mid-glyph at the field's edge; the fade that hides the cut is on only while scrolled.
+  it('marks the search field as scrolled only while its text is scrolled', () => {
+    render(<ProjectDashboardView {...PROPS_BY_STATE.success()} />);
+    const search = screen.getByRole('searchbox', { name: 'Tìm dự án' });
+
+    search.scrollLeft = 120;
+    fireEvent.scroll(search);
+    expect(search).toHaveAttribute('data-scrolled');
+
+    search.scrollLeft = 0;
+    fireEvent.scroll(search);
+    expect(search).not.toHaveAttribute('data-scrolled');
   });
 
   // BUG-116/148: the menu opened where the pointer was (over its own button) or, from the keyboard, at 0,0.

@@ -45,7 +45,7 @@ import { useContextMenu } from '@/hooks/useContextMenu';
 import { durationSeconds } from '@/lib/motion';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 
-import { DashboardSidebar } from './DashboardSidebar';
+import { DashboardSidebar, DashboardSidebarSkeleton } from './DashboardSidebar';
 import { projectMenuGroups } from './projectMenuGroups';
 import { ProjectCardTile } from './ProjectCardTile';
 import { ProjectTable } from './ProjectTable';
@@ -139,11 +139,13 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           value={props.searchQuery}
           onChange={(event) => props.setSearchQuery(event.target.value)}
           placeholder="Tìm dự án theo tên..."
-          // The gap after the icon moves from the input's padding (where scrolled text still draws) to the
-          // icon's margin, so a long query is clipped 8 px clear of the icon, not half under it (BUG-169).
+          // The 8 px after the icon is the icon's margin, not the input's padding, so the field's own edge sits 8 px
+          // clear of the icon. A scrolled query is still cut mid-glyph at that edge (")A-RUN…" read as a glyph under
+          // the icon, BUG-169), so while scrolled the first 12 px fade out: the cut reads as "more text this way".
           prefix={<Search size={16} aria-hidden="true" className="mr-1" />}
+          onScroll={(event) => event.currentTarget.toggleAttribute('data-scrolled', event.currentTarget.scrollLeft > 0)}
           // The browser's own clear (×) button gets its 8 px gap from globals.css (BUG-117).
-          className="pl-0"
+          className="pl-0 data-[scrolled]:[mask-image:linear-gradient(to_right,transparent,black_12px)]"
           wrapperClassName="order-last w-full max-w-full sm:order-none sm:w-[320px]"
         />
         <div className="ml-auto flex items-center gap-3">
@@ -165,6 +167,12 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
             {/* Every state that has a list says how many it shows — "0 dự án" for a search with no match
                 included: dropping the line there made the whole column jump up 11 px (BUG-117). */}
             {state !== 'loading' && state !== 'error' && <p className="text-[13px] text-text-secondary">{rows.length} dự án</p>}
+            {/* Its line held while loading, so the toolbar and everything under it stay put (BUG-228). */}
+            {state === 'loading' && (
+              <div aria-hidden="true" className="flex h-5 items-center">
+                <Skeleton preset="block" className="h-3 w-14" />
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <Select
@@ -204,7 +212,10 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           />
         )}
 
+        {state === 'loading' && <Skeleton preset="block" aria-hidden="true" className="h-14 w-full sm:h-9 lg:hidden" />}
+
         <div className="flex flex-1 flex-col gap-6 lg:flex-row lg:items-start">
+          {state === 'loading' && <DashboardSidebarSkeleton />}
           {showSidebar && (
             <DashboardSidebar statusCounts={statusCounts} statusFilter={props.statusFilter} onStatusFilterChange={props.setStatusFilter} />
           )}

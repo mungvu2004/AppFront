@@ -132,9 +132,11 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
         onMouseLeave={() => setIsHovered(false)}
       >
         <div className={cn('p-4 flex items-center gap-3 transition-opacity duration-340', isPeek ? 'opacity-0' : 'opacity-100')}>
-          <div className={cn('w-1.5 h-1.5 rounded-full shrink-0', dotColor)} aria-hidden="true" />
-          {/* BUG-131: min-w-0 lets the span shrink, break-words wraps a name with no space — "Hoàn tác" stays in. */}
-          <span className="text-[15px] text-text-primary font-medium flex-1 min-w-0 break-words">
+          {/* BUG-131: min-w-0 lets the span shrink, break-words wraps a name with no space — "Hoàn tác" stays in.
+              BUG-229: an 80-char name ran to 5 lines and the dot sat in the middle of the block. Three lines at most,
+              then "…" (the full text stays in the DOM for screen readers), and the dot hangs beside the first line. */}
+          <span className="relative line-clamp-3 min-w-0 flex-1 break-words pl-[18px] text-[15px] font-medium leading-[22px] text-text-primary">
+            <span className={cn('absolute left-0 top-2 h-1.5 w-1.5 rounded-full', dotColor)} aria-hidden="true" />
             {toast.message}
           </span>
           {toast.onUndo && (

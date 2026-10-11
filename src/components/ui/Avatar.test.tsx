@@ -69,4 +69,12 @@ describe('Avatar.Stack', () => {
     render(<AvatarStack avatars={avatars} />);
     expect(screen.getByRole('group')).toBeInTheDocument();
   });
+
+  // BUG-237: -8 px plus the 2 px ring hid the left of the next avatar's initials ("QA" read as a cut Q).
+  it('tucks each avatar, and the "+N" chip, only 2 px under the one before', () => {
+    render(<AvatarStack avatars={avatars} max={3} />);
+    const items = [...screen.getByRole('group').children] as HTMLElement[];
+
+    expect(items.map((item) => item.style.marginLeft)).toEqual(['0px', '-2px', '-2px', '-2px']);
+  });
 });

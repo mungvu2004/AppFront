@@ -177,11 +177,11 @@ describe('useProjectDashboard states', () => {
     expect(dash().model.errorMessage).toBe('Không liên lạc được với máy chủ. Kiểm tra mạng rồi thử lại.');
   });
 
-  it('tells a 403 it lacks the right, not that the server failed', async () => {
+  it('tells a 403 it may not see the list, not that the server failed or that it did something (BUG-209)', async () => {
     mount({ fetchList: () => Promise.reject(httpError(403, 'FORBIDDEN')) });
 
     await waitFor(() => expect(dash().model.state).toBe('error'));
-    expect(dash().model.errorMessage).toBe('Tài khoản của bạn chưa được phép làm thao tác này. Liên hệ quản trị dự án.');
+    expect(dash().model.errorMessage).toBe('Tài khoản của bạn chưa được phép xem danh sách dự án. Liên hệ quản trị dự án.');
   });
 
   it('narrow: a failed read still wins over collapsed (BUG-072)', async () => {
