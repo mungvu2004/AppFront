@@ -75,7 +75,10 @@ function measure(target: typeof TARGET_PX): Omit<UiMetrics, 'viewport'> {
     .filter((el) => {
       const s = getComputedStyle(el);
       const hides = /hidden|clip/u.test(`${s.overflowX} ${s.overflowY}`) || s.textOverflow === 'ellipsis';
-      return hides && (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1);
+      const wide = el.scrollWidth > el.clientWidth + 1;
+      // BUG-203: a deliberate `line-clamp-N` excerpt overflows only vertically by design — not a finding.
+      const clamped = s.webkitLineClamp !== '' && s.webkitLineClamp !== 'none';
+      return hides && (wide || (el.scrollHeight > el.clientHeight + 1 && !clamped));
     })
     .map((el) => `${name(el)} (${el.scrollWidth}×${el.scrollHeight} in ${el.clientWidth}×${el.clientHeight})`);
 
