@@ -21,6 +21,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } fr
 import { createMockApiClient } from '@/api/__mocks__/client';
 import type { ApiClient, ApiResult, LatestFloorUpload } from '@/api/client';
 import type { Progress } from '@/api/schemas';
+import { SAMPLE_BUILDING, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import * as auth from '@/lib/auth';
 import type { HttpError } from '@/lib/http';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
@@ -49,6 +50,21 @@ import {
 import type { ProcessingScreenProps } from './types';
 
 const PROJECT_ID = 'project-1';
+
+/** Tầng đầu của bộ mẫu A14: có tường, ô mở, phòng, kích thước thật để đếm (lớp mock của `L1` rỗng). */
+const SAMPLE_LEVEL_ID = sampleLevelId(0);
+const onSampleLevel = <T extends { readonly levelId: string }>(items: readonly T[]): T[] =>
+  items.filter((item) => item.levelId === SAMPLE_LEVEL_ID);
+const SAMPLE_WALLS = onSampleLevel(SAMPLE_BUILDING.walls);
+const SAMPLE_LAYER_DOCUMENT = {
+  dimensions: onSampleLevel(SAMPLE_BUILDING.dimensions),
+  layer: {
+    furniture: onSampleLevel(SAMPLE_BUILDING.furniture),
+    openings: SAMPLE_BUILDING.openings.filter((opening) => SAMPLE_WALLS.some((wall) => wall.id === opening.wallId)),
+    rooms: onSampleLevel(SAMPLE_BUILDING.rooms),
+    walls: SAMPLE_WALLS,
+  },
+};
 const STAGES = getPipelineStages();
 
 /* -------------------------------------------------------------------------- */
@@ -609,6 +625,59 @@ describe('useProcessingScreen', () => {
     mounted.unmount();
   });
 
+  // BUG-360: the seed read (#8) and the first SSE event both say "Tiền xử lý — 0%".
+  it('the same progress twice in a row writes one log line, not two (BUG-360)', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 1);
+    const upload = uploads[0]!;
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+
+    await settle(clock);
+    await act(async () => {
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(progressAt(upload.uploadId, 0));
+      latestSource().triggerMessage(progressAt(upload.uploadId, 1));
+      await clock.advance(POLL_INTERVAL_MS);
+    });
+
+    expect(mounted.result.current.logLines.map((line) => line.text)).toEqual([
+      `${STAGES[0]!.label} — 0%`,
+      `${STAGES[1]!.label} — 0%`,
+    ]);
+
+    mounted.unmount();
+  });
+
+  // BUG-352: every stage timed, so the estimate exists — and is 0 once all is done.
+  it('a run that finished stage by stage says only "Đã xong 1/1 tầng", no "Còn lại khoảng 0 giây" (BUG-352)', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 1);
+    const upload = uploads[0]!;
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+
+    await settle(clock);
+    await act(async () => {
+      latestSource().triggerOpen();
+    });
+
+    for (let stageIndex = 0; stageIndex < STAGES.length; stageIndex += 1) {
+      await act(async () => {
+        latestSource().triggerMessage(progressAt(upload.uploadId, stageIndex));
+        await clock.advance(POLL_INTERVAL_MS);
+      });
+    }
+
+    await act(async () => {
+      latestSource().triggerMessage(finishedProgress(upload.uploadId));
+      await clock.advance(POLL_INTERVAL_MS);
+    });
+
+    expect(mounted.result.current.state).toBe('success');
+    expect(mounted.result.current.overallSummaryLine).toBe('Đã xong 1/1 tầng');
+
+    mounted.unmount();
+  });
+
   // BUG-285: the real gateway answered `extractionSummary` "unsupported", so a finished run had no
   // "Báo cáo tổng kết" and no way on to "Duyệt lớp tường". The counts come from N16 once the floor is done.
   it('a finished floor shows the summary counted from its layer, and "Duyệt lớp tường" leads to that floor (BUG-285)', async () => {
@@ -642,6 +711,103 @@ describe('useProcessingScreen', () => {
 
     summary?.onReviewWalls();
     expect(onNavigate).toHaveBeenCalledWith(`/projects/${PROJECT_ID}/floors/${upload.floorId}/layers/walls`);
+
+    mounted.unmount();
+  });
+
+  // BUG-353: the floor chip counted walls + openings + rooms, the summary chip walls + openings —
+  // two numbers under one word. And "Chuỗi kích thước" was the one capitalised chip (A6).
+  it('a finished floor counts "đối tượng" the same in its chip and in the summary (BUG-353)', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 1);
+    const upload = uploads[0]!;
+    const layer = await harness.client.spatial.readLayer({ projectId: PROJECT_ID, floorId: upload.floorId });
+    if (!layer.ok) throw new Error('Không đọc được lớp tầng mẫu.');
+    const { dimensions, layer: sample } = SAMPLE_LAYER_DOCUMENT;
+    vi.spyOn(harness.client.spatial, 'readLayer').mockResolvedValue({
+      ok: true,
+      data: { ...layer.data, dimensions, layer: sample },
+    });
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+
+    await settle(clock);
+    await act(async () => {
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(finishedProgress(upload.uploadId));
+      await clock.advance(POLL_INTERVAL_MS);
+    });
+    await settle(clock);
+
+    const objectLabel = `${String(sample.walls.length + sample.openings.length + sample.rooms.length)} đối tượng`;
+    expect(mounted.result.current.floors[0]?.objectCountLabel).toBe(objectLabel);
+    expect(mounted.result.current.summary?.metricLabels[1]).toBe(objectLabel);
+    expect(mounted.result.current.summary?.metricLabels[2]).toBe(`${String(dimensions.length)} chuỗi kích thước`);
+
+    mounted.unmount();
+  });
+
+  // BUG-354: the sentence used the global 0,70 while the project setting said 0,75.
+  it.each([
+    { threshold: 0.95, label: '0,95' },
+    { threshold: 0.5, label: '0,50' },
+  ])('the low-confidence sentence counts against the project threshold $label (BUG-354)', async ({ label, threshold }) => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 1);
+    const upload = uploads[0]!;
+    const layer = await harness.client.spatial.readLayer({ projectId: PROJECT_ID, floorId: upload.floorId });
+    const settings = await harness.client.projectSettings.read({ projectId: PROJECT_ID });
+    if (!layer.ok || !settings.ok) throw new Error('Không đọc được dữ liệu mẫu.');
+    const { dimensions, layer: sample } = SAMPLE_LAYER_DOCUMENT;
+    vi.spyOn(harness.client.spatial, 'readLayer').mockResolvedValue({
+      ok: true,
+      data: { ...layer.data, dimensions, layer: sample },
+    });
+    vi.spyOn(harness.client.projectSettings, 'read').mockResolvedValue({
+      ok: true,
+      data: { ...settings.data, confidenceThreshold: threshold },
+    });
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+
+    await settle(clock);
+    await act(async () => {
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(finishedProgress(upload.uploadId));
+      await clock.advance(POLL_INTERVAL_MS);
+    });
+    await settle(clock);
+
+    const low = [...sample.walls, ...sample.openings, ...sample.rooms].filter(
+      (item) => !item.reviewed && item.confidence < threshold,
+    ).length;
+    expect(mounted.result.current.summary?.lowConfidenceSentence).toBe(
+      low === 0
+        ? `Không có đối tượng nào có độ tin cậy dưới ${label}.`
+        : `Có ${String(low)} đối tượng có độ tin cậy dưới ${label} cần bạn xem lại.`,
+    );
+
+    mounted.unmount();
+  });
+
+  it('settings that cannot be read drop the low-confidence sentence, not the counts (BUG-354)', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 1);
+    const upload = uploads[0]!;
+    vi.spyOn(harness.client.projectSettings, 'read').mockResolvedValue({
+      ok: false,
+      error: new Error('N5 down') as unknown as HttpError,
+    });
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+
+    await settle(clock);
+    await act(async () => {
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(finishedProgress(upload.uploadId));
+      await clock.advance(POLL_INTERVAL_MS);
+    });
+    await settle(clock);
+
+    expect(mounted.result.current.summary?.metricLabels).toHaveLength(5);
+    expect(mounted.result.current.summary?.lowConfidenceSentence).toBeUndefined();
 
     mounted.unmount();
   });

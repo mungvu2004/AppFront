@@ -42,8 +42,8 @@ import type {
   ApiClient,
   ApiResult,
   DrawingCornersInput,
-  Floor,
   ImageQualityAssessment,
+  Project,
 } from '@/api/client';
 import { describeError, toAppError } from '@/lib/errors';
 import type { AppError } from '@/lib/errors';
@@ -96,8 +96,8 @@ export interface InputQualityFailure {
  * nào khác. Hook không nhập `src/api` trực tiếp.
  */
 export interface InputQualityGateway {
-  /** Danh sách tầng của một dự án — đọc qua `projects.read`, xem đầu file. */
-  readonly readFloors: (input: ReadProjectFloorsInput) => Promise<ApiResult<readonly Floor[]>>;
+  /** Dự án (#24) — mang danh sách tầng và tên cho breadcrumb, xem đầu file. */
+  readonly readProject: (input: ReadProjectFloorsInput) => Promise<ApiResult<Project>>;
   /** Kết quả đo của MỌI tầng, cộng mã tầng mà lượt đọc này nói về. */
   readonly assess: (input: ReadQualityInput) => Promise<ApiResult<ImageQualityAssessment>>;
   /** Nắn ảnh về phương ngang; trả về chính kết quả đo đã chạy lại. */
@@ -161,18 +161,11 @@ export function createInputQualityGateway(
   };
 
   return {
-    readFloors: async ({ projectId, signal }) => {
-      const result = await client.projects.read({
+    readProject: ({ projectId, signal }) =>
+      client.projects.read({
         projectId,
         ...(signal !== undefined ? { signal } : {}),
-      });
-
-      if (!result.ok) {
-        return result;
-      }
-
-      return { ok: true, data: result.data.floors };
-    },
+      }),
 
     assess: ({ floorId, projectId, signal }) =>
       client.quality.assess({

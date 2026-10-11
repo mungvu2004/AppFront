@@ -79,7 +79,6 @@ import { refreshSingleFlight } from '@/lib/auth';
 import { describeError, toAppError } from '@/lib/errors';
 import type { AppError } from '@/lib/errors';
 import { readWireError } from '@/lib/errors/wireError';
-import { CONFIDENCE_SUGGESTED_THRESHOLD } from '@/lib/format/semantic';
 import { createUuid } from '@/lib/http/ids';
 import type { ChannelClock, ChannelEvent } from '@/lib/realtime/eventChannel';
 import type { ProgressPatchEvent } from '@/lib/realtime/mergeEvents';
@@ -234,7 +233,9 @@ export interface ProcessingExtractionSummary {
   readonly dimensionCount: number;
   readonly roomCount: number;
   readonly areaM2: number;
-  /** Số đối tượng có độ tin cậy dưới ngưỡng "gợi ý" của `src/lib/format/semantic`. */
+  /** Ngưỡng tin cậy của dự án (N5, Cài đặt › Đơn vị đo); `null` khi không đọc được cài đặt. */
+  readonly confidenceThreshold: number | null;
+  /** Số đối tượng chưa duyệt có độ tin cậy dưới `confidenceThreshold`; 0 khi ngưỡng là `null`. */
   readonly lowConfidenceCount: number;
 }
 
@@ -767,12 +768,21 @@ function createProgressReader(
   };
 }
 
-/** Đếm tổng kết một tầng từ tài liệu N16; mục người đã duyệt không tính là "tin cậy thấp". */
-export function toExtractionSummary(document: FloorLayerDocument): ProcessingExtractionSummary {
+/**
+ * Đếm tổng kết một tầng từ tài liệu N16; mục người đã duyệt không tính là "tin cậy thấp". Ngưỡng là
+ * của dự án, không phải hằng toàn cục: câu "dưới 0,70" cạnh cài đặt 0,75 là sai (BUG-354).
+ */
+export function toExtractionSummary(
+  document: FloorLayerDocument,
+  confidenceThreshold: number | null,
+): ProcessingExtractionSummary {
   const { openings, rooms, walls } = document.layer;
-  const lowConfidenceCount = [...walls, ...openings, ...rooms].filter(
-    (item) => !item.reviewed && item.confidence < CONFIDENCE_SUGGESTED_THRESHOLD,
-  ).length;
+  const lowConfidenceCount =
+    confidenceThreshold === null
+      ? 0
+      : [...walls, ...openings, ...rooms].filter(
+          (item) => !item.reviewed && item.confidence < confidenceThreshold,
+        ).length;
 
   return {
     wallCount: walls.length,
@@ -780,6 +790,7 @@ export function toExtractionSummary(document: FloorLayerDocument): ProcessingExt
     dimensionCount: document.dimensions.length,
     roomCount: rooms.length,
     areaM2: rooms.reduce((sum, room) => sum + room.areaM2, 0),
+    confidenceThreshold,
     lowConfidenceCount,
   };
 }
@@ -1004,13 +1015,18 @@ export function createProcessingGateway(
     readQueuePosition: () => Promise.resolve(unsupported('queuePosition')),
     readParallelFloorPipeline: () => Promise.resolve(unsupported('parallelFloorPipeline')),
     readExtractionSummary: async ({ floorId, projectId }) => {
-      const result = await client.spatial.readLayer({ floorId, projectId });
+      const [result, settings] = await Promise.all([
+        client.spatial.readLayer({ floorId, projectId }),
+        client.projectSettings.read({ projectId }),
+      ]);
 
       if (!result.ok) {
         throw result.error;
       }
 
-      return { supported: true, value: toExtractionSummary(result.data) };
+      // Cài đặt hỏng chỉ mất câu tin cậy, không mất cả khối số liệu.
+      const threshold = settings.ok ? settings.data.confidenceThreshold : null;
+      return { supported: true, value: toExtractionSummary(result.data, threshold) };
     },
     readStepDetails: () => Promise.resolve(unsupported('stepDetails')),
     readDetectedGeometry: () => Promise.resolve(unsupported('detectedGeometry')),

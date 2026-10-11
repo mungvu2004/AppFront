@@ -928,6 +928,31 @@ describe('InputQualityGate — NO-361: chưa có bản vẽ thì không đi ti�
     expect(onNavigate).toHaveBeenCalledWith('/');
   });
 
+  // BUG-362: the no-drawing state read "Dự án › Kiểm tra chất lượng đầu vào", without the project.
+  it('chưa có bản vẽ: breadcrumb vẫn nêu tên dự án giữa "Dự án" và tên màn (BUG-362)', async () => {
+    const client = createMockApiClient();
+    const project = await client.projects.read({ projectId: PROJECT_ID });
+    if (!project.ok) throw new Error('Không đọc được dự án mẫu.');
+
+    vi.spyOn(client.quality, 'assess').mockResolvedValue({
+      error: {
+        code: 'NOT_FOUND',
+        kind: 'http',
+        raw: { code: 'NOT_FOUND', requestId: 'req-nodraw-2', resource: 'upload' },
+        requestId: 'req-nodraw-2',
+        retryable: false,
+        status: 404,
+      },
+      ok: false,
+    });
+
+    await mountScreen(clock, { client });
+
+    expect(screen.getByText('Chưa có bản vẽ để kiểm tra')).toBeInTheDocument();
+    const nav = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
+    expect(nav).toHaveTextContent(new RegExp(`Dự án.*${project.data.name}.*Kiểm tra chất lượng đầu vào`, 'u'));
+  });
+
   it('có bản vẽ thì nút bấm được', async () => {
     await mountScreen(clock, {});
     await selectMeasuredFloor(clock);

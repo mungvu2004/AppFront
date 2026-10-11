@@ -95,7 +95,6 @@ import { can } from '@/lib/auth/permissions';
 import { formatClockTime, formatDuration } from '@/lib/format/datetime';
 import { formatArea } from '@/lib/format/measure';
 import { formatNumber, formatPercent } from '@/lib/format/number';
-import { CONFIDENCE_SUGGESTED_THRESHOLD } from '@/lib/format/semantic';
 import { MILLISECONDS_PER_SECOND } from '@/lib/motion/tokens';
 import type { NotificationBus, NotificationInput } from '@/lib/mutations/notificationBus';
 import { cachedProjectName } from '@/lib/query/cachedProjectName';
@@ -167,7 +166,7 @@ const UNIT = {
   floor: 'tầng',
   wall: 'tường',
   object: 'đối tượng',
-  dimensionChain: 'Chuỗi kích thước',
+  dimensionChain: 'chuỗi kích thước',
   room: 'phòng',
 } as const;
 
@@ -182,6 +181,10 @@ const doneFloorsSentence = (done: string, total: string): string =>
 const overallSentence = (doneClause: string, duration: string | null): string =>
   duration === null ? doneClause : `${doneClause} · Còn lại khoảng ${duration}`;
 
+/** Một cách đếm "đối tượng" cho cả chip tầng lẫn báo cáo tổng kết: tường + ô mở + phòng (BUG-353). */
+const objectTotalOf = (counts: Pick<ProcessingExtractionSummary, 'openingCount' | 'roomCount' | 'wallCount'>): number =>
+  counts.wallCount + counts.openingCount + counts.roomCount;
+
 /** Không lượt nào: "Đã xong 0/0 tầng" cạnh một thẻ ghi 4 tầng là câu sai (BUG-165). */
 const NO_RUN_SENTENCE = 'Chưa có lượt xử lý nào đang chạy.';
 
@@ -192,12 +195,12 @@ const queueSentence = (position: string): string => `Đang chờ hàng đợi �
 const partialSentence = (failedNames: string): string =>
   `${failedNames} gặp lỗi. Các tầng còn lại vẫn đang được xử lý.`;
 
-/** Ví dụ `"Có 9 mức độ tin cậy dưới 0,70 cần bạn xem lại."`. */
+/** Ví dụ `"Có 9 đối tượng có độ tin cậy dưới 0,75 cần bạn xem lại."` — ngưỡng của dự án (BUG-354). */
 const lowConfidenceSentence = (count: string, threshold: string): string =>
-  `Có ${count} mức độ tin cậy dưới ${threshold} cần bạn xem lại.`;
+  `Có ${count} ${UNIT.object} có độ tin cậy dưới ${threshold} cần bạn xem lại.`;
 
 const noLowConfidenceSentence = (threshold: string): string =>
-  `Không có mức độ tin cậy nào dưới ${threshold}.`;
+  `Không có ${UNIT.object} nào có độ tin cậy dưới ${threshold}.`;
 
 /* -------------------------------------------------------------------------- */
 /* Hằng lấy từ thư viện, không viết tay (R-71).                                 */
@@ -413,16 +416,20 @@ function applySnapshot(
 
   // Một nhịp đọc được xoá lỗi đọc tạm (503, mất mạng); chỉ 404/403 là vĩnh viễn.
   const { failure, ...rest } = record;
+  // Không còn gì để chờ thì không có "thời gian còn lại": 0 giây thành "Còn lại khoảng 0 giây" (BUG-352).
+  const remainingSeconds = estimateRemainingSeconds({ stages, highestProgressReached: totalPercent });
 
   return {
     ...rest,
     ...(failure?.isTerminal === true ? { failure } : {}),
     stages,
     totalPercent,
-    remainingSeconds: estimateRemainingSeconds({ stages, highestProgressReached: totalPercent }),
+    remainingSeconds: remainingSeconds === 0 ? null : remainingSeconds,
     progress,
     source,
-    logLines: [...record.logLines, logLine],
+    // Lượt đọc mồi và nhịp SSE đầu cùng báo một mốc: mỗi mốc một dòng (BUG-360).
+    logLines:
+      record.logLines.at(-1)?.text === logLine.text ? record.logLines : [...record.logLines, logLine],
   };
 }
 
@@ -932,10 +939,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
           isActive: index === activeIndex,
           ...(objectCount !== undefined
             ? {
-                objectCountLabel: countLabel(
-                  objectCount.wallCount + objectCount.openingCount + objectCount.roomCount,
-                  UNIT.object,
-                ),
+                objectCountLabel: countLabel(objectTotalOf(objectCount), UNIT.object),
               }
             : {}),
         };
@@ -1242,6 +1246,9 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
         dimensionCount: accumulated.dimensionCount + part.dimensionCount,
         roomCount: accumulated.roomCount + part.roomCount,
         areaM2: accumulated.areaM2 + part.areaM2,
+        // Mọi tầng cùng một dự án nên cùng một ngưỡng; một tầng không đọc được cài đặt thì bỏ câu.
+        confidenceThreshold:
+          accumulated.confidenceThreshold === null ? null : part.confidenceThreshold,
         lowConfidenceCount: accumulated.lowConfidenceCount + part.lowConfidenceCount,
       }),
       {
@@ -1250,27 +1257,35 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
         dimensionCount: 0,
         roomCount: 0,
         areaM2: 0,
+        confidenceThreshold: parts[0]?.confidenceThreshold ?? null,
         lowConfidenceCount: 0,
       },
     );
 
-    const threshold = formatNumber(CONFIDENCE_SUGGESTED_THRESHOLD, { fractionDigits: 2 });
+    const threshold =
+      total.confidenceThreshold === null
+        ? null
+        : formatNumber(total.confidenceThreshold, { fractionDigits: 2 });
 
     return {
       metricLabels: [
         countLabel(total.wallCount, UNIT.wall),
-        countLabel(total.wallCount + total.openingCount, UNIT.object),
+        countLabel(objectTotalOf(total), UNIT.object),
         countLabel(total.dimensionCount, UNIT.dimensionChain),
         countLabel(total.roomCount, UNIT.room),
         formatArea(total.areaM2),
       ],
-      lowConfidenceSentence:
-        total.lowConfidenceCount === 0
-          ? noLowConfidenceSentence(threshold)
-          : lowConfidenceSentence(
-              formatNumber(total.lowConfidenceCount, { fractionDigits: 0 }),
-              threshold,
-            ),
+      ...(threshold === null
+        ? {}
+        : {
+            lowConfidenceSentence:
+              total.lowConfidenceCount === 0
+                ? noLowConfidenceSentence(threshold)
+                : lowConfidenceSentence(
+                    formatNumber(total.lowConfidenceCount, { fractionDigits: 0 }),
+                    threshold,
+                  ),
+          }),
       ...actions,
     };
   }, [extractions, floorStatuses, navigate, projectId]);

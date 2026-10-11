@@ -193,6 +193,7 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
         <Breadcrumb
           items={[
             { id: 'projects', label: BREADCRUMB_PROJECTS, onClick: actions.onBackToProjects },
+            ...(model.projectName !== undefined ? [{ id: 'project', label: model.projectName }] : []),
             { id: 'current', label: BREADCRUMB_QUALITY },
           ]}
         />
