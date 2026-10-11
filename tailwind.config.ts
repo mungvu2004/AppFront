@@ -227,6 +227,14 @@ const config: Config = {
       }
     },
   },
+  // Từ trong mã/chú thích mà bộ quét lớp tưởng là lớp: `!container.contains(…)`, `!outline.every(…)`,
+  // `addEventListener('blur' | 'resize')`, `'filter'`, `'isolate'` (id công cụ), "collapse", "invert"…
+  // Không nơi nào đặt chúng làm className; mỗi cái là một quy tắc CSS chết trong ngân sách 12 KiB (QA-03).
+  // Cần thật một lớp ở đây thì xoá nó khỏi danh sách.
+  blocklist: [
+    'blur', 'collapse', 'container', 'filter', 'grow', 'invert', 'isolate', 'lowercase', 'ordinal', 'resize', 'ring',
+    'shadow', 'shrink', '!container', '!contents', '!hidden', '!outline', '!table', '!visible',
+  ],
   plugins: [],
 };
 
