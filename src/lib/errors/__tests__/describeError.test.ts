@@ -47,4 +47,13 @@ describe('errors/describeError.ts', () => {
     expect(notFound.description).not.toMatch(/tải lại/i);
     expect(notFound.primaryButtonLabel).not.toBe('Tải lại');
   });
+
+  it('403 nói về quyền xem, không đổ cho "thao tác" khi người dùng mới chỉ mở trang (BUG-209)', () => {
+    const forbidden = describeError(
+      toAppError({ kind: 'http', raw: {}, requestId: 'req-403', retryable: false, status: 403 }),
+    );
+
+    expect(forbidden.description).toMatch(/quyền xem/u);
+    expect(forbidden.description).not.toMatch(/thao tác/u);
+  });
 });
