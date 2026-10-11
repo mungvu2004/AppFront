@@ -7,7 +7,6 @@ export const CONTEXT_MENU_WIDTH = 220;
 const MENU_WIDTH = CONTEXT_MENU_WIDTH;
 /** Gap kept between the menu and the viewport edge. */
 const VIEWPORT_MARGIN = 8;
-const ROW_HEIGHT = 32;
 
 // ─── Kbd ──────────────────────────────────────────────────────────────────────
 
@@ -171,7 +170,8 @@ const ContextMenuItemComponent = forwardRef<HTMLButtonElement, ContextMenuItemPr
         disabled={disabled}
         aria-disabled={disabled}
         className={cn(
-          'w-full flex items-center gap-2 px-3 text-sm',
+          // 44 px rows below `sm` (a thumb target, like `Button`), 32 px from 640 px up (BUG-156).
+          'w-full flex h-11 items-center gap-2 px-3 text-sm sm:h-8',
           'transition-colors duration-120 text-left',
           'hover:bg-bg-hover',
           'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent',
@@ -179,7 +179,6 @@ const ContextMenuItemComponent = forwardRef<HTMLButtonElement, ContextMenuItemPr
           isDestructive ? 'text-state-violation-text' : 'text-text-primary',
           className
         )}
-        style={{ height: ROW_HEIGHT }}
         {...props}
       >
         {icon && (

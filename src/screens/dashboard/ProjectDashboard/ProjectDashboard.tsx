@@ -117,7 +117,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           if (event.key === 'Enter') props.commitRename();
           if (event.key === 'Escape') props.cancelRename();
         }}
-        className={cn(className, 'rounded border border-accent bg-bg-surface px-1 outline-none')}
+        className={cn(className, 'h-11 rounded border border-accent bg-bg-surface px-1 outline-none sm:h-auto')}
       />
     ) : (
       <h3 className={cn(className, 'truncate')}>{project.name}</h3>
@@ -212,8 +212,10 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
               onChange={(value) => props.setSortBy(value as ProjectSortOption)}
               className="w-[200px]"
             />
+            {/* 52 px strip = 44 px segments below `sm`, the touch size `Button`/`Input` use (BUG-156). */}
             <SegmentedControl
               aria-label="Kiểu xem"
+              className="h-[52px] sm:h-9"
               options={[
                 { label: 'Lưới', value: 'grid' },
                 { label: 'Bảng', value: 'table' },
@@ -234,7 +236,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
         {isCollapsed && (
           <SegmentedControl
             aria-label="Lọc theo trạng thái"
-            className="[&>button]:px-2 sm:[&>button]:px-3"
+            className="h-[52px] sm:h-9 [&>button]:px-2 sm:[&>button]:px-3"
             options={PROJECT_STATUS_FILTER_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
             value={props.statusFilter}
             onChange={props.setStatusFilter}

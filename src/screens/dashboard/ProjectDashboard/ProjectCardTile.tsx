@@ -119,7 +119,8 @@ export function ProjectCardTile({
             const anchor = event.currentTarget.getBoundingClientRect();
             onMenu(project, anchor.right - CONTEXT_MENU_WIDTH, anchor.bottom + 4);
           }}
-          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-bg-surface text-text-secondary shadow-rest hover:text-text-primary"
+          // 44 px below `sm`, like `Button` (BUG-156); 32 px on a pointer screen.
+          className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full bg-bg-surface text-text-secondary shadow-rest hover:text-text-primary sm:h-8 sm:w-8"
         >
           <MoreHorizontal size={16} aria-hidden="true" />
         </button>
@@ -139,7 +140,7 @@ export function ProjectCardTile({
                 if (event.key === 'Enter') onRenameCommit();
                 if (event.key === 'Escape') onRenameCancel();
               }}
-              className={cn(titleClassName, 'rounded border border-accent bg-bg-surface px-1 outline-none')}
+              className={cn(titleClassName, 'h-11 rounded border border-accent bg-bg-surface px-1 outline-none sm:h-auto')}
             />
           ) : (
             <h3 className={cn(titleClassName, 'truncate')}>{project.name}</h3>
@@ -173,7 +174,7 @@ export function ProjectCardTile({
               event.stopPropagation();
               onOpen(project.id);
             }}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-bg-sunken text-text-secondary hover:bg-accent hover:text-white"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-bg-sunken text-text-secondary hover:bg-accent hover:text-white sm:h-7 sm:w-7"
           >
             <ArrowUpRight size={14} aria-hidden="true" />
           </button>
