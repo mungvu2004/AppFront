@@ -1,4 +1,4 @@
-<!-- qa-sources be= -->
+<!-- qa-sources be=2ee030c5 -->
 # Phase 02 — Backend coverage (projects, notifications, auth refresh)
 
 Source read: `F:/App/AppBack` (qa.config `backendSourceRoot`) @ `bf83f815` (= `git rev-parse --short HEAD` and

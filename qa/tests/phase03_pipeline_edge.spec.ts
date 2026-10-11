@@ -33,7 +33,7 @@
  * - `GET /api/projects/:id/floors` 500 (SCR-09) — unpairable: 5xx is not producible on the shared stack. Needs its
  *   "unpairable" row in `coverage/phase03-be.md` (BE agent).
  * Everything else is the real stack: the 404s, the 409 settings conflict (a real API write in between), the 422s
- * (bidi name/notes BE:projects/schemas.py:33-43, project_settings/schemas.py:24-31; MEMBER_USER_UNAVAILABLE /
+ * (MEMBER_USER_UNAVAILABLE /
  * MEMBER_LAST_EDITOR BE:project_members/service.py:32-52; CAD_NOT_SUPPORTED BE:drawings/uploads.py:101-109).
  *
  * ## Writes on the real stack (own `qa-<runId>-e03-…` projects only)
@@ -90,11 +90,11 @@ const NAME_EMPTY = 'Chưa nhập tên dự án.'; // UPS:423
 const NAME_TOO_SHORT = 'Tên dự án cần ít nhất 3 ký tự.'; // UPS:424-425 (PROJECT_LIMITS.nameMinLength 3)
 const EMPTY_BLOCKED = 'Giá trị đã lưu không xoá trống được; hãy nhập giá trị khác.'; // SE:113 (FIX-1420, BUG-299), UPS:433-446
 const NOTES_TOO_LONG = 'Ghi chú không quá 500 ký tự.'; // UPS:451-452, PSG:191
-const FIELD_REJECTED = 'Máy chủ không nhận giá trị này. Kiểm tra lại ô này.'; // SE:111, UPS:943
 const SAVE_FAILURE_TITLE = 'Chưa lưu hết'; // PS:98
-/** SE:124-134 field labels + SE:137-141 NEXT_STEP.validation, partialSaveSentence SE:159-170 (FIX-1422, BUG-300). */
-const NOTES_REJECTED = 'Chưa lưu được ghi chú. Sửa lại giá trị đó, hệ thống sẽ tự lưu tiếp.';
-const NAME_REJECTED = 'Chưa lưu được tên dự án. Sửa lại giá trị đó, hệ thống sẽ tự lưu tiếp.';
+/** BUG-356 (FIX-1622): bidi / control characters are refused at the field, naming the code point (UPS:422-438). */
+const NOTES_BIDI = 'Ghi chú có ký tự đảo chiều chữ (U+202E); hãy xoá ký tự đó.'; // UPS:436,477
+const NAME_BIDI = 'Tên dự án có ký tự đảo chiều chữ (U+202E); hãy xoá ký tự đó.'; // UPS:436,450
+const UNSAVED_PROBLEMS = 'Chưa lưu vì còn ô cần sửa'; // SE:112, UPS:1361 save indicator while a local problem blocks
 const CONFLICT_TITLE = 'Cài đặt đã đổi ở nơi khác'; // PS:91
 const CONFLICT_SENTENCE = 'Cài đặt dự án vừa được đổi ở nơi khác. Tải lại để xem bản mới nhất.'; // SE:110
 const RELOAD_DIALOG = 'Tải lại sẽ bỏ thay đổi chưa lưu'; // RD:20
@@ -169,9 +169,9 @@ const DISMISS = 'Đóng'; // FUC:45, FUT:21
 
 /* SCR-11 / 12 / 13 / 15 copy. */
 const QUALITY = {
-  noDrawingTitle: 'Chưa có bản vẽ để kiểm tra', // IQ:65
+  noDrawingTitle: 'Chưa có bản vẽ để kiểm tra', // IQ:62
   noDrawingNotice: 'Dự án chưa có bản vẽ nào được tải lên, nên chưa có gì để đo.', // UIQ:153
-  uploadAction: 'Tải bản vẽ lên', // IQ:66
+  uploadAction: 'Tải bản vẽ lên', // IQ:63
   continue: 'Tiếp tục xử lý', // UIQ:145
   secondary: 'Tải bản vẽ khác', // UIQ:146
   noDrawingReason: 'Chưa có bản vẽ nào để xử lý; hãy tải bản vẽ lên trước.', // UIQ:152
@@ -597,36 +597,39 @@ test.describe('E03 SCR-08 project settings', () => {
     });
   });
 
-  test('E03 · SCR-08 "Ghi chú" with a bidi mark → server 422 → field message + "Chưa lưu được ghi chú." (BUG-300)', async ({ browser }) => {
+  test('E03 · SCR-08 "Ghi chú" with a bidi mark → refused at the field (U+202E), "Chưa lưu vì còn ô cần sửa", no PUT (BUG-356)', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
-      const { page } = admin;
+      const { page, api } = admin;
       const project = await createProject(admin, 'notesbidi');
       await openSettings(page, project);
-      const put = waitForApi(page, 'PUT', settingsRe(project.id), [422]);
-      // BE:project_settings/schemas.py:24-31 refuses direction marks in notes; the FE has no such local rule (UPS:449-454).
+      const mark = api.length;
+      // Same rule as BE:project_settings/schemas.py:24-31 (packages/core/text.py first_forbidden_char), now local
+      // (UPS:422-438,473-478): one field sentence that names the code point instead of a server 422.
       await page.getByRole('textbox', { name: NOTES_LABEL, exact: true }).fill('qa \u202Eghi chú');
-      await put;
-      await expect(page.getByText(FIELD_REJECTED, { exact: true })).toBeVisible(); // SE:96, UPS:938-944
-      const failure = page.getByRole('alert').filter({ hasText: SAVE_FAILURE_TITLE });
-      // SE:124-134,159-170 + UPS:1013-1030: the sentence names the field the user sees ("ghi chú"), not the N6 part it
-      // is sent with, and adds the 422 next step SE:138 (FIX-1422, BUG-300).
-      await expect(failure).toContainText(NOTES_REJECTED);
-      await captureEvidence(page, 'E03_settings_notes_bidi_422.png');
+      await expect(page.getByText(NOTES_BIDI, { exact: true })).toBeVisible();
+      await expect(page.getByRole('status').filter({ hasText: UNSAVED_PROBLEMS })).toBeVisible(); // UPS:1361
+      await quiet(page);
+      // UPS:909 a local problem blocks the autosave: no request, so no "Chưa lưu hết" box either.
+      expect(countSince(api, mark, 'PUT', settingsRe(project.id)), 'a refused character sends no PUT').toBe(0);
+      await expect(page.getByRole('alert').filter({ hasText: SAVE_FAILURE_TITLE })).toHaveCount(0);
+      await captureEvidence(page, 'E03_settings_notes_bidi_blocked.png');
     });
   });
 
-  test('E03 · SCR-08 "Tên dự án" with a bidi mark → server 422 → field message + "Chưa lưu được tên dự án." (BUG-300)', async ({ browser }) => {
+  test('E03 · SCR-08 "Tên dự án" with a bidi mark → refused at the field (U+202E), "Chưa lưu vì còn ô cần sửa", no PATCH (BUG-356)', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
-      const { page } = admin;
+      const { page, api } = admin;
       const project = await createProject(admin, 'namebidi');
       await openSettings(page, project);
-      const patch = waitForApi(page, 'PATCH', projectRe(project.id), [422]);
-      // BE:projects/schemas.py:33-43 (clean_text, bidi_marks) → 422 field "name"; FE nameProblemFor checks length only (UPS:421-431).
+      const mark = api.length;
+      // Same rule as BE:projects/schemas.py:33-43 (clean_text, bidi_marks), now local: nameProblemFor UPS:441-451.
       await page.getByRole('textbox', { name: NAME_LABEL, exact: true }).fill(`${project.name}\u202E`);
-      await patch;
-      await expect(page.getByText(FIELD_REJECTED, { exact: true })).toBeVisible();
-      await expect(page.getByRole('alert').filter({ hasText: SAVE_FAILURE_TITLE })).toContainText(NAME_REJECTED);
-      await captureEvidence(page, 'E03_settings_name_bidi_422.png');
+      await expect(page.getByText(NAME_BIDI, { exact: true })).toBeVisible();
+      await expect(page.getByRole('status').filter({ hasText: UNSAVED_PROBLEMS })).toBeVisible();
+      await quiet(page);
+      expect(countSince(api, mark, 'PATCH', projectRe(project.id)), 'a refused character sends no PATCH').toBe(0);
+      await expect(page.getByRole('alert').filter({ hasText: SAVE_FAILURE_TITLE })).toHaveCount(0);
+      await captureEvidence(page, 'E03_settings_name_bidi_blocked.png');
     });
   });
 
@@ -1466,7 +1469,7 @@ test.describe('E03 SCR-11 input quality gate', () => {
       const { page } = admin;
       const project = await createProject(admin, 'qnodraw', 2);
       await page.goto(ROUTES.project.quality(project.id));
-      // BE:quality/assessments.py:273-275 404 `upload` → UIQ:517-521 null → empty state (IQ:145-153).
+      // BE:quality/assessments.py:273-275 404 `upload` → UIQ:517-521 null → empty state (IQ:136-144).
       await expect(page.getByText(QUALITY.noDrawingTitle, { exact: true })).toBeVisible();
       await expect(page.getByText(QUALITY.noDrawingNotice, { exact: true })).toBeVisible();
       const proceed = page.getByRole('button', { name: QUALITY.continue, exact: true });
@@ -1477,7 +1480,7 @@ test.describe('E03 SCR-11 input quality gate', () => {
       expect(pathOf(page), 'aria-disabled continue does not navigate').toBe(ROUTES.project.quality(project.id));
       await captureEvidence(page, 'E03_quality_no_drawing.png');
 
-      await page.getByRole('button', { name: QUALITY.uploadAction, exact: true }).click(); // IQ:146-149 → UIQ:1270
+      await page.getByRole('button', { name: QUALITY.uploadAction, exact: true }).click(); // IQ:137-140 → UIQ:1270
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.upload(project.id));
     });
   });
@@ -1496,7 +1499,7 @@ test.describe('E03 SCR-11 input quality gate', () => {
       await captureEvidence(page, 'E03_quality_footer_nav.png');
       await page.goBack();
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.quality(project.id));
-      await page.getByRole('navigation', { name: 'Đường dẫn trang' }).getByRole('button', { name: 'Dự án', exact: true }).click(); // IQ:203-208
+      await page.getByRole('navigation', { name: 'Đường dẫn trang' }).getByRole('button', { name: 'Dự án', exact: true }).click(); // IQ:193-198 (breadcrumb, BUG-362 adds the project level)
       await expect.poll(() => pathOf(page)).toBe(ROUTES.dashboard);
     });
   });
@@ -1666,7 +1669,7 @@ const UNKNOWN_CASES: readonly UnknownCase[] = [
     slug: 'quality',
     path: (id) => ROUTES.project.quality(id),
     check: async (page) => {
-      // IQ:131-144 + UIQ:856-859 isProjectMissing; IQF:57 / UIQ:1038 footer hidden on error.
+      // IQ:122-135 + UIQ:856-859 isProjectMissing; IQF:57 / UIQ:1038 footer hidden on error.
       const alert = page.getByRole('alert').filter({ hasText: NOT_FOUND_TITLE });
       await expect(alert).toContainText(NOT_FOUND_SENTENCE);
       await expect(page.getByRole('button', { name: QUALITY.continue, exact: true })).toHaveCount(0);

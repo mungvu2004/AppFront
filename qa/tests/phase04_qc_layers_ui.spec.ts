@@ -17,7 +17,8 @@
  *     created through the API before its group and deleted after it. Its floor has no drawing and no layer: GET
  *     `…/spatial/layer` answers an empty document (BE apps/api/spatial_read/router.py:71-86 `empty_document`), so every
  *     screen shows its empty state there — with the long names in floor nav / floor select. Scale and overlay read the
- *     floor's drawing, which it lacks: scale shows its `error` notice (NOT_FOUND), overlay "Không đọc được ảnh bản vẽ gốc…".
+ *     floor's drawing, which it lacks: scale shows its `error` notice (no drawing yet, BUG-337 — useScaleCalibration.ts:1517-1522,
+ *     no machine code), overlay "Không đọc được ảnh bản vẽ gốc…".
  *
  * Budget — logins: 1 real admin API login (`signedInApi`, empty-project group; again after a failed test, which starts a new
  * worker); a browser login only to replace a dead stored session (`ensureAdminSession`). The seeded and work-floor states
@@ -545,8 +546,8 @@ test.describe('U04 UI verify — SCR-14 scale (CP-5 work floor)', () => {
   test('U04 · SCR-14 scale, "Thu gọn bảng" → panel collapsed', async ({ browser }) => {
     await verifyOnWorkFloor(browser, 'U04_scale_panel_collapsed', async (p, floor) => {
       await openScaleData(p, floor);
-      // Not on the empty floor: there the screen is in `error` (NOT_FOUND), which outranks `collapsed`
-      // (useScaleCalibration.ts:1466-1476, 1735 `isPanelCollapsed: state === 'collapsed'`), so the button does nothing.
+      // On the work floor so the collapsed panel sits beside a drawing. Since BUG-322 (FIX-1503) the toggle also works in
+      // the `error` state: useScaleCalibration.ts:1464,1747 `isPanelCollapsed` follows the button, not `state`.
       await p.getByRole('button', { name: SCALE_COLLAPSE, exact: true }).click();
       await expect(p.getByRole('button', { name: SCALE_EXPAND, exact: true })).toBeVisible();
     });
@@ -669,7 +670,8 @@ test.describe('U04 UI verify — empty floor, 80-char project + 65-char floor na
     await verifyAsAdmin(browser, 'U04_dims_keyboard_mode', async (p) => {
       await p.goto(ROUTES.project.dimensions(own().projectId, own().floorId));
       await expect(p.getByText(DIMS_EMPTY_TITLE, { exact: true })).toBeVisible({ timeout: 15_000 });
-      // `onToggleKeyboardMode` has no row precondition (useDimensionOcrReview.ts:765); the mode replaces the whole screen.
+      // `onToggleKeyboardMode` has no row precondition (useDimensionOcrReview.ts:765). With no row the mode does NOT replace
+      // the screen (BUG-334): it stays in the review panel footer with its off button (DimensionOcrReview.tsx:200,283-296).
       await p.getByRole('button', { name: KEYBOARD_ON, exact: true }).click();
       await expect(p.getByRole('region', { name: KEYBOARD_CAPTION, exact: true })).toBeVisible();
       await expect(p.getByRole('button', { name: KEYBOARD_OFF, exact: true })).toBeVisible();
@@ -699,7 +701,7 @@ test.describe('U04 UI verify — empty floor, 80-char project + 65-char floor na
     });
   });
 
-  test('U04 · SCR-14 scale, no drawing → notice (NOT_FOUND)', async ({ browser }) => {
+  test('U04 · SCR-14 scale, no drawing → error notice', async ({ browser }) => {
     await verifyAsAdmin(browser, 'U04_scale_no_drawing', async (p) => {
       await p.goto(ROUTES.project.scale(own().projectId, own().floorId));
       await expect(p.getByRole('region', { name: SCALE_SCREEN, exact: true })).toBeVisible({ timeout: 15_000 });

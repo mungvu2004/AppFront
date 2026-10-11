@@ -21,6 +21,8 @@
  *   V   src/screens/viewer/OverlayComparison/ (UV useOverlayComparison.ts, VV OverlayComparison.tsx, VT OverlayComparisonToolbar.tsx,
  *       VP OverlayComparisonPanel.tsx, VG overlayComparisonGateway.ts)
  *   UFL src/hooks/useFloorLayer.ts   UAS src/hooks/useAutosave.ts   SLS src/lib/autosave/spatialLayerSave.ts
+ *   FLRF src/screens/qc/shared/floorLayerReadFailure.ts (a failed first layer read replaces the whole screen, BUG-326)
+ *   PSGATE src/components/feedback/ProjectSpatialGate.tsx
  *   I18N src/i18n/vi.json (`errors.*`)   MOD src/components/overlay/Modal.tsx
  *
  * ## Non-serial
@@ -110,7 +112,14 @@ const WALL = {
   cancel: 'Huỷ', // FSC:62
   floorGone: 'Tầng này không còn tồn tại.', // UFL:31
 } as const;
-const GENERIC_NOT_FOUND = 'Nội dung này có thể đã bị xoá, hoặc đường dẫn chưa đúng.'; // I18N errors.notFound.description
+/* 404 project on a QC layer route: FLRF:55-61 reuses the project 404 copy. */
+const PROJECT_NOT_FOUND_TITLE = 'Không tìm thấy dự án này'; // PSGATE:36
+const PROJECT_NOT_FOUND_SENTENCE = 'Dự án có thể đã bị xoá, đường dẫn chưa đúng, hoặc bạn chưa được thêm vào dự án.'; // PSGATE:37-38
+const BACK_TO_PROJECTS = 'Về danh sách dự án'; // PSGATE:39
+/* 404 floor: FLRF:64-71; the description opens with WALL.floorGone (FLRF:23, UFL:31). */
+const FLOOR_MISSING_TITLE = 'Không mở được tầng này'; // FLRF:21
+const BACK_TO_FLOORS = 'Về quản lý tầng'; // FLRF:24
+const RETRY_READ = 'Thử lại'; // FLRF:25 (any other read error, FLRF:73-75)
 const GENERIC_UNKNOWN = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại sau ít phút.'; // vi.json:63 errors.unknown.description (FIX-1387, BUG-209)
 
 /* SCR-17 copy. */
@@ -831,14 +840,18 @@ test.describe('E04 SCR-16 wall layer review', () => {
       const notFound = waitForApi(page, 'GET', layerRe(project.id, missing), [404]);
       await page.goto(ROUTES.project.walls(project.id, missing));
       await notFound; // BE:spatial_read/router.py:71-75 `_floor_or_404`
-      await expect(page.getByRole('alert').filter({ hasText: WALL.floorGone })).toBeVisible(); // UFL:31,65-66; WLP:351-353
+      // FLRF:64-71: a 404 floor replaces the whole screen with one exit (BUG-326, qc/shared/FloorLayerReadFailureScreen.tsx).
+      const gone = page.getByRole('alert').filter({ hasText: WALL.floorGone });
+      await expect(gone).toBeVisible();
+      await expect(gone.getByRole('heading', { name: FLOOR_MISSING_TITLE, exact: true })).toBeVisible();
+      await expect(gone.getByRole('button', { name: BACK_TO_FLOORS, exact: true })).toBeVisible();
       await quiet(page);
       expect(writesSince(api, mark), 'an unknown floor writes nothing').toEqual([]);
       await captureEvidence(page, 'E04_walls_unknown_floor.png');
     });
   });
 
-  test('E04 · SCR-16 unknown project id → errors.notFound sentence in the wall panel, no write', async ({ browser }) => {
+  test('E04 · SCR-16 unknown project id → project 404 screen + "Về danh sách dự án", no write', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page, api } = admin;
       // Not a `prj_<ULID>`: BE answers 404 `project` before any DB read (BE:apps/api/projects/access.py:28-33).
@@ -848,15 +861,18 @@ test.describe('E04 SCR-16 wall layer review', () => {
       const notFound = waitForApi(page, 'GET', layerRe(projectId, floorId), [404]);
       await page.goto(ROUTES.project.walls(projectId, floorId));
       await notFound;
-      // QC layer routes have no ProjectSpatialGate (router.tsx:373); UFL:65-66 describeError(notFound).
-      await expect(page.getByRole('alert').filter({ hasText: GENERIC_NOT_FOUND })).toBeVisible();
+      // QC layer routes have no ProjectSpatialGate (router.tsx:373); FLRF:55-61 404 `project` → the project 404 copy.
+      const missing = page.getByRole('alert').filter({ hasText: PROJECT_NOT_FOUND_SENTENCE });
+      await expect(missing).toBeVisible();
+      await expect(missing.getByRole('heading', { name: PROJECT_NOT_FOUND_TITLE, exact: true })).toBeVisible();
+      await expect(missing.getByRole('button', { name: BACK_TO_PROJECTS, exact: true })).toBeVisible();
       await quiet(page);
       expect(writesSince(api, mark), 'an unknown project writes nothing').toEqual([]);
       await captureEvidence(page, 'E04_walls_unknown_project.png');
     });
   });
 
-  test('E04 · SCR-16 [mocked response] GET …/spatial/layer 500 → error alert in the wall panel, screen not blank', async ({ browser }) => {
+  test('E04 · SCR-16 [mocked response] GET …/spatial/layer 500 → read-failure screen with "Thử lại", screen not blank', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const project = await createProject(admin, 'walls-500');
@@ -870,10 +886,13 @@ test.describe('E04 SCR-16 wall layer review', () => {
       };
       await page.route('**/api/projects/**', handler);
       await page.goto(ROUTES.project.walls(project.id, project.floor.id));
-      // I18N errors.unknown (500 has no KNOWN_HTTP_STATUS_KIND, lib/errors/toAppError.ts:10-18,211); WLP:351-353.
-      await expect(page.getByRole('alert').filter({ hasText: GENERIC_UNKNOWN })).toBeVisible();
+      // I18N errors.unknown (500 has no KNOWN_HTTP_STATUS_KIND, lib/errors/toAppError.ts:10-18,211) via FLRF:73-75.
+      // BUG-326: the failed first read replaces the whole screen (WallLayerReview.tsx:123-129) — no tool rail, one exit.
+      const failure = page.getByRole('alert').filter({ hasText: GENERIC_UNKNOWN });
+      await expect(failure).toBeVisible();
+      await expect(failure.getByRole('button', { name: RETRY_READ, exact: true })).toBeVisible();
       await expect(page.getByRole('region', { name: WALL.screen, exact: true })).toBeVisible(); // A11: never blank
-      await expect(page.getByRole('toolbar', { name: WALL.rail, exact: true })).toBeVisible();
+      await expect(page.getByRole('toolbar', { name: WALL.rail, exact: true })).toHaveCount(0);
       await captureEvidence(page, 'E04_walls_read_500.png');
       await page.unroute('**/api/projects/**', handler);
     });
@@ -1045,9 +1064,9 @@ test.describe('E04 SCR-18 / SCR-19 dimension OCR and axes', () => {
       const before = await rows.count();
 
       await page.getByRole('button', { name: AXIS.addVertical, exact: true }).click();
-      // Plan SCR-19 / main spec: "Thêm trục …" adds ONE row to what is listed. UA:455-462 drops the whole wall preview as
-      // soon as one axis is stored, so the listed preview rows vanish (suspected app bug) — soft, the rest still runs.
-      await expect.soft(rows, '"Thêm trục dọc" adds one row to the listed axes').toHaveCount(before + 1);
+      // Plan SCR-19 / main spec: "Thêm trục …" adds ONE row to what is listed. BUG-320: UA:670-690 stores the detected
+      // preview together with the new axis in one command, so the preview rows stay (UA:456,461 hide it once stored).
+      await expect(rows, '"Thêm trục dọc" adds one row to the listed axes').toHaveCount(before + 1);
 
       const ghost = page.getByRole('switch', { name: AXIS.ghost, exact: true }); // ALP:216, Toggle role=switch
       const was = await ghost.getAttribute('aria-checked');
@@ -1196,7 +1215,8 @@ test.describe('E04 SCR-20 room label review', () => {
       // UR:876-880 emptyFiltered → emptyFilteredNotice, which tells the user to switch the filter off.
       await expect(page.getByText(ROOM.emptyFiltered, { exact: true })).toBeVisible();
       await captureEvidence(page, 'E04_rooms_unnamed_filter_empty.png');
-      // The notice's own instruction needs the toggle on screen; RV:139-149 renders only the EmptyState in this branch.
+      // The notice's own instruction needs the toggle on screen. BUG-321: RV:142-146 keeps the panel (with the toggle)
+      // when the unnamed filter emptied the list, and RV:182 / RLP:40 put the notice where the list was.
       await expect(
         page.getByRole('button', { name: new RegExp(`^${ROOM.unnamedFilter}`, 'u') }),
         'the "Chưa đặt tên" toggle the notice tells the user to switch off is still on screen',
@@ -1421,15 +1441,13 @@ test.describe('E04 SCR-14 scale calibration', () => {
       await expect(page.getByRole('button', { name: SCALE.handleStart, exact: true })).toHaveCount(0);
       await expect(page.getByRole('button', { name: SCALE.handleEnd, exact: true })).toHaveCount(0);
 
-      // SP:97-99 + US:1024-1026 toggle the panel. US:1466-1476,1735: state 'error' (warped drawing) outranks 'collapsed', so
-      // the button can do nothing there (suspected dead control, A2) — soft, the no-write claim still runs.
+      // SP:43-44,94 toggle label. BUG-322 (FIX-1503): US:1464,1747 `isPanelCollapsed` follows the button itself, so it
+      // collapses even in the 'error' state (warped drawing), which outranks 'collapsed' in the state order.
       await page.getByRole('button', { name: SCALE.collapse, exact: true }).click();
       const expand = page.getByRole('button', { name: SCALE.expand, exact: true });
-      await expect.soft(expand, '"Thu gọn bảng" collapses the panel ("Bung bảng" shows)').toBeVisible();
-      if ((await expand.count()) > 0) {
-        await expand.click();
-        await expect(page.getByRole('button', { name: SCALE.collapse, exact: true })).toBeVisible();
-      }
+      await expect(expand, '"Thu gọn bảng" collapses the panel ("Bung bảng" shows)').toBeVisible();
+      await expand.click();
+      await expect(page.getByRole('button', { name: SCALE.collapse, exact: true })).toBeVisible();
       await quiet(page);
       expect(countSince(api, mark, 'PUT', layerRe(project.id, project.floor.id)), 'no scale PUT without a valid length').toBe(0);
       await captureEvidence(page, 'E04_scale_remeasure_collapse.png');
