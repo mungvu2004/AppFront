@@ -85,8 +85,8 @@ test.fixme(
 test('bơm bộ mẫu: bốn tầng, cao độ và tổng cao dùng dấu phẩy (V7-FLOORS-02, A15)', async ({ page }) => {
   await openSeeded(page);
 
-  await expect(page.getByRole('row', { name: 'Tầng trệt, cao độ 0,0 m, cao 3,9 m, 0% đã kiểm' })).toBeVisible();
-  await expect(page.getByRole('row', { name: 'Tầng hầm, cao độ -3,0 m, cao 3,0 m, 0% đã kiểm' })).toBeVisible();
+  await expect(page.getByRole('row', { name: 'Tầng trệt, cao độ 0,0 m, cao 3,9 m, chưa có bản vẽ' })).toBeVisible();
+  await expect(page.getByRole('row', { name: 'Tầng hầm, cao độ -3,0 m, cao 3,0 m, chưa có bản vẽ' })).toBeVisible();
   await expect(page.getByText('14,1 m').first()).toBeVisible();
   /* Hai câu nợ vẫn còn khi đã có hàng — chúng không phải câu của trạng thái rỗng. */
   await expect(page.getByRole('status').filter({ hasText: DEBT_CONTENT })).toBeVisible();
