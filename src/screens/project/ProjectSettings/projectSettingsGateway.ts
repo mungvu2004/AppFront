@@ -10,8 +10,8 @@
  *   `baseVersion`. `areaUnit` chỉ có ở FE, luôn `'m2'`.
  *
  * `update` gửi tuần tự, mỗi phần có kết quả riêng: phần hỏng không làm mất phần
- * đã lưu, và nơi gọi nhận `{ snapshot, failures }` để nói rõ "đã lưu thông tin
- * chung, chưa lưu đơn vị đo".
+ * đã lưu, và nơi gọi nhận `{ snapshot, failures }` để nói rõ ô nào đã lưu, ô nào
+ * chưa ("Đã lưu tên dự án, chưa lưu ghi chú.").
  *
  * ## Vì sao `update` bỏ chuỗi rỗng
  *

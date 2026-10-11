@@ -74,6 +74,7 @@ import {
   rejectionOf,
   SETTINGS_SENTENCES,
   type SettingsProblemKey,
+  type SettingsRejection,
 } from './settingsErrors';
 import {
   useProjectMembers,
@@ -155,7 +156,7 @@ export interface ProjectSettingsProblems {
  *    một ô chọn.
  * 5. `state === 'empty'` ⟺ `floorCount === 0`, đọc ở bậc của nó.
  * 6. `state === 'partial'` ⟺ (`saveState === 'saving'` hoặc `'pending'`) HOẶC
- *    có ít nhất một trường `problems` khác `null`. Hai nhánh, không phải một:
+ *    có ít nhất một trường `problems` khác `null` (hoặc còn câu lưu dở / dải xung đột). Hai nhánh, không phải một:
  *    đặc tả gốc gọi "một phần" là đang lưu, còn một biểu mẫu có ô sai cũng là
  *    một phần theo đúng nghĩa của A11.
  * 7. `saveState` là trục riêng. Một lượt tự lưu hỏng làm `saveState === 'error'`
@@ -703,6 +704,8 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
   const [isReloadDialogOpen, setReloadDialogOpen] = useState(false);
   const [conflictMessage, setConflictMessage] = useState<string | null>(null);
   const [saveFailureMessage, setSaveFailureMessage] = useState<string | null>(null);
+  /** Lời từ chối (409/422/428) gây ra lượt hỏng gần nhất; `null` khi hỏng tạm hoặc không hỏng. */
+  const [failureRejection, setFailureRejection] = useState<SettingsRejection | null>(null);
   const [serverProblems, setServerProblems] = useState<ServerProblems>({});
   const [pendingDanger, setPendingDanger] = useState<ProjectSettingsDangerAction | null>(null);
   const [dangerConfirmationText, setDangerConfirmationText] = useState('');
@@ -763,6 +766,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     rejectionsRef.current = noRejections();
     setConflictMessage(null);
     setSaveFailureMessage(null);
+    setFailureRejection(null);
     setServerProblems({});
   }
 
@@ -1004,11 +1008,27 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     if (failedParts.length > 0) {
       const savedParts = attempted.filter((part) => !failedParts.includes(part));
       const heldErrors = heldParts.flatMap((part) => rejectionsRef.current[part]?.error ?? []);
-
-      setSaveFailureMessage(partialSaveSentence(savedParts, failedParts));
-
       // Không bọc `new Error(câu)`: engine đọc lỗi gốc để biết nên hẹn lại hay dừng (R2).
       const error = pickErrorToThrow(failures, heldErrors);
+      const rejection = error === null ? null : rejectionOf(error);
+      const nowSaved = savedRef.current ?? EMPTY_DRAFT;
+      // Gọi tên ô người dùng thấy, không gọi nhóm gửi: "ghi chú" đi chung thân N6 với đơn vị
+      // đo nhưng nằm ở thẻ Chung (BUG-300).
+      const savedFields = savedParts
+        .flatMap((part) => KEYS_BY_PART[part])
+        .filter((key) => changes[key as keyof ProjectSettingsPatch] !== undefined);
+      const failedFields = failedParts
+        .flatMap((part) => KEYS_BY_PART[part])
+        .filter((key) => nowDraft[key] !== nowSaved[key]);
+
+      setFailureRejection(rejection);
+      // Chỉ có xung đột và chưa lưu được gì: dải "Cài đặt đã đổi ở nơi khác" kèm nút
+      // "Tải lại" đã nói đủ, không chồng thêm dải thứ hai (BUG-300).
+      setSaveFailureMessage(
+        rejection === 'conflict' && savedFields.length === 0
+          ? null
+          : partialSaveSentence(savedFields, failedFields, rejection),
+      );
 
       if (error !== null) {
         throw error;
@@ -1019,6 +1039,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
 
     setConflictMessage(null);
     setSaveFailureMessage(null);
+    setFailureRejection(null);
     setServerProblems({});
 
     if (attempted.length > 0 && previous !== null) {
@@ -1231,6 +1252,14 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
   /* ---------------------------------------------------------------------- */
 
   const saveState: SaveState = hasLocalProblem ? 'pending' : toSaveState(indicator.state);
+  // Câu "Lưu thất bại. Hệ thống sẽ thử lưu lại…" của engine sai với 409/422/428: gửi lại y
+  // nguyên không bao giờ qua, nên viên chỉ báo nói việc cần làm (BUG-300).
+  const rejectedLabel =
+    indicator.state !== 'failed' || failureRejection === null
+      ? null
+      : failureRejection === 'validation'
+        ? SETTINGS_SENTENCES.chipRejected
+        : SETTINGS_SENTENCES.chipReload;
   const floorCount = snapshot?.floorCount ?? 0;
 
   const loadFailure = settingsQuery.isError
@@ -1249,7 +1278,13 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     if (isCollapsed) return 'collapsed';
     if (!canEdit) return 'forbidden';
     if (floorCount === 0) return 'empty';
-    if (saveState === 'saving' || saveState === 'pending' || hasProblem || saveFailureMessage !== null) {
+    if (
+      saveState === 'saving' ||
+      saveState === 'pending' ||
+      hasProblem ||
+      saveFailureMessage !== null ||
+      conflictMessage !== null
+    ) {
       return 'partial';
     }
     return 'success';
@@ -1262,6 +1297,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     saveState,
     hasProblem,
     saveFailureMessage,
+    conflictMessage,
   ]);
 
   const members = useMemo<readonly ProjectSettingsMemberRow[]>(
@@ -1302,7 +1338,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     saveState,
     // Ép `pending` vì lỗi nhập thì nhãn của tự lưu (có thể là "Đã lưu lúc …" cũ) không còn đúng (B-V1-47),
     // và câu chờ mặc định "Có thay đổi chờ đồng bộ" hứa một lượt đồng bộ sẽ không xảy ra (BUG-286).
-    saveLabel: hasLocalProblem ? SETTINGS_SENTENCES.unsavedProblems : indicator.label,
+    saveLabel: hasLocalProblem ? SETTINGS_SENTENCES.unsavedProblems : (rejectedLabel ?? indicator.label),
     conflictMessage,
     saveFailureMessage,
     isReloadDialogOpen,

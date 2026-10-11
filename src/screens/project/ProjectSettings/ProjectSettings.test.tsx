@@ -862,11 +862,11 @@ describe('ProjectSettingsView, lưu dở và tải lại', () => {
     render(
       <ProjectSettingsView
         {...baseProps()}
-        saveFailureMessage="Đã lưu thông tin chung, chưa lưu đơn vị đo."
+        saveFailureMessage="Đã lưu tên dự án, chưa lưu dung sai bắt điểm."
       />,
     );
 
-    expect(screen.getByText('Đã lưu thông tin chung, chưa lưu đơn vị đo.')).toBeInTheDocument();
+    expect(screen.getByText('Đã lưu tên dự án, chưa lưu dung sai bắt điểm.')).toBeInTheDocument();
   });
 
   it('BUG-299: gợi ý mã dự án không hứa "bỏ trống cũng được" vì máy chủ không cho xoá trống', () => {
