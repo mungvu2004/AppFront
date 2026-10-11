@@ -262,6 +262,21 @@ describe('ProjectDashboardView, seven states', () => {
     expect(within(card).queryByRole('img', { name: 'Sơ đồ mặt bằng' })).not.toBeInTheDocument();
   });
 
+  // BUG-119/157: a 730 px hero card, two 340 px side cards and a grid below drew three card widths on one screen.
+  it('lays every card out in one grid, at one size', () => {
+    const rows = ['a', 'b', 'c', 'd', 'e'].map((id) => ({ ...SAMPLE_ROW, id, name: `Dự án ${id}` }));
+    render(<ProjectDashboardView {...PROPS_BY_STATE.success()} rows={rows} />);
+
+    const list = screen.getByRole('list', { name: 'Danh sách dự án' });
+    const cards = within(list).getAllByRole('listitem');
+    expect(cards).toHaveLength(rows.length);
+    for (const card of cards) {
+      expect(card.parentElement).toBe(list);
+      expect(card.className).toBe(cards[0]?.className);
+      expect(card.firstElementChild?.className).toContain('h-[132px]');
+    }
+  });
+
   // BUG-116/148: the menu opened where the pointer was (over its own button) or, from the keyboard, at 0,0.
   it('anchors the card menu under its button and gives focus back to it on Esc', async () => {
     const viewport = { clientWidth: 1440, clientHeight: 900 };

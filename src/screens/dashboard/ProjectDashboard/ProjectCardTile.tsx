@@ -1,6 +1,5 @@
 /**
- * One project card — large ("hero", the most-recently-updated project in the
- * grid) or small ("compact", everything else). Split out of
+ * One project card, the same size for every project in the grid (BUG-119). Split out of
  * `ProjectDashboard.tsx` once that file crossed R-22's 400-line cap (mục D);
  * nothing here is a new abstraction beyond the card the view already drew.
  *
@@ -23,8 +22,6 @@ import { cn } from '@/lib/utils';
 import { PLAN_OUTLINE_SEGMENTS } from './projectsGateway';
 import type { ProjectCardModel } from './useProjectDashboard';
 
-export type ProjectCardSize = 'hero' | 'compact';
-
 const NO_PLAN_LABEL = 'Chưa có mặt bằng';
 
 function PlanPreview({ variant }: { readonly variant: 0 | 1 | 2 | 3 }) {
@@ -42,7 +39,6 @@ function PlanPreview({ variant }: { readonly variant: 0 | 1 | 2 | 3 }) {
 export interface ProjectCardTileProps {
   readonly project: ProjectCardModel;
   readonly index: number;
-  readonly size: ProjectCardSize;
   readonly shouldStagger: boolean;
   readonly renamingId: string | null;
   readonly renameDraft: string;
@@ -56,7 +52,6 @@ export interface ProjectCardTileProps {
 export function ProjectCardTile({
   project,
   index,
-  size,
   shouldStagger,
   renamingId,
   renameDraft,
@@ -66,7 +61,7 @@ export function ProjectCardTile({
   onRenameCommit,
   onRenameCancel,
 }: ProjectCardTileProps) {
-  const titleClassName = cn('font-semibold text-text-primary', size === 'hero' ? 'text-[18px]' : 'text-[15px]');
+  const titleClassName = 'text-[15px] font-semibold text-text-primary';
 
   return (
     <motion.article
@@ -89,12 +84,9 @@ export function ProjectCardTile({
         layout: { duration: durationSeconds('standard') },
         default: { duration: durationSeconds('fast'), delay: shouldStagger ? staggerDelayMs(index) / 1000 : 0 },
       }}
-      className={cn(
-        'flex cursor-pointer flex-col overflow-hidden rounded-xl border border-border-default bg-bg-surface shadow-rest outline-none transition-[transform,box-shadow] duration-fast hover:-translate-y-px hover:shadow-float focus-visible:ring-2 focus-visible:ring-accent',
-        size === 'hero' && 'lg:flex-1',
-      )}
+      className="flex cursor-pointer flex-col overflow-hidden rounded-xl border border-border-default bg-bg-surface shadow-rest outline-none transition-[transform,box-shadow] duration-fast hover:-translate-y-px hover:shadow-float focus-visible:ring-2 focus-visible:ring-accent"
     >
-      <div className={cn('relative shrink-0 border-b border-border-default bg-bg-sunken', size === 'hero' ? 'h-[360px]' : 'h-[132px]')}>
+      <div className="relative h-[132px] shrink-0 border-b border-border-default bg-bg-sunken">
         {/* Below the badge/menu row, so no stroke runs through the status label (BUG-119). */}
         <div className="absolute left-4 right-4 bottom-3 top-14">
           {project.hasPlan ? (
@@ -125,7 +117,7 @@ export function ProjectCardTile({
           <MoreHorizontal size={16} aria-hidden="true" />
         </button>
       </div>
-      <div className={cn('flex shrink-0 flex-col justify-between gap-2', size === 'hero' ? 'p-5' : 'p-4')}>
+      <div className="flex shrink-0 flex-col justify-between gap-2 p-4">
         <div className="flex flex-col gap-1">
           {renamingId === project.id ? (
             <input

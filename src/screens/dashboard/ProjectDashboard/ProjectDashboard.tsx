@@ -9,12 +9,12 @@
  * every string already arrived formatted from `useProjectDashboard`. The card
  * itself ({@link ProjectCardTile}), the table view ({@link ProjectTable}) and the status rail
  * ({@link DashboardSidebar}) live in sibling files — this file crossed R-22's 400-line cap once the grid
- * grew a hero card and a sidebar, and mục D's answer is a folder, not a
+ * grew a sidebar, and mục D's answer is a folder, not a
  * shorter feature.
  *
- * The most-recently-updated project (`rows[0]` — `sortBy: 'updated'` is the
- * default) is featured as a large card; the next two sit beside it; anything
- * further down still gets the plain responsive grid below.
+ * Every card sits in one responsive grid at one size — the old featured
+ * "hero" card for `rows[0]` made cards of three widths on one screen (BUG-119,
+ * BUG-157).
  *
  * `ProjectDashboard` is the wired screen. It owns the one thing the pure
  * view cannot: a `Toast.Provider`. Nothing mounts one globally yet — the same
@@ -78,7 +78,10 @@ const STATE_ANNOUNCEMENT: Readonly<Record<SevenState, string>> = {
   forbidden: 'Không có quyền',
   collapsed: 'thu gọn',
 };
-/** One column below `sm`, like the hero and side cards above it: two columns at 375 px squeezed cards to ~145 px (BUG-157). */
+/**
+ * One grid for every card, so cards are the same size at every width: a 730 px hero beside 340 px side cards
+ * above a two-column grid gave three card widths on one screen (BUG-119, BUG-157). One column below `sm`.
+ */
 const GRID_COLUMNS_CLASS = 'grid grid-cols-1 gap-5 sm:grid-cols-2 min-[1440px]:grid-cols-3 min-[1920px]:grid-cols-4';
 
 export interface ProjectDashboardViewProps extends ProjectDashboardModel, ProjectDashboardActions {
@@ -102,48 +105,25 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
   const openMenuFor = (project: ProjectCardModel, x: number, y: number): void =>
     contextMenu.openMenu(x, y, projectMenuGroups(project, props, props.canDelete, props.canDuplicate));
 
-  const renderCard = (project: ProjectCardModel, index: number, size: 'hero' | 'compact') => (
-    <ProjectCardTile
-      key={project.id}
-      project={project}
-      index={index}
-      size={size}
-      shouldStagger={shouldStagger}
-      renamingId={props.renamingId}
-      renameDraft={props.renameDraft}
-      onOpen={(id) => props.openProject(id, 'card')}
-      onMenu={openMenuFor}
-      onRenameChange={props.setRenameDraft}
-      onRenameCommit={props.commitRename}
-      onRenameCancel={props.cancelRename}
-    />
+  const renderProjectGrid = (): ReactElement => (
+    <div role="list" aria-label="Danh sách dự án" className={GRID_COLUMNS_CLASS}>
+      {rows.map((project, index) => (
+        <ProjectCardTile
+          key={project.id}
+          project={project}
+          index={index}
+          shouldStagger={shouldStagger}
+          renamingId={props.renamingId}
+          renameDraft={props.renameDraft}
+          onOpen={(id) => props.openProject(id, 'card')}
+          onMenu={openMenuFor}
+          onRenameChange={props.setRenameDraft}
+          onRenameCommit={props.commitRename}
+          onRenameCancel={props.cancelRename}
+        />
+      ))}
+    </div>
   );
-
-  const renderProjectGrid = (): ReactElement | null => {
-    const heroProject = rows[0];
-    if (heroProject === undefined) return null;
-    const restProjects = rows.slice(1);
-    const sideProjects = restProjects.slice(0, 2);
-    const overflowProjects = restProjects.slice(2);
-
-    return (
-      <div role="list" aria-label="Danh sách dự án" className="flex flex-col gap-5">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
-          {renderCard(heroProject, 0, 'hero')}
-          {sideProjects.length > 0 && (
-            <div className="flex flex-col gap-5 lg:w-[340px] lg:shrink-0">
-              {sideProjects.map((project, index) => renderCard(project, index + 1, 'compact'))}
-            </div>
-          )}
-        </div>
-        {overflowProjects.length > 0 && (
-          <div className={GRID_COLUMNS_CLASS}>
-            {overflowProjects.map((project, index) => renderCard(project, index + 3, 'compact'))}
-          </div>
-        )}
-      </div>
-    );
-  };
 
   return (
     <div className="flex min-h-screen flex-col bg-bg-app">
