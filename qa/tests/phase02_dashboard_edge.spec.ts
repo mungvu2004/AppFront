@@ -3026,15 +3026,16 @@ test.describe('E02 QA-02 shared components (FE 271538cb) — SCR-05 / SCR-06 / S
           viewport: COMPACT,
           dialog: await dialog.boundingBox(),
           page: await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth })),
-          // PD:301 the sentence has no break-words: with no space in the name the line may still overflow its own box.
-          bodyLine: await dialog.getByText(deleteBody(project.name), { exact: true }).evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth })),
+          // Modal.tsx:191-192 Modal.Body `break-words` (FIX-1070, BUG-195), inherited by the sentence (PD:281-283).
+          bodyLine: await dialog.getByText(deleteBody(project.name), { exact: true }).evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth, overflowWrap: getComputedStyle(el).overflowWrap })),
         };
         await captureEvidence(page, 'E02_dash_delete_375_long.png', { caption: `dialog ${String(Math.round(layout.dialog?.width ?? 0))} px wide (frame ${String(frame)}); sentence scroll ${String(layout.bodyLine.scroll)} / client ${String(layout.bodyLine.client)}` });
         await attachJson('E02_dash_delete_375_long.json', layout);
         const box = layout.dialog;
         expect(box !== null && box.x >= 15 && box.x + box.width <= COMPACT.width - 15, 'dialog inside the 16 px gutters').toBe(true);
         expect(layout.page.scroll, 'no page-level sideways scroll').toBeLessThanOrEqual(layout.page.client);
-        // Finding candidate (UI/Low) when this fails: the unbroken name overflows the sentence box inside the dialog.
+        expect(layout.bodyLine.overflowWrap, 'Modal.Body break-words reaches the sentence (FIX-1070)').toBe('break-word');
+        // BUG-195 fixed (FIX-1070): the unbroken name used to overflow the sentence box inside the dialog.
         await shootOnSoftFail(page, 'E02_dash_delete_375_long_softfail.png', `delete sentence scroll ${String(layout.bodyLine.scroll)} > client ${String(layout.bodyLine.client)} inside the open dialog`, () => {
           expect.soft(layout.bodyLine.scroll, 'the delete sentence wraps the long name inside the dialog').toBeLessThanOrEqual(layout.bodyLine.client + 1);
         });
