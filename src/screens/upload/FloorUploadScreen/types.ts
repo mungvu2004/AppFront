@@ -290,6 +290,10 @@ export interface FloorUploadModel {
   readonly isDragActive: boolean;
   /** Lỗi đọc danh sách tầng. `null` ở mọi trạng thái khác `'error'`. */
   readonly errorMessage: string | null;
+  /** Lỗi đọc là 404 của dự án: tiêu đề "không tìm thấy dự án" và lối về danh sách (BUG-311). */
+  readonly isProjectMissing: boolean;
+  /** Lỗi đọc thử lại được (mạng, 5xx): dải lỗi có nút "Thử lại". */
+  readonly canRetryLoad: boolean;
   /** Câu "đang làm việc ngoại tuyến". `null` khi có mạng. */
   readonly offlineNotice: string | null;
   readonly offlineNoticeKey: string;
@@ -332,6 +336,8 @@ export interface FloorUploadActions {
   /** Xoá ngay, có toast hoàn tác (A8, D-05). Không hộp thoại xác nhận. */
   readonly onRemoveFile: (fileId: string) => void;
   readonly onSubmit: () => void;
+  /** Đọc lại danh sách tầng sau một lượt đọc hỏng. */
+  readonly onRetryLoad: () => void;
   /** Dự án chưa có tầng: tới màn Quản lý tầng (BUG-298). Vắng khi không sửa được hoặc không có router. */
   readonly onAddFloors?: (() => void) | undefined;
   /** Cấp "Dự án" của breadcrumb: về danh sách dự án. Vắng thì cấp ấy là chữ trơn. */

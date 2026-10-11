@@ -19,6 +19,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMockApiClient } from '@/api/__mocks__/client';
 import type { ApiResult, Progress } from '@/api/client';
 import { ApiErrorBodySchema } from '@/api/schemas/errors';
+import { PROJECT_NOT_FOUND_DESCRIPTION } from '@/components/feedback/ProjectSpatialGate';
 import { ProgressSchema } from '@/api/schemas';
 import type {
   NetworkMonitor,
@@ -369,6 +370,58 @@ describe('useFloorUploadScreen — danh sách tầng', () => {
 
     expect(result.current.errorMessage).not.toBeNull();
     expect(result.current.isCollapsed).toBe(true);
+  });
+
+  it('dự án không tồn tại: "không tìm thấy dự án", không thả tệp, không "Thử lại" vô ích (BUG-311)', async () => {
+    const harness = createHarness({
+      readFloors: async () => ({
+        ok: false,
+        error: { kind: 'http', status: 404, code: 'NOT_FOUND', requestId: 'r-404', retryable: false, raw: {} },
+      }),
+    });
+    const { result } = renderScreen(harness.options);
+
+    await waitFor(() => {
+      expect(result.current.state).toBe('error');
+    });
+
+    expect(result.current.isProjectMissing).toBe(true);
+    expect(result.current.errorMessage).toBe(PROJECT_NOT_FOUND_DESCRIPTION);
+    expect(result.current.canRetryLoad).toBe(false);
+    expect(result.current.dropZone.isEnabled).toBe(false);
+
+    act(() => {
+      result.current.onBackToProjects?.();
+    });
+
+    expect(harness.navigations).toEqual([ROUTES.dashboard]);
+  });
+
+  it('lỗi mạng khi đọc tầng: "Thử lại" đọc lại danh sách (BUG-311)', async () => {
+    let calls = 0;
+    const harness = createHarness();
+    const readFloors: FloorUploadGateway['readFloors'] = async (input) => {
+      calls += 1;
+      return calls === 1
+        ? { ok: false, error: { kind: 'network', requestId: 'r-1', retryable: true, raw: null } }
+        : harness.gateway.readFloors(input);
+    };
+    const { result } = renderScreen({ ...harness.options, gateway: { ...harness.gateway, readFloors } });
+
+    await waitFor(() => {
+      expect(result.current.state).toBe('error');
+    });
+
+    expect(result.current.isProjectMissing).toBe(false);
+    expect(result.current.canRetryLoad).toBe(true);
+
+    act(() => {
+      result.current.onRetryLoad();
+    });
+
+    await waitFor(() => {
+      expect(result.current.floors).toHaveLength(4);
+    });
   });
 });
 

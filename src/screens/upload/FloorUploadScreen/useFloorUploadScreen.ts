@@ -51,6 +51,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { Floor } from '@/api/client';
+import { PROJECT_NOT_FOUND_DESCRIPTION } from '@/components/feedback/ProjectSpatialGate';
 import type { SelectOption } from '@/components/ui/Select';
 import { alignFloors, ceilingElevationMm } from '@/domain/axes/alignFloors';
 import type { FloorPlan } from '@/domain/axes/alignFloors';
@@ -390,8 +391,10 @@ export function useFloorUploadScreen(
     queryFn: async (): Promise<readonly Floor[]> => {
       const result = await gateway.readFloors({ projectId });
 
+      // Ném nguyên lỗi dây: 404 còn mang `kind` để màn nói "không tìm thấy dự án", và luật
+      // thử lại của bộ đệm không thử lại một 404 (BUG-311).
       if (!result.ok) {
-        throw new Error(gateway.describeApiFailure(result.error).sentence);
+        throw result.error;
       }
 
       return result.data;
@@ -406,7 +409,7 @@ export function useFloorUploadScreen(
   // Chưa có tầng thì không có chỗ gán tệp, và tệp chỉ sống trong màn — đi thêm tầng là mất nó:
   // vùng thả không mời thả, nút chính nói lý do, trạng thái rỗng dẫn tới Quản lý tầng (BUG-298).
   const hasNoFloors = floorsQuery.isSuccess && floors.length === 0;
-  const canDrop = canEdit && !hasNoFloors;
+  const canDrop = canEdit && !hasNoFloors && !floorsQuery.isError;
 
   /* ---------------------------------------------------------------------- */
   /* Mạng — không hook nào bọc `createNetworkMonitor`, nên nối tay ở đây.     */
@@ -1164,11 +1167,15 @@ export function useFloorUploadScreen(
   /* Bảy trạng thái (A11, R-63).                                             */
   /* ---------------------------------------------------------------------- */
 
-  const loadFailure = floorsQuery.isError
-    ? floorsQuery.error instanceof Error
-      ? floorsQuery.error.message
-      : LOAD_FAILURE_FALLBACK
-    : null;
+  // Danh sách tầng trả 404 = dự án không có: cùng chữ và lối ra với Quản lý tầng (BUG-311).
+  const loadFailureInfo = floorsQuery.isError ? gateway.describeApiFailure(floorsQuery.error) : null;
+  const isProjectMissing = loadFailureInfo?.kind === 'notFound';
+  const loadFailure =
+    loadFailureInfo === null
+      ? null
+      : isProjectMissing
+        ? PROJECT_NOT_FOUND_DESCRIPTION
+        : loadFailureInfo.sentence || LOAD_FAILURE_FALLBACK;
 
   const hasAnyFile = doneCount > 0 || attachments.length > 0;
   const hasUploading = rows.some((row) => row.status === 'uploading');
@@ -1206,6 +1213,8 @@ export function useFloorUploadScreen(
     isOffline: !isOnline,
     isDragActive: canDrop && dragDepth > 0,
     errorMessage: state === 'error' ? loadFailure : null,
+    isProjectMissing,
+    canRetryLoad: !isProjectMissing && (loadFailureInfo?.isRetryable ?? false),
     // Có tệp đang chờ mạng thì nói rõ nó sẽ tự tải, và giới hạn của lời hứa ấy (NO-389).
     offlineNotice: isOnline ? null : isAwaitingNetwork ? AWAIT_NETWORK_SENTENCE : COPY.offline,
     offlineNoticeKey: isAwaitingNetwork ? AWAIT_NETWORK_KEY : COPY.offlineKey,
@@ -1259,6 +1268,9 @@ export function useFloorUploadScreen(
     },
     onRemoveFile: removeFile,
     onSubmit: submit,
+    onRetryLoad: () => {
+      void floorsQuery.refetch();
+    },
     onAddFloors:
       canEdit && options.onNavigate !== undefined
         ? () => options.onNavigate?.(ROUTES.project.floors(projectId))
