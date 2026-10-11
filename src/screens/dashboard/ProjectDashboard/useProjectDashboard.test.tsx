@@ -155,6 +155,16 @@ describe('useProjectDashboard states', () => {
     await waitFor(() => expect(dash().model.state).toBe('error'));
   });
 
+  it('says which projects have a traced plan to draw: walls detected, not floors promised (BUG-119)', async () => {
+    mount({ gateway: fakeServer([project(), project({ id: 'prj-2', name: 'Chưa dò', floorCount: 4, wallsTotalCount: 0, wallsReviewedCount: 0 })]).gateway });
+
+    await waitFor(() => expect(dash().model.rows).toHaveLength(2));
+    expect(dash().model.rows.map((row) => [row.name, row.hasPlan])).toEqual([
+      [NAME_HQ, true],
+      ['Chưa dò', false],
+    ]);
+  });
+
   it('narrow: a successful read is collapsed', async () => {
     mount({ gateway: fakeServer([project()]).gateway, forceNarrow: true });
 

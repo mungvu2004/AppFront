@@ -68,6 +68,7 @@ const SAMPLE_ROW: ProjectCardModel = {
   progressPercentLabel: '63%',
   members: [{ id: 'm-an', initials: 'PA' }],
   planVariant: 0,
+  hasPlan: true,
 };
 
 /** Every prop the view takes, at rest — written out so a scenario describes exactly what it changes. */
@@ -239,6 +240,15 @@ describe('ProjectDashboardView, seven states', () => {
     fireEvent.keyDown(card, { key: 'Enter' });
 
     expect(openProject).toHaveBeenCalledWith(SAMPLE_ROW.id, 'card');
+  });
+
+  // BUG-119: a project with no traced plan drew a made-up floor plan with rooms.
+  it('shows a placeholder instead of a plan outline until the project has a traced plan', () => {
+    render(<ProjectDashboardView {...PROPS_BY_STATE.success()} rows={[{ ...SAMPLE_ROW, hasPlan: false }]} />);
+
+    const card = screen.getByRole('listitem', { name: SAMPLE_ROW.name });
+    expect(within(card).getByText('Chưa có mặt bằng')).toBeInTheDocument();
+    expect(within(card).queryByRole('img', { name: 'Sơ đồ mặt bằng' })).not.toBeInTheDocument();
   });
 
   // BUG-116/148: the menu opened where the pointer was (over its own button) or, from the keyboard, at 0,0.

@@ -122,6 +122,8 @@ export interface ProjectCardModel {
   readonly progressPercentLabel: string;
   readonly members: readonly DashboardProjectMember[];
   readonly planVariant: 0 | 1 | 2 | 3;
+  /** Whether a plan was traced yet (walls detected); without one the card shows a placeholder, not a made-up plan. */
+  readonly hasPlan: boolean;
 }
 
 export interface ProjectStatusCounts {
@@ -331,6 +333,7 @@ export function useProjectDashboard(
           progressPercentLabel: formatPercent(progressRatio, { fractionDigits: 0 }),
           members: project.members,
           planVariant: project.planVariant,
+          hasPlan: project.wallsTotalCount > 0,
         };
       }),
     [sortedProjects, now],

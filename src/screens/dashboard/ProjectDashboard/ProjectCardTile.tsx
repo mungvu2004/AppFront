@@ -4,12 +4,13 @@
  * `ProjectDashboard.tsx` once that file crossed R-22's 400-line cap (mục D);
  * nothing here is a new abstraction beyond the card the view already drew.
  *
- * The image area is the plan-outline sketch, not a photo: sized generously
- * for the hero, it's a real trace of the project's own drawing rather than a
- * stock render — this project has no picture of the building to show yet.
+ * The image area is a plan-outline sketch, not a photo: one of four fixed
+ * outlines picked from the id (`planVariantOf`), drawn only once the project
+ * has a traced plan (`hasPlan`); before that the card says so instead of
+ * showing rooms that do not exist (BUG-119).
  */
 
-import { ArrowUpRight, Building2, Clock, MoreHorizontal } from 'lucide-react';
+import { ArrowUpRight, Building2, Clock, FileImage, MoreHorizontal } from 'lucide-react';
 
 import { CONTEXT_MENU_WIDTH } from '@/components/canvas/ContextMenu';
 import { motion } from '@/components/motion';
@@ -23,6 +24,8 @@ import { PLAN_OUTLINE_SEGMENTS } from './projectsGateway';
 import type { ProjectCardModel } from './useProjectDashboard';
 
 export type ProjectCardSize = 'hero' | 'compact';
+
+const NO_PLAN_LABEL = 'Chưa có mặt bằng';
 
 function PlanPreview({ variant }: { readonly variant: 0 | 1 | 2 | 3 }) {
   return (
@@ -91,7 +94,17 @@ export function ProjectCardTile({
       )}
     >
       <div className={cn('relative shrink-0 border-b border-border-default bg-bg-sunken', size === 'hero' ? 'h-[360px]' : 'h-[132px]')}>
-        <PlanPreview variant={project.planVariant} />
+        {/* Below the badge/menu row, so no stroke runs through the status label (BUG-119). */}
+        <div className="absolute inset-x-4 bottom-3 top-14">
+          {project.hasPlan ? (
+            <PlanPreview variant={project.planVariant} />
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-1.5 text-[12px] text-text-muted">
+              <FileImage size={20} aria-hidden="true" />
+              {NO_PLAN_LABEL}
+            </div>
+          )}
+        </div>
         <span className="absolute left-3 top-3">
           <Badge variant={project.statusVariant}>{project.statusLabel}</Badge>
         </span>
