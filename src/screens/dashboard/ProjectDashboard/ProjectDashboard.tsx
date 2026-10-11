@@ -284,14 +284,17 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
                 {props.viewMode === 'grid' ? (
                   renderProjectGrid()
                 ) : (
+                  // The name column takes what the others leave and truncates (`w-full max-w-0`): an 80-char
+                  // name pushed "Cập nhật" past the 1440 px window (BUG-149). Below `sm` the two secondary
+                  // columns go and progress is a percentage, so status and progress stay on screen (BUG-153).
                   <Table.Root>
                     <Table.Header>
                       <tr>
                         <Table.Head>Tên dự án</Table.Head>
                         <Table.Head>Trạng thái</Table.Head>
-                        <Table.Head>Chi tiết</Table.Head>
+                        <Table.Head className="hidden sm:table-cell">Chi tiết</Table.Head>
                         <Table.Head>Tiến độ duyệt</Table.Head>
-                        <Table.Head>Cập nhật</Table.Head>
+                        <Table.Head className="hidden sm:table-cell">Cập nhật</Table.Head>
                       </tr>
                     </Table.Header>
                     <Table.Body>
@@ -309,13 +312,18 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
                             openMenuFor(project, event.clientX, event.clientY);
                           }}
                         >
-                          <Table.Cell className="font-medium">{nameField(project, 'text-[14px] font-medium text-text-primary')}</Table.Cell>
+                          <Table.Cell className="w-full max-w-0 font-medium">
+                            {nameField(project, 'w-full text-[14px] font-medium text-text-primary')}
+                          </Table.Cell>
                           <Table.Cell>
                             <Badge variant={project.statusVariant}>{project.statusLabel}</Badge>
                           </Table.Cell>
-                          <Table.Cell className="text-text-secondary">{project.statsLabel}</Table.Cell>
-                          <Table.Cell className="text-text-secondary">{project.progressLabel}</Table.Cell>
-                          <Table.Cell className="text-text-muted">{project.updatedLabel}</Table.Cell>
+                          <Table.Cell className="hidden text-text-secondary sm:table-cell">{project.statsLabel}</Table.Cell>
+                          <Table.Cell className="text-text-secondary">
+                            <span className="sm:hidden">{project.progressPercentLabel}</span>
+                            <span className="hidden sm:inline">{project.progressLabel}</span>
+                          </Table.Cell>
+                          <Table.Cell className="hidden text-text-muted sm:table-cell">{project.updatedLabel}</Table.Cell>
                         </Table.Row>
                       ))}
                     </Table.Body>
