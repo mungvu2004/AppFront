@@ -719,7 +719,7 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
     });
   });
 
-  test('U02 · SCR-05 wizard step 2 validation: shared height "10,01" → "Giá trị không quá 10 m."; rows stay neutral until a floor is edited, then "Chưa nhập chiều cao thông thuỷ."', async ({ browser }) => {
+  test('U02 · SCR-05 wizard step 2 validation: shared height "10,01" → "Giá trị không quá 10 m."; rows stay neutral until a height is entered, then "Chưa nhập chiều cao thông thuỷ."', async ({ browser }) => {
     await verifyAsAdmin(browser, 'U02_wizard_height_refused', async (p) => {
       const dialog = await openWizard(p);
       await toStep2(dialog, `${TEST_DATA_PREFIX}u02-cao`);
@@ -730,8 +730,17 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
       await expect(field).toHaveValue('10,01'); // BUG-160: the refused value stays beside its message (useNumericField.ts displayValue)
       // BUG-120: step 2 opens neutral, and the shared field is not an edit of the stack (floorsTouched stays false).
       await expect(dialog.getByRole('table').getByRole('alert')).toHaveCount(0);
-      await dialog.getByRole('textbox', { name: /^Tên tầng /u }).first().fill('Tầng trệt A'); // first edit of a floor
-      await expect(dialog.getByRole('alert').filter({ hasText: HEIGHT_MISSING }).first()).toBeVisible();
+      // FIX-1011: a rename no longer arms the row errors — only a typed or applied height does
+      // (useCreateProjectModal.ts:696-698 floorsTouched, :718-724 touchFloors).
+      const nameBox = dialog.getByRole('textbox', { name: /^Tên tầng /u }).first();
+      await nameBox.fill('Tầng trệt A');
+      await expect(dialog.getByRole('table').getByRole('alert')).toHaveCount(0);
+      await nameBox.fill(DEFAULT_FLOORS[0]);
+      const groundHeight = dialog.getByRole('textbox', { name: `Chiều cao thông thuỷ tầng ${DEFAULT_FLOORS[0]}`, exact: true }); // StepFloors.tsx:131
+      await groundHeight.fill('3');
+      await expect(groundHeight).toHaveValue('3');
+      await groundHeight.press('Tab');
+      await expect(dialog.getByRole('alert').filter({ hasText: HEIGHT_MISSING }).first()).toBeVisible(); // "Tầng 1" upward
       await expect(dialog.getByRole('button', { name: APPLY_HEIGHT, exact: true })).toBeDisabled(); // useCreateProjectModal.ts:491
       await settled(dialog);
     });

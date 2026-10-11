@@ -762,7 +762,7 @@ test.describe('E02 SCR-05 wizard edge — step 2 floors', () => {
   });
 
   test('[BUG-120] E02 · wizard step 2 opens neutral: no row is flagged before any height is typed', async ({ browser }) => {
-    // EXPECTED TO FAIL while BUG-120 is open: UCPM:239-243 flags "Tầng trệt" and UCPM:234-236 every row above at once.
+    // BUG-120 fixed (FIX-1011): rows complain only once a height is typed or applied (UCPM:696-698 floorsTouched).
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const dialog = await openWizard(page);
@@ -1379,6 +1379,8 @@ test.describe('E02 SCR-05 wizard edge — create', () => {
 
 const KEEP_EDITING = 'Tiếp tục sửa'; // CPM:202-204 (vi.json project.createModal.discard.keepEditing, changed in 271538cb)
 const FLOORS_HINT = 'Nhập chiều cao thông thuỷ cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.'; // UCPM:474
+/** UCPM:477: every height in, something else still blocks step 2 (BUG-120, FIX-1011). */
+const FLOORS_FIX_HINT = 'Sửa các tầng đang báo lỗi để sang bước xem lại.';
 const FLOOR_CAP_NOTE = `Đã đủ ${String(FLOOR_COUNT_MAX)} tầng, mức tối đa (kể cả tầng hầm).`; // UCPM:469 (formatNumber(50) = "50")
 const BASEMENT_DESCRIPTION = 'Tầng hầm luôn nằm dưới tầng trệt; cao độ của nó là số âm.'; // SF:49
 const STEPPER_BUTTON = /^(Tăng|Giảm) giá trị$/u; // the hover stepper NFC drew before 271538cb (removed, NFC:27-29)
@@ -1400,13 +1402,13 @@ async function dangerPaint(button: Locator): Promise<{ bg: string; fg: string; w
 }
 
 test.describe('E02 SCR-05 wizard edge — QA-02 shared components (FE 271538cb)', () => {
-  test('E02 · wizard step 2 hint: a fresh stack says how to go on and "Tiếp tục" is described by it; the first floor edit replaces it with the row errors; the floor table has four column headers', async ({ browser }) => {
+  test('E02 · wizard step 2 hint: "Tiếp tục" is described by the hint for as long as it is locked — the height hint while a height is missing, the fix hint once every height is in; the floor table has four column headers', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const dialog = await openWizard(page);
       await toStep2(dialog, 'Dự án gợi ý bước hai');
       const hint = dialog.getByText(FLOORS_HINT, { exact: true });
-      // UCPM:699 floorsHint = !floorsTouched && rows > 0 && !canGoNextStep2; SF:52-56 draws it; CPM:314 describes "Tiếp tục".
+      // UCPM:702-707 floorsHint while rows > 0 && !canGoNextStep2; SF:56-60 draws it; CPM:350 describes "Tiếp tục".
       await expect(hint).toBeVisible();
       await expect(nextButton(dialog)).toBeDisabled();
       await expect(nextButton(dialog)).toHaveAccessibleDescription(FLOORS_HINT);
@@ -1418,14 +1420,29 @@ test.describe('E02 SCR-05 wizard edge — QA-02 shared components (FE 271538cb)'
       expect(scopes).toEqual(['col', 'col', 'col', 'col']);
       await captureEvidence(page, 'E02_wiz_floors_hint.png', { caption: 'fresh step 2: hint shown, "Tiếp tục" disabled and described by it' });
 
-      // UCPM:709-712, :764-769 setFloorHeight → touchFloors → floorsTouched: the hint goes, the rows speak.
+      // UCPM:718-724 setFloorHeight → touchFloors → floorsTouched: the rows speak, and the locked "Tiếp tục" keeps its hint (BUG-120).
       await typeHeight(heightBox(dialog, 'Tầng trệt'), '3');
-      await expect(hint).toHaveCount(0);
-      expect(await nextButton(dialog).getAttribute('aria-describedby'), 'CPM:314 no description without the hint').toBeNull();
       await expect(floorRow(dialog, page, 'Tầng 1').getByRole('alert')).toHaveText(HEIGHT_MISSING);
+      await expect(hint).toBeVisible();
       await expect(nextButton(dialog)).toBeDisabled();
-      await captureEvidence(page, 'E02_wiz_floors_hint_gone.png', { caption: '"Tầng trệt" = 3 → hint gone, "Tầng 1" says its height is missing' });
-      await attachJson('E02_wiz_floors_hint.json', { scopes, hintAfterEdit: await hint.count() });
+      await expect(nextButton(dialog)).toHaveAccessibleDescription(FLOORS_HINT);
+      await captureEvidence(page, 'E02_wiz_floors_hint_kept.png', { caption: '"Tầng trệt" = 3 → "Tầng 1" says its height is missing; the hint still describes "Tiếp tục"' });
+      const hintAfterEdit = await hint.count();
+
+      // Every height in → step 2 can go on: no hint, no description (CPM:350).
+      await applyHeight(dialog, '3');
+      await expect(nextButton(dialog)).toBeEnabled();
+      await expect(hint).toHaveCount(0);
+      expect(await nextButton(dialog).getAttribute('aria-describedby'), 'CPM:350 no description without the hint').toBeNull();
+
+      // Heights all in, a blank floor name blocks again (BUG-185) → the second hint (UCPM:477, :707).
+      await floorNameBox(dialog, 'Tầng 3').fill('');
+      const fixHint = dialog.getByText(FLOORS_FIX_HINT, { exact: true });
+      await expect(fixHint).toBeVisible();
+      await expect(nextButton(dialog)).toBeDisabled();
+      await expect(nextButton(dialog)).toHaveAccessibleDescription(FLOORS_FIX_HINT);
+      await captureEvidence(page, 'E02_wiz_floors_fix_hint.png', { caption: 'every height in, "Tầng 3" name blank → "Tiếp tục" described by the fix hint' });
+      await attachJson('E02_wiz_floors_hint.json', { scopes, hintAfterEdit });
       await discardWizard(dialog);
     });
   });
