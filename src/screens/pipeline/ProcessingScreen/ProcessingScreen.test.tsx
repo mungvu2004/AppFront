@@ -40,7 +40,7 @@ import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { NotificationHost } from '@/components/feedback/NotificationHost';
-import { createMockApiClient } from '@/api/__mocks__/client';
+import { createMockApiClient, MOCK_MISSING_PROJECT_ID } from '@/api/__mocks__/client';
 import type { Progress } from '@/api/schemas';
 import viMessages from '@/i18n/vi.json';
 import { toAppError } from '@/lib/errors';
@@ -487,6 +487,33 @@ describe('ProcessingScreenContainer — R-73', () => {
 
     expect(await screen.findByRole('button', { name: /thử lại/iu })).toBeInTheDocument();
     expect(screen.queryByText('Chưa có bước nào để theo dõi')).toBeNull();
+  });
+});
+
+describe('ProcessingScreenContainer — dự án không tồn tại (BUG-312)', () => {
+  it('one "Không tìm thấy dự án này" with the way back; no "Thử lại", no raw code, no empty panels', async () => {
+    const onNavigate = vi.fn();
+    // The real N7 answers 404 `project` for an unknown project, as #24 does.
+    const missing = await createMockApiClient().projects.read({ projectId: MOCK_MISSING_PROJECT_ID });
+    if (missing.ok) throw new Error('the mock should not know this project');
+    renderWithProviders(
+      <ProcessingScreenContainer
+        gateway={{
+          ...gatewayWithCancel(() => undefined),
+          readLatestUploads: () => Promise.resolve({ ok: false, error: missing.error }),
+        }}
+        onNavigate={onNavigate}
+        projectId={MOCK_MISSING_PROJECT_ID}
+        roles={['engineer']}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Về danh sách dự án' }));
+    expect(onNavigate).toHaveBeenCalledWith('/');
+    expect(screen.getByText('Không tìm thấy dự án này')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /thử lại/iu })).toBeNull();
+    expect(screen.queryByText('NOT_FOUND')).toBeNull();
+    expect(screen.queryByRole('tablist')).toBeNull();
   });
 });
 

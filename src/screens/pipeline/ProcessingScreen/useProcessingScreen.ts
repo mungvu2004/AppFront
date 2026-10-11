@@ -84,7 +84,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { Progress } from '@/api/schemas';
+import {
+  PROJECT_NOT_FOUND_DESCRIPTION,
+  PROJECT_NOT_FOUND_TITLE,
+} from '@/components/feedback/ProjectSpatialGate';
 import { useNotifications } from '@/hooks/useNotifications';
+import { isProjectNotFound } from '@/hooks/useProjectSpatial';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { can } from '@/lib/auth/permissions';
 import { formatClockTime, formatDuration } from '@/lib/format/datetime';
@@ -560,7 +565,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   // Mở thẳng đường dẫn: bộ đệm chưa có #24 hay thẻ N1 nào nêu tên, nên đọc #24 một lần
   // dưới chính khoá của nó — breadcrumb nêu tên dự án ở mọi lối vào (BUG-165).
   const projectName = cachedProjectName(queryClient, projectId);
-  useQuery({
+  const projectQuery = useQuery({
     queryKey: queryKeys.project.detail(projectId),
     queryFn: async ({ signal }) => {
       const result = await gateway.readProject({ projectId, signal });
@@ -569,6 +574,8 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     },
     enabled: projectName === null,
   });
+  // Đọc `data` ở đây để lượt #24 về vẫn vẽ lại màn: v5 chỉ báo thay đổi của trường đã đọc.
+  const knownProjectName = projectName ?? projectQuery.data?.name ?? null;
   const { publish } = useNotifications(options.notifications);
 
   // Đăng ký đang mở, khoá theo `uploadId`. `onRunInBackground` rút mục ra khỏi
@@ -742,7 +749,12 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     (record) => record.failure?.isTerminal !== true && runStatusOf(record) === 'running',
   );
 
+  // N7 hoặc #24 trả 404 `project`: dự án không có, không phải lỗi đọc tạm (BUG-312).
+  const isProjectMissing =
+    isProjectNotFound(latestUploadsQuery.error) || isProjectNotFound(projectQuery.error);
+
   const state = useMemo<ProcessingScreenState>(() => {
+    if (isProjectMissing) return 'error';
     if (isLoading) return 'loading';
     if (hasEveryReadFailed) return 'error';
     if (!canEdit) return 'forbidden';
@@ -752,7 +764,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     if (isCompact) return 'collapsed';
     if (doneCount < records.length) return 'partial';
     return 'success';
-  }, [canEdit, doneCount, hasEveryReadFailed, isCompact, isLoading, records.length]);
+  }, [canEdit, doneCount, hasEveryReadFailed, isCompact, isLoading, isProjectMissing, records.length]);
 
   /* ---------------------------------------------------------------------- */
   /* Hành động.                                                              */
@@ -1300,6 +1312,20 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
       records.find((record) => record.failure !== undefined)?.failure ??
       gateway.describeApiFailure(firstReadError);
 
+    if (isProjectMissing) {
+      return {
+        title: PROJECT_NOT_FOUND_TITLE,
+        message: PROJECT_NOT_FOUND_DESCRIPTION,
+        technicalCode: failure.technicalCode,
+        onRetry,
+        onGoToSupport,
+        isProjectMissing: true,
+        onBackToProjects: () => {
+          navigate(ROUTES.dashboard);
+        },
+      };
+    }
+
     return {
       title: failure.title,
       message: failure.sentence,
@@ -1307,7 +1333,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
       onRetry,
       onGoToSupport,
     };
-  }, [firstReadError, gateway, onGoToSupport, onRetry, records, state]);
+  }, [firstReadError, gateway, isProjectMissing, navigate, onGoToSupport, onRetry, records, state]);
 
   // Không bọc `useMemo`: `records` là mảng mới mỗi lượt render (cùng lý lẽ
   // `failedIndexes` ở trên), và một vòng `find` lồng `find` trên tối đa vài chục
@@ -1363,6 +1389,6 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     onUploadDrawings,
     isCompact,
     prefersReducedMotion,
-    ...(projectName !== null ? { projectName } : {}),
+    ...(knownProjectName !== null ? { projectName: knownProjectName } : {}),
   };
 }

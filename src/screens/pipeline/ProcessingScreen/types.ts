@@ -182,6 +182,12 @@ export interface ProcessingErrorAlertViewModel {
   readonly technicalCode: string;
   readonly onRetry: () => void;
   readonly onGoToSupport: () => void;
+  /**
+   * Chính dự án trả 404: thử lại không sửa được, mã nội bộ không giúp gì — màn chỉ nói
+   * "không tìm thấy dự án" kèm lối về danh sách (BUG-312).
+   */
+  readonly isProjectMissing?: true;
+  readonly onBackToProjects?: () => void;
 }
 
 /* -------------------------------------------------------------------------- */

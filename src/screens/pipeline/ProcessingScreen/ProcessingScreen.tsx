@@ -43,6 +43,7 @@ import { ScanLine } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { BACK_TO_PROJECTS_LABEL } from '@/components/feedback/ProjectSpatialGate';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { Button } from '@/components/ui/Button';
 import { Tabs } from '@/components/ui/Tabs';
@@ -246,7 +247,15 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
           <p className="text-[13px] text-text-secondary">{props.queueLine}</p>
         ) : null}
 
-        {errorAlert !== undefined ? (
+        {errorAlert?.isProjectMissing === true ? (
+          // Dự án không có: một câu, một lối về danh sách — không "Thử lại", không mã nội bộ (BUG-312).
+          <InlineAlert
+            action={{ label: BACK_TO_PROJECTS_LABEL, onClick: errorAlert.onBackToProjects ?? errorAlert.onRetry }}
+            level="violation"
+            message={errorAlert.message}
+            title={errorAlert.title}
+          />
+        ) : errorAlert !== undefined ? (
           <div className="flex flex-col gap-2">
             <InlineAlert
               action={{ label: RETRY_LABEL, onClick: errorAlert.onRetry }}
@@ -263,18 +272,22 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
           </div>
         ) : null}
 
-        <ProcessingFloorChips floors={props.floors} />
+        {errorAlert?.isProjectMissing === true ? null : (
+          <>
+            <ProcessingFloorChips floors={props.floors} />
 
-        {body}
+            {body}
 
-        {props.summary !== undefined ? <ProcessingSummary summary={props.summary} /> : null}
+            {props.summary !== undefined ? <ProcessingSummary summary={props.summary} /> : null}
 
-        <div className="flex flex-col items-center gap-1 text-center">
-          <p className="text-[14px] text-text-primary">{props.overallSummaryLine}</p>
-          {props.partialNoticeLine !== undefined ? (
-            <p className="text-[13px] text-text-secondary">{props.partialNoticeLine}</p>
-          ) : null}
-        </div>
+            <div className="flex flex-col items-center gap-1 text-center">
+              <p className="text-[14px] text-text-primary">{props.overallSummaryLine}</p>
+              {props.partialNoticeLine !== undefined ? (
+                <p className="text-[13px] text-text-secondary">{props.partialNoticeLine}</p>
+              ) : null}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
