@@ -145,7 +145,12 @@ const TRAY = 'Tệp chưa gán tầng'; // UFU:103, FUT:35
 const ASSIGN = 'Gán cho tầng khác'; // FUT:20, FUC:39
 const SUBMIT = 'Bắt đầu xử lý'; // UFU:112
 const ATTACHED = 'Đã gắn kèm'; // UFU:123
-const WAITING = 'Chờ xử lý'; // UFU:121
+const WAITING = 'Chờ xử lý'; // UFU:121 — a floor holding a file that is not uploaded yet
+/**
+ * Card status of a floor with no drawing at all: the same words as the block notice "… chưa có bản vẽ." and the
+ * FloorManager badge (BUG-263, R-src fix/qa03-ra). Was WAITING before that fix.
+ */
+const NO_DRAWING_STATUS = 'Chưa có bản vẽ';
 const STATUS_ERROR = 'Lỗi'; // UFU:124
 const CAD_PILL = 'Nhánh CAD · độ chính xác cao'; // FUC:41
 const CAD_SENTENCE = 'Bản vẽ CAD (.dwg) chưa được hỗ trợ; hãy xuất sang PDF rồi tải lại.'; // FUG:85
@@ -1098,14 +1103,18 @@ test.describe('E03 SCR-10 floor upload', () => {
     });
   });
 
-  test('E03 · SCR-10 floors without drawings: empty invitation, "0 / 2", "Chờ xử lý"; submit lists every floor', async ({ browser }) => {
+  test('E03 · SCR-10 floors without drawings: empty invitation, "0 / 2", "Chưa có bản vẽ"; submit lists every floor', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const project = await createProject(admin, 'unodraw', 2);
       await openUpload(page, project);
       await expect(page.getByText(UPLOAD_EMPTY, { exact: true })).toBeVisible(); // FU:156-158 (state 'empty')
       await expect(page.getByTestId(COUNTER)).toHaveText('0 / 2 tầng đã có bản vẽ');
-      for (const floor of project.floors) await expect(card(page, floor).getByText(WAITING, { exact: true })).toBeVisible();
+      // BUG-263: the card agrees with the notice below — no drawing, not "Chờ xử lý".
+      for (const floor of project.floors) {
+        await expect(card(page, floor).getByText(NO_DRAWING_STATUS, { exact: true })).toBeVisible();
+        await expect(card(page, floor).getByText(WAITING, { exact: true })).toHaveCount(0);
+      }
 
       await page.getByRole('button', { name: SUBMIT, exact: true }).click();
       const notice = page.getByTestId(BLOCK_NOTICE);
