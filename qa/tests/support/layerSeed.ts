@@ -1,15 +1,15 @@
 /**
- * Own spatial layer for the phase-4 QC screens (BUG-346 / BUG-323). Instead of Phase 3's CP-5 work floor (run-22: CP-5
- * recorded, GET …/spatial/layer 404, so every layer case timed out), `phase04_qc_layers.spec.ts` and
- * `phase04_qc_layers_ui.spec.ts` create a run-unique `qa-<runId>-…` project through the real API, write its layer through
+ * Own spatial layer for the phase-4 QC and phase-5 3D screens (BUG-346 / BUG-323). Instead of Phase 3's CP-5 work floor
+ * (run-22: CP-5 recorded, GET …/spatial/layer 404, so every layer case timed out), `phase04_qc_layers{,_ui}.spec.ts` and
+ * `phase05_3d_viewer{,_ui}.spec.ts` create a run-unique `qa-<runId>-…` project through the real API, write its layer through
  * #35 (`PUT /api/projects/:p/floors/:f/spatial/layer`; a fresh floor takes `baseVersion` = its N16 `revision`, 0 —
  * BE spatial_write/writer.py:311-327, the path `phase04_qc_layers_api.spec.ts` and `_edge.spec.ts` already use) and delete
  * the project when done (soft delete hides its floors). The write body is checked against the FE zod schema the screens
  * send with (`FloorLayerWriteSchema`) and the answer against the one they decode with (`FloorLayerWriteResultSchema`).
  * Only states that need the pipeline itself (drawing, OCR dimensions, the AI version of Phase 6) still read CP-5.
  *
- * Budget per seeded project: `POST /api/projects` 1, `GET /api/projects/:id` 1, N16 GET 1, #35 PUT 1, `DELETE` 1 — no rate
- * limit on any of them (projects/router.py:54, spatial_read/, spatial_write/: no `rate_limit(`).
+ * Budget per seeded project: `POST /api/projects` 1, `GET /api/projects/:id` 1, N16 GET + #35 PUT 1 each per layered
+ * floor, `DELETE` 1 — no rate limit on any of them (projects/router.py:54, spatial_read/, spatial_write/: no `rate_limit(`).
  */
 import { randomUUID } from 'node:crypto';
 
@@ -179,10 +179,16 @@ export function qcLayer(levelId: string): Json {
 }
 
 /**
- * Project `qa-<runId>-<slug>-<uniq>` with `floorNames` (BE #25 `floors` drafts), layer {@link qcLayer} on the FIRST floor;
- * the others stay empty (floor nav targets). Deletes the project again when any setup step fails. Returns every floor.
+ * Project `qa-<runId>-<slug>-<uniq>` with `floorNames` (BE #25 `floors` drafts), layer {@link qcLayer} on the first
+ * `layered` floors (default 1; the phase-5 3D screens seed two, so the exploded view has two storeys with geometry); the
+ * others stay empty (floor nav targets). Deletes the project again when any setup step fails. Returns every floor.
  */
-export async function createQcProject(api: LayerApi, slug: string, floorNames: readonly string[] = ['Tầng 1']): Promise<SeededFloor[]> {
+export async function createQcProject(
+  api: LayerApi,
+  slug: string,
+  floorNames: readonly string[] = ['Tầng 1'],
+  layered = 1,
+): Promise<SeededFloor[]> {
   const name = `${TEST_DATA_PREFIX}${slug}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
   expect(name.length, `fixture name "${name}" fits NAME_MAX 80`).toBeLessThanOrEqual(80);
   const created = await api.request.post(PROJECTS, {
@@ -205,9 +211,8 @@ export async function createQcProject(api: LayerApi, slug: string, floorNames: r
       if (row === undefined || typeof row.id !== 'string') throw new Error(`setup: floor "${floorName}" was not created`);
       return { projectId, floorId: row.id, floorName };
     });
-    const first = floors[0];
-    if (first === undefined) throw new Error('setup: a QC project needs at least one floor');
-    await writeLayer(api, projectId, first.floorId, qcLayer);
+    if (layered < 1 || layered > floors.length) throw new Error(`setup: cannot layer ${String(layered)} of ${String(floors.length)} floors`);
+    for (const floor of floors.slice(0, layered)) await writeLayer(api, projectId, floor.floorId, qcLayer);
     return floors;
   } catch (error) {
     await deleteProject(api, projectId);
