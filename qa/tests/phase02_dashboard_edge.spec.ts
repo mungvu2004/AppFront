@@ -3736,7 +3736,8 @@ test.describe('E02 QA-02 FE changes (d18eb884) — SCR-05 / SCR-06 / SCR-07', ()
           const promptBox = await steadyBox(prompt);
           const bodyBox = await steadyBox(body);
           const after = await tops();
-          const inFooter = await prompt.evaluate((el) => Array.from(el.parentElement?.querySelectorAll('button') ?? []).some((b) => b.textContent?.trim() === 'Huỷ'));
+          // By accessible name: Button's aria-hidden size-box copy doubles textContent ("HuỷHuỷ", same cause as BUG-241).
+          const inFooter = (await prompt.locator('xpath=..').getByRole('button', { name: 'Huỷ', exact: true }).count()) > 0;
           await captureEvidence(page, `E02_wiz_discard_in_footer_${String(viewport.width)}.png`, {
             caption: `${String(viewport.width)} px: prompt ${String(promptBox.y)}–${String(promptBox.y + promptBox.height)}, body ends ${String(bodyBox.y + bodyBox.height)}; fields unmoved`,
           });
