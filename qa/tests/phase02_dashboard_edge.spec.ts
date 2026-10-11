@@ -1546,8 +1546,16 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
         clientWidth: document.documentElement.clientWidth,
       }));
       const lastHead = await tableHeads(page).last().boundingBox();
+      // ProjectTable.tsx:90 (FIX-1075): the name wraps (`whitespace-normal break-words`, up to 2 lines) instead of one cut
+      // line; only the wrap is asserted here, not how much of the name shows.
+      const nameCell = await tableRow(page, name).locator('h3').evaluate((el) => {
+        const cs = getComputedStyle(el);
+        return { whiteSpace: cs.whiteSpace, overflowWrap: cs.overflowWrap, scroll: el.scrollWidth, client: el.clientWidth };
+      });
       await captureEvidence(page, 'E02_table_long_name.png', { caption: `80-char name in table view; page ${String(metrics.scrollWidth)}/${String(metrics.clientWidth)} px wide` });
-      await attachJson('E02_table_long_name.json', { nameLength: name.length, ...metrics, lastHead });
+      await attachJson('E02_table_long_name.json', { nameLength: name.length, ...metrics, lastHead, nameCell });
+      expect(nameCell, 'the name wraps inside its cell').toMatchObject({ whiteSpace: 'normal', overflowWrap: 'break-word' });
+      expect(nameCell.scroll, 'no sideways overflow of the name').toBeLessThanOrEqual(nameCell.client + 1);
       expect(metrics.scrollWidth, 'no page-level horizontal scroll').toBeLessThanOrEqual(metrics.clientWidth);
       // qa-review-ui: a column pushed past the window is a defect even when the table scrolls inside itself (Table.tsx:37).
       expect.soft(lastHead !== null && lastHead.x + lastHead.width <= DESKTOP.width, `"${TABLE_HEADERS[4]}" header inside the 1440 px window`).toBe(true);
