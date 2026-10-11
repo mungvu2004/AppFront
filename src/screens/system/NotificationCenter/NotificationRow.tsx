@@ -103,10 +103,11 @@ export function NotificationRow({
       />
 
       <div className="relative flex min-w-0 flex-1 flex-col gap-1">
+        {/* min-h-6: a one-line sentence was a 20 px tall target, under the 24 px of WCAG 2.5.8 (BUG-236). */}
         <button
           type="button"
           onClick={() => onItemAction(item)}
-          className="rounded text-left text-[15px] leading-[20px] text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
+          className="min-h-6 rounded text-left text-[15px] leading-[20px] text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
         >
           {!item.isRead && <span className="sr-only">{`${UNREAD_SR_HINT}. `}</span>}
           {item.sentence}{' '}

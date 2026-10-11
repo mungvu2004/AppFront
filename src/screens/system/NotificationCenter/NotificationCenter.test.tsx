@@ -1184,6 +1184,8 @@ describe('Hàng thông báo không chừa cột cho nút ẩn (BUG-203)', () => 
     // Hộp gần nhất của nút là hàng giờ — có giờ, không có câu (cột cũ nằm cạnh câu, chung hàng `li`).
     expect(markRead.closest('div')).toHaveTextContent('30 phút trước');
     expect(markRead.closest('div')).not.toHaveTextContent(unread.sentence);
+    // BUG-236: câu một dòng (20 px) vẫn là vùng chạm ≥ 24 px.
+    expect(screen.getByRole('button', { name: new RegExp(unread.sentence) })).toHaveClass('min-h-6');
     // run-16: giờ và nút hành động xuống dòng trong nhóm riêng; nút đánh dấu đứng ngoài nhóm, không rơi một mình xuống dòng.
     const time = screen.getByText('30 phút trước');
     expect(time.parentElement).not.toContainElement(markRead);
