@@ -55,9 +55,9 @@ export function CadBranchConfirmDialog({ model, actions }: CadBranchConfirmDialo
         )}
       </Modal.Body>
 
-      {/* Wraps: at 375 px the three buttons do not fit one 279 px line, and `shrink-0` used to push
-          "Dùng đường từ CAD" past the dialog's edge (BUG-255). */}
-      <Modal.Footer className="flex-wrap items-start justify-between">
+      {/* Modal.Footer wraps, and so does the button group: at 375 px the three buttons do not fit one
+          279 px line, and `shrink-0` used to push "Dùng đường từ CAD" past the dialog's edge (BUG-255). */}
+      <Modal.Footer className="items-start justify-between">
         {model.canRememberChoice && (
           <div className="flex flex-col gap-1">
             <Checkbox

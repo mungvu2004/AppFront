@@ -205,7 +205,7 @@ const ModalFooter = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEleme
     <div
       ref={ref}
       className={cn(
-        'flex items-center justify-end gap-3 px-8 py-6 mt-2 border-t border-border-default',
+        'flex flex-wrap items-center justify-end gap-3 px-8 py-6 mt-2 border-t border-border-default',
         className
       )}
       {...props}
