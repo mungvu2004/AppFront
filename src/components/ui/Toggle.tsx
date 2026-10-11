@@ -66,7 +66,9 @@ export function Toggle(props: ToggleProps) {
 
   const defaultId = React.useId();
   const toggleId = id || defaultId;
-  const descId = [description ? `${toggleId}-desc` : undefined, props['aria-describedby']].filter(Boolean).join(' ') || undefined;
+  const descId = description ? `${toggleId}-desc` : undefined;
+  // The span below carries `descId` alone; the caller's ids follow it on the switch (BUG-196).
+  const describedBy = [descId, props['aria-describedby']].filter(Boolean).join(' ') || undefined;
 
   if (isLoading) {
     return (
@@ -85,7 +87,7 @@ export function Toggle(props: ToggleProps) {
       aria-checked={currentChecked}
       aria-label={!label ? ariaLabel : undefined}
       aria-labelledby={label ? `${toggleId}-label` : undefined}
-      aria-describedby={descId}
+      aria-describedby={describedBy}
       disabled={disabled || isReadOnly}
       onClick={() => {
         if (!disabled && !isReadOnly) toggle();

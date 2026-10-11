@@ -47,6 +47,16 @@ describe('Toggle', () => {
     expect(screen.getByText('Giảm độ chói')).toBeInTheDocument();
   });
 
+  it('keeps its own description first when a caller adds another id (BUG-196)', () => {
+    render(
+      <>
+        <Toggle label="Có tầng hầm" description="Mô tả riêng." aria-describedby="note" disabled />
+        <p id="note">Ghi chú trần.</p>
+      </>,
+    );
+    expect(screen.getByRole('switch')).toHaveAccessibleDescription('Mô tả riêng. Ghi chú trần.');
+  });
+
   it('shows loading skeleton', () => {
     const { container } = render(<Toggle isLoading aria-label="Đang tải" />);
     expect(container.querySelector('.animate-pulse')).toBeInTheDocument();
