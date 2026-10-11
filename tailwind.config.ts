@@ -23,14 +23,26 @@ const PRODUCT_BUNDLE =
 const config: Config = {
   // Tệp test không vẽ gì ra màn: lớp chỉ có trong chúng (vd `bg-[#fafafa]`, hằng
   // khẳng định lớp) không được vào gói CSS. Bản dựng sản phẩm còn bỏ thêm stories và
-  // màn demo chỉ bản dev (`App.tsx`, `buildDevOnlyRoutes`): không cái nào vào gói JS,
-  // nên lớp chỉ có trong chúng cũng không được vào gói CSS (ngân sách 12 KiB, QA-02).
-  // Bản dev, vitest và Storybook (kể cả `storybook build`) vẫn quét đủ.
+  // màn demo chỉ bản dev (`App.tsx`, `buildDevOnlyRoutes`, `buildStateGalleryDevOnlyRoutes` — kể cả
+  // `DesignSystem`, bảng demo `StateGallery.tsx` cũ và `DevStateSwitcher` của nó) cùng bộ khẳng định
+  // `lib/testing`: không cái nào vào gói JS, nên lớp chỉ có trong chúng cũng không được vào gói CSS
+  // (ngân sách 12 KiB, QA-02, QA-02b). Bản dev, vitest và Storybook (kể cả `storybook build`) vẫn quét đủ.
   content: [
     './index.html',
     './src/**/*.{js,ts,jsx,tsx}',
     '!./src/**/*.test.{ts,tsx}',
-    ...(PRODUCT_BUNDLE ? ['!./src/App.tsx', '!./src/screens/*Demo*.tsx', '!./src/**/*.stories.tsx'] : []),
+    ...(PRODUCT_BUNDLE
+      ? [
+          '!./src/App.tsx',
+          '!./src/screens/*Demo*.tsx',
+          '!./src/**/*.stories.tsx',
+          '!./src/screens/DesignSystem.tsx',
+          '!./src/screens/system/StateGallery.tsx',
+          '!./src/screens/system/StateGallery/**',
+          '!./src/components/shell/DevStateSwitcher.tsx',
+          '!./src/lib/testing/**',
+        ]
+      : []),
   ],
   theme: {
     colors: {

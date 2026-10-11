@@ -36,7 +36,7 @@ export interface PascalFrameProps {
    * Không có nó thì `<Viewer>` dựng thẻ dự phòng CỦA RIÊNG NÓ
    * (`viewer/src/components/viewer/unsupported-gpu-fallback.tsx`): chữ tiếng
    * Anh mời người dùng "open the editor", và màu viết cứng
-   * `bg-[#fafafa]` · `text-neutral-900` · `bg-white`. Tức một màn hình vi phạm
+   * (nền hex fafafa, chữ neutral-900, nền trắng). Tức một màn hình vi phạm
    * cả A6 lẫn A1, ở đúng cái trạng thái mà không bài kiểm nào của AppFront
    * chạm tới — bài đơn vị giả lập `mount`, còn máy chạy e2e thì có GPU.
    */

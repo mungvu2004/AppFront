@@ -68,7 +68,7 @@ export const MOBILE_VIEWER_BOTTOM_BAR_PX = 56;
  * Nghĩa là một `<IconButton>` viết không có `size` thì **trượt đặc tả 4px** và
  * không có bài kiểm nào trong `pnpm test` bắt được — `jsdom` trả về 0×0 cho mọi
  * phép đo pixel, nên chỉ bộ đo Playwright của T4 mới thấy. Mọi nút của màn này
- * phải là `size="lg"`, hoặc bọc trong một hộp `min-h-[44px] min-w-[44px]`.
+ * phải là `size="lg"`, hoặc bọc trong một hộp tối thiểu 44×44 px.
  */
 export const MOBILE_VIEWER_MIN_HIT_TARGET_PX = 44;
 
