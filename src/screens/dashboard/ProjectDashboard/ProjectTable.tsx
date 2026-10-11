@@ -13,6 +13,9 @@
  *
  * Below `sm` the name and its rename field share one 32 px box (like the card, FIX-994), so renaming does not
  * grow the stacked row; 32 px rather than the card's 44 keeps every row from growing 24 px (WCAG 2.5.8: >= 24).
+ *
+ * Stacked, the header row is `display: none`, so a screen reader no longer pairs "Cần QC" with "Trạng thái" (and
+ * Safari drops the table roles once `display` changes). Each stacked cell says its column itself, below `sm` only.
  */
 
 import { Badge } from '@/components/ui/Badge';
@@ -34,6 +37,11 @@ export interface ProjectTableProps {
 const NAME_CLASS = 'w-full text-[14px] font-medium text-text-primary';
 const ROW_STACKED = 'max-sm:flex max-sm:h-auto max-sm:flex-wrap max-sm:items-center max-sm:gap-y-1 max-sm:py-2';
 const CELL_STACKED = 'max-sm:h-auto';
+
+/** The column name a stacked cell reads out below `sm`, where the header row is gone; `sm:hidden` above it. */
+function StackedLabel({ children }: { readonly children: string }) {
+  return <span className="sr-only sm:hidden">{`${children}: `}</span>;
+}
 
 export function ProjectTable({ rows, renamingId, renameDraft, onOpen, onMenu, onRenameChange, onRenameCommit, onRenameCancel }: ProjectTableProps) {
   return (
@@ -83,11 +91,18 @@ export function ProjectTable({ rows, renamingId, renameDraft, onOpen, onMenu, on
               )}
             </Table.Cell>
             <Table.Cell className={CELL_STACKED}>
+              <StackedLabel>Trạng thái</StackedLabel>
               <Badge variant={project.statusVariant}>{project.statusLabel}</Badge>
             </Table.Cell>
             <Table.Cell className="hidden text-text-secondary sm:table-cell">{project.statsLabel}</Table.Cell>
-            <Table.Cell className={`text-text-secondary ${CELL_STACKED}`}>{project.progressLabel}</Table.Cell>
-            <Table.Cell className={`text-text-muted max-sm:ml-auto ${CELL_STACKED}`}>{project.updatedLabel}</Table.Cell>
+            <Table.Cell className={`text-text-secondary ${CELL_STACKED}`}>
+              <StackedLabel>Tiến độ duyệt</StackedLabel>
+              {project.progressLabel}
+            </Table.Cell>
+            <Table.Cell className={`text-text-muted max-sm:ml-auto ${CELL_STACKED}`}>
+              <StackedLabel>Cập nhật</StackedLabel>
+              {project.updatedLabel}
+            </Table.Cell>
           </Table.Row>
         ))}
       </Table.Body>

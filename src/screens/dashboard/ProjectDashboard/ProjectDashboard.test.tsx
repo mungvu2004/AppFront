@@ -296,7 +296,14 @@ describe('ProjectDashboardView, seven states', () => {
     const cells = within(screen.getByRole('row', { name: new RegExp(SAMPLE_ROW.name, 'u') })).getAllByRole('cell');
     expect(cells[0]?.textContent).toBe(SAMPLE_ROW.name);
     const shownBelowSm = cells.filter((cell) => !cell.className.split(' ').includes('hidden')).map((cell) => cell.textContent);
-    expect(shownBelowSm).toEqual([SAMPLE_ROW.name, SAMPLE_ROW.statusLabel, SAMPLE_ROW.progressLabel, SAMPLE_ROW.updatedLabel]);
+    // review-1 #19: the header row is hidden below `sm`, so each stacked cell names its column (sr-only, `sm:hidden`).
+    expect(shownBelowSm).toEqual([
+      SAMPLE_ROW.name,
+      `Trạng thái: ${SAMPLE_ROW.statusLabel}`,
+      `Tiến độ duyệt: ${SAMPLE_ROW.progressLabel}`,
+      `Cập nhật: ${SAMPLE_ROW.updatedLabel}`,
+    ]);
+    expect(within(cells[1] as HTMLElement).getByText('Trạng thái:', { exact: false })).toHaveClass('sr-only', 'sm:hidden');
     expect(cells[0]?.closest('tr')?.className).toContain('max-sm:flex-wrap');
   });
 
