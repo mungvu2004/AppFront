@@ -1412,8 +1412,8 @@ test.describe('E03 SCR-10 floor upload', () => {
         // UPR:781-783 joins "<time> <text>" per log line: an empty log copies "", a non-empty one copies its lines.
         if (emptyLog) expect(copied).toBe('');
         else expect(copied.trim().length, 'clipboard holds the log').toBeGreaterThan(0);
-        // BUG-361: the screen gives no visible copy feedback (UPR onCopyLog → gateway.copyText only), so the shot carries what
-        // the clipboard holds; without it the image equals E03_pipeline_done_summary.
+        // BUG-361: the copy now toasts "Đã chép nhật ký" (useProcessingScreen.ts:153,817-820); the shot also carries what the clipboard holds.
+        await expect(page.getByText('Đã chép nhật ký', { exact: true })).toBeVisible();
         const copiedLines = copied === '' ? [] : copied.split('\n');
         await captureEvidence(page, 'E03_pipeline_submit_log_copy.png', {
           caption: [
