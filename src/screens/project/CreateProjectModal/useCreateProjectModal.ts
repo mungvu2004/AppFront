@@ -102,6 +102,8 @@ export interface CreateProjectFloorRowModel {
   readonly elevationLabel: string | null;
   /** This row's own complaint — missing height, out of range, or a collision naming it. */
   readonly problem: string | null;
+  /** A blank floor name — the server refuses one (`FloorDraftName` min 1 after trim, BUG-185). */
+  readonly nameProblem: string | null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -528,7 +530,9 @@ export function useCreateProjectModal(
   const canCreate = can('create', 'project', { roles: [role] });
 
   const floorStack = useMemo(() => computeFloorStack(floorRows), [floorRows]);
-  const hasAnyRowProblem = floorRows.some((row) => floorStack.problemById.has(row.id));
+  const hasAnyRowProblem = floorRows.some(
+    (row) => floorStack.problemById.has(row.id) || row.name.trim() === '',
+  );
   const nameProblem = serverNameProblem ?? localNameProblemFor(name);
   // A form nobody has typed into is not wrong yet (BUG-133): the name's own
   // complaint waits for the first keystroke; a server refusal shows at once.
@@ -576,6 +580,7 @@ export function useCreateProjectModal(
     elevationLabel: floorStack.elevationLabelById.get(row.id) ?? null,
     // Step 2 opens neutral (BUG-120): a row complains once the stack has been edited.
     problem: floorsTouched ? (floorStack.problemById.get(row.id) ?? null) : null,
+    nameProblem: row.name.trim() === '' ? 'Chưa nhập tên tầng.' : null,
   }));
   const floorsHint = !floorsTouched && floorRows.length > 0 && !canGoNextStep2 ? FLOORS_HINT : null;
 

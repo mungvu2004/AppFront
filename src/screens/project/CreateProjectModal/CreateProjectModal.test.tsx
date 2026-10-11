@@ -53,10 +53,10 @@ const BUILDING_TYPE_OPTIONS = [
 
 /** The acceptance case this task's own verification names: a basement plus three floors. */
 const STACKED_FLOOR_ROWS: CreateProjectFloorRowModel[] = [
-  { id: 'row-basement', name: 'Tầng hầm', kind: 'basement', clearHeightM: 3, elevationLabel: '-3,0 m', problem: null },
-  { id: 'row-ground', name: 'Tầng trệt', kind: 'floor', clearHeightM: 3.9, elevationLabel: '0,0 m', problem: null },
-  { id: 'row-1', name: 'Tầng 1', kind: 'floor', clearHeightM: 3.6, elevationLabel: '3,9 m', problem: null },
-  { id: 'row-2', name: 'Tầng 2', kind: 'floor', clearHeightM: 3, elevationLabel: '7,5 m', problem: null },
+  { id: 'row-basement', name: 'Tầng hầm', kind: 'basement', clearHeightM: 3, elevationLabel: '-3,0 m', problem: null, nameProblem: null },
+  { id: 'row-ground', name: 'Tầng trệt', kind: 'floor', clearHeightM: 3.9, elevationLabel: '0,0 m', problem: null, nameProblem: null },
+  { id: 'row-1', name: 'Tầng 1', kind: 'floor', clearHeightM: 3.6, elevationLabel: '3,9 m', problem: null, nameProblem: null },
+  { id: 'row-2', name: 'Tầng 2', kind: 'floor', clearHeightM: 3, elevationLabel: '7,5 m', problem: null, nameProblem: null },
 ];
 
 function baseProps(): CreateProjectModalViewProps {
@@ -139,7 +139,7 @@ const PROPS_BY_STATE: Readonly<Record<SevenState, () => CreateProjectModalViewPr
     floorRows: [
       STACKED_FLOOR_ROWS[0] as CreateProjectFloorRowModel,
       STACKED_FLOOR_ROWS[1] as CreateProjectFloorRowModel,
-      { id: 'row-1', name: 'Tầng 1', kind: 'floor', clearHeightM: null, elevationLabel: null, problem: 'Chưa nhập chiều cao thông thuỷ.' },
+      { id: 'row-1', name: 'Tầng 1', kind: 'floor', clearHeightM: null, elevationLabel: null, problem: 'Chưa nhập chiều cao thông thuỷ.', nameProblem: null },
     ],
   }),
   error: () => ({
@@ -397,6 +397,20 @@ describe('CreateProjectModal, wired to its hook', () => {
     fireEvent.click(basement);
 
     expect(screen.getAllByRole('textbox', { name: /^Tên tầng/u })).toHaveLength(50);
+  });
+
+  it('marks a blank floor name at step 2 and blocks "Tiếp tục" (BUG-185)', () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+
+    goToStep2();
+    setHeight('Chiều cao áp cho mọi tầng', '3');
+    fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
+    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeEnabled();
+
+    fireEvent.change(screen.getByLabelText('Tên tầng Tầng 3'), { target: { value: '   ' } });
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Chưa nhập tên tầng.');
+    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeDisabled();
   });
 
   it('applies one height to every floor with "áp cho mọi tầng"', () => {

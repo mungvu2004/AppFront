@@ -35,10 +35,10 @@ const BUILDING_TYPE_OPTIONS: SelectOption[] = [
 
 /** The acceptance case: a basement plus three floors, stacked from the ground floor's 0,0. */
 const STACKED_FLOOR_ROWS: CreateProjectFloorRowModel[] = [
-  { id: 'row-basement', name: 'Tầng hầm', kind: 'basement', clearHeightM: 3, elevationLabel: '-3,0 m', problem: null },
-  { id: 'row-ground', name: 'Tầng trệt', kind: 'floor', clearHeightM: 3.9, elevationLabel: '0,0 m', problem: null },
-  { id: 'row-1', name: 'Tầng 1', kind: 'floor', clearHeightM: 3.6, elevationLabel: '3,9 m', problem: null },
-  { id: 'row-2', name: 'Tầng 2', kind: 'floor', clearHeightM: 3, elevationLabel: '7,5 m', problem: null },
+  { id: 'row-basement', name: 'Tầng hầm', kind: 'basement', clearHeightM: 3, elevationLabel: '-3,0 m', problem: null, nameProblem: null },
+  { id: 'row-ground', name: 'Tầng trệt', kind: 'floor', clearHeightM: 3.9, elevationLabel: '0,0 m', problem: null, nameProblem: null },
+  { id: 'row-1', name: 'Tầng 1', kind: 'floor', clearHeightM: 3.6, elevationLabel: '3,9 m', problem: null, nameProblem: null },
+  { id: 'row-2', name: 'Tầng 2', kind: 'floor', clearHeightM: 3, elevationLabel: '7,5 m', problem: null, nameProblem: null },
 ];
 
 const base: CreateProjectModalViewProps = {
@@ -156,7 +156,7 @@ export const Partial: Story = {
     floorRows: [
       STACKED_FLOOR_ROWS[0] as CreateProjectFloorRowModel,
       STACKED_FLOOR_ROWS[1] as CreateProjectFloorRowModel,
-      { id: 'row-1', name: 'Tầng 1', kind: 'floor', clearHeightM: null, elevationLabel: null, problem: 'Chưa nhập chiều cao thông thuỷ.' },
+      { id: 'row-1', name: 'Tầng 1', kind: 'floor', clearHeightM: null, elevationLabel: null, problem: 'Chưa nhập chiều cao thông thuỷ.', nameProblem: null },
     ],
   },
 };

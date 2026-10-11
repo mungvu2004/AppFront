@@ -92,12 +92,13 @@ export function StepFloors(props: StepFloorsProps) {
                     if (node) rowRefs.current.set(row.id, node);
                     else rowRefs.current.delete(row.id);
                   }}
-                  isAttention={row.problem !== null}
+                  isAttention={row.problem !== null || row.nameProblem !== null}
                 >
                   <Table.Cell>
                     <Input
                       value={row.name}
                       onChange={(event) => props.setFloorName(row.id, event.target.value)}
+                      error={row.nameProblem}
                       disabled={isSubmitting}
                       aria-label={`Tên tầng ${row.name}`}
                     />
