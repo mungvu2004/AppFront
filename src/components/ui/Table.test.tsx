@@ -319,7 +319,7 @@ describe('Table header casing', () => {
 describe('Table.Row hover edge', () => {
   // jsdom cannot hover, so `:hover` in the real rule becomes a `.is-hovered` class we set by hand.
   const css = readFileSync(resolve(process.cwd(), 'src/styles/globals.css'), 'utf8');
-  const edgeOn = /([^{}]*row-edge-on[^{}]*)\{\s*transform: scaleY\(1\)/.exec(css)?.[1] ?? '';
+  const edgeOn = [...css.matchAll(/([^{}]*row-edge[^{}]*)\{\s*transform: scaleY\(1\)/g)].map((m) => m[1]).join(',');
   const selectors = edgeOn.split(',').map((s) => s.replace(/::before/g, '').replace(/:hover/g, '.is-hovered').trim());
   const lit = (td: Element) => selectors.some((s) => td.matches(s));
 
@@ -342,5 +342,11 @@ describe('Table.Row hover edge', () => {
 
   it('does not light every row just because a group ancestor is hovered', () => {
     expect(lit(renderRow('group is-hovered', ''))).toBe(false);
+  });
+
+  it('lights on hover only where the pointer can hover, so a tap does not leave the edge on', () => {
+    // Touch screens keep `:hover` on the last tapped row; the edge doubles as the selected mark.
+    expect(css).toMatch(/@media \(hover: hover\)\s*\{[^{}]*\.row-edge:hover[^{}]*\{\s*transform: scaleY\(1\)/);
+    expect(css).not.toMatch(/row-edge-on[^{}]*row-edge:hover/);
   });
 });
