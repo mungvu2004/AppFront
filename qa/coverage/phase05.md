@@ -7,7 +7,8 @@ fa991a0d. Backend rules (N15/N16 reads, #17/#18 measurement rules, `MEASUREMENT_
 viewer 403, feature-flag endpoint) live in `coverage/phase05-be.md` (API spec), not here.
 
 Test keys:
-- **M** `tests/phase05_3d_viewer.spec.ts` (serial, shared CP-5 work floor) — title quoted by its prefix.
+- **M** `tests/phase05_3d_viewer.spec.ts` (own `qa-<runId>-m05-…` project, two seeded floors via `support/layerSeed.ts`; serial per
+  describe only, BUG-346) — title quoted by its prefix.
 - **E** `tests/phase05_3d_viewer_edge.spec.ts` (non-serial, own project per test) — `E05 · …` titles, quoted by their key words.
 - **R9** `tests/phase09_roles_matrix.spec.ts` (Track B mock, viewer).
 - **UI** dedicated UI-verify spec `phase05_*_ui.spec.ts` (owner: qa-verify-ui step; not counted here).
@@ -101,7 +102,7 @@ Path short names: `V3/` = `src/screens/viewer/Viewer3D/`, `VS/` = `…/ViewerShe
 
 | # | Group | Element / state | Source (file:line) | Covering test | Status |
 |---|---|---|---|---|---|
-| 71 | State | empty (< 2 storeys): "Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.", no controls | `EX/ExplodedView.tsx:42-50,75-91`, `EX/useExplodedView.ts:139,846-847` | E "SCR-24 one floor", M SCR-24 (data branch) | covered |
+| 71 | State | empty (< 2 storeys): "Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.", no controls | `EX/ExplodedView.tsx:42-50,75-91`, `EX/useExplodedView.ts:139,846-847` | E "SCR-24 one floor", M SCR-24 (asserted absent, two seeded storeys) | covered |
 | 72 | State | loading "Đang tách các tầng..." | `EX/ExplodedView.tsx:52-60,88` | — | gap (transient; P3) |
 | 73 | State | error "Không tách được các tầng lúc này. Vui lòng thử lại sau." | `EX/ExplodedView.tsx:62-70,89`, `EX/useExplodedView.ts:835-836` | M SCR-24 (asserted absent) | gap (needs a build failure; not producible) |
 | 74 | State | forbidden sr-only "…không sửa được vị trí tầng." | `EX/ExplodedView.tsx:129-131` | — | gap (role matrix) |
