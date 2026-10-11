@@ -233,7 +233,9 @@ export function NotificationCenter(props: NotificationCenterProps) {
             </div>
           </div>
           <div className="mt-3">
+            {/* Below 640 px a text target is 44 px: the 36 px track left each tab 28 px tall (BUG-236). */}
             <SegmentedControl
+              className="max-sm:h-[52px]"
               aria-label={FILTER_ARIA_LABEL}
               options={FILTER_OPTIONS}
               value={filter}

@@ -56,6 +56,8 @@ describe('Drawer — tấm trượt điện thoại (B-V1-46)', () => {
     expect(within(group).getByRole('button', { name: 'Mức 1' })).toHaveAccessibleDescription('Thu gọn');
     expect(within(group).getByRole('button', { name: 'Mức 2' })).toHaveAccessibleDescription('Nửa màn hình');
     expect(within(group).getByRole('button', { name: 'Mức 3' })).toHaveAccessibleDescription('Gần toàn màn hình');
+    // BUG-236: the hint is beside the dot, so the dot stays an icon-only 24 px target (no text of its own).
+    expect(within(group).getByRole('button', { name: 'Mức 1' })).toHaveTextContent(/^$/u);
   });
 
   it('không nút nào bị rút khỏi thứ tự Tab — đó là đường bàn phím duy nhất để đổi mức (A12)', () => {

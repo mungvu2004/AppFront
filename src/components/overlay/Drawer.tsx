@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useId, useRef, forwardRef, useState } from 'react';
+import React, { createContext, Fragment, useContext, useEffect, useId, useRef, forwardRef, useState } from 'react';
 import { motion, AnimatePresence } from '../motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { cn } from '../../lib/utils';
@@ -309,29 +309,33 @@ const BottomSheet = forwardRef<HTMLDivElement, BottomSheetProps>(
             rộng vẽ bên trong. Mỗi chấm nói việc của nó: tooltip khi trỏ/focus, mô tả cho
             trình đọc màn hình — tên vẫn là "Mức N" (nợ C ND-C2). */}
         <div className="flex justify-center gap-1 pb-1" role="group" aria-label="Chiều cao tấm trượt">
+          {/* The hint sits beside its dot, not inside: inside, the dot read as a TEXT button held to 44 px below 640 px
+              rather than the 24 px icon-only target it is (BUG-236). */}
           {([0, 1, 2] as SnapLevel[]).map((level) => (
-            <Tooltip key={level} label={SNAP_HINTS[level]}>
-              <button
-                type="button"
-                onClick={() => onSnapChange(level)}
-                className="flex h-6 w-6 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                aria-label={`Mức ${level + 1}`}
-                aria-describedby={`${hintId}-${String(level)}`}
-                aria-pressed={snapLevel === level}
-              >
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    'w-1.5 rounded-full transition-colors duration-120',
-                    SNAP_BAR_HEIGHT[level],
-                    snapLevel === level ? 'bg-accent' : 'bg-border-default',
-                  )}
-                />
-                <span id={`${hintId}-${String(level)}`} className="sr-only">
-                  {SNAP_HINTS[level]}
-                </span>
-              </button>
-            </Tooltip>
+            <Fragment key={level}>
+              <Tooltip label={SNAP_HINTS[level]}>
+                <button
+                  type="button"
+                  onClick={() => onSnapChange(level)}
+                  className="flex h-6 w-6 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  aria-label={`Mức ${level + 1}`}
+                  aria-describedby={`${hintId}-${String(level)}`}
+                  aria-pressed={snapLevel === level}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      'w-1.5 rounded-full transition-colors duration-120',
+                      SNAP_BAR_HEIGHT[level],
+                      snapLevel === level ? 'bg-accent' : 'bg-border-default',
+                    )}
+                  />
+                </button>
+              </Tooltip>
+              <span id={`${hintId}-${String(level)}`} className="sr-only">
+                {SNAP_HINTS[level]}
+              </span>
+            </Fragment>
           ))}
         </div>
 
