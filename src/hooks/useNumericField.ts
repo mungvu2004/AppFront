@@ -18,9 +18,11 @@ export interface UseNumericFieldProps {
   onChange?: ((val: number | undefined) => void) | undefined;
   min?: number | undefined;
   max?: number | undefined;
+  /** Named in the range message ("Giá trị không quá 10 m."), so a refusal says what it measures. */
+  unit?: string | undefined;
 }
 
-export function useNumericField({ value, onChange, min, max }: UseNumericFieldProps) {
+export function useNumericField({ value, onChange, min, max, unit }: UseNumericFieldProps) {
   const [localValue, setLocalValue] = useState<string>('');
   const [isFocused, setIsFocused] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -33,15 +35,21 @@ export function useNumericField({ value, onChange, min, max }: UseNumericFieldPr
   const timerRef = useRef<number | null>(null);
   const lastCommittedRef = useRef<number | undefined>(value);
 
-  // Sync prop value to last committed when it changes from outside
+  // Sync prop value to last committed when it changes from outside. A value
+  // written from outside (an "apply to all", an undo) replaces whatever text
+  // the field was still showing for a refusal, so the refusal goes with it.
   useEffect(() => {
+    if (value !== lastCommittedRef.current) setError(null);
     lastCommittedRef.current = value;
   }, [value]);
 
+  // A sentence with the unit, not a bare operator: "Giá trị phải <= 10" told
+  // nobody what was measured (BUG-160).
+  const bound = (limit: number): string => `${formatNumber(limit)}${unit === undefined ? '' : ` ${unit}`}`;
   const validate = (val: number | undefined): string | null => {
     if (val === undefined) return null;
-    if (min !== undefined && val < min) return `Giá trị phải >= ${min}`;
-    if (max !== undefined && val > max) return `Giá trị phải <= ${max}`;
+    if (min !== undefined && val < min) return `Giá trị không nhỏ hơn ${bound(min)}.`;
+    if (max !== undefined && val > max) return `Giá trị không quá ${bound(max)}.`;
     return null;
   };
 
@@ -67,9 +75,9 @@ export function useNumericField({ value, onChange, min, max }: UseNumericFieldPr
     /* eslint-disable-next-line react-hooks/exhaustive-deps -- thân hàm gọi `validate`,
        một hàm thường được dựng lại mỗi render và chỉ đọc `min` với `max`. Mảng phụ
        thuộc kê thẳng hai giá trị đó, tức ĐÚNG tập phụ thuộc thật mà luật không nhìn
-       xuyên qua `validate` để thấy. Kê `validate` vào thì `commit` đổi định danh mỗi
+       xuyên qua `validate` để thấy (`unit` cũng vậy, qua `bound`). Kê `validate` vào thì `commit` đổi định danh mỗi
        render và `useCallback` mất tác dụng. */
-  }, [min, max, onChange]);
+  }, [min, max, unit, onChange]);
 
   useEffect(() => {
     if (isTyping) {
@@ -151,8 +159,10 @@ export function useNumericField({ value, onChange, min, max }: UseNumericFieldPr
     input?.focus();
   };
 
+  // A refused value stays in the box beside its message (BUG-160): blanking it
+  // left the error under a field that looked empty.
   const displayValue =
-    isTyping || isFocused
+    isTyping || isFocused || error !== null
       ? localValue
       : displayText(Number.isFinite(animatedValue) ? animatedValue : undefined);
 

@@ -23,7 +23,7 @@ export const NumericField = forwardRef<HTMLInputElement, NumericFieldProps>(
       handleBlur,
       handleKeyDown,
       handleStepper,
-    } = useNumericField({ value, onChange, min, max });
+    } = useNumericField({ value, onChange, min, max, unit });
 
     const stepper = !disabled && !isReadOnly && !isLoading && (
       <div className="absolute left-1 top-1 bottom-1 flex flex-col opacity-0 group-hover:opacity-100 transition-opacity duration-120 z-10">

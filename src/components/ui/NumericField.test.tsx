@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { NumericField } from './NumericField';
 import { expectAccessible } from '../../lib/testing/expectAccessible';
@@ -34,6 +34,23 @@ describe('NumericField', () => {
   it('shows error', () => {
     render(<NumericField value={-1} unit="mm" error="Giá trị âm không hợp lệ" />);
     expect(screen.getByRole('alert')).toHaveTextContent('Giá trị âm không hợp lệ');
+  });
+
+  it('refuses out of range in a sentence with the unit, and keeps the refused text in view (BUG-160)', () => {
+    render(<NumericField value={3} min={2} max={10} unit="m" aria-label="Chiều cao" onChange={() => undefined} />);
+    const field = screen.getByRole('textbox', { name: 'Chiều cao' });
+
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: '10,5' } });
+    fireEvent.blur(field);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Giá trị không quá 10 m.');
+    expect(field).toHaveValue('10,5');
+
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: '1,5' } });
+    fireEvent.blur(field);
+    expect(screen.getByRole('alert')).toHaveTextContent('Giá trị không nhỏ hơn 2 m.');
   });
 
   it('passes expectAccessible on a bare field', () => {
