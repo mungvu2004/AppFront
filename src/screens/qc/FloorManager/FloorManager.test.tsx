@@ -702,6 +702,18 @@ describe('cao độ ghi đè (BUG-289)', () => {
   });
 });
 
+describe('cao độ bị chặn (BUG-306)', () => {
+  it('chỉ ô cao độ của tầng bị chặn mang dấu lỗi', () => {
+    const base = scenarioArgsFor('partial');
+    const rows = base.rows.map((row, index) => (index === 1 ? { ...row, isElevationRefused: true } : row));
+    renderWithProviders(<FloorManager {...base} isAutoElevation={false} rows={rows} />);
+
+    const invalid = screen.getAllByRole('textbox').filter((box) => box.getAttribute('aria-invalid') === 'true');
+    expect(invalid).toHaveLength(1);
+    expect(invalid[0]).toHaveAccessibleName(`Cao độ tầng ${rows[1]!.name}`);
+  });
+});
+
 describe('bảng tầng vừa khung (BUG-250)', () => {
   it('lát cắt mở: dòng xếp chồng, mỗi ô mang tên cột, không lặp "Chưa có bản vẽ"', () => {
     renderWithProviders(<FloorManager {...scenarioArgsFor('partial')} />);

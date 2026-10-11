@@ -549,6 +549,8 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
     readonly field: FloorEditableField;
   } | null>(null);
   const [duplicateElevation, setDuplicateElevation] = useState<{
+    /** Tầng có ô cao độ bị từ chối — chỉ ô đó mang dấu lỗi (BUG-306). */
+    readonly floorId: string;
     readonly message: string;
     readonly violation: DuplicateElevationViolation;
   } | null>(null);
@@ -1134,17 +1136,21 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
   const onFloorFieldChange = useCallback(
     (floorId: string, field: FloorEditableField, draftValue: string) => {
       setEditing({ floorId, field });
-      updateDrafts((previous) => {
-        const current = previous[floorId] ?? {
-          name: '',
-          elevation: '',
-          height: '',
-        };
+      /* Bộ đệm mới gieo từ giá trị đang có của tầng, không từ chuỗi rỗng: khi cao độ bị
+         từ chối, bộ đệm được giữ để người dùng sửa tiếp, và hai ô kia (tên, chiều cao)
+         từng hiện trống vì đọc đúng bộ đệm rỗng đó (BUG-306). */
+      const level = levels.find((candidate) => String(candidate.id) === floorId);
+      const seed: FloorRowDraft =
+        level === undefined
+          ? { name: '', elevation: '', height: '' }
+          : { name: level.name, elevation: metreDraftText(level.elevationMm), height: metreDraftText(level.heightMm) };
 
-        return { ...previous, [floorId]: { ...current, [field]: draftValue } };
-      });
+      updateDrafts((previous) => ({
+        ...previous,
+        [floorId]: { ...(previous[floorId] ?? seed), [field]: draftValue },
+      }));
     },
-    [updateDrafts],
+    [levels, updateDrafts],
   );
 
   const onFloorFieldCancel = useCallback(
@@ -1218,7 +1224,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
         if (conflict !== null) {
           const message = conflict.reasons.join(' ');
 
-          setDuplicateElevation({ message, violation: conflict.violation });
+          setDuplicateElevation({ floorId, message, violation: conflict.violation });
           announce(message);
 
           return;
@@ -1534,6 +1540,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
         isHovered: hoveredFloorId === id,
         needsDrawing: !hasDrawing,
         isHiddenIn3d: hiddenFloorIds.includes(id),
+        isElevationRefused: duplicateElevation?.floorId === id,
         draft: draftOf(level),
         editingField: editing?.floorId === id ? editing.field : null,
       };
@@ -1541,6 +1548,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
   }, [
     countsByLevel,
     draftOf,
+    duplicateElevation,
     editing,
     floorsById,
     hasError,

@@ -171,6 +171,7 @@ function buildRow(seed: FloorSeed): FloorRowVm {
     isHovered: false,
     needsDrawing: !hasDrawing,
     isHiddenIn3d: false,
+    isElevationRefused: false,
     draft: {
       name: seed.name,
       elevation: elevationText.replace(' m', ''),

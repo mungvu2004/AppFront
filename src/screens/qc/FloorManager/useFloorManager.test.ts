@@ -59,6 +59,7 @@ import {
   draftToMillimetres,
   FLOOR_MANAGER_TEXT,
   FLOOR_RESTORE_WINDOW_MS,
+  metreDraftText,
   nextNewFloorName,
   useFloorManager,
   type UseFloorManagerOptions,
@@ -345,6 +346,22 @@ describe('chặn trùng cao độ', () => {
     /* Câu chặn KHÔNG được lật màn sang trạng thái lỗi — nó là ràng buộc, không phải lỗi đọc. */
     expect(mounted.result.current.errorMessage).toBeNull();
     expect(mounted.result.current.state).not.toBe('error');
+  });
+
+  it('BUG-306: cao độ bị chặn giữ nguyên tên và chiều cao trong ô, chỉ ô cao độ của tầng đó mang lỗi', async () => {
+    const mounted = await mountSettled();
+    const roofId = String(FLOOR_MANAGER_SAMPLE_ROOF_ID);
+    const second = levelIn(storeGraph(), String(FLOOR_MANAGER_SAMPLE_SECOND_ID));
+    const roof = levelIn(storeGraph(), roofId);
+    const typed = formatLength(second.elevationMm, { unit: 'm', fractionDigits: 1 }).replace(' m', '');
+
+    await commitField(mounted, roofId, 'elevation', typed);
+
+    const row = rowOf(mounted, roofId);
+    expect(mounted.result.current.duplicateElevationMessage).not.toBeNull();
+    expect(row.draft).toEqual({ name: roof.name, elevation: typed, height: metreDraftText(roof.heightMm) });
+    expect(row.isElevationRefused).toBe(true);
+    expect(mounted.result.current.rows.filter((candidate) => candidate.isElevationRefused)).toHaveLength(1);
   });
 
   it('bắt cả hai tầng KHÔNG liền kề đứng cùng một cao độ', () => {

@@ -119,6 +119,8 @@ export interface FloorRowVm {
   readonly needsDrawing: boolean;
   /** Tầng bị ẩn khỏi mô hình 3D. Dòng mờ đi; tầng vẫn còn trong bảng và trong lát cắt. */
   readonly isHiddenIn3d: boolean;
+  /** Lượt đặt cao độ gần nhất của tầng này bị chặn: ô cao độ mang dấu lỗi (BUG-306). */
+  readonly isElevationRefused: boolean;
 
   /** Giá trị đang gõ của ba ô sửa được. Luôn có mặt, kể cả khi không ai đang sửa. */
   readonly draft: FloorRowDraft;
