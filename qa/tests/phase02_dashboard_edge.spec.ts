@@ -1364,6 +1364,8 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await expect(toast).toBeVisible();
       await page.mouse.move(0, 0); // a hovered toast stops its clock (TST:69-73, :128-129)
       const shownAt = Date.now();
+      // BUG-212: the "before" half of the pair, so the "after" shot below reads as a toast that left, not one never shown.
+      await captureEvidence(page, 'E02_rename_toast_timeout_before.png', { caption: `before: toast "${renamedToast(renamed)}" with "Hoàn tác", 8 s clock running` });
       await expect(toast).toHaveCount(0, { timeout: UNDO_WINDOW_MS + 5_000 }); // TST:59, :81-84 (+180 ms exit)
       const goneAfterMs = Date.now() - shownAt;
       expect(goneAfterMs, 'the toast stays for the undo window').toBeGreaterThanOrEqual(UNDO_WINDOW_MS - 1_500);
@@ -1373,7 +1375,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       const list = await reloadDashboard(page);
       expect(summaryOf(list, project.id).name).toBe(renamed);
       await expect(projectCard(page, renamed)).toBeVisible();
-      await captureEvidence(page, 'E02_rename_toast_timeout.png', { caption: `toast gone after ${String(goneAfterMs)} ms; reload still shows "${renamed}"; 1 PATCH` });
+      await captureEvidence(page, 'E02_rename_toast_timeout.png', { caption: `after (pair of E02_rename_toast_timeout_before): toast gone after ${String(goneAfterMs)} ms, no "Hoàn tác"; reload still shows "${renamed}"; 1 PATCH` });
       await attachJson('E02_rename_toast_timeout.json', { goneAfterMs, patches: 1, afterReload: renamed });
     });
   });
@@ -1453,6 +1455,10 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await expect.poll(rowNames).toEqual(byUpdated);
       await tableHeads(page).first().click();
       await expect.poll(rowNames).toEqual(byUpdated);
+      // BUG-212: shot right after the click (pointer still on the header) — the claim "a header click sorts nothing".
+      await captureEvidence(page, 'E02_table_header_click.png', {
+        caption: `clicked header "${TABLE_HEADERS[0]}" (pointer on it): rows still ${byUpdated.join(' / ')} (newest first), no aria-sort`,
+      });
 
       await sortCombobox(page, SORT.updated).click();
       await page.getByRole('option', { name: SORT.name, exact: true }).click();
@@ -1461,7 +1467,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await rows.first().focus();
       await page.keyboard.press('Tab'); // PD:295: every row is a tab stop, nothing focusable inside a row
       await expect(rows.nth(1)).toBeFocused();
-      await captureEvidence(page, 'E02_table_sort_headers.png', { caption: `table, sort "${SORT.name}": ${byName.join(' / ')}; header click changed nothing` });
+      await captureEvidence(page, 'E02_table_sort_headers.png', { caption: `table, sort list "${SORT.name}": ${byName.join(' / ')}; header click: E02_table_header_click` });
       await attachJson('E02_table_sort_headers.json', { headers: [...TABLE_HEADERS], byUpdated, byName });
     });
   });
