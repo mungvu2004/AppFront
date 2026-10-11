@@ -742,14 +742,16 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
       await captureEvidence(page, 'E02_ntf_gear_tooltip.png', { fullPage: tipOutside || overflow > 0, caption: `tooltip x=${String(Math.round(tip.x))}…${String(Math.round(tip.x + tip.width))}; gear centre ${String(Math.round(anchor.x + anchor.width / 2))}; overflow ${String(overflow)} px` });
       await attachJson('E02_ntf_gear_tooltip.json', { tooltip: tip, gear: anchor, horizontalOverflowPx: overflow, bug: 'BUG-114' });
 
-      // BUG-114 fixed: the gear is 38 px from the right edge and the tooltip 144 px wide, so it can no longer be centred on the gear
-      // AND above it AND inside the viewport — it is pushed inside and flipped below. What must hold: inside the viewport,
-      // near the gear (no gap wider than NEAR_PX on either axis), and no horizontal scroll.
+      // BUG-114 fixed: the gear is 38 px from the right edge and the tooltip 144 px wide, so it cannot be centred on the gear
+      // and stay inside the viewport — it is pushed inside. Since `lg:pt-10` on the drawer header (FIX-1080, BUG-205;
+      // NotificationCenter.tsx:199-201) it stays ABOVE the gear instead of flipping down over "Nhắc đến tôi". What must
+      // hold: inside the viewport, above and near the gear (no gap wider than NEAR_PX on either axis), no horizontal scroll.
       const gapX = Math.max(0, tip.x - (anchor.x + anchor.width), anchor.x - (tip.x + tip.width));
       const gapY = Math.max(0, tip.y - (anchor.y + anchor.height), anchor.y - (tip.y + tip.height));
       const viewport = page.viewportSize() ?? DESKTOP;
       expect.soft(tip.x >= 0 && tip.y >= 0 && tip.x + tip.width <= viewport.width && tip.y + tip.height <= viewport.height, 'tooltip inside the viewport').toBe(true);
       expect.soft(Math.max(gapX, gapY), `tooltip near the gear (gap x ${String(Math.round(gapX))}, y ${String(Math.round(gapY))} px)`).toBeLessThanOrEqual(NEAR_PX);
+      expect.soft(tip.y + tip.height, 'tooltip above the gear, not flipped down (FIX-1080)').toBeLessThanOrEqual(anchor.y + 1);
       expect(overflow, 'overflowX = 0').toBe(0);
     });
   });
