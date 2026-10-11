@@ -174,11 +174,11 @@ export function storeyInlineName(name: string): string {
  */
 const VIEWER_TOOLS: readonly ViewerToolViewModel[] = Object.freeze([
   { id: 'orbit', label: 'Quay quanh mô hình', keyLabel: TOOL_COMBOS.orbit },
-  { id: 'pan', label: 'kéo màn', keyLabel: TOOL_COMBOS.pan },
-  { id: 'measure', label: 'đo', keyLabel: TOOL_COMBOS.measure },
-  { id: 'section', label: 'mặt cắt', keyLabel: TOOL_COMBOS.section },
-  { id: 'select', label: 'chọn', keyLabel: TOOL_COMBOS.select },
-  { id: 'isolate', label: 'cô lập', keyLabel: ISOLATE_COMBO },
+  { id: 'pan', label: 'Kéo màn', keyLabel: TOOL_COMBOS.pan },
+  { id: 'measure', label: 'Đo', keyLabel: TOOL_COMBOS.measure },
+  { id: 'section', label: 'Mặt cắt', keyLabel: TOOL_COMBOS.section },
+  { id: 'select', label: 'Chọn', keyLabel: TOOL_COMBOS.select },
+  { id: 'isolate', label: 'Cô lập', keyLabel: ISOLATE_COMBO },
 ]);
 
 /** Bốn góc nhìn của `Select` trên thanh trên. */

@@ -175,7 +175,7 @@ describe('[VS-2] vai Người xem', () => {
       expect(button).not.toBeDisabled();
     }
 
-    expect(viewerRail.getByRole('button', { name: /^đo/u })).toBeInTheDocument();
+    expect(viewerRail.getByRole('button', { name: /^Đo/u })).toBeInTheDocument();
     /* B-V9-05: tên vai là danh từ chung, viết thường giữa câu. */
     expect(screen.getByText('Bạn đang xem ở vai người xem nên không sửa được mô hình.')).toBeInTheDocument();
   });
@@ -1123,6 +1123,20 @@ describe('[VS-16] một bức tường, một mã (B-V8-05)', () => {
       result.current.sceneActions.selectEntity(null, false);
       result.current.sceneActions.hoverEntity(null);
     });
+    unmount();
+  });
+
+  it('sáu nhãn ray công cụ viết hoa chữ đầu (A6, BUG-376)', () => {
+    const { result, unmount } = renderShellHook();
+
+    expect(result.current.tools.map((tool) => tool.label)).toEqual([
+      'Quay quanh mô hình',
+      'Kéo màn',
+      'Đo',
+      'Mặt cắt',
+      'Chọn',
+      'Cô lập',
+    ]);
     unmount();
   });
 

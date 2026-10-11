@@ -14,8 +14,8 @@ import { FIRST_PAINT_TIMEOUT_MS, FIXTURE_STATUS, MEASURE_PATH, expectSceneDrawn,
  * và bảng phím tắt toàn cục chồng lên chế độ đo.
  */
 
-const MEASURE_TOOL = 'đo (M)';
-const ORBIT_TOOL = 'quay quanh mô hình (R)';
+const MEASURE_TOOL = 'Đo (M)';
+const ORBIT_TOOL = 'Quay quanh mô hình (R)';
 const TOGGLE_TOOL = 'Bật tắt công cụ đo (phím M)';
 const DROP_DRAFT = 'Bỏ phần đo dở (phím Esc)';
 const PIN = 'Ghim phép đo (phím Enter)';
@@ -160,9 +160,9 @@ test(
   async ({ page }) => {
     await openWithFixture(page, MEASURE_PATH);
     for (const [key, name] of [
-      ['c', 'mặt cắt (C)'],
-      ['v', 'chọn (V)'],
-      ['h', 'kéo màn (H)'],
+      ['c', 'Mặt cắt (C)'],
+      ['v', 'Chọn (V)'],
+      ['h', 'Kéo màn (H)'],
       ['r', ORBIT_TOOL],
     ] as const) {
       await page.keyboard.press(key);
