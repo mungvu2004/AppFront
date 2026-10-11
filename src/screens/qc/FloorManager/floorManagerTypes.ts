@@ -156,6 +156,11 @@ export interface SectionBandVm {
    * chồng. Với bộ mẫu ở mục D, tổng đúng bằng 1.
    */
   readonly bandHeightRatio: number;
+  /**
+   * Khoảng hở giữa đỉnh dải dưới và cao độ của dải này, cùng đơn vị với
+   * `bandHeightRatio` — khác 0 khi cao độ bị ghi đè cao hơn đỉnh tầng dưới (BUG-357).
+   */
+  readonly gapBelowRatio: number;
   readonly isSelected: boolean;
   /** Người dùng đang trỏ vào dòng bảng tương ứng, hoặc trỏ thẳng vào dải này. */
   readonly isHovered: boolean;

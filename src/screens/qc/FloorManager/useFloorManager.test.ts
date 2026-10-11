@@ -17,7 +17,7 @@
  */
 
 import { createElement, type ReactNode } from 'react';
-import { QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
 
@@ -33,6 +33,7 @@ import { formatLength } from '@/lib/format/measure';
 import type { Announcer } from '@/lib/input/announcer';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
+import { queryKeys } from '@/lib/query/queryKeys';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { resetSelectorCaches } from '@/store/selectors';
 import { useStore } from '@/store';
@@ -106,6 +107,7 @@ interface Mounted {
   readonly notifications: NotificationBus;
   readonly spoken: readonly string[];
   readonly unmount: () => void;
+  readonly queryClient: QueryClient;
 }
 
 type MountOptions = Partial<Omit<UseFloorManagerOptions, 'registry'>>;
@@ -140,7 +142,7 @@ function mountHook(options: MountOptions = {}): Mounted {
     { wrapper },
   );
 
-  return { result: rendered.result, registry, notifications, spoken, unmount: rendered.unmount };
+  return { result: rendered.result, registry, notifications, spoken, unmount: rendered.unmount, queryClient };
 }
 
 /** Chờ lượt đọc danh sách tầng xong — trước đó mọi kịch bản đều là `'loading'`. */
@@ -302,6 +304,34 @@ describe('cao độ ghi đè (BUG-289)', () => {
       expect(rowOf(mounted, roofId).isElevationOverridden).toBe(true);
     });
     expect(mounted.result.current.rows.filter((row) => row.isElevationOverridden)).toHaveLength(1);
+  });
+});
+
+describe('lát cắt theo cao độ ghi đè (BUG-357)', () => {
+  it('Tầng mái đặt tay cao hơn 1 m: khoảng hở 1 m nằm dưới dải của nó, dải và khoảng hở cộng lại bằng 1', async () => {
+    const mounted = await mountSettled();
+    const roofId = String(FLOOR_MANAGER_SAMPLE_ROOF_ID);
+    const second = levelIn(storeGraph(), String(FLOOR_MANAGER_SAMPLE_SECOND_ID));
+
+    expect(mounted.result.current.bands.every((band) => band.gapBelowRatio === 0)).toBe(true);
+
+    await commitField(
+      mounted,
+      roofId,
+      'elevation',
+      formatLength(second.elevationMm + second.heightMm + 1000, { unit: 'm', fractionDigits: 1 }).replace(' m', ''),
+    );
+    await waitFor(() => {
+      expect(rowOf(mounted, roofId).isElevationOverridden).toBe(true);
+    });
+
+    const bands = mounted.result.current.bands;
+    const total = TOTAL_STACK_HEIGHT_MM + 1000;
+    const roof = bands.find((band) => band.levelId === roofId);
+
+    expect(roof?.gapBelowRatio).toBeCloseTo(1000 / total, 12);
+    expect(bands.filter((band) => band.gapBelowRatio > 0)).toHaveLength(1);
+    expect(bands.reduce((sum, band) => sum + band.bandHeightRatio + band.gapBelowRatio, 0)).toBeCloseTo(1, 12);
   });
 });
 
@@ -1381,5 +1411,24 @@ describe('tên tầng thêm mới (BUG-277)', () => {
     },
   ])('$label', ({ levels, expected }) => {
     expect(nextNewFloorName(levels)).toBe(expected);
+  });
+});
+
+describe('useFloorManager — bộ đệm dùng chung với Tải bản vẽ (BUG-348)', () => {
+  it('không ghi ảnh chụp { graph, floors } vào khoá floor.list mà Tải bản vẽ đọc là Floor[]', async () => {
+    const { queryClient } = await mountSettled();
+    const listKey = queryKeys.floor.list(PROJECT_ID);
+
+    // Màn Tải bản vẽ trải `floor.list` như mảng; một object ở đó là màn "Có trục trặc" sau "Tải lên".
+    const shared = queryClient.getQueryData(listKey);
+    expect(shared === undefined || Array.isArray(shared)).toBe(true);
+
+    // Làm mất hiệu lực `floor.list` (editFloor, lượt tải xong) vẫn chạm lượt đọc của màn này.
+    await act(async () => {
+      await queryClient.invalidateQueries({ queryKey: listKey });
+    });
+    const own = queryClient.getQueryCache().findAll({ queryKey: listKey });
+    expect(own.length).toBeGreaterThan(0);
+    expect(own.every((query) => query.state.dataUpdateCount >= 2)).toBe(true);
   });
 });

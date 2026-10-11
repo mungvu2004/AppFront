@@ -26,6 +26,8 @@
  * `ScaleCalibrationMethodReference.tsx:142` đã dùng.
  */
 
+import { Fragment } from 'react';
+
 import { cn } from '@/lib/utils';
 
 import type { FloorManagerScreenState, FloorManagerViewProps } from './floorManagerTypes';
@@ -164,7 +166,11 @@ export function FloorSectionCut({
           <ElevationScale ticks={elevationTicks} />
           <div className="flex min-h-0 flex-1 flex-col-reverse overflow-hidden rounded-[8px] border border-border-default">
             {bands.map((band) => (
-              <SectionBand band={band} key={band.levelId} onHoverFloor={onHoverFloor} onSelectFloor={onSelectFloor} />
+              <Fragment key={band.levelId}>
+                {/* Khoảng hở dưới dải (cao độ ghi đè), cùng cột flex nên dải đứng đúng cao độ (BUG-357). */}
+                <div aria-hidden="true" className="shrink-0 basis-0" style={{ flexGrow: band.gapBelowRatio }} />
+                <SectionBand band={band} onHoverFloor={onHoverFloor} onSelectFloor={onSelectFloor} />
+              </Fragment>
             ))}
           </div>
         </div>

@@ -396,7 +396,8 @@
         "snapOutOfRange": "Dung sai bắt điểm áp dụng từ {{min}} đến {{max}}.",
         "confidenceOutOfRange": "Ngưỡng tin cậy nằm trong khoảng {{min}} đến {{max}}.",
         "scaleRequired": "Chưa nhập tỉ lệ bản vẽ.",
-        "scaleOutOfRange": "Tỉ lệ bản vẽ áp dụng từ {{min}} đến {{max}} milimét trên mỗi điểm ảnh."
+        "scaleOutOfRange": "Tỉ lệ bản vẽ áp dụng từ {{min}} đến {{max}} milimét trên mỗi điểm ảnh.",
+        "forbiddenChar": "{{field}} có {{kind}} ({{codePoint}}); hãy xoá ký tự đó."
       },
       "load": {
         "errorTitle": "Không tải được cài đặt dự án",

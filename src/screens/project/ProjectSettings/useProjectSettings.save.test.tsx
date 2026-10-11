@@ -295,7 +295,7 @@ describe('useProjectSettings, lưu hai phần', () => {
       });
 
       act(() => {
-        result.current.setNotes('qa ‮ghi chú');
+        result.current.setNotes('qa ghi chú bị từ chối');
       });
       await tick(AUTOSAVE_DEBOUNCE_MS);
 
@@ -326,7 +326,7 @@ describe('useProjectSettings, lưu hai phần', () => {
       });
 
       act(() => {
-        result.current.setNotes('qa ‮ghi chú');
+        result.current.setNotes('qa ghi chú bị từ chối');
       });
       await tick(AUTOSAVE_DEBOUNCE_MS);
 
@@ -466,6 +466,28 @@ describe('useProjectSettings, lưu hai phần', () => {
 
       expect(result.current.problems.code).toBe(viMessages.project.settings.problems.emptyBlocked);
       expect(server.projectsUpdate).not.toHaveBeenCalled();
+    });
+
+    it('BUG-356: ký tự đảo chiều/điều khiển bị chặn tại ô, nêu đúng ký tự', async () => {
+      const server = await createFakeServer();
+      const { result } = await mount(server);
+
+      act(() => {
+        result.current.setNotes('qa \u202Eghi');
+        result.current.setName('Du an \u0007');
+      });
+      await tick(AUTOSAVE_DEBOUNCE_MS);
+
+      expect(result.current.problems.notes).toMatch(/^Ghi chú .*\(U\+202E\)/u);
+      expect(result.current.problems.name).toMatch(/\(U\+0007\)/u);
+      expect(result.current.saveFailureMessage).toBeNull();
+      expect(server.projectsUpdate).not.toHaveBeenCalled();
+      expect(server.settingsReplace).not.toHaveBeenCalled();
+
+      act(() => {
+        result.current.setNotes('a\nb\tc');
+      });
+      expect(result.current.problems.notes).toBeNull();
     });
 
     it('dung sai bắt điểm phải là số nguyên', async () => {
