@@ -34,8 +34,9 @@
  * in `finally` (phase01 chain): 33 tests × (4 loads + 1 session check) = 165 `POST /api/auth/refresh` over several minutes
  * (`auth_refresh_total` 300 / 60 s per sid).
  * No faked response: every state is the real stack. Non-serial: each test uses its own context and page.
- * BUG-143: framer-motion overlays end with `settled(<overlay>)`. BUG-161: the quality report is a `fixed` bottom sheet
- * below 1024 px (InputQualityGate.tsx BOTTOM_SHEET_CLASSES), so SCR-11 report states shoot the viewport.
+ * BUG-143: framer-motion overlays end with `settled(<overlay>)`. Below 1024 px the quality report sits UNDER the drawing in
+ * the page flow (InputQualityGate.tsx:156-168, FIX-1381 / BUG-291; it was a `fixed` bottom sheet, BUG-161), so SCR-11
+ * report states shoot the full page like every other state — a viewport shot would cut the report off at 768 / 375.
  */
 import { writeFileSync } from 'node:fs';
 
@@ -421,7 +422,6 @@ test.describe('U03 UI verify — SCR-11 quality gate (CP-2, needs CP-4)', () => 
       async (p) => {
         await openQualityReport(p);
       },
-      { fullPage: false },
     );
   });
 
@@ -436,7 +436,6 @@ test.describe('U03 UI verify — SCR-11 quality gate (CP-2, needs CP-4)', () => 
         await pick.click();
         await expect(p.getByRole('group', { name: CORNER_GROUP, exact: true })).toBeVisible();
       },
-      { fullPage: false },
     );
   });
 
@@ -451,7 +450,6 @@ test.describe('U03 UI verify — SCR-11 quality gate (CP-2, needs CP-4)', () => 
         await straighten.click();
         await settled(p.getByRole('dialog', { name: STRAIGHTEN_DIALOG }));
       },
-      { fullPage: false },
     );
   });
 
@@ -467,7 +465,6 @@ test.describe('U03 UI verify — SCR-11 quality gate (CP-2, needs CP-4)', () => 
         await p.getByRole('button', { name: CONTINUE, exact: true }).click();
         await expect(p.getByText(ACK_BLOCKED, { exact: true })).toBeVisible();
       },
-      { fullPage: false },
     );
   });
 });
