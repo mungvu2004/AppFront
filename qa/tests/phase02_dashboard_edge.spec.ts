@@ -2840,8 +2840,8 @@ test.describe('E02 SCR-07 onboarding (/onboarding)', () => {
 const SNAP_HINTS = { 1: 'Thu gọn', 2: 'Nửa màn hình', 3: 'Gần toàn màn hình' } as const;
 /** DRW:34-36: "Mức 1" (snap 0) is the 88 px peek. */
 const SNAP_PEEK_PX = 88;
-/** src/i18n/vi.json:63 `errors.unknown.description` (read at run time by describeError.ts:3) — the copy changed in 271538cb. */
-const UNKNOWN_ERROR_DESCRIPTION = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại thao tác vừa làm.';
+/** useProjectDashboard.ts:243-248 `listErrorMessageOf`: a 500 on page load says what to do here, not "thao tác vừa làm" (BUG-209, FIX-995). */
+const LIST_LOAD_500_DESCRIPTION = 'Máy chủ gặp lỗi khi đọc danh sách. Bấm "Thử lại" để tải lại.';
 const OLD_UNKNOWN_TAIL = 'Bạn có thể tải lại rồi thử lại.'; // 5afd8b8a copy, must be gone
 const NO_MATCH_DESCRIPTION = 'Không có dự án nào khớp với bộ lọc hiện tại.'; // PD:264
 const PIPELINE_NAV = 'Xử lý'; // ProcessingScreen.tsx:60 (BREADCRUMB_PIPELINE = the nav's aria-label, :223)
@@ -3058,16 +3058,17 @@ test.describe('E02 QA-02 shared components (FE 271538cb) — SCR-05 / SCR-06 / S
     });
   });
 
-  test('E02 · SCR-05 [mocked response] N1 fails (500, unpairable: 5xx): the error card says the new "unknown" sentence, not the old "tải lại" one', async ({ browser }) => {
+  test('E02 · SCR-05 [mocked response] N1 fails (500, unpairable: 5xx): the error card says the page-load sentence, not an action sentence', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       await routeSummaries(page, (route) => route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }));
       await page.reload({ waitUntil: 'commit' });
       await expect(page.getByText(LIST_ERROR_TITLE, { exact: true })).toBeVisible({ timeout: SLOW_STATE_MS }); // PD:240-246
-      // UPD:371 describeError(toAppError(error)).description; a bare 500 is kind "unknown" (toAppError.ts:10-18, :211).
-      await expect(page.getByText(UNKNOWN_ERROR_DESCRIPTION, { exact: true })).toBeVisible();
+      // UPD:243-248 a bare 500 is kind "unknown" (toAppError.ts:10-18), not in LOAD_ERROR_KINDS_WITH_OWN_SENTENCE (UPD:237).
+      await expect(page.getByText(LIST_LOAD_500_DESCRIPTION, { exact: true })).toBeVisible();
       await expect(page.getByText(OLD_UNKNOWN_TAIL, { exact: false })).toHaveCount(0);
-      await captureEvidence(page, 'E02_dash_error_unknown_copy.png', { caption: 'N1 500 [mocked] → errors.unknown.description (vi.json:63)' });
+      await expect(page.getByText('thao tác vừa làm', { exact: false })).toHaveCount(0); // BUG-209: no action was taken
+      await captureEvidence(page, 'E02_dash_error_unknown_copy.png', { caption: 'N1 500 [mocked] → listErrorMessageOf (useProjectDashboard.ts:247)' });
       await page.unrouteAll({ behavior: 'ignoreErrors' });
       const reread = waitForApi(page, 'GET', SUMMARIES_RE, [200]);
       await page.getByRole('button', { name: RETRY, exact: true }).click();
