@@ -134,23 +134,27 @@ export function ExplodedViewFloorCards({
               />
 
               <div className="relative z-10 flex min-w-0 flex-1 flex-col gap-0.5 pointer-events-none">
-                <span className="truncate text-[13px] font-medium text-text-primary">{floor.name}</span>
                 {/*
-                  Dấu "Cần chú ý" nằm CÙNG DÒNG với cao độ và diện tích, không
-                  chiếm một dòng riêng. Một dòng riêng đẩy thẻ từ 64 lên 92 px,
-                  mà khoảng cách giữa hai tâm thẻ chỉ 58–78 px, nên bốn thẻ chồng
-                  lên nhau 34 px — đo được trong trình duyệt thật.
+                  Dấu "Cần chú ý" nằm CÙNG DÒNG với TÊN tầng, không chiếm một dòng
+                  riêng: một dòng riêng đẩy thẻ từ 64 lên 92 px, mà khoảng cách giữa
+                  hai tâm thẻ chỉ 58–78 px, nên bốn thẻ chồng lên nhau 34 px — đo
+                  được trong trình duyệt thật. Nó từng nằm cạnh cao độ và diện tích,
+                  và ở đó nó cắt "3,20 m · 70,00 m²" thành "3,20 ..." (BUG-383: chữ
+                  91 px trong ô 43 px). Số là thứ thẻ tồn tại để nói nên số giữ
+                  trọn dòng của nó; tên mới là thứ nhường chỗ (tên đủ vẫn nằm trong
+                  `aria-label` của nút chọn tầng).
                 */}
                 <div className="flex min-w-0 items-center gap-2">
-                  <span className="truncate text-[12px] text-text-secondary">
-                    {floor.elevationLabel} · {floor.areaLabel}
-                  </span>
+                  <span className="truncate text-[13px] font-medium text-text-primary">{floor.name}</span>
                   {floor.attentionCaption !== null && (
                     <Badge className="shrink-0" variant="attention">
                       Cần chú ý
                     </Badge>
                   )}
                 </div>
+                <span className="truncate text-[12px] text-text-secondary">
+                  {floor.elevationLabel} · {floor.areaLabel}
+                </span>
               </div>
 
               <div className="relative z-10 shrink-0 pointer-events-auto">

@@ -149,8 +149,11 @@ export const EXPLODE_PRESETS: readonly ExplodePresetViewModel[] = Object.freeze(
  * rộng một thẻ không nằm trong danh sách đó và không có nguồn nào khác trong repo.
  */
 export const EXPLODED_LAYOUT = Object.freeze({
-  /** Bề rộng thẻ nhãn tầng. */
-  cardWidthPx: 200,
+  /**
+   * Bề rộng thẻ nhãn tầng. 224 chứ không 200: dấu "Cần chú ý" (~80 px) đứng cạnh
+   * tên tầng, và ở 200 px tên chỉ còn ~44 px — "Tầng 02" (47 px) bị cắt (BUG-383).
+   */
+  cardWidthPx: 224,
   /** Bo góc thẻ nhãn tầng. */
   cardRadiusPx: 12,
   /** Chiều cao vệt thang cao độ dọc mép trái khung nhìn. */
