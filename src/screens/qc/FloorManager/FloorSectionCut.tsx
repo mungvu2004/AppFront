@@ -66,12 +66,14 @@ function ElevationScale({ ticks }: { readonly ticks: FloorSectionCutProps['eleva
   return (
     <div
       aria-label={ELEVATION_SCALE_LABEL}
-      className="relative w-12 shrink-0 border-r border-border-default"
+      className="relative w-14 shrink-0 border-r border-border-default"
       role="group"
     >
+      {/* Nhãn một dòng, tâm đặt đúng vạch: trong 48 px "20,0 m" xuống hai dòng và vạch trên
+          cùng đè lên chữ "Tổng chiều cao công trình" của đầu lát cắt (đo run-20, 1440). */}
       {ticks.map((tick) => (
         <div
-          className="absolute inset-x-0 flex items-center justify-end gap-1 pr-1.5"
+          className="absolute inset-x-0 flex translate-y-1/2 items-center justify-end gap-1 whitespace-nowrap pr-1.5"
           key={tick.id}
           style={{ insetBlockEnd: tick.offsetCssPercent }}
         >
