@@ -365,6 +365,11 @@ function useNarrowViewport(): boolean {
 /* The model and the actions.                                                  */
 /* -------------------------------------------------------------------------- */
 
+/** The id of the cap note — "Thêm tầng" and the basement switch point at it while it shows. */
+export const FLOOR_CAP_NOTE_ID = 'create-project-floor-cap';
+
+const FLOOR_CAP_NOTE = `Đã đủ ${formatNumber(PROJECT_LIMITS.floorCountMax)} tầng, mức tối đa (kể cả tầng hầm).`;
+
 /** The id of step 2's "why can I not continue yet" line — `Tiếp tục` points at it. */
 export const FLOORS_HINT_ID = 'create-project-floors-hint';
 
@@ -403,6 +408,8 @@ export interface CreateProjectModel {
   readonly collisionRowId: string | null;
   readonly focusFloorId: string | null;
   readonly canAddFloor: boolean;
+  /** Why "Thêm tầng" is locked once the stack is full (BUG-177); `null` below the cap. */
+  readonly floorCapNote: string | null;
   /** Turning the basement ON adds a row, so it obeys the same cap; turning it off always works. */
   readonly canToggleBasement: boolean;
   /** The height typed into the "áp cho mọi tầng" field; `null` while empty. */
@@ -750,6 +757,7 @@ export function useCreateProjectModal(
     collisionRowId: floorStack.collisionRowId,
     focusFloorId,
     canAddFloor,
+    floorCapNote: canAddFloor ? null : FLOOR_CAP_NOTE,
     canToggleBasement: hasBasement || canAddFloor,
     applyHeightM,
     canApplyHeight,

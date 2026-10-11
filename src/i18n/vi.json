@@ -238,6 +238,7 @@
         "hasBasement": "Có tầng hầm",
         "hasBasementDescription": "Tầng hầm luôn nằm dưới tầng trệt; cao độ của nó là số âm.",
         "addFloor": "Thêm tầng",
+        "floorCapNote": "Đã đủ {{max}} tầng, mức tối đa (kể cả tầng hầm).",
         "removeFloor": "Bỏ tầng này",
         "removeFloorNamed": "Xoá {{name}}",
         "nameNamed": "Tên tầng {{name}}",

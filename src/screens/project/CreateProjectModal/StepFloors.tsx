@@ -19,7 +19,12 @@ import { NumericField } from '@/components/ui/NumericField';
 import { Table } from '@/components/ui/Table';
 import { Toggle } from '@/components/ui/Toggle';
 
-import { FLOORS_HINT_ID, PROJECT_LIMITS, type CreateProjectModalViewProps } from './useCreateProjectModal';
+import {
+  FLOOR_CAP_NOTE_ID,
+  FLOORS_HINT_ID,
+  PROJECT_LIMITS,
+  type CreateProjectModalViewProps,
+} from './useCreateProjectModal';
 
 export interface StepFloorsProps extends CreateProjectModalViewProps {
   readonly rowRefs: React.MutableRefObject<Map<string, HTMLTableRowElement>>;
@@ -123,15 +128,23 @@ export function StepFloors(props: StepFloorsProps) {
             </Table.Body>
           </Table.Root>
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <Button
-              variant="secondary"
-              size="sm"
-              iconBefore={<Plus size={16} aria-hidden="true" />}
-              onClick={props.addFloor}
-              disabled={isSubmitting || !props.canAddFloor}
-            >
-              Thêm tầng
-            </Button>
+            <div className="flex flex-col gap-1">
+              <Button
+                variant="secondary"
+                size="sm"
+                iconBefore={<Plus size={16} aria-hidden="true" />}
+                onClick={props.addFloor}
+                disabled={isSubmitting || !props.canAddFloor}
+                aria-describedby={props.floorCapNote !== null ? FLOOR_CAP_NOTE_ID : undefined}
+              >
+                Thêm tầng
+              </Button>
+              {props.floorCapNote !== null && (
+                <p id={FLOOR_CAP_NOTE_ID} className="text-[13px] leading-[18px] text-text-secondary">
+                  {props.floorCapNote}
+                </p>
+              )}
+            </div>
             <div className="flex items-end gap-2">
               <NumericField
                 label="Chiều cao áp cho mọi tầng"

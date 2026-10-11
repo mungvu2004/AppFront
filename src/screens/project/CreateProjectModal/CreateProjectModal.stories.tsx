@@ -67,6 +67,7 @@ const base: CreateProjectModalViewProps = {
   collisionRowId: null,
   focusFloorId: null,
   canAddFloor: true,
+  floorCapNote: null,
   canToggleBasement: true,
   applyHeightM: null,
   canApplyHeight: false,

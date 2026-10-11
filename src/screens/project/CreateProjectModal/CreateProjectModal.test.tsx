@@ -86,6 +86,7 @@ function baseProps(): CreateProjectModalViewProps {
     collisionRowId: null,
     focusFloorId: null,
     canAddFloor: true,
+    floorCapNote: null,
     canToggleBasement: true,
     applyHeightM: null,
     canApplyHeight: false,
@@ -381,13 +382,15 @@ describe('CreateProjectModal, wired to its hook', () => {
     expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng 2')).toHaveAccessibleDescription('Chưa nhập chiều cao thông thuỷ.');
   });
 
-  it('keeps the basement inside the 50-floor cap (BUG-150)', () => {
+  it('keeps the basement inside the 50-floor cap and says why "Thêm tầng" is locked (BUG-150, BUG-177)', () => {
     render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
 
     goToStep2();
     const add = screen.getByRole('button', { name: 'Thêm tầng' });
     for (let floors = 4; floors < 50; floors += 1) fireEvent.click(add);
     expect(screen.getAllByRole('textbox', { name: /^Tên tầng/u })).toHaveLength(50);
+    // BUG-177: the locked button says why.
+    expect(add).toHaveAccessibleDescription('Đã đủ 50 tầng, mức tối đa (kể cả tầng hầm).');
 
     const basement = screen.getByRole('switch', { name: 'Có tầng hầm' });
     expect(basement).toBeDisabled();
