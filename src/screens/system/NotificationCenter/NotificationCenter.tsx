@@ -231,7 +231,7 @@ function NotificationRow({
 
 export function NotificationCenter(props: NotificationCenterProps) {
   const {
-    screenState, isOpen, isCollapsed, onClose, filter, onFilterChange, groups, unreadBadge,
+    screenState, isOpen, onClose, filter, onFilterChange, groups, unreadBadge,
     liveMessage, onMarkAllRead, onMarkRead, onItemClick, onInlineAction, onViewAll,
     onOpenSettings, errorMessage, onRetry, arrivedIds, scrollRef,
   } = props;
@@ -322,68 +322,67 @@ export function NotificationCenter(props: NotificationCenterProps) {
 
   return (
     <Drawer.Root isOpen={isOpen} onClose={onClose} label={TITLE_LABEL}>
-      <Drawer.Header>
-        {/*
-          Trạng thái 7 ("thu gọn"): khung hẹp thì tiêu đề và nhóm nút xếp dọc
-          thay vì chen nhau trên một hàng. Bề ngang của chính tấm trượt là việc
-          của `Drawer` (nó tự đo bằng `useMediaQuery`), không phải của màn này.
-        */}
-        <div
-          className={cn(
-            'flex gap-3',
-            isCollapsed ? 'flex-col items-stretch' : 'items-center justify-between',
-          )}
-        >
-          <div className="flex items-center gap-2">
-            <h3 className="text-[15px] font-semibold text-text-primary">{TITLE_LABEL}</h3>
-            {unreadBadge !== '' && (
-              <span className="font-mono text-[13px] tabular-nums text-text-secondary">
-                {unreadBadge}
-              </span>
-            )}
+      {/* Cột đủ cao của tấm: thân cuộn riêng, chân "Xem tất cả" ghim đáy cả ở tờ dưới 1024px (BUG-161). */}
+      <div className="flex h-full min-h-0 flex-1 flex-col">
+        <Drawer.Header>
+          {/*
+            Trạng thái 7 ("thu gọn"): khung hẹp thì nhóm nút rơi xuống hàng dưới thay vì
+            ép tiêu đề gãy dòng. Dùng `flex-wrap` chứ không đọc `isCollapsed`: bề ngang
+            thật của tấm (400px ở desktop, cả `/thong-bao`) đủ cho một hàng, nên cùng
+            một bố cục với ngăn kéo (BUG-124/125). Tiêu đề không bao giờ gãy.
+          */}
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
+              <h3 className="text-[15px] font-semibold text-text-primary">{TITLE_LABEL}</h3>
+              {unreadBadge !== '' && (
+                <span className="font-mono text-[13px] tabular-nums text-text-secondary">
+                  {unreadBadge}
+                </span>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={onMarkAllRead} disabled={isMarkAllDisabled}>
+                {MARK_ALL_READ_LABEL}
+              </Button>
+              <IconButton
+                icon={<Settings size={18} />}
+                aria-label={SETTINGS_LABEL}
+                size="sm"
+                onClick={onOpenSettings}
+              />
+            </div>
           </div>
-          <div className="flex shrink-0 items-center gap-1">
-            <Button variant="ghost" size="sm" onClick={onMarkAllRead} disabled={isMarkAllDisabled}>
-              {MARK_ALL_READ_LABEL}
-            </Button>
-            <IconButton
-              icon={<Settings size={18} />}
-              aria-label={SETTINGS_LABEL}
-              size="sm"
-              onClick={onOpenSettings}
+          <div className="mt-3">
+            <SegmentedControl
+              aria-label={FILTER_ARIA_LABEL}
+              options={FILTER_OPTIONS}
+              value={filter}
+              onChange={onFilterChange}
             />
           </div>
-        </div>
-        <div className="mt-3">
-          <SegmentedControl
-            aria-label={FILTER_ARIA_LABEL}
-            options={FILTER_OPTIONS}
-            value={filter}
-            onChange={onFilterChange}
-          />
-        </div>
-      </Drawer.Header>
+        </Drawer.Header>
 
-      <Drawer.Body ref={scrollRef}>
-        {/* A7/A11: số chưa đọc đổi thì trình đọc màn hình nghe được, không phải đi dò lại. */}
-        <p className="sr-only" role="status" aria-live="polite">
-          {liveMessage}
-        </p>
+        <Drawer.Body ref={scrollRef}>
+          {/* A7/A11: số chưa đọc đổi thì trình đọc màn hình nghe được, không phải đi dò lại. */}
+          <p className="sr-only" role="status" aria-live="polite">
+            {liveMessage}
+          </p>
 
-        <div
-          className={cn(
-            'flex flex-col gap-1 transition-opacity duration-fast',
-            isClosing ? 'opacity-0' : 'opacity-100',
-          )}
-        >
-          {body}
+          <div
+            className={cn(
+              'flex flex-col gap-1 transition-opacity duration-fast',
+              isClosing ? 'opacity-0' : 'opacity-100',
+            )}
+          >
+            {body}
+          </div>
+        </Drawer.Body>
+
+        <div className="shrink-0 border-t border-border-default px-8 py-4">
+          <Button variant="ghost" size="sm" fullWidth onClick={onViewAll}>
+            {VIEW_ALL_LABEL}
+          </Button>
         </div>
-      </Drawer.Body>
-
-      <div className="shrink-0 border-t border-border-default px-8 py-4">
-        <Button variant="ghost" size="sm" fullWidth onClick={onViewAll}>
-          {VIEW_ALL_LABEL}
-        </Button>
       </div>
     </Drawer.Root>
   );
