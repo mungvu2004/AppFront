@@ -168,7 +168,7 @@ Path short names: `W/` = `src/screens/qc/WallLayerReview/`, `O/` = `…/ObjectLa
 | 121 | Section | "Vòng tường hở" gaps, "Xem tại lớp tường" → walls | `R/RoomLabelLeftPanel.tsx:45-49,115-125`, `R/useRoomLabelReview.ts:852-854` | — | gap (P2; needs an open wall loop from the pipeline) |
 | 122 | Button | "Kiểm tra lại vòng hở" re-reads the layer | `R/useRoomLabelReview.ts:845-848` | E "SCR-20 no room …" | covered |
 | 123 | State | empty "Chưa dò ra phòng nào" + notice | `R/RoomLabelReview.tsx:84-85,139-149`, `R/useRoomLabelReview.ts:153-154` | M SCR-20 (skip branch), E "SCR-20 no room …" | covered |
-| 124 | State | error "Không đọc được lớp phòng" + "Thử lại", loading | `R/RoomLabelReview.tsx:86-87,126-158` | — | gap (P3; mock only) |
+| 124 | State | error: a failed layer read with no document replaces the screen with `FloorLayerReadFailureScreen` (BUG-326; `R/RoomLabelReview.tsx:249`, `qc/shared/FloorLayerReadFailureScreen.tsx`); "Không đọc được lớp phòng" + "Thử lại" (`R/RoomLabelReview.tsx:89-90,139`) remains for other errors; loading | — | gap (P3; mock only) |
 | 125 | State | forbidden "Không có quyền sửa lớp phòng" | `R/RoomLabelReview.tsx:88,166-173` | R9 SCR-20 [V] | covered |
 | 126 | State | collapsed "Bảng phòng đang thu gọn" | `R/RoomLabelReview.tsx:89` | — | gap (P3) |
 | 127 | Inspector | fields Diện tích / Chu vi / Chiều cao thông thuỷ / Độ tin cậy / Ảnh cắt gốc / "Xem luật không gian" | `R/RoomLabelInspectorFields.tsx:36-51` | — | gap (P3, display) |
