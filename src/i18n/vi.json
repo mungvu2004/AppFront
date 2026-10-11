@@ -662,6 +662,7 @@
     },
     "status": {
       "waiting": "Chờ xử lý",
+      "noDrawing": "Chưa có bản vẽ",
       "uploading": "Đang tải lên",
       "attached": "Đã gắn kèm",
       "error": "Lỗi"

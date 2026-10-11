@@ -132,6 +132,13 @@ const STATUS_LABEL_KEYS: Readonly<Record<FloorUploadStatus, string>> = {
 };
 
 /**
+ * `'waiting'` của tầng không tệp, không bản vẽ máy chủ: không có gì đang "chờ xử lý", và hộp
+ * chặn lẫn Quản lý tầng đều gọi nó là "chưa có bản vẽ" (BUG-263). Tệp đã thả mà chưa tải vẫn "Chờ xử lý".
+ */
+const NO_DRAWING_LABEL = 'Chưa có bản vẽ';
+const NO_DRAWING_LABEL_KEY = 'floorUpload.status.noDrawing';
+
+/**
  * Màu của huy hiệu, theo bốn mã trạng thái của `src/lib/viewmodel`.
  *
  * Xanh `'verified'` chỉ dành cho một tệp **người dùng tự gán** (A5). Một tệp
@@ -1076,8 +1083,8 @@ export function useFloorUploadScreen(
           file,
           status,
           statusVariant: statusVariantFor(attachment, status),
-          statusLabel: STATUS_LABELS[status],
-          statusLabelKey: STATUS_LABEL_KEYS[status],
+          statusLabel: file === null ? NO_DRAWING_LABEL : STATUS_LABELS[status],
+          statusLabelKey: file === null ? NO_DRAWING_LABEL_KEY : STATUS_LABEL_KEYS[status],
           isAutoMatched,
           autoMatchHint: isAutoMatched ? COPY.autoMatch : null,
           percent,

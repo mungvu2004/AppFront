@@ -323,6 +323,25 @@ describe('useFloorUploadScreen — danh sách tầng', () => {
     expect(result.current.errorMessage).toContain('máy chủ');
   });
 
+  // BUG-263: thẻ của tầng không tệp, không bản vẽ máy chủ nói đúng như hộp chặn và Quản lý tầng.
+  it('tầng chưa có bản vẽ ghi "Chưa có bản vẽ", không phải "Chờ xử lý" (BUG-263)', async () => {
+    const harness = createHarness();
+    const { result } = renderScreen(harness.options);
+
+    await waitFor(() => {
+      expect(result.current.floors).toHaveLength(4);
+    });
+
+    const bare = result.current.floors.filter((row) => row.file === null);
+
+    expect(bare.length).toBeGreaterThan(0);
+    for (const row of bare) {
+      expect(row.status).toBe('waiting');
+      expect(row.statusLabel).toBe('Chưa có bản vẽ');
+      expect(row.statusLabelKey).toBe('floorUpload.status.noDrawing');
+    }
+  });
+
   it('mở thẳng đường dẫn, bộ đệm chưa có tên: đọc #24 một lần để breadcrumb nêu tên dự án (BUG-165)', async () => {
     const harness = createHarness();
     const readProject = vi.fn(harness.gateway.readProject);
@@ -1541,6 +1560,8 @@ describe('useFloorUploadScreen — trang PDF', () => {
 
     expect(createUpload).not.toHaveBeenCalled();
     expect(result.current.floors[2]?.status).toBe('waiting');
+    // Có tệp mà chưa tải: "Chờ xử lý", khác tầng chưa có bản vẽ (BUG-263).
+    expect(result.current.floors[2]?.statusLabel).toBe('Chờ xử lý');
     await waitFor(() => {
       expect(document.body.textContent).toContain(PICK_PAGE_SENTENCE);
     });
