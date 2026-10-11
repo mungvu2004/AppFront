@@ -21,24 +21,23 @@
  * `CreateProjectModal.container.tsx`'s gateway calls
  * `applyInvalidation(queryClient, 'createProject', {})`, which invalidates
  * `queryKeys.project.summaries()` — the key `useProjectDashboard` reads (N1) —
- * so the list refetches on its own and the new project appears. The hook builds
+ * so the list refetches on its own and the new project appears. The toast's
+ * "Hoàn tác" deletes it through the same gateway, which invalidates the same
+ * key (`deleteProject`), so the card leaves the same way (BUG-112). The hook builds
  * its own N1 gateway from `createAppApiClient()`; nothing here wires data.
  */
 
-import { useRef, useState } from 'react';
-import { useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ScreenErrorBoundary, type ScreenErrorFallback } from '@/components/feedback/ScreenErrorBoundary';
 import { Toast, useToast } from '@/components/feedback/Toast';
 import { useSession } from '@/hooks/useSession';
 import { initialsOf } from '@/lib/format/initials';
-import { queryKeys } from '@/lib/query/queryKeys';
 import { CreateProjectModalContainer } from '@/screens/project/CreateProjectModal';
 import { NotificationBellContainer } from '@/screens/system/NotificationCenter';
 
 import { ProjectDashboardConnected } from './ProjectDashboard';
-import type { DashboardProjectList } from './projectsGateway';
 
 /** Names this screen to the error boundary, and to anything reading its report. */
 const SCREEN_ID = 'dashboard';
@@ -59,20 +58,6 @@ function DashboardCrashFallback({ report, retry }: ScreenErrorFallback) {
   );
 }
 
-interface CreateToast {
-  readonly message: string;
-  readonly onUndo?: () => void;
-}
-
-/** Takes a project the create toast's undo just deleted off the list N1 holds. */
-function forgetProject(queryClient: QueryClient, projectId: string): void {
-  // A read the create's own invalidation started would land after this and bring the card back.
-  void queryClient.cancelQueries({ queryKey: queryKeys.project.summaries() });
-  queryClient.setQueryData<DashboardProjectList>(queryKeys.project.summaries(), (previous) =>
-    previous === undefined ? previous : { ...previous, projects: previous.projects.filter((entry) => entry.id !== projectId) },
-  );
-}
-
 function DashboardWithCreateModal() {
   const session = useSession();
   const role = session.roles[0];
@@ -80,28 +65,6 @@ function DashboardWithCreateModal() {
   const accountInitials = initialsOf(session.user?.name ?? '', session.user?.email ?? '');
   const { addToast } = useToast();
   const [isCreateOpen, setCreateOpen] = useState(false);
-  const queryClient = useQueryClient();
-  // The dialog calls `onToast` and then `onCreated` for one create: the slot ties that toast to its id.
-  const pendingCreate = useRef<{ id: string | null } | null>(null);
-
-  // BUG-112: the create toast's undo deletes the project (#27) but nothing took the card off the list.
-  // ponytail: the gateway's `remove` in CreateProjectModal.container.tsx (cụm B) could invalidate instead; then drop this.
-  const onCreateToast = (toast: CreateToast): void => {
-    const undo = toast.onUndo;
-    if (undo === undefined) {
-      addToast(toast);
-      return;
-    }
-    const created: { id: string | null } = { id: null };
-    pendingCreate.current = created;
-    addToast({
-      ...toast,
-      onUndo: () => {
-        undo();
-        if (created.id !== null) forgetProject(queryClient, created.id);
-      },
-    });
-  };
 
   return (
     <>
@@ -114,11 +77,7 @@ function DashboardWithCreateModal() {
       <CreateProjectModalContainer
         isOpen={isCreateOpen}
         onDismiss={() => setCreateOpen(false)}
-        onToast={onCreateToast}
-        onCreated={(id) => {
-          if (pendingCreate.current !== null) pendingCreate.current.id = id;
-          pendingCreate.current = null;
-        }}
+        onToast={addToast}
         {...(role !== undefined ? { role } : {})}
       />
     </>

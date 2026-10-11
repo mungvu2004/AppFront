@@ -25,11 +25,12 @@
  * until the server assigns one) and all six of its config keys, and it needs a
  * `QueryClient` passed into the *hook*, which `useCreateProjectModal.ts` is
  * built specifically not to depend on. A plain gateway call plus
- * `applyInvalidation` on success (D-03) is the honest shape for a create.
+ * `applyInvalidation` on success (D-03) is the honest shape for a create — and
+ * for the undo's delete, which invalidates the same N1 list (BUG-112).
  */
 
 import { useMemo } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 
 import { createAppApiClient } from '@/api/appClient';
 import type { ApiClient, Floor } from '@/api/client';
@@ -82,7 +83,7 @@ function toProjectWriteBody(request: CreateProjectRequest) {
 /* eslint-disable-next-line react-refresh/only-export-components -- named export
    sits beside the container it serves (mục D) rather than in a seventh file for
    one pure function; nothing here is a component, so Fast Refresh is unaffected. */
-export function createProjectGateway(client: ApiClient, invalidate: () => void): CreateProjectGateway {
+export function createProjectGateway(client: ApiClient, queryClient: QueryClient): CreateProjectGateway {
   return {
     create: async (request) => {
       const result = await client.projects.create({
@@ -94,7 +95,7 @@ export function createProjectGateway(client: ApiClient, invalidate: () => void):
         return result;
       }
 
-      invalidate();
+      applyInvalidation(queryClient, 'createProject', {});
 
       return { ok: true, data: { id: result.data.id } };
     },
@@ -107,6 +108,9 @@ export function createProjectGateway(client: ApiClient, invalidate: () => void):
         return result;
       }
 
+      // BUG-112: the card the create put on the dashboard (N1) goes with the project.
+      applyInvalidation(queryClient, 'deleteProject', { projectId });
+
       return { ok: true, data: undefined };
     },
   };
@@ -116,10 +120,7 @@ function useCreateProjectGateway(): CreateProjectGateway {
   const queryClient = useQueryClient();
   const client = useMemo(() => createAppApiClient(), []);
 
-  return useMemo(
-    () => createProjectGateway(client, () => applyInvalidation(queryClient, 'createProject', {})),
-    [client, queryClient],
-  );
+  return useMemo(() => createProjectGateway(client, queryClient), [client, queryClient]);
 }
 
 /**

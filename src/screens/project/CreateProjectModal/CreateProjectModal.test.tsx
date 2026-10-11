@@ -1,8 +1,10 @@
+import { QueryClient } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { createMockApiClient } from '@/api/__mocks__/client';
+import { queryKeys } from '@/lib/query/queryKeys';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
@@ -283,9 +285,10 @@ describe('CreateProjectModalView', () => {
 /* -------------------------------------------------------------------------- */
 
 /** A gateway wired the production way, over a fresh mock client per test. */
-function buildGateway(invalidate: () => void = noop) {
+function buildGateway() {
   const client = createMockApiClient();
-  return { client, gateway: createProjectGateway(client, invalidate) };
+  const queryClient = new QueryClient();
+  return { client, queryClient, gateway: createProjectGateway(client, queryClient) };
 }
 
 function goToStep2(name = 'Chung cư Bốn Tầng'): void {
@@ -464,8 +467,10 @@ describe('CreateProjectModal, wired to its hook', () => {
   });
 
   it('creates a project and offers an undo, even though the dialog closes (invariant A8)', async () => {
-    const invalidate = vi.fn();
-    const { client, gateway } = buildGateway(invalidate);
+    const { client, queryClient, gateway } = buildGateway();
+    // The dashboard's N1 list, as `useProjectDashboard` leaves it in the cache.
+    const listState = () => queryClient.getQueryState(queryKeys.project.summaries());
+    queryClient.setQueryData(queryKeys.project.summaries(), { projects: [], droppedCount: 0 });
     const createSpy = vi.spyOn(client.projects, 'create');
     const deleteSpy = vi.spyOn(client.projects, 'delete');
     const onDismiss = vi.fn();
@@ -502,7 +507,8 @@ describe('CreateProjectModal, wired to its hook', () => {
     });
     expect(createSpy).toHaveBeenCalledTimes(1);
     // D-03: the project list's cache is invalidated once the mock client confirms the write.
-    expect(invalidate).toHaveBeenCalledTimes(1);
+    expect(listState()?.isInvalidated).toBe(true);
+    queryClient.setQueryData(queryKeys.project.summaries(), { projects: [], droppedCount: 0 });
 
     // The id the toast's undo will act on is whatever the mock actually minted
     // — not a value this test invents — so it is read back rather than assumed.
@@ -516,9 +522,11 @@ describe('CreateProjectModal, wired to its hook', () => {
     expect(toast.message).toBe('Đã tạo dự án "Chung cư Một Tầng".');
     expect(typeof toast.onUndo).toBe('function');
 
-    // A8: undo really removes what was just created, through the same mock client.
-    await toast.onUndo?.();
+    // A8: undo really removes what was just created, through the same mock client,
+    // and the dashboard list is refetched so the card goes too (BUG-112).
+    toast.onUndo?.();
     expect(deleteSpy).toHaveBeenCalledWith({ projectId: createdProjectId });
+    await waitFor(() => expect(listState()?.isInvalidated).toBe(true));
   });
 
   it('opens pristine: no complaint before a keystroke, the focus in "Tên dự án" (BUG-133)', async () => {
