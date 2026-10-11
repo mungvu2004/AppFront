@@ -434,3 +434,20 @@ export interface UseFloorManagerResult extends FloorManagerViewProps {
  * trường: `unsupportedNotices` chuyển từ `UseFloorManagerResult` xuống
  * `FloorManagerViewProps`. Không trường nào khác đổi trong lượt đó.
  */
+
+/**
+ * Tên mười cột: tiêu đề bảng (`FloorTable.tsx`) và nhãn ô của dòng xếp chồng (`FloorTableRow.tsx`)
+ * đọc cùng một chỗ. Đặt ở đây vì file component chỉ được xuất hằng nguyên thuỷ (react-refresh).
+ */
+export const FLOOR_COLUMN_LABELS = {
+  handle: 'Đổi thứ tự',
+  name: 'Tên tầng',
+  elevation: 'Cao độ (m)',
+  height: 'Chiều cao (m)',
+  drawings: 'Bản vẽ',
+  walls: 'Tường',
+  rooms: 'Phòng',
+  area: 'Diện tích',
+  qc: 'Tiến độ QC',
+  actions: 'Hành động',
+} as const;

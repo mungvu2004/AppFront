@@ -654,3 +654,27 @@ describe('vùng chạm của nút chữ (BUG-257, BUG-270)', () => {
     }
   });
 });
+
+describe('bảng tầng vừa khung (BUG-250)', () => {
+  it('lát cắt mở: dòng xếp chồng, mỗi ô mang tên cột, không lặp "Chưa có bản vẽ"', () => {
+    renderWithProviders(<FloorManager {...scenarioArgsFor('partial')} />);
+    const table = screen.getByRole('table');
+    const roof = within(table).getByRole('row', { name: /^Tầng mái, / });
+
+    expect(table.querySelector('thead')).toHaveClass('hidden');
+    expect(roof).toHaveClass('flex', 'flex-wrap');
+    expect(within(roof).getByText('Tường')).toBeInTheDocument();
+    expect(within(roof).getAllByText('Chưa có bản vẽ')).toHaveLength(1);
+  });
+
+  it('lát cắt thu gọn ở khổ rộng: đủ hàng tiêu đề, dòng không xếp chồng', () => {
+    renderWithProviders(<FloorManager {...scenarioArgsFor('collapsed')} />);
+    const table = screen.getByRole('table');
+
+    expect(table.querySelector('thead')).not.toHaveClass('hidden');
+    expect(within(table).getAllByRole('columnheader')).toHaveLength(10);
+    for (const row of within(table).getAllByRole('row', { name: /, cao độ / })) {
+      expect(row).not.toHaveClass('flex');
+    }
+  });
+});

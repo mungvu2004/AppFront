@@ -35,8 +35,13 @@ import { Table } from '@/components/ui/Table';
 import { Toggle } from '@/components/ui/Toggle';
 import { useContextMenu } from '@/hooks/useContextMenu';
 
-import { FloorTableRow } from './FloorTableRow';
-import type { FloorManagerScreenState, FloorManagerViewProps, FloorRowVm } from './floorManagerTypes';
+import { CELL, FloorTableRow } from './FloorTableRow';
+import {
+  FLOOR_COLUMN_LABELS,
+  type FloorManagerScreenState,
+  type FloorManagerViewProps,
+  type FloorRowVm,
+} from './floorManagerTypes';
 
 export interface FloorTableProps
   extends Pick<
@@ -64,6 +69,8 @@ export interface FloorTableProps
     | 'onBackToProjects'
   > {
   readonly state: FloorManagerScreenState;
+  /** Dòng xếp chồng khi bảng không có cả bề ngang (BUG-250, `FloorTableRow.tsx`). */
+  readonly isStacked: boolean;
 }
 
 const EMPTY_TITLE = 'Chưa có tầng nào';
@@ -74,18 +81,9 @@ const RETRY_LABEL = 'Thử lại';
 const CAPTION_TEXT = 'Cao độ tính tự động từ chiều cao các tầng dưới trừ khi ghi đè.';
 const AUTO_ELEVATION_LABEL = 'Tự động tính cao độ';
 
-const EDITABLE_HEADERS: readonly { readonly key: string; readonly label: string }[] = [
-  { key: 'handle', label: 'Đổi thứ tự' },
-  { key: 'name', label: 'Tên tầng' },
-  { key: 'elevation', label: 'Cao độ (m)' },
-  { key: 'height', label: 'Chiều cao (m)' },
-  { key: 'drawings', label: 'Bản vẽ' },
-  { key: 'walls', label: 'Tường' },
-  { key: 'rooms', label: 'Phòng' },
-  { key: 'area', label: 'Diện tích' },
-  { key: 'qc', label: 'Tiến độ QC' },
-  { key: 'actions', label: 'Hành động' },
-];
+const EDITABLE_HEADERS = (Object.keys(FLOOR_COLUMN_LABELS) as (keyof typeof FLOOR_COLUMN_LABELS)[]).map(
+  (key) => ({ key, label: FLOOR_COLUMN_LABELS[key] }),
+);
 
 export function FloorTable({
   state,
@@ -110,6 +108,7 @@ export function FloorTable({
   onRetry,
   isProjectMissing,
   onBackToProjects,
+  isStacked,
 }: FloorTableProps) {
   const menu = useContextMenu();
   const [duplicatingFloorId, setDuplicatingFloorId] = useState<string | null>(null);
@@ -246,10 +245,10 @@ export function FloorTable({
 
       <div className="min-h-0 flex-1 overflow-auto rounded-[8px] border border-border-default">
         <Table.Root>
-          <Table.Header>
+          <Table.Header className={isStacked ? 'hidden' : undefined}>
             <tr>
               {headers.map((header) => (
-                <Table.Head key={header.key}>
+                <Table.Head className={CELL} key={header.key}>
                   {header.key === 'handle' || header.key === 'actions' ? (
                     <span className="sr-only">{header.label}</span>
                   ) : (
@@ -270,6 +269,7 @@ export function FloorTable({
                   duplicatingFloorId={duplicatingFloorId}
                   index={index}
                   isAutoElevation={isAutoElevation}
+                  isStacked={isStacked}
                   key={row.id}
                   nameInputRef={(element) => {
                     nameInputRefs.current[row.id] = element;

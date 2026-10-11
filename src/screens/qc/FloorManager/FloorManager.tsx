@@ -33,6 +33,8 @@
  * Dưới 1024px (`isCompact`, đo ở lớp trên và truyền vào — màn KHÔNG tự đo bề
  * rộng) hai cột xếp dọc và lát cắt xuống DƯỚI bảng bằng `order`, không đảo thứ
  * tự trong DOM, để luồng đọc của trình đọc màn hình vẫn là bảng trước.
+ * Mười cột cần ~958px: bảng chỉ trải đủ cột khi lát cắt thu gọn ở khổ rộng (nút "Hiện lát
+ * cắt" nằm trên bảng); cạnh lát cắt hay khi `isCompact`, mỗi dòng xếp chồng như thẻ (BUG-250).
  *
  * ## Câu chặn trùng cao độ đi ra bằng prop riêng
  *
@@ -139,7 +141,7 @@ export function FloorManager(props: FloorManagerViewProps) {
       )}
 
       <div className="mx-auto w-full max-w-[1120px] flex-1 px-8 pb-8">
-        <div className={cn('flex min-h-[480px] items-stretch gap-6', isCompact ? 'flex-col' : 'flex-row')}>
+        <div className={cn('flex min-h-[480px] items-stretch gap-6', isCompact || isCollapsed ? 'flex-col' : 'flex-row')}>
           {isLoadError ? null : isCollapsed ? (
             <button className={EXPAND_BUTTON_CLASS_NAME} onClick={onToggleCollapsed} type="button">
               {EXPAND_SECTION_LABEL}
@@ -167,6 +169,8 @@ export function FloorManager(props: FloorManagerViewProps) {
               isProjectMissing={props.isProjectMissing}
               onBackToProjects={props.onBackToProjects}
               isAutoElevation={props.isAutoElevation}
+              // Mười cột chỉ vừa khi bảng có cả bề ngang: lát cắt thu gọn, khổ rộng (BUG-250).
+              isStacked={isCompact || !isCollapsed}
               onAddFloor={props.onAddFloor}
               onDuplicateFloor={props.onDuplicateFloor}
               onFloorFieldCancel={props.onFloorFieldCancel}
