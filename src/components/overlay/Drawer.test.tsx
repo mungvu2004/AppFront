@@ -3,10 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Drawer } from './Drawer';
 
-/** Bề ngang điện thoại: `Drawer` đọc `(max-width: 1023px)` để chọn tấm trượt. */
+/** Bề ngang điện thoại: `Drawer` đọc `(width < 1024px)` để chọn tấm trượt. */
 function emulatePhone(): void {
   vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: query === '(max-width: 1023px)',
+    matches: query === '(width < 1024px)',
     media: query,
     onchange: null,
     addEventListener: vi.fn(),

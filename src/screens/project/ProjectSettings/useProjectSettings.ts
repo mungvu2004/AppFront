@@ -577,7 +577,7 @@ export function toSaveState(autosaveState: AutosaveState): SaveState {
 /* Cách xếp thu gọn.                                                           */
 /* -------------------------------------------------------------------------- */
 
-const NARROW_VIEWPORT_QUERY = '(max-width: 1023px)';
+const NARROW_VIEWPORT_QUERY = '(width < 1024px)';
 
 /** `< 1024px` — cùng mốc `ProjectDashboard` và `CreateProjectModal` đang dùng. */
 function useNarrowViewport(): boolean {

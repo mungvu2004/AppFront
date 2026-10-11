@@ -80,7 +80,7 @@ function stubMatchMedia(matches: (query: string) => boolean): void {
   });
 }
 
-const NARROW_QUERY = '(max-width: 639px)';
+const NARROW_QUERY = '(width < 640px)';
 
 /** Props của view, dựng thẳng tay — mục D: view không cần hook nào để test. */
 function viewProps(overrides: Partial<NotificationsSectionProps> = {}): NotificationsSectionProps {

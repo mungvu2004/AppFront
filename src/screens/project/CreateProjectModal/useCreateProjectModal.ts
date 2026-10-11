@@ -440,7 +440,7 @@ function computeFloorStack(rows: readonly DraftFloorRow[]): FloorStack {
 /* Compact viewport.                                                          */
 /* -------------------------------------------------------------------------- */
 
-const NARROW_VIEWPORT_QUERY = '(max-width: 1023px)';
+const NARROW_VIEWPORT_QUERY = '(width < 1024px)';
 
 /** `< 1024px` — the same floor `ProjectDashboard`'s three-column grid uses. */
 function useNarrowViewport(): boolean {

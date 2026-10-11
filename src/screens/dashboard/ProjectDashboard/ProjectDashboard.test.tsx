@@ -79,6 +79,7 @@ function baseProps(): ProjectDashboardViewProps {
     canDelete: true,
     canDuplicate: false,
     errorMessage: null,
+    canRetry: true,
     viewMode: 'grid',
     searchQuery: '',
     statusFilter: 'all',
@@ -222,6 +223,13 @@ describe('ProjectDashboardView, seven states', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
 
     expect(retryLoad).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers no retry when the list is forbidden: a second read would be refused just the same', () => {
+    render(<ProjectDashboardView {...PROPS_BY_STATE.error()} canRetry={false} />);
+
+    expect(screen.getByText('Không tải được danh sách dự án')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Thử lại' })).not.toBeInTheDocument();
   });
 
   it('hides "Dự án mới" for a viewer, and keeps the grid', () => {

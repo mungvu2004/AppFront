@@ -83,6 +83,7 @@ const base: ProjectDashboardViewProps = {
   canDelete: true,
   canDuplicate: false,
   errorMessage: null,
+  canRetry: true,
   viewMode: 'grid',
   searchQuery: '',
   statusFilter: 'all',

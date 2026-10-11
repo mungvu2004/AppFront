@@ -270,7 +270,7 @@ function statusOfTask(taskState: UploadTaskState): FloorUploadStatus {
 /* Cách xếp thu gọn — cùng mốc `ProjectSettings` và `ProjectDashboard` dùng.    */
 /* -------------------------------------------------------------------------- */
 
-const NARROW_VIEWPORT_QUERY = '(max-width: 1023px)';
+const NARROW_VIEWPORT_QUERY = '(width < 1024px)';
 
 function useNarrowViewport(): boolean {
   const [isNarrow, setNarrow] = useState(() =>

@@ -508,6 +508,24 @@ describe('CreateProjectModal, wired to its hook', () => {
     expect(screen.getAllByRole('textbox', { name: /^Tên tầng/u })).toHaveLength(50);
   });
 
+  // The 50th "Thêm tầng" locks the button under the keyboard focus, which then fell to <body>.
+  it('hands the focus to the name of the new floor when the 50th "Thêm tầng" locks the button', () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+
+    goToStep2();
+    const add = screen.getByRole('button', { name: 'Thêm tầng' });
+    add.focus();
+    for (let floors = 4; floors < 49; floors += 1) fireEvent.click(add);
+    expect(add).toHaveFocus();
+
+    fireEvent.click(add);
+
+    const names = screen.getAllByRole('textbox', { name: /^Tên tầng/u });
+    expect(names).toHaveLength(50);
+    expect(add).toBeDisabled();
+    expect(names.at(-1)).toHaveFocus();
+  });
+
   it('names an added floor after the ones already in the table, never twice "Tầng 3" (BUG-217)', () => {
     render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
 

@@ -202,7 +202,7 @@ const noLowConfidenceSentence = (threshold: string): string =>
 const STAGE_LABEL_BY_ID = new Map(getPipelineStages().map((stage) => [stage.id, stage.label]));
 
 /** `< 1024px` — cùng mốc `InputQualityGate`, `FloorUploadScreen` và `ProjectSettings`. */
-const NARROW_VIEWPORT_QUERY = '(max-width: 1023px)';
+const NARROW_VIEWPORT_QUERY = '(width < 1024px)';
 
 const DEFAULT_ROLES: readonly ProjectRole[] = ['engineer'];
 

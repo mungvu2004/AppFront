@@ -33,7 +33,7 @@
  * ## `isCompact` là tuỳ chọn, không phải một phép đo thứ sáu
  *
  * Năm hook trong repo tự chép một `useNarrowViewport` với chuỗi
- * `'(max-width: 1023px)'` gõ tay. Bản thứ sáu sẽ là con số thứ sáu không có tên
+ * `'(width < 1024px)'` gõ tay. Bản thứ sáu sẽ là con số thứ sáu không có tên
  * (R-71), nên màn này nhận `isCompact` qua tuỳ chọn — đúng khuôn
  * `NotificationCenterRoute`, nơi route toàn màn tự nói mình thu gọn. Người dựng
  * container quyết định, hook chỉ đặt tên cho quyết định ấy.

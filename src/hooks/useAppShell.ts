@@ -69,8 +69,8 @@ export function useAppShell(): AppShellState {
   };
 
   // Breakpoints
-  const isBelowMd   = useBreakpoint('(max-width: 1023px)');
-  const isBelowLg   = useBreakpoint('(max-width: 1279px)');
+  const isBelowMd   = useBreakpoint('(width < 1024px)');
+  const isBelowLg   = useBreakpoint('(width < 1280px)');
 
   return {
     leftCollapsed,

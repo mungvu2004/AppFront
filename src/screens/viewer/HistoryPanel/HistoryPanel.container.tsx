@@ -79,7 +79,7 @@ export const HISTORY_PANEL_SCREEN_ID = 'history-panel';
  * nó lên đúng điểm ấy. Hai chỗ đọc cùng một con số thì vỏ không bao giờ lệch
  * nửa nhịp so với lớp CSS đang vẽ nó.
  */
-const SHEET_MEDIA_QUERY = '(max-width: 1023px)';
+const SHEET_MEDIA_QUERY = '(width < 1024px)';
 
 /** Không đọc được bề ngang thì dựng panel — vỏ mặc định của viewer trên desktop. */
 const FALLBACK_LAYOUT: HistoryPanelLayout = 'panel';

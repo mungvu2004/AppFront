@@ -162,7 +162,7 @@ const FULL_PERCENT = 100;
 const ONE_COMPARISON_FRAME = 1;
 
 /** Kiểu "Cạnh nhau" cần đủ 1280 để đặt hai khung nhìn. */
-const NARROW_VIEWPORT_QUERY = '(max-width: 1279px)';
+const NARROW_VIEWPORT_QUERY = '(width < 1280px)';
 
 /** Vai mạnh nhất đứng trước; `role` của viewmodel lấy vai đầu tiên khớp. */
 const ROLE_PRECEDENCE: readonly ProjectRole[] = Object.freeze(['admin', 'engineer', 'viewer']);
