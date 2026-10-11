@@ -524,7 +524,8 @@ export interface ScaleStatusBarViewModel {
  *    `panel.reference.draft`) HOẶC có ít nhất một hàng `isLowConfidence`.
  * 5. `state === 'forbidden'` ⟺ `canvas.isInteractive === false` ⟺
  *    `panel.areActionsHidden === true`.
- * 6. `state === 'collapsed'` ⟺ `isPanelCollapsed === true`.
+ * 6. `state === 'collapsed'` ⟹ `isPanelCollapsed === true` (một chiều: panel thu gọn được cả
+ *    khi `error`/`forbidden` đứng trước — BUG-322).
  * 7. `state === 'success'` ⟺ `panel.statusCode === 'verified'`.
  */
 export interface ScaleCalibrationViewModel {

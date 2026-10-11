@@ -57,7 +57,7 @@
  * (bất biến 4). Thứ tự ở đây chọn nghĩa dùng được: `loading` → `error` →
  * `forbidden` → `collapsed` → `success` → `partial` (đã bắt tay vào làm) →
  * `empty`. Mọi cờ mà bất biến nhắc tới (`canvas.isImageLoading`,
- * `canvas.isInteractive`, `panel.areActionsHidden`, `isPanelCollapsed`,
+ * `canvas.isInteractive`, `panel.areActionsHidden`,
  * `panel.statusCode`, `errorMessage`) được suy NGƯỢC từ trạng thái đã chọn, nên
  * chiều còn lại của mỗi "⟺" luôn đúng theo cấu trúc.
  */
@@ -1737,7 +1737,9 @@ export function useScaleCalibration(
         saveText: saveLabel ?? '',
       },
       isCompact,
-      isPanelCollapsed: state === 'collapsed',
+      // Theo nút, không theo trạng thái: `error`/`forbidden` đứng trước `collapsed` trong thứ tự
+      // bảy trạng thái, nên suy từ `state` làm nút "Thu gọn bảng" chết ở đó (BUG-322).
+      isPanelCollapsed,
       prefersReducedMotion,
       errorMessage: errorDescription?.description ?? null,
       errorCode,
@@ -1780,6 +1782,7 @@ export function useScaleCalibration(
     errorDescription,
     highlightedRowId,
     isCompact,
+    isPanelCollapsed,
     isEmptyState,
     lowConfidenceCount,
     methodOptions,

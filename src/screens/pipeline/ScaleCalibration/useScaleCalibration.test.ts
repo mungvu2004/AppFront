@@ -962,6 +962,23 @@ describe('useScaleCalibration — bảy trạng thái', () => {
     warped.unmount();
   });
 
+  it('"Thu gọn bảng" vẫn thu panel khi màn ở trạng thái lỗi (BUG-322)', async () => {
+    const warpedHarness = await makeHarness({ sourceFloorId: WARPED_MOCK_FLOOR_ID });
+    const warped = mountHook(warpedHarness.gateway);
+    await settle(warped);
+
+    expect(warped.result.current.model.state).toBe('error');
+    expect(warped.result.current.model.isPanelCollapsed).toBe(false);
+
+    await act(async () => {
+      warped.result.current.actions.onToggleCollapsed();
+    });
+
+    expect(warped.result.current.model.state).toBe('error');
+    expect(warped.result.current.model.isPanelCollapsed).toBe(true);
+    warped.unmount();
+  });
+
   it('tầng chưa có bản vẽ (404 `upload`) nói đúng nguyên nhân, không lộ NOT_FOUND (BUG-337)', async () => {
     const harness = await makeHarness();
     const noDrawing: HttpError = {
