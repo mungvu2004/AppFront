@@ -636,3 +636,21 @@ describe('bố cục gọn đo ở route (BUG-251)', () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe('vùng chạm của nút chữ (BUG-257, BUG-270)', () => {
+  it('"Tải lên", "Thu gọn lát cắt" và "Hiện lát cắt" cao 24 px, 44 px dưới sm', () => {
+    const { unmount } = renderWithProviders(<FloorManager {...scenarioArgsFor('partial')} />);
+    const targets = [
+      ...screen.getAllByRole('button', { name: 'Tải lên' }),
+      screen.getByRole('button', { name: 'Thu gọn lát cắt' }),
+    ];
+    unmount();
+    renderWithProviders(<FloorManager {...scenarioArgsFor('collapsed')} />);
+    targets.push(screen.getByRole('button', { name: EXPAND_SECTION_LABEL }));
+
+    expect(targets.length).toBeGreaterThan(2);
+    for (const target of targets) {
+      expect(target).toHaveClass('min-h-11', 'sm:min-h-6');
+    }
+  });
+});

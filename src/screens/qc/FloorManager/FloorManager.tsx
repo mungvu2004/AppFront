@@ -73,7 +73,7 @@ const FORBIDDEN_NOTICE_TITLE = 'Không có quyền sửa tầng';
 const UNSUPPORTED_NOTICES_HEADING = 'Những thay đổi chỉ sống trong phiên làm việc này';
 
 const EXPAND_BUTTON_CLASS_NAME = cn(
-  'self-start rounded-[6px] px-1.5 py-0.5 text-[13px] text-accent',
+  'inline-flex min-h-11 items-center self-start rounded-[6px] px-1.5 text-[13px] text-accent sm:min-h-6',
   'transition-colors duration-120 hover:bg-accent-wash',
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
 );
