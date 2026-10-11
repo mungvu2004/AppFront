@@ -287,7 +287,7 @@ test.describe('SCR-05 Dashboard (/)', () => {
     const before = api.filter((entry) => entry.method === 'POST' && entry.path === '/api/projects').length;
     const dialog = await openWizard(page);
 
-    await dialog.getByLabel('Tên dự án').fill(`discard-${String(Date.now())}`);
+    await dialog.getByLabel('Tên dự án').fill(`${TEST_DATA_PREFIX}discard-${Date.now().toString(36)}`);
     await dialog.getByRole('button', { name: 'Huỷ', exact: true }).click();
     await expect(dialog.getByText('Đóng và bỏ các thay đổi chưa lưu?', { exact: true })).toBeVisible();
     await settled(dialog);
