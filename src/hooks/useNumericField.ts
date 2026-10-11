@@ -102,10 +102,10 @@ export function useNumericField({ value, onChange, min, max, unit }: UseNumericF
 
   const handleFocus = () => {
     setIsFocused(true);
-    if (!isTyping) {
-      // When focusing without typing, just show the raw value of what was last committed, or keep formatted?
-      // For editing, usually it's better to show raw or just let them edit the formatted one.
-      // We will set local to formatted for simplicity of editing.
+    // Coming back to a refused value keeps it as typed, beside its message (BUG-160): swapping in
+    // the stored value left "3" next to "Giá trị không quá 10 m." and raced the next keystrokes
+    // ("2.500" became "32.500", BUG-198). Otherwise the field edits what was last committed.
+    if (!isTyping && error === null) {
       setLocalValue(displayText(lastCommittedRef.current));
     }
   };

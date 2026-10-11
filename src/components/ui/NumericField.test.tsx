@@ -53,6 +53,20 @@ describe('NumericField', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Giá trị không nhỏ hơn 2 m.');
   });
 
+  it('keeps the refused text, not the stored value, when the field is focused again (BUG-198)', () => {
+    render(<NumericField value={3} min={2} max={10} unit="m" aria-label="Chiều cao" onChange={() => undefined} />);
+    const field = screen.getByRole('textbox', { name: 'Chiều cao' });
+
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: '12' } });
+    fireEvent.blur(field);
+    fireEvent.focus(field);
+
+    // The value and its refusal stay together: never "3" beside "Giá trị không quá 10 m.".
+    expect(field).toHaveValue('12');
+    expect(screen.getByRole('alert')).toHaveTextContent('Giá trị không quá 10 m.');
+  });
+
   it("shows its own refusal over the caller's error", () => {
     render(<NumericField value={3} min={2} unit="mm" aria-label="Chiều dài" error="Lỗi của hàng" onChange={() => undefined} />);
     const field = screen.getByRole('textbox', { name: 'Chiều dài' });
