@@ -346,6 +346,14 @@ describe('màn cho đúng sáu lựa chọn, không nhiều hơn', () => {
     );
     expect(screen.getByRole('button', { name: 'Bỏ qua' })).toBeInTheDocument();
   });
+
+  it('liên kết bị khoá không gạch chân như hai liên kết bấm được (BUG-127)', () => {
+    render(<WelcomeScreen {...propsFor(scenarioOf('empty'))} />);
+
+    expect(screen.getByRole('button', { name: 'Xem dự án mẫu' })).toHaveClass('underline');
+    expect(screen.getByRole('button', { name: 'Bỏ qua' })).toHaveClass('underline');
+    expect(screen.getByRole('button', { name: 'Xem hướng dẫn 2 phút' })).not.toHaveClass('underline');
+  });
 });
 
 /* -------------------------------------------------------------------------- */
