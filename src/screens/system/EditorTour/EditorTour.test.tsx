@@ -282,6 +282,19 @@ describe('R-63 — bảy trạng thái, đo trên cả màn', () => {
   });
 });
 
+describe('chấm bước — vùng bấm tối thiểu 24 × 24 (WCAG 2.5.8)', () => {
+  it('mỗi chấm "Tới bước …" là nút 24 × 24, không còn 18 × 18', () => {
+    render(<EditorTour {...baseProps()} />);
+
+    const dots = screen.getAllByRole('button', { name: /^Tới bước / });
+
+    expect(dots.length).toBeGreaterThan(1);
+    for (const dot of dots) {
+      expect(dot).toHaveClass('h-6', 'w-6');
+    }
+  });
+});
+
 /* -------------------------------------------------------------------------- */
 /* (b) R-72 — tiếp cận, tiếng Việt, không mã màu thô.                          */
 /* -------------------------------------------------------------------------- */

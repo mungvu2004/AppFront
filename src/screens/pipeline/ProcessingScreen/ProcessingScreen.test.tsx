@@ -255,6 +255,16 @@ describe('ProcessingScreen — bảy trạng thái (A11, R-63)', () => {
   });
 });
 
+describe('ProcessingScreen — tab "Xem trước"/"Nhật ký" cao 44 dưới 640 px', () => {
+  it('hai tab theo khuôn nút chạm của Button: 44 dưới sm, 36 từ sm', () => {
+    renderWithProviders(<ProcessingScreen {...scenarioFor('success')} />);
+
+    for (const name of ['Xem trước', 'Nhật ký']) {
+      expect(screen.getByRole('tab', { name })).toHaveClass('h-11', 'sm:h-9');
+    }
+  });
+});
+
 /* -------------------------------------------------------------------------- */
 /* Khả năng tiếp cận, tiếng Việt, màu (R-72).                                   */
 /* -------------------------------------------------------------------------- */
