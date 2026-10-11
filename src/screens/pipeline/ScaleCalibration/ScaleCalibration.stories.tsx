@@ -200,12 +200,12 @@ const APPLY_SCOPE_OPTIONS: readonly ScaleApplyScopeOption[] = [
 ];
 
 const SHORTCUT_HINTS: readonly ScaleShortcutHint[] = [
-  { id: 'cancelDrag', comboLabel: 'Esc', description: 'huỷ đoạn đang kéo' },
-  { id: 'axisLock', comboLabel: 'Shift', description: 'khoá đoạn theo trục' },
-  { id: 'remeasure', comboLabel: 'R', description: 'đo lại' },
-  { id: 'confirm', comboLabel: 'Enter', description: 'xác nhận' },
-  { id: 'nudgeFine', comboLabel: '←', description: 'nhích đầu đoạn một pixel' },
-  { id: 'nudgeCoarse', comboLabel: 'Shift + ←', description: 'nhích đầu đoạn mười pixel' },
+  { id: 'cancelDrag', comboLabel: 'Esc', description: 'Huỷ đoạn đang kéo' },
+  { id: 'axisLock', comboLabel: 'Shift', description: 'Khoá đoạn theo trục' },
+  { id: 'remeasure', comboLabel: 'R', description: 'Đo lại' },
+  { id: 'confirm', comboLabel: 'Enter', description: 'Xác nhận' },
+  { id: 'nudgeFine', comboLabel: '←', description: 'Nhích đầu đoạn một pixel' },
+  { id: 'nudgeCoarse', comboLabel: 'Shift + ←', description: 'Nhích đầu đoạn mười pixel' },
 ];
 
 /** Phép tính đã đủ ba vế — `4.800 mm ÷ 400 px = 12 mm/px`. */
@@ -266,6 +266,7 @@ const ACTIONS: ScaleCalibrationActions = {
   onCancelAllFloors: NO_OP,
   onToggleCollapsed: NO_OP,
   onGoToPreprocessing: NO_OP,
+  onGoToUpload: NO_OP,
   onRetry: NO_OP,
 };
 

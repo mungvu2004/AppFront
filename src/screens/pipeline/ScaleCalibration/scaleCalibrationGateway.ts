@@ -54,6 +54,7 @@ import { ENDPOINTS } from '@/api/endpoints';
 import type { FloorImageQuality } from '@/api/schemas/quality';
 import { pixels, type Pixels } from '@/domain/units/scale';
 import { millimetres, type Millimetres } from '@/domain/units/types';
+import { readProjectConfidenceThreshold, type ReadConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
 
 import type { ImageRatioBox } from './types';
 
@@ -215,6 +216,8 @@ export interface ScaleCalibrationGateway {
   readonly readAllFloors: (input: ReadAllFloorsInput) => Promise<readonly ScaleFloorTarget[]>;
   /** Client của bộ lưu lớp (`useFloorLayerAutosave`). Vắng thì hook dùng client chung. */
   readonly apiClient?: Pick<ApiClient, 'spatial'>;
+  /** Ngưỡng tin cậy của dự án (N5). Vắng → ngưỡng mặc định 0,70 (BUG-354). */
+  readonly readConfidenceThreshold?: ReadConfidenceThreshold;
   readonly now: () => number;
 }
 
@@ -363,6 +366,8 @@ export function createScaleCalibrationGateway(
     },
 
     apiClient: client,
+
+    readConfidenceThreshold: (input) => readProjectConfidenceThreshold(client.projectSettings, input),
 
     now,
   };

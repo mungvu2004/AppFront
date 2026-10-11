@@ -312,6 +312,7 @@ export const AXIS_GRID_SCENARIO_EMPTY: AxisGridViewModel = {
   viewerRoleNotice: null,
   emptyNotice: EMPTY_NOTICE,
   errorMessage: null,
+  hasNoAxes: true,
 };
 
 /** 2. Đang tải — đang dò trục / đang tính căn tầng. */
@@ -329,6 +330,7 @@ export const AXIS_GRID_SCENARIO_LOADING: AxisGridViewModel = {
   viewerRoleNotice: null,
   emptyNotice: null,
   errorMessage: null,
+  hasNoAxes: false,
 };
 
 /**
@@ -349,6 +351,7 @@ export const AXIS_GRID_SCENARIO_PARTIAL: AxisGridViewModel = {
   viewerRoleNotice: null,
   emptyNotice: null,
   errorMessage: null,
+  hasNoAxes: false,
 };
 
 /** 4. Lỗi — lớp dữ liệu trục hỏng. */
@@ -366,6 +369,7 @@ export const AXIS_GRID_SCENARIO_ERROR: AxisGridViewModel = {
   viewerRoleNotice: null,
   emptyNotice: null,
   errorMessage: ERROR_MESSAGE,
+  hasNoAxes: true,
 };
 
 /** 5. Xong — đủ cả hai chiều trục, mọi tầng trong dung sai (`warningBanner === null`). */
@@ -383,6 +387,7 @@ export const AXIS_GRID_SCENARIO_SUCCESS: AxisGridViewModel = {
   viewerRoleNotice: null,
   emptyNotice: null,
   errorMessage: null,
+  hasNoAxes: false,
 };
 
 /** 6. Không có quyền — vai Người xem; dữ liệu như bản THẬT (tầng 2 vẫn cảnh báo). */
@@ -404,6 +409,7 @@ export const AXIS_GRID_SCENARIO_FORBIDDEN: AxisGridViewModel = {
   viewerRoleNotice: VIEWER_ROLE_NOTICE,
   emptyNotice: null,
   errorMessage: null,
+  hasNoAxes: false,
 };
 
 /** 7. Thu gọn — ẩn panel trái + panel căn tầng; dữ liệu như bản THẬT, chỉ khác cờ thu gọn. */
@@ -425,6 +431,7 @@ export const AXIS_GRID_SCENARIO_COLLAPSED: AxisGridViewModel = {
   viewerRoleNotice: null,
   emptyNotice: null,
   errorMessage: null,
+  hasNoAxes: false,
 };
 
 /** Bảy kịch bản, đúng thứ tự `SEVEN_STATES` — cho `expectSevenStates` và cho story. */
@@ -471,4 +478,5 @@ export const AXIS_GRID_SCENARIO_PARTIAL_BY_FLOOR: AxisGridViewModel = {
   viewerRoleNotice: null,
   emptyNotice: null,
   errorMessage: null,
+  hasNoAxes: false,
 };

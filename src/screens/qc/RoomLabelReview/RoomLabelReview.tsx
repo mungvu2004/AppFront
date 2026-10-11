@@ -25,6 +25,8 @@
  * | `loading`   | cột trái: sáu dòng `Skeleton`; canvas vẫn vẽ khung chờ của nó         |
  * | `partial`   | mặc định — tóm tắt, vòng hở, danh sách phòng, thanh tra               |
  * | `error`     | cột trái: `InlineAlert` + nút "Thử lại"; canvas VẪN xem được          |
+ *
+ * Đọc lớp (N16) hỏng khi CHƯA có tài liệu → cả màn là `FloorLayerReadFailureScreen` (BUG-326).
  * | `success`   | mặc định, và mọi dòng danh sách mang chấm xanh "đã duyệt"             |
  * | `forbidden` | canvas chỉ xem (`isInteractive={false}`), cột trái thêm câu giải thích |
  * | `collapsed` | ẩn cột trái + thanh tra; canvas chiếm cả khung, còn nút bung lại      |
@@ -55,6 +57,7 @@ import { Skeleton } from '@/components/feedback/Skeleton';
 import { cn } from '@/lib/utils';
 
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
+import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 
 import { RoomLabelCanvas } from './RoomLabelCanvas';
@@ -239,6 +242,14 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
    * chọn để đặt vòng sáng.
    */
   const selectedRoom = rooms.find((room) => room.id === selectedRoomId) ?? null;
+
+  if (props.readFailure != null) {
+    return (
+      <div aria-label={SCREEN_TITLE} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+        <FloorLayerReadFailureScreen failure={props.readFailure} />
+      </div>
+    );
+  }
 
   return (
     <div

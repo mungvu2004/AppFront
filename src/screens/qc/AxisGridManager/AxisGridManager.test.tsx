@@ -33,9 +33,10 @@
  * giả, đủ để chứng minh container gắn được bằng một thẻ (R-73).
  */
 
-import { cleanup, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import type { HttpError } from '@/lib/http/types';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
@@ -47,7 +48,10 @@ import {
   type SevenStateScenario,
 } from '@/lib/testing/sevenStateScenarios';
 import { resetSelectorCaches } from '@/store/selectors';
+import { ROUTES } from '@/routes/paths';
 import { useStore } from '@/store';
+
+import { BACK_TO_FLOORS_LABEL, FLOOR_MISSING_TITLE } from '../shared/floorLayerReadFailure';
 
 import { AxisGridManager } from './AxisGridManager';
 import { AxisGridManagerContainer } from './AxisGridManager.container';
@@ -57,6 +61,7 @@ import {
   AXIS_GRID_FIXTURE_SPACING_VIOLATION_EXAMPLE,
 } from './axisGridFixture';
 import {
+  createAxisGridSampleGraph,
   createMockAxisGridManagerGateway,
   describeSpacingViolation,
 } from './axisGridManagerGateway';
@@ -239,6 +244,23 @@ describe('[BUG-330][BUG-336] tầng chưa có trục: không số 0 giả, khôn
     ).toBeInTheDocument();
   });
 
+  it('vai người xem trên tầng chưa có trục: cũng không số 0 giả, không "Đã duyệt" (review-1 P2-2)', async () => {
+    renderWithProviders(
+      <AxisGridManagerContainer
+        floorId={String(AXIS_GRID_FIXTURE_FLOOR1.levelId)}
+        gateway={createMockAxisGridManagerGateway({ graph: createAxisGridSampleGraph({ withAxes: false }) })}
+        levelId={AXIS_GRID_FIXTURE_FLOOR1.levelId}
+        projectId="project-axis-grid"
+        roles={['viewer']}
+      />,
+    );
+
+    expect(await screen.findByText('Chưa có trục nào nên chưa tính được gốc toạ độ.')).toBeInTheDocument();
+    expect(screen.queryByText('Lệch X (pixel)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Đã duyệt')).not.toBeInTheDocument();
+    expect(screen.getByText('Chưa có trục nào để hiện trên bản vẽ.')).toBeInTheDocument();
+  });
+
   it('trạng thái có trục vẫn hiện bốn độ lệch và nút căn bấm được', () => {
     renderState('success');
 
@@ -293,6 +315,36 @@ describe('[NGHIEM-5] màn đã nối dây', () => {
     });
 
     expect(screen.getByRole('region', { name: SCREEN_ARIA_LABEL })).toBeInTheDocument();
+  });
+});
+
+describe('[BUG-326] đọc lớp hỏng thay cả màn bằng một trạng thái lỗi có lối ra', () => {
+  const FLOOR_GONE: HttpError = {
+    code: 'NOT_FOUND',
+    kind: 'http',
+    raw: { code: 'NOT_FOUND', resource: 'floor' },
+    requestId: 'r',
+    retryable: false,
+    status: 404,
+  };
+
+  it('404 tầng: một nút "Về quản lý tầng", không dựng panel trục', async () => {
+    const onNavigate = vi.fn();
+
+    renderWithProviders(
+      <AxisGridManagerContainer
+        floorId={String(AXIS_GRID_FIXTURE_FLOOR1.levelId)}
+        gateway={{ ...createMockAxisGridManagerGateway(), readAxisLayer: () => Promise.reject(FLOOR_GONE) }}
+        onNavigate={onNavigate}
+        projectId="project-axis-grid"
+        roles={['engineer']}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: BACK_TO_FLOORS_LABEL }));
+    expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.floors('project-axis-grid'));
+    expect(screen.getByText(FLOOR_MISSING_TITLE)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: AXIS_PANEL_TITLE })).toBeNull();
   });
 });
 

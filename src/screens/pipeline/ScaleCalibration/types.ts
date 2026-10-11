@@ -170,7 +170,7 @@ export interface DimensionStringRow extends ScaleMeasurement {
   /** Độ tin cậy của lần đọc, `0..1`. Cấp thẳng cho `ConfidenceMeter`. */
   readonly confidence: number;
   /**
-   * `true` khi độ tin cậy dưới ngưỡng `CONFIDENCE_SUGGESTED_THRESHOLD`. View gạch
+   * `true` khi độ tin cậy dưới ngưỡng của dự án (N5; mặc định 0,70). View gạch
    * chéo hàng và tô mức cần chú ý — đây là nửa thứ hai của trạng thái `partial`.
    */
   readonly isLowConfidence: boolean;
@@ -399,7 +399,7 @@ export interface ScaleShortcutHint {
    * phím là ngoại lệ được A6 cho phép.
    */
   readonly comboLabel: string;
-  /** Việc phím đó làm, viết thường kiểu câu — ví dụ `"huỷ đoạn đang kéo"`. */
+  /** Việc phím đó làm, kiểu câu viết hoa chữ đầu (A6) — ví dụ `"Huỷ đoạn đang kéo"`. */
   readonly description: string;
 }
 
@@ -555,6 +555,8 @@ export interface ScaleCalibrationViewModel {
    * view dùng tiêu đề "nắn ảnh thất bại" — chỉ đúng cho ảnh méo (B-V5-04).
    */
   readonly errorTitle?: string;
+  /** Tầng chưa có bản vẽ (404 `upload`): lối ra là "Tải bản vẽ lên", không "Tải lại ảnh" (BUG-337). */
+  readonly isNoDrawing?: boolean;
   /** Câu của trạng thái `'empty'`. `null` ở trạng thái khác. */
   readonly emptyNotice: string | null;
   /** Câu của trạng thái `'partial'`. `null` ở trạng thái khác. */
@@ -660,6 +662,8 @@ export interface ScaleCalibrationActions {
   readonly onGoToPreprocessing: () => void;
   /** Tải lại ảnh sau khi nắn thất bại. */
   readonly onRetry: () => void;
+  /** Tới màn Tải bản vẽ — lối ra của tầng chưa có bản vẽ (BUG-337). */
+  readonly onGoToUpload: () => void;
 }
 
 /* -------------------------------------------------------------------------- */

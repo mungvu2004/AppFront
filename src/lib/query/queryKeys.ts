@@ -149,6 +149,16 @@ export const queryKeys = {
   floor: {
     detail: createQueryKeyFactory(floorDetailRoot, (floorId: string) => [...floorDetailRoot, floorId] as const),
     list: createQueryKeyFactory(floorListRoot, (projectId: string) => [...floorListRoot, projectId] as const),
+    /**
+     * Ảnh chụp `{ graph, floors, floorRevisions }` của Quản lý tầng — khoá RIÊNG dưới `list(projectId)`.
+     * `list` mang `Floor[]` (Tải bản vẽ, cổng chất lượng); chung khoá thì màn kia trải một object và sập
+     * (BUG-348). Nằm dưới `list` nên làm mất hiệu lực `list(projectId)` vẫn làm mới khoá này.
+     */
+    manager: createQueryKeyFactory(floorListRoot, (projectId: string) => [
+      ...floorListRoot,
+      projectId,
+      'manager',
+    ] as const),
   },
   /**
    * Đồ thị không gian theo máy chủ: N15 cả dự án (`graph`), N16 một tầng (`byFloor`).

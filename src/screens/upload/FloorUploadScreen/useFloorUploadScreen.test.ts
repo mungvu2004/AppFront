@@ -460,6 +460,37 @@ describe('useFloorUploadScreen — nhận tệp', () => {
     expect(size).not.toBe(cap);
   });
 
+  it('tệp hơn trần một byte: dòng tệp trong khay ghi cùng số với câu lỗi (BUG-302)', async () => {
+    const harness = createHarness({
+      validateFile: async () => ({
+        ok: false,
+        reason: { kind: 'tooLarge', sizeBytes: MAX_UPLOAD_FILE_SIZE_BYTES + 1, maxSizeBytes: MAX_UPLOAD_FILE_SIZE_BYTES },
+      }),
+    });
+    const { result } = renderScreen(harness.options);
+    const file = makeFile('qua-nang.png');
+
+    Object.defineProperty(file, 'size', { value: MAX_UPLOAD_FILE_SIZE_BYTES + 1 });
+
+    await waitFor(() => {
+      expect(result.current.floors).toHaveLength(4);
+    });
+
+    act(() => {
+      result.current.onFilesDropped([file]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.tray.items[0]?.error?.kind).toBe('tooLarge');
+    });
+
+    const item = result.current.tray.items[0];
+    const [, size] = /^Tệp nặng (.+), vượt trần/u.exec(item?.error?.sentence ?? '') ?? [];
+
+    expect(item?.sizeLabel).toBe(size);
+    expect(item?.summaryLine).toBe(`qua-nang.png · ${size ?? ''}`);
+  });
+
   it('ghép tệp vào đúng tầng theo tên tệp và đánh dấu là ghép tự động', async () => {
     const harness = createHarness();
     const { result } = renderScreen(harness.options);

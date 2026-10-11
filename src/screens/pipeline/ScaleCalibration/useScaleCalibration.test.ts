@@ -48,6 +48,7 @@ import { formatNumber } from '@/lib/format/number';
 import { createCleanBuildingScenario } from '@/lib/testing/fixtures';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
+import { expectSentenceCaseStrings } from '@/lib/testing/expectSentenceCase';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
 import { useStore } from '@/store';
 import { commit } from '@/store/commit';
@@ -654,11 +655,11 @@ describe('useScaleCalibration — tầng tỉ lệ tạm (scaleStatus unresolved
     return { harness, mounted };
   }
 
-  it('storedRatio null: nhãn "chưa có", dải tỉ lệ tạm; áp đúng tỉ lệ tạm → một PUT, dải mất', async () => {
+  it('storedRatio null: nhãn "Chưa có", dải tỉ lệ tạm; áp đúng tỉ lệ tạm → một PUT, dải mất', async () => {
     const { harness, mounted } = await mountProvisional();
 
     expect(useStore.getState().floorMeta[FLOOR_ID]?.scaleStatus).toBe('unresolved');
-    expect(mounted.result.current.model.panel.currentScaleLabel).toBe('chưa có');
+    expect(mounted.result.current.model.panel.currentScaleLabel).toBe('Chưa có'); // A6
     expect(mounted.result.current.model.provisionalScaleNotice).toBe(
       'Tỉ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỉ lệ.',
     );
@@ -1022,6 +1023,8 @@ describe('useScaleCalibration — bảy trạng thái', () => {
 
     expect(model.state).toBe('error');
     expect(model.errorTitle).toBe('Tầng này chưa có bản vẽ');
+    // Lối ra là "Tải bản vẽ lên", không phải "Tải lại ảnh" (review-1 #7).
+    expect(model.isNoDrawing).toBe(true);
     expect(model.errorMessage).toContain('Tải bản vẽ lên');
     expect(model.errorCode).toBeNull();
     expect(model.panel.crossChecks.map((row) => row.label)).toEqual([
@@ -1044,6 +1047,31 @@ describe('useScaleCalibration — bảy trạng thái', () => {
     expect(model.panel.dimension.rows.filter((row) => row.isLowConfidence)).toHaveLength(3);
     // A5: hàng do AI đọc không bao giờ mang màu "đã xác minh".
     expect(model.panel.dimension.rows.every((row) => row.statusCode !== 'verified')).toBe(true);
+  });
+});
+
+describe('useScaleCalibration — ngưỡng tin cậy của dự án (BUG-354)', () => {
+  /* Mọi hàng 0,8: trên 0,70 mặc định, dưới 0,85 của dự án. */
+  const rowsAt = (confidence: number) => sampleDimensionRows().map((row) => ({ ...row, confidence }));
+
+  it('gạch "độ tin cậy thấp" theo ngưỡng N5 của dự án, không theo hằng 0,70', async () => {
+    const harness = await makeHarness({ rows: rowsAt(0.8) });
+    const mounted = mountHook({ ...harness.gateway, readConfidenceThreshold: () => Promise.resolve(0.85) });
+
+    await settle(mounted);
+    await settleAsync();
+    expect(mounted.result.current.model.panel.dimension.rows.every((row) => row.isLowConfidence)).toBe(true);
+    mounted.unmount();
+  });
+
+  it('không đọc được cài đặt → rơi về ngưỡng mặc định 0,70', async () => {
+    const harness = await makeHarness({ rows: rowsAt(0.8) });
+    const mounted = mountHook({ ...harness.gateway, readConfidenceThreshold: () => Promise.resolve(null) });
+
+    await settle(mounted);
+    await settleAsync();
+    expect(mounted.result.current.model.panel.dimension.rows.some((row) => row.isLowConfidence)).toBe(false);
+    mounted.unmount();
   });
 });
 
@@ -1132,6 +1160,8 @@ describe('useScaleCalibration — bàn phím và phiên kéo', () => {
     expect(labels).toContain('Esc');
     expect(labels.join(' ')).not.toMatch(/ESCAPE|ARROW|ENTER/u);
     expect(hints.every((hint) => hint.description.length > 0)).toBe(true);
+    // A6: mô tả phím viết hoa chữ đầu, như sổ phím tắt của các màn khác.
+    expectSentenceCaseStrings(hints.map((hint) => hint.description));
   });
 });
 

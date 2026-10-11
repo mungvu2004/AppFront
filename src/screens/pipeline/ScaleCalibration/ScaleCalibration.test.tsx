@@ -629,6 +629,21 @@ describe('ScaleCalibration — khả năng tiếp cận, tiếng Việt, màu (R
     expect(screen.queryByText('Nắn ảnh thất bại nên bản vẽ có thể méo')).toBeNull();
   });
 
+  it('tầng chưa có bản vẽ: một lối ra "Tải bản vẽ lên", không "Tải lại ảnh" (BUG-337)', () => {
+    const scenario = scenarioFor('error');
+    const onGoToUpload = vi.fn();
+    renderWithProviders(
+      <ScaleCalibration
+        actions={{ ...scenario.actions, onGoToUpload }}
+        model={{ ...scenario.model, errorTitle: 'Tầng này chưa có bản vẽ', isNoDrawing: true }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tải bản vẽ lên' }));
+    expect(onGoToUpload).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('button', { name: 'Tải lại ảnh' })).toBeNull();
+  });
+
   it('lỗi có mã máy thật thì mã đi sau câu tiếng Việt', () => {
     const scenario = scenarioFor('error');
     renderWithProviders(<ScaleCalibration {...scenario} model={{ ...scenario.model, errorCode: 'NETWORK' }} />);

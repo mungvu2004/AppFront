@@ -285,7 +285,7 @@ export const PartialSave: Story = {
     saveState: 'error',
     saveFailureMessage: 'Đã lưu tên dự án, chưa lưu dung sai bắt điểm.',
     activeTab: 'units',
-    problems: { ...NO_PROBLEMS, snapToleranceMm: 'Máy chủ không nhận giá trị này. Kiểm tra lại ô này.' },
+    problems: { ...NO_PROBLEMS, snapToleranceMm: 'Giá trị này chưa hợp lệ nên chưa được lưu; hãy sửa lại.' },
   },
 };
 

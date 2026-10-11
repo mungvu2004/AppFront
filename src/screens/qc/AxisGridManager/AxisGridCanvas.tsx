@@ -62,9 +62,9 @@ const AXIS_LABEL_FONT_SIZE_PX = 13;
 
 const AXIS_TRANSITION_CLASSES = 'transition-colors duration-180 motion-reduce:transition-none';
 
-/** Khung canvas: tối thiểu 640, bo 16, thụt 12 — đúng khuôn ba màn QC anh em. */
+/** Khung canvas: tối thiểu 640 từ 1280px, bo 16, thụt 12; dưới 1280 tối thiểu 60vh (như FIX-1506), dưới 768 lấp vùng 360 px — BUG-317. */
 const CANVAS_FRAME_CLASSES =
-  'relative min-h-[640px] w-full overflow-hidden rounded-[16px] border border-border-default bg-canvas-2d p-3';
+  'relative h-full min-h-[320px] w-full overflow-hidden rounded-[16px] border border-border-default bg-canvas-2d p-3 md:min-h-[60vh] xl:min-h-[640px]';
 
 /** `canvas.ariaLabel` của bảng đối chiếu S15-T4-copy.md. */
 const CANVAS_ARIA_LABEL = 'Khung xem bản vẽ quản lý trục và gốc toạ độ';

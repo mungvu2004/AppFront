@@ -101,6 +101,7 @@ import {
 } from '@/domain/units/types';
 import { useAutosave, useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { useFloorLayer } from '@/hooks/useFloorLayer';
+import { useProjectConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import { useCountUp } from '@/hooks/useCountUp';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -110,7 +111,6 @@ import { describeError, toAppError } from '@/lib/errors';
 import { readWireError } from '@/lib/errors/wireError';
 import { formatArea, formatDrawingScaleRatio, formatLength, formatScaleDensity } from '@/lib/format/measure';
 import { formatNumber, formatPercent, MISSING_VALUE } from '@/lib/format/number';
-import { CONFIDENCE_SUGGESTED_THRESHOLD } from '@/lib/format/semantic';
 import { formatCombo, keyCapLabels, parseCombo } from '@/lib/input/shortcutRegistry';
 import { MODIFIER_SHORTCUTS } from '@/lib/tools/shortcuts';
 import { queryKeys } from '@/lib/query/queryKeys';
@@ -165,7 +165,7 @@ import type {
 const COPY = {
   canvasAltPrefix: 'Bản vẽ đã nắn của ',
   canvasAltEmpty: 'Chưa có bản vẽ nào để hiệu chỉnh.',
-  currentScaleUnknown: 'chưa có',
+  currentScaleUnknown: 'Chưa có',
   derivedLineUnknown: 'chưa đủ dữ liệu để suy ra tỷ lệ nguyên đồ',
   methodDimensionString: 'Từ chuỗi kích thước',
   methodReferenceLine: 'Vẽ đường tham chiếu',
@@ -184,12 +184,12 @@ const COPY = {
   recalculationCaption: 'Đổi tỷ lệ sẽ tính lại mọi kích thước dẫn xuất của bản vẽ này.',
   scopeAllFloors: 'Áp cho mọi tầng',
   scopeThisFloor: 'Chỉ áp cho tầng này',
-  shortcutCancelDrag: 'huỷ đoạn đang kéo',
-  shortcutRemeasure: 'đo lại',
-  shortcutConfirm: 'xác nhận',
-  shortcutNudgeFine: 'nhích đầu đoạn một pixel',
-  shortcutNudgeCoarse: 'nhích đầu đoạn mười pixel',
-  shortcutAxisLock: 'khoá đoạn theo trục',
+  shortcutCancelDrag: 'Huỷ đoạn đang kéo',
+  shortcutRemeasure: 'Đo lại',
+  shortcutConfirm: 'Xác nhận',
+  shortcutNudgeFine: 'Nhích đầu đoạn một pixel',
+  shortcutNudgeCoarse: 'Nhích đầu đoạn mười pixel',
+  shortcutAxisLock: 'Khoá đoạn theo trục',
   noDrawingTitle: 'Tầng này chưa có bản vẽ',
   noDrawingNotice:
     'Chưa có bản vẽ nào được tải lên cho tầng này. Tải bản vẽ lên và chờ bước tiền xử lý xong rồi mới hiệu chỉnh tỷ lệ.',
@@ -589,6 +589,8 @@ export function useScaleCalibration(
    * khung vẽ; "Áp dụng tỷ lệ" khi ấy nói lý do tại chỗ.
    */
   const floorLayer = useFloorLayer({ projectId, floorId, read: gateway.readLayer });
+  /* Gạch "độ tin cậy thấp" theo ngưỡng của dự án, không hằng 0,70 (BUG-354, như FIX-1603). */
+  const confidenceThreshold = useProjectConfidenceThreshold(projectId, gateway.readConfidenceThreshold);
   const levelId: string = floorLayer.data?.level.id ?? floorId;
   /** `'unresolved'`: tỉ lệ trong `Level` là tỉ lệ tạm của pipeline, chưa ai chốt. */
   const isProvisional = floorLayer.scaleStatus === 'unresolved';
@@ -1040,6 +1042,10 @@ export function useScaleCalibration(
     void query.refetch();
   }, [query]);
 
+  const onGoToUpload = useCallback(() => {
+    navigate(ROUTES.project.upload(projectId));
+  }, [navigate, projectId]);
+
   const onCanvasSizeChange = useCallback((widthPx: number, heightPx: number) => {
     setCanvasSize((size) =>
       size.width === widthPx && size.height === heightPx
@@ -1315,7 +1321,7 @@ export function useScaleCalibration(
   const rows = useMemo<readonly DimensionStringRow[]>(
     () =>
       rawRows.map((row) => {
-        const isLowConfidence = row.confidence < CONFIDENCE_SUGGESTED_THRESHOLD;
+        const isLowConfidence = row.confidence < confidenceThreshold;
 
         return {
           id: row.id,
@@ -1330,7 +1336,7 @@ export function useScaleCalibration(
           statusCode: isLowConfidence ? 'attention' : 'neutral',
         };
       }),
-    [rawRows],
+    [confidenceThreshold, rawRows],
   );
 
   const lowConfidenceCount = rows.filter((row) => row.isLowConfidence).length;
@@ -1518,7 +1524,7 @@ export function useScaleCalibration(
       // Tầng chưa có bản vẽ: BE trả 404 `upload` (cùng khuôn `useInputQualityGate`). Nói đúng
       // nguyên nhân và không kèm mã máy — "Không tìm thấy… NOT_FOUND" đổ lỗi sai chỗ (BUG-337).
       if (wire?.status === 404 && wire.resource === 'upload') {
-        return { title: COPY.noDrawingTitle, description: COPY.noDrawingNotice, code: null };
+        return { title: COPY.noDrawingTitle, description: COPY.noDrawingNotice, code: null, isNoDrawing: true };
       }
 
       const appError = toAppError(query.error);
@@ -1750,6 +1756,7 @@ export function useScaleCalibration(
       errorCode,
       // Ảnh méo không đặt tiêu đề: view dùng tiêu đề "nắn ảnh thất bại" của chính nó (B-V5-04).
       ...(errorDescription?.title !== undefined ? { errorTitle: errorDescription.title } : {}),
+      ...(errorDescription !== null && 'isNoDrawing' in errorDescription ? { isNoDrawing: true } : {}),
       emptyNotice: isEmptyState ? COPY.emptyNotice : null,
       partialNotice: state === 'partial' ? COPY.partialNotice : null,
       forbiddenNotice: state === 'forbidden' ? COPY.forbiddenNotice : null,
@@ -1831,6 +1838,7 @@ export function useScaleCalibration(
       onToggleCollapsed,
       onGoToPreprocessing,
       onRetry,
+      onGoToUpload,
     }),
     [
       onApply,
@@ -1844,6 +1852,7 @@ export function useScaleCalibration(
       onConfirmRealLength,
       onEndDrag,
       onGoToPreprocessing,
+      onGoToUpload,
       onHoverDimensionRow,
       onMoveCursor,
       onMoveDrag,

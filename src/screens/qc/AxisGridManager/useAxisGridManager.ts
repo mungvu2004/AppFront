@@ -91,6 +91,8 @@ import { useShortcut } from '@/hooks/useShortcut';
 import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 
+import { useFloorLayerReadFailure, type FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
+
 import {
   announceSpacingViolation,
   axesOfLevel,
@@ -322,6 +324,8 @@ export interface UseAxisGridManagerOptions {
   readonly forceCollapsed?: boolean;
   /** Dưới 1.024px panel trái thành tấm trượt đáy; lớp 3 đo và truyền vào. */
   readonly isCompact?: boolean;
+  /** Lối ra của trạng thái đọc lớp hỏng (BUG-326); route nối `useNavigate`. */
+  readonly onNavigate?: (path: string) => void;
 }
 
 /**
@@ -345,6 +349,8 @@ export interface UseAxisGridManagerResult extends AxisGridManagerProps {
   /** Ngăn xếp hoàn tác của chính màn — bài nghiệm thu đếm bước trên nó. */
   readonly historyStepCount: () => number;
   readonly canUndo: boolean;
+  /** Đọc lớp hỏng khi chưa có tài liệu → cả màn là một trạng thái lỗi (BUG-326). */
+  readonly readFailure: FloorLayerReadFailure | null;
 }
 
 /** Cổng thật dựng đúng một lần cho suốt đời component. */
@@ -438,6 +444,7 @@ export function useAxisGridManager(
   const levelId = level?.id ?? null;
 
   const hasError = axisLayerQuery.isError;
+  const readFailure = useFloorLayerReadFailure(axisLayerQuery, projectId, options.onNavigate);
   const isLoading = axisLayerQuery.isPending || graph === null;
 
   /* ---------------------------------------------------------------------- */
@@ -1195,6 +1202,8 @@ export function useAxisGridManager(
       viewerRoleNotice: isViewerRole ? AXIS_GRID_TEXT.viewerRoleNotice : null,
       emptyNotice: state === 'empty' ? AXIS_GRID_TEXT.emptyNotice : null,
       errorMessage,
+      // Theo dữ liệu, không theo `state` — vai người xem đứng trước `empty` (review-1 P2-2).
+      hasNoAxes: hasError || (!isLoading && horizontalCount + verticalCount === 0),
     }),
     [
       canvas,
@@ -1203,11 +1212,14 @@ export function useAxisGridManager(
       ghostEnabled,
       groups,
       hasError,
+      horizontalCount,
       isCollapsed,
+      isLoading,
       isViewerRole,
       options.isCompact,
       origin,
       state,
+      verticalCount,
       warningBanner,
     ],
   );
@@ -1237,5 +1249,6 @@ export function useAxisGridManager(
     spacingMessage: spacingViolation === null ? null : describeSpacingViolation(spacingViolation),
     historyStepCount: () => dispatchBundle.history.undoSteps().length,
     canUndo: dispatchBundle.history.canUndo(),
+    readFailure,
   };
 }

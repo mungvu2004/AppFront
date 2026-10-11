@@ -135,6 +135,17 @@ describe('queryKeys', () => {
     expect(queryKeys.project.summaries().slice(0, 2)).not.toEqual(queryKeys.project.detail.root());
   });
 
+  it('gives the floor-manager snapshot its own key under floor.list (one key, one shape — BUG-348)', () => {
+    const list = queryKeys.floor.list(projectId);
+    const manager = queryKeys.floor.manager(projectId);
+
+    // `floor.list` holds `Floor[]` (upload, quality gate); the manager writes `{ graph, floors, … }`.
+    expect(manager).not.toEqual(list);
+    // Still under `floor.list(projectId)`, so invalidating the list refreshes the manager too.
+    expect(manager.slice(0, list.length)).toEqual(list);
+    expect(queryKeys.floor.manager.root()).toEqual(queryKeys.floor.list.root());
+  });
+
   it('keys adminMl versions by family, so two families never share a list', () => {
     expect(queryKeys.adminMl.families()).toEqual(['adminMl', 'families']);
     expect(queryKeys.adminMl.versions('wallSegmentation')).toEqual(['adminMl', 'versions', 'wallSegmentation']);

@@ -1056,7 +1056,11 @@ export function useFloorUploadScreen(
       attachment.pageCount === null || attachment.pageCount <= 0
         ? null
         : `${formatNumber(attachment.pageCount, { grouping: false })} trang`;
-    const sizeLabel = formatFileSize(attachment.file.size);
+    // Tệp vượt trần: cùng phép làm tròn với câu "vượt trần" — dòng tệp và câu lỗi ghi một số (BUG-302).
+    const sizeLabel =
+      attachment.file.size > MAX_UPLOAD_FILE_SIZE_BYTES
+        ? sizeOverCap(attachment.file.size, MAX_UPLOAD_FILE_SIZE_BYTES)
+        : formatFileSize(attachment.file.size);
     const pageOptions =
       attachment.pageCount === null || attachment.pageCount <= 0
         ? []

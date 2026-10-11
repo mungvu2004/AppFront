@@ -405,9 +405,9 @@
         "retry": "Thử lại",
         "conflictTitle": "Cài đặt đã đổi ở nơi khác",
         "conflictMessage": "Cài đặt dự án vừa được đổi ở nơi khác. Tải lại để xem bản mới nhất.",
-        "fieldRejected": "Máy chủ không nhận giá trị này. Kiểm tra lại ô này.",
+        "fieldRejected": "Giá trị này chưa hợp lệ nên chưa được lưu; hãy sửa lại.",
         "unsavedProblems": "Chưa lưu vì còn ô cần sửa",
-        "chipRejected": "Chưa lưu: máy chủ không nhận một giá trị",
+        "chipRejected": "Chưa lưu vì còn ô cần sửa",
         "chipReload": "Chưa lưu: cần tải lại bản mới nhất",
         "reloadDialogMessage": "Những thay đổi chưa lưu trên màn này sẽ mất, và bản mới nhất từ máy chủ sẽ thay vào chỗ đó.",
         "reloadDialogTitle": "Tải lại sẽ bỏ thay đổi chưa lưu",
@@ -1063,7 +1063,7 @@
     },
     "currentScale": {
       "title": "Tỷ lệ hiện tại",
-      "unknownValue": "chưa có",
+      "unknownValue": "Chưa có",
       "derivedLine": "1 pixel = {{millimetres}} · bản vẽ ở tỷ lệ khoảng {{ratio}}",
       "derivedLineUnknown": "Chưa đủ dữ liệu để suy ra tỷ lệ nguyên đồ"
     },
@@ -1162,12 +1162,12 @@
     },
     "shortcuts": {
       "title": "Phím tắt",
-      "cancelDrag": "huỷ đoạn đang kéo",
-      "axisLock": "khoá đoạn theo trục",
-      "remeasure": "đo lại",
-      "confirm": "xác nhận",
-      "nudgeFine": "nhích đầu đoạn một pixel",
-      "nudgeCoarse": "nhích đầu đoạn mười pixel"
+      "cancelDrag": "Huỷ đoạn đang kéo",
+      "axisLock": "Khoá đoạn theo trục",
+      "remeasure": "Đo lại",
+      "confirm": "Xác nhận",
+      "nudgeFine": "Nhích đầu đoạn một pixel",
+      "nudgeCoarse": "Nhích đầu đoạn mười pixel"
     },
     "state": {
       "emptyTitle": "Chưa có chuỗi kích thước nào để đối chiếu",

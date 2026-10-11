@@ -303,6 +303,7 @@ interface BackgroundOptions {
   readonly notifications?: NotificationBus;
   readonly backgroundWatches?: BackgroundWatchRegistry;
   readonly onNavigate?: (path: string) => void;
+  readonly writeClipboardText?: (text: string) => Promise<void>;
 }
 
 function mountHook(
@@ -317,6 +318,9 @@ function mountHook(
     visibilityTarget,
     ...(background.backgroundWatches !== undefined
       ? { backgroundWatches: background.backgroundWatches }
+      : {}),
+    ...(background.writeClipboardText !== undefined
+      ? { writeClipboardText: background.writeClipboardText }
       : {}),
   });
 
@@ -832,6 +836,31 @@ describe('useProcessingScreen', () => {
 
     expect(mounted.result.current.summary?.metricLabels).toEqual([]);
     expect(mounted.result.current.summary?.onReviewWalls).toBeTypeOf('function');
+
+    mounted.unmount();
+  });
+
+  it.each([
+    ['chép được', () => Promise.resolve(), 'Đã chép nhật ký'],
+    ['khay nhớ tạm từ chối', () => Promise.reject(new Error('denied')), 'Không chép được nhật ký'],
+  ] as const)('"Sao chép nhật ký" có phản hồi — %s', async (_case, write, title) => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 1);
+    const notifications = createNotificationBus();
+    const writeClipboardText = vi.fn(write);
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget(), {
+      notifications,
+      writeClipboardText,
+    });
+
+    await settle(clock);
+    await act(async () => {
+      mounted.result.current.onCopyLog();
+      await clock.flushMicrotasks();
+    });
+
+    expect(writeClipboardText).toHaveBeenCalledOnce();
+    expect(notifications.list().map((item) => item.title)).toContain(title);
 
     mounted.unmount();
   });

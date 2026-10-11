@@ -285,7 +285,7 @@ describe('useProjectSettings, lưu hai phần', () => {
       expect(result.current.problems.snapToleranceMm).toBeNull();
     });
 
-    it('BUG-300: 422 body.notes gọi tên "ghi chú", không "đơn vị đo", và không hứa tự thử lại', async () => {
+    it('BUG-300/356: 422 body.notes nói MỘT câu ở đúng ô ghi chú, không hộp "Chưa lưu hết", không "máy chủ"', async () => {
       const server = await createFakeServer();
       const { result } = await mount(server);
 
@@ -300,11 +300,11 @@ describe('useProjectSettings, lưu hai phần', () => {
       await tick(AUTOSAVE_DEBOUNCE_MS);
 
       expect(result.current.problems.notes).toBe(SETTINGS_SENTENCES.fieldRejected);
-      expect(result.current.saveFailureMessage).toBe(
-        'Chưa lưu được ghi chú. Sửa lại giá trị đó, hệ thống sẽ tự lưu tiếp.',
-      );
+      expect(result.current.problems.notes).not.toMatch(/máy chủ/iu);
+      expect(result.current.saveFailureMessage).toBeNull();
       expect(result.current.saveState).toBe('error');
       expect(result.current.saveLabel).toBe(SETTINGS_SENTENCES.chipRejected);
+      expect(result.current.saveLabel).not.toMatch(/máy chủ/iu);
 
       act(() => {
         result.current.setNotes('qa ghi chú');
@@ -313,6 +313,23 @@ describe('useProjectSettings, lưu hai phần', () => {
 
       expect(result.current.saveFailureMessage).toBeNull();
       expect(result.current.saveLabel).not.toBe(SETTINGS_SENTENCES.chipRejected);
+    });
+
+    it('422 không chỉ ra ô nào: vẫn còn câu chung gọi tên ô chưa lưu', async () => {
+      const server = await createFakeServer();
+      const { result } = await mount(server);
+
+      server.settingsReplace.mockResolvedValueOnce({ ok: false, error: httpError(422, 'VALIDATION') });
+
+      act(() => {
+        result.current.setNotes('qa ghi chú bị từ chối');
+      });
+      await tick(AUTOSAVE_DEBOUNCE_MS);
+
+      expect(result.current.problems.notes).toBeNull();
+      expect(result.current.saveFailureMessage).toBe(
+        'Chưa lưu được ghi chú. Sửa lại giá trị đó, hệ thống sẽ tự lưu tiếp.',
+      );
     });
 
     it('BUG-300: trình đọc màn hình đọc đúng câu của viên chỉ báo, không "sẽ thử lưu lại"', async () => {

@@ -64,6 +64,7 @@ import { Skeleton } from '@/components/feedback/Skeleton';
 import { cn } from '@/lib/utils';
 
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
+import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 
 import { ThicknessApplyBar } from './ThicknessApplyBar';
@@ -282,6 +283,15 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
     toleranceMm,
     viewerRoleNotice,
   } = props;
+
+  /* Đọc lớp hỏng khi chưa có tài liệu: một trạng thái lỗi, một lối ra (BUG-326). */
+  if (props.readFailure != null) {
+    return (
+      <div aria-label={SCREEN_TITLE} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+        <FloorLayerReadFailureScreen failure={props.readFailure} />
+      </div>
+    );
+  }
 
   return (
     <div
