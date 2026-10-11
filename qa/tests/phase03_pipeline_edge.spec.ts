@@ -169,9 +169,9 @@ const DISMISS = 'Đóng'; // FUC:45, FUT:21
 
 /* SCR-11 / 12 / 13 / 15 copy. */
 const QUALITY = {
-  noDrawingTitle: 'Chưa có bản vẽ để kiểm tra', // IQ:65
+  noDrawingTitle: 'Chưa có bản vẽ để kiểm tra', // IQ:62
   noDrawingNotice: 'Dự án chưa có bản vẽ nào được tải lên, nên chưa có gì để đo.', // UIQ:153
-  uploadAction: 'Tải bản vẽ lên', // IQ:66
+  uploadAction: 'Tải bản vẽ lên', // IQ:63
   continue: 'Tiếp tục xử lý', // UIQ:145
   secondary: 'Tải bản vẽ khác', // UIQ:146
   noDrawingReason: 'Chưa có bản vẽ nào để xử lý; hãy tải bản vẽ lên trước.', // UIQ:152
@@ -1469,7 +1469,7 @@ test.describe('E03 SCR-11 input quality gate', () => {
       const { page } = admin;
       const project = await createProject(admin, 'qnodraw', 2);
       await page.goto(ROUTES.project.quality(project.id));
-      // BE:quality/assessments.py:273-275 404 `upload` → UIQ:517-521 null → empty state (IQ:145-153).
+      // BE:quality/assessments.py:273-275 404 `upload` → UIQ:517-521 null → empty state (IQ:136-144).
       await expect(page.getByText(QUALITY.noDrawingTitle, { exact: true })).toBeVisible();
       await expect(page.getByText(QUALITY.noDrawingNotice, { exact: true })).toBeVisible();
       const proceed = page.getByRole('button', { name: QUALITY.continue, exact: true });
@@ -1480,7 +1480,7 @@ test.describe('E03 SCR-11 input quality gate', () => {
       expect(pathOf(page), 'aria-disabled continue does not navigate').toBe(ROUTES.project.quality(project.id));
       await captureEvidence(page, 'E03_quality_no_drawing.png');
 
-      await page.getByRole('button', { name: QUALITY.uploadAction, exact: true }).click(); // IQ:146-149 → UIQ:1270
+      await page.getByRole('button', { name: QUALITY.uploadAction, exact: true }).click(); // IQ:137-140 → UIQ:1270
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.upload(project.id));
     });
   });
@@ -1499,7 +1499,7 @@ test.describe('E03 SCR-11 input quality gate', () => {
       await captureEvidence(page, 'E03_quality_footer_nav.png');
       await page.goBack();
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.quality(project.id));
-      await page.getByRole('navigation', { name: 'Đường dẫn trang' }).getByRole('button', { name: 'Dự án', exact: true }).click(); // IQ:203-208
+      await page.getByRole('navigation', { name: 'Đường dẫn trang' }).getByRole('button', { name: 'Dự án', exact: true }).click(); // IQ:193-198 (breadcrumb, BUG-362 adds the project level)
       await expect.poll(() => pathOf(page)).toBe(ROUTES.dashboard);
     });
   });
@@ -1669,7 +1669,7 @@ const UNKNOWN_CASES: readonly UnknownCase[] = [
     slug: 'quality',
     path: (id) => ROUTES.project.quality(id),
     check: async (page) => {
-      // IQ:131-144 + UIQ:856-859 isProjectMissing; IQF:57 / UIQ:1038 footer hidden on error.
+      // IQ:122-135 + UIQ:856-859 isProjectMissing; IQF:57 / UIQ:1038 footer hidden on error.
       const alert = page.getByRole('alert').filter({ hasText: NOT_FOUND_TITLE });
       await expect(alert).toContainText(NOT_FOUND_SENTENCE);
       await expect(page.getByRole('button', { name: QUALITY.continue, exact: true })).toHaveCount(0);
