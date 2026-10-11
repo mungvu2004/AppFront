@@ -597,6 +597,14 @@ describe('bảng tầng', () => {
     expect(roof.areaM2).toBeNull();
   });
 
+  it('BUG-263: tầng chưa có bản vẽ không có tiến độ QC (không phải 100%)', async () => {
+    const mounted = await mountSettled();
+    const roof = rowOf(mounted, String(FLOOR_MANAGER_SAMPLE_ROOF_ID));
+
+    expect(roof.qcProgressText).toBe('—');
+    expect(roof.qcProgressRatio).toBe(0);
+  });
+
   it('tầng có bản vẽ đếm được tường, phòng và diện tích của chính nó', async () => {
     const mounted = await mountSettled();
     const ground = rowOf(mounted, String(FLOOR_MANAGER_SAMPLE_GROUND_ID));

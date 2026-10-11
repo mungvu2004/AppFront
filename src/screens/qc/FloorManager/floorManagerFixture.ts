@@ -164,7 +164,7 @@ function buildRow(seed: FloorSeed): FloorRowVm {
     roomCountText: seed.roomCount === null ? MISSING_VALUE : formatNumber(seed.roomCount),
     areaText: formatArea(seed.areaM2),
     areaM2: seed.areaM2,
-    qcProgressText: formatPercent(seed.qcProgressRatio, { fractionDigits: 0 }),
+    qcProgressText: hasDrawing ? formatPercent(seed.qcProgressRatio, { fractionDigits: 0 }) : MISSING_VALUE,
     qcProgressRatio: seed.qcProgressRatio,
     isSelected: false,
     isHovered: false,

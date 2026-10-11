@@ -51,6 +51,8 @@ type FloorRowHandlers = Pick<
 >;
 
 const NEEDS_DRAWING_LABEL = 'Chưa có bản vẽ';
+/** Đuôi nhãn dòng khi chưa có bản vẽ: chưa có gì để kiểm nên không đọc "— đã kiểm" (BUG-263). */
+const NEEDS_DRAWING_ROW_SUFFIX = 'chưa có bản vẽ';
 const UPLOAD_LINK_LABEL = 'Tải lên';
 const COPY_FURNITURE_LABEL = 'Sao chép nội thất sang tầng mới';
 const CONFIRM_DUPLICATE_LABEL = 'Nhân bản';
@@ -170,7 +172,7 @@ export function FloorTableRow({
 
   return (
     <tr
-      aria-label={`${row.name}, cao độ ${row.elevationText}, cao ${row.heightText}, ${row.qcProgressText} đã kiểm`}
+      aria-label={`${row.name}, cao độ ${row.elevationText}, cao ${row.heightText}, ${row.hasDrawing ? `${row.qcProgressText} đã kiểm` : NEEDS_DRAWING_ROW_SUFFIX}`}
       aria-selected={row.isSelected}
       className={cn(
         'h-10 border-b border-border-default-50 outline-none transition-colors duration-120',

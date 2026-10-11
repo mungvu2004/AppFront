@@ -1494,7 +1494,8 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
       const hasDrawing = drawingCount > 0;
       const counts = countsByLevel.get(id) ?? null;
       const health = explainHealthScore(violationsByLevel.get(id) ?? NO_VIOLATIONS);
-      const qcProgressRatio = health.score / HEALTH_SCORE_MAX;
+      /* Chưa có bản vẽ thì chưa có gì để kiểm: không có vi phạm KHÔNG có nghĩa là 100% (BUG-263). */
+      const qcProgressRatio = hasDrawing ? health.score / HEALTH_SCORE_MAX : 0;
 
       return {
         id,
@@ -1510,7 +1511,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
         roomCountText: countText(counts?.roomCount ?? null),
         areaText: counts === null ? MISSING_VALUE : formatArea(counts.areaM2),
         areaM2: counts === null ? null : squareMetres(counts.areaM2),
-        qcProgressText: formatPercent(qcProgressRatio, { fractionDigits: 0 }),
+        qcProgressText: hasDrawing ? formatPercent(qcProgressRatio, { fractionDigits: 0 }) : MISSING_VALUE,
         qcProgressRatio,
         isSelected: selectedFloorId === id,
         isHovered: hoveredFloorId === id,
