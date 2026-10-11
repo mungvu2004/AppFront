@@ -1444,9 +1444,11 @@ test.describe('E03 SCR-11 input quality gate', () => {
       await page.goto(ROUTES.project.quality(project.id));
       const secondary = page.getByRole('button', { name: QUALITY.secondary, exact: true }); // IQF:67-69
       await expect(secondary).toBeVisible();
-      await captureEvidence(page, 'E03_quality_footer_nav.png');
       await secondary.click();
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.upload(project.id));
+      // BUG-309: shot of the click's result (the upload screen), not of the quality page E03_quality_no_drawing already shows.
+      await expect(page.getByTestId(DROPZONE)).toBeVisible();
+      await captureEvidence(page, 'E03_quality_footer_nav.png');
       await page.goBack();
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.quality(project.id));
       await page.getByRole('navigation', { name: 'Đường dẫn trang' }).getByRole('button', { name: 'Dự án', exact: true }).click(); // IQ:203-208
