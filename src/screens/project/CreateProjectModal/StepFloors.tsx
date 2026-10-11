@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/Input';
 import { NumericField } from '@/components/ui/NumericField';
 import { Table } from '@/components/ui/Table';
 import { Toggle } from '@/components/ui/Toggle';
+import { Tooltip } from '@/components/ui/Tooltip';
 import { cn } from '@/lib/utils';
 
 import {
@@ -145,12 +146,16 @@ export function StepFloors(props: StepFloorsProps) {
                   </Table.Cell>
                   <Table.Cell className={ROW_CELL}>
                     <span className={FIELD_HIGH}>
-                      <IconButton
-                        icon={<Trash2 size={16} aria-hidden="true" />}
-                        aria-label={`Xoá ${row.name}`}
-                        onClick={() => props.removeFloor(row.id)}
-                        disabled={isSubmitting}
-                      />
+                      {/* Its tooltip to the left: on top, the first row's covered the "Cao độ" column header (BUG-232). */}
+                      <Tooltip label={`Xoá ${row.name}`} side="left" disabled={isSubmitting}>
+                        <IconButton
+                          icon={<Trash2 size={16} aria-hidden="true" />}
+                          aria-label={`Xoá ${row.name}`}
+                          onClick={() => props.removeFloor(row.id)}
+                          disabled={isSubmitting}
+                          tooltip={false}
+                        />
+                      </Tooltip>
                     </span>
                   </Table.Cell>
                 </Table.Row>

@@ -292,6 +292,19 @@ describe('CreateProjectModalView', () => {
     expect(screen.getByRole('button', { name: 'Thêm tầng' }).parentElement).toHaveClass('sm:mt-7');
   });
 
+  it('puts a delete button tooltip to its left, off the "Cao độ" column header above the first row (BUG-232)', async () => {
+    render(<CreateProjectModalView {...baseProps()} step={2} stepLabel="bước 2 / 3" />);
+
+    const remove = screen.getByRole('button', { name: 'Xoá Tầng trệt' });
+    fireEvent.mouseEnter(remove.parentElement as HTMLElement);
+    const tip = await screen.findByRole('tooltip');
+
+    expect(tip).toHaveTextContent('Xoá Tầng trệt');
+    // Exactly one tooltip: IconButton's own (on top) is off.
+    expect(screen.getAllByRole('tooltip')).toHaveLength(1);
+    expect(tip.parentElement?.style.transform).toBe('translate(-100%, -50%)');
+  });
+
   it('warns before discarding unsaved changes, in the dialog itself — no nested dialog', () => {
     const confirmDiscard = vi.fn();
     render(<CreateProjectModalView {...baseProps()} isConfirmingDiscard step={1} stepLabel="bước 1 / 3" />);
