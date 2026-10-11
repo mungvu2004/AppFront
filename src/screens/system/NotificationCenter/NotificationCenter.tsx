@@ -196,7 +196,9 @@ export function NotificationCenter(props: NotificationCenterProps) {
     <Drawer.Root isOpen={isOpen} onClose={onClose} label={TITLE_LABEL}>
       {/* Cột đủ cao của tấm: thân cuộn riêng, chân "Xem tất cả" ghim đáy cả ở tờ dưới 1024px (BUG-161). */}
       <div className="flex h-full min-h-0 flex-1 flex-col">
-        <Drawer.Header>
+        {/* lg:pt-10: on the side panel the gear sits 30 px from the window top, too close for its tooltip above,
+            so it flipped down over the "Nhắc đến tôi" tab (BUG-205). 16 px more lets it stay above, over empty header. */}
+        <Drawer.Header className="lg:pt-10">
           {/*
             Trạng thái 7 ("thu gọn"): khung hẹp thì nhóm nút rơi xuống hàng dưới thay vì
             ép tiêu đề gãy dòng. Dùng `flex-wrap` chứ không đọc `isCollapsed`: bề ngang
