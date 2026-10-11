@@ -32,7 +32,8 @@ import { addPendingCommand, deletePendingCommand, listPendingCommands } from '@/
 import { getAppAnnouncer } from '@/lib/input/announcer';
 import { createTestQueryClient } from '@/lib/testing/render';
 import type { HttpError } from '@/lib/http';
-import type { UploadTask, UploadTaskState } from '@/lib/upload';
+import { MAX_UPLOAD_FILE_SIZE_BYTES, type UploadTask, type UploadTaskState } from '@/lib/upload';
+import { formatFileSize } from '@/lib/format/bytes';
 import { createUploadTask } from '@/lib/upload/uploadTask';
 import type { UploadCandidate } from '@/lib/upload/validate';
 import { ROUTES } from '@/routes/paths';
@@ -430,6 +431,35 @@ describe('useFloorUploadScreen — danh sách tầng', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('useFloorUploadScreen — nhận tệp', () => {
+  it('tệp hơn trần một byte: "vượt trần" nêu hai số khác nhau (BUG-302)', async () => {
+    const harness = createHarness({
+      validateFile: async () => ({
+        ok: false,
+        reason: { kind: 'tooLarge', sizeBytes: MAX_UPLOAD_FILE_SIZE_BYTES + 1, maxSizeBytes: MAX_UPLOAD_FILE_SIZE_BYTES },
+      }),
+    });
+    const { result } = renderScreen(harness.options);
+
+    await waitFor(() => {
+      expect(result.current.floors).toHaveLength(4);
+    });
+
+    act(() => {
+      result.current.onFilesDropped([makeFile('qua-nang.png')]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.tray.items[0]?.error?.kind).toBe('tooLarge');
+    });
+
+    const sentence = result.current.tray.items[0]?.error?.sentence ?? '';
+    const [, size, cap] = /^Tệp nặng (.+), vượt trần (.+) của một tệp\.$/u.exec(sentence) ?? [];
+
+    expect(cap).toBe(formatFileSize(MAX_UPLOAD_FILE_SIZE_BYTES));
+    expect(size).toBeDefined();
+    expect(size).not.toBe(cap);
+  });
+
   it('ghép tệp vào đúng tầng theo tên tệp và đánh dấu là ghép tự động', async () => {
     const harness = createHarness();
     const { result } = renderScreen(harness.options);

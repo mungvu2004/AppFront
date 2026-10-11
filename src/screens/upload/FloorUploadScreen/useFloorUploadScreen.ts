@@ -60,7 +60,7 @@ import type { LevelId } from '@/domain/spatial/types';
 import { millimetres, millimetresToMetres } from '@/domain/units/types';
 import type { Millimetres } from '@/domain/units/types';
 import { can } from '@/lib/auth/permissions';
-import { formatFileSize } from '@/lib/format/bytes';
+import { BYTES_PER_UNIT, formatFileSize } from '@/lib/format/bytes';
 import { formatLength } from '@/lib/format/measure';
 import { formatNumber, formatPercent, MISSING_VALUE, parseNumber } from '@/lib/format/number';
 import { getAppAnnouncer } from '@/lib/input/announcer';
@@ -176,12 +176,37 @@ function elevationProblemFor(elevationMm: Millimetres | null): string | null {
   return null;
 }
 
+/** Một chữ số lẻ — đúng độ chính xác `formatFileSize` hiện từ KB trở lên. */
+const SHOWN_DECIMAL_STEPS = 10;
+
+/**
+ * Dung lượng của một tệp vượt trần. Tệp chỉ hơn trần vài byte thì hai số làm tròn trùng nhau và câu
+ * "vượt trần" tự mâu thuẫn, nên làm tròn LÊN tới chữ số lẻ đang hiện — hơn trần đúng một bậc (BUG-302).
+ */
+function sizeOverCap(sizeBytes: number, maxSizeBytes: number): string {
+  const label = formatFileSize(sizeBytes);
+
+  if (label !== formatFileSize(maxSizeBytes)) {
+    return label;
+  }
+
+  let unitBytes = 1;
+
+  while (unitBytes * BYTES_PER_UNIT <= sizeBytes) {
+    unitBytes *= BYTES_PER_UNIT;
+  }
+
+  const stepBytes = unitBytes / SHOWN_DECIMAL_STEPS;
+
+  return formatFileSize(Math.ceil(sizeBytes / stepBytes) * stepBytes);
+}
+
 /** Câu cho một tệp bị từ chối. Số lấy từ chính lời từ chối, không viết tay (R-71). */
 function rejectionSentence(reason: UploadRejection): string {
   switch (reason.kind) {
     case 'tooLarge':
       return (
-        `Tệp nặng ${formatFileSize(reason.sizeBytes)}, vượt trần ` +
+        `Tệp nặng ${sizeOverCap(reason.sizeBytes, reason.maxSizeBytes)}, vượt trần ` +
         `${formatFileSize(reason.maxSizeBytes)} của một tệp.`
       );
     case 'unsupportedFormat':
