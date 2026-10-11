@@ -981,8 +981,9 @@ test.describe('E03 SCR-09 floor manager', () => {
       await openFloors(page, project);
       const floor = firstFloor(project);
       const row = floorRow(page, floor.name);
-      // The count cell (UFM:266-270, drawingsMissing) and the badge (FTR:286) both read "Chưa có bản vẽ".
-      await expect(row.getByText('Chưa có bản vẽ', { exact: true })).toHaveCount(2);
+      // An editor's row reads "Chưa có bản vẽ" once: the badge (FTR:314-317); the count text (UFM:267-270) is drawn only
+      // for a reader (FTR:329-331), not next to the badge (BUG-250, FIX-1284).
+      await expect(row.getByText('Chưa có bản vẽ', { exact: true })).toHaveCount(1);
       await captureEvidence(page, 'E03_floors_upload_link.png');
       await row.getByRole('button', { name: 'Tải lên', exact: true }).click(); // FTR:287-296
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.upload(project.id)); // FMC handleNavigateToDrawings
