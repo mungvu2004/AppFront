@@ -16,6 +16,8 @@
  * `leading-8` lines read as double-spaced, and the 64 px box made the field look odd) and the field fills it
  * (like the card, FIX-994); 32 px rather than the card's 44 keeps every row from growing 24 px (WCAG 2.5.8: >= 24).
  * At >= `sm` a 1-line name is a 20 px box, so the field reaches 2 px past it each way (24 px) inside the 40 px row.
+ * A 2-line name's field (~44 px) may overlap the neighbouring rows by ~1 px, only while it is open and focused;
+ * accepted rather than measuring line count in JS.
  *
  * Stacked, the header row is `display: none`, so a screen reader no longer pairs "Cần QC" with "Trạng thái" (and
  * Safari drops the table roles once `display` changes). Each stacked cell says its column itself, below `sm` only.
