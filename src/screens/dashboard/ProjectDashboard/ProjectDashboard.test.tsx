@@ -353,6 +353,16 @@ describe('ProjectDashboardView, seven states', () => {
     }
   });
 
+  // BUG-118: four counter tiles repeated the filter's four counts above it.
+  it('shows the status counts once, on the filter', () => {
+    const { container } = render(<ProjectDashboardView {...PROPS_BY_STATE.success()} />);
+    const rail = container.querySelector('aside');
+
+    expect(rail?.children).toHaveLength(1);
+    expect(within(rail as HTMLElement).getAllByRole('button')).toHaveLength(4);
+    expect(screen.queryByText('Tổng dự án')).not.toBeInTheDocument();
+  });
+
   // BUG-169: a scrolled query is cut mid-glyph at the field's edge; the fade that hides the cut is on only while scrolled.
   it('marks the search field as scrolled only while its text is scrolled', () => {
     render(<ProjectDashboardView {...PROPS_BY_STATE.success()} />);
