@@ -1241,6 +1241,47 @@ describe('route — chọn tầng, không setActiveFloor', () => {
       vi.unstubAllGlobals();
     }
   });
+
+  it('ND-R1: route nối onToast vào Toast.Provider — toast phục hồi/nhãn và lỗi "thử lại" hiện trên màn thật', async () => {
+    vi.stubEnv('VITE_USE_MOCK_API', 'true');
+    vi.stubGlobal(
+      'matchMedia',
+      (query: string) => ({ matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {} }),
+    );
+    const real = UseVersionHistoryModule.useVersionHistory;
+    let onToast: Parameters<typeof real>[0]['onToast'];
+    const spy = vi.spyOn(UseVersionHistoryModule, 'useVersionHistory').mockImplementation((options) => {
+      onToast = options.onToast;
+
+      return real(options);
+    });
+
+    try {
+      act(() => {
+        useStore.getState().setProject(null);
+      });
+      renderWithProviders(
+        <MemoryRouter initialEntries={['/projects/project-1/versions']}>
+          <Routes>
+            <Route path={ROUTE_PATTERNS.projectVersions} element={<VersionHistoryRoute />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+
+      expect(await screen.findByRole('navigation', { name: 'Danh sách phiên bản' }, { timeout: 5_000 })).toBeTruthy();
+      expect(onToast).toBeTypeOf('function');
+      act(() => {
+        onToast?.({ message: 'Đã gắn nhãn', onUndo: () => {} });
+        onToast?.({ message: UNDO_RETRY_TOAST, onUndo: () => {}, state: 'violation' });
+      });
+      expect(await screen.findByText('Đã gắn nhãn')).toBeTruthy();
+      expect(await screen.findByText(UNDO_RETRY_TOAST)).toBeTruthy();
+    } finally {
+      spy.mockRestore();
+      vi.unstubAllEnvs();
+      vi.unstubAllGlobals();
+    }
+  });
 });
 
 /* ==========================================================================

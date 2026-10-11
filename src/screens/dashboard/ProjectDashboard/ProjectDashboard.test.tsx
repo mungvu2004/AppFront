@@ -308,7 +308,8 @@ describe('ProjectDashboardView, seven states', () => {
   });
 
   // Rename in the stacked table row (< sm): the 44 px field replaced a 20 px name, so the row grew 24 px.
-  it('gives the table name and its rename field the same 32 px box below `sm`', () => {
+  // ND-R3: at >= sm a 2-line name (43 px row) swapped for a 1-line field (40 px row) shrank the row 3 px.
+  it('keeps the table name box while renaming, at every width: the field overlays it', () => {
     const { rerender } = render(<ProjectDashboardView {...PROPS_BY_STATE.success()} viewMode="table" />);
     expect(screen.getByRole('heading', { name: SAMPLE_ROW.name }).className).toContain('max-sm:leading-8');
     // The narrow name column at 1024 px cut "E2E-QA-20261011-0028" to "E2E-QA-202…": the name wraps to two lines first.
@@ -317,7 +318,13 @@ describe('ProjectDashboardView, seven states', () => {
 
     rerender(<ProjectDashboardView {...PROPS_BY_STATE.success()} viewMode="table" renamingId={SAMPLE_ROW.id} />);
     const field = screen.getByRole('textbox', { name: `Đổi tên ${SAMPLE_ROW.name}` });
-    expect(field.className.split(' ').filter((name) => /(^|:)h-/u.test(name))).toEqual(['h-8', 'sm:h-auto']);
+    const box = document.querySelector('tbody h3');
+    expect(box).toHaveClass('invisible', 'line-clamp-2', 'max-sm:line-clamp-1', 'max-sm:leading-8');
+    expect(box).toHaveAttribute('aria-hidden', 'true');
+    expect(field).toHaveClass('absolute', 'inset-0');
+    expect(field.className.split(' ').filter((name) => /(^|:)h-/u.test(name))).toEqual([]);
+    expect(field.parentElement).toBe(box?.parentElement);
+    expect(field.parentElement).toHaveClass('relative');
   });
 
   // BUG-211: the menu kept the spot read at open; narrowing the window moved the card under it.

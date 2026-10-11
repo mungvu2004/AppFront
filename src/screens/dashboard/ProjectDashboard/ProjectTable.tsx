@@ -11,8 +11,10 @@
  * side at 375 px left the name 98 px — "E2E-QA-20261011-0028" was cut and two rows read the same
  * (BUG-153). The cells stay cells, so the name cell still holds only the name.
  *
- * Below `sm` the name and its rename field share one 32 px box (like the card, FIX-994), so renaming does not
- * grow the stacked row; 32 px rather than the card's 44 keeps every row from growing 24 px (WCAG 2.5.8: >= 24).
+ * The rename field overlays the name, which stays as an invisible size box (ND-R3), so renaming never changes the
+ * row height: a 2-line name at >= `sm` keeps its 43 px row. Below `sm` the name keeps to one 32 px line (two
+ * `leading-8` lines read as double-spaced, and the 64 px box made the field look odd) and the field fills it
+ * (like the card, FIX-994); 32 px rather than the card's 44 keeps every row from growing 24 px (WCAG 2.5.8: >= 24).
  *
  * Stacked, the header row is `display: none`, so a screen reader no longer pairs "Cần QC" with "Trạng thái" (and
  * Safari drops the table roles once `display` changes). Each stacked cell says its column itself, below `sm` only.
@@ -71,24 +73,30 @@ export function ProjectTable({ rows, renamingId, renameDraft, onOpen, onMenu, on
             }}
           >
             <Table.Cell className={`w-full max-w-0 font-medium max-sm:min-w-0 max-sm:max-w-full max-sm:basis-full ${CELL_STACKED}`}>
-              {renamingId === project.id ? (
-                <input
-                  autoFocus
-                  aria-label={`Đổi tên ${project.name}`}
-                  value={renameDraft}
-                  onChange={(event) => onRenameChange(event.target.value)}
-                  onBlur={onRenameCommit}
-                  onClick={(event) => event.stopPropagation()}
-                  onKeyDown={(event) => {
-                    event.stopPropagation();
-                    if (event.key === 'Enter') onRenameCommit();
-                    if (event.key === 'Escape') onRenameCancel();
-                  }}
-                  className={`${NAME_CLASS} h-8 rounded border border-accent bg-bg-surface px-1 outline-none sm:h-auto`}
-                />
-              ) : (
-                <h3 className={`${NAME_CLASS} line-clamp-2 whitespace-normal break-words max-sm:leading-8`}>{project.name}</h3>
-              )}
+              <div className="relative">
+                <h3
+                  aria-hidden={renamingId === project.id || undefined}
+                  className={`${NAME_CLASS} line-clamp-2 whitespace-normal break-words max-sm:line-clamp-1 max-sm:leading-8 ${renamingId === project.id ? 'invisible' : ''}`}
+                >
+                  {project.name}
+                </h3>
+                {renamingId === project.id && (
+                  <input
+                    autoFocus
+                    aria-label={`Đổi tên ${project.name}`}
+                    value={renameDraft}
+                    onChange={(event) => onRenameChange(event.target.value)}
+                    onBlur={onRenameCommit}
+                    onClick={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => {
+                      event.stopPropagation();
+                      if (event.key === 'Enter') onRenameCommit();
+                      if (event.key === 'Escape') onRenameCancel();
+                    }}
+                    className={`${NAME_CLASS} absolute inset-0 rounded border border-accent bg-bg-surface px-1 outline-none`}
+                  />
+                )}
+              </div>
             </Table.Cell>
             <Table.Cell className={CELL_STACKED}>
               <StackedLabel>Trạng thái</StackedLabel>

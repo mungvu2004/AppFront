@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { Table } from './Table';
@@ -309,5 +311,36 @@ describe('Table header casing', () => {
       // Should not be purely uppercase (would fail if text is "MÃ TƯỜNG")
       expect(text).not.toMatch(/^[A-ZÀÁẢÃẠĂẮẶẰẲẴÂẤẬẦẨẪĐÊẾỆỀỂỄÔỐỘỒỔỖƠỚỢỜỞỠƯỨỰỪỬỮ\s]+$/u);
     });
+  });
+});
+
+// ── Row hover edge (ND-R2) ────────────────────────────────────────────────────
+
+describe('Table.Row hover edge', () => {
+  // jsdom cannot hover, so `:hover` in the real rule becomes a `.is-hovered` class we set by hand.
+  const css = readFileSync(resolve(process.cwd(), 'src/styles/globals.css'), 'utf8');
+  const edgeOn = /([^{}]*row-edge-on[^{}]*)\{\s*transform: scaleY\(1\)/.exec(css)?.[1] ?? '';
+  const selectors = edgeOn.split(',').map((s) => s.replace(/::before/g, '').replace(/:hover/g, '.is-hovered').trim());
+  const lit = (td: Element) => selectors.some((s) => td.matches(s));
+
+  function renderRow(wrapperClass: string, rowClass: string) {
+    render(
+      <div className={wrapperClass}>
+        <Table>
+          <Table.Body>
+            <Table.Row className={rowClass}><Table.Cell>A</Table.Cell></Table.Row>
+          </Table.Body>
+        </Table>
+      </div>,
+    );
+    return screen.getByText('A').closest('td') as Element;
+  }
+
+  it('lights the edge when the row itself is hovered, with no group ancestor', () => {
+    expect(lit(renderRow('', 'is-hovered'))).toBe(true);
+  });
+
+  it('does not light every row just because a group ancestor is hovered', () => {
+    expect(lit(renderRow('group is-hovered', ''))).toBe(false);
   });
 });

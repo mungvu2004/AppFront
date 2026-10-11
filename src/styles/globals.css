@@ -295,13 +295,13 @@
 
   /* Vạch nhấn 2 px bên trái hàng bảng (Table.Row): một bộ quy tắc thay cho mười hai biến thể
      `[&>td:first-child]:before:*`, mỗi biến thể kéo theo `content: var(--tw-content)` (ngân sách CSS 12 KiB).
-     Hiện khi hàng được chọn, hoặc khi một `group` bên trên đang được rê chuột (như `group-hover:` cũ). */
+     Hiện khi hàng được chọn hoặc chính hàng đang được rê chuột (ND-R2: không cần `group` tổ tiên). */
   .row-edge > td:first-child { position: relative; }
   .row-edge > td:first-child::before {
     content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 2px; background-color: var(--accent);
-    transform: scaleY(0); transform-origin: center; transition: transform 120ms cubic-bezier(0, 0, 0.2, 1);
+    transform: scaleY(0); transform-origin: center; transition: transform theme('transitionDuration.instant') theme('transitionTimingFunction.enter');
   }
-  .row-edge-on > td:first-child::before, .group:hover .row-edge > td:first-child::before { transform: scaleY(1); }
+  .row-edge-on > td:first-child::before, .row-edge:hover > td:first-child::before { transform: scaleY(1); }
 
   /* `--bg-hover` là một lớp phủ trong suốt (6% / 3,5%): đặt thẳng làm nền thì vật thể
      nổi trên canvas (ghim bình luận) trong suốt khi rê chuột. Phủ nó LÊN nền surface. */
