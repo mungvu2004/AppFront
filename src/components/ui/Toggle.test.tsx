@@ -27,6 +27,13 @@ describe('Toggle', () => {
     expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'true');
   });
 
+  it('puts the knob on the right when on, on the left when off', () => {
+    const { rerender } = render(<Toggle aria-label="Bật/tắt" checked={false} />);
+    expect(screen.getByRole('switch').firstElementChild).not.toHaveClass('justify-end');
+    rerender(<Toggle aria-label="Bật/tắt" checked />);
+    expect(screen.getByRole('switch').firstElementChild).toHaveClass('justify-end');
+  });
+
   it('calls onChange on click', () => {
     const onChange = vi.fn();
     render(<Toggle aria-label="Bật/tắt" onChange={onChange} />);

@@ -106,7 +106,9 @@ export function Toggle(props: ToggleProps) {
           'flex h-5 w-full items-center rounded-full p-0.5 transition-colors duration-180',
           // Rãnh tắt bằng `--border-control` (≥ 3:1 với nền và với núm, cả hai chủ đề — WCAG 1.4.11);
           // `bg-sunken` cũ chỉ ~1,16:1 trên trắng nên công tắc tắt gần như vô hình.
-          currentChecked ? 'bg-accent' : 'bg-border-control',
+          // `justify-end` moves the knob to the right when on; `layout` animates the move. It was lost
+          // with `translate-x-5` in d9bfe4a4, so an "on" switch kept its knob on the left.
+          currentChecked ? 'justify-end bg-accent' : 'bg-border-control',
         )}
       >
         <motion.span
