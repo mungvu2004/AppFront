@@ -329,26 +329,25 @@ describe('ProjectDashboardView, seven states', () => {
     expect(field.parentElement).toHaveClass('relative');
   });
 
-  // BUG-211: the menu kept the spot read at open; narrowing the window moved the card under it.
-  it('closes the card menu when the window width changes, not when only the height does', () => {
-    const setViewport = (clientWidth: number, clientHeight: number): void => {
-      for (const [key, value] of Object.entries({ clientWidth, clientHeight })) {
-        Object.defineProperty(document.documentElement, key, { configurable: true, value });
-      }
-    };
-    setViewport(1440, 900);
+  // BUG-211: the menu kept the spot read at open; narrowing the window moved the card under it. QA-02b closed it
+  // instead, which lost the menu; it now stays open and moves with its button.
+  it('keeps the card menu open under its button when the layout moves the button', async () => {
+    for (const [key, value] of Object.entries({ clientWidth: 1440, clientHeight: 900 })) {
+      Object.defineProperty(document.documentElement, key, { configurable: true, value });
+    }
     try {
       render(<ProjectDashboardView {...PROPS_BY_STATE.success()} />);
-      fireEvent.click(screen.getByRole('button', { name: `Tuỳ chọn cho ${SAMPLE_ROW.name}` }));
-      expect(screen.getByRole('menu', { name: 'Tuỳ chọn' })).toBeInTheDocument();
+      const trigger = screen.getByRole('button', { name: `Tuỳ chọn cho ${SAMPLE_ROW.name}` });
+      const rect = vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue(new DOMRect(600, 100, 32, 32));
+      trigger.focus();
+      fireEvent.click(trigger);
+      const menu = screen.getByRole('menu', { name: 'Tuỳ chọn' });
+      expect([menu.style.left, menu.style.top]).toEqual(['412px', '136px']);
 
-      setViewport(1440, 700);
-      fireEvent(window, new Event('resize'));
-      expect(screen.getByRole('menu', { name: 'Tuỳ chọn' })).toBeInTheDocument();
-
-      setViewport(900, 700);
-      fireEvent(window, new Event('resize'));
-      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      // 1440 -> 900: the card drops 60 px and moves 240 px left.
+      rect.mockReturnValue(new DOMRect(360, 160, 32, 32));
+      await waitFor(() => expect([menu.style.left, menu.style.top]).toEqual(['172px', '196px']));
+      expect(screen.getByRole('menu', { name: 'Tuỳ chọn' })).toBe(menu);
     } finally {
       for (const key of ['clientWidth', 'clientHeight']) Reflect.deleteProperty(document.documentElement, key);
     }
