@@ -22,8 +22,8 @@
  * `Modal.Root` reaches `onClose` two ways — a focus-trap Escape handler and a
  * `scope: 'dialog'` shortcut — and both are wired to `props.requestClose`,
  * never to `onDismiss` directly. A first Esc on a dirty form only shows the
- * `isConfirmingDiscard` alert below, as the *first child* of `Modal.Body`
- * (never a nested dialog); a second Esc, or that alert's own button, both
+ * `isConfirmingDiscard` prompt ({@link DiscardPrompt}, floating above the
+ * footer — never a nested dialog); a second Esc, or that prompt's own button, both
  * call `requestClose`/`confirmDiscard` again and this time it closes. See
  * `useCreateProjectModal.ts`'s doc comment for why an open `Select` dropdown
  * defends itself first.
@@ -38,6 +38,7 @@
  * computation — legal in a view (mục D).
  */
 
+import { AlertTriangle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -199,6 +200,46 @@ function StepReview(props: CreateProjectModalViewProps) {
 }
 
 /* -------------------------------------------------------------------------- */
+/* The discard prompt.                                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Floats just above the footer (`bottom-full` of `Modal.Footer`) rather than
+ * being inserted into the body, so the fields never jump when it appears; it
+ * offers both answers as its own buttons, and its copy does not depend on
+ * where a button wraps to (BUG-123). `text-balance` keeps the title from
+ * leaving one word alone on its last line at 375 px (BUG-190).
+ */
+function DiscardPrompt(props: CreateProjectModalViewProps) {
+  return (
+    <div
+      role="alert"
+      className="absolute inset-x-6 bottom-full mb-3 flex flex-col gap-3 rounded-[8px] border border-state-attention bg-state-attention-tint p-3 shadow-modal"
+    >
+      <div className="flex items-start gap-3">
+        <AlertTriangle className="mt-0.5 shrink-0 text-state-attention" size={18} strokeWidth={2} aria-hidden="true" />
+        <div className="flex min-w-0 flex-col gap-1">
+          <h4 className="text-balance text-[14px] font-semibold leading-tight text-state-attention-text">
+            Đóng và bỏ các thay đổi chưa lưu?
+          </h4>
+          <p className="text-pretty text-[14px] leading-relaxed text-state-attention-text">
+            Nhấn Esc lần nữa hoặc bấm "Đóng, bỏ thay đổi" để đóng.
+          </p>
+        </div>
+      </div>
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button type="button" size="sm" variant="secondary" onClick={props.keepEditing}>
+          Tiếp tục sửa
+        </Button>
+        <Button type="button" size="sm" variant="danger" onClick={props.confirmDiscard}>
+          Đóng, bỏ thay đổi
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /* The dialog itself.                                                          */
 /* -------------------------------------------------------------------------- */
 
@@ -252,17 +293,6 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
         <span id={TITLE_ID}>Tạo dự án mới</span>
       </Modal.Header>
       <Modal.Body className="px-6 pt-0 pb-6 min-h-[320px]">
-        {props.isConfirmingDiscard && (
-          <div className="mb-4">
-            <InlineAlert
-              level="attention"
-              title="Đóng và bỏ các thay đổi chưa lưu?"
-              message="Nhấn Esc lần nữa, hoặc bấm nút bên cạnh, để xác nhận đóng."
-              action={{ label: 'Đóng, bỏ thay đổi', onClick: props.confirmDiscard, variant: 'danger' }}
-            />
-          </div>
-        )}
-
         <div className="mb-5 flex flex-col gap-2">
           <div className="flex items-baseline gap-2">
             <p className="text-[13px] font-semibold leading-[18px] text-text-primary">{props.stepLabel}</p>
@@ -292,7 +322,8 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
           {step === 3 && <StepReview {...props} />}
         </motion.div>
       </Modal.Body>
-      <Modal.Footer className="justify-between">
+      <Modal.Footer className="relative justify-between">
+        {props.isConfirmingDiscard && <DiscardPrompt {...props} />}
         <div>
           {step > 1 && (
             <Button variant="ghost" onClick={props.goBack} disabled={isSubmitting}>

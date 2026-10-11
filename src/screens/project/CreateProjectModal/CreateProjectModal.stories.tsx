@@ -89,6 +89,7 @@ const base: CreateProjectModalViewProps = {
   goNext: noop,
   goBack: noop,
   requestClose: noop,
+  keepEditing: noop,
   confirmDiscard: noop,
   submit: noop,
 };

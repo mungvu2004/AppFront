@@ -272,9 +272,9 @@
       },
       "discard": {
         "title": "Đóng và bỏ các thay đổi chưa lưu?",
-        "message": "Nhấn Esc lần nữa, hoặc bấm nút bên cạnh, để xác nhận đóng.",
+        "message": "Nhấn Esc lần nữa hoặc bấm \"Đóng, bỏ thay đổi\" để đóng.",
         "confirm": "Đóng, bỏ thay đổi",
-        "keepEditing": "Tiếp tục chỉnh sửa"
+        "keepEditing": "Tiếp tục sửa"
       },
       "actions": {
         "back": "Quay lại",

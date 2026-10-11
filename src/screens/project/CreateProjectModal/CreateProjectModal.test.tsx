@@ -108,6 +108,7 @@ function baseProps(): CreateProjectModalViewProps {
     goNext: noop,
     goBack: noop,
     requestClose: noop,
+    keepEditing: noop,
     confirmDiscard: noop,
     submit: noop,
   };
@@ -482,6 +483,21 @@ describe('CreateProjectModal, wired to its hook', () => {
 
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
     expect(screen.queryByText('Đóng và bỏ các thay đổi chưa lưu?')).not.toBeInTheDocument();
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
+
+  it('offers "Tiếp tục sửa" on the discard prompt, which keeps the form (BUG-123)', () => {
+    const onDismiss = vi.fn();
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={onDismiss} />);
+
+    fireEvent.change(screen.getByLabelText('Tên dự án'), { target: { value: 'Bản nháp' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
+    expect(screen.getByText('Nhấn Esc lần nữa hoặc bấm "Đóng, bỏ thay đổi" để đóng.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục sửa' }));
+
+    expect(screen.queryByText('Đóng và bỏ các thay đổi chưa lưu?')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Tên dự án')).toHaveValue('Bản nháp');
     expect(onDismiss).not.toHaveBeenCalled();
   });
 

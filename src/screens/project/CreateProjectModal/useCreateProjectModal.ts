@@ -429,6 +429,8 @@ export interface CreateProjectActions {
   readonly goNext: () => void;
   readonly goBack: () => void;
   readonly requestClose: () => void;
+  /** The discard prompt's "tiếp tục sửa": the prompt goes, the form stays as it is. */
+  readonly keepEditing: () => void;
   readonly confirmDiscard: () => void;
   readonly submit: () => void;
 }
@@ -760,6 +762,7 @@ export function useCreateProjectModal(
     goNext,
     goBack,
     requestClose,
+    keepEditing: () => setIsConfirmingDiscard(false),
     confirmDiscard,
     submit,
   };
