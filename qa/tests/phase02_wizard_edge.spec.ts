@@ -1432,16 +1432,19 @@ test.describe('E02 SCR-05 wizard edge — QA-02 shared components (FE 271538cb)'
         await expect(ground, `${key} → ${shows}`).toHaveValue(shows);
       }
       await page.keyboard.press('Tab'); // NF:113-119 commit on blur
-      await expect(elevationCell(floorRow(dialog, page, 'Tầng 1'))).toHaveText('9,0 m');
       await expect(floorRow(dialog, page, 'Tầng trệt').getByRole('alert')).toHaveCount(0);
-      await captureEvidence(page, 'E02_wiz_arrow_keys.png', { caption: 'Tầng trệt: ↑ ↑ Shift+↑ ↓ → 9, committed on Tab ("Tầng 1" at 9,0 m)' });
+      // BUG-222: a floor without its own height has no level, "—" (computeFloorStack; same rule as the "" / "abc" case of
+      // the row-height parsing test): "Tầng 1" shows the 9 m below it only once it has a height of its own.
+      await expect(elevationCell(floorRow(dialog, page, 'Tầng 1'))).toHaveText('—');
 
       const first = heightBox(dialog, 'Tầng 1');
       await first.focus();
       await page.keyboard.press('ArrowDown'); // 0 − 1 → clamped up to the 2 m floor, never a refusal
       await expect(first).toHaveValue('2');
       await page.keyboard.press('Tab');
-      await expect(elevationCell(floorRow(dialog, page, 'Tầng 2'))).toHaveText('11,0 m');
+      await expect(elevationCell(floorRow(dialog, page, 'Tầng 1')), '"Tầng 1" (2 m) sits on the committed 9 m').toHaveText('9,0 m');
+      await expect(elevationCell(floorRow(dialog, page, 'Tầng 2')), '"Tầng 2" has no height yet').toHaveText('—');
+      await captureEvidence(page, 'E02_wiz_arrow_keys.png', { caption: 'Tầng trệt: ↑ ↑ Shift+↑ ↓ → 9; Tầng 1 (empty): ↓ → 2; both committed on Tab ("Tầng 1" at 9,0 m, "Tầng 2" no height "—")' });
       await attachJson('E02_wiz_arrow_keys.json', { steps: ['ArrowUp=2', 'ArrowUp=3', 'Shift+ArrowUp=10', 'ArrowDown=9', 'empty ArrowDown=2'], stepperButtons: 0 });
       await discardWizard(dialog);
     });
