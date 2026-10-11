@@ -24,7 +24,7 @@ Test names below are shortened. Pass 1 (ran): "anon", "create", "rules", "idem",
 "idem-edges", "del-idem", "body-limit", "origin", "headers", "rollup", "members", "accept", "fresh", "activity".
 Pass 3 (new-3): "msg" = "A02 · projectInvite message per actor (A6, AppBack bf83f815) …".
 
-Rows: 114 rule rows + 8 side-effect rows + 30 mock-pair rows + 6 budget rows = 158 (pass 2: 146, which under-counted
+Rows: 114 rule rows + 8 side-effect rows + 31 mock-pair rows + 6 budget rows = 159 (pass 2: 146, which under-counted
 the 30 mock rows as 25; pass 1: 88). Open gaps: 10 (pass 2: 9; pass 1: 12) — list at the end.
 
 ## Shared rules (every phase-2 route)
@@ -216,8 +216,8 @@ the 30 mock rows as 25; pass 1: 88). Open gaps: 10 (pass 2: 9; pass 1: 12) — l
 
 ## Mock pairing (UI `[mocked response]` tests of phase 2)
 
-BUG-144 / BUG-193: pass 1 said "none". Grep of `[mocked response]` in `qa/tests/phase02_*.spec.ts` finds 30 tests in four specs
-(dashboard_edge 16, dashboard_ui 7, wizard_edge 6, notify_edge 1; BUG-226 added the second N1 500 row). Rows are keyed by spec file + test name, never by line number
+BUG-144 / BUG-193: pass 1 said "none". Grep of `[mocked response]` in `qa/tests/phase02_*.spec.ts` finds 31 tests in four specs
+(dashboard_edge 17, dashboard_ui 7, wizard_edge 6, notify_edge 1; BUG-226 added the second N1 500 row, BUG-242 the SCR-06 rows one). Rows are keyed by spec file + test name, never by line number
 (line numbers went stale as the specs were edited: BUG-193); find a test with `grep -n "<name fragment>" qa/tests/<spec>`. Every row names
 the API test that proves the real response, or why none can.
 
@@ -245,6 +245,7 @@ the API test that proves the real response, or why none can.
 | `phase02_dashboard_edge.spec.ts` E02 SCR-05 "N1 page 2 answers 422 CURSOR_INVALID" | `GET /api/project-summaries?cursor=…` → 422 `CURSOR_INVALID` | paired: "A02 · N1: … forged cursor → 422 CURSOR_INVALID …" — evidence `A02_summaries_422_cursor_garbage.json`, `A02_summaries_422_cursor_bad_mac.json`; also "role/owner matrix" `A02_role_engineer_foreign_cursor_422.json` (another user's cursor) |
 | `phase02_dashboard_edge.spec.ts` E02 wizard "network lost on create" | `POST /api/projects` → aborted | unpairable: network loss; real 201 proven by "create" |
 | `phase02_dashboard_edge.spec.ts` E02 SCR-06 "list read held then 500" | `GET /api/notifications` → held, then 500 | unpairable: 5xx |
+| `phase02_dashboard_edge.spec.ts` E02 SCR-06 "rows (unpairable: aiCompleted / violationFound …)" | `GET /api/notifications` → 200 with crafted `aiCompleted` / `violationFound` / `commentMention` rows | unpairable: pipeline data (Phase 3) — `aiCompleted` / `violationFound` need an upload + pipeline, `commentMention` has no BE producer (BUG-242); the real invite rows are proven by phase02_notify_edge.spec.ts + "notif", "notif-bodies", "msg" |
 | `phase02_dashboard_edge.spec.ts` E02 SCR-07 "N1 held then 500" | `GET /api/project-summaries` → held, then 500 | unpairable: 5xx |
 | `phase02_notify_edge.spec.ts` E02 SCR-06 "POST /read fails (500) after the undo window" | `POST /api/notifications/read` → 500 `INTERNAL` | unpairable: 5xx; real 204 proven by "notif", "notif-bodies" |
 | `phase02_wizard_edge.spec.ts` E02 wizard "create 500" | `POST /api/projects` → 500 | unpairable: 5xx; real 201 proven by "create" |
