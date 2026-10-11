@@ -22,7 +22,7 @@
  * `Modal.Root` reaches `onClose` two ways — a focus-trap Escape handler and a
  * `scope: 'dialog'` shortcut — and both are wired to `props.requestClose`,
  * never to `onDismiss` directly. A first Esc on a dirty form only shows the
- * `isConfirmingDiscard` prompt ({@link DiscardPrompt}, floating above the
+ * `isConfirmingDiscard` prompt ({@link DiscardPrompt}, a row of the
  * footer — never a nested dialog); a second Esc, or that prompt's own button, both
  * call `requestClose`/`confirmDiscard` again and this time it closes. See
  * `useCreateProjectModal.ts`'s doc comment for why an open `Select` dropdown
@@ -175,8 +175,10 @@ function StepInfo(props: CreateProjectModalViewProps) {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Floats just above the footer (`bottom-full` of `Modal.Footer`) rather than
- * being inserted into the body, so the fields never jump when it appears; it
+ * A full-width first row of `Modal.Footer`, in the flow rather than floating
+ * over the body: floating, it covered "Ghi chú" (and "Loại công trình" at
+ * 375 px, BUG-204). In the footer the fields still never move down (BUG-123) —
+ * the body gives up the height and scrolls, or the centred dialog grows. It
  * offers both answers as its own buttons, and its copy does not depend on
  * where a button wraps to (BUG-123). `text-balance` keeps the title from
  * leaving one word alone on its last line at 375 px (BUG-190).
@@ -185,7 +187,7 @@ function DiscardPrompt(props: CreateProjectModalViewProps) {
   return (
     <div
       role="alert"
-      className="absolute left-4 right-4 sm:inset-x-6 bottom-full mb-3 flex flex-col gap-3 rounded-[8px] border border-state-attention bg-state-attention-tint p-3 shadow-modal"
+      className="flex basis-full flex-col gap-3 rounded-[8px] border border-state-attention bg-state-attention-tint p-3"
     >
       <div className="flex items-start gap-3">
         <AlertTriangle className="mt-0.5 shrink-0 text-state-attention" size={18} strokeWidth={2} aria-hidden="true" />
@@ -294,7 +296,7 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
           {step === 3 && <StepReview {...props} />}
         </motion.div>
       </Modal.Body>
-      <Modal.Footer className="relative justify-between px-4 sm:px-6">
+      <Modal.Footer className="flex-wrap justify-between px-4 sm:px-6">
         {props.isConfirmingDiscard && <DiscardPrompt {...props} />}
         <div>
           {step > 1 && (

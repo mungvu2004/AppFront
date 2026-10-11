@@ -266,6 +266,9 @@ describe('CreateProjectModalView', () => {
     expect(screen.getByText('Đóng và bỏ các thay đổi chưa lưu?')).toBeInTheDocument();
     // Exactly one role="dialog" — the warning renders inline, not as a second dialog.
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    // A row of the footer, in the flow: floating over the body it covered "Ghi chú" (BUG-204).
+    expect(screen.getByRole('alert')).not.toHaveClass('absolute');
+    expect(screen.getByRole('alert')).toHaveClass('basis-full');
 
     fireEvent.click(screen.getByRole('button', { name: 'Đóng, bỏ thay đổi' }));
 
