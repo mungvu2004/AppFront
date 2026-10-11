@@ -43,7 +43,7 @@
  */
 
 import { createAppApiClient } from '@/api/appClient';
-import type { ApiClient, ApiResult, Floor } from '@/api/client';
+import type { ApiClient, ApiResult, Floor, Project } from '@/api/client';
 import { describeError, toAppError } from '@/lib/errors';
 import type { AppError } from '@/lib/errors';
 import { createUuid } from '@/lib/http/ids';
@@ -138,6 +138,11 @@ export interface CreateRemovalTicketInput {
 export interface FloorUploadGateway {
   /** Danh sách tầng của một dự án — đọc qua `projects.read`, xem đầu file. */
   readonly readFloors: (input: ReadProjectFloorsInput) => Promise<ApiResult<readonly Floor[]>>;
+  /**
+   * #24 thô dưới khoá `project.detail` — chỉ khi bộ đệm chưa có tên dự án (mở thẳng
+   * đường dẫn), để breadcrumb vẫn nêu tên (BUG-165).
+   */
+  readonly readProject: (input: ReadProjectFloorsInput & { readonly signal?: AbortSignal }) => Promise<ApiResult<Project>>;
   /** Nhận hay từ chối một tệp: dung lượng → định dạng → (chỉ PDF) số trang. */
   readonly validateFile: (file: UploadCandidate) => Promise<UploadValidation>;
   /** Đoán tầng từ một cái tên. Trượt là câu trả lời bình thường, không phải lỗi. */
@@ -221,6 +226,9 @@ export function createFloorUploadGateway(
 
       return { ok: true, data: result.data.floors };
     },
+
+    readProject: ({ projectId, signal }) =>
+      client.projects.read({ projectId, ...(signal !== undefined ? { signal } : {}) }),
 
     validateFile: (file) => validateUploadFile(file),
 

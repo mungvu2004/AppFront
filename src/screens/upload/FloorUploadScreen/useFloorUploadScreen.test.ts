@@ -323,6 +323,18 @@ describe('useFloorUploadScreen — danh sách tầng', () => {
     expect(result.current.errorMessage).toContain('máy chủ');
   });
 
+  it('mở thẳng đường dẫn, bộ đệm chưa có tên: đọc #24 một lần để breadcrumb nêu tên dự án (BUG-165)', async () => {
+    const harness = createHarness();
+    const readProject = vi.fn(harness.gateway.readProject);
+    const { result } = renderScreen({ ...harness.options, gateway: { ...harness.gateway, readProject } });
+
+    await waitFor(() => {
+      expect(result.current.projectName).toEqual(expect.any(String));
+    });
+
+    expect(readProject).toHaveBeenCalledTimes(1);
+  });
+
   it('khổ hẹp: lỗi đọc danh sách tầng vẫn thắng thu gọn (BUG-072)', async () => {
     const harness = createHarness({
       readFloors: async () => ({
