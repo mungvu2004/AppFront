@@ -157,7 +157,7 @@ const noteOf = (link: OnboardingLink, note?: string): string | null => link.disa
  *
  * Câu giải thích ở ngoài hàng (xem {@link QuietNote}): để trong cùng ô thì nó kéo
  * ô rộng và cao hơn, làm cặp liên kết lệch tâm (BUG-127). Vùng chạm 44 px dưới
- * 640 px, 24 px từ đó trở lên (WCAG 2.5.8), gạch chân để nhìn ra là liên kết.
+ * 640 px, 24 px từ đó trở lên (WCAG 2.5.8), gạch chân để nhìn ra là liên kết — chỉ khi bấm được.
  *
  * Không có token riêng cho "liên kết chìm" trong repo, nên nó ghép từ hai token
  * đã có. Liên kết vô hiệu KHÔNG mang thuộc tính `disabled`: nút bị `disabled`
@@ -175,10 +175,12 @@ function QuietLink({ link, id, toneClass, note }: QuietLinkProps) {
       aria-disabled={isDisabled ? true : undefined}
       aria-describedby={noteOf(link, note) === null ? undefined : noteIdOf(id)}
       className={cn(
-        'inline-flex min-h-11 items-center justify-center rounded-lg px-2 text-[13px] underline underline-offset-2 sm:min-h-6',
+        'inline-flex min-h-11 items-center justify-center rounded-lg px-2 text-[13px] sm:min-h-6',
         'transition-colors duration-fast motion-reduce:transition-none',
         FOCUS_RING_CLASS,
-        isDisabled ? 'cursor-not-allowed text-text-muted' : toneClass,
+        // Gạch chân là dấu hiệu "bấm được": liên kết bị khoá không mang nó, nên không còn trông y như
+        // hai liên kết bên cạnh (BUG-127 — "tính năng chưa sẵn sàng được khoá rõ").
+        isDisabled ? 'cursor-not-allowed text-text-muted' : cn('underline underline-offset-2', toneClass),
       )}
     >
       {link.label}

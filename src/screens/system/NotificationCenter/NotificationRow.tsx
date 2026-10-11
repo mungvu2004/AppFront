@@ -3,10 +3,11 @@
  * file ấy dưới ngưỡng độ dài. VIEW THUẦN: mọi thứ tới qua props.
  */
 
-import { AlertTriangle, MessageSquare, Sparkles, UserPlus } from 'lucide-react';
+import { AlertTriangle, Check, MessageSquare, Sparkles, UserPlus } from 'lucide-react';
 
 import { motion } from '@/components/motion';
 import { Button } from '@/components/ui/Button';
+import { IconButton } from '@/components/ui/IconButton';
 import { durationSeconds } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
@@ -113,12 +114,13 @@ export function NotificationRow({
         </button>
 
         {item.excerpt !== undefined && (
-          <p className="line-clamp-2 rounded bg-bg-sunken px-2 py-1.5 text-[13px] leading-[18px] text-text-secondary">
-            {item.excerpt}
+          // Kẹp dòng ở lớp trong: `line-clamp` cắt ở mép padding, nên kẹp trên khung có padding để lộ nửa dòng 3 (BUG-203).
+          <p className="rounded bg-bg-sunken px-2 py-1.5 text-[13px] leading-[18px] text-text-secondary">
+            <span className="line-clamp-2">{item.excerpt}</span>
           </p>
         )}
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="whitespace-nowrap text-[13px] leading-[18px] text-text-muted">{item.relativeTime}</span>
           {item.inlineAction !== undefined && (
             // While the accept is in flight the button is `aria-disabled`, not `disabled`: a disabled button
@@ -139,21 +141,28 @@ export function NotificationRow({
               {item.statusNote}
             </span>
           )}
+          {/* Nút ẩn từng là một cột chữ bên phải: opacity-0 vẫn giữ chỗ, câu bị bóp còn ~100 px (BUG-203).
+              Nay là nút biểu tượng ở hàng giờ, nên câu dùng hết bề ngang. Chỉ ẩn-chờ-rê-chuột từ 640 px (hàng
+              giờ ở đó luôn đủ chỗ); hẹp hơn, hoặc màn không có hover, thì luôn hiện — hàng giờ có xuống dòng
+              thì xuống dòng một nút nhìn thấy, không phải một dòng trống, và không có nút vô hình bấm trúng. */}
+          {!item.isRead && (
+            <span
+              className={cn(
+                'ml-auto shrink-0 transition-opacity duration-fast',
+                'sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 [@media(hover:none)]:opacity-100',
+              )}
+            >
+              <IconButton
+                icon={<Check />}
+                aria-label={MARK_READ_LABEL}
+                size="sm"
+                className="h-8 w-8 sm:h-8 sm:w-8"
+                onClick={() => onMarkRead(item.id)}
+              />
+            </span>
+          )}
         </div>
       </div>
-
-      {!item.isRead && (
-        <span
-          className={cn(
-            'shrink-0 opacity-0 transition-opacity duration-fast',
-            'group-hover:opacity-100 group-focus-within:opacity-100',
-          )}
-        >
-          <Button variant="ghost" size="sm" onClick={() => onMarkRead(item.id)}>
-            {MARK_READ_LABEL}
-          </Button>
-        </span>
-      )}
     </motion.li>
   );
 }

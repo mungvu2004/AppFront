@@ -5,7 +5,7 @@ import { cn } from '../../lib/utils';
 import { Z_INDEX } from '../../lib/zIndex';
 import { DURATION, EASE, SPRING } from '../../lib/motion';
 import { useShortcut } from '../../hooks/useShortcut';
-import { createFocusTrap } from '../../lib/input/focusTrap';
+import { createFocusTrap, getFocusableElements, type FocusTrapHandle } from '../../lib/input/focusTrap';
 import { Tooltip } from '../ui/Tooltip';
 
 // ─── Media Query (private) ───────────────────────────────────────────────────
@@ -31,10 +31,33 @@ type SnapLevel = 0 | 1 | 2; // 0=peek(88px), 1=half(40%), 2=full(90vh)
 /** What each snap dot does, said on hover/focus (Tooltip) and to screen readers (nợ C ND-C2). */
 const SNAP_HINTS: Record<SnapLevel, string> = { 0: 'Thu gọn', 1: 'Nửa màn hình', 2: 'Gần toàn màn hình' };
 
+/**
+ * Mỗi mức vẽ thành một vạch cao dần (4/8/12 px), không phải ba chấm bằng nhau: ba chấm đều đọc ra là
+ * phân trang của carousel, vạch cao dần đọc ra là "chiều cao tấm" (BUG-125).
+ */
+const SNAP_BAR_HEIGHT: Record<SnapLevel, string> = { 0: 'h-1', 1: 'h-2', 2: 'h-3' };
+
 function getSnapHeight(level: SnapLevel, windowHeight: number): number {
   if (level === 0) return 88;
   if (level === 1) return Math.round(windowHeight * 0.4);
   return Math.round(windowHeight * 0.9);
+}
+
+/**
+ * Chỗ nhận focus lúc tấm mở (BUG-205, BUG-125).
+ *
+ * - Không ai mở nó (tải thẳng `/thong-bao`: focus đang ở `body`) → chính hộp thoại. Không nút nào tự sáng
+ *   vòng focus hay bật tooltip khi người dùng chưa làm gì; Tab đầu tiên vào nút đầu tiên (focusTrap).
+ * - Có người mở → nút đầu tiên của NỘI DUNG (hoặc `data-autofocus`), không phải chấm snap của tờ dưới
+ *   1024 px: một Enter lạc trên "Mức 1" là tờ sập còn 88 px.
+ */
+function openingFocusOf(container: HTMLElement): HTMLElement {
+  const active = container.ownerDocument.activeElement;
+  if (active === null || active === container.ownerDocument.body) return container;
+
+  const content = container.querySelector<HTMLElement>('[data-drawer-content]') ?? container;
+  const focusable = getFocusableElements(content);
+  return focusable.find((element) => element.hasAttribute('data-autofocus')) ?? focusable[0] ?? container;
 }
 
 // ─── Context ─────────────────────────────────────────────────────────────────
@@ -84,12 +107,15 @@ function DrawerRoot({ isOpen, onClose, children, size, label }: DrawerRootProps)
     const container = containerRef.current;
     if (!container) return;
 
-    const trap = createFocusTrap(container, { onEscape: onClose });
-    const raf = requestAnimationFrame(() => trap.activate());
+    let trap: FocusTrapHandle | undefined;
+    const raf = requestAnimationFrame(() => {
+      trap = createFocusTrap(container, { onEscape: onClose, initialFocus: openingFocusOf(container) });
+      trap.activate();
+    });
 
     return () => {
       cancelAnimationFrame(raf);
-      trap.release();
+      trap?.release();
     };
   }, [isOpen, onClose, isMobile]);
 
@@ -245,8 +271,8 @@ const BottomSheet = forwardRef<HTMLDivElement, BottomSheetProps>(
         </div>
 
         {/* Nút snap nhanh — đường bàn phím DUY NHẤT để đổi mức (A12), nên không
-            aria-hidden và không tabIndex=-1 (B-V1-46). Vùng bấm 24 px, chấm 6 px
-            vẽ bên trong. Mỗi chấm nói việc của nó: tooltip khi trỏ/focus, mô tả cho
+            aria-hidden và không tabIndex=-1 (B-V1-46). Vùng bấm 24 px, vạch 6 px
+            rộng vẽ bên trong. Mỗi chấm nói việc của nó: tooltip khi trỏ/focus, mô tả cho
             trình đọc màn hình — tên vẫn là "Mức N" (nợ C ND-C2). */}
         <div className="flex justify-center gap-1 pb-1" role="group" aria-label="Chiều cao tấm trượt">
           {([0, 1, 2] as SnapLevel[]).map((level) => (
@@ -262,7 +288,8 @@ const BottomSheet = forwardRef<HTMLDivElement, BottomSheetProps>(
                 <span
                   aria-hidden="true"
                   className={cn(
-                    'h-1.5 w-1.5 rounded-full transition-colors duration-120',
+                    'w-1.5 rounded-full transition-colors duration-120',
+                    SNAP_BAR_HEIGHT[level],
                     snapLevel === level ? 'bg-accent' : 'bg-border-default',
                   )}
                 />
@@ -274,7 +301,9 @@ const BottomSheet = forwardRef<HTMLDivElement, BottomSheetProps>(
           ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto">{children}</div>
+        <div data-drawer-content className="flex-1 overflow-y-auto">
+          {children}
+        </div>
       </motion.div>
     );
   },

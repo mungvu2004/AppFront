@@ -99,4 +99,19 @@ describe('NotificationCenterRoute', () => {
     fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
     expect(await screen.findByText(`đang ở ${ROUTES.dashboard}`)).toBeInTheDocument();
   });
+
+  it('BUG-124: sau tấm là một trang có tên (ẩn với trình đọc màn hình), không phải nền trống', async () => {
+    renderWithProviders(
+      <MemoryRouter initialEntries={[ROUTES.notifications]}>
+        <Routes>
+          <Route path={ROUTES.notifications} element={<NotificationCenterRoute />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const title = await screen.findByText('Trung tâm thông báo');
+    expect(title.closest('[aria-hidden="true"]')).not.toBeNull();
+    expect(screen.getAllByRole('heading', { name: 'Thông báo' })).toHaveLength(1);
+  });
 });
+

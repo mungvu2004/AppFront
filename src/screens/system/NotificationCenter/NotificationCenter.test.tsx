@@ -58,7 +58,7 @@ import { UNDO_WINDOW_MS } from '@/lib/mutations/undoTicket';
 import { ROUTES } from '@/routes/paths';
 
 import { NotificationCenter } from './NotificationCenter';
-import { createNotificationCenterGateway, toNotificationItemVm } from './notificationCenterGateway';
+import { createNotificationCenterGateway, sentenceWithoutLabel, toNotificationItemVm } from './notificationCenterGateway';
 import { UNREAD_DOT_SIZE_PX } from './notificationModel';
 import type {
   NotificationCenterGateway,
@@ -1164,3 +1164,53 @@ describe('Chưa đọc là chấm, không phải nền hàng', () => {
     expect(rowClasses.some((token) => /^bg-/.test(token))).toBe(false);
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* (h) Câu dùng hết bề ngang: nút "Đánh dấu đã đọc" không chiếm cột (BUG-203). */
+/* -------------------------------------------------------------------------- */
+
+describe('Hàng thông báo không chừa cột cho nút ẩn (BUG-203)', () => {
+  it('"Đánh dấu đã đọc" nằm ở hàng giờ, không phải cột bên phải câu; trích đoạn kẹp ở lớp trong', () => {
+    const unread = buildItem({
+      id: 'wide-1',
+      isRead: false,
+      relativeTime: '30 phút trước',
+      excerpt: 'Kiểm tra lại tường trục B giúp mình',
+    });
+
+    render(<NotificationCenter {...baseProps({ groups: [buildGroup('today', 'Hôm nay', [unread])], unreadCount: 1, unreadBadge: '1' })} />);
+
+    const markRead = screen.getByRole('button', { name: 'Đánh dấu đã đọc' });
+    // Hộp gần nhất của nút là hàng giờ — có giờ, không có câu (cột cũ nằm cạnh câu, chung hàng `li`).
+    expect(markRead.closest('div')).toHaveTextContent('30 phút trước');
+    expect(markRead.closest('div')).not.toHaveTextContent(unread.sentence);
+
+    const excerpt = screen.getByText('Kiểm tra lại tường trục B giúp mình');
+    expect(excerpt).toHaveClass('line-clamp-2');
+    expect(excerpt.parentElement).not.toHaveClass('line-clamp-2');
+  });
+});
+
+describe('Tên đối tượng chỉ hiện một lần trong dòng (BUG-206)', () => {
+  it('câu đã kết bằng chữ liên kết thì bỏ đuôi ấy; câu chuẩn của máy chủ giữ nguyên', () => {
+    expect(sentenceWithoutLabel('AI đã xử lý xong bản vẽ tầng trệt', 'Tầng trệt')).toBe('AI đã xử lý xong bản vẽ');
+    expect(sentenceWithoutLabel('Trần Chi nhắc đến bạn trong một bình luận ở phòng 201.', 'phòng 201')).toBe(
+      'Trần Chi nhắc đến bạn trong một bình luận ở',
+    );
+    expect(sentenceWithoutLabel('hệ thống AI đã xử lý xong bản vẽ', 'tầng trệt')).toBe('hệ thống AI đã xử lý xong bản vẽ');
+    // Chỉ cả từ: "phòng 2010" không phải "phòng 201"; câu chỉ có mỗi cái tên thì giữ.
+    expect(sentenceWithoutLabel('ở phòng 2010', '010')).toBe('ở phòng 2010');
+    expect(sentenceWithoutLabel('Tầng trệt', 'Tầng trệt')).toBe('Tầng trệt');
+  });
+
+  it('toNotificationItemVm dùng câu đã bỏ đuôi, chữ liên kết giữ nguyên', () => {
+    const wire = MOCK_NOTIFICATIONS.find((item) => item.id === 'notif-1');
+    if (wire === undefined) throw new Error('bộ mẫu thiếu mục');
+
+    const item = toNotificationItemVm({ ...wire, message: 'Phát hiện một vi phạm ở tầng trệt', objectLabel: 'Tầng trệt' }, GATEWAY_NOW_MS);
+
+    expect(item.sentence).toBe('Phát hiện một vi phạm ở');
+    expect(item.target.label).toBe('Tầng trệt');
+  });
+});
+
