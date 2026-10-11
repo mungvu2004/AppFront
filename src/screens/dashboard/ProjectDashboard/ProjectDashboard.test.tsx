@@ -300,6 +300,31 @@ describe('ProjectDashboardView, seven states', () => {
     expect(cells[0]?.closest('tr')?.className).toContain('max-sm:flex-wrap');
   });
 
+  // BUG-211: the menu kept the spot read at open; narrowing the window moved the card under it.
+  it('closes the card menu when the window width changes, not when only the height does', () => {
+    const setViewport = (clientWidth: number, clientHeight: number): void => {
+      for (const [key, value] of Object.entries({ clientWidth, clientHeight })) {
+        Object.defineProperty(document.documentElement, key, { configurable: true, value });
+      }
+    };
+    setViewport(1440, 900);
+    try {
+      render(<ProjectDashboardView {...PROPS_BY_STATE.success()} />);
+      fireEvent.click(screen.getByRole('button', { name: `Tuỳ chọn cho ${SAMPLE_ROW.name}` }));
+      expect(screen.getByRole('menu', { name: 'Tuỳ chọn' })).toBeInTheDocument();
+
+      setViewport(1440, 700);
+      fireEvent(window, new Event('resize'));
+      expect(screen.getByRole('menu', { name: 'Tuỳ chọn' })).toBeInTheDocument();
+
+      setViewport(900, 700);
+      fireEvent(window, new Event('resize'));
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    } finally {
+      for (const key of ['clientWidth', 'clientHeight']) Reflect.deleteProperty(document.documentElement, key);
+    }
+  });
+
   // BUG-116/148: the menu opened where the pointer was (over its own button) or, from the keyboard, at 0,0.
   it('anchors the card menu under its button and gives focus back to it on Esc', async () => {
     const viewport = { clientWidth: 1440, clientHeight: 900 };
