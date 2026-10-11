@@ -689,7 +689,10 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
       const tip = await settledBox(tooltip);
       const anchor = await settledBox(gear);
       const overflow = await horizontalOverflow(page);
-      await captureEvidence(page, 'E02_ntf_gear_tooltip.png', { caption: `tooltip x=${String(Math.round(tip.x))}…${String(Math.round(tip.x + tip.width))}; gear centre ${String(Math.round(anchor.x + anchor.width / 2))}; overflow ${String(overflow)} px` });
+      // BUG-183: a tooltip that leaves the viewport (BUG-114: it sits right of the 1440 px edge) is not in a viewport shot.
+      // Shoot the whole scrollable page then, so the tooltip is on the image next to the gear (focus ring, same drawer).
+      const tipOutside = tip.x < 0 || tip.x + tip.width > DESKTOP.width;
+      await captureEvidence(page, 'E02_ntf_gear_tooltip.png', { fullPage: tipOutside || overflow > 0, caption: `tooltip x=${String(Math.round(tip.x))}…${String(Math.round(tip.x + tip.width))}; gear centre ${String(Math.round(anchor.x + anchor.width / 2))}; overflow ${String(overflow)} px` });
       await attachJson('E02_ntf_gear_tooltip.json', { tooltip: tip, gear: anchor, horizontalOverflowPx: overflow, bug: 'BUG-114' });
 
       // TT:44-45,78: side "top" → centred on the anchor (translate -50%).
