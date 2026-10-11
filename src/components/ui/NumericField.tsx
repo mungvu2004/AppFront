@@ -12,7 +12,7 @@ export interface NumericFieldProps
 }
 
 export const NumericField = forwardRef<HTMLInputElement, NumericFieldProps>(
-  ({ value, onChange, min, max, unit, className, disabled, isReadOnly, isLoading, ...props }, ref) => {
+  ({ value, onChange, min, max, unit, className, disabled, isReadOnly, isLoading, error: callerError, ...props }, ref) => {
     const {
       displayValue,
       error,
@@ -35,7 +35,9 @@ export const NumericField = forwardRef<HTMLInputElement, NumericFieldProps>(
           onFocus={handleFocus}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          error={error || props.error}
+          // The field's own refusal first, then the caller's: `error` is taken out of
+          // `props` so the spread below can no longer overwrite the refusal.
+          error={error || callerError}
           flash={flash}
           disabled={disabled}
           isReadOnly={isReadOnly}

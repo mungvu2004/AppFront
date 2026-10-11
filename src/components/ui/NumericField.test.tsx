@@ -53,6 +53,17 @@ describe('NumericField', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Giá trị không nhỏ hơn 2 m.');
   });
 
+  it("shows its own refusal over the caller's error", () => {
+    render(<NumericField value={3} min={2} unit="mm" aria-label="Chiều dài" error="Lỗi của hàng" onChange={() => undefined} />);
+    const field = screen.getByRole('textbox', { name: 'Chiều dài' });
+
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: '1' } });
+    fireEvent.blur(field);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Giá trị không nhỏ hơn 2 mm.');
+  });
+
   it('passes expectAccessible on a bare field', () => {
     expectAccessible(
       renderWithProviders(<NumericField value={220} unit="mm" aria-label="Chiều dài" />),
