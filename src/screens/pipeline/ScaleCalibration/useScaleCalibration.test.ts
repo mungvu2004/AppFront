@@ -478,6 +478,29 @@ describe('useScaleCalibration — tỷ lệ do M-02 tính', () => {
     expect(computation.isComplete).toBe(false);
   });
 
+  it('chiều dài gõ sai ("abc", "0") hiện lỗi nhập; ô trống hay số hợp lệ thì không (BUG-342)', async () => {
+    const harness = await makeHarness();
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    await dragReferenceLine(mounted);
+
+    const errorOf = (): string | null => mounted.result.current.model.panel.reference.realLengthError;
+
+    expect(errorOf()).toBeNull();
+
+    for (const text of ['abc', '0']) {
+      await act(async () => {
+        mounted.result.current.actions.onChangeRealLength(text);
+      });
+      expect(errorOf()).toBe('Chiều dài thật phải là một số lớn hơn 0, ví dụ 4800.');
+    }
+
+    await act(async () => {
+      mounted.result.current.actions.onChangeRealLength('4800');
+    });
+    expect(errorOf()).toBeNull();
+  });
+
   it('suy ra tỷ lệ của bộ mẫu từ 34 chuỗi kích thước qua inferScale', async () => {
     const harness = await makeHarness({ rows: sampleDimensionRows() });
     const mounted = mountHook(harness.gateway);
@@ -916,7 +939,8 @@ describe('useScaleCalibration — bảy trạng thái', () => {
     await settle(warped);
     reached.add(warped.result.current.model.state);
     expect(warped.result.current.model.errorMessage).not.toBeNull();
-    expect(warped.result.current.model.errorCode).not.toBeNull();
+    // Ảnh méo không có mã máy thật: không in "Mã lỗi: UNKNOWN" (BUG-341).
+    expect(warped.result.current.model.errorCode).toBeNull();
     warped.unmount();
 
     // 6. forbidden — người xem không có quyền sửa.
@@ -948,7 +972,6 @@ describe('useScaleCalibration — bảy trạng thái', () => {
 
     expect(failing.result.current.model.state).toBe('error');
     expect(failing.result.current.model.errorTitle).toBeDefined();
-    expect(failing.result.current.model.canvas.warpingNotice).toBeNull();
     failing.unmount();
 
     const warpedHarness = await makeHarness({ sourceFloorId: WARPED_MOCK_FLOOR_ID });
@@ -957,8 +980,56 @@ describe('useScaleCalibration — bảy trạng thái', () => {
 
     expect(warped.result.current.model.state).toBe('error');
     expect(warped.result.current.model.errorTitle).toBeUndefined();
-    expect(warped.result.current.model.canvas.warpingNotice).not.toBeNull();
+    // Một câu, không nhắc lại tiêu đề "Nắn ảnh thất bại…" của view (BUG-341).
+    expect(warped.result.current.model.errorMessage).not.toContain('Nắn ảnh thất bại');
     warped.unmount();
+  });
+
+  it('"Thu gọn bảng" vẫn thu panel khi màn ở trạng thái lỗi (BUG-322)', async () => {
+    const warpedHarness = await makeHarness({ sourceFloorId: WARPED_MOCK_FLOOR_ID });
+    const warped = mountHook(warpedHarness.gateway);
+    await settle(warped);
+
+    expect(warped.result.current.model.state).toBe('error');
+    expect(warped.result.current.model.isPanelCollapsed).toBe(false);
+
+    await act(async () => {
+      warped.result.current.actions.onToggleCollapsed();
+    });
+
+    expect(warped.result.current.model.state).toBe('error');
+    expect(warped.result.current.model.isPanelCollapsed).toBe(true);
+    warped.unmount();
+  });
+
+  it('tầng chưa có bản vẽ (404 `upload`) nói đúng nguyên nhân, không lộ NOT_FOUND (BUG-337)', async () => {
+    const harness = await makeHarness();
+    const noDrawing: HttpError = {
+      code: 'NOT_FOUND',
+      kind: 'http',
+      raw: { code: 'NOT_FOUND', resource: 'upload' },
+      requestId: 'r',
+      retryable: false,
+      status: 404,
+    };
+    const mounted = mountHook({
+      ...harness.gateway,
+      readFloorDrawing: async () => ({ ok: false, error: noDrawing }),
+    });
+    await settle(mounted);
+
+    const { model } = mounted.result.current;
+
+    expect(model.state).toBe('error');
+    expect(model.errorTitle).toBe('Tầng này chưa có bản vẽ');
+    expect(model.errorMessage).toContain('Tải bản vẽ lên');
+    expect(model.errorCode).toBeNull();
+    expect(model.panel.crossChecks.map((row) => row.label)).toEqual([
+      'Độ dày tường điển hình',
+      'Bề rộng cửa đi điển hình',
+      'Diện tích phòng lớn nhất',
+    ]);
+    mounted.unmount();
   });
 
   it('trạng thái `partial` cũng đến từ chuỗi kích thước tin cậy thấp', async () => {

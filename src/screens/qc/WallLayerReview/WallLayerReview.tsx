@@ -37,7 +37,7 @@
  * | `empty`     | `WallLayerList` (panel trái) — `EmptyState` với `emptyNotice`     |
  * | `loading`   | canvas: dự phòng khung xương; panel trái: 12 dòng `Skeleton`      |
  * | `partial`   | mặc định — danh sách + thanh tra bình thường                      |
- * | `error`     | `InlineAlert` trong panel trái; canvas VẪN xem được ảnh nền        |
+ * | `error`     | `InlineAlert` trong panel trái; đọc lớp hỏng khi chưa có tài liệu → cả màn là `FloorLayerReadFailureScreen` (BUG-326) |
  * | `success`   | panel trái hiện nút "Sang lớp Cửa và nội thất"                    |
  * | `forbidden` | ray ẩn công cụ sửa; thanh tra bỏ viền + một câu giải thích         |
  * | `collapsed` | hai panel ẩn; ray công cụ nổi trên canvas                          |
@@ -53,6 +53,8 @@ import { Skeleton } from '@/components/feedback/Skeleton';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 
 import { FloorLayerSaveBanner } from './FloorLayerSaveBanner';
+import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
+import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import { WallLayerInspector } from './WallLayerInspector';
@@ -79,6 +81,8 @@ export interface WallLayerReviewViewProps extends WallLayerReviewProps {
   readonly saveBlock?: FloorLayerSaveBlock | null | undefined;
   /** Dải tỉ lệ tạm (F-04x-2) — trên màn, không trong canvas. */
   readonly provisionalScaleNotice?: ProvisionalScaleNotice | null | undefined;
+  /** Đọc lớp của tầng hỏng khi chưa có tài liệu: thay cả màn, một lối ra (BUG-326). */
+  readonly readFailure?: FloorLayerReadFailure | null | undefined;
 }
 
 const SCREEN_ARIA_LABEL = 'Duyệt lớp tường';
@@ -112,8 +116,17 @@ export function WallLayerReview({
   onNavigateFloor,
   saveBlock,
   provisionalScaleNotice,
+  readFailure,
 }: WallLayerReviewViewProps) {
   const isCollapsed = panel.state === 'collapsed';
+
+  if (readFailure != null) {
+    return (
+      <div aria-label={SCREEN_ARIA_LABEL} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+        <FloorLayerReadFailureScreen failure={readFailure} />
+      </div>
+    );
+  }
 
   return (
     <div aria-label={SCREEN_ARIA_LABEL} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
@@ -127,7 +140,11 @@ export function WallLayerReview({
           <ProvisionalScaleBanner notice={provisionalScaleNotice} />
         </div>
       )}
-      <div className="relative flex min-h-0 flex-1 gap-2 p-2">
+      {/*
+        Dưới 1280px bốn cột (ray + 280 + bản vẽ + 344) không vừa: hàng đầu là ray + bản vẽ, hai panel
+        xuống dòng (\`order-*\` trên gốc của chúng), cả vùng cuộn dọc — không cuộn ngang (BUG-317).
+      */}
+      <div className="relative flex min-h-0 flex-1 flex-wrap content-start gap-2 overflow-y-auto p-2 xl:flex-nowrap xl:overflow-visible">
         {isCollapsed ? (
           <div className="absolute left-4 top-4 z-10 rounded-[12px] bg-bg-surface shadow-panel">
             <WallLayerToolRail {...toolRail} readOnly={panel.isViewerRole} />
@@ -147,7 +164,7 @@ export function WallLayerReview({
 
         <section
           aria-label={canvas.backgroundImageAlt || CANVAS_REGION_FALLBACK_ALT}
-          className="min-h-0 min-w-[640px] flex-1 overflow-hidden rounded-[16px] bg-bg-sunken"
+          className="h-[60vh] min-h-[320px] min-w-0 flex-1 overflow-hidden rounded-[16px] bg-bg-sunken xl:h-auto xl:min-h-0"
         >
           {canvasSlot ?? <CanvasFallback canvas={canvas} />}
         </section>

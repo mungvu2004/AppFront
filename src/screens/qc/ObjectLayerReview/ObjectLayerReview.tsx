@@ -24,7 +24,7 @@
  * | `empty`     | panel trái: `EmptyState` — tiêu đề, câu giải thích, nút thêm tay    |
  * | `loading`   | panel trái: bốn dòng `Skeleton`; canvas tự vẽ nền chờ của nó        |
  * | `partial`   | mặc định — hàng "5 mục dưới ngưỡng…" cộng danh sách ba nhóm         |
- * | `error`     | `InlineAlert` trong panel trái; canvas VẪN xem được ảnh nền          |
+ * | `error`     | `InlineAlert` trong panel trái; đọc lớp hỏng khi chưa có tài liệu → cả màn là `FloorLayerReadFailureScreen` (BUG-326) |
  * | `success`   | 21/21 — bộ đếm đổi hình thức, danh sách bình thường                  |
  * | `forbidden` | ray ẩn công cụ sửa, canvas bỏ mọi callback nên chuột phải không mở  |
  * | `collapsed` | hai panel ẩn; ray công cụ nổi trên canvas; thanh trạng thái còn      |
@@ -40,6 +40,7 @@ import { Skeleton } from '@/components/feedback/Skeleton';
 import { cn } from '@/lib/utils';
 
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
+import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 
 import { ObjectLayerCanvas } from './ObjectLayerCanvas';
@@ -185,6 +186,14 @@ function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewM
 export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
   const isCollapsed = model.state === 'collapsed';
 
+  if (model.readFailure != null) {
+    return (
+      <div aria-label={SCREEN_ARIA_LABEL} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+        <FloorLayerReadFailureScreen failure={model.readFailure} />
+      </div>
+    );
+  }
+
   return (
     <div
       aria-label={SCREEN_ARIA_LABEL}
@@ -201,7 +210,11 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
           <ProvisionalScaleBanner notice={model.provisionalScaleNotice} />
         </div>
       )}
-      <div className="relative flex min-h-0 flex-1 gap-2 p-2">
+      {/*
+        Dưới 1280px bốn cột (ray + 280 + bản vẽ + 344) không vừa: hàng đầu là ray + bản vẽ, hai panel
+        xuống dòng (\`order-*\` trên gốc của chúng), cả vùng cuộn dọc — không cuộn ngang (BUG-317).
+      */}
+      <div className="relative flex min-h-0 flex-1 flex-wrap content-start gap-2 overflow-y-auto p-2 xl:flex-nowrap xl:overflow-visible">
         {isCollapsed ? (
           <div className="absolute left-4 top-4 z-10 rounded-[12px] bg-bg-surface shadow-panel">
             <ObjectLayerToolRail
@@ -223,7 +236,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
         )}
 
         {isCollapsed ? null : (
-          <div className="flex h-full w-[280px] shrink-0 flex-col gap-2 overflow-y-auto">
+          <div className="order-1 flex h-[560px] w-full shrink-0 flex-col gap-2 overflow-y-auto xl:order-none xl:h-full xl:w-[280px]">
             <div className="shrink-0">
               <ObjectLayerLeftPanel
                 counts={model.counts}
@@ -245,7 +258,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
 
         <section
           aria-label={CANVAS_REGION_LABEL}
-          className="relative min-h-0 min-w-[640px] flex-1 overflow-hidden rounded-[16px] bg-bg-sunken"
+          className="relative h-[60vh] min-h-[320px] min-w-0 flex-1 overflow-hidden rounded-[16px] bg-bg-sunken xl:h-auto xl:min-h-0"
         >
           <ObjectLayerCanvasRegion model={model} />
         </section>

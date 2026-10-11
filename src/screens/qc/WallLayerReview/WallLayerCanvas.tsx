@@ -75,9 +75,12 @@ const FORBIDDEN_DESCRIPTION =
   'Bản vẽ vẫn xem và phóng to được, nhưng không chọn hay sửa được đoạn tường nào. Nhờ người có quyền sửa dự án duyệt giúp.';
 const FORBIDDEN_DESCRIPTION_ID = 'wall-layer-canvas-forbidden';
 
-/** Khung canvas: tối thiểu 640, bo 16, thụt 12 — đúng đặc tả màn. */
+/**
+ * Khung canvas: tối thiểu 640 từ 1280px (đặc tả màn), bo 16, thụt 12. Dưới 1280px khung lấp đầy vùng
+ * bản vẽ 60vh — tối thiểu 640 ở đó đẩy thanh thu phóng ra ngoài vùng nhìn (BUG-317).
+ */
 const FRAME_CLASSES =
-  'relative min-h-[640px] w-full overflow-hidden rounded-[16px] border border-border-default bg-canvas-2d p-3';
+  'relative h-full min-h-[320px] w-full overflow-hidden rounded-[16px] border border-border-default bg-canvas-2d p-3 xl:min-h-[640px]';
 
 /* Canvas. */
 

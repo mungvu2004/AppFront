@@ -145,6 +145,7 @@ import {
   type ObjectSubtype,
   type ReviewObject,
 } from './objectLayerTypes';
+import { useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 
 /* -------------------------------------------------------------------------- */
@@ -366,6 +367,7 @@ export function useObjectLayerReview(
     floorId,
     options.onNavigate,
   );
+  const readFailure = useFloorLayerReadFailure(floorLayer, projectId, options.onNavigate);
 
   /*
    * Nhánh nội thất, khoá RIÊNG.
@@ -1341,5 +1343,6 @@ export function useObjectLayerReview(
     onAddManually,
     saveBlock,
     provisionalScaleNotice,
+    readFailure,
   };
 }

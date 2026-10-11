@@ -259,13 +259,14 @@ describe('[NGHIEM-3] thu gọn và không có quyền', () => {
     expect(screen.getByLabelText(LEGEND_LABEL)).toBeInTheDocument();
   });
 
-  it('trạng thái lỗi: danh sách nói ra lỗi, canvas VẪN không trắng', async () => {
+  it('trạng thái lỗi: một trạng thái lỗi có lối ra, không dựng bộ lọc và số đếm 0/0 giả (BUG-326)', async () => {
     renderState('error');
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toBeInTheDocument();
     });
-    expect(screen.getByLabelText(LEGEND_LABEL)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Thử lại' })).toBeInTheDocument();
+    expect(screen.queryByLabelText(LEGEND_LABEL)).toBeNull();
   });
 });
 

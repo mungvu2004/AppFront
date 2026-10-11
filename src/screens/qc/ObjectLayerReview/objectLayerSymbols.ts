@@ -356,9 +356,9 @@ export const OBJECT_CANVAS_READ_ONLY_ID = 'object-layer-canvas-read-only';
  */
 export const OBJECT_CANVAS_COLOR_COUNT_TEST_ID = 'object-layer-canvas-color-count';
 
-/** Khung canvas: tối thiểu 640, bo 16, thụt 12 — cùng khuôn màn tường anh em. */
+/** Khung canvas: tối thiểu 640 từ 1280px, lấp vùng bản vẽ dưới đó (BUG-317), bo 16, thụt 12 — cùng khuôn màn tường. */
 export const OBJECT_CANVAS_FRAME_CLASSES =
-  'relative min-h-[640px] w-full overflow-hidden rounded-[16px] border border-border-default bg-canvas-2d p-3';
+  'relative h-full min-h-[320px] w-full overflow-hidden rounded-[16px] border border-border-default bg-canvas-2d p-3 xl:min-h-[640px]';
 
 /* -------------------------------------------------------------------------- */
 /* Ký hiệu.                                                                    */

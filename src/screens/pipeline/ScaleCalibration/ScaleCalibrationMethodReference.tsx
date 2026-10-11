@@ -116,6 +116,7 @@ export function ScaleCalibrationMethodReference({ actions, reference }: ScaleCal
           className="text-right font-mono text-[13px] leading-[20px]"
           inputMode="decimal"
           label={REAL_LENGTH_LABEL}
+          error={reference.realLengthError ?? undefined}
           hint={reference.realLengthHint ?? REAL_LENGTH_NO_HINT}
           onChange={(event) => {
             actions.onChangeRealLength(event.target.value);

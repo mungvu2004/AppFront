@@ -234,7 +234,9 @@ function ThicknessPreviewColumn(props: ThicknessStandardizationViewProps) {
   }
 
   return (
-    <div className="flex shrink-0 flex-col gap-1.5">
+    // 320 = `THICKNESS_PREVIEW_CANVAS_WIDTH_PX`: bề rộng xác định cho cột ở hàng ngang; dưới 768 cột
+    // xếp dưới bảng và rộng hết thẻ, canvas tự co (BUG-332).
+    <div className="flex w-full shrink-0 flex-col gap-1.5 md:w-[320px]">
       <ThicknessPreviewCanvas
         hoveredGroup={hoveredGroup}
         hoveredWallId={hoveredWallId}
@@ -325,7 +327,7 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
 
         <section
           aria-label={TABLES_SECTION_LABEL}
-          className="flex min-h-0 flex-row gap-4 rounded-[12px] bg-bg-surface p-4 shadow-panel"
+          className="flex min-h-0 flex-col gap-4 rounded-[12px] bg-bg-surface p-4 shadow-panel md:flex-row"
         >
           <ThicknessTablesColumn {...props} />
           <ThicknessPreviewColumn {...props} />

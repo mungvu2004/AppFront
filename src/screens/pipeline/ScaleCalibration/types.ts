@@ -252,6 +252,11 @@ export interface ScaleReferenceMethodViewModel {
    * `null` khi OCR không có gì để gợi.
    */
   readonly realLengthHint: string | null;
+  /**
+   * Lỗi nhập của ô — ví dụ khi gõ `"abc"` hay `"0"`. `null` khi ô trống hoặc giá trị
+   * đọc được và lớn hơn 0. Có thì ô hiện lỗi thay cho gợi ý (BUG-342).
+   */
+  readonly realLengthError: string | null;
   /** Kết quả chữ đều lớn của bước 3 — ví dụ `"12 mm/px"`. `null` khi chưa đủ dữ liệu. */
   readonly resultLabel: string | null;
   /**
@@ -351,7 +356,7 @@ export type ScaleCrossCheckId = 'wallThickness' | 'doorWidth' | 'largestRoomArea
 /** Một dòng kiểm chứng. Mọi con số đã thành chuỗi ở hook (A15). */
 export interface ScaleCrossCheckRow {
   readonly id: ScaleCrossCheckId;
-  /** Nhãn tiếng Việt viết thường, kiểu câu — ví dụ `"độ dày tường điển hình"`. */
+  /** Nhãn tiếng Việt kiểu câu, viết hoa chữ đầu (A6) — ví dụ `"Độ dày tường điển hình"`. */
   readonly label: string;
   /** Giá trị đã định dạng, kèm đơn vị — ví dụ `"220 mm"`, `"24,80 m²"`. */
   readonly valueLabel: string;
@@ -429,12 +434,6 @@ export interface ScaleCanvasViewModel {
   /** `false` ở trạng thái `forbidden`: canvas xem được, kéo thì không. */
   readonly isInteractive: boolean;
   readonly isImageLoading: boolean;
-  /**
-   * Câu báo bản vẽ có thể méo vì nắn ảnh thất bại. `null` ngoài trạng thái
-   * `error`. Liên kết quay lại bước tiền xử lý là
-   * {@link ScaleCalibrationActions.onGoToPreprocessing}.
-   */
-  readonly warpingNotice: string | null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -522,7 +521,7 @@ export interface ScaleStatusBarViewModel {
  *
  * Bất biến đi kèm, cùng khuôn `InputQualityGateModel`:
  *
- * 1. `errorMessage !== null` ⟺ `state === 'error'`, và `errorCode` đi cùng nó.
+ * 1. `errorMessage !== null` ⟺ `state === 'error'`; `errorCode` chỉ có khi lỗi mang mã máy thật.
  * 2. `state === 'loading'` ⟺ `canvas.isImageLoading`.
  * 3. `state === 'empty'` ⟺ `panel.dimension.rows` rỗng; lúc đó
  *    `panel.method === 'referenceLine'` và mục `'dimensionString'` bị khoá.
@@ -530,7 +529,8 @@ export interface ScaleStatusBarViewModel {
  *    `panel.reference.draft`) HOẶC có ít nhất một hàng `isLowConfidence`.
  * 5. `state === 'forbidden'` ⟺ `canvas.isInteractive === false` ⟺
  *    `panel.areActionsHidden === true`.
- * 6. `state === 'collapsed'` ⟺ `isPanelCollapsed === true`.
+ * 6. `state === 'collapsed'` ⟹ `isPanelCollapsed === true` (một chiều: panel thu gọn được cả
+ *    khi `error`/`forbidden` đứng trước — BUG-322).
  * 7. `state === 'success'` ⟺ `panel.statusCode === 'verified'`.
  */
 export interface ScaleCalibrationViewModel {
@@ -538,14 +538,17 @@ export interface ScaleCalibrationViewModel {
   readonly canvas: ScaleCanvasViewModel;
   readonly panel: ScalePanelViewModel;
   readonly statusBar: ScaleStatusBarViewModel;
-  /** Dưới 1024px panel phải thành tấm trượt đáy — cùng mốc các màn đã dựng. */
+  /** Khung nhìn dưới 1024px — cùng mốc các màn đã dựng. Panel tự xếp bằng CSS `lg:`. */
   readonly isCompact: boolean;
   readonly isPanelCollapsed: boolean;
   /** Có thì bỏ chạy số và bỏ bay khung nhìn, đổi giá trị tức thì (mục B). */
   readonly prefersReducedMotion: boolean;
   /** Lỗi nắn ảnh. `null` ở mọi trạng thái khác `'error'`. */
   readonly errorMessage: string | null;
-  /** Mã máy đọc, giữ nguyên dạng (A6). Không bao giờ đứng một mình. */
+  /**
+   * Mã máy đọc, giữ nguyên dạng (A6). Không bao giờ đứng một mình. `null` cả khi lỗi
+   * không có mã máy thật (tầng chưa có bản vẽ, ảnh méo) — không in "UNKNOWN" (BUG-337).
+   */
   readonly errorCode: string | null;
   /**
    * Tiêu đề của `'error'` khi lỗi là lượt ĐỌC hỏng, không phải ảnh méo. Vắng thì
@@ -687,11 +690,10 @@ export interface ScaleCalibrationCanvasProps {
   >;
 }
 
-/** Props của `ScaleCalibrationPanel` — panel phải 344px, hoặc tấm trượt đáy khi hẹp. */
+/** Props của `ScaleCalibrationPanel` — panel phải 344px, dưới 1024px xếp dưới bản vẽ. */
 export interface ScaleCalibrationPanelProps {
   readonly panel: ScalePanelViewModel;
   readonly state: ScaleCalibrationState;
-  readonly isCompact: boolean;
   readonly isCollapsed: boolean;
   readonly prefersReducedMotion: boolean;
   readonly actions: Pick<
