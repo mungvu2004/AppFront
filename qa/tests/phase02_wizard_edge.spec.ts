@@ -48,8 +48,8 @@ import { expect, test } from '@playwright/test';
 import type { Browser, BrowserContext, Locator, Page, Response, Route } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
-import { navigateThenWaitForApi, waitForApi, watchApi } from '../../e2e/fullstack/apiWatch';
-import type { ApiEntry } from '../../e2e/fullstack/apiWatch';
+import { waitForApi, watchApi } from '../../e2e/fullstack/apiWatch';
+import type { ApiEntry, ApiResult } from '../../e2e/fullstack/apiWatch';
 import { readBaseUrl } from '../../e2e/fullstack/env';
 import { apiBaseUrl } from './support/api';
 import { dashboardLoaded, signInAdmin } from './support/auth';
@@ -129,6 +129,22 @@ function gate(): { readonly wait: Promise<void>; readonly open: () => void } {
     open = resolve;
   });
   return { wait, open };
+}
+
+/**
+ * BUG-141: the shared `navigateThenWaitForApi` (e2e/fullstack/apiWatch.ts:260-269) awaits `navigate()` BEFORE it registers
+ * the wait, so a response that lands before `goto/reload({ waitUntil: 'commit' })` returns is missed and the test times
+ * out on a loaded page. The wait is registered first and both run together; the shared helper stays (other specs use it).
+ */
+async function navigateAndWaitForApi(
+  page: Page,
+  navigate: () => Promise<unknown>,
+  method: string,
+  pathPattern: RegExp,
+  statuses: readonly number[],
+): Promise<ApiResult> {
+  const [result] = await Promise.all([waitForApi(page, method, pathPattern, statuses), navigate()]);
+  return result;
 }
 
 /** Every `POST /api/projects` this page sends goes through `handler` (attempt = 1, 2, …); other methods pass. */
@@ -1027,7 +1043,7 @@ test.describe('E02 SCR-05 wizard edge — create', () => {
       const { page } = admin;
       const name = uniqueName('wiz-dup');
       await createProject(admin, name); // BE:service:243-244 — no unique-name rule, no 409 on this route
-      await navigateThenWaitForApi(page, () => page.reload({ waitUntil: 'commit' }), 'GET', SUMMARIES_RE, [200]);
+      await navigateAndWaitForApi(page, () => page.reload({ waitUntil: 'commit' }), 'GET', SUMMARIES_RE, [200]);
       await dashboardLoaded(page);
       await expect(projectCard(page, name)).toHaveCount(1);
 
@@ -1199,15 +1215,25 @@ test.describe('E02 SCR-05 wizard edge — create', () => {
   test('E02 · wizard [mocked response] create 503 once (unpairable: 5xx) is retried with the SAME Idempotency-Key; one project, toast', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
+      // BUG-191: the retry is held until the failed state has been shot, so the image shows the wizard between the 503
+      // and the second attempt (not only the finished dashboard).
+      const retryGate = gate();
       const keys = await routeCreate(page, async (route, attempt) => {
         if (attempt === 1) await route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
-        else await route.continue();
+        else {
+          await retryGate.wait;
+          await route.continue();
+        }
       });
       const name = uniqueName('wiz-503');
       const dialog = await openWizard(page);
       await toReview(dialog, name);
       const created = waitForApi(page, 'POST', PROJECTS_RE, [201]);
       await createButton(dialog).click();
+      await expect.poll(() => keys.length, { message: 'attempt 2 reached the route (held)' }).toBe(2);
+      await expect(dialog).toBeVisible();
+      await captureEvidence(page, 'E02_wiz_create_503_held.png', { caption: `attempt 1 → 503 [mocked]; attempt 2 held, Idempotency-Key ${keys[1] === keys[0] ? 'same as attempt 1' : 'DIFFERENT'}; wizard still open` });
+      retryGate.open();
       await created; // RTY:3 503 retryable; POST with an Idempotency-Key is (RTY:25-26, CPC:90); delay 300 ms + jitter (RTY:5)
       expect(keys.length).toBe(2);
       expect(keys[0], 'Idempotency-Key present').not.toBe('');
@@ -1223,15 +1249,24 @@ test.describe('E02 SCR-05 wizard edge — create', () => {
   test('E02 · wizard [mocked response] network abort on the first create attempt (unpairable: network loss) is retried silently; exactly one project', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
+      // BUG-191: same hold as the 503 case — the shot between the aborted attempt and its retry.
+      const retryGate = gate();
       const keys = await routeCreate(page, async (route, attempt) => {
         if (attempt === 1) await route.abort('failed');
-        else await route.continue();
+        else {
+          await retryGate.wait;
+          await route.continue();
+        }
       });
       const name = uniqueName('wiz-abort');
       const dialog = await openWizard(page);
       await toReview(dialog, name);
       const created = waitForApi(page, 'POST', PROJECTS_RE, [201]);
       await createButton(dialog).click();
+      await expect.poll(() => keys.length, { message: 'attempt 2 reached the route (held)' }).toBe(2);
+      await expect(dialog).toBeVisible();
+      await captureEvidence(page, 'E02_wiz_create_abort_held.png', { caption: `attempt 1 aborted [mocked]; attempt 2 held, Idempotency-Key ${keys[1] === keys[0] ? 'same as attempt 1' : 'DIFFERENT'}; wizard still open` });
+      retryGate.open();
       await created; // RTY:17-23 TypeError = network → retried for a keyed POST (RTY:95), HTC:568-583
       expect(keys.length).toBe(2);
       expect(keys[1]).toBe(keys[0]);

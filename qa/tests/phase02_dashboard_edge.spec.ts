@@ -513,9 +513,18 @@ async function createProject(
   admin: Admin,
   slug: string,
   name: string = uniqueName(slug),
+  floorCount?: number,
 ): Promise<{ readonly id: string; readonly name: string }> {
   expect(name.startsWith(TEST_DATA_PREFIX), `fixture name "${name}" carries the run's test-data prefix`).toBe(true);
-  const response = await admin.page.request.post(PROJECTS_API, { headers: bearer(admin), data: { name } });
+  // `floorCount` (BUG-171): n stacked 3 m floors (`ProjectCreateIn.floors`, wire keys camelCase) so a sort has something to order.
+  const floors =
+    floorCount === undefined
+      ? undefined
+      : Array.from({ length: floorCount }, (_unused, index) => ({ name: `Tầng ${String(index + 1)}`, order: index, elevationMm: index * 3000, heightMm: 3000 }));
+  const response = await admin.page.request.post(PROJECTS_API, {
+    headers: bearer(admin),
+    data: floors === undefined ? { name } : { name, floors },
+  });
   expect(response.status(), `fixture POST ${PROJECTS_API} "${name}"`).toBe(201);
   const id = stringField(asRecord(await response.json(), 'POST /api/projects'), 'id', 'POST /api/projects');
   admin.cleanup.push(id);
@@ -671,6 +680,13 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
   test('E02 · SCR-05 sort "Số tầng nhiều nhất" / "Diện tích lớn nhất" follow N1; the sort list opens on Enter and closes on Esc', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
+      // BUG-171: three fixtures whose floor-count order differs from the default "newest first" order (6, then 1, then 3
+      // floors → newest first is 3,1,6; "Số tầng nhiều nhất" must give 6,3,1), so the shot can tell the two apart.
+      const fixtures = [
+        await createProject(admin, 'sort-six', undefined, 6),
+        await createProject(admin, 'sort-one', undefined, 1),
+        await createProject(admin, 'sort-three', undefined, 3),
+      ];
       const list = gatewayOrder(await reloadDashboard(page));
       const cardNames = (): Promise<string[]> =>
         projectCards(page).evaluateAll((cards) => cards.map((card) => card.getAttribute('aria-label') ?? ''));
@@ -690,12 +706,19 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
       await expect(sortCombobox(page, SORT.floors)).toBeVisible();
       const byFloors = [...list].sort((a, b) => b.floorCount - a.floorCount).map((s) => s.name);
       await expect.poll(cardNames).toEqual(byFloors);
+      const fixtureOrder = (names: readonly string[]): string[] => names.filter((n) => fixtures.some((f) => f.name === n));
+      expect(fixtureOrder(byFloors), 'fixtures by floor count: 6, 3, 1').toEqual([fixtures[0]!.name, fixtures[2]!.name, fixtures[1]!.name]);
+      await captureEvidence(page, 'E02_sort_floors.png', { caption: `"${SORT.floors}": ${fixtureOrder(byFloors).map((n) => n.slice(-12)).join(' > ')} (6 > 3 > 1 floors)` });
 
       await sortCombobox(page, SORT.floors).click();
       await page.getByRole('option', { name: SORT.area, exact: true }).click();
       const byArea = [...list].sort((a, b) => b.areaM2 - a.areaM2).map((s) => s.name);
       await expect.poll(cardNames).toEqual(byArea);
-      await captureEvidence(page, 'E02_sort_floors_area.png');
+      // Area is the sum of the floors' drawing areas (BE:summaries.py:218), which a fixture without drawings never gets:
+      // every card says 0,00 m², so "Diện tích lớn nhất" is a tie that keeps the order — the caption says so.
+      await captureEvidence(page, 'E02_sort_floors_area.png', {
+        caption: `"${SORT.area}": every area is ${[...new Set(list.map((s) => s.areaM2))].join(', ')} m² → ties keep the gateway order`,
+      });
       await attachJson('E02_sort_floors_area.json', { byFloors, byArea });
     });
   });
@@ -1583,6 +1606,10 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       const gone = await createProject(admin, 'cnt-gone');
       const before = await reloadDashboard(page);
       const countsBefore = countsOf(before);
+      // BUG-175: the "before" state on its own shot (this card still there, "{n} dự án" with the old n), so the "after" shot has something to differ from.
+      await expect(projectCard(page, gone.name)).toBeVisible();
+      await expect(countLine(page)).toHaveText(`${String(before.length)} dự án`);
+      await captureEvidence(page, 'E02_delete_refreshes_counts_before.png', { caption: `before DELETE: ${String(countsBefore.all)} projects, "${gone.name}" listed` });
 
       const dialog = await askDelete(page, gone.name);
       const removed = waitForApi(page, 'DELETE', projectPathRe(gone.id), [200]);
@@ -1724,7 +1751,12 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       for (const key of ['all', 'done', 'qc', 'processing'] as const) {
         await expect(statValue(page, STATS[key])).toHaveText(String(counts[key]));
       }
-      await captureEvidence(page, 'E02_dash_two_pages.png', { caption: `N1 in 2 pages (${pageSizes.join(' + ')}) → ${String(all.length)} cards` });
+      await captureEvidence(page, 'E02_dash_two_pages.png', {
+        caption: [
+          `N1 in 2 pages (${pageSizes.join(' + ')}) → ${String(all.length)} cards, "${String(all.length)} dự án"`,
+          `GET ?limit=500 → 200 nextCursor "${PAGE2}"; GET ?limit=500&cursor=${PAGE2} → 200 (no cursor)`,
+        ],
+      });
       await attachJson('E02_dash_two_pages.json', { pageSizes, total: all.length, cursor: PAGE2 });
       await page.unrouteAll({ behavior: 'ignoreErrors' });
     });
@@ -1765,7 +1797,12 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await expect(page.getByText(LIST_ERROR_TITLE, { exact: true })).toHaveCount(0);
       await expect(projectCards(page)).toHaveCount(list.length);
       await expect(countLine(page)).toHaveText(`${String(list.length)} dự án`);
-      await captureEvidence(page, 'E02_dash_cursor_invalid.png', { caption: `page 2 → 422 CURSOR_INVALID (mocked) → restart → ${String(list.length)} cards, no error` });
+      await captureEvidence(page, 'E02_dash_cursor_invalid.png', {
+        caption: [
+          `page 2 → 422 CURSOR_INVALID (mocked) → restart → ${String(list.length)} cards, no error, "${String(list.length)} dự án"`,
+          `GET cursor sequence: ${cursors.map((c) => c ?? '(none)').join(' → ')} (1st 200 nextCursor, 2nd 422, 3rd 200)`,
+        ],
+      });
       await attachJson('E02_dash_cursor_invalid.json', { cursors, cards: list.length });
       await page.unrouteAll({ behavior: 'ignoreErrors' });
     });

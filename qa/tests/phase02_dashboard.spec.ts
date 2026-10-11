@@ -287,7 +287,7 @@ test.describe('SCR-05 Dashboard (/)', () => {
     const before = api.filter((entry) => entry.method === 'POST' && entry.path === '/api/projects').length;
     const dialog = await openWizard(page);
 
-    await dialog.getByLabel('Tên dự án').fill(`discard-${String(Date.now())}`);
+    await dialog.getByLabel('Tên dự án').fill(`${TEST_DATA_PREFIX}discard-${Date.now().toString(36)}`);
     await dialog.getByRole('button', { name: 'Huỷ', exact: true }).click();
     await expect(dialog.getByText('Đóng và bỏ các thay đổi chưa lưu?', { exact: true })).toBeVisible();
     await settled(dialog);
@@ -352,11 +352,16 @@ test.describe('SCR-05 Dashboard (/)', () => {
         await expect(rows.filter({ hasNotText: label })).toHaveCount(0);
       }
     }
-    await captureEvidence(page, '05_dash_view_controls.png');
 
-    // Back to the defaults the next rows rely on (card grid, all statuses, newest first).
+    // BUG-166: the loop above ends on the last filter ("Hoàn thành", usually 0 rows → only the no-match state). The shot is
+    // taken back on "Tất cả" so it shows what the case claims: "Bảng" on, header row and the rows in "Tên A–Z" order.
     await statusFilterButton(page, 'Tất cả').click();
     await expect(statusFilterButton(page, 'Tất cả')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('main').locator('thead th')).toHaveText([...TABLE_HEADERS]);
+    await expect(rows.first()).toBeVisible();
+    await captureEvidence(page, '05_dash_view_controls.png', { caption: 'view "Bảng", sort "Tên A–Z", filter "Tất cả"' });
+
+    // Back to the defaults the next rows rely on (card grid, all statuses, newest first).
     await viewMode.getByRole('radio', { name: 'Lưới', exact: true }).click();
     await page.getByRole('combobox').filter({ hasText: 'Tên A–Z' }).click();
     await page.getByRole('option', { name: 'Cập nhật gần đây', exact: true }).click();

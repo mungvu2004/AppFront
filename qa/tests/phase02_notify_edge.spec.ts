@@ -53,8 +53,8 @@ import { expect, request, test } from '@playwright/test';
 import type { APIRequestContext, APIResponse, Browser, BrowserContext, Locator, Page } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
-import { navigateThenWaitForApi, waitForApi, watchApi } from '../../e2e/fullstack/apiWatch';
-import type { ApiEntry } from '../../e2e/fullstack/apiWatch';
+import { waitForApi, watchApi } from '../../e2e/fullstack/apiWatch';
+import type { ApiEntry, ApiResult } from '../../e2e/fullstack/apiWatch';
 import { readBaseUrl } from '../../e2e/fullstack/env';
 import { apiBaseUrl } from './support/api';
 import { dashboardLoaded, readAdminCredentials } from './support/auth';
@@ -91,6 +91,7 @@ type Viewport = { readonly width: number; readonly height: number };
 /* SCR-06 copy. */
 const MARK_ALL_READ = 'Đánh dấu tất cả đã đọc'; // NC:55
 const MARK_READ = 'Đánh dấu đã đọc'; // NC:56
+const NOTIF_TITLE = 'Thông báo'; // NC:54 (drawer / sheet heading)
 const NOTIF_SETTINGS = 'Mở cài đặt thông báo'; // NC:57
 const NOTIF_FILTER = 'Lọc thông báo'; // NC:58
 const VIEW_ALL = 'Xem tất cả'; // NC:59
@@ -386,9 +387,25 @@ async function asInvitee(browser: Browser, body: (session: Session) => Promise<v
   }
 }
 
+/**
+ * BUG-141: the shared `navigateThenWaitForApi` (e2e/fullstack/apiWatch.ts:260-269) awaits `navigate()` BEFORE it registers
+ * the wait, so a response that lands before `goto/reload({ waitUntil: 'commit' })` returns is missed and the test times
+ * out on a loaded page. The wait is registered first and both run together; the shared helper stays (other specs use it).
+ */
+async function navigateAndWaitForApi(
+  page: Page,
+  navigate: () => Promise<unknown>,
+  method: string,
+  pathPattern: RegExp,
+  statuses: readonly number[],
+): Promise<ApiResult> {
+  const [result] = await Promise.all([waitForApi(page, method, pathPattern, statuses), navigate()]);
+  return result;
+}
+
 /** Full load of `/` (or `/thong-bao`), returning the N4 list the page itself received (NCG:274-280, UNC:447-450). */
 async function loadWithInbox(page: Page, path: string = ROUTES.dashboard): Promise<Json[]> {
-  const { json } = await navigateThenWaitForApi(page, () => page.goto(path, { waitUntil: 'commit' }), 'GET', NOTIFICATIONS_RE, [200]);
+  const { json } = await navigateAndWaitForApi(page, () => page.goto(path, { waitUntil: 'commit' }), 'GET', NOTIFICATIONS_RE, [200]);
   if (path === ROUTES.dashboard) await dashboardLoaded(page);
   return asList(json, 'GET /api/notifications');
 }
@@ -688,7 +705,10 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
       const tip = await settledBox(tooltip);
       const anchor = await settledBox(gear);
       const overflow = await horizontalOverflow(page);
-      await captureEvidence(page, 'E02_ntf_gear_tooltip.png', { caption: `tooltip x=${String(Math.round(tip.x))}…${String(Math.round(tip.x + tip.width))}; gear centre ${String(Math.round(anchor.x + anchor.width / 2))}; overflow ${String(overflow)} px` });
+      // BUG-183: a tooltip that leaves the viewport (BUG-114: it sits right of the 1440 px edge) is not in a viewport shot.
+      // Shoot the whole scrollable page then, so the tooltip is on the image next to the gear (focus ring, same drawer).
+      const tipOutside = tip.x < 0 || tip.x + tip.width > DESKTOP.width;
+      await captureEvidence(page, 'E02_ntf_gear_tooltip.png', { fullPage: tipOutside || overflow > 0, caption: `tooltip x=${String(Math.round(tip.x))}…${String(Math.round(tip.x + tip.width))}; gear centre ${String(Math.round(anchor.x + anchor.width / 2))}; overflow ${String(overflow)} px` });
       await attachJson('E02_ntf_gear_tooltip.json', { tooltip: tip, gear: anchor, horizontalOverflowPx: overflow, bug: 'BUG-114' });
 
       // TT:44-45,78: side "top" → centred on the anchor (translate -50%).
@@ -823,7 +843,8 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
         await loadWithInbox(page, ROUTES.notifications);
         const sheet = panel(page); // DRW:70 → BottomSheet (DRW:195-233)
         const box = await settledBox(sheet);
-        const title = sheet.locator('h3');
+        // BUG-192: `h3` also matches the empty state's title ("Không có thông báo mới"); the sheet's own heading is by name.
+        const title = sheet.getByRole('heading', { name: NOTIF_TITLE, exact: true });
         // Lines of the title text: distinct tops of its client rects.
         const titleLines = await title.evaluate((el) => {
           const range = document.createRange();
@@ -857,7 +878,7 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
 test.describe('E02 SCR-07 onboarding as a second real user (invitee)', () => {
   test('E02 · SCR-07 no project (real): greeting with the invitee name, "Tạo dự án" open, "Tải bản vẽ" / "Duyệt kết quả" locked with their reasons, flag not set', async ({ browser }) => {
     await asInvitee(browser, async ({ page, user }) => {
-      const { json } = await navigateThenWaitForApi(page, () => page.goto(ROUTES.onboarding, { waitUntil: 'commit' }), 'GET', SUMMARIES_RE, [200]);
+      const { json } = await navigateAndWaitForApi(page, () => page.goto(ROUTES.onboarding, { waitUntil: 'commit' }), 'GET', SUMMARIES_RE, [200]);
       expect(asList(asRecord(json, 'N1').items, 'N1 items'), 'precondition: the invitee is in no project').toEqual([]);
 
       await expect(greeting(page)).toHaveText(greetingFor(user.name)); // UWS:301-305 name first
