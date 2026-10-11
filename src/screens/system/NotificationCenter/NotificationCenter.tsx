@@ -42,6 +42,7 @@ import {
   UNREAD_DOT_SIZE_PX,
   UNREAD_DOT_STAGGER_MS,
   type NotificationDayGroup,
+  type NotificationFilter,
   type NotificationItemVm,
   type NotificationKind,
 } from './notificationModel';
@@ -61,8 +62,22 @@ const RETRY_LABEL = 'Thử lại';
 const BELL_ARIA_LABEL = 'Thông báo';
 const UNREAD_SR_HINT = 'chưa đọc';
 
-const EMPTY_TITLE = 'Không có thông báo mới';
-const EMPTY_DESCRIPTION = 'Chúng tôi sẽ báo khi AI xử lý xong hoặc có người nhắc đến bạn.';
+/** Trạng thái rỗng theo bộ lọc (BUG-126): mỗi tab nói đúng điều nó đang lọc. */
+const EMPTY_COPY: Readonly<Record<NotificationFilter, { title: string; description: string }>> = {
+  all: {
+    title: 'Không có thông báo mới',
+    description: 'Chúng tôi sẽ báo khi AI xử lý xong hoặc có người nhắc đến bạn.',
+  },
+  unread: {
+    title: 'Không có thông báo chưa đọc',
+    description: 'Bạn đã đọc hết thông báo.',
+  },
+  mentions: {
+    title: 'Chưa có ai nhắc đến bạn',
+    description: 'Khi có người nhắc đến bạn trong bình luận, thông báo sẽ hiện ở đây.',
+  },
+};
+const SHOW_EVERYTHING_LABEL = 'Hiện mọi thông báo';
 const PARTIAL_NOTICE = 'Có thể chưa cập nhật';
 const FORBIDDEN_NOTICE = 'Bạn chỉ thấy thông báo của những dự án được chia sẻ với bạn.';
 const ERROR_TITLE = 'Không tải được thông báo';
@@ -262,7 +277,18 @@ export function NotificationCenter(props: NotificationCenterProps) {
       />
     );
   } else if (screenState === 'empty') {
-    body = <EmptyState icon={<Bell />} title={EMPTY_TITLE} description={EMPTY_DESCRIPTION} />;
+    const copy = EMPTY_COPY[filter];
+
+    body = (
+      <EmptyState
+        icon={<Bell />}
+        title={copy.title}
+        description={copy.description}
+        {...(filter === 'all'
+          ? {}
+          : { action: { label: SHOW_EVERYTHING_LABEL, onClick: () => onFilterChange('all') } })}
+      />
+    );
   } else {
     body = (
       <>

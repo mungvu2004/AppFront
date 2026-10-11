@@ -40,7 +40,7 @@
  *     hồ giả, nên không giẫm vào bẫy "đặt trước waitFor".
  */
 
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { expectAccessible } from '@/lib/testing/expectAccessible';
@@ -512,6 +512,49 @@ describe('BÀI NGHIỆM THU — mở tấm trượt rồi đóng thì số chưa
     expect(after).toBe(before);
     expect(fake.markRead).not.toHaveBeenCalled();
     expect(fake.markAllRead).not.toHaveBeenCalled();
+  });
+});
+
+describe('BUG-126/179 — bộ lọc không khớp là trạng thái rỗng của bộ lọc, không phải cảnh báo', () => {
+  it('mỗi bộ lọc có câu rỗng riêng, và bộ lọc khác "Tất cả" có đường về', () => {
+    const onFilterChange = vi.fn();
+    const { rerender } = render(
+      <NotificationCenter {...baseProps({ screenState: 'empty', groups: [], filter: 'all' })} />,
+    );
+
+    expect(screen.getByText('Không có thông báo mới')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Hiện mọi thông báo' })).not.toBeInTheDocument();
+
+    rerender(
+      <NotificationCenter
+        {...baseProps({ screenState: 'empty', groups: [], filter: 'unread', onFilterChange })}
+      />,
+    );
+    expect(screen.getByText('Không có thông báo chưa đọc')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hiện mọi thông báo' }));
+    expect(onFilterChange).toHaveBeenCalledWith('all');
+
+    rerender(<NotificationCenter {...baseProps({ screenState: 'empty', groups: [], filter: 'mentions' })} />);
+    expect(screen.getByText('Chưa có ai nhắc đến bạn')).toBeInTheDocument();
+  });
+
+  it('hook: có mục nhưng bộ lọc "Nhắc đến tôi" không khớp → empty, không phải partial', async () => {
+    const invite = buildItem({ id: 'invite-f', kind: 'projectInvite', isRead: false });
+    const fake = createFakeGateway([invite]);
+
+    mountNotificationCenter({ gateway: fake.gateway });
+
+    await waitFor(() => {
+      expect(allItems(notificationProps().groups)).toHaveLength(1);
+    });
+
+    act(() => {
+      notificationProps().onFilterChange('mentions');
+    });
+
+    expect(notificationProps().screenState).toBe('empty');
+    expect(notificationProps().unreadBadge).toBe('1');
   });
 });
 

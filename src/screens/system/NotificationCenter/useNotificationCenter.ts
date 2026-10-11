@@ -906,8 +906,8 @@ export function useNotificationCenter(
    * | 2 | `loading` | `isPending` — chưa có mục nào để vẽ |
    * | 4 | `error` | lượt đọc hỏng — không có danh sách |
    * | 6 | `forbidden` | `enabledKinds` rỗng: người dùng tắt hết ở S-05, màn không được phép hiện loại nào |
-   * | 1 | `empty` | hộp thư rỗng sau khi lọc theo `enabledKinds` |
-   * | 3 | `partial` | có mục, nhưng bộ lọc đang chọn không khớp mục nào, HOẶC một phép đánh dấu vừa hỏng và đã lùi lại |
+   * | 1 | `empty` | hộp thư rỗng sau khi lọc theo `enabledKinds`, HOẶC bộ lọc đang chọn không khớp mục nào |
+   * | 3 | `partial` | có mục khớp, nhưng một phép đánh dấu vừa hỏng và đã lùi lại |
    * | 7 | `collapsed` | bề ngang hẹp — view đo, hook đặt tên |
    * | 5 | `success` | còn lại |
    */
@@ -924,11 +924,13 @@ export function useNotificationCenter(
       return 'forbidden';
     }
 
-    if (visibleItems.length === 0) {
+    // Hộp thư rỗng, hay bộ lọc không khớp mục nào: cả hai là "không có gì để hiện" —
+    // view chọn câu theo bộ lọc. Không phải `partial`: không có gì hỏng (BUG-179).
+    if (visibleItems.length === 0 || filteredItems.length === 0) {
       return 'empty';
     }
 
-    if (filteredItems.length === 0 || (mutationError !== null && mutationError !== undefined)) {
+    if (mutationError !== null && mutationError !== undefined) {
       return 'partial';
     }
 
