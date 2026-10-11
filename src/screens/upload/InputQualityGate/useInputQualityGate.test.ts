@@ -240,6 +240,40 @@ describe('useInputQualityGate — mồi tầng', () => {
   });
 });
 
+describe('useInputQualityGate — dự báo độ tin cậy', () => {
+  // BUG-355: BE v1 never sends `expectedConfidence`, and the line said "bản vẽ chưa đo xong"
+  // right above "Các tầng đã đo" listing that very floor.
+  it('tầng đã đo mà không có dự báo: không in câu "chưa đo xong" (BUG-355)', async () => {
+    const sample = await createMockApiClient().quality.assess({ floorId: 'L1', projectId: PROJECT_ID });
+    if (!sample.ok) throw new Error('Không đọc được kết quả đo mẫu.');
+    const floors = sample.data.floors
+      .filter((floor) => MEASURED_FLOOR_IDS.includes(floor.floorId))
+      .map((floor) => {
+        const withoutForecast = { ...floor };
+        delete withoutForecast.expectedConfidence;
+        return withoutForecast;
+      });
+    const withoutForecast: ApiResult<ImageQualityAssessment> = {
+      ok: true,
+      data: { ...sample.data, floorId: 'L1', floors },
+    };
+    const mounted = mountHook(createHarness({ assessResults: [withoutForecast] }));
+
+    await ready(mounted);
+
+    expect(floors.find((floor) => floor.floorId === 'L1')?.isMeasured).toBe(true);
+    expect(mounted.result.current.model.forecast).toBeNull();
+  });
+
+  it('tầng có dự báo: vẫn in "Dự kiến độ tin cậy trung bình …"', async () => {
+    const mounted = mountHook(createHarness());
+
+    await ready(mounted);
+
+    expect(mounted.result.current.model.forecast?.text).toMatch(/^Dự kiến độ tin cậy trung bình /u);
+  });
+});
+
 describe('useInputQualityGate — lỗi đọc', () => {
   it('404 resource upload: trạng thái rỗng kèm noDrawingNotice, không phải lỗi', async () => {
     const harness = createHarness({

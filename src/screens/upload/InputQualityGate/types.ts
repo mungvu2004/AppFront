@@ -283,7 +283,8 @@ export interface InputQualityGateModel {
   readonly status: InputQualityGateStatus;
   readonly image: InputQualityImageModel;
   readonly metrics: readonly InputQualityMetricModel[];
-  readonly forecast: InputQualityForecast;
+  /** `null` khi tầng đã đo mà máy chủ không gửi dự báo — không có câu nào đúng để in. */
+  readonly forecast: InputQualityForecast | null;
   readonly findings: readonly InputQualityFindingModel[];
   readonly floors: readonly InputQualityFloorRow[];
   readonly footer: InputQualityFooterModel;
@@ -371,7 +372,8 @@ export interface InputQualityImagePanelProps {
 /** Props của `InputQualityGateReportPanel` — cột phải, chỉ số + dự báo + phát hiện + tầng. */
 export interface InputQualityReportPanelProps {
   readonly metrics: readonly InputQualityMetricModel[];
-  readonly forecast: InputQualityForecast;
+  /** `null` khi tầng đã đo mà máy chủ không gửi dự báo — không có câu nào đúng để in. */
+  readonly forecast: InputQualityForecast | null;
   readonly findings: readonly InputQualityFindingModel[];
   readonly floors: readonly InputQualityFloorRow[];
   readonly remainingFindingCount: number;

@@ -945,11 +945,13 @@ export function useInputQualityGate(
   /* Dự báo độ tin cậy — số qua `formatNumber`, nhãn qua `describeConfidence`. */
   /* ---------------------------------------------------------------------- */
 
-  const forecastText = useMemo<string>(() => {
+  const forecastText = useMemo<string | null>(() => {
     const confidence = activeFloor?.expectedConfidence;
 
     if (confidence === undefined) {
-      return COPY.forecastMissing;
+      // Đã đo mà không có dự báo: máy chủ v1 không có mô hình dự báo (quality/schemas.py), nên câu
+      // "chưa đo xong" cạnh bảng "Các tầng đã đo" là sai — không có gì để nói thì không nói (BUG-355).
+      return activeFloor?.isMeasured === true ? null : COPY.forecastMissing;
     }
 
     return `${COPY.forecastPrefix} ${formatScore(confidence)} — ${describeConfidence(confidence).label}`;
@@ -1295,7 +1297,7 @@ export function useInputQualityGate(
     status,
     image,
     metrics: visibleMetrics,
-    forecast: { text: forecastText },
+    forecast: forecastText === null ? null : { text: forecastText },
     findings: visibleFindings,
     floors: visibleFloors,
     footer,
