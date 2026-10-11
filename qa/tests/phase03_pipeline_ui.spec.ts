@@ -87,6 +87,7 @@ const TRAY_TITLE = 'Tệp chưa gán tầng'; // useFloorUploadScreen.ts:103
 const ASSIGN_FLOOR = 'Gán cho tầng khác';
 const REJECTED = /^Định dạng .+ chưa nhận được\./u;
 const UPLOAD_NO_FLOORS = 'Dự án chưa có tầng nào'; // FloorUploadScreen.tsx NO_FLOORS_TITLE
+const BREADCRUMB_NAV = 'Đường dẫn trang'; // Breadcrumb.tsx:19 NAV_LABEL
 /* SCR-11: InputQualityGate.tsx, useInputQualityGate.ts COPY, InputQualityGateFooter.tsx. */
 const QUALITY_REPORT = 'Báo cáo chất lượng';
 const NO_DRAWING_TITLE = 'Chưa có bản vẽ để kiểm tra'; // InputQualityGate.tsx:65
@@ -611,10 +612,15 @@ test.describe('U03 UI verify — empty project with an 80-character name (this f
     });
   });
 
-  test('U03 · SCR-10 upload, no floor → "Dự án chưa có tầng nào"', async ({ browser }) => {
+  test('U03 · SCR-10 upload, no floor → "Dự án chưa có tầng nào" + long name in the breadcrumb', async ({ browser }) => {
     await verifyAsAdmin(browser, 'U03_upload_no_floors', async (p) => {
       await openUpload(p, ownProject());
       await expect(p.getByText(UPLOAD_NO_FLOORS, { exact: true })).toBeVisible();
+      // FIX-1304 (BUG-165): a deep link reads #24 for the name (useFloorUploadScreen.ts:362-373); the breadcrumb level
+      // cuts it with "…" and keeps it whole in `title` (Breadcrumb.tsx:129-134).
+      await expect(
+        p.getByRole('navigation', { name: BREADCRUMB_NAV, exact: true }).getByTitle(LONG_NAME, { exact: true }),
+      ).toHaveText(LONG_NAME);
     });
   });
 
@@ -629,7 +635,11 @@ test.describe('U03 UI verify — empty project with an 80-character name (this f
     await verifyAsAdmin(browser, 'U03_pipeline_empty', async (p) => {
       await p.goto(ROUTES.project.pipeline(ownProject()));
       await expect(p.getByText(PIPELINE_EMPTY, { exact: true })).toBeVisible({ timeout: 15_000 });
-      await expect(p.getByRole('navigation', { name: PIPELINE_NAV, exact: true })).toBeVisible();
+      const breadcrumb = p.getByRole('navigation', { name: PIPELINE_NAV, exact: true });
+      await expect(breadcrumb).toBeVisible();
+      // FIX-1304 (BUG-165): a deep link reads #24 for the name (useProcessingScreen.ts:561-572), cut with "…", whole in
+      // `title` (ProcessingScreen.tsx:226-232).
+      await expect(breadcrumb.getByTitle(LONG_NAME, { exact: true })).toHaveText(LONG_NAME);
     });
   });
 });
