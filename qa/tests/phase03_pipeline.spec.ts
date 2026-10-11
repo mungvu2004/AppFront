@@ -4,7 +4,8 @@
  *
  * ORDER EXCEPTION (plan §4 Phase 3 + §5): the matrix deliberately interleaves screens instead of
  * finishing one screen before the next: SCR-10 upload (CP-4) → SCR-12 pipeline IMMEDIATELY → back to
- * SCR-10 (blocked / rejected) → SCR-11 → SCR-13 → SCR-15. The fake ML finishes in seconds, and the
+ * SCR-10 (blocked / rejected) → SCR-11 → SCR-13 → SCR-15. "[BUG-285] … Duyệt lớp tường" closes the file (BUG-315):
+ * it fails while BUG-285 is open, and a failure in this serial file skips every later test. The fake ML finishes in seconds, and the
  * processing screen does NOT open the SSE stream for a run that is already final when it loads
  * (`useProcessingScreen.ts`, chain.fullstack.ts step 6), so any detour between upload `complete`
  * and `/pipeline` would lose the SSE evidence. The describes below follow that order.
@@ -31,7 +32,8 @@ import { expect, test, type BrowserContext, type Locator, type Page } from '@pla
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { waitForApi, watchApi, watchSse, type ApiEntry, type SseWatch } from '../../e2e/fullstack/apiWatch';
 import { PIPELINE_TIMEOUT_MS, readBaseUrl } from '../../e2e/fullstack/env';
-import { signInAdmin } from './support/auth';
+import { signedInApi } from './support/api';
+import { readAdminCredentials, signInAdmin } from './support/auth';
 import { captureEvidence } from './support/evidence';
 import { readState, requireState, updateState } from './support/state';
 
@@ -539,15 +541,8 @@ test.describe('SCR-12 Processing', () => {
     await expect(page.getByRole('button', { name: 'Huỷ xử lý', exact: true })).toHaveCount(0);
     await captureEvidence(page, '12_pipeline_no_cancel.png');
   });
-
-  test('SCR-12 "Duyệt lớp tường" → /projects/:id/floors/{workId}/layers/walls', async () => {
-    requireState((s) => s.checkpoints.pipelineComplete, 'checkpoints.pipelineComplete', 'Phase 3 SCR-12 (CP-5)');
-    const workId = requireState((s) => s.floors.workFloorId, 'floors.workFloorId', 'Phase 3 SCR-09');
-
-    await page.getByRole('button', { name: 'Duyệt lớp tường', exact: true }).click();
-    await expect.poll(() => pathOf(page)).toBe(ROUTES.project.walls(projectId, workId));
-    await captureEvidence(page, '12_pipeline_to_walls.png');
-  });
+  // "Duyệt lớp tường" is the LAST test of this file (bottom), not here: it fails while BUG-285 is open, and in this serial
+  // file a failure skips every later test (BUG-315: run-20 lost 8 cases of SCR-10/11/13/15 to it).
 });
 
 /* ========================================================================== */
@@ -697,5 +692,43 @@ test.describe('SCR-15 CAD Branch Confirm', () => {
     await expect(dialog).toHaveCount(0);
     await expect(page.getByText('Tệp CAD không có lớp được đặt tên', { exact: true }).first()).toBeVisible();
     await captureEvidence(page, '15_cad_empty.png');
+  });
+});
+
+/* ========================================================================== */
+/* SCR-12 "Duyệt lớp tường" — last on purpose (BUG-315)                       */
+/* ========================================================================== */
+
+test.describe('SCR-12 Processing summary', () => {
+  // [BUG-285] asserts the bug log's "Mong đợi" and FAILS while it is open: the real gateway answers
+  // `extractionSummary` unsupported, so no "Báo cáo tổng kết" and no "Duyệt lớp tường" (coverage F10). Kept last in this
+  // serial file so that failure skips nothing; CP-5 is read back from the API here, not from the screen of the CP-5 test.
+  test('[BUG-285] SCR-12 finished run (CP-5 from the API) → "Duyệt lớp tường" → /projects/:id/floors/{workId}/layers/walls', async () => {
+    requireState((s) => s.checkpoints.pipelineComplete, 'checkpoints.pipelineComplete', 'Phase 3 SCR-12 (CP-5)');
+    const uploadId = requireState((s) => s.checkpoints.uploadId, 'checkpoints.uploadId', 'Phase 3 SCR-10 upload');
+    const workId = requireState((s) => s.floors.workFloorId, 'floors.workFloorId', 'Phase 3 SCR-09');
+
+    // CP-5 from the API (BE drawings/router.py progress, one real login): the CP-4 upload's run is final.
+    const { email, password } = readAdminCredentials();
+    const admin = await signedInApi(email, password);
+    try {
+      const res = await admin.get(`/api/projects/${projectId}/drawings/uploads/${uploadId}/progress`);
+      expect(res.status(), 'GET drawings/uploads/:uid/progress').toBe(200);
+      expect(asRecord(await res.json(), 'GET progress').status, 'CP-5: the CP-4 upload run is completed').toBe('completed');
+    } finally {
+      await admin.dispose();
+    }
+
+    await page.goto(ROUTES.project.pipeline(projectId));
+    await expect(page.getByRole('navigation', { name: 'Xử lý' })).toBeVisible();
+    await expect(page.getByText(/^Đã xong ([1-9]\d*)\/\1 tầng/u)).toBeVisible();
+    // Shot BEFORE the bug check, so a failing run still documents the finished screen.
+    await captureEvidence(page, '12_pipeline_done_for_walls.png');
+
+    const browseWalls = page.getByRole('button', { name: 'Duyệt lớp tường', exact: true });
+    await expect(browseWalls, 'BUG-285: a finished run offers "Duyệt lớp tường" (ProcessingSummary)').toBeVisible();
+    await browseWalls.click();
+    await expect.poll(() => pathOf(page)).toBe(ROUTES.project.walls(projectId, workId));
+    await captureEvidence(page, '12_pipeline_to_walls.png');
   });
 });
