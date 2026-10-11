@@ -184,6 +184,25 @@ const INLINE_ACTION_BY_KIND: Readonly<Record<NotificationKind, NotificationInlin
   } as const);
 
 /**
+ * Câu của máy chủ, bỏ đuôi trùng chữ liên kết (BUG-206).
+ *
+ * Máy chủ gửi câu CHƯA có tên đối tượng ("Hệ thống AI đã xử lý xong bản vẽ", `messages.py`) và màn nối
+ * `objectLabel` làm liên kết. Một câu đã kết bằng chính tên ấy (không phân biệt hoa/thường, bỏ dấu câu
+ * cuối) thì bỏ đuôi đó: "…bản vẽ tầng trệt" + "Tầng trệt" đọc thành "…bản vẽ Tầng trệt", tên chỉ một lần.
+ */
+export function sentenceWithoutLabel(message: string, label: string): string {
+  const body = message.normalize('NFC').trim().replace(/[.!…]+$/u, '').trimEnd();
+  const name = label.normalize('NFC').trim();
+  if (name === '' || body.length <= name.length) return message;
+
+  const head = body.slice(0, body.length - name.length);
+  const tail = body.slice(body.length - name.length);
+  const isSameName = tail.localeCompare(name, 'vi', { sensitivity: 'accent' }) === 0;
+
+  return isSameName && /\s$/u.test(head) ? head.trimEnd() : message;
+}
+
+/**
  * Đổi một thông báo trên dây thành một mục của màn.
  *
  * Hàm có TÊN, không phải một lambda trong `list`: nó là chỗ hai hình dạng gặp
@@ -205,25 +224,6 @@ const INLINE_ACTION_BY_KIND: Readonly<Record<NotificationKind, NotificationInlin
  *   `isRead` (người nhận đã là thành viên từ N3), nên một lời mời đã đọc không còn gì
  *   để chấp nhận — và điều đó sống qua lượt tải lại, không như lớp phủ của hook.
  */
-/**
- * Câu của máy chủ, bỏ đuôi trùng chữ liên kết (BUG-206).
- *
- * Máy chủ gửi câu CHƯA có tên đối tượng ("Hệ thống AI đã xử lý xong bản vẽ", `messages.py`) và màn nối
- * `objectLabel` làm liên kết. Một câu đã kết bằng chính tên ấy (không phân biệt hoa/thường, bỏ dấu câu
- * cuối) thì bỏ đuôi đó: "…bản vẽ tầng trệt" + "Tầng trệt" đọc thành "…bản vẽ Tầng trệt", tên chỉ một lần.
- */
-export function sentenceWithoutLabel(message: string, label: string): string {
-  const body = message.normalize('NFC').trim().replace(/[.!…]+$/u, '').trimEnd();
-  const name = label.normalize('NFC').trim();
-  if (name === '' || body.length <= name.length) return message;
-
-  const head = body.slice(0, body.length - name.length);
-  const tail = body.slice(body.length - name.length);
-  const isSameName = tail.localeCompare(name, 'vi', { sensitivity: 'accent' }) === 0;
-
-  return isSameName && /\s$/u.test(head) ? head.trimEnd() : message;
-}
-
 export function toNotificationItemVm(notification: Notification, nowMs: number): NotificationItemVm {
   const createdAt = Date.parse(notification.createdAt);
 
