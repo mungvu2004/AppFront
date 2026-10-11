@@ -725,7 +725,11 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
       const dialog = await openWizard(p);
       await toStep2(dialog, `${TEST_DATA_PREFIX}u02-cao`);
       const field = dialog.getByLabel(SHARED_HEIGHT_LABEL);
-      await field.fill('10,01');
+      // BUG-224: focus, wait for useNumericField's focus handler, then select all and insert (a bare fill() races it).
+      await field.focus();
+      await p.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+      await field.press('Control+A');
+      await p.keyboard.insertText('10,01');
       await field.press('Tab'); // useNumericField.ts:41-46 refuses out of range on blur
       await expect(dialog.getByText(NUMERIC_MAX, { exact: true })).toBeVisible();
       await expect(field).toHaveValue('10,01'); // BUG-160: the refused value stays beside its message (useNumericField.ts displayValue)
@@ -738,7 +742,11 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
       await expect(dialog.getByRole('table').getByRole('alert')).toHaveCount(0);
       await nameBox.fill(DEFAULT_FLOORS[0]);
       const groundHeight = dialog.getByRole('textbox', { name: `Chiều cao thông thuỷ tầng ${DEFAULT_FLOORS[0]}`, exact: true }); // StepFloors.tsx:131
-      await groundHeight.fill('3');
+      // BUG-224: focus, wait for useNumericField's focus handler, then select all and insert (a bare fill() races it).
+      await groundHeight.focus();
+      await p.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+      await groundHeight.press('Control+A');
+      await p.keyboard.insertText('3');
       await expect(groundHeight).toHaveValue('3');
       await groundHeight.press('Tab');
       await expect(dialog.getByRole('alert').filter({ hasText: HEIGHT_MISSING }).first()).toBeVisible(); // "Tầng 1" upward
@@ -956,15 +964,15 @@ test.describe('U02 UI verify — SCR-06 notifications', () => {
    * (2 unread, 1 read; 1 of them a comment mention) give the row layout, the unread dots, "Đánh dấu tất cả đã đọc" enabled and
    * filters that each keep their own rows. Wire shape: `NotificationSchema` (src/api/schemas/notifications.ts, `.strict()`).
  * `message` is the server's sentence WITHOUT the label: the FE appends `objectLabel` (AppBack apps/api/notifications/messages.py
- * `ai_completed`, `violation_found`; BUG-206). No server template exists for a comment mention yet, so row 2 keeps its own.
+ * `ai_completed`, `violation_found`, capitalised since AppBack bf83f815; BUG-206). No server template exists for a comment mention yet, so row 2 keeps its own.
    */
   const notificationRows = (): unknown[] => {
     const at = (minutesAgo: number): string => new Date(Date.now() - minutesAgo * 60_000).toISOString();
     const base = { objectLabel: 'Tầng trệt', place: 'walls', projectId: 'prj_QA02UIROWS', projectName: `${TEST_DATA_PREFIX}u02-rows` };
     return [
-      { ...base, id: 'ntf_qa02_1', kind: 'aiCompleted', isRead: false, message: 'hệ thống AI đã xử lý xong bản vẽ', createdAt: at(5) },
+      { ...base, id: 'ntf_qa02_1', kind: 'aiCompleted', isRead: false, message: 'Hệ thống AI đã xử lý xong bản vẽ', createdAt: at(5) },
       { ...base, id: 'ntf_qa02_2', kind: 'commentMention', isRead: false, message: 'Lan nhắc đến bạn trong một bình luận', excerpt: 'Kiểm tra lại tường trục B giúp mình', createdAt: at(30) },
-      { ...base, id: 'ntf_qa02_3', kind: 'violationFound', isRead: true, message: 'phát hiện 1 vi phạm luật ở', createdAt: at(90) },
+      { ...base, id: 'ntf_qa02_3', kind: 'violationFound', isRead: true, message: 'Phát hiện 1 vi phạm luật ở', createdAt: at(90) },
     ];
   };
   const routeNotificationRows = (context: BrowserContext): Promise<void> =>
@@ -998,6 +1006,15 @@ test.describe('U02 UI verify — SCR-06 notifications', () => {
           await expect(panel.locator('li')).toHaveCount(rows);
           await expect(panel.getByRole('button', { name: MARK_ALL_READ, exact: true })).toBeEnabled();
           await settled(panel);
+          if (label === null) {
+            // FIX-1079 (review-1 #11): mark-read is the plain IconButton `sm` box, 40 px below 640 and 32 px from `sm`
+            // (IconButton.tsx:20; NotificationRow.tsx:155-160 no longer pins it to 32 px).
+            const side = (p.viewportSize()?.width ?? 1440) < 640 ? 40 : 32;
+            const marks = panel.getByRole('button', { name: MARK_READ, exact: true });
+            await expect(marks).toHaveCount(2);
+            const boxes = await marks.evaluateAll((els) => els.map((el) => [Math.round(el.getBoundingClientRect().width), Math.round(el.getBoundingClientRect().height)]));
+            expect(boxes, `mark-read ${String(side)}×${String(side)}`).toEqual([[side, side], [side, side]]);
+          }
         },
         routeNotificationRows,
       );

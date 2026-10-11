@@ -1223,6 +1223,9 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await input.press('Enter');
       const { json } = await refused;
       await expect(toastWith(page, RENAME_FORBIDDEN)).toBeVisible(); // UPD:205-206
+      // BUG-207: an error toast wears the violation dot, never the verified green (UPD:454; Toast.tsx:111-115).
+      await expect(toastWith(page, RENAME_FORBIDDEN).locator('.bg-state-violation')).toHaveCount(1);
+      await expect(toastWith(page, RENAME_FORBIDDEN).locator('.bg-state-verified')).toHaveCount(0);
       await expect(projectCard(page, project.name)).toBeVisible(); // UPD:418
       await expect(projectCard(page, attempted)).toHaveCount(0);
       await captureEvidence(page, 'E02_rename_403.png', { caption: 'PATCH → 403 FORBIDDEN (mocked): permission toast, old name back' });
@@ -1543,8 +1546,16 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
         clientWidth: document.documentElement.clientWidth,
       }));
       const lastHead = await tableHeads(page).last().boundingBox();
+      // ProjectTable.tsx:90 (FIX-1075): the name wraps (`whitespace-normal break-words`, up to 2 lines) instead of one cut
+      // line; only the wrap is asserted here, not how much of the name shows.
+      const nameCell = await tableRow(page, name).locator('h3').evaluate((el) => {
+        const cs = getComputedStyle(el);
+        return { whiteSpace: cs.whiteSpace, overflowWrap: cs.overflowWrap, scroll: el.scrollWidth, client: el.clientWidth };
+      });
       await captureEvidence(page, 'E02_table_long_name.png', { caption: `80-char name in table view; page ${String(metrics.scrollWidth)}/${String(metrics.clientWidth)} px wide` });
-      await attachJson('E02_table_long_name.json', { nameLength: name.length, ...metrics, lastHead });
+      await attachJson('E02_table_long_name.json', { nameLength: name.length, ...metrics, lastHead, nameCell });
+      expect(nameCell, 'the name wraps inside its cell').toMatchObject({ whiteSpace: 'normal', overflowWrap: 'break-word' });
+      expect(nameCell.scroll, 'no sideways overflow of the name').toBeLessThanOrEqual(nameCell.client + 1);
       expect(metrics.scrollWidth, 'no page-level horizontal scroll').toBeLessThanOrEqual(metrics.clientWidth);
       // qa-review-ui: a column pushed past the window is a defect even when the table scrolls inside itself (Table.tsx:37).
       expect.soft(lastHead !== null && lastHead.x + lastHead.width <= DESKTOP.width, `"${TABLE_HEADERS[4]}" header inside the 1440 px window`).toBe(true);
@@ -2841,8 +2852,10 @@ test.describe('E02 SCR-07 onboarding (/onboarding)', () => {
 const SNAP_HINTS = { 1: 'Thu gọn', 2: 'Nửa màn hình', 3: 'Gần toàn màn hình' } as const;
 /** DRW:34-36: "Mức 1" (snap 0) is the 88 px peek. */
 const SNAP_PEEK_PX = 88;
-/** useProjectDashboard.ts:243-248 `listErrorMessageOf`: a 500 on page load says what to do here, not "thao tác vừa làm" (BUG-209, FIX-995). */
+/** useProjectDashboard.ts:246-251 `listErrorMessageOf`: a 500 on page load says what to do here, not "thao tác vừa làm" (BUG-209, FIX-995). */
 const LIST_LOAD_500_DESCRIPTION = 'Máy chủ gặp lỗi khi đọc danh sách. Bấm "Thử lại" để tải lại.';
+/** useProjectDashboard.ts:240 `forbidden` keeps its shared rights sentence on page load (review-1 #10, FIX-1078): vi.json:27. */
+const LIST_LOAD_403_DESCRIPTION = 'Tài khoản của bạn chưa được phép làm thao tác này. Liên hệ quản trị dự án.';
 const OLD_UNKNOWN_TAIL = 'Bạn có thể tải lại rồi thử lại.'; // 5afd8b8a copy, must be gone
 const NO_MATCH_DESCRIPTION = 'Không có dự án nào khớp với bộ lọc hiện tại.'; // PD:264
 const PIPELINE_NAV = 'Xử lý'; // ProcessingScreen.tsx:60 (BREADCRUMB_PIPELINE = the nav's aria-label, :223)
@@ -2975,6 +2988,10 @@ test.describe('E02 QA-02 shared components (FE 271538cb) — SCR-05 / SCR-06 / S
       await expect(toast).toBeVisible();
       const undo = toast.getByRole('button', { name: UNDO, exact: true });
       await expect(undo).toBeVisible();
+      // An undoable change is a plain notice: neutral dot, not the A5 verified green (UPD:460, no state; Toast.tsx:111-115;
+      // BUG-207, FIX-1081 for the provider's undoable/grouped toasts).
+      await expect(toast.locator('.bg-text-muted')).toHaveCount(1);
+      await expect(toast.locator('.bg-state-verified')).toHaveCount(0);
       // TST:133-134 `min-w-0 break-words` on the message; the toast is `overflow-hidden` (TST:121): a clipped button = BUG-131.
       // BUG-216: the button is measured through its locator — a textContent match inside evaluate() found nothing (null →
       // "CLIPPED" on a shot where the button is whole).
@@ -3017,15 +3034,16 @@ test.describe('E02 QA-02 shared components (FE 271538cb) — SCR-05 / SCR-06 / S
           viewport: COMPACT,
           dialog: await dialog.boundingBox(),
           page: await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth })),
-          // PD:301 the sentence has no break-words: with no space in the name the line may still overflow its own box.
-          bodyLine: await dialog.getByText(deleteBody(project.name), { exact: true }).evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth })),
+          // Modal.tsx:191-192 Modal.Body `break-words` (FIX-1070, BUG-195), inherited by the sentence (PD:281-283).
+          bodyLine: await dialog.getByText(deleteBody(project.name), { exact: true }).evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth, overflowWrap: getComputedStyle(el).overflowWrap })),
         };
         await captureEvidence(page, 'E02_dash_delete_375_long.png', { caption: `dialog ${String(Math.round(layout.dialog?.width ?? 0))} px wide (frame ${String(frame)}); sentence scroll ${String(layout.bodyLine.scroll)} / client ${String(layout.bodyLine.client)}` });
         await attachJson('E02_dash_delete_375_long.json', layout);
         const box = layout.dialog;
         expect(box !== null && box.x >= 15 && box.x + box.width <= COMPACT.width - 15, 'dialog inside the 16 px gutters').toBe(true);
         expect(layout.page.scroll, 'no page-level sideways scroll').toBeLessThanOrEqual(layout.page.client);
-        // Finding candidate (UI/Low) when this fails: the unbroken name overflows the sentence box inside the dialog.
+        expect(layout.bodyLine.overflowWrap, 'Modal.Body break-words reaches the sentence (FIX-1070)').toBe('break-word');
+        // BUG-195 fixed (FIX-1070): the unbroken name used to overflow the sentence box inside the dialog.
         await shootOnSoftFail(page, 'E02_dash_delete_375_long_softfail.png', `delete sentence scroll ${String(layout.bodyLine.scroll)} > client ${String(layout.bodyLine.client)} inside the open dialog`, () => {
           expect.soft(layout.bodyLine.scroll, 'the delete sentence wraps the long name inside the dialog').toBeLessThanOrEqual(layout.bodyLine.client + 1);
         });
@@ -3059,17 +3077,27 @@ test.describe('E02 QA-02 shared components (FE 271538cb) — SCR-05 / SCR-06 / S
     });
   });
 
-  test('E02 · SCR-05 [mocked response] N1 fails (500, unpairable: 5xx): the error card says the page-load sentence, not an action sentence', async ({ browser }) => {
+  test('E02 · SCR-05 [mocked response] N1 fails (500, unpairable: 5xx): the error card says the page-load sentence, not an action sentence; a 403 says the rights sentence', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       await routeSummaries(page, (route) => route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }));
       await page.reload({ waitUntil: 'commit' });
       await expect(page.getByText(LIST_ERROR_TITLE, { exact: true })).toBeVisible({ timeout: SLOW_STATE_MS }); // PD:240-246
-      // UPD:243-248 a bare 500 is kind "unknown" (toAppError.ts:10-18), not in LOAD_ERROR_KINDS_WITH_OWN_SENTENCE (UPD:237).
+      // UPD:246-251 a bare 500 is kind "unknown" (toAppError.ts:10-18), not in LOAD_ERROR_KINDS_WITH_OWN_SENTENCE (UPD:240).
       await expect(page.getByText(LIST_LOAD_500_DESCRIPTION, { exact: true })).toBeVisible();
       await expect(page.getByText(OLD_UNKNOWN_TAIL, { exact: false })).toHaveCount(0);
       await expect(page.getByText('thao tác vừa làm', { exact: false })).toHaveCount(0); // BUG-209: no action was taken
-      await captureEvidence(page, 'E02_dash_error_unknown_copy.png', { caption: 'N1 500 [mocked] → listErrorMessageOf (useProjectDashboard.ts:247)' });
+      await captureEvidence(page, 'E02_dash_error_unknown_copy.png', { caption: 'N1 500 [mocked] → listErrorMessageOf (useProjectDashboard.ts:250)' });
+
+      // A 403 is no server fault (review-1 #10, FIX-1078): kind "forbidden" (toAppError.ts:12) is in UPD:240, so the card
+      // keeps the shared rights sentence. Unpairable as well: the real N1 never refuses a signed-in role.
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      await routeSummaries(page, (route) => fulfillJson(route, 403, wireError('FORBIDDEN')));
+      await page.getByRole('button', { name: RETRY, exact: true }).click();
+      await expect(page.getByText(LIST_LOAD_403_DESCRIPTION, { exact: true })).toBeVisible({ timeout: SLOW_STATE_MS });
+      await expect(page.getByText(LIST_LOAD_500_DESCRIPTION, { exact: true })).toHaveCount(0);
+      await expect(page.getByText(LIST_ERROR_TITLE, { exact: true })).toBeVisible();
+      await captureEvidence(page, 'E02_dash_error_403_copy.png', { caption: 'N1 403 FORBIDDEN [mocked] → the rights sentence, not "Máy chủ gặp lỗi…" (useProjectDashboard.ts:240)' });
       await page.unrouteAll({ behavior: 'ignoreErrors' });
       const reread = waitForApi(page, 'GET', SUMMARIES_RE, [200]);
       await page.getByRole('button', { name: RETRY, exact: true }).click();

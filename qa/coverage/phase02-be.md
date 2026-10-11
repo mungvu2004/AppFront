@@ -144,7 +144,7 @@ Rows: 107 rule rows + 8 side-effect rows + 25 mock-pair rows + 6 budget rows = 1
 | Newest first (`created_at DESC, id DESC`) | service.py:166-168 | notif (p2 row before p1 row) | pass |
 | Cap `NOTIFICATIONS_LIST_MAX` 200 | notifications/settings.py:17 | — | not covered: needs > 200 visible rows = > 200 member adds (members_add 60 / h) |
 | `NotificationOut` keys; `floorId` / `excerpt` absent when empty; no `userId` / `dedupeKey` / `streamId` | notifications/schemas.py:18-31; payload.py:11-28 | notif, members, accept, `inbox()` key check on every call | pass / new |
-| `projectInvite` row from N3: place `projectSettings`, message "<name> đã thêm bạn vào dự án" | invite_sinks.py:20-50; messages.py:17-27; packages/db/models/notifications.py:31 | notif | pass |
+| `projectInvite` row from N3: place `projectSettings`, message "<name> đã thêm bạn vào dự án" or "Bạn vừa được thêm vào dự án" | invite_sinks.py:20-50; messages.py:25-28; packages/db/models/notifications.py:31 | notif | pass |
 | `projectName` / `objectLabel` = `clean_label(project name)`: Cc/Cf dropped, whitespace collapsed (so it can differ from the project's own name) | messages.py:13-21; service.py:134-136 | members (`"<base>  a\u200Bb"` → `"<base> ab"`) | new (contract note: the drawer may show a name the dashboard does not) |
 | N3 on an existing member → 200, no row, no activity, no touch | project_members/router.py:68-69, service.py:79-94 | members | new |
 | Dedupe per (project, user, UTC hour): add → remove → add in one hour → no new row, the old row (read state kept) is back | invite_sinks.py:33,48; service.py:105-159 | members (if the UTC hour flips mid-test, 2 rows are expected and annotated) | new |

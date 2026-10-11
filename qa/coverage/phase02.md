@@ -287,7 +287,7 @@ Files: `Drawer.tsx`, `Modal.tsx`, `Toast.tsx`, `EmptyState.tsx`, `Select.tsx`, `
 | S6 | Modal | 375 px delete dialog with an unbroken name stays in the 343 px frame, no page sideways scroll | `src/components/overlay/Modal.tsx:131-133`, `ProjectDashboard.tsx:293-301` | E·S 375 px delete dialog | covered (sentence overflow = F14, soft) |
 | S7 | Modal | wizard at 375 px fits the frame (`max-w-full`) | `Modal.tsx:131-133` | EW [BUG-110] · U wizard states at 375 | covered |
 | S8 | Empty | EmptyState description `text-wrap: pretty` (BUG-170) | `src/components/feedback/EmptyState.tsx:50-51`, `ProjectDashboard.tsx:261-266` | E·S no-match empty state · U `U02_dash_search_no_match` | covered |
-| S9 | Error | N1 500 → `Máy chủ gặp lỗi khi đọc danh sách. Bấm "Thử lại" để tải lại.` (BUG-209; old "…tải lại rồi thử lại." gone) | `useProjectDashboard.ts:237-248`, `lib/errors/toAppError.ts:10-18`, `ProjectDashboard.tsx:240-246` | E·S [mocked response] N1 fails (500) | covered (unpairable: 5xx) |
+| S9 | Error | N1 500 → `Máy chủ gặp lỗi khi đọc danh sách. Bấm "Thử lại" để tải lại.` (BUG-209; old "…tải lại rồi thử lại." gone); N1 403 → the shared rights sentence `Tài khoản của bạn chưa được phép làm thao tác này. Liên hệ quản trị dự án.` (review-1 #10, FIX-1078) | `useProjectDashboard.ts:236-251`, `lib/errors/toAppError.ts:10-18`, `i18n/vi.json:27`, `ProjectDashboard.tsx:220-226` | E·S [mocked response] N1 fails (500) … a 403 says the rights sentence | covered (unpairable: 5xx; 403 not producible on N1 for a signed-in role) |
 | S10 | Drawer | snap dots "Mức 1–3" described "Thu gọn" / "Nửa màn hình" / "Gần toàn màn hình" | `src/components/overlay/Drawer.tsx:31-32, 251-273` | E·S snap dots by keyboard · U `U02_notif_sheet_snap_tooltip` | covered |
 | S11 | Tooltip | focus → tooltip after 400 ms, inside the viewport (flip below near the top, clamp 8 px from the sides) | `src/components/ui/Tooltip.tsx:14-17, 66-77, 91-112, 193-197` | E·S snap dots · X [BUG-114] gear tooltip | covered |
 | S12 | Tooltip | a shown tooltip follows its anchor after the anchor moves (snap) | `Tooltip.tsx:66-77` | E·S snap dots (soft) | covered — finding candidate F12 |
@@ -326,7 +326,7 @@ Files: `Drawer.tsx`, `Modal.tsx`, `Toast.tsx`, `EmptyState.tsx`, `Select.tsx`, `
 
 | Test | Response faked | Pair |
 |---|---|---|
-| E SCR-05 [mocked response] N1 fails (500) | `GET /api/project-summaries` 500 | unpairable: 5xx not producible on the shared stack |
+| E SCR-05 [mocked response] N1 fails (500) | `GET /api/project-summaries` 500, then 403 `FORBIDDEN` | unpairable: 5xx not producible on the shared stack; the real N1 never answers 403 to a signed-in role |
 | E SCR-05 [mocked response] no project | `GET /api/project-summaries` 200 `{items: []}` | paired: `phase02_dashboard_api.spec.ts` "A02 · fresh engineer" (`A02_fresh_summaries_default.json`) |
 | E SCR-05 [mocked response] one row the client cannot decode | real body + 1 invalid row (>= 4 readable, F9) | unpairable: the BE never emits a row failing the FE's strict decode |
 | E SCR-05 [mocked response] rename answered 500 | `PATCH /api/projects/:id` 500 | unpairable: 5xx |
