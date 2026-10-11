@@ -30,12 +30,15 @@
  * đi qua {@link NumericField} — gõ số được, mũi tên lên/xuống được, vòng focus
  * kế thừa `focus-within:ring-2` của `Input`.
  *
- * ## Vì sao cụm thu phóng không nhận callback
+ * ## Cụm thu phóng điều khiển ảnh thật
  *
- * `ZoomCluster` giữ mức phóng bên trong `useZoomCluster` và không mở ra ngoài
- * (`ZoomCluster.tsx:6-9` chỉ có `isVisible` và `className`). Nó là cụm hiển thị
- * đặt ở góc phải dưới khung, không phải nguồn thu phóng của ảnh — panel này
- * không bịa thêm prop cho nó.
+ * Mức phóng là trạng thái khung nhìn (như tay nắm đang giữ), giữ bằng
+ * `useZoomCluster` và trao cho `ZoomCluster` dạng có chủ. Ảnh và ba lớp phủ cùng
+ * nằm trong một lớp rộng `zoom%` khung, nên tỉ lệ 0..1 vẫn đúng chỗ và `ratioAt`
+ * đo chính lớp đó. Bề rộng chứ không `scale()`: Chrome không cập nhật vùng cuộn
+ * khi chỉ transform đổi (đo: phóng 150% mà chỉ cuộn được 110%). Khung cuộn ngang
+ * khi phóng, chiều dọc đi theo trang; "Vừa khung" = 100% vì ảnh vốn vừa khung.
+ * Khi chọn góc cụm ẩn (BUG-292) nên ảnh về 100%, không kẹt ở mức không còn nút chỉnh.
  */
 
 import { useCallback, useRef, useState } from 'react';
@@ -44,6 +47,7 @@ import { clsx } from 'clsx';
 import { ZoomCluster } from '@/components/canvas/ZoomCluster';
 import { NumericField } from '@/components/ui/NumericField';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { useZoomCluster } from '@/hooks/useZoomCluster';
 import { cssDurationMs } from '@/lib/motion';
 
 import { clampRatio, PERCENT_SCALE, percentOf } from './InputQualityGateImageGeometry';
@@ -64,10 +68,14 @@ const COMPARISON_LABEL = 'Tỉ lệ lộ ảnh sau khi nắn';
 const COMPARISON_HINT = 'Phần bên trái đường chia là ảnh đã nắn, bên phải là ảnh gốc.';
 const COMPARISON_UNIT = '%';
 const SKEW_LABEL_PREFIX = 'Độ nghiêng đo được so với phương ngang: ';
+const ZOOMED_FRAME_LABEL = 'Bản vẽ đang phóng, cuộn để xem phần còn lại';
 
 /** Khung ảnh không bao giờ rộng quá con số đặc tả đặt ra. */
 const FRAME_CLASSES =
   'relative w-full max-w-[640px] overflow-hidden rounded-[16px] border border-border-default bg-bg-sunken';
+
+const ZOOMED_FRAME_CLASSES =
+  'overflow-auto focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent';
 
 /* -------------------------------------------------------------------------- */
 /* Panel.                                                                      */
@@ -81,6 +89,10 @@ export function InputQualityGateImagePanel({ actions, image }: InputQualityImage
   const [draggingCornerId, setDraggingCornerId] = useState<string | null>(null);
 
   const { onChangeReveal, onDragCorner, onHoverRegion } = actions;
+
+  const zoom = useZoomCluster();
+  const zoomPercent = image.corners === null ? zoom.zoomLevel : PERCENT_SCALE;
+  const isZoomed = zoomPercent !== PERCENT_SCALE;
 
   /** Con trỏ ở đâu trên khung, tính bằng tỉ lệ 0..1 đã kẹp biên. */
   const ratioAt = useCallback((clientX: number, clientY: number) => {
@@ -114,62 +126,84 @@ export function InputQualityGateImagePanel({ actions, image }: InputQualityImage
 
   return (
     <section aria-label={PANEL_LABEL} className="flex h-full flex-col gap-3">
-      <div className={FRAME_CLASSES} ref={frameRef}>
-        {/* Ảnh gốc — nửa "trước" của thanh so sánh. Chỉ hiện khi đang so sánh. */}
-        {isComparing ? (
-          <img alt={image.altText} className="block w-full select-none" src={image.src} />
-        ) : null}
-
-        {/* Ảnh đã nắn. Khi so sánh thì nó nằm đè lên và bị cắt theo tỉ lệ lộ. */}
+      <div className={FRAME_CLASSES}>
+        {/* Phóng thì khung cuộn được — bằng chuột lẫn phím mũi tên khi khung đang được chọn (A12). */}
         <div
-          className={clsx(
-            'origin-center transition-transform ease-in-out',
-            isComparing && 'absolute inset-0',
-          )}
-          style={{
-            transform: `rotate(${image.rotationDeg}deg)`,
-            transitionDuration: straightenDuration,
-            clipPath: isComparing ? `inset(0 ${hiddenPercent} 0 0)` : undefined,
-          }}
+          aria-label={isZoomed ? ZOOMED_FRAME_LABEL : undefined}
+          className={clsx(isZoomed && ZOOMED_FRAME_CLASSES)}
+          role={isZoomed ? 'group' : undefined}
+          tabIndex={isZoomed ? 0 : undefined}
         >
-          <img
-            alt={isComparing ? '' : image.altText}
-            aria-hidden={isComparing ? true : undefined}
-            className="block w-full select-none"
-            src={image.src}
-          />
+          <div
+            className="relative"
+            data-testid="quality-image-content"
+            ref={frameRef}
+            style={{ width: `${zoomPercent}%` }}
+          >
+            {/* Ảnh gốc — nửa "trước" của thanh so sánh. Chỉ hiện khi đang so sánh. */}
+            {isComparing ? (
+              <img alt={image.altText} className="block w-full select-none" src={image.src} />
+            ) : null}
+
+            {/* Ảnh đã nắn. Khi so sánh thì nó nằm đè lên và bị cắt theo tỉ lệ lộ. */}
+            <div
+              className={clsx(
+                'origin-center transition-transform ease-in-out',
+                isComparing && 'absolute inset-0',
+              )}
+              style={{
+                transform: `rotate(${image.rotationDeg}deg)`,
+                transitionDuration: straightenDuration,
+                clipPath: isComparing ? `inset(0 ${hiddenPercent} 0 0)` : undefined,
+              }}
+            >
+              <img
+                alt={isComparing ? '' : image.altText}
+                aria-hidden={isComparing ? true : undefined}
+                className="block w-full select-none"
+                src={image.src}
+              />
+            </div>
+
+            {/* Đường chia của thanh so sánh — một nét mảnh, không phải một tay cầm. */}
+            {isComparing ? (
+              <div
+                aria-hidden="true"
+                className="absolute inset-y-0 w-px bg-accent"
+                style={{ left: percentOf(comparison.revealRatio) }}
+              />
+            ) : null}
+
+            <ImageRegionLayer
+              highlightDuration={highlightDuration}
+              highlightedRegionId={image.highlightedRegionId}
+              onHoverRegion={onHoverRegion}
+              regions={image.regions}
+            />
+
+            <ImageGeometryLayer corners={image.corners} skewLine={image.skewLine} />
+
+            {image.corners === null ? null : (
+              <CornerHandleLayer
+                corners={image.corners}
+                draggingCornerId={draggingCornerId}
+                onDragCorner={onDragCorner}
+                ratioAt={ratioAt}
+                setDraggingCornerId={setDraggingCornerId}
+              />
+            )}
+          </div>
         </div>
 
-        {/* Đường chia của thanh so sánh — một nét mảnh, không phải một tay cầm. */}
-        {isComparing ? (
-          <div
-            aria-hidden="true"
-            className="absolute inset-y-0 w-px bg-accent"
-            style={{ left: percentOf(comparison.revealRatio) }}
-          />
-        ) : null}
-
-        <ImageRegionLayer
-          highlightDuration={highlightDuration}
-          highlightedRegionId={image.highlightedRegionId}
-          onHoverRegion={onHoverRegion}
-          regions={image.regions}
-        />
-
-        <ImageGeometryLayer corners={image.corners} skewLine={image.skewLine} />
-
-        {image.corners === null ? null : (
-          <CornerHandleLayer
-            corners={image.corners}
-            draggingCornerId={draggingCornerId}
-            onDragCorner={onDragCorner}
-            ratioAt={ratioAt}
-            setDraggingCornerId={setDraggingCornerId}
-          />
-        )}
-
         {/* Đang chọn góc thì cụm thu phóng nhường góc dưới phải cho tay nắm (BUG-292). */}
-        <ZoomCluster isVisible={image.corners === null} />
+        <ZoomCluster
+          isVisible={image.corners === null}
+          onFitToScreen={zoom.resetZoom}
+          onResetZoom={zoom.resetZoom}
+          onZoomIn={zoom.zoomIn}
+          onZoomOut={zoom.zoomOut}
+          zoomLevel={zoomPercent}
+        />
       </div>
 
       {image.skewLine === null ? null : (
