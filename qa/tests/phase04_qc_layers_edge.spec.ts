@@ -1215,7 +1215,8 @@ test.describe('E04 SCR-20 room label review', () => {
       // UR:876-880 emptyFiltered → emptyFilteredNotice, which tells the user to switch the filter off.
       await expect(page.getByText(ROOM.emptyFiltered, { exact: true })).toBeVisible();
       await captureEvidence(page, 'E04_rooms_unnamed_filter_empty.png');
-      // The notice's own instruction needs the toggle on screen; RV:139-149 renders only the EmptyState in this branch.
+      // The notice's own instruction needs the toggle on screen. BUG-321: RV:142-146 keeps the panel (with the toggle)
+      // when the unnamed filter emptied the list, and RV:182 / RLP:40 put the notice where the list was.
       await expect(
         page.getByRole('button', { name: new RegExp(`^${ROOM.unnamedFilter}`, 'u') }),
         'the "Chưa đặt tên" toggle the notice tells the user to switch off is still on screen',
