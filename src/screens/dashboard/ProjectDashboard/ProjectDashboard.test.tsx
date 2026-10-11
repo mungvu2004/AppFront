@@ -114,7 +114,7 @@ function baseProps(): ProjectDashboardViewProps {
 const PROPS_BY_STATE: Readonly<Record<(typeof SEVEN_STATES)[number], () => ProjectDashboardViewProps>> = {
   empty: () => ({ ...baseProps(), state: 'empty', rows: [] }),
   loading: () => ({ ...baseProps(), state: 'loading', rows: [] }),
-  partial: () => ({ ...baseProps(), state: 'partial', rows: [], searchQuery: 'không tồn tại' }),
+  partial: () => ({ ...baseProps(), state: 'partial', rows: [], searchQuery: 'không tồn tại', statusCounts: { all: 1, processing: 0, qc: 1, done: 0 } }),
   error: () => ({ ...baseProps(), state: 'error', errorMessage: 'không kết nối được máy chủ' }),
   success: () => ({ ...baseProps(), state: 'success', rows: [SAMPLE_ROW] }),
   forbidden: () => ({ ...baseProps(), state: 'forbidden', canCreate: false, canDelete: false, rows: [SAMPLE_ROW] }),
@@ -182,6 +182,15 @@ describe('ProjectDashboardView, seven states', () => {
     render(<ProjectDashboardView {...PROPS_BY_STATE.partial()} />);
 
     expect(screen.getByText('Không tìm thấy dự án phù hợp')).toBeInTheDocument();
+  });
+
+  // BUG-111: below 1024 px the state is `collapsed`, never `partial`; the no-match state used to hang on `partial`.
+  it('offers to clear filters, not to create, when nothing matches below 1024 px', () => {
+    render(<ProjectDashboardView {...PROPS_BY_STATE.partial()} state="collapsed" statusFilter="done" searchQuery="" />);
+
+    expect(screen.getByText('Không tìm thấy dự án phù hợp')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Xoá bộ lọc' })).toBeInTheDocument();
+    expect(screen.queryByText('Chưa có dự án nào')).not.toBeInTheDocument();
   });
 
   it('offers a retry when the list could not be loaded', () => {

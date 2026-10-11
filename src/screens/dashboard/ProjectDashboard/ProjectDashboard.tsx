@@ -257,7 +257,9 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
                 message={errorMessage ?? 'Đã có lỗi xảy ra.'}
                 action={{ label: 'Thử lại', onClick: props.retryLoad, variant: 'secondary' }}
               />
-            ) : rows.length === 0 && state !== 'partial' ? (
+            ) : rows.length === 0 && statusCounts.all === 0 && unreadNotice === null ? (
+              // Never had a project — the `empty` rule of `useProjectDashboard`, read from the counts and not
+              // from `state`: below 1024 px a filter or search with no match is `collapsed`, not `partial` (BUG-111).
               <EmptyState
                 icon={<FolderPlus aria-hidden="true" />}
                 title="Chưa có dự án nào"
