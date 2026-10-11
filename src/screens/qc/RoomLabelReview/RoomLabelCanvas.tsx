@@ -75,6 +75,7 @@ export function RoomLabelCanvas({
   backgroundImageUrl,
   backgroundImageAlt,
   isInteractive,
+  showEmptyNotice,
   onSelect,
   onHover,
 }: RoomLabelCanvasProps) {
@@ -237,7 +238,7 @@ export function RoomLabelCanvas({
         </div>
       )}
 
-      {rooms.length === 0 ? (
+      {showEmptyNotice && rooms.length === 0 ? (
         <p className="absolute inset-x-0 top-1/2 text-center text-[13px] text-text-muted">
           {ROOM_LABEL_CANVAS_COPY.emptyCanvas}
         </p>

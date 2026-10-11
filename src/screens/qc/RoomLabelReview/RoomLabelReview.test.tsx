@@ -576,3 +576,27 @@ describe('[BUG-321] bộ lọc "Chưa đặt tên" không còn phòng nào', () 
     });
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* Câu rỗng của canvas chỉ khi đã đọc xong và thật sự không có phòng (BUG-328). */
+/* -------------------------------------------------------------------------- */
+
+describe('[BUG-328] câu "Chưa dò được phòng nào" không đi cùng trạng thái lỗi/đang tải', () => {
+  const EMPTY_CANVAS = 'Chưa dò được phòng nào trên bản vẽ này.';
+
+  it.each(['error', 'loading'] as const)('trạng thái "%s": canvas không khẳng định đã dò xong', async (state) => {
+    renderState(state);
+
+    if (state === 'error') {
+      expect(await screen.findByText('Không đọc được lớp phòng')).toBeInTheDocument();
+    }
+
+    expect(screen.queryByText(EMPTY_CANVAS)).not.toBeInTheDocument();
+  });
+
+  it('trạng thái rỗng thật: canvas vẫn nói chưa dò được phòng nào', async () => {
+    renderState('empty');
+
+    expect(await screen.findByText(EMPTY_CANVAS)).toBeInTheDocument();
+  });
+});

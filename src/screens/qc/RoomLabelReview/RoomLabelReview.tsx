@@ -288,6 +288,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
             onSelect={onSelect}
             rooms={rooms}
             selectedRoomId={selectedRoomId}
+            showEmptyNotice={props.isFloorWithoutRooms}
           />
         </section>
 
