@@ -210,6 +210,9 @@ const OVERLAY = {
   lock: 'Khoá căn', // VT:61
 } as const;
 
+/** SCR-11 quality gate empty state, the target of "Quay lại bước tiền xử lý" (InputQualityGate.tsx:65, vi.json:856). */
+const QUALITY_NO_DRAWING = 'Chưa có bản vẽ để kiểm tra';
+
 /* SCR-10 upload (fixture for the scale test, same path as phase03 edge). */
 const FILE_INPUT = 'floor-upload-file-input'; // FloorUploadDropZone.tsx:33
 const TRAY = 'Tệp chưa gán tầng'; // useFloorUploadScreen.ts:103
@@ -1330,6 +1333,8 @@ test.describe('E04 SCR-14 scale calibration', () => {
       await reread;
       await notice.getByRole('button', { name: SCALE.backToPreprocessing, exact: true }).click(); // US:1029
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.quality(project.id));
+      // BUG-343: the lazy route first paints "Đang tải màn hình…"; shoot the quality gate itself (no drawing on this floor).
+      await expect(page.getByText(QUALITY_NO_DRAWING, { exact: true })).toBeVisible();
       expect(writesSince(api, mark), 'scale error state writes nothing').toEqual([]);
       await captureEvidence(page, 'E04_scale_back_to_quality.png');
     });
