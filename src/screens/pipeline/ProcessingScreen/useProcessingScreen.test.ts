@@ -625,6 +625,29 @@ describe('useProcessingScreen', () => {
     mounted.unmount();
   });
 
+  // BUG-360: the seed read (#8) and the first SSE event both say "Tiền xử lý — 0%".
+  it('the same progress twice in a row writes one log line, not two (BUG-360)', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 1);
+    const upload = uploads[0]!;
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+
+    await settle(clock);
+    await act(async () => {
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(progressAt(upload.uploadId, 0));
+      latestSource().triggerMessage(progressAt(upload.uploadId, 1));
+      await clock.advance(POLL_INTERVAL_MS);
+    });
+
+    expect(mounted.result.current.logLines.map((line) => line.text)).toEqual([
+      `${STAGES[0]!.label} — 0%`,
+      `${STAGES[1]!.label} — 0%`,
+    ]);
+
+    mounted.unmount();
+  });
+
   // BUG-352: every stage timed, so the estimate exists — and is 0 once all is done.
   it('a run that finished stage by stage says only "Đã xong 1/1 tầng", no "Còn lại khoảng 0 giây" (BUG-352)', async () => {
     const harness = makeScriptedClient();

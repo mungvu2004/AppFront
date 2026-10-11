@@ -428,7 +428,9 @@ function applySnapshot(
     remainingSeconds: remainingSeconds === 0 ? null : remainingSeconds,
     progress,
     source,
-    logLines: [...record.logLines, logLine],
+    // Lượt đọc mồi và nhịp SSE đầu cùng báo một mốc: mỗi mốc một dòng (BUG-360).
+    logLines:
+      record.logLines.at(-1)?.text === logLine.text ? record.logLines : [...record.logLines, logLine],
   };
 }
 
