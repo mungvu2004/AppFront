@@ -158,7 +158,7 @@ const SESSION_NOT_OPENED =
 const SIGNED_IN_SUCCESS = 'Đã đăng nhập. Đang mở lại trang bạn đang xem.'; // :203
 const NETWORK_DESCRIPTION = 'Không liên lạc được với máy chủ. Kiểm tra mạng rồi thử lại.'; // errors.network :15 (title :14 no longer shown)
 const UNKNOWN_TITLE = 'Có trục trặc'; // errors.unknown :62
-const UNKNOWN_DESCRIPTION = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại thao tác vừa làm.'; // :63
+const UNKNOWN_DESCRIPTION = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại sau ít phút.'; // vi.json:63 (FIX-1387, BUG-209)
 const CHECKING_CONNECTION = 'Đang kiểm tra kết nối.'; // connectionStates.checking :4197
 
 /* `src/routes/SessionBootstrap.tsx` @7735bcda literals. */
