@@ -18,7 +18,7 @@ Test names below are shortened. Pass 1 (ran): "anon", "create", "rules", "idem",
 "delete", "N1", "roles", "notif", "notif-bodies". Pass 2 (new): "order", "text", "code-dup", "floors", "fields",
 "idem-edges", "del-idem", "body-limit", "origin", "headers", "rollup", "members", "accept", "fresh", "activity".
 
-Rows: 107 rule rows + 8 side-effect rows + 24 mock-pair rows + 6 budget rows = 145 (pass 1: 88). Open gaps: 9
+Rows: 107 rule rows + 8 side-effect rows + 25 mock-pair rows + 6 budget rows = 146 (pass 1: 88). Open gaps: 9
 (pass 1: 12) — list at the end.
 
 ## Shared rules (every phase-2 route)
@@ -203,42 +203,43 @@ Rows: 107 rule rows + 8 side-effect rows + 24 mock-pair rows + 6 budget rows = 1
 
 ## Mock pairing (UI `[mocked response]` tests of phase 2)
 
-BUG-144 fix: pass 1 said "none". Grep of `[mocked response]` in `qa/tests/phase02_*.spec.ts` on 2026-10-11 finds
-24 tests in four specs (dashboard_edge 15, dashboard_ui 5, wizard_edge 3, notify_edge 1) (lines as read that day; they shift while other agents edit). Every row names the API test
-that proves the real response, or why none can.
+BUG-144 / BUG-193: pass 1 said "none". Grep of `[mocked response]` in `qa/tests/phase02_*.spec.ts` finds 25 tests in four specs
+(dashboard_edge 15, dashboard_ui 6, wizard_edge 3, notify_edge 1). Rows are keyed by spec file + test name, never by line number
+(line numbers went stale as the specs were edited: BUG-193); find a test with `grep -n "<name fragment>" qa/tests/<spec>`. Every row names
+the API test that proves the real response, or why none can.
 
 <!-- mock-pairs:start -->
-| UI test (spec:line) | Endpoint → faked response | Pairing |
+| UI test (spec · test name) | Endpoint → faked response | Pairing |
 |---|---|---|
-| `phase02_dashboard_ui.spec.ts:487` U02 SCR-05 "no project" (dash_empty) | `GET /api/project-summaries` → 200 `{items: []}` | paired: "A02 · fresh engineer: N1 → exactly {items: []} …" — evidence `A02_fresh_summaries_default.json`, `A02_fresh_summaries_limit_1.json`, `A02_fresh_projects.json` (also `A02_fresh_summaries_empty_again.json`): a fresh invited engineer's N1 is exactly `{"items": []}`, `GET /api/projects` = `[]`, `GET /api/notifications` = `[]`; empty again after its only project is deleted |
-| `phase02_dashboard_ui.spec.ts:840` U02 SCR-07 "no project" (onboarding_no_project) | `GET /api/project-summaries` → 200 `{items: []}` | paired: "A02 · fresh engineer: N1 → exactly {items: []} …" — evidence `A02_fresh_summaries_default.json`, `A02_fresh_summaries_limit_1.json`, `A02_fresh_projects.json` (also `A02_fresh_summaries_empty_again.json`) |
-| `phase02_dashboard_edge.spec.ts:1031` E02 SCR-05 "no project" | `GET /api/project-summaries` → 200 `{items: []}` | paired: "A02 · fresh engineer: N1 → exactly {items: []} …" — evidence `A02_fresh_summaries_default.json`, `A02_fresh_summaries_limit_1.json`, `A02_fresh_projects.json` (also `A02_fresh_summaries_empty_again.json`) |
-| `phase02_dashboard_ui.spec.ts:472` U02 SCR-05 "N1 fails (500)" (dash_load_error) | `GET /api/project-summaries` → 500 | unpairable: 5xx — no safe way to make the shared stack fail; real 200 proven by "N1" |
-| `phase02_dashboard_ui.spec.ts:502` U02 SCR-05 "one unreadable row" (dash_partial) | `GET /api/project-summaries` → real page + 1 undecodable row | unpairable: the BE never emits it — ids come from `new_id("prj")` (projects/service.py:247), `ProjectSummaryOut` is strict (wire.py:98-114); readable rows = real page ("N1", "create" assert exact keys) |
-| `phase02_dashboard_ui.spec.ts:775` U02 SCR-06 "list read fails (500)" (notif_load_error) | `GET /api/notifications` → 500 | unpairable: 5xx; real list proven by "notif", "members" |
-| `phase02_dashboard_edge.spec.ts:1011` E02 SCR-05 "N1 fails (500)" | `GET /api/project-summaries` → 500 `{}` | unpairable: 5xx; real 200 proven by "N1" |
-| `phase02_dashboard_edge.spec.ts:1050` E02 SCR-05 "one row the client cannot decode" | `GET /api/project-summaries` → real page + row `id: "not-a-project-id"` | unpairable: BE never emits it (see dash_partial) |
-| `phase02_dashboard_edge.spec.ts:1127` E02 SCR-05 "rename answered 500" | `PATCH /api/projects/:id` → 500 | unpairable: 5xx; real 200 proven by "rename", "fields" |
-| `phase02_dashboard_edge.spec.ts:1157` E02 SCR-05 "rename refused 403 FORBIDDEN" | `PATCH /api/projects/:id` → 403 `FORBIDDEN` | paired: "A02 · role/owner matrix …" — evidence `A02_role_viewer_member_patch_403.json`: viewer member PATCH → 403 `FORBIDDEN` without `resource` (access.py:84-85) |
-| `phase02_dashboard_edge.spec.ts:1180` E02 SCR-05 "delete refused 403 FORBIDDEN" | `DELETE /api/projects/:id` → 403 `FORBIDDEN` | paired: "A02 · role/owner matrix …" — evidence `A02_role_viewer_member_delete_403.json`: viewer member DELETE → 403 `FORBIDDEN` |
-| `phase02_dashboard_edge.spec.ts:1209` E02 SCR-05 "delete answered 500" | `DELETE /api/projects/:id` → 500 | unpairable: 5xx; real 200 / 404-after proven by "delete", "del-idem" |
-| `phase02_dashboard_edge.spec.ts:1343` E02 SCR-05 "status routing" (`qc` / `done` rows) | `GET /api/project-summaries` → real page with two rows rewritten to `qc` / `done` + wall counts | unpairable until CP-5 (Phase 3/4 data): `qc` / `done` need an upload + pipeline (summaries.py:182-197); the rollup rules producible without the pipeline are proven by "rollup", "N1" |
-| `phase02_dashboard_edge.spec.ts:1605` E02 SCR-05 "offline while the list loads" | `GET /api/project-summaries` → aborted | unpairable: network loss |
-| `phase02_dashboard_edge.spec.ts:1633` E02 SCR-05 "N1 held then 500" | `GET /api/project-summaries` → held, then 500 | unpairable: 5xx |
-| `phase02_dashboard_edge.spec.ts:1681` E02 SCR-05 "N1 over two cursor pages" | `GET /api/project-summaries` → page 1 with `nextCursor`, page 2 | paired: "A02 · N1: limit 1..500 …, id ASC cursor paging, …" — evidence `A02_summaries_page1.json`, `A02_summaries_page2.json`: real `limit=1` page carries `nextCursor`, page 2 read with it is the next `id` ASC, the last page has no `nextCursor` (service.py:180-205) |
-| `phase02_dashboard_edge.spec.ts:1725` E02 SCR-05 "N1 page 2 answers 422 CURSOR_INVALID" | `GET /api/project-summaries?cursor=…` → 422 `CURSOR_INVALID` | paired: "A02 · N1: … forged cursor → 422 CURSOR_INVALID …" — evidence `A02_summaries_422_cursor_garbage.json`, `A02_summaries_422_cursor_bad_mac.json`; also "role/owner matrix" `A02_role_engineer_foreign_cursor_422.json` (another user's cursor) |
-| `phase02_dashboard_edge.spec.ts:2267` E02 wizard "network lost on create" | `POST /api/projects` → aborted | unpairable: network loss; real 201 proven by "create" |
-| `phase02_dashboard_edge.spec.ts:2523` E02 SCR-06 "list read held then 500" | `GET /api/notifications` → held, then 500 | unpairable: 5xx |
-| `phase02_dashboard_edge.spec.ts:2669` E02 SCR-07 "N1 held then 500" | `GET /api/project-summaries` → held, then 500 | unpairable: 5xx |
-| `phase02_notify_edge.spec.ts:604` E02 SCR-06 "POST /read fails (500) after the undo window" | `POST /api/notifications/read` → 500 `INTERNAL` | unpairable: 5xx; real 204 proven by "notif", "notif-bodies" |
-| `phase02_wizard_edge.spec.ts:1177` E02 wizard "create 500" | `POST /api/projects` → 500 | unpairable: 5xx; real 201 proven by "create" |
-| `phase02_wizard_edge.spec.ts:1199` E02 wizard "create 503 once, retried with the SAME Idempotency-Key" | `POST /api/projects` → 503 on the 1st attempt, then real | unpairable: 5xx; the real side of the retry (same key + same body → one project; 5xx is never stored, idempotency.py:53,237-239) is proven by "idem" (replay → one project) and "idem-edges" (a failed run does not burn the key) |
-| `phase02_wizard_edge.spec.ts:1223` E02 wizard "network abort on the first create attempt" | `POST /api/projects` → aborted once, then real | unpairable: network loss; retry semantics as above ("idem", "idem-edges") |
+| `phase02_dashboard_ui.spec.ts` U02 SCR-05 "no project" (dash_empty) | `GET /api/project-summaries` → 200 `{items: []}` | paired: "A02 · fresh engineer: N1 → exactly {items: []} …" — evidence `A02_fresh_summaries_default.json`, `A02_fresh_summaries_limit_1.json`, `A02_fresh_projects.json` (also `A02_fresh_summaries_empty_again.json`): a fresh invited engineer's N1 is exactly `{"items": []}`, `GET /api/projects` = `[]`, `GET /api/notifications` = `[]`; empty again after its only project is deleted |
+| `phase02_dashboard_ui.spec.ts` U02 SCR-07 "no project" (onboarding_no_project) | `GET /api/project-summaries` → 200 `{items: []}` | paired: "A02 · fresh engineer: N1 → exactly {items: []} …" — evidence `A02_fresh_summaries_default.json`, `A02_fresh_summaries_limit_1.json`, `A02_fresh_projects.json` (also `A02_fresh_summaries_empty_again.json`) |
+| `phase02_dashboard_ui.spec.ts` U02 SCR-06 "drawer with 3 rows" (notif_rows, notif_rows_unread, notif_rows_mentions) | `GET /api/notifications` → 200 with 3 rows (2 unread, 1 read, 1 comment mention) | paired by the real second-user inbox: phase02_notify_edge.spec.ts (invitee inbox with a real `projectInvite` row, mark-read, filters) + "notif", "notif-bodies" (real `GET /api/notifications` list shape); the admin's own inbox is empty on the shared stack |
+| `phase02_dashboard_edge.spec.ts` E02 SCR-05 "no project" | `GET /api/project-summaries` → 200 `{items: []}` | paired: "A02 · fresh engineer: N1 → exactly {items: []} …" — evidence `A02_fresh_summaries_default.json`, `A02_fresh_summaries_limit_1.json`, `A02_fresh_projects.json` (also `A02_fresh_summaries_empty_again.json`) |
+| `phase02_dashboard_ui.spec.ts` U02 SCR-05 "N1 fails (500)" (dash_load_error) | `GET /api/project-summaries` → 500 | unpairable: 5xx — no safe way to make the shared stack fail; real 200 proven by "N1" |
+| `phase02_dashboard_ui.spec.ts` U02 SCR-05 "one unreadable row" (dash_partial) | `GET /api/project-summaries` → real page + 1 undecodable row | unpairable: the BE never emits it — ids come from `new_id("prj")` (projects/service.py:247), `ProjectSummaryOut` is strict (wire.py:98-114); readable rows = real page ("N1", "create" assert exact keys) |
+| `phase02_dashboard_ui.spec.ts` U02 SCR-06 "list read fails (500)" (notif_load_error) | `GET /api/notifications` → 500 | unpairable: 5xx; real list proven by "notif", "members" |
+| `phase02_dashboard_edge.spec.ts` E02 SCR-05 "N1 fails (500)" | `GET /api/project-summaries` → 500 `{}` | unpairable: 5xx; real 200 proven by "N1" |
+| `phase02_dashboard_edge.spec.ts` E02 SCR-05 "one row the client cannot decode" | `GET /api/project-summaries` → real page + row `id: "not-a-project-id"` | unpairable: BE never emits it (see dash_partial) |
+| `phase02_dashboard_edge.spec.ts` E02 SCR-05 "rename answered 500" | `PATCH /api/projects/:id` → 500 | unpairable: 5xx; real 200 proven by "rename", "fields" |
+| `phase02_dashboard_edge.spec.ts` E02 SCR-05 "rename refused 403 FORBIDDEN" | `PATCH /api/projects/:id` → 403 `FORBIDDEN` | paired: "A02 · role/owner matrix …" — evidence `A02_role_viewer_member_patch_403.json`: viewer member PATCH → 403 `FORBIDDEN` without `resource` (access.py:84-85) |
+| `phase02_dashboard_edge.spec.ts` E02 SCR-05 "delete refused 403 FORBIDDEN" | `DELETE /api/projects/:id` → 403 `FORBIDDEN` | paired: "A02 · role/owner matrix …" — evidence `A02_role_viewer_member_delete_403.json`: viewer member DELETE → 403 `FORBIDDEN` |
+| `phase02_dashboard_edge.spec.ts` E02 SCR-05 "delete answered 500" | `DELETE /api/projects/:id` → 500 | unpairable: 5xx; real 200 / 404-after proven by "delete", "del-idem" |
+| `phase02_dashboard_edge.spec.ts` E02 SCR-05 "status routing" (`qc` / `done` rows) | `GET /api/project-summaries` → real page with two rows rewritten to `qc` / `done` + wall counts | unpairable until CP-5 (Phase 3/4 data): `qc` / `done` need an upload + pipeline (summaries.py:182-197); the rollup rules producible without the pipeline are proven by "rollup", "N1" |
+| `phase02_dashboard_edge.spec.ts` E02 SCR-05 "offline while the list loads" | `GET /api/project-summaries` → aborted | unpairable: network loss |
+| `phase02_dashboard_edge.spec.ts` E02 SCR-05 "N1 held then 500" | `GET /api/project-summaries` → held, then 500 | unpairable: 5xx |
+| `phase02_dashboard_edge.spec.ts` E02 SCR-05 "N1 over two cursor pages" | `GET /api/project-summaries` → page 1 with `nextCursor`, page 2 | paired: "A02 · N1: limit 1..500 …, id ASC cursor paging, …" — evidence `A02_summaries_page1.json`, `A02_summaries_page2.json`: real `limit=1` page carries `nextCursor`, page 2 read with it is the next `id` ASC, the last page has no `nextCursor` (service.py:180-205) |
+| `phase02_dashboard_edge.spec.ts` E02 SCR-05 "N1 page 2 answers 422 CURSOR_INVALID" | `GET /api/project-summaries?cursor=…` → 422 `CURSOR_INVALID` | paired: "A02 · N1: … forged cursor → 422 CURSOR_INVALID …" — evidence `A02_summaries_422_cursor_garbage.json`, `A02_summaries_422_cursor_bad_mac.json`; also "role/owner matrix" `A02_role_engineer_foreign_cursor_422.json` (another user's cursor) |
+| `phase02_dashboard_edge.spec.ts` E02 wizard "network lost on create" | `POST /api/projects` → aborted | unpairable: network loss; real 201 proven by "create" |
+| `phase02_dashboard_edge.spec.ts` E02 SCR-06 "list read held then 500" | `GET /api/notifications` → held, then 500 | unpairable: 5xx |
+| `phase02_dashboard_edge.spec.ts` E02 SCR-07 "N1 held then 500" | `GET /api/project-summaries` → held, then 500 | unpairable: 5xx |
+| `phase02_notify_edge.spec.ts` E02 SCR-06 "POST /read fails (500) after the undo window" | `POST /api/notifications/read` → 500 `INTERNAL` | unpairable: 5xx; real 204 proven by "notif", "notif-bodies" |
+| `phase02_wizard_edge.spec.ts` E02 wizard "create 500" | `POST /api/projects` → 500 | unpairable: 5xx; real 201 proven by "create" |
+| `phase02_wizard_edge.spec.ts` E02 wizard "create 503 once, retried with the SAME Idempotency-Key" | `POST /api/projects` → 503 on the 1st attempt, then real | unpairable: 5xx; the real side of the retry (same key + same body → one project; 5xx is never stored, idempotency.py:53,237-239) is proven by "idem" (replay → one project) and "idem-edges" (a failed run does not burn the key) |
+| `phase02_wizard_edge.spec.ts` E02 wizard "network abort on the first create attempt" | `POST /api/projects` → aborted once, then real | unpairable: network loss; retry semantics as above ("idem", "idem-edges") |
 <!-- mock-pairs:end -->
 
-Re-check needed: other agents are still adding `[mocked response]` tests to `phase02_*_edge.spec.ts`. After they
-land, grep `\[mocked response\]` in `qa/tests/phase02_*` and add one row per new test (paired API test or
-"unpairable: <reason>"); line numbers above will shift.
+Re-check needed when a `[mocked response]` test is added to `phase02_*.spec.ts`: grep `\[mocked response\]` in `qa/tests/phase02_*`
+and add one row per new test (paired API test or "unpairable: <reason>"), keyed by name.
 
 `[held response]` tests deliver the real response, only delayed: no pair needed.
 
