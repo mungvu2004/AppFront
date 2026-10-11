@@ -738,7 +738,11 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
       await expect(dialog.getByRole('table').getByRole('alert')).toHaveCount(0);
       await nameBox.fill(DEFAULT_FLOORS[0]);
       const groundHeight = dialog.getByRole('textbox', { name: `Chiều cao thông thuỷ tầng ${DEFAULT_FLOORS[0]}`, exact: true }); // StepFloors.tsx:131
-      await groundHeight.fill('3');
+      // BUG-224: focus, wait for useNumericField's focus handler, then select all and insert (a bare fill() races it).
+      await groundHeight.focus();
+      await p.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+      await groundHeight.press('Control+A');
+      await p.keyboard.insertText('3');
       await expect(groundHeight).toHaveValue('3');
       await groundHeight.press('Tab');
       await expect(dialog.getByRole('alert').filter({ hasText: HEIGHT_MISSING }).first()).toBeVisible(); // "Tầng 1" upward
