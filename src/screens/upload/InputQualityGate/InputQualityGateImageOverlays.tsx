@@ -48,8 +48,11 @@ const HALF_RATIO = 0.5;
 /** Một nhịp phím mũi tên dịch tay nắm bao nhiêu phần khung. */
 const CORNER_KEYBOARD_STEP_RATIO = 0.01;
 
-/** Cạnh tay nắm góc, px — đặc tả gọi tên đúng con số này. */
+/** Cạnh chấm tay nắm góc, px — đặc tả gọi tên đúng con số này. */
 const CORNER_HANDLE_SIZE_PX = 10;
+
+/** Vùng chạm quanh chấm: 44 px (đích chạm cảm ứng), chấm 10 px vẫn ở giữa (BUG-292). */
+const CORNER_HIT_SIZE_PX = 44;
 
 /**
  * Tên một tay nắm, đọc ra từ chỗ nó đang đứng.
@@ -261,7 +264,7 @@ export interface CornerHandleLayerProps {
 }
 
 /**
- * Bốn tay nắm 10px, kéo được bằng chuột và bằng phím mũi tên.
+ * Bốn tay nắm (chấm 10px, vùng chạm 44px), kéo được bằng chuột và bằng phím mũi tên.
  *
  * `setPointerCapture` giữ sự kiện ở lại tay nắm cho tới lúc nhả, nên không cần
  * một `addEventListener` nào lên `window` và không listener nào sống quá vòng
@@ -281,11 +284,7 @@ export function CornerHandleLayer({
       {corners.map((corner) => (
         <button
           aria-label={cornerLabel(corner)}
-          className={clsx(
-            'absolute -translate-x-1/2 -translate-y-1/2 rounded-full border border-bg-surface bg-accent',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
-            draggingCornerId === corner.id && 'ring-2 ring-accent',
-          )}
+          className="group absolute flex -translate-x-1/2 -translate-y-1/2 touch-none items-center justify-center rounded-full focus-visible:outline-none"
           key={corner.id}
           onKeyDown={(event) => {
             const nudge = nudgeOf(event.key);
@@ -323,11 +322,21 @@ export function CornerHandleLayer({
           style={{
             left: percentOf(corner.xRatio),
             top: percentOf(corner.yRatio),
-            width: CORNER_HANDLE_SIZE_PX,
-            height: CORNER_HANDLE_SIZE_PX,
+            width: CORNER_HIT_SIZE_PX,
+            height: CORNER_HIT_SIZE_PX,
           }}
           type="button"
-        />
+        >
+          <span
+            aria-hidden="true"
+            className={clsx(
+              'rounded-full border border-bg-surface bg-accent',
+              'group-focus-visible:ring-2 group-focus-visible:ring-accent group-focus-visible:ring-offset-2',
+              draggingCornerId === corner.id && 'ring-2 ring-accent',
+            )}
+            style={{ width: CORNER_HANDLE_SIZE_PX, height: CORNER_HANDLE_SIZE_PX }}
+          />
+        </button>
       ))}
     </div>
   );

@@ -359,6 +359,8 @@ export interface PipelineGraphViewModel {
   /** Câu nói xử lý vẫn đang tiếp tục, ở trạng thái một phần. */
   readonly partialNoticeLine?: string;
   readonly alert?: PipelineGraphAlertViewModel;
+  /** #24 trả 404: màn chỉ nói "không tìm thấy dự án" kèm lối về danh sách (BUG-313). */
+  readonly isProjectMissing?: true;
   /** Dưới 1024 thì sơ đồ xếp dọc thành danh sách bước. */
   readonly isCompact: boolean;
   readonly prefersReducedMotion: boolean;
@@ -379,6 +381,7 @@ export interface PipelineGraphActions {
   readonly onPanGraph: (deltaX: number, deltaY: number) => void;
   readonly onZoomGraph: (zoom: number) => void;
   readonly onResetViewport: () => void;
+  readonly onBackToProjects: () => void;
 }
 
 /** Màn Sơ đồ xử lý như một hàm của props (mục D). */

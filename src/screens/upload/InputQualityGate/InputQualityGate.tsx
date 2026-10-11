@@ -19,7 +19,7 @@
  * | `partial`   | hai cột đầy đủ; báo cáo tự nêu còn bao nhiêu tầng chưa đo, đọc `partialNotice` |
  * | `ready`     | hai cột đầy đủ                                                |
  * | `forbidden` | hai cột đầy đủ; chân trang tự ẩn hai nút hành động, đọc `footer.areActionsHidden` |
- * | `collapsed` | cùng hai cột, cột phải đổi thành lớp phủ đáy                  |
+ * | `collapsed` | cùng hai cột; dưới 1024px cột phải xếp dưới bản vẽ (BUG-291)    |
  *
  * Không nhánh nào trả `null`: màn trắng là thất bại duy nhất A11 tồn tại để
  * chặn. `empty`/`partial`/`forbidden` không có JSX riêng ở đây vì khác biệt
@@ -31,16 +31,13 @@
  * ## Bố cục hai cột
  *
  * Cột trái (ảnh) chiếm 62%, cột phải (báo cáo) rộng cố định 344px, nội dung
- * giới hạn 1280px. Dưới 1024px cột phải trở thành tấm trượt đáy — cố định vào
- * mép dưới màn hình, cuộn riêng, bo góc trên. Trạng thái `collapsed` áp cùng
- * kiểu tấm trượt đó bất kể bề rộng khung nhìn, vì đó là quyết định của hook
- * (nhúng trong khung hẹp, hoặc ép bằng tay cho story/test), không phải của
- * CSS breakpoint.
+ * giới hạn 1280px. Dưới 1024px cột phải xếp xuống DƯỚI bản vẽ, trong dòng chảy
+ * trang — không phải tấm cố định đè lên: tấm cố định cao 70vh che gần hết bản vẽ
+ * (còn ~144 px ở 375) và không còn chỗ kéo bốn góc (BUG-291).
  */
 
 import { useEffect, useRef } from 'react';
 import { ImageOff } from 'lucide-react';
-import { clsx } from 'clsx';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -69,15 +66,9 @@ const WRITE_ERROR_TITLE = 'Chưa xử lý được bản vẽ';
 /** Bao nhiêu khung xương lúc chưa biết phép đo nào đã xong. */
 const SKELETON_ROW_COUNT = 4;
 
-/** Cùng khuôn `InputQualityGateReportPanel`/`InputQualityGateFooter` — tấm trượt đáy dưới 1024px. */
-const BOTTOM_SHEET_CLASSES =
-  'fixed inset-x-0 bottom-0 z-10 max-h-[70vh] overflow-y-auto rounded-t-[16px] border-t border-border-default bg-bg-surface p-4';
-const BOTTOM_SHEET_RESET_AT_DESKTOP =
-  'lg:static lg:max-h-none lg:overflow-visible lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0';
 
 /** Màn Cổng chất lượng đầu vào như một hàm của props — test và story dựng thẳng cái này. */
 export function InputQualityGateView({ actions, model }: InputQualityGateViewProps) {
-  const isCollapsed = model.status === 'collapsed';
   const rootRef = useRef<HTMLDivElement>(null);
   const writeErrorRef = useRef<HTMLDivElement>(null);
   const retryFocus = model.retryFocus ?? null;
@@ -173,9 +164,8 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
               image={model.image}
             />
           </div>
-          <div
-            className={clsx('lg:w-[344px]', BOTTOM_SHEET_CLASSES, !isCollapsed && BOTTOM_SHEET_RESET_AT_DESKTOP)}
-          >
+          {/* Dưới 1024px báo cáo xếp dưới bản vẽ, trong dòng chảy trang (BUG-291). */}
+          <div className="lg:w-[344px]">
             <InputQualityGateReportPanel
               actions={{
                 onHoverFinding: actions.onHoverFinding,

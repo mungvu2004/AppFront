@@ -38,6 +38,11 @@ import { clsx } from 'clsx';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import {
+  BACK_TO_PROJECTS_LABEL,
+  PROJECT_NOT_FOUND_DESCRIPTION,
+  PROJECT_NOT_FOUND_TITLE,
+} from '@/components/feedback/ProjectSpatialGate';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { Button } from '@/components/ui/Button';
 
@@ -127,6 +132,23 @@ function PipelineGraphDisclosure({ actions, model }: PipelineGraphProps) {
 /** Màn Sơ đồ xử lý như một hàm của props (mục D) — test và story dựng thẳng cái này. */
 export function PipelineGraph({ actions, model }: PipelineGraphProps) {
   const { alert } = model;
+
+  // Dự án không tồn tại: một câu, một lối ra — như màn Tầng, Chất lượng (BUG-313).
+  if (model.isProjectMissing === true) {
+    return (
+      <div className="min-h-screen bg-bg-app">
+        <div className="mx-auto flex max-w-[1080px] flex-col gap-6 p-8">
+          <InlineAlert
+            action={{ label: BACK_TO_PROJECTS_LABEL, onClick: actions.onBackToProjects }}
+            level="violation"
+            message={PROJECT_NOT_FOUND_DESCRIPTION}
+            title={PROJECT_NOT_FOUND_TITLE}
+          />
+        </div>
+      </div>
+    );
+  }
+
   const isCompact = model.isCompact || model.state === 'collapsed';
 
   const body =

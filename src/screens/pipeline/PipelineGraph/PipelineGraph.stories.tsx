@@ -69,6 +69,7 @@ const ACTIONS: PipelineGraphActions = {
   onPanGraph: NO_OP,
   onZoomGraph: NO_OP,
   onResetViewport: NO_OP,
+  onBackToProjects: NO_OP,
 };
 
 /** Nút đang chọn trong mọi cảnh chi tiết: bước có đủ tham số, ảnh và nhật ký. */

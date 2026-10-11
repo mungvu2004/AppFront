@@ -27,7 +27,7 @@
  */
 
 import { useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -36,6 +36,7 @@ import {
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
 import { useSession } from '@/hooks/useSession';
+import { ROUTES } from '@/routes/paths';
 import type { ProjectRole } from '@/types/project';
 
 import { PipelineGraph } from './PipelineGraph';
@@ -63,6 +64,8 @@ export interface PipelineGraphContainerProps {
   readonly gateway?: PipelineGraphGateway;
   /** Ép sơ đồ xếp dọc — cho story hoặc test muốn một câu trả lời cố định. */
   readonly forceCollapsed?: boolean;
+  /** Lối về danh sách khi dự án không tồn tại (BUG-313). */
+  readonly onBackToProjects?: () => void;
 }
 
 /** Cùng khuôn `ScaleCalibrationCrashFallback` — R-62. */
@@ -91,6 +94,7 @@ function WiredPipelineGraph(props: PipelineGraphContainerProps) {
     ...(props.run !== undefined ? { run: props.run } : {}),
     ...(props.roles !== undefined ? { roles: props.roles } : {}),
     ...(props.forceCollapsed !== undefined ? { forceCollapsed: props.forceCollapsed } : {}),
+    ...(props.onBackToProjects !== undefined ? { onBackToProjects: props.onBackToProjects } : {}),
   });
 
   return <PipelineGraph actions={screenProps.actions} model={screenProps.model} />;
@@ -114,6 +118,7 @@ export function PipelineGraphContainer(props: PipelineGraphContainerProps) {
 export function PipelineGraphRoute() {
   const { projectId: id } = useParams<{ projectId: string }>();
   const session = useSession();
+  const navigate = useNavigate();
 
   if (id === undefined || id.length === 0) {
     return (
@@ -127,5 +132,13 @@ export function PipelineGraphRoute() {
     );
   }
 
-  return <PipelineGraphContainer projectId={id} roles={session.roles} />;
+  return (
+    <PipelineGraphContainer
+      onBackToProjects={() => {
+        navigate(ROUTES.dashboard);
+      }}
+      projectId={id}
+      roles={session.roles}
+    />
+  );
 }

@@ -84,7 +84,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { Progress } from '@/api/schemas';
+import {
+  PROJECT_NOT_FOUND_DESCRIPTION,
+  PROJECT_NOT_FOUND_TITLE,
+} from '@/components/feedback/ProjectSpatialGate';
 import { useNotifications } from '@/hooks/useNotifications';
+import { isProjectNotFound } from '@/hooks/useProjectSpatial';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { can } from '@/lib/auth/permissions';
 import { formatClockTime, formatDuration } from '@/lib/format/datetime';
@@ -334,7 +339,6 @@ interface FloorProgressRecord {
   readonly queuePosition?: number;
   readonly stepDetails?: readonly ProcessingRawStepProgress[];
   readonly detectedGeometryPaths?: readonly string[];
-  readonly extraction?: ProcessingExtractionSummary;
 }
 
 function emptyRecord(upload: ProcessingFloorUpload): FloorProgressRecord {
@@ -561,7 +565,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   // Mở thẳng đường dẫn: bộ đệm chưa có #24 hay thẻ N1 nào nêu tên, nên đọc #24 một lần
   // dưới chính khoá của nó — breadcrumb nêu tên dự án ở mọi lối vào (BUG-165).
   const projectName = cachedProjectName(queryClient, projectId);
-  useQuery({
+  const projectQuery = useQuery({
     queryKey: queryKeys.project.detail(projectId),
     queryFn: async ({ signal }) => {
       const result = await gateway.readProject({ projectId, signal });
@@ -570,6 +574,8 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     },
     enabled: projectName === null,
   });
+  // Đọc `data` ở đây để lượt #24 về vẫn vẽ lại màn: v5 chỉ báo thay đổi của trường đã đọc.
+  const knownProjectName = projectName ?? projectQuery.data?.name ?? null;
   const { publish } = useNotifications(options.notifications);
 
   // Đăng ký đang mở, khoá theo `uploadId`. `onRunInBackground` rút mục ra khỏi
@@ -629,12 +635,11 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
           queryKeys.progress.byFloor(upload.floorId),
         );
 
-        const [progress, queuePosition, stepDetails, geometry, extraction] = await Promise.all([
+        const [progress, queuePosition, stepDetails, geometry] = await Promise.all([
           gateway.readProgressOnce({ projectId, uploadId: upload.uploadId }),
           gateway.readQueuePosition({ projectId, uploadId: upload.uploadId }),
           gateway.readStepDetails({ projectId, uploadId: upload.uploadId }),
           gateway.readDetectedGeometry({ projectId, floorId: upload.floorId }),
-          gateway.readExtractionSummary({ projectId, floorId: upload.floorId }),
         ]);
 
         if (!progress.ok) {
@@ -663,7 +668,6 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
           ...(queuePosition.supported ? { queuePosition: queuePosition.value } : {}),
           ...(stepDetails.supported ? { stepDetails: stepDetails.value } : {}),
           ...(geometry.supported ? { detectedGeometryPaths: geometry.value } : {}),
-          ...(extraction.supported ? { extraction: extraction.value } : {}),
         };
       },
     })),
@@ -725,13 +729,32 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     .map((status, index) => (status === 'failed' ? index : -1))
     .filter((index) => index >= 0);
   const doneCount = floorStatuses.filter((status) => status === 'done').length;
+
+  // Tổng kết đọc SAU khi tầng xong (BUG-285): lớp AI chỉ được ghi vào tài liệu tầng ở bước
+  // cuối, nên đọc lúc mồi sẽ đếm lớp cũ — và một lượt xong qua SSE không đọc mồi lại.
+  const extractionQueries = useQueries({
+    queries: floorUploads.map((upload, index) => ({
+      queryKey: [...queryKeys.progress.byFloor(upload.floorId), 'extraction', upload.uploadId] as const,
+      queryFn: async (): Promise<ProcessingExtractionSummary | null> => {
+        const extraction = await gateway.readExtractionSummary({ projectId, floorId: upload.floorId });
+        return extraction.supported ? extraction.value : null;
+      },
+      enabled: floorStatuses[index] === 'done',
+    })),
+  });
+  const extractions = extractionQueries.map((query) => query.data ?? undefined);
   // Lỗi đọc tạm không đẩy tầng đang xem sang tầng khác (không mở luồng thứ hai);
   // upload đã mất (404/403) thì nhường chỗ.
   const activeIndex = records.findIndex(
     (record) => record.failure?.isTerminal !== true && runStatusOf(record) === 'running',
   );
 
+  // N7 hoặc #24 trả 404 `project`: dự án không có, không phải lỗi đọc tạm (BUG-312).
+  const isProjectMissing =
+    isProjectNotFound(latestUploadsQuery.error) || isProjectNotFound(projectQuery.error);
+
   const state = useMemo<ProcessingScreenState>(() => {
+    if (isProjectMissing) return 'error';
     if (isLoading) return 'loading';
     if (hasEveryReadFailed) return 'error';
     if (!canEdit) return 'forbidden';
@@ -741,7 +764,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     if (isCompact) return 'collapsed';
     if (doneCount < records.length) return 'partial';
     return 'success';
-  }, [canEdit, doneCount, hasEveryReadFailed, isCompact, isLoading, records.length]);
+  }, [canEdit, doneCount, hasEveryReadFailed, isCompact, isLoading, isProjectMissing, records.length]);
 
   /* ---------------------------------------------------------------------- */
   /* Hành động.                                                              */
@@ -898,9 +921,8 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   const floors = useMemo<readonly ProcessingFloorChipViewModel[]>(
     () =>
       floorUploads.map((upload, index) => {
-        const record = records[index];
         const status = floorStatuses[index] ?? 'queued';
-        const objectCount = record?.extraction;
+        const objectCount = extractions[index];
 
         return {
           id: upload.floorId,
@@ -918,7 +940,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
             : {}),
         };
       }),
-    [activeIndex, floorStatuses, floorUploads, records],
+    [activeIndex, extractions, floorStatuses, floorUploads],
   );
 
   /**
@@ -1183,13 +1205,34 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     };
   }, [floorStatuses, floorUploads, focusIndex, focusRecord]);
 
+  /**
+   * Khối tổng kết hiện ngay khi một tầng xong — kể cả khi chưa đọc được con số (lỗi N16): hai lối
+   * đi tiếp không được phụ thuộc vào số liệu, nếu không màn xong là ngõ cụt (BUG-285).
+   */
   const summary = useMemo<ProcessingSummaryViewModel | undefined>(() => {
-    const parts = records
-      .map((record) => record.extraction)
-      .filter((extraction): extraction is ProcessingExtractionSummary => extraction !== undefined);
+    const doneIndex = floorStatuses.indexOf('done');
+
+    if (doneIndex < 0) {
+      return undefined;
+    }
+
+    const parts = extractions.filter(
+      (extraction): extraction is ProcessingExtractionSummary => extraction !== undefined,
+    );
+    const goTo = (route: (projectId: string, floorId: string) => string) => () => {
+      const upload = uploadsRef.current[doneIndex];
+
+      if (upload !== undefined) {
+        navigate(route(projectId, upload.floorId));
+      }
+    };
+    const actions = {
+      onReviewWalls: goTo(ROUTES.project.walls),
+      onCalibrateScale: goTo(ROUTES.project.scale),
+    };
 
     if (parts.length === 0) {
-      return undefined;
+      return { metricLabels: [], ...actions };
     }
 
     const total = parts.reduce(
@@ -1214,11 +1257,13 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     const threshold = formatNumber(CONFIDENCE_SUGGESTED_THRESHOLD, { fractionDigits: 2 });
 
     return {
-      wallCountLabel: countLabel(total.wallCount, UNIT.wall),
-      objectCountLabel: countLabel(total.wallCount + total.openingCount, UNIT.object),
-      dimensionCountLabel: countLabel(total.dimensionCount, UNIT.dimensionChain),
-      roomCountLabel: countLabel(total.roomCount, UNIT.room),
-      areaLabel: formatArea(total.areaM2),
+      metricLabels: [
+        countLabel(total.wallCount, UNIT.wall),
+        countLabel(total.wallCount + total.openingCount, UNIT.object),
+        countLabel(total.dimensionCount, UNIT.dimensionChain),
+        countLabel(total.roomCount, UNIT.room),
+        formatArea(total.areaM2),
+      ],
       lowConfidenceSentence:
         total.lowConfidenceCount === 0
           ? noLowConfidenceSentence(threshold)
@@ -1226,22 +1271,9 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
               formatNumber(total.lowConfidenceCount, { fractionDigits: 0 }),
               threshold,
             ),
-      onReviewWalls: () => {
-        const upload = uploadsRef.current[focusIndex];
-
-        if (upload !== undefined) {
-          navigate(ROUTES.project.walls(projectId, upload.floorId));
-        }
-      },
-      onCalibrateScale: () => {
-        const upload = uploadsRef.current[focusIndex];
-
-        if (upload !== undefined) {
-          navigate(ROUTES.project.scale(projectId, upload.floorId));
-        }
-      },
+      ...actions,
     };
-  }, [focusIndex, navigate, projectId, records]);
+  }, [extractions, floorStatuses, navigate, projectId]);
 
   const overallSummaryLine = useMemo(() => {
     if (records.length === 0) return NO_RUN_SENTENCE;
@@ -1280,6 +1312,20 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
       records.find((record) => record.failure !== undefined)?.failure ??
       gateway.describeApiFailure(firstReadError);
 
+    if (isProjectMissing) {
+      return {
+        title: PROJECT_NOT_FOUND_TITLE,
+        message: PROJECT_NOT_FOUND_DESCRIPTION,
+        technicalCode: failure.technicalCode,
+        onRetry,
+        onGoToSupport,
+        isProjectMissing: true,
+        onBackToProjects: () => {
+          navigate(ROUTES.dashboard);
+        },
+      };
+    }
+
     return {
       title: failure.title,
       message: failure.sentence,
@@ -1287,7 +1333,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
       onRetry,
       onGoToSupport,
     };
-  }, [firstReadError, gateway, onGoToSupport, onRetry, records, state]);
+  }, [firstReadError, gateway, isProjectMissing, navigate, onGoToSupport, onRetry, records, state]);
 
   // Không bọc `useMemo`: `records` là mảng mới mỗi lượt render (cùng lý lẽ
   // `failedIndexes` ở trên), và một vòng `find` lồng `find` trên tối đa vài chục
@@ -1343,6 +1389,6 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     onUploadDrawings,
     isCompact,
     prefersReducedMotion,
-    ...(projectName !== null ? { projectName } : {}),
+    ...(knownProjectName !== null ? { projectName: knownProjectName } : {}),
   };
 }

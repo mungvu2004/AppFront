@@ -36,11 +36,11 @@
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
-import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { NotificationHost } from '@/components/feedback/NotificationHost';
-import { createMockApiClient } from '@/api/__mocks__/client';
+import { createMockApiClient, MOCK_MISSING_PROJECT_ID } from '@/api/__mocks__/client';
 import type { Progress } from '@/api/schemas';
 import viMessages from '@/i18n/vi.json';
 import { toAppError } from '@/lib/errors';
@@ -490,6 +490,33 @@ describe('ProcessingScreenContainer — R-73', () => {
   });
 });
 
+describe('ProcessingScreenContainer — dự án không tồn tại (BUG-312)', () => {
+  it('one "Không tìm thấy dự án này" with the way back; no "Thử lại", no raw code, no empty panels', async () => {
+    const onNavigate = vi.fn();
+    // The real N7 answers 404 `project` for an unknown project, as #24 does.
+    const missing = await createMockApiClient().projects.read({ projectId: MOCK_MISSING_PROJECT_ID });
+    if (missing.ok) throw new Error('the mock should not know this project');
+    renderWithProviders(
+      <ProcessingScreenContainer
+        gateway={{
+          ...gatewayWithCancel(() => undefined),
+          readLatestUploads: () => Promise.resolve({ ok: false, error: missing.error }),
+        }}
+        onNavigate={onNavigate}
+        projectId={MOCK_MISSING_PROJECT_ID}
+        roles={['engineer']}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Về danh sách dự án' }));
+    expect(onNavigate).toHaveBeenCalledWith('/');
+    expect(screen.getByText('Không tìm thấy dự án này')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /thử lại/iu })).toBeNull();
+    expect(screen.queryByText('NOT_FOUND')).toBeNull();
+    expect(screen.queryByRole('tablist')).toBeNull();
+  });
+});
+
 /* -------------------------------------------------------------------------- */
 /* Gắn S-11 `PipelineFailure` khi một bước AI hỏng.                            */
 /* -------------------------------------------------------------------------- */
@@ -740,5 +767,20 @@ describe('ProcessingScreen — màn rỗng (BUG-165)', () => {
     renderWithProviders(<ProcessingScreen {...scenarioFor('empty')} projectName="Nhà phố Quận 3" />);
 
     expect(screen.getByRole('navigation', { name: 'Xử lý' })).toHaveTextContent('Dự án › Nhà phố Quận 3 › Xử lý');
+  });
+});
+
+describe('ProcessingScreen — khổ hẹp (BUG-294)', () => {
+  it('a narrow finished run still lists every step behind "Xem tất cả các bước", and the summary is in the page flow', () => {
+    const { container } = renderWithProviders(<ProcessingScreen {...scenarioFor('success')} isCompact />);
+
+    fireEvent.click(screen.getByText('Xem tất cả các bước'));
+    const steps = screen.getByRole('list', { name: 'Các bước xử lý' });
+    for (const name of PIPELINE_STEP_NAMES) {
+      expect(within(steps).getByRole('progressbar', { name })).toBeInTheDocument();
+    }
+    // No fixed overlay left to cover "Duyệt lớp tường" (BUG-285 at 768/375).
+    expect(container.querySelector('.fixed')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Duyệt lớp tường' })).toBeInTheDocument();
   });
 });

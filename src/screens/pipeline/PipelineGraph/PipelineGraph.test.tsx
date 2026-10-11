@@ -20,7 +20,7 @@ import { readdirSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 
-import { createMockApiClient } from '@/api/__mocks__/client';
+import { createMockApiClient, MOCK_MISSING_PROJECT_ID } from '@/api/__mocks__/client';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
@@ -233,6 +233,24 @@ describe('PipelineGraph — nghiệm thu', () => {
 
     expect(await screen.findByText(PIPELINE_GRAPH_TEXT.reasonNoReport)).toBeTruthy();
     expect(screen.queryByText(PIPELINE_GRAPH_TEXT.reasonUnknown)).toBeNull();
+  });
+
+  // BUG-313: an unknown project drew the normal empty diagram, with no error and no way back.
+  it('an unknown project says "Không tìm thấy dự án này" with a way back to the list, not an empty diagram (BUG-313)', async () => {
+    const onBackToProjects = vi.fn();
+    renderWithProviders(
+      <PipelineGraphContainer
+        gateway={createPipelineGraphGateway(createProcessingGateway(createMockApiClient()))}
+        onBackToProjects={onBackToProjects}
+        projectId={MOCK_MISSING_PROJECT_ID}
+        roles={['admin']}
+      />,
+    );
+
+    expect(await screen.findByText('Không tìm thấy dự án này')).toBeTruthy();
+    expect(screen.queryByText(PIPELINE_GRAPH_TEXT.emptyTitle)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Về danh sách dự án' }));
+    expect(onBackToProjects).toHaveBeenCalledTimes(1);
   });
 
   it('vai Kỹ sư không thấy chế độ chi tiết kỹ thuật', async () => {

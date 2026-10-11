@@ -43,6 +43,7 @@
  * được truyền lên tới giao diện.
  */
 
+import { isProjectNotFound } from '@/hooks/useProjectSpatial';
 import { describeError, toAppError } from '@/lib/errors';
 import type { AppError } from '@/lib/errors';
 import type { PipelineStageId, PipelineStageState } from '@/lib/realtime/pipeline';
@@ -234,6 +235,8 @@ export interface RerunFromNodeInput {
 
 export interface PipelineGraphGateway {
   readonly supports: Readonly<Record<PipelineGraphCapability, boolean>>;
+  /** #24: `false` khi chính dự án trả 404 — màn nói "không tìm thấy" thay vì sơ đồ rỗng (BUG-313). */
+  readonly readProjectExists: (input: { readonly projectId: string; readonly signal?: AbortSignal }) => Promise<boolean>;
   readonly readRunOnce: (
     input: ReadRunInput,
   ) => Promise<PipelineGraphCapabilityResult<readonly PipelineStageState[]>>;
@@ -296,6 +299,16 @@ export function createPipelineGraphGateway(
       nodeDetail: false,
       switchBranch: false,
       rerunFromNode: false,
+    },
+
+    readProjectExists: async ({ projectId, signal }) => {
+      const result = await processing.readProject({ projectId, ...(signal !== undefined ? { signal } : {}) });
+
+      if (result.ok || !isProjectNotFound(result.error)) {
+        return true;
+      }
+
+      return false;
     },
 
     readRunOnce: async ({ projectId, signal, uploadId }) => {
@@ -524,6 +537,8 @@ export interface CreateMockPipelineGraphGatewayOptions {
   readonly supports?: Partial<Record<PipelineGraphCapability, boolean>>;
   /** Trạng thái sáu bước trả về ngay, không cần dòng sự kiện nào. */
   readonly stages?: readonly PipelineStageState[];
+  /** Dự án trả 404 (BUG-313). */
+  readonly isProjectMissing?: boolean;
   readonly now?: () => number;
 }
 
@@ -554,6 +569,8 @@ export function createMockPipelineGraphGateway(
 
   return {
     supports,
+
+    readProjectExists: () => Promise.resolve(options.isProjectMissing !== true),
 
     readRunOnce: () => Promise.resolve({ supported: true, value: stages }),
 

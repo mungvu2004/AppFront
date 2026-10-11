@@ -103,6 +103,8 @@ const EXPAND_PANEL_LABEL = 'Mở bảng lớp';
  */
 const ERROR_CODE_PREFIX = 'Mã lỗi: ';
 
+const IMPORT_REASON_ID = 'cad-import-disabled-reason';
+
 /** Dấu ngăn hai vế của dòng tóm tắt, cùng dấu bảng lớp dùng cho dòng gợi ý. */
 const SUMMARY_SEPARATOR = ' · ';
 
@@ -170,6 +172,7 @@ function messageFor(model: CadBranchConfirmViewModel): string | null {
 interface CadMappingSummaryBarProps {
   readonly summary: CadMappingSummary;
   readonly canImportGeometry: boolean;
+  readonly disabledReason: string | null;
   readonly isImporting: boolean;
   readonly prefersReducedMotion: boolean;
   readonly onImportGeometry: () => void;
@@ -184,6 +187,7 @@ interface CadMappingSummaryBarProps {
  */
 function CadMappingSummaryBar({
   canImportGeometry,
+  disabledReason,
   isImporting,
   onImportGeometry,
   prefersReducedMotion,
@@ -210,14 +214,22 @@ function CadMappingSummaryBar({
         </p>
       </div>
 
-      <Button
-        disabled={!canImportGeometry}
-        loading={isImporting}
-        onClick={onImportGeometry}
-        variant="primary"
-      >
-        {IMPORT_BUTTON_LABEL}
-      </Button>
+      <div className="flex flex-col items-end gap-1">
+        <Button
+          {...(disabledReason !== null ? { 'aria-describedby': IMPORT_REASON_ID } : {})}
+          disabled={!canImportGeometry}
+          loading={isImporting}
+          onClick={onImportGeometry}
+          variant="primary"
+        >
+          {IMPORT_BUTTON_LABEL}
+        </Button>
+        {disabledReason !== null ? (
+          <p className="text-[12px] text-text-secondary" id={IMPORT_REASON_ID}>
+            {disabledReason}
+          </p>
+        ) : null}
+      </div>
     </footer>
   );
 }
@@ -296,6 +308,15 @@ export function CadBranchConfirm({ actions, model }: CadBranchConfirmProps) {
             title={NOTICE_TITLES[model.state]}
           />
 
+          {/* Không có lớp nào ở giai đoạn 2: lối đi tiếp là nhánh AI, không phải ngõ cụt (BUG-314). */}
+          {model.state === 'empty' && isStageTwoOpen && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button onClick={() => actions.onChooseBranch('ai')} size="sm" variant="secondary">
+                {PHASE_1_TEXT.buttons.secondary}
+              </Button>
+            </div>
+          )}
+
           {isError && (
             <div className="flex flex-wrap items-center gap-2">
               <Button onClick={() => actions.onChooseBranch('ai')} size="sm" variant="secondary">
@@ -368,6 +389,7 @@ export function CadBranchConfirm({ actions, model }: CadBranchConfirmProps) {
       {isStageTwoOpen && model.summary !== null && model.state !== 'forbidden' && (
         <CadMappingSummaryBar
           canImportGeometry={model.canImportGeometry}
+          disabledReason={model.importDisabledReason}
           isImporting={model.isImporting}
           onImportGeometry={actions.onImportGeometry}
           prefersReducedMotion={model.prefersReducedMotion}

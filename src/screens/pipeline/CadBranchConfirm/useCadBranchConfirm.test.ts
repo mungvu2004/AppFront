@@ -284,6 +284,19 @@ describe('useCadBranchConfirm — bảy trạng thái', () => {
     expect(success.result.current.model.partialNotice).toBeNull();
   });
 
+  // BUG-314: with no layer, collapsing the layer panel hid the "no named layers" notice and the
+  // "Nhập hình học" button sat greyed out with no reason.
+  it('no layer at stage two: still "empty" with the panel collapsed, and the locked import says why (BUG-314)', async () => {
+    const mounted = mountHook(gatewayFor('empty'), { forceMappingPanelCollapsed: true });
+    await openLayerMapping(mounted);
+
+    const { model } = mounted.result.current;
+    expect(model.state).toBe('empty');
+    expect(model.emptyNotice).not.toBeNull();
+    expect(model.canImportGeometry).toBe(false);
+    expect(model.importDisabledReason).toBe('Không có lớp nào để ánh xạ, nên chưa có hình học để nhập.');
+  });
+
   it('trạng thái Lỗi mang số phiên bản tệp và mã máy đọc ra tới view', async () => {
     const mounted = await mountInState('error');
     const { model } = mounted.result.current;
