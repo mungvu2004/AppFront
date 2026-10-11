@@ -87,8 +87,9 @@ export function StepFloors(props: StepFloorsProps) {
           {/* Fits the dialog at every width, 375 px included (BUG-110): the two fields
               take `w-full` so they shrink with their column instead of forcing the
               table wider than the dialog, the long header may wrap, and cells pad
-              tighter below `sm`. */}
-          <Table.Root>
+              tighter below `sm`. Not a scroll box of its own (`overflow-visible`): the dialog
+              body scrolls, so the sticky column headers stay on top of a long list (BUG-202). */}
+          <Table.Root className="h-auto overflow-visible">
             <Table.Header>
               <tr>
                 <Table.Head className={CELL_PAD}>Tầng</Table.Head>

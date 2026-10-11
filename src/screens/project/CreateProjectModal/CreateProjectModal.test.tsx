@@ -269,6 +269,15 @@ describe('CreateProjectModalView', () => {
     expect(fade?.nextElementSibling).toBeNull();
   });
 
+  it('lets the floor table headers stick to the dialog body, not to a scroll box of the table (BUG-202)', () => {
+    render(<CreateProjectModalView {...baseProps()} step={2} stepLabel="bước 2 / 3" />);
+
+    const wrapper = screen.getByRole('table').parentElement;
+    expect(wrapper).toHaveClass('overflow-visible', 'h-auto');
+    expect(wrapper).not.toHaveClass('overflow-auto');
+    expect(screen.getByRole('table').querySelector('thead')).toHaveClass('sticky', 'top-0');
+  });
+
   it('warns before discarding unsaved changes, in the dialog itself — no nested dialog', () => {
     const confirmDiscard = vi.fn();
     render(<CreateProjectModalView {...baseProps()} isConfirmingDiscard step={1} stepLabel="bước 1 / 3" />);
