@@ -7,6 +7,7 @@
  * Budget — logins: 1 real admin API login (`signedInApi`, SCR-05 group), no browser login.
  * Writes (all on `qa-<runId>-u02-…` projects, all deleted by this file):
  *   - SCR-05 group setup: 1 `POST /api/projects` (80-char name) + 1 `DELETE` in `afterAll`;
+ *   - SCR-05 group setup also deletes `qa-<other runId>-…` projects an earlier run left (BUG-200, `sweepStaleRunProjects`);
  *   - `U02_dash_rename_toast`: 1 `POST` (API) + 4 `PATCH /api/projects/:id` (one rename per width, UI, between two 80-char
  *     names ending in a long run without space or hyphen, BUG-131) + 1 `DELETE` (API);
  *   - `U02_dash_create_toast`: up to 4 `POST /api/projects` through the wizard (one per width) + as many `DELETE` (API);
@@ -366,6 +367,33 @@ async function expectWelcomeCards(page: Page): Promise<void> {
   await settled(page.getByRole('listitem').last());
 }
 
+/** This suite's data prefix for ANY run (`testDataPrefix` `qa-{runId}-`, qa.config.json). */
+const ANY_RUN_PREFIX = /^qa-run-[^-\s]+-/u;
+
+/**
+ * BUG-200: `qa-<other runId>-…` projects an earlier run of this suite failed to delete take cards and counts in this
+ * file's shots. Only that prefix is swept (`DELETE /api/projects/:id`, a soft delete, BE #27); this run's own
+ * `qa-<runId>-…` data, CP-2 (`E2E-QA-…`) and everything else are left alone. A failure is an annotation, never an error.
+ * ponytail: assumes one QA run at a time on the stack; a concurrent run under another runId would lose its data.
+ */
+async function sweepStaleRunProjects(api: APIRequestContext): Promise<void> {
+  const note = (description: string): void => {
+    test.info().annotations.push({ type: 'cleanup', description });
+  };
+  const list = await api.get(PROJECTS_PATH); // #23: every project the admin is a member of
+  if (list.status() !== 200) {
+    note(`sweep: GET ${PROJECTS_PATH} → ${String(list.status())}`);
+    return;
+  }
+  const rows = (await list.json()) as readonly { readonly id?: unknown; readonly name?: unknown }[];
+  for (const { id, name } of rows) {
+    if (typeof id !== 'string' || typeof name !== 'string') continue;
+    if (!ANY_RUN_PREFIX.test(name) || name.startsWith(TEST_DATA_PREFIX)) continue;
+    const res = await api.delete(`${PROJECTS_PATH}/${id}`);
+    note(`sweep: DELETE stale "${name}" → ${String(res.status())}`);
+  }
+}
+
 test.describe('U02 UI verify — SCR-05 dashboard (with an 80-character project this file creates)', () => {
   let admin: APIRequestContext | undefined;
   let project: { id: string; name: string } | undefined;
@@ -373,6 +401,7 @@ test.describe('U02 UI verify — SCR-05 dashboard (with an 80-character project 
   test.beforeAll(async () => {
     const { email, password } = readAdminCredentials();
     admin = await signedInApi(email, password);
+    await sweepStaleRunProjects(admin);
     const requested = longName('u02');
     expect(requested.length).toBe(NAME_MAX_LENGTH);
     const res = await admin.post(PROJECTS_PATH, { data: { name: requested } });
