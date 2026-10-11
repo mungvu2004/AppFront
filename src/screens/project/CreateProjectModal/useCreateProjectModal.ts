@@ -644,10 +644,13 @@ export function useCreateProjectModal(
   const goNext = (): void => {
     if (step === 1 && !canGoNextStep1) return;
     if (step === 2 && !canGoNextStep2) return;
+    // Moving through the wizard is an answer to the discard prompt: keep editing (BUG-189).
+    setIsConfirmingDiscard(false);
     setStep((current) => (current < 3 ? ((current + 1) as 1 | 2 | 3) : current));
   };
 
   const goBack = (): void => {
+    setIsConfirmingDiscard(false);
     setStep((current) => (current > 1 ? ((current - 1) as 1 | 2 | 3) : current));
   };
 

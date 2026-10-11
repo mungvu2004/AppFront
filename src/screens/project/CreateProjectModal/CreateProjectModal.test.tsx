@@ -501,6 +501,18 @@ describe('CreateProjectModal, wired to its hook', () => {
     expect(onDismiss).not.toHaveBeenCalled();
   });
 
+  it('drops a pending discard prompt once "Quay lại" is pressed (BUG-189)', () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+
+    goToStep2();
+    fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
+    expect(screen.getByText('Đóng và bỏ các thay đổi chưa lưu?')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
+
+    expect(screen.queryByText('Đóng và bỏ các thay đổi chưa lưu?')).not.toBeInTheDocument();
+  });
+
   it('warns before discarding, and only closes on the second "huỷ"', () => {
     const onDismiss = vi.fn();
     render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={onDismiss} />);
