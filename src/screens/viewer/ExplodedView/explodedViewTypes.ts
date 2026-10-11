@@ -290,6 +290,11 @@ export interface ExplodedElevationTick {
 /** Mọi thứ view trong khung nhìn cần để vẽ. */
 export interface ExplodedViewModel {
   readonly state: ExplodedViewState;
+  /**
+   * Câu của trạng thái `empty` — hook chọn vì `empty` có hai lý do: chưa đủ hai
+   * tầng, hoặc đủ tầng mà chưa tầng nào có gì để dựng (BUG-382).
+   */
+  readonly emptyMessage: string;
   /** Độ tách hiện tại, đọc từ `ViewerSceneFrame.separation`. */
   readonly separation: number;
   /** Mức sẵn đang khớp, hoặc `null` khi người dùng đang kéo tự do. */

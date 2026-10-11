@@ -2940,6 +2940,7 @@
     "captureButton": "Chụp ảnh khung nhìn",
     "notice": {
       "empty": "Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.",
+      "noModel": "Mô hình 3D sẽ xuất hiện sau khi bạn duyệt lớp tường.",
       "loading": "Đang tách các tầng...",
       "error": "Không tách được các tầng lúc này. Vui lòng thử lại sau.",
       "forbidden": "Bạn đang xem ở vai người xem nên không sửa được vị trí tầng."

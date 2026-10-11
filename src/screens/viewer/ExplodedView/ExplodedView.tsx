@@ -39,12 +39,10 @@ function Ground() {
   );
 }
 
-function EmptyMessage() {
+function EmptyMessage({ message }: { readonly message: string }) {
   return (
     <div className="relative flex h-full w-full items-center justify-center p-8 text-center">
-      <p className="max-w-sm text-[14px] leading-relaxed text-text-secondary">
-        Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.
-      </p>
+      <p className="max-w-sm text-[14px] leading-relaxed text-text-secondary">{message}</p>
     </div>
   );
 }
@@ -84,7 +82,7 @@ export function ExplodedView(props: ExplodedViewProps) {
         <canvas aria-hidden="true" className="absolute inset-0 block h-full w-full" ref={canvasRef} />
       )}
 
-      {isEmpty && <EmptyMessage />}
+      {isEmpty && <EmptyMessage message={props.emptyMessage} />}
       {state === 'loading' && <LoadingMessage />}
       {isError && <ErrorMessage />}
 

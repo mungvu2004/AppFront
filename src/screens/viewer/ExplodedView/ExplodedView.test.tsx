@@ -296,6 +296,7 @@ describe('ExplodedView — không tô màu theo tầng', () => {
 function bareRuntime(): ExplodedViewRuntime {
   return {
     state: 'success',
+    emptyMessage: 'Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.',
     floors: [],
     axes: [],
     cores: [],
