@@ -168,7 +168,9 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
 
   return (
     <div className="flex min-h-screen flex-col bg-bg-app">
-      <header className="flex h-14 items-center gap-4 border-b border-border-default bg-bg-surface px-6">
+      {/* Below `sm` the search box takes a row of its own: logo + 320 px box + bell, avatar and
+          "Dự án mới" on one non-wrapping row was 524 px wide at 375 (BUG-109). */}
+      <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border-default bg-bg-surface px-4 py-2 sm:h-14 sm:flex-nowrap sm:px-6 sm:py-0">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-wash text-accent" aria-hidden="true">
           <FolderPlus size={18} />
         </div>
@@ -179,7 +181,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           onChange={(event) => props.setSearchQuery(event.target.value)}
           placeholder="Tìm dự án theo tên..."
           prefix={<Search size={16} aria-hidden="true" />}
-          wrapperClassName="w-[320px] max-w-full"
+          wrapperClassName="order-last w-full sm:order-none sm:w-[320px] sm:max-w-full"
         />
         <div className="ml-auto flex items-center gap-3">
           {props.notificationBell}
