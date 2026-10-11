@@ -73,8 +73,8 @@ const CONFIRM_DUPLICATE = 'Nhân bản'; // FloorTableRow.tsx:76 — never click
 const COPY_FURNITURE = 'Sao chép nội thất sang tầng mới'; // FloorTableRow.tsx:57
 const AUTO_ELEVATION = 'Tự động tính cao độ';
 const HIDE_IN_3D = 'Ẩn khỏi mô hình 3D';
-const HIDE_3D_NOTICE =
-  'Ẩn tầng khỏi mô hình 3D chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang.'; // floorManagerGateway.ts:213 (capital D; phase03_pipeline.spec.ts still has "3d")
+// floorManagerGateway.ts:212 (FIX-1424, BUG-287); shares one `<p>` with the floor-contents sentence → substring match.
+const HIDE_3D_NOTICE = 'Tầng đang ẩn khỏi mô hình 3D sẽ hiện lại sau khi tải lại trang.';
 const FLOORS_EMPTY_TITLE = 'Chưa có tầng nào'; // FloorTable.tsx:76
 const FLOORS_EMPTY_NOTICE = 'Thêm tầng đầu tiên, hoặc nhập số tầng từ màn hình tạo dự án.'; // useFloorManager.ts:178
 /* SCR-10: FloorUploadScreen.tsx, FloorUploadDropZone.tsx, FloorUploadFooter.tsx, useFloorUploadScreen.ts. */
@@ -351,10 +351,10 @@ test.describe('U03 UI verify — SCR-09 floors (CP-2)', () => {
       const [first] = await openFloors(p, cp2());
       await p.getByRole('button', { name: `Thao tác khác cho tầng ${first ?? ''}`, exact: true }).click();
       await p.getByRole('menuitem', { name: HIDE_IN_3D, exact: true }).click();
-      // The session-only sentence (HIDE_3D_NOTICE) is on screen from the start (`unsupportedNotices`); what the click
-      // changes is the row (`opacity-50`, FloorTableRow.tsx:205) and its band (`border-dashed`, FloorSectionCut.tsx:102).
+      // The click fades the row (`opacity-50`) and dashes its band (FloorSectionCut.tsx), and only now adds HIDE_3D_NOTICE
+      // to the "chưa được lưu" strip (`unsupportedNotices` needs a hidden floor, useFloorManager.ts:1655-1664, BUG-287).
       await expect(p.locator('tr.opacity-50')).toHaveCount(1);
-      await expect(p.getByText(HIDE_3D_NOTICE, { exact: true }).first()).toBeVisible();
+      await expect(p.getByText(HIDE_3D_NOTICE, { exact: false }).first()).toBeVisible();
     });
   });
 });

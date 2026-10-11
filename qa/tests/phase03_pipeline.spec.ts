@@ -46,11 +46,13 @@ const MOD = process.platform === 'darwin' ? 'Meta' : 'Control';
 const ERROR_CODE_PATTERN = /\b[A-Z][A-Z0-9_]{2,}\b/u;
 /** `useProjectSettings.ts` SAVED_TOAST_MESSAGE. */
 const SETTINGS_SAVED_TOAST = 'Đã lưu cài đặt dự án.';
-/** `FloorManager.tsx` / `floorManagerGateway.ts` FLOOR_MANAGER_UNSUPPORTED_NOTICES.hideFloorFrom3d. */
-const SESSION_ONLY_HEADING = 'Những thay đổi chỉ sống trong phiên làm việc này';
-/** floorManagerGateway.ts:213 — "3D" upper case since 5211d03c. */
-const HIDE_3D_NOTICE =
-  'Ẩn tầng khỏi mô hình 3D chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang.';
+/** FloorManager.tsx:77 UNSUPPORTED_NOTICES_TITLE — the InlineAlert `<h4>` title of the one role="status" strip (FIX-1424, BUG-287). */
+const SESSION_NOTICES_TITLE = 'Một số thay đổi chưa được lưu';
+/**
+ * floorManagerGateway.ts:212 FLOOR_MANAGER_UNSUPPORTED_NOTICES.hideFloorFrom3d (FIX-1424, BUG-287). Joined into the same
+ * `<p>` as the floor-contents sentence (FloorManager.tsx:143-151), so it is matched as a substring, never `exact: true`.
+ */
+const HIDE_3D_NOTICE = 'Tầng đang ẩn khỏi mô hình 3D sẽ hiện lại sau khi tải lại trang.';
 /** `useInputQualityGate.ts` COPY. */
 const QUALITY_ACK_LABEL = 'Tôi đã đọc cảnh báo và vẫn muốn xử lý bản vẽ này';
 /** `InputQualityGateFooter.tsx` CONTINUE_BLOCKED_ACKNOWLEDGEMENT. */
@@ -390,12 +392,17 @@ test.describe('SCR-09 Floor Manager', () => {
     const mark = api.length;
     const more = page.getByRole('button', { name: `Thao tác khác cho tầng ${floor.name}`, exact: true });
 
+    // useFloorManager.ts:1655-1664: the hide-in-3D sentence is listed only while a floor is hidden (BUG-287).
+    await expect(page.getByText(HIDE_3D_NOTICE, { exact: false })).toHaveCount(0);
     await more.click();
     await page.getByRole('menuitem', { name: 'Ẩn khỏi mô hình 3D', exact: true }).click();
-    await expect(page.getByRole('heading', { name: SESSION_ONLY_HEADING, exact: true })).toBeVisible();
-    // The same sentence also goes to the assertive live region (useFloorManager.ts:1090-1096 → announce), so the
-    // inline notice (FloorManager.tsx:131-133) is the first of two matches.
-    await expect(page.getByText(HIDE_3D_NOTICE, { exact: true }).first()).toBeVisible();
+    // The same sentence also goes to the live region (useFloorManager.ts:1092-1098 → announce), so the inline strip is
+    // found by its title, not by the sentence.
+    const notices = page
+      .getByRole('status')
+      .filter({ has: page.getByRole('heading', { name: SESSION_NOTICES_TITLE, exact: true }) });
+    await expect(notices).toHaveCount(1);
+    await expect(notices).toContainText(HIDE_3D_NOTICE);
     await more.click();
     const show = page.getByRole('menuitem', { name: 'Hiện trong mô hình 3D', exact: true });
     await expect(show).toBeVisible();
