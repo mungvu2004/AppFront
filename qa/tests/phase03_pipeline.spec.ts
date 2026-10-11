@@ -355,10 +355,16 @@ test.describe('SCR-09 Floor Manager', () => {
     const floor = work();
     const top = scratch();
     const auto = page.getByRole('switch', { name: 'Tự động tính cao độ', exact: true });
+    const workElevation = page.getByRole('textbox', { name: `Cao độ tầng ${floor.name}`, exact: true });
+    // The switch starts OFF (useFloorManager.ts:516). On → elevations are read-only text; off → the inputs
+    // (FloorTableRow.tsx:278-291).
+    await expect(auto).toHaveAttribute('aria-checked', 'false');
+    await auto.click();
     await expect(auto).toHaveAttribute('aria-checked', 'true');
+    await expect(workElevation).toHaveCount(0);
     await auto.click();
     await expect(auto).toHaveAttribute('aria-checked', 'false');
-    await expect(page.getByRole('textbox', { name: `Cao độ tầng ${floor.name}`, exact: true })).toBeVisible();
+    await expect(workElevation).toBeVisible();
 
     // {work} sits between two floors that touch it, so `validateChangeLevelElevation`
     // (roomFloorCommands.ts) refuses ANY new elevation for it. The only valid elevation edit is on
@@ -374,9 +380,6 @@ test.describe('SCR-09 Floor Manager', () => {
     const { json } = await patch;
     expect(numberField(json, 'elevationMm', 'PATCH spatial (elevation)')).toBe(beforeMm + 1000);
     await captureEvidence(page, '09_floor_elevation.png');
-
-    await auto.click();
-    await expect(auto).toHaveAttribute('aria-checked', 'true');
   });
 
   test('SCR-09 "Thao tác khác cho tầng {scratch}" → "Ẩn khỏi mô hình 3D": session-only notice, no write', async () => {
