@@ -81,6 +81,10 @@ function useDrawerContext(name: string) {
 
 // ─── Drawer.Root ─────────────────────────────────────────────────────────────
 
+/** Desktop panel width when the caller gives no `size`, and the `my-2 mr-2` gap around it. */
+export const DRAWER_WIDTH_PX = 400;
+export const DRAWER_GAP_PX = 8;
+
 export interface DrawerRootProps {
   isOpen: boolean;
   onClose: () => void;
@@ -95,7 +99,7 @@ export interface DrawerRootProps {
 }
 
 function DrawerRoot({ isOpen, onClose, children, size, label }: DrawerRootProps) {
-  const drawerWidth = size ?? 400;
+  const drawerWidth = size ?? DRAWER_WIDTH_PX;
 
   const prefersReducedMotion = useReducedMotion();
   const isMobile = useMediaQuery('(max-width: 1023px)');
