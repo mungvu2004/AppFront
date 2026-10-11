@@ -282,6 +282,28 @@ describe('đổi chiều cao một tầng', () => {
 /* 2. Chặn trùng cao độ — câu chặn nêu TÊN CẢ HAI TẦNG.                        */
 /* -------------------------------------------------------------------------- */
 
+describe('cao độ ghi đè (BUG-289)', () => {
+  it('bộ mẫu liền mạch: không dòng nào ghi đè; đặt tay Tầng mái cao hơn 1 m thì chỉ dòng đó ghi đè', async () => {
+    const mounted = await mountSettled();
+    const roofId = String(FLOOR_MANAGER_SAMPLE_ROOF_ID);
+    const second = levelIn(storeGraph(), String(FLOOR_MANAGER_SAMPLE_SECOND_ID));
+
+    expect(mounted.result.current.rows.every((row) => !row.isElevationOverridden)).toBe(true);
+
+    await commitField(
+      mounted,
+      roofId,
+      'elevation',
+      formatLength(second.elevationMm + second.heightMm + 1000, { unit: 'm', fractionDigits: 1 }).replace(' m', ''),
+    );
+
+    await waitFor(() => {
+      expect(rowOf(mounted, roofId).isElevationOverridden).toBe(true);
+    });
+    expect(mounted.result.current.rows.filter((row) => row.isElevationOverridden)).toHaveLength(1);
+  });
+});
+
 describe('chặn trùng cao độ', () => {
   it('từ chối lượt đặt Tầng mái xuống đúng cao độ của Tầng 2, và gọi tên cả hai', async () => {
     const mounted = await mountSettled();

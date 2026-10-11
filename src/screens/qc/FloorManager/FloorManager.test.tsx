@@ -84,7 +84,8 @@ import {
 const PROJECT_ID = 'project-floor-manager';
 const SCREEN_ARIA_LABEL = 'Quản lý tầng';
 const SECTION_ARIA_LABEL = 'Lát cắt các tầng theo đúng tỷ lệ chiều cao';
-const TABLE_CAPTION_TEXT = 'Cao độ tính tự động từ chiều cao các tầng dưới trừ khi ghi đè.';
+const TABLE_CAPTION_TEXT = 'Cao độ tính tự động từ chiều cao các tầng dưới.';
+const TABLE_CAPTION_MANUAL = 'Cao độ đang nhập tay; ô ghi "Ghi đè" khác cao độ tính từ các tầng dưới.';
 const ADD_FLOOR_LABEL = 'Thêm tầng';
 const REMOVE_FLOOR_MENU_ITEM = 'Xoá tầng';
 const EXPAND_SECTION_LABEL = 'Hiện lát cắt';
@@ -154,7 +155,7 @@ async function mountScreen(): Promise<MountedScreen> {
 
   /* Trước lúc cổng trả lời, mọi kịch bản đều là "Đang tải" — chờ bảng thật. */
   await waitFor(() => {
-    expect(screen.getByText(TABLE_CAPTION_TEXT)).toBeInTheDocument();
+    expect(screen.getByText(TABLE_CAPTION_MANUAL)).toBeInTheDocument();
   });
 
   return { registry };
@@ -538,7 +539,7 @@ describe('khả năng tiếp cận và tiếng Việt', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(TABLE_CAPTION_TEXT)).toBeInTheDocument();
+      expect(screen.getByText(TABLE_CAPTION_MANUAL)).toBeInTheDocument();
     });
 
     expectAccessible(container);
@@ -680,6 +681,24 @@ describe('vùng chạm của nút chữ (BUG-257, BUG-270)', () => {
     for (const target of targets) {
       expect(target).toHaveClass('min-h-11', 'sm:min-h-6');
     }
+  });
+});
+
+describe('cao độ ghi đè (BUG-289)', () => {
+  it('chú thích theo công tắc; ô ghi đè mang chữ "Ghi đè", ô khác thì không', () => {
+    const base = scenarioArgsFor('partial');
+    const rows = base.rows.map((row, index) => (index === 1 ? { ...row, isElevationOverridden: true } : row));
+    const { unmount } = renderWithProviders(<FloorManager {...base} isAutoElevation={false} rows={rows} />);
+
+    expect(screen.getByText(TABLE_CAPTION_MANUAL)).toBeInTheDocument();
+    expect(screen.queryByText(TABLE_CAPTION_TEXT)).not.toBeInTheDocument();
+    expect(screen.getAllByText('Ghi đè')).toHaveLength(1);
+    expect(within(screen.getByRole('row', { name: new RegExp(`^${rows[1]!.name}, `, 'u') })).getByText('Ghi đè')).toBeInTheDocument();
+    unmount();
+
+    renderWithProviders(<FloorManager {...base} isAutoElevation />);
+    expect(screen.getByText(TABLE_CAPTION_TEXT)).toBeInTheDocument();
+    expect(screen.queryByText('Ghi đè')).not.toBeInTheDocument();
   });
 });
 

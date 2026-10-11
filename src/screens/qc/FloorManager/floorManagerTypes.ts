@@ -75,6 +75,11 @@ export interface FloorRowVm {
   readonly elevationText: string;
   /** Số thô: để so trùng cao độ, để sắp thứ tự, để đặt dải lát cắt. Không vẽ ra chữ. */
   readonly elevationMm: Millimetres;
+  /**
+   * Cao độ khác cao độ + chiều cao của tầng ngay dưới, tức đã ghi đè thứ lẽ ra tính tự
+   * động (BUG-289). Luôn `false` ở tầng thấp nhất: không có gì bên dưới để tính.
+   */
+  readonly isElevationOverridden: boolean;
 
   /** Ví dụ `"3,9 m"`. Cùng công thức định dạng với `elevationText`. */
   readonly heightText: string;

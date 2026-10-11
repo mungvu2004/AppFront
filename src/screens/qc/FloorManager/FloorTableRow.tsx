@@ -74,6 +74,7 @@ function StackedLabel({ isStacked, column }: { readonly isStacked: boolean; read
   ) : null;
 }
 const CONFIRM_DUPLICATE_LABEL = 'Nhân bản';
+const OVERRIDDEN_LABEL = 'Ghi đè';
 /** Tường, phòng, diện tích, tiến độ QC, hành động. */
 const DUPLICATE_STRIP_COLUMNS = 5;
 
@@ -289,6 +290,8 @@ export function FloorTableRow({
         ) : (
           <span className="text-[13px] text-text-primary">{row.elevationText}</span>
         )}
+        {/* Ô ghi đè phải nhìn ra được, không trông như mọi ô tính tự động (BUG-289). */}
+        {row.isElevationOverridden && <span className="ml-1 text-[12px] text-text-secondary">{OVERRIDDEN_LABEL}</span>}
       </Table.Cell>
 
       <Table.Cell className={cell}>

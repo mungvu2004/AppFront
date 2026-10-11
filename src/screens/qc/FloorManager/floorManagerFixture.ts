@@ -155,6 +155,7 @@ function buildRow(seed: FloorSeed): FloorRowVm {
     name: seed.name,
     elevationText,
     elevationMm: seed.elevationMm,
+    isElevationOverridden: false,
     heightText,
     heightMm: seed.heightMm,
     drawingCountText: hasDrawing ? `${seed.drawingCount} bản vẽ` : 'Chưa có bản vẽ',

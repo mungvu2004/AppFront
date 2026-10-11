@@ -1503,8 +1503,9 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
       return NO_ROWS;
     }
 
-    return levels.map((level) => {
+    return levels.map((level, index) => {
       const id = String(level.id);
+      const below = levels[index - 1];
       const drawingCount = floorsById.get(id)?.drawings.length ?? 0;
       const hasDrawing = drawingCount > 0;
       const counts = countsByLevel.get(id) ?? null;
@@ -1517,6 +1518,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
         name: level.name,
         elevationText: metreText(level.elevationMm),
         elevationMm: millimetres(level.elevationMm),
+        isElevationOverridden: below !== undefined && level.elevationMm !== below.elevationMm + below.heightMm,
         heightText: metreText(level.heightMm),
         heightMm: millimetres(level.heightMm),
         drawingCountText: drawingCountText(drawingCount),

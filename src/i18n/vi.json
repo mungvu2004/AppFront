@@ -1964,7 +1964,9 @@
       "hideFloorFrom3d": "Tầng đang ẩn khỏi mô hình 3D sẽ hiện lại sau khi tải lại trang."
     },
     "caption": {
-      "elevationRule": "Cao độ tính tự động từ chiều cao các tầng dưới trừ khi ghi đè."
+      "elevationRule": "Cao độ tính tự động từ chiều cao các tầng dưới.",
+      "elevationManual": "Cao độ đang nhập tay; ô ghi \"Ghi đè\" khác cao độ tính từ các tầng dưới.",
+      "elevationOverridden": "Ghi đè"
     },
     "route": {
       "missingProjectTitle": "Thiếu mã dự án",
