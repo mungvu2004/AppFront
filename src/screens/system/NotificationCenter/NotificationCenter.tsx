@@ -86,6 +86,9 @@ const FILTER_OPTIONS = NOTIFICATION_FILTERS.map((value) => ({
 
 const LOADING_ROW_COUNT = 5;
 
+/** Lề ngang của tờ dưới 640 px: 16 px thay cho 32 px của ngăn (BUG-234, BUG-203). */
+const SHEET_GUTTER = 'max-sm:px-4';
+
 /** Vị trí phẳng của mỗi mục qua mọi nhóm ngày — nguồn của độ trễ so le. */
 function flatIndexOf(groups: readonly NotificationDayGroup[]): ReadonlyMap<string, number> {
   const indices = new Map<string, number>();
@@ -198,7 +201,9 @@ export function NotificationCenter(props: NotificationCenterProps) {
       <div className="flex h-full min-h-0 flex-1 flex-col">
         {/* lg:pt-10: on the side panel the gear sits 30 px from the window top, too close for its tooltip above,
             so it flipped down over the "Nhắc đến tôi" tab (BUG-205). 16 px more lets it stay above, over empty header. */}
-        <Drawer.Header className="lg:pt-10">
+        {/* max-sm:px-4: the 32 px gutters of the drawer left the 375 px sheet a 296 px header, too narrow for
+            "Đánh dấu tất cả đã đọc" and the gear beside the title (BUG-234), and squeezed every row (BUG-203). */}
+        <Drawer.Header className={cn(SHEET_GUTTER, 'lg:pt-10')}>
           {/*
             Trạng thái 7 ("thu gọn"): khung hẹp thì nhóm nút rơi xuống hàng dưới thay vì
             ép tiêu đề gãy dòng. Dùng `flex-wrap` chứ không đọc `isCollapsed`: bề ngang
@@ -214,7 +219,8 @@ export function NotificationCenter(props: NotificationCenterProps) {
                 </span>
               )}
             </div>
-            <div className="flex shrink-0 items-center gap-1">
+            {/* ml-auto: if a narrower screen still wraps the group, it stays on the right (BUG-234). */}
+            <div className="ml-auto flex shrink-0 items-center gap-1">
               <Button variant="ghost" size="sm" onClick={onMarkAllRead} disabled={isMarkAllDisabled}>
                 {MARK_ALL_READ_LABEL}
               </Button>
@@ -236,7 +242,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
           </div>
         </Drawer.Header>
 
-        <Drawer.Body ref={scrollRef}>
+        <Drawer.Body ref={scrollRef} className={SHEET_GUTTER}>
           {/* A7/A11: số chưa đọc đổi thì trình đọc màn hình nghe được, không phải đi dò lại. */}
           <p className="sr-only" role="status" aria-live="polite">
             {liveMessage}
@@ -252,7 +258,7 @@ export function NotificationCenter(props: NotificationCenterProps) {
           </div>
         </Drawer.Body>
 
-        <div className="shrink-0 border-t border-border-default px-8 py-4">
+        <div className={cn('shrink-0 border-t border-border-default px-8 py-4', SHEET_GUTTER)}>
           <Button variant="ghost" size="sm" fullWidth onClick={onViewAll}>
             {VIEW_ALL_LABEL}
           </Button>

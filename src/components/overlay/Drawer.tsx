@@ -127,6 +127,32 @@ function DrawerRoot({ isOpen, onClose, children, size, label }: DrawerRootProps)
     };
   }, [isOpen, onClose, isMobile]);
 
+  // Ngăn/tờ là modal: trang nền không cuộn, và không còn thanh cuộn của nó đứng cạnh ngăn hay đè lên tờ
+  // (BUG-235). Trả lại giá trị cũ, không xoá, để một lớp modal khác đang khoá vẫn giữ khoá của nó.
+  useEffect(() => {
+    if (!isOpen) return;
+    const root = document.documentElement;
+    const previous = root.style.overflow;
+    root.style.overflow = 'hidden';
+    return () => {
+      root.style.overflow = previous;
+    };
+  }, [isOpen]);
+
+  // Toast toàn ứng dụng (`NotificationHost`) neo góc dưới-phải — đúng chỗ chân ngăn bên ("Xem tất cả") và chân
+  // tờ dưới 1024 px. Toast vẽ trên ngăn nên che nút ấy suốt 8 giây; ngăn nói ra nó đang chiếm phía nào để toast
+  // đứng cạnh, không đè lên nút của chính nó (BUG-227).
+  useEffect(() => {
+    if (!isOpen) return;
+    const root = document.documentElement;
+    root.dataset.drawer = isMobile ? 'sheet' : 'side';
+    root.style.setProperty('--drawer-inset', `${String(drawerWidth + DRAWER_GAP_PX)}px`);
+    return () => {
+      delete root.dataset.drawer;
+      root.style.removeProperty('--drawer-inset');
+    };
+  }, [isOpen, isMobile, drawerWidth]);
+
   // Esc khi focus nằm ngoài drawer — qua trọng tài phím tắt. Binding scope
   // 'dialog' cũng làm tầng dialog thành modal chừng nào drawer còn mở.
   useShortcut(

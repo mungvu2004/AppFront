@@ -103,10 +103,11 @@ export function NotificationRow({
       />
 
       <div className="relative flex min-w-0 flex-1 flex-col gap-1">
+        {/* min-h-6: a one-line sentence was a 20 px tall target, under the 24 px of WCAG 2.5.8 (BUG-236). */}
         <button
           type="button"
           onClick={() => onItemAction(item)}
-          className="rounded text-left text-[15px] leading-[20px] text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
+          className="min-h-6 rounded text-left text-[15px] leading-[20px] text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
         >
           {!item.isRead && <span className="sr-only">{`${UNREAD_SR_HINT}. `}</span>}
           {item.sentence}{' '}
@@ -120,31 +121,35 @@ export function NotificationRow({
           </p>
         )}
 
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="whitespace-nowrap text-[13px] leading-[18px] text-text-muted">{item.relativeTime}</span>
-          {item.inlineAction !== undefined && (
-            // While the accept is in flight the button is `aria-disabled`, not `disabled`: a disabled button
-            // drops keyboard focus to <body> inside the sheet (WCAG 2.4.3, review QA-02 P2-5).
-            <Button
-              variant="secondary"
-              size="sm"
-              aria-disabled={item.inlineAction.disabled === true || undefined}
-              onClick={() => {
-                if (item.inlineAction?.disabled !== true) onInlineAction(item);
-              }}
-            >
-              {item.inlineAction.label}
-            </Button>
-          )}
-          {item.statusNote !== undefined && (
-            <span ref={takeOrphanedFocus} tabIndex={-1} className="text-[13px] font-medium leading-[18px] text-text-secondary outline-none">
-              {item.statusNote}
-            </span>
-          )}
+        {/* Giờ + nút hành động xuống dòng TRONG nhóm của chúng; nút đánh dấu đứng ngoài nhóm, luôn ở mép phải hàng
+            giờ. Cả ba từng chung một hàng `flex-wrap`: ở tờ 375 px giờ + "Xem kết quả" + nút 44 px không vừa, nút
+            đánh dấu rơi một mình xuống dòng riêng, hàng cao thêm một dải trống (BUG-203, run-16). */}
+        <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="whitespace-nowrap text-[13px] leading-[18px] text-text-muted">{item.relativeTime}</span>
+            {item.inlineAction !== undefined && (
+              // While the accept is in flight the button is `aria-disabled`, not `disabled`: a disabled button
+              // drops keyboard focus to <body> inside the sheet (WCAG 2.4.3, review QA-02 P2-5).
+              <Button
+                variant="secondary"
+                size="sm"
+                aria-disabled={item.inlineAction.disabled === true || undefined}
+                onClick={() => {
+                  if (item.inlineAction?.disabled !== true) onInlineAction(item);
+                }}
+              >
+                {item.inlineAction.label}
+              </Button>
+            )}
+            {item.statusNote !== undefined && (
+              <span ref={takeOrphanedFocus} tabIndex={-1} className="text-[13px] font-medium leading-[18px] text-text-secondary outline-none">
+                {item.statusNote}
+              </span>
+            )}
+          </div>
           {/* Nút ẩn từng là một cột chữ bên phải: opacity-0 vẫn giữ chỗ, câu bị bóp còn ~100 px (BUG-203).
-              Nay là nút biểu tượng ở hàng giờ, nên câu dùng hết bề ngang. Chỉ ẩn-chờ-rê-chuột từ 640 px (hàng
-              giờ ở đó luôn đủ chỗ); hẹp hơn, hoặc màn không có hover, thì luôn hiện — hàng giờ có xuống dòng
-              thì xuống dòng một nút nhìn thấy, không phải một dòng trống, và không có nút vô hình bấm trúng. */}
+              Nay là nút biểu tượng ở hàng giờ, nên câu dùng hết bề ngang. Chỉ ẩn-chờ-rê-chuột từ 640 px; hẹp
+              hơn, hoặc màn không có hover, thì luôn hiện — không có nút vô hình bấm trúng. */}
           {!item.isRead && (
             <span
               className={cn(

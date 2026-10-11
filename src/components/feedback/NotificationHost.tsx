@@ -42,6 +42,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { useNotifications } from '@/hooks/useNotifications';
+import { cn } from '@/lib/utils';
 import type { Notification, NotificationBus } from '@/lib/mutations/notificationBus';
 
 import { Toast, type ToastMessage } from './Toast';
@@ -101,10 +102,16 @@ export function NotificationHost({ bus }: NotificationHostProps) {
   const visible = notifications.filter((item) => !dismissedIds.includes(item.id)).reverse();
 
   return (
+    // Ngăn đang mở (`Drawer` đặt `data-drawer` lên <html>): góc dưới-phải là chân của nó, nơi có "Xem tất cả".
+    // Ngăn bên → toast lùi sang trái ngăn; tờ dưới 1024 px → toast lên mép trên (BUG-227).
     <div
       aria-label={REGION_ARIA_LABEL}
       aria-live="polite"
-      className="pointer-events-none fixed bottom-4 right-4 z-50 flex flex-col-reverse items-end gap-2"
+      className={cn(
+        'pointer-events-none fixed bottom-4 right-4 z-50 flex flex-col-reverse items-end gap-2',
+        '[html[data-drawer=side]_&]:right-[calc(1rem+var(--drawer-inset))]',
+        '[html[data-drawer=sheet]_&]:bottom-auto [html[data-drawer=sheet]_&]:top-4',
+      )}
       role="region"
     >
       {visible.map((notification, index) => (
