@@ -46,7 +46,7 @@
  *
  * Long data: one project named with exactly 80 characters (`PROJECT_NAME_MAX_LENGTH`, `src/domain/project/limits.ts:23`;
  * BE `NAME_MAX` 80, `apps/api/projects/schemas.py:26`) is created through the API before the SCR-05 group and
- * deleted after it; being the newest it is the hero card (sort "Cập nhật gần đây", `ProjectDashboard.tsx`).
+ * deleted after it; being the newest it is the first card (sort "Cập nhật gần đây"; one same-size grid, `ProjectDashboard.tsx:82-85`).
  */
 import {
   expect,
@@ -221,7 +221,8 @@ async function verifyAsAdmin(
   try {
     await ensureAdminSession(context, ADMIN_STORAGE_STATE_FILE);
     await prepare?.(context);
-    await verifyUi(await context.newPage(), name, open, viewports);
+    // BUG-161: SCR-06 states are a fixed drawer / bottom sheet / pinned panel — shoot the viewport the person sees.
+    await verifyUi(await context.newPage(), name, open, viewports, { fullPage: !name.startsWith('U02_notif_') });
   } finally {
     await context.storageState({ path: ADMIN_STORAGE_STATE_FILE });
     await context.close();
@@ -456,7 +457,7 @@ test.describe('U02 UI verify — SCR-05 dashboard (with an 80-character project 
     await expect(projectCard(page, longProject().name)).toBeVisible();
   }
 
-  test('U02 · SCR-05 dashboard loaded, hero card with an 80-char name (long data)', async ({ browser }) => {
+  test('U02 · SCR-05 dashboard loaded, first card with an 80-char name (long data)', async ({ browser }) => {
     await verifyAsAdmin(browser, 'U02_dash_loaded', openWithLongProject);
   });
 
@@ -719,7 +720,7 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
     });
   });
 
-  test('U02 · SCR-05 wizard step 2 validation: shared height "10,01" → "Giá trị không quá 10 m."; rows stay neutral until a floor is edited, then "Chưa nhập chiều cao thông thuỷ."', async ({ browser }) => {
+  test('U02 · SCR-05 wizard step 2 validation: shared height "10,01" → "Giá trị không quá 10 m."; rows stay neutral until a height is entered, then "Chưa nhập chiều cao thông thuỷ."', async ({ browser }) => {
     await verifyAsAdmin(browser, 'U02_wizard_height_refused', async (p) => {
       const dialog = await openWizard(p);
       await toStep2(dialog, `${TEST_DATA_PREFIX}u02-cao`);
@@ -730,8 +731,17 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
       await expect(field).toHaveValue('10,01'); // BUG-160: the refused value stays beside its message (useNumericField.ts displayValue)
       // BUG-120: step 2 opens neutral, and the shared field is not an edit of the stack (floorsTouched stays false).
       await expect(dialog.getByRole('table').getByRole('alert')).toHaveCount(0);
-      await dialog.getByRole('textbox', { name: /^Tên tầng /u }).first().fill('Tầng trệt A'); // first edit of a floor
-      await expect(dialog.getByRole('alert').filter({ hasText: HEIGHT_MISSING }).first()).toBeVisible();
+      // FIX-1011: a rename no longer arms the row errors — only a typed or applied height does
+      // (useCreateProjectModal.ts:696-698 floorsTouched, :718-724 touchFloors).
+      const nameBox = dialog.getByRole('textbox', { name: /^Tên tầng /u }).first();
+      await nameBox.fill('Tầng trệt A');
+      await expect(dialog.getByRole('table').getByRole('alert')).toHaveCount(0);
+      await nameBox.fill(DEFAULT_FLOORS[0]);
+      const groundHeight = dialog.getByRole('textbox', { name: `Chiều cao thông thuỷ tầng ${DEFAULT_FLOORS[0]}`, exact: true }); // StepFloors.tsx:131
+      await groundHeight.fill('3');
+      await expect(groundHeight).toHaveValue('3');
+      await groundHeight.press('Tab');
+      await expect(dialog.getByRole('alert').filter({ hasText: HEIGHT_MISSING }).first()).toBeVisible(); // "Tầng 1" upward
       await expect(dialog.getByRole('button', { name: APPLY_HEIGHT, exact: true })).toBeDisabled(); // useCreateProjectModal.ts:491
       await settled(dialog);
     });
@@ -945,14 +955,16 @@ test.describe('U02 UI verify — SCR-06 notifications', () => {
    * BUG-174: the admin's inbox is empty on the shared stack, so every real drawer shot is the empty state. These three rows
    * (2 unread, 1 read; 1 of them a comment mention) give the row layout, the unread dots, "Đánh dấu tất cả đã đọc" enabled and
    * filters that each keep their own rows. Wire shape: `NotificationSchema` (src/api/schemas/notifications.ts, `.strict()`).
+ * `message` is the server's sentence WITHOUT the label: the FE appends `objectLabel` (AppBack apps/api/notifications/messages.py
+ * `ai_completed`, `violation_found`; BUG-206). No server template exists for a comment mention yet, so row 2 keeps its own.
    */
   const notificationRows = (): unknown[] => {
     const at = (minutesAgo: number): string => new Date(Date.now() - minutesAgo * 60_000).toISOString();
     const base = { objectLabel: 'Tầng trệt', place: 'walls', projectId: 'prj_QA02UIROWS', projectName: `${TEST_DATA_PREFIX}u02-rows` };
     return [
-      { ...base, id: 'ntf_qa02_1', kind: 'aiCompleted', isRead: false, message: 'AI đã xử lý xong bản vẽ tầng trệt', createdAt: at(5) },
+      { ...base, id: 'ntf_qa02_1', kind: 'aiCompleted', isRead: false, message: 'hệ thống AI đã xử lý xong bản vẽ', createdAt: at(5) },
       { ...base, id: 'ntf_qa02_2', kind: 'commentMention', isRead: false, message: 'Lan nhắc đến bạn trong một bình luận', excerpt: 'Kiểm tra lại tường trục B giúp mình', createdAt: at(30) },
-      { ...base, id: 'ntf_qa02_3', kind: 'violationFound', isRead: true, message: 'Phát hiện một vi phạm ở tầng trệt', createdAt: at(90) },
+      { ...base, id: 'ntf_qa02_3', kind: 'violationFound', isRead: true, message: 'phát hiện 1 vi phạm luật ở', createdAt: at(90) },
     ];
   };
   const routeNotificationRows = (context: BrowserContext): Promise<void> =>

@@ -441,7 +441,7 @@ test.describe('SCR-05 Dashboard (/)', () => {
             ? ROUTES.project.floors(projectId)
             : ROUTES.project.walls(projectId, defaultFloorId);
 
-    // One card on screen (the hero), so the click lands on CP-2 and nowhere else.
+    // One card on screen (search narrows it to CP-2), so the click lands on CP-2 and nowhere else.
     await searchBox(page).fill(projectName);
     await expect(projectCards(page)).toHaveCount(1);
     await projectCard(page, projectName).click();

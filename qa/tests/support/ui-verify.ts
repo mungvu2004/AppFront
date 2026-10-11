@@ -1,7 +1,7 @@
 /**
  * Dedicated UI-verification case (skill `qa-verify-ui`): one screen state × the four review viewports
  * (skill `qa-review-ui`). Per viewport it re-opens the state (layouts read the viewport at mount), measures
- * layout defects in the page, captures a full-page `<name>_<width>.png`, and attaches all metrics as
+ * layout defects in the page, captures `<name>_<width>.png` (full page unless `shot.fullPage` is false), and attaches all metrics as
  * `<name>.json` for the reviewer. Hard defects fail softly (horizontal scroll, controls pushed off-screen,
  * broken images); heuristic ones (clipped text, overlapping or small controls) are data for the review.
  */
@@ -19,8 +19,13 @@ export const UI_VIEWPORTS = [
   { width: 375, height: 812 },
 ] as const;
 
-/** Recommended touch target below 768 px (skill qa-review-ui); WCAG 2.5.8 minimum is 24. */
-const TOUCH_TARGET_PX = 44;
+/**
+ * Project target-size rule: every control ≥ 24 px both ways at every width (WCAG 2.5.8 AA); a TEXT button or link
+ * (its name is its own visible text) ≥ 44 px below 640 px (`docs/components-ui.md:14` Button md/lg; icon-only buttons
+ * keep their size). Switches, checkboxes, fields and icon-only buttons are held to 24 only, so the "Có tầng hầm" switch
+ * (36×24, BUG-158) is not a finding. A link inside a sentence is exempt (2.5.8 "inline" exception).
+ */
+const TARGET_PX = { min: 24, textBelowSm: 44, sm: 640 } as const;
 
 export interface UiMetrics {
   readonly viewport: string;
@@ -31,10 +36,11 @@ export interface UiMetrics {
   readonly brokenImages: readonly string[];
   readonly clipped: readonly string[];
   readonly overlaps: readonly string[];
+  /** `<name> <w>×<h> (< <threshold>)` per {@link TARGET_PX}. */
   readonly smallTargets: readonly string[];
 }
 
-function measure(touchTargetPx: number): Omit<UiMetrics, 'viewport'> {
+function measure(target: typeof TARGET_PX): Omit<UiMetrics, 'viewport'> {
   const vw = window.innerWidth;
   const shown = (el: Element): boolean => {
     const r = el.getBoundingClientRect();
@@ -95,13 +101,21 @@ function measure(touchTargetPx: number): Omit<UiMetrics, 'viewport'> {
     brokenImages: [...document.images].filter((img) => img.complete && img.naturalWidth === 0).map((img) => img.currentSrc || img.src),
     clipped,
     overlaps,
-    smallTargets:
-      vw < 768
-        ? controls
-            .map((el) => [el, el.getBoundingClientRect()] as const)
-            .filter(([, r]) => r.width < touchTargetPx || r.height < touchTargetPx)
-            .map(([el, r]) => `${name(el)} ${Math.round(r.width)}×${Math.round(r.height)}`)
-        : [],
+    smallTargets: controls
+      // 2.5.8 inline exception: a link that sits in a sentence (inline, next to text of its own parent).
+      .filter((el) => !(getComputedStyle(el).display === 'inline' && [...(el.parentElement?.childNodes ?? [])].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim())))
+      .map((el) => {
+        const r = el.getBoundingClientRect();
+        const role = el.getAttribute('role');
+        const isText =
+          (el.tagName === 'A' || el.tagName === 'BUTTON' || role === 'button' || role === 'link') &&
+          role !== 'switch' &&
+          (el as HTMLElement).innerText.trim() !== '';
+        const threshold = isText && vw < target.sm ? target.textBelowSm : target.min;
+        return { el, r, threshold };
+      })
+      .filter(({ r, threshold }) => r.width < threshold || r.height < threshold)
+      .map(({ el, r, threshold }) => `${name(el)} ${Math.round(r.width)}×${Math.round(r.height)} (< ${threshold})`),
   };
 }
 
@@ -111,8 +125,17 @@ function measure(touchTargetPx: number): Omit<UiMetrics, 'viewport'> {
  * BUG-101: a width where `open` fails does not end the case — that width is still measured and shot (what the
  * page showed instead), `openError` goes into `<name>.json`, every width runs, and the case fails softly at the
  * end. A `test.skip()` inside `open` still skips.
+ * BUG-161: a full-page shot of a `position: fixed` drawer/sheet adds the page below the fold under it, so the sheet
+ * looks like it floats mid-image. States whose subject is fixed to the viewport pass `{ fullPage: false }`.
  */
-export async function verifyUi(page: Page, name: string, open: (page: Page) => Promise<void>, viewports: readonly { readonly width: number; readonly height: number }[] = UI_VIEWPORTS): Promise<UiMetrics[]> {
+export async function verifyUi(
+  page: Page,
+  name: string,
+  open: (page: Page) => Promise<void>,
+  viewports: readonly { readonly width: number; readonly height: number }[] = UI_VIEWPORTS,
+  shot: { readonly fullPage?: boolean } = {},
+): Promise<UiMetrics[]> {
+  const fullPage = shot.fullPage ?? true;
   const all: UiMetrics[] = [];
   for (const vp of viewports) {
     await page.setViewportSize(vp);
@@ -130,9 +153,9 @@ export async function verifyUi(page: Page, name: string, open: (page: Page) => P
     all.push({
       viewport: `${vp.width}x${vp.height}`,
       ...(openError === undefined ? {} : { openError }),
-      ...(await page.evaluate(measure, TOUCH_TARGET_PX)),
+      ...(await page.evaluate(measure, TARGET_PX)),
     });
-    await captureEvidence(page, `${name}_${vp.width}.png`, { fullPage: true });
+    await captureEvidence(page, `${name}_${vp.width}.png`, { fullPage });
   }
   // Next to the images, so the reviewer reads one small file instead of decoding results.json.
   mkdirSync(EVIDENCE_DIR, { recursive: true });

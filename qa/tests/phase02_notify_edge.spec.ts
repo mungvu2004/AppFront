@@ -80,6 +80,8 @@ const ADMIN_TOKEN_MAX_AGE_MS = 480_000;
 const ARRIVAL_TIMEOUT_MS = 20_000;
 /** Tooltip dwell (TT:14) + its 120 ms entrance (TT:113). */
 const TOOLTIP_SHOWN_MS = 2_000;
+/** src/components/ui/Tooltip.tsx `TOOLTIP_DWELL_MS`: hover/focus → tooltip after 400 ms. */
+const TOOLTIP_DWELL_MS = 400;
 /** WCAG 2.2 AA SC 2.5.8 "Target Size (Minimum)" — the suite's a11y standard (skill qa-review-a11y). */
 const MIN_TARGET_PX = 24;
 
@@ -689,8 +691,9 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
         presses += 1;
       }
       await expect(sentence, 'Tab reaches the row sentence').toBeFocused();
-      // NC:188-192: `group-focus-within:opacity-100` reveals the hover-only button for keyboard users.
-      const markReadWrap = row.getByRole('button', { name: MARK_READ, exact: true }).locator('xpath=..');
+      // NotificationRow.tsx:148-153: the span around the icon button carries `sm:group-focus-within:opacity-100`; the
+      // button's own parent is the Tooltip's inline-flex span (IconButton.tsx:61, Tooltip.tsx:205-207), always opacity 1.
+      const markReadWrap = row.getByRole('button', { name: MARK_READ, exact: true }).locator('xpath=../..');
       await expect.poll(() => markReadWrap.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
       await captureEvidence(page, 'E02_ntf_keyboard_row.png', { caption: `Tab ×${String(presses)} → row sentence focused; "${MARK_READ}" visible` });
 
@@ -701,15 +704,32 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
     });
   });
 
-  test('E02 · SCR-06 BUG-114: with nothing unread the gear takes the opening focus; its tooltip is inside the viewport, near the gear, no horizontal scroll', async ({ browser }) => {
+  test('E02 · SCR-06 BUG-114: with nothing unread the gear takes the opening focus; opened by click no tooltip shows (BUG-205), opened by Enter its tooltip is inside the viewport, near the gear, no horizontal scroll', async ({ browser }) => {
     await asInvitee(browser, async ({ page }) => {
       expect(await loadWithInbox(page), 'precondition: empty inbox → "Đánh dấu tất cả đã đọc" disabled').toEqual([]);
+      // FIX-1031 (BUG-205): the tooltip shows on `:focus-visible` only (TT handleFocus), so a mouse-opened drawer pops none.
+      // Reverse check first (review-1 #7): open by click, pointer parked off the drawer, wait past the 400 ms dwell
+      // (TT TOOLTIP_DWELL_MS) — the gear holds the focus but no tooltip stands over the tabs.
+      const tooltip = page.getByRole('tooltip').filter({ hasText: NOTIF_SETTINGS });
+      await bell(page).click();
+      await page.mouse.move(4, (page.viewportSize() ?? DESKTOP).height - 4);
+      const mouseDrawer = await openDrawer(page);
+      await expect(mouseDrawer.getByRole('button', { name: NOTIF_SETTINGS, exact: true })).toBeFocused();
+      await page.waitForTimeout(TOOLTIP_DWELL_MS + 300); // an absence: nothing to wait on but the dwell itself
+      const mouseTooltips = await tooltip.count();
+      await captureEvidence(page, 'E02_ntf_gear_mouse_open.png', { caption: `drawer opened by click: gear focused, ${String(mouseTooltips)} tooltip (BUG-205)` });
+      expect.soft(mouseTooltips, 'BUG-205: a click-opened drawer shows no gear tooltip').toBe(0);
+      await page.keyboard.press('Escape');
+      await expect(panel(page)).toHaveCount(0);
+
+      // Open it by keyboard: the moved focus is then focus-visible and the gear's tooltip shows, as it does for that user.
+      await bell(page).focus();
+      await page.keyboard.press('Enter');
       const drawer = await openDrawer(page);
       const gear = drawer.getByRole('button', { name: NOTIF_SETTINGS, exact: true });
       // NC:239 disables mark-all → FT:39-44,183 the gear is the first focusable; IB:58-63 wraps it in a Tooltip whose
       // position is read once, at focus/hover (TT:37-63) — i.e. possibly while the drawer still slides in (DRW:118-120).
       await expect(gear).toBeFocused();
-      const tooltip = page.getByRole('tooltip').filter({ hasText: NOTIF_SETTINGS });
       await expect(tooltip).toBeVisible({ timeout: TOOLTIP_SHOWN_MS });
       const tip = await settledBox(tooltip);
       const anchor = await settledBox(gear);
