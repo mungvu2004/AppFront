@@ -1,8 +1,12 @@
-import React, { forwardRef, useRef, useEffect, useCallback } from 'react';
+import React, { forwardRef, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { cn } from '../../lib/utils';
 import type { ContextMenuGroup, ContextMenuItem as ContextMenuItemType } from '../../hooks/useContextMenu';
 
-const MENU_WIDTH = 220;
+/** Menu width, for a caller that anchors the menu's right edge to its trigger. */
+export const CONTEXT_MENU_WIDTH = 220;
+const MENU_WIDTH = CONTEXT_MENU_WIDTH;
+/** Gap kept between the menu and the viewport edge. */
+const VIEWPORT_MARGIN = 8;
 const ROW_HEIGHT = 32;
 
 // ─── Kbd ──────────────────────────────────────────────────────────────────────
@@ -40,9 +44,19 @@ const ContextMenuRoot = forwardRef<HTMLDivElement, ContextMenuRootProps>(
     const internalRef = useRef<HTMLDivElement>(null);
     const menuRef = (ref as React.RefObject<HTMLDivElement>) ?? internalRef;
 
-    // Viewport clamping — menu width 220
-    const safeLeft = Math.min(position.x, (typeof window !== 'undefined' ? window.innerWidth : 1440) - MENU_WIDTH - 8);
-    const safeTop  = Math.min(position.y, (typeof window !== 'undefined' ? window.innerHeight : 900) - 8);
+    // Viewport clamping — menu width 220. `clientWidth`, not `innerWidth`: the latter counts the
+    // vertical scrollbar, which then covered the menu's right edge (BUG-116 at 768 px).
+    const viewportWidth = typeof document !== 'undefined' ? document.documentElement.clientWidth : 1440;
+    const safeLeft = Math.max(VIEWPORT_MARGIN, Math.min(position.x, viewportWidth - MENU_WIDTH - VIEWPORT_MARGIN));
+    const safeTop = Math.max(VIEWPORT_MARGIN, position.y);
+
+    // The height is only known once drawn: lift a menu that would run past the bottom edge.
+    useLayoutEffect(() => {
+      const menu = menuRef.current;
+      if (!isVisible || !menu) return;
+      const maxTop = document.documentElement.clientHeight - menu.offsetHeight - VIEWPORT_MARGIN;
+      menu.style.top = `${String(Math.max(VIEWPORT_MARGIN, Math.min(safeTop, maxTop)))}px`;
+    }, [isVisible, menuRef, safeTop]);
 
     const handleKeyDown = useCallback(
       (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -83,14 +97,20 @@ const ContextMenuRoot = forwardRef<HTMLDivElement, ContextMenuRootProps>(
       [menuRef, onClose]
     );
 
-    // Focus item đầu tiên khi mở
+    // Focus item đầu tiên khi mở; đóng thì trả focus cho nơi đã mở (WCAG 2.4.3, A12) — trừ khi
+    // hành động vừa chọn đã tự đặt focus ở chỗ khác (ô đổi tên tự focus).
     useEffect(() => {
       if (!isVisible || !menuRef.current) return;
+      const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       const first = menuRef.current.querySelector<HTMLElement>(
         '[role="menuitem"]:not([disabled]):not([aria-disabled="true"])'
       );
       const raf = requestAnimationFrame(() => first?.focus());
-      return () => cancelAnimationFrame(raf);
+      return () => {
+        cancelAnimationFrame(raf);
+        const focused = document.activeElement;
+        if (focused === null || focused === document.body) opener?.focus();
+      };
     }, [isVisible, menuRef]);
 
     if (!isVisible) return null;

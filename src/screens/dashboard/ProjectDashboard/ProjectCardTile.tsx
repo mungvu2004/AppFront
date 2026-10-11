@@ -11,6 +11,7 @@
 
 import { ArrowUpRight, Building2, Clock, MoreHorizontal } from 'lucide-react';
 
+import { CONTEXT_MENU_WIDTH } from '@/components/canvas/ContextMenu';
 import { motion } from '@/components/motion';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
@@ -99,7 +100,10 @@ export function ProjectCardTile({
           aria-label={`Tuỳ chọn cho ${project.name}`}
           onClick={(event) => {
             event.stopPropagation();
-            onMenu(project, event.clientX, event.clientY);
+            // Anchored under the button, right edges aligned: the pointer spot put the menu over its own
+            // button (BUG-116), and a keyboard click reports 0,0 — the window's corner (BUG-148).
+            const anchor = event.currentTarget.getBoundingClientRect();
+            onMenu(project, anchor.right - CONTEXT_MENU_WIDTH, anchor.bottom + 4);
           }}
           className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-bg-surface text-text-secondary shadow-rest hover:text-text-primary"
         >

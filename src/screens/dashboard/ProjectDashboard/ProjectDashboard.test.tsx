@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -230,6 +230,34 @@ describe('ProjectDashboardView, seven states', () => {
     fireEvent.keyDown(card, { key: 'Enter' });
 
     expect(openProject).toHaveBeenCalledWith(SAMPLE_ROW.id, 'card');
+  });
+
+  // BUG-116/148: the menu opened where the pointer was (over its own button) or, from the keyboard, at 0,0.
+  it('anchors the card menu under its button and gives focus back to it on Esc', async () => {
+    const viewport = { clientWidth: 1440, clientHeight: 900 };
+    for (const [key, value] of Object.entries(viewport)) {
+      Object.defineProperty(document.documentElement, key, { configurable: true, value });
+    }
+    try {
+      render(<ProjectDashboardView {...PROPS_BY_STATE.success()} />);
+      const trigger = screen.getByRole('button', { name: `Tuỳ chọn cho ${SAMPLE_ROW.name}` });
+      vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue(new DOMRect(600, 100, 32, 32));
+
+      trigger.focus();
+      fireEvent.click(trigger, { clientX: 0, clientY: 0 });
+      const menu = screen.getByRole('menu', { name: 'Tuỳ chọn' });
+
+      expect(menu.style.left).toBe(`${String(632 - 220)}px`);
+      expect(menu.style.top).toBe('136px');
+      await waitFor(() => expect(within(menu).getAllByRole('menuitem')[0]).toHaveFocus());
+
+      fireEvent.keyDown(menu, { key: 'Escape' });
+
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      expect(trigger).toHaveFocus();
+    } finally {
+      for (const key of Object.keys(viewport)) Reflect.deleteProperty(document.documentElement, key);
+    }
   });
 });
 
