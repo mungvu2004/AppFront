@@ -292,7 +292,6 @@ function ticksOf(
   return floors.map((floor) => ({
     storeyId: floor.id,
     fraction: floor.railFraction,
-    label: floor.elevationLabel,
   }));
 }
 

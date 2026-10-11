@@ -1,8 +1,8 @@
 /**
  * `ExplodedView` — view thuần cắm vào khe `renderScene` của `ViewerShell`,
- * dựng lớp phủ tách tầng: canvas 3D, thang cao độ + hàng ba mức sẵn (mép
- * trái), thẻ nhãn tầng nổi (mép phải), đường nối dọc qua trọng tâm kèm vạch
- * cao độ, đường dẫn thẳng hàng, và nút chụp ảnh.
+ * dựng lớp phủ tách tầng: canvas 3D, hàng ba mức sẵn (góc trên trái), thẻ nhãn
+ * tầng nổi (mép phải), đường nối dọc qua trọng tâm kèm vạch cao độ, đường dẫn
+ * thẳng hàng, và nút chụp ảnh.
  *
  * View thuần R-60: không nhập `@/api`, `@/store`, `@/domain`, `@/lib/http`.
  * Mọi số đã là chuỗi định dạng sẵn trong {@link ExplodedViewProps} (A15); màn

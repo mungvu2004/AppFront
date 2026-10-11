@@ -37,7 +37,6 @@ export function ExplodedViewAlignmentPaths({ ticks, alignmentPaths }: ExplodedVi
           style={{ bottom: `${tick.fraction * 100}%` }}
         >
           <span aria-hidden="true" className="bg-border-default" style={{ height: 1, width: EXPLODED_LAYOUT.tickWidthPx }} />
-          <span className="whitespace-nowrap text-[11px] leading-none text-text-muted">{tick.label}</span>
         </div>
       ))}
 

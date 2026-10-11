@@ -154,7 +154,6 @@ function buildTick(def: SampleFloorDef): ExplodedElevationTick {
   return {
     storeyId: def.id,
     fraction: def.elevationMm / STACK_TOP_MM,
-    label: formatLength(millimetres(def.elevationMm), { unit: 'm' }),
   };
 }
 

@@ -140,13 +140,20 @@ describe('ExplodedView — thẻ nhãn tầng chỉ hiện khi tách đủ nhi�
   });
 });
 
-describe('ExplodedView — vùng bấm của thanh "Độ tách các tầng" (BUG-381)', () => {
-  it('dày 24 px ở cả dạng dọc lẫn dạng thu gọn ngang, không 6 px', () => {
-    const vertical = renderWithProviders(<ExplodedView {...explodedViewScenarioFor('success')} />);
+describe('ExplodedView — một điều khiển tách, vùng bấm 24 px (BUG-381)', () => {
+  it('dạng thường không dựng thanh trượt thứ hai, không thước thứ hai; chỉ ba mức sẵn', () => {
+    const props = explodedViewScenarioFor('success');
+    const { container, unmount } = renderWithProviders(<ExplodedView {...props} />);
 
-    expect(within(vertical.container).getByRole('slider', { name: 'Độ tách các tầng' })).toHaveClass('w-6');
-    vertical.unmount();
+    // Thanh "Độ tách" của ray tầng trong `ViewerShell` là điều khiển tách duy nhất.
+    expect(within(container).queryByRole('slider')).not.toBeInTheDocument();
+    expect(within(container).getByRole('radiogroup', { name: 'Mức tách sẵn' })).toBeInTheDocument();
+    // Không nhãn hai đầu thang, không chữ cao độ trên vạch của đường nối dọc.
+    expect(within(container).queryByText(props.maxLabel)).not.toBeInTheDocument();
+    unmount();
+  });
 
+  it('dạng thu gọn (vỏ đã gỡ ray tầng) giữ thanh trượt riêng, dày 24 px', () => {
     const collapsed = renderWithProviders(<ExplodedView {...explodedViewScenarioFor('collapsed')} />);
 
     expect(within(collapsed.container).getByRole('slider', { name: 'Độ tách các tầng' })).toHaveClass('h-6');

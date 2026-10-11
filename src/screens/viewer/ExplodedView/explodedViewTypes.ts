@@ -156,8 +156,6 @@ export const EXPLODED_LAYOUT = Object.freeze({
   cardWidthPx: 224,
   /** Bo góc thẻ nhãn tầng. */
   cardRadiusPx: 12,
-  /** Chiều cao vệt thang cao độ dọc mép trái khung nhìn. */
-  railHeightPx: 240,
   /** Bề rộng vạch đánh dấu trên đường nối dọc. */
   tickWidthPx: 12,
   /**
@@ -277,10 +275,12 @@ export interface ExplodedAlignmentPath {
 /** Một vạch đánh dấu trên đường nối dọc, tại cao độ của một tầng. */
 export interface ExplodedElevationTick {
   readonly storeyId: string;
-  /** Vị trí theo trục đứng của khung nhìn, tỉ lệ [0, 1] từ dưới lên. */
+  /**
+   * Vị trí theo trục đứng của khung nhìn, tỉ lệ [0, 1] từ dưới lên. Vạch không
+   * mang chữ: con số cao độ đã có ở thang của vỏ và trên thẻ tầng, một bản thứ ba
+   * giữa khung nhìn là thước chiều cao thứ hai (BUG-381).
+   */
   readonly fraction: number;
-  /** Cao độ ĐÃ ĐỊNH DẠNG. */
-  readonly label: string;
 }
 
 /* -------------------------------------------------------------------------- */

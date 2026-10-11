@@ -1,7 +1,7 @@
 /**
- * Thang cao độ dọc mép trái (kéo được, gọi `onSeparationChange` liên tục) và
- * hàng ba mức sẵn ngay dưới nó. Ở trạng thái thu gọn, cả hai gộp thành một
- * cụm trôi nằm ngang.
+ * Hàng ba mức sẵn góc trên trái. Ở trạng thái thu gọn — khi vỏ gỡ ray tầng cùng
+ * thanh "Độ tách" của nó — hàng ấy gộp với một thanh trượt độ tách thành một cụm
+ * trôi nằm ngang (xem ghi chú ở dạng thường bên dưới, BUG-381).
  *
  * ## Vì sao thang không dùng `Slider` dùng chung
  *
@@ -18,6 +18,9 @@
  * custom slider thì không. Điều phối viên đã chốt đi theo đúng tiền lệ đó
  * (hỏi qua `orca orchestration ask`, 07-09-2026): dùng input gốc ở đây, giữ
  * `SegmentedControl` cho hàng ba mức sẵn như đặc tả xin.
+ *
+ * Thanh dọc ấy nay đã gỡ (BUG-381, xem dạng thường bên dưới); thanh còn lại của
+ * dạng thu gọn giữ input gốc để cùng bước và cùng khoảng với thanh của vỏ.
  */
 import type { ChangeEvent } from 'react';
 
@@ -25,7 +28,6 @@ import { cn } from '@/lib/utils';
 import { SegmentedControl, type SegmentedControlOption } from '@/components/ui/SegmentedControl';
 import { MAX_SEPARATION, MIN_SEPARATION } from '@/screens/viewer/ViewerShell/viewerStoreyStack';
 
-import { EXPLODED_LAYOUT } from './explodedViewTypes';
 import type { ExplodePresetId, ExplodePresetViewModel } from './explodedViewTypes';
 
 /** Bước kéo — mịn để mô hình giãn liền tay, không phải một ngưỡng nghiệp vụ. */
@@ -113,33 +115,13 @@ export function ExplodedViewRail({
   }
 
   /*
-   * Cột trượt dừng trước góc trái dưới, nơi vỏ đặt chú giải màu tường.
-   * `bottom-14` không phải một khoảng đệm cho đẹp: đo trong trình duyệt thật,
-   * khung nhìn 3D của vỏ chỉ cao 362 px ở cửa sổ 1000 px, và cột dài 12 + nhãn +
-   * 240 + hàng ba mức sẵn thì hàng mức sẵn rơi đúng vào chú giải (đo được: hàng
-   * mức sẵn tại y≈374, chú giải cũng ở đó). Neo cả hai đầu rồi cho thanh trượt co
-   * lại là cách giữ đúng 240 px khi có chỗ, và không đè lên thứ của vỏ khi không.
+   * Dạng thường: CHỈ hàng ba mức sẵn, góc trên trái. Thanh trượt độ tách của dạng
+   * này là thanh "Độ tách" trên ray tầng của `ViewerShell` — vỏ chung giữ nó cho
+   * cả chín màn 3D, và màn này không dựng lại thứ vỏ đã có (R-64). Bản trước dựng
+   * thêm một thanh dọc 240 px kèm nhãn hai đầu ngay trong khung nhìn: hai điều
+   * khiển cho cùng một giá trị, và nhãn của nó thành thước chiều cao thứ hai cạnh
+   * thang cao độ của vỏ (BUG-381). Dạng thu gọn ở trên vẫn giữ thanh trượt riêng
+   * vì khi ấy vỏ gỡ cả ray tầng — đó là điều khiển tách duy nhất còn lại.
    */
-  return (
-    <div className="absolute bottom-24 left-3 top-3 flex flex-col items-center justify-start gap-2">
-      <span className="text-[11px] leading-none text-text-muted">{maxLabel}</span>
-      <input
-        aria-label="Độ tách các tầng"
-        className={cn(RANGE_INPUT_CLASSNAME, 'w-6')}
-        max={MAX_SEPARATION}
-        min={MIN_SEPARATION}
-        onChange={handleSeparationInput}
-        step={SEPARATION_STEP}
-        style={{
-          height: `min(${String(EXPLODED_LAYOUT.railHeightPx)}px, 100%)`,
-          writingMode: 'vertical-lr',
-          direction: 'rtl',
-        }}
-        type="range"
-        value={separation}
-      />
-      <span className="text-[11px] leading-none text-text-muted">{minLabel}</span>
-      <div className="mt-2">{presetRow}</div>
-    </div>
-  );
+  return <div className="absolute left-3 top-3">{presetRow}</div>;
 }
