@@ -125,7 +125,11 @@ export function DimensionOcrKeyboardMode({
   return (
     <section
       aria-label={DIMENSION_OCR_TEXT.keyboard.caption}
-      className="flex h-full flex-col items-center justify-center gap-5 p-6"
+      className={cn(
+        'flex flex-col items-center',
+        // Có chuỗi để duyệt: chế độ chiếm cả màn. Không còn chuỗi nào: nó nằm gọn ở chân bảng duyệt (BUG-334).
+        row === null ? 'gap-2' : 'h-full justify-center gap-5 p-6',
+      )}
     >
       <p className="text-[13px] text-text-secondary">{DIMENSION_OCR_TEXT.keyboard.caption}</p>
 

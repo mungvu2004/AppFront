@@ -232,7 +232,7 @@ export function DimensionOcrReview({
         <section
           aria-label={DIMENSION_OCR_TEXT.screen.canvasAriaLabel}
           className={cn(
-            'relative flex min-h-0 min-w-0 flex-col',
+            'relative flex min-h-0 min-w-0 flex-col max-lg:shrink-0',
             isCollapsed ? 'lg:w-full' : 'lg:w-[60%]',
           )}
         >
