@@ -707,7 +707,7 @@ test.describe('E02 SCR-05 wizard edge — step 2 floors', () => {
     });
   });
 
-  test('E02 · wizard floor rows by keyboard: typing a new name keeps the focus, Enter on "Xoá Tầng 2" removes it, focus stays trapped; the next "Thêm tầng" repeats "Tầng 3"', async ({ browser }) => {
+  test('E02 · wizard floor rows by keyboard: typing a new name keeps the focus, Enter on "Xoá Tầng 2" removes it, focus stays trapped; the next "Thêm tầng" adds "Tầng 4", never a second "Tầng 3" (BUG-217)', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const dialog = await openWizard(page);
@@ -727,11 +727,12 @@ test.describe('E02 SCR-05 wizard edge — step 2 floors', () => {
       await page.keyboard.press('Tab'); // the pressed button is gone; FT:129-134 pulls the focus back in
       expect(await focusIsInside(dialog), 'focus inside the dialog after the row left').toBe(true);
 
-      // nextFloorName(aboveCount) (UCPM:185-187, :563) counts rows, not names: 3 rows → "Tầng 3", already taken.
+      // UCPM:757-767 addFloor skips every name already in the table (BUG-217, FIX-1017): 3 rows → "Tầng 3" taken → "Tầng 4".
       await addFloorButton(dialog).click();
-      await expect(floorNameBox(dialog, 'Tầng 3')).toHaveCount(2);
-      await expect(deleteFloorButton(dialog, 'Tầng 3')).toHaveCount(2);
-      await captureEvidence(page, 'E02_wiz_rows_keyboard.png', { caption: 'after deleting "Tầng 2", "Thêm tầng" adds a second "Tầng 3"' });
+      await expect(floorNameBox(dialog, 'Tầng 4')).toHaveCount(1);
+      await expect(floorNameBox(dialog, 'Tầng 3')).toHaveCount(1);
+      await expect(deleteFloorButton(dialog, 'Tầng 3')).toHaveCount(1);
+      await captureEvidence(page, 'E02_wiz_rows_keyboard.png', { caption: 'after deleting "Tầng 2", "Thêm tầng" adds "Tầng 4", not a second "Tầng 3"' });
       await attachJson('E02_wiz_rows_keyboard.json', { names: await floorNameBoxes(dialog).evaluateAll((els) => els.map((el) => (el as HTMLInputElement).value)) });
       await discardWizard(dialog);
     });
