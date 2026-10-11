@@ -58,6 +58,7 @@ import {
 } from './CadBranchConfirm.stories';
 import { CadBranchConfirmContainer } from './CadBranchConfirm.container';
 import {
+  CAD_SAMPLE_INSPECTION,
   CAD_SAMPLE_LAYERS,
   createMockCadBranchConfirmGateway,
 } from './cadBranchConfirmGateway';
@@ -637,5 +638,28 @@ describe('CadBranchConfirm — bàn phím ở hộp thoại chốt nhánh [NGHIE
     });
 
     expect(document.activeElement).toBe(opener);
+  });
+});
+
+describe('CadBranchConfirm — giai đoạn 2 không có lớp nào (BUG-314)', () => {
+  it('says why the import is locked and offers the AI branch instead of a dead end', async () => {
+    const onNavigate = vi.fn();
+    renderWithProviders(
+      <CadBranchConfirmContainer
+        floorId={FLOOR_ID}
+        gateway={createMockCadBranchConfirmGateway({
+          inspection: { ...CAD_SAMPLE_INSPECTION, hasNamedLayers: false, layers: [] },
+        })}
+        onNavigate={onNavigate}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await settleDialog();
+    fireEvent.click(screen.getByRole('button', { name: PRIMARY_BUTTON_LABEL }));
+
+    const importButton = await screen.findByRole('button', { name: IMPORT_BUTTON_LABEL });
+    expect(importButton).toBeDisabled();
+    expect(importButton).toHaveAccessibleDescription('Không có lớp nào để ánh xạ, nên chưa có hình học để nhập.');
+    expect(screen.getAllByRole('button', { name: SECONDARY_BUTTON_LABEL }).length).toBeGreaterThan(0);
   });
 });
