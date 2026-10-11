@@ -73,7 +73,9 @@ const LOAD_ERROR_TITLE = 'Không tải được danh sách tầng';
  */
 const NO_FLOORS_TITLE = 'Dự án chưa có tầng nào';
 const NO_FLOORS_MESSAGE =
-  'Bản vẽ được gán theo tầng. Thêm tầng ở màn Quản lý tầng; tệp thả vào trước đó chờ ở mục “Tệp chưa gán tầng”.';
+  'Bản vẽ được gán theo tầng. Thêm tầng ở màn Quản lý tầng rồi quay lại đây để tải bản vẽ.';
+/** Lối tới màn Quản lý tầng — cùng nhãn nút của trạng thái rỗng ở đó (BUG-298). */
+const ADD_FLOORS_LABEL = 'Thêm tầng';
 
 /** Bao nhiêu khung xương lúc chưa biết có mấy tầng. */
 const SKELETON_ROW_COUNT = 3;
@@ -147,7 +149,12 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
         ))}
       </div>
     ) : props.floors.length === 0 ? (
-      <EmptyState description={NO_FLOORS_MESSAGE} icon={<SheetGlyph />} title={NO_FLOORS_TITLE} />
+      <EmptyState
+        {...(props.onAddFloors ? { action: { label: ADD_FLOORS_LABEL, onClick: props.onAddFloors } } : {})}
+        description={NO_FLOORS_MESSAGE}
+        icon={<SheetGlyph />}
+        title={NO_FLOORS_TITLE}
+      />
     ) : (
       <>
         {/* Dự án có tầng nhưng chưa tầng nào có bản vẽ: câu mời đi TRƯỚC danh

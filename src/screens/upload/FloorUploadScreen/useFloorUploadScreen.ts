@@ -113,6 +113,7 @@ const COPY = Object.freeze({
   submitKey: 'floorUpload.footer.submit',
   blockedTitle: 'Không thể bắt đầu xử lý',
   blockedTitleKey: 'floorUpload.blockedSubmit.title',
+  noFloors: 'Dự án chưa có tầng nào. Thêm tầng ở màn Quản lý tầng trước khi xử lý.',
   uploadErrorTitleKey: 'errors.upload.title',
   validationErrorTitleKey: 'errors.validation.title',
 });
@@ -401,6 +402,11 @@ export function useFloorUploadScreen(
     () => [...(floorsQuery.data ?? [])].sort((first, second) => first.order - second.order),
     [floorsQuery.data],
   );
+
+  // Chưa có tầng thì không có chỗ gán tệp, và tệp chỉ sống trong màn — đi thêm tầng là mất nó:
+  // vùng thả không mời thả, nút chính nói lý do, trạng thái rỗng dẫn tới Quản lý tầng (BUG-298).
+  const hasNoFloors = floorsQuery.isSuccess && floors.length === 0;
+  const canDrop = canEdit && !hasNoFloors;
 
   /* ---------------------------------------------------------------------- */
   /* Mạng — không hook nào bọc `createNetworkMonitor`, nên nối tay ở đây.     */
@@ -755,7 +761,7 @@ export function useFloorUploadScreen(
   };
 
   const acceptFiles = (files: readonly File[]): void => {
-    if (!canEdit) {
+    if (!canDrop) {
       return;
     }
 
@@ -896,7 +902,8 @@ export function useFloorUploadScreen(
   /* ---------------------------------------------------------------------- */
 
   const blockReasons = useMemo<readonly FloorUploadBlockReason[]>(() => {
-    const reasons: FloorUploadBlockReason[] = [];
+    const reasons: FloorUploadBlockReason[] =
+      hasNoFloors ? [{ floorId: '', floorName: '', kind: 'noFloors', sentence: COPY.noFloors }] : [];
 
     // `floor.name` đã là nhãn đầy đủ — API trả về `Tầng 2`, `Tầng hầm`, chứ
     // không trả về `2`. Mẫu câu trong `.notes/copy.md` viết `Tầng {{floorName}}`
@@ -963,7 +970,7 @@ export function useFloorUploadScreen(
     }
 
     return reasons;
-  }, [attachmentByFloor, floors, stack]);
+  }, [attachmentByFloor, floors, hasNoFloors, stack]);
 
   const canSubmit = canEdit && floors.length > 0 && blockReasons.length === 0;
 
@@ -1197,7 +1204,7 @@ export function useFloorUploadScreen(
     isReadOnly: !canEdit,
     isCollapsed,
     isOffline: !isOnline,
-    isDragActive: canEdit && dragDepth > 0,
+    isDragActive: canDrop && dragDepth > 0,
     errorMessage: state === 'error' ? loadFailure : null,
     // Có tệp đang chờ mạng thì nói rõ nó sẽ tự tải, và giới hạn của lời hứa ấy (NO-389).
     offlineNotice: isOnline ? null : isAwaitingNetwork ? AWAIT_NETWORK_SENTENCE : COPY.offline,
@@ -1216,7 +1223,7 @@ export function useFloorUploadScreen(
         `Định dạng hỗ trợ: ${PICKER_UPLOAD_EXTENSIONS.join(', ')}. ` +
         `Kích thước tối đa: ${formatFileSize(MAX_UPLOAD_FILE_SIZE_BYTES)}.`,
       acceptAttribute: PICKER_UPLOAD_EXTENSIONS.join(','),
-      isEnabled: canEdit,
+      isEnabled: canDrop,
     },
     floors: rows,
     tray,
@@ -1231,7 +1238,7 @@ export function useFloorUploadScreen(
     },
     onFilesChosen: acceptFiles,
     onDragEnter: () => {
-      if (canEdit) setDragDepth((depth) => depth + 1);
+      if (canDrop) setDragDepth((depth) => depth + 1);
     },
     onDragLeave: () => {
       setDragDepth((depth) => (depth > 0 ? depth - 1 : 0));
@@ -1252,6 +1259,10 @@ export function useFloorUploadScreen(
     },
     onRemoveFile: removeFile,
     onSubmit: submit,
+    onAddFloors:
+      canEdit && options.onNavigate !== undefined
+        ? () => options.onNavigate?.(ROUTES.project.floors(projectId))
+        : undefined,
     onBackToProjects:
       options.onNavigate === undefined ? undefined : () => options.onNavigate?.(ROUTES.dashboard),
     // Lỗi của một tệp đóng lại một mình; không hàng nào khác đổi.

@@ -1453,6 +1453,37 @@ describe('useFloorUploadScreen — nút chính', () => {
     expect(harness.navigations).toEqual([ROUTES.project.pipeline(PROJECT_ID)]);
     expect(result.current.blockNotice).toBeNull();
   });
+
+  it('dự án chưa có tầng: bấm nút chính nói lý do, vùng thả tắt, có lối tới Quản lý tầng (BUG-298)', async () => {
+    const harness = createHarness({ readFloors: async () => ({ ok: true, data: [] }) });
+    const { result } = renderScreen(harness.options);
+
+    await waitFor(() => {
+      expect(result.current.state).toBe('empty');
+    });
+
+    expect(result.current.dropZone.isEnabled).toBe(false);
+
+    act(() => {
+      result.current.onSubmit();
+    });
+
+    expect(result.current.blockNotice?.title).toBe('Không thể bắt đầu xử lý');
+    expect(result.current.blockNotice?.reasons.map((reason) => reason.kind)).toEqual(['noFloors']);
+    expect(harness.navigations).toHaveLength(0);
+
+    act(() => {
+      result.current.onFilesDropped([makeFile('tang-2.png')]);
+    });
+
+    expect(result.current.tray.items).toHaveLength(0);
+
+    act(() => {
+      result.current.onAddFloors?.();
+    });
+
+    expect(harness.navigations).toEqual([ROUTES.project.floors(PROJECT_ID)]);
+  });
 });
 
 /* -------------------------------------------------------------------------- */

@@ -188,12 +188,16 @@ export interface FloorUploadDropZoneModel {
 /* Chân trang và lý do chặn.                                                   */
 /* -------------------------------------------------------------------------- */
 
-/** Bốn lý do một lượt xử lý chưa bắt đầu được. Mỗi lý do luôn nêu đúng một tầng. */
+/**
+ * Năm lý do một lượt xử lý chưa bắt đầu được. Bốn lý do đầu nêu đúng một tầng;
+ * `noFloors` là lý do của cả dự án (chưa có tầng nào, BUG-298) và mang `floorId` rỗng.
+ */
 export type FloorUploadBlockReasonKind =
   | 'missingFile'
   | 'missingElevation'
   | 'duplicateElevation'
-  | 'uploading';
+  | 'uploading'
+  | 'noFloors';
 
 /**
  * Một lý do, đã nêu tên tầng và mang theo mã tầng.
@@ -328,6 +332,8 @@ export interface FloorUploadActions {
   /** Xoá ngay, có toast hoàn tác (A8, D-05). Không hộp thoại xác nhận. */
   readonly onRemoveFile: (fileId: string) => void;
   readonly onSubmit: () => void;
+  /** Dự án chưa có tầng: tới màn Quản lý tầng (BUG-298). Vắng khi không sửa được hoặc không có router. */
+  readonly onAddFloors?: (() => void) | undefined;
   /** Cấp "Dự án" của breadcrumb: về danh sách dự án. Vắng thì cấp ấy là chữ trơn. */
   readonly onBackToProjects?: (() => void) | undefined;
   /** Đóng lỗi trong thẻ của một tệp. Không đụng tới tệp khác. */
