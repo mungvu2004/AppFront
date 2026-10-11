@@ -33,6 +33,8 @@ export function useNumericField({ value, onChange, min, max, unit, resetKey }: U
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
+  // The value this field committed itself: it is shown as typed, not counted up from the old one (BUG-198).
+  const [ownCommit, setOwnCommit] = useState<number | undefined | null>(null);
 
   // `from: value` mounts at rest; an external change then runs from the shown
   // value. A missing value maps to NaN, which the count-up treats as "no run".
@@ -44,7 +46,10 @@ export function useNumericField({ value, onChange, min, max, unit, resetKey }: U
   // written from outside (an "apply to all", an undo) replaces whatever text
   // the field was still showing for a refusal, so the refusal goes with it.
   useEffect(() => {
-    if (value !== lastCommittedRef.current) setError(null);
+    if (value !== lastCommittedRef.current) {
+      setError(null);
+      setOwnCommit(null);
+    }
     lastCommittedRef.current = value;
   }, [value]);
 
@@ -79,6 +84,7 @@ export function useNumericField({ value, onChange, min, max, unit, resetKey }: U
 
     if (!err && parsed !== lastCommittedRef.current) {
       lastCommittedRef.current = parsed;
+      setOwnCommit(parsed);
       onChange?.(parsed);
       setFlash(true);
       // The same off-ladder 400 ms `useListReview` carried, for the same kind
@@ -157,11 +163,12 @@ export function useNumericField({ value, onChange, min, max, unit, resetKey }: U
   };
 
   // A refused value stays in the box beside its message (BUG-160): blanking it
-  // left the error under a field that looked empty.
-  const displayValue =
-    isTyping || isFocused || error !== null
-      ? localValue
-      : displayText(Number.isFinite(animatedValue) ? animatedValue : undefined);
+  // left the error under a field that looked empty. Only a value written from
+  // outside counts up: counting the user's own "2" down from 3,5 made a Tab
+  // straight back swap "2,6" for "2" and drop the keyboard select-all, so "10"
+  // typed next read "210" (BUG-198, run-17).
+  const shown = value === ownCommit ? value : Number.isFinite(animatedValue) ? animatedValue : undefined;
+  const displayValue = isTyping || isFocused || error !== null ? localValue : displayText(shown);
 
   return {
     displayValue,
