@@ -25,7 +25,7 @@
  * | `error`     | hai cột đầy đủ, cộng `InlineAlert` kèm mã kỹ thuật ở đầu màn     |
  * | `success`   | hai cột đầy đủ, cộng khối tổng kết                               |
  * | `forbidden` | hai cột đầy đủ; `canCancel` sai nên nút huỷ biến mất hẳn         |
- * | `collapsed` | hai cột, cột phải thành tấm trượt đáy bất kể bề rộng khung nhìn   |
+ * | `collapsed` | một thanh bước + "Xem tất cả các bước"; dưới 1024px tab xếp dưới  |
  *
  * Không nhánh nào trả `null`: đường dẫn, hàng hành động và dòng tóm tắt luôn
  * được vẽ, nên màn trắng — thất bại duy nhất A11 tồn tại để chặn — không có chỗ
@@ -40,7 +40,6 @@
  */
 
 import { ScanLine } from 'lucide-react';
-import { clsx } from 'clsx';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -84,11 +83,7 @@ const EMPTY_ACTION_LABEL = 'Tải bản vẽ';
 /** Bao nhiêu khung xương lúc chưa biết bước nào đã xong. */
 const SKELETON_ROW_COUNT = 4;
 
-/** Cùng khuôn `InputQualityGate.tsx:66-70` — tấm trượt đáy dưới 1024px. */
-const BOTTOM_SHEET_CLASSES =
-  'fixed inset-x-0 bottom-0 z-10 max-h-[70vh] overflow-y-auto rounded-t-[16px] border-t border-border-default bg-bg-surface p-4';
-const BOTTOM_SHEET_RESET_AT_DESKTOP =
-  'lg:static lg:max-h-none lg:overflow-visible lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0';
+const ALL_STEPS_LABEL = 'Xem tất cả các bước';
 
 /** Hàng hành động đầu trang: nút chìm chạy nền khi còn lượt đang chạy, nút huỷ thì tuỳ quyền. */
 function ProcessingActions(props: ProcessingScreenProps) {
@@ -204,13 +199,24 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         <div className="lg:w-[60%]">
           {isSheet ? (
-            <ProcessingStepBar prefersReducedMotion={props.prefersReducedMotion} steps={props.steps} />
+            // Một thanh cho bước hiện tại, và cả sáu bước vẫn mở ra được ở khổ hẹp (BUG-294).
+            <div className="flex flex-col gap-2">
+              <ProcessingStepBar prefersReducedMotion={props.prefersReducedMotion} steps={props.steps} />
+              <details>
+                <summary className="cursor-pointer select-none rounded-[8px] px-1 py-2 text-[14px] font-medium text-text-secondary hover:bg-bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+                  {ALL_STEPS_LABEL}
+                </summary>
+                <ProcessingStepList prefersReducedMotion={props.prefersReducedMotion} steps={props.steps} />
+              </details>
+            </div>
           ) : (
             <ProcessingStepList prefersReducedMotion={props.prefersReducedMotion} steps={props.steps} />
           )}
           <ProcessingFloorObjectRows floors={props.floors} />
         </div>
-        <div className={clsx('lg:w-[344px]', BOTTOM_SHEET_CLASSES, !isSheet && BOTTOM_SHEET_RESET_AT_DESKTOP)}>
+        {/* Dưới 1024px hai tab xếp dưới các bước, trong dòng chảy trang: tấm cố định 70vh
+            che khối tổng kết và để trống 400-600 px phía trên (BUG-294, BUG-285). */}
+        <div className="lg:w-[344px]">
           <ProcessingPanels {...props} />
         </div>
       </div>

@@ -36,7 +36,7 @@
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
-import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { NotificationHost } from '@/components/feedback/NotificationHost';
@@ -740,5 +740,20 @@ describe('ProcessingScreen — màn rỗng (BUG-165)', () => {
     renderWithProviders(<ProcessingScreen {...scenarioFor('empty')} projectName="Nhà phố Quận 3" />);
 
     expect(screen.getByRole('navigation', { name: 'Xử lý' })).toHaveTextContent('Dự án › Nhà phố Quận 3 › Xử lý');
+  });
+});
+
+describe('ProcessingScreen — khổ hẹp (BUG-294)', () => {
+  it('a narrow finished run still lists every step behind "Xem tất cả các bước", and the summary is in the page flow', () => {
+    const { container } = renderWithProviders(<ProcessingScreen {...scenarioFor('success')} isCompact />);
+
+    fireEvent.click(screen.getByText('Xem tất cả các bước'));
+    const steps = screen.getByRole('list', { name: 'Các bước xử lý' });
+    for (const name of PIPELINE_STEP_NAMES) {
+      expect(within(steps).getByRole('progressbar', { name })).toBeInTheDocument();
+    }
+    // No fixed overlay left to cover "Duyệt lớp tường" (BUG-285 at 768/375).
+    expect(container.querySelector('.fixed')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Duyệt lớp tường' })).toBeInTheDocument();
   });
 });
