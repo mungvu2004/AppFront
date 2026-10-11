@@ -1594,27 +1594,33 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
     });
   });
 
-  test('E02 · SCR-05 search and Vietnamese marks: upper case with marks matches; the same words without marks, or decomposed (NFD), do not — no accent folding', async ({ browser }) => {
+  test('E02 · SCR-05 search and Vietnamese marks: upper case with marks matches, so does the decomposed (NFD) form; the same words without marks do not — no accent folding (BUG-210)', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const stamp = Date.now().toString(36);
       const project = await createProject(admin, 'dau', `${TEST_DATA_PREFIX}dau-${stamp}-Nhà Đông Á`);
       await reloadDashboard(page);
 
-      // UPD:272-276: `trim().toLowerCase()` on both sides + `includes` — no `normalize`, no mark folding.
+      // UPD:308-312: `trim().normalize('NFC').toLowerCase()` on both sides + `includes` — NFD ≡ NFC (BUG-210), no mark folding.
       const withMarks = `${stamp}-NHÀ ĐÔNG Á`.toUpperCase();
       await searchBox(page).fill(withMarks);
       await expect(projectCards(page)).toHaveCount(1);
       await expect(projectCard(page, project.name)).toBeVisible();
       await captureEvidence(page, 'E02_search_marks_match.png', { caption: `"${withMarks}" → "${project.name}"` });
 
-      const refused = [`${stamp}-nha dong a`, `${stamp}-Nhà Đông Á`.normalize('NFD')];
+      // BUG-239: a decomposed (NFD) query is the same text as the NFC name, so it matches (BUG-210 fixed in the app).
+      const decomposed = `${stamp}-Nhà Đông Á`.normalize('NFD');
+      await searchBox(page).fill(decomposed);
+      await expect(projectCards(page)).toHaveCount(1);
+      await expect(projectCard(page, project.name)).toBeVisible();
+
+      const refused = [`${stamp}-nha dong a`];
       for (const query of refused) {
         await searchBox(page).fill(query);
         await expect(noMatch(page)).toBeVisible();
       }
-      await captureEvidence(page, 'E02_search_marks_nomatch.png', { caption: 'no marks / NFD query → "Không tìm thấy dự án phù hợp" (no accent folding, UPD:276)' });
-      await attachJson('E02_search_marks.json', { name: project.name, matched: withMarks, noMatch: refused.map((q) => [...q].length) });
+      await captureEvidence(page, 'E02_search_marks_nomatch.png', { caption: 'no-marks query → "Không tìm thấy dự án phù hợp" (no accent folding, UPD:308-312)' });
+      await attachJson('E02_search_marks.json', { name: project.name, matched: [withMarks, [...decomposed].length], noMatch: refused.map((q) => [...q].length) });
     });
   });
 
