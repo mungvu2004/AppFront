@@ -142,13 +142,14 @@ export function NotificationRow({
             </span>
           )}
           {/* Nút ẩn từng là một cột chữ bên phải: opacity-0 vẫn giữ chỗ, câu bị bóp còn ~100 px (BUG-203).
-              Nay là nút biểu tượng ở hàng giờ — hàng ấy còn chỗ — nên câu dùng hết bề ngang. Màn cảm ứng
-              không có hover: luôn hiện, không để một nút vô hình bấm trúng được. */}
+              Nay là nút biểu tượng ở hàng giờ, nên câu dùng hết bề ngang. Chỉ ẩn-chờ-rê-chuột từ 640 px (hàng
+              giờ ở đó luôn đủ chỗ); hẹp hơn, hoặc màn không có hover, thì luôn hiện — hàng giờ có xuống dòng
+              thì xuống dòng một nút nhìn thấy, không phải một dòng trống, và không có nút vô hình bấm trúng. */}
           {!item.isRead && (
             <span
               className={cn(
-                'ml-auto shrink-0 opacity-0 transition-opacity duration-fast',
-                'group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100',
+                'ml-auto shrink-0 transition-opacity duration-fast',
+                'sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 [@media(hover:none)]:opacity-100',
               )}
             >
               <IconButton
