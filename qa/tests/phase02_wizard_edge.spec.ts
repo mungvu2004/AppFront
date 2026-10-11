@@ -1532,10 +1532,10 @@ test.describe('E02 SCR-05 wizard edge — QA-02 shared components (FE 271538cb)'
           .filter((id) => id !== '')
           .map((id) => ({ id, found: document.getElementById(id) !== null })),
       );
-      // BUG-220: with 50 rows the note (foot of the list, under "Thêm tầng") and the switch (top of step 2) never share
+      // BUG-220: with 50 rows the note (foot of the list, just above "Thêm tầng" since BUG-231, SF:165-168) and the switch (top of step 2) never share
       // one view: each is scrolled into view for its own shot.
       await note.scrollIntoViewIfNeeded();
-      await captureEvidence(page, 'E02_wiz_cap_note.png', { caption: `50 floors, foot of the list: note "${FLOOR_CAP_NOTE}" under the locked "Thêm tầng"` });
+      await captureEvidence(page, 'E02_wiz_cap_note.png', { caption: `50 floors, foot of the list: note "${FLOOR_CAP_NOTE}" above the locked "Thêm tầng"` });
       await basement.scrollIntoViewIfNeeded();
       await captureEvidence(page, 'E02_wiz_cap_note_switch.png', { caption: `50 floors, top of step 2: "Có tầng hầm" locked; switch describedby ${JSON.stringify(describedBy)}` });
       await attachJson('E02_wiz_cap_note.json', { rows: FLOOR_COUNT_MAX, describedBy });
