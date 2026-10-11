@@ -175,7 +175,7 @@ function WallLayerReviewCrashFallback({ report, retry }: ScreenErrorFallback) {
  * `PipelineFailure.container.tsx`.
  */
 function WiredWallLayerReview(props: WallLayerReviewContainerProps) {
-  const { panel, canvas, toolRail, statusBar, leftPanel, saveBlock, provisionalScaleNotice } = useWallLayerReview({
+  const { panel, canvas, toolRail, statusBar, leftPanel, saveBlock, provisionalScaleNotice, readFailure } = useWallLayerReview({
     floorId: props.floorId,
     onNavigate: props.onNavigate,
     projectId: props.projectId,
@@ -217,6 +217,7 @@ function WiredWallLayerReview(props: WallLayerReviewContainerProps) {
       onNavigateLayer={onNavigateLayer}
       panel={panel}
       provisionalScaleNotice={provisionalScaleNotice}
+      readFailure={readFailure}
       saveBlock={props.forceSaveBlock ?? saveBlock}
       statusBar={statusBar}
       toolRail={toolRail}

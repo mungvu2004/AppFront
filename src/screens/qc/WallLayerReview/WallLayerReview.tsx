@@ -37,7 +37,7 @@
  * | `empty`     | `WallLayerList` (panel trái) — `EmptyState` với `emptyNotice`     |
  * | `loading`   | canvas: dự phòng khung xương; panel trái: 12 dòng `Skeleton`      |
  * | `partial`   | mặc định — danh sách + thanh tra bình thường                      |
- * | `error`     | `InlineAlert` trong panel trái; canvas VẪN xem được ảnh nền        |
+ * | `error`     | `InlineAlert` trong panel trái; đọc lớp hỏng khi chưa có tài liệu → cả màn là `FloorLayerReadFailureScreen` (BUG-326) |
  * | `success`   | panel trái hiện nút "Sang lớp Cửa và nội thất"                    |
  * | `forbidden` | ray ẩn công cụ sửa; thanh tra bỏ viền + một câu giải thích         |
  * | `collapsed` | hai panel ẩn; ray công cụ nổi trên canvas                          |
@@ -53,6 +53,8 @@ import { Skeleton } from '@/components/feedback/Skeleton';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 
 import { FloorLayerSaveBanner } from './FloorLayerSaveBanner';
+import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
+import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import { WallLayerInspector } from './WallLayerInspector';
@@ -79,6 +81,8 @@ export interface WallLayerReviewViewProps extends WallLayerReviewProps {
   readonly saveBlock?: FloorLayerSaveBlock | null | undefined;
   /** Dải tỉ lệ tạm (F-04x-2) — trên màn, không trong canvas. */
   readonly provisionalScaleNotice?: ProvisionalScaleNotice | null | undefined;
+  /** Đọc lớp của tầng hỏng khi chưa có tài liệu: thay cả màn, một lối ra (BUG-326). */
+  readonly readFailure?: FloorLayerReadFailure | null | undefined;
 }
 
 const SCREEN_ARIA_LABEL = 'Duyệt lớp tường';
@@ -112,8 +116,17 @@ export function WallLayerReview({
   onNavigateFloor,
   saveBlock,
   provisionalScaleNotice,
+  readFailure,
 }: WallLayerReviewViewProps) {
   const isCollapsed = panel.state === 'collapsed';
+
+  if (readFailure != null) {
+    return (
+      <div aria-label={SCREEN_ARIA_LABEL} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+        <FloorLayerReadFailureScreen failure={readFailure} />
+      </div>
+    );
+  }
 
   return (
     <div aria-label={SCREEN_ARIA_LABEL} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">

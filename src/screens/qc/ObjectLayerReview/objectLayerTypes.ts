@@ -34,6 +34,7 @@ import type { MeasurementState } from '@/hooks/useMeasurementLabel';
 import type { ColorTokenName } from '@/lib/coloring/scales';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 
+import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 
 /* -------------------------------------------------------------------------- */
@@ -621,6 +622,8 @@ export interface ObjectLayerReviewModel {
   readonly saveBlock?: FloorLayerSaveBlock | null | undefined;
   /** Dải tỉ lệ tạm (F-04x-2); `null` khi tầng đã có tỉ lệ thật. */
   readonly provisionalScaleNotice?: ProvisionalScaleNotice | null | undefined;
+  /** Đọc lớp của tầng hỏng khi chưa có tài liệu: thay cả màn, một lối ra (BUG-326). */
+  readonly readFailure?: FloorLayerReadFailure | null | undefined;
 }
 
 /* -------------------------------------------------------------------------- */

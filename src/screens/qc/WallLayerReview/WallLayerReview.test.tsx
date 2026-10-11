@@ -270,7 +270,8 @@ describe('[NGHIEM-2] chú giải độ dày', () => {
     {
       empty: { kind: 'text', name: 'Chưa có dữ liệu tường' },
       loading: { kind: 'label', name: 'Đang tải chú giải' },
-      error: { kind: 'text', name: 'Không tải được chú giải' },
+      /* Đọc lớp hỏng: cả màn là trạng thái lỗi một lối ra, không dựng chú giải hỏng (BUG-326). */
+      error: { kind: 'absent', name: 'Không tải được chú giải' },
       partial: { kind: 'group', name: 'Lọc theo độ dày tường' },
       success: { kind: 'group', name: 'Lọc theo độ dày tường' },
       /* Hai trạng thái ánh xạ CHỆCH: chú giải ĐẦY ĐỦ, không phải chữ "T" thu gọn. */
@@ -286,6 +287,13 @@ describe('[NGHIEM-2] chú giải độ dày', () => {
 
     if (expectation?.kind === 'group') {
       expect(await screen.findByRole('group', { name: expectation.name })).toBeInTheDocument();
+
+      return;
+    }
+
+    if (expectation?.kind === 'absent') {
+      expect(await screen.findByRole('button', { name: 'Thử lại' })).toBeInTheDocument();
+      expect(screen.queryByText(expectation.name)).toBeNull();
 
       return;
     }

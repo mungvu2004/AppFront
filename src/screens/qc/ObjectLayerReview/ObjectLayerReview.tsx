@@ -24,7 +24,7 @@
  * | `empty`     | panel trái: `EmptyState` — tiêu đề, câu giải thích, nút thêm tay    |
  * | `loading`   | panel trái: bốn dòng `Skeleton`; canvas tự vẽ nền chờ của nó        |
  * | `partial`   | mặc định — hàng "5 mục dưới ngưỡng…" cộng danh sách ba nhóm         |
- * | `error`     | `InlineAlert` trong panel trái; canvas VẪN xem được ảnh nền          |
+ * | `error`     | `InlineAlert` trong panel trái; đọc lớp hỏng khi chưa có tài liệu → cả màn là `FloorLayerReadFailureScreen` (BUG-326) |
  * | `success`   | 21/21 — bộ đếm đổi hình thức, danh sách bình thường                  |
  * | `forbidden` | ray ẩn công cụ sửa, canvas bỏ mọi callback nên chuột phải không mở  |
  * | `collapsed` | hai panel ẩn; ray công cụ nổi trên canvas; thanh trạng thái còn      |
@@ -40,6 +40,7 @@ import { Skeleton } from '@/components/feedback/Skeleton';
 import { cn } from '@/lib/utils';
 
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
+import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 
 import { ObjectLayerCanvas } from './ObjectLayerCanvas';
@@ -184,6 +185,14 @@ function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewM
 
 export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
   const isCollapsed = model.state === 'collapsed';
+
+  if (model.readFailure != null) {
+    return (
+      <div aria-label={SCREEN_ARIA_LABEL} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+        <FloorLayerReadFailureScreen failure={model.readFailure} />
+      </div>
+    );
+  }
 
   return (
     <div

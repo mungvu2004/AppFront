@@ -168,6 +168,7 @@ import {
   type WallLayerViewportRectPercent,
 } from './wallLayerReviewGateway';
 import type { WallLayerLeftPanelExtras } from './WallLayerLeftPanel';
+import { useFloorLayerReadFailure, type FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useProvisionalScaleNotice, type ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import type { WallLayerStatusBarProps } from './WallLayerStatusBar';
 import type { WallLayerCanvasViewProps, WallLayerMeasurementPx } from './wallLayerHatch';
@@ -308,6 +309,8 @@ export interface UseWallLayerReviewResult extends WallLayerReviewProps {
   readonly saveBlock: FloorLayerSaveBlock | null;
   /** Dải tỉ lệ tạm (F-04x-2); `null` khi tầng đã có tỉ lệ thật. */
   readonly provisionalScaleNotice: ProvisionalScaleNotice | null;
+  /** Đọc lớp của tầng hỏng khi chưa có tài liệu — view thay cả màn (BUG-326). */
+  readonly readFailure: FloorLayerReadFailure | null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -621,6 +624,7 @@ export function useWallLayerReview(
     floorId,
     options.onNavigate,
   );
+  const readFailure = useFloorLayerReadFailure(floorLayer, projectId, options.onNavigate);
 
   /*
    * Lần đọc ảnh nền THÀNH CÔNG gần nhất, giữ lại qua mọi lượt hỏng sau đó.
@@ -1786,7 +1790,7 @@ export function useWallLayerReview(
     onToggleSelect,
   };
 
-  return { panel, canvas, toolRail, statusBar, leftPanel, saveBlock, provisionalScaleNotice };
+  return { panel, canvas, toolRail, statusBar, leftPanel, saveBlock, provisionalScaleNotice, readFailure };
 }
 
 /** Cổng có dữ liệu, xuất lại để story và bài kiểm cắm vào cùng một chỗ (R-73). */
