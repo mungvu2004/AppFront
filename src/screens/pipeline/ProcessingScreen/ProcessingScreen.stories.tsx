@@ -226,11 +226,7 @@ function previewOf(
  * làm tròn, không ghép câu.
  */
 export const SAMPLE_SUMMARY: ProcessingSummaryViewModel = {
-  wallCountLabel: '48 tường',
-  objectCountLabel: '108 đối tượng',
-  dimensionCountLabel: '26 chuỗi kích thước',
-  roomCountLabel: '34 phòng',
-  areaLabel: '248,60 m²',
+  metricLabels: ['48 tường', '108 đối tượng', '26 chuỗi kích thước', '34 phòng', '248,60 m²'],
   lowConfidenceSentence: 'Có 9 mức độ tin cậy dưới 0,70 cần bạn xem lại.',
   onReviewWalls: NO_OP,
   onCalibrateScale: NO_OP,

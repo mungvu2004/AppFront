@@ -334,7 +334,6 @@ interface FloorProgressRecord {
   readonly queuePosition?: number;
   readonly stepDetails?: readonly ProcessingRawStepProgress[];
   readonly detectedGeometryPaths?: readonly string[];
-  readonly extraction?: ProcessingExtractionSummary;
 }
 
 function emptyRecord(upload: ProcessingFloorUpload): FloorProgressRecord {
@@ -629,12 +628,11 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
           queryKeys.progress.byFloor(upload.floorId),
         );
 
-        const [progress, queuePosition, stepDetails, geometry, extraction] = await Promise.all([
+        const [progress, queuePosition, stepDetails, geometry] = await Promise.all([
           gateway.readProgressOnce({ projectId, uploadId: upload.uploadId }),
           gateway.readQueuePosition({ projectId, uploadId: upload.uploadId }),
           gateway.readStepDetails({ projectId, uploadId: upload.uploadId }),
           gateway.readDetectedGeometry({ projectId, floorId: upload.floorId }),
-          gateway.readExtractionSummary({ projectId, floorId: upload.floorId }),
         ]);
 
         if (!progress.ok) {
@@ -663,7 +661,6 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
           ...(queuePosition.supported ? { queuePosition: queuePosition.value } : {}),
           ...(stepDetails.supported ? { stepDetails: stepDetails.value } : {}),
           ...(geometry.supported ? { detectedGeometryPaths: geometry.value } : {}),
-          ...(extraction.supported ? { extraction: extraction.value } : {}),
         };
       },
     })),
@@ -725,6 +722,20 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     .map((status, index) => (status === 'failed' ? index : -1))
     .filter((index) => index >= 0);
   const doneCount = floorStatuses.filter((status) => status === 'done').length;
+
+  // Tổng kết đọc SAU khi tầng xong (BUG-285): lớp AI chỉ được ghi vào tài liệu tầng ở bước
+  // cuối, nên đọc lúc mồi sẽ đếm lớp cũ — và một lượt xong qua SSE không đọc mồi lại.
+  const extractionQueries = useQueries({
+    queries: floorUploads.map((upload, index) => ({
+      queryKey: [...queryKeys.progress.byFloor(upload.floorId), 'extraction', upload.uploadId] as const,
+      queryFn: async (): Promise<ProcessingExtractionSummary | null> => {
+        const extraction = await gateway.readExtractionSummary({ projectId, floorId: upload.floorId });
+        return extraction.supported ? extraction.value : null;
+      },
+      enabled: floorStatuses[index] === 'done',
+    })),
+  });
+  const extractions = extractionQueries.map((query) => query.data ?? undefined);
   // Lỗi đọc tạm không đẩy tầng đang xem sang tầng khác (không mở luồng thứ hai);
   // upload đã mất (404/403) thì nhường chỗ.
   const activeIndex = records.findIndex(
@@ -898,9 +909,8 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   const floors = useMemo<readonly ProcessingFloorChipViewModel[]>(
     () =>
       floorUploads.map((upload, index) => {
-        const record = records[index];
         const status = floorStatuses[index] ?? 'queued';
-        const objectCount = record?.extraction;
+        const objectCount = extractions[index];
 
         return {
           id: upload.floorId,
@@ -918,7 +928,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
             : {}),
         };
       }),
-    [activeIndex, floorStatuses, floorUploads, records],
+    [activeIndex, extractions, floorStatuses, floorUploads],
   );
 
   /**
@@ -1183,13 +1193,34 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     };
   }, [floorStatuses, floorUploads, focusIndex, focusRecord]);
 
+  /**
+   * Khối tổng kết hiện ngay khi một tầng xong — kể cả khi chưa đọc được con số (lỗi N16): hai lối
+   * đi tiếp không được phụ thuộc vào số liệu, nếu không màn xong là ngõ cụt (BUG-285).
+   */
   const summary = useMemo<ProcessingSummaryViewModel | undefined>(() => {
-    const parts = records
-      .map((record) => record.extraction)
-      .filter((extraction): extraction is ProcessingExtractionSummary => extraction !== undefined);
+    const doneIndex = floorStatuses.indexOf('done');
+
+    if (doneIndex < 0) {
+      return undefined;
+    }
+
+    const parts = extractions.filter(
+      (extraction): extraction is ProcessingExtractionSummary => extraction !== undefined,
+    );
+    const goTo = (route: (projectId: string, floorId: string) => string) => () => {
+      const upload = uploadsRef.current[doneIndex];
+
+      if (upload !== undefined) {
+        navigate(route(projectId, upload.floorId));
+      }
+    };
+    const actions = {
+      onReviewWalls: goTo(ROUTES.project.walls),
+      onCalibrateScale: goTo(ROUTES.project.scale),
+    };
 
     if (parts.length === 0) {
-      return undefined;
+      return { metricLabels: [], ...actions };
     }
 
     const total = parts.reduce(
@@ -1214,11 +1245,13 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     const threshold = formatNumber(CONFIDENCE_SUGGESTED_THRESHOLD, { fractionDigits: 2 });
 
     return {
-      wallCountLabel: countLabel(total.wallCount, UNIT.wall),
-      objectCountLabel: countLabel(total.wallCount + total.openingCount, UNIT.object),
-      dimensionCountLabel: countLabel(total.dimensionCount, UNIT.dimensionChain),
-      roomCountLabel: countLabel(total.roomCount, UNIT.room),
-      areaLabel: formatArea(total.areaM2),
+      metricLabels: [
+        countLabel(total.wallCount, UNIT.wall),
+        countLabel(total.wallCount + total.openingCount, UNIT.object),
+        countLabel(total.dimensionCount, UNIT.dimensionChain),
+        countLabel(total.roomCount, UNIT.room),
+        formatArea(total.areaM2),
+      ],
       lowConfidenceSentence:
         total.lowConfidenceCount === 0
           ? noLowConfidenceSentence(threshold)
@@ -1226,22 +1259,9 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
               formatNumber(total.lowConfidenceCount, { fractionDigits: 0 }),
               threshold,
             ),
-      onReviewWalls: () => {
-        const upload = uploadsRef.current[focusIndex];
-
-        if (upload !== undefined) {
-          navigate(ROUTES.project.walls(projectId, upload.floorId));
-        }
-      },
-      onCalibrateScale: () => {
-        const upload = uploadsRef.current[focusIndex];
-
-        if (upload !== undefined) {
-          navigate(ROUTES.project.scale(projectId, upload.floorId));
-        }
-      },
+      ...actions,
     };
-  }, [focusIndex, navigate, projectId, records]);
+  }, [extractions, floorStatuses, navigate, projectId]);
 
   const overallSummaryLine = useMemo(() => {
     if (records.length === 0) return NO_RUN_SENTENCE;

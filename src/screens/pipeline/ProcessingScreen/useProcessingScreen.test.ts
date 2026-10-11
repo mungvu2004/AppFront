@@ -286,6 +286,7 @@ interface Mounted {
 interface BackgroundOptions {
   readonly notifications?: NotificationBus;
   readonly backgroundWatches?: BackgroundWatchRegistry;
+  readonly onNavigate?: (path: string) => void;
 }
 
 function mountHook(
@@ -315,6 +316,7 @@ function mountHook(
         ...(background.notifications !== undefined
           ? { notifications: background.notifications }
           : {}),
+        ...(background.onNavigate !== undefined ? { onNavigate: background.onNavigate } : {}),
       }),
     { wrapper },
   );
@@ -603,6 +605,67 @@ describe('useProcessingScreen', () => {
     expect(props.steps.every((step) => step.percent === 100)).toBe(true);
     expect(props.state).toBe('success');
     expect(props.overallSummaryLine).toContain('Đã xong 1/1 tầng');
+
+    mounted.unmount();
+  });
+
+  // BUG-285: the real gateway answered `extractionSummary` "unsupported", so a finished run had no
+  // "Báo cáo tổng kết" and no way on to "Duyệt lớp tường". The counts come from N16 once the floor is done.
+  it('a finished floor shows the summary counted from its layer, and "Duyệt lớp tường" leads to that floor (BUG-285)', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 1);
+    const upload = uploads[0]!;
+    const layer = await harness.client.spatial.readLayer({ projectId: PROJECT_ID, floorId: upload.floorId });
+    if (!layer.ok) throw new Error('Không đọc được lớp tầng mẫu.');
+    const readLayer = vi.spyOn(harness.client.spatial, 'readLayer');
+    const onNavigate = vi.fn();
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget(), {
+      onNavigate,
+    });
+
+    await settle(clock);
+    // Still running: the layer still holds the previous run, so it is not read yet.
+    expect(mounted.result.current.summary).toBeUndefined();
+    expect(readLayer).not.toHaveBeenCalled();
+
+    await act(async () => {
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(finishedProgress(upload.uploadId));
+      await clock.advance(POLL_INTERVAL_MS);
+    });
+    await settle(clock);
+
+    const summary = mounted.result.current.summary;
+    expect(summary?.metricLabels[0]).toBe(`${String(layer.data.layer.walls.length)} tường`);
+    expect(summary?.metricLabels).toHaveLength(5);
+    expect(summary?.lowConfidenceSentence).toBeDefined();
+
+    summary?.onReviewWalls();
+    expect(onNavigate).toHaveBeenCalledWith(`/projects/${PROJECT_ID}/floors/${upload.floorId}/layers/walls`);
+
+    mounted.unmount();
+  });
+
+  it('a finished floor whose layer cannot be read still offers the way on, without counts (BUG-285)', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 1);
+    const upload = uploads[0]!;
+    vi.spyOn(harness.client.spatial, 'readLayer').mockResolvedValue({
+      ok: false,
+      error: new Error('N16 down') as unknown as HttpError,
+    });
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+
+    await settle(clock);
+    await act(async () => {
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(finishedProgress(upload.uploadId));
+      await clock.advance(POLL_INTERVAL_MS);
+    });
+    await settle(clock);
+
+    expect(mounted.result.current.summary?.metricLabels).toEqual([]);
+    expect(mounted.result.current.summary?.onReviewWalls).toBeTypeOf('function');
 
     mounted.unmount();
   });

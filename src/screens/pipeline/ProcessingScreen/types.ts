@@ -145,15 +145,13 @@ export interface ProcessingLogLineViewModel {
 /* -------------------------------------------------------------------------- */
 
 export interface ProcessingSummaryViewModel {
-  /** Đã định dạng sẵn — ví dụ `"48 tường"`. */
-  readonly wallCountLabel: string;
-  readonly objectCountLabel: string;
-  readonly dimensionCountLabel: string;
-  readonly roomCountLabel: string;
-  /** Đã định dạng sẵn, dấu thập phân là dấu phẩy (A15) — ví dụ `"248,60 m²"`. */
-  readonly areaLabel: string;
+  /**
+   * Tường, đối tượng, kích thước, phòng, diện tích — đã định dạng sẵn (A15), ví dụ `"48 tường"`,
+   * `"248,60 m²"`. Rỗng khi chưa đọc được số liệu: khối vẫn hiện để giữ hai lối đi tiếp.
+   */
+  readonly metricLabels: readonly string[];
   /** Cả câu, đã ghép số — ví dụ `"Có 9 mức độ tin cậy dưới 0,75 cần bạn xem lại."`. */
-  readonly lowConfidenceSentence: string;
+  readonly lowConfidenceSentence?: string;
   readonly onReviewWalls: () => void;
   readonly onCalibrateScale: () => void;
 }
