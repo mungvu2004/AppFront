@@ -72,7 +72,7 @@ export interface FloorUploadFileModel {
   readonly sizeLabel: string;
   /** Ví dụ `"3 trang"`. `null` khi không phải PDF hoặc không đọc được số trang. */
   readonly pageCountLabel: string | null;
-  /** `.dwg` — thẻ hiện chip "Nhánh CAD". Không bao giờ tự đọc đuôi tệp trong view. */
+  /** `.dwg` chưa lỗi — thẻ hiện chip "Bản vẽ CAD". Không bao giờ tự đọc đuôi tệp trong view. */
   readonly isCadBranch: boolean;
   /** Một dòng gộp tên · dung lượng · số trang, đã ghép sẵn. */
   readonly summaryLine: string;

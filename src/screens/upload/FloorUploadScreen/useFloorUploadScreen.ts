@@ -1070,7 +1070,8 @@ export function useFloorUploadScreen(
       name: attachment.file.name,
       sizeLabel,
       pageCountLabel,
-      isCadBranch: attachment.branch === 'cad',
+      // Tệp CAD hỏng (vd. 422 chưa hỗ trợ) không chạy nhánh nào: không quảng cáo độ chính xác (BUG-304).
+      isCadBranch: attachment.branch === 'cad' && attachment.status !== 'error',
       summaryLine: [attachment.file.name, sizeLabel, pageCountLabel]
         .filter((part): part is string => part !== null)
         .join(' · '),

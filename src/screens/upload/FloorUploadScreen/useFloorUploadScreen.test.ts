@@ -658,6 +658,54 @@ describe('useFloorUploadScreen — một lượt tải', () => {
     expect(result.current.state).not.toBe('error');
   });
 
+  it('tệp .dwg bị từ chối: thẻ lỗi không còn chip CAD độ chính xác cao (BUG-304)', async () => {
+    const harness = createHarness({
+      validateFile: async () => ({ ok: true, branch: 'cad', extension: '.dwg', sizeBytes: 16 }),
+    });
+    const { result } = renderScreen(harness.options);
+
+    await waitFor(() => {
+      expect(result.current.floors).toHaveLength(4);
+    });
+
+    act(() => {
+      result.current.onFilesDropped([makeFile('mat-bang-tang-3.dwg')]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.floors[3]?.file?.isCadBranch).toBe(true);
+    });
+
+    act(() => {
+      [...harness.uploads.values()][0]?.finish({
+        percent: 0,
+        status: 'failed',
+        failure: {
+          stage: 'init',
+          chunkIndex: null,
+          attempts: 1,
+          terminal: true,
+          error: {
+            kind: 'validation',
+            code: 'CAD_NOT_SUPPORTED',
+            messageKey: 'errors.validation.description',
+            params: {},
+            requestId: 'r-422',
+            retryable: false,
+            severity: 'lỗi',
+            recovery: 'không',
+          },
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.floors[3]?.status).toBe('error');
+    });
+
+    expect(result.current.floors[3]?.file?.isCadBranch).toBe(false);
+  });
+
   it('huỷ gọi đúng task của tệp đó', async () => {
     const harness = createHarness();
     const { result } = renderScreen(harness.options);
