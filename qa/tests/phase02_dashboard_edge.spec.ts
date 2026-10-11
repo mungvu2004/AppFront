@@ -2545,11 +2545,18 @@ test.describe('E02 SCR-06 notifications', () => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const drawer = await openDrawer(page);
+      // BUG-214: the "from" half — the drawer over the dashboard, before "Xem tất cả" leaves it.
+      await captureEvidence(page, 'E02_notif_viewall_from.png', { caption: `before: drawer open over the dashboard (${ROUTES.dashboard}), "${VIEW_ALL}" at its foot` });
       await drawer.getByRole('button', { name: VIEW_ALL, exact: true }).click(); // UNC:767-770
       await expect.poll(() => pathname(page)).toBe(ROUTES.notifications);
       await expect(notificationDrawer(page)).toBeVisible(); // NCC:223 pinned open
       await expect(dashboardHeading(page)).toHaveCount(0);
-      await captureEvidence(page, 'E02_notif_viewall.png', { caption: `"${VIEW_ALL}" → ${ROUTES.notifications}` });
+      await captureEvidence(page, 'E02_notif_viewall.png', {
+        caption: [
+          `after "${VIEW_ALL}": ${ROUTES.dashboard} → ${ROUTES.notifications}; the dashboard behind is gone (pair: E02_notif_viewall_from)`,
+          `${ROUTES.notifications} is the drawer pinned open over an empty backdrop by design (NotificationCenterRoute, NCC:223)`,
+        ],
+      });
 
       await page.keyboard.press('Escape'); // NCC:212-221: in-app history → navigate(-1)
       await expect.poll(() => pathname(page)).toBe(ROUTES.dashboard);
@@ -2568,7 +2575,9 @@ test.describe('E02 SCR-06 notifications', () => {
       await drawer.getByRole('button', { name: VIEW_ALL, exact: true }).click();
       await expect.poll(() => pathname(page)).toBe(ROUTES.notifications);
       await expect(drawer).toBeVisible();
-      await captureEvidence(page, 'E02_notif_route_viewall.png', { caption: `"${VIEW_ALL}" on ${ROUTES.notifications}` });
+      await captureEvidence(page, 'E02_notif_route_viewall.png', {
+        caption: `opened ${ROUTES.notifications} by URL, then "${VIEW_ALL}" at the drawer's foot: no navigation, still ${ROUTES.notifications}, drawer kept open`,
+      });
 
       // NCC:167-171 + A12: on the route "close" means leaving it; Esc (DRW:83,95) reaches `goBack` (NCC:212-221).
       // NCC:204-209 sets `hasLeftRef` on that same-route navigation — this asserts Esc is not left dead by it.
