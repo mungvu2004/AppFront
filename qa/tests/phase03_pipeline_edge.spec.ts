@@ -1658,13 +1658,18 @@ const UNKNOWN_CASES: readonly UnknownCase[] = [
     slug: 'pipeline',
     path: (id) => ROUTES.project.pipeline(id),
     check: async (page) => {
-      // UPR:1274-1289 errorAlert = describeError(notFound) (PRG:678-690) + "Thử lại" + code + "Liên hệ hỗ trợ" (PR:243-258).
-      const alert = page.getByRole('alert').filter({ hasText: GENERIC_NOT_FOUND });
-      await expect(alert).toContainText('Không tìm thấy');
-      await expect(alert.getByRole('button', { name: PROCESSING.retry, exact: true })).toBeVisible();
+      // UPR:752-757 N7 or #24 404 `project` → state 'error'; UPR:1315-1326 + PR:250-257: one InlineAlert with the
+      // PSGATE:36-39 wording and "Về danh sách dự án" — no "Thử lại", no technical code, no "Liên hệ hỗ trợ", and
+      // PR:275 drops the chips / steps / summary line (FIX-1385, BUG-312).
+      const alert = page.getByRole('alert').filter({ hasText: NOT_FOUND_TITLE });
+      await expect(alert).toContainText(NOT_FOUND_SENTENCE);
+      await expect(page.getByText(GENERIC_NOT_FOUND, { exact: false })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: PROCESSING.retry, exact: true })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: PROCESSING.support, exact: true })).toHaveCount(0);
+      await expect(page.getByText('NOT_FOUND', { exact: false })).toHaveCount(0);
       await captureEvidence(page, 'E03_unknown_pipeline.png');
-      await page.getByRole('button', { name: PROCESSING.support, exact: true }).click(); // UPR:790-799 → ROUTES.account
-      await expect.poll(() => pathOf(page)).toBe(ROUTES.account);
+      await alert.getByRole('button', { name: BACK_TO_PROJECTS, exact: true }).click(); // UPR:1323-1325
+      await expect.poll(() => pathOf(page)).toBe(ROUTES.dashboard);
     },
   },
   {
