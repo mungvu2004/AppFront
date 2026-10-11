@@ -196,7 +196,8 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-[1920px] flex-1 flex-col gap-6 p-8">
+      {/* 16 px gutters below `sm`: 32 px left the 375 px status strip 311 px for 324 px of tabs (BUG-154). */}
+      <div className="mx-auto flex w-full max-w-[1920px] flex-1 flex-col gap-6 p-4 sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-[20px] font-semibold text-text-primary">Dự án của tôi</h1>
@@ -233,6 +234,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
         {isCollapsed && (
           <SegmentedControl
             aria-label="Lọc theo trạng thái"
+            className="[&>button]:px-2 sm:[&>button]:px-3"
             options={PROJECT_STATUS_FILTER_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
             value={props.statusFilter}
             onChange={props.setStatusFilter}
