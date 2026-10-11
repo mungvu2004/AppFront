@@ -90,7 +90,7 @@ export const PROJECT_SORT_OPTIONS: ReadonlyArray<{ value: ProjectSortOption; lab
   { value: 'area', label: 'Diện tích lớn nhất' },
 ];
 
-const NARROW_VIEWPORT_QUERY = '(max-width: 1023px)';
+const NARROW_VIEWPORT_QUERY = '(width < 1024px)';
 
 /** `< 1024px` — the floor of the brief's three column breakpoints. */
 function useNarrowViewport(): boolean {

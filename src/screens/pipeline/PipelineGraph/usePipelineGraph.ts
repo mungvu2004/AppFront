@@ -81,7 +81,7 @@ import {
 const DETAIL_MODE_ROLES: readonly ProjectRole[] = ['admin'];
 
 /** `< 1024px` — cùng mốc `ProcessingScreen`, `ScaleCalibration` và `InputQualityGate`. */
-const NARROW_VIEWPORT_QUERY = '(max-width: 1023px)';
+const NARROW_VIEWPORT_QUERY = '(width < 1024px)';
 
 /** Nhánh mà nút "đổi nhánh" dẫn tới. Đặc tả chỉ nêu một chiều: sang nhánh AI. */
 const SWITCH_TARGET_BRANCH: PipelineBranchId = 'ai';

@@ -345,7 +345,7 @@ describe('PipelineGraph — nghiệm thu', () => {
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
       value: vi.fn().mockImplementation((query: string) => ({
-        matches: query === '(max-width: 1023px)',
+        matches: query === '(width < 1024px)',
         media: query,
         onchange: null,
         addListener: vi.fn(),

@@ -102,7 +102,7 @@ function DrawerRoot({ isOpen, onClose, children, size, label }: DrawerRootProps)
   const drawerWidth = size ?? DRAWER_WIDTH_PX;
 
   const prefersReducedMotion = useReducedMotion();
-  const isMobile = useMediaQuery('(max-width: 1023px)');
+  const isMobile = useMediaQuery('(width < 1024px)');
   const containerRef = useRef<HTMLDivElement>(null);
   const [snapLevel, setSnapLevel] = useState<SnapLevel>(2); // mở full mặc định
 

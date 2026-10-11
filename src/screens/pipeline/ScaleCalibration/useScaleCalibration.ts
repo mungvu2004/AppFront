@@ -281,7 +281,7 @@ const deviationMessage = (percent: string, estimated: string): string =>
 const NUDGE_PX: Readonly<Record<NudgeStep, number>> = { fine: 1, coarse: 10 };
 
 /** `< 1024px` — cùng mốc `InputQualityGate`, `FloorUploadScreen`, `ProcessingScreen`. */
-const NARROW_VIEWPORT_QUERY = '(max-width: 1023px)';
+const NARROW_VIEWPORT_QUERY = '(width < 1024px)';
 
 const DEFAULT_ROLES: readonly ProjectRole[] = ['engineer'];
 

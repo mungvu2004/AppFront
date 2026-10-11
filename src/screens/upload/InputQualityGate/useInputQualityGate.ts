@@ -229,7 +229,7 @@ const DEFAULT_ROLES: readonly ProjectRole[] = ['engineer'];
 /* Cách xếp thu gọn — cùng mốc `FloorUploadScreen` và `ProjectSettings` dùng.   */
 /* -------------------------------------------------------------------------- */
 
-const NARROW_VIEWPORT_QUERY = '(max-width: 1023px)';
+const NARROW_VIEWPORT_QUERY = '(width < 1024px)';
 
 function useNarrowViewport(): boolean {
   const [isNarrow, setNarrow] = useState(() =>

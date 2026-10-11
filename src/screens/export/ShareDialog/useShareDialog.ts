@@ -124,7 +124,7 @@ import type {
 const COPY_FLASH_MS = 700;
 
 /** Dưới mức này thì khung xem trước rời khỏi màn — trạng thái thứ bảy. */
-const COLLAPSED_MEDIA_QUERY = '(max-width: 1279px)';
+const COLLAPSED_MEDIA_QUERY = '(width < 1280px)';
 
 /** Ba màu trạng thái, đúng ba (A4). */
 const TONE_BY_STATUS: Readonly<Record<ShareLinkStatus, ShareLinkRowModel['tone']>> = {

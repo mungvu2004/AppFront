@@ -648,7 +648,7 @@ describe('[FLP-3] không có quyền quản lý thư viện', () => {
     '[N6d] khung nhìn < 1024px ($role): tấm trượt đáy vẫn nói đúng quyền (B-V8-46)',
     async ({ canPlaceModel }) => {
       vi.mocked(window.matchMedia).mockImplementation((query: string) => ({
-        matches: query === '(max-width: 1023px)',
+        matches: query === '(width < 1024px)',
         media: query,
         onchange: null,
         addListener: vi.fn(),

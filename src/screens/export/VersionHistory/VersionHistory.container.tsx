@@ -64,7 +64,7 @@ import { useVersionHistory } from './useVersionHistory';
 const SCREEN_ID = 'version-history';
 
 /** Trạng thái 7 của hợp đồng: dưới 1024 thì danh sách thành `Select`, so sánh xếp dọc. */
-const NARROW_QUERY = '(max-width: 1023px)';
+const NARROW_QUERY = '(width < 1024px)';
 
 const MISSING_PARAMS_TITLE = 'Không xác định được bản vẽ';
 const MISSING_PARAMS_MESSAGE =

@@ -205,6 +205,26 @@ describe('useProjectDashboard states', () => {
 
     await waitFor(() => expect(dash().model.state).toBe('collapsed'));
   });
+
+  // BUG-225: at 110/125/175 % zoom the viewport is 1023.x px wide. `(width < 1024px)` is false there
+  // while Tailwind's `lg:` (min-width: 1024px) is off too, so the stacked layout got the desktop list.
+  it('narrow: collapsed in the 1023-1024 px sliver a fractional zoom leaves (BUG-225)', async () => {
+    const width = 1023.5;
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) => {
+      const max = /\(max-width:\s*([\d.]+)px\)/.exec(query);
+      const below = /\(width\s*<\s*([\d.]+)px\)/.exec(query);
+      const matches = max ? width <= Number(max[1]) : below ? width < Number(below[1]) : false;
+      return { ...original(query), matches };
+    }) as typeof window.matchMedia;
+    try {
+      mount({ gateway: fakeServer([project()]).gateway });
+
+      await waitFor(() => expect(dash().model.state).toBe('collapsed'));
+    } finally {
+      window.matchMedia = original;
+    }
+  });
 });
 
 describe('useProjectDashboard navigation', () => {

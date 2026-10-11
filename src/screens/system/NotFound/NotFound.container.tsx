@@ -47,7 +47,7 @@ import { useNotFound, type UseNotFoundOptions } from './useNotFound';
 const SCREEN_ID = 'system-not-found';
 
 /** Trạng thái 7 của hợp đồng: dưới 1024 thì bỏ hình minh hoạ, thu khoảng cách. */
-const NARROW_QUERY = '(max-width: 1023px)';
+const NARROW_QUERY = '(width < 1024px)';
 
 export interface NotFoundContainerProps extends UseNotFoundOptions {}
 

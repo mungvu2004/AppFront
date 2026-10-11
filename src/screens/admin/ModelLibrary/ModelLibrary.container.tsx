@@ -55,7 +55,7 @@ import { useModelLibrary } from './useModelLibrary';
 const SCREEN_ID = 'model-library';
 
 /** Trạng thái 7 của hợp đồng: dưới 1024 thì bảng thành thẻ, panel thành lớp phủ. */
-const NARROW_QUERY = '(max-width: 1023px)';
+const NARROW_QUERY = '(width < 1024px)';
 
 /**
  * Thư mục bộ giải mã Draco trong `public/`.

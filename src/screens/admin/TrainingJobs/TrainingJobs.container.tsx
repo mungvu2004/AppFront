@@ -21,7 +21,7 @@ import { createTrainingJobsGateway } from './trainingJobsGateway';
 import { COLLAPSE_BREAKPOINT_PX, useTrainingJobs } from './useTrainingJobs';
 
 const SCREEN_ID = 'training-jobs';
-const NARROW_QUERY = `(max-width: ${String(COLLAPSE_BREAKPOINT_PX - 1)}px)`;
+const NARROW_QUERY = `(width < ${String(COLLAPSE_BREAKPOINT_PX)}px)`;
 
 export interface TrainingJobsContainerProps {
   /** Client tiêm cho test và story. Không truyền thì container dựng client của ứng dụng. */

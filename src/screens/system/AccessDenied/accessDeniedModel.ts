@@ -293,7 +293,7 @@ export const ILLUSTRATION_STROKE_WIDTH = 1.5;
 export const REQUEST_COOLDOWN_MS = 10 * 60 * 1000;
 
 /** Ngưỡng thu gọn (trạng thái 7), đo ở container đúng khuôn S-43. */
-export const NARROW_QUERY = '(max-width: 1023px)';
+export const NARROW_QUERY = '(width < 1024px)';
 
 /** Tên màn cho ranh giới lỗi và cho báo cáo của nó. */
 export const SCREEN_ID = 'system-access-denied';

@@ -59,7 +59,7 @@ import { useSpatialJsonViewer } from './useSpatialJsonViewer';
 const SCREEN_ID = 'spatial-json-viewer';
 
 /** Dưới 1024 thì nửa phải ẩn đi — trạng thái "thu gọn" của A11. */
-const NARROW_QUERY = '(max-width: 1023px)';
+const NARROW_QUERY = '(width < 1024px)';
 
 const MISSING_PROJECT_TITLE = 'Không xác định được dự án';
 const MISSING_PROJECT_MESSAGE =

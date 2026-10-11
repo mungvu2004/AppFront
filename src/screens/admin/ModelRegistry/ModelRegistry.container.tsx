@@ -21,7 +21,7 @@ import type { RelatedLinkModel } from './types';
 import { COLLAPSE_BREAKPOINT_PX, useModelRegistry } from './useModelRegistry';
 
 const SCREEN_ID = 'model-registry';
-const NARROW_QUERY = `(max-width: ${String(COLLAPSE_BREAKPOINT_PX - 1)}px)`;
+const NARROW_QUERY = `(width < ${String(COLLAPSE_BREAKPOINT_PX)}px)`;
 
 export interface ModelRegistryContainerProps {
   /** Client tiêm cho test và story. Không truyền thì container dựng client của ứng dụng. */
