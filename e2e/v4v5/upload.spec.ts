@@ -86,7 +86,7 @@ test('B-V4-04: PDF chưa chọn trang chưa phải bản vẽ — nút chính ch
   await page.getByRole('button', { name: 'Bắt đầu xử lý' }).click();
 
   await expect(page.getByRole('alert').filter({ hasText: 'Không thể bắt đầu xử lý' })).toContainText(
-    'Tầng 2 chưa tải xong bản vẽ.',
+    'Tầng 2 chưa chọn trang của bản vẽ.',
   );
   expect(pathOf(page.url())).toBe(UPLOAD);
 });
