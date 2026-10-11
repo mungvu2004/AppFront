@@ -117,7 +117,7 @@ const LINK_CLASS_NAME = cn(
 
 /** Khung chung của cột trái, để ba nhánh thay thế không mỗi chỗ một bề rộng. */
 const LEFT_COLUMN_CLASS_NAME =
-  'flex h-full w-[280px] shrink-0 flex-col gap-3 overflow-y-auto rounded-[12px] bg-bg-surface p-4 shadow-panel';
+  'flex h-full w-[280px] shrink-0 flex-col gap-3 overflow-y-auto rounded-[12px] bg-bg-surface p-4 shadow-panel max-md:h-auto max-md:w-full';
 
 /* -------------------------------------------------------------------------- */
 /* Cột trái — bốn nhánh loại trừ nhau, nhánh cuối là danh sách trục thật.      */
@@ -169,10 +169,10 @@ function AxisGridLeftColumn({
   }
 
   return (
-    <div className="flex h-full min-h-0 shrink-0 flex-col gap-2">
+    <div className="flex h-full min-h-0 shrink-0 flex-col gap-2 max-md:h-auto">
       {viewModel.viewerRoleNotice === null ? null : (
         <InlineAlert
-          className="w-[280px] shrink-0"
+          className="w-[280px] shrink-0 max-md:w-full"
           level="attention"
           message={viewModel.viewerRoleNotice}
           title={FORBIDDEN_TITLE}
@@ -233,13 +233,15 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
         className={cn(
           'flex min-h-0 flex-1 gap-2 p-2',
           viewModel.isCompact ? 'flex-col' : 'flex-row',
+          // BUG-319: dưới 768 ba cột cố định (280 + canvas + 344) tràn ngang — xếp dọc và cuộn dọc.
+          'max-md:flex-col max-md:overflow-y-auto',
         )}
       >
         {isCollapsed ? null : <AxisGridLeftColumn {...props} />}
 
         <section
           aria-label={CANVAS_SECTION_LABEL}
-          className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-[16px] bg-bg-sunken"
+          className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-[16px] bg-bg-sunken max-md:h-[360px] max-md:flex-none"
         >
           <AxisGridCanvas
             canvas={viewModel.canvas}
@@ -262,7 +264,7 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
             </button>
           </div>
         ) : (
-          <div className="flex h-full min-h-0 shrink-0 flex-col gap-2 overflow-y-auto">
+          <div className="flex h-full min-h-0 shrink-0 flex-col gap-2 overflow-y-auto max-md:h-auto max-md:overflow-visible">
             <AxisGridOriginPanel
               onAnchorChange={props.onAnchorChange}
               origin={viewModel.origin}
