@@ -3,7 +3,8 @@
  * (skill `qa-review-ui`). Per viewport it re-opens the state (layouts read the viewport at mount), measures
  * layout defects in the page, captures `<name>_<width>.png` (full page unless `shot.fullPage` is false), and attaches all metrics as
  * `<name>.json` for the reviewer. Hard defects fail softly (horizontal scroll, controls pushed off-screen,
- * broken images); heuristic ones (clipped text, overlapping or small controls) are data for the review.
+ * broken images); heuristic ones (clipped text, overlapping or small controls) are data for the review. While a modal
+ * is open, overlaps leave out the controls under its backdrop (BUG-233).
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -78,10 +79,21 @@ function measure(target: typeof TARGET_PX): Omit<UiMetrics, 'viewport'> {
     })
     .map((el) => `${name(el)} (${el.scrollWidth}×${el.scrollHeight} in ${el.clientWidth}×${el.clientHeight})`);
 
+  // BUG-233: with a modal open (`aria-modal`, the last shown one is on top) the page behind its backdrop is inert, so
+  // overlaps among / with background controls are not findings. A control counts if it is inside that modal, or is
+  // the topmost element at its own centre (a popover / listbox portalled above the backdrop). No modal: all controls.
+  const topModal = [...document.querySelectorAll('[aria-modal="true"]')].filter(shown).pop();
+  const onTop = (el: Element): boolean => {
+    if (topModal === undefined || topModal.contains(el)) return true;
+    const r = el.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return hit !== null && (el === hit || el.contains(hit));
+  };
+  const layered = controls.filter(onTop);
   const overlaps: string[] = [];
-  for (let i = 0; i < controls.length; i += 1) {
-    for (let j = i + 1; j < controls.length; j += 1) {
-      const [a, b] = [controls[i]!, controls[j]!];
+  for (let i = 0; i < layered.length; i += 1) {
+    for (let j = i + 1; j < layered.length; j += 1) {
+      const [a, b] = [layered[i]!, layered[j]!];
       if (a.contains(b) || b.contains(a)) continue;
       const [ra, rb] = [a.getBoundingClientRect(), b.getBoundingClientRect()];
       const w = Math.min(ra.right, rb.right) - Math.max(ra.left, rb.left);

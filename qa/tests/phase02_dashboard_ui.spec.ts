@@ -1088,9 +1088,10 @@ test.describe('U02 UI verify — SCR-06 notifications', () => {
           await expect(panel.getByRole('button', { name: MARK_ALL_READ, exact: true })).toBeEnabled();
           await settled(panel);
           if (label === null) {
-            // FIX-1079 (review-1 #11): mark-read is the plain IconButton `sm` box, 40 px below 640 and 32 px from `sm`
-            // (IconButton.tsx:20; NotificationRow.tsx:155-160 no longer pins it to 32 px).
-            const side = (p.viewportSize()?.width ?? 1440) < 640 ? 40 : 32;
+            // FIX-1079 (review-1 #11): mark-read is the plain IconButton `sm` box (NotificationRow.tsx:155-160). The button is
+            // `box-content` with a 2 px `p-0.5` ring (IconButton.tsx:20,37), so its border box is 40+4 = 44 px below 640 and
+            // 32+4 = 36 px from `sm` (BUG-238).
+            const side = (p.viewportSize()?.width ?? 1440) < 640 ? 44 : 36;
             const marks = panel.getByRole('button', { name: MARK_READ, exact: true });
             await expect(marks).toHaveCount(2);
             const boxes = await marks.evaluateAll((els) => els.map((el) => [Math.round(el.getBoundingClientRect().width), Math.round(el.getBoundingClientRect().height)]));
