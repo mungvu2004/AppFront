@@ -45,7 +45,7 @@ import { useContextMenu } from '@/hooks/useContextMenu';
 import { durationSeconds } from '@/lib/motion';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 
-import { DashboardSidebar } from './DashboardSidebar';
+import { DashboardSidebar, DashboardSidebarSkeleton } from './DashboardSidebar';
 import { projectMenuGroups } from './projectMenuGroups';
 import { ProjectCardTile } from './ProjectCardTile';
 import { ProjectTable } from './ProjectTable';
@@ -167,6 +167,12 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
             {/* Every state that has a list says how many it shows — "0 dự án" for a search with no match
                 included: dropping the line there made the whole column jump up 11 px (BUG-117). */}
             {state !== 'loading' && state !== 'error' && <p className="text-[13px] text-text-secondary">{rows.length} dự án</p>}
+            {/* Its line held while loading, so the toolbar and everything under it stay put (BUG-228). */}
+            {state === 'loading' && (
+              <div aria-hidden="true" className="flex h-5 items-center">
+                <Skeleton preset="block" className="h-3 w-14" />
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <Select
@@ -206,7 +212,10 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           />
         )}
 
+        {state === 'loading' && <Skeleton preset="block" aria-hidden="true" className="h-14 w-full sm:h-9 lg:hidden" />}
+
         <div className="flex flex-1 flex-col gap-6 lg:flex-row lg:items-start">
+          {state === 'loading' && <DashboardSidebarSkeleton />}
           {showSidebar && (
             <DashboardSidebar statusCounts={statusCounts} statusFilter={props.statusFilter} onStatusFilterChange={props.setStatusFilter} />
           )}

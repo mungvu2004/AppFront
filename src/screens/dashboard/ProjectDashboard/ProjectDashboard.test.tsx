@@ -164,6 +164,17 @@ describe('ProjectDashboardView, seven states', () => {
     expect(screen.queryByText('Chưa có dự án nào')).not.toBeInTheDocument();
   });
 
+  // BUG-228: the skeleton had no rail, no filter strip and no count line, so the page jumped when the list landed.
+  it('holds the rail (from 1024 px), the filter strip (below it) and the count line while loading', () => {
+    const { container } = render(<ProjectDashboardView {...PROPS_BY_STATE.loading()} />);
+    const placeholders = [...container.querySelectorAll('[aria-hidden="true"]')].map((element) => element.className);
+
+    expect(placeholders.some((name) => name.includes('w-[260px]') && name.includes('hidden') && name.includes('lg:flex'))).toBe(true);
+    expect(placeholders.some((name) => name.includes('h-14') && name.includes('lg:hidden'))).toBe(true);
+    expect(placeholders.some((name) => name.includes('h-5'))).toBe(true);
+    expect(screen.queryAllByRole('button', { pressed: true })).toHaveLength(0);
+  });
+
   it('teaches, with a create button, when there has never been a project', () => {
     render(<ProjectDashboardView {...PROPS_BY_STATE.empty()} />);
 

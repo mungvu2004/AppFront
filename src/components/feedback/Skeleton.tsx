@@ -1,7 +1,7 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
 
-export type SkeletonPreset = 'table-row' | 'project-card' | 'property-panel' | 'canvas';
+export type SkeletonPreset = 'table-row' | 'project-card' | 'property-panel' | 'canvas' | 'block';
 
 export interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
   preset: SkeletonPreset;
@@ -32,13 +32,25 @@ export function Skeleton({ preset, className, ...props }: SkeletonProps) {
         </div>
       );
     case 'project-card':
+      // The dashboard card's own boxes (`ProjectCardTile`): 132 px image, then name, stats, progress and the
+      // member row at their real heights (44 px touch rows below `sm`), so nothing moves when the cards land
+      // (BUG-228). Full cell width: a 384 px cap left gaps between the skeletons the cards then filled.
       return (
-        <div className={cn('flex flex-col gap-3 p-4 border border-border-default rounded-[8px] w-full max-w-sm', className)} {...props}>
-          <div className={cn(baseClass, 'w-full h-32')} />
-          <div className={cn(baseClass, 'h-5 w-3/4')} />
-          <div className={cn(baseClass, 'h-4 w-1/2')} />
+        <div className={cn('flex w-full flex-col overflow-hidden rounded-xl border border-border-default bg-bg-surface', className)} {...props}>
+          <div className={cn(baseClass, 'h-[132px] shrink-0 rounded-none border-b border-border-default')} />
+          <div className="flex flex-col gap-2 p-4">
+            <div className="flex flex-col gap-1">
+              <div className="flex h-11 items-center sm:h-6"><div className={cn(baseClass, 'h-4 w-3/4')} /></div>
+              <div className="flex h-[18px] items-center"><div className={cn(baseClass, 'h-3 w-1/2')} /></div>
+            </div>
+            <div className={cn(baseClass, 'h-[26.5px] w-full')} />
+            <div className="flex h-11 items-center sm:h-7"><div className={cn(baseClass, 'h-7 w-7 rounded-full')} /></div>
+          </div>
         </div>
       );
+    case 'block':
+      // One pulsing block sized by the caller, for a control's place while it loads.
+      return <div className={cn(baseClass, className)} {...props} />;
     case 'property-panel':
       return (
         <div className={cn('flex flex-col gap-4 p-4 w-full', className)} {...props}>

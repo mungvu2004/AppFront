@@ -7,6 +7,7 @@
  * twice pushed the cards down and read as two sets (BUG-118). The filter keeps the counts (BUG-140).
  */
 
+import { Skeleton } from '@/components/feedback/Skeleton';
 import { cn } from '@/lib/utils';
 
 import { PROJECT_STATUS_FILTER_OPTIONS, type ProjectStatusCounts, type ProjectStatusFilter } from './useProjectDashboard';
@@ -41,5 +42,19 @@ export function DashboardSidebar({ statusCounts, statusFilter, onStatusFilterCha
         })}
       </div>
     </aside>
+  );
+}
+
+/**
+ * The rail's place while N1 loads, from 1024 px up (below it the rail is the filter strip), so the cards start
+ * where they stay instead of jumping 284 px right when the list lands (BUG-228). A row per filter entry.
+ */
+export function DashboardSidebarSkeleton() {
+  return (
+    <div aria-hidden="true" className="hidden w-[260px] shrink-0 flex-col gap-1 rounded-xl border border-border-default bg-bg-surface p-2 lg:flex">
+      {PROJECT_STATUS_FILTER_OPTIONS.map((option) => (
+        <Skeleton key={option.value} preset="block" className="h-9" />
+      ))}
+    </div>
   );
 }
