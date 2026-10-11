@@ -12,8 +12,8 @@
  * `qa-<runId>-m02-full-…` project), 2 `PATCH /api/projects/:id` (rename + its undo), 1 `DELETE /api/projects/:id`
  * (the `m02-full` project, through the UI; `afterAll` deletes it with the page's own access token if the delete
  * test did not). Mark-read / mark-all are always undone inside the 8 s window: 0 `POST /api/notifications/read*`.
- * Read-after-navigate waits register BEFORE the navigation (`gotoThenApi`): BUG-141 (`navigateThenWaitForApi`
- * registers after `goto` and misses a fast N1).
+ * Read-after-navigate waits register BEFORE the navigation (`gotoThenApi`): BUG-141 (`navigateThenWaitForApi` used to
+ * register after `goto` and missed a fast N1; it registers first since FIX-986, this file keeps its local helper).
  */
 import { expect, test } from '@playwright/test';
 import type { BrowserContext, Locator, Page, Response } from '@playwright/test';

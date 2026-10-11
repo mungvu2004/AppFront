@@ -148,9 +148,10 @@ function gate(): { readonly wait: Promise<void>; readonly open: () => void } {
 }
 
 /**
- * BUG-141: the shared `navigateThenWaitForApi` (e2e/fullstack/apiWatch.ts:260-269) awaits `navigate()` BEFORE it registers
- * the wait, so a response that lands before `goto/reload({ waitUntil: 'commit' })` returns is missed and the test times
- * out on a loaded page. The wait is registered first and both run together; the shared helper stays (other specs use it).
+ * BUG-141: the shared `navigateThenWaitForApi` (e2e/fullstack/apiWatch.ts) used to await `navigate()` BEFORE it registered
+ * the wait, so a response that landed before `goto/reload({ waitUntil: 'commit' })` returned was missed and the test timed
+ * out on a loaded page. The shared helper registers first since FIX-986 (and ignores responses of the old document); this
+ * local one, which waits first and runs both together, is kept as it was.
  */
 async function navigateAndWaitForApi(
   page: Page,

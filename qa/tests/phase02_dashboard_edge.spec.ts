@@ -574,10 +574,10 @@ async function withAdmin(
 }
 
 /**
- * BUG-141: the shared `navigateThenWaitForApi` (e2e/fullstack/apiWatch.ts:260-269) awaits `navigate()` BEFORE it
- * registers the wait, so an N1 that answers before `reload({ waitUntil: 'commit' })` returns is missed and the test
- * times out on a page that has loaded. Here the wait is registered first and both run together. The shared helper
- * is left untouched (other specs use it).
+ * BUG-141: the shared `navigateThenWaitForApi` (e2e/fullstack/apiWatch.ts) used to await `navigate()` BEFORE it
+ * registered the wait, so an N1 that answers before `reload({ waitUntil: 'commit' })` returns was missed and the test
+ * timed out on a page that had loaded. The shared helper registers first since FIX-986 (and ignores responses of the
+ * old document); this local one, which waits first and runs both together, is kept as it was.
  */
 async function navigateAndWaitForApi(
   page: Page,

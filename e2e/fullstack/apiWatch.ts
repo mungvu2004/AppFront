@@ -3,7 +3,7 @@
  *
  * Không chặn, không sửa request nào: chỉ nghe.
  */
-import type { Page, Response } from '@playwright/test';
+import type { Page, Request, Response } from '@playwright/test';
 
 import { API_TIMEOUT_MS, BODY_READ_TIMEOUT_MS } from './env';
 
@@ -253,9 +253,16 @@ export function waitForApiWhere(
 }
 
 /**
- * Điều hướng tới khi tài liệu mới **commit** rồi mới đăng ký chờ: response của trang cũ (bị huỷ
- * giữa lúc điều hướng) không bao giờ khớp. Mã của trang mới chưa chạy lúc commit, nên request
- * của nó không thể tới trước lượt đăng ký.
+ * Đăng ký chờ **trước** khi điều hướng (`goto` / `reload`, kể cả `waitUntil: 'commit'`), rồi mới điều
+ * hướng: một response tới trước khi `navigate()` trả về (trang cũ chưa kịp ngắt, trang mới đã gọi xong)
+ * không bị lọt. Để response của **trang cũ** (một request đang bay, hay một lượt thăm dò) không khớp
+ * nhầm, chỉ nhận response của request bắt đầu SAU request tài liệu (document) của khung chính của
+ * lượt điều hướng này — sự kiện `request` của nó tới trước mọi request do tài liệu mới gửi. Cần một
+ * điều hướng tài liệu thật: điều hướng chỉ đổi `#hash` không có request tài liệu thì không bao giờ khớp
+ * (mọi nơi gọi hiện nay đều là `goto` / `reload`).
+ *
+ * ponytail: nếu `navigate()` ném, lượt chờ đã đăng ký vẫn sống tới hết trần rồi tự nuốt lỗi; thêm
+ * huỷ cho `waitForApiWhere` khi cần giải phóng sớm hơn.
  */
 export async function navigateThenWaitForApi(
   page: Page,
@@ -264,8 +271,38 @@ export async function navigateThenWaitForApi(
   pathPattern: RegExp,
   statuses: readonly number[],
 ): Promise<ApiResult> {
-  await navigate();
-  return waitForApi(page, method, pathPattern, statuses);
+  const mainFrame = page.mainFrame();
+  /** Request bắt đầu sau request tài liệu của khung chính; request của trang cũ không bao giờ vào đây. */
+  const fromNewDocument = new Set<Request>();
+  let documentRequested = false;
+  const onRequest = (request: Request): void => {
+    if (request.isNavigationRequest() && request.frame() === mainFrame) {
+      documentRequested = true;
+      fromNewDocument.clear();
+    } else if (documentRequested) {
+      fromNewDocument.add(request);
+    }
+  };
+
+  page.on('request', onRequest);
+  try {
+    const wait = waitForApiWhere(
+      page,
+      (response) =>
+        fromNewDocument.has(response.request()) &&
+        response.request().method() === method &&
+        pathPattern.test(new URL(response.url()).pathname) &&
+        statuses.includes(response.status()),
+      API_TIMEOUT_MS,
+      `${method} ${pathPattern.source}`,
+    );
+
+    wait.catch(() => undefined); // nếu navigate() ném trước, lỗi hết trần của lượt chờ không thành unhandled rejection
+    await navigate();
+    return await wait;
+  } finally {
+    page.off('request', onRequest);
+  }
 }
 
 export const describeEntry = (entry: ApiEntry): string =>
