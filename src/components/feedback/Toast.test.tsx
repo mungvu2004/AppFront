@@ -134,6 +134,8 @@ describe('Toast.Provider and Toast.Item', () => {
     
     // Group label because they all end with "tường" -> "Đã sửa 2 tường"
     expect(screen.getByText('Đã sửa 2 tường')).toBeInTheDocument();
+    // A5: the grouped toast is a plain notice, not the reviewer's verified green (review-1 #15).
+    expect(document.querySelector('.bg-state-verified')).toBeNull();
     
     // Click undo on the group
     const undoButtons = screen.getAllByText('Hoàn tác');
