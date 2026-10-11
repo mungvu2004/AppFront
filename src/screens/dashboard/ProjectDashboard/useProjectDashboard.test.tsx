@@ -273,7 +273,7 @@ describe('useProjectDashboard rename', () => {
     server.rename.mockRejectedValueOnce(httpError(422, 'VALIDATION'));
     const onToast = await startRename(server);
 
-    act(() => dash().actions.setRenameDraft('qa‮edge'));
+    act(() => dash().actions.setRenameDraft('qa\u202Eedge'));
     act(() => dash().actions.commitRename());
 
     await waitFor(() =>
