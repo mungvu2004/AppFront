@@ -403,6 +403,8 @@ export interface CreateProjectModel {
   readonly collisionRowId: string | null;
   readonly focusFloorId: string | null;
   readonly canAddFloor: boolean;
+  /** Turning the basement ON adds a row, so it obeys the same cap; turning it off always works. */
+  readonly canToggleBasement: boolean;
   /** The height typed into the "áp cho mọi tầng" field; `null` while empty. */
   readonly applyHeightM: number | null;
   readonly canApplyHeight: boolean;
@@ -515,6 +517,7 @@ export function useCreateProjectModal(
   const canGoNext = step === 1 ? canGoNextStep1 : step === 2 ? canGoNextStep2 : true;
   const canSubmit = canGoNextStep1 && canGoNextStep2 && !isSubmitting;
   const canAddFloor = floorRows.length < PROJECT_LIMITS.floorCountMax;
+  const hasBasement = floorRows.some((row) => row.kind === 'basement');
   const canApplyHeight = applyHeightM !== null && floorRows.length > 0;
 
   const state = useMemo<SevenState>(() => {
@@ -634,6 +637,8 @@ export function useCreateProjectModal(
     setFloorRows((current) => {
       const already = current.some((row) => row.kind === 'basement');
       if (value === already) return current;
+      // The basement counts toward the cap like any floor (LIM "basement included", BUG-150).
+      if (value && current.length >= PROJECT_LIMITS.floorCountMax) return current;
       if (value) {
         return [{ id: createUuid(), name: 'Tầng hầm', kind: 'basement', clearHeightM: null }, ...current];
       }
@@ -740,11 +745,12 @@ export function useCreateProjectModal(
     notice,
     floorRows: floorRowModels,
     floorsHint,
-    hasBasement: floorRows.some((row) => row.kind === 'basement'),
+    hasBasement,
     collision: floorStack.collision,
     collisionRowId: floorStack.collisionRowId,
     focusFloorId,
     canAddFloor,
+    canToggleBasement: hasBasement || canAddFloor,
     applyHeightM,
     canApplyHeight,
     canGoNext,

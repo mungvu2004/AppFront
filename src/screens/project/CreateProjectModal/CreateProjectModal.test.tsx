@@ -86,6 +86,7 @@ function baseProps(): CreateProjectModalViewProps {
     collisionRowId: null,
     focusFloorId: null,
     canAddFloor: true,
+    canToggleBasement: true,
     applyHeightM: null,
     canApplyHeight: false,
     canGoNext: true,
@@ -378,6 +379,21 @@ describe('CreateProjectModal, wired to its hook', () => {
       'Chưa tính được cao độ vì tầng bên dưới còn thiếu chiều cao hợp lệ.',
     );
     expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng 2')).toHaveAccessibleDescription('Chưa nhập chiều cao thông thuỷ.');
+  });
+
+  it('keeps the basement inside the 50-floor cap (BUG-150)', () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+
+    goToStep2();
+    const add = screen.getByRole('button', { name: 'Thêm tầng' });
+    for (let floors = 4; floors < 50; floors += 1) fireEvent.click(add);
+    expect(screen.getAllByRole('textbox', { name: /^Tên tầng/u })).toHaveLength(50);
+
+    const basement = screen.getByRole('switch', { name: 'Có tầng hầm' });
+    expect(basement).toBeDisabled();
+    fireEvent.click(basement);
+
+    expect(screen.getAllByRole('textbox', { name: /^Tên tầng/u })).toHaveLength(50);
   });
 
   it('applies one height to every floor with "áp cho mọi tầng"', () => {

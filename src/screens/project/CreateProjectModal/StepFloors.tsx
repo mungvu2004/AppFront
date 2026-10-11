@@ -34,7 +34,7 @@ export function StepFloors(props: StepFloorsProps) {
       <Toggle
         checked={props.hasBasement}
         onChange={props.setHasBasement}
-        disabled={isSubmitting}
+        disabled={isSubmitting || !props.canToggleBasement}
         label="Có tầng hầm"
         description="Tầng hầm luôn nằm dưới tầng trệt; cao độ của nó là số âm."
       />
