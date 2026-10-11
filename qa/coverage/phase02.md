@@ -61,7 +61,7 @@ non-serial; the SCR-05 dashboard block plus the earlier wizard / SCR-06 / SCR-07
 | 11 | Compact | < 1024: sidebar → SegmentedControl "Lọc theo trạng thái"; 1023 vs 1024 boundary; same filter state | `PD:229-240`, `UPD:90-107, 363`, `DS:59-75` | U `U02_dash_status_filter` (768/375) · E compact | covered; no-match below 1024 = BUG-111 (openError expected at 768/375 in `U02_dash_status_filter` / `U02_dash_search_no_match`) |
 | 12 | Error | screen crash → `ScreenErrorBoundary` fallback | `PDC:44-57, 88-95` | — | UNKNOWN — NEED VERIFICATION (no safe way to crash the screen on the real stack) |
 | 13 | Display | "{n} dự án" only in success/collapsed/forbidden | `PD:199-201` | E header counts · E unreadable row (hidden in partial) · E loading | covered |
-| 14 | Display | 4 stat cards "Tổng dự án / Hoàn thành / Cần QC / Đang xử lý" with derived counts | `DS:22-57`, `UPD:339-350`, `vi.json:415-418` | E header counts | covered |
+| 14 | Display | derived counts on the 4 status filter entries (stat cards removed, BUG-118 FIX-1153) | `DS:21-44`, `UPD:339-350` | E header counts | covered |
 | 15 | Input | searchbox "Tìm dự án" | `PD:175-183` | M search | covered |
 | 16 | Logic | search trims and ignores case | `UPD:272-276` | E search | covered |
 | 17 | Button | sidebar status filters `aria-pressed` + counts | `DS:59-75`, `UPD:76-81` | M view controls · E header counts | covered |

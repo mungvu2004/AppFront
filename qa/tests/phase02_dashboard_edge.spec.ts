@@ -135,7 +135,6 @@ const EMPTY_DESCRIPTION = 'Tạo dự án đầu tiên để bắt đầu số h
 const EMPTY_ACTION = 'Tạo dự án mới'; // PD:267
 const CLEAR_FILTERS = 'Xoá bộ lọc'; // PD:274
 const COMPACT_FILTER = 'Lọc theo trạng thái'; // PD:231
-const STATS = { all: 'Tổng dự án', done: 'Hoàn thành', qc: 'Cần QC', processing: 'Đang xử lý' } as const; // src/i18n/vi.json:415-418
 const FILTERS = { all: 'Tất cả', processing: 'Đang xử lý', qc: 'Cần QC', done: 'Hoàn thành' } as const; // UPD:76-81
 const SORT = { updated: 'Cập nhật gần đây', name: 'Tên A–Z', floors: 'Số tầng nhiều nhất', area: 'Diện tích lớn nhất' } as const; // UPD:83-88
 const unreadRowsNotice = (count: number): string => `Có ${String(count)} dự án chưa đọc được`; // UPD:482
@@ -331,16 +330,13 @@ const searchBox = (page: Page): Locator => page.getByRole('searchbox', { name: '
 const noMatch = (page: Page): Locator => page.getByText('Không tìm thấy dự án phù hợp', { exact: true }); // PD:272
 const wizard = (page: Page): Locator => page.getByRole('dialog', { name: 'Tạo dự án mới', exact: true }); // CPM:243-245
 const toastWith = (page: Page, text: string): Locator => page.getByRole('status').filter({ hasText: text }); // TST:117
-/** DS:62-74: label + count spans inside one `aria-pressed` button. */
+/** DS:28-40: label + count spans inside one `aria-pressed` button; the only count per status since the stat tiles left (BUG-118, FIX-1153). */
 const statusFilterButton = (page: Page, label: string): Locator =>
   page.getByRole('button', { name: new RegExp(`^${escapeRegExp(label)}\\s*\\d+$`, 'u') });
 const stateAnnouncement = (scope: Page | Locator): Locator => scope.getByRole('status').filter({ hasText: STATE_RE });
 const countLine = (page: Page): Locator => page.getByText(/^\d+ dự án$/u); // PD:187
 const sortCombobox = (page: Page, current: string): Locator => page.getByRole('combobox').filter({ hasText: current }); // PD:204-209
 const viewMode = (page: Page): Locator => page.getByRole('radiogroup', { name: 'Kiểu xem', exact: true }); // PD:210-218
-/** Sidebar stat card value: the number span right before its label (DS:44-57). */
-const statValue = (page: Page, label: string): Locator =>
-  page.locator('aside > div').first().getByText(label, { exact: true }).locator('xpath=preceding-sibling::span[1]');
 /** Table view rows (PD:291-314); `thead th` (BUG-115 fixed: `th` now has scope="col", so getByRole('columnheader') would find the same cells). */
 const tableRows = (page: Page): Locator => page.getByRole('main').locator('tbody tr');
 const tableHeads = (page: Page): Locator => page.getByRole('main').locator('thead th');
@@ -670,7 +666,7 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
     });
   });
 
-  test('E02 · SCR-05 header and sidebar: "{n} dự án", four counters and filter counts follow N1; avatar shows initials', async ({ browser }) => {
+  test('E02 · SCR-05 header and sidebar: "{n} dự án" and the four filter counts follow N1; avatar shows initials', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const list = await reloadDashboard(page);
@@ -678,8 +674,7 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
 
       await expect(page.getByText(`${String(counts.all)} dự án`, { exact: true })).toBeVisible(); // PD:187
       for (const key of ['all', 'done', 'qc', 'processing'] as const) {
-        await expect(statValue(page, STATS[key]), `stat card "${STATS[key]}"`).toHaveText(String(counts[key])); // DS:44-57
-        await expect(statusFilterButton(page, FILTERS[key])).toHaveText(endsWithCount(counts[key])); // BUG-140
+        await expect(statusFilterButton(page, FILTERS[key])).toHaveText(endsWithCount(counts[key])); // DS:39, BUG-140
       }
       // BUG-031 regression: initials, never an empty circle (PDC:63, Avatar.tsx:38-43).
       await expect(page.locator('[aria-label="Tài khoản của bạn"]')).toHaveText(/^\S{1,2}$/u);
@@ -1453,7 +1448,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await expect(projectCard(page, done.name)).toContainText(reviewProgress(4, 4));
       const counts = countsOf(list);
       for (const key of ['all', 'done', 'qc', 'processing'] as const) {
-        await expect(statValue(page, STATS[key]), `stat card "${STATS[key]}"`).toHaveText(String(counts[key]));
+        await expect(statusFilterButton(page, FILTERS[key])).toHaveText(endsWithCount(counts[key]));
       }
       await captureEvidence(page, 'E02_status_routing_cards.png', { caption: `mocked N1: "${qc.name}" Cần QC 3/10, "${done.name}" Hoàn thành 4/4` });
 
@@ -1596,8 +1591,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await expect(projectCards(page)).toHaveCount(1); // UPD:273-281: search AND status
       await expect(projectCard(page, project.name)).toBeVisible();
       for (const key of ['all', 'done', 'qc', 'processing'] as const) {
-        await expect(statValue(page, STATS[key])).toHaveText(String(counts[key])); // UPD:339-350: over all of N1
-        await expect(statusFilterButton(page, FILTERS[key])).toHaveText(endsWithCount(counts[key]));
+        await expect(statusFilterButton(page, FILTERS[key])).toHaveText(endsWithCount(counts[key])); // UPD:339-350: over all of N1
       }
 
       await statusFilterButton(page, FILTERS.qc).click();
@@ -1692,7 +1686,6 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       expect(countsAfter.processing, 'the deleted fixture was "processing"').toBe(countsBefore.processing - 1);
 
       for (const key of ['all', 'done', 'qc', 'processing'] as const) {
-        await expect(statValue(page, STATS[key])).toHaveText(String(countsAfter[key]));
         await expect(statusFilterButton(page, FILTERS[key])).toHaveText(endsWithCount(countsAfter[key]));
       }
       await expect(countLine(page)).toHaveText(`${String(after.length)} dự án`);
@@ -1815,7 +1808,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await expect(countLine(page)).toHaveText(`${String(all.length)} dự án`);
       const counts = countsOf(all);
       for (const key of ['all', 'done', 'qc', 'processing'] as const) {
-        await expect(statValue(page, STATS[key])).toHaveText(String(counts[key]));
+        await expect(statusFilterButton(page, FILTERS[key])).toHaveText(endsWithCount(counts[key]));
       }
       await captureEvidence(page, 'E02_dash_two_pages.png', {
         caption: [
