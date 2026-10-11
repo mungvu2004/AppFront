@@ -1184,6 +1184,9 @@ describe('Hàng thông báo không chừa cột cho nút ẩn (BUG-203)', () => 
     // Hộp gần nhất của nút là hàng giờ — có giờ, không có câu (cột cũ nằm cạnh câu, chung hàng `li`).
     expect(markRead.closest('div')).toHaveTextContent('30 phút trước');
     expect(markRead.closest('div')).not.toHaveTextContent(unread.sentence);
+    // BUG-234: lề 16 px dưới 640 px để tiêu đề, "Đánh dấu tất cả đã đọc" và bánh răng chung một hàng; nhóm nút căn phải.
+    expect(screen.getByRole('heading', { name: 'Thông báo' }).closest('[class*="max-sm:px-4"]')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Đánh dấu tất cả đã đọc' }).parentElement).toHaveClass('ml-auto');
     // BUG-205 (review-1 #12): room above the gear on the side panel, so its tooltip does not flip onto the tabs.
     expect(screen.getByRole('heading', { name: 'Thông báo' }).closest('[class*="lg:pt-10"]')).not.toBeNull();
     // review-1 #11: the IconButton's own touch size (40 px below 640) and an 18 px icon, like every other IconButton.
