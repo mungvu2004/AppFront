@@ -196,6 +196,13 @@ describe('FloorUploadScreenView — breadcrumb', () => {
 
     expect(onBackToProjects).toHaveBeenCalledTimes(1);
   });
+
+  it('nêu tên dự án giữa "Dự án" và "Tải lên bản vẽ" khi biết tên (BUG-165)', () => {
+    renderWithProviders(<FloorUploadScreenView {...scenarioFor('success')} projectName="Nhà phố Quận 3" />);
+
+    const nav = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
+    expect(nav).toHaveTextContent('Dự án›Nhà phố Quận 3›Tải lên bản vẽ');
+  });
 });
 
 describe('FloorUploadScreenView — khả năng tiếp cận và tiếng Việt (R-72)', () => {

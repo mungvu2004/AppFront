@@ -58,6 +58,8 @@ import type { ProcessingScreenProps } from './types';
 
 const BREADCRUMB_PROJECTS = 'Dự án';
 const BREADCRUMB_PIPELINE = 'Xử lý';
+/** Tên dự án dài cắt "…" (title giữ đủ) để ba cấp vẫn một dòng ở 375 px, như `Breadcrumb`. */
+const BREADCRUMB_NAME_CLASS = 'inline-block max-w-[10rem] truncate align-bottom sm:max-w-xs';
 
 const RUN_IN_BACKGROUND_LABEL = 'Để chạy nền và thông báo cho tôi';
 const CANCEL_LABEL = 'Huỷ xử lý';
@@ -218,9 +220,17 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
     <div className="min-h-screen bg-bg-app">
       <div className="mx-auto flex max-w-[1280px] flex-col gap-6 p-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <nav aria-label={BREADCRUMB_PIPELINE} className="text-[13px] text-text-secondary">
+          <nav aria-label={BREADCRUMB_PIPELINE} className="min-w-0 text-[13px] text-text-secondary">
             <span>{BREADCRUMB_PROJECTS}</span>
             <span aria-hidden="true"> › </span>
+            {props.projectName !== undefined ? (
+              <>
+                <span className={BREADCRUMB_NAME_CLASS} title={props.projectName}>
+                  {props.projectName}
+                </span>
+                <span aria-hidden="true"> › </span>
+              </>
+            ) : null}
             <span className="text-text-primary">{BREADCRUMB_PIPELINE}</span>
           </nav>
           <ProcessingActions {...props} />

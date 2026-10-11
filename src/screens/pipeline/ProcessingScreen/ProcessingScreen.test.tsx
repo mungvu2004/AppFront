@@ -735,4 +735,10 @@ describe('ProcessingScreen — màn rỗng (BUG-165)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tải bản vẽ' }));
     expect(onUploadDrawings).toHaveBeenCalledTimes(1);
   });
+
+  it('breadcrumb nêu tên dự án khi biết tên', () => {
+    renderWithProviders(<ProcessingScreen {...scenarioFor('empty')} projectName="Nhà phố Quận 3" />);
+
+    expect(screen.getByRole('navigation', { name: 'Xử lý' })).toHaveTextContent('Dự án › Nhà phố Quận 3 › Xử lý');
+  });
 });

@@ -65,6 +65,7 @@ import { formatNumber, formatPercent, MISSING_VALUE, parseNumber } from '@/lib/f
 import { getAppAnnouncer } from '@/lib/input/announcer';
 import { staggerDelayMs } from '@/lib/motion/stagger';
 import { durationMs } from '@/lib/motion/tokens';
+import { cachedProjectName } from '@/lib/query/cachedProjectName';
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import { MAX_PDF_PAGE_COUNT, MAX_UPLOAD_FILE_SIZE_BYTES } from '@/lib/upload';
@@ -1167,9 +1168,11 @@ export function useFloorUploadScreen(
     rows.length,
   ]);
 
+  const projectName = cachedProjectName(queryClient, projectId);
   const model: FloorUploadModel = {
     state,
     projectId,
+    ...(projectName !== null ? { projectName } : {}),
     canEdit,
     isReadOnly: !canEdit,
     isCollapsed,

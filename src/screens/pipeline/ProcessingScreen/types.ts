@@ -236,6 +236,8 @@ export interface ProcessingScreenProps {
   readonly isCompact: boolean;
   /** Có thì thay vạch quét bằng thanh tĩnh — không animate khi bật (mục B). */
   readonly prefersReducedMotion: boolean;
+  /** Tên dự án cho breadcrumb, lấy từ bộ đệm (BUG-165). Vắng khi bộ đệm chưa có: breadcrumb bỏ cấp ấy. */
+  readonly projectName?: string;
 }
 
 /* -------------------------------------------------------------------------- */

@@ -198,6 +198,7 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
               label: BREADCRUMB_PROJECTS,
               ...(props.onBackToProjects ? { onClick: props.onBackToProjects } : {}),
             },
+            ...(props.projectName !== undefined ? [{ id: 'project', label: props.projectName }] : []),
             { id: 'current', label: BREADCRUMB_UPLOAD },
           ]}
         />
