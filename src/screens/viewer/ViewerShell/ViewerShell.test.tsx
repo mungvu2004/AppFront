@@ -74,6 +74,7 @@ import { VIEWER_SCREEN_STATES } from './viewerShellScenarios';
 import {
   ALL_VIEWER_TOOLS,
   defaultViewerShellGateway,
+  storeyInlineName,
   storeyShortLabel,
   projectNameQueryKey,
   useViewerShell,
@@ -288,6 +289,16 @@ describe('[VS-5] bộ mẫu', () => {
     expect(storeyShortLabel('Tầng')).toBe('Tầng');
     expect(storeyShortLabel('Tầng hầm 1')).toBe('Hầm 1');
   });
+
+  it('[BUG-384] nút mắt đọc "Ẩn tầng trệt" — một cách viết, không "Ẩn Tầng trệt", không lặp "tầng"', () => {
+    renderState('success');
+
+    expect(screen.getByRole('button', { name: 'Ẩn tầng trệt' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Tầng/u })).toBeNull();
+    expect(storeyInlineName('Tầng 1')).toBe('tầng 1');
+    expect(storeyInlineName('Tầng')).toBe('tầng');
+    expect(storeyInlineName('Mái')).toBe('tầng Mái');
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -433,6 +444,37 @@ describe('[VS-8] panel phải trượt vào', () => {
     console.log(
       `[VIEWER-SHELL][VS-8] mở → width=${wrapper.style.width}, class="${wrapper.className}"`,
     );
+
+    unmount();
+  });
+
+  it('[BUG-369][BUG-385] dưới `lg` không cột nào giữ bề ngang cố định: panel trải dòng, khung nhìn co được', () => {
+    const { unmount } = renderState('success');
+
+    const wrapper = screen.getByRole('complementary', { name: 'Thanh tra đối tượng' })
+      .parentElement as HTMLElement;
+    const viewport = screen.getByRole('main', { name: 'Khung nhìn mô hình' });
+    const row = viewport.parentElement as HTMLElement;
+    const classesOf = (element: HTMLElement): string[] => element.className.split(/\s+/u);
+
+    // Bề ngang 344 nội tuyến chỉ còn hiệu lực từ `lg`; dưới đó `!w-full` thắng nó.
+    expect(classesOf(wrapper)).toContain('max-lg:!w-full');
+    // 480 px tối thiểu (cộng hai ray và panel ~960) là thứ đẩy vỏ tràn ở 768 và 375.
+    expect(classesOf(viewport)).not.toContain('min-w-[480px]');
+    expect(classesOf(viewport)).toContain('lg:min-w-[480px]');
+    expect(classesOf(row)).toEqual(expect.arrayContaining(['flex-wrap', 'max-md:flex-col']));
+
+    unmount();
+  });
+
+  it('[BUG-374] nút về mức chuẩn có chiều cao riêng: 44 px dưới `sm`, 28 px từ `sm`', () => {
+    const { unmount } = renderState('success');
+
+    const reset = screen.getByRole('button', { name: /^Mức thu phóng .*, bấm để về mức chuẩn$/u });
+    const classes = reset.className.split(/\s+/u);
+
+    // Thiếu chiều cao thì nút chỉ cao bằng dòng chữ 11 px — 48×17, dưới 24 px của WCAG 2.5.8.
+    expect(classes).toEqual(expect.arrayContaining(['h-11', 'sm:h-7']));
 
     unmount();
   });
@@ -1067,9 +1109,14 @@ describe('[VS-16] một bức tường, một mã (B-V8-05)', () => {
     const selection = result.current.selection;
 
     expect(bandCode).toBe('W-101');
-    expect(selection?.title).toBe(`tường ${String(bandCode)}`);
+    // A6: tiêu đề và nhãn hàng viết hoa chữ đầu — "Tường W-101", "Độ dày" (BUG-376).
+    expect(selection?.title).toBe(`Tường ${String(bandCode)}`);
     expect(selection?.title).not.toContain('FIXTURE');
     expect(selection?.rows[0]?.value).toBe(wall.id);
+    expect(selection?.rows.map((row) => row.label)).toContain('Độ dày');
+    for (const row of selection?.rows ?? []) {
+      expect(row.label.charAt(0)).toBe(row.label.charAt(0).toLocaleUpperCase('vi'));
+    }
     expect(result.current.hoverLabel).toBe(bandCode);
 
     act(() => {

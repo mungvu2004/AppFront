@@ -114,7 +114,7 @@ export function ViewerShell(props: ViewerShellProps) {
   return (
     <section
       aria-label={VIEWER_SHELL_LABEL}
-      className="flex h-full w-full flex-col overflow-hidden bg-bg-app"
+      className="flex h-full w-full flex-col overflow-y-auto overflow-x-hidden bg-bg-app lg:overflow-hidden"
     >
       <ViewerTopBar
         activePresetId={activePresetId}
@@ -126,7 +126,10 @@ export function ViewerShell(props: ViewerShellProps) {
         viewMode={viewMode}
       />
 
-      <div className="flex min-h-0 flex-1">
+      {/* Ba cột (ray · khung nhìn · panel) cần ~960 px. Hẹp hơn `lg` thì panel
+          xuống dòng dưới khung nhìn, dưới `md` mọi thứ thành một cột và vỏ cuộn
+          dọc — không bao giờ tràn ngang (BUG-369, BUG-385). */}
+      <div className="flex flex-1 flex-wrap max-md:flex-col lg:min-h-0 lg:flex-nowrap">
         {!isCollapsed && (
           <>
             <ViewerToolRail
@@ -209,7 +212,10 @@ export function ViewerShell(props: ViewerShellProps) {
           aria-hidden={isCollapsed}
           className={cn(
             'shrink-0 overflow-hidden',
-            isCollapsed ? 'py-0 pr-0 opacity-0' : 'py-3 pr-3 opacity-100',
+            /* `!w-full` thắng `width` nội tuyến: dưới `lg` panel trải hết dòng của nó. */
+            isCollapsed
+              ? 'py-0 pr-0 opacity-0'
+              : 'px-3 pb-3 opacity-100 max-lg:!w-full lg:py-3 lg:pl-0',
             frame.reducedMotion
               ? 'transition-none'
               : 'transition-all duration-standard ease-in-out',

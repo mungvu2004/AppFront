@@ -160,6 +160,15 @@ export function storeyShortLabel(name: string): string {
 }
 
 /**
+ * Tên tầng đặt GIỮA câu, một cách viết duy nhất: "Tầng trệt" → "tầng trệt",
+ * "Tầng 1" → "tầng 1", "Mái" → "tầng Mái". Ghép thẳng `name` vào "Ẩn …" từng
+ * cho "Ẩn Tầng trệt", còn ghép thêm "tầng" thì ra "tầng Tầng 1" (BUG-384).
+ */
+export function storeyInlineName(name: string): string {
+  return /^tầng(\s|$)/iu.test(name) ? `t${name.slice(1)}` : `tầng ${name}`;
+}
+
+/**
  * Sáu công cụ của ray trái, kèm phím của chúng. Không công cụ nào sửa mô hình — đo
  * cũng chỉ đọc — nên vai Người xem có đủ sáu (B-V9-04).
  */
@@ -611,6 +620,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
         id: storey.id,
         name: storey.name,
         code: storeyShortLabel(storey.name),
+        inlineName: storeyInlineName(storey.name),
         elevationLabel: formatLength(millimetres(storey.elevationMm), { unit: 'm' }),
         isActive: activeStoreyIds.includes(storey.id),
         isVisible: !hiddenStoreyIds.includes(storey.id),
@@ -958,20 +968,22 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     if ('thicknessMm' in entity) {
       rows.push({
         id: 'thickness',
-        label: 'độ dày',
+        label: 'Độ dày',
         value: formatLength(millimetres((entity as { thicknessMm: number }).thicknessMm)),
       });
     }
 
     if ('name' in entity) {
-      rows.push({ id: 'name', label: 'tên', value: String((entity as { name: string }).name) });
+      rows.push({ id: 'name', label: 'Tên', value: String((entity as { name: string }).name) });
     }
 
     const kindLabel = entityId.startsWith('R-') ? 'phòng' : entityId.startsWith('W-') ? 'tường' : 'đối tượng';
+    // Tiêu đề là nhãn đứng đầu nên viết hoa chữ đầu (A6, BUG-376); `kindLabel` giữ chữ thường để ghép giữa câu.
+    const kindTitle = kindLabel.charAt(0).toLocaleUpperCase('vi') + kindLabel.slice(1);
 
     // Tiêu đề gọi đối tượng bằng mã người đọc — cùng mã dải "Đang sửa"; hàng "mã đối tượng"
     // ở trên giữ mã máy (B-V8-05).
-    return { entityId, kindLabel, title: `${kindLabel} ${displayLabelIn(spatial, entityId)}`, rows };
+    return { entityId, kindLabel, title: `${kindTitle} ${displayLabelIn(spatial, entityId)}`, rows };
   }, [selectedIds, spatial]);
 
   const status = useMemo(() => {

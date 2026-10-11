@@ -48,7 +48,8 @@ export function ViewerToolRail({ tools, activeToolId, onToolChange }: ViewerTool
     <div
       aria-label="Công cụ khung nhìn"
       aria-orientation="vertical"
-      className="flex w-[56px] shrink-0 flex-col items-center gap-1 py-2"
+      /* Dưới `md` vỏ là một cột: ray nằm ngang thành một dải trên khung nhìn. */
+      className="flex w-[56px] shrink-0 flex-col items-center gap-1 py-2 max-md:w-full max-md:flex-row max-md:justify-center max-md:px-3"
       role="toolbar"
     >
       {tools.map((tool) => {

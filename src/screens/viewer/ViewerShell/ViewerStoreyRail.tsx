@@ -51,17 +51,22 @@ export function ViewerStoreyRail({
   return (
     <div
       aria-label="Tầng"
-      className="flex w-[56px] shrink-0 flex-col items-center gap-1 py-2"
+      /* Dưới `md` ray nằm ngang dưới ray công cụ: tầng bên trái, thanh tách bên phải. */
+      className="flex w-[56px] shrink-0 flex-col items-center gap-1 py-2 max-md:w-full max-md:flex-row max-md:gap-3 max-md:px-3"
     >
-      <ul className="flex w-full flex-col items-center gap-1" role="listbox" aria-multiselectable>
+      <ul
+        className="flex w-full flex-col items-center gap-1 max-md:min-w-0 max-md:flex-1 max-md:flex-row max-md:overflow-x-auto"
+        role="listbox"
+        aria-multiselectable
+      >
         {storeys.map((storey) => (
-          <li className="w-full" key={storey.id}>
+          <li className="w-full max-md:w-auto" key={storey.id}>
             <div className="flex flex-col items-center">
               <button
                 aria-label={`${storey.name}, cao độ ${storey.elevationLabel}`}
                 aria-selected={storey.isActive}
                 className={cn(
-                  'flex h-8 w-10 items-center justify-center rounded-[8px] text-[12px] font-medium',
+                  'flex h-8 w-10 items-center justify-center rounded-[8px] text-[12px] font-medium max-sm:h-11 max-sm:w-11',
                   'transition-colors duration-120',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app',
                   storey.isActive
@@ -80,7 +85,7 @@ export function ViewerStoreyRail({
 
               <button
                 aria-label={
-                  storey.isVisible ? `Ẩn ${storey.name}` : `Hiện ${storey.name}`
+                  storey.isVisible ? `Ẩn ${storey.inlineName}` : `Hiện ${storey.inlineName}`
                 }
                 aria-pressed={storey.isVisible}
                 className={cn(
@@ -104,13 +109,14 @@ export function ViewerStoreyRail({
         ))}
       </ul>
 
-      <div aria-hidden="true" className="flex-1" />
+      <div aria-hidden="true" className="flex-1 max-md:hidden" />
 
-      <label className="flex flex-col items-center gap-2 pb-1">
+      <label className="flex flex-col items-center gap-2 pb-1 max-md:shrink-0 max-md:flex-row max-md:pb-0">
         <span className="text-[10px] leading-none text-text-muted">{separationLabel}</span>
         <input
           className={cn(
-            'h-24 w-6 cursor-pointer accent-accent',
+            'h-24 w-6 cursor-pointer accent-accent [direction:rtl] [writing-mode:vertical-lr]',
+            'max-md:h-6 max-md:w-24 max-md:[direction:ltr] max-md:[writing-mode:horizontal-tb]',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app',
           )}
           max={MAX_SEPARATION}
@@ -119,7 +125,6 @@ export function ViewerStoreyRail({
             onSeparationChange(Number(event.target.value));
           }}
           step={SEPARATION_STEP_VALUE}
-          style={{ writingMode: 'vertical-lr', direction: 'rtl' }}
           type="range"
           value={separation}
         />

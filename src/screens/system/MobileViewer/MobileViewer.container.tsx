@@ -143,9 +143,14 @@ export function MobileViewerRoute() {
 
   // Nạp kho dự án (B-V1-03): không có cổng này `store.spatial` luôn rỗng và màn
   // nói "chưa có mô hình để xem" cho mọi dự án.
+  // Màn đứng một mình dưới router, không vỏ nào cấp chiều cao: thiếu khung `h-dvh`
+  // thì `h-full` của view ra 0 và vùng mô hình co về cao 0 (BUG-373) — cùng khuôn
+  // `PascalViewerRoute`. `dvh` chứ không `vh`: thanh địa chỉ di động không che thanh dưới.
   return (
-    <ProjectSpatialGate projectId={projectId} wrapFallbackInMain>
-      <MobileViewerContainer projectId={projectId} roles={session.roles} />
-    </ProjectSpatialGate>
+    <div className="h-dvh">
+      <ProjectSpatialGate projectId={projectId} wrapFallbackInMain>
+        <MobileViewerContainer projectId={projectId} roles={session.roles} />
+      </ProjectSpatialGate>
+    </div>
   );
 }
