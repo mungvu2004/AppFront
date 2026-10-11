@@ -56,6 +56,7 @@ export function ViewerTopBar({
 
       <SegmentedControl
         aria-label="Chế độ xem"
+        className="max-sm:h-[52px] max-sm:min-w-[96px]"
         isLoading={isLoading}
         onChange={onViewModeChange}
         options={VIEW_MODE_OPTIONS}

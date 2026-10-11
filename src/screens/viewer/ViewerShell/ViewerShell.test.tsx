@@ -456,6 +456,18 @@ describe('[VS-8] panel phải trượt vào', () => {
     unmount();
   });
 
+  it('[BUG-374] nút về mức chuẩn có chiều cao riêng: 44 px dưới `sm`, 28 px từ `sm`', () => {
+    const { unmount } = renderState('success');
+
+    const reset = screen.getByRole('button', { name: /^Mức thu phóng .*, bấm để về mức chuẩn$/u });
+    const classes = reset.className.split(/\s+/u);
+
+    // Thiếu chiều cao thì nút chỉ cao bằng dòng chữ 11 px — 48×17, dưới 24 px của WCAG 2.5.8.
+    expect(classes).toEqual(expect.arrayContaining(['h-11', 'sm:h-7']));
+
+    unmount();
+  });
+
   describe('giảm chuyển động', () => {
     let originalMatchMedia: typeof window.matchMedia;
 

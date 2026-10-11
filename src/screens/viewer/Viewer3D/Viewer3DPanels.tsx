@@ -186,7 +186,7 @@ function PanelToggle({
       aria-controls={`viewer-3d-panel-${panelId}`}
       aria-expanded={isOpen}
       className={cn(
-        'rounded-[6px] px-2 py-1 text-[13px] font-medium',
+        'rounded-[6px] px-2 py-1 text-[13px] font-medium max-sm:min-h-11',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
         isOpen ? 'bg-bg-hover text-text-primary' : 'text-text-secondary hover:bg-bg-hover',
       )}
@@ -279,7 +279,7 @@ export function Viewer3DPanels(props: Viewer3DPanelsProps) {
         {siblingScreenIds.map((screenId) => (
           <button
             className={cn(
-              'rounded-[6px] px-2 py-1 text-[13px] font-medium text-accent hover:bg-bg-hover',
+              'rounded-[6px] px-2 py-1 text-[13px] font-medium text-accent hover:bg-bg-hover max-sm:min-h-11',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
             )}
             key={screenId}

@@ -66,7 +66,7 @@ export function ViewerStoreyRail({
                 aria-label={`${storey.name}, cao độ ${storey.elevationLabel}`}
                 aria-selected={storey.isActive}
                 className={cn(
-                  'flex h-8 w-10 items-center justify-center rounded-[8px] text-[12px] font-medium',
+                  'flex h-8 w-10 items-center justify-center rounded-[8px] text-[12px] font-medium max-sm:h-11 max-sm:w-11',
                   'transition-colors duration-120',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app',
                   storey.isActive
