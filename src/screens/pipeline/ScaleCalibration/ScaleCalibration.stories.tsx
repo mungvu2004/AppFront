@@ -396,7 +396,7 @@ export function scenarioFor(state: SevenState): ScaleCalibrationProps {
 /** Bảy kịch bản, dựng sẵn — test dùng chính bộ này, không dựng bộ thứ hai (R-70). */
 export const SEVEN_SCENARIOS: readonly ScaleCalibrationProps[] = SEVEN_STATES.map(scenarioFor);
 
-/** Khung hẹp: panel phải thành tấm trượt đáy. */
+/** Khung hẹp: panel phải xếp dưới bản vẽ. */
 export function compactScenario(): ScaleCalibrationProps {
   const base = scenarioFor('partial');
 

@@ -585,7 +585,9 @@ describe('ScaleCalibration — bảy trạng thái (A11, R-63)', () => {
   it('khung hẹp vẫn dựng đủ canvas, panel và thanh trạng thái', () => {
     renderWithProviders(<ScaleCalibration {...compactScenario()} />);
 
-    expect(screen.getByLabelText('Tấm trượt hiệu chỉnh tỷ lệ')).toBeInTheDocument();
+    // Dưới 1024px panel xếp dưới bản vẽ, không còn là tấm trượt cố định đè lên nó (BUG-333).
+    const panel = screen.getByLabelText('Bảng hiệu chỉnh tỷ lệ');
+    expect(panel.className).not.toMatch(/(^|\s)fixed(\s|$)/u);
     expect(screen.getByLabelText('Khung bản vẽ để hiệu chỉnh tỷ lệ')).toBeInTheDocument();
     expect(screen.getByRole('status', { name: 'Thanh trạng thái' })).toBeInTheDocument();
   });

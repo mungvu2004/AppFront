@@ -1,5 +1,5 @@
 /**
- * Panel phải 344px của màn Hiệu chỉnh tỷ lệ — hoặc tấm trượt đáy dưới 1024px.
+ * Panel phải 344px của màn Hiệu chỉnh tỷ lệ — dưới 1024px xếp dưới bản vẽ.
  *
  * View thuần (R-60, mục D): mọi chuỗi đã định dạng xong ở `useScaleCalibration`
  * (A15); file này chỉ đặt chúng xuống theo đúng thứ tự đặc tả — tỷ lệ hiện tại,
@@ -7,14 +7,13 @@
  * phép tính, không rút gọn), ba dòng kiểm chứng, cảnh báo, rồi chân panel.
  * Không hộp thoại nào được dựng ở đây.
  *
- * ## Tấm trượt đáy dưới 1024px
+ * ## Dưới 1024px: xếp dưới bản vẽ, không phải tấm trượt
  *
- * Container luôn mang cả hai bộ lớp: cố định đáy màn hình + bo góc trên (mặc
- * định), và một bộ `lg:` đưa nó về panel tĩnh 344px cắm cạnh canvas — đúng
- * khuôn `InputQualityGate.tsx:66-69`. Đây là CSS thuần, không viết media query
- * tay và không hằng số breakpoint (R-71). `isCompact` không lái CSS: nó chỉ
- * chọn `aria-label` đúng ngữ nghĩa (bảng hay tấm trượt) cho trình đọc màn hình,
- * vì hai thứ trông giống nhau ở khung hẹp nhưng không cùng vai trò.
+ * Dưới 1024px panel nằm trong dòng chảy trang, ngay dưới bản vẽ, bề rộng đầy đủ;
+ * bộ `lg:` đưa nó về panel tĩnh 344px cắm cạnh canvas. Tấm cố định đáy cao 70vh
+ * trước đây che gần hết bản vẽ và để thanh thu phóng, bản đồ nhỏ của canvas đè
+ * lên ô nhập (BUG-333) — cùng cách sửa `InputQualityGate` (BUG-291). CSS thuần,
+ * không media query tay và không hằng số breakpoint (R-71).
  *
  * ## `forbidden` làm khối phương pháp "hiện nhưng không tương tác được"
  *
@@ -40,7 +39,6 @@ import type { ScaleCalibrationPanelProps } from './types';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 
 const PANEL_ARIA_LABEL = 'Bảng hiệu chỉnh tỷ lệ';
-const SHEET_ARIA_LABEL = 'Tấm trượt hiệu chỉnh tỷ lệ';
 const TITLE = 'Hiệu chỉnh tỷ lệ';
 const COLLAPSE_LABEL = 'Thu gọn bảng';
 const EXPAND_LABEL = 'Bung bảng';
@@ -63,10 +61,8 @@ const APPLY_APPLYING = 'Đang áp tỷ lệ…';
 const SCOPE_ARIA_LABEL = 'Phạm vi áp tỷ lệ';
 
 const PANEL_CONTAINER_CLASSES = clsx(
-  'fixed inset-x-0 bottom-0 z-10 flex max-h-[70vh] w-full flex-col overflow-y-auto',
-  'rounded-t-[16px] border-t border-border-default bg-bg-surface shadow-overlay',
-  'lg:static lg:z-auto lg:w-[344px] lg:max-h-none lg:flex-shrink-0 lg:overflow-visible',
-  'lg:rounded-none lg:border-0 lg:border-l lg:shadow-none',
+  'flex w-full flex-col border-t border-border-default bg-bg-surface',
+  'lg:w-[344px] lg:flex-shrink-0 lg:border-t-0 lg:border-l',
 );
 
 /** Cùng bảng ánh xạ mà `ScaleCalibrationMethodReference` dùng — cảnh báo ở màn này luôn `'attention'`. */
@@ -77,7 +73,6 @@ function toAlertLevel(statusCode: ViewStatusCode): InlineAlertLevel {
 export function ScaleCalibrationPanel({
   actions,
   isCollapsed,
-  isCompact,
   panel,
   state,
 }: ScaleCalibrationPanelProps) {
@@ -85,7 +80,7 @@ export function ScaleCalibrationPanel({
   const isLoading = state === 'loading';
 
   return (
-    <section aria-label={isCompact ? SHEET_ARIA_LABEL : PANEL_ARIA_LABEL} className={PANEL_CONTAINER_CLASSES}>
+    <section aria-label={PANEL_ARIA_LABEL} className={PANEL_CONTAINER_CLASSES}>
       <header className="flex items-center justify-between gap-3 border-b border-border-default px-4 py-3">
         <div className="flex min-w-0 items-center gap-2">
           <h2 className="truncate text-[16px] font-semibold text-text-primary">{TITLE}</h2>

@@ -538,7 +538,7 @@ export interface ScaleCalibrationViewModel {
   readonly canvas: ScaleCanvasViewModel;
   readonly panel: ScalePanelViewModel;
   readonly statusBar: ScaleStatusBarViewModel;
-  /** Dưới 1024px panel phải thành tấm trượt đáy — cùng mốc các màn đã dựng. */
+  /** Khung nhìn dưới 1024px — cùng mốc các màn đã dựng. Panel tự xếp bằng CSS `lg:`. */
   readonly isCompact: boolean;
   readonly isPanelCollapsed: boolean;
   /** Có thì bỏ chạy số và bỏ bay khung nhìn, đổi giá trị tức thì (mục B). */
@@ -690,11 +690,10 @@ export interface ScaleCalibrationCanvasProps {
   >;
 }
 
-/** Props của `ScaleCalibrationPanel` — panel phải 344px, hoặc tấm trượt đáy khi hẹp. */
+/** Props của `ScaleCalibrationPanel` — panel phải 344px, dưới 1024px xếp dưới bản vẽ. */
 export interface ScaleCalibrationPanelProps {
   readonly panel: ScalePanelViewModel;
   readonly state: ScaleCalibrationState;
-  readonly isCompact: boolean;
   readonly isCollapsed: boolean;
   readonly prefersReducedMotion: boolean;
   readonly actions: Pick<
