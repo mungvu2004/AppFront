@@ -677,6 +677,25 @@ describe('CreateProjectModal, wired to its hook', () => {
     expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeEnabled();
   });
 
+  it('marks the floor row a 422 names at step 2, and editing that row unlocks it (nợ B #7)', async () => {
+    const gateway = failingGateway(422, { code: 'VALIDATION', field: 'floors.1.heightMm', count: 1 });
+    render(<CreateProjectModal isOpen gateway={gateway} forceCompact={false} onDismiss={noop} />);
+
+    goToReview();
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo dự án' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Sửa ở bước 2' }));
+
+    const refused = screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng 1');
+    expect(refused).toHaveAttribute('aria-invalid', 'true');
+    expect(refused).toHaveAccessibleDescription('Máy chủ không nhận giá trị này. Sửa rồi thử lại.');
+    expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng trệt')).not.toHaveAttribute('aria-invalid');
+    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeDisabled();
+
+    setHeight('Chiều cao thông thuỷ tầng Tầng 1', '3,2');
+    expect(refused).not.toHaveAttribute('aria-invalid');
+    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeEnabled();
+  });
+
   it('keeps "Tạo dự án" usable to retry after a 500, marking no field, and never advises a reload (BUG-129, BUG-188)', async () => {
     const gateway = failingGateway(500, {});
     render(<CreateProjectModal isOpen gateway={gateway} forceCompact={false} onDismiss={noop} />);
