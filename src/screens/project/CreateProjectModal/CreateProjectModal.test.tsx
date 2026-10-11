@@ -485,6 +485,21 @@ describe('CreateProjectModal, wired to its hook', () => {
     }
   });
 
+  it('clears a refused row height with "áp cho mọi tầng", even with the height the row already holds', () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+
+    goToStep2();
+    setHeight('Chiều cao áp cho mọi tầng', '3');
+    fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
+    setHeight('Chiều cao thông thuỷ tầng Tầng trệt', '12');
+    expect(screen.getByRole('alert')).toHaveTextContent('Giá trị không quá 10 m.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
+
+    expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng trệt')).toHaveValue('3');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('reads "3.5" in "áp cho mọi tầng" as 3,5 m and never erases the floors (BUG-132)', async () => {
     render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
 

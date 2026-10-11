@@ -9,6 +9,7 @@
  */
 
 import { Building2, Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -37,6 +38,9 @@ export interface StepFloorsProps extends CreateProjectModalViewProps {
 export function StepFloors(props: StepFloorsProps) {
   const { floorRows, isSubmitting, rowRefs } = props;
   const collisionRowId = props.collisionRowId;
+  // Bumped by every "Áp cho mọi tầng": the row fields remount, so a refused text goes even when the
+  // applied height equals the one a row already held (no value change for the field to see).
+  const [applyCount, setApplyCount] = useState(0);
 
   return (
     <div className="flex flex-col gap-4">
@@ -115,6 +119,7 @@ export function StepFloors(props: StepFloorsProps) {
                   </Table.Cell>
                   <Table.Cell className={CELL_PAD}>
                     <NumericField
+                      key={applyCount}
                       className="w-full"
                       value={row.clearHeightM ?? undefined}
                       onChange={(value) => props.setFloorHeight(row.id, value)}
@@ -171,7 +176,10 @@ export function StepFloors(props: StepFloorsProps) {
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={props.applyHeightToAllFloors}
+                onClick={() => {
+                  props.applyHeightToAllFloors();
+                  setApplyCount((count) => count + 1);
+                }}
                 disabled={isSubmitting || !props.canApplyHeight}
               >
                 Áp cho mọi tầng
