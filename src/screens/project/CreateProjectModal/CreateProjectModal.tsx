@@ -260,7 +260,8 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
   return (
     <Modal.Root isOpen={isOpen} onClose={props.requestClose} width={MODAL_WIDTH} titleId={TITLE_ID}>
       {/* `pb-3` + a body with no top padding: the step indicator sits one 24 px grid step under the title, and `px-6` lines the title up with the fields (BUG-122). */}
-      <Modal.Header className="px-4 sm:px-6 pb-3">
+      {/* X is locked with the footer while "Tạo dự án" runs: requestClose ignores it then (BUG-184, BUG-218). */}
+      <Modal.Header className="px-4 sm:px-6 pb-3" closeDisabled={isSubmitting}>
         <span id={TITLE_ID}>Tạo dự án mới</span>
       </Modal.Header>
       <Modal.Body className="px-4 sm:px-6 pt-0 pb-6 min-h-[320px]">

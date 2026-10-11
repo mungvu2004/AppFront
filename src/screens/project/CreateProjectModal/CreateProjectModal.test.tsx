@@ -714,6 +714,8 @@ describe('CreateProjectModal, wired to its hook', () => {
 
     expect(screen.queryByText('Đóng và bỏ các thay đổi chưa lưu?')).not.toBeInTheDocument();
     expect(onDismiss).not.toHaveBeenCalled();
+    // X does nothing then, so it looks locked like the footer buttons (BUG-218).
+    expect(screen.getByRole('button', { name: 'Đóng hộp thoại' })).toBeDisabled();
   });
 
   it('pins a 422 on "Mã dự án" to that field, not the name, and a new code unlocks it (BUG-129, BUG-187)', async () => {
