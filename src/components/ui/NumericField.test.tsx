@@ -59,10 +59,14 @@ describe('NumericField', () => {
     );
   });
 
-  it('capitalises the first letter of its stepper labels (A6)', () => {
+  it('has no pointer-only stepper over the value; the arrow keys step it (BUG-158, BUG-163)', () => {
     const { container } = render(<NumericField value={220} unit="mm" aria-label="Chiều dài" onChange={() => undefined} />);
+    const field = screen.getByRole('textbox', { name: 'Chiều dài' });
 
-    expect(screen.getByRole('button', { name: 'Tăng giá trị', hidden: true })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { hidden: true })).not.toBeInTheDocument();
+    fireEvent.focus(field);
+    fireEvent.keyDown(field, { key: 'ArrowUp' });
+    expect(field).toHaveValue('221');
     expectSentenceCase(container);
   });
 });

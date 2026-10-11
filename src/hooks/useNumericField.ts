@@ -142,23 +142,6 @@ export function useNumericField({ value, onChange, min, max, unit }: UseNumericF
     }
   };
 
-  const handleStepper = (direction: 1 | -1, e: React.MouseEvent) => {
-    e.preventDefault();
-    let current = parseNumber(localValue) ?? lastCommittedRef.current ?? 0;
-    const step = e.shiftKey ? 10 : 1;
-    current += direction * step;
-    
-    if (min !== undefined) current = Math.max(min, current);
-    if (max !== undefined) current = Math.min(max, current);
-    
-    setLocalValue(displayText(current));
-    setIsTyping(true);
-    setError(validate(current));
-    // Keep focus
-    const input = e.currentTarget.parentElement?.querySelector('input');
-    input?.focus();
-  };
-
   // A refused value stays in the box beside its message (BUG-160): blanking it
   // left the error under a field that looked empty.
   const displayValue =
@@ -174,6 +157,5 @@ export function useNumericField({ value, onChange, min, max, unit }: UseNumericF
     handleFocus,
     handleBlur,
     handleKeyDown,
-    handleStepper
   };
 }
