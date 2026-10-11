@@ -25,7 +25,7 @@ import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { IconButton } from '@/components/ui/IconButton';
 
 import { ExplodedViewAlignmentPaths } from './ExplodedViewAlignmentPaths';
-import type { ExplodedViewProps } from './explodedViewTypes';
+import { EXPLODED_LAYOUT, type ExplodedViewProps } from './explodedViewTypes';
 import { ExplodedViewFloorCards } from './ExplodedViewFloorCards';
 import { ExplodedViewRail } from './ExplodedViewRail';
 
@@ -113,7 +113,12 @@ export function ExplodedView(props: ExplodedViewProps) {
             reducedMotion={props.reducedMotion}
           />
 
-          <div className="absolute right-3 top-3 flex flex-col items-end gap-2">
+          {/* Ngay TRÁI ViewCube của vỏ, không dưới nó: ở `right-3` nút nằm trọn dưới
+              ViewCube và mặt "Trục đo" nhận cú bấm thay nút (BUG-371). */}
+          <div
+            className="absolute top-3 flex flex-col items-end gap-2"
+            style={{ right: EXPLODED_LAYOUT.captureRightPx }}
+          >
             <IconButton
               aria-label="Chụp ảnh khung nhìn"
               disabled={props.isCapturing}

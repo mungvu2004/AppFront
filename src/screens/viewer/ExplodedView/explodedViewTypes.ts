@@ -160,6 +160,19 @@ export const EXPLODED_LAYOUT = Object.freeze({
   railHeightPx: 240,
   /** Bề rộng vạch đánh dấu trên đường nối dọc. */
   tickWidthPx: 12,
+  /**
+   * Lề phải của nút chụp: `right-2` (8) + ViewCube 72 (`VIEWER_LAYOUT.cubePx`) + 8
+   * của vỏ, để nút đứng NGAY TRÁI ViewCube thay vì nằm dưới nó (BUG-371).
+   */
+  captureRightPx: 88,
+  /**
+   * Lề phải của cột thẻ tầng: `right-2` (8) + bản đồ nhỏ 160 (`MiniMap.tsx`) + 8.
+   * Bản đồ nhỏ và cụm thu phóng của vỏ đều nằm trong dải ấy, nên thẻ đứng trái
+   * dải thì không lớp nào của vỏ đè lên thẻ (BUG-371).
+   */
+  cardsRightPx: 176,
+  /** Khoảng hở tối thiểu giữa thẻ tầng và mép khung nhìn khi khung hẹp (BUG-370). */
+  cardsEdgePx: 12,
 });
 
 /**

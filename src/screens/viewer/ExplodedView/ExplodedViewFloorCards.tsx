@@ -78,26 +78,37 @@ export function ExplodedViewFloorCards({
   }
 
   /*
-   * Cột thẻ né hai lớp nổi CỦA VỎ, không phải né cho đẹp: ViewCube 72 px ngồi góc
-   * trên phải và cụm thu phóng ngồi góc dưới phải, cả hai thuộc `ViewerShell` nên
-   * màn này không dời được chúng — chỉ có thể không đứng dưới chúng. Đo trong
-   * trình duyệt thật ở 1600×1000: cube tại x≈1164 y≈76, cụm thu phóng tại x≈1088
-   * y≈384, còn thẻ rộng 200 px bám mép phải thì trùm lên cả hai. `top-20`/
-   * `bottom-20` là hai con số vừa đủ né hai vùng đó mà vẫn để lại đường ray dài
-   * nhất có thể — ray càng ngắn thì bốn thẻ càng dễ chồng nhau.
+   * Cột thẻ né các lớp nổi CỦA VỎ, không phải né cho đẹp: ViewCube 72 px và bản
+   * đồ nhỏ 160×120 ngồi góc trên phải, cụm thu phóng ngồi góc dưới phải, cả ba
+   * thuộc `ViewerShell` nên màn này không dời được chúng — chỉ có thể không đứng
+   * dưới chúng. Bản trước bám `right-3` và chỉ né theo chiều dọc (`top-20`): bản
+   * đồ nhỏ cao tới y≈208 nên vẫn vẽ đè lên thẻ tầng trên cùng và nuốt cú bấm của
+   * nó (BUG-371). Nay cột đứng TRÁI cả dải góc phải (`cardsRightPx`), nên không
+   * lớp nào của vỏ chạm tới thẻ; `top-20`/`bottom-20` giữ nửa thẻ trên cùng và
+   * dưới cùng không bị `overflow-hidden` cắt, và giữ thẻ dưới nút chụp.
+   *
+   * Khung hẹp (BUG-370): `right` kẹp bằng `min/max` để mép trái thẻ không bao giờ
+   * qua mép trái khung nhìn, và bề rộng co theo khung. Khi ấy thẻ có thể chồng
+   * lên bản đồ nhỏ — `z-10` để thẻ (thứ người dùng đang thao tác) nằm trên.
+   * Cột phủ cả bề ngang nên nó `pointer-events-none`; chỉ thẻ nhận chuột.
    */
+  const { cardWidthPx, cardsRightPx, cardsEdgePx } = EXPLODED_LAYOUT;
+  const cardRight = `min(${String(cardsRightPx)}px, max(${String(cardsEdgePx)}px, 100% - ${String(cardWidthPx + cardsEdgePx)}px))`;
+  const cardWidth = `min(${String(cardWidthPx)}px, 100% - ${String(2 * cardsEdgePx)}px)`;
+
   return (
-    <div className="absolute right-3 top-20 bottom-20">
+    <div className="pointer-events-none absolute inset-x-0 top-20 bottom-20 z-10">
       {floors.map((floor) => {
         const isDimmed = hoveredStoreyId !== null && hoveredStoreyId !== floor.id;
 
         return (
           <div
-            className="absolute right-0 -translate-y-1/2 transition-opacity motion-reduce:transition-none"
+            className="pointer-events-auto absolute -translate-y-1/2 transition-opacity motion-reduce:transition-none"
             key={floor.id}
             style={{
               top: `${(1 - Math.min(1, Math.max(0, floor.railFraction))) * 100}%`,
-              width: EXPLODED_LAYOUT.cardWidthPx,
+              right: cardRight,
+              width: cardWidth,
               opacity: isDimmed ? DIMMED_FLOOR_OPACITY : 1,
             }}
           >
