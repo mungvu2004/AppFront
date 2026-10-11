@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -68,6 +68,7 @@ const SAMPLE_ROW: ProjectCardModel = {
   progressPercentLabel: '63%',
   members: [{ id: 'm-an', initials: 'PA' }],
   planVariant: 0,
+  hasPlan: true,
 };
 
 /** Every prop the view takes, at rest — written out so a scenario describes exactly what it changes. */
@@ -91,6 +92,7 @@ function baseProps(): ProjectDashboardViewProps {
     pendingDeleteId: null,
     pendingDeleteName: null,
     deleteErrorMessage: null,
+    isDeleting: false,
     unreadNotice: null,
     setSearchQuery: noop,
     setStatusFilter: noop,
@@ -114,7 +116,7 @@ function baseProps(): ProjectDashboardViewProps {
 const PROPS_BY_STATE: Readonly<Record<(typeof SEVEN_STATES)[number], () => ProjectDashboardViewProps>> = {
   empty: () => ({ ...baseProps(), state: 'empty', rows: [] }),
   loading: () => ({ ...baseProps(), state: 'loading', rows: [] }),
-  partial: () => ({ ...baseProps(), state: 'partial', rows: [], searchQuery: 'không tồn tại' }),
+  partial: () => ({ ...baseProps(), state: 'partial', rows: [], searchQuery: 'không tồn tại', statusCounts: { all: 1, processing: 0, qc: 1, done: 0 } }),
   error: () => ({ ...baseProps(), state: 'error', errorMessage: 'không kết nối được máy chủ' }),
   success: () => ({ ...baseProps(), state: 'success', rows: [SAMPLE_ROW] }),
   forbidden: () => ({ ...baseProps(), state: 'forbidden', canCreate: false, canDelete: false, rows: [SAMPLE_ROW] }),
@@ -184,6 +186,24 @@ describe('ProjectDashboardView, seven states', () => {
     expect(screen.getByText('Không tìm thấy dự án phù hợp')).toBeInTheDocument();
   });
 
+  // BUG-117: dropping the count line on a no-match search made the stats column jump up.
+  it('keeps the "{n} dự án" line when a search matches nothing, and drops it only while loading', () => {
+    const { rerender } = render(<ProjectDashboardView {...PROPS_BY_STATE.partial()} />);
+    expect(screen.getByText('0 dự án')).toBeInTheDocument();
+
+    rerender(<ProjectDashboardView {...PROPS_BY_STATE.loading()} />);
+    expect(screen.queryByText(/^\d+ dự án$/u)).not.toBeInTheDocument();
+  });
+
+  // BUG-111: below 1024 px the state is `collapsed`, never `partial`; the no-match state used to hang on `partial`.
+  it('offers to clear filters, not to create, when nothing matches below 1024 px', () => {
+    render(<ProjectDashboardView {...PROPS_BY_STATE.partial()} state="collapsed" statusFilter="done" searchQuery="" />);
+
+    expect(screen.getByText('Không tìm thấy dự án phù hợp')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Xoá bộ lọc' })).toBeInTheDocument();
+    expect(screen.queryByText('Chưa có dự án nào')).not.toBeInTheDocument();
+  });
+
   it('offers a retry when the list could not be loaded', () => {
     const retryLoad = vi.fn();
     render(<ProjectDashboardView {...PROPS_BY_STATE.error()} retryLoad={retryLoad} />);
@@ -221,6 +241,53 @@ describe('ProjectDashboardView, seven states', () => {
     fireEvent.keyDown(card, { key: 'Enter' });
 
     expect(openProject).toHaveBeenCalledWith(SAMPLE_ROW.id, 'card');
+  });
+
+  // BUG-147: Enter on the menu button bubbled to the card and opened the project.
+  it('leaves Enter on the card menu button to that button', () => {
+    const openProject = vi.fn();
+    render(<ProjectDashboardView {...PROPS_BY_STATE.success()} openProject={openProject} />);
+
+    fireEvent.keyDown(screen.getByRole('button', { name: `Tuỳ chọn cho ${SAMPLE_ROW.name}` }), { key: 'Enter' });
+
+    expect(openProject).not.toHaveBeenCalled();
+  });
+
+  // BUG-119: a project with no traced plan drew a made-up floor plan with rooms.
+  it('shows a placeholder instead of a plan outline until the project has a traced plan', () => {
+    render(<ProjectDashboardView {...PROPS_BY_STATE.success()} rows={[{ ...SAMPLE_ROW, hasPlan: false }]} />);
+
+    const card = screen.getByRole('listitem', { name: SAMPLE_ROW.name });
+    expect(within(card).getByText('Chưa có mặt bằng')).toBeInTheDocument();
+    expect(within(card).queryByRole('img', { name: 'Sơ đồ mặt bằng' })).not.toBeInTheDocument();
+  });
+
+  // BUG-116/148: the menu opened where the pointer was (over its own button) or, from the keyboard, at 0,0.
+  it('anchors the card menu under its button and gives focus back to it on Esc', async () => {
+    const viewport = { clientWidth: 1440, clientHeight: 900 };
+    for (const [key, value] of Object.entries(viewport)) {
+      Object.defineProperty(document.documentElement, key, { configurable: true, value });
+    }
+    try {
+      render(<ProjectDashboardView {...PROPS_BY_STATE.success()} />);
+      const trigger = screen.getByRole('button', { name: `Tuỳ chọn cho ${SAMPLE_ROW.name}` });
+      vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue(new DOMRect(600, 100, 32, 32));
+
+      trigger.focus();
+      fireEvent.click(trigger, { clientX: 0, clientY: 0 });
+      const menu = screen.getByRole('menu', { name: 'Tuỳ chọn' });
+
+      expect(menu.style.left).toBe(`${String(632 - 220)}px`);
+      expect(menu.style.top).toBe('136px');
+      await waitFor(() => expect(within(menu).getAllByRole('menuitem')[0]).toHaveFocus());
+
+      fireEvent.keyDown(menu, { key: 'Escape' });
+
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      expect(trigger).toHaveFocus();
+    } finally {
+      for (const key of Object.keys(viewport)) Reflect.deleteProperty(document.documentElement, key);
+    }
   });
 });
 

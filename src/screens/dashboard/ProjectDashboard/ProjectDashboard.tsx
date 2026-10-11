@@ -7,8 +7,8 @@
  * renders — no store, no network, no `Date` — which is why there is not one
  * `toFixed` or unit conversion below for `local/no-raw-number` to catch;
  * every string already arrived formatted from `useProjectDashboard`. The card
- * itself ({@link ProjectCardTile}) and the status rail ({@link DashboardSidebar})
- * live in sibling files — this file crossed R-22's 400-line cap once the grid
+ * itself ({@link ProjectCardTile}), the table view ({@link ProjectTable}) and the status rail
+ * ({@link DashboardSidebar}) live in sibling files — this file crossed R-22's 400-line cap once the grid
  * grew a hero card and a sidebar, and mục D's answer is a folder, not a
  * shorter feature.
  *
@@ -37,20 +37,18 @@ import { ContextMenu } from '@/components/canvas/ContextMenu';
 import { motion } from '@/components/motion';
 import { Modal } from '@/components/overlay/Modal';
 import { Avatar } from '@/components/ui/Avatar';
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Select } from '@/components/ui/Select';
-import { Table } from '@/components/ui/Table';
 import { useContextMenu } from '@/hooks/useContextMenu';
 import { durationSeconds } from '@/lib/motion';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
-import { cn } from '@/lib/utils';
 
 import { DashboardSidebar } from './DashboardSidebar';
 import { projectMenuGroups } from './projectMenuGroups';
 import { ProjectCardTile } from './ProjectCardTile';
+import { ProjectTable } from './ProjectTable';
 import {
   PROJECT_SORT_OPTIONS,
   PROJECT_STATUS_FILTER_OPTIONS,
@@ -80,7 +78,8 @@ const STATE_ANNOUNCEMENT: Readonly<Record<SevenState, string>> = {
   forbidden: 'Không có quyền',
   collapsed: 'thu gọn',
 };
-const GRID_COLUMNS_CLASS = 'grid grid-cols-2 gap-5 min-[1440px]:grid-cols-3 min-[1920px]:grid-cols-4';
+/** One column below `sm`, like the hero and side cards above it: two columns at 375 px squeezed cards to ~145 px (BUG-157). */
+const GRID_COLUMNS_CLASS = 'grid grid-cols-1 gap-5 sm:grid-cols-2 min-[1440px]:grid-cols-3 min-[1920px]:grid-cols-4';
 
 export interface ProjectDashboardViewProps extends ProjectDashboardModel, ProjectDashboardActions {
   /**
@@ -102,26 +101,6 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
 
   const openMenuFor = (project: ProjectCardModel, x: number, y: number): void =>
     contextMenu.openMenu(x, y, projectMenuGroups(project, props, props.canDelete, props.canDuplicate));
-
-  const nameField = (project: ProjectCardModel, className: string) =>
-    props.renamingId === project.id ? (
-      <input
-        autoFocus
-        aria-label={`Đổi tên ${project.name}`}
-        value={props.renameDraft}
-        onChange={(event) => props.setRenameDraft(event.target.value)}
-        onBlur={props.commitRename}
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={(event) => {
-          event.stopPropagation();
-          if (event.key === 'Enter') props.commitRename();
-          if (event.key === 'Escape') props.cancelRename();
-        }}
-        className={cn(className, 'rounded border border-accent bg-bg-surface px-1 outline-none')}
-      />
-    ) : (
-      <h3 className={cn(className, 'truncate')}>{project.name}</h3>
-    );
 
   const renderCard = (project: ProjectCardModel, index: number, size: 'hero' | 'compact') => (
     <ProjectCardTile
@@ -168,7 +147,9 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
 
   return (
     <div className="flex min-h-screen flex-col bg-bg-app">
-      <header className="flex h-14 items-center gap-4 border-b border-border-default bg-bg-surface px-6">
+      {/* Below `sm` the search box takes a row of its own: logo + 320 px box + bell, avatar and
+          "Dự án mới" on one non-wrapping row was 524 px wide at 375 (BUG-109). */}
+      <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border-default bg-bg-surface px-4 py-2 sm:h-14 sm:flex-nowrap sm:px-6 sm:py-0">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-wash text-accent" aria-hidden="true">
           <FolderPlus size={18} />
         </div>
@@ -178,8 +159,12 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           value={props.searchQuery}
           onChange={(event) => props.setSearchQuery(event.target.value)}
           placeholder="Tìm dự án theo tên..."
-          prefix={<Search size={16} aria-hidden="true" />}
-          wrapperClassName="w-[320px] max-w-full"
+          // The gap after the icon moves from the input's padding (where scrolled text still draws) to the
+          // icon's margin, so a long query is clipped 8 px clear of the icon, not half under it (BUG-169).
+          prefix={<Search size={16} aria-hidden="true" className="mr-1" />}
+          // The browser's own clear (×) button sat flush against the last typed glyph (BUG-117).
+          className="pl-0 [&::-webkit-search-cancel-button]:ml-2"
+          wrapperClassName="order-last w-full sm:order-none sm:w-[320px] sm:max-w-full"
         />
         <div className="ml-auto flex items-center gap-3">
           {props.notificationBell}
@@ -192,13 +177,14 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-[1920px] flex-1 flex-col gap-6 p-8">
+      {/* 16 px gutters below `sm`: 32 px left the 375 px status strip 311 px for 324 px of tabs (BUG-154). */}
+      <div className="mx-auto flex w-full max-w-[1920px] flex-1 flex-col gap-6 p-4 sm:p-8">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-[20px] font-semibold text-text-primary">Dự án của tôi</h1>
-            {(state === 'success' || state === 'collapsed' || state === 'forbidden') && (
-              <p className="text-[13px] text-text-secondary">{rows.length} dự án</p>
-            )}
+            {/* Every state that has a list says how many it shows — "0 dự án" for a search with no match
+                included: dropping the line there made the whole column jump up 11 px (BUG-117). */}
+            {state !== 'loading' && state !== 'error' && <p className="text-[13px] text-text-secondary">{rows.length} dự án</p>}
           </div>
           <div className="flex items-center gap-3">
             <Select
@@ -207,8 +193,10 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
               onChange={(value) => props.setSortBy(value as ProjectSortOption)}
               className="w-[200px]"
             />
+            {/* 52 px strip = 44 px segments below `sm`, the touch size `Button`/`Input` use (BUG-156). */}
             <SegmentedControl
               aria-label="Kiểu xem"
+              className="h-[52px] sm:h-9"
               options={[
                 { label: 'Lưới', value: 'grid' },
                 { label: 'Bảng', value: 'table' },
@@ -229,6 +217,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
         {isCollapsed && (
           <SegmentedControl
             aria-label="Lọc theo trạng thái"
+            className="h-[52px] sm:h-9 [&>button]:px-2 sm:[&>button]:px-3"
             options={PROJECT_STATUS_FILTER_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
             value={props.statusFilter}
             onChange={props.setStatusFilter}
@@ -255,7 +244,9 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
                 message={errorMessage ?? 'Đã có lỗi xảy ra.'}
                 action={{ label: 'Thử lại', onClick: props.retryLoad, variant: 'secondary' }}
               />
-            ) : rows.length === 0 && state !== 'partial' ? (
+            ) : rows.length === 0 && statusCounts.all === 0 && unreadNotice === null ? (
+              // Never had a project — the `empty` rule of `useProjectDashboard`, read from the counts and not
+              // from `state`: below 1024 px a filter or search with no match is `collapsed`, not `partial` (BUG-111).
               <EmptyState
                 icon={<FolderPlus aria-hidden="true" />}
                 title="Chưa có dự án nào"
@@ -278,42 +269,16 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
                 {props.viewMode === 'grid' ? (
                   renderProjectGrid()
                 ) : (
-                  <Table.Root>
-                    <Table.Header>
-                      <tr>
-                        <Table.Head>Tên dự án</Table.Head>
-                        <Table.Head>Trạng thái</Table.Head>
-                        <Table.Head>Chi tiết</Table.Head>
-                        <Table.Head>Tiến độ duyệt</Table.Head>
-                        <Table.Head>Cập nhật</Table.Head>
-                      </tr>
-                    </Table.Header>
-                    <Table.Body>
-                      {rows.map((project) => (
-                        <Table.Row
-                          key={project.id}
-                          tabIndex={0}
-                          className="cursor-pointer"
-                          onClick={() => props.openProject(project.id, 'row')}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter') props.openProject(project.id, 'row');
-                          }}
-                          onContextMenu={(event) => {
-                            event.preventDefault();
-                            openMenuFor(project, event.clientX, event.clientY);
-                          }}
-                        >
-                          <Table.Cell className="font-medium">{nameField(project, 'text-[14px] font-medium text-text-primary')}</Table.Cell>
-                          <Table.Cell>
-                            <Badge variant={project.statusVariant}>{project.statusLabel}</Badge>
-                          </Table.Cell>
-                          <Table.Cell className="text-text-secondary">{project.statsLabel}</Table.Cell>
-                          <Table.Cell className="text-text-secondary">{project.progressLabel}</Table.Cell>
-                          <Table.Cell className="text-text-muted">{project.updatedLabel}</Table.Cell>
-                        </Table.Row>
-                      ))}
-                    </Table.Body>
-                  </Table.Root>
+                  <ProjectTable
+                    rows={rows}
+                    renamingId={props.renamingId}
+                    renameDraft={props.renameDraft}
+                    onOpen={(id) => props.openProject(id, 'row')}
+                    onMenu={openMenuFor}
+                    onRenameChange={props.setRenameDraft}
+                    onRenameCommit={props.commitRename}
+                    onRenameCancel={props.cancelRename}
+                  />
                 )}
               </motion.div>
             )}
@@ -330,7 +295,8 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
         <Modal.Header>
           <span id="project-delete-title">Xoá dự án?</span>
         </Modal.Header>
-        <Modal.Body>
+        {/* 24 px to the footer rule like the header and body gutters, not 8 (BUG-155). */}
+        <Modal.Body className="pb-6">
           <div className="flex flex-col gap-2">
             <p className="text-sm text-text-primary">
               {pendingDeleteName === null ? '' : `"${pendingDeleteName}" và toàn bộ bản vẽ, mô hình liên quan sẽ bị xoá vĩnh viễn.`}
@@ -346,7 +312,13 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           <Button variant="ghost" onClick={props.cancelDelete}>
             Để nguyên
           </Button>
-          <Button variant="danger" onClick={props.confirmDelete}>
+          {/* Solid, not the pale `danger` tint: deleting for good is the one irreversible act here (A9, BUG-155). */}
+          <Button
+            variant="danger"
+            className="border-transparent bg-state-violation-text text-bg-surface hover:opacity-90"
+            onClick={props.confirmDelete}
+            loading={props.isDeleting}
+          >
             Xoá dự án
           </Button>
         </Modal.Footer>

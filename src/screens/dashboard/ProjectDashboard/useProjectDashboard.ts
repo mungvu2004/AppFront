@@ -34,7 +34,7 @@
  * ships with a stale `status: 'done'` and an unfinished review.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient, type QueryFunction } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
@@ -43,6 +43,8 @@ import { ENDPOINTS } from '@/api/endpoints';
 import { PROJECT_NAME_MAX_LENGTH, PROJECT_NAME_MIN_LENGTH } from '@/domain/project/limits';
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
+import { describeError } from '@/lib/errors/describeError';
+import { toAppError } from '@/lib/errors/toAppError';
 import { readWireError } from '@/lib/errors/wireError';
 import { formatArea } from '@/lib/format/measure';
 import { formatNumber, formatPercent } from '@/lib/format/number';
@@ -122,6 +124,8 @@ export interface ProjectCardModel {
   readonly progressPercentLabel: string;
   readonly members: readonly DashboardProjectMember[];
   readonly planVariant: 0 | 1 | 2 | 3;
+  /** Whether a plan was traced yet (walls detected); without one the card shows a placeholder, not a made-up plan. */
+  readonly hasPlan: boolean;
 }
 
 export interface ProjectStatusCounts {
@@ -151,6 +155,8 @@ export interface ProjectDashboardModel {
   readonly pendingDeleteName: string | null;
   /** Why the delete dialog stays open after #27 failed; null otherwise. */
   readonly deleteErrorMessage: string | null;
+  /** #27 is in flight: "Xoá dự án" waits, so a second click sends nothing. */
+  readonly isDeleting: boolean;
   /** "Có {N} dự án chưa đọc được" when N1 dropped rows; null otherwise. */
   readonly unreadNotice: string | null;
 }
@@ -197,11 +203,32 @@ function derivedStatusOf(project: DashboardProject): TelemetryPipelineStatus {
 
 const RENAME_RANGE_MESSAGE = `Tên dự án cần từ ${String(PROJECT_NAME_MIN_LENGTH)} đến ${String(PROJECT_NAME_MAX_LENGTH)} ký tự.`;
 
+/**
+ * How many characters of a project name a toast quotes: an 80-character name with no space overran the
+ * 320 px toast and pushed "Hoàn tác" out (BUG-131). Shorter names wrap at their spaces and hyphens.
+ * ponytail: a 40-char run with no break still overflows; the real fix is `min-w-0 break-words` on the
+ * message span of `components/feedback/Toast.tsx` (outside this cluster) — then drop this cap.
+ */
+const TOAST_NAME_MAX_CHARS = 40;
+
+/** The name as a toast quotes it: whole when short, else cut on a code point with "…". */
+function toastName(name: string): string {
+  const chars = [...name];
+  return chars.length <= TOAST_NAME_MAX_CHARS ? name : `${chars.slice(0, TOAST_NAME_MAX_CHARS - 1).join('')}…`;
+}
+
+/**
+ * #26 `VALIDATION`. `commitRename` refuses a name outside 3–80 characters before sending, so a name the
+ * server still refuses has characters it does not take — a bidi or control mark (BUG-168, as BUG-016).
+ */
+const RENAME_CHARS_MESSAGE =
+  'Tên dự án có ký tự không dùng được, như ký tự điều khiển hoặc ký tự đảo chiều chữ. Tên cũ đã được giữ lại.';
+
 /** #26 failures by wire `code` (prompt [2]); a code this screen does not know gets the fallback, never the code. */
 function renameErrorMessage(error: unknown): string {
   switch (readWireError(error)?.code) {
     case 'VALIDATION':
-      return RENAME_RANGE_MESSAGE;
+      return RENAME_CHARS_MESSAGE;
     case 'FORBIDDEN':
       return 'Bạn không có quyền đổi tên dự án này.';
     case 'NOT_FOUND':
@@ -246,6 +273,9 @@ export function useProjectDashboard(
   const [renameDraft, setRenameDraft] = useState('');
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [deleteErrorMessage, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  // A ref, not the state: a double click lands twice before React re-renders (BUG-146).
+  const deleteInFlight = useRef(false);
   const [pulseKey, setPulseKey] = useState(0);
   const [hasEnteredOnce, setHasEnteredOnce] = useState(false);
   const [telemetry] = useState(() =>
@@ -331,6 +361,7 @@ export function useProjectDashboard(
           progressPercentLabel: formatPercent(progressRatio, { fractionDigits: 0 }),
           members: project.members,
           planVariant: project.planVariant,
+          hasPlan: project.wallsTotalCount > 0,
         };
       }),
     [sortedProjects, now],
@@ -349,11 +380,9 @@ export function useProjectDashboard(
     return { all: allProjects.length, processing, qc, done };
   }, [allProjects]);
 
-  const errorMessage = listQuery.isError
-    ? listQuery.error instanceof Error
-      ? listQuery.error.message
-      : 'Không tải được danh sách dự án.'
-    : null;
+  // The cause and the next step, under the view's "Không tải được danh sách dự án" heading — the old
+  // fallback repeated that heading word for word, and `Error.message` could be raw English (BUG-130).
+  const errorMessage = listQuery.isError ? describeError(toAppError(listQuery.error)).description : null;
 
   const state = useMemo<SevenState>(() => {
     // Loading and a failed read beat the narrow overlay: with no list there is nothing
@@ -421,7 +450,7 @@ export function useProjectDashboard(
     }
     applyInvalidation(queryClient, 'renameProject', { projectId: id });
     options.onToast?.({
-      message: canUndo ? `Đã đổi tên thành "${name}"` : `Đã khôi phục tên "${name}"`,
+      message: canUndo ? `Đã đổi tên thành "${toastName(name)}"` : `Đã khôi phục tên "${toastName(name)}"`,
       ...(canUndo ? { onUndo: () => void renameTo(id, previousName, name, false) } : {}),
     });
   };
@@ -441,8 +470,10 @@ export function useProjectDashboard(
 
   /** #27 first; the row leaves only once the server has deleted it. A9 asked already, so no undo toast. */
   const confirmDelete = async (): Promise<void> => {
-    if (pendingDeleteId === null) return;
+    if (pendingDeleteId === null || deleteInFlight.current) return;
     const id = pendingDeleteId;
+    deleteInFlight.current = true;
+    setIsDeleting(true);
     setDeleteError(null);
     try {
       await gateway.remove(id);
@@ -452,6 +483,9 @@ export function useProjectDashboard(
         setDeleteError(deleteErrorMessageOf(error));
         return;
       }
+    } finally {
+      deleteInFlight.current = false;
+      setIsDeleting(false);
     }
     setProjects((previous) => previous.filter((entry) => entry.id !== id));
     setPendingDeleteId(null);
@@ -479,6 +513,7 @@ export function useProjectDashboard(
     pendingDeleteId,
     pendingDeleteName: pendingDeleteProject?.name ?? null,
     deleteErrorMessage,
+    isDeleting,
     unreadNotice: droppedCount > 0 ? `Có ${formatNumber(droppedCount, { grouping: false })} dự án chưa đọc được` : null,
   };
 

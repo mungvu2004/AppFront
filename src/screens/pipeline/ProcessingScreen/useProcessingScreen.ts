@@ -176,6 +176,9 @@ const doneFloorsSentence = (done: string, total: string): string =>
 const overallSentence = (doneClause: string, duration: string | null): string =>
   duration === null ? doneClause : `${doneClause} · Còn lại khoảng ${duration}`;
 
+/** Không lượt nào: "Đã xong 0/0 tầng" cạnh một thẻ ghi 4 tầng là câu sai (BUG-165). */
+const NO_RUN_SENTENCE = 'Chưa có lượt xử lý nào đang chạy.';
+
 /** Ví dụ `"Đang chờ hàng đợi — vị trí 2"`. */
 const queueSentence = (position: string): string => `Đang chờ hàng đợi — vị trí ${position}`;
 
@@ -719,8 +722,10 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     if (isLoading) return 'loading';
     if (hasEveryReadFailed) return 'error';
     if (!canEdit) return 'forbidden';
-    if (isCompact) return 'collapsed';
+    // Nothing to lay out narrow: below 1024 px "no run" must still be the empty state with its
+    // next step, not two empty columns (the dashboard's BUG-111, here).
     if (records.length === 0) return 'empty';
+    if (isCompact) return 'collapsed';
     if (doneCount < records.length) return 'partial';
     return 'success';
   }, [canEdit, doneCount, hasEveryReadFailed, isCompact, isLoading, records.length]);
@@ -781,6 +786,13 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   }, [navigate]);
 
   const canCancel = gateway.supports.cancelProcessing && canEdit;
+  // "Để chạy nền" hứa một thông báo: chỉ đưa ra khi còn lượt chưa cuối để mà báo (BUG-165).
+  const canRunInBackground = records.some((record) => !isRunFinal(record));
+
+  /** Màn rỗng chỉ ra bước kế: chưa có bản vẽ nào trong hàng đợi thì tải bản vẽ (BUG-165). */
+  const onUploadDrawings = useCallback(() => {
+    navigate(ROUTES.project.upload(projectId));
+  }, [navigate, projectId]);
 
   const onRequestCancel = useCallback(() => {
     if (!canCancel) {
@@ -1219,6 +1231,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   }, [focusIndex, navigate, projectId, records]);
 
   const overallSummaryLine = useMemo(() => {
+    if (records.length === 0) return NO_RUN_SENTENCE;
     const doneClause = doneFloorsSentence(
       formatNumber(doneCount, { fractionDigits: 0 }),
       formatNumber(records.length, { fractionDigits: 0 }),
@@ -1313,6 +1326,8 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     onConfirmCancel,
     onDismissCancel,
     onRunInBackground,
+    canRunInBackground,
+    onUploadDrawings,
     isCompact,
     prefersReducedMotion,
   };

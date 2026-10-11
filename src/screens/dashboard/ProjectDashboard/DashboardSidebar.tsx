@@ -19,13 +19,14 @@ export interface DashboardSidebarProps {
 }
 
 export function DashboardSidebar({ statusCounts, statusFilter, onStatusFilterChange }: DashboardSidebarProps) {
+  // Same order as the filter list below (PROJECT_STATUS_FILTER_OPTIONS): two orders for one set read as two sets (BUG-118).
   const stats = [
     { icon: <Folder size={18} aria-hidden="true" />, count: statusCounts.all, label: DASHBOARD_MESSAGES.stats.all, tint: 'bg-accent-wash text-accent' },
     {
-      icon: <CheckCircle2 size={18} aria-hidden="true" />,
-      count: statusCounts.done,
-      label: DASHBOARD_MESSAGES.stats.done,
-      tint: 'bg-state-verified-tint text-state-verified-text',
+      icon: <RotateCw size={18} aria-hidden="true" />,
+      count: statusCounts.processing,
+      label: DASHBOARD_MESSAGES.stats.processing,
+      tint: 'bg-bg-sunken text-text-secondary',
     },
     {
       icon: <Clock size={18} aria-hidden="true" />,
@@ -34,10 +35,10 @@ export function DashboardSidebar({ statusCounts, statusFilter, onStatusFilterCha
       tint: 'bg-state-attention-tint text-state-attention-text',
     },
     {
-      icon: <RotateCw size={18} aria-hidden="true" />,
-      count: statusCounts.processing,
-      label: DASHBOARD_MESSAGES.stats.processing,
-      tint: 'bg-bg-sunken text-text-secondary',
+      icon: <CheckCircle2 size={18} aria-hidden="true" />,
+      count: statusCounts.done,
+      label: DASHBOARD_MESSAGES.stats.done,
+      tint: 'bg-state-verified-tint text-state-verified-text',
     },
   ];
 

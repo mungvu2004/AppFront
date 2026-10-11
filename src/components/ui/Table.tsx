@@ -174,6 +174,9 @@ function TableHead({
       )}
       aria-sort={ariaSort}
       onClick={isSortable ? handleSort : undefined}
+      // Every `Table.Head` sits in a `thead`: `scope` makes it a columnheader for every reader, not
+      // only the ones that infer it from the position (BUG-115). A row header passes `scope="row"`.
+      scope="col"
       {...props}
     >
       <div className="flex items-center gap-1">

@@ -302,6 +302,8 @@ describe('Table header casing', () => {
       </Table.Root>
     );
     const headers = screen.getAllByRole('columnheader');
+    // BUG-115: an explicit scope, so readers that do not infer it (PW 1.45.2) see columnheaders too.
+    headers.forEach((h) => expect(h).toHaveAttribute('scope', 'col'));
     headers.forEach((h) => {
       const text = h.textContent ?? '';
       // Should not be purely uppercase (would fail if text is "MÃ TƯỜNG")
