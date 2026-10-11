@@ -689,8 +689,9 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
         presses += 1;
       }
       await expect(sentence, 'Tab reaches the row sentence').toBeFocused();
-      // NC:188-192: `group-focus-within:opacity-100` reveals the hover-only button for keyboard users.
-      const markReadWrap = row.getByRole('button', { name: MARK_READ, exact: true }).locator('xpath=..');
+      // NotificationRow.tsx:148-153: the span around the icon button carries `sm:group-focus-within:opacity-100`; the
+      // button's own parent is the Tooltip's inline-flex span (IconButton.tsx:61, Tooltip.tsx:205-207), always opacity 1.
+      const markReadWrap = row.getByRole('button', { name: MARK_READ, exact: true }).locator('xpath=../..');
       await expect.poll(() => markReadWrap.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
       await captureEvidence(page, 'E02_ntf_keyboard_row.png', { caption: `Tab ×${String(presses)} → row sentence focused; "${MARK_READ}" visible` });
 
