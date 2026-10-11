@@ -236,7 +236,7 @@ No phase-03 `_ui` spec exists at this stamp. Test names are shortened to their l
 
 | # | Nhóm | Phần tử / trạng thái | Nguồn (file:line) | Test phủ | Trạng thái |
 |---|---|---|---|---|---|
-| C1 | Dialog | "Phát hiện tệp CAD" → "Huỷ" → "Tệp CAD không có lớp được đặt tên" (F-07) | `CBD:72-76`, `CB:86, 149-152` | M · SCR-15 load | covered |
+| C1 | Dialog | "Phát hiện tệp CAD" → "Huỷ" → "Chưa có lớp nào để ánh xạ" (F-07) | `CBD:72-76`, `CB:86, 149-152` | M · SCR-15 load | covered |
 | C2 | Dialog | Esc closes → hand-off "Chuyển sang nhánh nhận dạng ảnh" + AI notice | `CB:229-258, 270`, `UCB:719-721` | E · SCR-15 Esc closes the dialog | covered |
 | C3 | Dialog | "Vẫn dùng AI" → /pipeline, no write | `CBD:77-83`, `UCB:688-715` | E · SCR-15 "Vẫn dùng AI" | covered |
 | C4 | Dialog | "Dùng đường từ CAD" → stage 2 "Ánh xạ lớp và xem trước hình học" | `CBD:84-91`, `CB:343-372`, `UCB:701-705` | E · SCR-15 Esc … "Dùng đường từ CAD" | covered |

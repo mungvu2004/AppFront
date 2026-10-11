@@ -113,7 +113,7 @@ const CLOSE_DETAIL = 'Đóng chi tiết bước';
 /* SCR-13 / SCR-15. */
 const GRAPH_EMPTY = 'Chưa có lượt xử lý nào để kể lại'; // pipelineGraphText.ts:208
 const CAD_DIALOG = 'Phát hiện tệp CAD'; // cadBranchConfirmText.ts:30
-const CAD_EMPTY = 'Tệp CAD không có lớp được đặt tên'; // CadBranchConfirm.tsx:86
+const CAD_EMPTY = 'Chưa có lớp nào để ánh xạ'; // CadBranchConfirm.tsx:86
 const CANCEL = 'Huỷ';
 
 const PROJECTS_PATH = '/api/projects';

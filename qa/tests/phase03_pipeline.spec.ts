@@ -690,7 +690,7 @@ test.describe('SCR-13 Pipeline Graph', () => {
 });
 
 test.describe('SCR-15 CAD Branch Confirm', () => {
-  test('SCR-15 load; "Huỷ" in "Phát hiện tệp CAD" → "Tệp CAD không có lớp được đặt tên" (F-07)', async () => {
+  test('SCR-15 load; "Huỷ" in "Phát hiện tệp CAD" → "Chưa có lớp nào để ánh xạ" (F-07)', async () => {
     const workId = requireState((s) => s.floors.workFloorId, 'floors.workFloorId', 'Phase 3 SCR-09');
 
     await page.goto(ROUTES.project.cadConfirm(projectId, workId));
@@ -698,7 +698,7 @@ test.describe('SCR-15 CAD Branch Confirm', () => {
     await expect(dialog).toBeVisible();
     await dialog.getByRole('button', { name: 'Huỷ', exact: true }).click();
     await expect(dialog).toHaveCount(0);
-    await expect(page.getByText('Tệp CAD không có lớp được đặt tên', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Chưa có lớp nào để ánh xạ', { exact: true }).first()).toBeVisible();
     await captureEvidence(page, '15_cad_empty.png');
   });
 });
