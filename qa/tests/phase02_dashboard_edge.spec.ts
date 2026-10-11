@@ -149,7 +149,8 @@ const DISCARD_HINT = 'Nhấn Esc lần nữa hoặc bấm "Đóng, bỏ thay đ�
 const DISCARD_ACTION = 'Đóng, bỏ thay đổi'; // CPM:254
 const CLOSE_DIALOG = 'Đóng hộp thoại'; // MOD:167
 const HEIGHT_MISSING = 'Chưa nhập chiều cao thông thuỷ.'; // UCPM:113
-const CHAIN_BROKEN = 'Chưa tính được cao độ vì tầng bên dưới còn thiếu chiều cao hợp lệ.'; // UCPM:235
+/** UCPM:325, :369-373: the rows above a floor over the elevation limit name that limit, not a height (BUG-213). */
+const CHAIN_BROKEN_BY_ELEVATION = 'Chưa tính được cao độ vì một tầng bên dưới đã vượt giới hạn cao độ.';
 const ELEVATION_LIMIT = /^Cao độ vượt giới hạn cho phép \([-−]30 đến 300 mét\)\.$/u; // UCPM:131-132, LIM:30-31
 const NUMERIC_MIN = 'Giá trị không nhỏ hơn 2 m.'; // NF:43, LIM:34 (SF:98,134 pass min)
 const NUMERIC_MAX = 'Giá trị không quá 10 m.'; // NF:44, LIM:35
@@ -2200,7 +2201,7 @@ test.describe('E02 SCR-05 create-project wizard', () => {
       const row31 = floorRow(dialog, page, 'Tầng 31');
       await row31.scrollIntoViewIfNeeded();
       await expect(row31.getByRole('alert')).toHaveText(ELEVATION_LIMIT); // UCPM:127-136, :260-265
-      await expect(floorRow(dialog, page, 'Tầng 32').getByRole('alert')).toHaveText(CHAIN_BROKEN);
+      await expect(floorRow(dialog, page, 'Tầng 32').getByRole('alert')).toHaveText(CHAIN_BROKEN_BY_ELEVATION);
       await expect(nextButton(dialog)).toBeDisabled();
       await captureEvidence(page, 'E02_wizard_floor_cap.png', { caption: '10 m per floor: "Tầng 31" over the 300 m elevation limit (LIM:31)' });
       await discardWizard(dialog);

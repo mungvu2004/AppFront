@@ -150,7 +150,7 @@ non-serial; the SCR-05 dashboard block plus the earlier wizard / SCR-06 / SCR-07
 | W19 | Toggle | "Có tầng hầm" → "Tầng hầm" first, negative elevation | `SF:34-40`, `UCPM:279-304, 596-606` | M full create · E rows | covered |
 | W20 | Button | "Thêm tầng" → "Tầng N" without height | `UCPM:185-187, 559-566` | E rows | covered |
 | W21 | Boundary | 50 floors → "Thêm tầng" disabled | `UCPM:490`, `SF:125`, `LIM:27` | U `U02_wizard_floor_cap` · E floor cap | covered (UI layer) |
-| W22 | Validation | elevation > 300 m → "Cao độ vượt giới hạn cho phép (-30 đến 300 mét)." | `UCPM:127-136, 260-265`, `LIM:30-31` | E floor cap | covered |
+| W22 | Validation | elevation > 300 m → "Cao độ vượt giới hạn cho phép (-30 đến 300 mét)."; rows above → "…một tầng bên dưới đã vượt giới hạn cao độ." (BUG-213, UCPM:325) | `UCPM:127-136, 260-265`, `LIM:30-31` | E floor cap | covered |
 | W23 | Validation | elevation < -30 m (basement) | `UCPM:289-292` | — | n/a-by-design (max height 10 m → basement ≥ -10 m; unreachable) |
 | W24 | Button | "Xoá {tầng}" | `SF:107-114`, `UCPM:568-571` | E rows | covered |
 | W25 | Input | "Tên tầng …" edit | `SF:87-92`, `UCPM:573-576` | E rows | covered |
