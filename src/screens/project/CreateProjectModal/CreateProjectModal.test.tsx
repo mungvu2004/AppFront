@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { createMockApiClient } from '@/api/__mocks__/client';
@@ -563,6 +564,22 @@ describe('CreateProjectModal, wired to its hook', () => {
     fireEvent.change(screen.getByLabelText('Tên dự án'), { target: { value: 'Dự án đo rất dài để xem ngắt dòng' } });
 
     expect(screen.getByLabelText('Mã dự án')).toHaveValue('DA-DU-AN-DO-RAT-DAI-DE-XEM');
+  });
+
+  it('lets Space and Enter press the switch and buttons inside the open dialog (BUG-151)', async () => {
+    const user = userEvent.setup({ delay: null });
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    goToStep2();
+    const basement = screen.getByRole('switch', { name: 'Có tầng hầm' });
+    basement.focus();
+    await user.keyboard(' ');
+    expect(basement).toHaveAttribute('aria-checked', 'true');
+
+    screen.getByRole('button', { name: 'Xoá Tầng 2' }).focus();
+    await user.keyboard('{Enter}');
+    expect(screen.queryByLabelText('Tên tầng Tầng 2')).not.toBeInTheDocument();
   });
 
   it('closes an open "Loại công trình" list on Esc and keeps the dialog (BUG-152)', async () => {
