@@ -191,7 +191,7 @@ export function OverlayComparisonPanel({
         </Button>
         {confirmation.confirmedNotice !== null && (
           <div className="flex items-start gap-2">
-            <Badge variant="verified">{CONFIRM_BADGE_LABEL}</Badge>
+            <Badge className="shrink-0" variant="verified">{CONFIRM_BADGE_LABEL}</Badge>
             <p className="text-[13px] text-text-secondary">{confirmation.confirmedNotice.text}</p>
           </div>
         )}

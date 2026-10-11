@@ -51,7 +51,7 @@ export interface AxisGridFloorAlignListProps
 
 const PANEL_TITLE = 'Căn chỉnh giữa các tầng';
 const AUTO_ALIGN_BUTTON_LABEL = 'Căn chỉnh tự động';
-const ROOT_FLOOR_LABEL = 'tầng gốc';
+const ROOT_FLOOR_LABEL = 'Tầng gốc';
 const APPROVED_BADGE_LABEL = 'Đã duyệt';
 
 const STATUS_LABEL: Readonly<Record<FloorAlignStatus, string>> = {
