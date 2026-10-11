@@ -107,6 +107,7 @@ const PIPELINE_EMPTY = 'Chưa có bước nào để theo dõi';
 const PIPELINE_TABS = 'Xem trước hoặc nhật ký';
 const LOG_TAB = 'Nhật ký';
 const OPEN_DETAIL = 'Mở chi tiết bước';
+const ALL_STEPS = 'Xem tất cả các bước'; // ProcessingScreen.tsx:87 ALL_STEPS_LABEL (FIX-1383, BUG-294)
 const CLOSE_DETAIL = 'Đóng chi tiết bước';
 /* SCR-13 / SCR-15. */
 const GRAPH_EMPTY = 'Chưa có lượt xử lý nào để kể lại'; // pipelineGraphText.ts:208
@@ -221,6 +222,19 @@ async function openPipelineDone(page: Page): Promise<void> {
   await expect(done.or(empty).or(page.getByRole('button', { name: FAILURE_COPY })).first()).toBeVisible({ timeout: 15_000 });
   test.skip(await empty.isVisible(), 'data: CP-2 has no processing run (CP-5 not reached); the empty state is U03_pipeline_empty');
   await expect(done).toBeVisible();
+  await openAllSteps(page);
+}
+
+/**
+ * Below 1024 px the screen shows one step bar and keeps the six steps behind a native `<details>` "Xem tất cả các bước"
+ * (ProcessingScreen.tsx:202-212, FIX-1383 / BUG-294): open it so the 768 / 375 shots show every step. No-op ≥ 1024 px.
+ */
+async function openAllSteps(page: Page): Promise<void> {
+  const toggle = page.getByText(ALL_STEPS, { exact: true });
+  if (!(await toggle.isVisible())) return;
+  const details = page.locator('details').filter({ has: toggle });
+  if ((await details.getAttribute('open')) === null) await toggle.click();
+  await expect(details).toHaveAttribute('open', '');
 }
 
 /* ========================================================================== */
