@@ -781,6 +781,11 @@ test.describe('E03 SCR-08 project settings', () => {
       await del;
       await expect.poll(() => pathOf(page)).toBe(ROUTES.dashboard); // container onProjectDeleted → navigate('/')
       await expect(toastWith(page, DANGER.deletedNotice).first()).toBeVisible();
+      // BUG-358: shoot the LOADED dashboard (a card or the "never had a project" state — ProjectDashboard.tsx:109,243), not
+      // its skeleton, and prove the deleted project's card is gone (`<article role="listitem" aria-label={name}>`).
+      const list = page.getByRole('list', { name: 'Danh sách dự án', exact: true });
+      await expect(list.getByRole('listitem').first().or(page.getByText('Chưa có dự án nào', { exact: true }))).toBeVisible();
+      await expect(list.getByRole('listitem', { name: project.name, exact: true })).toHaveCount(0);
       await captureEvidence(page, 'E03_settings_delete_project.png');
     });
   });
