@@ -346,7 +346,8 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
         <Modal.Header>
           <span id="project-delete-title">Xoá dự án?</span>
         </Modal.Header>
-        <Modal.Body>
+        {/* 24 px to the footer rule like the header and body gutters, not 8 (BUG-155). */}
+        <Modal.Body className="pb-6">
           <div className="flex flex-col gap-2">
             <p className="text-sm text-text-primary">
               {pendingDeleteName === null ? '' : `"${pendingDeleteName}" và toàn bộ bản vẽ, mô hình liên quan sẽ bị xoá vĩnh viễn.`}
@@ -362,7 +363,13 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           <Button variant="ghost" onClick={props.cancelDelete}>
             Để nguyên
           </Button>
-          <Button variant="danger" onClick={props.confirmDelete} loading={props.isDeleting}>
+          {/* Solid, not the pale `danger` tint: deleting for good is the one irreversible act here (A9, BUG-155). */}
+          <Button
+            variant="danger"
+            className="border-transparent bg-state-violation-text text-bg-surface hover:opacity-90"
+            onClick={props.confirmDelete}
+            loading={props.isDeleting}
+          >
             Xoá dự án
           </Button>
         </Modal.Footer>
