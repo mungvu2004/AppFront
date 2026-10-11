@@ -46,8 +46,9 @@ const ERROR_CODE_PATTERN = /\b[A-Z][A-Z0-9_]{2,}\b/u;
 const SETTINGS_SAVED_TOAST = 'Đã lưu cài đặt dự án.';
 /** `FloorManager.tsx` / `floorManagerGateway.ts` FLOOR_MANAGER_UNSUPPORTED_NOTICES.hideFloorFrom3d. */
 const SESSION_ONLY_HEADING = 'Những thay đổi chỉ sống trong phiên làm việc này';
+/** floorManagerGateway.ts:213 — "3D" upper case since 5211d03c. */
 const HIDE_3D_NOTICE =
-  'Ẩn tầng khỏi mô hình 3d chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang.';
+  'Ẩn tầng khỏi mô hình 3D chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang.';
 /** `useInputQualityGate.ts` COPY. */
 const QUALITY_ACK_LABEL = 'Tôi đã đọc cảnh báo và vẫn muốn xử lý bản vẽ này';
 /** `InputQualityGateFooter.tsx` CONTINUE_BLOCKED_ACKNOWLEDGEMENT. */
@@ -390,7 +391,9 @@ test.describe('SCR-09 Floor Manager', () => {
     await more.click();
     await page.getByRole('menuitem', { name: 'Ẩn khỏi mô hình 3D', exact: true }).click();
     await expect(page.getByRole('heading', { name: SESSION_ONLY_HEADING, exact: true })).toBeVisible();
-    await expect(page.getByText(HIDE_3D_NOTICE, { exact: true })).toBeVisible();
+    // The same sentence also goes to the assertive live region (useFloorManager.ts:1090-1096 → announce), so the
+    // inline notice (FloorManager.tsx:131-133) is the first of two matches.
+    await expect(page.getByText(HIDE_3D_NOTICE, { exact: true }).first()).toBeVisible();
     await more.click();
     const show = page.getByRole('menuitem', { name: 'Hiện trong mô hình 3D', exact: true });
     await expect(show).toBeVisible();
