@@ -180,9 +180,13 @@ export function MeasurementToolRoute() {
     );
   }
 
+  // Không vỏ nào cấp chiều cao cho route này: thiếu khung `h-dvh` thì vỏ
+  // (`h-full`) chỉ cao bằng nội dung — cùng gốc BUG-373, khuôn `MobileViewerRoute`.
   return (
-    <ProjectSpatialGate projectId={id} wrapFallbackInMain>
-      <MeasurementToolContainer projectId={id} spatial={spatial} />
-    </ProjectSpatialGate>
+    <div className="h-dvh">
+      <ProjectSpatialGate projectId={id} wrapFallbackInMain>
+        <MeasurementToolContainer projectId={id} spatial={spatial} />
+      </ProjectSpatialGate>
+    </div>
   );
 }
