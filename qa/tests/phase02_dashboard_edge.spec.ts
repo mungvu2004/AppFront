@@ -2281,12 +2281,20 @@ test.describe('E02 SCR-05 create-project wizard', () => {
       // A8 on a project THIS test made (R6 forbids it only for CP-2): undo removes exactly what was created (UCPM:666-673).
       const toast = toastWith(page, createdToast(name));
       await expect(toast).toBeVisible();
+      // BUG-215: the "before" half — the new card and its toast; hovering the toast stops its 8 s clock (TST:69-73).
+      await toast.hover();
+      await captureEvidence(page, 'E02_wizard_create_undo_before.png', { caption: `before undo: card "${name}" + toast "${createdToast(name)}" with "Hoàn tác"` });
       const removed = waitForApi(page, 'DELETE', projectPathRe(id), [200]);
       await toast.getByRole('button', { name: 'Hoàn tác', exact: true }).click();
       await removed;
       await page.mouse.move(0, 0);
       await expect(projectCard(page, name), 'the undone project leaves the list (A8)').toHaveCount(0);
-      await captureEvidence(page, 'E02_wizard_create_undone.png', { caption: `1 POST (201) then DELETE /api/projects/${id} (200)` });
+      await captureEvidence(page, 'E02_wizard_create_undone.png', {
+        caption: [
+          `after "Hoàn tác": card "${name}" gone from the list (pair: E02_wizard_create_undo_before)`,
+          `1 POST (201) then DELETE /api/projects/${id} (200)`,
+        ],
+      });
       await attachJson('E02_wizard_create_undone.json', { posts, created: response.status(), deleted: 200, id });
     });
   });
