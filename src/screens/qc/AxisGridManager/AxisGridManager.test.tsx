@@ -61,6 +61,7 @@ import {
   AXIS_GRID_FIXTURE_SPACING_VIOLATION_EXAMPLE,
 } from './axisGridFixture';
 import {
+  createAxisGridSampleGraph,
   createMockAxisGridManagerGateway,
   describeSpacingViolation,
 } from './axisGridManagerGateway';
@@ -241,6 +242,23 @@ describe('[BUG-330][BUG-336] tầng chưa có trục: không số 0 giả, khôn
           : 'Chưa có trục nào để hiện trên bản vẽ.',
       ),
     ).toBeInTheDocument();
+  });
+
+  it('vai người xem trên tầng chưa có trục: cũng không số 0 giả, không "Đã duyệt" (review-1 P2-2)', async () => {
+    renderWithProviders(
+      <AxisGridManagerContainer
+        floorId={String(AXIS_GRID_FIXTURE_FLOOR1.levelId)}
+        gateway={createMockAxisGridManagerGateway({ graph: createAxisGridSampleGraph({ withAxes: false }) })}
+        levelId={AXIS_GRID_FIXTURE_FLOOR1.levelId}
+        projectId="project-axis-grid"
+        roles={['viewer']}
+      />,
+    );
+
+    expect(await screen.findByText('Chưa có trục nào nên chưa tính được gốc toạ độ.')).toBeInTheDocument();
+    expect(screen.queryByText('Lệch X (pixel)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Đã duyệt')).not.toBeInTheDocument();
+    expect(screen.getByText('Chưa có trục nào để hiện trên bản vẽ.')).toBeInTheDocument();
   });
 
   it('trạng thái có trục vẫn hiện bốn độ lệch và nút căn bấm được', () => {

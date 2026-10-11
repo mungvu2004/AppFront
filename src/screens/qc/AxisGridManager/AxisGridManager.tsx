@@ -207,13 +207,8 @@ function AxisGridLeftColumn({
 export function AxisGridManager(props: AxisGridManagerViewProps) {
   const { viewModel, spacingMessage } = props;
   const isCollapsed = viewModel.isCollapsed;
-  const canvasNotice =
-    viewModel.errorMessage !== null
-      ? CANVAS_ERROR_NOTICE
-      : viewModel.emptyNotice !== null
-        ? CANVAS_EMPTY_NOTICE
-        : null;
-  const hasNoAxis = canvasNotice !== null;
+  const hasNoAxis = viewModel.hasNoAxes;
+  const canvasNotice = !hasNoAxis ? null : viewModel.errorMessage !== null ? CANVAS_ERROR_NOTICE : CANVAS_EMPTY_NOTICE;
 
   if (props.readFailure != null) {
     return (

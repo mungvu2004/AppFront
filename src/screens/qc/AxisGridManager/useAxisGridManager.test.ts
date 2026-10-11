@@ -443,6 +443,7 @@ describe('bảy trạng thái màn (A11 / R-63)', () => {
       expect(viewModel.viewerRoleNotice === null).toBe(scenario.viewerRoleNotice === null);
       expect(viewModel.isCollapsed).toBe(scenario.isCollapsed);
       expect(viewModel.isViewerRole).toBe(scenario.isViewerRole);
+      expect(viewModel.hasNoAxes).toBe(scenario.hasNoAxes);
     });
   }
 

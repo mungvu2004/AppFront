@@ -1202,6 +1202,8 @@ export function useAxisGridManager(
       viewerRoleNotice: isViewerRole ? AXIS_GRID_TEXT.viewerRoleNotice : null,
       emptyNotice: state === 'empty' ? AXIS_GRID_TEXT.emptyNotice : null,
       errorMessage,
+      // Theo dữ liệu, không theo `state` — vai người xem đứng trước `empty` (review-1 P2-2).
+      hasNoAxes: hasError || (!isLoading && horizontalCount + verticalCount === 0),
     }),
     [
       canvas,
@@ -1210,11 +1212,14 @@ export function useAxisGridManager(
       ghostEnabled,
       groups,
       hasError,
+      horizontalCount,
       isCollapsed,
+      isLoading,
       isViewerRole,
       options.isCompact,
       origin,
       state,
+      verticalCount,
       warningBanner,
     ],
   );
