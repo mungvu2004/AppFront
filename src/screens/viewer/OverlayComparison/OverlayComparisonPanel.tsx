@@ -57,7 +57,7 @@ const CONFIRM_BADGE_LABEL = 'Đã duyệt';
 
 /** Bốn lớp chung của mọi panel 344 trong repo — `HistoryPanel.chrome.tsx:91-92`. */
 const PANEL_CLASS =
-  'flex h-full min-h-0 w-[344px] flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel';
+  'flex h-full min-h-0 w-[344px] shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel max-lg:h-auto max-lg:max-h-[45%] max-lg:w-full';
 
 /** `mono-lg` không có thật trong repo; đây là lớp chữ đều lớn nhất đang chạy — `FloorSectionCut.tsx:25`. */
 const METRIC_NUMBER_CLASS = 'font-mono text-[24px] font-semibold leading-none tabular-nums text-text-primary';

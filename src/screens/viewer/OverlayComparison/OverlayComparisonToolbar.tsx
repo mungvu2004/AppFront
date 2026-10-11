@@ -61,8 +61,11 @@ const SCAN_OPACITY_ARIA_LABEL = 'Độ mờ ảnh nguồn';
 const ALIGNMENT_LOCK_LABEL = 'Khoá căn';
 const READ_ONLY_NOTICE = 'Bạn không có quyền sửa, các điều khiển đang tắt.';
 
-/** Viên thuốc chứa bốn cụm — dùng chung cho cả hai cách xếp (một hàng/hai hàng). */
-const CLUSTER_ROW_CLASS = 'flex items-center gap-3';
+/**
+ * Viên thuốc chứa bốn cụm — dùng chung cho cả hai cách xếp (một hàng/hai hàng).
+ * `flex-wrap`: khung hẹp thì cụm xuống dòng thay vì tràn ra ngoài khung (BUG-318).
+ */
+const CLUSTER_ROW_CLASS = 'flex flex-wrap items-center justify-center gap-3';
 
 function floorOptionsOf(floors: OverlayComparisonToolbarProps['floors']): SelectOption[] {
   return floors.map((floor) => ({
@@ -194,8 +197,9 @@ export function OverlayComparisonToolbar({
     <div
       aria-label={TOOLBAR_LABEL}
       className={cn(
-        'pointer-events-auto inline-flex items-center gap-3 rounded-xl bg-bg-surface px-3 shadow-float',
-        isStacked ? 'flex-col items-stretch gap-2 py-2' : 'h-10',
+        'pointer-events-auto flex max-w-full items-center gap-3 rounded-xl bg-bg-surface px-3 shadow-float',
+        // Không ép cao 40: chú thích kiểu bị tắt nằm TRONG thanh, không tràn đè xuống (BUG-318, BUG-327).
+        isStacked ? 'flex-col items-stretch gap-2 py-2' : 'min-h-10 flex-wrap justify-center py-1',
       )}
       role="toolbar"
     >
@@ -221,14 +225,16 @@ export function OverlayComparisonToolbar({
           scanOpacityPercent={scanOpacityPercent}
           scanOpacityText={scanOpacityText}
         />
-        <Toggle
-          checked={isAlignmentLocked}
-          disabled={!canEdit}
-          label={ALIGNMENT_LOCK_LABEL}
-          onChange={() => {
-            onToggleAlignmentLock();
-          }}
-        />
+        <div className="shrink-0 whitespace-nowrap">
+          <Toggle
+            checked={isAlignmentLocked}
+            disabled={!canEdit}
+            label={ALIGNMENT_LOCK_LABEL}
+            onChange={() => {
+              onToggleAlignmentLock();
+            }}
+          />
+        </div>
       </div>
 
       {!canEdit && <p className="text-[12px] leading-[16px] text-text-muted">{READ_ONLY_NOTICE}</p>}
