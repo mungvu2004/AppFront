@@ -36,7 +36,7 @@
  *
  * | `state`     | khối trạng thái riêng                                          |
  * |-------------|----------------------------------------------------------------|
- * | `empty`     | `emptyNotice` — tệp không có lớp đặt tên                        |
+ * | `empty`     | `emptyNotice` — không có lớp (tệp thiếu, hoặc bản chưa đọc được) |
  * | `loading`   | khung chờ, không dải cảnh báo                                   |
  * | `partial`   | `partialNotice` + danh sách thực thể không dựng lại được         |
  * | `error`     | `errorMessage` + `errorCode` + lối sang nhánh AI + nút đọc lại   |
@@ -83,7 +83,7 @@ const STAGE_TWO_ARIA_LABEL = 'Ánh xạ lớp và xem trước hình học';
 const SUMMARY_ARIA_LABEL = 'Tóm tắt số lớp đã ánh xạ';
 const LOADING_ARIA_LABEL = 'Đang đọc tệp CAD';
 
-const EMPTY_TITLE = 'Tệp CAD không có lớp được đặt tên';
+const EMPTY_TITLE = 'Chưa có lớp nào để ánh xạ';
 const PARTIAL_TITLE = 'Một phần dữ liệu sẽ không được nhập';
 const ERROR_TITLE = 'Không thể đọc tệp CAD';
 const SUCCESS_TITLE = 'Đã nhập xong hình học';

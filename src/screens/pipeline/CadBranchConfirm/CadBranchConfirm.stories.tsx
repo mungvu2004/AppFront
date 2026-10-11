@@ -120,7 +120,7 @@ const ERROR_MESSAGE = `không đọc được tệp CAD này: bản vẽ lưu �
 const ERROR_CODE = 'VALIDATION';
 
 const EMPTY_NOTICE =
-  'Tệp CAD không có lớp nào được đặt tên, nên không có lớp nào để ánh xạ và chưa nhập được hình học. Hãy dùng nhánh nhận dạng ảnh.';
+  'Tệp CAD không có lớp nào được đặt tên, nên không có lớp nào để ánh xạ và chưa nhập được hình học. Hãy chọn "Vẫn dùng AI".';
 
 const FORBIDDEN_NOTICE =
   'Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. liên hệ quản trị viên để được cấp quyền.';

@@ -107,10 +107,13 @@ import type {
  */
 const COPY = {
   emptyNotice:
-    'Tệp CAD không có lớp nào được đặt tên, nên không có lớp nào để ánh xạ và chưa nhập được hình học. Hãy dùng nhánh nhận dạng ảnh.',
+    'Tệp CAD không có lớp nào được đặt tên, nên không có lớp nào để ánh xạ và chưa nhập được hình học. Hãy chọn "Vẫn dùng AI".',
+  /** Cổng chưa đọc được lớp CAD: 0 lớp là giới hạn của bản này, không phải lỗi của tệp (review-1 #2). */
+  inspectionMissingNotice:
+    'Bản này chưa đọc được lớp của tệp CAD, nên chưa ánh xạ và nhập được hình học. Hãy chọn "Vẫn dùng AI".',
   /** Ba lý do nút "Nhập hình học" khoá — nút không bao giờ khoá câm (BUG-314). */
   importNoLayers: 'Không có lớp nào để ánh xạ, nên chưa có hình học để nhập.',
-  importUnsupported: 'Bản này chưa nhập được hình học từ tệp CAD. Hãy dùng nhánh nhận dạng ảnh.',
+  importUnsupported: 'Bản này chưa nhập được hình học từ tệp CAD. Hãy chọn "Vẫn dùng AI".',
   importNoMapped: 'Gán vai trò cho ít nhất một lớp để nhập hình học.',
   forbiddenNotice:
     'Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. liên hệ quản trị viên để được cấp quyền.',
@@ -920,17 +923,24 @@ export function useCadBranchConfirm(
       importDisabledReason:
         !isStageTwoOpen || canImportGeometry || importMutation.isPending || ['forbidden', 'error', 'success'].includes(state)
           ? null
-          : layers.length === 0
-            ? COPY.importNoLayers
-            : !gateway.supports.saveLayerMapping || !gateway.supports.setProcessingBranch
-              ? COPY.importUnsupported
+          : record?.inspectionMissing != null ||
+              !gateway.supports.saveLayerMapping ||
+              !gateway.supports.setProcessingBranch
+            ? COPY.importUnsupported
+            : layers.length === 0
+              ? COPY.importNoLayers
               : COPY.importNoMapped,
       isImporting: importMutation.isPending,
       prefersReducedMotion,
       errorMessage: failure?.sentence ?? null,
       errorCode: failure?.technicalCode ?? null,
       errorFileFormatVersion,
-      emptyNotice: state === 'empty' ? COPY.emptyNotice : null,
+      emptyNotice:
+        state !== 'empty'
+          ? null
+          : record?.inspectionMissing != null
+            ? COPY.inspectionMissingNotice
+            : COPY.emptyNotice,
       partialNotice,
       forbiddenNotice: state === 'forbidden' ? COPY.forbiddenNotice : null,
       successNotice: state === 'success' ? COPY.successNotice : null,
