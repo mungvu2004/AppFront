@@ -45,6 +45,13 @@ describe('Modal.Root', () => {
     expect(dialog).toHaveClass('max-w-full');
   });
 
+  // BUG-195: the body wraps an unbroken name for every dialog, not only the one that was reported.
+  it('wraps long unbroken words in the body (BUG-195)', () => {
+    render(<Harness tick={0} />);
+
+    expect(screen.getByRole('textbox', { name: 'trường nhập' }).parentElement).toHaveClass('break-words');
+  });
+
   it('locks the header close button when asked, and only then (BUG-218)', () => {
     const { rerender } = render(
       <Modal.Root isOpen onClose={() => undefined} titleId="t">

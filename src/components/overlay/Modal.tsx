@@ -188,7 +188,8 @@ const ModalBody = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement
   ({ children, className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('px-8 overflow-y-auto flex-1 text-[14px] text-text-primary leading-relaxed', className)}
+      // break-words (inherited): a long unbroken name wraps instead of scrolling the body sideways, in every dialog (BUG-195).
+      className={cn('px-8 overflow-y-auto flex-1 text-[14px] text-text-primary leading-relaxed break-words', className)}
       {...props}
     >
       {children}
