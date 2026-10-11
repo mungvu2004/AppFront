@@ -46,8 +46,9 @@ const ERROR_CODE_PATTERN = /\b[A-Z][A-Z0-9_]{2,}\b/u;
 const SETTINGS_SAVED_TOAST = 'Đã lưu cài đặt dự án.';
 /** `FloorManager.tsx` / `floorManagerGateway.ts` FLOOR_MANAGER_UNSUPPORTED_NOTICES.hideFloorFrom3d. */
 const SESSION_ONLY_HEADING = 'Những thay đổi chỉ sống trong phiên làm việc này';
+/** floorManagerGateway.ts:213 — "3D" upper case since 5211d03c. */
 const HIDE_3D_NOTICE =
-  'Ẩn tầng khỏi mô hình 3d chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang.';
+  'Ẩn tầng khỏi mô hình 3D chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang.';
 /** `useInputQualityGate.ts` COPY. */
 const QUALITY_ACK_LABEL = 'Tôi đã đọc cảnh báo và vẫn muốn xử lý bản vẽ này';
 /** `InputQualityGateFooter.tsx` CONTINUE_BLOCKED_ACKNOWLEDGEMENT. */
@@ -257,11 +258,11 @@ test.describe('SCR-09 Floor Manager', () => {
 
     await expect(floorRows(page)).toHaveCount(6);
     for (const floor of created) {
-      // The count cell (drawingsMissing) and the attention badge (FloorTableRow.tsx:286) both read
-      // "Chưa có bản vẽ" (BUG-278 strict mode): assert both, and that the badge (the later one) shows.
+      // An editor sees "Chưa có bản vẽ" once per row: only the attention badge (FloorTableRow.tsx:314-317);
+      // the count text next to it is no longer drawn (BUG-250, FIX-1284). Exactly one match (BUG-278 strict mode).
       const noDrawing = floorRow(page, floor.name).getByText('Chưa có bản vẽ', { exact: true });
-      await expect(noDrawing).toHaveCount(2);
-      await expect(noDrawing.last()).toBeVisible();
+      await expect(noDrawing).toHaveCount(1);
+      await expect(noDrawing).toBeVisible();
     }
     await captureEvidence(page, '09_floors_added.png');
   });
@@ -355,10 +356,16 @@ test.describe('SCR-09 Floor Manager', () => {
     const floor = work();
     const top = scratch();
     const auto = page.getByRole('switch', { name: 'Tự động tính cao độ', exact: true });
+    const workElevation = page.getByRole('textbox', { name: `Cao độ tầng ${floor.name}`, exact: true });
+    // The switch starts OFF (useFloorManager.ts:516). On → elevations are read-only text; off → the inputs
+    // (FloorTableRow.tsx:278-291).
+    await expect(auto).toHaveAttribute('aria-checked', 'false');
+    await auto.click();
     await expect(auto).toHaveAttribute('aria-checked', 'true');
+    await expect(workElevation).toHaveCount(0);
     await auto.click();
     await expect(auto).toHaveAttribute('aria-checked', 'false');
-    await expect(page.getByRole('textbox', { name: `Cao độ tầng ${floor.name}`, exact: true })).toBeVisible();
+    await expect(workElevation).toBeVisible();
 
     // {work} sits between two floors that touch it, so `validateChangeLevelElevation`
     // (roomFloorCommands.ts) refuses ANY new elevation for it. The only valid elevation edit is on
@@ -374,9 +381,6 @@ test.describe('SCR-09 Floor Manager', () => {
     const { json } = await patch;
     expect(numberField(json, 'elevationMm', 'PATCH spatial (elevation)')).toBe(beforeMm + 1000);
     await captureEvidence(page, '09_floor_elevation.png');
-
-    await auto.click();
-    await expect(auto).toHaveAttribute('aria-checked', 'true');
   });
 
   test('SCR-09 "Thao tác khác cho tầng {scratch}" → "Ẩn khỏi mô hình 3D": session-only notice, no write', async () => {
@@ -387,7 +391,9 @@ test.describe('SCR-09 Floor Manager', () => {
     await more.click();
     await page.getByRole('menuitem', { name: 'Ẩn khỏi mô hình 3D', exact: true }).click();
     await expect(page.getByRole('heading', { name: SESSION_ONLY_HEADING, exact: true })).toBeVisible();
-    await expect(page.getByText(HIDE_3D_NOTICE, { exact: true })).toBeVisible();
+    // The same sentence also goes to the assertive live region (useFloorManager.ts:1090-1096 → announce), so the
+    // inline notice (FloorManager.tsx:131-133) is the first of two matches.
+    await expect(page.getByText(HIDE_3D_NOTICE, { exact: true }).first()).toBeVisible();
     await more.click();
     const show = page.getByRole('menuitem', { name: 'Hiện trong mô hình 3D', exact: true });
     await expect(show).toBeVisible();

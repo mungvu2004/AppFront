@@ -3,7 +3,7 @@
  * SCR-11 input quality gate, SCR-12 processing, SCR-13 pipeline graph, SCR-15 CAD branch confirm. Gaps left by
  * `phase03_pipeline.spec.ts` (serial, CP-2 → CP-5); inventory in `qa/coverage/phase03.md` (FE stamp dbdc0d1c).
  *
- * Every expected result cites the FE source of `F:/App/AppFront` @ dbdc0d1c or, written `BE:`, AppBack (`apps/api/…`).
+ * Every expected result cites the FE source @ 8dce4ba8 (QA-03; re-mapped from dbdc0d1c) or, written `BE:`, AppBack (`apps/api/…`).
  *   PS  src/screens/project/ProjectSettings/ProjectSettings.tsx   UPS useProjectSettings.ts   UPM useProjectMembers.ts
  *   GT  …/ProjectSettings/GeneralTab.tsx  UT …/UnitsTab.tsx  MT …/MembersTab.tsx  AMF …/AddMemberForm.tsx
  *   DZ  …/ProjectSettings/DangerZoneTab.tsx  RD …/ProjectSettingsReloadDialog.tsx  MRD …/MemberRemoveDialog.tsx
@@ -96,7 +96,7 @@ const CONFLICT_TITLE = 'Cài đặt đã đổi ở nơi khác'; // PS:91
 const CONFLICT_SENTENCE = 'Cài đặt dự án vừa được đổi ở nơi khác. Tải lại để xem bản mới nhất.'; // SE:110
 const RELOAD_DIALOG = 'Tải lại sẽ bỏ thay đổi chưa lưu'; // RD:20
 const SAVED_TOAST = 'Đã lưu cài đặt dự án.'; // UPS:606
-const UNDO = 'Hoàn tác'; // TST:147
+const UNDO = 'Hoàn tác'; // TST:149
 const LOAD_ERROR_SETTINGS = 'Không tải được cài đặt dự án'; // PS:104
 const BACK_TO_PROJECTS = 'Về danh sách dự án'; // PSGATE:39
 const NOT_FOUND_TITLE = 'Không tìm thấy dự án này'; // PSGATE:36
@@ -121,19 +121,19 @@ const DANGER = {
   deletedNotice: 'Đã xoá dự án.', // UPS:256
   deleteFloorsTitle: 'Xoá mọi tầng của dự án?', // UPS:521
   deleteFloors: 'Xoá mọi tầng', // UPS:533, DZ:68
-  noFloorsTitle: 'Chưa có tầng nào', // DZ:73 (EmptyState title)
+  noFloorsTitle: 'Chưa có tầng nào', // DZ:74 (EmptyState title)
 } as const;
 
 /* SCR-09 copy. */
 const SECTION_REGION = 'Lát cắt các tầng theo đúng tỷ lệ chiều cao'; // FSC:41
-const AUTO_ELEVATION = 'Tự động tính cao độ'; // FT:75
+const AUTO_ELEVATION = 'Tự động tính cao độ'; // FT:82
 const RENAME_REFUSED = 'Chưa đổi được tên tầng'; // UFM:188
 const RENAME_REASONS = {
   empty: 'Tên tầng không được để trống.', // FMG:829
   tooLong: 'Tên tầng dài quá 120 ký tự, hãy rút gọn lại.', // FMG:830
   bidi: 'Tên tầng có ký tự điều khiển hoặc ký tự đảo chiều chữ, hãy xoá chúng đi.', // FMG:831-832
 } as const;
-const FLOOR_LIST_ERROR = 'Không đọc được danh sách tầng'; // FT:70
+const FLOOR_LIST_ERROR = 'Không đọc được danh sách tầng'; // FT:77
 const FLOOR_EMPTY_NOTICE = 'Thêm tầng đầu tiên, hoặc nhập số tầng từ màn hình tạo dự án.'; // UFM:178
 
 /* SCR-10 copy. */
@@ -145,7 +145,12 @@ const TRAY = 'Tệp chưa gán tầng'; // UFU:103, FUT:35
 const ASSIGN = 'Gán cho tầng khác'; // FUT:20, FUC:39
 const SUBMIT = 'Bắt đầu xử lý'; // UFU:112
 const ATTACHED = 'Đã gắn kèm'; // UFU:123
-const WAITING = 'Chờ xử lý'; // UFU:121
+const WAITING = 'Chờ xử lý'; // UFU:121 — a floor holding a file that is not uploaded yet
+/**
+ * Card status of a floor with no drawing at all: the same words as the block notice "… chưa có bản vẽ." and the
+ * FloorManager badge (BUG-263, R-src fix/qa03-ra). Was WAITING before that fix.
+ */
+const NO_DRAWING_STATUS = 'Chưa có bản vẽ';
 const STATUS_ERROR = 'Lỗi'; // UFU:124
 const CAD_PILL = 'Nhánh CAD · độ chính xác cao'; // FUC:41
 const CAD_SENTENCE = 'Bản vẽ CAD (.dwg) chưa được hỗ trợ; hãy xuất sang PDF rồi tải lại.'; // FUG:85
@@ -184,8 +189,8 @@ const GRAPH = {
   title: 'Sơ đồ xử lý', // PGT:141
   emptyTitle: 'Chưa có lượt xử lý nào để kể lại', // PGT:208
   reasonNoReport: 'Chưa có lượt xử lý nào, nên chưa biết hồ sơ đi nhánh nào.', // PGT:159
-  detail: 'Chi tiết kỹ thuật', // PGT:186
-  switch: 'Đổi sang nhánh ảnh quét', // PGT:177
+  detail: 'Chi tiết kỹ thuật', // PGT:181
+  switch: 'Đổi sang nhánh ảnh quét', // PGT:174
 } as const;
 const CAD = {
   dialog: 'Phát hiện tệp CAD', // CBT:30
@@ -238,7 +243,7 @@ const reorderRe = /^\/api\/floors\/reorder$/u;
 const uploadInitRe = (id: string): RegExp =>
   new RegExp(`^/api/projects/${escapeRegExp(id)}/floors/[^/]+/drawings/uploads$`, 'u');
 
-/** Toast / notice by its text (TST:120 `role="status"`; NH:62-64 joins title — description). */
+/** Toast / notice by its text (TST:120 `role="status"`; NH:59-61 joins title — description). */
 const toastWith = (page: Page, text: string): Locator => page.getByRole('status').filter({ hasText: text });
 
 /** Page wider than the viewport = a horizontal scroll bar. */
@@ -393,7 +398,7 @@ async function openSettings(page: Page, project: ProjectRef): Promise<void> {
 const settingsTab = (page: Page, label: string): Locator =>
   page.getByRole('tablist', { name: SETTINGS_TABS, exact: true }).getByRole('tab', { name: label, exact: true });
 
-/** `<tr aria-label="{name}, cao độ …">` (FTR:173). */
+/** `<tr aria-label="{name}, cao độ …">` (FTR:199). */
 const floorRows = (page: Page): Locator => page.getByRole('row', { name: /, cao độ /u });
 const floorRow = (page: Page, name: string): Locator =>
   page.getByRole('row', { name: new RegExp(`^${escapeRegExp(name)}, cao độ `, 'u') });
@@ -409,7 +414,7 @@ async function openFloors(page: Page, project: ProjectRef): Promise<void> {
 }
 
 async function openRowMenu(page: Page, name: string): Promise<void> {
-  // FTR:334-343 IconButton → FT:153-185 ContextMenu.
+  // FTR:385-394 IconButton → FT:152-184 ContextMenu.
   await page.getByRole('button', { name: `Thao tác khác cho tầng ${name}`, exact: true }).click();
 }
 
@@ -557,13 +562,13 @@ test.describe('E03 SCR-08 project settings', () => {
       const before = await snap.inputValue();
 
       const mark = api.length;
-      // NF:62-67 refuses outside [min, max] (UT:62-63 → PSG:192-193: 1…120 mm, snap.ts:65).
+      // NF:67-72 refuses outside [min, max] (UT:62-63 → PSG:192-193: 1…120 mm, snap.ts:65).
       await snap.fill('0');
       await expect(page.getByText('Giá trị không nhỏ hơn 1 mm.', { exact: true })).toBeVisible();
       await snap.fill('121');
       await expect(page.getByText('Giá trị không quá 120 mm.', { exact: true })).toBeVisible();
       await captureEvidence(page, 'E03_settings_snap_refused.png');
-      await snap.press('Escape'); // NF:136-141
+      await snap.press('Escape'); // NF:142-147
       await expect(page.getByText('Giá trị không quá 120 mm.', { exact: true })).toHaveCount(0);
       await expect(snap).toHaveValue(before);
       await quiet(page);
@@ -813,7 +818,7 @@ test.describe('E03 SCR-09 floor manager', () => {
       const project = await createProject(admin, 'fname', 3);
       await openFloors(page, project);
       const target = project.floors[1] ?? firstFloor(project);
-      const input = page.getByRole('textbox', { name: `Tên tầng ${target.name}`, exact: true }); // FTR:226
+      const input = page.getByRole('textbox', { name: `Tên tầng ${target.name}`, exact: true }); // FTR:253
 
       const mark = api.length;
       for (const [typed, reason] of [
@@ -822,9 +827,9 @@ test.describe('E03 SCR-09 floor manager', () => {
         [`Tầng\u202E2`, RENAME_REASONS.bidi],
       ] as const) {
         await input.fill(typed);
-        await input.press('Enter'); // FTR:231-234 Enter blurs → commit (UFM:1165-1173)
-        await expect(toastWith(page, `${RENAME_REFUSED} — ${reason}`).first()).toBeVisible(); // UFM:671-681, NH:62-64
-        await expect(input).toHaveValue(target.name); // draft cleared (UFM:1160-1166)
+        await input.press('Enter'); // FTR:258-261 Enter blurs → commit (UFM:1180-1188)
+        await expect(toastWith(page, `${RENAME_REFUSED} — ${reason}`).first()).toBeVisible(); // UFM:686-696, NH:59-61
+        await expect(input).toHaveValue(target.name); // draft cleared (UFM:1175-1181)
       }
       await quiet(page);
       expect(countSince(api, mark, 'PATCH', spatialRe(project.id)), 'refused names send no PATCH').toBe(0);
@@ -842,12 +847,13 @@ test.describe('E03 SCR-09 floor manager', () => {
       await page.getByRole('button', { name: 'Thêm tầng', exact: true }).click();
       const { json } = await post;
       const added = stringField(json, 'name', 'POST floors');
-      expect(added, 'newFloorName(count + 1) (UFM:357-363)').toBe('Tầng 4');
+      // UFM:369-378 nextNewFloorName (BUG-277): 3 floors at elevation >= 0 → number 3; "Tầng 3" is taken → "Tầng 4".
+      expect(added, 'nextNewFloorName: floors at elevation >= 0, skipping taken names (UFM:369-378)').toBe('Tầng 4');
       await expect(floorRows(page)).toHaveCount(4);
 
       const del = waitForApi(page, 'DELETE', floorDeleteRe, [200, 204]);
       await toastWith(page, 'Đã thêm tầng.').first().getByRole('button', { name: UNDO, exact: true }).click(); // FMG:595
-      await del; // inverse plan of an add = remove (UFM:870-874)
+      await del; // inverse plan of an add = remove (UFM:885-889)
       await expect(floorRows(page)).toHaveCount(3);
       await expect(floorRow(page, added)).toHaveCount(0);
       await captureEvidence(page, 'E03_floors_add_undo.png');
@@ -863,7 +869,7 @@ test.describe('E03 SCR-09 floor manager', () => {
 
       const del = waitForApi(page, 'DELETE', new RegExp(`^/api/floors/${escapeRegExp(top.id)}$`, 'u'), [200, 204]);
       await openRowMenu(page, top.name);
-      await page.getByRole('menuitem', { name: 'Xoá tầng', exact: true }).click(); // FT:176-181, no dialog (F-05)
+      await page.getByRole('menuitem', { name: 'Xoá tầng', exact: true }).click(); // FT:175-180, no dialog (F-05)
       await del;
       await expect(floorRow(page, top.name)).toHaveCount(0);
       const toast = toastWith(page, `Đã xoá tầng ${top.name}.`).first(); // FMG:585
@@ -871,7 +877,7 @@ test.describe('E03 SCR-09 floor manager', () => {
 
       const post = waitForApi(page, 'POST', floorsRe(project.id), [200, 201]);
       await toast.getByRole('button', { name: UNDO, exact: true }).click();
-      await post; // inverse of a remove = create (UFM:875-876), within FLOOR_RESTORE_WINDOW_MS (UFM:204)
+      await post; // inverse of a remove = create (UFM:890-891), within FLOOR_RESTORE_WINDOW_MS (UFM:204)
       await expect(floorRow(page, top.name)).toHaveCount(1);
       await captureEvidence(page, 'E03_floors_delete_undo.png');
     });
@@ -884,24 +890,24 @@ test.describe('E03 SCR-09 floor manager', () => {
       await openFloors(page, project);
       const source = firstFloor(project);
       const row = floorRow(page, source.name);
-      const copySwitch = row.getByRole('switch', { name: 'Sao chép nội thất sang tầng mới', exact: true }); // FTR:323-328
+      const copySwitch = row.getByRole('switch', { name: 'Sao chép nội thất sang tầng mới', exact: true }); // FTR:340-345
 
       const mark = api.length;
       await openRowMenu(page, source.name);
-      await page.getByRole('menuitem', { name: 'Nhân bản', exact: true }).click(); // FT:164-170
+      await page.getByRole('menuitem', { name: 'Nhân bản', exact: true }).click(); // FT:163-169
       await expect(copySwitch).toBeVisible();
       await copySwitch.focus();
-      await page.keyboard.press('Escape'); // FTR:147-151
+      await page.keyboard.press('Escape'); // FTR:173-177
       await expect(copySwitch).toHaveCount(0);
       expect(countSince(api, mark, 'POST', floorsRe(project.id)), 'cancel sends no POST').toBe(0);
 
       await openRowMenu(page, source.name);
       await page.getByRole('menuitem', { name: 'Nhân bản', exact: true }).click();
-      await expect(copySwitch).toHaveAttribute('aria-checked', 'false'); // FT:166-167 reset to off
+      await expect(copySwitch).toHaveAttribute('aria-checked', 'false'); // FT:165-166 reset to off
       const post = waitForApi(page, 'POST', floorsRe(project.id), [200, 201]);
-      await row.getByRole('button', { name: 'Nhân bản', exact: true }).click(); // FTR:329-331
+      await row.getByRole('button', { name: 'Nhân bản', exact: true }).click(); // FTR:346-348
       const { json } = await post;
-      expect(stringField(json, 'name', 'POST floors (duplicate)')).toBe(`${source.name} (bản sao)`); // UFM:366-373
+      expect(stringField(json, 'name', 'POST floors (duplicate)')).toBe(`${source.name} (bản sao)`); // UFM:381-388
       await expect(toastWith(page, `Đã nhân bản tầng ${source.name}.`).first()).toBeVisible(); // FMG:588-589
       await expect(floorRows(page)).toHaveCount(3);
       await captureEvidence(page, 'E03_floors_duplicate.png');
@@ -915,14 +921,14 @@ test.describe('E03 SCR-09 floor manager', () => {
       await openFloors(page, project);
       const floor = firstFloor(project);
       await openRowMenu(page, floor.name);
-      await page.getByRole('menuitem', { name: 'Đổi tên', exact: true }).click(); // FT:159-162
+      await page.getByRole('menuitem', { name: 'Đổi tên', exact: true }).click(); // FT:158-161
       await expect(page.getByRole('textbox', { name: `Tên tầng ${floor.name}`, exact: true })).toBeFocused();
       await captureEvidence(page, 'E03_floors_menu_rename_focus.png');
 
       await page
         .getByRole('navigation', { name: 'Đường dẫn trang' })
         .getByRole('button', { name: 'Dự án', exact: true })
-        .click(); // FM:98-108 → FMC handleBackToProjects
+        .click(); // FM:100-110 → FMC handleBackToProjects
       await expect.poll(() => pathOf(page)).toBe(ROUTES.dashboard);
     });
   });
@@ -939,7 +945,7 @@ test.describe('E03 SCR-09 floor manager', () => {
 
       const mark = api.length;
       await floorRow(page, first).focus();
-      await page.keyboard.press('Alt+ArrowUp'); // FTR:58-63 reorderedIds → null at the edge
+      await page.keyboard.press('Alt+ArrowUp'); // FTR:80-85 reorderedIds → null at the edge
       await floorRow(page, last).focus();
       await page.keyboard.press('Alt+ArrowDown');
       await quiet(page);
@@ -956,15 +962,15 @@ test.describe('E03 SCR-09 floor manager', () => {
       const project = await createProject(admin, 'felev', 3);
       await openFloors(page, project);
       const middle = project.floors[1] ?? firstFloor(project);
-      // UFM:501: auto elevation starts OFF, so the "Cao độ tầng …" inputs are already editable (FTR:250-260).
+      // UFM:516: auto elevation starts OFF, so the "Cao độ tầng …" inputs are already editable (FTR:278-288).
       await expect(page.getByRole('switch', { name: AUTO_ELEVATION, exact: true })).toHaveAttribute('aria-checked', 'false');
-      const elevation = page.getByRole('textbox', { name: `Cao độ tầng ${middle.name}`, exact: true }); // FTR:251-260
+      const elevation = page.getByRole('textbox', { name: `Cao độ tầng ${middle.name}`, exact: true }); // FTR:279-288
 
       const mark = api.length;
       await elevation.focus();
-      await elevation.press('ArrowUp'); // NF:142-156 +1 m → 4 m, inside "Tầng 3" (6 m) once its 3 m height is added
+      await elevation.press('ArrowUp'); // NF:148-162 +1 m → 4 m, inside "Tầng 3" (6 m) once its 3 m height is added
       await elevation.blur();
-      // UFM:1190-1200 + FMG:465-512: the refusal names the floor in quotes; FM:135-139 InlineAlert role="status".
+      // UFM:1205-1215 + FMG:465-512: the refusal names the floor in quotes; FM:137-141 InlineAlert role="status".
       const notice = page.getByRole('status').filter({ hasText: `"${middle.name}"` });
       await expect(notice.first()).toBeVisible();
       await quiet(page);
@@ -981,10 +987,11 @@ test.describe('E03 SCR-09 floor manager', () => {
       await openFloors(page, project);
       const floor = firstFloor(project);
       const row = floorRow(page, floor.name);
-      // The count cell (UFM:266-270, drawingsMissing) and the badge (FTR:286) both read "Chưa có bản vẽ".
-      await expect(row.getByText('Chưa có bản vẽ', { exact: true })).toHaveCount(2);
+      // An editor's row reads "Chưa có bản vẽ" once: the badge (FTR:314-317); the count text (UFM:267-270) is drawn only
+      // for a reader (FTR:329-331), not next to the badge (BUG-250, FIX-1284).
+      await expect(row.getByText('Chưa có bản vẽ', { exact: true })).toHaveCount(1);
       await captureEvidence(page, 'E03_floors_upload_link.png');
-      await row.getByRole('button', { name: 'Tải lên', exact: true }).click(); // FTR:287-296
+      await row.getByRole('button', { name: 'Tải lên', exact: true }).click(); // FTR:318-327
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.upload(project.id)); // FMC handleNavigateToDrawings
     });
   });
@@ -994,7 +1001,7 @@ test.describe('E03 SCR-09 floor manager', () => {
       const { page } = admin;
       const project = await createProject(admin, 'fempty');
       await page.goto(ROUTES.project.floors(project.id));
-      await expect(page.getByText('Chưa có tầng nào', { exact: true })).toBeVisible(); // FT:69, FT:189-199
+      await expect(page.getByText('Chưa có tầng nào', { exact: true })).toBeVisible(); // FT:76, FT:188-198
       await expect(page.getByText(FLOOR_EMPTY_NOTICE, { exact: true })).toBeVisible();
       await captureEvidence(page, 'E03_floors_empty.png');
 
@@ -1036,7 +1043,7 @@ test.describe('E03 SCR-09 floor manager', () => {
         const tableBox = await table.boundingBox();
         await captureEvidence(page, 'E03_floors_compact.png', { fullPage: true });
         await attachJson('E03_floors_compact.json', { sectionBox, tableBox, horizontalOverflow: await horizontalOverflow(page) });
-        // FMC:113 "Dưới 1.024px lát cắt xuống dưới bảng; màn cha đo bề rộng và truyền vào" + FM:142-161 (order-2 when compact).
+        // FMC:113 "Dưới 1.024px lát cắt xuống dưới bảng; màn cha đo bề rộng và truyền vào" + FM:144-163 (order-2 when compact).
         expect(sectionBox !== null && tableBox !== null && sectionBox.y >= tableBox.y + tableBox.height - 1, 'section cut below the table at 375 px').toBe(true);
       },
       { viewport: COMPACT },
@@ -1058,13 +1065,13 @@ test.describe('E03 SCR-09 floor manager', () => {
       const matcher = (url: URL): boolean => url.pathname === listPath;
       await page.route(matcher, handler);
       await page.goto(ROUTES.project.floors(project.id));
-      const alert = page.getByRole('alert').filter({ hasText: FLOOR_LIST_ERROR }); // FT:214-223
+      const alert = page.getByRole('alert').filter({ hasText: FLOOR_LIST_ERROR }); // FT:213-222
       await expect(alert).toBeVisible();
-      await expect(page.getByRole('region', { name: SECTION_REGION })).toHaveCount(0); // FM:93, FM:143
+      await expect(page.getByRole('region', { name: SECTION_REGION })).toHaveCount(0); // FM:95, FM:145
       await captureEvidence(page, 'E03_floors_list_500.png');
 
       await page.unroute(matcher, handler);
-      await alert.getByRole('button', { name: 'Thử lại', exact: true }).click(); // UFM:1104-1106 refetch
+      await alert.getByRole('button', { name: 'Thử lại', exact: true }).click(); // UFM:1119-1121 refetch
       await expect(floorRows(page)).toHaveCount(2);
     });
   });
@@ -1079,12 +1086,12 @@ test.describe('E03 SCR-10 floor upload', () => {
       const project = await createProject(admin, 'unofloor');
       await page.goto(ROUTES.project.upload(project.id));
       await expect(page.getByText(NO_FLOORS_TITLE, { exact: true })).toBeVisible(); // FU:149-150
-      await expect(page.getByTestId(COUNTER)).toHaveText('0 / 0 tầng đã có bản vẽ'); // FUF:99-106, UFU:1124-1126
+      await expect(page.getByTestId(COUNTER)).toHaveText('0 / 0 tầng đã có bản vẽ'); // FUF:99-106, UFU:1138-1140
 
       const mark = api.length;
       await page.getByRole('button', { name: SUBMIT, exact: true }).click();
       await quiet(page);
-      // UFU:960-978: no reason to list (no floor) → `first === undefined` → return: no notice, no navigation.
+      // UFU:974-992: no reason to list (no floor) → `first === undefined` → return: no notice, no navigation.
       await expect(page.getByTestId(BLOCK_NOTICE)).toHaveCount(0);
       expect(pathOf(page)).toBe(ROUTES.project.upload(project.id));
       expect(writesSince(api, mark)).toEqual([]);
@@ -1096,20 +1103,24 @@ test.describe('E03 SCR-10 floor upload', () => {
     });
   });
 
-  test('E03 · SCR-10 floors without drawings: empty invitation, "0 / 2", "Chờ xử lý"; submit lists every floor', async ({ browser }) => {
+  test('E03 · SCR-10 floors without drawings: empty invitation, "0 / 2", "Chưa có bản vẽ"; submit lists every floor', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const project = await createProject(admin, 'unodraw', 2);
       await openUpload(page, project);
       await expect(page.getByText(UPLOAD_EMPTY, { exact: true })).toBeVisible(); // FU:156-158 (state 'empty')
       await expect(page.getByTestId(COUNTER)).toHaveText('0 / 2 tầng đã có bản vẽ');
-      for (const floor of project.floors) await expect(card(page, floor).getByText(WAITING, { exact: true })).toBeVisible();
+      // BUG-263: the card agrees with the notice below — no drawing, not "Chờ xử lý".
+      for (const floor of project.floors) {
+        await expect(card(page, floor).getByText(NO_DRAWING_STATUS, { exact: true })).toBeVisible();
+        await expect(card(page, floor).getByText(WAITING, { exact: true })).toHaveCount(0);
+      }
 
       await page.getByRole('button', { name: SUBMIT, exact: true }).click();
       const notice = page.getByTestId(BLOCK_NOTICE);
       await expect(notice).toHaveAttribute('role', 'alert'); // FUF:73-78
       await expect(notice).toContainText('Không thể bắt đầu xử lý');
-      for (const floor of project.floors) await expect(notice).toContainText(`${floor.name} chưa có bản vẽ.`); // UFU:892-901
+      for (const floor of project.floors) await expect(notice).toContainText(`${floor.name} chưa có bản vẽ.`); // UFU:906-915
       await captureEvidence(page, 'E03_upload_blocked_all.png');
     });
   });
@@ -1119,8 +1130,8 @@ test.describe('E03 SCR-10 floor upload', () => {
       const { page, api } = admin;
       const project = await createProject(admin, 'uchooser', 1);
       await openUpload(page, project);
-      await expect(page.getByTestId(FILE_INPUT)).toHaveAttribute('accept', '.png,.jpg,.pdf'); // UFU:1198, VAL:62-66
-      await expect(page.getByTestId(DROPZONE)).toContainText(/Định dạng hỗ trợ: \.png, \.jpg, \.pdf\. Kích thước tối đa: .+\./u); // UFU:1195-1197
+      await expect(page.getByTestId(FILE_INPUT)).toHaveAttribute('accept', '.png,.jpg,.pdf'); // UFU:1211, VAL:62-66
+      await expect(page.getByTestId(DROPZONE)).toContainText(/Định dạng hỗ trợ: \.png, \.jpg, \.pdf\. Kích thước tối đa: .+\./u); // UFU:1208-1210
 
       const txt = testInfo.outputPath('ghi-chu.txt');
       writeFileSync(txt, 'not a drawing\n', 'utf8');
@@ -1148,14 +1159,14 @@ test.describe('E03 SCR-10 floor upload', () => {
         return transfer;
       });
 
-      await zone.dispatchEvent('dragenter', { dataTransfer }); // FU:177-180 → UFU:1213-1215
+      await zone.dispatchEvent('dragenter', { dataTransfer }); // FU:177-180 → UFU:1226-1228
       await expect(zone).toHaveAttribute('data-drag-active', 'true'); // FUD:61
       await captureEvidence(page, 'E03_upload_drag_active.png');
-      await zone.dispatchEvent('dragleave', { dataTransfer }); // UFU:1216-1218
+      await zone.dispatchEvent('dragleave', { dataTransfer }); // UFU:1229-1231
       await expect(zone).toHaveAttribute('data-drag-active', 'false');
 
       await zone.dispatchEvent('dragenter', { dataTransfer });
-      await zone.dispatchEvent('drop', { dataTransfer }); // FU:188-191 → UFU:1208-1211 (depth reset)
+      await zone.dispatchEvent('drop', { dataTransfer }); // FU:188-191 → UFU:1221-1224 (depth reset)
       await expect(zone).toHaveAttribute('data-drag-active', 'false');
       await expect(tray(page)).toContainText('Định dạng .docx chưa nhận được.');
     });
@@ -1198,12 +1209,12 @@ test.describe('E03 SCR-10 floor upload', () => {
       await page.getByTestId(FILE_INPUT).setInputFiles([broken, tooMany]);
       await expect(tray(page)).toContainText('Không đọc được nội dung tệp .pdf.'); // UFU:188-189
       await expect(tray(page)).toContainText('Tệp có 21 trang, vượt trần 20 trang.'); // UFU:183-186
-      await expect(tray(page)).toContainText('2 tệp'); // UFU:1115
+      await expect(tray(page)).toContainText('2 tệp'); // UFU:1129
       await captureEvidence(page, 'E03_upload_pdf_refusals.png');
 
       const alerts = tray(page).getByRole('alert');
       await expect(alerts).toHaveCount(2);
-      await alerts.first().getByRole('button', { name: DISMISS, exact: true }).click(); // FUT:84-94
+      await alerts.first().getByRole('button', { name: DISMISS, exact: true }).click(); // FUT:86-96
       await expect(alerts).toHaveCount(1);
     });
   });
@@ -1217,24 +1228,24 @@ test.describe('E03 SCR-10 floor upload', () => {
       const floor = firstFloor(project);
       await openUpload(page, project);
       await page.getByTestId(FILE_INPUT).setInputFiles(threePages);
-      await expect(tray(page)).toContainText('ba-trang.pdf'); // name · size · "3 trang" (UFU:1013-1016)
+      await expect(tray(page)).toContainText('ba-trang.pdf'); // name · size · "3 trang" (UFU:1027-1030)
       await expect(tray(page)).toContainText('3 trang');
 
       const mark = api.length;
       await tray(page).getByRole('combobox', { name: ASSIGN }).click();
       await page.getByRole('option', { name: floor.name, exact: true }).click();
-      const picker = card(page, floor).getByRole('combobox', { name: PICK_PAGE }); // FUC:263-279
+      const picker = card(page, floor).getByRole('combobox', { name: PICK_PAGE }); // FUC:265-281
       await expect(picker).toBeVisible();
       await expect(card(page, floor).getByText(WAITING, { exact: true })).toBeVisible();
       await picker.click();
-      await expect(page.getByRole('option', { name: /^Trang [1-3]$/u })).toHaveCount(3); // UFU:1003-1006
+      await expect(page.getByRole('option', { name: /^Trang [1-3]$/u })).toHaveCount(3); // UFU:1017-1020
       await page.keyboard.press('Escape');
       await quiet(page);
-      // UFU:245-251 + 569-573: a multi-page PDF without a page is assigned but not uploaded.
+      // UFU:245-251 + 583-587: a multi-page PDF without a page is assigned but not uploaded.
       expect(countSince(api, mark, 'POST', uploadInitRe(project.id)), 'no init before a page is chosen').toBe(0);
 
       await page.getByRole('button', { name: SUBMIT, exact: true }).click();
-      await expect(page.getByTestId(BLOCK_NOTICE)).toContainText(`${floor.name} chưa tải xong bản vẽ.`); // UFU:889-900
+      await expect(page.getByTestId(BLOCK_NOTICE)).toContainText(`${floor.name} chưa tải xong bản vẽ.`); // UFU:903-914
       await captureEvidence(page, 'E03_upload_pdf_pick_page.png');
     });
   });
@@ -1256,8 +1267,8 @@ test.describe('E03 SCR-10 floor upload', () => {
       await page.getByRole('option', { name: floor.name, exact: true }).click();
       await init; // BE:drawings/uploads.py:101-109 CAD_NOT_SUPPORTED
       const floorCard = card(page, floor);
-      await expect(floorCard.getByText(CAD_PILL, { exact: true })).toBeVisible(); // FUC:239
-      await expect(floorCard.getByRole('alert')).toContainText(CAD_SENTENCE); // FUG:189-194, FUC:283-295
+      await expect(floorCard.getByText(CAD_PILL, { exact: true })).toBeVisible(); // FUC:241
+      await expect(floorCard.getByRole('alert')).toContainText(CAD_SENTENCE); // FUG:194-199, FUC:285-297
       await expect(floorCard.getByText(STATUS_ERROR, { exact: true })).toBeVisible();
       await captureEvidence(page, 'E03_upload_dwg_422.png');
 
@@ -1277,9 +1288,9 @@ test.describe('E03 SCR-10 floor upload', () => {
       await expect(tray(page)).toContainText('ghi-chu-xoa.txt');
 
       const mark = api.length;
-      await tray(page).getByRole('button', { name: 'Xoá bản vẽ ghi-chu-xoa.txt', exact: true }).click(); // FUT:74-81, UFU:1105
+      await tray(page).getByRole('button', { name: 'Xoá bản vẽ ghi-chu-xoa.txt', exact: true }).click(); // FUT:76-83, UFU:1119
       await expect(tray(page)).toHaveCount(0); // FUT:29-31 empty tray is not drawn
-      const toast = toastWith(page, 'Đã xoá bản vẽ ghi-chu-xoa.txt').first(); // UFU:865-870
+      const toast = toastWith(page, 'Đã xoá bản vẽ ghi-chu-xoa.txt').first(); // UFU:879-884
       await expect(toast).toBeVisible();
       await captureEvidence(page, 'E03_upload_tray_remove_toast.png');
       await toast.getByRole('button', { name: UNDO, exact: true }).click();
@@ -1308,19 +1319,19 @@ test.describe('E03 SCR-10 floor upload', () => {
 
       const mark = api.length;
       await menuButton.click();
-      await remove.click(); // FUC:138-150 → UFU:819-871
+      await remove.click(); // FUC:138-150 → UFU:833-885
       const toast = toastWith(page, `Đã xoá bản vẽ ${file}`).first();
       await expect(toast).toBeVisible();
       await toast.getByRole('button', { name: UNDO, exact: true }).click();
-      await expect(card(page, floor).getByText(ATTACHED, { exact: true })).toBeVisible(); // UFU:829-838 "đã gắn kèm vẫn là đã gắn kèm"
-      // UFU:833: "xoá không gọi máy chủ" — neither the removal nor its undo sends a request.
+      await expect(card(page, floor).getByText(ATTACHED, { exact: true })).toBeVisible(); // UFU:843-852 "đã gắn kèm vẫn là đã gắn kèm"
+      // UFU:847: "xoá không gọi máy chủ" — neither the removal nor its undo sends a request.
       const localWrites = writesSince(api, mark);
       expect(localWrites, 'removal + undo send no request').toEqual([]);
 
       await menuButton.click();
       await remove.click();
       await page.reload();
-      await expect(card(page, floor).getByText(ATTACHED, { exact: true })).toBeVisible(); // UFU:1031-1036 server drawing
+      await expect(card(page, floor).getByText(ATTACHED, { exact: true })).toBeVisible(); // UFU:1045-1050 server drawing
       // FUC:82-86: a server-side drawing offers nothing to remove → no menu button at all.
       await expect(menuButton).toHaveCount(0);
       await captureEvidence(page, 'E03_upload_remove_is_local.png');
@@ -1342,7 +1353,7 @@ test.describe('E03 SCR-10 floor upload', () => {
 
         const mark = api.length;
         await page.getByRole('button', { name: SUBMIT, exact: true }).click();
-        await expect.poll(() => pathOf(page)).toBe(ROUTES.project.pipeline(project.id)); // UFU:980-983 navigate only
+        await expect.poll(() => pathOf(page)).toBe(ROUTES.project.pipeline(project.id)); // UFU:994-997 navigate only
         const submitWrites = writesSince(api, mark);
         expect(submitWrites, '"Bắt đầu xử lý" itself sends no request').toEqual([]);
 
@@ -1353,9 +1364,9 @@ test.describe('E03 SCR-10 floor upload', () => {
 
         await page.getByRole('tablist', { name: PROCESSING.tabs }).getByRole('tab', { name: 'Nhật ký', exact: true }).click();
         const emptyLog = await page.getByText(PROCESSING.logEmpty, { exact: true }).isVisible();
-        await page.getByRole('button', { name: PROCESSING.copyLog, exact: true }).click(); // PLP:79-84 → UPR:770-772
+        await page.getByRole('button', { name: PROCESSING.copyLog, exact: true }).click(); // PLP:79-84 → UPR:781-783
         const copied = await page.evaluate(() => navigator.clipboard.readText());
-        // UPR:770-772 joins "<time> <text>" per log line: an empty log copies "", a non-empty one copies its lines.
+        // UPR:781-783 joins "<time> <text>" per log line: an empty log copies "", a non-empty one copies its lines.
         if (emptyLog) expect(copied).toBe('');
         else expect(copied.trim().length, 'clipboard holds the log').toBeGreaterThan(0);
         await captureEvidence(page, 'E03_pipeline_submit_log_copy.png');
@@ -1365,7 +1376,7 @@ test.describe('E03 SCR-10 floor upload', () => {
           copiedLineCount: copied === '' ? 0 : copied.split('\n').length,
         });
 
-        // PRG:780, 975 `extractionSummary` unsupported → UPR:621-655 no `extraction` → UPR:1175-1182 summary undefined →
+        // PRG:788, 975 `extractionSummary` unsupported → UPR:632-666 no `extraction` → UPR:1186-1193 summary undefined →
         // PR:264 no "Báo cáo tổng kết": neither "Duyệt lớp tường" nor "Hiệu chỉnh tỷ lệ" (PSU:19-20) is offered after a
         // finished run on the real stack (finding F10: /pipeline is a dead end once done).
         await expect(page.getByRole('button', { name: PROCESSING.calibrate, exact: true })).toHaveCount(0);
@@ -1385,7 +1396,7 @@ test.describe('E03 SCR-10 floor upload', () => {
         const overflow = await horizontalOverflow(page);
         await captureEvidence(page, 'E03_upload_compact.png', { fullPage: true });
         await attachJson('E03_upload_compact.json', { horizontalOverflowPx: overflow });
-        // UFU:1153 `collapsed` below 1024 px (FUC:201 stacked card); qa-review-ui: no horizontal scroll at 375.
+        // UFU:1167 `collapsed` below 1024 px (FUC:201 stacked card); qa-review-ui: no horizontal scroll at 375.
         expect(overflow, 'no horizontal scroll at 375 px').toBeLessThanOrEqual(0);
       },
       { viewport: COMPACT },
@@ -1443,13 +1454,13 @@ test.describe('E03 SCR-12 processing', () => {
       const { page } = admin;
       const project = await createProject(admin, 'pempty', 1);
       await page.goto(ROUTES.project.pipeline(project.id));
-      await expect(page.getByText(PROCESSING.emptyTitle, { exact: true })).toBeVisible(); // PR:196-202, UPR:726-731
+      await expect(page.getByText(PROCESSING.emptyTitle, { exact: true })).toBeVisible(); // PR:196-202, UPR:737-742
       await expect(page.getByText(PROCESSING.emptyDescription, { exact: true })).toBeVisible();
-      await expect(page.getByText(PROCESSING.noRun, { exact: true })).toBeVisible(); // UPR:1240
-      await expect(page.getByRole('button', { name: PROCESSING.background, exact: true })).toHaveCount(0); // UPR:791-792
-      await expect(page.getByRole('button', { name: PROCESSING.cancel, exact: true })).toHaveCount(0); // UPR:790
+      await expect(page.getByText(PROCESSING.noRun, { exact: true })).toBeVisible(); // UPR:1251
+      await expect(page.getByRole('button', { name: PROCESSING.background, exact: true })).toHaveCount(0); // UPR:802-803
+      await expect(page.getByRole('button', { name: PROCESSING.cancel, exact: true })).toHaveCount(0); // UPR:801
       await captureEvidence(page, 'E03_pipeline_empty.png');
-      await page.getByRole('button', { name: PROCESSING.emptyAction, exact: true }).click(); // UPR:795-797
+      await page.getByRole('button', { name: PROCESSING.emptyAction, exact: true }).click(); // UPR:806-808
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.upload(project.id));
     });
   });
@@ -1461,7 +1472,7 @@ test.describe('E03 SCR-12 processing', () => {
         const { page } = admin;
         const project = await createProject(admin, 'pcompact', 1);
         await page.goto(ROUTES.project.pipeline(project.id));
-        // UPR:726-731: `empty` is checked before `collapsed` (BUG-111 on this screen).
+        // UPR:737-742: `empty` is checked before `collapsed` (BUG-111 on this screen).
         await expect(page.getByText(PROCESSING.emptyTitle, { exact: true })).toBeVisible();
         await expect(page.getByRole('button', { name: PROCESSING.emptyAction, exact: true })).toBeVisible();
         expect(await horizontalOverflow(page), 'no horizontal scroll at 375 px').toBeLessThanOrEqual(0);
@@ -1506,7 +1517,7 @@ test.describe('E03 SCR-13 / SCR-15 dead routes', () => {
       await captureEvidence(page, 'E03_cad_dialog.png');
 
       const mark = api.length;
-      await dialog.getByRole('button', { name: CAD.useAi, exact: true }).click(); // CBD:77-83 → UCB:707-714
+      await dialog.getByRole('button', { name: CAD.useAi, exact: true }).click(); // CBD:79-85 → UCB:707-714
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.pipeline(project.id));
       const writes = writesSince(api, mark);
       expect(writes, 'setProcessingBranch is unsupported: no write').toEqual([]);
@@ -1567,7 +1578,7 @@ const UNKNOWN_CASES: readonly UnknownCase[] = [
     slug: 'floors',
     path: (id) => ROUTES.project.floors(id),
     check: async (page) => {
-      // FT:201-212 + UFM:1614-1627; FM:93 no session notices / section cut on a load error.
+      // FT:200-211 + UFM:1630-1643; FM:95 no session notices / section cut on a load error.
       const alert = page.getByRole('alert').filter({ hasText: NOT_FOUND_TITLE });
       await expect(alert).toContainText(NOT_FOUND_SENTENCE);
       await expect(page.getByRole('region', { name: SECTION_REGION })).toHaveCount(0);
@@ -1607,12 +1618,12 @@ const UNKNOWN_CASES: readonly UnknownCase[] = [
     slug: 'pipeline',
     path: (id) => ROUTES.project.pipeline(id),
     check: async (page) => {
-      // UPR:1263-1278 errorAlert = describeError(notFound) (PRG:670-682) + "Thử lại" + code + "Liên hệ hỗ trợ" (PR:243-258).
+      // UPR:1274-1289 errorAlert = describeError(notFound) (PRG:678-690) + "Thử lại" + code + "Liên hệ hỗ trợ" (PR:243-258).
       const alert = page.getByRole('alert').filter({ hasText: GENERIC_NOT_FOUND });
       await expect(alert).toContainText('Không tìm thấy');
       await expect(alert.getByRole('button', { name: PROCESSING.retry, exact: true })).toBeVisible();
       await captureEvidence(page, 'E03_unknown_pipeline.png');
-      await page.getByRole('button', { name: PROCESSING.support, exact: true }).click(); // UPR:779-788 → ROUTES.account
+      await page.getByRole('button', { name: PROCESSING.support, exact: true }).click(); // UPR:790-799 → ROUTES.account
       await expect.poll(() => pathOf(page)).toBe(ROUTES.account);
     },
   },
