@@ -106,14 +106,15 @@ export function problemKeyOfError(error: ApiError): SettingsProblemKey | null {
 
 export const SETTINGS_SENTENCES = {
   conflict: 'Cài đặt dự án vừa được đổi ở nơi khác. Tải lại để xem bản mới nhất.',
-  fieldRejected: 'Máy chủ không nhận giá trị này. Kiểm tra lại ô này.',
+  /** Câu DUY NHẤT của một 422 trỏ đúng ô (BUG-356): nói ở ô, không đổ lỗi "máy chủ". */
+  fieldRejected: 'Giá trị này chưa hợp lệ nên chưa được lưu; hãy sửa lại.',
   saveFallback: 'Không lưu được cài đặt dự án.',
   /** Viên chỉ báo khi lỗi nhập chặn tự lưu: không nói "chờ đồng bộ" cho thứ sẽ không đồng bộ (BUG-286). */
   unsavedProblems: 'Chưa lưu vì còn ô cần sửa',
   emptyBlocked: 'Giá trị đã lưu không xoá trống được; hãy nhập giá trị khác.',
   snapNotInteger: 'Dung sai bắt điểm phải là số nguyên.',
   /** Viên chỉ báo sau 422: thử lại y nguyên vô ích, nên không hứa "sẽ thử lưu lại" (BUG-300). */
-  chipRejected: 'Chưa lưu: máy chủ không nhận một giá trị',
+  chipRejected: 'Chưa lưu vì còn ô cần sửa',
   /** Viên chỉ báo sau 409/428: chỉ tải lại mới gỡ được (BUG-300). */
   chipReload: 'Chưa lưu: cần tải lại bản mới nhất',
 } as const;

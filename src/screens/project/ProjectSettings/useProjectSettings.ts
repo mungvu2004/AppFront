@@ -1049,11 +1049,24 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
         .flatMap((part) => KEYS_BY_PART[part])
         .filter((key) => nowDraft[key] !== nowSaved[key]);
 
+      // 422 mà mọi ô chưa lưu đều đã có câu riêng ở chính ô đó: một câu ở ô là đủ, không chồng
+      // hộp "Chưa lưu hết" (BUG-356) — hộp chen vào còn đẩy cả thẻ xuống giữa lúc vạch tab đang trượt.
+      const fieldsWithOwnSentence = new Set<string>(
+        heldParts.flatMap((part) => {
+          const held = rejectionsRef.current[part];
+          const key = held === null || rejectionOf(held.error) !== 'validation' ? null : problemKeyOfError(held.error);
+
+          return key === null ? [] : [key];
+        }),
+      );
+      const isSaidAtFields =
+        rejection === 'validation' && failedFields.every((key) => fieldsWithOwnSentence.has(key));
+
       setFailureRejection(rejection);
       // Chỉ có xung đột và chưa lưu được gì: dải "Cài đặt đã đổi ở nơi khác" kèm nút
       // "Tải lại" đã nói đủ, không chồng thêm dải thứ hai (BUG-300).
       setSaveFailureMessage(
-        rejection === 'conflict' && savedFields.length === 0
+        (rejection === 'conflict' && savedFields.length === 0) || isSaidAtFields
           ? null
           : partialSaveSentence(savedFields, failedFields, rejection),
       );
