@@ -33,6 +33,7 @@
  */
 
 import { useCallback, useRef } from 'react';
+import { Bell } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -165,6 +166,28 @@ export function NotificationBellContainer(props: NotificationCenterContainerProp
 }
 
 /**
+ * Trang đứng sau tấm ở `/thong-bao` (BUG-124). Route không có màn chủ để tấm trượt lên, nên thay vì nền xám
+ * trống là một trang có chủ ý: tên trang và cách quay lại. `aria-hidden`: hộp thoại là modal và đã mang tên
+ * "Thông báo"; trang này chỉ để mắt nhìn. Dưới 1024 px chỉ dòng tên lộ ra trên tờ 90 %.
+ */
+function NotificationRouteBackdrop() {
+  return (
+    <div
+      aria-hidden="true"
+      className="fixed inset-0 flex items-start justify-center bg-bg-app px-6 pt-8 lg:items-center lg:pr-[416px] lg:pt-0"
+    >
+      <div className="flex max-w-sm flex-col items-center gap-2 text-center">
+        <Bell size={32} strokeWidth={1.5} className="hidden text-text-muted lg:block" />
+        <p className="text-[20px] font-semibold text-text-primary">Trung tâm thông báo</p>
+        <p className="hidden text-[14px] text-text-secondary lg:block">
+          Nhấn Esc hoặc bấm ra ngoài bảng để quay lại.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Bản toàn màn cho `/thong-bao` — trạng thái 7 "thu gọn, toàn màn".
  *
  * `isOpen` ghim `true` và `onDismiss` đưa người dùng lùi lại: ở một route thì
@@ -234,5 +257,10 @@ export function NotificationCenterRoute() {
     navigate(-1);
   }, [historyKey, navigate]);
 
-  return <NotificationCenterContainer isOpen isCompact onNavigate={goTo} onDismiss={goBack} />;
+  return (
+    <>
+      <NotificationRouteBackdrop />
+      <NotificationCenterContainer isOpen isCompact onNavigate={goTo} onDismiss={goBack} />
+    </>
+  );
 }
