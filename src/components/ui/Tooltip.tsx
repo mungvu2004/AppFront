@@ -194,6 +194,9 @@ export function Tooltip({ label, kbd, children, disabled = false, side = 'top' }
         onMouseLeave={handleHide}
         onFocus={handleShow}
         onBlur={handleHide}
+        // Bấm/Enter trên anchor thường dời nó đi (chấm snap hạ tấm 375 px xuống 88 px): toạ độ chỉ đo lúc hiện,
+        // nên tooltip ẩn đi thay vì đứng lại chỗ cũ (BUG-197).
+        onClick={handleHide}
         aria-describedby={isVisible ? tooltipId : undefined}
       >
         {children}

@@ -41,4 +41,23 @@ describe('Tooltip', () => {
     const tip = screen.getByRole('tooltip').parentElement as HTMLElement;
     expect(tip.style.left).toBe('518px'); // 500 + 36 / 2
   });
+
+  it('bấm (hoặc Enter) trên anchor thì tooltip ẩn, không đứng lại chỗ anchor vừa rời (BUG-197)', () => {
+    render(
+      <Tooltip label="Thu gọn">
+        <button type="button">Mức 1</button>
+      </Tooltip>,
+    );
+    const dot = screen.getByRole('button', { name: 'Mức 1' });
+
+    fireEvent.mouseEnter(dot.parentElement as HTMLElement);
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Thu gọn');
+
+    fireEvent.click(dot);
+
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  });
 });
