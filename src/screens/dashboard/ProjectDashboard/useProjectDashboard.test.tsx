@@ -153,7 +153,7 @@ describe('useProjectDashboard states', () => {
     mount({ fetchList: () => Promise.reject(httpError(500, 'INTERNAL')) });
 
     await waitFor(() => expect(dash().model.state).toBe('error'));
-    expect(dash().model.errorMessage).toBe('Hệ thống đã ghi nhận và sẽ kiểm tra. Bạn có thể tải lại rồi thử lại.');
+    expect(dash().model.errorMessage).toBe('Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại thao tác vừa làm.');
   });
 
   it('narrow: a failed read still wins over collapsed (BUG-072)', async () => {
