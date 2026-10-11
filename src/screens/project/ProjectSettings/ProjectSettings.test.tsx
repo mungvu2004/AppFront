@@ -792,7 +792,7 @@ describe('ProjectSettings đã nối dây', () => {
   it('xoá mọi tầng còn sót tầng: toast mang trạng thái attention; xoá hết thì không (BUG-207)', async () => {
     const toasts: ToastRecord[] = [];
     const partial = spyGateway({
-      deleteAllFloors: async () => ({ ok: true, data: { deletedCount: 3, failedFloorIds: ['floor-x'] } }),
+      deleteAllFloors: async () => ({ ok: true, data: { requestedCount: 4, deletedCount: 3, failedFloorIds: ['floor-x'] } }),
     });
     await mountSettings({ gateway: partial, projectId: 'project-partial', roles: ['admin'], onToast: (toast) => toasts.push(toast) });
 
