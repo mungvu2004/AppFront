@@ -64,7 +64,7 @@
     "webRevisionLabel": "org.opencontainers.image.revision.appfront",
     "apiImage": "appback-api:f14",
     "apiBuiltFrom": "C:/Users/mxuan/orca/workspaces/AppBack/fix378-x",
-    "apiBuiltCommit": "b1704f7"
+    "apiBuiltCommit": "bf83f815"
   },
   "rules": {
     "$comment": "Ngưỡng do e2e-qa-run kiểm; vượt → ghi finding loại Test.",
