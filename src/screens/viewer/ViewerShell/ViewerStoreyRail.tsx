@@ -85,7 +85,7 @@ export function ViewerStoreyRail({
 
               <button
                 aria-label={
-                  storey.isVisible ? `Ẩn ${storey.name}` : `Hiện ${storey.name}`
+                  storey.isVisible ? `Ẩn ${storey.inlineName}` : `Hiện ${storey.inlineName}`
                 }
                 aria-pressed={storey.isVisible}
                 className={cn(

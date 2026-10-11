@@ -135,6 +135,8 @@ export interface ViewerStoreyViewModel {
   readonly name: string;
   /** Chữ ngắn trên nút ray tầng, rút từ `name` — KHÔNG phải mã máy (`storeyShortLabel`). */
   readonly code: string;
+  /** Tên đặt giữa câu, ví dụ "tầng trệt" trong "Ẩn tầng trệt" (`storeyInlineName`). */
+  readonly inlineName: string;
   /** Cao độ ĐÃ ĐỊNH DẠNG, ví dụ "+3,20 m" (A15). */
   readonly elevationLabel: string;
   /** Người dùng đang chọn tầng này (bấm, hoặc giữ Shift chọn nhiều). */

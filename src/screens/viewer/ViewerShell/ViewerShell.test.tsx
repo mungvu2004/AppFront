@@ -74,6 +74,7 @@ import { VIEWER_SCREEN_STATES } from './viewerShellScenarios';
 import {
   ALL_VIEWER_TOOLS,
   defaultViewerShellGateway,
+  storeyInlineName,
   storeyShortLabel,
   projectNameQueryKey,
   useViewerShell,
@@ -287,6 +288,16 @@ describe('[VS-5] bộ mẫu', () => {
     expect(storeyShortLabel('Lửng')).toBe('Lửng');
     expect(storeyShortLabel('Tầng')).toBe('Tầng');
     expect(storeyShortLabel('Tầng hầm 1')).toBe('Hầm 1');
+  });
+
+  it('[BUG-384] nút mắt đọc "Ẩn tầng trệt" — một cách viết, không "Ẩn Tầng trệt", không lặp "tầng"', () => {
+    renderState('success');
+
+    expect(screen.getByRole('button', { name: 'Ẩn tầng trệt' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Tầng/u })).toBeNull();
+    expect(storeyInlineName('Tầng 1')).toBe('tầng 1');
+    expect(storeyInlineName('Tầng')).toBe('tầng');
+    expect(storeyInlineName('Mái')).toBe('tầng Mái');
   });
 });
 

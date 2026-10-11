@@ -160,6 +160,15 @@ export function storeyShortLabel(name: string): string {
 }
 
 /**
+ * Tên tầng đặt GIỮA câu, một cách viết duy nhất: "Tầng trệt" → "tầng trệt",
+ * "Tầng 1" → "tầng 1", "Mái" → "tầng Mái". Ghép thẳng `name` vào "Ẩn …" từng
+ * cho "Ẩn Tầng trệt", còn ghép thêm "tầng" thì ra "tầng Tầng 1" (BUG-384).
+ */
+export function storeyInlineName(name: string): string {
+  return /^tầng(\s|$)/iu.test(name) ? `t${name.slice(1)}` : `tầng ${name}`;
+}
+
+/**
  * Sáu công cụ của ray trái, kèm phím của chúng. Không công cụ nào sửa mô hình — đo
  * cũng chỉ đọc — nên vai Người xem có đủ sáu (B-V9-04).
  */
@@ -611,6 +620,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
         id: storey.id,
         name: storey.name,
         code: storeyShortLabel(storey.name),
+        inlineName: storeyInlineName(storey.name),
         elevationLabel: formatLength(millimetres(storey.elevationMm), { unit: 'm' }),
         isActive: activeStoreyIds.includes(storey.id),
         isVisible: !hiddenStoreyIds.includes(storey.id),
