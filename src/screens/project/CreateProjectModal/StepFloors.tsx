@@ -31,6 +31,14 @@ import {
 /** Cell padding: tighter below `sm`, where the dialog is the viewport minus its gutter. */
 const CELL_PAD = 'px-1.5 sm:px-3';
 
+/**
+ * Lines the controls of a row up on the top of their fields, not on the middle of a row
+ * a field's error made taller (BUG-230): body cells align top, and what is not a field
+ * sits in a box as tall as one (`Input`: 46 px below `sm`, 38 px from it), centred.
+ */
+const ROW_CELL = cn(CELL_PAD, 'align-top');
+const FIELD_HIGH = 'flex h-[46px] sm:h-[38px] items-center';
+
 export interface StepFloorsProps extends CreateProjectModalViewProps {
   readonly rowRefs: React.MutableRefObject<Map<string, HTMLTableRowElement>>;
 }
@@ -108,7 +116,7 @@ export function StepFloors(props: StepFloorsProps) {
                   }}
                   isAttention={row.problem !== null || row.nameProblem !== null}
                 >
-                  <Table.Cell className={CELL_PAD}>
+                  <Table.Cell className={ROW_CELL}>
                     <Input
                       className="w-full"
                       value={row.name}
@@ -118,7 +126,7 @@ export function StepFloors(props: StepFloorsProps) {
                       aria-label={`Tên tầng ${row.name}`}
                     />
                   </Table.Cell>
-                  <Table.Cell className={CELL_PAD}>
+                  <Table.Cell className={ROW_CELL}>
                     <NumericField
                       resetKey={applyCount}
                       className="w-full"
@@ -132,40 +140,49 @@ export function StepFloors(props: StepFloorsProps) {
                       {...(row.problem !== null ? { error: row.problem } : {})}
                     />
                   </Table.Cell>
-                  <Table.Cell className={cn(CELL_PAD, 'text-text-secondary')}>{row.elevationLabel ?? '—'}</Table.Cell>
-                  <Table.Cell className={CELL_PAD}>
-                    <IconButton
-                      icon={<Trash2 size={16} aria-hidden="true" />}
-                      aria-label={`Xoá ${row.name}`}
-                      onClick={() => props.removeFloor(row.id)}
-                      disabled={isSubmitting}
-                    />
+                  <Table.Cell className={cn(ROW_CELL, 'text-text-secondary')}>
+                    <span className={FIELD_HIGH}>{row.elevationLabel ?? '—'}</span>
+                  </Table.Cell>
+                  <Table.Cell className={ROW_CELL}>
+                    <span className={FIELD_HIGH}>
+                      <IconButton
+                        icon={<Trash2 size={16} aria-hidden="true" />}
+                        aria-label={`Xoá ${row.name}`}
+                        onClick={() => props.removeFloor(row.id)}
+                        disabled={isSubmitting}
+                      />
+                    </span>
                   </Table.Cell>
                 </Table.Row>
               ))}
             </Table.Body>
           </Table.Root>
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="flex flex-col gap-1">
-              <Button
-                variant="secondary"
-                size="sm"
-                iconBefore={<Plus size={16} aria-hidden="true" />}
-                onClick={props.addFloor}
-                disabled={isSubmitting || !props.canAddFloor}
-                aria-describedby={props.floorCapNote !== null ? FLOOR_CAP_NOTE_ID : undefined}
-              >
-                Thêm tầng
-              </Button>
+          {/* Both buttons line up with the apply field's box, not with its error line (BUG-230):
+              stacked below `sm`, side by side from it, each pushed down past the field's label. */}
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between">
+            {/* `mt-7`: the apply field's label above its box (`Input`: 20 px line + 8 px gap). */}
+            <div className="flex flex-col gap-1 sm:mt-7">
+              <span className={FIELD_HIGH}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  iconBefore={<Plus size={16} aria-hidden="true" />}
+                  onClick={props.addFloor}
+                  disabled={isSubmitting || !props.canAddFloor}
+                  aria-describedby={props.floorCapNote !== null ? FLOOR_CAP_NOTE_ID : undefined}
+                >
+                  Thêm tầng
+                </Button>
+              </span>
               {props.floorCapNote !== null && (
                 <p id={FLOOR_CAP_NOTE_ID} className="text-[13px] leading-[18px] text-text-secondary">
                   {props.floorCapNote}
                 </p>
               )}
             </div>
-            <div className="flex items-end gap-2">
+            <div className="flex items-start gap-2">
               <NumericField
-                label="Chiều cao áp cho mọi tầng"
+                label={<span className="whitespace-nowrap">Chiều cao áp cho mọi tầng</span>}
                 className="w-full"
                 value={props.applyHeightM ?? undefined}
                 onChange={props.setApplyHeightM}
@@ -174,17 +191,19 @@ export function StepFloors(props: StepFloorsProps) {
                 unit="m"
                 disabled={isSubmitting}
               />
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  props.applyHeightToAllFloors();
-                  setApplyCount((count) => count + 1);
-                }}
-                disabled={isSubmitting || !props.canApplyHeight}
-              >
-                Áp cho mọi tầng
-              </Button>
+              <span className={cn(FIELD_HIGH, 'mt-7')}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    props.applyHeightToAllFloors();
+                    setApplyCount((count) => count + 1);
+                  }}
+                  disabled={isSubmitting || !props.canApplyHeight}
+                >
+                  Áp cho mọi tầng
+                </Button>
+              </span>
             </div>
           </div>
         </>

@@ -280,6 +280,18 @@ describe('CreateProjectModalView', () => {
     expect(screen.getByRole('table').closest('.overflow-y-auto')).toHaveClass('scroll-pt-10', 'scroll-pb-6');
   });
 
+  it('lines a floor row up on the tops of its fields, and both buttons on the apply field box, whatever error grows under a field (BUG-230)', () => {
+    render(<CreateProjectModalView {...baseProps()} step={2} stepLabel="bước 2 / 3" />);
+
+    for (const cell of screen.getByRole('table').querySelectorAll('tbody td')) expect(cell).toHaveClass('align-top');
+    // Not a field: centred in a box as tall as one, so it sits on the field line, not mid-row.
+    expect(screen.getByText('0,0 m')).toHaveClass('flex', 'h-[46px]', 'sm:h-[38px]', 'items-center');
+    expect(screen.getByRole('button', { name: 'Xoá Tầng trệt' }).closest('td > span')).toHaveClass('h-[46px]', 'sm:h-[38px]');
+    // Pushed down past the apply field's 28 px label instead of sitting on the bottom of its error line.
+    expect(screen.getByRole('button', { name: 'Áp cho mọi tầng' }).parentElement).toHaveClass('mt-7', 'sm:h-[38px]');
+    expect(screen.getByRole('button', { name: 'Thêm tầng' }).parentElement?.parentElement).toHaveClass('sm:mt-7');
+  });
+
   it('warns before discarding unsaved changes, in the dialog itself — no nested dialog', () => {
     const confirmDiscard = vi.fn();
     render(<CreateProjectModalView {...baseProps()} isConfirmingDiscard step={1} stepLabel="bước 1 / 3" />);
