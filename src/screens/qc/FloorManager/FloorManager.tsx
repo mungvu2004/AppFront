@@ -31,8 +31,9 @@
  *
  * Nội dung tối đa 1120px, đệm 32px, cột trái 360px, khoảng cách hai cột 24px.
  * Dưới 1024px (`isCompact`, đo ở lớp trên và truyền vào — màn KHÔNG tự đo bề
- * rộng) hai cột xếp dọc và lát cắt xuống DƯỚI bảng bằng `order`, không đảo thứ
- * tự trong DOM, để luồng đọc của trình đọc màn hình vẫn là bảng trước.
+ * rộng) hai cột xếp dọc và lát cắt được dựng SAU bảng trong DOM, không dời bằng `order`:
+ * `order` chỉ dời hình, còn Tab và trình đọc màn hình đi theo DOM, nên "Thu gọn lát cắt"
+ * và các dải từng nhận tiêu điểm trước "Thêm tầng" và bảng (WCAG 2.4.3, A12).
  * Mười cột cần ~958px: bảng chỉ trải đủ cột khi lát cắt thu gọn ở khổ rộng (nút "Hiện lát
  * cắt" nằm trên bảng); cạnh lát cắt hay khi `isCompact`, mỗi dòng xếp chồng như thẻ (BUG-250).
  *
@@ -93,6 +94,20 @@ export function FloorManager(props: FloorManagerViewProps) {
   /* Đọc hỏng (404, mạng, 5xx): chỉ còn câu lỗi và lối đi — câu "chỉ sống trong phiên" và
      lát cắt trống cạnh nó là nói về những tầng chưa đọc được (BUG-060). */
   const isLoadError = state === 'error';
+  const sectionCut =
+    isLoadError || isCollapsed ? null : (
+      <div className={cn('shrink-0 self-stretch', isCompact ? 'h-[400px] w-full' : 'w-[360px]')}>
+        <FloorSectionCut
+          bands={props.bands}
+          elevationTicks={props.elevationTicks}
+          onHoverFloor={props.onHoverFloor}
+          onSelectFloor={props.onSelectFloor}
+          onToggleCollapsed={props.onToggleCollapsed}
+          state={state}
+          totalHeightText={props.totalHeightText}
+        />
+      </div>
+    );
 
   return (
     <div aria-label={SCREEN_TITLE} className="flex h-full min-h-0 w-full flex-col overflow-y-auto bg-bg-app" role="region">
@@ -142,25 +157,14 @@ export function FloorManager(props: FloorManagerViewProps) {
 
       <div className="mx-auto w-full max-w-[1120px] flex-1 px-8 pb-8">
         <div className={cn('flex min-h-[480px] items-stretch gap-6', isCompact || isCollapsed ? 'flex-col' : 'flex-row')}>
-          {isLoadError ? null : isCollapsed ? (
+          {isLoadError || !isCollapsed ? null : (
             <button className={EXPAND_BUTTON_CLASS_NAME} onClick={onToggleCollapsed} type="button">
               {EXPAND_SECTION_LABEL}
             </button>
-          ) : (
-            <div className={cn('shrink-0 self-stretch', isCompact ? 'order-2 h-[400px] w-full' : 'order-1 w-[360px]')}>
-              <FloorSectionCut
-                bands={props.bands}
-                elevationTicks={props.elevationTicks}
-                onHoverFloor={props.onHoverFloor}
-                onSelectFloor={props.onSelectFloor}
-                onToggleCollapsed={props.onToggleCollapsed}
-                state={state}
-                totalHeightText={props.totalHeightText}
-              />
-            </div>
           )}
+          {isCompact ? null : sectionCut}
 
-          <div className={cn('min-h-0 min-w-0 flex-1 self-stretch', isCompact ? 'order-1' : 'order-2')}>
+          <div className="min-h-0 min-w-0 flex-1 self-stretch">
             <FloorTable
               canEdit={props.canEdit}
               emptyNotice={props.emptyNotice}
@@ -188,6 +192,7 @@ export function FloorManager(props: FloorManagerViewProps) {
               state={state}
             />
           </div>
+          {isCompact ? sectionCut : null}
         </div>
       </div>
     </div>
