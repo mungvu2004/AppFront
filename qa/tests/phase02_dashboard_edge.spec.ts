@@ -135,7 +135,6 @@ const EMPTY_DESCRIPTION = 'Tạo dự án đầu tiên để bắt đầu số h
 const EMPTY_ACTION = 'Tạo dự án mới'; // PD:267
 const CLEAR_FILTERS = 'Xoá bộ lọc'; // PD:274
 const COMPACT_FILTER = 'Lọc theo trạng thái'; // PD:231
-const STATS = { all: 'Tổng dự án', done: 'Hoàn thành', qc: 'Cần QC', processing: 'Đang xử lý' } as const; // src/i18n/vi.json:415-418
 const FILTERS = { all: 'Tất cả', processing: 'Đang xử lý', qc: 'Cần QC', done: 'Hoàn thành' } as const; // UPD:76-81
 const SORT = { updated: 'Cập nhật gần đây', name: 'Tên A–Z', floors: 'Số tầng nhiều nhất', area: 'Diện tích lớn nhất' } as const; // UPD:83-88
 const unreadRowsNotice = (count: number): string => `Có ${String(count)} dự án chưa đọc được`; // UPD:482
@@ -331,16 +330,13 @@ const searchBox = (page: Page): Locator => page.getByRole('searchbox', { name: '
 const noMatch = (page: Page): Locator => page.getByText('Không tìm thấy dự án phù hợp', { exact: true }); // PD:272
 const wizard = (page: Page): Locator => page.getByRole('dialog', { name: 'Tạo dự án mới', exact: true }); // CPM:243-245
 const toastWith = (page: Page, text: string): Locator => page.getByRole('status').filter({ hasText: text }); // TST:117
-/** DS:62-74: label + count spans inside one `aria-pressed` button. */
+/** DS:28-40: label + count spans inside one `aria-pressed` button; the only count per status since the stat tiles left (BUG-118, FIX-1153). */
 const statusFilterButton = (page: Page, label: string): Locator =>
   page.getByRole('button', { name: new RegExp(`^${escapeRegExp(label)}\\s*\\d+$`, 'u') });
 const stateAnnouncement = (scope: Page | Locator): Locator => scope.getByRole('status').filter({ hasText: STATE_RE });
 const countLine = (page: Page): Locator => page.getByText(/^\d+ dự án$/u); // PD:187
 const sortCombobox = (page: Page, current: string): Locator => page.getByRole('combobox').filter({ hasText: current }); // PD:204-209
 const viewMode = (page: Page): Locator => page.getByRole('radiogroup', { name: 'Kiểu xem', exact: true }); // PD:210-218
-/** Sidebar stat card value: the number span right before its label (DS:44-57). */
-const statValue = (page: Page, label: string): Locator =>
-  page.locator('aside > div').first().getByText(label, { exact: true }).locator('xpath=preceding-sibling::span[1]');
 /** Table view rows (PD:291-314); `thead th` (BUG-115 fixed: `th` now has scope="col", so getByRole('columnheader') would find the same cells). */
 const tableRows = (page: Page): Locator => page.getByRole('main').locator('tbody tr');
 const tableHeads = (page: Page): Locator => page.getByRole('main').locator('thead th');
@@ -670,7 +666,7 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
     });
   });
 
-  test('E02 · SCR-05 header and sidebar: "{n} dự án", four counters and filter counts follow N1; avatar shows initials', async ({ browser }) => {
+  test('E02 · SCR-05 header and sidebar: "{n} dự án" and the four filter counts follow N1; avatar shows initials', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const list = await reloadDashboard(page);
@@ -678,8 +674,7 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
 
       await expect(page.getByText(`${String(counts.all)} dự án`, { exact: true })).toBeVisible(); // PD:187
       for (const key of ['all', 'done', 'qc', 'processing'] as const) {
-        await expect(statValue(page, STATS[key]), `stat card "${STATS[key]}"`).toHaveText(String(counts[key])); // DS:44-57
-        await expect(statusFilterButton(page, FILTERS[key])).toHaveText(endsWithCount(counts[key])); // BUG-140
+        await expect(statusFilterButton(page, FILTERS[key])).toHaveText(endsWithCount(counts[key])); // DS:39, BUG-140
       }
       // BUG-031 regression: initials, never an empty circle (PDC:63, Avatar.tsx:38-43).
       await expect(page.locator('[aria-label="Tài khoản của bạn"]')).toHaveText(/^\S{1,2}$/u);
@@ -1151,31 +1146,26 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
         await page.keyboard.press('Escape');
         await expect(dialog).toHaveCount(0);
 
-        // BUG-225: the resize reaches the page asynchronously; wait for the dashboard's own query (UPD:92) to flip before
+        // BUG-225: the resize reaches the page asynchronously; wait for the dashboard's own query (UPD:93) to flip before
         // judging the controls, and keep the width in the message so a headed run that does not reach 1023 says so.
-        const narrowAt = (): Promise<string> => page.evaluate(() => `${String(matchMedia('(max-width: 1023px)').matches)} @ ${String(window.innerWidth)}`);
+        // Root cause (headed probe, chrome channel, this Windows host): devicePixelRatio is 1.0000000149, so a "1023 px"
+        // viewport is a hair over 1023 CSS px. The old `(max-width: 1023px)` and Tailwind `lg:` = `(min-width: 1024px)`
+        // were then both false (run-16: desktop list on a stacked page). The app now asks the range form
+        // `(width < 1024px)` (QA-02c R-src), the exact complement of `lg:`, so there is no gap: always judged at 1023.
+        const narrowQuery = '(width < 1024px)';
+        const narrowAt = (): Promise<string> => page.evaluate((query) => `${String(matchMedia(query).matches)} @ ${String(window.innerWidth)}`, narrowQuery);
         await page.setViewportSize({ width: 1023, height: 900 });
-        await expect.poll(() => page.evaluate(() => window.innerWidth)).toBe(1023);
-        // BUG-225 root cause (headed probe, chrome channel, this Windows host): devicePixelRatio is 1.0000000149, so a
-        // "1023 px" viewport is a hair over 1023 CSS px — `(max-width: 1023px)` AND `(min-width: 1024px)` are both false:
-        // the dashboard keeps its desktop list (UPD:93) while Tailwind `lg:` is off (the stacked page of run-16). Headless
-        // is exactly 1023 px. That gap is the app's (noted for the coordinator); here the toggle is judged 1 px lower.
-        const at1023 = await page.evaluate(() => ({
-          narrow: matchMedia('(max-width: 1023px)').matches,
+        await expect.poll(narrowAt, { message: `matchMedia ${narrowQuery} at a 1023 px viewport` }).toBe('true @ 1023');
+        const at1023 = await page.evaluate((query) => ({
+          narrow: matchMedia(query).matches,
           wide: matchMedia('(min-width: 1024px)').matches,
           dpr: window.devicePixelRatio,
-        }));
-        const gap = !at1023.narrow && !at1023.wide;
-        await attachJson('E02_dash_compact_1023.json', { ...at1023, gap });
-        if (gap) {
-          test.info().annotations.push({ type: 'BUG-225', description: `1023 px is in the max-width:1023px / min-width:1024px gap (dpr ${String(at1023.dpr)}); judged at 1022 px` });
-          await page.setViewportSize({ width: 1022, height: 900 });
-        }
-        const narrowWidth = gap ? 1022 : 1023;
-        await expect.poll(narrowAt, { message: `matchMedia (max-width: 1023px) at a ${String(narrowWidth)} px viewport` }).toBe(`true @ ${String(narrowWidth)}`);
+        }), narrowQuery);
+        await attachJson('E02_dash_compact_1023.json', { ...at1023, gap: !at1023.narrow && !at1023.wide });
+        expect(at1023, `app query and Tailwind lg: split 1023 px with no gap (dpr ${String(at1023.dpr)}, BUG-225)`).toMatchObject({ narrow: true, wide: false });
         await expect(filter).toBeVisible();
         await page.setViewportSize({ width: 1024, height: 900 });
-        await expect.poll(narrowAt, { message: 'matchMedia (max-width: 1023px) at a 1024 px viewport' }).toBe('false @ 1024');
+        await expect.poll(narrowAt, { message: `matchMedia ${narrowQuery} at a 1024 px viewport` }).toBe('false @ 1024');
         await expect(filter).toHaveCount(0);
         // Same `statusFilter` state behind both controls (PD:233, DS:157).
         await expect(statusFilterButton(page, FILTERS.processing)).toHaveAttribute('aria-pressed', 'true');
@@ -1453,7 +1443,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await expect(projectCard(page, done.name)).toContainText(reviewProgress(4, 4));
       const counts = countsOf(list);
       for (const key of ['all', 'done', 'qc', 'processing'] as const) {
-        await expect(statValue(page, STATS[key]), `stat card "${STATS[key]}"`).toHaveText(String(counts[key]));
+        await expect(statusFilterButton(page, FILTERS[key])).toHaveText(endsWithCount(counts[key]));
       }
       await captureEvidence(page, 'E02_status_routing_cards.png', { caption: `mocked N1: "${qc.name}" Cần QC 3/10, "${done.name}" Hoàn thành 4/4` });
 
@@ -1596,8 +1586,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await expect(projectCards(page)).toHaveCount(1); // UPD:273-281: search AND status
       await expect(projectCard(page, project.name)).toBeVisible();
       for (const key of ['all', 'done', 'qc', 'processing'] as const) {
-        await expect(statValue(page, STATS[key])).toHaveText(String(counts[key])); // UPD:339-350: over all of N1
-        await expect(statusFilterButton(page, FILTERS[key])).toHaveText(endsWithCount(counts[key]));
+        await expect(statusFilterButton(page, FILTERS[key])).toHaveText(endsWithCount(counts[key])); // UPD:339-350: over all of N1
       }
 
       await statusFilterButton(page, FILTERS.qc).click();
@@ -1692,7 +1681,6 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       expect(countsAfter.processing, 'the deleted fixture was "processing"').toBe(countsBefore.processing - 1);
 
       for (const key of ['all', 'done', 'qc', 'processing'] as const) {
-        await expect(statValue(page, STATS[key])).toHaveText(String(countsAfter[key]));
         await expect(statusFilterButton(page, FILTERS[key])).toHaveText(endsWithCount(countsAfter[key]));
       }
       await expect(countLine(page)).toHaveText(`${String(after.length)} dự án`);
@@ -1815,7 +1803,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await expect(countLine(page)).toHaveText(`${String(all.length)} dự án`);
       const counts = countsOf(all);
       for (const key of ['all', 'done', 'qc', 'processing'] as const) {
-        await expect(statValue(page, STATS[key])).toHaveText(String(counts[key]));
+        await expect(statusFilterButton(page, FILTERS[key])).toHaveText(endsWithCount(counts[key]));
       }
       await captureEvidence(page, 'E02_dash_two_pages.png', {
         caption: [
@@ -2687,7 +2675,7 @@ test.describe('E02 SCR-06 notifications', () => {
       async (admin) => {
         const { page } = admin;
         await page.goto(ROUTES.notifications);
-        const sheet = notificationDrawer(page); // DRW:70 (max-width 1023px) → BottomSheet (DRW:205-210)
+        const sheet = notificationDrawer(page); // DRW:105 (width < 1024px since BUG-225) → BottomSheet (DRW:205-210)
         await expect(sheet).toBeVisible();
         const group = sheet.getByRole('group', { name: SHEET_GROUP, exact: true });
         await expect(group.getByRole('button', { name: snapButton(3), exact: true })).toHaveAttribute('aria-pressed', 'true'); // DRW:72
@@ -2880,8 +2868,8 @@ const SNAP_HINTS = { 1: 'Thu gọn', 2: 'Nửa màn hình', 3: 'Gần toàn màn
 const SNAP_PEEK_PX = 88;
 /** useProjectDashboard.ts:246-251 `listErrorMessageOf`: a 500 on page load says what to do here, not "thao tác vừa làm" (BUG-209, FIX-995). */
 const LIST_LOAD_500_DESCRIPTION = 'Máy chủ gặp lỗi khi đọc danh sách. Bấm "Thử lại" để tải lại.';
-/** useProjectDashboard.ts:240 `forbidden` keeps its shared rights sentence on page load (review-1 #10, FIX-1078): vi.json:27. */
-const LIST_LOAD_403_DESCRIPTION = 'Tài khoản của bạn chưa được phép làm thao tác này. Liên hệ quản trị dự án.';
+/** useProjectDashboard.ts:246 `listErrorMessageOf`: a 403 on page load has its own list sentence, still a rights cause (BUG-209, FIX-1150). */
+const LIST_LOAD_403_DESCRIPTION = 'Tài khoản của bạn chưa được phép xem danh sách dự án. Liên hệ quản trị dự án.';
 const OLD_UNKNOWN_TAIL = 'Bạn có thể tải lại rồi thử lại.'; // 5afd8b8a copy, must be gone
 const NO_MATCH_DESCRIPTION = 'Không có dự án nào khớp với bộ lọc hiện tại.'; // PD:264
 const PIPELINE_NAV = 'Xử lý'; // ProcessingScreen.tsx:60 (BREADCRUMB_PIPELINE = the nav's aria-label, :223)
@@ -3103,7 +3091,7 @@ test.describe('E02 QA-02 shared components (FE 271538cb) — SCR-05 / SCR-06 / S
     });
   });
 
-  test('E02 · SCR-05 [mocked response] N1 fails (500, unpairable: 5xx): the error card says the page-load sentence, not an action sentence; a 403 says the rights sentence', async ({ browser }) => {
+  test('E02 · SCR-05 [mocked response] N1 fails (500, unpairable: 5xx): the error card says the page-load sentence, not an action sentence; a 403 says the rights sentence without a useless "Thử lại"', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       await routeSummaries(page, (route) => route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }));
@@ -3115,19 +3103,20 @@ test.describe('E02 QA-02 shared components (FE 271538cb) — SCR-05 / SCR-06 / S
       await expect(page.getByText('thao tác vừa làm', { exact: false })).toHaveCount(0); // BUG-209: no action was taken
       await captureEvidence(page, 'E02_dash_error_unknown_copy.png', { caption: 'N1 500 [mocked] → listErrorMessageOf (useProjectDashboard.ts:250)' });
 
-      // A 403 is no server fault (review-1 #10, FIX-1078): kind "forbidden" (toAppError.ts:12) is in UPD:240, so the card
-      // keeps the shared rights sentence. Unpairable as well: the real N1 never refuses a signed-in role.
+      // A 403 is no server fault (review-1 #10): kind "forbidden" (toAppError.ts:12) gets its own list sentence (UPD:246,
+      // BUG-209 FIX-1150). Retrying cannot grant a right, so the card drops "Thử lại" (QA-02c R-src: canRetry false on
+      // forbidden). Unpairable as well: the real N1 never refuses a signed-in role.
       await page.unrouteAll({ behavior: 'ignoreErrors' });
       await routeSummaries(page, (route) => fulfillJson(route, 403, wireError('FORBIDDEN')));
       await page.getByRole('button', { name: RETRY, exact: true }).click();
       await expect(page.getByText(LIST_LOAD_403_DESCRIPTION, { exact: true })).toBeVisible({ timeout: SLOW_STATE_MS });
       await expect(page.getByText(LIST_LOAD_500_DESCRIPTION, { exact: true })).toHaveCount(0);
       await expect(page.getByText(LIST_ERROR_TITLE, { exact: true })).toBeVisible();
-      await captureEvidence(page, 'E02_dash_error_403_copy.png', { caption: 'N1 403 FORBIDDEN [mocked] → the rights sentence, not "Máy chủ gặp lỗi…" (useProjectDashboard.ts:240)' });
+      await expect(page.getByRole('button', { name: RETRY, exact: true }), 'no "Thử lại" on a 403').toHaveCount(0);
+      await captureEvidence(page, 'E02_dash_error_403_copy.png', { caption: 'N1 403 FORBIDDEN [mocked] → the rights sentence, not "Máy chủ gặp lỗi…", and no "Thử lại" (useProjectDashboard.ts:246)' });
+      // Rights restored: only a fresh load reads N1 again (no button to press).
       await page.unrouteAll({ behavior: 'ignoreErrors' });
-      const reread = waitForApi(page, 'GET', SUMMARIES_RE, [200]);
-      await page.getByRole('button', { name: RETRY, exact: true }).click();
-      await reread;
+      await reloadDashboard(page);
       await expect(page.getByText(LIST_ERROR_TITLE, { exact: true })).toHaveCount(0);
     });
   });
@@ -3166,7 +3155,9 @@ test.describe('E02 QA-02 shared components (FE 271538cb) — SCR-05 / SCR-06 / S
         await page.keyboard.press('Enter'); // SR:552-557 a lone key keeps its native action (BUG-151)
         await expect(dot(1)).toHaveAttribute('aria-pressed', 'true');
         await expect.poll(async () => Math.abs((await sheet.evaluate((el) => el.getBoundingClientRect().height)) - SNAP_PEEK_PX)).toBeLessThanOrEqual(2);
-        const after = { tipVisible: await tip.isVisible(), tip: await tip.boundingBox(), dot: await dot(1).boundingBox() };
+        // BUG-197: the tooltip may be gone after the snap (allowed); boundingBox() on a removed element waits the whole test timeout.
+        const tipVisible = await tip.isVisible();
+        const after = { tipVisible, tip: tipVisible ? await tip.boundingBox({ timeout: 1_000 }).catch(() => null) : null, dot: await dot(1).boundingBox() };
         await captureEvidence(page, 'E02_notif_snap_peek.png', { caption: `Enter on "Mức 1" → ${String(SNAP_PEEK_PX)} px peek; tooltip ${after.tipVisible ? 'still shown' : 'gone'}` });
         await attachJson('E02_notif_snap_keyboard.json', { viewport: COMPACT, shown, after });
         // Finding candidate (UI/Low): TT measures its anchor only when it shows (TT:66-77); a tooltip still shown after
@@ -3610,13 +3601,17 @@ test.describe('E02 QA-02 FE changes (d18eb884) — SCR-05 / SCR-06 / SCR-07', ()
       await body.evaluate((el) => {
         el.scrollTop = el.scrollHeight;
       });
+      // A sticky header sits at max(its natural place = the table top, the body top). With 12 floors the scroll range can
+      // stop before the table reaches the body top (BUG-202 run-16: 4 / 0 / 116 / 0 px at 1440/1024/768/375), so the
+      // header is pinned only once the table has scrolled past; a plain |thead - body| <= 1 was wrong there.
+      const table = dialog.getByRole('table');
       await expect
         .poll(async () => {
-          const [b, h] = [await body.boundingBox(), await head.boundingBox()];
-          return b === null || h === null ? Number.POSITIVE_INFINITY : Math.abs(h.y - b.y);
+          const [b, h, t] = [await body.boundingBox(), await head.boundingBox(), await table.boundingBox()];
+          return b === null || h === null || t === null ? Number.POSITIVE_INFINITY : Math.abs(h.y - Math.max(b.y, t.y));
         })
         .toBeLessThanOrEqual(1);
-      await captureEvidence(page, 'E02_wiz_sticky_head.png', { caption: 'body scrolled to the end: "Tầng / Chiều cao thông thuỷ / Cao độ" still pinned at its top' });
+      await captureEvidence(page, 'E02_wiz_sticky_head.png', { caption: 'body scrolled to the end: "Tầng / Chiều cao thông thuỷ / Cao độ" pinned at its top once the table scrolled past (else in place)' });
 
       // CPM:303 `scroll-pt-10`: a field reached by Shift+Tab is scrolled clear of the 40 px sticky header.
       await dialog.getByRole('textbox', { name: 'Tên tầng Tầng 11', exact: true }).focus();
