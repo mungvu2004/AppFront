@@ -362,6 +362,21 @@ export const newFloorName = (index: number): string => {
   return normalized.ok ? normalized.value : raw;
 };
 
+/**
+ * Tên tầng thêm mới: số = số tầng từ mặt đất trở lên (trệt là số 0, như `nextFloorName` của
+ * wizard tạo dự án), ít nhất 1, bỏ qua tên đã có. Đếm cả tầng hầm nhảy mất một số (BUG-277).
+ */
+export const nextNewFloorName = (levels: readonly Pick<Level, 'name' | 'elevationMm'>[]): string => {
+  const taken = new Set(levels.map((level) => level.name.trim()));
+  let number = Math.max(1, levels.filter((level) => level.elevationMm >= 0).length);
+
+  while (taken.has(newFloorName(number))) {
+    number += 1;
+  }
+
+  return newFloorName(number);
+};
+
 /** Tên của bản sao, ví dụ `"Tầng 2 (bản sao)"`. */
 export const duplicateFloorName = (sourceName: string): string => {
   const suffix = ` (${FLOOR_MANAGER_TEXT.duplicateSuffix})`;
@@ -1294,7 +1309,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
       }
 
       const result = createAddFloorCommand(
-        { id: gateway.nextLevelId(), name: newFloorName(levelsOf(context.graph).length + 1) },
+        { id: gateway.nextLevelId(), name: nextNewFloorName(levelsOf(context.graph)) },
         context,
       );
       const added = result.ok ? addedLevelOf(result.data) : null;
