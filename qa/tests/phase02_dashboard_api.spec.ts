@@ -973,7 +973,7 @@ test.describe('A02 notifications (#19-#21, BE:notifications/router.py:25-45, ser
       });
       expect(n1).not.toHaveProperty('floorId');
       expect(n1).not.toHaveProperty('excerpt');
-      expect(String(n1.message)).toMatch(/^(.+ đã thêm bạn vào dự án|bạn vừa được thêm vào dự án)$/u); // messages.py:24-27
+      expect(String(n1.message)).toMatch(/^(.+ đã thêm bạn vào dự án|Bạn vừa được thêm vào dự án)$/u); // messages.py:25-28 (A6 capital, AppBack bf83f815)
       expect(isTime(n1.createdAt)).toBe(true);
 
       // IDOR: the admin neither sees nor marks the invitee's row (`user_id` in every WHERE, service.py:162-179).
