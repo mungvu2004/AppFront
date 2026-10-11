@@ -233,7 +233,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
                 level="violation"
                 title="Không tải được danh sách dự án"
                 message={errorMessage ?? 'Đã có lỗi xảy ra.'}
-                action={{ label: 'Thử lại', onClick: props.retryLoad, variant: 'secondary' }}
+                {...(props.canRetry ? { action: { label: 'Thử lại', onClick: props.retryLoad, variant: 'secondary' as const } } : {})}
               />
             ) : rows.length === 0 && statusCounts.all === 0 && unreadNotice === null ? (
               // Never had a project — the `empty` rule of `useProjectDashboard`, read from the counts and not

@@ -168,6 +168,7 @@ describe('useProjectDashboard states', () => {
 
     await waitFor(() => expect(dash().model.state).toBe('error'));
     expect(dash().model.errorMessage).toBe('Máy chủ gặp lỗi khi đọc danh sách. Bấm "Thử lại" để tải lại.');
+    expect(dash().model.canRetry).toBe(true);
   });
 
   it('keeps the shared sentence for a lost connection, which is just as true of a page load', async () => {
@@ -182,6 +183,8 @@ describe('useProjectDashboard states', () => {
 
     await waitFor(() => expect(dash().model.state).toBe('error'));
     expect(dash().model.errorMessage).toBe('Tài khoản của bạn chưa được phép xem danh sách dự án. Liên hệ quản trị dự án.');
+    // A retry is refused just the same (review-1 #10): no "Thử lại" to offer.
+    expect(dash().model.canRetry).toBe(false);
   });
 
   it('narrow: a failed read still wins over collapsed (BUG-072)', async () => {

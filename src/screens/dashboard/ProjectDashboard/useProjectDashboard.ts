@@ -142,6 +142,8 @@ export interface ProjectDashboardModel {
   readonly canDelete: boolean;
   readonly canDuplicate: boolean;
   readonly errorMessage: string | null;
+  /** False when the failed read was a 403: reading again is refused just the same, so no "Thử lại". */
+  readonly canRetry: boolean;
   readonly viewMode: ProjectViewMode;
   readonly searchQuery: string;
   readonly statusFilter: ProjectStatusFilter;
@@ -388,6 +390,7 @@ export function useProjectDashboard(
   // The cause and the next step, under the view's "Không tải được danh sách dự án" heading — the old
   // fallback repeated that heading word for word, and `Error.message` could be raw English (BUG-130).
   const errorMessage = listQuery.isError ? listErrorMessageOf(listQuery.error) : null;
+  const canRetry = !listQuery.isError || toAppError(listQuery.error).kind !== 'forbidden';
 
   const state = useMemo<SevenState>(() => {
     // Loading and a failed read beat the narrow overlay: with no list there is nothing
@@ -506,6 +509,7 @@ export function useProjectDashboard(
     canDelete,
     canDuplicate: DASHBOARD_CAPABILITIES.supportsDuplicate,
     errorMessage,
+    canRetry,
     viewMode,
     searchQuery,
     statusFilter,
