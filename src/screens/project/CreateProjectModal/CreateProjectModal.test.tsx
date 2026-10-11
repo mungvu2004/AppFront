@@ -446,6 +446,22 @@ describe('CreateProjectModal, wired to its hook', () => {
     }
   });
 
+  it('reads "3.5" in "áp cho mọi tầng" as 3,5 m and never erases the floors (BUG-132)', async () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+
+    goToStep2();
+    setHeight('Chiều cao áp cho mọi tầng', '3');
+    fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
+    expect(await screen.findByText('3,0 m')).toBeInTheDocument();
+
+    setHeight('Chiều cao áp cho mọi tầng', '3.5');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByText('3,0 m')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
+    expect(await screen.findByText('3,5 m')).toBeInTheDocument();
+  });
+
   it('creates a project and offers an undo, even though the dialog closes (invariant A8)', async () => {
     const invalidate = vi.fn();
     const { client, gateway } = buildGateway(invalidate);

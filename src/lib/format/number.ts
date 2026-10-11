@@ -238,6 +238,9 @@ export function formatPercent(value: MaybeNumber, options: PercentFormatOptions 
   return percentFormatter(digits).format(withoutNegativeZero(ratio));
 }
 
+/** `"4.250"`, `"-1.234.567"`: digits whose dots each start a group of exactly three. */
+const THOUSANDS_GROUPED = /^[-+]?\d{1,3}(?:\.\d{3})+$/u;
+
 /**
  * Read a number a person typed in Vietnamese notation: `"4.250,50"` is `4250.5`.
  *
@@ -245,6 +248,12 @@ export function formatPercent(value: MaybeNumber, options: PercentFormatOptions 
  * ever taken apart: a dot is a thousands group and is dropped, a comma is the
  * decimal mark and becomes one. Assembling this per input field is how
  * `"3,45"` ends up read as `345` somewhere.
+ *
+ * A dot is only a thousands mark where it can be one — beside a decimal comma
+ * (`"4.250,50"`) or grouping exactly three digits (`"4.250"`, `"1.234.567"`).
+ * A lone dot that groups nothing (`"3.5"`, `"0.75"`) is a decimal point typed
+ * on an English keyboard, and reading it as a group mark turned `"3.5"` into
+ * `35` (BUG-132).
  *
  * Deliberately lenient, because it reads keystrokes rather than data: leading
  * and trailing space is ignored, and a numeric prefix is accepted the way
@@ -259,7 +268,8 @@ export function parseNumber(text: string): number | undefined {
     return undefined;
   }
 
-  const normalized = trimmed.replace(/\./gu, '').replace(',', '.');
+  const dotGroupsThousands = trimmed.includes(',') || THOUSANDS_GROUPED.test(trimmed);
+  const normalized = dotGroupsThousands ? trimmed.replace(/\./gu, '').replace(',', '.') : trimmed;
   const parsed = Number.parseFloat(normalized);
 
   return Number.isFinite(parsed) ? parsed : undefined;
