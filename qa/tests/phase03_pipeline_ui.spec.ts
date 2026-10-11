@@ -305,8 +305,13 @@ test.describe('U03 UI verify — SCR-09 floors (CP-2)', () => {
         .getByRole('button', { name: new RegExp(`^${escapeRegExp(first ?? '')} · `, 'u') })
         .click();
       await p.getByRole('button', { name: DUPLICATE_SELECTED, exact: true }).click();
-      await expect(p.getByRole('button', { name: CONFIRM_DUPLICATE, exact: true })).toBeVisible();
+      const confirm = p.getByRole('button', { name: CONFIRM_DUPLICATE, exact: true });
+      await expect(confirm).toBeVisible();
       await expect(p.getByLabel(COPY_FURNITURE).first()).toBeVisible();
+      // BUG-264: the inline confirm sits at the end of the row, past the table's `overflow-auto` edge (FloorTable.tsx:247),
+      // so the shot showed a plain table. Scroll it in and require it on screen: the shot is taken in this state.
+      await confirm.scrollIntoViewIfNeeded();
+      await expect(confirm).toBeInViewport();
     });
   });
 
@@ -314,9 +319,15 @@ test.describe('U03 UI verify — SCR-09 floors (CP-2)', () => {
     await verifyAsAdmin(browser, 'U03_floors_manual_elevation', async (p) => {
       await openFloors(p, cp2());
       const auto = p.getByRole('switch', { name: AUTO_ELEVATION, exact: true });
-      if ((await auto.getAttribute('aria-checked')) === 'true') await auto.click();
+      const elevationInputs = p.getByRole('textbox', { name: /^Cao độ tầng /u });
+      // BUG-264: the switch starts off (useFloorManager.ts:501), so "off" alone is the plain table. Prove the switch
+      // drives the inputs: on → elevations are read-only text (FloorTableRow.tsx:250), then off → inputs again (the shot).
+      if ((await auto.getAttribute('aria-checked')) !== 'true') await auto.click();
+      await expect(auto).toHaveAttribute('aria-checked', 'true');
+      await expect(elevationInputs).toHaveCount(0);
+      await auto.click();
       await expect(auto).toHaveAttribute('aria-checked', 'false');
-      await expect(p.getByRole('textbox', { name: /^Cao độ tầng /u }).first()).toBeVisible();
+      await expect(elevationInputs.first()).toBeVisible();
     });
   });
 

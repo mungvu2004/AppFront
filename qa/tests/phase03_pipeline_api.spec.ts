@@ -155,9 +155,13 @@ async function call(
   claims: readonly string[],
   headers?: Record<string, string>,
 ): Promise<Sent> {
+  // A raw string body goes out as bytes: Playwright JSON-encodes a string that is not valid JSON when the
+  // Content-Type is JSON (client/fetch.js isJsonParsable), so a malformed body would reach the BE as a
+  // valid JSON string (BUG-279/280, same mechanism as BUG-107). A Buffer is sent untouched.
+  const sent = typeof data === 'string' ? Buffer.from(data, 'utf8') : data;
   const res = await api.fetch(path, {
     method,
-    ...(data === undefined ? {} : { data }),
+    ...(sent === undefined ? {} : { data: sent }),
     ...(headers === undefined ? {} : { headers }),
   });
   const shown = typeof data === 'string' && data.length > 2048 ? `<${String(data.length)} chars>` : data;
