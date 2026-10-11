@@ -162,7 +162,7 @@ const NO_FLOORS_TITLE = 'Dự án chưa có tầng nào'; // FU:76
 const NO_FLOORS_ADD = 'Thêm tầng'; // FU:80 ADD_FLOORS_LABEL (FIX-1400, BUG-298)
 const BLOCKED_TITLE = 'Không thể bắt đầu xử lý'; // UFU:115 COPY.blockedTitle
 const NO_FLOORS_REASON = 'Dự án chưa có tầng nào. Thêm tầng ở màn Quản lý tầng trước khi xử lý.'; // UFU:117 (BUG-298)
-const UPLOAD_LOAD_ERROR = 'Không tải được danh sách tầng'; // FU:68
+const UPLOAD_LOAD_ERROR = 'Không tải được danh sách tầng'; // FU:69 — not for a 404 any more (FIX-1401, BUG-311)
 const SELECT_FILE = 'Chọn tệp'; // UFU:100
 const PICK_PAGE = 'Chọn trang'; // FUC:40
 const DISMISS = 'Đóng'; // FUC:45, FUT:21
@@ -1627,10 +1627,15 @@ const UNKNOWN_CASES: readonly UnknownCase[] = [
     slug: 'upload',
     path: (id) => ROUTES.project.upload(id),
     check: async (page) => {
-      // FU:137-142: load error of the floor list; the alert has no action, the breadcrumb is the way out.
-      await expect(page.getByRole('alert').filter({ hasText: UPLOAD_LOAD_ERROR })).toBeVisible();
+      // FU:140-153 + UFU:1200-1208: a 404 floor list = the project is missing → the FloorManager / quality wording
+      // (PSGATE:36-39) and one way out, not the generic load error; no "Thử lại", no drop zone (FIX-1401, BUG-311).
+      const alert = page.getByRole('alert').filter({ hasText: NOT_FOUND_TITLE });
+      await expect(alert).toContainText(NOT_FOUND_SENTENCE);
+      await expect(page.getByText(UPLOAD_LOAD_ERROR, { exact: true })).toHaveCount(0);
+      await expect(alert.getByRole('button', { name: PROCESSING.retry, exact: true })).toHaveCount(0);
+      await expect(page.getByTestId(DROPZONE)).toHaveCount(0);
       await captureEvidence(page, 'E03_unknown_upload.png');
-      await page.getByRole('navigation', { name: 'Đường dẫn trang' }).getByRole('button', { name: 'Dự án', exact: true }).click();
+      await alert.getByRole('button', { name: BACK_TO_PROJECTS, exact: true }).click();
       await expect.poll(() => pathOf(page)).toBe(ROUTES.dashboard);
     },
   },
