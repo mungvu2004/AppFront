@@ -895,7 +895,7 @@
     },
     "empty": {
       "title": "Chưa có bước nào để theo dõi",
-      "description": "Khi bản vẽ được đưa vào hàng đợi, các bước xử lý sẽ hiện ở\u00a0đây.",
+      "description": "Khi bản vẽ được đưa vào hàng đợi, các bước xử lý sẽ hiện ở đây.",
       "action": "Tải bản vẽ"
     },
     "floorChips": {

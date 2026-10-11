@@ -76,8 +76,7 @@ const TAB_LOG_LABEL = 'Nhật ký';
 const FLOOR_OBJECTS_ARIA_LABEL = 'Số đối tượng đã nhận theo tầng';
 
 const EMPTY_TITLE = 'Chưa có bước nào để theo dõi';
-/** NBSP (`\u00a0`) giữ "ở đây." cùng dòng: không thì "đây." đứng một mình ở dòng hai (BUG-170). */
-const EMPTY_DESCRIPTION = 'Khi bản vẽ được đưa vào hàng đợi, các bước xử lý sẽ hiện ở\u00a0đây.';
+const EMPTY_DESCRIPTION = 'Khi bản vẽ được đưa vào hàng đợi, các bước xử lý sẽ hiện ở đây.';
 const EMPTY_ACTION_LABEL = 'Tải bản vẽ';
 
 /** Bao nhiêu khung xương lúc chưa biết bước nào đã xong. */
