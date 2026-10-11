@@ -21,6 +21,8 @@
  *   V   src/screens/viewer/OverlayComparison/ (UV useOverlayComparison.ts, VV OverlayComparison.tsx, VT OverlayComparisonToolbar.tsx,
  *       VP OverlayComparisonPanel.tsx, VG overlayComparisonGateway.ts)
  *   UFL src/hooks/useFloorLayer.ts   UAS src/hooks/useAutosave.ts   SLS src/lib/autosave/spatialLayerSave.ts
+ *   FLRF src/screens/qc/shared/floorLayerReadFailure.ts (a failed first layer read replaces the whole screen, BUG-326)
+ *   PSGATE src/components/feedback/ProjectSpatialGate.tsx
  *   I18N src/i18n/vi.json (`errors.*`)   MOD src/components/overlay/Modal.tsx
  *
  * ## Non-serial
@@ -110,7 +112,13 @@ const WALL = {
   cancel: 'Huỷ', // FSC:62
   floorGone: 'Tầng này không còn tồn tại.', // UFL:31
 } as const;
-const GENERIC_NOT_FOUND = 'Nội dung này có thể đã bị xoá, hoặc đường dẫn chưa đúng.'; // I18N errors.notFound.description
+/* 404 project on a QC layer route: FLRF:55-61 reuses the project 404 copy. */
+const PROJECT_NOT_FOUND_TITLE = 'Không tìm thấy dự án này'; // PSGATE:36
+const PROJECT_NOT_FOUND_SENTENCE = 'Dự án có thể đã bị xoá, đường dẫn chưa đúng, hoặc bạn chưa được thêm vào dự án.'; // PSGATE:37-38
+const BACK_TO_PROJECTS = 'Về danh sách dự án'; // PSGATE:39
+/* 404 floor: FLRF:64-71; the description opens with WALL.floorGone (FLRF:23, UFL:31). */
+const FLOOR_MISSING_TITLE = 'Không mở được tầng này'; // FLRF:21
+const BACK_TO_FLOORS = 'Về quản lý tầng'; // FLRF:24
 const GENERIC_UNKNOWN = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại sau ít phút.'; // vi.json:63 errors.unknown.description (FIX-1387, BUG-209)
 
 /* SCR-17 copy. */
@@ -831,14 +839,18 @@ test.describe('E04 SCR-16 wall layer review', () => {
       const notFound = waitForApi(page, 'GET', layerRe(project.id, missing), [404]);
       await page.goto(ROUTES.project.walls(project.id, missing));
       await notFound; // BE:spatial_read/router.py:71-75 `_floor_or_404`
-      await expect(page.getByRole('alert').filter({ hasText: WALL.floorGone })).toBeVisible(); // UFL:31,65-66; WLP:351-353
+      // FLRF:64-71: a 404 floor replaces the whole screen with one exit (BUG-326, qc/shared/FloorLayerReadFailureScreen.tsx).
+      const gone = page.getByRole('alert').filter({ hasText: WALL.floorGone });
+      await expect(gone).toBeVisible();
+      await expect(gone.getByRole('heading', { name: FLOOR_MISSING_TITLE, exact: true })).toBeVisible();
+      await expect(gone.getByRole('button', { name: BACK_TO_FLOORS, exact: true })).toBeVisible();
       await quiet(page);
       expect(writesSince(api, mark), 'an unknown floor writes nothing').toEqual([]);
       await captureEvidence(page, 'E04_walls_unknown_floor.png');
     });
   });
 
-  test('E04 · SCR-16 unknown project id → errors.notFound sentence in the wall panel, no write', async ({ browser }) => {
+  test('E04 · SCR-16 unknown project id → project 404 screen + "Về danh sách dự án", no write', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page, api } = admin;
       // Not a `prj_<ULID>`: BE answers 404 `project` before any DB read (BE:apps/api/projects/access.py:28-33).
@@ -848,8 +860,11 @@ test.describe('E04 SCR-16 wall layer review', () => {
       const notFound = waitForApi(page, 'GET', layerRe(projectId, floorId), [404]);
       await page.goto(ROUTES.project.walls(projectId, floorId));
       await notFound;
-      // QC layer routes have no ProjectSpatialGate (router.tsx:373); UFL:65-66 describeError(notFound).
-      await expect(page.getByRole('alert').filter({ hasText: GENERIC_NOT_FOUND })).toBeVisible();
+      // QC layer routes have no ProjectSpatialGate (router.tsx:373); FLRF:55-61 404 `project` → the project 404 copy.
+      const missing = page.getByRole('alert').filter({ hasText: PROJECT_NOT_FOUND_SENTENCE });
+      await expect(missing).toBeVisible();
+      await expect(missing.getByRole('heading', { name: PROJECT_NOT_FOUND_TITLE, exact: true })).toBeVisible();
+      await expect(missing.getByRole('button', { name: BACK_TO_PROJECTS, exact: true })).toBeVisible();
       await quiet(page);
       expect(writesSince(api, mark), 'an unknown project writes nothing').toEqual([]);
       await captureEvidence(page, 'E04_walls_unknown_project.png');
