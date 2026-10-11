@@ -186,6 +186,7 @@ function buildBands(rows: readonly FloorRowVm[]): readonly SectionBandVm[] {
     levelId: row.id,
     label: `${row.name} · ${row.heightText}`,
     bandHeightRatio: row.heightMm / TOTAL_STACK_HEIGHT_MM,
+    gapBelowRatio: 0,
     isSelected: row.isSelected,
     isHovered: row.isHovered,
     isHiddenIn3d: row.isHiddenIn3d,

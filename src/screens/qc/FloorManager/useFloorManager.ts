@@ -1567,16 +1567,26 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
       return NO_BANDS;
     }
 
-    return rows.map((row) => ({
-      levelId: row.id,
-      label: bandLabel(row.name, row.heightMm),
-      bandHeightRatio: row.heightMm / totalStackHeightMm,
-      isSelected: row.isSelected,
-      isHovered: row.isHovered,
-      isHiddenIn3d: row.isHiddenIn3d,
-      needsDrawing: row.needsDrawing,
-    }));
-  }, [rows, totalStackHeightMm]);
+    // Mép dưới của dải là cao độ của tầng, không phải đỉnh dải trước: cao độ ghi đè để hở
+    // một khoảng giữa hai tầng thì khoảng ấy nằm DƯỚI dải, không dồn lên đỉnh (BUG-357).
+    let previousTopMm: number = bottomMm ?? 0;
+
+    return rows.map((row) => {
+      const gapBelowMm = Math.max(0, row.elevationMm - previousTopMm);
+      previousTopMm = Math.max(previousTopMm, row.elevationMm + row.heightMm);
+
+      return {
+        levelId: row.id,
+        label: bandLabel(row.name, row.heightMm),
+        bandHeightRatio: row.heightMm / totalStackHeightMm,
+        gapBelowRatio: gapBelowMm / totalStackHeightMm,
+        isSelected: row.isSelected,
+        isHovered: row.isHovered,
+        isHiddenIn3d: row.isHiddenIn3d,
+        needsDrawing: row.needsDrawing,
+      };
+    });
+  }, [bottomMm, rows, totalStackHeightMm]);
 
   const elevationTicks = useMemo<readonly ElevationTickVm[]>(() => {
     if (bottomMm === null || topMm === null || !Number.isFinite(totalStackHeightMm)) {

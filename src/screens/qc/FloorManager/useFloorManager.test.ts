@@ -307,6 +307,34 @@ describe('cao độ ghi đè (BUG-289)', () => {
   });
 });
 
+describe('lát cắt theo cao độ ghi đè (BUG-357)', () => {
+  it('Tầng mái đặt tay cao hơn 1 m: khoảng hở 1 m nằm dưới dải của nó, dải và khoảng hở cộng lại bằng 1', async () => {
+    const mounted = await mountSettled();
+    const roofId = String(FLOOR_MANAGER_SAMPLE_ROOF_ID);
+    const second = levelIn(storeGraph(), String(FLOOR_MANAGER_SAMPLE_SECOND_ID));
+
+    expect(mounted.result.current.bands.every((band) => band.gapBelowRatio === 0)).toBe(true);
+
+    await commitField(
+      mounted,
+      roofId,
+      'elevation',
+      formatLength(second.elevationMm + second.heightMm + 1000, { unit: 'm', fractionDigits: 1 }).replace(' m', ''),
+    );
+    await waitFor(() => {
+      expect(rowOf(mounted, roofId).isElevationOverridden).toBe(true);
+    });
+
+    const bands = mounted.result.current.bands;
+    const total = TOTAL_STACK_HEIGHT_MM + 1000;
+    const roof = bands.find((band) => band.levelId === roofId);
+
+    expect(roof?.gapBelowRatio).toBeCloseTo(1000 / total, 12);
+    expect(bands.filter((band) => band.gapBelowRatio > 0)).toHaveLength(1);
+    expect(bands.reduce((sum, band) => sum + band.bandHeightRatio + band.gapBelowRatio, 0)).toBeCloseTo(1, 12);
+  });
+});
+
 describe('chặn trùng cao độ', () => {
   it('từ chối lượt đặt Tầng mái xuống đúng cao độ của Tầng 2, và gọi tên cả hai', async () => {
     const mounted = await mountSettled();
