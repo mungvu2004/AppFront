@@ -8,9 +8,13 @@ describe('Toggle', () => {
     expect(screen.getByRole('switch')).toBeInTheDocument();
   });
 
-  it('reaches 24 px of hit area through a pseudo-element, the 20 px track unchanged (BUG-158)', () => {
+  it('is a 36×24 box itself, not a 20 px box with a pseudo-element hit area, and gives the 4 px back to the row (BUG-158)', () => {
     render(<Toggle aria-label="Bật/tắt" />);
-    expect(screen.getByRole('switch')).toHaveClass('h-5', 'relative', 'hit-y-24');
+    const toggle = screen.getByRole('switch');
+    expect(toggle).toHaveClass('h-6', 'w-9', '-my-0.5');
+    expect(toggle).not.toHaveClass('hit-y-24');
+    // The visible track is still 36×20.
+    expect(toggle.firstElementChild).toHaveClass('h-5', 'w-full', 'rounded-full');
   });
 
   it('starts unchecked by default', () => {
@@ -70,7 +74,8 @@ describe('Toggle', () => {
   // QA-01b nợ #3: the off track must stand 3:1 off the page, not melt into it.
   it('draws the off track with the control border token', () => {
     render(<Toggle aria-label="Bật/tắt" />);
-    expect(screen.getByRole('switch')).toHaveClass('bg-border-control');
-    expect(screen.getByRole('switch')).not.toHaveClass('bg-bg-sunken');
+    const track = screen.getByRole('switch').firstElementChild;
+    expect(track).toHaveClass('bg-border-control');
+    expect(track).not.toHaveClass('bg-bg-sunken');
   });
 });
