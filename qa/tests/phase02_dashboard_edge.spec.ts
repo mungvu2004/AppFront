@@ -3159,7 +3159,9 @@ test.describe('E02 QA-02 shared components (FE 271538cb) — SCR-05 / SCR-06 / S
         await page.keyboard.press('Enter'); // SR:552-557 a lone key keeps its native action (BUG-151)
         await expect(dot(1)).toHaveAttribute('aria-pressed', 'true');
         await expect.poll(async () => Math.abs((await sheet.evaluate((el) => el.getBoundingClientRect().height)) - SNAP_PEEK_PX)).toBeLessThanOrEqual(2);
-        const after = { tipVisible: await tip.isVisible(), tip: await tip.boundingBox(), dot: await dot(1).boundingBox() };
+        // BUG-197: the tooltip may be gone after the snap (allowed); boundingBox() on a removed element waits the whole test timeout.
+        const tipVisible = await tip.isVisible();
+        const after = { tipVisible, tip: tipVisible ? await tip.boundingBox({ timeout: 1_000 }).catch(() => null) : null, dot: await dot(1).boundingBox() };
         await captureEvidence(page, 'E02_notif_snap_peek.png', { caption: `Enter on "Mức 1" → ${String(SNAP_PEEK_PX)} px peek; tooltip ${after.tipVisible ? 'still shown' : 'gone'}` });
         await attachJson('E02_notif_snap_keyboard.json', { viewport: COMPACT, shown, after });
         // Finding candidate (UI/Low): TT measures its anchor only when it shows (TT:66-77); a tooltip still shown after
