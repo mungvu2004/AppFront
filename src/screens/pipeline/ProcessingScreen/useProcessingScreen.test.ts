@@ -751,6 +751,24 @@ describe('useProcessingScreen', () => {
     mounted.unmount();
   });
 
+  it('khổ hẹp không có lượt nào vẫn là empty, không phải hai cột rỗng', async () => {
+    const harness = makeScriptedClient();
+    const gateway = createProcessingGateway(harness.client, {
+      EventSourceImpl: MockEventSource as unknown as typeof EventSource,
+      visibilityTarget: new MockVisibilityTarget(),
+    });
+    const queryClient = createTestQueryClient();
+    const rendered = renderHook(
+      () => useProcessingScreen({ projectId: PROJECT_ID, floorUploads: [], gateway, forceCollapsed: true }),
+      { wrapper: ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client: queryClient }, children) },
+    );
+
+    await settle(clock);
+
+    expect(rendered.result.current.state).toBe('empty');
+    rendered.unmount();
+  });
+
   it('không có lượt xử lý nào thì màn ở trạng thái empty, không phải tiến độ bịa', async () => {
     const harness = makeScriptedClient();
     const visibility = new MockVisibilityTarget();

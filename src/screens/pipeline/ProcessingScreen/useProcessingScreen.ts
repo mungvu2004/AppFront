@@ -722,8 +722,10 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     if (isLoading) return 'loading';
     if (hasEveryReadFailed) return 'error';
     if (!canEdit) return 'forbidden';
-    if (isCompact) return 'collapsed';
+    // Nothing to lay out narrow: below 1024 px "no run" must still be the empty state with its
+    // next step, not two empty columns (the dashboard's BUG-111, here).
     if (records.length === 0) return 'empty';
+    if (isCompact) return 'collapsed';
     if (doneCount < records.length) return 'partial';
     return 'success';
   }, [canEdit, doneCount, hasEveryReadFailed, isCompact, isLoading, records.length]);
