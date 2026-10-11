@@ -24,7 +24,7 @@
     },
     "forbidden": {
       "title": "Không có quyền",
-      "description": "Tài khoản của bạn chưa được phép làm thao tác này. Liên hệ quản trị dự án."
+      "description": "Tài khoản của bạn chưa có quyền xem hoặc thay đổi nội dung này. Liên hệ quản trị dự án."
     },
     "notFound": {
       "title": "Không tìm thấy",

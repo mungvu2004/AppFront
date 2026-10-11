@@ -163,6 +163,23 @@ describe('useSaveIndicator', () => {
     );
   });
 
+  it("speaks and shows the caller's failedLabel instead of the retry promise", () => {
+    const autosave = createFakeAutosave();
+    const announcer = { announce: vi.fn(), destroy: vi.fn() };
+
+    autosave.emit('saving');
+    const { result } = renderHook(() =>
+      useSaveIndicator(autosave, { announcer, failedLabel: 'Chưa lưu: cần tải lại bản mới nhất' }),
+    );
+
+    act(() => {
+      autosave.emit('failed');
+    });
+
+    expect(announcer.announce).toHaveBeenCalledWith('Chưa lưu: cần tải lại bản mới nhất', 'assertive');
+    expect(result.current.label).toBe('Chưa lưu: cần tải lại bản mới nhất');
+  });
+
   it('stays silent about the state already on screen at mount and about dirty typing', () => {
     const autosave = createFakeAutosave();
     const announcer = { announce: vi.fn(), destroy: vi.fn() };

@@ -25,9 +25,11 @@ export interface UseNumericFieldProps {
    * `value` effect sees no change then, so a refusal still typed in the box would stay. A new key drops it.
    */
   resetKey?: number | undefined;
+  /** Pad to exactly this many decimals ("4,0"), so the box reads like a table cell beside it (BUG-306). */
+  fractionDigits?: number | undefined;
 }
 
-export function useNumericField({ value, onChange, min, max, unit, resetKey }: UseNumericFieldProps) {
+export function useNumericField({ value, onChange, min, max, unit, resetKey, fractionDigits }: UseNumericFieldProps) {
   const [localValue, setLocalValue] = useState<string>('');
   const [isFocused, setIsFocused] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -75,7 +77,7 @@ export function useNumericField({ value, onChange, min, max, unit, resetKey }: U
   // The shared formatter, with one field-specific reading: an editable input
   // shows a missing value as an empty box, not as the read-only `—` placeholder.
   const displayText = (num: number | undefined): string =>
-    num === undefined ? '' : formatNumber(num, { maxFractionDigits: 2 });
+    num === undefined ? '' : formatNumber(num, fractionDigits === undefined ? { maxFractionDigits: 2 } : { fractionDigits });
 
   const commit = useCallback((valStr: string) => {
     const parsed = parseNumber(valStr);

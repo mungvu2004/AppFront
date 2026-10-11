@@ -858,9 +858,18 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     }),
   );
 
+  // Câu "Lưu thất bại. Hệ thống sẽ thử lưu lại…" của engine sai với 409/422/428: gửi lại y
+  // nguyên không bao giờ qua, nên viên chỉ báo VÀ trình đọc màn hình nói việc cần làm (BUG-300).
+  const failedLabel =
+    failureRejection === null
+      ? null
+      : failureRejection === 'validation'
+        ? SETTINGS_SENTENCES.chipRejected
+        : SETTINGS_SENTENCES.chipReload;
   const indicator = useSaveIndicator(autosave, {
     ...(options.now !== undefined ? { now: options.now } : {}),
     ...(options.announcer !== undefined ? { announcer: options.announcer } : {}),
+    failedLabel,
   });
 
   /** Phần mà máy chủ đã từ chối đúng bản nháp hiện tại; sửa phần đó thì lời từ chối hết hiệu lực. */
@@ -1252,14 +1261,6 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
   /* ---------------------------------------------------------------------- */
 
   const saveState: SaveState = hasLocalProblem ? 'pending' : toSaveState(indicator.state);
-  // Câu "Lưu thất bại. Hệ thống sẽ thử lưu lại…" của engine sai với 409/422/428: gửi lại y
-  // nguyên không bao giờ qua, nên viên chỉ báo nói việc cần làm (BUG-300).
-  const rejectedLabel =
-    indicator.state !== 'failed' || failureRejection === null
-      ? null
-      : failureRejection === 'validation'
-        ? SETTINGS_SENTENCES.chipRejected
-        : SETTINGS_SENTENCES.chipReload;
   const floorCount = snapshot?.floorCount ?? 0;
 
   const loadFailure = settingsQuery.isError
@@ -1338,7 +1339,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     saveState,
     // Ép `pending` vì lỗi nhập thì nhãn của tự lưu (có thể là "Đã lưu lúc …" cũ) không còn đúng (B-V1-47),
     // và câu chờ mặc định "Có thay đổi chờ đồng bộ" hứa một lượt đồng bộ sẽ không xảy ra (BUG-286).
-    saveLabel: hasLocalProblem ? SETTINGS_SENTENCES.unsavedProblems : (rejectedLabel ?? indicator.label),
+    saveLabel: hasLocalProblem ? SETTINGS_SENTENCES.unsavedProblems : indicator.label,
     conflictMessage,
     saveFailureMessage,
     isReloadDialogOpen,

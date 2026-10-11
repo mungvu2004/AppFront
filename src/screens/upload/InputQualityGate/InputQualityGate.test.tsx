@@ -981,6 +981,20 @@ describe('InputQualityGateView — ba trạng thái mới của F-05a', () => {
     expect(screen.queryByRole('group', { name: 'Cụm thu phóng' })).toBeNull();
   });
 
+  it('the zoom cluster drives the drawing: "Phóng to" scales the image and its overlays, the label follows', () => {
+    renderWithProviders(<InputQualityGateView {...scenarioFor('success')} />);
+
+    const content = screen.getByTestId('quality-image-content');
+    expect(content.style.width).toBe('100%');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Phóng to' }));
+    expect(content.style.width).toBe('110%');
+    expect(screen.getByRole('button', { name: /Mức thu phóng 110%/u })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Vừa khung nhìn' }));
+    expect(content.style.width).toBe('100%');
+  });
+
   it('lỗi ghi hiện thành dải phía trên hai cột, bằng tiếng Việt', () => {
     const { container } = renderWithProviders(<InputQualityGateView {...writeErrorScenario()} />);
 

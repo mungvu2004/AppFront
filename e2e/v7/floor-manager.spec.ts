@@ -24,10 +24,12 @@ import { QCB_PROJECT, seedQcb } from './seedQcb';
 /** Lần tải đầu của một route bắt Vite dịch nguội; tiền lệ `smoke-grid.spec.ts`. */
 const FIRST_PAINT_TIMEOUT_MS = 15_000;
 
+/** Một dải `role="status"` (FIX-1424): tiêu đề này + câu nội dung tầng (`floorManagerGateway.ts`). */
+const DEBT_TITLE = 'Một số thay đổi chưa được lưu';
 const DEBT_CONTENT =
-  'Nội dung tầng (tường, phòng, nội thất) mới chỉ đổi trong phiên làm việc này; hệ thống chưa có chỗ lưu nó nên nó mất sau khi tải lại trang.';
-const DEBT_HIDE =
-  'Ẩn tầng khỏi mô hình 3D chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang.';
+  'Tường, phòng và nội thất đi theo khi nhân bản hay xoá tầng chưa được lưu; tải lại trang sẽ mất phần thay đổi đó.';
+/** Câu ẩn 3D chỉ thêm vào dải khi có tầng đang ẩn (FIX-1424). */
+const DEBT_HIDE = 'Tầng đang ẩn khỏi mô hình 3D sẽ hiện lại sau khi tải lại trang.';
 
 /** Hàng tầng: `<tr>` mang tên truy cập "<tên>, cao độ …" (`FloorTableRow.tsx`). */
 function floorRows(page: Page) {
@@ -51,18 +53,18 @@ async function openSeeded(page: Page): Promise<void> {
   await expect(floorRows(page)).toHaveCount(4);
 }
 
-test('đường nạp thật: mở thẳng thì màn không treo khung xương — có nút "Thêm tầng", hai câu nợ nói thật (V7-FLOORS-01, B-V6-01)', async ({
+test('đường nạp thật: mở thẳng thì màn không treo khung xương — có nút "Thêm tầng", một dải nợ nói thật (V7-FLOORS-01, B-V6-01)', async ({
   page,
 }) => {
   await open(page);
 
   /* Nút "Thêm tầng" chỉ vắng khi bảng còn khung xương (`isLoading`) — trước B-V6-01 là mãi. */
   await expect(page.getByRole('button', { name: 'Thêm tầng' })).toBeVisible();
-  await expect(
-    page.getByRole('heading', { name: 'Những thay đổi chỉ sống trong phiên làm việc này' }),
-  ).toBeVisible();
-  await expect(page.getByRole('status').filter({ hasText: DEBT_CONTENT })).toBeVisible();
-  await expect(page.getByRole('status').filter({ hasText: DEBT_HIDE })).toBeVisible();
+  const debt = page.getByRole('status').filter({ hasText: DEBT_CONTENT });
+  await expect(debt).toBeVisible();
+  await expect(debt).toContainText(DEBT_TITLE);
+  /* Chưa ẩn tầng nào thì không hứa gì về 3D. */
+  await expect(page.getByRole('status').filter({ hasText: DEBT_HIDE })).toHaveCount(0);
 });
 
 test.fixme(
@@ -88,7 +90,7 @@ test('bơm bộ mẫu: bốn tầng, cao độ và tổng cao dùng dấu phẩy
   await expect(page.getByRole('row', { name: 'Tầng trệt, cao độ 0,0 m, cao 3,9 m, chưa có bản vẽ' })).toBeVisible();
   await expect(page.getByRole('row', { name: 'Tầng hầm, cao độ -3,0 m, cao 3,0 m, chưa có bản vẽ' })).toBeVisible();
   await expect(page.getByText('14,1 m').first()).toBeVisible();
-  /* Hai câu nợ vẫn còn khi đã có hàng — chúng không phải câu của trạng thái rỗng. */
+  /* Câu nợ vẫn còn khi đã có hàng — nó không phải câu của trạng thái rỗng. */
   await expect(page.getByRole('status').filter({ hasText: DEBT_CONTENT })).toBeVisible();
 });
 

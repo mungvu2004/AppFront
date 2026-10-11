@@ -55,6 +55,8 @@ const NEEDS_DRAWING_LABEL = 'Chưa có bản vẽ';
 const NEEDS_DRAWING_ROW_SUFFIX = 'chưa có bản vẽ';
 const UPLOAD_LINK_LABEL = 'Tải lên';
 const COPY_FURNITURE_LABEL = 'Sao chép nội thất sang tầng mới';
+/** Ô nhập mét đọc như ô bảng bên cạnh, "4,0" chứ không "4" (BUG-306; `metreText` của hook). */
+const METRE_FRACTION_DIGITS = 1;
 
 
 /**
@@ -137,7 +139,7 @@ function commitNumericField(
   onFloorFieldChange: FloorRowHandlers['onFloorFieldChange'],
   onFloorFieldCommit: FloorRowHandlers['onFloorFieldCommit'],
 ) {
-  const text = value === undefined ? '' : formatNumber(value, { fractionDigits: 1 });
+  const text = value === undefined ? '' : formatNumber(value, { fractionDigits: METRE_FRACTION_DIGITS });
   onFloorFieldChange(floorId, field, text);
   onFloorFieldCommit(floorId, field);
 }
@@ -287,6 +289,7 @@ export function FloorTableRow({
               commitNumericField(row.id, 'elevation', value, onFloorFieldChange, onFloorFieldCommit)
             }
             onClick={(event) => event.stopPropagation()}
+            fractionDigits={METRE_FRACTION_DIGITS}
             unit="m"
             value={parseNumber(row.draft.elevation)}
           />
@@ -305,6 +308,7 @@ export function FloorTableRow({
             className="w-16 text-[13px]"
             onChange={(value) => commitNumericField(row.id, 'height', value, onFloorFieldChange, onFloorFieldCommit)}
             onClick={(event) => event.stopPropagation()}
+            fractionDigits={METRE_FRACTION_DIGITS}
             unit="m"
             value={parseNumber(row.draft.height)}
           />

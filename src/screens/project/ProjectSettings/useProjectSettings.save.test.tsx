@@ -315,6 +315,26 @@ describe('useProjectSettings, lưu hai phần', () => {
       expect(result.current.saveLabel).not.toBe(SETTINGS_SENTENCES.chipRejected);
     });
 
+    it('BUG-300: trình đọc màn hình đọc đúng câu của viên chỉ báo, không "sẽ thử lưu lại"', async () => {
+      const server = await createFakeServer();
+      const announcer = { announce: vi.fn(), destroy: vi.fn() };
+      const { result } = await mount(server, { announcer });
+
+      server.settingsReplace.mockResolvedValueOnce({
+        ok: false,
+        error: httpError(422, 'VALIDATION', { field: 'body.notes' }),
+      });
+
+      act(() => {
+        result.current.setNotes('qa ‮ghi chú');
+      });
+      await tick(AUTOSAVE_DEBOUNCE_MS);
+
+      expect(result.current.saveLabel).toBe(SETTINGS_SENTENCES.chipRejected);
+      expect(announcer.announce).toHaveBeenCalledWith(SETTINGS_SENTENCES.chipRejected, 'assertive');
+      expect(announcer.announce).not.toHaveBeenCalledWith(viMessages.autosave.failed, 'assertive');
+    });
+
     it('422 body.defaultScaleMmPerPx trỏ về ô tỉ lệ', async () => {
       const server = await createFakeServer();
       const { result } = await mount(server);

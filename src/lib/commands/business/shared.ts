@@ -46,8 +46,9 @@ import type {
 } from '@/domain/spatial/types';
 import { compareNearly, type PointMm } from '@/domain/units/compare';
 import { distanceBetween } from '@/domain/units/snap';
-import { millimetres, MILLIMETRES_PER_METRE } from '@/domain/units/types';
+import { millimetres } from '@/domain/units/types';
 import { centrelineLength, type Wall as SolidWall, type WallKind as SolidWallKind } from '@/domain/walls/types';
+import { formatLength } from '@/lib/format/measure';
 import { formatNumber } from '@/lib/format/number';
 import { err, ok, type Result } from '@/lib/http/types';
 
@@ -240,13 +241,15 @@ export const formatLengthMm = (valueMm: number): string => {
 /** An area in square metres, always two decimals. */
 export const formatAreaM2 = (valueM2: number): string => `${formatNumber(valueM2, { fractionDigits: 2 })} m²`;
 
-/** A height or a difference of heights, in metres. */
+/**
+ * A height or a difference of heights, in metres — one decimal, the floor table's
+ * `metreText` (BUG-306: "+4,000 m" in a refusal beside "4,0 m" in the table).
+ */
 export const formatMetres = (valueMm: number): string =>
-  `${formatNumber(valueMm / MILLIMETRES_PER_METRE, { fractionDigits: 3 })} m`;
+  formatLength(valueMm, { unit: 'm', fractionDigits: 1 });
 
-/** An elevation above the datum, signed the way a section drawing writes it. */
-export const formatElevationM = (valueMm: number): string =>
-  `${valueMm < 0 ? '−' : '+'}${formatMetres(Math.abs(valueMm))}`;
+/** An elevation above the datum; written exactly as the floor table writes it (BUG-306). */
+export const formatElevationM = formatMetres;
 
 /** An angle in degrees; whole values keep no decimal. */
 export const formatAngleDeg = (valueDeg: number): string => {

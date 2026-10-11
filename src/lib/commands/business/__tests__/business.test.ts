@@ -1347,6 +1347,12 @@ describe('room and level commands', () => {
     ).toContain('nằm thấp hơn');
   });
 
+  it('writes metres the way the floor table does: one decimal, no sign (BUG-306)', () => {
+    expect(
+      validateChangeLevelElevation({ levelId: LEVEL_THREE, elevationMm: 5000 }, context).join(' '),
+    ).toBe('Tầng "Tầng 2" ở 3,6 m cao 3,6 m nên đỉnh của nó ở 7,2 m; cao độ mới 5,0 m nằm thấp hơn.');
+  });
+
   it('re-stacks the building when the storeys are reordered', () => {
     const command = expectCommand(
       createReorderLevelsCommand({ levelIds: [LEVEL_TWO, LEVEL_ONE, LEVEL_THREE] }, context),
