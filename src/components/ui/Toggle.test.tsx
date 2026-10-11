@@ -10,7 +10,7 @@ describe('Toggle', () => {
 
   it('reaches 24 px of hit area through a pseudo-element, the 20 px track unchanged (BUG-158)', () => {
     render(<Toggle aria-label="Bật/tắt" />);
-    expect(screen.getByRole('switch')).toHaveClass('h-5', 'before:absolute', 'before:-inset-y-0.5');
+    expect(screen.getByRole('switch')).toHaveClass('h-5', 'relative', 'hit-y-24');
   });
 
   it('starts unchecked by default', () => {

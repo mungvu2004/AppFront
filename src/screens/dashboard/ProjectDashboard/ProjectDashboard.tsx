@@ -149,7 +149,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
     <div className="flex min-h-screen flex-col bg-bg-app">
       {/* Below `sm` the search box takes a row of its own: logo + 320 px box + bell, avatar and
           "Dự án mới" on one non-wrapping row was 524 px wide at 375 (BUG-109). */}
-      <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border-default bg-bg-surface px-4 py-2 sm:h-14 sm:flex-nowrap sm:px-6 sm:py-0">
+      <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border-default bg-bg-surface px-4 py-2 sm:h-14 sm:flex-nowrap sm:px-6">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-wash text-accent" aria-hidden="true">
           <FolderPlus size={18} />
         </div>
@@ -162,9 +162,9 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           // The gap after the icon moves from the input's padding (where scrolled text still draws) to the
           // icon's margin, so a long query is clipped 8 px clear of the icon, not half under it (BUG-169).
           prefix={<Search size={16} aria-hidden="true" className="mr-1" />}
-          // The browser's own clear (×) button sat flush against the last typed glyph (BUG-117).
-          className="pl-0 [&::-webkit-search-cancel-button]:ml-2"
-          wrapperClassName="order-last w-full sm:order-none sm:w-[320px] sm:max-w-full"
+          // The browser's own clear (×) button gets its 8 px gap from globals.css (BUG-117).
+          className="pl-0"
+          wrapperClassName="order-last w-full max-w-full sm:order-none sm:w-[320px]"
         />
         <div className="ml-auto flex items-center gap-3">
           {props.notificationBell}
@@ -193,10 +193,10 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
               onChange={(value) => props.setSortBy(value as ProjectSortOption)}
               className="w-[200px]"
             />
-            {/* 52 px strip = 44 px segments below `sm`, the touch size `Button`/`Input` use (BUG-156). */}
+            {/* 56 px strip = 48 px segments below `sm` (≥ 44 px), the touch size `Button`/`Input` use (BUG-156). */}
             <SegmentedControl
               aria-label="Kiểu xem"
-              className="h-[52px] sm:h-9"
+              className="h-14 sm:h-9"
               options={[
                 { label: 'Lưới', value: 'grid' },
                 { label: 'Bảng', value: 'table' },
@@ -217,7 +217,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
         {isCollapsed && (
           <SegmentedControl
             aria-label="Lọc theo trạng thái"
-            className="h-[52px] sm:h-9 [&>button]:px-2 sm:[&>button]:px-3"
+            className="h-14 sm:h-9 max-sm:[&>button]:px-2"
             options={PROJECT_STATUS_FILTER_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
             value={props.statusFilter}
             onChange={props.setStatusFilter}

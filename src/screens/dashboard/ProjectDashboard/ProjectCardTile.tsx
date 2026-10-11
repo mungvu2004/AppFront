@@ -96,7 +96,7 @@ export function ProjectCardTile({
     >
       <div className={cn('relative shrink-0 border-b border-border-default bg-bg-sunken', size === 'hero' ? 'h-[360px]' : 'h-[132px]')}>
         {/* Below the badge/menu row, so no stroke runs through the status label (BUG-119). */}
-        <div className="absolute inset-x-4 bottom-3 top-14">
+        <div className="absolute left-4 right-4 bottom-3 top-14">
           {project.hasPlan ? (
             <PlanPreview variant={project.planVariant} />
           ) : (

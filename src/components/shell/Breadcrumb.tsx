@@ -127,7 +127,7 @@ export function Breadcrumb({ items }: BreadcrumbProps) {
                 /* Một tên dự án dài cắt "…" (title giữ đủ) để đường dẫn vẫn một dòng ở 375 px (BUG-165);
                    dòng 18 px, không `leading-none`: `truncate` cắt cả dấu chồng của chữ hoa ("Ộ"). */
                 <span
-                  className="inline-block max-w-[10rem] truncate text-[13px] font-medium text-text-secondary leading-[18px] sm:max-w-xs"
+                  className="inline-block max-w-[140px] truncate text-[13px] font-medium text-text-secondary leading-[18px] sm:max-w-xs"
                   title={item.label}
                 >
                   {item.label}

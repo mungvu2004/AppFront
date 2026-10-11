@@ -185,7 +185,7 @@ function DiscardPrompt(props: CreateProjectModalViewProps) {
   return (
     <div
       role="alert"
-      className="absolute inset-x-4 sm:inset-x-6 bottom-full mb-3 flex flex-col gap-3 rounded-[8px] border border-state-attention bg-state-attention-tint p-3 shadow-modal"
+      className="absolute left-4 right-4 sm:inset-x-6 bottom-full mb-3 flex flex-col gap-3 rounded-[8px] border border-state-attention bg-state-attention-tint p-3 shadow-modal"
     >
       <div className="flex items-start gap-3">
         <AlertTriangle className="mt-0.5 shrink-0 text-state-attention" size={18} strokeWidth={2} aria-hidden="true" />
@@ -264,7 +264,7 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
         <span id={TITLE_ID}>Tạo dự án mới</span>
       </Modal.Header>
       <Modal.Body className="px-4 sm:px-6 pt-0 pb-6 min-h-[320px]">
-        <div className="mb-5 flex flex-col gap-2">
+        <div className="mb-4 flex flex-col gap-2">
           <div className="flex items-baseline gap-2">
             <p className="text-[13px] font-semibold leading-[18px] text-text-primary">{props.stepLabel}</p>
             <span className="text-[13px] leading-[18px] text-text-secondary">{STEP_TITLES[step - 1]}</span>

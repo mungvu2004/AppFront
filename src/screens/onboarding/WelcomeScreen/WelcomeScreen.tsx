@@ -175,7 +175,7 @@ function QuietLink({ link, id, toneClass, note }: QuietLinkProps) {
       aria-disabled={isDisabled ? true : undefined}
       aria-describedby={noteOf(link, note) === null ? undefined : noteIdOf(id)}
       className={cn(
-        'inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg px-2 text-[13px] underline underline-offset-4 sm:min-h-6 sm:min-w-6',
+        'inline-flex min-h-11 items-center justify-center rounded-lg px-2 text-[13px] underline underline-offset-2 sm:min-h-6',
         'transition-colors duration-fast motion-reduce:transition-none',
         FOCUS_RING_CLASS,
         isDisabled ? 'cursor-not-allowed text-text-muted' : toneClass,

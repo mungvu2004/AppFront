@@ -44,6 +44,7 @@ export function StepFloors(props: StepFloorsProps) {
         checked={props.hasBasement}
         onChange={props.setHasBasement}
         disabled={isSubmitting || !props.canToggleBasement}
+        aria-describedby={!props.canToggleBasement && props.floorCapNote !== null ? FLOOR_CAP_NOTE_ID : undefined}
         label="Có tầng hầm"
         description="Tầng hầm luôn nằm dưới tầng trệt; cao độ của nó là số âm."
       />
@@ -87,7 +88,7 @@ export function StepFloors(props: StepFloorsProps) {
             <Table.Header>
               <tr>
                 <Table.Head className={CELL_PAD}>Tầng</Table.Head>
-                <Table.Head className={cn(CELL_PAD, 'w-[36%] whitespace-normal')}>Chiều cao thông thuỷ</Table.Head>
+                <Table.Head className={cn(CELL_PAD, 'w-1/3 whitespace-normal')}>Chiều cao thông thuỷ</Table.Head>
                 <Table.Head className={CELL_PAD}>Cao độ</Table.Head>
                 <Table.Head className={CELL_PAD} aria-label="Xoá tầng" />
               </tr>

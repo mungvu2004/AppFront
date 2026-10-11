@@ -59,7 +59,7 @@ import type { ProcessingScreenProps } from './types';
 const BREADCRUMB_PROJECTS = 'Dự án';
 const BREADCRUMB_PIPELINE = 'Xử lý';
 /** Tên dự án dài cắt "…" (title giữ đủ) để ba cấp vẫn một dòng ở 375 px, như `Breadcrumb`. */
-const BREADCRUMB_NAME_CLASS = 'inline-block max-w-[10rem] truncate align-bottom sm:max-w-xs';
+const BREADCRUMB_NAME_CLASS = 'inline-block max-w-[140px] truncate align-top sm:max-w-xs';
 
 const RUN_IN_BACKGROUND_LABEL = 'Để chạy nền và thông báo cho tôi';
 const CANCEL_LABEL = 'Huỷ xử lý';
