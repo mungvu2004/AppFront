@@ -80,6 +80,7 @@ function baseProps(): CreateProjectModalViewProps {
     nameHint: 'Bắt buộc, từ 3 đến 80 ký tự.',
     notice: null,
     floorRows: STACKED_FLOOR_ROWS,
+    floorsHint: null,
     hasBasement: true,
     collision: null,
     collisionRowId: null,
@@ -355,6 +356,27 @@ describe('CreateProjectModal, wired to its hook', () => {
     // No collision warning once the stack is fully specified and non-overlapping.
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeEnabled();
+  });
+
+  it('opens step 2 neutral, says why it cannot continue, then names each row’s own cause (BUG-120)', () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+
+    goToStep2();
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    const next = screen.getByRole('button', { name: 'Tiếp tục' });
+    expect(next).toBeDisabled();
+    expect(next).toHaveAccessibleDescription(
+      'Nhập chiều cao thông thuỷ cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.',
+    );
+
+    setHeight('Chiều cao thông thuỷ tầng Tầng 1', '3');
+
+    expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng trệt')).toHaveAccessibleDescription('Chưa nhập chiều cao thông thuỷ.');
+    expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng 1')).toHaveAccessibleDescription(
+      'Chưa tính được cao độ vì tầng bên dưới còn thiếu chiều cao hợp lệ.',
+    );
+    expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng 2')).toHaveAccessibleDescription('Chưa nhập chiều cao thông thuỷ.');
   });
 
   it('applies one height to every floor with "áp cho mọi tầng"', () => {

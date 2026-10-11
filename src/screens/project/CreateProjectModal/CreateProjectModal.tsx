@@ -54,6 +54,7 @@ import { cn } from '@/lib/utils';
 
 import { StepFloors } from './StepFloors';
 import {
+  FLOORS_HINT_ID,
   PROJECT_LIMITS,
   useCreateProjectModal,
   type CreateProjectModalViewProps,
@@ -287,7 +288,12 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
             Huỷ
           </Button>
           {step < 3 ? (
-            <Button variant="primary" onClick={props.goNext} disabled={!props.canGoNext || isSubmitting}>
+            <Button
+              variant="primary"
+              onClick={props.goNext}
+              disabled={!props.canGoNext || isSubmitting}
+              aria-describedby={step === 2 && props.floorsHint !== null ? FLOORS_HINT_ID : undefined}
+            >
               Tiếp tục
             </Button>
           ) : (

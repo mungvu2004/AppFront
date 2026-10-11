@@ -251,6 +251,7 @@
         "basementName": "Tầng hầm",
         "emptyTitle": "Chưa có tầng nào",
         "emptyDescription": "Thêm ít nhất một tầng để sang bước xem lại.",
+        "continueHint": "Nhập chiều cao thông thuỷ cho từng tầng, hoặc dùng \"Áp cho mọi tầng\", để sang bước xem lại.",
         "missingHeight": "Chưa nhập chiều cao thông thuỷ.",
         "missingHeightBelow": "Chưa tính được cao độ vì tầng bên dưới còn thiếu chiều cao hợp lệ.",
         "elevationOutOfRange": "Cao độ vượt giới hạn cho phép ({{min}} đến {{max}} mét)."

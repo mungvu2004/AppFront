@@ -19,7 +19,7 @@ import { NumericField } from '@/components/ui/NumericField';
 import { Table } from '@/components/ui/Table';
 import { Toggle } from '@/components/ui/Toggle';
 
-import { PROJECT_LIMITS, type CreateProjectModalViewProps } from './useCreateProjectModal';
+import { FLOORS_HINT_ID, PROJECT_LIMITS, type CreateProjectModalViewProps } from './useCreateProjectModal';
 
 export interface StepFloorsProps extends CreateProjectModalViewProps {
   readonly rowRefs: React.MutableRefObject<Map<string, HTMLTableRowElement>>;
@@ -38,6 +38,12 @@ export function StepFloors(props: StepFloorsProps) {
         label="Có tầng hầm"
         description="Tầng hầm luôn nằm dưới tầng trệt; cao độ của nó là số âm."
       />
+
+      {props.floorsHint !== null && (
+        <p id={FLOORS_HINT_ID} className="text-[13px] leading-[18px] text-text-secondary">
+          {props.floorsHint}
+        </p>
+      )}
 
       {props.collision !== null && (
         <InlineAlert

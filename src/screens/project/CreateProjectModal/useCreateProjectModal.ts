@@ -236,7 +236,14 @@ function computeFloorStack(rows: readonly DraftFloorRow[]): FloorStack {
 
   aboveRows.forEach((row, index) => {
     if (chainBroken) {
-      problemById.set(row.id, 'Chưa tính được cao độ vì tầng bên dưới còn thiếu chiều cao hợp lệ.');
+      // A row with no height of its own says so; only a row that HAS one is
+      // waiting on the floor below (BUG-120).
+      problemById.set(
+        row.id,
+        row.clearHeightM === null
+          ? 'Chưa nhập chiều cao thông thuỷ.'
+          : 'Chưa tính được cao độ vì tầng bên dưới còn thiếu chiều cao hợp lệ.',
+      );
       return;
     }
 
@@ -358,6 +365,11 @@ function useNarrowViewport(): boolean {
 /* The model and the actions.                                                  */
 /* -------------------------------------------------------------------------- */
 
+/** The id of step 2's "why can I not continue yet" line — `Tiếp tục` points at it. */
+export const FLOORS_HINT_ID = 'create-project-floors-hint';
+
+const FLOORS_HINT = 'Nhập chiều cao thông thuỷ cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.';
+
 export interface CreateProjectNotice {
   readonly level: 'attention' | 'violation';
   readonly message: string;
@@ -384,6 +396,8 @@ export interface CreateProjectModel {
   readonly nameHint: string;
   readonly notice: CreateProjectNotice | null;
   readonly floorRows: readonly CreateProjectFloorRowModel[];
+  /** Why step 2 cannot continue while no row has been touched yet; `null` otherwise. */
+  readonly floorsHint: string | null;
   readonly hasBasement: boolean;
   readonly collision: string | null;
   readonly collisionRowId: string | null;
@@ -473,6 +487,7 @@ export function useCreateProjectModal(
   const [notes, setNotesState] = useState('');
   const [isSelectOpen, setIsSelectOpen] = useState(false);
   const [floorRows, setFloorRows] = useState<readonly DraftFloorRow[]>(createDefaultFloorRows);
+  const [floorsTouched, setFloorsTouched] = useState(false);
   const [applyHeightM, setApplyHeightMState] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConfirmingDiscard, setIsConfirmingDiscard] = useState(false);
@@ -526,13 +541,21 @@ export function useCreateProjectModal(
     kind: row.kind,
     clearHeightM: row.clearHeightM,
     elevationLabel: floorStack.elevationLabelById.get(row.id) ?? null,
-    problem: floorStack.problemById.get(row.id) ?? null,
+    // Step 2 opens neutral (BUG-120): a row complains once the stack has been edited.
+    problem: floorsTouched ? (floorStack.problemById.get(row.id) ?? null) : null,
   }));
+  const floorsHint = !floorsTouched && floorRows.length > 0 && !canGoNextStep2 ? FLOORS_HINT : null;
 
   /** Every mutating action goes through this: it marks the form worth confirming before a close. */
   const markDirty = (): void => {
     setIsDirty(true);
     setIsConfirmingDiscard(false);
+  };
+
+  /** Every edit of the floor stack: the form is dirty and the rows may now complain. */
+  const touchFloors = (): void => {
+    markDirty();
+    setFloorsTouched(true);
   };
 
   const setName = (value: string): void => {
@@ -569,7 +592,7 @@ export function useCreateProjectModal(
 
   const addFloor = (): void => {
     if (!canAddFloor) return;
-    markDirty();
+    touchFloors();
     setFloorRows((current) => {
       const aboveCount = current.filter((row) => row.kind === 'floor').length;
       return [...current, { id: createUuid(), name: nextFloorName(aboveCount), kind: 'floor', clearHeightM: null }];
@@ -577,17 +600,17 @@ export function useCreateProjectModal(
   };
 
   const removeFloor = (id: string): void => {
-    markDirty();
+    touchFloors();
     setFloorRows((current) => current.filter((row) => row.id !== id));
   };
 
   const setFloorName = (id: string, value: string): void => {
-    markDirty();
+    touchFloors();
     setFloorRows((current) => current.map((row) => (row.id === id ? { ...row, name: value } : row)));
   };
 
   const setFloorHeight = (id: string, valueM: number | undefined): void => {
-    markDirty();
+    touchFloors();
     setFloorRows((current) =>
       current.map((row) => (row.id === id ? { ...row, clearHeightM: valueM ?? null } : row)),
     );
@@ -600,12 +623,12 @@ export function useCreateProjectModal(
   /** The one place a height is written to every row at once, rather than row by row. */
   const applyHeightToAllFloors = (): void => {
     if (!canApplyHeight || applyHeightM === null) return;
-    markDirty();
+    touchFloors();
     setFloorRows((current) => current.map((row) => ({ ...row, clearHeightM: applyHeightM })));
   };
 
   const setHasBasement = (value: boolean): void => {
-    markDirty();
+    touchFloors();
     setFloorRows((current) => {
       const already = current.some((row) => row.kind === 'basement');
       if (value === already) return current;
@@ -706,6 +729,7 @@ export function useCreateProjectModal(
     nameHint: NAME_HINT,
     notice,
     floorRows: floorRowModels,
+    floorsHint,
     hasBasement: floorRows.some((row) => row.kind === 'basement'),
     collision: floorStack.collision,
     collisionRowId: floorStack.collisionRowId,
