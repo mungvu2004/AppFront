@@ -221,7 +221,8 @@ async function verifyAsAdmin(
   try {
     await ensureAdminSession(context, ADMIN_STORAGE_STATE_FILE);
     await prepare?.(context);
-    await verifyUi(await context.newPage(), name, open, viewports);
+    // BUG-161: SCR-06 states are a fixed drawer / bottom sheet / pinned panel — shoot the viewport the person sees.
+    await verifyUi(await context.newPage(), name, open, viewports, { fullPage: !name.startsWith('U02_notif_') });
   } finally {
     await context.storageState({ path: ADMIN_STORAGE_STATE_FILE });
     await context.close();

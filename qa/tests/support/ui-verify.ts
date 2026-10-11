@@ -1,7 +1,7 @@
 /**
  * Dedicated UI-verification case (skill `qa-verify-ui`): one screen state × the four review viewports
  * (skill `qa-review-ui`). Per viewport it re-opens the state (layouts read the viewport at mount), measures
- * layout defects in the page, captures a full-page `<name>_<width>.png`, and attaches all metrics as
+ * layout defects in the page, captures `<name>_<width>.png` (full page unless `shot.fullPage` is false), and attaches all metrics as
  * `<name>.json` for the reviewer. Hard defects fail softly (horizontal scroll, controls pushed off-screen,
  * broken images); heuristic ones (clipped text, overlapping or small controls) are data for the review.
  */
@@ -111,8 +111,17 @@ function measure(touchTargetPx: number): Omit<UiMetrics, 'viewport'> {
  * BUG-101: a width where `open` fails does not end the case — that width is still measured and shot (what the
  * page showed instead), `openError` goes into `<name>.json`, every width runs, and the case fails softly at the
  * end. A `test.skip()` inside `open` still skips.
+ * BUG-161: a full-page shot of a `position: fixed` drawer/sheet adds the page below the fold under it, so the sheet
+ * looks like it floats mid-image. States whose subject is fixed to the viewport pass `{ fullPage: false }`.
  */
-export async function verifyUi(page: Page, name: string, open: (page: Page) => Promise<void>, viewports: readonly { readonly width: number; readonly height: number }[] = UI_VIEWPORTS): Promise<UiMetrics[]> {
+export async function verifyUi(
+  page: Page,
+  name: string,
+  open: (page: Page) => Promise<void>,
+  viewports: readonly { readonly width: number; readonly height: number }[] = UI_VIEWPORTS,
+  shot: { readonly fullPage?: boolean } = {},
+): Promise<UiMetrics[]> {
+  const fullPage = shot.fullPage ?? true;
   const all: UiMetrics[] = [];
   for (const vp of viewports) {
     await page.setViewportSize(vp);
@@ -132,7 +141,7 @@ export async function verifyUi(page: Page, name: string, open: (page: Page) => P
       ...(openError === undefined ? {} : { openError }),
       ...(await page.evaluate(measure, TOUCH_TARGET_PX)),
     });
-    await captureEvidence(page, `${name}_${vp.width}.png`, { fullPage: true });
+    await captureEvidence(page, `${name}_${vp.width}.png`, { fullPage });
   }
   // Next to the images, so the reviewer reads one small file instead of decoding results.json.
   mkdirSync(EVIDENCE_DIR, { recursive: true });
