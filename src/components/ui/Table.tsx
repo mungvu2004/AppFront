@@ -88,7 +88,7 @@ const TableRow = React.forwardRef<HTMLTableRowElement, TableRowProps>((
     isFlash && 'bg-bg-flash hover:bg-bg-flash',
     isAttention && 'bg-state-attention-tint',
     focused && 'ring-2 ring-inset ring-accent',
-    // Accent 2px left edge via a ::before on the first td: `row-edge` (globals.css), shown when selected.
+    // Accent 2px left edge via a ::before on the first td: `row-edge` (globals.css), shown when selected or hovered.
     selected ? 'row-edge row-edge-on' : 'row-edge',
     className
   );
