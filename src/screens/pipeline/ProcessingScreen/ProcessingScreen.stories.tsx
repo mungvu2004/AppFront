@@ -227,7 +227,7 @@ function previewOf(
  */
 export const SAMPLE_SUMMARY: ProcessingSummaryViewModel = {
   metricLabels: ['48 tường', '108 đối tượng', '26 chuỗi kích thước', '34 phòng', '248,60 m²'],
-  lowConfidenceSentence: 'Có 9 mức độ tin cậy dưới 0,70 cần bạn xem lại.',
+  lowConfidenceSentence: 'Có 9 đối tượng có độ tin cậy dưới 0,75 cần bạn xem lại.',
   onReviewWalls: NO_OP,
   onCalibrateScale: NO_OP,
 };

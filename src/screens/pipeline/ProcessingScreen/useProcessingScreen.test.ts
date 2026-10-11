@@ -746,6 +746,72 @@ describe('useProcessingScreen', () => {
     mounted.unmount();
   });
 
+  // BUG-354: the sentence used the global 0,70 while the project setting said 0,75.
+  it.each([
+    { threshold: 0.95, label: '0,95' },
+    { threshold: 0.5, label: '0,50' },
+  ])('the low-confidence sentence counts against the project threshold $label (BUG-354)', async ({ label, threshold }) => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 1);
+    const upload = uploads[0]!;
+    const layer = await harness.client.spatial.readLayer({ projectId: PROJECT_ID, floorId: upload.floorId });
+    const settings = await harness.client.projectSettings.read({ projectId: PROJECT_ID });
+    if (!layer.ok || !settings.ok) throw new Error('Không đọc được dữ liệu mẫu.');
+    const { dimensions, layer: sample } = SAMPLE_LAYER_DOCUMENT;
+    vi.spyOn(harness.client.spatial, 'readLayer').mockResolvedValue({
+      ok: true,
+      data: { ...layer.data, dimensions, layer: sample },
+    });
+    vi.spyOn(harness.client.projectSettings, 'read').mockResolvedValue({
+      ok: true,
+      data: { ...settings.data, confidenceThreshold: threshold },
+    });
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+
+    await settle(clock);
+    await act(async () => {
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(finishedProgress(upload.uploadId));
+      await clock.advance(POLL_INTERVAL_MS);
+    });
+    await settle(clock);
+
+    const low = [...sample.walls, ...sample.openings, ...sample.rooms].filter(
+      (item) => !item.reviewed && item.confidence < threshold,
+    ).length;
+    expect(mounted.result.current.summary?.lowConfidenceSentence).toBe(
+      low === 0
+        ? `Không có đối tượng nào có độ tin cậy dưới ${label}.`
+        : `Có ${String(low)} đối tượng có độ tin cậy dưới ${label} cần bạn xem lại.`,
+    );
+
+    mounted.unmount();
+  });
+
+  it('settings that cannot be read drop the low-confidence sentence, not the counts (BUG-354)', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 1);
+    const upload = uploads[0]!;
+    vi.spyOn(harness.client.projectSettings, 'read').mockResolvedValue({
+      ok: false,
+      error: new Error('N5 down') as unknown as HttpError,
+    });
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+
+    await settle(clock);
+    await act(async () => {
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(finishedProgress(upload.uploadId));
+      await clock.advance(POLL_INTERVAL_MS);
+    });
+    await settle(clock);
+
+    expect(mounted.result.current.summary?.metricLabels).toHaveLength(5);
+    expect(mounted.result.current.summary?.lowConfidenceSentence).toBeUndefined();
+
+    mounted.unmount();
+  });
+
   it('a finished floor whose layer cannot be read still offers the way on, without counts (BUG-285)', async () => {
     const harness = makeScriptedClient();
     const uploads = await readFloorUploads(harness.client, 1);

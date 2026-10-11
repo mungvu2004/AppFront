@@ -95,7 +95,6 @@ import { can } from '@/lib/auth/permissions';
 import { formatClockTime, formatDuration } from '@/lib/format/datetime';
 import { formatArea } from '@/lib/format/measure';
 import { formatNumber, formatPercent } from '@/lib/format/number';
-import { CONFIDENCE_SUGGESTED_THRESHOLD } from '@/lib/format/semantic';
 import { MILLISECONDS_PER_SECOND } from '@/lib/motion/tokens';
 import type { NotificationBus, NotificationInput } from '@/lib/mutations/notificationBus';
 import { cachedProjectName } from '@/lib/query/cachedProjectName';
@@ -196,12 +195,12 @@ const queueSentence = (position: string): string => `Đang chờ hàng đợi �
 const partialSentence = (failedNames: string): string =>
   `${failedNames} gặp lỗi. Các tầng còn lại vẫn đang được xử lý.`;
 
-/** Ví dụ `"Có 9 mức độ tin cậy dưới 0,70 cần bạn xem lại."`. */
+/** Ví dụ `"Có 9 đối tượng có độ tin cậy dưới 0,75 cần bạn xem lại."` — ngưỡng của dự án (BUG-354). */
 const lowConfidenceSentence = (count: string, threshold: string): string =>
-  `Có ${count} mức độ tin cậy dưới ${threshold} cần bạn xem lại.`;
+  `Có ${count} ${UNIT.object} có độ tin cậy dưới ${threshold} cần bạn xem lại.`;
 
 const noLowConfidenceSentence = (threshold: string): string =>
-  `Không có mức độ tin cậy nào dưới ${threshold}.`;
+  `Không có ${UNIT.object} nào có độ tin cậy dưới ${threshold}.`;
 
 /* -------------------------------------------------------------------------- */
 /* Hằng lấy từ thư viện, không viết tay (R-71).                                 */
@@ -1247,6 +1246,9 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
         dimensionCount: accumulated.dimensionCount + part.dimensionCount,
         roomCount: accumulated.roomCount + part.roomCount,
         areaM2: accumulated.areaM2 + part.areaM2,
+        // Mọi tầng cùng một dự án nên cùng một ngưỡng; một tầng không đọc được cài đặt thì bỏ câu.
+        confidenceThreshold:
+          accumulated.confidenceThreshold === null ? null : part.confidenceThreshold,
         lowConfidenceCount: accumulated.lowConfidenceCount + part.lowConfidenceCount,
       }),
       {
@@ -1255,11 +1257,15 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
         dimensionCount: 0,
         roomCount: 0,
         areaM2: 0,
+        confidenceThreshold: parts[0]?.confidenceThreshold ?? null,
         lowConfidenceCount: 0,
       },
     );
 
-    const threshold = formatNumber(CONFIDENCE_SUGGESTED_THRESHOLD, { fractionDigits: 2 });
+    const threshold =
+      total.confidenceThreshold === null
+        ? null
+        : formatNumber(total.confidenceThreshold, { fractionDigits: 2 });
 
     return {
       metricLabels: [
@@ -1269,13 +1275,17 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
         countLabel(total.roomCount, UNIT.room),
         formatArea(total.areaM2),
       ],
-      lowConfidenceSentence:
-        total.lowConfidenceCount === 0
-          ? noLowConfidenceSentence(threshold)
-          : lowConfidenceSentence(
-              formatNumber(total.lowConfidenceCount, { fractionDigits: 0 }),
-              threshold,
-            ),
+      ...(threshold === null
+        ? {}
+        : {
+            lowConfidenceSentence:
+              total.lowConfidenceCount === 0
+                ? noLowConfidenceSentence(threshold)
+                : lowConfidenceSentence(
+                    formatNumber(total.lowConfidenceCount, { fractionDigits: 0 }),
+                    threshold,
+                  ),
+          }),
       ...actions,
     };
   }, [extractions, floorStatuses, navigate, projectId]);

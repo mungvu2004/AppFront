@@ -928,8 +928,8 @@
       "ariaLabel": "Báo cáo tổng kết",
       "reviewWalls": "Duyệt lớp tường",
       "calibrateScale": "Hiệu chỉnh tỷ lệ",
-      "lowConfidence": "Có {{count}} mức độ tin cậy dưới {{threshold}} cần bạn xem lại.",
-      "noLowConfidence": "Không có mức độ tin cậy nào dưới {{threshold}}."
+      "lowConfidence": "Có {{count}} đối tượng có độ tin cậy dưới {{threshold}} cần bạn xem lại.",
+      "noLowConfidence": "Không có đối tượng nào có độ tin cậy dưới {{threshold}}."
     },
     "missingProject": {
       "title": "Không xác định được dự án",

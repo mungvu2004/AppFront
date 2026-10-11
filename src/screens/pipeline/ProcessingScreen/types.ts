@@ -150,7 +150,7 @@ export interface ProcessingSummaryViewModel {
    * `"248,60 m²"`. Rỗng khi chưa đọc được số liệu: khối vẫn hiện để giữ hai lối đi tiếp.
    */
   readonly metricLabels: readonly string[];
-  /** Cả câu, đã ghép số — ví dụ `"Có 9 mức độ tin cậy dưới 0,75 cần bạn xem lại."`. */
+  /** Cả câu, đã ghép số — ví dụ `"Có 9 đối tượng có độ tin cậy dưới 0,75 cần bạn xem lại."`. */
   readonly lowConfidenceSentence?: string;
   readonly onReviewWalls: () => void;
   readonly onCalibrateScale: () => void;
