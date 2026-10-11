@@ -1,15 +1,16 @@
-<!-- qa-sources fe=8f03047b -->
+<!-- qa-sources fe=60778e96 -->
 # Phase 04 — QC layers: FE coverage inventory
 
 Screens SCR-16 walls, SCR-17 objects, SCR-18 dimension OCR, SCR-19 axes, SCR-20 rooms, SCR-21 thickness, SCR-14 scale,
-SCR-22 overlay. Source `F:/App/AppFront` @ 8f03047b. Backend rules (#35 write, W20 409, W4 ids, integrity, A5) live in
+SCR-22 overlay. Source `F:/App/AppFront` @ 60778e96 (rows 1-172 inventoried @ 8f03047b; the 8f03047b..60778e96 diff touches
+no phase-04 screen file, only the shared pieces listed under "Change impact" below). Backend rules (#35 write, W20 409, W4 ids, integrity, A5) live in
 `coverage/phase04-be.md` (API spec), not here.
 
 Test keys:
 - **M** `tests/phase04_qc_layers.spec.ts` (serial, shared CP-5 work floor) — title quoted by its prefix.
 - **E** `tests/phase04_qc_layers_edge.spec.ts` (non-serial, own project per test) — `E04 · …` titles.
 - **R9** `tests/phase09_roles_matrix.spec.ts` (Track B mock, viewer/engineer).
-- **UI** dedicated UI-verify spec `phase04_*_ui.spec.ts` — not authored yet (owner: qa-verify-ui step).
+- **UI** `tests/phase04_qc_layers_ui.spec.ts` (`U04 · …`, 4 viewports 1440/1024/768/375 with layout measurements).
 
 Path short names: `W/` = `src/screens/qc/WallLayerReview/`, `O/` = `…/ObjectLayerReview/`, `D/` = `…/DimensionOcrReview/`,
 `A/` = `…/AxisGridManager/`, `R/` = `…/RoomLabelReview/`, `T/` = `…/ThicknessStandardization/`,
@@ -72,7 +73,7 @@ Path short names: `W/` = `src/screens/qc/WallLayerReview/`, `O/` = `…/ObjectLa
 | 46 | State | loading (12 skeleton rows) | `W/WallLayerList.tsx:239-241` | — | gap (P3, transient; UI layer) |
 | 47 | State | error 404 floor "Tầng này không còn tồn tại." | `hooks/useFloorLayer.ts:31,65-66`, `W/WallLayerLeftPanel.tsx:351-353` | E "SCR-16 unknown floor id" | covered |
 | 48 | State | error unknown project (errors.notFound) — no ProjectSpatialGate on QC routes | `hooks/useFloorLayer.ts:65-66`, `i18n/vi.json` errors.notFound | E "SCR-16 unknown project id" | covered |
-| 49 | State | error 5xx (errors.unknown), screen not blank | `lib/errors/toAppError.ts:10-18,211` | E "SCR-16 [mocked response] … 500" | covered (unpairable) |
+| 49 | State | error 5xx (errors.unknown "…Hãy thử lại sau ít phút.", copy changed in e5f7f279), screen not blank | `lib/errors/toAppError.ts:10-18,211`, `i18n/vi.json:63` | E "SCR-16 [mocked response] … 500" | covered (unpairable) |
 | 50 | State | forbidden (viewer): notice, no approve, rail read-only | `W/useWallLayerReview.ts:207,520-521,572-573`, `W/WallLayerCanvas.tsx:75` | R9 SCR-16 [V] | covered |
 | 51 | State | missing route params "Thiếu mã dự án hoặc mã tầng" | `W/WallLayerReview.container.tsx:91-93,281-291` | — | n/a-by-design (router always supplies both params) |
 | 52 | Status bar | "Thanh trạng thái": cursor / scale / save label | `W/WallLayerStatusBar.tsx:95-110`, `W/wallLayerReviewGateway.ts:855` | — | gap (P3) |
@@ -232,18 +233,35 @@ Path short names: `W/` = `src/screens/qc/WallLayerReview/`, `O/` = `…/ObjectLa
 | 171 | State | forbidden "Bạn chỉ được xem…", read-only notice | `V/useOverlayComparison.ts:113`, `V/OverlayComparisonToolbar.tsx:62` | — | gap (R9 does not open SCR-22) |
 | 172 | State | loading "Đang tải ảnh bản vẽ gốc.", partial sentences | `V/useOverlayComparison.ts:117,128-136` | — | gap (P3) |
 
+## Change impact 8f03047b..60778e96 (shared components)
+
+| # | Group | Element / state | Source (file:line) | Covering test | Status |
+|---|---|---|---|---|---|
+| 173 | Modal | SCR-16 A9 "Bỏ thay đổi chưa lưu của tầng này?" at 375 px: footer now wraps, "Huỷ" and "Tải lại và bỏ thay đổi" inside the viewport | `components/overlay/Modal.tsx:208,258-279`, `W/FloorLayerSaveConfirm.tsx:12-19` | E "SCR-16 409 at 375 px …" | covered |
+| 174 | Keyboard | Esc closes the A9 dialog like "Huỷ": banner stays, no re-read, no write | `components/overlay/Modal.tsx:58-63,76-79`, `W/FloorLayerSaveConfirm.tsx:14` | E "SCR-16 409 at 375 px …" | covered |
+| 175 | Modal | SCR-14 "Áp tỉ lệ này cho N tầng có bản vẽ?" footer at 375 px | `components/overlay/Modal.tsx:208`, `S/ScaleCalibration.tsx:243-251` | UI "U04 · SCR-14 scale, "Áp cho mọi tầng" → confirm dialog" | covered (UI layer) |
+| 176 | Modal | SCR-20 "Xem trước chuẩn hoá tên" / "Gộp hai phòng" footers at 375 px | `components/overlay/Modal.tsx:208`, `R/RoomLabelNormalizePreview.tsx:92-101`, `R/RoomLabelActionDialogs.tsx:84-91` | UI "U04 · SCR-20 rooms, "Chuẩn hoá tên" …", "U04 · SCR-20 rooms, "Gộp phòng" …" | covered (UI layer) |
+| 177 | Modal | SCR-20 "Tách phòng" footer at 375 px | `R/RoomLabelActionDialogs.tsx:110-117` | — | gap (same blocker as #118: needs a canvas boundary click) |
+
+Not on any phase-04 screen (checked by grep over `src/screens/qc/{WallLayerReview,ObjectLayerReview,DimensionOcrReview,AxisGridManager,RoomLabelReview,ThicknessStandardization}`, `src/screens/pipeline/ScaleCalibration`, `src/screens/viewer/OverlayComparison`), so no row:
+- `components/shell/Breadcrumb.tsx:62,143` 44×44 px levels under 640 px — Breadcrumb is mounted by FloorManager and AppShell users only; the QC screens build their own header.
+- `components/feedback/ProgressOverlay.tsx:29`, `PipelineStepper.tsx:148` — blur written as an arbitrary property (visual only); used by processing/onboarding/export screens.
+- `screens/qc/FloorManager/*`, `e2e/v7/floor-manager.spec.ts` — Floor Manager route belongs to an earlier phase; no phase-04 screen links to it.
+- `i18n/vi.json` other keys (settings, upload, floorManager) — not read by phase-04 screens; only `errors.unknown.description` reaches them (row #49).
+
 ## Mocked tests and API pairs
 
 | UI test | Mocked response | Pair |
 |---|---|---|
 | E "SCR-16 [mocked response] GET …/spatial/layer 500" | `GET /api/projects/:p/floors/:f/spatial/layer` → 500 | unpairable: 5xx is not producible on the shared stack (row owed in `coverage/phase04-be.md`) |
 
-Mock share (edge layer): 1 / 29 = 3,4 % (limit `rules.maxMockedShare` 35 %).
+Mock share (edge layer): 1 / 30 = 3,3 % (limit `rules.maxMockedShare` 35 %).
 
 ## Summary
 
-- FE rows: 172. covered 114 (rows citing E: 64, M: 61, R9: 5; a row may cite several), gap 56, UNKNOWN 1, n/a-by-design 1.
-- Edge tests authored: 29 (`tests/phase04_qc_layers_edge.spec.ts`), 28 real + 1 mocked.
+- FE rows: 177. covered 118 (rows citing E: 66, M: 61, R9: 5, UI: 2; a row may cite several), gap 57, UNKNOWN 1, n/a-by-design 1.
+- Edge tests authored: 30 (`tests/phase04_qc_layers_edge.spec.ts`), 29 real + 1 mocked. New @ 60778e96: "SCR-16 409 at 375 px …" (#173-174);
+  updated: the mocked 500 test now expects the new `errors.unknown` copy (#49).
 - Covered rows that FAIL on the real stack (suspected app bugs, left failing):
   - #120 SCR-20 "Chưa đặt tên" filter dead end: the notice says to switch the filter off, but `RoomLabelReview.tsx:139-149` replaces the left column (and the toggle) with an EmptyState; title also reads "Chưa dò ra phòng nào" while a room exists.
   - #92 SCR-19 "Thêm trục dọc" on a wall-derived grid: the previewed axes (listed as normal rows with Ẩn/Xoá) vanish once one axis is stored (`useAxisGridManager.ts:455-462`) — 4 rows become 1; the preview can never be committed because "Suy ra từ tường bao" only renders in the empty state.

@@ -20,11 +20,12 @@
  *
  * ## Real-backend budget per run (BE defaults; the QA stack adds `qa-limits.override.yml`)
  * - No rate limit on N16 / #35 / #33 / N15 / #12 (grep `rate_limit(` in spatial_read/, spatial_write/, floors/: none).
- * - `POST /api/auth/login` per IP 30 / 60 s (BE:auth/settings.py:36-37; override LOGIN_IP_LIMIT=120): THIS file 9
- *   (one admin login in each of the 8 signed-in tests + 1 engineer login in "roles"), 0 failed. Phase-4 UI layers:
- *   main `phase04_qc_layers.spec.ts` 1 (`signInAdmin`, +1 only for a dead stored session); ui
- *   `phase04_qc_layers_ui.spec.ts` 1 (`signedInApi`, +1 only for a dead stored session); no edge spec at authoring
- *   time. Layers run sequentially -> <= 13 per run, far below 30 even without the override.
+ * - `POST /api/auth/login` per IP 30 / 60 s (BE:auth/settings.py:36-37, auth/router.py:121-129; override
+ *   LOGIN_IP_LIMIT=120): THIS file 12 (one admin login in each of the 11 signed-in tests + 1 engineer login in
+ *   "roles"; the 3 "gaps" tests add 3), 0 failed. Phase-4 UI layers: main `phase04_qc_layers.spec.ts` 1
+ *   (`signInAdmin`, +1 for a dead stored session); ui `phase04_qc_layers_ui.spec.ts` 1 (+1); edge
+ *   `phase04_qc_layers_edge.spec.ts` 0 (+1 for a dead session). Layers run sequentially and the pipeline test alone
+ *   takes > 60 s -> <= 18 per run, below 30 even without the override.
  * - `POST /api/users/invitations` 30 / 3600 s per admin (BE:users/router.py:32-46): THIS file 1. Phases 1-3 spend 25
  *   (phase03 header) -> Phases 1-4 in one hour = 26 <= 30.
  * - `recovery_ip` 10 / 900 s per IP (override 60): 1 invitation accept.
@@ -32,10 +33,13 @@
  * - Body ceiling: one 8 MiB and one 8 MiB + 1 anonymous PUT (nginx `client_max_body_size 8m` = app `body_limit`);
  *   one ~1.3 MiB signed-in PUT ("large").
  * - Concurrency: "versioning" sends one pair of parallel PUTs on one base; no limit involved.
+ * - `drawings_init` 60 / 600 s per user (BE:drawings/router.py:39-46, drawings/settings.py:23-24): THIS file 1 ("gaps"
+ *   pipeline test) + edge spec 1 = 2. Pipeline worker: 1 real run here (drawing.png, own project) + 1 in the edge spec.
+ * - "gaps" truncation test: 2 PUTs of ~180 KB on its own floor, the 409 answer carries 5 000 rows (~1 MB).
  * - Mailpit: 1 invitation mail, deleted in `finally`.
  */
 import { randomUUID } from 'node:crypto';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { expect, request, test, type APIRequestContext, type APIResponse } from '@playwright/test';
@@ -45,6 +49,7 @@ import { VersionConflictBodySchema } from '../../src/api/schemas/errors';
 import { FloorSchema } from '../../src/api/schemas/index';
 import { SpatialGraphDocumentSchema } from '../../src/api/schemas/spatialGraph';
 import { FloorLayerDocumentSchema, FloorLayerWriteResultSchema } from '../../src/api/schemas/spatialLayer';
+import { PIPELINE_TIMEOUT_MS } from '../../e2e/fullstack/env';
 import { apiBaseUrl, captureExchange, newApiContext, signedInApi } from './support/api';
 import { readAdminCredentials } from './support/auth';
 import { EVIDENCE_DIR, TEST_DATA_PREFIX, testEmail } from './support/evidence';
@@ -366,6 +371,27 @@ function expectWritten(sent: Sent, revision: number, what: string): Json {
 const layerIn = (doc: Json): Json => asJson(doc.layer, 'layer');
 const walls = (doc: Json): Json[] => objs(layerIn(doc).walls, 'walls');
 const wallById = (doc: Json, id: string): Json | undefined => walls(doc).find((w) => w.id === id);
+
+/* ---- the real pipeline (gaps test): upload drawing.png, poll #8 until the run ends */
+
+const drawingPng = (): Buffer => {
+  const path = process.env.E2E_DRAWING_PNG;
+  if (!path) throw new Error('E2E_DRAWING_PNG is not set (qa.config.json env.vars)');
+  return readFileSync(path);
+};
+
+/** #8 Progress (BE:drawings/router.py:102-106, progress.py:33-68) polled every 2 s until `completed` | `failed`. */
+async function pipelineFinal(api: APIRequestContext, projectId: string, uploadId: string): Promise<Json> {
+  const deadline = Date.now() + PIPELINE_TIMEOUT_MS;
+  let last: Json = {};
+  while (Date.now() < deadline) {
+    const res = await api.get(`/api/projects/${projectId}/drawings/uploads/${uploadId}/progress`);
+    last = (await res.json().catch(() => ({}))) as Json;
+    if (last.status === 'completed' || last.status === 'failed') return last;
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
+  }
+  return last;
+}
 
 /* ---- the real non-admin user (invitation → Mailpit → accept → refresh) */
 
@@ -1215,6 +1241,261 @@ test.describe('A04 phase-4 backend (spatial layer read/write, floor meta, graph,
       expect.soft(readWalls).toBe(count);
       expect.soft(graph.status()).toBe(200);
       expect.soft(graphWalls).toBe(count);
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  /* ---------------------------------------------------------------- gaps (BE inventory be=2ee030c5, coverage/phase04-be.md) */
+
+  test('A04 · gaps: deleting a floor hides its summary row → N15 grossFloorAreaM2, levels and #12 drop it; #10 with the same id inside the restore window brings back the same document (revision, layer, area) and its entity ids; a whitespace-only room name is accepted and stored as sent', async () => {
+    // floors/service.py:174-194 (#11 → unregister_floor), 53-73,118-131,134-156 (#10 restore keeps the pk, so the
+    // floor_documents row is the same); projects/summaries.py:74-98 (register_floor restored keeps counts / unregister_floor
+    // hidden), 200-229 (project_rollups skips hidden rows); spatial_read/graph.py:56-91; floors/lookup.py:52-86,111-118
+    // (deleted_at IS NULL); spatial_read/entity_ids.py:68-127 (ids stay with the floor pk); domain/spatial/model.py:57-64
+    // (_human_text = NFC + non-empty + no control / bidi char, no strip).
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'restore', cleanup)).id);
+      const fa = await newFloor(admin, pid, 'restore_floor_a', 0);
+      const fb = await newFloor(admin, pid, 'restore_floor_b', 1);
+      expectWritten(await put(admin, 'restore_write_a_200', pid, fa, writeBody(0, { layer: layerOf({ walls: [wallOf(fa)], rooms: [roomOf(fa)] }) }), [
+        '200 revision 1: floor A, one 4000 × 5000 mm room → 20 m² (writer.py:420-427)',
+      ]), 1, 'floor A');
+      const wb = wallOf(fb, { to: [2000, 0] });
+      const blankName = '   ';
+      const b1 = expectWritten(await put(admin, 'restore_write_b_blank_name_200', pid, fb, writeBody(0, {
+        layer: layerOf({ walls: [wb], rooms: [roomOf(fb, { name: blankName, w: 2000, h: 5000 })] }),
+      }), [
+        '200 revision 1: floor B, 2000 × 5000 mm room → 10 m²; room name "   " (3 spaces) accepted and stored unchanged: _human_text does not strip (model.py:57-64)',
+      ]), 1, 'floor B');
+      expect.soft(objs(layerIn(b1).rooms, 'rooms')[0]?.name, 'whitespace-only name kept as sent').toBe(blankName);
+      const g1 = await readGraph(admin, 'restore_graph_before', pid, '200 N15: 2 levels, grossFloorAreaM2 20 + 10 = 30');
+      expect.soft(asJson(asJson(g1.graph).building).grossFloorAreaM2).toBe(30);
+      expect.soft(objs(asJson(g1.graph).levels, 'levels').map((l) => l.id)).toEqual([fa, fb]);
+
+      const del = await call(admin, 'restore_delete_b_200', 'DELETE', `/api/floors/${fb}`, undefined, [
+        '200 #11: snapshot taken just before the soft delete, areaM2 10 (service.py:174-194)',
+      ]);
+      expect.soft(del.res.status()).toBe(200);
+      expect.soft(asJson(del.body).areaM2).toBe(10);
+      const g2 = await readGraph(admin, 'restore_graph_deleted', pid, '200 N15: 1 level, floorRevisions 1 row, grossFloorAreaM2 20 (hidden summary row skipped, summaries.py:229)');
+      const graph2 = asJson(g2.graph);
+      expect.soft(asJson(graph2.building).grossFloorAreaM2, 'deleted floor area leaves the rollup').toBe(20);
+      expect.soft(objs(graph2.levels, 'levels').map((l) => l.id)).toEqual([fa]);
+      expect.soft(objs(g2.floorRevisions, 'floorRevisions').map((r) => r.floorId)).toEqual([fa]);
+      expect.soft(objs(graph2.walls, 'walls').some((w) => w.id === wb.id), 'deleted floor walls are gone from N15').toBe(false);
+      expect.soft((await listFloors(admin, 'restore_floors_deleted', pid, '200 #12: only floor A')).map((f) => f.id)).toEqual([fa]);
+      expectError(await call(admin, 'restore_n16_deleted_404', 'GET', layerPath(pid, fb), undefined, [
+        '404 NOT_FOUND resource floor while deleted (spatial_read/router.py:38-43)',
+      ]), 404, 'NOT_FOUND', { resource: 'floor' });
+
+      const restored = await call(admin, 'restore_create_same_id_201', 'POST', `/api/projects/${pid}/floors`, {
+        id: fb, name: `${PREFIX}floor-restored`, order: 1, elevationMm: 3000, heightMm: 3000,
+      }, ['201 #10: the soft-deleted id inside FLOOR_RESTORE_WINDOW_S (600 s) is restored in place, same pk, counts kept (service.py:53-73,127-131; summaries.py:83-85)']);
+      expect.soft(restored.res.status()).toBe(201);
+      expect.soft(asJson(restored.body)).toMatchObject({ id: fb, name: `${PREFIX}floor-restored`, areaM2: 10 });
+      const b2 = await readLayer(admin, 'restore_n16_back', pid, fb, '200 N16: the same document is back: revision 1, the wall and the "   " room');
+      expect.soft(b2.revision).toBe(1);
+      expect.soft(walls(b2).map((w) => w.id)).toEqual([wb.id]);
+      expect.soft(objs(layerIn(b2).rooms, 'rooms').map((r) => [r.name, r.areaM2])).toEqual([[blankName, 10]]);
+      const g3 = await readGraph(admin, 'restore_graph_back', pid, '200 N15: 2 levels again, grossFloorAreaM2 30, floorRevisions B revision 1');
+      expect.soft(asJson(asJson(g3.graph).building).grossFloorAreaM2).toBe(30);
+      expect.soft(objs(g3.floorRevisions, 'floorRevisions').map((r) => [r.floorId, r.revision])).toEqual([[fa, 1], [fb, 1]]);
+      const floors3 = await listFloors(admin, 'restore_floors_back', pid, '200 #12: A then B, B areaM2 10');
+      expect.soft(floors3.map((f) => [f.id, f.areaM2])).toEqual([[fa, 20], [fb, 10]]);
+
+      expectError(await put(admin, 'restore_a_claims_b_id_422', pid, fa, writeBody(1, { layer: layerOf({ walls: [wallOf(fa), wallOf(fa, { id: String(wb.id) })] }) }), [
+        '422 LAYER_INTEGRITY_BROKEN count 1: the restored floor B still owns its wall id (entity_ids.py:92-127; writer.py:560-572)',
+      ]), 422, 'LAYER_INTEGRITY_BROKEN', { count: 1 });
+      expectWritten(await put(admin, 'restore_b_write_base1_200', pid, fb, writeBody(1, { layer: layerOf({ walls: [wb, wallOf(fb, { from: [0, 1000], to: [2000, 1000] })] }) }), [
+        '200 revision 2: base 1 = the restored document revision; its own ids claim without conflict',
+      ]), 2, 'restored floor write');
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A04 · gaps: remoteChanges keeps only the newest SPATIAL_CONFLICT_CHANGES_MAX (5 000) rows: 720 new walls log 5 040 fields (3 wall fields + x / y of both vertices) → a stale write gets 409 currentVersion 1 with exactly 5 000 rows in log order, the 40 oldest dropped', async () => {
+    // spatial_write/settings.py:19 (5000); changes.py:39-65 (DISTINCT ON (entity, field), ORDER BY revision DESC, id DESC
+    // LIMIT, then reversed); writer.py:365-372,593-614 (log rows inserted in diff order); domain/spatial/diff.py:20-25,40-78
+    // (wall thickness_mm / height_mm / kind, then V-<id>-start x / y, V-<id>-end x / y); kinds.py:59-61 (vertex id).
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'truncate', cleanup)).id);
+      const fid = await newFloor(admin, pid, 'truncate_floor', 0);
+      const count = 720;
+      const many = Array.from({ length: count }, (_, i) => wallOf(fid, { from: [0, i * 10], to: [4000, i * 10] }));
+      const res1 = await admin.put(layerPath(pid, fid), { data: writeBody(0, { layer: layerOf({ walls: many }) }), timeout: 120_000 });
+      const out1 = (await res1.json().catch(() => ({}))) as Json;
+      const stale = await admin.put(layerPath(pid, fid), { data: writeBody(0, { layer: layerOf() }), timeout: 120_000 });
+      const conflict = (await stale.json().catch(() => ({}))) as Json;
+      const rows = Array.isArray(conflict.remoteChanges) ? objs(conflict.remoteChanges, 'remoteChanges') : [];
+      const logged = many.flatMap((w) => {
+        const id = String(w.id);
+        return [
+          ['wall', id, 'thickness_mm'], ['wall', id, 'height_mm'], ['wall', id, 'kind'],
+          ['vertex', `V-${id}-start`, 'x'], ['vertex', `V-${id}-start`, 'y'],
+          ['vertex', `V-${id}-end`, 'x'], ['vertex', `V-${id}-end`, 'y'],
+        ];
+      });
+      const expected = logged.slice(logged.length - 5000);
+      const got = rows.map((c) => [c.entityType, c.entityId, c.field]);
+      await captureSummary('gaps_conflict_truncated_409', {
+        method: 'PUT', path: layerPath(pid, fid), first: `baseVersion 0, ${String(count)} walls`, second: 'baseVersion 0, empty layer',
+      }, {
+        first: { status: res1.status(), revision: out1.revision ?? null },
+        stale: {
+          status: stale.status(), code: conflict.code ?? null, currentVersion: conflict.currentVersion ?? null, rows: rows.length,
+          firstRows: rows.slice(0, 3), lastRows: rows.slice(-3),
+        },
+        loggedFields: logged.length,
+      }, [
+        `first write 200 revision 1 logs ${String(logged.length)} fields (7 per new wall)`,
+        '409 VERSION_CONFLICT currentVersion 1 with exactly 5 000 remoteChanges (SPATIAL_CONFLICT_CHANGES_MAX)',
+        'the newest 5 000 kept in ascending log order: walls 1-5 and the start vertex of wall 6 are dropped',
+      ]);
+      expect.soft(res1.status()).toBe(200);
+      expect.soft(out1.revision).toBe(1);
+      expect.soft(stale.status()).toBe(409);
+      expect.soft(conflict.code).toBe('VERSION_CONFLICT');
+      expect.soft(conflict.currentVersion).toBe(1);
+      expectZod(VersionConflictBodySchema, conflict, '409 truncated');
+      expect.soft(rows.length, 'remoteChanges capped at 5 000').toBe(5000);
+      expect.soft(got[0], 'oldest kept row = end vertex x of wall 6').toEqual(expected[0]);
+      expect.soft(got[got.length - 1], 'newest row = end vertex y of the last wall').toEqual(expected[expected.length - 1]);
+      expect.soft(JSON.stringify(got) === JSON.stringify(expected), 'kept rows = the newest 5 000 in log order').toBe(true);
+      const dropped = new Set(many.slice(0, 5).map((w) => String(w.id)));
+      expect.soft(rows.some((c) => dropped.has(String(c.entityId)) || [...dropped].some((id) => String(c.entityId).startsWith(`V-${id}-`))), 'walls 1-5 dropped').toBe(false);
+      expect.soft((await readLayer(admin, 'truncate_read_after', pid, fid, '200 N16 still revision 1 with 720 walls after the 409')).revision).toBe(1);
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A04 · gaps: a real pipeline run (drawing.png) leaves N16 scaleStatus "unresolved" + a scale + level.reviewed false and logs its rows as system:pipeline; a human ×2 scale rescales every unreviewed AI item and dimension line (heights, valueMm kept) and drops scaleStatus; an empty layer prunes every dimension referenceId and logs dimension reference_ids', async () => {
+    // Upload #5/#6/#7, progress #8: drawings/router.py:50-106. Pipeline: worker pipeline_build/build.py:75,201-220
+    // (scaleSource pipeline | project_default), pipeline_persist/service.py:108-130 (write_layer merge, actor
+    // system:pipeline, name "hệ thống AI" constants.py:5). N16: spatial_read/assemble.py:27-41,44-53 (scaleStatus, reviewed),
+    // router.py:71-87. Human scale: spatial_write/writer.py:376-401 (rank human 3 ≥ pipeline 2, page = the stored page),
+    // 430-455 (rescale layer + dimensions); domain/scale/rescale.py:40-110 (js_round(v × k); heights, valueMm kept).
+    // Pruning: writer.py:443-489 (_drop_missing_refs), 608-611 (dimension reference_ids log row).
+    test.setTimeout(PIPELINE_TIMEOUT_MS + 180_000);
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'pipeline-scale', cleanup)).id);
+      const fid = await newFloor(admin, pid, 'pipe_floor', 0);
+      const png = drawingPng();
+      const init = await call(admin, 'pipe_upload_init', 'POST', `/api/projects/${pid}/floors/${fid}/drawings/uploads`, {
+        fileName: `${PREFIX}drawing.png`, floorId: fid, mimeType: 'image/png', projectId: pid, sizeBytes: png.length,
+      }, ['setup: 200 Progress pending (drawings/router.py:50-67)']);
+      expect(init.res.status(), 'setup upload init').toBe(200);
+      const uid = String(asJson(init.body).id);
+      const chunk = await call(admin, 'pipe_upload_chunk', 'POST', `/api/projects/${pid}/drawings/uploads/${uid}/chunks`, {
+        chunk: png.toString('base64'), chunkIndex: 0,
+      }, ['setup: 200 chunk 0 (router.py:70-77)']);
+      expect(chunk.res.status(), 'setup upload chunk').toBe(200);
+      const done = await call(admin, 'pipe_upload_complete', 'POST', `/api/projects/${pid}/drawings/uploads/${uid}/complete`, { uploadId: uid }, [
+        'setup: 200 complete → one pipeline run (router.py:80-99)',
+      ]);
+      expect(done.res.status(), 'setup upload complete').toBe(200);
+      const final = await pipelineFinal(admin, pid, uid);
+      await captureSummary('gaps_pipeline_progress', { method: 'GET', path: `/api/projects/${pid}/drawings/uploads/${uid}/progress` }, final, [
+        '#8 Progress polled every 2 s until completed | failed',
+      ]);
+      expect(final.status, `pipeline final status (error ${String(final.error)})`).toBe('completed');
+
+      const p = await readLayer(admin, 'pipe_n16_unresolved', pid, fid, '200 N16 after the run: scaleStatus "unresolved" (source pipeline / project_default, assemble.py:39-41), level scale present, level.reviewed false (assemble.py:44-53)');
+      const level = asJson(p.level);
+      const scale = Number(level.scaleMillimetresPerPixel);
+      const rev = Number(p.revision);
+      expect.soft(p.scaleStatus, 'pipeline scale is provisional').toBe('unresolved');
+      expect.soft(scale, 'pipeline sets a scale').toBeGreaterThan(0);
+      expect.soft(level.reviewed, 'a provisional scale keeps the level unreviewed').toBe(false);
+      expect.soft(rev, 'the run wrote the document').toBeGreaterThanOrEqual(1);
+      const before = layerIn(p);
+      const entities = (['walls', 'openings', 'rooms', 'furniture'] as const).flatMap((k) => objs(before[k], k));
+      const dims = objs(p.dimensions, 'dimensions');
+      note(`pipeline layer: ${String(objs(before.walls, 'walls').length)} walls, ${String(objs(before.openings, 'openings').length)} openings, ${String(objs(before.rooms, 'rooms').length)} rooms, ${String(objs(before.furniture, 'furniture').length)} furniture, ${String(dims.length)} dimensions, scale ${String(scale)}`);
+      for (const e of entities) expect.soft([e.source, e.reviewed], `AI item ${String(e.id)} unreviewed`).toEqual(['ai', false]);
+
+      const repeat = await put(admin, 'pipe_stale_base0', pid, fid, writeBody(0, { layer: before }), [
+        'base 0 < run revision with the current layer: 409 whose rows are all changedBy system:pipeline / "hệ thống AI" when the run logged entities; 200 unchanged (no write) when it logged none (writer.py:340-341,365-373)',
+      ]);
+      if (entities.length > 0) {
+        const body = expectError(repeat, 409, 'VERSION_CONFLICT');
+        expectZod(VersionConflictBodySchema, repeat.body, '409 pipeline rows');
+        const rows = objs(body.remoteChanges, 'remoteChanges');
+        expect.soft(rows.length).toBeGreaterThan(0);
+        expect.soft([...new Set(rows.map((c) => `${String(c.changedBy)}|${String(c.changedByName)}`))]).toEqual(['system:pipeline|hệ thống AI']);
+      } else {
+        expectWritten(repeat, rev, 'nothing to conflict with, nothing changed');
+      }
+
+      const scale2 = Number((scale * 2).toFixed(6));
+      const human = await put(admin, 'pipe_human_scale_x2_200', pid, fid, writeBody(rev, { scaleMillimetresPerPixel: scale2 }), [
+        `200 revision ${String(rev + 1)}: human scale ${String(scale2)} = 2 × pipeline scale; every unreviewed item and dimension line ×2 (rescale.py:55-79)`,
+      ]);
+      expectWritten(human, rev + 1, 'human scale');
+      const h = await readLayer(admin, 'pipe_n16_human', pid, fid, '200 N16: human scale → no scaleStatus (assemble.py:27-41: same page as stored), level scale = 2 × pipeline scale');
+      expect.soft(h, 'human scale is not provisional').not.toHaveProperty('scaleStatus');
+      expect.soft(Number(asJson(h.level).scaleMillimetresPerPixel)).toBeCloseTo(scale2, 6);
+      const after = layerIn(h);
+      const x2 = (pt: unknown): Json => ({ x: Number(asJson(pt).x) * 2, y: Number(asJson(pt).y) * 2 });
+      const byId = (k: string): Map<unknown, Json> => new Map(objs(after[k], k).map((e) => [e.id, e]));
+      const wallsAfter = byId('walls');
+      for (const w of objs(before.walls, 'walls')) {
+        const c = asJson(w.centreline);
+        expect.soft(wallsAfter.get(w.id), `wall ${String(w.id)} ×2`).toMatchObject({
+          centreline: { start: x2(c.start), end: x2(c.end) }, thicknessMm: Number(w.thicknessMm) * 2, heightMm: w.heightMm,
+        });
+      }
+      const openingsAfter = byId('openings');
+      for (const o of objs(before.openings, 'openings')) {
+        expect.soft(openingsAfter.get(o.id), `opening ${String(o.id)} ×2`).toMatchObject({
+          offsetMm: Number(o.offsetMm) * 2, widthMm: Number(o.widthMm) * 2, heightMm: o.heightMm, sillHeightMm: o.sillHeightMm,
+        });
+      }
+      const roomsAfter = byId('rooms');
+      for (const r of objs(before.rooms, 'rooms')) {
+        expect.soft(roomsAfter.get(r.id)?.outline, `room ${String(r.id)} outline ×2`).toEqual(asArray(r.outline).map(x2));
+      }
+      const furnitureAfter = byId('furniture');
+      for (const f of objs(before.furniture, 'furniture')) {
+        const box = asJson(f.boundingBox);
+        expect.soft(furnitureAfter.get(f.id), `furniture ${String(f.id)} ×2`).toMatchObject({
+          centre: x2(f.centre), boundingBox: { min: x2(box.min), max: x2(box.max) }, rotationDeg: f.rotationDeg,
+        });
+      }
+      const dimsAfter = new Map(objs(h.dimensions, 'dimensions').map((d) => [d.id, d]));
+      for (const d of dims) {
+        const line = asJson(d.line);
+        expect.soft(dimsAfter.get(d.id), `dimension ${String(d.id)} line ×2, valueMm kept`).toMatchObject({
+          line: { start: x2(line.start), end: x2(line.end) }, valueMm: d.valueMm, referenceIds: d.referenceIds,
+        });
+      }
+
+      const withRefs = dims.filter((d) => asArray(d.referenceIds).length > 0);
+      const changes = entities.length > 0 || withRefs.length > 0; // nothing to drop → unchanged write (writer.py:492-499)
+      expectWritten(await put(admin, 'pipe_empty_layer_200', pid, fid, writeBody(rev + 1, { layer: layerOf() }), [
+        `200: empty layer → revision ${String(rev + 2)} when the layer had entities or referenced dimensions, else unchanged ${String(rev + 1)}; dimensions stay but lose every referenceId (writer.py:475-489)`,
+      ]), changes ? rev + 2 : rev + 1, 'empty layer');
+      const e = await readLayer(admin, 'pipe_n16_pruned', pid, fid, '200 N16: same dimensions, every referenceIds []');
+      expect.soft(objs(e.dimensions, 'dimensions').map((d) => [d.id, d.referenceIds])).toEqual(dims.map((d) => [d.id, []]));
+      if (changes) {
+        const log = await put(admin, 'pipe_stale_after_prune_409', pid, fid, writeBody(rev + 1, { layer: layerOf({ walls: [wallOf(fid)] }) }), [
+          `409 currentVersion ${String(rev + 2)}: the pruning write logged one dimension reference_ids row (value []) per dimension that had references (writer.py:608-611), plus __deleted__ rows`,
+        ]);
+        const body = expectError(log, 409, 'VERSION_CONFLICT');
+        expect.soft(body.currentVersion).toBe(rev + 2);
+        const rows = objs(body.remoteChanges, 'remoteChanges');
+        expect.soft(rows.filter((c) => c.entityType === 'dimension').map((c) => [c.entityId, c.field, c.value]).sort())
+          .toEqual(withRefs.map((d) => [d.id, 'reference_ids', []]).sort());
+      }
+      if (withRefs.length === 0) note('the run produced no dimension with referenceIds: the pruning branch was reached with nothing to prune');
     } finally {
       await cleanup.run();
     }

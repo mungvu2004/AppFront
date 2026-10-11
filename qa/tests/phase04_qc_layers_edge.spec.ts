@@ -1,9 +1,9 @@
 /**
  * Phase 4 — EDGE CASES, Track A (admin): SCR-16 walls, SCR-17 objects, SCR-18 dimensions, SCR-19 axes, SCR-20 rooms,
  * SCR-21 thickness, SCR-14 scale, SCR-22 overlay. Gaps left by `phase04_qc_layers.spec.ts` (serial, CP-5 work floor);
- * inventory in `qa/coverage/phase04.md` (FE stamp 8f03047b).
+ * inventory in `qa/coverage/phase04.md` (FE stamp 60778e96).
  *
- * Every expected result cites the FE source of `F:/App/AppFront` @ 8f03047b or, written `BE:`, AppBack (`apps/api/…`,
+ * Every expected result cites the FE source of `F:/App/AppFront` @ 60778e96 (8f03047b for tests authored before it) or, written `BE:`, AppBack (`apps/api/…`,
  * `packages/…`). Short names:
  *   W   src/screens/qc/WallLayerReview/  (UW useWallLayerReview.ts, WG wallLayerReviewGateway.ts, WLP WallLayerLeftPanel.tsx,
  *       WL WallLayerList.tsx, WI WallLayerInspector.tsx, WTR WallLayerToolRail.tsx, FSB FloorLayerSaveBanner.tsx,
@@ -21,7 +21,7 @@
  *   V   src/screens/viewer/OverlayComparison/ (UV useOverlayComparison.ts, VV OverlayComparison.tsx, VT OverlayComparisonToolbar.tsx,
  *       VP OverlayComparisonPanel.tsx, VG overlayComparisonGateway.ts)
  *   UFL src/hooks/useFloorLayer.ts   UAS src/hooks/useAutosave.ts   SLS src/lib/autosave/spatialLayerSave.ts
- *   I18N src/i18n/vi.json (`errors.*`)
+ *   I18N src/i18n/vi.json (`errors.*`)   MOD src/components/overlay/Modal.tsx
  *
  * ## Non-serial
  * Every test opens its OWN browser context from the stored admin session (`ADMIN_STORAGE_STATE_FILE`, refreshed by
@@ -32,7 +32,7 @@
  * (BE:packages/domain/spatial/integrity.py:38-98). Nothing reads the Phase 3/4 checkpoints (CP-2…CP-6): the shared work
  * floor is never touched. One test uploads the real `E2E_DRAWING_PNG` to its own floor (scale reference line).
  *
- * ## Mocks — "[mocked response]" in the title (1 of 29)
+ * ## Mocks — "[mocked response]" in the title (1 of 30)
  * - `GET …/spatial/layer` 500 on SCR-16 — unpairable: 5xx is not producible on the shared stack. Needs its
  *   "unpairable" row in `coverage/phase04-be.md` (BE agent).
  * Everything else is the real stack: 404 floor / 404 project, the 409 W20 conflict (a real API write in between),
@@ -46,8 +46,8 @@
  * - `POST /api/auth/login` (120 / 60 s per IP on the QA stack): 0 when the stored session is alive; 1 UI sign-in when it is
  *   dead. No failed login.
  * - `POST /api/auth/refresh` (300 / 60 s): 2 per test (session check + fixture token) + 1 per page load ≈ 4–6 per test,
- *   ≈ 160 for the 29 tests spread over several minutes.
- * - `POST /api/projects`: 28 (every test except the unknown-project one), each deleted in `finally`; no rate limit
+ *   ≈ 165 for the 30 tests spread over several minutes.
+ * - `POST /api/projects`: 29 (every test except the unknown-project one), each deleted in `finally`; no rate limit
  *   (BE:apps/api/projects/router.py:54).
  * - `PUT …/spatial/layer`: ≈ 2 per seeded test (API seed + screen writes); no rate limit (BE:spatial_write/router.py).
  * - `POST …/floors/:fid/drawings/uploads` (`drawings_init` 60 per window per user, BE:drawings/router.py:39-46): 1.
@@ -72,6 +72,8 @@ import { ADMIN_STORAGE_STATE_FILE } from './support/state';
 const DESKTOP = { width: 1440, height: 900 } as const;
 /** UV:165 `(width < 1280px)` → collapsed. */
 const NARROW = { width: 1024, height: 800 } as const;
+/** Phone width the Modal.Footer wrap targets (MOD:208 `flex-wrap`, c2a90d5e "stay inside 375 px"). */
+const PHONE = { width: 375, height: 812 } as const;
 type Viewport = { readonly width: number; readonly height: number };
 
 /** Autosave fires 800 ms after the last change (UAS, A7); a "nothing was sent" claim waits past it plus a round trip. */
@@ -745,6 +747,68 @@ test.describe('E04 SCR-16 wall layer review', () => {
       // The server copy wins: wall a is back to unapproved.
       await expect(wallOption(page, codes.get(a) as string)).not.toHaveAccessibleName(`${codes.get(a) as string} — ${WALL.reviewed}`);
       await captureEvidence(page, 'E04_walls_conflict_reloaded.png');
+    });
+  });
+
+  test('E04 · SCR-16 409 at 375 px → A9 dialog keeps "Huỷ" and "Tải lại và bỏ thay đổi" inside the viewport; Esc closes it, no re-read', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page, api } = admin;
+      const project = await createProject(admin, 'walls-409-375');
+      const a = wallId();
+      const seeded = await seedLayer(admin, project, () => ({
+        walls: [{ id: a, start: { x: 0, y: 0 }, end: { x: 4000, y: 0 } }],
+      }));
+      await openWalls(page, project);
+      const code = wallCodes([a]).get(a) as string;
+
+      // Second writer bumps the revision (real #35 write) so the screen's next PUT is a 409 W20 (SLS:93-94).
+      const path = `${PROJECTS_API}/${project.id}/floors/${project.floor.id}/spatial/layer`;
+      const walls = arrayOf(seeded.layer.walls, 'seed walls').map((wall) => ({ ...wall, thicknessMm: 330 }));
+      const elsewhere = await admin.context.request.put(path, {
+        headers: bearer(admin),
+        data: { baseVersion: seeded.revision, body: { layer: { ...seeded.layer, walls } } },
+      });
+      expect(elsewhere.status(), 'second writer PUT').toBe(200);
+
+      await wallOption(page, code).click();
+      const conflict = waitForApi(page, 'PUT', layerRe(project.id, project.floor.id), [409]);
+      await page.getByRole('button', { name: WALL.approve, exact: true }).click();
+      await conflict;
+      const banner = page.getByRole('alert').filter({ hasText: WALL.conflict }); // SLS:83, FSB:34-38
+      await expect(banner).toBeVisible();
+
+      // The walls screen has no breakpoint logic of its own; the dialog is the shared Modal (FSC:12-19 legacy API →
+      // MOD:258-279 Modal.Footer, now `flex-wrap` at MOD:208), so at 375 px both footer buttons must stay on screen.
+      await page.setViewportSize(PHONE);
+      await banner.getByRole('button', { name: WALL.reload, exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: WALL.confirmTitle, exact: true });
+      await expect(dialog).toBeVisible();
+      const buttons = { cancel: dialog.getByRole('button', { name: WALL.cancel, exact: true }), reload: dialog.getByRole('button', { name: WALL.confirmReload, exact: true }) };
+      const boxes: Record<string, { x: number; y: number; width: number; height: number }> = {};
+      for (const [key, button] of Object.entries(buttons)) {
+        await expect(button).toBeVisible();
+        const box = await button.boundingBox();
+        expect(box, `"${key}" has a box`).not.toBeNull();
+        if (box === null) return;
+        boxes[key] = box;
+        expect(box.x, `"${key}" left edge inside 375 px`).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width, `"${key}" right edge inside 375 px`).toBeLessThanOrEqual(PHONE.width);
+      }
+      const pageOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      await captureEvidence(page, 'E04_walls_conflict_dialog_375.png');
+      await attachJson('E04_walls_conflict_dialog_375.json', { viewport: PHONE, buttonBoxes: boxes, documentOverflowPx: pageOverflow });
+
+      // A12 / MOD:58-63: Esc → onClose = confirm.onCancel (FSC:14) — same as "Huỷ": dialog gone, banner stays, no re-read.
+      const mark = api.length;
+      await page.keyboard.press('Escape');
+      await expect(dialog).toHaveCount(0);
+      await expect(banner).toBeVisible();
+      await quiet(page);
+      const rereads = countSince(api, mark, 'GET', layerRe(project.id, project.floor.id));
+      expect(rereads, 'Esc re-reads nothing').toBe(0);
+      expect(writesSince(api, mark), 'Esc writes nothing').toEqual([]);
+      await captureEvidence(page, 'E04_walls_conflict_dialog_esc.png');
+      await attachJson('E04_walls_conflict_dialog_esc.json', { layerGetsAfterEsc: rereads, writesAfterEsc: writesSince(api, mark) });
     });
   });
 
