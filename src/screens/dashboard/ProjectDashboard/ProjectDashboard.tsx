@@ -7,8 +7,8 @@
  * renders — no store, no network, no `Date` — which is why there is not one
  * `toFixed` or unit conversion below for `local/no-raw-number` to catch;
  * every string already arrived formatted from `useProjectDashboard`. The card
- * itself ({@link ProjectCardTile}) and the status rail ({@link DashboardSidebar})
- * live in sibling files — this file crossed R-22's 400-line cap once the grid
+ * itself ({@link ProjectCardTile}), the table view ({@link ProjectTable}) and the status rail
+ * ({@link DashboardSidebar}) live in sibling files — this file crossed R-22's 400-line cap once the grid
  * grew a hero card and a sidebar, and mục D's answer is a folder, not a
  * shorter feature.
  *
@@ -37,20 +37,18 @@ import { ContextMenu } from '@/components/canvas/ContextMenu';
 import { motion } from '@/components/motion';
 import { Modal } from '@/components/overlay/Modal';
 import { Avatar } from '@/components/ui/Avatar';
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Select } from '@/components/ui/Select';
-import { Table } from '@/components/ui/Table';
 import { useContextMenu } from '@/hooks/useContextMenu';
 import { durationSeconds } from '@/lib/motion';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
-import { cn } from '@/lib/utils';
 
 import { DashboardSidebar } from './DashboardSidebar';
 import { projectMenuGroups } from './projectMenuGroups';
 import { ProjectCardTile } from './ProjectCardTile';
+import { ProjectTable } from './ProjectTable';
 import {
   PROJECT_SORT_OPTIONS,
   PROJECT_STATUS_FILTER_OPTIONS,
@@ -103,26 +101,6 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
 
   const openMenuFor = (project: ProjectCardModel, x: number, y: number): void =>
     contextMenu.openMenu(x, y, projectMenuGroups(project, props, props.canDelete, props.canDuplicate));
-
-  const nameField = (project: ProjectCardModel, className: string) =>
-    props.renamingId === project.id ? (
-      <input
-        autoFocus
-        aria-label={`Đổi tên ${project.name}`}
-        value={props.renameDraft}
-        onChange={(event) => props.setRenameDraft(event.target.value)}
-        onBlur={props.commitRename}
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={(event) => {
-          event.stopPropagation();
-          if (event.key === 'Enter') props.commitRename();
-          if (event.key === 'Escape') props.cancelRename();
-        }}
-        className={cn(className, 'h-11 rounded border border-accent bg-bg-surface px-1 outline-none sm:h-auto')}
-      />
-    ) : (
-      <h3 className={cn(className, 'truncate')}>{project.name}</h3>
-    );
 
   const renderCard = (project: ProjectCardModel, index: number, size: 'hero' | 'compact') => (
     <ProjectCardTile
@@ -291,50 +269,16 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
                 {props.viewMode === 'grid' ? (
                   renderProjectGrid()
                 ) : (
-                  // The name column takes what the others leave and truncates (`w-full max-w-0`): an 80-char
-                  // name pushed "Cập nhật" past the 1440 px window (BUG-149). Below `sm` the two secondary
-                  // columns go and progress is a percentage, so status and progress stay on screen (BUG-153).
-                  <Table.Root>
-                    <Table.Header>
-                      <tr>
-                        <Table.Head>Tên dự án</Table.Head>
-                        <Table.Head>Trạng thái</Table.Head>
-                        <Table.Head className="hidden sm:table-cell">Chi tiết</Table.Head>
-                        <Table.Head>Tiến độ duyệt</Table.Head>
-                        <Table.Head className="hidden sm:table-cell">Cập nhật</Table.Head>
-                      </tr>
-                    </Table.Header>
-                    <Table.Body>
-                      {rows.map((project) => (
-                        <Table.Row
-                          key={project.id}
-                          tabIndex={0}
-                          className="cursor-pointer"
-                          onClick={() => props.openProject(project.id, 'row')}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter') props.openProject(project.id, 'row');
-                          }}
-                          onContextMenu={(event) => {
-                            event.preventDefault();
-                            openMenuFor(project, event.clientX, event.clientY);
-                          }}
-                        >
-                          <Table.Cell className="w-full max-w-0 font-medium">
-                            {nameField(project, 'w-full text-[14px] font-medium text-text-primary')}
-                          </Table.Cell>
-                          <Table.Cell>
-                            <Badge variant={project.statusVariant}>{project.statusLabel}</Badge>
-                          </Table.Cell>
-                          <Table.Cell className="hidden text-text-secondary sm:table-cell">{project.statsLabel}</Table.Cell>
-                          <Table.Cell className="text-text-secondary">
-                            <span className="sm:hidden">{project.progressPercentLabel}</span>
-                            <span className="hidden sm:inline">{project.progressLabel}</span>
-                          </Table.Cell>
-                          <Table.Cell className="hidden text-text-muted sm:table-cell">{project.updatedLabel}</Table.Cell>
-                        </Table.Row>
-                      ))}
-                    </Table.Body>
-                  </Table.Root>
+                  <ProjectTable
+                    rows={rows}
+                    renamingId={props.renamingId}
+                    renameDraft={props.renameDraft}
+                    onOpen={(id) => props.openProject(id, 'row')}
+                    onMenu={openMenuFor}
+                    onRenameChange={props.setRenameDraft}
+                    onRenameCommit={props.commitRename}
+                    onRenameCancel={props.cancelRename}
+                  />
                 )}
               </motion.div>
             )}
