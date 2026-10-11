@@ -427,6 +427,24 @@ describe('CreateProjectModal, wired to its hook', () => {
     expect(deleteSpy).toHaveBeenCalledWith({ projectId: createdProjectId });
   });
 
+  it('closes an open "Loại công trình" list on Esc and keeps the dialog (BUG-152)', async () => {
+    const onDismiss = vi.fn();
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={onDismiss} />);
+    // `Modal` arms its focus trap — the Esc handler under test — one frame after opening.
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    fireEvent.change(screen.getByLabelText('Tên dự án'), { target: { value: 'Bản nháp' } });
+    const trigger = screen.getByRole('combobox', { name: 'Loại công trình' });
+    fireEvent.click(trigger);
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+
+    fireEvent.keyDown(trigger, { key: 'Escape' });
+
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(screen.queryByText('Đóng và bỏ các thay đổi chưa lưu?')).not.toBeInTheDocument();
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
+
   it('warns before discarding, and only closes on the second "huỷ"', () => {
     const onDismiss = vi.fn();
     render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={onDismiss} />);

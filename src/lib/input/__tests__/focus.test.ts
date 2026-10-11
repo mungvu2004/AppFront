@@ -163,6 +163,24 @@ describe('createFocusTrap', () => {
     document.body.removeEventListener('keydown', reachedBody);
   });
 
+  it('leaves Escape to an open popup inside the layer (BUG-152)', () => {
+    const { dialog, first } = buildDialog();
+    const onEscape = vi.fn();
+    const reachedBody = vi.fn();
+
+    document.body.addEventListener('keydown', reachedBody);
+    createFocusTrap(dialog, { onEscape }).activate();
+    first.setAttribute('aria-expanded', 'true');
+    first.focus();
+
+    pressKey('Escape');
+
+    expect(onEscape).not.toHaveBeenCalled();
+    expect(reachedBody).toHaveBeenCalledTimes(1);
+
+    document.body.removeEventListener('keydown', reachedBody);
+  });
+
   it('lets Escape reach the window arbiter when the trap has no onEscape (H4-2)', () => {
     const { dialog, first } = buildDialog();
     const reachedBody = vi.fn();
