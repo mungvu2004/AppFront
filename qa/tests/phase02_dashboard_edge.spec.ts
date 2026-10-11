@@ -2960,22 +2960,20 @@ test.describe('E02 QA-02 shared components (FE 271538cb) — SCR-05 / SCR-06 / S
       const undo = toast.getByRole('button', { name: UNDO, exact: true });
       await expect(undo).toBeVisible();
       // TST:133-134 `min-w-0 break-words` on the message; the toast is `overflow-hidden` (TST:121): a clipped button = BUG-131.
-      const layout = await toast.evaluate((el) => {
-        const box = el.getBoundingClientRect();
-        const message = el.querySelector('span.flex-1');
-        const button = [...el.querySelectorAll('button')].find((b) => (b.textContent ?? '').trim() === 'Hoàn tác');
-        const b = button?.getBoundingClientRect();
-        return {
-          toast: { left: box.left, right: box.right, width: box.width },
-          button: b === undefined ? null : { left: b.left, right: b.right, width: b.width },
-          message: message === null ? null : { scroll: message.scrollWidth, client: message.clientWidth, height: message.getBoundingClientRect().height },
-        };
-      });
-      const inside = layout.button !== null && layout.button.left >= layout.toast.left && layout.button.right <= layout.toast.right + 0.5;
-      await captureEvidence(page, 'E02_dash_toast_long_name.png', { caption: `80-char unbroken name: message ${String(Math.round(layout.message?.height ?? 0))} px high, "Hoàn tác" ${inside ? 'inside' : 'CLIPPED'}` });
+      // BUG-216: the button is measured through its locator — a textContent match inside evaluate() found nothing (null →
+      // "CLIPPED" on a shot where the button is whole).
+      const [toastBox, undoBox] = [await toast.boundingBox(), await undo.boundingBox()];
+      const layout = {
+        toast: toastBox === null ? null : { left: toastBox.x, right: toastBox.x + toastBox.width, top: toastBox.y, bottom: toastBox.y + toastBox.height },
+        button: undoBox === null ? null : { left: undoBox.x, right: undoBox.x + undoBox.width, top: undoBox.y, bottom: undoBox.y + undoBox.height },
+        message: await toast.locator('span.flex-1').first().evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth, height: el.getBoundingClientRect().height })),
+      };
+      const { toast: t, button: b } = layout;
+      const inside = t !== null && b !== null && b.left >= t.left - 0.5 && b.right <= t.right + 0.5 && b.top >= t.top - 0.5 && b.bottom <= t.bottom + 0.5;
+      await captureEvidence(page, 'E02_dash_toast_long_name.png', { caption: `80-char unbroken name: message ${String(Math.round(layout.message.height))} px high, "Hoàn tác" ${inside ? 'inside' : 'CLIPPED'}` });
       await attachJson('E02_dash_toast_long_name.json', layout);
       expect(inside, '"Hoàn tác" inside the toast box').toBe(true);
-      expect(layout.message !== null && layout.message.scroll <= layout.message.client + 1, 'message wraps, no overflow past its column').toBe(true);
+      expect(layout.message.scroll <= layout.message.client + 1, 'message wraps, no overflow past its column').toBe(true);
 
       const restored = waitForApi(page, 'PATCH', projectPathRe(project.id), [200]);
       await undo.click(); // within the 8 s window (UT:18)
