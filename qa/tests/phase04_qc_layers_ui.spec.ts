@@ -34,6 +34,8 @@
  * Sessions: every test opens its OWN context from Phase 1's admin storage state and writes the rotated refresh cookie back
  * in `finally` (phase03 chain): 31 tests × (4 loads + 1 session check) + at most 15 fixture tokens (14 seeded tests + 1
  * work-floor probe) = 170 `POST /api/auth/refresh` over several minutes (`auth_refresh_total` 300 / 60 s per sid).
+ * BUG-347: actions inside `open` time out after 10 s (`OPEN_ACTION_TIMEOUT_MS`), so a control pushed off-screen at one
+ * width costs 10 s, not the 30 s ACTION_TIMEOUT_MS, before `verifyUi` records it as `openError`.
  * No faked response: every state is the real stack. Non-serial: each test uses its own context and page.
  * G6: the editor tour only mounts on the walls screen (`EditorTourContainer hostId="wall-layer-review"`); it is dismissed
  * with the product's own "Bỏ qua hướng dẫn" (`e2e/fixtures/tour.ts`). BUG-143: framer-motion overlays end with `settled()`.
@@ -42,7 +44,7 @@ import { expect, test, type APIRequestContext, type Browser, type BrowserContext
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { TOUR_APPEAR_TIMEOUT_MS, dismissTour } from '../../e2e/fixtures/tour';
-import { readBaseUrl } from '../../e2e/fullstack/env';
+import { NAVIGATION_TIMEOUT_MS, readBaseUrl } from '../../e2e/fullstack/env';
 import { signedInApi } from './support/api';
 import { ensureAdminSession, readAdminCredentials } from './support/auth';
 import { TEST_DATA_PREFIX } from './support/evidence';
@@ -145,6 +147,9 @@ interface Floor {
 }
 type Shot = { readonly fullPage?: boolean };
 
+/** BUG-347: an action in `open` that cannot happen (control off-screen) fails fast; navigation keeps its own timeout. */
+const OPEN_ACTION_TIMEOUT_MS = 10_000;
+
 /** Own context from the admin storage state; the rotated refresh cookie goes back to the file (phase03 `verifyAsAdmin`). */
 async function inAdminContext(browser: Browser, body: (context: BrowserContext) => Promise<void>): Promise<void> {
   const context = await browser.newContext({ baseURL: readBaseUrl(), storageState: ADMIN_STORAGE_STATE_FILE });
@@ -160,6 +165,8 @@ async function inAdminContext(browser: Browser, body: (context: BrowserContext) 
 /** `verifyUi` on a new page of `context`, recording every non-GET request under `/api/projects/`: a UI case never writes. */
 async function verifyIn(context: BrowserContext, name: string, open: (page: Page) => Promise<void>, shot: Shot): Promise<void> {
   const page = await context.newPage();
+  page.setDefaultTimeout(OPEN_ACTION_TIMEOUT_MS);
+  page.setDefaultNavigationTimeout(NAVIGATION_TIMEOUT_MS);
   const writes: string[] = [];
   page.on('request', (request) => {
     const path = new URL(request.url()).pathname;
