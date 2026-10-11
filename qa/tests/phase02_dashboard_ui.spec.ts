@@ -4,7 +4,8 @@
  * 1440 / 1024 / 768 / 375 (`support/ui-verify.ts`), evidence `U02_<state>_<width>.png` + `U02_<state>.json`.
  * Reviewed by the "verify ui" step with the qa-review-ui checklist. Model: `phase01_auth_ui.spec.ts`.
  *
- * Budget — logins: 1 real admin API login (`signedInApi`, SCR-05 group), no browser login.
+ * Budget — logins: 1 real admin API login (`signedInApi`, SCR-05 group); a browser login only to replace a dead stored
+ * session (`ensureAdminSession`, at most once per run in practice).
  * Writes (all on `qa-<runId>-u02-…` projects, all deleted by this file):
  *   - SCR-05 group setup: 1 `POST /api/projects` (80-char name) + 1 `DELETE` in `afterAll`;
  *   - SCR-05 group setup also deletes `qa-<other runId>-…` projects an earlier run left (BUG-200, `sweepStaleRunProjects`);
@@ -20,7 +21,8 @@
  * Sessions: every screen reads Phase 1's admin storage state (`support/state.ts`); each test opens its OWN context
  * and writes the rotated refresh cookie back in `finally` (same chain as `phase01_auth_ui.spec.ts`), 4 loads per
  * test → 38 tests × 4 + 12 (`U02_notif_rows*`) + 2 (`U02_notif_sheet_snap_tooltip`, 768/375 only) = 166
- * `POST /api/auth/refresh` over several minutes (`auth_refresh_total` 300 / 60 s per sid).
+ * `POST /api/auth/refresh` over several minutes (`auth_refresh_total` 300 / 60 s per sid), + 1 per test for the session
+ * check of `ensureAdminSession` (≈ 42) — and one UI login only when the stored session is dead.
  *
  * Faked responses (7 of 42 states = 17 %, suite limit 35 %), each titled `[mocked response]` with its pair:
  *   - `U02_wizard_server_422` (`POST /api/projects` 422 field "code", BUG-129): PAIR in `phase02_dashboard_api.spec.ts`
@@ -61,7 +63,7 @@ import {
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { readBaseUrl } from '../../e2e/fullstack/env';
 import { signedInApi } from './support/api';
-import { readAdminCredentials } from './support/auth';
+import { ensureAdminSession, readAdminCredentials } from './support/auth';
 import { TEST_DATA_PREFIX } from './support/evidence';
 import { ADMIN_STORAGE_STATE_FILE } from './support/state';
 import { UI_VIEWPORTS, verifyUi } from './support/ui-verify';
@@ -204,7 +206,10 @@ const sidebarFilter = (page: Page, label: string): Locator =>
 const isNarrow = (page: Page): boolean => (page.viewportSize()?.width ?? 1440) <= NARROW_MAX_WIDTH;
 const pathnameOf = (response: Response): string => new URL(response.url()).pathname;
 
-/** Own context from the admin storage state; the rotated refresh cookie goes back to the file (phase01 chain). */
+/**
+ * Own context from the admin storage state; the rotated refresh cookie goes back to the file (phase01 chain). A dead
+ * stored session is replaced by one UI sign-in first (`ensureAdminSession`), so the screens never land on /login.
+ */
 async function verifyAsAdmin(
   browser: Browser,
   name: string,
@@ -214,6 +219,7 @@ async function verifyAsAdmin(
 ): Promise<void> {
   const context = await browser.newContext({ baseURL: readBaseUrl(), storageState: ADMIN_STORAGE_STATE_FILE });
   try {
+    await ensureAdminSession(context, ADMIN_STORAGE_STATE_FILE);
     await prepare?.(context);
     await verifyUi(await context.newPage(), name, open, viewports);
   } finally {

@@ -1,7 +1,8 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type BrowserContext, type Page } from '@playwright/test';
 
 import { ROUTES, loginUrl, pathOf } from '../../../e2e/fixtures/routes';
 import { EMAIL_LABEL, PASSWORD_LABEL, SIGN_IN_LABEL } from '../../../e2e/fixtures/session';
+import { readBaseUrl } from '../../../e2e/fullstack/env';
 
 /** Track B (mock dev server: `VITE_USE_MOCK_API=true pnpm exec vite --host 127.0.0.1 --port 5173`). */
 export const MOCK_BASE_URL = process.env.E2E_MOCK_BASE_URL ?? `http://127.0.0.1:${process.env.E2E_PORT ?? '5173'}`;
@@ -45,6 +46,25 @@ export async function signInAdmin(page: Page, destination: string = ROUTES.dashb
   await page.getByRole('button', { name: SIGN_IN_LABEL, exact: true }).click();
   expect((await login).status(), 'POST /api/auth/login').toBe(204);
   await expect.poll(() => pathOf(page.url())).toBe(destination);
+}
+
+/**
+ * For specs whose contexts start from the stored admin state (`support/state.ts` ADMIN_STORAGE_STATE_FILE): a dead
+ * session — the refresh cookie expired, or a test died before writing the rotated one back — sent every screen to
+ * /login and the run hung there. One `POST /api/auth/refresh` in `context` checks it (a live one is rotated in the
+ * context's own cookie jar, which the caller writes back as before); a 401 is answered once by a UI sign-in, and the new
+ * state is written to `storagePath` at once. Costs one refresh per call (count it in the spec's refresh budget).
+ */
+export async function ensureAdminSession(context: BrowserContext, storagePath: string): Promise<void> {
+  const refreshed = await context.request.post('/api/auth/refresh', { headers: { Origin: readBaseUrl() } });
+  if (refreshed.status() !== 401) return;
+  const page = await context.newPage();
+  try {
+    await signInAdmin(page);
+    await context.storageState({ path: storagePath });
+  } finally {
+    await page.close();
+  }
 }
 
 /** `ProjectDashboard.tsx` h1 — the dashboard screen has painted. */
