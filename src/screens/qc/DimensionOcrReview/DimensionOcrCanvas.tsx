@@ -69,7 +69,7 @@ const BACKGROUND_IMAGE_OPACITY = 0.3;
 
 /** Khung canvas: tối thiểu 640, bo 16, thụt 12 — cùng khuôn hai màn QC anh em. */
 const CANVAS_FRAME_CLASSES =
-  'relative min-h-[640px] w-full overflow-hidden rounded-[16px] border border-border-default bg-canvas-2d p-3';
+  'relative min-h-[640px] w-full overflow-hidden rounded-[16px] border border-border-default bg-canvas-2d p-3 max-lg:min-h-[320px]';
 
 const CANVAS_READ_ONLY_NOTICE_ID = 'dimension-ocr-canvas-read-only';
 

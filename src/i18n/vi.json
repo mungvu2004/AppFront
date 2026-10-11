@@ -1721,7 +1721,7 @@
         },
         "r": {
           "label": "R",
-          "description": "Bật chế độ duyệt bàn phím"
+          "description": "Bật hoặc tắt chế độ duyệt bàn phím"
         }
       }
     },
@@ -1790,7 +1790,8 @@
       "offsetXPixels": "Lệch X (pixel)",
       "offsetYPixels": "Lệch Y (pixel)",
       "offsetXMm": "Lệch X (mm)",
-      "offsetYMm": "Lệch Y (mm)"
+      "offsetYMm": "Lệch Y (mm)",
+      "unavailable": "Chưa có trục nào nên chưa tính được gốc toạ độ."
     },
     "alignmentPanel": {
       "title": "Căn chỉnh giữa các tầng",
@@ -1801,7 +1802,8 @@
         "cannotAlign": "Không căn được"
       },
       "rootFloorLabel": "Tầng gốc",
-      "rowAriaLabel": "{{floorName}}, lệch {{offset}} mm, {{status}}"
+      "rowAriaLabel": "{{floorName}}, lệch {{offset}} mm, {{status}}",
+      "unavailable": "Chưa có trục nào nên chưa căn chỉnh được giữa các tầng."
     },
     "warning": {
       "title": "Cảnh báo lệch quá ngưỡng",
@@ -1858,7 +1860,9 @@
       "ariaLabel": "Khung xem bản vẽ quản lý trục và gốc toạ độ",
       "originLabel": "Gốc toạ độ 0,0",
       "axisAriaLabel": "Trục {{code}}, {{description}}",
-      "shadowFloorAriaLabel": "Bóng ma tầng {{floorName}}"
+      "shadowFloorAriaLabel": "Bóng ma tầng {{floorName}}",
+      "emptyNotice": "Chưa có trục nào để hiện trên bản vẽ.",
+      "errorNotice": "Chưa vẽ được trục vì lớp trục của tầng này chưa đọc được."
     }
   },
   "floorManager": {

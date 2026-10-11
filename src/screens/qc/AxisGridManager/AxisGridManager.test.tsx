@@ -221,6 +221,32 @@ describe('[NGHIEM-6] bảng độ lệch ba tầng, đọc từ màn', () => {
   });
 });
 
+describe('[BUG-330][BUG-336] tầng chưa có trục: không số 0 giả, không "Đã duyệt"', () => {
+  it.each(['empty', 'error'] as const)('trạng thái "%s": hai panel nói chưa có trục, nút căn bị khoá, canvas có lời giải thích', (state) => {
+    renderState(state);
+
+    expect(screen.queryByText('Lệch X (pixel)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Đã duyệt')).not.toBeInTheDocument();
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0);
+    expect(screen.getByRole('button', { name: 'Căn chỉnh tự động' })).toBeDisabled();
+    expect(screen.getByText('Chưa có trục nào nên chưa tính được gốc toạ độ.')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        state === 'error'
+          ? 'Chưa vẽ được trục vì lớp trục của tầng này chưa đọc được.'
+          : 'Chưa có trục nào để hiện trên bản vẽ.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('trạng thái có trục vẫn hiện bốn độ lệch và nút căn bấm được', () => {
+    renderState('success');
+
+    expect(screen.getByText('Lệch X (pixel)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Căn chỉnh tự động' })).toBeEnabled();
+  });
+});
+
 /* -------------------------------------------------------------------------- */
 /* [NGHIEM-4] Hai trạng thái dễ thành màn trắng nhất.                          */
 /* -------------------------------------------------------------------------- */

@@ -549,3 +549,54 @@ describe('dải tỉ lệ tạm (F-04x-2)', () => {
     expect(screen.queryByText(PROVISIONAL_MEASURE_TEXT)).not.toBeInTheDocument();
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* Bộ lọc "Chưa đặt tên" lọc sạch danh sách (BUG-321).                         */
+/* -------------------------------------------------------------------------- */
+
+describe('[BUG-321] bộ lọc "Chưa đặt tên" không còn phòng nào', () => {
+  it('câu rỗng bảo tắt bộ lọc, và công tắc vẫn còn trên màn để tắt', async () => {
+    await renderSettled('success');
+
+    const filter = (): HTMLElement => screen.getByRole('button', { name: /^Chưa đặt tên/u });
+
+    fireEvent.click(filter());
+
+    expect(
+      await screen.findByText(
+        'Không còn phòng nào chưa đặt tên. Tắt bộ lọc "Chưa đặt tên" để xem lại toàn bộ phòng của tầng.',
+      ),
+    ).toBeInTheDocument();
+    expect(filter()).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(filter());
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('option').length).toBeGreaterThan(0);
+    });
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Câu rỗng của canvas chỉ khi đã đọc xong và thật sự không có phòng (BUG-328). */
+/* -------------------------------------------------------------------------- */
+
+describe('[BUG-328] câu "Chưa dò được phòng nào" không đi cùng trạng thái lỗi/đang tải', () => {
+  const EMPTY_CANVAS = 'Chưa dò được phòng nào trên bản vẽ này.';
+
+  it.each(['error', 'loading'] as const)('trạng thái "%s": canvas không khẳng định đã dò xong', async (state) => {
+    renderState(state);
+
+    if (state === 'error') {
+      expect(await screen.findByText('Không đọc được lớp phòng')).toBeInTheDocument();
+    }
+
+    expect(screen.queryByText(EMPTY_CANVAS)).not.toBeInTheDocument();
+  });
+
+  it('trạng thái rỗng thật: canvas vẫn nói chưa dò được phòng nào', async () => {
+    renderState('empty');
+
+    expect(await screen.findByText(EMPTY_CANVAS)).toBeInTheDocument();
+  });
+});

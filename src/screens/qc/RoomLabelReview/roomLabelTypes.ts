@@ -366,6 +366,8 @@ export interface RoomLabelCanvasProps {
   readonly backgroundImageAlt: string;
   /** `false` ở trạng thái `forbidden`: xem/phóng to được, chọn thì không. */
   readonly isInteractive: boolean;
+  /** Xem `RoomLabelReviewProps.isFloorWithoutRooms` — canvas không tự suy từ `rooms` rỗng. */
+  readonly showEmptyNotice: boolean;
   readonly onSelect: (roomId: RoomId | null) => void;
   readonly onHover: (roomId: RoomId | null) => void;
 }
@@ -522,6 +524,11 @@ export interface RoomLabelReviewProps {
   readonly emptyNotice: string | null;
   /** Lỗi của trạng thái `error`. `null` ở trạng thái khác. */
   readonly errorMessage: string | null;
+  /**
+   * Lớp phòng ĐÃ đọc xong (không lỗi, không đang tải) và tầng không có phòng
+   * nào — chỉ khi đó canvas mới được nói "chưa dò được phòng" (BUG-328).
+   */
+  readonly isFloorWithoutRooms: boolean;
 
   /* -- Sáu trường thanh tra cần (xem khối ghi chú ngay trên) ---------------- */
   /** Tám nhãn của `ROOM_USAGE_LABELS`, gợi ý cho ô nhập tên — GỢI Ý, không bao giờ ép. */

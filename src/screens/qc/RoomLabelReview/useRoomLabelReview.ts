@@ -917,6 +917,7 @@ export function useRoomLabelReview(
     viewerRoleNotice: isViewerRole ? ROOM_LABEL_SCREEN_TEXT.viewerRoleNotice : null,
     emptyNotice,
     errorMessage,
+    isFloorWithoutRooms: errorMessage === null && !floorLayer.isPending && allRows.length === 0,
 
     nameSuggestions: ROOM_LABEL_NAME_SUGGESTIONS,
     usageOptions: ROOM_LABEL_USAGE_OPTIONS,

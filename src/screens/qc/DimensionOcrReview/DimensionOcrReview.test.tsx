@@ -658,3 +658,23 @@ describe('bốn bộ soát dùng chung', () => {
     expectNoRawColor(SCREEN_DIRECTORY);
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* Chế độ bàn phím khi không còn chuỗi nào để duyệt (BUG-334).                 */
+/* -------------------------------------------------------------------------- */
+
+describe('[BUG-334] chế độ duyệt bàn phím ở màn rỗng', () => {
+  it('vẫn thấy bản vẽ, trạng thái rỗng và nút tắt; chú thích phím khớp trạng thái đang bật', async () => {
+    renderState('empty');
+
+    fireEvent.click(await screen.findByRole('button', { name: DIMENSION_OCR_TEXT.keyboard.toggleOnLabel }));
+
+    const panel = await screen.findByRole('region', { name: DIMENSION_OCR_TEXT.keyboard.caption });
+
+    expect(screen.getByRole('region', { name: DIMENSION_OCR_TEXT.screen.canvasAriaLabel })).toBeInTheDocument();
+    expect(screen.getByText(DIMENSION_OCR_TEXT.states.empty.title)).toBeInTheDocument();
+    expect(within(panel).getByRole('button', { name: DIMENSION_OCR_TEXT.keyboard.toggleOffLabel })).toBeInTheDocument();
+    expect(within(panel).getByText('Tắt chế độ duyệt bàn phím', { selector: 'dd' })).toBeInTheDocument();
+    expect(within(panel).getByText('Bỏ sửa', { selector: 'dd' })).toBeInTheDocument();
+  });
+});

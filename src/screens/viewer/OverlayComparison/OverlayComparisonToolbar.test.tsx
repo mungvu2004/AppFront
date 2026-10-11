@@ -124,7 +124,7 @@ describe('OverlayComparisonToolbar', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('xếp hai hàng khi isStacked, và một hàng cao 40 khi không', () => {
+  it('xếp hai hàng khi isStacked, và một hàng tối thiểu cao 40, gói dòng được khi không', () => {
     const { unmount } = renderWithProviders(
       <OverlayComparisonToolbar {...toolbarPropsOf('collapsed')} />,
     );
@@ -138,7 +138,10 @@ describe('OverlayComparisonToolbar', () => {
     renderWithProviders(<OverlayComparisonToolbar {...toolbarPropsOf('success')} />);
 
     const inline = screen.getByRole('toolbar', { name: 'Thanh công cụ đối chiếu bản vẽ' });
-    expect(inline.className).toContain('h-10');
+    /* BUG-318: không ép cao cố định — khung hẹp thì thanh gói dòng, không tràn ra ngoài. */
+    expect(inline.className.split(' ')).toContain('min-h-10');
+    expect(inline.className.split(' ')).not.toContain('h-10');
+    expect(inline.className).toContain('flex-wrap');
     expect(inline.className).not.toContain('flex-col');
   });
 

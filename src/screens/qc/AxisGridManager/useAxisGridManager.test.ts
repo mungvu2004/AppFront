@@ -22,7 +22,8 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { alignFloors, type FloorAlignmentReport } from '@/domain/axes/alignFloors';
-import type { NormalizedSpatial } from '@/domain/spatial/normalize';
+import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { LevelId } from '@/domain/spatial/types';
 import { millimetres, type Millimetres } from '@/domain/units/types';
 import type { Announcer } from '@/lib/input/announcer';
@@ -475,6 +476,28 @@ describe('bảy trạng thái màn (A11 / R-63)', () => {
 
     expect(mounted.result.current.historyStepCount()).toBe(0);
     expect(mounted.result.current.viewModel.viewerRoleNotice).not.toBeNull();
+  });
+
+  it('[BUG-320] thêm trục khi mới có bản xem trước dò từ tường: giữ cả lưới dò được, thêm đúng một hàng', async () => {
+    const building = createSampleBuilding();
+    const mounted = await mountSettled({
+      gateway: createMockAxisGridManagerGateway({ graph: normalizeSpatial({ ...building, axes: [] }) }),
+    });
+    const rowCount = (): number =>
+      mounted.result.current.viewModel.groups.reduce((sum, group) => sum + group.rows.length, 0);
+    const before = rowCount();
+
+    expect(before).toBeGreaterThan(0);
+
+    await act(async () => {
+      mounted.result.current.onAxisAdd('vertical');
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(rowCount()).toBe(before + 1);
+    });
+    expect(mounted.result.current.historyStepCount()).toBe(1);
   });
 });
 
