@@ -1097,6 +1097,7 @@
       "realLengthPlaceholder": "4800",
       "realLengthHint": "OCR đọc được {{value}} ngay cạnh đoạn này.",
       "realLengthNoHint": "Không có chuỗi kích thước nào gần đoạn này để gợi ý.",
+      "realLengthInvalid": "Chiều dài thật phải là một số lớn hơn 0, ví dụ 4800.",
       "remeasure": "Đo lại",
       "snapped": "Đã bắt vào {{target}}",
       "snapTarget": {

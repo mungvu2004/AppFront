@@ -326,6 +326,7 @@ function panelFor(state: ScaleCalibrationState): ScalePanelViewModel {
       livePixelLengthLabel: null,
       realLengthText: '',
       realLengthPlaceholder: '4800',
+      realLengthError: null,
       realLengthHint: isEmpty
         ? 'Không có chuỗi kích thước nào gần đoạn này để gợi ý.'
         : `OCR đọc được ${formatNumber(REFERENCE_REAL_LENGTH)} ngay cạnh đoạn này.`,

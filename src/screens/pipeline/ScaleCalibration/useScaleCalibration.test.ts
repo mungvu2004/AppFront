@@ -478,6 +478,29 @@ describe('useScaleCalibration — tỷ lệ do M-02 tính', () => {
     expect(computation.isComplete).toBe(false);
   });
 
+  it('chiều dài gõ sai ("abc", "0") hiện lỗi nhập; ô trống hay số hợp lệ thì không (BUG-342)', async () => {
+    const harness = await makeHarness();
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    await dragReferenceLine(mounted);
+
+    const errorOf = (): string | null => mounted.result.current.model.panel.reference.realLengthError;
+
+    expect(errorOf()).toBeNull();
+
+    for (const text of ['abc', '0']) {
+      await act(async () => {
+        mounted.result.current.actions.onChangeRealLength(text);
+      });
+      expect(errorOf()).toBe('Chiều dài thật phải là một số lớn hơn 0, ví dụ 4800.');
+    }
+
+    await act(async () => {
+      mounted.result.current.actions.onChangeRealLength('4800');
+    });
+    expect(errorOf()).toBeNull();
+  });
+
   it('suy ra tỷ lệ của bộ mẫu từ 34 chuỗi kích thước qua inferScale', async () => {
     const harness = await makeHarness({ rows: sampleDimensionRows() });
     const mounted = mountHook(harness.gateway);

@@ -177,6 +177,7 @@ const COPY = {
   lowConfidenceInference: 'Độ tin cậy chung còn thấp, nên tỷ lệ phải được xác nhận bằng tay.',
   realLengthPlaceholder: '4800',
   realLengthNoHint: 'Không có chuỗi kích thước nào gần đoạn này để gợi ý.',
+  realLengthInvalid: 'Chiều dài thật phải là một số lớn hơn 0, ví dụ 4800.',
   crossCheckWallThickness: 'Độ dày tường điển hình',
   crossCheckDoorWidth: 'Bề rộng cửa đi điển hình',
   crossCheckLargestRoomArea: 'Diện tích phòng lớn nhất',
@@ -1706,6 +1707,10 @@ export function useScaleCalibration(
             draftForView === null ? null : pixelLabel(draftForView.pixelLength),
           realLengthText,
           realLengthPlaceholder: COPY.realLengthPlaceholder,
+          realLengthError:
+            realLengthText.trim() !== '' && (typedLength === null || typedLength <= 0)
+              ? COPY.realLengthInvalid
+              : null,
           realLengthHint:
             nearestOcrValue === null
               ? COPY.realLengthNoHint
@@ -1791,6 +1796,7 @@ export function useScaleCalibration(
     proposedRatio,
     realLengthText,
     rows,
+    typedLength,
     saveLabel,
     scaleDensityLabel,
     scaleRatioLabel,

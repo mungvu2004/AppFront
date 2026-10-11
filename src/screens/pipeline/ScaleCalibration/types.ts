@@ -252,6 +252,11 @@ export interface ScaleReferenceMethodViewModel {
    * `null` khi OCR không có gì để gợi.
    */
   readonly realLengthHint: string | null;
+  /**
+   * Lỗi nhập của ô — ví dụ khi gõ `"abc"` hay `"0"`. `null` khi ô trống hoặc giá trị
+   * đọc được và lớn hơn 0. Có thì ô hiện lỗi thay cho gợi ý (BUG-342).
+   */
+  readonly realLengthError: string | null;
   /** Kết quả chữ đều lớn của bước 3 — ví dụ `"12 mm/px"`. `null` khi chưa đủ dữ liệu. */
   readonly resultLabel: string | null;
   /**
