@@ -44,6 +44,7 @@ import { PROJECT_NAME_MAX_LENGTH, PROJECT_NAME_MIN_LENGTH } from '@/domain/proje
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
 import { describeError } from '@/lib/errors/describeError';
+import type { AppErrorKind } from '@/lib/errors/kinds';
 import { toAppError } from '@/lib/errors/toAppError';
 import { readWireError } from '@/lib/errors/wireError';
 import { formatArea } from '@/lib/format/measure';
@@ -232,6 +233,20 @@ function deleteErrorMessageOf(error: unknown): string {
     : 'Không xoá được dự án. Hãy thử lại.';
 }
 
+/** Kinds whose shared sentence is about the link, the server's pace or the session — true of a page load too. */
+const LOAD_ERROR_KINDS_WITH_OWN_SENTENCE: ReadonlySet<AppErrorKind> = new Set(['network', 'timeout', 'rateLimited', 'unauthenticated']);
+
+/**
+ * N1 failed while the page opened. Every other kind's shared sentence speaks of an action the person took
+ * ("Hãy thử lại thao tác vừa làm" for a 500) — they took none, so say what to do here instead (BUG-209).
+ */
+function listErrorMessageOf(error: unknown): string {
+  const appError = toAppError(error);
+  return LOAD_ERROR_KINDS_WITH_OWN_SENTENCE.has(appError.kind)
+    ? describeError(appError).description
+    : 'Máy chủ gặp lỗi khi đọc danh sách. Bấm "Thử lại" để tải lại.';
+}
+
 function routeForProject(project: DashboardProject, status: TelemetryPipelineStatus): string {
   switch (status) {
     case 'processing':
@@ -369,7 +384,7 @@ export function useProjectDashboard(
 
   // The cause and the next step, under the view's "Không tải được danh sách dự án" heading — the old
   // fallback repeated that heading word for word, and `Error.message` could be raw English (BUG-130).
-  const errorMessage = listQuery.isError ? describeError(toAppError(listQuery.error)).description : null;
+  const errorMessage = listQuery.isError ? listErrorMessageOf(listQuery.error) : null;
 
   const state = useMemo<SevenState>(() => {
     // Loading and a failed read beat the narrow overlay: with no list there is nothing

@@ -149,11 +149,19 @@ describe('useProjectDashboard states', () => {
     await waitFor(() => expect(dash().model.state).toBe('error'));
   });
 
-  it('explains a failed read with its cause and next step, never the heading again (BUG-130)', async () => {
+  // BUG-209: a 500 on opening the page read "Hãy thử lại thao tác vừa làm" — the person had done nothing.
+  it('explains a failed read with its next step, never the heading again nor an action never taken (BUG-130, BUG-209)', async () => {
     mount({ fetchList: () => Promise.reject(httpError(500, 'INTERNAL')) });
 
     await waitFor(() => expect(dash().model.state).toBe('error'));
-    expect(dash().model.errorMessage).toBe('Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại thao tác vừa làm.');
+    expect(dash().model.errorMessage).toBe('Máy chủ gặp lỗi khi đọc danh sách. Bấm "Thử lại" để tải lại.');
+  });
+
+  it('keeps the shared sentence for a lost connection, which is just as true of a page load', async () => {
+    mount({ fetchList: () => Promise.reject({ kind: 'network', code: 'NETWORK', requestId: 'req-1', retryable: true, raw: {} }) });
+
+    await waitFor(() => expect(dash().model.state).toBe('error'));
+    expect(dash().model.errorMessage).toBe('Không liên lạc được với máy chủ. Kiểm tra mạng rồi thử lại.');
   });
 
   it('narrow: a failed read still wins over collapsed (BUG-072)', async () => {
