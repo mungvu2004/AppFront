@@ -75,6 +75,7 @@ const FORBIDDEN_TITLE = 'Bạn không có quyền hiệu chỉnh tỷ lệ';
 
 const BACK_TO_PREPROCESSING_LABEL = 'Quay lại bước tiền xử lý';
 const RETRY_LABEL = 'Tải lại ảnh';
+const GO_TO_UPLOAD_LABEL = 'Tải bản vẽ lên';
 
 /**
  * Mã máy đọc không bao giờ đứng một mình (A6).
@@ -200,7 +201,12 @@ export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
                 }
                 title={(isError ? model.errorTitle : undefined) ?? NOTICE_TITLES[model.state]}
               />
-              {isError && (
+              {isError && model.isNoDrawing === true && (
+                <Button onClick={actions.onGoToUpload} size="sm" variant="secondary">
+                  {GO_TO_UPLOAD_LABEL}
+                </Button>
+              )}
+              {isError && model.isNoDrawing !== true && (
                 <div className="flex flex-wrap items-center gap-2">
                   <Button onClick={actions.onGoToPreprocessing} size="sm" variant="ghost">
                     {BACK_TO_PREPROCESSING_LABEL}

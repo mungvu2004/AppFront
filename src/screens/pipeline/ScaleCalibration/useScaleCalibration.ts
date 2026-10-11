@@ -1042,6 +1042,10 @@ export function useScaleCalibration(
     void query.refetch();
   }, [query]);
 
+  const onGoToUpload = useCallback(() => {
+    navigate(ROUTES.project.upload(projectId));
+  }, [navigate, projectId]);
+
   const onCanvasSizeChange = useCallback((widthPx: number, heightPx: number) => {
     setCanvasSize((size) =>
       size.width === widthPx && size.height === heightPx
@@ -1520,7 +1524,7 @@ export function useScaleCalibration(
       // Tầng chưa có bản vẽ: BE trả 404 `upload` (cùng khuôn `useInputQualityGate`). Nói đúng
       // nguyên nhân và không kèm mã máy — "Không tìm thấy… NOT_FOUND" đổ lỗi sai chỗ (BUG-337).
       if (wire?.status === 404 && wire.resource === 'upload') {
-        return { title: COPY.noDrawingTitle, description: COPY.noDrawingNotice, code: null };
+        return { title: COPY.noDrawingTitle, description: COPY.noDrawingNotice, code: null, isNoDrawing: true };
       }
 
       const appError = toAppError(query.error);
@@ -1752,6 +1756,7 @@ export function useScaleCalibration(
       errorCode,
       // Ảnh méo không đặt tiêu đề: view dùng tiêu đề "nắn ảnh thất bại" của chính nó (B-V5-04).
       ...(errorDescription?.title !== undefined ? { errorTitle: errorDescription.title } : {}),
+      ...(errorDescription !== null && 'isNoDrawing' in errorDescription ? { isNoDrawing: true } : {}),
       emptyNotice: isEmptyState ? COPY.emptyNotice : null,
       partialNotice: state === 'partial' ? COPY.partialNotice : null,
       forbiddenNotice: state === 'forbidden' ? COPY.forbiddenNotice : null,
@@ -1833,6 +1838,7 @@ export function useScaleCalibration(
       onToggleCollapsed,
       onGoToPreprocessing,
       onRetry,
+      onGoToUpload,
     }),
     [
       onApply,
@@ -1846,6 +1852,7 @@ export function useScaleCalibration(
       onConfirmRealLength,
       onEndDrag,
       onGoToPreprocessing,
+      onGoToUpload,
       onHoverDimensionRow,
       onMoveCursor,
       onMoveDrag,

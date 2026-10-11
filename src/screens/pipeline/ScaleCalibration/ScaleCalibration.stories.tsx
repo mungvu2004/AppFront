@@ -266,6 +266,7 @@ const ACTIONS: ScaleCalibrationActions = {
   onCancelAllFloors: NO_OP,
   onToggleCollapsed: NO_OP,
   onGoToPreprocessing: NO_OP,
+  onGoToUpload: NO_OP,
   onRetry: NO_OP,
 };
 

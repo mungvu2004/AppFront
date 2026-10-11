@@ -1023,6 +1023,8 @@ describe('useScaleCalibration — bảy trạng thái', () => {
 
     expect(model.state).toBe('error');
     expect(model.errorTitle).toBe('Tầng này chưa có bản vẽ');
+    // Lối ra là "Tải bản vẽ lên", không phải "Tải lại ảnh" (review-1 #7).
+    expect(model.isNoDrawing).toBe(true);
     expect(model.errorMessage).toContain('Tải bản vẽ lên');
     expect(model.errorCode).toBeNull();
     expect(model.panel.crossChecks.map((row) => row.label)).toEqual([

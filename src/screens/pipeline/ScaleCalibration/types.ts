@@ -555,6 +555,8 @@ export interface ScaleCalibrationViewModel {
    * view dùng tiêu đề "nắn ảnh thất bại" — chỉ đúng cho ảnh méo (B-V5-04).
    */
   readonly errorTitle?: string;
+  /** Tầng chưa có bản vẽ (404 `upload`): lối ra là "Tải bản vẽ lên", không "Tải lại ảnh" (BUG-337). */
+  readonly isNoDrawing?: boolean;
   /** Câu của trạng thái `'empty'`. `null` ở trạng thái khác. */
   readonly emptyNotice: string | null;
   /** Câu của trạng thái `'partial'`. `null` ở trạng thái khác. */
@@ -660,6 +662,8 @@ export interface ScaleCalibrationActions {
   readonly onGoToPreprocessing: () => void;
   /** Tải lại ảnh sau khi nắn thất bại. */
   readonly onRetry: () => void;
+  /** Tới màn Tải bản vẽ — lối ra của tầng chưa có bản vẽ (BUG-337). */
+  readonly onGoToUpload: () => void;
 }
 
 /* -------------------------------------------------------------------------- */
