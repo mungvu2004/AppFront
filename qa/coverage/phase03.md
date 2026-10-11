@@ -30,12 +30,12 @@ No phase-03 `_ui` spec exists at this stamp. Test names are shortened to their l
 
 | # | What | Source | Edge test |
 |---|---|---|---|
-| F1 | **Main spec stale copy**: `HIDE_3D_NOTICE` says "mô hình 3d"; the source says "mô hình 3D" → `getByText(…, {exact})` should miss (main SCR-09 "Ẩn khỏi mô hình 3D" test). Also the notice is shown from the first paint (`unsupportedNotices` = every unsupported capability, UFM:1629-1635), not as a reaction to the menu click, so that test proves less than its title | `FMG:209-214`, `UFM:1629-1635`, `M` line 49-50 | — (main spec owner; not edited here) |
+| F1 | **Resolved (FIX-1483 test side, after FIX-1424 / BUG-287)** — was "main spec stale copy / notice shown from the first paint". The floor screen now has one "Một số thay đổi chưa được lưu" strip (`FM:77, 142-151`, role="status"); the hide-in-3D sentence "Tầng đang ẩn khỏi mô hình 3D sẽ hiện lại sau khi tải lại trang." (`FMG:212`) is added only while a floor is hidden (`UFM:1655-1664`), joined in one `<p>` with the floor-contents sentence (`FMG:210-211`). Main spec asserts absent → hide → present inside the strip | `FMG:205-213`, `UFM:1655-1664`, `FM:142-151` | — (main spec SCR-09 "Ẩn khỏi mô hình 3D") |
 | F2 | **FloorManager is never compact**: the route never passes `isCompact` (FMC:113 says the parent must measure and pass it; FMC:211-246 does not), so at < 1024 px the 360 px section cut stays beside a 10-column table | `FMC:113, 211-246`, `FM:142-161` | E SCR-09 at 375 px (expected to FAIL while unfixed) |
 | F3 | **"Xoá bản vẽ …" on an attached drawing never reaches the server** (UFU:833 "xoá không gọi máy chủ"), yet the toast says "Đã xoá bản vẽ …"; after a reload the drawing is back and the card has no menu at all (FUC:82-86) — the user cannot remove a server drawing from this screen | `UFU:819-871`, `FUC:82-86` | E SCR-10 attached drawing … reload shows the server copy |
-| F4 | **"Bắt đầu xử lý" with zero floors does nothing**: `canSubmit` false, no reason to list → silent return; FUF:4-13 promises the main button never fails silently | `UFU:960-978`, `FUF:4-13` | E SCR-10 project with no floor (asserts the silent no-op; finding for review) |
-| F5 | **Notes rejection names the wrong part**: a refused "Ghi chú" (General tab) reports "Chưa lưu được đơn vị đo." because notes belong to the `units` part | `UPS:366-369`, `SE:117-140` | E SCR-08 "Ghi chú" with a bidi mark |
-| F6 | **SCR-13 never reads anything**: the real gateway answers "unsupported" without a request, so even an unknown project id shows the normal empty story (no 404 path on this screen) | `PGG:343-345`, `UPG:528-539` | E SCR-13 own project / unknown project |
+| F4 | **Resolved (FIX-1400, BUG-298)** — was "Bắt đầu xử lý with zero floors does nothing". Zero floors now list one project-level `noFloors` reason "Dự án chưa có tầng nào. Thêm tầng ở màn Quản lý tầng trước khi xử lý." under "Không thể bắt đầu xử lý"; the empty state offers "Thêm tầng" and the drop zone is gone (`canDrop`) | `UFU:115-117, 437, 933-934`, `FU:76-80, 160-166, 229-235`, `FUF:72-87` | E SCR-10 project with no floor (notice + "Thêm tầng" + no drop zone) |
+| F5 | **Resolved (FIX-1422, BUG-300)** — was "notes rejection names the wrong part". The sentence now names the field the user sees and the next step: a refused "Ghi chú" → "Chưa lưu được ghi chú. Sửa lại giá trị đó, hệ thống sẽ tự lưu tiếp." | `UPS:1013-1030`, `SE:124-170` | E SCR-08 "Ghi chú" with a bidi mark |
+| F6 | **Resolved (FIX-1384, BUG-313)** — was "SCR-13 never reads anything". The graph now reads #24 `GET /api/projects/{id}` (`readProjectExists`); a 404 `project` shows "Không tìm thấy dự án này" + "Về danh sách dự án" instead of the empty story. Branch report / comparison / node detail are still "unsupported" without a request | `PGG:304-312, 356-358`, `UPG:265-268, 715`, `PG:136-148` | E SCR-13 own project (only #24) / unknown project (404 → not-found) |
 | F7 | **"Bắt đầu xử lý" (SCR-10) and "Tiếp tục xử lý" (SCR-11) only navigate** — processing is started by the upload `complete`, not by these buttons | `UFU:980-983`, `UIQ:1263-1269` | E SCR-10 every floor attached (no request on click) |
 | F8 | Collapsed upload (< 1024 px) hides the empty invitation sentence: `collapsed` is checked before `empty` | `UFU:1148-1159`, `FU:156-158` | E SCR-10 at 375 px (data in JSON; not asserted) |
 | F10 | **Resolved by FIX-1380 (BUG-285)** — was "/pipeline is a dead end after a finished run". The real gateway now has `extractionSummary` (`PRG:808`) read from N16 spatial/layer (`PRG:1006`) once a floor is done; "Báo cáo tổng kết" with "Duyệt lớp tường" / "Hiệu chỉnh tỷ lệ" shows as soon as one floor is done, and still shows (without counts) when N16 fails. The main spec "[BUG-285] SCR-12 Duyệt lớp tường" asserts it (last test of that serial file, BUG-315) | `PRG:808, 1006`, `UPR:733-745, 1208-1276`, `PR:281`, `PSU:18-20, 47-53` | E SCR-10 every floor attached (summary + both buttons, "Hiệu chỉnh tỷ lệ" → scale) |
@@ -56,8 +56,8 @@ No phase-03 `_ui` spec exists at this stamp. Test names are shortened to their l
 | S7 | Validation | "Tên dự án cần ít nhất 3 ký tự." | `UPS:424-426` | E · SCR-08 "Tên dự án" blank | covered |
 | S8 | Validation | "Tên dự án không quá 80 ký tự." (unreachable: maxlength 80) | `UPS:427-429` | — | n/a-by-design (input caps it) |
 | S9 | Autosave | local problem blocks the autosave (no PATCH) | `UPS:765-767, 1300` | E · SCR-08 "Tên dự án" blank | covered |
-| S10 | Input | "Mã dự án" maxlength 32, hint "Mã ngắn để tra cứu nhanh; bỏ trống cũng được" | `GT:48-55`, `PSG:189` | E · SCR-08 saved "Mã dự án" | covered |
-| S11 | Validation | saved code / address emptied → "Bản này chưa xoá trống được." | `UPS:433-447`, `SE:113` | E · SCR-08 saved "Mã dự án" | covered |
+| S10 | Input | "Mã dự án" maxlength 32, hint "Mã ngắn để tra cứu nhanh" (no "bỏ trống cũng được": a saved code cannot be emptied, FIX-1420 / BUG-299) | `GT:48-55`, `PSG:189` | E · SCR-08 saved "Mã dự án" | covered |
+| S11 | Validation | saved code / address emptied → "Giá trị đã lưu không xoá trống được; hãy nhập giá trị khác." (FIX-1420, BUG-299) | `UPS:433-447`, `SE:113` | E · SCR-08 saved "Mã dự án" | covered |
 | S12 | Input | "Địa chỉ" edit → PATCH name/code/address only | `GT:57-63`, `PSG:267-277, 431-440` | M · SCR-08 "Địa chỉ" | covered |
 | S13 | Input | "Địa chỉ" maxlength 200 | `GT:60`, `PSG:190` | E · SCR-08 saved "Mã dự án" | covered |
 | S14 | Select | "Loại công trình" (Nhà ở / Thương mại / Công nghiệp / Hỗn hợp / Khác) → PUT settings | `GT:64-70`, `UPS:494-500, 366-369` | — | gap (low; same PUT path as notes) |
@@ -66,9 +66,9 @@ No phase-03 `_ui` spec exists at this stamp. Test names are shortened to their l
 | S17 | Validation | "Ghi chú không quá 500 ký tự." (501) + no PUT | `UPS:449-454` | E · SCR-08 "Ghi chú" 500 | covered |
 | S18 | Toast | "Đã lưu cài đặt dự án." + "Hoàn tác" → previous draft saved again | `UPS:1015-1039, 606-607` | E · SCR-08 toast "Hoàn tác" | covered |
 | S19 | Server 422 | field → "Máy chủ không nhận giá trị này. Kiểm tra lại ô này." (notes) | `SE:92-107, 111`, `UPS:938-944` | E · SCR-08 "Ghi chú" with a bidi mark | covered |
-| S20 | Server 422 | "Chưa lưu hết" + "Chưa lưu được đơn vị đo." (notes) — F5 | `PS:97-99`, `SE:128-141` | E · SCR-08 "Ghi chú" with a bidi mark | covered |
-| S21 | Server 422 | name refused → field message + "Chưa lưu được thông tin chung." | `PS:97-99`, `SE:117-141` | E · SCR-08 "Tên dự án" with a bidi mark | covered |
-| S22 | Conflict | 409 → "Cài đặt đã đổi ở nơi khác" + sentence + "Tải lại" | `PS:88-95`, `SE:110`, `UPS:934-937` | E · SCR-08 settings changed elsewhere | covered |
+| S20 | Server 422 | "Chưa lưu hết" + "Chưa lưu được ghi chú. Sửa lại giá trị đó, hệ thống sẽ tự lưu tiếp." (notes; F5 resolved, FIX-1422 / BUG-300) | `PS:97-99`, `SE:124-170`, `UPS:1013-1030` | E · SCR-08 "Ghi chú" with a bidi mark | covered |
+| S21 | Server 422 | name refused → field message + "Chưa lưu được tên dự án. Sửa lại giá trị đó, hệ thống sẽ tự lưu tiếp." (FIX-1422, BUG-300) | `PS:97-99`, `SE:124-170` | E · SCR-08 "Tên dự án" with a bidi mark | covered |
+| S22 | Conflict | 409 → "Cài đặt đã đổi ở nơi khác" + sentence + "Tải lại"; nothing saved → no second "Chưa lưu hết" strip (FIX-1422, BUG-300) | `PS:88-95`, `SE:110`, `UPS:1024-1030` | E · SCR-08 settings changed elsewhere | covered |
 | S23 | Dialog | reload with unsaved draft → "Tải lại sẽ bỏ thay đổi chưa lưu": "Giữ thay đổi" keeps, "Tải lại" loads server copy | `RD:17-35`, `UPS:1356-1374` | E · SCR-08 settings changed elsewhere | covered |
 | S24 | Dialog | reload dialog Esc closes (Modal onClose) | `RD:19` | — | gap (low; same Modal as S33) |
 | S25 | Select | "Đơn vị chiều dài" Mét / Milimét → PUT ×2 | `UT:45-51`, `UPS:502-505` | M · SCR-08 "Đơn vị chiều dài" | covered |
@@ -111,7 +111,7 @@ No phase-03 `_ui` spec exists at this stamp. Test names are shortened to their l
 | F12r | Button | "Nhân bản tầng" (selected row) | `FT:232-243` | M · SCR-09 band … "Nhân bản tầng" visible | covered (visible only) |
 | F13r | Switch | "Tự động tính cao độ" starts OFF (elevation inputs editable); toggling hides them | `FT:310-317`, `UFM:501, 1048-1059` | M · SCR-09 "Tự động tính cao độ" (stale start state, F11); E · SCR-09 middle floor "Cao độ tầng" | covered |
 | F14r | Validation | elevation into a neighbour → violation notice names the floor, no PATCH | `UFM:1190-1200`, `FMG:465-512`, `FM:135-139` | E · SCR-09 middle floor "Cao độ tầng" | covered |
-| F15r | Menu | "Thao tác khác cho tầng {name}" → "Ẩn khỏi mô hình 3D" / "Hiện trong mô hình 3D", session-only notice | `FT:171-175`, `UFM:1061-1083` | M · SCR-09 "Thao tác khác…" (F1: stale copy) | covered |
+| F15r | Menu | "Thao tác khác cho tầng {name}" → "Ẩn khỏi mô hình 3D" / "Hiện trong mô hình 3D"; the hide sentence joins the "Một số thay đổi chưa được lưu" strip only while a floor is hidden (F1 resolved) | `FT:171-175`, `UFM:1079-1100, 1655-1664` | M · SCR-09 "Thao tác khác…"; U · U03_floors_hidden_in_3d | covered |
 | F16r | Menu | "Đổi tên" focuses the name input | `FT:159-162` | E · SCR-09 row menu "Đổi tên" | covered |
 | F17r | Menu | "Nhân bản" → in-row "Sao chép nội thất sang tầng mới" + "Nhân bản"; Escape cancels | `FT:164-170`, `FTR:147-151, 321-333` | E · SCR-09 row menu "Nhân bản" | covered |
 | F18r | Menu | duplicate → POST "{name} (bản sao)" + toast "Đã nhân bản tầng …" | `UFM:366-373, 1315-1365`, `FMG:588-589` | E · SCR-09 row menu "Nhân bản" | covered |
@@ -146,7 +146,7 @@ No phase-03 `_ui` spec exists at this stamp. Test names are shortened to their l
 | U10 | Tray | trash "Xoá bản vẽ {name}" → toast + "Hoàn tác" restores | `FUT:74-81`, `UFU:819-871` | E · SCR-10 tray trash | covered |
 | U11 | PDF | multi-page PDF assigned → "Chọn trang" (Trang 1…N), no init until picked | `FUC:263-279`, `UFU:245-251, 569-573, 1000-1006` | E · SCR-10 3-page .pdf | covered |
 | U12 | PDF | page picked → upload starts | `UFU:794-806` | — | gap (would upload a fake PDF; BE magic-byte rule is phase03-be) |
-| U13 | CAD | .dwg → CAD pill + 422 CAD_NOT_SUPPORTED sentence + "Lỗi" | `FUC:61-68, 239, 283-295`, `FUG:85, 189-194` | E · SCR-10 .dwg | covered |
+| U13 | CAD | .dwg → 422 CAD_NOT_SUPPORTED sentence + "Lỗi"; no "Bản vẽ CAD · độ chính xác cao" pill on the refused card (FIX-1404, BUG-304) | `FUC:41, 237-241, 283-295`, `UFU:1074`, `FUG:85, 189-194` | E · SCR-10 .dwg | covered |
 | U14 | Card | card menu "Tuỳ chọn của tầng {name}" aria-expanded, Esc closes | `FUC:77-155` | E · SCR-10 attached drawing | covered |
 | U15 | Card | "Xoá bản vẽ" on an attached file is local; undo restores; reload shows server copy without menu (F3) | `UFU:819-871`, `FUC:82-86` | E · SCR-10 attached drawing | covered |
 | U16 | Card | "Huỷ" during upload (canCancelUpload) | `FUC:112-124`, `UFU:1219-1221` | — | gap (upload of the fixture PNG finishes too fast to catch; would need a held response) |
@@ -160,11 +160,11 @@ No phase-03 `_ui` spec exists at this stamp. Test names are shortened to their l
 | U24 | Footer | blocked reason "… chưa chọn trang của bản vẽ." (multi-page PDF, no page; "… chưa tải xong bản vẽ." stays for a waiting/failed file) | `UFU:945-961` | E · SCR-10 3-page .pdf | covered |
 | U25 | Footer | blocked reason "… chưa nhập cao độ." / elevation out of range / duplicate elevation | `UFU:904-948` | — | gap (needs floors with bad elevations; BE refuses most at write) |
 | U26 | Footer | "Bắt đầu xử lý" ready → navigate /pipeline only (F7) | `UFU:980-983` | E · SCR-10 every floor attached | covered |
-| U27 | Footer | zero floors → silent no-op (F4) | `UFU:960-978` | E · SCR-10 project with no floor | covered |
+| U27 | Footer | zero floors → block notice "Dự án chưa có tầng nào. Thêm tầng …" (F4 resolved) | `UFU:933-934` | E · SCR-10 project with no floor | covered |
 | U28 | Empty | floors without drawings → "Chưa có tầng nào có bản vẽ…" | `FU:156-158`, `UFU:1155` | E · SCR-10 floors without drawings | covered |
 | U29 | Empty | no floor → "Dự án chưa có tầng nào" | `FU:149-150` | E · SCR-10 project with no floor | covered |
-| U30 | Error | load error → "Không tải được danh sách tầng" | `FU:137-142` | E · SCR-10 unknown project | covered |
-| U31 | Breadcrumb | "Dự án" → "/" (+ project name crumb) | `FU:194-204` | E · SCR-10 project with no floor; unknown project | covered |
+| U30 | Error | load error → "Không tải được danh sách tầng" (+ "Thử lại" when retryable); a 404 → "Không tìm thấy dự án này" + "Về danh sách dự án", no drop zone (FIX-1401, BUG-311) | `FU:140-153`, `UFU:1200-1208, 1245-1247` | E · SCR-10 unknown project (404 branch); U · U01 upload unknown project | covered (404 branch); gap (non-404 load error) |
+| U31 | Breadcrumb | "Dự án" → "/" (+ project name crumb) | `FU:194-204` | E · SCR-10 project with no floor | covered |
 | U32 | Offline | "Đang làm việc ngoại tuyến" + await-network sentence | `FU:206-208`, `UFU:577-640` | — | gap (network loss; mock/offline candidate) |
 | U33 | Compact | < 1024 px stacked cards, no horizontal scroll | `FUC:201`, `UFU:1153` | E · SCR-10 at 375 px | covered |
 | U34 | Forbidden | read-only notice, no drop zone | `FU:210-220`, `UFU:109` | Phase 9 (Track B) | n/a-by-design (role) |
@@ -212,7 +212,7 @@ No phase-03 `_ui` spec exists at this stamp. Test names are shortened to their l
 | P10 | Summary | "Hiệu chỉnh tỷ lệ" → scale of the first done floor (FIX-1380, BUG-285) | `PSU:50-52`, `UPR:1220-1232` | E · SCR-10 every floor attached (click → /scale) | covered |
 | P11 | Empty | no run → "Chưa có bước nào để theo dõi" + "Tải bản vẽ" → /upload + "Chưa có lượt xử lý nào đang chạy." | `PR:196-202`, `UPR:795-797, 1240` | E · SCR-12 project with no run | covered |
 | P12 | Empty compact | < 1024 px no run is still empty (not collapsed) | `UPR:726-731` | E · SCR-12 at 375 px | covered |
-| P13 | Error | read failure → alert + "Thử lại" + code + "Liên hệ hỗ trợ" → /tai-khoan | `PR:243-258`, `UPR:779-788, 1263-1278` | E · SCR-12 unknown project | covered |
+| P13 | Error | read failure → alert + "Thử lại" + code + "Liên hệ hỗ trợ" → /tai-khoan; a 404 project → only "Không tìm thấy dự án này" + "Về danh sách dự án" (FIX-1385, BUG-312) | `PR:250-272`, `UPR:752-757, 1312-1336` | E · SCR-12 unknown project (404 branch) | covered (404 branch); gap (non-404 read failure) |
 | P14 | Failure | failed step → PipelineFailure screen ("Sao chép mã lỗi") | `UPR:1280-1310`, container | M · SCR-12 (failure branch only on a real failure) | UNKNOWN (fake ML does not fail; not producible safely) |
 | P15 | Chips | "Tiến độ theo tầng" chips aria-current | `PFC:20-50` | — | gap (display; low) |
 | P16 | Floors | "Số đối tượng đã nhận theo tầng" list | `PR:162-182` | — | gap (display; low) |
@@ -228,7 +228,7 @@ No phase-03 `_ui` spec exists at this stamp. Test names are shortened to their l
 | G2 | Overview | reason "Chưa có lượt xử lý nào, nên chưa biết hồ sơ đi nhánh nào." | `PGO:324`, `PGT:159` | E · SCR-13 own project | covered |
 | G3 | Disclosure | "Chi tiết kỹ thuật" absent in empty state | `PG:146-153, 71-121` | E · SCR-13 own project | covered |
 | G4 | Branch switch | "Đổi sang nhánh ảnh quét" absent (switchBranch unsupported) | `UPG:661-675`, `PGG:297` | E · SCR-13 own project | covered |
-| G5 | Network | no request at all; unknown project shows the same story (F6) | `PGG:343-345` | E · SCR-13 own project; E · SCR-13 unknown project | covered |
+| G5 | Network | only #24 `GET /api/projects/{id}`; an unknown project → 404 → not-found strip (F6 resolved) | `PGG:304-312, 356-358` | E · SCR-13 own project; E · SCR-13 unknown project | covered |
 | G6 | Detail mode, rerun, zoom, node select | detail graph controls | `PG:71-121`, `PGT:186-206` | — | n/a-by-design (unreachable with the real gateway, F-06) |
 | G7 | Error | alert + "Thử lại" + code | `PG:166-178` | — | n/a-by-design (no read → no failure) |
 
@@ -251,10 +251,10 @@ No phase-03 `_ui` spec exists at this stamp. Test names are shortened to their l
 |---|---|---|---|---|---|
 | X1 | SCR-08 | "Không tải được cài đặt dự án" + "Về danh sách dự án" → "/" | `PS:61-66, 101-107` | E · SCR-08 unknown project | covered |
 | X2 | SCR-09 | "Không tìm thấy dự án này" + "Về danh sách dự án" → "/" | `FT:201-212` | E · SCR-09 unknown project | covered |
-| X3 | SCR-10 | "Không tải được danh sách tầng"; breadcrumb out | `FU:137-142` | E · SCR-10 unknown project | covered |
+| X3 | SCR-10 | "Không tìm thấy dự án này" + "Về danh sách dự án" → "/"; no drop zone, no "Thử lại" | `FU:140-153` | E · SCR-10 unknown project | covered |
 | X4 | SCR-11 | "Không tìm thấy dự án này" + "Về danh sách dự án"; footer hidden | `IQ:131-144` | E · SCR-11 unknown project | covered |
-| X5 | SCR-12 | "Không tìm thấy" + "Thử lại" + "Liên hệ hỗ trợ" → /tai-khoan | `PR:243-258` | E · SCR-12 unknown project | covered |
-| X6 | SCR-13 | same empty story, no request (F6) | `PGG:343-345` | E · SCR-13 unknown project | covered |
+| X5 | SCR-12 | "Không tìm thấy dự án này" + "Về danh sách dự án" → "/"; no "Thử lại" / code / "Liên hệ hỗ trợ" | `PR:250-257`, `UPR:1315-1326` | E · SCR-12 unknown project | covered |
+| X6 | SCR-13 | #24 404 → "Không tìm thấy dự án này" + "Về danh sách dự án" → "/" (F6 resolved) | `PGG:304-312`, `PG:136-148` | E · SCR-13 unknown project | covered |
 
 ## Mocked tests and their pairs
 
@@ -269,7 +269,7 @@ No phase-03 `_ui` spec exists at this stamp. Test names are shortened to their l
 - Edge tests: **50** in `phase03_pipeline_edge.spec.ts` (49 real, 1 mocked). Mocked share for phase 03 UI layers: 1 of 69 (19 M + 50 E) ≈ **1.4 %** (limit 35 %).
 - Author run `run-17-author` (`phase03-edge`): 44 passed / 6 failed; 5 were test bugs (fixed: auto-elevation default, duplicate "Chưa có bản vẽ" text,
   unroute matcher identity, aria-disabled click needs `force`, summary actions absent by source) and re-run in `phase03-r2-edge`;
-  1 is an app failure left failing: F2 (SCR-09 at 375 px). F3/F4/F5/F7 are asserted as the source behaves and listed as findings; F10 is resolved (FIX-1380, BUG-285) and now asserted as fixed.
+  1 is an app failure left failing: F2 (SCR-09 at 375 px). F3/F7 are asserted as the source behaves and listed as findings; F1/F4/F5/F6/F10 are resolved by the QA-03b fixes (FIX-1424/1400/1422/1384/1380) and now asserted as fixed.
 - Open gaps by priority: (main flow) U12 page pick → upload, U18 auto-match, U19 displacement, Q3 multi-floor table; (errors) U16/U17 cancel/retry mid-upload,
   U32 offline, Q14 quality 5xx, S44 danger refusal; (edges) F5r same-name rename, F21r restore window, U25 elevation reasons;
   (display / UI-spec candidates) S3, S26, S38, S39, F28r, F31r, U20, U35, P15–P18, Q16, Q20.
