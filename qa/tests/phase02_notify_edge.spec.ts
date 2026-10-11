@@ -98,9 +98,15 @@ const VIEW_ALL = 'Xem tất cả'; // NC:59
 const UNREAD_HINT = /^chưa đọc\. /u; // NC:62,166 (sr-only prefix of an unread row's sentence button)
 const NOTIF_EMPTY = 'Không có thông báo mới'; // NC:64
 const NOTIF_EMPTY_DESCRIPTION = 'Chúng tôi sẽ báo khi AI xử lý xong hoặc có người nhắc đến bạn.'; // NC:65
-const NOTIF_PARTIAL = 'Có thể chưa cập nhật'; // NC:66
+const NOTIF_PARTIAL = 'Có thể chưa cập nhật'; // NotificationCenter.tsx PARTIAL_NOTICE: a failed write only (a tab with no match is 'empty', BUG-179)
+/** One empty-state sentence per tab (BUG-126); the two filtered tabs also offer "Hiện mọi thông báo". */
+const NOTIF_EMPTY_UNREAD = 'Không có thông báo chưa đọc'; // NotificationCenter.tsx EMPTY_COPY.unread
+const NOTIF_EMPTY_MENTIONS = 'Chưa có ai nhắc đến bạn'; // NotificationCenter.tsx EMPTY_COPY.mentions
+const NOTIF_SHOW_EVERYTHING = 'Hiện mọi thông báo'; // NotificationCenter.tsx SHOW_EVERYTHING_LABEL
 const NOTIF_FILTERS = { all: 'Tất cả', unread: 'Chưa đọc', mentions: 'Nhắc đến tôi' } as const; // NM:114-118
-const ACCEPT = 'chấp nhận'; // NCG:182 (projectInvite → kind 'accept')
+const ACCEPT = 'Chấp nhận'; // notificationCenterGateway.ts:182 (projectInvite → kind 'accept'; capitalised since BUG-181, A6)
+const ACCEPTED = 'Đã chấp nhận'; // useNotificationCenter.ts inviteStatus: replaces the button once the accept is done
+const NEAR_PX = 24; // largest gap between the gear and its tooltip that still reads as "next to it"
 const TODAY = 'Hôm nay'; // UNC:154, NC:264 (section aria-label)
 const LIVE = {
   empty: 'Không có thông báo nào', // UNC:156
@@ -388,9 +394,10 @@ async function asInvitee(browser: Browser, body: (session: Session) => Promise<v
 }
 
 /**
- * BUG-141: the shared `navigateThenWaitForApi` (e2e/fullstack/apiWatch.ts:260-269) awaits `navigate()` BEFORE it registers
- * the wait, so a response that lands before `goto/reload({ waitUntil: 'commit' })` returns is missed and the test times
- * out on a loaded page. The wait is registered first and both run together; the shared helper stays (other specs use it).
+ * BUG-141: the shared `navigateThenWaitForApi` (e2e/fullstack/apiWatch.ts) used to await `navigate()` BEFORE it registered
+ * the wait, so a response that landed before `goto/reload({ waitUntil: 'commit' })` returned was missed and the test timed
+ * out on a loaded page. The shared helper registers first since FIX-986 (and ignores responses of the old document); this
+ * local one, which waits first and runs both together, is kept as it was.
  */
 async function navigateAndWaitForApi(
   page: Page,
@@ -419,7 +426,7 @@ const inviteOf = (inbox: readonly Json[], projectId: string): Json => {
 /* ================================================================= SCR-06 notifications */
 
 test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => {
-  test('E02 · SCR-06 empty inbox (real): no badge, "Không có thông báo mới" under every filter, mark-all disabled, live "Không có thông báo nào"', async ({ browser }) => {
+  test('E02 · SCR-06 empty inbox (real): no badge, one empty sentence per filter, mark-all disabled, live "Không có thông báo nào"', async ({ browser }) => {
     await asInvitee(browser, async ({ page }) => {
       const inbox = await loadWithInbox(page);
       expect(inbox, 'precondition: the invitee owns no visible notification').toEqual([]);
@@ -431,17 +438,19 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
       await expect(headerBadge(drawer)).toHaveCount(0); // NC:303
       await expect(liveRegion(drawer)).toHaveText(LIVE.empty); // UNC:920-921
 
-      // UNC:877-879: an empty inbox beats the filter — every chip shows the same empty state (copy question = BUG-126).
-      const seen: Record<string, boolean> = {};
-      for (const label of [NOTIF_FILTERS.unread, NOTIF_FILTERS.mentions]) {
+      // BUG-126: no row to show is the 'empty' state, and each tab says what it filters; the two filtered tabs offer a way back.
+      const seen: Record<string, string> = {};
+      for (const [label, title] of [[NOTIF_FILTERS.unread, NOTIF_EMPTY_UNREAD], [NOTIF_FILTERS.mentions, NOTIF_EMPTY_MENTIONS]] as const) {
         await filterRadio(drawer, label).click();
         await expect(filterRadio(drawer, label)).toHaveAttribute('aria-checked', 'true');
-        await expect(drawer.getByText(NOTIF_EMPTY, { exact: true })).toBeVisible();
+        await expect(drawer.getByText(title, { exact: true })).toBeVisible();
+        await expect(drawer.getByText(NOTIF_EMPTY, { exact: true }), 'not the "Tất cả" sentence').toHaveCount(0);
+        await expect(drawer.getByRole('button', { name: NOTIF_SHOW_EVERYTHING, exact: true })).toBeVisible();
         await expect(drawer.getByText(NOTIF_PARTIAL, { exact: true })).toHaveCount(0);
-        seen[label] = true;
+        seen[label] = title;
       }
-      await captureEvidence(page, 'E02_ntf_empty_inbox.png', { caption: `fresh invitee, filter "${NOTIF_FILTERS.mentions}": "${NOTIF_EMPTY}" (BUG-126: copy ignores the filter)` });
-      await attachJson('E02_ntf_empty_inbox.json', { inbox: inbox.length, filtersShowingEmpty: seen, bug: 'BUG-126 (copy) — source UNC:877-879' });
+      await captureEvidence(page, 'E02_ntf_empty_inbox.png', { caption: `fresh invitee, filter "${NOTIF_FILTERS.mentions}": "${NOTIF_EMPTY_MENTIONS}" + "${NOTIF_SHOW_EVERYTHING}"` });
+      await attachJson('E02_ntf_empty_inbox.json', { inbox: inbox.length, emptySentencePerFilter: seen, bug: 'BUG-126' });
     });
   });
 
@@ -471,7 +480,7 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
     });
   });
 
-  test('E02 · SCR-06 "chấp nhận" on a real projectInvite POSTs accept-invite (200), keeps the drawer open, turns the row read and clears the badge', async ({ browser }) => {
+  test('E02 · SCR-06 "Chấp nhận" on a real projectInvite POSTs accept-invite (200), keeps the drawer open, turns the row read, shows "Đã chấp nhận" and clears the badge', async ({ browser }) => {
     await asInvitee(browser, async (session) => {
       const { page } = session;
       const project = await sharedProject(session, 'ntf-accept');
@@ -498,14 +507,12 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
       await expect(markReadButtons(row)).toHaveCount(0); // NC:187
       await expect(bell(page)).toHaveText('');
       await expect(liveRegion(drawer)).toHaveText(LIVE.allRead); // UNC:922
-      await captureEvidence(page, 'E02_ntf_accept_invite.png', { caption: `"${ACCEPT}" → POST …/accept-invite 200; drawer open, row read, badge cleared` });
-
-      // Idempotent (BE:service.py:191-195): a second press answers 200 again and changes nothing.
-      const again = waitForApi(page, 'POST', ACCEPT_INVITE_RE, [200]);
-      await row.getByRole('button', { name: ACCEPT, exact: true }).click();
-      await again;
-      await expect(drawer).toBeVisible();
-      await attachJson('E02_ntf_accept_invite.json', { notification: notification.id, status: response.status(), secondStatus: 200, drawerOpen: true });
+      // BUG-181 / ND-C1: the button gives way to "Đã chấp nhận" (this session only), so there is no second press from the UI;
+      // the server-side idempotence (a second accept answers 200 again, BE:service.py:191-195) is proven by the API "accept" test.
+      await expect(row.getByText(ACCEPTED, { exact: true })).toBeVisible();
+      await expect(row.getByRole('button', { name: ACCEPT, exact: true })).toHaveCount(0);
+      await captureEvidence(page, 'E02_ntf_accept_invite.png', { caption: `"${ACCEPT}" → POST …/accept-invite 200; drawer open, row read, "${ACCEPTED}", badge cleared` });
+      await attachJson('E02_ntf_accept_invite.json', { notification: notification.id, status: response.status(), accepted: true, drawerOpen: true });
     });
   });
 
@@ -554,7 +561,7 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
     });
   });
 
-  test('E02 · SCR-06 filter "Nhắc đến tôi" on an inbox with only an invite: "Có thể chưa cập nhật", no row; "Chưa đọc" keeps it; the badge ignores the filter', async ({ browser }) => {
+  test('E02 · SCR-06 filter "Nhắc đến tôi" on an inbox with only an invite: its own empty state "Chưa có ai nhắc đến bạn", no row; "Chưa đọc" keeps it; the badge ignores the filter', async ({ browser }) => {
     await asInvitee(browser, async (session) => {
       const { page } = session;
       const project = await sharedProject(session, 'ntf-filter');
@@ -563,12 +570,14 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
       const rows = drawer.getByRole('listitem');
 
       await filterRadio(drawer, NOTIF_FILTERS.mentions).click(); // UNC:331-332: commentMention only
-      await expect(drawer.getByText(NOTIF_PARTIAL, { exact: true })).toBeVisible(); // UNC:881-883, NC:259
+      await expect(drawer.getByText(NOTIF_EMPTY_MENTIONS, { exact: true })).toBeVisible(); // BUG-126/179: 'empty', worded per tab
+      await expect(drawer.getByRole('button', { name: NOTIF_SHOW_EVERYTHING, exact: true })).toBeVisible();
       await expect(rows).toHaveCount(0);
-      await expect(drawer.getByText(NOTIF_EMPTY, { exact: true })).toHaveCount(0); // non-empty inbox → not the empty state
+      await expect(drawer.getByText(NOTIF_PARTIAL, { exact: true })).toHaveCount(0); // nothing failed: no yellow strip
+      await expect(drawer.getByText(NOTIF_EMPTY, { exact: true })).toHaveCount(0); // the "Tất cả" sentence belongs to that tab
       await expect(bell(page)).toHaveText('1'); // UNC:252 unreadCount does not follow the filter
       await expect(headerBadge(drawer)).toHaveText('1');
-      await captureEvidence(page, 'E02_ntf_filter_mentions.png', { caption: `"${NOTIF_FILTERS.mentions}" with one projectInvite → "${NOTIF_PARTIAL}"` });
+      await captureEvidence(page, 'E02_ntf_filter_mentions.png', { caption: `"${NOTIF_FILTERS.mentions}" with one projectInvite → "${NOTIF_EMPTY_MENTIONS}"` });
 
       await filterRadio(drawer, NOTIF_FILTERS.unread).click(); // UNC:329-330
       await expect(rows).toHaveCount(1);
@@ -692,7 +701,7 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
     });
   });
 
-  test('E02 · SCR-06 BUG-114: with nothing unread the gear takes the opening focus; its tooltip sits on the gear, inside the viewport, no horizontal scroll', async ({ browser }) => {
+  test('E02 · SCR-06 BUG-114: with nothing unread the gear takes the opening focus; its tooltip is inside the viewport, near the gear, no horizontal scroll', async ({ browser }) => {
     await asInvitee(browser, async ({ page }) => {
       expect(await loadWithInbox(page), 'precondition: empty inbox → "Đánh dấu tất cả đã đọc" disabled').toEqual([]);
       const drawer = await openDrawer(page);
@@ -711,11 +720,15 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
       await captureEvidence(page, 'E02_ntf_gear_tooltip.png', { fullPage: tipOutside || overflow > 0, caption: `tooltip x=${String(Math.round(tip.x))}…${String(Math.round(tip.x + tip.width))}; gear centre ${String(Math.round(anchor.x + anchor.width / 2))}; overflow ${String(overflow)} px` });
       await attachJson('E02_ntf_gear_tooltip.json', { tooltip: tip, gear: anchor, horizontalOverflowPx: overflow, bug: 'BUG-114' });
 
-      // TT:44-45,78: side "top" → centred on the anchor (translate -50%).
-      expect.soft(Math.abs(tip.x + tip.width / 2 - (anchor.x + anchor.width / 2)), 'tooltip centred on the gear').toBeLessThanOrEqual(2);
-      expect.soft(tip.y + tip.height, 'tooltip above the gear').toBeLessThanOrEqual(anchor.y);
-      expect.soft(tip.x >= 0 && tip.x + tip.width <= DESKTOP.width, 'tooltip inside the viewport').toBe(true);
-      expect(overflow, 'no horizontal scroll').toBeLessThanOrEqual(0);
+      // BUG-114 fixed: the gear is 38 px from the right edge and the tooltip 144 px wide, so it can no longer be centred on the gear
+      // AND above it AND inside the viewport — it is pushed inside and flipped below. What must hold: inside the viewport,
+      // near the gear (no gap wider than NEAR_PX on either axis), and no horizontal scroll.
+      const gapX = Math.max(0, tip.x - (anchor.x + anchor.width), anchor.x - (tip.x + tip.width));
+      const gapY = Math.max(0, tip.y - (anchor.y + anchor.height), anchor.y - (tip.y + tip.height));
+      const viewport = page.viewportSize() ?? DESKTOP;
+      expect.soft(tip.x >= 0 && tip.y >= 0 && tip.x + tip.width <= viewport.width && tip.y + tip.height <= viewport.height, 'tooltip inside the viewport').toBe(true);
+      expect.soft(Math.max(gapX, gapY), `tooltip near the gear (gap x ${String(Math.round(gapX))}, y ${String(Math.round(gapY))} px)`).toBeLessThanOrEqual(NEAR_PX);
+      expect(overflow, 'overflowX = 0').toBe(0);
     });
   });
 

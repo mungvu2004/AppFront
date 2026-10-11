@@ -203,8 +203,8 @@ Rows: 107 rule rows + 8 side-effect rows + 25 mock-pair rows + 6 budget rows = 1
 
 ## Mock pairing (UI `[mocked response]` tests of phase 2)
 
-BUG-144 / BUG-193: pass 1 said "none". Grep of `[mocked response]` in `qa/tests/phase02_*.spec.ts` finds 25 tests in four specs
-(dashboard_edge 15, dashboard_ui 6, wizard_edge 3, notify_edge 1). Rows are keyed by spec file + test name, never by line number
+BUG-144 / BUG-193: pass 1 said "none". Grep of `[mocked response]` in `qa/tests/phase02_*.spec.ts` finds 29 tests in four specs
+(dashboard_edge 15, dashboard_ui 7, wizard_edge 6, notify_edge 1). Rows are keyed by spec file + test name, never by line number
 (line numbers went stale as the specs were edited: BUG-193); find a test with `grep -n "<name fragment>" qa/tests/<spec>`. Every row names
 the API test that proves the real response, or why none can.
 
@@ -236,6 +236,10 @@ the API test that proves the real response, or why none can.
 | `phase02_wizard_edge.spec.ts` E02 wizard "create 500" | `POST /api/projects` → 500 | unpairable: 5xx; real 201 proven by "create" |
 | `phase02_wizard_edge.spec.ts` E02 wizard "create 503 once, retried with the SAME Idempotency-Key" | `POST /api/projects` → 503 on the 1st attempt, then real | unpairable: 5xx; the real side of the retry (same key + same body → one project; 5xx is never stored, idempotency.py:53,237-239) is proven by "idem" (replay → one project) and "idem-edges" (a failed run does not burn the key) |
 | `phase02_wizard_edge.spec.ts` E02 wizard "network abort on the first create attempt" | `POST /api/projects` → aborted once, then real | unpairable: network loss; retry semantics as above ("idem", "idem-edges") |
+| `phase02_wizard_edge.spec.ts` E02 wizard "[mocked response] create 422 field "address"" | `POST /api/projects` → 422 `VALIDATION` `field: "address"` | paired: "A02 · create body rules → 422 VALIDATION with the field …" ("rules") — evidence `A02_create_422_address_201.json` (address of 201 characters → 422 field `address`, the same envelope; since BUG-186 the FE blocks 201 characters at step 1, so the real stack never reaches the 422) |
+| `phase02_wizard_edge.spec.ts` E02 wizard "[mocked response] create 422 field "code"" | `POST /api/projects` → 422 `VALIDATION` `field: "code"` | paired: "A02 · create body rules → 422 VALIDATION with the field …" ("rules") — evidence `A02_create_422_code_33.json` (code of 33 characters → 422 field `code`; since BUG-176 the FE blocks 33 characters at step 1) |
+| `phase02_wizard_edge.spec.ts` E02 wizard "[mocked response] create 422 field "floors.3.name"" | `POST /api/projects` → 422 `VALIDATION` `field: "floors.3.name"` | paired: "A02 · create body rules → 422 VALIDATION with the field …" ("rules") — evidence `A02_create_422_floor_name_blank.json` (blank floor name → 422 field `floors.0.name`, the same `floors.<i>.name` shape; since BUG-185 the FE blocks a blank name at step 2) |
+| `phase02_dashboard_ui.spec.ts` U02 SCR-05 wizard "[mocked response] server 422 field "code"" (U02_wizard_server_422) | `POST /api/projects` → 422 `VALIDATION` `field: "code"` | paired: "A02 · create body rules → 422 VALIDATION with the field …" ("rules") — evidence `A02_create_422_code_33.json`; the real 33-char code is the FE-blocked state `U02_wizard_code_too_long` (no mock) |
 <!-- mock-pairs:end -->
 
 Re-check needed when a `[mocked response]` test is added to `phase02_*.spec.ts`: grep `\[mocked response\]` in `qa/tests/phase02_*`
@@ -277,4 +281,4 @@ Observations for the review step (not asserted as bugs; each is the BE behaving 
 | `recovery_ip` (per IP) | 10 / 900 s (auth_recovery/settings.py:24-25; override 60) | 6 (invitation accepts) | notify_edge ≤ 6 (its header still assumes this spec spends 3) | 12 > 10 in one window → needs the override (already mandatory for Phase 1's 32); with Phase 1 in the window 44 ≤ 60 |
 | `members_add` (per actor) | 60 / 3600 s (project_members/router.py:26-33, settings.py:14-15) | 7 (roles 1, notif 2, members 3 incl. the 200 re-add, accept 1) | notify_edge 13 | 20 ≤ 60 |
 | `auth_refresh_total` (per session) | 300 / 60 s (auth/settings.py:45-46) | 1 per new session (24 admin + 6 invitees) | per page load on their own sessions | separate sessions |
-| projects / notifications / floor-delete routes, 413 | none | every project it creates is deleted in `finally` | wizard_edge 7 creates + 3 refused 422, 8 DELETEs; notify_edge 13; dashboard_edge ~15 | — |
+| projects / notifications / floor-delete routes, 413 | none | every project it creates is deleted in `finally` | wizard_edge 7 creates, 8 DELETEs (the three 422 cases are FE-blocked or `[mocked response]`: no write); notify_edge 13; dashboard_edge ~15 | — |

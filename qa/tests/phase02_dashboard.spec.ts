@@ -12,8 +12,8 @@
  * `qa-<runId>-m02-full-…` project), 2 `PATCH /api/projects/:id` (rename + its undo), 1 `DELETE /api/projects/:id`
  * (the `m02-full` project, through the UI; `afterAll` deletes it with the page's own access token if the delete
  * test did not). Mark-read / mark-all are always undone inside the 8 s window: 0 `POST /api/notifications/read*`.
- * Read-after-navigate waits register BEFORE the navigation (`gotoThenApi`): BUG-141 (`navigateThenWaitForApi`
- * registers after `goto` and misses a fast N1).
+ * Read-after-navigate waits register BEFORE the navigation (`gotoThenApi`): BUG-141 (`navigateThenWaitForApi` used to
+ * register after `goto` and missed a fast N1; it registers first since FIX-986, this file keeps its local helper).
  */
 import { expect, test } from '@playwright/test';
 import type { BrowserContext, Locator, Page, Response } from '@playwright/test';
@@ -227,11 +227,17 @@ test.describe('SCR-05 Dashboard (/)', () => {
     await captureEvidence(page, '05_dash_loaded.png');
   });
 
-  test('SCR-05 wizard validation: empty name shows "Chưa nhập tên dự án."', async () => {
+  test('SCR-05 wizard validation: pristine step 1 shows only the hint; a name typed then erased shows "Chưa nhập tên dự án."', async () => {
     const dialog = await openWizard(page);
 
-    // Step 1 has no "Tạo dự án" button (it only exists on step 3, CreateProjectModal.tsx:291):
-    // with an empty name the step is blocked — the error is rendered and "Tiếp tục" is disabled.
+    // Step 1 has no "Tạo dự án" button (it only exists on step 3, CreateProjectModal.tsx:291).
+    // BUG-133: a form nobody typed into is not wrong yet — a neutral hint, no error, "Tiếp tục" disabled.
+    await expect(dialog.getByText('Bắt buộc, từ 3 đến 80 ký tự.', { exact: true })).toBeVisible();
+    await expect(dialog.getByRole('alert')).toHaveCount(0);
+    await expect(dialog.getByRole('button', { name: 'Tiếp tục', exact: true })).toBeDisabled();
+    // The complaint arrives with the first keystroke: with an empty name the step stays blocked.
+    await dialog.getByLabel('Tên dự án').fill('a');
+    await dialog.getByLabel('Tên dự án').fill('');
     await expect(dialog.getByRole('alert').filter({ hasText: 'Chưa nhập tên dự án.' })).toBeVisible();
     await expect(dialog.getByRole('button', { name: 'Tiếp tục', exact: true })).toBeDisabled();
     await settled(dialog);
@@ -334,8 +340,8 @@ test.describe('SCR-05 Dashboard (/)', () => {
     const viewMode = page.getByRole('radiogroup', { name: 'Kiểu xem', exact: true });
     await viewMode.getByRole('radio', { name: 'Bảng', exact: true }).click();
     await expect(viewMode.getByRole('radio', { name: 'Bảng', exact: true })).toHaveAttribute('aria-checked', 'true');
-    // BUG-139: PW 1.45.2 maps a `<th>` without `scope` (Table.tsx:167) to role "cell", so
-    // getByRole('columnheader') finds nothing; the header row is read from the markup instead.
+    // BUG-115 fixed: `Table.Head` carries scope="col" (getByRole('columnheader') works); the header row is still read
+    // from the markup (`thead th`), the same cells.
     await expect(page.getByRole('main').locator('thead th')).toHaveText([...TABLE_HEADERS]);
 
     const rows = page.getByRole('main').locator('tbody tr');
