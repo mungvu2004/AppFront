@@ -667,8 +667,28 @@ export function useAxisGridManager(
         coordinateMm,
         extent,
       });
+      /*
+       * BUG-320: tầng chưa có trục lưu thì danh sách đang hiện là BẢN XEM TRƯỚC
+       * dò từ tường. Ghi riêng trục mới thì `storedAxes` hết rỗng và bản xem
+       * trước biến mất — nên ghi cả lưới dò được cùng trục mới trong một lệnh.
+       */
+      const previewAxes =
+        storedAxes.length > 0
+          ? []
+          : labelledAxes.map((labelled) =>
+              createAxisEntity({
+                id: gateway.nextAxisId(),
+                levelId,
+                label: labelled.label,
+                direction: labelled.axis.direction,
+                coordinateMm: labelled.axis.coordinateMm,
+                extent,
+              }),
+            );
 
-      void run(buildAddAxisCommand({ axes: [axis], actorId: gateway.actorId })).then((ok) => {
+      void run(
+        buildAddAxisCommand({ axes: [...previewAxes, axis], actorId: gateway.actorId }),
+      ).then((ok) => {
         if (ok) {
           announce(addAxisDescription(label));
         }
@@ -683,6 +703,7 @@ export function useAxisGridManager(
       levelId,
       rejectWhenTooClose,
       run,
+      storedAxes.length,
     ],
   );
 
