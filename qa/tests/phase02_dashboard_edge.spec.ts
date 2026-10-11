@@ -56,6 +56,8 @@
  * - `POST /api/projects`: ~45 API fixtures (~26 from the SCR-05 "errors, races, table, paging" block, 4 for the unreadable-row test) + 1 UI
  *   create (+1 refused 422); every one deleted in `finally` (no rate limit on this route, BE:apps/api/projects/router.py).
  * - `PATCH` / `DELETE /api/projects/:id`: only on this file's own `qa-<runId>-…` projects (~12 real PATCH, ~5 real DELETE).
+ * - QA-02 shared-components block (FE 271538cb, last describe): +7 API fixtures (each deleted), 1 real DELETE, 2 real PATCH,
+ *   ~18 refreshes, 0 extra sign-in; 1 [mocked response] test (N1 500, unpairable: 5xx).
  * - No recovery / invitation / mail call (Mailpit not needed in this phase).
  * Access tokens live 600 s (BE settings.py:31): each test reuses the token of its own sign-in/refresh, well inside.
  */
@@ -2776,5 +2778,367 @@ test.describe('E02 SCR-07 onboarding (/onboarding)', () => {
       await captureEvidence(page, 'E02_onboard_double_skip.png', { caption: `history +${String(after - before)}; flag ${seenKey}=true` });
       await attachJson('E02_onboard_double_skip.json', { historyBefore: before, historyAfter: after, seenFlag: 'true' });
     });
+  });
+});
+
+/* ================================================================= QA-02 shared components (FE 271538cb)
+ * Gaps left by the shared-component changes merged in 271538cb (coverage/phase02.md rows S1-S9). Sources cited by
+ * file at 271538cb: Table.tsx = src/components/ui/Table.tsx, TST = src/components/feedback/Toast.tsx,
+ * MOD = src/components/overlay/Modal.tsx, DRW = src/components/overlay/Drawer.tsx, TT = src/components/ui/Tooltip.tsx,
+ * BV = src/components/ui/buttonVariants.ts, ES = src/components/feedback/EmptyState.tsx, BC = src/components/shell/Breadcrumb.tsx,
+ * CPN = src/lib/query/cachedProjectName.ts, SR = src/lib/input/shortcutRegistry.ts; PD / UPD at their 271538cb lines.
+ * Budget of this block: 7 fixture projects (POST + DELETE), ~2 refreshes per test, no login beyond the worker's own,
+ * one [mocked response] test (N1 500, unpairable: 5xx).
+ */
+
+/** DRW:32 — what each snap dot does, said as its description and as its tooltip. */
+const SNAP_HINTS = { 1: 'Thu gọn', 2: 'Nửa màn hình', 3: 'Gần toàn màn hình' } as const;
+/** DRW:34-36: "Mức 1" (snap 0) is the 88 px peek. */
+const SNAP_PEEK_PX = 88;
+/** src/i18n/vi.json:63 `errors.unknown.description` (read at run time by describeError.ts:3) — the copy changed in 271538cb. */
+const UNKNOWN_ERROR_DESCRIPTION = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại thao tác vừa làm.';
+const OLD_UNKNOWN_TAIL = 'Bạn có thể tải lại rồi thử lại.'; // 5afd8b8a copy, must be gone
+const NO_MATCH_DESCRIPTION = 'Không có dự án nào khớp với bộ lọc hiện tại.'; // PD:264
+const PIPELINE_NAV = 'Xử lý'; // ProcessingScreen.tsx:60 (BREADCRUMB_PIPELINE = the nav's aria-label, :223)
+const BREADCRUMB_NAV = 'Đường dẫn trang'; // BC:19
+const UNDO = 'Hoàn tác'; // TST:144
+/** BC:130 / ProcessingScreen.tsx:62 `max-w-[140px]` below 640 px. */
+const CRUMB_MAX_PX = 140;
+
+/** One unbroken word of exactly 80 characters (LIM:23 max) carrying the run prefix — no space to wrap at. */
+const unbroken80 = (slug: string): string => {
+  const name = `${uniqueName(slug)}-`.padEnd(80, 'w');
+  expect(name).toHaveLength(80);
+  expect(/\s/u.test(name), 'no break opportunity in the name').toBe(false);
+  return name;
+};
+
+/** The colours a `danger` button must paint (BV:12): `--state-violation-text` fill, `--bg-surface` text. */
+async function dangerPaint(button: Locator): Promise<{ bg: string; fg: string; wantBg: string; wantFg: string }> {
+  return button.evaluate((el) => {
+    const probe = document.createElement('span');
+    probe.style.backgroundColor = 'var(--state-violation-text)';
+    probe.style.color = 'var(--bg-surface)';
+    document.body.append(probe);
+    const want = getComputedStyle(probe);
+    const wantBg = want.backgroundColor;
+    const wantFg = want.color;
+    probe.remove();
+    const own = getComputedStyle(el);
+    return { bg: own.backgroundColor, fg: own.color, wantBg, wantFg };
+  });
+}
+
+interface CrumbMetrics {
+  readonly width: number;
+  readonly scroll: number;
+  readonly client: number;
+  readonly textOverflow: string;
+  readonly lineHeight: string;
+  readonly title: string | null;
+}
+
+/** A truncated crumb: its box, whether its text overflows it, and the `text-overflow` that draws the "…". */
+const crumbMetrics = (crumb: Locator): Promise<CrumbMetrics> =>
+  crumb.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    return {
+      width: el.getBoundingClientRect().width,
+      scroll: el.scrollWidth,
+      client: el.clientWidth,
+      textOverflow: cs.textOverflow,
+      lineHeight: cs.lineHeight,
+      title: el.getAttribute('title'),
+    };
+  });
+
+test.describe('E02 QA-02 shared components (FE 271538cb) — SCR-05 / SCR-06 / SCR-07', () => {
+  test('E02 · SCR-05 table view headers are real column headers: five `columnheader` roles, every `th` scope="col" (BUG-115)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const tag = uniqueName('thscope');
+      await createProject(admin, 'thscope', tag);
+      await reloadDashboard(page);
+      await viewMode(page).getByRole('radio', { name: 'Bảng', exact: true }).click();
+      await searchBox(page).fill(tag);
+      await expect(tableRows(page)).toHaveCount(1);
+      // Table.tsx:177-179 `scope="col"` on every Table.Head; ProjectTable.tsx:33-37 the five headers.
+      const headers = page.getByRole('main').getByRole('columnheader');
+      await expect(headers).toHaveText([...TABLE_HEADERS]);
+      const scopes = await tableHeads(page).evaluateAll((heads) => heads.map((head) => head.getAttribute('scope')));
+      expect(scopes).toEqual(TABLE_HEADERS.map(() => 'col'));
+      await captureEvidence(page, 'E02_dash_th_scope.png', { caption: `table view: ${String(scopes.length)} th, scope=${scopes.join(',')}; getByRole('columnheader') finds all five` });
+      await attachJson('E02_dash_th_scope.json', { headers: await headers.allTextContents(), scopes });
+    });
+  });
+
+  test('E02 · SCR-05 delete dialog by keyboard: Enter on "Để nguyên" closes it (nothing sent), Space on "Xoá dự án" deletes; "Xoá dự án" is the solid danger button (BUG-151, BUG-155)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'delkbd');
+      await reloadDashboard(page);
+      const dialog = deleteDialog(page);
+      const askDelete = async (): Promise<void> => {
+        const menu = await openCardMenu(page, project.name);
+        await menu.getByRole('menuitem', { name: 'Xoá', exact: true }).click();
+        await expect(dialog).toBeVisible();
+      };
+      const keep = dialog.getByRole('button', { name: KEEP, exact: true }); // PD:312-314 (ghost)
+      const confirm = dialog.getByRole('button', { name: CONFIRM_DELETE, exact: true }); // PD:315-321 variant="danger"
+
+      await askDelete();
+      // BV:12 solid danger: `bg-state-violation-text text-bg-surface` (a pale tint before 271538cb, BUG-155).
+      const paint = await dangerPaint(confirm);
+      const keepBg = await keep.evaluate((el) => getComputedStyle(el).backgroundColor);
+      expect(paint.bg, '"Xoá dự án" filled with --state-violation-text').toBe(paint.wantBg);
+      expect(paint.fg, '"Xoá dự án" text in --bg-surface').toBe(paint.wantFg);
+      expect(keepBg, '"Để nguyên" does not share the danger fill').not.toBe(paint.bg);
+
+      await keep.focus();
+      await expect(keep).toBeFocused();
+      await captureEvidence(page, 'E02_dash_delete_kbd_keep.png', { caption: 'focus on "Để nguyên" (Enter next); "Xoá dự án" solid danger' });
+      // SR:552-557: a modal scope no longer preventDefaults a lone key, so Enter activates the focused button (BUG-151).
+      await page.keyboard.press('Enter');
+      await expect(dialog).toHaveCount(0);
+      expect(countApi(admin.api, 'DELETE', `${PROJECTS_API}/${project.id}`), 'Enter on "Để nguyên" sends no DELETE').toBe(0);
+
+      await askDelete();
+      await confirm.focus();
+      const removed = waitForApi(page, 'DELETE', projectPathRe(project.id), [200]);
+      await page.keyboard.press('Space'); // same lone-key path (SR:552-557) → confirmDelete (UPD:458)
+      await removed;
+      await expect(dialog).toHaveCount(0);
+      await expect(projectCard(page, project.name)).toHaveCount(0);
+      await captureEvidence(page, 'E02_dash_delete_kbd_space.png', { caption: 'Space on "Xoá dự án" → DELETE 200, card gone' });
+      await attachJson('E02_dash_delete_kbd.json', { paint, keepBg, deletes: countApi(admin.api, 'DELETE', `${PROJECTS_API}/${project.id}`) });
+    });
+  });
+
+  test('E02 · SCR-05 rename toast with an 80-character unbroken name: the message wraps inside the 320 px toast and "Hoàn tác" stays inside and works (BUG-131)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'toastlong');
+      await reloadDashboard(page);
+      const long = unbroken80('tl');
+      const input = await startRename(page, project.name);
+      await input.fill(long);
+      const patched = waitForApi(page, 'PATCH', projectPathRe(project.id), [200]);
+      await input.press('Enter'); // UPD:439 toast "Đã đổi tên thành …" with undo
+      await patched;
+      const toast = toastWith(page, renamedToast(long));
+      await expect(toast).toBeVisible();
+      const undo = toast.getByRole('button', { name: UNDO, exact: true });
+      await expect(undo).toBeVisible();
+      // TST:133-134 `min-w-0 break-words` on the message; the toast is `overflow-hidden` (TST:121): a clipped button = BUG-131.
+      const layout = await toast.evaluate((el) => {
+        const box = el.getBoundingClientRect();
+        const message = el.querySelector('span.flex-1');
+        const button = [...el.querySelectorAll('button')].find((b) => (b.textContent ?? '').trim() === 'Hoàn tác');
+        const b = button?.getBoundingClientRect();
+        return {
+          toast: { left: box.left, right: box.right, width: box.width },
+          button: b === undefined ? null : { left: b.left, right: b.right, width: b.width },
+          message: message === null ? null : { scroll: message.scrollWidth, client: message.clientWidth, height: message.getBoundingClientRect().height },
+        };
+      });
+      const inside = layout.button !== null && layout.button.left >= layout.toast.left && layout.button.right <= layout.toast.right + 0.5;
+      await captureEvidence(page, 'E02_dash_toast_long_name.png', { caption: `80-char unbroken name: message ${String(Math.round(layout.message?.height ?? 0))} px high, "Hoàn tác" ${inside ? 'inside' : 'CLIPPED'}` });
+      await attachJson('E02_dash_toast_long_name.json', layout);
+      expect(inside, '"Hoàn tác" inside the toast box').toBe(true);
+      expect(layout.message !== null && layout.message.scroll <= layout.message.client + 1, 'message wraps, no overflow past its column').toBe(true);
+
+      const restored = waitForApi(page, 'PATCH', projectPathRe(project.id), [200]);
+      await undo.click(); // within the 8 s window (UT:18)
+      expect(stringField(asRecord((await restored).json, 'PATCH'), 'name', 'PATCH')).toBe(project.name);
+      await expect(projectCard(page, project.name)).toBeVisible();
+      await captureEvidence(page, 'E02_dash_toast_long_undo.png', { caption: '"Hoàn tác" → second PATCH, old name back' });
+    });
+  });
+
+  test('E02 · SCR-05 375 px delete dialog for an 80-character unbroken name stays inside the 343 px frame; no page-level sideways scroll (Modal max-w-full)', async ({ browser }) => {
+    await withAdmin(
+      browser,
+      async (admin) => {
+        const { page } = admin;
+        const project = await createProject(admin, 'dl375', unbroken80('dl'));
+        await reloadDashboard(page);
+        const menu = await openCardMenu(page, project.name);
+        await menu.getByRole('menuitem', { name: 'Xoá', exact: true }).click();
+        const dialog = deleteDialog(page);
+        await expect(dialog).toBeVisible();
+        // MOD:131-133 `max-w-full` inside the `p-4` frame: 375 − 2×16 = 343 px whatever the content's min-content width.
+        const frame = COMPACT.width - 2 * 16;
+        await expect.poll(async () => Math.round((await dialog.boundingBox())?.width ?? Number.POSITIVE_INFINITY)).toBeLessThanOrEqual(frame);
+        const layout = {
+          viewport: COMPACT,
+          dialog: await dialog.boundingBox(),
+          page: await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth })),
+          // PD:301 the sentence has no break-words: with no space in the name the line may still overflow its own box.
+          bodyLine: await dialog.getByText(deleteBody(project.name), { exact: true }).evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth })),
+        };
+        await captureEvidence(page, 'E02_dash_delete_375_long.png', { caption: `dialog ${String(Math.round(layout.dialog?.width ?? 0))} px wide (frame ${String(frame)}); sentence scroll ${String(layout.bodyLine.scroll)} / client ${String(layout.bodyLine.client)}` });
+        await attachJson('E02_dash_delete_375_long.json', layout);
+        const box = layout.dialog;
+        expect(box !== null && box.x >= 15 && box.x + box.width <= COMPACT.width - 15, 'dialog inside the 16 px gutters').toBe(true);
+        expect(layout.page.scroll, 'no page-level sideways scroll').toBeLessThanOrEqual(layout.page.client);
+        // Finding candidate (UI/Low) when this fails: the unbroken name overflows the sentence box inside the dialog.
+        expect.soft(layout.bodyLine.scroll, 'the delete sentence wraps the long name inside the dialog').toBeLessThanOrEqual(layout.bodyLine.client + 1);
+        await dialog.getByRole('button', { name: KEEP, exact: true }).click();
+        await expect(dialog).toHaveCount(0);
+        expect(countApi(admin.api, 'DELETE', `${PROJECTS_API}/${project.id}`)).toBe(0);
+      },
+      COMPACT,
+    );
+  });
+
+  test('E02 · SCR-05 no-match empty state: the description is set with `text-wrap: pretty` (BUG-170)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      await createProject(admin, 'nomatch'); // own row, so the list (and its search box) shows whatever else the account holds
+      await reloadDashboard(page);
+      await searchBox(page).fill(`${TEST_DATA_PREFIX}khong-khop-${Date.now().toString(36)}`);
+      await expect(noMatch(page)).toBeVisible(); // PD:261-266 EmptyState
+      const description = page.getByText(NO_MATCH_DESCRIPTION, { exact: true });
+      await expect(description).toBeVisible();
+      // ES:50-51 `text-pretty` (Tailwind 3.4.6 → `text-wrap: pretty`); Chromium reports it on `text-wrap` or, split, on `text-wrap-style`.
+      const wrap = await description.evaluate((el) => {
+        const cs = getComputedStyle(el);
+        return { textWrap: cs.getPropertyValue('text-wrap'), textWrapStyle: cs.getPropertyValue('text-wrap-style'), className: el.className };
+      });
+      await captureEvidence(page, 'E02_dash_nomatch_pretty.png', { caption: `no-match description: text-wrap "${wrap.textWrap}" / style "${wrap.textWrapStyle}"` });
+      await attachJson('E02_dash_nomatch_pretty.json', wrap);
+      expect(`${wrap.textWrap} ${wrap.textWrapStyle}`).toContain('pretty');
+      await page.getByRole('button', { name: CLEAR_FILTERS, exact: true }).click();
+      await expect(noMatch(page)).toHaveCount(0);
+    });
+  });
+
+  test('E02 · SCR-05 [mocked response] N1 fails (500, unpairable: 5xx): the error card says the new "unknown" sentence, not the old "tải lại" one', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      await routeSummaries(page, (route) => route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }));
+      await page.reload({ waitUntil: 'commit' });
+      await expect(page.getByText(LIST_ERROR_TITLE, { exact: true })).toBeVisible({ timeout: SLOW_STATE_MS }); // PD:240-246
+      // UPD:371 describeError(toAppError(error)).description; a bare 500 is kind "unknown" (toAppError.ts:10-18, :211).
+      await expect(page.getByText(UNKNOWN_ERROR_DESCRIPTION, { exact: true })).toBeVisible();
+      await expect(page.getByText(OLD_UNKNOWN_TAIL, { exact: false })).toHaveCount(0);
+      await captureEvidence(page, 'E02_dash_error_unknown_copy.png', { caption: 'N1 500 [mocked] → errors.unknown.description (vi.json:63)' });
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      const reread = waitForApi(page, 'GET', SUMMARIES_RE, [200]);
+      await page.getByRole('button', { name: RETRY, exact: true }).click();
+      await reread;
+      await expect(page.getByText(LIST_ERROR_TITLE, { exact: true })).toHaveCount(0);
+    });
+  });
+
+  test('E02 · SCR-06 375 px sheet snap dots by keyboard: each "Mức N" is described, focus shows its tooltip inside the screen, Enter on "Mức 1" drops to the 88 px peek', async ({ browser }) => {
+    await withAdmin(
+      browser,
+      async (admin) => {
+        const { page } = admin;
+        await page.goto(ROUTES.notifications);
+        const sheet = notificationDrawer(page);
+        await expect(sheet).toBeVisible();
+        const group = sheet.getByRole('group', { name: SHEET_GROUP, exact: true }); // DRW:251
+        const dot = (level: 1 | 2 | 3): Locator => group.getByRole('button', { name: snapButton(level), exact: true });
+        // Same rest wait as the compact test above (BUG-137): the spring slide is JS, not stopped by `animations: 'disabled'`.
+        const restingTop = COMPACT.height - Math.round(COMPACT.height * 0.9);
+        await expect
+          .poll(async () => {
+            const before = await sheet.evaluate((el) => el.getBoundingClientRect().top);
+            await page.waitForTimeout(150);
+            const after = await sheet.evaluate((el) => el.getBoundingClientRect().top);
+            return Math.abs(after - before) < 0.5 && Math.abs(after - restingTop) <= 2;
+          })
+          .toBe(true);
+        for (const level of [1, 2, 3] as const) {
+          await expect(dot(level)).toHaveAccessibleDescription(SNAP_HINTS[level]); // DRW:253-271 sr-only hint via aria-describedby
+        }
+
+        await dot(1).focus();
+        const tip = page.getByRole('tooltip').filter({ hasText: SNAP_HINTS[1] });
+        await expect(tip).toBeVisible(); // TT:14 400 ms dwell, TT:195 onFocus
+        const shown = { tip: await tip.boundingBox(), dot: await dot(1).boundingBox() };
+        expect(shown.tip !== null && shown.tip.x >= 0 && shown.tip.x + shown.tip.width <= COMPACT.width && shown.tip.y >= 0, 'tooltip inside the screen (TT:91-110)').toBe(true);
+        await captureEvidence(page, 'E02_notif_snap_tooltip.png', { caption: `focus on "Mức 1" → tooltip "${SNAP_HINTS[1]}"` });
+
+        await page.keyboard.press('Enter'); // SR:552-557 a lone key keeps its native action (BUG-151)
+        await expect(dot(1)).toHaveAttribute('aria-pressed', 'true');
+        await expect.poll(async () => Math.abs((await sheet.evaluate((el) => el.getBoundingClientRect().height)) - SNAP_PEEK_PX)).toBeLessThanOrEqual(2);
+        const after = { tipVisible: await tip.isVisible(), tip: await tip.boundingBox(), dot: await dot(1).boundingBox() };
+        await captureEvidence(page, 'E02_notif_snap_peek.png', { caption: `Enter on "Mức 1" → ${String(SNAP_PEEK_PX)} px peek; tooltip ${after.tipVisible ? 'still shown' : 'gone'}` });
+        await attachJson('E02_notif_snap_keyboard.json', { viewport: COMPACT, shown, after });
+        // Finding candidate (UI/Low): TT measures its anchor only when it shows (TT:66-77); a tooltip still shown after
+        // the sheet dropped stays where the dot used to be.
+        if (after.tipVisible && after.tip !== null && after.dot !== null) {
+          expect.soft(Math.abs(after.tip.y + after.tip.height - after.dot.y), 'a shown tooltip follows its dot after the snap').toBeLessThanOrEqual(24);
+        }
+        await page.keyboard.press('Escape');
+        await expect.poll(() => pathname(page)).toBe(ROUTES.dashboard);
+      },
+      COMPACT,
+    );
+  });
+
+  test('E02 · SCR-05 → /pipeline at 375 px: the breadcrumb names the project from the N1 cache, cut with "…" at 140 px, full name in `title` (BUG-165)', async ({ browser }) => {
+    await withAdmin(
+      browser,
+      async (admin) => {
+        const { page } = admin;
+        const project = await createProject(admin, 'crumbpl', unbroken80('cp'));
+        const list = await reloadDashboard(page);
+        // BE apps/api/projects/summaries.py:189: no floor / no upload → "processing" → UPD routes to /pipeline.
+        expect(openPathOf(summaryOf(list, project.id))).toBe(ROUTES.project.pipeline(project.id));
+        await projectCard(page, project.name).click();
+        await expect.poll(() => pathname(page)).toBe(ROUTES.project.pipeline(project.id));
+        // CPN:21-27 reads `project.summaries()` (written by the dashboard, UPD:276-279); ProcessingScreen.tsx:226-229 draws it.
+        const crumb = page.getByRole('navigation', { name: PIPELINE_NAV, exact: true }).locator(`span[title="${project.name}"]`);
+        await expect(crumb).toBeVisible();
+        await expect(crumb).toHaveText(project.name);
+        const metrics = await crumbMetrics(crumb);
+        await captureEvidence(page, 'E02_dash_crumb_pipeline_375.png', { caption: `/pipeline crumb ${String(Math.round(metrics.width))} px, text-overflow ${metrics.textOverflow}` });
+        expect(metrics.width).toBeLessThanOrEqual(CRUMB_MAX_PX + 0.5);
+        expect(metrics.scroll, 'the name is cut, not wrapped').toBeGreaterThan(metrics.client);
+        expect(metrics.textOverflow).toBe('ellipsis');
+
+        // Deep link (reload, no cache). CPN:14-19: the level is skipped unless something else cached #24 — recorded only.
+        await page.reload();
+        await expect(page.getByRole('navigation', { name: PIPELINE_NAV, exact: true })).toBeVisible();
+        const crumbAfterReload = await page.locator(`nav span[title="${project.name}"]`).count();
+        await attachJson('E02_dash_crumb_pipeline_375.json', { viewport: COMPACT, landed: pathname(page), metrics, crumbAfterReload });
+      },
+      COMPACT,
+    );
+  });
+
+  test('E02 · SCR-07 "Tải bản vẽ" → /upload at 375 px: the "Đường dẫn trang" breadcrumb names the project from the N1 cache, cut at 140 px with the full name in `title` (BUG-165)', async ({ browser }) => {
+    await withAdmin(
+      browser,
+      async (admin) => {
+        const { page } = admin;
+        const project = await createProject(admin, 'crumbup', unbroken80('cu'));
+        await clearSeenFlags(page);
+        const { json } = await navigateAndWaitForApi(page, () => page.goto(ROUTES.onboarding, { waitUntil: 'commit' }), 'GET', SUMMARIES_RE, [200]);
+        expect(gatewayOrder(summariesOf(json))[0]?.id, 'the fixture is the newest project').toBe(project.id); // UWS:222-228
+        await page.getByRole('button', { name: ONBOARD.step2Action, exact: true }).click(); // UWS:325-328
+        await expect.poll(() => pathname(page)).toBe(ROUTES.project.upload(project.id));
+        // useFloorUploadScreen.ts:1171-1175 → FloorUploadScreen.tsx:194-203 → BC:125-134 (a middle level without onClick).
+        const nav = page.getByRole('navigation', { name: BREADCRUMB_NAV, exact: true }).filter({ has: page.locator(`span[title="${project.name}"]`) });
+        const crumb = nav.locator(`span[title="${project.name}"]`);
+        await expect(crumb).toBeVisible();
+        await expect(crumb).toHaveText(project.name);
+        const metrics = await crumbMetrics(crumb);
+        const listHeight = await nav.locator('ol').evaluate((el) => el.getBoundingClientRect().height);
+        await captureEvidence(page, 'E02_onboard_crumb_upload_375.png', { caption: `/upload crumb ${String(Math.round(metrics.width))} px, breadcrumb ${String(Math.round(listHeight))} px high` });
+        await attachJson('E02_onboard_crumb_upload_375.json', { viewport: COMPACT, landed: pathname(page), metrics, listHeight });
+        expect(metrics.width).toBeLessThanOrEqual(CRUMB_MAX_PX + 0.5); // BC:130 max-w-[140px] below sm
+        expect(metrics.scroll, 'the name is cut, not wrapped').toBeGreaterThan(metrics.client);
+        expect(metrics.textOverflow).toBe('ellipsis'); // BC:130 truncate
+        expect(metrics.lineHeight, 'BC:128-130 an 18 px line, not leading-none').toBe('18px');
+        // One line: the tallest level is the 44 px "Dự án" button below 640 px (BC:142).
+        expect(listHeight, 'the breadcrumb stays on one line').toBeLessThanOrEqual(44 + 1);
+      },
+      COMPACT,
+    );
   });
 });

@@ -44,6 +44,10 @@
  *   + no refused 422 (address 201, code 33 and blank floor names are blocked at step 1/2; the 422 mapping is mocked). The mocked 500 and the mocked first
  *   attempts of the 503/abort tests never reach the server; each of those retries creates one project (counted above).
  * - `DELETE /api/projects/{id}`: one per created project (8). No notification, recovery, invitation or mail call.
+ * - QA-02 shared-components block (FE 271538cb, last describe, 6 tests): no project created, ~12 refreshes, 0 extra
+ *   sign-in, no mock. Expected soft failures there (finding candidates): same-value apply keeps a stale refusal, and the
+ *   locked "Có tầng hầm" loses its own description at the cap. NOTE (not edited here): "floor cap with a basement" above
+ *   clicks the switch at 50 floors, which 271538cb now disables (UCPM:907) — that click waits out the action timeout.
  * Access tokens live 600 s (BE settings.py:31): each test reuses the token of its own sign-in/refresh.
  */
 import { expect, test } from '@playwright/test';
@@ -1347,6 +1351,274 @@ test.describe('E02 SCR-05 wizard edge — create', () => {
       await expect(projectCard(page, name)).toHaveCount(1);
       await captureEvidence(page, 'E02_wiz_create_abort_retry.png', { caption: 'first POST aborted [mocked], retry 201, one card' });
       await attachJson('E02_wiz_create_abort_retry.json', { attempts: keys.length, sameKey: keys[0] === keys[1], created: countApi(admin.api, 'POST', PROJECTS_API, 201) });
+    });
+  });
+});
+
+/* ================================================================= QA-02 shared components (FE 271538cb)
+ * Wizard gaps left by the shared-component changes merged in 271538cb (coverage/phase02.md rows S10-S15). Sources at
+ * 271538cb: NF = src/hooks/useNumericField.ts, NFC = src/components/ui/NumericField.tsx, NUM = src/lib/format/number.ts,
+ * TG = src/components/ui/Toggle.tsx, BV = src/components/ui/buttonVariants.ts, Table.tsx = src/components/ui/Table.tsx,
+ * SR = src/lib/input/shortcutRegistry.ts, CSS = src/styles/globals.css, SF / CPM / UCPM at their 271538cb lines.
+ * Budget of this block: no project is created (every test discards the wizard), ~2 refreshes per test, no login
+ * beyond the worker's own, no mock.
+ */
+
+const KEEP_EDITING = 'Tiếp tục sửa'; // CPM:202-204 (vi.json project.createModal.discard.keepEditing, changed in 271538cb)
+const FLOORS_HINT = 'Nhập chiều cao thông thuỷ cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.'; // UCPM:474
+const FLOOR_CAP_NOTE = `Đã đủ ${String(FLOOR_COUNT_MAX)} tầng, mức tối đa (kể cả tầng hầm).`; // UCPM:469 (formatNumber(50) = "50")
+const BASEMENT_DESCRIPTION = 'Tầng hầm luôn nằm dưới tầng trệt; cao độ của nó là số âm.'; // SF:49
+const STEPPER_BUTTON = /^(Tăng|Giảm) giá trị$/u; // the hover stepper NFC drew before 271538cb (removed, NFC:27-29)
+
+/** The colours a `danger` button must paint (BV:12): `--state-violation-text` fill, `--bg-surface` text. */
+async function dangerPaint(button: Locator): Promise<{ bg: string; fg: string; wantBg: string; wantFg: string }> {
+  return button.evaluate((el) => {
+    const probe = document.createElement('span');
+    probe.style.backgroundColor = 'var(--state-violation-text)';
+    probe.style.color = 'var(--bg-surface)';
+    document.body.append(probe);
+    const want = getComputedStyle(probe);
+    const wantBg = want.backgroundColor;
+    const wantFg = want.color;
+    probe.remove();
+    const own = getComputedStyle(el);
+    return { bg: own.backgroundColor, fg: own.color, wantBg, wantFg };
+  });
+}
+
+test.describe('E02 SCR-05 wizard edge — QA-02 shared components (FE 271538cb)', () => {
+  test('E02 · wizard step 2 hint: a fresh stack says how to go on and "Tiếp tục" is described by it; the first floor edit replaces it with the row errors; the floor table has four column headers', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      await toStep2(dialog, 'Dự án gợi ý bước hai');
+      const hint = dialog.getByText(FLOORS_HINT, { exact: true });
+      // UCPM:699 floorsHint = !floorsTouched && rows > 0 && !canGoNextStep2; SF:52-56 draws it; CPM:314 describes "Tiếp tục".
+      await expect(hint).toBeVisible();
+      await expect(nextButton(dialog)).toBeDisabled();
+      await expect(nextButton(dialog)).toHaveAccessibleDescription(FLOORS_HINT);
+      // Table.tsx:177-179 scope="col" → SF:90-93 four column headers, the last one named by aria-label only.
+      const heads = dialog.getByRole('table').getByRole('columnheader');
+      await expect(heads).toHaveCount(4);
+      await expect(dialog.getByRole('columnheader', { name: 'Xoá tầng', exact: true })).toHaveCount(1);
+      const scopes = await dialog.getByRole('table').locator('thead th').evaluateAll((cells) => cells.map((cell) => cell.getAttribute('scope')));
+      expect(scopes).toEqual(['col', 'col', 'col', 'col']);
+      await captureEvidence(page, 'E02_wiz_floors_hint.png', { caption: 'fresh step 2: hint shown, "Tiếp tục" disabled and described by it' });
+
+      // UCPM:709-712, :764-769 setFloorHeight → touchFloors → floorsTouched: the hint goes, the rows speak.
+      await typeHeight(heightBox(dialog, 'Tầng trệt'), '3');
+      await expect(hint).toHaveCount(0);
+      expect(await nextButton(dialog).getAttribute('aria-describedby'), 'CPM:314 no description without the hint').toBeNull();
+      await expect(floorRow(dialog, page, 'Tầng 1').getByRole('alert')).toHaveText(HEIGHT_MISSING);
+      await expect(nextButton(dialog)).toBeDisabled();
+      await captureEvidence(page, 'E02_wiz_floors_hint_gone.png', { caption: '"Tầng trệt" = 3 → hint gone, "Tầng 1" says its height is missing' });
+      await attachJson('E02_wiz_floors_hint.json', { scopes, hintAfterEdit: await hint.count() });
+      await discardWizard(dialog);
+    });
+  });
+
+  test('E02 · wizard height by keyboard: no hover stepper is drawn; ArrowUp/ArrowDown step by 1, Shift by 10, clamped to 2–10 m; Tab commits', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      await toStep2(dialog, 'Dự án phím mũi tên');
+      const ground = heightBox(dialog, 'Tầng trệt');
+      await ground.hover(); // the removed stepper showed on hover only
+      await expect(dialog.getByRole('button', { name: STEPPER_BUTTON })).toHaveCount(0); // NFC:27-29
+      await ground.focus();
+      // NF:127-141: empty box → 0 + 1 → clamped to min 2; Shift ×10 → 13 → clamped to max 10 (LIM:34-35).
+      for (const [key, shows] of [['ArrowUp', '2'], ['ArrowUp', '3'], ['Shift+ArrowUp', '10'], ['ArrowDown', '9']] as const) {
+        await page.keyboard.press(key);
+        await expect(ground, `${key} → ${shows}`).toHaveValue(shows);
+      }
+      await page.keyboard.press('Tab'); // NF:113-119 commit on blur
+      await expect(elevationCell(floorRow(dialog, page, 'Tầng 1'))).toHaveText('9,0 m');
+      await expect(floorRow(dialog, page, 'Tầng trệt').getByRole('alert')).toHaveCount(0);
+      await captureEvidence(page, 'E02_wiz_arrow_keys.png', { caption: 'Tầng trệt: ↑ ↑ Shift+↑ ↓ → 9, committed on Tab ("Tầng 1" at 9,0 m)' });
+
+      const first = heightBox(dialog, 'Tầng 1');
+      await first.focus();
+      await page.keyboard.press('ArrowDown'); // 0 − 1 → clamped up to the 2 m floor, never a refusal
+      await expect(first).toHaveValue('2');
+      await page.keyboard.press('Tab');
+      await expect(elevationCell(floorRow(dialog, page, 'Tầng 2'))).toHaveText('11,0 m');
+      await attachJson('E02_wiz_arrow_keys.json', { steps: ['ArrowUp=2', 'ArrowUp=3', 'Shift+ArrowUp=10', 'ArrowDown=9', 'empty ArrowDown=2'], stepperButtons: 0 });
+      await discardWizard(dialog);
+    });
+  });
+
+  test('E02 · wizard refused height stays in its box with the unit sentence ("12", "2.500" = 2 500, "0.75"); a new "Áp cho mọi tầng" value clears it — the same value should too (BUG-160)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      await toStep2(dialog, 'Dự án giá trị bị từ chối');
+      await applyHeight(dialog, '3');
+      const ground = heightBox(dialog, 'Tầng trệt');
+      const groundAlert = floorRow(dialog, page, 'Tầng trệt').getByRole('alert');
+      const floor1 = elevationCell(floorRow(dialog, page, 'Tầng 1'));
+
+      // NF:49-53 the sentence names the unit; NF:145-150 the refused text stays (error !== null); 3 m stays committed.
+      // NUM:245, :274-275: a dot grouping exactly three digits is a thousands mark ("2.500" = 2500), a lone dot is decimal ("0.75").
+      for (const [typed, message] of [['12', NUMERIC_MAX], ['2.500', NUMERIC_MAX], ['0.75', NUMERIC_MIN]] as const) {
+        await typeHeight(ground, typed);
+        await expect(groundAlert, `"${typed}" refused`).toHaveText(message);
+        await expect(ground, `"${typed}" stays in the box after Tab`).toHaveValue(typed);
+        await expect(floor1, `"${typed}" never committed`).toHaveText('3,0 m');
+      }
+      await captureEvidence(page, 'E02_wiz_refused_kept.png', { caption: `"0.75" on "Tầng trệt" → "${NUMERIC_MIN}", text kept in the box, 3 m still committed` });
+
+      // Apply the SAME 3 m: NF:41-44 clears a refusal only when the value prop changes; 3 → 3 is no change.
+      await applyButton(dialog).click();
+      const same = { value: await ground.inputValue(), alerts: await groundAlert.allInnerTexts() };
+      await captureEvidence(page, 'E02_wiz_refused_same_apply.png', { caption: `"Áp cho mọi tầng" with the same 3 m: box "${same.value}", alerts ${JSON.stringify(same.alerts)}` });
+
+      // Apply a NEW value: the refusal goes with the old text (NF:38-44), every row shows 4.
+      await typeHeight(applyField(dialog), '4');
+      await applyButton(dialog).click();
+      await expect(ground).toHaveValue('4');
+      await expect(groundAlert).toHaveCount(0);
+      await expect(floor1).toHaveText('4,0 m');
+      await captureEvidence(page, 'E02_wiz_refused_new_apply.png', { caption: '"Áp cho mọi tầng" 4 m → refusal cleared, "Tầng 1" at 4,0 m' });
+      await attachJson('E02_wiz_refused.json', { sameValueApply: same, newValueApply: { value: '4', alerts: [] } });
+      // Finding candidate (Logic/Low) when these fail: an apply that writes the committed value leaves the stale refusal on screen
+      // while the row really holds 3 m (NF:40 promises an "apply to all" replaces the refused text).
+      expect.soft(same.value, 'apply of the same value replaces the refused text').toBe('3');
+      expect.soft(same.alerts, 'apply of the same value clears the refusal').toEqual([]);
+      await discardWizard(dialog);
+    });
+  });
+
+  test('E02 · wizard 50-floor cap note: "Đã đủ 50 tầng…" describes "Thêm tầng" and the locked "Có tầng hầm"; one floor less unlocks both; with a basement the switch stays usable at the cap', async ({ browser }) => {
+    test.setTimeout(240_000);
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      await toStep2(dialog, 'Dự án trần năm mươi tầng');
+      const add = addFloorButton(dialog);
+      const basement = basementSwitch(dialog);
+      const note = dialog.getByText(FLOOR_CAP_NOTE, { exact: true });
+      await expect(note).toHaveCount(0);
+      await expect(basement).toHaveAccessibleDescription(BASEMENT_DESCRIPTION); // TG:69, :88, :130
+
+      for (let floors = 4; floors < FLOOR_COUNT_MAX; floors += 1) await add.click(); // "Tầng 4" … "Tầng 49" (UCPM:205-207)
+      await expect(floorNameBoxes(dialog)).toHaveCount(FLOOR_COUNT_MAX);
+      // UCPM:664 canAddFloor, :906 floorCapNote, :907 canToggleBasement = hasBasement || canAddFloor; SF:43-50, :144-158.
+      await expect(add).toBeDisabled();
+      await expect(note).toBeVisible();
+      await expect(add).toHaveAccessibleDescription(FLOOR_CAP_NOTE);
+      await expect(basement).toBeDisabled();
+      const describedBy = await basement.evaluate((el) =>
+        (el.getAttribute('aria-describedby') ?? '')
+          .split(/\s+/u)
+          .filter((id) => id !== '')
+          .map((id) => ({ id, found: document.getElementById(id) !== null })),
+      );
+      await captureEvidence(page, 'E02_wiz_cap_note.png', { caption: `50 floors: note shown, "Thêm tầng" and "Có tầng hầm" locked; switch describedby ${JSON.stringify(describedBy)}` });
+      await attachJson('E02_wiz_cap_note.json', { rows: FLOOR_COUNT_MAX, describedBy });
+      await expect(basement, 'the locked switch says why').toHaveAccessibleDescription(new RegExp(FLOOR_CAP_NOTE.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'));
+      // Finding candidate (a11y/Low) when this fails: TG:69 joins the extra id into `descId`, and TG:130 reuses that joined
+      // string as the description span's own id ("…-desc create-project-floor-cap"), so "…-desc" resolves to nothing
+      // and the switch loses its own sentence exactly when it is locked (TG:15-16 promises it is read first).
+      await expect.soft(basement, 'own description, then the cap note').toHaveAccessibleDescription(`${BASEMENT_DESCRIPTION} ${FLOOR_CAP_NOTE}`);
+
+      await deleteFloorButton(dialog, 'Tầng 49').click(); // UCPM removeFloor
+      await expect(floorNameBoxes(dialog)).toHaveCount(FLOOR_COUNT_MAX - 1);
+      await expect(note).toHaveCount(0);
+      await expect(add).toBeEnabled();
+      await expect(basement).toBeEnabled();
+      await expect(basement).toHaveAccessibleDescription(BASEMENT_DESCRIPTION);
+
+      await basement.click(); // UCPM:782 setHasBasement: the basement row is the 50th
+      await expect(basement).toHaveAttribute('aria-checked', 'true');
+      await expect(floorNameBoxes(dialog)).toHaveCount(FLOOR_COUNT_MAX);
+      await expect(note).toBeVisible();
+      await expect(add).toBeDisabled();
+      await expect(basement, 'hasBasement keeps the switch usable at the cap (UCPM:907)').toBeEnabled();
+      await captureEvidence(page, 'E02_wiz_cap_basement_toggle.png', { caption: '49 floors + basement = 50: note shown, "Thêm tầng" locked, switch still usable' });
+      await basement.click();
+      await expect(floorNameBoxes(dialog)).toHaveCount(FLOOR_COUNT_MAX - 1);
+      await expect(dialog.getByRole('textbox', { name: `Tên tầng ${BASEMENT_NAME}`, exact: true })).toHaveCount(0);
+      await expect(note).toHaveCount(0);
+      await discardWizard(dialog);
+    });
+  });
+
+  test('E02 · wizard discard prompt: "Tiếp tục sửa" (click, or Enter) keeps the form; Space on the solid "Đóng, bỏ thay đổi" closes it; nothing sent (BUG-151, BUG-155)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      const name = 'Dự án tiếp tục sửa';
+      await nameField(dialog).fill(name);
+      await cancelButton(dialog).click(); // UCPM:816 requestClose, dirty → prompt
+      const prompt = dialog.getByRole('alert').filter({ hasText: DISCARD_TITLE }); // CPM:185-209
+      await expect(prompt).toBeVisible();
+      await expect(prompt).toContainText(DISCARD_HINT);
+      const keep = prompt.getByRole('button', { name: KEEP_EDITING, exact: true });
+      const discard = prompt.getByRole('button', { name: DISCARD_ACTION, exact: true });
+      const paint = await dangerPaint(discard); // CPM:205 variant="danger", BV:12
+      const keepBg = await keep.evaluate((el) => getComputedStyle(el).backgroundColor);
+      expect(paint.bg, '"Đóng, bỏ thay đổi" filled with --state-violation-text').toBe(paint.wantBg);
+      expect(paint.fg).toBe(paint.wantFg);
+      expect(keepBg, '"Tiếp tục sửa" is not the danger fill').not.toBe(paint.bg);
+      await captureEvidence(page, 'E02_wiz_keep_editing.png', { caption: 'discard prompt: "Tiếp tục sửa" + solid "Đóng, bỏ thay đổi"' });
+
+      await keep.click(); // UCPM:936 keepEditing
+      await expect(prompt).toHaveCount(0);
+      await expect(stepText(dialog, 1)).toBeVisible();
+      await expect(nameField(dialog)).toHaveValue(name);
+
+      await nameField(dialog).focus();
+      await page.keyboard.press('Escape'); // dirty Esc → the same prompt
+      await expect(prompt).toBeVisible();
+      await keep.focus();
+      await page.keyboard.press('Enter'); // SR:552-557 a lone key keeps its native action inside the dialog (BUG-151)
+      await expect(prompt).toHaveCount(0);
+      await expect(dialog).toBeVisible();
+      await expect(nameField(dialog)).toHaveValue(name);
+      await captureEvidence(page, 'E02_wiz_keep_editing_kbd.png', { caption: 'Esc → prompt → Enter on "Tiếp tục sửa" → form kept' });
+
+      await cancelButton(dialog).click();
+      await expect(prompt).toBeVisible();
+      await discard.focus();
+      await page.keyboard.press('Space');
+      await expect(dialog).toHaveCount(0);
+      const posts = countApi(admin.api, 'POST', PROJECTS_API);
+      await attachJson('E02_wiz_keep_editing.json', { paint, keepBg, posts });
+      expect(posts, 'no POST /api/projects').toBe(0);
+    });
+  });
+
+  test('E02 · wizard "Có tầng hầm" switch: the 36×20 track keeps a 24 px tall hit area — a click 1 px above or below it toggles (BUG-158)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      await toStep2(dialog, 'Dự án vùng bấm công tắc');
+      const basement = basementSwitch(dialog);
+      await expect(basement).toHaveAttribute('aria-checked', 'false');
+      // TG:94-97 `h-5 w-9` + `hit-y-24`; CSS:299 `.hit-y-24::before { inset: -2px 0 }`.
+      const probe = await basement.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        const x = r.left + r.width / 2;
+        const hits = (y: number): boolean => {
+          const hit = document.elementFromPoint(x, y);
+          return hit !== null && (hit === el || el.contains(hit));
+        };
+        return { x, top: r.top, bottom: r.bottom, width: r.width, height: r.height, above1: hits(r.top - 1), below1: hits(r.bottom + 1), above4: hits(r.top - 4) };
+      });
+      await attachJson('E02_wiz_switch_hit_area.json', probe);
+      expect(Math.round(probe.height), 'visible track stays 20 px').toBe(20);
+      expect(probe.above1, '1 px above the track is still the switch').toBe(true);
+      expect(probe.below1, '1 px below the track is still the switch').toBe(true);
+      expect(probe.above4, '4 px above is outside the 24 px area').toBe(false);
+
+      await page.mouse.click(probe.x, probe.top - 1);
+      await expect(basement).toHaveAttribute('aria-checked', 'true');
+      await expect(dialog.getByRole('textbox', { name: `Tên tầng ${BASEMENT_NAME}`, exact: true })).toHaveCount(1);
+      await captureEvidence(page, 'E02_wiz_switch_hit_area.png', { caption: 'click 1 px above the 20 px track → "Có tầng hầm" on, "Tầng hầm" row added' });
+      const after = await basement.boundingBox();
+      await page.mouse.click(probe.x, (after?.y ?? probe.top) + (after?.height ?? probe.height) + 1);
+      await expect(basement).toHaveAttribute('aria-checked', 'false');
+      await discardWizard(dialog);
     });
   });
 });
