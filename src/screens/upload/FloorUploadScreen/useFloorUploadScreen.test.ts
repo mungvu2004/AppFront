@@ -1679,12 +1679,13 @@ describe('useFloorUploadScreen — trang PDF', () => {
     await waitFor(() => {
       expect(document.body.textContent).toContain(PICK_PAGE_SENTENCE);
     });
-    // B-V4-04: tệp chưa tải chưa phải bản vẽ của tầng — nút chính phải chặn.
+    // B-V4-04: tệp chưa tải chưa phải bản vẽ của tầng — nút chính phải chặn, và nói việc cần
+    // làm là chọn trang chứ không phải chờ tải (BUG-303).
     expect(result.current.footer.blockReasons).toContainEqual(
       expect.objectContaining({
         floorId: 'L2',
         kind: 'missingFile',
-        sentence: 'Tầng 2 chưa tải xong bản vẽ.',
+        sentence: 'Tầng 2 chưa chọn trang của bản vẽ.',
       }),
     );
   });

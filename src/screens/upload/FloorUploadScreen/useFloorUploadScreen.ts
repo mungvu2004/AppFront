@@ -951,9 +951,13 @@ export function useFloorUploadScreen(
           floorId: floor.id,
           floorName: floor.name,
           kind: 'missingFile',
-          sentence: isUnfinished
-            ? `${floor.name} chưa tải xong bản vẽ.`
-            : `${floor.name} chưa có bản vẽ.`,
+          // PDF nhiều trang chưa chọn trang không "đang tải": nó chờ người chọn trang (BUG-303).
+          sentence:
+            attachment !== null && isAwaitingPage(attachment)
+              ? `${floor.name} chưa chọn trang của bản vẽ.`
+              : isUnfinished
+                ? `${floor.name} chưa tải xong bản vẽ.`
+                : `${floor.name} chưa có bản vẽ.`,
         });
       }
 
