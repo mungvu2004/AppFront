@@ -1129,6 +1129,16 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
         const dialog = wizard(page);
         await expect(dialog).toBeVisible();
         await expect(stateAnnouncement(dialog)).toHaveText(STATE.collapsed); // UCPM:494
+        // BUG-225: the Modal enters with a framer-motion transform (MOD:109-135) that `animations: 'disabled'` does not
+        // stop; measured mid-entrance the boxes move. Judge them once two reads 150 ms apart agree.
+        const fieldBoxes = async (): Promise<string> => JSON.stringify([await nameField(dialog).boundingBox(), await codeField(dialog).boundingBox()]);
+        await expect
+          .poll(async () => {
+            const first = await fieldBoxes();
+            await page.waitForTimeout(150);
+            return (await fieldBoxes()) === first;
+          }, { message: 'wizard fields at rest' })
+          .toBe(true);
         const nameBox = await nameField(dialog).boundingBox();
         const codeBox = await codeField(dialog).boundingBox();
         expect(nameBox && codeBox && Math.abs(nameBox.x - codeBox.x) < 2 && codeBox.y > nameBox.y, 'Tên/Mã stacked').toBe(true);
@@ -1137,9 +1147,14 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
         await page.keyboard.press('Escape');
         await expect(dialog).toHaveCount(0);
 
+        // BUG-225: the resize reaches the page asynchronously; wait for the dashboard's own query (UPD:92) to flip before
+        // judging the controls, and keep the width in the message so a headed run that does not reach 1023 says so.
+        const narrowAt = (): Promise<string> => page.evaluate(() => `${String(matchMedia('(max-width: 1023px)').matches)} @ ${String(window.innerWidth)}`);
         await page.setViewportSize({ width: 1023, height: 900 });
+        await expect.poll(narrowAt, { message: 'matchMedia (max-width: 1023px) at a 1023 px viewport' }).toBe('true @ 1023');
         await expect(filter).toBeVisible();
         await page.setViewportSize({ width: 1024, height: 900 });
+        await expect.poll(narrowAt, { message: 'matchMedia (max-width: 1023px) at a 1024 px viewport' }).toBe('false @ 1024');
         await expect(filter).toHaveCount(0);
         // Same `statusFilter` state behind both controls (PD:233, DS:157).
         await expect(statusFilterButton(page, FILTERS.processing)).toHaveAttribute('aria-pressed', 'true');
