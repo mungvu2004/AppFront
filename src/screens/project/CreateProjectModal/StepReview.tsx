@@ -12,15 +12,10 @@ import { FieldRow } from '@/components/ui/FieldRow';
 
 import type { CreateProjectModalViewProps } from './useCreateProjectModal';
 
-/**
- * A read-only value on {@link FieldRow}'s baseline. `FieldRow` pads its label
- * `pt-[9px]` to sit level with a 36 px input; plain text needs the same offset
- * and line height or it rides ~9 px above its label (BUG-121). A long code or
- * address breaks anywhere rather than overflowing its column.
- */
+/** A read-only value in a text {@link FieldRow} (`isText`, BUG-121). A long code or address breaks anywhere rather than overflowing its column. */
 function ReviewValue({ children }: { readonly children: React.ReactNode }) {
   return (
-    <span className="mt-[9px] block text-[14px] leading-[20px] text-text-primary [overflow-wrap:anywhere]">
+    <span className="block text-[14px] text-text-primary [overflow-wrap:anywhere]">
       {children}
     </span>
   );
@@ -43,22 +38,22 @@ export function StepReview(props: CreateProjectModalViewProps) {
           />
         </div>
       )}
-      <FieldRow label="Tên dự án">
+      <FieldRow isText label="Tên dự án">
         <ReviewValue>{props.name}</ReviewValue>
       </FieldRow>
-      <FieldRow label="Mã dự án">
+      <FieldRow isText label="Mã dự án">
         <ReviewValue>{props.code === '' ? '—' : props.code}</ReviewValue>
       </FieldRow>
-      <FieldRow label="Địa chỉ">
+      <FieldRow isText label="Địa chỉ">
         <ReviewValue>{props.address === '' ? '—' : props.address}</ReviewValue>
       </FieldRow>
-      <FieldRow label="Loại công trình">
+      <FieldRow isText label="Loại công trình">
         <ReviewValue>{buildingTypeLabel}</ReviewValue>
       </FieldRow>
-      <FieldRow label="Ghi chú">
+      <FieldRow isText label="Ghi chú">
         <ReviewValue>{props.notes === '' ? '—' : props.notes}</ReviewValue>
       </FieldRow>
-      <FieldRow label="Số tầng" isLast>
+      <FieldRow isText label="Số tầng" isLast>
         <ReviewValue>{props.floorRows.length}</ReviewValue>
       </FieldRow>
 

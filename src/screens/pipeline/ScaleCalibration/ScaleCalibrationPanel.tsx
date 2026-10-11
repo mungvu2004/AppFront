@@ -191,7 +191,7 @@ export function ScaleCalibrationPanel({
               <section aria-label={CROSS_CHECKS_ARIA_LABEL} className="flex flex-col">
                 <h3 className="mb-1 text-[13px] font-medium text-text-secondary">{CROSS_CHECKS_TITLE}</h3>
                 {panel.crossChecks.map((row, index) => (
-                  <FieldRow isLast={index === panel.crossChecks.length - 1} key={row.id} label={row.label}>
+                  <FieldRow isLast={index === panel.crossChecks.length - 1} isText key={row.id} label={row.label}>
                     <div className="flex flex-col gap-0.5">
                       <span
                         className={clsx(
