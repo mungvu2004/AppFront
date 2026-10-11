@@ -301,11 +301,12 @@ export function useProjectDashboard(
   // A11's "collapsed"/"forbidden" are overlays, not blank screens (ShareScreen's
   // precedent: they change what a person may do, not whether the list is
   // there) — filtering and rendering below run the same regardless of `state`.
-  const normalizedQuery = searchQuery.trim().toLowerCase();
+  // NFC on both sides: a pasted NFD query (letter + separate mark) never matched the name it shows (BUG-210).
+  const normalizedQuery = searchQuery.trim().normalize('NFC').toLowerCase();
   const filteredProjects = useMemo(
     () =>
       allProjects.filter((project) => {
-        if (normalizedQuery !== '' && !project.name.toLowerCase().includes(normalizedQuery)) return false;
+        if (normalizedQuery !== '' && !project.name.normalize('NFC').toLowerCase().includes(normalizedQuery)) return false;
         if (statusFilter !== 'all' && derivedStatusOf(project) !== statusFilter) return false;
         return true;
       }),

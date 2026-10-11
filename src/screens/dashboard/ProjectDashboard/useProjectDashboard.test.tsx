@@ -127,6 +127,19 @@ describe('useProjectDashboard states', () => {
     expect(dash().model.canDelete).toBe(false);
   });
 
+  // BUG-210: the query was only trimmed and lower-cased, so a pasted NFD "Đông Á" (letter + separate mark) matched nothing.
+  it.each([
+    ['NFD query, NFC name', 'Nhà Đông Á', 'mv3njh1u-Nhà Đông Á'.normalize('NFD')],
+    ['NFC query, NFD name', 'Nhà Đông Á'.normalize('NFD'), 'nhà đông á'],
+  ])('finds a project whatever the Unicode form — %s', async (_case, name, query) => {
+    mount({ gateway: fakeServer([project({ name: `qa-run-15-dau-mv3njh1u-${name}` })]).gateway });
+    await waitFor(() => expect(names()).toHaveLength(1));
+
+    act(() => dash().actions.setSearchQuery(query));
+
+    expect(names()).toHaveLength(1);
+  });
+
   it('is partial with a notice when rows were dropped', async () => {
     mount({ gateway: fakeServer([project()], 2).gateway });
 
