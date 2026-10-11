@@ -149,14 +149,28 @@ export const EXPLODE_PRESETS: readonly ExplodePresetViewModel[] = Object.freeze(
  * rộng một thẻ không nằm trong danh sách đó và không có nguồn nào khác trong repo.
  */
 export const EXPLODED_LAYOUT = Object.freeze({
-  /** Bề rộng thẻ nhãn tầng. */
-  cardWidthPx: 200,
+  /**
+   * Bề rộng thẻ nhãn tầng. 224 chứ không 200: dấu "Cần chú ý" (~80 px) đứng cạnh
+   * tên tầng, và ở 200 px tên chỉ còn ~44 px — "Tầng 02" (47 px) bị cắt (BUG-383).
+   */
+  cardWidthPx: 224,
   /** Bo góc thẻ nhãn tầng. */
   cardRadiusPx: 12,
-  /** Chiều cao vệt thang cao độ dọc mép trái khung nhìn. */
-  railHeightPx: 240,
   /** Bề rộng vạch đánh dấu trên đường nối dọc. */
   tickWidthPx: 12,
+  /**
+   * Lề phải của nút chụp: `right-2` (8) + ViewCube 72 (`VIEWER_LAYOUT.cubePx`) + 8
+   * của vỏ, để nút đứng NGAY TRÁI ViewCube thay vì nằm dưới nó (BUG-371).
+   */
+  captureRightPx: 88,
+  /**
+   * Lề phải của cột thẻ tầng: `right-2` (8) + bản đồ nhỏ 160 (`MiniMap.tsx`) + 8.
+   * Bản đồ nhỏ và cụm thu phóng của vỏ đều nằm trong dải ấy, nên thẻ đứng trái
+   * dải thì không lớp nào của vỏ đè lên thẻ (BUG-371).
+   */
+  cardsRightPx: 176,
+  /** Khoảng hở tối thiểu giữa thẻ tầng và mép khung nhìn khi khung hẹp (BUG-370). */
+  cardsEdgePx: 12,
 });
 
 /**
@@ -261,10 +275,12 @@ export interface ExplodedAlignmentPath {
 /** Một vạch đánh dấu trên đường nối dọc, tại cao độ của một tầng. */
 export interface ExplodedElevationTick {
   readonly storeyId: string;
-  /** Vị trí theo trục đứng của khung nhìn, tỉ lệ [0, 1] từ dưới lên. */
+  /**
+   * Vị trí theo trục đứng của khung nhìn, tỉ lệ [0, 1] từ dưới lên. Vạch không
+   * mang chữ: con số cao độ đã có ở thang của vỏ và trên thẻ tầng, một bản thứ ba
+   * giữa khung nhìn là thước chiều cao thứ hai (BUG-381).
+   */
   readonly fraction: number;
-  /** Cao độ ĐÃ ĐỊNH DẠNG. */
-  readonly label: string;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -274,6 +290,11 @@ export interface ExplodedElevationTick {
 /** Mọi thứ view trong khung nhìn cần để vẽ. */
 export interface ExplodedViewModel {
   readonly state: ExplodedViewState;
+  /**
+   * Câu của trạng thái `empty` — hook chọn vì `empty` có hai lý do: chưa đủ hai
+   * tầng, hoặc đủ tầng mà chưa tầng nào có gì để dựng (BUG-382).
+   */
+  readonly emptyMessage: string;
   /** Độ tách hiện tại, đọc từ `ViewerSceneFrame.separation`. */
   readonly separation: number;
   /** Mức sẵn đang khớp, hoặc `null` khi người dùng đang kéo tự do. */

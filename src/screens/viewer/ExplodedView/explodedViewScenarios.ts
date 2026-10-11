@@ -154,7 +154,6 @@ function buildTick(def: SampleFloorDef): ExplodedElevationTick {
   return {
     storeyId: def.id,
     fraction: def.elevationMm / STACK_TOP_MM,
-    label: formatLength(millimetres(def.elevationMm), { unit: 'm' }),
   };
 }
 
@@ -278,6 +277,7 @@ const PARTIAL_REVIEW_CAPTION = 'Tầng 02 chưa được người duyệt xác n
 
 const BASE: ExplodedViewProps = {
   state: 'success',
+  emptyMessage: 'Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.',
   separation: FULL_SEPARATION,
   activePresetId: presetFor(FULL_SEPARATION),
   presets: EXPLODE_PRESETS,
