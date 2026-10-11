@@ -406,6 +406,25 @@ describe('CreateProjectModal, wired to its hook', () => {
     expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng 2')).toHaveAccessibleDescription('Chưa nhập chiều cao thông thuỷ.');
   });
 
+  it('blames the elevation limit, not a missing height, for the rows above a floor over 300 m (BUG-213)', () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+
+    goToStep2();
+    const add = screen.getByRole('button', { name: 'Thêm tầng' });
+    for (let floors = 4; floors < 34; floors += 1) fireEvent.click(add);
+    setHeight('Chiều cao áp cho mọi tầng', '10');
+    fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
+
+    expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng 31')).toHaveAccessibleDescription(
+      'Cao độ vượt giới hạn cho phép (-30 đến 300 mét).',
+    );
+    for (const name of ['Tầng 32', 'Tầng 33']) {
+      expect(screen.getByLabelText(`Chiều cao thông thuỷ tầng ${name}`)).toHaveAccessibleDescription(
+        'Chưa tính được cao độ vì một tầng bên dưới đã vượt giới hạn cao độ.',
+      );
+    }
+  });
+
   it('keeps the basement inside the 50-floor cap and says why "Thêm tầng" is locked (BUG-150, BUG-177)', () => {
     render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
 

@@ -256,6 +256,7 @@
         "missingName": "Chưa nhập tên tầng.",
         "missingHeight": "Chưa nhập chiều cao thông thuỷ.",
         "missingHeightBelow": "Chưa tính được cao độ vì tầng bên dưới còn thiếu chiều cao hợp lệ.",
+        "elevationBelowOutOfRange": "Chưa tính được cao độ vì một tầng bên dưới đã vượt giới hạn cao độ.",
         "elevationOutOfRange": "Cao độ vượt giới hạn cho phép ({{min}} đến {{max}} mét)."
       },
       "problems": {

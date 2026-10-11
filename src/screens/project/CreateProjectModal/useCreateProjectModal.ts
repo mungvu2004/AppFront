@@ -321,6 +321,9 @@ interface FloorStack {
   readonly collisionRowId: string | null;
 }
 
+const CHAIN_BROKEN_BY_HEIGHT = 'Chưa tính được cao độ vì tầng bên dưới còn thiếu chiều cao hợp lệ.';
+const CHAIN_BROKEN_BY_ELEVATION = 'Chưa tính được cao độ vì một tầng bên dưới đã vượt giới hạn cao độ.';
+
 function computeFloorStack(rows: readonly DraftFloorRow[]): FloorStack {
   const basement = rows.find((row) => row.kind === 'basement') ?? null;
   const aboveRows = rows.filter((row) => row.kind === 'floor');
@@ -330,25 +333,22 @@ function computeFloorStack(rows: readonly DraftFloorRow[]): FloorStack {
   const elevationLabelById = new Map<string, string>();
 
   let previousCeilingMm: Millimetres | null = null;
-  let chainBroken = false;
+  // Why the rows above can no longer be placed — said in their own words, so a
+  // row above a floor over the elevation limit never blames a height (BUG-213).
+  let chainBroken: string | null = null;
 
   aboveRows.forEach((row, index) => {
-    if (chainBroken) {
+    if (chainBroken !== null) {
       // A row with no height of its own says so; only a row that HAS one is
       // waiting on the floor below (BUG-120).
-      problemById.set(
-        row.id,
-        row.clearHeightM === null
-          ? 'Chưa nhập chiều cao thông thuỷ.'
-          : 'Chưa tính được cao độ vì tầng bên dưới còn thiếu chiều cao hợp lệ.',
-      );
+      problemById.set(row.id, row.clearHeightM === null ? 'Chưa nhập chiều cao thông thuỷ.' : chainBroken);
       return;
     }
 
     const heightProblem = heightProblemFor(row.clearHeightM);
     if (heightProblem !== null || row.clearHeightM === null) {
       problemById.set(row.id, heightProblem ?? 'Chưa nhập chiều cao thông thuỷ.');
-      chainBroken = true;
+      chainBroken = CHAIN_BROKEN_BY_HEIGHT;
       return;
     }
 
@@ -358,8 +358,8 @@ function computeFloorStack(rows: readonly DraftFloorRow[]): FloorStack {
     } else if (previousCeilingMm === null) {
       // Defensive only: `chainBroken` already returns before this point once a
       // row fails, so a later row never reaches here with no ceiling to sit on.
-      problemById.set(row.id, 'Chưa tính được cao độ vì tầng bên dưới còn thiếu chiều cao hợp lệ.');
-      chainBroken = true;
+      problemById.set(row.id, CHAIN_BROKEN_BY_HEIGHT);
+      chainBroken = CHAIN_BROKEN_BY_HEIGHT;
       return;
     } else {
       floorElevationMm = previousCeilingMm;
@@ -369,7 +369,7 @@ function computeFloorStack(rows: readonly DraftFloorRow[]): FloorStack {
     const elevationProblem = elevationProblemFor(floorElevationMm);
     if (elevationProblem !== null) {
       problemById.set(row.id, elevationProblem);
-      chainBroken = true;
+      chainBroken = CHAIN_BROKEN_BY_ELEVATION;
       return;
     }
 
