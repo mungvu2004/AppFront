@@ -1146,31 +1146,26 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
         await page.keyboard.press('Escape');
         await expect(dialog).toHaveCount(0);
 
-        // BUG-225: the resize reaches the page asynchronously; wait for the dashboard's own query (UPD:92) to flip before
+        // BUG-225: the resize reaches the page asynchronously; wait for the dashboard's own query (UPD:93) to flip before
         // judging the controls, and keep the width in the message so a headed run that does not reach 1023 says so.
-        const narrowAt = (): Promise<string> => page.evaluate(() => `${String(matchMedia('(max-width: 1023px)').matches)} @ ${String(window.innerWidth)}`);
+        // Root cause (headed probe, chrome channel, this Windows host): devicePixelRatio is 1.0000000149, so a "1023 px"
+        // viewport is a hair over 1023 CSS px. The old `(max-width: 1023px)` and Tailwind `lg:` = `(min-width: 1024px)`
+        // were then both false (run-16: desktop list on a stacked page). The app now asks the range form
+        // `(width < 1024px)` (QA-02c R-src), the exact complement of `lg:`, so there is no gap: always judged at 1023.
+        const narrowQuery = '(width < 1024px)';
+        const narrowAt = (): Promise<string> => page.evaluate((query) => `${String(matchMedia(query).matches)} @ ${String(window.innerWidth)}`, narrowQuery);
         await page.setViewportSize({ width: 1023, height: 900 });
-        await expect.poll(() => page.evaluate(() => window.innerWidth)).toBe(1023);
-        // BUG-225 root cause (headed probe, chrome channel, this Windows host): devicePixelRatio is 1.0000000149, so a
-        // "1023 px" viewport is a hair over 1023 CSS px — `(max-width: 1023px)` AND `(min-width: 1024px)` are both false:
-        // the dashboard keeps its desktop list (UPD:93) while Tailwind `lg:` is off (the stacked page of run-16). Headless
-        // is exactly 1023 px. That gap is the app's (noted for the coordinator); here the toggle is judged 1 px lower.
-        const at1023 = await page.evaluate(() => ({
-          narrow: matchMedia('(max-width: 1023px)').matches,
+        await expect.poll(narrowAt, { message: `matchMedia ${narrowQuery} at a 1023 px viewport` }).toBe('true @ 1023');
+        const at1023 = await page.evaluate((query) => ({
+          narrow: matchMedia(query).matches,
           wide: matchMedia('(min-width: 1024px)').matches,
           dpr: window.devicePixelRatio,
-        }));
-        const gap = !at1023.narrow && !at1023.wide;
-        await attachJson('E02_dash_compact_1023.json', { ...at1023, gap });
-        if (gap) {
-          test.info().annotations.push({ type: 'BUG-225', description: `1023 px is in the max-width:1023px / min-width:1024px gap (dpr ${String(at1023.dpr)}); judged at 1022 px` });
-          await page.setViewportSize({ width: 1022, height: 900 });
-        }
-        const narrowWidth = gap ? 1022 : 1023;
-        await expect.poll(narrowAt, { message: `matchMedia (max-width: 1023px) at a ${String(narrowWidth)} px viewport` }).toBe(`true @ ${String(narrowWidth)}`);
+        }), narrowQuery);
+        await attachJson('E02_dash_compact_1023.json', { ...at1023, gap: !at1023.narrow && !at1023.wide });
+        expect(at1023, `app query and Tailwind lg: split 1023 px with no gap (dpr ${String(at1023.dpr)}, BUG-225)`).toMatchObject({ narrow: true, wide: false });
         await expect(filter).toBeVisible();
         await page.setViewportSize({ width: 1024, height: 900 });
-        await expect.poll(narrowAt, { message: 'matchMedia (max-width: 1023px) at a 1024 px viewport' }).toBe('false @ 1024');
+        await expect.poll(narrowAt, { message: `matchMedia ${narrowQuery} at a 1024 px viewport` }).toBe('false @ 1024');
         await expect(filter).toHaveCount(0);
         // Same `statusFilter` state behind both controls (PD:233, DS:157).
         await expect(statusFilterButton(page, FILTERS.processing)).toHaveAttribute('aria-pressed', 'true');
@@ -2680,7 +2675,7 @@ test.describe('E02 SCR-06 notifications', () => {
       async (admin) => {
         const { page } = admin;
         await page.goto(ROUTES.notifications);
-        const sheet = notificationDrawer(page); // DRW:70 (max-width 1023px) → BottomSheet (DRW:205-210)
+        const sheet = notificationDrawer(page); // DRW:105 (width < 1024px since BUG-225) → BottomSheet (DRW:205-210)
         await expect(sheet).toBeVisible();
         const group = sheet.getByRole('group', { name: SHEET_GROUP, exact: true });
         await expect(group.getByRole('button', { name: snapButton(3), exact: true })).toHaveAttribute('aria-pressed', 'true'); // DRW:72

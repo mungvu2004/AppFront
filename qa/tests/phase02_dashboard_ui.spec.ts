@@ -96,7 +96,7 @@ const renamedToast = (name: string): string => `Đã đổi tên thành "${name}
 const RENAME_RANGE_MESSAGE = 'Tên dự án cần từ 3 đến 80 ký tự.'; // useProjectDashboard.ts:206 (PROJECT_NAME_MIN/MAX_LENGTH), toast state 'attention'
 const createdToast = (name: string): string => `Đã tạo dự án "${name}".`; // useCreateProjectModal.ts:668-673
 const UNDO = 'Hoàn tác'; // components/feedback/Toast.tsx:143
-const NARROW_MAX_WIDTH = 1023; // NARROW_VIEWPORT_QUERY, useProjectDashboard.ts:90
+const NARROW_MAX_WIDTH = 1023; // NARROW_VIEWPORT_QUERY `(width < 1024px)` (useProjectDashboard.ts:93, BUG-225): the same set for integer widths
 /* Wizard: CreateProjectModal.tsx, StepFloors.tsx, useCreateProjectModal.ts:684 (`Bước N / 3`). */
 const WIZARD_TITLE = 'Tạo dự án mới';
 const NEW_PROJECT = /^Dự án mới/u; // Button carries the `N` shortcut hint (phase02_dashboard.spec.ts openWizard)
