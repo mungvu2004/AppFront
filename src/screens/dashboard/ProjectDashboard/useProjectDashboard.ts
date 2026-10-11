@@ -217,11 +217,18 @@ function toastName(name: string): string {
   return chars.length <= TOAST_NAME_MAX_CHARS ? name : `${chars.slice(0, TOAST_NAME_MAX_CHARS - 1).join('')}…`;
 }
 
+/**
+ * #26 `VALIDATION`. `commitRename` refuses a name outside 3–80 characters before sending, so a name the
+ * server still refuses has characters it does not take — a bidi or control mark (BUG-168, as BUG-016).
+ */
+const RENAME_CHARS_MESSAGE =
+  'Tên dự án có ký tự không dùng được, như ký tự điều khiển hoặc ký tự đảo chiều chữ. Tên cũ đã được giữ lại.';
+
 /** #26 failures by wire `code` (prompt [2]); a code this screen does not know gets the fallback, never the code. */
 function renameErrorMessage(error: unknown): string {
   switch (readWireError(error)?.code) {
     case 'VALIDATION':
-      return RENAME_RANGE_MESSAGE;
+      return RENAME_CHARS_MESSAGE;
     case 'FORBIDDEN':
       return 'Bạn không có quyền đổi tên dự án này.';
     case 'NOT_FOUND':

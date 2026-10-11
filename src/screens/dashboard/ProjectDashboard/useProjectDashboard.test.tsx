@@ -268,6 +268,22 @@ describe('useProjectDashboard rename', () => {
     expect(names()).toEqual([NAME_HQ]);
   });
 
+  it('names the characters, not the length, when #26 refuses a name of valid length (BUG-168)', async () => {
+    const server = fakeServer([project()]);
+    server.rename.mockRejectedValueOnce(httpError(422, 'VALIDATION'));
+    const onToast = await startRename(server);
+
+    act(() => dash().actions.setRenameDraft('qa‮edge'));
+    act(() => dash().actions.commitRename());
+
+    await waitFor(() =>
+      expect(onToast).toHaveBeenCalledWith({
+        message: 'Tên dự án có ký tự không dùng được, như ký tự điều khiển hoặc ký tự đảo chiều chữ. Tên cũ đã được giữ lại.',
+      }),
+    );
+    expect(names()).toEqual([NAME_HQ]);
+  });
+
   it('falls back to a generic sentence for an unknown code, never printing the code', async () => {
     const server = fakeServer([project()]);
     server.rename.mockRejectedValueOnce(httpError(500, 'SOMETHING_NEW'));
