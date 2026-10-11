@@ -181,9 +181,11 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           value={props.searchQuery}
           onChange={(event) => props.setSearchQuery(event.target.value)}
           placeholder="Tìm dự án theo tên..."
-          prefix={<Search size={16} aria-hidden="true" />}
+          // The gap after the icon moves from the input's padding (where scrolled text still draws) to the
+          // icon's margin, so a long query is clipped 8 px clear of the icon, not half under it (BUG-169).
+          prefix={<Search size={16} aria-hidden="true" className="mr-1" />}
           // The browser's own clear (×) button sat flush against the last typed glyph (BUG-117).
-          className="[&::-webkit-search-cancel-button]:ml-2"
+          className="pl-0 [&::-webkit-search-cancel-button]:ml-2"
           wrapperClassName="order-last w-full sm:order-none sm:w-[320px] sm:max-w-full"
         />
         <div className="ml-auto flex items-center gap-3">
