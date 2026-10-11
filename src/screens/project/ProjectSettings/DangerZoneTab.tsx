@@ -11,8 +11,9 @@
  * có nhóm `drawings` cho một lượt tải lên mới). Mã đề xuất cho lượt dữ liệu là
  * **T-02**.
  *
- * `Button variant="danger"` là nền `bg-danger-tint`, không phải khối đỏ đặc:
- * ba màu trạng thái của A4 dành cho trạng thái của bản vẽ, không dành cho nút.
+ * `Button variant="danger"` là khối đặc màu chữ vi phạm (BUG-155): hai việc này
+ * không hoàn tác được, nên nút phải nổi hơn mọi nút thường quanh nó. Không thêm
+ * màu thứ tư (A4) — nền mượn đúng `--state-violation-text` của dải báo lỗi.
  */
 
 import { AlertTriangle } from 'lucide-react';
