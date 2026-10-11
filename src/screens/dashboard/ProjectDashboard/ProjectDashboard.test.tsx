@@ -353,6 +353,20 @@ describe('ProjectDashboardView, seven states', () => {
     }
   });
 
+  // BUG-169: a scrolled query is cut mid-glyph at the field's edge; the fade that hides the cut is on only while scrolled.
+  it('marks the search field as scrolled only while its text is scrolled', () => {
+    render(<ProjectDashboardView {...PROPS_BY_STATE.success()} />);
+    const search = screen.getByRole('searchbox', { name: 'Tìm dự án' });
+
+    search.scrollLeft = 120;
+    fireEvent.scroll(search);
+    expect(search).toHaveAttribute('data-scrolled');
+
+    search.scrollLeft = 0;
+    fireEvent.scroll(search);
+    expect(search).not.toHaveAttribute('data-scrolled');
+  });
+
   // BUG-116/148: the menu opened where the pointer was (over its own button) or, from the keyboard, at 0,0.
   it('anchors the card menu under its button and gives focus back to it on Esc', async () => {
     const viewport = { clientWidth: 1440, clientHeight: 900 };

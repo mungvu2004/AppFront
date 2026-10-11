@@ -139,11 +139,13 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           value={props.searchQuery}
           onChange={(event) => props.setSearchQuery(event.target.value)}
           placeholder="Tìm dự án theo tên..."
-          // The gap after the icon moves from the input's padding (where scrolled text still draws) to the
-          // icon's margin, so a long query is clipped 8 px clear of the icon, not half under it (BUG-169).
+          // The 8 px after the icon is the icon's margin, not the input's padding, so the field's own edge sits 8 px
+          // clear of the icon. A scrolled query is still cut mid-glyph at that edge (")A-RUN…" read as a glyph under
+          // the icon, BUG-169), so while scrolled the first 12 px fade out: the cut reads as "more text this way".
           prefix={<Search size={16} aria-hidden="true" className="mr-1" />}
+          onScroll={(event) => event.currentTarget.toggleAttribute('data-scrolled', event.currentTarget.scrollLeft > 0)}
           // The browser's own clear (×) button gets its 8 px gap from globals.css (BUG-117).
-          className="pl-0"
+          className="pl-0 data-[scrolled]:[mask-image:linear-gradient(to_right,transparent,black_12px)]"
           wrapperClassName="order-last w-full max-w-full sm:order-none sm:w-[320px]"
         />
         <div className="ml-auto flex items-center gap-3">
