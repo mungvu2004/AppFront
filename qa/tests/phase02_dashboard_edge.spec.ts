@@ -1223,6 +1223,9 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await input.press('Enter');
       const { json } = await refused;
       await expect(toastWith(page, RENAME_FORBIDDEN)).toBeVisible(); // UPD:205-206
+      // BUG-207: an error toast wears the violation dot, never the verified green (UPD:454; Toast.tsx:111-115).
+      await expect(toastWith(page, RENAME_FORBIDDEN).locator('.bg-state-violation')).toHaveCount(1);
+      await expect(toastWith(page, RENAME_FORBIDDEN).locator('.bg-state-verified')).toHaveCount(0);
       await expect(projectCard(page, project.name)).toBeVisible(); // UPD:418
       await expect(projectCard(page, attempted)).toHaveCount(0);
       await captureEvidence(page, 'E02_rename_403.png', { caption: 'PATCH → 403 FORBIDDEN (mocked): permission toast, old name back' });
@@ -2977,6 +2980,10 @@ test.describe('E02 QA-02 shared components (FE 271538cb) — SCR-05 / SCR-06 / S
       await expect(toast).toBeVisible();
       const undo = toast.getByRole('button', { name: UNDO, exact: true });
       await expect(undo).toBeVisible();
+      // An undoable change is a plain notice: neutral dot, not the A5 verified green (UPD:460, no state; Toast.tsx:111-115;
+      // BUG-207, FIX-1081 for the provider's undoable/grouped toasts).
+      await expect(toast.locator('.bg-text-muted')).toHaveCount(1);
+      await expect(toast.locator('.bg-state-verified')).toHaveCount(0);
       // TST:133-134 `min-w-0 break-words` on the message; the toast is `overflow-hidden` (TST:121): a clipped button = BUG-131.
       // BUG-216: the button is measured through its locator — a textContent match inside evaluate() found nothing (null →
       // "CLIPPED" on a shot where the button is whole).
