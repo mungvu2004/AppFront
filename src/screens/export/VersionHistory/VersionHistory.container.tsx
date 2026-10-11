@@ -45,6 +45,7 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { ProjectSpatialGate } from '@/components/feedback/ProjectSpatialGate';
 import { Skeleton } from '@/components/feedback/Skeleton';
+import { Toast, useToast } from '@/components/feedback/Toast';
 import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
@@ -189,6 +190,7 @@ export function VersionHistoryContainer(props: VersionHistoryContainerProps) {
  * `order` nhỏ nhất. KHÔNG `setActiveFloor` — đổi tầng đang mở bỏ bản nháp của kho.
  */
 function ProjectVersionHistory({ projectId }: { readonly projectId: string }) {
+  const { addToast } = useToast();
   const [searchParams] = useSearchParams();
   const project = useStore((state) => state.project);
   const floors = useStore((state) => state.floors);
@@ -220,11 +222,15 @@ function ProjectVersionHistory({ projectId }: { readonly projectId: string }) {
   }
 
   return (
-    <VersionHistoryContainer projectId={projectId} floorId={floorId} floorOptions={floorOptions} onSelectFloor={setPicked} />
+    <VersionHistoryContainer projectId={projectId} floorId={floorId} floorOptions={floorOptions} onSelectFloor={setPicked} onToast={addToast} />
   );
 }
 
-/** Route thật của màn lịch sử phiên bản, đăng ký tại `src/routes/router.tsx`; cổng nạp kho dự án. */
+/**
+ * Route thật của màn lịch sử phiên bản, đăng ký tại `src/routes/router.tsx`; cổng nạp kho dự án.
+ * Bọc `Toast.Provider` như `ExportPanelRoute` (ND-R1): toast mang `onUndo` và `state` của hook
+ * (lỗi `violation`, còn lại trung tính) — bus thông báo không chở được hai thứ đó.
+ */
 export function VersionHistoryRoute() {
   const { projectId: id } = useParams<{ projectId: string }>();
   const projectId = id ?? '';
@@ -238,8 +244,10 @@ export function VersionHistoryRoute() {
   }
 
   return (
-    <ProjectSpatialGate projectId={projectId}>
-      <ProjectVersionHistory projectId={projectId} />
-    </ProjectSpatialGate>
+    <Toast.Provider>
+      <ProjectSpatialGate projectId={projectId}>
+        <ProjectVersionHistory projectId={projectId} />
+      </ProjectSpatialGate>
+    </Toast.Provider>
   );
 }
