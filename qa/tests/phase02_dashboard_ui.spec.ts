@@ -725,7 +725,11 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
       const dialog = await openWizard(p);
       await toStep2(dialog, `${TEST_DATA_PREFIX}u02-cao`);
       const field = dialog.getByLabel(SHARED_HEIGHT_LABEL);
-      await field.fill('10,01');
+      // BUG-224: focus, wait for useNumericField's focus handler, then select all and insert (a bare fill() races it).
+      await field.focus();
+      await p.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+      await field.press('Control+A');
+      await p.keyboard.insertText('10,01');
       await field.press('Tab'); // useNumericField.ts:41-46 refuses out of range on blur
       await expect(dialog.getByText(NUMERIC_MAX, { exact: true })).toBeVisible();
       await expect(field).toHaveValue('10,01'); // BUG-160: the refused value stays beside its message (useNumericField.ts displayValue)
