@@ -78,6 +78,7 @@ import {
 import {
   createMockFloorManagerGateway,
   FLOOR_MANAGER_SAMPLE_LEVELS,
+  FLOOR_MANAGER_UNSUPPORTED_NOTICES,
 } from './floorManagerGateway';
 
 const PROJECT_ID = 'project-floor-manager';
@@ -464,7 +465,7 @@ describe('[NGHIEM-6] màn nói ra hai sự thật thay vì im lặng', () => {
     /* Ẩn nút là đúng; ẩn mà không nói vì sao mới là lỗi A11 mà bài này chặn. */
     expect(notice).not.toBe('');
     expect(screen.queryByRole('button', { name: ADD_FLOOR_LABEL })).not.toBeInTheDocument();
-    expect(screen.getByText(notice)).toBeInTheDocument();
+    expect(screen.getByText(notice, { exact: false })).toBeInTheDocument();
   });
 
   it('cổng khai khả năng chưa có: TỪNG câu nợ hiện ra, và câu chữ vẫn đi qua hai bộ soát', () => {
@@ -478,7 +479,7 @@ describe('[NGHIEM-6] màn nói ra hai sự thật thay vì im lặng', () => {
     console.log('[NGHIEM-6] CÁC CÂU NỢ CỦA CỔNG:');
     for (const notice of FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES) {
       console.log(`  ${notice}`);
-      expect(screen.getByText(notice)).toBeInTheDocument();
+      expect(screen.getByText(notice, { exact: false })).toBeInTheDocument();
     }
 
     expect(FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES.length).toBeGreaterThan(0);
@@ -487,16 +488,23 @@ describe('[NGHIEM-6] màn nói ra hai sự thật thay vì im lặng', () => {
     expectVietnamese(container);
   });
 
-  it('màn ĐÃ NỐI DÂY đọc hai câu đó thẳng từ cổng thật, không ai gõ lại chuỗi nào', async () => {
+  it('màn ĐÃ NỐI DÂY đọc câu nợ thẳng từ cổng thật; câu ẩn 3D chỉ khi có tầng ẩn (BUG-287)', async () => {
     await mountScreen();
 
-    console.log(
-      `[NGHIEM-6] màn đã nối dây nói ra ${String(FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES.length)} khoản nợ của cổng`,
-    );
+    expect(screen.getByText(FLOOR_MANAGER_UNSUPPORTED_NOTICES.persistFloorContents, { exact: false })).toBeInTheDocument();
+    expect(screen.queryByText(FLOOR_MANAGER_UNSUPPORTED_NOTICES.hideFloorFrom3d, { exact: false })).not.toBeInTheDocument();
+  });
 
-    for (const notice of FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES) {
-      expect(screen.getByText(notice)).toBeInTheDocument();
-    }
+  it('BUG-287: mọi câu nợ gom vào MỘT dải, không tiêu đề "chỉ sống trong phiên" riêng', () => {
+    renderWithProviders(
+      <FloorManager {...scenarioArgsFor('partial')} unsupportedNotices={FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES} />,
+    );
+    const strips = screen
+      .getAllByRole('status')
+      .filter((node) => FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES.some((notice) => node.textContent?.includes(notice)));
+
+    expect(strips).toHaveLength(1);
+    expect(screen.queryByText(/chỉ sống|chỗ lưu/u)).not.toBeInTheDocument();
   });
 });
 
@@ -597,7 +605,7 @@ describe('dự án không tồn tại (BUG-032)', () => {
 
     expect(screen.getByText('Không tìm thấy dự án này')).toBeInTheDocument();
     for (const notice of FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES) {
-      expect(screen.queryByText(notice)).not.toBeInTheDocument();
+      expect(screen.queryByText(notice, { exact: false })).not.toBeInTheDocument();
     }
     expect(screen.queryByLabelText(SECTION_ARIA_LABEL)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: EXPAND_SECTION_LABEL })).not.toBeInTheDocument();
@@ -609,7 +617,7 @@ describe('dự án không tồn tại (BUG-032)', () => {
     );
 
     for (const notice of FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES) {
-      expect(screen.queryByText(notice)).not.toBeInTheDocument();
+      expect(screen.queryByText(notice, { exact: false })).not.toBeInTheDocument();
     }
     expect(screen.queryByLabelText(SECTION_ARIA_LABEL)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: EXPAND_SECTION_LABEL })).not.toBeInTheDocument();

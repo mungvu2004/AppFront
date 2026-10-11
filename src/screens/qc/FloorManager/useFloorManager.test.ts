@@ -642,13 +642,24 @@ describe('bảng tầng', () => {
     expect(mounted.result.current.forbiddenNotice).not.toBeNull();
   });
 
-  it('nói ra hai khoản nợ của cổng thay vì im lặng', async () => {
+  it('nói ra khoản nợ của cổng thay vì im lặng; câu ẩn 3D chỉ khi đã ẩn một tầng (BUG-287)', async () => {
     const mounted = await mountSettled();
 
     expect(mounted.result.current.unsupportedNotices).toEqual([
       FLOOR_MANAGER_UNSUPPORTED_NOTICES.persistFloorContents,
-      FLOOR_MANAGER_UNSUPPORTED_NOTICES.hideFloorFrom3d,
     ]);
+
+    await act(async () => {
+      mounted.result.current.onToggleHiddenIn3d(String(FLOOR_MANAGER_SAMPLE_ROOF_ID));
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mounted.result.current.unsupportedNotices).toEqual([
+        FLOOR_MANAGER_UNSUPPORTED_NOTICES.persistFloorContents,
+        FLOOR_MANAGER_UNSUPPORTED_NOTICES.hideFloorFrom3d,
+      ]);
+    });
   });
 
   it('ẩn tầng khỏi 3D là khung đọc của màn, và màn nói rằng nó không lưu được', async () => {

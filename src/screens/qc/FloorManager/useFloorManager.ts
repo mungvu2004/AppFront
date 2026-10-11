@@ -1642,12 +1642,16 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
     return describeError(toAppError(floorListQuery.error)).description;
   }, [floorListQuery.error, hasError, isProjectMissing]);
 
+  // Câu "ẩn khỏi 3D không lưu" chỉ đúng khi đang có tầng ẩn; nói trước đó là cảnh báo về
+  // một việc chưa xảy ra (BUG-287).
+  const hasHiddenFloor = hiddenFloorIds.length > 0;
   const unsupportedNotices = useMemo(
     () =>
       FLOOR_MANAGER_MISSING_CAPABILITIES.filter(
-        (capability) => !gateway.supports[capability],
+        (capability) =>
+          !gateway.supports[capability] && (capability !== 'hideFloorFrom3d' || hasHiddenFloor),
       ).map((capability) => FLOOR_MANAGER_UNSUPPORTED_NOTICES[capability]),
-    [gateway],
+    [gateway, hasHiddenFloor],
   );
 
   return {

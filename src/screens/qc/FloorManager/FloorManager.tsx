@@ -50,8 +50,9 @@
  *   nút mà không nói vì sao là để người dùng đoán; A11 tồn tại đúng để chặn
  *   chuyện đó, nên câu này đi kèm ngay trên bảng.
  * - `unsupportedNotices` — hai khoản cổng khai là chưa làm được
- *   (`persistFloorContents`, `hideFloorFrom3d`). Màn CẤM im lặng và CẤM bịa một
- *   lượt lưu đã xong: nó nói thẳng rằng thay đổi chỉ sống trong phiên này.
+ *   (`persistFloorContents`, `hideFloorFrom3d`; câu thứ hai chỉ khi đang có tầng ẩn).
+ *   Màn CẤM im lặng và CẤM bịa một lượt lưu đã xong: một dải nói thẳng phần nào mất
+ *   sau khi tải lại trang (BUG-287).
  *
  * Cả hai nằm TRƯỚC bảng và trước mọi nút, không giấu dưới đáy trang, và dùng
  * `role="status"` chứ không `role="alert"`: đây là bối cảnh thường trực của
@@ -73,7 +74,7 @@ const SCREEN_DESCRIPTION =
   'Xem cao độ, chiều cao và tiến độ của từng tầng, rồi sắp xếp lại ngăn xếp nếu cần.';
 const EXPAND_SECTION_LABEL = 'Hiện lát cắt';
 const FORBIDDEN_NOTICE_TITLE = 'Không có quyền sửa tầng';
-const UNSUPPORTED_NOTICES_HEADING = 'Những thay đổi chỉ sống trong phiên làm việc này';
+const UNSUPPORTED_NOTICES_TITLE = 'Một số thay đổi chưa được lưu';
 
 const EXPAND_BUTTON_CLASS_NAME = cn(
   'inline-flex min-h-11 items-center self-start rounded-[6px] px-1.5 text-[13px] text-accent sm:min-h-6',
@@ -138,14 +139,15 @@ export function FloorManager(props: FloorManagerViewProps) {
         </div>
       )}
 
+      {/* Một dải cho mọi khoản chưa lưu được, không một tiêu đề cộng một dải mỗi câu (BUG-287). */}
       {isLoadError || unsupportedNotices.length === 0 ? null : (
-        <div className="mx-auto flex w-full max-w-[1120px] shrink-0 flex-col gap-2 px-8 pb-2">
-          <h3 className="text-[13px] font-semibold text-text-secondary">
-            {UNSUPPORTED_NOTICES_HEADING}
-          </h3>
-          {unsupportedNotices.map((notice) => (
-            <InlineAlert key={notice} level="attention" message={notice} role="status" />
-          ))}
+        <div className="mx-auto w-full max-w-[1120px] shrink-0 px-8 pb-2">
+          <InlineAlert
+            level="attention"
+            message={unsupportedNotices.join(' ')}
+            role="status"
+            title={UNSUPPORTED_NOTICES_TITLE}
+          />
         </div>
       )}
 
