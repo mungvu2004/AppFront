@@ -222,7 +222,7 @@ function DiscardPrompt(props: CreateProjectModalViewProps) {
   return (
     <div
       role="alert"
-      className="absolute inset-x-6 bottom-full mb-3 flex flex-col gap-3 rounded-[8px] border border-state-attention bg-state-attention-tint p-3 shadow-modal"
+      className="absolute inset-x-4 sm:inset-x-6 bottom-full mb-3 flex flex-col gap-3 rounded-[8px] border border-state-attention bg-state-attention-tint p-3 shadow-modal"
     >
       <div className="flex items-start gap-3">
         <AlertTriangle className="mt-0.5 shrink-0 text-state-attention" size={18} strokeWidth={2} aria-hidden="true" />
@@ -297,10 +297,10 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
   return (
     <Modal.Root isOpen={isOpen} onClose={props.requestClose} width={MODAL_WIDTH} titleId={TITLE_ID}>
       {/* `pb-3` + a body with no top padding: the step indicator sits one 24 px grid step under the title, and `px-6` lines the title up with the fields (BUG-122). */}
-      <Modal.Header className="px-6 pb-3">
+      <Modal.Header className="px-4 sm:px-6 pb-3">
         <span id={TITLE_ID}>Tạo dự án mới</span>
       </Modal.Header>
-      <Modal.Body className="px-6 pt-0 pb-6 min-h-[320px]">
+      <Modal.Body className="px-4 sm:px-6 pt-0 pb-6 min-h-[320px]">
         <div className="mb-5 flex flex-col gap-2">
           <div className="flex items-baseline gap-2">
             <p className="text-[13px] font-semibold leading-[18px] text-text-primary">{props.stepLabel}</p>
@@ -330,7 +330,7 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
           {step === 3 && <StepReview {...props} />}
         </motion.div>
       </Modal.Body>
-      <Modal.Footer className="relative justify-between">
+      <Modal.Footer className="relative justify-between px-4 sm:px-6">
         {props.isConfirmingDiscard && <DiscardPrompt {...props} />}
         <div>
           {step > 1 && (
