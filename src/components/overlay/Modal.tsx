@@ -148,10 +148,12 @@ ModalRoot.displayName = 'Modal.Root';
 export interface ModalHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
   showClose?: boolean;
+  /** Locks the close button while the dialog refuses to close (e.g. a create in flight), so it looks as dead as it is. */
+  closeDisabled?: boolean;
 }
 
 const ModalHeader = forwardRef<HTMLDivElement, ModalHeaderProps>(
-  ({ children, showClose = true, className, ...props }, ref) => {
+  ({ children, showClose = true, closeDisabled = false, className, ...props }, ref) => {
     const { onClose, titleId } = useModalContext('Modal.Header');
     return (
       <div
@@ -168,6 +170,7 @@ const ModalHeader = forwardRef<HTMLDivElement, ModalHeaderProps>(
             icon={<X size={18} aria-hidden="true" />}
             aria-label="Đóng hộp thoại"
             onClick={onClose}
+            disabled={closeDisabled}
             tooltip={false}
             className="-mr-2"
           />

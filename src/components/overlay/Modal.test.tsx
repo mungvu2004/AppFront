@@ -45,6 +45,21 @@ describe('Modal.Root', () => {
     expect(dialog).toHaveClass('max-w-full');
   });
 
+  it('locks the header close button when asked, and only then (BUG-218)', () => {
+    const { rerender } = render(
+      <Modal.Root isOpen onClose={() => undefined} titleId="t">
+        <Modal.Header closeDisabled><span id="t">tiêu đề</span></Modal.Header>
+      </Modal.Root>,
+    );
+    expect(screen.getByRole('button', { name: 'Đóng hộp thoại' })).toBeDisabled();
+    rerender(
+      <Modal.Root isOpen onClose={() => undefined} titleId="t">
+        <Modal.Header><span id="t">tiêu đề</span></Modal.Header>
+      </Modal.Root>,
+    );
+    expect(screen.getByRole('button', { name: 'Đóng hộp thoại' })).toBeEnabled();
+  });
+
   /**
    * The regression this guards: the focus-trap effect used to depend on
    * `onClose`. Every real caller passes a handler that reads current

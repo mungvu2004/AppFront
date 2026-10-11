@@ -9,6 +9,7 @@
  */
 
 import { Building2, Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -37,6 +38,9 @@ export interface StepFloorsProps extends CreateProjectModalViewProps {
 export function StepFloors(props: StepFloorsProps) {
   const { floorRows, isSubmitting, rowRefs } = props;
   const collisionRowId = props.collisionRowId;
+  // Bumped by every "Áp cho mọi tầng": the row fields remount, so a refused text goes even when the
+  // applied height equals the one a row already held (no value change for the field to see).
+  const [applyCount, setApplyCount] = useState(0);
 
   return (
     <div className="flex flex-col gap-4">
@@ -83,8 +87,9 @@ export function StepFloors(props: StepFloorsProps) {
           {/* Fits the dialog at every width, 375 px included (BUG-110): the two fields
               take `w-full` so they shrink with their column instead of forcing the
               table wider than the dialog, the long header may wrap, and cells pad
-              tighter below `sm`. */}
-          <Table.Root>
+              tighter below `sm`. Not a scroll box of its own (`overflow-visible`): the dialog
+              body scrolls, so the sticky column headers stay on top of a long list (BUG-202). */}
+          <Table.Root className="h-auto overflow-visible">
             <Table.Header>
               <tr>
                 <Table.Head className={CELL_PAD}>Tầng</Table.Head>
@@ -115,6 +120,7 @@ export function StepFloors(props: StepFloorsProps) {
                   </Table.Cell>
                   <Table.Cell className={CELL_PAD}>
                     <NumericField
+                      key={applyCount}
                       className="w-full"
                       value={row.clearHeightM ?? undefined}
                       onChange={(value) => props.setFloorHeight(row.id, value)}
@@ -171,7 +177,10 @@ export function StepFloors(props: StepFloorsProps) {
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={props.applyHeightToAllFloors}
+                onClick={() => {
+                  props.applyHeightToAllFloors();
+                  setApplyCount((count) => count + 1);
+                }}
                 disabled={isSubmitting || !props.canApplyHeight}
               >
                 Áp cho mọi tầng

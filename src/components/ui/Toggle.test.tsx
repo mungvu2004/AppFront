@@ -8,9 +8,13 @@ describe('Toggle', () => {
     expect(screen.getByRole('switch')).toBeInTheDocument();
   });
 
-  it('reaches 24 px of hit area through a pseudo-element, the 20 px track unchanged (BUG-158)', () => {
+  it('is a 36×24 box itself, not a 20 px box with a pseudo-element hit area, and gives the 4 px back to the row (BUG-158)', () => {
     render(<Toggle aria-label="Bật/tắt" />);
-    expect(screen.getByRole('switch')).toHaveClass('h-5', 'relative', 'hit-y-24');
+    const toggle = screen.getByRole('switch');
+    expect(toggle).toHaveClass('h-6', 'w-9', '-my-0.5');
+    expect(toggle).not.toHaveClass('hit-y-24');
+    // The visible track is still 36×20.
+    expect(toggle.firstElementChild).toHaveClass('h-5', 'w-full', 'rounded-full');
   });
 
   it('starts unchecked by default', () => {
@@ -21,6 +25,13 @@ describe('Toggle', () => {
   it('starts checked when defaultChecked=true', () => {
     render(<Toggle aria-label="Bật/tắt" defaultChecked />);
     expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('puts the knob on the right when on, on the left when off', () => {
+    const { rerender } = render(<Toggle aria-label="Bật/tắt" checked={false} />);
+    expect(screen.getByRole('switch').firstElementChild).not.toHaveClass('justify-end');
+    rerender(<Toggle aria-label="Bật/tắt" checked />);
+    expect(screen.getByRole('switch').firstElementChild).toHaveClass('justify-end');
   });
 
   it('calls onChange on click', () => {
@@ -47,6 +58,16 @@ describe('Toggle', () => {
     expect(screen.getByText('Giảm độ chói')).toBeInTheDocument();
   });
 
+  it('keeps its own description first when a caller adds another id (BUG-196)', () => {
+    render(
+      <>
+        <Toggle label="Có tầng hầm" description="Mô tả riêng." aria-describedby="note" disabled />
+        <p id="note">Ghi chú trần.</p>
+      </>,
+    );
+    expect(screen.getByRole('switch')).toHaveAccessibleDescription('Mô tả riêng. Ghi chú trần.');
+  });
+
   it('shows loading skeleton', () => {
     const { container } = render(<Toggle isLoading aria-label="Đang tải" />);
     expect(container.querySelector('.animate-pulse')).toBeInTheDocument();
@@ -60,7 +81,8 @@ describe('Toggle', () => {
   // QA-01b nợ #3: the off track must stand 3:1 off the page, not melt into it.
   it('draws the off track with the control border token', () => {
     render(<Toggle aria-label="Bật/tắt" />);
-    expect(screen.getByRole('switch')).toHaveClass('bg-border-control');
-    expect(screen.getByRole('switch')).not.toHaveClass('bg-bg-sunken');
+    const track = screen.getByRole('switch').firstElementChild;
+    expect(track).toHaveClass('bg-border-control');
+    expect(track).not.toHaveClass('bg-bg-sunken');
   });
 });
