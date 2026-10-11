@@ -80,7 +80,8 @@ const STATE_ANNOUNCEMENT: Readonly<Record<SevenState, string>> = {
   forbidden: 'Không có quyền',
   collapsed: 'thu gọn',
 };
-const GRID_COLUMNS_CLASS = 'grid grid-cols-2 gap-5 min-[1440px]:grid-cols-3 min-[1920px]:grid-cols-4';
+/** One column below `sm`, like the hero and side cards above it: two columns at 375 px squeezed cards to ~145 px (BUG-157). */
+const GRID_COLUMNS_CLASS = 'grid grid-cols-1 gap-5 sm:grid-cols-2 min-[1440px]:grid-cols-3 min-[1920px]:grid-cols-4';
 
 export interface ProjectDashboardViewProps extends ProjectDashboardModel, ProjectDashboardActions {
   /**
