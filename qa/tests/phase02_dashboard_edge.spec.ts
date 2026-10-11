@@ -2880,8 +2880,8 @@ const SNAP_HINTS = { 1: 'Thu gọn', 2: 'Nửa màn hình', 3: 'Gần toàn màn
 const SNAP_PEEK_PX = 88;
 /** useProjectDashboard.ts:246-251 `listErrorMessageOf`: a 500 on page load says what to do here, not "thao tác vừa làm" (BUG-209, FIX-995). */
 const LIST_LOAD_500_DESCRIPTION = 'Máy chủ gặp lỗi khi đọc danh sách. Bấm "Thử lại" để tải lại.';
-/** useProjectDashboard.ts:240 `forbidden` keeps its shared rights sentence on page load (review-1 #10, FIX-1078): vi.json:27. */
-const LIST_LOAD_403_DESCRIPTION = 'Tài khoản của bạn chưa được phép làm thao tác này. Liên hệ quản trị dự án.';
+/** useProjectDashboard.ts:246 `listErrorMessageOf`: a 403 on page load has its own list sentence, still a rights cause (BUG-209, FIX-1150). */
+const LIST_LOAD_403_DESCRIPTION = 'Tài khoản của bạn chưa được phép xem danh sách dự án. Liên hệ quản trị dự án.';
 const OLD_UNKNOWN_TAIL = 'Bạn có thể tải lại rồi thử lại.'; // 5afd8b8a copy, must be gone
 const NO_MATCH_DESCRIPTION = 'Không có dự án nào khớp với bộ lọc hiện tại.'; // PD:264
 const PIPELINE_NAV = 'Xử lý'; // ProcessingScreen.tsx:60 (BREADCRUMB_PIPELINE = the nav's aria-label, :223)
