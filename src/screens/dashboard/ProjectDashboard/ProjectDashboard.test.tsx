@@ -300,6 +300,16 @@ describe('ProjectDashboardView, seven states', () => {
     expect(cells[0]?.closest('tr')?.className).toContain('max-sm:flex-wrap');
   });
 
+  // Rename in the stacked table row (< sm): the 44 px field replaced a 20 px name, so the row grew 24 px.
+  it('gives the table name and its rename field the same 32 px box below `sm`', () => {
+    const { rerender } = render(<ProjectDashboardView {...PROPS_BY_STATE.success()} viewMode="table" />);
+    expect(screen.getByRole('heading', { name: SAMPLE_ROW.name }).className).toContain('max-sm:leading-8');
+
+    rerender(<ProjectDashboardView {...PROPS_BY_STATE.success()} viewMode="table" renamingId={SAMPLE_ROW.id} />);
+    const field = screen.getByRole('textbox', { name: `Đổi tên ${SAMPLE_ROW.name}` });
+    expect(field.className.split(' ').filter((name) => /(^|:)h-/u.test(name))).toEqual(['h-8', 'sm:h-auto']);
+  });
+
   // BUG-211: the menu kept the spot read at open; narrowing the window moved the card under it.
   it('closes the card menu when the window width changes, not when only the height does', () => {
     const setViewport = (clientWidth: number, clientHeight: number): void => {

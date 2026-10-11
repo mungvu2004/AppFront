@@ -9,6 +9,9 @@
  * status, progress and update time wrap under it, and the header row goes. Three columns side by
  * side at 375 px left the name 98 px — "E2E-QA-20261011-0028" was cut and two rows read the same
  * (BUG-153). The cells stay cells, so the name cell still holds only the name.
+ *
+ * Below `sm` the name and its rename field share one 32 px box (like the card, FIX-994), so renaming does not
+ * grow the stacked row; 32 px rather than the card's 44 keeps every row from growing 24 px (WCAG 2.5.8: >= 24).
  */
 
 import { Badge } from '@/components/ui/Badge';
@@ -72,10 +75,10 @@ export function ProjectTable({ rows, renamingId, renameDraft, onOpen, onMenu, on
                     if (event.key === 'Enter') onRenameCommit();
                     if (event.key === 'Escape') onRenameCancel();
                   }}
-                  className={`${NAME_CLASS} h-11 rounded border border-accent bg-bg-surface px-1 outline-none sm:h-auto`}
+                  className={`${NAME_CLASS} h-8 rounded border border-accent bg-bg-surface px-1 outline-none sm:h-auto`}
                 />
               ) : (
-                <h3 className={`${NAME_CLASS} truncate`}>{project.name}</h3>
+                <h3 className={`${NAME_CLASS} truncate max-sm:leading-8`}>{project.name}</h3>
               )}
             </Table.Cell>
             <Table.Cell className={CELL_STACKED}>
