@@ -103,7 +103,7 @@ non-serial; the SCR-05 dashboard block plus the earlier wizard / SCR-06 / SCR-07
 | 55 | Navigation | open routes for qc (walls) and done (`/3d`) | `UPD:221-232` | E [mocked response] status routing | covered by mock (re-pair with a real click after CP-5) |
 | 55b | Navigation | qc → `/floors` (no `defaultFloorId`) | `UPD:226-227`, `projectSummaries.ts:92-97` | — | n/a-by-design (the schema refuses a qc row without `defaultFloorId`, so the branch is unreachable through N1) |
 | 56 | Navigation | Back from a project / reload → search, sort, view back to defaults | `UPD:241-244` | E keyboard (view) · E reload | covered |
-| 57 | Display | hero + 2 side cards + grid, DOM order = row order | `PD:143-167` | E sort (order) | covered |
+| 57 | Display | every card in one same-size grid (1/2/3/4 columns at <640/≥640/≥1440/≥1920; BUG-119/157), DOM order = row order | `PD:82-85, 110` | E sort (order) | covered |
 | 58 | Motion | first-appearance stagger only | `UPD:298-303` | — | n/a-by-design (timing; UI layer) |
 | 59 | Race | double click "Xoá dự án" while DELETE is in flight → one DELETE | `UPD:443-459`, `PD:349-351` (cf. `UCPM:641-643`) | E [held response] double click on "Xoá dự án" | covered — **expected to fail**: no in-flight guard, button stays enabled (soft assert, finding candidate) |
 | 60 | Race | rename optimistic name while PATCH held; toast only after the answer; 2nd Enter sends/opens nothing | `UPD:410-427`, `PCT:119-122` | E [held response] rename | covered |

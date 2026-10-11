@@ -46,7 +46,7 @@
  *
  * Long data: one project named with exactly 80 characters (`PROJECT_NAME_MAX_LENGTH`, `src/domain/project/limits.ts:23`;
  * BE `NAME_MAX` 80, `apps/api/projects/schemas.py:26`) is created through the API before the SCR-05 group and
- * deleted after it; being the newest it is the hero card (sort "Cập nhật gần đây", `ProjectDashboard.tsx`).
+ * deleted after it; being the newest it is the first card (sort "Cập nhật gần đây"; one same-size grid, `ProjectDashboard.tsx:82-85`).
  */
 import {
   expect,
@@ -456,7 +456,7 @@ test.describe('U02 UI verify — SCR-05 dashboard (with an 80-character project 
     await expect(projectCard(page, longProject().name)).toBeVisible();
   }
 
-  test('U02 · SCR-05 dashboard loaded, hero card with an 80-char name (long data)', async ({ browser }) => {
+  test('U02 · SCR-05 dashboard loaded, first card with an 80-char name (long data)', async ({ browser }) => {
     await verifyAsAdmin(browser, 'U02_dash_loaded', openWithLongProject);
   });
 
