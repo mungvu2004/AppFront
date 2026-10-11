@@ -932,6 +932,7 @@ export function useExplodedView(options: UseExplodedViewScreenOptions): ViewerSh
   return {
     ...shell,
     state,
+    separationDisabled: state === 'empty',
     status: state === 'loading' ? { ...shell.status, liveMessage: BUILDING_MESSAGE } : shell.status,
   };
 }

@@ -109,3 +109,35 @@ describe('useExplodedView — đủ tầng nhưng chưa có mô hình thì nói 
     expect(screen.queryByText('Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.')).not.toBeInTheDocument();
   });
 });
+
+describe('useExplodedView — rỗng thì thanh "Độ tách" của vỏ bị vô hiệu (BUG-389)', () => {
+  it('chưa có mô hình: thanh tắt; có mô hình: thanh bật', async () => {
+    const noModel = normalizeSpatial({ ...VIEWER_FIXTURE_GRAPH, walls: [], rooms: [], openings: [] });
+    const { unmount } = renderWithProviders(
+      <Harness
+        gateway={createExplodedViewFixtureGateway(noModel)}
+        mountScene={sceneSpy().mount}
+        projectId="P-1"
+        shellGateway={createViewerShellFixtureGateway(noModel)}
+        spatial={noModel}
+      />,
+    );
+
+    await screen.findByText('Mô hình 3D sẽ xuất hiện sau khi bạn duyệt lớp tường.');
+    expect(screen.getByRole('slider', { name: 'Độ tách' })).toBeDisabled();
+    unmount();
+
+    renderWithProviders(
+      <Harness
+        gateway={createExplodedViewFixtureGateway()}
+        mountScene={sceneSpy().mount}
+        projectId="P-1"
+        shellGateway={createViewerShellFixtureGateway()}
+        spatial={VIEWER_FIXTURE_SPATIAL}
+      />,
+    );
+
+    await screen.findAllByText('Mô hình đã dựng xong.');
+    expect(screen.getByRole('slider', { name: 'Độ tách' })).toBeEnabled();
+  });
+});

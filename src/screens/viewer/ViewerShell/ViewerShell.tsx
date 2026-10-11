@@ -82,6 +82,7 @@ export function ViewerShell(props: ViewerShellProps) {
     separation,
     onSeparationChange,
     separationLabel,
+    separationDisabled = false,
     frame,
     renderScene,
     sceneActions,
@@ -142,6 +143,7 @@ export function ViewerShell(props: ViewerShellProps) {
               onStoreyActivate={onStoreyActivate}
               onStoreyVisibilityToggle={onStoreyVisibilityToggle}
               separation={separation}
+              separationDisabled={separationDisabled}
               separationLabel={separationLabel}
               storeys={storeys}
             />
