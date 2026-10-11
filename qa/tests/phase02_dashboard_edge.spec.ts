@@ -3676,7 +3676,14 @@ test.describe('E02 QA-02 FE changes (d18eb884) — SCR-05 / SCR-06 / SCR-07', ()
         const target = await steadyBox(add);
         const fadeBox = await steadyBox(fade);
         const point = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
-        const hit = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('button')?.textContent?.trim() ?? 'none', point);
+        // BUG-241: compare the hit with the "Thêm tầng" element itself — Button keeps an aria-hidden size-box copy of its
+        // label (Button.tsx:70-96), so a textContent read gives "Thêm tầngThêm tầng".
+        const hit = await add.evaluate((button, { x, y, name }) => {
+          const el = document.elementFromPoint(x, y);
+          if (el === null) return 'none';
+          if (button.contains(el)) return name;
+          return el.closest('[data-scroll-fade]') !== null ? 'the fade' : (el.closest('button')?.getAttribute('aria-label') ?? el.tagName.toLowerCase());
+        }, { ...point, name: ADD_FLOOR });
         await captureEvidence(page, 'E02_wiz_fade_over_add.png', { caption: `"Thêm tầng" centre at y=${String(Math.round(point.y))}, fade ${String(fadeBox.y)}–${String(fadeBox.y + fadeBox.height)}: the point hits "${hit}"` });
         expect(Math.abs(fadeBox.y + fadeBox.height - (bodyBox.y + bodyBox.height)), 'the fade sits on the body\'s bottom edge').toBeLessThanOrEqual(1);
         expect(point.y >= fadeBox.y && point.y <= fadeBox.y + fadeBox.height, '"Thêm tầng" is under the fade').toBe(true);
