@@ -12,7 +12,8 @@
  * (BUG-153). The cells stay cells, so the name cell still holds only the name.
  *
  * The rename field overlays the name, which stays as an invisible size box (ND-R3), so renaming never changes the
- * row height: a 2-line name at >= `sm` keeps its 43 px row, and below `sm` the field is the name's 32 px line box
+ * row height: a 2-line name at >= `sm` keeps its 43 px row. Below `sm` the name keeps to one 32 px line (two
+ * `leading-8` lines read as double-spaced, and the 64 px box made the field look odd) and the field fills it
  * (like the card, FIX-994); 32 px rather than the card's 44 keeps every row from growing 24 px (WCAG 2.5.8: >= 24).
  *
  * Stacked, the header row is `display: none`, so a screen reader no longer pairs "Cần QC" with "Trạng thái" (and
@@ -75,7 +76,7 @@ export function ProjectTable({ rows, renamingId, renameDraft, onOpen, onMenu, on
               <div className="relative">
                 <h3
                   aria-hidden={renamingId === project.id || undefined}
-                  className={`${NAME_CLASS} line-clamp-2 whitespace-normal break-words max-sm:leading-8 ${renamingId === project.id ? 'invisible' : ''}`}
+                  className={`${NAME_CLASS} line-clamp-2 whitespace-normal break-words max-sm:line-clamp-1 max-sm:leading-8 ${renamingId === project.id ? 'invisible' : ''}`}
                 >
                   {project.name}
                 </h3>

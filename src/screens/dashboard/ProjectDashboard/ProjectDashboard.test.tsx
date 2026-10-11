@@ -319,7 +319,7 @@ describe('ProjectDashboardView, seven states', () => {
     rerender(<ProjectDashboardView {...PROPS_BY_STATE.success()} viewMode="table" renamingId={SAMPLE_ROW.id} />);
     const field = screen.getByRole('textbox', { name: `Đổi tên ${SAMPLE_ROW.name}` });
     const box = document.querySelector('tbody h3');
-    expect(box).toHaveClass('invisible', 'line-clamp-2', 'max-sm:leading-8');
+    expect(box).toHaveClass('invisible', 'line-clamp-2', 'max-sm:line-clamp-1', 'max-sm:leading-8');
     expect(box).toHaveAttribute('aria-hidden', 'true');
     expect(field).toHaveClass('absolute', 'inset-0');
     expect(field.className.split(' ').filter((name) => /(^|:)h-/u.test(name))).toEqual([]);
