@@ -155,7 +155,7 @@ const WAITING = 'Chờ xử lý'; // UFU:121 — a floor holding a file that is 
  */
 const NO_DRAWING_STATUS = 'Chưa có bản vẽ';
 const STATUS_ERROR = 'Lỗi'; // UFU:124
-const CAD_PILL = 'Nhánh CAD · độ chính xác cao'; // FUC:41
+const CAD_PILL = 'Bản vẽ CAD · độ chính xác cao'; // FUC:41 (FIX-1404, BUG-304)
 const CAD_SENTENCE = 'Bản vẽ CAD (.dwg) chưa được hỗ trợ; hãy xuất sang PDF rồi tải lại.'; // FUG:85
 const UPLOAD_EMPTY = 'Chưa có tầng nào có bản vẽ. Kéo thả tệp đầu tiên để bắt đầu.'; // UFU:105
 const NO_FLOORS_TITLE = 'Dự án chưa có tầng nào'; // FU:74
@@ -1267,7 +1267,7 @@ test.describe('E03 SCR-10 floor upload', () => {
     });
   });
 
-  test('E03 · SCR-10 .dwg (not offered by the picker) assigned → CAD pill + server 422 → CAD sentence on the card; "Đóng" clears it', async ({ browser }, testInfo) => {
+  test('E03 · SCR-10 .dwg (not offered by the picker) assigned → server 422 → CAD sentence on the card, no CAD pill (BUG-304); "Đóng" clears it', async ({ browser }, testInfo) => {
     const dwg = testInfo.outputPath('ban-ve.dwg');
     writeFileSync(dwg, 'AC1027 qa-e03 not a real drawing\n', 'utf8');
     await withAdmin(browser, async (admin) => {
@@ -1284,8 +1284,10 @@ test.describe('E03 SCR-10 floor upload', () => {
       await page.getByRole('option', { name: floor.name, exact: true }).click();
       await init; // BE:drawings/uploads.py:101-109 CAD_NOT_SUPPORTED
       const floorCard = card(page, floor);
-      await expect(floorCard.getByText(CAD_PILL, { exact: true })).toBeVisible(); // FUC:241
       await expect(floorCard.getByRole('alert')).toContainText(CAD_SENTENCE); // FUG:194-199, FUC:285-297
+      // UFU:1074 isCadBranch = branch 'cad' && status !== 'error' → a refused file is not promised the CAD branch
+      // (FUC:237-241, FIX-1404, BUG-304).
+      await expect(floorCard.getByText(CAD_PILL, { exact: true })).toHaveCount(0);
       await expect(floorCard.getByText(STATUS_ERROR, { exact: true })).toBeVisible();
       await captureEvidence(page, 'E03_upload_dwg_422.png');
 
