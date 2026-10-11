@@ -758,8 +758,12 @@ export function useCreateProjectModal(
     if (!canAddFloor) return;
     markDirty();
     setFloorRows((current) => {
-      const aboveCount = current.filter((row) => row.kind === 'floor').length;
-      return [...current, { id: createUuid(), name: nextFloorName(aboveCount), kind: 'floor', clearHeightM: null }];
+      // Numbered after the floors above ground, skipping a name already in the table: after a
+      // delete or a rename the plain count repeated "Tầng 3" (BUG-217).
+      const taken = new Set(current.map((row) => row.name.trim()));
+      let number = current.filter((row) => row.kind === 'floor').length;
+      while (taken.has(nextFloorName(number))) number += 1;
+      return [...current, { id: createUuid(), name: nextFloorName(number), kind: 'floor', clearHeightM: null }];
     });
   };
 

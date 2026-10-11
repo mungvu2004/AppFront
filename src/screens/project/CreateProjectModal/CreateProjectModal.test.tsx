@@ -455,6 +455,18 @@ describe('CreateProjectModal, wired to its hook', () => {
     expect(screen.getAllByRole('textbox', { name: /^Tên tầng/u })).toHaveLength(50);
   });
 
+  it('names an added floor after the ones already in the table, never twice "Tầng 3" (BUG-217)', () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+
+    goToStep2();
+    fireEvent.change(screen.getByLabelText('Tên tầng Tầng 1'), { target: { value: 'Tầng lửng' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá Tầng 2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm tầng' }));
+
+    const names = screen.getAllByRole('textbox', { name: /^Tên tầng/u }).map((box) => (box as HTMLInputElement).value);
+    expect(names).toEqual(['Tầng trệt', 'Tầng lửng', 'Tầng 3', 'Tầng 4']);
+  });
+
   it('marks a blank floor name at step 2 and blocks "Tiếp tục" (BUG-185)', () => {
     render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
 
