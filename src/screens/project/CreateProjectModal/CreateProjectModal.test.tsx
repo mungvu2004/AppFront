@@ -259,6 +259,16 @@ describe('CreateProjectModalView', () => {
     expect(focusFloor).toHaveBeenCalledWith('row-1');
   });
 
+  it('fades the bottom of the scrolling body, so content cut by the footer reads as more to scroll (BUG-201)', () => {
+    render(<CreateProjectModalView {...baseProps()} step={2} stepLabel="bước 2 / 3" />);
+
+    const fade = screen.getByRole('dialog').querySelector('[data-scroll-fade]');
+    expect(fade).toHaveClass('sticky', 'bottom-0', 'pointer-events-none');
+    expect(fade).toHaveAttribute('aria-hidden', 'true');
+    // The last thing in the body: scrolled to the end it covers only the space it stands for.
+    expect(fade?.nextElementSibling).toBeNull();
+  });
+
   it('warns before discarding unsaved changes, in the dialog itself — no nested dialog', () => {
     const confirmDiscard = vi.fn();
     render(<CreateProjectModalView {...baseProps()} isConfirmingDiscard step={1} stepLabel="bước 1 / 3" />);

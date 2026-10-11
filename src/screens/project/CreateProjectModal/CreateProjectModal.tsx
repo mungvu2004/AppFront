@@ -224,6 +224,25 @@ function DiscardPrompt(props: CreateProjectModalViewProps & { readonly cancelRef
   );
 }
 
+/**
+ * The body's bottom 24 px, kept in view: over content still below the fold it
+ * fades that content out, a sign there is more to scroll to — the overlay
+ * scrollbars stay hidden until a scroll, and at 1024×768 "Thêm tầng" sat cut
+ * under the footer with no hint (BUG-201). Scrolled to the end, or with
+ * nothing to scroll, it lies over the empty space it takes the place of the
+ * body's old `pb-6` with, and shows nothing.
+ */
+function ScrollFade() {
+  return (
+    <div
+      aria-hidden="true"
+      data-scroll-fade=""
+      className="pointer-events-none sticky bottom-0 h-6"
+      style={{ background: 'linear-gradient(to top, var(--bg-surface), transparent)' }}
+    />
+  );
+}
+
 /* -------------------------------------------------------------------------- */
 /* The dialog itself.                                                          */
 /* -------------------------------------------------------------------------- */
@@ -279,7 +298,7 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
       <Modal.Header className="px-4 sm:px-6 pb-3" closeDisabled={isSubmitting}>
         <span id={TITLE_ID}>Tạo dự án mới</span>
       </Modal.Header>
-      <Modal.Body className="px-4 sm:px-6 pt-0 pb-6 min-h-[320px]">
+      <Modal.Body className="px-4 sm:px-6 pt-0 min-h-[320px]">
         <div className="mb-4 flex flex-col gap-2">
           <div className="flex items-baseline gap-2">
             <p className="text-[13px] font-semibold leading-[18px] text-text-primary">{props.stepLabel}</p>
@@ -308,6 +327,7 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
           {step === 2 && <StepFloors {...props} rowRefs={rowRefs} />}
           {step === 3 && <StepReview {...props} />}
         </motion.div>
+        <ScrollFade />
       </Modal.Body>
       <Modal.Footer className="flex-wrap justify-between px-4 sm:px-6">
         {props.isConfirmingDiscard && <DiscardPrompt {...props} cancelRef={cancelRef} />}
