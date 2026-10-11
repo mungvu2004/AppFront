@@ -339,6 +339,10 @@ const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/
 
 /** Two storeys, both layered: the exploded view needs ≥ 2 storeys with geometry (`useExplodedView.ts`). */
 const SEEDED_FLOORS = ['Tầng 1', 'Tầng 2'] as const;
+/** `useViewerShell.ts:167-169` (BUG-384): "Tầng 1" → "tầng 1". */
+const storeyInlineName = (name: string): string => (/^tầng(\s|$)/iu.test(name) ? `t${name.slice(1)}` : `tầng ${name}`);
+/** `ExplodedView.tsx:78`: the floor cards live here; the shell rail eye (also "Ẩn tầng 1", FIX-1706) does not. */
+const EXPLODED_REGION = 'Nội dung tách tầng';
 
 let context: BrowserContext;
 let page: Page;
@@ -660,8 +664,12 @@ test.describe('SCR-24 Exploded View', () => {
     await full.click();
     await expect(slider).toHaveValue(separated);
 
-    const hide = page.getByRole('button', { name: `Ẩn tầng ${floorName}`, exact: true });
-    const show = page.getByRole('button', { name: `Hiện tầng ${floorName}`, exact: true });
+    // Card eye `ExplodedViewFloorCards.tsx:173` reads "Ẩn tầng Tầng 1" today; the BUG-384 card patch makes it "Ẩn tầng 1".
+    // Accept both; scope to the screen so the shell rail's "Ẩn tầng 1" (`ViewerStoreyRail.tsx:86-89`) never matches.
+    const cardName = `(${escapeRegExp(`tầng ${floorName}`)}|${escapeRegExp(storeyInlineName(floorName))})`;
+    const cards = page.getByRole('region', { name: EXPLODED_REGION, exact: true });
+    const hide = cards.getByRole('button', { name: new RegExp(`^Ẩn ${cardName}$`, 'u') });
+    const show = cards.getByRole('button', { name: new RegExp(`^Hiện ${cardName}$`, 'u') });
     await hide.click();
     await expect(show).toBeVisible();
     await captureEvidence(page, '24_exploded.png');

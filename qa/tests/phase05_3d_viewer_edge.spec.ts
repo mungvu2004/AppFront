@@ -164,6 +164,10 @@ const EX = {
   captureError: 'Chưa chụp được khung nhìn. Đợi mô hình dựng xong rồi bấm chụp lại.', // UEX:152-153
   livePrefix: 'Đã tách ', // UEX:149
   cardPrefix: 'Chọn tầng ', // EXF:132-135
+  /* EXF:134-135 "Chọn tầng {floor.name}, cao độ …" today ("Chọn tầng Tầng 1"); the BUG-384 card patch makes it
+     "Chọn {storeyInlineName}" ("Chọn tầng 1"). The card pattern accepts both. */
+  card: (name: string): RegExp =>
+    new RegExp(`^Chọn (${escapeRegExp(`tầng ${name}`)}|${escapeRegExp(storeyInlineName(name))}), cao độ `, 'u'),
 } as const;
 
 /* SCR-25 copy. */
@@ -1065,7 +1069,7 @@ test.describe('E05 SCR-24 Exploded View', () => {
       await expect(page.getByRole('radiogroup', { name: EX.presets, exact: true })).toBeVisible({ timeout: SCENE_TIMEOUT_MS });
       await page.getByRole('radiogroup', { name: EX.presets, exact: true }).getByRole('radio', { name: EX.medium, exact: true }).click();
 
-      await page.getByRole('button', { name: new RegExp(`^${EX.cardPrefix}${escapeRegExp(lower.name)}, cao độ `, 'u') }).click(); // EXF:120-133
+      await page.getByRole('button', { name: EX.card(lower.name) }).click(); // EXF:130-135
       // UEX:377-384 onFloorActivate → onStoreyActivate(id, false) → rail option aria-selected (VSR:62).
       await expect(page.getByRole('option', { name: new RegExp(`^${escapeRegExp(lower.name)}, cao độ `, 'u') })).toHaveAttribute('aria-selected', 'true');
       await captureEvidence(page, 'E05_exploded_card_select.png');
@@ -1086,7 +1090,7 @@ test.describe('E05 SCR-24 Exploded View', () => {
       // 176 (EXT:171, left of the minimap); shell ViewCube + minimap at `right-2 top-2` (BUG-371, FIX-1721).
       const targets = {
         capture: page.getByRole('button', { name: EX.capture, exact: true }),
-        topCard: page.getByRole('button', { name: new RegExp(`^${EX.cardPrefix}${escapeRegExp(upper.name)}, cao độ `, 'u') }),
+        topCard: page.getByRole('button', { name: EX.card(upper.name) }),
       };
       const reachable: Record<string, string> = {};
       const plain = (text: string): string => text.replace(/\u001b\[[0-9;]*m/gu, '').trim();

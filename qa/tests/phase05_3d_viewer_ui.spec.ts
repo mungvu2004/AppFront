@@ -68,7 +68,8 @@ const EXPLODED_EMPTY_TEXT = 'Tách tầng xuất hiện khi bản vẽ có từ 
 /** ≥ 2 storeys but no buildable part (useExplodedView.ts:146,859-860, BUG-382). */
 const EXPLODED_NO_MODEL_TEXT = VIEWER_EMPTY_TEXT;
 const EXPLODED_ERROR_TEXT = 'Không tách được các tầng lúc này. Vui lòng thử lại sau.';
-const HIDE_FLOOR = /^Ẩn tầng /u;
+const HIDE_FLOOR = /^Ẩn tầng /u; // ExplodedViewFloorCards.tsx:173 — the shell rail eye reads the same (FIX-1706): scope to EXPLODED_REGION
+const EXPLODED_REGION = 'Nội dung tách tầng'; // ExplodedView.tsx:78
 const EXPLODE_PRESETS = 'Mức tách sẵn'; // ExplodedViewRail.tsx:90
 const EXPLODE_MEDIUM = 'Tách vừa'; // explodedViewTypes.ts:136, separation 0,5 > LABEL_REVEAL_SEPARATION 0,2
 const EXPLODE_FULL = 'Tách hết';
@@ -329,10 +330,11 @@ test.describe('U05 UI verify — SCR-24 exploded view (own seeded project)', () 
   test('U05 · SCR-24 exploded, one floor hidden (local)', async ({ browser }) => {
     await verifySeeded(browser, 'U05_exploded_floor_hidden', async (p, projectId) => {
       await openExplodedFull(p, projectId);
-      const hide = p.getByRole('button', { name: HIDE_FLOOR }).first();
+      const cards = p.getByRole('region', { name: EXPLODED_REGION, exact: true });
+      const hide = cards.getByRole('button', { name: HIDE_FLOOR }).first();
       const label = (await hide.getAttribute('aria-label')) ?? '';
       await hide.click();
-      await expect(p.getByRole('button', { name: label.replace(/^Ẩn/u, 'Hiện'), exact: true })).toBeVisible();
+      await expect(cards.getByRole('button', { name: label.replace(/^Ẩn/u, 'Hiện'), exact: true })).toBeVisible();
     });
   });
 });
