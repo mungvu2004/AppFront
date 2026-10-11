@@ -655,7 +655,7 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
     expect(restoreCalls(setup.server)).toHaveLength(2);
     // Toast cũ đã đóng: một toast mới mời bấm lại, gắn cùng phiếu.
     await waitFor(() => {
-      expect(setup.onToast.mock.calls.at(-1)?.[0]).toMatchObject({ message: UNDO_RETRY_TOAST });
+      expect(setup.onToast.mock.calls.at(-1)?.[0]).toMatchObject({ message: UNDO_RETRY_TOAST, state: 'violation' });
     });
 
     const retry = setup.onToast.mock.calls.at(-1)?.[0] as { onUndo: () => void };
@@ -729,7 +729,7 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
       toast.onUndo();
     });
     await waitFor(() => {
-      expect(setup.onToast.mock.calls.at(-1)?.[0]).toMatchObject({ message: UNDO_RETRY_TOAST });
+      expect(setup.onToast.mock.calls.at(-1)?.[0]).toMatchObject({ message: UNDO_RETRY_TOAST, state: 'violation' });
     });
 
     const retry = setup.onToast.mock.calls.at(-1)?.[0] as { onUndo: () => void };

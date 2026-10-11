@@ -32,11 +32,12 @@
  * `EditorTour.container.tsx` đang dùng.
  */
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, type CSSProperties } from 'react';
 import { Bell } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { DRAWER_GAP_PX, DRAWER_WIDTH_PX } from '@/components/overlay/Drawer';
 import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
@@ -170,11 +171,15 @@ export function NotificationBellContainer(props: NotificationCenterContainerProp
  * trống là một trang có chủ ý: tên trang và cách quay lại. `aria-hidden`: hộp thoại là modal và đã mang tên
  * "Thông báo"; trang này chỉ để mắt nhìn. Dưới 1024 px chỉ dòng tên lộ ra trên tờ 90 %.
  */
+/** The panel and the gaps on both its sides: the backdrop centres its text in what is left (from the Drawer's own width). */
+const PANEL_CLEARANCE = { '--panel-clearance': `${String(DRAWER_WIDTH_PX + 2 * DRAWER_GAP_PX)}px` } as CSSProperties;
+
 function NotificationRouteBackdrop() {
   return (
     <div
       aria-hidden="true"
-      className="fixed inset-0 flex items-start justify-center bg-bg-app px-6 pt-8 lg:items-center lg:pr-[416px] lg:pt-0"
+      className="fixed inset-0 flex items-start justify-center bg-bg-app px-6 pt-8 lg:items-center lg:pr-[var(--panel-clearance)] lg:pt-0"
+      style={PANEL_CLEARANCE}
     >
       <div className="flex max-w-sm flex-col items-center gap-2 text-center">
         <Bell size={32} strokeWidth={1.5} className="hidden text-text-muted lg:block" />

@@ -94,6 +94,46 @@ describe('Drawer — focus lúc mở (BUG-205, BUG-125)', () => {
     );
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Cài đặt' })).toHaveFocus());
+    // The bottom sheet (phone, beforeEach) is the branch BUG-125 is about: its first button is the "Mức 1" snap.
+    expect(within(screen.getByRole('group', { name: 'Chiều cao tấm trượt' })).getAllByRole('button')[0]).not.toHaveFocus();
+    opener.remove();
+  });
+
+  it('data-autofocus thắng cả khi không ai mở (focus ở body)', async () => {
+    render(
+      <Drawer.Root isOpen label="Thông báo" onClose={() => undefined}>
+        <button type="button">Cài đặt</button>
+        <button type="button" data-autofocus="">Tìm</button>
+      </Drawer.Root>,
+    );
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Tìm' })).toHaveFocus());
+  });
+
+  it('khung rộng (ngăn bên, không chấm snap): mở từ một nút → nút đầu tiên của nội dung', async () => {
+    vi.unstubAllGlobals();
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+    const opener = document.createElement('button');
+    document.body.append(opener);
+    opener.focus();
+
+    render(
+      <Drawer.Root isOpen label="Thông báo" onClose={() => undefined}>
+        <button type="button">Cài đặt</button>
+      </Drawer.Root>,
+    );
+
+    expect(screen.queryByRole('group', { name: 'Chiều cao tấm trượt' })).toBeNull();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Cài đặt' })).toHaveFocus());
     opener.remove();
   });
 });

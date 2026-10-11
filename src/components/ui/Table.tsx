@@ -88,9 +88,8 @@ const TableRow = React.forwardRef<HTMLTableRowElement, TableRowProps>((
     isFlash && 'bg-bg-flash hover:bg-bg-flash',
     isAttention && 'bg-state-attention-tint',
     focused && 'ring-2 ring-inset ring-accent',
-    // Accent 2px left edge via before pseudo on first-child td
-    '[&>td:first-child]:relative [&>td:first-child]:before:absolute [&>td:first-child]:before:left-0 [&>td:first-child]:before:top-0 [&>td:first-child]:before:bottom-0 [&>td:first-child]:before:w-[2px] [&>td:first-child]:before:bg-accent [&>td:first-child]:before:origin-center [&>td:first-child]:before:transition-transform [&>td:first-child]:before:duration-120 [&>td:first-child]:before:ease-out',
-    selected ? '[&>td:first-child]:before:scale-y-100' : '[&>td:first-child]:before:scale-y-0 group-hover:[&>td:first-child]:before:scale-y-100',
+    // Accent 2px left edge via a ::before on the first td: `row-edge` (globals.css), shown when selected.
+    selected ? 'row-edge row-edge-on' : 'row-edge',
     className
   );
 
@@ -286,7 +285,7 @@ function TableError({ colSpan, message = 'Đã xảy ra lỗi', onRetry }: Table
 TableError.displayName = 'Table.Error';
 
 // ─── Table.CheckboxHead ───────────────────────────────────────────────────────
-// Header checkbox for select-all / deselect-all
+// Header checkbox: select every row / none
 
 interface TableCheckboxHeadProps {
   checked: boolean;

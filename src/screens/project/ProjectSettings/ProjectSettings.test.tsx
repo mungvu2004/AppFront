@@ -557,6 +557,7 @@ const NETWORK_ERROR: HttpError = {
 interface ToastRecord {
   readonly message: string;
   readonly onUndo?: (() => void) | undefined;
+  readonly state?: 'attention' | 'violation' | undefined;
 }
 
 /** Một lượt `update` mà phần `part` hỏng vì `error` — hình dạng `{ snapshot, failures }` của hợp đồng F-07. */
@@ -785,6 +786,24 @@ describe('ProjectSettings đã nối dây', () => {
     // B-V3-05: câu báo đi cùng lời gọi rời màn, không vào toast của màn sắp gỡ.
     expect(onProjectDeleted).toHaveBeenCalledTimes(1);
     expect(onProjectDeleted).toHaveBeenCalledWith('Đã xoá dự án.');
+  });
+
+  // BUG-207: a toast that reports floors left behind is a warning, not a plain notice.
+  it('xoá mọi tầng còn sót tầng: toast mang trạng thái attention; xoá hết thì không (BUG-207)', async () => {
+    const toasts: ToastRecord[] = [];
+    const partial = spyGateway({
+      deleteAllFloors: async () => ({ ok: true, data: { requestedCount: 4, deletedCount: 3, failedFloorIds: ['floor-x'] } }),
+    });
+    await mountSettings({ gateway: partial, projectId: 'project-partial', roles: ['admin'], onToast: (toast) => toasts.push(toast) });
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Vùng nguy hiểm' }));
+    await tick(MOTION_SETTLE_MS);
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá mọi tầng' }));
+    await tick(MOTION_SETTLE_MS);
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Xoá mọi tầng' }));
+    await tick(MOTION_SETTLE_MS);
+
+    expect(toasts.at(-1)).toMatchObject({ message: 'Đã xoá 3 tầng; còn 1 tầng chưa xoá được.', state: 'attention' });
   });
 });
 

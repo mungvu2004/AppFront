@@ -73,9 +73,13 @@ describe('Toggle', () => {
     expect(container.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
-  it('has focus ring class', () => {
+  // review-1 #27: the ring goes round the 36×20 track, not the taller 36×24 hit box.
+  it('draws its focus ring on the track, not on the hit box', () => {
     render(<Toggle aria-label="Focus" />);
-    expect(screen.getByRole('switch').className).toMatch(/focus-visible:ring-2/);
+    const box = screen.getByRole('switch');
+    expect(box).toHaveClass('group');
+    expect(box.className).not.toMatch(/(^| )focus-visible:ring-2/);
+    expect(box.firstElementChild).toHaveClass('group-focus-visible:ring-2', 'group-focus-visible:ring-offset-2');
   });
 
   // QA-01b nợ #3: the off track must stand 3:1 off the page, not melt into it.

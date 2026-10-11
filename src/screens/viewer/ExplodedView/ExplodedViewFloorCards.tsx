@@ -83,7 +83,7 @@ export function ExplodedViewFloorCards({
    * màn này không dời được chúng — chỉ có thể không đứng dưới chúng. Đo trong
    * trình duyệt thật ở 1600×1000: cube tại x≈1164 y≈76, cụm thu phóng tại x≈1088
    * y≈384, còn thẻ rộng 200 px bám mép phải thì trùm lên cả hai. `top-20`/
-   * `bottom-12` là hai con số vừa đủ né hai vùng đó mà vẫn để lại đường ray dài
+   * `bottom-20` là hai con số vừa đủ né hai vùng đó mà vẫn để lại đường ray dài
    * nhất có thể — ray càng ngắn thì bốn thẻ càng dễ chồng nhau.
    */
   return (

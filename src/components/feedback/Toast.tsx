@@ -188,9 +188,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (undoableToast && undoableToast.isVisible && undoableToast !== prevToastRef.current) {
       prevToastRef.current = undoableToast;
+      // No state: an undoable change is a plain notice. A5 keeps the green for what a reviewer verified.
       addToast({
         message: undoableToast.label,
-        state: 'verified',
         onUndo: undoableToast.onUndo,
       });
     }
@@ -225,7 +225,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     const summaryToast: ToastMessage & { resetKey: number } = {
       id: 'summary-toast-group',
       message: summaryMessage,
-      state: 'verified',
       onUndo: handleSummaryUndo,
       resetKey: summaryResetKey,
     };

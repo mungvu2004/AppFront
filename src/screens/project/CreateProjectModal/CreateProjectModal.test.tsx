@@ -276,6 +276,8 @@ describe('CreateProjectModalView', () => {
     expect(wrapper).toHaveClass('overflow-visible', 'h-auto');
     expect(wrapper).not.toHaveClass('overflow-auto');
     expect(screen.getByRole('table').querySelector('thead')).toHaveClass('sticky', 'top-0');
+    // review-1 #8: the body keeps a focused row clear of that 40 px header (WCAG 2.4.11).
+    expect(screen.getByRole('table').closest('.overflow-y-auto')).toHaveClass('scroll-pt-10', 'scroll-pb-6');
   });
 
   it('warns before discarding unsaved changes, in the dialog itself — no nested dialog', () => {

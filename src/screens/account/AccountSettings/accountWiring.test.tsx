@@ -313,6 +313,12 @@ describe('N14 — ảnh đại diện qua hộp thoại A9', () => {
     await loaded();
     pick(container, pngFile());
     const dialog = await screen.findByRole('dialog');
+    // Both Esc listeners (focus trap, `modal.close` shortcut) are attached in passive effects (Modal.tsx).
+    // `findByRole` resolves on the DOM commit, which under load can come before those effects flush: the Esc
+    // then went unheard and the dialog stayed. The trap moving focus inside means the effects have run.
+    await waitFor(() => {
+      expect(dialog.contains(document.activeElement)).toBe(true);
+    });
 
     fireEvent.keyDown(dialog, { key: 'Escape' });
 

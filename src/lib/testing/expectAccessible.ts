@@ -669,6 +669,7 @@ function hasClassToken(element: Element, token: string): boolean {
  * focus down into a descendant.
  */
 const FOCUS_WITHIN_RING = 'focus-within:ring-2';
+const FOCUS_GROUP_RING = 'group-focus-visible:ring-2';
 
 /**
  * Which element draws this one's focus ring — itself, or an ancestor.
@@ -684,6 +685,13 @@ const FOCUS_WITHIN_RING = 'focus-within:ring-2';
 function focusRingOwner(element: Element): Element | null {
   if (hasClassToken(element, 'ring-2')) {
     return element;
+  }
+
+  // The other way round: a `group` that hands its ring to the part people see (the Toggle's track inside
+  // its taller hit box) — `group-focus-visible:` follows focus on the group itself.
+  if (element.classList.contains('group')) {
+    const drawn = [...element.querySelectorAll('*')].find((child) => child.classList.contains(FOCUS_GROUP_RING));
+    if (drawn !== undefined) return drawn;
   }
 
   for (let parent = element.parentElement; parent !== null; parent = parent.parentElement) {

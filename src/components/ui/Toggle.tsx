@@ -96,18 +96,20 @@ export function Toggle(props: ToggleProps) {
         // Hộp 36×24 thật (WCAG 2.5.8) mà rãnh nhìn thấy vẫn 36×20: lớp giả `::before` cũ cho vùng bấm 24
         // nhưng hộp phần tử vẫn 20, nên mọi phép đo vùng chạm (getBoundingClientRect, axe) vẫn đọc 20 (BUG-158).
         // `-my-0.5` trả lại 4 px ấy cho bố cục: hàng nào cũng giữ đúng chỗ như rãnh 20 px.
-        'relative flex h-6 w-9 -my-0.5 shrink-0 items-center rounded-full outline-none',
-        'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface focus-visible:animate-focus-ring',
+        'group relative flex h-6 w-9 -my-0.5 shrink-0 items-center rounded-full outline-none',
         (disabled || isReadOnly) && 'cursor-not-allowed opacity-40',
       )}
     >
       <span
         className={cn(
           'flex h-5 w-full items-center rounded-full p-0.5 transition-colors duration-180',
+          // The focus ring hugs the visible 36×20 track, 2 px off on every side — on the 36×24 box it sat 4 px
+          // above and below but 2 px at the sides, a pill fatter than the switch (review-1 #27).
+          'group-focus-visible:ring-2 group-focus-visible:ring-accent group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-bg-surface group-focus-visible:animate-focus-ring',
           // Rãnh tắt bằng `--border-control` (≥ 3:1 với nền và với núm, cả hai chủ đề — WCAG 1.4.11);
           // `bg-sunken` cũ chỉ ~1,16:1 trên trắng nên công tắc tắt gần như vô hình.
           // `justify-end` moves the knob to the right when on; `layout` animates the move. It was lost
-          // with `translate-x-5` in d9bfe4a4, so an "on" switch kept its knob on the left.
+          // with the old 20 px translate in d9bfe4a4, so an "on" switch kept its knob on the left.
           currentChecked ? 'justify-end bg-accent' : 'bg-border-control',
         )}
       >

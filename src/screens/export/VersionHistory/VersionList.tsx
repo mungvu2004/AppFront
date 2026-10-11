@@ -3,7 +3,7 @@
  *
  * Ba chấm màu diff dùng `DIFF_TONE_TOKENS` (types.ts) qua `style.backgroundColor` — CHẤM là
  * màu ĐẶC, không phải nền 8% (đó là việc của vùng so sánh). Lớp Tailwind alpha kiểu
- * "bg-state-verified slash 8" và "bg-opacity-10" biên dịch ra class chết trên Tailwind 3.4.6
+ * "bg-state-verified slash 8" và "bg-opacity 10" biên dịch ra class chết trên Tailwind 3.4.6
  * của repo này (không alpha-value trong theme), nên mọi màu trạng thái ở đây đi qua `style`,
  * không qua className — xem docblock types.ts.
  */

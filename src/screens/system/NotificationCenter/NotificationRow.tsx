@@ -153,10 +153,9 @@ export function NotificationRow({
               )}
             >
               <IconButton
-                icon={<Check />}
+                icon={<Check size={18} aria-hidden="true" />}
                 aria-label={MARK_READ_LABEL}
                 size="sm"
-                className="h-8 w-8 sm:h-8 sm:w-8"
                 onClick={() => onMarkRead(item.id)}
               />
             </span>

@@ -233,8 +233,11 @@ function deleteErrorMessageOf(error: unknown): string {
     : 'Không xoá được dự án. Hãy thử lại.';
 }
 
-/** Kinds whose shared sentence is about the link, the server's pace or the session — true of a page load too. */
-const LOAD_ERROR_KINDS_WITH_OWN_SENTENCE: ReadonlySet<AppErrorKind> = new Set(['network', 'timeout', 'rateLimited', 'unauthenticated']);
+/**
+ * Kinds whose shared sentence is about the link, the server's pace, the session or the account's rights — true of a
+ * page load too. A 403 is not a server fault, and "Thử lại" would not help it (review-1 #10).
+ */
+const LOAD_ERROR_KINDS_WITH_OWN_SENTENCE: ReadonlySet<AppErrorKind> = new Set(['network', 'timeout', 'rateLimited', 'unauthenticated', 'forbidden']);
 
 /**
  * N1 failed while the page opened. Every other kind's shared sentence speaks of an action the person took

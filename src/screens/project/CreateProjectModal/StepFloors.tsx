@@ -38,8 +38,8 @@ export interface StepFloorsProps extends CreateProjectModalViewProps {
 export function StepFloors(props: StepFloorsProps) {
   const { floorRows, isSubmitting, rowRefs } = props;
   const collisionRowId = props.collisionRowId;
-  // Bumped by every "Áp cho mọi tầng": the row fields remount, so a refused text goes even when the
-  // applied height equals the one a row already held (no value change for the field to see).
+  // Bumped by every "Áp cho mọi tầng": the row fields drop a refused text even when the applied height equals
+  // the one a row already held (no value change for the field to see). `resetKey`, not `key`: no remount.
   const [applyCount, setApplyCount] = useState(0);
 
   return (
@@ -120,7 +120,7 @@ export function StepFloors(props: StepFloorsProps) {
                   </Table.Cell>
                   <Table.Cell className={CELL_PAD}>
                     <NumericField
-                      key={applyCount}
+                      resetKey={applyCount}
                       className="w-full"
                       value={row.clearHeightM ?? undefined}
                       onChange={(value) => props.setFloorHeight(row.id, value)}

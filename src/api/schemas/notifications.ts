@@ -13,11 +13,13 @@ import { z } from 'zod';
  * đi trước cho đúng lý do: không có kiểu nào ở `src/domain`/`src/types` để
  * `satisfies` chống trôi, nên mảng ở MỖI tầng tự là nguồn của chính tầng đó.
  *
- * ## `message` mang cả câu, `objectLabel` chỉ mang tên đối tượng
+ * ## `message` là câu thiếu tên ở cuối, `objectLabel` là cái tên ấy
  *
- * `message` là câu tiếng Việt ĐÃ GHÉP xong ở máy chủ ("AI đã xử lý xong bản vẽ
- * tầng trệt") — dựng một câu đúng ngữ pháp cho bốn loại khác nhau là việc của
- * nơi biết đủ ngữ cảnh, không phải việc suy luận lại ở client.
+ * `message` là câu tiếng Việt do máy chủ dựng, dừng ngay TRƯỚC tên đối tượng
+ * ("Hệ thống AI đã xử lý xong bản vẽ") — dựng một câu đúng ngữ pháp cho bốn loại
+ * khác nhau là việc của nơi biết đủ ngữ cảnh, không phải việc suy luận lại ở
+ * client. FE in `message` rồi nối `objectLabel` ngay sau làm liên kết ("… bản vẽ
+ * tầng trệt"), nên câu KHÔNG lặp lại tên (AppBack `apps/api/notifications/messages.py`).
  * `projectId`/`projectName`/`floorId`/`objectLabel` đi kèm RIÊNG vì chúng còn
  * một việc thứ hai: đó là nguyên liệu để tầng trên dựng `NotificationTarget`
  * (đường dẫn, chữ hiển thị của liên kết) — phần điều hướng của một mục, khác

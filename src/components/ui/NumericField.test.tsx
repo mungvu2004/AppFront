@@ -67,6 +67,24 @@ describe('NumericField', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Giá trị không quá 10 m.');
   });
 
+  it('drops a refused text when resetKey changes, even if the value does not (review-1 #21)', () => {
+    const props = { value: 3, min: 2, max: 10, unit: 'm', 'aria-label': 'Chiều cao', onChange: () => undefined } as const;
+    const { rerender } = render(<NumericField {...props} resetKey={0} />);
+    const field = screen.getByRole('textbox', { name: 'Chiều cao' });
+
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: '12' } });
+    fireEvent.blur(field);
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+
+    rerender(<NumericField {...props} resetKey={1} />);
+
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(field).toHaveValue('3');
+    // Same element: the caller no longer remounts the field to clear it.
+    expect(screen.getByRole('textbox', { name: 'Chiều cao' })).toBe(field);
+  });
+
   it("shows its own refusal over the caller's error", () => {
     render(<NumericField value={3} min={2} unit="mm" aria-label="Chiều dài" error="Lỗi của hàng" onChange={() => undefined} />);
     const field = screen.getByRole('textbox', { name: 'Chiều dài' });

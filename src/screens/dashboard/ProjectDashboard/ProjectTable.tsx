@@ -2,13 +2,20 @@
  * The dashboard's "Bảng" view: one row per project. Split out of `ProjectDashboard.tsx` once that
  * file crossed R-22's 400-line cap again (mục D), the way the card and the sidebar were.
  *
- * The name column takes what the others leave and truncates (`w-full max-w-0`): an 80-char name
- * pushed "Cập nhật" past the 1440 px window (BUG-149).
+ * The name column takes what the others leave (`w-full max-w-0`): an 80-char name pushed "Cập nhật"
+ * past the 1440 px window (BUG-149). The name wraps onto a second line before it is cut, so at 1024 px a
+ * 117 px column still shows all of "E2E-QA-20261011-0028" instead of "E2E-QA-202…".
  *
  * Below `sm` the table is laid out as blocks and each row stacks (`ROW_STACKED`): the name gets the full width on its own line, then
  * status, progress and update time wrap under it, and the header row goes. Three columns side by
  * side at 375 px left the name 98 px — "E2E-QA-20261011-0028" was cut and two rows read the same
  * (BUG-153). The cells stay cells, so the name cell still holds only the name.
+ *
+ * Below `sm` the name and its rename field share one 32 px box (like the card, FIX-994), so renaming does not
+ * grow the stacked row; 32 px rather than the card's 44 keeps every row from growing 24 px (WCAG 2.5.8: >= 24).
+ *
+ * Stacked, the header row is `display: none`, so a screen reader no longer pairs "Cần QC" with "Trạng thái" (and
+ * Safari drops the table roles once `display` changes). Each stacked cell says its column itself, below `sm` only.
  */
 
 import { Badge } from '@/components/ui/Badge';
@@ -30,6 +37,11 @@ export interface ProjectTableProps {
 const NAME_CLASS = 'w-full text-[14px] font-medium text-text-primary';
 const ROW_STACKED = 'max-sm:flex max-sm:h-auto max-sm:flex-wrap max-sm:items-center max-sm:gap-y-1 max-sm:py-2';
 const CELL_STACKED = 'max-sm:h-auto';
+
+/** The column name a stacked cell reads out below `sm`, where the header row is gone; `sm:hidden` above it. */
+function StackedLabel({ children }: { readonly children: string }) {
+  return <span className="sr-only sm:hidden">{`${children}: `}</span>;
+}
 
 export function ProjectTable({ rows, renamingId, renameDraft, onOpen, onMenu, onRenameChange, onRenameCommit, onRenameCancel }: ProjectTableProps) {
   return (
@@ -72,18 +84,25 @@ export function ProjectTable({ rows, renamingId, renameDraft, onOpen, onMenu, on
                     if (event.key === 'Enter') onRenameCommit();
                     if (event.key === 'Escape') onRenameCancel();
                   }}
-                  className={`${NAME_CLASS} h-11 rounded border border-accent bg-bg-surface px-1 outline-none sm:h-auto`}
+                  className={`${NAME_CLASS} h-8 rounded border border-accent bg-bg-surface px-1 outline-none sm:h-auto`}
                 />
               ) : (
-                <h3 className={`${NAME_CLASS} truncate`}>{project.name}</h3>
+                <h3 className={`${NAME_CLASS} line-clamp-2 whitespace-normal break-words max-sm:leading-8`}>{project.name}</h3>
               )}
             </Table.Cell>
             <Table.Cell className={CELL_STACKED}>
+              <StackedLabel>Trạng thái</StackedLabel>
               <Badge variant={project.statusVariant}>{project.statusLabel}</Badge>
             </Table.Cell>
             <Table.Cell className="hidden text-text-secondary sm:table-cell">{project.statsLabel}</Table.Cell>
-            <Table.Cell className={`text-text-secondary ${CELL_STACKED}`}>{project.progressLabel}</Table.Cell>
-            <Table.Cell className={`text-text-muted max-sm:ml-auto ${CELL_STACKED}`}>{project.updatedLabel}</Table.Cell>
+            <Table.Cell className={`text-text-secondary ${CELL_STACKED}`}>
+              <StackedLabel>Tiến độ duyệt</StackedLabel>
+              {project.progressLabel}
+            </Table.Cell>
+            <Table.Cell className={`text-text-muted max-sm:ml-auto ${CELL_STACKED}`}>
+              <StackedLabel>Cập nhật</StackedLabel>
+              {project.updatedLabel}
+            </Table.Cell>
           </Table.Row>
         ))}
       </Table.Body>

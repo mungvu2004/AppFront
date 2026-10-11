@@ -296,8 +296,28 @@ describe('ProjectDashboardView, seven states', () => {
     const cells = within(screen.getByRole('row', { name: new RegExp(SAMPLE_ROW.name, 'u') })).getAllByRole('cell');
     expect(cells[0]?.textContent).toBe(SAMPLE_ROW.name);
     const shownBelowSm = cells.filter((cell) => !cell.className.split(' ').includes('hidden')).map((cell) => cell.textContent);
-    expect(shownBelowSm).toEqual([SAMPLE_ROW.name, SAMPLE_ROW.statusLabel, SAMPLE_ROW.progressLabel, SAMPLE_ROW.updatedLabel]);
+    // review-1 #19: the header row is hidden below `sm`, so each stacked cell names its column (sr-only, `sm:hidden`).
+    expect(shownBelowSm).toEqual([
+      SAMPLE_ROW.name,
+      `Trạng thái: ${SAMPLE_ROW.statusLabel}`,
+      `Tiến độ duyệt: ${SAMPLE_ROW.progressLabel}`,
+      `Cập nhật: ${SAMPLE_ROW.updatedLabel}`,
+    ]);
+    expect(within(cells[1] as HTMLElement).getByText('Trạng thái:', { exact: false })).toHaveClass('sr-only', 'sm:hidden');
     expect(cells[0]?.closest('tr')?.className).toContain('max-sm:flex-wrap');
+  });
+
+  // Rename in the stacked table row (< sm): the 44 px field replaced a 20 px name, so the row grew 24 px.
+  it('gives the table name and its rename field the same 32 px box below `sm`', () => {
+    const { rerender } = render(<ProjectDashboardView {...PROPS_BY_STATE.success()} viewMode="table" />);
+    expect(screen.getByRole('heading', { name: SAMPLE_ROW.name }).className).toContain('max-sm:leading-8');
+    // The narrow name column at 1024 px cut "E2E-QA-20261011-0028" to "E2E-QA-202…": the name wraps to two lines first.
+    expect(screen.getByRole('heading', { name: SAMPLE_ROW.name })).toHaveClass('line-clamp-2', 'whitespace-normal', 'break-words');
+    expect(screen.getByRole('heading', { name: SAMPLE_ROW.name })).not.toHaveClass('truncate');
+
+    rerender(<ProjectDashboardView {...PROPS_BY_STATE.success()} viewMode="table" renamingId={SAMPLE_ROW.id} />);
+    const field = screen.getByRole('textbox', { name: `Đổi tên ${SAMPLE_ROW.name}` });
+    expect(field.className.split(' ').filter((name) => /(^|:)h-/u.test(name))).toEqual(['h-8', 'sm:h-auto']);
   });
 
   // BUG-211: the menu kept the spot read at open; narrowing the window moved the card under it.
