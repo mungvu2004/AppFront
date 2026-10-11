@@ -15,6 +15,7 @@
  * row height: a 2-line name at >= `sm` keeps its 43 px row. Below `sm` the name keeps to one 32 px line (two
  * `leading-8` lines read as double-spaced, and the 64 px box made the field look odd) and the field fills it
  * (like the card, FIX-994); 32 px rather than the card's 44 keeps every row from growing 24 px (WCAG 2.5.8: >= 24).
+ * At >= `sm` a 1-line name is a 20 px box, so the field reaches 2 px past it each way (24 px) inside the 40 px row.
  *
  * Stacked, the header row is `display: none`, so a screen reader no longer pairs "Cần QC" with "Trạng thái" (and
  * Safari drops the table roles once `display` changes). Each stacked cell says its column itself, below `sm` only.
@@ -93,7 +94,7 @@ export function ProjectTable({ rows, renamingId, renameDraft, onOpen, onMenu, on
                       if (event.key === 'Enter') onRenameCommit();
                       if (event.key === 'Escape') onRenameCancel();
                     }}
-                    className={`${NAME_CLASS} absolute inset-0 rounded border border-accent bg-bg-surface px-1 outline-none`}
+                    className={`${NAME_CLASS} absolute inset-0 sm:-inset-y-0.5 rounded border border-accent bg-bg-surface px-1 outline-none`}
                   />
                 )}
               </div>
