@@ -1199,15 +1199,28 @@ test.describe('E02 SCR-05 wizard edge — create', () => {
   test('E02 · wizard [mocked response] create 503 once (unpairable: 5xx) is retried with the SAME Idempotency-Key; one project, toast', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
+      // BUG-191: the retry is held until the failed state has been shot, so the image shows the wizard between the 503
+      // and the second attempt (not only the finished dashboard).
+      let release: () => void = () => undefined;
+      const retryGate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
       const keys = await routeCreate(page, async (route, attempt) => {
         if (attempt === 1) await route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
-        else await route.continue();
+        else {
+          await retryGate;
+          await route.continue();
+        }
       });
       const name = uniqueName('wiz-503');
       const dialog = await openWizard(page);
       await toReview(dialog, name);
       const created = waitForApi(page, 'POST', PROJECTS_RE, [201]);
       await createButton(dialog).click();
+      await expect.poll(() => keys.length, { message: 'attempt 2 reached the route (held)' }).toBe(2);
+      await expect(dialog).toBeVisible();
+      await captureEvidence(page, 'E02_wiz_create_503_held.png', { caption: `attempt 1 → 503 [mocked]; attempt 2 held, Idempotency-Key ${keys[1] === keys[0] ? 'same as attempt 1' : 'DIFFERENT'}; wizard still open` });
+      release();
       await created; // RTY:3 503 retryable; POST with an Idempotency-Key is (RTY:25-26, CPC:90); delay 300 ms + jitter (RTY:5)
       expect(keys.length).toBe(2);
       expect(keys[0], 'Idempotency-Key present').not.toBe('');
@@ -1223,15 +1236,27 @@ test.describe('E02 SCR-05 wizard edge — create', () => {
   test('E02 · wizard [mocked response] network abort on the first create attempt (unpairable: network loss) is retried silently; exactly one project', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
+      // BUG-191: same hold as the 503 case — the shot between the aborted attempt and its retry.
+      let release: () => void = () => undefined;
+      const retryGate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
       const keys = await routeCreate(page, async (route, attempt) => {
         if (attempt === 1) await route.abort('failed');
-        else await route.continue();
+        else {
+          await retryGate;
+          await route.continue();
+        }
       });
       const name = uniqueName('wiz-abort');
       const dialog = await openWizard(page);
       await toReview(dialog, name);
       const created = waitForApi(page, 'POST', PROJECTS_RE, [201]);
       await createButton(dialog).click();
+      await expect.poll(() => keys.length, { message: 'attempt 2 reached the route (held)' }).toBe(2);
+      await expect(dialog).toBeVisible();
+      await captureEvidence(page, 'E02_wiz_create_abort_held.png', { caption: `attempt 1 aborted [mocked]; attempt 2 held, Idempotency-Key ${keys[1] === keys[0] ? 'same as attempt 1' : 'DIFFERENT'}; wizard still open` });
+      release();
       await created; // RTY:17-23 TypeError = network → retried for a keyed POST (RTY:95), HTC:568-583
       expect(keys.length).toBe(2);
       expect(keys[1]).toBe(keys[0]);
