@@ -563,6 +563,13 @@ describe('breadcrumb chung (BUG-079)', () => {
 
     expect(onBackToProjects).toHaveBeenCalledTimes(1);
   });
+
+  it('BUG-108: cấp "Dự án" chạm được 44×44 px dưới sm — cả bề ngang, không chỉ chiều cao', () => {
+    renderWithProviders(<FloorManager {...scenarioArgsFor('success')} onBackToProjects={vi.fn()} />);
+    const nav = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
+
+    expect(within(nav).getByRole('button', { name: 'Dự án' })).toHaveClass('min-h-11', 'min-w-11', 'sm:min-h-6', 'sm:min-w-0');
+  });
 });
 
 describe('dự án không tồn tại (BUG-032)', () => {
