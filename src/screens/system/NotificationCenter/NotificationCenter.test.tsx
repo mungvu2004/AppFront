@@ -1184,6 +1184,9 @@ describe('Hàng thông báo không chừa cột cho nút ẩn (BUG-203)', () => 
     // Hộp gần nhất của nút là hàng giờ — có giờ, không có câu (cột cũ nằm cạnh câu, chung hàng `li`).
     expect(markRead.closest('div')).toHaveTextContent('30 phút trước');
     expect(markRead.closest('div')).not.toHaveTextContent(unread.sentence);
+    // review-1 #11: the IconButton's own touch size (40 px below 640) and an 18 px icon, like every other IconButton.
+    expect(markRead).toHaveClass('h-10', 'w-10', 'sm:h-8', 'sm:w-8');
+    expect(markRead.querySelector('svg')).toHaveAttribute('width', '18');
 
     const excerpt = screen.getByText('Kiểm tra lại tường trục B giúp mình');
     expect(excerpt).toHaveClass('line-clamp-2');
