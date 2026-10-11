@@ -359,6 +359,20 @@ export function useFloorUploadScreen(
   const isCollapsed = options.forceCollapsed ?? detectedNarrow;
   const canEdit = can('upload', 'floor', { roles });
 
+  // Mở thẳng đường dẫn: bộ đệm chưa có #24 hay thẻ N1 nào nêu tên, nên đọc #24 một lần
+  // dưới chính khoá của nó — breadcrumb nêu tên dự án ở mọi lối vào (BUG-165).
+  // ponytail: lượt đọc tầng (`floor.list`) cũng là #24; hai lượt chỉ xảy ra khi mở thẳng.
+  const projectName = cachedProjectName(queryClient, projectId);
+  useQuery({
+    queryKey: queryKeys.project.detail(projectId),
+    queryFn: async ({ signal }) => {
+      const result = await gateway.readProject({ projectId, signal });
+      if (!result.ok) throw result.error;
+      return result.data;
+    },
+    enabled: projectName === null,
+  });
+
   /* ---------------------------------------------------------------------- */
   /* Danh sách tầng (R-64).                                                  */
   /* ---------------------------------------------------------------------- */
@@ -1168,7 +1182,6 @@ export function useFloorUploadScreen(
     rows.length,
   ]);
 
-  const projectName = cachedProjectName(queryClient, projectId);
   const model: FloorUploadModel = {
     state,
     projectId,

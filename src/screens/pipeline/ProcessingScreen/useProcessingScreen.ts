@@ -556,9 +556,20 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   const { projectId } = options;
   const roles = options.roles ?? DEFAULT_ROLES;
   const queryClient = useQueryClient();
-  const projectName = cachedProjectName(queryClient, projectId);
-
   const gateway = useResolvedGateway(options.gateway);
+
+  // Mở thẳng đường dẫn: bộ đệm chưa có #24 hay thẻ N1 nào nêu tên, nên đọc #24 một lần
+  // dưới chính khoá của nó — breadcrumb nêu tên dự án ở mọi lối vào (BUG-165).
+  const projectName = cachedProjectName(queryClient, projectId);
+  useQuery({
+    queryKey: queryKeys.project.detail(projectId),
+    queryFn: async ({ signal }) => {
+      const result = await gateway.readProject({ projectId, signal });
+      if (!result.ok) throw result.error;
+      return result.data;
+    },
+    enabled: projectName === null,
+  });
   const { publish } = useNotifications(options.notifications);
 
   // Đăng ký đang mở, khoá theo `uploadId`. `onRunInBackground` rút mục ra khỏi

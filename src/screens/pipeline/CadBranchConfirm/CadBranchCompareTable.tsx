@@ -20,12 +20,15 @@ export interface CadBranchCompareTableProps {
 
 export function CadBranchCompareTable({ rows }: CadBranchCompareTableProps) {
   return (
-    <Table.Root>
+    // `shrink-0`: `Table.Root` scrolls (`overflow-auto`), so as a flex item of the dialog body its
+    // min-height is 0 and the body squeezed it to a header and half a row (BUG-269). Text cells wrap
+    // so both columns fit the 279 px body at 375 px instead of scrolling sideways; row labels stay one line.
+    <Table.Root className="shrink-0">
       <Table.Header>
         <tr>
           <Table.Head aria-label="Tiêu chí so sánh" />
-          <Table.Head>{TEXT.buttons.primary}</Table.Head>
-          <Table.Head>{TEXT.buttons.secondary}</Table.Head>
+          <Table.Head className="whitespace-normal">{TEXT.buttons.primary}</Table.Head>
+          <Table.Head className="whitespace-normal">{TEXT.buttons.secondary}</Table.Head>
         </tr>
       </Table.Header>
       <Table.Body>

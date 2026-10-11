@@ -71,7 +71,7 @@
  */
 
 import { createAppApiClient, resolveApiBaseUrl } from '@/api/appClient';
-import type { ApiClient, ApiResult, LatestFloorUpload } from '@/api/client';
+import type { ApiClient, ApiResult, LatestFloorUpload, Project } from '@/api/client';
 import { ENDPOINTS, toApiUrl } from '@/api/endpoints';
 import type { Progress } from '@/api/schemas';
 import { refreshSingleFlight } from '@/lib/auth';
@@ -379,6 +379,14 @@ export interface ProcessingGateway {
     readonly projectId: string;
     readonly signal?: AbortSignal;
   }) => Promise<ApiResult<LatestFloorUpload[]>>;
+  /**
+   * #24 — dự án thô, dưới khoá `project.detail` như mọi nơi khác. Chỉ đọc khi bộ
+   * đệm chưa có tên dự án (mở thẳng đường dẫn), để breadcrumb vẫn nêu tên (BUG-165).
+   */
+  readonly readProject: (input: {
+    readonly projectId: string;
+    readonly signal?: AbortSignal;
+  }) => Promise<ApiResult<Project>>;
   /** Lượt đọc mồi cho `useQuery` — một lần, không phải dòng sự kiện. */
   readonly readProgressOnce: (input: ReadProgressInput) => Promise<ApiResult<Progress>>;
   /**
@@ -792,6 +800,9 @@ export function createProcessingGateway(
 
       return first.ok || readWireError(first.error)?.code !== 'CURSOR_INVALID' ? first : read();
     },
+
+    readProject: ({ projectId, signal }) =>
+      client.projects.read({ projectId, ...(signal !== undefined ? { signal } : {}) }),
 
     readProgressOnce: ({ projectId, signal, uploadId }) =>
       client.drawings.progress({

@@ -43,12 +43,14 @@ export function FloorUploadTray({ tray, actions }: FloorUploadTrayProps) {
       <ul className="flex flex-col gap-3">
         {tray.items.map((item) => (
           <li className="flex flex-col gap-2" key={item.id}>
-            <div className="flex items-center gap-3">
+            {/* `flex-wrap` + a floor under the name: at 375 px the picker drops to its own line instead of
+                squeezing the name to 0 px and pushing the trash off screen (BUG-254, BUG-262). */}
+            <div className="flex flex-wrap items-center gap-3">
               <div className="flex h-[48px] w-[64px] shrink-0 items-center justify-center rounded-[8px] bg-bg-sunken">
                 <SheetGlyph />
               </div>
 
-              <p className="min-w-0 flex-1 truncate text-[13px] text-text-secondary">
+              <p className="min-w-[96px] flex-1 truncate text-[13px] text-text-secondary">
                 {item.summaryLine}
               </p>
 
