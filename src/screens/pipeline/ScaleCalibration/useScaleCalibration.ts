@@ -107,6 +107,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
 import { describeError, toAppError } from '@/lib/errors';
+import { readWireError } from '@/lib/errors/wireError';
 import { formatArea, formatDrawingScaleRatio, formatLength, formatScaleDensity } from '@/lib/format/measure';
 import { formatNumber, formatPercent, MISSING_VALUE } from '@/lib/format/number';
 import { CONFIDENCE_SUGGESTED_THRESHOLD } from '@/lib/format/semantic';
@@ -176,9 +177,9 @@ const COPY = {
   lowConfidenceInference: 'Độ tin cậy chung còn thấp, nên tỷ lệ phải được xác nhận bằng tay.',
   realLengthPlaceholder: '4800',
   realLengthNoHint: 'Không có chuỗi kích thước nào gần đoạn này để gợi ý.',
-  crossCheckWallThickness: 'độ dày tường điển hình',
-  crossCheckDoorWidth: 'bề rộng cửa đi điển hình',
-  crossCheckLargestRoomArea: 'diện tích phòng lớn nhất',
+  crossCheckWallThickness: 'Độ dày tường điển hình',
+  crossCheckDoorWidth: 'Bề rộng cửa đi điển hình',
+  crossCheckLargestRoomArea: 'Diện tích phòng lớn nhất',
   recalculationCaption: 'Đổi tỷ lệ sẽ tính lại mọi kích thước dẫn xuất của bản vẽ này.',
   scopeAllFloors: 'Áp cho mọi tầng',
   scopeThisFloor: 'Chỉ áp cho tầng này',
@@ -188,6 +189,9 @@ const COPY = {
   shortcutNudgeFine: 'nhích đầu đoạn một pixel',
   shortcutNudgeCoarse: 'nhích đầu đoạn mười pixel',
   shortcutAxisLock: 'khoá đoạn theo trục',
+  noDrawingTitle: 'Tầng này chưa có bản vẽ',
+  noDrawingNotice:
+    'Chưa có bản vẽ nào được tải lên cho tầng này. Tải bản vẽ lên và chờ bước tiền xử lý xong rồi mới hiệu chỉnh tỷ lệ.',
   warpingNotice:
     'Nắn ảnh thất bại nên bản vẽ có thể méo. Tỷ lệ đo trên một bản vẽ méo sẽ sai theo.',
   emptyNotice:
@@ -1506,7 +1510,16 @@ export function useScaleCalibration(
     }
 
     if (query.isError) {
-      return describeError(toAppError(query.error));
+      const wire = readWireError(query.error);
+
+      // Tầng chưa có bản vẽ: BE trả 404 `upload` (cùng khuôn `useInputQualityGate`). Nói đúng
+      // nguyên nhân và không kèm mã máy — "Không tìm thấy… NOT_FOUND" đổ lỗi sai chỗ (BUG-337).
+      if (wire?.status === 404 && wire.resource === 'upload') {
+        return { title: COPY.noDrawingTitle, description: COPY.noDrawingNotice, code: null };
+      }
+
+      const appError = toAppError(query.error);
+      return { ...describeError(appError), code: appError.code };
     }
 
     // Nắn ảnh hỏng không phải lỗi mạng: câu chữ đã có sẵn ở COPY, còn mã máy
@@ -1515,13 +1528,7 @@ export function useScaleCalibration(
     return { ...describeError(appError), description: COPY.warpingNotice, code: appError.code };
   }, [query.error, query.isError, state]);
 
-  const errorCode = useMemo(() => {
-    if (state !== 'error') {
-      return null;
-    }
-
-    return toAppError(query.isError ? query.error : new Error(COPY.warpingNotice)).code;
-  }, [query.error, query.isError, state]);
+  const errorCode = errorDescription?.code ?? null;
 
   /* ---------------------------------------------------------------------- */
   /* Chạy số 260 ms cho nhãn tỷ lệ sau khi áp (C2).                          */

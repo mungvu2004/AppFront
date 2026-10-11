@@ -1179,6 +1179,8 @@
       "errorDescription": "Tỷ lệ đo trên một bản vẽ méo sẽ sai theo. Quay lại bước tiền xử lý để nắn lại ảnh, rồi hiệu chỉnh tỷ lệ.",
       "errorBackToPreprocessing": "Quay lại bước tiền xử lý",
       "errorRetry": "Tải lại ảnh",
+      "noDrawingTitle": "Tầng này chưa có bản vẽ",
+      "noDrawingDescription": "Chưa có bản vẽ nào được tải lên cho tầng này. Tải bản vẽ lên và chờ bước tiền xử lý xong rồi mới hiệu chỉnh tỷ lệ.",
       "successTitle": "Đã áp tỷ lệ cho bản vẽ",
       "successDescription": "Mọi kích thước dẫn xuất đã được tính lại theo tỷ lệ mới.",
       "successBadge": "đã duyệt",

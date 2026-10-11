@@ -351,7 +351,7 @@ export type ScaleCrossCheckId = 'wallThickness' | 'doorWidth' | 'largestRoomArea
 /** Một dòng kiểm chứng. Mọi con số đã thành chuỗi ở hook (A15). */
 export interface ScaleCrossCheckRow {
   readonly id: ScaleCrossCheckId;
-  /** Nhãn tiếng Việt viết thường, kiểu câu — ví dụ `"độ dày tường điển hình"`. */
+  /** Nhãn tiếng Việt kiểu câu, viết hoa chữ đầu (A6) — ví dụ `"Độ dày tường điển hình"`. */
   readonly label: string;
   /** Giá trị đã định dạng, kèm đơn vị — ví dụ `"220 mm"`, `"24,80 m²"`. */
   readonly valueLabel: string;
@@ -522,7 +522,7 @@ export interface ScaleStatusBarViewModel {
  *
  * Bất biến đi kèm, cùng khuôn `InputQualityGateModel`:
  *
- * 1. `errorMessage !== null` ⟺ `state === 'error'`, và `errorCode` đi cùng nó.
+ * 1. `errorMessage !== null` ⟺ `state === 'error'`; `errorCode` chỉ có khi lỗi mang mã máy thật.
  * 2. `state === 'loading'` ⟺ `canvas.isImageLoading`.
  * 3. `state === 'empty'` ⟺ `panel.dimension.rows` rỗng; lúc đó
  *    `panel.method === 'referenceLine'` và mục `'dimensionString'` bị khoá.
@@ -545,7 +545,10 @@ export interface ScaleCalibrationViewModel {
   readonly prefersReducedMotion: boolean;
   /** Lỗi nắn ảnh. `null` ở mọi trạng thái khác `'error'`. */
   readonly errorMessage: string | null;
-  /** Mã máy đọc, giữ nguyên dạng (A6). Không bao giờ đứng một mình. */
+  /**
+   * Mã máy đọc, giữ nguyên dạng (A6). Không bao giờ đứng một mình. `null` cả khi lỗi
+   * không có mã máy thật (tầng chưa có bản vẽ, ảnh méo) — không in "UNKNOWN" (BUG-337).
+   */
   readonly errorCode: string | null;
   /**
    * Tiêu đề của `'error'` khi lỗi là lượt ĐỌC hỏng, không phải ảnh méo. Vắng thì

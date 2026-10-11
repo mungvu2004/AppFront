@@ -961,6 +961,36 @@ describe('useScaleCalibration — bảy trạng thái', () => {
     warped.unmount();
   });
 
+  it('tầng chưa có bản vẽ (404 `upload`) nói đúng nguyên nhân, không lộ NOT_FOUND (BUG-337)', async () => {
+    const harness = await makeHarness();
+    const noDrawing: HttpError = {
+      code: 'NOT_FOUND',
+      kind: 'http',
+      raw: { code: 'NOT_FOUND', resource: 'upload' },
+      requestId: 'r',
+      retryable: false,
+      status: 404,
+    };
+    const mounted = mountHook({
+      ...harness.gateway,
+      readFloorDrawing: async () => ({ ok: false, error: noDrawing }),
+    });
+    await settle(mounted);
+
+    const { model } = mounted.result.current;
+
+    expect(model.state).toBe('error');
+    expect(model.errorTitle).toBe('Tầng này chưa có bản vẽ');
+    expect(model.errorMessage).toContain('Tải bản vẽ lên');
+    expect(model.errorCode).toBeNull();
+    expect(model.panel.crossChecks.map((row) => row.label)).toEqual([
+      'Độ dày tường điển hình',
+      'Bề rộng cửa đi điển hình',
+      'Diện tích phòng lớn nhất',
+    ]);
+    mounted.unmount();
+  });
+
   it('trạng thái `partial` cũng đến từ chuỗi kích thước tin cậy thấp', async () => {
     const harness = await makeHarness({ rows: sampleDimensionRows(3) });
     const mounted = mountHook(harness.gateway);

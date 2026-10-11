@@ -157,21 +157,21 @@ function crossChecks(isMeasured: boolean): readonly ScaleCrossCheckRow[] {
   return [
     {
       id: 'wallThickness',
-      label: 'độ dày tường điển hình',
+      label: 'Độ dày tường điển hình',
       valueLabel: isMeasured ? formatLength(TYPICAL_WALL_THICKNESS) : '—',
       expectedRangeLabel: `khoảng hợp lý ${formatLength(millimetres(80))} – ${formatLength(millimetres(400))}`,
       statusCode: 'neutral',
     },
     {
       id: 'doorWidth',
-      label: 'bề rộng cửa đi điển hình',
+      label: 'Bề rộng cửa đi điển hình',
       valueLabel: isMeasured ? formatLength(TYPICAL_DOOR_WIDTH) : '—',
       expectedRangeLabel: `khoảng hợp lý từ ${formatLength(millimetres(600))} trở lên`,
       statusCode: 'neutral',
     },
     {
       id: 'largestRoomArea',
-      label: 'diện tích phòng lớn nhất',
+      label: 'Diện tích phòng lớn nhất',
       valueLabel: isMeasured ? formatArea(LARGEST_ROOM_AREA_M2) : '—',
       expectedRangeLabel: `khoảng hợp lý từ ${formatArea(4)} trở lên`,
       statusCode: 'neutral',
