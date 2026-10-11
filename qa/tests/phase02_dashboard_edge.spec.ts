@@ -70,7 +70,7 @@ import type { ApiEntry, ApiResult } from '../../e2e/fullstack/apiWatch';
 import { readBaseUrl } from '../../e2e/fullstack/env';
 import { apiBaseUrl } from './support/api';
 import { dashboardLoaded, signInAdmin } from './support/auth';
-import { TEST_DATA_PREFIX, attachJson, captureEvidence } from './support/evidence';
+import { TEST_DATA_PREFIX, attachJson, captureEvidence, shootOnSoftFail } from './support/evidence';
 
 /* ---------------------------------------------------------------- constants (each cites its source) */
 
@@ -1129,6 +1129,16 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
         const dialog = wizard(page);
         await expect(dialog).toBeVisible();
         await expect(stateAnnouncement(dialog)).toHaveText(STATE.collapsed); // UCPM:494
+        // BUG-225: the Modal enters with a framer-motion transform (MOD:109-135) that `animations: 'disabled'` does not
+        // stop; measured mid-entrance the boxes move. Judge them once two reads 150 ms apart agree.
+        const fieldBoxes = async (): Promise<string> => JSON.stringify([await nameField(dialog).boundingBox(), await codeField(dialog).boundingBox()]);
+        await expect
+          .poll(async () => {
+            const first = await fieldBoxes();
+            await page.waitForTimeout(150);
+            return (await fieldBoxes()) === first;
+          }, { message: 'wizard fields at rest' })
+          .toBe(true);
         const nameBox = await nameField(dialog).boundingBox();
         const codeBox = await codeField(dialog).boundingBox();
         expect(nameBox && codeBox && Math.abs(nameBox.x - codeBox.x) < 2 && codeBox.y > nameBox.y, 'Tên/Mã stacked').toBe(true);
@@ -1137,9 +1147,14 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
         await page.keyboard.press('Escape');
         await expect(dialog).toHaveCount(0);
 
+        // BUG-225: the resize reaches the page asynchronously; wait for the dashboard's own query (UPD:92) to flip before
+        // judging the controls, and keep the width in the message so a headed run that does not reach 1023 says so.
+        const narrowAt = (): Promise<string> => page.evaluate(() => `${String(matchMedia('(max-width: 1023px)').matches)} @ ${String(window.innerWidth)}`);
         await page.setViewportSize({ width: 1023, height: 900 });
+        await expect.poll(narrowAt, { message: 'matchMedia (max-width: 1023px) at a 1023 px viewport' }).toBe('true @ 1023');
         await expect(filter).toBeVisible();
         await page.setViewportSize({ width: 1024, height: 900 });
+        await expect.poll(narrowAt, { message: 'matchMedia (max-width: 1023px) at a 1024 px viewport' }).toBe('false @ 1024');
         await expect(filter).toHaveCount(0);
         // Same `statusFilter` state behind both controls (PD:233, DS:157).
         await expect(statusFilterButton(page, FILTERS.processing)).toHaveAttribute('aria-pressed', 'true');
@@ -1364,6 +1379,8 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await expect(toast).toBeVisible();
       await page.mouse.move(0, 0); // a hovered toast stops its clock (TST:69-73, :128-129)
       const shownAt = Date.now();
+      // BUG-212: the "before" half of the pair, so the "after" shot below reads as a toast that left, not one never shown.
+      await captureEvidence(page, 'E02_rename_toast_timeout_before.png', { caption: `before: toast "${renamedToast(renamed)}" with "Hoàn tác", 8 s clock running` });
       await expect(toast).toHaveCount(0, { timeout: UNDO_WINDOW_MS + 5_000 }); // TST:59, :81-84 (+180 ms exit)
       const goneAfterMs = Date.now() - shownAt;
       expect(goneAfterMs, 'the toast stays for the undo window').toBeGreaterThanOrEqual(UNDO_WINDOW_MS - 1_500);
@@ -1373,7 +1390,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       const list = await reloadDashboard(page);
       expect(summaryOf(list, project.id).name).toBe(renamed);
       await expect(projectCard(page, renamed)).toBeVisible();
-      await captureEvidence(page, 'E02_rename_toast_timeout.png', { caption: `toast gone after ${String(goneAfterMs)} ms; reload still shows "${renamed}"; 1 PATCH` });
+      await captureEvidence(page, 'E02_rename_toast_timeout.png', { caption: `after (pair of E02_rename_toast_timeout_before): toast gone after ${String(goneAfterMs)} ms, no "Hoàn tác"; reload still shows "${renamed}"; 1 PATCH` });
       await attachJson('E02_rename_toast_timeout.json', { goneAfterMs, patches: 1, afterReload: renamed });
     });
   });
@@ -1453,6 +1470,10 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await expect.poll(rowNames).toEqual(byUpdated);
       await tableHeads(page).first().click();
       await expect.poll(rowNames).toEqual(byUpdated);
+      // BUG-212: shot right after the click (pointer still on the header) — the claim "a header click sorts nothing".
+      await captureEvidence(page, 'E02_table_header_click.png', {
+        caption: `clicked header "${TABLE_HEADERS[0]}" (pointer on it): rows still ${byUpdated.join(' / ')} (newest first), no aria-sort`,
+      });
 
       await sortCombobox(page, SORT.updated).click();
       await page.getByRole('option', { name: SORT.name, exact: true }).click();
@@ -1461,7 +1482,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await rows.first().focus();
       await page.keyboard.press('Tab'); // PD:295: every row is a tab stop, nothing focusable inside a row
       await expect(rows.nth(1)).toBeFocused();
-      await captureEvidence(page, 'E02_table_sort_headers.png', { caption: `table, sort "${SORT.name}": ${byName.join(' / ')}; header click changed nothing` });
+      await captureEvidence(page, 'E02_table_sort_headers.png', { caption: `table, sort list "${SORT.name}": ${byName.join(' / ')}; header click: E02_table_header_click` });
       await attachJson('E02_table_sort_headers.json', { headers: [...TABLE_HEADERS], byUpdated, byName });
     });
   });
@@ -2275,12 +2296,20 @@ test.describe('E02 SCR-05 create-project wizard', () => {
       // A8 on a project THIS test made (R6 forbids it only for CP-2): undo removes exactly what was created (UCPM:666-673).
       const toast = toastWith(page, createdToast(name));
       await expect(toast).toBeVisible();
+      // BUG-215: the "before" half — the new card and its toast; hovering the toast stops its 8 s clock (TST:69-73).
+      await toast.hover();
+      await captureEvidence(page, 'E02_wizard_create_undo_before.png', { caption: `before undo: card "${name}" + toast "${createdToast(name)}" with "Hoàn tác"` });
       const removed = waitForApi(page, 'DELETE', projectPathRe(id), [200]);
       await toast.getByRole('button', { name: 'Hoàn tác', exact: true }).click();
       await removed;
       await page.mouse.move(0, 0);
       await expect(projectCard(page, name), 'the undone project leaves the list (A8)').toHaveCount(0);
-      await captureEvidence(page, 'E02_wizard_create_undone.png', { caption: `1 POST (201) then DELETE /api/projects/${id} (200)` });
+      await captureEvidence(page, 'E02_wizard_create_undone.png', {
+        caption: [
+          `after "Hoàn tác": card "${name}" gone from the list (pair: E02_wizard_create_undo_before)`,
+          `1 POST (201) then DELETE /api/projects/${id} (200)`,
+        ],
+      });
       await attachJson('E02_wizard_create_undone.json', { posts, created: response.status(), deleted: 200, id });
     });
   });
@@ -2365,8 +2394,15 @@ test.describe('E02 SCR-06 notifications', () => {
       // BUG-134: the open drawer covers the header bell, so the badge is shot once the drawer has left.
       await expect(bell(page)).toBeInViewport();
       await expect(bell(page)).toHaveText(badge);
+      // BUG-134 (run-15): the admin's inbox is usually all read, so the caption names the state shot and where the
+      // counted badge is proven for real (phase02_notify_edge: a second user with real unread invites).
       await captureEvidence(page, 'E02_notif_badge.png', {
-        caption: `bell badge "${badge === '' ? '(none)' : badge}" = ${String(unread)} unread row(s) (cap "9+" over 9)`,
+        caption: [
+          badge === ''
+            ? `bell (focused, top right) shows NO badge: ${String(unread)} unread row(s) in the drawer`
+            : `bell (focused, top right) badge "${badge}" = ${String(unread)} unread row(s) (cap "9+" over 9)`,
+          'counted badge on real unread rows: E02_ntf_two_invites.png (badge 2), E02_ntf_realtime_arrival.png (badge 1)',
+        ],
       });
 
       // Backdrop click closes too (DRW:131-141); the drawer sits on the right 400 px (DRW:67, :159).
@@ -2532,11 +2568,18 @@ test.describe('E02 SCR-06 notifications', () => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const drawer = await openDrawer(page);
+      // BUG-214: the "from" half — the drawer over the dashboard, before "Xem tất cả" leaves it.
+      await captureEvidence(page, 'E02_notif_viewall_from.png', { caption: `before: drawer open over the dashboard (${ROUTES.dashboard}), "${VIEW_ALL}" at its foot` });
       await drawer.getByRole('button', { name: VIEW_ALL, exact: true }).click(); // UNC:767-770
       await expect.poll(() => pathname(page)).toBe(ROUTES.notifications);
       await expect(notificationDrawer(page)).toBeVisible(); // NCC:223 pinned open
       await expect(dashboardHeading(page)).toHaveCount(0);
-      await captureEvidence(page, 'E02_notif_viewall.png', { caption: `"${VIEW_ALL}" → ${ROUTES.notifications}` });
+      await captureEvidence(page, 'E02_notif_viewall.png', {
+        caption: [
+          `after "${VIEW_ALL}": ${ROUTES.dashboard} → ${ROUTES.notifications}; the dashboard behind is gone (pair: E02_notif_viewall_from)`,
+          `${ROUTES.notifications} is the drawer pinned open over an empty backdrop by design (NotificationCenterRoute, NCC:223)`,
+        ],
+      });
 
       await page.keyboard.press('Escape'); // NCC:212-221: in-app history → navigate(-1)
       await expect.poll(() => pathname(page)).toBe(ROUTES.dashboard);
@@ -2555,7 +2598,9 @@ test.describe('E02 SCR-06 notifications', () => {
       await drawer.getByRole('button', { name: VIEW_ALL, exact: true }).click();
       await expect.poll(() => pathname(page)).toBe(ROUTES.notifications);
       await expect(drawer).toBeVisible();
-      await captureEvidence(page, 'E02_notif_route_viewall.png', { caption: `"${VIEW_ALL}" on ${ROUTES.notifications}` });
+      await captureEvidence(page, 'E02_notif_route_viewall.png', {
+        caption: `opened ${ROUTES.notifications} by URL, then "${VIEW_ALL}" at the drawer's foot: no navigation, still ${ROUTES.notifications}, drawer kept open`,
+      });
 
       // NCC:167-171 + A12: on the route "close" means leaving it; Esc (DRW:83,95) reaches `goBack` (NCC:212-221).
       // NCC:204-209 sets `hasLeftRef` on that same-route navigation — this asserts Esc is not left dead by it.
@@ -2930,22 +2975,20 @@ test.describe('E02 QA-02 shared components (FE 271538cb) — SCR-05 / SCR-06 / S
       const undo = toast.getByRole('button', { name: UNDO, exact: true });
       await expect(undo).toBeVisible();
       // TST:133-134 `min-w-0 break-words` on the message; the toast is `overflow-hidden` (TST:121): a clipped button = BUG-131.
-      const layout = await toast.evaluate((el) => {
-        const box = el.getBoundingClientRect();
-        const message = el.querySelector('span.flex-1');
-        const button = [...el.querySelectorAll('button')].find((b) => (b.textContent ?? '').trim() === 'Hoàn tác');
-        const b = button?.getBoundingClientRect();
-        return {
-          toast: { left: box.left, right: box.right, width: box.width },
-          button: b === undefined ? null : { left: b.left, right: b.right, width: b.width },
-          message: message === null ? null : { scroll: message.scrollWidth, client: message.clientWidth, height: message.getBoundingClientRect().height },
-        };
-      });
-      const inside = layout.button !== null && layout.button.left >= layout.toast.left && layout.button.right <= layout.toast.right + 0.5;
-      await captureEvidence(page, 'E02_dash_toast_long_name.png', { caption: `80-char unbroken name: message ${String(Math.round(layout.message?.height ?? 0))} px high, "Hoàn tác" ${inside ? 'inside' : 'CLIPPED'}` });
+      // BUG-216: the button is measured through its locator — a textContent match inside evaluate() found nothing (null →
+      // "CLIPPED" on a shot where the button is whole).
+      const [toastBox, undoBox] = [await toast.boundingBox(), await undo.boundingBox()];
+      const layout = {
+        toast: toastBox === null ? null : { left: toastBox.x, right: toastBox.x + toastBox.width, top: toastBox.y, bottom: toastBox.y + toastBox.height },
+        button: undoBox === null ? null : { left: undoBox.x, right: undoBox.x + undoBox.width, top: undoBox.y, bottom: undoBox.y + undoBox.height },
+        message: await toast.locator('span.flex-1').first().evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth, height: el.getBoundingClientRect().height })),
+      };
+      const { toast: t, button: b } = layout;
+      const inside = t !== null && b !== null && b.left >= t.left - 0.5 && b.right <= t.right + 0.5 && b.top >= t.top - 0.5 && b.bottom <= t.bottom + 0.5;
+      await captureEvidence(page, 'E02_dash_toast_long_name.png', { caption: `80-char unbroken name: message ${String(Math.round(layout.message.height))} px high, "Hoàn tác" ${inside ? 'inside' : 'CLIPPED'}` });
       await attachJson('E02_dash_toast_long_name.json', layout);
       expect(inside, '"Hoàn tác" inside the toast box').toBe(true);
-      expect(layout.message !== null && layout.message.scroll <= layout.message.client + 1, 'message wraps, no overflow past its column').toBe(true);
+      expect(layout.message.scroll <= layout.message.client + 1, 'message wraps, no overflow past its column').toBe(true);
 
       const restored = waitForApi(page, 'PATCH', projectPathRe(project.id), [200]);
       await undo.click(); // within the 8 s window (UT:18)
@@ -2982,7 +3025,9 @@ test.describe('E02 QA-02 shared components (FE 271538cb) — SCR-05 / SCR-06 / S
         expect(box !== null && box.x >= 15 && box.x + box.width <= COMPACT.width - 15, 'dialog inside the 16 px gutters').toBe(true);
         expect(layout.page.scroll, 'no page-level sideways scroll').toBeLessThanOrEqual(layout.page.client);
         // Finding candidate (UI/Low) when this fails: the unbroken name overflows the sentence box inside the dialog.
-        expect.soft(layout.bodyLine.scroll, 'the delete sentence wraps the long name inside the dialog').toBeLessThanOrEqual(layout.bodyLine.client + 1);
+        await shootOnSoftFail(page, 'E02_dash_delete_375_long_softfail.png', `delete sentence scroll ${String(layout.bodyLine.scroll)} > client ${String(layout.bodyLine.client)} inside the open dialog`, () => {
+          expect.soft(layout.bodyLine.scroll, 'the delete sentence wraps the long name inside the dialog').toBeLessThanOrEqual(layout.bodyLine.client + 1);
+        });
         await dialog.getByRole('button', { name: KEEP, exact: true }).click();
         await expect(dialog).toHaveCount(0);
         expect(countApi(admin.api, 'DELETE', `${PROJECTS_API}/${project.id}`)).toBe(0);
@@ -3070,8 +3115,12 @@ test.describe('E02 QA-02 shared components (FE 271538cb) — SCR-05 / SCR-06 / S
         await attachJson('E02_notif_snap_keyboard.json', { viewport: COMPACT, shown, after });
         // Finding candidate (UI/Low): TT measures its anchor only when it shows (TT:66-77); a tooltip still shown after
         // the sheet dropped stays where the dot used to be.
-        if (after.tipVisible && after.tip !== null && after.dot !== null) {
-          expect.soft(Math.abs(after.tip.y + after.tip.height - after.dot.y), 'a shown tooltip follows its dot after the snap').toBeLessThanOrEqual(24);
+        const { tip: tipBox, dot: dotBox } = after;
+        if (after.tipVisible && tipBox !== null && dotBox !== null) {
+          const gap = Math.abs(tipBox.y + tipBox.height - dotBox.y);
+          await shootOnSoftFail(page, 'E02_notif_snap_peek_softfail.png', `tooltip bottom ${String(Math.round(gap))} px from "Mức 1" after the snap (≤ 24 expected), sheet still open`, () => {
+            expect.soft(gap, 'a shown tooltip follows its dot after the snap').toBeLessThanOrEqual(24);
+          });
         }
         await page.keyboard.press('Escape');
         await expect.poll(() => pathname(page)).toBe(ROUTES.dashboard);

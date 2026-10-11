@@ -59,7 +59,7 @@ import type { ApiEntry, ApiResult } from '../../e2e/fullstack/apiWatch';
 import { readBaseUrl } from '../../e2e/fullstack/env';
 import { apiBaseUrl } from './support/api';
 import { dashboardLoaded, signInAdmin } from './support/auth';
-import { TEST_DATA_PREFIX, attachJson, captureEvidence } from './support/evidence';
+import { TEST_DATA_PREFIX, attachJson, captureEvidence, shootOnSoftFail } from './support/evidence';
 
 /* ---------------------------------------------------------------- constants (each cites its source) */
 
@@ -256,9 +256,20 @@ async function toStep2(dialog: Locator, name: string): Promise<void> {
   await expect(stepText(dialog, 2)).toBeVisible();
 }
 
-/** Types a height into a NumericField and blurs: NF:105-111 commits on blur. */
+/**
+ * Types a height into a NumericField and blurs: NF:105-111 commits on blur.
+ * BUG-224: focusing the box makes `handleFocus` (NF:103-111) write the committed value back into it; a `fill()` fired
+ * right after the focus raced that render and left "32.500" / "10abc". So: focus, let the render land (two frames),
+ * select all, insert the text in one go, check it is exactly what was typed, then Tab.
+ */
 async function typeHeight(field: Locator, text: string): Promise<void> {
-  await field.fill(text);
+  const page = field.page();
+  await field.focus();
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await field.press('Control+A');
+  if (text === '') await field.press('Delete');
+  else await page.keyboard.insertText(text);
+  await expect(field).toHaveValue(text);
   await field.press('Tab');
 }
 
@@ -726,8 +737,9 @@ test.describe('E02 SCR-05 wizard edge — step 2 floors', () => {
     });
   });
 
-  test('E02 · wizard floor cap with a basement: 50 floors then "Có tầng hầm" must not make 51 rows (LIM:25 "basement included")', async ({ browser }) => {
-    // Source: setHasBasement (UCPM:596-606) never checks canAddFloor (UCPM:490) — likely a NEW finding when this fails.
+  test('E02 · wizard floor cap with a basement: at 50 floors "Có tầng hầm" is locked, so no 51st row (LIM:25 "basement included")', async ({ browser }) => {
+    // BUG-221: since BUG-150/BUG-177 the switch is disabled at the cap (described by the cap note); clicking a disabled
+    // button only times out, so the case asserts the lock and the 50 rows instead.
     test.setTimeout(240_000);
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
@@ -738,10 +750,11 @@ test.describe('E02 SCR-05 wizard edge — step 2 floors', () => {
       await expect(floorNameBoxes(dialog)).toHaveCount(FLOOR_COUNT_MAX);
       await expect(add).toBeDisabled(); // UCPM:490, SF:125
 
-      await basementSwitch(dialog).click();
+      await expect(basementSwitch(dialog)).toBeDisabled();
+      await expect(basementSwitch(dialog)).toHaveAttribute('aria-checked', 'false');
       const rows = await floorNameBoxes(dialog).count();
-      await expect(add).toBeDisabled();
-      await captureEvidence(page, 'E02_wiz_cap_basement.png', { caption: `50 floors + "Có tầng hầm" → ${String(rows)} rows` });
+      await basementSwitch(dialog).scrollIntoViewIfNeeded(); // the switch sits above the list (SF:43-50)
+      await captureEvidence(page, 'E02_wiz_cap_basement.png', { caption: `50 floors, top of step 2: "Có tầng hầm" locked ("Thêm tầng" too, asserted) → ${String(rows)} rows` });
       await attachJson('E02_wiz_cap_basement.json', { rows, limit: FLOOR_COUNT_MAX, basementChecked: await basementSwitch(dialog).getAttribute('aria-checked') });
       expect(rows, `at most ${String(FLOOR_COUNT_MAX)} rows, basement included (LIM:25-27)`).toBeLessThanOrEqual(FLOOR_COUNT_MAX);
       await discardWizard(dialog);
@@ -1432,16 +1445,19 @@ test.describe('E02 SCR-05 wizard edge — QA-02 shared components (FE 271538cb)'
         await expect(ground, `${key} → ${shows}`).toHaveValue(shows);
       }
       await page.keyboard.press('Tab'); // NF:113-119 commit on blur
-      await expect(elevationCell(floorRow(dialog, page, 'Tầng 1'))).toHaveText('9,0 m');
       await expect(floorRow(dialog, page, 'Tầng trệt').getByRole('alert')).toHaveCount(0);
-      await captureEvidence(page, 'E02_wiz_arrow_keys.png', { caption: 'Tầng trệt: ↑ ↑ Shift+↑ ↓ → 9, committed on Tab ("Tầng 1" at 9,0 m)' });
+      // BUG-222: a floor without its own height has no level, "—" (computeFloorStack; same rule as the "" / "abc" case of
+      // the row-height parsing test): "Tầng 1" shows the 9 m below it only once it has a height of its own.
+      await expect(elevationCell(floorRow(dialog, page, 'Tầng 1'))).toHaveText('—');
 
       const first = heightBox(dialog, 'Tầng 1');
       await first.focus();
       await page.keyboard.press('ArrowDown'); // 0 − 1 → clamped up to the 2 m floor, never a refusal
       await expect(first).toHaveValue('2');
       await page.keyboard.press('Tab');
-      await expect(elevationCell(floorRow(dialog, page, 'Tầng 2'))).toHaveText('11,0 m');
+      await expect(elevationCell(floorRow(dialog, page, 'Tầng 1')), '"Tầng 1" (2 m) sits on the committed 9 m').toHaveText('9,0 m');
+      await expect(elevationCell(floorRow(dialog, page, 'Tầng 2')), '"Tầng 2" has no height yet').toHaveText('—');
+      await captureEvidence(page, 'E02_wiz_arrow_keys.png', { caption: 'Tầng trệt: ↑ ↑ Shift+↑ ↓ → 9; Tầng 1 (empty): ↓ → 2; both committed on Tab ("Tầng 1" at 9,0 m, "Tầng 2" no height "—")' });
       await attachJson('E02_wiz_arrow_keys.json', { steps: ['ArrowUp=2', 'ArrowUp=3', 'Shift+ArrowUp=10', 'ArrowDown=9', 'empty ArrowDown=2'], stepperButtons: 0 });
       await discardWizard(dialog);
     });
@@ -1513,13 +1529,21 @@ test.describe('E02 SCR-05 wizard edge — QA-02 shared components (FE 271538cb)'
           .filter((id) => id !== '')
           .map((id) => ({ id, found: document.getElementById(id) !== null })),
       );
-      await captureEvidence(page, 'E02_wiz_cap_note.png', { caption: `50 floors: note shown, "Thêm tầng" and "Có tầng hầm" locked; switch describedby ${JSON.stringify(describedBy)}` });
+      // BUG-220: with 50 rows the note (foot of the list, under "Thêm tầng") and the switch (top of step 2) never share
+      // one view: each is scrolled into view for its own shot.
+      await note.scrollIntoViewIfNeeded();
+      await captureEvidence(page, 'E02_wiz_cap_note.png', { caption: `50 floors, foot of the list: note "${FLOOR_CAP_NOTE}" under the locked "Thêm tầng"` });
+      await basement.scrollIntoViewIfNeeded();
+      await captureEvidence(page, 'E02_wiz_cap_note_switch.png', { caption: `50 floors, top of step 2: "Có tầng hầm" locked; switch describedby ${JSON.stringify(describedBy)}` });
       await attachJson('E02_wiz_cap_note.json', { rows: FLOOR_COUNT_MAX, describedBy });
       await expect(basement, 'the locked switch says why').toHaveAccessibleDescription(new RegExp(FLOOR_CAP_NOTE.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'));
       // Finding candidate (a11y/Low) when this fails: TG:69 joins the extra id into `descId`, and TG:130 reuses that joined
       // string as the description span's own id ("…-desc create-project-floor-cap"), so "…-desc" resolves to nothing
       // and the switch loses its own sentence exactly when it is locked (TG:15-16 promises it is read first).
-      await expect.soft(basement, 'own description, then the cap note').toHaveAccessibleDescription(`${BASEMENT_DESCRIPTION} ${FLOOR_CAP_NOTE}`);
+      await basement.scrollIntoViewIfNeeded();
+      await shootOnSoftFail(page, 'E02_wiz_cap_switch_desc_softfail.png', `locked "Có tầng hầm" at 50 floors: describedby ${JSON.stringify(describedBy)} (own sentence expected first)`, () =>
+        expect.soft(basement, 'own description, then the cap note').toHaveAccessibleDescription(`${BASEMENT_DESCRIPTION} ${FLOOR_CAP_NOTE}`),
+      );
 
       await deleteFloorButton(dialog, 'Tầng 49').click(); // UCPM removeFloor
       await expect(floorNameBoxes(dialog)).toHaveCount(FLOOR_COUNT_MAX - 1);
@@ -1534,7 +1558,10 @@ test.describe('E02 SCR-05 wizard edge — QA-02 shared components (FE 271538cb)'
       await expect(note).toBeVisible();
       await expect(add).toBeDisabled();
       await expect(basement, 'hasBasement keeps the switch usable at the cap (UCPM:907)').toBeEnabled();
-      await captureEvidence(page, 'E02_wiz_cap_basement_toggle.png', { caption: '49 floors + basement = 50: note shown, "Thêm tầng" locked, switch still usable' });
+      await basement.scrollIntoViewIfNeeded();
+      await captureEvidence(page, 'E02_wiz_cap_basement_toggle.png', { caption: '49 floors + basement = 50, top of step 2: "Có tầng hầm" on and still usable' });
+      await note.scrollIntoViewIfNeeded();
+      await captureEvidence(page, 'E02_wiz_cap_basement_toggle_foot.png', { caption: `49 floors + basement = 50, foot of the list: note "${FLOOR_CAP_NOTE}", "Thêm tầng" locked` });
       await basement.click();
       await expect(floorNameBoxes(dialog)).toHaveCount(FLOOR_COUNT_MAX - 1);
       await expect(dialog.getByRole('textbox', { name: `Tên tầng ${BASEMENT_NAME}`, exact: true })).toHaveCount(0);
