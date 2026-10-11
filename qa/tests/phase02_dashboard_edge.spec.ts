@@ -2365,8 +2365,15 @@ test.describe('E02 SCR-06 notifications', () => {
       // BUG-134: the open drawer covers the header bell, so the badge is shot once the drawer has left.
       await expect(bell(page)).toBeInViewport();
       await expect(bell(page)).toHaveText(badge);
+      // BUG-134 (run-15): the admin's inbox is usually all read, so the caption names the state shot and where the
+      // counted badge is proven for real (phase02_notify_edge: a second user with real unread invites).
       await captureEvidence(page, 'E02_notif_badge.png', {
-        caption: `bell badge "${badge === '' ? '(none)' : badge}" = ${String(unread)} unread row(s) (cap "9+" over 9)`,
+        caption: [
+          badge === ''
+            ? `bell (focused, top right) shows NO badge: ${String(unread)} unread row(s) in the drawer`
+            : `bell (focused, top right) badge "${badge}" = ${String(unread)} unread row(s) (cap "9+" over 9)`,
+          'counted badge on real unread rows: E02_ntf_two_invites.png (badge 2), E02_ntf_realtime_arrival.png (badge 1)',
+        ],
       });
 
       // Backdrop click closes too (DRW:131-141); the drawer sits on the right 400 px (DRW:67, :159).
