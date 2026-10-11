@@ -91,6 +91,7 @@ type Viewport = { readonly width: number; readonly height: number };
 /* SCR-06 copy. */
 const MARK_ALL_READ = 'Đánh dấu tất cả đã đọc'; // NC:55
 const MARK_READ = 'Đánh dấu đã đọc'; // NC:56
+const NOTIF_TITLE = 'Thông báo'; // NC:54 (drawer / sheet heading)
 const NOTIF_SETTINGS = 'Mở cài đặt thông báo'; // NC:57
 const NOTIF_FILTER = 'Lọc thông báo'; // NC:58
 const VIEW_ALL = 'Xem tất cả'; // NC:59
@@ -823,7 +824,8 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
         await loadWithInbox(page, ROUTES.notifications);
         const sheet = panel(page); // DRW:70 → BottomSheet (DRW:195-233)
         const box = await settledBox(sheet);
-        const title = sheet.locator('h3');
+        // BUG-192: `h3` also matches the empty state's title ("Không có thông báo mới"); the sheet's own heading is by name.
+        const title = sheet.getByRole('heading', { name: NOTIF_TITLE, exact: true });
         // Lines of the title text: distinct tops of its client rects.
         const titleLines = await title.evaluate((el) => {
           const range = document.createRange();
