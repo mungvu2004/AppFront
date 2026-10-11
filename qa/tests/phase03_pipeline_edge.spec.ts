@@ -88,10 +88,13 @@ const NOTES_LABEL = 'Ghi chú'; // GT:82
 const SNAP_LABEL = 'Dung sai bắt điểm'; // UT:59
 const NAME_EMPTY = 'Chưa nhập tên dự án.'; // UPS:423
 const NAME_TOO_SHORT = 'Tên dự án cần ít nhất 3 ký tự.'; // UPS:424-425 (PROJECT_LIMITS.nameMinLength 3)
-const EMPTY_BLOCKED = 'Bản này chưa xoá trống được.'; // SE:113, UPS:433-446
+const EMPTY_BLOCKED = 'Giá trị đã lưu không xoá trống được; hãy nhập giá trị khác.'; // SE:113 (FIX-1420, BUG-299), UPS:433-446
 const NOTES_TOO_LONG = 'Ghi chú không quá 500 ký tự.'; // UPS:451-452, PSG:191
 const FIELD_REJECTED = 'Máy chủ không nhận giá trị này. Kiểm tra lại ô này.'; // SE:111, UPS:943
 const SAVE_FAILURE_TITLE = 'Chưa lưu hết'; // PS:98
+/** SE:124-134 field labels + SE:137-141 NEXT_STEP.validation, partialSaveSentence SE:159-170 (FIX-1422, BUG-300). */
+const NOTES_REJECTED = 'Chưa lưu được ghi chú. Sửa lại giá trị đó, hệ thống sẽ tự lưu tiếp.';
+const NAME_REJECTED = 'Chưa lưu được tên dự án. Sửa lại giá trị đó, hệ thống sẽ tự lưu tiếp.';
 const CONFLICT_TITLE = 'Cài đặt đã đổi ở nơi khác'; // PS:91
 const CONFLICT_SENTENCE = 'Cài đặt dự án vừa được đổi ở nơi khác. Tải lại để xem bản mới nhất.'; // SE:110
 const RELOAD_DIALOG = 'Tải lại sẽ bỏ thay đổi chưa lưu'; // RD:20
@@ -152,11 +155,14 @@ const WAITING = 'Chờ xử lý'; // UFU:121 — a floor holding a file that is 
  */
 const NO_DRAWING_STATUS = 'Chưa có bản vẽ';
 const STATUS_ERROR = 'Lỗi'; // UFU:124
-const CAD_PILL = 'Nhánh CAD · độ chính xác cao'; // FUC:41
+const CAD_PILL = 'Bản vẽ CAD · độ chính xác cao'; // FUC:41 (FIX-1404, BUG-304)
 const CAD_SENTENCE = 'Bản vẽ CAD (.dwg) chưa được hỗ trợ; hãy xuất sang PDF rồi tải lại.'; // FUG:85
 const UPLOAD_EMPTY = 'Chưa có tầng nào có bản vẽ. Kéo thả tệp đầu tiên để bắt đầu.'; // UFU:105
-const NO_FLOORS_TITLE = 'Dự án chưa có tầng nào'; // FU:74
-const UPLOAD_LOAD_ERROR = 'Không tải được danh sách tầng'; // FU:68
+const NO_FLOORS_TITLE = 'Dự án chưa có tầng nào'; // FU:76
+const NO_FLOORS_ADD = 'Thêm tầng'; // FU:80 ADD_FLOORS_LABEL (FIX-1400, BUG-298)
+const BLOCKED_TITLE = 'Không thể bắt đầu xử lý'; // UFU:115 COPY.blockedTitle
+const NO_FLOORS_REASON = 'Dự án chưa có tầng nào. Thêm tầng ở màn Quản lý tầng trước khi xử lý.'; // UFU:117 (BUG-298)
+const UPLOAD_LOAD_ERROR = 'Không tải được danh sách tầng'; // FU:69 — not for a 404 any more (FIX-1401, BUG-311)
 const SELECT_FILE = 'Chọn tệp'; // UFU:100
 const PICK_PAGE = 'Chọn trang'; // FUC:40
 const DISMISS = 'Đóng'; // FUC:45, FUT:21
@@ -183,6 +189,8 @@ const PROCESSING = {
   copyLog: 'Sao chép nhật ký', // PLP:29
   logEmpty: 'Chưa có dòng nhật ký nào', // PLP:30
   calibrate: 'Hiệu chỉnh tỷ lệ', // PSU:20
+  reviewWalls: 'Duyệt lớp tường', // PSU:19
+  summary: 'Báo cáo tổng kết', // PSU:18 section aria-label
   tabs: 'Xem trước hoặc nhật ký', // PR:74
 } as const;
 const GRAPH = {
@@ -589,7 +597,7 @@ test.describe('E03 SCR-08 project settings', () => {
     });
   });
 
-  test('E03 · SCR-08 "Ghi chú" with a bidi mark → server 422 → field message + "Chưa lưu hết" (units part)', async ({ browser }) => {
+  test('E03 · SCR-08 "Ghi chú" with a bidi mark → server 422 → field message + "Chưa lưu được ghi chú." (BUG-300)', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const project = await createProject(admin, 'notesbidi');
@@ -600,13 +608,14 @@ test.describe('E03 SCR-08 project settings', () => {
       await put;
       await expect(page.getByText(FIELD_REJECTED, { exact: true })).toBeVisible(); // SE:96, UPS:938-944
       const failure = page.getByRole('alert').filter({ hasText: SAVE_FAILURE_TITLE });
-      // SE:117-140: notes belong to the "units" part (UPS:366-369), so the sentence names "đơn vị đo".
-      await expect(failure).toContainText('Chưa lưu được đơn vị đo.');
+      // SE:124-134,159-170 + UPS:1013-1030: the sentence names the field the user sees ("ghi chú"), not the N6 part it
+      // is sent with, and adds the 422 next step SE:138 (FIX-1422, BUG-300).
+      await expect(failure).toContainText(NOTES_REJECTED);
       await captureEvidence(page, 'E03_settings_notes_bidi_422.png');
     });
   });
 
-  test('E03 · SCR-08 "Tên dự án" with a bidi mark → server 422 → field message + "Chưa lưu được thông tin chung."', async ({ browser }) => {
+  test('E03 · SCR-08 "Tên dự án" with a bidi mark → server 422 → field message + "Chưa lưu được tên dự án." (BUG-300)', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const project = await createProject(admin, 'namebidi');
@@ -616,7 +625,7 @@ test.describe('E03 SCR-08 project settings', () => {
       await page.getByRole('textbox', { name: NAME_LABEL, exact: true }).fill(`${project.name}\u202E`);
       await patch;
       await expect(page.getByText(FIELD_REJECTED, { exact: true })).toBeVisible();
-      await expect(page.getByRole('alert').filter({ hasText: SAVE_FAILURE_TITLE })).toContainText('Chưa lưu được thông tin chung.');
+      await expect(page.getByRole('alert').filter({ hasText: SAVE_FAILURE_TITLE })).toContainText(NAME_REJECTED);
       await captureEvidence(page, 'E03_settings_name_bidi_422.png');
     });
   });
@@ -655,6 +664,8 @@ test.describe('E03 SCR-08 project settings', () => {
       await conflict;
       const alert = page.getByRole('alert').filter({ hasText: CONFLICT_TITLE }); // PS:88-95
       await expect(alert).toContainText(CONFLICT_SENTENCE);
+      // UPS:1024-1030: a 409 with nothing saved shows only the conflict strip, no second "Chưa lưu hết" (FIX-1422, BUG-300).
+      await expect(page.getByRole('alert').filter({ hasText: SAVE_FAILURE_TITLE })).toHaveCount(0);
       await captureEvidence(page, 'E03_settings_conflict_409.png');
 
       // UPS:1360-1367: unsaved draft → A9 dialog first.
@@ -1091,23 +1102,29 @@ test.describe('E03 SCR-09 floor manager', () => {
 /* ================================================================= SCR-10 floor upload */
 
 test.describe('E03 SCR-10 floor upload', () => {
-  test('E03 · SCR-10 project with no floor → "Dự án chưa có tầng nào"; "Bắt đầu xử lý" does nothing; breadcrumb → "/"', async ({ browser }) => {
+  test('E03 · SCR-10 project with no floor → "Dự án chưa có tầng nào" + "Thêm tầng", no drop zone; "Bắt đầu xử lý" says why (BUG-298); breadcrumb → "/"', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page, api } = admin;
       const project = await createProject(admin, 'unofloor');
       await page.goto(ROUTES.project.upload(project.id));
       await expect(page.getByText(NO_FLOORS_TITLE, { exact: true })).toBeVisible(); // FU:149-150
       await expect(page.getByTestId(COUNTER)).toHaveText('0 / 0 tầng đã có bản vẽ'); // FUF:99-106, UFU:1138-1140
+      // FU:160-166 EmptyState action "Thêm tầng" → Quản lý tầng (UFU:1304-1307); UFU:437 canDrop is false with no floor,
+      // so FU:229-235 renders no drop zone (a file dropped here could not wait for a floor) (FIX-1400, BUG-298).
+      await expect(page.getByRole('button', { name: NO_FLOORS_ADD, exact: true })).toBeVisible();
+      await expect(page.getByTestId(DROPZONE)).toHaveCount(0);
 
       const mark = api.length;
       await page.getByRole('button', { name: SUBMIT, exact: true }).click();
       await quiet(page);
-      // UFU:974-992: no reason to list (no floor) → `first === undefined` → return: no notice, no navigation.
-      await expect(page.getByTestId(BLOCK_NOTICE)).toHaveCount(0);
+      // UFU:933-934: no floor → one project-level `noFloors` reason; the footer (FUF:72-87) names it, no navigation.
+      const notice = page.getByTestId(BLOCK_NOTICE);
+      await expect(notice).toContainText(BLOCKED_TITLE);
+      await expect(notice).toContainText(NO_FLOORS_REASON);
       expect(pathOf(page)).toBe(ROUTES.project.upload(project.id));
       expect(writesSince(api, mark)).toEqual([]);
       await captureEvidence(page, 'E03_upload_no_floor_submit.png');
-      await attachJson('E03_upload_no_floor_submit.json', { path: pathOf(page), writes: writesSince(api, mark), blockNotice: 0 });
+      await attachJson('E03_upload_no_floor_submit.json', { path: pathOf(page), writes: writesSince(api, mark), blockNotice: 1 });
 
       await page.getByRole('navigation', { name: 'Đường dẫn trang' }).getByRole('button', { name: 'Dự án', exact: true }).click(); // FU:194-204
       await expect.poll(() => pathOf(page)).toBe(ROUTES.dashboard);
@@ -1230,7 +1247,7 @@ test.describe('E03 SCR-10 floor upload', () => {
     });
   });
 
-  test('E03 · SCR-10 3-page .pdf assigned to a floor waits for "Chọn trang" (no init); submit says "… chưa tải xong bản vẽ."', async ({ browser }, testInfo) => {
+  test('E03 · SCR-10 3-page .pdf assigned to a floor waits for "Chọn trang" (no init); submit says "… chưa chọn trang của bản vẽ." (BUG-303)', async ({ browser }, testInfo) => {
     const threePages = testInfo.outputPath('ba-trang.pdf');
     writeFileSync(threePages, '%PDF-1.4\n1 0 obj << /Type /Pages /Count 3 >> endobj\n%%EOF\n', 'utf8');
     await withAdmin(browser, async (admin) => {
@@ -1256,12 +1273,12 @@ test.describe('E03 SCR-10 floor upload', () => {
       expect(countSince(api, mark, 'POST', uploadInitRe(project.id)), 'no init before a page is chosen').toBe(0);
 
       await page.getByRole('button', { name: SUBMIT, exact: true }).click();
-      await expect(page.getByTestId(BLOCK_NOTICE)).toContainText(`${floor.name} chưa tải xong bản vẽ.`); // UFU:903-914
+      await expect(page.getByTestId(BLOCK_NOTICE)).toContainText(`${floor.name} chưa chọn trang của bản vẽ.`); // UFU:945-961 (FIX-1403, BUG-303)
       await captureEvidence(page, 'E03_upload_pdf_pick_page.png');
     });
   });
 
-  test('E03 · SCR-10 .dwg (not offered by the picker) assigned → CAD pill + server 422 → CAD sentence on the card; "Đóng" clears it', async ({ browser }, testInfo) => {
+  test('E03 · SCR-10 .dwg (not offered by the picker) assigned → server 422 → CAD sentence on the card, no CAD pill (BUG-304); "Đóng" clears it', async ({ browser }, testInfo) => {
     const dwg = testInfo.outputPath('ban-ve.dwg');
     writeFileSync(dwg, 'AC1027 qa-e03 not a real drawing\n', 'utf8');
     await withAdmin(browser, async (admin) => {
@@ -1278,8 +1295,10 @@ test.describe('E03 SCR-10 floor upload', () => {
       await page.getByRole('option', { name: floor.name, exact: true }).click();
       await init; // BE:drawings/uploads.py:101-109 CAD_NOT_SUPPORTED
       const floorCard = card(page, floor);
-      await expect(floorCard.getByText(CAD_PILL, { exact: true })).toBeVisible(); // FUC:241
       await expect(floorCard.getByRole('alert')).toContainText(CAD_SENTENCE); // FUG:194-199, FUC:285-297
+      // UFU:1074 isCadBranch = branch 'cad' && status !== 'error' → a refused file is not promised the CAD branch
+      // (FUC:237-241, FIX-1404, BUG-304).
+      await expect(floorCard.getByText(CAD_PILL, { exact: true })).toHaveCount(0);
       await expect(floorCard.getByText(STATUS_ERROR, { exact: true })).toBeVisible();
       await captureEvidence(page, 'E03_upload_dwg_422.png');
 
@@ -1355,7 +1374,7 @@ test.describe('E03 SCR-10 floor upload', () => {
     });
   });
 
-  test('E03 · SCR-10 every floor attached → "Bắt đầu xử lý" opens /pipeline with no request; SCR-12 log copy; no summary actions (extraction unsupported)', async ({ browser }) => {
+  test('E03 · SCR-10 every floor attached → "Bắt đầu xử lý" opens /pipeline with no request; SCR-12 log copy; "Báo cáo tổng kết" offers "Hiệu chỉnh tỷ lệ" + "Duyệt lớp tường" (BUG-285)', async ({ browser }) => {
     test.setTimeout(PIPELINE_TIMEOUT_MS + 180_000);
     await withAdmin(
       browser,
@@ -1392,11 +1411,17 @@ test.describe('E03 SCR-10 floor upload', () => {
           copiedLineCount: copied === '' ? 0 : copied.split('\n').length,
         });
 
-        // PRG:788, 975 `extractionSummary` unsupported → UPR:632-666 no `extraction` → UPR:1186-1193 summary undefined →
-        // PR:264 no "Báo cáo tổng kết": neither "Duyệt lớp tường" nor "Hiệu chỉnh tỷ lệ" (PSU:19-20) is offered after a
-        // finished run on the real stack (finding F10: /pipeline is a dead end once done).
-        await expect(page.getByRole('button', { name: PROCESSING.calibrate, exact: true })).toHaveCount(0);
-        await expect(page.getByRole('button', { name: 'Duyệt lớp tường', exact: true })).toHaveCount(0);
+        // FIX-1380 (BUG-285, was finding F10): PRG:808 `extractionSummary: true`, PRG:1006 reads N16 spatial/layer once a
+        // floor is done (UPR:733-745); UPR:1208-1276 shows the summary as soon as one floor is done, numbers or not (an
+        // N16 failure only drops the counts), and both actions go to that floor (PSU:47-53).
+        const summary = page.getByRole('region', { name: PROCESSING.summary, exact: true });
+        await expect(summary).toBeVisible();
+        await expect(summary.getByRole('button', { name: PROCESSING.reviewWalls, exact: true })).toBeVisible();
+        const calibrate = summary.getByRole('button', { name: PROCESSING.calibrate, exact: true });
+        await expect(calibrate).toBeVisible();
+        await captureEvidence(page, 'E03_pipeline_done_summary.png');
+        await calibrate.click();
+        await expect.poll(() => pathOf(page)).toBe(ROUTES.project.scale(project.id, floor.id));
       },
       { clipboard: true },
     );
@@ -1504,7 +1529,7 @@ test.describe('E03 SCR-12 processing', () => {
 /* ================================================================= SCR-13 pipeline graph / SCR-15 CAD */
 
 test.describe('E03 SCR-13 / SCR-15 dead routes', () => {
-  test('E03 · SCR-13 own project: empty story + reason line; no "Chi tiết kỹ thuật", no branch switch, no API read', async ({ browser }) => {
+  test('E03 · SCR-13 own project: empty story + reason line; no "Chi tiết kỹ thuật", no branch switch; only the #24 project read', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page, api } = admin;
       const project = await createProject(admin, 'graph', 1);
@@ -1516,8 +1541,9 @@ test.describe('E03 SCR-13 / SCR-15 dead routes', () => {
       await expect(page.getByRole('button', { name: GRAPH.detail })).toHaveCount(0); // PG:146-153 empty → no disclosure
       await expect(page.getByRole('button', { name: GRAPH.switch })).toHaveCount(0); // PGG:297 switchBranch false
       const projectReads = api.slice(mark).filter((entry) => entry.path.includes(project.id)).map((entry) => `${entry.method} ${entry.path}`);
-      // PGG:343-345: the real gateway answers "unsupported" without a request.
-      expect(projectReads, 'the graph never reads this project').toEqual([]);
+      // PGG:304-312 (FIX-1384, BUG-313): the one read is #24 "does this project exist"; branch report / comparison / node
+      // detail are still answered "unsupported" without a request (PGG:356-358).
+      expect(projectReads, 'the graph reads only #24 for this project').toEqual([`GET ${PROJECTS_API}/${project.id}`]);
       await captureEvidence(page, 'E03_graph_empty.png');
       await attachJson('E03_graph_empty.json', { projectReads });
     });
@@ -1610,10 +1636,15 @@ const UNKNOWN_CASES: readonly UnknownCase[] = [
     slug: 'upload',
     path: (id) => ROUTES.project.upload(id),
     check: async (page) => {
-      // FU:137-142: load error of the floor list; the alert has no action, the breadcrumb is the way out.
-      await expect(page.getByRole('alert').filter({ hasText: UPLOAD_LOAD_ERROR })).toBeVisible();
+      // FU:140-153 + UFU:1200-1208: a 404 floor list = the project is missing → the FloorManager / quality wording
+      // (PSGATE:36-39) and one way out, not the generic load error; no "Thử lại", no drop zone (FIX-1401, BUG-311).
+      const alert = page.getByRole('alert').filter({ hasText: NOT_FOUND_TITLE });
+      await expect(alert).toContainText(NOT_FOUND_SENTENCE);
+      await expect(page.getByText(UPLOAD_LOAD_ERROR, { exact: true })).toHaveCount(0);
+      await expect(alert.getByRole('button', { name: PROCESSING.retry, exact: true })).toHaveCount(0);
+      await expect(page.getByTestId(DROPZONE)).toHaveCount(0);
       await captureEvidence(page, 'E03_unknown_upload.png');
-      await page.getByRole('navigation', { name: 'Đường dẫn trang' }).getByRole('button', { name: 'Dự án', exact: true }).click();
+      await alert.getByRole('button', { name: BACK_TO_PROJECTS, exact: true }).click();
       await expect.poll(() => pathOf(page)).toBe(ROUTES.dashboard);
     },
   },
@@ -1636,13 +1667,18 @@ const UNKNOWN_CASES: readonly UnknownCase[] = [
     slug: 'pipeline',
     path: (id) => ROUTES.project.pipeline(id),
     check: async (page) => {
-      // UPR:1274-1289 errorAlert = describeError(notFound) (PRG:678-690) + "Thử lại" + code + "Liên hệ hỗ trợ" (PR:243-258).
-      const alert = page.getByRole('alert').filter({ hasText: GENERIC_NOT_FOUND });
-      await expect(alert).toContainText('Không tìm thấy');
-      await expect(alert.getByRole('button', { name: PROCESSING.retry, exact: true })).toBeVisible();
+      // UPR:752-757 N7 or #24 404 `project` → state 'error'; UPR:1315-1326 + PR:250-257: one InlineAlert with the
+      // PSGATE:36-39 wording and "Về danh sách dự án" — no "Thử lại", no technical code, no "Liên hệ hỗ trợ", and
+      // PR:275 drops the chips / steps / summary line (FIX-1385, BUG-312).
+      const alert = page.getByRole('alert').filter({ hasText: NOT_FOUND_TITLE });
+      await expect(alert).toContainText(NOT_FOUND_SENTENCE);
+      await expect(page.getByText(GENERIC_NOT_FOUND, { exact: false })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: PROCESSING.retry, exact: true })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: PROCESSING.support, exact: true })).toHaveCount(0);
+      await expect(page.getByText('NOT_FOUND', { exact: false })).toHaveCount(0);
       await captureEvidence(page, 'E03_unknown_pipeline.png');
-      await page.getByRole('button', { name: PROCESSING.support, exact: true }).click(); // UPR:790-799 → ROUTES.account
-      await expect.poll(() => pathOf(page)).toBe(ROUTES.account);
+      await alert.getByRole('button', { name: BACK_TO_PROJECTS, exact: true }).click(); // UPR:1323-1325
+      await expect.poll(() => pathOf(page)).toBe(ROUTES.dashboard);
     },
   },
   {
@@ -1650,12 +1686,17 @@ const UNKNOWN_CASES: readonly UnknownCase[] = [
     slug: 'graph',
     path: (id) => ROUTES.project.pipelineGraph(id),
     check: async (page, api, id) => {
-      // PGG:343-345: no read at all, so a missing project shows the same empty story (no 404 path).
-      await expect(page.getByText(GRAPH.emptyTitle, { exact: true })).toBeVisible();
+      // PGG:304-312 readProjectExists = #24 GET /api/projects/{id}; a 404 `project` → false → PG:136-148 renders only
+      // the PSGATE:36-39 not-found strip, never the empty graph story; PGC:136-139 → "/" (FIX-1384, BUG-313).
+      const alert = page.getByRole('alert').filter({ hasText: NOT_FOUND_TITLE });
+      await expect(alert).toContainText(NOT_FOUND_SENTENCE);
+      await expect(page.getByText(GRAPH.emptyTitle, { exact: true })).toHaveCount(0);
       const reads = api.filter((entry) => entry.path.includes(id)).map((entry) => `${entry.method} ${entry.path} ${String(entry.status)}`);
-      expect(reads, 'no request names the unknown project').toEqual([]);
+      expect(reads, 'the project read #24 answered 404').toContain(`GET ${PROJECTS_API}/${id} 404`);
       await captureEvidence(page, 'E03_unknown_graph.png');
       await attachJson('E03_unknown_graph.json', { reads });
+      await alert.getByRole('button', { name: BACK_TO_PROJECTS, exact: true }).click();
+      await expect.poll(() => pathOf(page)).toBe(ROUTES.dashboard);
     },
   },
 ];

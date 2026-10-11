@@ -34,8 +34,9 @@
  * in `finally` (phase01 chain): 33 tests × (4 loads + 1 session check) = 165 `POST /api/auth/refresh` over several minutes
  * (`auth_refresh_total` 300 / 60 s per sid).
  * No faked response: every state is the real stack. Non-serial: each test uses its own context and page.
- * BUG-143: framer-motion overlays end with `settled(<overlay>)`. BUG-161: the quality report is a `fixed` bottom sheet
- * below 1024 px (InputQualityGate.tsx BOTTOM_SHEET_CLASSES), so SCR-11 report states shoot the viewport.
+ * BUG-143: framer-motion overlays end with `settled(<overlay>)`. Below 1024 px the quality report sits UNDER the drawing in
+ * the page flow (InputQualityGate.tsx:156-168, FIX-1381 / BUG-291; it was a `fixed` bottom sheet, BUG-161), so SCR-11
+ * report states shoot the full page like every other state — a viewport shot would cut the report off at 768 / 375.
  */
 import { writeFileSync } from 'node:fs';
 
@@ -73,8 +74,8 @@ const CONFIRM_DUPLICATE = 'Nhân bản'; // FloorTableRow.tsx:76 — never click
 const COPY_FURNITURE = 'Sao chép nội thất sang tầng mới'; // FloorTableRow.tsx:57
 const AUTO_ELEVATION = 'Tự động tính cao độ';
 const HIDE_IN_3D = 'Ẩn khỏi mô hình 3D';
-const HIDE_3D_NOTICE =
-  'Ẩn tầng khỏi mô hình 3D chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang.'; // floorManagerGateway.ts:213 (capital D; phase03_pipeline.spec.ts still has "3d")
+// floorManagerGateway.ts:212 (FIX-1424, BUG-287); shares one `<p>` with the floor-contents sentence → substring match.
+const HIDE_3D_NOTICE = 'Tầng đang ẩn khỏi mô hình 3D sẽ hiện lại sau khi tải lại trang.';
 const FLOORS_EMPTY_TITLE = 'Chưa có tầng nào'; // FloorTable.tsx:76
 const FLOORS_EMPTY_NOTICE = 'Thêm tầng đầu tiên, hoặc nhập số tầng từ màn hình tạo dự án.'; // useFloorManager.ts:178
 /* SCR-10: FloorUploadScreen.tsx, FloorUploadDropZone.tsx, FloorUploadFooter.tsx, useFloorUploadScreen.ts. */
@@ -87,6 +88,7 @@ const TRAY_TITLE = 'Tệp chưa gán tầng'; // useFloorUploadScreen.ts:103
 const ASSIGN_FLOOR = 'Gán cho tầng khác';
 const REJECTED = /^Định dạng .+ chưa nhận được\./u;
 const UPLOAD_NO_FLOORS = 'Dự án chưa có tầng nào'; // FloorUploadScreen.tsx NO_FLOORS_TITLE
+const UPLOAD_ADD_FLOORS = 'Thêm tầng'; // FloorUploadScreen.tsx:80 ADD_FLOORS_LABEL (FIX-1400, BUG-298)
 const BREADCRUMB_NAV = 'Đường dẫn trang'; // Breadcrumb.tsx:19 NAV_LABEL
 /* SCR-11: InputQualityGate.tsx, useInputQualityGate.ts COPY, InputQualityGateFooter.tsx. */
 const QUALITY_REPORT = 'Báo cáo chất lượng';
@@ -106,6 +108,7 @@ const PIPELINE_EMPTY = 'Chưa có bước nào để theo dõi';
 const PIPELINE_TABS = 'Xem trước hoặc nhật ký';
 const LOG_TAB = 'Nhật ký';
 const OPEN_DETAIL = 'Mở chi tiết bước';
+const ALL_STEPS = 'Xem tất cả các bước'; // ProcessingScreen.tsx:87 ALL_STEPS_LABEL (FIX-1383, BUG-294)
 const CLOSE_DETAIL = 'Đóng chi tiết bước';
 /* SCR-13 / SCR-15. */
 const GRAPH_EMPTY = 'Chưa có lượt xử lý nào để kể lại'; // pipelineGraphText.ts:208
@@ -220,6 +223,19 @@ async function openPipelineDone(page: Page): Promise<void> {
   await expect(done.or(empty).or(page.getByRole('button', { name: FAILURE_COPY })).first()).toBeVisible({ timeout: 15_000 });
   test.skip(await empty.isVisible(), 'data: CP-2 has no processing run (CP-5 not reached); the empty state is U03_pipeline_empty');
   await expect(done).toBeVisible();
+  await openAllSteps(page);
+}
+
+/**
+ * Below 1024 px the screen shows one step bar and keeps the six steps behind a native `<details>` "Xem tất cả các bước"
+ * (ProcessingScreen.tsx:202-212, FIX-1383 / BUG-294): open it so the 768 / 375 shots show every step. No-op ≥ 1024 px.
+ */
+async function openAllSteps(page: Page): Promise<void> {
+  const toggle = page.getByText(ALL_STEPS, { exact: true });
+  if (!(await toggle.isVisible())) return;
+  const details = page.locator('details').filter({ has: toggle });
+  if ((await details.getAttribute('open')) === null) await toggle.click();
+  await expect(details).toHaveAttribute('open', '');
 }
 
 /* ========================================================================== */
@@ -351,10 +367,10 @@ test.describe('U03 UI verify — SCR-09 floors (CP-2)', () => {
       const [first] = await openFloors(p, cp2());
       await p.getByRole('button', { name: `Thao tác khác cho tầng ${first ?? ''}`, exact: true }).click();
       await p.getByRole('menuitem', { name: HIDE_IN_3D, exact: true }).click();
-      // The session-only sentence (HIDE_3D_NOTICE) is on screen from the start (`unsupportedNotices`); what the click
-      // changes is the row (`opacity-50`, FloorTableRow.tsx:205) and its band (`border-dashed`, FloorSectionCut.tsx:102).
+      // The click fades the row (`opacity-50`) and dashes its band (FloorSectionCut.tsx), and only now adds HIDE_3D_NOTICE
+      // to the "chưa được lưu" strip (`unsupportedNotices` needs a hidden floor, useFloorManager.ts:1655-1664, BUG-287).
       await expect(p.locator('tr.opacity-50')).toHaveCount(1);
-      await expect(p.getByText(HIDE_3D_NOTICE, { exact: true }).first()).toBeVisible();
+      await expect(p.getByText(HIDE_3D_NOTICE, { exact: false }).first()).toBeVisible();
     });
   });
 });
@@ -421,7 +437,6 @@ test.describe('U03 UI verify — SCR-11 quality gate (CP-2, needs CP-4)', () => 
       async (p) => {
         await openQualityReport(p);
       },
-      { fullPage: false },
     );
   });
 
@@ -436,7 +451,6 @@ test.describe('U03 UI verify — SCR-11 quality gate (CP-2, needs CP-4)', () => 
         await pick.click();
         await expect(p.getByRole('group', { name: CORNER_GROUP, exact: true })).toBeVisible();
       },
-      { fullPage: false },
     );
   });
 
@@ -451,7 +465,6 @@ test.describe('U03 UI verify — SCR-11 quality gate (CP-2, needs CP-4)', () => 
         await straighten.click();
         await settled(p.getByRole('dialog', { name: STRAIGHTEN_DIALOG }));
       },
-      { fullPage: false },
     );
   });
 
@@ -467,7 +480,6 @@ test.describe('U03 UI verify — SCR-11 quality gate (CP-2, needs CP-4)', () => 
         await p.getByRole('button', { name: CONTINUE, exact: true }).click();
         await expect(p.getByText(ACK_BLOCKED, { exact: true })).toBeVisible();
       },
-      { fullPage: false },
     );
   });
 });
@@ -621,10 +633,15 @@ test.describe('U03 UI verify — empty project with an 80-character name (this f
     });
   });
 
-  test('U03 · SCR-10 upload, no floor → "Dự án chưa có tầng nào" + long name in the breadcrumb', async ({ browser }) => {
+  test('U03 · SCR-10 upload, no floor → "Dự án chưa có tầng nào" + "Thêm tầng" + long name in the breadcrumb', async ({ browser }) => {
     await verifyAsAdmin(browser, 'U03_upload_no_floors', async (p) => {
-      await openUpload(p, ownProject());
-      await expect(p.getByText(UPLOAD_NO_FLOORS, { exact: true })).toBeVisible();
+      // No `openUpload`: with no floor there is no drop zone to wait for (useFloorUploadScreen.ts:437 canDrop,
+      // FloorUploadScreen.tsx:229-235); the empty state offers "Thêm tầng" instead (FloorUploadScreen.tsx:160-166,
+      // FIX-1400 / BUG-298).
+      await p.goto(ROUTES.project.upload(ownProject()));
+      await expect(p.getByText(UPLOAD_NO_FLOORS, { exact: true })).toBeVisible({ timeout: 15_000 });
+      await expect(p.getByRole('button', { name: UPLOAD_ADD_FLOORS, exact: true })).toBeVisible();
+      await expect(p.getByTestId(DROPZONE)).toHaveCount(0);
       // FIX-1304 (BUG-165): a deep link reads #24 for the name (useFloorUploadScreen.ts:362-373); the breadcrumb level
       // cuts it with "…" and keeps it whole in `title` (Breadcrumb.tsx:129-134).
       await expect(

@@ -2530,28 +2530,48 @@ test.describe('E02 SCR-06 notifications', () => {
       );
       const clickedAt = Date.now();
       await row.getByRole('button', { name: MARK_READ, exact: true }).click();
+
+      // The toast's own 8 s bar starts at the click (Toast.tsx:62-93), so hover it right away: under slowMo the Escape +
+      // drawer checks below alone outlast 8 s (BUG-316). The toast (Z_INDEX.toast 80) sits beside the open drawer
+      // (Z_INDEX.drawer 50, Drawer.tsx:142-154), so it takes the pointer. The hook's timer (UNC:695) is not the
+      // toast's: hovering only pauses the toast bar (Toast.tsx:68-73, :131-132).
+      const toast = toastWith(page, MARKED_READ);
+      await toast.hover();
       await expect(markButtons(drawer)).toHaveCount(unread - 1);
       await page.keyboard.press('Escape');
       await expect(drawer).toHaveCount(0);
+      // Closing the drawer drops `--drawer-inset` and the toast slides right, out from under the pointer: hover again
+      // if it is still there (a removed toast is fine — the POST below is what this case proves).
+      await toast.hover({ timeout: 2_000 }).catch(() => undefined);
 
-      // The hook's timer (UNC:695) is not the toast's: hovering only pauses the toast bar (TST:66-70, :128-129).
-      const toast = toastWith(page, MARKED_READ);
-      await toast.hover();
       const response = await sent;
       const elapsed = Date.now() - clickedAt;
       expect(response.ok(), `POST ${MARK_READ_API}`).toBe(true);
       const ids = asRecord(response.request().postDataJSON() as unknown, 'POST read body').ids;
       expect(Array.isArray(ids) ? ids.length : -1, 'one id').toBe(1);
       expect(elapsed, 'sent at the end of the undo window').toBeGreaterThanOrEqual(UNDO_WINDOW_MS - 1_000);
+      const postsAfterSend = countApi(admin.api, 'POST', MARK_READ_API);
 
-      // Ticket expired (undoTicket.ts:51-62, NotificationHost.tsx:68-69): the click is a no-op.
-      await expect(toast).toBeVisible();
-      await toast.getByRole('button', { name: 'Hoàn tác', exact: true }).click();
+      // Ticket expired (undoTicket.ts:51-62, NotificationHost.tsx:68-69): a late "Hoàn tác" is a no-op. The toast may
+      // already be gone (its bar ran while the pointer was off it); then there is nothing to click and the same
+      // outcome is checked: no further write, the row stays read.
+      const lateUndo = toast.getByRole('button', { name: 'Hoàn tác', exact: true });
+      const lateUndoClicked = await lateUndo.isVisible();
+      if (lateUndoClicked) await lateUndo.click();
       await page.mouse.move(0, 0);
       drawer = await openDrawer(page);
       await expect(markButtons(drawer)).toHaveCount(unread - 1);
-      await captureEvidence(page, 'E02_notif_markread_sent.png', { caption: `POST /api/notifications/read after ${String(elapsed)} ms; late "Hoàn tác" ignored` });
-      await attachJson('E02_notif_markread_sent.json', { unreadBefore: unread, elapsedMs: elapsed, status: response.status(), ids: 1 });
+      expect(countApi(admin.api, 'POST', MARK_READ_API), 'no POST after the late "Hoàn tác"').toBe(postsAfterSend);
+      await captureEvidence(page, 'E02_notif_markread_sent.png', {
+        caption: `POST /api/notifications/read after ${String(elapsed)} ms; late "Hoàn tác" ${lateUndoClicked ? 'ignored' : 'not shown (toast gone)'}`,
+      });
+      await attachJson('E02_notif_markread_sent.json', {
+        unreadBefore: unread,
+        elapsedMs: elapsed,
+        status: response.status(),
+        ids: 1,
+        lateUndoClicked,
+      });
     });
   });
 

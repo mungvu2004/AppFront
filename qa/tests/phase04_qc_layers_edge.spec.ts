@@ -109,7 +109,7 @@ const WALL = {
   floorGone: 'Tầng này không còn tồn tại.', // UFL:31
 } as const;
 const GENERIC_NOT_FOUND = 'Nội dung này có thể đã bị xoá, hoặc đường dẫn chưa đúng.'; // I18N errors.notFound.description
-const GENERIC_UNKNOWN = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại thao tác vừa làm.'; // I18N errors.unknown.description
+const GENERIC_UNKNOWN = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại sau ít phút.'; // vi.json:63 errors.unknown.description (FIX-1387, BUG-209)
 
 /* SCR-17 copy. */
 const OBJ = {
