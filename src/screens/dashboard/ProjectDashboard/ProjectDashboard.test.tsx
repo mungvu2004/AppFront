@@ -184,6 +184,15 @@ describe('ProjectDashboardView, seven states', () => {
     expect(screen.getByText('Không tìm thấy dự án phù hợp')).toBeInTheDocument();
   });
 
+  // BUG-117: dropping the count line on a no-match search made the stats column jump up.
+  it('keeps the "{n} dự án" line when a search matches nothing, and drops it only while loading', () => {
+    const { rerender } = render(<ProjectDashboardView {...PROPS_BY_STATE.partial()} />);
+    expect(screen.getByText('0 dự án')).toBeInTheDocument();
+
+    rerender(<ProjectDashboardView {...PROPS_BY_STATE.loading()} />);
+    expect(screen.queryByText(/^\d+ dự án$/u)).not.toBeInTheDocument();
+  });
+
   // BUG-111: below 1024 px the state is `collapsed`, never `partial`; the no-match state used to hang on `partial`.
   it('offers to clear filters, not to create, when nothing matches below 1024 px', () => {
     render(<ProjectDashboardView {...PROPS_BY_STATE.partial()} state="collapsed" statusFilter="done" searchQuery="" />);

@@ -181,6 +181,8 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           onChange={(event) => props.setSearchQuery(event.target.value)}
           placeholder="Tìm dự án theo tên..."
           prefix={<Search size={16} aria-hidden="true" />}
+          // The browser's own clear (×) button sat flush against the last typed glyph (BUG-117).
+          className="[&::-webkit-search-cancel-button]:ml-2"
           wrapperClassName="order-last w-full sm:order-none sm:w-[320px] sm:max-w-full"
         />
         <div className="ml-auto flex items-center gap-3">
@@ -198,9 +200,9 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-[20px] font-semibold text-text-primary">Dự án của tôi</h1>
-            {(state === 'success' || state === 'collapsed' || state === 'forbidden') && (
-              <p className="text-[13px] text-text-secondary">{rows.length} dự án</p>
-            )}
+            {/* Every state that has a list says how many it shows — "0 dự án" for a search with no match
+                included: dropping the line there made the whole column jump up 11 px (BUG-117). */}
+            {state !== 'loading' && state !== 'error' && <p className="text-[13px] text-text-secondary">{rows.length} dự án</p>}
           </div>
           <div className="flex items-center gap-3">
             <Select
