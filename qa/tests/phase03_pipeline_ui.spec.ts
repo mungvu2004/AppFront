@@ -13,11 +13,15 @@
  *     group and deleted after it: the empty states of SCR-09/10/11/12, the "no floors" danger tab, the long name in the
  *     settings field / delete dialog / processing breadcrumb. No "name over 80" state: the field has `maxLength` 80
  *     (GeneralTab.tsx:43), so a person cannot type the 81st character.
+ *   - One run-unique project whose only floor holds the env PNG turned 8° (`support/drawingSeed.ts`, BUG-364), uploaded
+ *     through the API before its group and deleted after it: "Tự động nắn" (SKEW_DETECTED) and the acknowledgement hint
+ *     ("poor" skew), which the straight env drawing never shows.
  *   - SCR-15 needs a floor id: `floors.workFloorId` (Phase 3 main) when set, else the first row of
  *     `GET /api/projects/:id/floors` (BE apps/api/floors/router.py:46) of CP-2.
  *
- * Budget — logins: 1 real admin API login (`signedInApi`); a browser login only to replace a dead stored session
- * (`ensureAdminSession`). Writes: 1 `POST /api/projects` + 1 `DELETE /api/projects/:id` (API), nothing else:
+ * Budget — logins: 2 real admin API logins (`signedInApi`: the empty project, the skewed drawing); a browser login only to
+ * replace a dead stored session (`ensureAdminSession`). Writes: 2 `POST /api/projects` + 2
+ * `DELETE /api/projects/:id` + one upload (init / chunk / complete → one fake-ML run) of the skewed drawing (API), nothing else:
  *   - settings: only an EMPTY "Tên dự án" is typed — a local problem, so autosave sends nothing
  *     (`useProjectSettings.ts` getChanges returns undefined while `hasLocalProblem`); the delete dialog is never confirmed
  *     (its button needs the name typed, `canConfirmDanger`);
@@ -43,11 +47,12 @@ import { writeFileSync } from 'node:fs';
 import { expect, test, type APIRequestContext, type Browser, type Locator, type Page } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
-import { readBaseUrl } from '../../e2e/fullstack/env';
+import { PIPELINE_TIMEOUT_MS, readBaseUrl } from '../../e2e/fullstack/env';
 import { signedInApi } from './support/api';
 import { ensureAdminSession, readAdminCredentials } from './support/auth';
 import { TEST_DATA_PREFIX } from './support/evidence';
 import { ADMIN_STORAGE_STATE_FILE, readState, requireState } from './support/state';
+import { createSkewedDrawingProject, deleteSeededProject, rotatedPng, SKEW_DEG, type SeededDrawing } from './support/drawingSeed';
 import { UI_VIEWPORTS, verifyUi } from './support/ui-verify';
 
 /* Copy — every string checked in src/ (file noted). */
@@ -204,9 +209,9 @@ async function openUpload(page: Page, projectId: string): Promise<void> {
   await expect(page.getByTestId(DROPZONE)).toBeVisible({ timeout: 15_000 });
 }
 
-/** Quality gate settled on the report; SKIPS when CP-2 has no drawing yet (CP-4 not reached this run). */
-async function openQualityReport(page: Page): Promise<Locator> {
-  await page.goto(ROUTES.project.quality(cp2()));
+/** Quality gate settled on the report; SKIPS when the project (CP-2 by default) has no drawing yet (CP-4 not reached). */
+async function openQualityReport(page: Page, projectId: string = cp2()): Promise<Locator> {
+  await page.goto(ROUTES.project.quality(projectId));
   const report = page.getByRole('region', { name: QUALITY_REPORT, exact: true });
   const noDrawing = page.getByText(NO_DRAWING_TITLE, { exact: true });
   await expect(report.or(noDrawing)).toBeVisible({ timeout: 15_000 });
@@ -453,16 +458,47 @@ test.describe('U03 UI verify — SCR-11 quality gate (CP-2, needs CP-4)', () => 
       },
     );
   });
+});
+
+/*
+ * BUG-364: the env drawing is straight, so CP-2 never shows "Tự động nắn" nor a "poor" metric (run-23: both cases skipped
+ * on `data:`). These two states run on a project of their own whose drawing is the env PNG turned 8° (support/drawingSeed.ts):
+ * SKEW_DETECTED gives "Tự động nắn", 8° ≥ 5° is "poor" and brings the acknowledgement checkbox. Neither is confirmed.
+ */
+test.describe('U03 UI verify — SCR-11 quality gate, skewed drawing (this file uploads it)', () => {
+  let admin: APIRequestContext | undefined;
+  let seeded: SeededDrawing | undefined;
+
+  test.beforeAll(async ({ browser }, testInfo) => {
+    const drawing = process.env.E2E_DRAWING_PNG?.trim() ?? '';
+    test.skip(drawing === '', 'environment: E2E_DRAWING_PNG is not set (qa.config.json env.vars)');
+    testInfo.setTimeout(PIPELINE_TIMEOUT_MS + 60_000);
+    const { email, password } = readAdminCredentials();
+    admin = await signedInApi(email, password);
+    seeded = await createSkewedDrawingProject(admin, 'u03-skew', await rotatedPng(browser, drawing, SKEW_DEG));
+  });
+
+  test.afterAll(async () => {
+    try {
+      const failure = admin && seeded ? await deleteSeededProject(admin, seeded.projectId) : null;
+      if (failure !== null) test.info().annotations.push({ type: 'cleanup', description: failure });
+    } finally {
+      await admin?.dispose();
+    }
+  });
+
+  const skewed = (): string => {
+    if (seeded === undefined) throw new Error('setup: the skewed-drawing project was not created');
+    return seeded.projectId;
+  };
 
   test('U03 · SCR-11 quality, "Tự động nắn" → confirm dialog (not confirmed)', async ({ browser }) => {
     await verifyAsAdmin(
       browser,
       'U03_quality_straighten_dialog',
       async (p) => {
-        await openQualityReport(p);
-        const straighten = p.getByRole('button', { name: STRAIGHTEN, exact: true });
-        test.skip((await straighten.count()) === 0, 'data: no finding offers "Tự động nắn" for this drawing');
-        await straighten.click();
+        await openQualityReport(p, skewed());
+        await p.getByRole('button', { name: STRAIGHTEN, exact: true }).click();
         await settled(p.getByRole('dialog', { name: STRAIGHTEN_DIALOG }));
       },
     );
@@ -473,10 +509,9 @@ test.describe('U03 UI verify — SCR-11 quality gate (CP-2, needs CP-4)', () => 
       browser,
       'U03_quality_ack_blocked',
       async (p) => {
-        await openQualityReport(p);
-        const ack = p.getByRole('checkbox', { name: ACK_LABEL, exact: true });
-        // Without the checkbox "Tiếp tục xử lý" would leave for /pipeline: never clicked then.
-        test.skip((await ack.count()) === 0, 'data: no "poor" metric, no acknowledgement checkbox');
+        await openQualityReport(p, skewed());
+        // A "poor" metric renders the checkbox; without it "Tiếp tục xử lý" would leave for /pipeline.
+        await expect(p.getByRole('checkbox', { name: ACK_LABEL, exact: true })).toBeVisible();
         await p.getByRole('button', { name: CONTINUE, exact: true }).click();
         await expect(p.getByText(ACK_BLOCKED, { exact: true })).toBeVisible();
       },
@@ -502,7 +537,10 @@ test.describe('U03 UI verify — SCR-12 processing (CP-2, needs CP-5)', () => {
       await openPipelineDone(p);
       const open = p.getByRole('button', { name: new RegExp(`^${OPEN_DETAIL} `, 'u') }).first();
       // A step only offers the button when it has detail lines (`ProcessingStepList.tsx` hasDetail).
-      test.skip((await open.count()) === 0, 'data: no step has detail lines');
+      // Confirmed product gap, not data (BUG-364): the real gateway answers `stepDetails` unsupported
+      // (processingGateway.ts PROCESSING_MISSING_CAPABILITIES, `readStepDetails` → unsupported), so `detailLabels` is always
+      // empty and no step offers the button. The case runs by itself once that endpoint is wired.
+      test.skip((await open.count()) === 0, 'product: step details not wired (processingGateway.ts stepDetails unsupported)');
       const step = ((await open.getAttribute('aria-label')) ?? '').slice(OPEN_DETAIL.length + 1);
       await open.click();
       await expect(p.getByRole('button', { name: `${CLOSE_DETAIL} ${step}`, exact: true })).toHaveAttribute('aria-expanded', 'true');

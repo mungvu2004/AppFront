@@ -1,0 +1,135 @@
+/**
+ * Own drawing for the SCR-11 states the env drawing never shows (BUG-364): `render_plan(7)` is straight, so it has no
+ * SKEW_DETECTED finding ("Tự động nắn") and no "poor" metric (acknowledgement checkbox). This rotates that PNG by
+ * {@link SKEW_DEG} in a browser canvas (no image dependency), uploads it to a run-unique `qa-<runId>-…` project through
+ * the real API (FE body: uploadTask.ts; same calls as `phase03_pipeline_api.spec.ts` happy path) and waits until the
+ * quality read (#30) lists the skew finding. Pattern of `layerSeed.ts` (phase 04): create → seed → caller deletes.
+ *
+ * Why 8°: BE packages/vision/quality/thresholds.py and FE src/domain/quality/thresholds.ts agree that |skew| > 0.5° is a
+ * SKEW_DETECTED finding (`actionKind: 'straighten'`, useInputQualityGate.ts:314-323) and ≥ 5° is "poor", which makes
+ * `requiresAcknowledgement` true (useInputQualityGate.ts:1018). `estimate_skew` folds into (-45°, 45°] (geometry.py).
+ *
+ * Budget per seeded project: `POST /api/projects` 1, `GET /api/projects/:id` 1, upload init/chunk/complete 3, progress
+ * and quality polls, `DELETE` 1 (by the caller) — one real pipeline run of the fake ML.
+ */
+import { readFileSync } from 'node:fs';
+
+import { expect, type APIRequestContext, type Browser } from '@playwright/test';
+
+import { ImageQualityAssessmentSchema } from '../../../src/api/schemas/quality';
+import { PIPELINE_TIMEOUT_MS } from '../../../e2e/fullstack/env';
+import { TEST_DATA_PREFIX } from './evidence';
+
+type Json = Record<string, unknown>;
+
+const PROJECTS = '/api/projects';
+/** ≥ 5°: "poor" skew on both sides (see the file comment). */
+export const SKEW_DEG = 8;
+/** `UPLOAD_CHUNK_BYTES` (BE drawings/settings.py:131): one chunk keeps the upload to init → chunk 0 → complete. */
+const CHUNK_BYTES = 5 * 1024 * 1024;
+
+export interface SeededDrawing {
+  readonly projectId: string;
+  readonly floorId: string;
+  readonly floorName: string;
+}
+
+const asRecord = (value: unknown, what: string): Json => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error(`${what}: not a JSON object`);
+  return value as Json;
+};
+
+/** The PNG at `pngPath` rotated by `deg` on a white canvas large enough to keep every corner. */
+export async function rotatedPng(browser: Browser, pngPath: string, deg: number): Promise<Buffer> {
+  const page = await browser.newPage();
+  try {
+    const dataUrl = await page.evaluate(
+      async ({ src, angle }) => {
+        const img = new Image();
+        img.src = src;
+        await img.decode();
+        const rad = (angle * Math.PI) / 180;
+        const w = Math.ceil(img.width * Math.abs(Math.cos(rad)) + img.height * Math.abs(Math.sin(rad)));
+        const h = Math.ceil(img.width * Math.abs(Math.sin(rad)) + img.height * Math.abs(Math.cos(rad)));
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (ctx === null) throw new Error('no 2d canvas');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+        ctx.translate(w / 2, h / 2);
+        ctx.rotate(rad);
+        ctx.drawImage(img, -img.width / 2, -img.height / 2);
+        return canvas.toDataURL('image/png');
+      },
+      { src: `data:image/png;base64,${readFileSync(pngPath).toString('base64')}`, angle: deg },
+    );
+    return Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64');
+  } finally {
+    await page.close();
+  }
+}
+
+/** Deletes a fixture project; 200 / 404 are fine, anything else is returned for an annotation, never thrown. */
+export async function deleteSeededProject(api: APIRequestContext, projectId: string): Promise<string | null> {
+  try {
+    const res = await api.delete(`${PROJECTS}/${projectId}`);
+    return res.status() === 200 || res.status() === 404 ? null : `DELETE ${PROJECTS}/${projectId} → ${String(res.status())}`;
+  } catch (error) {
+    return `DELETE ${PROJECTS}/${projectId}: ${String(error)}`;
+  }
+}
+
+/**
+ * Project `qa-<runId>-<slug>-<uniq>` with one floor holding `png` as its drawing; resolves once #30 reports the floor
+ * measured with a SKEW_DETECTED finding. Deletes the project again when any setup step fails.
+ */
+export async function createSkewedDrawingProject(api: APIRequestContext, slug: string, png: Buffer): Promise<SeededDrawing> {
+  expect(png.length, 'fixture drawing fits one upload chunk').toBeLessThanOrEqual(CHUNK_BYTES);
+  const name = `${TEST_DATA_PREFIX}${slug}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const floorName = 'Tầng 1';
+  const created = await api.post(PROJECTS, {
+    data: { name, floors: [{ name: floorName, order: 0, elevationMm: 0, heightMm: 3_000 }] },
+  });
+  expect(created.status(), `setup: POST ${PROJECTS} "${name}"`).toBe(201);
+  const projectId = asRecord(await created.json(), `POST ${PROJECTS}`).id;
+  if (typeof projectId !== 'string' || projectId === '') throw new Error(`POST ${PROJECTS}: no project id`);
+  try {
+    const read = await api.get(`${PROJECTS}/${projectId}`);
+    expect(read.status(), `setup: GET ${PROJECTS}/${projectId}`).toBe(200);
+    const rows = asRecord(await read.json(), `GET ${PROJECTS}/:id`).floors;
+    const floorId = Array.isArray(rows) ? asRecord(rows[0], 'floor').id : undefined;
+    if (typeof floorId !== 'string') throw new Error('setup: the fixture floor was not created');
+
+    // #5 init → #6 chunk 0 → #7 complete (drawings/router.py; FE body uploadTask.ts:424-433).
+    const base = `${PROJECTS}/${projectId}/drawings/uploads`;
+    const init = await api.post(`${PROJECTS}/${projectId}/floors/${floorId}/drawings/uploads`, {
+      data: { fileName: `${name}.png`, floorId, mimeType: 'image/png', projectId, sizeBytes: png.length },
+    });
+    expect(init.status(), 'setup: upload init (#5)').toBe(200);
+    const uploadId = String(asRecord(await init.json(), 'init').id);
+    const chunk = await api.post(`${base}/${uploadId}/chunks`, { data: { chunk: png.toString('base64'), chunkIndex: 0 } });
+    expect(chunk.status(), 'setup: upload chunk 0 (#6)').toBe(200);
+    const done = await api.post(`${base}/${uploadId}/complete`, { data: { uploadId } });
+    expect(done.status(), `setup: upload complete (#7): ${(await done.text()).slice(0, 300)}`).toBe(200);
+
+    // #30 answers 404 until the drawing is stored, then `isMeasured` once the quality step has run.
+    await expect
+      .poll(
+        async () => {
+          const res = await api.get(`${PROJECTS}/${projectId}/floors/${floorId}/quality`);
+          if (res.status() !== 200) return `#30 ${String(res.status())}`;
+          const floor = ImageQualityAssessmentSchema.parse(await res.json()).floors.find((f) => f.floorId === floorId);
+          if (floor?.isMeasured !== true) return 'not measured';
+          return floor.findings.some((f) => f.code === 'SKEW_DETECTED') ? 'skew' : `findings ${floor.findings.map((f) => f.code).join(',')}`;
+        },
+        { message: `setup: #30 lists SKEW_DETECTED for the ${String(SKEW_DEG)}° drawing`, timeout: PIPELINE_TIMEOUT_MS, intervals: [2_000] },
+      )
+      .toBe('skew');
+    return { projectId, floorId, floorName };
+  } catch (error) {
+    await deleteSeededProject(api, projectId);
+    throw error;
+  }
+}
