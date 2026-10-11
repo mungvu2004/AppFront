@@ -419,6 +419,25 @@ type ServerProblems = Partial<Record<SettingsProblemKey, string>>;
 
 const LIMITS = PROJECT_SETTINGS_LIMITS;
 
+// Cùng luật BE `packages/core/text.py` `first_forbidden_char(bidi_marks=True)`: Cc, LRM/RLM, đảo chiều.
+// eslint-disable-next-line no-control-regex -- ký tự điều khiển chính là thứ cần bắt
+const CONTROL_CHAR = /[\u0000-\u001F\u007F-\u009F]/u;
+const BIDI_CHAR = /[\u200E\u200F\u202A-\u202E\u2066-\u2069]/u;
+
+/**
+ * Ký tự BE từ chối (422) thì chặn ngay tại ô, nêu đúng ký tự: một câu thay ba câu "máy chủ
+ * không nhận" không nói vì sao (BUG-356). Ghi chú được giữ xuống dòng và tab như BE.
+ */
+function forbiddenCharProblem(label: string, text: string, allowsLineBreaks = false): string | null {
+  for (const char of text) {
+    const isControl = CONTROL_CHAR.test(char) && !(allowsLineBreaks && (char === '\n' || char === '\t'));
+    if (!isControl && !BIDI_CHAR.test(char)) continue;
+    const codePoint = `U+${(char.codePointAt(0) ?? 0).toString(16).toUpperCase().padStart(4, '0')}`;
+    return `${label} có ${isControl ? 'ký tự điều khiển' : 'ký tự đảo chiều chữ'} (${codePoint}); hãy xoá ký tự đó.`;
+  }
+  return null;
+}
+
 function nameProblemFor(name: string): string | null {
   const trimmed = name.trim();
   if (trimmed.length === 0) return 'Chưa nhập tên dự án.';
@@ -428,7 +447,7 @@ function nameProblemFor(name: string): string | null {
   if (trimmed.length > LIMITS.nameMaxLength) {
     return `Tên dự án không quá ${formatNumber(LIMITS.nameMaxLength, { grouping: false })} ký tự.`;
   }
-  return null;
+  return forbiddenCharProblem('Tên dự án', trimmed);
 }
 
 /**
@@ -440,7 +459,7 @@ function codeProblemFor(code: string, savedCode: string): string | null {
   if (code.length > LIMITS.codeMaxLength) {
     return `Mã dự án không quá ${formatNumber(LIMITS.codeMaxLength, { grouping: false })} ký tự.`;
   }
-  return null;
+  return forbiddenCharProblem('Mã dự án', code.trim());
 }
 
 function addressProblemFor(address: string, savedAddress: string): string | null {
@@ -448,14 +467,14 @@ function addressProblemFor(address: string, savedAddress: string): string | null
   if (address.length > LIMITS.addressMaxLength) {
     return `Địa chỉ không quá ${formatNumber(LIMITS.addressMaxLength, { grouping: false })} ký tự.`;
   }
-  return null;
+  return forbiddenCharProblem('Địa chỉ', address.trim());
 }
 
 function notesProblemFor(notes: string): string | null {
   if (notes.length > LIMITS.notesMaxLength) {
     return `Ghi chú không quá ${formatNumber(LIMITS.notesMaxLength, { grouping: false })} ký tự.`;
   }
-  return null;
+  return forbiddenCharProblem('Ghi chú', notes.trim(), true);
 }
 
 function snapProblemFor(value: number | null): string | null {
