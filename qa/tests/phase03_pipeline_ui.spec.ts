@@ -21,11 +21,11 @@
  *   - settings: only an EMPTY "Tên dự án" is typed — a local problem, so autosave sends nothing
  *     (`useProjectSettings.ts` getChanges returns undefined while `hasLocalProblem`); the delete dialog is never confirmed
  *     (its button needs the name typed, `canConfirmDanger`);
- *   - floors: selection, "Nhân bản tầng" (local `duplicatingFloorId`, FloorTable.tsx:236) — "Nhân bản" never clicked —, the
+ *   - floors: selection, "Nhân bản tầng" (local `duplicatingFloorId`, FloorTable.tsx:235) — "Nhân bản" never clicked —, the
  *     row menu, "Ẩn khỏi mô hình 3D" (session only, no write: phase03_pipeline.spec.ts), the "Tự động tính cao độ" switch
- *     (view state, useFloorManager.ts:1058);
+ *     (view state, useFloorManager.ts:1073);
  *   - upload: a .txt is refused in the browser; the env PNG lands in "Tệp chưa gán tầng" (its name names no floor, so
- *     `guessFloor` matches nothing and `startUpload` is not called, useFloorUploadScreen.ts:709-731) and is never assigned;
+ *     `guessFloor` matches nothing and `startUpload` is not called, useFloorUploadScreen.ts:723-745) and is never assigned;
  *     "Bắt đầu xử lý" with a file-less floor only shows the block notice (`submit`, no request);
  *   - quality: "Tự động nắn" dialog never confirmed, corner pick never applied, "Tiếp tục xử lý" only clicked while the
  *     acknowledgement is unticked (stays on the page);
@@ -68,14 +68,14 @@ const FLOORS_TITLE = 'Quản lý tầng';
 const SECTION_LABEL = 'Lát cắt các tầng theo đúng tỷ lệ chiều cao';
 const COLLAPSE_SECTION = 'Thu gọn lát cắt';
 const EXPAND_SECTION = 'Hiện lát cắt';
-const DUPLICATE_SELECTED = 'Nhân bản tầng'; // FloorTable.tsx:72
-const CONFIRM_DUPLICATE = 'Nhân bản'; // FloorTableRow.tsx:56 — never clicked
-const COPY_FURNITURE = 'Sao chép nội thất sang tầng mới'; // FloorTableRow.tsx:55
+const DUPLICATE_SELECTED = 'Nhân bản tầng'; // FloorTable.tsx:79
+const CONFIRM_DUPLICATE = 'Nhân bản'; // FloorTableRow.tsx:76 — never clicked
+const COPY_FURNITURE = 'Sao chép nội thất sang tầng mới'; // FloorTableRow.tsx:57
 const AUTO_ELEVATION = 'Tự động tính cao độ';
 const HIDE_IN_3D = 'Ẩn khỏi mô hình 3D';
 const HIDE_3D_NOTICE =
   'Ẩn tầng khỏi mô hình 3D chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang.'; // floorManagerGateway.ts:213 (capital D; phase03_pipeline.spec.ts still has "3d")
-const FLOORS_EMPTY_TITLE = 'Chưa có tầng nào'; // FloorTable.tsx:69
+const FLOORS_EMPTY_TITLE = 'Chưa có tầng nào'; // FloorTable.tsx:76
 const FLOORS_EMPTY_NOTICE = 'Thêm tầng đầu tiên, hoặc nhập số tầng từ màn hình tạo dự án.'; // useFloorManager.ts:178
 /* SCR-10: FloorUploadScreen.tsx, FloorUploadDropZone.tsx, FloorUploadFooter.tsx, useFloorUploadScreen.ts. */
 const DROPZONE = 'floor-upload-dropzone';
@@ -323,8 +323,8 @@ test.describe('U03 UI verify — SCR-09 floors (CP-2)', () => {
       await openFloors(p, cp2());
       const auto = p.getByRole('switch', { name: AUTO_ELEVATION, exact: true });
       const elevationInputs = p.getByRole('textbox', { name: /^Cao độ tầng /u });
-      // BUG-264: the switch starts off (useFloorManager.ts:501), so "off" alone is the plain table. Prove the switch
-      // drives the inputs: on → elevations are read-only text (FloorTableRow.tsx:250), then off → inputs again (the shot).
+      // BUG-264: the switch starts off (useFloorManager.ts:516), so "off" alone is the plain table. Prove the switch
+      // drives the inputs: on → elevations are read-only text (FloorTableRow.tsx:278), then off → inputs again (the shot).
       if ((await auto.getAttribute('aria-checked')) !== 'true') await auto.click();
       await expect(auto).toHaveAttribute('aria-checked', 'true');
       await expect(elevationInputs).toHaveCount(0);
@@ -348,7 +348,7 @@ test.describe('U03 UI verify — SCR-09 floors (CP-2)', () => {
       await p.getByRole('button', { name: `Thao tác khác cho tầng ${first ?? ''}`, exact: true }).click();
       await p.getByRole('menuitem', { name: HIDE_IN_3D, exact: true }).click();
       // The session-only sentence (HIDE_3D_NOTICE) is on screen from the start (`unsupportedNotices`); what the click
-      // changes is the row (`opacity-50`, FloorTableRow.tsx:179) and its band (`border-dashed`, FloorSectionCut.tsx:102).
+      // changes is the row (`opacity-50`, FloorTableRow.tsx:205) and its band (`border-dashed`, FloorSectionCut.tsx:102).
       await expect(p.locator('tr.opacity-50')).toHaveCount(1);
       await expect(p.getByText(HIDE_3D_NOTICE, { exact: true }).first()).toBeVisible();
     });
