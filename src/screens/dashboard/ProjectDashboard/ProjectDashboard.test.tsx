@@ -92,6 +92,7 @@ function baseProps(): ProjectDashboardViewProps {
     pendingDeleteId: null,
     pendingDeleteName: null,
     deleteErrorMessage: null,
+    isDeleting: false,
     unreadNotice: null,
     setSearchQuery: noop,
     setStatusFilter: noop,

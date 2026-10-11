@@ -321,6 +321,31 @@ describe('useProjectDashboard delete', () => {
     expect(onToast).not.toHaveBeenCalled();
   });
 
+  it('sends one #27 for a double click on "Xoá dự án", and says it is busy meanwhile (BUG-146)', async () => {
+    const server = fakeServer([project()]);
+    let finish: () => void = () => undefined;
+    server.remove.mockImplementationOnce(() => new Promise<void>((resolve) => {
+        finish = resolve;
+      }));
+    mount({ gateway: server.gateway });
+    await waitFor(() => expect(dash().model.rows).toHaveLength(1));
+
+    act(() => dash().actions.requestDelete('prj-1'));
+    const { confirmDelete } = dash().actions;
+    act(() => {
+      confirmDelete();
+      confirmDelete();
+    });
+
+    expect(server.remove).toHaveBeenCalledTimes(1);
+    expect(dash().model.isDeleting).toBe(true);
+    await act(async () => {
+      finish();
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(dash().model.isDeleting).toBe(false));
+  });
+
   it('keeps the dialog and the row, and explains, when #27 fails', async () => {
     const server = fakeServer([project()]);
     server.remove.mockRejectedValueOnce(httpError(500, 'SOMETHING_NEW'));

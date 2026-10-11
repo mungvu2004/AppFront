@@ -34,7 +34,7 @@
  * ships with a stale `status: 'done'` and an unfinished review.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient, type QueryFunction } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
@@ -155,6 +155,8 @@ export interface ProjectDashboardModel {
   readonly pendingDeleteName: string | null;
   /** Why the delete dialog stays open after #27 failed; null otherwise. */
   readonly deleteErrorMessage: string | null;
+  /** #27 is in flight: "Xoá dự án" waits, so a second click sends nothing. */
+  readonly isDeleting: boolean;
   /** "Có {N} dự án chưa đọc được" when N1 dropped rows; null otherwise. */
   readonly unreadNotice: string | null;
 }
@@ -264,6 +266,9 @@ export function useProjectDashboard(
   const [renameDraft, setRenameDraft] = useState('');
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [deleteErrorMessage, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  // A ref, not the state: a double click lands twice before React re-renders (BUG-146).
+  const deleteInFlight = useRef(false);
   const [pulseKey, setPulseKey] = useState(0);
   const [hasEnteredOnce, setHasEnteredOnce] = useState(false);
   const [telemetry] = useState(() =>
@@ -458,8 +463,10 @@ export function useProjectDashboard(
 
   /** #27 first; the row leaves only once the server has deleted it. A9 asked already, so no undo toast. */
   const confirmDelete = async (): Promise<void> => {
-    if (pendingDeleteId === null) return;
+    if (pendingDeleteId === null || deleteInFlight.current) return;
     const id = pendingDeleteId;
+    deleteInFlight.current = true;
+    setIsDeleting(true);
     setDeleteError(null);
     try {
       await gateway.remove(id);
@@ -469,6 +476,9 @@ export function useProjectDashboard(
         setDeleteError(deleteErrorMessageOf(error));
         return;
       }
+    } finally {
+      deleteInFlight.current = false;
+      setIsDeleting(false);
     }
     setProjects((previous) => previous.filter((entry) => entry.id !== id));
     setPendingDeleteId(null);
@@ -496,6 +506,7 @@ export function useProjectDashboard(
     pendingDeleteId,
     pendingDeleteName: pendingDeleteProject?.name ?? null,
     deleteErrorMessage,
+    isDeleting,
     unreadNotice: droppedCount > 0 ? `Có ${formatNumber(droppedCount, { grouping: false })} dự án chưa đọc được` : null,
   };
 

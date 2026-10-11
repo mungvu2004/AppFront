@@ -352,7 +352,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           <Button variant="ghost" onClick={props.cancelDelete}>
             Để nguyên
           </Button>
-          <Button variant="danger" onClick={props.confirmDelete}>
+          <Button variant="danger" onClick={props.confirmDelete} loading={props.isDeleting}>
             Xoá dự án
           </Button>
         </Modal.Footer>
