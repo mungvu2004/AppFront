@@ -248,6 +248,21 @@ describe('thành viên trong useProjectSettings', () => {
     expect(server.membersRemove.mock.calls[0]?.[0]).toMatchObject({ projectId: PROJECT_ID, userId: NEWCOMER_USER.id });
   });
 
+  // BUG-207: the undo that failed is an error toast (red dot), not a plain notice.
+  it('hoàn tác thêm người hỏng: toast lỗi mang trạng thái violation (BUG-207)', async () => {
+    const server = await createFakeServer();
+    const hook = await mount(server);
+
+    await addEmail(hook, 'newcomer@example.com');
+    server.membersRemove.mockResolvedValueOnce({ ok: false, error: httpError(500, 'INTERNAL') });
+    await act(async () => {
+      (hook.onToast.mock.calls[0]?.[0] as { onUndo?: () => void }).onUndo?.();
+      await clock.flushMicrotasks();
+    });
+
+    expect(hook.onToast.mock.calls.at(-1)?.[0]).toEqual({ message: 'Không gỡ lại được người vừa thêm.', state: 'violation' });
+  });
+
   it('MEMBER_USER_UNAVAILABLE: câu "chưa có tài khoản đang hoạt động", không toast', async () => {
     const server = await createFakeServer();
     const hook = await mount(server);

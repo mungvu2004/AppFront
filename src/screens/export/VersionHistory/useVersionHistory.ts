@@ -393,7 +393,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
             if (flushed === 'discarded') await reloadFloor();
             // Lỗi ném thì phiếu còn dùng (gateway): toast cũ đã đóng, nên mời bấm lại khi còn hạn.
             if (ticket.getStatus() === 'active') {
-              onToast?.({ message: UNDO_RETRY_TOAST, onUndo: () => void attempt(ticket) });
+              onToast?.({ message: UNDO_RETRY_TOAST, onUndo: () => void attempt(ticket), state: 'violation' });
             }
           }
         } finally {

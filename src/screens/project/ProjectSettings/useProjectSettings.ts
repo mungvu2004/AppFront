@@ -266,7 +266,7 @@ export interface UseProjectSettingsOptions {
   readonly forceCollapsed?: boolean;
   readonly announcer?: Announcer;
   /** Toast hoàn tác của A8. Tiêm vào; `Toast.Provider` do nơi gọi dựng. */
-  readonly onToast?: (toast: { readonly message: string; readonly onUndo?: () => void }) => void;
+  readonly onToast?: (toast: { readonly message: string; readonly onUndo?: () => void; readonly state?: 'attention' | 'violation' }) => void;
   /**
    * Gọi sau khi dự án đã bị xoá, để nơi gọi điều hướng đi nơi khác — và mang theo
    * câu báo kết quả. Có hàm này thì hook KHÔNG toast tại chỗ: nơi gọi sắp rời màn,
@@ -1167,12 +1167,14 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
       const { deletedCount, failedFloorIds } = result.data;
       const deleted = formatNumber(deletedCount, { grouping: false });
 
-      options.onToast?.({
-        message:
-          failedFloorIds.length === 0
-            ? `Đã xoá ${deleted} tầng của dự án.`
-            : `Đã xoá ${deleted} tầng; còn ${formatNumber(failedFloorIds.length, { grouping: false })} tầng chưa xoá được.`,
-      });
+      options.onToast?.(
+        failedFloorIds.length === 0
+          ? { message: `Đã xoá ${deleted} tầng của dự án.` }
+          : {
+              message: `Đã xoá ${deleted} tầng; còn ${formatNumber(failedFloorIds.length, { grouping: false })} tầng chưa xoá được.`,
+              state: 'attention',
+            },
+      );
     });
   };
 

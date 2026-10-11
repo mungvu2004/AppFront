@@ -364,6 +364,8 @@ export interface VersionHistoryProps {
 export interface VersionHistoryToast {
   readonly message: string;
   readonly onUndo?: () => void;
+  /** Lỗi mang `violation` (chấm đỏ); vắng là thông báo thường, chấm trung tính (BUG-207). */
+  readonly state?: 'attention' | 'violation';
 }
 
 /* ── Cổng dữ liệu ────────────────────────────────────────────────────────────────────────── */
