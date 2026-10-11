@@ -107,6 +107,7 @@ import { formatNumber } from '@/lib/format/number';
 import { describeConfidence } from '@/lib/format/semantic';
 import { getAppAnnouncer } from '@/lib/input/announcer';
 import { createOptimisticMutation } from '@/lib/mutations/createOptimisticMutation';
+import { cachedProjectName } from '@/lib/query/cachedProjectName';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys } from '@/lib/query/queryKeys';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
@@ -482,15 +483,19 @@ export function useInputQualityGate(
   const floorsQuery = useQuery({
     queryKey: queryKeys.floor.list(projectId),
     queryFn: async ({ signal }): Promise<readonly Floor[]> => {
-      const result = await gateway.readFloors({ projectId, signal });
+      const result = await gateway.readProject({ projectId, signal });
 
       if (!result.ok) {
         throw result.error;
       }
 
-      return result.data;
+      // Cùng lượt #24 mang tên dự án: gieo vào khoá của nó để breadcrumb nêu tên (BUG-362).
+      queryClient.setQueryData(queryKeys.project.detail(projectId), result.data);
+      return result.data.floors;
     },
   });
+  // Đọc sau `floorsQuery`: lượt #24 về thì màn vẽ lại và tên đã nằm trong bộ đệm.
+  const projectName = cachedProjectName(queryClient, projectId);
 
   const projectFloors = useMemo<readonly Floor[]>(
     () => [...(floorsQuery.data ?? [])].sort((first, second) => first.order - second.order),
@@ -1303,6 +1308,7 @@ export function useInputQualityGate(
     footer,
     errorMessage: status === 'error' ? failureSentence : null,
     isProjectMissing: status === 'error' && isProjectMissing,
+    ...(projectName !== null ? { projectName } : {}),
     // Không rõ thì cho thử lại, như `useProjectSettings`: nút thừa rẻ hơn ngõ cụt.
     canRetryLoad: status === 'error' && (failure?.isRetryable ?? true),
     partialNotice,

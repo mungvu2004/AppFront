@@ -240,6 +240,22 @@ describe('useInputQualityGate — mồi tầng', () => {
   });
 });
 
+describe('useInputQualityGate — breadcrumb', () => {
+  // BUG-362: "Dự án › Kiểm tra chất lượng đầu vào" lost the project level on a direct open.
+  it('mở thẳng đường dẫn: tên dự án lấy từ chính lượt #24 đọc tầng, không thêm lượt gọi (BUG-362)', async () => {
+    const harness = createHarness();
+    const project = await harness.client.projects.read({ projectId: PROJECT_ID });
+    if (!project.ok) throw new Error('Không đọc được dự án mẫu.');
+    const read = vi.spyOn(harness.client.projects, 'read');
+    const mounted = mountHook(harness);
+
+    await ready(mounted);
+
+    expect(mounted.result.current.model.projectName).toBe(project.data.name);
+    expect(read).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('useInputQualityGate — dự báo độ tin cậy', () => {
   // BUG-355: BE v1 never sends `expectedConfidence`, and the line said "bản vẽ chưa đo xong"
   // right above "Các tầng đã đo" listing that very floor.

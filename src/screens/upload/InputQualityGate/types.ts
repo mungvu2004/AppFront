@@ -292,6 +292,8 @@ export interface InputQualityGateModel {
   readonly errorMessage: string | null;
   /** `'error'` vì danh sách tầng trả 404 — dự án không tồn tại; lối ra là danh sách dự án (BUG-074). */
   readonly isProjectMissing: boolean;
+  /** Tên dự án cho breadcrumb; vắng khi bộ đệm chưa có (BUG-362). */
+  readonly projectName?: string;
   /** `'error'` mà lượt đọc thử lại được (mạng, hết giờ, 5xx…). */
   readonly canRetryLoad: boolean;
   readonly partialNotice: string | null;
