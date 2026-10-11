@@ -168,7 +168,8 @@ export function InputQualityGateImagePanel({ actions, image }: InputQualityImage
           />
         )}
 
-        <ZoomCluster />
+        {/* Đang chọn góc thì cụm thu phóng nhường góc dưới phải cho tay nắm (BUG-292). */}
+        <ZoomCluster isVisible={image.corners === null} />
       </div>
 
       {image.skewLine === null ? null : (

@@ -964,6 +964,23 @@ describe('InputQualityGateView — ba trạng thái mới của F-05a', () => {
     }
   });
 
+  // BUG-292: the handles were 10×10 and the bottom-right one sat on the zoom cluster's "Phóng to".
+  it('picking corners: each handle offers a ≥ 24 px target and the zoom cluster steps aside (BUG-292)', () => {
+    const base = scenarioFor('success');
+    const corners = [
+      { id: 'tl', xRatio: 0.03, yRatio: 0.03 },
+      { id: 'br', xRatio: 0.97, yRatio: 0.97 },
+    ];
+    renderWithProviders(
+      <InputQualityGateView {...base} model={{ ...base.model, image: { ...base.model.image, corners } }} />,
+    );
+
+    const handle = screen.getByRole('button', { name: 'Góc dưới bên phải' });
+    expect(Number.parseFloat(handle.style.width)).toBeGreaterThanOrEqual(24);
+    expect(Number.parseFloat(handle.style.height)).toBeGreaterThanOrEqual(24);
+    expect(screen.queryByRole('group', { name: 'Cụm thu phóng' })).toBeNull();
+  });
+
   it('lỗi ghi hiện thành dải phía trên hai cột, bằng tiếng Việt', () => {
     const { container } = renderWithProviders(<InputQualityGateView {...writeErrorScenario()} />);
 
