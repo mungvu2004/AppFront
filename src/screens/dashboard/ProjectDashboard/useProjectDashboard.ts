@@ -444,7 +444,8 @@ export function useProjectDashboard(
   const commitRename = (): void => {
     if (renamingId === null) return;
     const project = projectById.get(renamingId);
-    const trimmed = renameDraft.trim();
+    // Trim then NFC, as the server counts (AppBack projects/schemas.py): a pasted NFD name is not refused as too long.
+    const trimmed = renameDraft.trim().normalize('NFC');
     setRenamingId(null);
     if (project === undefined || trimmed === '' || trimmed === project.name) return;
     if (trimmed.length < PROJECT_NAME_MIN_LENGTH || trimmed.length > PROJECT_NAME_MAX_LENGTH) {

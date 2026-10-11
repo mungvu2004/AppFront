@@ -147,7 +147,7 @@ async function waitForVisualRest(page: Page, budgetMs = 3_000): Promise<void> {
     .evaluate(async (budget) => {
       const deadline = performance.now() + budget;
       const sample = (): string =>
-        [...document.querySelectorAll('[role="status"], [role="list"] > li')]
+        [...document.querySelectorAll('[role="status"], [role="listitem"], li')]
           .slice(0, 80)
           .map((el) => {
             const r = el.getBoundingClientRect();

@@ -725,7 +725,7 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
     });
   });
 
-  test('U02 · SCR-05 wizard [mocked response] server 422 field "code": violation notice, "Sửa ở bước 1", "Tạo dự án" stays usable', async ({ browser }) => {
+  test('U02 · SCR-05 wizard [mocked response] server 422 field "code": violation notice, "Sửa ở bước 1", "Tạo dự án" locked until the code changes', async ({ browser }) => {
     test.setTimeout(240_000);
     // pair: phase02_dashboard_api.spec.ts "create body rules" — the real BE answers 422 VALIDATION with field "code" (see file header).
     await verifyAsAdmin(
@@ -746,7 +746,8 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
         await expect(dialog.getByText(SERVER_REFUSED_CODE_NOTICE, { exact: true })).toBeVisible();
         await expect(dialog.getByText(VALIDATION_DESCRIPTION, { exact: true })).toHaveCount(0);
         await expect(dialog.getByRole('button', { name: FIX_AT_STEP_1, exact: true })).toBeVisible();
-        await expect(dialog.getByRole('button', { name: CREATE_PROJECT, exact: true })).toBeEnabled();
+        // useCreateProjectModal pins the refusal to the code it named: "Tạo dự án" stays locked until it is edited.
+        await expect(dialog.getByRole('button', { name: CREATE_PROJECT, exact: true })).toBeDisabled();
         await settled(dialog);
       },
       (context) =>

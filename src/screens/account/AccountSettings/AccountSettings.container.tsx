@@ -56,25 +56,31 @@ function AccountSettingsCrashFallback({ report, retry }: ScreenErrorFallback) {
  */
 function useScrollToHashBlock(isLoading: boolean): void {
   useEffect(() => {
-    const id = window.location.hash.slice(1);
-
-    if (isLoading || id === '') {
-      return;
+    if (isLoading) {
+      return undefined;
     }
 
-    const target = document.getElementById(id);
+    const scrollToHash = (): void => {
+      const id = window.location.hash.slice(1);
+      const target = id === '' ? null : document.getElementById(id);
 
-    if (target === null) {
-      return;
-    }
+      if (target === null) {
+        return;
+      }
 
-    if (typeof target.scrollIntoView === 'function') {
-      target.scrollIntoView({ block: 'start' });
-    }
+      if (typeof target.scrollIntoView === 'function') {
+        target.scrollIntoView({ block: 'start' });
+      }
 
-    // Tiêu đề không nằm trong thứ tự Tab: chỉ nhận tiêu điểm khi được trỏ tới bằng neo.
-    target.setAttribute('tabindex', '-1');
-    target.focus({ preventScroll: true });
+      // Tiêu đề không nằm trong thứ tự Tab: chỉ nhận tiêu điểm khi được trỏ tới bằng neo.
+      target.setAttribute('tabindex', '-1');
+      target.focus({ preventScroll: true });
+    };
+
+    scrollToHash();
+    // Đang ở sẵn /tai-khoan mà bấm bánh răng: chỉ hash đổi, trang không tải lại (review QA-02 P2-7).
+    window.addEventListener('hashchange', scrollToHash);
+    return () => window.removeEventListener('hashchange', scrollToHash);
   }, [isLoading]);
 }
 

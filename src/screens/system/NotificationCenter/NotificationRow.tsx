@@ -24,6 +24,16 @@ const ICON_STROKE = 1.5;
 /** Mili giây sang giây cho framer-motion — cùng phép chia `HistoryPanel.rows.tsx:62`. */
 const MS_IN_ONE_SECOND = 1000;
 
+/**
+ * The note replaces the accept button once the server says yes; the button it replaces held focus, so focus
+ * would fall to <body>. Take it only when it is orphaned, never from another control.
+ */
+function takeOrphanedFocus(note: HTMLSpanElement | null): void {
+  if (note !== null && (document.activeElement === null || document.activeElement === document.body)) {
+    note.focus({ preventScroll: true });
+  }
+}
+
 /** Bốn loại, bốn hình — bảng đóng: loại thứ năm sẽ hỏng ở bước typecheck. */
 const KIND_ICON: Readonly<Record<NotificationKind, typeof Sparkles>> = {
   aiCompleted: Sparkles,
@@ -111,17 +121,21 @@ export function NotificationRow({
         <div className="flex items-center gap-2">
           <span className="whitespace-nowrap text-[13px] leading-[18px] text-text-muted">{item.relativeTime}</span>
           {item.inlineAction !== undefined && (
+            // While the accept is in flight the button is `aria-disabled`, not `disabled`: a disabled button
+            // drops keyboard focus to <body> inside the sheet (WCAG 2.4.3, review QA-02 P2-5).
             <Button
               variant="secondary"
               size="sm"
-              disabled={item.inlineAction.disabled === true}
-              onClick={() => onInlineAction(item)}
+              aria-disabled={item.inlineAction.disabled === true || undefined}
+              onClick={() => {
+                if (item.inlineAction?.disabled !== true) onInlineAction(item);
+              }}
             >
               {item.inlineAction.label}
             </Button>
           )}
           {item.statusNote !== undefined && (
-            <span className="text-[13px] font-medium leading-[18px] text-text-secondary">
+            <span ref={takeOrphanedFocus} tabIndex={-1} className="text-[13px] font-medium leading-[18px] text-text-secondary outline-none">
               {item.statusNote}
             </span>
           )}

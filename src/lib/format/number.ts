@@ -238,8 +238,11 @@ export function formatPercent(value: MaybeNumber, options: PercentFormatOptions 
   return percentFormatter(digits).format(withoutNegativeZero(ratio));
 }
 
-/** `"4.250"`, `"-1.234.567"`: digits whose dots each start a group of exactly three. */
-const THOUSANDS_GROUPED = /^[-+]?\d{1,3}(?:\.\d{3})+$/u;
+/**
+ * `"4.250"`, `"-1.234.567"`, `"3.450 mm"`: a leading number whose dots each start a group of exactly three.
+ * Only the numeric prefix is checked, so a unit after it (`formatLength(3450, { unit: 'mm' })`) still reads as 3450.
+ */
+const THOUSANDS_GROUPED = /^[-+]?\d{1,3}(?:\.\d{3})+(?![\d.])/u;
 
 /**
  * Read a number a person typed in Vietnamese notation: `"4.250,50"` is `4250.5`.

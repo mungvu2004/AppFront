@@ -180,6 +180,7 @@ describe('createFocusTrap', () => {
 
     document.body.addEventListener('keydown', reachedBody);
     createFocusTrap(dialog, { onEscape }).activate();
+    first.setAttribute('role', 'combobox');
     first.setAttribute('aria-expanded', 'true');
     first.focus();
 
@@ -189,6 +190,19 @@ describe('createFocusTrap', () => {
     expect(reachedBody).toHaveBeenCalledTimes(1);
 
     document.body.removeEventListener('keydown', reachedBody);
+  });
+
+  it('still closes the layer on Escape from an open disclosure button, which owns no popup', () => {
+    const { dialog, first } = buildDialog();
+    const onEscape = vi.fn();
+
+    createFocusTrap(dialog, { onEscape }).activate();
+    first.setAttribute('aria-expanded', 'true');
+    first.focus();
+
+    pressKey('Escape');
+
+    expect(onEscape).toHaveBeenCalledTimes(1);
   });
 
   it('lets Escape reach the window arbiter when the trap has no onEscape (H4-2)', () => {

@@ -107,8 +107,13 @@ export function createFocusTrap(
 
       // An open popup inside the layer (a Select's combobox carries
       // aria-expanded="true") is the top layer: Esc is its own to close,
-      // not the dialog's (invariant A12, BUG-152).
-      if (event.target instanceof Element && event.target.getAttribute('aria-expanded') === 'true') {
+      // not the dialog's (invariant A12, BUG-152). An open disclosure button
+      // also carries aria-expanded but owns no popup, so it does not count.
+      if (
+        event.target instanceof Element &&
+        event.target.getAttribute('aria-expanded') === 'true' &&
+        (event.target.getAttribute('role') === 'combobox' || event.target.hasAttribute('aria-haspopup'))
+      ) {
         return;
       }
 

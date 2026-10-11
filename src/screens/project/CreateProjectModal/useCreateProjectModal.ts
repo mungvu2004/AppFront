@@ -158,7 +158,8 @@ const NAME_HINT =
   `đến ${formatNumber(PROJECT_LIMITS.nameMaxLength)} ký tự.`;
 
 function localNameProblemFor(name: string): string | null {
-  const trimmed = name.trim();
+  // Counted like the server and like code/address: trim, then NFC (AppBack projects/schemas.py).
+  const trimmed = name.trim().normalize('NFC');
   if (trimmed.length === 0) {
     return 'Chưa nhập tên dự án.';
   }

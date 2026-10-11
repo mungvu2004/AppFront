@@ -56,6 +56,8 @@ export function useCombobox<T>({ value, onChange, options }: UseComboboxProps<T>
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault();
+      // Like useSelect: closing the open list is the whole of this Esc, the dialog under it stays (A12, BUG-152).
+      if (selectHook.isOpen) e.stopPropagation();
       selectHook.handleClose();
       return;
     }
