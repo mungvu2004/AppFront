@@ -471,9 +471,9 @@ export function useNotificationCenter(
    * Lời mời đang chấp nhận / đã chấp nhận. Máy chủ chỉ đánh dấu đã đọc, câu của
    * dòng không đổi, nên kết cục phải được vẽ ở đây (BUG-180).
    *
-   * ponytail: chỉ sống trong phiên của bản hook; tải lại thì dòng về lại có nút
-   * "Chấp nhận" (máy chủ chưa lưu trạng thái đã chấp nhận trên thông báo). Cần
-   * bền thì thêm trường vào gói tin thông báo.
+   * Qua lượt tải lại: lời mời đã đọc không còn nút (`toNotificationItemVm`), nhưng
+   * dòng chữ "Đã chấp nhận" chỉ sống trong phiên — máy chủ không lưu gì ngoài
+   * `isRead`. ponytail: muốn dòng chữ bền thì máy chủ thêm `acceptedAt` vào gói tin.
    */
   const [acceptState, setAcceptState] = useState<ReadonlyMap<string, 'pending' | 'done'>>(
     () => new Map(),
