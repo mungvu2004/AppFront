@@ -37,6 +37,14 @@ function Harness({ tick }: { readonly tick: number }) {
 }
 
 describe('Modal.Root', () => {
+  it('caps its fixed width at the frame, so a fixed-width dialog fits a 375 px screen (nợ B #4)', () => {
+    render(<Harness tick={0} />);
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveStyle({ width: '480px' });
+    expect(dialog).toHaveClass('max-w-full');
+  });
+
   /**
    * The regression this guards: the focus-trap effect used to depend on
    * `onClose`. Every real caller passes a handler that reads current
