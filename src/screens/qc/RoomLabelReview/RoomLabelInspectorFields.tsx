@@ -70,7 +70,7 @@ export function RoomLabelMeasureRows({
 }: RoomLabelMeasureRowsProps) {
   return (
     <div className="flex flex-col">
-      <FieldRow label={AREA_LABEL}>
+      <FieldRow isText label={AREA_LABEL}>
         <span className="flex flex-col justify-center">
           <span className="font-mono text-[14px] text-text-primary">{areaText}</span>
           <small className="text-[12px] text-text-secondary">{areaCaption}</small>
@@ -79,9 +79,9 @@ export function RoomLabelMeasureRows({
       <FieldRow label={PERIMETER_LABEL}>
         <span className="flex h-9 items-center font-mono text-[14px] text-text-primary">{perimeterText}</span>
       </FieldRow>
-      <FieldRow isLast label={CLEAR_HEIGHT_LABEL}>
+      <FieldRow isLast isText={clearHeightText === null} label={CLEAR_HEIGHT_LABEL}>
         {clearHeightText === null ? (
-          <span className="flex items-center py-1 text-[13px] text-text-secondary">{CLEAR_HEIGHT_MISSING}</span>
+          <span className="text-[13px] text-text-secondary">{CLEAR_HEIGHT_MISSING}</span>
         ) : (
           <span className="flex h-9 items-center font-mono text-[14px] text-text-primary">{clearHeightText}</span>
         )}

@@ -153,7 +153,7 @@ describe('useProjectDashboard states', () => {
     mount({ fetchList: () => Promise.reject(httpError(500, 'INTERNAL')) });
 
     await waitFor(() => expect(dash().model.state).toBe('error'));
-    expect(dash().model.errorMessage).toBe('Hệ thống đã ghi nhận và sẽ kiểm tra. Bạn có thể tải lại rồi thử lại.');
+    expect(dash().model.errorMessage).toBe('Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại thao tác vừa làm.');
   });
 
   it('narrow: a failed read still wins over collapsed (BUG-072)', async () => {
@@ -231,7 +231,7 @@ describe('useProjectDashboard rename', () => {
     await waitFor(() => expect(names()).toEqual([NAME_HQ]));
   });
 
-  it('quotes a long new name in the toast cut with "…", the list keeps it whole (BUG-131)', async () => {
+  it('quotes a long new name whole in the toast — Toast wraps it (BUG-131)', async () => {
     const server = fakeServer([project()]);
     const onToast = await startRename(server);
     const longName = `qa-run-11-b80-${'y'.repeat(66)}`;
@@ -239,7 +239,7 @@ describe('useProjectDashboard rename', () => {
     act(() => dash().actions.setRenameDraft(longName));
     act(() => dash().actions.commitRename());
 
-    await waitFor(() => expect(onToast).toHaveBeenCalledWith(expect.objectContaining({ message: `Đã đổi tên thành "qa-run-11-b80-${'y'.repeat(25)}…"` })));
+    await waitFor(() => expect(onToast).toHaveBeenCalledWith(expect.objectContaining({ message: `Đã đổi tên thành "${longName}"` })));
     expect(names()).toEqual([longName]);
   });
 

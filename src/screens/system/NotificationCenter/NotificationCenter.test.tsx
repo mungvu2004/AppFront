@@ -870,6 +870,15 @@ describe('createNotificationCenterGateway — dây thật', () => {
     expect(byKind.get('commentMention')?.inlineAction?.kind).toBe('navigate');
   });
 
+  it('lời mời đã đọc không còn nút "Chấp nhận" — #22 chỉ lật isRead, nên tải lại vẫn đúng (nợ C ND-C1)', () => {
+    const invite = MOCK_NOTIFICATIONS.find((wire) => wire.kind === 'projectInvite');
+
+    if (invite === undefined) throw new Error('bộ mẫu thiếu lời mời');
+
+    expect(toNotificationItemVm({ ...invite, isRead: false }, GATEWAY_NOW_MS).inlineAction?.kind).toBe('accept');
+    expect(toNotificationItemVm({ ...invite, isRead: true }, GATEWAY_NOW_MS).inlineAction).toBeUndefined();
+  });
+
   it('markRead, markAllRead và acceptInvite đều đi ra client thật', async () => {
     const client = createMockApiClient();
     const markRead = vi.spyOn(client.notifications, 'markRead');

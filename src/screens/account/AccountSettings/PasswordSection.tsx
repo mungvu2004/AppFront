@@ -133,8 +133,8 @@ export function PasswordSection(props: PasswordSectionProps) {
   // không có ô nào để gõ, và cũng không có gì để kiểm.
   if (props.isManagedExternally) {
     return (
-      <FieldRow label="Mật khẩu" isReadOnly isLast>
-        <div className="flex flex-col gap-1 py-1">
+      <FieldRow label="Mật khẩu" isReadOnly isLast isText>
+        <div className="flex flex-col gap-1">
           <span className="text-[14px] text-text-primary">Đăng nhập một lần của công ty</span>
           <span className="text-[13px] text-text-secondary">{MANAGED_EXTERNALLY_REASON}</span>
         </div>

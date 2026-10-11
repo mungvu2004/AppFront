@@ -90,6 +90,9 @@ export function Toggle(props: ToggleProps) {
       }}
       className={cn(
         'relative flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 outline-none transition-colors duration-180',
+        // Vùng bấm 36×24 (WCAG 2.5.8 không cần ngoại lệ khoảng cách) mà rãnh nhìn thấy vẫn 36×20:
+        // lớp giả trải 2 px trên và dưới, không đổi bố cục của hàng nào (nợ B #1, BUG-158).
+        "before:absolute before:inset-x-0 before:-inset-y-0.5 before:content-['']",
         'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface focus-visible:animate-focus-ring',
         // Rãnh tắt bằng `--border-control` (≥ 3:1 với nền và với núm, cả hai chủ đề — WCAG 1.4.11);
         // `bg-sunken` cũ chỉ ~1,16:1 trên trắng nên công tắc tắt gần như vô hình.

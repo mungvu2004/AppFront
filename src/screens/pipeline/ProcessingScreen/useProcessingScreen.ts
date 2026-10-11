@@ -93,6 +93,7 @@ import { formatNumber, formatPercent } from '@/lib/format/number';
 import { CONFIDENCE_SUGGESTED_THRESHOLD } from '@/lib/format/semantic';
 import { MILLISECONDS_PER_SECOND } from '@/lib/motion/tokens';
 import type { NotificationBus, NotificationInput } from '@/lib/mutations/notificationBus';
+import { cachedProjectName } from '@/lib/query/cachedProjectName';
 import { queryKeys } from '@/lib/query/queryKeys';
 import type {
   BackgroundWatchEntry,
@@ -555,6 +556,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   const { projectId } = options;
   const roles = options.roles ?? DEFAULT_ROLES;
   const queryClient = useQueryClient();
+  const projectName = cachedProjectName(queryClient, projectId);
 
   const gateway = useResolvedGateway(options.gateway);
   const { publish } = useNotifications(options.notifications);
@@ -1330,5 +1332,6 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     onUploadDrawings,
     isCompact,
     prefersReducedMotion,
+    ...(projectName !== null ? { projectName } : {}),
   };
 }

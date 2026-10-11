@@ -58,6 +58,8 @@ import type { ProcessingScreenProps } from './types';
 
 const BREADCRUMB_PROJECTS = 'Dự án';
 const BREADCRUMB_PIPELINE = 'Xử lý';
+/** Tên dự án dài cắt "…" (title giữ đủ) để ba cấp vẫn một dòng ở 375 px, như `Breadcrumb`. */
+const BREADCRUMB_NAME_CLASS = 'inline-block max-w-[10rem] truncate align-bottom sm:max-w-xs';
 
 const RUN_IN_BACKGROUND_LABEL = 'Để chạy nền và thông báo cho tôi';
 const CANCEL_LABEL = 'Huỷ xử lý';
@@ -76,8 +78,7 @@ const TAB_LOG_LABEL = 'Nhật ký';
 const FLOOR_OBJECTS_ARIA_LABEL = 'Số đối tượng đã nhận theo tầng';
 
 const EMPTY_TITLE = 'Chưa có bước nào để theo dõi';
-/** NBSP (`\u00a0`) giữ "ở đây." cùng dòng: không thì "đây." đứng một mình ở dòng hai (BUG-170). */
-const EMPTY_DESCRIPTION = 'Khi bản vẽ được đưa vào hàng đợi, các bước xử lý sẽ hiện ở\u00a0đây.';
+const EMPTY_DESCRIPTION = 'Khi bản vẽ được đưa vào hàng đợi, các bước xử lý sẽ hiện ở đây.';
 const EMPTY_ACTION_LABEL = 'Tải bản vẽ';
 
 /** Bao nhiêu khung xương lúc chưa biết bước nào đã xong. */
@@ -219,9 +220,17 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
     <div className="min-h-screen bg-bg-app">
       <div className="mx-auto flex max-w-[1280px] flex-col gap-6 p-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <nav aria-label={BREADCRUMB_PIPELINE} className="text-[13px] text-text-secondary">
+          <nav aria-label={BREADCRUMB_PIPELINE} className="min-w-0 text-[13px] text-text-secondary">
             <span>{BREADCRUMB_PROJECTS}</span>
             <span aria-hidden="true"> › </span>
+            {props.projectName !== undefined ? (
+              <>
+                <span className={BREADCRUMB_NAME_CLASS} title={props.projectName}>
+                  {props.projectName}
+                </span>
+                <span aria-hidden="true"> › </span>
+              </>
+            ) : null}
             <span className="text-text-primary">{BREADCRUMB_PIPELINE}</span>
           </nav>
           <ProcessingActions {...props} />

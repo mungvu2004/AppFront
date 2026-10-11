@@ -789,7 +789,22 @@ describe('useProcessingScreen', () => {
     // BUG-165: nothing runs, so no "Đã xong 0/0 tầng" and no promise to notify.
     expect(props.overallSummaryLine).toBe('Chưa có lượt xử lý nào đang chạy.');
     expect(props.canRunInBackground).toBe(false);
+    expect(props.projectName).toBeUndefined();
 
+    mounted.unmount();
+  });
+
+  it('names the project from the dashboard cards already cached, without a request (BUG-165)', async () => {
+    const harness = makeScriptedClient();
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(queryKeys.project.summaries(), { projects: [{ id: PROJECT_ID, name: 'Nhà phố Quận 3' }], droppedCount: 0 });
+    const read = vi.spyOn(harness.client.projects, 'read');
+    const mounted = mountHook(harness.client, [], queryClient, new MockVisibilityTarget());
+
+    await settle(clock);
+
+    expect(mounted.result.current.projectName).toBe('Nhà phố Quận 3');
+    expect(read).not.toHaveBeenCalled();
     mounted.unmount();
   });
 

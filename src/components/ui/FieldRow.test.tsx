@@ -9,6 +9,15 @@ describe('FieldRow', () => {
     expect(screen.getByText('220 mm')).toBeInTheDocument();
   });
 
+  it('drops the 36 px-control label offset for a text value (isText)', () => {
+    const { rerender } = render(<FieldRow label="Mã dự án"><span>DA-01</span></FieldRow>);
+    expect(screen.getByText('Mã dự án').parentElement).toHaveClass('pt-[9px]');
+
+    rerender(<FieldRow label="Mã dự án" isText><span>DA-01</span></FieldRow>);
+    expect(screen.getByText('Mã dự án').parentElement).not.toHaveClass('pt-[9px]');
+    expect(screen.getByText('DA-01').parentElement).toHaveClass('leading-[20px]');
+  });
+
   it('renders dash for mixed value', () => {
     render(<FieldRow label="Độ dày" isMixed><span>ignored</span></FieldRow>);
     expect(screen.getByText('—')).toBeInTheDocument();

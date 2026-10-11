@@ -312,10 +312,8 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           <Button variant="ghost" onClick={props.cancelDelete}>
             Để nguyên
           </Button>
-          {/* Solid, not the pale `danger` tint: deleting for good is the one irreversible act here (A9, BUG-155). */}
           <Button
             variant="danger"
-            className="border-transparent bg-state-violation-text text-bg-surface hover:opacity-90"
             onClick={props.confirmDelete}
             loading={props.isDeleting}
           >

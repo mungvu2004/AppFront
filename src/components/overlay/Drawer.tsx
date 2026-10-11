@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, forwardRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useId, useRef, forwardRef, useState } from 'react';
 import { motion, AnimatePresence } from '../motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { cn } from '../../lib/utils';
@@ -6,6 +6,7 @@ import { Z_INDEX } from '../../lib/zIndex';
 import { DURATION, EASE, SPRING } from '../../lib/motion';
 import { useShortcut } from '../../hooks/useShortcut';
 import { createFocusTrap } from '../../lib/input/focusTrap';
+import { Tooltip } from '../ui/Tooltip';
 
 // ─── Media Query (private) ───────────────────────────────────────────────────
 
@@ -26,6 +27,9 @@ function useMediaQuery(query: string): boolean {
 // ─── Bottom-sheet snap points (mobile) ───────────────────────────────────────
 
 type SnapLevel = 0 | 1 | 2; // 0=peek(88px), 1=half(40%), 2=full(90vh)
+
+/** What each snap dot does, said on hover/focus (Tooltip) and to screen readers (nợ C ND-C2). */
+const SNAP_HINTS: Record<SnapLevel, string> = { 0: 'Thu gọn', 1: 'Nửa màn hình', 2: 'Gần toàn màn hình' };
 
 function getSnapHeight(level: SnapLevel, windowHeight: number): number {
   if (level === 0) return 88;
@@ -196,6 +200,7 @@ const BottomSheet = forwardRef<HTMLDivElement, BottomSheetProps>(
   ({ children, label, snapLevel, onSnapChange, onClose, prefersReducedMotion }, ref) => {
     const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
     const height = getSnapHeight(snapLevel, windowHeight);
+    const hintId = useId();
 
     const sheetVariants = prefersReducedMotion
       ? { hidden: { opacity: 0 }, visible: { opacity: 1 }, exit: { opacity: 0 } }
@@ -241,25 +246,31 @@ const BottomSheet = forwardRef<HTMLDivElement, BottomSheetProps>(
 
         {/* Nút snap nhanh — đường bàn phím DUY NHẤT để đổi mức (A12), nên không
             aria-hidden và không tabIndex=-1 (B-V1-46). Vùng bấm 24 px, chấm 6 px
-            vẽ bên trong. */}
+            vẽ bên trong. Mỗi chấm nói việc của nó: tooltip khi trỏ/focus, mô tả cho
+            trình đọc màn hình — tên vẫn là "Mức N" (nợ C ND-C2). */}
         <div className="flex justify-center gap-1 pb-1" role="group" aria-label="Chiều cao tấm trượt">
           {([0, 1, 2] as SnapLevel[]).map((level) => (
-            <button
-              key={level}
-              type="button"
-              onClick={() => onSnapChange(level)}
-              className="flex h-6 w-6 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent"
-              aria-label={`Mức ${level + 1}`}
-              aria-pressed={snapLevel === level}
-            >
-              <span
-                aria-hidden="true"
-                className={cn(
-                  'h-1.5 w-1.5 rounded-full transition-colors duration-120',
-                  snapLevel === level ? 'bg-accent' : 'bg-border-default',
-                )}
-              />
-            </button>
+            <Tooltip key={level} label={SNAP_HINTS[level]}>
+              <button
+                type="button"
+                onClick={() => onSnapChange(level)}
+                className="flex h-6 w-6 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                aria-label={`Mức ${level + 1}`}
+                aria-describedby={`${hintId}-${String(level)}`}
+                aria-pressed={snapLevel === level}
+              >
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    'h-1.5 w-1.5 rounded-full transition-colors duration-120',
+                    snapLevel === level ? 'bg-accent' : 'bg-border-default',
+                  )}
+                />
+                <span id={`${hintId}-${String(level)}`} className="sr-only">
+                  {SNAP_HINTS[level]}
+                </span>
+              </button>
+            </Tooltip>
           ))}
         </div>
 

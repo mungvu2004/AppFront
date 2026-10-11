@@ -47,7 +47,8 @@ export function EmptyState({
           : icon}
       </div>
       <Heading className="text-[16px] font-semibold text-text-primary mb-2">{title}</Heading>
-      <p className="text-[14px] text-text-secondary max-w-sm mb-6 leading-relaxed">
+      {/* `text-pretty`: no word left alone on the last line of a narrow block (BUG-170), as in InlineAlert. */}
+      <p className="text-[14px] text-text-secondary max-w-sm mb-6 leading-relaxed text-pretty">
         {description}
       </p>
       {action && (

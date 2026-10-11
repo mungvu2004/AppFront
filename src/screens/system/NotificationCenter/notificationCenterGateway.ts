@@ -201,6 +201,9 @@ const INLINE_ACTION_BY_KIND: Readonly<Record<NotificationKind, NotificationInlin
  * - `message` của máy chủ thành `sentence`, `objectLabel` thành chữ của liên
  *   kết. Hai trường tách nhau trên dây đúng vì chúng có hai vai khác nhau.
  * - `place` của máy chủ thành `target.to` qua {@link createNotificationTarget}.
+ * - Lời mời ĐÃ ĐỌC không còn nút "Chấp nhận" (nợ C ND-C1): #22 của máy chủ chỉ lật
+ *   `isRead` (người nhận đã là thành viên từ N3), nên một lời mời đã đọc không còn gì
+ *   để chấp nhận — và điều đó sống qua lượt tải lại, không như lớp phủ của hook.
  */
 export function toNotificationItemVm(notification: Notification, nowMs: number): NotificationItemVm {
   const createdAt = Date.parse(notification.createdAt);
@@ -220,7 +223,8 @@ export function toNotificationItemVm(notification: Notification, nowMs: number):
     relativeTime: formatTimestamp(createdAt, nowMs),
     isRead: notification.isRead,
     excerpt: notification.excerpt,
-    inlineAction: INLINE_ACTION_BY_KIND[notification.kind],
+    inlineAction:
+      notification.kind === 'projectInvite' && notification.isRead ? undefined : INLINE_ACTION_BY_KIND[notification.kind],
   };
 }
 

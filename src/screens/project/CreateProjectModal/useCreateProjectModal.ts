@@ -231,9 +231,18 @@ interface ServerProblem {
   readonly message: string;
 }
 
+/** A server refusal of one floor row (`floors.<n>.<key>`); editing that row retires it. */
+interface ServerFloorProblem {
+  readonly rowId: string;
+  /** `floors.<n>.name` marks the name cell; any other key, the height cell. */
+  readonly onName: boolean;
+  readonly message: string;
+}
+
 interface CreateFailure {
   readonly notice: CreateProjectNotice;
   readonly fieldProblem: Omit<ServerProblem, 'value'> | null;
+  readonly floorProblem?: ServerFloorProblem;
 }
 
 /**
@@ -280,6 +289,11 @@ function describeCreateFailure(error: unknown, floors: readonly FloorPlan[]): Cr
         actionLabel: 'Sửa ở bước 2',
       },
       fieldProblem: null,
+      floorProblem: {
+        rowId: rowIdFromLevelId(floor.levelId),
+        onName: field?.split('.')[2] === 'name',
+        message: 'Máy chủ không nhận giá trị này. Sửa rồi thử lại.',
+      },
     };
   }
 
@@ -596,6 +610,9 @@ export function useCreateProjectModal(
   const [isConfirmingDiscard, setIsConfirmingDiscard] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [serverProblem, setServerProblem] = useState<ServerProblem | null>(null);
+  const [serverFloorProblem, setServerFloorProblem] = useState<
+    (ServerFloorProblem & { readonly refused: DraftFloorRow }) | null
+  >(null);
   const [notice, setNotice] = useState<CreateProjectNotice | null>(null);
   const [focusFloorId, setFocusFloorId] = useState<string | null>(null);
 
@@ -605,9 +622,21 @@ export function useCreateProjectModal(
   const canCreate = can('create', 'project', { roles: [role] });
 
   const floorStack = useMemo(() => computeFloorStack(floorRows), [floorRows]);
-  const hasAnyRowProblem = floorRows.some(
-    (row) => floorStack.problemById.has(row.id) || row.name.trim() === '',
-  );
+  // The server's complaint about a floor, while that row still holds the values it refused.
+  const serverFloor =
+    serverFloorProblem !== null &&
+    floorRows.some(
+      (row) =>
+        row.id === serverFloorProblem.rowId &&
+        row.name === serverFloorProblem.refused.name &&
+        row.clearHeightM === serverFloorProblem.refused.clearHeightM,
+    )
+      ? serverFloorProblem
+      : null;
+  const serverFloorMessage = (rowId: string, onName: boolean): string | null =>
+    serverFloor !== null && serverFloor.rowId === rowId && serverFloor.onName === onName ? serverFloor.message : null;
+  const hasAnyRowProblem =
+    serverFloor !== null || floorRows.some((row) => floorStack.problemById.has(row.id) || row.name.trim() === '');
   /** The server's complaint about `field`, while that field still holds the value it refused. */
   const serverProblemFor = (field: ServerField, value: string): string | null =>
     serverProblem !== null && serverProblem.field === field && serverProblem.value === value
@@ -661,9 +690,10 @@ export function useCreateProjectModal(
     kind: row.kind,
     clearHeightM: row.clearHeightM,
     elevationLabel: floorStack.elevationLabelById.get(row.id) ?? null,
-    // Step 2 opens neutral (BUG-120): a row complains once the stack has been edited.
-    problem: floorsTouched ? (floorStack.problemById.get(row.id) ?? null) : null,
-    nameProblem: row.name.trim() === '' ? 'Chưa nhập tên tầng.' : null,
+    // Step 2 opens neutral (BUG-120): a row complains once the stack has been edited — or the server refused it.
+    problem:
+      serverFloorMessage(row.id, false) ?? (floorsTouched ? (floorStack.problemById.get(row.id) ?? null) : null),
+    nameProblem: row.name.trim() === '' ? 'Chưa nhập tên tầng.' : serverFloorMessage(row.id, true),
   }));
   const floorsHint = !floorsTouched && floorRows.length > 0 && !canGoNextStep2 ? FLOORS_HINT : null;
 
@@ -825,6 +855,11 @@ export function useCreateProjectModal(
         const refused = failure.fieldProblem;
         setNotice(failure.notice);
         setServerProblem(refused === null ? null : { ...refused, value: { name, code, address }[refused.field] });
+        const floorRefused = failure.floorProblem;
+        const refusedRow = floorRows.find((row) => row.id === floorRefused?.rowId);
+        setServerFloorProblem(
+          floorRefused === undefined || refusedRow === undefined ? null : { ...floorRefused, refused: refusedRow },
+        );
         return;
       }
 

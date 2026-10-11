@@ -501,10 +501,8 @@ describe('CadBranchConfirm — xem trước cập nhật trực tiếp [NGHIEM-3
  *   tiêu điểm dùng để quyết định Tab đi đâu (`src/lib/input/focusTrap.ts`), nên
  *   test đọc đúng danh sách mà mã chạy đọc, không dựng một bản sao sẽ lệch.
  *
- * Khẳng định (a) dừng ở mức "tiêu điểm nằm TRONG hộp thoại", cố ý không nêu tên
- * nút: `activate()` hiện lấy phần tử focus được đầu tiên, và đóng đinh nút ấy vào
- * test là khoá lại một hành vi còn phải đổi — xem chú thích đầu
- * `CadBranchConfirmDialog.tsx` về prop `initialFocus` còn thiếu của `Modal.Root`.
+ * Khẳng định (a): tiêu điểm vào đúng nút chính (`data-autofocus`, đầu
+ * `CadBranchConfirmDialog.tsx`), không phải nút "Đóng hộp thoại" đứng đầu khung.
  */
 
 /** Đúng một khung hình thật — `activate()` của bẫy tiêu điểm chạy ở khung kế. */
@@ -572,6 +570,8 @@ describe('CadBranchConfirm — bàn phím ở hộp thoại chốt nhánh [NGHIE
     expect(dialog.contains(document.activeElement)).toBe(true);
     expect(document.activeElement).not.toBe(opener);
     expect(document.activeElement).not.toBe(document.body);
+    expect(document.activeElement).toHaveAttribute('data-autofocus');
+    expect(document.activeElement).toBeEnabled();
   });
 
   it('Tab đi vòng TRONG hộp thoại, không thoát ra nút phía sau', async () => {

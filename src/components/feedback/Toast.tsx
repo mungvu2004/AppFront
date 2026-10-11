@@ -130,7 +130,8 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
       >
         <div className={cn('p-4 flex items-center gap-3 transition-opacity duration-340', isPeek ? 'opacity-0' : 'opacity-100')}>
           <div className={cn('w-1.5 h-1.5 rounded-full shrink-0', dotColor)} aria-hidden="true" />
-          <span className="text-[15px] text-text-primary font-medium flex-1">
+          {/* BUG-131: min-w-0 lets the span shrink, break-words wraps a name with no space — "Hoàn tác" stays in. */}
+          <span className="text-[15px] text-text-primary font-medium flex-1 min-w-0 break-words">
             {toast.message}
           </span>
           {toast.onUndo && (

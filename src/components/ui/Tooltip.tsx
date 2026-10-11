@@ -91,12 +91,15 @@ export function Tooltip({ label, kbd, children, disabled = false, side = 'top' }
   // ra ngoài và sinh thanh cuộn ngang — đẩy nó vào trong, mũi tên vẫn chỉ đúng anchor (BUG-114).
   useLayoutEffect(() => {
     const el = tipRef.current;
-    if (isVisible && el && side === 'top' && !isFlipped && el.getBoundingClientRect().top < VIEWPORT_EDGE_PX) {
+    // Hidden: nothing to place, and no state write — a hidden tooltip whose label changes
+    // (an upload's percent) must not cost its screen an extra render per tick.
+    if (!isVisible || !el) return;
+    if (side === 'top' && !isFlipped && el.getBoundingClientRect().top < VIEWPORT_EDGE_PX) {
       setIsFlipped(true);
       updateCoords('bottom');
       return;
     }
-    if (!isVisible || !el || (placedSide !== 'top' && placedSide !== 'bottom')) {
+    if (placedSide !== 'top' && placedSide !== 'bottom') {
       setShiftX(0);
       return;
     }

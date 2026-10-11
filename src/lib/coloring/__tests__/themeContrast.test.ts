@@ -59,6 +59,8 @@ const TEXT_PAIRS: [ColorTokenName, ColorTokenName][] = [
   ]),
   ['--bg-surface', '--accent'],
   ['--bg-surface', '--accent-hover'],
+  // Chữ trên nút `danger` đặc (BUG-155).
+  ['--bg-surface', '--state-violation-text'],
 ];
 
 /** Rãnh `Toggle` khi tắt và núm trên nó (WCAG 1.4.11). */

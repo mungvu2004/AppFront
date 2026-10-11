@@ -204,20 +204,6 @@ function derivedStatusOf(project: DashboardProject): TelemetryPipelineStatus {
 const RENAME_RANGE_MESSAGE = `Tên dự án cần từ ${String(PROJECT_NAME_MIN_LENGTH)} đến ${String(PROJECT_NAME_MAX_LENGTH)} ký tự.`;
 
 /**
- * How many characters of a project name a toast quotes: an 80-character name with no space overran the
- * 320 px toast and pushed "Hoàn tác" out (BUG-131). Shorter names wrap at their spaces and hyphens.
- * ponytail: a 40-char run with no break still overflows; the real fix is `min-w-0 break-words` on the
- * message span of `components/feedback/Toast.tsx` (outside this cluster) — then drop this cap.
- */
-const TOAST_NAME_MAX_CHARS = 40;
-
-/** The name as a toast quotes it: whole when short, else cut on a code point with "…". */
-function toastName(name: string): string {
-  const chars = [...name];
-  return chars.length <= TOAST_NAME_MAX_CHARS ? name : `${chars.slice(0, TOAST_NAME_MAX_CHARS - 1).join('')}…`;
-}
-
-/**
  * #26 `VALIDATION`. `commitRename` refuses a name outside 3–80 characters before sending, so a name the
  * server still refuses has characters it does not take — a bidi or control mark (BUG-168, as BUG-016).
  */
@@ -450,7 +436,7 @@ export function useProjectDashboard(
     }
     applyInvalidation(queryClient, 'renameProject', { projectId: id });
     options.onToast?.({
-      message: canUndo ? `Đã đổi tên thành "${toastName(name)}"` : `Đã khôi phục tên "${toastName(name)}"`,
+      message: canUndo ? `Đã đổi tên thành "${name}"` : `Đã khôi phục tên "${name}"`,
       ...(canUndo ? { onUndo: () => void renameTo(id, previousName, name, false) } : {}),
     });
   };
