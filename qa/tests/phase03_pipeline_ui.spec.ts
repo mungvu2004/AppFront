@@ -384,7 +384,10 @@ test.describe('U03 UI verify — SCR-10 upload (CP-2)', () => {
         await p.getByTestId(FILE_INPUT).setInputFiles(drawing);
         const tray = p.getByRole('region', { name: TRAY_TITLE, exact: true });
         await expect(tray).toBeVisible();
-        await expect(p.getByRole('combobox', { name: ASSIGN_FLOOR })).toBeVisible();
+        // BUG-301: scoped to the tray — a floor card that already holds a drawing has its own "Gán cho tầng khác"
+        // picker (FloorUploadCard.tsx), and CP-2 has one after the main layer. The tray item: picker + remove (FloorUploadTray.tsx).
+        await expect(tray.getByRole('combobox', { name: ASSIGN_FLOOR })).toBeVisible();
+        await expect(tray.getByRole('button', { name: /^Xoá bản vẽ /u })).toBeVisible();
       },
       {},
       (page) =>

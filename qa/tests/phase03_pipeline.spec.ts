@@ -429,7 +429,8 @@ test.describe('SCR-10 Floor Upload (CP-4)', () => {
 
     await page.getByTestId('floor-upload-file-input').setInputFiles(file);
     // The file name names no floor → tray "Tệp chưa gán tầng"; assign it to {work} (chain step 5).
-    await page.getByRole('combobox', { name: 'Gán cho tầng khác' }).click();
+    // Scoped to the tray: an attached floor card has its own "Gán cho tầng khác" picker (BUG-301, strict mode).
+    await page.getByRole('region', { name: 'Tệp chưa gán tầng', exact: true }).getByRole('combobox', { name: 'Gán cho tầng khác' }).click();
     await page.getByRole('option', { name: workName, exact: true }).click();
 
     const uploadId = stringField((await init).json, 'id', 'POST drawings/uploads (init)');
