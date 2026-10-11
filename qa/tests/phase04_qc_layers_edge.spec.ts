@@ -119,6 +119,7 @@ const BACK_TO_PROJECTS = 'Về danh sách dự án'; // PSGATE:39
 /* 404 floor: FLRF:64-71; the description opens with WALL.floorGone (FLRF:23, UFL:31). */
 const FLOOR_MISSING_TITLE = 'Không mở được tầng này'; // FLRF:21
 const BACK_TO_FLOORS = 'Về quản lý tầng'; // FLRF:24
+const RETRY_READ = 'Thử lại'; // FLRF:25 (any other read error, FLRF:73-75)
 const GENERIC_UNKNOWN = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại sau ít phút.'; // vi.json:63 errors.unknown.description (FIX-1387, BUG-209)
 
 /* SCR-17 copy. */
@@ -871,7 +872,7 @@ test.describe('E04 SCR-16 wall layer review', () => {
     });
   });
 
-  test('E04 · SCR-16 [mocked response] GET …/spatial/layer 500 → error alert in the wall panel, screen not blank', async ({ browser }) => {
+  test('E04 · SCR-16 [mocked response] GET …/spatial/layer 500 → read-failure screen with "Thử lại", screen not blank', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const project = await createProject(admin, 'walls-500');
@@ -885,10 +886,13 @@ test.describe('E04 SCR-16 wall layer review', () => {
       };
       await page.route('**/api/projects/**', handler);
       await page.goto(ROUTES.project.walls(project.id, project.floor.id));
-      // I18N errors.unknown (500 has no KNOWN_HTTP_STATUS_KIND, lib/errors/toAppError.ts:10-18,211); WLP:351-353.
-      await expect(page.getByRole('alert').filter({ hasText: GENERIC_UNKNOWN })).toBeVisible();
+      // I18N errors.unknown (500 has no KNOWN_HTTP_STATUS_KIND, lib/errors/toAppError.ts:10-18,211) via FLRF:73-75.
+      // BUG-326: the failed first read replaces the whole screen (WallLayerReview.tsx:123-129) — no tool rail, one exit.
+      const failure = page.getByRole('alert').filter({ hasText: GENERIC_UNKNOWN });
+      await expect(failure).toBeVisible();
+      await expect(failure.getByRole('button', { name: RETRY_READ, exact: true })).toBeVisible();
       await expect(page.getByRole('region', { name: WALL.screen, exact: true })).toBeVisible(); // A11: never blank
-      await expect(page.getByRole('toolbar', { name: WALL.rail, exact: true })).toBeVisible();
+      await expect(page.getByRole('toolbar', { name: WALL.rail, exact: true })).toHaveCount(0);
       await captureEvidence(page, 'E04_walls_read_500.png');
       await page.unroute('**/api/projects/**', handler);
     });
