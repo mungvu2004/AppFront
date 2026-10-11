@@ -140,6 +140,19 @@ describe('ExplodedView — thẻ nhãn tầng chỉ hiện khi tách đủ nhi�
   });
 });
 
+describe('ExplodedView — vùng bấm của thanh "Độ tách các tầng" (BUG-381)', () => {
+  it('dày 24 px ở cả dạng dọc lẫn dạng thu gọn ngang, không 6 px', () => {
+    const vertical = renderWithProviders(<ExplodedView {...explodedViewScenarioFor('success')} />);
+
+    expect(within(vertical.container).getByRole('slider', { name: 'Độ tách các tầng' })).toHaveClass('w-6');
+    vertical.unmount();
+
+    const collapsed = renderWithProviders(<ExplodedView {...explodedViewScenarioFor('collapsed')} />);
+
+    expect(within(collapsed.container).getByRole('slider', { name: 'Độ tách các tầng' })).toHaveClass('h-6');
+  });
+});
+
 describe('ExplodedView — dấu "Cần chú ý" không cắt cao độ và diện tích (BUG-383)', () => {
   it('dấu nằm cùng dòng với tên tầng; dòng số đứng riêng, không chung hàng với dấu', () => {
     const props = explodedViewScenarioFor('partial');

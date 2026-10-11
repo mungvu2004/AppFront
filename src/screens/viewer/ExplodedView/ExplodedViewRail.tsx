@@ -35,6 +35,13 @@ const SEPARATION_STEP = 0.01;
 const NONE_PRESET = '__none__' as const;
 type PresetValue = ExplodePresetId | typeof NONE_PRESET;
 
+/*
+ * Bề dày 24 px (`w-6` dọc, `h-6` ngang) là VÙNG BẤM, không phải bề dày vệt vẽ:
+ * input gốc vẽ rãnh mảnh giữa hộp của nó bất kể hộp dày bao nhiêu. Bản trước
+ * dùng `w-1.5`/`h-1.5` nên cả hộp — tức cả chỗ bấm được — chỉ 6 px (đo 6×164,
+ * BUG-381). 24 px là sàn mục tiêu chạm WCAG 2.2 AA, cùng bề `w-6` mà thanh
+ * "Độ tách" của `ViewerStoreyRail` đang dùng.
+ */
 const RANGE_INPUT_CLASSNAME = cn(
   'cursor-pointer accent-accent',
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface',
@@ -92,7 +99,7 @@ export function ExplodedViewRail({
         <span className="text-[11px] leading-none text-text-muted">{minLabel}</span>
         <input
           aria-label="Độ tách các tầng"
-          className={cn(RANGE_INPUT_CLASSNAME, 'h-1.5 w-32')}
+          className={cn(RANGE_INPUT_CLASSNAME, 'h-6 w-32')}
           max={MAX_SEPARATION}
           min={MIN_SEPARATION}
           onChange={handleSeparationInput}
@@ -118,7 +125,7 @@ export function ExplodedViewRail({
       <span className="text-[11px] leading-none text-text-muted">{maxLabel}</span>
       <input
         aria-label="Độ tách các tầng"
-        className={cn(RANGE_INPUT_CLASSNAME, 'w-1.5')}
+        className={cn(RANGE_INPUT_CLASSNAME, 'w-6')}
         max={MAX_SEPARATION}
         min={MIN_SEPARATION}
         onChange={handleSeparationInput}
