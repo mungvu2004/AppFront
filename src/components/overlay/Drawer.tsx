@@ -46,18 +46,22 @@ function getSnapHeight(level: SnapLevel, windowHeight: number): number {
 /**
  * Chỗ nhận focus lúc tấm mở (BUG-205, BUG-125).
  *
+ * - Nơi gọi đánh dấu `data-autofocus` trong nội dung → phần tử đó, dù ai mở.
  * - Không ai mở nó (tải thẳng `/thong-bao`: focus đang ở `body`) → chính hộp thoại. Không nút nào tự sáng
  *   vòng focus hay bật tooltip khi người dùng chưa làm gì; Tab đầu tiên vào nút đầu tiên (focusTrap).
- * - Có người mở → nút đầu tiên của NỘI DUNG (hoặc `data-autofocus`), không phải chấm snap của tờ dưới
- *   1024 px: một Enter lạc trên "Mức 1" là tờ sập còn 88 px.
+ * - Có người mở → nút đầu tiên của NỘI DUNG, không phải chấm snap của tờ dưới 1024 px: một Enter lạc
+ *   trên "Mức 1" là tờ sập còn 88 px.
  */
 function openingFocusOf(container: HTMLElement): HTMLElement {
+  const content = container.querySelector<HTMLElement>('[data-drawer-content]') ?? container;
+  const focusable = getFocusableElements(content);
+  const marked = focusable.find((element) => element.hasAttribute('data-autofocus'));
+  if (marked !== undefined) return marked;
+
   const active = container.ownerDocument.activeElement;
   if (active === null || active === container.ownerDocument.body) return container;
 
-  const content = container.querySelector<HTMLElement>('[data-drawer-content]') ?? container;
-  const focusable = getFocusableElements(content);
-  return focusable.find((element) => element.hasAttribute('data-autofocus')) ?? focusable[0] ?? container;
+  return focusable[0] ?? container;
 }
 
 // ─── Context ─────────────────────────────────────────────────────────────────
