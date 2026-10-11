@@ -1440,15 +1440,13 @@ test.describe('E04 SCR-14 scale calibration', () => {
       await expect(page.getByRole('button', { name: SCALE.handleStart, exact: true })).toHaveCount(0);
       await expect(page.getByRole('button', { name: SCALE.handleEnd, exact: true })).toHaveCount(0);
 
-      // SP:97-99 + US:1024-1026 toggle the panel. US:1466-1476,1735: state 'error' (warped drawing) outranks 'collapsed', so
-      // the button can do nothing there (suspected dead control, A2) — soft, the no-write claim still runs.
+      // SP:43-44,94 toggle label. BUG-322 (FIX-1503): US:1464,1747 `isPanelCollapsed` follows the button itself, so it
+      // collapses even in the 'error' state (warped drawing), which outranks 'collapsed' in the state order.
       await page.getByRole('button', { name: SCALE.collapse, exact: true }).click();
       const expand = page.getByRole('button', { name: SCALE.expand, exact: true });
-      await expect.soft(expand, '"Thu gọn bảng" collapses the panel ("Bung bảng" shows)').toBeVisible();
-      if ((await expand.count()) > 0) {
-        await expand.click();
-        await expect(page.getByRole('button', { name: SCALE.collapse, exact: true })).toBeVisible();
-      }
+      await expect(expand, '"Thu gọn bảng" collapses the panel ("Bung bảng" shows)').toBeVisible();
+      await expand.click();
+      await expect(page.getByRole('button', { name: SCALE.collapse, exact: true })).toBeVisible();
       await quiet(page);
       expect(countSince(api, mark, 'PUT', layerRe(project.id, project.floor.id)), 'no scale PUT without a valid length').toBe(0);
       await captureEvidence(page, 'E04_scale_remeasure_collapse.png');

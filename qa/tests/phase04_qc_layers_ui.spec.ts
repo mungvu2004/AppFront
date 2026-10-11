@@ -545,8 +545,8 @@ test.describe('U04 UI verify — SCR-14 scale (CP-5 work floor)', () => {
   test('U04 · SCR-14 scale, "Thu gọn bảng" → panel collapsed', async ({ browser }) => {
     await verifyOnWorkFloor(browser, 'U04_scale_panel_collapsed', async (p, floor) => {
       await openScaleData(p, floor);
-      // Not on the empty floor: there the screen is in `error` (NOT_FOUND), which outranks `collapsed`
-      // (useScaleCalibration.ts:1466-1476, 1735 `isPanelCollapsed: state === 'collapsed'`), so the button does nothing.
+      // On the work floor so the collapsed panel sits beside a drawing. Since BUG-322 (FIX-1503) the toggle also works in
+      // the `error` state: useScaleCalibration.ts:1464,1747 `isPanelCollapsed` follows the button, not `state`.
       await p.getByRole('button', { name: SCALE_COLLAPSE, exact: true }).click();
       await expect(p.getByRole('button', { name: SCALE_EXPAND, exact: true })).toBeVisible();
     });
