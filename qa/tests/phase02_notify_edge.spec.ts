@@ -39,7 +39,9 @@
  *   (+1 per failed test — Playwright restarts the worker), invitee API sign-in 1 per test = 19. Tests take ≥ 10 s each
  *   (slowMo 400), so ≤ 7 a minute. 0 failed logins.
  * - `POST /api/users/invitations` 30 / 3600 s per admin (BE:users/router.py:32-43): 1 per worker = 1 + 1 per failed
- *   test. Up to five tests are expected to fail on open bugs (BUG-114, BUG-124 ×2, BUG-125, BUG-127) → ≤ 6. Phase 1 (8) + phase-2 API
+ *   test. The five tests pinned to BUG-114, BUG-124 ×2, BUG-125 and BUG-127 now pass on the fixed app (QA-02b FIX-1091,
+ *   FIX-1036, FIX-983/1031/1032/1083, FIX-1033), so 0 failures are expected → 1; the cap is kept with room for five
+ *   unexpected failures → ≤ 6. Phase 1 (8) + phase-2 API
  *   (3) + this file (≤ 6) = 17 ≤ 30.
  * - `recovery_ip` 10 / 900 s per IP (BE:auth_recovery/settings.py:24-25; override 60) counts the accepts: same as the
  *   invitations (≤ 6); with the phase-2 API spec's 3 → 9 ≤ 10.

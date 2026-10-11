@@ -37,17 +37,18 @@
  *
  * ## Real-backend request budget per run (BE:apps/api/auth/settings.py:31-36, login_guard.py)
  * - `POST /api/auth/login` (30 / 60 s per IP): ONE UI sign-in when the worker starts this file; Playwright restarts
- *   the worker after a failed test, so +1 per failed test (10 are expected to fail while the bugs are open: the 9
- *   `[BUG-…]` tests + the cap-with-basement case → ≤ 11 sign-ins, each ≥ 10 s apart, ≤ 6 a minute). +1 if a carried cookie is refused. No failed login attempt at all.
+ *   the worker after a failed test, so +1 per failed test (0 are expected to fail: every `[BUG-…]` bug pinned here has a
+ *   fix and the cap-with-basement case asserts the lock since BUG-221; room is kept for 10 → ≤ 11 sign-ins, each ≥ 10 s
+ *   apart, ≤ 6 a minute). +1 if a carried cookie is refused. No failed login attempt at all.
  * - `POST /api/auth/refresh` (300 / 60 s per IP): one per page load, ~2 per test (~60 for the file) — far from the cap.
  * - `POST /api/projects` reaching the server: 1 API fixture + 7 UI creates that succeed (all deleted in `finally`)
  *   + no refused 422 (address 201, code 33 and blank floor names are blocked at step 1/2; the 422 mapping is mocked). The mocked 500 and the mocked first
  *   attempts of the 503/abort tests never reach the server; each of those retries creates one project (counted above).
  * - `DELETE /api/projects/{id}`: one per created project (8). No notification, recovery, invitation or mail call.
  * - QA-02 shared-components block (FE 271538cb, last describe, 6 tests): no project created, ~12 refreshes, 0 extra
- *   sign-in, no mock. Expected soft failures there (finding candidates): same-value apply keeps a stale refusal, and the
- *   locked "Có tầng hầm" loses its own description at the cap. NOTE (not edited here): "floor cap with a basement" above
- *   clicks the switch at 50 floors, which 271538cb now disables (UCPM:907) — that click waits out the action timeout.
+ *   sign-in, no mock. Its two former soft failures are fixed: a same-value apply clears the stale refusal (FIX-1016), and
+ *   the locked "Có tầng hầm" keeps its own description at the cap (BUG-196, FIX-1012). "Floor cap with a basement"
+ *   above no longer clicks the disabled switch; it asserts the lock (BUG-221).
  * Access tokens live 600 s (BE settings.py:31): each test reuses the token of its own sign-in/refresh.
  */
 import { expect, test } from '@playwright/test';
@@ -542,7 +543,7 @@ test.describe('E02 SCR-05 wizard edge — step 1, keyboard and focus', () => {
   });
 
   test('[BUG-122] E02 · wizard header: the gap between "Tạo dự án mới" and "Bước 1 / 3" fits one 24 px grid step', async ({ browser }) => {
-    // EXPECTED TO FAIL while BUG-122 is open: MOD:157 header pb-4 + CPM:247 body py-6 + CPM:259 mb-4 stack up.
+    // BUG-122 fixed (FIX-904): the header, body and indicator paddings no longer stack up to ~65 px.
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const dialog = await openWizard(page);
@@ -867,8 +868,8 @@ test.describe('E02 SCR-05 wizard edge — review, discard, compact', () => {
   });
 
   test('[BUG-121] E02 · wizard review: each label sits on its value\'s line, and the floor levels say they are "Cao độ"', async ({ browser }) => {
-    // EXPECTED TO FAIL while BUG-121 is open: FR:66 pads the label column `pt-[9px]`, the value column has none (FR:71);
-    // the floor list (CPM:183-190) prints "0,0 m…" with no heading.
+    // BUG-121 fixed (FIX-920, FIX-978): FieldRow `isText` drops the 9 px label offset, and the review floor list has
+    // "Tầng" / "Cao độ" headings.
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const dialog = await openWizard(page);
@@ -927,8 +928,8 @@ test.describe('E02 SCR-05 wizard edge — review, discard, compact', () => {
   });
 
   test('[BUG-123] E02 · wizard 375 px discard warning: the fields do not jump, and "bấm nút bên cạnh" matches where the button is', async ({ browser }) => {
-    // EXPECTED TO FAIL while BUG-123 is open: the alert is inserted as the first child of Modal.Body (CPM:248-257),
-    // above the fields, and CPM:253 says "bên cạnh" whatever the layout.
+    // BUG-123 fixed (FIX-905, then FIX-1019 for BUG-204): the discard prompt is the footer's first row, so the fields
+    // never move down, and it no longer says "bên cạnh".
     await withAdmin(
       browser,
       async (admin) => {
@@ -957,8 +958,8 @@ test.describe('E02 SCR-05 wizard edge — review, discard, compact', () => {
   });
 
   test('[BUG-110] E02 · wizard 375 px: step 2 has no sideways scroll and "Tiếp tục" is on screen and clickable to step 3', async ({ browser }) => {
-    // EXPECTED TO FAIL while BUG-110 is open: Modal width pinned 560 (CPM:63-64, MOD:132) inside a 375 px viewport,
-    // and the floor table (SF:67) is wider than the dialog. The setup uses the keyboard so it can reach step 2 at all.
+    // BUG-110 fixed (FIX-918, FIX-979): the floor table shrinks with its columns and Modal is capped at its frame
+    // (`max-w-full`). The setup still uses the keyboard, as it did when a click could not reach step 2.
     await withAdmin(
       browser,
       async (admin) => {
@@ -1514,8 +1515,8 @@ test.describe('E02 SCR-05 wizard edge — QA-02 shared components (FE 271538cb)'
       await expect(floor1).toHaveText('4,0 m');
       await captureEvidence(page, 'E02_wiz_refused_new_apply.png', { caption: '"Áp cho mọi tầng" 4 m → refusal cleared, "Tầng 1" at 4,0 m' });
       await attachJson('E02_wiz_refused.json', { sameValueApply: same, newValueApply: { value: '4', alerts: [] } });
-      // Finding candidate (Logic/Low) when these fail: an apply that writes the committed value leaves the stale refusal on screen
-      // while the row really holds 3 m (NF:40 promises an "apply to all" replaces the refused text).
+      // Fixed (FIX-1016): an apply that writes the committed value used to leave the stale refusal on screen while the
+      // row really held 3 m (NF:40 promises an "apply to all" replaces the refused text).
       expect.soft(same.value, 'apply of the same value replaces the refused text').toBe('3');
       expect.soft(same.alerts, 'apply of the same value clears the refusal').toEqual([]);
       await discardWizard(dialog);
@@ -1555,9 +1556,8 @@ test.describe('E02 SCR-05 wizard edge — QA-02 shared components (FE 271538cb)'
       await captureEvidence(page, 'E02_wiz_cap_note_switch.png', { caption: `50 floors, top of step 2: "Có tầng hầm" locked; switch describedby ${JSON.stringify(describedBy)}` });
       await attachJson('E02_wiz_cap_note.json', { rows: FLOOR_COUNT_MAX, describedBy });
       await expect(basement, 'the locked switch says why').toHaveAccessibleDescription(new RegExp(FLOOR_CAP_NOTE.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'));
-      // Finding candidate (a11y/Low) when this fails: TG:69 joins the extra id into `descId`, and TG:130 reuses that joined
-      // string as the description span's own id ("…-desc create-project-floor-cap"), so "…-desc" resolves to nothing
-      // and the switch loses its own sentence exactly when it is locked (TG:15-16 promises it is read first).
+      // BUG-196 fixed (FIX-1012): the description span carries `descId` alone and the caller's ids follow it on the
+      // switch (Toggle.tsx:69-71, 142), so the locked switch reads its own sentence first, then the cap note.
       await basement.scrollIntoViewIfNeeded();
       await shootOnSoftFail(page, 'E02_wiz_cap_switch_desc_softfail.png', `locked "Có tầng hầm" at 50 floors: describedby ${JSON.stringify(describedBy)} (own sentence expected first)`, () =>
         expect.soft(basement, 'own description, then the cap note').toHaveAccessibleDescription(`${BASEMENT_DESCRIPTION} ${FLOOR_CAP_NOTE}`),
