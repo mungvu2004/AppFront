@@ -231,6 +231,18 @@ describe('useProjectDashboard rename', () => {
     await waitFor(() => expect(names()).toEqual([NAME_HQ]));
   });
 
+  it('quotes a long new name in the toast cut with "…", the list keeps it whole (BUG-131)', async () => {
+    const server = fakeServer([project()]);
+    const onToast = await startRename(server);
+    const longName = `qa-run-11-b80-${'y'.repeat(66)}`;
+
+    act(() => dash().actions.setRenameDraft(longName));
+    act(() => dash().actions.commitRename());
+
+    await waitFor(() => expect(onToast).toHaveBeenCalledWith(expect.objectContaining({ message: `Đã đổi tên thành "qa-run-11-b80-${'y'.repeat(25)}…"` })));
+    expect(names()).toEqual([longName]);
+  });
+
   it('cancels in-flight summaries reads before the optimistic patch', async () => {
     const server = fakeServer([project()]);
     const { queryClient } = mount({ role: roleEngineer, gateway: server.gateway, onToast: vi.fn() });
