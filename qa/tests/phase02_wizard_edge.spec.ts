@@ -753,7 +753,8 @@ test.describe('E02 SCR-05 wizard edge — step 2 floors', () => {
       await expect(basementSwitch(dialog)).toBeDisabled();
       await expect(basementSwitch(dialog)).toHaveAttribute('aria-checked', 'false');
       const rows = await floorNameBoxes(dialog).count();
-      await captureEvidence(page, 'E02_wiz_cap_basement.png', { caption: `50 floors: "Thêm tầng" and "Có tầng hầm" locked → ${String(rows)} rows` });
+      await basementSwitch(dialog).scrollIntoViewIfNeeded(); // the switch sits above the list (SF:43-50)
+      await captureEvidence(page, 'E02_wiz_cap_basement.png', { caption: `50 floors, top of step 2: "Có tầng hầm" locked ("Thêm tầng" too, asserted) → ${String(rows)} rows` });
       await attachJson('E02_wiz_cap_basement.json', { rows, limit: FLOOR_COUNT_MAX, basementChecked: await basementSwitch(dialog).getAttribute('aria-checked') });
       expect(rows, `at most ${String(FLOOR_COUNT_MAX)} rows, basement included (LIM:25-27)`).toBeLessThanOrEqual(FLOOR_COUNT_MAX);
       await discardWizard(dialog);
@@ -1528,7 +1529,12 @@ test.describe('E02 SCR-05 wizard edge — QA-02 shared components (FE 271538cb)'
           .filter((id) => id !== '')
           .map((id) => ({ id, found: document.getElementById(id) !== null })),
       );
-      await captureEvidence(page, 'E02_wiz_cap_note.png', { caption: `50 floors: note shown, "Thêm tầng" and "Có tầng hầm" locked; switch describedby ${JSON.stringify(describedBy)}` });
+      // BUG-220: with 50 rows the note (foot of the list, under "Thêm tầng") and the switch (top of step 2) never share
+      // one view: each is scrolled into view for its own shot.
+      await note.scrollIntoViewIfNeeded();
+      await captureEvidence(page, 'E02_wiz_cap_note.png', { caption: `50 floors, foot of the list: note "${FLOOR_CAP_NOTE}" under the locked "Thêm tầng"` });
+      await basement.scrollIntoViewIfNeeded();
+      await captureEvidence(page, 'E02_wiz_cap_note_switch.png', { caption: `50 floors, top of step 2: "Có tầng hầm" locked; switch describedby ${JSON.stringify(describedBy)}` });
       await attachJson('E02_wiz_cap_note.json', { rows: FLOOR_COUNT_MAX, describedBy });
       await expect(basement, 'the locked switch says why').toHaveAccessibleDescription(new RegExp(FLOOR_CAP_NOTE.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'));
       // Finding candidate (a11y/Low) when this fails: TG:69 joins the extra id into `descId`, and TG:130 reuses that joined
@@ -1549,7 +1555,10 @@ test.describe('E02 SCR-05 wizard edge — QA-02 shared components (FE 271538cb)'
       await expect(note).toBeVisible();
       await expect(add).toBeDisabled();
       await expect(basement, 'hasBasement keeps the switch usable at the cap (UCPM:907)').toBeEnabled();
-      await captureEvidence(page, 'E02_wiz_cap_basement_toggle.png', { caption: '49 floors + basement = 50: note shown, "Thêm tầng" locked, switch still usable' });
+      await basement.scrollIntoViewIfNeeded();
+      await captureEvidence(page, 'E02_wiz_cap_basement_toggle.png', { caption: '49 floors + basement = 50, top of step 2: "Có tầng hầm" on and still usable' });
+      await note.scrollIntoViewIfNeeded();
+      await captureEvidence(page, 'E02_wiz_cap_basement_toggle_foot.png', { caption: `49 floors + basement = 50, foot of the list: note "${FLOOR_CAP_NOTE}", "Thêm tầng" locked` });
       await basement.click();
       await expect(floorNameBoxes(dialog)).toHaveCount(FLOOR_COUNT_MAX - 1);
       await expect(dialog.getByRole('textbox', { name: `Tên tầng ${BASEMENT_NAME}`, exact: true })).toHaveCount(0);
