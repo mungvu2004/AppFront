@@ -293,11 +293,6 @@
   .border-border-default-50 { border-color: color-mix(in srgb, var(--border-default) 50%, transparent); }
   .border-border-default-60 { border-color: color-mix(in srgb, var(--border-default) 60%, transparent); }
 
-  /* Vùng bấm cao thêm 2 px trên và dưới mà không đổi bố cục (công tắc 36×20 → vùng bấm 36×24, WCAG
-     2.5.8). Một quy tắc thay cho bốn lớp `before:*` — mỗi lớp `before:` kéo theo `content: var(--tw-content)`
-     và vượt ngân sách CSS 12 KiB. Phần tử phải `relative`. */
-  .hit-y-24::before { content: ''; position: absolute; inset: -2px 0; }
-
   /* `--bg-hover` là một lớp phủ trong suốt (6% / 3,5%): đặt thẳng làm nền thì vật thể
      nổi trên canvas (ghim bình luận) trong suốt khi rê chuột. Phủ nó LÊN nền surface. */
   .bg-hover-over-surface {
