@@ -203,6 +203,7 @@ const SCALE = {
   notice: 'Trạng thái của màn hiệu chỉnh tỷ lệ', // SV:69
   backToPreprocessing: 'Quay lại bước tiền xử lý', // SV:77
   retry: 'Tải lại ảnh', // SV:78
+  goToUpload: 'Tải bản vẽ lên', // ScaleCalibration.tsx:78
   canvas: 'Bản vẽ đã nắn, kéo để vẽ đường tham chiếu', // ScaleCalibrationCanvas.tsx:70
   handleStart: 'Đầu đoạn tham chiếu, dùng phím mũi tên để nhích', // ScaleCalibrationCanvas.tsx:73
   handleEnd: 'Cuối đoạn tham chiếu, dùng phím mũi tên để nhích', // ScaleCalibrationCanvas.tsx:74
@@ -227,7 +228,6 @@ const OVERLAY = {
 } as const;
 
 /** SCR-11 quality gate empty state, the target of "Quay lại bước tiền xử lý" (InputQualityGate.tsx:65, vi.json:856). */
-const QUALITY_NO_DRAWING = 'Chưa có bản vẽ để kiểm tra';
 
 /* SCR-10 upload (fixture for the scale test, same path as phase03 edge). */
 const FILE_INPUT = 'floor-upload-file-input'; // FloorUploadDropZone.tsx:33
@@ -1375,27 +1375,24 @@ test.describe('E04 SCR-21 thickness standardization', () => {
 /* ================================================================= SCR-14 scale calibration */
 
 test.describe('E04 SCR-14 scale calibration', () => {
-  test('E04 · SCR-14 floor without drawing → error notice with "Tải lại ảnh" (re-reads) and "Quay lại bước tiền xử lý" (→ quality)', async ({ browser }) => {
+  test('E04 · SCR-14 floor without drawing → no-drawing notice with only "Tải bản vẽ lên" (→ upload)', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page, api } = admin;
       const project = await createProject(admin, 'scale-nodrawing');
-      const qualityRe = new RegExp(`^/api/projects/${escapeRegExp(project.id)}/floors/${escapeRegExp(project.floor.id)}/quality$`, 'u');
       const mark = api.length;
       await page.goto(ROUTES.project.scale(project.id, project.floor.id));
-      // US:1466 query error → 'error' (scaleCalibrationGateway.ts:283-310: no entry for the floor); SV:193-212.
+      // US:1466 query error → 'error' (scaleCalibrationGateway.ts:283-310: no entry for the floor); ScaleCalibration.tsx:204-208
+      // (isNoDrawing) shows only the upload button; "Tải lại ảnh" / "Quay lại bước tiền xử lý" (:210-218) stay for warped / other read errors.
       const notice = page.getByRole('region', { name: SCALE.notice, exact: true });
       await expect(notice.getByRole('alert')).toBeVisible();
+      await expect(notice.getByRole('button', { name: SCALE.retry, exact: true })).toHaveCount(0);
+      await expect(notice.getByRole('button', { name: SCALE.backToPreprocessing, exact: true })).toHaveCount(0);
       await captureEvidence(page, 'E04_scale_no_drawing.png');
 
-      const reread = waitForApi(page, 'GET', qualityRe, [200, 404]);
-      await notice.getByRole('button', { name: SCALE.retry, exact: true }).click(); // US:1033 query.refetch()
-      await reread;
-      await notice.getByRole('button', { name: SCALE.backToPreprocessing, exact: true }).click(); // US:1029
-      await expect.poll(() => pathOf(page)).toBe(ROUTES.project.quality(project.id));
-      // BUG-343: the lazy route first paints "Đang tải màn hình…"; shoot the quality gate itself (no drawing on this floor).
-      await expect(page.getByText(QUALITY_NO_DRAWING, { exact: true })).toBeVisible();
+      await notice.getByRole('button', { name: SCALE.goToUpload, exact: true }).click(); // ScaleCalibration.tsx:205 → useScaleCalibration.ts:1045
+      await expect.poll(() => pathOf(page)).toBe(ROUTES.project.upload(project.id));
       expect(writesSince(api, mark), 'scale error state writes nothing').toEqual([]);
-      await captureEvidence(page, 'E04_scale_back_to_quality.png');
+      await captureEvidence(page, 'E04_scale_to_upload.png');
     });
   });
 
