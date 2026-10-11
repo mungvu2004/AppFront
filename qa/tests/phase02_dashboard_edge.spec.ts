@@ -3096,7 +3096,7 @@ test.describe('E02 QA-02 shared components (FE 271538cb) — SCR-05 / SCR-06 / S
     });
   });
 
-  test('E02 · SCR-05 [mocked response] N1 fails (500, unpairable: 5xx): the error card says the page-load sentence, not an action sentence; a 403 says the rights sentence', async ({ browser }) => {
+  test('E02 · SCR-05 [mocked response] N1 fails (500, unpairable: 5xx): the error card says the page-load sentence, not an action sentence; a 403 says the rights sentence without a useless "Thử lại"', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       await routeSummaries(page, (route) => route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }));
@@ -3108,19 +3108,20 @@ test.describe('E02 QA-02 shared components (FE 271538cb) — SCR-05 / SCR-06 / S
       await expect(page.getByText('thao tác vừa làm', { exact: false })).toHaveCount(0); // BUG-209: no action was taken
       await captureEvidence(page, 'E02_dash_error_unknown_copy.png', { caption: 'N1 500 [mocked] → listErrorMessageOf (useProjectDashboard.ts:250)' });
 
-      // A 403 is no server fault (review-1 #10, FIX-1078): kind "forbidden" (toAppError.ts:12) is in UPD:240, so the card
-      // keeps the shared rights sentence. Unpairable as well: the real N1 never refuses a signed-in role.
+      // A 403 is no server fault (review-1 #10): kind "forbidden" (toAppError.ts:12) gets its own list sentence (UPD:246,
+      // BUG-209 FIX-1150). Retrying cannot grant a right, so the card drops "Thử lại" (QA-02c R-src: canRetry false on
+      // forbidden). Unpairable as well: the real N1 never refuses a signed-in role.
       await page.unrouteAll({ behavior: 'ignoreErrors' });
       await routeSummaries(page, (route) => fulfillJson(route, 403, wireError('FORBIDDEN')));
       await page.getByRole('button', { name: RETRY, exact: true }).click();
       await expect(page.getByText(LIST_LOAD_403_DESCRIPTION, { exact: true })).toBeVisible({ timeout: SLOW_STATE_MS });
       await expect(page.getByText(LIST_LOAD_500_DESCRIPTION, { exact: true })).toHaveCount(0);
       await expect(page.getByText(LIST_ERROR_TITLE, { exact: true })).toBeVisible();
-      await captureEvidence(page, 'E02_dash_error_403_copy.png', { caption: 'N1 403 FORBIDDEN [mocked] → the rights sentence, not "Máy chủ gặp lỗi…" (useProjectDashboard.ts:240)' });
+      await expect(page.getByRole('button', { name: RETRY, exact: true }), 'no "Thử lại" on a 403').toHaveCount(0);
+      await captureEvidence(page, 'E02_dash_error_403_copy.png', { caption: 'N1 403 FORBIDDEN [mocked] → the rights sentence, not "Máy chủ gặp lỗi…", and no "Thử lại" (useProjectDashboard.ts:246)' });
+      // Rights restored: only a fresh load reads N1 again (no button to press).
       await page.unrouteAll({ behavior: 'ignoreErrors' });
-      const reread = waitForApi(page, 'GET', SUMMARIES_RE, [200]);
-      await page.getByRole('button', { name: RETRY, exact: true }).click();
-      await reread;
+      await reloadDashboard(page);
       await expect(page.getByText(LIST_ERROR_TITLE, { exact: true })).toHaveCount(0);
     });
   });
