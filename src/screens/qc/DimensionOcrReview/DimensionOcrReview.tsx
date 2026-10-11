@@ -30,8 +30,10 @@
  *
  * Không nhánh nào trả `null` cho cả màn: canvas luôn được vẽ, nên màn trắng —
  * thất bại duy nhất A11 tồn tại để chặn — không có chỗ xảy ra. Chế độ duyệt bàn
- * phím là ngoại lệ có chủ đích: ở đó cả màn THU VỀ `DimensionOcrKeyboardMode`,
- * và chính nó vẽ ảnh cắt, ô nhập và bảng phím, nên vẫn không có gì trắng.
+ * phím là ngoại lệ có chủ đích: khi CÒN chuỗi để duyệt, cả màn THU VỀ
+ * `DimensionOcrKeyboardMode` (ảnh cắt, ô nhập, bảng phím). Không còn chuỗi nào
+ * thì màn giữ nguyên bản vẽ + trạng thái của nó, và chế độ nằm ở chân bảng
+ * duyệt cùng nút tắt (BUG-334) — thu về một khung không có gì là màn trắng.
  *
  * ## Dưới 1024px
  *
@@ -195,7 +197,7 @@ export function DimensionOcrReview({
     Chế độ duyệt bàn phím thu CẢ MÀN về một ảnh cắt và một ô nhập — đường nhanh
     nhất của màn, và đặc tả đòi nó không còn thứ gì khác trên màn hình để nhìn.
   */
-  if (model.keyboardReview.isActive) {
+  if (model.keyboardReview.isActive && model.keyboardReview.row !== null) {
     return (
       <div
         aria-label={SCREEN_ARIA_LABEL}
@@ -286,7 +288,7 @@ export function DimensionOcrReview({
             ) : (
               <div className="border-t border-border-default px-3 py-2">
                 <DimensionOcrKeyboardMode
-                  isActive={false}
+                  isActive={model.keyboardReview.isActive}
                   onApprove={model.keyboardReview.onApprove}
                   onCancelEdit={model.keyboardReview.onCancelEdit}
                   onEdit={model.keyboardReview.onEdit}

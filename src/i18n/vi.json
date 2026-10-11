@@ -1719,7 +1719,7 @@
         },
         "r": {
           "label": "R",
-          "description": "Bật chế độ duyệt bàn phím"
+          "description": "Bật hoặc tắt chế độ duyệt bàn phím"
         }
       }
     },

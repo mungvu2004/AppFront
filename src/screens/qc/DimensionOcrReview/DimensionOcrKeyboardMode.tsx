@@ -52,12 +52,15 @@ export interface DimensionOcrKeyboardModeViewProps extends DimensionOcrKeyboardM
   readonly onCancelEdit: () => void;
 }
 
-/** Bốn phím của nửa phải, đúng thứ tự đặc tả liệt kê. */
+/**
+ * Bốn phím của nửa phải, đúng thứ tự đặc tả liệt kê. Bảng chỉ hiện khi chế độ
+ * ĐANG bật, nên R ở đây là phím TẮT (BUG-334).
+ */
 const KEY_LEGEND = [
   DIMENSION_OCR_TEXT.keyboard.keys.enter,
   DIMENSION_OCR_TEXT.keyboard.keys.tab,
   DIMENSION_OCR_TEXT.keyboard.keys.esc,
-  DIMENSION_OCR_TEXT.keyboard.keys.r,
+  { label: DIMENSION_OCR_TEXT.keyboard.keys.r.label, description: DIMENSION_OCR_TEXT.keyboard.toggleOffLabel },
 ] as const;
 
 const TOGGLE_CLASS_NAME = cn(
@@ -153,7 +156,7 @@ export function DimensionOcrKeyboardMode({
         </>
       )}
 
-      <dl className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+      <dl className="grid gap-y-1 sm:flex sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-4">
         {KEY_LEGEND.map((key) => (
           <div className="flex items-center gap-1.5" key={key.label}>
             <dt>
