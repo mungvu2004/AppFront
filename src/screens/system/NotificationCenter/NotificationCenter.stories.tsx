@@ -136,7 +136,7 @@ const YESTERDAY_ITEMS: readonly NotificationItemVm[] = [
     projectName: INVITE_PROJECT_NAME,
     targetTo: ROUTES.project.settings(INVITE_PROJECT_ID),
     targetLabel: 'xem lời mời',
-    inlineAction: { label: 'chấp nhận', kind: 'accept' },
+    inlineAction: { label: 'Chấp nhận', kind: 'accept' },
   }),
   item({
     id: 'n-4',
@@ -233,7 +233,7 @@ export const ErrorState: Story = {
 /** 5 — thành công: đủ hai nhóm ngày, đủ bốn loại thông báo. */
 export const Success: Story = { args: BASE };
 
-/** 6 — không có quyền: vai người xem, không có thao tác "chấp nhận" lời mời. */
+/** 6 — không có quyền: vai người xem, không có thao tác "Chấp nhận" lời mời. */
 export const Forbidden: Story = {
   args: {
     ...BASE,

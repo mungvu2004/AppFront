@@ -173,14 +173,14 @@ export function createNotificationTarget(input: NotificationTargetInput): Notifi
  *
  * `projectInvite` là loại DUY NHẤT mang `'accept'`: nó có một phép ghi thật để
  * gọi (`NotificationCenterGateway.acceptInvite`). Ba loại còn lại chỉ mở một
- * màn, nên nhãn của chúng nói đúng chừng ấy — A6, viết thường kiểu câu.
+ * màn, nên nhãn của chúng nói đúng chừng ấy — A6: viết hoa chữ đầu (quyết định 2026-10-04).
  */
 const INLINE_ACTION_BY_KIND: Readonly<Record<NotificationKind, NotificationInlineAction>> =
   Object.freeze({
     aiCompleted: { label: 'Xem kết quả', kind: 'navigate' },
     commentMention: { label: 'Xem bình luận', kind: 'navigate' },
-    projectInvite: { label: 'chấp nhận', kind: 'accept' },
-    violationFound: { label: 'xem lỗi', kind: 'navigate' },
+    projectInvite: { label: 'Chấp nhận', kind: 'accept' },
+    violationFound: { label: 'Xem lỗi', kind: 'navigate' },
   } as const);
 
 /**

@@ -799,13 +799,13 @@ describe('createNotificationCenterGateway — dây thật', () => {
     expect(item.relativeTime).not.toBe('');
   });
 
-  it('chỉ lời mời mang hành động "chấp nhận"; ba loại kia điều hướng', () => {
+  it('chỉ lời mời mang hành động "Chấp nhận"; ba loại kia điều hướng', () => {
     const byKind = new Map(
       MOCK_NOTIFICATIONS.map((wire) => [wire.kind, toNotificationItemVm(wire, GATEWAY_NOW_MS)]),
     );
 
     expect(byKind.get('projectInvite')?.inlineAction).toEqual({
-      label: 'chấp nhận',
+      label: 'Chấp nhận',
       kind: 'accept',
     });
     expect(byKind.get('aiCompleted')?.inlineAction?.kind).toBe('navigate');
@@ -921,16 +921,16 @@ describe('createNotificationCenterGateway — dây thật', () => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* (e2) Nhãn "chấp nhận" GHI thật — nó không phải một nút điều hướng đội lốt.  */
+/* (e2) Nhãn "Chấp nhận" GHI thật — nó không phải một nút điều hướng đội lốt.  */
 /* -------------------------------------------------------------------------- */
 
-describe('nút hành động "chấp nhận" của một lời mời', () => {
+describe('nút hành động "Chấp nhận" của một lời mời', () => {
   it('gọi gateway.acceptInvite với đúng mã thông báo, KHÔNG điều hướng', async () => {
     const invite = buildItem({
       id: 'invite-1',
       kind: 'projectInvite',
       isRead: false,
-      inlineAction: { label: 'chấp nhận', kind: 'accept' },
+      inlineAction: { label: 'Chấp nhận', kind: 'accept' },
     });
 
     const fake = createFakeGateway([invite]);
@@ -963,7 +963,7 @@ describe('nút hành động "chấp nhận" của một lời mời', () => {
       isRead: false,
       projectId: 'p-thao-dien',
       targetTo: expectedTo,
-      inlineAction: { label: 'xem lỗi', kind: 'navigate' },
+      inlineAction: { label: 'Xem lỗi', kind: 'navigate' },
     });
 
     const fake = createFakeGateway([violation]);

@@ -174,10 +174,10 @@ function NotificationRow({
           </p>
         )}
 
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[13px] leading-[18px] text-text-muted">{item.relativeTime}</span>
+        <div className="flex items-center gap-2">
+          <span className="whitespace-nowrap text-[13px] leading-[18px] text-text-muted">{item.relativeTime}</span>
           {item.inlineAction !== undefined && (
-            <Button variant="ghost" size="sm" onClick={() => onInlineAction(item)}>
+            <Button variant="secondary" size="sm" onClick={() => onInlineAction(item)}>
               {item.inlineAction.label}
             </Button>
           )}

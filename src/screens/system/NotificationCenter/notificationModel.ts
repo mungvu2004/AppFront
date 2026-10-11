@@ -61,13 +61,13 @@ export interface NotificationTarget {
 }
 
 export interface NotificationInlineAction {
-  /** Nhãn tiếng Việt viết thường kiểu câu (A6): "xem kết quả", "xem lời mời". */
+  /** Nhãn tiếng Việt, viết hoa chữ đầu (A6): "Xem kết quả", "Chấp nhận". */
   readonly label: string;
   /**
    * `'navigate'` chỉ mở một màn; `'accept'` GHI trước rồi mới mở.
    *
    * `'accept'` có nguồn sinh ra thật kể từ lượt nối dây: mục `projectInvite`
-   * mang nhãn "chấp nhận", và bấm vào gọi
+   * mang nhãn "Chấp nhận", và bấm vào gọi
    * {@link NotificationCenterGateway.acceptInvite} → `client.notifications.acceptInvite`
    * → `ENDPOINTS.notifications.acceptInvite(notificationId)`. Trước đó nhãn là
    * "xem lời mời" với `'navigate'`, vì chưa có phép ghi nào để gọi và một nút
