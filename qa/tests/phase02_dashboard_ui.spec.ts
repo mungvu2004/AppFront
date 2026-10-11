@@ -954,14 +954,16 @@ test.describe('U02 UI verify — SCR-06 notifications', () => {
    * BUG-174: the admin's inbox is empty on the shared stack, so every real drawer shot is the empty state. These three rows
    * (2 unread, 1 read; 1 of them a comment mention) give the row layout, the unread dots, "Đánh dấu tất cả đã đọc" enabled and
    * filters that each keep their own rows. Wire shape: `NotificationSchema` (src/api/schemas/notifications.ts, `.strict()`).
+ * `message` is the server's sentence WITHOUT the label: the FE appends `objectLabel` (AppBack apps/api/notifications/messages.py
+ * `ai_completed`, `violation_found`; BUG-206). No server template exists for a comment mention yet, so row 2 keeps its own.
    */
   const notificationRows = (): unknown[] => {
     const at = (minutesAgo: number): string => new Date(Date.now() - minutesAgo * 60_000).toISOString();
     const base = { objectLabel: 'Tầng trệt', place: 'walls', projectId: 'prj_QA02UIROWS', projectName: `${TEST_DATA_PREFIX}u02-rows` };
     return [
-      { ...base, id: 'ntf_qa02_1', kind: 'aiCompleted', isRead: false, message: 'AI đã xử lý xong bản vẽ tầng trệt', createdAt: at(5) },
+      { ...base, id: 'ntf_qa02_1', kind: 'aiCompleted', isRead: false, message: 'hệ thống AI đã xử lý xong bản vẽ', createdAt: at(5) },
       { ...base, id: 'ntf_qa02_2', kind: 'commentMention', isRead: false, message: 'Lan nhắc đến bạn trong một bình luận', excerpt: 'Kiểm tra lại tường trục B giúp mình', createdAt: at(30) },
-      { ...base, id: 'ntf_qa02_3', kind: 'violationFound', isRead: true, message: 'Phát hiện một vi phạm ở tầng trệt', createdAt: at(90) },
+      { ...base, id: 'ntf_qa02_3', kind: 'violationFound', isRead: true, message: 'phát hiện 1 vi phạm luật ở', createdAt: at(90) },
     ];
   };
   const routeNotificationRows = (context: BrowserContext): Promise<void> =>
