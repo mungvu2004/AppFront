@@ -233,18 +233,17 @@ function deleteErrorMessageOf(error: unknown): string {
     : 'Không xoá được dự án. Hãy thử lại.';
 }
 
-/**
- * Kinds whose shared sentence is about the link, the server's pace, the session or the account's rights — true of a
- * page load too. A 403 is not a server fault, and "Thử lại" would not help it (review-1 #10).
- */
-const LOAD_ERROR_KINDS_WITH_OWN_SENTENCE: ReadonlySet<AppErrorKind> = new Set(['network', 'timeout', 'rateLimited', 'unauthenticated', 'forbidden']);
+/** Kinds whose shared sentence is about the link, the server's pace or the session — true of a page load too. */
+const LOAD_ERROR_KINDS_WITH_OWN_SENTENCE: ReadonlySet<AppErrorKind> = new Set(['network', 'timeout', 'rateLimited', 'unauthenticated']);
 
 /**
  * N1 failed while the page opened. Every other kind's shared sentence speaks of an action the person took
- * ("Hãy thử lại thao tác vừa làm" for a 500) — they took none, so say what to do here instead (BUG-209).
+ * ("Hãy thử lại thao tác vừa làm" for a 500, "làm thao tác này" for a 403) — they took none, so say what
+ * happened to the list instead (BUG-209). A 403 is not a server fault: it keeps the rights cause (review-1 #10).
  */
 function listErrorMessageOf(error: unknown): string {
   const appError = toAppError(error);
+  if (appError.kind === 'forbidden') return 'Tài khoản của bạn chưa được phép xem danh sách dự án. Liên hệ quản trị dự án.';
   return LOAD_ERROR_KINDS_WITH_OWN_SENTENCE.has(appError.kind)
     ? describeError(appError).description
     : 'Máy chủ gặp lỗi khi đọc danh sách. Bấm "Thử lại" để tải lại.';
