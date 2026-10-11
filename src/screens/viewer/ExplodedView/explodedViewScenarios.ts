@@ -37,6 +37,7 @@ import type { WallId } from '@/domain/spatial/types';
 import { millimetres } from '@/domain/units/types';
 import { formatArea, formatLength } from '@/lib/format/measure';
 import { MISSING_VALUE } from '@/lib/format/number';
+import { storeyInlineName } from '@/screens/viewer/ViewerShell/viewerStoreyStack';
 
 import {
   EXPLODE_PRESETS,
@@ -139,6 +140,7 @@ function buildFloor(
   return {
     id: def.id,
     name: def.name,
+    inlineName: storeyInlineName(def.name),
     elevationLabel: formatLength(millimetres(def.elevationMm), { unit: 'm' }),
     areaLabel: formatArea(def.areaM2),
     isVisible: true,

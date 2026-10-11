@@ -110,6 +110,19 @@ export interface StackedStorey {
 /* Phép tính.                                                                  */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Tên tầng đặt GIỮA câu, một cách viết duy nhất: "Tầng trệt" → "tầng trệt",
+ * "Tầng 1" → "tầng 1", "Mái" → "tầng Mái". Ghép thẳng `name` vào "Ẩn …" từng
+ * cho "Ẩn Tầng trệt", còn ghép thêm "tầng" thì ra "tầng Tầng 1" (BUG-384).
+ * Ray tầng của vỏ và thẻ tầng của màn tách tầng cùng gọi hàm này. Chuẩn hoá NFC
+ * trước để tên gõ dạng tổ hợp (NFD) hay viết hoa cả chữ vẫn khớp.
+ */
+export function storeyInlineName(name: string): string {
+  const composed = name.normalize('NFC');
+
+  return /^tầng(\s|$)/iu.test(composed) ? `tầng${composed.slice(4)}` : `tầng ${composed}`;
+}
+
 /** Ép về đoạn [{@link MIN_SEPARATION}, {@link MAX_SEPARATION}]; số hỏng thành 0. */
 export function clampSeparation(value: number): number {
   if (!Number.isFinite(value)) {

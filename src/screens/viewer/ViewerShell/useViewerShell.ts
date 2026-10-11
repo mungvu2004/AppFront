@@ -109,6 +109,7 @@ import {
 } from './viewerShellShortcuts';
 import {
   clampSeparation,
+  storeyInlineName,
   stackedHeightMm,
   stackStoreys,
   type StackableStorey,
@@ -157,15 +158,6 @@ export function storeyShortLabel(name: string): string {
   const short = name.replace(/^Tầng\s+/u, '');
 
   return short === '' ? name : short.charAt(0).toLocaleUpperCase('vi') + short.slice(1);
-}
-
-/**
- * Tên tầng đặt GIỮA câu, một cách viết duy nhất: "Tầng trệt" → "tầng trệt",
- * "Tầng 1" → "tầng 1", "Mái" → "tầng Mái". Ghép thẳng `name` vào "Ẩn …" từng
- * cho "Ẩn Tầng trệt", còn ghép thêm "tầng" thì ra "tầng Tầng 1" (BUG-384).
- */
-export function storeyInlineName(name: string): string {
-  return /^tầng(\s|$)/iu.test(name) ? `t${name.slice(1)}` : `tầng ${name}`;
 }
 
 /**

@@ -74,7 +74,6 @@ import { VIEWER_SCREEN_STATES } from './viewerShellScenarios';
 import {
   ALL_VIEWER_TOOLS,
   defaultViewerShellGateway,
-  storeyInlineName,
   storeyShortLabel,
   projectNameQueryKey,
   useViewerShell,
@@ -88,7 +87,7 @@ import {
   type ViewerScreenState,
 } from './viewerShellTypes';
 import { isClipped, sectionPlaneFor } from './viewerSectionPlane';
-import { stackStoreys, storeySpreadMm, type StackableStorey } from './viewerStoreyStack';
+import { stackStoreys, storeyInlineName, storeySpreadMm, type StackableStorey } from './viewerStoreyStack';
 
 /* -------------------------------------------------------------------------- */
 /* Bộ dựng.                                                                    */
@@ -298,6 +297,8 @@ describe('[VS-5] bộ mẫu', () => {
     expect(storeyInlineName('Tầng 1')).toBe('tầng 1');
     expect(storeyInlineName('Tầng')).toBe('tầng');
     expect(storeyInlineName('Mái')).toBe('tầng Mái');
+    expect(storeyInlineName('Tầng 1')).toBe('tầng 1');
+    expect(storeyInlineName('TẦNG 1')).toBe('tầng 1');
   });
 });
 

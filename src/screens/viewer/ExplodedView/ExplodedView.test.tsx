@@ -191,6 +191,17 @@ describe('ExplodedView — dấu "Cần chú ý" không cắt cao độ và di�
 /* chính tầng đó. Hai bài kiểm dưới đây khẳng định cả hai nửa của sự thật này. */
 /* -------------------------------------------------------------------------- */
 
+describe('ExplodedView — thẻ tầng gọi tên tầng một cách, không "tầng Tầng 01" (BUG-384)', () => {
+  it('nút chọn và nút mắt của thẻ đọc "tầng 01", như ray tầng', () => {
+    const props = explodedViewScenarioFor('partial');
+    const { container } = renderWithProviders(<ExplodedView {...props} />);
+
+    expect(within(container).getByRole('button', { name: /^Chọn tầng 01, cao độ /u })).toBeInTheDocument();
+    expect(within(container).getByRole('button', { name: /^(Ẩn|Hiện) tầng 01$/u })).toBeInTheDocument();
+    expect(within(container).queryAllByRole('button', { name: /tầng Tầng/u })).toHaveLength(0);
+  });
+});
+
 describe('ExplodedView — lệch trục 180 mm', () => {
   it('lệch TƯƠNG ĐỐI 180 mm giữa hai trục cùng phương sinh FloorIssue kind alignment, severity attention, amountMm 180', () => {
     expect(SAMPLE_ALIGNMENT_ISSUE.kind).toBe('alignment');
