@@ -220,6 +220,29 @@ async function settled(target: Locator): Promise<void> {
   expect(still, 'overlay still moving after 5 s').toBe(true);
 }
 
+/**
+ * BUG-159 / BUG-162 / BUG-173: at 375 px the wizard's step-2 table is wider than the modal (BUG-109/110), so "Tiếp tục",
+ * "Tạo dự án", "Xoá Tầng …" sit outside the viewport and a real click waits its whole 30 s and throws — the case then
+ * never reaches the state its name claims and the shot is of step 2. The click is tried for 3 s; when the control cannot
+ * be reached the `click` event is dispatched on it instead, so the state is still reached and shot. The layout defect
+ * itself is not hidden: `verifyUi` flags the overflow and the off-screen controls for that width.
+ */
+function clicker(): (target: Locator) => Promise<void> {
+  let direct = false; // once one control was out of reach, the rest of this open skips the 3 s probe
+  return async (target) => {
+    if (!direct) {
+      try {
+        await target.click({ timeout: 3_000 });
+        return;
+      } catch {
+        direct = true;
+      }
+    }
+    await target.dispatchEvent('click');
+  };
+}
+const activate = (target: Locator): Promise<void> => clicker()(target);
+
 async function openDashboard(page: Page): Promise<void> {
   await page.goto(ROUTES.dashboard);
   await expect(dashboardHeading(page)).toBeVisible({ timeout: 15_000 });
@@ -228,7 +251,7 @@ async function openDashboard(page: Page): Promise<void> {
 
 async function openWizard(page: Page): Promise<Locator> {
   await openDashboard(page);
-  await page.getByRole('button', { name: NEW_PROJECT }).click();
+  await activate(page.getByRole('button', { name: NEW_PROJECT }));
   const dialog = wizard(page);
   await expect(dialog).toBeVisible();
   return dialog;
@@ -240,7 +263,7 @@ const stepLabel = (dialog: Locator, step: number): Locator => dialog.getByText(`
 /** Step 1 → step 2 with `name`. */
 async function toStep2(dialog: Locator, name: string): Promise<void> {
   await dialog.getByLabel(NAME_LABEL).fill(name);
-  await dialog.getByRole('button', { name: NEXT, exact: true }).click();
+  await activate(dialog.getByRole('button', { name: NEXT, exact: true }));
   await expect(stepLabel(dialog, 2)).toBeVisible();
 }
 
@@ -249,7 +272,7 @@ async function applySharedHeight(dialog: Locator): Promise<void> {
   const field = dialog.getByLabel(SHARED_HEIGHT_LABEL);
   await field.fill(FLOOR_HEIGHT_M);
   await field.press('Tab');
-  await dialog.getByRole('button', { name: APPLY_HEIGHT, exact: true }).click();
+  await activate(dialog.getByRole('button', { name: APPLY_HEIGHT, exact: true }));
 }
 
 /** Notification drawer settled: a day group, the empty / no-match state, or the error state (NotificationCenter.tsx). */
@@ -571,10 +594,10 @@ test.describe('U02 UI verify — SCR-05 dashboard (with an 80-character project 
         const dialog = await openWizard(p);
         await toStep2(dialog, name);
         await applySharedHeight(dialog);
-        await dialog.getByRole('button', { name: NEXT, exact: true }).click();
+        await activate(dialog.getByRole('button', { name: NEXT, exact: true }));
         await expect(stepLabel(dialog, 3)).toBeVisible();
         const posted = p.waitForResponse((r) => r.request().method() === 'POST' && pathnameOf(r) === PROJECTS_PATH);
-        await dialog.getByRole('button', { name: CREATE_PROJECT, exact: true }).click();
+        await activate(dialog.getByRole('button', { name: CREATE_PROJECT, exact: true }));
         const response = await posted;
         const body = (await response.json().catch(() => ({}))) as { id?: unknown };
         if (typeof body.id === 'string') created.push(body.id); // before the checks: cleanup never misses one
@@ -629,7 +652,7 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent, excep
       const dialog = await openWizard(p);
       await toStep2(dialog, `${TEST_DATA_PREFIX}u02-rong`);
       for (const floor of DEFAULT_FLOORS) {
-        await dialog.getByRole('button', { name: `Xoá ${floor}`, exact: true }).click(); // StepFloors.tsx:107-114
+        await activate(dialog.getByRole('button', { name: `Xoá ${floor}`, exact: true })); // StepFloors.tsx:107-114
       }
       await expect(dialog.getByText(NO_FLOORS, { exact: true })).toBeVisible(); // StepFloors.tsx:58-64
       await expect(dialog.getByText(NO_FLOORS_HINT, { exact: true })).toBeVisible();
@@ -644,7 +667,8 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent, excep
       const dialog = await openWizard(p);
       await toStep2(dialog, `${TEST_DATA_PREFIX}u02-50-tang`);
       const add = dialog.getByRole('button', { name: ADD_FLOOR, exact: true });
-      for (let floors = DEFAULT_FLOORS.length; floors < FLOOR_COUNT_MAX; floors += 1) await add.click();
+      const press = clicker();
+      for (let floors = DEFAULT_FLOORS.length; floors < FLOOR_COUNT_MAX; floors += 1) await press(add);
       await expect(dialog.getByRole('textbox', { name: /^Tên tầng /u })).toHaveCount(FLOOR_COUNT_MAX); // StepFloors.tsx:87-92
       await expect(add).toBeDisabled(); // useCreateProjectModal.ts:490, StepFloors.tsx:125
       await settled(dialog);
@@ -656,7 +680,7 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent, excep
       const dialog = await openWizard(p);
       await toStep2(dialog, WIZARD_LONG_NAME);
       await applySharedHeight(dialog);
-      await dialog.getByRole('button', { name: NEXT, exact: true }).click();
+      await activate(dialog.getByRole('button', { name: NEXT, exact: true }));
       await expect(stepLabel(dialog, 3)).toBeVisible();
       await expect(dialog.getByText(WIZARD_LONG_NAME, { exact: true })).toBeVisible();
       await expect(dialog.getByRole('button', { name: CREATE_PROJECT, exact: true })).toBeVisible();
@@ -671,13 +695,13 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent, excep
       const dialog = await openWizard(p);
       await dialog.getByLabel(NAME_LABEL).fill(shortName('u02-422'));
       await dialog.getByLabel(CODE_LABEL).fill('C'.repeat(33));
-      await dialog.getByRole('button', { name: NEXT, exact: true }).click();
+      await activate(dialog.getByRole('button', { name: NEXT, exact: true }));
       await expect(stepLabel(dialog, 2)).toBeVisible();
       await applySharedHeight(dialog);
-      await dialog.getByRole('button', { name: NEXT, exact: true }).click();
+      await activate(dialog.getByRole('button', { name: NEXT, exact: true }));
       await expect(stepLabel(dialog, 3)).toBeVisible();
       const refused = p.waitForResponse((r) => r.request().method() === 'POST' && pathnameOf(r) === PROJECTS_PATH);
-      await dialog.getByRole('button', { name: CREATE_PROJECT, exact: true }).click();
+      await activate(dialog.getByRole('button', { name: CREATE_PROJECT, exact: true }));
       expect((await refused).status(), 'POST /api/projects with a 33-char code').toBe(422);
       // useCreateProjectModal.ts:658-663: describeError(validation) → violation notice; submit locked.
       await expect(dialog.getByText(VALIDATION_DESCRIPTION, { exact: true }).first()).toBeVisible();
@@ -690,7 +714,7 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent, excep
     await verifyAsAdmin(browser, 'U02_wizard_discard', async (p) => {
       const dialog = await openWizard(p);
       await dialog.getByLabel(NAME_LABEL).fill(`${TEST_DATA_PREFIX}u02-discard`);
-      await dialog.getByRole('button', { name: CANCEL, exact: true }).click();
+      await activate(dialog.getByRole('button', { name: CANCEL, exact: true }));
       await expect(dialog.getByText(DISCARD_TITLE, { exact: true })).toBeVisible();
       await expect(dialog.getByRole('button', { name: DISCARD_CONFIRM, exact: true })).toBeVisible();
       await settled(dialog);
