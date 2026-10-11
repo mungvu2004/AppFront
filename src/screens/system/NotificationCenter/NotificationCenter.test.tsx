@@ -1164,3 +1164,30 @@ describe('Chưa đọc là chấm, không phải nền hàng', () => {
     expect(rowClasses.some((token) => /^bg-/.test(token))).toBe(false);
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* (h) Câu dùng hết bề ngang: nút "Đánh dấu đã đọc" không chiếm cột (BUG-203). */
+/* -------------------------------------------------------------------------- */
+
+describe('Hàng thông báo không chừa cột cho nút ẩn (BUG-203)', () => {
+  it('"Đánh dấu đã đọc" nằm ở hàng giờ, không phải cột bên phải câu; trích đoạn kẹp ở lớp trong', () => {
+    const unread = buildItem({
+      id: 'wide-1',
+      isRead: false,
+      relativeTime: '30 phút trước',
+      excerpt: 'Kiểm tra lại tường trục B giúp mình',
+    });
+
+    render(<NotificationCenter {...baseProps({ groups: [buildGroup('today', 'Hôm nay', [unread])], unreadCount: 1, unreadBadge: '1' })} />);
+
+    const markRead = screen.getByRole('button', { name: 'Đánh dấu đã đọc' });
+    // Hộp gần nhất của nút là hàng giờ — có giờ, không có câu (cột cũ nằm cạnh câu, chung hàng `li`).
+    expect(markRead.closest('div')).toHaveTextContent('30 phút trước');
+    expect(markRead.closest('div')).not.toHaveTextContent(unread.sentence);
+
+    const excerpt = screen.getByText('Kiểm tra lại tường trục B giúp mình');
+    expect(excerpt).toHaveClass('line-clamp-2');
+    expect(excerpt.parentElement).not.toHaveClass('line-clamp-2');
+  });
+});
+
