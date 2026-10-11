@@ -9,7 +9,7 @@
  */
 
 import { Building2, Plus, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -50,6 +50,19 @@ export function StepFloors(props: StepFloorsProps) {
   // Bumped by every "Áp cho mọi tầng": the row fields drop a refused text even when the applied height equals
   // the one a row already held (no value change for the field to see). `resetKey`, not `key`: no remount.
   const [applyCount, setApplyCount] = useState(0);
+  // The click that adds the 50th floor locks "Thêm tầng" under the focus, which would fall to <body>:
+  // hand it to the name of the floor just added (the last row) instead.
+  const focusAddedName = useRef(false);
+  useEffect(() => {
+    if (!focusAddedName.current) return;
+    focusAddedName.current = false;
+    const added = floorRows.at(-1);
+    if (added) rowRefs.current.get(added.id)?.querySelector('input')?.focus();
+  }, [floorRows, rowRefs]);
+  const addFloor = (): void => {
+    focusAddedName.current = floorRows.length + 1 >= PROJECT_LIMITS.floorCountMax;
+    props.addFloor();
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -178,7 +191,7 @@ export function StepFloors(props: StepFloorsProps) {
                 variant="secondary"
                 size="sm"
                 iconBefore={<Plus size={16} aria-hidden="true" />}
-                onClick={props.addFloor}
+                onClick={addFloor}
                 disabled={isSubmitting || !props.canAddFloor}
                 aria-describedby={props.floorCapNote !== null ? FLOOR_CAP_NOTE_ID : undefined}
               >
