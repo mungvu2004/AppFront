@@ -246,6 +246,13 @@ const uploadInitRe = (id: string): RegExp =>
 /** Toast / notice by its text (TST:120 `role="status"`; NH:59-61 joins title — description). */
 const toastWith = (page: Page, text: string): Locator => page.getByRole('status').filter({ hasText: text });
 
+/**
+ * BUG-307: the stack total counts up/down after a change (UFM:629 `useCountUp`, 260 ms) and is drawn twice (FSC:141, FT:319).
+ * Waits for the footer to read the final `{floors} tầng · tổng cao {metres}` before a shot, so it is not a mid-count frame.
+ */
+const expectSettledTotal = (page: Page, floors: number, metres: string): Promise<void> =>
+  expect(page.getByText(new RegExp(`^${String(floors)}\\s+tầng\\s+·\\s+tổng cao\\s+${escapeRegExp(metres)}\\s+m\\s+·`, 'u'))).toBeVisible();
+
 /** Page wider than the viewport = a horizontal scroll bar. */
 const horizontalOverflow = (page: Page): Promise<number> =>
   page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -856,6 +863,7 @@ test.describe('E03 SCR-09 floor manager', () => {
       await del; // inverse plan of an add = remove (UFM:885-889)
       await expect(floorRows(page)).toHaveCount(3);
       await expect(floorRow(page, added)).toHaveCount(0);
+      await expectSettledTotal(page, 3, '9,0'); // 3 × 3 m restored
       await captureEvidence(page, 'E03_floors_add_undo.png');
     });
   });
@@ -879,6 +887,7 @@ test.describe('E03 SCR-09 floor manager', () => {
       await toast.getByRole('button', { name: UNDO, exact: true }).click();
       await post; // inverse of a remove = create (UFM:890-891), within FLOOR_RESTORE_WINDOW_MS (UFM:204)
       await expect(floorRow(page, top.name)).toHaveCount(1);
+      await expectSettledTotal(page, 3, '9,0'); // 3 × 3 m restored
       await captureEvidence(page, 'E03_floors_delete_undo.png');
     });
   });
