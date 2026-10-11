@@ -13,18 +13,20 @@
  *     names ending in a long run without space or hyphen, BUG-131) + 1 `DELETE` (API);
  *   - `U02_dash_create_toast`: up to 4 `POST /api/projects` through the wizard (one per width) + as many `DELETE` (API);
  *     the create toast's "Hoàn tác" is never clicked;
+ *   - `U02_dash_rename_range_toast`: none — a 2-char name is refused in the browser (`commitRename`, BUG-207 attention toast);
  *   - `U02_wizard_server_422` is a `[mocked response]` (422 field "code"): no write; the real 33-char code is blocked at
  *     step 1 (`U02_wizard_code_too_long`), nothing is sent.
  * Nothing else is sent: the delete dialog is never confirmed, the 80-char rename field is left unchanged
- * (`commitRename` returns early, `useProjectDashboard.ts`), "Đánh dấu (tất cả) đã đọc" is never clicked; the wizard's
- * long code/address, erased floor name and open "Loại công trình" list never leave the browser; tooltips are hover only.
+ * (`commitRename` returns early, `useProjectDashboard.ts`) on the card and in the table, "Đánh dấu (tất cả) đã đọc" is never
+ * clicked; the wizard's long code/address, erased floor name, 33-floor 10 m stack and open "Loại công trình" list never leave
+ * the browser; tooltips are hover only.
  * Sessions: every screen reads Phase 1's admin storage state (`support/state.ts`); each test opens its OWN context
  * and writes the rotated refresh cookie back in `finally` (same chain as `phase01_auth_ui.spec.ts`), 4 loads per
- * test → 38 tests × 4 + 12 (`U02_notif_rows*`) + 2 (`U02_notif_sheet_snap_tooltip`, 768/375 only) = 166
+ * test → 41 tests × 4 + 12 (`U02_notif_rows*`) + 2 (`U02_notif_sheet_snap_tooltip`, 768/375 only) = 178
  * `POST /api/auth/refresh` over several minutes (`auth_refresh_total` 300 / 60 s per sid), + 1 per test for the session
- * check of `ensureAdminSession` (≈ 42) — and one UI login only when the stored session is dead.
+ * check of `ensureAdminSession` (≈ 45) — and one UI login only when the stored session is dead.
  *
- * Faked responses (7 of 42 states = 17 %, suite limit 35 %), each titled `[mocked response]` with its pair:
+ * Faked responses (7 of 45 states = 16 %, suite limit 35 %), each titled `[mocked response]` with its pair:
  *   - `U02_wizard_server_422` (`POST /api/projects` 422 field "code", BUG-129): PAIR in `phase02_dashboard_api.spec.ts`
  *     "create body rules" (the real BE answers 422 `VALIDATION` with `field: "code"`; the FE now blocks a 33-char code first);
  *   - `U02_notif_rows*` (`GET /api/notifications` with 3 rows, BUG-174): PAIR in `phase02_notify_edge.spec.ts` (a second real
@@ -84,12 +86,14 @@ const CARD_MENU = 'Tuỳ chọn'; // components/canvas/ContextMenu.tsx:102
 const DELETE_TITLE = 'Xoá dự án?'; // ProjectDashboard.tsx:331 Modal (A9)
 const KEEP_PROJECT = 'Để nguyên';
 const LIST_ERROR_TITLE = 'Không tải được danh sách dự án'; // ProjectDashboard.tsx:251-257
+const LIST_ERROR_SERVER = 'Máy chủ gặp lỗi khi đọc danh sách. Bấm "Thử lại" để tải lại.'; // useProjectDashboard.ts listErrorMessageOf (BUG-209)
 const RETRY = 'Thử lại'; // ProjectDashboard.tsx:256, NotificationCenter.tsx:60
 const EMPTY_TITLE = 'Chưa có dự án nào'; // ProjectDashboard.tsx:258-268
 const EMPTY_DESCRIPTION = 'Tạo dự án đầu tiên để bắt đầu số hoá bản vẽ.';
 const EMPTY_ACTION = 'Tạo dự án mới';
 const unreadRowsNotice = (count: number): string => `Có ${String(count)} dự án chưa đọc được`; // useProjectDashboard.ts:482
 const renamedToast = (name: string): string => `Đã đổi tên thành "${name}"`; // useProjectDashboard.ts:424
+const RENAME_RANGE_MESSAGE = 'Tên dự án cần từ 3 đến 80 ký tự.'; // useProjectDashboard.ts:206 (PROJECT_NAME_MIN/MAX_LENGTH), toast state 'attention'
 const createdToast = (name: string): string => `Đã tạo dự án "${name}".`; // useCreateProjectModal.ts:668-673
 const UNDO = 'Hoàn tác'; // components/feedback/Toast.tsx:143
 const NARROW_MAX_WIDTH = 1023; // NARROW_VIEWPORT_QUERY, useProjectDashboard.ts:90
@@ -121,6 +125,13 @@ const DISCARD_HINT = 'Nhấn Esc lần nữa hoặc bấm "Đóng, bỏ thay đ�
 const DISCARD_CONFIRM = 'Đóng, bỏ thay đổi';
 const KEEP_EDITING = 'Tiếp tục sửa'; // CreateProjectModal.tsx DiscardPrompt (vi.json discard.keepEditing)
 const FLOORS_HINT = 'Nhập chiều cao thông thuỷ cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.'; // useCreateProjectModal.ts:474
+const FLOORS_FIX_HINT = 'Sửa các tầng đang báo lỗi để sang bước xem lại.'; // useCreateProjectModal.ts FLOORS_FIX_HINT (every height in, still blocked)
+/** useCreateProjectModal.ts elevationProblemFor (PROJECT_ELEVATION_MIN_M -30 / MAX_M 300, src/domain/project/limits.ts:37-38). */
+const ELEVATION_OUT_OF_RANGE = /^Cao độ vượt giới hạn cho phép \(.+ đến 300 mét\)\.$/u;
+const ELEVATION_CHAIN_BROKEN = 'Chưa tính được cao độ vì một tầng bên dưới đã vượt giới hạn cao độ.'; // CHAIN_BROKEN_BY_ELEVATION (BUG-213)
+/** At 10 m per floor the ground floor sits at 0, so the 32nd floor above ground sits at 310 m (> 300) and the 33rd waits on it. */
+const OVER_LIMIT_ROWS = 33;
+const MAX_HEIGHT_M = '10'; // NUMERIC_MAX: 10 m is the limit, not over it
 const FLOOR_CAP_NOTE = 'Đã đủ 50 tầng, mức tối đa (kể cả tầng hầm).'; // useCreateProjectModal.ts:469 (floorCountMax 50)
 const FLOOR_NAME_MISSING = 'Chưa nhập tên tầng.'; // useCreateProjectModal.ts:697 (BUG-185)
 const ADDRESS_LABEL = 'Địa chỉ'; // CreateProjectModal.tsx StepInfo
@@ -146,6 +157,14 @@ const NOTIFICATIONS_ERROR = 'Không tải được thông báo';
 const SETTINGS_LABEL = 'Mở cài đặt thông báo'; // NotificationCenter.tsx SETTINGS_LABEL (IconButton → Tooltip, BUG-114)
 const SNAP_GROUP = 'Chiều cao tấm trượt'; // components/overlay/Drawer.tsx BottomSheet (< 1024 px)
 const SNAP_COLLAPSE = { name: 'Mức 1', hint: 'Thu gọn' } as const; // Drawer.tsx SNAP_HINTS[0]
+const ROUTE_BACKDROP_TITLE = 'Trung tâm thông báo'; // NotificationCenter.container.tsx NotificationRouteBackdrop (BUG-124)
+const ROUTE_BACKDROP_HINT = 'Nhấn Esc hoặc bấm ra ngoài bảng để quay lại.'; // same, `lg:block` only
+const LG_MIN_WIDTH = 1024; // Tailwind `lg`
+/** Longer than two lines at every drawer width: NotificationRow.tsx clamps the inner span to 2 lines (BUG-203). */
+const LONG_EXCERPT =
+  'Kiểm tra lại tường trục B giúp mình, đoạn từ trục 2 đến trục 5 đang lệch khoảng 50 mm so với bản vẽ kiến trúc; ' +
+  'nếu đúng thì sửa luôn cửa sổ phòng ngủ tầng trệt và cập nhật lại kích thước trước buổi duyệt chiều nay nhé.';
+const EXCERPT_LINE_PX = 18; // NotificationRow.tsx leading-[18px]
 /* SCR-07: useWelcomeScreen.ts:122-146, :164. */
 const WELCOME_SEEN_PREFIX = 'appfront:onboarding-welcome-seen:';
 const WELCOME_GREETING = /^Chào .+, bắt đầu trong ba bước$/u;
@@ -156,6 +175,9 @@ const WELCOME_UPLOAD = 'Tải bản vẽ'; // STRINGS.step2Action
 const WELCOME_UPLOAD_LOCKED = 'Cần tạo dự án trước.'; // STRINGS.step2Locked
 const WELCOME_REVIEW = 'Duyệt kết quả'; // STRINGS.step3Action
 const WELCOME_REVIEW_LOCKED = 'Cần tải bản vẽ trước.'; // STRINGS.step3Locked
+const WELCOME_SAMPLE = 'Xem dự án mẫu'; // STRINGS.sampleProject (QuietLink, enabled)
+const WELCOME_TUTORIAL = 'Xem hướng dẫn 2 phút'; // STRINGS.tutorial (QuietLink, aria-disabled)
+const WELCOME_TUTORIAL_LOCKED = 'Hướng dẫn hai phút chưa sẵn sàng.'; // STRINGS.tutorialDisabled
 
 /* Endpoints (src/api/endpoints.ts) and fakes. */
 const SUMMARIES_PATH = '/api/project-summaries';
@@ -537,6 +559,44 @@ test.describe('U02 UI verify — SCR-05 dashboard (with an 80-character project 
     });
   });
 
+  test('U02 · SCR-05 table view rename field open on the 80-char row (overlays the name, left unchanged, no PATCH)', async ({ browser }) => {
+    await verifyAsAdmin(browser, 'U02_dash_table_rename_field', async (p) => {
+      await openWithLongProject(p);
+      const { name } = longProject();
+      const table = p.getByRole('radiogroup', { name: VIEW_MODE, exact: true }).getByRole('radio', { name: 'Bảng', exact: true });
+      await table.click();
+      await expect(table).toHaveAttribute('aria-checked', 'true');
+      // ProjectTable.tsx: the row has no menu button; its context menu (right click) carries "Đổi tên".
+      await p.getByRole('main').locator('tbody tr').filter({ hasText: name }).click({ button: 'right' });
+      await p.getByRole('menu', { name: CARD_MENU, exact: true }).getByRole('menuitem', { name: 'Đổi tên', exact: true }).click();
+      const field = p.getByRole('textbox', { name: `Đổi tên ${name}`, exact: true });
+      await expect(field).toHaveValue(name);
+      await expect(field).toBeFocused(); // autoFocus; the name under it stays as an invisible size box (ND-R3)
+    });
+  });
+
+  test('U02 · SCR-05 rename refused in the browser: 2-char name → attention toast "Tên dự án cần từ 3 đến 80 ký tự." (no PATCH)', async ({ browser }) => {
+    await verifyAsAdmin(browser, 'U02_dash_rename_range_toast', async (p) => {
+      const patches: string[] = [];
+      p.on('request', (request) => {
+        if (request.method() === 'PATCH') patches.push(new URL(request.url()).pathname);
+      });
+      await openWithLongProject(p);
+      const { name } = longProject();
+      await p.getByRole('button', { name: `Tuỳ chọn cho ${name}`, exact: true }).click();
+      await p.getByRole('menu', { name: CARD_MENU, exact: true }).getByRole('menuitem', { name: 'Đổi tên', exact: true }).click();
+      const field = p.getByRole('textbox', { name: `Đổi tên ${name}`, exact: true });
+      await field.fill('ab'); // below PROJECT_NAME_MIN_LENGTH 3: commitRename toasts and returns (useProjectDashboard.ts)
+      await field.press('Enter');
+      const toast = toastWith(p, RENAME_RANGE_MESSAGE);
+      await expect(toast).toBeVisible();
+      await expect(toast.getByRole('button', { name: UNDO, exact: true })).toHaveCount(0); // nothing changed, nothing to undo
+      await expect(projectCard(p, name)).toBeVisible(); // the name is untouched
+      expect(patches, 'no PATCH for a refused name').toEqual([]);
+      await settled(toast);
+    });
+  });
+
   test('U02 · SCR-05 delete confirmation dialog (A9, never confirmed)', async ({ browser }) => {
     await verifyAsAdmin(browser, 'U02_dash_delete_confirm', async (p) => {
       await openWithLongProject(p);
@@ -575,6 +635,8 @@ test.describe('U02 UI verify — SCR-05 dashboard (with an 80-character project 
       async (p) => {
         await p.goto(ROUTES.dashboard);
         await expect(p.getByText(LIST_ERROR_TITLE, { exact: true })).toBeVisible({ timeout: SLOW_STATE_MS });
+        // BUG-209: a 500 on page load names the server and the next step, not "the action you just took".
+        await expect(p.getByText(LIST_ERROR_SERVER, { exact: true })).toBeVisible();
         await expect(p.getByRole('button', { name: RETRY, exact: true })).toBeVisible();
       },
       (context) => routeSummaries(context, (route) => route.fulfill({ status: 500, contentType: 'application/json', body: '{}' })),
@@ -717,6 +779,8 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
       // Untouched stack without heights: one neutral hint, tied to the locked "Tiếp tục" (StepFloors.tsx FLOORS_HINT_ID).
       await expect(dialog.getByText(FLOORS_HINT, { exact: true })).toBeVisible();
       await expect(dialog.getByRole('button', { name: NEXT, exact: true })).toBeDisabled();
+      // BUG-201: the body's bottom fade (CreateProjectModal.tsx ScrollFade) hints at rows below the fold.
+      await expect(dialog.locator('[data-scroll-fade]')).toHaveCount(1);
       await settled(dialog);
     });
   });
@@ -775,6 +839,31 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
     });
   });
 
+  test('U02 · SCR-05 wizard step 2: 33 floors × 10 m → one floor over the 300 m elevation limit, the floor above "…đã vượt giới hạn cao độ.", "Sửa các tầng đang báo lỗi…" (long list, nothing sent)', async ({ browser }) => {
+    test.setTimeout(420_000);
+    await verifyAsAdmin(browser, 'U02_wizard_elevation_over_limit', async (p) => {
+      const dialog = await openWizard(p);
+      await toStep2(dialog, `${TEST_DATA_PREFIX}u02-cao-do`);
+      const add = dialog.getByRole('button', { name: ADD_FLOOR, exact: true });
+      const press = clicker();
+      for (let floors = DEFAULT_FLOORS.length; floors < OVER_LIMIT_ROWS; floors += 1) await press(add);
+      await expect(dialog.getByRole('textbox', { name: /^Tên tầng /u })).toHaveCount(OVER_LIMIT_ROWS);
+      await typeHeight(dialog.getByLabel(SHARED_HEIGHT_LABEL), MAX_HEIGHT_M); // BUG-224 typing
+      await press(dialog.getByRole('button', { name: APPLY_HEIGHT, exact: true })); // arms the row messages (touchFloors)
+      await expect(dialog.getByText(ELEVATION_OUT_OF_RANGE)).toHaveCount(1); // the 32nd floor above ground, at 310 m
+      // BUG-213: the floor above the over-limit one blames the elevation, not a height.
+      const waiting = dialog.getByText(ELEVATION_CHAIN_BROKEN, { exact: true });
+      await expect(waiting).toHaveCount(OVER_LIMIT_ROWS - 32);
+      // Every height is in, so the locked "Tiếp tục" asks to fix the flagged rows (FLOORS_FIX_HINT, BUG-120).
+      await expect(dialog.getByText(FLOORS_FIX_HINT, { exact: true })).toBeVisible();
+      await expect(dialog.getByRole('button', { name: NEXT, exact: true })).toBeDisabled();
+      await expect(dialog.getByRole('button', { name: NEXT, exact: true })).toHaveAccessibleDescription(FLOORS_FIX_HINT);
+      // Shoot the flagged rows, not the top of the list: the body scrolls under the sticky column headers (BUG-202).
+      await waiting.last().scrollIntoViewIfNeeded();
+      await settled(dialog);
+    });
+  });
+
   test('U02 · SCR-05 wizard step 3 review with an 80-char name (long data, "Tạo dự án" never clicked)', async ({ browser }) => {
     await verifyAsAdmin(browser, 'U02_wizard_review_long_name', async (p) => {
       const dialog = await openWizard(p);
@@ -805,6 +894,8 @@ test.describe('U02 UI verify — SCR-05 create-project wizard (never sent; the 4
       await dialog.getByRole('textbox', { name: /^Tên tầng /u }).first().fill(''); // StepFloors.tsx row name Input
       await expect(dialog.getByRole('alert').filter({ hasText: FLOOR_NAME_MISSING })).toBeVisible();
       await expect(dialog.getByRole('button', { name: NEXT, exact: true })).toBeDisabled(); // hasAnyRowProblem
+      // No height yet, so the locked "Tiếp tục" still names the heights (useCreateProjectModal.ts floorsHint, BUG-120).
+      await expect(dialog.getByRole('button', { name: NEXT, exact: true })).toHaveAccessibleDescription(FLOORS_HINT);
       await settled(dialog);
     });
   });
@@ -951,8 +1042,8 @@ test.describe('U02 UI verify — SCR-06 notifications', () => {
 
   /**
    * BUG-174: the admin's inbox is empty on the shared stack, so every real drawer shot is the empty state. These three rows
-   * (2 unread, 1 read; 1 of them a comment mention) give the row layout, the unread dots, "Đánh dấu tất cả đã đọc" enabled and
-   * filters that each keep their own rows. Wire shape: `NotificationSchema` (src/api/schemas/notifications.ts, `.strict()`).
+   * (2 unread, 1 read; 1 of them a comment mention with an excerpt longer than 2 lines, BUG-203) give the row layout, the
+   * unread dots, "Đánh dấu tất cả đã đọc" enabled and filters that each keep their own rows. Wire shape: `NotificationSchema` (src/api/schemas/notifications.ts, `.strict()`).
  * `message` is the server's sentence WITHOUT the label: the FE appends `objectLabel` (AppBack apps/api/notifications/messages.py
  * `ai_completed`, `violation_found`, capitalised since AppBack bf83f815; BUG-206). No server template exists for a comment mention yet, so row 2 keeps its own.
    */
@@ -961,7 +1052,7 @@ test.describe('U02 UI verify — SCR-06 notifications', () => {
     const base = { objectLabel: 'Tầng trệt', place: 'walls', projectId: 'prj_QA02UIROWS', projectName: `${TEST_DATA_PREFIX}u02-rows` };
     return [
       { ...base, id: 'ntf_qa02_1', kind: 'aiCompleted', isRead: false, message: 'Hệ thống AI đã xử lý xong bản vẽ', createdAt: at(5) },
-      { ...base, id: 'ntf_qa02_2', kind: 'commentMention', isRead: false, message: 'Lan nhắc đến bạn trong một bình luận', excerpt: 'Kiểm tra lại tường trục B giúp mình', createdAt: at(30) },
+      { ...base, id: 'ntf_qa02_2', kind: 'commentMention', isRead: false, message: 'Lan nhắc đến bạn trong một bình luận', excerpt: LONG_EXCERPT, createdAt: at(30) },
       { ...base, id: 'ntf_qa02_3', kind: 'violationFound', isRead: true, message: 'Phát hiện 1 vi phạm luật ở', createdAt: at(90) },
     ];
   };
@@ -1005,6 +1096,9 @@ test.describe('U02 UI verify — SCR-06 notifications', () => {
             const boxes = await marks.evaluateAll((els) => els.map((el) => [Math.round(el.getBoundingClientRect().width), Math.round(el.getBoundingClientRect().height)]));
             expect(boxes, `mark-read ${String(side)}×${String(side)}`).toEqual([[side, side], [side, side]]);
           }
+          // BUG-203: the long excerpt is cut at exactly two lines (the clamp sits on the inner span, not the padded box).
+          const excerptHeight = await panel.getByText(LONG_EXCERPT, { exact: true }).evaluate((el) => el.getBoundingClientRect().height);
+          expect(excerptHeight, 'excerpt clamped to 2 lines').toBeLessThanOrEqual(2 * EXCERPT_LINE_PX + 1);
         },
         routeNotificationRows,
       );
@@ -1031,7 +1125,7 @@ test.describe('U02 UI verify — SCR-06 notifications', () => {
       await settled(panel);
       const row = rows.first();
       await row.hover();
-      // Unread rows reveal "Đánh dấu đã đọc" on hover (NotificationCenter.tsx:187-198, group-hover:opacity-100).
+      // Unread rows reveal the "Đánh dấu đã đọc" icon button on hover from 640 px; below it, always shown (NotificationRow.tsx, BUG-203).
       const markRead = row.getByRole('button', { name: MARK_READ, exact: true });
       if ((await markRead.count()) > 0) await expect(markRead).toBeVisible();
       await settled(row);
@@ -1100,6 +1194,11 @@ test.describe('U02 UI verify — SCR-06 notifications', () => {
       await p.goto(ROUTES.notifications);
       await expectDrawerSettled(p);
       await expect(p.getByRole('heading', { name: BELL, exact: true })).toBeVisible();
+      // BUG-124: a deliberate page behind the panel (aria-hidden, so read as text): its title at every width, the way back from lg.
+      await expect(p.getByText(ROUTE_BACKDROP_TITLE, { exact: true })).toBeVisible();
+      const hint = p.getByText(ROUTE_BACKDROP_HINT, { exact: true });
+      if ((p.viewportSize()?.width ?? 1440) >= LG_MIN_WIDTH) await expect(hint).toBeVisible();
+      else await expect(hint).toBeHidden();
       await settled(drawer(p)); // BUG-143: measured mid-slide in run-11 ("Nhắc đến tôi", "Xem tất cả" off-screen)
     });
   });
@@ -1114,6 +1213,14 @@ test.describe('U02 UI verify — SCR-07 onboarding', () => {
         await p.goto(ROUTES.onboarding);
         await expectWelcomeCards(p);
         await expect(p.getByRole('button', { name: WELCOME_SKIP, exact: true })).toBeVisible();
+        // BUG-127: the underline marks a link that works; the locked tutorial link has none (WelcomeScreen.tsx QuietLink).
+        const decoration = (name: string): Promise<string> =>
+          p.getByRole('button', { name, exact: true }).evaluate((el) => getComputedStyle(el).textDecorationLine);
+        const tutorial = p.getByRole('button', { name: WELCOME_TUTORIAL, exact: true });
+        await expect(tutorial).toHaveAttribute('aria-disabled', 'true');
+        await expect(tutorial).toHaveAccessibleDescription(WELCOME_TUTORIAL_LOCKED);
+        expect(await decoration(WELCOME_TUTORIAL), 'locked link').toBe('none');
+        expect(await decoration(WELCOME_SAMPLE), 'working link').toBe('underline');
       },
       clearSeenFlagsOnLoad,
     );

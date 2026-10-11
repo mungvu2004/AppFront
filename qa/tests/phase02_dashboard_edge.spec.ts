@@ -58,6 +58,9 @@
  * - `PATCH` / `DELETE /api/projects/:id`: only on this file's own `qa-<runId>-…` projects (~12 real PATCH, ~5 real DELETE).
  * - QA-02 shared-components block (FE 271538cb, last describe): +7 API fixtures (each deleted), 1 real DELETE, 2 real PATCH,
  *   ~18 refreshes, 0 extra sign-in; 1 [mocked response] test (N1 500, unpairable: 5xx).
+ * - QA-02 FE d18eb884 block (last describe, 18 tests): +10 API fixtures (each deleted in `finally`, one deleted mid-test for a
+ *   real 404), 1 held UI create (deleted by closeAdmin), 1 real PATCH (answered 404), 0 other PATCH/DELETE, ~2–4 refreshes per
+ *   test, 0 extra sign-in; 1 [mocked response] test (GET /api/notifications rows, unpairable: no BE producer for those rows).
  * - No recovery / invitation / mail call (Mailpit not needed in this phase).
  * Access tokens live 600 s (BE settings.py:31): each test reuses the token of its own sign-in/refresh, well inside.
  */
@@ -3219,5 +3222,733 @@ test.describe('E02 QA-02 shared components (FE 271538cb) — SCR-05 / SCR-06 / S
       },
       COMPACT,
     );
+  });
+});
+
+/* ================================================================= QA-02 FE changes 271538cb..d18eb884
+ * Gaps left by the FE changes of d18eb884 (coverage/phase02.md D-rows). Sources cited by file at d18eb884:
+ * PD / PCT / PT = src/screens/dashboard/ProjectDashboard/{ProjectDashboard,ProjectCardTile,ProjectTable}.tsx,
+ * UPD = …/useProjectDashboard.ts, TST = src/components/feedback/Toast.tsx, WS = src/screens/onboarding/WelcomeScreen/WelcomeScreen.tsx,
+ * CPM / SF / UCPM = src/screens/project/CreateProjectModal/{CreateProjectModal.tsx,StepFloors.tsx,useCreateProjectModal.ts},
+ * MOD = src/components/overlay/Modal.tsx, TBL = src/components/ui/Table.tsx, DRW = src/components/overlay/Drawer.tsx,
+ * NCC = src/screens/system/NotificationCenter/NotificationCenter.container.tsx, NR = …/NotificationRow.tsx,
+ * NCG = …/notificationCenterGateway.ts; BE messages = AppBack apps/api/notifications/messages.py.
+ * Budget of this block: 10 fixture projects (POST + DELETE in `finally`; one deleted mid-test to get a real 404),
+ * 1 UI create (held, deleted by closeAdmin), 1 real PATCH (answered 404), ~2–4 refreshes per test, no sign-in beyond
+ * the worker's own, one [mocked response] test (GET /api/notifications rows, unpairable — see its title).
+ */
+
+type Box = { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+const roundBox = (box: Box): Box => ({
+  x: Math.round(box.x * 10) / 10,
+  y: Math.round(box.y * 10) / 10,
+  width: Math.round(box.width * 10) / 10,
+  height: Math.round(box.height * 10) / 10,
+});
+
+/** The box once two reads in a row agree (framer `layout` / slide animations are JS, not stopped by `animations: 'disabled'`). */
+async function steadyBox(locator: Locator): Promise<Box> {
+  const seen: { previous: string; box: Box | null } = { previous: '', box: null };
+  await expect
+    .poll(
+      async () => {
+        const raw = await locator.boundingBox();
+        seen.box = raw === null ? null : roundBox(raw);
+        const key = JSON.stringify(seen.box);
+        const same = seen.box !== null && key === seen.previous;
+        seen.previous = key;
+        return same;
+      },
+      { intervals: [120, 120, 180, 260, 340] },
+    )
+    .toBe(true);
+  if (seen.box === null) throw new Error('element has no box');
+  return seen.box;
+}
+
+/** A name of at most ~17 characters with the run prefix (two-line / one-line table checks need a short name). */
+const shortName = (letter: string): string => `${TEST_DATA_PREFIX}${letter}${Date.now().toString(36).slice(-6)}`;
+
+/** The dialog body — the parent of CPM:235-244 `ScrollFade`, which is the last child of `Modal.Body` (CPM:303-333). */
+const wizardBody = (dialog: Locator): Locator => dialog.locator('[data-scroll-fade]').locator('xpath=..');
+const KEEP_EDITING = 'Tiếp tục sửa'; // CPM:216-218
+const floorNameBoxes = (dialog: Locator): Locator => dialog.getByRole('textbox', { name: /^Tên tầng/u }); // SF:112-119
+const FLOORS_HINT = 'Nhập chiều cao thông thuỷ cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.'; // UCPM:474
+const ROUTE_BACKDROP_TITLE = 'Trung tâm thông báo'; // NCC:186
+const ROUTE_BACKDROP_HINT = 'Nhấn Esc hoặc bấm ra ngoài bảng để quay lại.'; // NCC:187-189 (`hidden lg:block`)
+/** NCC:175 `--panel-clearance` = DRAWER_WIDTH_PX + 2 × DRAWER_GAP_PX (DRW:85-86). */
+const PANEL_CLEARANCE_PX = 400 + 2 * 8;
+/** WS:183 an enabled quiet link is underlined; a locked one is not (BUG-127). */
+const textDecoration = (locator: Locator): Promise<string> => locator.evaluate((el) => getComputedStyle(el).textDecorationLine);
+
+/** Table-view row metrics (PT:53, :78-116): what a stacked row (< 640 px) or a table row (>= 640 px) draws. */
+const tableRowLayout = (row: Locator) =>
+  row.evaluate((tr) => {
+    const thead = tr.closest('table')?.querySelector('thead') ?? null;
+    const name = tr.querySelector('h3');
+    return {
+      theadDisplay: thead === null ? 'missing' : getComputedStyle(thead).display,
+      rowDisplay: getComputedStyle(tr).display,
+      rowWidth: Math.round(tr.getBoundingClientRect().width),
+      nameLineClamp: name === null ? 'missing' : getComputedStyle(name).getPropertyValue('-webkit-line-clamp'),
+      nameClipped: name === null ? true : name.scrollHeight > name.clientHeight + 1,
+      cells: Array.from(tr.querySelectorAll(':scope > td')).map((td) => {
+        const label = td.querySelector(':scope > span.sr-only');
+        return {
+          display: getComputedStyle(td).display,
+          width: Math.round(td.getBoundingClientRect().width),
+          text: (td as HTMLElement).innerText.trim(),
+          label: label === null ? null : { text: label.textContent ?? '', display: getComputedStyle(label).display },
+        };
+      }),
+    };
+  });
+
+test.describe('E02 QA-02 FE changes (d18eb884) — SCR-05 / SCR-06 / SCR-07', () => {
+  test('E02 · SCR-05 grid: every card has one size — no featured first card; 3 columns at 1440 px, 1 at 375 px, every preview 132 px (BUG-119, BUG-157)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const tag = uniqueName('grid');
+      for (const n of [1, 2, 3, 4]) await createProject(admin, 'grid', `${tag}-${String(n)}`);
+      await reloadDashboard(page);
+      await searchBox(page).fill(tag);
+      await expect(projectCards(page)).toHaveCount(4);
+      const layout = () =>
+        projectCards(page).evaluateAll((cards) =>
+          cards.map((card) => {
+            const r = card.getBoundingClientRect();
+            const preview = card.firstElementChild?.getBoundingClientRect();
+            return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height), preview: preview === undefined ? -1 : Math.round(preview.height) };
+          }),
+        );
+      const spread = (values: readonly number[]): number => Math.max(...values) - Math.min(...values);
+      const shots: Record<string, unknown> = {};
+      // PD:85 GRID_COLUMNS_CLASS: 1 column, 2 from `sm`, 3 from 1440 px; PD:108-127 every card in that one grid.
+      for (const [viewport, columns] of [[DESKTOP, 3], [COMPACT, 1]] as const) {
+        await page.setViewportSize(viewport);
+        await expect.poll(async () => new Set((await layout()).map((card) => card.x)).size).toBe(columns);
+        await expect.poll(async () => spread((await layout()).map((card) => card.width))).toBeLessThanOrEqual(1);
+        const cards = await layout();
+        shots[String(viewport.width)] = cards;
+        await captureEvidence(page, `E02_dash_grid_same_size_${String(viewport.width)}.png`, {
+          caption: `${String(viewport.width)} px: 4 cards, ${String(columns)} column(s), widths ${cards.map((c) => c.width).join('/')}, previews ${cards.map((c) => c.preview).join('/')} px`,
+        });
+        expect(spread(cards.map((c) => c.width)), 'one card width').toBeLessThanOrEqual(1);
+        expect(spread(cards.map((c) => c.height)), 'one card height').toBeLessThanOrEqual(1);
+        expect(cards.map((c) => c.preview), 'PCT:91 every preview 132 px (the hero drew 360)').toEqual([132, 132, 132, 132]);
+        expect(cards[3]?.x, 'the 4th card starts the next row under the 1st').toBe(cards[0]?.x);
+      }
+      await attachJson('E02_dash_grid_same_size.json', shots);
+    });
+  });
+
+  test('E02 · SCR-05 card rename: the field takes the title\'s own box — 24 px from 640 px, 44 px below — so the card does not grow when renaming opens; Esc sends nothing (BUG-199)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'cardbox');
+      await reloadDashboard(page);
+      await searchBox(page).fill(project.name);
+      const card = projectCard(page, project.name);
+      const record: Record<string, unknown> = {};
+      for (const viewport of [DESKTOP, COMPACT]) {
+        await page.setViewportSize(viewport);
+        await expect(card).toBeVisible();
+        const titleBox = await steadyBox(card.locator('h3'));
+        const before = await steadyBox(card);
+        const input = await startRename(page, project.name);
+        const fieldBox = await steadyBox(input);
+        const during = await steadyBox(card);
+        const want = viewport.width >= 640 ? 24 : 44; // PCT:64-66 `h-11 … sm:h-6`, shared by h3 (:140) and input (:137)
+        await captureEvidence(page, `E02_dash_card_rename_box_${String(viewport.width)}.png`, {
+          caption: `${String(viewport.width)} px: title ${String(titleBox.height)} px, rename field ${String(fieldBox.height)} px; card ${String(before.height)} → ${String(during.height)} px`,
+        });
+        record[String(viewport.width)] = { titleBox, fieldBox, before, during, want };
+        expect(Math.abs(titleBox.height - want)).toBeLessThanOrEqual(0.5);
+        expect(Math.abs(fieldBox.height - want)).toBeLessThanOrEqual(0.5);
+        expect(Math.abs(fieldBox.y - titleBox.y), 'the field sits where the title was').toBeLessThanOrEqual(0.5);
+        expect(Math.abs(during.height - before.height), 'the card keeps its height (BUG-199: +16 px at 375, +2 at 1440)').toBeLessThanOrEqual(0.5);
+        await input.press('Escape'); // PCT:135 onRenameCancel
+        await expect(input).toHaveCount(0);
+      }
+      await attachJson('E02_dash_card_rename_box.json', { ...record, patches: countApi(admin.api, 'PATCH', `${PROJECTS_API}/${project.id}`) });
+      expect(countApi(admin.api, 'PATCH', `${PROJECTS_API}/${project.id}`), 'Esc sends no PATCH').toBe(0);
+    });
+  });
+
+  test('E02 · SCR-05 table view below 640 px stacks each row: no header row, the name on its own full-width line, status / progress / update time under it, each cell naming its column to a screen reader; from 640 px the table is back (BUG-153)', async ({ browser }) => {
+    await withAdmin(
+      browser,
+      async (admin) => {
+        const { page } = admin;
+        const project = await createProject(admin, 'stack', shortName('s'));
+        const summary = summaryOf(await reloadDashboard(page), project.id);
+        expect(derivedStatus(summary), 'a fixture without floors').toBe('processing'); // BE:summaries.py, UPD:353 "Đang xử lý"
+        await viewMode(page).getByRole('radio', { name: 'Bảng', exact: true }).click();
+        await searchBox(page).fill(project.name);
+        const row = tableRow(page, project.name);
+        await expect(row).toHaveCount(1);
+        const progress = reviewProgress(summary.wallsReviewedCount, summary.wallsTotalCount); // UPD:365 (the 375 px "%" column is gone)
+
+        // PT:53 `max-sm:[&_thead]:hidden`, PT:43 ROW_STACKED flex-wrap, PT:78 name cell `basis-full`, PT:46-49 StackedLabel.
+        await expect(row.getByText(FILTERS.processing, { exact: true })).toBeVisible();
+        await expect(row.getByText(progress, { exact: true })).toBeVisible();
+        const stacked = await tableRowLayout(row);
+        await captureEvidence(page, 'E02_table_stacked_375.png', { caption: `375 px table view: header row ${stacked.theadDisplay}, row ${stacked.rowDisplay}; name ${String(stacked.cells[0]?.width)} of ${String(stacked.rowWidth)} px; "${progress}" + update time under it` });
+        expect(stacked.theadDisplay, 'no header row below 640 px').toBe('none');
+        expect(stacked.rowDisplay).toBe('flex');
+        expect(stacked.cells[0]?.width ?? 0, 'the name cell takes the whole row width').toBeGreaterThanOrEqual(stacked.rowWidth - 1);
+        expect(stacked.nameLineClamp, 'PT:82 one line below sm').toBe('1');
+        expect(stacked.cells[2]?.display, '"Chi tiết" stays hidden below sm (PT:108)').toBe('none');
+        expect(stacked.cells[4]?.display, '"Cập nhật" now shows below sm (PT:113-116)').not.toBe('none');
+        expect(stacked.cells.map((cell) => cell.label?.text ?? null)).toEqual([null, 'Trạng thái: ', null, 'Tiến độ duyệt: ', 'Cập nhật: ']);
+        for (const index of [1, 3, 4]) expect(stacked.cells[index]?.label?.display, `cell ${String(index)} says its column (sr-only)`).not.toBe('none');
+        expect((stacked.cells[4]?.text ?? '').replace('Cập nhật: ', '').trim(), 'an update time is shown').not.toBe('');
+
+        await page.setViewportSize(DESKTOP);
+        await expect(tableHeads(page)).toHaveText([...TABLE_HEADERS]);
+        const table = await tableRowLayout(row);
+        expect(table.theadDisplay).toBe('table-header-group');
+        expect(table.rowDisplay).toBe('table-row');
+        expect(table.nameLineClamp, 'PT:82 up to two lines from sm').toBe('2');
+        for (const index of [1, 3, 4]) expect(table.cells[index]?.label?.display, `cell ${String(index)} label is sm:hidden`).toBe('none');
+        await captureEvidence(page, 'E02_table_stacked_1440.png', { caption: '1440 px: the five-column table again, no stacked labels' });
+
+        // PT:5-7: the name wraps onto a second line before it is cut — a short name is whole at 1024 px.
+        await page.setViewportSize({ width: 1024, height: 768 });
+        await expect.poll(async () => (await tableRowLayout(row)).rowDisplay).toBe('table-row');
+        const narrow = await tableRowLayout(row);
+        await captureEvidence(page, 'E02_table_stacked_1024.png', { caption: `1024 px: "${project.name}" ${narrow.nameClipped ? 'CUT' : 'whole'} in a ${String(narrow.cells[0]?.width)} px name column` });
+        await attachJson('E02_table_stacked.json', { name: project.name, progress, at375: stacked, at1440: table, at1024: narrow });
+        await shootOnSoftFail(page, 'E02_table_stacked_1024_softfail.png', `"${project.name}" cut at 1024 px`, () => {
+          expect.soft(narrow.nameClipped, 'a short name is not cut at 1024 px (PT:5-7)').toBe(false);
+        });
+      },
+      COMPACT,
+    );
+  });
+
+  test('E02 · SCR-05 table view rename keeps the row height at 1440 and 375 px: the name stays as an invisible, aria-hidden size box under the field; Esc sends nothing (ND-R3, FIX-994)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'tblbox', shortName('r'));
+      await reloadDashboard(page);
+      await viewMode(page).getByRole('radio', { name: 'Bảng', exact: true }).click();
+      await searchBox(page).fill(project.name);
+      const row = tableRow(page, project.name);
+      await expect(row).toHaveCount(1);
+      const name = row.locator('h3');
+      const record: Record<string, unknown> = {};
+      for (const viewport of [DESKTOP, COMPACT]) {
+        await page.setViewportSize(viewport);
+        const nameBox = await steadyBox(name);
+        const before = await steadyBox(row);
+        await row.click({ button: 'right' }); // PT:73-76
+        await cardMenu(page).getByRole('menuitem', { name: 'Đổi tên', exact: true }).click();
+        const input = row.getByRole('textbox', { name: `Đổi tên ${project.name}`, exact: true }); // PT:87-100
+        await expect(input).toBeFocused();
+        const fieldBox = await steadyBox(input);
+        const during = await steadyBox(row);
+        const hidden = await name.evaluate((el) => ({ ariaHidden: el.getAttribute('aria-hidden'), visibility: getComputedStyle(el).visibility }));
+        await captureEvidence(page, `E02_table_rename_box_${String(viewport.width)}.png`, {
+          caption: `${String(viewport.width)} px: row ${String(before.height)} → ${String(during.height)} px while renaming; name box ${String(nameBox.height)} px, field ${String(fieldBox.height)} px`,
+        });
+        record[String(viewport.width)] = { nameBox, fieldBox, before, during, hidden };
+        expect(Math.abs(during.height - before.height), 'renaming never changes the row height (PT:14-15)').toBeLessThanOrEqual(0.5);
+        expect(hidden).toEqual({ ariaHidden: 'true', visibility: 'hidden' }); // PT:81-82
+        if (viewport.width >= 640) {
+          // PT:99 `sm:-inset-y-0.5`: the field reaches 2 px past the name box each way.
+          expect(Math.abs(fieldBox.height - (nameBox.height + 4))).toBeLessThanOrEqual(1);
+        } else {
+          // PT:82 `max-sm:leading-8` one 32 px line; PT:99 `inset-0` fills it.
+          expect(Math.abs(nameBox.height - 32)).toBeLessThanOrEqual(0.5);
+          expect(Math.abs(fieldBox.height - nameBox.height)).toBeLessThanOrEqual(0.5);
+        }
+        await input.press('Escape'); // PT:97
+        await expect(input).toHaveCount(0);
+      }
+      await attachJson('E02_table_rename_box.json', { ...record, patches: countApi(admin.api, 'PATCH', `${PROJECTS_API}/${project.id}`) });
+      expect(countApi(admin.api, 'PATCH', `${PROJECTS_API}/${project.id}`)).toBe(0);
+    });
+  });
+
+  test('E02 · SCR-05 rename toasts carry their state: a refused length wears the attention dot (nothing sent), a failed rename (real 404) the violation dot — never the verified green (BUG-207)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'toastdot');
+      await reloadDashboard(page);
+
+      let input = await startRename(page, project.name);
+      await input.fill('ab'); // LIM:22 min 3
+      await input.press('Enter');
+      const refused = toastWith(page, RENAME_RANGE_MESSAGE);
+      await expect(refused).toBeVisible();
+      await expect(refused.locator('.bg-state-attention')).toHaveCount(1); // UPD:472 state 'attention' → TST:113
+      await expect(refused.locator('.bg-state-verified')).toHaveCount(0);
+      expect(countApi(admin.api, 'PATCH', `${PROJECTS_API}/${project.id}`), 'a refused length sends nothing').toBe(0);
+      await captureEvidence(page, 'E02_dash_toast_dot_attention.png', { caption: `"ab" → "${RENAME_RANGE_MESSAGE}" with the attention dot, no PATCH` });
+
+      expect(await deleteProject(admin, project.id), 'deleted behind the open dashboard').toBe(200);
+      input = await startRename(page, project.name);
+      await input.fill(`${project.name}-x`);
+      const gone = waitForApi(page, 'PATCH', projectPathRe(project.id), [404]);
+      await input.press('Enter');
+      await gone;
+      const failed = toastWith(page, RENAME_GONE);
+      await expect(failed).toBeVisible();
+      await expect(failed.locator('.bg-state-violation')).toHaveCount(1); // UPD:454 state 'violation' → TST:114
+      await expect(failed.locator('.bg-state-verified')).toHaveCount(0);
+      await captureEvidence(page, 'E02_dash_toast_dot_violation.png', { caption: `PATCH 404 → "${RENAME_GONE}" with the violation dot` });
+      await attachJson('E02_dash_toast_dots.json', { refusedPatches: 0, failedPatch: 404 });
+    });
+  });
+
+  test('E02 · SCR-05 search folds Unicode forms: a decomposed (NFD) query finds the composed name, in any case; marks still matter ("nha dong a" finds nothing) (BUG-210)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const stamp = Date.now().toString(36);
+      const project = await createProject(admin, 'nfc', `${TEST_DATA_PREFIX}nfc-${stamp}-Nhà Đông Á`);
+      await reloadDashboard(page);
+      const queries = [`${stamp}-Nhà Đông Á`.normalize('NFD'), `${stamp}-NHÀ ĐÔNG Á`.normalize('NFD')];
+      for (const query of queries) {
+        expect(query, 'the query really is decomposed').not.toBe(query.normalize('NFC'));
+        await searchBox(page).fill(query); // UPD:308, :312 NFC on both sides
+        await expect(projectCards(page)).toHaveCount(1);
+        await expect(projectCard(page, project.name)).toBeVisible();
+      }
+      await captureEvidence(page, 'E02_search_nfd_match.png', { caption: `NFD query (${String([...(queries[1] ?? '')].length)} code points) → "${project.name}"` });
+      await searchBox(page).fill(`${stamp}-nha dong a`);
+      await expect(noMatch(page)).toBeVisible();
+      await attachJson('E02_search_nfd_match.json', { name: project.name, nfdLengths: queries.map((q) => [...q].length), nfcLength: [...`${stamp}-Nhà Đông Á`].length, unmarked: 'no match' });
+    });
+  });
+
+  test('E02 · SCR-07 quiet links: "Xem dự án mẫu" and "Bỏ qua" are underlined, the locked "Xem hướng dẫn 2 phút" is not (BUG-127)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      await createProject(admin, 'underline'); // newest = 0 walls → partial, the screen stays (UWS:294-297)
+      await clearSeenFlags(page);
+      await page.goto(ROUTES.onboarding);
+      const sample = page.getByRole('button', { name: ONBOARD.sample, exact: true });
+      const tutorial = page.getByRole('button', { name: ONBOARD.tutorial, exact: true });
+      const skip = page.getByRole('button', { name: ONBOARD.skip, exact: true });
+      await expect(tutorial).toHaveAttribute('aria-disabled', 'true');
+      const decoration = { sample: await textDecoration(sample), tutorial: await textDecoration(tutorial), skip: await textDecoration(skip) };
+      await captureEvidence(page, 'E02_onboard_link_underline.png', { caption: `underline: sample "${decoration.sample}", tutorial (locked) "${decoration.tutorial}", skip "${decoration.skip}"` });
+      await attachJson('E02_onboard_link_underline.json', decoration);
+      expect(decoration).toEqual({ sample: 'underline', tutorial: 'none', skip: 'underline' }); // WS:180-184
+    });
+  });
+
+  test('E02 · wizard step 2 stays neutral after "Thêm tầng", "Xoá Tầng 2" and "Có tầng hầm" — only a typed height arms the row errors; the height hint keeps describing "Tiếp tục" (BUG-120, run-15)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      await toStep2(dialog, 'Dự án chưa có chiều cao');
+      const table = dialog.getByRole('table');
+      await dialog.getByRole('button', { name: ADD_FLOOR, exact: true }).click(); // UCPM:757-768 markDirty only
+      await expect(dialog.getByRole('textbox', { name: 'Tên tầng Tầng 4', exact: true })).toBeVisible();
+      await dialog.getByRole('button', { name: 'Xoá Tầng 2', exact: true }).click(); // UCPM:770-773
+      const basement = dialog.getByRole('switch', { name: BASEMENT_TOGGLE });
+      await basement.click(); // UCPM:798-810
+      await expect(basement).toHaveAttribute('aria-checked', 'true');
+      await expect(dialog.getByRole('textbox', { name: `Tên tầng ${BASEMENT_NAME}`, exact: true })).toBeVisible();
+      const quiet = { alerts: await table.getByRole('alert').allInnerTexts(), invalid: await table.locator('[aria-invalid="true"]').count() };
+      await expect(dialog.getByText(FLOORS_HINT, { exact: true })).toBeVisible(); // UCPM:702-707
+      await expect(nextButton(dialog)).toBeDisabled();
+      await expect(nextButton(dialog)).toHaveAccessibleDescription(FLOORS_HINT); // CPM:352
+      await captureEvidence(page, 'E02_wiz_step2_quiet_edits.png', { caption: `add + delete + basement, no height yet: ${String(quiet.alerts.length)} row errors, height hint shown` });
+      expect(quiet, 'no row error, no red field before a height (UCPM:717-725)').toEqual({ alerts: [], invalid: 0 });
+
+      const height = dialog.getByLabel('Chiều cao thông thuỷ tầng Tầng trệt', { exact: true }); // SF:131
+      await height.fill('3');
+      await height.press('Tab'); // UCPM:780-785 setFloorHeight → touchFloors
+      await expect(floorRow(dialog, page, 'Tầng 1').getByRole('alert')).toHaveText(HEIGHT_MISSING);
+      await captureEvidence(page, 'E02_wiz_step2_armed.png', { caption: '"3" in "Tầng trệt" → the rows still missing a height say so' });
+      await attachJson('E02_wiz_step2_quiet_edits.json', { quiet, armedAfter: 'typed height', rowsAfter: await floorNameBoxes(dialog).count() });
+      await discardWizard(dialog);
+    });
+  });
+
+  test('E02 · wizard 12 floors: the floor table is not its own scroll box — its header row stays pinned at the top of the scrolled dialog body, and Shift+Tab / Tab never land on a field hidden under it or under the bottom fade (BUG-202, WCAG 2.4.11)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      await toStep2(dialog, 'Dự án mười hai tầng');
+      const add = dialog.getByRole('button', { name: ADD_FLOOR, exact: true });
+      for (let n = 0; n < 8; n += 1) await add.click(); // "Tầng 4" … "Tầng 11"
+      await expect(floorNameBoxes(dialog)).toHaveCount(12);
+      const body = wizardBody(dialog);
+      const head = dialog.locator('thead'); // TBL:51 sticky top-0
+      const overflow = await body.evaluate((el) => ({ scrollHeight: el.scrollHeight, clientHeight: el.clientHeight, tableBox: getComputedStyle(el.querySelector('table')?.parentElement ?? el).overflowY }));
+      expect(overflow.scrollHeight, 'the dialog body scrolls with 12 floors').toBeGreaterThan(overflow.clientHeight);
+      expect(overflow.tableBox, 'SF:92 the table wrapper does not scroll by itself').toBe('visible');
+      await body.evaluate((el) => {
+        el.scrollTop = el.scrollHeight;
+      });
+      await expect
+        .poll(async () => {
+          const [b, h] = [await body.boundingBox(), await head.boundingBox()];
+          return b === null || h === null ? Number.POSITIVE_INFINITY : Math.abs(h.y - b.y);
+        })
+        .toBeLessThanOrEqual(1);
+      await captureEvidence(page, 'E02_wiz_sticky_head.png', { caption: 'body scrolled to the end: "Tầng / Chiều cao thông thuỷ / Cao độ" still pinned at its top' });
+
+      // CPM:303 `scroll-pt-10`: a field reached by Shift+Tab is scrolled clear of the 40 px sticky header.
+      await dialog.getByRole('textbox', { name: 'Tên tầng Tầng 11', exact: true }).focus();
+      const walked: { label: string; top: number; headBottom: number }[] = [];
+      for (let step = 0; step < 40; step += 1) {
+        await page.keyboard.press('Shift+Tab');
+        const probe = await page.evaluate(() => {
+          const el = document.activeElement;
+          if (!(el instanceof HTMLElement) || el.closest('tbody') === null) return null;
+          const thead = el.closest('table')?.querySelector('thead');
+          return { label: el.getAttribute('aria-label') ?? el.tagName.toLowerCase(), top: el.getBoundingClientRect().top, headBottom: thead?.getBoundingClientRect().bottom ?? 0 };
+        });
+        if (probe === null) break;
+        walked.push(probe);
+      }
+      const covered = walked.filter((probe) => probe.top < probe.headBottom - 1);
+      expect(walked.length, 'Shift+Tab walked the floor rows').toBeGreaterThan(12);
+      await shootOnSoftFail(page, 'E02_wiz_sticky_head_softfail.png', `${String(covered.length)} focused field(s) under the sticky header`, () => {
+        expect.soft(covered, 'no focused field under the sticky header').toEqual([]);
+      });
+
+      // CPM:303 `scroll-pb-6`: walking down by Tab, a field is scrolled clear of the 24 px bottom fade (CPM:235-244) too.
+      await body.evaluate((el) => {
+        el.scrollTop = 0;
+      });
+      await dialog.getByRole('textbox', { name: 'Tên tầng Tầng trệt', exact: true }).focus();
+      const down: { label: string; bottom: number; fadeTop: number }[] = [];
+      for (let step = 0; step < 40; step += 1) {
+        await page.keyboard.press('Tab');
+        const probe = await page.evaluate(() => {
+          const el = document.activeElement;
+          if (!(el instanceof HTMLElement) || el.closest('tbody') === null) return null;
+          const fade = el.closest('[role="dialog"]')?.querySelector('[data-scroll-fade]');
+          return { label: el.getAttribute('aria-label') ?? el.tagName.toLowerCase(), bottom: el.getBoundingClientRect().bottom, fadeTop: fade?.getBoundingClientRect().top ?? Number.POSITIVE_INFINITY };
+        });
+        if (probe === null) break;
+        down.push(probe);
+      }
+      const faded = down.filter((probe) => probe.bottom > probe.fadeTop + 1);
+      await attachJson('E02_wiz_sticky_head.json', { overflow, walked: walked.length, covered, walkedDown: down.length, faded });
+      expect(down.length, 'Tab walked the floor rows').toBeGreaterThan(12);
+      await shootOnSoftFail(page, 'E02_wiz_tab_fade_softfail.png', `${String(faded.length)} focused field(s) under the bottom fade`, () => {
+        expect.soft(faded, 'no focused field under the bottom fade').toEqual([]);
+      });
+      await discardWizard(dialog);
+    });
+  });
+
+  test('E02 · wizard at 1024×768: the body\'s bottom 24 px fade is sticky, aria-hidden and click-through — "Thêm tầng" under it still takes the click; scrolled to the end it lies over empty space (BUG-201)', async ({ browser }) => {
+    const viewport = { width: 1024, height: 768 } as const;
+    await withAdmin(
+      browser,
+      async (admin) => {
+        const { page } = admin;
+        const dialog = await openWizard(page);
+        await toStep2(dialog, 'Dự án mờ đáy');
+        const body = wizardBody(dialog);
+        const fade = dialog.locator('[data-scroll-fade]'); // CPM:235-244
+        const add = dialog.getByRole('button', { name: ADD_FLOOR, exact: true });
+        const room = (): Promise<number> => body.evaluate((el) => el.scrollHeight - el.clientHeight);
+        // Enough content below the fold to park "Thêm tầng" under the fade (the claim of BUG-201 at this size).
+        while ((await room()) < 80 && (await floorNameBoxes(dialog).count()) < 20) await add.click();
+        const style = await fade.evaluate((el) => {
+          const cs = getComputedStyle(el);
+          return { ariaHidden: el.getAttribute('aria-hidden'), position: cs.position, pointerEvents: cs.pointerEvents, height: Math.round(el.getBoundingClientRect().height), gradient: cs.backgroundImage.includes('linear-gradient') };
+        });
+        expect(style).toEqual({ ariaHidden: 'true', position: 'sticky', pointerEvents: 'none', height: 24, gradient: true });
+
+        // Put the centre of "Thêm tầng" 12 px above the body's bottom edge: inside the fade.
+        const [bodyBox, addBox] = [await steadyBox(body), await steadyBox(add)];
+        await body.evaluate((el, delta) => {
+          el.scrollTop += delta;
+        }, addBox.y + addBox.height / 2 - (bodyBox.y + bodyBox.height - 12));
+        const target = await steadyBox(add);
+        const fadeBox = await steadyBox(fade);
+        const point = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
+        const hit = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('button')?.textContent?.trim() ?? 'none', point);
+        await captureEvidence(page, 'E02_wiz_fade_over_add.png', { caption: `"Thêm tầng" centre at y=${String(Math.round(point.y))}, fade ${String(fadeBox.y)}–${String(fadeBox.y + fadeBox.height)}: the point hits "${hit}"` });
+        expect(Math.abs(fadeBox.y + fadeBox.height - (bodyBox.y + bodyBox.height)), 'the fade sits on the body\'s bottom edge').toBeLessThanOrEqual(1);
+        expect(point.y >= fadeBox.y && point.y <= fadeBox.y + fadeBox.height, '"Thêm tầng" is under the fade').toBe(true);
+        expect(hit, 'the fade lets the click through (pointer-events: none)').toBe(ADD_FLOOR);
+        const rows = await floorNameBoxes(dialog).count();
+        await page.mouse.click(point.x, point.y);
+        await expect(floorNameBoxes(dialog)).toHaveCount(rows + 1);
+
+        await body.evaluate((el) => {
+          el.scrollTop = el.scrollHeight;
+        });
+        const end = await steadyBox(fade);
+        const under = await page.evaluate(({ x, y }) => {
+          const el = document.elementFromPoint(x, y);
+          return el === null ? 'none' : el.closest('button, input, textarea, [role="switch"], [role="combobox"]') === null ? 'empty' : 'control';
+        }, { x: end.x + end.width / 2, y: end.y + end.height / 2 });
+        await captureEvidence(page, 'E02_wiz_fade_end.png', { caption: `scrolled to the end: the fade lies over ${under} space` });
+        await attachJson('E02_wiz_fade.json', { viewport, style, bodyBox, fadeBox, point, hit, rowsBefore: rows, atEnd: { fade: end, under } });
+        expect(Math.abs(end.y + end.height - (bodyBox.y + bodyBox.height))).toBeLessThanOrEqual(1);
+        expect(under, 'at the end nothing interactive sits under the fade').toBe('empty');
+        await discardWizard(dialog);
+      },
+      viewport,
+    );
+  });
+
+  for (const viewport of [DESKTOP, COMPACT]) {
+    test(`E02 · wizard discard prompt at ${String(viewport.width)} px is a row of the footer, below the dialog body: it covers no field ("Ghi chú", "Loại công trình") and no field moves down (BUG-204, BUG-123)`, async ({ browser }) => {
+      await withAdmin(
+        browser,
+        async (admin) => {
+          const { page } = admin;
+          const dialog = await openWizard(page);
+          await nameField(dialog).fill('Dự án hỏi trước khi đóng');
+          await dialog.getByLabel('Địa chỉ').fill('12 Lê Lợi');
+          const notes = dialog.getByLabel('Ghi chú'); // CPM:152-158
+          await notes.fill('Ghi chú để thử');
+          const fields: Record<string, Locator> = { name: nameField(dialog), code: codeField(dialog), address: dialog.getByLabel('Địa chỉ'), type: dialog.getByRole('combobox'), notes };
+          const tops = async (): Promise<Record<string, number>> => {
+            const out: Record<string, number> = {};
+            for (const [key, field] of Object.entries(fields)) out[key] = Math.round(((await field.boundingBox())?.y ?? Number.NaN) * 10) / 10;
+            return out;
+          };
+          const body = wizardBody(dialog);
+          const before = await tops();
+          await notes.focus();
+          await page.keyboard.press('Escape'); // dirty → prompt (UCPM requestClose)
+          const prompt = dialog.getByRole('alert').filter({ hasText: DISCARD_TITLE });
+          await expect(prompt).toBeVisible();
+          const promptBox = await steadyBox(prompt);
+          const bodyBox = await steadyBox(body);
+          const after = await tops();
+          const inFooter = await prompt.evaluate((el) => Array.from(el.parentElement?.querySelectorAll('button') ?? []).some((b) => b.textContent?.trim() === 'Huỷ'));
+          await captureEvidence(page, `E02_wiz_discard_in_footer_${String(viewport.width)}.png`, {
+            caption: `${String(viewport.width)} px: prompt ${String(promptBox.y)}–${String(promptBox.y + promptBox.height)}, body ends ${String(bodyBox.y + bodyBox.height)}; fields unmoved`,
+          });
+          await attachJson(`E02_wiz_discard_in_footer_${String(viewport.width)}.json`, { viewport, before, after, promptBox, bodyBox, inFooter });
+          expect(inFooter, 'CPM:334-335 the prompt is a row of Modal.Footer, next to "Huỷ"').toBe(true);
+          expect(promptBox.y, 'the prompt starts below the body (covers no field, BUG-204)').toBeGreaterThanOrEqual(bodyBox.y + bodyBox.height - 1);
+          expect(promptBox.y + promptBox.height, 'the prompt is on screen').toBeLessThanOrEqual(viewport.height + 0.5);
+          // CPM:177-181: the fields never move DOWN — the body gives up height, or the centred dialog grows (fields may rise).
+          for (const key of Object.keys(fields)) expect((after[key] ?? 0) - (before[key] ?? 0), `"${key}" did not move down (BUG-123)`).toBeLessThanOrEqual(1);
+          await prompt.getByRole('button', { name: DISCARD_ACTION, exact: true }).click();
+          await expect(dialog).toHaveCount(0);
+          expect(countApi(admin.api, 'POST', PROJECTS_API)).toBe(0);
+        },
+        viewport,
+      );
+    });
+  }
+
+  test('E02 · wizard "Tiếp tục sửa" gives the focus back: to "Ghi chú" when Esc came from it, to "Huỷ" when "Huỷ" asked (BUG-219)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      const notes = dialog.getByLabel('Ghi chú');
+      await notes.fill('Đang sửa ghi chú');
+      await expect(notes).toBeFocused();
+      await page.keyboard.press('Escape');
+      const prompt = dialog.getByRole('alert').filter({ hasText: DISCARD_TITLE });
+      await expect(prompt).toBeVisible();
+      await prompt.getByRole('button', { name: KEEP_EDITING, exact: true }).click(); // CPM:189-197 returnFocus
+      await expect(prompt).toHaveCount(0);
+      await expect(notes).toBeFocused();
+      const afterEsc = await focusedLabel(page);
+      await captureEvidence(page, 'E02_wiz_keep_editing_focus_notes.png', { caption: 'Esc in "Ghi chú" → prompt → "Tiếp tục sửa": the caret is back in "Ghi chú"' });
+
+      const cancel = dialog.getByRole('button', { name: 'Huỷ', exact: true });
+      await cancel.click();
+      await expect(prompt).toBeVisible();
+      await prompt.getByRole('button', { name: KEEP_EDITING, exact: true }).focus();
+      await page.keyboard.press('Enter');
+      await expect(prompt).toHaveCount(0);
+      await expect(cancel).toBeFocused();
+      await captureEvidence(page, 'E02_wiz_keep_editing_focus_cancel.png', { caption: '"Huỷ" → prompt → Enter on "Tiếp tục sửa": focus back on "Huỷ"' });
+      await attachJson('E02_wiz_keep_editing_focus.json', { afterEsc, afterCancel: await focusedLabel(page) });
+      await discardWizard(dialog);
+    });
+  });
+
+  test.fixme('E02 · wizard "Tiếp tục sửa" with the focus on no field: it falls back to "Huỷ"', async () => {
+    // UNKNOWN — NEED VERIFICATION (coverage D16): CPM:190-194 hands the focus to "Huỷ" when the element focused as the
+    // prompt appeared is not an input / textarea / button (or is gone). Esc reaches requestClose only through the focus
+    // trap inside the dialog (MOD), and no step-1/2 path was found that leaves the focus on a non-control there (the
+    // floor rows take focus only through "Xem tầng", W27, unreachable). Write it once such a path is established.
+  });
+
+  test('E02 · wizard [held response] while "Tạo dự án" runs the header X "Đóng hộp thoại" is disabled with the footer and a backdrop click closes nothing; the held POST then creates and closes the dialog (BUG-218)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const name = uniqueName('wiz-xbusy');
+      const hold = gate();
+      await page.route((url) => url.pathname === PROJECTS_API, async (route) => {
+        if (route.request().method() !== 'POST') {
+          await route.fallback();
+          return;
+        }
+        await hold.wait;
+        await route.continue();
+      });
+      const dialog = await openWizard(page);
+      const close = dialog.getByRole('button', { name: CLOSE_DIALOG, exact: true }); // MOD:168-176
+      await expect(close).toBeEnabled();
+      await toStep2(dialog, name);
+      await applyHeight(dialog, '3');
+      await nextButton(dialog).click();
+      await expect(stepText(dialog, 3)).toBeVisible();
+      const created = waitForApi(page, 'POST', PROJECTS_RE, [200, 201]);
+      await createButton(dialog).click();
+      await expect(stateAnnouncement(dialog)).toHaveText(STATE.loading);
+      await expect(close, 'CPM:298 closeDisabled={isSubmitting}').toBeDisabled();
+      await page.mouse.click(8, 8); // the modal backdrop (MOD) → requestClose, ignored while submitting
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByText(DISCARD_TITLE, { exact: true })).toHaveCount(0);
+      await captureEvidence(page, 'E02_wiz_x_locked_busy.png', { caption: 'POST held: "Đóng hộp thoại" disabled, backdrop click ignored, no discard prompt' });
+      hold.open();
+      const { json } = await created;
+      admin.cleanup.push(stringField(asRecord(json, 'POST /api/projects'), 'id', 'POST /api/projects'));
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      await expect(dialog).toHaveCount(0);
+      await expect(toastWith(page, createdToast(name))).toBeVisible();
+      await captureEvidence(page, 'E02_wiz_x_locked_created.png', { caption: 'released: project created, dialog closed by the finished create, toast shown' });
+      await attachJson('E02_wiz_x_locked.json', { posts: countApi(admin.api, 'POST', PROJECTS_API), closedBy: 'create' });
+    });
+  });
+
+  test('E02 · SCR-06 /thong-bao at 1440: the page behind the panel names itself ("Trung tâm thông báo" + how to leave), aria-hidden, centred in the space left of the panel; a click there leaves to / (BUG-124)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      await page.goto(ROUTES.notifications);
+      const drawer = notificationDrawer(page);
+      await expect(drawer).toBeVisible();
+      const title = page.getByText(ROUTE_BACKDROP_TITLE, { exact: true });
+      const hint = page.getByText(ROUTE_BACKDROP_HINT, { exact: true });
+      await expect(title).toBeVisible();
+      await expect(hint).toBeVisible();
+      const ariaHidden = await title.evaluate((el) => el.closest('[aria-hidden="true"]') !== null); // NCC:180
+      const [titleBox, panel] = [await steadyBox(title), await steadyBox(drawer)];
+      const centre = titleBox.x + titleBox.width / 2;
+      // NCC:181 `px-6 … lg:pr-[var(--panel-clearance)]`: the text column is centred between 24 px and (width − 416 px).
+      const wantCentre = (24 + (DESKTOP.width - PANEL_CLEARANCE_PX)) / 2;
+      await captureEvidence(page, 'E02_notif_route_backdrop_1440.png', { caption: `/thong-bao: "${ROUTE_BACKDROP_TITLE}" centred at x=${String(Math.round(centre))} (want ${String(wantCentre)}), panel from x=${String(panel.x)}` });
+      expect(ariaHidden, 'the backdrop is for the eye only').toBe(true);
+      expect(Math.abs(centre - wantCentre)).toBeLessThanOrEqual(2);
+      expect(titleBox.x + titleBox.width, 'the text clears the panel').toBeLessThan(panel.x);
+
+      await page.mouse.click(200, DESKTOP.height / 2); // DRW:170-177 overlay onClick → NCC goBack; direct load → /
+      await expect.poll(() => pathname(page)).toBe(ROUTES.dashboard);
+      await expect(dashboardHeading(page)).toBeVisible();
+      await attachJson('E02_notif_route_backdrop_1440.json', { ariaHidden, titleBox, panel, centre, wantCentre, afterClick: pathname(page) });
+    });
+  });
+
+  test('E02 · SCR-06 /thong-bao at 375: only the page name shows above the 90 % sheet — no hint, no icon (BUG-124)', async ({ browser }) => {
+    await withAdmin(
+      browser,
+      async (admin) => {
+        const { page } = admin;
+        await page.goto(ROUTES.notifications);
+        const sheet = notificationDrawer(page);
+        await expect(sheet).toBeVisible();
+        const title = page.getByText(ROUTE_BACKDROP_TITLE, { exact: true });
+        await expect(title).toBeVisible();
+        await expect(page.getByText(ROUTE_BACKDROP_HINT, { exact: true })).toBeHidden(); // NCC:187 `hidden lg:block`
+        const backdrop = title.locator('xpath=ancestor::div[@aria-hidden="true"][1]');
+        await expect(backdrop.locator('svg')).toBeHidden(); // NCC:185 bell `hidden lg:block`
+        const restingTop = COMPACT.height - Math.round(COMPACT.height * 0.9); // DRW:33 90 % sheet
+        const sheetBox = await steadyBox(sheet);
+        const titleBox = await steadyBox(title);
+        await captureEvidence(page, 'E02_notif_route_backdrop_375.png', { caption: `/thong-bao at 375: "${ROUTE_BACKDROP_TITLE}" ${String(titleBox.y)}–${String(titleBox.y + titleBox.height)} px, sheet from ${String(sheetBox.y)} px` });
+        await attachJson('E02_notif_route_backdrop_375.json', { titleBox, sheetBox, restingTop });
+        expect(Math.abs(sheetBox.y - restingTop), 'the sheet rests at 90 %').toBeLessThanOrEqual(2);
+        expect(titleBox.y + titleBox.height, 'the page name is above the sheet').toBeLessThanOrEqual(sheetBox.y + 0.5);
+        await page.keyboard.press('Escape');
+        await expect.poll(() => pathname(page)).toBe(ROUTES.dashboard);
+      },
+      COMPACT,
+    );
+  });
+
+  test('E02 · SCR-06 [mocked response] rows (unpairable: aiCompleted / violationFound need Phase 3/4 data, commentMention has no BE producer, a sentence ending in its label is no longer sent — BE messages.py): the name is said once, the excerpt is cut at two whole lines, "Đánh dấu đã đọc" is an icon in the time row — hidden until hover from 640 px, always shown below (BUG-206, BUG-203)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const at = (minutesAgo: number): string => new Date(Date.now() - minutesAgo * 60_000).toISOString();
+      const excerpt = 'Kiểm tra lại tường trục B giúp mình, chỗ giao với trục 3 đang lệch khoảng hai phân so với bản vẽ kết cấu. '.repeat(3).trim();
+      const base = { projectId: 'prj_QA02E_ROWS', projectName: `${TEST_DATA_PREFIX}e02-rows`, objectLabel: 'Tầng trệt' };
+      // NotificationSchema (src/api/schemas/notifications.ts, `.strict()`); NCG:193-203 sentenceWithoutLabel.
+      const rows = [
+        { ...base, id: 'ntf_qa02e_legacy', kind: 'aiCompleted', place: 'walls', floorId: 'flr_QA02E', isRead: false, message: 'Hệ thống AI đã xử lý xong bản vẽ tầng trệt.', createdAt: at(3) },
+        { ...base, id: 'ntf_qa02e_accent', kind: 'violationFound', place: 'rules', isRead: false, message: 'Phát hiện 2 vi phạm luật ở tang tret', createdAt: at(20) },
+        { ...base, id: 'ntf_qa02e_mention', kind: 'commentMention', place: 'walls', floorId: 'flr_QA02E', isRead: false, message: 'Lan nhắc đến bạn trong một bình luận ở', objectLabel: 'Tầng 2', excerpt, createdAt: at(45) },
+      ];
+      await page.route(
+        (url) => url.pathname === NOTIFICATIONS_API,
+        (route) => (route.request().method() === 'GET' ? fulfillJson(route, 200, rows) : route.fallback()),
+      );
+      await page.reload();
+      await dashboardLoaded(page);
+      const drawer = await openDrawer(page);
+      await page.mouse.move(2, 2); // off the bell (under the panel header) and off every row
+      const items = drawer.locator('li');
+      await expect(items).toHaveCount(3);
+      const legacy = items.filter({ hasText: 'Hệ thống AI' });
+      const accent = items.filter({ hasText: 'Phát hiện 2 vi phạm' });
+      const mention = items.filter({ hasText: 'Lan nhắc đến bạn' });
+
+      // BUG-206: "…bản vẽ tầng trệt." + label "Tầng trệt" → the tail is dropped, the name is said once (case and the
+      // final "." ignored); "tang tret" differs in its marks (sensitivity 'accent') → the sentence stays whole.
+      await expect(legacy.getByRole('button', { name: /^chưa đọc\.\s+Hệ thống AI đã xử lý xong bản vẽ\s+Tầng trệt$/u })).toBeVisible();
+      await expect(accent.getByRole('button', { name: /^chưa đọc\.\s+Phát hiện 2 vi phạm luật ở tang tret\s+Tầng trệt$/u })).toBeVisible();
+      const legacyText = (await legacy.getByRole('button').first().innerText()).toLowerCase();
+      expect(legacyText.split('tầng trệt').length - 1, 'the floor name once in the sentence').toBe(1);
+
+      // BUG-203: NR:116-121 the clamp sits on the inner span, so the padded box shows two whole lines (18 px each + 2×6 px).
+      const clamp = await mention.locator('p > span.line-clamp-2').evaluate((span) => {
+        const box = span.parentElement?.getBoundingClientRect();
+        const own = span.getBoundingClientRect();
+        return { boxHeight: box?.height ?? 0, spanHeight: own.height, cut: span.scrollHeight > span.clientHeight + 1 };
+      });
+      const markWrapperOpacity = (row: Locator): Promise<string> =>
+        row.getByRole('button', { name: MARK_READ, exact: true }).evaluate((el) => {
+          const wrapper = el.closest('span.ml-auto');
+          return wrapper === null ? 'missing' : getComputedStyle(wrapper).opacity;
+        });
+      const timeRow = await legacy.evaluate((li) => {
+        const sentence = li.querySelector('button')?.getBoundingClientRect();
+        const time = li.querySelector('span.whitespace-nowrap')?.getBoundingClientRect();
+        const mark = li.querySelector('button[aria-label="Đánh dấu đã đọc"]')?.getBoundingClientRect();
+        return {
+          markBelowSentence: sentence !== undefined && mark !== undefined && mark.top >= sentence.bottom - 0.5,
+          centreGap: time !== undefined && mark !== undefined ? Math.abs(time.top + time.height / 2 - (mark.top + mark.height / 2)) : -1,
+        };
+      });
+      const hiddenAt1440 = await markWrapperOpacity(legacy);
+      await captureEvidence(page, 'E02_notif_rows_1440.png', { caption: [`legacy row says "Tầng trệt" once; excerpt box ${String(Math.round(clamp.boxHeight))} px (2 lines)`, `"${MARK_READ}" wrapper opacity ${hiddenAt1440} before hover, in the time row`] });
+      expect(Math.abs(clamp.boxHeight - (2 * 18 + 12)), 'two whole lines + padding, no half third line').toBeLessThanOrEqual(1);
+      expect(clamp.cut, 'the long excerpt is cut').toBe(true);
+      expect(timeRow.markBelowSentence, 'the icon sits in the time row, not beside the sentence (NR:144-162)').toBe(true);
+      expect(timeRow.centreGap, 'icon and time share the row centre (items-center)').toBeLessThanOrEqual(2);
+      expect(hiddenAt1440, 'NR:152 `sm:opacity-0` until hover').toBe('0');
+      await legacy.hover();
+      await expect.poll(() => markWrapperOpacity(legacy)).toBe('1'); // `sm:group-hover:opacity-100`
+      await captureEvidence(page, 'E02_notif_rows_hover.png', { caption: `hover on the first row → its "${MARK_READ}" icon shows` });
+
+      await page.mouse.move(2, 2);
+      await page.setViewportSize(COMPACT);
+      const sheet = notificationDrawer(page);
+      await expect(sheet).toBeVisible();
+      await expect(sheet.locator('li')).toHaveCount(3);
+      await expect.poll(() => markWrapperOpacity(sheet.locator('li').filter({ hasText: 'Hệ thống AI' }))).toBe('1'); // below sm: always shown
+      await captureEvidence(page, 'E02_notif_rows_375.png', { caption: `375 px, no hover: every "${MARK_READ}" icon shown` });
+      await attachJson('E02_notif_rows.json', { rows: rows.map((r) => ({ id: r.id, kind: r.kind, message: r.message, objectLabel: r.objectLabel })), clamp, timeRow, hiddenAt1440, markReadPosts: countApi(admin.api, 'POST', MARK_READ_API) });
+      expect(countApi(admin.api, 'POST', MARK_READ_API), 'nothing marked read').toBe(0);
+      await page.keyboard.press('Escape');
+    });
+  });
+
+  test.fixme('E02 · SCR-06 on a screen without hover (touch) the "Đánh dấu đã đọc" icon shows from 640 px too', async () => {
+    // UNKNOWN — NEED VERIFICATION (coverage D32): NR:152 `[@media(hover:none)]:opacity-100`. Proving it needs a context
+    // with `hasTouch` / `isMobile` (Chromium then reports hover: none), which openAdmin does not create, plus unread rows
+    // (mocked, as above). Write it once a touch context is set up for this file.
   });
 });

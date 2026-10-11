@@ -1,10 +1,15 @@
-<!-- qa-sources be=e2fc4d42 -->
+<!-- qa-sources be= -->
 # Phase 02 — Backend coverage (projects, notifications, auth refresh)
 
-Source read: `F:/App/AppBack` (qa.config `backendSourceRoot`) @ `e2fc4d42` (= `git rev-parse --short HEAD`,
-2026-10-11). Every `file:line` is in that tree, `apps/api/...` unless it starts with `packages/` or `deploy/`.
-API spec: `qa/tests/phase02_dashboard_api.spec.ts` — **26 tests**, all 26 passed in `run-12`
-(`F:/App/qa-results/run-12/phase02-api/results.json`: 26 expected, 0 unexpected; run-11 had run the first 11). UI specs of
+Source read: `F:/App/AppBack` (qa.config `backendSourceRoot`) @ `bf83f815` (= `git rev-parse --short HEAD` and
+qa.config `apiBuiltCommit`, 2026-10-11). Pass 3 re-read: `git diff e2fc4d42 bf83f815 -- apps packages` changes ONE
+production file of this phase, `apps/api/notifications/messages.py` (the three fixed sentences now start with a
+capital, A6, QA-02b); `packages/testing/factories/notifications.py` and the rest are tests/fixtures. Every other
+`file:line` below was read @ `e2fc4d42` and is unchanged @ `bf83f815`. Every `file:line` is in that tree, `apps/api/...`
+unless it starts with `packages/` or `deploy/`.
+API spec: `qa/tests/phase02_dashboard_api.spec.ts` — **27 tests** (`--list`); 26 passed in `run-12`
+(`F:/App/qa-results/run-12/phase02-api/results.json`: 26 expected, 0 unexpected; run-11 had run the first 11); the
+27th ("msg", pass 3) is not run yet. UI specs of
 the phase: `phase02_dashboard.spec.ts`, `phase02_dashboard_ui.spec.ts`, `phase02_dashboard_edge.spec.ts`,
 `phase02_wizard_edge.spec.ts`, `phase02_notify_edge.spec.ts`.
 Endpoints called by the phase's screens (FE `src/api/endpoints.ts:186-213`, `src/api/client.ts:1123-1216`):
@@ -12,14 +17,15 @@ the nine of pass 1 + `POST /api/notifications/{id}/accept-invite` (#22, SCR-06 i
 `notificationCenterGateway.ts`). `GET /api/projects/:id` (#24), `GET /api/users/{id}/activity` (#40), N3/N4 member
 add/remove and `DELETE /api/floors/{id}` (#11) are used only as read-back or setup.
 
-Status words: **pass** (asserted by a test that passed in run-11) · **new** (asserted by a pass-2 test; all passed in run-12) · **covered** (another spec asserts it) · **partial** · **not covered** (reason given) · **unpairable**.
+Status words: **pass** (asserted by a test that passed in run-11) · **new** (asserted by a pass-2 test; all passed in run-12) · **new-3** (asserted by the pass-3 test "msg", not run yet) · **covered** (another spec asserts it) · **partial** · **not covered** (reason given) · **unpairable**.
 
 Test names below are shortened. Pass 1 (ran): "anon", "create", "rules", "idem", "rename", "patch-rules",
 "delete", "N1", "roles", "notif", "notif-bodies". Pass 2 (new): "order", "text", "code-dup", "floors", "fields",
 "idem-edges", "del-idem", "body-limit", "origin", "headers", "rollup", "members", "accept", "fresh", "activity".
+Pass 3 (new-3): "msg" = "A02 · projectInvite message per actor (A6, AppBack bf83f815) …".
 
-Rows: 107 rule rows + 8 side-effect rows + 25 mock-pair rows + 6 budget rows = 146 (pass 1: 88). Open gaps: 9
-(pass 1: 12) — list at the end.
+Rows: 114 rule rows + 8 side-effect rows + 30 mock-pair rows + 6 budget rows = 158 (pass 2: 146, which under-counted
+the 30 mock rows as 25; pass 1: 88). Open gaps: 10 (pass 2: 9; pass 1: 12) — list at the end.
 
 ## Shared rules (every phase-2 route)
 
@@ -144,7 +150,13 @@ Rows: 107 rule rows + 8 side-effect rows + 25 mock-pair rows + 6 budget rows = 1
 | Newest first (`created_at DESC, id DESC`) | service.py:166-168 | notif (p2 row before p1 row) | pass |
 | Cap `NOTIFICATIONS_LIST_MAX` 200 | notifications/settings.py:17 | — | not covered: needs > 200 visible rows = > 200 member adds (members_add 60 / h) |
 | `NotificationOut` keys; `floorId` / `excerpt` absent when empty; no `userId` / `dedupeKey` / `streamId` | notifications/schemas.py:18-31; payload.py:11-28 | notif, members, accept, `inbox()` key check on every call | pass / new |
-| `projectInvite` row from N3: place `projectSettings`, message "<name> đã thêm bạn vào dự án" or "Bạn vừa được thêm vào dự án" | invite_sinks.py:20-50; messages.py:25-28; packages/db/models/notifications.py:31 | notif | pass |
+| `projectInvite` row from N3: place `projectSettings`, message "<name> đã thêm bạn vào dự án" or "Bạn vừa được thêm vào dự án" | invite_sinks.py:20-50; messages.py:25-28; packages/db/models/notifications.py:31 | notif (regex on either sentence, the admin is the actor) | pass |
+| Actor = the N3 caller's live `users.name` (soft-deleted → None); self-add sends nothing | invite_sinks.py:34-38 | msg (two engineer actors) | new-3 (self-add: not producible — an actor is already a member, N3 answers 200 and the sink is not called, project_members/service.py:79-94) |
+| Named actor → `f"{clean_label(name)} đã thêm bạn vào dự án"`: the name is NOT capitalised (A6 applies to fixed sentences only), Cc/Cf dropped, spaces collapsed | messages.py:4,18-22,25-28 | msg: fullName `"  qa-<run>-msg-named  a\u200Bb  "` → message `"qa-<run>-msg-named ab đã thêm bạn vào dự án"` | new-3 |
+| Actor name that cleans to `""` → fixed sentence exactly `"Bạn vừa được thêm vào dự án"` (capital B since bf83f815) | messages.py:25-28 | msg: actor fullName U+200B only | new-3 |
+| fullName at invitation accept = `clean_text` (strip + NFC; only Cc and bidi overrides refused) → a Cf-only name such as U+200B is accepted (length 1) | auth_recovery/router.py:64-69,98-102; packages/core/text.py:22-46 | msg (setup accept 204 with `"\u200B"`) | new-3 (observation: an invisible display name passes; the name rules belong to Phase 1/7) |
+| Soft-deleted actor → anonymous sentence | invite_sinks.py:37 | — | not covered: a deleted user has no live session to call N3 |
+| `aiCompleted` "Hệ thống AI đã xử lý xong bản vẽ" / `violationFound` "Phát hiện N vi phạm luật ở" (thousands with dots) | messages.py:31-40; apps/worker/pipeline_persist/service.py:164-172 | — | not covered: pipeline (Phase 3); `violation_found` has NO caller outside tests @ bf83f815 (grep), so this BE never writes a `violationFound` row |
 | `projectName` / `objectLabel` = `clean_label(project name)`: Cc/Cf dropped, whitespace collapsed (so it can differ from the project's own name) | messages.py:13-21; service.py:134-136 | members (`"<base>  a\u200Bb"` → `"<base> ab"`) | new (contract note: the drawer may show a name the dashboard does not) |
 | N3 on an existing member → 200, no row, no activity, no touch | project_members/router.py:68-69, service.py:79-94 | members | new |
 | Dedupe per (project, user, UTC hour): add → remove → add in one hour → no new row, the old row (read state kept) is back | invite_sinks.py:33,48; service.py:105-159 | members (if the UTC hour flips mid-test, 2 rows are expected and annotated) | new |
@@ -175,6 +187,7 @@ Rows: 107 rule rows + 8 side-effect rows + 25 mock-pair rows + 6 budget rows = 1
 | Rule / branch | BE source | Covering test (api / ui) | Status |
 |---|---|---|---|
 | Own visible `projectInvite` → 200 `NotificationOut`, `isRead` true; membership / role unchanged | service.py:191-210 | accept | new |
+| The 200 body carries the stored sentence (not recomputed): "Bạn vừa được thêm vào dự án" for the U+200B actor | service.py:105-159,191-210 | msg | new-3 |
 | Idempotent: second call → 200, same body | service.py:206-210 | accept | new |
 | Malformed id / unknown id / another user's id / hidden row (member removed) → 404 resource `notification` | service.py:196-203,53-60 | accept (admin on the invitee's id = 404, no change) | new |
 | Body `{}` strict: `notificationId` ≠ path → 422 `PATH_BODY_MISMATCH`; = path → 422 `VALIDATION` field `notificationId` | notifications/schemas.py:56-57; core/routing.py:138-151 | accept | new |
@@ -213,7 +226,7 @@ the API test that proves the real response, or why none can.
 |---|---|---|
 | `phase02_dashboard_ui.spec.ts` U02 SCR-05 "no project" (dash_empty) | `GET /api/project-summaries` → 200 `{items: []}` | paired: "A02 · fresh engineer: N1 → exactly {items: []} …" — evidence `A02_fresh_summaries_default.json`, `A02_fresh_summaries_limit_1.json`, `A02_fresh_projects.json` (also `A02_fresh_summaries_empty_again.json`): a fresh invited engineer's N1 is exactly `{"items": []}`, `GET /api/projects` = `[]`, `GET /api/notifications` = `[]`; empty again after its only project is deleted |
 | `phase02_dashboard_ui.spec.ts` U02 SCR-07 "no project" (onboarding_no_project) | `GET /api/project-summaries` → 200 `{items: []}` | paired: "A02 · fresh engineer: N1 → exactly {items: []} …" — evidence `A02_fresh_summaries_default.json`, `A02_fresh_summaries_limit_1.json`, `A02_fresh_projects.json` (also `A02_fresh_summaries_empty_again.json`) |
-| `phase02_dashboard_ui.spec.ts` U02 SCR-06 "drawer with 3 rows" (notif_rows, notif_rows_unread, notif_rows_mentions) | `GET /api/notifications` → 200 with 3 rows (2 unread, 1 read, 1 comment mention) | paired by the real second-user inbox: phase02_notify_edge.spec.ts (invitee inbox with a real `projectInvite` row, mark-read, filters) + "notif", "notif-bodies" (real `GET /api/notifications` list shape); the admin's own inbox is empty on the shared stack |
+| `phase02_dashboard_ui.spec.ts` U02 SCR-06 "drawer with 3 rows" (notif_rows, notif_rows_unread, notif_rows_mentions) | `GET /api/notifications` → 200 with 3 rows (2 unread, 1 read, 1 comment mention) | paired by the real second-user inbox: phase02_notify_edge.spec.ts (invitee inbox with a real `projectInvite` row, mark-read, filters) + "notif", "notif-bodies" (real `GET /api/notifications` list shape) + "msg" (real capitalised `projectInvite` sentences, bf83f815); the faked `aiCompleted` / `violationFound` sentences equal messages.py:31-40 but are unpairable (pipeline; `violation_found` has no production caller) and `commentMention` is not a server kind (packages/db/models/notifications.py:20-21, FE v2); the admin's own inbox is empty on the shared stack |
 | `phase02_dashboard_edge.spec.ts` E02 SCR-05 "no project" | `GET /api/project-summaries` → 200 `{items: []}` | paired: "A02 · fresh engineer: N1 → exactly {items: []} …" — evidence `A02_fresh_summaries_default.json`, `A02_fresh_summaries_limit_1.json`, `A02_fresh_projects.json` (also `A02_fresh_summaries_empty_again.json`) |
 | `phase02_dashboard_ui.spec.ts` U02 SCR-05 "N1 fails (500)" (dash_load_error) | `GET /api/project-summaries` → 500 | unpairable: 5xx — no safe way to make the shared stack fail; real 200 proven by "N1" |
 | `phase02_dashboard_ui.spec.ts` U02 SCR-05 "one unreadable row" (dash_partial) | `GET /api/project-summaries` → real page + 1 undecodable row | unpairable: the BE never emits it — ids come from `new_id("prj")` (projects/service.py:247), `ProjectSummaryOut` is strict (wire.py:98-114); readable rows = real page ("N1", "create" assert exact keys) |
@@ -254,7 +267,7 @@ Closed in pass 2 (9): #23 order (cap only bounded, see row), payload 413, member
 idempotency edge cases (key format, discarded claim, scope, PATCH replay, DELETE twice), malformed JSON on a protected
 route, PATCH duplicate code, mock-pairing table (BUG-144), activity row shape.
 
-Still open (9), each with its reason in the rows above:
+Still open (10), each with its reason in the rows above:
 1. #23 cap 500 cut (needs > 500 projects).
 2. N1 `qc` / `done` and legacy `approved` / `error` / `processing`, `areaM2` > 0, wall counts (need upload + pipeline, Phase 3).
 3. #19 cap 200 (needs > 200 notifications; members_add allows 60 / h).
@@ -264,6 +277,11 @@ Still open (9), each with its reason in the rows above:
 7. Purge job of deleted projects (scheduled, no read API).
 8. Redis XADD / SSE publish (outside this phase's endpoints).
 9. W18 echo on create (asserted on PATCH only).
+10. Soft-deleted-actor branch of the invite sentence (no live session for a deleted user).
+
+Pass 3 (bf83f815, messages.py capitals): 1 gap found — the exact `projectInvite` sentence per branch was only
+matched by a regex accepting either — closed by "msg" (new-3, not run yet). Self-add is recorded as not producible
+(row above); the soft-deleted-actor branch is open gap 10.
 
 Observations for the review step (not asserted as bugs; each is the BE behaving as its source says):
 - A project name with U+200B or double spaces reaches the notification drawer cleaned (`clean_label`) while the
@@ -271,15 +289,19 @@ Observations for the review step (not asserted as bugs; each is the BE behaving 
 - Project names allow other Cf characters (U+200B, U+061C, U+FEFF…) — only the listed bidi controls are blocked
   (packages/core/text.py:6-9), whereas notification labels strip every Cf.
 - The BE counts code points; 80 astral characters are 80 for the BE but 160 for a JS `.length` check.
+- A display name made only of U+200B is accepted at invitation accept; every `projectInvite` that user sends then
+  reads "Bạn vừa được thêm vào dự án" (no actor), and a name-led sentence starts lowercase when the name does (msg).
+- `messages.violation_found` has no caller outside tests @ bf83f815: the `violationFound` kind exists in the model but
+  this BE never writes it.
 - A DELETE retried with its Idempotency-Key gets 404, not the stored 200 (gate before the guard).
 
 ## Rate-limit budget (one run)
 
 | Bucket | Limit (BE) | API spec | UI layer of phase 02 | Sum / note |
 |---|---|---|---|---|
-| `auth_login_ip` (per IP) | 30 / 60 s (auth/settings.py:36-37; override 120) | 24 (one admin login per test except "anon" and "body-limit"; "origin" logs in by hand) over ~3 min → ≤ ~10 per 60 s | main 1 + ui 1 + dashboard_edge 1 + wizard_edge ≤ 11 + notify_edge 19 (each ≤ 7 / min per its header) | layers run sequentially, never one window; 0 failed admin attempts |
-| `users_invite` (per admin) | 30 / 3600 s (users/router.py:32-43) | 6 (roles 2, notif 1, members 1, accept 1, fresh 1) | notify_edge ≤ 6 | Phase 1 8 + 6 + 6 = 20 ≤ 30 |
-| `recovery_ip` (per IP) | 10 / 900 s (auth_recovery/settings.py:24-25; override 60) | 6 (invitation accepts) | notify_edge ≤ 6 (its header still assumes this spec spends 3) | 12 > 10 in one window → needs the override (already mandatory for Phase 1's 32); with Phase 1 in the window 44 ≤ 60 |
-| `members_add` (per actor) | 60 / 3600 s (project_members/router.py:26-33, settings.py:14-15) | 7 (roles 1, notif 2, members 3 incl. the 200 re-add, accept 1) | notify_edge 13 | 20 ≤ 60 |
-| `auth_refresh_total` (per session) | 300 / 60 s (auth/settings.py:45-46) | 1 per new session (24 admin + 6 invitees) | per page load on their own sessions | separate sessions |
+| `auth_login_ip` (per IP) | 30 / 60 s (auth/settings.py:36-37; override 120) | 25 (one admin login per test except "anon" and "body-limit"; "origin" logs in by hand) over ~3 min → ≤ ~10 per 60 s | main 1 + ui 1 + dashboard_edge 1 + wizard_edge ≤ 11 + notify_edge 19 (each ≤ 7 / min per its header) | layers run sequentially, never one window; 0 failed admin attempts |
+| `users_invite` (per admin) | 30 / 3600 s (users/router.py:32-43) | 9 (roles 2, notif 1, members 1, accept 1, fresh 1, msg 3) | notify_edge ≤ 6 | Phase 1 8 + 9 + 6 = 23 ≤ 30 |
+| `recovery_ip` (per IP) | 10 / 900 s (auth_recovery/settings.py:24-25; override 60) | 9 (invitation accepts) | notify_edge ≤ 6 (its header still assumes this spec spends 3) | 15 > 10 in one window → needs the override (already mandatory for Phase 1's 32); with Phase 1 in the window 47 ≤ 60 |
+| `members_add` (per actor) | 60 / 3600 s (project_members/router.py:26-33, settings.py:14-15) | admin 7 (roles 1, notif 2, members 3 incl. the 200 re-add, accept 1); msg: 1 for each of its two fresh engineers (own buckets) | notify_edge 13 | admin 20 ≤ 60 |
+| `auth_refresh_total` (per session) | 300 / 60 s (auth/settings.py:45-46) | 1 per new session (25 admin + 9 invitees) | per page load on their own sessions | separate sessions |
 | projects / notifications / floor-delete routes, 413 | none | every project it creates is deleted in `finally` | wizard_edge 7 creates, 8 DELETEs (the three 422 cases are FE-blocked or `[mocked response]`: no write); notify_edge 13; dashboard_edge ~15 | — |

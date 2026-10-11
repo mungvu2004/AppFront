@@ -6,7 +6,8 @@
  * (setup + W16 roles; its rules are Phase 1's, `phase01_auth_api.spec.ts`). Setup/read-back only: N3/N4 members
  * (`project_members/router.py`), DELETE /api/floors/{id} (#11, N1 rollup), GET /api/users/{id}/activity (#40).
  * Inventory + mock-pairing table: `qa/coverage/phase02-be.md`.
- * `BE:` = `F:/App/AppBack` (qa.config backendSourceRoot) @ e2fc4d42, paths under `apps/api/` unless noted.
+ * `BE:` = `F:/App/AppBack` (qa.config backendSourceRoot) @ e2fc4d42, paths under `apps/api/` unless noted; the
+ * notification sentences (`notifications/messages.py`) are read @ bf83f815 (A6 capitals, QA-02b).
  *
  * ## Non-serial, own data
  * Every test signs in on its own, creates the projects it needs (`qa-<runId>-…` names) and deletes them in
@@ -21,25 +22,26 @@
  *
  * ## Real-backend budget per run (BE defaults; the QA stack adds `qa-limits.override.yml`)
  * - `POST /api/auth/login` per IP 30 / 60 s (BE:auth/settings.py:36-37; override LOGIN_IP_LIMIT=120): THIS file
- *   24 = one admin login in each of the 26 tests except the two anonymous ones ("anon" 401 gate, 1 MiB body
+ *   25 = one admin login in each of the 27 tests except the two anonymous ones ("anon" 401 gate, 1 MiB body
  *   ceiling); the Origin test makes its login by hand (same 1). 0 failed. The file runs ~3 min, so ≤ ~10 logins
  *   fall in any 60 s window. UI layer of the phase (runs before/after, never in the same window): main 1 + ui 1 +
  *   dashboard_edge 1 + wizard_edge ≤ 11 + notify_edge 19, each ≤ 7 a minute by their own headers.
  * - `POST /api/users/invitations` 30 / 3600 s per admin (BE:users/router.py:32-43), shared with every phase that
- *   runs in the same hour: THIS file 6 (role matrix 2, notifications 1, member add/remove 1, accept-invite 1, fresh
- *   engineer 1); `phase02_notify_edge` ≤ 6. Phase 1 spends 8, so Phase 1 + 2 = 20 ≤ 30.
+ *   runs in the same hour: THIS file 9 (role matrix 2, notifications 1, member add/remove 1, accept-invite 1, fresh
+ *   engineer 1, invite message 3); `phase02_notify_edge` ≤ 6. Phase 1 spends 8, so Phase 1 + 2 = 23 ≤ 30.
  * - `recovery_ip` 10 / 900 s per IP (BE:auth_recovery/settings.py:24-25; override RECOVERY_IP_LIMIT=60), counts the
- *   invitation accepts: THIS file 6; `phase02_notify_edge` ≤ 6 (its header still counts this file as 3). Phase 2
- *   = 12 > 10 in one 900 s window → the override (60, already required by Phase 1's 32) is needed; with Phase 1 in
- *   the same window 44 ≤ 60. Without the override, run this file and notify_edge ≥ 900 s apart.
+ *   invitation accepts: THIS file 9; `phase02_notify_edge` ≤ 6 (its header still counts this file as 3). Phase 2
+ *   = 15 > 10 in one 900 s window → the override (60, already required by Phase 1's 32) is needed; with Phase 1 in
+ *   the same window 47 ≤ 60. Without the override, this file alone (9) fits 10 only if notify_edge runs ≥ 900 s apart.
  * - `members_add` 60 / 3600 s per actor (BE:project_members/router.py:26-33, settings.py:14-15), counted for every
  *   request that passes the edit gate (201 and 200): THIS file 7 (admin: roles 1, notif 2, member add/remove 3,
- *   accept-invite 1); notify_edge 13 → 20 ≤ 60. N4 (member remove) has no limiter.
+ *   accept-invite 1); notify_edge 13 → 20 ≤ 60. The invite-message test's 2 adds are made by its two fresh engineers
+ *   (1 each, their own buckets). N4 (member remove) has no limiter.
  * - `POST /api/auth/refresh` 300 / 60 s per session (BE:auth/settings.py:45-46): 1 per admin login and 1 per
- *   invitee (6), each on its own new session; the UI spec's 64 refreshes are on the stored admin session, not these.
+ *   invitee (9), each on its own new session; the UI spec's 64 refreshes are on the stored admin session, not these.
  * - Projects, floors-delete and notifications routes have NO rate limit (no `rate_limit(` in projects/ or
  *   notifications/), so the 1 MiB / 413 requests and the anonymous 401s cost nothing.
- * - Mailpit: 6 invitation mails, deleted in `finally`.
+ * - Mailpit: 9 invitation mails, deleted in `finally`.
  */
 import { randomUUID } from 'node:crypto';
 
@@ -347,9 +349,9 @@ async function invite(admin: APIRequestContext, role: Role, ev: string, cleanup:
 }
 
 /** Accept (1 recovery request) → refresh with the new cookie → Bearer client. W16 roles = the invited role. */
-async function sessionOf(invited: Invited, role: Role, ev: string, cleanup: Cleanup): Promise<TestUser> {
+async function sessionOf(invited: Invited, role: Role, ev: string, cleanup: Cleanup, fullName?: string): Promise<TestUser> {
   const anon = await newApiContext();
-  const name = `${PREFIX}${ev}`;
+  const name = fullName ?? `${PREFIX}${ev}`;
   let token: string;
   try {
     const accept = await call(
@@ -1729,6 +1731,55 @@ test.describe('A02 member add/remove → notifications (N3/N4 + #19/#22, BE:noti
       await removeMember(admin, project.id, user.id, 'accept_remove');
       const hidden = await call(user.api, 'accept_404_hidden', 'POST', path, {}, ['404: the row is hidden once the user left the project']);
       expectError(hidden, 404, 'NOT_FOUND', { resource: 'notification' }, true);
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A02 · projectInvite message per actor (A6, AppBack bf83f815): a named engineer → "<clean_label(name)> đã thêm bạn vào dự án" with the name kept as typed (lowercase start, U+200B dropped, spaces collapsed); an engineer whose name cleans to "" (U+200B only) → exactly "Bạn vừa được thêm vào dự án"; #22 returns the stored sentence', async () => {
+    // BE:notifications/invite_sinks.py:34-47 (actor = the N3 caller, its live `users.name`; self-add skipped),
+    // messages.py:18-28 (clean_label drops Cc/Cf and collapses spaces; empty → the fixed sentence, capitalised by bf83f815;
+    // a name-led sentence keeps the name as is), auth_recovery/router.py:64-69,98-102 (fullName = clean_text: strip + NFC,
+    // only Cc and bidi overrides refused — U+200B is Cf and passes, length 1), packages/core/text.py:6-9,22-46.
+    // N3 by an engineer: `project.settings.edit` on its own project (matrix.py:51, access.py:78-86); `members_add` is per
+    // actor, so these 2 adds use the two engineers' own buckets. The U+200B-only actor cannot carry the run prefix in its
+    // name (any visible character survives clean_label): its email carries it (testEmail).
+    // Not producible: the soft-deleted-actor branch (invite_sinks.py:37, a deleted user has no live session) and
+    // `aiCompleted` / `violationFound` sentences (pipeline; `violation_found` has no caller outside tests at bf83f815).
+    const cleanup = new Cleanup();
+    const admin = await adminApi(cleanup);
+    try {
+      const viewer = await sessionOf(await invite(admin, 'viewer', 'msg-invitee', cleanup), 'viewer', 'msg-invitee', cleanup);
+      const typed = `  ${PREFIX}msg-named  a\u200Bb  `;
+      const named = await sessionOf(await invite(admin, 'engineer', 'msg-named', cleanup), 'engineer', 'msg-named', cleanup, typed);
+      const blank = await sessionOf(await invite(admin, 'engineer', 'msg-blank', cleanup), 'engineer', 'msg-blank', cleanup, '\u200B');
+      const pNamed = await newProject(named.api, 'msg-named', cleanup);
+      const pBlank = await newProject(blank.api, 'msg-blank', cleanup);
+
+      for (const [actor, project, slug] of [[named, pNamed, 'msg_named_add'], [blank, pBlank, 'msg_blank_add']] as const) {
+        const sent = await call(actor.api, slug, 'POST', `/api/projects/${String(project.id)}/members`, { email: viewer.email }, [
+          '201 UserOut: an engineer adds a member to its own project (project_members/router.py:42-70); the invite sink notifies the invitee',
+        ]);
+        expect(sent.res.status()).toBe(201);
+      }
+
+      const rows = await inbox(viewer.api, 'msg_inbox', '200: one projectInvite per project; message = the actor sentence (messages.py:25-28)');
+      expect(rows).toHaveLength(2);
+      const fromNamed = rows.find((n) => n.projectId === pNamed.id);
+      const fromBlank = rows.find((n) => n.projectId === pBlank.id);
+      expect(fromNamed).toMatchObject({ kind: 'projectInvite', isRead: false, message: `${PREFIX}msg-named ab đã thêm bạn vào dự án` });
+      expect(fromBlank).toMatchObject({ kind: 'projectInvite', isRead: false, message: 'Bạn vừa được thêm vào dự án' });
+
+      // The sentence is stored on the row (notify, service.py:105-159), so #22 answers the same text.
+      const accepted = await call(viewer.api, 'msg_blank_accept_200', 'POST', `/api/notifications/${String(fromBlank?.id)}/accept-invite`, {}, [
+        '200 NotificationOut, isRead true, message "Bạn vừa được thêm vào dự án" (service.py:191-210)',
+      ]);
+      expect(accepted.res.status()).toBe(200);
+      expect(expectKeys(accepted.body, NOTIFICATION_KEYS, NOTIFICATION_OPTIONAL)).toMatchObject({
+        id: fromBlank?.id,
+        isRead: true,
+        message: 'Bạn vừa được thêm vào dự án',
+      });
     } finally {
       await cleanup.run();
     }
