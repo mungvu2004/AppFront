@@ -556,6 +556,15 @@ describe('CreateProjectModal, wired to its hook', () => {
     expect(next).toBeEnabled();
   });
 
+  it('never ends a generated code on a dangling "-"', () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+
+    // The 24-character cut lands right after "XEM", on the gap before "NGAT".
+    fireEvent.change(screen.getByLabelText('Tên dự án'), { target: { value: 'Dự án đo rất dài để xem ngắt dòng' } });
+
+    expect(screen.getByLabelText('Mã dự án')).toHaveValue('DA-DU-AN-DO-RAT-DAI-DE-XEM');
+  });
+
   it('closes an open "Loại công trình" list on Esc and keeps the dialog (BUG-152)', async () => {
     const onDismiss = vi.fn();
     render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={onDismiss} />);

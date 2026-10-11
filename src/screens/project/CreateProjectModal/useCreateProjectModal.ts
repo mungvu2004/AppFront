@@ -189,8 +189,9 @@ function generateProjectCode(name: string): string {
   const slug = withoutDiacritics
     .toUpperCase()
     .replace(/[^A-Z0-9]+/gu, '-')
-    .replace(/^-+|-+$/gu, '')
-    .slice(0, CODE_SLUG_MAX_LENGTH);
+    .slice(0, CODE_SLUG_MAX_LENGTH)
+    // Trimmed AFTER the cut, so a cut that lands on a word gap leaves no "-" dangling.
+    .replace(/^-+|-+$/gu, '');
 
   return slug === '' ? '' : `DA-${slug}`;
 }
