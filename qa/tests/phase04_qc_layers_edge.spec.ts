@@ -1064,9 +1064,9 @@ test.describe('E04 SCR-18 / SCR-19 dimension OCR and axes', () => {
       const before = await rows.count();
 
       await page.getByRole('button', { name: AXIS.addVertical, exact: true }).click();
-      // Plan SCR-19 / main spec: "Thêm trục …" adds ONE row to what is listed. UA:455-462 drops the whole wall preview as
-      // soon as one axis is stored, so the listed preview rows vanish (suspected app bug) — soft, the rest still runs.
-      await expect.soft(rows, '"Thêm trục dọc" adds one row to the listed axes').toHaveCount(before + 1);
+      // Plan SCR-19 / main spec: "Thêm trục …" adds ONE row to what is listed. BUG-320: UA:670-690 stores the detected
+      // preview together with the new axis in one command, so the preview rows stay (UA:456,461 hide it once stored).
+      await expect(rows, '"Thêm trục dọc" adds one row to the listed axes').toHaveCount(before + 1);
 
       const ghost = page.getByRole('switch', { name: AXIS.ghost, exact: true }); // ALP:216, Toggle role=switch
       const was = await ghost.getAttribute('aria-checked');
