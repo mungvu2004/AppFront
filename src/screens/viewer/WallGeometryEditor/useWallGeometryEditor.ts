@@ -569,6 +569,8 @@ export function useWallGeometryEditor(
 
   const setDraft = useCallback((cellId: string, value: string): void => {
     setDrafts((current) => ({ ...current, [cellId]: value }));
+    /* Gõ lại là bắt đầu một bản nháp mới: câu "đã trở về số cũ" không còn đúng nữa. */
+    setInvalidCells((current) => (current.includes(cellId) ? current.filter((id) => id !== cellId) : current));
   }, []);
 
   const clearDraft = useCallback((cellId: string): void => {
@@ -900,6 +902,10 @@ export function useWallGeometryEditor(
       const value = parseCoordinate(draft);
 
       if (value === null) {
+        /* Câu báo nói toạ độ "đã trở về số cũ" — nên bỏ bản nháp thật, để ô hiện lại
+           số cũ thay vì giữ chữ vừa gõ (BUG-372). Dấu "chưa hợp lệ" vẫn ở lại cho tới
+           lượt gõ sau. */
+        clearDraft(cellId);
         setInvalidCells((current) => (current.includes(cellId) ? current : [...current, cellId]));
 
         return;
