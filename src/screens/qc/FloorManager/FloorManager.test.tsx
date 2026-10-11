@@ -78,12 +78,14 @@ import {
 import {
   createMockFloorManagerGateway,
   FLOOR_MANAGER_SAMPLE_LEVELS,
+  FLOOR_MANAGER_UNSUPPORTED_NOTICES,
 } from './floorManagerGateway';
 
 const PROJECT_ID = 'project-floor-manager';
 const SCREEN_ARIA_LABEL = 'Quản lý tầng';
 const SECTION_ARIA_LABEL = 'Lát cắt các tầng theo đúng tỷ lệ chiều cao';
-const TABLE_CAPTION_TEXT = 'Cao độ tính tự động từ chiều cao các tầng dưới trừ khi ghi đè.';
+const TABLE_CAPTION_TEXT = 'Cao độ tính tự động từ chiều cao các tầng dưới.';
+const TABLE_CAPTION_MANUAL = 'Cao độ đang nhập tay; ô ghi "Ghi đè" khác cao độ tính từ các tầng dưới.';
 const ADD_FLOOR_LABEL = 'Thêm tầng';
 const REMOVE_FLOOR_MENU_ITEM = 'Xoá tầng';
 const EXPAND_SECTION_LABEL = 'Hiện lát cắt';
@@ -153,7 +155,7 @@ async function mountScreen(): Promise<MountedScreen> {
 
   /* Trước lúc cổng trả lời, mọi kịch bản đều là "Đang tải" — chờ bảng thật. */
   await waitFor(() => {
-    expect(screen.getByText(TABLE_CAPTION_TEXT)).toBeInTheDocument();
+    expect(screen.getByText(TABLE_CAPTION_MANUAL)).toBeInTheDocument();
   });
 
   return { registry };
@@ -464,7 +466,7 @@ describe('[NGHIEM-6] màn nói ra hai sự thật thay vì im lặng', () => {
     /* Ẩn nút là đúng; ẩn mà không nói vì sao mới là lỗi A11 mà bài này chặn. */
     expect(notice).not.toBe('');
     expect(screen.queryByRole('button', { name: ADD_FLOOR_LABEL })).not.toBeInTheDocument();
-    expect(screen.getByText(notice)).toBeInTheDocument();
+    expect(screen.getByText(notice, { exact: false })).toBeInTheDocument();
   });
 
   it('cổng khai khả năng chưa có: TỪNG câu nợ hiện ra, và câu chữ vẫn đi qua hai bộ soát', () => {
@@ -478,7 +480,7 @@ describe('[NGHIEM-6] màn nói ra hai sự thật thay vì im lặng', () => {
     console.log('[NGHIEM-6] CÁC CÂU NỢ CỦA CỔNG:');
     for (const notice of FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES) {
       console.log(`  ${notice}`);
-      expect(screen.getByText(notice)).toBeInTheDocument();
+      expect(screen.getByText(notice, { exact: false })).toBeInTheDocument();
     }
 
     expect(FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES.length).toBeGreaterThan(0);
@@ -487,16 +489,23 @@ describe('[NGHIEM-6] màn nói ra hai sự thật thay vì im lặng', () => {
     expectVietnamese(container);
   });
 
-  it('màn ĐÃ NỐI DÂY đọc hai câu đó thẳng từ cổng thật, không ai gõ lại chuỗi nào', async () => {
+  it('màn ĐÃ NỐI DÂY đọc câu nợ thẳng từ cổng thật; câu ẩn 3D chỉ khi có tầng ẩn (BUG-287)', async () => {
     await mountScreen();
 
-    console.log(
-      `[NGHIEM-6] màn đã nối dây nói ra ${String(FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES.length)} khoản nợ của cổng`,
-    );
+    expect(screen.getByText(FLOOR_MANAGER_UNSUPPORTED_NOTICES.persistFloorContents, { exact: false })).toBeInTheDocument();
+    expect(screen.queryByText(FLOOR_MANAGER_UNSUPPORTED_NOTICES.hideFloorFrom3d, { exact: false })).not.toBeInTheDocument();
+  });
 
-    for (const notice of FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES) {
-      expect(screen.getByText(notice)).toBeInTheDocument();
-    }
+  it('BUG-287: mọi câu nợ gom vào MỘT dải, không tiêu đề "chỉ sống trong phiên" riêng', () => {
+    renderWithProviders(
+      <FloorManager {...scenarioArgsFor('partial')} unsupportedNotices={FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES} />,
+    );
+    const strips = screen
+      .getAllByRole('status')
+      .filter((node) => FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES.some((notice) => node.textContent?.includes(notice)));
+
+    expect(strips).toHaveLength(1);
+    expect(screen.queryByText(/chỉ sống|chỗ lưu/u)).not.toBeInTheDocument();
   });
 });
 
@@ -530,7 +539,7 @@ describe('khả năng tiếp cận và tiếng Việt', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(TABLE_CAPTION_TEXT)).toBeInTheDocument();
+      expect(screen.getByText(TABLE_CAPTION_MANUAL)).toBeInTheDocument();
     });
 
     expectAccessible(container);
@@ -563,6 +572,13 @@ describe('breadcrumb chung (BUG-079)', () => {
 
     expect(onBackToProjects).toHaveBeenCalledTimes(1);
   });
+
+  it('BUG-108: cấp "Dự án" chạm được 44×44 px dưới sm — cả bề ngang, không chỉ chiều cao', () => {
+    renderWithProviders(<FloorManager {...scenarioArgsFor('success')} onBackToProjects={vi.fn()} />);
+    const nav = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
+
+    expect(within(nav).getByRole('button', { name: 'Dự án' })).toHaveClass('min-h-11', 'min-w-11', 'sm:min-h-6', 'sm:min-w-0');
+  });
 });
 
 describe('dự án không tồn tại (BUG-032)', () => {
@@ -590,7 +606,7 @@ describe('dự án không tồn tại (BUG-032)', () => {
 
     expect(screen.getByText('Không tìm thấy dự án này')).toBeInTheDocument();
     for (const notice of FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES) {
-      expect(screen.queryByText(notice)).not.toBeInTheDocument();
+      expect(screen.queryByText(notice, { exact: false })).not.toBeInTheDocument();
     }
     expect(screen.queryByLabelText(SECTION_ARIA_LABEL)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: EXPAND_SECTION_LABEL })).not.toBeInTheDocument();
@@ -602,7 +618,7 @@ describe('dự án không tồn tại (BUG-032)', () => {
     );
 
     for (const notice of FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES) {
-      expect(screen.queryByText(notice)).not.toBeInTheDocument();
+      expect(screen.queryByText(notice, { exact: false })).not.toBeInTheDocument();
     }
     expect(screen.queryByLabelText(SECTION_ARIA_LABEL)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: EXPAND_SECTION_LABEL })).not.toBeInTheDocument();
@@ -665,6 +681,36 @@ describe('vùng chạm của nút chữ (BUG-257, BUG-270)', () => {
     for (const target of targets) {
       expect(target).toHaveClass('min-h-11', 'sm:min-h-6');
     }
+  });
+});
+
+describe('cao độ ghi đè (BUG-289)', () => {
+  it('chú thích theo công tắc; ô ghi đè mang chữ "Ghi đè", ô khác thì không', () => {
+    const base = scenarioArgsFor('partial');
+    const rows = base.rows.map((row, index) => (index === 1 ? { ...row, isElevationOverridden: true } : row));
+    const { unmount } = renderWithProviders(<FloorManager {...base} isAutoElevation={false} rows={rows} />);
+
+    expect(screen.getByText(TABLE_CAPTION_MANUAL)).toBeInTheDocument();
+    expect(screen.queryByText(TABLE_CAPTION_TEXT)).not.toBeInTheDocument();
+    expect(screen.getAllByText('Ghi đè')).toHaveLength(1);
+    expect(within(screen.getByRole('row', { name: new RegExp(`^${rows[1]!.name}, `, 'u') })).getByText('Ghi đè')).toBeInTheDocument();
+    unmount();
+
+    renderWithProviders(<FloorManager {...base} isAutoElevation />);
+    expect(screen.getByText(TABLE_CAPTION_TEXT)).toBeInTheDocument();
+    expect(screen.queryByText('Ghi đè')).not.toBeInTheDocument();
+  });
+});
+
+describe('cao độ bị chặn (BUG-306)', () => {
+  it('chỉ ô cao độ của tầng bị chặn mang dấu lỗi', () => {
+    const base = scenarioArgsFor('partial');
+    const rows = base.rows.map((row, index) => (index === 1 ? { ...row, isElevationRefused: true } : row));
+    renderWithProviders(<FloorManager {...base} isAutoElevation={false} rows={rows} />);
+
+    const invalid = screen.getAllByRole('textbox').filter((box) => box.getAttribute('aria-invalid') === 'true');
+    expect(invalid).toHaveLength(1);
+    expect(invalid[0]).toHaveAccessibleName(`Cao độ tầng ${rows[1]!.name}`);
   });
 });
 

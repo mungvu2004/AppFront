@@ -74,6 +74,9 @@ function StackedLabel({ isStacked, column }: { readonly isStacked: boolean; read
   ) : null;
 }
 const CONFIRM_DUPLICATE_LABEL = 'Nhân bản';
+const OVERRIDDEN_LABEL = 'Ghi đè';
+/** Dấu lỗi ngay ở ô; câu đầy đủ (gọi tên hai tầng) vẫn ở dải phía trên bảng (BUG-306). */
+const ELEVATION_REFUSED_LABEL = 'Chưa đặt được';
 /** Tường, phòng, diện tích, tiến độ QC, hành động. */
 const DUPLICATE_STRIP_COLUMNS = 5;
 
@@ -279,6 +282,7 @@ export function FloorTableRow({
           <NumericField
             aria-label={`Cao độ tầng ${row.name}`}
             className="w-16 text-[13px]"
+            error={row.isElevationRefused ? ELEVATION_REFUSED_LABEL : undefined}
             onChange={(value) =>
               commitNumericField(row.id, 'elevation', value, onFloorFieldChange, onFloorFieldCommit)
             }
@@ -289,6 +293,8 @@ export function FloorTableRow({
         ) : (
           <span className="text-[13px] text-text-primary">{row.elevationText}</span>
         )}
+        {/* Ô ghi đè phải nhìn ra được, không trông như mọi ô tính tự động (BUG-289). */}
+        {row.isElevationOverridden && <span className="ml-1 text-[12px] text-text-secondary">{OVERRIDDEN_LABEL}</span>}
       </Table.Cell>
 
       <Table.Cell className={cell}>

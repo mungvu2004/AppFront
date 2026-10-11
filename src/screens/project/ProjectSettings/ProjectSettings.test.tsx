@@ -657,7 +657,7 @@ describe('ProjectSettings đã nối dây', () => {
     expect(screen.queryAllByRole('button', { name: SAVE_BUTTON_NAMES })).toHaveLength(0);
   });
 
-  it('đã lưu rồi gõ tên sai: chỉ báo nói câu chờ, không giữ "Đã lưu lúc …" cũ (B-V1-47, A7)', async () => {
+  it('đã lưu rồi gõ tên sai: chỉ báo nói chưa lưu vì còn lỗi, không giữ "Đã lưu lúc …" cũ (B-V1-47, BUG-286)', async () => {
     const gateway = spyGateway();
     await mountSettings({ gateway, projectId: 'project-problem', roles: ['admin'] });
 
@@ -676,7 +676,8 @@ describe('ProjectSettings đã nối dây', () => {
       .getAllByRole('status')
       .filter((node) => node.querySelector('svg') !== null)
       .map((node) => node.textContent ?? '');
-    expect(texts.some((text) => text.includes('Có thay đổi chờ đồng bộ')), JSON.stringify(texts)).toBe(true);
+    expect(texts.some((text) => text.includes(viMessages.project.settings.load.unsavedProblems)), JSON.stringify(texts)).toBe(true);
+    expect(texts.some((text) => text.includes('chờ đồng bộ')), JSON.stringify(texts)).toBe(false);
     expect(texts.some((text) => /Đã lưu lúc/u.test(text)), JSON.stringify(texts)).toBe(false);
   });
 
@@ -861,11 +862,19 @@ describe('ProjectSettingsView, lưu dở và tải lại', () => {
     render(
       <ProjectSettingsView
         {...baseProps()}
-        saveFailureMessage="Đã lưu thông tin chung, chưa lưu đơn vị đo."
+        saveFailureMessage="Đã lưu tên dự án, chưa lưu dung sai bắt điểm."
       />,
     );
 
-    expect(screen.getByText('Đã lưu thông tin chung, chưa lưu đơn vị đo.')).toBeInTheDocument();
+    expect(screen.getByText('Đã lưu tên dự án, chưa lưu dung sai bắt điểm.')).toBeInTheDocument();
+  });
+
+  it('BUG-299: gợi ý mã dự án không hứa "bỏ trống cũng được" vì máy chủ không cho xoá trống', () => {
+    render(<ProjectSettingsView {...baseProps()} />);
+
+    expect(screen.getByText(viMessages.project.settings.general.codeHint)).toBeInTheDocument();
+    expect(screen.queryByText(/bỏ trống/u)).not.toBeInTheDocument();
+    expect(viMessages.project.settings.problems.emptyBlocked).not.toMatch(/^Bản này/u);
   });
 
   it('không dựng dải lưu dở khi không có phần hỏng', () => {

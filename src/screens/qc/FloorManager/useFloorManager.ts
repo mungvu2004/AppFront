@@ -549,6 +549,8 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
     readonly field: FloorEditableField;
   } | null>(null);
   const [duplicateElevation, setDuplicateElevation] = useState<{
+    /** Tầng có ô cao độ bị từ chối — chỉ ô đó mang dấu lỗi (BUG-306). */
+    readonly floorId: string;
     readonly message: string;
     readonly violation: DuplicateElevationViolation;
   } | null>(null);
@@ -1134,17 +1136,21 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
   const onFloorFieldChange = useCallback(
     (floorId: string, field: FloorEditableField, draftValue: string) => {
       setEditing({ floorId, field });
-      updateDrafts((previous) => {
-        const current = previous[floorId] ?? {
-          name: '',
-          elevation: '',
-          height: '',
-        };
+      /* Bộ đệm mới gieo từ giá trị đang có của tầng, không từ chuỗi rỗng: khi cao độ bị
+         từ chối, bộ đệm được giữ để người dùng sửa tiếp, và hai ô kia (tên, chiều cao)
+         từng hiện trống vì đọc đúng bộ đệm rỗng đó (BUG-306). */
+      const level = levels.find((candidate) => String(candidate.id) === floorId);
+      const seed: FloorRowDraft =
+        level === undefined
+          ? { name: '', elevation: '', height: '' }
+          : { name: level.name, elevation: metreDraftText(level.elevationMm), height: metreDraftText(level.heightMm) };
 
-        return { ...previous, [floorId]: { ...current, [field]: draftValue } };
-      });
+      updateDrafts((previous) => ({
+        ...previous,
+        [floorId]: { ...(previous[floorId] ?? seed), [field]: draftValue },
+      }));
     },
-    [updateDrafts],
+    [levels, updateDrafts],
   );
 
   const onFloorFieldCancel = useCallback(
@@ -1218,7 +1224,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
         if (conflict !== null) {
           const message = conflict.reasons.join(' ');
 
-          setDuplicateElevation({ message, violation: conflict.violation });
+          setDuplicateElevation({ floorId, message, violation: conflict.violation });
           announce(message);
 
           return;
@@ -1503,8 +1509,9 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
       return NO_ROWS;
     }
 
-    return levels.map((level) => {
+    return levels.map((level, index) => {
       const id = String(level.id);
+      const below = levels[index - 1];
       const drawingCount = floorsById.get(id)?.drawings.length ?? 0;
       const hasDrawing = drawingCount > 0;
       const counts = countsByLevel.get(id) ?? null;
@@ -1517,6 +1524,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
         name: level.name,
         elevationText: metreText(level.elevationMm),
         elevationMm: millimetres(level.elevationMm),
+        isElevationOverridden: below !== undefined && level.elevationMm !== below.elevationMm + below.heightMm,
         heightText: metreText(level.heightMm),
         heightMm: millimetres(level.heightMm),
         drawingCountText: drawingCountText(drawingCount),
@@ -1532,6 +1540,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
         isHovered: hoveredFloorId === id,
         needsDrawing: !hasDrawing,
         isHiddenIn3d: hiddenFloorIds.includes(id),
+        isElevationRefused: duplicateElevation?.floorId === id,
         draft: draftOf(level),
         editingField: editing?.floorId === id ? editing.field : null,
       };
@@ -1539,6 +1548,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
   }, [
     countsByLevel,
     draftOf,
+    duplicateElevation,
     editing,
     floorsById,
     hasError,
@@ -1642,12 +1652,16 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
     return describeError(toAppError(floorListQuery.error)).description;
   }, [floorListQuery.error, hasError, isProjectMissing]);
 
+  // Câu "ẩn khỏi 3D không lưu" chỉ đúng khi đang có tầng ẩn; nói trước đó là cảnh báo về
+  // một việc chưa xảy ra (BUG-287).
+  const hasHiddenFloor = hiddenFloorIds.length > 0;
   const unsupportedNotices = useMemo(
     () =>
       FLOOR_MANAGER_MISSING_CAPABILITIES.filter(
-        (capability) => !gateway.supports[capability],
+        (capability) =>
+          !gateway.supports[capability] && (capability !== 'hideFloorFrom3d' || hasHiddenFloor),
       ).map((capability) => FLOOR_MANAGER_UNSUPPORTED_NOTICES[capability]),
-    [gateway],
+    [gateway, hasHiddenFloor],
   );
 
   return {

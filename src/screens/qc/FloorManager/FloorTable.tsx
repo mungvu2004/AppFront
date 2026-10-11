@@ -78,7 +78,9 @@ const ERROR_TITLE = 'Không đọc được danh sách tầng';
 const ADD_FLOOR_LABEL = 'Thêm tầng';
 const DUPLICATE_SELECTED_LABEL = 'Nhân bản tầng';
 const RETRY_LABEL = 'Thử lại';
-const CAPTION_TEXT = 'Cao độ tính tự động từ chiều cao các tầng dưới trừ khi ghi đè.';
+/* Chú thích theo đúng công tắc, không một câu cố định nói "tự động" khi công tắc tắt (BUG-289). */
+const CAPTION_AUTO = 'Cao độ tính tự động từ chiều cao các tầng dưới.';
+const CAPTION_MANUAL = 'Cao độ đang nhập tay; ô ghi "Ghi đè" khác cao độ tính từ các tầng dưới.';
 const AUTO_ELEVATION_LABEL = 'Tự động tính cao độ';
 
 const EDITABLE_HEADERS = (Object.keys(FLOOR_COLUMN_LABELS) as (keyof typeof FLOOR_COLUMN_LABELS)[]).map(
@@ -306,7 +308,7 @@ export function FloorTable({
 
       {state !== 'loading' && (
         <>
-          <p className="shrink-0 text-[12px] text-text-muted">{CAPTION_TEXT}</p>
+          <p className="shrink-0 text-[12px] text-text-muted">{isAutoElevation ? CAPTION_AUTO : CAPTION_MANUAL}</p>
           {canEdit && (
             <Toggle
               checked={isAutoElevation}

@@ -59,6 +59,7 @@ import {
   draftToMillimetres,
   FLOOR_MANAGER_TEXT,
   FLOOR_RESTORE_WINDOW_MS,
+  metreDraftText,
   nextNewFloorName,
   useFloorManager,
   type UseFloorManagerOptions,
@@ -282,6 +283,28 @@ describe('đổi chiều cao một tầng', () => {
 /* 2. Chặn trùng cao độ — câu chặn nêu TÊN CẢ HAI TẦNG.                        */
 /* -------------------------------------------------------------------------- */
 
+describe('cao độ ghi đè (BUG-289)', () => {
+  it('bộ mẫu liền mạch: không dòng nào ghi đè; đặt tay Tầng mái cao hơn 1 m thì chỉ dòng đó ghi đè', async () => {
+    const mounted = await mountSettled();
+    const roofId = String(FLOOR_MANAGER_SAMPLE_ROOF_ID);
+    const second = levelIn(storeGraph(), String(FLOOR_MANAGER_SAMPLE_SECOND_ID));
+
+    expect(mounted.result.current.rows.every((row) => !row.isElevationOverridden)).toBe(true);
+
+    await commitField(
+      mounted,
+      roofId,
+      'elevation',
+      formatLength(second.elevationMm + second.heightMm + 1000, { unit: 'm', fractionDigits: 1 }).replace(' m', ''),
+    );
+
+    await waitFor(() => {
+      expect(rowOf(mounted, roofId).isElevationOverridden).toBe(true);
+    });
+    expect(mounted.result.current.rows.filter((row) => row.isElevationOverridden)).toHaveLength(1);
+  });
+});
+
 describe('chặn trùng cao độ', () => {
   it('từ chối lượt đặt Tầng mái xuống đúng cao độ của Tầng 2, và gọi tên cả hai', async () => {
     const mounted = await mountSettled();
@@ -323,6 +346,22 @@ describe('chặn trùng cao độ', () => {
     /* Câu chặn KHÔNG được lật màn sang trạng thái lỗi — nó là ràng buộc, không phải lỗi đọc. */
     expect(mounted.result.current.errorMessage).toBeNull();
     expect(mounted.result.current.state).not.toBe('error');
+  });
+
+  it('BUG-306: cao độ bị chặn giữ nguyên tên và chiều cao trong ô, chỉ ô cao độ của tầng đó mang lỗi', async () => {
+    const mounted = await mountSettled();
+    const roofId = String(FLOOR_MANAGER_SAMPLE_ROOF_ID);
+    const second = levelIn(storeGraph(), String(FLOOR_MANAGER_SAMPLE_SECOND_ID));
+    const roof = levelIn(storeGraph(), roofId);
+    const typed = formatLength(second.elevationMm, { unit: 'm', fractionDigits: 1 }).replace(' m', '');
+
+    await commitField(mounted, roofId, 'elevation', typed);
+
+    const row = rowOf(mounted, roofId);
+    expect(mounted.result.current.duplicateElevationMessage).not.toBeNull();
+    expect(row.draft).toEqual({ name: roof.name, elevation: typed, height: metreDraftText(roof.heightMm) });
+    expect(row.isElevationRefused).toBe(true);
+    expect(mounted.result.current.rows.filter((candidate) => candidate.isElevationRefused)).toHaveLength(1);
   });
 
   it('bắt cả hai tầng KHÔNG liền kề đứng cùng một cao độ', () => {
@@ -642,13 +681,24 @@ describe('bảng tầng', () => {
     expect(mounted.result.current.forbiddenNotice).not.toBeNull();
   });
 
-  it('nói ra hai khoản nợ của cổng thay vì im lặng', async () => {
+  it('nói ra khoản nợ của cổng thay vì im lặng; câu ẩn 3D chỉ khi đã ẩn một tầng (BUG-287)', async () => {
     const mounted = await mountSettled();
 
     expect(mounted.result.current.unsupportedNotices).toEqual([
       FLOOR_MANAGER_UNSUPPORTED_NOTICES.persistFloorContents,
-      FLOOR_MANAGER_UNSUPPORTED_NOTICES.hideFloorFrom3d,
     ]);
+
+    await act(async () => {
+      mounted.result.current.onToggleHiddenIn3d(String(FLOOR_MANAGER_SAMPLE_ROOF_ID));
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mounted.result.current.unsupportedNotices).toEqual([
+        FLOOR_MANAGER_UNSUPPORTED_NOTICES.persistFloorContents,
+        FLOOR_MANAGER_UNSUPPORTED_NOTICES.hideFloorFrom3d,
+      ]);
+    });
   });
 
   it('ẩn tầng khỏi 3D là khung đọc của màn, và màn nói rằng nó không lưu được', async () => {

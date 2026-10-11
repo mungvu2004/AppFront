@@ -75,6 +75,11 @@ export interface FloorRowVm {
   readonly elevationText: string;
   /** Số thô: để so trùng cao độ, để sắp thứ tự, để đặt dải lát cắt. Không vẽ ra chữ. */
   readonly elevationMm: Millimetres;
+  /**
+   * Cao độ khác cao độ + chiều cao của tầng ngay dưới, tức đã ghi đè thứ lẽ ra tính tự
+   * động (BUG-289). Luôn `false` ở tầng thấp nhất: không có gì bên dưới để tính.
+   */
+  readonly isElevationOverridden: boolean;
 
   /** Ví dụ `"3,9 m"`. Cùng công thức định dạng với `elevationText`. */
   readonly heightText: string;
@@ -114,6 +119,8 @@ export interface FloorRowVm {
   readonly needsDrawing: boolean;
   /** Tầng bị ẩn khỏi mô hình 3D. Dòng mờ đi; tầng vẫn còn trong bảng và trong lát cắt. */
   readonly isHiddenIn3d: boolean;
+  /** Lượt đặt cao độ gần nhất của tầng này bị chặn: ô cao độ mang dấu lỗi (BUG-306). */
+  readonly isElevationRefused: boolean;
 
   /** Giá trị đang gõ của ba ô sửa được. Luôn có mặt, kể cả khi không ai đang sửa. */
   readonly draft: FloorRowDraft;

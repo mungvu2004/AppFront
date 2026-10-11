@@ -310,7 +310,7 @@
       "general": {
         "name": "Tên dự án",
         "code": "Mã dự án",
-        "codeHint": "Mã ngắn để tra cứu nhanh; bỏ trống cũng được",
+        "codeHint": "Mã ngắn để tra cứu nhanh",
         "address": "Địa chỉ",
         "buildingType": "Loại công trình",
         "notes": "Ghi chú",
@@ -391,7 +391,7 @@
         "addressTooLong": "Địa chỉ không quá {{max}} ký tự.",
         "notesTooLong": "Ghi chú không quá {{max}} ký tự.",
         "snapRequired": "Chưa nhập dung sai bắt điểm.",
-        "emptyBlocked": "Bản này chưa xoá trống được.",
+        "emptyBlocked": "Giá trị đã lưu không xoá trống được; hãy nhập giá trị khác.",
         "snapNotInteger": "Dung sai bắt điểm phải là số nguyên.",
         "snapOutOfRange": "Dung sai bắt điểm áp dụng từ {{min}} đến {{max}}.",
         "confidenceOutOfRange": "Ngưỡng tin cậy nằm trong khoảng {{min}} đến {{max}}.",
@@ -405,8 +405,9 @@
         "conflictTitle": "Cài đặt đã đổi ở nơi khác",
         "conflictMessage": "Cài đặt dự án vừa được đổi ở nơi khác. Tải lại để xem bản mới nhất.",
         "fieldRejected": "Máy chủ không nhận giá trị này. Kiểm tra lại ô này.",
-        "partGeneral": "Thông tin chung",
-        "partUnits": "Đơn vị đo",
+        "unsavedProblems": "Chưa lưu vì còn ô cần sửa",
+        "chipRejected": "Chưa lưu: máy chủ không nhận một giá trị",
+        "chipReload": "Chưa lưu: cần tải lại bản mới nhất",
         "reloadDialogMessage": "Những thay đổi chưa lưu trên màn này sẽ mất, và bản mới nhất từ máy chủ sẽ thay vào chỗ đó.",
         "reloadDialogTitle": "Tải lại sẽ bỏ thay đổi chưa lưu",
         "reloadKeep": "Giữ thay đổi",
@@ -1961,12 +1962,14 @@
       "reorderToast": "Đã đổi thứ tự tầng."
     },
     "capability": {
-      "sessionOnlyHeading": "Những thay đổi chỉ sống trong phiên làm việc này",
-      "persistFloorContents": "Nội dung tầng (tường, phòng, nội thất) mới chỉ đổi trong phiên làm việc này; hệ thống chưa có chỗ lưu nó nên nó mất sau khi tải lại trang.",
-      "hideFloorFrom3d": "Ẩn tầng khỏi mô hình 3D chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang."
+      "sessionOnlyTitle": "Một số thay đổi chưa được lưu",
+      "persistFloorContents": "Tường, phòng và nội thất đi theo khi nhân bản hay xoá tầng chưa được lưu; tải lại trang sẽ mất phần thay đổi đó.",
+      "hideFloorFrom3d": "Tầng đang ẩn khỏi mô hình 3D sẽ hiện lại sau khi tải lại trang."
     },
     "caption": {
-      "elevationRule": "Cao độ tính tự động từ chiều cao các tầng dưới trừ khi ghi đè."
+      "elevationRule": "Cao độ tính tự động từ chiều cao các tầng dưới.",
+      "elevationManual": "Cao độ đang nhập tay; ô ghi \"Ghi đè\" khác cao độ tính từ các tầng dưới.",
+      "elevationOverridden": "Ghi đè"
     },
     "route": {
       "missingProjectTitle": "Thiếu mã dự án",
