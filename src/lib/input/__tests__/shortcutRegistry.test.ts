@@ -415,6 +415,21 @@ describe('preventDefault', () => {
     expect(event.preventDefault).toHaveBeenCalledTimes(1);
   });
 
+  it('leaves Enter and Space to the focused control when a modal swallows them (BUG-151)', () => {
+    const registry = devRegistry();
+    const handlers = globalHandlers();
+
+    registerGlobalShortcuts(registry, handlers);
+    registry.claimScope('dialog');
+
+    for (const key of ['Enter', ' ']) {
+      const event = keyEvent(key);
+
+      expect(registry.handleKeyDown(event, { tagName: 'BUTTON' })).toBe(false);
+      expect(event.preventDefault).not.toHaveBeenCalled();
+    }
+  });
+
   it('lets a binding opt out of preventing the default', () => {
     const registry = devRegistry();
     const handlers = globalHandlers();
