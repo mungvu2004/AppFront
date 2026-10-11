@@ -701,9 +701,13 @@ test.describe('E02 SCR-06 notifications as a second real user (invitee)', () => 
     });
   });
 
-  test('E02 · SCR-06 BUG-114: with nothing unread the gear takes the opening focus; its tooltip is inside the viewport, near the gear, no horizontal scroll', async ({ browser }) => {
+  test('E02 · SCR-06 BUG-114: with nothing unread the gear takes the opening focus of a drawer opened by Enter; its tooltip is inside the viewport, near the gear, no horizontal scroll', async ({ browser }) => {
     await asInvitee(browser, async ({ page }) => {
       expect(await loadWithInbox(page), 'precondition: empty inbox → "Đánh dấu tất cả đã đọc" disabled').toEqual([]);
+      // FIX-1031 (BUG-205): the tooltip shows on `:focus-visible` only (TT handleFocus), so a mouse-opened drawer pops none.
+      // Open it by keyboard: the moved focus is then focus-visible and the gear's tooltip shows, as it does for that user.
+      await bell(page).focus();
+      await page.keyboard.press('Enter');
       const drawer = await openDrawer(page);
       const gear = drawer.getByRole('button', { name: NOTIF_SETTINGS, exact: true });
       // NC:239 disables mark-all → FT:39-44,183 the gear is the first focusable; IB:58-63 wraps it in a Tooltip whose
