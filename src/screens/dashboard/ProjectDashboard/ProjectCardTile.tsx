@@ -76,7 +76,8 @@ export function ProjectCardTile({
       aria-label={project.name}
       onClick={() => onOpen(project.id)}
       onKeyDown={(event) => {
-        if (event.key === 'Enter') onOpen(project.id);
+        // Only the card's own Enter: one bubbling up from the menu or "Mở" button is theirs (BUG-147).
+        if (event.key === 'Enter' && event.target === event.currentTarget) onOpen(project.id);
       }}
       onContextMenu={(event) => {
         event.preventDefault();

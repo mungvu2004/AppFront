@@ -243,6 +243,16 @@ describe('ProjectDashboardView, seven states', () => {
     expect(openProject).toHaveBeenCalledWith(SAMPLE_ROW.id, 'card');
   });
 
+  // BUG-147: Enter on the menu button bubbled to the card and opened the project.
+  it('leaves Enter on the card menu button to that button', () => {
+    const openProject = vi.fn();
+    render(<ProjectDashboardView {...PROPS_BY_STATE.success()} openProject={openProject} />);
+
+    fireEvent.keyDown(screen.getByRole('button', { name: `Tuỳ chọn cho ${SAMPLE_ROW.name}` }), { key: 'Enter' });
+
+    expect(openProject).not.toHaveBeenCalled();
+  });
+
   // BUG-119: a project with no traced plan drew a made-up floor plan with rooms.
   it('shows a placeholder instead of a plan outline until the project has a traced plan', () => {
     render(<ProjectDashboardView {...PROPS_BY_STATE.success()} rows={[{ ...SAMPLE_ROW, hasPlan: false }]} />);
