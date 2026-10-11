@@ -87,6 +87,8 @@ export interface ProfileSectionProps {
   readonly onJobTitleChange: (value: string) => void;
   /** Chữ mờ khi chưa có chức danh — trạng thái 1. */
   readonly jobTitlePlaceholder: string;
+  /** Cùng chữ với chức danh: hai trường tuỳ chọn trống phải trông như nhau (BUG-138). */
+  readonly phonePlaceholder: string;
 
   readonly email: string;
   readonly emailReadOnlyReason: string;
@@ -220,6 +222,7 @@ export function ProfileSection(props: ProfileSectionProps) {
             type="tel"
             inputMode="tel"
             value={props.phone}
+            placeholder={props.phonePlaceholder}
             onChange={(event) => props.onPhoneChange(event.target.value)}
             error={props.problems.phone}
             flash={flashOf('phone')}

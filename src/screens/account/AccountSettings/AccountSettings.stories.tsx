@@ -81,6 +81,7 @@ const base: AccountSettingsViewModel = {
       jobTitle: 'Kỹ sư kết cấu',
       onJobTitleChange: noop,
       jobTitlePlaceholder: 'chưa đặt',
+      phonePlaceholder: 'chưa đặt',
       email: EMAIL,
       emailReadOnlyReason: 'Thư điện tử là tên đăng nhập nên chỉ đọc ở đây.',
       onChangeEmail: noop,
