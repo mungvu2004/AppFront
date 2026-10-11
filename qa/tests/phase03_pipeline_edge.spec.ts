@@ -158,7 +158,10 @@ const STATUS_ERROR = 'Lỗi'; // UFU:124
 const CAD_PILL = 'Bản vẽ CAD · độ chính xác cao'; // FUC:41 (FIX-1404, BUG-304)
 const CAD_SENTENCE = 'Bản vẽ CAD (.dwg) chưa được hỗ trợ; hãy xuất sang PDF rồi tải lại.'; // FUG:85
 const UPLOAD_EMPTY = 'Chưa có tầng nào có bản vẽ. Kéo thả tệp đầu tiên để bắt đầu.'; // UFU:105
-const NO_FLOORS_TITLE = 'Dự án chưa có tầng nào'; // FU:74
+const NO_FLOORS_TITLE = 'Dự án chưa có tầng nào'; // FU:76
+const NO_FLOORS_ADD = 'Thêm tầng'; // FU:80 ADD_FLOORS_LABEL (FIX-1400, BUG-298)
+const BLOCKED_TITLE = 'Không thể bắt đầu xử lý'; // UFU:115 COPY.blockedTitle
+const NO_FLOORS_REASON = 'Dự án chưa có tầng nào. Thêm tầng ở màn Quản lý tầng trước khi xử lý.'; // UFU:117 (BUG-298)
 const UPLOAD_LOAD_ERROR = 'Không tải được danh sách tầng'; // FU:68
 const SELECT_FILE = 'Chọn tệp'; // UFU:100
 const PICK_PAGE = 'Chọn trang'; // FUC:40
@@ -1097,23 +1100,29 @@ test.describe('E03 SCR-09 floor manager', () => {
 /* ================================================================= SCR-10 floor upload */
 
 test.describe('E03 SCR-10 floor upload', () => {
-  test('E03 · SCR-10 project with no floor → "Dự án chưa có tầng nào"; "Bắt đầu xử lý" does nothing; breadcrumb → "/"', async ({ browser }) => {
+  test('E03 · SCR-10 project with no floor → "Dự án chưa có tầng nào" + "Thêm tầng", no drop zone; "Bắt đầu xử lý" says why (BUG-298); breadcrumb → "/"', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page, api } = admin;
       const project = await createProject(admin, 'unofloor');
       await page.goto(ROUTES.project.upload(project.id));
       await expect(page.getByText(NO_FLOORS_TITLE, { exact: true })).toBeVisible(); // FU:149-150
       await expect(page.getByTestId(COUNTER)).toHaveText('0 / 0 tầng đã có bản vẽ'); // FUF:99-106, UFU:1138-1140
+      // FU:160-166 EmptyState action "Thêm tầng" → Quản lý tầng (UFU:1304-1307); UFU:437 canDrop is false with no floor,
+      // so FU:229-235 renders no drop zone (a file dropped here could not wait for a floor) (FIX-1400, BUG-298).
+      await expect(page.getByRole('button', { name: NO_FLOORS_ADD, exact: true })).toBeVisible();
+      await expect(page.getByTestId(DROPZONE)).toHaveCount(0);
 
       const mark = api.length;
       await page.getByRole('button', { name: SUBMIT, exact: true }).click();
       await quiet(page);
-      // UFU:974-992: no reason to list (no floor) → `first === undefined` → return: no notice, no navigation.
-      await expect(page.getByTestId(BLOCK_NOTICE)).toHaveCount(0);
+      // UFU:933-934: no floor → one project-level `noFloors` reason; the footer (FUF:72-87) names it, no navigation.
+      const notice = page.getByTestId(BLOCK_NOTICE);
+      await expect(notice).toContainText(BLOCKED_TITLE);
+      await expect(notice).toContainText(NO_FLOORS_REASON);
       expect(pathOf(page)).toBe(ROUTES.project.upload(project.id));
       expect(writesSince(api, mark)).toEqual([]);
       await captureEvidence(page, 'E03_upload_no_floor_submit.png');
-      await attachJson('E03_upload_no_floor_submit.json', { path: pathOf(page), writes: writesSince(api, mark), blockNotice: 0 });
+      await attachJson('E03_upload_no_floor_submit.json', { path: pathOf(page), writes: writesSince(api, mark), blockNotice: 1 });
 
       await page.getByRole('navigation', { name: 'Đường dẫn trang' }).getByRole('button', { name: 'Dự án', exact: true }).click(); // FU:194-204
       await expect.poll(() => pathOf(page)).toBe(ROUTES.dashboard);
