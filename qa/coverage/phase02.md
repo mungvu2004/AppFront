@@ -5,11 +5,12 @@ FE source: `F:/App/AppFront` HEAD `5afd8b8a`. Backend rules are in `coverage/pha
 BE-rule gaps belong there, not here. Plan rows: `E2E-TEST-PLAN.md` §4 Phase 2 (SCR-05…07).
 
 **Specs** — `M` = `tests/phase02_dashboard.spec.ts` (16, serial, produces CP-2) · `U` = `tests/phase02_dashboard_ui.spec.ts`
-(33 states x 1440/1024/768/375, non-serial) · `E` = `tests/phase02_dashboard_edge.spec.ts` (69: 68 runnable + 1 `test.fixme`;
+(34 states x 1440/1024/768/375, non-serial; +1 = `U02_notif_rows*`, BUG-174) · `E` = `tests/phase02_dashboard_edge.spec.ts` (69: 68 runnable + 1 `test.fixme`;
 non-serial; the SCR-05 dashboard block plus the earlier wizard / SCR-06 / SCR-07 tests) · `EW` = `tests/phase02_wizard_edge.spec.ts`
 (27, non-serial) · `X` = `tests/phase02_notify_edge.spec.ts` (19, non-serial, second real user) · `A` = `tests/phase02_dashboard_api.spec.ts`
-(26, API layer; holds the pairs of the mocks). Test names are shortened to their leading words. Nothing here has been run yet
-(typecheck + `--list` only).
+(26, API layer; holds the pairs of the mocks). Test names are shortened to their leading words. Last run: `run-12` (`F:/App/qa-results/run-12/phase02*/results.json`): M 15 passed + 1 skipped, A 26/26 passed, E 83 passed /
+29 failed (open FE bugs) / 3 skipped, U 4 passed / 28 failed (open FE bugs, mostly BUG-109/110 at 375) / 1 skipped. Specs edited after it
+(QA-02 cluster T) are checked by `tsc` + `--list` only.
 
 **Source abbreviations** — `PD` `src/screens/dashboard/ProjectDashboard/ProjectDashboard.tsx` · `UPD` `…/useProjectDashboard.ts` ·
 `PDC` `…/ProjectDashboard.container.tsx` · `DS` `…/DashboardSidebar.tsx` · `PCT` `…/ProjectCardTile.tsx` · `PMG` `…/projectMenuGroups.ts` ·
@@ -311,7 +312,7 @@ X and its N/O rows use a second real user (invitee made through the real invitat
   covered by mock only (re-pair with a real click after CP-5). UNKNOWN (need verification): #12, W40, N27, O18 crash fallbacks (not producible),
   W27 overlap alert (no input path), W73 cap message (no copy in source), #54 telemetry beacon (`test.fixme`), O21 onboarding refresh after create.
   Closed in this pass: #3, #41, #42, #48, #55, W41, N6, N16, N18 (accept), N25, O16.
-- Run notes: nothing run yet. Test-side bugs fixed in the specs, not yet run: BUG-139 (`columnheader` role, M/U table), BUG-140
+- Run notes: `run-12` ran the suite (see the header). Test-side bugs fixed in the specs before it and verified by it: BUG-139 (`columnheader` role, M/U table), BUG-140
   (`endsWithCount` regex via `String.raw`), BUG-141 (wait registered after `goto`/`reload`: local `gotoThenApi` in M, `navigateAndWaitForApi` in E;
   shared `apiWatch.ts` untouched), BUG-142 (unreadable-row mock: explicit fulfil + >= 4 readable rows, see F9), BUG-143 (`settled()` before
   measuring drawers / sheets / modals), F1 (menu label `Tuỳ chọn`), F2 (page-rooted `has`); also BUG-134/135/136/137 evidence shots in E.

@@ -3,17 +3,16 @@
 
 Source read: `F:/App/AppBack` (qa.config `backendSourceRoot`) @ `e2fc4d42` (= `git rev-parse --short HEAD`,
 2026-10-11). Every `file:line` is in that tree, `apps/api/...` unless it starts with `packages/` or `deploy/`.
-API spec: `qa/tests/phase02_dashboard_api.spec.ts` — **26 tests**: the first 11 ran in `run-11`
-(`F:/App/qa-results/run-11/phase02-api/run.log`: 11 passed, 1.1 min); the 15 gap tests added in pass 2 have
-**not run yet** (static checks only: `tsc` exit 0, `playwright --list` = 26). UI specs of the phase:
-`phase02_dashboard.spec.ts`, `phase02_dashboard_ui.spec.ts`, `phase02_dashboard_edge.spec.ts`.
+API spec: `qa/tests/phase02_dashboard_api.spec.ts` — **26 tests**, all 26 passed in `run-12`
+(`F:/App/qa-results/run-12/phase02-api/results.json`: 26 expected, 0 unexpected; run-11 had run the first 11). UI specs of
+the phase: `phase02_dashboard.spec.ts`, `phase02_dashboard_ui.spec.ts`, `phase02_dashboard_edge.spec.ts`,
+`phase02_wizard_edge.spec.ts`, `phase02_notify_edge.spec.ts`.
 Endpoints called by the phase's screens (FE `src/api/endpoints.ts:186-213`, `src/api/client.ts:1123-1216`):
 the nine of pass 1 + `POST /api/notifications/{id}/accept-invite` (#22, SCR-06 inline "chấp nhận",
 `notificationCenterGateway.ts`). `GET /api/projects/:id` (#24), `GET /api/users/{id}/activity` (#40), N3/N4 member
 add/remove and `DELETE /api/floors/{id}` (#11) are used only as read-back or setup.
 
-Status words: **pass** (asserted by a test that passed in run-11) · **new** (asserted by a pass-2 test, not run
-yet) · **covered** (another spec asserts it) · **partial** · **not covered** (reason given) · **unpairable**.
+Status words: **pass** (asserted by a test that passed in run-11) · **new** (asserted by a pass-2 test; all passed in run-12) · **covered** (another spec asserts it) · **partial** · **not covered** (reason given) · **unpairable**.
 
 Test names below are shortened. Pass 1 (ran): "anon", "create", "rules", "idem", "rename", "patch-rules",
 "delete", "N1", "roles", "notif", "notif-bodies". Pass 2 (new): "order", "text", "code-dup", "floors", "fields",
