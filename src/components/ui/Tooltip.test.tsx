@@ -32,7 +32,9 @@ describe('Tooltip', () => {
     const anchor = screen.getByRole('button', { name: 'gear' }).parentElement as HTMLElement;
     const spy = vi.spyOn(anchor, 'getBoundingClientRect').mockReturnValue(rect(1700, 100));
 
-    fireEvent.focus(screen.getByRole('button', { name: 'gear' }));
+    act(() => {
+      screen.getByRole('button', { name: 'gear' }).focus();
+    });
     spy.mockReturnValue(rect(500, 100)); // ngăn trượt xong trong lúc chờ 400 ms
     act(() => {
       vi.advanceTimersByTime(400);
@@ -59,5 +61,31 @@ describe('Tooltip', () => {
     fireEvent.click(dot);
 
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  });
+
+  it('focus do script không khớp :focus-visible (ngăn mở bằng chuột) thì không hiện tooltip; focus bàn phím thì có (BUG-205)', () => {
+    render(
+      <Tooltip label="Mở cài đặt thông báo">
+        <button type="button">gear</button>
+      </Tooltip>,
+    );
+    const gear = screen.getByRole('button', { name: 'gear' });
+    const matches = vi.spyOn(gear, 'matches').mockImplementation((selector) => selector !== ':focus-visible');
+
+    act(() => {
+      gear.focus();
+      vi.advanceTimersByTime(400);
+    });
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+
+    act(() => {
+      gear.blur();
+    });
+    matches.mockRestore();
+    act(() => {
+      gear.focus();
+      vi.advanceTimersByTime(400);
+    });
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Mở cài đặt thông báo');
   });
 });

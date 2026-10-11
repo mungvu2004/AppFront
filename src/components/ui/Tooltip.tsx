@@ -16,6 +16,15 @@ const TOOLTIP_DWELL_MS = 400;
 /** Khoảng tối thiểu giữa tooltip và mép khung nhìn khi nó bị đẩy vào trong. */
 const VIEWPORT_EDGE_PX = 8;
 
+/** `:focus-visible` của trình duyệt; bộ chọn không được hỗ trợ thì coi như có (giữ hành vi cũ). */
+function isFocusVisible(element: Element): boolean {
+  try {
+    return element.matches(':focus-visible');
+  } catch {
+    return true;
+  }
+}
+
 // ─── Tooltip ──────────────────────────────────────────────────────────────────
 // Delay: 400ms. Nền text-primary, chữ trắng, 13px, bo 6px, bóng md, mũi nhọn.
 
@@ -75,6 +84,12 @@ export function Tooltip({ label, kbd, children, disabled = false, side = 'top' }
       updateCoords(side);
       setIsVisible(true);
     }, TOOLTIP_DWELL_MS);
+  };
+
+  // Chỉ focus bàn phím (`:focus-visible`) mới hiện tooltip. Focus do script dời vào — ngăn thông báo mở bằng
+  // chuột đặt focus vào nút đầu tiên — không phải người dùng hỏi, và tooltip đứng sẵn che nút kế bên (BUG-205).
+  const handleFocus = (event: React.FocusEvent) => {
+    if (isFocusVisible(event.target)) handleShow();
   };
 
   const handleHide = () => {
@@ -192,7 +207,7 @@ export function Tooltip({ label, kbd, children, disabled = false, side = 'top' }
         className="inline-flex"
         onMouseEnter={handleShow}
         onMouseLeave={handleHide}
-        onFocus={handleShow}
+        onFocus={handleFocus}
         onBlur={handleHide}
         // Bấm/Enter trên anchor thường dời nó đi (chấm snap hạ tấm 375 px xuống 88 px): toạ độ chỉ đo lúc hiện,
         // nên tooltip ẩn đi thay vì đứng lại chỗ cũ (BUG-197).

@@ -5,7 +5,7 @@ import { cn } from '../../lib/utils';
 import { Z_INDEX } from '../../lib/zIndex';
 import { DURATION, EASE, SPRING } from '../../lib/motion';
 import { useShortcut } from '../../hooks/useShortcut';
-import { createFocusTrap } from '../../lib/input/focusTrap';
+import { createFocusTrap, getFocusableElements, type FocusTrapHandle } from '../../lib/input/focusTrap';
 import { Tooltip } from '../ui/Tooltip';
 
 // ─── Media Query (private) ───────────────────────────────────────────────────
@@ -35,6 +35,23 @@ function getSnapHeight(level: SnapLevel, windowHeight: number): number {
   if (level === 0) return 88;
   if (level === 1) return Math.round(windowHeight * 0.4);
   return Math.round(windowHeight * 0.9);
+}
+
+/**
+ * Chỗ nhận focus lúc tấm mở (BUG-205, BUG-125).
+ *
+ * - Không ai mở nó (tải thẳng `/thong-bao`: focus đang ở `body`) → chính hộp thoại. Không nút nào tự sáng
+ *   vòng focus hay bật tooltip khi người dùng chưa làm gì; Tab đầu tiên vào nút đầu tiên (focusTrap).
+ * - Có người mở → nút đầu tiên của NỘI DUNG (hoặc `data-autofocus`), không phải chấm snap của tờ dưới
+ *   1024 px: một Enter lạc trên "Mức 1" là tờ sập còn 88 px.
+ */
+function openingFocusOf(container: HTMLElement): HTMLElement {
+  const active = container.ownerDocument.activeElement;
+  if (active === null || active === container.ownerDocument.body) return container;
+
+  const content = container.querySelector<HTMLElement>('[data-drawer-content]') ?? container;
+  const focusable = getFocusableElements(content);
+  return focusable.find((element) => element.hasAttribute('data-autofocus')) ?? focusable[0] ?? container;
 }
 
 // ─── Context ─────────────────────────────────────────────────────────────────
@@ -84,12 +101,15 @@ function DrawerRoot({ isOpen, onClose, children, size, label }: DrawerRootProps)
     const container = containerRef.current;
     if (!container) return;
 
-    const trap = createFocusTrap(container, { onEscape: onClose });
-    const raf = requestAnimationFrame(() => trap.activate());
+    let trap: FocusTrapHandle | undefined;
+    const raf = requestAnimationFrame(() => {
+      trap = createFocusTrap(container, { onEscape: onClose, initialFocus: openingFocusOf(container) });
+      trap.activate();
+    });
 
     return () => {
       cancelAnimationFrame(raf);
-      trap.release();
+      trap?.release();
     };
   }, [isOpen, onClose, isMobile]);
 
@@ -274,7 +294,9 @@ const BottomSheet = forwardRef<HTMLDivElement, BottomSheetProps>(
           ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto">{children}</div>
+        <div data-drawer-content className="flex-1 overflow-y-auto">
+          {children}
+        </div>
       </motion.div>
     );
   },

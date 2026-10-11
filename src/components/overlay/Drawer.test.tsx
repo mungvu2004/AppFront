@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Drawer } from './Drawer';
@@ -68,5 +68,32 @@ describe('Drawer — tấm trượt điện thoại (B-V1-46)', () => {
     for (const button of within(screen.getByRole('group', { name: 'Chiều cao tấm trượt' })).getAllByRole('button')) {
       expect(button).not.toHaveAttribute('tabindex', '-1');
     }
+  });
+});
+
+describe('Drawer — focus lúc mở (BUG-205, BUG-125)', () => {
+  it('không ai mở (focus ở body, như tải thẳng một route) → chính hộp thoại nhận focus, không nút nào', async () => {
+    render(
+      <Drawer.Root isOpen label="Thông báo" onClose={() => undefined}>
+        <button type="button">Cài đặt</button>
+      </Drawer.Root>,
+    );
+
+    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Thông báo' })).toHaveFocus());
+  });
+
+  it('mở từ một nút → nút đầu tiên của nội dung, không phải chấm snap "Mức 1" của tờ', async () => {
+    const opener = document.createElement('button');
+    document.body.append(opener);
+    opener.focus();
+
+    render(
+      <Drawer.Root isOpen label="Thông báo" onClose={() => undefined}>
+        <button type="button">Cài đặt</button>
+      </Drawer.Root>,
+    );
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Cài đặt' })).toHaveFocus());
+    opener.remove();
   });
 });
