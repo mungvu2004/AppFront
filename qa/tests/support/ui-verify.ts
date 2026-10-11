@@ -41,10 +41,18 @@ function measure(touchTargetPx: number): Omit<UiMetrics, 'viewport'> {
     const s = getComputedStyle(el);
     return r.width > 2 && r.height > 2 && s.visibility !== 'hidden' && s.display !== 'none' && Number(s.opacity) > 0;
   };
+  /** Accessible-name order: aria-labelledby (the referenced elements' text), aria-label, <label>, own text. */
+  const labelledBy = (el: Element): string =>
+    (el.getAttribute('aria-labelledby') ?? '')
+      .split(/\s+/u)
+      .map((id) => (id === '' ? '' : (document.getElementById(id)?.textContent ?? '')))
+      .join(' ')
+      .trim();
   const name = (el: Element): string =>
     (
-      el.getAttribute('aria-label') ??
-      (el as HTMLInputElement).labels?.[0]?.innerText ??
+      labelledBy(el) ||
+      el.getAttribute('aria-label') ||
+      (el as HTMLInputElement).labels?.[0]?.innerText ||
       ((el as HTMLElement).innerText || el.getAttribute('name') || '')
     )
       .trim()
