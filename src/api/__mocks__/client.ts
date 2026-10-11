@@ -1064,7 +1064,7 @@ export const MOCK_NOTIFICATIONS: readonly Notification[] = [
     id: 'notif-4',
     isRead: true,
     kind: 'commentMention',
-    message: 'Trần Chi nhắc đến bạn trong một bình luận ở phòng 201.',
+    message: 'Trần Chi nhắc đến bạn trong một bình luận ở',
     objectLabel: 'phòng 201',
     place: 'rooms',
     projectId: 'project-1',
