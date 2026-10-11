@@ -177,9 +177,19 @@ function NotificationRow({
         <div className="flex items-center gap-2">
           <span className="whitespace-nowrap text-[13px] leading-[18px] text-text-muted">{item.relativeTime}</span>
           {item.inlineAction !== undefined && (
-            <Button variant="secondary" size="sm" onClick={() => onInlineAction(item)}>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={item.inlineAction.disabled === true}
+              onClick={() => onInlineAction(item)}
+            >
               {item.inlineAction.label}
             </Button>
+          )}
+          {item.statusNote !== undefined && (
+            <span className="text-[13px] font-medium leading-[18px] text-text-secondary">
+              {item.statusNote}
+            </span>
           )}
         </div>
       </div>

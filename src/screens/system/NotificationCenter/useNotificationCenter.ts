@@ -160,7 +160,13 @@ export const NOTIFICATION_CENTER_TEXT = {
   markedAllRead: 'Đã đánh dấu tất cả là đã đọc',
   markedRead: 'Đã đánh dấu là đã đọc',
   settingsLabel: 'Cài đặt thông báo',
+  inviteAccepted: 'Đã chấp nhận lời mời',
+  inviteStatus: 'Đã chấp nhận',
+  inviteAcceptFailed: 'Không chấp nhận được lời mời',
 } as const;
+
+/** Loại thông báo của toast kết quả "chấp nhận lời mời" trên kênh chung. */
+const ACCEPT_INVITE_NOTIFICATION_TYPE = 'notification-accept-invite';
 
 /** Câu của vùng `aria-live` khi còn mục chưa đọc. Một chỗ dựng, một chỗ sửa. */
 function unreadLiveMessage(badge: string): string {
@@ -458,17 +464,40 @@ export function useNotificationCenter(
    */
   const [pendingReadIds, setPendingReadIds] = useState<ReadonlySet<string>>(() => new Set());
 
+  /**
+   * Lời mời đang chấp nhận / đã chấp nhận. Máy chủ chỉ đánh dấu đã đọc, câu của
+   * dòng không đổi, nên kết cục phải được vẽ ở đây (BUG-180).
+   *
+   * ponytail: chỉ sống trong phiên của bản hook; tải lại thì dòng về lại có nút
+   * "Chấp nhận" (máy chủ chưa lưu trạng thái đã chấp nhận trên thông báo). Cần
+   * bền thì thêm trường vào gói tin thông báo.
+   */
+  const [acceptState, setAcceptState] = useState<ReadonlyMap<string, 'pending' | 'done'>>(
+    () => new Map(),
+  );
+
   const items = useMemo<readonly NotificationItemVm[]>(() => {
     const listed = listQuery.data ?? [];
 
-    if (pendingReadIds.size === 0) {
+    if (pendingReadIds.size === 0 && acceptState.size === 0) {
       return listed;
     }
 
-    return listed.map((item) =>
-      !item.isRead && pendingReadIds.has(item.id) ? { ...item, isRead: true } : item,
-    );
-  }, [listQuery.data, pendingReadIds]);
+    return listed.map((item) => {
+      const read = !item.isRead && pendingReadIds.has(item.id) ? { ...item, isRead: true } : item;
+      const accept = acceptState.get(item.id);
+
+      if (accept === 'done') {
+        return { ...read, inlineAction: undefined, statusNote: NOTIFICATION_CENTER_TEXT.inviteStatus };
+      }
+
+      if (accept === 'pending' && read.inlineAction !== undefined) {
+        return { ...read, inlineAction: { ...read.inlineAction, disabled: true } };
+      }
+
+      return read;
+    });
+  }, [listQuery.data, pendingReadIds, acceptState]);
 
   /* ---- Giữ vị trí cuộn khi mục mới chen vào ĐẦU danh sách ---------------- */
 
@@ -626,8 +655,29 @@ export function useNotificationCenter(
    */
   const acceptInviteMutation = useMutation({
     mutationFn: (item: NotificationItemVm) => gateway.acceptInvite(item.id),
+    onMutate: (item: NotificationItemVm) => {
+      setAcceptState((current) => new Map(current).set(item.id, 'pending'));
+    },
     onSuccess: (_result, item) => {
+      setAcceptState((current) => new Map(current).set(item.id, 'done'));
+      notifications.publish({
+        type: ACCEPT_INVITE_NOTIFICATION_TYPE,
+        title: NOTIFICATION_CENTER_TEXT.inviteAccepted,
+        description: item.target.projectName,
+      });
       applyInvalidation(queryClient, 'acceptInvite', { projectId: item.target.projectId });
+    },
+    onError: (_error, item) => {
+      setAcceptState((current) => {
+        const next = new Map(current);
+        next.delete(item.id);
+        return next;
+      });
+      notifications.publish({
+        type: ACCEPT_INVITE_NOTIFICATION_TYPE,
+        title: NOTIFICATION_CENTER_TEXT.inviteAcceptFailed,
+        description: item.target.projectName,
+      });
     },
   });
 

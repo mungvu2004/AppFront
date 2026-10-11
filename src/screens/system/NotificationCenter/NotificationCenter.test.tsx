@@ -954,6 +954,34 @@ describe('nút hành động "Chấp nhận" của một lời mời', () => {
     expect(onNavigate).not.toHaveBeenCalled();
   });
 
+  it('BUG-180: xong thì dòng đổi thành "Đã chấp nhận", nút biến mất và có toast', async () => {
+    const invite = buildItem({
+      id: 'invite-2',
+      kind: 'projectInvite',
+      isRead: false,
+      inlineAction: { label: 'Chấp nhận', kind: 'accept' },
+    });
+    const fake = createFakeGateway([invite]);
+    const bus: NotificationBus = createNotificationBus();
+
+    mountNotificationCenter({ gateway: fake.gateway, notifications: bus });
+
+    await waitFor(() => {
+      expect(allItems(notificationProps().groups)).toHaveLength(1);
+    });
+
+    act(() => {
+      notificationProps().onInlineAction(firstItem(notificationProps().groups));
+    });
+
+    await waitFor(() => {
+      expect(firstItem(notificationProps().groups).statusNote).toBe('Đã chấp nhận');
+    });
+
+    expect(firstItem(notificationProps().groups).inlineAction).toBeUndefined();
+    expect(bus.list().map((entry) => entry.title)).toContain('Đã chấp nhận lời mời');
+  });
+
   it('một hành động "navigate" vẫn đi đường cũ và KHÔNG gọi acceptInvite', async () => {
     const expectedTo = ROUTES.project.rules('p-thao-dien');
 
