@@ -103,15 +103,19 @@ export function NotificationRow({
       />
 
       <div className="relative flex min-w-0 flex-1 flex-col gap-1">
-        {/* min-h-6: a one-line sentence was a 20 px tall target, under the 24 px of WCAG 2.5.8 (BUG-236). */}
+        {/* min-h-6: a one-line sentence was a 20 px tall target, under the 24 px of WCAG 2.5.8; below 640 px a text
+            target is 44 px like every other button there, the sentence one was 24/40 (BUG-236, run-17). `flex` + one
+            inner span keeps the text at the top of the taller box instead of centred under the icon. */}
         <button
           type="button"
           onClick={() => onItemAction(item)}
-          className="min-h-6 rounded text-left text-[15px] leading-[20px] text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
+          className="flex min-h-6 rounded text-left text-[15px] leading-[20px] text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface max-sm:min-h-11"
         >
-          {!item.isRead && <span className="sr-only">{`${UNREAD_SR_HINT}. `}</span>}
-          {item.sentence}{' '}
-          <span className="text-accent underline underline-offset-2">{item.target.label}</span>
+          <span>
+            {!item.isRead && <span className="sr-only">{`${UNREAD_SR_HINT}. `}</span>}
+            {item.sentence}{' '}
+            <span className="text-accent underline underline-offset-2">{item.target.label}</span>
+          </span>
         </button>
 
         {item.excerpt !== undefined && (

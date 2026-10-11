@@ -67,6 +67,23 @@ describe('NumericField', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Giá trị không quá 10 m.');
   });
 
+  it('shows what was just typed after the commit, not a count from the old value (BUG-198)', () => {
+    // The count-up ran from 3,5 to the user's own "2", so a Tab straight back swapped "2,6" for "2" and lost the
+    // keyboard select-all: "10" typed next became "210" (run-17, real keys).
+    const props = { min: 2, max: 10, unit: 'm', 'aria-label': 'Chiều cao' } as const;
+    let committed: number | undefined;
+    const { rerender } = render(<NumericField {...props} value={3.5} onChange={(v) => (committed = v)} />);
+    const field = screen.getByRole('textbox', { name: 'Chiều cao' });
+
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: '2' } });
+    fireEvent.blur(field);
+    rerender(<NumericField {...props} value={committed} onChange={(v) => (committed = v)} />);
+
+    expect(committed).toBe(2);
+    expect(field).toHaveValue('2');
+  });
+
   it('drops a refused text when resetKey changes, even if the value does not (review-1 #21)', () => {
     const props = { value: 3, min: 2, max: 10, unit: 'm', 'aria-label': 'Chiều cao', onChange: () => undefined } as const;
     const { rerender } = render(<NumericField {...props} resetKey={0} />);

@@ -74,6 +74,7 @@ import { readBaseUrl } from '../../e2e/fullstack/env';
 import { apiBaseUrl } from './support/api';
 import { dashboardLoaded, signInAdmin } from './support/auth';
 import { TEST_DATA_PREFIX, attachJson, captureEvidence, shootOnSoftFail } from './support/evidence';
+import { typeHeight } from './support/numeric-field';
 
 /* ---------------------------------------------------------------- constants (each cites its source) */
 
@@ -382,9 +383,7 @@ async function toStep2(dialog: Locator, name: string): Promise<void> {
 
 /** Types a shared height, blurs (NF:105-111 commits on blur) and applies it to every row (UCPM:590-594). */
 async function applyHeight(dialog: Locator, metres: string): Promise<void> {
-  const field = dialog.getByLabel(APPLY_LABEL);
-  await field.fill(metres);
-  await field.press('Tab');
+  await typeHeight(dialog.getByLabel(APPLY_LABEL), metres); // BUG-249: fill() raced useNumericField.handleFocus
   const apply = dialog.getByRole('button', { name: APPLY_ALL, exact: true });
   await expect(apply).toBeEnabled();
   await apply.click();
@@ -2139,16 +2138,15 @@ test.describe('E02 SCR-05 create-project wizard', () => {
       const field = dialog.getByLabel(APPLY_LABEL);
       const apply = dialog.getByRole('button', { name: APPLY_ALL, exact: true });
       // useNumericField refuses out-of-range; `parseNumber` keeps a lone "." as the decimal point, so "3.5" is 3,5 (BUG-132).
+      // BUG-249: typed through the shared helper — fill() right after Tab raced handleFocus ("10" read "210", run-17).
       for (const [typed, message] of [['1,99', NUMERIC_MIN], ['10,01', NUMERIC_MAX]] as const) {
-        await field.fill(typed);
-        await field.press('Tab');
+        await typeHeight(field, typed);
         await expect(dialog.getByText(message, { exact: true })).toBeVisible();
         await expect(apply).toBeDisabled(); // never committed → applyHeightM null (UCPM:491)
       }
       await captureEvidence(page, 'E02_wizard_heights_refused.png', { caption: `apply field "10,01" → "${NUMERIC_MAX}", nothing committed` });
       for (const typed of ['3.5', '2', '10']) {
-        await field.fill(typed);
-        await field.press('Tab');
+        await typeHeight(field, typed);
         await expect(dialog.getByText(/^Giá trị không/u), `"${typed}" is inside 2–10 m`).toHaveCount(0);
         await expect(apply, `"${typed}" is committed`).toBeEnabled();
       }

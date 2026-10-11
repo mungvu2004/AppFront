@@ -1185,7 +1185,9 @@ describe('Hàng thông báo không chừa cột cho nút ẩn (BUG-203)', () => 
     expect(markRead.closest('div')).toHaveTextContent('30 phút trước');
     expect(markRead.closest('div')).not.toHaveTextContent(unread.sentence);
     // BUG-236: câu một dòng (20 px) vẫn là vùng chạm ≥ 24 px.
-    expect(screen.getByRole('button', { name: new RegExp(unread.sentence) })).toHaveClass('min-h-6');
+    // Dưới 640 px vùng chạm chữ là 44 px như mọi nút khác (run-17: câu 24/40, tab 28).
+    expect(screen.getByRole('button', { name: new RegExp(unread.sentence) })).toHaveClass('min-h-6', 'max-sm:min-h-11');
+    expect(screen.getByRole('radiogroup')).toHaveClass('max-sm:h-[52px]');
     // run-16: giờ và nút hành động xuống dòng trong nhóm riêng; nút đánh dấu đứng ngoài nhóm, không rơi một mình xuống dòng.
     const time = screen.getByText('30 phút trước');
     expect(time.parentElement).not.toContainElement(markRead);
