@@ -169,6 +169,20 @@ function StepInfo(props: CreateProjectModalViewProps) {
 /* Step 3 — xem lại.                                                           */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * A read-only value on {@link FieldRow}'s baseline. `FieldRow` pads its label
+ * `pt-[9px]` to sit level with a 36 px input; plain text needs the same offset
+ * and line height or it rides ~9 px above its label (BUG-121). A long code or
+ * address breaks anywhere rather than overflowing its column.
+ */
+function ReviewValue({ children }: { readonly children: React.ReactNode }) {
+  return (
+    <span className="mt-[9px] block text-[14px] leading-[20px] text-text-primary [overflow-wrap:anywhere]">
+      {children}
+    </span>
+  );
+}
+
 function StepReview(props: CreateProjectModalViewProps) {
   const buildingTypeLabel =
     props.buildingTypeOptions.find((option) => option.value === props.buildingType)?.label ?? props.buildingType;
@@ -186,16 +200,31 @@ function StepReview(props: CreateProjectModalViewProps) {
           />
         </div>
       )}
-      <FieldRow label="Tên dự án">{props.name}</FieldRow>
-      <FieldRow label="Mã dự án">{props.code === '' ? '—' : props.code}</FieldRow>
-      <FieldRow label="Địa chỉ">{props.address === '' ? '—' : props.address}</FieldRow>
-      <FieldRow label="Loại công trình">{buildingTypeLabel}</FieldRow>
-      <FieldRow label="Ghi chú">{props.notes === '' ? '—' : props.notes}</FieldRow>
+      <FieldRow label="Tên dự án">
+        <ReviewValue>{props.name}</ReviewValue>
+      </FieldRow>
+      <FieldRow label="Mã dự án">
+        <ReviewValue>{props.code === '' ? '—' : props.code}</ReviewValue>
+      </FieldRow>
+      <FieldRow label="Địa chỉ">
+        <ReviewValue>{props.address === '' ? '—' : props.address}</ReviewValue>
+      </FieldRow>
+      <FieldRow label="Loại công trình">
+        <ReviewValue>{buildingTypeLabel}</ReviewValue>
+      </FieldRow>
+      <FieldRow label="Ghi chú">
+        <ReviewValue>{props.notes === '' ? '—' : props.notes}</ReviewValue>
+      </FieldRow>
       <FieldRow label="Số tầng" isLast>
-        {props.floorRows.length}
+        <ReviewValue>{props.floorRows.length}</ReviewValue>
       </FieldRow>
 
       <div className="mt-4 flex flex-col gap-1 rounded-lg border border-border-default p-3">
+        {/* The numbers are floor levels — named as step 2 names them (BUG-121). */}
+        <div className="flex items-center justify-between text-[12px] font-medium leading-[18px] text-text-secondary">
+          <span>Tầng</span>
+          <span>Cao độ</span>
+        </div>
         {props.floorRows.map((row) => (
           <div key={row.id} className="flex items-center justify-between text-[13px]">
             <span className="text-text-primary">{row.name}</span>
