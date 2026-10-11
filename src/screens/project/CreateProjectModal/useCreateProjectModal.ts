@@ -55,6 +55,7 @@ import {
   type Millimetres,
 } from '@/domain/units/types';
 import { describeError, toAppError } from '@/lib/errors';
+import { readWireError } from '@/lib/errors/wireError';
 import { can } from '@/lib/auth/permissions';
 import { createUuid } from '@/lib/http/ids';
 import type { Result } from '@/lib/http';
@@ -213,15 +214,77 @@ function createDefaultFloorRows(): DraftFloorRow[] {
   }));
 }
 
-function describeCreateFailure(error: unknown): string {
+/** The step-1 fields a 422 can name (`field` on the wire, AppBack `schemas.py`). */
+type ServerField = 'name' | 'code' | 'address';
+
+const SERVER_FIELD_LABELS: Readonly<Record<ServerField, string>> = {
+  name: 'tên dự án',
+  code: 'mã dự án',
+  address: 'địa chỉ',
+};
+
+/** A server refusal pinned to the step-1 value it was about; editing that value retires it. */
+interface ServerProblem {
+  readonly field: ServerField;
+  readonly value: string;
+  readonly message: string;
+}
+
+interface CreateFailure {
+  readonly notice: CreateProjectNotice;
+  readonly fieldProblem: Omit<ServerProblem, 'value'> | null;
+}
+
+/**
+ * Turns a failed create into the notice step 3 shows and, when the server
+ * named a step-1 field, the complaint that field carries (BUG-129, BUG-187):
+ * every failure used to land on "Tên dự án", whatever the server refused.
+ */
+function describeCreateFailure(error: unknown, floors: readonly FloorPlan[]): CreateFailure {
   const appError = toAppError(error);
   // A 409 from `projects.create` is, in practice, always a name already taken
-  // — the one field this form can collide on. Every other kind falls back to
-  // the shared, already-Vietnamese wording `describeError` owns.
+  // — the one field this form can collide on.
   if (appError.kind === 'conflict') {
-    return 'Tên dự án đã trùng với một dự án khác. Đổi tên rồi thử lại.';
+    const message = 'Tên dự án đã trùng với một dự án khác. Đổi tên rồi thử lại.';
+    return {
+      notice: { level: 'violation', message, fixStep: 1, actionLabel: 'Sửa ở bước 1' },
+      fieldProblem: { field: 'name', message },
+    };
   }
-  return describeError(appError).description;
+
+  const field = appError.kind === 'validation' ? (readWireError(error)?.field ?? null) : null;
+  if (field === 'name' || field === 'code' || field === 'address') {
+    const label = SERVER_FIELD_LABELS[field];
+    return {
+      notice: {
+        level: 'violation',
+        message: `Máy chủ không nhận ${label} này. Sửa ô được đánh dấu ở bước 1 rồi thử lại.`,
+        fixStep: 1,
+        actionLabel: 'Sửa ở bước 1',
+      },
+      fieldProblem: { field, message: `Máy chủ không nhận ${label} này. Sửa rồi thử lại.` },
+    };
+  }
+
+  // `floors.<n>.<key>`: n indexes the floors exactly as they were sent.
+  const floorIndex = field !== null && field.startsWith('floors.') ? Number(field.split('.')[1]) : Number.NaN;
+  const floor = Number.isInteger(floorIndex) ? floors[floorIndex] : undefined;
+  if (floor !== undefined) {
+    const floorName = floor.name.trim() === '' ? `thứ ${formatNumber(floorIndex + 1)}` : `"${floor.name}"`;
+    return {
+      notice: {
+        level: 'violation',
+        message: `Máy chủ không nhận tầng ${floorName}. Sửa ở bước 2 rồi thử lại.`,
+        fixStep: 2,
+        actionLabel: 'Sửa ở bước 2',
+      },
+      fieldProblem: null,
+    };
+  }
+
+  // Everything else falls back to the shared, already-Vietnamese wording
+  // `describeError` owns, and nothing is marked: "Tạo dự án" stays usable to retry.
+  return { notice: { level: 'violation', message: describeError(appError).description }, fieldProblem: null };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -391,6 +454,9 @@ const FLOORS_HINT = 'Nhập chiều cao thông thuỷ cho từng tầng, hoặc 
 export interface CreateProjectNotice {
   readonly level: 'attention' | 'violation';
   readonly message: string;
+  /** The step that holds what the server refused; the notice's button goes there. */
+  readonly fixStep?: 1 | 2;
+  readonly actionLabel?: string;
 }
 
 export interface CreateProjectModel {
@@ -454,6 +520,8 @@ export interface CreateProjectActions {
   readonly acknowledgeFocus: () => void;
   readonly goNext: () => void;
   readonly goBack: () => void;
+  /** The notice's "Sửa ở bước n": straight to the step that holds what the server refused. */
+  readonly goToFixStep: () => void;
   readonly requestClose: () => void;
   /** The discard prompt's "tiếp tục sửa": the prompt goes, the form stays as it is. */
   readonly keepEditing: () => void;
@@ -520,7 +588,7 @@ export function useCreateProjectModal(
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConfirmingDiscard, setIsConfirmingDiscard] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
-  const [serverNameProblem, setServerNameProblem] = useState<string | null>(null);
+  const [serverProblem, setServerProblem] = useState<ServerProblem | null>(null);
   const [notice, setNotice] = useState<CreateProjectNotice | null>(null);
   const [focusFloorId, setFocusFloorId] = useState<string | null>(null);
 
@@ -533,11 +601,19 @@ export function useCreateProjectModal(
   const hasAnyRowProblem = floorRows.some(
     (row) => floorStack.problemById.has(row.id) || row.name.trim() === '',
   );
+  /** The server's complaint about `field`, while that field still holds the value it refused. */
+  const serverProblemFor = (field: ServerField, value: string): string | null =>
+    serverProblem !== null && serverProblem.field === field && serverProblem.value === value
+      ? serverProblem.message
+      : null;
+  const serverNameProblem = serverProblemFor('name', name);
   const nameProblem = serverNameProblem ?? localNameProblemFor(name);
+  const codeProblem =
+    serverProblemFor('code', code) ?? lengthProblemFor('Mã dự án', code, PROJECT_LIMITS.codeMaxLength);
+  const addressProblem =
+    serverProblemFor('address', address) ?? lengthProblemFor('Địa chỉ', address, PROJECT_LIMITS.addressMaxLength);
   // A form nobody has typed into is not wrong yet (BUG-133): the name's own
   // complaint waits for the first keystroke; a server refusal shows at once.
-  const codeProblem = lengthProblemFor('Mã dự án', code, PROJECT_LIMITS.codeMaxLength);
-  const addressProblem = lengthProblemFor('Địa chỉ', address, PROJECT_LIMITS.addressMaxLength);
   const problems = {
     name: nameTouched || serverNameProblem !== null ? nameProblem : null,
     code: codeProblem,
@@ -588,6 +664,8 @@ export function useCreateProjectModal(
   const markDirty = (): void => {
     setIsDirty(true);
     setIsConfirmingDiscard(false);
+    // Any edit makes the last server answer stale.
+    setNotice(null);
   };
 
   /** Every edit of the floor stack: the form is dirty and the rows may now complain. */
@@ -600,8 +678,6 @@ export function useCreateProjectModal(
     markDirty();
     setNameTouched(true);
     setNameState(value);
-    setServerNameProblem(null);
-    setNotice(null);
     if (!codeManuallyEdited) {
       setCodeState(generateProjectCode(value));
     }
@@ -738,9 +814,10 @@ export function useCreateProjectModal(
       setIsSubmitting(false);
 
       if (!result.ok) {
-        const message = describeCreateFailure(result.error);
-        setNotice({ level: 'violation', message });
-        setServerNameProblem(message);
+        const failure = describeCreateFailure(result.error, request.floors);
+        const refused = failure.fieldProblem;
+        setNotice(failure.notice);
+        setServerProblem(refused === null ? null : { ...refused, value: { name, code, address }[refused.field] });
         return;
       }
 
@@ -809,6 +886,9 @@ export function useCreateProjectModal(
     acknowledgeFocus: () => setFocusFloorId(null),
     goNext,
     goBack,
+    goToFixStep: () => {
+      if (notice?.fixStep !== undefined) setStep(notice.fixStep);
+    },
     requestClose,
     keepEditing: () => setIsConfirmingDiscard(false),
     confirmDiscard,

@@ -90,6 +90,7 @@ const base: CreateProjectModalViewProps = {
   acknowledgeFocus: noop,
   goNext: noop,
   goBack: noop,
+  goToFixStep: noop,
   requestClose: noop,
   keepEditing: noop,
   confirmDiscard: noop,

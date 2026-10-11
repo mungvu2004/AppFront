@@ -177,7 +177,13 @@ function StepReview(props: CreateProjectModalViewProps) {
     <div className="flex flex-col">
       {props.notice !== null && (
         <div className="mb-4">
-          <InlineAlert level={props.notice.level} message={props.notice.message} />
+          <InlineAlert
+            level={props.notice.level}
+            message={props.notice.message}
+            {...(props.notice.actionLabel !== undefined
+              ? { action: { label: props.notice.actionLabel, onClick: props.goToFixStep } }
+              : {})}
+          />
         </div>
       )}
       <FieldRow label="Tên dự án">{props.name}</FieldRow>

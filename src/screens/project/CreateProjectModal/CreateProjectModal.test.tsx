@@ -109,6 +109,7 @@ function baseProps(): CreateProjectModalViewProps {
     acknowledgeFocus: noop,
     goNext: noop,
     goBack: noop,
+    goToFixStep: noop,
     requestClose: noop,
     keepEditing: noop,
     confirmDiscard: noop,
@@ -288,6 +289,25 @@ function buildGateway(invalidate: () => void = noop) {
 
 function goToStep2(name = 'Chung cư Bốn Tầng'): void {
   fireEvent.change(screen.getByLabelText('Tên dự án'), { target: { value: name } });
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
+}
+
+/** A gateway whose create always fails with this HTTP status and wire body — the shape `client.projects.create` returns. */
+function failingGateway(status: number, raw: Record<string, unknown>) {
+  return {
+    create: vi.fn(async () => ({
+      ok: false as const,
+      error: { kind: 'http' as const, status, code: String(raw.code ?? ''), requestId: 'req-1', retryable: false, raw },
+    })),
+    remove: vi.fn(),
+  };
+}
+
+/** Step 1 → 3 with one 3 m height on every default floor. */
+function goToReview(name = 'Chung cư Bốn Tầng'): void {
+  goToStep2(name);
+  setHeight('Chiều cao áp cho mọi tầng', '3');
+  fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
   fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
 }
 
@@ -582,6 +602,41 @@ describe('CreateProjectModal, wired to its hook', () => {
 
     expect(screen.queryByText('Đóng và bỏ các thay đổi chưa lưu?')).not.toBeInTheDocument();
     expect(onDismiss).not.toHaveBeenCalled();
+  });
+
+  it('pins a 422 on "Mã dự án" to that field, not the name, and a new code unlocks it (BUG-129, BUG-187)', async () => {
+    const gateway = failingGateway(422, { code: 'VALIDATION', field: 'code', count: 1 });
+    render(<CreateProjectModal isOpen gateway={gateway} forceCompact={false} onDismiss={noop} />);
+
+    goToReview();
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo dự án' }));
+
+    expect(
+      await screen.findByText('Máy chủ không nhận mã dự án này. Sửa ô được đánh dấu ở bước 1 rồi thử lại.'),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa ở bước 1' }));
+
+    const code = screen.getByLabelText('Mã dự án');
+    expect(code).toHaveAttribute('aria-invalid', 'true');
+    expect(code).toHaveAccessibleDescription('Máy chủ không nhận mã dự án này. Sửa rồi thử lại.');
+    expect(screen.getByLabelText('Tên dự án')).not.toHaveAttribute('aria-invalid');
+    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeDisabled();
+
+    fireEvent.change(code, { target: { value: 'DA-MOI' } });
+    expect(code).not.toHaveAttribute('aria-invalid');
+    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeEnabled();
+  });
+
+  it('keeps "Tạo dự án" usable to retry after a 500, marking no field (BUG-129)', async () => {
+    const gateway = failingGateway(500, {});
+    render(<CreateProjectModal isOpen gateway={gateway} forceCompact={false} onDismiss={noop} />);
+
+    goToReview();
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo dự án' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Tạo dự án' })).toBeEnabled());
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(gateway.create).toHaveBeenCalledTimes(1);
   });
 
   it('warns before discarding, and only closes on the second "huỷ"', () => {
