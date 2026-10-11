@@ -203,8 +203,8 @@ Rows: 107 rule rows + 8 side-effect rows + 25 mock-pair rows + 6 budget rows = 1
 
 ## Mock pairing (UI `[mocked response]` tests of phase 2)
 
-BUG-144 / BUG-193: pass 1 said "none". Grep of `[mocked response]` in `qa/tests/phase02_*.spec.ts` finds 29 tests in four specs
-(dashboard_edge 15, dashboard_ui 7, wizard_edge 6, notify_edge 1). Rows are keyed by spec file + test name, never by line number
+BUG-144 / BUG-193: pass 1 said "none". Grep of `[mocked response]` in `qa/tests/phase02_*.spec.ts` finds 30 tests in four specs
+(dashboard_edge 16, dashboard_ui 7, wizard_edge 6, notify_edge 1; BUG-226 added the second N1 500 row). Rows are keyed by spec file + test name, never by line number
 (line numbers went stale as the specs were edited: BUG-193); find a test with `grep -n "<name fragment>" qa/tests/<spec>`. Every row names
 the API test that proves the real response, or why none can.
 
@@ -219,6 +219,7 @@ the API test that proves the real response, or why none can.
 | `phase02_dashboard_ui.spec.ts` U02 SCR-05 "one unreadable row" (dash_partial) | `GET /api/project-summaries` → real page + 1 undecodable row | unpairable: the BE never emits it — ids come from `new_id("prj")` (projects/service.py:247), `ProjectSummaryOut` is strict (wire.py:98-114); readable rows = real page ("N1", "create" assert exact keys) |
 | `phase02_dashboard_ui.spec.ts` U02 SCR-06 "list read fails (500)" (notif_load_error) | `GET /api/notifications` → 500 | unpairable: 5xx; real list proven by "notif", "members" |
 | `phase02_dashboard_edge.spec.ts` E02 SCR-05 "N1 fails (500)" | `GET /api/project-summaries` → 500 `{}` | unpairable: 5xx; real 200 proven by "N1" |
+| `phase02_dashboard_edge.spec.ts` E02 SCR-05 "N1 fails (500, unpairable: 5xx)" (the error card's "unknown" sentence) | `GET /api/project-summaries` → 500 `{}` | unpairable: 5xx; real 200 proven by "N1" |
 | `phase02_dashboard_edge.spec.ts` E02 SCR-05 "one row the client cannot decode" | `GET /api/project-summaries` → real page + row `id: "not-a-project-id"` | unpairable: BE never emits it (see dash_partial) |
 | `phase02_dashboard_edge.spec.ts` E02 SCR-05 "rename answered 500" | `PATCH /api/projects/:id` → 500 | unpairable: 5xx; real 200 proven by "rename", "fields" |
 | `phase02_dashboard_edge.spec.ts` E02 SCR-05 "rename refused 403 FORBIDDEN" | `PATCH /api/projects/:id` → 403 `FORBIDDEN` | paired: "A02 · role/owner matrix …" — evidence `A02_role_viewer_member_patch_403.json`: viewer member PATCH → 403 `FORBIDDEN` without `resource` (access.py:84-85) |
