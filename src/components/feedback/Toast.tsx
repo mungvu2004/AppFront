@@ -106,10 +106,13 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
     };
 
     const isPeek = index > 0;
+    // No state = a plain notice, a neutral dot. A5 keeps the green for what a reviewer verified, so it is
+    // never the fallback: every toast without a state, errors included, used to wear it (BUG-207).
     const dotColor =
-      toast.state === 'attention' ? 'bg-state-attention'
+      toast.state === 'verified' ? 'bg-state-verified'
+      : toast.state === 'attention' ? 'bg-state-attention'
       : toast.state === 'violation' ? 'bg-state-violation'
-      : 'bg-state-verified';
+      : 'bg-text-muted';
 
     return (
       <div

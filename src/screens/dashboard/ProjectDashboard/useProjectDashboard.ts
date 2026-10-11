@@ -189,7 +189,8 @@ export interface UseProjectDashboardOptions {
   readonly onOpenProject?: (path: string) => void;
   readonly onCreateProject?: () => void;
   readonly onDuplicateProject?: (id: string) => void;
-  readonly onToast?: (toast: { readonly message: string; readonly onUndo?: () => void }) => void;
+  /** `state` marks a failure (`violation`) or a refused input (`attention`); a plain notice has none (BUG-207). */
+  readonly onToast?: (toast: { readonly message: string; readonly onUndo?: () => void; readonly state?: 'attention' | 'violation' }) => void;
 }
 
 /** Stable across renders, so a memo keyed on `allProjects` does not churn while `listQuery.data` is undefined. */
@@ -431,7 +432,7 @@ export function useProjectDashboard(
       await gateway.rename(id, name);
     } catch (error) {
       setName(id, previousName);
-      options.onToast?.({ message: renameErrorMessage(error) });
+      options.onToast?.({ message: renameErrorMessage(error), state: 'violation' });
       return;
     }
     applyInvalidation(queryClient, 'renameProject', { projectId: id });
@@ -449,7 +450,7 @@ export function useProjectDashboard(
     setRenamingId(null);
     if (project === undefined || trimmed === '' || trimmed === project.name) return;
     if (trimmed.length < PROJECT_NAME_MIN_LENGTH || trimmed.length > PROJECT_NAME_MAX_LENGTH) {
-      options.onToast?.({ message: RENAME_RANGE_MESSAGE });
+      options.onToast?.({ message: RENAME_RANGE_MESSAGE, state: 'attention' });
       return;
     }
     void renameTo(project.id, trimmed, project.name, true);
