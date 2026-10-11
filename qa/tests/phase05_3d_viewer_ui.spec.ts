@@ -54,6 +54,8 @@ const BUILDING_TEXT = 'Đang dựng mô hình'; // Viewer3D.tsx LoadingContent
 const VIEWER_EMPTY_TEXT = 'Mô hình 3D sẽ xuất hiện sau khi bạn duyệt lớp tường.'; // Viewer3D.tsx EmptyContent
 const PANELS_NAV = 'Bảng phụ của khung nhìn 3D';
 const PANEL_IDS = { 'Diện tích phòng': 'rooms', 'Thư viện đồ đạc': 'furniture', 'Lịch sử thao tác': 'history' } as const;
+/** Viewer3DPanels.tsx:79-91,111-114 lazy-chunk fallback, `role="status"` (BUG-379): gone once the panel itself renders. */
+const PANEL_LOADING = /^Đang tải (bảng diện tích phòng|thư viện đồ đạc|lịch sử thao tác)…$/u;
 const SEARCH_TRIGGER = 'Tìm phòng';
 const SEARCH_INPUT = 'Tìm phòng theo tên hoặc mã';
 const SEARCH_LIST = 'Kết quả tìm phòng';
@@ -283,7 +285,10 @@ test.describe('U05 UI verify — SCR-23 viewer 3D (own seeded project)', () => {
         const toggle = p.getByRole('navigation', { name: PANELS_NAV }).getByRole('button', { name: label, exact: true });
         await toggle.click();
         await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-        await expect(p.locator(`#viewer-3d-panel-${id}`)).toBeVisible();
+        const panel = p.locator(`#viewer-3d-panel-${id}`);
+        await expect(panel).toBeVisible();
+        // The id wraps the Suspense fallback too: shoot the panel, not its "Đang tải …" placeholder.
+        await expect(panel.getByRole('status').filter({ hasText: PANEL_LOADING })).toHaveCount(0, { timeout: SCENE_TIMEOUT_MS });
       });
     });
   }
