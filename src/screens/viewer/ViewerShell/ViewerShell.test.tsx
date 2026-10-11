@@ -1098,9 +1098,14 @@ describe('[VS-16] một bức tường, một mã (B-V8-05)', () => {
     const selection = result.current.selection;
 
     expect(bandCode).toBe('W-101');
-    expect(selection?.title).toBe(`tường ${String(bandCode)}`);
+    // A6: tiêu đề và nhãn hàng viết hoa chữ đầu — "Tường W-101", "Độ dày" (BUG-376).
+    expect(selection?.title).toBe(`Tường ${String(bandCode)}`);
     expect(selection?.title).not.toContain('FIXTURE');
     expect(selection?.rows[0]?.value).toBe(wall.id);
+    expect(selection?.rows.map((row) => row.label)).toContain('Độ dày');
+    for (const row of selection?.rows ?? []) {
+      expect(row.label.charAt(0)).toBe(row.label.charAt(0).toLocaleUpperCase('vi'));
+    }
     expect(result.current.hoverLabel).toBe(bandCode);
 
     act(() => {

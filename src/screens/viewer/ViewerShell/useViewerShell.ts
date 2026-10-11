@@ -958,20 +958,22 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     if ('thicknessMm' in entity) {
       rows.push({
         id: 'thickness',
-        label: 'độ dày',
+        label: 'Độ dày',
         value: formatLength(millimetres((entity as { thicknessMm: number }).thicknessMm)),
       });
     }
 
     if ('name' in entity) {
-      rows.push({ id: 'name', label: 'tên', value: String((entity as { name: string }).name) });
+      rows.push({ id: 'name', label: 'Tên', value: String((entity as { name: string }).name) });
     }
 
     const kindLabel = entityId.startsWith('R-') ? 'phòng' : entityId.startsWith('W-') ? 'tường' : 'đối tượng';
+    // Tiêu đề là nhãn đứng đầu nên viết hoa chữ đầu (A6, BUG-376); `kindLabel` giữ chữ thường để ghép giữa câu.
+    const kindTitle = kindLabel.charAt(0).toLocaleUpperCase('vi') + kindLabel.slice(1);
 
     // Tiêu đề gọi đối tượng bằng mã người đọc — cùng mã dải "Đang sửa"; hàng "mã đối tượng"
     // ở trên giữ mã máy (B-V8-05).
-    return { entityId, kindLabel, title: `${kindLabel} ${displayLabelIn(spatial, entityId)}`, rows };
+    return { entityId, kindLabel, title: `${kindTitle} ${displayLabelIn(spatial, entityId)}`, rows };
   }, [selectedIds, spatial]);
 
   const status = useMemo(() => {
