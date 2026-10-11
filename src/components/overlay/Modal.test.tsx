@@ -52,6 +52,22 @@ describe('Modal.Root', () => {
     expect(screen.getByRole('textbox', { name: 'trường nhập' }).parentElement).toHaveClass('break-words');
   });
 
+  // BUG-255 was one dialog; three buttons in any footer overrun a 375 px frame unless the row wraps.
+  it('wraps its footer buttons onto a new line instead of pushing them out of the frame', () => {
+    render(
+      <Modal.Root isOpen onClose={() => undefined} titleId="modal-test-title">
+        <Modal.Header>
+          <span id="modal-test-title">tiêu đề</span>
+        </Modal.Header>
+        <Modal.Footer data-testid="footer">
+          <button type="button">Một</button>
+        </Modal.Footer>
+      </Modal.Root>,
+    );
+
+    expect(screen.getByTestId('footer')).toHaveClass('flex-wrap', 'justify-end');
+  });
+
   it('locks the header close button when asked, and only then (BUG-218)', () => {
     const { rerender } = render(
       <Modal.Root isOpen onClose={() => undefined} titleId="t">

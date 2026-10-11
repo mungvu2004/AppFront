@@ -227,6 +227,23 @@ const config: Config = {
       }
     },
   },
+  // Từ trong mã/chú thích mà bộ quét lớp tưởng là lớp: `!container.contains(…)`, `!outline.every(…)`,
+  // `addEventListener('blur' | 'resize')`, `'filter'`, `'isolate'` (id công cụ), "collapse", "invert"…
+  // Không nơi nào đặt chúng làm className; mỗi cái là một quy tắc CSS chết trong ngân sách 12 KiB (QA-03).
+  // Cần thật một lớp ở đây thì xoá nó khỏi danh sách.
+  blocklist: [
+    'blur', 'collapse', 'container', 'filter', 'grow', 'invert', 'isolate', 'lowercase', 'ordinal', 'resize', 'ring',
+    'shadow', 'shrink', '!container', '!contents', '!hidden', '!outline', '!table', '!visible',
+  ],
+  // Không màn nào dùng; tắt thì `*, ::before, ::after` và `::backdrop` không còn mang biến `--tw-*` của chúng.
+  corePlugins: {
+    borderSpacing: false, contain: false, gradientColorStops: false, scrollSnapType: false,
+    // Lọc: hai chỗ dùng viết thẳng `[filter:blur(2px)]` và `[backdrop-filter:blur(4px)]` — không cần chuỗi chín biến.
+    blur: false, brightness: false, contrast: false, dropShadow: false, grayscale: false, hueRotate: false,
+    invert: false, saturate: false, sepia: false, filter: false, backdropBlur: false, backdropBrightness: false,
+    backdropContrast: false, backdropGrayscale: false, backdropHueRotate: false, backdropInvert: false,
+    backdropOpacity: false, backdropSaturate: false, backdropSepia: false, backdropFilter: false,
+  },
   plugins: [],
 };
 

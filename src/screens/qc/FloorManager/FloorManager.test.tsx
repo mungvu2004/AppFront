@@ -611,9 +611,9 @@ describe('dự án không tồn tại (BUG-032)', () => {
 
 describe('bố cục gọn đo ở route (BUG-251)', () => {
   it.each([
-    { matches: true, layout: 'flex-col', sectionOrder: 'order-2' },
-    { matches: false, layout: 'flex-row', sectionOrder: 'order-1' },
-  ])('(width < 1024px) = $matches → $layout, lát cắt $sectionOrder', async ({ matches, layout, sectionOrder }) => {
+    { matches: true, layout: 'flex-col', sectionAfterTable: true },
+    { matches: false, layout: 'flex-row', sectionAfterTable: false },
+  ])('(width < 1024px) = $matches → $layout, lát cắt sau bảng: $sectionAfterTable', async ({ matches, layout, sectionAfterTable }) => {
     vi.stubGlobal('fetch', () => new Promise<never>(() => undefined));
     vi.stubGlobal('matchMedia', (query: string) => ({
       matches: query === '(width < 1024px)' && matches,
@@ -631,9 +631,22 @@ describe('bố cục gọn đo ở route (BUG-251)', () => {
     );
 
     const section = await screen.findByLabelText(SECTION_ARIA_LABEL);
-    expect(section.parentElement).toHaveClass(sectionOrder);
+    // Thứ tự DOM, không `order`: `order` chỉ dời hình, Tab vẫn đi theo DOM (WCAG 2.4.3, A12).
+    const following = Boolean(section.compareDocumentPosition(screen.getByRole('table')) & Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(following).toBe(!sectionAfterTable);
     expect(section.parentElement?.parentElement).toHaveClass(layout);
     vi.unstubAllGlobals();
+  });
+
+  it('khổ gọn: Tab tới "Thêm tầng" và bảng trước "Thu gọn lát cắt" và các dải', () => {
+    renderWithProviders(<FloorManager {...scenarioArgsFor('partial')} isCompact />);
+    const focusables = [...document.querySelectorAll<HTMLElement>('button, [tabindex="0"], input, a[href]')];
+    const indexOf = (element: HTMLElement): number => focusables.indexOf(element);
+    const collapse = indexOf(screen.getByRole('button', { name: 'Thu gọn lát cắt' }));
+
+    expect(collapse).toBeGreaterThan(-1);
+    expect(indexOf(screen.getByRole('button', { name: 'Thêm tầng' }))).toBeLessThan(collapse);
+    expect(indexOf(screen.getAllByRole('button', { name: 'Tải lên' })[0]!)).toBeLessThan(collapse);
   });
 });
 

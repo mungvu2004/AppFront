@@ -605,7 +605,7 @@ describe('tấm trượt không phải hộp thoại', () => {
 
     // Thứ phải vắng mặt là một phần tử TRẢI KÍN và TÔ NỀN — đúng hai thứ mà
     // `Drawer.Root` làm (`absolute inset-0 bg-bg-overlay`, Drawer.tsx:132) và
-    // `ProgressOverlay` làm (`absolute inset-0 … bg-bg-app-88 backdrop-blur-sm`).
+    // `ProgressOverlay` làm (`absolute inset-0 … bg-bg-app-88 [backdrop-filter:blur(4px)]`).
     //
     // Bắt theo chuỗi con "overlay" thì `shadow-overlay` — token ĐỔ BÓNG mà chín tấm
     // nổi khác trong repo cùng dùng — dính oan; bắt theo `inset-0` một mình thì con
@@ -615,7 +615,7 @@ describe('tấm trượt không phải hộp thoại', () => {
     expect(container.querySelector('[class*="bg-bg-overlay"]')).toBeNull();
 
     const covering = [...container.querySelectorAll('[class~="inset-0"]')].filter((element) =>
-      /(^| )bg-bg-(overlay|app)($| |\/)|backdrop-blur/.test(element.getAttribute('class') ?? ''),
+      /(^| )bg-bg-(overlay|app)($| |\/)|backdrop-/.test(element.getAttribute('class') ?? ''),
     );
 
     expect(covering).toHaveLength(0);

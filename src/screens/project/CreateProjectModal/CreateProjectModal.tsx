@@ -331,7 +331,7 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
         </motion.div>
         <ScrollFade />
       </Modal.Body>
-      <Modal.Footer className="flex-wrap justify-between px-4 sm:px-6">
+      <Modal.Footer className="justify-between px-4 sm:px-6">
         {props.isConfirmingDiscard && <DiscardPrompt {...props} cancelRef={cancelRef} />}
         <div>
           {step > 1 && (
