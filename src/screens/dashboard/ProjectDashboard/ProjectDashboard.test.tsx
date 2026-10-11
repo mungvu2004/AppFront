@@ -304,6 +304,9 @@ describe('ProjectDashboardView, seven states', () => {
   it('gives the table name and its rename field the same 32 px box below `sm`', () => {
     const { rerender } = render(<ProjectDashboardView {...PROPS_BY_STATE.success()} viewMode="table" />);
     expect(screen.getByRole('heading', { name: SAMPLE_ROW.name }).className).toContain('max-sm:leading-8');
+    // The narrow name column at 1024 px cut "E2E-QA-20261011-0028" to "E2E-QA-202…": the name wraps to two lines first.
+    expect(screen.getByRole('heading', { name: SAMPLE_ROW.name })).toHaveClass('line-clamp-2', 'whitespace-normal', 'break-words');
+    expect(screen.getByRole('heading', { name: SAMPLE_ROW.name })).not.toHaveClass('truncate');
 
     rerender(<ProjectDashboardView {...PROPS_BY_STATE.success()} viewMode="table" renamingId={SAMPLE_ROW.id} />);
     const field = screen.getByRole('textbox', { name: `Đổi tên ${SAMPLE_ROW.name}` });

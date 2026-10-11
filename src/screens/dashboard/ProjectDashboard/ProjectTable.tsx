@@ -2,8 +2,9 @@
  * The dashboard's "Bảng" view: one row per project. Split out of `ProjectDashboard.tsx` once that
  * file crossed R-22's 400-line cap again (mục D), the way the card and the sidebar were.
  *
- * The name column takes what the others leave and truncates (`w-full max-w-0`): an 80-char name
- * pushed "Cập nhật" past the 1440 px window (BUG-149).
+ * The name column takes what the others leave (`w-full max-w-0`): an 80-char name pushed "Cập nhật"
+ * past the 1440 px window (BUG-149). The name wraps onto a second line before it is cut, so at 1024 px a
+ * 117 px column still shows all of "E2E-QA-20261011-0028" instead of "E2E-QA-202…".
  *
  * Below `sm` the table is laid out as blocks and each row stacks (`ROW_STACKED`): the name gets the full width on its own line, then
  * status, progress and update time wrap under it, and the header row goes. Three columns side by
@@ -78,7 +79,7 @@ export function ProjectTable({ rows, renamingId, renameDraft, onOpen, onMenu, on
                   className={`${NAME_CLASS} h-8 rounded border border-accent bg-bg-surface px-1 outline-none sm:h-auto`}
                 />
               ) : (
-                <h3 className={`${NAME_CLASS} truncate max-sm:leading-8`}>{project.name}</h3>
+                <h3 className={`${NAME_CLASS} line-clamp-2 whitespace-normal break-words max-sm:leading-8`}>{project.name}</h3>
               )}
             </Table.Cell>
             <Table.Cell className={CELL_STACKED}>
