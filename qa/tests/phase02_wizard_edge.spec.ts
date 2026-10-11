@@ -61,6 +61,7 @@ import { readBaseUrl } from '../../e2e/fullstack/env';
 import { apiBaseUrl } from './support/api';
 import { dashboardLoaded, signInAdmin } from './support/auth';
 import { TEST_DATA_PREFIX, attachJson, captureEvidence, shootOnSoftFail } from './support/evidence';
+import { typeHeight } from './support/numeric-field';
 
 /* ---------------------------------------------------------------- constants (each cites its source) */
 
@@ -255,23 +256,6 @@ async function toStep2(dialog: Locator, name: string): Promise<void> {
   await nameField(dialog).fill(name);
   await nextButton(dialog).click();
   await expect(stepText(dialog, 2)).toBeVisible();
-}
-
-/**
- * Types a height into a NumericField and blurs: NF:105-111 commits on blur.
- * BUG-224: focusing the box makes `handleFocus` (NF:103-111) write the committed value back into it; a `fill()` fired
- * right after the focus raced that render and left "32.500" / "10abc". So: focus, let the render land (two frames),
- * select all, insert the text in one go, check it is exactly what was typed, then Tab.
- */
-async function typeHeight(field: Locator, text: string): Promise<void> {
-  const page = field.page();
-  await field.focus();
-  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-  await field.press('Control+A');
-  if (text === '') await field.press('Delete');
-  else await page.keyboard.insertText(text);
-  await expect(field).toHaveValue(text);
-  await field.press('Tab');
 }
 
 /** Shared height, committed then applied to every row (UCPM:590-594). */
