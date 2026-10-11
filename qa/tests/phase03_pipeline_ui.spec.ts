@@ -309,8 +309,10 @@ test.describe('U03 UI verify — SCR-09 floors (CP-2)', () => {
       const confirm = p.getByRole('button', { name: CONFIRM_DUPLICATE, exact: true });
       await expect(confirm).toBeVisible();
       await expect(p.getByLabel(COPY_FURNITURE).first()).toBeVisible();
-      // BUG-264: the inline confirm sits at the end of the row, past the table's `overflow-auto` edge (FloorTable.tsx:247),
-      // so the shot showed a plain table. Scroll it in and require it on screen: the shot is taken in this state.
+      // BUG-264: run-18 shot a plain table because the inline confirm sat past the table's `overflow-auto` edge
+      // (FloorTable.tsx:246). Since FIX-1284 it spans the row's last five cells (FloorTableRow.tsx:335-350) and the rows
+      // stack while the section cut is open or below 1024 px, but the row can still be below the fold: scroll it in and
+      // require it on screen, the shot is taken in this state.
       await confirm.scrollIntoViewIfNeeded();
       await expect(confirm).toBeInViewport();
     });
