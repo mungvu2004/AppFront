@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { createMockApiClient } from '@/api/__mocks__/client';
@@ -53,10 +54,10 @@ const BUILDING_TYPE_OPTIONS = [
 
 /** The acceptance case this task's own verification names: a basement plus three floors. */
 const STACKED_FLOOR_ROWS: CreateProjectFloorRowModel[] = [
-  { id: 'row-basement', name: 'Tầng hầm', kind: 'basement', clearHeightM: 3, elevationLabel: '-3,0 m', problem: null },
-  { id: 'row-ground', name: 'Tầng trệt', kind: 'floor', clearHeightM: 3.9, elevationLabel: '0,0 m', problem: null },
-  { id: 'row-1', name: 'Tầng 1', kind: 'floor', clearHeightM: 3.6, elevationLabel: '3,9 m', problem: null },
-  { id: 'row-2', name: 'Tầng 2', kind: 'floor', clearHeightM: 3, elevationLabel: '7,5 m', problem: null },
+  { id: 'row-basement', name: 'Tầng hầm', kind: 'basement', clearHeightM: 3, elevationLabel: '-3,0 m', problem: null, nameProblem: null },
+  { id: 'row-ground', name: 'Tầng trệt', kind: 'floor', clearHeightM: 3.9, elevationLabel: '0,0 m', problem: null, nameProblem: null },
+  { id: 'row-1', name: 'Tầng 1', kind: 'floor', clearHeightM: 3.6, elevationLabel: '3,9 m', problem: null, nameProblem: null },
+  { id: 'row-2', name: 'Tầng 2', kind: 'floor', clearHeightM: 3, elevationLabel: '7,5 m', problem: null, nameProblem: null },
 ];
 
 function baseProps(): CreateProjectModalViewProps {
@@ -76,14 +77,18 @@ function baseProps(): CreateProjectModalViewProps {
     buildingType: 'residential',
     notes: '',
     buildingTypeOptions: BUILDING_TYPE_OPTIONS,
-    problems: { name: null },
+    problems: { name: null, code: null, address: null },
+    nameHint: 'Bắt buộc, từ 3 đến 80 ký tự.',
     notice: null,
     floorRows: STACKED_FLOOR_ROWS,
+    floorsHint: null,
     hasBasement: true,
     collision: null,
     collisionRowId: null,
     focusFloorId: null,
     canAddFloor: true,
+    floorCapNote: null,
+    canToggleBasement: true,
     applyHeightM: null,
     canApplyHeight: false,
     canGoNext: true,
@@ -105,7 +110,9 @@ function baseProps(): CreateProjectModalViewProps {
     acknowledgeFocus: noop,
     goNext: noop,
     goBack: noop,
+    goToFixStep: noop,
     requestClose: noop,
+    keepEditing: noop,
     confirmDiscard: noop,
     submit: noop,
   };
@@ -134,7 +141,7 @@ const PROPS_BY_STATE: Readonly<Record<SevenState, () => CreateProjectModalViewPr
     floorRows: [
       STACKED_FLOOR_ROWS[0] as CreateProjectFloorRowModel,
       STACKED_FLOOR_ROWS[1] as CreateProjectFloorRowModel,
-      { id: 'row-1', name: 'Tầng 1', kind: 'floor', clearHeightM: null, elevationLabel: null, problem: 'Chưa nhập chiều cao thông thuỷ.' },
+      { id: 'row-1', name: 'Tầng 1', kind: 'floor', clearHeightM: null, elevationLabel: null, problem: 'Chưa nhập chiều cao thông thuỷ.', nameProblem: null },
     ],
   }),
   error: () => ({
@@ -142,7 +149,7 @@ const PROPS_BY_STATE: Readonly<Record<SevenState, () => CreateProjectModalViewPr
     state: 'error',
     step: 1,
     stepLabel: 'bước 1 / 3',
-    problems: { name: 'Tên dự án đã trùng với một dự án khác. Đổi tên rồi thử lại.' },
+    problems: { name: 'Tên dự án đã trùng với một dự án khác. Đổi tên rồi thử lại.', code: null, address: null },
     notice: { level: 'violation', message: 'Tên dự án đã trùng với một dự án khác. Đổi tên rồi thử lại.' },
   }),
   success: () => ({ ...baseProps(), state: 'success' }),
@@ -286,6 +293,25 @@ function goToStep2(name = 'Chung cư Bốn Tầng'): void {
   fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
 }
 
+/** A gateway whose create always fails with this HTTP status and wire body — the shape `client.projects.create` returns. */
+function failingGateway(status: number, raw: Record<string, unknown>) {
+  return {
+    create: vi.fn(async () => ({
+      ok: false as const,
+      error: { kind: 'http' as const, status, code: String(raw.code ?? ''), requestId: 'req-1', retryable: false, raw },
+    })),
+    remove: vi.fn(),
+  };
+}
+
+/** Step 1 → 3 with one 3 m height on every default floor. */
+function goToReview(name = 'Chung cư Bốn Tầng'): void {
+  goToStep2(name);
+  setHeight('Chiều cao áp cho mọi tầng', '3');
+  fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
+}
+
 function setHeight(label: string, text: string): void {
   const field = screen.getByLabelText(label);
   fireEvent.change(field, { target: { value: text } });
@@ -356,6 +382,58 @@ describe('CreateProjectModal, wired to its hook', () => {
     expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeEnabled();
   });
 
+  it('opens step 2 neutral, says why it cannot continue, then names each row’s own cause (BUG-120)', () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+
+    goToStep2();
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    const next = screen.getByRole('button', { name: 'Tiếp tục' });
+    expect(next).toBeDisabled();
+    expect(next).toHaveAccessibleDescription(
+      'Nhập chiều cao thông thuỷ cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.',
+    );
+
+    setHeight('Chiều cao thông thuỷ tầng Tầng 1', '3');
+
+    expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng trệt')).toHaveAccessibleDescription('Chưa nhập chiều cao thông thuỷ.');
+    expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng 1')).toHaveAccessibleDescription(
+      'Chưa tính được cao độ vì tầng bên dưới còn thiếu chiều cao hợp lệ.',
+    );
+    expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng 2')).toHaveAccessibleDescription('Chưa nhập chiều cao thông thuỷ.');
+  });
+
+  it('keeps the basement inside the 50-floor cap and says why "Thêm tầng" is locked (BUG-150, BUG-177)', () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+
+    goToStep2();
+    const add = screen.getByRole('button', { name: 'Thêm tầng' });
+    for (let floors = 4; floors < 50; floors += 1) fireEvent.click(add);
+    expect(screen.getAllByRole('textbox', { name: /^Tên tầng/u })).toHaveLength(50);
+    // BUG-177: the locked button says why.
+    expect(add).toHaveAccessibleDescription('Đã đủ 50 tầng, mức tối đa (kể cả tầng hầm).');
+
+    const basement = screen.getByRole('switch', { name: 'Có tầng hầm' });
+    expect(basement).toBeDisabled();
+    fireEvent.click(basement);
+
+    expect(screen.getAllByRole('textbox', { name: /^Tên tầng/u })).toHaveLength(50);
+  });
+
+  it('marks a blank floor name at step 2 and blocks "Tiếp tục" (BUG-185)', () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+
+    goToStep2();
+    setHeight('Chiều cao áp cho mọi tầng', '3');
+    fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
+    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeEnabled();
+
+    fireEvent.change(screen.getByLabelText('Tên tầng Tầng 3'), { target: { value: '   ' } });
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Chưa nhập tên tầng.');
+    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeDisabled();
+  });
+
   it('applies one height to every floor with "áp cho mọi tầng"', () => {
     render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
 
@@ -367,6 +445,22 @@ describe('CreateProjectModal, wired to its hook', () => {
     for (const name of ['Tầng trệt', 'Tầng 1', 'Tầng 2', 'Tầng 3']) {
       expect(screen.getByLabelText(`Chiều cao thông thuỷ tầng ${name}`)).toHaveValue('3,5');
     }
+  });
+
+  it('reads "3.5" in "áp cho mọi tầng" as 3,5 m and never erases the floors (BUG-132)', async () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+
+    goToStep2();
+    setHeight('Chiều cao áp cho mọi tầng', '3');
+    fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
+    expect(await screen.findByText('3,0 m')).toBeInTheDocument();
+
+    setHeight('Chiều cao áp cho mọi tầng', '3.5');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByText('3,0 m')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
+    expect(await screen.findByText('3,5 m')).toBeInTheDocument();
   });
 
   it('creates a project and offers an undo, even though the dialog closes (invariant A8)', async () => {
@@ -425,6 +519,169 @@ describe('CreateProjectModal, wired to its hook', () => {
     // A8: undo really removes what was just created, through the same mock client.
     await toast.onUndo?.();
     expect(deleteSpy).toHaveBeenCalledWith({ projectId: createdProjectId });
+  });
+
+  it('opens pristine: no complaint before a keystroke, the focus in "Tên dự án" (BUG-133)', async () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    const name = screen.getByLabelText('Tên dự án');
+    expect(name).toHaveFocus();
+    expect(name).not.toHaveAttribute('aria-invalid');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByText('Bắt buộc, từ 3 đến 80 ký tự.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeDisabled();
+
+    fireEvent.change(name, { target: { value: 'ab' } });
+    expect(screen.getByRole('alert')).toHaveTextContent('Tên dự án cần ít nhất 3 ký tự.');
+    fireEvent.change(name, { target: { value: '' } });
+    expect(screen.getByRole('alert')).toHaveTextContent('Chưa nhập tên dự án.');
+  });
+
+  it('refuses a code over 32 and an address over 200 characters at step 1 (BUG-176, BUG-186)', () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+
+    fireEvent.change(screen.getByLabelText('Tên dự án'), { target: { value: 'Chung cư Dài' } });
+    const next = screen.getByRole('button', { name: 'Tiếp tục' });
+
+    fireEvent.change(screen.getByLabelText('Mã dự án'), { target: { value: 'C'.repeat(33) } });
+    expect(screen.getByLabelText('Mã dự án')).toHaveAccessibleDescription('Mã dự án không quá 32 ký tự.');
+    expect(next).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Mã dự án'), { target: { value: ` ${'C'.repeat(32)} ` } });
+    expect(next).toBeEnabled();
+
+    fireEvent.change(screen.getByLabelText('Địa chỉ'), { target: { value: 'A'.repeat(201) } });
+    expect(screen.getByLabelText('Địa chỉ')).toHaveAccessibleDescription('Địa chỉ không quá 200 ký tự.');
+    expect(next).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Địa chỉ'), { target: { value: 'A'.repeat(200) } });
+    expect(next).toBeEnabled();
+  });
+
+  it('never ends a generated code on a dangling "-"', () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+
+    // The 24-character cut lands right after "XEM", on the gap before "NGAT".
+    fireEvent.change(screen.getByLabelText('Tên dự án'), { target: { value: 'Dự án đo rất dài để xem ngắt dòng' } });
+
+    expect(screen.getByLabelText('Mã dự án')).toHaveValue('DA-DU-AN-DO-RAT-DAI-DE-XEM');
+  });
+
+  it('lets Space and Enter press the switch and buttons inside the open dialog (BUG-151)', async () => {
+    const user = userEvent.setup({ delay: null });
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    goToStep2();
+    const basement = screen.getByRole('switch', { name: 'Có tầng hầm' });
+    basement.focus();
+    await user.keyboard(' ');
+    expect(basement).toHaveAttribute('aria-checked', 'true');
+
+    screen.getByRole('button', { name: 'Xoá Tầng 2' }).focus();
+    await user.keyboard('{Enter}');
+    expect(screen.queryByLabelText('Tên tầng Tầng 2')).not.toBeInTheDocument();
+  });
+
+  it('closes an open "Loại công trình" list on Esc and keeps the dialog (BUG-152)', async () => {
+    const onDismiss = vi.fn();
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={onDismiss} />);
+    // `Modal` arms its focus trap — the Esc handler under test — one frame after opening.
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    fireEvent.change(screen.getByLabelText('Tên dự án'), { target: { value: 'Bản nháp' } });
+    const trigger = screen.getByRole('combobox', { name: 'Loại công trình' });
+    fireEvent.click(trigger);
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+
+    fireEvent.keyDown(trigger, { key: 'Escape' });
+
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(screen.queryByText('Đóng và bỏ các thay đổi chưa lưu?')).not.toBeInTheDocument();
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
+
+  it('offers "Tiếp tục sửa" on the discard prompt, which keeps the form (BUG-123)', () => {
+    const onDismiss = vi.fn();
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={onDismiss} />);
+
+    fireEvent.change(screen.getByLabelText('Tên dự án'), { target: { value: 'Bản nháp' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
+    expect(screen.getByText('Nhấn Esc lần nữa hoặc bấm "Đóng, bỏ thay đổi" để đóng.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục sửa' }));
+
+    expect(screen.queryByText('Đóng và bỏ các thay đổi chưa lưu?')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Tên dự án')).toHaveValue('Bản nháp');
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
+
+  it('drops a pending discard prompt once "Quay lại" is pressed (BUG-189)', () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+
+    goToStep2();
+    fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
+    expect(screen.getByText('Đóng và bỏ các thay đổi chưa lưu?')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
+
+    expect(screen.queryByText('Đóng và bỏ các thay đổi chưa lưu?')).not.toBeInTheDocument();
+  });
+
+  it('stays open on Esc while "Tạo dự án" is in flight, and offers no discard (BUG-184)', async () => {
+    const onDismiss = vi.fn();
+    const held = { create: () => new Promise<never>(() => undefined), remove: vi.fn() };
+    render(<CreateProjectModal isOpen gateway={held} forceCompact={false} onDismiss={onDismiss} />);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    goToStep2('Chung cư Đang Tạo');
+    setHeight('Chiều cao áp cho mọi tầng', '3');
+    fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo dự án' }));
+
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+
+    expect(screen.queryByText('Đóng và bỏ các thay đổi chưa lưu?')).not.toBeInTheDocument();
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
+
+  it('pins a 422 on "Mã dự án" to that field, not the name, and a new code unlocks it (BUG-129, BUG-187)', async () => {
+    const gateway = failingGateway(422, { code: 'VALIDATION', field: 'code', count: 1 });
+    render(<CreateProjectModal isOpen gateway={gateway} forceCompact={false} onDismiss={noop} />);
+
+    goToReview();
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo dự án' }));
+
+    expect(
+      await screen.findByText('Máy chủ không nhận mã dự án này. Sửa ô được đánh dấu ở bước 1 rồi thử lại.'),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa ở bước 1' }));
+
+    const code = screen.getByLabelText('Mã dự án');
+    expect(code).toHaveAttribute('aria-invalid', 'true');
+    expect(code).toHaveAccessibleDescription('Máy chủ không nhận mã dự án này. Sửa rồi thử lại.');
+    expect(screen.getByLabelText('Tên dự án')).not.toHaveAttribute('aria-invalid');
+    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeDisabled();
+
+    fireEvent.change(code, { target: { value: 'DA-MOI' } });
+    expect(code).not.toHaveAttribute('aria-invalid');
+    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeEnabled();
+  });
+
+  it('keeps "Tạo dự án" usable to retry after a 500, marking no field, and never advises a reload (BUG-129, BUG-188)', async () => {
+    const gateway = failingGateway(500, {});
+    render(<CreateProjectModal isOpen gateway={gateway} forceCompact={false} onDismiss={noop} />);
+
+    goToReview();
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo dự án' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Tạo dự án' })).toBeEnabled());
+    // BUG-188: the advice keeps the form — no "tải lại", which would wipe it.
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Hệ thống đã ghi nhận và sẽ kiểm tra. Bấm "Tạo dự án" để thử lại — những gì đã nhập vẫn còn.',
+    );
+    expect(gateway.create).toHaveBeenCalledTimes(1);
   });
 
   it('warns before discarding, and only closes on the second "huỷ"', () => {

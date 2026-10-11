@@ -219,6 +219,7 @@
       "fields": {
         "name": "Tên dự án",
         "namePlaceholder": "Ví dụ: Chung cư Bình Minh",
+        "nameHint": "Bắt buộc, từ {{min}} đến {{max}} ký tự.",
         "address": "Địa chỉ",
         "code": "Mã dự án",
         "codeHint": "Tự tạo từ tên, sửa được",
@@ -237,6 +238,7 @@
         "hasBasement": "Có tầng hầm",
         "hasBasementDescription": "Tầng hầm luôn nằm dưới tầng trệt; cao độ của nó là số âm.",
         "addFloor": "Thêm tầng",
+        "floorCapNote": "Đã đủ {{max}} tầng, mức tối đa (kể cả tầng hầm).",
         "removeFloor": "Bỏ tầng này",
         "removeFloorNamed": "Xoá {{name}}",
         "nameNamed": "Tên tầng {{name}}",
@@ -250,6 +252,8 @@
         "basementName": "Tầng hầm",
         "emptyTitle": "Chưa có tầng nào",
         "emptyDescription": "Thêm ít nhất một tầng để sang bước xem lại.",
+        "continueHint": "Nhập chiều cao thông thuỷ cho từng tầng, hoặc dùng \"Áp cho mọi tầng\", để sang bước xem lại.",
+        "missingName": "Chưa nhập tên tầng.",
         "missingHeight": "Chưa nhập chiều cao thông thuỷ.",
         "missingHeightBelow": "Chưa tính được cao độ vì tầng bên dưới còn thiếu chiều cao hợp lệ.",
         "elevationOutOfRange": "Cao độ vượt giới hạn cho phép ({{min}} đến {{max}} mét)."
@@ -258,6 +262,13 @@
         "nameRequired": "Chưa nhập tên dự án.",
         "nameTooShort": "Tên dự án cần ít nhất {{min}} ký tự.",
         "nameTooLong": "Tên dự án không quá {{max}} ký tự.",
+        "codeTooLong": "Mã dự án không quá {{max}} ký tự.",
+        "addressTooLong": "Địa chỉ không quá {{max}} ký tự.",
+        "serverRefusedField": "Máy chủ không nhận {{field}} này. Sửa rồi thử lại.",
+        "serverRefusedFieldNotice": "Máy chủ không nhận {{field}} này. Sửa ô được đánh dấu ở bước 1 rồi thử lại.",
+        "serverRefusedFloorNotice": "Máy chủ không nhận tầng {{floor}}. Sửa ở bước 2 rồi thử lại.",
+        "fixAtStep": "Sửa ở bước {{step}}",
+        "unknownKeepsForm": "Hệ thống đã ghi nhận và sẽ kiểm tra. Bấm \"Tạo dự án\" để thử lại — những gì đã nhập vẫn còn.",
         "duplicateName": "Tên dự án đã trùng với một dự án khác. Đổi tên rồi thử lại."
       },
       "summary": {
@@ -270,9 +281,9 @@
       },
       "discard": {
         "title": "Đóng và bỏ các thay đổi chưa lưu?",
-        "message": "Nhấn Esc lần nữa, hoặc bấm nút bên cạnh, để xác nhận đóng.",
+        "message": "Nhấn Esc lần nữa hoặc bấm \"Đóng, bỏ thay đổi\" để đóng.",
         "confirm": "Đóng, bỏ thay đổi",
-        "keepEditing": "Tiếp tục chỉnh sửa"
+        "keepEditing": "Tiếp tục sửa"
       },
       "actions": {
         "back": "Quay lại",

@@ -35,10 +35,10 @@ const BUILDING_TYPE_OPTIONS: SelectOption[] = [
 
 /** The acceptance case: a basement plus three floors, stacked from the ground floor's 0,0. */
 const STACKED_FLOOR_ROWS: CreateProjectFloorRowModel[] = [
-  { id: 'row-basement', name: 'Tầng hầm', kind: 'basement', clearHeightM: 3, elevationLabel: '-3,0 m', problem: null },
-  { id: 'row-ground', name: 'Tầng trệt', kind: 'floor', clearHeightM: 3.9, elevationLabel: '0,0 m', problem: null },
-  { id: 'row-1', name: 'Tầng 1', kind: 'floor', clearHeightM: 3.6, elevationLabel: '3,9 m', problem: null },
-  { id: 'row-2', name: 'Tầng 2', kind: 'floor', clearHeightM: 3, elevationLabel: '7,5 m', problem: null },
+  { id: 'row-basement', name: 'Tầng hầm', kind: 'basement', clearHeightM: 3, elevationLabel: '-3,0 m', problem: null, nameProblem: null },
+  { id: 'row-ground', name: 'Tầng trệt', kind: 'floor', clearHeightM: 3.9, elevationLabel: '0,0 m', problem: null, nameProblem: null },
+  { id: 'row-1', name: 'Tầng 1', kind: 'floor', clearHeightM: 3.6, elevationLabel: '3,9 m', problem: null, nameProblem: null },
+  { id: 'row-2', name: 'Tầng 2', kind: 'floor', clearHeightM: 3, elevationLabel: '7,5 m', problem: null, nameProblem: null },
 ];
 
 const base: CreateProjectModalViewProps = {
@@ -57,7 +57,9 @@ const base: CreateProjectModalViewProps = {
   buildingType: 'residential',
   notes: '',
   buildingTypeOptions: BUILDING_TYPE_OPTIONS,
-  problems: { name: null },
+  problems: { name: null, code: null, address: null },
+  nameHint: 'Bắt buộc, từ 3 đến 80 ký tự.',
+  floorsHint: null,
   notice: null,
   floorRows: STACKED_FLOOR_ROWS,
   hasBasement: true,
@@ -65,6 +67,8 @@ const base: CreateProjectModalViewProps = {
   collisionRowId: null,
   focusFloorId: null,
   canAddFloor: true,
+  floorCapNote: null,
+  canToggleBasement: true,
   applyHeightM: null,
   canApplyHeight: false,
   canGoNext: true,
@@ -86,7 +90,9 @@ const base: CreateProjectModalViewProps = {
   acknowledgeFocus: noop,
   goNext: noop,
   goBack: noop,
+  goToFixStep: noop,
   requestClose: noop,
+  keepEditing: noop,
   confirmDiscard: noop,
   submit: noop,
 };
@@ -107,7 +113,7 @@ export const StepInfo: Story = {
     notes: '',
     floorRows: [],
     hasBasement: false,
-    problems: { name: 'Chưa nhập tên dự án.' },
+    problems: { name: 'Chưa nhập tên dự án.', code: null, address: null },
     canGoNext: false,
     canSubmit: false,
   },
@@ -151,7 +157,7 @@ export const Partial: Story = {
     floorRows: [
       STACKED_FLOOR_ROWS[0] as CreateProjectFloorRowModel,
       STACKED_FLOOR_ROWS[1] as CreateProjectFloorRowModel,
-      { id: 'row-1', name: 'Tầng 1', kind: 'floor', clearHeightM: null, elevationLabel: null, problem: 'Chưa nhập chiều cao thông thuỷ.' },
+      { id: 'row-1', name: 'Tầng 1', kind: 'floor', clearHeightM: null, elevationLabel: null, problem: 'Chưa nhập chiều cao thông thuỷ.', nameProblem: null },
     ],
   },
 };
@@ -187,7 +193,7 @@ export const ErrorState: Story = {
     state: 'error',
     step: 1,
     stepLabel: 'bước 1 / 3',
-    problems: { name: 'Tên dự án đã trùng với một dự án khác. Đổi tên rồi thử lại.' },
+    problems: { name: 'Tên dự án đã trùng với một dự án khác. Đổi tên rồi thử lại.', code: null, address: null },
     notice: { level: 'violation', message: 'Tên dự án đã trùng với một dự án khác. Đổi tên rồi thử lại.' },
   },
 };

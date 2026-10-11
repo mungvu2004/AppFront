@@ -49,7 +49,10 @@ export function useSelect<T>({ value, onChange, options, isOpen: controlledIsOpe
 
     switch (e.key) {
       case 'Escape':
+        // The open list is the top layer: Esc closes it and stops there, so a
+        // dialog or panel behind it stays open (invariant A12, BUG-152).
         e.preventDefault();
+        e.stopPropagation();
         handleClose();
         break;
       case 'ArrowDown':
