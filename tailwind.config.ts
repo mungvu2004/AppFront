@@ -235,6 +235,8 @@ const config: Config = {
     'blur', 'collapse', 'container', 'filter', 'grow', 'invert', 'isolate', 'lowercase', 'ordinal', 'resize', 'ring',
     'shadow', 'shrink', '!container', '!contents', '!hidden', '!outline', '!table', '!visible',
   ],
+  // Không màn nào dùng; tắt thì `*, ::before, ::after` và `::backdrop` không còn mang biến `--tw-*` của chúng.
+  corePlugins: { borderSpacing: false, contain: false, gradientColorStops: false, scrollSnapType: false },
   plugins: [],
 };
 
