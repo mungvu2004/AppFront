@@ -92,6 +92,9 @@ const EMPTY_BLOCKED = 'Giá trị đã lưu không xoá trống được; hãy n
 const NOTES_TOO_LONG = 'Ghi chú không quá 500 ký tự.'; // UPS:451-452, PSG:191
 const FIELD_REJECTED = 'Máy chủ không nhận giá trị này. Kiểm tra lại ô này.'; // SE:111, UPS:943
 const SAVE_FAILURE_TITLE = 'Chưa lưu hết'; // PS:98
+/** SE:124-134 field labels + SE:137-141 NEXT_STEP.validation, partialSaveSentence SE:159-170 (FIX-1422, BUG-300). */
+const NOTES_REJECTED = 'Chưa lưu được ghi chú. Sửa lại giá trị đó, hệ thống sẽ tự lưu tiếp.';
+const NAME_REJECTED = 'Chưa lưu được tên dự án. Sửa lại giá trị đó, hệ thống sẽ tự lưu tiếp.';
 const CONFLICT_TITLE = 'Cài đặt đã đổi ở nơi khác'; // PS:91
 const CONFLICT_SENTENCE = 'Cài đặt dự án vừa được đổi ở nơi khác. Tải lại để xem bản mới nhất.'; // SE:110
 const RELOAD_DIALOG = 'Tải lại sẽ bỏ thay đổi chưa lưu'; // RD:20
@@ -589,7 +592,7 @@ test.describe('E03 SCR-08 project settings', () => {
     });
   });
 
-  test('E03 · SCR-08 "Ghi chú" with a bidi mark → server 422 → field message + "Chưa lưu hết" (units part)', async ({ browser }) => {
+  test('E03 · SCR-08 "Ghi chú" with a bidi mark → server 422 → field message + "Chưa lưu được ghi chú." (BUG-300)', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const project = await createProject(admin, 'notesbidi');
@@ -600,13 +603,14 @@ test.describe('E03 SCR-08 project settings', () => {
       await put;
       await expect(page.getByText(FIELD_REJECTED, { exact: true })).toBeVisible(); // SE:96, UPS:938-944
       const failure = page.getByRole('alert').filter({ hasText: SAVE_FAILURE_TITLE });
-      // SE:117-140: notes belong to the "units" part (UPS:366-369), so the sentence names "đơn vị đo".
-      await expect(failure).toContainText('Chưa lưu được đơn vị đo.');
+      // SE:124-134,159-170 + UPS:1013-1030: the sentence names the field the user sees ("ghi chú"), not the N6 part it
+      // is sent with, and adds the 422 next step SE:138 (FIX-1422, BUG-300).
+      await expect(failure).toContainText(NOTES_REJECTED);
       await captureEvidence(page, 'E03_settings_notes_bidi_422.png');
     });
   });
 
-  test('E03 · SCR-08 "Tên dự án" with a bidi mark → server 422 → field message + "Chưa lưu được thông tin chung."', async ({ browser }) => {
+  test('E03 · SCR-08 "Tên dự án" with a bidi mark → server 422 → field message + "Chưa lưu được tên dự án." (BUG-300)', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const project = await createProject(admin, 'namebidi');
@@ -616,7 +620,7 @@ test.describe('E03 SCR-08 project settings', () => {
       await page.getByRole('textbox', { name: NAME_LABEL, exact: true }).fill(`${project.name}\u202E`);
       await patch;
       await expect(page.getByText(FIELD_REJECTED, { exact: true })).toBeVisible();
-      await expect(page.getByRole('alert').filter({ hasText: SAVE_FAILURE_TITLE })).toContainText('Chưa lưu được thông tin chung.');
+      await expect(page.getByRole('alert').filter({ hasText: SAVE_FAILURE_TITLE })).toContainText(NAME_REJECTED);
       await captureEvidence(page, 'E03_settings_name_bidi_422.png');
     });
   });
@@ -655,6 +659,8 @@ test.describe('E03 SCR-08 project settings', () => {
       await conflict;
       const alert = page.getByRole('alert').filter({ hasText: CONFLICT_TITLE }); // PS:88-95
       await expect(alert).toContainText(CONFLICT_SENTENCE);
+      // UPS:1024-1030: a 409 with nothing saved shows only the conflict strip, no second "Chưa lưu hết" (FIX-1422, BUG-300).
+      await expect(page.getByRole('alert').filter({ hasText: SAVE_FAILURE_TITLE })).toHaveCount(0);
       await captureEvidence(page, 'E03_settings_conflict_409.png');
 
       // UPS:1360-1367: unsaved draft → A9 dialog first.
