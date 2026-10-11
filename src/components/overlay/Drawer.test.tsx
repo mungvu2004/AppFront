@@ -159,4 +159,25 @@ describe('Drawer — trang nền khi đang mở (BUG-235)', () => {
     expect(root.style.overflow).toBe('clip');
     root.style.overflow = '';
   });
+
+  it('nói ra phía nó chiếm cho toast toàn ứng dụng: tờ dưới 1024 px, gỡ khi đóng (BUG-227)', () => {
+    const root = document.documentElement;
+    const { rerender } = render(
+      <Drawer.Root isOpen label="Thông báo" onClose={() => undefined}>
+        <p>Nội dung</p>
+      </Drawer.Root>,
+    );
+
+    expect(root.dataset.drawer).toBe('sheet');
+    expect(root.style.getPropertyValue('--drawer-inset')).toBe('408px');
+
+    rerender(
+      <Drawer.Root isOpen={false} label="Thông báo" onClose={() => undefined}>
+        <p>Nội dung</p>
+      </Drawer.Root>,
+    );
+
+    expect(root.dataset.drawer).toBeUndefined();
+    expect(root.style.getPropertyValue('--drawer-inset')).toBe('');
+  });
 });
