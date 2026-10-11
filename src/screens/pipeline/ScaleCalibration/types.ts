@@ -399,7 +399,7 @@ export interface ScaleShortcutHint {
    * phím là ngoại lệ được A6 cho phép.
    */
   readonly comboLabel: string;
-  /** Việc phím đó làm, viết thường kiểu câu — ví dụ `"huỷ đoạn đang kéo"`. */
+  /** Việc phím đó làm, kiểu câu viết hoa chữ đầu (A6) — ví dụ `"Huỷ đoạn đang kéo"`. */
   readonly description: string;
 }
 
