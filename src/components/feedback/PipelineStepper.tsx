@@ -145,7 +145,7 @@ const PipelineStep = forwardRef<HTMLDivElement, PipelineStepProps>(
             />
             {/* Sweeping highlight, two ambient beats per pass. */}
             <div
-              className="absolute left-0 top-0 h-full bg-white opacity-40 w-1/3 blur-[2px] animate-pipeline-sweep motion-reduce:animate-none"
+              className="absolute left-0 top-0 h-full bg-white opacity-40 w-1/3 [filter:blur(2px)] animate-pipeline-sweep motion-reduce:animate-none"
             />
           </div>
         )}
