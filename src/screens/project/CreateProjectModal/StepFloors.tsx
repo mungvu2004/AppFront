@@ -157,29 +157,29 @@ export function StepFloors(props: StepFloorsProps) {
               ))}
             </Table.Body>
           </Table.Root>
+          {/* Above the locked "Thêm tầng", not under it: wherever that button is in view, so is the
+              reason, never cut by the footer or faded under the body's bottom edge (BUG-231). */}
+          {props.floorCapNote !== null && (
+            <p id={FLOOR_CAP_NOTE_ID} className="text-[13px] leading-[18px] text-text-secondary">
+              {props.floorCapNote}
+            </p>
+          )}
           {/* Both buttons line up with the apply field's box, not with its error line (BUG-230):
               stacked below `sm`, side by side from it, each pushed down past the field's label. */}
           <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between">
             {/* `mt-7`: the apply field's label above its box (`Input`: 20 px line + 8 px gap). */}
-            <div className="flex flex-col gap-1 sm:mt-7">
-              <span className={FIELD_HIGH}>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  iconBefore={<Plus size={16} aria-hidden="true" />}
-                  onClick={props.addFloor}
-                  disabled={isSubmitting || !props.canAddFloor}
-                  aria-describedby={props.floorCapNote !== null ? FLOOR_CAP_NOTE_ID : undefined}
-                >
-                  Thêm tầng
-                </Button>
-              </span>
-              {props.floorCapNote !== null && (
-                <p id={FLOOR_CAP_NOTE_ID} className="text-[13px] leading-[18px] text-text-secondary">
-                  {props.floorCapNote}
-                </p>
-              )}
-            </div>
+            <span className={cn(FIELD_HIGH, 'sm:mt-7')}>
+              <Button
+                variant="secondary"
+                size="sm"
+                iconBefore={<Plus size={16} aria-hidden="true" />}
+                onClick={props.addFloor}
+                disabled={isSubmitting || !props.canAddFloor}
+                aria-describedby={props.floorCapNote !== null ? FLOOR_CAP_NOTE_ID : undefined}
+              >
+                Thêm tầng
+              </Button>
+            </span>
             <div className="flex items-start gap-2">
               <NumericField
                 label={<span className="whitespace-nowrap">Chiều cao áp cho mọi tầng</span>}

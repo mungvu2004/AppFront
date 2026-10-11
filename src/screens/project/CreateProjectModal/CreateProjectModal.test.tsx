@@ -289,7 +289,7 @@ describe('CreateProjectModalView', () => {
     expect(screen.getByRole('button', { name: 'Xoá Tầng trệt' }).closest('td > span')).toHaveClass('h-[46px]', 'sm:h-[38px]');
     // Pushed down past the apply field's 28 px label instead of sitting on the bottom of its error line.
     expect(screen.getByRole('button', { name: 'Áp cho mọi tầng' }).parentElement).toHaveClass('mt-7', 'sm:h-[38px]');
-    expect(screen.getByRole('button', { name: 'Thêm tầng' }).parentElement?.parentElement).toHaveClass('sm:mt-7');
+    expect(screen.getByRole('button', { name: 'Thêm tầng' }).parentElement).toHaveClass('sm:mt-7');
   });
 
   it('warns before discarding unsaved changes, in the dialog itself — no nested dialog', () => {
@@ -483,6 +483,10 @@ describe('CreateProjectModal, wired to its hook', () => {
     expect(screen.getAllByRole('textbox', { name: /^Tên tầng/u })).toHaveLength(50);
     // BUG-177: the locked button says why.
     expect(add).toHaveAccessibleDescription('Đã đủ 50 tầng, mức tối đa (kể cả tầng hầm).');
+    // BUG-231: the note sits above the button, so it is in view whenever the button is, not cut under the footer.
+    const note = screen.getByText('Đã đủ 50 tầng, mức tối đa (kể cả tầng hầm).');
+    expect(note.compareDocumentPosition(add) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(note).toHaveClass('text-text-secondary');
 
     const basement = screen.getByRole('switch', { name: 'Có tầng hầm' });
     expect(basement).toBeDisabled();
