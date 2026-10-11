@@ -670,7 +670,8 @@ test.describe('U04 UI verify — empty floor, 80-char project + 65-char floor na
     await verifyAsAdmin(browser, 'U04_dims_keyboard_mode', async (p) => {
       await p.goto(ROUTES.project.dimensions(own().projectId, own().floorId));
       await expect(p.getByText(DIMS_EMPTY_TITLE, { exact: true })).toBeVisible({ timeout: 15_000 });
-      // `onToggleKeyboardMode` has no row precondition (useDimensionOcrReview.ts:765); the mode replaces the whole screen.
+      // `onToggleKeyboardMode` has no row precondition (useDimensionOcrReview.ts:765). With no row the mode does NOT replace
+      // the screen (BUG-334): it stays in the review panel footer with its off button (DimensionOcrReview.tsx:200,283-296).
       await p.getByRole('button', { name: KEYBOARD_ON, exact: true }).click();
       await expect(p.getByRole('region', { name: KEYBOARD_CAPTION, exact: true })).toBeVisible();
       await expect(p.getByRole('button', { name: KEYBOARD_OFF, exact: true })).toBeVisible();
