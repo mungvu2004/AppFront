@@ -204,7 +204,7 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
             <div className="flex flex-col gap-2">
               <ProcessingStepBar prefersReducedMotion={props.prefersReducedMotion} steps={props.steps} />
               <details>
-                <summary className="cursor-pointer select-none rounded-[8px] px-1 py-2 text-[14px] font-medium text-text-secondary hover:bg-bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+                <summary className="cursor-pointer select-none min-h-11 rounded-[8px] px-1 py-3 text-[14px] sm:min-h-0 sm:py-2 font-medium text-text-secondary hover:bg-bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
                   {ALL_STEPS_LABEL}
                 </summary>
                 <ProcessingStepList prefersReducedMotion={props.prefersReducedMotion} steps={props.steps} />
