@@ -192,8 +192,10 @@ const COPY = {
   noDrawingTitle: 'Tầng này chưa có bản vẽ',
   noDrawingNotice:
     'Chưa có bản vẽ nào được tải lên cho tầng này. Tải bản vẽ lên và chờ bước tiền xử lý xong rồi mới hiệu chỉnh tỷ lệ.',
+  // Tiêu đề "Nắn ảnh thất bại nên bản vẽ có thể méo" là của view; câu này chỉ nói hậu quả và lối ra,
+  // không nhắc lại tiêu đề (BUG-341). Khớp khoá `scaleCalibration.state.errorDescription`.
   warpingNotice:
-    'Nắn ảnh thất bại nên bản vẽ có thể méo. Tỷ lệ đo trên một bản vẽ méo sẽ sai theo.',
+    'Tỷ lệ đo trên một bản vẽ méo sẽ sai theo. Quay lại bước tiền xử lý để nắn lại ảnh, rồi hiệu chỉnh tỷ lệ.',
   emptyNotice:
     'Bản vẽ này không có chuỗi kích thước nào OCR đọc được. Vẽ một đường tham chiếu dọc cạnh đã biết, rồi nhập chiều dài thật của nó.',
   partialNotice:
@@ -1522,10 +1524,9 @@ export function useScaleCalibration(
       return { ...describeError(appError), code: appError.code };
     }
 
-    // Nắn ảnh hỏng không phải lỗi mạng: câu chữ đã có sẵn ở COPY, còn mã máy
-    // đọc lấy từ chính bảng lỗi chứ không gõ tay (A6 cho phép chữ hoa ở mã lỗi).
-    const appError = toAppError(new Error(COPY.warpingNotice));
-    return { ...describeError(appError), description: COPY.warpingNotice, code: appError.code };
+    // Nắn ảnh hỏng không phải lỗi mạng và không có mã máy nào: "Mã lỗi: UNKNOWN" chỉ là
+    // nhiễu (BUG-341). Tiêu đề do view đặt (`errorTitle` vắng ở nhánh này).
+    return { title: undefined, description: COPY.warpingNotice, code: null };
   }, [query.error, query.isError, state]);
 
   const errorCode = errorDescription?.code ?? null;
@@ -1674,9 +1675,6 @@ export function useScaleCalibration(
             : pixelLabel(draftForView.pixelLength),
         isInteractive: state !== 'forbidden',
         isImageLoading: state === 'loading',
-        // Chỉ ảnh MÉO mới nói "nắn ảnh thất bại"; lượt đọc hỏng không có ảnh nào
-        // để mà méo (B-V5-04).
-        warpingNotice: state === 'error' && !query.isError ? COPY.warpingNotice : null,
       },
       panel: {
         currentScaleLabel,
@@ -1743,9 +1741,8 @@ export function useScaleCalibration(
       prefersReducedMotion,
       errorMessage: errorDescription?.description ?? null,
       errorCode,
-      ...(state === 'error' && query.isError && errorDescription !== null
-        ? { errorTitle: errorDescription.title }
-        : {}),
+      // Ảnh méo không đặt tiêu đề: view dùng tiêu đề "nắn ảnh thất bại" của chính nó (B-V5-04).
+      ...(errorDescription?.title !== undefined ? { errorTitle: errorDescription.title } : {}),
       emptyNotice: isEmptyState ? COPY.emptyNotice : null,
       partialNotice: state === 'partial' ? COPY.partialNotice : null,
       forbiddenNotice: state === 'forbidden' ? COPY.forbiddenNotice : null,
@@ -1789,7 +1786,6 @@ export function useScaleCalibration(
     nearestOcrValue,
     prefersReducedMotion,
     proposedRatio,
-    query.isError,
     realLengthText,
     rows,
     saveLabel,

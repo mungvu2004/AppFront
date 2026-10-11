@@ -290,10 +290,6 @@ function canvasFor(state: ScaleCalibrationState): ScaleCanvasViewModel {
     liveLengthLabel: null,
     isInteractive: state !== 'forbidden',
     isImageLoading: state === 'loading',
-    warpingNotice:
-      state === 'error'
-        ? 'Nắn ảnh thất bại nên bản vẽ có thể méo. Tỷ lệ đo trên một bản vẽ méo sẽ sai theo.'
-        : null,
   };
 }
 
@@ -377,7 +373,7 @@ export function scenarioFor(state: SevenState): ScaleCalibrationProps {
         state === 'error'
           ? 'Tỷ lệ đo trên một bản vẽ méo sẽ sai theo. Quay lại bước tiền xử lý để nắn lại ảnh, rồi hiệu chỉnh tỷ lệ.'
           : null,
-      errorCode: state === 'error' ? 'FRAME_NOT_FOUND' : null,
+      errorCode: null,
       emptyNotice:
         state === 'empty'
           ? 'Bản vẽ này không có chuỗi kích thước nào OCR đọc được. Vẽ một đường tham chiếu dọc cạnh đã biết, rồi nhập chiều dài thật của nó.'

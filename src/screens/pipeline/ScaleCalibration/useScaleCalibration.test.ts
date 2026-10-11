@@ -916,7 +916,8 @@ describe('useScaleCalibration — bảy trạng thái', () => {
     await settle(warped);
     reached.add(warped.result.current.model.state);
     expect(warped.result.current.model.errorMessage).not.toBeNull();
-    expect(warped.result.current.model.errorCode).not.toBeNull();
+    // Ảnh méo không có mã máy thật: không in "Mã lỗi: UNKNOWN" (BUG-341).
+    expect(warped.result.current.model.errorCode).toBeNull();
     warped.unmount();
 
     // 6. forbidden — người xem không có quyền sửa.
@@ -948,7 +949,6 @@ describe('useScaleCalibration — bảy trạng thái', () => {
 
     expect(failing.result.current.model.state).toBe('error');
     expect(failing.result.current.model.errorTitle).toBeDefined();
-    expect(failing.result.current.model.canvas.warpingNotice).toBeNull();
     failing.unmount();
 
     const warpedHarness = await makeHarness({ sourceFloorId: WARPED_MOCK_FLOOR_ID });
@@ -957,7 +957,8 @@ describe('useScaleCalibration — bảy trạng thái', () => {
 
     expect(warped.result.current.model.state).toBe('error');
     expect(warped.result.current.model.errorTitle).toBeUndefined();
-    expect(warped.result.current.model.canvas.warpingNotice).not.toBeNull();
+    // Một câu, không nhắc lại tiêu đề "Nắn ảnh thất bại…" của view (BUG-341).
+    expect(warped.result.current.model.errorMessage).not.toContain('Nắn ảnh thất bại');
     warped.unmount();
   });
 

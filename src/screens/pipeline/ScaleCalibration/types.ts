@@ -429,12 +429,6 @@ export interface ScaleCanvasViewModel {
   /** `false` ở trạng thái `forbidden`: canvas xem được, kéo thì không. */
   readonly isInteractive: boolean;
   readonly isImageLoading: boolean;
-  /**
-   * Câu báo bản vẽ có thể méo vì nắn ảnh thất bại. `null` ngoài trạng thái
-   * `error`. Liên kết quay lại bước tiền xử lý là
-   * {@link ScaleCalibrationActions.onGoToPreprocessing}.
-   */
-  readonly warpingNotice: string | null;
 }
 
 /* -------------------------------------------------------------------------- */
