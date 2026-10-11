@@ -688,6 +688,22 @@ describe('CreateProjectModal, wired to its hook', () => {
     expect(onDismiss).not.toHaveBeenCalled();
   });
 
+  it('hands the focus back to the field being edited after "Tiếp tục sửa" (BUG-219)', async () => {
+    const user = userEvent.setup({ delay: null });
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    const name = screen.getByLabelText('Tên dự án');
+    name.focus();
+    await user.keyboard('Bản nháp');
+    await user.keyboard('{Escape}');
+    screen.getByRole('button', { name: 'Tiếp tục sửa' }).focus();
+    await user.keyboard('{Enter}');
+
+    expect(screen.queryByText('Đóng và bỏ các thay đổi chưa lưu?')).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(name);
+  });
+
   it('drops a pending discard prompt once "Quay lại" is pressed (BUG-189)', () => {
     render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
 

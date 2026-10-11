@@ -183,7 +183,19 @@ function StepInfo(props: CreateProjectModalViewProps) {
  * where a button wraps to (BUG-123). `text-balance` keeps the title from
  * leaving one word alone on its last line at 375 px (BUG-190).
  */
-function DiscardPrompt(props: CreateProjectModalViewProps) {
+function DiscardPrompt(props: CreateProjectModalViewProps & { readonly cancelRef: React.RefObject<HTMLButtonElement | null> }) {
+  // Where the focus was when the prompt appeared: the field being edited, or "Huỷ". "Tiếp tục sửa"
+  // goes away with the prompt, so it hands the focus back there instead of to nowhere (BUG-219).
+  const [returnFocus] = useState(() => document.activeElement);
+  const keepEditing = (): void => {
+    const target =
+      returnFocus instanceof HTMLElement && returnFocus.isConnected && returnFocus.matches('input, textarea, button')
+        ? returnFocus
+        : props.cancelRef.current;
+    target?.focus();
+    props.keepEditing();
+  };
+
   return (
     <div
       role="alert"
@@ -201,7 +213,7 @@ function DiscardPrompt(props: CreateProjectModalViewProps) {
         </div>
       </div>
       <div className="flex flex-wrap justify-end gap-2">
-        <Button type="button" size="sm" variant="secondary" onClick={props.keepEditing}>
+        <Button type="button" size="sm" variant="secondary" onClick={keepEditing}>
           Tiếp tục sửa
         </Button>
         <Button type="button" size="sm" variant="danger" onClick={props.confirmDiscard}>
@@ -220,6 +232,7 @@ function DiscardPrompt(props: CreateProjectModalViewProps) {
 export function CreateProjectModalView(props: CreateProjectModalViewProps) {
   const { isOpen, state, step, isSubmitting, focusFloorId, acknowledgeFocus } = props;
   const rowRefs = useRef(new Map<string, HTMLTableRowElement>());
+  const cancelRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (focusFloorId === null) {
@@ -297,7 +310,7 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
         </motion.div>
       </Modal.Body>
       <Modal.Footer className="flex-wrap justify-between px-4 sm:px-6">
-        {props.isConfirmingDiscard && <DiscardPrompt {...props} />}
+        {props.isConfirmingDiscard && <DiscardPrompt {...props} cancelRef={cancelRef} />}
         <div>
           {step > 1 && (
             <Button variant="ghost" onClick={props.goBack} disabled={isSubmitting}>
@@ -306,7 +319,7 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
           )}
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="ghost" onClick={props.requestClose} disabled={isSubmitting}>
+          <Button ref={cancelRef} variant="ghost" onClick={props.requestClose} disabled={isSubmitting}>
             Huỷ
           </Button>
           {step < 3 ? (
