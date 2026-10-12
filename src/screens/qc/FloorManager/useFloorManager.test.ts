@@ -1648,4 +1648,63 @@ describe('BUG-515 — kho dùng chung không che tầng của dự án trên URL
       expect(rowNames(second)).toContain('Tầng thêm ngoài');
     });
   });
+
+  // QA-03f [09-B-034]: a rolled-back reorder leaves the store on a graph deep-equal to an older
+  // one; React Query's structural sharing then swapped the mount read's `baseGraph` for that older
+  // reference, so the R1-04 guard took the fresh read for an in-flight edit and dropped it.
+  it('sắp xếp hỏng rồi lùi, rời màn và quay lại: vẫn hiện tầng thêm ở nơi khác', async () => {
+    if (ROOF === undefined) {
+      throw new Error('Bộ mẫu không có tầng nào.');
+    }
+
+    let serverGraph = createFloorManagerSampleGraph();
+    const { gateway: base, reorder } = spiedGateway();
+
+    reorder.mockImplementation(() => wireFailure(422, 'FLOOR_REORDER_MISMATCH'));
+
+    const gateway: FloorManagerGateway = {
+      ...base,
+      readFloorList: async (input) =>
+        input.isMountRead === true
+          ? { ...(await base.readFloorList(input)), fromStore: false, graph: serverGraph }
+          : base.readFloorList(input),
+    };
+    const first = await mountSettled({ gateway });
+
+    // An earlier saved edit: its re-read caches a snapshot whose `baseGraph` is the store of then.
+    await commitField(first, ROOF_ID, 'name', 'Tầng mái sửa');
+    await waitFor(() => {
+      expect(first.queryClient.isFetching()).toBe(0);
+    });
+    await act(async () => {
+      first.result.current.onReorderFloors([BASEMENT_ID, SECOND_ID, GROUND_ID, ROOF_ID]);
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(reorder).toHaveBeenCalledTimes(1);
+      expect(levelIds()).toEqual(SAMPLE_ORDER);
+    });
+    await waitFor(() => {
+      expect(first.queryClient.isFetching()).toBe(0);
+    });
+
+    first.unmount();
+    serverGraph = createFloorManagerSampleGraph({
+      levels: [
+        ...FLOOR_MANAGER_SAMPLE_LEVELS,
+        {
+          ...ROOF,
+          id: 'L-EXTERNAL00000' as LevelId,
+          name: 'Tầng thêm ngoài',
+          elevationMm: ROOF.elevationMm + ROOF.heightMm,
+        },
+      ],
+    });
+
+    const second = await mountSettled({ gateway, queryClient: first.queryClient });
+
+    await waitFor(() => {
+      expect(rowNames(second)).toContain('Tầng thêm ngoài');
+    });
+  });
 });
