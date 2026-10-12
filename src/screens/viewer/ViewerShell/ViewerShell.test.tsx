@@ -54,6 +54,7 @@ import {
 
 import { ViewerShellContainer } from './ViewerShell.container';
 import { ViewerShell, VIEWER_SHELL_LABEL } from './ViewerShell';
+import { ViewerElevationScale } from './ViewerOverlays';
 import { scenarioArgsFor } from './ViewerShell.stories';
 import {
   FIXTURE_ROOM_COUNT,
@@ -1294,5 +1295,29 @@ describe('thu phóng ở góc nhìn phẳng (Trên xuống)', () => {
     expect(zoomedIn).toBeGreaterThan(start);
     expect(percent(result.current.zoomLabel)).toBeLessThan(zoomedIn);
     unmount();
+  });
+});
+
+describe('[BUG-478] thang cao độ đọc được trên mọi màu canvas', () => {
+  it('nằm trên nền đệm bg-surface-90, chữ phụ — không trần trên canvas', () => {
+    render(
+      <ViewerElevationScale
+        storeys={(['0,00 m', '3,00 m'] as const).map((elevationLabel, index) => ({
+          code: String(index + 1),
+          elevationLabel,
+          id: `L-${String(index)}`,
+          inlineName: `tầng ${String(index + 1)}`,
+          isActive: false,
+          isReady: true,
+          isVisible: true,
+          name: `Tầng ${String(index + 1)}`,
+        }))}
+      />,
+    );
+
+    const scale = screen.getByRole('list', { name: 'Cao độ tầng' });
+
+    expect(scale).toHaveClass('bg-bg-surface-90', 'text-text-secondary');
+    expect(scale).not.toHaveClass('text-text-muted');
   });
 });
