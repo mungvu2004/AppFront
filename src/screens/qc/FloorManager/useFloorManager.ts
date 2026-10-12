@@ -156,6 +156,7 @@ import {
   stackTopMm,
   wallCountOfLevel,
   type FloorManagerGateway,
+  type FloorManagerSnapshot,
 } from './floorManagerGateway';
 import type {
   DuplicateElevationViolation,
@@ -561,34 +562,60 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
   /* Lượt đọc máy chủ (R-64).                                                 */
   /* ---------------------------------------------------------------------- */
 
+  /* Lượt đọc đầu của lần gắn này đọc mới từ máy chủ; các lượt sau (sau một lượt ghi) giữ kho. */
+  const hasReadRef = useRef(false);
   const floorListQuery = useQuery({
     // Khoá riêng `floor.manager`, không phải `floor.list` trần: ảnh chụp ở đây là `{ graph, floors, … }`,
     // còn Tải bản vẽ và cổng chất lượng đọc `floor.list` là `Floor[]` (BUG-348).
     queryKey: queryKeys.floor.manager(projectId),
-    queryFn: ({ signal }) => gateway.readFloorList({ projectId, signal }),
+    queryFn: async ({ signal }) => {
+      const snapshot = await gateway.readFloorList({ isMountRead: !hasReadRef.current, projectId, signal });
+
+      hasReadRef.current = true;
+
+      return snapshot;
+    },
+    /* Quay lại màn trong SPA luôn đọc lại: tầng thêm ở nơi khác phải hiện (BUG-515). */
+    refetchOnMount: 'always',
   });
 
   const storeGraph = useStore((state) => state.spatial);
+  const storeProjectId = useStore((state) => state.spatialProjectId);
   const setSpatial = useStore((state) => state.setSpatial);
   const violations = useStore(selectViolations);
 
-  const loadedGraph = floorListQuery.data?.graph ?? null;
+  const snapshot = floorListQuery.data;
+  const loadedGraph = snapshot?.graph ?? null;
+  const { isFetchedAfterMount } = floorListQuery;
+  const appliedSnapshotRef = useRef<FloorManagerSnapshot | null>(null);
 
-  /* Nạp đồ thị của dự án vào kho một lần, nếu kho còn trống. */
+  /*
+   * Nạp đồ thị vào kho khi kho trống, hoặc khi lượt đọc của CHÍNH lần gắn này đọc
+   * mới từ máy chủ (kho là của dự án khác hay lệch bộ tầng — BUG-515). Mỗi ảnh
+   * chụp nạp đúng một lần: sửa sau đó đổi `storeGraph` nhưng không được bị đè.
+   */
   useEffect(() => {
-    if (storeGraph === null && loadedGraph !== null) {
-      setSpatial(loadedGraph, null, {
-        floorRevisions: floorListQuery.data?.floorRevisions ?? {},
-        projectId,
-      });
+    if (
+      snapshot === undefined ||
+      loadedGraph === null ||
+      loadedGraph === storeGraph ||
+      appliedSnapshotRef.current === snapshot ||
+      (storeGraph !== null && (!isFetchedAfterMount || snapshot.fromStore))
+    ) {
+      return;
     }
-  }, [floorListQuery.data?.floorRevisions, loadedGraph, projectId, setSpatial, storeGraph]);
+
+    appliedSnapshotRef.current = snapshot;
+    setSpatial(loadedGraph, null, { floorRevisions: snapshot.floorRevisions, projectId });
+  }, [isFetchedAfterMount, loadedGraph, projectId, setSpatial, snapshot, storeGraph]);
 
   /*
    * Đọc kho trước, lượt tải sau: giữa lúc `useEffect` trên chưa chạy, view vẫn
-   * có dữ liệu để vẽ — đúng cái màn trắng mà A11 tồn tại để chặn.
+   * có dữ liệu để vẽ — đúng cái màn trắng mà A11 tồn tại để chặn. Kho của dự án
+   * KHÁC thì không vẽ (đang tải) cho tới khi lượt đọc của dự án này về (BUG-515).
    */
-  const graph = storeGraph ?? loadedGraph;
+  const graph =
+    storeGraph === null ? loadedGraph : storeProjectId === projectId ? storeGraph : null;
   const hasError = floorListQuery.isError;
   const isLoading = floorListQuery.isPending || graph === null;
 
