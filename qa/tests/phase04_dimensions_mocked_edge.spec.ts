@@ -906,6 +906,10 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
         });
 
         await test.step('[18-C-027] undo only on the toast: no Mod+Z binding, no "Hoàn tác" on the screen', async () => {
+          // Fresh load first: on the SPA path (after SCR-16) run-51-P3-r1 saw Ctrl+Z revert an approve — that is the
+          // floor-layer history of SCR-16 still mounted (UAS), not this screen's binding (catalog: UD:539-541).
+          await page.reload();
+          await expect(options(page)).toHaveCount(4);
           await approveButton(page, 3).click();
           await expect(approveButton(page, 3)).toHaveCount(0);
           await progress(page).click();
