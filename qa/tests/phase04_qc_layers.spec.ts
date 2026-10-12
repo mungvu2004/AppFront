@@ -854,7 +854,7 @@ test.describe('SCR-17 Object Layer Review', () => {
     await captureEvidence(page, '17_objects_filter.png');
   });
 
-  test('SCR-17 edit: "Duyệt đối tượng này"; "hướng mở" → mở trái; "Loại đối tượng" → PUT per change', async () => {
+  test('SCR-17 edit: "Duyệt đối tượng này"; "Hướng mở" → "Mở trái"; "Loại đối tượng" → PUT per change', async () => {
     await openObjects();
     if (objectCount === 0) {
       await captureEvidence(page, '17_objects_edit.png');
@@ -892,12 +892,12 @@ test.describe('SCR-17 Object Layer Review', () => {
 
     // Swing first, while the opening is still a door (`buildChangeObjectSwingCommand`); windows are skipped.
     if (isDoor) {
-      const left = objectInspector().getByRole('radio', { name: 'mở trái', exact: true });
+      const left = objectInspector().getByRole('radio', { name: 'Mở trái', exact: true }); // ObjectLayerInspector.tsx:160-161 (A6, BUG-399)
       const swing = (await left.isChecked())
-        ? objectInspector().getByRole('radio', { name: 'mở phải', exact: true })
+        ? objectInspector().getByRole('radio', { name: 'Mở phải', exact: true })
         : left;
 
-      if (swing !== left) test.info().annotations.push({ type: 'branch', description: 'already "mở trái": set "mở phải"' });
+      if (swing !== left) test.info().annotations.push({ type: 'branch', description: 'already "Mở trái": set "Mở phải"' });
       const put = waitForLayerPut();
 
       await pressSpaceOn(swing);

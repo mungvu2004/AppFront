@@ -90,7 +90,7 @@ Path short names: `W/` = `src/screens/qc/WallLayerReview/`, `O/` = `…/ObjectLa
 | 58 | List | orphan badge "Chưa gắn vào tường nào" + "Gắn vào tường gần nhất" | `O/ObjectLayerList.tsx:48-49`, `O/ObjectLayerInspector.tsx:180,183` | — | gap (orphan opening is a critical integrity issue on #35 — BE:integrity.py:55 — so not seedable; furniture "Đứng tự do" only) |
 | 59 | Inspector | "Duyệt đối tượng này" → PUT | `O/ObjectLayerInspector.tsx:184`, `O/useObjectLayerReview.ts:755-773` | M SCR-17 edit | covered |
 | 60 | Edge | Double click approve → one PUT, disabled | `O/useObjectLayerReview.ts:759` | E "SCR-17 double click …" | covered |
-| 61 | Inspector | "hướng mở" radios mở trái / mở phải / hai cánh / Trượt | `O/ObjectLayerInspector.tsx:160-163,178` | M SCR-17 edit | covered |
+| 61 | Inspector | "Hướng mở" radios Mở trái / Mở phải / Hai cánh / Trượt | `O/ObjectLayerInspector.tsx:160-163,178` | M SCR-17 edit | covered |
 | 62 | Inspector | combobox "Loại đối tượng" | `O/ObjectLayerInspector.tsx:172` | M SCR-17 edit | covered |
 | 63 | Inspector | position slider "Vị trí trên tường", host wall link "Tường chứa nó" | `O/ObjectLayerInspector.tsx:176-177`, `O/useObjectLayerReview.ts:777-800` | — | gap (P2) |
 | 64 | Inspector | empty prompt "Chọn một đối tượng…" | `O/ObjectLayerInspector.tsx:185` | E "SCR-17 double click … Esc" | covered |
