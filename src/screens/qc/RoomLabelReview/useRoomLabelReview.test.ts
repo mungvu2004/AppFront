@@ -270,9 +270,10 @@ describe('phép ghép thuần của màn Duyệt tên phòng', () => {
     expect(candidates[0]?.codeLabel).toBe(roomCodeLabel(candidates[0]?.id as RoomId));
   });
 
-  it('câu giải thích diện tích lấy lại từ M-07, không tự viết', () => {
+  it('[BUG-408] câu giải thích diện tích bằng lời thường, không lộ công thức dây giày', () => {
     expect(areaCaptionOf(null)).toBe('');
-    expect(areaCaptionOf(ROOM_R005)).toContain('dây giày');
+    expect(areaCaptionOf(ROOM_R005)).toBe('Diện tích sàn đo trong mép thông thuỷ của ranh phòng.');
+    expect(areaCaptionOf(ROOM_R005)).not.toMatch(/dây giày|x1 × y2/u);
   });
 
   it('bộ lọc "Chưa đặt tên" giữ đúng số phòng trống tên', () => {

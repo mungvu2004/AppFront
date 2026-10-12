@@ -2086,6 +2086,7 @@
     },
     "fields": {
       "area": "Diện tích",
+      "areaCaption": "Diện tích sàn đo trong mép thông thuỷ của ranh phòng.",
       "perimeter": "Chu vi phòng",
       "clearHeight": "Chiều cao thông thuỷ",
       "clearHeightMissing": "Chưa có số đo chiều cao thông thuỷ cho phòng này.",
