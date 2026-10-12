@@ -72,9 +72,6 @@ const LOAD_ERROR_MS = 60_000;
 const ATTACH_MS = 60_000;
 
 const png = (name: string) => pngFile(name, envDrawingPng());
-const suspected = (row: string, what: string): void => {
-  test.info().annotations.push({ type: 'suspected-bug', description: `${row}: ${what}` });
-};
 const isPost = (re: RegExp) => (request: Request): boolean => request.method() === 'POST' && re.test(pathname(request));
 const percentLabel = (percent: number, file: string): RegExp => new RegExp(`^Đã tải ${String(percent)}\\s?% của ${file.replace(/\./gu, '\\.')}$`, 'u');
 
@@ -121,11 +118,13 @@ test('SCR-10 · FL-10-16 · [mocked response] floor list loading, failing and re
     });
 
     let unroute = await fakeRead((route) => fulfillJson(route, 500, { code: 'INTERNAL', requestId: 'qa-p06-mock' }));
-    await test.step('[10-B-005] GET 500 → title + "Hệ thống đã ghi nhận …"; no "Thử lại", no footer, no drop zone', async () => {
+    // QA-03e (BUG-509, FIX-2200): a GET 5xx is retryable whatever the ladder did (src/lib/http/client.ts:490-491,
+    // retry.ts:30-34), so the load error offers "Thử lại" (useFloorUploadScreen.ts:1285 canRetryLoad).
+    await test.step('[10-B-005] GET 500 → title + "Hệ thống đã ghi nhận …" + "Thử lại"; no footer, no drop zone', async () => {
       await page.reload();
       await expect(loadAlert).toBeVisible({ timeout: LOAD_ERROR_MS });
       await expect(loadAlert).toContainText(ERR.unknown);
-      await expect(loadAlert.getByRole('button', { name: UP.retry, exact: true })).toHaveCount(0);
+      await expect.soft(loadAlert.getByRole('button', { name: UP.retry, exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: UP.submit, exact: true })).toHaveCount(0);
       await expect(page.getByTestId(UP.dropzone)).toHaveCount(0);
       await captureEvidence(page, 'E03_10-B-005_load_500.png');
@@ -137,7 +136,7 @@ test('SCR-10 · FL-10-16 · [mocked response] floor list loading, failing and re
       await page.reload();
       await expect(loadAlert).toBeVisible({ timeout: LOAD_ERROR_MS });
       await captureEvidence(page, 'E03_10-B-006_load_503.png');
-      // run-33-P6 (U10-04): a 503 after the transport retries shows "Hệ thống đã ghi nhận …" without "Thử lại".
+      // run-33-P6 (U10-04) had no "Thử lại" here; QA-03e BUG-509 (client.ts:490-491, UFU:1285) restores it.
       await expect.soft(loadAlert.getByRole('button', { name: UP.retry, exact: true }), 'catalog 10-B-006: 503 offers "Thử lại"').toBeVisible({ timeout: 1_000 });
     });
 
@@ -223,7 +222,9 @@ test('SCR-10 · FL-10-17 · [mocked response] uploads in flight: four at once, p
     const [f1, f5] = [floorAt(project, 0), floorAt(project, 4)];
     await openUpload(page, pid, floorIds(project));
 
-    await test.step('[10-C-022] tang-1..tang-4.png auto-matched with inits held → 4 init POSTs in flight; released → 4 "Đã gắn kèm"', async () => {
+    // QA-03e (BUG-532, FIX-2252): floorUploadGateway wraps every task's `start` in one createUploadScheduler
+    // (MAX_PARALLEL_UPLOADS = 3), so the 4th init waits for a slot.
+    await test.step('[10-C-022] tang-1..tang-4.png auto-matched with inits held → 3 init POSTs in flight (cap 3); released → 4 "Đã gắn kèm"', async () => {
       const hold = await holdRequests(page, isPost(initRe(pid)));
       try {
         await pickFiles(page, [1, 2, 3, 4].map((n) => png(`tang-${String(n)}.png`)));
@@ -232,8 +233,7 @@ test('SCR-10 · FL-10-17 · [mocked response] uploads in flight: four at once, p
         const inFlight = hold.held.length;
         await attachJson('E03_10-C-022_inits_in_flight.json', { inFlight });
         await captureEvidence(page, 'E03_10-C-022_four_inits_held.png');
-        suspected('10-C-022', `${String(inFlight)} inits in flight at once; MAX_PARALLEL_UPLOADS is 3 (uploadTask.ts:61)`);
-        expect.soft(inFlight, '10-C-022 catalog: 4 inits in flight together (no cap of 3 in the screen)').toBe(4);
+        expect.soft(inFlight, 'at most MAX_PARALLEL_UPLOADS = 3 inits in flight').toBe(3);
       } finally {
         await hold.release();
       }
@@ -265,7 +265,8 @@ test('SCR-10 · FL-10-17 · [mocked response] uploads in flight: four at once, p
       await card5.getByRole('button', { name: `Tuỳ chọn của tầng ${f5.name}`, exact: true }).press('Escape');
     });
 
-    await test.step('[10-E-009] progressbar has aria-label but no aria-valuenow/min/max', async () => {
+    // QA-03e (BUG-533, FIX-2253): FloorUploadCard.tsx:182-184 aria-valuemax=100, aria-valuemin=0, aria-valuenow=percent.
+    await test.step('[10-E-009] progressbar has aria-label and aria-valuenow/min/max (0..100)', async () => {
       const bar = card5.getByRole('progressbar');
       const attrs = await bar.evaluate((el) => ({
         label: el.getAttribute('aria-label'),
@@ -274,8 +275,8 @@ test('SCR-10 · FL-10-17 · [mocked response] uploads in flight: four at once, p
         max: el.getAttribute('aria-valuemax'),
       }));
       await attachJson('E03_10-E-009_progressbar_attrs.json', attrs);
-      suspected('10-E-009', `role="progressbar" without aria-valuenow/min/max: ${JSON.stringify(attrs)}`);
-      expect.soft([attrs.now, attrs.min, attrs.max], 'catalog: no aria-value* on the progressbar').toEqual([null, null, null]);
+      expect.soft([attrs.min, attrs.max], 'aria-valuemin / aria-valuemax').toEqual(['0', '100']);
+      expect.soft(attrs.now, 'aria-valuenow is the percent').toMatch(/^\d{1,3}$/u);
     });
 
     await test.step('[10-B-035] "Bắt đầu xử lý" during the upload → "Tầng 5 đang tải lên bản vẽ."', async () => {
@@ -300,10 +301,11 @@ test('SCR-10 · FL-10-17 · [mocked response] uploads in flight: four at once, p
     });
     await holdChunk2.release('abort');
 
-    await test.step('[10-A-021] after "Huỷ" the menu offers only "Xoá bản vẽ …"; submit → "Tầng 5 chưa tải xong bản vẽ."', async () => {
+    // QA-03e (BUG-534, FIX-2254): a user's "Huỷ" marks `wasCancelled` → canRetryUpload (useFloorUploadScreen.ts:1170-1173,
+    // 1328); the menu renders "Thử lại" before the trash (FloorUploadCard.tsx:134-144).
+    await test.step('[10-A-021] after "Huỷ" the menu offers "Thử lại" + "Xoá bản vẽ …"; submit → "Tầng 5 chưa tải xong bản vẽ."', async () => {
       const items = await cardMenuItems(page, f5.id, f5.name);
-      suspected('10-A-021', `cancel is a dead end: menu ${JSON.stringify(items)}`);
-      expect.soft(items, 'catalog: no "Thử lại" after a cancel').toEqual([`Xoá bản vẽ ${big}`]);
+      expect.soft(items, 'a cancelled upload can be retried').toEqual([UP.retry, `Xoá bản vẽ ${big}`]);
       await page.getByRole('button', { name: UP.submit, exact: true }).click();
       await expect.soft(page.getByTestId(UP.blockNotice)).toContainText(`${f5.name} chưa tải xong bản vẽ.`);
       await captureEvidence(page, 'E03_10-A-021_cancel_dead_end.png');
@@ -397,11 +399,13 @@ test('SCR-10 · FL-10-18 · [mocked response] init, chunk and complete failures 
       await captureEvidence(page, 'E03_10-B-023_init_network.png');
     });
 
-    await test.step('[10-A-024] "Đóng" on that error → the menu no longer offers "Thử lại"; file removed', async () => {
+    // QA-03e (BUG-535, FIX-2255/2258/2259): "Đóng" only hides that error (`dismissedProblem`, useFloorUploadScreen.ts:269-274,
+    // 1356); the problem and its "Thử lại" stay (UFU:1170-1173).
+    await test.step('[10-A-024] "Đóng" on that error → the sentence goes, the menu still offers "Thử lại"; file removed', async () => {
       await alertOf(f1.id).getByRole('button', { name: UP.dismiss, exact: true }).click();
+      await expect.soft(alertOf(f1.id)).toHaveCount(0);
       const retryLeft = await menuHasRetry(f1);
-      suspected('10-A-024', `"Đóng" drops the retry: menu offers "Thử lại" = ${String(retryLeft)}`);
-      expect.soft(retryLeft, 'catalog: retry lost after "Đóng"').toBe(false);
+      expect.soft(retryLeft, '"Đóng" keeps the retry').toBe(true);
       await captureEvidence(page, 'E03_10-A-024_retry_lost.png');
       await removeViaMenu(page, f1.id, f1.name, 'loi-mang.png');
     });
