@@ -799,6 +799,28 @@ describe('bàn phím và vùng chọn', () => {
 
     mounted.unmount();
   });
+
+  it('[BUG-403] "Tường chứa nó" phóng tới tường; Esc bỏ chọn thì về lại vừa khung (A12)', async () => {
+    const mounted = await mountSettled();
+    const hostWallId = (
+      OBJECT_LAYER_SEED.find((entry) => entry.displayId === 'D-007') as { hostWallId: string }
+    ).hostWallId;
+
+    act(() => mounted.result.current.onFrameResize({ width: 600, height: 400 }));
+    const fit = mounted.result.current.viewport;
+
+    await run(() => mounted.result.current.onSelectHostWall(hostWallId as `W-${string}`));
+    await waitFor(() => expect(mounted.result.current.viewport.zoom).toBeGreaterThan(fit.zoom * 1.5));
+
+    await pressKey(mounted.registry, 'Escape');
+
+    await waitFor(() => expect(mounted.result.current.viewport.zoom).toBeCloseTo(fit.zoom, 6));
+    expect(mounted.result.current.viewport.x).toBeCloseTo(fit.x, 3);
+    expect(mounted.result.current.viewport.y).toBeCloseTo(fit.y, 3);
+    expect(useStore.getState().selectedIds).toEqual([]);
+
+    mounted.unmount();
+  });
 });
 
 describe('vai trò và vỏ màn', () => {
