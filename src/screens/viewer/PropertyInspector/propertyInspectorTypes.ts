@@ -72,7 +72,9 @@ export type PropertyGroupId = (typeof PROPERTY_GROUP_IDS)[number];
 /** Nhãn tiếng Việt của từng nhóm, theo đúng đặc tả. */
 export const PROPERTY_GROUP_LABELS: Readonly<Record<PropertyGroupId, string>> = {
   geometry: 'Kích thước hình học',
-  material: 'Vật liệu',
+  // Nhóm này chứa loại tường, chiều mở, loại đồ đạc, tên và công năng phòng — chưa
+  // có trường vật liệu nào, nên gọi nó "Vật liệu" là nói sai (BUG-489).
+  material: 'Thông tin chung',
   relations: 'Quan hệ',
   inspection: 'Kiểm tra',
   advanced: 'Thông số nâng cao',

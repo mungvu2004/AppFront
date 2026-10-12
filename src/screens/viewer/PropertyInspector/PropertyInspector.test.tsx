@@ -94,6 +94,7 @@ import {
 import {
   DEFAULT_VISIBLE_FIELD_COUNT,
   DEFAULT_WALL_FIELD_IDS,
+  PROPERTY_GROUP_LABELS,
   PROPERTY_INSPECTOR_LAYOUT,
   type PropertyInspectorContainerProps,
 } from './propertyInspectorTypes';
@@ -1477,5 +1478,20 @@ describe('[BUG-489] phòng không có cửa đi', () => {
 
     expect(within(container).getByText(PROPERTY_INSPECTOR_TEXT.status.violation)).toBeInTheDocument();
     expect(header?.querySelector('p')?.textContent?.toLowerCase()).toBe(blocking?.message.toLowerCase());
+  });
+});
+
+describe('[BUG-489] tên và công năng phòng không nằm dưới nhãn "Vật liệu"', () => {
+  beforeEach(() => {
+    seedStore(createCleanBuildingScenario().graph);
+  });
+
+  it('nhóm chứa Tên/Công năng gọi là "Thông tin chung"', async () => {
+    const { container } = await renderWired([sampleRoomId(0)]);
+    const panel = within(container);
+
+    expect(panel.getByText(PROPERTY_GROUP_LABELS.material)).toBeInTheDocument();
+    expect(PROPERTY_GROUP_LABELS.material).toBe('Thông tin chung');
+    expect(panel.queryByText('Vật liệu')).toBeNull();
   });
 });
