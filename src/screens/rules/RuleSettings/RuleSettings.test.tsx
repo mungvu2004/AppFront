@@ -278,8 +278,23 @@ describe('BUG-464 — lỗi tải không phải ngõ cụt và không kèm số 
   });
 });
 
+describe('BUG-457 — ghi chú "Đã được thay thế bởi" không bị làm mờ cùng luật tắt', () => {
+  it('luật tắt vẫn mờ, nhưng không tổ tiên nào của ghi chú mang opacity-40', async () => {
+    const RuleSettingsView = await loadRuleSettingsView();
+
+    render(<RuleSettingsView {...buildRuleSettingsProps({ status: 'ready' })} />);
+
+    const notes = screen.getAllByText(/^Đã được thay thế bởi/u);
+    expect(notes.length).toBeGreaterThan(0);
+    for (const note of notes) {
+      expect(note.closest('.opacity-40')).toBeNull();
+    }
+    expect(document.querySelectorAll('.opacity-40').length).toBeGreaterThan(0);
+  });
+});
+
 /* ==========================================================================
- * C. Tiếp cận được và toàn chữ tiếng Việt có dấu, trên cây render thật.
+ * C.Tiếp cận được và toàn chữ tiếng Việt có dấu, trên cây render thật.
  * ========================================================================== */
 
 describe('R-72 — expectAccessible và expectVietnamese trên cây render thật', () => {
