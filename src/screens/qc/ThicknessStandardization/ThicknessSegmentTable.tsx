@@ -102,8 +102,17 @@ const GROUP_OF_KEY: Readonly<Record<ThicknessGroupKey, ThicknessGroup>> = {
   CONCRETE_COLUMN: 'CONCRETE_COLUMN',
 };
 
+/**
+ * Nhãn lựa chọn: "Cột BTCT" thay cho chữ đầy đủ — cùng cách `ThicknessField`/chú giải độ dày gọi
+ * nó. Bốn ô chữ đầy đủ rộng ~390 px, đẩy bảng tới ~1.040 px và cắt cột phải ở 1024 (BUG-405).
+ */
+const OPTION_LABELS: Readonly<Record<ThicknessGroup, string>> = {
+  ...THICKNESS_GROUP_LABELS,
+  CONCRETE_COLUMN: 'Cột BTCT',
+};
+
 const GROUP_OPTIONS = THICKNESS_GROUP_DISPLAY_ORDER.map((group) => ({
-  label: THICKNESS_GROUP_LABELS[group],
+  label: OPTION_LABELS[group],
   value: GROUP_KEY_OF[group],
 }));
 
@@ -161,7 +170,9 @@ export function ThicknessSegmentTable({
           <Table.Row tabIndex={undefined}>
             <Table.CheckboxHead checked={allSelected} indeterminate={someSelected} onChange={onToggleAllSelected} />
             <Table.Head>{HEADER_CODE}</Table.Head>
-            <Table.Head sortKey="measured">{HEADER_MEASURED}</Table.Head>
+            <Table.Head className="whitespace-normal" sortKey="measured">
+              {HEADER_MEASURED}
+            </Table.Head>
             <Table.Head>{HEADER_NORMALIZED}</Table.Head>
             <Table.Head sortKey="deviation">{HEADER_DEVIATION}</Table.Head>
             <Table.Head sortKey="confidence">{HEADER_CONFIDENCE}</Table.Head>
