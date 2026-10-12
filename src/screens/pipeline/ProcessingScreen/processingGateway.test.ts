@@ -461,3 +461,27 @@ describe('toStageBreakdown — lượt pending (NO-364)', () => {
     expect(result.supported && result.value.every((stage) => stage.status === 'queued')).toBe(true);
   });
 });
+
+describe('toStageBreakdown — lượt đọc cũ đến sau khung SSE (BUG-548)', () => {
+  const stages = getPipelineStages();
+  const statuses = (result: ReturnType<typeof toStageBreakdown>): readonly string[] =>
+    result.supported ? result.value.map((stage) => stage.status) : [];
+
+  it('SSE báo bước 3 chạy, #8 cũ báo bước 1: bước 3 không lùi về queued', () => {
+    const atStepThree = toStageBreakdown({ status: 'running', step: stages[2]!.id }, [], 1_000);
+    const previous = atStepThree.supported ? atStepThree.value : [];
+
+    const late = toStageBreakdown({ status: 'running', step: stages[0]!.id }, previous, 2_000);
+
+    expect(statuses(late).slice(0, 4)).toEqual(['done', 'done', 'running', 'queued']);
+  });
+
+  it('lượt đọc báo hỏng ở bước 1 không giữ bước 3 đang chạy', () => {
+    const atStepThree = toStageBreakdown({ status: 'running', step: stages[2]!.id }, [], 1_000);
+    const previous = atStepThree.supported ? atStepThree.value : [];
+
+    const failed = toStageBreakdown({ status: 'failed', step: stages[0]!.id }, previous, 2_000);
+
+    expect(statuses(failed)[2]).toBe('queued');
+  });
+});

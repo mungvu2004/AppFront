@@ -500,20 +500,25 @@ function matchStageIndex(step: string | undefined): number {
 
 /**
  * Một bước ĐÃ quan sát thấy xong thì không bị hạ xuống lại, trừ khi lượt đọc
- * mới báo chính nó hỏng.
+ * mới báo chính nó hỏng; một bước đã thấy CHẠY thì không lùi về "chờ", trừ khi
+ * lượt đọc mới báo hỏng.
  *
  * Đây là mặt "từng bước" của chính lời hứa mà `highestProgressReached` giữ cho
- * con số tổng: khi SSE chết và lượt quay vòng đọc lại một nhịp cũ hơn, thanh
- * tiến độ của các bước đã xong không được rơi về rỗng. Chỉ chặn việc HẠ xuống —
- * bước nào đang chạy vẫn đi theo lượt đọc mới nhất, vì máy chủ mới là nơi biết
- * hiện giờ nó đang làm gì.
+ * con số tổng: khi SSE chết và lượt quay vòng đọc lại một nhịp cũ hơn — hay một
+ * lượt đọc #8 đi trước khung SSE về sau nó — các bước đã tới không được rơi về
+ * rỗng (BUG-548). Lượt MỚI thì đi qua `pending`, nhánh đó dựng sáu bước từ đầu.
  */
 function keepObservedDone(
   next: PipelineStageState['status'],
   previous: PipelineStageState | undefined,
+  isFailing: boolean,
 ): PipelineStageState['status'] {
   if (previous?.status === 'done' && next !== 'failed') {
     return 'done';
+  }
+
+  if (previous?.status === 'running' && next === 'queued' && !isFailing) {
+    return 'running';
   }
 
   return next;
@@ -614,7 +619,7 @@ export function toStageBreakdown(
         return carryTimestamps(
           {
             id: stage.id,
-            status: keepObservedDone(isFailing ? 'failed' : 'running', before),
+            status: keepObservedDone(isFailing ? 'failed' : 'running', before, isFailing),
           },
           before,
           observedAtMs,
@@ -622,7 +627,7 @@ export function toStageBreakdown(
       }
 
       return carryTimestamps(
-        { id: stage.id, status: keepObservedDone('queued', before) },
+        { id: stage.id, status: keepObservedDone('queued', before, isFailing) },
         before,
         observedAtMs,
       );
