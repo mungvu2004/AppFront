@@ -239,7 +239,7 @@ async function verifyAsAdmin(browser: Browser, name: string, open: (page: Page) 
 
 const UNKNOWN_PROJECT_ID = 'x';
 // SCR-08..11 copy for a project the API answers 404 (verified in source, file:line in each test).
-const PROJECT_NOT_FOUND_TITLE = 'Không tìm thấy dự án này'; // components/feedback/ProjectSpatialGate.tsx:36
+const PROJECT_NOT_FOUND_TITLE = 'Không tìm thấy dự án này'; // components/feedback/ProjectSpatialGate.tsx:37
 const SETTINGS_LOAD_ERROR = 'Không tải được cài đặt dự án'; // ProjectSettings.tsx:113
 const UPLOAD_LOAD_ERROR = 'Không tải được danh sách tầng'; // FloorUploadScreen.tsx:69 — not shown for a 404 (FIX-1401, BUG-311)
 // SCR-37 copy: UserManagement.tsx:49-53, UserManagementToolbar.tsx:26-37, UserManagementTable.tsx:36, UserManagementDetail.tsx:107.

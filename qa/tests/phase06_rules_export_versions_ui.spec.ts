@@ -19,7 +19,7 @@
  *     still hydrates a graph for it (one level, `store/projectHydration.ts`), so rules / settings / export / data may
  *     show their result layout rather than an "empty" copy: those cases wait for ANY settled state of the screen and
  *     record which one in a `state` annotation (no guessed copy). SCR-32 shows "<floor> chưa có phiên bản nào"
- *     (`useVersionHistory.ts:603`) with the long floor name.
+ *     (`useVersionHistory.ts:606`) with the long floor name.
  *
  * Budget — logins: 2 real admin API logins (`signedInApi`, one per group: data states, no-layer); a browser login only
  * to replace a dead stored session (`ensureAdminSession`). A failed test starts a new worker, whose group `beforeAll`
@@ -55,7 +55,7 @@ import { ADMIN_STORAGE_STATE_FILE } from './support/state';
 import { UI_VIEWPORTS, verifyUi } from './support/ui-verify';
 
 /* Copy — every string checked in src/ (file noted). */
-/* SCR-28: RuleReport.tsx, RuleReportSummary.tsx:156, RuleReportLabels.tsx:96-99, RuleReport.container.tsx. */
+/* SCR-28: RuleReport.tsx, RuleReportSummary.tsx:157, RuleReportLabels.tsx:96-99, RuleReport.container.tsx. */
 const RULES_TITLE = 'Kiểm tra luật không gian';
 const RERUN = 'Chạy kiểm tra lại';
 const LEVEL_FILTER = 'Lọc theo mức độ';
@@ -99,11 +99,12 @@ const VIEW_MODE = 'Cách hiện cấu trúc';
 const DETAIL_TABS = 'Cách xem nội dung';
 /** `useSpatialJsonViewer.ts` matchLabel (`formatNumber`, vi grouping "."). */
 const POSITIVE_MATCH_PATTERN = /^[1-9][\d.]* \/ [1-9][\d.]*$/u;
-const NO_MATCH_LABEL = '0 / 0';
+/** `useSpatialJsonViewer.ts:88` NO_MATCH_LABEL (BUG-448, was "0 / 0"). */
+const NO_MATCH_LABEL = 'Không tìm thấy kết quả';
 const NO_MATCH_TERM = `${TEST_DATA_PREFIX}khong-khop-khoa-nao`;
 /** `SpatialJsonViewer.container.tsx:62` NARROW_QUERY `(width < 1024px)`: the detail half is not rendered below it. */
 const DETAIL_MIN_WIDTH = 1024;
-/* SCR-32: VersionHistory.tsx, VersionCompare.tsx:49-53, VersionLabelDialog.tsx, versionHistoryModel.ts:506-510. */
+/* SCR-32: VersionHistory.tsx, VersionCompare.tsx:49-53, VersionLabelDialog.tsx, versionHistoryModel.ts:538-542. */
 const FLOOR_SELECT = 'Tầng';
 const DIFF_TABS = 'Cách xem khác biệt';
 const RIGHT_VERSION_SELECT = 'Phiên bản đối chiếu';
@@ -112,8 +113,8 @@ const LABEL_FIELD = 'Nhãn';
 const RESTORE_BUTTON = 'Phục hồi phiên bản này';
 const RESTORE_CONFIRM_TITLE = /Phục hồi phiên bản .+ của .+\?/u;
 const KEEP_AS_IS = 'Để nguyên';
-const VERSIONS_EMPTY_SUFFIX = ' chưa có phiên bản nào'; // useVersionHistory.ts:603
-/** `versionHistoryCompare.ts:33-34` TEACHING_SENTENCE (one version; below 1024 also shown for zero, BUG-473). */
+const VERSIONS_EMPTY_SUFFIX = ' chưa có phiên bản nào'; // useVersionHistory.ts:606
+/** `versionHistoryCompare.ts:33-34` TEACHING_SENTENCE (one version; was also shown for zero below 1024 until BUG-473). */
 const VERSIONS_ONE_PATTERN = /^Mới có một phiên bản nên chưa có gì để so sánh/u;
 
 const PROJECTS_PATH = '/api/projects';
@@ -180,6 +181,12 @@ async function settled(candidates: Readonly<Record<string, Locator>>): Promise<s
 const levelFilter = (page: Page): Locator => page.getByRole('radiogroup', { name: LEVEL_FILTER, exact: true });
 /** Group expanders: `RuleReportSection` puts the toggle button inside an `<h3>` (phase06 main). */
 const groupExpanders = (page: Page): Locator => page.getByRole('heading', { level: 3 }).getByRole('button');
+/**
+ * Finding rows of an expanded group: a `<table>` row from 1024 px, a card `<li>` below it (`RuleReportGroups.tsx:209-237`,
+ * compact via `RuleReport.container.tsx:234` `useBreakpoint('(width < 1024px)')`, BUG-433). Both hold the message button
+ * first, the floor ("—" when none) and "Xem".
+ */
+const findingRows = (section: Locator): Locator => section.getByRole('row').or(section.getByRole('listitem'));
 
 /** `/rules` with a run result (`ready`/`partial` filter bar, `done`, or the empty / error copy). Returns the state. */
 async function openRules(page: Page, projectId: string): Promise<string> {
@@ -371,24 +378,33 @@ test.describe('U06 UI verify — data states (own pipeline project, this file cr
       });
     });
 
-    test('U06 · SCR-28 rules, rule group expanded (rows with "Xem")', async ({ browser }) => {
+    test('U06 · SCR-28 rules, rule group expanded (rows with "Xem"; cards below 1024)', async ({ browser }) => {
       await verifyAsAdmin(browser, 'U06_rules_group_expanded', async (p) => {
         const section = await expandFirstGroup(p);
-        await expect(section.getByRole('row').first()).toBeVisible();
+        await expect(findingRows(section).first()).toBeVisible();
+        await expect(section.getByRole('button', { name: VIEW_ROW, exact: true }).first()).toBeVisible();
       });
     });
 
-    test('U06 · SCR-28 rules, row → ViolationDetail sheet open', async ({ browser }) => {
+    test('U06 · SCR-28 rules, row (card below 1024) → ViolationDetail sheet open and in view', async ({ browser }) => {
       await verifyAsAdmin(browser, 'U06_rules_violation_detail', async (p) => {
         const section = await expandFirstGroup(p);
         // ViolationDetail needs a floor (RuleReport.container.tsx: activeFloorId ?? row.levelId), as phase06 main.
-        const rows = section
-          .getByRole('row')
+        const rows = findingRows(section)
           .filter({ has: p.getByRole('button', { name: VIEW_ROW, exact: true }) })
           .filter({ hasNot: p.getByText('—', { exact: true }) });
         test.skip((await rows.count()) === 0, 'data: the expanded group has no row with a floor');
         await rows.first().getByRole('button').first().click();
-        await expect(p.getByRole('complementary', { name: VIOLATION_DETAIL })).toBeVisible();
+        const sheet = p.getByRole('complementary', { name: VIOLATION_DETAIL });
+        await expect(sheet).toBeVisible();
+        // Below 1024 the row is a card and the detail is a bottom sheet (ViolationDetail.tsx:105 PANEL_BOTTOM, max 70 %
+        // high). `absolute bottom-0` of its container can land below the fold when the page is taller than the window;
+        // SOFT so the remaining widths are still measured, with the sheet box noted for the review.
+        if ((p.viewportSize()?.width ?? 0) < DETAIL_MIN_WIDTH) {
+          const box = await sheet.boundingBox();
+          test.info().annotations.push({ type: 'sheet', description: `${String(p.viewportSize()?.width)} px: ${JSON.stringify(box)}` });
+          await expect.soft(sheet, 'bottom sheet fully inside the viewport').toBeInViewport({ ratio: 1 });
+        }
       });
     });
   });
@@ -488,7 +504,7 @@ test.describe('U06 UI verify — data states (own pipeline project, this file cr
       });
     });
 
-    test('U06 · SCR-31 data, search with no match ("0 / 0")', async ({ browser }) => {
+    test('U06 · SCR-31 data, search with no match ("Không tìm thấy kết quả")', async ({ browser }) => {
       await verifyAsAdmin(browser, 'U06_data_search_no_match', async (p) => {
         await openDataTree(p);
         await p.getByRole('textbox', { name: JSON_SEARCH, exact: true }).fill(NO_MATCH_TERM);
@@ -681,15 +697,12 @@ test.describe('U06 UI verify — no-layer project, 80-char name + 65-char floor 
   });
 
   test('U06 · SCR-32 versions, floor without versions → empty copy with the 65-char name', async ({ browser }) => {
-    // BUG-473: below 1024 `useVersionHistory.ts:488-489` returns 'collapsed' before 'empty', so a floor with 0 versions
-    // shows the one-version sentence (versionHistoryCompare.ts:33-34) instead of "<floor> chưa có phiên bản nào". The
-    // open step settles on that sentence (no 30 s wait, every width measured) and the wrong copy stays a SOFT failure:
-    // app behaviour, not asserted away.
+    // BUG-473 (fixed, FIX-1952): `useVersionHistory.ts:489-490` checks 'empty' before the below-1024 'collapsed', so every
+    // width shows "<floor> chưa có phiên bản nào". The open step still settles on the one-version sentence
+    // (versionHistoryCompare.ts:33-34) if it ever comes back, so a regression fails here fast instead of timing out.
     await verifyAsAdmin(browser, 'U06_versions_empty', async (p) => {
       const state = await openVersions(p, own(), LONG_FLOOR_NAME);
-      expect
-        .soft(state, `${String(p.viewportSize()?.width)} px: app shows the one-version copy for 0 versions (useVersionHistory.ts:488-489)`)
-        .toBe('empty');
+      expect(state, `${String(p.viewportSize()?.width)} px: a floor with 0 versions shows the empty copy`).toBe('empty');
     });
   });
 });

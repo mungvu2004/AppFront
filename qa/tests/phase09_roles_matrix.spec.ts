@@ -76,11 +76,11 @@ const OBJECTS_RAIL = 'Công cụ lớp đối tượng';
 const ROOMS_FORBIDDEN_TITLE = 'Không có quyền sửa lớp phòng';
 /** ThicknessStandardization.tsx:111 */
 const THICKNESS_FORBIDDEN_TITLE = 'Không có quyền sửa độ dày tường';
-/** ExportPanel.tsx:199, :236; ExportPanelFooter.tsx:69 */
+/** ExportPanel.tsx:211, :248; ExportPanelFooter.tsx:69 */
 const EXPORT_FORBIDDEN_TITLE = 'Không có quyền xuất bản vẽ';
 const EXPORT_HEADING = 'Xuất bản vẽ';
 const EXPORT_BUTTON = 'Xuất';
-/** versionHistoryModel.ts:463 RESTORE_FORBIDDEN_REASON; VersionHistory.tsx:160,173; VersionList.tsx */
+/** versionHistoryModel.ts:492 RESTORE_FORBIDDEN_REASON; VersionHistory.tsx:173,186; VersionList.tsx */
 const VERSIONS_READ_ONLY = 'Vai trò của bạn trên dự án này chỉ đọc được lịch sử, nên nút phục hồi không hiện';
 const VERSION_RESTORE = 'Phục hồi phiên bản này';
 const VERSION_LABEL = 'Gắn nhãn phiên bản này';
@@ -94,10 +94,10 @@ const VIEWER_RAIL = 'Công cụ khung nhìn';
 const VIEWER_VIEWPORT = 'Khung nhìn mô hình';
 /** Status bar of the viewer fixture (e2e/v9/v9.ts FIXTURE_STATUS). */
 const VIEWER_FIXTURE_STATUS = '4 tầng · 14 phòng · 248,60 m²';
-/** SpatialJsonViewer.tsx:44 and its search box label */
+/** SpatialJsonViewer.tsx:53 and its search box label */
 const JSON_FORBIDDEN_TITLE = 'Không có quyền xem dữ liệu';
 const JSON_SEARCH = 'Tìm theo khoá hoặc giá trị';
-/** RuleReport.tsx (h1 "Kiểm tra luật không gian", :302 rerun, :355 confirm) */
+/** RuleReport.tsx (h1 "Kiểm tra luật không gian", :305 rerun, :358 confirm) */
 const RULES_HEADING = 'Kiểm tra luật không gian';
 const RULES_RERUN = 'Chạy kiểm tra lại';
 const RULES_CONFIRM = 'Xác nhận đã xử lý';
