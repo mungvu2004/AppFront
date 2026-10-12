@@ -292,7 +292,10 @@ export function CornerHandleLayer({
               return;
             }
 
+            // Tay nắm đã dùng phím này: không để nó lan tới phím tắt đổi tầng trên `window`,
+            // nếu không vừa nhích vừa đổi tầng và mất bản nháp góc (BUG-540).
             event.preventDefault();
+            event.stopPropagation();
             onDragCorner(
               corner.id,
               clampRatio(corner.xRatio + nudge.dx),
