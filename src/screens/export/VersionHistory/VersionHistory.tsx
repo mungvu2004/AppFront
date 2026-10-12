@@ -7,7 +7,8 @@
  *
  * Quyết định lệch khỏi đặc tả, ghi lại vì đặc tả không nói rõ:
  *  - "Phiên bản này" ở chân màn (nút phục hồi + nút xuất) trỏ vào
- *    `model.compare.rightVersionId` — phiên bản đang được xem ở vùng so sánh. Đặc tả không
+ *    `model.compare.rightVersionId` (vắng thì `leftVersionId` — bản duy nhất còn tích) — phiên
+ *    bản đang được xem ở vùng so sánh. Đặc tả không
  *    nói phiên bản mục tiêu lấy từ đâu; đây là lựa chọn hợp lý nhất vì đó là phiên bản người
  *    dùng đang nhìn, không phải phiên bản gốc bên trái.
  *  - Dưới 1024, TOÀN BỘ cột trái được thay bằng một `Select` duy nhất (không chỉ thu nhỏ danh
@@ -32,7 +33,8 @@ import { VersionList } from './VersionList';
 import type { VersionHistoryProps } from './types';
 
 export function VersionHistory({ model, actions }: VersionHistoryProps) {
-  const reviewedVersionId = model.compare.rightVersionId;
+  // Bản bên phải; chỉ tích một bản thì chính bản ấy, nút phục hồi không tắt vô cớ (BUG-470).
+  const reviewedVersionId = model.compare.rightVersionId ?? model.compare.leftVersionId;
   const reviewedRow = model.rows.find((row) => row.id === reviewedVersionId) ?? null;
   const [isLabelOpen, setIsLabelOpen] = useState(false);
 
@@ -144,6 +146,9 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
       <div className="sticky bottom-0 flex flex-col gap-3 border-t border-border-default bg-bg-app pt-3 lg:flex-row lg:items-center">
         <div className="flex flex-1 flex-col gap-1">
           <p className="text-[13px] text-text-secondary">{model.restoreCaption}</p>
+          {model.canRestore && reviewedVersionId === null && (
+            <p className="text-[13px] text-text-tertiary">Chọn một phiên bản để phục hồi.</p>
+          )}
           {!model.canRestore && model.restoreHiddenReason !== null && (
             <p className="flex items-center gap-1.5 text-[13px] text-text-tertiary">
               <AlertTriangle size={14} aria-hidden="true" />

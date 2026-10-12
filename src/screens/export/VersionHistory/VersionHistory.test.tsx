@@ -62,6 +62,7 @@ import type {
   VersionHistoryResult,
 } from './types';
 import {
+  buildCompareModel,
   buildVersionHistoryProps,
   createVersionsServerFake,
   WIRE_CURRENT_WALLS,
@@ -1447,5 +1448,36 @@ describe('[BUG-459] hộp phục hồi không tự mâu thuẫn về việc xoá
     expect(confirm.reassurance).not.toMatch(/không xoá gì/u);
     expect(confirm.reassurance).toMatch(/^Phục hồi không xoá phiên bản nào: /u);
     expect(confirm.reassurance).toMatch(/Riêng lịch sử hoàn tác \(Ctrl\+Z\)/u);
+  });
+});
+
+describe('[BUG-470] tích đúng một phiên bản thì nút phục hồi nhắm vào chính bản ấy', () => {
+  it('chỉ còn bản trái (v13) → "Phục hồi phiên bản này" bật và phục hồi v13', () => {
+    const requestRestore = vi.fn();
+    const props = buildVersionHistoryProps(
+      'success',
+      { compare: buildCompareModel({ rightVersionId: null }) },
+      { requestRestore },
+    );
+    const { unmount } = renderWithProviders(<VersionHistory {...props} />);
+    const restore = screen.getByRole('button', { name: 'Phục hồi phiên bản này' });
+
+    expect(restore).not.toBeDisabled();
+    act(() => {
+      restore.click();
+    });
+    expect(requestRestore).toHaveBeenCalledWith('v13');
+    unmount();
+  });
+
+  it('chưa tích bản nào → nút tắt kèm một câu nói vì sao', () => {
+    const props = buildVersionHistoryProps('success', {
+      compare: buildCompareModel({ leftVersionId: null, rightVersionId: null }),
+    });
+    const { unmount } = renderWithProviders(<VersionHistory {...props} />);
+
+    expect(screen.getByRole('button', { name: 'Phục hồi phiên bản này' })).toBeDisabled();
+    expect(screen.getByText('Chọn một phiên bản để phục hồi.')).toBeTruthy();
+    unmount();
   });
 });
