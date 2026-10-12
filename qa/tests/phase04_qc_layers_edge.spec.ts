@@ -1016,7 +1016,11 @@ test.describe('E04 SCR-18 / SCR-19 dimension OCR and axes', () => {
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.scale(project.id, project.floor.id));
       await expect(page.getByRole('region', { name: SCALE.screen, exact: true })).toBeVisible();
       expect(writesSince(api, mark), 'empty dimensions + link write nothing').toEqual([]);
-      await captureEvidence(page, 'E04_dims_link_scale.png');
+      // BUG-419: the target IS the no-drawing scale screen (E04_scale_no_drawing shows the same state), so the shot names
+      // where it came from; the link itself is on E04_dims_empty.
+      await captureEvidence(page, 'E04_dims_link_scale.png', {
+        caption: `Reached by the link "${DIM.toScale}" of ${ROUTES.project.dimensions(project.id, project.floor.id)} (E04_dims_empty): same floor's scale screen, no drawing yet`,
+      });
     });
   });
 
