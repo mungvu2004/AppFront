@@ -179,3 +179,18 @@ describe('B-V12-05 — xuất xong thì tệp tải về máy, đúng lời màn
     expect(deliver.mock.calls[0]?.[0]).toMatchObject({ fileName: expect.stringMatching(/\.json$/u) });
   });
 });
+
+describe('[BUG-467] tuỳ chọn ảnh: nhãn nào cũng có giá trị', () => {
+  it('chưa có tầng đang mở thì "Góc nhìn hiện tại" là "—", không để trống', () => {
+    const gateway = createExportPanelGateway({ deliver: vi.fn() });
+    const queryClient = createTestQueryClient();
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+
+    expect(useStore.getState().activeFloorId).toBeNull();
+    const { result } = renderHook(() => useExportPanel({ projectId: PROJECT_ID, gateway }), { wrapper });
+
+    expect(result.current.options.image.viewId).toBe('—');
+  });
+});

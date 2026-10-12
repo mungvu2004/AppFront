@@ -289,7 +289,8 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
   const [selectedFormatId, setSelectedFormatId] = useState<ExportFormatId>('glb');
   const [deselectedFloorIds, setDeselectedFloorIds] = useState<readonly string[]>([]);
   const [optionsView, setOptionsView] = useState<ExportOptionsView>(() =>
-    initialOptions(activeFloorId ?? ''),
+    // Không có khung nhìn thì nhãn "Góc nhìn hiện tại:" vẫn phải có giá trị (BUG-467).
+    initialOptions(activeFloorId ?? MISSING_VALUE),
   );
 
   // Bề ngang ảnh đến sau một nhịp vì `@/lib/export/screenshot` được nạp muộn;

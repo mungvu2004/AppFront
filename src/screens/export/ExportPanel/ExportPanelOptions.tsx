@@ -179,7 +179,7 @@ function FormatOptionsBody({ formatId, options, capabilities, onChangeOptions }:
           Góc nhìn hiện tại: <span className="font-mono text-text-primary">{options.image.viewId}</span>
         </p>
         <p>
-          chiều rộng xuất: <span className="font-mono text-text-primary">{options.image.widthLabel}</span>
+          Chiều rộng xuất: <span className="font-mono text-text-primary">{options.image.widthLabel}</span>
         </p>
       </div>
     );
