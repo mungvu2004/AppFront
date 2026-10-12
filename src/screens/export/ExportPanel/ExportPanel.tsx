@@ -67,6 +67,7 @@ import { ExportPanelPreflight } from './ExportPanelPreflight';
 import type {
   ExportCapabilities,
   ExportedFileRow,
+  ExportFloorChoice,
   ExportFormatId,
   ExportPanelProps,
   PreflightRow,
@@ -79,10 +80,20 @@ function findPreflightRow(rows: readonly PreflightRow[], id: PreflightRow['id'])
 /**
  * Định dạng này có sinh ra được một tệp thật không.
  *
- * `.glb` và Spatial JSON luôn có; PDF và ảnh phụ thuộc hai cờ mà tầng logic
+ * Spatial JSON luôn có, `.glb` khi có ít nhất một tầng được chọn; PDF và ảnh phụ thuộc hai cờ mà tầng logic
  * hôm nay trả `false`. Suy ra từ props, không phải một trường mới của hợp đồng.
  */
-function canDeliverFormat(id: ExportFormatId, capabilities: ExportCapabilities): boolean {
+function canDeliverFormat(
+  id: ExportFormatId,
+  capabilities: ExportCapabilities,
+  floors: readonly ExportFloorChoice[],
+): boolean {
+  // `.glb` dựng hình theo TẦNG: chưa chọn tầng nào thì không có tệp nào để dựng (BUG-466) —
+  // dòng "Chưa chọn tầng nào để xuất." của khối kiểm tra nói lý do.
+  if (id === 'glb') {
+    return floors.some((floor) => floor.isSelected);
+  }
+
   if (id === 'pdf') {
     return capabilities.canRenderPdfBytes;
   }
@@ -191,7 +202,7 @@ export function ExportPanel(props: ExportPanelProps) {
   const isLoading = status === 'loading';
   const selectedFormat = formats.find((format) => format.isSelected) ?? formats[0] ?? null;
   const canExportSelected =
-    selectedFormat !== null && canDeliverFormat(selectedFormat.id, capabilities);
+    selectedFormat !== null && canDeliverFormat(selectedFormat.id, capabilities, floors);
 
   if (status === 'forbidden') {
     return (

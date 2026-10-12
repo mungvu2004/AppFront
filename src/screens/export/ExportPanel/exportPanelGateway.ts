@@ -304,7 +304,7 @@ export function buildPreflightRows(input: PreflightInput): readonly PreflightRow
   const unreviewed = collectUnreviewed(graph, levels);
   const violationCount = violations.length;
 
-  return [
+  const rows: PreflightRow[] = [
     {
       id: 'approval',
       label:
@@ -340,6 +340,10 @@ export function buildPreflightRows(input: PreflightInput): readonly PreflightRow
           : ROUTES.project.objects(projectId, unreviewed.levelId),
     },
   ];
+
+  // Chưa chọn tầng nào thì "mọi đối tượng … đều đã duyệt" là đúng một cách rỗng — một chấm
+  // xanh nằm ngay dưới "Chưa chọn tầng nào để xuất." (BUG-466). Bỏ hẳn dòng ấy.
+  return levels.length === 0 ? rows.filter((row) => row.id !== 'unreviewed') : rows;
 }
 
 interface UnreviewedTally {

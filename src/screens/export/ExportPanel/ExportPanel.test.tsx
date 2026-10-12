@@ -37,6 +37,7 @@ import {
   floorsWithOneUnapproved,
   formatsSelecting,
 } from './exportPanelFixtures';
+import { buildPreflightRows } from './exportPanelGateway';
 import { EXPORT_FORMAT_IDS } from './types';
 import type { ExportPanelProps } from './types';
 import * as ExportPanelModule from './ExportPanel';
@@ -185,6 +186,37 @@ describe('khối kiểm tra trước khi xuất không bao giờ chặn nút "Xu
     }
 
     expect(container.textContent).toMatch(/Còn \d+ vi phạm chưa xử lý\./u);
+  });
+});
+
+describe('[BUG-466] .glb mà chưa chọn tầng nào: không nút "Xuất", không dòng xanh', () => {
+  it('bỏ chọn mọi tầng khi đang chọn .glb thì nút "Xuất" rời DOM', async () => {
+    const ExportPanelView = await loadExportPanelView();
+    const props = buildExportPanelProps('success', {
+      formats: formatsSelecting('glb'),
+      floors: floorsWithOneUnapproved().map((floor) => ({ ...floor, isSelected: false })),
+    });
+    render(<ExportPanelView {...props} />);
+
+    expect(screen.queryByRole('button', { name: 'Xuất' })).toBeNull();
+  });
+
+  it('Spatial JSON không phụ thuộc tầng nên vẫn xuất được khi chưa chọn tầng', async () => {
+    const ExportPanelView = await loadExportPanelView();
+    const props = buildExportPanelProps('success', {
+      formats: formatsSelecting('spatial-json'),
+      floors: floorsWithOneUnapproved().map((floor) => ({ ...floor, isSelected: false })),
+    });
+    render(<ExportPanelView {...props} />);
+
+    expect(screen.getByRole('button', { name: 'Xuất' })).toBeTruthy();
+  });
+
+  it('không tầng nào được chọn thì không có dòng "mọi đối tượng … đều đã duyệt"', () => {
+    const rows = buildPreflightRows({ projectId: 'P-1', graph: null, levels: [], violations: [] });
+
+    expect(rows.map((row) => row.id)).not.toContain('unreviewed');
+    expect(rows.find((row) => row.id === 'approval')?.tone).toBe('attention');
   });
 });
 
