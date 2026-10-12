@@ -99,6 +99,8 @@ import { useWallLayerReview } from './useWallLayerReview';
 export const WALL_LAYER_REVIEW_SCREEN_ID = 'wall-layer-review';
 
 const MISSING_PARAMS_TITLE = 'Thiếu mã dự án hoặc mã tầng';
+/** Giữa cạnh dưới như mặc định, nhưng cao hơn thanh trạng thái của màn (BUG-397) — lớp CSS có sẵn. */
+const TOUR_CHIP_ANCHOR = 'bottom-16 left-1/2 -translate-x-1/2';
 const MISSING_PARAMS_MESSAGE =
   'Đường dẫn không mang đủ mã dự án và mã tầng, nên chưa mở được lớp tường. Quay lại danh sách tầng rồi chọn lại tầng cần duyệt.';
 
@@ -236,7 +238,8 @@ export function WallLayerReviewContainer(props: WallLayerReviewContainerProps) {
       screenId={WALL_LAYER_REVIEW_SCREEN_ID}
     >
       <WiredWallLayerReview {...props} />
-      <EditorTourContainer hostId="wall-layer-review" />
+      {/* Chip "Xem hướng dẫn" đứng TRÊN thanh trạng thái (64 px), không vắt qua viền của nó (BUG-397). */}
+      <EditorTourContainer chipAnchorClassName={TOUR_CHIP_ANCHOR} hostId="wall-layer-review" />
     </ScreenErrorBoundary>
   );
 }
