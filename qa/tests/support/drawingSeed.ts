@@ -156,6 +156,59 @@ export async function createSkewedDrawingProject(api: APIRequestContext, slug: s
 }
 
 /**
+ * QA-03d (SCR-11 "Các tầng đã đo"): project `qa-<runId>-<slug>-<uniq>` with `floorNames`, `png` uploaded to EVERY floor
+ * (#5 → #6 → #7 per floor, same body as {@link createDrawingProject}); resolves once #30 lists every floor `isMeasured`
+ * (BE quality/assessments.py:253-279: `floors` = floors with a live drawing). Deletes the project on any setup failure.
+ * Budget: one `drawings_init` and one fake-ML run per floor, #30 polls every 2 s.
+ */
+export async function createMeasuredFloorsProject(
+  api: APIRequestContext,
+  slug: string,
+  png: Buffer,
+  floorNames: readonly string[],
+): Promise<{ readonly projectId: string; readonly floors: readonly { readonly id: string; readonly name: string }[] }> {
+  const first = await createDrawingProject(api, slug, png, floorNames);
+  const { projectId } = first;
+  try {
+    const read = await api.get(`${PROJECTS}/${projectId}`);
+    expect(read.status(), `setup: GET ${PROJECTS}/${projectId}`).toBe(200);
+    const rows = asRecord(await read.json(), `GET ${PROJECTS}/:id`).floors;
+    const floors = floorNames.map((name) => {
+      const row = Array.isArray(rows) ? rows.map((item) => asRecord(item, 'floor')).find((item) => item.name === name) : undefined;
+      if (typeof row?.id !== 'string') throw new Error(`setup: floor "${name}" was not created`);
+      return { id: row.id, name };
+    });
+    const base = `${PROJECTS}/${projectId}/drawings/uploads`;
+    for (const floor of floors.slice(1)) {
+      const init = await api.post(`${PROJECTS}/${projectId}/floors/${floor.id}/drawings/uploads`, {
+        data: { fileName: `${slug}-${floor.id}.png`, floorId: floor.id, mimeType: 'image/png', projectId, sizeBytes: png.length },
+      });
+      expect(init.status(), `setup: upload init (#5) for ${floor.name}`).toBe(200);
+      const uploadId = String(asRecord(await init.json(), 'init').id);
+      const chunk = await api.post(`${base}/${uploadId}/chunks`, { data: { chunk: png.toString('base64'), chunkIndex: 0 } });
+      expect(chunk.status(), `setup: upload chunk 0 (#6) for ${floor.name}`).toBe(200);
+      const done = await api.post(`${base}/${uploadId}/complete`, { data: { uploadId } });
+      expect(done.status(), `setup: upload complete (#7) for ${floor.name}`).toBe(200);
+    }
+    await expect
+      .poll(
+        async () => {
+          const res = await api.get(`${PROJECTS}/${projectId}/floors/${first.floorId}/quality`);
+          if (res.status() !== 200) return `#30 ${String(res.status())}`;
+          const listed = ImageQualityAssessmentSchema.parse(await res.json()).floors;
+          return `${String(listed.filter((f) => f.isMeasured).length)}/${String(floors.length)}`;
+        },
+        { message: 'setup: #30 lists every floor measured', timeout: PIPELINE_TIMEOUT_MS, intervals: [2_000] },
+      )
+      .toBe(`${String(floors.length)}/${String(floors.length)}`);
+    return { projectId, floors };
+  } catch (error) {
+    await deleteSeededProject(api, projectId);
+    throw error;
+  }
+}
+
+/**
  * Polls #8 progress of `uploadId` every 2 s until `completed` (BE drawings/progress.py:33-68). Own loop, not
  * `expect.poll`: a `failed` run throws with its error code at once, not after PIPELINE_TIMEOUT_MS.
  */
