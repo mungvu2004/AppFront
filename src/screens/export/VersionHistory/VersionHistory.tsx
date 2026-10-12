@@ -39,10 +39,11 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
   const [isLabelOpen, setIsLabelOpen] = useState(false);
 
   // Ô "Tầng" đứng trên mọi nhánh trả sớm (trừ `forbidden`): đổi tầng được cả khi tầng này rỗng/lỗi.
+  // Rộng tới 672 (không phải 320): tên tầng dài 65 ký tự không bị cắt ở khổ rộng (BUG-455).
   const withFloorSelect = (content: ReactNode) => (
     <div className="flex h-full flex-col gap-3">
       {model.floorSelect !== null && (
-        <div className="max-w-xs px-4 pt-4">
+        <div className="max-w-2xl px-4 pt-4">
           <Select
             label={model.floorSelect.label}
             options={model.floorSelect.options.map((option) => ({ label: option.label, value: option.id }))}
