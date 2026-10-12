@@ -137,10 +137,15 @@ export function ImageRegionLayer({
   }
 
   const hasHighlight = highlightedRegionId !== null;
+  // Vùng lớn vẽ trước, vùng nhỏ sau cùng nên nằm trên: con trỏ trong vùng "ảnh bị nghiêng" trúng
+  // chính nó chứ không trúng khung 96 % phủ lên (BUG-539).
+  const byAreaDescending = [...regions].sort(
+    (a, b) => b.widthRatio * b.heightRatio - a.widthRatio * a.heightRatio,
+  );
 
   return (
     <div aria-label={REGION_GROUP_LABEL} className="absolute inset-0" role="group">
-      {regions.map((region) => {
+      {byAreaDescending.map((region) => {
         const isHighlighted = region.id === highlightedRegionId;
         const appearance = applyEmphasis(
           REGION_EMPHASIS_TOKENS[region.level],
