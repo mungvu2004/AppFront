@@ -94,6 +94,13 @@ for (const f of specs) {
 }
 if (waits.length) say(`fixed waits (flake risk; mark intended ones with "fixed-wait-ok"): ${waits.length}\n  ${waits.join('\n  ')}`);
 
+/* 2b. shared main-chain state: worktrees start without it (QA-04c run-52 failed on it) */
+const STATE = join(SUITE, 'tests', '.state', 'runtime-session.json');
+if (!existsSync(STATE) && Number(NN) > 2 && opt('layers', 'main').split(',').includes('main')) {
+  say(`missing ${STATE}: copy F:/App/AppFront/qa/tests/.state/ into this suite (or run with --layers ui,api,edge)`);
+  process.exit(2);
+}
+
 /* 3. run */
 const prev = String(Number(NN) - 1).padStart(2, '0');
 const layers = opt('layers', 'main,ui,api,edge');
