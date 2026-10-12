@@ -130,8 +130,10 @@ const OBJ = {
   emptyTitle: 'Chưa nhận ra đối tượng nào', // OV:67, OG:1250
   emptyExplanation:
     'Nhận diện nội thất phụ thuộc kiểu vẽ của bản gốc, nên bản vẽ ít ký hiệu quy ước có thể không ra kết quả nào.', // OG:1251-1252
-  addManually: 'Thêm thủ công', // OV:68
-  addNoWall: 'Tầng này chưa có đoạn tường nào để đặt đối tượng mới lên.', // OG:1261
+  addManually: 'Thêm thủ công', // OV:69 (floor with at least one wall)
+  emptyNoWall:
+    'Tầng này chưa có đoạn tường nào, nên chưa có chỗ đặt cửa hay cửa sổ. Duyệt lớp tường trước rồi quay lại đây.', // OG:1262-1263 (FIX-1812)
+  openWallLayer: 'Sang duyệt tường', // OV:70, OV:97-99 (replaces "Thêm thủ công" when the floor has no wall)
   approve: 'Duyệt đối tượng này', // OI:184
   inspectorEmpty: 'Chọn một đối tượng trên bản vẽ hoặc trong danh sách để xem chi tiết.', // OI:185
 } as const;
@@ -921,20 +923,21 @@ function doorAndWindow(ids: { wall: string; door: string; window: string }): Lay
 }
 
 test.describe('E04 SCR-17 object layer review', () => {
-  test('E04 · SCR-17 no wall, no object → empty state; "Thêm thủ công" → "Tầng này chưa có đoạn tường nào…" toast, no write', async ({ browser }) => {
+  test('E04 · SCR-17 no wall, no object → "Tầng này chưa có đoạn tường nào…" empty state; "Sang duyệt tường" → walls screen, no write', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page, api } = admin;
       const project = await createProject(admin, 'obj-empty');
       await openObjects(page, project);
-      await expect(page.getByText(OBJ.emptyTitle, { exact: true })).toBeVisible(); // OV:83-90
-      // UO:1294 emptyNotice; shown by the list EmptyState (OV:83-90) and the status bar (ObjectLayerStatusBar.tsx).
-      await expect(page.getByText(OBJ.emptyExplanation, { exact: true }).first()).toBeVisible();
+      await expect(page.getByText(OBJ.emptyTitle, { exact: true })).toBeVisible(); // OV:94-105
+      // UO:1380-1384 emptyNotice = emptyNoWall (hasNoWall, UO:1337); shown by the list EmptyState and the status bar.
+      await expect(page.getByText(OBJ.emptyNoWall, { exact: true }).first()).toBeVisible();
+      // UO:1450-1453 onOpenWallLayer is set, so the EmptyState action is the wall-layer exit, not "Thêm thủ công".
+      await expect(page.getByRole('button', { name: OBJ.addManually, exact: true })).toHaveCount(0);
       const mark = api.length;
-      await page.getByRole('button', { name: OBJ.addManually, exact: true }).click();
-      // UO:946-962: no wall to host a door → notification bus publishes addNoWall.
-      await expect(toastsRegion(page).getByText(OBJ.addNoWall)).toBeVisible();
+      await page.getByRole('button', { name: OBJ.openWallLayer, exact: true }).click();
+      await expect.poll(() => pathOf(page)).toBe(ROUTES.project.walls(project.id, project.floor.id));
       await quiet(page);
-      expect(writesSince(api, mark), '"Thêm thủ công" without a wall writes nothing').toEqual([]);
+      expect(writesSince(api, mark), '"Sang duyệt tường" writes nothing').toEqual([]);
       await captureEvidence(page, 'E04_objects_add_no_wall.png');
     });
   });
