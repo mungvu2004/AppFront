@@ -508,16 +508,22 @@ export const createHttpClient = ({
                 ...(idempotencyKey ? { idempotencyKey } : {}),
               })
             ) {
-              retryCount += 1;
-              const retryAfterValue = response.headers.get('Retry-After');
-              const delayMs = computeRetryDelayMs(attemptIndex, retryAfterValue);
-              attemptIndex += 1;
-              const waitFailure = await awaitRetryDelay(delayMs);
-              if (waitFailure) {
-                errorKind = waitFailure.kind;
-                return err(waitFailure);
+              const delayMs = computeRetryDelayMs(attemptIndex, response.headers.get('Retry-After'));
+              // A wait the deadline would cut short ends in `timeout` and hides the server's
+              // real answer — a 429 with Retry-After read "phản hồi quá lâu" (BUG-510).
+              const outlivesDeadline =
+                normalizedTimeoutMs > 0 && Date.now() - startedAt + delayMs >= normalizedTimeoutMs;
+
+              if (!outlivesDeadline) {
+                retryCount += 1;
+                attemptIndex += 1;
+                const waitFailure = await awaitRetryDelay(delayMs);
+                if (waitFailure) {
+                  errorKind = waitFailure.kind;
+                  return err(waitFailure);
+                }
+                continue;
               }
-              continue;
             }
 
             errorKind = httpError.kind;

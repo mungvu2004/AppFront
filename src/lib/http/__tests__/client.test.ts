@@ -249,6 +249,28 @@ describe('http/client.ts', () => {
     expect(await errorOf(broken.post('/projects', { body: {} }))).toMatchObject({ retryable: false, status: 500 });
   });
 
+  // BUG-510: three 5 s Retry-After waits on a keyed POST outran the 15 s deadline, and the
+  // 429 surfaced as `timeout` — "Máy chủ phản hồi quá lâu" instead of the quota sentence.
+  it('answers with the 429 itself when the Retry-After wait would outlive the deadline', async () => {
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ code: 'RATE_LIMITED' }), {
+          headers: { 'Content-Type': 'application/json', 'Retry-After': '5' },
+          status: 429,
+        }),
+      ),
+    );
+    const client = createHttpClient({ baseUrl: 'https://api.example.com', fetchImpl });
+
+    const pending = client.post('/projects/p/members', { body: { email: 'a@b.c' }, idempotencyKey: 'k-1' });
+    await vi.advanceTimersByTimeAsync(15_000);
+    const result = await pending;
+
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toMatchObject({ code: 'RATE_LIMITED', kind: 'http', retryAfterSeconds: 5, status: 429 });
+  });
   it('sanitizes sensitive query params in request logs and telemetry', async () => {
     const telemetry = vi.fn();
     const fetchImpl = vi.fn((input: RequestInfo | URL) => {
