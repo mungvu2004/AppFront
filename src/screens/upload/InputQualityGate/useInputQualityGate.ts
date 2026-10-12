@@ -919,8 +919,17 @@ export function useInputQualityGate(
   /* Hai câu chỉ dành cho đúng một trạng thái (bất biến 6).                   */
   /* ---------------------------------------------------------------------- */
 
+  // Kết luận "đạt" không phụ thuộc vai hay khổ: người xem (forbidden) và < 1024 px (collapsed)
+  // cũng phải đọc được câu đạt, không chỉ trạng thái `empty` (BUG-541).
+  const isPass =
+    status !== 'loading' &&
+    status !== 'error' &&
+    !hasNoDrawing &&
+    findings.length === 0 &&
+    metrics.length === METRIC_COUNT;
+
   const passNotice =
-    status === 'empty' && measurement !== undefined
+    isPass && measurement !== undefined
       ? `Bản vẽ đạt yêu cầu. Độ phân giải ${formatResolution(measurement.widthPx, measurement.heightPx)}, ` +
         `độ nghiêng ${formatAngle(measurement.skewDeg)}.`
       : null;
