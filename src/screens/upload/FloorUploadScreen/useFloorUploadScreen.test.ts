@@ -528,12 +528,13 @@ describe('useFloorUploadScreen — nhận tệp', () => {
       result.current.onFilesDropped([makeFile('A-101-trang-3.png')]);
     });
 
+    // Ô gán tầng chỉ mở sau lượt kiểm tệp — tệp chưa kiểm (hay bị từ chối) không gán được (BUG-523).
     await waitFor(() => {
-      expect(result.current.tray.items).toHaveLength(1);
+      expect(result.current.tray.items[0]?.assignOptions).toHaveLength(4);
     });
 
+    expect(result.current.tray.items).toHaveLength(1);
     expect(result.current.tray.items[0]?.error).toBeNull();
-    expect(result.current.tray.items[0]?.assignOptions).toHaveLength(4);
     expect(result.current.state).not.toBe('error');
   });
 
