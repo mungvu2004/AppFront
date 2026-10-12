@@ -170,6 +170,7 @@ const EP = {
   share: 'Chia sẻ', // EPV:251 (only when SHARE_LINKS_SUPPORTED, src/lib/export/shareLink.ts:354 = false)
   confidence: 'Gồm độ tin cậy từng đối tượng', // EPO:190
   noFloor: 'Chưa chọn tầng nào để xuất.', // EPG:312
+  allReviewed: 'Mọi đối tượng trên các tầng đã chọn đều đã duyệt.', // EPG:336
   unapproved: (name: string): string => `Còn 1 tầng chưa duyệt: ${name}.`, // EPG:315-317 (BUG-443 capitalised)
   unreviewed: /Còn \d[\d.]* đối tượng chưa duyệt\./u, // EPG:337 (the row also holds "Sửa")
   notApprovedBadge: 'Chưa duyệt', // EPO:83
@@ -1096,7 +1097,7 @@ test.describe('E06 SCR-30 Export Panel', () => {
     });
   });
 
-  test('E06 · SCR-30 .glb with every floor unchecked in "Phạm vi" → "Chưa chọn tầng nào để xuất."; "Xuất" does nothing', async ({ browser }) => {
+  test('E06 · SCR-30 .glb with every floor unchecked in "Phạm vi" → "Chưa chọn tầng nào để xuất."; no "Xuất", nothing sent', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page, api } = admin;
       const project = await qcProject(admin, 'export-nofloor');
@@ -1104,20 +1105,24 @@ test.describe('E06 SCR-30 Export Panel', () => {
       await selectFormat(page, '.glb');
       const floorBox = page.getByRole('region', { name: EP.scope, exact: true }).getByRole('checkbox', { name: firstFloor(project).name, exact: true });
       await setBox(floorBox, false);
-      await expect(page.getByRole('region', { name: EP.preflight, exact: true })).toContainText(EP.noFloor); // EPG:310-313
+      const preflight = page.getByRole('region', { name: EP.preflight, exact: true });
+      await expect(preflight).toContainText(EP.noFloor); // EPG:310-313
+      // BUG-466: no vacuous green "Mọi đối tượng … đều đã duyệt." under it (EPG:348).
+      await expect(preflight).not.toContainText(EP.allReviewed);
 
       let downloads = 0;
       page.on('download', () => {
         downloads += 1;
       });
       const mark = api.length;
-      await page.getByRole('button', { name: EP.exportButton, exact: true }).click(); // UEP:672-674 returns early
+      // BUG-466: .glb without a floor is undeliverable (EPV:86-96 canDeliverFormat), so EPT:64 drops "Xuất".
+      await expect(page.getByRole('button', { name: EP.exportButton, exact: true })).toHaveCount(0);
       await quiet(page);
       expect(downloads, 'no download without a floor').toBe(0);
       await expect(page.getByRole('progressbar')).toHaveCount(0); // EPT:31-58 no run
       expect(writesSince(api, mark)).toEqual([]);
-      await captureEvidence(page, 'E06_export_glb_no_floor.png', { caption: `downloads after "Xuất": ${String(downloads)}` });
-      await attachJson('E06_export_glb_no_floor.json', { downloads, writes: writesSince(api, mark) });
+      await captureEvidence(page, 'E06_export_glb_no_floor.png', { caption: `"${EP.exportButton}" buttons: 0; downloads: ${String(downloads)}` });
+      await attachJson('E06_export_glb_no_floor.json', { exportButtons: 0, downloads, writes: writesSince(api, mark) });
     });
   });
 
