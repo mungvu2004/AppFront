@@ -18,7 +18,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { Toast } from '@/components/feedback/Toast';
 import { durationSeconds } from '@/lib/motion';
-import { UNDO_WINDOW_MS } from '@/lib/mutations/undoTicket';
+import { UNDO_WINDOW_MS, holdUndoWindows } from '@/lib/mutations/undoTicket';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { renderWithProviders } from '@/lib/testing/render';
@@ -335,6 +335,41 @@ describe('đăng xuất một phiên đi qua vé hoàn tác tám giây', () => {
 
       expect(revokeSession).toHaveBeenCalledTimes(1);
       expect(revokeSession).toHaveBeenCalledWith({ sessionId: 'session-laptop' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // BUG-571: a toast held by hover/focus stops its ticket's clock; a fixed 8 s timer revoked the session while
+  // "Hoàn tác" was still on screen and the ticket still said yes.
+  it('toast đang được giữ thì lượt thu hồi chờ, buông ra mới chạy nốt cửa sổ', async () => {
+    const revokeSession = vi.fn(() => Promise.resolve({ ok: true as const, data: undefined }));
+
+    renderWithProviders(<WiredSessions gateway={fakeGateway({ revokeSession })} now={() => NOW} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Trình duyệt trên máy tính xách tay')).toBeTruthy();
+    });
+
+    vi.useFakeTimers();
+
+    try {
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Đăng xuất khỏi Trình duyệt trên máy tính xách tay' }),
+      );
+
+      const release = holdUndoWindows();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(UNDO_WINDOW_MS + 1000);
+      });
+      expect(revokeSession).not.toHaveBeenCalled();
+
+      release();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(UNDO_WINDOW_MS);
+      });
+
+      expect(revokeSession).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }

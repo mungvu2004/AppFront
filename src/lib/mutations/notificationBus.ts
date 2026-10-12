@@ -3,7 +3,7 @@
 import { common } from '@/i18n/vi.json';
 import { createUuid } from '@/lib/http/ids';
 
-import { combineUndoTickets, type UndoTicket } from './undoTicket';
+import { afterUndoWindow, combineUndoTickets, type UndoTicket } from './undoTicket';
 
 const DEFAULT_GROUP_WINDOW_MS = 5000;
 const DEFAULT_MAX_VISIBLE = 3;
@@ -85,7 +85,7 @@ export function createNotificationBus(options: CreateNotificationBusOptions = {}
   let notifications: Notification[] = [];
   const listeners = new Set<NotificationListener>();
   const pendingByType = new Map<string, PendingGroup>();
-  const removalTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  const removalTimers = new Map<string, () => void>();
 
   const emit = (): void => {
     const snapshot = [...notifications];
@@ -93,10 +93,10 @@ export function createNotificationBus(options: CreateNotificationBusOptions = {}
   };
 
   const cancelRemoval = (id: string): void => {
-    const timer = removalTimers.get(id);
+    const cancel = removalTimers.get(id);
 
-    if (timer !== undefined) {
-      clearTimeout(timer);
+    if (cancel !== undefined) {
+      cancel();
       removalTimers.delete(id);
     }
   };
@@ -114,10 +114,11 @@ export function createNotificationBus(options: CreateNotificationBusOptions = {}
       return;
     }
 
-    const delayMs = Math.max(0, ticket.expiresAt - now());
-    const timer = setTimeout(() => removeNotification(notification.id), delayMs);
-
-    removalTimers.set(notification.id, timer);
+    // Not a fixed timer: a held toast moves its ticket's end (BUG-571).
+    removalTimers.set(
+      notification.id,
+      afterUndoWindow(() => removeNotification(notification.id), Math.max(0, ticket.expiresAt - now())),
+    );
   };
 
   const upsertNotification = (id: string, createdAt: number, fields: NotificationInput): Notification => {
