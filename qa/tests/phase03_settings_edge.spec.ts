@@ -1504,11 +1504,13 @@ test.describe('E03 SCR-08 project settings — real flows (QA-03d P1)', () => {
         await captureEvidence(page, 'E03_08-B-044_project-404.png');
       });
 
-      await test.step('[08-E-007] the failure sentence is announced (inside role=alert / aria-live) — catalog says it is NOT (bug check)', async () => {
+      // QA-03e (BUG-511, FIX-2205): the failure goes to dangerDialogError, shown as an InlineAlert (role="alert") under the
+      // consequence sentence, which stays in its <p> (useProjectSettings.ts:1417, ProjectSettings.tsx:161-162).
+      await test.step('[08-E-007] the failure sentence is announced (inside role=alert) under the kept consequence sentence', async () => {
         const announced = await projectDialog.getByText(GENERIC_NOT_FOUND, { exact: true }).evaluate((el) =>
           Boolean(el.closest('[role="alert"], [role="status"], [aria-live]:not([aria-live="off"])')),
         );
-        expect.soft(announced, 'UPS dangerDialogMessage replaces the <p> with no live region: screen readers miss it').toBe(true);
+        expect.soft(announced, 'the failure sentence sits in a live region').toBe(true);
       });
     });
   });
