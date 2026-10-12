@@ -1000,7 +1000,9 @@ test.describe('E05 SCR-24 Exploded View', () => {
       // UEX:849-860 fewer than 2 storeys → 'empty'; EXV:73-75,89 screen controls hidden.
       await expect(page.getByText(EX.empty, { exact: true })).toBeVisible({ timeout: SCENE_TIMEOUT_MS });
       // The shell rail keeps its one "Độ tách" (VS/ViewerShell.tsx:133-145); the screen adds no second one (FIX-1724).
+      // Empty exploded view: the shell slider is disabled (useExplodedView.ts:937 separationDisabled, ViewerStoreyRail.tsx:127; BUG-389).
       await expect(page.getByRole('slider', { name: EX.slider, exact: true })).toHaveCount(1);
+      await expect(page.getByRole('slider', { name: EX.slider, exact: true })).toBeDisabled();
       await expect(page.getByRole('slider', { name: EX.collapsedSlider, exact: true })).toHaveCount(0);
       await expect(page.getByRole('button', { name: EX.capture, exact: true })).toHaveCount(0);
       await expect(page.getByRole('radiogroup', { name: EX.presets, exact: true })).toHaveCount(0);
