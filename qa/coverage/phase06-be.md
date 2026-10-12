@@ -8,8 +8,8 @@ exchanges). Author run `run-01-author` (`node tools/run-phase.mjs --phase 06 --r
 --no-watch --grep "A06 ·"`): first pass 6/7 (one TEST bug: expected `field` "body.overrides.GENERAL", the BE camelCases
 every alnum segment → "body.overrides.general"; fixed), second pass **7 passed / 7**, evidence ok,
 `F:/App/qa-results/run-01-author/phase06-api/results.json`.
-UI specs of the phase: main `phase06_rules_export_versions.spec.ts`, ui `phase06_rules_export_versions_ui.spec.ts`; no
-edge spec yet.
+UI specs of the phase: main `phase06_rules_export_versions.spec.ts`, ui `phase06_rules_export_versions_ui.spec.ts`, edge
+`phase06_rules_export_versions_edge.spec.ts` (3 `[mocked response]` tests, paired below).
 Endpoints called by the phase's screens (FE `src/api/endpoints.ts:247-250` `ruleConfig.*`, `:251-266` `spatial.*`,
 `:331-339` `versions.*`; client `src/api/client.ts:1284-1300,1425-1478`; `hooks/useProjectSpatial.ts:75` loads N21 with
 N15 for every spatial screen; SCR-29 autosave = N22, SCR-32 list / diff / label / restore = N17 / N18 / N20 / N19):
@@ -140,7 +140,10 @@ Test names shortened: "anon", "rules-write", "rules-body", "ver-read", "restore"
 
 | UI test | Endpoint + faked response | Pairing |
 |---|---|---|
-| — | `grep "mocked response\|page.route" tests/phase06_*` → no match in `phase06_rules_export_versions.spec.ts` or `phase06_rules_export_versions_ui.spec.ts` (no edge spec yet) | nothing to pair (0 mocked tests) |
+| `phase06_rules_export_versions_edge.spec.ts:789` "E06 · SCR-28 [mocked response] GET rule-config 500 → …; "Thử lại" recovers" | N21 `GET /api/projects/:p/rule-config` → 500 (every read until `unroute`) | unpairable: 5xx — N21 has no error branch past the project gate (rules/router.py:21-26 → service.py:90-95 is one SELECT, no row → `{revision: 0, overrides: {}}`); its 200 / 401 answers are asserted for real (`phase06_rules_export_versions_api.spec.ts` A06 rule-config N21 / N22, anonymous) |
+| `phase06_rules_export_versions_edge.spec.ts:1018` "E06 · SCR-29 [mocked response] GET rule-config 500 → …; reload recovers" | N21 `GET /api/projects/:p/rule-config` → 500 (every read until `unroute`) | unpairable: 5xx — same N21 route as the row above (service.py:90-95, no 5xx branch on a healthy stack); 200 / 401 asserted for real (same api tests) |
+| `phase06_rules_export_versions_edge.spec.ts:1518` "E06 · SCR-32 [mocked response] GET versions 500 → …; "Tầng" kept" | N17 `GET /api/projects/:p/versions?floorId=` → 500 | unpairable: 5xx — N17 only raises 404 floor / 422 cursor or query (versions/router.py:37-45 → service.py:142-163, one floor lookup + one SELECT); its 200 / 404 / 422 / 401 answers are asserted for real (`phase06_rules_export_versions_api.spec.ts` A06 versions read, anonymous) |
+| `phase06_rules_export_versions.spec.ts`, `phase06_rules_export_versions_ui.spec.ts` | — | 0 `page.route` / `[mocked response]` (grep) |
 
 ## Gaps left (not authored)
 
