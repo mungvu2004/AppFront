@@ -469,13 +469,25 @@ describe('trạng thái "error": mã lỗi chữ đều, có gợi ý, thử l�
   });
 });
 
+describe('[BUG-442] liên kết "Sửa" và nút "Tuỳ chọn": vùng chạm đủ, nhãn nói sửa gì', () => {
+  it('"Sửa" mang câu của dòng trong tên truy cập, và lớp vùng chạm 44 / 24 px', async () => {
+    const ExportPanelView = await loadExportPanelView();
+    render(<ExportPanelView {...buildExportPanelProps('success')} />);
+
+    const [link] = screen.getAllByRole('link', { name: /^Sửa/u });
+    expect(link).toHaveAccessibleName(/^Sửa\s*:\s*Còn \d+ vi phạm/u);
+    expect(link).toHaveClass('min-h-11', 'sm:min-h-6');
+    expect(screen.getByRole('button', { name: 'Tuỳ chọn' })).toHaveClass('min-h-11', 'sm:min-h-6');
+  });
+});
+
 describe('B-V12-06 — link "sửa" của khối kiểm tra trước đi qua router, không nạp lại trang', () => {
   it('bấm trái thường: chặn hành vi mặc định của thẻ <a> và gọi onFollowFix', async () => {
     const ExportPanelView = await loadExportPanelView();
     const onFollowFix = vi.fn();
 
     render(<ExportPanelView {...buildExportPanelProps('success', {}, { onFollowFix })} />);
-    const [link] = screen.getAllByRole('link', { name: 'Sửa' });
+    const [link] = screen.getAllByRole('link', { name: /^Sửa/u });
 
     // `fireEvent` trả `false` khi trình xử lý đã gọi `preventDefault()`.
     expect(fireEvent.click(link as HTMLElement)).toBe(false);
@@ -487,7 +499,7 @@ describe('B-V12-06 — link "sửa" của khối kiểm tra trước đi qua rou
     const onFollowFix = vi.fn();
 
     render(<ExportPanelView {...buildExportPanelProps('success', {}, { onFollowFix })} />);
-    const [link] = screen.getAllByRole('link', { name: 'Sửa' });
+    const [link] = screen.getAllByRole('link', { name: /^Sửa/u });
 
     expect(fireEvent.click(link as HTMLElement, { ctrlKey: true })).toBe(true);
     expect(onFollowFix).not.toHaveBeenCalled();
