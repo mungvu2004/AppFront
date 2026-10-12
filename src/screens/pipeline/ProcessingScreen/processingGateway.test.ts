@@ -427,6 +427,29 @@ describe('processingGateway', () => {
       expect(log.snapshots).toHaveLength(2);
     });
 
+    it('a read cancelled by stop() is not a failure (BUG-574)', async () => {
+      const base = createMockApiClient();
+      const client: ApiClient = {
+        ...base,
+        drawings: {
+          ...base.drawings,
+          // Như `lib/http`: lượt bị huỷ trả `kind: 'aborted'`, không ném.
+          progress: ({ signal }) =>
+            new Promise((resolve) => {
+              signal?.addEventListener('abort', () =>
+                resolve({ ok: false, error: { kind: 'aborted', requestId: 'r', retryable: false, raw: null } }),
+              );
+            }),
+        },
+      };
+      const log = recorder();
+      const stop = gatewayFor(client).pollProgress(INPUT, log.handlers);
+      await clock.flushMicrotasks();
+      stop();
+      await clock.flushMicrotasks();
+      expect(log.failures).toEqual([]);
+    });
+
     it('stop() ends polling', async () => {
       const { client, calls } = scriptedClient();
       const stop = gatewayFor(client).pollProgress(INPUT, recorder().handlers);

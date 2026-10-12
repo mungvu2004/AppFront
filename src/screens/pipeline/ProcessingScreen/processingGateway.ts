@@ -736,6 +736,12 @@ function createProgressReader(
       });
 
       if (!result.ok) {
+        // Lượt bị huỷ (đăng ký đóng, đổi tầng đang xem) không phải lỗi của tầng — như kênh hỏi
+        // (`pollingChannel.ts`), bỏ qua; không thì chip "lỗi" đứng trên tầng chạy tốt (BUG-574).
+        if (signal?.aborted === true || result.error.kind === 'aborted') {
+          return null;
+        }
+
         // Lượt đọc kế tiếp phải được phát dù trùng nội dung: nó xoá lỗi tạm này.
         lastContentKey = '';
         const failure = toFailure(result.error);
