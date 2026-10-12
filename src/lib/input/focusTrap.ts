@@ -169,8 +169,10 @@ export function createFocusTrap(
       (element) => !container.contains(element),
     );
 
+    // The two guesses below were never chosen by anyone: they take the focus without
+    // scrolling, so closing a layer opened from an unfocused page keeps the reader's place (R1-01).
     if (elsewhere !== undefined) {
-      elsewhere.focus();
+      elsewhere.focus({ preventScroll: true });
 
       return;
     }
@@ -178,7 +180,7 @@ export function createFocusTrap(
     // Last resort: an empty page. Body takes a programmatic focus so the
     // focus exists somewhere rather than nowhere.
     doc.body.tabIndex = -1;
-    doc.body.focus();
+    doc.body.focus({ preventScroll: true });
   };
 
   const activate = (): void => {
