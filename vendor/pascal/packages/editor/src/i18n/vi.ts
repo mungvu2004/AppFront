@@ -13,7 +13,6 @@ export const vi = {
   ...editorAndViewer,
   ...libStrings,
   ...primitivesAndSidebar,
-  // Bản dịch cho chuỗi UI trong components/editor/index.tsx — tệp thuộc T4, chưa được
-  // áp dụng ở đó; xem regions/editorRootDoNotEdit.ts.
+  // Chuỗi UI của components/editor/index.tsx — đã áp dụng tại chỗ ở việc gộp M1.
   editorRoot,
 } as const;

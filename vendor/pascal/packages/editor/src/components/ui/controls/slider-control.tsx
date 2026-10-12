@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { lingoUnitSpec, measurementHint, parseMeasurement } from '../../../lib/measurement-parser'
 import { useLinearDisplay } from '../../../lib/use-linear-display'
 import { cn } from '../../../lib/utils'
+import { normalizeDecimalVi, toFixedVi } from '../../../i18n/format'
 import { controlsAndPanels as vi } from '../../../i18n/regions/controlsAndPanels'
 
 interface SliderControlProps {
@@ -75,7 +76,7 @@ export function SliderControl({
   const [isEditing, setIsEditing] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
-  const [inputValue, setInputValue] = useState(toDisplay(value).toFixed(precision))
+  const [inputValue, setInputValue] = useState(toFixedVi(toDisplay(value), precision))
   // Live readout while dragging. Multi-edit previews write live overrides
   // instead of the scene, so `value` would otherwise stay frozen even though
   // the meshes are moving.
@@ -117,7 +118,7 @@ export function SliderControl({
 
   useEffect(() => {
     if (!isEditing) {
-      setInputValue(toDisplay(value).toFixed(precision))
+      setInputValue(toFixedVi(toDisplay(value), precision))
     }
   }, [value, precision, isEditing, toDisplay])
 
@@ -259,20 +260,22 @@ export function SliderControl({
   const handleValueClick = useCallback(() => {
     editingRef.current = true
     setIsEditing(true)
-    setInputValue(toDisplay(value).toFixed(precision))
+    setInputValue(toFixedVi(toDisplay(value), precision))
   }, [value, precision, toDisplay])
 
   const parseInputValue = useCallback(
     (text: string) => {
       const spec = lingoUnitSpec(unit)
+      // Ô nhập hiện số theo dấu phẩy (A15), nên phân tích nhận cả "," và "."
+      const plain = normalizeDecimalVi(text)
       const parsed = spec
-        ? parseMeasurement(text, spec, {
+        ? parseMeasurement(plain, spec, {
             bareUnit: parseUnit ?? spec.unitId,
             system: isImperial ? 'us' : 'metric',
           })
         : null
-      const bare = Number(text)
-      const stored = parsed ?? (text.trim() && Number.isFinite(bare) ? toStored(bare) : null)
+      const bare = Number(plain)
+      const stored = parsed ?? (plain.trim() && Number.isFinite(bare) ? toStored(bare) : null)
       return stored === null
         ? null
         : clamp(toStored(Number.parseFloat(toDisplay(stored).toFixed(precision))))
@@ -286,7 +289,7 @@ export function SliderControl({
     const nextValue = parseInputValue(inputValue)
     if (nextValue === null) {
       onCancel?.()
-      setInputValue(toDisplay(value).toFixed(precision))
+      setInputValue(toFixedVi(toDisplay(value), precision))
     } else {
       onChange(nextValue)
       onCommit?.(nextValue)
@@ -297,7 +300,7 @@ export function SliderControl({
   const spec = lingoUnitSpec(unit)
   const hint =
     isEditing && spec
-      ? measurementHint(inputValue, spec, {
+      ? measurementHint(normalizeDecimalVi(inputValue), spec, {
           bareUnit: parseUnit ?? spec.unitId,
           system: isImperial ? 'us' : 'metric',
           displayUnit: parseUnit ?? spec.unitId,
@@ -318,7 +321,7 @@ export function SliderControl({
         const adjustedStep = getAdjustedStep(step, e)
         const newV = applyDisplayDelta(value, direction * adjustedStep, adjustedStep)
         onChange(newV)
-        setInputValue(toDisplay(newV).toFixed(precision))
+        setInputValue(toFixedVi(toDisplay(newV), precision))
       }
     },
     [submitValue, cancelEdit, value, precision, step, applyDisplayDelta, onChange, toDisplay],
@@ -415,7 +418,7 @@ export function SliderControl({
             onClick={handleValueClick}
           >
             <span className="font-mono tabular-nums tracking-tight" suppressHydrationWarning>
-              {Number(displayValue.toFixed(precision)).toFixed(precision)}
+              {toFixedVi(displayValue, precision)}
             </span>
             {displayUnit && <span className="ml-[1px] text-muted-foreground">{displayUnit}</span>}
           </div>

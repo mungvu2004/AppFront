@@ -219,6 +219,7 @@ import {
 
 import { PALETTE_COLORS } from '../ui/primitives/color-dot'
 import { FloorplanCompassButton } from '../viewer/floorplan-compass-button'
+import { normalizeDecimalVi } from '../../i18n/format'
 import { editorAndViewer as vi } from '../../i18n/regions/editorAndViewer'
 import { resolveFloorplanBackgroundSelection } from './floorplan-background-selection'
 import {
@@ -2481,7 +2482,8 @@ function formatMeasurement(
 }
 
 function formatNumber(value: number, fractionDigits = 2) {
-  return Number.parseFloat(value.toFixed(fractionDigits)).toString()
+  // Dấu thập phân là dấu phẩy (A15); `parseReferenceScaleLength` đọc lại được cả hai dấu.
+  return Number.parseFloat(value.toFixed(fractionDigits)).toString().replace('.', ',')
 }
 
 function convertReferenceLengthToMeters(value: number, unit: ReferenceScaleUnit) {
@@ -2510,7 +2512,7 @@ const REFERENCE_SCALE_LINGO_UNIT: Record<ReferenceScaleUnit, 'm' | 'cm' | 'ft' |
 function parseReferenceScaleLength(raw: string, unit: ReferenceScaleUnit): number | null {
   const unitId = REFERENCE_SCALE_LINGO_UNIT[unit]
   return parseMeasurement(
-    raw,
+    normalizeDecimalVi(raw),
     { kind: 'length', unitId },
     { bareUnit: unitId, system: unit === 'feet' || unit === 'inches' ? 'us' : 'metric' },
   )
@@ -2519,7 +2521,7 @@ function parseReferenceScaleLength(raw: string, unit: ReferenceScaleUnit): numbe
 function referenceScaleLengthHint(raw: string, unit: ReferenceScaleUnit): string | null {
   const unitId = REFERENCE_SCALE_LINGO_UNIT[unit]
   return measurementHint(
-    raw,
+    normalizeDecimalVi(raw),
     { kind: 'length', unitId },
     {
       bareUnit: unitId,
@@ -2604,7 +2606,7 @@ function formatArea(
   }
   return (
     <>
-      {Number.parseFloat(scaledAreaSqM.toFixed(1))}
+      {formatNumber(scaledAreaSqM, 1)}
       <tspan dx="0.12em">m</tspan>
       <tspan baselineShift="super" fontSize="0.75em">
         2

@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:pascal": "node scripts/test-pascal.mjs",
     "coverage": "vitest run --coverage",
     "size": "node scripts/check-bundle-size.mjs",
     "length": "node scripts/check-file-length.mjs",

@@ -3,6 +3,11 @@
 Đây là **kế hoạch**, không phải spec test. Không một dòng `*.spec.ts` nào được viết ở
 lượt này. Chặng thi công chỉ chạy **sau** khi kế hoạch được người duyệt.
 
+> **Hết hiệu lực một phần sau F-15 (gộp 2026-10-13).** Cờ `scene.pascal-viewer` đã bị **gỡ** khỏi FE,
+> và `/projects/:id/3d/pascal` chỉ còn là `<Navigate>` về `/projects/:id/3d` — nơi Pascal là màn 3D
+> duy nhất. Mọi câu dưới đây nói về "cờ tắt / cờ bật" (ca V10-a, V10-b) và về route `/3d/pascal` là
+> **số đo lịch sử ngày 2026-09-30**, không phải trạng thái sản phẩm hiện tại.
+
 Đo ngày **2026-09-30**, nhánh `e2e/prep` (base từ `mungvu2004/tich-hop-pascal`).
 Bản đồ điều phối của lượt đo này: `dag.md`. Bảng hở: `coverage-map.md`.
 Câu phải hỏi người dùng: `questions.md`.

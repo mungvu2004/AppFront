@@ -46,6 +46,25 @@ export const libStrings = {
   parcelProvider: {
     noParcelService: 'Không có dịch vụ lô đất nào khả dụng.',
   },
+  lotDropIn: {
+    typeAddressFirst: 'Nhập địa chỉ trước đã.',
+    parcelLookupFailed: 'Không tra được lô đất.',
+    noParcelFound: 'Không tìm thấy lô đất cho địa chỉ đó.',
+    noParcelReason: (reason: string) => `Không có lô đất: ${reason}`,
+    parcelGeometryUnusable: 'Hình học lô đất không dùng được.',
+    buildingRecentred: 'đã đưa toà nhà về giữa lô',
+    roadsUnavailable: (reason: string) => `không lấy được đường (${reason})`,
+    pascalMapUnavailable: (reason: string) => `không lấy được Pascal Map (${reason})`,
+  },
+  lotTerrain: {
+    noLotRing: 'không có đường bao lô đất',
+    elevationLookupFailed: 'không tra được cao độ',
+    noElevations: 'không có cao độ nào',
+    tooFewElevations: (valid: number, total: number) =>
+      `quá ít cao độ (${valid} trong ${total})`,
+    noParcelOrigin: 'không có gốc toạ độ lô đất',
+    noTerrain: 'không có địa hình',
+  },
   levelPrintExport: {
     spanningNodeOmitted: (nodeType: string, id: string) =>
       `${nodeType} ${id} chạy xuyên nhiều tầng nên đã bị bỏ qua. Ẩn nó hoặc chia tách rõ ràng trước khi tải các phần theo tầng.`,

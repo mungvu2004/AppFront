@@ -38,6 +38,7 @@ import { ViewerZoneSystem } from '../../components/viewer-zone-system'
 import { type CommitVerdict, type SaveStatus, useAutoSave } from '../../hooks/use-auto-save'
 import { useKeyboard } from '../../hooks/use-keyboard'
 import { useSaveShortcut } from '../../hooks/use-save-shortcut'
+import { vi } from '../../i18n/vi'
 import {
   createLocalProjectPresentationPersistence,
   type LocalProjectPresentationPersistence,
@@ -271,7 +272,7 @@ function EditorSceneCrashFallback() {
   return (
     <div className="fixed inset-0 z-80 flex items-center justify-center bg-background/95 p-4 text-foreground">
       <div className="w-full max-w-md rounded-2xl border border-border/60 bg-background p-6 shadow-xl">
-        <h2 className="font-semibold text-lg">The editor scene failed to render</h2>
+        <h2 className="font-semibold text-lg">{vi.editorRoot.sceneRenderFailed}</h2>
         <p className="mt-2 text-muted-foreground text-sm">
           You can retry the scene or return home without reloading the whole app shell.
         </p>
@@ -369,7 +370,7 @@ function SidebarSlot({ children }: { children: ReactNode }) {
           <div
             className="absolute inset-0 z-10 cursor-col-resize transition-colors hover:bg-primary/20"
             onPointerDown={handleGrabDown}
-            title="Expand sidebar"
+            title={vi.editorRoot.expandSidebar}
           />
         ) : (
           children
@@ -579,7 +580,7 @@ function ViewerCanvasControlsHint({
   return (
     <div className="pointer-events-none absolute top-14 left-1/2 z-40 max-w-[calc(100%-2rem)] -translate-x-1/2">
       <section
-        aria-label="Camera controls hint"
+        aria-label={vi.editorRoot.cameraControlsHint}
         className="pointer-events-auto flex items-start gap-3 rounded-2xl border border-border/35 bg-background/90 px-3.5 py-2.5 shadow-elevation-4 backdrop-blur-xl"
       >
         <div
@@ -593,7 +594,7 @@ function ViewerCanvasControlsHint({
         <Tooltip>
           <TooltipTrigger asChild>
             <button
-              aria-label="Dismiss camera controls hint"
+              aria-label={vi.editorRoot.dismissCameraControlsHint}
               className="flex h-5 shrink-0 items-center justify-center self-center border-border/18 border-l pl-3 text-muted-foreground/70 transition-colors hover:text-foreground"
               onClick={onDismiss}
               type="button"

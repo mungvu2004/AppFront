@@ -7,6 +7,9 @@ import { formatNumberVi } from '../format'
  */
 export const editorAndViewer = {
   floorplanModeCoordinator: {
+    defaultHidesExpertAnnotations:
+      'Chế độ Mặc định ẩn chú giải của Chuyên gia. Phần đã lưu không bị xoá.',
+    availableInExpertMode: (toolLabel: string) => `${toolLabel} chỉ dùng được ở chế độ Chuyên gia.`,
     switchedToDefault: (toolLabel: string) =>
       `Đã chuyển về Mặc định. Bản vẽ ${toolLabel} chưa xong đã bị huỷ; chú giải Chuyên gia đã lưu chỉ bị ẩn, không bị xoá.`,
     switchToExpert: 'Chuyển sang Chuyên gia',
@@ -50,6 +53,11 @@ export const editorAndViewer = {
     duplicate: 'Nhân bản',
     cutOut: 'Khoét lỗ',
     delete: 'Xoá',
+  },
+  snapshotCapture: {
+    sceneChangedBeforeCapture: 'Cảnh đã đổi trước khi chụp. Thử lại.',
+    anotherCaptureRunning: 'Đang chụp một ảnh khác. Thử lại.',
+    captureFailed: 'Chụp ảnh thất bại',
   },
   snapshotCaptureOverlay: {
     cropStandard: 'Chuẩn',

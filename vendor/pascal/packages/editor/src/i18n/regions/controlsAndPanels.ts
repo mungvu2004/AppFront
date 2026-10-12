@@ -24,6 +24,7 @@ export const controlsAndPanels = {
     measurementOptions: "Tuỳ chọn đo",
     measurementType: "Loại đo",
     floorPlan: "Mặt bằng",
+    constructionDimension: "Kích thước dựng hình",
   },
   viewToggles: {
     fileTooLarge: "Tệp quá lớn. Kích thước tối đa là 200 MB.",

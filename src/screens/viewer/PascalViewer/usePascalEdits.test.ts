@@ -25,7 +25,8 @@ const BUILDING = createSampleBuilding();
 const SPATIAL = normalizeSpatial(BUILDING);
 const SCENE = toPascalScene(BUILDING).scene;
 
-const firstWall = (): PascalNode => {
+/** Tường, không phải `PascalNode` chung: nhánh hẹp mới spread thêm `thickness` được. */
+const firstWall = (): Extract<PascalNode, { readonly type: 'wall' }> => {
   const wall = Object.values(SCENE.nodes).find((node) => node.type === 'wall');
 
   if (wall === undefined || wall.type !== 'wall') {

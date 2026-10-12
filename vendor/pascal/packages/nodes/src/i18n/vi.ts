@@ -303,18 +303,23 @@ export const vi = {
   unit: {
     catalogLabel: 'Căn hộ',
   },
-  /**
-   * `wall/**` thuộc việc T4 (không sửa ở T5b) — khoá này chờ việc gộp thay
-   * literal tại các dòng ghi trong `vi-T5b.fragment`.
-   */
+  /** `wall/**` do việc gộp M1 áp dụng (xem `vi-T5b.fragment`). */
   wall: {
     catalogLabel: 'Tường',
+    presentationDescription:
+      'Đoạn tường thẳng hoặc cong. Chứa cửa đi, cửa sổ, phần mở rộng mái lệch và vật gắn tường.',
     shortcuts: {
       setStartEnd: 'Đặt điểm đầu / cuối tường',
       shape: 'Hình dạng',
+      shapeLine: 'Hình dạng: đường thẳng',
+      shapeRectangle: 'Hình dạng: hình chữ nhật',
+      shapeTooltip: 'Hình dạng tường — bấm hoặc nhấn R để đổi',
       cancel: 'Huỷ',
       splitAtMarks: 'Chia tại các vết đánh dấu',
       cuts: 'Vết cắt',
+      cutsOne: 'Vết cắt: 1',
+      cutsEven: (count: string) => `Vết cắt: ${count}, chia đều`,
+      cutsTooltip: 'Số vết cắt — cuộn hoặc bấm để đổi',
       freePlacement: 'Đặt tự do',
     },
   },

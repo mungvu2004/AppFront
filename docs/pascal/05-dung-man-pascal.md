@@ -5,8 +5,9 @@ hỏng thì đọc gì.
 
 **Theo Bản 6** (`docs/pascal/00-quyet-dinh.md`): Pascal thay toàn bộ 3D mà Pascal thay được. Mục 1–2
 dưới đây ghi **trạng thái đích** của việc 2–3 trong `F:/App/AppBack/backend/dieu-phoi/chay/F-15/prompt.md`
-— route và cờ đổi ở một việc F-15 khác, chưa chạy ở lượt viết tài liệu này (E.10: đây là mô tả đích,
-không phải "đã xong"). Đọc lại tệp này sau khi việc đó hợp nhất để xác nhận đúng thực tế.
+— route và cờ đã đổi thật ở việc F-15 T4, gộp vào `feature/f-15-pascal-thay-the` ngày 2026-10-13:
+cờ `scene.pascal-viewer` đã gỡ khỏi FE và `/3d/pascal` nay chỉ `<Navigate>` về `/3d`. Phần BE của cờ
+(`flags.py`, openapi, test) còn nợ ở đợt 2, nên mục 1 dưới đây mới đúng một nửa.
 
 ---
 
@@ -26,7 +27,7 @@ giữ nguyên, không đi qua cờ.
 /projects/<mã dự án>/3d
 ```
 
-Route 3D chính, phải render Pascal. Route cũ `/3d/pascal` phải **bỏ** hoặc chuyển hướng về `/3d`.
+Route 3D chính, render Pascal. Route cũ `/3d/pascal` nay chuyển hướng về `/3d` (`routes/router.tsx`).
 Mọi liên kết `paths.project.viewer(...)` trong ứng dụng mở Pascal.
 
 **Cần đăng nhập.** Route nằm sau cổng phiên của `routes/router.tsx`, nên phải có

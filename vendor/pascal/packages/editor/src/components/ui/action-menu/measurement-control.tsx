@@ -134,7 +134,7 @@ export function MeasurementControl() {
     chainMode: ConstructionDimensionChainMode,
   ) => {
     if (useFloorplanMode.getState().mode !== 'expert') {
-      useFloorplanMode.getState().showExpertModeNotice('Construction Dimension')
+      useFloorplanMode.getState().showExpertModeNotice(vi.measurementControl.constructionDimension)
       return
     }
     setPhase('structure')
