@@ -360,7 +360,7 @@ Một dòng cho cả nhóm (16 bề mặt editor, cùng số phận). Giá trị
 |---|---|---|---|---|---|---|---|
 | Pascal editor (16 bề mặt, 6 nhóm; **không dựng**) | không áp dụng ¹ | không áp dụng ² | không áp dụng ² | không áp dụng ² | không áp dụng ² | không áp dụng ² | không áp dụng ² |
 
-¹ nhãn toàn bộ của fork, tiếng Anh ⇒ nợ A6 **đã ghi** (`docs/pascal/00-quyet-dinh.md:202`); không dựng ⇒ không lên màn ⇒ không ca. Ghi một lần, không mười sáu.
+¹ nhãn toàn bộ của fork — đã Việt hoá trong vendor (F-15); không dựng ⇒ không lên màn ⇒ không ca. Ghi một lần, không mười sáu.
 ² bề mặt không được dựng (`PascalFrame.tsx:9` chỉ nhập `viewer`; grep `pascal-app/editor` trong `src` = 0) nên không có gì để chứng minh.
 Ca hàng rào **H-1** không phải ô của bất biến nào — nó bảo vệ *ranh giới* "bề mặt chưa hiện"; ghi ở chú thích `plan.md` chứ không thành ô. (Câu hỏi Q-V11-2 nói về việc có nên đổi cả hàng này thành `chưa phủ`.)
 `chưa phủ` = **0** ô.
