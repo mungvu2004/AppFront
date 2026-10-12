@@ -1224,9 +1224,11 @@ export function useFloorUploadScreen(
     // chưa có danh sách thì màn hẹp phải nói lỗi chứ không vẽ vùng thả trống (BUG-072).
     if (floorsQuery.isPending) return 'loading';
     if (loadFailure !== null) return 'error';
+    // Câu mời "Kéo thả tệp đầu tiên" hiện ở mọi khổ: rỗng thắng thu gọn (BUG-528). Người xem
+    // không thả được tệp, nên với họ câu mời không có nghĩa — họ vẫn về `forbidden`.
+    if (canEdit && !hasAnyFile) return 'empty';
     if (isCollapsed) return 'collapsed';
     if (!canEdit) return 'forbidden';
-    if (!hasAnyFile) return 'empty';
     // Lỗi của MỘT tệp không bao giờ leo lên đây: nó ở lại trong `row.error`.
     // `'error'` của cả màn chỉ dành cho lượt đọc danh sách tầng hỏng.
     if (hasUploading || doneCount < rows.length) return 'partial';
