@@ -655,9 +655,9 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
         ref={subscribeWallBuildInteractions}
         key={immersiveActive ? 'webgl-xr' : 'webgpu'}
         camera={{ position: [50, 50, 50], fov: 50 }}
-        className={`transition-colors duration-700 ${
+        className={
           transparentBackground ? 'bg-transparent' : isDark ? 'bg-[#1f2433]' : 'bg-[#fafafa]'
-        }`}
+        }
         dpr={[1, maxDpr]}
         events={pointerEvents}
         frameloop="never"
