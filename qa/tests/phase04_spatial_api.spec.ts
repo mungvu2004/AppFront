@@ -334,7 +334,7 @@ test.describe('A04 phase-4 spatial backend flows (settings N5, quality #30, #35 
 
       const activityPath = `/api/users/${eng.user.id}/activity`;
       const read = async (ev: string): Promise<{ activity: unknown; notifications: unknown; updatedAt: string }> => {
-        const activity = await call(eng.api, `be02_activity_${ev}`, 'GET', activityPath, undefined, ['200 activity rows of the writer']);
+        const activity = await call(main, `be02_activity_${ev}`, 'GET', activityPath, undefined, ['200 activity rows of the writer']);
         const notifications = await call(eng.api, `be02_notifications_${ev}`, 'GET', '/api/notifications', undefined, ['200 notifications of the writer']);
         const project = await call(eng.api, `be02_project_${ev}`, 'GET', `/api/projects/${pid}`, undefined, ['200 ProjectOut']);
         expect.soft(activity.res.status(), 'activity').toBe(200);
@@ -404,6 +404,12 @@ test.describe('A04 phase-4 spatial backend flows (settings N5, quality #30, #35 
       const HUMAN_2 = 4.25;
 
       const floorsBefore = await readFloors(owner.api, 'be03_floors_before_upload', pid, '200 #12: two floors, drawings []');
+      // Floor 2 first: its pipeline scale (no human scale involved) is the reference for what a clean run gives this drawing.
+      const up3 = await uploadDrawing(owner.api, pid, f2, png, `${PREFIX}be03-c.png`);
+      const run3 = await waitForRunOutcome(owner.api, pid, up3);
+      expect(run3.status, `setup: run of floor 2 (${String(run3.error)})`).toBe('completed');
+      const n16Reference = await readLayer(owner.api, 'be03_n16_f2_reference', pid, f2, '200 N16 of floor 2 after a clean run: the pipeline scale');
+      const pipelineScale = scaleOf(n16Reference);
       const n16Fresh = await readLayer(owner.api, 'be03_n16_fresh', pid, f1, '200 N16 revision 0 of a floor without a drawing');
       const humanBeforeDrawing = await put(owner.api, 'be03_human_scale_without_drawing', pid, f1, writeBody(0, { scaleMillimetresPerPixel: HUMAN_1 }), [
         '200 revision 1: a human scale saved while the floor has no drawing (scale_page_key NULL)',
@@ -429,7 +435,6 @@ test.describe('A04 phase-4 spatial backend flows (settings N5, quality #30, #35 
       });
 
       const rev1 = Number(n16Post1.revision);
-      const pipelineScale = scaleOf(n16Post1);
       const human2 = await put(owner.api, 'be03_human_scale_on_drawing', pid, f1, writeBody(rev1, { scaleMillimetresPerPixel: HUMAN_2 }), ['200: a human scale on the drawn page']);
       const n16Human = await readLayer(owner.api, 'be03_n16_human_on_drawing', pid, f1, '200 N16: scale 4.25, no scaleStatus (same page)');
       const up2 = await uploadDrawing(owner.api, pid, f1, png, `${PREFIX}be03-b.png`);
@@ -445,13 +450,10 @@ test.describe('A04 phase-4 spatial backend flows (settings N5, quality #30, #35 
       });
       await test.step('[BE4-G-092] pipeline re-run on another page replaces the human scale without rescaling it (same page keeps rank 3: not reachable over HTTP)', async () => {
         expect.soft(scaleOf(n16Post2), 'the new page brings the pipeline scale').not.toBe(HUMAN_2);
-        expect.soft(scaleOf(n16Post2)).toBeCloseTo(pipelineScale, 3);
+        expect.soft(scaleOf(n16Post2), 'same drawing, same pipeline scale as the clean run of floor 2').toBeCloseTo(pipelineScale, 3);
         note('same-page re-run (human scale kept, rank 3 > 2) has no HTTP trigger: pytest test_merge_on_same_page_keeps_higher_ranked_scale');
       });
 
-      const up3 = await uploadDrawing(owner.api, pid, f2, png, `${PREFIX}be03-c.png`);
-      const run3 = await waitForRunOutcome(owner.api, pid, up3);
-      expect(run3.status, `setup: third run (${String(run3.error)})`).toBe('completed');
       const floorsAfter = await readFloors(owner.api, 'be03_floors_after_upload', pid, '200 #12: both floors with a drawing');
       await test.step('[BE5-G-004] #12 sorted by (order, pk): drawings [] before an upload, ≥ 1 once the run has finished (the FE derives hasDrawing from it)', async () => {
         expect.soft(floorsBefore.map((f) => f.id)).toEqual([f1, f2]);
