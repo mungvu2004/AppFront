@@ -818,6 +818,38 @@ describe('[N6] chip đối chiếu bản vẽ gốc', () => {
 /* [R] Luật màn hình — một thẻ mở được lớp phủ, và Esc phân lớp.               */
 /* -------------------------------------------------------------------------- */
 
+describe('[BUG-372] gõ chữ vào ô toạ độ đỉnh', () => {
+  it('Enter thì ô hiện lại số cũ, đúng như câu báo "đã trở về số cũ"; gõ lại thì câu báo tắt', async () => {
+    const counted = createCountedGateway();
+    const probe = createProbe();
+    const result = renderWired({
+      gateway: counted.gateway,
+      probe,
+      selectedWallIds: [WALL_ID],
+      wallId: WALL_ID,
+    });
+
+    await waitFor(() => {
+      expect(probe.state?.kind).toBe('success');
+    });
+
+    const label = `${TEXT.vertexTable.columnX} ${DRAGGED_VERTEX_CODE}`;
+    const field = result.getByLabelText(label);
+    const original = (field as HTMLInputElement).value;
+
+    fireEvent.change(field, { target: { value: 'abc' } });
+    fireEvent.keyDown(field, { key: 'Enter' });
+
+    expect((result.getByLabelText(label) as HTMLInputElement).value).toBe(original);
+    expect(result.getByText(TEXT.vertexTable.cellInvalid)).toBeInTheDocument();
+    expect(counted.commits).toHaveLength(0);
+
+    fireEvent.change(result.getByLabelText(label), { target: { value: '12' } });
+
+    expect(result.queryByText(TEXT.vertexTable.cellInvalid)).toBeNull();
+  });
+});
+
 describe('[B-V8-42] tường không có trong kho', () => {
   it('lượt ghi nói bức tường không có trong dữ liệu dự án, không nói "chưa mở dự án"', async () => {
     const gateway = createWallGeometryEditorGateway({ history: createHistoryStack() });

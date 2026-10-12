@@ -30,8 +30,8 @@
  * - Chiều dài tim tường: `centrelineLength` (`src/domain/walls/types.ts`).
  * - Tách/nối: `splitWall`/`mergeWalls` (`src/domain/walls/edit.ts`), gọi qua
  *   chính hai hàm dựng lệnh của S-07.
- * - Ngưỡng độ tin cậy: `confidenceLevel` (`@/lib/format/semantic`) — cùng hàm
- *   `toWallViewModel` dùng, nên trạng thái màu và cờ lọc không thể lệch nhau.
+ * - Ngưỡng "độ tin cậy thấp": `confidenceThreshold` của dự án (N5, BUG-354), mặc định 0,70; lọc,
+ *   danh sách và gạch chéo canvas cùng đọc `isLowConfidence` với ngưỡng đó.
  * - Số: `formatLength`, `formatNumber`, `formatPoint`, `formatElevationM`,
  *   `formatScaleDensity`. Không một hàm định dạng số dựng sẵn nào của JavaScript
  *   được gọi thẳng trong màn — A15 đặt việc đó ở `src/lib/format`.
@@ -90,8 +90,8 @@ import { millimetresPerPixel } from '@/domain/units/scale';
 import { useFloorLayerAutosave, type FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import { useCountUp } from '@/hooks/useCountUp';
 import { useFloorLayer } from '@/hooks/useFloorLayer';
+import { useProjectConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
 import { appNotificationBus } from '@/hooks/useNotifications';
-import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
@@ -133,11 +133,11 @@ import {
   clampZoom,
   cursorLabelOf,
   DEFAULT_ZOOM,
-  fitZoomFor,
   formatScaleLabel,
   isLowConfidence,
   measurementOutcomeToPx,
   miniMapCentreMm,
+  miniMapRectOf,
   isStandardThickness,
   reviewProgressLabel,
   runWallCommand,
@@ -168,6 +168,14 @@ import {
   type WallLayerViewportRectPercent,
 } from './wallLayerReviewGateway';
 import type { WallLayerLeftPanelExtras } from './WallLayerLeftPanel';
+import {
+  centredCanvasView,
+  fitCanvasView,
+  toFramePoint,
+  toFrameRect,
+  visibleDrawingRect,
+} from '../shared/canvasFit';
+import { useFloorLayerReadFailure, type FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useProvisionalScaleNotice, type ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import type { WallLayerStatusBarProps } from './WallLayerStatusBar';
 import type { WallLayerCanvasViewProps, WallLayerMeasurementPx } from './wallLayerHatch';
@@ -308,6 +316,8 @@ export interface UseWallLayerReviewResult extends WallLayerReviewProps {
   readonly saveBlock: FloorLayerSaveBlock | null;
   /** Dải tỉ lệ tạm (F-04x-2); `null` khi tầng đã có tỉ lệ thật. */
   readonly provisionalScaleNotice: ProvisionalScaleNotice | null;
+  /** Đọc lớp của tầng hỏng khi chưa có tài liệu — view thay cả màn (BUG-326). */
+  readonly readFailure: FloorLayerReadFailure | null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -448,13 +458,14 @@ export function levelsOf(graph: NormalizedSpatial | null): readonly Level[] {
 export function applyWallFilters(
   walls: readonly Wall[],
   filters: WallLayerFilters,
+  threshold?: number,
 ): readonly Wall[] {
   return walls.filter((wall) => {
     if (filters.onlyUnreviewed && wall.reviewed) {
       return false;
     }
 
-    if (filters.onlyLowConfidence && !isLowConfidence(wall)) {
+    if (filters.onlyLowConfidence && !isLowConfidence(wall, threshold)) {
       return false;
     }
 
@@ -621,6 +632,7 @@ export function useWallLayerReview(
     floorId,
     options.onNavigate,
   );
+  const readFailure = useFloorLayerReadFailure(floorLayer, projectId, options.onNavigate);
 
   /*
    * Lần đọc ảnh nền THÀNH CÔNG gần nhất, giữ lại qua mọi lượt hỏng sau đó.
@@ -1174,16 +1186,23 @@ export function useWallLayerReview(
     [walls],
   );
 
-  const visibleWalls = useMemo(() => applyWallFilters(walls, filters), [filters, walls]);
+  /* Ngưỡng của dự án, không hằng 0,70 (BUG-354, như FIX-1603). */
+  const confidenceThreshold = useProjectConfidenceThreshold(projectId, gateway.readConfidenceThreshold);
+  const visibleWalls = useMemo(
+    () => applyWallFilters(walls, filters, confidenceThreshold),
+    [confidenceThreshold, filters, walls],
+  );
 
   const rows = useMemo<readonly WallRowViewModel[]>(
-    () => (hasError ? NO_ROWS : visibleWalls.map((wall) => toWallRow(wall, wallCodes))),
-    [hasError, visibleWalls, wallCodes],
+    () =>
+      hasError ? NO_ROWS : visibleWalls.map((wall) => toWallRow(wall, wallCodes, confidenceThreshold)),
+    [confidenceThreshold, hasError, visibleWalls, wallCodes],
   );
 
   const shapes = useMemo<readonly WallLayerCanvasShape[]>(
-    () => (level === null ? [] : toCanvasShapes(walls, level, wallStatusCode, wallCodes)),
-    [level, walls, wallCodes],
+    () =>
+      level === null ? [] : toCanvasShapes(walls, level, wallStatusCode, wallCodes, confidenceThreshold),
+    [confidenceThreshold, level, walls, wallCodes],
   );
 
   const inspector = useMemo(() => {
@@ -1433,7 +1452,6 @@ export function useWallLayerReview(
   /* Hợp đồng mở rộng của lớp canvas — mọi toạ độ đã là pixel bản vẽ.         */
   /* ---------------------------------------------------------------------- */
 
-  const prefersReducedMotion = useReducedMotion();
   const zoom = useStore((current) => current.zoom);
   const viewCenter = useStore((current) => current.viewCenter);
   const hiddenLayers = useStore((current) => current.hiddenLayers);
@@ -1496,11 +1514,33 @@ export function useWallLayerReview(
    * phóng, phím `F` và bản đồ nhỏ đã lái ngược được qua `setZoom`/`setViewCenter`
    * (xem khối "Lái khung nhìn" ngay dưới).
    */
-  const viewport = useMemo<WallLayerViewportPx>(() => {
-    const centre = toPixelPoint(viewCenter, scaleOfLevel(level));
+  const [frameSizePx, setFrameSizePx] = useState<WallLayerSizePx | null>(null);
 
-    return { x: centre.x, y: centre.y, zoom };
-  }, [level, viewCenter, zoom]);
+  /*
+   * Hệ số "vừa khung" của cả lớp (BUG-403): mức phóng của kho đọc TƯƠNG ĐỐI với nó, nên 100%
+   * là thấy trọn mặt bằng dù tầng chưa hiệu chỉnh (1 mm = 1 px, mặt bằng 8 m = 8.220 px).
+   * Tâm nhìn của kho đặt vào GIỮA khung — bản trước lấy nó làm độ dời, nên tâm (0; 0) mặc định
+   * ghim góc trên-trái bản vẽ vào góc khung và "vừa khung" đẩy bản vẽ ra ngoài.
+   */
+  const fitAllBoundsPx = useMemo<WallLayerRectPx | null>(
+    () =>
+      contentBoundsPx ??
+      (drawingSizePx === null ? null : { x: 0, y: 0, ...drawingSizePx }),
+    [contentBoundsPx, drawingSizePx],
+  );
+  /*
+   * Hộp ấy CHỐT một lần mỗi tầng (lúc "mở tầng là vừa khung" bên dưới): tính lại theo từng lượt
+   * sửa thì vẽ/tách/xoá/đổi độ dày làm cả mặt bằng tự phóng/dịch (review-1 #1). Khung đổi cỡ thì
+   * hệ số vẫn tính lại từ hộp đã chốt.
+   */
+  const [lockedFit, setLockedFit] = useState<{ levelId: LevelId; boundsPx: WallLayerRectPx } | null>(null);
+  const fitReferencePx = lockedFit !== null && lockedFit.levelId === levelId ? lockedFit.boundsPx : fitAllBoundsPx;
+  const baseScale = fitCanvasView(frameSizePx, fitReferencePx)?.zoom ?? DEFAULT_ZOOM;
+
+  const viewport = useMemo<WallLayerViewportPx>(
+    () => centredCanvasView(frameSizePx, toPixelPoint(viewCenter, scaleOfLevel(level)), zoom * baseScale),
+    [baseScale, frameSizePx, level, viewCenter, zoom],
+  );
 
   const legendLevels = useMemo(() => legendLevelsOf(walls), [walls]);
 
@@ -1520,8 +1560,6 @@ export function useWallLayerReview(
 
   const setZoom = useStore((current) => current.setZoom);
   const setViewCenter = useStore((current) => current.setViewCenter);
-
-  const [frameSizePx, setFrameSizePx] = useState<WallLayerSizePx | null>(null);
 
   const onFrameResize = useCallback((size: WallLayerSizePx) => {
     setFrameSizePx((previous) =>
@@ -1568,14 +1606,25 @@ export function useWallLayerReview(
       return;
     }
 
-    const nextZoom = fitZoomFor(frameSizePx, fitBoundsPx);
+    const fitted = fitCanvasView(frameSizePx, fitBoundsPx);
 
-    if (nextZoom !== null) {
-      setZoom(nextZoom);
+    setZoom(fitted === null ? DEFAULT_ZOOM : clampZoom(fitted.zoom / baseScale));
+    setViewCenter(toMillimetrePoint(centreOfBounds(fitBoundsPx), scaleOfLevel(level)));
+  }, [baseScale, fitBoundsPx, frameSizePx, level, setViewCenter, setZoom]);
+
+  /*
+   * Mở một tầng là thấy trọn tầng ấy (BUG-403): một lần cho mỗi tầng, khi đã có thứ để phủ.
+   * Kho giữ mức phóng/tâm nhìn của màn trước (hoặc (0; 0) mặc định), không phải của tầng này.
+   */
+  useEffect(() => {
+    if (levelId === null || fitAllBoundsPx === null || lockedFit?.levelId === levelId) {
+      return;
     }
 
-    setViewCenter(toMillimetrePoint(centreOfBounds(fitBoundsPx), scaleOfLevel(level)));
-  }, [fitBoundsPx, frameSizePx, level, setViewCenter, setZoom]);
+    setLockedFit({ boundsPx: fitAllBoundsPx, levelId });
+    setZoom(DEFAULT_ZOOM);
+    setViewCenter(toMillimetrePoint(centreOfBounds(fitAllBoundsPx), scaleOfLevel(level)));
+  }, [fitAllBoundsPx, level, levelId, lockedFit, setViewCenter, setZoom]);
 
   /** Bản đồ nhỏ: kéo hoặc bấm một chỗ thì tâm nhìn đi theo. */
   const onMiniMapViewportChange = useCallback(
@@ -1590,13 +1639,13 @@ export function useWallLayerReview(
   );
 
   /*
-   * Vùng nhìn ban đầu của bản đồ nhỏ, phần trăm khổ bản vẽ.
-   *
-   * `MiniMap` giữ vùng nhìn của riêng nó sau lượt đầu (`useMiniMap` là kho cục
-   * bộ của component), nên đây đúng là giá trị KHỞI TẠO chứ không phải một điều
-   * khiển có chủ — tên prop của component nói thẳng như vậy (`initialViewport`).
+   * Vùng nhìn của bản đồ nhỏ, phần trăm khổ bản vẽ: vùng ĐANG thấy của canvas, nên khung trên
+   * bản đồ đi theo thu phóng/vừa khung (BUG-403 nợ). Chưa đo khung hay chưa có ảnh → mặc định.
    */
-  const miniMapViewport = MINIMAP_INITIAL_VIEWPORT;
+  const miniMapViewport =
+    drawingSizePx === null || frameSizePx === null
+      ? MINIMAP_INITIAL_VIEWPORT
+      : miniMapRectOf(visibleDrawingRect(viewport, frameSizePx), drawingSizePx);
 
   /*
    * Phím `F` — phủ khắp vùng đang chọn.
@@ -1730,6 +1779,33 @@ export function useWallLayerReview(
     onToggleCollapsed,
   };
 
+  /*
+   * Lớp vẽ theo pixel KHUNG (BUG-403): `<svg>` phủ kín khung với `viewBox` là vùng bản vẽ đang
+   * thấy, còn ảnh nền, vòng chọn và nhãn đo là HTML đứng ở toạ độ khung — không lớp `scale()`
+   * nào để viền và chữ của chúng teo theo hệ số "vừa khung".
+   */
+  const hasFrame = frameSizePx !== null && frameSizePx.width > 0 && frameSizePx.height > 0;
+  const surfacePx = drawingSizePx === null ? contentBoundsPx : { x: 0, y: 0, ...drawingSizePx };
+  const activeWallId = selectedWallId ?? (hoveredId as WallId | null) ?? null;
+  const activeWall = shapes.find((shape) => shape.id === activeWallId) ?? null;
+  const frameLayer = {
+    viewBoxPx:
+      surfacePx === null || !hasFrame ? surfacePx : visibleDrawingRect(viewport, frameSizePx),
+    surfaceRectPx: surfacePx === null ? null : toFrameRect(viewport, surfacePx),
+    haloRectPx: activeWall === null ? null : toFrameRect(viewport, activeWall.boundsPx),
+  };
+  const onFrame = (point: WallLayerMeasurementPx['startPx']) =>
+    point === null ? null : toFramePoint(viewport, point);
+  const frameMeasurement: WallLayerMeasurementPx | null =
+    measurement === null
+      ? null
+      : {
+          ...measurement,
+          startPx: onFrame(measurement.startPx),
+          currentPx: onFrame(measurement.currentPx),
+          midPx: onFrame(measurement.midPx),
+        };
+
   const canvas: WallLayerCanvasViewProps = {
     shapes,
     selectedWallId,
@@ -1755,8 +1831,8 @@ export function useWallLayerReview(
     contentBoundsPx,
     isWallLayerVisible,
     legendLevels,
-    measurement,
-    prefersReducedMotion,
+    measurement: frameMeasurement,
+    ...frameLayer,
     onApprove,
     onRequestThicknessChange,
     onRequestSplit,
@@ -1764,6 +1840,7 @@ export function useWallLayerReview(
 
     /* -- Khung nhìn lái ngược được (T8) ---------------------------------- */
     zoomPercent: zoomPercentOf(zoom),
+    unitPx: 1 / viewport.zoom,
     onZoomIn,
     onZoomOut,
     onResetZoom,
@@ -1786,7 +1863,7 @@ export function useWallLayerReview(
     onToggleSelect,
   };
 
-  return { panel, canvas, toolRail, statusBar, leftPanel, saveBlock, provisionalScaleNotice };
+  return { panel, canvas, toolRail, statusBar, leftPanel, saveBlock, provisionalScaleNotice, readFailure };
 }
 
 /** Cổng có dữ liệu, xuất lại để story và bài kiểm cắm vào cùng một chỗ (R-73). */

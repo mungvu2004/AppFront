@@ -23,14 +23,26 @@ const PRODUCT_BUNDLE =
 const config: Config = {
   // Tệp test không vẽ gì ra màn: lớp chỉ có trong chúng (vd `bg-[#fafafa]`, hằng
   // khẳng định lớp) không được vào gói CSS. Bản dựng sản phẩm còn bỏ thêm stories và
-  // màn demo chỉ bản dev (`App.tsx`, `buildDevOnlyRoutes`): không cái nào vào gói JS,
-  // nên lớp chỉ có trong chúng cũng không được vào gói CSS (ngân sách 12 KiB, QA-02).
-  // Bản dev, vitest và Storybook (kể cả `storybook build`) vẫn quét đủ.
+  // màn demo chỉ bản dev (`App.tsx`, `buildDevOnlyRoutes`, `buildStateGalleryDevOnlyRoutes` — kể cả
+  // `DesignSystem`, bảng demo `StateGallery.tsx` cũ và `DevStateSwitcher` của nó) cùng bộ khẳng định
+  // `lib/testing`: không cái nào vào gói JS, nên lớp chỉ có trong chúng cũng không được vào gói CSS
+  // (ngân sách 12 KiB, QA-02, QA-02b). Bản dev, vitest và Storybook (kể cả `storybook build`) vẫn quét đủ.
   content: [
     './index.html',
     './src/**/*.{js,ts,jsx,tsx}',
     '!./src/**/*.test.{ts,tsx}',
-    ...(PRODUCT_BUNDLE ? ['!./src/App.tsx', '!./src/screens/*Demo*.tsx', '!./src/**/*.stories.tsx'] : []),
+    ...(PRODUCT_BUNDLE
+      ? [
+          '!./src/App.tsx',
+          '!./src/screens/*Demo*.tsx',
+          '!./src/**/*.stories.tsx',
+          '!./src/screens/DesignSystem.tsx',
+          '!./src/screens/system/StateGallery.tsx',
+          '!./src/screens/system/StateGallery/**',
+          '!./src/components/shell/DevStateSwitcher.tsx',
+          '!./src/lib/testing/**',
+        ]
+      : []),
   ],
   theme: {
     colors: {
@@ -214,6 +226,23 @@ const config: Config = {
         'panel-rise': `panel-rise ${speed('slow')} ease-out forwards`,
       }
     },
+  },
+  // Từ trong mã/chú thích mà bộ quét lớp tưởng là lớp: `!container.contains(…)`, `!outline.every(…)`,
+  // `addEventListener('blur' | 'resize')`, `'filter'`, `'isolate'` (id công cụ), "collapse", "invert"…
+  // Không nơi nào đặt chúng làm className; mỗi cái là một quy tắc CSS chết trong ngân sách 12 KiB (QA-03).
+  // Cần thật một lớp ở đây thì xoá nó khỏi danh sách.
+  blocklist: [
+    'blur', 'collapse', 'container', 'filter', 'grow', 'invert', 'isolate', 'lowercase', 'ordinal', 'resize', 'ring',
+    'shadow', 'shrink', '!container', '!contents', '!hidden', '!outline', '!table', '!visible',
+  ],
+  // Không màn nào dùng; tắt thì `*, ::before, ::after` và `::backdrop` không còn mang biến `--tw-*` của chúng.
+  corePlugins: {
+    borderSpacing: false, contain: false, gradientColorStops: false, scrollSnapType: false,
+    // Lọc: hai chỗ dùng viết thẳng `[filter:blur(2px)]` và `[backdrop-filter:blur(4px)]` — không cần chuỗi chín biến.
+    blur: false, brightness: false, contrast: false, dropShadow: false, grayscale: false, hueRotate: false,
+    invert: false, saturate: false, sepia: false, filter: false, backdropBlur: false, backdropBrightness: false,
+    backdropContrast: false, backdropGrayscale: false, backdropHueRotate: false, backdropInvert: false,
+    backdropOpacity: false, backdropSaturate: false, backdropSepia: false, backdropFilter: false,
   },
   plugins: [],
 };

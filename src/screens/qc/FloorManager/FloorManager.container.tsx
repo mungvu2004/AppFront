@@ -52,7 +52,7 @@
  * một endpoint để lấp chỗ đó.
  */
 
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -206,6 +206,34 @@ export function FloorManagerContainer(props: FloorManagerContainerProps) {
   );
 }
 
+/** Ngưỡng thu hẹp của bản thiết kế (`notes/floor-manager/blueprint.md` mục E). */
+const COMPACT_QUERY = '(width < 1024px)';
+
+/**
+ * Lớp trên đo bề rộng cho `isCompact` (BUG-251: trước đây không ai đo nên màn không bao giờ
+ * thu hẹp). Bản chép ngắn của `useIsNarrow` ở `UserManagement.container.tsx`: `useBreakpoint`
+ * của `useAppShell.ts` là hàm riêng tư.
+ */
+function useIsCompact(): boolean {
+  const [isCompact, setIsCompact] = useState(() => window.matchMedia(COMPACT_QUERY).matches);
+
+  useEffect(() => {
+    const media = window.matchMedia(COMPACT_QUERY);
+    const listener = (event: MediaQueryListEvent): void => {
+      setIsCompact(event.matches);
+    };
+
+    setIsCompact(media.matches);
+    media.addEventListener('change', listener);
+
+    return (): void => {
+      media.removeEventListener('change', listener);
+    };
+  }, []);
+
+  return isCompact;
+}
+
 /** Bên trong router thật, nên `useNavigate` chắc chắn tìm được provider. */
 function FloorManagerRouteBody({
   projectId,
@@ -215,6 +243,7 @@ function FloorManagerRouteBody({
   readonly roles: readonly ProjectRole[];
 }) {
   const navigate = useNavigate();
+  const isCompact = useIsCompact();
 
   /*
    * Lối ra thật của liên kết "tải lên". `ROUTES.project.upload` là đường DUY
@@ -230,13 +259,18 @@ function FloorManagerRouteBody({
     navigate(ROUTES.dashboard);
   }, [navigate]);
 
+  // Không vỏ nào cấp chiều cao cho route này: thiếu khung `h-dvh` thì `h-full` của màn
+  // không bám vào đâu, khung bảng cao bằng 50 tầng và cả trang cuộn (BUG-520).
   return (
-    <FloorManagerContainer
-      onBackToProjects={handleBackToProjects}
-      onNavigateToDrawings={handleNavigateToDrawings}
-      projectId={projectId}
-      roles={roles}
-    />
+    <div className="h-dvh">
+      <FloorManagerContainer
+        isCompact={isCompact}
+        onBackToProjects={handleBackToProjects}
+        onNavigateToDrawings={handleNavigateToDrawings}
+        projectId={projectId}
+        roles={roles}
+      />
+    </div>
   );
 }
 

@@ -36,7 +36,7 @@
  *
  * | `state`     | khối trạng thái riêng                                          |
  * |-------------|----------------------------------------------------------------|
- * | `empty`     | `emptyNotice` — tệp không có lớp đặt tên                        |
+ * | `empty`     | `emptyNotice` — không có lớp (tệp thiếu, hoặc bản chưa đọc được) |
  * | `loading`   | khung chờ, không dải cảnh báo                                   |
  * | `partial`   | `partialNotice` + danh sách thực thể không dựng lại được         |
  * | `error`     | `errorMessage` + `errorCode` + lối sang nhánh AI + nút đọc lại   |
@@ -48,8 +48,15 @@
  * bại duy nhất A11 tồn tại để chặn — không có chỗ xảy ra.
  */
 
+import { useEffect, useRef } from 'react';
+
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { InlineAlert, type InlineAlertLevel } from '@/components/feedback/InlineAlert';
+import {
+  BACK_TO_PROJECTS_LABEL,
+  PROJECT_NOT_FOUND_DESCRIPTION,
+  PROJECT_NOT_FOUND_TITLE,
+} from '@/components/feedback/ProjectSpatialGate';
 import { Button } from '@/components/ui/Button';
 import { useCountUp } from '@/hooks/useCountUp';
 import type { NumberFormatOptions } from '@/lib/format/number';
@@ -83,7 +90,7 @@ const STAGE_TWO_ARIA_LABEL = 'Ánh xạ lớp và xem trước hình học';
 const SUMMARY_ARIA_LABEL = 'Tóm tắt số lớp đã ánh xạ';
 const LOADING_ARIA_LABEL = 'Đang đọc tệp CAD';
 
-const EMPTY_TITLE = 'Tệp CAD không có lớp được đặt tên';
+const EMPTY_TITLE = 'Chưa có lớp nào để ánh xạ';
 const PARTIAL_TITLE = 'Một phần dữ liệu sẽ không được nhập';
 const ERROR_TITLE = 'Không thể đọc tệp CAD';
 const SUCCESS_TITLE = 'Đã nhập xong hình học';
@@ -102,6 +109,8 @@ const EXPAND_PANEL_LABEL = 'Mở bảng lớp';
  * khuôn `ScaleCalibration.tsx` và `ProcessingScreen.tsx`.
  */
 const ERROR_CODE_PREFIX = 'Mã lỗi: ';
+
+const IMPORT_REASON_ID = 'cad-import-disabled-reason';
 
 /** Dấu ngăn hai vế của dòng tóm tắt, cùng dấu bảng lớp dùng cho dòng gợi ý. */
 const SUMMARY_SEPARATOR = ' · ';
@@ -170,6 +179,7 @@ function messageFor(model: CadBranchConfirmViewModel): string | null {
 interface CadMappingSummaryBarProps {
   readonly summary: CadMappingSummary;
   readonly canImportGeometry: boolean;
+  readonly disabledReason: string | null;
   readonly isImporting: boolean;
   readonly prefersReducedMotion: boolean;
   readonly onImportGeometry: () => void;
@@ -184,6 +194,7 @@ interface CadMappingSummaryBarProps {
  */
 function CadMappingSummaryBar({
   canImportGeometry,
+  disabledReason,
   isImporting,
   onImportGeometry,
   prefersReducedMotion,
@@ -210,14 +221,22 @@ function CadMappingSummaryBar({
         </p>
       </div>
 
-      <Button
-        disabled={!canImportGeometry}
-        loading={isImporting}
-        onClick={onImportGeometry}
-        variant="primary"
-      >
-        {IMPORT_BUTTON_LABEL}
-      </Button>
+      <div className="flex flex-col items-end gap-1">
+        <Button
+          {...(disabledReason !== null ? { 'aria-describedby': IMPORT_REASON_ID } : {})}
+          disabled={!canImportGeometry}
+          loading={isImporting}
+          onClick={onImportGeometry}
+          variant="primary"
+        >
+          {IMPORT_BUTTON_LABEL}
+        </Button>
+        {disabledReason !== null ? (
+          <p className="text-[12px] text-text-secondary" id={IMPORT_REASON_ID}>
+            {disabledReason}
+          </p>
+        ) : null}
+      </div>
     </footer>
   );
 }
@@ -238,8 +257,19 @@ interface CadBranchHandoffProps {
  * Hai nút là đúng hai lựa chọn chính của đặc tả; nút AI KHÔNG bao giờ bị khoá.
  */
 function CadBranchHandoff({ isCadChoiceDisabled, onChooseBranch }: CadBranchHandoffProps) {
+  const sectionRef = useRef<HTMLElement>(null);
+
+  // Khối này chỉ dựng khi hộp thoại vừa đóng. Hộp thoại mở lúc vào màn thường không có nút mở, nên
+  // bẫy trả tiêu điểm về `body`: khi đó khối nhận tiêu điểm vào nút đầu tiên bấm được (BUG-559). Có
+  // nút mở thật thì để tiêu điểm ở đó (A12). Effect gắn chạy sau effect dọn của `Modal`.
+  useEffect(() => {
+    if (document.activeElement === null || document.activeElement === document.body) {
+      sectionRef.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
+    }
+  }, []);
+
   return (
-    <section className="animate-panel-rise px-4 pb-2 motion-reduce:animate-none">
+    <section className="animate-panel-rise px-4 pb-2 motion-reduce:animate-none" ref={sectionRef}>
       <InlineAlert level="attention" message={AI_BRANCH_NOTICE} title={AI_HANDOFF_TITLE} />
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button
@@ -263,6 +293,24 @@ function CadBranchHandoff({ isCadChoiceDisabled, onChooseBranch }: CadBranchHand
 /* -------------------------------------------------------------------------- */
 
 export function CadBranchConfirm({ actions, model }: CadBranchConfirmProps) {
+  // Dự án không tồn tại: một câu, một lối ra, không hộp thoại — như Sơ đồ xử lý (BUG-563, BUG-313).
+  if (model.isProjectMissing === true) {
+    return (
+      <div aria-label={SCREEN_ARIA_LABEL} className="flex h-full min-h-0 w-full flex-col bg-bg-app p-4" role="region">
+        <InlineAlert
+          action={{ label: BACK_TO_PROJECTS_LABEL, onClick: actions.onBackToProjects }}
+          level="violation"
+          message={PROJECT_NOT_FOUND_DESCRIPTION}
+          title={PROJECT_NOT_FOUND_TITLE}
+        />
+      </div>
+    );
+  }
+
+  return <CadBranchConfirmBody actions={actions} model={model} />;
+}
+
+function CadBranchConfirmBody({ actions, model }: CadBranchConfirmProps) {
   const noticeMessage = messageFor(model);
   const noticeLevel = NOTICE_LEVELS[model.state];
   const isError = model.state === 'error';
@@ -295,6 +343,15 @@ export function CadBranchConfirm({ actions, model }: CadBranchConfirmProps) {
             }
             title={NOTICE_TITLES[model.state]}
           />
+
+          {/* Không có lớp nào ở giai đoạn 2: lối đi tiếp là nhánh AI, không phải ngõ cụt (BUG-314). */}
+          {model.state === 'empty' && isStageTwoOpen && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button onClick={() => actions.onChooseBranch('ai')} size="sm" variant="secondary">
+                {PHASE_1_TEXT.buttons.secondary}
+              </Button>
+            </div>
+          )}
 
           {isError && (
             <div className="flex flex-wrap items-center gap-2">
@@ -368,6 +425,7 @@ export function CadBranchConfirm({ actions, model }: CadBranchConfirmProps) {
       {isStageTwoOpen && model.summary !== null && model.state !== 'forbidden' && (
         <CadMappingSummaryBar
           canImportGeometry={model.canImportGeometry}
+          disabledReason={model.importDisabledReason}
           isImporting={model.isImporting}
           onImportGeometry={actions.onImportGeometry}
           prefersReducedMotion={model.prefersReducedMotion}

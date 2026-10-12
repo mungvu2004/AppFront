@@ -273,8 +273,10 @@ export function RuleReport(props: RuleReportViewProps) {
   // The footer offers the one edit this screen has. A reader without edit rights
   // — the forbidden state — gets the report and no way to act on it, and the
   // button is removed rather than disabled, the same way the two missing
-  // capabilities are removed.
-  const canConfirm = capabilities.canEdit && status !== 'forbidden' && status !== 'empty';
+  // capabilities are removed. With no result yet (`empty`, `error`, `loading`)
+  // there is nothing to confirm either — `violations` is 0 then, so the button
+  // used to sit enabled under "Không chạy được lượt kiểm tra" (BUG-465).
+  const canConfirm = capabilities.canEdit && hasResults && !isRunning && status !== 'forbidden';
 
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-bg-app">
@@ -291,13 +293,14 @@ export function RuleReport(props: RuleReportViewProps) {
             {props.settingsPath === undefined ? null : (
               <a
                 href={props.settingsPath}
-                className={cn('rounded text-sm text-accent underline', FOCUS_RING)}
+                className={cn('rounded py-1 text-sm text-accent underline', FOCUS_RING)}
               >
                 Cài đặt bộ luật
               </a>
             )}
-            {/* `empty` = chưa có mô hình: một lượt chạy chỉ rơi vào `error` (B-V12-02). */}
-            {status === 'empty' ? null : (
+            {/* `empty` = chưa có mô hình: một lượt chạy chỉ rơi vào `error` (B-V12-02).
+                `error` có sẵn "Thử lại" trong thân — hai nút chạy lại là thừa (BUG-465). */}
+            {status === 'empty' || status === 'error' ? null : (
               <Button variant="secondary" loading={isRunning} onClick={props.onRerun}>
                 Chạy kiểm tra lại
               </Button>

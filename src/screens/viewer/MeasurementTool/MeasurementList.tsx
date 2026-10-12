@@ -59,7 +59,7 @@ const FOCUS_RING_CLASS =
 
 const SECTION_TITLE = 'Phép đo';
 const EMPTY_HINT = 'Chưa có phép đo nào. Nhấn M rồi chọn hai điểm trên mô hình.';
-const UNIT_SELECT_LABEL = 'đơn vị';
+const UNIT_SELECT_LABEL = 'Đơn vị';
 const COLLAPSE_BUTTON_LABEL = `Thu gọn mục ${SECTION_TITLE}`;
 const STALE_BADGE_TEXT = 'Cần chú ý';
 

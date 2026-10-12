@@ -271,7 +271,7 @@ export function buildShortcutRows(): readonly ShortcutRowModel[] {
  * nhãn hàng bị bóp thành ba dòng và bảng thành thứ phải cuộn ngang mới đọc
  * được. Danh sách `Toggle` không có cột nào để bóp.
  */
-const NARROW_VIEWPORT_QUERY = '(max-width: 639px)';
+const NARROW_VIEWPORT_QUERY = '(width < 640px)';
 
 function useNarrowViewport(): boolean {
   const [isNarrow, setIsNarrow] = useState(() =>

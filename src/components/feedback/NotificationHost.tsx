@@ -46,9 +46,6 @@ import type { Notification, NotificationBus } from '@/lib/mutations/notification
 
 import { Toast, type ToastMessage } from './Toast';
 
-/** Nhãn vùng thông báo — bản sao khai báo ở `vi.json` khoá `notifications`. */
-const REGION_ARIA_LABEL = 'Thông báo';
-
 /** Tiêu đề và câu mô tả ghép thành một dòng, vì `ToastMessage` chỉ có một ô chữ. */
 const JOINER = ' — ';
 
@@ -101,12 +98,8 @@ export function NotificationHost({ bus }: NotificationHostProps) {
   const visible = notifications.filter((item) => !dismissedIds.includes(item.id)).reverse();
 
   return (
-    <div
-      aria-label={REGION_ARIA_LABEL}
-      aria-live="polite"
-      className="pointer-events-none fixed bottom-4 right-4 z-50 flex flex-col-reverse items-end gap-2"
-      role="region"
-    >
+    // `Toast.Viewport` tránh ngăn đang mở, nơi có "Xem tất cả" (BUG-227).
+    <Toast.Viewport>
       {visible.map((notification, index) => (
         <Toast.Item
           index={index}
@@ -115,7 +108,7 @@ export function NotificationHost({ bus }: NotificationHostProps) {
           toast={toToastMessage(notification)}
         />
       ))}
-    </div>
+    </Toast.Viewport>
   );
 }
 

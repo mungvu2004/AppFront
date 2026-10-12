@@ -55,6 +55,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
+import { isProjectNotFound } from '@/hooks/useProjectSpatial';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useShortcut } from '@/hooks/useShortcut';
 import { AUTH_ROLES, can } from '@/lib/auth/permissions';
@@ -107,7 +108,14 @@ import type {
  */
 const COPY = {
   emptyNotice:
-    'Tệp CAD không có lớp nào được đặt tên. Hệ thống sẽ ánh xạ theo loại hình học thay cho tên lớp.',
+    'Tệp CAD không có lớp nào được đặt tên, nên không có lớp nào để ánh xạ và chưa nhập được hình học. Hãy chọn "Vẫn dùng AI".',
+  /** Cổng chưa đọc được lớp CAD: 0 lớp là giới hạn của bản này, không phải lỗi của tệp (review-1 #2). */
+  inspectionMissingNotice:
+    'Bản này chưa đọc được lớp của tệp CAD, nên chưa ánh xạ và nhập được hình học. Hãy chọn "Vẫn dùng AI".',
+  /** Ba lý do nút "Nhập hình học" khoá — nút không bao giờ khoá câm (BUG-314). */
+  importNoLayers: 'Không có lớp nào để ánh xạ, nên chưa có hình học để nhập.',
+  importUnsupported: 'Bản này chưa nhập được hình học từ tệp CAD. Hãy chọn "Vẫn dùng AI".',
+  importNoMapped: 'Gán vai trò cho ít nhất một lớp để nhập hình học.',
   forbiddenNotice:
     'Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. liên hệ quản trị viên để được cấp quyền.',
   successNotice: 'Đã nhập xong hình học từ tệp CAD.',
@@ -602,12 +610,13 @@ export function useCadBranchConfirm(
       return 'success';
     }
 
-    if (isMappingPanelCollapsed) {
-      return 'collapsed';
-    }
-
+    // `empty` trước `collapsed`: thu gọn bảng lớp không được giấu câu "không có lớp nào" (BUG-314).
     if (layers.length === 0) {
       return 'empty';
+    }
+
+    if (isMappingPanelCollapsed) {
+      return 'collapsed';
     }
 
     // Không có nhánh "mọi thứ vừa vặn" nào trong bảy tên của A11, và cả hai màn
@@ -754,6 +763,13 @@ export function useCadBranchConfirm(
     importMutation.reset();
     void query.refetch();
   }, [importMutation, query]);
+
+  const onBackToProjects = useCallback(() => {
+    options.onNavigate?.(ROUTES.dashboard);
+  }, [options]);
+
+  // #12 trả 404 `project`: dự án không có, không phải "không đọc được tệp CAD … NOT_FOUND" (BUG-563).
+  const isProjectMissing = query.isError && isProjectNotFound(query.error);
 
   const canImportGeometry =
     state !== 'forbidden' &&
@@ -912,15 +928,31 @@ export function useCadBranchConfirm(
       unsupportedEntityKinds,
       isMappingPanelCollapsed,
       canImportGeometry,
+      importDisabledReason:
+        !isStageTwoOpen || canImportGeometry || importMutation.isPending || ['forbidden', 'error', 'success'].includes(state)
+          ? null
+          : record?.inspectionMissing != null ||
+              !gateway.supports.saveLayerMapping ||
+              !gateway.supports.setProcessingBranch
+            ? COPY.importUnsupported
+            : layers.length === 0
+              ? COPY.importNoLayers
+              : COPY.importNoMapped,
       isImporting: importMutation.isPending,
       prefersReducedMotion,
       errorMessage: failure?.sentence ?? null,
       errorCode: failure?.technicalCode ?? null,
       errorFileFormatVersion,
-      emptyNotice: state === 'empty' ? COPY.emptyNotice : null,
+      emptyNotice:
+        state !== 'empty'
+          ? null
+          : record?.inspectionMissing != null
+            ? COPY.inspectionMissingNotice
+            : COPY.emptyNotice,
       partialNotice,
       forbiddenNotice: state === 'forbidden' ? COPY.forbiddenNotice : null,
       successNotice: state === 'success' ? COPY.successNotice : null,
+      ...(isProjectMissing ? { isProjectMissing: true as const } : {}),
     },
     actions: {
       onChooseBranch,
@@ -935,6 +967,7 @@ export function useCadBranchConfirm(
       onImportGeometry,
       onToggleMappingPanelCollapsed,
       onRetry,
+      onBackToProjects,
     },
     resolvedBranch,
   };

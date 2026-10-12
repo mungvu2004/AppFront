@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { describe, expect, it } from 'vitest';
 
 import type { APP_ERROR_KINDS } from '../kinds';
+import { describeError } from '../describeError';
 import { toAppError } from '../toAppError';
 
 const makeHttpError = (overrides: Partial<{
@@ -103,6 +104,22 @@ describe('errors/toAppError.ts', () => {
     expect(
       toAppError(makeHttpError({ kind: 'http', raw: { message: 'login service down' }, status: 500 })).kind,
     ).not.toBe('unauthenticated');
+  });
+
+  // BUG-509: a 5xx read is `unknown`, and `unknown` used to force "no retry" and a "Đóng" label.
+  it('lỗi 5xx mà client nói thử lại được: retryable, lối ra "thử lại", nhãn "Thử lại"', () => {
+    for (const status of [500, 503]) {
+      const actual = toAppError(makeHttpError({ kind: 'http', retryable: true, status }));
+
+      expect(actual.kind, String(status)).toBe('unknown');
+      expect(actual.retryable, String(status)).toBe(true);
+      expect(actual.recovery, String(status)).toBe('thử lại');
+      expect(describeError(actual).primaryButtonLabel, String(status)).toBe('Thử lại');
+    }
+
+    const final = toAppError(makeHttpError({ kind: 'http', retryable: false, status: 500 }));
+    expect(final.retryable).toBe(false);
+    expect(final.recovery).toBe('không');
   });
 
   it('vẫn nhận kind auth từ dữ liệu có cấu trúc: số 401 hoặc mã UNAUTHENTICATED', () => {

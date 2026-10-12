@@ -127,6 +127,7 @@
  * dự án khác thì ranh giới gắn LẠI.
  */
 
+import { AlertCircle } from 'lucide-react';
 import { useCallback, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -197,7 +198,7 @@ function Viewer3DCrashFallback({ report, retry }: ScreenErrorFallback) {
     <main className="absolute inset-0 flex items-center justify-center bg-bg-app">
       <EmptyState
         description={report.description.description}
-        icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-state-violation-tint" />}
+        icon={<AlertCircle aria-hidden="true" />}
         title={report.description.title}
         {...(report.retryable
           ? { action: { label: report.description.primaryButtonLabel, onClick: retry } }
@@ -411,18 +412,17 @@ export function Viewer3DRoute() {
   if (id === undefined || id.length === 0) {
     return (
       <div className="p-6">
-        <InlineAlert
-          level="violation"
-          message={MISSING_PARAMS_MESSAGE}
-          title={MISSING_PARAMS_TITLE}
-        />
+        <InlineAlert level="violation" message={MISSING_PARAMS_MESSAGE} title={MISSING_PARAMS_TITLE} />
       </div>
     );
   }
 
+  // Khung `h-dvh`: không vỏ nào cấp chiều cao cho route (cùng gốc BUG-373, khuôn `MobileViewerRoute`).
   return (
-    <ProjectSpatialGate projectId={id} wrapFallbackInMain>
-      <Viewer3DContainer projectId={id} roles={session.roles} />
-    </ProjectSpatialGate>
+    <div className="h-dvh">
+      <ProjectSpatialGate projectId={id} wrapFallbackInMain>
+        <Viewer3DContainer projectId={id} roles={session.roles} />
+      </ProjectSpatialGate>
+    </div>
   );
 }

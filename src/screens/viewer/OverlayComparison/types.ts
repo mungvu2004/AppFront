@@ -410,6 +410,11 @@ export interface OverlayComparisonViewModel {
    * `null` ở mọi trạng thái khác. Đường dẫn lấy từ `@/routes/paths` (R-65).
    */
   readonly scaleFixHref: string | null;
+  /**
+   * Lối sang màn Tải bản vẽ khi tầng CHƯA có bản vẽ nào (BUG-420), như màn Hiệu
+   * chỉnh tỷ lệ. `null` ở mọi trạng thái khác.
+   */
+  readonly uploadHref: string | null;
 
   readonly floors: readonly FloorOptionViewModel[];
   readonly activeFloorId: LevelId | null;

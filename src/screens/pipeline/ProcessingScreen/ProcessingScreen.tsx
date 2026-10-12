@@ -25,7 +25,7 @@
  * | `error`     | hai cột đầy đủ, cộng `InlineAlert` kèm mã kỹ thuật ở đầu màn     |
  * | `success`   | hai cột đầy đủ, cộng khối tổng kết                               |
  * | `forbidden` | hai cột đầy đủ; `canCancel` sai nên nút huỷ biến mất hẳn         |
- * | `collapsed` | hai cột, cột phải thành tấm trượt đáy bất kể bề rộng khung nhìn   |
+ * | `collapsed` | một thanh bước + "Xem tất cả các bước"; dưới 1024px tab xếp dưới  |
  *
  * Không nhánh nào trả `null`: đường dẫn, hàng hành động và dòng tóm tắt luôn
  * được vẽ, nên màn trắng — thất bại duy nhất A11 tồn tại để chặn — không có chỗ
@@ -40,11 +40,12 @@
  */
 
 import { ScanLine } from 'lucide-react';
-import { clsx } from 'clsx';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { BACK_TO_PROJECTS_LABEL } from '@/components/feedback/ProjectSpatialGate';
 import { Skeleton } from '@/components/feedback/Skeleton';
+import { Breadcrumb } from '@/components/shell/Breadcrumb';
 import { Button } from '@/components/ui/Button';
 import { Tabs } from '@/components/ui/Tabs';
 
@@ -58,8 +59,6 @@ import type { ProcessingScreenProps } from './types';
 
 const BREADCRUMB_PROJECTS = 'Dự án';
 const BREADCRUMB_PIPELINE = 'Xử lý';
-/** Tên dự án dài cắt "…" (title giữ đủ) để ba cấp vẫn một dòng ở 375 px, như `Breadcrumb`. */
-const BREADCRUMB_NAME_CLASS = 'inline-block max-w-[140px] truncate align-top sm:max-w-xs';
 
 const RUN_IN_BACKGROUND_LABEL = 'Để chạy nền và thông báo cho tôi';
 const CANCEL_LABEL = 'Huỷ xử lý';
@@ -84,11 +83,7 @@ const EMPTY_ACTION_LABEL = 'Tải bản vẽ';
 /** Bao nhiêu khung xương lúc chưa biết bước nào đã xong. */
 const SKELETON_ROW_COUNT = 4;
 
-/** Cùng khuôn `InputQualityGate.tsx:66-70` — tấm trượt đáy dưới 1024px. */
-const BOTTOM_SHEET_CLASSES =
-  'fixed inset-x-0 bottom-0 z-10 max-h-[70vh] overflow-y-auto rounded-t-[16px] border-t border-border-default bg-bg-surface p-4';
-const BOTTOM_SHEET_RESET_AT_DESKTOP =
-  'lg:static lg:max-h-none lg:overflow-visible lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0';
+const ALL_STEPS_LABEL = 'Xem tất cả các bước';
 
 /** Hàng hành động đầu trang: nút chìm chạy nền khi còn lượt đang chạy, nút huỷ thì tuỳ quyền. */
 function ProcessingActions(props: ProcessingScreenProps) {
@@ -138,6 +133,7 @@ function ProcessingPanels(props: ProcessingScreenProps) {
       }}
     >
       <Tabs.List aria-label={TABS_ARIA_LABEL}>
+        {/* Vùng chạm 44 dưới 640 px, cùng khuôn `Button` (h-11 sm:h-9). */}
         <Tabs.Tab id="preview">{TAB_PREVIEW_LABEL}</Tabs.Tab>
         <Tabs.Tab id="log">{TAB_LOG_LABEL}</Tabs.Tab>
       </Tabs.List>
@@ -204,13 +200,24 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         <div className="lg:w-[60%]">
           {isSheet ? (
-            <ProcessingStepBar prefersReducedMotion={props.prefersReducedMotion} steps={props.steps} />
+            // Một thanh cho bước hiện tại, và cả sáu bước vẫn mở ra được ở khổ hẹp (BUG-294).
+            <div className="flex flex-col gap-2">
+              <ProcessingStepBar prefersReducedMotion={props.prefersReducedMotion} steps={props.steps} />
+              <details>
+                <summary className="cursor-pointer select-none min-h-11 rounded-[8px] px-1 py-3 text-[14px] sm:min-h-0 sm:py-2 font-medium text-text-secondary hover:bg-bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+                  {ALL_STEPS_LABEL}
+                </summary>
+                <ProcessingStepList prefersReducedMotion={props.prefersReducedMotion} steps={props.steps} />
+              </details>
+            </div>
           ) : (
             <ProcessingStepList prefersReducedMotion={props.prefersReducedMotion} steps={props.steps} />
           )}
           <ProcessingFloorObjectRows floors={props.floors} />
         </div>
-        <div className={clsx('lg:w-[344px]', BOTTOM_SHEET_CLASSES, !isSheet && BOTTOM_SHEET_RESET_AT_DESKTOP)}>
+        {/* Dưới 1024px hai tab xếp dưới các bước, trong dòng chảy trang: tấm cố định 70vh
+            che khối tổng kết và để trống 400-600 px phía trên (BUG-294, BUG-285). */}
+        <div className="lg:w-[344px]">
           <ProcessingPanels {...props} />
         </div>
       </div>
@@ -220,19 +227,21 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
     <div className="min-h-screen bg-bg-app">
       <div className="mx-auto flex max-w-[1280px] flex-col gap-6 p-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <nav aria-label={BREADCRUMB_PIPELINE} className="min-w-0 text-[13px] text-text-secondary">
-            <span>{BREADCRUMB_PROJECTS}</span>
-            <span aria-hidden="true"> › </span>
-            {props.projectName !== undefined ? (
-              <>
-                <span className={BREADCRUMB_NAME_CLASS} title={props.projectName}>
-                  {props.projectName}
-                </span>
-                <span aria-hidden="true"> › </span>
-              </>
-            ) : null}
-            <span className="text-text-primary">{BREADCRUMB_PIPELINE}</span>
-          </nav>
+          {/* Đường dẫn chung: "Dự án" bấm được về danh sách, như ở Tải bản vẽ và Cổng chất lượng (BUG-546). */}
+          <div className="min-w-0">
+            <Breadcrumb
+              ariaLabel={BREADCRUMB_PIPELINE}
+              items={[
+                {
+                  id: 'projects',
+                  label: BREADCRUMB_PROJECTS,
+                  ...(props.onBackToProjects !== undefined ? { onClick: props.onBackToProjects } : {}),
+                },
+                ...(props.projectName !== undefined ? [{ id: 'project', label: props.projectName }] : []),
+                { id: 'current', label: BREADCRUMB_PIPELINE },
+              ]}
+            />
+          </div>
           <ProcessingActions {...props} />
         </div>
 
@@ -240,7 +249,15 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
           <p className="text-[13px] text-text-secondary">{props.queueLine}</p>
         ) : null}
 
-        {errorAlert !== undefined ? (
+        {errorAlert?.isProjectMissing === true ? (
+          // Dự án không có: một câu, một lối về danh sách — không "Thử lại", không mã nội bộ (BUG-312).
+          <InlineAlert
+            action={{ label: BACK_TO_PROJECTS_LABEL, onClick: errorAlert.onBackToProjects ?? errorAlert.onRetry }}
+            level="violation"
+            message={errorAlert.message}
+            title={errorAlert.title}
+          />
+        ) : errorAlert !== undefined ? (
           <div className="flex flex-col gap-2">
             <InlineAlert
               action={{ label: RETRY_LABEL, onClick: errorAlert.onRetry }}
@@ -257,18 +274,29 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
           </div>
         ) : null}
 
-        <ProcessingFloorChips floors={props.floors} />
+        {errorAlert?.isProjectMissing === true ? null : (
+          <>
+            <ProcessingFloorChips floors={props.floors} />
 
-        {body}
+            {body}
 
-        {props.summary !== undefined ? <ProcessingSummary summary={props.summary} /> : null}
+            {props.summary !== undefined ? <ProcessingSummary summary={props.summary} /> : null}
 
-        <div className="flex flex-col items-center gap-1 text-center">
-          <p className="text-[14px] text-text-primary">{props.overallSummaryLine}</p>
-          {props.partialNoticeLine !== undefined ? (
-            <p className="text-[13px] text-text-secondary">{props.partialNoticeLine}</p>
-          ) : null}
-        </div>
+            {/* Vùng thông báo tiến độ nằm NGOÀI hai tab: tab "Xem trước" mặc định giấu nhật ký (BUG-554).
+                Thời gian còn lại đổi mỗi giây nên đứng ngoài vùng `role=status` (R1-03). */}
+            <div className="flex flex-col items-center gap-1 text-center">
+              <p className="text-[14px] text-text-primary">
+                <span role="status">{props.overallSummaryLine}</span>
+                {props.remainingLine !== undefined ? ` · ${props.remainingLine}` : null}
+              </p>
+              <div role="status">
+                {props.partialNoticeLine !== undefined ? (
+                  <p className="text-[13px] text-text-secondary">{props.partialNoticeLine}</p>
+                ) : null}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

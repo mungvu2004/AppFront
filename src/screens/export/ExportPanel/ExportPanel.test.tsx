@@ -37,6 +37,7 @@ import {
   floorsWithOneUnapproved,
   formatsSelecting,
 } from './exportPanelFixtures';
+import { buildPreflightRows } from './exportPanelGateway';
 import { EXPORT_FORMAT_IDS } from './types';
 import type { ExportPanelProps } from './types';
 import * as ExportPanelModule from './ExportPanel';
@@ -184,7 +185,60 @@ describe('khối kiểm tra trước khi xuất không bao giờ chặn nút "Xu
       expect(button).not.toBeDisabled();
     }
 
-    expect(container.textContent).toMatch(/Còn \d+ vi phạm chưa xử lý\./u);
+    expect(container.textContent).toMatch(/Còn \d+ phát hiện từ kiểm tra luật chưa xử lý\./u);
+  });
+});
+
+describe('[BUG-466] .glb mà chưa chọn tầng nào: không nút "Xuất", không dòng xanh', () => {
+  it('bỏ chọn mọi tầng khi đang chọn .glb thì nút "Xuất" rời DOM', async () => {
+    const ExportPanelView = await loadExportPanelView();
+    const props = buildExportPanelProps('success', {
+      formats: formatsSelecting('glb'),
+      floors: floorsWithOneUnapproved().map((floor) => ({ ...floor, isSelected: false })),
+    });
+    render(<ExportPanelView {...props} />);
+
+    expect(screen.queryByRole('button', { name: 'Xuất' })).toBeNull();
+  });
+
+  it('Spatial JSON không phụ thuộc tầng nên vẫn xuất được khi chưa chọn tầng', async () => {
+    const ExportPanelView = await loadExportPanelView();
+    const props = buildExportPanelProps('success', {
+      formats: formatsSelecting('spatial-json'),
+      floors: floorsWithOneUnapproved().map((floor) => ({ ...floor, isSelected: false })),
+    });
+    render(<ExportPanelView {...props} />);
+
+    expect(screen.getByRole('button', { name: 'Xuất' })).toBeTruthy();
+  });
+
+  it('không tầng nào được chọn thì không có dòng "mọi đối tượng … đều đã duyệt"', () => {
+    const rows = buildPreflightRows({ projectId: 'P-1', graph: null, levels: [], violations: [] });
+
+    expect(rows.map((row) => row.id)).not.toContain('unreviewed');
+    expect(rows.find((row) => row.id === 'approval')?.tone).toBe('attention');
+  });
+});
+
+describe('[BUG-460] dòng kiểm tra đếm phát hiện, không gọi chúng là "vi phạm"', () => {
+  it('ba phát hiện → "Còn 3 phát hiện từ kiểm tra luật chưa xử lý."', () => {
+    const rows = buildPreflightRows({ projectId: 'P-1', graph: null, levels: [], violations: [{}, {}, {}] as never });
+
+    expect(rows.find((row) => row.id === 'violations')?.label).toBe('Còn 3 phát hiện từ kiểm tra luật chưa xử lý.');
+  });
+});
+
+describe('[BUG-443] mọi dòng kiểm tra trước khi xuất viết hoa chữ đầu (A6)', () => {
+  it('dòng "Còn N tầng chưa duyệt" viết hoa như hai dòng anh em', () => {
+    const level = { id: 'L-1', name: 'Tầng 1', order: 0, elevation: 0, height: 3000, reviewed: false };
+    const rows = buildPreflightRows({
+      projectId: 'P-1',
+      graph: null,
+      levels: [level as never],
+      violations: [],
+    });
+
+    expect(rows.find((row) => row.id === 'approval')?.label).toBe('Còn 1 tầng chưa duyệt: Tầng 1.');
   });
 });
 
@@ -423,13 +477,25 @@ describe('trạng thái "error": mã lỗi chữ đều, có gợi ý, thử l�
   });
 });
 
+describe('[BUG-442] liên kết "Sửa" và nút "Tuỳ chọn": vùng chạm đủ, nhãn nói sửa gì', () => {
+  it('"Sửa" mang câu của dòng trong tên truy cập, và lớp vùng chạm 44 / 24 px', async () => {
+    const ExportPanelView = await loadExportPanelView();
+    render(<ExportPanelView {...buildExportPanelProps('success')} />);
+
+    const [link] = screen.getAllByRole('link', { name: /^Sửa/u });
+    expect(link).toHaveAccessibleName(/^Sửa\s*:\s*Còn \d+ phát hiện/u);
+    expect(link).toHaveClass('min-h-11', 'sm:min-h-6');
+    expect(screen.getByRole('button', { name: 'Tuỳ chọn' })).toHaveClass('min-h-11', 'sm:min-h-6');
+  });
+});
+
 describe('B-V12-06 — link "sửa" của khối kiểm tra trước đi qua router, không nạp lại trang', () => {
   it('bấm trái thường: chặn hành vi mặc định của thẻ <a> và gọi onFollowFix', async () => {
     const ExportPanelView = await loadExportPanelView();
     const onFollowFix = vi.fn();
 
     render(<ExportPanelView {...buildExportPanelProps('success', {}, { onFollowFix })} />);
-    const [link] = screen.getAllByRole('link', { name: 'Sửa' });
+    const [link] = screen.getAllByRole('link', { name: /^Sửa/u });
 
     // `fireEvent` trả `false` khi trình xử lý đã gọi `preventDefault()`.
     expect(fireEvent.click(link as HTMLElement)).toBe(false);
@@ -441,7 +507,7 @@ describe('B-V12-06 — link "sửa" của khối kiểm tra trước đi qua rou
     const onFollowFix = vi.fn();
 
     render(<ExportPanelView {...buildExportPanelProps('success', {}, { onFollowFix })} />);
-    const [link] = screen.getAllByRole('link', { name: 'Sửa' });
+    const [link] = screen.getAllByRole('link', { name: /^Sửa/u });
 
     expect(fireEvent.click(link as HTMLElement, { ctrlKey: true })).toBe(true);
     expect(onFollowFix).not.toHaveBeenCalled();

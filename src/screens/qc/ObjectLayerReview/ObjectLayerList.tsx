@@ -50,8 +50,6 @@ const ATTACH_ACTION = 'Gắn vào tường gần nhất';
 /** Nội thất không áp tường nào — chỗ đứng bình thường của nó, không phải việc phải làm. */
 const FREE_STANDING = 'Đứng tự do';
 const EMPTY_GROUP = 'Chưa có đối tượng nào trong nhóm này';
-const TOTAL_PREFIX = 'tổng ';
-const TOTAL_SUFFIX = ' đối tượng';
 const EXPAND_PREFIX = 'Mở nhóm ';
 const COLLAPSE_PREFIX = 'Gấp nhóm ';
 
@@ -111,47 +109,56 @@ function ObjectLayerListRow({
       role="option"
       tabIndex={0}
     >
+      {/*
+        Dòng một: mã + kích thước ĐỦ chữ. Thanh độ tin cậy xuống dòng hai cạnh tường chủ: chung
+        một dòng với nó, kích thước 1440 bị cắt còn "900 x 2…" (BUG-400). `title` cho khổ hẹp hơn nữa.
+      */}
       <div className="flex items-center gap-2">
         <span className="w-14 shrink-0 truncate font-mono text-text-primary">{row.codeLabel}</span>
-        <span className="min-w-0 flex-1 truncate font-mono tabular-nums text-text-secondary">
+        <span
+          className="min-w-0 flex-1 truncate font-mono tabular-nums text-text-secondary"
+          title={row.sizeLabel}
+        >
           {row.sizeLabel}
         </span>
-        <ConfidenceMeter noTooltip value={row.confidence} />
+      </div>
+
+      <div className="flex items-center gap-2">
+        {/*
+          Tường chủ. `null` không bao giờ vẽ ra một ô trống: một đối tượng không
+          gắn vào tường nào là một việc phải làm, không phải một trường thiếu.
+        */}
+        {row.isOrphan ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="attention">{ORPHAN_BADGE}</Badge>
+            <button
+              className={cn(
+                'rounded-[6px] px-1.5 py-0.5 text-[12px] text-accent',
+                'transition-colors duration-120 hover:bg-accent-wash',
+                'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+              )}
+              onClick={(event) => {
+                /* Bấm hành động KHÔNG kéo theo một lượt chọn dòng ngoài ý muốn. */
+                event.stopPropagation();
+                onAttachToNearestWall(row.id);
+              }}
+              type="button"
+            >
+              {ATTACH_ACTION}
+            </button>
+          </div>
+        ) : row.hostWallLabel === null ? (
+          <span className="text-[12px] text-text-muted">{FREE_STANDING}</span>
+        ) : (
+          <span className="font-mono text-[12px] text-text-muted">{row.hostWallLabel}</span>
+        )}
+        <ConfidenceMeter className="ml-auto" noTooltip value={row.confidence} />
         <span
           aria-hidden="true"
           className={cn('h-1.5 w-1.5 shrink-0 rounded-full', STATUS_DOT_TOKEN[row.statusCode])}
           title={STATUS_LABEL[row.statusCode]}
         />
       </div>
-
-      {/*
-        Tường chủ. `null` không bao giờ vẽ ra một ô trống: một đối tượng không
-        gắn vào tường nào là một việc phải làm, không phải một trường thiếu.
-      */}
-      {row.isOrphan ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="attention">{ORPHAN_BADGE}</Badge>
-          <button
-            className={cn(
-              'rounded-[6px] px-1.5 py-0.5 text-[12px] text-accent',
-              'transition-colors duration-120 hover:bg-accent-wash',
-              'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-            )}
-            onClick={(event) => {
-              /* Bấm hành động KHÔNG kéo theo một lượt chọn dòng ngoài ý muốn. */
-              event.stopPropagation();
-              onAttachToNearestWall(row.id);
-            }}
-            type="button"
-          >
-            {ATTACH_ACTION}
-          </button>
-        </div>
-      ) : row.hostWallLabel === null ? (
-        <span className="text-[12px] text-text-muted">{FREE_STANDING}</span>
-      ) : (
-        <span className="font-mono text-[12px] text-text-muted">{row.hostWallLabel}</span>
-      )}
     </div>
   );
 }
@@ -264,17 +271,6 @@ export function ObjectLayerList({
           selectedObjectId={selectedObjectId}
         />
       ))}
-
-      {/*
-        Tổng đếm từ chính `rows`, không từ một con số truyền riêng: ba nhóm ở
-        trên lọc ra từ đúng mảng này, nên tổng ở đây không thể lệch khỏi tổng ba
-        nhóm — "21 = 9 + 7 + 5 phải đúng ở mọi nơi xuất hiện".
-      */}
-      <p className="px-2 pt-2 text-[12px] text-text-muted">
-        {TOTAL_PREFIX}
-        <span className="font-mono tabular-nums text-text-secondary">{rows.length}</span>
-        {TOTAL_SUFFIX}
-      </p>
     </div>
   );
 }

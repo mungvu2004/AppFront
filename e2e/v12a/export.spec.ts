@@ -76,7 +76,7 @@ test('có bơm kho: bấm "xuất" .glb thì tệp tải về máy và hiện m�
   await expect(files).toContainText(/\d,\d (KB|MB)/u);
 });
 
-test('có bơm kho: link "sửa" của khối kiểm tra trước khi xuất đưa sang màn luật mà KHÔNG tải lại trang, nên kho còn nguyên (B-V12-06)', async ({
+test('có bơm kho: link "Sửa" của khối kiểm tra trước khi xuất đưa sang màn luật mà KHÔNG tải lại trang, nên kho còn nguyên (B-V12-06)', async ({
   page,
 }) => {
   await seedAndSettle(page);
@@ -84,8 +84,8 @@ test('có bơm kho: link "sửa" của khối kiểm tra trước khi xuất đ�
   const preflight = page.getByRole('region', { name: 'Kiểm tra trước khi xuất' });
   const fixViolations = preflight
     .getByRole('listitem')
-    .filter({ hasText: /vi phạm chưa xử lý/u })
-    .getByRole('link', { name: 'sửa' });
+    .filter({ hasText: /phát hiện từ kiểm tra luật chưa xử lý/u })
+    .getByRole('link', { name: /^Sửa/u });
 
   let reloads = 0;
   page.on('load', () => {

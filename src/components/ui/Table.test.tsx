@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { Table } from './Table';
@@ -309,5 +311,75 @@ describe('Table header casing', () => {
       // Should not be purely uppercase (would fail if text is "MÃ TƯỜNG")
       expect(text).not.toMatch(/^[A-ZÀÁẢÃẠĂẮẶẰẲẴÂẤẬẦẨẪĐÊẾỆỀỂỄÔỐỘỒỔỖƠỚỢỜỞỠƯỨỰỪỬỮ\s]+$/u);
     });
+  });
+});
+
+// ── Row hover edge (ND-R2) ────────────────────────────────────────────────────
+
+describe('Table.Row hover edge', () => {
+  // jsdom cannot hover, so `:hover` in the real rule becomes a `.is-hovered` class we set by hand.
+  const css = readFileSync(resolve(process.cwd(), 'src/styles/globals.css'), 'utf8');
+  const edgeOn = [...css.matchAll(/([^{}]*row-edge[^{}]*)\{\s*transform: scaleY\(1\)/g)].map((m) => m[1]).join(',');
+  const selectors = edgeOn.split(',').map((s) => s.replace(/::before/g, '').replace(/:hover/g, '.is-hovered').trim());
+  const lit = (td: Element) => selectors.some((s) => td.matches(s));
+
+  function renderRow(wrapperClass: string, rowClass: string) {
+    render(
+      <div className={wrapperClass}>
+        <Table>
+          <Table.Body>
+            <Table.Row className={rowClass}><Table.Cell>A</Table.Cell></Table.Row>
+          </Table.Body>
+        </Table>
+      </div>,
+    );
+    return screen.getByText('A').closest('td') as Element;
+  }
+
+  it('lights the edge when the row itself is hovered, with no group ancestor', () => {
+    expect(lit(renderRow('', 'is-hovered'))).toBe(true);
+  });
+
+  it('does not light every row just because a group ancestor is hovered', () => {
+    expect(lit(renderRow('group is-hovered', ''))).toBe(false);
+  });
+
+  it('lights on hover only where the pointer can hover, so a tap does not leave the edge on', () => {
+    // Touch screens keep `:hover` on the last tapped row; the edge doubles as the selected mark.
+    expect(css).toMatch(/@media \(hover: hover\)\s*\{[^{}]*\.row-edge:hover[^{}]*\{\s*transform: scaleY\(1\)/);
+    expect(css).not.toMatch(/row-edge-on[^{}]*row-edge:hover/);
+  });
+});
+
+/* BUG-405/394 nợ: ở 768/375 bảng rộng (918 px) cuộn ngang mà thanh cuộn overlay ẩn — mép có bóng. */
+describe('Table.Root scroll hint', () => {
+  it('casts an edge shadow on the side that still has columns to scroll to', () => {
+    const scrollWidth = vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(918);
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(311);
+
+    try {
+      render(
+        <Table.Root data-testid="root">
+          <Table.Body>
+            <Table.Row>
+              <Table.Cell>Ô</Table.Cell>
+            </Table.Row>
+          </Table.Body>
+        </Table.Root>,
+      );
+      const root = screen.getByTestId('root');
+
+      expect(root.style.boxShadow).toContain('inset -');
+      expect(root.style.boxShadow).not.toContain('inset 12px');
+
+      root.scrollLeft = 607;
+      fireEvent.scroll(root);
+
+      expect(root.style.boxShadow).toContain('inset 12px');
+      expect(root.style.boxShadow).not.toContain('inset -');
+    } finally {
+      scrollWidth.mockRestore();
+      clientWidth.mockRestore();
+    }
   });
 });

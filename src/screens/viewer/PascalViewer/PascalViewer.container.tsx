@@ -11,8 +11,9 @@
  * `src/App.tsx` dùng.
  */
 
+import { AlertCircle } from 'lucide-react';
 import { useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ProjectSpatialGate } from '@/components/feedback/ProjectSpatialGate';
@@ -22,6 +23,7 @@ import {
 } from '@/components/feedback/ScreenErrorBoundary';
 import { denormalizeSpatial } from '@/domain/spatial/normalize';
 import type { SpatialGraph } from '@/domain/spatial/types';
+import { ROUTES } from '@/routes/paths';
 // Nhập THẲNG module, KHÔNG qua barrel `index.ts` của màn kia: đi qua barrel là
 // kéo cả cụm màn ấy vào chunk của route này, và cổng "chi phí thêm cho một màn"
 // đo được đúng điều đó — 282,1 / 280 KiB, vượt 2,1.
@@ -48,6 +50,9 @@ export interface PascalViewerContainerProps {
    * chạy thật, và bắt được vòng chết ấy mà không cần WebGL.
    */
   readonly loadMount?: UsePascalViewerOptions['loadMount'] | undefined;
+  /** Lối ra ở đầu màn và hành động của trạng thái rỗng — `PascalViewerProps`. */
+  readonly onLeave?: (() => void) | undefined;
+  readonly onReprocess?: (() => void) | undefined;
 }
 
 /** Thứ người dùng thấy thay cho màn đã sập. Chữ lấy thẳng từ `report.description`. */
@@ -55,7 +60,7 @@ function CrashFallback({ report, retry }: ScreenErrorFallback) {
   return (
     <div className="flex h-full items-center justify-center bg-bg-app">
       <EmptyState
-        icon={<div className="h-8 w-8 rounded-full bg-state-violation-tint" aria-hidden="true" />}
+        icon={<AlertCircle aria-hidden="true" />}
         title={report.description.title}
         description={report.description.description}
         {...(report.retryable
@@ -66,7 +71,13 @@ function CrashFallback({ report, retry }: ScreenErrorFallback) {
   );
 }
 
-function PascalViewerBody({ graph, collapsed, loadMount }: PascalViewerContainerProps) {
+function PascalViewerBody({
+  graph,
+  collapsed,
+  loadMount,
+  onLeave,
+  onReprocess,
+}: PascalViewerContainerProps) {
   const { viewModel, canvasRef, onRetry, onExpand } = usePascalViewer({
     graph,
     ...(collapsed === undefined ? {} : { collapsed }),
@@ -79,6 +90,8 @@ function PascalViewerBody({ graph, collapsed, loadMount }: PascalViewerContainer
       canvasRef={canvasRef}
       onRetry={onRetry}
       onExpand={onExpand}
+      onLeave={onLeave}
+      onReprocess={onReprocess}
     />
   );
 }
@@ -87,6 +100,8 @@ export function PascalViewerContainer({
   graph,
   collapsed,
   loadMount,
+  onLeave,
+  onReprocess,
 }: PascalViewerContainerProps) {
   return (
     <ScreenErrorBoundary
@@ -94,7 +109,13 @@ export function PascalViewerContainer({
       screenId="pascal-viewer"
       renderFallback={(fallback) => <CrashFallback {...fallback} />}
     >
-      <PascalViewerBody graph={graph} collapsed={collapsed} loadMount={loadMount} />
+      <PascalViewerBody
+        collapsed={collapsed}
+        graph={graph}
+        loadMount={loadMount}
+        onLeave={onLeave}
+        onReprocess={onReprocess}
+      />
     </ScreenErrorBoundary>
   );
 }
@@ -112,6 +133,7 @@ export function PascalViewerContainer({
  */
 export function PascalViewerRoute() {
   const { projectId } = useParams<{ projectId: string }>();
+  const navigate = useNavigate();
   const spatial = useStore(selectViewerSpatial);
 
   // `null` đẩy màn sang "đang nạp" chứ không dựng một đồ thị rỗng giả.
@@ -124,7 +146,13 @@ export function PascalViewerRoute() {
   return (
     <div className="h-screen">
       <ProjectSpatialGate projectId={projectId}>
-        <PascalViewerContainer graph={graph} />
+        <PascalViewerContainer
+          graph={graph}
+          onLeave={projectId === undefined ? undefined : () => navigate(ROUTES.project.viewer(projectId))}
+          onReprocess={
+            projectId === undefined ? undefined : () => navigate(ROUTES.project.pipeline(projectId))
+          }
+        />
       </ProjectSpatialGate>
     </div>
   );

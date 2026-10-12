@@ -55,7 +55,7 @@ import {
 
 const REVIEWED_SUFFIX = ' đối tượng đã duyệt';
 const LAYER_TREE_LABEL = 'Cây lớp';
-const TOTAL_PREFIX = 'tổng ';
+const TOTAL_PREFIX = 'Tổng ';
 const TOTAL_SUFFIX = ' đối tượng';
 const FILTER_ROW_LABEL = 'Lọc theo loại';
 const SHOW_LAYER_PREFIX = 'Hiện lớp ';
@@ -163,7 +163,7 @@ export function ObjectLayerLeftPanel({
   const isComplete = reviewCounter.total > 0 && reviewCounter.reviewed === reviewCounter.total;
 
   return (
-    <div className="flex h-full w-[280px] shrink-0 flex-col gap-4 overflow-y-auto rounded-[12px] bg-bg-surface px-5 py-4 shadow-panel">
+    <div className="flex h-full w-full shrink-0 flex-col gap-4 overflow-y-auto rounded-[12px] bg-bg-surface px-5 py-4 shadow-panel">
       {/*
         Bộ đếm duyệt. Câu "9/21 đối tượng đã duyệt" đã ghép sẵn ở hook
         (`reviewProgressLabel`, A15) và làm `aria-label` cho trình đọc màn hình,

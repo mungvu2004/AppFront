@@ -259,6 +259,52 @@ describe('CreateProjectModalView', () => {
     expect(focusFloor).toHaveBeenCalledWith('row-1');
   });
 
+  it('fades the bottom of the scrolling body, so content cut by the footer reads as more to scroll (BUG-201)', () => {
+    render(<CreateProjectModalView {...baseProps()} step={2} stepLabel="bước 2 / 3" />);
+
+    const fade = screen.getByRole('dialog').querySelector('[data-scroll-fade]');
+    expect(fade).toHaveClass('sticky', 'bottom-0', 'pointer-events-none');
+    expect(fade).toHaveAttribute('aria-hidden', 'true');
+    // The last thing in the body: scrolled to the end it covers only the space it stands for.
+    expect(fade?.nextElementSibling).toBeNull();
+  });
+
+  it('lets the floor table headers stick to the dialog body, not to a scroll box of the table (BUG-202)', () => {
+    render(<CreateProjectModalView {...baseProps()} step={2} stepLabel="bước 2 / 3" />);
+
+    const wrapper = screen.getByRole('table').parentElement;
+    expect(wrapper).toHaveClass('overflow-visible', 'h-auto');
+    expect(wrapper).not.toHaveClass('overflow-auto');
+    expect(screen.getByRole('table').querySelector('thead')).toHaveClass('sticky', 'top-0');
+    // review-1 #8: the body keeps a focused row clear of that 40 px header (WCAG 2.4.11).
+    expect(screen.getByRole('table').closest('.overflow-y-auto')).toHaveClass('scroll-pt-10', 'scroll-pb-6');
+  });
+
+  it('lines a floor row up on the tops of its fields, and both buttons on the apply field box, whatever error grows under a field (BUG-230)', () => {
+    render(<CreateProjectModalView {...baseProps()} step={2} stepLabel="bước 2 / 3" />);
+
+    for (const cell of screen.getByRole('table').querySelectorAll('tbody td')) expect(cell).toHaveClass('align-top');
+    // Not a field: centred in a box as tall as one, so it sits on the field line, not mid-row.
+    expect(screen.getByText('0,0 m')).toHaveClass('flex', 'h-[46px]', 'sm:h-[38px]', 'items-center');
+    expect(screen.getByRole('button', { name: 'Xoá Tầng trệt' }).closest('td > span')).toHaveClass('h-[46px]', 'sm:h-[38px]');
+    // Pushed down past the apply field's 28 px label instead of sitting on the bottom of its error line.
+    expect(screen.getByRole('button', { name: 'Áp cho mọi tầng' }).parentElement).toHaveClass('mt-7', 'sm:h-[38px]');
+    expect(screen.getByRole('button', { name: 'Thêm tầng' }).parentElement).toHaveClass('sm:mt-7');
+  });
+
+  it('puts a delete button tooltip to its left, off the "Cao độ" column header above the first row (BUG-232)', async () => {
+    render(<CreateProjectModalView {...baseProps()} step={2} stepLabel="bước 2 / 3" />);
+
+    const remove = screen.getByRole('button', { name: 'Xoá Tầng trệt' });
+    fireEvent.mouseEnter(remove.parentElement as HTMLElement);
+    const tip = await screen.findByRole('tooltip');
+
+    expect(tip).toHaveTextContent('Xoá Tầng trệt');
+    // Exactly one tooltip: IconButton's own (on top) is off.
+    expect(screen.getAllByRole('tooltip')).toHaveLength(1);
+    expect(tip.parentElement?.style.transform).toBe('translate(-100%, -50%)');
+  });
+
   it('warns before discarding unsaved changes, in the dialog itself — no nested dialog', () => {
     const confirmDiscard = vi.fn();
     render(<CreateProjectModalView {...baseProps()} isConfirmingDiscard step={1} stepLabel="bước 1 / 3" />);
@@ -266,6 +312,9 @@ describe('CreateProjectModalView', () => {
     expect(screen.getByText('Đóng và bỏ các thay đổi chưa lưu?')).toBeInTheDocument();
     // Exactly one role="dialog" — the warning renders inline, not as a second dialog.
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    // A row of the footer, in the flow: floating over the body it covered "Ghi chú" (BUG-204).
+    expect(screen.getByRole('alert')).not.toHaveClass('absolute');
+    expect(screen.getByRole('alert')).toHaveClass('basis-full');
 
     fireEvent.click(screen.getByRole('button', { name: 'Đóng, bỏ thay đổi' }));
 
@@ -397,13 +446,45 @@ describe('CreateProjectModal, wired to its hook', () => {
       'Nhập chiều cao thông thuỷ cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.',
     );
 
+    // Renaming, adding, the basement switch are not heights: still neutral (run-15 reopened it).
+    fireEvent.change(screen.getByLabelText('Tên tầng Tầng trệt'), { target: { value: 'Tầng trệt A' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm tầng' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Có tầng hầm' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('switch', { name: 'Có tầng hầm' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá Tầng 4' }));
+    fireEvent.change(screen.getByLabelText('Tên tầng Tầng trệt A'), { target: { value: 'Tầng trệt' } });
+
     setHeight('Chiều cao thông thuỷ tầng Tầng 1', '3');
 
+    // The locked button keeps saying why once the rows speak, too.
+    expect(next).toHaveAccessibleDescription(
+      'Nhập chiều cao thông thuỷ cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.',
+    );
     expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng trệt')).toHaveAccessibleDescription('Chưa nhập chiều cao thông thuỷ.');
     expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng 1')).toHaveAccessibleDescription(
       'Chưa tính được cao độ vì tầng bên dưới còn thiếu chiều cao hợp lệ.',
     );
     expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng 2')).toHaveAccessibleDescription('Chưa nhập chiều cao thông thuỷ.');
+  });
+
+  it('blames the elevation limit, not a missing height, for the rows above a floor over 300 m (BUG-213)', () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+
+    goToStep2();
+    const add = screen.getByRole('button', { name: 'Thêm tầng' });
+    for (let floors = 4; floors < 34; floors += 1) fireEvent.click(add);
+    setHeight('Chiều cao áp cho mọi tầng', '10');
+    fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
+
+    expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng 31')).toHaveAccessibleDescription(
+      'Cao độ vượt giới hạn cho phép (-30 đến 300 mét).',
+    );
+    for (const name of ['Tầng 32', 'Tầng 33']) {
+      expect(screen.getByLabelText(`Chiều cao thông thuỷ tầng ${name}`)).toHaveAccessibleDescription(
+        'Chưa tính được cao độ vì một tầng bên dưới đã vượt giới hạn cao độ.',
+      );
+    }
   });
 
   it('keeps the basement inside the 50-floor cap and says why "Thêm tầng" is locked (BUG-150, BUG-177)', () => {
@@ -415,12 +496,46 @@ describe('CreateProjectModal, wired to its hook', () => {
     expect(screen.getAllByRole('textbox', { name: /^Tên tầng/u })).toHaveLength(50);
     // BUG-177: the locked button says why.
     expect(add).toHaveAccessibleDescription('Đã đủ 50 tầng, mức tối đa (kể cả tầng hầm).');
+    // BUG-231: the note sits above the button, so it is in view whenever the button is, not cut under the footer.
+    const note = screen.getByText('Đã đủ 50 tầng, mức tối đa (kể cả tầng hầm).');
+    expect(note.compareDocumentPosition(add) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(note).toHaveClass('text-text-secondary');
 
     const basement = screen.getByRole('switch', { name: 'Có tầng hầm' });
     expect(basement).toBeDisabled();
     fireEvent.click(basement);
 
     expect(screen.getAllByRole('textbox', { name: /^Tên tầng/u })).toHaveLength(50);
+  });
+
+  // The 50th "Thêm tầng" locks the button under the keyboard focus, which then fell to <body>.
+  it('hands the focus to the name of the new floor when the 50th "Thêm tầng" locks the button', () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+
+    goToStep2();
+    const add = screen.getByRole('button', { name: 'Thêm tầng' });
+    add.focus();
+    for (let floors = 4; floors < 49; floors += 1) fireEvent.click(add);
+    expect(add).toHaveFocus();
+
+    fireEvent.click(add);
+
+    const names = screen.getAllByRole('textbox', { name: /^Tên tầng/u });
+    expect(names).toHaveLength(50);
+    expect(add).toBeDisabled();
+    expect(names.at(-1)).toHaveFocus();
+  });
+
+  it('names an added floor after the ones already in the table, never twice "Tầng 3" (BUG-217)', () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+
+    goToStep2();
+    fireEvent.change(screen.getByLabelText('Tên tầng Tầng 1'), { target: { value: 'Tầng lửng' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá Tầng 2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm tầng' }));
+
+    const names = screen.getAllByRole('textbox', { name: /^Tên tầng/u }).map((box) => (box as HTMLInputElement).value);
+    expect(names).toEqual(['Tầng trệt', 'Tầng lửng', 'Tầng 3', 'Tầng 4']);
   });
 
   it('marks a blank floor name at step 2 and blocks "Tiếp tục" (BUG-185)', () => {
@@ -435,6 +550,9 @@ describe('CreateProjectModal, wired to its hook', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('Chưa nhập tên tầng.');
     expect(screen.getByRole('button', { name: 'Tiếp tục' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Tiếp tục' })).toHaveAccessibleDescription(
+      'Sửa các tầng đang báo lỗi để sang bước xem lại.',
+    );
   });
 
   it('applies one height to every floor with "áp cho mọi tầng"', () => {
@@ -448,6 +566,21 @@ describe('CreateProjectModal, wired to its hook', () => {
     for (const name of ['Tầng trệt', 'Tầng 1', 'Tầng 2', 'Tầng 3']) {
       expect(screen.getByLabelText(`Chiều cao thông thuỷ tầng ${name}`)).toHaveValue('3,5');
     }
+  });
+
+  it('clears a refused row height with "áp cho mọi tầng", even with the height the row already holds', () => {
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+
+    goToStep2();
+    setHeight('Chiều cao áp cho mọi tầng', '3');
+    fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
+    setHeight('Chiều cao thông thuỷ tầng Tầng trệt', '12');
+    expect(screen.getByRole('alert')).toHaveTextContent('Giá trị không quá 10 m.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
+
+    expect(screen.getByLabelText('Chiều cao thông thuỷ tầng Tầng trệt')).toHaveValue('3');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('reads "3.5" in "áp cho mọi tầng" as 3,5 m and never erases the floors (BUG-132)', async () => {
@@ -623,6 +756,22 @@ describe('CreateProjectModal, wired to its hook', () => {
     expect(onDismiss).not.toHaveBeenCalled();
   });
 
+  it('hands the focus back to the field being edited after "Tiếp tục sửa" (BUG-219)', async () => {
+    const user = userEvent.setup({ delay: null });
+    render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    const name = screen.getByLabelText('Tên dự án');
+    name.focus();
+    await user.keyboard('Bản nháp');
+    await user.keyboard('{Escape}');
+    screen.getByRole('button', { name: 'Tiếp tục sửa' }).focus();
+    await user.keyboard('{Enter}');
+
+    expect(screen.queryByText('Đóng và bỏ các thay đổi chưa lưu?')).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(name);
+  });
+
   it('drops a pending discard prompt once "Quay lại" is pressed (BUG-189)', () => {
     render(<CreateProjectModal isOpen gateway={buildGateway().gateway} forceCompact={false} onDismiss={noop} />);
 
@@ -652,6 +801,8 @@ describe('CreateProjectModal, wired to its hook', () => {
 
     expect(screen.queryByText('Đóng và bỏ các thay đổi chưa lưu?')).not.toBeInTheDocument();
     expect(onDismiss).not.toHaveBeenCalled();
+    // X does nothing then, so it looks locked like the footer buttons (BUG-218).
+    expect(screen.getByRole('button', { name: 'Đóng hộp thoại' })).toBeDisabled();
   });
 
   it('pins a 422 on "Mã dự án" to that field, not the name, and a new code unlocks it (BUG-129, BUG-187)', async () => {

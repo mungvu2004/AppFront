@@ -62,6 +62,7 @@ import type {
   VersionHistoryResult,
 } from './types';
 import {
+  buildCompareModel,
   buildVersionHistoryProps,
   createVersionsServerFake,
   WIRE_CURRENT_WALLS,
@@ -88,7 +89,13 @@ import {
   VERSION_LIST_FAILED_REASON,
 } from './versionHistoryGateway';
 import * as ModelModule from './versionHistoryModel';
-import { SNAPSHOT_FAILED_NOTICE, SNAPSHOT_RETRY_LABEL, UNDO_RETRY_TOAST } from './versionHistoryModel';
+import {
+  buildDiffGroups,
+  buildRestoreConfirm as buildRestoreConfirmModel,
+  SNAPSHOT_FAILED_NOTICE,
+  SNAPSHOT_RETRY_LABEL,
+  UNDO_RETRY_TOAST,
+} from './versionHistoryModel';
 
 afterEach(() => {
   cleanup();
@@ -157,6 +164,21 @@ describe('A11 — bảy trạng thái của VersionHistory', () => {
   });
 });
 
+describe('[BUG-454] tiêu đề trang', () => {
+  it('cả bảy trạng thái có đúng một h1 "Lịch sử phiên bản"', async () => {
+    const VersionHistoryView = await loadVersionHistoryView();
+
+    for (const state of SEVEN_STATES) {
+      const { unmount } = renderWithProviders(<VersionHistoryView {...buildVersionHistoryProps(state)} />);
+
+      expect(screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent), `trạng thái: ${state}`).toEqual([
+        'Lịch sử phiên bản',
+      ]);
+      unmount();
+    }
+  });
+});
+
 /* ==========================================================================
  * 2 và 3. Tiếp cận được, toàn chữ tiếng Việt có dấu (R-72, R-67).
  * ========================================================================== */
@@ -175,7 +197,7 @@ describe('R-72 — expectAccessible trên cây render thật', () => {
       restoreConfirm: {
         isOpen: true,
         title: 'Phục hồi phiên bản này?',
-        reassurance: 'Phục hồi giữ lại trạng thái hiện tại thành một phiên bản riêng; không có gì bị xoá.',
+        reassurance: 'Phục hồi giữ lại trạng thái hiện tại thành một phiên bản riêng; không phiên bản nào bị xoá.',
         confirmLabel: 'Phục hồi',
         cancelLabel: 'Huỷ',
         targetVersionLabel: 'v13',
@@ -655,7 +677,7 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
     expect(restoreCalls(setup.server)).toHaveLength(2);
     // Toast cũ đã đóng: một toast mới mời bấm lại, gắn cùng phiếu.
     await waitFor(() => {
-      expect(setup.onToast.mock.calls.at(-1)?.[0]).toMatchObject({ message: UNDO_RETRY_TOAST });
+      expect(setup.onToast.mock.calls.at(-1)?.[0]).toMatchObject({ message: UNDO_RETRY_TOAST, state: 'violation' });
     });
 
     const retry = setup.onToast.mock.calls.at(-1)?.[0] as { onUndo: () => void };
@@ -729,7 +751,7 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
       toast.onUndo();
     });
     await waitFor(() => {
-      expect(setup.onToast.mock.calls.at(-1)?.[0]).toMatchObject({ message: UNDO_RETRY_TOAST });
+      expect(setup.onToast.mock.calls.at(-1)?.[0]).toMatchObject({ message: UNDO_RETRY_TOAST, state: 'violation' });
     });
 
     const retry = setup.onToast.mock.calls.at(-1)?.[0] as { onUndo: () => void };
@@ -1068,6 +1090,38 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
     expect(screen.getByRole('combobox')).toBeTruthy();
   });
 
+  it('[BUG-473] tầng rỗng dưới 1024 → vẫn empty, không câu "Mới có một phiên bản"', async () => {
+    const server = createVersionsServerFake();
+
+    server.override('GET list', () => ({ data: { items: [] }, ok: true }));
+    await hydrateFrom(server);
+
+    const api = createApiClient(server.http);
+    const gateway = createVersionHistoryGateway({ apiClient: api, floorId: WIRE_FLOOR_ID, projectId: WIRE_PROJECT_ID });
+    const { result } = renderHook(
+      () =>
+        useVersionHistory({
+          apiClient: api,
+          floorId: WIRE_FLOOR_ID,
+          floorOptions: FLOOR_OPTIONS,
+          gateway,
+          isNarrow: true,
+          projectId: WIRE_PROJECT_ID,
+        }),
+      { wrapper: withQueryClient() },
+    );
+
+    await waitFor(() => {
+      expect(result.current[0].state).toBe('empty');
+    });
+
+    const [model, actions] = result.current;
+
+    renderWithProviders(<VersionHistory model={model} actions={actions} />);
+    expect(screen.getByText('Tầng 1 chưa có phiên bản nào')).toBeTruthy();
+    expect(screen.queryByText(/Mới có một phiên bản/)).toBeNull();
+  });
+
   it('N18 chưa về → câu "đang nạp", không "Không có khác biệt"', async () => {
     const server = createVersionsServerFake();
     let release: () => void = () => undefined;
@@ -1189,6 +1243,36 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
     expect(result.current[0].errorMessage).toBe(message);
   });
 
+  it('[BUG-468] N17 500 → cảnh báo có "Thử lại", bấm thì nạp lại danh sách', async () => {
+    const server = createVersionsServerFake();
+
+    server.override('GET list', () => ({ error: wireError(500, 'INTERNAL'), ok: false }));
+    await hydrateFrom(server);
+
+    const api = createApiClient(server.http);
+    const gateway = createVersionHistoryGateway({ apiClient: api, floorId: WIRE_FLOOR_ID, projectId: WIRE_PROJECT_ID });
+    const { result } = renderHook(
+      () => useVersionHistory({ apiClient: api, floorId: WIRE_FLOOR_ID, gateway, projectId: WIRE_PROJECT_ID }),
+      { wrapper: withQueryClient() },
+    );
+
+    await waitFor(() => {
+      expect(result.current[0].state).toBe('error');
+    });
+
+    const { unmount } = renderWithProviders(<VersionHistory model={result.current[0]} actions={result.current[1]} />);
+    const retry = screen.getByRole('button', { name: 'Thử lại' });
+
+    server.override('GET list', () => ({ data: { items: [] }, ok: true }));
+    act(() => {
+      retry.click();
+    });
+    await waitFor(() => {
+      expect(result.current[0].state).toBe('empty');
+    });
+    unmount();
+  });
+
   it('toast hoàn tác của nhãn gửi N20 với nhãn cũ', async () => {
     const setup = await renderVersionHistoryHook();
 
@@ -1237,6 +1321,47 @@ describe('route — chọn tầng, không setActiveFloor', () => {
       expect(await screen.findByRole('navigation', { name: 'Danh sách phiên bản' }, { timeout: 5_000 })).toBeTruthy();
       expect(screen.getAllByRole('combobox').length).toBeGreaterThan(0);
     } finally {
+      vi.unstubAllEnvs();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('ND-R1: route nối onToast vào Toast.Provider — toast phục hồi/nhãn và lỗi "thử lại" hiện trên màn thật', async () => {
+    vi.stubEnv('VITE_USE_MOCK_API', 'true');
+    vi.stubGlobal(
+      'matchMedia',
+      (query: string) => ({ matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {} }),
+    );
+    const real = UseVersionHistoryModule.useVersionHistory;
+    let onToast: Parameters<typeof real>[0]['onToast'];
+    const spy = vi.spyOn(UseVersionHistoryModule, 'useVersionHistory').mockImplementation((options) => {
+      onToast = options.onToast;
+
+      return real(options);
+    });
+
+    try {
+      act(() => {
+        useStore.getState().setProject(null);
+      });
+      renderWithProviders(
+        <MemoryRouter initialEntries={['/projects/project-1/versions']}>
+          <Routes>
+            <Route path={ROUTE_PATTERNS.projectVersions} element={<VersionHistoryRoute />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+
+      expect(await screen.findByRole('navigation', { name: 'Danh sách phiên bản' }, { timeout: 5_000 })).toBeTruthy();
+      expect(onToast).toBeTypeOf('function');
+      act(() => {
+        onToast?.({ message: 'Đã gắn nhãn', onUndo: () => {} });
+        onToast?.({ message: UNDO_RETRY_TOAST, onUndo: () => {}, state: 'violation' });
+      });
+      expect(await screen.findByText('Đã gắn nhãn')).toBeTruthy();
+      expect(await screen.findByText(UNDO_RETRY_TOAST)).toBeTruthy();
+    } finally {
+      spy.mockRestore();
       vi.unstubAllEnvs();
       vi.unstubAllGlobals();
     }
@@ -1308,5 +1433,71 @@ describe('nút phục hồi rời khỏi DOM khi canRestore false', () => {
     renderWithProviders(<VersionHistoryView {...props} />);
 
     expect(screen.queryByRole('button', { name: /phục hồi/iu })).not.toBeNull();
+  });
+});
+
+describe('[BUG-456] tab "Thay đổi" không lấy mã nội bộ thô làm chủ thể', () => {
+  it('mã ULID thành số thứ tự trong nhóm, mã đọc được (W-014) giữ nguyên', () => {
+    const ulidWall = 'W-03H178Y099CC541AUHEQYUW8W';
+    const groups = buildDiffGroups({
+      added: [
+        { entityId: ulidWall, entityType: 'wall', kind: 'added' },
+        { entityId: 'W-014', entityType: 'wall', kind: 'added' },
+        { entityId: `V-${ulidWall}-end`, entityType: 'vertex', kind: 'added' },
+      ],
+      changed: [
+        { entityId: ulidWall, entityType: 'wall', kind: 'changed', field: 'thickness_mm', oldValue: 200, newValue: 220 },
+      ],
+      removed: [],
+    });
+    const sentences = groups.flatMap((group) => group.rows.map((row) => row.sentence));
+
+    expect(sentences.join(' ')).not.toMatch(/03H178Y099CC541AUHEQYUW8W/u);
+    expect(sentences).toContain('Thêm tường #1');
+    expect(sentences).toContain('Thêm tường W-014');
+    expect(sentences).toContain('Thêm điểm #1');
+    expect(sentences.some((sentence) => sentence.startsWith('Tường #1 '))).toBe(true);
+    expect(groups.flatMap((group) => group.rows.map((row) => row.entityId))).toContain(ulidWall);
+  });
+});
+
+describe('[BUG-459] hộp phục hồi không tự mâu thuẫn về việc xoá', () => {
+  it('nói "không xoá phiên bản nào", và lịch sử hoàn tác là ngoại lệ có đánh dấu', () => {
+    const confirm = buildRestoreConfirmModel([], { kind: 'restore', versionId: 'v1' }, 'Tầng 1');
+
+    expect(confirm.reassurance).not.toMatch(/không xoá gì/u);
+    expect(confirm.reassurance).toMatch(/^Phục hồi không xoá phiên bản nào: /u);
+    expect(confirm.reassurance).toMatch(/Riêng lịch sử hoàn tác \(Ctrl\+Z\)/u);
+  });
+});
+
+describe('[BUG-470] tích đúng một phiên bản thì nút phục hồi nhắm vào chính bản ấy', () => {
+  it('chỉ còn bản trái (v13) → "Phục hồi phiên bản này" bật và phục hồi v13', () => {
+    const requestRestore = vi.fn();
+    const props = buildVersionHistoryProps(
+      'success',
+      { compare: buildCompareModel({ rightVersionId: null }) },
+      { requestRestore },
+    );
+    const { unmount } = renderWithProviders(<VersionHistory {...props} />);
+    const restore = screen.getByRole('button', { name: 'Phục hồi phiên bản này' });
+
+    expect(restore).not.toBeDisabled();
+    act(() => {
+      restore.click();
+    });
+    expect(requestRestore).toHaveBeenCalledWith('v13');
+    unmount();
+  });
+
+  it('chưa tích bản nào → nút tắt kèm một câu nói vì sao', () => {
+    const props = buildVersionHistoryProps('success', {
+      compare: buildCompareModel({ leftVersionId: null, rightVersionId: null }),
+    });
+    const { unmount } = renderWithProviders(<VersionHistory {...props} />);
+
+    expect(screen.getByRole('button', { name: 'Phục hồi phiên bản này' })).toBeDisabled();
+    expect(screen.getByText('Chọn một phiên bản để phục hồi.')).toBeTruthy();
+    unmount();
   });
 });

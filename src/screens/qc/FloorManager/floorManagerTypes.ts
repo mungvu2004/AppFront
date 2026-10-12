@@ -75,6 +75,11 @@ export interface FloorRowVm {
   readonly elevationText: string;
   /** Số thô: để so trùng cao độ, để sắp thứ tự, để đặt dải lát cắt. Không vẽ ra chữ. */
   readonly elevationMm: Millimetres;
+  /**
+   * Cao độ khác cao độ + chiều cao của tầng ngay dưới, tức đã ghi đè thứ lẽ ra tính tự
+   * động (BUG-289). Luôn `false` ở tầng thấp nhất: không có gì bên dưới để tính.
+   */
+  readonly isElevationOverridden: boolean;
 
   /** Ví dụ `"3,9 m"`. Cùng công thức định dạng với `elevationText`. */
   readonly heightText: string;
@@ -98,10 +103,10 @@ export interface FloorRowVm {
   /** Số thô, để chân bảng cộng tổng. `null` khi tầng chưa có bản vẽ. */
   readonly areaM2: SquareMetres | null;
 
-  /** Ví dụ `"45%"`. `formatPercent(qcProgressRatio, { fractionDigits: 0 })`. */
+  /** Ví dụ `"45%"`. `formatPercent(qcProgressRatio, { fractionDigits: 0 })`; `"—"` khi tầng chưa có bản vẽ. */
   readonly qcProgressText: string;
   /**
-   * 0..1. CHỈ để vẽ bề rộng thanh tiến độ và để chọn variant của `Badge`
+   * 0..1 (`0` khi tầng chưa có bản vẽ, BUG-263). CHỈ để vẽ bề rộng thanh tiến độ và để chọn variant của `Badge`
    * (`1` → `'verified'`; đây là việc của NGƯỜI DUYỆT nên A5 cho phép xanh
    * đã-xác-minh ở đúng chỗ này, và chỉ ở đây).
    */
@@ -114,6 +119,8 @@ export interface FloorRowVm {
   readonly needsDrawing: boolean;
   /** Tầng bị ẩn khỏi mô hình 3D. Dòng mờ đi; tầng vẫn còn trong bảng và trong lát cắt. */
   readonly isHiddenIn3d: boolean;
+  /** Lượt đặt cao độ gần nhất của tầng này bị chặn: ô cao độ mang dấu lỗi (BUG-306). */
+  readonly isElevationRefused: boolean;
 
   /** Giá trị đang gõ của ba ô sửa được. Luôn có mặt, kể cả khi không ai đang sửa. */
   readonly draft: FloorRowDraft;
@@ -149,6 +156,11 @@ export interface SectionBandVm {
    * chồng. Với bộ mẫu ở mục D, tổng đúng bằng 1.
    */
   readonly bandHeightRatio: number;
+  /**
+   * Khoảng hở giữa đỉnh dải dưới và cao độ của dải này, cùng đơn vị với
+   * `bandHeightRatio` — khác 0 khi cao độ bị ghi đè cao hơn đỉnh tầng dưới (BUG-357).
+   */
+  readonly gapBelowRatio: number;
   readonly isSelected: boolean;
   /** Người dùng đang trỏ vào dòng bảng tương ứng, hoặc trỏ thẳng vào dải này. */
   readonly isHovered: boolean;
@@ -245,18 +257,19 @@ export interface DuplicateElevationViolation {
  * ## Bất biến ràng buộc `state` với dữ liệu
  *
  * 1. `state === 'empty'`   ⟺ `rows` rỗng ⟺ `emptyNotice !== null`.
- * 2. `state === 'loading'` ⟺ `rows` rỗng, `emptyNotice`/`errorMessage`/
- *    `forbiddenNotice` đều `null` — đây là cách `loading` tách khỏi `empty` dù
- *    cả hai đều không có dòng nào.
+ * 2. `state === 'loading'` ⟺ `rows` rỗng, `emptyNotice`/`errorMessage` đều
+ *    `null` — đây là cách `loading` tách khỏi `empty` dù cả hai đều không có
+ *    dòng nào.
  * 3. `state === 'partial'` ⟺ có ít nhất một dòng `needsDrawing === true`.
  * 4. `state === 'error'`   ⟺ `errorMessage !== null`.
  * 5. `state === 'success'` ⟺ `rows` không rỗng và MỌI dòng có
  *    `needsDrawing === false`.
- * 6. `state === 'forbidden'` ⟺ `canEdit === false` ⟺ `forbiddenNotice !== null`.
- * 7. `state === 'collapsed'` ⟺ `isCollapsed === true`.
+ * 6. `canEdit === false` ⟺ `forbiddenNotice !== null`; `state === 'forbidden'`
+ *    ⟹ `canEdit === false` (lỗi, đang tải, rỗng vẫn thắng vai — BUG-522).
+ * 7. `state === 'collapsed'` ⟹ `isCollapsed === true`.
  *
  * Thứ tự che nhau (hàm suy trạng thái của hook đi đúng thứ tự này):
- * `forbidden` → `collapsed` → `error` → `loading` → `empty` → `partial` →
+ * `error` → `loading` → `empty` → `forbidden` → `collapsed` → `partial` →
  * `success`.
  */
 export interface FloorManagerViewProps {
@@ -434,3 +447,20 @@ export interface UseFloorManagerResult extends FloorManagerViewProps {
  * trường: `unsupportedNotices` chuyển từ `UseFloorManagerResult` xuống
  * `FloorManagerViewProps`. Không trường nào khác đổi trong lượt đó.
  */
+
+/**
+ * Tên mười cột: tiêu đề bảng (`FloorTable.tsx`) và nhãn ô của dòng xếp chồng (`FloorTableRow.tsx`)
+ * đọc cùng một chỗ. Đặt ở đây vì file component chỉ được xuất hằng nguyên thuỷ (react-refresh).
+ */
+export const FLOOR_COLUMN_LABELS = {
+  handle: 'Đổi thứ tự',
+  name: 'Tên tầng',
+  elevation: 'Cao độ (m)',
+  height: 'Chiều cao (m)',
+  drawings: 'Bản vẽ',
+  walls: 'Tường',
+  rooms: 'Phòng',
+  area: 'Diện tích',
+  qc: 'Tiến độ QC',
+  actions: 'Hành động',
+} as const;

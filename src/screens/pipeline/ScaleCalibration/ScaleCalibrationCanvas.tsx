@@ -49,7 +49,6 @@ import { MeasurementLabel } from '@/components/canvas/MeasurementLabel';
 import { MiniMap } from '@/components/canvas/MiniMap';
 import { SelectionHalo } from '@/components/canvas/SelectionHalo';
 import { ZoomCluster } from '@/components/canvas/ZoomCluster';
-import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import type { MeasurementState, Point } from '@/hooks/useMeasurementLabel';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
@@ -425,12 +424,6 @@ export function ScaleCalibrationCanvas({
           ) : null}
         </div>
       )}
-
-      {canvas.warpingNotice !== null ? (
-        <div className="absolute inset-x-3 top-3 z-10">
-          <InlineAlert level="attention" message={canvas.warpingNotice} />
-        </div>
-      ) : null}
 
       {!canvas.isInteractive ? (
         <p className="sr-only" id={FORBIDDEN_DESCRIPTION_ID}>

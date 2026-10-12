@@ -13,6 +13,8 @@ interface MiniMapProps {
    * Bỏ trống thì component tự giữ khung nhìn của nó như trước.
    */
   initialViewport?: Partial<ViewportRect>;
+  /** Vùng nhìn do màn điều khiển (đi theo thu phóng); vắng thì component tự giữ như trước. */
+  viewport?: ViewportRect;
   /**
    * Gọi mỗi khi người dùng kéo hoặc bấm để đổi vùng nhìn.
    *
@@ -33,6 +35,7 @@ export function MiniMap({
   className,
   initialViewport,
   onViewportChange,
+  viewport: controlledViewport,
 }: MiniMapProps) {
   const {
     viewport,
@@ -51,6 +54,7 @@ export function MiniMap({
     // truyền thẳng `undefined` là lỗi kiểu.
     ...(initialViewport === undefined ? {} : { initialViewport }),
     ...(onViewportChange === undefined ? {} : { onViewportChange }),
+    ...(controlledViewport === undefined ? {} : { viewport: controlledViewport }),
   });
 
   if (!isVisible) return null;

@@ -67,12 +67,14 @@ export const VIEWER_SHELL_LABEL = 'Vỏ khung nhìn 3D';
 export function ViewerShell(props: ViewerShellProps) {
   const {
     state,
+    hasModel,
     breadcrumbs,
     viewMode,
     onViewModeChange,
     presets,
     activePresetId,
     onPresetChange,
+    railOrientation = 'vertical',
     tools,
     activeToolId,
     onToolChange,
@@ -82,6 +84,7 @@ export function ViewerShell(props: ViewerShellProps) {
     separation,
     onSeparationChange,
     separationLabel,
+    separationDisabled = false,
     frame,
     renderScene,
     sceneActions,
@@ -114,7 +117,7 @@ export function ViewerShell(props: ViewerShellProps) {
   return (
     <section
       aria-label={VIEWER_SHELL_LABEL}
-      className="flex h-full w-full flex-col overflow-hidden bg-bg-app"
+      className="relative flex h-full w-full flex-col overflow-y-auto overflow-x-hidden bg-bg-app lg:overflow-hidden"
     >
       <ViewerTopBar
         activePresetId={activePresetId}
@@ -126,19 +129,25 @@ export function ViewerShell(props: ViewerShellProps) {
         viewMode={viewMode}
       />
 
-      <div className="flex min-h-0 flex-1">
+      {/* Ba cột (ray · khung nhìn · panel) cần ~960 px. Hẹp hơn `lg` thì panel
+          xuống dòng dưới khung nhìn, dưới `md` mọi thứ thành một cột và vỏ cuộn
+          dọc — không bao giờ tràn ngang (BUG-369, BUG-385). */}
+      <div className="flex flex-1 flex-wrap max-md:flex-col lg:min-h-0 lg:flex-nowrap">
         {!isCollapsed && (
           <>
             <ViewerToolRail
               activeToolId={activeToolId}
               onToolChange={onToolChange}
+              orientation={railOrientation}
               tools={tools}
             />
             <ViewerStoreyRail
               onSeparationChange={onSeparationChange}
               onStoreyActivate={onStoreyActivate}
               onStoreyVisibilityToggle={onStoreyVisibilityToggle}
+              orientation={railOrientation}
               separation={separation}
+              separationDisabled={separationDisabled}
               separationLabel={separationLabel}
               storeys={storeys}
             />
@@ -164,40 +173,46 @@ export function ViewerShell(props: ViewerShellProps) {
               <ViewerToolRail
                 activeToolId={activeToolId}
                 onToolChange={onToolChange}
+                orientation={railOrientation}
                 tools={tools}
               />
             </div>
           )}
 
-          {/* Thang cao độ tầng, dọc mép trái. */}
-          <div className="pointer-events-none absolute bottom-16 left-2 top-2 flex items-center">
-            <ViewerElevationScale storeys={storeys} />
-          </div>
+          {/* Không có hình thì không có gì để điều khiển (BUG-486). */}
+          {hasModel !== false && (
+            <>
+              {/* Thang cao độ tầng, dọc mép trái. */}
+              <div className="pointer-events-none absolute bottom-16 left-2 top-2 flex items-center">
+                <ViewerElevationScale storeys={storeys} />
+              </div>
 
-          {/* ViewCube 72 góc trên phải, bản đồ nhỏ ngay dưới. */}
-          <div className="pointer-events-none absolute right-2 top-2">
-            <ViewerTopRightControls
-              activePresetId={activePresetId}
-              onCubeFaceSelect={onCubeFaceSelect}
-              presets={presets}
-            />
-          </div>
+              {/* ViewCube 72 góc trên phải, bản đồ nhỏ ngay dưới. */}
+              <div className="pointer-events-none absolute right-2 top-2">
+                <ViewerTopRightControls
+                  activePresetId={activePresetId}
+                  onCubeFaceSelect={onCubeFaceSelect}
+                  presets={presets}
+                />
+              </div>
 
-          {/* Cụm thu phóng góc phải dưới. */}
-          <div className="absolute bottom-2 right-2">
-            <ViewerZoomControls
-              onFitAll={onFitAll}
-              onZoomIn={onZoomIn}
-              onZoomOut={onZoomOut}
-              onZoomReset={onZoomReset}
-              zoomLabel={zoomLabel}
-            />
-          </div>
+              {/* Cụm thu phóng góc phải dưới. */}
+              <div className="absolute bottom-2 right-2">
+                <ViewerZoomControls
+                  onFitAll={onFitAll}
+                  onZoomIn={onZoomIn}
+                  onZoomOut={onZoomOut}
+                  onZoomReset={onZoomReset}
+                  zoomLabel={zoomLabel}
+                />
+              </div>
 
-          {/* Chú giải góc trái dưới. */}
-          <div className="absolute bottom-2 left-2">
-            <ViewerLegend legend={legend} />
-          </div>
+              {/* Chú giải góc trái dưới. */}
+              <div className="absolute bottom-2 left-2">
+                <ViewerLegend legend={legend} />
+              </div>
+            </>
+          )}
         </ViewerViewport>
 
         {/* Panel phải trượt vào bằng cách kẹp `width`/`opacity`, không gỡ
@@ -209,7 +224,10 @@ export function ViewerShell(props: ViewerShellProps) {
           aria-hidden={isCollapsed}
           className={cn(
             'shrink-0 overflow-hidden',
-            isCollapsed ? 'py-0 pr-0 opacity-0' : 'py-3 pr-3 opacity-100',
+            /* `!w-full` thắng `width` nội tuyến: dưới `lg` panel trải hết dòng của nó. */
+            isCollapsed
+              ? 'py-0 pr-0 opacity-0'
+              : 'px-3 pb-3 opacity-100 max-lg:!w-full lg:py-3 lg:pl-0',
             frame.reducedMotion
               ? 'transition-none'
               : 'transition-all duration-standard ease-in-out',

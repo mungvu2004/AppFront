@@ -346,6 +346,23 @@ describe('màn cho đúng sáu lựa chọn, không nhiều hơn', () => {
     );
     expect(screen.getByRole('button', { name: 'Bỏ qua' })).toBeInTheDocument();
   });
+
+  it('liên kết bị khoá không gạch chân như hai liên kết bấm được (BUG-127)', () => {
+    render(<WelcomeScreen {...propsFor(scenarioOf('empty'))} />);
+
+    expect(screen.getByRole('button', { name: 'Xem dự án mẫu' })).toHaveClass('underline');
+    expect(screen.getByRole('button', { name: 'Bỏ qua' })).toHaveClass('underline');
+    expect(screen.getByRole('button', { name: 'Xem hướng dẫn 2 phút' })).not.toHaveClass('underline');
+  });
+
+  // run-19: gạch chân trên chữ xám đọc như chữ thường; liên kết bấm được mang màu nhấn (A2), cái bị khoá thì không.
+  it('liên kết bấm được mang màu nhấn, liên kết bị khoá không (BUG-127)', () => {
+    render(<WelcomeScreen {...propsFor(scenarioOf('empty'))} />);
+
+    expect(screen.getByRole('button', { name: 'Xem dự án mẫu' })).toHaveClass('text-accent');
+    expect(screen.getByRole('button', { name: 'Bỏ qua' })).toHaveClass('text-accent');
+    expect(screen.getByRole('button', { name: 'Xem hướng dẫn 2 phút' })).not.toHaveClass('text-accent');
+  });
 });
 
 /* -------------------------------------------------------------------------- */

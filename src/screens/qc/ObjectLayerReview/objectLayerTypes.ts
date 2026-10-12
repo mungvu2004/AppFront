@@ -34,6 +34,7 @@ import type { MeasurementState } from '@/hooks/useMeasurementLabel';
 import type { ColorTokenName } from '@/lib/coloring/scales';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 
+import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 
 /* -------------------------------------------------------------------------- */
@@ -594,8 +595,18 @@ export interface ObjectLayerReviewModel {
   readonly confidenceTokenOf: (objectId: string) => ColorTokenName;
   /** Số bước còn hoàn tác được — D-06 gộp 20 lượt kéo thành đúng một bước. */
   readonly undoStepCount: number;
-  /** Khung nhìn canvas; bấm liên kết tường chủ bay tới bằng R-07. */
+  /** Khung nhìn canvas (pixel bản vẽ → pixel khung); bấm liên kết tường chủ bay tới bằng R-07. */
   readonly viewport: ObjectLayerViewport;
+  /** Vùng bản vẽ đang thấy — `viewBox` của `<svg>` phủ kín khung (BUG-403). */
+  readonly viewBoxPx: PixelRect | null;
+  /** Một px MÀN tính bằng px bản vẽ (= 1 / `viewport.zoom`) — chấm "chưa gắn" giữ cỡ (review-1 #4). */
+  readonly unitPx: number;
+  /** Hộp ảnh nền, pixel KHUNG. */
+  readonly surfaceRectPx: PixelRect | null;
+  /** Hộp của đối tượng đang chọn (hoặc đang rê), pixel KHUNG. */
+  readonly haloRectPx: PixelRect | null;
+  /** Canvas báo khổ khung đo được — "vừa khung" cần nó. */
+  readonly onFrameResize: (size: { readonly width: number; readonly height: number }) => void;
   /** Nhóm loại đang chọn (`D`/`W`/`F`). */
   readonly activeLayer: ObjectLayerId | null;
   readonly activeSubtype: ObjectSubtype | null;
@@ -617,10 +628,17 @@ export interface ObjectLayerReviewModel {
    * hoàn tác được như mọi lệnh khác, và KHÔNG đặt cờ duyệt (A5).
    */
   readonly onAddManually: () => void;
+  /**
+   * Tầng chưa có đoạn tường nào: "Thêm thủ công" chỉ dẫn tới toast lỗi, nên trạng thái rỗng mở
+   * màn Duyệt tường thay vào đó (BUG-422). `null` khi tầng có tường hoặc không có lối điều hướng.
+   */
+  readonly onOpenWallLayer: (() => void) | null;
   /** Khối lưu lớp của tầng — dải "Tải lại" / "Không lưu được" (F-04x-1). */
   readonly saveBlock?: FloorLayerSaveBlock | null | undefined;
   /** Dải tỉ lệ tạm (F-04x-2); `null` khi tầng đã có tỉ lệ thật. */
   readonly provisionalScaleNotice?: ProvisionalScaleNotice | null | undefined;
+  /** Đọc lớp của tầng hỏng khi chưa có tài liệu: thay cả màn, một lối ra (BUG-326). */
+  readonly readFailure?: FloorLayerReadFailure | null | undefined;
 }
 
 /* -------------------------------------------------------------------------- */

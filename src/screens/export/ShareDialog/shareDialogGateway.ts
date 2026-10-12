@@ -279,7 +279,7 @@ export const EMBED_SIZE_PRESETS: readonly EmbedSizePreset[] = Object.freeze([
   },
   {
     id: 'standard',
-    label: 'vừa',
+    label: 'Vừa',
     widthPx: DEFAULT_EMBED_WIDTH_PX,
     heightPx: DEFAULT_EMBED_HEIGHT_PX,
   },

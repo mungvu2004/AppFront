@@ -63,6 +63,7 @@
  */
 
 import { ChevronLeft, ChevronRight, FileSearch, X } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -99,13 +100,17 @@ export interface ViolationDetailSaveProps {
 type ViolationDetailViewProps = ViolationDetailBaseProps & ViolationDetailSaveProps;
 
 /** Rộng 420 theo đặc tả. Phần còn lại của màn hình là mô hình, và nó ở đó cả lúc này. */
-const PANEL_SIDE = 'right-0 top-0 h-full w-[420px] border-l';
+const PANEL_SIDE = 'absolute right-0 top-0 h-full w-[420px] border-l';
 
-/** Trạng thái 7: cùng tấm trượt ấy, đến từ cạnh dưới, cao vừa đủ để đọc. */
-const PANEL_BOTTOM = 'bottom-0 left-0 right-0 max-h-[70%] w-full border-t';
+/**
+ * Trạng thái 7: cùng tấm trượt ấy, đến từ cạnh dưới, cao vừa đủ để đọc. `fixed` theo khung
+ * nhìn, không `absolute`: route cuộn theo tài liệu nên khung cha cao bằng cả báo cáo, và tấm
+ * `absolute bottom-0` mở ở đáy tài liệu, ngoài màn (đo 375: y=3070 trên tài liệu 3705, BUG-434).
+ */
+const PANEL_BOTTOM = 'fixed bottom-0 left-0 right-0 max-h-[70vh] w-full border-t';
 
 const PANEL_BASE =
-  'absolute z-10 flex flex-col overflow-y-auto border-border-default bg-bg-surface shadow-overlay';
+  'z-10 flex flex-col overflow-y-auto border-border-default bg-bg-surface shadow-overlay';
 
 /* -------------------------------------------------------------------------- */
 /* Khối 1 — đầu.                                                               */
@@ -337,8 +342,17 @@ export function ViolationDetail(props: ViolationDetailViewProps) {
     scope: 'sidePanel',
   });
 
+  // A12: mở tấm thì tiêu điểm vào tấm (không bẫy — Tab vẫn đi tiếp ra ngoài). `preventScroll`:
+  // tấm đã ở trong khung nhìn, không kéo trang theo.
+  const panelRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    panelRef.current?.focus({ preventScroll: true });
+  }, []);
+
   return (
     <motion.aside
+      ref={panelRef}
+      tabIndex={-1}
       animate={{ opacity: 1, x: 0, y: 0 }}
       aria-label="Chi tiết vi phạm"
       className={cn(PANEL_BASE, isCollapsed ? PANEL_BOTTOM : PANEL_SIDE)}

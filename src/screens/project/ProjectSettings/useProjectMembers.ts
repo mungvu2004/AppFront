@@ -74,7 +74,7 @@ export interface UseProjectMembersOptions {
   readonly currentUserId?: string | undefined;
   readonly now?: (() => number) | undefined;
   readonly onToast?:
-    | ((toast: { readonly message: string; readonly onUndo?: () => void }) => void)
+    | ((toast: { readonly message: string; readonly onUndo?: () => void; readonly state?: 'attention' | 'violation' }) => void)
     | undefined;
   readonly onSelfRemoved?: (() => void) | undefined;
 }
@@ -195,7 +195,7 @@ export function useProjectMembers(
             if (undone.ok) {
               invalidate('removeProjectMember');
             } else {
-              options.onToast?.({ message: SENTENCES.undoFailed });
+              options.onToast?.({ message: SENTENCES.undoFailed, state: 'violation' });
             }
           });
         },

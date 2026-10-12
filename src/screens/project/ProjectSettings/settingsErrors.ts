@@ -14,8 +14,6 @@ import type { ApiError } from '@/api/client';
 import { describeError, toAppError } from '@/lib/errors';
 import { isTransientWireError, readWireError } from '@/lib/errors/wireError';
 
-import type { ProjectSettingsPart } from './projectSettingsGateway';
-
 export interface SettingsErrorInfo {
   readonly status: number | undefined;
   readonly code: string | undefined;
@@ -108,36 +106,69 @@ export function problemKeyOfError(error: ApiError): SettingsProblemKey | null {
 
 export const SETTINGS_SENTENCES = {
   conflict: 'Cài đặt dự án vừa được đổi ở nơi khác. Tải lại để xem bản mới nhất.',
-  fieldRejected: 'Máy chủ không nhận giá trị này. Kiểm tra lại ô này.',
+  /** Câu DUY NHẤT của một 422 trỏ đúng ô (BUG-356): nói ở ô, không đổ lỗi "máy chủ". */
+  fieldRejected: 'Giá trị này chưa hợp lệ nên chưa được lưu; hãy sửa lại.',
   saveFallback: 'Không lưu được cài đặt dự án.',
-  emptyBlocked: 'Bản này chưa xoá trống được.',
+  /** Viên chỉ báo khi lỗi nhập chặn tự lưu: không nói "chờ đồng bộ" cho thứ sẽ không đồng bộ (BUG-286). */
+  unsavedProblems: 'Chưa lưu vì còn ô cần sửa',
+  emptyBlocked: 'Giá trị đã lưu không xoá trống được; hãy nhập giá trị khác.',
   snapNotInteger: 'Dung sai bắt điểm phải là số nguyên.',
+  /** Viên chỉ báo sau 422: thử lại y nguyên vô ích, nên không hứa "sẽ thử lưu lại" (BUG-300). */
+  chipRejected: 'Chưa lưu vì còn ô cần sửa',
+  /** Viên chỉ báo sau 409/428: chỉ tải lại mới gỡ được (BUG-300). */
+  chipReload: 'Chưa lưu: cần tải lại bản mới nhất',
 } as const;
 
-const PART_LABELS: Readonly<Record<ProjectSettingsPart, string>> = {
-  general: 'thông tin chung',
-  units: 'đơn vị đo',
+/** Mọi ô của bản nháp, gọi bằng tên người dùng thấy trên màn — không bằng nhóm gửi nội bộ (BUG-300). */
+export type SettingsFieldKey = SettingsProblemKey | 'buildingType' | 'lengthUnit';
+
+const FIELD_LABELS: Readonly<Record<SettingsFieldKey, string>> = {
+  name: 'tên dự án',
+  code: 'mã dự án',
+  address: 'địa chỉ',
+  buildingType: 'loại công trình',
+  notes: 'ghi chú',
+  lengthUnit: 'đơn vị chiều dài',
+  snapToleranceMm: 'dung sai bắt điểm',
+  confidenceThreshold: 'ngưỡng tin cậy',
+  scaleMmPerPx: 'tỉ lệ bản vẽ',
 };
 
+/** Bước tiếp theo theo lời từ chối; 409 không có câu vì dải xung đột đã mang nút "Tải lại". */
+const NEXT_STEP: Readonly<Record<SettingsRejection, string>> = {
+  validation: ' Sửa lại giá trị đó, hệ thống sẽ tự lưu tiếp.',
+  conflict: '',
+  precondition: ' Tải lại trang để lưu tiếp.',
+};
+
+function listOf(fields: readonly SettingsFieldKey[]): string {
+  const labels = fields.map((field) => FIELD_LABELS[field]);
+  const last = labels.pop();
+
+  if (last === undefined) return 'thay đổi vừa rồi';
+
+  return labels.length === 0 ? last : `${labels.join(', ')} và ${last}`;
+}
+
 /**
- * Câu nói phần nào đã lưu, phần nào chưa.
+ * Câu nói ô nào đã lưu, ô nào chưa, và việc người dùng cần làm.
  *
- * `saved` là những phần vừa gửi thành công, `failed` là những phần hỏng hoặc còn
- * bị giữ lại vì máy chủ đã từ chối bản nháp hiện tại.
+ * `saved` là những ô vừa gửi thành công, `failed` là những ô hỏng hoặc còn bị giữ lại
+ * vì máy chủ đã từ chối bản nháp hiện tại. `rejection` là lời từ chối gây ra phần hỏng;
+ * `null` (lỗi tạm) thì không thêm câu nào: engine tự thử lại và viên chỉ báo đã nói điều đó.
  */
 export function partialSaveSentence(
-  saved: readonly ProjectSettingsPart[],
-  failed: readonly ProjectSettingsPart[],
+  saved: readonly SettingsFieldKey[],
+  failed: readonly SettingsFieldKey[],
+  rejection: SettingsRejection | null = null,
 ): string {
-  const failedText = failed.map((part) => PART_LABELS[part]).join(' và ');
+  const next = rejection === null ? '' : NEXT_STEP[rejection];
 
   if (saved.length === 0) {
-    return `Chưa lưu được ${failedText}.`;
+    return `Chưa lưu được ${listOf(failed)}.${next}`;
   }
 
-  const savedText = saved.map((part) => PART_LABELS[part]).join(' và ');
-
-  return `Đã lưu ${savedText}, chưa lưu ${failedText}.`;
+  return `Đã lưu ${listOf(saved)}, chưa lưu ${listOf(failed)}.${next}`;
 }
 
 /** Câu dự phòng cho lỗi ghi không có nhánh riêng. */

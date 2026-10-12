@@ -1,12 +1,12 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Drawer } from './Drawer';
 
-/** Bề ngang điện thoại: `Drawer` đọc `(max-width: 1023px)` để chọn tấm trượt. */
+/** Bề ngang điện thoại: `Drawer` đọc `(width < 1024px)` để chọn tấm trượt. */
 function emulatePhone(): void {
   vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: query === '(max-width: 1023px)',
+    matches: query === '(width < 1024px)',
     media: query,
     onchange: null,
     addEventListener: vi.fn(),
@@ -56,6 +56,8 @@ describe('Drawer — tấm trượt điện thoại (B-V1-46)', () => {
     expect(within(group).getByRole('button', { name: 'Mức 1' })).toHaveAccessibleDescription('Thu gọn');
     expect(within(group).getByRole('button', { name: 'Mức 2' })).toHaveAccessibleDescription('Nửa màn hình');
     expect(within(group).getByRole('button', { name: 'Mức 3' })).toHaveAccessibleDescription('Gần toàn màn hình');
+    // BUG-236: the hint is beside the dot, so the dot stays an icon-only 24 px target (no text of its own).
+    expect(within(group).getByRole('button', { name: 'Mức 1' })).toHaveTextContent(/^$/u);
   });
 
   it('không nút nào bị rút khỏi thứ tự Tab — đó là đường bàn phím duy nhất để đổi mức (A12)', () => {
@@ -68,5 +70,116 @@ describe('Drawer — tấm trượt điện thoại (B-V1-46)', () => {
     for (const button of within(screen.getByRole('group', { name: 'Chiều cao tấm trượt' })).getAllByRole('button')) {
       expect(button).not.toHaveAttribute('tabindex', '-1');
     }
+  });
+});
+
+describe('Drawer — focus lúc mở (BUG-205, BUG-125)', () => {
+  it('không ai mở (focus ở body, như tải thẳng một route) → chính hộp thoại nhận focus, không nút nào', async () => {
+    render(
+      <Drawer.Root isOpen label="Thông báo" onClose={() => undefined}>
+        <button type="button">Cài đặt</button>
+      </Drawer.Root>,
+    );
+
+    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Thông báo' })).toHaveFocus());
+  });
+
+  it('mở từ một nút → nút đầu tiên của nội dung, không phải chấm snap "Mức 1" của tờ', async () => {
+    const opener = document.createElement('button');
+    document.body.append(opener);
+    opener.focus();
+
+    render(
+      <Drawer.Root isOpen label="Thông báo" onClose={() => undefined}>
+        <button type="button">Cài đặt</button>
+      </Drawer.Root>,
+    );
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Cài đặt' })).toHaveFocus());
+    // The bottom sheet (phone, beforeEach) is the branch BUG-125 is about: its first button is the "Mức 1" snap.
+    expect(within(screen.getByRole('group', { name: 'Chiều cao tấm trượt' })).getAllByRole('button')[0]).not.toHaveFocus();
+    opener.remove();
+  });
+
+  it('data-autofocus thắng cả khi không ai mở (focus ở body)', async () => {
+    render(
+      <Drawer.Root isOpen label="Thông báo" onClose={() => undefined}>
+        <button type="button">Cài đặt</button>
+        <button type="button" data-autofocus="">Tìm</button>
+      </Drawer.Root>,
+    );
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Tìm' })).toHaveFocus());
+  });
+
+  it('khung rộng (ngăn bên, không chấm snap): mở từ một nút → nút đầu tiên của nội dung', async () => {
+    vi.unstubAllGlobals();
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+    const opener = document.createElement('button');
+    document.body.append(opener);
+    opener.focus();
+
+    render(
+      <Drawer.Root isOpen label="Thông báo" onClose={() => undefined}>
+        <button type="button">Cài đặt</button>
+      </Drawer.Root>,
+    );
+
+    expect(screen.queryByRole('group', { name: 'Chiều cao tấm trượt' })).toBeNull();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Cài đặt' })).toHaveFocus());
+    opener.remove();
+  });
+});
+
+describe('Drawer — trang nền khi đang mở (BUG-235)', () => {
+  it('khoá cuộn trang khi mở, trả lại giá trị cũ khi đóng', () => {
+    const root = document.documentElement;
+    root.style.overflow = 'clip';
+    const { rerender } = render(
+      <Drawer.Root isOpen label="Thông báo" onClose={() => undefined}>
+        <p>Nội dung</p>
+      </Drawer.Root>,
+    );
+
+    expect(root.style.overflow).toBe('hidden');
+
+    rerender(
+      <Drawer.Root isOpen={false} label="Thông báo" onClose={() => undefined}>
+        <p>Nội dung</p>
+      </Drawer.Root>,
+    );
+
+    expect(root.style.overflow).toBe('clip');
+    root.style.overflow = '';
+  });
+
+  it('nói ra phía nó chiếm cho toast toàn ứng dụng: tờ dưới 1024 px, gỡ khi đóng (BUG-227)', () => {
+    const root = document.documentElement;
+    const { rerender } = render(
+      <Drawer.Root isOpen label="Thông báo" onClose={() => undefined}>
+        <p>Nội dung</p>
+      </Drawer.Root>,
+    );
+
+    expect(root.dataset.drawer).toBe('sheet');
+    expect(root.style.getPropertyValue('--drawer-inset')).toBe('408px');
+
+    rerender(
+      <Drawer.Root isOpen={false} label="Thông báo" onClose={() => undefined}>
+        <p>Nội dung</p>
+      </Drawer.Root>,
+    );
+
+    expect(root.dataset.drawer).toBeUndefined();
+    expect(root.style.getPropertyValue('--drawer-inset')).toBe('');
   });
 });

@@ -226,12 +226,8 @@ function previewOf(
  * làm tròn, không ghép câu.
  */
 export const SAMPLE_SUMMARY: ProcessingSummaryViewModel = {
-  wallCountLabel: '48 tường',
-  objectCountLabel: '108 đối tượng',
-  dimensionCountLabel: '26 chuỗi kích thước',
-  roomCountLabel: '34 phòng',
-  areaLabel: '248,60 m²',
-  lowConfidenceSentence: 'Có 9 mức độ tin cậy dưới 0,70 cần bạn xem lại.',
+  metricLabels: ['48 tường', '108 đối tượng', '26 chuỗi kích thước', '34 phòng', '248,60 m²'],
+  lowConfidenceSentence: 'Có 9 đối tượng có độ tin cậy dưới 0,75 cần bạn xem lại.',
   onReviewWalls: NO_OP,
   onCalibrateScale: NO_OP,
 };
@@ -248,7 +244,8 @@ function baseScenario(): ProcessingScreenProps {
     steps: stepsAt(2, { runningPercent: 45 }),
     previewPanel: previewOf('L2', { isScanning: true, withGeometry: true }),
     logLines: SAMPLE_LOG_LINES,
-    overallSummaryLine: 'Đã xong 2/4 tầng · Còn lại khoảng 4 phút 20 giây',
+    overallSummaryLine: 'Đã xong 2/4 tầng',
+    remainingLine: 'Còn lại khoảng 4 phút 20 giây',
     activeTab: 'preview',
     onTabChange: NO_OP,
     isLogAutoScrollLocked: false,
@@ -314,7 +311,8 @@ export function scenarioFor(state: SevenState): ProcessingScreenProps {
         floors: PARTIAL_FLOORS,
         steps: withStepFailure(stepsAt(3, { runningPercent: 62, failedIndex: 1 }), 1),
         previewPanel: previewOf('L3', { isScanning: true, withGeometry: true }),
-        overallSummaryLine: 'Đã xong 2/4 tầng · Còn lại khoảng 3 phút',
+        overallSummaryLine: 'Đã xong 2/4 tầng',
+        remainingLine: 'Còn lại khoảng 3 phút',
         partialNoticeLine: 'Tầng 2 gặp lỗi. Các tầng còn lại vẫn đang được xử lý.',
       };
 
@@ -353,7 +351,8 @@ export function scenarioFor(state: SevenState): ProcessingScreenProps {
       return {
         ...base,
         state: 'forbidden',
-        overallSummaryLine: 'Đã xong 2/4 tầng · Còn lại khoảng 4 phút 20 giây',
+        overallSummaryLine: 'Đã xong 2/4 tầng',
+        remainingLine: 'Còn lại khoảng 4 phút 20 giây',
         canCancel: false,
       };
 

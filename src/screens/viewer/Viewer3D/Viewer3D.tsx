@@ -43,15 +43,23 @@ function ViewerGround() {
   );
 }
 
+/**
+ * Câu và nút đi tiếp là MỘT khối nổi trên nền đệm (BUG-486): đứng trần trên canvas
+ * thì đường chân trời cắt đôi chúng thành hai dải màu. Vỏ không vẽ ViewCube, bản
+ * đồ nhỏ, thu phóng, chú giải khi chưa có hình (`ViewerShellProps.hasModel`), nên
+ * giữa khung nhìn trống cho khối này ở mọi khổ.
+ */
 function EmptyContent({ qcHref }: { readonly qcHref: string }) {
   return (
-    <div className="relative flex h-full w-full flex-col items-center justify-center gap-4 p-8 text-center">
-      <p className="max-w-sm text-[14px] leading-relaxed text-text-secondary">
-        Mô hình 3D sẽ xuất hiện sau khi bạn duyệt lớp tường.
-      </p>
-      <a className={getButtonStyles({ variant: 'primary' })} href={qcHref}>
-        Quay lại xem lớp tường
-      </a>
+    <div className="relative flex h-full w-full items-center justify-center p-8">
+      <div className="flex max-w-sm flex-col items-center gap-4 rounded-[12px] bg-bg-surface-90 p-6 text-center shadow-float">
+        <p className="text-pretty text-[14px] leading-relaxed text-text-secondary">
+          Mô hình 3D sẽ xuất hiện sau khi bạn duyệt lớp tường.
+        </p>
+        <a className={getButtonStyles({ variant: 'primary' })} href={qcHref}>
+          Quay lại xem lớp tường
+        </a>
+      </div>
     </div>
   );
 }

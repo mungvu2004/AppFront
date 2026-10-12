@@ -20,14 +20,23 @@ export interface UseNumericFieldProps {
   max?: number | undefined;
   /** Named in the range message ("Giá trị không quá 10 m."), so a refusal says what it measures. */
   unit?: string | undefined;
+  /**
+   * Bump it when the caller writes a value that may equal the stored one ("Áp cho mọi tầng" twice): the
+   * `value` effect sees no change then, so a refusal still typed in the box would stay. A new key drops it.
+   */
+  resetKey?: number | undefined;
+  /** Pad to exactly this many decimals ("4,0"), so the box reads like a table cell beside it (BUG-306). */
+  fractionDigits?: number | undefined;
 }
 
-export function useNumericField({ value, onChange, min, max, unit }: UseNumericFieldProps) {
+export function useNumericField({ value, onChange, min, max, unit, resetKey, fractionDigits }: UseNumericFieldProps) {
   const [localValue, setLocalValue] = useState<string>('');
   const [isFocused, setIsFocused] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
+  // The value this field committed itself: it is shown as typed, not counted up from the old one (BUG-198).
+  const [ownCommit, setOwnCommit] = useState<number | undefined | null>(null);
 
   // `from: value` mounts at rest; an external change then runs from the shown
   // value. A missing value maps to NaN, which the count-up treats as "no run".
@@ -39,9 +48,21 @@ export function useNumericField({ value, onChange, min, max, unit }: UseNumericF
   // written from outside (an "apply to all", an undo) replaces whatever text
   // the field was still showing for a refusal, so the refusal goes with it.
   useEffect(() => {
-    if (value !== lastCommittedRef.current) setError(null);
+    if (value !== lastCommittedRef.current) {
+      setError(null);
+      setOwnCommit(null);
+    }
     lastCommittedRef.current = value;
   }, [value]);
+
+  const resetKeyRef = useRef(resetKey);
+  useEffect(() => {
+    if (resetKey === resetKeyRef.current) return;
+    resetKeyRef.current = resetKey;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setIsTyping(false);
+    setError(null);
+  }, [resetKey]);
 
   // A sentence with the unit, not a bare operator: "Giá trị phải <= 10" told
   // nobody what was measured (BUG-160).
@@ -56,7 +77,7 @@ export function useNumericField({ value, onChange, min, max, unit }: UseNumericF
   // The shared formatter, with one field-specific reading: an editable input
   // shows a missing value as an empty box, not as the read-only `—` placeholder.
   const displayText = (num: number | undefined): string =>
-    num === undefined ? '' : formatNumber(num, { maxFractionDigits: 2 });
+    num === undefined ? '' : formatNumber(num, fractionDigits === undefined ? { maxFractionDigits: 2 } : { fractionDigits });
 
   const commit = useCallback((valStr: string) => {
     const parsed = parseNumber(valStr);
@@ -65,6 +86,7 @@ export function useNumericField({ value, onChange, min, max, unit }: UseNumericF
 
     if (!err && parsed !== lastCommittedRef.current) {
       lastCommittedRef.current = parsed;
+      setOwnCommit(parsed);
       onChange?.(parsed);
       setFlash(true);
       // The same off-ladder 400 ms `useListReview` carried, for the same kind
@@ -102,10 +124,10 @@ export function useNumericField({ value, onChange, min, max, unit }: UseNumericF
 
   const handleFocus = () => {
     setIsFocused(true);
-    if (!isTyping) {
-      // When focusing without typing, just show the raw value of what was last committed, or keep formatted?
-      // For editing, usually it's better to show raw or just let them edit the formatted one.
-      // We will set local to formatted for simplicity of editing.
+    // Coming back to a refused value keeps it as typed, beside its message (BUG-160): swapping in
+    // the stored value left "3" next to "Giá trị không quá 10 m." and raced the next keystrokes
+    // ("2.500" became "32.500", BUG-198). Otherwise the field edits what was last committed.
+    if (!isTyping && error === null) {
       setLocalValue(displayText(lastCommittedRef.current));
     }
   };
@@ -143,11 +165,12 @@ export function useNumericField({ value, onChange, min, max, unit }: UseNumericF
   };
 
   // A refused value stays in the box beside its message (BUG-160): blanking it
-  // left the error under a field that looked empty.
-  const displayValue =
-    isTyping || isFocused || error !== null
-      ? localValue
-      : displayText(Number.isFinite(animatedValue) ? animatedValue : undefined);
+  // left the error under a field that looked empty. Only a value written from
+  // outside counts up: counting the user's own "2" down from 3,5 made a Tab
+  // straight back swap "2,6" for "2" and drop the keyboard select-all, so "10"
+  // typed next read "210" (BUG-198, run-17).
+  const shown = value === ownCommit ? value : Number.isFinite(animatedValue) ? animatedValue : undefined;
+  const displayValue = isTyping || isFocused || error !== null ? localValue : displayText(shown);
 
   return {
     displayValue,

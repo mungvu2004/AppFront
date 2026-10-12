@@ -170,7 +170,7 @@ export interface DimensionStringRow extends ScaleMeasurement {
   /** Độ tin cậy của lần đọc, `0..1`. Cấp thẳng cho `ConfidenceMeter`. */
   readonly confidence: number;
   /**
-   * `true` khi độ tin cậy dưới ngưỡng `CONFIDENCE_SUGGESTED_THRESHOLD`. View gạch
+   * `true` khi độ tin cậy dưới ngưỡng của dự án (N5; mặc định 0,70). View gạch
    * chéo hàng và tô mức cần chú ý — đây là nửa thứ hai của trạng thái `partial`.
    */
   readonly isLowConfidence: boolean;
@@ -252,6 +252,11 @@ export interface ScaleReferenceMethodViewModel {
    * `null` khi OCR không có gì để gợi.
    */
   readonly realLengthHint: string | null;
+  /**
+   * Lỗi nhập của ô — ví dụ khi gõ `"abc"` hay `"0"`. `null` khi ô trống hoặc giá trị
+   * đọc được và lớn hơn 0. Có thì ô hiện lỗi thay cho gợi ý (BUG-342).
+   */
+  readonly realLengthError: string | null;
   /** Kết quả chữ đều lớn của bước 3 — ví dụ `"12 mm/px"`. `null` khi chưa đủ dữ liệu. */
   readonly resultLabel: string | null;
   /**
@@ -351,7 +356,7 @@ export type ScaleCrossCheckId = 'wallThickness' | 'doorWidth' | 'largestRoomArea
 /** Một dòng kiểm chứng. Mọi con số đã thành chuỗi ở hook (A15). */
 export interface ScaleCrossCheckRow {
   readonly id: ScaleCrossCheckId;
-  /** Nhãn tiếng Việt viết thường, kiểu câu — ví dụ `"độ dày tường điển hình"`. */
+  /** Nhãn tiếng Việt kiểu câu, viết hoa chữ đầu (A6) — ví dụ `"Độ dày tường điển hình"`. */
   readonly label: string;
   /** Giá trị đã định dạng, kèm đơn vị — ví dụ `"220 mm"`, `"24,80 m²"`. */
   readonly valueLabel: string;
@@ -394,7 +399,7 @@ export interface ScaleShortcutHint {
    * phím là ngoại lệ được A6 cho phép.
    */
   readonly comboLabel: string;
-  /** Việc phím đó làm, viết thường kiểu câu — ví dụ `"huỷ đoạn đang kéo"`. */
+  /** Việc phím đó làm, kiểu câu viết hoa chữ đầu (A6) — ví dụ `"Huỷ đoạn đang kéo"`. */
   readonly description: string;
 }
 
@@ -429,12 +434,6 @@ export interface ScaleCanvasViewModel {
   /** `false` ở trạng thái `forbidden`: canvas xem được, kéo thì không. */
   readonly isInteractive: boolean;
   readonly isImageLoading: boolean;
-  /**
-   * Câu báo bản vẽ có thể méo vì nắn ảnh thất bại. `null` ngoài trạng thái
-   * `error`. Liên kết quay lại bước tiền xử lý là
-   * {@link ScaleCalibrationActions.onGoToPreprocessing}.
-   */
-  readonly warpingNotice: string | null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -488,6 +487,13 @@ export interface ScalePanelViewModel {
    */
   readonly statusCode: ViewStatusCode;
   readonly shortcutHints: readonly ScaleShortcutHint[];
+  /**
+   * Tầng chưa có bản vẽ: khối phương pháp hiện nhưng mờ và không bấm được, như ở `forbidden` —
+   * ô "Chiều dài thật" và "Đo lại" không còn mời một quy trình không chạy được (BUG-411).
+   */
+  readonly isMethodLocked: boolean;
+  /** `false` khi chưa có tỷ lệ: nhãn "Chưa có" là chữ, không phải số — không dùng phông mono. */
+  readonly isCurrentScaleKnown: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -522,7 +528,7 @@ export interface ScaleStatusBarViewModel {
  *
  * Bất biến đi kèm, cùng khuôn `InputQualityGateModel`:
  *
- * 1. `errorMessage !== null` ⟺ `state === 'error'`, và `errorCode` đi cùng nó.
+ * 1. `errorMessage !== null` ⟺ `state === 'error'`; `errorCode` chỉ có khi lỗi mang mã máy thật.
  * 2. `state === 'loading'` ⟺ `canvas.isImageLoading`.
  * 3. `state === 'empty'` ⟺ `panel.dimension.rows` rỗng; lúc đó
  *    `panel.method === 'referenceLine'` và mục `'dimensionString'` bị khoá.
@@ -530,7 +536,8 @@ export interface ScaleStatusBarViewModel {
  *    `panel.reference.draft`) HOẶC có ít nhất một hàng `isLowConfidence`.
  * 5. `state === 'forbidden'` ⟺ `canvas.isInteractive === false` ⟺
  *    `panel.areActionsHidden === true`.
- * 6. `state === 'collapsed'` ⟺ `isPanelCollapsed === true`.
+ * 6. `state === 'collapsed'` ⟹ `isPanelCollapsed === true` (một chiều: panel thu gọn được cả
+ *    khi `error`/`forbidden` đứng trước — BUG-322).
  * 7. `state === 'success'` ⟺ `panel.statusCode === 'verified'`.
  */
 export interface ScaleCalibrationViewModel {
@@ -538,20 +545,25 @@ export interface ScaleCalibrationViewModel {
   readonly canvas: ScaleCanvasViewModel;
   readonly panel: ScalePanelViewModel;
   readonly statusBar: ScaleStatusBarViewModel;
-  /** Dưới 1024px panel phải thành tấm trượt đáy — cùng mốc các màn đã dựng. */
+  /** Khung nhìn dưới 1024px — cùng mốc các màn đã dựng. Panel tự xếp bằng CSS `lg:`. */
   readonly isCompact: boolean;
   readonly isPanelCollapsed: boolean;
   /** Có thì bỏ chạy số và bỏ bay khung nhìn, đổi giá trị tức thì (mục B). */
   readonly prefersReducedMotion: boolean;
   /** Lỗi nắn ảnh. `null` ở mọi trạng thái khác `'error'`. */
   readonly errorMessage: string | null;
-  /** Mã máy đọc, giữ nguyên dạng (A6). Không bao giờ đứng một mình. */
+  /**
+   * Mã máy đọc, giữ nguyên dạng (A6). Không bao giờ đứng một mình. `null` cả khi lỗi
+   * không có mã máy thật (tầng chưa có bản vẽ, ảnh méo) — không in "UNKNOWN" (BUG-337).
+   */
   readonly errorCode: string | null;
   /**
    * Tiêu đề của `'error'` khi lỗi là lượt ĐỌC hỏng, không phải ảnh méo. Vắng thì
    * view dùng tiêu đề "nắn ảnh thất bại" — chỉ đúng cho ảnh méo (B-V5-04).
    */
   readonly errorTitle?: string;
+  /** Tầng chưa có bản vẽ (404 `upload`): lối ra là "Tải bản vẽ lên", không "Tải lại ảnh" (BUG-337). */
+  readonly isNoDrawing?: boolean;
   /** Câu của trạng thái `'empty'`. `null` ở trạng thái khác. */
   readonly emptyNotice: string | null;
   /** Câu của trạng thái `'partial'`. `null` ở trạng thái khác. */
@@ -657,6 +669,8 @@ export interface ScaleCalibrationActions {
   readonly onGoToPreprocessing: () => void;
   /** Tải lại ảnh sau khi nắn thất bại. */
   readonly onRetry: () => void;
+  /** Tới màn Tải bản vẽ — lối ra của tầng chưa có bản vẽ (BUG-337). */
+  readonly onGoToUpload: () => void;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -687,11 +701,10 @@ export interface ScaleCalibrationCanvasProps {
   >;
 }
 
-/** Props của `ScaleCalibrationPanel` — panel phải 344px, hoặc tấm trượt đáy khi hẹp. */
+/** Props của `ScaleCalibrationPanel` — panel phải 344px, dưới 1024px xếp dưới bản vẽ. */
 export interface ScaleCalibrationPanelProps {
   readonly panel: ScalePanelViewModel;
   readonly state: ScaleCalibrationState;
-  readonly isCompact: boolean;
   readonly isCollapsed: boolean;
   readonly prefersReducedMotion: boolean;
   readonly actions: Pick<

@@ -84,6 +84,13 @@ export interface ViewerShellData {
    * xem "Một việc chưa có đường" ở đầu file.
    */
   readonly isPartial: boolean;
+  /**
+   * Đồ thị có thứ gì dựng ra hình được (tường hoặc phòng — cùng điều kiện
+   * `hasBuildableParts` mà `Viewer3D` dùng để nói "rỗng"). `false` thì ViewCube,
+   * bản đồ nhỏ, thu phóng, chú giải và thang cao độ không có gì để điều khiển và
+   * vỏ không vẽ chúng (BUG-486).
+   */
+  readonly hasModel: boolean;
 }
 
 /** Cổng của vỏ. Hai lượt đọc, không lượt ghi nào — vỏ không sửa mô hình. */
@@ -106,6 +113,7 @@ export const EMPTY_SHELL_DATA: ViewerShellData = Object.freeze({
   roomCount: 0,
   totalAreaM2: squareMetres(0),
   isPartial: false,
+  hasModel: false,
 });
 
 /** Những tầng của một đồ thị, đã sắp từ dưới lên. */
@@ -182,6 +190,7 @@ export function shellDataOf(spatial: NormalizedSpatial | null): ViewerShellData 
     roomCount: roomIds.length,
     totalAreaM2: totalArea(outlines),
     isPartial: storeys.length > 0 && withRooms.size < storeys.length,
+    hasModel: spatial.byKind.wall.length > 0 || roomIds.length > 0,
   };
 }
 

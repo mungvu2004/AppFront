@@ -243,8 +243,10 @@ test.describe('SCR-05 Dashboard (/)', () => {
     await settled(dialog);
     await captureEvidence(page, '05_wizard_validation.png');
 
-    // Pristine form: "Huỷ" closes without the discard prompt (`requestClose`, useCreateProjectModal.ts).
+    // BUG-208: typing then erasing leaves the form dirty (isDirty never resets), so "Huỷ" asks first
+    // (`requestClose`, useCreateProjectModal.ts); confirm the discard to close.
     await dialog.getByRole('button', { name: 'Huỷ', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Đóng, bỏ thay đổi', exact: true }).click();
     await expect(dialog).toHaveCount(0);
   });
 
@@ -439,7 +441,7 @@ test.describe('SCR-05 Dashboard (/)', () => {
             ? ROUTES.project.floors(projectId)
             : ROUTES.project.walls(projectId, defaultFloorId);
 
-    // One card on screen (the hero), so the click lands on CP-2 and nowhere else.
+    // One card on screen (search narrows it to CP-2), so the click lands on CP-2 and nowhere else.
     await searchBox(page).fill(projectName);
     await expect(projectCards(page)).toHaveCount(1);
     await projectCard(page, projectName).click();

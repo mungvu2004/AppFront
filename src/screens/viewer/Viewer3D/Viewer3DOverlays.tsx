@@ -76,6 +76,13 @@ const WallGeometryEditorContainer = lazy(async () => ({
 const PRESENCE_ANCHOR = 'right-4 top-[216px]';
 
 /**
+ * Chưa có hình thì vỏ không vẽ ViewCube + bản đồ nhỏ (`ViewerShellProps.hasModel`),
+ * nên thanh hiện diện về đúng góc mặc định của nó — ở lại 216 px thì nó rơi
+ * xuống giữa khung nhìn 375 và đè khối trạng thái rỗng (BUG-486).
+ */
+const PRESENCE_ANCHOR_NO_MODEL = 'right-4 top-4';
+
+/**
  * Dải "Đang sửa … Xong" của chế độ sửa hình học lùi đầu phải khỏi ViewCube.
  *
  * Dải ấy trải hết bề ngang, cao 36 px, đặt "Xong" ở mép phải — tức nằm gọn dưới ô
@@ -100,6 +107,8 @@ export interface Viewer3DOverlaysProps {
   readonly isSectionOrthographic: boolean;
   /** "Xong", hoặc Esc ở lớp ngoài cùng — thoát chế độ sửa. */
   readonly onExitWallEditMode: () => void;
+  /** Cảnh ở trạng thái `empty` — xem {@link PRESENCE_ANCHOR_NO_MODEL}. */
+  readonly isSceneEmpty?: boolean;
 }
 
 export function Viewer3DOverlays(props: Viewer3DOverlaysProps) {
@@ -108,7 +117,9 @@ export function Viewer3DOverlays(props: Viewer3DOverlaysProps) {
       {/* Không có phần dự phòng nhìn thấy được: lớp phủ vắng mặt trong lúc chunk
           đang tải là đúng, một khung xương lơ lửng trên khung nhìn 3D thì không. */}
       <Suspense fallback={null}>
-        <CollaborationLayerContainer presenceAnchorClassName={PRESENCE_ANCHOR} />
+        <CollaborationLayerContainer
+          presenceAnchorClassName={props.isSceneEmpty === true ? PRESENCE_ANCHOR_NO_MODEL : PRESENCE_ANCHOR}
+        />
       </Suspense>
 
       {props.isWallEditing && (

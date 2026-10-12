@@ -58,4 +58,29 @@ describe('Select', () => {
     await user.keyboard('{Escape}');
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
   });
+
+  /** Đặt trigger ở `top..top+40` trong khung nhìn cao `window.innerHeight`. */
+  function openAt(top: number) {
+    render(<Select options={options} />);
+    const trigger = screen.getByRole('combobox');
+    vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue(
+      new DOMRect(16, top, 320, 40),
+    );
+    fireEvent.click(trigger);
+    return screen.getByRole('listbox');
+  }
+
+  it('opens downward, height clamped to the room below, when there is room (BUG-484)', () => {
+    const list = openAt(100);
+    expect(list.style.top).toBe('144px');
+    expect(list.style.bottom).toBe('');
+    expect(list.style.maxHeight).toBe('300px');
+  });
+
+  it('flips up above the trigger when the room below is too short (BUG-484)', () => {
+    const list = openAt(window.innerHeight - 60);
+    expect(list.style.top).toBe('');
+    expect(list.style.bottom).toBe('64px');
+    expect(list.style.maxHeight).toBe('300px');
+  });
 });

@@ -52,6 +52,7 @@ import {
   ROOM_LABEL_FIXTURE_UNNAMED_COUNT,
 } from './roomLabelFixture';
 import {
+  canonicalRoomName,
   createMockRoomLabelReviewGateway,
   roomCodeLabel,
   ROOM_LABEL_TEXT,
@@ -270,9 +271,10 @@ describe('phép ghép thuần của màn Duyệt tên phòng', () => {
     expect(candidates[0]?.codeLabel).toBe(roomCodeLabel(candidates[0]?.id as RoomId));
   });
 
-  it('câu giải thích diện tích lấy lại từ M-07, không tự viết', () => {
+  it('[BUG-408] câu giải thích diện tích bằng lời thường, không lộ công thức dây giày', () => {
     expect(areaCaptionOf(null)).toBe('');
-    expect(areaCaptionOf(ROOM_R005)).toContain('dây giày');
+    expect(areaCaptionOf(ROOM_R005)).toBe('Diện tích sàn đo trong mép thông thuỷ của ranh phòng.');
+    expect(areaCaptionOf(ROOM_R005)).not.toMatch(/dây giày|x1 × y2/u);
   });
 
   it('bộ lọc "Chưa đặt tên" giữ đúng số phòng trống tên', () => {
@@ -469,6 +471,14 @@ describe('tự lưu — Ctrl+S với tới màn này (B-V7-01, F-04x-1)', () => 
 /* -------------------------------------------------------------------------- */
 
 describe('chuẩn hoá tên — luôn xem trước trước khi áp', () => {
+  it('[BUG-409] tên chuẩn viết hoa chữ đầu (A6); tên đã đúng thì không đổi', () => {
+    expect(canonicalRoomName('PHONG NGU 2')).toBe('Phòng ngủ 2');
+    expect(canonicalRoomName('bếp')).toBe('Bếp');
+    expect(canonicalRoomName('Bếp')).toBeNull();
+    expect(canonicalRoomName('Phòng ngủ 2')).toBeNull();
+    expect(ROOM_NAME_TARGETS.every((target) => target.charAt(0) === target.charAt(0).toLocaleUpperCase('vi'))).toBe(true);
+  });
+
   it('sinh bảng xem trước mà KHÔNG đổi một tên nào', async () => {
     const mounted = await mountSettled();
 

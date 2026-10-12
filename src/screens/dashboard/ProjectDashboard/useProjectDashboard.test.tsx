@@ -127,6 +127,19 @@ describe('useProjectDashboard states', () => {
     expect(dash().model.canDelete).toBe(false);
   });
 
+  // BUG-210: the query was only trimmed and lower-cased, so a pasted NFD "Đông Á" (letter + separate mark) matched nothing.
+  it.each([
+    ['NFD query, NFC name', 'Nhà Đông Á', 'mv3njh1u-Nhà Đông Á'.normalize('NFD')],
+    ['NFC query, NFD name', 'Nhà Đông Á'.normalize('NFD'), 'nhà đông á'],
+  ])('finds a project whatever the Unicode form — %s', async (_case, name, query) => {
+    mount({ gateway: fakeServer([project({ name: `qa-run-15-dau-mv3njh1u-${name}` })]).gateway });
+    await waitFor(() => expect(names()).toHaveLength(1));
+
+    act(() => dash().actions.setSearchQuery(query));
+
+    expect(names()).toHaveLength(1);
+  });
+
   it('is partial with a notice when rows were dropped', async () => {
     mount({ gateway: fakeServer([project()], 2).gateway });
 
@@ -149,11 +162,29 @@ describe('useProjectDashboard states', () => {
     await waitFor(() => expect(dash().model.state).toBe('error'));
   });
 
-  it('explains a failed read with its cause and next step, never the heading again (BUG-130)', async () => {
+  // BUG-209: a 500 on opening the page read "Hãy thử lại thao tác vừa làm" — the person had done nothing.
+  it('explains a failed read with its next step, never the heading again nor an action never taken (BUG-130, BUG-209)', async () => {
     mount({ fetchList: () => Promise.reject(httpError(500, 'INTERNAL')) });
 
     await waitFor(() => expect(dash().model.state).toBe('error'));
-    expect(dash().model.errorMessage).toBe('Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại thao tác vừa làm.');
+    expect(dash().model.errorMessage).toBe('Máy chủ gặp lỗi khi đọc danh sách. Bấm "Thử lại" để tải lại.');
+    expect(dash().model.canRetry).toBe(true);
+  });
+
+  it('keeps the shared sentence for a lost connection, which is just as true of a page load', async () => {
+    mount({ fetchList: () => Promise.reject({ kind: 'network', code: 'NETWORK', requestId: 'req-1', retryable: true, raw: {} }) });
+
+    await waitFor(() => expect(dash().model.state).toBe('error'));
+    expect(dash().model.errorMessage).toBe('Không liên lạc được với máy chủ. Kiểm tra mạng rồi thử lại.');
+  });
+
+  it('tells a 403 it may not see the list, not that the server failed or that it did something (BUG-209)', async () => {
+    mount({ fetchList: () => Promise.reject(httpError(403, 'FORBIDDEN')) });
+
+    await waitFor(() => expect(dash().model.state).toBe('error'));
+    expect(dash().model.errorMessage).toBe('Tài khoản của bạn chưa được phép xem danh sách dự án. Liên hệ quản trị dự án.');
+    // A retry is refused just the same (review-1 #10): no "Thử lại" to offer.
+    expect(dash().model.canRetry).toBe(false);
   });
 
   it('narrow: a failed read still wins over collapsed (BUG-072)', async () => {
@@ -176,6 +207,26 @@ describe('useProjectDashboard states', () => {
     mount({ gateway: fakeServer([project()]).gateway, forceNarrow: true });
 
     await waitFor(() => expect(dash().model.state).toBe('collapsed'));
+  });
+
+  // BUG-225: at 110/125/175 % zoom the viewport is 1023.x px wide. `(width < 1024px)` is false there
+  // while Tailwind's `lg:` (min-width: 1024px) is off too, so the stacked layout got the desktop list.
+  it('narrow: collapsed in the 1023-1024 px sliver a fractional zoom leaves (BUG-225)', async () => {
+    const width = 1023.5;
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) => {
+      const max = /\(max-width:\s*([\d.]+)px\)/.exec(query);
+      const below = /\(width\s*<\s*([\d.]+)px\)/.exec(query);
+      const matches = max ? width <= Number(max[1]) : below ? width < Number(below[1]) : false;
+      return { ...original(query), matches };
+    }) as typeof window.matchMedia;
+    try {
+      mount({ gateway: fakeServer([project()]).gateway });
+
+      await waitFor(() => expect(dash().model.state).toBe('collapsed'));
+    } finally {
+      window.matchMedia = original;
+    }
   });
 });
 
@@ -256,7 +307,8 @@ describe('useProjectDashboard rename', () => {
     await waitFor(() => expect(names()).toEqual(['Tên mới']));
   });
 
-  it('puts the old name back and says why when #26 fails', async () => {
+  // BUG-207: failures went out without a state, so Toast drew them with the verified green dot (A5).
+  it('puts the old name back and says why when #26 fails, as a violation', async () => {
     const server = fakeServer([project()]);
     server.rename.mockRejectedValueOnce(httpError(403, 'FORBIDDEN'));
     const onToast = await startRename(server);
@@ -264,7 +316,7 @@ describe('useProjectDashboard rename', () => {
     act(() => dash().actions.setRenameDraft('Tên mới'));
     act(() => dash().actions.commitRename());
 
-    await waitFor(() => expect(onToast).toHaveBeenCalledWith({ message: 'Bạn không có quyền đổi tên dự án này.' }));
+    await waitFor(() => expect(onToast).toHaveBeenCalledWith({ message: 'Bạn không có quyền đổi tên dự án này.', state: 'violation' }));
     expect(names()).toEqual([NAME_HQ]);
   });
 
@@ -279,6 +331,7 @@ describe('useProjectDashboard rename', () => {
     await waitFor(() =>
       expect(onToast).toHaveBeenCalledWith({
         message: 'Tên dự án có ký tự không dùng được, như ký tự điều khiển hoặc ký tự đảo chiều chữ. Tên cũ đã được giữ lại.',
+        state: 'violation',
       }),
     );
     expect(names()).toEqual([NAME_HQ]);
@@ -292,7 +345,7 @@ describe('useProjectDashboard rename', () => {
     act(() => dash().actions.setRenameDraft('Tên mới'));
     act(() => dash().actions.commitRename());
 
-    await waitFor(() => expect(onToast).toHaveBeenCalledWith({ message: 'Không đổi được tên dự án. Hãy thử lại.' }));
+    await waitFor(() => expect(onToast).toHaveBeenCalledWith({ message: 'Không đổi được tên dự án. Hãy thử lại.', state: 'violation' }));
   });
 
   it('refuses a name outside 3-80 characters without calling the server', async () => {
@@ -303,7 +356,7 @@ describe('useProjectDashboard rename', () => {
     act(() => dash().actions.commitRename());
 
     expect(server.rename).not.toHaveBeenCalled();
-    expect(onToast).toHaveBeenCalledWith({ message: 'Tên dự án cần từ 3 đến 80 ký tự.' });
+    expect(onToast).toHaveBeenCalledWith({ message: 'Tên dự án cần từ 3 đến 80 ký tự.', state: 'attention' });
     expect(names()).toEqual([NAME_HQ]);
   });
 });

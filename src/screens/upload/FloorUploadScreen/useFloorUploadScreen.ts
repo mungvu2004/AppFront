@@ -23,7 +23,8 @@
  *   ngưỡng cao độ hay chiều cao nào viết tay trong màn (R-71).
  * - **Cắt khúc, song song, trần dung lượng, tần suất báo tiến độ** — `src/lib/upload`
  *   qua `floorUploadGateway`. File này KHÔNG bóp tiến độ lần thứ hai và KHÔNG
- *   đếm số lượt tải song song: `createUploadTask` đã giữ cả hai.
+ *   đếm số lượt tải song song: `createUploadTask` giữ nhịp tiến độ, hàng
+ *   `createUploadScheduler` trong cổng giữ trần song song (BUG-532).
  * - **Hoàn tác một lượt xoá** — `createUndoTicket` (`src/lib/mutations/undoTicket.ts`)
  *   qua `gateway.createRemovalTicket`, cộng `onToast` tiêm vào. KHÔNG dùng
  *   `useUndoableToast`: hook đó lái undo/redo toàn cục của zundo qua store, một
@@ -51,6 +52,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { Floor } from '@/api/client';
+import { PROJECT_NOT_FOUND_DESCRIPTION } from '@/components/feedback/ProjectSpatialGate';
 import type { SelectOption } from '@/components/ui/Select';
 import { alignFloors, ceilingElevationMm } from '@/domain/axes/alignFloors';
 import type { FloorPlan } from '@/domain/axes/alignFloors';
@@ -58,8 +60,9 @@ import { PROJECT_LIMITS } from '@/domain/project/limits';
 import type { LevelId } from '@/domain/spatial/types';
 import { millimetres, millimetresToMetres } from '@/domain/units/types';
 import type { Millimetres } from '@/domain/units/types';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { can } from '@/lib/auth/permissions';
-import { formatFileSize } from '@/lib/format/bytes';
+import { BYTES_PER_UNIT, formatFileSize } from '@/lib/format/bytes';
 import { formatLength } from '@/lib/format/measure';
 import { formatNumber, formatPercent, MISSING_VALUE, parseNumber } from '@/lib/format/number';
 import { getAppAnnouncer } from '@/lib/input/announcer';
@@ -113,6 +116,7 @@ const COPY = Object.freeze({
   submitKey: 'floorUpload.footer.submit',
   blockedTitle: 'Không thể bắt đầu xử lý',
   blockedTitleKey: 'floorUpload.blockedSubmit.title',
+  noFloors: 'Dự án chưa có tầng nào. Thêm tầng ở màn Quản lý tầng trước khi xử lý.',
   uploadErrorTitleKey: 'errors.upload.title',
   validationErrorTitleKey: 'errors.validation.title',
 });
@@ -130,6 +134,13 @@ const STATUS_LABEL_KEYS: Readonly<Record<FloorUploadStatus, string>> = {
   attached: 'floorUpload.status.attached',
   error: 'floorUpload.status.error',
 };
+
+/**
+ * `'waiting'` của tầng không tệp, không bản vẽ máy chủ: không có gì đang "chờ xử lý", và hộp
+ * chặn lẫn Quản lý tầng đều gọi nó là "chưa có bản vẽ" (BUG-263). Tệp đã thả mà chưa tải vẫn "Chờ xử lý".
+ */
+const NO_DRAWING_LABEL = 'Chưa có bản vẽ';
+const NO_DRAWING_LABEL_KEY = 'floorUpload.status.noDrawing';
 
 /**
  * Màu của huy hiệu, theo bốn mã trạng thái của `src/lib/viewmodel`.
@@ -167,12 +178,37 @@ function elevationProblemFor(elevationMm: Millimetres | null): string | null {
   return null;
 }
 
+/** Một chữ số lẻ — đúng độ chính xác `formatFileSize` hiện từ KB trở lên. */
+const SHOWN_DECIMAL_STEPS = 10;
+
+/**
+ * Dung lượng của một tệp vượt trần. Tệp chỉ hơn trần vài byte thì hai số làm tròn trùng nhau và câu
+ * "vượt trần" tự mâu thuẫn, nên làm tròn LÊN tới chữ số lẻ đang hiện — hơn trần đúng một bậc (BUG-302).
+ */
+function sizeOverCap(sizeBytes: number, maxSizeBytes: number): string {
+  const label = formatFileSize(sizeBytes);
+
+  if (label !== formatFileSize(maxSizeBytes)) {
+    return label;
+  }
+
+  let unitBytes = 1;
+
+  while (unitBytes * BYTES_PER_UNIT <= sizeBytes) {
+    unitBytes *= BYTES_PER_UNIT;
+  }
+
+  const stepBytes = unitBytes / SHOWN_DECIMAL_STEPS;
+
+  return formatFileSize(Math.ceil(sizeBytes / stepBytes) * stepBytes);
+}
+
 /** Câu cho một tệp bị từ chối. Số lấy từ chính lời từ chối, không viết tay (R-71). */
 function rejectionSentence(reason: UploadRejection): string {
   switch (reason.kind) {
     case 'tooLarge':
       return (
-        `Tệp nặng ${formatFileSize(reason.sizeBytes)}, vượt trần ` +
+        `Tệp nặng ${sizeOverCap(reason.sizeBytes, reason.maxSizeBytes)}, vượt trần ` +
         `${formatFileSize(reason.maxSizeBytes)} của một tệp.`
       );
     case 'unsupportedFormat':
@@ -224,6 +260,20 @@ interface Attachment {
    * nói rõ điều đó.
    */
   readonly awaitingNetwork: boolean;
+  /** Người dùng vừa bấm "Huỷ" lượt tải này: thẻ mở "Thử lại" thay vì bắt xoá rồi chọn lại (BUG-534). */
+  readonly wasCancelled?: boolean;
+  /**
+   * Lỗi người dùng đã bấm "Đóng": câu ẩn đi, nhưng lỗi vẫn là lỗi — "Thử lại" còn nguyên (BUG-535).
+   * So bằng tham chiếu: lượt tải sau dựng `problem` mới, nên lỗi mới lại hiện ra.
+   */
+  readonly dismissedProblem?: FloorUploadInlineError | null;
+}
+
+/** Lỗi còn hiện trên thẻ/khay: mọi lỗi trừ đúng lỗi người dùng đã đóng. */
+function visibleProblem(attachment: Attachment | null): FloorUploadInlineError | null {
+  return attachment === null || attachment.problem === attachment.dismissedProblem
+    ? null
+    : attachment.problem;
 }
 
 const PICK_PAGE_SENTENCE = 'Hãy chọn trang bản vẽ để bắt đầu tải';
@@ -270,7 +320,7 @@ function statusOfTask(taskState: UploadTaskState): FloorUploadStatus {
 /* Cách xếp thu gọn — cùng mốc `ProjectSettings` và `ProjectDashboard` dùng.    */
 /* -------------------------------------------------------------------------- */
 
-const NARROW_VIEWPORT_QUERY = '(max-width: 1023px)';
+const NARROW_VIEWPORT_QUERY = '(width < 1024px)';
 
 function useNarrowViewport(): boolean {
   const [isNarrow, setNarrow] = useState(() =>
@@ -356,8 +406,23 @@ export function useFloorUploadScreen(
   attachmentsRef.current = attachments;
 
   const detectedNarrow = useNarrowViewport();
+  const reducedMotion = useReducedMotion();
   const isCollapsed = options.forceCollapsed ?? detectedNarrow;
   const canEdit = can('upload', 'floor', { roles });
+
+  // Mở thẳng đường dẫn: bộ đệm chưa có #24 hay thẻ N1 nào nêu tên, nên đọc #24 một lần
+  // dưới chính khoá của nó — breadcrumb nêu tên dự án ở mọi lối vào (BUG-165).
+  // ponytail: lượt đọc tầng (`floor.list`) cũng là #24; hai lượt chỉ xảy ra khi mở thẳng.
+  const projectName = cachedProjectName(queryClient, projectId);
+  useQuery({
+    queryKey: queryKeys.project.detail(projectId),
+    queryFn: async ({ signal }) => {
+      const result = await gateway.readProject({ projectId, signal });
+      if (!result.ok) throw result.error;
+      return result.data;
+    },
+    enabled: projectName === null,
+  });
 
   /* ---------------------------------------------------------------------- */
   /* Danh sách tầng (R-64).                                                  */
@@ -368,8 +433,10 @@ export function useFloorUploadScreen(
     queryFn: async (): Promise<readonly Floor[]> => {
       const result = await gateway.readFloors({ projectId });
 
+      // Ném nguyên lỗi dây: 404 còn mang `kind` để màn nói "không tìm thấy dự án", và luật
+      // thử lại của bộ đệm không thử lại một 404 (BUG-311).
       if (!result.ok) {
-        throw new Error(gateway.describeApiFailure(result.error).sentence);
+        throw result.error;
       }
 
       return result.data;
@@ -380,6 +447,11 @@ export function useFloorUploadScreen(
     () => [...(floorsQuery.data ?? [])].sort((first, second) => first.order - second.order),
     [floorsQuery.data],
   );
+
+  // Chưa có tầng thì không có chỗ gán tệp, và tệp chỉ sống trong màn — đi thêm tầng là mất nó:
+  // vùng thả không mời thả, nút chính nói lý do, trạng thái rỗng dẫn tới Quản lý tầng (BUG-298).
+  const hasNoFloors = floorsQuery.isSuccess && floors.length === 0;
+  const canDrop = canEdit && !hasNoFloors && !floorsQuery.isError;
 
   /* ---------------------------------------------------------------------- */
   /* Mạng — không hook nào bọc `createNetworkMonitor`, nên nối tay ở đây.     */
@@ -561,7 +633,9 @@ export function useFloorUploadScreen(
             },
     });
 
-    if (taskState.status === 'done') {
+    // 404 giữa phiên: dự án (hay tầng) đã bị xoá ở nơi khác. Đọc lại dự án — nếu nó mất thì màn
+    // về "Không tìm thấy dự án này" như lúc mở trang, không để lỗi nằm lại trên thẻ (BUG-311).
+    if (taskState.status === 'done' || described?.kind === 'notFound') {
       invalidateFloor(floorId);
     }
   };
@@ -604,6 +678,7 @@ export function useFloorUploadScreen(
         percent: 0,
         problem: null,
         awaitingNetwork: true,
+        wasCancelled: false,
       });
       if (!awaitAnnouncedRef.current) {
         awaitAnnouncedRef.current = true;
@@ -632,6 +707,7 @@ export function useFloorUploadScreen(
       percent: 0,
       problem: null,
       awaitingNetwork: false,
+      wasCancelled: false,
     });
 
     void task.start().then((finalState) => {
@@ -734,7 +810,7 @@ export function useFloorUploadScreen(
   };
 
   const acceptFiles = (files: readonly File[]): void => {
-    if (!canEdit) {
+    if (!canDrop) {
       return;
     }
 
@@ -763,7 +839,9 @@ export function useFloorUploadScreen(
   const reassign = (fileId: string, floorId: string | null): void => {
     const attachment = findAttachment(fileId);
 
-    if (!canEdit || attachment === null) {
+    // `branch === null`: tệp chưa qua (hoặc đã trượt) lượt kiểm phía máy — tệp bị từ chối không
+    // bao giờ được gán cho tầng và tải lên, máy chủ chỉ trả 422/413 y hệt (BUG-523).
+    if (!canEdit || attachment === null || attachment.branch === null) {
       return;
     }
 
@@ -791,6 +869,7 @@ export function useFloorUploadScreen(
       percent: 0,
       problem: null,
       awaitingNetwork: false,
+      wasCancelled: false,
     });
 
     if (floorId !== null) {
@@ -875,7 +954,8 @@ export function useFloorUploadScreen(
   /* ---------------------------------------------------------------------- */
 
   const blockReasons = useMemo<readonly FloorUploadBlockReason[]>(() => {
-    const reasons: FloorUploadBlockReason[] = [];
+    const reasons: FloorUploadBlockReason[] =
+      hasNoFloors ? [{ floorId: '', floorName: '', kind: 'noFloors', sentence: COPY.noFloors }] : [];
 
     // `floor.name` đã là nhãn đầy đủ — API trả về `Tầng 2`, `Tầng hầm`, chứ
     // không trả về `2`. Mẫu câu trong `.notes/copy.md` viết `Tầng {{floorName}}`
@@ -895,9 +975,13 @@ export function useFloorUploadScreen(
           floorId: floor.id,
           floorName: floor.name,
           kind: 'missingFile',
-          sentence: isUnfinished
-            ? `${floor.name} chưa tải xong bản vẽ.`
-            : `${floor.name} chưa có bản vẽ.`,
+          // PDF nhiều trang chưa chọn trang không "đang tải": nó chờ người chọn trang (BUG-303).
+          sentence:
+            attachment !== null && isAwaitingPage(attachment)
+              ? `${floor.name} chưa chọn trang của bản vẽ.`
+              : isUnfinished
+                ? `${floor.name} chưa tải xong bản vẽ.`
+                : `${floor.name} chưa có bản vẽ.`,
         });
       }
 
@@ -942,7 +1026,7 @@ export function useFloorUploadScreen(
     }
 
     return reasons;
-  }, [attachmentByFloor, floors, stack]);
+  }, [attachmentByFloor, floors, hasNoFloors, stack]);
 
   const canSubmit = canEdit && floors.length > 0 && blockReasons.length === 0;
 
@@ -996,9 +1080,14 @@ export function useFloorUploadScreen(
       attachment.pageCount === null || attachment.pageCount <= 0
         ? null
         : `${formatNumber(attachment.pageCount, { grouping: false })} trang`;
-    const sizeLabel = formatFileSize(attachment.file.size);
+    // Tệp vượt trần: cùng phép làm tròn với câu "vượt trần" — dòng tệp và câu lỗi ghi một số (BUG-302).
+    const sizeLabel =
+      attachment.file.size > MAX_UPLOAD_FILE_SIZE_BYTES
+        ? sizeOverCap(attachment.file.size, MAX_UPLOAD_FILE_SIZE_BYTES)
+        : formatFileSize(attachment.file.size);
+    // Một trang thì không có gì để chọn: không ô "Chọn trang", tệp tải ngay (BUG-530).
     const pageOptions =
-      attachment.pageCount === null || attachment.pageCount <= 0
+      attachment.pageCount === null || attachment.pageCount <= 1
         ? []
         : Array.from({ length: Math.min(attachment.pageCount, MAX_PDF_PAGE_COUNT) }, (_unused, index) => {
             const page = formatNumber(index + 1, { grouping: false });
@@ -1010,7 +1099,8 @@ export function useFloorUploadScreen(
       name: attachment.file.name,
       sizeLabel,
       pageCountLabel,
-      isCadBranch: attachment.branch === 'cad',
+      // Tệp CAD hỏng (vd. 422 chưa hỗ trợ) không chạy nhánh nào: không quảng cáo độ chính xác (BUG-304).
+      isCadBranch: attachment.branch === 'cad' && attachment.status !== 'error',
       summaryLine: [attachment.file.name, sizeLabel, pageCountLabel]
         .filter((part): part is string => part !== null)
         .join(' · '),
@@ -1062,8 +1152,8 @@ export function useFloorUploadScreen(
           file,
           status,
           statusVariant: statusVariantFor(attachment, status),
-          statusLabel: STATUS_LABELS[status],
-          statusLabelKey: STATUS_LABEL_KEYS[status],
+          statusLabel: file === null ? NO_DRAWING_LABEL : STATUS_LABELS[status],
+          statusLabelKey: file === null ? NO_DRAWING_LABEL_KEY : STATUS_LABEL_KEYS[status],
           isAutoMatched,
           autoMatchHint: isAutoMatched ? COPY.autoMatch : null,
           percent,
@@ -1072,18 +1162,24 @@ export function useFloorUploadScreen(
             status === 'attached'
               ? `Tải xong ${file?.name ?? floor.name}`
               : `Đã tải ${formatPercent(percent, { fractionDigits: 0, source: 'percent' })} của ${file?.name ?? floor.name}`,
-          error: attachment?.problem ?? null,
-          reassignOptions: canEdit ? reassignOptions : [],
+          error: visibleProblem(attachment),
+          // Chỉ tệp của phiên này gán lại được; bản vẽ đã nằm trên máy chủ thì không có lượt
+          // chuyển nào để gửi, nên không có ô chọn (BUG-531).
+          reassignOptions: canEdit && attachment !== null ? reassignOptions : [],
           canCancelUpload: canEdit && status === 'uploading',
-          canRetryUpload: canEdit && attachment !== null && (attachment.problem?.isRetryable ?? false),
+          canRetryUpload:
+            canEdit &&
+            attachment !== null &&
+            ((attachment.problem?.isRetryable ?? false) || attachment.wasCancelled === true),
           canRemoveFile: canEdit && attachment !== null,
           removeLabel:
             canEdit && attachment !== null ? `Xoá bản vẽ ${attachment.file.name}` : null,
-          revealDelayMs: staggerDelayMs(index),
-          revealDurationMs: durationMs('standard'),
+          // Giảm chuyển động: thẻ hiện ngay, không so le (WCAG 2.3.3, BUG-527).
+          revealDelayMs: staggerDelayMs(index, { reducedMotion }),
+          revealDurationMs: durationMs('standard', { reducedMotion }),
         };
       }),
-    [attachmentByFloor, canEdit, floors, reassignOptions, stack],
+    [attachmentByFloor, canEdit, floors, reassignOptions, reducedMotion, stack],
   );
 
   const trayItems = useMemo<readonly FloorUploadTrayItemModel[]>(
@@ -1099,8 +1195,8 @@ export function useFloorUploadScreen(
             sizeLabel: model.sizeLabel,
             isCadBranch: model.isCadBranch,
             summaryLine: model.summaryLine,
-            error: attachment.problem,
-            assignOptions: canEdit ? reassignOptions : [],
+            error: visibleProblem(attachment),
+            assignOptions: canEdit && attachment.branch !== null ? reassignOptions : [],
             canRemoveFile: canEdit,
             removeLabel: canEdit ? `Xoá bản vẽ ${attachment.file.name}` : null,
           };
@@ -1130,17 +1226,22 @@ export function useFloorUploadScreen(
     canSubmit,
     blockReasons,
     isSubmitting,
+    isSubmitHidden: !canEdit,
   };
 
   /* ---------------------------------------------------------------------- */
   /* Bảy trạng thái (A11, R-63).                                             */
   /* ---------------------------------------------------------------------- */
 
-  const loadFailure = floorsQuery.isError
-    ? floorsQuery.error instanceof Error
-      ? floorsQuery.error.message
-      : LOAD_FAILURE_FALLBACK
-    : null;
+  // Danh sách tầng trả 404 = dự án không có: cùng chữ và lối ra với Quản lý tầng (BUG-311).
+  const loadFailureInfo = floorsQuery.isError ? gateway.describeApiFailure(floorsQuery.error) : null;
+  const isProjectMissing = loadFailureInfo?.kind === 'notFound';
+  const loadFailure =
+    loadFailureInfo === null
+      ? null
+      : isProjectMissing
+        ? PROJECT_NOT_FOUND_DESCRIPTION
+        : loadFailureInfo.sentence || LOAD_FAILURE_FALLBACK;
 
   const hasAnyFile = doneCount > 0 || attachments.length > 0;
   const hasUploading = rows.some((row) => row.status === 'uploading');
@@ -1150,9 +1251,11 @@ export function useFloorUploadScreen(
     // chưa có danh sách thì màn hẹp phải nói lỗi chứ không vẽ vùng thả trống (BUG-072).
     if (floorsQuery.isPending) return 'loading';
     if (loadFailure !== null) return 'error';
+    // Câu mời "Kéo thả tệp đầu tiên" hiện ở mọi khổ: rỗng thắng thu gọn (BUG-528). Người xem
+    // không thả được tệp, nên với họ câu mời không có nghĩa — họ vẫn về `forbidden`.
+    if (canEdit && !hasAnyFile) return 'empty';
     if (isCollapsed) return 'collapsed';
     if (!canEdit) return 'forbidden';
-    if (!hasAnyFile) return 'empty';
     // Lỗi của MỘT tệp không bao giờ leo lên đây: nó ở lại trong `row.error`.
     // `'error'` của cả màn chỉ dành cho lượt đọc danh sách tầng hỏng.
     if (hasUploading || doneCount < rows.length) return 'partial';
@@ -1168,7 +1271,6 @@ export function useFloorUploadScreen(
     rows.length,
   ]);
 
-  const projectName = cachedProjectName(queryClient, projectId);
   const model: FloorUploadModel = {
     state,
     projectId,
@@ -1177,8 +1279,10 @@ export function useFloorUploadScreen(
     isReadOnly: !canEdit,
     isCollapsed,
     isOffline: !isOnline,
-    isDragActive: canEdit && dragDepth > 0,
+    isDragActive: canDrop && dragDepth > 0,
     errorMessage: state === 'error' ? loadFailure : null,
+    isProjectMissing,
+    canRetryLoad: !isProjectMissing && (loadFailureInfo?.isRetryable ?? false),
     // Có tệp đang chờ mạng thì nói rõ nó sẽ tự tải, và giới hạn của lời hứa ấy (NO-389).
     offlineNotice: isOnline ? null : isAwaitingNetwork ? AWAIT_NETWORK_SENTENCE : COPY.offline,
     offlineNoticeKey: isAwaitingNetwork ? AWAIT_NETWORK_KEY : COPY.offlineKey,
@@ -1196,7 +1300,7 @@ export function useFloorUploadScreen(
         `Định dạng hỗ trợ: ${PICKER_UPLOAD_EXTENSIONS.join(', ')}. ` +
         `Kích thước tối đa: ${formatFileSize(MAX_UPLOAD_FILE_SIZE_BYTES)}.`,
       acceptAttribute: PICKER_UPLOAD_EXTENSIONS.join(','),
-      isEnabled: canEdit,
+      isEnabled: canDrop,
     },
     floors: rows,
     tray,
@@ -1211,7 +1315,7 @@ export function useFloorUploadScreen(
     },
     onFilesChosen: acceptFiles,
     onDragEnter: () => {
-      if (canEdit) setDragDepth((depth) => depth + 1);
+      if (canDrop) setDragDepth((depth) => depth + 1);
     },
     onDragLeave: () => {
       setDragDepth((depth) => (depth > 0 ? depth - 1 : 0));
@@ -1219,7 +1323,9 @@ export function useFloorUploadScreen(
     onReassign: reassign,
     onPickPdfPage: pickPdfPage,
     onCancelUpload: (fileId) => {
-      if (canEdit) cancelTask(fileId);
+      if (!canEdit) return;
+      cancelTask(fileId);
+      patchAttachment(fileId, { wasCancelled: true });
     },
     onRetryUpload: (fileId) => {
       const attachment = findAttachment(fileId);
@@ -1232,10 +1338,24 @@ export function useFloorUploadScreen(
     },
     onRemoveFile: removeFile,
     onSubmit: submit,
+    onRetryLoad: () => {
+      void floorsQuery.refetch();
+    },
+    onAddFloors:
+      canEdit && options.onNavigate !== undefined
+        ? () => options.onNavigate?.(ROUTES.project.floors(projectId))
+        : undefined,
     onBackToProjects:
       options.onNavigate === undefined ? undefined : () => options.onNavigate?.(ROUTES.dashboard),
     // Lỗi của một tệp đóng lại một mình; không hàng nào khác đổi.
-    onDismissError: (fileId) => patchAttachment(fileId, { problem: null }),
+    onDismissError: (fileId) =>
+      // Đọc lỗi ngay trong lượt cập nhật, không từ bản vẽ cũ của closure: lượt kiểm tệp có thể vừa
+      // đặt lỗi mà màn chưa vẽ lại.
+      setAttachments((previous) =>
+        previous.map((attachment) =>
+          attachment.id === fileId ? { ...attachment, dismissedProblem: attachment.problem } : attachment,
+        ),
+      ),
   };
 
   return { ...model, ...actions };
@@ -1250,6 +1370,7 @@ function toTray(): Partial<Attachment> {
     percent: 0,
     problem: null,
     awaitingNetwork: false,
+    wasCancelled: false,
   };
 }
 

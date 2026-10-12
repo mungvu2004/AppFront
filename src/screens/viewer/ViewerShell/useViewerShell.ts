@@ -54,6 +54,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Vector3 } from 'three';
 
 import { resolveUseMockApi } from '@/api/appClient';
+import { useBreakpoint } from '@/hooks/useAppShell';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSceneTransition } from '@/hooks/useSceneTransition';
 import { can } from '@/lib/auth/permissions';
@@ -109,6 +110,7 @@ import {
 } from './viewerShellShortcuts';
 import {
   clampSeparation,
+  storeyInlineName,
   stackedHeightMm,
   stackStoreys,
   type StackableStorey,
@@ -159,17 +161,20 @@ export function storeyShortLabel(name: string): string {
   return short === '' ? name : short.charAt(0).toLocaleUpperCase('vi') + short.slice(1);
 }
 
+/** Mốc `md` của Tailwind — từ đây hai ray đứng dọc. */
+const MD_UP_QUERY = '(min-width: 768px)';
+
 /**
  * Sáu công cụ của ray trái, kèm phím của chúng. Không công cụ nào sửa mô hình — đo
  * cũng chỉ đọc — nên vai Người xem có đủ sáu (B-V9-04).
  */
 const VIEWER_TOOLS: readonly ViewerToolViewModel[] = Object.freeze([
   { id: 'orbit', label: 'Quay quanh mô hình', keyLabel: TOOL_COMBOS.orbit },
-  { id: 'pan', label: 'kéo màn', keyLabel: TOOL_COMBOS.pan },
-  { id: 'measure', label: 'đo', keyLabel: TOOL_COMBOS.measure },
-  { id: 'section', label: 'mặt cắt', keyLabel: TOOL_COMBOS.section },
-  { id: 'select', label: 'chọn', keyLabel: TOOL_COMBOS.select },
-  { id: 'isolate', label: 'cô lập', keyLabel: ISOLATE_COMBO },
+  { id: 'pan', label: 'Kéo màn', keyLabel: TOOL_COMBOS.pan },
+  { id: 'measure', label: 'Đo', keyLabel: TOOL_COMBOS.measure },
+  { id: 'section', label: 'Mặt cắt', keyLabel: TOOL_COMBOS.section },
+  { id: 'select', label: 'Chọn', keyLabel: TOOL_COMBOS.select },
+  { id: 'isolate', label: 'Cô lập', keyLabel: ISOLATE_COMBO },
 ]);
 
 /** Bốn góc nhìn của `Select` trên thanh trên. */
@@ -431,6 +436,8 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
   } = options;
 
   const reducedMotion = useReducedMotion();
+  // Dưới `md` hai ray nằm ngang (`ViewerToolRail`, `ViewerStoreyRail`): khai đúng hướng ấy.
+  const isMdUp = useBreakpoint(MD_UP_QUERY);
 
   /* ---- Dữ liệu ---------------------------------------------------------- */
 
@@ -611,6 +618,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
         id: storey.id,
         name: storey.name,
         code: storeyShortLabel(storey.name),
+        inlineName: storeyInlineName(storey.name),
         elevationLabel: formatLength(millimetres(storey.elevationMm), { unit: 'm' }),
         isActive: activeStoreyIds.includes(storey.id),
         isVisible: !hiddenStoreyIds.includes(storey.id),
@@ -958,20 +966,22 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     if ('thicknessMm' in entity) {
       rows.push({
         id: 'thickness',
-        label: 'độ dày',
+        label: 'Độ dày',
         value: formatLength(millimetres((entity as { thicknessMm: number }).thicknessMm)),
       });
     }
 
     if ('name' in entity) {
-      rows.push({ id: 'name', label: 'tên', value: String((entity as { name: string }).name) });
+      rows.push({ id: 'name', label: 'Tên', value: String((entity as { name: string }).name) });
     }
 
     const kindLabel = entityId.startsWith('R-') ? 'phòng' : entityId.startsWith('W-') ? 'tường' : 'đối tượng';
+    // Tiêu đề là nhãn đứng đầu nên viết hoa chữ đầu (A6, BUG-376); `kindLabel` giữ chữ thường để ghép giữa câu.
+    const kindTitle = kindLabel.charAt(0).toLocaleUpperCase('vi') + kindLabel.slice(1);
 
     // Tiêu đề gọi đối tượng bằng mã người đọc — cùng mã dải "Đang sửa"; hàng "mã đối tượng"
     // ở trên giữ mã máy (B-V8-05).
-    return { entityId, kindLabel, title: `${kindLabel} ${displayLabelIn(spatial, entityId)}`, rows };
+    return { entityId, kindLabel, title: `${kindTitle} ${displayLabelIn(spatial, entityId)}`, rows };
   }, [selectedIds, spatial]);
 
   const status = useMemo(() => {
@@ -1067,6 +1077,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
 
   return {
     state,
+    hasModel: data.hasModel,
 
     breadcrumbs,
     viewMode,
@@ -1075,6 +1086,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     activePresetId,
     onPresetChange: goToPreset,
 
+    railOrientation: isMdUp ? 'vertical' : 'horizontal',
     tools: VIEWER_TOOLS,
     activeToolId,
     onToolChange: setActiveToolId,

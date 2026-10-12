@@ -25,6 +25,8 @@ export interface MiniMapState {
 
 interface UseMiniMapOptions {
   initialViewport?: Partial<ViewportRect>;
+  /** Vùng nhìn có chủ: màn lái nó (vd. theo thu phóng), hook chỉ báo lượt kéo/bấm qua `onViewportChange`. */
+  viewport?: ViewportRect;
   onViewportChange?: (rect: ViewportRect) => void;
 }
 
@@ -34,13 +36,14 @@ interface UseMiniMapOptions {
 export function useMiniMap(options: UseMiniMapOptions = {}): MiniMapState {
   const { onViewportChange } = options;
 
-  const [viewport, setViewport] = useState<ViewportRect>({
+  const [ownViewport, setViewport] = useState<ViewportRect>({
     x: 20,
     y: 20,
     width: 40,
     height: 30,
     ...options.initialViewport,
   });
+  const viewport = options.viewport ?? ownViewport;
   const [isDragging, setIsDragging] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 

@@ -799,6 +799,31 @@ describe('bàn phím và vùng chọn', () => {
 
     mounted.unmount();
   });
+
+  it('[BUG-403] "Tường chứa nó" phóng tới tường; Esc bỏ chọn thì về lại vừa khung (A12)', async () => {
+    const mounted = await mountSettled();
+    const hostWallId = (
+      OBJECT_LAYER_SEED.find((entry) => entry.displayId === 'D-007') as { hostWallId: string }
+    ).hostWallId;
+
+    act(() => mounted.result.current.onFrameResize({ width: 600, height: 400 }));
+    const fit = mounted.result.current.viewport;
+
+    /* Chấm "chưa gắn" tính theo px MÀN (review-1 #4). */
+    expect(mounted.result.current.unitPx).toBeCloseTo(1 / fit.zoom, 9);
+
+    await run(() => mounted.result.current.onSelectHostWall(hostWallId as `W-${string}`));
+    await waitFor(() => expect(mounted.result.current.viewport.zoom).toBeGreaterThan(fit.zoom * 1.5));
+
+    await pressKey(mounted.registry, 'Escape');
+
+    await waitFor(() => expect(mounted.result.current.viewport.zoom).toBeCloseTo(fit.zoom, 6));
+    expect(mounted.result.current.viewport.x).toBeCloseTo(fit.x, 3);
+    expect(mounted.result.current.viewport.y).toBeCloseTo(fit.y, 3);
+    expect(useStore.getState().selectedIds).toEqual([]);
+
+    mounted.unmount();
+  });
 });
 
 describe('vai trò và vỏ màn', () => {
@@ -1272,6 +1297,24 @@ describe('"Thêm thủ công" trên cổng thật, tầng rỗng (B-V6-41)', () 
     expect(ids[0]).not.toContain('DOOR');
 
     second.unmount();
+  });
+
+  it('[BUG-422] tầng KHÔNG có tường: câu rỗng nói lý do và lối ra là màn Duyệt tường', async () => {
+    const graph = normalizeSpatial({ ...denormalizeSpatial(emptyGraph()), walls: [] });
+    const onNavigate = vi.fn();
+    const mounted = await mountSettled({
+      gateway: { ...createMockObjectLayerReviewGateway({ graph }), seed: [] },
+      floorId: sampleLevelId(1),
+      onNavigate,
+    });
+
+    expect(mounted.result.current.emptyNotice).toBe(OBJECT_LAYER_TEXT.emptyNoWall);
+    expect(mounted.result.current.onOpenWallLayer).not.toBeNull();
+
+    mounted.result.current.onOpenWallLayer?.();
+    expect(onNavigate).toHaveBeenCalledWith(expect.stringMatching(/\/layers\/walls$/u));
+
+    mounted.unmount();
   });
 
   it('đề nghị mang mã mới chưa có trong đồ thị, đúng dạng mã cửa, và lệnh được nhận', () => {

@@ -36,6 +36,8 @@ export interface NotificationBus {
   list: () => readonly Notification[];
   publish: (input: NotificationInput) => void;
   subscribe: (listener: NotificationListener) => () => void;
+  /** Gỡ mọi thông báo của `type` — khi thay đổi chúng mời hoàn tác đã bị bỏ (BUG-463). */
+  withdraw: (type: string) => void;
 }
 
 interface PendingGroup {
@@ -186,6 +188,19 @@ export function createNotificationBus(options: CreateNotificationBusOptions = {}
     upsertNotification(notificationId, currentTime, input);
   };
 
+  const withdraw = (type: string): void => {
+    pendingByType.delete(type);
+
+    const gone = notifications.filter((item) => item.type === type);
+    if (gone.length === 0) {
+      return;
+    }
+
+    gone.forEach((item) => cancelRemoval(item.id));
+    notifications = notifications.filter((item) => item.type !== type);
+    emit();
+  };
+
   const subscribe = (listener: NotificationListener): (() => void) => {
     listeners.add(listener);
 
@@ -198,5 +213,6 @@ export function createNotificationBus(options: CreateNotificationBusOptions = {}
     list: () => notifications,
     publish,
     subscribe,
+    withdraw,
   };
 }

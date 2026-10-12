@@ -315,6 +315,12 @@ export interface AxisGridViewModel {
   readonly viewerRoleNotice: string | null;
   readonly emptyNotice: string | null;
   readonly errorMessage: string | null;
+  /**
+   * Đã biết tầng không có trục nào (đọc hỏng, hoặc đọc xong mà 0 trục) — KHÔNG phụ thuộc
+   * `state`: vai người xem (`forbidden`) đứng trước `empty`, nên suy từ `emptyNotice` thì
+   * người xem vẫn thấy gốc toạ độ 0 và "Đã duyệt" giả (BUG-336, review-1 P2-2).
+   */
+  readonly hasNoAxes: boolean;
 }
 
 /* -------------------------------------------------------------------------- */

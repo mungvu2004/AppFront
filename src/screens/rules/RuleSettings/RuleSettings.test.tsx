@@ -68,7 +68,7 @@ import type { RuleSettingsProps, RuleSettingsStatus } from './types';
 import * as RuleSettingsModule from './RuleSettings';
 import { RuleSettingsRoute } from './RuleSettings.container';
 import { createRuleSettingsGateway, RULE_SETTINGS_READ_ONLY_REASON } from './ruleSettingsGateway';
-import { useRuleSettings } from './useRuleSettings';
+import { useRuleSettings, type RuleSettingsToast } from './useRuleSettings';
 
 /*
  * F-10: màn giờ đọc cấu hình bộ luật qua N21, nên cổng mặc định gọi
@@ -264,8 +264,37 @@ describe('B-V12-03 — trạng thái "empty" không nói ngược dòng đếm l
   });
 });
 
+describe('BUG-464 — lỗi tải không phải ngõ cụt và không kèm số liệu cũ', () => {
+  it('trạng thái "error" có "Thử lại" gọi onReload; đầu trang không còn số luật hay nhãn lưu', async () => {
+    const RuleSettingsView = await loadRuleSettingsView();
+    const onReload = vi.fn();
+
+    render(<RuleSettingsView {...buildRuleSettingsProps({ status: 'error' }, { actions: { onReload } })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(onReload).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/luật đang bật/u)).toBeNull();
+    expect(screen.queryByText('Chưa có thay đổi')).toBeNull();
+  });
+});
+
+describe('BUG-457 — ghi chú "Đã được thay thế bởi" không bị làm mờ cùng luật tắt', () => {
+  it('luật tắt vẫn mờ, nhưng không tổ tiên nào của ghi chú mang opacity-40', async () => {
+    const RuleSettingsView = await loadRuleSettingsView();
+
+    render(<RuleSettingsView {...buildRuleSettingsProps({ status: 'ready' })} />);
+
+    const notes = screen.getAllByText(/^Đã được thay thế bởi/u);
+    expect(notes.length).toBeGreaterThan(0);
+    for (const note of notes) {
+      expect(note.closest('.opacity-40')).toBeNull();
+    }
+    expect(document.querySelectorAll('.opacity-40').length).toBeGreaterThan(0);
+  });
+});
+
 /* ==========================================================================
- * C. Tiếp cận được và toàn chữ tiếng Việt có dấu, trên cây render thật.
+ * C.Tiếp cận được và toàn chữ tiếng Việt có dấu, trên cây render thật.
  * ========================================================================== */
 
 describe('R-72 — expectAccessible và expectVietnamese trên cây render thật', () => {
@@ -579,6 +608,37 @@ describe('B-V12-04 — route thật: mỗi lượt sửa luật có toast "Hoàn
   });
 });
 
+describe('BUG-440 — route đo mốc thu gọn: dưới 1024 không còn hai cột', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(window, 'matchMedia');
+  });
+
+  it('khổ hẹp → điều hướng thành ô chọn "Mục cài đặt", không còn cột liên kết', async () => {
+    window.matchMedia = ((query: string) => ({
+      matches: true,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    })) as unknown as typeof window.matchMedia;
+    act(() => {
+      useStore.getState().setProject({ created_at: '', id: 'P-1', members: [], name: 'P-1', updated_at: '' });
+      useStore.getState().setSpatial(normalizeSpatial(createSampleBuilding()), null);
+      useStore.getState().setUserRoles(['admin']);
+    });
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/projects/P-1/rules/settings']}>
+        <Routes>
+          <Route path={ROUTE_PATTERNS.projectRuleSettings} element={<RuleSettingsRoute />} />
+        </Routes>
+      </MemoryRouter>,
+      { keepStore: true },
+    );
+
+    expect(await screen.findByRole('combobox', { name: 'Mục cài đặt' })).toBeTruthy();
+    expect(screen.queryByRole('navigation', { name: 'Mục cài đặt bộ luật' })).toBeNull();
+  });
+});
+
 /* ==========================================================================
  * F-10 — hook nối N21/N22: quyền theo vai, nạp không toast, baseVersion,
  * 409/422, tải lại, đổi dự án, gửi lại sau timeout, xả khi tháo (R13).
@@ -627,6 +687,9 @@ interface HookSetup {
   readonly roles?: readonly ProjectRole[];
   readonly projectId?: string;
   readonly isOnline?: () => boolean;
+  readonly isCompact?: boolean;
+  readonly onToast?: (toast: RuleSettingsToast) => void;
+  readonly onDiscardToasts?: () => void;
 }
 
 function setupHook(setup: HookSetup = {}) {
@@ -652,6 +715,9 @@ function setupHook(setup: HookSetup = {}) {
         projectId,
         gateway,
         ...(setup.isOnline !== undefined ? { isOnline: setup.isOnline } : {}),
+        ...(setup.isCompact !== undefined ? { isCompact: setup.isCompact } : {}),
+        ...(setup.onToast !== undefined ? { onToast: setup.onToast } : {}),
+        ...(setup.onDiscardToasts !== undefined ? { onDiscardToasts: setup.onDiscardToasts } : {}),
       }),
     { initialProps: { projectId: setup.projectId ?? 'P-1' }, wrapper },
   );
@@ -694,6 +760,17 @@ describe('F-10 — useRuleSettings nối N21/N22', () => {
     await advance(0);
 
     expect(result.current.model.status).toBe('forbidden');
+  });
+
+  it('BUG-440: khổ hẹp không che trạng thái không có dữ liệu — 403 vẫn `forbidden`, 500 vẫn `error`', async () => {
+    const forbidden = setupHook({ isCompact: true, read: async () => ({ ok: false, error: wireError(403, 'FORBIDDEN') }) });
+    const failed = setupHook({ isCompact: true, read: async () => ({ ok: false, error: wireError(500, 'INTERNAL') }) });
+    const loaded = setupHook({ isCompact: true });
+    await advance(0);
+
+    expect(forbidden.result.current.model.status).toBe('forbidden');
+    expect(failed.result.current.model.status).toBe('error');
+    expect(loaded.result.current.model.status).toBe('collapsed');
   });
 
   it('lượt nạp không đặt lastCommit (không toast mời hoàn tác)', async () => {
@@ -776,6 +853,105 @@ describe('F-10 — useRuleSettings nối N21/N22', () => {
     expect(result.current.model.saveProblem).toBeNull();
     expect(useStore.getState().ruleConfigRevision).toBe(7);
     expect(useStore.getState().ruleConfig.overrides).toEqual({ 'DOOR-WIDTH': { enabled: false } });
+  });
+
+  it('BUG-463: "Bỏ thay đổi và tải lại" làm vé hoàn tác cũ hết hạn và gỡ toast của nó', async () => {
+    const toasts: RuleSettingsToast[] = [];
+    const onDiscardToasts = vi.fn();
+    const reads = [wireConfig(3), wireConfig(7, { 'WALL-LENGTH': { enabled: false } })];
+    const { result } = setupHook({
+      read: async () => ({ ok: true, data: reads.shift() ?? wireConfig(7) }),
+      replace: async () => ({ ok: false, error: wireError(409, 'VERSION_CONFLICT', { remoteChanges: [] }) }),
+      onToast: (toast) => toasts.push(toast),
+      onDiscardToasts,
+    });
+    await advance(0);
+    onDiscardToasts.mockClear(); // lượt nạp đầu cũng gỡ toast cũ (không có gì để gỡ) — đếm từ đây
+
+    act(() => result.current.onToggleRule('WALL-THICKNESS', false));
+    await advance(AFTER_DEBOUNCE_MS);
+    act(() => result.current.onReload());
+    act(() => result.current.onConfirmReload());
+    await advance(0);
+
+    expect(onDiscardToasts).toHaveBeenCalledTimes(1);
+    const ticket = toasts[0]?.undoTicket;
+    expect(ticket?.getStatus()).toBe('expired');
+    expect(ticket?.undo()).toEqual({ error: 'expired', ok: false });
+    expect(useStore.getState().ruleConfig.overrides).toEqual({ 'WALL-LENGTH': { enabled: false } });
+  });
+
+  it('BUG-463: refetch nền mang revision mới hơn làm vé cũ hết hạn — "Hoàn tác" không ghi đè bản của người khác', async () => {
+    const toasts: RuleSettingsToast[] = [];
+    const onDiscardToasts = vi.fn();
+    const reads = [wireConfig(3), wireConfig(9, { 'WALL-LENGTH': { enabled: false } })];
+    const { result, queryClient } = setupHook({
+      read: async () => ({ ok: true, data: reads.shift() ?? wireConfig(9, { 'WALL-LENGTH': { enabled: false } }) }),
+      onToast: (toast) => toasts.push(toast),
+      onDiscardToasts,
+    });
+    await advance(0);
+
+    act(() => result.current.onToggleRule('WALL-THICKNESS', false));
+    await advance(AFTER_DEBOUNCE_MS);
+    const ticket = toasts[0]?.undoTicket;
+    expect(ticket?.getStatus()).toBe('active');
+    onDiscardToasts.mockClear();
+
+    await act(async () => {
+      await queryClient.refetchQueries();
+    });
+    await advance(0);
+
+    expect(onDiscardToasts).toHaveBeenCalled();
+    expect(ticket?.getStatus()).toBe('expired');
+    expect(ticket?.undo()).toEqual({ error: 'expired', ok: false });
+    expect(useStore.getState().ruleConfig.overrides).toEqual({ 'WALL-LENGTH': { enabled: false } });
+  });
+
+  it('BUG-463: đổi dự án làm vé của dự án cũ hết hạn — không ghi cấu hình của A vào B', async () => {
+    const toasts: RuleSettingsToast[] = [];
+    const onDiscardToasts = vi.fn();
+    const { result, rerender } = setupHook({
+      read: async ({ projectId }) =>
+        ({ ok: true, data: projectId === 'P-2' ? wireConfig(5, { 'WALL-LENGTH': { enabled: false } }) : wireConfig(3) }),
+      onToast: (toast) => toasts.push(toast),
+      onDiscardToasts,
+    });
+    await advance(0);
+
+    act(() => result.current.onToggleRule('WALL-THICKNESS', false));
+    await advance(AFTER_DEBOUNCE_MS);
+    const ticket = toasts[0]?.undoTicket;
+    expect(ticket?.getStatus()).toBe('active');
+    onDiscardToasts.mockClear();
+
+    rerender({ projectId: 'P-2' });
+    await advance(0);
+
+    expect(useStore.getState().ruleConfigProjectId).toBe('P-2');
+    expect(onDiscardToasts).toHaveBeenCalled();
+    expect(ticket?.getStatus()).toBe('expired');
+    expect(ticket?.undo()).toEqual({ error: 'expired', ok: false });
+    expect(useStore.getState().ruleConfig.overrides).toEqual({ 'WALL-LENGTH': { enabled: false } });
+  });
+
+  it('BUG-464: N21 hỏng rồi "Thử lại" (onReload) → đọc lại và ra `ready`', async () => {
+    let reads = 0;
+    const { result } = setupHook({
+      read: async () => {
+        reads += 1;
+        return reads === 1 ? { ok: false, error: wireError(500, 'INTERNAL') } : { ok: true, data: wireConfig(4) };
+      },
+    });
+    await advance(0);
+    expect(result.current.model.status).toBe('error');
+
+    act(() => result.current.onReload());
+    await advance(0);
+
+    expect(reads).toBe(2);
+    expect(result.current.model.status).toBe('ready');
   });
 
   it('lượt đọc lại hỏng: không nạp bản cũ, dải xung đột vẫn còn', async () => {

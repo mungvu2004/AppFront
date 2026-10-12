@@ -34,7 +34,7 @@
  *
  * ## Phần KHÔNG CÓ — và vì sao vẫn khai
  *
- * Tám việc màn cần mà tầng dữ liệu chưa có. Mỗi việc vẫn nằm trong
+ * Bảy việc màn cần mà tầng dữ liệu chưa có. Mỗi việc vẫn nằm trong
  * {@link ProcessingGateway} (giao diện là thứ nơi gọi lập trình theo, xoá đi thì
  * lần sau phải dựng lại; test và story cắm bản giả "có dữ liệu" vào đúng chỗ đó
  * để phần giao diện tương ứng vẫn kiểm được — R-73), nhưng **bản cài đặt thật
@@ -71,9 +71,10 @@
  */
 
 import { createAppApiClient, resolveApiBaseUrl } from '@/api/appClient';
-import type { ApiClient, ApiResult, LatestFloorUpload } from '@/api/client';
+import type { ApiClient, ApiResult, LatestFloorUpload, Project } from '@/api/client';
 import { ENDPOINTS, toApiUrl } from '@/api/endpoints';
 import type { Progress } from '@/api/schemas';
+import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
 import { refreshSingleFlight } from '@/lib/auth';
 import { describeError, toAppError } from '@/lib/errors';
 import type { AppError } from '@/lib/errors';
@@ -88,7 +89,7 @@ import {
   type BackgroundWatchEntry,
   type BackgroundWatchRegistry,
 } from '@/lib/realtime/backgroundWatch';
-import { createPollingChannel } from '@/lib/realtime/pollingChannel';
+import { createPollingChannel, getDefaultVisibilityTarget } from '@/lib/realtime/pollingChannel';
 import type { PollingChannelHandle, PollingVisibilityTarget } from '@/lib/realtime/pollingChannel';
 import { createProgressStream } from '@/lib/realtime/progressStream';
 import type { ProgressStreamSource, ProgressStreamState } from '@/lib/realtime/progressStream';
@@ -141,7 +142,6 @@ export const PROCESSING_MISSING_CAPABILITIES = [
   'queuePosition',
   'parallelFloorPipeline',
   'completionNotice',
-  'extractionSummary',
   'stepDetails',
   'detectedGeometry',
   'stageBreakdown',
@@ -164,8 +164,6 @@ export const PROCESSING_MISSING_ENDPOINTS: Readonly<
     'Endpoint trả trạng thái xử lý của MỌI tầng trong một lượt đọc — chưa có; màn tự ghép N lượt đọc drawings.progress độc lập',
   completionNotice:
     'Kênh ĐẨY từ máy chủ khi xử lý xong, sống qua cả lúc đóng thẻ (chuông thông báo) — chưa có',
-  extractionSummary:
-    'Endpoint tổng kết trích xuất: wallCount, openingCount, dimensionCount, roomCount, confidencePercent — chưa có (areaM2 đã có qua spatial.readFloor)',
   stepDetails:
     'Endpoint chi tiết từng bước (số đối tượng tìm được, mã lỗi của riêng bước) — chưa có',
   detectedGeometry: 'Endpoint trả hình học dò được GIỮA CHỪNG lúc đang xử lý — chưa có',
@@ -235,7 +233,9 @@ export interface ProcessingExtractionSummary {
   readonly dimensionCount: number;
   readonly roomCount: number;
   readonly areaM2: number;
-  /** Số đối tượng có độ tin cậy dưới ngưỡng "gợi ý" của `src/lib/format/semantic`. */
+  /** Ngưỡng tin cậy của dự án (N5, Cài đặt › Đơn vị đo); `null` khi không đọc được cài đặt. */
+  readonly confidenceThreshold: number | null;
+  /** Số đối tượng chưa duyệt có độ tin cậy dưới `confidenceThreshold`; 0 khi ngưỡng là `null`. */
   readonly lowConfidenceCount: number;
 }
 
@@ -379,6 +379,14 @@ export interface ProcessingGateway {
     readonly projectId: string;
     readonly signal?: AbortSignal;
   }) => Promise<ApiResult<LatestFloorUpload[]>>;
+  /**
+   * #24 — dự án thô, dưới khoá `project.detail` như mọi nơi khác. Chỉ đọc khi bộ
+   * đệm chưa có tên dự án (mở thẳng đường dẫn), để breadcrumb vẫn nêu tên (BUG-165).
+   */
+  readonly readProject: (input: {
+    readonly projectId: string;
+    readonly signal?: AbortSignal;
+  }) => Promise<ApiResult<Project>>;
   /** Lượt đọc mồi cho `useQuery` — một lần, không phải dòng sự kiện. */
   readonly readProgressOnce: (input: ReadProgressInput) => Promise<ApiResult<Progress>>;
   /**
@@ -423,7 +431,11 @@ export interface ProcessingGateway {
   readonly readParallelFloorPipeline: (
     input: ReadParallelFloorPipelineInput,
   ) => Promise<ProcessingCapabilityResult<readonly ProcessingRawFloorProgress[]>>;
-  /** NOT FOUND — `extractionSummary`. Chặn luôn nửa sau của O-01, xem `trackAiStarted`. */
+  /**
+   * Tổng kết trích xuất của một tầng, đếm từ N16 (`spatial.readLayer`): pipeline ghi lớp AI vào
+   * tài liệu tầng (`pipeline.persist`), nên số tường / ô mở / phòng / kích thước đọc được ở đó
+   * (BUG-285). Lỗi đọc thì NÉM — hook vẫn đưa lối đi tiếp, chỉ thiếu con số.
+   */
   readonly readExtractionSummary: (
     input: ReadExtractionSummaryInput,
   ) => Promise<ProcessingCapabilityResult<ProcessingExtractionSummary>>;
@@ -446,7 +458,7 @@ export interface ProcessingGateway {
   /**
    * O-01, nửa ĐẦU. `ai.finished` KHÔNG có mặt ở đây: schema của nó bắt buộc
    * `wallCount`, `openingCount`, `dimensionCount`, `roomCount` và
-   * `confidencePercent`, mà `extractionSummary` chưa tồn tại — bắn nó hôm nay
+   * `confidencePercent`, mà N16 không mang một độ tin cậy tổng — bắn nó hôm nay
    * chỉ điền được số bịa.
    */
   readonly trackAiStarted: (input: TrackAiStartedInput) => void;
@@ -488,20 +500,25 @@ function matchStageIndex(step: string | undefined): number {
 
 /**
  * Một bước ĐÃ quan sát thấy xong thì không bị hạ xuống lại, trừ khi lượt đọc
- * mới báo chính nó hỏng.
+ * mới báo chính nó hỏng; một bước đã thấy CHẠY thì không lùi về "chờ", trừ khi
+ * lượt đọc mới báo hỏng.
  *
  * Đây là mặt "từng bước" của chính lời hứa mà `highestProgressReached` giữ cho
- * con số tổng: khi SSE chết và lượt quay vòng đọc lại một nhịp cũ hơn, thanh
- * tiến độ của các bước đã xong không được rơi về rỗng. Chỉ chặn việc HẠ xuống —
- * bước nào đang chạy vẫn đi theo lượt đọc mới nhất, vì máy chủ mới là nơi biết
- * hiện giờ nó đang làm gì.
+ * con số tổng: khi SSE chết và lượt quay vòng đọc lại một nhịp cũ hơn — hay một
+ * lượt đọc #8 đi trước khung SSE về sau nó — các bước đã tới không được rơi về
+ * rỗng (BUG-548). Lượt MỚI thì đi qua `pending`, nhánh đó dựng sáu bước từ đầu.
  */
 function keepObservedDone(
   next: PipelineStageState['status'],
   previous: PipelineStageState | undefined,
+  isFailing: boolean,
 ): PipelineStageState['status'] {
   if (previous?.status === 'done' && next !== 'failed') {
     return 'done';
+  }
+
+  if (previous?.status === 'running' && next === 'queued' && !isFailing) {
+    return 'running';
   }
 
   return next;
@@ -602,7 +619,7 @@ export function toStageBreakdown(
         return carryTimestamps(
           {
             id: stage.id,
-            status: keepObservedDone(isFailing ? 'failed' : 'running', before),
+            status: keepObservedDone(isFailing ? 'failed' : 'running', before, isFailing),
           },
           before,
           observedAtMs,
@@ -610,7 +627,7 @@ export function toStageBreakdown(
       }
 
       return carryTimestamps(
-        { id: stage.id, status: keepObservedDone('queued', before) },
+        { id: stage.id, status: keepObservedDone('queued', before, isFailing) },
         before,
         observedAtMs,
       );
@@ -756,6 +773,33 @@ function createProgressReader(
   };
 }
 
+/**
+ * Đếm tổng kết một tầng từ tài liệu N16; mục người đã duyệt không tính là "tin cậy thấp". Ngưỡng là
+ * của dự án, không phải hằng toàn cục: câu "dưới 0,70" cạnh cài đặt 0,75 là sai (BUG-354).
+ */
+export function toExtractionSummary(
+  document: FloorLayerDocument,
+  confidenceThreshold: number | null,
+): ProcessingExtractionSummary {
+  const { openings, rooms, walls } = document.layer;
+  const lowConfidenceCount =
+    confidenceThreshold === null
+      ? 0
+      : [...walls, ...openings, ...rooms].filter(
+          (item) => !item.reviewed && item.confidence < confidenceThreshold,
+        ).length;
+
+  return {
+    wallCount: walls.length,
+    openingCount: openings.length,
+    dimensionCount: document.dimensions.length,
+    roomCount: rooms.length,
+    areaM2: rooms.reduce((sum, room) => sum + room.areaM2, 0),
+    confidenceThreshold,
+    lowConfidenceCount,
+  };
+}
+
 export function createProcessingGateway(
   client: ApiClient,
   options: CreateProcessingGatewayOptions = {},
@@ -763,11 +807,12 @@ export function createProcessingGateway(
   const now = options.now ?? ((): number => Date.now());
   const clock = options.clock ?? defaultClock;
   const backgroundWatches = options.backgroundWatches ?? backgroundWatchRegistry;
+  const visibility = options.visibilityTarget ?? getDefaultVisibilityTarget();
 
   return {
-    // Ba việc làm được hôm nay: theo dõi tiến độ, chạy nền, và ánh xạ sáu bước —
-    // cái cuối chỉ làm được một nửa, xem giả định C3 ở đầu file. Sáu việc còn
-    // lại `false` cho tới khi có endpoint thật.
+    // Bốn việc làm được hôm nay: theo dõi tiến độ, chạy nền, tổng kết (đếm từ N16)
+    // và ánh xạ sáu bước — cái cuối chỉ làm được một nửa, xem giả định C3 ở đầu
+    // file. Năm việc còn lại `false` cho tới khi có endpoint thật.
     supports: {
       // Bật cờ này thì giữ lệnh `UNDO_WINDOW_MS` kèm toast hoàn tác (A8). Hết giờ chỉ
       // huỷ những lượt tải lên chụp lúc xác nhận mà vẫn đang chạy. Câu toast phải đúng
@@ -777,7 +822,7 @@ export function createProcessingGateway(
       parallelFloorPipeline: false,
       runInBackground: true,
       completionNotice: false,
-      extractionSummary: false,
+      extractionSummary: true,
       stepDetails: false,
       detectedGeometry: false,
       stageBreakdown: true,
@@ -792,6 +837,9 @@ export function createProcessingGateway(
 
       return first.ok || readWireError(first.error)?.code !== 'CURSOR_INVALID' ? first : read();
     },
+
+    readProject: ({ projectId, signal }) =>
+      client.projects.read({ projectId, ...(signal !== undefined ? { signal } : {}) }),
 
     readProgressOnce: ({ projectId, signal, uploadId }) =>
       client.drawings.progress({
@@ -843,6 +891,8 @@ export function createProcessingGateway(
 
         silenceTimer = clock.setTimeout(() => {
           silenceTimer = null;
+          // Tab ẩn: luồng đã tự đóng (hiện lại thì mở lại và hẹn lại) — không hỏi #8 trong lúc ẩn.
+          if (visibility?.hidden === true) return;
           void reader.read().then((event) => {
             if (closed) return;
 
@@ -972,7 +1022,20 @@ export function createProcessingGateway(
 
     readQueuePosition: () => Promise.resolve(unsupported('queuePosition')),
     readParallelFloorPipeline: () => Promise.resolve(unsupported('parallelFloorPipeline')),
-    readExtractionSummary: () => Promise.resolve(unsupported('extractionSummary')),
+    readExtractionSummary: async ({ floorId, projectId }) => {
+      const [result, settings] = await Promise.all([
+        client.spatial.readLayer({ floorId, projectId }),
+        client.projectSettings.read({ projectId }),
+      ]);
+
+      if (!result.ok) {
+        throw result.error;
+      }
+
+      // Cài đặt hỏng chỉ mất câu tin cậy, không mất cả khối số liệu.
+      const threshold = settings.ok ? settings.data.confidenceThreshold : null;
+      return { supported: true, value: toExtractionSummary(result.data, threshold) };
+    },
     readStepDetails: () => Promise.resolve(unsupported('stepDetails')),
     readDetectedGeometry: () => Promise.resolve(unsupported('detectedGeometry')),
     subscribeCompletionNotice: () => unsupported('completionNotice'),

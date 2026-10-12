@@ -57,7 +57,7 @@
  * (bất biến 4). Thứ tự ở đây chọn nghĩa dùng được: `loading` → `error` →
  * `forbidden` → `collapsed` → `success` → `partial` (đã bắt tay vào làm) →
  * `empty`. Mọi cờ mà bất biến nhắc tới (`canvas.isImageLoading`,
- * `canvas.isInteractive`, `panel.areActionsHidden`, `isPanelCollapsed`,
+ * `canvas.isInteractive`, `panel.areActionsHidden`,
  * `panel.statusCode`, `errorMessage`) được suy NGƯỢC từ trạng thái đã chọn, nên
  * chiều còn lại của mỗi "⟺" luôn đúng theo cấu trúc.
  */
@@ -101,15 +101,16 @@ import {
 } from '@/domain/units/types';
 import { useAutosave, useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { useFloorLayer } from '@/hooks/useFloorLayer';
+import { useProjectConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import { useCountUp } from '@/hooks/useCountUp';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
 import { describeError, toAppError } from '@/lib/errors';
+import { readWireError } from '@/lib/errors/wireError';
 import { formatArea, formatDrawingScaleRatio, formatLength, formatScaleDensity } from '@/lib/format/measure';
 import { formatNumber, formatPercent, MISSING_VALUE } from '@/lib/format/number';
-import { CONFIDENCE_SUGGESTED_THRESHOLD } from '@/lib/format/semantic';
 import { formatCombo, keyCapLabels, parseCombo } from '@/lib/input/shortcutRegistry';
 import { MODIFIER_SHORTCUTS } from '@/lib/tools/shortcuts';
 import { queryKeys } from '@/lib/query/queryKeys';
@@ -164,7 +165,7 @@ import type {
 const COPY = {
   canvasAltPrefix: 'Bản vẽ đã nắn của ',
   canvasAltEmpty: 'Chưa có bản vẽ nào để hiệu chỉnh.',
-  currentScaleUnknown: 'chưa có',
+  currentScaleUnknown: 'Chưa có',
   derivedLineUnknown: 'chưa đủ dữ liệu để suy ra tỷ lệ nguyên đồ',
   methodDimensionString: 'Từ chuỗi kích thước',
   methodReferenceLine: 'Vẽ đường tham chiếu',
@@ -176,20 +177,26 @@ const COPY = {
   lowConfidenceInference: 'Độ tin cậy chung còn thấp, nên tỷ lệ phải được xác nhận bằng tay.',
   realLengthPlaceholder: '4800',
   realLengthNoHint: 'Không có chuỗi kích thước nào gần đoạn này để gợi ý.',
-  crossCheckWallThickness: 'độ dày tường điển hình',
-  crossCheckDoorWidth: 'bề rộng cửa đi điển hình',
-  crossCheckLargestRoomArea: 'diện tích phòng lớn nhất',
+  realLengthInvalid: 'Chiều dài thật phải là một số lớn hơn 0, ví dụ 4800.',
+  crossCheckWallThickness: 'Độ dày tường điển hình',
+  crossCheckDoorWidth: 'Bề rộng cửa đi điển hình',
+  crossCheckLargestRoomArea: 'Diện tích phòng lớn nhất',
   recalculationCaption: 'Đổi tỷ lệ sẽ tính lại mọi kích thước dẫn xuất của bản vẽ này.',
   scopeAllFloors: 'Áp cho mọi tầng',
   scopeThisFloor: 'Chỉ áp cho tầng này',
-  shortcutCancelDrag: 'huỷ đoạn đang kéo',
-  shortcutRemeasure: 'đo lại',
-  shortcutConfirm: 'xác nhận',
-  shortcutNudgeFine: 'nhích đầu đoạn một pixel',
-  shortcutNudgeCoarse: 'nhích đầu đoạn mười pixel',
-  shortcutAxisLock: 'khoá đoạn theo trục',
+  shortcutCancelDrag: 'Huỷ đoạn đang kéo',
+  shortcutRemeasure: 'Đo lại',
+  shortcutConfirm: 'Xác nhận',
+  shortcutNudgeFine: 'Nhích đầu đoạn một pixel',
+  shortcutNudgeCoarse: 'Nhích đầu đoạn mười pixel',
+  shortcutAxisLock: 'Khoá đoạn theo trục',
+  noDrawingTitle: 'Tầng này chưa có bản vẽ',
+  noDrawingNotice:
+    'Chưa có bản vẽ nào được tải lên cho tầng này. Tải bản vẽ lên và chờ bước tiền xử lý xong rồi mới hiệu chỉnh tỷ lệ.',
+  // Tiêu đề "Nắn ảnh thất bại nên bản vẽ có thể méo" là của view; câu này chỉ nói hậu quả và lối ra,
+  // không nhắc lại tiêu đề (BUG-341). Khớp khoá `scaleCalibration.state.errorDescription`.
   warpingNotice:
-    'Nắn ảnh thất bại nên bản vẽ có thể méo. Tỷ lệ đo trên một bản vẽ méo sẽ sai theo.',
+    'Tỷ lệ đo trên một bản vẽ méo sẽ sai theo. Quay lại bước tiền xử lý để nắn lại ảnh, rồi hiệu chỉnh tỷ lệ.',
   emptyNotice:
     'Bản vẽ này không có chuỗi kích thước nào OCR đọc được. Vẽ một đường tham chiếu dọc cạnh đã biết, rồi nhập chiều dài thật của nó.',
   partialNotice:
@@ -281,7 +288,7 @@ const deviationMessage = (percent: string, estimated: string): string =>
 const NUDGE_PX: Readonly<Record<NudgeStep, number>> = { fine: 1, coarse: 10 };
 
 /** `< 1024px` — cùng mốc `InputQualityGate`, `FloorUploadScreen`, `ProcessingScreen`. */
-const NARROW_VIEWPORT_QUERY = '(max-width: 1023px)';
+const NARROW_VIEWPORT_QUERY = '(width < 1024px)';
 
 const DEFAULT_ROLES: readonly ProjectRole[] = ['engineer'];
 
@@ -582,6 +589,8 @@ export function useScaleCalibration(
    * khung vẽ; "Áp dụng tỷ lệ" khi ấy nói lý do tại chỗ.
    */
   const floorLayer = useFloorLayer({ projectId, floorId, read: gateway.readLayer });
+  /* Gạch "độ tin cậy thấp" theo ngưỡng của dự án, không hằng 0,70 (BUG-354, như FIX-1603). */
+  const confidenceThreshold = useProjectConfidenceThreshold(projectId, gateway.readConfidenceThreshold);
   const levelId: string = floorLayer.data?.level.id ?? floorId;
   /** `'unresolved'`: tỉ lệ trong `Level` là tỉ lệ tạm của pipeline, chưa ai chốt. */
   const isProvisional = floorLayer.scaleStatus === 'unresolved';
@@ -1033,6 +1042,10 @@ export function useScaleCalibration(
     void query.refetch();
   }, [query]);
 
+  const onGoToUpload = useCallback(() => {
+    navigate(ROUTES.project.upload(projectId));
+  }, [navigate, projectId]);
+
   const onCanvasSizeChange = useCallback((widthPx: number, heightPx: number) => {
     setCanvasSize((size) =>
       size.width === widthPx && size.height === heightPx
@@ -1308,7 +1321,7 @@ export function useScaleCalibration(
   const rows = useMemo<readonly DimensionStringRow[]>(
     () =>
       rawRows.map((row) => {
-        const isLowConfidence = row.confidence < CONFIDENCE_SUGGESTED_THRESHOLD;
+        const isLowConfidence = row.confidence < confidenceThreshold;
 
         return {
           id: row.id,
@@ -1323,7 +1336,7 @@ export function useScaleCalibration(
           statusCode: isLowConfidence ? 'attention' : 'neutral',
         };
       }),
-    [rawRows],
+    [confidenceThreshold, rawRows],
   );
 
   const lowConfidenceCount = rows.filter((row) => row.isLowConfidence).length;
@@ -1463,7 +1476,13 @@ export function useScaleCalibration(
       return 'loading';
     }
 
-    if (query.isError || drawing?.isWarped === true) {
+    if (query.isError) {
+      return 'error';
+    }
+
+    // Không tìm thấy khung chỉ là cảnh báo của BE (FRAME_NOT_FOUND, mức attention): người dùng vẫn
+    // đo và áp được. Áp xong thì lời nhắc "có thể méo" nhường chỗ cho câu thành công (BUG-567).
+    if (drawing?.isWarped === true && applyOutcome !== 'success') {
       return 'error';
     }
 
@@ -1506,22 +1525,25 @@ export function useScaleCalibration(
     }
 
     if (query.isError) {
-      return describeError(toAppError(query.error));
+      const wire = readWireError(query.error);
+
+      // Tầng chưa có bản vẽ: BE trả 404 `upload` (cùng khuôn `useInputQualityGate`). Nói đúng
+      // nguyên nhân và không kèm mã máy — "Không tìm thấy… NOT_FOUND" đổ lỗi sai chỗ (BUG-337).
+      if (wire?.status === 404 && wire.resource === 'upload') {
+        return { title: COPY.noDrawingTitle, description: COPY.noDrawingNotice, code: null, isNoDrawing: true };
+      }
+
+      const appError = toAppError(query.error);
+      return { ...describeError(appError), code: appError.code };
     }
 
-    // Nắn ảnh hỏng không phải lỗi mạng: câu chữ đã có sẵn ở COPY, còn mã máy
-    // đọc lấy từ chính bảng lỗi chứ không gõ tay (A6 cho phép chữ hoa ở mã lỗi).
-    const appError = toAppError(new Error(COPY.warpingNotice));
-    return { ...describeError(appError), description: COPY.warpingNotice, code: appError.code };
+    // Nắn ảnh hỏng không phải lỗi mạng và không có mã máy nào: "Mã lỗi: UNKNOWN" chỉ là
+    // nhiễu (BUG-341). Tiêu đề do view đặt (`errorTitle` vắng ở nhánh này).
+    return { title: undefined, description: COPY.warpingNotice, code: null };
   }, [query.error, query.isError, state]);
+  const isNoDrawing = errorDescription !== null && 'isNoDrawing' in errorDescription;
 
-  const errorCode = useMemo(() => {
-    if (state !== 'error') {
-      return null;
-    }
-
-    return toAppError(query.isError ? query.error : new Error(COPY.warpingNotice)).code;
-  }, [query.error, query.isError, state]);
+  const errorCode = errorDescription?.code ?? null;
 
   /* ---------------------------------------------------------------------- */
   /* Chạy số 260 ms cho nhãn tỷ lệ sau khi áp (C2).                          */
@@ -1667,9 +1689,6 @@ export function useScaleCalibration(
             : pixelLabel(draftForView.pixelLength),
         isInteractive: state !== 'forbidden',
         isImageLoading: state === 'loading',
-        // Chỉ ảnh MÉO mới nói "nắn ảnh thất bại"; lượt đọc hỏng không có ảnh nào
-        // để mà méo (B-V5-04).
-        warpingNotice: state === 'error' && !query.isError ? COPY.warpingNotice : null,
       },
       panel: {
         currentScaleLabel,
@@ -1701,6 +1720,10 @@ export function useScaleCalibration(
             draftForView === null ? null : pixelLabel(draftForView.pixelLength),
           realLengthText,
           realLengthPlaceholder: COPY.realLengthPlaceholder,
+          realLengthError:
+            realLengthText.trim() !== '' && (typedLength === null || typedLength <= 0)
+              ? COPY.realLengthInvalid
+              : null,
           realLengthHint:
             nearestOcrValue === null
               ? COPY.realLengthNoHint
@@ -1722,7 +1745,10 @@ export function useScaleCalibration(
         areActionsHidden: state === 'forbidden',
         recalculationCaption: COPY.recalculationCaption,
         statusCode: state === 'success' ? 'verified' : 'neutral',
-        shortcutHints,
+        /* Tầng chưa có bản vẽ: không có gì để kéo hay đo — quy trình mờ đi, bảng phím ẩn (BUG-411). */
+        isMethodLocked: isNoDrawing,
+        isCurrentScaleKnown: displayRatio !== null,
+        shortcutHints: isNoDrawing ? [] : shortcutHints,
       },
       statusBar: {
         x: cursorPixels.x,
@@ -1732,13 +1758,15 @@ export function useScaleCalibration(
         saveText: saveLabel ?? '',
       },
       isCompact,
-      isPanelCollapsed: state === 'collapsed',
+      // Theo nút, không theo trạng thái: `error`/`forbidden` đứng trước `collapsed` trong thứ tự
+      // bảy trạng thái, nên suy từ `state` làm nút "Thu gọn bảng" chết ở đó (BUG-322).
+      isPanelCollapsed,
       prefersReducedMotion,
       errorMessage: errorDescription?.description ?? null,
       errorCode,
-      ...(state === 'error' && query.isError && errorDescription !== null
-        ? { errorTitle: errorDescription.title }
-        : {}),
+      // Ảnh méo không đặt tiêu đề: view dùng tiêu đề "nắn ảnh thất bại" của chính nó (B-V5-04).
+      ...(errorDescription?.title !== undefined ? { errorTitle: errorDescription.title } : {}),
+      ...(isNoDrawing ? { isNoDrawing: true } : {}),
       emptyNotice: isEmptyState ? COPY.emptyNotice : null,
       partialNotice: state === 'partial' ? COPY.partialNotice : null,
       forbiddenNotice: state === 'forbidden' ? COPY.forbiddenNotice : null,
@@ -1776,15 +1804,17 @@ export function useScaleCalibration(
     errorDescription,
     highlightedRowId,
     isCompact,
+    isNoDrawing,
+    isPanelCollapsed,
     isEmptyState,
     lowConfidenceCount,
     methodOptions,
     nearestOcrValue,
     prefersReducedMotion,
     proposedRatio,
-    query.isError,
     realLengthText,
     rows,
+    typedLength,
     saveLabel,
     scaleDensityLabel,
     scaleRatioLabel,
@@ -1819,6 +1849,7 @@ export function useScaleCalibration(
       onToggleCollapsed,
       onGoToPreprocessing,
       onRetry,
+      onGoToUpload,
     }),
     [
       onApply,
@@ -1832,6 +1863,7 @@ export function useScaleCalibration(
       onConfirmRealLength,
       onEndDrag,
       onGoToPreprocessing,
+      onGoToUpload,
       onHoverDimensionRow,
       onMoveCursor,
       onMoveDrag,

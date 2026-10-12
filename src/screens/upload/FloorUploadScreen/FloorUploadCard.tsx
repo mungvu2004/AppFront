@@ -38,7 +38,7 @@ const LABEL_ELEVATION = 'cao độ';
 const LABEL_HEIGHT = 'Chiều cao thông thuỷ';
 const LABEL_REASSIGN = 'Gán cho tầng khác';
 const LABEL_PAGE_PICKER = 'Chọn trang';
-const LABEL_CAD_PILL = 'Nhánh CAD · độ chính xác cao';
+const LABEL_CAD_PILL = 'Bản vẽ CAD · độ chính xác cao';
 const LABEL_MENU_PREFIX = 'Tuỳ chọn của tầng';
 const LABEL_CANCEL = 'Huỷ';
 const LABEL_RETRY = 'Thử lại';
@@ -58,7 +58,7 @@ export interface FloorUploadCardProps {
   readonly registerCard: (floorId: string, element: HTMLElement | null) => void;
 }
 
-/** Chip "Nhánh CAD" — hiện theo cờ của hook, thẻ không bao giờ tự đọc đuôi tệp. */
+/** Chip "Bản vẽ CAD" — hiện theo cờ của hook, thẻ không bao giờ tự đọc đuôi tệp. */
 function CadPill() {
   return (
     <span className="inline-flex h-[22px] items-center rounded-[6px] bg-bg-sunken px-2 text-[12px] text-text-secondary">
@@ -74,8 +74,17 @@ function CadPill() {
  * phải `addEventListener` toàn cục — R-72 cấm cái sau, và một lớp phủ gọn trong
  * một thẻ thì chưa tới mức cần sổ đăng ký phím tắt.
  */
-function CardMenu({ row, actions }: { row: FloorUploadRowModel; actions: FloorUploadActions }) {
-  const [isOpen, setOpen] = useState(false);
+function CardMenu({
+  row,
+  actions,
+  isOpen,
+  setOpen,
+}: {
+  row: FloorUploadRowModel;
+  actions: FloorUploadActions;
+  isOpen: boolean;
+  setOpen: (update: (open: boolean) => boolean) => void;
+}) {
   const fileId = row.file === null ? null : row.file.id;
   const canRemove = row.canRemoveFile && row.removeLabel !== null;
 
@@ -85,7 +94,7 @@ function CardMenu({ row, actions }: { row: FloorUploadRowModel; actions: FloorUp
     return null;
   }
 
-  const close = (): void => setOpen(false);
+  const close = (): void => setOpen(() => false);
 
   return (
     <div
@@ -167,7 +176,15 @@ function ProgressRail({ row }: { row: FloorUploadRowModel }) {
           style={{ width: `${String(row.percent)}%` }}
         />
       </div>
-      <span aria-label={row.progressAriaLabel} className="sr-only" role="progressbar">
+      {/* Thanh tiến độ phải mang giá trị (ARIA 1.2, BUG-533), không chỉ một nhãn. */}
+      <span
+        aria-label={row.progressAriaLabel}
+        aria-valuemax={100}
+        aria-valuemin={0}
+        aria-valuenow={row.percent}
+        className="sr-only"
+        role="progressbar"
+      >
         {row.percentLabel}
       </span>
     </>
@@ -182,6 +199,9 @@ export function FloorUploadCard({
   registerCard,
 }: FloorUploadCardProps) {
   const cardRef = useRef<HTMLLIElement | null>(null);
+  // Bảng tuỳ chọn mở thì thẻ nổi trên chân trang dính (`z-20`): thẻ là một ngữ cảnh xếp chồng
+  // (`panel-rise` giữ `transform`), nên `z-10` của bảng không thoát ra được (BUG-526).
+  const [isMenuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     registerCard(row.floorId, cardRef.current);
@@ -197,7 +217,8 @@ export function FloorUploadCard({
   return (
     <li
       className={clsx(
-        'animate-panel-rise relative rounded-[12px] border border-border-default bg-bg-surface p-5',
+        'animate-panel-rise motion-reduce:animate-none relative rounded-[12px] border border-border-default bg-bg-surface p-5',
+        isMenuOpen && 'z-30',
         isCollapsed ? 'flex flex-col gap-3' : 'flex min-h-[96px] flex-row flex-wrap items-center gap-4',
       )}
       data-floor-id={row.floorId}
@@ -207,7 +228,9 @@ export function FloorUploadCard({
         animationDuration: `${String(row.revealDurationMs)}ms`,
       }}
     >
-      <div className={clsx('flex min-w-0 flex-1 items-center gap-4', isCollapsed && 'w-full')}>
+      {/* Wraps, and the text keeps a floor: at 375 px the badge drops under the thumbnail instead of
+          squeezing the floor name to "Tầng t…" and the subtitle to five lines (BUG-261). */}
+      <div className={clsx('flex min-w-0 flex-1 flex-wrap items-center gap-4', isCollapsed && 'w-full')}>
         <motion.div
           className="flex h-[72px] w-[96px] shrink-0 items-center justify-center rounded-[8px] bg-bg-sunken"
           {...(file === null ? {} : { layoutId: `floor-upload-thumb-${file.id}` })}
@@ -215,7 +238,7 @@ export function FloorUploadCard({
           <SheetGlyph />
         </motion.div>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex min-w-[96px] flex-1 flex-col gap-1">
           <h3 className="truncate text-[15px] font-medium text-text-primary">{row.name}</h3>
           <p className="text-[13px] text-text-muted">
             {LABEL_ELEVATION} {row.elevationLabel} · {LABEL_HEIGHT} {row.storeyHeightLabel}
@@ -227,7 +250,7 @@ export function FloorUploadCard({
 
         <div className="flex shrink-0 items-center gap-2">
           <Badge variant={row.statusVariant}>{row.statusLabel}</Badge>
-          <CardMenu actions={actions} row={row} />
+          <CardMenu actions={actions} isOpen={isMenuOpen} row={row} setOpen={setMenuOpen} />
         </div>
       </div>
 

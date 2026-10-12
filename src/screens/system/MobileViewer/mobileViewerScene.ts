@@ -89,6 +89,7 @@ import type { BuildPartKind } from '@/lib/three/build/scene';
 import {
   buildingExtent,
   createCameraMode,
+  frameHalfHeightM,
   initialViewpoint,
   type BuildingExtent,
   type CameraModeController,
@@ -243,6 +244,31 @@ function createDefaultRenderer(canvas: HTMLCanvasElement): MobileViewerRendererL
 /** Tỉ lệ khung nhìn; 1 khi canvas chưa có kích thước nào để đo. */
 function aspectOf(width: number, height: number): number {
   return width > 0 && height > 0 ? width / height : 1;
+}
+
+/** Sin của nửa góc nhìn, tính từ tang của nó — `sin(atan(t))`. */
+const sinOfHalfAngle = (tangent: number): number => tangent / Math.hypot(1, tangent);
+
+/**
+ * Hộp bao mà camera quỹ đạo nhìn qua một khung DỌC (BUG-485).
+ *
+ * `initialViewpoint` khớp quả cầu bao theo trường nhìn dọc, và trần lùi xa của
+ * quỹ đạo là bội số của chính bán kính ấy. Khung dọc của điện thoại (375 × ~700)
+ * có trường nhìn NGANG hẹp hơn dọc, nên mô hình tràn hai mép — và trần lùi
+ * (3 bán kính) còn chặn luôn đường lùi đủ xa. Phóng hộp theo tỉ lệ sin hai nửa
+ * góc dọc/ngang thì cả điểm nhìn đầu lẫn trần lùi tính đúng cho khung này. Quỹ
+ * đạo chỉ đọc hộp để lấy trần thu phóng và mặt phẳng cắt (`modes.ts`), nên hộp
+ * phóng không đổi thứ gì khác. Khung ngang (`aspect ≥ 1`) giữ nguyên hộp.
+ */
+export function extentForAspect(extent: BuildingExtent, aspect: number): BuildingExtent {
+  if (!(aspect > 0) || aspect >= 1) {
+    return extent;
+  }
+
+  const verticalTangent = frameHalfHeightM(1);
+  const widen = sinOfHalfAngle(verticalTangent) / sinOfHalfAngle(verticalTangent * aspect);
+
+  return { centre: extent.centre, sizeM: extent.sizeM.clone().multiplyScalar(widen) };
 }
 
 /**
@@ -482,13 +508,17 @@ function startScene(
 
   /* ---- Camera ------------------------------------------------------------ */
 
-  const controller = createCameraMode('orbit', initialViewpoint(extent), { extent });
+  const firstViewport = viewport();
+  const firstAspect = aspectOf(firstViewport.width, firstViewport.height);
+  const orbitExtent = extentForAspect(extent, firstAspect);
+  const controller = createCameraMode('orbit', initialViewpoint(orbitExtent), {
+    extent: orbitExtent,
+  });
   const orbit = orbitControlsOf(controller);
 
   // Đặt camera vào chỗ NGAY, đừng đợi khung hình đầu tiên: một cú chạm tới trước
   // lượt vẽ đầu sẽ bắn tia từ một camera còn nằm ở gốc toạ độ, và trúng nhầm.
-  const firstViewport = viewport();
-  controller.applyTo(camera, aspectOf(firstViewport.width, firstViewport.height));
+  controller.applyTo(camera, firstAspect);
 
   /* ---- Vòng vẽ theo nhu cầu ---------------------------------------------- */
 

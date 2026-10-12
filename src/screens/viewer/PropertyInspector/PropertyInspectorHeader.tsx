@@ -47,6 +47,12 @@ export function PropertyInspectorHeader({ header, thumbnails }: PropertyInspecto
         </div>
       </div>
 
+      {header.statusBadge.reason !== undefined && (
+        <p className="px-5 pb-3 text-[13px] leading-[18px] text-text-secondary">
+          {header.statusBadge.reason}
+        </p>
+      )}
+
       {thumbnails.length > 0 && (
         <div
           className="mx-5 mb-3 flex items-center gap-2 overflow-x-auto rounded-lg bg-bg-sunken px-2"

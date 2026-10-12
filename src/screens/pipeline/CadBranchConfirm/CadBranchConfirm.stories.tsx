@@ -78,6 +78,7 @@ const ACTIONS: CadBranchConfirmActions = {
   onImportGeometry: NO_OP,
   onToggleMappingPanelCollapsed: NO_OP,
   onRetry: NO_OP,
+  onBackToProjects: NO_OP,
 };
 
 /* -------------------------------------------------------------------------- */
@@ -120,7 +121,7 @@ const ERROR_MESSAGE = `không đọc được tệp CAD này: bản vẽ lưu �
 const ERROR_CODE = 'VALIDATION';
 
 const EMPTY_NOTICE =
-  'Tệp CAD không có lớp nào được đặt tên. Hệ thống sẽ ánh xạ theo loại hình học thay cho tên lớp.';
+  'Tệp CAD không có lớp nào được đặt tên, nên không có lớp nào để ánh xạ và chưa nhập được hình học. Hãy chọn "Vẫn dùng AI".';
 
 const FORBIDDEN_NOTICE =
   'Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. liên hệ quản trị viên để được cấp quyền.';
@@ -302,6 +303,7 @@ export function scenarioFor(state: SevenState): CadBranchConfirmProps {
       unsupportedEntityKinds: state === 'partial' ? CAD_SAMPLE_UNSUPPORTED_ENTITIES : [],
       isMappingPanelCollapsed: state === 'collapsed',
       canImportGeometry: state === 'partial' || state === 'collapsed',
+      importDisabledReason: null,
       isImporting: false,
       prefersReducedMotion: false,
       errorMessage: state === 'error' ? ERROR_MESSAGE : null,

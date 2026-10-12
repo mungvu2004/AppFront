@@ -74,6 +74,7 @@ import {
   rejectionOf,
   SETTINGS_SENTENCES,
   type SettingsProblemKey,
+  type SettingsRejection,
 } from './settingsErrors';
 import {
   useProjectMembers,
@@ -155,7 +156,7 @@ export interface ProjectSettingsProblems {
  *    một ô chọn.
  * 5. `state === 'empty'` ⟺ `floorCount === 0`, đọc ở bậc của nó.
  * 6. `state === 'partial'` ⟺ (`saveState === 'saving'` hoặc `'pending'`) HOẶC
- *    có ít nhất một trường `problems` khác `null`. Hai nhánh, không phải một:
+ *    có ít nhất một trường `problems` khác `null` (hoặc còn câu lưu dở / dải xung đột). Hai nhánh, không phải một:
  *    đặc tả gốc gọi "một phần" là đang lưu, còn một biểu mẫu có ô sai cũng là
  *    một phần theo đúng nghĩa của A11.
  * 7. `saveState` là trục riêng. Một lượt tự lưu hỏng làm `saveState === 'error'`
@@ -180,7 +181,7 @@ export interface ProjectSettingsModel extends ProjectMembersModel {
   /** Lỗi đọc thử lại được (mạng, hết giờ, 5xx…) — chỉ khi ấy mới có nút "Thử lại". */
   readonly canRetryLoad: boolean;
   readonly saveState: SaveState;
-  /** `null` khi màn tự ép `pending` vì còn lỗi nhập — viên chỉ báo dùng câu chờ của nó. */
+  /** Khi màn tự ép `pending` vì còn lỗi nhập, nhãn nói "chưa lưu vì còn ô cần sửa" (BUG-286). */
   readonly saveLabel: string | null;
   readonly conflictMessage: string | null;
   /** Câu nói phần nào đã lưu, phần nào chưa; `null` khi không có phần hỏng. */
@@ -217,6 +218,8 @@ export interface ProjectSettingsModel extends ProjectMembersModel {
   readonly pendingDanger: ProjectSettingsDangerAction | null;
   readonly dangerDialogTitle: string | null;
   readonly dangerDialogMessage: string | null;
+  /** Câu lỗi của lượt xoá vừa hỏng, đọc qua `role="alert"` — không thay câu mô tả (BUG-511). */
+  readonly dangerDialogError: string | null;
   readonly dangerConfirmLabel: string | null;
   readonly dangerConfirmationExpected: string | null;
   readonly dangerConfirmationText: string;
@@ -266,7 +269,7 @@ export interface UseProjectSettingsOptions {
   readonly forceCollapsed?: boolean;
   readonly announcer?: Announcer;
   /** Toast hoàn tác của A8. Tiêm vào; `Toast.Provider` do nơi gọi dựng. */
-  readonly onToast?: (toast: { readonly message: string; readonly onUndo?: () => void }) => void;
+  readonly onToast?: (toast: { readonly message: string; readonly onUndo?: () => void; readonly state?: 'attention' | 'violation' }) => void;
   /**
    * Gọi sau khi dự án đã bị xoá, để nơi gọi điều hướng đi nơi khác — và mang theo
    * câu báo kết quả. Có hàm này thì hook KHÔNG toast tại chỗ: nơi gọi sắp rời màn,
@@ -418,6 +421,25 @@ type ServerProblems = Partial<Record<SettingsProblemKey, string>>;
 
 const LIMITS = PROJECT_SETTINGS_LIMITS;
 
+// Cùng luật BE `packages/core/text.py` `first_forbidden_char(bidi_marks=True)`: Cc, LRM/RLM, đảo chiều.
+// eslint-disable-next-line no-control-regex -- ký tự điều khiển chính là thứ cần bắt
+const CONTROL_CHAR = /[\u0000-\u001F\u007F-\u009F]/u;
+const BIDI_CHAR = /[\u200E\u200F\u202A-\u202E\u2066-\u2069]/u;
+
+/**
+ * Ký tự BE từ chối (422) thì chặn ngay tại ô, nêu đúng ký tự: một câu thay ba câu "máy chủ
+ * không nhận" không nói vì sao (BUG-356). Ghi chú được giữ xuống dòng và tab như BE.
+ */
+function forbiddenCharProblem(label: string, text: string, allowsLineBreaks = false): string | null {
+  for (const char of text) {
+    const isControl = CONTROL_CHAR.test(char) && !(allowsLineBreaks && (char === '\n' || char === '\t'));
+    if (!isControl && !BIDI_CHAR.test(char)) continue;
+    const codePoint = `U+${(char.codePointAt(0) ?? 0).toString(16).toUpperCase().padStart(4, '0')}`;
+    return `${label} có ${isControl ? 'ký tự điều khiển' : 'ký tự đảo chiều chữ'} (${codePoint}); hãy xoá ký tự đó.`;
+  }
+  return null;
+}
+
 function nameProblemFor(name: string): string | null {
   const trimmed = name.trim();
   if (trimmed.length === 0) return 'Chưa nhập tên dự án.';
@@ -427,16 +449,19 @@ function nameProblemFor(name: string): string | null {
   if (trimmed.length > LIMITS.nameMaxLength) {
     return `Tên dự án không quá ${formatNumber(LIMITS.nameMaxLength, { grouping: false })} ký tự.`;
   }
-  return null;
+  return forbiddenCharProblem('Tên dự án', trimmed);
 }
 
-/** #26 không nhận chuỗi rỗng, nên một giá trị đã lưu chưa xoá trống được. */
+/**
+ * #26 không nhận chuỗi rỗng lẫn `null` (BE `projects/schemas.py`: `min_length=1`, `_reject_null`),
+ * nên mã/địa chỉ đã lưu không xoá trống được — gợi ý của ô không được hứa điều ngược lại (BUG-299).
+ */
 function codeProblemFor(code: string, savedCode: string): string | null {
   if (code.length === 0 && savedCode.length > 0) return SETTINGS_SENTENCES.emptyBlocked;
   if (code.length > LIMITS.codeMaxLength) {
     return `Mã dự án không quá ${formatNumber(LIMITS.codeMaxLength, { grouping: false })} ký tự.`;
   }
-  return null;
+  return forbiddenCharProblem('Mã dự án', code.trim());
 }
 
 function addressProblemFor(address: string, savedAddress: string): string | null {
@@ -444,14 +469,14 @@ function addressProblemFor(address: string, savedAddress: string): string | null
   if (address.length > LIMITS.addressMaxLength) {
     return `Địa chỉ không quá ${formatNumber(LIMITS.addressMaxLength, { grouping: false })} ký tự.`;
   }
-  return null;
+  return forbiddenCharProblem('Địa chỉ', address.trim());
 }
 
 function notesProblemFor(notes: string): string | null {
   if (notes.length > LIMITS.notesMaxLength) {
     return `Ghi chú không quá ${formatNumber(LIMITS.notesMaxLength, { grouping: false })} ký tự.`;
   }
-  return null;
+  return forbiddenCharProblem('Ghi chú', notes.trim(), true);
 }
 
 function snapProblemFor(value: number | null): string | null {
@@ -577,7 +602,7 @@ export function toSaveState(autosaveState: AutosaveState): SaveState {
 /* Cách xếp thu gọn.                                                           */
 /* -------------------------------------------------------------------------- */
 
-const NARROW_VIEWPORT_QUERY = '(max-width: 1023px)';
+const NARROW_VIEWPORT_QUERY = '(width < 1024px)';
 
 /** `< 1024px` — cùng mốc `ProjectDashboard` và `CreateProjectModal` đang dùng. */
 function useNarrowViewport(): boolean {
@@ -700,6 +725,8 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
   const [isReloadDialogOpen, setReloadDialogOpen] = useState(false);
   const [conflictMessage, setConflictMessage] = useState<string | null>(null);
   const [saveFailureMessage, setSaveFailureMessage] = useState<string | null>(null);
+  /** Lời từ chối (409/422/428) gây ra lượt hỏng gần nhất; `null` khi hỏng tạm hoặc không hỏng. */
+  const [failureRejection, setFailureRejection] = useState<SettingsRejection | null>(null);
   const [serverProblems, setServerProblems] = useState<ServerProblems>({});
   const [pendingDanger, setPendingDanger] = useState<ProjectSettingsDangerAction | null>(null);
   const [dangerConfirmationText, setDangerConfirmationText] = useState('');
@@ -760,6 +787,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     rejectionsRef.current = noRejections();
     setConflictMessage(null);
     setSaveFailureMessage(null);
+    setFailureRejection(null);
     setServerProblems({});
   }
 
@@ -851,9 +879,18 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     }),
   );
 
+  // Câu "Lưu thất bại. Hệ thống sẽ thử lưu lại…" của engine sai với 409/422/428: gửi lại y
+  // nguyên không bao giờ qua, nên viên chỉ báo VÀ trình đọc màn hình nói việc cần làm (BUG-300).
+  const failedLabel =
+    failureRejection === null
+      ? null
+      : failureRejection === 'validation'
+        ? SETTINGS_SENTENCES.chipRejected
+        : SETTINGS_SENTENCES.chipReload;
   const indicator = useSaveIndicator(autosave, {
     ...(options.now !== undefined ? { now: options.now } : {}),
     ...(options.announcer !== undefined ? { announcer: options.announcer } : {}),
+    failedLabel,
   });
 
   /** Phần mà máy chủ đã từ chối đúng bản nháp hiện tại; sửa phần đó thì lời từ chối hết hiệu lực. */
@@ -1001,11 +1038,40 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     if (failedParts.length > 0) {
       const savedParts = attempted.filter((part) => !failedParts.includes(part));
       const heldErrors = heldParts.flatMap((part) => rejectionsRef.current[part]?.error ?? []);
-
-      setSaveFailureMessage(partialSaveSentence(savedParts, failedParts));
-
       // Không bọc `new Error(câu)`: engine đọc lỗi gốc để biết nên hẹn lại hay dừng (R2).
       const error = pickErrorToThrow(failures, heldErrors);
+      const rejection = error === null ? null : rejectionOf(error);
+      const nowSaved = savedRef.current ?? EMPTY_DRAFT;
+      // Gọi tên ô người dùng thấy, không gọi nhóm gửi: "ghi chú" đi chung thân N6 với đơn vị
+      // đo nhưng nằm ở thẻ Chung (BUG-300).
+      const savedFields = savedParts
+        .flatMap((part) => KEYS_BY_PART[part])
+        .filter((key) => changes[key as keyof ProjectSettingsPatch] !== undefined);
+      const failedFields = failedParts
+        .flatMap((part) => KEYS_BY_PART[part])
+        .filter((key) => nowDraft[key] !== nowSaved[key]);
+
+      // 422 mà mọi ô chưa lưu đều đã có câu riêng ở chính ô đó: một câu ở ô là đủ, không chồng
+      // hộp "Chưa lưu hết" (BUG-356) — hộp chen vào còn đẩy cả thẻ xuống giữa lúc vạch tab đang trượt.
+      const fieldsWithOwnSentence = new Set<string>(
+        heldParts.flatMap((part) => {
+          const held = rejectionsRef.current[part];
+          const key = held === null || rejectionOf(held.error) !== 'validation' ? null : problemKeyOfError(held.error);
+
+          return key === null ? [] : [key];
+        }),
+      );
+      const isSaidAtFields =
+        rejection === 'validation' && failedFields.every((key) => fieldsWithOwnSentence.has(key));
+
+      setFailureRejection(rejection);
+      // Chỉ có xung đột và chưa lưu được gì: dải "Cài đặt đã đổi ở nơi khác" kèm nút
+      // "Tải lại" đã nói đủ, không chồng thêm dải thứ hai (BUG-300).
+      setSaveFailureMessage(
+        (rejection === 'conflict' && savedFields.length === 0) || isSaidAtFields
+          ? null
+          : partialSaveSentence(savedFields, failedFields, rejection),
+      );
 
       if (error !== null) {
         throw error;
@@ -1016,6 +1082,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
 
     setConflictMessage(null);
     setSaveFailureMessage(null);
+    setFailureRejection(null);
     setServerProblems({});
 
     if (attempted.length > 0 && previous !== null) {
@@ -1167,12 +1234,14 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
       const { deletedCount, failedFloorIds } = result.data;
       const deleted = formatNumber(deletedCount, { grouping: false });
 
-      options.onToast?.({
-        message:
-          failedFloorIds.length === 0
-            ? `Đã xoá ${deleted} tầng của dự án.`
-            : `Đã xoá ${deleted} tầng; còn ${formatNumber(failedFloorIds.length, { grouping: false })} tầng chưa xoá được.`,
-      });
+      options.onToast?.(
+        failedFloorIds.length === 0
+          ? { message: `Đã xoá ${deleted} tầng của dự án.` }
+          : {
+              message: `Đã xoá ${deleted} tầng; còn ${formatNumber(failedFloorIds.length, { grouping: false })} tầng chưa xoá được.`,
+              state: 'attention',
+            },
+      );
     });
   };
 
@@ -1244,7 +1313,13 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     if (isCollapsed) return 'collapsed';
     if (!canEdit) return 'forbidden';
     if (floorCount === 0) return 'empty';
-    if (saveState === 'saving' || saveState === 'pending' || hasProblem || saveFailureMessage !== null) {
+    if (
+      saveState === 'saving' ||
+      saveState === 'pending' ||
+      hasProblem ||
+      saveFailureMessage !== null ||
+      conflictMessage !== null
+    ) {
       return 'partial';
     }
     return 'success';
@@ -1257,6 +1332,7 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     saveState,
     hasProblem,
     saveFailureMessage,
+    conflictMessage,
   ]);
 
   const members = useMemo<readonly ProjectSettingsMemberRow[]>(
@@ -1295,8 +1371,9 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     isProjectMissing: state === 'error' && loadAppError?.kind === 'notFound',
     canRetryLoad: state === 'error' && (loadAppError?.retryable ?? true),
     saveState,
-    // Ép `pending` vì lỗi nhập thì nhãn của tự lưu (có thể là "Đã lưu lúc …" cũ) không còn đúng (B-V1-47).
-    saveLabel: hasLocalProblem ? null : indicator.label,
+    // Ép `pending` vì lỗi nhập thì nhãn của tự lưu (có thể là "Đã lưu lúc …" cũ) không còn đúng (B-V1-47),
+    // và câu chờ mặc định "Có thay đổi chờ đồng bộ" hứa một lượt đồng bộ sẽ không xảy ra (BUG-286).
+    saveLabel: hasLocalProblem ? SETTINGS_SENTENCES.unsavedProblems : indicator.label,
     conflictMessage,
     saveFailureMessage,
     isReloadDialogOpen,
@@ -1336,7 +1413,8 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     pendingDanger,
     dangerDialogTitle: pendingDanger === null ? null : DANGER_TITLES[pendingDanger],
     dangerDialogMessage:
-      pendingDanger === null ? null : (dangerFailure ?? DANGER_MESSAGES[pendingDanger]),
+      pendingDanger === null ? null : DANGER_MESSAGES[pendingDanger],
+    dangerDialogError: pendingDanger === null ? null : dangerFailure,
     dangerConfirmLabel: pendingDanger === null ? null : DANGER_CONFIRM_LABELS[pendingDanger],
     dangerConfirmationExpected,
     dangerConfirmationText,

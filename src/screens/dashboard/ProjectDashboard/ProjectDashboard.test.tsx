@@ -79,6 +79,7 @@ function baseProps(): ProjectDashboardViewProps {
     canDelete: true,
     canDuplicate: false,
     errorMessage: null,
+    canRetry: true,
     viewMode: 'grid',
     searchQuery: '',
     statusFilter: 'all',
@@ -164,6 +165,17 @@ describe('ProjectDashboardView, seven states', () => {
     expect(screen.queryByText('Chưa có dự án nào')).not.toBeInTheDocument();
   });
 
+  // BUG-228: the skeleton had no rail, no filter strip and no count line, so the page jumped when the list landed.
+  it('holds the rail (from 1024 px), the filter strip (below it) and the count line while loading', () => {
+    const { container } = render(<ProjectDashboardView {...PROPS_BY_STATE.loading()} />);
+    const placeholders = [...container.querySelectorAll('[aria-hidden="true"]')].map((element) => element.className);
+
+    expect(placeholders.some((name) => name.includes('w-[260px]') && name.includes('hidden') && name.includes('lg:flex'))).toBe(true);
+    expect(placeholders.some((name) => name.includes('h-14') && name.includes('lg:hidden'))).toBe(true);
+    expect(placeholders.some((name) => name.includes('h-5'))).toBe(true);
+    expect(screen.queryAllByRole('button', { pressed: true })).toHaveLength(0);
+  });
+
   it('teaches, with a create button, when there has never been a project', () => {
     render(<ProjectDashboardView {...PROPS_BY_STATE.empty()} />);
 
@@ -213,6 +225,13 @@ describe('ProjectDashboardView, seven states', () => {
     expect(retryLoad).toHaveBeenCalledTimes(1);
   });
 
+  it('offers no retry when the list is forbidden: a second read would be refused just the same', () => {
+    render(<ProjectDashboardView {...PROPS_BY_STATE.error()} canRetry={false} />);
+
+    expect(screen.getByText('Không tải được danh sách dự án')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Thử lại' })).not.toBeInTheDocument();
+  });
+
   it('hides "Dự án mới" for a viewer, and keeps the grid', () => {
     render(<ProjectDashboardView {...PROPS_BY_STATE.forbidden()} />);
 
@@ -260,6 +279,121 @@ describe('ProjectDashboardView, seven states', () => {
     const card = screen.getByRole('listitem', { name: SAMPLE_ROW.name });
     expect(within(card).getByText('Chưa có mặt bằng')).toBeInTheDocument();
     expect(within(card).queryByRole('img', { name: 'Sơ đồ mặt bằng' })).not.toBeInTheDocument();
+  });
+
+  // BUG-119/157: a 730 px hero card, two 340 px side cards and a grid below drew three card widths on one screen.
+  it('lays every card out in one grid, at one size', () => {
+    const rows = ['a', 'b', 'c', 'd', 'e'].map((id) => ({ ...SAMPLE_ROW, id, name: `Dự án ${id}` }));
+    render(<ProjectDashboardView {...PROPS_BY_STATE.success()} rows={rows} />);
+
+    const list = screen.getByRole('list', { name: 'Danh sách dự án' });
+    const cards = within(list).getAllByRole('listitem');
+    expect(cards).toHaveLength(rows.length);
+    for (const card of cards) {
+      expect(card.parentElement).toBe(list);
+      expect(card.className).toBe(cards[0]?.className);
+      expect(card.firstElementChild?.className).toContain('h-[132px]');
+    }
+  });
+
+  // BUG-199: the 44 px rename field replaced a ~22 px title, so the card grew 16 px at 375 (2 px at 1440).
+  it('gives the card title and its rename field the same box, so renaming does not move the card', () => {
+    const heightClasses = (element: HTMLElement): string[] => element.className.split(' ').filter((name) => /(^|:)h-/u.test(name));
+    const { rerender } = render(<ProjectDashboardView {...PROPS_BY_STATE.success()} />);
+    const title = heightClasses(screen.getByRole('heading', { name: SAMPLE_ROW.name }));
+
+    rerender(<ProjectDashboardView {...PROPS_BY_STATE.success()} renamingId={SAMPLE_ROW.id} />);
+
+    expect(title).toEqual(['h-11', 'sm:h-6']);
+    expect(heightClasses(screen.getByRole('textbox', { name: `Đổi tên ${SAMPLE_ROW.name}` }))).toEqual(title);
+  });
+
+  // BUG-153: at 375 px three columns left the name 98 px; below `sm` the row now stacks instead of hiding cells.
+  it('keeps status, progress and update time in the table below `sm`, stacked under a name cell of its own', () => {
+    render(<ProjectDashboardView {...PROPS_BY_STATE.success()} viewMode="table" />);
+
+    const cells = within(screen.getByRole('row', { name: new RegExp(SAMPLE_ROW.name, 'u') })).getAllByRole('cell');
+    expect(cells[0]?.textContent).toBe(SAMPLE_ROW.name);
+    const shownBelowSm = cells.filter((cell) => !cell.className.split(' ').includes('hidden')).map((cell) => cell.textContent);
+    // review-1 #19: the header row is hidden below `sm`, so each stacked cell names its column (sr-only, `sm:hidden`).
+    expect(shownBelowSm).toEqual([
+      SAMPLE_ROW.name,
+      `Trạng thái: ${SAMPLE_ROW.statusLabel}`,
+      `Tiến độ duyệt: ${SAMPLE_ROW.progressLabel}`,
+      `Cập nhật: ${SAMPLE_ROW.updatedLabel}`,
+    ]);
+    expect(within(cells[1] as HTMLElement).getByText('Trạng thái:', { exact: false })).toHaveClass('sr-only', 'sm:hidden');
+    expect(cells[0]?.closest('tr')?.className).toContain('max-sm:flex-wrap');
+  });
+
+  // Rename in the stacked table row (< sm): the 44 px field replaced a 20 px name, so the row grew 24 px.
+  // ND-R3: at >= sm a 2-line name (43 px row) swapped for a 1-line field (40 px row) shrank the row 3 px.
+  it('keeps the table name box while renaming, at every width: the field overlays it', () => {
+    const { rerender } = render(<ProjectDashboardView {...PROPS_BY_STATE.success()} viewMode="table" />);
+    expect(screen.getByRole('heading', { name: SAMPLE_ROW.name }).className).toContain('max-sm:leading-8');
+    // The narrow name column at 1024 px cut "E2E-QA-20261011-0028" to "E2E-QA-202…": the name wraps to two lines first.
+    expect(screen.getByRole('heading', { name: SAMPLE_ROW.name })).toHaveClass('line-clamp-2', 'whitespace-normal', 'break-words');
+    expect(screen.getByRole('heading', { name: SAMPLE_ROW.name })).not.toHaveClass('truncate');
+
+    rerender(<ProjectDashboardView {...PROPS_BY_STATE.success()} viewMode="table" renamingId={SAMPLE_ROW.id} />);
+    const field = screen.getByRole('textbox', { name: `Đổi tên ${SAMPLE_ROW.name}` });
+    const box = document.querySelector('tbody h3');
+    expect(box).toHaveClass('invisible', 'line-clamp-2', 'max-sm:line-clamp-1', 'max-sm:leading-8');
+    expect(box).toHaveAttribute('aria-hidden', 'true');
+    expect(field).toHaveClass('absolute', 'inset-0');
+    // A 1-line name at >= sm is a 20 px box; the field reaches 2 px past it each way, so 24 px (WCAG 2.5.8) inside the 40 px row.
+    expect(field).toHaveClass('sm:-inset-y-0.5');
+    expect(field.className.split(' ').filter((name) => /(^|:)h-/u.test(name))).toEqual([]);
+    expect(field.parentElement).toBe(box?.parentElement);
+    expect(field.parentElement).toHaveClass('relative');
+  });
+
+  // BUG-211: the menu kept the spot read at open; narrowing the window moved the card under it. QA-02b closed it
+  // instead, which lost the menu; it now stays open and moves with its button.
+  it('keeps the card menu open under its button when the layout moves the button', async () => {
+    for (const [key, value] of Object.entries({ clientWidth: 1440, clientHeight: 900 })) {
+      Object.defineProperty(document.documentElement, key, { configurable: true, value });
+    }
+    try {
+      render(<ProjectDashboardView {...PROPS_BY_STATE.success()} />);
+      const trigger = screen.getByRole('button', { name: `Tuỳ chọn cho ${SAMPLE_ROW.name}` });
+      const rect = vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue(new DOMRect(600, 100, 32, 32));
+      trigger.focus();
+      fireEvent.click(trigger);
+      const menu = screen.getByRole('menu', { name: 'Tuỳ chọn' });
+      expect([menu.style.left, menu.style.top]).toEqual(['412px', '136px']);
+
+      // 1440 -> 900: the card drops 60 px and moves 240 px left.
+      rect.mockReturnValue(new DOMRect(360, 160, 32, 32));
+      await waitFor(() => expect([menu.style.left, menu.style.top]).toEqual(['172px', '196px']));
+      expect(screen.getByRole('menu', { name: 'Tuỳ chọn' })).toBe(menu);
+    } finally {
+      for (const key of ['clientWidth', 'clientHeight']) Reflect.deleteProperty(document.documentElement, key);
+    }
+  });
+
+  // BUG-118: four counter tiles repeated the filter's four counts above it.
+  it('shows the status counts once, on the filter', () => {
+    const { container } = render(<ProjectDashboardView {...PROPS_BY_STATE.success()} />);
+    const rail = container.querySelector('aside');
+
+    expect(rail?.children).toHaveLength(1);
+    expect(within(rail as HTMLElement).getAllByRole('button')).toHaveLength(4);
+    expect(screen.queryByText('Tổng dự án')).not.toBeInTheDocument();
+  });
+
+  // BUG-169: a scrolled query is cut mid-glyph at the field's edge; the fade that hides the cut is on only while scrolled.
+  it('marks the search field as scrolled only while its text is scrolled', () => {
+    render(<ProjectDashboardView {...PROPS_BY_STATE.success()} />);
+    const search = screen.getByRole('searchbox', { name: 'Tìm dự án' });
+
+    search.scrollLeft = 120;
+    fireEvent.scroll(search);
+    expect(search).toHaveAttribute('data-scrolled');
+
+    search.scrollLeft = 0;
+    fireEvent.scroll(search);
+    expect(search).not.toHaveAttribute('data-scrolled');
   });
 
   // BUG-116/148: the menu opened where the pointer was (over its own button) or, from the keyboard, at 0,0.
@@ -401,6 +535,15 @@ describe('ProjectDashboardView — F-07', () => {
     );
 
     expect(within(screen.getByRole('dialog')).getByRole('alert')).toHaveTextContent('Không xoá được dự án');
+  });
+
+  // BUG-195: an 80-char name with no space ran out of the sentence and scrolled the dialog body sideways at 375 px.
+  it('wraps a long unbroken name inside the delete sentence', () => {
+    const name = 'X'.repeat(80);
+    render(<ProjectDashboardView {...baseProps()} rows={[SAMPLE_ROW]} pendingDeleteId={SAMPLE_ROW.id} pendingDeleteName={name} />);
+
+    const sentence = within(screen.getByRole('dialog')).getByText(new RegExp(name, 'u'));
+    expect(sentence.closest('.break-words')).not.toBeNull();
   });
 
   it('không có "Nhân bản" trong menu của dự án', () => {

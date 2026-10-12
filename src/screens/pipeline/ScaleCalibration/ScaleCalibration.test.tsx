@@ -536,15 +536,15 @@ describe('ScaleCalibration — bảy trạng thái (A11, R-63)', () => {
     expect(screen.queryByRole('button', { name: APPLY_LABEL })).not.toBeInTheDocument();
   });
 
-  it('trạng thái lỗi nói cả câu hậu quả lẫn mã máy đọc, và mở lối về tiền xử lý', () => {
+  it('trạng thái lỗi nói câu hậu quả đúng MỘT lần, không "Mã lỗi" khi không có mã, và mở lối về tiền xử lý', () => {
     const scenario = scenarioFor('error');
 
     renderWithProviders(<ScaleCalibration {...scenario} />);
 
-    // Câu này đứng hai chỗ, và cả hai đều đúng chỗ: tiêu đề khối lỗi của màn, và
-    // lời báo bản vẽ có thể méo mà canvas tự dựng đè lên ảnh.
-    expect(screen.getAllByText(/Nắn ảnh thất bại nên bản vẽ có thể méo/u).length).toBeGreaterThan(0);
-    expect(screen.getByText(new RegExp(scenario.model.errorCode ?? '', 'u'))).toBeInTheDocument();
+    // Tiêu đề khối lỗi một lần, câu hậu quả một lần — canvas không dựng dải thứ ba (BUG-341).
+    expect(screen.getAllByText(/Nắn ảnh thất bại nên bản vẽ có thể méo/u)).toHaveLength(1);
+    expect(screen.getAllByText(/Tỷ lệ đo trên một bản vẽ méo sẽ sai theo/u)).toHaveLength(1);
+    expect(screen.queryByText(/Mã lỗi/u)).toBeNull();
     expect(
       screen.getByRole('button', { name: 'Quay lại bước tiền xử lý' }),
     ).toBeInTheDocument();
@@ -585,7 +585,9 @@ describe('ScaleCalibration — bảy trạng thái (A11, R-63)', () => {
   it('khung hẹp vẫn dựng đủ canvas, panel và thanh trạng thái', () => {
     renderWithProviders(<ScaleCalibration {...compactScenario()} />);
 
-    expect(screen.getByLabelText('Tấm trượt hiệu chỉnh tỷ lệ')).toBeInTheDocument();
+    // Dưới 1024px panel xếp dưới bản vẽ, không còn là tấm trượt cố định đè lên nó (BUG-333).
+    const panel = screen.getByLabelText('Bảng hiệu chỉnh tỷ lệ');
+    expect(panel.className).not.toMatch(/(^|\s)fixed(\s|$)/u);
     expect(screen.getByLabelText('Khung bản vẽ để hiệu chỉnh tỷ lệ')).toBeInTheDocument();
     expect(screen.getByRole('status', { name: 'Thanh trạng thái' })).toBeInTheDocument();
   });
@@ -625,6 +627,28 @@ describe('ScaleCalibration — khả năng tiếp cận, tiếng Việt, màu (R
 
     expect(screen.getByText('Không tải được bản vẽ của tầng')).toBeInTheDocument();
     expect(screen.queryByText('Nắn ảnh thất bại nên bản vẽ có thể méo')).toBeNull();
+  });
+
+  it('tầng chưa có bản vẽ: một lối ra "Tải bản vẽ lên", không "Tải lại ảnh" (BUG-337)', () => {
+    const scenario = scenarioFor('error');
+    const onGoToUpload = vi.fn();
+    renderWithProviders(
+      <ScaleCalibration
+        actions={{ ...scenario.actions, onGoToUpload }}
+        model={{ ...scenario.model, errorTitle: 'Tầng này chưa có bản vẽ', isNoDrawing: true }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tải bản vẽ lên' }));
+    expect(onGoToUpload).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('button', { name: 'Tải lại ảnh' })).toBeNull();
+  });
+
+  it('lỗi có mã máy thật thì mã đi sau câu tiếng Việt', () => {
+    const scenario = scenarioFor('error');
+    renderWithProviders(<ScaleCalibration {...scenario} model={{ ...scenario.model, errorCode: 'NETWORK' }} />);
+
+    expect(screen.getByText(/Mã lỗi: NETWORK/u)).toBeInTheDocument();
   });
 
   it('mọi chuỗi hiển thị của trạng thái lỗi cũng là tiếng Việt có dấu', () => {

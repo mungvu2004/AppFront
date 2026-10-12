@@ -30,7 +30,7 @@ export function ExportPanelFooter({
 }: ExportPanelFooterProps) {
   if (progress !== null) {
     return (
-      <footer className="sticky bottom-0 flex flex-col gap-2 border-t border-border-default bg-bg-surface px-6 py-4">
+      <footer className="sticky bottom-0 flex flex-col gap-2 border-t border-border-default bg-bg-surface p-4 sm:px-6">
         <div className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 flex-col gap-0.5">
             <p className="truncate text-sm font-medium text-text-primary">{progress.stepLabel}</p>
@@ -59,7 +59,7 @@ export function ExportPanelFooter({
   }
 
   return (
-    <footer className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-border-default bg-bg-surface px-6 py-4">
+    <footer className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-border-default bg-bg-surface p-4 sm:px-6">
       <p className="text-sm text-text-secondary">{destinationCaption}</p>
       {canExportSelected && (
         // `data-tour-anchor`: móc neo cho lớp dạy việc (`screens/system/EditorTour`).

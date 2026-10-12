@@ -12,7 +12,7 @@ export interface NumericFieldProps
 }
 
 export const NumericField = forwardRef<HTMLInputElement, NumericFieldProps>(
-  ({ value, onChange, min, max, unit, className, disabled, isReadOnly, isLoading, error: callerError, ...props }, ref) => {
+  ({ value, onChange, min, max, unit, resetKey, fractionDigits, className, disabled, isReadOnly, isLoading, error: callerError, ...props }, ref) => {
     const {
       displayValue,
       error,
@@ -21,7 +21,7 @@ export const NumericField = forwardRef<HTMLInputElement, NumericFieldProps>(
       handleFocus,
       handleBlur,
       handleKeyDown,
-    } = useNumericField({ value, onChange, min, max, unit });
+    } = useNumericField({ value, onChange, min, max, unit, resetKey, fractionDigits });
 
     // No hover stepper: its two 24×18 px arrows sat over the left of the value,
     // appeared only under the pointer and could not be reached by Tab or touch

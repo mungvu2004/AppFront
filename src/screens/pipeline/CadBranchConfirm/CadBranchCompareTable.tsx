@@ -20,18 +20,23 @@ export interface CadBranchCompareTableProps {
 
 export function CadBranchCompareTable({ rows }: CadBranchCompareTableProps) {
   return (
-    <Table.Root>
+    // `shrink-0`: `Table.Root` scrolls (`overflow-auto`), so as a flex item of the dialog body its
+    // min-height is 0 and the body squeezed it to a header and half a row (BUG-269). Text cells wrap
+    // so both columns fit the 279 px body at 375 px instead of scrolling sideways. Below 640 px row labels wrap too: kept
+    // on one line they took 142 of the 279 px, left 68 px per value column and stretched the table to 586 px,
+    // taller than the 486 px body, so the third row sat below the fold at 375 px (BUG-269, run-20).
+    <Table.Root className="shrink-0">
       <Table.Header>
         <tr>
           <Table.Head aria-label="Tiêu chí so sánh" />
-          <Table.Head>{TEXT.buttons.primary}</Table.Head>
-          <Table.Head>{TEXT.buttons.secondary}</Table.Head>
+          <Table.Head className="whitespace-normal">{TEXT.buttons.primary}</Table.Head>
+          <Table.Head className="whitespace-normal">{TEXT.buttons.secondary}</Table.Head>
         </tr>
       </Table.Header>
       <Table.Body>
         {rows.map((row) => (
           <tr key={row.rowId} className="border-b border-border-default-50 last:border-0">
-            <Table.Cell className="font-medium text-text-secondary whitespace-nowrap">
+            <Table.Cell className="font-medium text-text-secondary whitespace-normal sm:whitespace-nowrap">
               {row.rowLabel}
             </Table.Cell>
             <Table.Cell className="whitespace-normal align-top py-2">{row.cadValueLabel}</Table.Cell>

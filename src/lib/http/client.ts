@@ -4,6 +4,7 @@ import { createIdempotencyKey, createRequestId } from './ids';
 import {
   computeRetryDelayMs,
   isRetryableMethod,
+  isTransientStatus,
   parseRetryAfterMs,
   shouldRetryRequest,
   waitForRetry,
@@ -484,14 +485,10 @@ export const createHttpClient = ({
 
             const raw = await readErrorPayload(response);
             const errorCode = extractErrorCode(raw);
+            // "May the caller ask again?", not "will this client ask again?": the ladder
+            // running out made every 5xx read final, and no screen offered "Thử lại" (BUG-509).
             const retryable =
-              isRetryableMethod(method, idempotencyKey) &&
-              shouldRetryRequest({
-                attemptIndex,
-                method,
-                status: response.status,
-                ...(idempotencyKey ? { idempotencyKey } : {}),
-              });
+              isRetryableMethod(method, idempotencyKey) && isTransientStatus(response.status);
             const retryAfterMs = parseRetryAfterMs(response.headers.get('Retry-After'));
             const httpError = createHttpError({
               kind: 'http',
@@ -503,7 +500,10 @@ export const createHttpClient = ({
               ...(retryAfterMs !== null ? { retryAfterSeconds: Math.ceil(retryAfterMs / 1000) } : {}),
             });
 
+            const rateLimitIsFinal = options.failFastOnRateLimit === true && response.status === 429;
+
             if (
+              !rateLimitIsFinal &&
               shouldRetryRequest({
                 attemptIndex,
                 method,
@@ -511,16 +511,22 @@ export const createHttpClient = ({
                 ...(idempotencyKey ? { idempotencyKey } : {}),
               })
             ) {
-              retryCount += 1;
-              const retryAfterValue = response.headers.get('Retry-After');
-              const delayMs = computeRetryDelayMs(attemptIndex, retryAfterValue);
-              attemptIndex += 1;
-              const waitFailure = await awaitRetryDelay(delayMs);
-              if (waitFailure) {
-                errorKind = waitFailure.kind;
-                return err(waitFailure);
+              const delayMs = computeRetryDelayMs(attemptIndex, response.headers.get('Retry-After'));
+              // A wait the deadline would cut short ends in `timeout` and hides the server's
+              // real answer — a 429 with Retry-After read "phản hồi quá lâu" (BUG-510).
+              const outlivesDeadline =
+                normalizedTimeoutMs > 0 && Date.now() - startedAt + delayMs >= normalizedTimeoutMs;
+
+              if (!outlivesDeadline) {
+                retryCount += 1;
+                attemptIndex += 1;
+                const waitFailure = await awaitRetryDelay(delayMs);
+                if (waitFailure) {
+                  errorKind = waitFailure.kind;
+                  return err(waitFailure);
+                }
+                continue;
               }
-              continue;
             }
 
             errorKind = httpError.kind;
@@ -532,6 +538,14 @@ export const createHttpClient = ({
             errorKind = undefined;
             return ok(data);
           } catch (parseError) {
+            // The signal fired while the body was still streaming: an abort (or the deadline),
+            // not a malformed answer. Rethrown, the catch below names it so, and a single-flight
+            // joiner sees `aborted` and asks again on its own signal instead of keeping a
+            // phantom read error (BUG-514).
+            if (managedAbortSignal.signal.aborted) {
+              throw parseError;
+            }
+
             const responseRequestId = response.headers.get(REQUEST_ID_HEADER) ?? requestId;
             const parseHttpError = createHttpError({
               kind: 'parse',

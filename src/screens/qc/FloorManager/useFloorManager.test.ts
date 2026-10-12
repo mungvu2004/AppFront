@@ -17,7 +17,7 @@
  */
 
 import { createElement, type ReactNode } from 'react';
-import { QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
 
@@ -33,6 +33,7 @@ import { formatLength } from '@/lib/format/measure';
 import type { Announcer } from '@/lib/input/announcer';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
+import { queryKeys } from '@/lib/query/queryKeys';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { resetSelectorCaches } from '@/store/selectors';
 import { useStore } from '@/store';
@@ -59,6 +60,8 @@ import {
   draftToMillimetres,
   FLOOR_MANAGER_TEXT,
   FLOOR_RESTORE_WINDOW_MS,
+  metreDraftText,
+  nextNewFloorName,
   useFloorManager,
   type UseFloorManagerOptions,
 } from './useFloorManager';
@@ -104,9 +107,13 @@ interface Mounted {
   readonly notifications: NotificationBus;
   readonly spoken: readonly string[];
   readonly unmount: () => void;
+  readonly queryClient: QueryClient;
 }
 
-type MountOptions = Partial<Omit<UseFloorManagerOptions, 'registry'>>;
+type MountOptions = Partial<Omit<UseFloorManagerOptions, 'registry'>> & {
+  /** Dùng chung bộ đệm giữa hai lần gắn — đúng cảnh rời màn rồi quay lại trong SPA. */
+  readonly queryClient?: QueryClient;
+};
 
 function mountHook(options: MountOptions = {}): Mounted {
   const registry = createShortcutRegistry();
@@ -118,7 +125,7 @@ function mountHook(options: MountOptions = {}): Mounted {
     },
     destroy: () => undefined,
   };
-  const queryClient = createTestQueryClient();
+  const queryClient = options.queryClient ?? createTestQueryClient();
   const wrapper = ({ children }: { children: ReactNode }): ReactNode =>
     createElement(QueryClientProvider, { client: queryClient }, children);
 
@@ -138,7 +145,7 @@ function mountHook(options: MountOptions = {}): Mounted {
     { wrapper },
   );
 
-  return { result: rendered.result, registry, notifications, spoken, unmount: rendered.unmount };
+  return { result: rendered.result, registry, notifications, spoken, unmount: rendered.unmount, queryClient };
 }
 
 /** Chờ lượt đọc danh sách tầng xong — trước đó mọi kịch bản đều là `'loading'`. */
@@ -248,6 +255,11 @@ describe('đổi chiều cao một tầng', () => {
     expect(levelIn(storeGraph(), groundId).heightMm).toBe(expectedHeightMm);
     expect(levelIn(storeGraph(), secondId).elevationMm).toBe(expectedHeightMm);
 
+    /* BUG-516: mốc `+0.000` của toà nhà mẫu là 0 như đường đọc thật; tầng hầm vẫn ở -3,0 m. */
+    const basement = FLOOR_MANAGER_SAMPLE_LEVELS[0];
+
+    expect(basement !== undefined && levelIn(storeGraph(), String(basement.id)).elevationMm).toBe(-3000);
+
     /* Và view-model nói cùng một chuyện, bằng chuỗi người đọc. */
     expect(rowOf(mounted, groundId).heightText).toBe('4,2 m');
     expect(rowOf(mounted, secondId).elevationText).toBe('4,2 m');
@@ -280,6 +292,81 @@ describe('đổi chiều cao một tầng', () => {
 /* -------------------------------------------------------------------------- */
 /* 2. Chặn trùng cao độ — câu chặn nêu TÊN CẢ HAI TẦNG.                        */
 /* -------------------------------------------------------------------------- */
+
+describe('cao độ ghi đè (BUG-289)', () => {
+  it('bộ mẫu liền mạch: không dòng nào ghi đè; đặt tay Tầng mái cao hơn 1 m thì chỉ dòng đó ghi đè', async () => {
+    const mounted = await mountSettled();
+    const roofId = String(FLOOR_MANAGER_SAMPLE_ROOF_ID);
+    const second = levelIn(storeGraph(), String(FLOOR_MANAGER_SAMPLE_SECOND_ID));
+
+    expect(mounted.result.current.rows.every((row) => !row.isElevationOverridden)).toBe(true);
+
+    await commitField(
+      mounted,
+      roofId,
+      'elevation',
+      formatLength(second.elevationMm + second.heightMm + 1000, { unit: 'm', fractionDigits: 1 }).replace(' m', ''),
+    );
+
+    await waitFor(() => {
+      expect(rowOf(mounted, roofId).isElevationOverridden).toBe(true);
+    });
+    expect(mounted.result.current.rows.filter((row) => row.isElevationOverridden)).toHaveLength(1);
+  });
+});
+
+describe('đổi chiều cao giữ cao độ ghi đè (BUG-517)', () => {
+  it('Tầng mái đặt tay cao hơn 1 m: đổi chiều cao Tầng trệt chỉ dịch Tầng 2, Tầng mái giữ cao độ và nhãn "Ghi đè"', async () => {
+    const mounted = await mountSettled();
+    const groundId = String(FLOOR_MANAGER_SAMPLE_GROUND_ID);
+    const secondId = String(FLOOR_MANAGER_SAMPLE_SECOND_ID);
+    const roofId = String(FLOOR_MANAGER_SAMPLE_ROOF_ID);
+    const second = levelIn(storeGraph(), secondId);
+    const roofMm = second.elevationMm + second.heightMm + 1000;
+
+    await commitField(mounted, roofId, 'elevation', formatLength(roofMm, { unit: 'm', fractionDigits: 1 }).replace(' m', ''));
+    await waitFor(() => {
+      expect(rowOf(mounted, roofId).isElevationOverridden).toBe(true);
+    });
+
+    await commitField(mounted, groundId, 'height', '4,2');
+    await waitFor(() => {
+      expect(levelIn(storeGraph(), secondId).elevationMm).toBe(metresToMillimetres(metres(NEW_GROUND_HEIGHT_M)));
+    });
+
+    expect(levelIn(storeGraph(), roofId).elevationMm).toBe(roofMm);
+    expect(rowOf(mounted, roofId).isElevationOverridden).toBe(true);
+    expect(rowOf(mounted, secondId).isElevationOverridden).toBe(false);
+  });
+});
+
+describe('lát cắt theo cao độ ghi đè (BUG-357)', () => {
+  it('Tầng mái đặt tay cao hơn 1 m: khoảng hở 1 m nằm dưới dải của nó, dải và khoảng hở cộng lại bằng 1', async () => {
+    const mounted = await mountSettled();
+    const roofId = String(FLOOR_MANAGER_SAMPLE_ROOF_ID);
+    const second = levelIn(storeGraph(), String(FLOOR_MANAGER_SAMPLE_SECOND_ID));
+
+    expect(mounted.result.current.bands.every((band) => band.gapBelowRatio === 0)).toBe(true);
+
+    await commitField(
+      mounted,
+      roofId,
+      'elevation',
+      formatLength(second.elevationMm + second.heightMm + 1000, { unit: 'm', fractionDigits: 1 }).replace(' m', ''),
+    );
+    await waitFor(() => {
+      expect(rowOf(mounted, roofId).isElevationOverridden).toBe(true);
+    });
+
+    const bands = mounted.result.current.bands;
+    const total = TOTAL_STACK_HEIGHT_MM + 1000;
+    const roof = bands.find((band) => band.levelId === roofId);
+
+    expect(roof?.gapBelowRatio).toBeCloseTo(1000 / total, 12);
+    expect(bands.filter((band) => band.gapBelowRatio > 0)).toHaveLength(1);
+    expect(bands.reduce((sum, band) => sum + band.bandHeightRatio + band.gapBelowRatio, 0)).toBeCloseTo(1, 12);
+  });
+});
 
 describe('chặn trùng cao độ', () => {
   it('từ chối lượt đặt Tầng mái xuống đúng cao độ của Tầng 2, và gọi tên cả hai', async () => {
@@ -322,6 +409,22 @@ describe('chặn trùng cao độ', () => {
     /* Câu chặn KHÔNG được lật màn sang trạng thái lỗi — nó là ràng buộc, không phải lỗi đọc. */
     expect(mounted.result.current.errorMessage).toBeNull();
     expect(mounted.result.current.state).not.toBe('error');
+  });
+
+  it('BUG-306: cao độ bị chặn giữ nguyên tên và chiều cao trong ô, chỉ ô cao độ của tầng đó mang lỗi', async () => {
+    const mounted = await mountSettled();
+    const roofId = String(FLOOR_MANAGER_SAMPLE_ROOF_ID);
+    const second = levelIn(storeGraph(), String(FLOOR_MANAGER_SAMPLE_SECOND_ID));
+    const roof = levelIn(storeGraph(), roofId);
+    const typed = formatLength(second.elevationMm, { unit: 'm', fractionDigits: 1 }).replace(' m', '');
+
+    await commitField(mounted, roofId, 'elevation', typed);
+
+    const row = rowOf(mounted, roofId);
+    expect(mounted.result.current.duplicateElevationMessage).not.toBeNull();
+    expect(row.draft).toEqual({ name: roof.name, elevation: typed, height: metreDraftText(roof.heightMm) });
+    expect(row.isElevationRefused).toBe(true);
+    expect(mounted.result.current.rows.filter((candidate) => candidate.isElevationRefused)).toHaveLength(1);
   });
 
   it('bắt cả hai tầng KHÔNG liền kề đứng cùng một cao độ', () => {
@@ -597,6 +700,14 @@ describe('bảng tầng', () => {
     expect(roof.areaM2).toBeNull();
   });
 
+  it('BUG-263: tầng chưa có bản vẽ không có tiến độ QC (không phải 100%)', async () => {
+    const mounted = await mountSettled();
+    const roof = rowOf(mounted, String(FLOOR_MANAGER_SAMPLE_ROOF_ID));
+
+    expect(roof.qcProgressText).toBe('—');
+    expect(roof.qcProgressRatio).toBe(0);
+  });
+
   it('tầng có bản vẽ đếm được tường, phòng và diện tích của chính nó', async () => {
     const mounted = await mountSettled();
     const ground = rowOf(mounted, String(FLOOR_MANAGER_SAMPLE_GROUND_ID));
@@ -633,13 +744,24 @@ describe('bảng tầng', () => {
     expect(mounted.result.current.forbiddenNotice).not.toBeNull();
   });
 
-  it('nói ra hai khoản nợ của cổng thay vì im lặng', async () => {
+  it('nói ra khoản nợ của cổng thay vì im lặng; câu ẩn 3D chỉ khi đã ẩn một tầng (BUG-287)', async () => {
     const mounted = await mountSettled();
 
     expect(mounted.result.current.unsupportedNotices).toEqual([
       FLOOR_MANAGER_UNSUPPORTED_NOTICES.persistFloorContents,
-      FLOOR_MANAGER_UNSUPPORTED_NOTICES.hideFloorFrom3d,
     ]);
+
+    await act(async () => {
+      mounted.result.current.onToggleHiddenIn3d(String(FLOOR_MANAGER_SAMPLE_ROOF_ID));
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mounted.result.current.unsupportedNotices).toEqual([
+        FLOOR_MANAGER_UNSUPPORTED_NOTICES.persistFloorContents,
+        FLOOR_MANAGER_UNSUPPORTED_NOTICES.hideFloorFrom3d,
+      ]);
+    });
   });
 
   it('ẩn tầng khỏi 3D là khung đọc của màn, và màn nói rằng nó không lưu được', async () => {
@@ -704,6 +826,49 @@ describe('bảng tầng', () => {
       'Thêm tầng đầu tiên, hoặc nhập số tầng từ màn hình tạo dự án.',
     );
     expect(mounted.result.current.bands).toHaveLength(0);
+  });
+
+  it('BUG-522: người xem mở dự án rỗng thấy trạng thái Rỗng, không lời mời thêm tầng', async () => {
+    const gateway = createMockFloorManagerGateway({
+      graph: createFloorManagerSampleGraph({ levels: [] }),
+      floors: [],
+    });
+    const mounted = await mountSettled({ gateway, roles: ['viewer'] });
+
+    await waitFor(() => {
+      expect(mounted.result.current.state).toBe('empty');
+    });
+    expect(mounted.result.current.emptyNotice).toBe(FLOOR_MANAGER_TEXT.viewerEmptyNotice);
+    expect(mounted.result.current.forbiddenNotice).not.toBeNull();
+  });
+
+  it('BUG-522: người xem mở mã dự án lạ thấy "không tìm thấy dự án", không chỉ dải quyền', async () => {
+    const notFound: HttpError = { kind: 'http', status: 404, requestId: 'REQ-404', retryable: false, raw: null };
+    const gateway: FloorManagerGateway = {
+      ...createMockFloorManagerGateway(),
+      readFloorList: () => Promise.reject(notFound),
+    };
+    const mounted = await mountSettled({ gateway, roles: ['viewer'] });
+
+    await waitFor(() => {
+      expect(mounted.result.current.state).toBe('error');
+    });
+    expect(mounted.result.current.isProjectMissing).toBe(true);
+  });
+
+  it('BUG-521: người xem không nghe câu nhân bản/xoá tầng chưa lưu; người sửa vẫn nghe', async () => {
+    const viewer = await mountSettled({ roles: ['viewer'] });
+
+    expect(viewer.result.current.unsupportedNotices).not.toContain(
+      FLOOR_MANAGER_UNSUPPORTED_NOTICES.persistFloorContents,
+    );
+    viewer.unmount();
+
+    const editor = await mountSettled();
+
+    expect(editor.result.current.unsupportedNotices).toContain(
+      FLOOR_MANAGER_UNSUPPORTED_NOTICES.persistFloorContents,
+    );
   });
 });
 
@@ -1304,5 +1469,183 @@ describe('tên tầng', () => {
     expect(stackReadings(storeGraph())).toEqual(before);
     expect(descriptionsOf(mounted.notifications)).toContain(sentence);
     expect(mounted.spoken).toContain(sentence);
+  });
+});
+
+describe('tên tầng thêm mới (BUG-277)', () => {
+  const stack = (...names: readonly string[]) =>
+    names.map((name, index) => ({ name, elevationMm: millimetres(index * 3000) }));
+
+  it.each([
+    { label: 'trệt, 1, 2, 3 → Tầng 4 (không nhảy sang 5)', levels: stack('Tầng trệt', 'Tầng 1', 'Tầng 2', 'Tầng 3'), expected: 'Tầng 4' },
+    { label: 'Tầng 1..3 → Tầng 4 (bỏ qua tên đã có)', levels: stack('Tầng 1', 'Tầng 2', 'Tầng 3'), expected: 'Tầng 4' },
+    { label: 'chưa có tầng → Tầng 1', levels: [], expected: 'Tầng 1' },
+    {
+      label: 'tầng hầm không chiếm số',
+      levels: [{ name: 'Tầng hầm', elevationMm: millimetres(-3000) }, ...stack('Tầng trệt')],
+      expected: 'Tầng 1',
+    },
+  ])('$label', ({ levels, expected }) => {
+    expect(nextNewFloorName(levels)).toBe(expected);
+  });
+});
+
+describe('useFloorManager — bộ đệm dùng chung với Tải bản vẽ (BUG-348)', () => {
+  it('không ghi ảnh chụp { graph, floors } vào khoá floor.list mà Tải bản vẽ đọc là Floor[]', async () => {
+    const { queryClient } = await mountSettled();
+    const listKey = queryKeys.floor.list(PROJECT_ID);
+
+    // Màn Tải bản vẽ trải `floor.list` như mảng; một object ở đó là màn "Có trục trặc" sau "Tải lên".
+    const shared = queryClient.getQueryData(listKey);
+    expect(shared === undefined || Array.isArray(shared)).toBe(true);
+
+    // Làm mất hiệu lực `floor.list` (editFloor, lượt tải xong) vẫn chạm lượt đọc của màn này.
+    await act(async () => {
+      await queryClient.invalidateQueries({ queryKey: listKey });
+    });
+    const own = queryClient.getQueryCache().findAll({ queryKey: listKey });
+    expect(own.length).toBeGreaterThan(0);
+    expect(own.every((query) => query.state.dataUpdateCount >= 2)).toBe(true);
+  });
+});
+
+describe('BUG-515 — kho dùng chung không che tầng của dự án trên URL', () => {
+  const ROOF = FLOOR_MANAGER_SAMPLE_LEVELS[FLOOR_MANAGER_SAMPLE_LEVELS.length - 1];
+  const sampleNames = FLOOR_MANAGER_SAMPLE_LEVELS.map((entry) => entry.name).sort();
+  const rowNames = (mounted: Mounted): readonly string[] =>
+    mounted.result.current.rows.map((row) => row.name).sort();
+
+  it('kho đang giữ dự án KHÁC: màn hiện tầng của dự án này và nạp chúng vào kho', async () => {
+    if (ROOF === undefined) {
+      throw new Error('Bộ mẫu không có tầng nào.');
+    }
+
+    const other = createFloorManagerSampleGraph({
+      levels: [{ ...ROOF, id: 'L-OTHERPROJ0000' as LevelId, name: 'A tầng 1' }],
+    });
+    useStore.getState().setSpatial(other, null, { floorRevisions: {}, projectId: 'P-OTHER' });
+
+    const mounted = await mountSettled();
+
+    await waitFor(() => {
+      expect(rowNames(mounted)).toEqual(sampleNames);
+    });
+    expect(useStore.getState().spatialProjectId).toBe(PROJECT_ID);
+  });
+
+  it('lượt đọc đầu của lần gắn là lượt đọc mới; lượt đọc lại sau đó giữ kho', async () => {
+    const base = createMockFloorManagerGateway();
+    const mountReads: boolean[] = [];
+    const gateway: FloorManagerGateway = {
+      ...base,
+      readFloorList: (input) => {
+        mountReads.push(input.isMountRead === true);
+
+        return base.readFloorList(input);
+      },
+    };
+    const mounted = await mountSettled({ gateway });
+
+    await act(async () => {
+      await mounted.queryClient.invalidateQueries();
+    });
+
+    expect(mountReads).toEqual([true, false]);
+  });
+
+  // R1-04: back on the screen, the cached snapshot makes it interactive at once while the mount
+  // read is still in flight. An edit made then must survive that read, with its undo history.
+  it('sửa trong lúc lượt đọc lúc gắn còn bay: bản đọc về sau không đè sửa, không xoá hoàn tác (R1-04)', async () => {
+    const first = FLOOR_MANAGER_SAMPLE_LEVELS[0];
+
+    if (first === undefined) {
+      throw new Error('Bộ mẫu không có tầng nào.');
+    }
+
+    const warm = await mountSettled();
+
+    warm.unmount();
+
+    const base = createMockFloorManagerGateway();
+    const serverGraph = createFloorManagerSampleGraph();
+    let releaseRead: (() => void) | null = null;
+    const gateway: FloorManagerGateway = {
+      ...base,
+      readFloorList: async (input) => {
+        if (input.isMountRead !== true) {
+          return base.readFloorList(input);
+        }
+
+        const floors = (await base.readFloorList(input)).floors;
+
+        await new Promise<void>((resolve) => {
+          releaseRead = resolve;
+        });
+
+        return { floorRevisions: {}, floors, fromStore: false, graph: serverGraph };
+      },
+    };
+    const mounted = await mountSettled({ gateway, queryClient: warm.queryClient });
+
+    await waitFor(() => {
+      expect(releaseRead).not.toBeNull();
+    });
+    // A write's invalidation cancels and re-runs the read; an edit whose invalidation does not
+    // reach `floor.manager` (or a failed write) leaves the stale read in flight — that is the case here.
+    vi.spyOn(mounted.queryClient, 'invalidateQueries').mockResolvedValue(undefined);
+    await commitField(mounted, String(first.id), 'name', 'Tầng sửa giữa lượt đọc');
+
+    const edited = storeGraph();
+    const pastAfterEdit = useStore.temporal.getState().pastStates.length;
+
+    expect(pastAfterEdit).toBeGreaterThan(0);
+
+    await act(async () => {
+      releaseRead?.();
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(mounted.queryClient.isFetching()).toBe(0);
+    });
+
+    expect(storeGraph()).toBe(edited);
+    expect(rowOf(mounted, String(first.id)).name).toBe('Tầng sửa giữa lượt đọc');
+    expect(useStore.temporal.getState().pastStates.length).toBe(pastAfterEdit);
+  });
+
+  it('rời màn rồi quay lại (cùng bộ đệm): đọc lại và hiện tầng thêm ở nơi khác', async () => {
+    if (ROOF === undefined) {
+      throw new Error('Bộ mẫu không có tầng nào.');
+    }
+
+    let serverGraph = createFloorManagerSampleGraph();
+    const base = createMockFloorManagerGateway();
+    const gateway: FloorManagerGateway = {
+      ...base,
+      readFloorList: async (input) =>
+        input.isMountRead === true
+          ? { ...(await base.readFloorList(input)), fromStore: false, graph: serverGraph }
+          : base.readFloorList(input),
+    };
+    const first = await mountSettled({ gateway });
+
+    first.unmount();
+    serverGraph = createFloorManagerSampleGraph({
+      levels: [
+        ...FLOOR_MANAGER_SAMPLE_LEVELS,
+        {
+          ...ROOF,
+          id: 'L-EXTERNAL00000' as LevelId,
+          name: 'Tầng thêm ngoài',
+          elevationMm: ROOF.elevationMm + ROOF.heightMm,
+        },
+      ],
+    });
+
+    const second = await mountSettled({ gateway, queryClient: first.queryClient });
+
+    await waitFor(() => {
+      expect(rowNames(second)).toContain('Tầng thêm ngoài');
+    });
   });
 });

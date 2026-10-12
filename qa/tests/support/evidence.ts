@@ -86,6 +86,7 @@ const CAPTION_ID = 'qa-evidence-caption';
  * right after (also on failure), so it never takes part in the test. Inline styles: the app's tokens are not
  * guaranteed on every page this runs on. While the strip is up, `body` gets a bottom padding of the strip's height,
  * so the strip covers that padding instead of the page's last element (review-1); the old padding is put back after.
+ * BUG-214: next to an open right-hand drawer the strip keeps to the room on the drawer's left.
  * ponytail: something the app itself pins `position: fixed` near the bottom can still sit under the strip.
  */
 async function withCaption(page: Page, lines: readonly string[], shoot: () => Promise<void>): Promise<void> {
@@ -118,6 +119,13 @@ async function withCaption(page: Page, lines: readonly string[], shoot: () => Pr
         strip.style.top = '0';
         strip.style.bottom = 'auto';
       } else {
+        // BUG-214: a right-hand drawer pins its footer button ("Xem tất cả") to the bottom edge, under the strip. When
+        // an open dialog under the strip leaves at least MIN_ROOM px on its left, the strip keeps to that room.
+        const MIN_ROOM = 320;
+        const dialog = [...document.querySelectorAll('[role="dialog"]')]
+          .map((el) => el.getBoundingClientRect())
+          .find((r) => r.width > 8 && r.bottom > sr.top && r.top < sr.bottom && r.right > sr.left);
+        if (dialog !== undefined && dialog.left >= MIN_ROOM) strip.style.right = `${window.innerWidth - dialog.left}px`;
         document.body.style.paddingBottom = `${strip.offsetHeight}px`;
       }
     },
@@ -198,4 +206,15 @@ export async function captureEvidence(
   await test.info().attach(name, { path, contentType: 'image/png' });
 
   return path;
+}
+
+/**
+ * BUG-223: Playwright's own `test-failed-1.png` is taken after the test body ends, once the dialog, sheet or wizard the
+ * test opened is closed again, so a failed `expect.soft` shows a bare page. Runs `check` (its soft expectations) and,
+ * when that added a failure, shoots `name` right away with the broken state still on screen.
+ */
+export async function shootOnSoftFail(page: Page, name: string, caption: string, check: () => unknown): Promise<void> {
+  const before = test.info().errors.length;
+  await check();
+  if (test.info().errors.length > before) await captureEvidence(page, name, { caption: `SOFT FAIL: ${caption}` });
 }

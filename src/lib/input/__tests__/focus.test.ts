@@ -250,6 +250,58 @@ describe('createFocusTrap', () => {
     expect(document.activeElement).toBe(fallback);
   });
 
+  // BUG-559: a dialog that opens on mount found `body` focused, kept it as the opener and
+  // sent the focus back to `body` on close — nowhere a keyboard user can continue from.
+  it('treats a focused body as no opener: release goes to the fallback, else the first control outside', () => {
+    const { opener, dialog } = buildDialog();
+    const fallback = document.createElement('button');
+    document.body.appendChild(fallback);
+
+    (document.activeElement as HTMLElement | null)?.blur();
+    expect(document.activeElement).toBe(document.body);
+
+    const withFallback = createFocusTrap(dialog, { fallbackFocus: fallback });
+    withFallback.activate();
+    withFallback.release();
+    expect(document.activeElement).toBe(fallback);
+
+    fallback.blur();
+    fallback.remove();
+    const withoutFallback = createFocusTrap(dialog);
+    withoutFallback.activate();
+    withoutFallback.release();
+    expect(document.activeElement).toBe(opener);
+  });
+
+  // R1-01: the guessed landing spot (first control outside, or body) must not scroll the page
+  // to the top when a layer opened with nothing focused closes.
+  it('lands the guessed focus without scrolling the page', () => {
+    const { opener, dialog } = buildDialog();
+    const openerSpy = vi.spyOn(opener, 'focus');
+
+    (document.activeElement as HTMLElement | null)?.blur();
+
+    const trap = createFocusTrap(dialog);
+    trap.activate();
+    trap.release();
+
+    expect(document.activeElement).toBe(opener);
+    expect(openerSpy).toHaveBeenCalledWith({ preventScroll: true });
+
+    opener.remove();
+    dialog.remove();
+    const bodySpy = vi.spyOn(document.body, 'focus');
+    const empty = document.createElement('div');
+    document.body.appendChild(empty);
+    const bare = createFocusTrap(empty);
+    bare.activate();
+    bare.release();
+
+    expect(bodySpy).toHaveBeenCalledWith({ preventScroll: true });
+    bodySpy.mockRestore();
+    document.body.removeAttribute('tabindex');
+  });
+
   it('leaves the focus somewhere on the page even with no opener and no fallback', () => {
     const { opener, dialog } = buildDialog();
 

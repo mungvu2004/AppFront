@@ -19,6 +19,11 @@ export interface UseSaveIndicatorOptions {
   tickIntervalMs?: number;
   /** Screen-reader announcer; defaults to the application's shared one. */
   announcer?: Announcer;
+  /**
+   * Shown AND spoken for `failed` instead of "…sẽ thử lưu lại…", when the caller knows a resend
+   * cannot pass (409/422: the chip and the screen reader must say the same thing — BUG-300).
+   */
+  failedLabel?: string | null;
 }
 
 const SAVED_RELATIVE_THRESHOLD_MS = 60_000;
@@ -49,6 +54,7 @@ const buildSaveIndicatorResult = (
   state: AutosaveState,
   lastSavedAt: number | undefined,
   now: number,
+  failedLabel?: string | null,
 ): SaveIndicatorResult => {
   switch (state) {
     case 'dirty':
@@ -56,7 +62,7 @@ const buildSaveIndicatorResult = (
     case 'saving':
       return { detail: autosaveMessages.saving, label: autosaveMessages.saving, state };
     case 'failed':
-      return { detail: autosaveMessages.failed, label: autosaveMessages.failed, state };
+      return { detail: failedLabel ?? autosaveMessages.failed, label: failedLabel ?? autosaveMessages.failed, state };
     case 'offline':
       return { detail: autosaveMessages.offline, label: autosaveMessages.offline, state };
     case 'saved':
@@ -114,6 +120,7 @@ export function useSaveIndicator(autosave: Autosave, options: UseSaveIndicatorOp
       state,
       autosave.getLastSavedAt(),
       (current.now ?? Date.now)(),
+      current.failedLabel,
     );
 
     if (state === 'saved') {
@@ -127,5 +134,5 @@ export function useSaveIndicator(autosave: Autosave, options: UseSaveIndicatorOp
     }
   }, [state, autosave]);
 
-  return buildSaveIndicatorResult(state, autosave.getLastSavedAt(), now());
+  return buildSaveIndicatorResult(state, autosave.getLastSavedAt(), now(), options.failedLabel);
 }

@@ -43,7 +43,7 @@
  */
 
 import { createAppApiClient } from '@/api/appClient';
-import type { ApiClient, ApiResult, Floor } from '@/api/client';
+import type { ApiClient, ApiResult, Floor, Project } from '@/api/client';
 import { describeError, toAppError } from '@/lib/errors';
 import type { AppError } from '@/lib/errors';
 import { createUuid } from '@/lib/http/ids';
@@ -62,6 +62,7 @@ import {
 } from '@/lib/offline/markerCommands';
 import { addPendingCommand, deletePendingCommand, listPendingCommands } from '@/lib/offline/queueStore';
 import {
+  createUploadScheduler,
   createUploadTask,
   guessFloorFromFileName,
   isTerminalUploadError,
@@ -138,6 +139,11 @@ export interface CreateRemovalTicketInput {
 export interface FloorUploadGateway {
   /** Danh sách tầng của một dự án — đọc qua `projects.read`, xem đầu file. */
   readonly readFloors: (input: ReadProjectFloorsInput) => Promise<ApiResult<readonly Floor[]>>;
+  /**
+   * #24 thô dưới khoá `project.detail` — chỉ khi bộ đệm chưa có tên dự án (mở thẳng
+   * đường dẫn), để breadcrumb vẫn nêu tên (BUG-165).
+   */
+  readonly readProject: (input: ReadProjectFloorsInput & { readonly signal?: AbortSignal }) => Promise<ApiResult<Project>>;
   /** Nhận hay từ chối một tệp: dung lượng → định dạng → (chỉ PDF) số trang. */
   readonly validateFile: (file: UploadCandidate) => Promise<UploadValidation>;
   /** Đoán tầng từ một cái tên. Trượt là câu trả lời bình thường, không phải lỗi. */
@@ -210,6 +216,9 @@ export function createFloorUploadGateway(
 ): FloorUploadGateway {
   const locks = options.locks === undefined ? defaultTabLocks() : options.locks;
   const sessionId = options.sessionId ?? TAB_SESSION_ID;
+  // Mọi lượt tải của màn đi qua MỘT hàng có trần `MAX_PARALLEL_UPLOADS`: gán bốn tệp một lúc
+  // thì lượt thứ tư chờ một chỗ trống, không bay init song song (BUG-532).
+  const uploadPool = createUploadScheduler();
 
   return {
     readFloors: async ({ projectId }) => {
@@ -222,12 +231,15 @@ export function createFloorUploadGateway(
       return { ok: true, data: result.data.floors };
     },
 
+    readProject: ({ projectId, signal }) =>
+      client.projects.read({ projectId, ...(signal !== undefined ? { signal } : {}) }),
+
     validateFile: (file) => validateUploadFile(file),
 
     guessFloor: (name) => guessFloorFromFileName(name),
 
-    createUpload: ({ file, floorId, id, onProgress, pageIndex, projectId }) =>
-      createUploadTask({
+    createUpload: ({ file, floorId, id, onProgress, pageIndex, projectId }) => {
+      const task = createUploadTask({
         api: client.drawings,
         file,
         floorId,
@@ -235,7 +247,11 @@ export function createFloorUploadGateway(
         onProgress,
         ...(pageIndex !== undefined ? { pageIndex } : {}),
         ...(id !== undefined ? { id } : {}),
-      }),
+      });
+
+      // Huỷ lúc còn chờ chỗ: `start` của task đã huỷ trả `cancelled` ngay và nhả chỗ.
+      return { ...task, start: () => uploadPool.run(() => task.start()) };
+    },
 
     enqueueOffline: async ({ fileName, floorId, pageIndex, projectId, sizeBytes }) => {
       // Khoá phiên được cấp trước khi lệnh hiện ra, để tab khác mở màn không

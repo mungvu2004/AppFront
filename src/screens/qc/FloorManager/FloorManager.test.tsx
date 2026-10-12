@@ -49,6 +49,7 @@
  */
 
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
@@ -68,7 +69,7 @@ import { resetSelectorCaches } from '@/store/selectors';
 import { useStore } from '@/store';
 
 import { FloorManager } from './FloorManager';
-import { FloorManagerContainer } from './FloorManager.container';
+import { FloorManagerContainer, FloorManagerRoute } from './FloorManager.container';
 import { scenarioArgsFor } from './FloorManager.stories';
 import {
   FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES,
@@ -77,12 +78,14 @@ import {
 import {
   createMockFloorManagerGateway,
   FLOOR_MANAGER_SAMPLE_LEVELS,
+  FLOOR_MANAGER_UNSUPPORTED_NOTICES,
 } from './floorManagerGateway';
 
 const PROJECT_ID = 'project-floor-manager';
 const SCREEN_ARIA_LABEL = 'Quản lý tầng';
 const SECTION_ARIA_LABEL = 'Lát cắt các tầng theo đúng tỷ lệ chiều cao';
-const TABLE_CAPTION_TEXT = 'Cao độ tính tự động từ chiều cao các tầng dưới trừ khi ghi đè.';
+const TABLE_CAPTION_TEXT = 'Cao độ tính tự động từ chiều cao các tầng dưới.';
+const TABLE_CAPTION_MANUAL = 'Cao độ đang nhập tay; ô ghi "Ghi đè" khác cao độ tính từ các tầng dưới.';
 const ADD_FLOOR_LABEL = 'Thêm tầng';
 const REMOVE_FLOOR_MENU_ITEM = 'Xoá tầng';
 const EXPAND_SECTION_LABEL = 'Hiện lát cắt';
@@ -152,7 +155,7 @@ async function mountScreen(): Promise<MountedScreen> {
 
   /* Trước lúc cổng trả lời, mọi kịch bản đều là "Đang tải" — chờ bảng thật. */
   await waitFor(() => {
-    expect(screen.getByText(TABLE_CAPTION_TEXT)).toBeInTheDocument();
+    expect(screen.getByText(TABLE_CAPTION_MANUAL)).toBeInTheDocument();
   });
 
   return { registry };
@@ -463,7 +466,7 @@ describe('[NGHIEM-6] màn nói ra hai sự thật thay vì im lặng', () => {
     /* Ẩn nút là đúng; ẩn mà không nói vì sao mới là lỗi A11 mà bài này chặn. */
     expect(notice).not.toBe('');
     expect(screen.queryByRole('button', { name: ADD_FLOOR_LABEL })).not.toBeInTheDocument();
-    expect(screen.getByText(notice)).toBeInTheDocument();
+    expect(screen.getByText(notice, { exact: false })).toBeInTheDocument();
   });
 
   it('cổng khai khả năng chưa có: TỪNG câu nợ hiện ra, và câu chữ vẫn đi qua hai bộ soát', () => {
@@ -477,7 +480,7 @@ describe('[NGHIEM-6] màn nói ra hai sự thật thay vì im lặng', () => {
     console.log('[NGHIEM-6] CÁC CÂU NỢ CỦA CỔNG:');
     for (const notice of FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES) {
       console.log(`  ${notice}`);
-      expect(screen.getByText(notice)).toBeInTheDocument();
+      expect(screen.getByText(notice, { exact: false })).toBeInTheDocument();
     }
 
     expect(FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES.length).toBeGreaterThan(0);
@@ -486,16 +489,23 @@ describe('[NGHIEM-6] màn nói ra hai sự thật thay vì im lặng', () => {
     expectVietnamese(container);
   });
 
-  it('màn ĐÃ NỐI DÂY đọc hai câu đó thẳng từ cổng thật, không ai gõ lại chuỗi nào', async () => {
+  it('màn ĐÃ NỐI DÂY đọc câu nợ thẳng từ cổng thật; câu ẩn 3D chỉ khi có tầng ẩn (BUG-287)', async () => {
     await mountScreen();
 
-    console.log(
-      `[NGHIEM-6] màn đã nối dây nói ra ${String(FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES.length)} khoản nợ của cổng`,
-    );
+    expect(screen.getByText(FLOOR_MANAGER_UNSUPPORTED_NOTICES.persistFloorContents, { exact: false })).toBeInTheDocument();
+    expect(screen.queryByText(FLOOR_MANAGER_UNSUPPORTED_NOTICES.hideFloorFrom3d, { exact: false })).not.toBeInTheDocument();
+  });
 
-    for (const notice of FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES) {
-      expect(screen.getByText(notice)).toBeInTheDocument();
-    }
+  it('BUG-287: mọi câu nợ gom vào MỘT dải, không tiêu đề "chỉ sống trong phiên" riêng', () => {
+    renderWithProviders(
+      <FloorManager {...scenarioArgsFor('partial')} unsupportedNotices={FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES} />,
+    );
+    const strips = screen
+      .getAllByRole('status')
+      .filter((node) => FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES.some((notice) => node.textContent?.includes(notice)));
+
+    expect(strips).toHaveLength(1);
+    expect(screen.queryByText(/chỉ sống|chỗ lưu/u)).not.toBeInTheDocument();
   });
 });
 
@@ -529,7 +539,7 @@ describe('khả năng tiếp cận và tiếng Việt', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(TABLE_CAPTION_TEXT)).toBeInTheDocument();
+      expect(screen.getByText(TABLE_CAPTION_MANUAL)).toBeInTheDocument();
     });
 
     expectAccessible(container);
@@ -562,6 +572,13 @@ describe('breadcrumb chung (BUG-079)', () => {
 
     expect(onBackToProjects).toHaveBeenCalledTimes(1);
   });
+
+  it('BUG-108: cấp "Dự án" chạm được 44×44 px dưới sm — cả bề ngang, không chỉ chiều cao', () => {
+    renderWithProviders(<FloorManager {...scenarioArgsFor('success')} onBackToProjects={vi.fn()} />);
+    const nav = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
+
+    expect(within(nav).getByRole('button', { name: 'Dự án' })).toHaveClass('min-h-11', 'min-w-11', 'sm:min-h-6', 'sm:min-w-0');
+  });
 });
 
 describe('dự án không tồn tại (BUG-032)', () => {
@@ -589,7 +606,7 @@ describe('dự án không tồn tại (BUG-032)', () => {
 
     expect(screen.getByText('Không tìm thấy dự án này')).toBeInTheDocument();
     for (const notice of FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES) {
-      expect(screen.queryByText(notice)).not.toBeInTheDocument();
+      expect(screen.queryByText(notice, { exact: false })).not.toBeInTheDocument();
     }
     expect(screen.queryByLabelText(SECTION_ARIA_LABEL)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: EXPAND_SECTION_LABEL })).not.toBeInTheDocument();
@@ -601,9 +618,178 @@ describe('dự án không tồn tại (BUG-032)', () => {
     );
 
     for (const notice of FLOOR_MANAGER_FIXTURE_UNSUPPORTED_NOTICES) {
-      expect(screen.queryByText(notice)).not.toBeInTheDocument();
+      expect(screen.queryByText(notice, { exact: false })).not.toBeInTheDocument();
     }
     expect(screen.queryByLabelText(SECTION_ARIA_LABEL)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: EXPAND_SECTION_LABEL })).not.toBeInTheDocument();
+  });
+});
+
+describe('bố cục gọn đo ở route (BUG-251)', () => {
+  it.each([
+    { matches: true, layout: 'flex-col', sectionAfterTable: true },
+    { matches: false, layout: 'flex-row', sectionAfterTable: false },
+  ])('(width < 1024px) = $matches → $layout, lát cắt sau bảng: $sectionAfterTable', async ({ matches, layout, sectionAfterTable }) => {
+    vi.stubGlobal('fetch', () => new Promise<never>(() => undefined));
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(width < 1024px)' && matches,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+
+    renderWithProviders(
+      <MemoryRouter initialEntries={[`/projects/${PROJECT_ID}/floors`]}>
+        <Routes>
+          <Route element={<FloorManagerRoute />} path="/projects/:projectId/floors" />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const section = await screen.findByLabelText(SECTION_ARIA_LABEL);
+    // Thứ tự DOM, không `order`: `order` chỉ dời hình, Tab vẫn đi theo DOM (WCAG 2.4.3, A12).
+    const following = Boolean(section.compareDocumentPosition(screen.getByRole('table')) & Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(following).toBe(!sectionAfterTable);
+    expect(section.parentElement?.parentElement).toHaveClass(layout);
+    // BUG-520: route đứng một mình, khung `h-dvh` cho `h-full` của màn một chỗ bám.
+    expect(screen.getByRole('region', { name: SCREEN_ARIA_LABEL }).parentElement).toHaveClass('h-dvh');
+    vi.unstubAllGlobals();
+  });
+
+  it('khổ gọn: Tab tới "Thêm tầng" và bảng trước "Thu gọn lát cắt" và các dải', () => {
+    renderWithProviders(<FloorManager {...scenarioArgsFor('partial')} isCompact />);
+    const focusables = [...document.querySelectorAll<HTMLElement>('button, [tabindex="0"], input, a[href]')];
+    const indexOf = (element: HTMLElement): number => focusables.indexOf(element);
+    const collapse = indexOf(screen.getByRole('button', { name: 'Thu gọn lát cắt' }));
+
+    expect(collapse).toBeGreaterThan(-1);
+    expect(indexOf(screen.getByRole('button', { name: 'Thêm tầng' }))).toBeLessThan(collapse);
+    expect(indexOf(screen.getAllByRole('button', { name: 'Tải lên' })[0]!)).toBeLessThan(collapse);
+  });
+});
+
+describe('vùng chạm của nút chữ (BUG-257, BUG-270)', () => {
+  it('"Tải lên", "Thu gọn lát cắt" và "Hiện lát cắt" cao 24 px, 44 px dưới sm', () => {
+    const { unmount } = renderWithProviders(<FloorManager {...scenarioArgsFor('partial')} />);
+    const targets = [
+      ...screen.getAllByRole('button', { name: 'Tải lên' }),
+      screen.getByRole('button', { name: 'Thu gọn lát cắt' }),
+    ];
+    unmount();
+    renderWithProviders(<FloorManager {...scenarioArgsFor('collapsed')} />);
+    targets.push(screen.getByRole('button', { name: EXPAND_SECTION_LABEL }));
+
+    expect(targets.length).toBeGreaterThan(2);
+    for (const target of targets) {
+      expect(target).toHaveClass('min-h-11', 'sm:min-h-6');
+    }
+  });
+});
+
+describe('cao độ ghi đè (BUG-289)', () => {
+  it('chú thích theo công tắc; ô ghi đè mang chữ "Ghi đè", ô khác thì không', () => {
+    const base = scenarioArgsFor('partial');
+    const rows = base.rows.map((row, index) => (index === 1 ? { ...row, isElevationOverridden: true } : row));
+    const { unmount } = renderWithProviders(<FloorManager {...base} isAutoElevation={false} rows={rows} />);
+
+    expect(screen.getByText(TABLE_CAPTION_MANUAL)).toBeInTheDocument();
+    expect(screen.queryByText(TABLE_CAPTION_TEXT)).not.toBeInTheDocument();
+    expect(screen.getAllByText('Ghi đè')).toHaveLength(1);
+    expect(within(screen.getByRole('row', { name: new RegExp(`^${rows[1]!.name}, `, 'u') })).getByText('Ghi đè')).toBeInTheDocument();
+    unmount();
+
+    renderWithProviders(<FloorManager {...base} isAutoElevation />);
+    expect(screen.getByText(TABLE_CAPTION_TEXT)).toBeInTheDocument();
+    expect(screen.queryByText('Ghi đè')).not.toBeInTheDocument();
+  });
+});
+
+describe('cao độ bị chặn (BUG-306)', () => {
+  it('chỉ ô cao độ của tầng bị chặn mang dấu lỗi', () => {
+    const base = scenarioArgsFor('partial');
+    const rows = base.rows.map((row, index) => (index === 1 ? { ...row, isElevationRefused: true } : row));
+    renderWithProviders(<FloorManager {...base} isAutoElevation={false} rows={rows} />);
+
+    const invalid = screen.getAllByRole('textbox').filter((box) => box.getAttribute('aria-invalid') === 'true');
+    expect(invalid).toHaveLength(1);
+    expect(invalid[0]).toHaveAccessibleName(`Cao độ tầng ${rows[1]!.name}`);
+  });
+});
+
+describe('bảng tầng vừa khung (BUG-250)', () => {
+  it('lát cắt mở: dòng xếp chồng, mỗi ô mang tên cột, không lặp "Chưa có bản vẽ"', () => {
+    renderWithProviders(<FloorManager {...scenarioArgsFor('partial')} />);
+    const table = screen.getByRole('table');
+    const roof = within(table).getByRole('row', { name: /^Tầng mái, / });
+
+    expect(table.querySelector('thead')).toHaveClass('hidden');
+    expect(roof).toHaveClass('flex', 'flex-wrap');
+    expect(within(roof).getByText('Tường')).toBeInTheDocument();
+    expect(within(roof).getAllByText('Chưa có bản vẽ')).toHaveLength(1);
+  });
+
+  it('lát cắt thu gọn ở khổ rộng: đủ hàng tiêu đề, dòng không xếp chồng', () => {
+    renderWithProviders(<FloorManager {...scenarioArgsFor('collapsed')} />);
+    const table = screen.getByRole('table');
+
+    expect(table.querySelector('thead')).not.toHaveClass('hidden');
+    expect(within(table).getAllByRole('columnheader')).toHaveLength(10);
+    for (const row of within(table).getAllByRole('row', { name: /, cao độ / })) {
+      expect(row).not.toHaveClass('flex');
+    }
+  });
+});
+
+describe('kéo thả tới cuối bảng (BUG-518)', () => {
+  it('thả vào nửa dưới dòng cuối thì hàng kéo xuống CUỐI, không chèn trước dòng cuối', () => {
+    const base = scenarioArgsFor('partial');
+    const onReorderFloors = vi.fn();
+    renderWithProviders(<FloorManager {...base} onReorderFloors={onReorderFloors} />);
+    const ids = base.rows.map((row) => row.id);
+    const first = base.rows[0]!;
+    const rows = screen.getAllByRole('row', { name: /, cao độ / });
+    const last = rows[rows.length - 1]!;
+
+    fireEvent.dragStart(screen.getByRole('button', { name: `Đổi thứ tự tầng ${first.name}` }));
+    /* jsdom không có DragEvent: MouseEvent mang được clientY. Khung jsdom cao 0 nên 10 px là nửa dưới. */
+    fireEvent(last, new MouseEvent('dragover', { bubbles: true, cancelable: true, clientY: 10 }));
+    expect(last).toHaveClass('border-accent');
+    fireEvent.drop(last);
+
+    expect(onReorderFloors).toHaveBeenCalledWith([...ids.slice(1), first.id]);
+  });
+});
+
+describe('rê lên dòng bảng làm sáng dải lát cắt (BUG-519)', () => {
+  it('dải của tầng đang được rê mang nền hover; dải khác thì không', () => {
+    const base = scenarioArgsFor('partial');
+    const bands = base.bands.map((band, index) => ({ ...band, isHovered: index === 1 }));
+    renderWithProviders(<FloorManager {...base} bands={bands} />);
+
+    const hovered = sectionBands().filter((band) => band.classList.contains('bg-bg-hover'));
+
+    expect(hovered).toHaveLength(1);
+    expect(hovered[0]).toHaveAccessibleName(bands[1]!.label);
+  });
+});
+
+describe('khung bảng có chiều cao xác định (BUG-520)', () => {
+  it('vùng nội dung là cột flex lấp phần còn lại, nên khung bảng tự cuộn thay vì kéo dài trang', () => {
+    renderWithProviders(<FloorManager {...scenarioArgsFor('partial')} />);
+    const frame = screen.getByRole('table').closest('[class~="rounded-[8px]"]');
+    const content = frame?.closest('[class~="max-w-[1120px]"][class~="flex-1"]');
+
+    expect(frame).toHaveClass('min-h-0', 'flex-1', 'overflow-auto');
+    expect(content).toHaveClass('flex', 'flex-col');
+    expect(content?.firstElementChild).toHaveClass('flex-1');
+  });
+});
+
+describe('người xem ở dự án rỗng (BUG-522)', () => {
+  it('"Chưa có tầng nào" hiện, nhưng không có nút "Thêm tầng"', () => {
+    renderWithProviders(<FloorManager {...scenarioArgsFor('empty')} canEdit={false} />);
+
+    expect(screen.getByText('Chưa có tầng nào')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: ADD_FLOOR_LABEL })).not.toBeInTheDocument();
   });
 });

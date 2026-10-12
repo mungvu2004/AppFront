@@ -26,6 +26,8 @@
  * `ScaleCalibrationMethodReference.tsx:142` đã dùng.
  */
 
+import { Fragment } from 'react';
+
 import { cn } from '@/lib/utils';
 
 import type { FloorManagerScreenState, FloorManagerViewProps } from './floorManagerTypes';
@@ -66,12 +68,14 @@ function ElevationScale({ ticks }: { readonly ticks: FloorSectionCutProps['eleva
   return (
     <div
       aria-label={ELEVATION_SCALE_LABEL}
-      className="relative w-12 shrink-0 border-r border-border-default"
+      className="relative w-14 shrink-0 border-r border-border-default"
       role="group"
     >
+      {/* Nhãn một dòng, tâm đặt đúng vạch: trong 48 px "20,0 m" xuống hai dòng và vạch trên
+          cùng đè lên chữ "Tổng chiều cao công trình" của đầu lát cắt (đo run-20, 1440). */}
       {ticks.map((tick) => (
         <div
-          className="absolute inset-x-0 flex items-center justify-end gap-1 pr-1.5"
+          className="absolute inset-x-0 flex translate-y-1/2 items-center justify-end gap-1 whitespace-nowrap pr-1.5"
           key={tick.id}
           style={{ insetBlockEnd: tick.offsetCssPercent }}
         >
@@ -100,6 +104,8 @@ function SectionBand({ band, onSelectFloor, onHoverFloor }: SectionBandProps) {
         'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
         band.needsDrawing ? 'bg-state-attention-tint' : 'bg-bg-sunken',
         band.isHiddenIn3d && 'border-dashed',
+        /* Rê lên dòng bảng hay lên dải đều sáng dải này (BUG-519); đang chọn vẫn thắng. */
+        band.isHovered && 'bg-bg-hover',
         band.isSelected && 'bg-bg-selected border-l-2 border-l-accent',
       )}
       onClick={() => onSelectFloor(band.levelId)}
@@ -144,7 +150,7 @@ export function FloorSectionCut({
         <button
           aria-label={COLLAPSE_LABEL}
           className={cn(
-            'shrink-0 rounded-[6px] px-1.5 py-0.5 text-[12px] text-text-secondary',
+            'inline-flex min-h-11 shrink-0 items-center rounded-[6px] px-1.5 text-[12px] text-text-secondary sm:min-h-6',
             'transition-colors duration-120 hover:bg-bg-hover hover:text-text-primary',
             'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
           )}
@@ -162,7 +168,11 @@ export function FloorSectionCut({
           <ElevationScale ticks={elevationTicks} />
           <div className="flex min-h-0 flex-1 flex-col-reverse overflow-hidden rounded-[8px] border border-border-default">
             {bands.map((band) => (
-              <SectionBand band={band} key={band.levelId} onHoverFloor={onHoverFloor} onSelectFloor={onSelectFloor} />
+              <Fragment key={band.levelId}>
+                {/* Khoảng hở dưới dải (cao độ ghi đè), cùng cột flex nên dải đứng đúng cao độ (BUG-357). */}
+                <div aria-hidden="true" className="shrink-0 basis-0" style={{ flexGrow: band.gapBelowRatio }} />
+                <SectionBand band={band} onHoverFloor={onHoverFloor} onSelectFloor={onSelectFloor} />
+              </Fragment>
             ))}
           </div>
         </div>

@@ -78,7 +78,7 @@ const SCREEN_ID = 'user-management';
  * Trạng thái 7 của hợp đồng: dưới {@link COLLAPSE_BREAKPOINT_PX} thì bảng thành thẻ, panel
  * thành lớp phủ. Con số đến từ hook — R-71 cấm gõ lại một ngưỡng đã có tên.
  */
-const NARROW_QUERY = `(max-width: ${String(COLLAPSE_BREAKPOINT_PX - 1)}px)`;
+const NARROW_QUERY = `(width < ${String(COLLAPSE_BREAKPOINT_PX)}px)`;
 
 export interface UserManagementContainerProps {
   /** Cổng tiêm cho test và story. Không truyền thì container dựng cổng thật. */
@@ -130,7 +130,7 @@ function useIsNarrow(): boolean {
 /**
  * Bus của phiên, cộng một người nghe.
  *
- * `list` và `subscribe` đi thẳng sang bus thật — `NotificationHost` phải thấy đúng một
+ * `list`, `subscribe` và `withdraw` đi thẳng sang bus thật — `NotificationHost` phải thấy đúng một
  * nguồn — chỉ `publish` là rẽ đôi.
  */
 function forwardingBus(
@@ -140,6 +140,7 @@ function forwardingBus(
   return {
     list: bus.list,
     subscribe: bus.subscribe,
+    withdraw: bus.withdraw,
     publish: (input: NotificationInput): void => {
       bus.publish(input);
       onToast(input);

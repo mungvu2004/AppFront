@@ -42,17 +42,19 @@ import type {
 
 export const REGION_LABEL = 'Bảng diện tích phòng';
 const LEVEL_SELECT_LABEL = 'Chọn tầng';
+/** Chưa chọn tầng thì tổng là cả nhà (`useRoomAreaPanel` không lọc) — ô chọn nói đúng điều đó thay vì "Chọn...". */
+const WHOLE_BUILDING_PLACEHOLDER = 'Toàn nhà';
 const TABLE_MODE_LABEL = 'Mở chế độ bảng toàn trang';
 const GROUPING_LABEL = 'Cách nhóm danh sách';
-const GROUPING_BY_LEVEL = 'theo tầng';
+const GROUPING_BY_LEVEL = 'Theo tầng';
 const GROUPING_BY_USAGE = 'Theo công năng';
 const SORT_LABEL = 'Sắp xếp';
 const SORT_BY_AREA = 'Theo diện tích';
-const SORT_BY_NAME = 'theo tên';
-const SORT_BY_USAGE = 'theo loại';
+const SORT_BY_NAME = 'Theo tên';
+const SORT_BY_USAGE = 'Theo loại';
 const BANDS_LABEL = 'Phân bố diện tích theo loại phòng';
 const COPY_AS_TEXT_LABEL = 'Sao chép bảng';
-const OPEN_EXPORT_LABEL = 'xuất bảng';
+const OPEN_EXPORT_LABEL = 'Xuất bảng';
 const LOADING_LABEL = 'Đang tính diện tích…';
 export const EMPTY_TITLE = 'Chưa khép được vòng phòng nào';
 export const EMPTY_DESCRIPTION =
@@ -202,6 +204,7 @@ export function RoomAreaPanelHeader({
             label: level.hasArea ? level.name : `${level.name}${LEVEL_WITHOUT_AREA_SUFFIX}`,
             value: level.id,
           }))}
+          placeholder={WHOLE_BUILDING_PLACEHOLDER}
           value={activeLevelId ?? NO_ACTIVE_LEVEL_VALUE}
         />
       </div>

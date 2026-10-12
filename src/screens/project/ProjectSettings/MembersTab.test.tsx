@@ -229,7 +229,11 @@ describe('thành viên trong useProjectSettings', () => {
 
     await addEmail(hook, ' Newcomer@Example.com ');
 
-    expect(server.membersAdd.mock.calls[0]?.[0]).toMatchObject({ email: 'newcomer@example.com' });
+    // BUG-510: the click's 429 must come back at once — the add opts out of the client's 429 ladder.
+    expect(server.membersAdd.mock.calls[0]?.[0]).toMatchObject({
+      email: 'newcomer@example.com',
+      failFastOnRateLimit: true,
+    });
     expect(hook.onToast).toHaveBeenCalledTimes(1);
 
     const toast = hook.onToast.mock.calls[0]?.[0] as { message: string; onUndo?: () => void };
@@ -246,6 +250,21 @@ describe('thành viên trong useProjectSettings', () => {
     });
 
     expect(server.membersRemove.mock.calls[0]?.[0]).toMatchObject({ projectId: PROJECT_ID, userId: NEWCOMER_USER.id });
+  });
+
+  // BUG-207: the undo that failed is an error toast (red dot), not a plain notice.
+  it('hoàn tác thêm người hỏng: toast lỗi mang trạng thái violation (BUG-207)', async () => {
+    const server = await createFakeServer();
+    const hook = await mount(server);
+
+    await addEmail(hook, 'newcomer@example.com');
+    server.membersRemove.mockResolvedValueOnce({ ok: false, error: httpError(500, 'INTERNAL') });
+    await act(async () => {
+      (hook.onToast.mock.calls[0]?.[0] as { onUndo?: () => void }).onUndo?.();
+      await clock.flushMicrotasks();
+    });
+
+    expect(hook.onToast.mock.calls.at(-1)?.[0]).toEqual({ message: 'Không gỡ lại được người vừa thêm.', state: 'violation' });
   });
 
   it('MEMBER_USER_UNAVAILABLE: câu "chưa có tài khoản đang hoạt động", không toast', async () => {

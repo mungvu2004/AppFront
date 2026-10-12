@@ -215,6 +215,22 @@ describe('[NGHIEM-2] tổng số đối tượng trên màn đã ráp', () => {
     expect(canvasTotal).toBe(TOTAL_OBJECTS);
     expect(TOTAL_OBJECTS).toBe(21);
   });
+
+  it('[BUG-417] "Tổng 21 đối tượng" viết hoa chữ đầu và chỉ một lần; nhãn panel phải viết hoa (A6)', async () => {
+    renderState('success');
+
+    const list = await screen.findByRole('group', { name: LIST_LABEL });
+    const totals = [...document.querySelectorAll('p')].filter((p) =>
+      /^tổng \d+ đối tượng$/iu.test(p.textContent ?? ''),
+    );
+
+    expect(totals.map((p) => p.textContent)).toEqual([`Tổng ${TOTAL_OBJECTS} đối tượng`]);
+
+    fireEvent.click(within(list).getAllByRole('option')[0] as HTMLElement);
+
+    expect(await screen.findByText('Chiều rộng')).toBeInTheDocument();
+    expect(screen.queryByText('chiều rộng')).toBeNull();
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -259,13 +275,14 @@ describe('[NGHIEM-3] thu gọn và không có quyền', () => {
     expect(screen.getByLabelText(LEGEND_LABEL)).toBeInTheDocument();
   });
 
-  it('trạng thái lỗi: danh sách nói ra lỗi, canvas VẪN không trắng', async () => {
+  it('trạng thái lỗi: một trạng thái lỗi có lối ra, không dựng bộ lọc và số đếm 0/0 giả (BUG-326)', async () => {
     renderState('error');
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toBeInTheDocument();
     });
-    expect(screen.getByLabelText(LEGEND_LABEL)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Thử lại' })).toBeInTheDocument();
+    expect(screen.queryByLabelText(LEGEND_LABEL)).toBeNull();
   });
 });
 

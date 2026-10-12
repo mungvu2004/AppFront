@@ -110,6 +110,7 @@ import type { RuleSeverity } from '@/domain/rules/registry';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import type { ColorTokenName } from '@/lib/coloring/scales';
 
+import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 
 /* -------------------------------------------------------------------------- */
@@ -221,6 +222,8 @@ export interface RoomLabelCropViewModel {
 export interface RoomLabelNoticeViewModel {
   /** Mã luật, ví dụ `"ROOM-MIN-AREA"` — khớp `Rule.code` của tầng luật. */
   readonly ruleCode: string;
+  /** Tên luật tiếng Việt (`Rule.name`) — tiêu đề thẻ nhắc thay cho mã luật nội bộ (BUG-408). */
+  readonly ruleName: string;
   readonly severity: RuleSeverity;
   readonly message: string;
   readonly suggestion: string;
@@ -321,6 +324,12 @@ export interface RoomLabelSummaryViewModel {
   readonly totalAreaText: string;
   readonly roomCount: number;
   readonly unnamedCount: number;
+  /**
+   * Số phòng mang nhắc `ROOM-NOT-CLOSED` (cạnh phòng không có tường chạy dọc). Khác
+   * vòng tường hở (`gaps`, khe giữa hai đầu tường): panel trái phải nói ra cả hai,
+   * kẻo "chưa thấy vòng hở" mâu thuẫn với nhắc "phòng chưa kín" (BUG-407).
+   */
+  readonly unclosedRoomCount: number;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -366,6 +375,8 @@ export interface RoomLabelCanvasProps {
   readonly backgroundImageAlt: string;
   /** `false` ở trạng thái `forbidden`: xem/phóng to được, chọn thì không. */
   readonly isInteractive: boolean;
+  /** Xem `RoomLabelReviewProps.isFloorWithoutRooms` — canvas không tự suy từ `rooms` rỗng. */
+  readonly showEmptyNotice: boolean;
   readonly onSelect: (roomId: RoomId | null) => void;
   readonly onHover: (roomId: RoomId | null) => void;
 }
@@ -522,6 +533,11 @@ export interface RoomLabelReviewProps {
   readonly emptyNotice: string | null;
   /** Lỗi của trạng thái `error`. `null` ở trạng thái khác. */
   readonly errorMessage: string | null;
+  /**
+   * Lớp phòng ĐÃ đọc xong (không lỗi, không đang tải) và tầng không có phòng
+   * nào — chỉ khi đó canvas mới được nói "chưa dò được phòng" (BUG-328).
+   */
+  readonly isFloorWithoutRooms: boolean;
 
   /* -- Sáu trường thanh tra cần (xem khối ghi chú ngay trên) ---------------- */
   /** Tám nhãn của `ROOM_USAGE_LABELS`, gợi ý cho ô nhập tên — GỢI Ý, không bao giờ ép. */
@@ -574,6 +590,8 @@ export interface RoomLabelReviewProps {
   readonly saveBlock?: FloorLayerSaveBlock | null | undefined;
   /** Dải tỉ lệ tạm (F-04x-2); `null` khi tầng đã có tỉ lệ thật. */
   readonly provisionalScaleNotice?: ProvisionalScaleNotice | null | undefined;
+  /** Đọc lớp hỏng khi chưa có tài liệu → cả màn là một trạng thái lỗi (BUG-326). */
+  readonly readFailure?: FloorLayerReadFailure | null | undefined;
 }
 
 /* -------------------------------------------------------------------------- */

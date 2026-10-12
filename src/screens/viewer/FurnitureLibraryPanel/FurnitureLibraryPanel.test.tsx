@@ -648,7 +648,7 @@ describe('[FLP-3] không có quyền quản lý thư viện', () => {
     '[N6d] khung nhìn < 1024px ($role): tấm trượt đáy vẫn nói đúng quyền (B-V8-46)',
     async ({ canPlaceModel }) => {
       vi.mocked(window.matchMedia).mockImplementation((query: string) => ({
-        matches: query === '(max-width: 1023px)',
+        matches: query === '(width < 1024px)',
         media: query,
         onchange: null,
         addListener: vi.fn(),
@@ -665,7 +665,10 @@ describe('[FLP-3] không có quyền quản lý thư viện', () => {
 
       const region = await waitForCatalogue();
 
-      expect(within(region).getByRole('list', { name: GRID_LABEL })).toHaveClass('overflow-x-auto');
+      expect(within(region).getByRole('list', { name: GRID_LABEL })).toHaveClass('overflow-x-auto', 'shrink-0');
+      /* BUG-475: trong luồng, không ghim đáy màn che thanh tab; chip xuống dòng thay vì cuộn ngang. */
+      expect(region).not.toHaveClass('fixed');
+      expect(within(region).getByRole('group', { name: 'Nhóm nội thất' })).toHaveClass('flex-wrap');
 
       if (canPlaceModel) {
         expect(within(region).queryByText(/vai chỉ xem/)).not.toBeInTheDocument();

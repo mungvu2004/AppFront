@@ -61,6 +61,7 @@
  * `report.description`, nên panel không bao giờ ra ô trắng (A11).
  */
 
+import { AlertCircle } from 'lucide-react';
 import { useMemo } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -90,7 +91,7 @@ function FurnitureLibraryPanelCrashFallback({ report, retry }: ScreenErrorFallba
     <div className="flex h-full w-full items-center justify-center bg-bg-surface">
       <EmptyState
         description={report.description.description}
-        icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-state-violation-tint" />}
+        icon={<AlertCircle aria-hidden="true" />}
         title={report.description.title}
         {...(report.retryable
           ? { action: { label: report.description.primaryButtonLabel, onClick: retry } }

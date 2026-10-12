@@ -31,8 +31,11 @@
  *
  * Nội dung tối đa 1120px, đệm 32px, cột trái 360px, khoảng cách hai cột 24px.
  * Dưới 1024px (`isCompact`, đo ở lớp trên và truyền vào — màn KHÔNG tự đo bề
- * rộng) hai cột xếp dọc và lát cắt xuống DƯỚI bảng bằng `order`, không đảo thứ
- * tự trong DOM, để luồng đọc của trình đọc màn hình vẫn là bảng trước.
+ * rộng) hai cột xếp dọc và lát cắt được dựng SAU bảng trong DOM, không dời bằng `order`:
+ * `order` chỉ dời hình, còn Tab và trình đọc màn hình đi theo DOM, nên "Thu gọn lát cắt"
+ * và các dải từng nhận tiêu điểm trước "Thêm tầng" và bảng (WCAG 2.4.3, A12).
+ * Mười cột cần ~958px: bảng chỉ trải đủ cột khi lát cắt thu gọn ở khổ rộng (nút "Hiện lát
+ * cắt" nằm trên bảng); cạnh lát cắt hay khi `isCompact`, mỗi dòng xếp chồng như thẻ (BUG-250).
  *
  * ## Câu chặn trùng cao độ đi ra bằng prop riêng
  *
@@ -47,8 +50,9 @@
  *   nút mà không nói vì sao là để người dùng đoán; A11 tồn tại đúng để chặn
  *   chuyện đó, nên câu này đi kèm ngay trên bảng.
  * - `unsupportedNotices` — hai khoản cổng khai là chưa làm được
- *   (`persistFloorContents`, `hideFloorFrom3d`). Màn CẤM im lặng và CẤM bịa một
- *   lượt lưu đã xong: nó nói thẳng rằng thay đổi chỉ sống trong phiên này.
+ *   (`persistFloorContents`, `hideFloorFrom3d`; câu thứ hai chỉ khi đang có tầng ẩn).
+ *   Màn CẤM im lặng và CẤM bịa một lượt lưu đã xong: một dải nói thẳng phần nào mất
+ *   sau khi tải lại trang (BUG-287).
  *
  * Cả hai nằm TRƯỚC bảng và trước mọi nút, không giấu dưới đáy trang, và dùng
  * `role="status"` chứ không `role="alert"`: đây là bối cảnh thường trực của
@@ -70,10 +74,10 @@ const SCREEN_DESCRIPTION =
   'Xem cao độ, chiều cao và tiến độ của từng tầng, rồi sắp xếp lại ngăn xếp nếu cần.';
 const EXPAND_SECTION_LABEL = 'Hiện lát cắt';
 const FORBIDDEN_NOTICE_TITLE = 'Không có quyền sửa tầng';
-const UNSUPPORTED_NOTICES_HEADING = 'Những thay đổi chỉ sống trong phiên làm việc này';
+const UNSUPPORTED_NOTICES_TITLE = 'Một số thay đổi chưa được lưu';
 
 const EXPAND_BUTTON_CLASS_NAME = cn(
-  'self-start rounded-[6px] px-1.5 py-0.5 text-[13px] text-accent',
+  'inline-flex min-h-11 items-center self-start rounded-[6px] px-1.5 text-[13px] text-accent sm:min-h-6',
   'transition-colors duration-120 hover:bg-accent-wash',
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
 );
@@ -91,6 +95,20 @@ export function FloorManager(props: FloorManagerViewProps) {
   /* Đọc hỏng (404, mạng, 5xx): chỉ còn câu lỗi và lối đi — câu "chỉ sống trong phiên" và
      lát cắt trống cạnh nó là nói về những tầng chưa đọc được (BUG-060). */
   const isLoadError = state === 'error';
+  const sectionCut =
+    isLoadError || isCollapsed ? null : (
+      <div className={cn('shrink-0 self-stretch', isCompact ? 'h-[400px] w-full' : 'w-[360px]')}>
+        <FloorSectionCut
+          bands={props.bands}
+          elevationTicks={props.elevationTicks}
+          onHoverFloor={props.onHoverFloor}
+          onSelectFloor={props.onSelectFloor}
+          onToggleCollapsed={props.onToggleCollapsed}
+          state={state}
+          totalHeightText={props.totalHeightText}
+        />
+      </div>
+    );
 
   return (
     <div aria-label={SCREEN_TITLE} className="flex h-full min-h-0 w-full flex-col overflow-y-auto bg-bg-app" role="region">
@@ -121,14 +139,15 @@ export function FloorManager(props: FloorManagerViewProps) {
         </div>
       )}
 
+      {/* Một dải cho mọi khoản chưa lưu được, không một tiêu đề cộng một dải mỗi câu (BUG-287). */}
       {isLoadError || unsupportedNotices.length === 0 ? null : (
-        <div className="mx-auto flex w-full max-w-[1120px] shrink-0 flex-col gap-2 px-8 pb-2">
-          <h3 className="text-[13px] font-semibold text-text-secondary">
-            {UNSUPPORTED_NOTICES_HEADING}
-          </h3>
-          {unsupportedNotices.map((notice) => (
-            <InlineAlert key={notice} level="attention" message={notice} role="status" />
-          ))}
+        <div className="mx-auto w-full max-w-[1120px] shrink-0 px-8 pb-2">
+          <InlineAlert
+            level="attention"
+            message={unsupportedNotices.join(' ')}
+            role="status"
+            title={UNSUPPORTED_NOTICES_TITLE}
+          />
         </div>
       )}
 
@@ -138,27 +157,25 @@ export function FloorManager(props: FloorManagerViewProps) {
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-[1120px] flex-1 px-8 pb-8">
-        <div className={cn('flex min-h-[480px] items-stretch gap-6', isCompact ? 'flex-col' : 'flex-row')}>
-          {isLoadError ? null : isCollapsed ? (
+      {/* Vùng nội dung lấp phần còn lại của khung và có chiều cao xác định, nên khung bảng tự
+          cuộn còn "Thêm tầng" và lát cắt đứng yên — 50 tầng không kéo cả trang dài 5850 px (BUG-520).
+          Khổ gọn: bảng giữ ít nhất 480 px, lát cắt nằm dưới, trang cuộn phần dư. */}
+      <div className="mx-auto flex min-h-0 w-full max-w-[1120px] flex-1 flex-col px-8 pb-8">
+        <div
+          className={cn(
+            'flex flex-1 items-stretch gap-6',
+            isCompact ? 'min-h-0' : 'min-h-[480px]',
+            isCompact || isCollapsed ? 'flex-col' : 'flex-row',
+          )}
+        >
+          {isLoadError || !isCollapsed ? null : (
             <button className={EXPAND_BUTTON_CLASS_NAME} onClick={onToggleCollapsed} type="button">
               {EXPAND_SECTION_LABEL}
             </button>
-          ) : (
-            <div className={cn('shrink-0 self-stretch', isCompact ? 'order-2 w-full' : 'order-1 w-[360px]')}>
-              <FloorSectionCut
-                bands={props.bands}
-                elevationTicks={props.elevationTicks}
-                onHoverFloor={props.onHoverFloor}
-                onSelectFloor={props.onSelectFloor}
-                onToggleCollapsed={props.onToggleCollapsed}
-                state={state}
-                totalHeightText={props.totalHeightText}
-              />
-            </div>
           )}
+          {isCompact ? null : sectionCut}
 
-          <div className={cn('min-h-0 min-w-0 flex-1 self-stretch', isCompact ? 'order-1' : 'order-2')}>
+          <div className={cn('min-h-0 min-w-0 flex-1 self-stretch', isCompact && 'min-h-[480px]')}>
             <FloorTable
               canEdit={props.canEdit}
               emptyNotice={props.emptyNotice}
@@ -167,6 +184,8 @@ export function FloorManager(props: FloorManagerViewProps) {
               isProjectMissing={props.isProjectMissing}
               onBackToProjects={props.onBackToProjects}
               isAutoElevation={props.isAutoElevation}
+              // Mười cột chỉ vừa khi bảng có cả bề ngang: lát cắt thu gọn, khổ rộng (BUG-250).
+              isStacked={isCompact || !isCollapsed}
               onAddFloor={props.onAddFloor}
               onDuplicateFloor={props.onDuplicateFloor}
               onFloorFieldCancel={props.onFloorFieldCancel}
@@ -184,6 +203,7 @@ export function FloorManager(props: FloorManagerViewProps) {
               state={state}
             />
           </div>
+          {isCompact ? sectionCut : null}
         </div>
       </div>
     </div>

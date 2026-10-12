@@ -55,7 +55,7 @@
 
 import { readFileSync } from 'node:fs';
 
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Room, RoomId } from '@/domain/spatial/types';
@@ -68,6 +68,7 @@ import {
 } from '@/lib/coloring/legend';
 import type { ColorTokenName } from '@/lib/coloring/scales';
 import { formatNumber } from '@/lib/format/number';
+import type { HttpError } from '@/lib/http/types';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
@@ -81,7 +82,10 @@ import {
   type SevenStateScenario,
 } from '@/lib/testing/sevenStateScenarios';
 import { resetSelectorCaches } from '@/store/selectors';
+import { ROUTES } from '@/routes/paths';
 import { useStore } from '@/store';
+
+import { BACK_TO_FLOORS_LABEL, FLOOR_MISSING_TITLE, RETRY_READ_LABEL } from '../shared/floorLayerReadFailure';
 
 import { RoomLabelReviewContainer } from './RoomLabelReview.container';
 import { ProvisionalScale, scenarioArgsFor } from './RoomLabelReview.stories';
@@ -91,7 +95,7 @@ import {
   ROOM_LABEL_FIXTURE_TOTAL,
   ROOM_LABEL_FIXTURE_TOTAL_AREA_M2,
 } from './roomLabelFixture';
-import { roomCodeLabel } from './roomLabelReviewGateway';
+import { createMockRoomLabelReviewGateway, roomCodeLabel } from './roomLabelReviewGateway';
 
 /** Nền của khung canvas — thứ đa giác phòng ở `DIMMED_OPACITY` chồng lên. */
 const CANVAS_GROUND_TOKEN: ColorTokenName = '--bg-sunken';
@@ -547,5 +551,186 @@ describe('dải tỉ lệ tạm (F-04x-2)', () => {
     expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Hiệu chỉnh tỉ lệ' })).not.toBeInTheDocument();
     expect(screen.queryByText(PROVISIONAL_MEASURE_TEXT)).not.toBeInTheDocument();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Bộ lọc "Chưa đặt tên" lọc sạch danh sách (BUG-321).                         */
+/* -------------------------------------------------------------------------- */
+
+describe('[BUG-321] bộ lọc "Chưa đặt tên" không còn phòng nào', () => {
+  it('câu rỗng bảo tắt bộ lọc, và công tắc vẫn còn trên màn để tắt', async () => {
+    await renderSettled('success');
+
+    const filter = (): HTMLElement => screen.getByRole('button', { name: /^Chưa đặt tên/u });
+
+    fireEvent.click(filter());
+
+    expect(
+      await screen.findByText(
+        'Không còn phòng nào chưa đặt tên. Tắt bộ lọc "Chưa đặt tên" để xem lại toàn bộ phòng của tầng.',
+      ),
+    ).toBeInTheDocument();
+    expect(filter()).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(filter());
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('option').length).toBeGreaterThan(0);
+    });
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Câu rỗng của canvas chỉ khi đã đọc xong và thật sự không có phòng (BUG-328). */
+/* -------------------------------------------------------------------------- */
+
+describe('[BUG-328] câu "Chưa dò được phòng nào" không đi cùng trạng thái lỗi/đang tải', () => {
+  const EMPTY_CANVAS = 'Chưa dò được phòng nào trên bản vẽ này.';
+
+  it.each(['error', 'loading'] as const)('trạng thái "%s": canvas không khẳng định đã dò xong', async (state) => {
+    renderState(state);
+
+    if (state === 'error') {
+      /* Đọc lớp hỏng: cả màn là trạng thái lỗi một lối ra (BUG-326). */
+      expect(await screen.findByRole('button', { name: RETRY_READ_LABEL })).toBeInTheDocument();
+    }
+
+    expect(screen.queryByText(EMPTY_CANVAS)).not.toBeInTheDocument();
+  });
+
+  it('trạng thái rỗng thật: canvas vẫn nói chưa dò được phòng nào', async () => {
+    renderState('empty');
+
+    expect(await screen.findByText(EMPTY_CANVAS)).toBeInTheDocument();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Đọc lớp hỏng khi chưa có tài liệu: cả màn là MỘT trạng thái lỗi (BUG-326).   */
+/* -------------------------------------------------------------------------- */
+
+describe('[BUG-326] đọc lớp hỏng thay cả màn bằng một trạng thái lỗi có lối ra', () => {
+  const FLOOR_GONE: HttpError = {
+    code: 'NOT_FOUND',
+    kind: 'http',
+    raw: { code: 'NOT_FOUND', resource: 'floor' },
+    requestId: 'r',
+    retryable: false,
+    status: 404,
+  };
+
+  it('404 tầng: một nút "Về quản lý tầng", không dựng canvas và panel', async () => {
+    const onNavigate = vi.fn();
+    const args = scenarioArgsFor('success');
+
+    renderWithProviders(
+      <RoomLabelReviewContainer
+        {...args}
+        gateway={{ ...createMockRoomLabelReviewGateway(), readLayer: () => Promise.reject(FLOOR_GONE) }}
+        onNavigate={onNavigate}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: BACK_TO_FLOORS_LABEL }));
+    expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.floors(args.projectId));
+    expect(screen.getByText(FLOOR_MISSING_TITLE)).toBeInTheDocument();
+    expect(screen.queryByLabelText(CANVAS_ARIA_LABEL)).toBeNull();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* [BUG-393] Mặt bằng vừa khung.                                               */
+/* -------------------------------------------------------------------------- */
+
+describe('[BUG-393] mặt bằng phòng vừa khung canvas, kể cả khi chọn một phòng', () => {
+  const FRAME = { width: 800, height: 600 };
+
+  /** Khung báo 800×600 ngay khi được theo dõi — thay bản rỗng của `beforeEach`. */
+  const measuredFrame = class {
+    private readonly onResize: ResizeObserverCallback;
+    constructor(onResize: ResizeObserverCallback) {
+      this.onResize = onResize;
+    }
+    observe(): void {
+      this.onResize([{ contentRect: FRAME } as ResizeObserverEntry], this as unknown as ResizeObserver);
+    }
+    unobserve(): void {
+      /* Không có gì để bỏ theo dõi. */
+    }
+    disconnect(): void {
+      /* Không có gì để ngắt. */
+    }
+  };
+
+  /** Hộp màn của từng nút chọn phòng = vị trí trong lớp nội dung + phép dịch camera. */
+  function roomBoxesOnScreen(container: HTMLElement) {
+    const layer = container.querySelector<HTMLElement>('div[style*="translate("]');
+    const match = /translate\(([-\d.e]+)px, ([-\d.e]+)px\)/u.exec(layer?.style.transform ?? '');
+    const [panX, panY] = [Number(match?.[1]), Number(match?.[2])];
+
+    return [...(layer?.querySelectorAll<HTMLElement>('button[aria-pressed]') ?? [])].map((button) => ({
+      left: panX + parseFloat(button.style.left),
+      top: panY + parseFloat(button.style.top),
+      right: panX + parseFloat(button.style.left) + parseFloat(button.style.width),
+      bottom: panY + parseFloat(button.style.top) + parseFloat(button.style.height),
+    }));
+  }
+
+  it('mọi phòng nằm trọn trong khung, trước và sau khi chọn phòng', async () => {
+    Object.defineProperty(window, 'ResizeObserver', { writable: true, value: measuredFrame });
+
+    const { container } = await renderSettled('success');
+    const inFrame = () => {
+      const boxes = roomBoxesOnScreen(container);
+
+      expect(boxes.length).toBe(ROOM_LABEL_FIXTURE_TOTAL);
+
+      for (const box of boxes) {
+        expect(box.left).toBeGreaterThanOrEqual(0);
+        expect(box.top).toBeGreaterThanOrEqual(0);
+        expect(box.right).toBeLessThanOrEqual(FRAME.width);
+        expect(box.bottom).toBeLessThanOrEqual(FRAME.height);
+      }
+    };
+
+    inFrame();
+
+    const firstRoom = container.querySelector<HTMLElement>('div[style*="translate("] button[aria-pressed]');
+
+    if (firstRoom !== null) {
+      fireEvent.click(firstRoom);
+    }
+
+    inFrame();
+  });
+});
+
+describe('[BUG-407] panel "Vòng tường hở" không phủ nhận nhắc "phòng chưa kín"', () => {
+  it('không có khe giữa hai đầu tường nhưng có phòng ROOM-NOT-CLOSED → nói rõ phạm vi và số phòng chưa kín', async () => {
+    await renderSettled('success');
+    const gapsSection = screen.getByRole('region', { name: 'Vòng tường hở' });
+
+    /* Kịch bản "success" không có tường nào: mọi phòng đều chưa kín, không khe đầu tường nào. */
+    expect(gapsSection).not.toHaveTextContent('Chưa thấy vòng tường hở nào ở tầng này.');
+    expect(gapsSection).toHaveTextContent(`Các đầu tường đều đã nối, nhưng ${ROOM_LABEL_FIXTURE_TOTAL} phòng chưa kín`);
+  });
+});
+
+describe('[BUG-408] thẻ nhắc công năng đặt tên luật tiếng Việt, không lộ mã luật nội bộ', () => {
+  it('chọn một phòng chưa kín → tiêu đề "Đường bao phòng kín bằng tường", không có chữ ROOM-NOT-CLOSED', async () => {
+    await renderSettled('success');
+    const [firstRoom] = screen.getAllByRole('option');
+
+    if (firstRoom !== undefined) {
+      fireEvent.click(firstRoom);
+    }
+
+    const notices = await screen.findByRole('region', { name: 'Nhắc công năng' });
+
+    expect(notices).toHaveTextContent('Đường bao phòng kín bằng tường');
+    expect(notices).not.toHaveTextContent(/ROOM-[A-Z-]+/u);
+    /* BUG-325: link "Xem luật không gian" 119×20 → vùng chạm ≥ 24 px. */
+    expect(within(notices).getAllByRole('link', { name: 'Xem luật không gian' })[0]).toHaveClass('min-h-6');
   });
 });

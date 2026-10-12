@@ -57,6 +57,27 @@ const ContextMenuRoot = forwardRef<HTMLDivElement, ContextMenuRootProps>(
       menu.style.top = `${String(Math.max(VIEWPORT_MARGIN, Math.min(safeTop, maxTop)))}px`;
     }, [isVisible, menuRef, safeTop]);
 
+    // The position is read from the trigger once, at open. When the page re-lays out under an open menu
+    // (1440 -> 900: the card dropped ~60 px and the menu covered its own button), move it by as much as the
+    // trigger — the element focused at open — moved, each frame, so it rides the cards' layout animation too
+    // (BUG-211). Closing on resize instead (QA-02b) lost the menu the person had just opened.
+    // ponytail: one rect read per frame while open; a ResizeObserver set if menus ever stay open for long.
+    useEffect(() => {
+      const menu = menuRef.current;
+      const anchor = document.activeElement;
+      if (!isVisible || !menu || !(anchor instanceof HTMLElement) || anchor === document.body || menu.contains(anchor)) return;
+      const start = anchor.getBoundingClientRect();
+      let frame = requestAnimationFrame(function follow() {
+        const now = anchor.getBoundingClientRect();
+        const { clientWidth, clientHeight } = document.documentElement;
+        const left = Math.max(VIEWPORT_MARGIN, Math.min(position.x + now.left - start.left, clientWidth - MENU_WIDTH - VIEWPORT_MARGIN));
+        const top = Math.max(VIEWPORT_MARGIN, Math.min(position.y + now.top - start.top, clientHeight - menu.offsetHeight - VIEWPORT_MARGIN));
+        if (now.left !== start.left || now.top !== start.top) Object.assign(menu.style, { left: `${String(left)}px`, top: `${String(top)}px` });
+        frame = requestAnimationFrame(follow);
+      });
+      return () => cancelAnimationFrame(frame);
+    }, [isVisible, menuRef, position.x, position.y]);
+
     const handleKeyDown = useCallback(
       (e: React.KeyboardEvent<HTMLDivElement>) => {
         const menu = menuRef.current;

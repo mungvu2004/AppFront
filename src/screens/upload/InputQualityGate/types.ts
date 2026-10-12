@@ -283,7 +283,8 @@ export interface InputQualityGateModel {
   readonly status: InputQualityGateStatus;
   readonly image: InputQualityImageModel;
   readonly metrics: readonly InputQualityMetricModel[];
-  readonly forecast: InputQualityForecast;
+  /** `null` khi tầng đã đo mà máy chủ không gửi dự báo — không có câu nào đúng để in. */
+  readonly forecast: InputQualityForecast | null;
   readonly findings: readonly InputQualityFindingModel[];
   readonly floors: readonly InputQualityFloorRow[];
   readonly footer: InputQualityFooterModel;
@@ -291,6 +292,8 @@ export interface InputQualityGateModel {
   readonly errorMessage: string | null;
   /** `'error'` vì danh sách tầng trả 404 — dự án không tồn tại; lối ra là danh sách dự án (BUG-074). */
   readonly isProjectMissing: boolean;
+  /** Tên dự án cho breadcrumb; vắng khi bộ đệm chưa có (BUG-362). */
+  readonly projectName?: string;
   /** `'error'` mà lượt đọc thử lại được (mạng, hết giờ, 5xx…). */
   readonly canRetryLoad: boolean;
   readonly partialNotice: string | null;
@@ -371,7 +374,8 @@ export interface InputQualityImagePanelProps {
 /** Props của `InputQualityGateReportPanel` — cột phải, chỉ số + dự báo + phát hiện + tầng. */
 export interface InputQualityReportPanelProps {
   readonly metrics: readonly InputQualityMetricModel[];
-  readonly forecast: InputQualityForecast;
+  /** `null` khi tầng đã đo mà máy chủ không gửi dự báo — không có câu nào đúng để in. */
+  readonly forecast: InputQualityForecast | null;
   readonly findings: readonly InputQualityFindingModel[];
   readonly floors: readonly InputQualityFloorRow[];
   readonly remainingFindingCount: number;

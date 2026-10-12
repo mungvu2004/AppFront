@@ -784,7 +784,7 @@ Nhóm: `G` (toàn cục), `V1`…`V12` theo `plan.md` mục 8.
 - **Mức:** cao — đường chính của màn (mở thứ được báo) không tới đích
 - **Bất biến vi phạm:** —
 - **Phát hiện:** 2026-10-03 · `e2e/v2v3/notification-center.spec.ts` (V2 MỤC 3 trường 6c)
-- **Tái hiện bằng tay:** mở thẳng `/thong-bao`, bấm "hệ thống AI đã xử lý xong bản vẽ tầng trệt".
+- **Tái hiện bằng tay:** mở thẳng `/thong-bao`, bấm "Hệ thống AI đã xử lý xong bản vẽ tầng trệt".
   - Kỳ vọng: `/projects/project-1/floors/L1/layers/walls`
   - Thực tế: lịch sử `push …/walls` rồi `replace /` hai lần — về `/`. "Mở cài đặt thông báo" cùng gốc.
 - **Tái hiện bằng máy:** `notification-center.spec.ts` › "bấm một thông báo ở /thong-bao mở thẳng đưa người

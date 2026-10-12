@@ -468,6 +468,24 @@ describe('A11 — bảy trạng thái của ViolationDetail', () => {
   });
 });
 
+describe('BUG-434 — tấm thu gọn mở trong khung nhìn và nhận tiêu điểm (A12)', () => {
+  it('thu gọn: tấm `fixed` cao 70vh (route cuộn theo tài liệu), tiêu điểm vào tấm khi mở', () => {
+    renderView(propsFor(scenarioOf('collapsed')));
+
+    const sheet = screen.getByRole('complementary', { name: 'Chi tiết vi phạm' });
+    expect(sheet).toHaveClass('fixed', 'max-h-[70vh]');
+    expect(sheet).not.toHaveClass('absolute');
+    expect(sheet.contains(document.activeElement)).toBe(true);
+  });
+
+  it('khổ rộng: tiêu điểm cũng vào tấm khi mở', () => {
+    renderView(propsFor(scenarioOf('success')));
+
+    const panel = screen.getByRole('complementary', { name: 'Chi tiết vi phạm' });
+    expect(panel.contains(document.activeElement)).toBe(true);
+  });
+});
+
 /* ==========================================================================
  * D. R-72 — expectAccessible, expectVietnamese. A1 — expectNoRawColor.
  * ========================================================================== */
@@ -605,7 +623,7 @@ describe('tấm trượt không phải hộp thoại', () => {
 
     // Thứ phải vắng mặt là một phần tử TRẢI KÍN và TÔ NỀN — đúng hai thứ mà
     // `Drawer.Root` làm (`absolute inset-0 bg-bg-overlay`, Drawer.tsx:132) và
-    // `ProgressOverlay` làm (`absolute inset-0 … bg-bg-app-88 backdrop-blur-sm`).
+    // `ProgressOverlay` làm (`absolute inset-0 … bg-bg-app-88 [backdrop-filter:blur(4px)]`).
     //
     // Bắt theo chuỗi con "overlay" thì `shadow-overlay` — token ĐỔ BÓNG mà chín tấm
     // nổi khác trong repo cùng dùng — dính oan; bắt theo `inset-0` một mình thì con
@@ -615,7 +633,7 @@ describe('tấm trượt không phải hộp thoại', () => {
     expect(container.querySelector('[class*="bg-bg-overlay"]')).toBeNull();
 
     const covering = [...container.querySelectorAll('[class~="inset-0"]')].filter((element) =>
-      /(^| )bg-bg-(overlay|app)($| |\/)|backdrop-blur/.test(element.getAttribute('class') ?? ''),
+      /(^| )bg-bg-(overlay|app)($| |\/)|backdrop-/.test(element.getAttribute('class') ?? ''),
     );
 
     expect(covering).toHaveLength(0);

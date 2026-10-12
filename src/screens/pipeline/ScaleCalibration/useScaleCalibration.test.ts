@@ -48,6 +48,7 @@ import { formatNumber } from '@/lib/format/number';
 import { createCleanBuildingScenario } from '@/lib/testing/fixtures';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
+import { expectSentenceCaseStrings } from '@/lib/testing/expectSentenceCase';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
 import { useStore } from '@/store';
 import { commit } from '@/store/commit';
@@ -478,6 +479,29 @@ describe('useScaleCalibration — tỷ lệ do M-02 tính', () => {
     expect(computation.isComplete).toBe(false);
   });
 
+  it('chiều dài gõ sai ("abc", "0") hiện lỗi nhập; ô trống hay số hợp lệ thì không (BUG-342)', async () => {
+    const harness = await makeHarness();
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    await dragReferenceLine(mounted);
+
+    const errorOf = (): string | null => mounted.result.current.model.panel.reference.realLengthError;
+
+    expect(errorOf()).toBeNull();
+
+    for (const text of ['abc', '0']) {
+      await act(async () => {
+        mounted.result.current.actions.onChangeRealLength(text);
+      });
+      expect(errorOf()).toBe('Chiều dài thật phải là một số lớn hơn 0, ví dụ 4800.');
+    }
+
+    await act(async () => {
+      mounted.result.current.actions.onChangeRealLength('4800');
+    });
+    expect(errorOf()).toBeNull();
+  });
+
   it('suy ra tỷ lệ của bộ mẫu từ 34 chuỗi kích thước qua inferScale', async () => {
     const harness = await makeHarness({ rows: sampleDimensionRows() });
     const mounted = mountHook(harness.gateway);
@@ -527,6 +551,24 @@ describe('useScaleCalibration — áp dụng: PUT trước, commit sau (F-04x-2 
       REFERENCE_REAL_LENGTH,
       6,
     );
+  });
+
+  it('bản vẽ không tìm thấy khung (isWarped): áp xong vẫn ra success, không kẹt ở error (BUG-567)', async () => {
+    const harness = await makeHarness({ sourceFloorId: WARPED_MOCK_FLOOR_ID });
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    expect(mounted.result.current.model.state).toBe('error');
+    await typeReference(mounted);
+
+    await act(async () => {
+      mounted.result.current.actions.onApply();
+    });
+    await settleAsync();
+
+    expect(harness.writeLayer).toHaveBeenCalledTimes(1);
+    expect(mounted.result.current.model.state).toBe('success');
+    expect(mounted.result.current.model.successNotice).not.toBeNull();
+    expect(mounted.result.current.model.errorMessage).toBeNull();
   });
 
   it('PUT 422 → kho giữ tỉ lệ cũ, không success, nói lý do', async () => {
@@ -631,11 +673,11 @@ describe('useScaleCalibration — tầng tỉ lệ tạm (scaleStatus unresolved
     return { harness, mounted };
   }
 
-  it('storedRatio null: nhãn "chưa có", dải tỉ lệ tạm; áp đúng tỉ lệ tạm → một PUT, dải mất', async () => {
+  it('storedRatio null: nhãn "Chưa có", dải tỉ lệ tạm; áp đúng tỉ lệ tạm → một PUT, dải mất', async () => {
     const { harness, mounted } = await mountProvisional();
 
     expect(useStore.getState().floorMeta[FLOOR_ID]?.scaleStatus).toBe('unresolved');
-    expect(mounted.result.current.model.panel.currentScaleLabel).toBe('chưa có');
+    expect(mounted.result.current.model.panel.currentScaleLabel).toBe('Chưa có'); // A6
     expect(mounted.result.current.model.provisionalScaleNotice).toBe(
       'Tỉ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỉ lệ.',
     );
@@ -916,7 +958,8 @@ describe('useScaleCalibration — bảy trạng thái', () => {
     await settle(warped);
     reached.add(warped.result.current.model.state);
     expect(warped.result.current.model.errorMessage).not.toBeNull();
-    expect(warped.result.current.model.errorCode).not.toBeNull();
+    // Ảnh méo không có mã máy thật: không in "Mã lỗi: UNKNOWN" (BUG-341).
+    expect(warped.result.current.model.errorCode).toBeNull();
     warped.unmount();
 
     // 6. forbidden — người xem không có quyền sửa.
@@ -948,7 +991,6 @@ describe('useScaleCalibration — bảy trạng thái', () => {
 
     expect(failing.result.current.model.state).toBe('error');
     expect(failing.result.current.model.errorTitle).toBeDefined();
-    expect(failing.result.current.model.canvas.warpingNotice).toBeNull();
     failing.unmount();
 
     const warpedHarness = await makeHarness({ sourceFloorId: WARPED_MOCK_FLOOR_ID });
@@ -957,8 +999,62 @@ describe('useScaleCalibration — bảy trạng thái', () => {
 
     expect(warped.result.current.model.state).toBe('error');
     expect(warped.result.current.model.errorTitle).toBeUndefined();
-    expect(warped.result.current.model.canvas.warpingNotice).not.toBeNull();
+    // Một câu, không nhắc lại tiêu đề "Nắn ảnh thất bại…" của view (BUG-341).
+    expect(warped.result.current.model.errorMessage).not.toContain('Nắn ảnh thất bại');
     warped.unmount();
+  });
+
+  it('"Thu gọn bảng" vẫn thu panel khi màn ở trạng thái lỗi (BUG-322)', async () => {
+    const warpedHarness = await makeHarness({ sourceFloorId: WARPED_MOCK_FLOOR_ID });
+    const warped = mountHook(warpedHarness.gateway);
+    await settle(warped);
+
+    expect(warped.result.current.model.state).toBe('error');
+    expect(warped.result.current.model.isPanelCollapsed).toBe(false);
+
+    await act(async () => {
+      warped.result.current.actions.onToggleCollapsed();
+    });
+
+    expect(warped.result.current.model.state).toBe('error');
+    expect(warped.result.current.model.isPanelCollapsed).toBe(true);
+    warped.unmount();
+  });
+
+  it('tầng chưa có bản vẽ (404 `upload`) nói đúng nguyên nhân, không lộ NOT_FOUND (BUG-337)', async () => {
+    const harness = await makeHarness();
+    const noDrawing: HttpError = {
+      code: 'NOT_FOUND',
+      kind: 'http',
+      raw: { code: 'NOT_FOUND', resource: 'upload' },
+      requestId: 'r',
+      retryable: false,
+      status: 404,
+    };
+    const mounted = mountHook({
+      ...harness.gateway,
+      readFloorDrawing: async () => ({ ok: false, error: noDrawing }),
+    });
+    await settle(mounted);
+
+    const { model } = mounted.result.current;
+
+    expect(model.state).toBe('error');
+    expect(model.errorTitle).toBe('Tầng này chưa có bản vẽ');
+    // Lối ra là "Tải bản vẽ lên", không phải "Tải lại ảnh" (review-1 #7).
+    expect(model.isNoDrawing).toBe(true);
+    expect(model.errorMessage).toContain('Tải bản vẽ lên');
+    expect(model.errorCode).toBeNull();
+    expect(model.panel.crossChecks.map((row) => row.label)).toEqual([
+      'Độ dày tường điển hình',
+      'Bề rộng cửa đi điển hình',
+      'Diện tích phòng lớn nhất',
+    ]);
+    // BUG-411: quy trình khoá lại, bảng phím ẩn, "Chưa có" là chữ chứ không phải số.
+    expect(model.panel.isMethodLocked).toBe(true);
+    expect(model.panel.shortcutHints).toEqual([]);
+    expect(model.panel.isCurrentScaleKnown).toBe(false);
+    mounted.unmount();
   });
 
   it('trạng thái `partial` cũng đến từ chuỗi kích thước tin cậy thấp', async () => {
@@ -973,6 +1069,31 @@ describe('useScaleCalibration — bảy trạng thái', () => {
     expect(model.panel.dimension.rows.filter((row) => row.isLowConfidence)).toHaveLength(3);
     // A5: hàng do AI đọc không bao giờ mang màu "đã xác minh".
     expect(model.panel.dimension.rows.every((row) => row.statusCode !== 'verified')).toBe(true);
+  });
+});
+
+describe('useScaleCalibration — ngưỡng tin cậy của dự án (BUG-354)', () => {
+  /* Mọi hàng 0,8: trên 0,70 mặc định, dưới 0,85 của dự án. */
+  const rowsAt = (confidence: number) => sampleDimensionRows().map((row) => ({ ...row, confidence }));
+
+  it('gạch "độ tin cậy thấp" theo ngưỡng N5 của dự án, không theo hằng 0,70', async () => {
+    const harness = await makeHarness({ rows: rowsAt(0.8) });
+    const mounted = mountHook({ ...harness.gateway, readConfidenceThreshold: () => Promise.resolve(0.85) });
+
+    await settle(mounted);
+    await settleAsync();
+    expect(mounted.result.current.model.panel.dimension.rows.every((row) => row.isLowConfidence)).toBe(true);
+    mounted.unmount();
+  });
+
+  it('không đọc được cài đặt → rơi về ngưỡng mặc định 0,70', async () => {
+    const harness = await makeHarness({ rows: rowsAt(0.8) });
+    const mounted = mountHook({ ...harness.gateway, readConfidenceThreshold: () => Promise.resolve(null) });
+
+    await settle(mounted);
+    await settleAsync();
+    expect(mounted.result.current.model.panel.dimension.rows.some((row) => row.isLowConfidence)).toBe(false);
+    mounted.unmount();
   });
 });
 
@@ -1061,6 +1182,8 @@ describe('useScaleCalibration — bàn phím và phiên kéo', () => {
     expect(labels).toContain('Esc');
     expect(labels.join(' ')).not.toMatch(/ESCAPE|ARROW|ENTER/u);
     expect(hints.every((hint) => hint.description.length > 0)).toBe(true);
+    // A6: mô tả phím viết hoa chữ đầu, như sổ phím tắt của các màn khác.
+    expectSentenceCaseStrings(hints.map((hint) => hint.description));
   });
 });
 

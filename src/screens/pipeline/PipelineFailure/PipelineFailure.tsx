@@ -42,6 +42,7 @@
  * lẽ `ProcessingScreen/index.ts`.
  */
 
+import { Breadcrumb } from '@/components/shell/Breadcrumb';
 import { Button } from '@/components/ui/Button';
 
 import { PipelineFailureBandRegion } from './PipelineFailureBand';
@@ -63,11 +64,18 @@ export function PipelineFailure(props: PipelineFailureProps) {
     <div className="min-h-screen bg-bg-app">
       <div className="mx-auto flex max-w-[1280px] flex-col gap-6 p-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <nav aria-label={BREADCRUMB_PIPELINE} className="text-[13px] text-text-secondary">
-            <span>{BREADCRUMB_PROJECTS}</span>
-            <span aria-hidden="true"> › </span>
-            <span className="text-text-primary">{BREADCRUMB_PIPELINE}</span>
-          </nav>
+          {/* Đường dẫn chung: "Dự án" bấm được về danh sách, như ở các màn khác (BUG-546). */}
+          <Breadcrumb
+            ariaLabel={BREADCRUMB_PIPELINE}
+            items={[
+              {
+                id: 'projects',
+                label: BREADCRUMB_PROJECTS,
+                ...(props.onBackToProjects !== undefined ? { onClick: props.onBackToProjects } : {}),
+              },
+              { id: 'current', label: BREADCRUMB_PIPELINE },
+            ]}
+          />
 
           <Button
             aria-controls={BODY_ID}

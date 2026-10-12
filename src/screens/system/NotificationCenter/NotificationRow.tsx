@@ -3,10 +3,11 @@
  * file ấy dưới ngưỡng độ dài. VIEW THUẦN: mọi thứ tới qua props.
  */
 
-import { AlertTriangle, MessageSquare, Sparkles, UserPlus } from 'lucide-react';
+import { AlertTriangle, Check, MessageSquare, Sparkles, UserPlus } from 'lucide-react';
 
 import { motion } from '@/components/motion';
 import { Button } from '@/components/ui/Button';
+import { IconButton } from '@/components/ui/IconButton';
 import { durationSeconds } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
@@ -102,58 +103,74 @@ export function NotificationRow({
       />
 
       <div className="relative flex min-w-0 flex-1 flex-col gap-1">
+        {/* min-h-6: a one-line sentence was a 20 px tall target, under the 24 px of WCAG 2.5.8; below 640 px a text
+            target is 44 px like every other button there, the sentence one was 24/40 (BUG-236, run-17). `flex` + one
+            inner span keeps the text at the top of the taller box instead of centred under the icon. */}
         <button
           type="button"
           onClick={() => onItemAction(item)}
-          className="rounded text-left text-[15px] leading-[20px] text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
+          className="flex min-h-6 rounded text-left text-[15px] leading-[20px] text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface max-sm:min-h-11"
         >
-          {!item.isRead && <span className="sr-only">{`${UNREAD_SR_HINT}. `}</span>}
-          {item.sentence}{' '}
-          <span className="text-accent underline underline-offset-2">{item.target.label}</span>
+          <span>
+            {!item.isRead && <span className="sr-only">{`${UNREAD_SR_HINT}. `}</span>}
+            {item.sentence}{' '}
+            <span className="text-accent underline underline-offset-2">{item.target.label}</span>
+          </span>
         </button>
 
         {item.excerpt !== undefined && (
-          <p className="line-clamp-2 rounded bg-bg-sunken px-2 py-1.5 text-[13px] leading-[18px] text-text-secondary">
-            {item.excerpt}
+          // Kẹp dòng ở lớp trong: `line-clamp` cắt ở mép padding, nên kẹp trên khung có padding để lộ nửa dòng 3 (BUG-203).
+          <p className="rounded bg-bg-sunken px-2 py-1.5 text-[13px] leading-[18px] text-text-secondary">
+            <span className="line-clamp-2">{item.excerpt}</span>
           </p>
         )}
 
+        {/* Giờ + nút hành động xuống dòng TRONG nhóm của chúng; nút đánh dấu đứng ngoài nhóm, luôn ở mép phải hàng
+            giờ. Cả ba từng chung một hàng `flex-wrap`: ở tờ 375 px giờ + "Xem kết quả" + nút 44 px không vừa, nút
+            đánh dấu rơi một mình xuống dòng riêng, hàng cao thêm một dải trống (BUG-203, run-16). */}
         <div className="flex items-center gap-2">
-          <span className="whitespace-nowrap text-[13px] leading-[18px] text-text-muted">{item.relativeTime}</span>
-          {item.inlineAction !== undefined && (
-            // While the accept is in flight the button is `aria-disabled`, not `disabled`: a disabled button
-            // drops keyboard focus to <body> inside the sheet (WCAG 2.4.3, review QA-02 P2-5).
-            <Button
-              variant="secondary"
-              size="sm"
-              aria-disabled={item.inlineAction.disabled === true || undefined}
-              onClick={() => {
-                if (item.inlineAction?.disabled !== true) onInlineAction(item);
-              }}
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="whitespace-nowrap text-[13px] leading-[18px] text-text-muted">{item.relativeTime}</span>
+            {item.inlineAction !== undefined && (
+              // While the accept is in flight the button is `aria-disabled`, not `disabled`: a disabled button
+              // drops keyboard focus to <body> inside the sheet (WCAG 2.4.3, review QA-02 P2-5).
+              <Button
+                variant="secondary"
+                size="sm"
+                aria-disabled={item.inlineAction.disabled === true || undefined}
+                onClick={() => {
+                  if (item.inlineAction?.disabled !== true) onInlineAction(item);
+                }}
+              >
+                {item.inlineAction.label}
+              </Button>
+            )}
+            {item.statusNote !== undefined && (
+              <span ref={takeOrphanedFocus} tabIndex={-1} className="text-[13px] font-medium leading-[18px] text-text-secondary outline-none">
+                {item.statusNote}
+              </span>
+            )}
+          </div>
+          {/* Nút ẩn từng là một cột chữ bên phải: opacity-0 vẫn giữ chỗ, câu bị bóp còn ~100 px (BUG-203).
+              Nay là nút biểu tượng ở hàng giờ, nên câu dùng hết bề ngang. Chỉ ẩn-chờ-rê-chuột từ 640 px; hẹp
+              hơn, hoặc màn không có hover, thì luôn hiện — không có nút vô hình bấm trúng. */}
+          {!item.isRead && (
+            <span
+              className={cn(
+                'ml-auto shrink-0 transition-opacity duration-fast',
+                'sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 [@media(hover:none)]:opacity-100',
+              )}
             >
-              {item.inlineAction.label}
-            </Button>
-          )}
-          {item.statusNote !== undefined && (
-            <span ref={takeOrphanedFocus} tabIndex={-1} className="text-[13px] font-medium leading-[18px] text-text-secondary outline-none">
-              {item.statusNote}
+              <IconButton
+                icon={<Check size={18} aria-hidden="true" />}
+                aria-label={MARK_READ_LABEL}
+                size="sm"
+                onClick={() => onMarkRead(item.id)}
+              />
             </span>
           )}
         </div>
       </div>
-
-      {!item.isRead && (
-        <span
-          className={cn(
-            'shrink-0 opacity-0 transition-opacity duration-fast',
-            'group-hover:opacity-100 group-focus-within:opacity-100',
-          )}
-        >
-          <Button variant="ghost" size="sm" onClick={() => onMarkRead(item.id)}>
-            {MARK_READ_LABEL}
-          </Button>
-        </span>
-      )}
     </motion.li>
   );
 }

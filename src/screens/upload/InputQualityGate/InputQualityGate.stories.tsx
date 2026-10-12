@@ -623,7 +623,7 @@ export const Xong: Story = { args: scenarioFor('success') };
 /** Không có quyền — hai cột vẫn đọc được, hai nút hành động biến mất hẳn. */
 export const KhongCoQuyen: Story = { args: scenarioFor('forbidden') };
 
-/** Thu gọn — cột phải thành tấm trượt đáy, bất kể bề rộng khung nhìn. */
+/** Thu gọn — trạng thái của hook khi khung hẹp; dưới 1024px cột phải xếp dưới bản vẽ. */
 export const ThuGon: Story = { args: scenarioFor('collapsed') };
 
 /** Ngoài bảy trạng thái: đã tích ô xác nhận, lời chặn biến mất. */

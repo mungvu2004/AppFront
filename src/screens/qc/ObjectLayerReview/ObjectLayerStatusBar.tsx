@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils';
 import type { ObjectLayerStatusBarProps } from './objectLayerTypes';
 
 const STATUS_BAR_ARIA_LABEL = 'Thanh trạng thái';
+/** Nút chữ cao 24 px: vùng chạm tối thiểu WCAG 2.5.8 trong thanh 32 px (BUG-325, trước đó 49×18). */
 const UNDO_LABEL = 'Hoàn tác';
 const COLLAPSE_LABEL = 'Thu gọn hai panel';
 const EXPAND_LABEL = 'Mở lại hai panel';
@@ -70,7 +71,7 @@ export function ObjectLayerStatusBar({
 
       <div className="flex items-center gap-2">
         <button
-          className="rounded text-[12px] font-medium text-text-secondary outline-none hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+          className="inline-flex h-6 items-center rounded px-1.5 text-[12px] font-medium text-text-secondary outline-none hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
           onClick={onUndo}
           type="button"
         >

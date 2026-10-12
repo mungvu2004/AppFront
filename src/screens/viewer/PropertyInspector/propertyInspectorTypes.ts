@@ -72,7 +72,9 @@ export type PropertyGroupId = (typeof PROPERTY_GROUP_IDS)[number];
 /** Nhãn tiếng Việt của từng nhóm, theo đúng đặc tả. */
 export const PROPERTY_GROUP_LABELS: Readonly<Record<PropertyGroupId, string>> = {
   geometry: 'Kích thước hình học',
-  material: 'Vật liệu',
+  // Nhóm này chứa loại tường, chiều mở, loại đồ đạc, tên và công năng phòng — chưa
+  // có trường vật liệu nào, nên gọi nó "Vật liệu" là nói sai (BUG-489).
+  material: 'Thông tin chung',
   relations: 'Quan hệ',
   inspection: 'Kiểm tra',
   advanced: 'Thông số nâng cao',
@@ -324,6 +326,12 @@ export type PropertyStatusBadgeTone = 'verified' | 'attention' | 'violation' | '
 export interface PropertyStatusBadge {
   readonly label: string;
   readonly tone: PropertyStatusBadgeTone;
+  /**
+   * Lý do của "Vi phạm"/"Cần chú ý": câu của vi phạm nặng nhất, hiện ngay dưới đầu
+   * panel. Huy hiệu đỏ mà không nói vì sao thì người dùng phải cuộn tới nhóm
+   * "Kiểm tra" mới biết (BUG-489). Vắng khi không có vi phạm.
+   */
+  readonly reason?: string;
 }
 
 /** Đầu panel: h3 loại đối tượng, mã mono-lg, Badge trạng thái, nút khuôn, nút đóng. */

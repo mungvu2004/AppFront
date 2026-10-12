@@ -109,14 +109,14 @@ export function ThicknessPreviewCanvas({
   return (
     <aside
       aria-label={CANVAS_LABEL}
-      className="shrink-0"
-      style={{ width: THICKNESS_PREVIEW_CANVAS_WIDTH_PX }}
+      className="w-full shrink-0"
+      style={{ maxWidth: THICKNESS_PREVIEW_CANVAS_WIDTH_PX }}
     >
+      {/* Co theo bề rộng có được (tối đa 320) và giữ tỉ lệ khung: ở 375 không tràn khỏi thẻ (BUG-332). */}
       <div
-        className="relative overflow-hidden rounded-[12px] border border-border-default bg-canvas-2d"
+        className="relative w-full overflow-hidden rounded-[12px] border border-border-default bg-canvas-2d"
         style={{
-          width: THICKNESS_PREVIEW_CANVAS_WIDTH_PX,
-          height: THICKNESS_PREVIEW_CANVAS_HEIGHT_PX,
+          aspectRatio: `${String(THICKNESS_PREVIEW_CANVAS_WIDTH_PX)} / ${String(THICKNESS_PREVIEW_CANVAS_HEIGHT_PX)}`,
         }}
         onMouseLeave={handleLeave}
       >
@@ -128,11 +128,9 @@ export function ThicknessPreviewCanvas({
           <>
             <svg
               aria-hidden="true"
-              className="absolute inset-0"
-              height={THICKNESS_PREVIEW_CANVAS_HEIGHT_PX}
+              className="absolute inset-0 h-full w-full"
               role="presentation"
               viewBox={`0 0 ${String(THICKNESS_PREVIEW_CANVAS_WIDTH_PX)} ${String(THICKNESS_PREVIEW_CANVAS_HEIGHT_PX)}`}
-              width={THICKNESS_PREVIEW_CANVAS_WIDTH_PX}
             >
               {figures.map((figure) => {
                 const isMatched =
@@ -180,28 +178,30 @@ export function ThicknessPreviewCanvas({
           </>
         )}
 
-        {/* Chú giải độ dày — nhãn và token màu đã ghép sẵn ở hook (A1, A15). */}
-        <ul
-          aria-label={LEGEND_LABEL}
-          className="absolute bottom-3 left-3 flex flex-col gap-1 rounded-[8px] bg-bg-surface p-2 shadow-float"
-        >
-          {legend.map((entry) => (
-            <li key={String(entry.group)} className="flex items-center gap-2">
-              <span
-                aria-hidden="true"
-                className="shrink-0 rounded-[3px]"
-                style={{
-                  backgroundColor: entry.colorToken,
-                  height: LEGEND_SWATCH_PX,
-                  width: LEGEND_SWATCH_PX,
-                }}
-              />
-              <span className="font-mono text-xs leading-none text-text-primary">
-                {entry.label}
-              </span>
-            </li>
-          ))}
-        </ul>
+        {/* Chú giải độ dày — nhãn và token màu đã ghép sẵn ở hook (A1, A15). Rỗng thì không có khung trắng mồ côi (BUG-412). */}
+        {legend.length === 0 ? null : (
+          <ul
+            aria-label={LEGEND_LABEL}
+            className="absolute bottom-3 left-3 flex flex-col gap-1 rounded-[8px] bg-bg-surface p-2 shadow-float"
+          >
+            {legend.map((entry) => (
+              <li key={String(entry.group)} className="flex items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className="shrink-0 rounded-[3px]"
+                  style={{
+                    backgroundColor: entry.colorToken,
+                    height: LEGEND_SWATCH_PX,
+                    width: LEGEND_SWATCH_PX,
+                  }}
+                />
+                <span className="font-mono text-xs leading-none text-text-primary">
+                  {entry.label}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </aside>
   );

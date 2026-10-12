@@ -53,6 +53,7 @@ import { lowerFirst } from '@/lib/format/sentence';
 
 import type { Wall, WallId } from '@/domain/spatial/types';
 import { createHistoryStack, type HistoryStack } from '@/lib/commands/history';
+import type { HttpError } from '@/lib/http/types';
 import { standardizeThickness } from '@/lib/geometry/standardize';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
@@ -68,9 +69,14 @@ import {
   type SevenStateScenario,
 } from '@/lib/testing/sevenStateScenarios';
 import { resetSelectorCaches } from '@/store/selectors';
+import { ROUTES } from '@/routes/paths';
 import type { ProjectRole } from '@/types/project';
 import { useStore } from '@/store';
 
+import { BACK_TO_FLOORS_LABEL, FLOOR_MISSING_TITLE } from '../shared/floorLayerReadFailure';
+
+import { ThicknessApplyBar } from './ThicknessApplyBar';
+import { ThicknessPreviewCanvas } from './ThicknessPreviewCanvas';
 import { ThicknessStandardizationContainer } from './ThicknessStandardization.container';
 import { ProvisionalScale, scenarioArgsFor } from './ThicknessStandardization.stories';
 import {
@@ -318,6 +324,40 @@ describe('[NGHIEM-1] bảy trạng thái của A11', () => {
       unmount();
     }
   }, HEAVY_TEST_TIMEOUT_MS);
+
+  it('[BUG-412] chưa có đoạn nào: "Xem trước" tắt, khung xem trước không còn ô chú giải trắng mồ côi', () => {
+    const noop = (): void => undefined;
+    const { unmount } = renderWithProviders(
+      <>
+        <ThicknessApplyBar
+          canPreview={false}
+          onApplyPreview={noop}
+          onCancelPreview={noop}
+          onChangeTolerance={noop}
+          onDismissReapplyWarning={noop}
+          onOpenPreview={noop}
+          onReapplyFilter={noop}
+          onUndo={noop}
+          preview={null}
+          reapplyWarning={null}
+          toleranceMm={DEFAULT_TOLERANCE_MM}
+        />
+        <ThicknessPreviewCanvas
+          hoveredGroup={null}
+          hoveredWallId={null}
+          isCollapsed={false}
+          legend={[]}
+          onHoverWall={noop}
+          shapes={[]}
+        />
+      </>,
+    );
+
+    expect(screen.getByRole('button', { name: OPEN_PREVIEW_LABEL })).toBeDisabled();
+    expect(screen.queryByRole('list', { name: 'Chú giải độ dày tường' })).toBeNull();
+
+    unmount();
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -610,5 +650,39 @@ describe('dải tỉ lệ tạm (F-04x-2)', () => {
       expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
     });
     expect(screen.queryByRole('button', { name: 'Hiệu chỉnh tỉ lệ' })).not.toBeInTheDocument();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Đọc lớp hỏng khi chưa có tài liệu: cả màn là MỘT trạng thái lỗi (BUG-326).   */
+/* -------------------------------------------------------------------------- */
+
+describe('[BUG-326] đọc lớp hỏng thay cả màn bằng một trạng thái lỗi có lối ra', () => {
+  const FLOOR_GONE: HttpError = {
+    code: 'NOT_FOUND',
+    kind: 'http',
+    raw: { code: 'NOT_FOUND', resource: 'floor' },
+    requestId: 'r',
+    retryable: false,
+    status: 404,
+  };
+
+  it('404 tầng: một nút "Về quản lý tầng", không dựng biểu đồ và bảng', async () => {
+    const onNavigate = vi.fn();
+
+    renderWithProviders(
+      <ThicknessStandardizationContainer
+        floorId={FLOOR_ID}
+        gateway={{ ...createMockThicknessStandardizationGateway(), readLayer: () => Promise.reject(FLOOR_GONE) }}
+        onNavigate={onNavigate}
+        projectId={PROJECT_ID}
+        roles={EDITOR_ROLES}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: BACK_TO_FLOORS_LABEL }));
+    expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.floors(PROJECT_ID));
+    expect(screen.getByText(FLOOR_MISSING_TITLE)).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: HISTOGRAM_SECTION_LABEL })).toBeNull();
   });
 });

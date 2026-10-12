@@ -10,9 +10,8 @@
  * ## Bố cục
  *
  * Ba mảnh, đúng thứ tự đặc tả: canvas giữa bo 16 px thụt 12 px, panel phải
- * 344 px, thanh trạng thái 32 px dính đáy. Dưới 1024 px panel thành tấm trượt
- * đáy — nhưng CSS đó nằm trong `ScaleCalibrationPanel.tsx`, không nhân bản ở
- * đây; `model.isCompact` chỉ đi tiếp xuống panel để nó chọn đúng `aria-label`.
+ * 344 px, thanh trạng thái 32 px dính đáy. Dưới 1024 px panel xếp dưới bản vẽ
+ * — CSS đó nằm trong `ScaleCalibrationPanel.tsx`, không nhân bản ở đây (BUG-333).
  *
  * Bo góc 16 px là của chính canvas (`ScaleCalibrationCanvas.tsx`), nên phần
  * việc còn lại của khung là khoảng thụt 12 px quanh nó.
@@ -76,6 +75,7 @@ const FORBIDDEN_TITLE = 'Bạn không có quyền hiệu chỉnh tỷ lệ';
 
 const BACK_TO_PREPROCESSING_LABEL = 'Quay lại bước tiền xử lý';
 const RETRY_LABEL = 'Tải lại ảnh';
+const GO_TO_UPLOAD_LABEL = 'Tải bản vẽ lên';
 
 /**
  * Mã máy đọc không bao giờ đứng một mình (A6).
@@ -201,7 +201,13 @@ export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
                 }
                 title={(isError ? model.errorTitle : undefined) ?? NOTICE_TITLES[model.state]}
               />
-              {isError && (
+              {isError && model.isNoDrawing === true && (
+                /* Lối ra DUY NHẤT của tầng chưa có bản vẽ nên là nút chính (BUG-411). */
+                <Button onClick={actions.onGoToUpload} size="sm" variant="primary">
+                  {GO_TO_UPLOAD_LABEL}
+                </Button>
+              )}
+              {isError && model.isNoDrawing !== true && (
                 <div className="flex flex-wrap items-center gap-2">
                   <Button onClick={actions.onGoToPreprocessing} size="sm" variant="ghost">
                     {BACK_TO_PREPROCESSING_LABEL}
@@ -230,7 +236,6 @@ export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
         <ScaleCalibrationPanel
           actions={actions}
           isCollapsed={model.isPanelCollapsed}
-          isCompact={model.isCompact}
           panel={model.panel}
           prefersReducedMotion={model.prefersReducedMotion}
           state={model.state}

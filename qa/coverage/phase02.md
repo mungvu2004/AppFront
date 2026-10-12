@@ -1,13 +1,13 @@
-<!-- qa-sources fe=5afd8b8a -->
+<!-- qa-sources fe=d18eb884 -->
 # Phase 02 — FE coverage inventory (SCR-05 dashboard + create wizard, SCR-06 notifications, SCR-07 onboarding)
 
-FE source: `F:/App/AppFront` HEAD `5afd8b8a`. Backend rules are in `coverage/phase02-be.md` (separate agent);
+FE source: `F:/App/AppFront` HEAD `d18eb884` (rows 1…O21 were inventoried at `5afd8b8a` and keep those line numbers unless re-cited; the shared-component changes `5afd8b8a..271538cb` are the S-rows, cited at `271538cb`; the screen changes `271538cb..d18eb884` are the D-rows, cited at `d18eb884`). Backend rules are in `coverage/phase02-be.md` (separate agent);
 BE-rule gaps belong there, not here. Plan rows: `E2E-TEST-PLAN.md` §4 Phase 2 (SCR-05…07).
 
 **Specs** — `M` = `tests/phase02_dashboard.spec.ts` (16, serial, produces CP-2) · `U` = `tests/phase02_dashboard_ui.spec.ts`
-(34 states x 1440/1024/768/375, non-serial; +1 = `U02_notif_rows*`, BUG-174) · `E` = `tests/phase02_dashboard_edge.spec.ts` (69: 68 runnable + 1 `test.fixme`;
-non-serial; the SCR-05 dashboard block plus the earlier wizard / SCR-06 / SCR-07 tests) · `EW` = `tests/phase02_wizard_edge.spec.ts`
-(27, non-serial) · `X` = `tests/phase02_notify_edge.spec.ts` (19, non-serial, second real user) · `A` = `tests/phase02_dashboard_api.spec.ts`
+(34 states x 1440/1024/768/375, non-serial; +1 = `U02_notif_rows*`, BUG-174) · `E` = `tests/phase02_dashboard_edge.spec.ts` (97: 94 runnable + 3 `test.fixme`;
+non-serial; the SCR-05 dashboard block plus the earlier wizard / SCR-06 / SCR-07 tests; `E·D` = its last describe, "QA-02 FE changes (d18eb884)", 18 runnable + 2 fixme) · `EW` = `tests/phase02_wizard_edge.spec.ts`
+(36, non-serial) · `X` = `tests/phase02_notify_edge.spec.ts` (19, non-serial, second real user) · `A` = `tests/phase02_dashboard_api.spec.ts`
 (26, API layer; holds the pairs of the mocks). Test names are shortened to their leading words. Last run: `run-12` (`F:/App/qa-results/run-12/phase02*/results.json`): M 15 passed + 1 skipped, A 26/26 passed, E 83 passed /
 29 failed (open FE bugs) / 3 skipped, U 4 passed / 28 failed (open FE bugs, mostly BUG-109/110 at 375) / 1 skipped. Specs edited after it
 (QA-02 cluster T) are checked by `tsc` + `--list` only.
@@ -36,6 +36,13 @@ non-serial; the SCR-05 dashboard block plus the earlier wizard / SCR-06 / SCR-07
 | F7 | Numeric fields read "." as a thousands mark: "3.5" = 35 → "Giá trị phải <= 10" (UX: a dot decimal is common) | `NUM:255-266`, `NF:41-46` | E wizard heights |
 | F8 | Create dialog width is pinned at 560 px; at 375 px it overflows (documented limitation) | `CPM:10-19, 64` | E compact (JSON records `dialogWidth`) |
 | F9 | Injected "unreadable row" fails the WHOLE list when it is > 20 % of the rows (`MAX_INVALID_RATIO = 0.2`): with < 4 real projects one bad row is > 20 % → full "Không tải được danh sách dự án" instead of the partial notice (likely real cause of the edge "unreadable row" failure, besides BUG-142) | `src/api/schemas/decode.ts:7, 205-224` | E / U unreadable row now pad to >= 4 readable rows |
+| F10 | **Toggle loses its own description when given an extra one**: `descId` joins `{id}-desc` and the caller's id with a space, and the description span reuses that joined string as its OWN id, so `aria-describedby` points at `{id}-desc` (no such element) + the cap note — at the 50-floor cap the locked "Có tầng hầm" reads only "Đã đủ 50 tầng…", not "Tầng hầm luôn nằm dưới…" | `src/components/ui/Toggle.tsx:69, 88, 130` (doc :15-16 "read after `description`"), `StepFloors.tsx:43-50` | EW·S 50-floor cap note (soft assert) |
+| F11 | **(fixed in d18eb884 — `resetKey`, StepFloors.tsx:41-43, 123, 180-183; the EW·S soft assert should now pass)** **Same-value apply keeps a stale refusal**: `useNumericField` clears a refusal only when the `value` prop changes (`:41-44`); "Áp cho mọi tầng" with the height the row already holds is no change, so the refused text + message stay while the row really holds that height | `src/hooks/useNumericField.ts:38-44, 145-150`, `useCreateProjectModal.ts:776` | EW·S refused height (soft assert) |
+| F12 | **Tooltip left behind after its anchor moves**: Tooltip measures its anchor only when it shows (`:66-77`); focus on "Mức 1" then Enter drops the sheet to 88 px while the tooltip may stay where the dot was | `src/components/ui/Tooltip.tsx:66-77, 91-112`, `Drawer.tsx:251-273` | E·S snap dots by keyboard (soft assert) |
+| F13 | **Stale edge test**: EW "floor cap with a basement" clicks "Có tầng hầm" at 50 floors; since 271538cb the switch is disabled there (`canToggleBasement`, UCPM:907), so the click waits out the action timeout instead of asserting ≤ 50 rows. W53 is now proven by the EW·S cap-note test. Not edited (scope: extend only) | `useCreateProjectModal.ts:907`, `StepFloors.tsx:46` | — (test-side, fix in the spec) |
+| F15 | **Stale edge test**: E "search and Vietnamese marks" (spec line 1594) still expects a decomposed (NFD) query to find nothing; since d18eb884 the search normalises both sides to NFC (BUG-210), so its NFD loop fails. The new E·D NFC test proves the new behaviour. Fixed in QA-02c (BUG-239): the NFD query moved out of `refused` and now asserts the match | `useProjectDashboard.ts:308, 312` | E search and Vietnamese marks (fixed, BUG-239) |
+| F16 | `/thong-bao` backdrop hint promises "bấm ra ngoài bảng để quay lại": the click lands on the Drawer overlay (DRW:170-177), not on the backdrop itself — E·D 1440 proves the promise end to end | `NotificationCenter.container.tsx:177-190`, `Drawer.tsx:170-177` | E·D /thong-bao at 1440 |
+| F14 | Unbroken 80-char name in the delete sentence: `PD:301` `<p>` has no `break-words`, so the dialog stays 343 px (MOD `max-w-full`) but the sentence may overflow its own box at 375 px | `ProjectDashboard.tsx:301`, `Modal.tsx:131-133` | E·S 375 px delete dialog (soft assert) |
 
 ## SCR-05 — Dashboard `/`
 
@@ -54,7 +61,7 @@ non-serial; the SCR-05 dashboard block plus the earlier wizard / SCR-06 / SCR-07
 | 11 | Compact | < 1024: sidebar → SegmentedControl "Lọc theo trạng thái"; 1023 vs 1024 boundary; same filter state | `PD:229-240`, `UPD:90-107, 363`, `DS:59-75` | U `U02_dash_status_filter` (768/375) · E compact | covered; no-match below 1024 = BUG-111 (openError expected at 768/375 in `U02_dash_status_filter` / `U02_dash_search_no_match`) |
 | 12 | Error | screen crash → `ScreenErrorBoundary` fallback | `PDC:44-57, 88-95` | — | UNKNOWN — NEED VERIFICATION (no safe way to crash the screen on the real stack) |
 | 13 | Display | "{n} dự án" only in success/collapsed/forbidden | `PD:199-201` | E header counts · E unreadable row (hidden in partial) · E loading | covered |
-| 14 | Display | 4 stat cards "Tổng dự án / Hoàn thành / Cần QC / Đang xử lý" with derived counts | `DS:22-57`, `UPD:339-350`, `vi.json:415-418` | E header counts | covered |
+| 14 | Display | derived counts on the 4 status filter entries (stat cards removed, BUG-118 FIX-1153) | `DS:21-44`, `UPD:339-350` | E header counts | covered |
 | 15 | Input | searchbox "Tìm dự án" | `PD:175-183` | M search | covered |
 | 16 | Logic | search trims and ignores case | `UPD:272-276` | E search | covered |
 | 17 | Button | sidebar status filters `aria-pressed` + counts | `DS:59-75`, `UPD:76-81` | M view controls · E header counts | covered |
@@ -98,7 +105,7 @@ non-serial; the SCR-05 dashboard block plus the earlier wizard / SCR-06 / SCR-07
 | 55 | Navigation | open routes for qc (walls) and done (`/3d`) | `UPD:221-232` | E [mocked response] status routing | covered by mock (re-pair with a real click after CP-5) |
 | 55b | Navigation | qc → `/floors` (no `defaultFloorId`) | `UPD:226-227`, `projectSummaries.ts:92-97` | — | n/a-by-design (the schema refuses a qc row without `defaultFloorId`, so the branch is unreachable through N1) |
 | 56 | Navigation | Back from a project / reload → search, sort, view back to defaults | `UPD:241-244` | E keyboard (view) · E reload | covered |
-| 57 | Display | hero + 2 side cards + grid, DOM order = row order | `PD:143-167` | E sort (order) | covered |
+| 57 | Display | every card in one same-size grid (1/2/3/4 columns at <640/≥640/≥1440/≥1920; BUG-119/157), DOM order = row order | `PD:85, 108-126` (d18eb884) | E sort (order) · E·D grid (sizes, columns) | covered |
 | 58 | Motion | first-appearance stagger only | `UPD:298-303` | — | n/a-by-design (timing; UI layer) |
 | 59 | Race | double click "Xoá dự án" while DELETE is in flight → one DELETE | `UPD:443-459`, `PD:349-351` (cf. `UCPM:641-643`) | E [held response] double click on "Xoá dự án" | covered — **expected to fail**: no in-flight guard, button stays enabled (soft assert, finding candidate) |
 | 60 | Race | rename optimistic name while PATCH held; toast only after the answer; 2nd Enter sends/opens nothing | `UPD:410-427`, `PCT:119-122` | E [held response] rename | covered |
@@ -109,7 +116,7 @@ non-serial; the SCR-05 dashboard block plus the earlier wizard / SCR-06 / SCR-07
 | 65 | Table | rename inside a table row (menu → box in the cell), Esc cancels, click/Enter in the box never open the row | `PD:106-121, 297-304` | E table view rename | covered |
 | 66 | Table | 80-char name: full name in the cell, no page-level h-scroll at 1440, last column on screen | `PD:281-316`, `Table.tsx:37`, `LIM:23` | E table view with an 80-character name | covered — last-column check is soft, **likely finding** (name cell does not truncate in a table) |
 | 67 | Logic | status filter AND search; sidebar counts ignore the search; filter switch keeps the query | `UPD:273-281, 339-350` | E status filter AND search | covered |
-| 68 | Logic | search vs Vietnamese marks: upper case with marks matches; without marks / NFD does not | `UPD:272-276` | E search and Vietnamese marks | covered (asserts source; UX note: no accent folding — typing "nha" never finds "Nhà") |
+| 68 | Logic | search vs Vietnamese marks: upper case with marks matches; without marks does not; NFD now matches (NFC on both sides, BUG-210) | `UPD:308, 312` (d18eb884) | E search and Vietnamese marks (NFD matches, BUG-239) · E·D NFC | covered (UX note: no accent folding — typing "nha" never finds "Nhà") |
 | 69 | Partial | no-result search → "một phần", no "{n} dự án"; emptying the box → list, line, "thành công" | `UPD:363-368`, `PD:199, 269-275` | E search with no result | covered |
 | 70 | Network | delete → N1 re-read (invalidation) → counters / "{n} dự án" −1 without reload | `UPD:456-458`, `lib/query/invalidation.ts:304-308` | E delete re-reads N1 | covered |
 | 71 | Error | offline during load (N1 aborted): GET retried, then error card; "Thử lại" recovers | `lib/http/retry.ts:25-26, 70-96`, `PD:251-257` | E [mocked response] offline while the list loads | covered (unpairable: network loss) |
@@ -145,7 +152,7 @@ non-serial; the SCR-05 dashboard block plus the earlier wizard / SCR-06 / SCR-07
 | W19 | Toggle | "Có tầng hầm" → "Tầng hầm" first, negative elevation | `SF:34-40`, `UCPM:279-304, 596-606` | M full create · E rows | covered |
 | W20 | Button | "Thêm tầng" → "Tầng N" without height | `UCPM:185-187, 559-566` | E rows | covered |
 | W21 | Boundary | 50 floors → "Thêm tầng" disabled | `UCPM:490`, `SF:125`, `LIM:27` | U `U02_wizard_floor_cap` · E floor cap | covered (UI layer) |
-| W22 | Validation | elevation > 300 m → "Cao độ vượt giới hạn cho phép (-30 đến 300 mét)." | `UCPM:127-136, 260-265`, `LIM:30-31` | E floor cap | covered |
+| W22 | Validation | elevation > 300 m → "Cao độ vượt giới hạn cho phép (-30 đến 300 mét)."; rows above → "…một tầng bên dưới đã vượt giới hạn cao độ." (BUG-213, UCPM:325) | `UCPM:127-136, 260-265`, `LIM:30-31` | E floor cap | covered |
 | W23 | Validation | elevation < -30 m (basement) | `UCPM:289-292` | — | n/a-by-design (max height 10 m → basement ≥ -10 m; unreachable) |
 | W24 | Button | "Xoá {tầng}" | `SF:107-114`, `UCPM:568-571` | E rows | covered |
 | W25 | Input | "Tên tầng …" edit | `SF:87-92`, `UCPM:573-576` | E rows | covered |
@@ -175,9 +182,9 @@ non-serial; the SCR-05 dashboard block plus the earlier wizard / SCR-06 / SCR-07
 | W49 | Logic | apply → edit one row restacks; apply again overwrites the edit; a new row starts empty; apply field keeps its value | `UCPM:468, 559-566, 585-594`, `UCPM:246-276` | EW "Áp cho mọi tầng" then edit one | covered |
 | W50 | Toggle | basement by keyboard (Space), own height → "-4,0 m"/"-10,0 m", datum stays 0; "Thêm tầng" still "Tầng 4"; deleting the basement row unticks the switch; re-tick = fresh row without height | `Toggle.tsx:80-92`, `UCPM:279-304, 563, 596-606, 697` | EW basement by keyboard | covered |
 | W51 | Keyboard | rename by keyboard keeps focus (MOD onClose ref); Enter on "Xoá {tầng}" removes it; focus pulled back into the dialog | `SF:87-113`, `UCPM:568-576`, `MOD:45-55`, `FT:129-134` | EW floor rows by keyboard | covered |
-| W52 | Logic | after deleting a middle floor, "Thêm tầng" repeats an existing name ("Tầng 3" twice, two "Xoá Tầng 3") | `UCPM:185-187, 563` | EW floor rows by keyboard | covered (pinned; finding candidate Logic/Low — duplicate floor names + ambiguous a11y names) |
-| W53 | Boundary | 50 floors then "Có tầng hầm" → 51 rows (cap is "basement included") | `LIM:25-27`, `UCPM:490, 596-606` | EW floor cap with a basement | covered — expected to FAIL (NEW finding candidate: setHasBasement skips the cap) |
-| W54 | Validation | fresh step 2 shows no row error before a touch | `UCPM:233-244` | EW [BUG-120] | covered — expected to FAIL (BUG-120) |
+| W52 | Logic | after deleting a middle floor, "Thêm tầng" skips a name already in the table ("Tầng 4", never a second "Tầng 3") | `UCPM:757-767` | EW floor rows by keyboard | covered (BUG-217, FIX-1017) |
+| W53 | Boundary | 50 floors then "Có tầng hầm" → 51 rows (cap is "basement included") | `LIM:25-27`; at 271538cb `useCreateProjectModal.ts:907` disables the switch at the cap | EW·S 50-floor cap note (switch disabled, rows stay 50) · EW floor cap with a basement (stale, F13) | covered |
+| W54 | Validation | fresh step 2 shows no row error before a height is typed or applied; a rename does not arm them (BUG-120, FIX-1011) | `UCPM:339-352, 696-698, 718-724` | EW [BUG-120] · U `U02_wizard_height_refused` | covered |
 | W55 | Logic | "Quay lại" to step 1 and back keeps basement, renamed/added rows, per-row and shared heights; step-1 edit does not reset floors | `UCPM:528-536, 614-616`, `CPM:264-273` | EW "Quay lại" to step 1 and back | covered |
 | W56 | Display | review with 80-char name, 200-char address, 32-char code, 3-line notes: full text, no clipped value, no sideways scroll | `CPM:174-181`, `FR:66-76` | EW review shows long values whole | covered (notes line breaks not kept — recorded, not asserted) |
 | W57 | Display | review label/value on one line; floor levels labelled "Cao độ" | `FR:66, 71`, `CPM:183-190` | EW [BUG-121] | covered — expected to FAIL (BUG-121) |
@@ -196,7 +203,7 @@ non-serial; the SCR-05 dashboard block plus the earlier wizard / SCR-06 / SCR-07
 | W70 | Network | create 503 once → retried with the same Idempotency-Key, one project | `RTY:3-5, 25-26`, `HTC:400-411, 487-524`, `CPC:90` | EW [mocked response] create 503 once | covered — unpairable: 5xx (503) |
 | W71 | Network | network abort on the first attempt → silent retry, same key, one project, no notice | `RTY:17-23, 95`, `HTC:568-583` | EW [mocked response] network abort on the first create attempt | covered — unpairable: network loss |
 | W72 | Keyboard | floor reorder | `SF:28-153` (no reorder control) | — | n/a-by-design (rows are ordered by insertion; no move/drag control in source) |
-| W73 | Boundary | message when the 50-floor cap is reached | `SF:120-128` (button only disabled) | E floor cap (dashboard edge) | UNKNOWN — NEED VERIFICATION (no copy in source; plan wording not found) |
+| W73 | Boundary | message when the 50-floor cap is reached: "Đã đủ 50 tầng, mức tối đa (kể cả tầng hầm)." | `useCreateProjectModal.ts:469, 906`, `StepFloors.tsx:144-158` (271538cb) | EW·S 50-floor cap note · U `U02_wizard_floor_cap` | covered (copy added in 271538cb) |
 
 ## SCR-06 — Notifications (bell drawer on `/`, route `/thong-bao`)
 
@@ -230,8 +237,8 @@ non-serial; the SCR-05 dashboard block plus the earlier wizard / SCR-06 / SCR-07
 | N25 | Route | row click on `/thong-bao` (direct load) lands on the target and the 180 ms close does not bounce to `/` | `NCC:198-218`, `NC:221-229` | X row click on /thong-bao | covered (real) |
 | N26 | Compact | < 1024 bottom sheet, "Mức 1–3" (`aria-pressed`), heights 88 px / 40 % / 90 % | `DRW:27-33, 70, 196-260` | E compact | covered |
 | N27 | Error | crash fallback card | `NCC:64-79` | — | UNKNOWN — NEED VERIFICATION (not producible) |
-| N28 | Keyboard | Enter on the bell → focus on "Đánh dấu tất cả đã đọc"; Shift+Tab wraps to "Xem tất cả", Tab wraps back; Tab reaches a row; focus-within reveals "Đánh dấu đã đọc"; Enter opens the row | `FT:126-133, 183`, `NC:161-169, 187-192` | X keyboard | covered |
-| N29 | UI | gear tooltip placed while the drawer slides: with nothing unread the gear gets the opening focus; tooltip must sit on the gear, no horizontal scroll (BUG-114) | `NC:239, 313-318`, `FT:39-44, 183`, `IB:58-63`, `TT:37-63`, `DRW:118-120` | X BUG-114 | covered (expected to fail while BUG-114 is open) |
+| N28 | Keyboard | Enter on the bell → focus on "Đánh dấu tất cả đã đọc"; Shift+Tab wraps to "Xem tất cả", Tab wraps back; Tab reaches a row; focus-within reveals "Đánh dấu đã đọc" (its wrapping span, NotificationRow.tsx:148-153); Enter opens the row | `FT:126-133, 183`, `NC:161-169`, `NotificationRow.tsx:148-160` | X keyboard | covered |
+| N29 | UI | gear tooltip placed while the drawer slides: with nothing unread the gear gets the opening focus of a drawer opened by Enter (tooltip on `:focus-visible` only, BUG-205); tooltip must sit on the gear, no horizontal scroll (BUG-114) | `NC:239, 313-318`, `FT:39-44, 183`, `IB:58-63`, `TT:37-63, handleFocus`, `DRW:118-120` | X BUG-114 | covered |
 | N30 | Logic | mark one read then leave for `/thong-bao` inside the window → POST still sent once at ~8 s (gateway path), row read on the route after invalidation | `UNC:649-652, 672-685` | X leave then sent | covered (route instance may show the row unread meanwhile, `UNC:455-458` — recorded, not asserted) |
 | N31 | Logic | mark one read, leave, "Hoàn tác" on the app-wide toast → nothing sent, row unread on the server | `UNC:696-705`, `TST:95-104` | X leave then undo | covered |
 | N32 | Responsive | `/thong-bao` at 1440 / 1024 after the slide: 400 px panel, 8 px from the right edge, filters + "Xem tất cả" on screen, no horizontal scroll (BUG-124) | `DRW:67, 70, 158-159`, `NCC:223` | X BUG-124 1440 · X BUG-124 1024 | covered (expected to fail while BUG-124 is open) |
@@ -265,11 +272,111 @@ non-serial; the SCR-05 dashboard block plus the earlier wizard / SCR-06 / SCR-07
 | O20 | a11y | quiet links at 375: Tab order sample → tutorial (aria-disabled) → skip; targets ≥ 24 × 24 px (BUG-127); Enter on "Bỏ qua" → `/` | `WS:149-185, 322-341`, WCAG 2.2 SC 2.5.8 | X BUG-127 | covered (size part expected to fail while BUG-127 is open) |
 | O21 | Logic | create a project from card 1 on `/onboarding` → cards should move to "card 1 done" | `WSC:82-103`, `CPC:101-111` (no N1 invalidation, F3) | — | UNKNOWN — NEED VERIFICATION (intended refresh not stated in source) |
 
+## Shared-component changes `5afd8b8a..271538cb` (S-rows, cited at `271538cb`)
+
+Files: `Drawer.tsx`, `Modal.tsx`, `Toast.tsx`, `EmptyState.tsx`, `Select.tsx`, `Table.tsx`, `TableActionBar.tsx`, `FieldRow.tsx`,
+`NumericField.tsx`, `Toggle.tsx`, `Tooltip.tsx`, `buttonVariants.ts`, `Breadcrumb.tsx`, `limits.ts`, `useCombobox.ts`, `useSelect.ts`,
+`useNumericField.ts`, `vi.json`, `number.ts`, `focusTrap.ts`, `shortcutRegistry.ts`, `cachedProjectName.ts`, `e2e/fullstack/apiWatch.ts`,
+`dashboard-1440` baseline. `E·S` / `EW·S` = the last describe block of `E` / `EW` ("QA-02 shared components (FE 271538cb)").
+
+| # | Nhóm | Phần tử / trạng thái | Nguồn (271538cb) | Test phủ | Trạng thái |
+|---|---|---|---|---|---|
+| S1 | Table | dashboard table: five `columnheader` roles, every `th` `scope="col"` (BUG-115) | `src/components/ui/Table.tsx:177-179`, `ProjectTable.tsx:33-37` | E·S table view headers are real column headers | covered |
+| S2 | Table | wizard step-2 floor table: four column headers, "Xoá tầng" named by `aria-label` | `Table.tsx:179`, `StepFloors.tsx:90-93` | EW·S step 2 hint | covered |
+| S3 | Keyboard | delete dialog: Enter on "Để nguyên" closes, no DELETE; Space on "Xoá dự án" → DELETE 200 (a lone key keeps its native action in a modal scope, BUG-151) | `src/lib/input/shortcutRegistry.ts:552-557`, `ProjectDashboard.tsx:312-321` | E·S delete dialog by keyboard | covered |
+| S4 | Display | `danger` is solid: `--state-violation-text` fill, `--bg-surface` text ("Xoá dự án", "Đóng, bỏ thay đổi"; BUG-155) | `src/components/ui/buttonVariants.ts:12`, `ProjectDashboard.tsx:315-321`, `CreateProjectModal.tsx:205-207` | E·S delete dialog by keyboard · EW·S discard prompt · U `U02_dash_delete_confirm`, `U02_wizard_discard` | covered |
+| S5 | Toast | rename toast, 80-char unbroken name: message wraps, "Hoàn tác" inside the 320 px toast and works (BUG-131) | `src/components/feedback/Toast.tsx:121, 133-134, 137-145`, `useProjectDashboard.ts:439` | E·S rename toast with an 80-character unbroken name | covered |
+| S6 | Modal | 375 px delete dialog with an unbroken name stays in the 343 px frame, no page sideways scroll | `src/components/overlay/Modal.tsx:131-133`, `ProjectDashboard.tsx:293-301` | E·S 375 px delete dialog | covered (sentence overflow = F14, soft) |
+| S7 | Modal | wizard at 375 px fits the frame (`max-w-full`) | `Modal.tsx:131-133` | EW [BUG-110] · U wizard states at 375 | covered |
+| S8 | Empty | EmptyState description `text-wrap: pretty` (BUG-170) | `src/components/feedback/EmptyState.tsx:50-51`, `ProjectDashboard.tsx:261-266` | E·S no-match empty state · U `U02_dash_search_no_match` | covered |
+| S9 | Error | N1 500 → `Máy chủ gặp lỗi khi đọc danh sách. Bấm "Thử lại" để tải lại.` (BUG-209; old "…tải lại rồi thử lại." gone); N1 403 → the list rights sentence `Tài khoản của bạn chưa được phép xem danh sách dự án. Liên hệ quản trị dự án.` (BUG-209 FIX-1150) and no "Thử lại" (QA-02c R-src canRetry) | `useProjectDashboard.ts:236-251`, `lib/errors/toAppError.ts:10-18`, `ProjectDashboard.tsx:230-237` | E·S [mocked response] N1 fails (500) … a 403 says the rights sentence without a useless "Thử lại" | covered (unpairable: 5xx; 403 not producible on N1 for a signed-in role) |
+| S10 | Drawer | snap dots "Mức 1–3" described "Thu gọn" / "Nửa màn hình" / "Gần toàn màn hình" | `src/components/overlay/Drawer.tsx:31-32, 251-273` | E·S snap dots by keyboard · U `U02_notif_sheet_snap_tooltip` | covered |
+| S11 | Tooltip | focus → tooltip after 400 ms, inside the viewport (flip below near the top, clamp 8 px from the sides) | `src/components/ui/Tooltip.tsx:14-17, 66-77, 91-112, 193-197` | E·S snap dots · X [BUG-114] gear tooltip | covered |
+| S12 | Tooltip | a shown tooltip follows its anchor after the anchor moves (snap) | `Tooltip.tsx:66-77` | E·S snap dots (soft) | covered — finding candidate F12 |
+| S13 | Keyboard | Enter on "Mức 1" → 88 px peek | `Drawer.tsx:34-36`, `shortcutRegistry.ts:552-557` | E·S snap dots | covered |
+| S14 | Navigation | SCR-05 card → `/pipeline`: breadcrumb names the project from the N1 cache, cut "…" at 140 px, full name in `title` (BUG-165) | `src/lib/query/cachedProjectName.ts:21-27`, `useProcessingScreen.ts:559`, `ProcessingScreen.tsx:61-62, 223-231`, `useProjectDashboard.ts:276-279` | E·S SCR-05 → /pipeline at 375 px | covered |
+| S15 | Navigation | deep link / reload of `/pipeline` (no N1 cache) → project level skipped | `cachedProjectName.ts:14-19` (ponytail note) | E·S SCR-05 → /pipeline (JSON `crumbAfterReload` only) | UNKNOWN — NEED VERIFICATION (whether another read caches #24 on that screen) |
+| S16 | Navigation | SCR-07 "Tải bản vẽ" → `/upload`: "Đường dẫn trang" middle level cut at 140 px, 18 px line, one line, full name in `title` | `src/components/shell/Breadcrumb.tsx:19, 125-134, 142`, `useFloorUploadScreen.ts:1171-1175`, `FloorUploadScreen.tsx:194-203`, `useWelcomeScreen.ts:236-239` | E·S SCR-07 "Tải bản vẽ" → /upload at 375 px | covered |
+| S17 | Input | no hover stepper ("Tăng/Giảm giá trị") on height fields | `src/components/ui/NumericField.tsx:27-29` | EW·S height by keyboard | covered |
+| S18 | Keyboard | ArrowUp/ArrowDown ±1, Shift ±10, clamped 2–10 m; Tab commits | `src/hooks/useNumericField.ts:113-119, 127-142` | EW·S height by keyboard | covered |
+| S19 | Validation | range sentence with the unit: "Giá trị không nhỏ hơn 2 m." / "Giá trị không quá 10 m." (BUG-160) | `useNumericField.ts:46-53` | EW row height parsing · EW·S refused height · U `U02_wizard_height_refused` | covered |
+| S20 | Validation | refused text stays in its box after blur (rows and the shared field) | `useNumericField.ts:145-150` | EW·S refused height · U `U02_wizard_height_refused` | covered |
+| S21 | Logic | a new "Áp cho mọi tầng" value clears a row's refusal; since d18eb884 the same value does too (`resetKey`) | `useNumericField.ts:38-44`, `StepFloors.tsx:41-43, 123, 180-183` | EW·S refused height | covered — F11 fixed in d18eb884 (soft assert now expected to pass) |
+| S22 | Logic | `parseNumber`: "3.5" = 3,5; "2.500" = 2 500 (refused); "0.75" = 0,75 (refused) | `src/lib/format/number.ts:241-245, 271-276` | EW row height parsing · EW [BUG-132] · EW·S refused height | covered |
+| S23 | Hint | step 2 "Nhập chiều cao thông thuỷ cho từng tầng…" + "Tiếp tục" `aria-describedby` while a height is missing; "Sửa các tầng đang báo lỗi…" once every height is in and step 2 is still locked; none when unlocked (BUG-120) | `useCreateProjectModal.ts:474-477, 702-707`, `StepFloors.tsx:56-60`, `CreateProjectModal.tsx:350` | EW·S step 2 hint | covered |
+| S24 | Boundary | cap note "Đã đủ 50 tầng, mức tối đa (kể cả tầng hầm)." describes "Thêm tầng" | `useCreateProjectModal.ts:469, 664, 906`, `StepFloors.tsx:144-158` | EW·S 50-floor cap note · U `U02_wizard_floor_cap` | covered |
+| S25 | Toggle | "Có tầng hầm" locked at the cap without basement, usable with one; its description adds the cap note | `useCreateProjectModal.ts:907`, `StepFloors.tsx:43-50`, `Toggle.tsx:15-16, 69, 88, 130` | EW·S 50-floor cap note | covered — own description lost = finding candidate F10 |
+| S26 | Toggle | the switch element is 36×24 (`-my-0.5` keeps the layout), the visible track its 36×20 first child (BUG-158, FIX-1013) | `Toggle.tsx:95-106` | EW·S switch hit area | covered |
+| S27 | Modal | discard prompt: "Tiếp tục sửa" (click / Enter) keeps the form; copy "Nhấn Esc lần nữa hoặc bấm "Đóng, bỏ thay đổi" để đóng." | `CreateProjectModal.tsx:185-209`, `useCreateProjectModal.ts:816, 936` | EW·S discard prompt · U `U02_wizard_discard`, `U02_wizard_discard_esc` | covered |
+| S28 | Keyboard | Space on "Đóng, bỏ thay đổi" closes; no POST | `shortcutRegistry.ts:552-557` | EW·S discard prompt | covered |
+| S29 | Focus | wizard opens on "Tên dự án" (`data-autofocus` beats the first focusable) | `src/lib/input/focusTrap.ts:74-77, 196-202`, `CreateProjectModal.tsx:114` | EW [BUG-133] | covered |
+| S30 | Keyboard | Esc on an open Select inside the wizard closes only the list (the popup is the top layer) | `src/hooks/useSelect.ts:51-56`, `focusTrap.ts:108-118` | E wizard Esc · EW "Loại công trình" by keyboard | covered |
+| S31 | Keyboard | `useCombobox` Esc stops at the open list | `src/hooks/useCombobox.ts:56-62` | — | n/a-by-design (no `useCombobox` control on SCR-05…07) |
+| S32 | Display | Select label on a 20 px line | `src/components/ui/Select.tsx:104` | U wizard step-1 states (visual) | covered (UI layer) |
+| S33 | Display | review rows `isText`: label and value share a 20 px first line (BUG-121) | `src/components/ui/FieldRow.tsx:19-23, 72-77`, `StepReview.tsx:41-56` | EW [BUG-121] · U `U02_wizard_review_long_*` | covered |
+| S34 | Button | TableActionBar "Từ chối" secondary with red text | `src/components/ui/TableActionBar.tsx:90-98` | — | n/a-by-design (QC screens, not SCR-05…07) |
+| S35 | Validation | code ≤ 32 / address ≤ 200 limits in the FE | `src/domain/project/limits.ts:25-30, 48-49` | EW [BUG-176] · EW [BUG-186] · U `U02_wizard_code_too_long` | covered |
+| S36 | Copy | step 1 hint "Bắt buộc, từ 3 đến 80 ký tự." | `useCreateProjectModal.ts:156-158` | M · U `U02_wizard_name_required` | covered |
+| S37 | Copy | "Chưa nhập tên tầng." | `vi.json` `floors.missingName`, `useCreateProjectModal.ts` | EW [BUG-185] · U `U02_wizard_floor_name_missing` | covered |
+| S38 | Copy | server refusal sentences + "Sửa ở bước N" | `vi.json` `problems.serverRefused*`, `fixAtStep` | EW [BUG-129] ×3 [mocked response] | covered |
+| S39 | Copy | "Bấm "Tạo dự án" để thử lại — những gì đã nhập vẫn còn." | `vi.json` `problems.unknownKeepsForm` | EW [BUG-129] create 500 | covered |
+| S40 | Copy | `pipeline.empty.action`, `pipeline.overall.noRun` | `vi.json` | — | n/a-by-design (Phase 3 pipeline screen) |
+| S41 | Test infra | `navigateThenWaitForApi` registers the wait before navigating | `e2e/fullstack/apiWatch.ts:255-305` | — | n/a-by-design (helper; E/EW keep their local `navigateAndWaitForApi`) |
+| S42 | Visual | `dashboard-1440-chromium-win32.png` baseline | `e2e/app.visual.spec.ts-snapshots/` | — | n/a-by-design (FE repo visual suite, not this QA layer) |
+
+## FE changes `271538cb..d18eb884` (D-rows, cited at `d18eb884`)
+
+Files (task scope): `ProjectDashboard.tsx` (PD), `ProjectCardTile.tsx` (PCT), `ProjectTable.tsx` (PT), `useProjectDashboard.ts` (UPD),
+`WelcomeScreen.tsx` (WS), `CreateProjectModal.tsx` (CPM), `StepFloors.tsx` (SF), `useCreateProjectModal.ts` (UCPM),
+`NotificationCenter.tsx` (NC), `NotificationCenter.container.tsx` (NCC), `NotificationRow.tsx` (NR), `notificationCenterGateway.ts` (NCG),
+`src/api/schemas/notifications.ts`, `src/i18n/vi.json`, `e2e/v2v3/notification-center.spec.ts`; BE `apps/api/notifications/messages.py`,
+`packages/testing/factories/notifications.py`. `E·D` = the last describe of `E` ("QA-02 FE changes (d18eb884)").
+
+| # | Nhóm | Phần tử / trạng thái | Nguồn (d18eb884) | Test phủ | Trạng thái |
+|---|---|---|---|---|---|
+| D1 | Display | no featured "hero" card: every card one size in one grid (1 / 2 / 3 / 4 columns at <640 / ≥640 / ≥1440 / ≥1920), preview 132 px (BUG-119, BUG-157) | `PD:82-85, 108-126`, `PCT:91` | E·D grid (1440 + 375) | covered |
+| D2 | Input | card rename field shares the title's box (44 px below `sm`, 24 px from it): the card does not grow when renaming opens (BUG-199) | `PCT:64-66, 124-141` | E·D card rename (1440 + 375) | covered |
+| D3 | Table | below 640 px: header row `display: none`, each row a wrapping flex row, the name cell full width (BUG-153) | `PT:43-44, 53, 78` | E·D table stacked (375) | covered |
+| D4 | a11y | stacked cells name their column to a screen reader ("Trạng thái: ", "Tiến độ duyệt: ", "Cập nhật: "), `sm:hidden` above | `PT:46-49, 105, 110, 114` | E·D table stacked (375 sr-only rendered, 1440 `display: none`) | covered |
+| D5 | Table | progress = "{r}/{t} tường đã duyệt" at every width (the 375 px "%" form is gone); "Cập nhật" shown below `sm`, "Chi tiết" still hidden | `PT:108-116`, `UPD:365` | E·D table stacked | covered |
+| D6 | Table | name wraps up to 2 lines from `sm` (`line-clamp-2`), one 32 px line below; a short name is whole at 1024 px | `PT:5-7, 80-85` | E·D table stacked (1024 check soft) · E table view with an 80-character name | covered |
+| D7 | Table | table rename: the name stays as an invisible, `aria-hidden` size box under an absolute field (±2 px from `sm`, filling it below), row height unchanged (ND-R3, FIX-994) | `PT:12-17, 79-101` | E·D table rename (1440 + 375) · E table view rename | covered |
+| D8 | Table | a 2-line name's field may overlap the neighbouring rows by ~1 px while open | `PT:16-17` (accepted in source) | — | n/a-by-design (documented acceptance, not asserted) |
+| D9 | Toast | rename failure toast `state: 'violation'`, refused length `state: 'attention'` → dot colour; never the verified green (BUG-207) | `UPD:193-194, 454, 472`, `Toast.tsx:109-115, 135` | E·D rename toasts (real "ab", real 404) · E [mocked response] rename refused 403 (violation dot) | covered |
+| D10 | Error | N1 load error: 500 → "Máy chủ gặp lỗi khi đọc danh sách. Bấm "Thử lại" để tải lại."; 403 → own list sentence, no "Thử lại" (FIX-1150, R-src); network / timeout / rateLimited / unauthenticated keep their shared sentence (BUG-209) | `UPD:236-251, 391` | E·S [mocked response] N1 500 / 403 (= S9) | covered (unpairable: 5xx) |
+| D11 | Logic | search normalises query and names to NFC: a pasted NFD query finds the name (BUG-210) | `UPD:307-312` | E·D NFC | covered — F15 (older E test stale) |
+| D12 | Link | onboarding quiet links underlined only when enabled; the locked "Xem hướng dẫn 2 phút" has none (BUG-127) | `WS:168-185` | E·D quiet links | covered |
+| D13 | Modal | discard prompt is a full-width first row of the footer, not floating over the body: it covers no field ("Ghi chú"; "Loại công trình" at 375), fields never move down (BUG-204, BUG-123) | `CPM:177-225, 334-335` | E·D discard prompt at 1440 · at 375 · EW [BUG-123] | covered |
+| D14 | Focus | "Tiếp tục sửa" hands the focus back to the control that had it — "Ghi chú" after Esc, "Huỷ" after "Huỷ" (BUG-219) | `CPM:186-197, 254, 344` | E·D "Tiếp tục sửa" gives the focus back | covered |
+| D15 | Focus | fallback to "Huỷ" when the focused element was no input / textarea / button, or is gone | `CPM:190-194` | E·D `test.fixme` | UNKNOWN — NEED VERIFICATION (no path found that leaves the focus on a non-control when Esc reaches requestClose) |
+| D16 | Scroll | body bottom fade: sticky, 24 px, `aria-hidden`, `pointer-events: none` — a control under it still takes the click; scrolled to the end it lies over empty space (BUG-201) | `CPM:227-244, 332` | E·D fade at 1024×768 | covered |
+| D17 | Scroll | `scroll-pt-10` / `scroll-pb-6`: a field reached by Shift+Tab is not under the sticky floor-table header, one reached by Tab not under the fade (WCAG 2.4.11) | `CPM:301-303` | E·D 12 floors (both walks, soft) | covered |
+| D18 | Button | header X "Đóng hộp thoại" disabled while "Tạo dự án" runs; backdrop click ignored (BUG-218, BUG-184) | `CPM:297-298`, `Modal.tsx:155-177` | E·D [held response] X locked · EW [BUG-184] Esc while creating | covered |
+| D19 | Table | the floor table is not its own scroll box (`overflow-visible`): its sticky header stays at the top of the scrolled dialog body (BUG-202) | `SF:87-92`, `Table.tsx:37, 51` | E·D 12 floors | covered |
+| D20 | Logic | every "Áp cho mọi tầng" resets the row fields (`resetKey`): a refused text goes even when the applied height equals the row's | `SF:41-43, 123, 180-183` | EW·S refused height | covered (F11 fixed) |
+| D21 | Hint | the locked "Tiếp tục" always says why: height hint while a height is missing, "Sửa các tầng đang báo lỗi để sang bước xem lại." once all are in (BUG-120) | `UCPM:474-477, 702-707`, `vi.json:256` | EW·S step 2 hint · E·D step 2 stays neutral (height hint) | covered |
+| D22 | Validation | only a typed / applied height arms the row errors — "Thêm tầng", "Xoá …", renaming and "Có tầng hầm" do not (BUG-120, run-15) | `UCPM:717-725, 757-810` | E·D step 2 stays neutral · EW [BUG-120] (rename) | covered |
+| D23 | Logic | "Thêm tầng" skips a name already in the table (BUG-217) | `UCPM:757-767` | EW floor rows by keyboard (= W52) | covered |
+| D24 | Validation | rows above a floor over the elevation limit say "Chưa tính được cao độ vì một tầng bên dưới đã vượt giới hạn cao độ." (BUG-213) | `UCPM:324-375`, `vi.json:260` | E wizard floor cap (= W22) | covered |
+| D25 | Route | `/thong-bao` backdrop from 1024 px: bell, "Trung tâm thông báo", "Nhấn Esc hoặc bấm ra ngoài bảng để quay lại.", `aria-hidden`, centred in the space left of the panel (BUG-124) | `NCC:166-190, 262-269`, `Drawer.tsx:85-86` | E·D /thong-bao at 1440 | covered |
+| D26 | Route | below 1024 px only the page name shows, above the 90 % sheet | `NCC:178-189` | E·D /thong-bao at 375 · X BUG-125/137 | covered |
+| D27 | Navigation | a click outside the panel on `/thong-bao` leaves (the hint's promise) | `Drawer.tsx:170-177`, `NCC:250-264` | E·D /thong-bao at 1440 | covered (F16) |
+| D28 | Tooltip | side-panel header `lg:pt-10`: the gear tooltip stays above it, never over "Nhắc đến tôi" (BUG-205) | `NC:199-201` | X BUG-114 (gear tooltip, BUG-205) | covered |
+| D29 | Button | "Đánh dấu đã đọc" is an icon button in the time row; from 640 px hidden until hover / focus-within, below always shown (BUG-203) | `NR:144-162` | E·D [mocked response] rows (hover at 1440, shown at 375) · X keyboard (focus-within) · U `U02_notif_rows` (box size) | covered |
+| D30 | Button | on a no-hover (touch) screen the icon shows from 640 px too | `NR:152` `[@media(hover:none)]` | E·D `test.fixme` | UNKNOWN — NEED VERIFICATION (needs a touch context; openAdmin makes none) |
+| D31 | Display | excerpt clamped on the inner span: two whole lines inside the padded box, no half third line (BUG-203) | `NR:116-121` | E·D [mocked response] rows | covered (unpairable: commentMention has no BE producer) |
+| D32 | Display | the time row wraps (`flex-wrap gap-y-1`) instead of squeezing the sentence | `NR:123` | E·D [mocked response] rows (375 shot) | covered (visual) |
+| D33 | Logic | sentence + linked label say the name once: a message already ending in the label (case and final "." ignored, marks not) drops that tail (BUG-206) | `NCG:186-203, 233` | E·D [mocked response] rows (legacy + accent rows) · X two real invites (current BE sentence + project link) | covered |
+| D34 | Copy | BE fixed sentences capitalised and without the label ("Hệ thống AI đã xử lý xong bản vẽ", "Phát hiện N vi phạm luật ở") | BE `apps/api/notifications/messages.py:25-41` | — | n/a here (BE rule → `coverage/phase02-be.md`) |
+| D35 | Copy | `src/api/schemas/notifications.ts` doc comment only | `notifications.ts:16-27` | — | n/a-by-design (no behaviour) |
+| D36 | Test infra | `e2e/v2v3/notification-center.spec.ts` regex capitalised | `:152` | — | n/a-by-design (FE repo e2e suite, not this layer) |
+| D37 | Test infra | BE `packages/testing/factories/notifications.py` | BE factory | — | n/a here (BE test data) |
+
 ## Mocked UI tests and their API pair
 
 | Test | Response faked | Pair |
 |---|---|---|
-| E SCR-05 [mocked response] N1 fails (500) | `GET /api/project-summaries` 500 | unpairable: 5xx not producible on the shared stack |
+| E SCR-05 [mocked response] N1 fails (500) | `GET /api/project-summaries` 500, then 403 `FORBIDDEN` | unpairable: 5xx not producible on the shared stack; the real N1 never answers 403 to a signed-in role |
 | E SCR-05 [mocked response] no project | `GET /api/project-summaries` 200 `{items: []}` | paired: `phase02_dashboard_api.spec.ts` "A02 · fresh engineer" (`A02_fresh_summaries_default.json`) |
 | E SCR-05 [mocked response] one row the client cannot decode | real body + 1 invalid row (>= 4 readable, F9) | unpairable: the BE never emits a row failing the FE's strict decode |
 | E SCR-05 [mocked response] rename answered 500 | `PATCH /api/projects/:id` 500 | unpairable: 5xx |
@@ -293,11 +400,43 @@ non-serial; the SCR-05 dashboard block plus the earlier wizard / SCR-06 / SCR-07
 | EW create 503 once | `POST /api/projects` 503 once, then real (same `Idempotency-Key`) | unpairable: 5xx |
 | EW network abort on the first create attempt | `POST /api/projects` aborted once, then real | unpairable: network loss |
 | X POST /read fails (500) | `POST /api/notifications/read` 500 | unpairable: 5xx |
+| E·S SCR-05 [mocked response] N1 fails (500): new "unknown" sentence | `GET /api/project-summaries` 500 | unpairable: 5xx |
+| E·D SCR-06 [mocked response] rows (BUG-206, BUG-203) | `GET /api/notifications` 200 with 3 unread rows: aiCompleted ending in its label, violationFound with an accent-different tail, commentMention with a long excerpt | unpairable: aiCompleted / violationFound need Phase 3/4 data on the shared stack, commentMention has no BE producer, and the BE no longer sends a sentence ending in its label (`messages.py`) — needs its "unpairable" row in `coverage/phase02-be.md` (BE agent) |
 
 "[held response]" tests (SCR-05 loading in E and U, wizard create in E and EW) use the real response, only delayed — not mocks.
 X and its N/O rows use a second real user (invitee made through the real invitation mail), no mocks except the one above.
 
 ## Summary
+
+- **d18eb884 pass** (this stamp): D-rows **37**: covered **30**, gap **0**, UNKNOWN **2** (D15, D30, each a `test.fixme` in E·D),
+  n/a **5** (D8, D34-D37; D34 is a BE rule for `coverage/phase02-be.md`). Re-cited rows: 57, 68, S21. Findings: F11 fixed, F15 (stale
+  E NFD test), F16.
+- New edge tests in `phase02_dashboard_edge.spec.ts`, last describe "QA-02 FE changes (d18eb884)": **18 runnable + 2 `test.fixme`**.
+  SCR-05: grid sizes, card rename box, table stacked (375 / 1440 / 1024), table rename height, rename toast dots, NFC search. SCR-07:
+  link underline. Wizard: neutral step 2, sticky floor header + scroll padding, bottom fade, discard prompt in the footer x2, keep-editing
+  focus, X locked while creating. SCR-06: `/thong-bao` backdrop x2, [mocked response] rows. Checked by `tsc` + `--list` (97 tests) only;
+  not run.
+- Totals: FE rows **287** (250 + 37 D-rows): covered **249**, gap **3**, UNKNOWN **10**, n/a-by-design **25**.
+- Mocked share: +1 mocked (unpairable) on +18 UI tests → 30 mocked of 202 phase-02 UI tests ≈ **14.9 %** (limit 35 %).
+- Expected outcomes for the run: F15 makes E "search and Vietnamese marks" fail (stale expectation); the E·D 1024 short-name check and
+  both scroll-padding walks are soft (`shootOnSoftFail`); everything else in E·D asserts d18eb884 source behaviour.
+
+### Previous summary (FE 271538cb)
+
+- FE rows: **250** (SCR-05 dashboard 78, wizard 73, SCR-06 36, SCR-07 21, shared-component S-rows 42) — covered **219**, gap **3**,
+  UNKNOWN **8**, n/a-by-design **20**. S-rows: 36 covered / 0 gap / 1 UNKNOWN (S15) / 5 n/a. W73 closed (cap copy added in 271538cb).
+- New edge tests for 271538cb (last describe of each file, "QA-02 shared components (FE 271538cb)"): E +9 (table scope, delete
+  dialog by keyboard, 80-char toast, 375 px delete dialog, no-match `text-pretty`, [mocked response] N1 500 copy, 375 px snap dots,
+  /pipeline crumb, /upload crumb) · EW +6 (step-2 hint, height by keyboard, refused height, 50-floor cap note, discard prompt,
+  switch hit area). Checked by `tsc` + `--list` only; not run yet.
+- Expected soft failures (finding candidates, not yet in BUG-LOG): F10 Toggle description, F11 same-value apply, F12 tooltip left
+  behind, F14 delete sentence overflow. F13: EW "floor cap with a basement" is stale since 271538cb (clicks a disabled switch → action timeout).
+- Tests per spec: `phase02_dashboard_edge.spec.ts` 78 (77 runnable + 1 fixme) · `phase02_wizard_edge.spec.ts` 36; M / U / X / A as
+  their own headers state (U was being edited by another agent in this pass).
+- Mocked share (E + EW new tests on top of the previous count): 29 mocked of 184 phase-02 UI tests = **15.8 %** (limit 35 %); the one
+  new mock (N1 500) is unpairable (5xx).
+
+### Previous summary (run-12, FE 5afd8b8a)
 
 - FE rows: **208** (SCR-05 dashboard 78, wizard 73, SCR-06 36, SCR-07 21) — covered **182**, gap **3**, UNKNOWN **8**, n/a-by-design **15**.
   Per screen (covered / gap / UNKNOWN / n/a): dashboard 70 / 0 / 2 / 6 · wizard 65 / 0 / 3 / 5 · SCR-06 32 / 1 / 1 / 2 · SCR-07 15 / 2 / 2 / 2.

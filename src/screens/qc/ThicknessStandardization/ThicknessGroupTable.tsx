@@ -48,9 +48,9 @@ export function ThicknessGroupTable({ rows, hoveredGroup, onHoverGroup, onToggle
     <Table.Root>
       <Table.Header>
         <Table.Row tabIndex={undefined}>
-          <Table.Head>{HEADER_MEASURED}</Table.Head>
+          <Table.Head className="whitespace-normal">{HEADER_MEASURED}</Table.Head>
           <Table.Head>{HEADER_WALL_COUNT}</Table.Head>
-          <Table.Head>{HEADER_SUGGESTED_GROUP}</Table.Head>
+          <Table.Head className="whitespace-normal">{HEADER_SUGGESTED_GROUP}</Table.Head>
           <Table.Head>{HEADER_ACCEPTED}</Table.Head>
         </Table.Row>
       </Table.Header>

@@ -24,7 +24,8 @@
     "vars": {
       "E2E_FULLSTACK_BASE_URL": "http://localhost:18080",
       "E2E_DRAWING_PNG": "F:/App/AppBack/backend/dieu-phoi/chay/F-14/drawing.png",
-      "E2E_MAILPIT_URL": "http://localhost:8025"
+      "E2E_MAILPIT_URL": "http://localhost:8025",
+      "E2E_DRAWINGS_INIT_RATE_LIMIT": "300"
     },
     "healthUrl": "http://localhost:18080/api/health",
     "mockBaseUrl": "http://127.0.0.1:5173",
@@ -64,7 +65,7 @@
     "webRevisionLabel": "org.opencontainers.image.revision.appfront",
     "apiImage": "appback-api:f14",
     "apiBuiltFrom": "C:/Users/mxuan/orca/workspaces/AppBack/fix378-x",
-    "apiBuiltCommit": "b1704f7"
+    "apiBuiltCommit": "2ee030c5"
   },
   "rules": {
     "$comment": "Ngưỡng do e2e-qa-run kiểm; vượt → ghi finding loại Test.",

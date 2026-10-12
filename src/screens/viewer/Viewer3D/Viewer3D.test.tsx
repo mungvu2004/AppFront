@@ -83,6 +83,17 @@ describe('[V5-2] nội dung theo trạng thái', () => {
     expect(qcLink).toHaveAttribute('href', scenarioPropsFor('empty').qcHref);
   });
 
+  it('[BUG-486] rỗng: câu và nút là MỘT khối nổi trên nền đệm, không trần trên đường chân trời', () => {
+    render(<Viewer3D {...scenarioPropsFor('empty')} />);
+
+    const sentence = screen.getByText('Mô hình 3D sẽ xuất hiện sau khi bạn duyệt lớp tường.');
+    const qcLink = screen.getByRole('link', { name: 'Quay lại xem lớp tường' });
+    const card = sentence.parentElement;
+
+    expect(card).toBe(qcLink.parentElement);
+    expect(card).toHaveClass('bg-bg-surface-90', 'shadow-float');
+  });
+
   it('đang tải: hiện phần trăm thật lấy từ props', () => {
     render(<Viewer3D {...scenarioPropsFor('loading')} />);
 

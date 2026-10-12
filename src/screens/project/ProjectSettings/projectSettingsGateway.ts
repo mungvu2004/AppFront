@@ -10,8 +10,8 @@
  *   `baseVersion`. `areaUnit` chỉ có ở FE, luôn `'m2'`.
  *
  * `update` gửi tuần tự, mỗi phần có kết quả riêng: phần hỏng không làm mất phần
- * đã lưu, và nơi gọi nhận `{ snapshot, failures }` để nói rõ "đã lưu thông tin
- * chung, chưa lưu đơn vị đo".
+ * đã lưu, và nơi gọi nhận `{ snapshot, failures }` để nói rõ ô nào đã lưu, ô nào
+ * chưa ("Đã lưu tên dự án, chưa lưu ghi chú.").
  *
  * ## Vì sao `update` bỏ chuỗi rỗng
  *
@@ -478,7 +478,14 @@ export function createProjectSettingsGateway(client: ApiClient): ProjectSettings
 
       pendingMemberKey = { projectId, email: normalized, key };
 
-      const result = await client.members.add({ projectId, email: normalized, idempotencyKey: key });
+      // Người bấm "Thêm thành viên": 429 phải hiện câu hạn mức và khoá nút NGAY, không chờ thang
+      // thử lại của client (BUG-510).
+      const result = await client.members.add({
+        projectId,
+        email: normalized,
+        idempotencyKey: key,
+        failFastOnRateLimit: true,
+      });
 
       if (!result.ok) {
         if (!keepsIdempotencyKey(result.error)) {

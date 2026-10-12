@@ -270,14 +270,18 @@ const buildAppError = (
     }
   }
 
+  const retryable = resolveRetryable(kind, options?.retryable);
+
   return {
     code: resolveCode(kind, options?.code),
     kind,
     messageKey: config.messageKey,
     params,
-    recovery: config.recovery,
+    // A 5xx read is `unknown` (recovery "không") yet retryable: its way out is "Thử lại",
+    // or a boundary would offer a retry button labelled "Đóng" (BUG-509).
+    recovery: retryable && config.recovery === 'không' ? 'thử lại' : config.recovery,
     requestId: options?.requestId ?? readRequestId(input),
-    retryable: resolveRetryable(kind, options?.retryable),
+    retryable,
     severity: config.severity,
   };
 };

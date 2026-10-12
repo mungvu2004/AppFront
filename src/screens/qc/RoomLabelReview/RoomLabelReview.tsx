@@ -25,6 +25,8 @@
  * | `loading`   | cột trái: sáu dòng `Skeleton`; canvas vẫn vẽ khung chờ của nó         |
  * | `partial`   | mặc định — tóm tắt, vòng hở, danh sách phòng, thanh tra               |
  * | `error`     | cột trái: `InlineAlert` + nút "Thử lại"; canvas VẪN xem được          |
+ *
+ * Đọc lớp (N16) hỏng khi CHƯA có tài liệu → cả màn là `FloorLayerReadFailureScreen` (BUG-326).
  * | `success`   | mặc định, và mọi dòng danh sách mang chấm xanh "đã duyệt"             |
  * | `forbidden` | canvas chỉ xem (`isInteractive={false}`), cột trái thêm câu giải thích |
  * | `collapsed` | ẩn cột trái + thanh tra; canvas chiếm cả khung, còn nút bung lại      |
@@ -55,6 +57,7 @@ import { Skeleton } from '@/components/feedback/Skeleton';
 import { cn } from '@/lib/utils';
 
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
+import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 
 import { RoomLabelCanvas } from './RoomLabelCanvas';
@@ -100,7 +103,7 @@ const LINK_CLASS_NAME = cn(
 
 /** Khung chung của cột trái, để bốn nhánh thay thế không mỗi chỗ một bề rộng. */
 const LEFT_COLUMN_CLASS_NAME =
-  'flex h-full w-[280px] shrink-0 flex-col gap-3 overflow-y-auto rounded-[12px] bg-bg-surface p-4 shadow-panel';
+  'flex h-full w-[280px] shrink-0 flex-col gap-3 overflow-y-auto rounded-[12px] bg-bg-surface p-4 shadow-panel max-lg:h-auto max-lg:w-full';
 
 /* -------------------------------------------------------------------------- */
 /* Cột trái — bốn nhánh loại trừ nhau, nhánh cuối là panel phòng thật.         */
@@ -139,7 +142,11 @@ function RoomLabelLeftColumn(props: RoomLabelReviewViewProps) {
     );
   }
 
-  if (emptyNotice !== null) {
+  /*
+   * BUG-321: rỗng vì bộ lọc "Chưa đặt tên" thì câu rỗng bảo tắt bộ lọc — nên
+   * panel (có công tắc) vẫn phải hiện, câu rỗng nằm ở chỗ danh sách.
+   */
+  if (emptyNotice !== null && !showOnlyUnnamed) {
     return (
       <div className={LEFT_COLUMN_CLASS_NAME}>
         <EmptyState
@@ -163,10 +170,10 @@ function RoomLabelLeftColumn(props: RoomLabelReviewViewProps) {
   }
 
   return (
-    <div className="flex h-full min-h-0 shrink-0 flex-col gap-2">
+    <div className="flex h-full min-h-0 shrink-0 flex-col gap-2 max-lg:h-auto">
       {viewerRoleNotice === null ? null : (
         <InlineAlert
-          className="w-[280px] shrink-0"
+          className="w-[280px] shrink-0 max-lg:w-full"
           level="attention"
           message={viewerRoleNotice}
           title={FORBIDDEN_TITLE}
@@ -175,6 +182,7 @@ function RoomLabelLeftColumn(props: RoomLabelReviewViewProps) {
 
       <div className="min-h-0 flex-1">
         <RoomLabelLeftPanel
+          emptyListNotice={emptyNotice}
           list={{ rooms, selectedRoomId, onSelect, onHover, isViewerRole }}
           panel={{
             summary,
@@ -235,6 +243,14 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
    */
   const selectedRoom = rooms.find((room) => room.id === selectedRoomId) ?? null;
 
+  if (props.readFailure != null) {
+    return (
+      <div aria-label={SCREEN_TITLE} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+        <FloorLayerReadFailureScreen failure={props.readFailure} />
+      </div>
+    );
+  }
+
   return (
     <div
       aria-label={SCREEN_TITLE}
@@ -259,12 +275,19 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
         </div>
       )}
 
-      <div className={cn('flex min-h-0 flex-1 gap-2 p-2', isCompact ? 'flex-col' : 'flex-row')}>
+      {/* BUG-319/393/404: dưới 1024 ba cột cố định (280 + canvas + 344) tràn ngang hoặc bóp canvas còn ~110 px — xếp dọc và cuộn dọc. */}
+      <div
+        className={cn(
+          'flex min-h-0 flex-1 gap-2 p-2',
+          isCompact ? 'flex-col' : 'flex-row',
+          'max-lg:flex-col max-lg:overflow-y-auto',
+        )}
+      >
         {isCollapsed ? null : <RoomLabelLeftColumn {...props} />}
 
         <section
           aria-label={CANVAS_SECTION_LABEL}
-          className="min-h-0 min-w-0 flex-1 overflow-hidden rounded-[16px] bg-bg-sunken"
+          className="min-h-0 min-w-0 flex-1 overflow-hidden rounded-[16px] bg-bg-sunken max-lg:h-[360px] max-lg:flex-none"
         >
           <RoomLabelCanvas
             backgroundImageAlt={backgroundImageAlt}
@@ -276,6 +299,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
             onSelect={onSelect}
             rooms={rooms}
             selectedRoomId={selectedRoomId}
+            showEmptyNotice={props.isFloorWithoutRooms}
           />
         </section>
 

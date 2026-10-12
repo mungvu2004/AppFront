@@ -9,12 +9,12 @@
  * every string already arrived formatted from `useProjectDashboard`. The card
  * itself ({@link ProjectCardTile}), the table view ({@link ProjectTable}) and the status rail
  * ({@link DashboardSidebar}) live in sibling files — this file crossed R-22's 400-line cap once the grid
- * grew a hero card and a sidebar, and mục D's answer is a folder, not a
+ * grew a sidebar, and mục D's answer is a folder, not a
  * shorter feature.
  *
- * The most-recently-updated project (`rows[0]` — `sortBy: 'updated'` is the
- * default) is featured as a large card; the next two sit beside it; anything
- * further down still gets the plain responsive grid below.
+ * Every card sits in one responsive grid at one size — the old featured
+ * "hero" card for `rows[0]` made cards of three widths on one screen (BUG-119,
+ * BUG-157).
  *
  * `ProjectDashboard` is the wired screen. It owns the one thing the pure
  * view cannot: a `Toast.Provider`. Nothing mounts one globally yet — the same
@@ -45,7 +45,7 @@ import { useContextMenu } from '@/hooks/useContextMenu';
 import { durationSeconds } from '@/lib/motion';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 
-import { DashboardSidebar } from './DashboardSidebar';
+import { DashboardSidebar, DashboardSidebarSkeleton } from './DashboardSidebar';
 import { projectMenuGroups } from './projectMenuGroups';
 import { ProjectCardTile } from './ProjectCardTile';
 import { ProjectTable } from './ProjectTable';
@@ -78,7 +78,10 @@ const STATE_ANNOUNCEMENT: Readonly<Record<SevenState, string>> = {
   forbidden: 'Không có quyền',
   collapsed: 'thu gọn',
 };
-/** One column below `sm`, like the hero and side cards above it: two columns at 375 px squeezed cards to ~145 px (BUG-157). */
+/**
+ * One grid for every card, so cards are the same size at every width: a 730 px hero beside 340 px side cards
+ * above a two-column grid gave three card widths on one screen (BUG-119, BUG-157). One column below `sm`.
+ */
 const GRID_COLUMNS_CLASS = 'grid grid-cols-1 gap-5 sm:grid-cols-2 min-[1440px]:grid-cols-3 min-[1920px]:grid-cols-4';
 
 export interface ProjectDashboardViewProps extends ProjectDashboardModel, ProjectDashboardActions {
@@ -102,48 +105,25 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
   const openMenuFor = (project: ProjectCardModel, x: number, y: number): void =>
     contextMenu.openMenu(x, y, projectMenuGroups(project, props, props.canDelete, props.canDuplicate));
 
-  const renderCard = (project: ProjectCardModel, index: number, size: 'hero' | 'compact') => (
-    <ProjectCardTile
-      key={project.id}
-      project={project}
-      index={index}
-      size={size}
-      shouldStagger={shouldStagger}
-      renamingId={props.renamingId}
-      renameDraft={props.renameDraft}
-      onOpen={(id) => props.openProject(id, 'card')}
-      onMenu={openMenuFor}
-      onRenameChange={props.setRenameDraft}
-      onRenameCommit={props.commitRename}
-      onRenameCancel={props.cancelRename}
-    />
+  const renderProjectGrid = (): ReactElement => (
+    <div role="list" aria-label="Danh sách dự án" className={GRID_COLUMNS_CLASS}>
+      {rows.map((project, index) => (
+        <ProjectCardTile
+          key={project.id}
+          project={project}
+          index={index}
+          shouldStagger={shouldStagger}
+          renamingId={props.renamingId}
+          renameDraft={props.renameDraft}
+          onOpen={(id) => props.openProject(id, 'card')}
+          onMenu={openMenuFor}
+          onRenameChange={props.setRenameDraft}
+          onRenameCommit={props.commitRename}
+          onRenameCancel={props.cancelRename}
+        />
+      ))}
+    </div>
   );
-
-  const renderProjectGrid = (): ReactElement | null => {
-    const heroProject = rows[0];
-    if (heroProject === undefined) return null;
-    const restProjects = rows.slice(1);
-    const sideProjects = restProjects.slice(0, 2);
-    const overflowProjects = restProjects.slice(2);
-
-    return (
-      <div role="list" aria-label="Danh sách dự án" className="flex flex-col gap-5">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
-          {renderCard(heroProject, 0, 'hero')}
-          {sideProjects.length > 0 && (
-            <div className="flex flex-col gap-5 lg:w-[340px] lg:shrink-0">
-              {sideProjects.map((project, index) => renderCard(project, index + 1, 'compact'))}
-            </div>
-          )}
-        </div>
-        {overflowProjects.length > 0 && (
-          <div className={GRID_COLUMNS_CLASS}>
-            {overflowProjects.map((project, index) => renderCard(project, index + 3, 'compact'))}
-          </div>
-        )}
-      </div>
-    );
-  };
 
   return (
     <div className="flex min-h-screen flex-col bg-bg-app">
@@ -159,11 +139,13 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           value={props.searchQuery}
           onChange={(event) => props.setSearchQuery(event.target.value)}
           placeholder="Tìm dự án theo tên..."
-          // The gap after the icon moves from the input's padding (where scrolled text still draws) to the
-          // icon's margin, so a long query is clipped 8 px clear of the icon, not half under it (BUG-169).
+          // The 8 px after the icon is the icon's margin, not the input's padding, so the field's own edge sits 8 px
+          // clear of the icon. A scrolled query is still cut mid-glyph at that edge (")A-RUN…" read as a glyph under
+          // the icon, BUG-169), so while scrolled the first 12 px fade out: the cut reads as "more text this way".
           prefix={<Search size={16} aria-hidden="true" className="mr-1" />}
+          onScroll={(event) => event.currentTarget.toggleAttribute('data-scrolled', event.currentTarget.scrollLeft > 0)}
           // The browser's own clear (×) button gets its 8 px gap from globals.css (BUG-117).
-          className="pl-0"
+          className="pl-0 data-[scrolled]:[mask-image:linear-gradient(to_right,transparent,black_12px)]"
           wrapperClassName="order-last w-full max-w-full sm:order-none sm:w-[320px]"
         />
         <div className="ml-auto flex items-center gap-3">
@@ -185,6 +167,12 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
             {/* Every state that has a list says how many it shows — "0 dự án" for a search with no match
                 included: dropping the line there made the whole column jump up 11 px (BUG-117). */}
             {state !== 'loading' && state !== 'error' && <p className="text-[13px] text-text-secondary">{rows.length} dự án</p>}
+            {/* Its line held while loading, so the toolbar and everything under it stay put (BUG-228). */}
+            {state === 'loading' && (
+              <div aria-hidden="true" className="flex h-5 items-center">
+                <Skeleton preset="block" className="h-3 w-14" />
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <Select
@@ -224,7 +212,10 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           />
         )}
 
+        {state === 'loading' && <Skeleton preset="block" aria-hidden="true" className="h-14 w-full sm:h-9 lg:hidden" />}
+
         <div className="flex flex-1 flex-col gap-6 lg:flex-row lg:items-start">
+          {state === 'loading' && <DashboardSidebarSkeleton />}
           {showSidebar && (
             <DashboardSidebar statusCounts={statusCounts} statusFilter={props.statusFilter} onStatusFilterChange={props.setStatusFilter} />
           )}
@@ -242,7 +233,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
                 level="violation"
                 title="Không tải được danh sách dự án"
                 message={errorMessage ?? 'Đã có lỗi xảy ra.'}
-                action={{ label: 'Thử lại', onClick: props.retryLoad, variant: 'secondary' }}
+                {...(props.canRetry ? { action: { label: 'Thử lại', onClick: props.retryLoad, variant: 'secondary' as const } } : {})}
               />
             ) : rows.length === 0 && statusCounts.all === 0 && unreadNotice === null ? (
               // Never had a project — the `empty` rule of `useProjectDashboard`, read from the counts and not

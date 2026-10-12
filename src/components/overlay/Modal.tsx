@@ -148,10 +148,12 @@ ModalRoot.displayName = 'Modal.Root';
 export interface ModalHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
   showClose?: boolean;
+  /** Locks the close button while the dialog refuses to close (e.g. a create in flight), so it looks as dead as it is. */
+  closeDisabled?: boolean;
 }
 
 const ModalHeader = forwardRef<HTMLDivElement, ModalHeaderProps>(
-  ({ children, showClose = true, className, ...props }, ref) => {
+  ({ children, showClose = true, closeDisabled = false, className, ...props }, ref) => {
     const { onClose, titleId } = useModalContext('Modal.Header');
     return (
       <div
@@ -168,6 +170,7 @@ const ModalHeader = forwardRef<HTMLDivElement, ModalHeaderProps>(
             icon={<X size={18} aria-hidden="true" />}
             aria-label="Đóng hộp thoại"
             onClick={onClose}
+            disabled={closeDisabled}
             tooltip={false}
             className="-mr-2"
           />
@@ -185,7 +188,8 @@ const ModalBody = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement
   ({ children, className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('px-8 overflow-y-auto flex-1 text-[14px] text-text-primary leading-relaxed', className)}
+      // break-words (inherited): a long unbroken name wraps instead of scrolling the body sideways, in every dialog (BUG-195).
+      className={cn('px-8 overflow-y-auto flex-1 text-[14px] text-text-primary leading-relaxed break-words', className)}
       {...props}
     >
       {children}
@@ -201,7 +205,7 @@ const ModalFooter = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEleme
     <div
       ref={ref}
       className={cn(
-        'flex items-center justify-end gap-3 px-8 py-6 mt-2 border-t border-border-default',
+        'flex flex-wrap items-center justify-end gap-3 px-8 py-6 mt-2 border-t border-border-default',
         className
       )}
       {...props}

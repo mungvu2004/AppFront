@@ -49,6 +49,9 @@ import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { cn } from '@/lib/utils';
 
+import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
+import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
+
 import { AxisGridCanvas, type AxisGridCanvasProps } from './AxisGridCanvas';
 import { AxisGridFloorAlignList } from './AxisGridFloorAlignList';
 import { AxisGridLeftPanel } from './AxisGridLeftPanel';
@@ -82,6 +85,8 @@ export interface AxisGridManagerViewProps
   /** Toạ độ thô của canvas; container gắn nhãn `Pixels` trước khi vào hook. */
   readonly onAxisDrag: AxisGridCanvasProps['onAxisDrag'];
   readonly spacingMessage: string | null;
+  /** Đọc lớp hỏng khi chưa có tài liệu → cả màn là một trạng thái lỗi (BUG-326). */
+  readonly readFailure?: FloorLayerReadFailure | null | undefined;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -99,6 +104,11 @@ const ERROR_TITLE = 'Không tính được trục';
 const ERROR_ACTION_LABEL = 'Thử lại';
 const FORBIDDEN_TITLE = 'Không có quyền sửa trục';
 const EXPAND_PANEL_LABEL = 'Bảng trục đang thu gọn';
+/** BUG-330, BUG-336: tầng chưa có trục thì nói thẳng, không hiện số 0 hay "Đã duyệt" như dữ liệu thật. */
+const ORIGIN_UNAVAILABLE_NOTICE = 'Chưa có trục nào nên chưa tính được gốc toạ độ.';
+const ALIGN_UNAVAILABLE_NOTICE = 'Chưa có trục nào nên chưa căn chỉnh được giữa các tầng.';
+const CANVAS_EMPTY_NOTICE = 'Chưa có trục nào để hiện trên bản vẽ.';
+const CANVAS_ERROR_NOTICE = 'Chưa vẽ được trục vì lớp trục của tầng này chưa đọc được.';
 
 /** Sáu dòng khung xương của cột trái lúc đang tải — hai nhóm trục, ba hàng mỗi nhóm. */
 const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
@@ -112,7 +122,7 @@ const LINK_CLASS_NAME = cn(
 
 /** Khung chung của cột trái, để ba nhánh thay thế không mỗi chỗ một bề rộng. */
 const LEFT_COLUMN_CLASS_NAME =
-  'flex h-full w-[280px] shrink-0 flex-col gap-3 overflow-y-auto rounded-[12px] bg-bg-surface p-4 shadow-panel';
+  'flex h-full w-[280px] shrink-0 flex-col gap-3 overflow-y-auto rounded-[12px] bg-bg-surface p-4 shadow-panel max-lg:h-auto max-lg:w-full';
 
 /* -------------------------------------------------------------------------- */
 /* Cột trái — bốn nhánh loại trừ nhau, nhánh cuối là danh sách trục thật.      */
@@ -164,10 +174,10 @@ function AxisGridLeftColumn({
   }
 
   return (
-    <div className="flex h-full min-h-0 shrink-0 flex-col gap-2">
+    <div className="flex h-full min-h-0 shrink-0 flex-col gap-2 max-lg:h-auto">
       {viewModel.viewerRoleNotice === null ? null : (
         <InlineAlert
-          className="w-[280px] shrink-0"
+          className="w-[280px] shrink-0 max-lg:w-full"
           level="attention"
           message={viewModel.viewerRoleNotice}
           title={FORBIDDEN_TITLE}
@@ -197,6 +207,16 @@ function AxisGridLeftColumn({
 export function AxisGridManager(props: AxisGridManagerViewProps) {
   const { viewModel, spacingMessage } = props;
   const isCollapsed = viewModel.isCollapsed;
+  const hasNoAxis = viewModel.hasNoAxes;
+  const canvasNotice = !hasNoAxis ? null : viewModel.errorMessage !== null ? CANVAS_ERROR_NOTICE : CANVAS_EMPTY_NOTICE;
+
+  if (props.readFailure != null) {
+    return (
+      <div aria-label={SCREEN_TITLE} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+        <FloorLayerReadFailureScreen failure={props.readFailure} />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -221,13 +241,15 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
         className={cn(
           'flex min-h-0 flex-1 gap-2 p-2',
           viewModel.isCompact ? 'flex-col' : 'flex-row',
+          // BUG-319/393/404: dưới 1024 ba cột cố định (280 + canvas + 344) tràn ngang hoặc bóp canvas còn ~110 px — xếp dọc và cuộn dọc.
+          'max-lg:flex-col max-lg:overflow-y-auto',
         )}
       >
         {isCollapsed ? null : <AxisGridLeftColumn {...props} />}
 
         <section
           aria-label={CANVAS_SECTION_LABEL}
-          className="min-h-0 min-w-0 flex-1 overflow-hidden rounded-[16px] bg-bg-sunken"
+          className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-[16px] bg-bg-sunken max-lg:h-[360px] max-lg:flex-none"
         >
           <AxisGridCanvas
             canvas={viewModel.canvas}
@@ -236,6 +258,11 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
             onAxisSelect={props.onAxisSelect}
             viewerRoleNotice={viewModel.viewerRoleNotice}
           />
+          {canvasNotice === null ? null : (
+            <p className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 text-center text-[13px] text-text-secondary">
+              {canvasNotice}
+            </p>
+          )}
         </section>
 
         {isCollapsed ? (
@@ -245,13 +272,18 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
             </button>
           </div>
         ) : (
-          <div className="flex h-full min-h-0 shrink-0 flex-col gap-2 overflow-y-auto">
-            <AxisGridOriginPanel onAnchorChange={props.onAnchorChange} origin={viewModel.origin} />
+          <div className="flex h-full min-h-0 shrink-0 flex-col gap-2 overflow-y-auto max-lg:h-auto max-lg:overflow-visible">
+            <AxisGridOriginPanel
+              onAnchorChange={props.onAnchorChange}
+              origin={viewModel.origin}
+              unavailableNotice={hasNoAxis ? ORIGIN_UNAVAILABLE_NOTICE : null}
+            />
             <AxisGridFloorAlignList
               floors={viewModel.floors}
               onAutoAlign={props.onAutoAlign}
               onFloorRowHover={props.onFloorRowHover}
               onViewFloorOnDrawing={props.onViewFloorOnDrawing}
+              unavailableNotice={hasNoAxis ? ALIGN_UNAVAILABLE_NOTICE : null}
               warningBanner={viewModel.warningBanner}
             />
           </div>

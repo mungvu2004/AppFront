@@ -141,7 +141,6 @@ function Glyph({ id, className, selfDraws = false }: GlyphProps) {
 interface QuietLinkProps {
   readonly link: OnboardingLink;
   readonly id: string;
-  readonly toneClass: string;
   /** Câu luôn hiện dưới liên kết, kể cả khi liên kết bấm được. */
   readonly note?: string;
 }
@@ -157,15 +156,14 @@ const noteOf = (link: OnboardingLink, note?: string): string | null => link.disa
  *
  * Câu giải thích ở ngoài hàng (xem {@link QuietNote}): để trong cùng ô thì nó kéo
  * ô rộng và cao hơn, làm cặp liên kết lệch tâm (BUG-127). Vùng chạm 44 px dưới
- * 640 px, 24 px từ đó trở lên (WCAG 2.5.8), gạch chân để nhìn ra là liên kết.
+ * 640 px, 24 px từ đó trở lên (WCAG 2.5.8), gạch chân và màu nhấn để nhìn ra là liên kết — chỉ khi bấm được.
  *
- * Không có token riêng cho "liên kết chìm" trong repo, nên nó ghép từ hai token
- * đã có. Liên kết vô hiệu KHÔNG mang thuộc tính `disabled`: nút bị `disabled`
+ * Liên kết vô hiệu KHÔNG mang thuộc tính `disabled`: nút bị `disabled`
  * rơi khỏi đường đi bàn phím và trình đọc màn hình thôi đọc nó, mà lý do vô hiệu
  * mới là thứ người dùng cần nghe. `aria-disabled` giữ nó ở lại trong tab order,
  * `aria-describedby` nối nó với câu giải thích.
  */
-function QuietLink({ link, id, toneClass, note }: QuietLinkProps) {
+function QuietLink({ link, id, note }: QuietLinkProps) {
   const isDisabled = link.disabledReason !== null;
 
   return (
@@ -175,10 +173,14 @@ function QuietLink({ link, id, toneClass, note }: QuietLinkProps) {
       aria-disabled={isDisabled ? true : undefined}
       aria-describedby={noteOf(link, note) === null ? undefined : noteIdOf(id)}
       className={cn(
-        'inline-flex min-h-11 items-center justify-center rounded-lg px-2 text-[13px] underline underline-offset-2 sm:min-h-6',
+        'inline-flex min-h-11 items-center justify-center rounded-lg px-2 text-[13px] sm:min-h-6',
         'transition-colors duration-fast motion-reduce:transition-none',
         FOCUS_RING_CLASS,
-        isDisabled ? 'cursor-not-allowed text-text-muted' : toneClass,
+        // Gạch chân và màu nhấn (A2) là dấu hiệu "bấm được": chữ xám gạch chân vẫn đọc như chữ thường
+        // (run-19). Liên kết bị khoá không mang cả hai, nên không trông y như hai cái bên cạnh (BUG-127).
+        isDisabled
+          ? 'cursor-not-allowed text-text-muted'
+          : 'text-accent underline underline-offset-2 hover:text-accent-hover',
       )}
     >
       {link.label}
@@ -335,25 +337,12 @@ export function WelcomeScreen({
         {!isLoading && (
           <div className="flex flex-col items-center gap-2">
             <div className="flex flex-wrap items-center justify-center gap-x-4">
-              <QuietLink
-                id="onboarding-sample"
-                link={sampleProjectLink}
-                toneClass="text-text-secondary hover:text-text-primary"
-              />
-              <QuietLink
-                id="onboarding-tutorial"
-                link={tutorialLink}
-                toneClass="text-text-secondary hover:text-text-primary"
-              />
+              <QuietLink id="onboarding-sample" link={sampleProjectLink} />
+              <QuietLink id="onboarding-tutorial" link={tutorialLink} />
             </div>
             <QuietNote id="onboarding-sample" link={sampleProjectLink} />
             <QuietNote id="onboarding-tutorial" link={tutorialLink} />
-            <QuietLink
-              id="onboarding-skip"
-              link={skipLink}
-              toneClass="text-text-muted hover:text-text-primary"
-              note={skipNotice}
-            />
+            <QuietLink id="onboarding-skip" link={skipLink} note={skipNotice} />
             <QuietNote id="onboarding-skip" link={skipLink} note={skipNotice} />
           </div>
         )}

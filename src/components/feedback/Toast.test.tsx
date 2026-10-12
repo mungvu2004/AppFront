@@ -75,6 +75,32 @@ describe('Toast.Provider and Toast.Item', () => {
     expect(screen.queryByText('Test message')).not.toBeInTheDocument();
   });
 
+  // BUG-207: a toast without a state fell back to the verified green, so error toasts wore A5's colour.
+  it.each([
+    [undefined, 'bg-text-muted'],
+    ['verified', 'bg-state-verified'],
+    ['attention', 'bg-state-attention'],
+    ['violation', 'bg-state-violation'],
+  ] as const)('dot for state %s is %s — green only when asked for', (state, dotClass) => {
+    const { container } = render(
+      <Toast.Item toast={{ id: 't', message: 'Thông báo', ...(state ? { state } : {}) }} index={0} onRemove={vi.fn()} />,
+    );
+
+    const dot = container.querySelector('[aria-hidden="true"].rounded-full');
+    expect(dot?.className).toContain(dotClass);
+    if (state !== 'verified') expect(dot?.className).not.toContain('bg-state-verified');
+  });
+
+  // BUG-229: an 80-char name ran to 5 lines with the dot in the middle of the block.
+  it('caps a long message at three lines and hangs the dot beside its first line', () => {
+    const message = `Đã đổi tên thành "${'KhuPhucHopBinhMinh'.repeat(4)}"`;
+    render(<Toast.Item toast={{ id: 't', message, onUndo: vi.fn() }} index={0} onRemove={vi.fn()} />);
+
+    const text = screen.getByText(message);
+    expect(text.className).toContain('line-clamp-3');
+    expect(text.querySelector('[aria-hidden="true"].rounded-full')?.className).toContain('top-2');
+  });
+
   it('bấm "Hoàn tác" thì toast rời đi, kể cả khi chuột còn nằm trên nó (B-V4-11)', () => {
     const onUndo = vi.fn();
     const UndoComponent = () => {
@@ -102,6 +128,39 @@ describe('Toast.Provider and Toast.Item', () => {
     expect(screen.queryByText('Đã xoá')).not.toBeInTheDocument();
   });
 
+  // BUG-524: hover froze the bar, but the undo ticket behind "Hoàn tác" expires on the wall clock —
+  // after 8 s of hover the button was still there and pressing it restored nothing.
+  it('hover does not hold an undo toast past its window; a plain notice is still held', () => {
+    const Both = () => {
+      const { addToast } = useToast();
+      return (
+        <>
+          <Button onClick={() => addToast({ message: 'Đã xoá tệp', onUndo: vi.fn() })}>Undo toast</Button>
+          <Button onClick={() => addToast({ message: 'Thông báo thường' })}>Plain toast</Button>
+        </>
+      );
+    };
+
+    render(
+      <Toast.Provider>
+        <Both />
+      </Toast.Provider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Plain toast' }));
+    fireEvent.mouseEnter(screen.getByText('Thông báo thường').closest('[role="status"]')!);
+    fireEvent.click(screen.getByRole('button', { name: 'Undo toast' }));
+    fireEvent.mouseEnter(screen.getByText('Đã xoá tệp').closest('[role="status"]')!);
+
+    act(() => {
+      vi.advanceTimersByTime(9000);
+    });
+
+    expect(screen.queryByText('Đã xoá tệp')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Hoàn tác' })).not.toBeInTheDocument();
+    expect(screen.getByText('Thông báo thường')).toBeInTheDocument();
+  });
+
   it('groups 4 toasts correctly and uses safe domain label', async () => {
     render(
       <Toast.Provider>
@@ -118,6 +177,8 @@ describe('Toast.Provider and Toast.Item', () => {
     
     // Group label because they all end with "tường" -> "Đã sửa 2 tường"
     expect(screen.getByText('Đã sửa 2 tường')).toBeInTheDocument();
+    // A5: the grouped toast is a plain notice, not the reviewer's verified green (review-1 #15).
+    expect(document.querySelector('.bg-state-verified')).toBeNull();
     
     // Click undo on the group
     const undoButtons = screen.getAllByText('Hoàn tác');
@@ -161,5 +222,29 @@ describe('Toast.Provider and Toast.Item', () => {
 
     expect(onUndo).toHaveBeenCalledTimes(1);
     expect(screen.queryByText('Đã vô hiệu hoá tài khoản')).not.toBeInTheDocument();
+  });
+});
+
+// BUG-227 follow-up: a screen's own Toast.Provider (AccountSettings, ModelLibrary, VersionHistory…) sat in the
+// bottom-right corner over an open drawer's footer. The viewport now steps aside like NotificationHost's.
+describe('Toast.Provider viewport', () => {
+  it('steps aside from an open drawer: left of a side panel, to the top over a sheet', () => {
+    render(<Toast.Provider><span /></Toast.Provider>);
+
+    const region = screen.getByRole('region', { name: 'Thông báo' });
+    expect(region).toHaveClass(
+      'bottom-4',
+      'right-4',
+      '[html[data-drawer=side]_&]:right-[calc(1rem+var(--drawer-inset))]',
+      '[html[data-drawer=sheet]_&]:bottom-auto',
+      '[html[data-drawer=sheet]_&]:top-4',
+    );
+  });
+
+  // BUG-512: at 375 px the bottom-right toast covered the "Ghi chú" field being typed in.
+  it('moves to the top edge below 640 px', () => {
+    render(<Toast.Provider><span /></Toast.Provider>);
+
+    expect(screen.getByRole('region', { name: 'Thông báo' })).toHaveClass('max-sm:bottom-auto', 'max-sm:top-4');
   });
 });

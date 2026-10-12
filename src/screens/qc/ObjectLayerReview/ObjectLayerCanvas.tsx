@@ -15,7 +15,7 @@
  * `objectLayerSymbols.ts` giữ phần còn lại của tài liệu lớp này và phải đọc
  * trước khi sửa: mục "MỞ RỘNG HỢP ĐỒNG PROPS" (từng trường thêm vào và lý do
  * canvas không tự dựng được nó) và mục "GHI CHÚ THIẾT KẾ CỦA LỚP CANVAS" (vì
- * sao `<svg>` không có `viewBox`, ba màu dữ liệu, và hai nhịp chuyển động
+ * `viewBox` vừa khung, ba màu dữ liệu, và hai nhịp chuyển động
  * 260 ms).
  */
 
@@ -68,6 +68,7 @@ interface ObjectSymbolFigureProps {
   readonly onSelect: (objectId: string | null) => void;
   readonly onHover: (objectId: string | null) => void;
   readonly onOpenMenu: (event: ReactMouseEvent<SVGGElement>, objectId: string) => void;
+  readonly unitPx: number;
 }
 
 /**
@@ -85,6 +86,7 @@ function ObjectSymbolFigure({
   onSelect,
   onHover,
   onOpenMenu,
+  unitPx,
 }: ObjectSymbolFigureProps) {
   const symbol = buildObjectSymbol({
     subtype: placement.subtype,
@@ -130,12 +132,7 @@ function ObjectSymbolFigure({
         transitionDelay: `${staggerDelayMs(layerIndex)}ms`,
       }}
     >
-      {/*
-        Đặt chỗ bằng THUỘC TÍNH `transform` của SVG, không bằng `transform` của
-        CSS: nhịp biến hình bên trong dùng lớp `scale-…` của Tailwind, mà lớp đó
-        ghi vào chính thuộc tính CSS `transform` — hai thứ đặt chung một chỗ thì
-        cái sau nuốt cái trước. Hai tầng thẻ, hai đường, không đụng nhau.
-      */}
+      {/* Đặt chỗ bằng THUỘC TÍNH `transform` của SVG: lớp `scale-…` bên trong ghi vào `transform` CSS, chung chỗ thì nuốt nhau. */}
       <g transform={`translate(${placement.centrePx.x} ${placement.centrePx.y}) rotate(${placement.angleDeg})`}>
         <g
           className={cn(
@@ -172,7 +169,7 @@ function ObjectSymbolFigure({
           cx={placement.centrePx.x}
           cy={placement.centrePx.y}
           fill="var(--state-attention)"
-          r={5}
+          r={5 * unitPx}
         >
           <title>{OBJECT_CANVAS_TEXT.orphanTitle}</title>
         </circle>
@@ -189,6 +186,7 @@ export function ObjectLayerCanvas({
   backgroundImageAlt,
   backgroundImageUrl,
   dragMeasurement,
+  haloRectPx,
   hoveredObjectId,
   isInteractive,
   layerVisibility,
@@ -196,12 +194,35 @@ export function ObjectLayerCanvas({
   onApprove,
   onChangeSubtype,
   onDelete,
+  onFrameResize,
   onHover,
   onSelect,
   placements,
   selectedObjectId,
+  surfaceRectPx,
+  unitPx,
+  viewBoxPx,
   wallOutlines,
 }: ObjectLayerCanvasViewProps) {
+  const frameRef = useRef<HTMLDivElement | null>(null);
+
+  /* Khổ hộp đệm lên hook — "vừa khung" (BUG-403) cần biết khung rộng bao nhiêu. */
+  useEffect(() => {
+    const frame = frameRef.current;
+
+    if (frame === null || typeof ResizeObserver === 'undefined') {
+      return undefined;
+    }
+
+    const observer = new ResizeObserver(() => {
+      onFrameResize({ width: frame.clientWidth, height: frame.clientHeight });
+    });
+
+    observer.observe(frame);
+
+    return () => observer.disconnect();
+  }, [onFrameResize]);
+
   const halo = useSelectionHalo();
   const menu = useContextMenu();
   const { select: haloSelect, hover: haloHover, deselect: haloDeselect } = halo;
@@ -247,14 +268,8 @@ export function ObjectLayerCanvas({
     [onApprove, onAttachToNearestWall, onChangeSubtype, onDelete, onSelect, openMenu, placements],
   );
 
-  const activePlacement =
-    placements.find((placement) => placement.id === (selectedObjectId ?? hoveredObjectId)) ?? null;
   const dataColors = visibleDataColorTokens(layerVisibility);
-  /*
-   * Thứ tự trong LỚP, cho độ so le 24 ms: bật lớp "cửa sổ" thì bảy cửa sổ vào
-   * so le 0/24/48…, chứ không so le theo chỗ đứng của chúng trong cả 21 đối
-   * tượng. Đây là một phép đếm, không phải một phép hình học.
-   */
+  /* Thứ tự trong LỚP cho độ so le 24 ms (0/24/48… trong lớp vừa bật) — một phép đếm, không phải hình học. */
   const layerCursor: Record<string, number> = { door: 0, window: 0, furniture: 0 };
   const layerIndexById = new Map<string, number>();
 
@@ -271,21 +286,42 @@ export function ObjectLayerCanvas({
       aria-label={OBJECT_CANVAS_TEXT.canvasLabel}
       className={OBJECT_CANVAS_FRAME_CLASSES}
       onMouseLeave={() => onHover(null)}
+      ref={frameRef}
       role="group"
     >
+      {/* Ảnh nền, `<svg>` và lớp phủ đứng ở pixel KHUNG do hook tính (BUG-403). */}
       <div className="absolute inset-0">
         {backgroundImageUrl === null ? (
           <div aria-hidden="true" className="absolute inset-0 bg-bg-sunken" />
         ) : (
           <img
             alt={backgroundImageAlt}
-            className="pointer-events-none absolute inset-0 block h-full w-full select-none opacity-20"
+            className="pointer-events-none absolute block select-none opacity-20"
             draggable={false}
             src={backgroundImageUrl}
+            style={
+              surfaceRectPx === null
+                ? undefined
+                : {
+                    height: surfaceRectPx.height,
+                    left: surfaceRectPx.x,
+                    top: surfaceRectPx.y,
+                    width: surfaceRectPx.width,
+                  }
+            }
           />
         )}
 
-        <svg aria-label={OBJECT_CANVAS_TEXT.canvasLabel} className="absolute inset-0 h-full w-full" role="img">
+        <svg
+          aria-label={OBJECT_CANVAS_TEXT.canvasLabel}
+          className="absolute inset-0 h-full w-full"
+          role="img"
+          viewBox={
+            viewBoxPx === null
+              ? undefined
+              : `${viewBoxPx.x} ${viewBoxPx.y} ${viewBoxPx.width} ${viewBoxPx.height}`
+          }
+        >
           {/* Tường hạ xuống `--wall-idle` để đối tượng nổi lên (đặc tả gốc). */}
           {wallOutlines.map((wall) => (
             <polygon
@@ -307,23 +343,24 @@ export function ObjectLayerCanvas({
               onOpenMenu={handleOpenMenu}
               onSelect={onSelect}
               placement={placement}
+              unitPx={unitPx}
             />
           ))}
         </svg>
 
-        {activePlacement === null ? null : (
+        {haloRectPx === null ? null : (
           <>
             <SelectionHalo
               hasEntered={halo.hasEntered}
-              height={activePlacement.boundsPx.height}
+              height={haloRectPx.height}
               isVisible={halo.isVisible}
               variant={halo.variant}
-              width={activePlacement.boundsPx.width}
-              x={activePlacement.boundsPx.x}
-              y={activePlacement.boundsPx.y}
+              width={haloRectPx.width}
+              x={haloRectPx.x}
+              y={haloRectPx.y}
             />
             {/* Bốn tay cầm 6px của hộp chọn — `SelectionHalo` chỉ vẽ viền. */}
-            {selectionHandleRects(activePlacement.boundsPx).map((handle) => (
+            {selectionHandleRects(haloRectPx).map((handle) => (
               <div
                 aria-hidden="true"
                 className="pointer-events-none absolute rounded-[1px] border border-accent bg-bg-surface"
@@ -368,7 +405,7 @@ export function ObjectLayerCanvas({
       */}
       <div
         aria-label={OBJECT_CANVAS_TEXT.legendLabel}
-        className="absolute bottom-4 left-4 flex items-center gap-3 rounded-[8px] bg-bg-surface-90 px-3 py-2 shadow-panel"
+        className="absolute bottom-4 left-4 flex flex-wrap items-center gap-3 whitespace-nowrap rounded-[8px] bg-bg-surface-90 px-3 py-2 shadow-panel"
       >
         {OBJECT_LAYER_IDS.filter((layer) => layerVisibility[layer]).map((layer) => (
           <span className="flex items-center gap-1.5 text-[12px] text-text-secondary" key={layer}>

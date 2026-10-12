@@ -284,6 +284,33 @@ describe('useCadBranchConfirm — bảy trạng thái', () => {
     expect(success.result.current.model.partialNotice).toBeNull();
   });
 
+  // BUG-314: with no layer, collapsing the layer panel hid the "no named layers" notice and the
+  // "Nhập hình học" button sat greyed out with no reason.
+  it('no layer at stage two: still "empty" with the panel collapsed, and the locked import says why (BUG-314)', async () => {
+    const mounted = mountHook(gatewayFor('empty'), { forceMappingPanelCollapsed: true });
+    await openLayerMapping(mounted);
+
+    const { model } = mounted.result.current;
+    expect(model.state).toBe('empty');
+    expect(model.emptyNotice).not.toBeNull();
+    expect(model.canImportGeometry).toBe(false);
+    expect(model.importDisabledReason).toBe('Không có lớp nào để ánh xạ, nên chưa có hình học để nhập.');
+  });
+
+  // review-1 #2: the real gateway cannot read CAD layers yet, so 0 layers is the build's limit,
+  // not a file without named layers — and the locked import must give that reason first.
+  it('cổng chưa đọc được lớp CAD: câu rỗng nói đúng lý do, nút nhập khoá vì bản này chưa nhập được', async () => {
+    const mounted = mountHook(createMockCadBranchConfirmGateway({ supports: { inspectCadFile: false } }));
+    await openLayerMapping(mounted);
+
+    const { model } = mounted.result.current;
+    expect(model.state).toBe('empty');
+    expect(model.emptyNotice).toBe(
+      'Bản này chưa đọc được lớp của tệp CAD, nên chưa ánh xạ và nhập được hình học. Hãy chọn "Vẫn dùng AI".',
+    );
+    expect(model.importDisabledReason).toBe('Bản này chưa nhập được hình học từ tệp CAD. Hãy chọn "Vẫn dùng AI".');
+  });
+
   it('trạng thái Lỗi mang số phiên bản tệp và mã máy đọc ra tới view', async () => {
     const mounted = await mountInState('error');
     const { model } = mounted.result.current;

@@ -149,14 +149,39 @@ export const EXPLODE_PRESETS: readonly ExplodePresetViewModel[] = Object.freeze(
  * rộng một thẻ không nằm trong danh sách đó và không có nguồn nào khác trong repo.
  */
 export const EXPLODED_LAYOUT = Object.freeze({
-  /** Bề rộng thẻ nhãn tầng. */
-  cardWidthPx: 200,
+  /**
+   * Bề rộng thẻ nhãn tầng. 224 chứ không 200: dấu "Cần chú ý" (~80 px) đứng cạnh
+   * tên tầng, và ở 200 px tên chỉ còn ~44 px — "Tầng 02" (47 px) bị cắt (BUG-383).
+   */
+  cardWidthPx: 224,
   /** Bo góc thẻ nhãn tầng. */
   cardRadiusPx: 12,
-  /** Chiều cao vệt thang cao độ dọc mép trái khung nhìn. */
-  railHeightPx: 240,
   /** Bề rộng vạch đánh dấu trên đường nối dọc. */
   tickWidthPx: 12,
+  /**
+   * Lề phải của nút chụp: `right-2` (8) + ViewCube 72 (`VIEWER_LAYOUT.cubePx`) + 8
+   * của vỏ, để nút đứng NGAY TRÁI ViewCube thay vì nằm dưới nó (BUG-371).
+   */
+  captureRightPx: 88,
+  /**
+   * Lề phải của cột thẻ tầng: `right-2` (8) + bản đồ nhỏ 160 (`MiniMap.tsx`) + 8.
+   * Bản đồ nhỏ và cụm thu phóng của vỏ đều nằm trong dải ấy, nên thẻ đứng trái
+   * dải thì không lớp nào của vỏ đè lên thẻ (BUG-371).
+   */
+  cardsRightPx: 176,
+  /** Khoảng hở tối thiểu giữa thẻ tầng và mép khung nhìn khi khung hẹp (BUG-370). */
+  cardsEdgePx: 12,
+  /**
+   * Mép trên/dưới của dải TÂM thẻ tầng. Khung hẹp (375) thì thẻ không né được dải
+   * góc phải theo chiều ngang, nên phải né theo chiều dọc (BUG-480): 242 = đáy bản
+   * đồ nhỏ 208 (`top-2` 8 + ViewCube 72 + khe 8 + bản đồ 120) + 8 + nửa thẻ 26;
+   * 116 = chú giải góc trái dưới 82 (`bottom-2` 8 + 74) + 8 + nửa thẻ 26 — cụm thu
+   * phóng thấp hơn chú giải nên cùng được né.
+   */
+  cardsTopPx: 242,
+  cardsBottomPx: 116,
+  /** Bước tối thiểu giữa tâm hai thẻ: thẻ cao 52 + khe 4. */
+  cardPitchPx: 56,
 });
 
 /**
@@ -208,6 +233,8 @@ export interface ExplodedFloorViewModel {
   readonly id: string;
   /** Tên người đọc, ví dụ "Tầng 01". */
   readonly name: string;
+  /** Tên đặt giữa câu, ví dụ "tầng 01" trong "Ẩn tầng 01" (`storeyInlineName`, BUG-384). */
+  readonly inlineName: string;
   /** Cao độ ĐÃ ĐỊNH DẠNG, ví dụ "3,20 m". Vỏ dựng chuỗi này. */
   readonly elevationLabel: string;
   /** Diện tích ĐÃ ĐỊNH DẠNG, ví dụ "62,40 m²"; "—" khi tầng chưa có phòng nào. */
@@ -261,10 +288,12 @@ export interface ExplodedAlignmentPath {
 /** Một vạch đánh dấu trên đường nối dọc, tại cao độ của một tầng. */
 export interface ExplodedElevationTick {
   readonly storeyId: string;
-  /** Vị trí theo trục đứng của khung nhìn, tỉ lệ [0, 1] từ dưới lên. */
+  /**
+   * Vị trí theo trục đứng của khung nhìn, tỉ lệ [0, 1] từ dưới lên. Vạch không
+   * mang chữ: con số cao độ đã có ở thang của vỏ và trên thẻ tầng, một bản thứ ba
+   * giữa khung nhìn là thước chiều cao thứ hai (BUG-381).
+   */
   readonly fraction: number;
-  /** Cao độ ĐÃ ĐỊNH DẠNG. */
-  readonly label: string;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -274,6 +303,11 @@ export interface ExplodedElevationTick {
 /** Mọi thứ view trong khung nhìn cần để vẽ. */
 export interface ExplodedViewModel {
   readonly state: ExplodedViewState;
+  /**
+   * Câu của trạng thái `empty` — hook chọn vì `empty` có hai lý do: chưa đủ hai
+   * tầng, hoặc đủ tầng mà chưa tầng nào có gì để dựng (BUG-382).
+   */
+  readonly emptyMessage: string;
   /** Độ tách hiện tại, đọc từ `ViewerSceneFrame.separation`. */
   readonly separation: number;
   /** Mức sẵn đang khớp, hoặc `null` khi người dùng đang kéo tự do. */

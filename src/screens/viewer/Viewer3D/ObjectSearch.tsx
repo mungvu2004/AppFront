@@ -179,7 +179,7 @@ export function ObjectSearch({
         {!isOpen && (
           <button
             className={cn(
-              'mx-auto flex items-center rounded-[8px] px-3 py-1.5',
+              'mx-auto flex items-center rounded-[8px] px-3 py-1.5 max-sm:min-h-11',
               'border border-border-default bg-bg-surface shadow-float',
               'text-[13px] leading-none text-text-primary',
               'transition-colors duration-120 hover:bg-bg-hover',

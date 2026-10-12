@@ -32,6 +32,7 @@
  * trắng (A11).
  */
 
+import { AlertCircle } from 'lucide-react';
 import { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 
@@ -78,7 +79,7 @@ function OverlayComparisonCrashFallback({ report, retry }: ScreenErrorFallback) 
     <div className="absolute inset-0 flex items-center justify-center bg-bg-app">
       <EmptyState
         description={report.description.description}
-        icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-state-violation-tint" />}
+        icon={<AlertCircle aria-hidden="true" />}
         title={report.description.title}
         {...(report.retryable
           ? { action: { label: report.description.primaryButtonLabel, onClick: retry } }

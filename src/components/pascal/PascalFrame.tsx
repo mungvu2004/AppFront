@@ -6,7 +6,8 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { Viewer } from '@pascal-app/viewer';
+import { computeHeroFraming, heroCameraPose, Viewer } from '@pascal-app/viewer';
+import { useThree } from '@react-three/fiber';
 
 import type { PascalScene } from '@/lib/pascal/types';
 
@@ -36,11 +37,50 @@ export interface PascalFrameProps {
    * Không có nó thì `<Viewer>` dựng thẻ dự phòng CỦA RIÊNG NÓ
    * (`viewer/src/components/viewer/unsupported-gpu-fallback.tsx`): chữ tiếng
    * Anh mời người dùng "open the editor", và màu viết cứng
-   * `bg-[#fafafa]` · `text-neutral-900` · `bg-white`. Tức một màn hình vi phạm
+   * (nền hex fafafa, chữ neutral-900, nền trắng). Tức một màn hình vi phạm
    * cả A6 lẫn A1, ở đúng cái trạng thái mà không bài kiểm nào của AppFront
    * chạm tới — bài đơn vị giả lập `mount`, còn máy chạy e2e thì có GPU.
    */
   readonly onRendererUnavailable: (() => void) | undefined;
+}
+
+/** `fov` của `PerspectiveCamera` mà `ViewerCamera` của Pascal dựng (`viewer-camera.tsx`). */
+const VIEWER_FOV_DEG = 50;
+
+/**
+ * Đặt camera đóng khung cả mô hình khi cảnh đã dựng xong (BUG-482).
+ *
+ * `<Viewer>` của Pascal dựng camera ở `[10, 10, 10]` và KHÔNG ngắm vào đâu —
+ * bộ điều khiển camera nằm ở gói editor, AppFront không nhúng. Nên camera nhìn
+ * thẳng theo trục −Z: chỉ thấy trời, mặt đất và một góc tường. Dùng đúng cặp hàm
+ * Pascal dùng cho ảnh đại diện (`computeHeroFraming` + `heroCameraPose`), chạy lại
+ * mỗi khi cảnh mới sẵn sàng hoặc khung đổi tỷ lệ (375 dọc khác 1440 ngang).
+ */
+export function HeroCamera({ ready }: { readonly ready: boolean }) {
+  const camera = useThree((state) => state.camera);
+  const width = useThree((state) => state.size.width);
+  const height = useThree((state) => state.size.height);
+
+  useEffect(() => {
+    if (!ready || width === 0 || height === 0) return;
+
+    const framing = computeHeroFraming();
+    if (framing === null) return;
+
+    const pose = heroCameraPose({
+      aim: framing.aim,
+      aspect: width / height,
+      azimuthRad: framing.azimuthRad,
+      boxes: framing.boxes,
+      fovDeg: VIEWER_FOV_DEG,
+    });
+
+    camera.position.set(...pose.position);
+    camera.lookAt(...pose.target);
+    camera.updateMatrixWorld();
+  }, [camera, height, ready, width]);
+
+  return null;
 }
 
 export function PascalFrame({
@@ -52,6 +92,7 @@ export function PascalFrame({
   onRendererUnavailable,
 }: PascalFrameProps) {
   const [loaded, setLoaded] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,8 +113,9 @@ export function PascalFrame({
   }, [scene, onFatal, onSceneLoaded]);
 
   const handleReady = useCallback(
-    (ready: boolean) => {
-      onReadyChange?.(ready);
+    (nextReady: boolean) => {
+      setReady(nextReady);
+      onReadyChange?.(nextReady);
     },
     [onReadyChange],
   );
@@ -85,6 +127,8 @@ export function PascalFrame({
       sceneReadyKey={sceneKey}
       onSceneReadyChange={handleReady}
       {...(onRendererUnavailable === undefined ? {} : { onRendererUnavailable })}
-    />
+    >
+      <HeroCamera ready={ready} />
+    </Viewer>
   );
 }

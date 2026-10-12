@@ -157,21 +157,21 @@ function crossChecks(isMeasured: boolean): readonly ScaleCrossCheckRow[] {
   return [
     {
       id: 'wallThickness',
-      label: 'độ dày tường điển hình',
+      label: 'Độ dày tường điển hình',
       valueLabel: isMeasured ? formatLength(TYPICAL_WALL_THICKNESS) : '—',
       expectedRangeLabel: `khoảng hợp lý ${formatLength(millimetres(80))} – ${formatLength(millimetres(400))}`,
       statusCode: 'neutral',
     },
     {
       id: 'doorWidth',
-      label: 'bề rộng cửa đi điển hình',
+      label: 'Bề rộng cửa đi điển hình',
       valueLabel: isMeasured ? formatLength(TYPICAL_DOOR_WIDTH) : '—',
       expectedRangeLabel: `khoảng hợp lý từ ${formatLength(millimetres(600))} trở lên`,
       statusCode: 'neutral',
     },
     {
       id: 'largestRoomArea',
-      label: 'diện tích phòng lớn nhất',
+      label: 'Diện tích phòng lớn nhất',
       valueLabel: isMeasured ? formatArea(LARGEST_ROOM_AREA_M2) : '—',
       expectedRangeLabel: `khoảng hợp lý từ ${formatArea(4)} trở lên`,
       statusCode: 'neutral',
@@ -200,12 +200,12 @@ const APPLY_SCOPE_OPTIONS: readonly ScaleApplyScopeOption[] = [
 ];
 
 const SHORTCUT_HINTS: readonly ScaleShortcutHint[] = [
-  { id: 'cancelDrag', comboLabel: 'Esc', description: 'huỷ đoạn đang kéo' },
-  { id: 'axisLock', comboLabel: 'Shift', description: 'khoá đoạn theo trục' },
-  { id: 'remeasure', comboLabel: 'R', description: 'đo lại' },
-  { id: 'confirm', comboLabel: 'Enter', description: 'xác nhận' },
-  { id: 'nudgeFine', comboLabel: '←', description: 'nhích đầu đoạn một pixel' },
-  { id: 'nudgeCoarse', comboLabel: 'Shift + ←', description: 'nhích đầu đoạn mười pixel' },
+  { id: 'cancelDrag', comboLabel: 'Esc', description: 'Huỷ đoạn đang kéo' },
+  { id: 'axisLock', comboLabel: 'Shift', description: 'Khoá đoạn theo trục' },
+  { id: 'remeasure', comboLabel: 'R', description: 'Đo lại' },
+  { id: 'confirm', comboLabel: 'Enter', description: 'Xác nhận' },
+  { id: 'nudgeFine', comboLabel: '←', description: 'Nhích đầu đoạn một pixel' },
+  { id: 'nudgeCoarse', comboLabel: 'Shift + ←', description: 'Nhích đầu đoạn mười pixel' },
 ];
 
 /** Phép tính đã đủ ba vế — `4.800 mm ÷ 400 px = 12 mm/px`. */
@@ -266,6 +266,7 @@ const ACTIONS: ScaleCalibrationActions = {
   onCancelAllFloors: NO_OP,
   onToggleCollapsed: NO_OP,
   onGoToPreprocessing: NO_OP,
+  onGoToUpload: NO_OP,
   onRetry: NO_OP,
 };
 
@@ -290,10 +291,6 @@ function canvasFor(state: ScaleCalibrationState): ScaleCanvasViewModel {
     liveLengthLabel: null,
     isInteractive: state !== 'forbidden',
     isImageLoading: state === 'loading',
-    warpingNotice:
-      state === 'error'
-        ? 'Nắn ảnh thất bại nên bản vẽ có thể méo. Tỷ lệ đo trên một bản vẽ méo sẽ sai theo.'
-        : null,
   };
 }
 
@@ -330,6 +327,7 @@ function panelFor(state: ScaleCalibrationState): ScalePanelViewModel {
       livePixelLengthLabel: null,
       realLengthText: '',
       realLengthPlaceholder: '4800',
+      realLengthError: null,
       realLengthHint: isEmpty
         ? 'Không có chuỗi kích thước nào gần đoạn này để gợi ý.'
         : `OCR đọc được ${formatNumber(REFERENCE_REAL_LENGTH)} ngay cạnh đoạn này.`,
@@ -348,6 +346,8 @@ function panelFor(state: ScaleCalibrationState): ScalePanelViewModel {
     recalculationCaption: 'Đổi tỷ lệ sẽ tính lại mọi kích thước dẫn xuất của bản vẽ này.',
     statusCode: state === 'success' ? 'verified' : 'neutral',
     shortcutHints: SHORTCUT_HINTS,
+    isMethodLocked: false,
+    isCurrentScaleKnown: hasScale,
   };
 }
 
@@ -377,7 +377,7 @@ export function scenarioFor(state: SevenState): ScaleCalibrationProps {
         state === 'error'
           ? 'Tỷ lệ đo trên một bản vẽ méo sẽ sai theo. Quay lại bước tiền xử lý để nắn lại ảnh, rồi hiệu chỉnh tỷ lệ.'
           : null,
-      errorCode: state === 'error' ? 'FRAME_NOT_FOUND' : null,
+      errorCode: null,
       emptyNotice:
         state === 'empty'
           ? 'Bản vẽ này không có chuỗi kích thước nào OCR đọc được. Vẽ một đường tham chiếu dọc cạnh đã biết, rồi nhập chiều dài thật của nó.'
@@ -399,7 +399,7 @@ export function scenarioFor(state: SevenState): ScaleCalibrationProps {
 /** Bảy kịch bản, dựng sẵn — test dùng chính bộ này, không dựng bộ thứ hai (R-70). */
 export const SEVEN_SCENARIOS: readonly ScaleCalibrationProps[] = SEVEN_STATES.map(scenarioFor);
 
-/** Khung hẹp: panel phải thành tấm trượt đáy. */
+/** Khung hẹp: panel phải xếp dưới bản vẽ. */
 export function compactScenario(): ScaleCalibrationProps {
   const base = scenarioFor('partial');
 

@@ -22,7 +22,7 @@
  * `Modal.Root` reaches `onClose` two ways — a focus-trap Escape handler and a
  * `scope: 'dialog'` shortcut — and both are wired to `props.requestClose`,
  * never to `onDismiss` directly. A first Esc on a dirty form only shows the
- * `isConfirmingDiscard` prompt ({@link DiscardPrompt}, floating above the
+ * `isConfirmingDiscard` prompt ({@link DiscardPrompt}, a row of the
  * footer — never a nested dialog); a second Esc, or that prompt's own button, both
  * call `requestClose`/`confirmDiscard` again and this time it closes. See
  * `useCreateProjectModal.ts`'s doc comment for why an open `Select` dropdown
@@ -175,17 +175,31 @@ function StepInfo(props: CreateProjectModalViewProps) {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Floats just above the footer (`bottom-full` of `Modal.Footer`) rather than
- * being inserted into the body, so the fields never jump when it appears; it
+ * A full-width first row of `Modal.Footer`, in the flow rather than floating
+ * over the body: floating, it covered "Ghi chú" (and "Loại công trình" at
+ * 375 px, BUG-204). In the footer the fields still never move down (BUG-123) —
+ * the body gives up the height and scrolls, or the centred dialog grows. It
  * offers both answers as its own buttons, and its copy does not depend on
  * where a button wraps to (BUG-123). `text-balance` keeps the title from
  * leaving one word alone on its last line at 375 px (BUG-190).
  */
-function DiscardPrompt(props: CreateProjectModalViewProps) {
+function DiscardPrompt(props: CreateProjectModalViewProps & { readonly cancelRef: React.RefObject<HTMLButtonElement | null> }) {
+  // Where the focus was when the prompt appeared: the field being edited, or "Huỷ". "Tiếp tục sửa"
+  // goes away with the prompt, so it hands the focus back there instead of to nowhere (BUG-219).
+  const [returnFocus] = useState(() => document.activeElement);
+  const keepEditing = (): void => {
+    const target =
+      returnFocus instanceof HTMLElement && returnFocus.isConnected && returnFocus.matches('input, textarea, button')
+        ? returnFocus
+        : props.cancelRef.current;
+    target?.focus();
+    props.keepEditing();
+  };
+
   return (
     <div
       role="alert"
-      className="absolute left-4 right-4 sm:inset-x-6 bottom-full mb-3 flex flex-col gap-3 rounded-[8px] border border-state-attention bg-state-attention-tint p-3 shadow-modal"
+      className="flex basis-full flex-col gap-3 rounded-[8px] border border-state-attention bg-state-attention-tint p-3"
     >
       <div className="flex items-start gap-3">
         <AlertTriangle className="mt-0.5 shrink-0 text-state-attention" size={18} strokeWidth={2} aria-hidden="true" />
@@ -199,7 +213,7 @@ function DiscardPrompt(props: CreateProjectModalViewProps) {
         </div>
       </div>
       <div className="flex flex-wrap justify-end gap-2">
-        <Button type="button" size="sm" variant="secondary" onClick={props.keepEditing}>
+        <Button type="button" size="sm" variant="secondary" onClick={keepEditing}>
           Tiếp tục sửa
         </Button>
         <Button type="button" size="sm" variant="danger" onClick={props.confirmDiscard}>
@@ -207,6 +221,25 @@ function DiscardPrompt(props: CreateProjectModalViewProps) {
         </Button>
       </div>
     </div>
+  );
+}
+
+/**
+ * The body's bottom 24 px, kept in view: over content still below the fold it
+ * fades that content out, a sign there is more to scroll to — the overlay
+ * scrollbars stay hidden until a scroll, and at 1024×768 "Thêm tầng" sat cut
+ * under the footer with no hint (BUG-201). Scrolled to the end, or with
+ * nothing to scroll, it lies over the empty space it takes the place of the
+ * body's old `pb-6` with, and shows nothing.
+ */
+function ScrollFade() {
+  return (
+    <div
+      aria-hidden="true"
+      data-scroll-fade=""
+      className="pointer-events-none sticky bottom-0 h-6"
+      style={{ background: 'linear-gradient(to top, var(--bg-surface), transparent)' }}
+    />
   );
 }
 
@@ -218,6 +251,7 @@ function DiscardPrompt(props: CreateProjectModalViewProps) {
 export function CreateProjectModalView(props: CreateProjectModalViewProps) {
   const { isOpen, state, step, isSubmitting, focusFloorId, acknowledgeFocus } = props;
   const rowRefs = useRef(new Map<string, HTMLTableRowElement>());
+  const cancelRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (focusFloorId === null) {
@@ -260,10 +294,13 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
   return (
     <Modal.Root isOpen={isOpen} onClose={props.requestClose} width={MODAL_WIDTH} titleId={TITLE_ID}>
       {/* `pb-3` + a body with no top padding: the step indicator sits one 24 px grid step under the title, and `px-6` lines the title up with the fields (BUG-122). */}
-      <Modal.Header className="px-4 sm:px-6 pb-3">
+      {/* X is locked with the footer while "Tạo dự án" runs: requestClose ignores it then (BUG-184, BUG-218). */}
+      <Modal.Header className="px-4 sm:px-6 pb-3" closeDisabled={isSubmitting}>
         <span id={TITLE_ID}>Tạo dự án mới</span>
       </Modal.Header>
-      <Modal.Body className="px-4 sm:px-6 pt-0 pb-6 min-h-[320px]">
+      {/* scroll-pt-10: the floor table's sticky 40 px header covered the field Shift+Tab or a 422 scrolled to
+          (WCAG 2.4.11); scroll-pb-6 keeps it off the bottom fade too. */}
+      <Modal.Body className="px-4 sm:px-6 pt-0 min-h-[320px] scroll-pt-10 scroll-pb-6">
         <div className="mb-4 flex flex-col gap-2">
           <div className="flex items-baseline gap-2">
             <p className="text-[13px] font-semibold leading-[18px] text-text-primary">{props.stepLabel}</p>
@@ -292,9 +329,10 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
           {step === 2 && <StepFloors {...props} rowRefs={rowRefs} />}
           {step === 3 && <StepReview {...props} />}
         </motion.div>
+        <ScrollFade />
       </Modal.Body>
-      <Modal.Footer className="relative justify-between px-4 sm:px-6">
-        {props.isConfirmingDiscard && <DiscardPrompt {...props} />}
+      <Modal.Footer className="justify-between px-4 sm:px-6">
+        {props.isConfirmingDiscard && <DiscardPrompt {...props} cancelRef={cancelRef} />}
         <div>
           {step > 1 && (
             <Button variant="ghost" onClick={props.goBack} disabled={isSubmitting}>
@@ -303,7 +341,7 @@ export function CreateProjectModalView(props: CreateProjectModalViewProps) {
           )}
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="ghost" onClick={props.requestClose} disabled={isSubmitting}>
+          <Button ref={cancelRef} variant="ghost" onClick={props.requestClose} disabled={isSubmitting}>
             Huỷ
           </Button>
           {step < 3 ? (

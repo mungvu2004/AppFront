@@ -50,7 +50,7 @@ export function GeneralTab(props: GeneralTabProps) {
         onChange={(event) => props.setCode(event.target.value)}
         maxLength={PROJECT_SETTINGS_LIMITS.codeMaxLength}
         error={problems.code}
-        hint="Mã ngắn để tra cứu nhanh; bỏ trống cũng được"
+        hint="Mã ngắn để tra cứu nhanh"
         isReadOnly={isReadOnly}
       />
       <Input

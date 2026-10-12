@@ -67,6 +67,7 @@ import { ExportPanelPreflight } from './ExportPanelPreflight';
 import type {
   ExportCapabilities,
   ExportedFileRow,
+  ExportFloorChoice,
   ExportFormatId,
   ExportPanelProps,
   PreflightRow,
@@ -79,10 +80,20 @@ function findPreflightRow(rows: readonly PreflightRow[], id: PreflightRow['id'])
 /**
  * Định dạng này có sinh ra được một tệp thật không.
  *
- * `.glb` và Spatial JSON luôn có; PDF và ảnh phụ thuộc hai cờ mà tầng logic
+ * Spatial JSON luôn có, `.glb` khi có ít nhất một tầng được chọn; PDF và ảnh phụ thuộc hai cờ mà tầng logic
  * hôm nay trả `false`. Suy ra từ props, không phải một trường mới của hợp đồng.
  */
-function canDeliverFormat(id: ExportFormatId, capabilities: ExportCapabilities): boolean {
+function canDeliverFormat(
+  id: ExportFormatId,
+  capabilities: ExportCapabilities,
+  floors: readonly ExportFloorChoice[],
+): boolean {
+  // `.glb` dựng hình theo TẦNG: chưa chọn tầng nào thì không có tệp nào để dựng (BUG-466) —
+  // dòng "Chưa chọn tầng nào để xuất." của khối kiểm tra nói lý do.
+  if (id === 'glb') {
+    return floors.some((floor) => floor.isSelected);
+  }
+
   if (id === 'pdf') {
     return capabilities.canRenderPdfBytes;
   }
@@ -123,7 +134,8 @@ function ExportPanelHistory({ files, isLoading, canPersistHistory, onDownload }:
         <Table.Header>
           <Table.Row>
             <Table.Head>Tệp</Table.Head>
-            <Table.Head>Thời điểm</Table.Head>
+            {/* Dưới `sm` bỏ cột thời điểm để "Tải lại" còn trong khung 375 px. */}
+            <Table.Head className="hidden sm:table-cell">Thời điểm</Table.Head>
             <Table.Head>Dung lượng</Table.Head>
             <Table.Head>
               <span className="sr-only">Tải lại</span>
@@ -133,8 +145,8 @@ function ExportPanelHistory({ files, isLoading, canPersistHistory, onDownload }:
         <Table.Body>
           {files.map((file) => (
             <Table.Row key={file.id}>
-              <Table.Cell className="max-w-[140px] truncate font-mono text-xs">{file.fileName}</Table.Cell>
-              <Table.Cell className="text-xs text-text-secondary">
+              <Table.Cell className="w-full max-w-0 truncate font-mono text-xs">{file.fileName}</Table.Cell>
+              <Table.Cell className="hidden text-xs text-text-secondary sm:table-cell">
                 {isLoading ? <SkeletonText className="h-3 w-16" /> : file.momentLabel}
               </Table.Cell>
               <Table.Cell className="font-mono text-xs tabular-nums text-text-secondary">
@@ -190,7 +202,7 @@ export function ExportPanel(props: ExportPanelProps) {
   const isLoading = status === 'loading';
   const selectedFormat = formats.find((format) => format.isSelected) ?? formats[0] ?? null;
   const canExportSelected =
-    selectedFormat !== null && canDeliverFormat(selectedFormat.id, capabilities);
+    selectedFormat !== null && canDeliverFormat(selectedFormat.id, capabilities, floors);
 
   if (status === 'forbidden') {
     return (
@@ -231,7 +243,7 @@ export function ExportPanel(props: ExportPanelProps) {
 
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-bg-app">
-      <div className="flex flex-1 flex-col gap-4 p-6">
+      <div className="flex flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
         <header className="flex items-center justify-between gap-4">
           <h2 className="text-base font-semibold text-text-primary">Xuất bản vẽ</h2>
           {onShare !== null && (
@@ -252,15 +264,18 @@ export function ExportPanel(props: ExportPanelProps) {
           </div>
         )}
 
-        <div className={cn('gap-6', isCollapsed ? 'flex flex-col' : 'grid grid-cols-[60%_344px] items-start')}>
-          <ExportPanelFormats
-            formats={formats}
-            capabilities={capabilities}
-            isLoading={isLoading}
-            onSelectFormat={onSelectFormat}
-          />
+        {/* Hai cột từ `lg` (cột phải 344 px, cột trái lấp phần còn lại); hẹp hơn thì xếp chồng. */}
+        <div className={cn('flex flex-col gap-6', !isCollapsed && 'lg:flex-row lg:items-start')}>
+          <div className="min-w-0 flex-1">
+            <ExportPanelFormats
+              formats={formats}
+              capabilities={capabilities}
+              isLoading={isLoading}
+              onSelectFormat={onSelectFormat}
+            />
+          </div>
 
-          <div className="flex flex-col gap-4">
+          <div className={cn('flex flex-col gap-4', !isCollapsed && 'lg:w-[344px] lg:shrink-0')}>
             {selectedFormat !== null && (
               <ExportPanelOptions
                 floors={floors}
@@ -274,15 +289,15 @@ export function ExportPanel(props: ExportPanelProps) {
             )}
 
             <ExportPanelPreflight rows={preflight} onFollowFix={onFollowFix} />
-
-            <ExportPanelHistory
-              files={exportedFiles}
-              isLoading={isLoading}
-              canPersistHistory={capabilities.canPersistHistory}
-              onDownload={onDownload}
-            />
           </div>
         </div>
+
+        <ExportPanelHistory
+          files={exportedFiles}
+          isLoading={isLoading}
+          canPersistHistory={capabilities.canPersistHistory}
+          onDownload={onDownload}
+        />
       </div>
 
       <ExportPanelFooter

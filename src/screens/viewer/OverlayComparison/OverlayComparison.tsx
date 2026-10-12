@@ -76,6 +76,8 @@ const CANVAS_REGION_ARIA_LABEL = 'Khung đối chiếu bản vẽ gốc và mô 
 const NOTICE_REGION_ARIA_LABEL = 'Trạng thái của màn đối chiếu bản vẽ';
 
 const ERROR_LINK_LABEL = 'Sang màn hiệu chỉnh tỷ lệ';
+/** BUG-420: lối ra của tầng chưa có bản vẽ — cùng nhãn nút của màn Hiệu chỉnh tỷ lệ. */
+const UPLOAD_LINK_LABEL = 'Tải bản vẽ lên';
 
 /** Nút chữ của liên kết lỗi: cùng khuôn `DimensionOcrReview.tsx` (A1, A2). */
 const ERROR_LINK_CLASS_NAME =
@@ -110,7 +112,14 @@ export function OverlayComparison({ actions, model }: OverlayComparisonProps) {
   const noticeLevel = NOTICE_LEVELS[model.state];
 
   return (
-    <div aria-label={SCREEN_ARIA_LABEL} className="relative flex h-full min-h-0 w-full bg-bg-app" role="region">
+    <div
+      aria-label={SCREEN_ARIA_LABEL}
+      // Dưới 1024 bảng số liệu xuống dưới canvas: cạnh nhau thì canvas còn quá hẹp cho thanh công cụ (BUG-318, BUG-327).
+      // Cao bằng khung nhìn: route nằm trong `ScreenMain` (display: contents) không cho `h-full` một chiều
+      // cao, nên màn co theo panel (~290 px ở 1024) và canvas còn 0 px dưới 1024 (QA-04 nợ B-3).
+      className="relative flex h-screen min-h-0 w-full flex-col bg-bg-app lg:flex-row"
+      role="region"
+    >
       <section aria-label={CANVAS_REGION_ARIA_LABEL} className="relative min-h-0 min-w-0 flex-1">
         <OverlayComparisonCanvas
           compareMode={model.compareMode}
@@ -135,7 +144,7 @@ export function OverlayComparison({ actions, model }: OverlayComparisonProps) {
           không có gì để bấm ở đó.
         */}
         <div className="pointer-events-none absolute inset-x-0 top-3 z-10 flex flex-col items-center gap-2 px-3">
-          <div className="pointer-events-auto">
+          <div className="pointer-events-auto max-w-full">
             <OverlayComparisonToolbar
               activeFloorId={model.activeFloorId}
               canEdit={canEdit}
@@ -168,6 +177,11 @@ export function OverlayComparison({ actions, model }: OverlayComparisonProps) {
               {isError && model.scaleFixHref !== null && (
                 <a className={ERROR_LINK_CLASS_NAME} href={model.scaleFixHref}>
                   {ERROR_LINK_LABEL}
+                </a>
+              )}
+              {model.uploadHref !== null && (
+                <a className={ERROR_LINK_CLASS_NAME} href={model.uploadHref}>
+                  {UPLOAD_LINK_LABEL}
                 </a>
               )}
             </div>

@@ -109,6 +109,7 @@ import {
   type ThicknessStandardizationProps,
   type ThicknessThresholds,
 } from './thicknessTypes';
+import { useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 
 /* -------------------------------------------------------------------------- */
@@ -354,6 +355,7 @@ export function useThicknessStandardization(
     floorId,
     options.onNavigate,
   );
+  const readFailure = useFloorLayerReadFailure(floorLayer, projectId, options.onNavigate);
 
   /* ---------------------------------------------------------------------- */
   /* Đồ thị đang sửa — nơi `commit` ghi vào.                                  */
@@ -863,12 +865,16 @@ export function useThicknessStandardization(
     hasApplied,
   });
 
+  /* Sau một lượt áp, "mọi đoạn đã đúng nhóm" vẫn là sự thật cần nói — như trạng thái rỗng (BUG-421). */
+  const isAllStandard = summary.segmentCount > 0 && summary.normalizedCount === summary.segmentCount;
   const emptyNotice =
     state === 'empty'
       ? allRows.length === 0
         ? THICKNESS_SCREEN_TEXT.emptyNoMeasurementNotice
         : THICKNESS_SCREEN_TEXT.emptyNotice
-      : null;
+      : state === 'success' && isAllStandard
+        ? THICKNESS_SCREEN_TEXT.emptyNotice
+        : null;
 
   return {
     state,
@@ -925,6 +931,7 @@ export function useThicknessStandardization(
     flashingWallIds,
     saveBlock,
     provisionalScaleNotice,
+    readFailure,
   };
 }
 

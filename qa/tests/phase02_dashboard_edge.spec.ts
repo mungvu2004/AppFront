@@ -56,6 +56,11 @@
  * - `POST /api/projects`: ~45 API fixtures (~26 from the SCR-05 "errors, races, table, paging" block, 4 for the unreadable-row test) + 1 UI
  *   create (+1 refused 422); every one deleted in `finally` (no rate limit on this route, BE:apps/api/projects/router.py).
  * - `PATCH` / `DELETE /api/projects/:id`: only on this file's own `qa-<runId>-…` projects (~12 real PATCH, ~5 real DELETE).
+ * - QA-02 shared-components block (FE 271538cb, last describe): +7 API fixtures (each deleted), 1 real DELETE, 2 real PATCH,
+ *   ~18 refreshes, 0 extra sign-in; 1 [mocked response] test (N1 500, unpairable: 5xx).
+ * - QA-02 FE d18eb884 block (last describe, 18 tests): +10 API fixtures (each deleted in `finally`, one deleted mid-test for a
+ *   real 404), 1 held UI create (deleted by closeAdmin), 1 real PATCH (answered 404), 0 other PATCH/DELETE, ~2–4 refreshes per
+ *   test, 0 extra sign-in; 1 [mocked response] test (GET /api/notifications rows, unpairable: no BE producer for those rows).
  * - No recovery / invitation / mail call (Mailpit not needed in this phase).
  * Access tokens live 600 s (BE settings.py:31): each test reuses the token of its own sign-in/refresh, well inside.
  */
@@ -68,7 +73,8 @@ import type { ApiEntry, ApiResult } from '../../e2e/fullstack/apiWatch';
 import { readBaseUrl } from '../../e2e/fullstack/env';
 import { apiBaseUrl } from './support/api';
 import { dashboardLoaded, signInAdmin } from './support/auth';
-import { TEST_DATA_PREFIX, attachJson, captureEvidence } from './support/evidence';
+import { TEST_DATA_PREFIX, attachJson, captureEvidence, shootOnSoftFail } from './support/evidence';
+import { typeHeight } from './support/numeric-field';
 
 /* ---------------------------------------------------------------- constants (each cites its source) */
 
@@ -130,7 +136,6 @@ const EMPTY_DESCRIPTION = 'Tạo dự án đầu tiên để bắt đầu số h
 const EMPTY_ACTION = 'Tạo dự án mới'; // PD:267
 const CLEAR_FILTERS = 'Xoá bộ lọc'; // PD:274
 const COMPACT_FILTER = 'Lọc theo trạng thái'; // PD:231
-const STATS = { all: 'Tổng dự án', done: 'Hoàn thành', qc: 'Cần QC', processing: 'Đang xử lý' } as const; // src/i18n/vi.json:415-418
 const FILTERS = { all: 'Tất cả', processing: 'Đang xử lý', qc: 'Cần QC', done: 'Hoàn thành' } as const; // UPD:76-81
 const SORT = { updated: 'Cập nhật gần đây', name: 'Tên A–Z', floors: 'Số tầng nhiều nhất', area: 'Diện tích lớn nhất' } as const; // UPD:83-88
 const unreadRowsNotice = (count: number): string => `Có ${String(count)} dự án chưa đọc được`; // UPD:482
@@ -147,7 +152,8 @@ const DISCARD_HINT = 'Nhấn Esc lần nữa hoặc bấm "Đóng, bỏ thay đ�
 const DISCARD_ACTION = 'Đóng, bỏ thay đổi'; // CPM:254
 const CLOSE_DIALOG = 'Đóng hộp thoại'; // MOD:167
 const HEIGHT_MISSING = 'Chưa nhập chiều cao thông thuỷ.'; // UCPM:113
-const CHAIN_BROKEN = 'Chưa tính được cao độ vì tầng bên dưới còn thiếu chiều cao hợp lệ.'; // UCPM:235
+/** UCPM:325, :369-373: the rows above a floor over the elevation limit name that limit, not a height (BUG-213). */
+const CHAIN_BROKEN_BY_ELEVATION = 'Chưa tính được cao độ vì một tầng bên dưới đã vượt giới hạn cao độ.';
 const ELEVATION_LIMIT = /^Cao độ vượt giới hạn cho phép \([-−]30 đến 300 mét\)\.$/u; // UCPM:131-132, LIM:30-31
 const NUMERIC_MIN = 'Giá trị không nhỏ hơn 2 m.'; // NF:43, LIM:34 (SF:98,134 pass min)
 const NUMERIC_MAX = 'Giá trị không quá 10 m.'; // NF:44, LIM:35
@@ -325,16 +331,13 @@ const searchBox = (page: Page): Locator => page.getByRole('searchbox', { name: '
 const noMatch = (page: Page): Locator => page.getByText('Không tìm thấy dự án phù hợp', { exact: true }); // PD:272
 const wizard = (page: Page): Locator => page.getByRole('dialog', { name: 'Tạo dự án mới', exact: true }); // CPM:243-245
 const toastWith = (page: Page, text: string): Locator => page.getByRole('status').filter({ hasText: text }); // TST:117
-/** DS:62-74: label + count spans inside one `aria-pressed` button. */
+/** DS:28-40: label + count spans inside one `aria-pressed` button; the only count per status since the stat tiles left (BUG-118, FIX-1153). */
 const statusFilterButton = (page: Page, label: string): Locator =>
   page.getByRole('button', { name: new RegExp(`^${escapeRegExp(label)}\\s*\\d+$`, 'u') });
 const stateAnnouncement = (scope: Page | Locator): Locator => scope.getByRole('status').filter({ hasText: STATE_RE });
 const countLine = (page: Page): Locator => page.getByText(/^\d+ dự án$/u); // PD:187
 const sortCombobox = (page: Page, current: string): Locator => page.getByRole('combobox').filter({ hasText: current }); // PD:204-209
 const viewMode = (page: Page): Locator => page.getByRole('radiogroup', { name: 'Kiểu xem', exact: true }); // PD:210-218
-/** Sidebar stat card value: the number span right before its label (DS:44-57). */
-const statValue = (page: Page, label: string): Locator =>
-  page.locator('aside > div').first().getByText(label, { exact: true }).locator('xpath=preceding-sibling::span[1]');
 /** Table view rows (PD:291-314); `thead th` (BUG-115 fixed: `th` now has scope="col", so getByRole('columnheader') would find the same cells). */
 const tableRows = (page: Page): Locator => page.getByRole('main').locator('tbody tr');
 const tableHeads = (page: Page): Locator => page.getByRole('main').locator('thead th');
@@ -380,9 +383,7 @@ async function toStep2(dialog: Locator, name: string): Promise<void> {
 
 /** Types a shared height, blurs (NF:105-111 commits on blur) and applies it to every row (UCPM:590-594). */
 async function applyHeight(dialog: Locator, metres: string): Promise<void> {
-  const field = dialog.getByLabel(APPLY_LABEL);
-  await field.fill(metres);
-  await field.press('Tab');
+  await typeHeight(dialog.getByLabel(APPLY_LABEL), metres); // BUG-249: fill() raced useNumericField.handleFocus
   const apply = dialog.getByRole('button', { name: APPLY_ALL, exact: true });
   await expect(apply).toBeEnabled();
   await apply.click();
@@ -664,7 +665,7 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
     });
   });
 
-  test('E02 · SCR-05 header and sidebar: "{n} dự án", four counters and filter counts follow N1; avatar shows initials', async ({ browser }) => {
+  test('E02 · SCR-05 header and sidebar: "{n} dự án" and the four filter counts follow N1; avatar shows initials', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const list = await reloadDashboard(page);
@@ -672,8 +673,7 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
 
       await expect(page.getByText(`${String(counts.all)} dự án`, { exact: true })).toBeVisible(); // PD:187
       for (const key of ['all', 'done', 'qc', 'processing'] as const) {
-        await expect(statValue(page, STATS[key]), `stat card "${STATS[key]}"`).toHaveText(String(counts[key])); // DS:44-57
-        await expect(statusFilterButton(page, FILTERS[key])).toHaveText(endsWithCount(counts[key])); // BUG-140
+        await expect(statusFilterButton(page, FILTERS[key])).toHaveText(endsWithCount(counts[key])); // DS:39, BUG-140
       }
       // BUG-031 regression: initials, never an empty circle (PDC:63, Avatar.tsx:38-43).
       await expect(page.locator('[aria-label="Tài khoản của bạn"]')).toHaveText(/^\S{1,2}$/u);
@@ -1127,6 +1127,16 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
         const dialog = wizard(page);
         await expect(dialog).toBeVisible();
         await expect(stateAnnouncement(dialog)).toHaveText(STATE.collapsed); // UCPM:494
+        // BUG-225: the Modal enters with a framer-motion transform (MOD:109-135) that `animations: 'disabled'` does not
+        // stop; measured mid-entrance the boxes move. Judge them once two reads 150 ms apart agree.
+        const fieldBoxes = async (): Promise<string> => JSON.stringify([await nameField(dialog).boundingBox(), await codeField(dialog).boundingBox()]);
+        await expect
+          .poll(async () => {
+            const first = await fieldBoxes();
+            await page.waitForTimeout(150);
+            return (await fieldBoxes()) === first;
+          }, { message: 'wizard fields at rest' })
+          .toBe(true);
         const nameBox = await nameField(dialog).boundingBox();
         const codeBox = await codeField(dialog).boundingBox();
         expect(nameBox && codeBox && Math.abs(nameBox.x - codeBox.x) < 2 && codeBox.y > nameBox.y, 'Tên/Mã stacked').toBe(true);
@@ -1135,9 +1145,26 @@ test.describe('E02 SCR-05 dashboard (/)', () => {
         await page.keyboard.press('Escape');
         await expect(dialog).toHaveCount(0);
 
+        // BUG-225: the resize reaches the page asynchronously; wait for the dashboard's own query (UPD:93) to flip before
+        // judging the controls, and keep the width in the message so a headed run that does not reach 1023 says so.
+        // Root cause (headed probe, chrome channel, this Windows host): devicePixelRatio is 1.0000000149, so a "1023 px"
+        // viewport is a hair over 1023 CSS px. The old `(max-width: 1023px)` and Tailwind `lg:` = `(min-width: 1024px)`
+        // were then both false (run-16: desktop list on a stacked page). The app now asks the range form
+        // `(width < 1024px)` (QA-02c R-src), the exact complement of `lg:`, so there is no gap: always judged at 1023.
+        const narrowQuery = '(width < 1024px)';
+        const narrowAt = (): Promise<string> => page.evaluate((query) => `${String(matchMedia(query).matches)} @ ${String(window.innerWidth)}`, narrowQuery);
         await page.setViewportSize({ width: 1023, height: 900 });
+        await expect.poll(narrowAt, { message: `matchMedia ${narrowQuery} at a 1023 px viewport` }).toBe('true @ 1023');
+        const at1023 = await page.evaluate((query) => ({
+          narrow: matchMedia(query).matches,
+          wide: matchMedia('(min-width: 1024px)').matches,
+          dpr: window.devicePixelRatio,
+        }), narrowQuery);
+        await attachJson('E02_dash_compact_1023.json', { ...at1023, gap: !at1023.narrow && !at1023.wide });
+        expect(at1023, `app query and Tailwind lg: split 1023 px with no gap (dpr ${String(at1023.dpr)}, BUG-225)`).toMatchObject({ narrow: true, wide: false });
         await expect(filter).toBeVisible();
         await page.setViewportSize({ width: 1024, height: 900 });
+        await expect.poll(narrowAt, { message: `matchMedia ${narrowQuery} at a 1024 px viewport` }).toBe('false @ 1024');
         await expect(filter).toHaveCount(0);
         // Same `statusFilter` state behind both controls (PD:233, DS:157).
         await expect(statusFilterButton(page, FILTERS.processing)).toHaveAttribute('aria-pressed', 'true');
@@ -1205,6 +1232,9 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await input.press('Enter');
       const { json } = await refused;
       await expect(toastWith(page, RENAME_FORBIDDEN)).toBeVisible(); // UPD:205-206
+      // BUG-207: an error toast wears the violation dot, never the verified green (UPD:454; Toast.tsx:111-115).
+      await expect(toastWith(page, RENAME_FORBIDDEN).locator('.bg-state-violation')).toHaveCount(1);
+      await expect(toastWith(page, RENAME_FORBIDDEN).locator('.bg-state-verified')).toHaveCount(0);
       await expect(projectCard(page, project.name)).toBeVisible(); // UPD:418
       await expect(projectCard(page, attempted)).toHaveCount(0);
       await captureEvidence(page, 'E02_rename_403.png', { caption: 'PATCH → 403 FORBIDDEN (mocked): permission toast, old name back' });
@@ -1362,6 +1392,8 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await expect(toast).toBeVisible();
       await page.mouse.move(0, 0); // a hovered toast stops its clock (TST:69-73, :128-129)
       const shownAt = Date.now();
+      // BUG-212: the "before" half of the pair, so the "after" shot below reads as a toast that left, not one never shown.
+      await captureEvidence(page, 'E02_rename_toast_timeout_before.png', { caption: `before: toast "${renamedToast(renamed)}" with "Hoàn tác", 8 s clock running` });
       await expect(toast).toHaveCount(0, { timeout: UNDO_WINDOW_MS + 5_000 }); // TST:59, :81-84 (+180 ms exit)
       const goneAfterMs = Date.now() - shownAt;
       expect(goneAfterMs, 'the toast stays for the undo window').toBeGreaterThanOrEqual(UNDO_WINDOW_MS - 1_500);
@@ -1371,7 +1403,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       const list = await reloadDashboard(page);
       expect(summaryOf(list, project.id).name).toBe(renamed);
       await expect(projectCard(page, renamed)).toBeVisible();
-      await captureEvidence(page, 'E02_rename_toast_timeout.png', { caption: `toast gone after ${String(goneAfterMs)} ms; reload still shows "${renamed}"; 1 PATCH` });
+      await captureEvidence(page, 'E02_rename_toast_timeout.png', { caption: `after (pair of E02_rename_toast_timeout_before): toast gone after ${String(goneAfterMs)} ms, no "Hoàn tác"; reload still shows "${renamed}"; 1 PATCH` });
       await attachJson('E02_rename_toast_timeout.json', { goneAfterMs, patches: 1, afterReload: renamed });
     });
   });
@@ -1410,7 +1442,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await expect(projectCard(page, done.name)).toContainText(reviewProgress(4, 4));
       const counts = countsOf(list);
       for (const key of ['all', 'done', 'qc', 'processing'] as const) {
-        await expect(statValue(page, STATS[key]), `stat card "${STATS[key]}"`).toHaveText(String(counts[key]));
+        await expect(statusFilterButton(page, FILTERS[key])).toHaveText(endsWithCount(counts[key]));
       }
       await captureEvidence(page, 'E02_status_routing_cards.png', { caption: `mocked N1: "${qc.name}" Cần QC 3/10, "${done.name}" Hoàn thành 4/4` });
 
@@ -1451,6 +1483,10 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await expect.poll(rowNames).toEqual(byUpdated);
       await tableHeads(page).first().click();
       await expect.poll(rowNames).toEqual(byUpdated);
+      // BUG-212: shot right after the click (pointer still on the header) — the claim "a header click sorts nothing".
+      await captureEvidence(page, 'E02_table_header_click.png', {
+        caption: `clicked header "${TABLE_HEADERS[0]}" (pointer on it): rows still ${byUpdated.join(' / ')} (newest first), no aria-sort`,
+      });
 
       await sortCombobox(page, SORT.updated).click();
       await page.getByRole('option', { name: SORT.name, exact: true }).click();
@@ -1459,7 +1495,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await rows.first().focus();
       await page.keyboard.press('Tab'); // PD:295: every row is a tab stop, nothing focusable inside a row
       await expect(rows.nth(1)).toBeFocused();
-      await captureEvidence(page, 'E02_table_sort_headers.png', { caption: `table, sort "${SORT.name}": ${byName.join(' / ')}; header click changed nothing` });
+      await captureEvidence(page, 'E02_table_sort_headers.png', { caption: `table, sort list "${SORT.name}": ${byName.join(' / ')}; header click: E02_table_header_click` });
       await attachJson('E02_table_sort_headers.json', { headers: [...TABLE_HEADERS], byUpdated, byName });
     });
   });
@@ -1519,8 +1555,16 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
         clientWidth: document.documentElement.clientWidth,
       }));
       const lastHead = await tableHeads(page).last().boundingBox();
+      // ProjectTable.tsx:80 (FIX-1075): the name wraps (`whitespace-normal break-words`, up to 2 lines from `sm`, 1 below)
+      // instead of one cut line; only the wrap is asserted here, not how much of the name shows.
+      const nameCell = await tableRow(page, name).locator('h3').evaluate((el) => {
+        const cs = getComputedStyle(el);
+        return { whiteSpace: cs.whiteSpace, overflowWrap: cs.overflowWrap, scroll: el.scrollWidth, client: el.clientWidth };
+      });
       await captureEvidence(page, 'E02_table_long_name.png', { caption: `80-char name in table view; page ${String(metrics.scrollWidth)}/${String(metrics.clientWidth)} px wide` });
-      await attachJson('E02_table_long_name.json', { nameLength: name.length, ...metrics, lastHead });
+      await attachJson('E02_table_long_name.json', { nameLength: name.length, ...metrics, lastHead, nameCell });
+      expect(nameCell, 'the name wraps inside its cell').toMatchObject({ whiteSpace: 'normal', overflowWrap: 'break-word' });
+      expect(nameCell.scroll, 'no sideways overflow of the name').toBeLessThanOrEqual(nameCell.client + 1);
       expect(metrics.scrollWidth, 'no page-level horizontal scroll').toBeLessThanOrEqual(metrics.clientWidth);
       // qa-review-ui: a column pushed past the window is a defect even when the table scrolls inside itself (Table.tsx:37).
       expect.soft(lastHead !== null && lastHead.x + lastHead.width <= DESKTOP.width, `"${TABLE_HEADERS[4]}" header inside the 1440 px window`).toBe(true);
@@ -1541,8 +1585,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await expect(projectCards(page)).toHaveCount(1); // UPD:273-281: search AND status
       await expect(projectCard(page, project.name)).toBeVisible();
       for (const key of ['all', 'done', 'qc', 'processing'] as const) {
-        await expect(statValue(page, STATS[key])).toHaveText(String(counts[key])); // UPD:339-350: over all of N1
-        await expect(statusFilterButton(page, FILTERS[key])).toHaveText(endsWithCount(counts[key]));
+        await expect(statusFilterButton(page, FILTERS[key])).toHaveText(endsWithCount(counts[key])); // UPD:339-350: over all of N1
       }
 
       await statusFilterButton(page, FILTERS.qc).click();
@@ -1556,27 +1599,33 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
     });
   });
 
-  test('E02 · SCR-05 search and Vietnamese marks: upper case with marks matches; the same words without marks, or decomposed (NFD), do not — no accent folding', async ({ browser }) => {
+  test('E02 · SCR-05 search and Vietnamese marks: upper case with marks matches, so does the decomposed (NFD) form; the same words without marks do not — no accent folding (BUG-210)', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const stamp = Date.now().toString(36);
       const project = await createProject(admin, 'dau', `${TEST_DATA_PREFIX}dau-${stamp}-Nhà Đông Á`);
       await reloadDashboard(page);
 
-      // UPD:272-276: `trim().toLowerCase()` on both sides + `includes` — no `normalize`, no mark folding.
+      // UPD:308-312: `trim().normalize('NFC').toLowerCase()` on both sides + `includes` — NFD ≡ NFC (BUG-210), no mark folding.
       const withMarks = `${stamp}-NHÀ ĐÔNG Á`.toUpperCase();
       await searchBox(page).fill(withMarks);
       await expect(projectCards(page)).toHaveCount(1);
       await expect(projectCard(page, project.name)).toBeVisible();
       await captureEvidence(page, 'E02_search_marks_match.png', { caption: `"${withMarks}" → "${project.name}"` });
 
-      const refused = [`${stamp}-nha dong a`, `${stamp}-Nhà Đông Á`.normalize('NFD')];
+      // BUG-239: a decomposed (NFD) query is the same text as the NFC name, so it matches (BUG-210 fixed in the app).
+      const decomposed = `${stamp}-Nhà Đông Á`.normalize('NFD');
+      await searchBox(page).fill(decomposed);
+      await expect(projectCards(page)).toHaveCount(1);
+      await expect(projectCard(page, project.name)).toBeVisible();
+
+      const refused = [`${stamp}-nha dong a`];
       for (const query of refused) {
         await searchBox(page).fill(query);
         await expect(noMatch(page)).toBeVisible();
       }
-      await captureEvidence(page, 'E02_search_marks_nomatch.png', { caption: 'no marks / NFD query → "Không tìm thấy dự án phù hợp" (no accent folding, UPD:276)' });
-      await attachJson('E02_search_marks.json', { name: project.name, matched: withMarks, noMatch: refused.map((q) => [...q].length) });
+      await captureEvidence(page, 'E02_search_marks_nomatch.png', { caption: 'no-marks query → "Không tìm thấy dự án phù hợp" (no accent folding, UPD:308-312)' });
+      await attachJson('E02_search_marks.json', { name: project.name, matched: [withMarks, [...decomposed].length], noMatch: refused.map((q) => [...q].length) });
     });
   });
 
@@ -1631,7 +1680,6 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       expect(countsAfter.processing, 'the deleted fixture was "processing"').toBe(countsBefore.processing - 1);
 
       for (const key of ['all', 'done', 'qc', 'processing'] as const) {
-        await expect(statValue(page, STATS[key])).toHaveText(String(countsAfter[key]));
         await expect(statusFilterButton(page, FILTERS[key])).toHaveText(endsWithCount(countsAfter[key]));
       }
       await expect(countLine(page)).toHaveText(`${String(after.length)} dự án`);
@@ -1754,7 +1802,7 @@ test.describe('E02 SCR-05 dashboard (/) errors, races, table, paging', () => {
       await expect(countLine(page)).toHaveText(`${String(all.length)} dự án`);
       const counts = countsOf(all);
       for (const key of ['all', 'done', 'qc', 'processing'] as const) {
-        await expect(statValue(page, STATS[key])).toHaveText(String(counts[key]));
+        await expect(statusFilterButton(page, FILTERS[key])).toHaveText(endsWithCount(counts[key]));
       }
       await captureEvidence(page, 'E02_dash_two_pages.png', {
         caption: [
@@ -2090,16 +2138,15 @@ test.describe('E02 SCR-05 create-project wizard', () => {
       const field = dialog.getByLabel(APPLY_LABEL);
       const apply = dialog.getByRole('button', { name: APPLY_ALL, exact: true });
       // useNumericField refuses out-of-range; `parseNumber` keeps a lone "." as the decimal point, so "3.5" is 3,5 (BUG-132).
+      // BUG-249: typed through the shared helper — fill() right after Tab raced handleFocus ("10" read "210", run-17).
       for (const [typed, message] of [['1,99', NUMERIC_MIN], ['10,01', NUMERIC_MAX]] as const) {
-        await field.fill(typed);
-        await field.press('Tab');
+        await typeHeight(field, typed);
         await expect(dialog.getByText(message, { exact: true })).toBeVisible();
         await expect(apply).toBeDisabled(); // never committed → applyHeightM null (UCPM:491)
       }
       await captureEvidence(page, 'E02_wizard_heights_refused.png', { caption: `apply field "10,01" → "${NUMERIC_MAX}", nothing committed` });
       for (const typed of ['3.5', '2', '10']) {
-        await field.fill(typed);
-        await field.press('Tab');
+        await typeHeight(field, typed);
         await expect(dialog.getByText(/^Giá trị không/u), `"${typed}" is inside 2–10 m`).toHaveCount(0);
         await expect(apply, `"${typed}" is committed`).toBeEnabled();
       }
@@ -2177,7 +2224,7 @@ test.describe('E02 SCR-05 create-project wizard', () => {
       const row31 = floorRow(dialog, page, 'Tầng 31');
       await row31.scrollIntoViewIfNeeded();
       await expect(row31.getByRole('alert')).toHaveText(ELEVATION_LIMIT); // UCPM:127-136, :260-265
-      await expect(floorRow(dialog, page, 'Tầng 32').getByRole('alert')).toHaveText(CHAIN_BROKEN);
+      await expect(floorRow(dialog, page, 'Tầng 32').getByRole('alert')).toHaveText(CHAIN_BROKEN_BY_ELEVATION);
       await expect(nextButton(dialog)).toBeDisabled();
       await captureEvidence(page, 'E02_wizard_floor_cap.png', { caption: '10 m per floor: "Tầng 31" over the 300 m elevation limit (LIM:31)' });
       await discardWizard(dialog);
@@ -2273,12 +2320,20 @@ test.describe('E02 SCR-05 create-project wizard', () => {
       // A8 on a project THIS test made (R6 forbids it only for CP-2): undo removes exactly what was created (UCPM:666-673).
       const toast = toastWith(page, createdToast(name));
       await expect(toast).toBeVisible();
+      // BUG-215: the "before" half — the new card and its toast; hovering the toast stops its 8 s clock (TST:69-73).
+      await toast.hover();
+      await captureEvidence(page, 'E02_wizard_create_undo_before.png', { caption: `before undo: card "${name}" + toast "${createdToast(name)}" with "Hoàn tác"` });
       const removed = waitForApi(page, 'DELETE', projectPathRe(id), [200]);
       await toast.getByRole('button', { name: 'Hoàn tác', exact: true }).click();
       await removed;
       await page.mouse.move(0, 0);
       await expect(projectCard(page, name), 'the undone project leaves the list (A8)').toHaveCount(0);
-      await captureEvidence(page, 'E02_wizard_create_undone.png', { caption: `1 POST (201) then DELETE /api/projects/${id} (200)` });
+      await captureEvidence(page, 'E02_wizard_create_undone.png', {
+        caption: [
+          `after "Hoàn tác": card "${name}" gone from the list (pair: E02_wizard_create_undo_before)`,
+          `1 POST (201) then DELETE /api/projects/${id} (200)`,
+        ],
+      });
       await attachJson('E02_wizard_create_undone.json', { posts, created: response.status(), deleted: 200, id });
     });
   });
@@ -2363,8 +2418,15 @@ test.describe('E02 SCR-06 notifications', () => {
       // BUG-134: the open drawer covers the header bell, so the badge is shot once the drawer has left.
       await expect(bell(page)).toBeInViewport();
       await expect(bell(page)).toHaveText(badge);
+      // BUG-134 (run-15): the admin's inbox is usually all read, so the caption names the state shot and where the
+      // counted badge is proven for real (phase02_notify_edge: a second user with real unread invites).
       await captureEvidence(page, 'E02_notif_badge.png', {
-        caption: `bell badge "${badge === '' ? '(none)' : badge}" = ${String(unread)} unread row(s) (cap "9+" over 9)`,
+        caption: [
+          badge === ''
+            ? `bell (focused, top right) shows NO badge: ${String(unread)} unread row(s) in the drawer`
+            : `bell (focused, top right) badge "${badge}" = ${String(unread)} unread row(s) (cap "9+" over 9)`,
+          'counted badge on real unread rows: E02_ntf_two_invites.png (badge 2), E02_ntf_realtime_arrival.png (badge 1)',
+        ],
       });
 
       // Backdrop click closes too (DRW:131-141); the drawer sits on the right 400 px (DRW:67, :159).
@@ -2468,28 +2530,48 @@ test.describe('E02 SCR-06 notifications', () => {
       );
       const clickedAt = Date.now();
       await row.getByRole('button', { name: MARK_READ, exact: true }).click();
+
+      // The toast's own 8 s bar starts at the click (Toast.tsx:62-93), so hover it right away: under slowMo the Escape +
+      // drawer checks below alone outlast 8 s (BUG-316). The toast (Z_INDEX.toast 80) sits beside the open drawer
+      // (Z_INDEX.drawer 50, Drawer.tsx:142-154), so it takes the pointer. The hook's timer (UNC:695) is not the
+      // toast's: hovering only pauses the toast bar (Toast.tsx:68-73, :131-132).
+      const toast = toastWith(page, MARKED_READ);
+      await toast.hover();
       await expect(markButtons(drawer)).toHaveCount(unread - 1);
       await page.keyboard.press('Escape');
       await expect(drawer).toHaveCount(0);
+      // Closing the drawer drops `--drawer-inset` and the toast slides right, out from under the pointer: hover again
+      // if it is still there (a removed toast is fine — the POST below is what this case proves).
+      await toast.hover({ timeout: 2_000 }).catch(() => undefined);
 
-      // The hook's timer (UNC:695) is not the toast's: hovering only pauses the toast bar (TST:66-70, :128-129).
-      const toast = toastWith(page, MARKED_READ);
-      await toast.hover();
       const response = await sent;
       const elapsed = Date.now() - clickedAt;
       expect(response.ok(), `POST ${MARK_READ_API}`).toBe(true);
       const ids = asRecord(response.request().postDataJSON() as unknown, 'POST read body').ids;
       expect(Array.isArray(ids) ? ids.length : -1, 'one id').toBe(1);
       expect(elapsed, 'sent at the end of the undo window').toBeGreaterThanOrEqual(UNDO_WINDOW_MS - 1_000);
+      const postsAfterSend = countApi(admin.api, 'POST', MARK_READ_API);
 
-      // Ticket expired (undoTicket.ts:51-62, NotificationHost.tsx:68-69): the click is a no-op.
-      await expect(toast).toBeVisible();
-      await toast.getByRole('button', { name: 'Hoàn tác', exact: true }).click();
+      // Ticket expired (undoTicket.ts:51-62, NotificationHost.tsx:68-69): a late "Hoàn tác" is a no-op. The toast may
+      // already be gone (its bar ran while the pointer was off it); then there is nothing to click and the same
+      // outcome is checked: no further write, the row stays read.
+      const lateUndo = toast.getByRole('button', { name: 'Hoàn tác', exact: true });
+      const lateUndoClicked = await lateUndo.isVisible();
+      if (lateUndoClicked) await lateUndo.click();
       await page.mouse.move(0, 0);
       drawer = await openDrawer(page);
       await expect(markButtons(drawer)).toHaveCount(unread - 1);
-      await captureEvidence(page, 'E02_notif_markread_sent.png', { caption: `POST /api/notifications/read after ${String(elapsed)} ms; late "Hoàn tác" ignored` });
-      await attachJson('E02_notif_markread_sent.json', { unreadBefore: unread, elapsedMs: elapsed, status: response.status(), ids: 1 });
+      expect(countApi(admin.api, 'POST', MARK_READ_API), 'no POST after the late "Hoàn tác"').toBe(postsAfterSend);
+      await captureEvidence(page, 'E02_notif_markread_sent.png', {
+        caption: `POST /api/notifications/read after ${String(elapsed)} ms; late "Hoàn tác" ${lateUndoClicked ? 'ignored' : 'not shown (toast gone)'}`,
+      });
+      await attachJson('E02_notif_markread_sent.json', {
+        unreadBefore: unread,
+        elapsedMs: elapsed,
+        status: response.status(),
+        ids: 1,
+        lateUndoClicked,
+      });
     });
   });
 
@@ -2530,11 +2612,18 @@ test.describe('E02 SCR-06 notifications', () => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const drawer = await openDrawer(page);
+      // BUG-214: the "from" half — the drawer over the dashboard, before "Xem tất cả" leaves it.
+      await captureEvidence(page, 'E02_notif_viewall_from.png', { caption: `before: drawer open over the dashboard (${ROUTES.dashboard}), "${VIEW_ALL}" at its foot` });
       await drawer.getByRole('button', { name: VIEW_ALL, exact: true }).click(); // UNC:767-770
       await expect.poll(() => pathname(page)).toBe(ROUTES.notifications);
       await expect(notificationDrawer(page)).toBeVisible(); // NCC:223 pinned open
       await expect(dashboardHeading(page)).toHaveCount(0);
-      await captureEvidence(page, 'E02_notif_viewall.png', { caption: `"${VIEW_ALL}" → ${ROUTES.notifications}` });
+      await captureEvidence(page, 'E02_notif_viewall.png', {
+        caption: [
+          `after "${VIEW_ALL}": ${ROUTES.dashboard} → ${ROUTES.notifications}; the dashboard behind is gone (pair: E02_notif_viewall_from)`,
+          `${ROUTES.notifications} is the drawer pinned open over an empty backdrop by design (NotificationCenterRoute, NCC:223)`,
+        ],
+      });
 
       await page.keyboard.press('Escape'); // NCC:212-221: in-app history → navigate(-1)
       await expect.poll(() => pathname(page)).toBe(ROUTES.dashboard);
@@ -2553,7 +2642,9 @@ test.describe('E02 SCR-06 notifications', () => {
       await drawer.getByRole('button', { name: VIEW_ALL, exact: true }).click();
       await expect.poll(() => pathname(page)).toBe(ROUTES.notifications);
       await expect(drawer).toBeVisible();
-      await captureEvidence(page, 'E02_notif_route_viewall.png', { caption: `"${VIEW_ALL}" on ${ROUTES.notifications}` });
+      await captureEvidence(page, 'E02_notif_route_viewall.png', {
+        caption: `opened ${ROUTES.notifications} by URL, then "${VIEW_ALL}" at the drawer's foot: no navigation, still ${ROUTES.notifications}, drawer kept open`,
+      });
 
       // NCC:167-171 + A12: on the route "close" means leaving it; Esc (DRW:83,95) reaches `goBack` (NCC:212-221).
       // NCC:204-209 sets `hasLeftRef` on that same-route navigation — this asserts Esc is not left dead by it.
@@ -2602,7 +2693,7 @@ test.describe('E02 SCR-06 notifications', () => {
       async (admin) => {
         const { page } = admin;
         await page.goto(ROUTES.notifications);
-        const sheet = notificationDrawer(page); // DRW:70 (max-width 1023px) → BottomSheet (DRW:205-210)
+        const sheet = notificationDrawer(page); // DRW:105 (width < 1024px since BUG-225) → BottomSheet (DRW:205-210)
         await expect(sheet).toBeVisible();
         const group = sheet.getByRole('group', { name: SHEET_GROUP, exact: true });
         await expect(group.getByRole('button', { name: snapButton(3), exact: true })).toHaveAttribute('aria-pressed', 'true'); // DRW:72
@@ -2776,5 +2867,1134 @@ test.describe('E02 SCR-07 onboarding (/onboarding)', () => {
       await captureEvidence(page, 'E02_onboard_double_skip.png', { caption: `history +${String(after - before)}; flag ${seenKey}=true` });
       await attachJson('E02_onboard_double_skip.json', { historyBefore: before, historyAfter: after, seenFlag: 'true' });
     });
+  });
+});
+
+/* ================================================================= QA-02 shared components (FE 271538cb)
+ * Gaps left by the shared-component changes merged in 271538cb (coverage/phase02.md rows S1-S9). Sources cited by
+ * file at 271538cb: Table.tsx = src/components/ui/Table.tsx, TST = src/components/feedback/Toast.tsx,
+ * MOD = src/components/overlay/Modal.tsx, DRW = src/components/overlay/Drawer.tsx, TT = src/components/ui/Tooltip.tsx,
+ * BV = src/components/ui/buttonVariants.ts, ES = src/components/feedback/EmptyState.tsx, BC = src/components/shell/Breadcrumb.tsx,
+ * CPN = src/lib/query/cachedProjectName.ts, SR = src/lib/input/shortcutRegistry.ts; PD / UPD at their 271538cb lines.
+ * Budget of this block: 7 fixture projects (POST + DELETE), ~2 refreshes per test, no login beyond the worker's own,
+ * one [mocked response] test (N1 500, unpairable: 5xx).
+ */
+
+/** DRW:32 — what each snap dot does, said as its description and as its tooltip. */
+const SNAP_HINTS = { 1: 'Thu gọn', 2: 'Nửa màn hình', 3: 'Gần toàn màn hình' } as const;
+/** DRW:34-36: "Mức 1" (snap 0) is the 88 px peek. */
+const SNAP_PEEK_PX = 88;
+/** useProjectDashboard.ts:246-251 `listErrorMessageOf`: a 500 on page load says what to do here, not "thao tác vừa làm" (BUG-209, FIX-995). */
+const LIST_LOAD_500_DESCRIPTION = 'Máy chủ gặp lỗi khi đọc danh sách. Bấm "Thử lại" để tải lại.';
+/** useProjectDashboard.ts:246 `listErrorMessageOf`: a 403 on page load has its own list sentence, still a rights cause (BUG-209, FIX-1150). */
+const LIST_LOAD_403_DESCRIPTION = 'Tài khoản của bạn chưa được phép xem danh sách dự án. Liên hệ quản trị dự án.';
+const OLD_UNKNOWN_TAIL = 'Bạn có thể tải lại rồi thử lại.'; // 5afd8b8a copy, must be gone
+const NO_MATCH_DESCRIPTION = 'Không có dự án nào khớp với bộ lọc hiện tại.'; // PD:264
+const PIPELINE_NAV = 'Xử lý'; // ProcessingScreen.tsx:60 (BREADCRUMB_PIPELINE = the nav's aria-label, :223)
+const BREADCRUMB_NAV = 'Đường dẫn trang'; // BC:19
+const UNDO = 'Hoàn tác'; // TST:144
+/** BC:130 / ProcessingScreen.tsx:62 `max-w-[140px]` below 640 px. */
+const CRUMB_MAX_PX = 140;
+
+/** One unbroken word of exactly 80 characters (LIM:23 max) carrying the run prefix — no space to wrap at. */
+const unbroken80 = (slug: string): string => {
+  const name = `${uniqueName(slug)}-`.padEnd(80, 'w');
+  expect(name).toHaveLength(80);
+  expect(/\s/u.test(name), 'no break opportunity in the name').toBe(false);
+  return name;
+};
+
+/** The colours a `danger` button must paint (BV:12): `--state-violation-text` fill, `--bg-surface` text. */
+async function dangerPaint(button: Locator): Promise<{ bg: string; fg: string; wantBg: string; wantFg: string }> {
+  return button.evaluate((el) => {
+    const probe = document.createElement('span');
+    probe.style.backgroundColor = 'var(--state-violation-text)';
+    probe.style.color = 'var(--bg-surface)';
+    document.body.append(probe);
+    const want = getComputedStyle(probe);
+    const wantBg = want.backgroundColor;
+    const wantFg = want.color;
+    probe.remove();
+    const own = getComputedStyle(el);
+    return { bg: own.backgroundColor, fg: own.color, wantBg, wantFg };
+  });
+}
+
+interface CrumbMetrics {
+  readonly width: number;
+  readonly scroll: number;
+  readonly client: number;
+  readonly textOverflow: string;
+  readonly lineHeight: string;
+  readonly title: string | null;
+}
+
+/** A truncated crumb: its box, whether its text overflows it, and the `text-overflow` that draws the "…". */
+const crumbMetrics = (crumb: Locator): Promise<CrumbMetrics> =>
+  crumb.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    return {
+      width: el.getBoundingClientRect().width,
+      scroll: el.scrollWidth,
+      client: el.clientWidth,
+      textOverflow: cs.textOverflow,
+      lineHeight: cs.lineHeight,
+      title: el.getAttribute('title'),
+    };
+  });
+
+test.describe('E02 QA-02 shared components (FE 271538cb) — SCR-05 / SCR-06 / SCR-07', () => {
+  test('E02 · SCR-05 table view headers are real column headers: five `columnheader` roles, every `th` scope="col" (BUG-115)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const tag = uniqueName('thscope');
+      await createProject(admin, 'thscope', tag);
+      await reloadDashboard(page);
+      await viewMode(page).getByRole('radio', { name: 'Bảng', exact: true }).click();
+      await searchBox(page).fill(tag);
+      await expect(tableRows(page)).toHaveCount(1);
+      // Table.tsx:177-179 `scope="col"` on every Table.Head; ProjectTable.tsx:33-37 the five headers.
+      const headers = page.getByRole('main').getByRole('columnheader');
+      await expect(headers).toHaveText([...TABLE_HEADERS]);
+      const scopes = await tableHeads(page).evaluateAll((heads) => heads.map((head) => head.getAttribute('scope')));
+      expect(scopes).toEqual(TABLE_HEADERS.map(() => 'col'));
+      await captureEvidence(page, 'E02_dash_th_scope.png', { caption: `table view: ${String(scopes.length)} th, scope=${scopes.join(',')}; getByRole('columnheader') finds all five` });
+      await attachJson('E02_dash_th_scope.json', { headers: await headers.allTextContents(), scopes });
+    });
+  });
+
+  test('E02 · SCR-05 delete dialog by keyboard: Enter on "Để nguyên" closes it (nothing sent), Space on "Xoá dự án" deletes; "Xoá dự án" is the solid danger button (BUG-151, BUG-155)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'delkbd');
+      await reloadDashboard(page);
+      const dialog = deleteDialog(page);
+      const askDelete = async (): Promise<void> => {
+        const menu = await openCardMenu(page, project.name);
+        await menu.getByRole('menuitem', { name: 'Xoá', exact: true }).click();
+        await expect(dialog).toBeVisible();
+      };
+      const keep = dialog.getByRole('button', { name: KEEP, exact: true }); // PD:312-314 (ghost)
+      const confirm = dialog.getByRole('button', { name: CONFIRM_DELETE, exact: true }); // PD:315-321 variant="danger"
+
+      await askDelete();
+      // BV:12 solid danger: `bg-state-violation-text text-bg-surface` (a pale tint before 271538cb, BUG-155).
+      const paint = await dangerPaint(confirm);
+      const keepBg = await keep.evaluate((el) => getComputedStyle(el).backgroundColor);
+      expect(paint.bg, '"Xoá dự án" filled with --state-violation-text').toBe(paint.wantBg);
+      expect(paint.fg, '"Xoá dự án" text in --bg-surface').toBe(paint.wantFg);
+      expect(keepBg, '"Để nguyên" does not share the danger fill').not.toBe(paint.bg);
+
+      await keep.focus();
+      await expect(keep).toBeFocused();
+      await captureEvidence(page, 'E02_dash_delete_kbd_keep.png', { caption: 'focus on "Để nguyên" (Enter next); "Xoá dự án" solid danger' });
+      // SR:552-557: a modal scope no longer preventDefaults a lone key, so Enter activates the focused button (BUG-151).
+      await page.keyboard.press('Enter');
+      await expect(dialog).toHaveCount(0);
+      expect(countApi(admin.api, 'DELETE', `${PROJECTS_API}/${project.id}`), 'Enter on "Để nguyên" sends no DELETE').toBe(0);
+
+      await askDelete();
+      await confirm.focus();
+      const removed = waitForApi(page, 'DELETE', projectPathRe(project.id), [200]);
+      await page.keyboard.press('Space'); // same lone-key path (SR:552-557) → confirmDelete (UPD:458)
+      await removed;
+      await expect(dialog).toHaveCount(0);
+      await expect(projectCard(page, project.name)).toHaveCount(0);
+      await captureEvidence(page, 'E02_dash_delete_kbd_space.png', { caption: 'Space on "Xoá dự án" → DELETE 200, card gone' });
+      await attachJson('E02_dash_delete_kbd.json', { paint, keepBg, deletes: countApi(admin.api, 'DELETE', `${PROJECTS_API}/${project.id}`) });
+    });
+  });
+
+  test('E02 · SCR-05 rename toast with an 80-character unbroken name: the message wraps inside the 320 px toast and "Hoàn tác" stays inside and works (BUG-131)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'toastlong');
+      await reloadDashboard(page);
+      const long = unbroken80('tl');
+      const input = await startRename(page, project.name);
+      await input.fill(long);
+      const patched = waitForApi(page, 'PATCH', projectPathRe(project.id), [200]);
+      await input.press('Enter'); // UPD:439 toast "Đã đổi tên thành …" with undo
+      await patched;
+      const toast = toastWith(page, renamedToast(long));
+      await expect(toast).toBeVisible();
+      const undo = toast.getByRole('button', { name: UNDO, exact: true });
+      await expect(undo).toBeVisible();
+      // An undoable change is a plain notice: neutral dot, not the A5 verified green (UPD:460, no state; Toast.tsx:111-115;
+      // BUG-207, FIX-1081 for the provider's undoable/grouped toasts).
+      await expect(toast.locator('.bg-text-muted')).toHaveCount(1);
+      await expect(toast.locator('.bg-state-verified')).toHaveCount(0);
+      // TST:133-134 `min-w-0 break-words` on the message; the toast is `overflow-hidden` (TST:121): a clipped button = BUG-131.
+      // BUG-216: the button is measured through its locator — a textContent match inside evaluate() found nothing (null →
+      // "CLIPPED" on a shot where the button is whole).
+      const [toastBox, undoBox] = [await toast.boundingBox(), await undo.boundingBox()];
+      const layout = {
+        toast: toastBox === null ? null : { left: toastBox.x, right: toastBox.x + toastBox.width, top: toastBox.y, bottom: toastBox.y + toastBox.height },
+        button: undoBox === null ? null : { left: undoBox.x, right: undoBox.x + undoBox.width, top: undoBox.y, bottom: undoBox.y + undoBox.height },
+        message: await toast.locator('span.flex-1').first().evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth, height: el.getBoundingClientRect().height })),
+      };
+      const { toast: t, button: b } = layout;
+      const inside = t !== null && b !== null && b.left >= t.left - 0.5 && b.right <= t.right + 0.5 && b.top >= t.top - 0.5 && b.bottom <= t.bottom + 0.5;
+      await captureEvidence(page, 'E02_dash_toast_long_name.png', { caption: `80-char unbroken name: message ${String(Math.round(layout.message.height))} px high, "Hoàn tác" ${inside ? 'inside' : 'CLIPPED'}` });
+      await attachJson('E02_dash_toast_long_name.json', layout);
+      expect(inside, '"Hoàn tác" inside the toast box').toBe(true);
+      expect(layout.message.scroll <= layout.message.client + 1, 'message wraps, no overflow past its column').toBe(true);
+
+      const restored = waitForApi(page, 'PATCH', projectPathRe(project.id), [200]);
+      await undo.click(); // within the 8 s window (UT:18)
+      expect(stringField(asRecord((await restored).json, 'PATCH'), 'name', 'PATCH')).toBe(project.name);
+      await expect(projectCard(page, project.name)).toBeVisible();
+      await captureEvidence(page, 'E02_dash_toast_long_undo.png', { caption: '"Hoàn tác" → second PATCH, old name back' });
+    });
+  });
+
+  test('E02 · SCR-05 375 px delete dialog for an 80-character unbroken name stays inside the 343 px frame; no page-level sideways scroll (Modal max-w-full)', async ({ browser }) => {
+    await withAdmin(
+      browser,
+      async (admin) => {
+        const { page } = admin;
+        const project = await createProject(admin, 'dl375', unbroken80('dl'));
+        await reloadDashboard(page);
+        const menu = await openCardMenu(page, project.name);
+        await menu.getByRole('menuitem', { name: 'Xoá', exact: true }).click();
+        const dialog = deleteDialog(page);
+        await expect(dialog).toBeVisible();
+        // MOD:131-133 `max-w-full` inside the `p-4` frame: 375 − 2×16 = 343 px whatever the content's min-content width.
+        const frame = COMPACT.width - 2 * 16;
+        await expect.poll(async () => Math.round((await dialog.boundingBox())?.width ?? Number.POSITIVE_INFINITY)).toBeLessThanOrEqual(frame);
+        const layout = {
+          viewport: COMPACT,
+          dialog: await dialog.boundingBox(),
+          page: await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth })),
+          // Modal.tsx:191-192 Modal.Body `break-words` (FIX-1070, BUG-195), inherited by the sentence (PD:281-283).
+          bodyLine: await dialog.getByText(deleteBody(project.name), { exact: true }).evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth, overflowWrap: getComputedStyle(el).overflowWrap })),
+        };
+        await captureEvidence(page, 'E02_dash_delete_375_long.png', { caption: `dialog ${String(Math.round(layout.dialog?.width ?? 0))} px wide (frame ${String(frame)}); sentence scroll ${String(layout.bodyLine.scroll)} / client ${String(layout.bodyLine.client)}` });
+        await attachJson('E02_dash_delete_375_long.json', layout);
+        const box = layout.dialog;
+        expect(box !== null && box.x >= 15 && box.x + box.width <= COMPACT.width - 15, 'dialog inside the 16 px gutters').toBe(true);
+        expect(layout.page.scroll, 'no page-level sideways scroll').toBeLessThanOrEqual(layout.page.client);
+        expect(layout.bodyLine.overflowWrap, 'Modal.Body break-words reaches the sentence (FIX-1070)').toBe('break-word');
+        // BUG-195 fixed (FIX-1070): the unbroken name used to overflow the sentence box inside the dialog.
+        await shootOnSoftFail(page, 'E02_dash_delete_375_long_softfail.png', `delete sentence scroll ${String(layout.bodyLine.scroll)} > client ${String(layout.bodyLine.client)} inside the open dialog`, () => {
+          expect.soft(layout.bodyLine.scroll, 'the delete sentence wraps the long name inside the dialog').toBeLessThanOrEqual(layout.bodyLine.client + 1);
+        });
+        await dialog.getByRole('button', { name: KEEP, exact: true }).click();
+        await expect(dialog).toHaveCount(0);
+        expect(countApi(admin.api, 'DELETE', `${PROJECTS_API}/${project.id}`)).toBe(0);
+      },
+      COMPACT,
+    );
+  });
+
+  test('E02 · SCR-05 no-match empty state: the description is set with `text-wrap: pretty` (BUG-170)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      await createProject(admin, 'nomatch'); // own row, so the list (and its search box) shows whatever else the account holds
+      await reloadDashboard(page);
+      await searchBox(page).fill(`${TEST_DATA_PREFIX}khong-khop-${Date.now().toString(36)}`);
+      await expect(noMatch(page)).toBeVisible(); // PD:261-266 EmptyState
+      const description = page.getByText(NO_MATCH_DESCRIPTION, { exact: true });
+      await expect(description).toBeVisible();
+      // ES:50-51 `text-pretty` (Tailwind 3.4.6 → `text-wrap: pretty`); Chromium reports it on `text-wrap` or, split, on `text-wrap-style`.
+      const wrap = await description.evaluate((el) => {
+        const cs = getComputedStyle(el);
+        return { textWrap: cs.getPropertyValue('text-wrap'), textWrapStyle: cs.getPropertyValue('text-wrap-style'), className: el.className };
+      });
+      await captureEvidence(page, 'E02_dash_nomatch_pretty.png', { caption: `no-match description: text-wrap "${wrap.textWrap}" / style "${wrap.textWrapStyle}"` });
+      await attachJson('E02_dash_nomatch_pretty.json', wrap);
+      expect(`${wrap.textWrap} ${wrap.textWrapStyle}`).toContain('pretty');
+      await page.getByRole('button', { name: CLEAR_FILTERS, exact: true }).click();
+      await expect(noMatch(page)).toHaveCount(0);
+    });
+  });
+
+  test('E02 · SCR-05 [mocked response] N1 fails (500, unpairable: 5xx): the error card says the page-load sentence, not an action sentence; a 403 says the rights sentence without a useless "Thử lại"', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      await routeSummaries(page, (route) => route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }));
+      await page.reload({ waitUntil: 'commit' });
+      await expect(page.getByText(LIST_ERROR_TITLE, { exact: true })).toBeVisible({ timeout: SLOW_STATE_MS }); // PD:240-246
+      // UPD:246-251 a bare 500 is kind "unknown" (toAppError.ts:10-18), not in LOAD_ERROR_KINDS_WITH_OWN_SENTENCE (UPD:240).
+      await expect(page.getByText(LIST_LOAD_500_DESCRIPTION, { exact: true })).toBeVisible();
+      await expect(page.getByText(OLD_UNKNOWN_TAIL, { exact: false })).toHaveCount(0);
+      await expect(page.getByText('thao tác vừa làm', { exact: false })).toHaveCount(0); // BUG-209: no action was taken
+      await captureEvidence(page, 'E02_dash_error_unknown_copy.png', { caption: 'N1 500 [mocked] → listErrorMessageOf (useProjectDashboard.ts:250)' });
+
+      // A 403 is no server fault (review-1 #10): kind "forbidden" (toAppError.ts:12) gets its own list sentence (UPD:246,
+      // BUG-209 FIX-1150). Retrying cannot grant a right, so the card drops "Thử lại" (QA-02c R-src: canRetry false on
+      // forbidden). Unpairable as well: the real N1 never refuses a signed-in role.
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      await routeSummaries(page, (route) => fulfillJson(route, 403, wireError('FORBIDDEN')));
+      await page.getByRole('button', { name: RETRY, exact: true }).click();
+      await expect(page.getByText(LIST_LOAD_403_DESCRIPTION, { exact: true })).toBeVisible({ timeout: SLOW_STATE_MS });
+      await expect(page.getByText(LIST_LOAD_500_DESCRIPTION, { exact: true })).toHaveCount(0);
+      await expect(page.getByText(LIST_ERROR_TITLE, { exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: RETRY, exact: true }), 'no "Thử lại" on a 403').toHaveCount(0);
+      await captureEvidence(page, 'E02_dash_error_403_copy.png', { caption: 'N1 403 FORBIDDEN [mocked] → the rights sentence, not "Máy chủ gặp lỗi…", and no "Thử lại" (useProjectDashboard.ts:246)' });
+      // Rights restored: only a fresh load reads N1 again (no button to press).
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      await reloadDashboard(page);
+      await expect(page.getByText(LIST_ERROR_TITLE, { exact: true })).toHaveCount(0);
+    });
+  });
+
+  test('E02 · SCR-06 375 px sheet snap dots by keyboard: each "Mức N" is described, focus shows its tooltip inside the screen, Enter on "Mức 1" drops to the 88 px peek', async ({ browser }) => {
+    await withAdmin(
+      browser,
+      async (admin) => {
+        const { page } = admin;
+        await page.goto(ROUTES.notifications);
+        const sheet = notificationDrawer(page);
+        await expect(sheet).toBeVisible();
+        const group = sheet.getByRole('group', { name: SHEET_GROUP, exact: true }); // DRW:251
+        const dot = (level: 1 | 2 | 3): Locator => group.getByRole('button', { name: snapButton(level), exact: true });
+        // Same rest wait as the compact test above (BUG-137): the spring slide is JS, not stopped by `animations: 'disabled'`.
+        const restingTop = COMPACT.height - Math.round(COMPACT.height * 0.9);
+        await expect
+          .poll(async () => {
+            const before = await sheet.evaluate((el) => el.getBoundingClientRect().top);
+            await page.waitForTimeout(150);
+            const after = await sheet.evaluate((el) => el.getBoundingClientRect().top);
+            return Math.abs(after - before) < 0.5 && Math.abs(after - restingTop) <= 2;
+          })
+          .toBe(true);
+        for (const level of [1, 2, 3] as const) {
+          await expect(dot(level)).toHaveAccessibleDescription(SNAP_HINTS[level]); // DRW:253-271 sr-only hint via aria-describedby
+        }
+
+        await dot(1).focus();
+        const tip = page.getByRole('tooltip').filter({ hasText: SNAP_HINTS[1] });
+        await expect(tip).toBeVisible(); // TT:14 400 ms dwell, TT:195 onFocus
+        const shown = { tip: await tip.boundingBox(), dot: await dot(1).boundingBox() };
+        expect(shown.tip !== null && shown.tip.x >= 0 && shown.tip.x + shown.tip.width <= COMPACT.width && shown.tip.y >= 0, 'tooltip inside the screen (TT:91-110)').toBe(true);
+        await captureEvidence(page, 'E02_notif_snap_tooltip.png', { caption: `focus on "Mức 1" → tooltip "${SNAP_HINTS[1]}"` });
+
+        await page.keyboard.press('Enter'); // SR:552-557 a lone key keeps its native action (BUG-151)
+        await expect(dot(1)).toHaveAttribute('aria-pressed', 'true');
+        await expect.poll(async () => Math.abs((await sheet.evaluate((el) => el.getBoundingClientRect().height)) - SNAP_PEEK_PX)).toBeLessThanOrEqual(2);
+        // BUG-197: the tooltip may be gone after the snap (allowed); boundingBox() on a removed element waits the whole test timeout.
+        const tipVisible = await tip.isVisible();
+        const after = { tipVisible, tip: tipVisible ? await tip.boundingBox({ timeout: 1_000 }).catch(() => null) : null, dot: await dot(1).boundingBox() };
+        await captureEvidence(page, 'E02_notif_snap_peek.png', { caption: `Enter on "Mức 1" → ${String(SNAP_PEEK_PX)} px peek; tooltip ${after.tipVisible ? 'still shown' : 'gone'}` });
+        await attachJson('E02_notif_snap_keyboard.json', { viewport: COMPACT, shown, after });
+        // Finding candidate (UI/Low): TT measures its anchor only when it shows (TT:66-77); a tooltip still shown after
+        // the sheet dropped stays where the dot used to be.
+        const { tip: tipBox, dot: dotBox } = after;
+        if (after.tipVisible && tipBox !== null && dotBox !== null) {
+          const gap = Math.abs(tipBox.y + tipBox.height - dotBox.y);
+          await shootOnSoftFail(page, 'E02_notif_snap_peek_softfail.png', `tooltip bottom ${String(Math.round(gap))} px from "Mức 1" after the snap (≤ 24 expected), sheet still open`, () => {
+            expect.soft(gap, 'a shown tooltip follows its dot after the snap').toBeLessThanOrEqual(24);
+          });
+        }
+        await page.keyboard.press('Escape');
+        await expect.poll(() => pathname(page)).toBe(ROUTES.dashboard);
+      },
+      COMPACT,
+    );
+  });
+
+  test('E02 · SCR-05 → /pipeline at 375 px: the breadcrumb names the project from the N1 cache, cut with "…" at 140 px, full name in `title` (BUG-165)', async ({ browser }) => {
+    await withAdmin(
+      browser,
+      async (admin) => {
+        const { page } = admin;
+        const project = await createProject(admin, 'crumbpl', unbroken80('cp'));
+        const list = await reloadDashboard(page);
+        // BE apps/api/projects/summaries.py:189: no floor / no upload → "processing" → UPD routes to /pipeline.
+        expect(openPathOf(summaryOf(list, project.id))).toBe(ROUTES.project.pipeline(project.id));
+        await projectCard(page, project.name).click();
+        await expect.poll(() => pathname(page)).toBe(ROUTES.project.pipeline(project.id));
+        // CPN:21-27 reads `project.summaries()` (written by the dashboard, UPD:276-279); ProcessingScreen.tsx:226-229 draws it.
+        const crumb = page.getByRole('navigation', { name: PIPELINE_NAV, exact: true }).locator(`span[title="${project.name}"]`);
+        await expect(crumb).toBeVisible();
+        await expect(crumb).toHaveText(project.name);
+        const metrics = await crumbMetrics(crumb);
+        await captureEvidence(page, 'E02_dash_crumb_pipeline_375.png', { caption: `/pipeline crumb ${String(Math.round(metrics.width))} px, text-overflow ${metrics.textOverflow}` });
+        expect(metrics.width).toBeLessThanOrEqual(CRUMB_MAX_PX + 0.5);
+        expect(metrics.scroll, 'the name is cut, not wrapped').toBeGreaterThan(metrics.client);
+        expect(metrics.textOverflow).toBe('ellipsis');
+
+        // Deep link (reload, no cache). CPN:14-19: the level is skipped unless something else cached #24 — recorded only.
+        await page.reload();
+        await expect(page.getByRole('navigation', { name: PIPELINE_NAV, exact: true })).toBeVisible();
+        const crumbAfterReload = await page.locator(`nav span[title="${project.name}"]`).count();
+        await attachJson('E02_dash_crumb_pipeline_375.json', { viewport: COMPACT, landed: pathname(page), metrics, crumbAfterReload });
+      },
+      COMPACT,
+    );
+  });
+
+  test('E02 · SCR-07 "Tải bản vẽ" → /upload at 375 px: the "Đường dẫn trang" breadcrumb names the project from the N1 cache, cut at 140 px with the full name in `title` (BUG-165)', async ({ browser }) => {
+    await withAdmin(
+      browser,
+      async (admin) => {
+        const { page } = admin;
+        const project = await createProject(admin, 'crumbup', unbroken80('cu'));
+        await clearSeenFlags(page);
+        const { json } = await navigateAndWaitForApi(page, () => page.goto(ROUTES.onboarding, { waitUntil: 'commit' }), 'GET', SUMMARIES_RE, [200]);
+        expect(gatewayOrder(summariesOf(json))[0]?.id, 'the fixture is the newest project').toBe(project.id); // UWS:222-228
+        await page.getByRole('button', { name: ONBOARD.step2Action, exact: true }).click(); // UWS:325-328
+        await expect.poll(() => pathname(page)).toBe(ROUTES.project.upload(project.id));
+        // useFloorUploadScreen.ts:1171-1175 → FloorUploadScreen.tsx:194-203 → BC:125-134 (a middle level without onClick).
+        const nav = page.getByRole('navigation', { name: BREADCRUMB_NAV, exact: true }).filter({ has: page.locator(`span[title="${project.name}"]`) });
+        const crumb = nav.locator(`span[title="${project.name}"]`);
+        await expect(crumb).toBeVisible();
+        await expect(crumb).toHaveText(project.name);
+        const metrics = await crumbMetrics(crumb);
+        const listHeight = await nav.locator('ol').evaluate((el) => el.getBoundingClientRect().height);
+        await captureEvidence(page, 'E02_onboard_crumb_upload_375.png', { caption: `/upload crumb ${String(Math.round(metrics.width))} px, breadcrumb ${String(Math.round(listHeight))} px high` });
+        await attachJson('E02_onboard_crumb_upload_375.json', { viewport: COMPACT, landed: pathname(page), metrics, listHeight });
+        expect(metrics.width).toBeLessThanOrEqual(CRUMB_MAX_PX + 0.5); // BC:130 max-w-[140px] below sm
+        expect(metrics.scroll, 'the name is cut, not wrapped').toBeGreaterThan(metrics.client);
+        expect(metrics.textOverflow).toBe('ellipsis'); // BC:130 truncate
+        expect(metrics.lineHeight, 'BC:128-130 an 18 px line, not leading-none').toBe('18px');
+        // One line: the tallest level is the 44 px "Dự án" button below 640 px (BC:142).
+        expect(listHeight, 'the breadcrumb stays on one line').toBeLessThanOrEqual(44 + 1);
+      },
+      COMPACT,
+    );
+  });
+});
+
+/* ================================================================= QA-02 FE changes 271538cb..d18eb884
+ * Gaps left by the FE changes of d18eb884 (coverage/phase02.md D-rows). Sources cited by file at d18eb884:
+ * PD / PCT / PT = src/screens/dashboard/ProjectDashboard/{ProjectDashboard,ProjectCardTile,ProjectTable}.tsx,
+ * UPD = …/useProjectDashboard.ts, TST = src/components/feedback/Toast.tsx, WS = src/screens/onboarding/WelcomeScreen/WelcomeScreen.tsx,
+ * CPM / SF / UCPM = src/screens/project/CreateProjectModal/{CreateProjectModal.tsx,StepFloors.tsx,useCreateProjectModal.ts},
+ * MOD = src/components/overlay/Modal.tsx, TBL = src/components/ui/Table.tsx, DRW = src/components/overlay/Drawer.tsx,
+ * NCC = src/screens/system/NotificationCenter/NotificationCenter.container.tsx, NR = …/NotificationRow.tsx,
+ * NCG = …/notificationCenterGateway.ts; BE messages = AppBack apps/api/notifications/messages.py.
+ * Budget of this block: 10 fixture projects (POST + DELETE in `finally`; one deleted mid-test to get a real 404),
+ * 1 UI create (held, deleted by closeAdmin), 1 real PATCH (answered 404), ~2–4 refreshes per test, no sign-in beyond
+ * the worker's own, one [mocked response] test (GET /api/notifications rows, unpairable — see its title).
+ */
+
+type Box = { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+const roundBox = (box: Box): Box => ({
+  x: Math.round(box.x * 10) / 10,
+  y: Math.round(box.y * 10) / 10,
+  width: Math.round(box.width * 10) / 10,
+  height: Math.round(box.height * 10) / 10,
+});
+
+/** The box once two reads in a row agree (framer `layout` / slide animations are JS, not stopped by `animations: 'disabled'`). */
+async function steadyBox(locator: Locator): Promise<Box> {
+  const seen: { previous: string; box: Box | null } = { previous: '', box: null };
+  await expect
+    .poll(
+      async () => {
+        const raw = await locator.boundingBox();
+        seen.box = raw === null ? null : roundBox(raw);
+        const key = JSON.stringify(seen.box);
+        const same = seen.box !== null && key === seen.previous;
+        seen.previous = key;
+        return same;
+      },
+      { intervals: [120, 120, 180, 260, 340] },
+    )
+    .toBe(true);
+  if (seen.box === null) throw new Error('element has no box');
+  return seen.box;
+}
+
+/** A name of at most ~17 characters with the run prefix (two-line / one-line table checks need a short name). */
+const shortName = (letter: string): string => `${TEST_DATA_PREFIX}${letter}${Date.now().toString(36).slice(-6)}`;
+
+/** The dialog body — the parent of CPM:235-244 `ScrollFade`, which is the last child of `Modal.Body` (CPM:303-333). */
+const wizardBody = (dialog: Locator): Locator => dialog.locator('[data-scroll-fade]').locator('xpath=..');
+const KEEP_EDITING = 'Tiếp tục sửa'; // CPM:216-218
+const floorNameBoxes = (dialog: Locator): Locator => dialog.getByRole('textbox', { name: /^Tên tầng/u }); // SF:112-119
+const FLOORS_HINT = 'Nhập chiều cao thông thuỷ cho từng tầng, hoặc dùng "Áp cho mọi tầng", để sang bước xem lại.'; // UCPM:474
+const ROUTE_BACKDROP_TITLE = 'Trung tâm thông báo'; // NCC:186
+const ROUTE_BACKDROP_HINT = 'Nhấn Esc hoặc bấm ra ngoài bảng để quay lại.'; // NCC:187-189 (`hidden lg:block`)
+/** NCC:175 `--panel-clearance` = DRAWER_WIDTH_PX + 2 × DRAWER_GAP_PX (DRW:85-86). */
+const PANEL_CLEARANCE_PX = 400 + 2 * 8;
+/** WS:183 an enabled quiet link is underlined; a locked one is not (BUG-127). */
+const textDecoration = (locator: Locator): Promise<string> => locator.evaluate((el) => getComputedStyle(el).textDecorationLine);
+
+/** Table-view row metrics (PT:53, :78-116): what a stacked row (< 640 px) or a table row (>= 640 px) draws. */
+const tableRowLayout = (row: Locator) =>
+  row.evaluate((tr) => {
+    const thead = tr.closest('table')?.querySelector('thead') ?? null;
+    const name = tr.querySelector('h3');
+    return {
+      theadDisplay: thead === null ? 'missing' : getComputedStyle(thead).display,
+      rowDisplay: getComputedStyle(tr).display,
+      rowWidth: Math.round(tr.getBoundingClientRect().width),
+      nameLineClamp: name === null ? 'missing' : getComputedStyle(name).getPropertyValue('-webkit-line-clamp'),
+      nameClipped: name === null ? true : name.scrollHeight > name.clientHeight + 1,
+      cells: Array.from(tr.querySelectorAll(':scope > td')).map((td) => {
+        const label = td.querySelector(':scope > span.sr-only');
+        return {
+          display: getComputedStyle(td).display,
+          width: Math.round(td.getBoundingClientRect().width),
+          text: (td as HTMLElement).innerText.trim(),
+          label: label === null ? null : { text: label.textContent ?? '', display: getComputedStyle(label).display },
+        };
+      }),
+    };
+  });
+
+test.describe('E02 QA-02 FE changes (d18eb884) — SCR-05 / SCR-06 / SCR-07', () => {
+  test('E02 · SCR-05 grid: every card has one size — no featured first card; 3 columns at 1440 px, 1 at 375 px, every preview 132 px (BUG-119, BUG-157)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const tag = uniqueName('grid');
+      for (const n of [1, 2, 3, 4]) await createProject(admin, 'grid', `${tag}-${String(n)}`);
+      await reloadDashboard(page);
+      await searchBox(page).fill(tag);
+      await expect(projectCards(page)).toHaveCount(4);
+      const layout = () =>
+        projectCards(page).evaluateAll((cards) =>
+          cards.map((card) => {
+            const r = card.getBoundingClientRect();
+            const preview = card.firstElementChild?.getBoundingClientRect();
+            return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height), preview: preview === undefined ? -1 : Math.round(preview.height) };
+          }),
+        );
+      const spread = (values: readonly number[]): number => Math.max(...values) - Math.min(...values);
+      const shots: Record<string, unknown> = {};
+      // PD:85 GRID_COLUMNS_CLASS: 1 column, 2 from `sm`, 3 from 1440 px; PD:108-127 every card in that one grid.
+      for (const [viewport, columns] of [[DESKTOP, 3], [COMPACT, 1]] as const) {
+        await page.setViewportSize(viewport);
+        await expect.poll(async () => new Set((await layout()).map((card) => card.x)).size).toBe(columns);
+        await expect.poll(async () => spread((await layout()).map((card) => card.width))).toBeLessThanOrEqual(1);
+        const cards = await layout();
+        shots[String(viewport.width)] = cards;
+        await captureEvidence(page, `E02_dash_grid_same_size_${String(viewport.width)}.png`, {
+          caption: `${String(viewport.width)} px: 4 cards, ${String(columns)} column(s), widths ${cards.map((c) => c.width).join('/')}, previews ${cards.map((c) => c.preview).join('/')} px`,
+        });
+        expect(spread(cards.map((c) => c.width)), 'one card width').toBeLessThanOrEqual(1);
+        expect(spread(cards.map((c) => c.height)), 'one card height').toBeLessThanOrEqual(1);
+        expect(cards.map((c) => c.preview), 'PCT:91 every preview 132 px (the hero drew 360)').toEqual([132, 132, 132, 132]);
+        expect(cards[3]?.x, 'the 4th card starts the next row under the 1st').toBe(cards[0]?.x);
+      }
+      await attachJson('E02_dash_grid_same_size.json', shots);
+    });
+  });
+
+  test('E02 · SCR-05 card rename: the field takes the title\'s own box — 24 px from 640 px, 44 px below — so the card does not grow when renaming opens; Esc sends nothing (BUG-199)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'cardbox');
+      await reloadDashboard(page);
+      await searchBox(page).fill(project.name);
+      const card = projectCard(page, project.name);
+      const record: Record<string, unknown> = {};
+      for (const viewport of [DESKTOP, COMPACT]) {
+        await page.setViewportSize(viewport);
+        await expect(card).toBeVisible();
+        const titleBox = await steadyBox(card.locator('h3'));
+        const before = await steadyBox(card);
+        const input = await startRename(page, project.name);
+        const fieldBox = await steadyBox(input);
+        const during = await steadyBox(card);
+        const want = viewport.width >= 640 ? 24 : 44; // PCT:64-66 `h-11 … sm:h-6`, shared by h3 (:140) and input (:137)
+        await captureEvidence(page, `E02_dash_card_rename_box_${String(viewport.width)}.png`, {
+          caption: `${String(viewport.width)} px: title ${String(titleBox.height)} px, rename field ${String(fieldBox.height)} px; card ${String(before.height)} → ${String(during.height)} px`,
+        });
+        record[String(viewport.width)] = { titleBox, fieldBox, before, during, want };
+        expect(Math.abs(titleBox.height - want)).toBeLessThanOrEqual(0.5);
+        expect(Math.abs(fieldBox.height - want)).toBeLessThanOrEqual(0.5);
+        expect(Math.abs(fieldBox.y - titleBox.y), 'the field sits where the title was').toBeLessThanOrEqual(0.5);
+        expect(Math.abs(during.height - before.height), 'the card keeps its height (BUG-199: +16 px at 375, +2 at 1440)').toBeLessThanOrEqual(0.5);
+        await input.press('Escape'); // PCT:135 onRenameCancel
+        await expect(input).toHaveCount(0);
+      }
+      await attachJson('E02_dash_card_rename_box.json', { ...record, patches: countApi(admin.api, 'PATCH', `${PROJECTS_API}/${project.id}`) });
+      expect(countApi(admin.api, 'PATCH', `${PROJECTS_API}/${project.id}`), 'Esc sends no PATCH').toBe(0);
+    });
+  });
+
+  test('E02 · SCR-05 table view below 640 px stacks each row: no header row, the name on its own full-width line, status / progress / update time under it, each cell naming its column to a screen reader; from 640 px the table is back (BUG-153)', async ({ browser }) => {
+    await withAdmin(
+      browser,
+      async (admin) => {
+        const { page } = admin;
+        const project = await createProject(admin, 'stack', shortName('s'));
+        const summary = summaryOf(await reloadDashboard(page), project.id);
+        expect(derivedStatus(summary), 'a fixture without floors').toBe('processing'); // BE:summaries.py, UPD:353 "Đang xử lý"
+        await viewMode(page).getByRole('radio', { name: 'Bảng', exact: true }).click();
+        await searchBox(page).fill(project.name);
+        const row = tableRow(page, project.name);
+        await expect(row).toHaveCount(1);
+        const progress = reviewProgress(summary.wallsReviewedCount, summary.wallsTotalCount); // UPD:365 (the 375 px "%" column is gone)
+
+        // PT:53 `max-sm:[&_thead]:hidden`, PT:43 ROW_STACKED flex-wrap, PT:78 name cell `basis-full`, PT:46-49 StackedLabel.
+        await expect(row.getByText(FILTERS.processing, { exact: true })).toBeVisible();
+        // BUG-240: the progress cell is a bare text node after its sr-only "Tiến độ duyệt: " label, so the cell's text is
+        // "Tiến độ duyệt: <progress>" — match the label + value, not the value alone.
+        await expect(row.getByText(new RegExp(`^Tiến độ duyệt: ${escapeRegExp(progress)}$`, 'u'))).toBeVisible();
+        const stacked = await tableRowLayout(row);
+        await captureEvidence(page, 'E02_table_stacked_375.png', { caption: `375 px table view: header row ${stacked.theadDisplay}, row ${stacked.rowDisplay}; name ${String(stacked.cells[0]?.width)} of ${String(stacked.rowWidth)} px; "${progress}" + update time under it` });
+        expect(stacked.theadDisplay, 'no header row below 640 px').toBe('none');
+        expect(stacked.rowDisplay).toBe('flex');
+        expect(stacked.cells[0]?.width ?? 0, 'the name cell takes the whole row width').toBeGreaterThanOrEqual(stacked.rowWidth - 1);
+        expect(stacked.nameLineClamp, 'PT:82 one line below sm').toBe('1');
+        expect(stacked.cells[2]?.display, '"Chi tiết" stays hidden below sm (PT:108)').toBe('none');
+        expect(stacked.cells[4]?.display, '"Cập nhật" now shows below sm (PT:113-116)').not.toBe('none');
+        expect(stacked.cells.map((cell) => cell.label?.text ?? null)).toEqual([null, 'Trạng thái: ', null, 'Tiến độ duyệt: ', 'Cập nhật: ']);
+        for (const index of [1, 3, 4]) expect(stacked.cells[index]?.label?.display, `cell ${String(index)} says its column (sr-only)`).not.toBe('none');
+        expect((stacked.cells[4]?.text ?? '').replace('Cập nhật: ', '').trim(), 'an update time is shown').not.toBe('');
+
+        await page.setViewportSize(DESKTOP);
+        await expect(tableHeads(page)).toHaveText([...TABLE_HEADERS]);
+        const table = await tableRowLayout(row);
+        expect(table.theadDisplay).toBe('table-header-group');
+        expect(table.rowDisplay).toBe('table-row');
+        expect(table.nameLineClamp, 'PT:82 up to two lines from sm').toBe('2');
+        for (const index of [1, 3, 4]) expect(table.cells[index]?.label?.display, `cell ${String(index)} label is sm:hidden`).toBe('none');
+        await captureEvidence(page, 'E02_table_stacked_1440.png', { caption: '1440 px: the five-column table again, no stacked labels' });
+
+        // PT:5-7: the name wraps onto a second line before it is cut — a short name is whole at 1024 px.
+        await page.setViewportSize({ width: 1024, height: 768 });
+        await expect.poll(async () => (await tableRowLayout(row)).rowDisplay).toBe('table-row');
+        const narrow = await tableRowLayout(row);
+        await captureEvidence(page, 'E02_table_stacked_1024.png', { caption: `1024 px: "${project.name}" ${narrow.nameClipped ? 'CUT' : 'whole'} in a ${String(narrow.cells[0]?.width)} px name column` });
+        await attachJson('E02_table_stacked.json', { name: project.name, progress, at375: stacked, at1440: table, at1024: narrow });
+        await shootOnSoftFail(page, 'E02_table_stacked_1024_softfail.png', `"${project.name}" cut at 1024 px`, () => {
+          expect.soft(narrow.nameClipped, 'a short name is not cut at 1024 px (PT:5-7)').toBe(false);
+        });
+      },
+      COMPACT,
+    );
+  });
+
+  test('E02 · SCR-05 table view rename keeps the row height at 1440 and 375 px: the name stays as an invisible, aria-hidden size box under the field; Esc sends nothing (ND-R3, FIX-994)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'tblbox', shortName('r'));
+      await reloadDashboard(page);
+      await viewMode(page).getByRole('radio', { name: 'Bảng', exact: true }).click();
+      await searchBox(page).fill(project.name);
+      const row = tableRow(page, project.name);
+      await expect(row).toHaveCount(1);
+      const name = row.locator('h3');
+      const record: Record<string, unknown> = {};
+      for (const viewport of [DESKTOP, COMPACT]) {
+        await page.setViewportSize(viewport);
+        const nameBox = await steadyBox(name);
+        const before = await steadyBox(row);
+        await row.click({ button: 'right' }); // PT:73-76
+        await cardMenu(page).getByRole('menuitem', { name: 'Đổi tên', exact: true }).click();
+        const input = row.getByRole('textbox', { name: `Đổi tên ${project.name}`, exact: true }); // PT:87-100
+        await expect(input).toBeFocused();
+        const fieldBox = await steadyBox(input);
+        const during = await steadyBox(row);
+        const hidden = await name.evaluate((el) => ({ ariaHidden: el.getAttribute('aria-hidden'), visibility: getComputedStyle(el).visibility }));
+        await captureEvidence(page, `E02_table_rename_box_${String(viewport.width)}.png`, {
+          caption: `${String(viewport.width)} px: row ${String(before.height)} → ${String(during.height)} px while renaming; name box ${String(nameBox.height)} px, field ${String(fieldBox.height)} px`,
+        });
+        record[String(viewport.width)] = { nameBox, fieldBox, before, during, hidden };
+        expect(Math.abs(during.height - before.height), 'renaming never changes the row height (PT:14-15)').toBeLessThanOrEqual(0.5);
+        expect(hidden).toEqual({ ariaHidden: 'true', visibility: 'hidden' }); // PT:81-82
+        if (viewport.width >= 640) {
+          // PT:99 `sm:-inset-y-0.5`: the field reaches 2 px past the name box each way.
+          expect(Math.abs(fieldBox.height - (nameBox.height + 4))).toBeLessThanOrEqual(1);
+        } else {
+          // PT:82 `max-sm:leading-8` one 32 px line; PT:99 `inset-0` fills it.
+          expect(Math.abs(nameBox.height - 32)).toBeLessThanOrEqual(0.5);
+          expect(Math.abs(fieldBox.height - nameBox.height)).toBeLessThanOrEqual(0.5);
+        }
+        await input.press('Escape'); // PT:97
+        await expect(input).toHaveCount(0);
+      }
+      await attachJson('E02_table_rename_box.json', { ...record, patches: countApi(admin.api, 'PATCH', `${PROJECTS_API}/${project.id}`) });
+      expect(countApi(admin.api, 'PATCH', `${PROJECTS_API}/${project.id}`)).toBe(0);
+    });
+  });
+
+  test('E02 · SCR-05 rename toasts carry their state: a refused length wears the attention dot (nothing sent), a failed rename (real 404) the violation dot — never the verified green (BUG-207)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'toastdot');
+      await reloadDashboard(page);
+
+      let input = await startRename(page, project.name);
+      await input.fill('ab'); // LIM:22 min 3
+      await input.press('Enter');
+      const refused = toastWith(page, RENAME_RANGE_MESSAGE);
+      await expect(refused).toBeVisible();
+      await expect(refused.locator('.bg-state-attention')).toHaveCount(1); // UPD:472 state 'attention' → TST:113
+      await expect(refused.locator('.bg-state-verified')).toHaveCount(0);
+      expect(countApi(admin.api, 'PATCH', `${PROJECTS_API}/${project.id}`), 'a refused length sends nothing').toBe(0);
+      await captureEvidence(page, 'E02_dash_toast_dot_attention.png', { caption: `"ab" → "${RENAME_RANGE_MESSAGE}" with the attention dot, no PATCH` });
+
+      expect(await deleteProject(admin, project.id), 'deleted behind the open dashboard').toBe(200);
+      input = await startRename(page, project.name);
+      await input.fill(`${project.name}-x`);
+      const gone = waitForApi(page, 'PATCH', projectPathRe(project.id), [404]);
+      await input.press('Enter');
+      await gone;
+      const failed = toastWith(page, RENAME_GONE);
+      await expect(failed).toBeVisible();
+      await expect(failed.locator('.bg-state-violation')).toHaveCount(1); // UPD:454 state 'violation' → TST:114
+      await expect(failed.locator('.bg-state-verified')).toHaveCount(0);
+      await captureEvidence(page, 'E02_dash_toast_dot_violation.png', { caption: `PATCH 404 → "${RENAME_GONE}" with the violation dot` });
+      await attachJson('E02_dash_toast_dots.json', { refusedPatches: 0, failedPatch: 404 });
+    });
+  });
+
+  test('E02 · SCR-05 search folds Unicode forms: a decomposed (NFD) query finds the composed name, in any case; marks still matter ("nha dong a" finds nothing) (BUG-210)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const stamp = Date.now().toString(36);
+      const project = await createProject(admin, 'nfc', `${TEST_DATA_PREFIX}nfc-${stamp}-Nhà Đông Á`);
+      await reloadDashboard(page);
+      const queries = [`${stamp}-Nhà Đông Á`.normalize('NFD'), `${stamp}-NHÀ ĐÔNG Á`.normalize('NFD')];
+      for (const query of queries) {
+        expect(query, 'the query really is decomposed').not.toBe(query.normalize('NFC'));
+        await searchBox(page).fill(query); // UPD:308, :312 NFC on both sides
+        await expect(projectCards(page)).toHaveCount(1);
+        await expect(projectCard(page, project.name)).toBeVisible();
+      }
+      await captureEvidence(page, 'E02_search_nfd_match.png', { caption: `NFD query (${String([...(queries[1] ?? '')].length)} code points) → "${project.name}"` });
+      await searchBox(page).fill(`${stamp}-nha dong a`);
+      await expect(noMatch(page)).toBeVisible();
+      await attachJson('E02_search_nfd_match.json', { name: project.name, nfdLengths: queries.map((q) => [...q].length), nfcLength: [...`${stamp}-Nhà Đông Á`].length, unmarked: 'no match' });
+    });
+  });
+
+  test('E02 · SCR-07 quiet links: "Xem dự án mẫu" and "Bỏ qua" are underlined, the locked "Xem hướng dẫn 2 phút" is not (BUG-127)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      await createProject(admin, 'underline'); // newest = 0 walls → partial, the screen stays (UWS:294-297)
+      await clearSeenFlags(page);
+      await page.goto(ROUTES.onboarding);
+      const sample = page.getByRole('button', { name: ONBOARD.sample, exact: true });
+      const tutorial = page.getByRole('button', { name: ONBOARD.tutorial, exact: true });
+      const skip = page.getByRole('button', { name: ONBOARD.skip, exact: true });
+      await expect(tutorial).toHaveAttribute('aria-disabled', 'true');
+      const decoration = { sample: await textDecoration(sample), tutorial: await textDecoration(tutorial), skip: await textDecoration(skip) };
+      await captureEvidence(page, 'E02_onboard_link_underline.png', { caption: `underline: sample "${decoration.sample}", tutorial (locked) "${decoration.tutorial}", skip "${decoration.skip}"` });
+      await attachJson('E02_onboard_link_underline.json', decoration);
+      expect(decoration).toEqual({ sample: 'underline', tutorial: 'none', skip: 'underline' }); // WS:180-184
+    });
+  });
+
+  test('E02 · wizard step 2 stays neutral after "Thêm tầng", "Xoá Tầng 2" and "Có tầng hầm" — only a typed height arms the row errors; the height hint keeps describing "Tiếp tục" (BUG-120, run-15)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      await toStep2(dialog, 'Dự án chưa có chiều cao');
+      const table = dialog.getByRole('table');
+      await dialog.getByRole('button', { name: ADD_FLOOR, exact: true }).click(); // UCPM:757-768 markDirty only
+      await expect(dialog.getByRole('textbox', { name: 'Tên tầng Tầng 4', exact: true })).toBeVisible();
+      await dialog.getByRole('button', { name: 'Xoá Tầng 2', exact: true }).click(); // UCPM:770-773
+      const basement = dialog.getByRole('switch', { name: BASEMENT_TOGGLE });
+      await basement.click(); // UCPM:798-810
+      await expect(basement).toHaveAttribute('aria-checked', 'true');
+      await expect(dialog.getByRole('textbox', { name: `Tên tầng ${BASEMENT_NAME}`, exact: true })).toBeVisible();
+      const quiet = { alerts: await table.getByRole('alert').allInnerTexts(), invalid: await table.locator('[aria-invalid="true"]').count() };
+      await expect(dialog.getByText(FLOORS_HINT, { exact: true })).toBeVisible(); // UCPM:702-707
+      await expect(nextButton(dialog)).toBeDisabled();
+      await expect(nextButton(dialog)).toHaveAccessibleDescription(FLOORS_HINT); // CPM:352
+      await captureEvidence(page, 'E02_wiz_step2_quiet_edits.png', { caption: `add + delete + basement, no height yet: ${String(quiet.alerts.length)} row errors, height hint shown` });
+      expect(quiet, 'no row error, no red field before a height (UCPM:717-725)').toEqual({ alerts: [], invalid: 0 });
+
+      const height = dialog.getByLabel('Chiều cao thông thuỷ tầng Tầng trệt', { exact: true }); // SF:131
+      await height.fill('3');
+      await height.press('Tab'); // UCPM:780-785 setFloorHeight → touchFloors
+      await expect(floorRow(dialog, page, 'Tầng 1').getByRole('alert')).toHaveText(HEIGHT_MISSING);
+      await captureEvidence(page, 'E02_wiz_step2_armed.png', { caption: '"3" in "Tầng trệt" → the rows still missing a height say so' });
+      await attachJson('E02_wiz_step2_quiet_edits.json', { quiet, armedAfter: 'typed height', rowsAfter: await floorNameBoxes(dialog).count() });
+      await discardWizard(dialog);
+    });
+  });
+
+  test('E02 · wizard 12 floors: the floor table is not its own scroll box — its header row stays pinned at the top of the scrolled dialog body, and Shift+Tab / Tab never land on a field hidden under it or under the bottom fade (BUG-202, WCAG 2.4.11)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      await toStep2(dialog, 'Dự án mười hai tầng');
+      const add = dialog.getByRole('button', { name: ADD_FLOOR, exact: true });
+      for (let n = 0; n < 8; n += 1) await add.click(); // "Tầng 4" … "Tầng 11"
+      await expect(floorNameBoxes(dialog)).toHaveCount(12);
+      const body = wizardBody(dialog);
+      const head = dialog.locator('thead'); // TBL:51 sticky top-0
+      const overflow = await body.evaluate((el) => ({ scrollHeight: el.scrollHeight, clientHeight: el.clientHeight, tableBox: getComputedStyle(el.querySelector('table')?.parentElement ?? el).overflowY }));
+      expect(overflow.scrollHeight, 'the dialog body scrolls with 12 floors').toBeGreaterThan(overflow.clientHeight);
+      expect(overflow.tableBox, 'SF:92 the table wrapper does not scroll by itself').toBe('visible');
+      await body.evaluate((el) => {
+        el.scrollTop = el.scrollHeight;
+      });
+      // A sticky header sits at max(its natural place = the table top, the body top). With 12 floors the scroll range can
+      // stop before the table reaches the body top (BUG-202 run-16: 4 / 0 / 116 / 0 px at 1440/1024/768/375), so the
+      // header is pinned only once the table has scrolled past; a plain |thead - body| <= 1 was wrong there.
+      const table = dialog.getByRole('table');
+      await expect
+        .poll(async () => {
+          const [b, h, t] = [await body.boundingBox(), await head.boundingBox(), await table.boundingBox()];
+          return b === null || h === null || t === null ? Number.POSITIVE_INFINITY : Math.abs(h.y - Math.max(b.y, t.y));
+        })
+        .toBeLessThanOrEqual(1);
+      await captureEvidence(page, 'E02_wiz_sticky_head.png', { caption: 'body scrolled to the end: "Tầng / Chiều cao thông thuỷ / Cao độ" pinned at its top once the table scrolled past (else in place)' });
+
+      // CPM:303 `scroll-pt-10`: a field reached by Shift+Tab is scrolled clear of the 40 px sticky header.
+      await dialog.getByRole('textbox', { name: 'Tên tầng Tầng 11', exact: true }).focus();
+      const walked: { label: string; top: number; headBottom: number }[] = [];
+      for (let step = 0; step < 40; step += 1) {
+        await page.keyboard.press('Shift+Tab');
+        const probe = await page.evaluate(() => {
+          const el = document.activeElement;
+          if (!(el instanceof HTMLElement) || el.closest('tbody') === null) return null;
+          const thead = el.closest('table')?.querySelector('thead');
+          return { label: el.getAttribute('aria-label') ?? el.tagName.toLowerCase(), top: el.getBoundingClientRect().top, headBottom: thead?.getBoundingClientRect().bottom ?? 0 };
+        });
+        if (probe === null) break;
+        walked.push(probe);
+      }
+      const covered = walked.filter((probe) => probe.top < probe.headBottom - 1);
+      expect(walked.length, 'Shift+Tab walked the floor rows').toBeGreaterThan(12);
+      await shootOnSoftFail(page, 'E02_wiz_sticky_head_softfail.png', `${String(covered.length)} focused field(s) under the sticky header`, () => {
+        expect.soft(covered, 'no focused field under the sticky header').toEqual([]);
+      });
+
+      // CPM:303 `scroll-pb-6`: walking down by Tab, a field is scrolled clear of the 24 px bottom fade (CPM:235-244) too.
+      await body.evaluate((el) => {
+        el.scrollTop = 0;
+      });
+      await dialog.getByRole('textbox', { name: 'Tên tầng Tầng trệt', exact: true }).focus();
+      const down: { label: string; bottom: number; fadeTop: number }[] = [];
+      for (let step = 0; step < 40; step += 1) {
+        await page.keyboard.press('Tab');
+        const probe = await page.evaluate(() => {
+          const el = document.activeElement;
+          if (!(el instanceof HTMLElement) || el.closest('tbody') === null) return null;
+          const fade = el.closest('[role="dialog"]')?.querySelector('[data-scroll-fade]');
+          return { label: el.getAttribute('aria-label') ?? el.tagName.toLowerCase(), bottom: el.getBoundingClientRect().bottom, fadeTop: fade?.getBoundingClientRect().top ?? Number.POSITIVE_INFINITY };
+        });
+        if (probe === null) break;
+        down.push(probe);
+      }
+      const faded = down.filter((probe) => probe.bottom > probe.fadeTop + 1);
+      await attachJson('E02_wiz_sticky_head.json', { overflow, walked: walked.length, covered, walkedDown: down.length, faded });
+      expect(down.length, 'Tab walked the floor rows').toBeGreaterThan(12);
+      await shootOnSoftFail(page, 'E02_wiz_tab_fade_softfail.png', `${String(faded.length)} focused field(s) under the bottom fade`, () => {
+        expect.soft(faded, 'no focused field under the bottom fade').toEqual([]);
+      });
+      await discardWizard(dialog);
+    });
+  });
+
+  test('E02 · wizard at 1024×768: the body\'s bottom 24 px fade is sticky, aria-hidden and click-through — "Thêm tầng" under it still takes the click; scrolled to the end it lies over empty space (BUG-201)', async ({ browser }) => {
+    const viewport = { width: 1024, height: 768 } as const;
+    await withAdmin(
+      browser,
+      async (admin) => {
+        const { page } = admin;
+        const dialog = await openWizard(page);
+        await toStep2(dialog, 'Dự án mờ đáy');
+        const body = wizardBody(dialog);
+        const fade = dialog.locator('[data-scroll-fade]'); // CPM:235-244
+        const add = dialog.getByRole('button', { name: ADD_FLOOR, exact: true });
+        const room = (): Promise<number> => body.evaluate((el) => el.scrollHeight - el.clientHeight);
+        // Enough content below the fold to park "Thêm tầng" under the fade (the claim of BUG-201 at this size).
+        while ((await room()) < 80 && (await floorNameBoxes(dialog).count()) < 20) await add.click();
+        const style = await fade.evaluate((el) => {
+          const cs = getComputedStyle(el);
+          return { ariaHidden: el.getAttribute('aria-hidden'), position: cs.position, pointerEvents: cs.pointerEvents, height: Math.round(el.getBoundingClientRect().height), gradient: cs.backgroundImage.includes('linear-gradient') };
+        });
+        expect(style).toEqual({ ariaHidden: 'true', position: 'sticky', pointerEvents: 'none', height: 24, gradient: true });
+
+        // Put the centre of "Thêm tầng" 12 px above the body's bottom edge: inside the fade.
+        const [bodyBox, addBox] = [await steadyBox(body), await steadyBox(add)];
+        await body.evaluate((el, delta) => {
+          el.scrollTop += delta;
+        }, addBox.y + addBox.height / 2 - (bodyBox.y + bodyBox.height - 12));
+        const target = await steadyBox(add);
+        const fadeBox = await steadyBox(fade);
+        const point = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
+        // BUG-241: compare the hit with the "Thêm tầng" element itself — Button keeps an aria-hidden size-box copy of its
+        // label (Button.tsx:70-96), so a textContent read gives "Thêm tầngThêm tầng".
+        const hit = await add.evaluate((button, { x, y, name }) => {
+          const el = document.elementFromPoint(x, y);
+          if (el === null) return 'none';
+          if (button.contains(el)) return name;
+          return el.closest('[data-scroll-fade]') !== null ? 'the fade' : (el.closest('button')?.getAttribute('aria-label') ?? el.tagName.toLowerCase());
+        }, { ...point, name: ADD_FLOOR });
+        await captureEvidence(page, 'E02_wiz_fade_over_add.png', { caption: `"Thêm tầng" centre at y=${String(Math.round(point.y))}, fade ${String(fadeBox.y)}–${String(fadeBox.y + fadeBox.height)}: the point hits "${hit}"` });
+        expect(Math.abs(fadeBox.y + fadeBox.height - (bodyBox.y + bodyBox.height)), 'the fade sits on the body\'s bottom edge').toBeLessThanOrEqual(1);
+        expect(point.y >= fadeBox.y && point.y <= fadeBox.y + fadeBox.height, '"Thêm tầng" is under the fade').toBe(true);
+        expect(hit, 'the fade lets the click through (pointer-events: none)').toBe(ADD_FLOOR);
+        const rows = await floorNameBoxes(dialog).count();
+        await page.mouse.click(point.x, point.y);
+        await expect(floorNameBoxes(dialog)).toHaveCount(rows + 1);
+
+        await body.evaluate((el) => {
+          el.scrollTop = el.scrollHeight;
+        });
+        const end = await steadyBox(fade);
+        const under = await page.evaluate(({ x, y }) => {
+          const el = document.elementFromPoint(x, y);
+          return el === null ? 'none' : el.closest('button, input, textarea, [role="switch"], [role="combobox"]') === null ? 'empty' : 'control';
+        }, { x: end.x + end.width / 2, y: end.y + end.height / 2 });
+        await captureEvidence(page, 'E02_wiz_fade_end.png', { caption: `scrolled to the end: the fade lies over ${under} space` });
+        await attachJson('E02_wiz_fade.json', { viewport, style, bodyBox, fadeBox, point, hit, rowsBefore: rows, atEnd: { fade: end, under } });
+        expect(Math.abs(end.y + end.height - (bodyBox.y + bodyBox.height))).toBeLessThanOrEqual(1);
+        expect(under, 'at the end nothing interactive sits under the fade').toBe('empty');
+        await discardWizard(dialog);
+      },
+      viewport,
+    );
+  });
+
+  for (const viewport of [DESKTOP, COMPACT]) {
+    test(`E02 · wizard discard prompt at ${String(viewport.width)} px is a row of the footer, below the dialog body: it covers no field ("Ghi chú", "Loại công trình") and no field moves down (BUG-204, BUG-123)`, async ({ browser }) => {
+      await withAdmin(
+        browser,
+        async (admin) => {
+          const { page } = admin;
+          const dialog = await openWizard(page);
+          await nameField(dialog).fill('Dự án hỏi trước khi đóng');
+          await dialog.getByLabel('Địa chỉ').fill('12 Lê Lợi');
+          const notes = dialog.getByLabel('Ghi chú'); // CPM:152-158
+          await notes.fill('Ghi chú để thử');
+          const fields: Record<string, Locator> = { name: nameField(dialog), code: codeField(dialog), address: dialog.getByLabel('Địa chỉ'), type: dialog.getByRole('combobox'), notes };
+          const tops = async (): Promise<Record<string, number>> => {
+            const out: Record<string, number> = {};
+            for (const [key, field] of Object.entries(fields)) out[key] = Math.round(((await field.boundingBox())?.y ?? Number.NaN) * 10) / 10;
+            return out;
+          };
+          const body = wizardBody(dialog);
+          const before = await tops();
+          await notes.focus();
+          await page.keyboard.press('Escape'); // dirty → prompt (UCPM requestClose)
+          const prompt = dialog.getByRole('alert').filter({ hasText: DISCARD_TITLE });
+          await expect(prompt).toBeVisible();
+          const promptBox = await steadyBox(prompt);
+          const bodyBox = await steadyBox(body);
+          const after = await tops();
+          // By accessible name: Button's aria-hidden size-box copy doubles textContent ("HuỷHuỷ", same cause as BUG-241).
+          const inFooter = (await prompt.locator('xpath=..').getByRole('button', { name: 'Huỷ', exact: true }).count()) > 0;
+          await captureEvidence(page, `E02_wiz_discard_in_footer_${String(viewport.width)}.png`, {
+            caption: `${String(viewport.width)} px: prompt ${String(promptBox.y)}–${String(promptBox.y + promptBox.height)}, body ends ${String(bodyBox.y + bodyBox.height)}; fields unmoved`,
+          });
+          await attachJson(`E02_wiz_discard_in_footer_${String(viewport.width)}.json`, { viewport, before, after, promptBox, bodyBox, inFooter });
+          expect(inFooter, 'CPM:334-335 the prompt is a row of Modal.Footer, next to "Huỷ"').toBe(true);
+          expect(promptBox.y, 'the prompt starts below the body (covers no field, BUG-204)').toBeGreaterThanOrEqual(bodyBox.y + bodyBox.height - 1);
+          expect(promptBox.y + promptBox.height, 'the prompt is on screen').toBeLessThanOrEqual(viewport.height + 0.5);
+          // CPM:177-181: the fields never move DOWN — the body gives up height, or the centred dialog grows (fields may rise).
+          for (const key of Object.keys(fields)) expect((after[key] ?? 0) - (before[key] ?? 0), `"${key}" did not move down (BUG-123)`).toBeLessThanOrEqual(1);
+          await prompt.getByRole('button', { name: DISCARD_ACTION, exact: true }).click();
+          await expect(dialog).toHaveCount(0);
+          expect(countApi(admin.api, 'POST', PROJECTS_API)).toBe(0);
+        },
+        viewport,
+      );
+    });
+  }
+
+  test('E02 · wizard "Tiếp tục sửa" gives the focus back: to "Ghi chú" when Esc came from it, to "Huỷ" when "Huỷ" asked (BUG-219)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const dialog = await openWizard(page);
+      const notes = dialog.getByLabel('Ghi chú');
+      await notes.fill('Đang sửa ghi chú');
+      await expect(notes).toBeFocused();
+      await page.keyboard.press('Escape');
+      const prompt = dialog.getByRole('alert').filter({ hasText: DISCARD_TITLE });
+      await expect(prompt).toBeVisible();
+      await prompt.getByRole('button', { name: KEEP_EDITING, exact: true }).click(); // CPM:189-197 returnFocus
+      await expect(prompt).toHaveCount(0);
+      await expect(notes).toBeFocused();
+      const afterEsc = await focusedLabel(page);
+      await captureEvidence(page, 'E02_wiz_keep_editing_focus_notes.png', { caption: 'Esc in "Ghi chú" → prompt → "Tiếp tục sửa": the caret is back in "Ghi chú"' });
+
+      const cancel = dialog.getByRole('button', { name: 'Huỷ', exact: true });
+      await cancel.click();
+      await expect(prompt).toBeVisible();
+      await prompt.getByRole('button', { name: KEEP_EDITING, exact: true }).focus();
+      await page.keyboard.press('Enter');
+      await expect(prompt).toHaveCount(0);
+      await expect(cancel).toBeFocused();
+      await captureEvidence(page, 'E02_wiz_keep_editing_focus_cancel.png', { caption: '"Huỷ" → prompt → Enter on "Tiếp tục sửa": focus back on "Huỷ"' });
+      await attachJson('E02_wiz_keep_editing_focus.json', { afterEsc, afterCancel: await focusedLabel(page) });
+      await discardWizard(dialog);
+    });
+  });
+
+  test.fixme('E02 · wizard "Tiếp tục sửa" with the focus on no field: it falls back to "Huỷ"', async () => {
+    // UNKNOWN — NEED VERIFICATION (coverage D16): CPM:190-194 hands the focus to "Huỷ" when the element focused as the
+    // prompt appeared is not an input / textarea / button (or is gone). Esc reaches requestClose only through the focus
+    // trap inside the dialog (MOD), and no step-1/2 path was found that leaves the focus on a non-control there (the
+    // floor rows take focus only through "Xem tầng", W27, unreachable). Write it once such a path is established.
+  });
+
+  test('E02 · wizard [held response] while "Tạo dự án" runs the header X "Đóng hộp thoại" is disabled with the footer and a backdrop click closes nothing; the held POST then creates and closes the dialog (BUG-218)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const name = uniqueName('wiz-xbusy');
+      const hold = gate();
+      await page.route((url) => url.pathname === PROJECTS_API, async (route) => {
+        if (route.request().method() !== 'POST') {
+          await route.fallback();
+          return;
+        }
+        await hold.wait;
+        await route.continue();
+      });
+      const dialog = await openWizard(page);
+      const close = dialog.getByRole('button', { name: CLOSE_DIALOG, exact: true }); // MOD:168-176
+      await expect(close).toBeEnabled();
+      await toStep2(dialog, name);
+      await applyHeight(dialog, '3');
+      await nextButton(dialog).click();
+      await expect(stepText(dialog, 3)).toBeVisible();
+      const created = waitForApi(page, 'POST', PROJECTS_RE, [200, 201]);
+      await createButton(dialog).click();
+      await expect(stateAnnouncement(dialog)).toHaveText(STATE.loading);
+      await expect(close, 'CPM:298 closeDisabled={isSubmitting}').toBeDisabled();
+      await page.mouse.click(8, 8); // the modal backdrop (MOD) → requestClose, ignored while submitting
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByText(DISCARD_TITLE, { exact: true })).toHaveCount(0);
+      await captureEvidence(page, 'E02_wiz_x_locked_busy.png', { caption: 'POST held: "Đóng hộp thoại" disabled, backdrop click ignored, no discard prompt' });
+      hold.open();
+      const { json } = await created;
+      admin.cleanup.push(stringField(asRecord(json, 'POST /api/projects'), 'id', 'POST /api/projects'));
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      await expect(dialog).toHaveCount(0);
+      await expect(toastWith(page, createdToast(name))).toBeVisible();
+      await captureEvidence(page, 'E02_wiz_x_locked_created.png', { caption: 'released: project created, dialog closed by the finished create, toast shown' });
+      await attachJson('E02_wiz_x_locked.json', { posts: countApi(admin.api, 'POST', PROJECTS_API), closedBy: 'create' });
+    });
+  });
+
+  test('E02 · SCR-06 /thong-bao at 1440: the page behind the panel names itself ("Trung tâm thông báo" + how to leave), aria-hidden, centred in the space left of the panel; a click there leaves to / (BUG-124)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      await page.goto(ROUTES.notifications);
+      const drawer = notificationDrawer(page);
+      await expect(drawer).toBeVisible();
+      const title = page.getByText(ROUTE_BACKDROP_TITLE, { exact: true });
+      const hint = page.getByText(ROUTE_BACKDROP_HINT, { exact: true });
+      await expect(title).toBeVisible();
+      await expect(hint).toBeVisible();
+      const ariaHidden = await title.evaluate((el) => el.closest('[aria-hidden="true"]') !== null); // NCC:180
+      const [titleBox, panel] = [await steadyBox(title), await steadyBox(drawer)];
+      const centre = titleBox.x + titleBox.width / 2;
+      // NCC:181 `px-6 … lg:pr-[var(--panel-clearance)]`: the text column is centred between 24 px and (width − 416 px).
+      const wantCentre = (24 + (DESKTOP.width - PANEL_CLEARANCE_PX)) / 2;
+      await captureEvidence(page, 'E02_notif_route_backdrop_1440.png', { caption: `/thong-bao: "${ROUTE_BACKDROP_TITLE}" centred at x=${String(Math.round(centre))} (want ${String(wantCentre)}), panel from x=${String(panel.x)}` });
+      expect(ariaHidden, 'the backdrop is for the eye only').toBe(true);
+      expect(Math.abs(centre - wantCentre)).toBeLessThanOrEqual(2);
+      expect(titleBox.x + titleBox.width, 'the text clears the panel').toBeLessThan(panel.x);
+
+      await page.mouse.click(200, DESKTOP.height / 2); // DRW:170-177 overlay onClick → NCC goBack; direct load → /
+      await expect.poll(() => pathname(page)).toBe(ROUTES.dashboard);
+      await expect(dashboardHeading(page)).toBeVisible();
+      await attachJson('E02_notif_route_backdrop_1440.json', { ariaHidden, titleBox, panel, centre, wantCentre, afterClick: pathname(page) });
+    });
+  });
+
+  test('E02 · SCR-06 /thong-bao at 375: only the page name shows above the 90 % sheet — no hint, no icon (BUG-124)', async ({ browser }) => {
+    await withAdmin(
+      browser,
+      async (admin) => {
+        const { page } = admin;
+        await page.goto(ROUTES.notifications);
+        const sheet = notificationDrawer(page);
+        await expect(sheet).toBeVisible();
+        const title = page.getByText(ROUTE_BACKDROP_TITLE, { exact: true });
+        await expect(title).toBeVisible();
+        await expect(page.getByText(ROUTE_BACKDROP_HINT, { exact: true })).toBeHidden(); // NCC:187 `hidden lg:block`
+        const backdrop = title.locator('xpath=ancestor::div[@aria-hidden="true"][1]');
+        await expect(backdrop.locator('svg')).toBeHidden(); // NCC:185 bell `hidden lg:block`
+        const restingTop = COMPACT.height - Math.round(COMPACT.height * 0.9); // DRW:33 90 % sheet
+        const sheetBox = await steadyBox(sheet);
+        const titleBox = await steadyBox(title);
+        await captureEvidence(page, 'E02_notif_route_backdrop_375.png', { caption: `/thong-bao at 375: "${ROUTE_BACKDROP_TITLE}" ${String(titleBox.y)}–${String(titleBox.y + titleBox.height)} px, sheet from ${String(sheetBox.y)} px` });
+        await attachJson('E02_notif_route_backdrop_375.json', { titleBox, sheetBox, restingTop });
+        expect(Math.abs(sheetBox.y - restingTop), 'the sheet rests at 90 %').toBeLessThanOrEqual(2);
+        expect(titleBox.y + titleBox.height, 'the page name is above the sheet').toBeLessThanOrEqual(sheetBox.y + 0.5);
+        await page.keyboard.press('Escape');
+        await expect.poll(() => pathname(page)).toBe(ROUTES.dashboard);
+      },
+      COMPACT,
+    );
+  });
+
+  test('E02 · SCR-06 [mocked response] rows (unpairable: aiCompleted / violationFound need Phase 3/4 data, commentMention has no BE producer, a sentence ending in its label is no longer sent — BE messages.py): the name is said once, the excerpt is cut at two whole lines, "Đánh dấu đã đọc" is an icon in the time row — hidden until hover from 640 px, always shown below (BUG-206, BUG-203)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const at = (minutesAgo: number): string => new Date(Date.now() - minutesAgo * 60_000).toISOString();
+      const excerpt = 'Kiểm tra lại tường trục B giúp mình, chỗ giao với trục 3 đang lệch khoảng hai phân so với bản vẽ kết cấu. '.repeat(3).trim();
+      const base = { projectId: 'prj_QA02E_ROWS', projectName: `${TEST_DATA_PREFIX}e02-rows`, objectLabel: 'Tầng trệt' };
+      // NotificationSchema (src/api/schemas/notifications.ts, `.strict()`); NCG:193-203 sentenceWithoutLabel.
+      const rows = [
+        { ...base, id: 'ntf_qa02e_legacy', kind: 'aiCompleted', place: 'walls', floorId: 'flr_QA02E', isRead: false, message: 'Hệ thống AI đã xử lý xong bản vẽ tầng trệt.', createdAt: at(3) },
+        { ...base, id: 'ntf_qa02e_accent', kind: 'violationFound', place: 'rules', isRead: false, message: 'Phát hiện 2 vi phạm luật ở tang tret', createdAt: at(20) },
+        { ...base, id: 'ntf_qa02e_mention', kind: 'commentMention', place: 'walls', floorId: 'flr_QA02E', isRead: false, message: 'Lan nhắc đến bạn trong một bình luận ở', objectLabel: 'Tầng 2', excerpt, createdAt: at(45) },
+      ];
+      await page.route(
+        (url) => url.pathname === NOTIFICATIONS_API,
+        (route) => (route.request().method() === 'GET' ? fulfillJson(route, 200, rows) : route.fallback()),
+      );
+      await page.reload();
+      await dashboardLoaded(page);
+      const drawer = await openDrawer(page);
+      await page.mouse.move(2, 2); // off the bell (under the panel header) and off every row
+      const items = drawer.locator('li');
+      await expect(items).toHaveCount(3);
+      const legacy = items.filter({ hasText: 'Hệ thống AI' });
+      const accent = items.filter({ hasText: 'Phát hiện 2 vi phạm' });
+      const mention = items.filter({ hasText: 'Lan nhắc đến bạn' });
+
+      // BUG-206: "…bản vẽ tầng trệt." + label "Tầng trệt" → the tail is dropped, the name is said once (case and the
+      // final "." ignored); "tang tret" differs in its marks (sensitivity 'accent') → the sentence stays whole.
+      await expect(legacy.getByRole('button', { name: /^chưa đọc\.\s+Hệ thống AI đã xử lý xong bản vẽ\s+Tầng trệt$/u })).toBeVisible();
+      await expect(accent.getByRole('button', { name: /^chưa đọc\.\s+Phát hiện 2 vi phạm luật ở tang tret\s+Tầng trệt$/u })).toBeVisible();
+      const legacyText = (await legacy.getByRole('button').first().innerText()).toLowerCase();
+      expect(legacyText.split('tầng trệt').length - 1, 'the floor name once in the sentence').toBe(1);
+
+      // BUG-203: NR:116-121 the clamp sits on the inner span, so the padded box shows two whole lines (18 px each + 2×6 px).
+      const clamp = await mention.locator('p > span.line-clamp-2').evaluate((span) => {
+        const box = span.parentElement?.getBoundingClientRect();
+        const own = span.getBoundingClientRect();
+        return { boxHeight: box?.height ?? 0, spanHeight: own.height, cut: span.scrollHeight > span.clientHeight + 1 };
+      });
+      const markWrapperOpacity = (row: Locator): Promise<string> =>
+        row.getByRole('button', { name: MARK_READ, exact: true }).evaluate((el) => {
+          const wrapper = el.closest('span.ml-auto');
+          return wrapper === null ? 'missing' : getComputedStyle(wrapper).opacity;
+        });
+      const timeRow = await legacy.evaluate((li) => {
+        const sentence = li.querySelector('button')?.getBoundingClientRect();
+        const time = li.querySelector('span.whitespace-nowrap')?.getBoundingClientRect();
+        const mark = li.querySelector('button[aria-label="Đánh dấu đã đọc"]')?.getBoundingClientRect();
+        return {
+          markBelowSentence: sentence !== undefined && mark !== undefined && mark.top >= sentence.bottom - 0.5,
+          centreGap: time !== undefined && mark !== undefined ? Math.abs(time.top + time.height / 2 - (mark.top + mark.height / 2)) : -1,
+        };
+      });
+      const hiddenAt1440 = await markWrapperOpacity(legacy);
+      await captureEvidence(page, 'E02_notif_rows_1440.png', { caption: [`legacy row says "Tầng trệt" once; excerpt box ${String(Math.round(clamp.boxHeight))} px (2 lines)`, `"${MARK_READ}" wrapper opacity ${hiddenAt1440} before hover, in the time row`] });
+      expect(Math.abs(clamp.boxHeight - (2 * 18 + 12)), 'two whole lines + padding, no half third line').toBeLessThanOrEqual(1);
+      expect(clamp.cut, 'the long excerpt is cut').toBe(true);
+      expect(timeRow.markBelowSentence, 'the icon sits in the time row, not beside the sentence (NR:144-162)').toBe(true);
+      expect(timeRow.centreGap, 'icon and time share the row centre (items-center)').toBeLessThanOrEqual(2);
+      expect(hiddenAt1440, 'NR:152 `sm:opacity-0` until hover').toBe('0');
+      await legacy.hover();
+      await expect.poll(() => markWrapperOpacity(legacy)).toBe('1'); // `sm:group-hover:opacity-100`
+      await captureEvidence(page, 'E02_notif_rows_hover.png', { caption: `hover on the first row → its "${MARK_READ}" icon shows` });
+
+      await page.mouse.move(2, 2);
+      await page.setViewportSize(COMPACT);
+      const sheet = notificationDrawer(page);
+      await expect(sheet).toBeVisible();
+      await expect(sheet.locator('li')).toHaveCount(3);
+      await expect.poll(() => markWrapperOpacity(sheet.locator('li').filter({ hasText: 'Hệ thống AI' }))).toBe('1'); // below sm: always shown
+      await captureEvidence(page, 'E02_notif_rows_375.png', { caption: `375 px, no hover: every "${MARK_READ}" icon shown` });
+      await attachJson('E02_notif_rows.json', { rows: rows.map((r) => ({ id: r.id, kind: r.kind, message: r.message, objectLabel: r.objectLabel })), clamp, timeRow, hiddenAt1440, markReadPosts: countApi(admin.api, 'POST', MARK_READ_API) });
+      expect(countApi(admin.api, 'POST', MARK_READ_API), 'nothing marked read').toBe(0);
+      await page.keyboard.press('Escape');
+    });
+  });
+
+  test.fixme('E02 · SCR-06 on a screen without hover (touch) the "Đánh dấu đã đọc" icon shows from 640 px too', async () => {
+    // UNKNOWN — NEED VERIFICATION (coverage D32): NR:152 `[@media(hover:none)]:opacity-100`. Proving it needs a context
+    // with `hasTouch` / `isMobile` (Chromium then reports hover: none), which openAdmin does not create, plus unread rows
+    // (mocked, as above). Write it once a touch context is set up for this file.
   });
 });

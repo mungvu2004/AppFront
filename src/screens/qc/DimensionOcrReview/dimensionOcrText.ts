@@ -82,13 +82,13 @@ export const keyTabDescription = 'Sang cột sau';
 export const keyEscLabel = 'Esc';
 
 /** Mô tả hành động Esc: bỏ sửa. */
-export const keyEscDescription = 'bỏ sửa';
+export const keyEscDescription = 'Bỏ sửa';
 
 /** Nhãn phím R. */
 export const keyRLabel = 'R';
 
-/** Mô tả hành động R: bật chế độ duyệt bàn phím. */
-export const keyRDescription = 'Bật chế độ duyệt bàn phím';
+/** Mô tả hành động R trong sổ phím tắt: R bật VÀ tắt chế độ duyệt bàn phím. */
+export const keyRDescription = 'Bật hoặc tắt chế độ duyệt bàn phím';
 
 /** Nhãn của đơn vị cố định: "mm". */
 export const unitLabel = 'mm';

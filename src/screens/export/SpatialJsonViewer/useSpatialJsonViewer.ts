@@ -84,6 +84,9 @@ export interface UseSpatialJsonViewerOptions {
   readonly onCopy?: ((text: string) => void) | undefined;
 }
 
+/** Câu của bộ đếm khi ô tìm kiếm không khớp hàng nào. */
+const NO_MATCH_LABEL = 'Không tìm thấy kết quả';
+
 /** Mô hình và hành động của S-36. */
 export type UseSpatialJsonViewerResult = readonly [SpatialJsonViewerModel, SpatialJsonViewerActions];
 
@@ -175,8 +178,9 @@ export function useSpatialJsonViewer(options: UseSpatialJsonViewerOptions): UseS
       return null;
     }
 
+    // "0 / 0" trơn trông như tìm kiếm không làm gì (BUG-448): nói thẳng là không khớp.
     if (matchIds.length === 0) {
-      return `0 / ${formatNumber(0)}`;
+      return NO_MATCH_LABEL;
     }
 
     return `${formatNumber(matchIndex + 1)} / ${formatNumber(matchIds.length)}`;

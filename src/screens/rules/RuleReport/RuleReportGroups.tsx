@@ -94,14 +94,15 @@ export function RuleReportSection({
           aria-controls={bodyId}
           onClick={onToggle}
           className={cn(
-            'flex w-full items-center justify-between gap-3 rounded px-3 py-2 text-left',
+            'flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded px-3 py-2 text-left',
             'transition-colors duration-standard hover:bg-bg-hover',
             FOCUS_RING,
           )}
         >
           <span className="flex min-w-0 items-center gap-2">
             <Chevron aria-hidden="true" className="h-4 w-4 shrink-0 text-text-muted" />
-            <span className="truncate text-sm font-medium text-text-primary">{title}</span>
+            {/* Không cắt: ở 375 tên luật xuống dòng, phần tóm tắt rơi xuống dưới (BUG-441). */}
+            <span className="text-sm font-medium text-text-primary">{title}</span>
           </span>
           <span className="shrink-0 text-xs text-text-secondary">{summary}</span>
         </button>
@@ -263,7 +264,8 @@ export function RuleReportRows({
               <Table.Cell>
                 <Badge variant={SEVERITY_BADGE[row.severity]}>{SEVERITY_LABELS[row.severity]}</Badge>
               </Table.Cell>
-              <Table.Cell>
+              {/* `Table.Cell` mặc định không xuống dòng: thông điệp dài đẩy Tầng, Mã và "Xem" ra khỏi khung (BUG-433). */}
+              <Table.Cell className="whitespace-normal">
                 <RowMessage row={row} onSelectRow={onSelectRow} />
               </Table.Cell>
               <Table.Cell>

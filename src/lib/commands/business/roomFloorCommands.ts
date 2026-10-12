@@ -678,35 +678,86 @@ export function createChangeLevelElevationCommand(
 export interface ReorderLevelsInput {
   /** Every level of the building, bottom up, in the order they should stack. */
   readonly levelIds: readonly LevelId[];
+  /**
+   * The storeys whose hand-typed elevation the restack keeps (BUG-517). Left out,
+   * they are the storeys overridden in `context` as it stands. A caller that has
+   * already changed the stack — a height change — passes the ones overridden
+   * BEFORE that change, or the storey sitting on the changed one would look typed.
+   */
+  readonly keptElevationIds?: readonly LevelId[];
 }
 
-/** Where each level lands once the stack is rebuilt from the datum upwards. */
+/** Where each level lands once the stack is rebuilt from its base upwards. */
 interface StackedLevel {
   readonly level: Level;
   readonly order: number;
   readonly elevationMm: number;
+  /** Its hand-typed elevation was kept rather than stacked on the storey below. */
+  readonly kept: boolean;
 }
 
 /**
- * Rebuilds the stack from the datum, each storey sitting on the one below.
+ * Is this storey's elevation typed by hand — not the top of the storey below it?
  *
- * Re-stacking rather than only renumbering is what makes the command mean
- * something: moving a storey in the list moves the storeys above it by that
- * storey's height, and the building is left with no gap and no overlap.
+ * The floor table's "Ghi đè" flag and `restack` read this one rule. The bottom
+ * storey has nothing under it, so it is never overridden.
  */
-const restack = (context: CommandContext, levelIds: readonly LevelId[]): StackedLevel[] => {
-  const stacked: StackedLevel[] = [];
-  let elevationMm = context.graph.building.datumElevationMm;
+export const isElevationOverridden = (level: Level, below: Level | undefined): boolean =>
+  below !== undefined &&
+  !nearlyEqualLength(millimetres(level.elevationMm), millimetres(below.elevationMm + below.heightMm));
 
-  levelIds.forEach((levelId, order) => {
+/** The storeys whose elevation is overridden in the stack as it stands. */
+export const overriddenLevelIds = (context: CommandContext): LevelId[] => {
+  const stack = levelsInOrder(context);
+
+  return stack.filter((level, index) => isElevationOverridden(level, stack[index - 1])).map((level) => level.id);
+};
+
+/**
+ * The elevation the stack is rebuilt from: the lowest storey it has now.
+ *
+ * Not `building.datumElevationMm` — that is the project's `+0.000`, and a
+ * basement sits below it. Re-stacking from the datum lifted a -3,0 m basement to
+ * 0,0 m and every storey above by the same depth (BUG-516). The building's datum
+ * is only the fallback for a stack with no storey to read.
+ */
+const stackBaseMm = (context: CommandContext, levelIds: readonly LevelId[]): number => {
+  const elevations = levelIds.flatMap((levelId) => {
+    const elevationMm = readOf(context.graph, 'level', levelId)?.elevationMm;
+
+    return elevationMm !== undefined && Number.isFinite(elevationMm) ? [elevationMm] : [];
+  });
+
+  return elevations.length === 0 ? context.graph.building.datumElevationMm : Math.min(...elevations);
+};
+
+/**
+ * Rebuilds the stack from its lowest storey, re-stacking only what the change needs.
+ *
+ * The bottom storey takes the lowest elevation. A storey with a hand-typed
+ * elevation ("Ghi đè") keeps it (BUG-517) as long as it still sits on or above
+ * the top of the storey now under it; every other storey sits on the one below.
+ * Moving a storey in the list therefore moves the storeys above it by that
+ * storey's height up to the next override, and the result never overlaps.
+ */
+const restack = (context: CommandContext, input: ReorderLevelsInput): StackedLevel[] => {
+  const keptIds = new Set(input.keptElevationIds ?? overriddenLevelIds(context));
+  const stacked: StackedLevel[] = [];
+  let topBelowMm = stackBaseMm(context, input.levelIds);
+
+  input.levelIds.forEach((levelId, order) => {
     const level = readOf(context.graph, 'level', levelId);
 
     if (level === null) {
       return;
     }
 
-    stacked.push({ level, order, elevationMm });
-    elevationMm += level.heightMm;
+    const kept =
+      stacked.length > 0 && keptIds.has(levelId) && compareNearly(level.elevationMm, topBelowMm) >= 0;
+    const elevationMm = kept ? level.elevationMm : topBelowMm;
+
+    stacked.push({ level, order, elevationMm, kept });
+    topBelowMm = elevationMm + level.heightMm;
   });
 
   return stacked;
@@ -763,7 +814,7 @@ export function validateReorderLevels(
     return reasons;
   }
 
-  const moved = restack(context, input.levelIds).filter(
+  const moved = restack(context, input).filter(
     (entry) =>
       entry.level.order !== entry.order ||
       !nearlyEqualLength(millimetres(entry.level.elevationMm), millimetres(entry.elevationMm)),
@@ -787,7 +838,7 @@ export function createReorderLevelsCommand(
     return refuse(ROOM_FLOOR_COMMAND_TYPES.reorderLevels, reasons);
   }
 
-  const stacked = restack(context, input.levelIds);
+  const stacked = restack(context, input);
   const moved = stacked.filter(
     (entry) =>
       entry.level.order !== entry.order ||
@@ -798,13 +849,15 @@ export function createReorderLevelsCommand(
   const raised = moved.filter(
     (entry) => !nearlyEqualLength(millimetres(entry.level.elevationMm), millimetres(entry.elevationMm)),
   ).length;
+  const kept = stacked.filter((entry) => entry.kept).length;
 
   return accept(
     buildCommand(
       ROOM_FLOOR_COMMAND_TYPES.reorderLevels,
       `Sắp xếp lại ${formatCount(stacked.length)} tầng: ${formatCount(reordered)} tầng đổi vị trí, ` +
         `${formatCount(raised)} tầng đổi cao độ; xếp chồng lại từ cao độ ` +
-        `${formatElevationM(context.graph.building.datumElevationMm)}.`,
+        `${formatElevationM(stacked[0]?.elevationMm ?? context.graph.building.datumElevationMm)}` +
+        `${kept > 0 ? `, giữ nguyên cao độ ghi đè của ${formatCount(kept)} tầng` : ''}.`,
       moved.map((entry) =>
         changeForUpdate('level', entry.level, {
           ...entry.level,

@@ -412,7 +412,7 @@ function resolveAnchorFromDom(id: TourStepId): TourRect | null {
  * hai bảng bên của vỏ ứng dụng, thứ một lớp phủ không có việc gì phải chạm — cùng
  * lý do `useShareDialog.ts:154` đã ghi.
  */
-const COLLAPSED_MEDIA_QUERY = '(max-width: 1279px)';
+const COLLAPSED_MEDIA_QUERY = '(width < 1280px)';
 
 function subscribeCollapsed(onStoreChange: () => void): () => void {
   const media = globalThis.matchMedia?.(COLLAPSED_MEDIA_QUERY);

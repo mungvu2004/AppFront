@@ -20,6 +20,8 @@ import { renderWithProviders } from '@/lib/testing/render';
 
 import { PascalViewer } from './PascalViewer';
 import {
+  PASCAL_LEAVE_LABEL,
+  PASCAL_REPROCESS_LABEL,
   PASCAL_VIEWER_CAPTIONS,
   PASCAL_VIEWER_TITLE,
   type PascalViewerState,
@@ -251,5 +253,53 @@ describe('phần bị bỏ qua nói rõ cái gì và vì sao', () => {
   it('success không liệt kê gì — không có gì bị bỏ qua thì không có khối ấy', () => {
     renderState('success');
     expect(screen.queryByText('chưa chuyển sang được')).not.toBeInTheDocument();
+  });
+});
+
+describe('[BUG-487] rỗng/lỗi/cờ tắt không là ngõ cụt', () => {
+  const NON_CANVAS: readonly PascalViewerState[] = ['empty', 'error', 'forbidden', 'collapsed'];
+
+  it.each(NON_CANVAS)('"%s": có tiêu đề màn, lối ra, và dòng trạng thái chỉ còn cho trình đọc màn hình', (state) => {
+    const onLeave = vi.fn();
+
+    renderWithProviders(
+      <PascalViewer
+        canvasRef={{ current: null }}
+        onExpand={vi.fn()}
+        onLeave={onLeave}
+        onRetry={vi.fn()}
+        viewModel={viewModelFor(state)}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { level: 2, name: PASCAL_VIEWER_TITLE })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveClass('sr-only');
+    expect(screen.getByRole('status')).toHaveTextContent(PASCAL_VIEWER_CAPTIONS[state]);
+
+    fireEvent.click(screen.getByRole('button', { name: PASCAL_LEAVE_LABEL }));
+    expect(onLeave).toHaveBeenCalledTimes(1);
+  });
+
+  it('"empty": nút "Xử lý lại bản vẽ" gọi onReprocess', () => {
+    const onReprocess = vi.fn();
+
+    renderWithProviders(
+      <PascalViewer
+        canvasRef={{ current: null }}
+        onExpand={vi.fn()}
+        onReprocess={onReprocess}
+        onRetry={vi.fn()}
+        viewModel={viewModelFor('empty')}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: PASCAL_REPROCESS_LABEL }));
+    expect(onReprocess).toHaveBeenCalledTimes(1);
+  });
+
+  it('"success": dòng trạng thái vẫn hiện, vì khung dựng không tự nói gì', () => {
+    renderState('success');
+
+    expect(screen.getByRole('status')).not.toHaveClass('sr-only');
   });
 });

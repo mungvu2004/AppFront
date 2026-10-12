@@ -98,6 +98,7 @@ const base: ProjectSettingsViewProps = {
   pendingDanger: null,
   dangerDialogTitle: null,
   dangerDialogMessage: null,
+  dangerDialogError: null,
   dangerConfirmLabel: null,
   dangerConfirmationExpected: null,
   dangerConfirmationText: '',
@@ -283,9 +284,9 @@ export const PartialSave: Story = {
     ...base,
     state: 'partial',
     saveState: 'error',
-    saveFailureMessage: 'Đã lưu thông tin chung, chưa lưu đơn vị đo.',
+    saveFailureMessage: 'Đã lưu tên dự án, chưa lưu dung sai bắt điểm.',
     activeTab: 'units',
-    problems: { ...NO_PROBLEMS, snapToleranceMm: 'Máy chủ không nhận giá trị này. Kiểm tra lại ô này.' },
+    problems: { ...NO_PROBLEMS, snapToleranceMm: 'Giá trị này chưa hợp lệ nên chưa được lưu; hãy sửa lại.' },
   },
 };
 

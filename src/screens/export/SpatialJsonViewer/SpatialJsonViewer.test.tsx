@@ -250,6 +250,47 @@ describe('Bảy trạng thái', () => {
     unmount();
   });
 
+  it('[BUG-450] thu gọn + "Thô" thay cây bằng khung JSON / Xem trước, hai tab đều bấm được', () => {
+    const props = buildSpatialJsonViewerProps('collapsed');
+    const onChangeTab = vi.fn();
+    const { unmount } = renderWithProviders(
+      <SpatialJsonViewer
+        actions={{ ...props.actions, onChangeTab }}
+        model={{ ...props.model, viewMode: 'raw', activeTabId: 'json' }}
+      />,
+    );
+
+    expect(screen.queryByRole('tree', { name: 'Cấu trúc dữ liệu không gian' })).toBeNull();
+    const tabs = screen.getByRole('tablist', { name: 'Cách xem nội dung' });
+    fireEvent.click(within(tabs).getByRole('tab', { name: 'Xem trước' }));
+    expect(onChangeTab).toHaveBeenCalledWith('preview');
+
+    unmount();
+  });
+
+  it('[BUG-454] rỗng: không khung JSON kể ngược lại, không lộ "pipeline" / "Spatial JSON"', () => {
+    const { container, unmount } = renderWithProviders(
+      <SpatialJsonViewer {...buildSpatialJsonViewerProps('empty')} />,
+    );
+
+    expect(screen.getByText('Chưa có dữ liệu không gian')).toBeInTheDocument();
+    expect(screen.queryByRole('tablist', { name: 'Cách xem nội dung' })).toBeNull();
+    expect(container.textContent).not.toMatch(/pipeline|Spatial JSON/u);
+
+    unmount();
+  });
+
+  it('[BUG-454] cả bảy trạng thái có đúng một h1 "Dữ liệu không gian"', () => {
+    for (const { state } of createSevenStateScenarios()) {
+      const { unmount } = renderWithProviders(<SpatialJsonViewer {...buildSpatialJsonViewerProps(state)} />);
+
+      expect(screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent), `trạng thái: ${state}`).toEqual([
+        'Dữ liệu không gian',
+      ]);
+      unmount();
+    }
+  });
+
   it('trạng thái một phần vẫn hiện dữ liệu, kèm một câu nói rõ đang làm mới', () => {
     renderWithProviders(<SpatialJsonViewer {...buildSpatialJsonViewerProps('partial')} />);
 
@@ -383,14 +424,14 @@ describe('useSpatialJsonViewer', () => {
     expect(model.nodes.some((node) => node.isMatch)).toBe(true);
   });
 
-  it('ô tìm kiếm không khớp gì thì nói 0, không giấu bộ đếm đi', () => {
+  it('[BUG-448] ô tìm kiếm không khớp gì thì nói rõ là không tìm thấy, không chỉ "0 / 0"', () => {
     const { result } = renderHook(() => useSpatialJsonViewer(baseOptions));
 
     act(() => {
       result.current[1].onSearchChange('khong-co-khoa-nao-ten-nay');
     });
 
-    expect(result.current[0].matchLabel).toBe('0 / 0');
+    expect(result.current[0].matchLabel).toBe('Không tìm thấy kết quả');
   });
 
   it('chọn một nút thì mở mọi nút cha của nó', () => {

@@ -75,7 +75,9 @@ export interface FurnitureCategoryChipRowProps {
 
 export function FurnitureCategoryChipRow({ chips }: FurnitureCategoryChipRowProps): ReactNode {
   return (
-    <div role="group" aria-label={CATEGORY_GROUP_LABEL} className="flex gap-2 overflow-x-auto pb-1">
+    // Xuống dòng, không cuộn ngang: hàng cuộn ngang không có dấu hiệu nào nói còn
+    // chip ở mép phải, và trong cột flex có `overflow` nó còn bị co cắt đôi (BUG-475).
+    <div role="group" aria-label={CATEGORY_GROUP_LABEL} className="flex flex-wrap gap-2">
       {chips.map((chip) => (
         <button
           key={chip.id}

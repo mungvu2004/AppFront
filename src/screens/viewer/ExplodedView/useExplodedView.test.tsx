@@ -7,12 +7,14 @@
 import { act, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
+import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { renderWithProviders } from '@/lib/testing/render';
 import {
   createViewerShellFixtureGateway,
   ViewerShell,
   VIEWER_FIXTURE_SPATIAL,
 } from '@/screens/viewer/ViewerShell';
+import { VIEWER_FIXTURE_GRAPH } from '@/screens/viewer/ViewerShell/viewerShellFixture';
 import type { ViewerSceneStatus } from '@/screens/viewer/Viewer3D/viewer3dTypes';
 
 import { createExplodedViewFixtureGateway } from './explodedViewGateway';
@@ -85,5 +87,57 @@ describe('useExplodedView — thanh trạng thái không nói "đã dựng xong"
     });
 
     expect(screen.queryAllByText('Đang dựng mô hình…')).toHaveLength(0);
+  });
+});
+
+describe('useExplodedView — đủ tầng nhưng chưa có mô hình thì nói ra (BUG-382)', () => {
+  it('hai tầng trở lên không một bức tường: câu giải thích, không thanh mức sẵn', async () => {
+    const noModel = normalizeSpatial({ ...VIEWER_FIXTURE_GRAPH, walls: [], rooms: [], openings: [] });
+
+    renderWithProviders(
+      <Harness
+        gateway={createExplodedViewFixtureGateway(noModel)}
+        mountScene={sceneSpy().mount}
+        projectId="P-1"
+        shellGateway={createViewerShellFixtureGateway(noModel)}
+        spatial={noModel}
+      />,
+    );
+
+    expect(await screen.findByText('Mô hình 3D sẽ xuất hiện sau khi bạn duyệt lớp tường.')).toBeInTheDocument();
+    expect(screen.queryByRole('radiogroup', { name: 'Mức tách sẵn' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.')).not.toBeInTheDocument();
+  });
+});
+
+describe('useExplodedView — rỗng thì thanh "Độ tách" của vỏ bị vô hiệu (BUG-389)', () => {
+  it('chưa có mô hình: thanh tắt; có mô hình: thanh bật', async () => {
+    const noModel = normalizeSpatial({ ...VIEWER_FIXTURE_GRAPH, walls: [], rooms: [], openings: [] });
+    const { unmount } = renderWithProviders(
+      <Harness
+        gateway={createExplodedViewFixtureGateway(noModel)}
+        mountScene={sceneSpy().mount}
+        projectId="P-1"
+        shellGateway={createViewerShellFixtureGateway(noModel)}
+        spatial={noModel}
+      />,
+    );
+
+    await screen.findByText('Mô hình 3D sẽ xuất hiện sau khi bạn duyệt lớp tường.');
+    expect(screen.getByRole('slider', { name: 'Độ tách' })).toBeDisabled();
+    unmount();
+
+    renderWithProviders(
+      <Harness
+        gateway={createExplodedViewFixtureGateway()}
+        mountScene={sceneSpy().mount}
+        projectId="P-1"
+        shellGateway={createViewerShellFixtureGateway()}
+        spatial={VIEWER_FIXTURE_SPATIAL}
+      />,
+    );
+
+    await screen.findAllByText('Mô hình đã dựng xong.');
+    expect(screen.getByRole('slider', { name: 'Độ tách' })).toBeEnabled();
   });
 });

@@ -53,12 +53,13 @@ export function ExportPanelPreflight({ rows, onFollowFix }: ExportPanelPreflight
                   event.preventDefault();
                   onFollowFix(row.id);
                 }}
+                // Vùng chạm 44 px dưới `sm`, 24 px từ `sm` (WCAG 2.5.8) — cùng khuôn Breadcrumb (BUG-442).
                 className={cn(
-                  'shrink-0 whitespace-nowrap font-medium text-accent no-underline hover:underline',
+                  'inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center whitespace-nowrap font-medium text-accent no-underline hover:underline sm:min-h-6 sm:min-w-0',
                   FOCUS_RING,
                 )}
               >
-                Sửa
+                Sửa<span className="sr-only">: {row.label}</span>
               </a>
             )}
           </li>

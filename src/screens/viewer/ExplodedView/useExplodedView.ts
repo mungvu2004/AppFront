@@ -64,7 +64,7 @@ import type { ReactNode } from 'react';
 import { useMutation } from '@tanstack/react-query';
 
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
-import { toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
+import { hasBuildableParts, toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
 import { compareNearly } from '@/domain/units/compare';
 import { millimetres } from '@/domain/units/types';
 import { useShortcut, useShortcutListener } from '@/hooks/useShortcut';
@@ -90,6 +90,7 @@ import { BUILDING_MESSAGE } from '@/screens/viewer/ViewerShell/useViewerShell';
 import {
   MAX_SEPARATION,
   MIN_SEPARATION,
+  storeyInlineName,
 } from '@/screens/viewer/ViewerShell/viewerStoreyStack';
 import type {
   ViewerSceneFrame,
@@ -139,6 +140,12 @@ const EXPLODE_CYCLE_DESCRIPTION = 'Tách các tầng ra rồi hợp lại';
 /** Ít hơn số này thì không có gì để tách — một tầng không tách khỏi chính nó. */
 const MIN_EXPLODABLE_STOREYS = 2;
 
+/** Khoá `explodedView.notice.empty`. */
+const TOO_FEW_STOREYS_MESSAGE = 'Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.';
+
+/** Khoá `explodedView.notice.noModel` — cùng câu rỗng của `Viewer3D.tsx`. */
+const NO_MODEL_MESSAGE = 'Mô hình 3D sẽ xuất hiện sau khi bạn duyệt lớp tường.';
+
 /** Khoá `explodedView.logic.liveSeparation`. */
 const LIVE_SEPARATION_PREFIX = 'Đã tách ';
 
@@ -186,6 +193,8 @@ const IDLE_STATUS: ViewerSceneStatus = Object.freeze({
 export interface ExplodedViewRuntime {
   /** Bảy trạng thái đã tính từ vỏ, cảnh và dữ liệu. `forceState` vẫn thắng nó. */
   readonly state: ExplodedViewState;
+  /** Câu của trạng thái `empty`: thiếu tầng hay thiếu mô hình. */
+  readonly emptyMessage: string;
   /** Tầng của đồ thị, kèm cờ người duyệt. */
   readonly floors: readonly ExplodedFloorProbe[];
   /** Trục của đồ thị, đã đặt lên khung nhìn. */
@@ -260,6 +269,7 @@ function floorsOf(
     return {
       id: probe.id,
       name: shell?.name ?? probe.name,
+      inlineName: shell?.inlineName ?? storeyInlineName(probe.name),
       // Chuỗi cao độ của VỎ, không một định dạng thứ hai: `useViewerShell` đã gọi
       // `formatLength(…, { unit: 'm' })` và hai bản sẽ lệch nhau vào đúng lúc
       // không ai nhìn.
@@ -284,7 +294,6 @@ function ticksOf(
   return floors.map((floor) => ({
     storeyId: floor.id,
     fraction: floor.railFraction,
-    label: floor.elevationLabel,
   }));
 }
 
@@ -388,6 +397,7 @@ export function explodedViewPropsOf(
 
   return {
     state,
+    emptyMessage: runtime.emptyMessage,
     separation,
     activePresetId: activePresetIdOf(separation),
     presets: EXPLODE_PRESETS,
@@ -846,6 +856,11 @@ export function useExplodedView(options: UseExplodedViewScreenOptions): ViewerSh
     if (data.storeys.length < MIN_EXPLODABLE_STOREYS) {
       return 'empty';
     }
+    // Đủ tầng mà không tầng nào có gì để dựng (chưa duyệt lớp tường): khung trống
+    // không một lời là lỗi BUG-382 — nói ra như `Viewer3D` nói.
+    if (!levels.some(hasBuildableParts)) {
+      return 'empty';
+    }
     if (shell.state === 'partial' || readyCount < levels.length) {
       return 'partial';
     }
@@ -859,14 +874,18 @@ export function useExplodedView(options: UseExplodedViewScreenOptions): ViewerSh
     sceneStatus.phase,
     data.storeys.length,
     readyCount,
-    levels.length,
+    levels,
   ]);
 
   /* ---- Phép dựng props, chốt lại mỗi lượt vẽ ---------------------------- */
 
+  const emptyMessage =
+    data.storeys.length < MIN_EXPLODABLE_STOREYS ? TOO_FEW_STOREYS_MESSAGE : NO_MODEL_MESSAGE;
+
   const runtime = useMemo(
     (): ExplodedViewRuntime => ({
       state,
+      emptyMessage,
       floors: probes,
       axes,
       cores,
@@ -879,6 +898,7 @@ export function useExplodedView(options: UseExplodedViewScreenOptions): ViewerSh
     }),
     [
       state,
+      emptyMessage,
       probes,
       axes,
       cores,
@@ -914,6 +934,7 @@ export function useExplodedView(options: UseExplodedViewScreenOptions): ViewerSh
   return {
     ...shell,
     state,
+    separationDisabled: state === 'empty',
     status: state === 'loading' ? { ...shell.status, liveMessage: BUILDING_MESSAGE } : shell.status,
   };
 }

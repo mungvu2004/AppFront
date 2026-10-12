@@ -41,7 +41,7 @@ export interface ProjectSettingsContainerProps {
   readonly projectId: string;
   readonly roles?: readonly ProjectRole[];
   /** Toast của A8. Tiêm vào bởi nơi đã dựng `Toast.Provider`. */
-  readonly onToast?: (toast: { readonly message: string; readonly onUndo?: () => void }) => void;
+  readonly onToast?: (toast: { readonly message: string; readonly onUndo?: () => void; readonly state?: 'attention' | 'violation' }) => void;
   readonly onProjectDeleted?: (notice: string) => void;
   /** Mã người dùng đang đăng nhập; có nó thì nhận ra được việc tự gỡ mình khỏi dự án. */
   readonly currentUserId?: string;

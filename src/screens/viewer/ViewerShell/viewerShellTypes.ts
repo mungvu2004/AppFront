@@ -135,6 +135,8 @@ export interface ViewerStoreyViewModel {
   readonly name: string;
   /** Chữ ngắn trên nút ray tầng, rút từ `name` — KHÔNG phải mã máy (`storeyShortLabel`). */
   readonly code: string;
+  /** Tên đặt giữa câu, ví dụ "tầng trệt" trong "Ẩn tầng trệt" (`storeyInlineName`). */
+  readonly inlineName: string;
   /** Cao độ ĐÃ ĐỊNH DẠNG, ví dụ "+3,20 m" (A15). */
   readonly elevationLabel: string;
   /** Người dùng đang chọn tầng này (bấm, hoặc giữ Shift chọn nhiều). */
@@ -310,6 +312,13 @@ export interface ViewerPointPx {
  */
 export interface ViewerShellProps {
   readonly state: ViewerScreenState;
+  /**
+   * Đồ thị có hình để dựng (`ViewerShellData.hasModel`). `false` thì vỏ không vẽ
+   * các điều khiển khung nhìn (ViewCube, bản đồ nhỏ, thu phóng, chú giải, thang
+   * cao độ) — chúng không điều khiển được gì và từng đè lên câu trạng thái rỗng
+   * cùng nút đi tiếp của màn chủ (BUG-486). Vắng thì coi như có.
+   */
+  readonly hasModel?: boolean;
 
   /* Thanh trên. */
   readonly breadcrumbs: readonly ViewerBreadcrumbItem[];
@@ -320,6 +329,8 @@ export interface ViewerShellProps {
   readonly onPresetChange: (id: ViewerPresetId) => void;
 
   /* Ray công cụ. */
+  /** Hướng THẬT của hai ray: dưới `md` chúng nằm ngang (khai cho `aria-orientation`). */
+  readonly railOrientation?: 'horizontal' | 'vertical';
   readonly tools: readonly ViewerToolViewModel[];
   readonly activeToolId: ViewerToolId;
   readonly onToolChange: (id: ViewerToolId) => void;
@@ -331,6 +342,8 @@ export interface ViewerShellProps {
   readonly separation: number;
   readonly onSeparationChange: (value: number) => void;
   readonly separationLabel: string;
+  /** Màn không có gì để tách (vd tách tầng rỗng): thanh "Độ tách" tắt (BUG-389). */
+  readonly separationDisabled?: boolean;
 
   /* Khung nhìn. */
   readonly frame: ViewerSceneFrame;

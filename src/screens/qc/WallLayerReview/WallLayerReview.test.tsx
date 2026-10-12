@@ -38,7 +38,7 @@
  * (nới cho cả bảy là tắt phép kiểm chứ không phải vượt qua nó, R-70).
  */
 
-import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -63,6 +63,8 @@ import { useStore } from '@/store';
 // Nạp tĩnh, ở pha collect, hộp thoại mà `FloorLayerSaveBanner` `lazy()`: không thì bài xung đột
 // biên dịch nó BÊN TRONG `findByRole` của mình, và dưới tải lượt ấy dài hơn trần chờ (QA-01c nợ #12).
 import './FloorLayerSaveConfirm';
+import type { WallLayerViewProps } from './types';
+import { WallLayerInspector } from './WallLayerInspector';
 import { WallLayerReviewContainer } from './WallLayerReview.container';
 import { ProvisionalScale, scenarioArgsFor } from './WallLayerReview.stories';
 import {
@@ -268,7 +270,8 @@ describe('[NGHIEM-2] chú giải độ dày', () => {
     {
       empty: { kind: 'text', name: 'Chưa có dữ liệu tường' },
       loading: { kind: 'label', name: 'Đang tải chú giải' },
-      error: { kind: 'text', name: 'Không tải được chú giải' },
+      /* Đọc lớp hỏng: cả màn là trạng thái lỗi một lối ra, không dựng chú giải hỏng (BUG-326). */
+      error: { kind: 'absent', name: 'Không tải được chú giải' },
       partial: { kind: 'group', name: 'Lọc theo độ dày tường' },
       success: { kind: 'group', name: 'Lọc theo độ dày tường' },
       /* Hai trạng thái ánh xạ CHỆCH: chú giải ĐẦY ĐỦ, không phải chữ "T" thu gọn. */
@@ -288,6 +291,13 @@ describe('[NGHIEM-2] chú giải độ dày', () => {
       return;
     }
 
+    if (expectation?.kind === 'absent') {
+      expect(await screen.findByRole('button', { name: 'Thử lại' })).toBeInTheDocument();
+      expect(screen.queryByText(expectation.name)).toBeNull();
+
+      return;
+    }
+
     if (expectation?.kind === 'label') {
       expect(container.querySelector(`[aria-label="${expectation.name}"]`)).not.toBeNull();
 
@@ -295,6 +305,16 @@ describe('[NGHIEM-2] chú giải độ dày', () => {
     }
 
     expect(await screen.findByText(expectation?.name ?? '')).toBeInTheDocument();
+  });
+
+  it('[BUG-416] tường ngoài ba băng (175/235/90 mm của bộ mẫu) có mục "Khác" ở cả partial lẫn success', async () => {
+    for (const state of ['partial', 'success'] as const) {
+      const { unmount } = renderState(state);
+      const legend = await screen.findByRole('group', { name: 'Lọc theo độ dày tường' });
+
+      expect(within(legend).getByText('Khác')).toBeInTheDocument();
+      unmount();
+    }
   });
 
   it('lớp Tường TẮT là điều kiện duy nhất chú giải được ẩn', async () => {
@@ -468,6 +488,34 @@ describe('nhãn mã tường', () => {
     const backendId = `W-01J${'A'.repeat(22)}`;
 
     expect(wallDisplayCode(backendId)).toBe(backendId);
+  });
+
+  it('nhãn panel Đoạn tường viết hoa chữ đầu (A6, BUG-339)', () => {
+    const panel = {
+      inspector: {
+        id: WALL_LAYER_FIXTURE_WALLS[0]?.id,
+        codeLabel: '#W-001',
+        thicknessMm: 220,
+        lengthLabel: '4.250,00 mm',
+        heightLabel: '3,00 m',
+        confidence: 0.71,
+        kindLabel: 'Tường gạch',
+        advanced: { elevationOffsetLabel: '0', startPointLabel: '0', endPointLabel: '0' },
+      },
+      thicknessChoices: THICKNESS_BANDS,
+      isViewerRole: false,
+      viewerRoleNotice: '',
+      onApprove: vi.fn(),
+      onSkip: vi.fn(),
+      onChangeThickness: vi.fn(),
+      rows: [],
+    } as unknown as WallLayerViewProps;
+
+    renderWithProviders(<WallLayerInspector panel={panel} />);
+
+    for (const label of ['Chiều dài', 'Chiều cao', 'Độ tin cậy', 'Vật liệu']) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
   });
 });
 

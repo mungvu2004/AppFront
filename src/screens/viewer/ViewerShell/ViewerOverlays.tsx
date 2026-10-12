@@ -89,12 +89,17 @@ export interface ViewerElevationScaleProps {
  * `tabular-nums` là chữ đều theo nghĩa đặc tả muốn: mọi chữ số cùng bề rộng,
  * nên bốn cao độ xếp thẳng cột thay vì so le theo bề rộng của số 1.
  * Tầng cao nhất ở trên, nên thứ tự vẽ là đảo ngược của thứ tự dữ liệu.
+ *
+ * Chữ nằm trên NỀN ĐỆM `bg-surface-90`, không trần trên canvas: canvas đổi màu
+ * theo mô hình (tường tối, mặt đất nâu), và chữ màu cố định trên nền đổi màu thì
+ * có lúc gần như biến mất (BUG-478). Trên nền đệm, chữ phụ đạt ≥ 4,5:1 ở cả hai
+ * chủ đề (`themeContrast.test.ts`).
  */
 export function ViewerElevationScale({ storeys }: ViewerElevationScaleProps) {
   return (
     <ol
       aria-label="Cao độ tầng"
-      className="flex flex-col-reverse justify-between gap-2 py-1 text-[10px] tabular-nums text-text-muted"
+      className="flex flex-col-reverse justify-between gap-2 rounded-[6px] bg-bg-surface-90 px-1.5 py-1 text-[10px] tabular-nums text-text-secondary"
     >
       {storeys.map((storey) => (
         <li className="flex items-center gap-1 whitespace-nowrap" key={storey.id}>

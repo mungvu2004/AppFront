@@ -66,7 +66,7 @@ export function ProcessingLogPanel({
   }, [visibleLines, isAutoScrollLocked]);
 
   return (
-    <div aria-label={PANEL_LABEL} className="flex flex-col gap-2">
+    <div aria-label={PANEL_LABEL} role="region" className="flex flex-col gap-2">
       <div className="flex items-center justify-end gap-2">
         <IconButton
           aria-label={LOCK_AUTO_SCROLL_LABEL}

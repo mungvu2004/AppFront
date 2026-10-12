@@ -84,13 +84,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { Progress } from '@/api/schemas';
+import {
+  PROJECT_NOT_FOUND_DESCRIPTION,
+  PROJECT_NOT_FOUND_TITLE,
+} from '@/components/feedback/ProjectSpatialGate';
 import { useNotifications } from '@/hooks/useNotifications';
+import { isProjectNotFound } from '@/hooks/useProjectSpatial';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { can } from '@/lib/auth/permissions';
 import { formatClockTime, formatDuration } from '@/lib/format/datetime';
 import { formatArea } from '@/lib/format/measure';
 import { formatNumber, formatPercent } from '@/lib/format/number';
-import { CONFIDENCE_SUGGESTED_THRESHOLD } from '@/lib/format/semantic';
+import type { HttpError } from '@/lib/http/types';
 import { MILLISECONDS_PER_SECOND } from '@/lib/motion/tokens';
 import type { NotificationBus, NotificationInput } from '@/lib/mutations/notificationBus';
 import { cachedProjectName } from '@/lib/query/cachedProjectName';
@@ -146,6 +151,9 @@ const COPY = {
   previewAltEmpty: 'Chưa có bản vẽ nào để xem trước.',
   noFloorRunning: 'Chưa có tầng nào đang được xử lý.',
   backgroundStartedTitle: 'Sẽ báo cho bạn khi xử lý xong',
+  logCopied: 'Đã chép nhật ký',
+  logCopyFailed: 'Không chép được nhật ký',
+  logCopyFailedDescription: 'Trình duyệt chặn khay nhớ tạm. Chọn các dòng trong nhật ký rồi chép bằng tay.',
   backgroundStartedDescription:
     'Xử lý vẫn chạy khi bạn rời màn này. Đóng thẻ trình duyệt thì không báo được nữa.',
   backgroundDoneDescription: 'Mở lại màn xử lý để xem kết quả.',
@@ -162,7 +170,7 @@ const UNIT = {
   floor: 'tầng',
   wall: 'tường',
   object: 'đối tượng',
-  dimensionChain: 'Chuỗi kích thước',
+  dimensionChain: 'chuỗi kích thước',
   room: 'phòng',
 } as const;
 
@@ -173,9 +181,12 @@ const remainingSentence = (duration: string): string => `Còn khoảng ${duratio
 const doneFloorsSentence = (done: string, total: string): string =>
   `Đã xong ${done}/${total} ${UNIT.floor}`;
 
-/** Ví dụ `"Đã xong 2/4 tầng · Còn lại khoảng 4 phút 20 giây"`. */
-const overallSentence = (doneClause: string, duration: string | null): string =>
-  duration === null ? doneClause : `${doneClause} · Còn lại khoảng ${duration}`;
+/** Ví dụ `"Còn lại khoảng 4 phút 20 giây"` — ngoài vùng `role=status`: đổi mỗi giây (R1-03). */
+const overallRemainingSentence = (duration: string): string => `Còn lại khoảng ${duration}`;
+
+/** Một cách đếm "đối tượng" cho cả chip tầng lẫn báo cáo tổng kết: tường + ô mở + phòng (BUG-353). */
+const objectTotalOf = (counts: Pick<ProcessingExtractionSummary, 'openingCount' | 'roomCount' | 'wallCount'>): number =>
+  counts.wallCount + counts.openingCount + counts.roomCount;
 
 /** Không lượt nào: "Đã xong 0/0 tầng" cạnh một thẻ ghi 4 tầng là câu sai (BUG-165). */
 const NO_RUN_SENTENCE = 'Chưa có lượt xử lý nào đang chạy.';
@@ -183,16 +194,16 @@ const NO_RUN_SENTENCE = 'Chưa có lượt xử lý nào đang chạy.';
 /** Ví dụ `"Đang chờ hàng đợi — vị trí 2"`. */
 const queueSentence = (position: string): string => `Đang chờ hàng đợi — vị trí ${position}`;
 
-/** Câu bắt buộc nói rõ xử lý VẪN TIẾP TỤC khi một tầng lỗi. */
-const partialSentence = (failedNames: string): string =>
-  `${failedNames} gặp lỗi. Các tầng còn lại vẫn đang được xử lý.`;
+/** Câu bắt buộc nói rõ xử lý VẪN TIẾP TỤC khi một tầng lỗi — chỉ khi còn tầng chưa cuối (BUG-553). */
+const partialSentence = (failedNames: string, othersRunning: boolean): string =>
+  othersRunning ? `${failedNames} gặp lỗi. Các tầng còn lại vẫn đang được xử lý.` : `${failedNames} gặp lỗi.`;
 
-/** Ví dụ `"Có 9 mức độ tin cậy dưới 0,70 cần bạn xem lại."`. */
+/** Ví dụ `"Có 9 đối tượng có độ tin cậy dưới 0,75 cần bạn xem lại."` — ngưỡng của dự án (BUG-354). */
 const lowConfidenceSentence = (count: string, threshold: string): string =>
-  `Có ${count} mức độ tin cậy dưới ${threshold} cần bạn xem lại.`;
+  `Có ${count} ${UNIT.object} có độ tin cậy dưới ${threshold} cần bạn xem lại.`;
 
 const noLowConfidenceSentence = (threshold: string): string =>
-  `Không có mức độ tin cậy nào dưới ${threshold}.`;
+  `Không có ${UNIT.object} nào có độ tin cậy dưới ${threshold}.`;
 
 /* -------------------------------------------------------------------------- */
 /* Hằng lấy từ thư viện, không viết tay (R-71).                                 */
@@ -202,7 +213,7 @@ const noLowConfidenceSentence = (threshold: string): string =>
 const STAGE_LABEL_BY_ID = new Map(getPipelineStages().map((stage) => [stage.id, stage.label]));
 
 /** `< 1024px` — cùng mốc `InputQualityGate`, `FloorUploadScreen` và `ProjectSettings`. */
-const NARROW_VIEWPORT_QUERY = '(max-width: 1023px)';
+const NARROW_VIEWPORT_QUERY = '(width < 1024px)';
 
 const DEFAULT_ROLES: readonly ProjectRole[] = ['engineer'];
 
@@ -219,6 +230,8 @@ const watchIdOf = (projectId: string, uploadId: string): string => `${projectId}
  * không bao giờ gộp, và không câu nào bị viết lại thành câu của chuyện khác.
  */
 const BACKGROUND_STARTED_TYPE = 'processing-background-started';
+/** Phản hồi của nút "Sao chép nhật ký" (SCR-12): một loại riêng, lượt chép sau thay lượt trước. */
+const LOG_COPY_TYPE = 'processing-log-copy';
 const backgroundSettledType = (watchId: string): string => `processing-background-done:${watchId}`;
 
 /** Nhịp cuối theo cách máy chủ báo — chỉ hai giá trị này kết thúc một lượt. */
@@ -334,7 +347,6 @@ interface FloorProgressRecord {
   readonly queuePosition?: number;
   readonly stepDetails?: readonly ProcessingRawStepProgress[];
   readonly detectedGeometryPaths?: readonly string[];
-  readonly extraction?: ProcessingExtractionSummary;
 }
 
 function emptyRecord(upload: ProcessingFloorUpload): FloorProgressRecord {
@@ -409,16 +421,20 @@ function applySnapshot(
 
   // Một nhịp đọc được xoá lỗi đọc tạm (503, mất mạng); chỉ 404/403 là vĩnh viễn.
   const { failure, ...rest } = record;
+  // Không còn gì để chờ thì không có "thời gian còn lại": 0 giây thành "Còn lại khoảng 0 giây" (BUG-352).
+  const remainingSeconds = estimateRemainingSeconds({ stages, highestProgressReached: totalPercent });
 
   return {
     ...rest,
     ...(failure?.isTerminal === true ? { failure } : {}),
     stages,
     totalPercent,
-    remainingSeconds: estimateRemainingSeconds({ stages, highestProgressReached: totalPercent }),
+    remainingSeconds: remainingSeconds === 0 ? null : remainingSeconds,
     progress,
     source,
-    logLines: [...record.logLines, logLine],
+    // Lượt đọc mồi và nhịp SSE đầu cùng báo một mốc: mỗi mốc một dòng (BUG-360).
+    logLines:
+      record.logLines.at(-1)?.text === logLine.text ? record.logLines : [...record.logLines, logLine],
   };
 }
 
@@ -446,6 +462,13 @@ function runStatusOf(record: FloorProgressRecord): ProcessingStageStatus {
 /** Trạng thái chip: lượt theo máy chủ, cộng lỗi đọc đang còn của riêng tầng này. */
 const floorStatusOf = (record: FloorProgressRecord): ProcessingStageStatus =>
   record.failure !== undefined && !isReloadProgress(record.progress) ? 'failed' : runStatusOf(record);
+
+/** Lỗi đọc TẠM (503, mất mạng) còn treo trên tầng — 404/403 là upload đã mất, không phải đọc hỏng. */
+const isPendingReadFailure = (record: FloorProgressRecord | undefined): boolean =>
+  record?.failure !== undefined && record.failure.isTerminal !== true;
+
+/** Lượt đọc bị TanStack tạm dừng vì mất mạng: đi qua bảng lỗi chung như một lỗi mạng thật. */
+const OFFLINE_READ_ERROR: HttpError = { kind: 'network', raw: 'offline', requestId: '', retryable: true };
 
 /**
  * Lượt đã cuối theo `progress.status` và sáu bước — cổng S-11 và chọn tầng đang
@@ -538,8 +561,17 @@ export interface ProcessingScreenFailedStep {
   readonly failureCode?: string;
   /** Tên tầng theo N7. */
   readonly failureFloorName: string;
+  /** Mọi tầng của màn và trạng thái chip của chúng — dải "Tiến độ theo tầng" của S-11 (BUG-545). */
+  readonly failureFloors: readonly ProcessingFailureFloor[];
   /** "Thử lại xong" ở màn S-11 — nạp lại tiến độ, cùng hành động với nút Thử lại. */
   readonly onResolved: () => void;
+}
+
+/** Một tầng trong dải tiến độ của S-11. */
+export interface ProcessingFailureFloor {
+  readonly floorId: string;
+  readonly floorName: string;
+  readonly status: ProcessingStageStatus;
 }
 
 /**
@@ -556,9 +588,22 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   const { projectId } = options;
   const roles = options.roles ?? DEFAULT_ROLES;
   const queryClient = useQueryClient();
-  const projectName = cachedProjectName(queryClient, projectId);
-
   const gateway = useResolvedGateway(options.gateway);
+
+  // Mở thẳng đường dẫn: bộ đệm chưa có #24 hay thẻ N1 nào nêu tên, nên đọc #24 một lần
+  // dưới chính khoá của nó — breadcrumb nêu tên dự án ở mọi lối vào (BUG-165).
+  const projectName = cachedProjectName(queryClient, projectId);
+  const projectQuery = useQuery({
+    queryKey: queryKeys.project.detail(projectId),
+    queryFn: async ({ signal }) => {
+      const result = await gateway.readProject({ projectId, signal });
+      if (!result.ok) throw result.error;
+      return result.data;
+    },
+    enabled: projectName === null,
+  });
+  // Đọc `data` ở đây để lượt #24 về vẫn vẽ lại màn: v5 chỉ báo thay đổi của trường đã đọc.
+  const knownProjectName = projectName ?? projectQuery.data?.name ?? null;
   const { publish } = useNotifications(options.notifications);
 
   // Đăng ký đang mở, khoá theo `uploadId`. `onRunInBackground` rút mục ra khỏi
@@ -618,12 +663,11 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
           queryKeys.progress.byFloor(upload.floorId),
         );
 
-        const [progress, queuePosition, stepDetails, geometry, extraction] = await Promise.all([
+        const [progress, queuePosition, stepDetails, geometry] = await Promise.all([
           gateway.readProgressOnce({ projectId, uploadId: upload.uploadId }),
           gateway.readQueuePosition({ projectId, uploadId: upload.uploadId }),
           gateway.readStepDetails({ projectId, uploadId: upload.uploadId }),
           gateway.readDetectedGeometry({ projectId, floorId: upload.floorId }),
-          gateway.readExtractionSummary({ projectId, floorId: upload.floorId }),
         ]);
 
         if (!progress.ok) {
@@ -652,7 +696,6 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
           ...(queuePosition.supported ? { queuePosition: queuePosition.value } : {}),
           ...(stepDetails.supported ? { stepDetails: stepDetails.value } : {}),
           ...(geometry.supported ? { detectedGeometryPaths: geometry.value } : {}),
-          ...(extraction.supported ? { extraction: extraction.value } : {}),
         };
       },
     })),
@@ -701,26 +744,57 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   const isListLoading = readsLatestUploads && latestUploadsQuery.isPending;
   const hasListFailed = readsLatestUploads && latestUploadsQuery.isError;
   const isLoading = isListLoading || floorQueries.some((query) => query.isPending);
+  // Mất mạng lúc mở: TanStack (`networkMode: 'online'`) TẠM DỪNG lượt đọc chứ không báo lỗi,
+  // nên màn đứng ở khung xương mãi (BUG-551). Có mạng lại thì lượt đọc tự chạy tiếp.
+  const isReadPaused = [...(readsLatestUploads ? [latestUploadsQuery] : []), ...floorQueries].some(
+    (query) => query.isPending && query.fetchStatus === 'paused',
+  );
+  // Lượt mồi hỏng thì tầng chuyển sang hỏi định kỳ, và lượt hỏi ghi bản ghi vào đệm — query thành
+  // `success` dù chưa đọc được gì. Lỗi đọc tạm còn treo trên bản ghi vẫn là đọc hỏng, tới khi một
+  // lượt đọc được xoá nó (BUG-550).
   const hasEveryReadFailed =
-    hasListFailed || (floorQueries.length > 0 && floorQueries.every((query) => query.isError));
+    hasListFailed ||
+    (floorQueries.length > 0 &&
+      floorQueries.every((query, index) => query.isError || isPendingReadFailure(records[index])));
   const firstReadError = hasListFailed
     ? latestUploadsQuery.error
-    : floorQueries.find((query) => query.isError)?.error;
+    : (floorQueries.find((query) => query.isError)?.error ?? (isReadPaused ? OFFLINE_READ_ERROR : undefined));
 
   const canEdit = can('upload', 'floor', { roles });
 
   const floorStatuses = records.map((record) => floorStatusOf(record));
-  const failedIndexes = floorStatuses
-    .map((status, index) => (status === 'failed' ? index : -1))
+  // Tầng mà MÁY CHỦ báo hỏng — lỗi đọc (503 một lượt) không phải "tầng gặp lỗi" (BUG-553).
+  const failedIndexes = records
+    .map((record, index) => (runStatusOf(record) === 'failed' ? index : -1))
     .filter((index) => index >= 0);
   const doneCount = floorStatuses.filter((status) => status === 'done').length;
+
+  // Tổng kết đọc SAU khi tầng xong (BUG-285): lớp AI chỉ được ghi vào tài liệu tầng ở bước
+  // cuối, nên đọc lúc mồi sẽ đếm lớp cũ — và một lượt xong qua SSE không đọc mồi lại.
+  const extractionQueries = useQueries({
+    queries: floorUploads.map((upload, index) => ({
+      queryKey: [...queryKeys.progress.byFloor(upload.floorId), 'extraction', upload.uploadId] as const,
+      queryFn: async (): Promise<ProcessingExtractionSummary | null> => {
+        const extraction = await gateway.readExtractionSummary({ projectId, floorId: upload.floorId });
+        return extraction.supported ? extraction.value : null;
+      },
+      enabled: floorStatuses[index] === 'done',
+    })),
+  });
+  const extractions = extractionQueries.map((query) => query.data ?? undefined);
   // Lỗi đọc tạm không đẩy tầng đang xem sang tầng khác (không mở luồng thứ hai);
   // upload đã mất (404/403) thì nhường chỗ.
   const activeIndex = records.findIndex(
     (record) => record.failure?.isTerminal !== true && runStatusOf(record) === 'running',
   );
 
+  // N7 hoặc #24 trả 404 `project`: dự án không có, không phải lỗi đọc tạm (BUG-312).
+  const isProjectMissing =
+    isProjectNotFound(latestUploadsQuery.error) || isProjectNotFound(projectQuery.error);
+
   const state = useMemo<ProcessingScreenState>(() => {
+    if (isProjectMissing) return 'error';
+    if (isReadPaused) return 'error';
     if (isLoading) return 'loading';
     if (hasEveryReadFailed) return 'error';
     if (!canEdit) return 'forbidden';
@@ -730,7 +804,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     if (isCompact) return 'collapsed';
     if (doneCount < records.length) return 'partial';
     return 'success';
-  }, [canEdit, doneCount, hasEveryReadFailed, isCompact, isLoading, records.length]);
+  }, [canEdit, doneCount, hasEveryReadFailed, isCompact, isLoading, isProjectMissing, isReadPaused, records.length]);
 
   /* ---------------------------------------------------------------------- */
   /* Hành động.                                                              */
@@ -768,8 +842,14 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   );
 
   const onCopyLog = useCallback(() => {
-    void gateway.copyText(logLines.map((line) => `${line.timeLabel} ${line.text}`).join('\n'));
-  }, [gateway, logLines]);
+    void gateway.copyText(logLines.map((line) => `${line.timeLabel} ${line.text}`).join('\n')).then((copied) => {
+      publish(
+        copied
+          ? { type: LOG_COPY_TYPE, title: COPY.logCopied, description: '' }
+          : { type: LOG_COPY_TYPE, title: COPY.logCopyFailed, description: COPY.logCopyFailedDescription },
+      );
+    });
+  }, [gateway, logLines, publish]);
 
   const onRetry = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.progress.latestUploads.root() });
@@ -795,6 +875,10 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   const onUploadDrawings = useCallback(() => {
     navigate(ROUTES.project.upload(projectId));
   }, [navigate, projectId]);
+
+  const onBackToProjects = useCallback(() => {
+    navigate(ROUTES.dashboard);
+  }, [navigate]);
 
   const onRequestCancel = useCallback(() => {
     if (!canCancel) {
@@ -826,16 +910,13 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   const onRunInBackground = useCallback(() => {
     const uploads = uploadsRef.current;
 
-    const watches = uploads.flatMap((upload, index): readonly BackgroundWatchEntry[] => {
+    const watches = uploads.flatMap((upload): readonly BackgroundWatchEntry[] => {
       const id = watchIdOf(projectId, upload.uploadId);
       const subscription = subscriptionsRef.current.get(upload.uploadId);
 
-      // Đã trong sổ (bấm lần hai), tầng còn `pending`, hoặc không có đăng ký nào.
-      if (
-        gateway.backgroundWatches.has(id) ||
-        recordsRef.current[index]?.progress?.status === 'pending' ||
-        subscription === undefined
-      ) {
+      // Đã trong sổ (bấm lần hai) hoặc không có đăng ký nào. Tầng còn `pending` (upload đang
+      // nhận) vẫn giao: nút chỉ hiện khi còn lượt chưa cuối, nên bỏ nó là bấm mà im (BUG-542).
+      if (gateway.backgroundWatches.has(id) || subscription === undefined) {
         return [];
       }
 
@@ -884,39 +965,35 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   /* Viewmodel.                                                              */
   /* ---------------------------------------------------------------------- */
 
+  /**
+   * Sáu bước của TẦNG ĐANG CHẠY (không có thì tầng 1). Danh sách bước là một cây của một lượt
+   * xử lý, và `types.ts` không có chỗ cho sáu bước nhân N tầng — dãy chip tầng ở trên mới là
+   * nơi đọc tiến độ theo tầng; chip mang `aria-current` là chip của đúng tầng này (BUG-543).
+   */
+  const focusIndex = activeIndex >= 0 ? activeIndex : 0;
+  const focusRecord = records[focusIndex];
+
   const floors = useMemo<readonly ProcessingFloorChipViewModel[]>(
     () =>
       floorUploads.map((upload, index) => {
-        const record = records[index];
         const status = floorStatuses[index] ?? 'queued';
-        const objectCount = record?.extraction;
+        const objectCount = extractions[index];
 
         return {
           id: upload.floorId,
           label: upload.floorName,
           status,
           statusLabel: STATUS_LABELS[status],
-          isActive: index === activeIndex,
+          isActive: index === focusIndex,
           ...(objectCount !== undefined
             ? {
-                objectCountLabel: countLabel(
-                  objectCount.wallCount + objectCount.openingCount + objectCount.roomCount,
-                  UNIT.object,
-                ),
+                objectCountLabel: countLabel(objectTotalOf(objectCount), UNIT.object),
               }
             : {}),
         };
       }),
-    [activeIndex, floorStatuses, floorUploads, records],
+    [extractions, floorStatuses, floorUploads, focusIndex],
   );
-
-  /**
-   * Sáu bước của TẦNG ĐANG CHẠY. Danh sách bước là một cây của một lượt xử lý,
-   * và `types.ts` không có chỗ cho sáu bước nhân N tầng — dãy chip tầng ở trên
-   * mới là nơi đọc tiến độ theo tầng.
-   */
-  const focusIndex = activeIndex >= 0 ? activeIndex : 0;
-  const focusRecord = records[focusIndex];
 
   /* ---------------------------------------------------------------------- */
   /* Đăng ký — tầng đang xem nghe SSE, tầng khác hỏi #8, tầng cuối thì không. */
@@ -1172,13 +1249,34 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     };
   }, [floorStatuses, floorUploads, focusIndex, focusRecord]);
 
+  /**
+   * Khối tổng kết hiện ngay khi một tầng xong — kể cả khi chưa đọc được con số (lỗi N16): hai lối
+   * đi tiếp không được phụ thuộc vào số liệu, nếu không màn xong là ngõ cụt (BUG-285).
+   */
   const summary = useMemo<ProcessingSummaryViewModel | undefined>(() => {
-    const parts = records
-      .map((record) => record.extraction)
-      .filter((extraction): extraction is ProcessingExtractionSummary => extraction !== undefined);
+    const doneIndex = floorStatuses.indexOf('done');
+
+    if (doneIndex < 0) {
+      return undefined;
+    }
+
+    const parts = extractions.filter(
+      (extraction): extraction is ProcessingExtractionSummary => extraction !== undefined,
+    );
+    const goTo = (route: (projectId: string, floorId: string) => string) => () => {
+      const upload = uploadsRef.current[doneIndex];
+
+      if (upload !== undefined) {
+        navigate(route(projectId, upload.floorId));
+      }
+    };
+    const actions = {
+      onReviewWalls: goTo(ROUTES.project.walls),
+      onCalibrateScale: goTo(ROUTES.project.scale),
+    };
 
     if (parts.length === 0) {
-      return undefined;
+      return { metricLabels: [], ...actions };
     }
 
     const total = parts.reduce(
@@ -1188,6 +1286,9 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
         dimensionCount: accumulated.dimensionCount + part.dimensionCount,
         roomCount: accumulated.roomCount + part.roomCount,
         areaM2: accumulated.areaM2 + part.areaM2,
+        // Mọi tầng cùng một dự án nên cùng một ngưỡng; một tầng không đọc được cài đặt thì bỏ câu.
+        confidenceThreshold:
+          accumulated.confidenceThreshold === null ? null : part.confidenceThreshold,
         lowConfidenceCount: accumulated.lowConfidenceCount + part.lowConfidenceCount,
       }),
       {
@@ -1196,57 +1297,56 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
         dimensionCount: 0,
         roomCount: 0,
         areaM2: 0,
+        confidenceThreshold: parts[0]?.confidenceThreshold ?? null,
         lowConfidenceCount: 0,
       },
     );
 
-    const threshold = formatNumber(CONFIDENCE_SUGGESTED_THRESHOLD, { fractionDigits: 2 });
+    const threshold =
+      total.confidenceThreshold === null
+        ? null
+        : formatNumber(total.confidenceThreshold, { fractionDigits: 2 });
 
     return {
-      wallCountLabel: countLabel(total.wallCount, UNIT.wall),
-      objectCountLabel: countLabel(total.wallCount + total.openingCount, UNIT.object),
-      dimensionCountLabel: countLabel(total.dimensionCount, UNIT.dimensionChain),
-      roomCountLabel: countLabel(total.roomCount, UNIT.room),
-      areaLabel: formatArea(total.areaM2),
-      lowConfidenceSentence:
-        total.lowConfidenceCount === 0
-          ? noLowConfidenceSentence(threshold)
-          : lowConfidenceSentence(
-              formatNumber(total.lowConfidenceCount, { fractionDigits: 0 }),
-              threshold,
-            ),
-      onReviewWalls: () => {
-        const upload = uploadsRef.current[focusIndex];
-
-        if (upload !== undefined) {
-          navigate(ROUTES.project.walls(projectId, upload.floorId));
-        }
-      },
-      onCalibrateScale: () => {
-        const upload = uploadsRef.current[focusIndex];
-
-        if (upload !== undefined) {
-          navigate(ROUTES.project.scale(projectId, upload.floorId));
-        }
-      },
+      metricLabels: [
+        countLabel(total.wallCount, UNIT.wall),
+        countLabel(objectTotalOf(total), UNIT.object),
+        countLabel(total.dimensionCount, UNIT.dimensionChain),
+        countLabel(total.roomCount, UNIT.room),
+        formatArea(total.areaM2),
+      ],
+      ...(threshold === null
+        ? {}
+        : {
+            lowConfidenceSentence:
+              total.lowConfidenceCount === 0
+                ? noLowConfidenceSentence(threshold)
+                : lowConfidenceSentence(
+                    formatNumber(total.lowConfidenceCount, { fractionDigits: 0 }),
+                    threshold,
+                  ),
+          }),
+      ...actions,
     };
-  }, [focusIndex, navigate, projectId, records]);
+  }, [extractions, floorStatuses, navigate, projectId]);
 
   const overallSummaryLine = useMemo(() => {
     if (records.length === 0) return NO_RUN_SENTENCE;
-    const doneClause = doneFloorsSentence(
+
+    return doneFloorsSentence(
       formatNumber(doneCount, { fractionDigits: 0 }),
       formatNumber(records.length, { fractionDigits: 0 }),
     );
+  }, [doneCount, records.length]);
+
+  const remainingLine = useMemo(() => {
     const slowest = records
       .map((record) => record.remainingSeconds)
       .filter((seconds): seconds is number => seconds !== null);
+    const duration = slowest.length === 0 ? null : durationLabelOf(Math.max(...slowest));
 
-    return overallSentence(
-      doneClause,
-      slowest.length === 0 ? null : durationLabelOf(Math.max(...slowest)),
-    );
-  }, [doneCount, records]);
+    return duration === null ? undefined : overallRemainingSentence(duration);
+  }, [records]);
 
   const queuePosition = records.find((record) => record.queuePosition !== undefined)?.queuePosition;
 
@@ -1257,6 +1357,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
             .map((index) => floorUploads[index]?.floorName ?? '')
             .filter((name) => name.length > 0)
             .join(', '),
+          records.some((record, index) => !failedIndexes.includes(index) && !isRunFinal(record)),
         )
       : undefined;
 
@@ -1269,6 +1370,18 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
       records.find((record) => record.failure !== undefined)?.failure ??
       gateway.describeApiFailure(firstReadError);
 
+    if (isProjectMissing) {
+      return {
+        title: PROJECT_NOT_FOUND_TITLE,
+        message: PROJECT_NOT_FOUND_DESCRIPTION,
+        technicalCode: failure.technicalCode,
+        onRetry,
+        onGoToSupport,
+        isProjectMissing: true,
+        onBackToProjects,
+      };
+    }
+
     return {
       title: failure.title,
       message: failure.sentence,
@@ -1276,7 +1389,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
       onRetry,
       onGoToSupport,
     };
-  }, [firstReadError, gateway, onGoToSupport, onRetry, records, state]);
+  }, [firstReadError, gateway, isProjectMissing, onBackToProjects, onGoToSupport, onRetry, records, state]);
 
   // Không bọc `useMemo`: `records` là mảng mới mỗi lượt render (cùng lý lẽ
   // `failedIndexes` ở trên), và một vòng `find` lồng `find` trên tối đa vài chục
@@ -1290,7 +1403,9 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
   );
   const failedRecord = records[failedIndex];
   const failedStage = failedRecord?.stages.find((s) => s.status === 'failed');
-  const failureCode = failedRecord?.progress?.error;
+  // Lượt hỏng không mang mã (BE gửi `""` khi `error_code` rỗng): mã `PROCESSING` và câu "chưa phân
+  // loại" của bảng mã pipeline — cùng mã mà `steps[]` hiện (BUG-549).
+  const failureCode = describePipelineError(failedRecord?.progress?.error).code;
 
   const failedPipelineStep: ProcessingScreenFailedStep | undefined =
     !isEveryFloorFinal || failedRecord === undefined || failedStage === undefined
@@ -1298,8 +1413,13 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
       : {
           floorId: failedRecord.floorId,
           stepId: failedStage.id,
-          ...(failureCode !== undefined ? { failureCode } : {}),
+          failureCode,
           failureFloorName: floorUploads[failedIndex]?.floorName ?? failedRecord.floorId,
+          failureFloors: floorUploads.map((upload, index) => ({
+            floorId: upload.floorId,
+            floorName: upload.floorName,
+            status: floorStatuses[index] ?? 'queued',
+          })),
           onResolved: onRetry,
         };
 
@@ -1311,6 +1431,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     logLines,
     ...(summary !== undefined ? { summary } : {}),
     overallSummaryLine,
+    ...(remainingLine !== undefined ? { remainingLine } : {}),
     ...(queuePosition !== undefined
       ? { queueLine: queueSentence(formatNumber(queuePosition, { fractionDigits: 0 })) }
       : {}),
@@ -1330,8 +1451,9 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     onRunInBackground,
     canRunInBackground,
     onUploadDrawings,
+    onBackToProjects,
     isCompact,
     prefersReducedMotion,
-    ...(projectName !== null ? { projectName } : {}),
+    ...(knownProjectName !== null ? { projectName: knownProjectName } : {}),
   };
 }

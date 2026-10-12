@@ -45,11 +45,13 @@ export interface AxisGridFloorAlignListProps
   extends Pick<AxisGridManagerProps, 'onAutoAlign' | 'onFloorRowHover' | 'onViewFloorOnDrawing'> {
   readonly floors: readonly FloorAlignRowViewModel[];
   readonly warningBanner: AxisGridWarningBanner | null;
+  /** Tầng chưa có trục (rỗng/lỗi): khoá nút căn, bỏ nhãn "Đã duyệt" và hàng 0 mm giả (BUG-330, BUG-336). */
+  readonly unavailableNotice: string | null;
 }
 
 const PANEL_TITLE = 'Căn chỉnh giữa các tầng';
 const AUTO_ALIGN_BUTTON_LABEL = 'Căn chỉnh tự động';
-const ROOT_FLOOR_LABEL = 'tầng gốc';
+const ROOT_FLOOR_LABEL = 'Tầng gốc';
 const APPROVED_BADGE_LABEL = 'Đã duyệt';
 
 const STATUS_LABEL: Readonly<Record<FloorAlignStatus, string>> = {
@@ -110,21 +112,36 @@ export function AxisGridFloorAlignList({
   onAutoAlign,
   onFloorRowHover,
   onViewFloorOnDrawing,
+  unavailableNotice,
 }: AxisGridFloorAlignListProps) {
-  const isFullyAligned = warningBanner === null && floors.length > 0 && floors.every((floor) => floor.status === 'ok');
+  const isUnavailable = unavailableNotice !== null;
+  const isFullyAligned =
+    !isUnavailable &&
+    warningBanner === null &&
+    // BUG-336/404: một tầng thì chưa có gì để căn — "Đã duyệt" ở đó là nói dối.
+    floors.length > 1 &&
+    floors.every((floor) => floor.status === 'ok');
 
   return (
-    <div className="flex w-[344px] shrink-0 flex-col gap-3 rounded-[12px] bg-bg-surface p-5 shadow-panel">
+    <div className="flex w-[344px] shrink-0 flex-col gap-3 rounded-[12px] bg-bg-surface p-5 shadow-panel max-lg:w-full">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h3>
         {isFullyAligned && <Badge variant="neutral">{APPROVED_BADGE_LABEL}</Badge>}
       </div>
 
-      <Button className="self-start" onClick={() => onAutoAlign()} size="sm" variant="secondary">
+      <Button
+        className="self-start"
+        disabled={isUnavailable}
+        onClick={() => onAutoAlign()}
+        size="sm"
+        variant="secondary"
+      >
         {AUTO_ALIGN_BUTTON_LABEL}
       </Button>
 
-      {warningBanner !== null && (
+      {isUnavailable && <p className="text-[13px] text-text-secondary">{unavailableNotice}</p>}
+
+      {!isUnavailable && warningBanner !== null && (
         <div className="flex flex-col items-start gap-2 rounded-lg bg-state-attention-tint p-3" role="alert">
           <p className="text-[13px] text-state-attention-text">{warningBanner.message}</p>
           <Button
@@ -137,11 +154,13 @@ export function AxisGridFloorAlignList({
         </div>
       )}
 
-      <div className="flex flex-col gap-0.5" role="list">
-        {floors.map((floor) => (
-          <FloorAlignRow floor={floor} key={floor.levelId} onHover={onFloorRowHover} />
-        ))}
-      </div>
+      {isUnavailable ? null : (
+        <div className="flex flex-col gap-0.5" role="list">
+          {floors.map((floor) => (
+            <FloorAlignRow floor={floor} key={floor.levelId} onHover={onFloorRowHover} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

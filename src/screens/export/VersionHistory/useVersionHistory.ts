@@ -393,7 +393,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
             if (flushed === 'discarded') await reloadFloor();
             // Lỗi ném thì phiếu còn dùng (gateway): toast cũ đã đóng, nên mời bấm lại khi còn hạn.
             if (ticket.getStatus() === 'active') {
-              onToast?.({ message: UNDO_RETRY_TOAST, onUndo: () => void attempt(ticket) });
+              onToast?.({ message: UNDO_RETRY_TOAST, onUndo: () => void attempt(ticket), state: 'violation' });
             }
           }
         } finally {
@@ -485,15 +485,16 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
     if (forbidden) return 'forbidden';
     if (versionsQuery.isPending) return 'loading';
     if (errorMessage !== null) return 'error';
-    if (isNarrow) return 'collapsed';
+    // Rỗng thắng thu gọn: dưới 1024 tầng không phiên bản vẫn phải nói "chưa có phiên bản nào" (BUG-473).
     if (summaries.length === 0) return 'empty';
+    if (isNarrow) return 'collapsed';
 
     return snapshotsInFlight || visual.isBuilding || rows.some((row) => row.isMetadataOnly) ? 'partial' : 'success';
   })();
 
   /* ---- Việc làm được ---------------------------------------------------- */
 
-  const { fetchNextPage, hasNextPage, isFetchingNextPage } = versionsQuery;
+  const { fetchNextPage, hasNextPage, isFetchingNextPage, refetch: refetchVersions } = versionsQuery;
 
   const actions = useMemo(
     (): VersionHistoryActions => ({
@@ -551,6 +552,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
       // Qua `queryFn` của chính truy vấn, nên vẫn trong giới hạn SNAPSHOT_CONCURRENCY.
       retrySnapshot: (versionId) =>
         void queryClient.refetchQueries({ queryKey: snapshotQueryKey(floorId, versionId), exact: true }),
+      retryVersions: () => void refetchVersions(),
     }),
     [
       banner,
@@ -567,6 +569,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
       openDialog,
       pair,
       queryClient,
+      refetchVersions,
       reloadFloor,
       rows,
       runRestore,

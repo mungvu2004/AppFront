@@ -145,7 +145,8 @@ export function HistoryCategoryChips({
           <button
             aria-pressed={isActive}
             className={cn(
-              'h-[22px] rounded-[6px] px-2 text-[13px] leading-none',
+              // 44 px dưới 640 (chạm ngón tay), 32 px từ 640 — trên trần 24 px của WCAG 2.5.8 (BUG-477).
+              'h-11 rounded-[6px] px-2 text-[13px] leading-none sm:h-8',
               'transition-colors duration-fast motion-reduce:transition-none',
               isActive
                 ? 'bg-bg-selected text-accent-active'
@@ -270,7 +271,7 @@ export function HistoryPanelSkeleton() {
       data-testid={HISTORY_PANEL_TEST_IDS.skeleton}
     >
       <div className="px-4 pb-3 pt-4">
-        <div className="h-[22px] w-40 animate-pulse rounded-[6px] bg-border-default motion-reduce:animate-none" />
+        <div className="h-11 w-40 animate-pulse rounded-[6px] bg-border-default motion-reduce:animate-none sm:h-8" />
         <div className="mt-2 h-9 w-full animate-pulse rounded-lg bg-border-default motion-reduce:animate-none" />
       </div>
       <div className="relative flex flex-col gap-1 pl-6 pr-2">

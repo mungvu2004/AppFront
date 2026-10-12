@@ -58,12 +58,15 @@
  * {@link ThicknessStandardizationViewProps.viewerRoleNotice} nói ra vì sao.
  */
 
+import type { ReactNode } from 'react';
+
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { cn } from '@/lib/utils';
 
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
+import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
 
 import { ThicknessApplyBar } from './ThicknessApplyBar';
@@ -121,7 +124,7 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
 
 /** Nút chữ của màn: cùng khuôn nút bung bảng của `RoomLabelReview` (A1, A2). */
 const LINK_CLASS_NAME = cn(
-  'self-start rounded-[6px] px-1.5 py-0.5 text-[13px] text-accent',
+  'self-start rounded-[6px] px-1.5 py-1 text-[13px] text-accent',
   'transition-colors duration-120 hover:bg-accent-wash',
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
 );
@@ -130,7 +133,12 @@ const LINK_CLASS_NAME = cn(
 /* Cột trái — hai bảng, hoặc khung xương, hoặc câu rỗng.                       */
 /* -------------------------------------------------------------------------- */
 
-function ThicknessTablesColumn(props: ThicknessStandardizationViewProps) {
+/**
+ * Hai bảng và khung xem trước. Khung xem trước đứng cạnh bảng NHÓM, còn bảng từng đoạn (8 cột,
+ * ~1.040 px) chiếm trọn bề rộng thẻ bên dưới — đứng cạnh khung 320 px nó bị cắt cột phải ở cả
+ * 1440 (BUG-405).
+ */
+function ThicknessTablesColumn(props: ThicknessStandardizationViewProps & { readonly previewColumn: ReactNode }) {
   const {
     emptyNotice,
     flashingWallIds,
@@ -150,14 +158,18 @@ function ThicknessTablesColumn(props: ThicknessStandardizationViewProps) {
     selectedWallIds,
     sortKey,
     state,
+    previewColumn,
   } = props;
 
   if (state === 'loading') {
     return (
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        {SKELETON_ROWS.map((row) => (
-          <Skeleton key={row} preset="table-row" />
-        ))}
+      <div className="flex flex-col gap-4 lg:flex-row">
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          {SKELETON_ROWS.map((row) => (
+            <Skeleton key={row} preset="table-row" />
+          ))}
+        </div>
+        {previewColumn}
       </div>
     );
   }
@@ -165,30 +177,38 @@ function ThicknessTablesColumn(props: ThicknessStandardizationViewProps) {
   /* Đồ thị chưa có đoạn nào: không có bảng để vẽ, nên câu rỗng đứng một mình. */
   if (segmentRows.length === 0) {
     return (
-      <div className="flex min-w-0 flex-1 flex-col">
-        <EmptyState
-          description={emptyNotice ?? SCREEN_DESCRIPTION}
-          icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-bg-sunken" />}
-          title={EMPTY_TITLE}
-        />
+      <div className="flex flex-col gap-4 lg:flex-row">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <EmptyState
+            description={emptyNotice ?? SCREEN_DESCRIPTION}
+            icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-bg-sunken" />}
+            title={EMPTY_TITLE}
+          />
+        </div>
+        {previewColumn}
       </div>
     );
   }
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-4">
+    <>
       {emptyNotice === null ? null : (
         <p className="rounded-[8px] bg-bg-sunken p-3 text-[13px] text-text-secondary">
           {emptyNotice}
         </p>
       )}
 
-      <ThicknessGroupTable
-        hoveredGroup={hoveredGroup}
-        onHoverGroup={onHoverGroup}
-        onToggleAccepted={onToggleAccepted}
-        rows={groupRows}
-      />
+      <div className="flex flex-col gap-4 lg:flex-row">
+        <div className="min-w-0 flex-1">
+          <ThicknessGroupTable
+            hoveredGroup={hoveredGroup}
+            onHoverGroup={onHoverGroup}
+            onToggleAccepted={onToggleAccepted}
+            rows={groupRows}
+          />
+        </div>
+        {previewColumn}
+      </div>
 
       <ThicknessSegmentTable
         flashingWallIds={flashingWallIds}
@@ -204,7 +224,7 @@ function ThicknessTablesColumn(props: ThicknessStandardizationViewProps) {
         selectedWallIds={selectedWallIds}
         sortKey={sortKey}
       />
-    </div>
+    </>
   );
 }
 
@@ -234,7 +254,9 @@ function ThicknessPreviewColumn(props: ThicknessStandardizationViewProps) {
   }
 
   return (
-    <div className="flex shrink-0 flex-col gap-1.5">
+    // 320 = `THICKNESS_PREVIEW_CANVAS_WIDTH_PX`: cạnh bảng nhóm từ 1024 (BUG-405), dưới đó xếp dưới
+    // bảng; dưới 768 rộng hết thẻ, canvas tự co (BUG-332).
+    <div className="flex w-full shrink-0 flex-col gap-1.5 md:w-[320px]">
       <ThicknessPreviewCanvas
         hoveredGroup={hoveredGroup}
         hoveredWallId={hoveredWallId}
@@ -281,6 +303,15 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
     viewerRoleNotice,
   } = props;
 
+  /* Đọc lớp hỏng khi chưa có tài liệu: một trạng thái lỗi, một lối ra (BUG-326). */
+  if (props.readFailure != null) {
+    return (
+      <div aria-label={SCREEN_TITLE} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+        <FloorLayerReadFailureScreen failure={props.readFailure} />
+      </div>
+    );
+  }
+
   return (
     <div
       aria-label={SCREEN_TITLE}
@@ -325,10 +356,9 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
 
         <section
           aria-label={TABLES_SECTION_LABEL}
-          className="flex min-h-0 flex-row gap-4 rounded-[12px] bg-bg-surface p-4 shadow-panel"
+          className="flex min-h-0 flex-col gap-4 rounded-[12px] bg-bg-surface p-4 shadow-panel"
         >
-          <ThicknessTablesColumn {...props} />
-          <ThicknessPreviewColumn {...props} />
+          <ThicknessTablesColumn {...props} previewColumn={<ThicknessPreviewColumn {...props} />} />
         </section>
 
         {/*
@@ -338,6 +368,7 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
         {isViewerRole ? null : (
           <div className="overflow-hidden rounded-[12px] bg-bg-surface shadow-panel">
             <ThicknessApplyBar
+              canPreview={props.segmentRows.length > 0}
               onApplyPreview={onApplyPreview}
               onCancelPreview={onCancelPreview}
               onChangeTolerance={onChangeTolerance}

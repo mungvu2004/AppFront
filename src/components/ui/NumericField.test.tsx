@@ -53,6 +53,55 @@ describe('NumericField', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Giá trị không nhỏ hơn 2 m.');
   });
 
+  it('keeps the refused text, not the stored value, when the field is focused again (BUG-198)', () => {
+    render(<NumericField value={3} min={2} max={10} unit="m" aria-label="Chiều cao" onChange={() => undefined} />);
+    const field = screen.getByRole('textbox', { name: 'Chiều cao' });
+
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: '12' } });
+    fireEvent.blur(field);
+    fireEvent.focus(field);
+
+    // The value and its refusal stay together: never "3" beside "Giá trị không quá 10 m.".
+    expect(field).toHaveValue('12');
+    expect(screen.getByRole('alert')).toHaveTextContent('Giá trị không quá 10 m.');
+  });
+
+  it('shows what was just typed after the commit, not a count from the old value (BUG-198)', () => {
+    // The count-up ran from 3,5 to the user's own "2", so a Tab straight back swapped "2,6" for "2" and lost the
+    // keyboard select-all: "10" typed next became "210" (run-17, real keys).
+    const props = { min: 2, max: 10, unit: 'm', 'aria-label': 'Chiều cao' } as const;
+    let committed: number | undefined;
+    const { rerender } = render(<NumericField {...props} value={3.5} onChange={(v) => (committed = v)} />);
+    const field = screen.getByRole('textbox', { name: 'Chiều cao' });
+
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: '2' } });
+    fireEvent.blur(field);
+    rerender(<NumericField {...props} value={committed} onChange={(v) => (committed = v)} />);
+
+    expect(committed).toBe(2);
+    expect(field).toHaveValue('2');
+  });
+
+  it('drops a refused text when resetKey changes, even if the value does not (review-1 #21)', () => {
+    const props = { value: 3, min: 2, max: 10, unit: 'm', 'aria-label': 'Chiều cao', onChange: () => undefined } as const;
+    const { rerender } = render(<NumericField {...props} resetKey={0} />);
+    const field = screen.getByRole('textbox', { name: 'Chiều cao' });
+
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: '12' } });
+    fireEvent.blur(field);
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+
+    rerender(<NumericField {...props} resetKey={1} />);
+
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(field).toHaveValue('3');
+    // Same element: the caller no longer remounts the field to clear it.
+    expect(screen.getByRole('textbox', { name: 'Chiều cao' })).toBe(field);
+  });
+
   it("shows its own refusal over the caller's error", () => {
     render(<NumericField value={3} min={2} unit="mm" aria-label="Chiều dài" error="Lỗi của hàng" onChange={() => undefined} />);
     const field = screen.getByRole('textbox', { name: 'Chiều dài' });
@@ -79,5 +128,15 @@ describe('NumericField', () => {
     fireEvent.keyDown(field, { key: 'ArrowUp' });
     expect(field).toHaveValue('221');
     expectSentenceCase(container);
+  });
+
+  it('pads to fractionDigits so the box reads like the table beside it (BUG-306)', () => {
+    render(<NumericField value={4} unit="m" fractionDigits={1} aria-label="Cao độ" onChange={() => undefined} />);
+    const field = screen.getByRole('textbox', { name: 'Cao độ' });
+
+    expect(field).toHaveValue('4,0');
+    fireEvent.focus(field);
+    fireEvent.keyDown(field, { key: 'ArrowUp' });
+    expect(field).toHaveValue('5,0');
   });
 });

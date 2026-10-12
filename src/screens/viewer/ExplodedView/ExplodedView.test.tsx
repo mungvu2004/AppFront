@@ -140,6 +140,48 @@ describe('ExplodedView — thẻ nhãn tầng chỉ hiện khi tách đủ nhi�
   });
 });
 
+describe('ExplodedView — một điều khiển tách, vùng bấm 24 px (BUG-381)', () => {
+  it('dạng thường không dựng thanh trượt thứ hai, không thước thứ hai; chỉ ba mức sẵn', () => {
+    const props = explodedViewScenarioFor('success');
+    const { container, unmount } = renderWithProviders(<ExplodedView {...props} />);
+
+    // Thanh "Độ tách" của ray tầng trong `ViewerShell` là điều khiển tách duy nhất.
+    expect(within(container).queryByRole('slider')).not.toBeInTheDocument();
+    expect(within(container).getByRole('radiogroup', { name: 'Mức tách sẵn' })).toBeInTheDocument();
+    // Không nhãn hai đầu thang, không chữ cao độ trên vạch của đường nối dọc.
+    expect(within(container).queryByText(props.maxLabel)).not.toBeInTheDocument();
+    unmount();
+  });
+
+  it('dạng thu gọn (vỏ đã gỡ ray tầng) giữ thanh trượt riêng, dày 24 px', () => {
+    const collapsed = renderWithProviders(<ExplodedView {...explodedViewScenarioFor('collapsed')} />);
+
+    expect(within(collapsed.container).getByRole('slider', { name: 'Độ tách các tầng' })).toHaveClass('h-6');
+  });
+});
+
+describe('ExplodedView — dấu "Cần chú ý" không cắt cao độ và diện tích (BUG-383)', () => {
+  it('dấu nằm cùng dòng với tên tầng; dòng số đứng riêng, không chung hàng với dấu', () => {
+    const props = explodedViewScenarioFor('partial');
+    const flagged = props.floors.find((floor) => floor.attentionCaption !== null);
+
+    expect(flagged).toBeDefined();
+    if (flagged === undefined) {
+      return;
+    }
+
+    const { container } = renderWithProviders(<ExplodedView {...props} />);
+    const numbers = within(container).getByText(`${flagged.elevationLabel} · ${flagged.areaLabel}`);
+    const name = within(container).getByText(flagged.name);
+
+    const row = name.parentElement;
+
+    expect(row).not.toBeNull();
+    expect(within(row as HTMLElement).getByText('Cần chú ý')).toBeInTheDocument();
+    expect(row?.contains(numbers)).toBe(false);
+  });
+});
+
 /* -------------------------------------------------------------------------- */
 /* Lệch trục 180 mm — bài kiểm quan trọng nhất của lượt này.                    */
 /*                                                                              */
@@ -148,6 +190,17 @@ describe('ExplodedView — thẻ nhãn tầng chỉ hiện khi tách đủ nhi�
 /* là lệch TƯƠNG ĐỐI: một trục xê dịch 180 mm so với các trục còn lại của      */
 /* chính tầng đó. Hai bài kiểm dưới đây khẳng định cả hai nửa của sự thật này. */
 /* -------------------------------------------------------------------------- */
+
+describe('ExplodedView — thẻ tầng gọi tên tầng một cách, không "tầng Tầng 01" (BUG-384)', () => {
+  it('nút chọn và nút mắt của thẻ đọc "tầng 01", như ray tầng', () => {
+    const props = explodedViewScenarioFor('partial');
+    const { container } = renderWithProviders(<ExplodedView {...props} />);
+
+    expect(within(container).getByRole('button', { name: /^Chọn tầng 01, cao độ /u })).toBeInTheDocument();
+    expect(within(container).getByRole('button', { name: /^(Ẩn|Hiện) tầng 01$/u })).toBeInTheDocument();
+    expect(within(container).queryAllByRole('button', { name: /tầng Tầng/u })).toHaveLength(0);
+  });
+});
 
 describe('ExplodedView — lệch trục 180 mm', () => {
   it('lệch TƯƠNG ĐỐI 180 mm giữa hai trục cùng phương sinh FloorIssue kind alignment, severity attention, amountMm 180', () => {
@@ -274,6 +327,7 @@ describe('ExplodedView — không tô màu theo tầng', () => {
 function bareRuntime(): ExplodedViewRuntime {
   return {
     state: 'success',
+    emptyMessage: 'Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.',
     floors: [],
     axes: [],
     cores: [],

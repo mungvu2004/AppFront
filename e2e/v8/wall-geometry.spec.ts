@@ -45,7 +45,7 @@ async function selectAWall(page: Page): Promise<void> {
       .then(() => true)
       .catch(() => false);
     if (picked) {
-      await expect(shellInspector(page)).toContainText(/tường W-/u);
+      await expect(shellInspector(page)).toContainText(/Tường W-/u);
       return;
     }
   }
@@ -96,7 +96,7 @@ test('Esc khi bảng phụ, chế độ sửa hình học và vùng chọn cùng
   await page.keyboard.press('Escape');
   await expect(editor).toHaveCount(0);
   await expect(page.getByRole('button', { name: ENTER_LABEL, exact: true })).toBeVisible();
-  await expect(shellInspector(page)).toContainText(/tường W-/u);
+  await expect(shellInspector(page)).toContainText(/Tường W-/u);
 
   await page.keyboard.press('Escape');
   await expect(shellInspector(page)).toContainText('Chưa chọn đối tượng');
@@ -136,7 +136,7 @@ test('cùng một bức tường mang cùng một mã ở thanh tra và ở dả
   await openViewer(page);
   await openHistoryAndSettleTour(page);
   await selectAWall(page);
-  const inspectorCode = (await shellInspector(page).innerText()).match(/tường (W-[A-Z0-9]+)/u)?.[1];
+  const inspectorCode = (await shellInspector(page).innerText()).match(/Tường (W-[A-Z0-9]+)/u)?.[1];
   expect(inspectorCode).toBeDefined();
   // Không đòi mã máy biến khỏi thanh tra: hàng "mã đối tượng" giữ nó, có chủ đích.
   expect(inspectorCode).not.toContain('FIXTURE');

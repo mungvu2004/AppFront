@@ -174,6 +174,46 @@ describe('FloorUploadScreenView — bảy trạng thái (A11, R-63)', () => {
     expect(screen.getByText('Dự án chưa có tầng nào')).toBeInTheDocument();
   });
 
+  it('dự án chưa có tầng: nút "Thêm tầng" dẫn tới Quản lý tầng (BUG-298)', () => {
+    const onAddFloors = vi.fn();
+    renderWithProviders(
+      <FloorUploadScreenView {...scenarioFor('empty')} floors={[]} onAddFloors={onAddFloors} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm tầng' }));
+
+    expect(onAddFloors).toHaveBeenCalledTimes(1);
+  });
+
+  it('dự án không tồn tại: "Không tìm thấy dự án này" + "Về danh sách dự án", không vùng thả, không nút chính (BUG-311)', () => {
+    const onBackToProjects = vi.fn();
+    renderWithProviders(
+      <FloorUploadScreenView
+        {...scenarioFor('error')}
+        canRetryLoad={false}
+        isProjectMissing
+        onBackToProjects={onBackToProjects}
+      />,
+    );
+
+    expect(screen.getByText('Không tìm thấy dự án này')).toBeInTheDocument();
+    expect(screen.queryByTestId(DROP_ZONE_TEST_ID)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Bắt đầu xử lý' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Về danh sách dự án' }));
+
+    expect(onBackToProjects).toHaveBeenCalledTimes(1);
+  });
+
+  it('lỗi đọc tầng thử lại được: dải lỗi có "Thử lại" (BUG-311)', () => {
+    const onRetryLoad = vi.fn();
+    renderWithProviders(<FloorUploadScreenView {...scenarioFor('error')} onRetryLoad={onRetryLoad} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+
+    expect(onRetryLoad).toHaveBeenCalledTimes(1);
+  });
+
   it('màn chỉ đọc không vẽ vùng kéo thả, nhưng vẫn nói ra vì sao', () => {
     renderWithProviders(<FloorUploadScreenView {...scenarioFor('forbidden')} />);
 
@@ -876,5 +916,125 @@ describe('FloorUploadFooter — bộ đếm "3 / 4" chạy số khi đổi', () 
     await runFrames(2);
 
     expect(counterNumberText()).toBe(after.footer.counterLabel);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* QA-03e — SCR-10 view (BUG-525, BUG-526, BUG-527, BUG-533, BUG-536).         */
+/* -------------------------------------------------------------------------- */
+
+describe('FloorUploadScreenView — QA-03e', () => {
+  /** Khay hai tệp: `tray-1` và một bản sao `tray-2`. */
+  function twoItemTray(onRemoveFile = vi.fn()) {
+    const base = trayScenario();
+    const first = base.tray.items[0];
+
+    if (first === undefined) {
+      throw new Error('trayScenario phải có một tệp trong khay');
+    }
+
+    const second = { ...first, id: 'tray-2', removeLabel: 'Xoá bản vẽ tep-hai.png' };
+
+    return { ...base, onRemoveFile, tray: { ...base.tray, items: [first, second] } };
+  }
+
+  // BUG-525: the trash in the tray removed the row and dropped focus on <body>.
+  it('thùng rác ở khay chuyển tiêu điểm sang tệp kế, hết tệp thì về "Chọn tệp" (BUG-525)', () => {
+    const scenario = twoItemTray();
+    const view = renderWithProviders(<FloorUploadScreenView {...scenario} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá bản vẽ ban-ve-khong-ro-tang.dwg' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Xoá bản vẽ tep-hai.png' }));
+    expect(scenario.onRemoveFile).toHaveBeenCalledWith('tray-1');
+
+    view.unmount();
+    renderWithProviders(<FloorUploadScreenView {...trayScenario()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá bản vẽ ban-ve-khong-ro-tang.dwg' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Chọn tệp' }));
+  });
+
+  // BUG-526: the sticky footer covered the focused control, and the last card's menu.
+  it('tiêu điểm rơi dưới chân trang dính thì trang cuộn lên đủ chỗ (BUG-526)', () => {
+    renderWithProviders(<FloorUploadScreenView {...trayScenario()} />);
+    const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
+    const footer = screen.getByRole('button', { name: 'Bắt đầu xử lý' }).closest('.sticky');
+    const trash = screen.getByRole('button', { name: 'Xoá bản vẽ ban-ve-khong-ro-tang.dwg' });
+
+    expect(footer).not.toBeNull();
+    vi.spyOn(footer as HTMLElement, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 700, 800, 100));
+    vi.spyOn(trash, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 720, 32, 32));
+
+    act(() => trash.focus());
+
+    expect(scrollBy).toHaveBeenCalledTimes(1);
+    expect((scrollBy.mock.calls[0]?.[1] as number | undefined) ?? 0).toBeGreaterThanOrEqual(52);
+  });
+
+  // R1-02: a Select option (portal) took focus on mousedown, the page scrolled mid-click and the
+  // listbox moved away from the pointer — the floor choice was lost. A mouse focus inside the
+  // screen must not jolt the page either.
+  it('chọn tầng bằng chuột trong khay không cuộn trang và giữ lựa chọn (R1-02)', () => {
+    const onReassign = vi.fn();
+    renderWithProviders(<FloorUploadScreenView {...trayScenario()} onReassign={onReassign} />);
+    const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
+    const footer = screen.getByRole('button', { name: 'Bắt đầu xử lý' }).closest('.sticky') as HTMLElement;
+    const trayRow = screen.getByRole('button', { name: 'Xoá bản vẽ ban-ve-khong-ro-tang.dwg' }).closest('li') as HTMLElement;
+
+    vi.spyOn(footer, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 700, 800, 100));
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 720, 32, 32));
+
+    fireEvent.click(within(trayRow).getByRole('combobox', { name: 'Gán cho tầng khác' }));
+    const option = screen.getAllByRole('option')[1] as HTMLElement;
+
+    // The option lives in a portal outside the screen: its focus never scrolls the page.
+    act(() => option.focus());
+    expect(scrollBy).not.toHaveBeenCalled();
+
+    // Pointer modality: nothing matches :focus-visible, so the focus going back to the trigger
+    // after the click does not jolt the page either.
+    const matches = Element.prototype.matches;
+    vi.spyOn(Element.prototype, 'matches').mockImplementation(function (this: Element, selector: string) {
+      return selector === ':focus-visible' ? false : matches.call(this, selector);
+    });
+    fireEvent.click(option);
+
+    expect(scrollBy).not.toHaveBeenCalled();
+    expect(onReassign).toHaveBeenCalledTimes(1);
+    expect(onReassign).toHaveBeenCalledWith('tray-1', expect.any(String));
+  });
+
+  it('bảng tuỳ chọn đang mở nâng thẻ lên trên chân trang dính (BUG-526)', () => {
+    renderWithProviders(<FloorUploadScreenView {...scenarioFor('partial')} />);
+    const menuButton = screen.getAllByRole('button', { name: /^Tuỳ chọn của tầng / })[0];
+
+    fireEvent.click(menuButton as HTMLElement);
+
+    expect(menuButton?.closest('li')).toHaveClass('z-30');
+  });
+
+  // BUG-527: the card rise ignored prefers-reduced-motion.
+  it('thẻ tắt hoạt ảnh trồi lên khi người dùng chọn giảm chuyển động (BUG-527)', () => {
+    renderWithProviders(<FloorUploadScreenView {...scenarioFor('partial')} />);
+
+    for (const card of document.querySelectorAll('li[data-floor-id]')) {
+      expect(card).toHaveClass('motion-reduce:animate-none');
+    }
+  });
+
+  // BUG-533: the upload progressbar carried no value.
+  it('thanh tiến độ tải lên có aria-valuenow/min/max (BUG-533)', () => {
+    renderWithProviders(<FloorUploadScreenView {...scenarioFor('partial')} />);
+    const bar = screen.getByRole('progressbar');
+
+    expect(bar).toHaveAttribute('aria-valuenow', '45');
+    expect(bar).toHaveAttribute('aria-valuemin', '0');
+    expect(bar).toHaveAttribute('aria-valuemax', '100');
+  });
+
+  // BUG-536: the viewer's "Bắt đầu xử lý" did nothing.
+  it('người xem không thấy nút "Bắt đầu xử lý" (BUG-536)', () => {
+    renderWithProviders(<FloorUploadScreenView {...scenarioFor('forbidden')} />);
+
+    expect(screen.queryByRole('button', { name: 'Bắt đầu xử lý' })).toBeNull();
   });
 });

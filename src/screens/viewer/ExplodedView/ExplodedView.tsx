@@ -1,8 +1,8 @@
 /**
  * `ExplodedView` — view thuần cắm vào khe `renderScene` của `ViewerShell`,
- * dựng lớp phủ tách tầng: canvas 3D, thang cao độ + hàng ba mức sẵn (mép
- * trái), thẻ nhãn tầng nổi (mép phải), đường nối dọc qua trọng tâm kèm vạch
- * cao độ, đường dẫn thẳng hàng, và nút chụp ảnh.
+ * dựng lớp phủ tách tầng: canvas 3D, hàng ba mức sẵn (góc trên trái), thẻ nhãn
+ * tầng nổi (mép phải), đường nối dọc qua trọng tâm kèm vạch cao độ, đường dẫn
+ * thẳng hàng, và nút chụp ảnh.
  *
  * View thuần R-60: không nhập `@/api`, `@/store`, `@/domain`, `@/lib/http`.
  * Mọi số đã là chuỗi định dạng sẵn trong {@link ExplodedViewProps} (A15); màn
@@ -25,7 +25,7 @@ import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { IconButton } from '@/components/ui/IconButton';
 
 import { ExplodedViewAlignmentPaths } from './ExplodedViewAlignmentPaths';
-import type { ExplodedViewProps } from './explodedViewTypes';
+import { EXPLODED_LAYOUT, type ExplodedViewProps } from './explodedViewTypes';
 import { ExplodedViewFloorCards } from './ExplodedViewFloorCards';
 import { ExplodedViewRail } from './ExplodedViewRail';
 
@@ -39,12 +39,10 @@ function Ground() {
   );
 }
 
-function EmptyMessage() {
+function EmptyMessage({ message }: { readonly message: string }) {
   return (
     <div className="relative flex h-full w-full items-center justify-center p-8 text-center">
-      <p className="max-w-sm text-[14px] leading-relaxed text-text-secondary">
-        Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.
-      </p>
+      <p className="max-w-sm text-[14px] leading-relaxed text-text-secondary">{message}</p>
     </div>
   );
 }
@@ -84,7 +82,7 @@ export function ExplodedView(props: ExplodedViewProps) {
         <canvas aria-hidden="true" className="absolute inset-0 block h-full w-full" ref={canvasRef} />
       )}
 
-      {isEmpty && <EmptyMessage />}
+      {isEmpty && <EmptyMessage message={props.emptyMessage} />}
       {state === 'loading' && <LoadingMessage />}
       {isError && <ErrorMessage />}
 
@@ -113,9 +111,17 @@ export function ExplodedView(props: ExplodedViewProps) {
             reducedMotion={props.reducedMotion}
           />
 
-          <div className="absolute right-3 top-3 flex flex-col items-end gap-2">
+          {/* Ngay TRÁI ViewCube của vỏ, không dưới nó: ở `right-3` nút nằm trọn dưới
+              ViewCube và mặt "Trục đo" nhận cú bấm thay nút (BUG-371). Nút nổi trên
+              canvas nên mang nền đệm như mọi điều khiển nổi khác — biểu tượng xám
+              trần trên nền cảnh tối gần như biến mất (BUG-481). */}
+          <div
+            className="absolute top-3 flex flex-col items-end gap-2"
+            style={{ right: EXPLODED_LAYOUT.captureRightPx }}
+          >
             <IconButton
               aria-label="Chụp ảnh khung nhìn"
+              className="bg-bg-surface-90 shadow-float"
               disabled={props.isCapturing}
               icon={<Camera aria-hidden="true" className="h-[18px] w-[18px]" />}
               loading={props.isCapturing}

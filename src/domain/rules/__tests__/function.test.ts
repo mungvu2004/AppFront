@@ -527,6 +527,37 @@ describe('rooms nobody can walk into', () => {
     expect(found[0]?.message).toContain('Vệ sinh');
   });
 
+  it('[BUG-408] names the room once, capitalised, and drops "trên 0 tường bao" when no wall is attached', () => {
+    const kitchen = room(
+      'KI',
+      'kitchen',
+      [
+        { x: 0, y: 0 },
+        { x: 3000, y: 0 },
+        { x: 3000, y: 2000 },
+        { x: 0, y: 2000 },
+      ],
+      [],
+      6,
+      'Bếp',
+    );
+    const graph = planOf({ rooms: [kitchen] });
+    const code = displayCodeIn(normalizeSpatial(graph), kitchen.id);
+    const fromFunction = runCheck(checkRoomHasDoor, graph);
+    const fromBuiltIn = runRules(normalizeSpatial(graph), {
+      registry: createRuleRegistry(BUILT_IN_RULES.filter(({ code: ruleCode }) => ruleCode === 'ROOM-HAS-DOOR')),
+    }).violations;
+
+    expect(fromFunction[0]?.message).toBe(`Phòng ${code} (Bếp) không có cửa đi nào, nên không vào được.`);
+    expect(fromBuiltIn[0]?.message).toBe(`Phòng ${code} không có cửa đi nào.`);
+  });
+
+  it('[BUG-408] keeps the wall count when the room has walls, with the room named once', () => {
+    const found = runCheck(checkRoomHasDoor, createFaultyFlat());
+
+    expect(found[0]?.message).toMatch(/^Phòng \S+ \(Vệ sinh\) không có cửa đi nào trên \d+ tường bao của nó/);
+  });
+
   it('says nothing when every room the table asks has one', () => {
     expect(runCheck(checkRoomHasDoor, createCleanFlat())).toEqual([]);
   });

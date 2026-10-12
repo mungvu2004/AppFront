@@ -78,14 +78,28 @@ describe('câu chữ', () => {
     expect(SETTINGS_SENTENCES.conflict).toBe(settings.load.conflictMessage);
     expect(SETTINGS_SENTENCES.fieldRejected).toBe(settings.load.fieldRejected);
     expect(SETTINGS_SENTENCES.emptyBlocked).toBe(settings.problems.emptyBlocked);
+    expect(SETTINGS_SENTENCES.unsavedProblems).toBe(settings.load.unsavedProblems);
+    expect(SETTINGS_SENTENCES.chipRejected).toBe(settings.load.chipRejected);
+    expect(SETTINGS_SENTENCES.chipReload).toBe(settings.load.chipReload);
     expect(SETTINGS_SENTENCES.snapNotInteger).toBe(settings.problems.snapNotInteger);
   });
 
-  it('partialSaveSentence: nói phần nào đã lưu, phần nào chưa', () => {
-    expect(partialSaveSentence(['general'], ['units'])).toBe('Đã lưu thông tin chung, chưa lưu đơn vị đo.');
-    expect(partialSaveSentence(['units'], ['general'])).toBe('Đã lưu đơn vị đo, chưa lưu thông tin chung.');
-    expect(partialSaveSentence([], ['units'])).toBe('Chưa lưu được đơn vị đo.');
-    expect(partialSaveSentence([], ['general', 'units'])).toBe('Chưa lưu được thông tin chung và đơn vị đo.');
+  it('partialSaveSentence: gọi tên ô đã lưu / chưa lưu, không gọi nhóm gửi nội bộ (BUG-300)', () => {
+    expect(partialSaveSentence(['name'], ['snapToleranceMm'])).toBe('Đã lưu tên dự án, chưa lưu dung sai bắt điểm.');
+    expect(partialSaveSentence([], ['notes'])).toBe('Chưa lưu được ghi chú.');
+    expect(partialSaveSentence([], ['name', 'code', 'notes'])).toBe('Chưa lưu được tên dự án, mã dự án và ghi chú.');
+    expect(partialSaveSentence([], [])).toBe('Chưa lưu được thay đổi vừa rồi.');
+  });
+
+  it('partialSaveSentence: 422/428 nói việc cần làm, không hứa tự thử lại; 409 nhường dải xung đột', () => {
+    expect(partialSaveSentence([], ['notes'], 'validation')).toBe(
+      'Chưa lưu được ghi chú. Sửa lại giá trị đó, hệ thống sẽ tự lưu tiếp.',
+    );
+    expect(partialSaveSentence([], ['notes'], 'precondition')).toBe('Chưa lưu được ghi chú. Tải lại trang để lưu tiếp.');
+    expect(partialSaveSentence(['name'], ['notes'], 'conflict')).toBe('Đã lưu tên dự án, chưa lưu ghi chú.');
+    for (const rejection of ['validation', 'conflict', 'precondition'] as const) {
+      expect(partialSaveSentence([], ['notes'], rejection)).not.toMatch(/thử lưu lại|đơn vị đo/u);
+    }
   });
 
   it('describeSaveFailure dùng câu dự phòng chung, không in mã lạ', () => {

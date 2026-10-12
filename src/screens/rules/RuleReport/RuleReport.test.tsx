@@ -42,7 +42,7 @@ import type { ApiClient } from '@/api/client';
 import type { ProjectRuleConfig } from '@/api/schemas/ruleConfig';
 
 import { ALL_RULES, createDefaultRuleRegistry } from '@/domain/rules/defaults';
-import { countBySeverity, sortBySeverity } from '@/domain/rules/healthScore';
+import { sortBySeverity } from '@/domain/rules/healthScore';
 import { RULE_SEVERITY_LABELS } from '@/domain/rules/registry';
 import type { Rule, RuleCode, Violation } from '@/domain/rules/registry';
 import { runRules } from '@/domain/rules/runner';
@@ -287,7 +287,7 @@ describe('grep — không file sản phẩm nào trong thư mục màn viết c�
  *    `AccountSettings.test.tsx`), không phải mã sản phẩm: gộp theo luật ở đây
  *    là để có props hợp lệ cho `RuleReport`, không phải logic mà hook (W1)
  *    phải viết lại — hook vẫn phải tự dùng `groupViolationsByLevel` /
- *    `countBySeverity` / `sortBySeverity` của `healthScore.ts` như wiring.md
+ *    `sortBySeverity` của `healthScore.ts` như wiring.md
  *    mục 0-BIS.2 đòi hỏi.
  * ========================================================================== */
 
@@ -357,15 +357,18 @@ function toGroups(
   });
 }
 
+/** Bốn ô cùng đếm LUẬT, như `useRuleReport` (BUG-460). */
 function toSummary(violations: readonly Violation[]): RuleReportSummary {
-  const counts = countBySeverity(violations);
   const rulesWithFindings = new Set(violations.map((violation) => violation.ruleCode));
+  const criticalRules = new Set(
+    violations.filter((violation) => violation.severity === 'critical').map((violation) => violation.ruleCode),
+  );
 
   return {
     evaluated: ENABLED_RULES.length,
     passed: ENABLED_RULES.length - rulesWithFindings.size,
-    warnings: counts.warning + counts.suggestion,
-    violations: counts.critical,
+    warnings: rulesWithFindings.size - criticalRules.size,
+    violations: criticalRules.size,
   };
 }
 
@@ -687,6 +690,25 @@ describe('năng lực bị gỡ thì bị gỡ khỏi DOM, không render nút v�
   });
 });
 
+describe('BUG-465 — chưa có kết quả thì không có gì để xác nhận, và chỉ một nút thử lại', () => {
+  it.each([['error'], ['loading']] as const)('%s: không nút "Xác nhận đã xử lý"', async (state) => {
+    const RuleReportView = await loadRuleReportView();
+    renderRuleReport(RuleReportView, propsFor(scenarioOf(state)));
+
+    expect(screen.queryByRole('button', { name: 'Xác nhận đã xử lý' })).toBeNull();
+  });
+
+  it('error: "Thử lại" ở thân là nút chạy lại duy nhất', async () => {
+    const RuleReportView = await loadRuleReportView();
+    const props = propsFor(scenarioOf('error'));
+    renderRuleReport(RuleReportView, props);
+
+    expect(screen.queryByRole('button', { name: 'Chạy kiểm tra lại' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(props.onRerun).toHaveBeenCalledTimes(1);
+  });
+});
+
 /* ==========================================================================
  * G. Màu chỉ là chip nhỏ và chấm — CẤM TUYỆT ĐỐI dải đỏ lớn.
  *
@@ -898,6 +920,49 @@ describe('R-73 — chọn một vi phạm mở ViolationDetailContainer dạng t
   });
 });
 
+describe('BUG-433 — route đo mốc thu gọn: dưới 1024 hàng là thẻ, không phải bảng năm cột', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(window, 'matchMedia');
+  });
+
+  it('khổ hẹp → nhóm mở ra là danh sách thẻ, không có <table>', async () => {
+    window.matchMedia = ((query: string) => ({
+      matches: true,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    })) as unknown as typeof window.matchMedia;
+    const { RulesRoute } = RuleReportContainerModule;
+    act(() => {
+      useStore.getState().setProject({ created_at: '', id: 'P-1', members: [], name: 'P-1', updated_at: '' });
+      useStore.getState().setSpatial(NORMALIZED_VIOLATED, 'bug-433');
+      useStore.getState().setUserRoles(['admin']);
+    });
+    const { container } = renderWithProviders(
+      <MemoryRouter initialEntries={[ROUTES.project.rules('P-1')]}>
+        <Routes>
+          <Route path="/projects/:projectId/rules" element={<RulesRoute />} />
+        </Routes>
+      </MemoryRouter>,
+      { keepStore: true },
+    );
+
+    const groupToggle = await waitFor(() => {
+      const toggle = container.querySelector<HTMLButtonElement>('h3 button[aria-expanded="false"]');
+      if (toggle === null) {
+        throw new Error('chưa có nhóm luật nào để mở — lượt chạy chưa xong');
+      }
+      return toggle;
+    });
+    fireEvent.click(groupToggle);
+
+    await waitFor(() => {
+      expect(container.querySelector('section li button')).not.toBeNull();
+    });
+    expect(container.querySelector('table')).toBeNull();
+  });
+});
+
 /* ==========================================================================
  * F-10 — báo cáo chạy luật với cấu hình của dự án (N21), không với sổ mặc định.
  * ========================================================================== */
@@ -964,6 +1029,20 @@ describe('F-10 — useRuleReport đọc cấu hình N21', () => {
 
     expect(result.current.summary.evaluated).toBeGreaterThan(0);
     expect(ruleCodesOf(result.current.groups)).not.toContain(NOISY_RULE_CODE);
+  });
+
+  it('BUG-460: bốn ô cùng đếm luật — Tổng = Đạt + Cảnh báo + Vi phạm, khớp số nhóm của tab', async () => {
+    const { result } = setupReport({ read: async () => configRead(1) });
+
+    await waitFor(() => {
+      expect(result.current.status).not.toBe('loading');
+    });
+
+    const { evaluated, passed, warnings, violations } = result.current.summary;
+    const groups = result.current.groups;
+    expect(passed + warnings + violations).toBe(evaluated);
+    expect(violations).toBe(groups.filter((group) => group.rows.some((row) => row.severity === 'critical')).length);
+    expect(warnings + violations).toBe(groups.length);
   });
 
   it('đổi revision (lượt lưu ở màn cài đặt) → báo cáo chạy lại với cấu hình mới', async () => {

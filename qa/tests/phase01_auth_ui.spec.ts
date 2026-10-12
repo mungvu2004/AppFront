@@ -239,9 +239,9 @@ async function verifyAsAdmin(browser: Browser, name: string, open: (page: Page) 
 
 const UNKNOWN_PROJECT_ID = 'x';
 // SCR-08..11 copy for a project the API answers 404 (verified in source, file:line in each test).
-const PROJECT_NOT_FOUND_TITLE = 'Không tìm thấy dự án này'; // components/feedback/ProjectSpatialGate.tsx:36
+const PROJECT_NOT_FOUND_TITLE = 'Không tìm thấy dự án này'; // components/feedback/ProjectSpatialGate.tsx:37
 const SETTINGS_LOAD_ERROR = 'Không tải được cài đặt dự án'; // ProjectSettings.tsx:113
-const UPLOAD_LOAD_ERROR = 'Không tải được danh sách tầng'; // FloorUploadScreen.tsx:67
+const UPLOAD_LOAD_ERROR = 'Không tải được danh sách tầng'; // FloorUploadScreen.tsx:69 — not shown for a 404 (FIX-1401, BUG-311)
 // SCR-37 copy: UserManagement.tsx:49-53, UserManagementToolbar.tsx:26-37, UserManagementTable.tsx:36, UserManagementDetail.tsx:107.
 const USERS_LIST_PATH = /^\/api\/users$/u;
 const USERS_SEARCH_LABEL = 'Tìm người dùng';
@@ -301,10 +301,14 @@ test.describe('U01 UI verify — signed-in screens (SCR-08..11, SCR-37..41)', ()
     });
   });
 
-  test('U01 · SCR-10 upload, unknown project → load error', async ({ browser }) => {
+  test('U01 · SCR-10 upload, unknown project → "Không tìm thấy dự án này"', async ({ browser }) => {
     await verifyAsAdmin(browser, 'U01_upload_unknown_project', async (p) => {
       await p.goto(ROUTES.project.upload(UNKNOWN_PROJECT_ID));
-      await expect(p.getByText(UPLOAD_LOAD_ERROR, { exact: true })).toBeVisible({ timeout: 15_000 });
+      // BE projects/access.py project_from_path: "x" is not `prj_<ULID>` → 404 project; the upload screen's #24 read
+      // (floorUploadGateway.ts:220-221) maps a 404 to the FloorManager / quality wording (FloorUploadScreen.tsx:140-153).
+      await expect(p.getByText(PROJECT_NOT_FOUND_TITLE, { exact: true })).toBeVisible({ timeout: 15_000 });
+      await expect(p.getByRole('button', { name: GO_TO_PROJECTS, exact: true })).toBeVisible();
+      await expect(p.getByText(UPLOAD_LOAD_ERROR, { exact: true })).toHaveCount(0);
     });
   });
 

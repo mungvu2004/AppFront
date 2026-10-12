@@ -54,7 +54,7 @@ export function ViewerInspector({
     <aside
       aria-label="Thanh tra đối tượng"
       className={cn(
-        'flex w-[344px] shrink-0 flex-col overflow-hidden rounded-[12px]',
+        'flex w-full shrink-0 flex-col overflow-hidden rounded-[12px] lg:w-[344px]',
         'bg-bg-surface shadow-panel',
       )}
     >

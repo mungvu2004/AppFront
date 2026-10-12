@@ -81,7 +81,7 @@ import {
 const DETAIL_MODE_ROLES: readonly ProjectRole[] = ['admin'];
 
 /** `< 1024px` — cùng mốc `ProcessingScreen`, `ScaleCalibration` và `InputQualityGate`. */
-const NARROW_VIEWPORT_QUERY = '(max-width: 1023px)';
+const NARROW_VIEWPORT_QUERY = '(width < 1024px)';
 
 /** Nhánh mà nút "đổi nhánh" dẫn tới. Đặc tả chỉ nêu một chiều: sang nhánh AI. */
 const SWITCH_TARGET_BRANCH: PipelineBranchId = 'ai';
@@ -121,6 +121,8 @@ export interface UsePipelineGraphOptions {
   readonly roles?: readonly ProjectRole[];
   /** Ép sơ đồ xếp dọc — cho story hoặc test muốn một câu trả lời cố định. */
   readonly forceCollapsed?: boolean;
+  /** Lối ra khi dự án không tồn tại (BUG-313). Vắng thì nút không làm gì. */
+  readonly onBackToProjects?: () => void;
 }
 
 export interface UsePipelineGraphResult {
@@ -133,6 +135,7 @@ export interface UsePipelineGraphResult {
 /* -------------------------------------------------------------------------- */
 
 const NO_ROLES: readonly ProjectRole[] = [];
+const NO_OP = (): void => undefined;
 
 /**
  * Dưới 1024 thì sơ đồ xếp dọc thành danh sách bước.
@@ -215,7 +218,7 @@ function countApprovedWalls(walls: readonly Wall[]): number {
 /* -------------------------------------------------------------------------- */
 
 export function usePipelineGraph(options: UsePipelineGraphOptions): UsePipelineGraphResult {
-  const { forceCollapsed, gateway, projectId, roles = NO_ROLES, run } = options;
+  const { forceCollapsed, gateway, onBackToProjects = NO_OP, projectId, roles = NO_ROLES, run } = options;
 
   const prefersReducedMotion = useReducedMotion();
   const detectedNarrow = useNarrowViewport();
@@ -258,6 +261,11 @@ export function usePipelineGraph(options: UsePipelineGraphOptions): UsePipelineG
   }, [gateway, projectId, retryToken, run]);
 
   /* ---- Ba lượt đọc, tất cả qua react-query (R-64) ------------------------ */
+
+  const projectExistsQuery = useQuery({
+    queryKey: ['pipeline', 'project-exists', projectId, retryToken],
+    queryFn: ({ signal }) => gateway.readProjectExists({ projectId, signal }),
+  });
 
   const branchQuery = useQuery({
     queryKey: [...pipelineBranchQueryKey(projectId), retryToken],
@@ -512,8 +520,12 @@ export function usePipelineGraph(options: UsePipelineGraphOptions): UsePipelineG
 
   /* ---- Bảy trạng thái (A11) --------------------------------------------- */
 
-  const failure = streamFailure;
-  const isPending = branchQuery.isPending || comparisonQuery.isPending;
+  // #24 hỏng (không phải 404) cũng là lỗi đọc có "Thử lại" (BUG-557); và chưa biết dự án có tồn
+  // tại không thì vẫn là đang tải, không thoáng hiện câu rỗng trước dải không tìm thấy (BUG-556).
+  const failure =
+    streamFailure ??
+    (projectExistsQuery.isError ? gateway.describeApiFailure(projectExistsQuery.error) : null);
+  const isPending = projectExistsQuery.isPending || branchQuery.isPending || comparisonQuery.isPending;
   const isRunning = stages.some((stage) => stage.status === 'running');
   const isEverythingDone =
     stages.length > 0 && stages.every((stage) => stage.status === 'done');
@@ -621,8 +633,10 @@ export function usePipelineGraph(options: UsePipelineGraphOptions): UsePipelineG
       onPanGraph,
       onZoomGraph,
       onResetViewport,
+      onBackToProjects,
     }),
     [
+      onBackToProjects,
       onConfirmRerun,
       onConfirmSwitchBranch,
       onDismissRerun,
@@ -702,6 +716,7 @@ export function usePipelineGraph(options: UsePipelineGraphOptions): UsePipelineG
           },
         }
       : {}),
+    ...(projectExistsQuery.data === false ? { isProjectMissing: true } : {}),
     isCompact,
     prefersReducedMotion,
   };

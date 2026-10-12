@@ -96,7 +96,7 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
   const [mergeCandidateId, setMergeCandidateId] = useState<RoomLabelViewModel['id'] | null>(null);
 
   return (
-    <div className="flex h-full w-[344px] shrink-0 flex-col overflow-hidden rounded-[12px] bg-bg-surface shadow-panel">
+    <div className="flex h-full w-[344px] shrink-0 flex-col overflow-hidden rounded-[12px] bg-bg-surface shadow-panel max-lg:h-auto max-lg:w-full">
       <div className="flex h-14 shrink-0 items-center px-5">
         <h3 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h3>
       </div>

@@ -118,7 +118,8 @@ import type { Command } from '@/lib/commands/types';
 import type { AppError } from '@/lib/errors';
 import { formatLength } from '@/lib/format/measure';
 import { formatNumber, formatPercent } from '@/lib/format/number';
-import { confidenceLevel } from '@/lib/format/semantic';
+import { readProjectConfidenceThreshold, type ReadConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
+import { CONFIDENCE_SUGGESTED_THRESHOLD } from '@/lib/format/semantic';
 import { boxAround } from '@/lib/input/dragDrop';
 import { createOptimisticMutation } from '@/lib/mutations/createOptimisticMutation';
 import { createUndoTicket, UNDO_WINDOW_MS, type UndoTicket } from '@/lib/mutations/undoTicket';
@@ -495,21 +496,20 @@ export const lowConfidenceNotice = (count: number): string =>
   lowConfidencePartialNotice(formatDimensionCount(count));
 
 /* -------------------------------------------------------------------------- */
-/* P-06 — độ tin cậy. Ngưỡng lấy từ `confidenceLevel`, không đặt ngưỡng mới.    */
+/* P-06 — độ tin cậy. Ngưỡng là của dự án (N5), mặc định 0,70.                  */
 /* -------------------------------------------------------------------------- */
 
 /**
  * Chuỗi này có dưới ngưỡng "cần chú ý" của màn không?
  *
- * KHÔNG có hằng ngưỡng riêng ở màn (R-71): `confidenceLevel` của
- * `src/lib/format/semantic.ts` trả `'needsReview'` đúng khi
- * `confidence < CONFIDENCE_SUGGESTED_THRESHOLD` (0,70) — và đó CHÍNH LÀ ngưỡng
- * mà `dimensionOcrFixture.ts` dùng để đếm ra 9 mục dưới ngưỡng của đặc tả. Hai
- * bên vì thế không thể lệch nhau, khác hẳn ca `OBJECT_LAYER_CONFIDENCE_THRESHOLD`
- * của màn S-13 vốn phải đặt một ngưỡng sản phẩm riêng mới ra đúng số.
+ * Ngưỡng là `confidenceThreshold` của dự án (N5, Cài đặt › Đơn vị đo) — cùng nguồn câu đếm của màn
+ * Xử lý (FIX-1603, BUG-354). Chưa đọc được cài đặt (và bộ mẫu, vốn không có cổng đọc N5) thì
+ * `CONFIDENCE_SUGGESTED_THRESHOLD` (0,70) — ngưỡng `dimensionOcrFixture.ts` dùng để đếm ra 9 mục.
  */
-export const isLowConfidenceDimension = (confidence: number): boolean =>
-  confidenceLevel(confidence) === 'needsReview';
+export const isLowConfidenceDimension = (
+  confidence: number,
+  threshold: number = CONFIDENCE_SUGGESTED_THRESHOLD,
+): boolean => confidence < threshold;
 
 /**
  * Mã trạng thái trung lập của một hàng (A5).
@@ -517,12 +517,15 @@ export const isLowConfidenceDimension = (confidence: number): boolean =>
  * `'verified'` CHỈ khi người duyệt đã duyệt. `'attention'` khi dưới ngưỡng mà
  * chưa duyệt. Không bao giờ `'violation'` ở màn này — màn không chạy rule QC.
  */
-export function dimensionStatusCode(review: ReviewMetadata): ViewStatusCode {
+export function dimensionStatusCode(
+  review: ReviewMetadata,
+  threshold: number = CONFIDENCE_SUGGESTED_THRESHOLD,
+): ViewStatusCode {
   if (review.reviewed) {
     return 'verified';
   }
 
-  return isLowConfidenceDimension(review.confidence) ? 'attention' : 'neutral';
+  return isLowConfidenceDimension(review.confidence, threshold) ? 'attention' : 'neutral';
 }
 
 /* -------------------------------------------------------------------------- */
@@ -686,6 +689,7 @@ export function toDimensionRow(
   imageUrl: string,
   draftValueMm?: number,
   codes?: ReadonlyMap<string, string>,
+  threshold: number = CONFIDENCE_SUGGESTED_THRESHOLD,
 ): DimensionRowViewModel {
   const displayId = displayCodeFrom(dimension.id, codes);
   const valueMm = draftValueMm ?? readValueOf(dimension);
@@ -697,8 +701,8 @@ export function toDimensionRow(
     valueLabel: formatDimensionLength(valueMm),
     confidence: dimension.confidence,
     isReviewed: dimension.reviewed,
-    isLowConfidence: isLowConfidenceDimension(dimension.confidence),
-    statusCode: dimensionStatusCode(dimension),
+    isLowConfidence: isLowConfidenceDimension(dimension.confidence, threshold),
+    statusCode: dimensionStatusCode(dimension, threshold),
     hostWallLabel: hostWall === null ? null : wallReferenceLabel(wallCodeLabel(hostWall.id, codes)),
     hostWallId: hostWall === null ? null : hostWall.id,
     crop: cropOf(dimension, scale, imageUrl, codes),
@@ -766,9 +770,10 @@ export const reviewCounterOf = (dimensions: readonly Dimension[]): DimensionRevi
 /** Những chuỗi dưới ngưỡng tin cậy và chưa duyệt — nhánh (a) của trạng thái một phần. */
 export const lowConfidenceDimensionsOf = (
   dimensions: readonly Dimension[],
+  threshold: number = CONFIDENCE_SUGGESTED_THRESHOLD,
 ): readonly Dimension[] =>
   dimensions.filter(
-    (dimension) => !dimension.reviewed && isLowConfidenceDimension(dimension.confidence),
+    (dimension) => !dimension.reviewed && isLowConfidenceDimension(dimension.confidence, threshold),
   );
 
 /* -------------------------------------------------------------------------- */
@@ -1045,6 +1050,8 @@ export interface DimensionOcrReviewGateway {
   readonly actorId: string;
   /** Mốc giờ hiện tại. Tiêm được để test không phụ thuộc đồng hồ thật. */
   readonly now: () => number;
+  /** Ngưỡng tin cậy của dự án (N5). Vắng → ngưỡng mặc định 0,70 (BUG-354). */
+  readonly readConfidenceThreshold?: ReadConfidenceThreshold;
 }
 
 export interface CreateDimensionOcrReviewGatewayOptions {
@@ -1109,6 +1116,7 @@ export function createDimensionOcrReviewGateway(
 
     actorId: options.actorId ?? DIMENSION_OCR_DEFAULT_ACTOR_ID,
     now: options.now ?? ((): number => Date.now()),
+    readConfidenceThreshold: (input) => readProjectConfidenceThreshold(apiClient.projectSettings, input),
   };
 }
 

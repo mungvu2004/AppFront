@@ -1,8 +1,18 @@
 /**
  * Phase 5 — 3D, Track A (E2E-TEST-PLAN.md v2 §4, SCR-23 → SCR-27).
  *
- * Needs: Phase 2 (project.projectId), Phase 3 (floors.workFloorId/workFloorName, CP-5
- * checkpoints.pipelineComplete), CP-0 with `FEATURE_FLAGS='{"scene.pascal-viewer": true}'`.
+ * Data (BUG-346): `beforeAll` creates its OWN `qa-<runId>-m05-…` project with two floors through the real API and writes
+ * both layers through #35 (`support/layerSeed.ts` qcLayer: walls, a door and a window, rooms "Bếp" / "PHONG NGU 2", a
+ * table), so the viewer has a model, room search has rooms, the exploded view has two storeys and the measurement tool has
+ * geometry to pick; `afterAll` deletes the project (its measurements and the 3D vertex edit go with it). Nothing reads
+ * Phase 2/3 (CP-2…CP-5): no case here needs the pipeline output itself (drawing, OCR, scale) — "Đối chiếu bản vẽ" is only a
+ * navigation check. Needs only CP-0 with `FEATURE_FLAGS='{"scene.pascal-viewer": true}'` (SCR-26).
+ * Only SCR-25 is serial ("manage" works on the measurement the previous test pinned): a failure there skips the rest of
+ * SCR-25, never the next screens (Playwright then starts a new worker, which runs `beforeAll` on a fresh project).
+ * SCR-23 cases share the open viewer page, but each opens it itself when it is not there (`openViewer`, BUG-494):
+ * one failed SCR-23 case no longer skips the other five.
+ * Budget per worker: `POST /api/auth/login` 3 (`signInAdmin` desktop + mobile, `signedInApi` for the fixture calls);
+ * 1 project + 2 #35 seed PUTs + 1 DELETE (no rate limit, `support/layerSeed.ts`).
  *
  * Camera changes are proven by canvas pixels, never by sleeping: {@link canvasOnlyShot} hides every
  * DOM overlay of the viewport (CSSOM `visibility`, restored right after) so the screenshot holds the
@@ -16,18 +26,17 @@
 import { deflateSync, inflateSync } from 'node:zlib';
 
 import { expect, test } from '@playwright/test';
-import type { BrowserContext, Locator, Page } from '@playwright/test';
+import type { APIRequestContext, BrowserContext, Locator, Page } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { TOUR_APPEAR_TIMEOUT_MS, dismissTour } from '../../e2e/fixtures/tour';
 import { navigateThenWaitForApi, waitForApi, waitForApiWhere } from '../../e2e/fullstack/apiWatch';
 import { loadDracoDecoder, watchCsp, type CspViolation } from '../../e2e/fullstack/csp';
 import { AUTOSAVE_TIMEOUT_MS, PASCAL_RENDER_TIMEOUT_MS, readBaseUrl } from '../../e2e/fullstack/env';
-import { signInAdmin } from './support/auth';
+import { signedInApi } from './support/api';
+import { readAdminCredentials, signInAdmin } from './support/auth';
 import { captureEvidence } from './support/evidence';
-import { requireState } from './support/state';
-
-test.describe.configure({ mode: 'serial' });
+import { createQcProject, deleteProject, type LayerApi, type SeededFloor } from './support/layerSeed';
 
 /* ---- Labels and contracts (each verified in src/ or in a proven spec) ---------------------- */
 
@@ -52,13 +61,16 @@ const ENTER_WALL_EDIT = 'Sửa hình học tường';
 /** `wallGeometryEditorTypes.ts` WALL_GEOMETRY_EDITOR_TEXT. */
 const WALL_EDITOR_REGION = 'Sửa hình học tường';
 const VERTEX_X_PATTERN = /^Toạ độ x /u;
-/** `useExplodedView.ts` EmptyMessage = `vi.json:2924`. */
+/** `useExplodedView.ts:143` = `vi.json:2942`; ≥ 2 storeys without a buildable part → `useExplodedView.ts:146,859-860` (BUG-382). */
 const EXPLODED_EMPTY_TEXT = 'Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.';
+const EXPLODED_NO_MODEL_TEXT = VIEWER_EMPTY_TEXT;
+/** `ExplodedView.tsx:54`; the presets also show while loading (`ExplodedView.tsx:75,86`). */
+const EXPLODED_LOADING_TEXT = 'Đang tách các tầng...';
 const EXPLODED_ERROR_TEXT = 'Không tách được các tầng lúc này. Vui lòng thử lại sau.';
 /** `MeasurementTool.tsx`, `MeasurementList.tsx`, `useViewerShell.ts:169`. */
 const PIN_LABEL = 'Ghim phép đo (phím Enter)';
 const DROP_DRAFT_LABEL = 'Bỏ phần đo dở (phím Esc)';
-const MEASURE_RAIL_TOOL = 'đo (M)';
+const MEASURE_RAIL_TOOL = 'Đo (M)';
 /** Copied from chain.fullstack.ts (never import a spec). */
 const PASCAL_FLAG_KEY = 'scene.pascal-viewer';
 const PASCAL_RENDERED_PATTERN =
@@ -191,8 +203,13 @@ async function canvasOnlyShot(page: Page): Promise<CanvasShot> {
   const box = await main.locator('canvas').first().boundingBox();
 
   if (box === null) throw new Error('viewport canvas has no bounding box');
+  // BUG-494: a handle, not the role locator — `visibility: hidden` drops <main> from the accessibility tree, so
+  // `getByRole('main')` could not find it again to restore it (30 s timeout).
+  const handle = await main.elementHandle();
+
+  if (handle === null) throw new Error('viewport <main> not found');
   const toggle = (only: boolean): Promise<void> =>
-    main.evaluate((element, canvasOnly) => {
+    handle.evaluate((element, canvasOnly) => {
       const root = element as HTMLElement;
       const canvas = root.querySelector('canvas');
 
@@ -205,6 +222,7 @@ async function canvasOnlyShot(page: Page): Promise<CanvasShot> {
     return { png: await page.screenshot({ clip: box }), box };
   } finally {
     await toggle(false);
+    await handle.dispose();
   }
 }
 
@@ -327,19 +345,37 @@ const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/
 
 /* ---- Shared Track A context (desktop, 1440×900) -------------------------------------------- */
 
+/** Two storeys, both layered: the exploded view needs ≥ 2 storeys with geometry (`useExplodedView.ts`). */
+const SEEDED_FLOORS = ['Tầng 1', 'Tầng 2'] as const;
+/** `useViewerShell.ts:167-169` (BUG-384): "Tầng 1" → "tầng 1". */
+const storeyInlineName = (name: string): string => (/^tầng(\s|$)/iu.test(name) ? `t${name.slice(1)}` : `tầng ${name}`);
+/** `ExplodedView.tsx:78`: the floor cards live here; the shell rail eye (also "Ẩn tầng 1", FIX-1706) does not. */
+const EXPLODED_REGION = 'Nội dung tách tầng';
+
 let context: BrowserContext;
 let page: Page;
 let cspViolations: CspViolation[] = [];
+/** Fixture calls (own admin API login; `support/layerSeed.ts`). */
+let fixtureApi: APIRequestContext | undefined;
+let seeded: readonly SeededFloor[] = [];
 let projectId = '';
-let workFloorId = '';
-let workFloorName = '';
+/** The first seeded floor ("Ẩn tầng …" on SCR-24). */
+let floorName = '';
+
+const layerApi = (): LayerApi => {
+  if (fixtureApi === undefined) throw new Error('setup: no fixture API context');
+  return { request: fixtureApi, headers: {} };
+};
 
 test.beforeAll(async ({ browser }) => {
   selfCheckPngDecoder();
-  projectId = requireState((s) => s.project.projectId, 'project.projectId', 'Phase 2 (SCR-05, CP-2)');
-  workFloorId = requireState((s) => s.floors.workFloorId, 'floors.workFloorId', 'Phase 3 (SCR-09, CP-3)');
-  workFloorName = requireState((s) => s.floors.workFloorName, 'floors.workFloorName', 'Phase 3 (SCR-09, CP-3)');
-  requireState((s) => s.checkpoints.pipelineComplete, 'checkpoints.pipelineComplete', 'Phase 3 (SCR-12, CP-5)');
+  const { email, password } = readAdminCredentials();
+  fixtureApi = await signedInApi(email, password);
+  seeded = await createQcProject(layerApi(), 'm05', SEEDED_FLOORS, SEEDED_FLOORS.length);
+  const first = seeded[0];
+  if (first === undefined) throw new Error('setup: the seeded project has no floor');
+  projectId = first.projectId;
+  floorName = first.floorName;
 
   // Contexts made by hand do not get `use` from the config: set baseURL and viewport here.
   context = await browser.newContext({ baseURL: readBaseUrl(), viewport: { width: 1440, height: 900 } });
@@ -349,12 +385,29 @@ test.beforeAll(async ({ browser }) => {
 });
 
 test.afterAll(async () => {
-  await context?.close();
+  try {
+    const own = seeded[0];
+    if (own !== undefined && fixtureApi !== undefined) {
+      const failed = await deleteProject(layerApi(), own.projectId);
+      if (failed !== null) test.info().annotations.push({ type: 'cleanup', description: failed });
+    }
+  } finally {
+    await fixtureApi?.dispose();
+    await context?.close();
+  }
 });
 
 /* ---- SCR-23 Viewer 3D ---------------------------------------------------------------------- */
 
 test.describe('SCR-23 Viewer 3D', () => {
+  // BUG-494: not serial. After a failed case the next one runs in a fresh worker (new page, not on /3d): it opens the viewer.
+  const openViewer = async (): Promise<void> => {
+    if (new URL(page.url()).pathname === ROUTES.project.viewer(projectId)) return;
+    await page.goto(ROUTES.project.viewer(projectId));
+    await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
+    await expect(viewport(page)).toHaveAttribute('aria-busy', 'false', { timeout: SCENE_TIMEOUT_MS });
+  };
+
   test('SCR-23 load: viewport + canvas with non-blank pixels, Draco under CSP', async () => {
     await navigateThenWaitForApi(
       page,
@@ -367,7 +420,7 @@ test.describe('SCR-23 Viewer 3D', () => {
     await expect(viewport(page)).toBeVisible();
     await expect(viewport(page).locator('canvas').first()).toBeVisible();
     await expect(page).not.toHaveURL(ACCESS_DENIED_PATTERN);
-    await expect(page.getByText(VIEWER_EMPTY_TEXT, { exact: true }), 'CP-5: viewer says there is no wall layer').toHaveCount(0);
+    await expect(page.getByText(VIEWER_EMPTY_TEXT, { exact: true }), 'seeded layer: viewer says there is no wall layer').toHaveCount(0);
     await expect(viewport(page)).toHaveAttribute('aria-busy', 'false', { timeout: SCENE_TIMEOUT_MS });
     await expect(page.getByRole('status').filter({ hasText: BUILDING_TEXT })).toHaveCount(0, { timeout: SCENE_TIMEOUT_MS });
 
@@ -385,6 +438,7 @@ test.describe('SCR-23 Viewer 3D', () => {
 
   test('SCR-23 presets "Góc nhìn sẵn", "Chế độ xem" 2D, keys O / F / 0 / Esc change the camera', async () => {
     test.setTimeout(HEAVY_TEST_TIMEOUT_MS);
+    await openViewer();
     const presetSelect = page.getByRole('combobox', { name: 'Góc nhìn sẵn' });
     const cube = page.getByRole('group', { name: 'Khối định hướng' });
     const choosePreset = async (label: string): Promise<void> => {
@@ -450,18 +504,9 @@ test.describe('SCR-23 Viewer 3D', () => {
   });
 
   test('SCR-23 room search: "/" → "Tìm phòng theo tên hoặc mã" → result is framed and selected', async () => {
-    const trigger = page.getByRole('button', { name: SEARCH_TRIGGER, exact: true });
-
-    if ((await trigger.count()) === 0) {
-      // `ObjectSearch` renders nothing without rooms (`ObjectSearch.tsx:115`): data branch, not a pass of the search.
-      test.info().annotations.push({ type: 'data-branch', description: 'no rooms in the spatial layer: room search is not rendered' });
-      await viewport(page).focus();
-      await page.keyboard.press('/');
-      await expect(page.getByRole('combobox', { name: SEARCH_INPUT })).toHaveCount(0);
-      await captureEvidence(page, '23_viewer_search.png');
-      await page.keyboard.press('Escape');
-      return;
-    }
+    await openViewer();
+    // `ObjectSearch` renders nothing without rooms (`ObjectSearch.tsx:115`); the seeded layer has two per floor.
+    await expect(page.getByRole('button', { name: SEARCH_TRIGGER, exact: true }), 'room search (seeded rooms)').toBeVisible();
 
     await page.mouse.move(5, 5);
     const before = await settledCanvas(page);
@@ -493,6 +538,7 @@ test.describe('SCR-23 Viewer 3D', () => {
   });
 
   test('SCR-23 side panels "Bảng phụ của khung nhìn 3D": Diện tích phòng / Thư viện đồ đạc / Lịch sử thao tác', async () => {
+    await openViewer();
     const nav = page.getByRole('navigation', { name: PANELS_NAV });
     const labels = Object.keys(PANEL_IDS) as (keyof typeof PANEL_IDS)[];
 
@@ -514,6 +560,7 @@ test.describe('SCR-23 Viewer 3D', () => {
 
   test('SCR-23 wall selected → "Sửa hình học tường" → vertex edit → PUT …/spatial/layer from 3D', async () => {
     test.setTimeout(HEAVY_TEST_TIMEOUT_MS);
+    await openViewer();
     const enter = page.getByRole('button', { name: ENTER_WALL_EDIT, exact: true });
 
     await page.mouse.move(5, 5);
@@ -549,12 +596,14 @@ test.describe('SCR-23 Viewer 3D', () => {
     const original = parseViNumber(await xField.inputValue());
     expect(Number.isFinite(original), `vertex x "${await xField.inputValue()}" is not a number`).toBe(true);
     const next = Math.round(original) + 10; // +10 mm (`formatCoordinate`, mm, 0 digits)
-    const layerPath = `/api/projects/${projectId}/floors/${workFloorId}/spatial/layer`;
+    // The picked wall may sit on either seeded storey: the editor writes the floor of its level (`useWallGeometryEditor.ts`).
+    const floorIds = seeded.map((floor) => floor.floorId).join('|');
+    const layerPath = new RegExp(`^/api/projects/${projectId}/floors/(${floorIds})/spatial/layer$`, 'u');
     const write = waitForApiWhere(
       page,
-      (response) => response.request().method() === 'PUT' && new URL(response.url()).pathname === layerPath,
+      (response) => response.request().method() === 'PUT' && layerPath.test(new URL(response.url()).pathname),
       AUTOSAVE_TIMEOUT_MS,
-      `PUT ${layerPath}`,
+      `PUT /api/projects/${projectId}/floors/<seeded>/spatial/layer`,
     );
 
     await xField.fill(String(next));
@@ -575,6 +624,7 @@ test.describe('SCR-23 Viewer 3D', () => {
   });
 
   test('SCR-23 sibling navigation: "Tách tầng" / "Công cụ đo" / "Đối chiếu bản vẽ"', async () => {
+    await openViewer();
     const nav = page.getByRole('navigation', { name: SIBLINGS_NAV });
     const backToViewer = async (): Promise<void> => {
       await page.goBack();
@@ -603,24 +653,25 @@ test.describe('SCR-23 Viewer 3D', () => {
 /* ---- SCR-24 Exploded View ------------------------------------------------------------------ */
 
 test.describe('SCR-24 Exploded View', () => {
-  test('SCR-24 "Tách hết", "Độ tách các tầng", "Ẩn tầng {work}" (empty state below 2 storeys)', async () => {
+  test('SCR-24 "Tách hết", "Độ tách", "Ẩn tầng {seeded floor}"', async () => {
     await page.goto(ROUTES.project.exploded(projectId));
     await dismissTour(page);
-    const slider = page.getByRole('slider', { name: 'Độ tách các tầng' });
+    // FIX-1724: no screen slider in the normal layout; the shell storey rail's "Độ tách" drives the same value
+    // (`ViewerStoreyRail.tsx:114-130`, `useExplodedView.ts:786-790`).
+    const slider = page.getByRole('slider', { name: 'Độ tách', exact: true });
+    const presets = page.getByRole('radiogroup', { name: 'Mức tách sẵn' });
     const empty = page.getByText(EXPLODED_EMPTY_TEXT, { exact: true });
+    const noModel = page.getByText(EXPLODED_NO_MODEL_TEXT, { exact: true });
     const failure = page.getByText(EXPLODED_ERROR_TEXT, { exact: true });
 
-    await expect(slider.or(empty).or(failure).first()).toBeVisible({ timeout: SCENE_TIMEOUT_MS });
+    await expect(presets.or(empty).or(noModel).or(failure).first()).toBeVisible({ timeout: SCENE_TIMEOUT_MS });
+    await expect(page.getByText(EXPLODED_LOADING_TEXT, { exact: true })).toHaveCount(0, { timeout: SCENE_TIMEOUT_MS });
     await expect(failure, 'exploded view error state').toHaveCount(0);
+    // Two seeded storeys with geometry: never the "< 2 storeys" empty state (that one is `U05_exploded_empty`) nor "no model".
+    await expect(empty, 'exploded view empty state with two seeded storeys').toHaveCount(0);
+    await expect(noModel, 'exploded view "no model" state with seeded layers').toHaveCount(0);
 
-    if (await empty.isVisible()) {
-      test.info().annotations.push({ type: 'data-branch', description: 'fewer than 2 storeys with geometry: empty state' });
-      await expect(slider).toHaveCount(0);
-      await captureEvidence(page, '24_exploded.png');
-      return;
-    }
-
-    const full = page.getByRole('radiogroup', { name: 'Mức tách sẵn' }).getByRole('radio', { name: 'Tách hết', exact: true });
+    const full = presets.getByRole('radio', { name: 'Tách hết', exact: true });
     await full.click();
     await expect(full).toHaveAttribute('aria-checked', 'true');
     const separated = await slider.inputValue();
@@ -632,11 +683,25 @@ test.describe('SCR-24 Exploded View', () => {
     await full.click();
     await expect(slider).toHaveValue(separated);
 
-    const hide = page.getByRole('button', { name: `Ẩn tầng ${workFloorName}`, exact: true });
-    const show = page.getByRole('button', { name: `Hiện tầng ${workFloorName}`, exact: true });
+    // BUG-491: the shot proves "Tách hết" only with the model drawn — wait for model pixels, shoot before any floor is hidden.
+    await page.mouse.move(5, 5);
+    await expect
+      .poll(async () => geometryOf(await canvasOnlyShot(page)).fraction, {
+        message: 'exploded view: canvas shows only its background colour after "Tách hết" (no storey drawn)',
+        timeout: SCENE_TIMEOUT_MS,
+      })
+      .toBeGreaterThan(0.01);
+    await settledCanvas(page);
+    await captureEvidence(page, '24_exploded.png');
+
+    // Card eye `ExplodedViewFloorCards.tsx:173`: "Ẩn {inlineName}" (storeyInlineName, viewerStoreyStack.ts:120-124), "Tầng 1" -> "Ẩn tầng 1".
+    // Scope to the screen so the shell rail's identical eye (`ViewerStoreyRail.tsx:93`) never matches.
+    const cardName = escapeRegExp(storeyInlineName(floorName));
+    const cards = page.getByRole('region', { name: EXPLODED_REGION, exact: true });
+    const hide = cards.getByRole('button', { name: new RegExp(`^Ẩn ${cardName}$`, 'u') });
+    const show = cards.getByRole('button', { name: new RegExp(`^Hiện ${cardName}$`, 'u') });
     await hide.click();
     await expect(show).toBeVisible();
-    await captureEvidence(page, '24_exploded.png');
 
     await show.click(); // local only: restore what this test changed
     await expect(hide).toBeVisible();
@@ -646,6 +711,7 @@ test.describe('SCR-24 Exploded View', () => {
 /* ---- SCR-25 Measurement Tool --------------------------------------------------------------- */
 
 test.describe('SCR-25 Measurement Tool', () => {
+  test.describe.configure({ mode: 'serial' }); // "manage" works on the measurement the previous test pinned
   const measurementsPath = (): RegExp => new RegExp(`^/api/projects/${projectId}/measurements$`, 'u');
   const list = (): Locator => page.getByRole('region', { name: 'Phép đo' });
   let pinnedName = '';
@@ -740,7 +806,7 @@ test.describe('SCR-25 Measurement Tool', () => {
     if (pinnedName === '' || hitPoint === null) throw new Error('needs the pinned measurement of the previous SCR-25 row');
     const name = pinnedName;
     const row = list().getByRole('listitem').filter({ has: page.getByRole('button', { name: new RegExp(`^(Ẩn|Hiện) ${escapeRegExp(name)}$`, 'u') }) });
-    const unit = page.getByRole('combobox', { name: 'đơn vị' });
+    const unit = page.getByRole('combobox', { name: 'Đơn vị' });
     const chooseUnit = async (label: 'mm' | 'm'): Promise<void> => {
       await unit.click();
       await page.getByRole('option', { name: label, exact: true }).click();
@@ -878,12 +944,14 @@ test.describe('SCR-27 Mobile Viewer', () => {
     await tool('Đo').click();
     await expect(tool('Đo')).toHaveAttribute('aria-pressed', 'true');
     await expect(mobile.getByRole('group', { name: 'Đo', exact: true })).toBeVisible();
+    // BUG-492: shot while the tool bar is on screen ("Đo" pressed + its sheet); the "Thông tin" sheet below covers the bar.
+    await expect(tools).toBeInViewport();
+    await captureEvidence(mobile, '27_mobile_tools.png');
 
     await tool('Thông tin').click();
     await expect(tool('Thông tin')).toHaveAttribute('aria-pressed', 'true');
     await expect(mobile.getByRole('dialog', { name: MOBILE_INFO_SHEET })).toBeVisible();
 
     await expect(mobile.getByRole('button', { name: MOBILE_SHARE })).toHaveCount(0);
-    await captureEvidence(mobile, '27_mobile_tools.png');
   });
 });

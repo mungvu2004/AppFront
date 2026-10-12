@@ -48,8 +48,11 @@ const HALF_RATIO = 0.5;
 /** Một nhịp phím mũi tên dịch tay nắm bao nhiêu phần khung. */
 const CORNER_KEYBOARD_STEP_RATIO = 0.01;
 
-/** Cạnh tay nắm góc, px — đặc tả gọi tên đúng con số này. */
+/** Cạnh chấm tay nắm góc, px — đặc tả gọi tên đúng con số này. */
 const CORNER_HANDLE_SIZE_PX = 10;
+
+/** Vùng chạm quanh chấm: 44 px (đích chạm cảm ứng), chấm 10 px vẫn ở giữa (BUG-292). */
+const CORNER_HIT_SIZE_PX = 44;
 
 /**
  * Tên một tay nắm, đọc ra từ chỗ nó đang đứng.
@@ -99,13 +102,6 @@ const REGION_BORDER_CLASSES: Readonly<Record<QualityLevel, string>> = {
   poor: 'border-state-violation',
 };
 
-/** Nền rất nhạt cùng mức, để vùng đọc được cả khi ảnh nền tối. */
-const REGION_TINT_CLASSES: Readonly<Record<QualityLevel, string>> = {
-  good: 'bg-transparent',
-  attention: 'bg-state-attention-tint',
-  poor: 'bg-state-violation-tint',
-};
-
 /** Token `applyEmphasis` cầm cho mỗi mức — nó giữ nguyên token, chỉ đổi độ mờ. */
 const REGION_EMPHASIS_TOKENS: Readonly<Record<QualityLevel, ColorTokenName>> = {
   good: '--border-default',
@@ -141,10 +137,15 @@ export function ImageRegionLayer({
   }
 
   const hasHighlight = highlightedRegionId !== null;
+  // Vùng lớn vẽ trước, vùng nhỏ sau cùng nên nằm trên: con trỏ trong vùng "ảnh bị nghiêng" trúng
+  // chính nó chứ không trúng khung 96 % phủ lên (BUG-539).
+  const byAreaDescending = [...regions].sort(
+    (a, b) => b.widthRatio * b.heightRatio - a.widthRatio * a.heightRatio,
+  );
 
   return (
     <div aria-label={REGION_GROUP_LABEL} className="absolute inset-0" role="group">
-      {regions.map((region) => {
+      {byAreaDescending.map((region) => {
         const isHighlighted = region.id === highlightedRegionId;
         const appearance = applyEmphasis(
           REGION_EMPHASIS_TOKENS[region.level],
@@ -157,8 +158,9 @@ export function ImageRegionLayer({
             className={clsx(
               'absolute rounded-[4px] transition-opacity ease-in-out',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
+              // Chỉ viền, không nền: tint đặc của token che bản vẽ mà người duyệt phải nhìn
+              // (vùng RESOLUTION_TOO_LOW phủ cả ảnh, BUG-537).
               REGION_BORDER_CLASSES[region.level],
-              REGION_TINT_CLASSES[region.level],
               isHighlighted ? 'border-2' : 'border',
             )}
             key={region.id}
@@ -261,7 +263,7 @@ export interface CornerHandleLayerProps {
 }
 
 /**
- * Bốn tay nắm 10px, kéo được bằng chuột và bằng phím mũi tên.
+ * Bốn tay nắm (chấm 10px, vùng chạm 44px), kéo được bằng chuột và bằng phím mũi tên.
  *
  * `setPointerCapture` giữ sự kiện ở lại tay nắm cho tới lúc nhả, nên không cần
  * một `addEventListener` nào lên `window` và không listener nào sống quá vòng
@@ -281,11 +283,7 @@ export function CornerHandleLayer({
       {corners.map((corner) => (
         <button
           aria-label={cornerLabel(corner)}
-          className={clsx(
-            'absolute -translate-x-1/2 -translate-y-1/2 rounded-full border border-bg-surface bg-accent',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
-            draggingCornerId === corner.id && 'ring-2 ring-accent',
-          )}
+          className="group absolute flex -translate-x-1/2 -translate-y-1/2 touch-none items-center justify-center rounded-full focus-visible:outline-none"
           key={corner.id}
           onKeyDown={(event) => {
             const nudge = nudgeOf(event.key);
@@ -294,7 +292,10 @@ export function CornerHandleLayer({
               return;
             }
 
+            // Tay nắm đã dùng phím này: không để nó lan tới phím tắt đổi tầng trên `window`,
+            // nếu không vừa nhích vừa đổi tầng và mất bản nháp góc (BUG-540).
             event.preventDefault();
+            event.stopPropagation();
             onDragCorner(
               corner.id,
               clampRatio(corner.xRatio + nudge.dx),
@@ -323,11 +324,21 @@ export function CornerHandleLayer({
           style={{
             left: percentOf(corner.xRatio),
             top: percentOf(corner.yRatio),
-            width: CORNER_HANDLE_SIZE_PX,
-            height: CORNER_HANDLE_SIZE_PX,
+            width: CORNER_HIT_SIZE_PX,
+            height: CORNER_HIT_SIZE_PX,
           }}
           type="button"
-        />
+        >
+          <span
+            aria-hidden="true"
+            className={clsx(
+              'rounded-full border border-bg-surface bg-accent',
+              'group-focus-visible:ring-2 group-focus-visible:ring-accent group-focus-visible:ring-offset-2',
+              draggingCornerId === corner.id && 'ring-2 ring-accent',
+            )}
+            style={{ width: CORNER_HANDLE_SIZE_PX, height: CORNER_HANDLE_SIZE_PX }}
+          />
+        </button>
       ))}
     </div>
   );

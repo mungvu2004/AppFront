@@ -1,0 +1,2650 @@
+/**
+ * Phase 3 — project setup, upload and pipeline BACKEND through the real API (skill `qa-api-test`), no browser,
+ * NO mocks. Endpoints (FE `src/api/endpoints.ts`, `lib/upload/uploadTask.ts`; UI spec `phase03_pipeline.spec.ts`):
+ *   PUT  /api/projects/:id/settings (N6, read-back GET N5)        BE project_settings/router.py:22-39
+ *   PATCH /api/projects/:id (#26 — rules owned by phase02_dashboard_api, only referenced here)
+ *   POST /api/projects/:id/floors (#10)                            BE floors/router.py:30-35
+ *   PATCH /api/projects/:id/floors/:fid/spatial (#34)              BE floors/router.py:67-78
+ *   PATCH /api/floors/reorder (#13)                                BE floors/router.py:52-64
+ *   POST /api/projects/:id/floors/:fid/drawings/uploads (#5)       BE drawings/router.py:50-67
+ *   POST /api/projects/:id/drawings/uploads/:uid/chunks (#6)       BE drawings/router.py:70-77 (NOT under /floors/:fid)
+ *   POST /api/projects/:id/drawings/uploads/:uid/complete (#7)     BE drawings/router.py:80-99
+ *   GET  /api/projects/:id/drawings/uploads/:uid/progress (#8, read-back)  BE drawings/router.py:102-106
+ *   GET  /api/streams/projects/:id/uploads/:uid/progress (S1, SSE) BE streams/router.py:118-140
+ *   GET  /api/projects/:id/floors/:fid/quality (#30, SCR-11), POST …/quality/straighten (#32, 404 branch only),
+ *   GET  /api/files/{token} (signed drawing URL) — BE quality/router.py:30-56, files/router.py:30-48.
+ * QA-03d (second describe, one rule per test) adds: DELETE /api/floors/:fid (#11, SCR-08 "Xoá mọi tầng"),
+ *   GET /api/projects/:id/floors (#12, SCR-15 CAD floors), GET …/drawings/uploads/latest (N7, SCR-12 / SCR-13),
+ *   POST …/quality/corners (#31) and the #32 happy / 409 / 422 paths, N3 / N4 members (SCR-08 "Thành viên", admin-only
+ *   cases), S1 resume + session gates, and the shared gates (malformed / deleted project, VALIDATION count).
+ * Inventory + mock-pairing table: `qa/coverage/phase03-be.md`.
+ * `BE:` = `F:/App/AppBack` (qa.config backendSourceRoot, main), paths under `apps/api/` unless noted.
+ *
+ * ## Non-serial, own data
+ * Every test signs in on its own, creates the projects/floors/uploads it needs (`qa-<runId>-…` names) and deletes
+ * its projects in `finally` (soft delete hides floors, uploads and runs with them). Non-admin roles are REAL users:
+ * admin invites a run-unique `@example.test` address, the one-time token comes from Mailpit, the invitee accepts and
+ * one refresh gives its Bearer + stream cookie. Cleanup: `DELETE /api/users/{id}` + mails. The admin account is only
+ * read: no password change, no failed login.
+ *
+ * ## Real-backend budget per run (BE defaults; the QA stack adds `qa-limits.override.yml`)
+ * - `POST /api/auth/login` per IP 30 / 60 s (BE:auth/settings.py; override LOGIN_IP_LIMIT=120): THIS file 12 (one
+ *   admin login per test except "anon"; 15 since the three "gaps" tests), 0 failed. Phase-3 UI layers: main
+ *   `phase03_pipeline.spec.ts` 1, ui `phase03_pipeline_ui.spec.ts` 1, edge `phase03_pipeline_edge.spec.ts` 0 (each +1
+ *   only for a dead stored session). Layers run sequentially → ≤ 20 per run.
+ * - `drawings_init` 60 / 600 s PER USER (BE:drawings/settings.py:135-136, router.py:39-46; counted for every #5
+ *   request that passes the `floor.upload` gate, even a 422 body — core/ratelimit.py:116-118): ADMIN 29 in this file
+ *   (init-rules 13, dedupe 3, chunks 2, reject 3, pipeline 1, sse-gates 1, roles 1, gaps-pdf 4, gaps-gone-floor 1) + main ≤ 2
+ *   + edge 3 (by its header) + ui 0 = 34 ≤ 60 per run. A second full run inside the same 600 s would reach 68 > 60 (429)
+ *   → wait 10 min between full phase-3 runs; a --grep re-run of only the "gaps" tests spends 5.
+ *   The INIT_LIMIT + 1 inits of "roles" (61 at the BE default; 301 with the QA override DRAWINGS_INIT_RATE_LIMIT=300,
+ *   read from E2E_DRAWINGS_INIT_RATE_LIMIT) are spent by its own fresh engineer (own bucket, deleted afterwards).
+ *   QA-03d adds 23 admin inits (deleted-project 1, init limits 3, init types 2, init W21 1, init idempotency 3, chunk size 1,
+ *   complete race 1, complete idempotency 1, N7 pick 2, N7 paging 2, after-run 2, resume 1, quality view 1, corners ok 1,
+ *   layer reviewed 1) → THIS file 52 + main ≤ 2 + edge 3 = 57 ≤ 60 per 600 s window. Inits refused by
+ *   the project gate (404 / 403) are not counted (gate before the limiter, router.py:52).
+ * - Pipeline worker (QA-03d): 9 more runs of drawing.png (complete race, complete idempotency, after-run, resume,
+ *   quality view, corners ok ×2, layer reviewed) — each ~10-15 s on the QA stack.
+ * - `members_add` (QA-03d "members"): ≤ 5 N3 calls by the admin (60 / 3600 s per actor).
+ * - Invitations: none in QA-03d. With QA_SKIP_INVITES=1 (caller: the users_invite bucket is at its cap) "roles" is
+ *   skipped instead of being sent into a 429.
+ * - `POST /api/users/invitations` 30 / 3600 s per admin (BE:users/router.py): THIS file 2 ("roles"). Phase 1 spends 8,
+ *   Phase 2 ≤ 15 → Phases 1-3 in one hour = 25 ≤ 30.
+ * - `recovery_ip` 10 / 900 s per IP (override 60): 2 invitation accepts.
+ * - `members_add` 60 / 3600 s per actor: admin 2.
+ * - SSE: ≤ 6 concurrent streams per user (BE:streams/settings.py:34, connections.py:30-50) — "roles" opens 7 for its
+ *   own engineer on purpose (7th → 429); the admin never holds more than 1. nginx `limit_conn` 30 per IP
+ *   (deploy/nginx/snippets/app_locations.conf:25) — max 7 concurrent here.
+ * - Pipeline worker: 1 real run ("pipeline", drawing.png); every other upload is rejected or left `receiving` (the four
+ *   "gaps" PDFs are all rejected at #7, so none starts a run).
+ * - Concurrency: "gaps: concurrent writers" sends 3 pairs of parallel requests (settings ×2, floor create ×1); no limit.
+ * - Mailpit: 2 invitation mails, deleted in `finally`.
+ */
+import { randomUUID } from 'node:crypto';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { expect, request, test, type APIRequestContext, type APIResponse } from '@playwright/test';
+
+import { PIPELINE_TIMEOUT_MS } from '../../e2e/fullstack/env';
+import { apiBaseUrl, captureExchange, newApiContext, signedInApi } from './support/api';
+import { readAdminCredentials } from './support/auth';
+import { EVIDENCE_DIR, TEST_DATA_PREFIX, testEmail } from './support/evidence';
+import { deleteMails, linkFrom, waitForMail, type Mail } from './support/mailpit';
+
+const PREFIX = TEST_DATA_PREFIX;
+const REFRESH = 'appback_refresh'; // BE:auth/cookies.py:13
+const STREAM = 'appback_stream'; // BE:auth/cookies.py:15 (Path /api/streams)
+const INVITE_SUBJECT = 'Lời mời tham gia AppBack'; // BE:auth_recovery/messages.py (phase01/02 api specs)
+const MISSING_PROJECT = `prj_${'0'.repeat(26)}`; // well-formed, no row (packages/core/ids.py:73-77)
+const MISSING_UPLOAD = `upl_${'0'.repeat(26)}`;
+const UPLOAD_ID = /^upl_[0-9A-HJKMNP-TV-Z]{26}$/u;
+const FOREIGN_ORIGIN = 'http://evil.example.test';
+/** `UPLOAD_CHUNK_BYTES` (BE:drawings/settings.py:131) = FE `UPLOAD_CHUNK_SIZE_BYTES` (lib/upload/chunk.ts:46). */
+const CHUNK_BYTES = 5 * 1024 * 1024;
+/** `UPLOAD_MAX_BYTES` (BE:drawings/settings.py:130). */
+const UPLOAD_MAX_BYTES = 104_857_600;
+/** BE:drawings/settings.py:23 default 60; the QA stack raises it (qa-limits.override.yml, mirrored in qa.config.json env.vars). */
+const INIT_LIMIT = Number(process.env.E2E_DRAWINGS_INIT_RATE_LIMIT ?? '60');
+const STREAM_MAX_PER_USER = 6; // BE:streams/settings.py:34
+const SSE_RETRY_AFTER = '5'; // BE:streams/sse.py:65
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]); // packages/vision/preprocess/sniff.py
+
+/* Wire shapes (W2: optional keys are ABSENT, never null). */
+const FLOOR_KEYS = ['drawings', 'elevationMm', 'heightMm', 'id', 'name', 'order'] as const; // projects/wire.py:63-72
+const FLOOR_OPTIONAL = ['areaM2'] as const;
+const PROGRESS_KEYS = ['id', 'progressPercent', 'status', 'step'] as const; // drawings/schemas.py:82-95
+const PROGRESS_OPTIONAL = ['endedAt', 'error', 'startedAt'] as const;
+const SETTINGS_KEYS = [
+  'buildingType', 'confidenceThreshold', 'defaultScaleMmPerPx', 'lengthUnit', 'revision', 'snapToleranceMm',
+] as const; // project_settings/schemas.py:124-133
+const SETTINGS_OPTIONAL = ['notes'] as const;
+const ACTIVITY_KEYS = ['at', 'id', 'kind', 'objectCode', 'objectLabel'] as const; // users/schemas.py
+
+type Json = Record<string, unknown>;
+type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+type Role = 'viewer' | 'engineer';
+
+const uniq = (): string => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+const projectName = (slug: string): string => `${PREFIX}${slug}-${uniq()}`;
+/** Client-made level id `L-<base36 UPPER 10..64>` (BE:packages/core/ids.py:92-94; FE makes its own the same way). */
+const newLevelId = (): string => `L-${randomUUID().replace(/-/gu, '').toUpperCase().slice(0, 24)}`;
+const floorBody = (id: string, order: number, name = `${PREFIX}floor-${String(order)}`): Json => ({
+  id,
+  name,
+  order,
+  elevationMm: order * 3000,
+  heightMm: 3000,
+});
+/** A valid N6 body (BE:project_settings/schemas.py:103-111). */
+const settingsBody = (over: Json = {}): Json => ({
+  buildingType: 'residential',
+  lengthUnit: 'mm',
+  snapToleranceMm: 50,
+  confidenceThreshold: 0.75,
+  defaultScaleMmPerPx: 1,
+  ...over,
+});
+
+/* ------------------------------------------------------------------ phase-local helpers */
+
+function note(description: string): void {
+  test.info().annotations.push({ type: 'note', description });
+}
+
+function asJson(value: unknown, what = 'body'): Json {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error(`${what} is not a JSON object`);
+  return value as Json;
+}
+
+/** Non-throwing view of an error body (a missing / non-JSON body just fails the soft checks). */
+const errBody = (value: unknown): Json =>
+  typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Json) : {};
+
+function asArray(value: unknown, what = 'body'): unknown[] {
+  if (!Array.isArray(value)) throw new Error(`${what} is not a JSON array`);
+  return value;
+}
+
+/** Every `required` key present and nothing outside `required` ∪ `optional`. */
+function expectKeys(value: unknown, required: readonly string[], optional: readonly string[] = []): Json {
+  const record = asJson(value);
+  const keys = Object.keys(record);
+  for (const key of required) expect.soft(keys, `key "${key}"`).toContain(key);
+  expect.soft(keys.filter((key) => !required.includes(key) && !optional.includes(key)), 'unexpected keys').toEqual([]);
+  return record;
+}
+
+interface Sent {
+  readonly res: APIResponse;
+  readonly body: unknown;
+}
+
+/** Evidence copy of a request body: every string longer than 2 KiB (a 5 MiB base64 chunk, a 1 MiB body) → `<N chars>`. */
+function elide(value: unknown): unknown {
+  if (typeof value === 'string') return value.length > 2048 ? `<${String(value.length)} chars>` : value;
+  if (Array.isArray(value)) return value.map(elide);
+  if (value !== null && typeof value === 'object' && !Buffer.isBuffer(value)) {
+    return Object.fromEntries(Object.entries(value as Json).map(([k, v]) => [k, elide(v)]));
+  }
+  return value;
+}
+
+/** One request + its JSON exchange evidence `A03_<ev>.json` (secrets redacted by `captureExchange`). */
+async function call(
+  api: APIRequestContext,
+  ev: string,
+  method: Method,
+  path: string,
+  data: unknown,
+  claims: readonly string[],
+  headers?: Record<string, string>,
+): Promise<Sent> {
+  // A raw string body goes out as bytes: Playwright JSON-encodes a string that is not valid JSON when the
+  // Content-Type is JSON (client/fetch.js isJsonParsable), so a malformed body would reach the BE as a
+  // valid JSON string (BUG-279/280, same mechanism as BUG-107). A Buffer is sent untouched.
+  const sent = typeof data === 'string' ? Buffer.from(data, 'utf8') : data;
+  const res = await api.fetch(path, {
+    method,
+    ...(sent === undefined ? {} : { data: sent }),
+    ...(headers === undefined ? {} : { headers }),
+  });
+  const shown = elide(data);
+  const body = await captureExchange(`A03_${ev}.json`, { method, path, body: shown ?? null }, res, claims);
+  return { res, body };
+}
+
+/** W7 error body (BE:core/errors.py:82-87): `code` + `requestId` (+ `field` / `resource` / `count`). */
+function expectError(
+  sent: Sent,
+  status: number,
+  code: string,
+  params: { readonly field?: string; readonly resource?: string } = {},
+): Json {
+  expect.soft(sent.res.status(), `${code} status`).toBe(status);
+  const body = typeof sent.body === 'object' && sent.body !== null && !Array.isArray(sent.body) ? (sent.body as Json) : {};
+  expect.soft(body.code, `${code} code`).toBe(code);
+  expect.soft(typeof body.requestId, `${code} requestId`).toBe('string');
+  if (params.field !== undefined) expect.soft(body.field, `${code} field`).toBe(params.field);
+  if (params.resource !== undefined) expect.soft(body.resource, `${code} resource`).toBe(params.resource);
+  return body;
+}
+
+function expectFloorOut(value: unknown): Json {
+  return expectKeys(value, FLOOR_KEYS, FLOOR_OPTIONAL);
+}
+
+/** `Progress` (BE:drawings/progress.py:33-68): keys, enum, percent 0..100, endedAt only when completed. */
+function expectProgress(value: unknown, uploadId?: string): Json {
+  const p = expectKeys(value, PROGRESS_KEYS, PROGRESS_OPTIONAL);
+  if (uploadId !== undefined) expect.soft(p.id).toBe(uploadId);
+  expect.soft(String(p.id)).toMatch(UPLOAD_ID);
+  expect.soft(['pending', 'running', 'completed', 'failed']).toContain(p.status);
+  expect.soft(typeof p.progressPercent === 'number' && p.progressPercent >= 0 && p.progressPercent <= 100).toBe(true);
+  if (p.status !== 'completed') expect.soft(p, 'endedAt only when completed (K33)').not.toHaveProperty('endedAt');
+  if (p.status === 'failed') expect.soft(String(p.error)).toMatch(/^[A-Z][A-Z0-9_]*$/u);
+  else expect.soft(p).not.toHaveProperty('error');
+  return p;
+}
+
+/** Cleanup steps run in reverse order; a failing step is annotated, never thrown. */
+class Cleanup {
+  private readonly steps: Array<() => Promise<unknown>> = [];
+
+  add(step: () => Promise<unknown>): void {
+    this.steps.push(step);
+  }
+
+  async run(): Promise<void> {
+    for (const step of [...this.steps].reverse()) {
+      try {
+        await step();
+      } catch (error) {
+        note(`cleanup: ${String(error)}`);
+      }
+    }
+  }
+}
+
+async function adminApi(cleanup: Cleanup): Promise<APIRequestContext> {
+  const { email, password } = readAdminCredentials();
+  const admin = await signedInApi(email, password);
+  cleanup.add(() => admin.dispose());
+  return admin;
+}
+
+/** Setup: admin creates a project (`extra.floors` = hook floors, BE:floors/view_parts.py) and registers its deletion. */
+async function newProject(api: APIRequestContext, ev: string, cleanup: Cleanup, extra: Json = {}): Promise<Json> {
+  const sent = await call(api, `${ev}_create`, 'POST', '/api/projects', { name: projectName(ev), ...extra }, [
+    'setup: 201 ProjectOut (projects/router.py)',
+  ]);
+  expect(sent.res.status(), 'setup create project').toBe(201);
+  const project = asJson(sent.body);
+  const id = String(project.id);
+  cleanup.add(async () => {
+    const res = await api.delete(`/api/projects/${id}`);
+    if (res.status() !== 200 && res.status() !== 404) note(`DELETE /api/projects/${id} → ${String(res.status())}`);
+  });
+  return project;
+}
+
+/** Setup: #10 creates one floor with a client id; returns the id. */
+async function newFloor(api: APIRequestContext, projectId: string, ev: string, order = 0): Promise<string> {
+  const id = newLevelId();
+  const sent = await call(api, ev, 'POST', `/api/projects/${projectId}/floors`, floorBody(id, order), [
+    'setup: 201 FloorOut (floors/router.py:30-35)',
+  ]);
+  expect(sent.res.status(), 'setup create floor').toBe(201);
+  return id;
+}
+
+async function readProject(api: APIRequestContext, id: string, ev: string): Promise<Json> {
+  const sent = await call(api, ev, 'GET', `/api/projects/${id}`, undefined, ['read-back: 200 ProjectOut (#24)']);
+  expect(sent.res.status()).toBe(200);
+  return asJson(sent.body);
+}
+
+async function listFloors(api: APIRequestContext, projectId: string, ev: string): Promise<Json[]> {
+  const sent = await call(api, ev, 'GET', `/api/projects/${projectId}/floors`, undefined, [
+    'read-back: 200 FloorOut[] of live floors, (order, pk) (floors/router.py:46-49, service.py:197-199)',
+  ]);
+  expect(sent.res.status()).toBe(200);
+  return asArray(sent.body).map((f) => expectFloorOut(f));
+}
+
+/** The admin's id = the only member of a fresh project (projects/service.py). */
+function creatorId(project: Json): string {
+  const members = asArray(project.members, 'members').map((m) => asJson(m));
+  expect(members).toHaveLength(1);
+  return String(members[0]?.id);
+}
+
+/** `activity_log` rows of `userId` whose `objectCode` is `code` (GET /api/users/{id}/activity, newest first). */
+async function activityOf(admin: APIRequestContext, userId: string, code: string, ev: string): Promise<Json[]> {
+  const sent = await call(admin, ev, 'GET', `/api/users/${userId}/activity`, undefined, [
+    'read-back: 200 activity rows of the admin, newest first; filtered here by objectCode',
+  ]);
+  expect(sent.res.status()).toBe(200);
+  return asArray(sent.body)
+    .map((row) => expectKeys(row, ACTIVITY_KEYS))
+    .filter((row) => row.objectCode === code);
+}
+
+/** #5 init (FE body: uploadTask.ts:424-433). */
+async function initUpload(
+  api: APIRequestContext,
+  ev: string,
+  projectId: string,
+  floorId: string,
+  over: Json,
+  claims: readonly string[],
+): Promise<Sent> {
+  const body = { fileName: `${PREFIX}${ev}.png`, floorId, mimeType: 'image/png', projectId, sizeBytes: 1, ...over };
+  return call(api, ev, 'POST', `/api/projects/${projectId}/floors/${floorId}/drawings/uploads`, body, claims);
+}
+
+async function sendChunk(
+  api: APIRequestContext,
+  ev: string,
+  projectId: string,
+  uploadId: string,
+  bytes: Buffer,
+  index: number,
+  claims: readonly string[],
+): Promise<Sent> {
+  return call(api, ev, 'POST', `/api/projects/${projectId}/drawings/uploads/${uploadId}/chunks`, {
+    chunk: bytes.toString('base64'),
+    chunkIndex: index,
+  }, claims);
+}
+
+async function complete(api: APIRequestContext, ev: string, projectId: string, uploadId: string, claims: readonly string[]): Promise<Sent> {
+  return call(api, ev, 'POST', `/api/projects/${projectId}/drawings/uploads/${uploadId}/complete`, { uploadId }, claims);
+}
+
+async function progressOf(api: APIRequestContext, ev: string, projectId: string, uploadId: string, claim: string): Promise<Json> {
+  const sent = await call(api, ev, 'GET', `/api/projects/${projectId}/drawings/uploads/${uploadId}/progress`, undefined, [claim]);
+  expect(sent.res.status(), '#8 progress').toBe(200);
+  return expectProgress(sent.body, uploadId);
+}
+
+/** Single-chunk upload of `bytes` named `fileName`: init → chunk 0 → returns the upload id (status receiving). */
+async function receivingUpload(
+  api: APIRequestContext,
+  ev: string,
+  projectId: string,
+  floorId: string,
+  bytes: Buffer,
+  fileName: string,
+): Promise<string> {
+  const init = await initUpload(api, `${ev}_init`, projectId, floorId, { fileName, sizeBytes: bytes.length }, [
+    'setup: 200 Progress pending (drawings/uploads.py:174-227)',
+  ]);
+  expect(init.res.status(), 'setup init').toBe(200);
+  const uploadId = String(asJson(init.body).id);
+  const chunk = await sendChunk(api, `${ev}_chunk`, projectId, uploadId, bytes, 0, ['setup: 200 Progress pending (uploads.py:273-296)']);
+  expect(chunk.res.status(), 'setup chunk').toBe(200);
+  return uploadId;
+}
+
+/* ---- the stream cookie (S1 is cookie-authenticated, BE:streams/sse.py:161-169) */
+
+async function streamCookieOf(api: APIRequestContext): Promise<string> {
+  const cookie = (await api.storageState()).cookies.find((c) => c.name === STREAM);
+  if (!cookie) throw new Error('no appback_stream cookie in the signed-in context');
+  return cookie.value;
+}
+
+interface SseFrame {
+  readonly id: string;
+  readonly data: Json;
+}
+
+interface SseResult {
+  readonly status: number;
+  readonly headers: Record<string, string>;
+  readonly frames: SseFrame[];
+  readonly errorBody?: unknown;
+  readonly closed: 'until' | 'timeout' | 'error-response' | 'server-ended';
+}
+
+/** Open S1 with Node fetch (APIRequestContext buffers the whole body, an SSE never ends), read W15 frames
+ * (`id:` + one `data:` line, never `event:` — BE:streams/sse.py:79-86; `: ping` comments ignored) until
+ * `until(frame)` or `timeoutMs`, then abort. A non-2xx answer is read as JSON. */
+async function readSse(
+  path: string,
+  opts: { cookie?: string; origin?: string; until: (f: SseFrame) => boolean; timeoutMs: number },
+): Promise<SseResult> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), opts.timeoutMs);
+  const headers: Record<string, string> = { Accept: 'text/event-stream' };
+  if (opts.cookie !== undefined) headers.Cookie = `${STREAM}=${opts.cookie}`;
+  if (opts.origin !== undefined) headers.Origin = opts.origin;
+  const frames: SseFrame[] = [];
+  try {
+    const res = await fetch(`${apiBaseUrl()}${path}`, { headers, signal: controller.signal });
+    const outHeaders = Object.fromEntries([...res.headers.entries()].filter(([k]) => !/^(date|set-cookie)$/iu.test(k)));
+    if (!res.ok || res.body === null) {
+      const text = await res.text();
+      let errorBody: unknown = text;
+      try {
+        errorBody = JSON.parse(text);
+      } catch {
+        /* keep text */
+      }
+      return { status: res.status, headers: outHeaders, frames, errorBody, closed: 'error-response' };
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) return { status: res.status, headers: outHeaders, frames, closed: 'server-ended' };
+        buffer += decoder.decode(value, { stream: true });
+        let cut = buffer.indexOf('\n\n');
+        while (cut >= 0) {
+          const block = buffer.slice(0, cut);
+          buffer = buffer.slice(cut + 2);
+          cut = buffer.indexOf('\n\n');
+          const lines = block.split('\n');
+          const id = lines.find((l) => l.startsWith('id: '))?.slice(4);
+          const data = lines.find((l) => l.startsWith('data: '))?.slice(6);
+          expect.soft(lines.some((l) => l.startsWith('event:')), 'no `event:` line (K03)').toBe(false);
+          if (id === undefined || data === undefined) continue; // `: ping`
+          const frame = { id, data: asJson(JSON.parse(data), 'SSE data') };
+          frames.push(frame);
+          if (opts.until(frame)) {
+            controller.abort();
+            return { status: res.status, headers: outHeaders, frames, closed: 'until' };
+          }
+        }
+      }
+    } catch (error) {
+      if (controller.signal.aborted) return { status: res.status, headers: outHeaders, frames, closed: 'timeout' };
+      throw error;
+    }
+  } finally {
+    clearTimeout(timer);
+    controller.abort();
+  }
+}
+
+/** Evidence for a stream case (no cookie value is ever written). */
+async function captureStream(name: string, path: string, sent: Json, result: SseResult, assertions: readonly string[]): Promise<void> {
+  const record = { request: { method: 'GET', path, sent }, response: result, assertions, capturedAt: new Date().toISOString() };
+  mkdirSync(EVIDENCE_DIR, { recursive: true });
+  const file = join(EVIDENCE_DIR, `A03_${name}.json`);
+  writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`);
+  await test.info().attach(`A03_${name}.json`, { path: file, contentType: 'application/json' });
+}
+
+/* ---- real non-admin users (invitation → Mailpit → accept → refresh) */
+
+interface TestUser {
+  readonly id: string;
+  readonly email: string;
+  readonly api: APIRequestContext;
+  readonly streamCookie: string;
+}
+
+function cookieFrom(res: APIResponse, name: string): string | undefined {
+  const line = res.headersArray().find((h) => h.name.toLowerCase() === 'set-cookie' && h.value.startsWith(`${name}=`));
+  return line?.value.slice(name.length + 1).split(';')[0];
+}
+
+/** Admin invites a run-unique user with `role` (users/router.py), the invitee accepts with the mailed token and
+ * one refresh gives its Bearer and stream cookie. Registers user + mail cleanup. */
+async function realUser(admin: APIRequestContext, role: Role, ev: string, cleanup: Cleanup): Promise<TestUser> {
+  const email = testEmail(ev);
+  const since = new Date(Date.now() - 5_000);
+  const sent = await call(admin, `${ev}_invite`, 'POST', '/api/users/invitations', { emails: [email], role }, [
+    `setup: admin invites a run-unique @example.test ${role} → 201, one pending user`,
+  ]);
+  expect(sent.res.status()).toBe(201);
+  const user = asArray(sent.body).map((u) => asJson(u)).find((u) => u.email === email);
+  const id = String(user?.id);
+  cleanup.add(async () => {
+    const res = await admin.delete(`/api/users/${id}`, { data: { userId: id, confirmEmail: email } });
+    if (res.status() !== 200) note(`DELETE /api/users/${id} → ${String(res.status())}`);
+  });
+  const mail: Mail = await waitForMail(email, since, 30_000, INVITE_SUBJECT);
+  cleanup.add(() => deleteMails([mail.id]));
+  const token = new URLSearchParams(new URL(linkFrom(mail, '/login/invitation')).hash.slice(1)).get('token');
+  if (!token) throw new Error('invitation link has no #token');
+  const anon = await newApiContext();
+  let bearer = '';
+  let streamCookie = '';
+  try {
+    const accept = await call(anon, `${ev}_accept`, 'POST', '/api/auth/invitations/accept', {
+      token,
+      fullName: `${PREFIX}${ev}`,
+      password: `Qa-${randomUUID()}`,
+    }, ['setup: invitee accepts with the real mailed token → 204 + refresh cookie']);
+    expect(accept.res.status()).toBe(204);
+    const refreshCookie = cookieFrom(accept.res, REFRESH);
+    if (!refreshCookie) throw new Error('accept: no refresh cookie');
+    const refreshed = await call(anon, `${ev}_refresh`, 'POST', '/api/auth/refresh', undefined, [
+      `setup: 200 W16 roles ["${role}"] + a new stream cookie (auth/cookies.py:29-31)`,
+    ], { Cookie: `${REFRESH}=${refreshCookie}` });
+    expect(refreshed.res.status()).toBe(200);
+    expect(asJson(refreshed.body).roles).toEqual([role]);
+    bearer = String(((await refreshed.res.json()) as Json).accessToken);
+    streamCookie = cookieFrom(refreshed.res, STREAM) ?? cookieFrom(accept.res, STREAM) ?? '';
+    if (!streamCookie) throw new Error('no stream cookie after accept/refresh');
+  } finally {
+    await anon.dispose();
+  }
+  const base = apiBaseUrl();
+  const api = await request.newContext({ baseURL: base, extraHTTPHeaders: { Origin: base, Authorization: `Bearer ${bearer}` } });
+  cleanup.add(() => api.dispose());
+  return { id, email, api, streamCookie };
+}
+
+async function addMember(admin: APIRequestContext, projectId: string, email: string, ev: string): Promise<void> {
+  const sent = await call(admin, ev, 'POST', `/api/projects/${projectId}/members`, { email }, [
+    'setup: N3 adds the user → 201 (project_members/router.py)',
+  ]);
+  expect(sent.res.status()).toBe(201);
+}
+
+/** Minimal PDF with `pages` empty A4 pages and a correct xref table — a port of the BE's own fixture
+ * `packages/vision/preprocess/tests/synthetic.py:96-150` (`make_pdf`, no encryption). `pages = 0` gives `/Count 0`. */
+function makePdf(pages: number): Buffer {
+  const kids = Array.from({ length: pages }, (_, i) => `${String(3 + i)} 0 R`).join(' ');
+  const objects = ['<</Type/Catalog/Pages 2 0 R>>', `<</Type/Pages/Kids[${kids}]/Count ${String(pages)}>>`];
+  for (let i = 0; i < pages; i += 1) {
+    objects.push(`<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Contents ${String(3 + pages + i)} 0 R/Resources<<>>>>`);
+  }
+  for (let i = 0; i < pages; i += 1) objects.push('<</Length 0>>\nstream\n\nendstream');
+  let out = '%PDF-1.4\n';
+  const offsets: number[] = [];
+  objects.forEach((body, i) => {
+    offsets.push(out.length);
+    out += `${String(i + 1)} 0 obj\n${body}\nendobj\n`;
+  });
+  const xref = out.length;
+  out += `xref\n0 ${String(objects.length + 1)}\n0000000000 65535 f \n`;
+  for (const offset of offsets) out += `${String(offset).padStart(10, '0')} 00000 n \n`;
+  out += `trailer\n<</Size ${String(objects.length + 1)}/Root 1 0 R>>\nstartxref\n${String(xref)}\n%%EOF\n`;
+  return Buffer.from(out, 'latin1'); // ASCII only: string offsets = byte offsets
+}
+
+const drawingPng = (): Buffer => {
+  const path = process.env.E2E_DRAWING_PNG;
+  if (!path) throw new Error('E2E_DRAWING_PNG is not set (qa.config.json env.vars)');
+  return readFileSync(path);
+};
+
+/* ---- QA-03d helpers */
+
+const JSON_CT = { 'Content-Type': 'application/json' } as const;
+const LATEST_KEYS = ['floorId', 'floorName', 'uploadId'] as const; // drawings/schemas.py:98-108 (N7 item)
+const LATEST_OPTIONAL = ['sourceImageUrl'] as const;
+const DRAWING_KEYS = ['heightMm', 'id', 'name', 'uploadedAt', 'uploaderId', 'url', 'widthMm'] as const; // projects/wire.py:51-61
+const DRAWING_OPTIONAL = ['scale'] as const;
+const SKEW_CODE = 'SKEW_DETECTED'; // BE:quality/service.py:41
+const SKEW_MIN_DEG = 0.1; // BE:quality/settings.py:24
+/** A clockwise TL → TR → BR → BL frame well inside the page (BE:quality/geometry.py:54-78). */
+const GOOD_CORNERS = [
+  { xRatio: 0.05, yRatio: 0.05 }, { xRatio: 0.95, yRatio: 0.05 }, { xRatio: 0.95, yRatio: 0.95 }, { xRatio: 0.05, yRatio: 0.95 },
+];
+/** Set by the caller when `POST /api/users/invitations` (30 / 3600 s per admin) is at its cap: the tests that need real
+ * non-admin users (invitation → Mailpit → accept) are skipped instead of spending a request at the cap. */
+const INVITES_BLOCKED = process.env.QA_SKIP_INVITES === '1';
+const INVITES_BLOCKED_REASON = 'QA_SKIP_INVITES=1: users_invite 30 / 3600 s per admin is at its cap — needs real viewer/engineer users';
+
+const latestPath = (pid: string, query = ''): string => `/api/projects/${pid}/drawings/uploads/latest${query}`;
+const qualityPath = (pid: string, fid: string, tail = ''): string => `/api/projects/${pid}/floors/${fid}/quality${tail}`;
+
+/** Polls #8 (no evidence per poll) until completed / failed, then captures the final read as `A03_<ev>.json`. */
+async function waitFinal(api: APIRequestContext, ev: string, pid: string, uid: string): Promise<Json> {
+  const deadline = Date.now() + PIPELINE_TIMEOUT_MS;
+  for (;;) {
+    const res = await api.get(`/api/projects/${pid}/drawings/uploads/${uid}/progress`);
+    const status = res.status();
+    const body = status === 200 ? ((await res.json()) as Json) : {};
+    await res.dispose();
+    if (status !== 200) throw new Error(`#8 polling → ${String(status)}`);
+    if (body.status === 'completed' || body.status === 'failed') break;
+    if (Date.now() > deadline) throw new Error(`pipeline of ${uid} not final within ${String(PIPELINE_TIMEOUT_MS)} ms`);
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+  }
+  return progressOf(api, ev, pid, uid, '200 #8 final Progress (completed | failed, progress.py:33-68)');
+}
+
+/** Setup: drawing.png uploaded to `fid` and its pipeline run COMPLETED (1 init on the caller's bucket). */
+async function completedDrawing(api: APIRequestContext, ev: string, pid: string, fid: string, fileName = `${PREFIX}${ev}.png`): Promise<string> {
+  const uid = await receivingUpload(api, ev, pid, fid, drawingPng(), fileName);
+  const done = await complete(api, `${ev}_complete`, pid, uid, ['setup: 200 Progress pending, run queued (complete.py:269-283)']);
+  expect(done.res.status(), 'setup complete').toBe(200);
+  const final = await waitFinal(api, `${ev}_final`, pid, uid);
+  expect(final.status, 'setup: the pipeline run of drawing.png completes').toBe('completed');
+  return uid;
+}
+
+/** A project created with `count` hook floors (projects/router.py create → view_parts.py); returns the project. */
+async function projectWithFloors(api: APIRequestContext, ev: string, cleanup: Cleanup, count: number): Promise<Json> {
+  return newProject(api, ev, cleanup, {
+    floors: Array.from({ length: count }, (_, order) => ({ name: `F${String(order)}`, order, elevationMm: order * 3000, heightMm: 3000 })),
+  });
+}
+
+/** N16 revision of a floor (spatial_read/router.py:71-87, owned by phase 4) — base of a #35 write. */
+async function layerRevision(api: APIRequestContext, ev: string, pid: string, fid: string): Promise<number> {
+  const sent = await call(api, ev, 'GET', `/api/projects/${pid}/floors/${fid}/spatial/layer`, undefined, ['read: 200 N16 {revision, …}']);
+  expect(sent.res.status()).toBe(200);
+  return Number(asJson(sent.body).revision);
+}
+
+/* ------------------------------------------------------------------ tests */
+
+test.describe('A03 phase-3 backend (settings, floors, uploads, pipeline stream)', () => {
+  test('A03 · anonymous: every phase-3 route → 401 UNAUTHENTICATED before the body is read; S1 without a stream cookie / with a forged one → 401; foreign Origin on S1 → 403 first; forged file token → 404; body ceilings 1 MiB / 8 MiB (chunks) → 413', async () => {
+    // core/routing.py:125-131 (_principal_of before the body), 1-10; streams/router.py:127-128 (Origin, then cookie);
+    // files/router.py:2-10,37-40; core/routing.py:46, drawings/router.py:33,71; nginx 8m (app_locations.conf).
+    const anon = await newApiContext();
+    try {
+      const fid = newLevelId();
+      const routes: Array<[string, Method, string, unknown]> = [
+        ['settings', 'PUT', `/api/projects/${MISSING_PROJECT}/settings`, { baseVersion: 0, body: settingsBody() }],
+        ['floor_create', 'POST', `/api/projects/${MISSING_PROJECT}/floors`, floorBody(fid, 0)],
+        ['floor_patch', 'PATCH', `/api/projects/${MISSING_PROJECT}/floors/${fid}/spatial`, { name: 'x' }],
+        ['reorder', 'PATCH', '/api/floors/reorder', { floorIds: [fid] }],
+        ['init', 'POST', `/api/projects/${MISSING_PROJECT}/floors/${fid}/drawings/uploads`, { fileName: 'a.png' }],
+        ['chunk', 'POST', `/api/projects/${MISSING_PROJECT}/drawings/uploads/${MISSING_UPLOAD}/chunks`, { chunk: 'AA==', chunkIndex: 0 }],
+        ['complete', 'POST', `/api/projects/${MISSING_PROJECT}/drawings/uploads/${MISSING_UPLOAD}/complete`, { uploadId: MISSING_UPLOAD }],
+        ['progress', 'GET', `/api/projects/${MISSING_PROJECT}/drawings/uploads/${MISSING_UPLOAD}/progress`, undefined],
+        ['quality', 'GET', `/api/projects/${MISSING_PROJECT}/floors/${fid}/quality`, undefined],
+        ['settings_malformed', 'PUT', `/api/projects/${MISSING_PROJECT}/settings`, '{"baseVersion": 0,'],
+      ];
+      for (const [slug, method, path, data] of routes) {
+        const headers = typeof data === 'string' ? { 'Content-Type': 'application/json' } : undefined;
+        const sent = await call(anon, `anon_${slug}_401`, method, path, data, [
+          '401 UNAUTHENTICATED: no Bearer, checked before the body / path ids (core/routing.py:125-131)',
+        ], headers);
+        expectError(sent, 401, 'UNAUTHENTICATED');
+      }
+
+      const streamPath = `/api/streams/projects/${MISSING_PROJECT}/uploads/${MISSING_UPLOAD}/progress`;
+      const noCookie = await readSse(streamPath, { until: () => true, timeoutMs: 15_000 });
+      await captureStream('anon_sse_no_cookie_401', streamPath, { cookie: 'none' }, noCookie, ['401 UNAUTHENTICATED: no appback_stream cookie (sse.py:164-166)']);
+      expect.soft(noCookie.status).toBe(401);
+      expect.soft(errBody(noCookie.errorBody).code).toBe('UNAUTHENTICATED');
+      const forged = await readSse(streamPath, { cookie: 'forged.token.value', until: () => true, timeoutMs: 15_000 });
+      await captureStream('anon_sse_forged_cookie_401', streamPath, { cookie: '<forged>' }, forged, ['401 UNAUTHENTICATED: stream JWT does not verify (sse.py:167)']);
+      expect.soft(forged.status).toBe(401);
+      expect.soft(errBody(forged.errorBody).code).toBe('UNAUTHENTICATED');
+      const foreign = await readSse(streamPath, { origin: FOREIGN_ORIGIN, until: () => true, timeoutMs: 15_000 });
+      await captureStream('anon_sse_foreign_origin_403', streamPath, { origin: FOREIGN_ORIGIN, cookie: 'none' }, foreign, [
+        '403 ORIGIN_MISMATCH: a present foreign Origin is checked before the cookie (streams/router.py:127-128, core/origin.py:59-62)',
+      ]);
+      expect.soft(foreign.status).toBe(403);
+      expect.soft(errBody(foreign.errorBody).code).toBe('ORIGIN_MISMATCH');
+
+      const file = await call(anon, 'anon_file_forged_404', 'GET', '/api/files/forged-token', undefined, [
+        '404 NOT_FOUND: a forged / unknown file token is one indistinguishable 404 (files/router.py:7-8,33-40)',
+      ]);
+      expectError(file, 404, 'NOT_FOUND');
+
+      // Body ceilings: exactly at the limit reaches the route (401), one byte more → 413 before authentication.
+      const oneMiB = 1024 * 1024;
+      const jsonOf = (size: number): string => `{"x":"${'a'.repeat(size - 8)}"}`;
+      const atLimit = await call(anon, 'anon_settings_1mib_401', 'PUT', `/api/projects/${MISSING_PROJECT}/settings`, jsonOf(oneMiB), [
+        '1 048 576-byte body passes the 1 MiB ceiling → 401 (core/routing.py:46)',
+      ], { 'Content-Type': 'application/json' });
+      expect.soft(atLimit.res.status()).toBe(401);
+      const over = await call(anon, 'anon_settings_1mib_plus1_413', 'PUT', `/api/projects/${MISSING_PROJECT}/settings`, jsonOf(oneMiB + 1), [
+        '1 048 577 bytes → 413 PAYLOAD_TOO_LARGE before auth (core/middleware.py body limit)',
+      ], { 'Content-Type': 'application/json' });
+      expectError(over, 413, 'PAYLOAD_TOO_LARGE');
+      const chunkPath = `/api/projects/${MISSING_PROJECT}/drawings/uploads/${MISSING_UPLOAD}/chunks`;
+      const chunkAt = await call(anon, 'anon_chunk_8mib_401', 'POST', chunkPath, jsonOf(8 * oneMiB), [
+        '8 MiB body passes the #6 ceiling (drawings/router.py:33,71) → 401',
+      ], { 'Content-Type': 'application/json' });
+      expect.soft(chunkAt.res.status()).toBe(401);
+      const chunkOver = await call(anon, 'anon_chunk_8mib_plus1_413', 'POST', chunkPath, jsonOf(8 * oneMiB + 1), [
+        '8 MiB + 1 → 413 PAYLOAD_TOO_LARGE (app ceiling = nginx client_max_body_size 8m)',
+      ], { 'Content-Type': 'application/json' });
+      expectError(chunkOver, 413, 'PAYLOAD_TOO_LARGE');
+    } finally {
+      await anon.dispose();
+    }
+  });
+
+  test('A03 · settings N5/N6 versioning: fresh project → revision 0 defaults; PUT base 0 → 200 revision 1 (notes trimmed + NFC, decimals rounded HALF_UP); own repeat → 200 same revision, no 2nd write; stale / ahead base → 409 VERSION_CONFLICT currentVersion + remoteChanges []; missing baseVersion → 428 before Pydantic; Idempotency-Key ignored; activity + updatedAt only on real writes', async () => {
+    // project_settings/router.py:22-39, service.py:88-119, read.py:29-37,65-68, schemas.py:63-133; core/routing.py:154-161.
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const project = await newProject(admin, 'set-ver', cleanup);
+      const pid = String(project.id);
+      const path = `/api/projects/${pid}/settings`;
+
+      const fresh = await call(admin, 'set_read_default', 'GET', path, undefined, [
+        '200 defaults revision 0 residential/mm/50/0.75/1, notes absent (read.py:29-37)',
+      ]);
+      expect(fresh.res.status()).toBe(200);
+      expect(expectKeys(fresh.body, SETTINGS_KEYS, SETTINGS_OPTIONAL)).toEqual({
+        revision: 0, buildingType: 'residential', lengthUnit: 'mm', snapToleranceMm: 50, confidenceThreshold: 0.75, defaultScaleMmPerPx: 1,
+      });
+
+      const missing = await call(admin, 'set_put_no_base_428', 'PUT', path, { body: { junk: true } }, [
+        '428 PRECONDITION_REQUIRED: no baseVersion key, checked before Pydantic (an invalid body does not matter, routing.py:154-161)',
+      ]);
+      expectError(missing, 428, 'PRECONDITION_REQUIRED');
+      const arrayBody = await call(admin, 'set_put_array_428', 'PUT', path, [1], ['428: a non-object body has no baseVersion (routing.py:160)']);
+      expectError(arrayBody, 428, 'PRECONDITION_REQUIRED');
+
+      const before = await readProject(admin, pid, 'set_project_before');
+      const body1 = settingsBody({ notes: '  Cafe\u0301 ghi chú\n\tdòng 2  ', confidenceThreshold: 0.1235, defaultScaleMmPerPx: 1.0000005, lengthUnit: 'm' });
+      const first = await call(admin, 'set_put_base0_200', 'PUT', path, { baseVersion: 0, body: body1 }, [
+        '200 revision 1; notes trimmed + NFC (é), \\n and \\t kept; 0.1235 → 0.124, 1.0000005 → 1.000001 HALF_UP (schemas.py:63-100)',
+      ], { 'Idempotency-Key': `qa-set-${uniq()}` });
+      expect(first.res.status()).toBe(200);
+      expect.soft(expectKeys(first.body, SETTINGS_KEYS, SETTINGS_OPTIONAL)).toEqual({
+        revision: 1, buildingType: 'residential', notes: 'Café ghi chú\n\tdòng 2', lengthUnit: 'm', snapToleranceMm: 50,
+        confidenceThreshold: 0.124, defaultScaleMmPerPx: 1.000001,
+      });
+      const after1 = await readProject(admin, pid, 'set_project_after1');
+      expect.soft(Date.parse(String(after1.updatedAt)), 'touch_project on a real write (service.py:114)').toBeGreaterThan(Date.parse(String(before.updatedAt)));
+
+      const repeat = await call(admin, 'set_put_base0_repeat_200', 'PUT', path, { baseVersion: 0, body: body1 }, [
+        '200 revision 1: same writer + same normalised body digest at revision base+1 = own repeat (C09b, service.py:79-85,116-118)',
+      ]);
+      expect.soft(repeat.res.status()).toBe(200);
+      expect.soft(asJson(repeat.body).revision).toBe(1);
+      // NFD vs NFC notes digest the same (service.py:47-54): the NFC spelling is still a repeat.
+      const nfc = await call(admin, 'set_put_base0_repeat_nfc_200', 'PUT', path, { baseVersion: 0, body: { ...body1, notes: 'Café ghi chú\n\tdòng 2' } }, [
+        '200 revision 1: the NFC spelling of the same notes hashes the same (C16)',
+      ]);
+      expect.soft(nfc.res.status()).toBe(200);
+      expect.soft(asJson(nfc.body).revision).toBe(1);
+
+      const stale = await call(admin, 'set_put_stale_409', 'PUT', path, { baseVersion: 0, body: settingsBody({ lengthUnit: 'mm' }) }, [
+        '409 VERSION_CONFLICT currentVersion 1, remoteChanges [] (service.py:119; core/errors.py:82-87)',
+      ]);
+      const staleBody = expectError(stale, 409, 'VERSION_CONFLICT');
+      expect.soft(staleBody.currentVersion).toBe(1);
+      expect.soft(staleBody.remoteChanges).toEqual([]);
+
+      // Idempotency-Key is not used by versioned routes (router.py:4-5, routing.py:227-232): same key, new base/body → a 2nd write.
+      const key = `qa-set-key-${uniq()}`;
+      const second = await call(admin, 'set_put_base1_200', 'PUT', path, { baseVersion: 1, body: settingsBody() }, ['200 revision 2, notes absent = cleared (PUT replaces)'], { 'Idempotency-Key': key });
+      expect.soft(second.res.status()).toBe(200);
+      const secondBody = asJson(second.body);
+      expect.soft(secondBody.revision).toBe(2);
+      expect.soft(secondBody, 'notes cleared by an absent key (schemas.py:104)').not.toHaveProperty('notes');
+      const third = await call(admin, 'set_put_base2_same_key_200', 'PUT', path, { baseVersion: 2, body: settingsBody({ buildingType: 'mixed' }) }, [
+        '200 revision 3: the same Idempotency-Key is NOT replayed on a versioned route',
+      ], { 'Idempotency-Key': key });
+      expect.soft(third.res.status()).toBe(200);
+      expect.soft(asJson(third.body).revision).toBe(3);
+
+      const ahead = await call(admin, 'set_put_ahead_409', 'PUT', path, { baseVersion: 9, body: settingsBody() }, ['409 VERSION_CONFLICT currentVersion 3 for a base ahead of the row']);
+      expect.soft(expectError(ahead, 409, 'VERSION_CONFLICT').currentVersion).toBe(3);
+      const old = await call(admin, 'set_put_old_repeat_409', 'PUT', path, { baseVersion: 0, body: body1 }, [
+        '409: the revision-1 body sent again at base 0 is no longer a repeat (row is at 3, service.py:82)',
+      ]);
+      expect.soft(expectError(old, 409, 'VERSION_CONFLICT').currentVersion).toBe(3);
+
+      const reread = await call(admin, 'set_read_after', 'GET', path, undefined, ['200 N5 = the last write, revision 3']);
+      expect.soft(asJson(reread.body).revision).toBe(3);
+      expect.soft(asJson(reread.body).buildingType).toBe('mixed');
+      const rows = await activityOf(admin, creatorId(project), pid, 'set_activity');
+      expect.soft(rows.filter((r) => r.kind === 'project.settings_update').length, 'one row per real write, none for repeats / 409').toBe(3);
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · settings body rules → 422 VALIDATION with field (enum, strict int 1..120, decimals ranges and type, notes 500 / blank / bidi, missing and extra keys, baseVersion strict ≥ 0); bounds accepted', async () => {
+    // project_settings/schemas.py:56-121; core/errors.py (field = camelCase loc of the first error).
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'set-rules', cleanup)).id);
+      const path = `/api/projects/${pid}/settings`;
+      const cases: Array<[string, unknown, string]> = [
+        ['building_enum', { baseVersion: 0, body: settingsBody({ buildingType: 'castle' }) }, 'body.buildingType'],
+        ['unit_enum', { baseVersion: 0, body: settingsBody({ lengthUnit: 'cm' }) }, 'body.lengthUnit'],
+        ['snap_0', { baseVersion: 0, body: settingsBody({ snapToleranceMm: 0 }) }, 'body.snapToleranceMm'],
+        ['snap_121', { baseVersion: 0, body: settingsBody({ snapToleranceMm: 121 }) }, 'body.snapToleranceMm'],
+        ['snap_float', { baseVersion: 0, body: settingsBody({ snapToleranceMm: 1.5 }) }, 'body.snapToleranceMm'],
+        ['snap_string', { baseVersion: 0, body: settingsBody({ snapToleranceMm: '50' }) }, 'body.snapToleranceMm'],
+        ['conf_above_1', { baseVersion: 0, body: settingsBody({ confidenceThreshold: 1.0001 }) }, 'body.confidenceThreshold'],
+        ['conf_negative', { baseVersion: 0, body: settingsBody({ confidenceThreshold: -0.0004 }) }, 'body.confidenceThreshold'],
+        ['conf_bool', { baseVersion: 0, body: settingsBody({ confidenceThreshold: true }) }, 'body.confidenceThreshold'],
+        ['conf_string', { baseVersion: 0, body: settingsBody({ confidenceThreshold: '0.5' }) }, 'body.confidenceThreshold'],
+        ['scale_low', { baseVersion: 0, body: settingsBody({ defaultScaleMmPerPx: 0.0099 }) }, 'body.defaultScaleMmPerPx'],
+        ['scale_high', { baseVersion: 0, body: settingsBody({ defaultScaleMmPerPx: 1000.5 }) }, 'body.defaultScaleMmPerPx'],
+        ['notes_501', { baseVersion: 0, body: settingsBody({ notes: 'n'.repeat(501) }) }, 'body.notes'],
+        ['notes_blank', { baseVersion: 0, body: settingsBody({ notes: '   ' }) }, 'body.notes'],
+        ['notes_bidi', { baseVersion: 0, body: settingsBody({ notes: 'a\u202Eb' }) }, 'body.notes'],
+        ['notes_bell', { baseVersion: 0, body: settingsBody({ notes: 'a\u0007b' }) }, 'body.notes'],
+        ['unit_missing', { baseVersion: 0, body: { ...settingsBody(), lengthUnit: undefined } }, 'body.lengthUnit'],
+        ['body_extra', { baseVersion: 0, body: settingsBody({ foo: 1 }) }, 'body.foo'],
+        ['top_extra', { baseVersion: 0, body: settingsBody(), foo: 1 }, 'foo'],
+        ['body_missing', { baseVersion: 0 }, 'body'],
+        ['base_negative', { baseVersion: -1, body: settingsBody() }, 'baseVersion'],
+        ['base_string', { baseVersion: '0', body: settingsBody() }, 'baseVersion'],
+      ];
+      for (const [slug, data, field] of cases) {
+        const sent = await call(admin, `set_rules_${slug}_422`, 'PUT', path, data, [`422 VALIDATION field "${field}" (schemas.py)`]);
+        expectError(sent, 422, 'VALIDATION', { field });
+      }
+      const unchanged = await call(admin, 'set_rules_read_unchanged', 'GET', path, undefined, ['200 still revision 0: no 422 wrote anything']);
+      expect.soft(asJson(unchanged.body).revision).toBe(0);
+      const bounds = settingsBody({
+        buildingType: 'other', snapToleranceMm: 120, confidenceThreshold: 1, defaultScaleMmPerPx: 0.01, notes: 'n'.repeat(500),
+      });
+      const ok = await call(admin, 'set_rules_bounds_200', 'PUT', path, { baseVersion: 0, body: bounds }, [
+        '200: 120 / 1 / 0.01 / 500-char notes are inside the ranges (schemas.py:59,99-100,109)',
+      ]);
+      expect.soft(ok.res.status()).toBe(200);
+      expect.soft(asJson(ok.body)).toMatchObject({ revision: 1, snapToleranceMm: 120, confidenceThreshold: 1, defaultScaleMmPerPx: 0.01 });
+      const low = await call(admin, 'set_rules_low_bounds_200', 'PUT', path, {
+        baseVersion: 1, body: settingsBody({ snapToleranceMm: 1, confidenceThreshold: 0, defaultScaleMmPerPx: 1000 }),
+      }, ['200: 1 / 0 / 1000 accepted']);
+      expect.soft(low.res.status()).toBe(200);
+      expect.soft(asJson(low.body)).toMatchObject({ revision: 2, snapToleranceMm: 1, confidenceThreshold: 0, defaultScaleMmPerPx: 1000 });
+      const malformed = await call(admin, 'set_rules_malformed_400', 'PUT', path, '{"baseVersion": 2, "body": {', [
+        '400 MALFORMED_JSON (core/errors.py json_invalid)',
+      ], { 'Content-Type': 'application/json' });
+      expectError(malformed, 400, 'MALFORMED_JSON');
+      const badId = await call(admin, 'set_rules_bad_project_404', 'PUT', '/api/projects/not-a-project/settings', { baseVersion: 0, body: settingsBody() }, [
+        '404 NOT_FOUND resource project: malformed prj id, no DB query (projects/access.py:28-33)',
+      ]);
+      expectError(badId, 404, 'NOT_FOUND', { resource: 'project' });
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · floors #10 create: 201 FloorOut (drawings [], echoed drawings/areaM2 ignored); same id again → 409 FLOOR_ID_TAKEN field id; body rules → 422 field; 50-floor cap → 422 FLOOR_LIMIT_REACHED; deleted id re-created inside the restore window → 201; activity "floor.create"', async () => {
+    // floors/router.py:30-35, schemas.py:16-86, service.py:76-156, errors.py:7-14, settings.py:156-157.
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const project = await newProject(admin, 'floor-create', cleanup);
+      const pid = String(project.id);
+      const path = `/api/projects/${pid}/floors`;
+      const id = newLevelId();
+      const name = `  ${PREFIX}Tầng ma\u0301i  `;
+      const created = await call(admin, 'floor_create_201', 'POST', path, { ...floorBody(id, 3, name), drawings: [{ junk: 1 }], areaM2: 99, heightMm: 2999.995 }, [
+        '201 FloorOut: name trimmed + NFC, heightMm 2999.995 → 3000 (≤ 0.01 off, schemas.py:36-47), drawings/areaM2 ignored (W18), drawings []',
+      ]);
+      expect(created.res.status()).toBe(201);
+      const out = expectFloorOut(created.body);
+      expect.soft(out).toMatchObject({ id, name: `${PREFIX}Tầng mái`, order: 3, elevationMm: 9000, heightMm: 3000, drawings: [] });
+      expect.soft(out, 'areaM2 from the body is not stored').not.toHaveProperty('areaM2');
+
+      const taken = await call(admin, 'floor_create_taken_409', 'POST', path, floorBody(id, 4), ['409 FLOOR_ID_TAKEN field id (service.py:76-83)']);
+      expectError(taken, 409, 'FLOOR_ID_TAKEN', { field: 'id' });
+
+      const fresh = (): string => newLevelId();
+      const cases: Array<[string, Json, string]> = [
+        ['id_bad', floorBody('W-ABCDEFGHIJ', 0), 'id'],
+        ['id_short', floorBody('L-ABC', 0), 'id'],
+        ['id_lower', floorBody('L-abcdefghijkl', 0), 'id'],
+        ['name_blank', floorBody(fresh(), 0, '   '), 'name'],
+        ['name_121', floorBody(fresh(), 0, 'n'.repeat(121)), 'name'],
+        ['name_rlo', floorBody(fresh(), 0, 'a\u202Eb'), 'name'],
+        ['order_neg', floorBody(fresh(), -1), 'order'],
+        ['order_1000', { ...floorBody(fresh(), 0), order: 1000 }, 'order'],
+        ['elev_low', { ...floorBody(fresh(), 0), elevationMm: -30001 }, 'elevationMm'],
+        ['elev_high', { ...floorBody(fresh(), 0), elevationMm: 300001 }, 'elevationMm'],
+        ['height_low', { ...floorBody(fresh(), 0), heightMm: 1999 }, 'heightMm'],
+        ['height_high', { ...floorBody(fresh(), 0), heightMm: 10001 }, 'heightMm'],
+        ['height_frac', { ...floorBody(fresh(), 0), heightMm: 3000.5 }, 'heightMm'],
+        ['height_string', { ...floorBody(fresh(), 0), heightMm: '3000' }, 'heightMm'],
+        ['height_bool', { ...floorBody(fresh(), 0), heightMm: true }, 'heightMm'],
+        ['height_missing', { id: fresh(), name: 'x', order: 0, elevationMm: 0 }, 'heightMm'],
+        ['extra', { ...floorBody(fresh(), 0), foo: 1 }, 'foo'],
+      ];
+      for (const [slug, data, field] of cases) {
+        const sent = await call(admin, `floor_create_${slug}_422`, 'POST', path, data, [`422 VALIDATION field "${field}" (floors/schemas.py)`]);
+        expectError(sent, 422, 'VALIDATION', { field });
+      }
+      const pathMismatch = await call(admin, 'floor_create_projectid_422', 'POST', path, { ...floorBody(fresh(), 0), projectId: MISSING_PROJECT }, [
+        '422 PATH_BODY_MISMATCH field projectId (W21, core/routing.py:138-151)',
+      ]);
+      expectError(pathMismatch, 422, 'PATH_BODY_MISMATCH', { field: 'projectId' });
+      const longId = `L-${`${randomUUID()}${randomUUID()}${randomUUID()}`.replace(/-/gu, '').toUpperCase().slice(0, 64)}`;
+      const edges = await call(admin, 'floor_create_bounds_201', 'POST', path, {
+        id: longId, name: 'n'.repeat(120), order: 999, elevationMm: -30000, heightMm: 10000,
+      }, ['201: 64-char id body, 120-char name, order 999, elevation −30000, height 10000 are inside the ranges']);
+      expect.soft(edges.res.status()).toBe(201);
+      const floors = await listFloors(admin, pid, 'floor_create_list');
+      expect.soft(floors.map((f) => f.id).sort(), 'only the two 201 floors exist (no 422 wrote)').toEqual([id, longId].sort());
+
+      // Restore: delete (#11) then POST the same id inside FLOOR_RESTORE_WINDOW_S 600 → 201 with the new body (service.py:53-73,127-131).
+      const del = await call(admin, 'floor_create_delete_200', 'DELETE', `/api/floors/${id}`, undefined, ['setup: #11 soft delete → 200 snapshot']);
+      expect(del.res.status()).toBe(200);
+      const restored = await call(admin, 'floor_create_restore_201', 'POST', path, floorBody(id, 7, `${PREFIX}restored`), [
+        '201: a soft-deleted id inside the restore window is restored with the new body, not 409 (service.py:53-73)',
+      ]);
+      expect.soft(restored.res.status()).toBe(201);
+      expect.soft(asJson(restored.body)).toMatchObject({ id, name: `${PREFIX}restored`, order: 7 });
+      expect.soft((await listFloors(admin, pid, 'floor_create_list_after')).filter((f) => f.id === id)).toHaveLength(1);
+      const rows = await activityOf(admin, creatorId(project), id, 'floor_create_activity');
+      expect.soft(rows.map((r) => r.kind)).toEqual(['floor.create', 'floor.delete', 'floor.create']);
+
+      // Cap: a project created with 50 floors (hook, view_parts.py) → #10 → 422 FLOOR_LIMIT_REACHED (service.py:86-89).
+      const full = await newProject(admin, 'floor-cap', cleanup, {
+        floors: Array.from({ length: 50 }, (_, order) => ({ name: `F${String(order)}`, order, elevationMm: order * 3000, heightMm: 3000 })),
+      });
+      const cap = await call(admin, 'floor_create_cap_422', 'POST', `/api/projects/${String(full.id)}/floors`, floorBody(newLevelId(), 50), [
+        '422 FLOOR_LIMIT_REACHED, no field: 50 live floors = FLOORS_MAX (settings.py:156)',
+      ]);
+      expect.soft(expectError(cap, 422, 'FLOOR_LIMIT_REACHED')).not.toHaveProperty('field');
+      const missing = await call(admin, 'floor_create_missing_project_404', 'POST', `/api/projects/${MISSING_PROJECT}/floors`, floorBody(newLevelId(), 0), [
+        '404 NOT_FOUND resource project (projects/access.py:82-83)',
+      ]);
+      expectError(missing, 404, 'NOT_FOUND', { resource: 'project' });
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · floors #34 PATCH spatial: one field at a time → 200 FloorOut + activity "floor.edit"; {} / same value / W18 echo → 200 without a write (updatedAt kept); explicit null / ranges / extra → 422 field; body id ≠ path → 422 PATH_BODY_MISMATCH id, floorId ≠ path → field floorId; unknown floor → 404 floor', async () => {
+    // floors/router.py:67-78, schemas.py:59-104, service.py:263-322.
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const project = await newProject(admin, 'floor-patch', cleanup);
+      const pid = String(project.id);
+      const fid = await newFloor(admin, pid, 'floor_patch_setup', 0);
+      const path = `/api/projects/${pid}/floors/${fid}/spatial`;
+      const patch = async (ev: string, data: unknown, claim: string, headers?: Record<string, string>): Promise<Sent> =>
+        call(admin, ev, 'PATCH', path, data, [claim], headers);
+
+      const before = await readProject(admin, pid, 'floor_patch_project_before');
+      const renamed = await patch('floor_patch_name_200', { name: `  ${PREFIX}đổi tên  ` }, '200 FloorOut: name trimmed, other fields kept (service.py:269-289)');
+      expect(renamed.res.status()).toBe(200);
+      expect.soft(expectFloorOut(renamed.body)).toMatchObject({ id: fid, name: `${PREFIX}đổi tên`, order: 0, elevationMm: 0, heightMm: 3000 });
+      const height = await patch('floor_patch_height_200', { heightMm: 3300 }, '200: heightMm alone');
+      expect.soft(asJson(height.body)).toMatchObject({ name: `${PREFIX}đổi tên`, heightMm: 3300 });
+      const elev = await patch('floor_patch_elevation_200', { elevationMm: -1500, id: fid }, '200: elevationMm alone; body id = path is accepted');
+      expect.soft(asJson(elev.body)).toMatchObject({ elevationMm: -1500, heightMm: 3300 });
+      const order = await patch('floor_patch_order_200', { order: 5 }, '200: order alone (set_floor_orders, service.py:310-311)');
+      expect.soft(asJson(order.body).order).toBe(5);
+      const afterWrites = await readProject(admin, pid, 'floor_patch_project_after');
+      expect.soft(Date.parse(String(afterWrites.updatedAt))).toBeGreaterThan(Date.parse(String(before.updatedAt)));
+
+      for (const [slug, data] of [['empty', {}], ['same', { name: `${PREFIX}đổi tên`, heightMm: 3300 }], ['echo', { drawings: [{ x: 1 }], areaM2: 12.5 }]] as const) {
+        const sent = await patch(`floor_patch_noop_${slug}_200`, data, '200 FloorOut unchanged; no write, no activity, no touch (service.py:302-308)');
+        expect.soft(sent.res.status()).toBe(200);
+        expect.soft(asJson(sent.body)).toMatchObject({ name: `${PREFIX}đổi tên`, order: 5, elevationMm: -1500, heightMm: 3300 });
+      }
+      const afterNoop = await readProject(admin, pid, 'floor_patch_project_noop');
+      expect.soft(afterNoop.updatedAt, 'no-op PATCH does not touch the project').toBe(afterWrites.updatedAt);
+      const rows = await activityOf(admin, creatorId(project), fid, 'floor_patch_activity');
+      expect.soft(rows.map((r) => r.kind), 'one floor.edit per real change, newest first').toEqual(['floor.edit', 'floor.edit', 'floor.edit', 'floor.edit', 'floor.create']);
+      expect.soft(rows[0]?.objectLabel).toBe(`${PREFIX}đổi tên`);
+
+      const cases: Array<[string, Json, string]> = [
+        ['name_null', { name: null }, 'name'],
+        ['height_null', { heightMm: null }, 'heightMm'],
+        ['id_null', { id: null }, 'id'],
+        ['name_blank', { name: ' ' }, 'name'],
+        ['name_121', { name: 'n'.repeat(121) }, 'name'],
+        ['height_1999', { heightMm: 1999 }, 'heightMm'],
+        ['height_frac', { heightMm: 2500.5 }, 'heightMm'],
+        ['order_1000', { order: 1000 }, 'order'],
+        ['elev_low', { elevationMm: -30001 }, 'elevationMm'],
+        ['id_bad', { id: 'bad' }, 'id'],
+        ['extra', { foo: 1 }, 'foo'],
+        ['floorid_same', { floorId: fid }, 'floorId'],
+      ];
+      for (const [slug, data, field] of cases) {
+        const sent = await patch(`floor_patch_${slug}_422`, data, `422 VALIDATION field "${field}" (floors/schemas.py:89-104; extra="forbid")`);
+        expectError(sent, 422, 'VALIDATION', { field });
+      }
+      const other = newLevelId();
+      const idMismatch = await patch('floor_patch_id_mismatch_422', { id: other, name: 'x' }, '422 PATH_BODY_MISMATCH field id (service.py:263-266)');
+      expectError(idMismatch, 422, 'PATH_BODY_MISMATCH', { field: 'id' });
+      const floorIdMismatch = await patch('floor_patch_floorid_mismatch_422', { floorId: other }, '422 PATH_BODY_MISMATCH field floorId (W21 guard, core/routing.py:138-151)');
+      expectError(floorIdMismatch, 422, 'PATH_BODY_MISMATCH', { field: 'floorId' });
+      const unknown = await call(admin, 'floor_patch_unknown_404', 'PATCH', `/api/projects/${pid}/floors/${newLevelId()}/spatial`, { name: 'x' }, [
+        '404 NOT_FOUND resource floor (service.py:159-166)',
+      ]);
+      expectError(unknown, 404, 'NOT_FOUND', { resource: 'floor' });
+      const final = (await listFloors(admin, pid, 'floor_patch_list')).find((f) => f.id === fid);
+      expect.soft(final, 'the 422s changed nothing').toMatchObject({ name: `${PREFIX}đổi tên`, order: 5, elevationMm: -1500, heightMm: 3300 });
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · floors #13 reorder: permutation → 200 FloorOut[] in the new order + "floor.reorder"; same order → 200 without a write; subset / ids from two projects → 422 FLOOR_REORDER_MISMATCH floorIds; [] / duplicate / extra key / not an array → 422 VALIDATION floorIds; unknown id → 404 floor; one id live in two of my projects → 409 FLOOR_ID_AMBIGUOUS; truncated JSON → 400', async () => {
+    // floors/router.py:52-64, resolvers.py:41-138, service.py:202-260, errors.py:10-17.
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const project = await newProject(admin, 'reorder', cleanup);
+      const pid = String(project.id);
+      const [a, b, c] = [await newFloor(admin, pid, 'reorder_a', 0), await newFloor(admin, pid, 'reorder_b', 1), await newFloor(admin, pid, 'reorder_c', 2)];
+      const reorder = async (ev: string, data: unknown, claim: string, headers?: Record<string, string>): Promise<Sent> =>
+        call(admin, ev, 'PATCH', '/api/floors/reorder', data, [claim], headers);
+
+      const before = await readProject(admin, pid, 'reorder_project_before');
+      const moved = await reorder('reorder_cab_200', { floorIds: [c, a, b] }, '200 FloorOut[] sorted by the new order; order = index (service.py:213-260)');
+      expect(moved.res.status()).toBe(200);
+      const list = asArray(moved.body).map((f) => expectFloorOut(f));
+      expect.soft(list.map((f) => [f.id, f.order])).toEqual([[c, 0], [a, 1], [b, 2]]);
+      const after = await readProject(admin, pid, 'reorder_project_after');
+      expect.soft(Date.parse(String(after.updatedAt))).toBeGreaterThan(Date.parse(String(before.updatedAt)));
+      const same = await reorder('reorder_same_200', { floorIds: [c, a, b] }, '200: nothing changed → no write, no activity, no touch (service.py:246-260)');
+      expect.soft(asArray(same.body).map((f) => asJson(f).id)).toEqual([c, a, b]);
+      expect.soft((await readProject(admin, pid, 'reorder_project_same')).updatedAt).toBe(after.updatedAt);
+      const rows = await activityOf(admin, creatorId(project), pid, 'reorder_activity');
+      expect.soft(rows.filter((r) => r.kind === 'floor.reorder').length, 'exactly one floor.reorder row').toBe(1);
+
+      const subset = await reorder('reorder_subset_422', { floorIds: [a, b] }, '422 FLOOR_REORDER_MISMATCH field floorIds: not the full live set (service.py:219-222)');
+      expectError(subset, 422, 'FLOOR_REORDER_MISMATCH', { field: 'floorIds' });
+      for (const [slug, data] of [
+        ['empty', { floorIds: [] }],
+        ['dup', { floorIds: [a, a, b] }],
+        ['extra', { floorIds: [a, b, c], foo: 1 }],
+        ['string', { floorIds: a }],
+        ['number_item', { floorIds: [a, 1] }],
+        ['missing', {}],
+      ] as const) {
+        const sent = await reorder(`reorder_${slug}_422`, data, '422 VALIDATION field floorIds: raw-body shape rule in the resolver (resolvers.py:80-107)');
+        expectError(sent, 422, 'VALIDATION', { field: 'floorIds' });
+      }
+      const unknown = await reorder('reorder_unknown_404', { floorIds: [newLevelId()] }, '404 NOT_FOUND resource floor: no live floor of mine (resolvers.py:119-125)');
+      expectError(unknown, 404, 'NOT_FOUND', { resource: 'floor' });
+      const malformed = await reorder('reorder_malformed_400', '{"floorIds": [', '400 MALFORMED_JSON: FastAPI parses JSON before the resolver (schemas.py:111-113)', { 'Content-Type': 'application/json' });
+      expectError(malformed, 400, 'MALFORMED_JSON');
+
+      // A second project of mine: mixing its floor in → no project holds all ids → 422; the same level id in both → 409.
+      const other = String((await newProject(admin, 'reorder-q', cleanup)).id);
+      const q = await newFloor(admin, other, 'reorder_q', 0);
+      const mixed = await reorder('reorder_two_projects_422', { floorIds: [a, b, c, q] }, '422 FLOOR_REORDER_MISMATCH: ids from two projects (resolvers.py:126-131)');
+      expectError(mixed, 422, 'FLOOR_REORDER_MISMATCH', { field: 'floorIds' });
+      const twin = await call(admin, 'reorder_twin_create_201', 'POST', `/api/projects/${other}/floors`, floorBody(a, 1), [
+        '201: a level id is unique per project only (uq_floors_level), so project Q can hold P\'s id',
+      ]);
+      expect(twin.res.status()).toBe(201);
+      const ambiguous = await reorder('reorder_ambiguous_409', { floorIds: [a] }, '409 FLOOR_ID_AMBIGUOUS: [a] is a full set of both projects (resolvers.py:126-128)');
+      expectError(ambiguous, 409, 'FLOOR_ID_AMBIGUOUS');
+      const final = await listFloors(admin, pid, 'reorder_list');
+      expect.soft(final.map((f) => [f.id, f.order]), 'failed requests changed nothing').toEqual([[c, 0], [a, 1], [b, 2]]);
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · upload init #5 rules: empty MIME accepted (magic bytes decide later); unknown floor → 404 floor; .dwg or a dwg MIME → 422 CAD_NOT_SUPPORTED; other extension / MIME ≠ extension → 422 FILE_TYPE_MISMATCH; > 100 MiB → 413; pageIndex 1 on an image → 422 pageIndex; Pydantic fileName / sizeBytes / pageIndex / floorId rules; projectId ≠ path → 422 PATH_BODY_MISMATCH', async () => {
+    // drawings/schemas.py:27-66, uploads.py:98-115,174-227, router.py:50-67. 13 inits on the admin's drawings_init bucket.
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'init-rules', cleanup)).id);
+      const fid = await newFloor(admin, pid, 'init_rules_floor', 0);
+      const init = async (ev: string, over: Json, claim: string, floorId = fid): Promise<Sent> => initUpload(admin, ev, pid, floorId, over, [claim]);
+
+      const blank = await init('init_blank_mime_200', { mimeType: '', sizeBytes: 10 }, '200 Progress pending: empty MIME is accepted (uploads.py:57-58,113)');
+      expect(blank.res.status()).toBe(200);
+      expect.soft(expectProgress(blank.body)).toMatchObject({ status: 'pending', step: 'preprocess', progressPercent: 0 });
+      const unknownFloor = await init('init_unknown_floor_404', { fileName: 'x.dwg' }, '404 NOT_FOUND resource floor: floor checked before the file type (uploads.py:190-193)', newLevelId());
+      expectError(unknownFloor, 404, 'NOT_FOUND', { resource: 'floor' });
+      const dwg = await init('init_dwg_422', { fileName: `${PREFIX}plan.DWG`, mimeType: '' }, '422 CAD_NOT_SUPPORTED: .dwg extension, case-insensitive (uploads.py:106-109)');
+      expectError(dwg, 422, 'CAD_NOT_SUPPORTED');
+      const dwgMime = await init('init_dwg_mime_422', { mimeType: 'image/vnd.dwg' }, '422 CAD_NOT_SUPPORTED: MIME mentions dwg even on .png');
+      expectError(dwgMime, 422, 'CAD_NOT_SUPPORTED');
+      const txt = await init('init_txt_422', { fileName: `${PREFIX}notes.txt`, mimeType: 'text/plain' }, '422 FILE_TYPE_MISMATCH: extension outside png/jpg/jpeg/pdf (uploads.py:110-112)');
+      expectError(txt, 422, 'FILE_TYPE_MISMATCH');
+      const lie = await init('init_mime_mismatch_422', { mimeType: 'image/jpeg' }, '422 FILE_TYPE_MISMATCH: declared MIME ≠ the extension\'s (uploads.py:113-114)');
+      expectError(lie, 422, 'FILE_TYPE_MISMATCH');
+      const big = await init('init_too_big_413', { sizeBytes: UPLOAD_MAX_BYTES + 1 }, '413 PAYLOAD_TOO_LARGE: sizeBytes > UPLOAD_MAX_BYTES (uploads.py:195-196)');
+      expectError(big, 413, 'PAYLOAD_TOO_LARGE');
+      const page = await init('init_page_on_image_422', { pageIndex: 1 }, '422 VALIDATION field pageIndex: pages only for PDF (uploads.py:197-198)');
+      expectError(page, 422, 'VALIDATION', { field: 'pageIndex' });
+      const pydantic: Array<[string, Json, string]> = [
+        ['name_slash', { fileName: 'a/b.png' }, 'fileName'],
+        ['size_0', { sizeBytes: 0 }, 'sizeBytes'],
+        ['page_20', { fileName: 'a.pdf', mimeType: 'application/pdf', pageIndex: 20 }, 'pageIndex'],
+      ];
+      for (const [slug, over, field] of pydantic) {
+        const sent = await init(`init_${slug}_422`, over, `422 VALIDATION field "${field}" (schemas.py:34-66)`);
+        expectError(sent, 422, 'VALIDATION', { field });
+      }
+      const noFloorId = await call(admin, 'init_no_floorid_422', 'POST', `/api/projects/${pid}/floors/${fid}/drawings/uploads`, {
+        fileName: 'a.png', mimeType: 'image/png', projectId: pid, sizeBytes: 1,
+      }, ['422 VALIDATION field floorId: required in the body even though it is in the path (schemas.py:62)']);
+      expectError(noFloorId, 422, 'VALIDATION', { field: 'floorId' });
+      const projMismatch = await init('init_projectid_mismatch_422', { projectId: MISSING_PROJECT }, '422 PATH_BODY_MISMATCH field projectId (W21, routing.py:138-151)');
+      expectError(projMismatch, 422, 'PATH_BODY_MISMATCH', { field: 'projectId' });
+      note('init budget: 13 counted requests on the admin bucket here (the unknown-floor 404 passes the gate and counts too)');
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · upload init dedupe: two identical inits within UPLOAD_INIT_DEDUPE_S → the same upload id; once that upload has a chunk, the same init opens a new upload; activity "floor.upload" once per new upload', async () => {
+    // drawings/uploads.py:145-171,200-202, settings.py:132. 3 inits on the admin bucket.
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const project = await newProject(admin, 'dedupe', cleanup);
+      const pid = String(project.id);
+      const fid = await newFloor(admin, pid, 'dedupe_floor', 0);
+      const over = { fileName: `${PREFIX}dedupe.png`, sizeBytes: 64 };
+      const first = await initUpload(admin, 'dedupe_first_200', pid, fid, over, ['200 Progress pending, new upl_ id']);
+      const second = await initUpload(admin, 'dedupe_second_same_200', pid, fid, over, ['200: same floor/user/name/size/MIME/page, receiving, no chunk → the same id (uploads.py:145-171)']);
+      expect(first.res.status()).toBe(200);
+      const id1 = String(asJson(first.body).id);
+      expect.soft(asJson(second.body).id).toBe(id1);
+      const chunk = await sendChunk(admin, 'dedupe_chunk_200', pid, id1, Buffer.alloc(10, 1), 0, ['200: one chunk received (last chunk may be short)']);
+      expect.soft(chunk.res.status()).toBe(200);
+      const third = await initUpload(admin, 'dedupe_third_new_200', pid, fid, over, ['200 with a NEW id: the twin already has a chunk (uploads.py:149-150,154)']);
+      expect.soft(third.res.status()).toBe(200);
+      expect.soft(asJson(third.body).id).not.toBe(id1);
+      const rows = await activityOf(admin, creatorId(project), fid, 'dedupe_activity');
+      expect.soft(rows.filter((r) => r.kind === 'floor.upload').length, 'one floor.upload per NEW upload (uploads.py:218-226)').toBe(2);
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · chunks #6 + complete #7 bookkeeping: chunkIndex ≥ chunk_count / −1 → 422 chunkIndex; empty / non-base64 / short non-final chunk → 422 chunk; resend of an index overwrites; complete with a missing index → 422 UPLOAD_INCOMPLETE count; total ≠ sizeBytes → 422 UPLOAD_SIZE_MISMATCH (upload stays receiving); uploadId ≠ path → 422 PATH_BODY_MISMATCH; unknown / malformed upload → 404 upload', async () => {
+    // drawings/uploads.py:118-142,230-296, complete.py:113-131,286-305, schemas.py:69-79. 2 inits on the admin bucket.
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'chunks', cleanup)).id);
+      const fid = await newFloor(admin, pid, 'chunks_floor', 0);
+      const size = CHUNK_BYTES + 3; // chunk_count 2 (uploads.py:212)
+      const init = await initUpload(admin, 'chunks_init_200', pid, fid, { fileName: `${PREFIX}two-chunks.png`, sizeBytes: size }, [
+        '200 Progress pending; chunk_count = ceil(size / 5 MiB) = 2',
+      ]);
+      expect(init.res.status()).toBe(200);
+      const uid = String(asJson(init.body).id);
+      const chunkPath = `/api/projects/${pid}/drawings/uploads/${uid}/chunks`;
+      const raw = async (ev: string, data: unknown, claim: string): Promise<Sent> => call(admin, ev, 'POST', chunkPath, data, [claim]);
+
+      expectError(await raw('chunks_index_2_422', { chunk: 'AAAA', chunkIndex: 2 }, '422 field chunkIndex: index ≥ chunk_count (uploads.py:285-286)'), 422, 'VALIDATION', { field: 'chunkIndex' });
+      expectError(await raw('chunks_index_neg_422', { chunk: 'AAAA', chunkIndex: -1 }, '422 field chunkIndex: ge=0 (schemas.py:73)'), 422, 'VALIDATION', { field: 'chunkIndex' });
+      expectError(await raw('chunks_empty_422', { chunk: '', chunkIndex: 1 }, '422 field chunk: min_length 1 (schemas.py:72)'), 422, 'VALIDATION', { field: 'chunk' });
+      expectError(await raw('chunks_not_b64_422', { chunk: '!!!not base64', chunkIndex: 1 }, '422 field chunk: b64decode(validate=True) fails (uploads.py:237-240)'), 422, 'VALIDATION', { field: 'chunk' });
+      expectError(await raw('chunks_short_middle_422', { chunk: Buffer.alloc(10).toString('base64'), chunkIndex: 0 }, '422 field chunk: a non-final chunk must be exactly 5 MiB (uploads.py:243-244)'), 422, 'VALIDATION', { field: 'chunk' });
+      expectError(await raw('chunks_extra_422', { chunk: 'AAAA', chunkIndex: 1, foo: 1 }, '422 field foo: extra="forbid"'), 422, 'VALIDATION', { field: 'foo' });
+      const last = await sendChunk(admin, 'chunks_last_200', pid, uid, Buffer.from([1, 2, 3]), 1, ['200 Progress pending: the last chunk may be short']);
+      expect.soft(expectProgress(last.body, uid).status).toBe('pending');
+      const again = await sendChunk(admin, 'chunks_last_resend_200', pid, uid, Buffer.from([4, 5, 6]), 1, ['200: resending an index overwrites it (upsert, U10, uploads.py:248-270)']);
+      expect.soft(again.res.status()).toBe(200);
+
+      const incomplete = await complete(admin, 'chunks_complete_incomplete_422', pid, uid, ['422 UPLOAD_INCOMPLETE count 1: index 0 missing (complete.py:126-128)']);
+      const incBody = expectError(incomplete, 422, 'UPLOAD_INCOMPLETE');
+      expect.soft(incBody.count).toBe(1);
+      expect.soft((await progressOf(admin, 'chunks_progress_still_pending', pid, uid, '200: still pending (receiving) after UPLOAD_INCOMPLETE')).status).toBe('pending');
+      const mismatch = await call(admin, 'chunks_complete_path_mismatch_422', 'POST', `/api/projects/${pid}/drawings/uploads/${uid}/complete`, { uploadId: MISSING_UPLOAD }, [
+        '422 PATH_BODY_MISMATCH field uploadId (W21)',
+      ]);
+      expectError(mismatch, 422, 'PATH_BODY_MISMATCH', { field: 'uploadId' });
+      const emptyComplete = await call(admin, 'chunks_complete_no_uploadid_422', 'POST', `/api/projects/${pid}/drawings/uploads/${uid}/complete`, {}, [
+        '422 VALIDATION field uploadId: required (schemas.py:76-79)',
+      ]);
+      expectError(emptyComplete, 422, 'VALIDATION', { field: 'uploadId' });
+
+      // Size mismatch: 1 chunk declared 10 bytes, 20 sent (≤ 5 MiB, last chunk) → complete 422 UPLOAD_SIZE_MISMATCH.
+      const small = await initUpload(admin, 'chunks_size_init_200', pid, fid, { fileName: `${PREFIX}size.png`, sizeBytes: 10 }, ['200 Progress pending, 1 chunk']);
+      const sid = String(asJson(small.body).id);
+      const twenty = await sendChunk(admin, 'chunks_size_chunk_200', pid, sid, Buffer.concat([PNG_SIGNATURE, Buffer.alloc(12)]), 0, ['200: 20 bytes ≤ chunk size are accepted']);
+      expect.soft(twenty.res.status()).toBe(200);
+      const sizeErr = await complete(admin, 'chunks_complete_size_mismatch_422', pid, sid, ['422 UPLOAD_SIZE_MISMATCH: 20 ≠ 10 declared (complete.py:129-130)']);
+      expectError(sizeErr, 422, 'UPLOAD_SIZE_MISMATCH');
+      expect.soft((await progressOf(admin, 'chunks_size_progress', pid, sid, '200 pending: UPLOAD_SIZE_MISMATCH keeps receiving')).status).toBe('pending');
+
+      for (const [slug, upl] of [['unknown', MISSING_UPLOAD], ['malformed', 'not-an-upload']] as const) {
+        const c = await sendChunk(admin, `chunks_${slug}_chunk_404`, pid, upl, Buffer.from([1]), 0, ['404 NOT_FOUND resource upload (uploads.py:118-142)']);
+        expectError(c, 404, 'NOT_FOUND', { resource: 'upload' });
+        const d = await complete(admin, `chunks_${slug}_complete_404`, pid, upl, ['404 NOT_FOUND resource upload']);
+        expectError(d, 404, 'NOT_FOUND', { resource: 'upload' });
+        const p = await call(admin, `chunks_${slug}_progress_404`, 'GET', `/api/projects/${pid}/drawings/uploads/${upl}/progress`, undefined, ['404 NOT_FOUND resource upload (#8)']);
+        expectError(p, 404, 'NOT_FOUND', { resource: 'upload' });
+      }
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · complete #7 judges magic bytes, not the name: text as .png → 422 FILE_TYPE_MISMATCH, PNG without IEND → 422 FILE_CORRUPT, DWG bytes renamed .png → 422 CAD_NOT_SUPPORTED; each upload is kept "rejected" → #8 failed + error code; a chunk after → 422 UPLOAD_NOT_RECEIVING; complete again → 200 the failed Progress', async () => {
+    // drawings/complete.py:144-153,197-218,227-239,286-312, progress.py:53-54, uploads.py:255-261,283-284. 3 inits.
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'reject', cleanup)).id);
+      const fid = await newFloor(admin, pid, 'reject_floor', 0);
+      const cases: Array<[string, Buffer, string]> = [
+        ['type', Buffer.from('hello, this is not a picture'), 'FILE_TYPE_MISMATCH'],
+        ['corrupt', Buffer.concat([PNG_SIGNATURE, Buffer.alloc(40, 7)]), 'FILE_CORRUPT'],
+        ['cad', Buffer.concat([Buffer.from('AC1027'), Buffer.alloc(40)]), 'CAD_NOT_SUPPORTED'],
+      ];
+      for (const [slug, bytes, code] of cases) {
+        const uid = await receivingUpload(admin, `reject_${slug}`, pid, fid, bytes, `${PREFIX}reject-${slug}.png`);
+        const done = await complete(admin, `reject_${slug}_complete_422`, pid, uid, [`422 ${code}: sniff_kind / end marker (complete.py:144-153,214-215), returned not raised so the row stays rejected`]);
+        expect.soft(expectError(done, 422, code)).not.toHaveProperty('field');
+        const p = await progressOf(admin, `reject_${slug}_progress_failed`, pid, uid, `200 Progress failed, error ${code}, step preprocess, 0 % (progress.py:53-54)`);
+        expect.soft(p).toEqual({ id: uid, status: 'failed', step: 'preprocess', progressPercent: 0, error: code });
+        if (slug === 'type') {
+          const late = await sendChunk(admin, 'reject_type_late_chunk_422', pid, uid, bytes, 0, ['422 UPLOAD_NOT_RECEIVING: the upload is rejected (uploads.py:283-284)']);
+          expectError(late, 422, 'UPLOAD_NOT_RECEIVING');
+          const replay = await complete(admin, 'reject_type_complete_again_200', pid, uid, ['200 the current (failed) Progress, no effect (complete.py:303-304)']);
+          expect.soft(replay.res.status()).toBe(200);
+          expect.soft(asJson(replay.body)).toMatchObject({ status: 'failed', error: code });
+        }
+      }
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · happy path with drawing.png: init → chunk → complete 200 pending → S1 SSE snapshot then frames until a final status (completed or failed, W15 frames) = #8; complete again → 200 without a 2nd run; activity floor.upload + floor.upload_complete once; quality #30 + signed file URL when completed; another project\'s path with this upload → 404 upload on #6/#7/#8/S1', async () => {
+    // drawings/complete.py:242-312, runs.py:218-256, progress.py:33-68; streams/router.py:118-140, sse.py:234-262,
+    // 279-312,408-427; drawings/stream_providers.py:37-72; quality/router.py:30-37, assessments.py:248-279; files/router.py.
+    test.setTimeout(PIPELINE_TIMEOUT_MS + 120_000);
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const project = await newProject(admin, 'pipeline', cleanup);
+      const pid = String(project.id);
+      const fid = await newFloor(admin, pid, 'pipeline_floor', 0);
+      const png = drawingPng();
+      expect(png.length, 'drawing.png fits one chunk').toBeLessThanOrEqual(CHUNK_BYTES);
+      const uid = await receivingUpload(admin, 'pipeline', pid, fid, png, `${PREFIX}drawing.png`);
+      const done = await complete(admin, 'pipeline_complete_200', pid, uid, ['200 Progress pending (start_run inserts a pending run, runs.py:234-241; progress.py:51-52)']);
+      expect(done.res.status()).toBe(200);
+      expect.soft(expectProgress(done.body, uid)).toEqual({ id: uid, status: 'pending', step: 'preprocess', progressPercent: 0 });
+
+      const cookie = await streamCookieOf(admin);
+      const streamPath = `/api/streams/projects/${pid}/uploads/${uid}/progress`;
+      const isFinal = (f: SseFrame): boolean => f.data.status === 'completed' || f.data.status === 'failed';
+      const stream = await readSse(streamPath, { cookie, until: isFinal, timeoutMs: PIPELINE_TIMEOUT_MS });
+      await captureStream('pipeline_sse_frames', streamPath, { cookie: '<admin stream cookie>' }, stream, [
+        '200 text/event-stream, Cache-Control no-store; first frame = snapshot Progress (S08), then events until completed|failed',
+      ]);
+      expect(stream.status).toBe(200);
+      expect.soft(stream.headers['content-type'] ?? '').toContain('text/event-stream');
+      expect.soft(stream.headers['cache-control'] ?? '').toContain('no-store');
+      expect(stream.closed, `final status within ${String(PIPELINE_TIMEOUT_MS)} ms`).toBe('until');
+      for (const frame of stream.frames) {
+        expect.soft(frame.id.length, 'every frame has an id').toBeGreaterThan(0);
+        expectProgress(frame.data, uid);
+      }
+      const finalFrame = stream.frames[stream.frames.length - 1];
+      const finalData = asJson(finalFrame?.data);
+      note(`pipeline final status: ${String(finalData.status)}${finalData.error === undefined ? '' : ` (${String(finalData.error)})`}`);
+      if (finalData.status === 'completed') {
+        expect.soft(finalData).toMatchObject({ step: 'qualityCheck', progressPercent: 100 });
+        expect.soft(typeof finalData.endedAt).toBe('string');
+      }
+      const read = await progressOf(admin, 'pipeline_progress_final', pid, uid, '200 #8 = the last SSE frame (one source, progress.py:71-115)');
+      expect.soft(read).toEqual(finalData);
+
+      const replay = await complete(admin, 'pipeline_complete_again_200', pid, uid, ['200 the current Progress; status ≠ receiving → no 2nd run (complete.py:302-304)']);
+      expect.soft(replay.res.status()).toBe(200);
+      expect.soft(asJson(replay.body)).toEqual(finalData);
+      const rows = await activityOf(admin, creatorId(project), fid, 'pipeline_activity');
+      expect.soft(rows.filter((r) => r.kind === 'floor.upload').length).toBe(1);
+      expect.soft(rows.filter((r) => r.kind === 'floor.upload_complete').length, 'one upload_complete for two completes').toBe(1);
+
+      const quality = await call(admin, 'pipeline_quality', 'GET', `/api/projects/${pid}/floors/${fid}/quality`, undefined, [
+        'completed → 200 {projectId, floorId, floors[≥1]} with this floor and a sourceUrl (assessments.py:248-279); failed before a drawing → 404 upload',
+      ]);
+      if (finalData.status === 'completed') {
+        expect.soft(quality.res.status()).toBe(200);
+        const q = expectKeys(quality.body, ['floorId', 'floors', 'projectId']);
+        expect.soft(q).toMatchObject({ projectId: pid, floorId: fid });
+        const floor = asArray(q.floors).map((f) => asJson(f)).find((f) => f.floorId === fid);
+        const url = String(floor?.sourceUrl ?? '');
+        expect.soft(url.length).toBeGreaterThan(0);
+        // The QA stack signs MinIO URLs (S3 backend, files/router.py:34-36); a local-disk backend signs /api/files/{token}.
+        // Only the host is written down — the query string is the signature.
+        note(`sourceUrl host: ${url.startsWith('/') ? 'same origin' : new URL(url).host}`);
+        const files = url.startsWith('/') ? admin : await request.newContext();
+        const file = await files.get(url);
+        expect.soft(file.status(), 'the signed page URL serves the drawing').toBe(200);
+        expect.soft(file.headers()['content-type'] ?? '').toMatch(/^image\//u);
+        await file.dispose();
+        if (files !== admin) await files.dispose();
+      } else {
+        note('pipeline ended failed: quality #30 / file URL checks skipped');
+      }
+
+      // IDOR across my own projects: the upload belongs to P; Q's path must not reach it (uploads.py:118-142, stream_providers.py:48-62).
+      const q2 = String((await newProject(admin, 'pipeline-q', cleanup)).id);
+      expectError(await sendChunk(admin, 'pipeline_other_project_chunk_404', q2, uid, png, 0, ['404 upload: upload of another project']), 404, 'NOT_FOUND', { resource: 'upload' });
+      expectError(await complete(admin, 'pipeline_other_project_complete_404', q2, uid, ['404 upload']), 404, 'NOT_FOUND', { resource: 'upload' });
+      const crossProgress = await call(admin, 'pipeline_other_project_progress_404', 'GET', `/api/projects/${q2}/drawings/uploads/${uid}/progress`, undefined, ['404 upload (#8)']);
+      expectError(crossProgress, 404, 'NOT_FOUND', { resource: 'upload' });
+      const crossPath = `/api/streams/projects/${q2}/uploads/${uid}/progress`;
+      const cross = await readSse(crossPath, { cookie, until: () => true, timeoutMs: 15_000 });
+      await captureStream('pipeline_other_project_sse_404', crossPath, { cookie: '<admin stream cookie>' }, cross, ['404 NOT_FOUND resource upload (stream_providers.py:48-62)']);
+      expect.soft(cross.status).toBe(404);
+      expect.soft(errBody(cross.errorBody)).toMatchObject({ code: 'NOT_FOUND', resource: 'upload' });
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · S1 SSE gates on a receiving upload: no Origin and same Origin → 200 with the snapshot frame = #8 (pending); foreign Origin → 403 ORIGIN_MISMATCH; malformed project / upload id → 404 upload; unknown upload → 404 upload; quality #30 without a drawing → 404 upload, unknown floor → 404 floor; straighten #32 without a drawing → 404 upload, extra key → 422', async () => {
+    // streams/router.py:118-140, sse.py:161-169,234-262,299-311, stream_providers.py:37-72; quality/router.py:30-56, service.py:125-140.
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'sse-gates', cleanup)).id);
+      const fid = await newFloor(admin, pid, 'sse_gates_floor', 0);
+      const init = await initUpload(admin, 'sse_gates_init_200', pid, fid, { sizeBytes: 50 }, ['setup: 200 Progress pending (receiving)']);
+      expect(init.res.status()).toBe(200);
+      const uid = String(asJson(init.body).id);
+      const cookie = await streamCookieOf(admin);
+      const pathOf = (p: string, u: string): string => `/api/streams/projects/${p}/uploads/${u}/progress`;
+      const first = (): boolean => true;
+      const expected = await progressOf(admin, 'sse_gates_progress', pid, uid, '200 #8 pending');
+
+      for (const [slug, origin] of [['no_origin', undefined], ['same_origin', apiBaseUrl()]] as const) {
+        const r = await readSse(pathOf(pid, uid), { cookie, ...(origin === undefined ? {} : { origin }), until: first, timeoutMs: 20_000 });
+        await captureStream(`sse_gates_${slug}_200`, pathOf(pid, uid), { origin: origin ?? 'absent', cookie: '<admin stream cookie>' }, r, [
+          '200 text/event-stream; a missing Origin is allowed for EventSource (K31); first frame = snapshot (S08) equal to #8',
+        ]);
+        expect.soft(r.status).toBe(200);
+        expect.soft(r.headers['content-type'] ?? '').toContain('text/event-stream');
+        expect.soft(r.frames[0]?.data).toEqual(expected);
+      }
+      const foreign = await readSse(pathOf(pid, uid), { cookie, origin: FOREIGN_ORIGIN, until: first, timeoutMs: 15_000 });
+      await captureStream('sse_gates_foreign_origin_403', pathOf(pid, uid), { origin: FOREIGN_ORIGIN, cookie: '<admin stream cookie>' }, foreign, ['403 ORIGIN_MISMATCH (core/origin.py:59-62)']);
+      expect.soft(foreign.status).toBe(403);
+      expect.soft(errBody(foreign.errorBody).code).toBe('ORIGIN_MISMATCH');
+      for (const [slug, p, u] of [['bad_project', 'nope', uid], ['bad_upload', pid, 'nope'], ['unknown_upload', pid, MISSING_UPLOAD], ['unknown_project', MISSING_PROJECT, uid]] as const) {
+        const r = await readSse(pathOf(p, u), { cookie, until: first, timeoutMs: 15_000 });
+        await captureStream(`sse_gates_${slug}_404`, pathOf(p, u), { cookie: '<admin stream cookie>' }, r, [
+          '404 NOT_FOUND resource upload: id pattern (router.py:129-130) or membership/upload lookup (stream_providers.py:48-62)',
+        ]);
+        expect.soft(r.status, slug).toBe(404);
+        expect.soft(errBody(r.errorBody), slug).toMatchObject({ code: 'NOT_FOUND', resource: 'upload' });
+      }
+
+      const noDrawing = await call(admin, 'sse_gates_quality_no_drawing_404', 'GET', `/api/projects/${pid}/floors/${fid}/quality`, undefined, [
+        '404 NOT_FOUND resource upload: no floor of the project has a drawing yet (assessments.py:273-275)',
+      ]);
+      expectError(noDrawing, 404, 'NOT_FOUND', { resource: 'upload' });
+      const noFloor = await call(admin, 'sse_gates_quality_unknown_floor_404', 'GET', `/api/projects/${pid}/floors/${newLevelId()}/quality`, undefined, [
+        '404 NOT_FOUND resource floor (quality/router.py:35-36)',
+      ]);
+      expectError(noFloor, 404, 'NOT_FOUND', { resource: 'floor' });
+      const straighten = await call(admin, 'sse_gates_straighten_no_drawing_404', 'POST', `/api/projects/${pid}/floors/${fid}/quality/straighten`, {}, [
+        '404 NOT_FOUND resource upload: no current drawing (quality/service.py:137-140)',
+      ]);
+      expectError(straighten, 404, 'NOT_FOUND', { resource: 'upload' });
+      const straightenExtra = await call(admin, 'sse_gates_straighten_extra_422', 'POST', `/api/projects/${pid}/floors/${fid}/quality/straighten`, { foo: 1 }, [
+        '422 VALIDATION field foo: body must be {} (quality/schemas.py:95-96)',
+      ]);
+      expectError(straightenExtra, 422, 'VALIDATION', { field: 'foo' });
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · gaps: complete #7 PDF branches (pdfium) — 21 pages → 422 VALIDATION without field; 1 page with pageIndex 1 → 422 VALIDATION field pageIndex; /Count 0 → 422 PDF_UNREADABLE; %PDF- header + garbage + %%EOF → 422 FILE_CORRUPT; each upload kept "rejected" → #8 failed + that code', async () => {
+    // drawings/complete.py:52-53,172-194 (_check_pages / _page_count), 197-218, 227-239 (_reject returns, row kept);
+    // packages/vision/preprocess/pdf.py:30-50 (SUCCESS/PASSWORD/SECURITY → PDF_UNREADABLE, else FILE_CORRUPT), 53-60;
+    // sniff.py:37-38 ("%PDF-" in the first 1 KiB); uploads.py:197-198 (pageIndex ≠ 0 refused only for images);
+    // progress.py:53-54. BE unit twins: packages/vision/preprocess/tests/test_pdf.py:25-50. 4 inits.
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'pdf', cleanup)).id);
+      const fid = await newFloor(admin, pid, 'pdf_floor', 0);
+      const garbage = Buffer.from(`%PDF-1.4\n${'\u0001\u0002\u0003garbage'.repeat(40)}\n%%EOF\n`, 'latin1');
+      const cases: ReadonlyArray<{ slug: string; bytes: Buffer; pageIndex: number; code: string; field?: string; claim: string }> = [
+        { slug: 'pages21', bytes: makePdf(21), pageIndex: 0, code: 'VALIDATION', claim: '21 pages > PDF_PAGE_MAX 20 → 422 VALIDATION, no field (complete.py:52-53,181-182)' },
+        { slug: 'page_index', bytes: makePdf(1), pageIndex: 1, code: 'VALIDATION', field: 'pageIndex', claim: 'pageIndex 1 ≥ 1 page → 422 VALIDATION field pageIndex (complete.py:183-184)' },
+        { slug: 'zero_pages', bytes: makePdf(0), pageIndex: 0, code: 'PDF_UNREADABLE', claim: '/Count 0 opens with err SUCCESS → 422 PDF_UNREADABLE (pdf.py:30-50)' },
+        { slug: 'garbage', bytes: garbage, pageIndex: 0, code: 'FILE_CORRUPT', claim: '%PDF- + garbage, %%EOF present (end marker passes) → pdfium FORMAT → 422 FILE_CORRUPT (pdf.py:44-50)' },
+      ];
+      for (const c of cases) {
+        const init = await initUpload(admin, `pdf_${c.slug}_init`, pid, fid, {
+          fileName: `${PREFIX}${c.slug}.pdf`, mimeType: 'application/pdf', sizeBytes: c.bytes.length, pageIndex: c.pageIndex,
+        }, [`setup: 200 Progress pending; a .pdf may carry pageIndex ${String(c.pageIndex)} (uploads.py:197-198)`]);
+        expect(init.res.status(), `${c.slug} init`).toBe(200);
+        const uid = String(asJson(init.body).id);
+        const chunk = await sendChunk(admin, `pdf_${c.slug}_chunk`, pid, uid, c.bytes, 0, ['setup: 200 Progress pending']);
+        expect(chunk.res.status(), `${c.slug} chunk`).toBe(200);
+        const done = await complete(admin, `pdf_${c.slug}_complete_422`, pid, uid, [c.claim, 'returned (not raised) → the upload row stays rejected (complete.py:227-239)']);
+        const body = expectError(done, 422, c.code, c.field === undefined ? {} : { field: c.field });
+        if (c.field === undefined) expect.soft(body, `${c.slug}: no field`).not.toHaveProperty('field');
+        const p = await progressOf(admin, `pdf_${c.slug}_progress_failed`, pid, uid, `200 Progress failed, error ${c.code} = rejected_code (progress.py:53-54)`);
+        expect.soft(p, c.slug).toEqual({ id: uid, status: 'failed', step: 'preprocess', progressPercent: 0, error: c.code });
+      }
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · gaps: concurrent writers — two N6 PUTs on one base (0 = INSERT … ON CONFLICT DO NOTHING, 1 = UPDATE … WHERE revision) → exactly one 200, the other 409 VERSION_CONFLICT with the winner revision; two #10 creates of one floor id → one 201, one 409 FLOOR_ID_TAKEN field id; one activity row per win', async () => {
+    // project_settings/service.py:57-76 (_try_write), 79-85 (repeat = same writer AND same digest), 101-119;
+    // floors/service.py:76-96 (_check_not_taken / unique-violation → FLOOR_ID_TAKEN), 134-156 (lock_project_floors).
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const project = await newProject(admin, 'race', cleanup);
+      const pid = String(project.id);
+      const path = `/api/projects/${pid}/settings`;
+
+      for (const [base, typeA, typeB] of [[0, 'commercial', 'industrial'], [1, 'mixed', 'other']] as const) {
+        const claim = `one of the pair: 200 revision ${String(base + 1)} or 409 VERSION_CONFLICT currentVersion ${String(base + 1)} (different bodies → never a repeat)`;
+        const [a, b] = await Promise.all([
+          call(admin, `race_set_base${String(base)}_a`, 'PUT', path, { baseVersion: base, body: settingsBody({ buildingType: typeA }) }, [claim]),
+          call(admin, `race_set_base${String(base)}_b`, 'PUT', path, { baseVersion: base, body: settingsBody({ buildingType: typeB }) }, [claim]),
+        ]);
+        expect.soft([a.res.status(), b.res.status()].sort(), `base ${String(base)}: one winner`).toEqual([200, 409]);
+        const [winner, loser, winType] = a.res.status() === 200 ? [a, b, typeA] : [b, a, typeB];
+        expect.soft(asJson(winner.body)).toMatchObject({ revision: base + 1, buildingType: winType });
+        const conflict = expectError(loser, 409, 'VERSION_CONFLICT');
+        expect.soft(conflict.currentVersion, `base ${String(base)}: loser sees the winner`).toBe(base + 1);
+        expect.soft(conflict.remoteChanges).toEqual([]);
+        const read = await call(admin, `race_set_read_base${String(base)}`, 'GET', path, undefined, [`200 N5 = the winner's body, revision ${String(base + 1)}`]);
+        expect.soft(asJson(read.body)).toMatchObject({ revision: base + 1, buildingType: winType });
+      }
+      const setRows = await activityOf(admin, creatorId(project), pid, 'race_set_activity');
+      expect.soft(setRows.filter((r) => r.kind === 'project.settings_update').length, 'one row per win, none for a 409').toBe(2);
+
+      const fid = newLevelId();
+      const floorsPath = `/api/projects/${pid}/floors`;
+      const floorClaim = 'one of the pair: 201 FloorOut or 409 FLOOR_ID_TAKEN field id (advisory lock serialises, service.py:139-141)';
+      const [fa, fb] = await Promise.all([
+        call(admin, 'race_floor_a', 'POST', floorsPath, floorBody(fid, 0, `${PREFIX}race-a`), [floorClaim]),
+        call(admin, 'race_floor_b', 'POST', floorsPath, floorBody(fid, 1, `${PREFIX}race-b`), [floorClaim]),
+      ]);
+      expect.soft([fa.res.status(), fb.res.status()].sort(), 'one floor created').toEqual([201, 409]);
+      const [created, refused] = fa.res.status() === 201 ? [fa, fb] : [fb, fa];
+      const winner = expectFloorOut(created.body);
+      expectError(refused, 409, 'FLOOR_ID_TAKEN', { field: 'id' });
+      const live = (await listFloors(admin, pid, 'race_floor_list')).filter((f) => f.id === fid);
+      expect.soft(live, 'exactly one live floor with that id').toHaveLength(1);
+      expect.soft(live[0]?.name).toBe(winner.name);
+      const floorRows = await activityOf(admin, creatorId(project), fid, 'race_floor_activity');
+      expect.soft(floorRows.map((r) => r.kind), 'one floor.create').toEqual(['floor.create']);
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · gaps: S1 lastEventId never silences a fresh open (malformed, "0-0" on an empty stream, beyond the tail → the snapshot frame with id = tail); a soft-deleted floor hides its upload → #6 / #7 / #8 / S1 404 upload; re-creating that floor id inside the restore window brings the same upload back (#8 200)', async () => {
+    // streams/router.py:37 (query lastEventId), 118-140; sse.py:279-311 (resolve_start, snapshot id = tail);
+    // packages/messaging/streams.py:23-24,45-47,168-179 (empty stream → tail "0-0", is_trimmed True);
+    // drawings/uploads.py:118-142 (load_upload joins a LIVE floor), stream_providers.py:43-62; floors/router.py:38-43,
+    // service.py:53-73,118-131 (restore keeps the floor pk), 174-194. 1 init.
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'gone-floor', cleanup)).id);
+      const fid = await newFloor(admin, pid, 'gone_floor_floor', 0);
+      const init = await initUpload(admin, 'gone_floor_init_200', pid, fid, { sizeBytes: 50 }, ['setup: 200 Progress pending (receiving)']);
+      expect(init.res.status()).toBe(200);
+      const uid = String(asJson(init.body).id);
+      const cookie = await streamCookieOf(admin);
+      const streamPath = `/api/streams/projects/${pid}/uploads/${uid}/progress`;
+      const first = (): boolean => true;
+      const expected = await progressOf(admin, 'gone_floor_progress', pid, uid, '200 #8 pending');
+
+      const plain = await readSse(streamPath, { cookie, until: first, timeoutMs: 20_000 });
+      await captureStream('gone_floor_sse_plain_200', streamPath, { cookie: '<admin stream cookie>' }, plain, ['200; first frame = snapshot with id = stream tail (S08)']);
+      expect(plain.status).toBe(200);
+      const tail = plain.frames[0]?.id ?? '';
+      expect.soft(plain.frames[0]?.data).toEqual(expected);
+      for (const [slug, value] of [['malformed', 'not-an-id'], ['first_id', '0-0'], ['beyond_tail', '99999999999999-0']] as const) {
+        const path = `${streamPath}?lastEventId=${encodeURIComponent(value)}`;
+        const r = await readSse(path, { cookie, until: first, timeoutMs: 20_000 });
+        await captureStream(`gone_floor_sse_last_${slug}_200`, path, { lastEventId: value, cookie: '<admin stream cookie>' }, r, [
+          'lastEventId used only if well-formed, ≤ tail AND not trimmed (sse.py:286-292); else snapshot frame, id = tail',
+        ]);
+        expect.soft(r.status, slug).toBe(200);
+        expect.soft(r.closed, `${slug}: a frame arrived`).toBe('until');
+        expect.soft(r.frames[0]?.id, `${slug}: id = tail`).toBe(tail);
+        expect.soft(r.frames[0]?.data, `${slug}: snapshot = #8`).toEqual(expected);
+      }
+
+      const del = await call(admin, 'gone_floor_delete_200', 'DELETE', `/api/floors/${fid}`, undefined, ['setup: #11 soft delete → 200 snapshot']);
+      expect(del.res.status()).toBe(200);
+      const gone = '404 NOT_FOUND resource upload: the upload\'s floor is soft-deleted (uploads.py:118-142)';
+      expectError(await sendChunk(admin, 'gone_floor_chunk_404', pid, uid, Buffer.alloc(50, 1), 0, [gone]), 404, 'NOT_FOUND', { resource: 'upload' });
+      expectError(await complete(admin, 'gone_floor_complete_404', pid, uid, [gone]), 404, 'NOT_FOUND', { resource: 'upload' });
+      const progress = await call(admin, 'gone_floor_progress_404', 'GET', `/api/projects/${pid}/drawings/uploads/${uid}/progress`, undefined, [gone]);
+      expectError(progress, 404, 'NOT_FOUND', { resource: 'upload' });
+      const sse = await readSse(streamPath, { cookie, until: first, timeoutMs: 15_000 });
+      await captureStream('gone_floor_sse_404', streamPath, { cookie: '<admin stream cookie>' }, sse, ['404 NOT_FOUND resource upload: FloorRow.deleted_at must be null (stream_providers.py:52-62)']);
+      expect.soft(sse.status).toBe(404);
+      expect.soft(errBody(sse.errorBody)).toMatchObject({ code: 'NOT_FOUND', resource: 'upload' });
+
+      const restored = await call(admin, 'gone_floor_restore_201', 'POST', `/api/projects/${pid}/floors`, floorBody(fid, 0), [
+        '201: the soft-deleted id inside FLOOR_RESTORE_WINDOW_S is restored in place, same pk (service.py:53-73,127-131)',
+      ]);
+      expect.soft(restored.res.status()).toBe(201);
+      const back = await call(admin, 'gone_floor_progress_back_200', 'GET', `/api/projects/${pid}/drawings/uploads/${uid}/progress`, undefined, [
+        '200: the upload joins the restored floor row again (uploads.py:133-139)',
+      ]);
+      expect.soft(back.res.status()).toBe(200);
+      expect.soft(back.body).toEqual(expected);
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · roles: viewer member → 403 FORBIDDEN on settings PUT, floor create / patch / reorder, init / chunk / complete, but reads settings, #8 and S1; engineer non-member → 404 on all of them (S1 404 upload); engineer member → 201/200, its identical settings body after admin\'s write → 409 (another writer is no repeat); its init is capped at 60 / 600 s per user → 61st 429 RATE_LIMITED + Retry-After ≤ 10; its 7th concurrent S1 stream → 429 RATE_LIMITED Retry-After 5', async () => {
+    // permissions/matrix.py:46-51 (floor.upload, layer.edit, project.settings.edit: admin, engineer); projects/access.py:45-86
+    // (404 beats 403, K08); floors/resolvers.py:41-77,134-138; drawings/router.py:36-46; core/ratelimit.py:100-140;
+    // streams/sse.py:208-221, connections.py:30-50, settings.py:34.
+    test.skip(INVITES_BLOCKED, INVITES_BLOCKED_REASON);
+    test.setTimeout(240_000);
+    const cleanup = new Cleanup();
+    const opened: AbortController[] = [];
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'roles', cleanup)).id);
+      const [f1, f2] = [await newFloor(admin, pid, 'roles_f1', 0), await newFloor(admin, pid, 'roles_f2', 1)];
+      const init = await initUpload(admin, 'roles_admin_init_200', pid, f1, { sizeBytes: 20 }, ['setup: admin upload (receiving)']);
+      expect(init.res.status()).toBe(200);
+      const uid = String(asJson(init.body).id);
+      const viewer = await realUser(admin, 'viewer', 'roles-viewer', cleanup);
+      const engineer = await realUser(admin, 'engineer', 'roles-engineer', cleanup);
+      await addMember(admin, pid, viewer.email, 'roles_add_viewer');
+
+      const writes = (who: string): Array<[string, Method, string, unknown]> => [
+        ['settings', 'PUT', `/api/projects/${pid}/settings`, { baseVersion: 0, body: settingsBody() }],
+        ['floor_create', 'POST', `/api/projects/${pid}/floors`, floorBody(newLevelId(), 5)],
+        ['floor_patch', 'PATCH', `/api/projects/${pid}/floors/${f1}/spatial`, { name: `${PREFIX}${who}` }],
+        ['reorder', 'PATCH', '/api/floors/reorder', { floorIds: [f2, f1] }],
+        ['init', 'POST', `/api/projects/${pid}/floors/${f1}/drawings/uploads`, { fileName: 'a.png', floorId: f1, mimeType: 'image/png', projectId: pid, sizeBytes: 5 }],
+        ['chunk', 'POST', `/api/projects/${pid}/drawings/uploads/${uid}/chunks`, { chunk: 'AAAA', chunkIndex: 0 }],
+        ['complete', 'POST', `/api/projects/${pid}/drawings/uploads/${uid}/complete`, { uploadId: uid }],
+        // QA-03d: the rest of the phase-3 writes — #11 (layer.edit via the resolver), #31 / #32 (floor.upload,
+        // quality/router.py:209,224-240), N3 / N4 (project.settings.edit, project_members/router.py:36-80).
+        ['floor_delete', 'DELETE', `/api/floors/${f2}`, undefined],
+        ['corners', 'POST', qualityPath(pid, f1, '/corners'), { corners: GOOD_CORNERS }],
+        ['straighten', 'POST', qualityPath(pid, f1, '/straighten'), {}],
+        ['member_add', 'POST', `/api/projects/${pid}/members`, { email: testEmail(`${who}-nobody`) }],
+        ['member_remove', 'DELETE', `/api/projects/${pid}/members/usr_${'0'.repeat(26)}`, undefined],
+      ];
+      /** Resource of the non-member 404: the floor resolvers answer "floor" (resolvers.py:41-60,117-121). */
+      const nonMemberResource = (slug: string): string => (slug === 'reorder' || slug === 'floor_delete' ? 'floor' : 'project');
+      for (const [slug, method, path, data] of writes('viewer')) {
+        const sent = await call(viewer.api, `roles_viewer_${slug}_403`, method, path, data, [
+          '403 FORBIDDEN, no resource: member, but viewer lacks floor.upload / layer.edit / project.settings.edit (access.py:84-85)',
+        ]);
+        expect.soft(expectError(sent, 403, 'FORBIDDEN'), slug).not.toHaveProperty('resource');
+      }
+      const vSettings = await call(viewer.api, 'roles_viewer_settings_read_200', 'GET', `/api/projects/${pid}/settings`, undefined, ['200: any member reads N5 (router.py:22-27)']);
+      expect.soft(vSettings.res.status()).toBe(200);
+      expect.soft((await progressOf(viewer.api, 'roles_viewer_progress_200', pid, uid, '200: any member reads #8')).status).toBe('pending');
+      const vStream = await readSse(`/api/streams/projects/${pid}/uploads/${uid}/progress`, { cookie: viewer.streamCookie, until: () => true, timeoutMs: 20_000 });
+      await captureStream('roles_viewer_sse_200', `/api/streams/projects/${pid}/uploads/${uid}/progress`, { cookie: '<viewer stream cookie>' }, vStream, ['200 + snapshot: S1 only needs membership (stream_providers.py:43-51)']);
+      expect.soft(vStream.status).toBe(200);
+      expect.soft(vStream.frames[0]?.data.id).toBe(uid);
+
+      for (const [slug, method, path, data] of writes('engineer')) {
+        const sent = await call(engineer.api, `roles_engineer_nonmember_${slug}_404`, method, path, data, [
+          '404 NOT_FOUND: not a member (resource project; reorder → floor via the resolver, resolvers.py:41-77)',
+        ]);
+        expectError(sent, 404, 'NOT_FOUND', { resource: nonMemberResource(slug) });
+      }
+      // QA-03d reads: any member reads N7 / #12 / #30 (member gate only); a non-member gets 404 project on each.
+      const reads: Array<[string, string]> = [
+        ['latest', latestPath(pid)],
+        ['floors', `/api/projects/${pid}/floors`],
+        ['quality', qualityPath(pid, f1)],
+      ];
+      for (const [slug, path] of reads) {
+        const v = await call(viewer.api, `roles_viewer_${slug}_read`, 'GET', path, undefined, [
+          'viewer member passes the member gate: N7 / #12 → 200; #30 → 404 upload (no drawing yet, assessments.py:273-275)',
+        ]);
+        expect.soft(v.res.status(), `viewer ${slug}`).toBe(slug === 'quality' ? 404 : 200);
+        const e = await call(engineer.api, `roles_engineer_nonmember_${slug}_404`, 'GET', path, undefined, ['404 NOT_FOUND resource project (access.py:82-83)']);
+        expectError(e, 404, 'NOT_FOUND', { resource: 'project' });
+      }
+      const eProgress = await call(engineer.api, 'roles_engineer_nonmember_progress_404', 'GET', `/api/projects/${pid}/drawings/uploads/${uid}/progress`, undefined, ['404 project']);
+      expectError(eProgress, 404, 'NOT_FOUND', { resource: 'project' });
+      const eStream = await readSse(`/api/streams/projects/${pid}/uploads/${uid}/progress`, { cookie: engineer.streamCookie, until: () => true, timeoutMs: 15_000 });
+      await captureStream('roles_engineer_nonmember_sse_404', `/api/streams/projects/${pid}/uploads/${uid}/progress`, { cookie: '<engineer stream cookie>' }, eStream, ['404 NOT_FOUND resource upload, not 403 (stream_providers.py:43-51)']);
+      expect.soft(eStream.status).toBe(404);
+      expect.soft(errBody(eStream.errorBody)).toMatchObject({ code: 'NOT_FOUND', resource: 'upload' });
+
+      // Admin writes settings rev 1; then the engineer joins.
+      const body = settingsBody({ buildingType: 'commercial' });
+      const adminPut = await call(admin, 'roles_admin_settings_200', 'PUT', `/api/projects/${pid}/settings`, { baseVersion: 0, body }, ['200 revision 1 by the admin']);
+      expect(adminPut.res.status()).toBe(200);
+      await addMember(admin, pid, engineer.email, 'roles_add_engineer');
+      const notRepeat = await call(engineer.api, 'roles_engineer_settings_same_body_409', 'PUT', `/api/projects/${pid}/settings`, { baseVersion: 0, body }, [
+        '409 VERSION_CONFLICT currentVersion 1: same body + base but another writer is not a repeat (service.py:79-85)',
+      ]);
+      expect.soft(expectError(notRepeat, 409, 'VERSION_CONFLICT').currentVersion).toBe(1);
+      const ePut = await call(engineer.api, 'roles_engineer_settings_200', 'PUT', `/api/projects/${pid}/settings`, { baseVersion: 1, body: settingsBody() }, ['200 revision 2: engineer has project.settings.edit']);
+      expect.soft(asJson(ePut.body).revision).toBe(2);
+      const eFloor = newLevelId();
+      const eCreate = await call(engineer.api, 'roles_engineer_floor_create_201', 'POST', `/api/projects/${pid}/floors`, floorBody(eFloor, 2), ['201: engineer has layer.edit']);
+      expect.soft(eCreate.res.status()).toBe(201);
+      const ePatch = await call(engineer.api, 'roles_engineer_floor_patch_200', 'PATCH', `/api/projects/${pid}/floors/${eFloor}/spatial`, { heightMm: 2800 }, ['200']);
+      expect.soft(ePatch.res.status()).toBe(200);
+      const eReorder = await call(engineer.api, 'roles_engineer_reorder_200', 'PATCH', '/api/floors/reorder', { floorIds: [eFloor, f2, f1] }, ['200']);
+      expect.soft(eReorder.res.status()).toBe(200);
+      const eDelete = await call(engineer.api, 'roles_engineer_floor_delete_200', 'DELETE', `/api/floors/${eFloor}`, undefined, ['200 snapshot: engineer has layer.edit (#11)']);
+      expect.soft(eDelete.res.status()).toBe(200);
+      const eLatest = await call(engineer.api, 'roles_engineer_latest_200', 'GET', latestPath(pid), undefined, ['200 N7: member gate only']);
+      expect.soft(eLatest.res.status()).toBe(200);
+
+      // drawings_init 60 / 600 s per user: 60 identical inits → 200 with ONE id (dedupe), the 61st → 429.
+      const initBody = { fileName: `${PREFIX}limit.png`, floorId: f2, mimeType: 'image/png', projectId: pid, sizeBytes: 30 };
+      const initPath = `/api/projects/${pid}/floors/${f2}/drawings/uploads`;
+      const ids = new Set<unknown>();
+      for (let i = 1; i <= INIT_LIMIT; i += 1) {
+        const res = await engineer.api.post(initPath, { data: initBody });
+        if (i === 1 || i === INIT_LIMIT) {
+          await captureExchange(`A03_roles_engineer_init_${String(i)}_200.json`, { method: 'POST', path: initPath, body: initBody }, res, [
+            `init #${String(i)} of ${String(INIT_LIMIT)} → 200; identical inits share one upload id (uploads.py:145-171)`,
+          ]);
+        }
+        expect(res.status(), `engineer init #${String(i)}`).toBe(200);
+        ids.add(((await res.json()) as Json).id);
+        await res.dispose();
+      }
+      expect.soft(ids.size, 'dedupe: 60 identical inits → one upload').toBe(1);
+      const limited = await call(engineer.api, 'roles_engineer_init_61_429', 'POST', initPath, initBody, [
+        '429 RATE_LIMITED + Retry-After 1..10: drawings_init 60 / 600 s per user (settings.py:135-136, ratelimit.py:30-31,133-134)',
+      ]);
+      expectError(limited, 429, 'RATE_LIMITED');
+      const retry = Number(limited.res.headers()['retry-after']);
+      expect.soft(retry >= 1 && retry <= 10, `Retry-After ${String(retry)}`).toBe(true);
+      const engineerUpload = String([...ids][0]);
+
+      // S1 per-user cap: 6 open streams OK, the 7th → 429 RATE_LIMITED Retry-After 5.
+      const sse = `/api/streams/projects/${pid}/uploads/${engineerUpload}/progress`;
+      for (let i = 0; i < STREAM_MAX_PER_USER; i += 1) {
+        const controller = new AbortController();
+        opened.push(controller);
+        const res = await fetch(`${apiBaseUrl()}${sse}`, { headers: { Cookie: `${STREAM}=${engineer.streamCookie}` }, signal: controller.signal });
+        expect(res.status, `stream ${String(i + 1)} opens`).toBe(200);
+        const reader = res.body?.getReader();
+        await reader?.read(); // the snapshot frame: the slot is held
+      }
+      const seventh = await readSse(sse, { cookie: engineer.streamCookie, until: () => true, timeoutMs: 15_000 });
+      await captureStream('roles_engineer_sse_7th_429', sse, { cookie: '<engineer stream cookie>', alreadyOpen: STREAM_MAX_PER_USER }, seventh, [
+        '429 RATE_LIMITED + Retry-After 5: STREAM_MAX_PER_USER 6 (sse.py:65,208-221; connections.py:30-50)',
+      ]);
+      expect.soft(seventh.status).toBe(429);
+      expect.soft(errBody(seventh.errorBody).code).toBe('RATE_LIMITED');
+      expect.soft(seventh.headers['retry-after']).toBe(SSE_RETRY_AFTER);
+    } finally {
+      for (const controller of opened) controller.abort();
+      await cleanup.run();
+    }
+  });
+});
+
+/* ================================================================== QA-03d: depth (one rule per test) */
+
+test.describe('A03 phase-3 backend depth (QA-03d)', () => {
+  /* ---------------------------------------------------------------- shared gates */
+
+  test('A03 · gates: a malformed project id → 404 NOT_FOUND resource project on every project-scoped phase-3 route (pattern checked before any query), a malformed floor id → 404 floor on #11 / #34 / #30 / #31', async () => {
+    // projects/access.py:28-33 (is_id("prj") before the DB), floors/resolvers.py:54-60 (#11 pattern), service.py:159-166 (#34),
+    // quality/router.py:219-220 (#30), service.py:131-133 (#31 after the geometry check).
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const bad = 'prj_not-a-ulid';
+      const fid = newLevelId();
+      const routes: Array<[string, Method, string, unknown]> = [
+        ['settings_get', 'GET', `/api/projects/${bad}/settings`, undefined],
+        ['floor_create', 'POST', `/api/projects/${bad}/floors`, floorBody(fid, 0)],
+        ['floors_list', 'GET', `/api/projects/${bad}/floors`, undefined],
+        ['floor_patch', 'PATCH', `/api/projects/${bad}/floors/${fid}/spatial`, { name: 'x' }],
+        ['init', 'POST', `/api/projects/${bad}/floors/${fid}/drawings/uploads`, { fileName: 'a.png', floorId: fid, mimeType: 'image/png', projectId: bad, sizeBytes: 1 }],
+        ['chunk', 'POST', `/api/projects/${bad}/drawings/uploads/${MISSING_UPLOAD}/chunks`, { chunk: 'AA==', chunkIndex: 0 }],
+        ['complete', 'POST', `/api/projects/${bad}/drawings/uploads/${MISSING_UPLOAD}/complete`, { uploadId: MISSING_UPLOAD }],
+        ['progress', 'GET', `/api/projects/${bad}/drawings/uploads/${MISSING_UPLOAD}/progress`, undefined],
+        ['latest', 'GET', latestPath(bad), undefined],
+        ['quality', 'GET', qualityPath(bad, fid), undefined],
+        ['corners', 'POST', qualityPath(bad, fid, '/corners'), { corners: GOOD_CORNERS }],
+        ['straighten', 'POST', qualityPath(bad, fid, '/straighten'), {}],
+        ['member_add', 'POST', `/api/projects/${bad}/members`, { email: testEmail('gate') }],
+        ['member_remove', 'DELETE', `/api/projects/${bad}/members/usr_${'0'.repeat(26)}`, undefined],
+      ];
+      for (const [slug, method, path, data] of routes) {
+        const sent = await call(admin, `gate_bad_project_${slug}_404`, method, path, data, [
+          '404 NOT_FOUND resource project: prj_ pattern fails before any query, before the body (projects/access.py:28-33)',
+        ]);
+        expectError(sent, 404, 'NOT_FOUND', { resource: 'project' });
+      }
+      const pid = String((await newProject(admin, 'gate-floor', cleanup)).id);
+      const floorRoutes: Array<[string, Method, string, unknown]> = [
+        ['delete', 'DELETE', '/api/floors/nope', undefined],
+        ['patch', 'PATCH', `/api/projects/${pid}/floors/nope/spatial`, { name: 'x' }],
+        ['quality', 'GET', qualityPath(pid, 'nope'), undefined],
+        ['corners', 'POST', qualityPath(pid, 'nope', '/corners'), { corners: GOOD_CORNERS }],
+        ['straighten', 'POST', qualityPath(pid, 'nope', '/straighten'), {}],
+      ];
+      for (const [slug, method, path, data] of floorRoutes) {
+        const sent = await call(admin, `gate_bad_floor_${slug}_404`, method, path, data, ['404 NOT_FOUND resource floor: no floor "nope" (resolvers.py:57-58 / lookup get_floor)']);
+        expectError(sent, 404, 'NOT_FOUND', { resource: 'floor' });
+      }
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · gates: a soft-deleted project hides everything under it — N5 / N6 / #10 / #12 / #34 / #5 / #6 / #7 / #8 / N7 / #30 / #31 / #32 / N3 / N4 → 404 project, #11 / #13 → 404 floor, S1 → 404 upload (its own live upload included)', async () => {
+    // projects/access.py:62-83 (Project.deleted_at IS NULL in the one membership query), floors/resolvers.py:24-37,
+    // drawings/stream_providers.py:43-62. 1 init (before the delete).
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const project = await newProject(admin, 'gone-project', cleanup);
+      const pid = String(project.id);
+      const fid = await newFloor(admin, pid, 'gone_project_floor', 0);
+      const init = await initUpload(admin, 'gone_project_init_200', pid, fid, { sizeBytes: 20 }, ['setup: 200 Progress pending']);
+      expect(init.res.status()).toBe(200);
+      const uid = String(asJson(init.body).id);
+      const cookie = await streamCookieOf(admin);
+      const del = await call(admin, 'gone_project_delete_200', 'DELETE', `/api/projects/${pid}`, undefined, ['setup: #27 soft delete → 200 (phase 2 owns its rules)']);
+      expect(del.res.status()).toBe(200);
+      const routes: Array<[string, Method, string, unknown, string]> = [
+        ['settings_get', 'GET', `/api/projects/${pid}/settings`, undefined, 'project'],
+        ['settings_put', 'PUT', `/api/projects/${pid}/settings`, { baseVersion: 0, body: settingsBody() }, 'project'],
+        ['floor_create', 'POST', `/api/projects/${pid}/floors`, floorBody(newLevelId(), 1), 'project'],
+        ['floors_list', 'GET', `/api/projects/${pid}/floors`, undefined, 'project'],
+        ['floor_patch', 'PATCH', `/api/projects/${pid}/floors/${fid}/spatial`, { name: 'x' }, 'project'],
+        ['floor_delete', 'DELETE', `/api/floors/${fid}`, undefined, 'floor'],
+        ['reorder', 'PATCH', '/api/floors/reorder', { floorIds: [fid] }, 'floor'],
+        ['init', 'POST', `/api/projects/${pid}/floors/${fid}/drawings/uploads`, { fileName: 'a.png', floorId: fid, mimeType: 'image/png', projectId: pid, sizeBytes: 20 }, 'project'],
+        ['chunk', 'POST', `/api/projects/${pid}/drawings/uploads/${uid}/chunks`, { chunk: 'AA==', chunkIndex: 0 }, 'project'],
+        ['complete', 'POST', `/api/projects/${pid}/drawings/uploads/${uid}/complete`, { uploadId: uid }, 'project'],
+        ['progress', 'GET', `/api/projects/${pid}/drawings/uploads/${uid}/progress`, undefined, 'project'],
+        ['latest', 'GET', latestPath(pid), undefined, 'project'],
+        ['quality', 'GET', qualityPath(pid, fid), undefined, 'project'],
+        ['corners', 'POST', qualityPath(pid, fid, '/corners'), { corners: GOOD_CORNERS }, 'project'],
+        ['straighten', 'POST', qualityPath(pid, fid, '/straighten'), {}, 'project'],
+        ['member_add', 'POST', `/api/projects/${pid}/members`, { email: testEmail('gone') }, 'project'],
+        ['member_remove', 'DELETE', `/api/projects/${pid}/members/${creatorId(project)}`, undefined, 'project'],
+      ];
+      for (const [slug, method, path, data, resource] of routes) {
+        const sent = await call(admin, `gone_project_${slug}_404`, method, path, data, [
+          `404 NOT_FOUND resource ${resource}: the project row is soft-deleted (access.py:62-83; floor resolvers join Project.deleted_at IS NULL)`,
+        ]);
+        expectError(sent, 404, 'NOT_FOUND', { resource });
+      }
+      const streamPath = `/api/streams/projects/${pid}/uploads/${uid}/progress`;
+      const sse = await readSse(streamPath, { cookie, until: () => true, timeoutMs: 15_000 });
+      await captureStream('gone_project_sse_404', streamPath, { cookie: '<admin stream cookie>' }, sse, ['404 NOT_FOUND resource upload (stream_providers.py:43-62)']);
+      expect.soft(sse.status).toBe(404);
+      expect.soft(errBody(sse.errorBody)).toMatchObject({ code: 'NOT_FOUND', resource: 'upload' });
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · gates: 422 VALIDATION reports count = number of Pydantic errors and field = the FIRST error in declaration order (N6 with 3 bad fields → count 3 field body.buildingType; #10 with 2 → count 2 field id; one error → count 1)', async () => {
+    // core/errors.py:166-180 (validation_error: field of errors[0], count = len(errors)); schemas declare building_type
+    // before length_unit before snap_tolerance_mm (project_settings/schemas.py:64-71), id before height_mm (floors/schemas.py:76-82).
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'count', cleanup)).id);
+      const three = await call(admin, 'count_settings_3_422', 'PUT', `/api/projects/${pid}/settings`, {
+        baseVersion: 0, body: settingsBody({ snapToleranceMm: 0, lengthUnit: 'cm', buildingType: 'castle' }),
+      }, ['422 VALIDATION count 3, field body.buildingType (first declared)']);
+      expect.soft(expectError(three, 422, 'VALIDATION', { field: 'body.buildingType' }).count).toBe(3);
+      const two = await call(admin, 'count_floor_2_422', 'POST', `/api/projects/${pid}/floors`, { ...floorBody('bad', 0), heightMm: 1 }, [
+        '422 VALIDATION count 2, field id',
+      ]);
+      expect.soft(expectError(two, 422, 'VALIDATION', { field: 'id' }).count).toBe(2);
+      const one = await call(admin, 'count_floor_1_422', 'POST', `/api/projects/${pid}/floors`, { ...floorBody(newLevelId(), 0), heightMm: 1 }, [
+        '422 VALIDATION count 1, field heightMm',
+      ]);
+      expect.soft(expectError(one, 422, 'VALIDATION', { field: 'heightMm' }).count).toBe(1);
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  /* ---------------------------------------------------------------- N5 / N6 settings */
+
+  test('A03 · settings notes text: LRM / RLM / FSI / CR / NEL → 422 body.notes (notes block bidi marks and every Cc but \\n \\t); U+200B kept; the 500 limit counts NFC code points (500 NFD "é" = 1000 code points accepted, 501 refused)', async () => {
+    // project_settings/schemas.py:20-31 (clean_text bidi_marks=True, allow_controls "\n\t"), 57 (max 500 after the BeforeValidator);
+    // packages/core/text.py:5-8,24-35.
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'notes-text', cleanup)).id);
+      const path = `/api/projects/${pid}/settings`;
+      for (const [slug, notes] of [['lrm', 'a‎b'], ['rlm', 'a‏b'], ['fsi', 'a⁨b'], ['cr', 'a\rb'], ['nel', 'a\u0085b'], ['nfd_501', 'é'.repeat(501)]] as const) {
+        const sent = await call(admin, `notes_${slug}_422`, 'PUT', path, { baseVersion: 0, body: settingsBody({ notes }) }, [`422 VALIDATION field body.notes (${slug})`]);
+        expectError(sent, 422, 'VALIDATION', { field: 'body.notes' });
+      }
+      const nfd = 'é'.repeat(500);
+      const ok = await call(admin, 'notes_nfd_500_200', 'PUT', path, { baseVersion: 0, body: settingsBody({ notes: nfd }) }, [
+        '200: 1000 NFD code points = 500 after NFC → inside the 500 limit; stored NFC',
+      ]);
+      expect.soft(ok.res.status()).toBe(200);
+      expect.soft(asJson(ok.body).notes).toBe('é'.repeat(500));
+      const zw = await call(admin, 'notes_zwsp_200', 'PUT', path, { baseVersion: 1, body: settingsBody({ notes: 'a​b' }) }, [
+        '200: U+200B (Cf, not Cc, not a bidi mark) is kept as typed',
+      ]);
+      expect.soft(asJson(zw.body)).toMatchObject({ revision: 2, notes: 'a​b' });
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · settings decimals: NaN / Infinity / 1e400 → 422 (finite JSON numbers only); HALF_UP edges 0.0005 → 0.001, 0.9995 → 1, scale 999.9999995 → 1000, 0.0100004 → 0.01; −0.0 is stored as 0 and repeats the 0 body (one digest)', async () => {
+    // project_settings/schemas.py:34-56 (_to_decimal finite, _rounded HALF_UP after the raw range, −0 → 0), service.py:47-54 (digest).
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'decimals', cleanup)).id);
+      const path = `/api/projects/${pid}/settings`;
+      const raw = (conf: string): string => `{"baseVersion":0,"body":{"buildingType":"residential","lengthUnit":"mm","snapToleranceMm":50,"confidenceThreshold":${conf},"defaultScaleMmPerPx":1}}`;
+      for (const [slug, value] of [['nan', 'NaN'], ['infinity', 'Infinity'], ['overflow', '1e400']] as const) {
+        const sent = await call(admin, `decimals_${slug}_422`, 'PUT', path, raw(value), [`422 VALIDATION field body.confidenceThreshold: ${value} is not a finite number`], JSON_CT);
+        expectError(sent, 422, 'VALIDATION', { field: 'body.confidenceThreshold' });
+      }
+      const up = await call(admin, 'decimals_half_up_200', 'PUT', path, { baseVersion: 0, body: settingsBody({ confidenceThreshold: 0.0005, defaultScaleMmPerPx: 0.0100004 }) }, [
+        '200: 0.0005 → 0.001 (HALF_UP 3), 0.0100004 → 0.01 (HALF_UP 6)',
+      ]);
+      expect.soft(asJson(up.body)).toMatchObject({ revision: 1, confidenceThreshold: 0.001, defaultScaleMmPerPx: 0.01 });
+      const top = await call(admin, 'decimals_top_edges_200', 'PUT', path, { baseVersion: 1, body: settingsBody({ confidenceThreshold: 0.9995, defaultScaleMmPerPx: 999.9999995 }) }, [
+        '200: raw 0.9995 ≤ 1 → 1.000; raw 999.9999995 ≤ 1000 → 1000.000000 (range checked on the raw value, then rounded)',
+      ]);
+      expect.soft(asJson(top.body)).toMatchObject({ revision: 2, confidenceThreshold: 1, defaultScaleMmPerPx: 1000 });
+      const negZero = await call(admin, 'decimals_neg_zero_200', 'PUT', path, raw('-0.0').replace('"baseVersion":0', '"baseVersion":2'), [
+        '200 revision 3: −0.0 passes the range and is stored as 0 (no signed zero on the wire)',
+      ], JSON_CT);
+      expect.soft(asJson(negZero.body)).toMatchObject({ revision: 3, confidenceThreshold: 0 });
+      expect.soft(Object.is(asJson(negZero.body).confidenceThreshold, -0), 'no −0 on the wire').toBe(false);
+      const repeat = await call(admin, 'decimals_zero_repeat_200', 'PUT', path, raw('0').replace('"baseVersion":0', '"baseVersion":2'), [
+        '200 revision 3: the 0 body digests like −0.0 → own repeat, no 4th write (service.py:47-54,79-85)',
+      ], JSON_CT);
+      expect.soft(repeat.res.status()).toBe(200);
+      expect.soft(asJson(repeat.body).revision).toBe(3);
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · settings baseVersion and body types: 0.0 / true / null / "0" → 422 field baseVersion (strict int, present key → no 428); body null / [] → 422 field body; base 1 on a project never written → 409 VERSION_CONFLICT currentVersion 0 (UPDATE finds no row)', async () => {
+    // project_settings/schemas.py:114-121 (strict int ≥ 0), core/routing.py:154-161 (428 only when the key is absent), service.py:57-76,119.
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'base-types', cleanup)).id);
+      const path = `/api/projects/${pid}/settings`;
+      for (const [slug, base] of [['float', '{"baseVersion":0.0'], ['bool', '{"baseVersion":true'], ['null', '{"baseVersion":null']] as const) {
+        const sent = await call(admin, `base_${slug}_422`, 'PUT', path, `${base},"body":${JSON.stringify(settingsBody())}}`, [
+          `422 VALIDATION field baseVersion: strict int (${slug}); the key is present so the 428 guard does not fire`,
+        ], JSON_CT);
+        expectError(sent, 422, 'VALIDATION', { field: 'baseVersion' });
+      }
+      for (const [slug, body] of [['null', null], ['array', []]] as const) {
+        const sent = await call(admin, `base_body_${slug}_422`, 'PUT', path, { baseVersion: 0, body }, ['422 VALIDATION field body: must be an object']);
+        expectError(sent, 422, 'VALIDATION', { field: 'body' });
+      }
+      const ahead = await call(admin, 'base_ahead_fresh_409', 'PUT', path, { baseVersion: 1, body: settingsBody() }, [
+        '409 VERSION_CONFLICT currentVersion 0, remoteChanges []: base 1 on revision 0 (no row yet)',
+      ]);
+      const body = expectError(ahead, 409, 'VERSION_CONFLICT');
+      expect.soft(body.currentVersion).toBe(0);
+      expect.soft(body.remoteChanges).toEqual([]);
+      const read = await call(admin, 'base_read_after', 'GET', path, undefined, ['200 still revision 0 defaults']);
+      expect.soft(asJson(read.body).revision).toBe(0);
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  /* ---------------------------------------------------------------- floors #10 / #11 / #12 / #13 / #34 */
+
+  test('A03 · floor name text (#10 and #34): tab / newline / NUL / LRI → 422 field name; LRM is ALLOWED in a floor name (no bidi_marks, unlike notes); 120 NFD "é" (240 code points) → 201 stored NFC; #34 rename with NFD → NFC', async () => {
+    // floors/schemas.py:26-33 (clean_text default: bidi_marks False), packages/core/text.py:5-8,24-35.
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'floor-text', cleanup)).id);
+      const path = `/api/projects/${pid}/floors`;
+      for (const [slug, name] of [['tab', 'a\tb'], ['newline', 'a\nb'], ['nul', 'a\u0000b'], ['lri', '⁦a']] as const) {
+        const sent = await call(admin, `floor_text_${slug}_422`, 'POST', path, floorBody(newLevelId(), 0, name), [`422 VALIDATION field name (${slug}: Cc or bidi override)`]);
+        expectError(sent, 422, 'VALIDATION', { field: 'name' });
+      }
+      const lrmId = newLevelId();
+      const lrm = await call(admin, 'floor_text_lrm_201', 'POST', path, floorBody(lrmId, 0, `${PREFIX}a‎b`), ['201: LRM is not blocked for floor names']);
+      expect.soft(lrm.res.status()).toBe(201);
+      expect.soft(asJson(lrm.body).name).toBe(`${PREFIX}a‎b`);
+      const longId = newLevelId();
+      const long = await call(admin, 'floor_text_nfd_120_201', 'POST', path, floorBody(longId, 1, 'é'.repeat(120)), ['201: 240 NFD code points → 120 NFC ≤ 120']);
+      expect.soft(long.res.status()).toBe(201);
+      expect.soft(asJson(long.body).name).toBe('é'.repeat(120));
+      const renamed = await call(admin, 'floor_text_patch_nfd_200', 'PATCH', `${path}/${lrmId}/spatial`, { name: `${PREFIX}Tầng` }, ['200: #34 name NFC']);
+      expect.soft(asJson(renamed.body).name).toBe(`${PREFIX}Tầng`);
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · floor numbers on #34: NaN / Infinity / −Infinity / 1e400 → 422 field (finite JSON numbers only); order 2.004 → rounded 2 (≤ 0.01 off an integer); order 1.02 → 422 order', async () => {
+    // floors/schemas.py:36-47 (clean_mm: bool/str refused, non-finite refused, |v − round(v)| ≤ 0.01 rounded).
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'floor-num', cleanup)).id);
+      const fid = await newFloor(admin, pid, 'floor_num_setup', 0);
+      const path = `/api/projects/${pid}/floors/${fid}/spatial`;
+      for (const [slug, raw, field] of [
+        ['elev_nan', '{"elevationMm":NaN}', 'elevationMm'],
+        ['height_inf', '{"heightMm":Infinity}', 'heightMm'],
+        ['elev_neg_inf', '{"elevationMm":-Infinity}', 'elevationMm'],
+        ['order_overflow', '{"order":1e400}', 'order'],
+        ['order_frac', '{"order":1.02}', 'order'],
+      ] as const) {
+        const sent = await call(admin, `floor_num_${slug}_422`, 'PATCH', path, raw, [`422 VALIDATION field ${field}`], JSON_CT);
+        expectError(sent, 422, 'VALIDATION', { field });
+      }
+      const rounded = await call(admin, 'floor_num_order_round_200', 'PATCH', path, { order: 2.004 }, ['200 order 2: 0.004 off an integer is rounded']);
+      expect.soft(asJson(rounded.body).order).toBe(2);
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · floor delete #11: 200 = the FloorOut snapshot taken before the delete; #12 drops it; project updatedAt grows; activity "floor.delete" labelled with its name; the same DELETE again → 404 floor; an unknown well-formed id → 404 floor', async () => {
+    // floors/router.py:144-149, service.py:173-194 (snapshot, unregister, touch, activity), resolvers.py:54-60.
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const project = await newProject(admin, 'floor-delete', cleanup);
+      const pid = String(project.id);
+      const a = await newFloor(admin, pid, 'floor_delete_a', 0);
+      const b = await newFloor(admin, pid, 'floor_delete_b', 1);
+      const before = (await listFloors(admin, pid, 'floor_delete_list_before')).find((f) => f.id === a);
+      const projectBefore = await readProject(admin, pid, 'floor_delete_project_before');
+      const del = await call(admin, 'floor_delete_200', 'DELETE', `/api/floors/${a}`, undefined, ['200 FloorOut snapshot = the #12 item before the delete']);
+      expect(del.res.status()).toBe(200);
+      expect.soft(expectFloorOut(del.body)).toEqual(before);
+      expect.soft((await listFloors(admin, pid, 'floor_delete_list_after')).map((f) => f.id), '#12 drops the deleted floor').toEqual([b]);
+      const projectAfter = await readProject(admin, pid, 'floor_delete_project_after');
+      expect.soft(Date.parse(String(projectAfter.updatedAt))).toBeGreaterThan(Date.parse(String(projectBefore.updatedAt)));
+      const rows = await activityOf(admin, creatorId(project), a, 'floor_delete_activity');
+      expect.soft(rows[0]).toMatchObject({ kind: 'floor.delete', objectLabel: before?.name });
+      const again = await call(admin, 'floor_delete_again_404', 'DELETE', `/api/floors/${a}`, undefined, ['404 floor: no LIVE floor with that id is mine any more']);
+      expectError(again, 404, 'NOT_FOUND', { resource: 'floor' });
+      const unknown = await call(admin, 'floor_delete_unknown_404', 'DELETE', `/api/floors/${newLevelId()}`, undefined, ['404 floor']);
+      expectError(unknown, 404, 'NOT_FOUND', { resource: 'floor' });
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · floor delete #11 ambiguity: one level id live in two of my projects → 409 FLOOR_ID_AMBIGUOUS and nothing deleted; once the second project is deleted the same DELETE → 200', async () => {
+    // floors/resolvers.py:40-60 (_single_project: > 1 project → 409; Project.deleted_at IS NULL in the lookup).
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const p = String((await newProject(admin, 'ambig-p', cleanup)).id);
+      const q = String((await newProject(admin, 'ambig-q', cleanup)).id);
+      const id = newLevelId();
+      for (const [slug, pid] of [['p', p], ['q', q]] as const) {
+        const sent = await call(admin, `ambig_create_${slug}_201`, 'POST', `/api/projects/${pid}/floors`, floorBody(id, 0), ['setup: 201 (level ids are unique per project only)']);
+        expect(sent.res.status()).toBe(201);
+      }
+      const ambiguous = await call(admin, 'ambig_delete_409', 'DELETE', `/api/floors/${id}`, undefined, ['409 FLOOR_ID_AMBIGUOUS (resolvers.py:49-50)']);
+      expectError(ambiguous, 409, 'FLOOR_ID_AMBIGUOUS');
+      expect.soft((await listFloors(admin, p, 'ambig_list_p')).map((f) => f.id)).toEqual([id]);
+      expect.soft((await listFloors(admin, q, 'ambig_list_q')).map((f) => f.id)).toEqual([id]);
+      const dropQ = await call(admin, 'ambig_delete_project_q_200', 'DELETE', `/api/projects/${q}`, undefined, ['setup: project Q soft-deleted']);
+      expect(dropQ.res.status()).toBe(200);
+      const ok = await call(admin, 'ambig_delete_200', 'DELETE', `/api/floors/${id}`, undefined, ['200: only P still holds the id live']);
+      expect.soft(ok.res.status()).toBe(200);
+      expect.soft(await listFloors(admin, p, 'ambig_list_p_after')).toEqual([]);
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · floor list #12: live floors sorted by (order, creation) — duplicate orders allowed and kept in creation order; drawings [] before any upload; deleted floors left out', async () => {
+    // floors/service.py:197-199 (floor_outs (floor_order, pk)), #10 has no unique order (schemas.py:76-82).
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'floor-order', cleanup)).id);
+      const ids: string[] = [];
+      for (const [i, order] of [2, 0, 2, 1].entries()) ids.push(await newFloor(admin, pid, `floor_order_${String(i)}`, order));
+      const [first2, zero, second2, one] = ids;
+      const list = await listFloors(admin, pid, 'floor_order_list');
+      expect.soft(list.map((f) => [f.id, f.order])).toEqual([[zero, 0], [one, 1], [first2, 2], [second2, 2]]);
+      for (const f of list) expect.soft(f.drawings).toEqual([]);
+      const del = await call(admin, 'floor_order_delete_200', 'DELETE', `/api/floors/${String(first2)}`, undefined, ['setup: #11']);
+      expect(del.res.status()).toBe(200);
+      expect.soft((await listFloors(admin, pid, 'floor_order_list_after')).map((f) => f.id)).toEqual([zero, one, second2]);
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · floor cap #10 counts LIVE floors only: at 50 an existing live id → 409 FLOOR_ID_TAKEN (checked before the cap); after one delete a new id → 201; at 50 again restoring the deleted id → 422 FLOOR_LIMIT_REACHED (restore counts too)', async () => {
+    // floors/service.py:76-89 (_check_not_taken before _check_not_over_limit), 129-148, settings.py:18 (FLOORS_MAX 50).
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await projectWithFloors(admin, 'floor-cap-live', cleanup, 50)).id);
+      const floors = await listFloors(admin, pid, 'cap_live_list');
+      expect(floors).toHaveLength(50);
+      const path = `/api/projects/${pid}/floors`;
+      const taken = await call(admin, 'cap_live_taken_409', 'POST', path, floorBody(String(floors[0]?.id), 0), ['409 FLOOR_ID_TAKEN field id: the id check runs before the cap']);
+      expectError(taken, 409, 'FLOOR_ID_TAKEN', { field: 'id' });
+      const gone = String(floors[49]?.id);
+      const del = await call(admin, 'cap_live_delete_200', 'DELETE', `/api/floors/${gone}`, undefined, ['setup: 49 live']);
+      expect(del.res.status()).toBe(200);
+      const fresh = await call(admin, 'cap_live_new_201', 'POST', path, floorBody(newLevelId(), 60), ['201: 49 live < 50']);
+      expect.soft(fresh.res.status()).toBe(201);
+      const restore = await call(admin, 'cap_live_restore_422', 'POST', path, floorBody(gone, 49), ['422 FLOOR_LIMIT_REACHED: 50 live again; a restore is counted like a create']);
+      expect.soft(expectError(restore, 422, 'FLOOR_LIMIT_REACHED')).not.toHaveProperty('field');
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · reorder #13 set rules: 51 ids → 422 VALIDATION floorIds (cap = FLOORS_MAX, before any lookup); an array body → 422 floorIds; the full set plus a deleted id → 422 FLOOR_REORDER_MISMATCH; only the deleted id → 404 floor', async () => {
+    // floors/resolvers.py:63-90 (shape, 1..floors_max), 93-121 (set match), settings.py:18.
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'reorder-set', cleanup)).id);
+      const [a, b, c] = [await newFloor(admin, pid, 'reorder_set_a', 0), await newFloor(admin, pid, 'reorder_set_b', 1), await newFloor(admin, pid, 'reorder_set_c', 2)];
+      const reorder = (ev: string, data: unknown, claim: string): Promise<Sent> => call(admin, ev, 'PATCH', '/api/floors/reorder', data, [claim]);
+      const many = await reorder('reorder_set_51_422', { floorIds: Array.from({ length: 51 }, () => newLevelId()) }, '422 VALIDATION floorIds: 51 > FLOORS_MAX');
+      expectError(many, 422, 'VALIDATION', { field: 'floorIds' });
+      const arrayBody = await reorder('reorder_set_array_422', [a, b, c], '422 VALIDATION floorIds: the body must be an object');
+      expectError(arrayBody, 422, 'VALIDATION', { field: 'floorIds' });
+      const del = await call(admin, 'reorder_set_delete_c_200', 'DELETE', `/api/floors/${c}`, undefined, ['setup: c soft-deleted']);
+      expect(del.res.status()).toBe(200);
+      const withDeleted = await reorder('reorder_set_with_deleted_422', { floorIds: [b, a, c] }, '422 FLOOR_REORDER_MISMATCH: no project holds {a, b, c} live');
+      expectError(withDeleted, 422, 'FLOOR_REORDER_MISMATCH', { field: 'floorIds' });
+      const onlyDeleted = await reorder('reorder_set_only_deleted_404', { floorIds: [c] }, '404 floor: no live floor matches');
+      expectError(onlyDeleted, 404, 'NOT_FOUND', { resource: 'floor' });
+      const ok = await reorder('reorder_set_live_200', { floorIds: [b, a] }, '200: the live set');
+      expect.soft(asArray(ok.body).map((f) => asJson(f).id)).toEqual([b, a]);
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · floor PATCH #34 lookup: a soft-deleted floor → 404 floor; a floor of another of my projects under this project\'s path → 404 floor (the floor is looked up inside the path project)', async () => {
+    // floors/service.py:159-166,263-322 (get_floor(project_id, level_id) of the PATH project, live rows only).
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const p = String((await newProject(admin, 'patch-lookup-p', cleanup)).id);
+      const q = String((await newProject(admin, 'patch-lookup-q', cleanup)).id);
+      const fp = await newFloor(admin, p, 'patch_lookup_fp', 0);
+      const fq = await newFloor(admin, q, 'patch_lookup_fq', 0);
+      const cross = await call(admin, 'patch_lookup_cross_404', 'PATCH', `/api/projects/${p}/floors/${fq}/spatial`, { name: 'x' }, ['404 floor: Q\'s floor is not in P']);
+      expectError(cross, 404, 'NOT_FOUND', { resource: 'floor' });
+      const del = await call(admin, 'patch_lookup_delete_200', 'DELETE', `/api/floors/${fp}`, undefined, ['setup: soft delete']);
+      expect(del.res.status()).toBe(200);
+      const gone = await call(admin, 'patch_lookup_deleted_404', 'PATCH', `/api/projects/${p}/floors/${fp}/spatial`, { name: 'x' }, ['404 floor: deleted rows are not patched']);
+      expectError(gone, 404, 'NOT_FOUND', { resource: 'floor' });
+      expect.soft((await listFloors(admin, q, 'patch_lookup_list_q')).find((f) => f.id === fq)?.name, 'Q floor untouched').not.toBe('x');
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  /* ---------------------------------------------------------------- #5 / #6 / #7 uploads */
+
+  test('A03 · upload init #5 fileName / mimeType limits: 256-char name → 422 field fileName, a bidi isolate in the name → 422 fileName, a 256-char mimeType → 422 field mimeType', async () => {
+    // drawings/schemas.py:31-60 (clean_file_name: clean_text + 1..255; MIME_TYPE_MAX 255). 3 inits.
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'init-limits', cleanup)).id);
+      const fid = await newFloor(admin, pid, 'init_limits_floor', 0);
+      const cases: Array<[string, Json, string]> = [
+        ['name_256', { fileName: `${'a'.repeat(252)}.png` }, 'fileName'],
+        ['name_bidi', { fileName: `a⁦b.png` }, 'fileName'],
+        ['mime_256', { mimeType: `image/${'x'.repeat(250)}` }, 'mimeType'],
+      ];
+      for (const [slug, over, field] of cases) {
+        const sent = await initUpload(admin, `init_limits_${slug}_422`, pid, fid, over, [`422 VALIDATION field ${field} (schemas.py:31-60)`]);
+        expectError(sent, 422, 'VALIDATION', { field });
+      }
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · upload init #5 accepted types: "PLAN.JPEG" with " Image/JPEG " (extension and MIME lower-cased and trimmed) → 200; a PDF whose name is 506 NFD code points = 255 after NFC, MIME application/octet-stream, pageIndex 19 → 200', async () => {
+    // drawings/uploads.py:51-58,94-115 (EXT_KIND, KIND_MIME, _BLANK_MIMES, strip().lower()), schemas.py:27-66 (255 after NFC, pageIndex ≤ 19). 2 inits.
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'init-types', cleanup)).id);
+      const fid = await newFloor(admin, pid, 'init_types_floor', 0);
+      const jpeg = await initUpload(admin, 'init_types_jpeg_200', pid, fid, { fileName: `${PREFIX}PLAN.JPEG`, mimeType: ' Image/JPEG ' }, [
+        '200: .JPEG → jpeg; " Image/JPEG " stripped + lower-cased = image/jpeg',
+      ]);
+      expect.soft(jpeg.res.status()).toBe(200);
+      expectProgress(jpeg.body);
+      const pdfName = `${'é'.repeat(251)}.pdf`;
+      const pdf = await initUpload(admin, 'init_types_pdf_255_200', pid, fid, {
+        fileName: pdfName, mimeType: 'application/octet-stream', pageIndex: 19, sizeBytes: 100,
+      }, ['200: 506 NFD code points → 255 NFC (limit counted after NFC); octet-stream = blank MIME; pageIndex 19 on a PDF']);
+      expect.soft(pdf.res.status()).toBe(200);
+      expect.soft(expectProgress(pdf.body)).toMatchObject({ status: 'pending', step: 'preprocess', progressPercent: 0 });
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · upload init #5 W21: body floorId ≠ path floor → 422 PATH_BODY_MISMATCH field floorId (the guard compares every path key the body declares)', async () => {
+    // core/routing.py:138-151 (path/body guard), drawings/schemas.py:14-16,57-63. 1 init.
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'init-w21', cleanup)).id);
+      const fid = await newFloor(admin, pid, 'init_w21_floor', 0);
+      const sent = await initUpload(admin, 'init_w21_floorid_422', pid, fid, { floorId: newLevelId() }, ['422 PATH_BODY_MISMATCH field floorId']);
+      expectError(sent, 422, 'PATH_BODY_MISMATCH', { field: 'floorId' });
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · upload init #5 Idempotency-Key ("auto"): the same key + body after the upload got a chunk → the STORED 200 (same id — dedupe alone would open a new upload); the same key with another body → 422 IDEMPOTENCY_KEY_REUSED', async () => {
+    // core/routing.py:166-187 (_idempotency_guard after the gates), core/idempotency.py:198-234 (Replay / KEY_REUSED),
+    // drawings/uploads.py:145-171 (dedupe needs "no chunk yet"), router.py:54. 3 inits.
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const project = await newProject(admin, 'init-idem', cleanup);
+      const pid = String(project.id);
+      const fid = await newFloor(admin, pid, 'init_idem_floor', 0);
+      const path = `/api/projects/${pid}/floors/${fid}/drawings/uploads`;
+      const body = { fileName: `${PREFIX}idem.png`, floorId: fid, mimeType: 'image/png', projectId: pid, sizeBytes: 10 };
+      const key = `qa-init-${uniq()}`;
+      const first = await call(admin, 'init_idem_first_200', 'POST', path, body, ['200 Progress pending, new id'], { 'Idempotency-Key': key });
+      expect(first.res.status()).toBe(200);
+      const id = String(asJson(first.body).id);
+      const chunk = await sendChunk(admin, 'init_idem_chunk_200', pid, id, Buffer.alloc(10, 1), 0, ['200: the upload now has a chunk (no longer a dedupe twin)']);
+      expect(chunk.res.status()).toBe(200);
+      const replay = await call(admin, 'init_idem_replay_200', 'POST', path, body, ['200 the stored response: same id, still "pending" as stored'], { 'Idempotency-Key': key });
+      expect.soft(replay.res.status()).toBe(200);
+      expect.soft(replay.body).toEqual(first.body);
+      const reused = await call(admin, 'init_idem_reused_422', 'POST', path, { ...body, sizeBytes: 11 }, ['422 IDEMPOTENCY_KEY_REUSED: same key, other request digest'], { 'Idempotency-Key': key });
+      expectError(reused, 422, 'IDEMPOTENCY_KEY_REUSED');
+      const rows = await activityOf(admin, creatorId(project), fid, 'init_idem_activity');
+      expect.soft(rows.filter((r) => r.kind === 'floor.upload').length, 'the replay wrote nothing').toBe(1);
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · chunk #6 size edges: a final chunk of 5 MiB + 1 decoded bytes → 422 field chunk; a non-final chunk of exactly 5 MiB → 200; Idempotency-Key is not read on #6 ("off": even a malformed key is ignored)', async () => {
+    // drawings/uploads.py:230-245 (_decode_chunk: > UPLOAD_CHUNK_BYTES or short non-final → 422 chunk), router.py:70-71
+    // (body_limit 8 MiB, idempotency "off"), core/routing.py:221-226 (no guard when off). 1 init.
+    test.setTimeout(180_000);
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'chunk-size', cleanup)).id);
+      const fid = await newFloor(admin, pid, 'chunk_size_floor', 0);
+      const init = await initUpload(admin, 'chunk_size_init_200', pid, fid, { sizeBytes: CHUNK_BYTES + 1 }, ['setup: chunk_count 2']);
+      expect(init.res.status()).toBe(200);
+      const uid = String(asJson(init.body).id);
+      const path = `/api/projects/${pid}/drawings/uploads/${uid}/chunks`;
+      const over = await call(admin, 'chunk_size_last_over_422', 'POST', path, { chunk: Buffer.alloc(CHUNK_BYTES + 1, 2).toString('base64'), chunkIndex: 1 }, [
+        '422 VALIDATION field chunk: 5 MiB + 1 decoded bytes > UPLOAD_CHUNK_BYTES even on the last chunk',
+      ]);
+      expectError(over, 422, 'VALIDATION', { field: 'chunk' });
+      const exact = await call(admin, 'chunk_size_exact_200', 'POST', path, { chunk: Buffer.alloc(CHUNK_BYTES, 3).toString('base64'), chunkIndex: 0 }, [
+        '200: a non-final chunk of exactly 5 MiB; the malformed Idempotency-Key is not checked ("off")',
+      ], { 'Idempotency-Key': '!!' });
+      expect.soft(exact.res.status()).toBe(200);
+      expect.soft(expectProgress(exact.body, uid).status).toBe('pending');
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · complete #7 concurrency (C14): two parallel completes of one valid upload → both 200 with the same upload id, ONE "floor.upload_complete" row and one run (the run ends final)', async () => {
+    // drawings/complete.py:242-283 (_finish locks floor → upload; status ≠ receiving → current Progress, no 2nd run). 1 init, 1 run.
+    test.setTimeout(PIPELINE_TIMEOUT_MS + 60_000);
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const project = await newProject(admin, 'complete-race', cleanup);
+      const pid = String(project.id);
+      const fid = await newFloor(admin, pid, 'complete_race_floor', 0);
+      const uid = await receivingUpload(admin, 'complete_race', pid, fid, drawingPng(), `${PREFIX}race.png`);
+      const [a, b] = await Promise.all([
+        complete(admin, 'complete_race_a', pid, uid, ['200 Progress: one finishes the upload, the other sees it finished']),
+        complete(admin, 'complete_race_b', pid, uid, ['200 Progress (same upload)']),
+      ]);
+      expect.soft([a.res.status(), b.res.status()]).toEqual([200, 200]);
+      expect.soft(asJson(a.body).id).toBe(uid);
+      expect.soft(asJson(b.body).id).toBe(uid);
+      const final = await waitFinal(admin, 'complete_race_final', pid, uid);
+      expect.soft(['completed', 'failed']).toContain(final.status);
+      const rows = await activityOf(admin, creatorId(project), fid, 'complete_race_activity');
+      expect.soft(rows.filter((r) => r.kind === 'floor.upload_complete').length, 'one upload_complete for two parallel completes').toBe(1);
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · complete #7 Idempotency-Key ("auto"): complete with a key → 200 pending; after the run ends, the same key → the STORED pending body, while a complete without a key → the CURRENT final Progress', async () => {
+    // drawings/router.py:80-99 (idempotency "auto"), core/idempotency.py:198-234 (Replay returns the stored response),
+    // complete.py:301-304 (no key: status ≠ receiving → current Progress). 1 init, 1 run.
+    test.setTimeout(PIPELINE_TIMEOUT_MS + 60_000);
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'complete-idem', cleanup)).id);
+      const fid = await newFloor(admin, pid, 'complete_idem_floor', 0);
+      const uid = await receivingUpload(admin, 'complete_idem', pid, fid, drawingPng(), `${PREFIX}idem.png`);
+      const key = `qa-complete-${uniq()}`;
+      const path = `/api/projects/${pid}/drawings/uploads/${uid}/complete`;
+      const first = await call(admin, 'complete_idem_first_200', 'POST', path, { uploadId: uid }, ['200 Progress pending (stored under the key)'], { 'Idempotency-Key': key });
+      expect(first.res.status()).toBe(200);
+      expect.soft(asJson(first.body).status).toBe('pending');
+      const final = await waitFinal(admin, 'complete_idem_final', pid, uid);
+      const replay = await call(admin, 'complete_idem_replay_200', 'POST', path, { uploadId: uid }, ['200 = the stored first body (pending), not the current state'], { 'Idempotency-Key': key });
+      expect.soft(replay.res.status()).toBe(200);
+      expect.soft(replay.body).toEqual(first.body);
+      const plain = await call(admin, 'complete_idem_no_key_200', 'POST', path, { uploadId: uid }, ['200 = the current final Progress (no key → no replay)']);
+      expect.soft(plain.body).toEqual(final);
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  /* ---------------------------------------------------------------- N7 latest uploads (SCR-12 / SCR-13) */
+
+  test('A03 · N7 latest uploads: one item per LIVE floor with an upload, sorted by floor order — a receiving upload is listed (no sourceImageUrl), a floor whose only upload was rejected and a floor without uploads are left out; deleting the floor removes its item', async () => {
+    // drawings/latest.py:39-76 (DISTINCT ON floor, rejected excluded when no run, deleted floors excluded), 89-117. 2 inits.
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'latest-pick', cleanup)).id);
+      const a = await newFloor(admin, pid, 'latest_pick_a', 0);
+      const b = await newFloor(admin, pid, 'latest_pick_b', 1);
+      await newFloor(admin, pid, 'latest_pick_c', 2);
+      const init = await initUpload(admin, 'latest_pick_a_init', pid, a, { sizeBytes: 30 }, ['setup: A receiving']);
+      expect(init.res.status()).toBe(200);
+      const ua = String(asJson(init.body).id);
+      const ub = await receivingUpload(admin, 'latest_pick_b', pid, b, Buffer.from('not a picture at all'), `${PREFIX}b.png`);
+      const rejected = await complete(admin, 'latest_pick_b_complete_422', pid, ub, ['setup: B rejected (FILE_TYPE_MISMATCH)']);
+      expectError(rejected, 422, 'FILE_TYPE_MISMATCH');
+      const list = await call(admin, 'latest_pick_list_200', 'GET', latestPath(pid), undefined, [
+        '200 {items: [A]}: B (rejected, no run) and C (no upload) are not listed; no nextCursor',
+      ]);
+      expect(list.res.status()).toBe(200);
+      const page = expectKeys(list.body, ['items'], ['nextCursor']);
+      expect.soft(page).not.toHaveProperty('nextCursor');
+      const items = asArray(page.items).map((i) => expectKeys(i, LATEST_KEYS, LATEST_OPTIONAL));
+      expect.soft(items).toEqual([{ floorId: a, floorName: `${PREFIX}floor-0`, uploadId: ua }]);
+      const del = await call(admin, 'latest_pick_delete_a_200', 'DELETE', `/api/floors/${a}`, undefined, ['setup: #11']);
+      expect(del.res.status()).toBe(200);
+      const after = await call(admin, 'latest_pick_list_after_200', 'GET', latestPath(pid), undefined, ['200 {items: []}: deleted floors are excluded']);
+      expect.soft(after.body).toEqual({ items: [] });
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · N7 paging: limit 1 → item 1 + nextCursor, the cursor → item 2 without nextCursor; limit 0 / 201 / "abc" → 422 field limit, 200 accepted; a forged or tampered cursor → 422 CURSOR_INVALID; this project\'s cursor on another project → 422 CURSOR_INVALID; an empty project → {items: []}', async () => {
+    // core/pagination.py:46-63 (limit 1..max), 89-112 (HMAC cursor bound to op + filters), drawings/latest.py:30-36,79-86,110-116. 2 inits.
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'latest-page', cleanup)).id);
+      const f0 = await newFloor(admin, pid, 'latest_page_f0', 0);
+      const f1 = await newFloor(admin, pid, 'latest_page_f1', 1);
+      for (const [slug, fid] of [['f0', f0], ['f1', f1]] as const) {
+        const init = await initUpload(admin, `latest_page_${slug}_init`, pid, fid, { sizeBytes: 40 }, ['setup: receiving upload']);
+        expect(init.res.status()).toBe(200);
+      }
+      const p1 = await call(admin, 'latest_page_1_200', 'GET', latestPath(pid, '?limit=1'), undefined, ['200 {items:[f0], nextCursor}']);
+      const page1 = asJson(p1.body);
+      expect.soft(asArray(page1.items).map((i) => asJson(i).floorId)).toEqual([f0]);
+      const cursor = String(page1.nextCursor ?? '');
+      expect(cursor.length, 'nextCursor on page 1').toBeGreaterThan(0);
+      const p2 = await call(admin, 'latest_page_2_200', 'GET', latestPath(pid, `?limit=1&cursor=${encodeURIComponent(cursor)}`), undefined, ['200 {items:[f1]}, no nextCursor']);
+      expect.soft(asArray(asJson(p2.body).items).map((i) => asJson(i).floorId)).toEqual([f1]);
+      expect.soft(asJson(p2.body)).not.toHaveProperty('nextCursor');
+      for (const [slug, q] of [['0', '?limit=0'], ['201', '?limit=201'], ['abc', '?limit=abc']] as const) {
+        const sent = await call(admin, `latest_page_limit_${slug}_422`, 'GET', latestPath(pid, q), undefined, ['422 VALIDATION field limit (1..200)']);
+        expectError(sent, 422, 'VALIDATION', { field: 'limit' });
+      }
+      const max = await call(admin, 'latest_page_limit_200_200', 'GET', latestPath(pid, '?limit=200'), undefined, ['200: limit 200 = MAX_LIMIT']);
+      expect.soft(asArray(asJson(max.body).items)).toHaveLength(2);
+      const [head, mac] = cursor.split('.');
+      const tampered = `${String(head)}.${String(mac).slice(0, -2)}${String(mac).endsWith('AA') ? 'BB' : 'AA'}`;
+      for (const [slug, c] of [['forged', 'abc'], ['tampered', tampered]] as const) {
+        const sent = await call(admin, `latest_page_cursor_${slug}_422`, 'GET', latestPath(pid, `?cursor=${encodeURIComponent(c)}`), undefined, ['422 CURSOR_INVALID (one answer for every bad cursor)']);
+        expectError(sent, 422, 'CURSOR_INVALID');
+      }
+      const q = String((await newProject(admin, 'latest-page-q', cleanup)).id);
+      const empty = await call(admin, 'latest_page_empty_200', 'GET', latestPath(q), undefined, ['200 {items: []}, no nextCursor']);
+      expect.soft(empty.body).toEqual({ items: [] });
+      const foreign = await call(admin, 'latest_page_foreign_cursor_422', 'GET', latestPath(q, `?cursor=${encodeURIComponent(cursor)}`), undefined, [
+        '422 CURSOR_INVALID: the cursor signs filters {project: P} (latest.py:84)',
+      ]);
+      expectError(foreign, 422, 'CURSOR_INVALID');
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · after a completed run: N7 item carries sourceImageUrl and keeps the RUN\'s upload even after a newer abandoned init; #12 floor.drawings[0] = {name = the NFC-trimmed fileName, uploaderId = me, url, widthMm, heightMm, uploadedAt}; a chunk to the complete upload → 422 UPLOAD_NOT_RECEIVING', async () => {
+    // drawings/latest.py:39-76 (candidates with a run first), 89-117; view_parts.py:26-58 (DrawingOut), drawings.py:120-170
+    // (name from the upload); uploads.py:283-284. 2 inits, 1 run.
+    test.setTimeout(PIPELINE_TIMEOUT_MS + 60_000);
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const project = await newProject(admin, 'after-run', cleanup);
+      const pid = String(project.id);
+      const fid = await newFloor(admin, pid, 'after_run_floor', 0);
+      const uid = await completedDrawing(admin, 'after_run', pid, fid, `  ${PREFIX}Bản vẽ.png  `);
+      const newer = await initUpload(admin, 'after_run_newer_init_200', pid, fid, { sizeBytes: 70 }, ['setup: a newer receiving upload without a run']);
+      expect(newer.res.status()).toBe(200);
+      expect.soft(asJson(newer.body).id).not.toBe(uid);
+      const latest = await call(admin, 'after_run_latest_200', 'GET', latestPath(pid), undefined, ['200: the item keeps the upload that has a run (+ sourceImageUrl)']);
+      const items = asArray(asJson(latest.body).items).map((i) => expectKeys(i, LATEST_KEYS, LATEST_OPTIONAL));
+      expect.soft(items.map((i) => i.uploadId)).toEqual([uid]);
+      expect.soft(String(items[0]?.sourceImageUrl ?? '').length, 'sourceImageUrl present').toBeGreaterThan(0);
+      const floor = (await listFloors(admin, pid, 'after_run_floors')).find((f) => f.id === fid);
+      const drawings = asArray(floor?.drawings, 'drawings').map((d) => expectKeys(d, DRAWING_KEYS, DRAWING_OPTIONAL));
+      expect.soft(drawings).toHaveLength(1);
+      expect.soft(drawings[0]).toMatchObject({ name: `${PREFIX}Bản vẽ.png`, uploaderId: creatorId(project) });
+      expect.soft(Number.isInteger(drawings[0]?.widthMm) && Number(drawings[0]?.widthMm) > 0).toBe(true);
+      const late = await sendChunk(admin, 'after_run_late_chunk_422', pid, uid, drawingPng(), 0, ['422 UPLOAD_NOT_RECEIVING: the upload is complete']);
+      expectError(late, 422, 'UPLOAD_NOT_RECEIVING');
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  /* ---------------------------------------------------------------- S1 */
+
+  test('A03 · S1 resume: a well-formed lastEventId inside the live stream replays only the frames AFTER it (no snapshot frame); lastEventId = the last frame id → no frame at all', async () => {
+    // streams/sse.py:279-292 (resolve_start: well-formed, ≤ tail, not trimmed → cursor = lastEventId), packages/messaging/streams.py:168-179. 1 init, 1 run.
+    test.setTimeout(PIPELINE_TIMEOUT_MS + 90_000);
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'resume', cleanup)).id);
+      const fid = await newFloor(admin, pid, 'resume_floor', 0);
+      const uid = await receivingUpload(admin, 'resume', pid, fid, drawingPng(), `${PREFIX}resume.png`);
+      const cookie = await streamCookieOf(admin);
+      const streamPath = `/api/streams/projects/${pid}/uploads/${uid}/progress`;
+      const isFinal = (f: SseFrame): boolean => f.data.status === 'completed' || f.data.status === 'failed';
+      // Open the stream BEFORE #7 so every event of the run arrives live after the snapshot frame.
+      const livePending = readSse(streamPath, { cookie, until: isFinal, timeoutMs: PIPELINE_TIMEOUT_MS });
+      await new Promise((resolve) => setTimeout(resolve, 1_500));
+      const done = await complete(admin, 'resume_complete_200', pid, uid, ['200 pending']);
+      expect(done.res.status()).toBe(200);
+      const live = await livePending;
+      await captureStream('resume_live', streamPath, { cookie: '<admin stream cookie>' }, live, ['200: snapshot then live frames until final']);
+      expect(live.closed).toBe('until');
+      const events = live.frames.slice(1);
+      expect(events.length, 'at least 2 live events after the snapshot').toBeGreaterThanOrEqual(2);
+      const from = events[0] as SseFrame;
+      const last = events[events.length - 1] as SseFrame;
+      const resumed = await readSse(`${streamPath}?lastEventId=${encodeURIComponent(from.id)}`, { cookie, until: (f) => f.id === last.id, timeoutMs: 20_000 });
+      await captureStream('resume_from_first_event', streamPath, { lastEventId: from.id, cookie: '<admin stream cookie>' }, resumed, [
+        'frames = the live events after lastEventId, same ids and data, no snapshot first',
+      ]);
+      expect.soft(resumed.status).toBe(200);
+      expect.soft(resumed.frames.map((f) => f.id)).toEqual(events.slice(1).map((f) => f.id));
+      expect.soft(resumed.frames.map((f) => f.data)).toEqual(events.slice(1).map((f) => f.data));
+      const atTail = await readSse(`${streamPath}?lastEventId=${encodeURIComponent(last.id)}`, { cookie, until: () => true, timeoutMs: 5_000 });
+      await captureStream('resume_at_tail', streamPath, { lastEventId: last.id, cookie: '<admin stream cookie>' }, atTail, ['200, no frame: nothing after the tail, no snapshot']);
+      expect.soft(atTail.status).toBe(200);
+      expect.soft(atTail.frames).toEqual([]);
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · S1 session gates: no cookie + malformed ids → 401 (cookie checked before the id pattern); a foreign Origin beats both → 403; after POST /api/auth/logout the stream cookie of that session → 401 SESSION_REVOKED', async () => {
+    // streams/router.py:127-131 (Origin → cookie → ids), sse.py:161-169 (check_session), auth/sessions.py:605-615 (a dead sid →
+    // SESSION_REVOKED, 401), auth/router.py:285-296 (logout revokes the session).
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const cookie = await streamCookieOf(admin);
+      const bad = '/api/streams/projects/nope/uploads/nope/progress';
+      const noCookie = await readSse(bad, { until: () => true, timeoutMs: 15_000 });
+      await captureStream('session_gate_no_cookie_bad_ids_401', bad, { cookie: 'none' }, noCookie, ['401: authentication runs before the id pattern']);
+      expect.soft(noCookie.status).toBe(401);
+      const foreign = await readSse(bad, { cookie, origin: FOREIGN_ORIGIN, until: () => true, timeoutMs: 15_000 });
+      await captureStream('session_gate_foreign_403', bad, { cookie: '<admin stream cookie>', origin: FOREIGN_ORIGIN }, foreign, ['403 ORIGIN_MISMATCH first']);
+      expect.soft(foreign.status).toBe(403);
+      const missing = `/api/streams/projects/${MISSING_PROJECT}/uploads/${MISSING_UPLOAD}/progress`;
+      const alive = await readSse(missing, { cookie, until: () => true, timeoutMs: 15_000 });
+      await captureStream('session_gate_alive_404', missing, { cookie: '<admin stream cookie>' }, alive, ['404 upload: the session is alive, the upload is not mine']);
+      expect.soft(alive.status).toBe(404);
+      const out = await call(admin, 'session_gate_logout_204', 'POST', '/api/auth/logout', undefined, ['204: the session of this context is revoked']);
+      expect(out.res.status()).toBe(204);
+      const dead = await readSse(missing, { cookie, until: () => true, timeoutMs: 15_000 });
+      await captureStream('session_gate_after_logout_401', missing, { cookie: '<revoked stream cookie>' }, dead, ['401 SESSION_REVOKED: check_session fails for a revoked sid (auth/sessions.py:605-615)']);
+      expect.soft(dead.status).toBe(401);
+      expect.soft(errBody(dead.errorBody).code).toBe('SESSION_REVOKED');
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  /* ---------------------------------------------------------------- #30 / #31 / #32 quality (SCR-11) */
+
+  test('A03 · quality #31 corners body: 3 / 5 corners, missing corners → 422 field corners; xRatio 1.5 / yRatio −0.1 → 422 field corners.0.*; a corner extra key / top-level extra → 422; counter-clockwise, not starting top-left, self-crossing, area < 0.05 → 422 field corners — all BEFORE the floor lookup (unknown floor still 422)', async () => {
+    // quality/schemas.py:82-92 (Pydantic), geometry.py:54-78 (validate_corner_ratios), service.py:319-339 (validation before _load_state).
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'corners-rules', cleanup)).id);
+      const ghost = newLevelId();
+      const path = qualityPath(pid, ghost, '/corners');
+      const c = (x: number, y: number): Json => ({ xRatio: x, yRatio: y });
+      const cases: Array<[string, unknown, string]> = [
+        ['three', { corners: GOOD_CORNERS.slice(0, 3) }, 'corners'],
+        ['five', { corners: [...GOOD_CORNERS, c(0.5, 0.5)] }, 'corners'],
+        ['missing', {}, 'corners'],
+        ['x_above_1', { corners: [c(1.5, 0.05), ...GOOD_CORNERS.slice(1)] }, 'corners.0.xRatio'],
+        ['y_negative', { corners: [c(0.05, -0.1), ...GOOD_CORNERS.slice(1)] }, 'corners.0.yRatio'],
+        ['corner_extra', { corners: [{ ...GOOD_CORNERS[0], z: 1 }, ...GOOD_CORNERS.slice(1)] }, 'corners.0.z'],
+        ['top_extra', { corners: GOOD_CORNERS, foo: 1 }, 'foo'],
+        ['ccw', { corners: [c(0.05, 0.05), c(0.05, 0.95), c(0.95, 0.95), c(0.95, 0.05)] }, 'corners'],
+        ['not_tl_first', { corners: [c(0.95, 0.05), c(0.95, 0.95), c(0.05, 0.95), c(0.05, 0.05)] }, 'corners'],
+        ['self_cross', { corners: [c(0.05, 0.05), c(0.95, 0.95), c(0.95, 0.05), c(0.05, 0.95)] }, 'corners'],
+        ['tiny', { corners: [c(0.1, 0.1), c(0.3, 0.1), c(0.3, 0.3), c(0.1, 0.3)] }, 'corners'],
+      ];
+      for (const [slug, data, field] of cases) {
+        const sent = await call(admin, `corners_rule_${slug}_422`, 'POST', path, data, [`422 VALIDATION field ${field} — before the floor lookup (the floor does not exist)`]);
+        expectError(sent, 422, 'VALIDATION', { field });
+      }
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · quality #30 / #31 / #32 lookups: valid corners on an unknown floor → 404 floor, on a floor without a drawing → 404 upload; a 45° rhombus (two top-left ties) and a 0.25 × 0.25 square pass the geometry (→ 404 upload); #32 unknown floor → 404 floor; #30 unknown floor → 404 floor', async () => {
+    // quality/service.py:125-142 (_load_state: floor → 404 floor, no drawing → 404 upload), geometry.py:60-76 (eps tie, min area 0.05), router.py:214-221.
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'quality-lookup', cleanup)).id);
+      const fid = await newFloor(admin, pid, 'quality_lookup_floor', 0);
+      const ghost = newLevelId();
+      const unknown = await call(admin, 'quality_lookup_corners_unknown_404', 'POST', qualityPath(pid, ghost, '/corners'), { corners: GOOD_CORNERS }, ['404 floor']);
+      expectError(unknown, 404, 'NOT_FOUND', { resource: 'floor' });
+      const shapes: Array<[string, Json[]]> = [
+        ['good', GOOD_CORNERS],
+        ['rhombus', [{ xRatio: 0.5, yRatio: 0 }, { xRatio: 1, yRatio: 0.5 }, { xRatio: 0.5, yRatio: 1 }, { xRatio: 0, yRatio: 0.5 }]],
+        ['square_0625', [{ xRatio: 0.1, yRatio: 0.1 }, { xRatio: 0.35, yRatio: 0.1 }, { xRatio: 0.35, yRatio: 0.35 }, { xRatio: 0.1, yRatio: 0.35 }]],
+      ];
+      for (const [slug, corners] of shapes) {
+        const sent = await call(admin, `quality_lookup_corners_${slug}_404`, 'POST', qualityPath(pid, fid, '/corners'), { corners }, ['404 upload: the geometry passed, the floor has no drawing yet']);
+        expectError(sent, 404, 'NOT_FOUND', { resource: 'upload' });
+      }
+      const straighten = await call(admin, 'quality_lookup_straighten_unknown_404', 'POST', qualityPath(pid, ghost, '/straighten'), {}, ['404 floor']);
+      expectError(straighten, 404, 'NOT_FOUND', { resource: 'floor' });
+      const read = await call(admin, 'quality_lookup_read_unknown_404', 'GET', qualityPath(pid, ghost), undefined, ['404 floor (router.py:219-220)']);
+      expectError(read, 404, 'NOT_FOUND', { resource: 'floor' });
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · quality #30 after a run: floors[] = only floors WITH a drawing, floorId falls back to the first such floor when the asked floor has none; measured entries carry measurement + findings in shape; #32 on a settled (unskewed) page → 200 without a new run (#8 stays completed, drawing id kept)', async () => {
+    // quality/assessments.py:221-279 (read_view, focus fallback, _floor_out), schemas.py:20-79; service.py:198-205,355-366 (settled → read_view only). 1 init, 1 run.
+    test.setTimeout(PIPELINE_TIMEOUT_MS + 60_000);
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'quality-view', cleanup)).id);
+      const bare = await newFloor(admin, pid, 'quality_view_bare', 0);
+      const drawn = await newFloor(admin, pid, 'quality_view_drawn', 1);
+      const uid = await completedDrawing(admin, 'quality_view', pid, drawn);
+      const viaBare = await call(admin, 'quality_view_bare_200', 'GET', qualityPath(pid, bare), undefined, ['200: floorId falls back to the drawn floor; floors = [drawn]']);
+      expect(viaBare.res.status()).toBe(200);
+      const view = expectKeys(viaBare.body, ['floorId', 'floors', 'projectId']);
+      expect.soft(view.floorId).toBe(drawn);
+      const floors = asArray(view.floors).map((f) => asJson(f));
+      expect.soft(floors.map((f) => f.floorId)).toEqual([drawn]);
+      const entry = expectKeys(floors[0], ['findings', 'floorId', 'floorName', 'isMeasured', 'sourceUrl'], ['frame', 'measurement']);
+      if (entry.isMeasured === true) {
+        const m = expectKeys(entry.measurement, ['contrastScore', 'heightPx', 'noiseScore', 'skewDeg', 'widthPx']);
+        expect.soft(Number(m.widthPx)).toBeGreaterThanOrEqual(1);
+        for (const f of asArray(entry.findings).map((x) => expectKeys(x, ['code', 'id', 'region', 'severity']))) {
+          expect.soft(['good', 'attention', 'poor']).toContain(f.severity);
+        }
+      } else {
+        expect.soft(entry.findings, 'not measured → findings []').toEqual([]);
+      }
+      const viaDrawn = await call(admin, 'quality_view_drawn_200', 'GET', qualityPath(pid, drawn), undefined, ['200 floorId = the asked floor']);
+      expect.soft(asJson(viaDrawn.body).floorId).toBe(drawn);
+
+      const settled = entry.isMeasured === true
+        && !asArray(entry.findings).some((f) => asJson(f).code === SKEW_CODE)
+        && Math.abs(Number(asJson(entry.measurement).skewDeg)) < SKEW_MIN_DEG;
+      note(`drawing.png skew settled: ${String(settled)}`);
+      const drawingBefore = asArray((await listFloors(admin, pid, 'quality_view_floors_before')).find((f) => f.id === drawn)?.drawings)[0];
+      const runBefore = await progressOf(admin, 'quality_view_progress_before', pid, uid, '200 #8 completed (endedAt of the only run)');
+      const straightened = await call(admin, 'quality_view_straighten_200', 'POST', qualityPath(pid, drawn, '/straighten'), {}, [
+        '200 QualityAssessmentOut; settled page → the current view, no new run (service.py:365-366)',
+      ]);
+      expect.soft(straightened.res.status()).toBe(200);
+      expect.soft(asJson(straightened.body).floorId).toBe(drawn);
+      const after = await progressOf(admin, 'quality_view_progress_after', pid, uid, '200 #8 after #32');
+      const drawingAfter = asArray((await listFloors(admin, pid, 'quality_view_floors_after')).find((f) => f.id === drawn)?.drawings)[0];
+      if (settled) {
+        expect.soft(after, 'no new run for a settled page: the same completed run (same endedAt)').toEqual(runBefore);
+        expect.soft(asJson(drawingAfter).id, 'same drawing').toBe(asJson(drawingBefore).id);
+      } else {
+        note('drawing.png is not settled: #32 re-queued the pipeline (no-op branch not reachable with this fixture)');
+        await waitFinal(admin, 'quality_view_rerun_final', pid, uid);
+      }
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · quality #31 happy path: four corners on a completed drawing → 200 with that floor\'s frame {isFound: true} (applied corners are not echoed), a NEW run on the same upload (#8 final again with a later endedAt) and the same drawing id (same upload → updated in place)', async () => {
+    // quality/service.py:229-352 (_swap_page, start_run, upsert_drawing keeps the id), assessments.py:221-228 (_frame_out applied),
+    // drawings/drawings.py:146-150. 1 init, 2 runs.
+    test.setTimeout(2 * PIPELINE_TIMEOUT_MS + 60_000);
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'corners-ok', cleanup)).id);
+      const fid = await newFloor(admin, pid, 'corners_ok_floor', 0);
+      const uid = await completedDrawing(admin, 'corners_ok', pid, fid);
+      const before = asJson(asArray((await listFloors(admin, pid, 'corners_ok_floors_before')).find((f) => f.id === fid)?.drawings)[0]);
+      const runBefore = await progressOf(admin, 'corners_ok_progress_before', pid, uid, '200 #8 completed (first run)');
+      const sent = await call(admin, 'corners_ok_200', 'POST', qualityPath(pid, fid, '/corners'), { corners: GOOD_CORNERS }, [
+        '200 QualityAssessmentOut; frame {isFound: true} without corners once corners are applied',
+      ]);
+      expect(sent.res.status()).toBe(200);
+      const entry = asArray(asJson(sent.body).floors).map((f) => asJson(f)).find((f) => f.floorId === fid);
+      if (entry?.isMeasured === true) expect.soft(entry.frame).toEqual({ isFound: true });
+      const queued = await progressOf(admin, 'corners_ok_progress_queued', pid, uid, '200 #8: a new run of the same upload (pending | running | already final)');
+      note(`#8 right after #31: ${String(queued.status)}`);
+      const final = await waitFinal(admin, 'corners_ok_final', pid, uid);
+      expect.soft(final.status).toBe('completed');
+      expect.soft(Date.parse(String(final.endedAt)), 'a NEW run ended after the first one (start_run on the same upload)').toBeGreaterThan(Date.parse(String(runBefore.endedAt)));
+      const after = asJson(asArray((await listFloors(admin, pid, 'corners_ok_floors_after')).find((f) => f.id === fid)?.drawings)[0]);
+      expect.soft(after.id, 'same upload → the drawing row is updated in place').toBe(before.id);
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A03 · quality 422 QUALITY_LAYER_REVIEWED: a completed drawing whose layer carries a human scale (#35 scale-only write) → #32 and #31 → 422 QUALITY_LAYER_REVIEWED (not retryable), nothing re-queued', async () => {
+    // quality/service.py:114-120 (has_human_geometry AND a completed run), spatial_read/documents.py:165-176 (scale_source "human"),
+    // errors.py:10-15; #35 = spatial_write/router.py:45-67 (phase 4 owns its rules). 1 init, 1 run.
+    test.setTimeout(PIPELINE_TIMEOUT_MS + 60_000);
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const pid = String((await newProject(admin, 'layer-reviewed', cleanup)).id);
+      const fid = await newFloor(admin, pid, 'layer_reviewed_floor', 0);
+      const uid = await completedDrawing(admin, 'layer_reviewed', pid, fid);
+      const base = await layerRevision(admin, 'layer_reviewed_n16', pid, fid);
+      const scale = await call(admin, 'layer_reviewed_scale_200', 'PUT', `/api/projects/${pid}/floors/${fid}/spatial/layer`, {
+        baseVersion: base, body: { scaleMillimetresPerPixel: 3 },
+      }, ['setup: 200, a human scale (scale_source "human")']);
+      expect(scale.res.status()).toBe(200);
+      const straighten = await call(admin, 'layer_reviewed_straighten_422', 'POST', qualityPath(pid, fid, '/straighten'), {}, ['422 QUALITY_LAYER_REVIEWED']);
+      expectError(straighten, 422, 'QUALITY_LAYER_REVIEWED');
+      const corners = await call(admin, 'layer_reviewed_corners_422', 'POST', qualityPath(pid, fid, '/corners'), { corners: GOOD_CORNERS }, ['422 QUALITY_LAYER_REVIEWED (geometry passed first)']);
+      expectError(corners, 422, 'QUALITY_LAYER_REVIEWED');
+      expect.soft((await progressOf(admin, 'layer_reviewed_progress', pid, uid, '200 #8 still completed: nothing re-queued')).status).toBe('completed');
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  /* ---------------------------------------------------------------- N3 / N4 members (SCR-08 "Thành viên") */
+
+  test('A03 · members N3 / N4 (admin-only cases): unknown email → 422 MEMBER_USER_UNAVAILABLE field email; malformed / non-ASCII email, extra key → 422 VALIDATION; my own email (upper case) → 200 already a member, no row; removing myself as the last editor → 422 MEMBER_LAST_EDITOR; malformed / unknown user id → 404 member; another active admin → 201, removed → 200, removed again → 404 member', async () => {
+    // project_members/router.py:42-80, service.py:32-58,61-140, schemas.py (validate_wire_email), errors.py. members_add 60 / 3600 s per actor: ≤ 5 here.
+    const cleanup = new Cleanup();
+    try {
+      const admin = await adminApi(cleanup);
+      const project = await newProject(admin, 'members', cleanup);
+      const pid = String(project.id);
+      const me = asJson(asArray(project.members)[0]);
+      const path = `/api/projects/${pid}/members`;
+      const unknown = await call(admin, 'members_unknown_422', 'POST', path, { email: testEmail('nobody') }, ['422 MEMBER_USER_UNAVAILABLE field email (service.py:32-39)']);
+      expectError(unknown, 422, 'MEMBER_USER_UNAVAILABLE', { field: 'email' });
+      for (const [slug, data, field] of [
+        ['malformed', { email: 'not-an-email' }, 'email'],
+        ['non_ascii', { email: 'ánh@example.test' }, 'email'],
+        ['extra', { email: testEmail('x'), foo: 1 }, 'foo'],
+      ] as const) {
+        const sent = await call(admin, `members_${slug}_422`, 'POST', path, data, [`422 VALIDATION field ${field}`]);
+        expectError(sent, 422, 'VALIDATION', { field });
+      }
+      const self = await call(admin, 'members_self_200', 'POST', path, { email: String(me.email).toUpperCase() }, ['200 UserOut: already a member (normalize_email), no new row']);
+      expect.soft(self.res.status()).toBe(200);
+      expect.soft(asJson(self.body).id).toBe(me.id);
+      const last = await call(admin, 'members_remove_self_last_422', 'DELETE', `${path}/${String(me.id)}`, undefined, ['422 MEMBER_LAST_EDITOR (service.py:49-52)']);
+      expectError(last, 422, 'MEMBER_LAST_EDITOR');
+      for (const [slug, id] of [['malformed', 'nope'], ['unknown', `usr_${'0'.repeat(26)}`]] as const) {
+        const sent = await call(admin, `members_remove_${slug}_404`, 'DELETE', `${path}/${id}`, undefined, ['404 NOT_FOUND resource member']);
+        expectError(sent, 404, 'NOT_FOUND', { resource: 'member' });
+      }
+      const users = await call(admin, 'members_users_list', 'GET', '/api/users', undefined, ['read: the active users (an existing second account is needed)']);
+      const other = asArray(asJson(users.body).users).map((u) => asJson(u)).find((u) => u.id !== me.id && u.status === 'active');
+      if (other === undefined) {
+        note('no second active account on the stack: the 201 / remove branch is not reachable without an invitation');
+      } else {
+        const added = await call(admin, 'members_add_other_201', 'POST', path, { email: other.email }, ['201 UserOut of the added user']);
+        expect.soft(added.res.status()).toBe(201);
+        expect.soft(asJson(added.body).id).toBe(other.id);
+        const removed = await call(admin, 'members_remove_other_200', 'DELETE', `${path}/${String(other.id)}`, undefined, ['200 UserOut (built before the removal)']);
+        expect.soft(removed.res.status()).toBe(200);
+        expect.soft(asJson(removed.body).id).toBe(other.id);
+        const again = await call(admin, 'members_remove_other_again_404', 'DELETE', `${path}/${String(other.id)}`, undefined, ['404 member: no longer a member']);
+        expectError(again, 404, 'NOT_FOUND', { resource: 'member' });
+        const rows = await activityOf(admin, String(me.id), String(other.id), 'members_activity');
+        expect.soft(rows.slice(0, 2).map((r) => r.kind), 'newest first: one remove after one add').toEqual(['member.remove', 'member.add']);
+      }
+    } finally {
+      await cleanup.run();
+    }
+  });
+});

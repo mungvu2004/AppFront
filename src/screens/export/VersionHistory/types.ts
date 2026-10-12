@@ -47,7 +47,7 @@
  *  - **`bg-state-verified/8` KHÔNG SINH RA GÌ CẢ.** Đã biên dịch Tailwind 3.4.6 trên chính
  *    `tailwind.config.ts` của repo: mọi màu là `var(--x)` trần không có `<alpha-value>`, nên
  *    lớp có hậu tố alpha bị bỏ IM LẶNG — không lỗi, không cảnh báo, chỉ là class chết.
- *    (`bg-opacity-10` cũng chết: nó chỉ đặt `--tw-bg-opacity` mà `.bg-state-verified` không
+ *    (lớp bg-opacity 10 cũng chết: nó chỉ đặt `--tw-bg-opacity` mà `.bg-state-verified` không
  *    hề tiêu thụ.) Nền 8% **bắt buộc** đi qua {@link DIFF_TINT_OPACITY} +
  *    {@link DIFF_TONE_TOKENS} trên một lớp `aria-hidden` riêng — xem khuôn ở
  *    `ThicknessHistogram.tsx:294-303`. Đo lại được bằng `getComputedStyle(el).opacity`.
@@ -262,7 +262,7 @@ export interface RestoreConfirmModel {
   readonly title: string;
   /**
    * Câu bắt buộc trước khi bấm: nói rõ trạng thái hiện tại ĐƯỢC GIỮ LẠI thành một phiên bản
-   * riêng, và phục hồi không xoá gì. A9 + cấm tuyệt đối của đặc tả.
+   * riêng, và phục hồi không xoá phiên bản nào. A9 + cấm tuyệt đối của đặc tả.
    */
   readonly reassurance: string;
   readonly confirmLabel: string;
@@ -352,6 +352,8 @@ export interface VersionHistoryActions {
   readonly selectFloor: (floorId: string) => void;
   /** Nạp lại N18 của một bản vừa hỏng tạm thời (NO-368). */
   readonly retrySnapshot?: (versionId: string) => void;
+  /** Nạp lại N17 sau khi danh sách phiên bản hỏng (BUG-468). Vắng thì cảnh báo lỗi không có nút. */
+  readonly retryVersions?: () => void;
 }
 
 /** View thuần: test được CHỈ từ props, không chạm store, không chạm mạng (mục D, R-60). */
@@ -364,6 +366,8 @@ export interface VersionHistoryProps {
 export interface VersionHistoryToast {
   readonly message: string;
   readonly onUndo?: () => void;
+  /** Lỗi mang `violation` (chấm đỏ); vắng là thông báo thường, chấm trung tính (BUG-207). */
+  readonly state?: 'attention' | 'violation';
 }
 
 /* ── Cổng dữ liệu ────────────────────────────────────────────────────────────────────────── */

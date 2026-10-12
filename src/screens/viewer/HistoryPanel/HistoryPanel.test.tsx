@@ -363,3 +363,16 @@ describe('[N7] một phần — cả hai lý do đều dựng được', () => {
     expect(container.childElementCount).toBeGreaterThan(0);
   });
 });
+
+describe('[BUG-477] chip lọc loại việc đủ vùng chạm', () => {
+  it('mỗi chip cao 44 px dưới 640 và 32 px từ 640 — không còn 22 px', () => {
+    const { getByTestId } = render(<HistoryPanel {...propsOf('success')} />);
+    const chips = getByTestId(HISTORY_PANEL_TEST_IDS.categoryChips).querySelectorAll('button');
+
+    expect(chips.length).toBeGreaterThan(0);
+    for (const chip of chips) {
+      expect(chip).toHaveClass('h-11', 'sm:h-8');
+      expect(chip).not.toHaveClass('h-[22px]');
+    }
+  });
+});

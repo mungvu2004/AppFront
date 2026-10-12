@@ -7,7 +7,8 @@
  *
  * Quyết định lệch khỏi đặc tả, ghi lại vì đặc tả không nói rõ:
  *  - "Phiên bản này" ở chân màn (nút phục hồi + nút xuất) trỏ vào
- *    `model.compare.rightVersionId` — phiên bản đang được xem ở vùng so sánh. Đặc tả không
+ *    `model.compare.rightVersionId` (vắng thì `leftVersionId` — bản duy nhất còn tích) — phiên
+ *    bản đang được xem ở vùng so sánh. Đặc tả không
  *    nói phiên bản mục tiêu lấy từ đâu; đây là lựa chọn hợp lý nhất vì đó là phiên bản người
  *    dùng đang nhìn, không phải phiên bản gốc bên trái.
  *  - Dưới 1024, TOÀN BỘ cột trái được thay bằng một `Select` duy nhất (không chỉ thu nhỏ danh
@@ -32,15 +33,19 @@ import { VersionList } from './VersionList';
 import type { VersionHistoryProps } from './types';
 
 export function VersionHistory({ model, actions }: VersionHistoryProps) {
-  const reviewedVersionId = model.compare.rightVersionId;
+  // Bản bên phải; chỉ tích một bản thì chính bản ấy, nút phục hồi không tắt vô cớ (BUG-470).
+  const reviewedVersionId = model.compare.rightVersionId ?? model.compare.leftVersionId;
   const reviewedRow = model.rows.find((row) => row.id === reviewedVersionId) ?? null;
   const [isLabelOpen, setIsLabelOpen] = useState(false);
 
+  // Tiêu đề trang (h1) ở mọi trạng thái, như các màn có h1 sẵn (BUG-454).
   // Ô "Tầng" đứng trên mọi nhánh trả sớm (trừ `forbidden`): đổi tầng được cả khi tầng này rỗng/lỗi.
-  const withFloorSelect = (content: ReactNode) => (
+  // Rộng tới 672 (không phải 320): tên tầng dài 65 ký tự không bị cắt ở khổ rộng (BUG-455).
+  const withHeader = (content: ReactNode) => (
     <div className="flex h-full flex-col gap-3">
-      {model.floorSelect !== null && (
-        <div className="max-w-xs px-4 pt-4">
+      <h1 className="px-4 pt-4 text-[20px] font-semibold text-text-primary">Lịch sử phiên bản</h1>
+      {model.floorSelect !== null && model.state !== 'forbidden' && (
+        <div className="max-w-2xl px-4">
           <Select
             label={model.floorSelect.label}
             options={model.floorSelect.options.map((option) => ({ label: option.label, value: option.id }))}
@@ -54,7 +59,7 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
   );
 
   if (model.state === 'loading') {
-    return withFloorSelect(
+    return withHeader(
       <div className="flex h-full gap-4 p-4">
         <Skeleton preset="table-row" className="w-[360px]" />
         <Skeleton preset="property-panel" className="flex-1" />
@@ -63,7 +68,7 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
   }
 
   if (model.state === 'empty') {
-    return withFloorSelect(
+    return withHeader(
       <EmptyState
         icon={<History aria-hidden="true" />}
         title={model.emptyTitle}
@@ -73,26 +78,32 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
   }
 
   if (model.state === 'forbidden') {
-    return (
+    return withHeader(
       <EmptyState
         icon={<Lock aria-hidden="true" />}
         title="Không đủ quyền xem"
         description="Bạn không có quyền xem lịch sử phiên bản của bản vẽ này."
-      />
-    );
-  }
-
-  if (model.state === 'error') {
-    return withFloorSelect(
-      <InlineAlert
-        level="violation"
-        title="Không tải được lịch sử phiên bản"
-        message={model.errorMessage ?? 'Đã có lỗi xảy ra.'}
       />,
     );
   }
 
-  return withFloorSelect(
+  if (model.state === 'error') {
+    // Có lối ra ngay trên cảnh báo (BUG-468) và lề 16 px như ô "Tầng" phía trên.
+    return withHeader(
+      <div className="px-4">
+        <InlineAlert
+          level="violation"
+          title="Không tải được lịch sử phiên bản"
+          message={model.errorMessage ?? 'Đã có lỗi xảy ra.'}
+          {...(actions.retryVersions !== undefined
+            ? { action: { label: 'Thử lại', onClick: actions.retryVersions } }
+            : {})}
+        />
+      </div>,
+    );
+  }
+
+  return withHeader(
     <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
       {model.savedAtLabel !== null && <p className="text-[13px] text-text-secondary">{model.savedAtLabel}</p>}
 
@@ -108,7 +119,7 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
       <div className={model.isNarrow ? 'flex flex-1 flex-col gap-4 overflow-hidden' : 'flex flex-1 gap-4 overflow-hidden'}>
         {model.isNarrow ? (
           <Select
-            label="phiên bản"
+            label="Phiên bản"
             options={model.rows.map((row) => ({ label: `${row.label} — ${row.description}`, value: row.id }))}
             {...(reviewedVersionId !== null ? { value: reviewedVersionId } : {})}
             onChange={actions.selectRightVersion}
@@ -128,14 +139,19 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
           </div>
         )}
 
-        <div className="min-w-0 flex-1 overflow-hidden">
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <VersionCompare model={model.compare} actions={actions} />
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-4 border-t border-border-default pt-3">
-        <div className="flex flex-col gap-1">
+      {/* Dính đáy: diff dài thì trang cuộn, thanh phục hồi vẫn trong khung. Dưới `lg` ghi chú nằm trên
+          nút (xếp chồng), nhóm nút xuống dòng thay vì đẩy trang cuộn ngang (BUG-437). */}
+      <div className="sticky bottom-0 flex flex-col gap-3 border-t border-border-default bg-bg-app pt-3 lg:flex-row lg:items-center">
+        <div className="flex flex-1 flex-col gap-1">
           <p className="text-[13px] text-text-secondary">{model.restoreCaption}</p>
+          {model.canRestore && reviewedVersionId === null && (
+            <p className="text-[13px] text-text-tertiary">Chọn một phiên bản để phục hồi.</p>
+          )}
           {!model.canRestore && model.restoreHiddenReason !== null && (
             <p className="flex items-center gap-1.5 text-[13px] text-text-tertiary">
               <AlertTriangle size={14} aria-hidden="true" />
@@ -144,7 +160,7 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
           {/*
             R-69: `canExportVersion` sai ⇒ nút RỜI KHỎI DOM, không phải bị tắt. Xuất một
             phiên bản là điều hướng sang S-34 và khả năng ấy đúng bằng "nơi gọi có cấp

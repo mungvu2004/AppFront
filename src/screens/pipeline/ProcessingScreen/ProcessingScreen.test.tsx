@@ -36,11 +36,11 @@
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
-import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { NotificationHost } from '@/components/feedback/NotificationHost';
-import { createMockApiClient } from '@/api/__mocks__/client';
+import { createMockApiClient, MOCK_MISSING_PROJECT_ID } from '@/api/__mocks__/client';
 import type { Progress } from '@/api/schemas';
 import viMessages from '@/i18n/vi.json';
 import { toAppError } from '@/lib/errors';
@@ -252,6 +252,16 @@ describe('ProcessingScreen — bảy trạng thái (A11, R-63)', () => {
     expect(
       screen.getByText('Tầng 2 gặp lỗi. Các tầng còn lại vẫn đang được xử lý.'),
     ).toBeInTheDocument();
+  });
+});
+
+describe('ProcessingScreen — tab "Xem trước"/"Nhật ký" cao 44 dưới 640 px', () => {
+  it('hai tab theo khuôn nút chạm của Button: 44 dưới sm, 36 từ sm', () => {
+    renderWithProviders(<ProcessingScreen {...scenarioFor('success')} />);
+
+    for (const name of ['Xem trước', 'Nhật ký']) {
+      expect(screen.getByRole('tab', { name })).toHaveClass('h-11', 'sm:h-9');
+    }
   });
 });
 
@@ -487,6 +497,33 @@ describe('ProcessingScreenContainer — R-73', () => {
 
     expect(await screen.findByRole('button', { name: /thử lại/iu })).toBeInTheDocument();
     expect(screen.queryByText('Chưa có bước nào để theo dõi')).toBeNull();
+  });
+});
+
+describe('ProcessingScreenContainer — dự án không tồn tại (BUG-312)', () => {
+  it('one "Không tìm thấy dự án này" with the way back; no "Thử lại", no raw code, no empty panels', async () => {
+    const onNavigate = vi.fn();
+    // The real N7 answers 404 `project` for an unknown project, as #24 does.
+    const missing = await createMockApiClient().projects.read({ projectId: MOCK_MISSING_PROJECT_ID });
+    if (missing.ok) throw new Error('the mock should not know this project');
+    renderWithProviders(
+      <ProcessingScreenContainer
+        gateway={{
+          ...gatewayWithCancel(() => undefined),
+          readLatestUploads: () => Promise.resolve({ ok: false, error: missing.error }),
+        }}
+        onNavigate={onNavigate}
+        projectId={MOCK_MISSING_PROJECT_ID}
+        roles={['engineer']}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Về danh sách dự án' }));
+    expect(onNavigate).toHaveBeenCalledWith('/');
+    expect(screen.getByText('Không tìm thấy dự án này')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /thử lại/iu })).toBeNull();
+    expect(screen.queryByText('NOT_FOUND')).toBeNull();
+    expect(screen.queryByRole('tablist')).toBeNull();
   });
 });
 
@@ -739,6 +776,63 @@ describe('ProcessingScreen — màn rỗng (BUG-165)', () => {
   it('breadcrumb nêu tên dự án khi biết tên', () => {
     renderWithProviders(<ProcessingScreen {...scenarioFor('empty')} projectName="Nhà phố Quận 3" />);
 
-    expect(screen.getByRole('navigation', { name: 'Xử lý' })).toHaveTextContent('Dự án › Nhà phố Quận 3 › Xử lý');
+    expect(screen.getByRole('navigation', { name: 'Xử lý' })).toHaveTextContent('Dự án›Nhà phố Quận 3›Xử lý');
+  });
+
+  it('BUG-546: cấp "Dự án" của breadcrumb là nút về danh sách dự án', () => {
+    const onBackToProjects = vi.fn();
+    renderWithProviders(<ProcessingScreen {...scenarioFor('partial')} onBackToProjects={onBackToProjects} />);
+
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Xử lý' })).getByRole('button', { name: 'Dự án' }));
+    expect(onBackToProjects).toHaveBeenCalledTimes(1);
+  });
+
+  it('BUG-547: panel Xem trước có role region nên tên được đọc', () => {
+    renderWithProviders(<ProcessingScreen {...scenarioFor('partial')} />);
+
+    expect(screen.getByRole('region', { name: 'Xem trước bản vẽ đang xử lý' })).toBeInTheDocument();
+  });
+
+  it('BUG-554: dòng tóm tắt tiến độ nằm trong vùng role=status, ngoài hai tab', () => {
+    const props = scenarioFor('partial');
+    renderWithProviders(<ProcessingScreen {...props} />);
+
+    const status = screen.getAllByRole('status').find((node) => node.textContent?.includes(props.overallSummaryLine));
+    expect(status).toBeDefined();
+    expect(status?.closest('[role="tabpanel"]')).toBeNull();
+  });
+
+  // R1-03: "Còn lại khoảng …" changes every second; inside the polite region the reader re-read
+  // the whole sentence at every tick.
+  it('R1-03: thời gian còn lại hiện cùng dòng nhưng ngoài mọi vùng role=status', () => {
+    const props = scenarioFor('partial');
+    const view = renderWithProviders(<ProcessingScreen {...props} />);
+    const statusText = (): string[] => screen.getAllByRole('status').map((node) => node.textContent ?? '');
+    const before = statusText();
+
+    expect(screen.getByText('Đã xong 2/4 tầng').closest('p')).toHaveTextContent(
+      'Đã xong 2/4 tầng · Còn lại khoảng 3 phút',
+    );
+    expect(before.some((text) => text.includes('Còn lại khoảng'))).toBe(false);
+
+    view.rerender(<ProcessingScreen {...props} remainingLine="Còn lại khoảng 2 phút 59 giây" />);
+
+    expect(screen.getByText(/Còn lại khoảng 2 phút 59 giây/u)).toBeInTheDocument();
+    expect(statusText()).toEqual(before);
+  });
+});
+
+describe('ProcessingScreen — khổ hẹp (BUG-294)', () => {
+  it('a narrow finished run still lists every step behind "Xem tất cả các bước", and the summary is in the page flow', () => {
+    const { container } = renderWithProviders(<ProcessingScreen {...scenarioFor('success')} isCompact />);
+
+    fireEvent.click(screen.getByText('Xem tất cả các bước'));
+    const steps = screen.getByRole('list', { name: 'Các bước xử lý' });
+    for (const name of PIPELINE_STEP_NAMES) {
+      expect(within(steps).getByRole('progressbar', { name })).toBeInTheDocument();
+    }
+    // No fixed overlay left to cover "Duyệt lớp tường" (BUG-285 at 768/375).
+    expect(container.querySelector('.fixed')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Duyệt lớp tường' })).toBeInTheDocument();
   });
 });

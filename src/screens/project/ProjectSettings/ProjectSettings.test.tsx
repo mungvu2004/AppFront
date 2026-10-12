@@ -141,6 +141,7 @@ function baseProps(): ProjectSettingsViewProps {
     pendingDanger: null,
     dangerDialogTitle: null,
     dangerDialogMessage: null,
+    dangerDialogError: null,
     dangerConfirmLabel: null,
     dangerConfirmationExpected: null,
     dangerConfirmationText: '',
@@ -368,6 +369,28 @@ describe('ProjectSettingsView, vùng nguy hiểm', () => {
     expect(confirmDanger).not.toHaveBeenCalled();
   });
 
+  // BUG-511: the failure replaced the dialog's <p> with no live region, so screen readers stayed silent.
+  it('lượt xoá hỏng: câu lỗi nằm trong role="alert", câu hậu quả vẫn còn', () => {
+    const consequence = 'Dự án cùng toàn bộ tầng, bản vẽ và mô hình bên trong sẽ bị xoá vĩnh viễn. Không hoàn tác được.';
+    const failure = 'Không tìm thấy dữ liệu bạn yêu cầu.';
+    render(
+      <ProjectSettingsView
+        {...baseProps()}
+        activeTab="danger"
+        pendingDanger="deleteProject"
+        dangerDialogTitle="Xoá dự án này?"
+        dangerDialogMessage={consequence}
+        dangerDialogError={failure}
+        dangerConfirmLabel="Xoá dự án"
+      />,
+    );
+
+    const dialog = within(screen.getByRole('dialog'));
+
+    expect(dialog.getByRole('alert')).toHaveTextContent(failure);
+    expect(dialog.getByText(consequence)).toBeInTheDocument();
+  });
+
   it('chỉ có đúng hai việc nguy hiểm, mỗi việc một câu hậu quả', () => {
     render(<ProjectSettingsView {...baseProps()} activeTab="danger" />);
 
@@ -557,6 +580,7 @@ const NETWORK_ERROR: HttpError = {
 interface ToastRecord {
   readonly message: string;
   readonly onUndo?: (() => void) | undefined;
+  readonly state?: 'attention' | 'violation' | undefined;
 }
 
 /** Một lượt `update` mà phần `part` hỏng vì `error` — hình dạng `{ snapshot, failures }` của hợp đồng F-07. */
@@ -656,7 +680,7 @@ describe('ProjectSettings đã nối dây', () => {
     expect(screen.queryAllByRole('button', { name: SAVE_BUTTON_NAMES })).toHaveLength(0);
   });
 
-  it('đã lưu rồi gõ tên sai: chỉ báo nói câu chờ, không giữ "Đã lưu lúc …" cũ (B-V1-47, A7)', async () => {
+  it('đã lưu rồi gõ tên sai: chỉ báo nói chưa lưu vì còn lỗi, không giữ "Đã lưu lúc …" cũ (B-V1-47, BUG-286)', async () => {
     const gateway = spyGateway();
     await mountSettings({ gateway, projectId: 'project-problem', roles: ['admin'] });
 
@@ -675,7 +699,8 @@ describe('ProjectSettings đã nối dây', () => {
       .getAllByRole('status')
       .filter((node) => node.querySelector('svg') !== null)
       .map((node) => node.textContent ?? '');
-    expect(texts.some((text) => text.includes('Có thay đổi chờ đồng bộ')), JSON.stringify(texts)).toBe(true);
+    expect(texts.some((text) => text.includes(viMessages.project.settings.load.unsavedProblems)), JSON.stringify(texts)).toBe(true);
+    expect(texts.some((text) => text.includes('chờ đồng bộ')), JSON.stringify(texts)).toBe(false);
     expect(texts.some((text) => /Đã lưu lúc/u.test(text)), JSON.stringify(texts)).toBe(false);
   });
 
@@ -786,6 +811,24 @@ describe('ProjectSettings đã nối dây', () => {
     expect(onProjectDeleted).toHaveBeenCalledTimes(1);
     expect(onProjectDeleted).toHaveBeenCalledWith('Đã xoá dự án.');
   });
+
+  // BUG-207: a toast that reports floors left behind is a warning, not a plain notice.
+  it('xoá mọi tầng còn sót tầng: toast mang trạng thái attention; xoá hết thì không (BUG-207)', async () => {
+    const toasts: ToastRecord[] = [];
+    const partial = spyGateway({
+      deleteAllFloors: async () => ({ ok: true, data: { requestedCount: 4, deletedCount: 3, failedFloorIds: ['floor-x'] } }),
+    });
+    await mountSettings({ gateway: partial, projectId: 'project-partial', roles: ['admin'], onToast: (toast) => toasts.push(toast) });
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Vùng nguy hiểm' }));
+    await tick(MOTION_SETTLE_MS);
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá mọi tầng' }));
+    await tick(MOTION_SETTLE_MS);
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Xoá mọi tầng' }));
+    await tick(MOTION_SETTLE_MS);
+
+    expect(toasts.at(-1)).toMatchObject({ message: 'Đã xoá 3 tầng; còn 1 tầng chưa xoá được.', state: 'attention' });
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -842,11 +885,19 @@ describe('ProjectSettingsView, lưu dở và tải lại', () => {
     render(
       <ProjectSettingsView
         {...baseProps()}
-        saveFailureMessage="Đã lưu thông tin chung, chưa lưu đơn vị đo."
+        saveFailureMessage="Đã lưu tên dự án, chưa lưu dung sai bắt điểm."
       />,
     );
 
-    expect(screen.getByText('Đã lưu thông tin chung, chưa lưu đơn vị đo.')).toBeInTheDocument();
+    expect(screen.getByText('Đã lưu tên dự án, chưa lưu dung sai bắt điểm.')).toBeInTheDocument();
+  });
+
+  it('BUG-299: gợi ý mã dự án không hứa "bỏ trống cũng được" vì máy chủ không cho xoá trống', () => {
+    render(<ProjectSettingsView {...baseProps()} />);
+
+    expect(screen.getByText(viMessages.project.settings.general.codeHint)).toBeInTheDocument();
+    expect(screen.queryByText(/bỏ trống/u)).not.toBeInTheDocument();
+    expect(viMessages.project.settings.problems.emptyBlocked).not.toMatch(/^Bản này/u);
   });
 
   it('không dựng dải lưu dở khi không có phần hỏng', () => {

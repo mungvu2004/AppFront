@@ -13,6 +13,8 @@ export type { BreadcrumbItem, BreadcrumbOption };
 
 interface BreadcrumbProps {
   items: readonly BreadcrumbItem[];
+  /** Tên của `<nav>`. Vắng thì là tên chung; màn nào đã có tên riêng được neo (Xử lý) thì giữ. */
+  ariaLabel?: string;
 }
 
 /** Một tên cho mọi breadcrumb, cùng chữ với các màn quản trị. */
@@ -20,11 +22,11 @@ const NAV_LABEL = 'Đường dẫn trang';
 
 // ─── Breadcrumb ───────────────────────────────────────────────────────────────
 
-export function Breadcrumb({ items }: BreadcrumbProps) {
+export function Breadcrumb({ ariaLabel = NAV_LABEL, items }: BreadcrumbProps) {
   const { openDropdownId, openDropdown, closeDropdown, dropdownZIndex } = useBreadcrumb();
 
   return (
-    <nav className="flex items-center" aria-label={NAV_LABEL}>
+    <nav className="flex items-center" aria-label={ariaLabel}>
       <ol className="flex items-center gap-0">
         {items.map((item, index) => {
           const isLast = index === items.length - 1;
@@ -59,7 +61,7 @@ export function Breadcrumb({ items }: BreadcrumbProps) {
                     type="button"
                     onClick={() => isDropdownOpen ? closeDropdown() : openDropdown(item.id)}
                     className={cn(
-                      'inline-flex min-h-11 items-center sm:min-h-6 text-[13px] font-medium text-text-secondary leading-none',
+                      'inline-flex min-h-11 min-w-11 items-center sm:min-h-6 sm:min-w-0 text-[13px] font-medium text-text-secondary leading-none',
                       'hover:text-text-primary transition-colors duration-120',
                       'rounded-[4px] px-0.5 -mx-0.5',
                       'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
@@ -138,8 +140,9 @@ export function Breadcrumb({ items }: BreadcrumbProps) {
                   type="button"
                   onClick={item.onClick}
                   className={cn(
-                    // Dưới 640 px vùng chạm 44 px như mọi nút (BUG-108); từ 640 px giữ dòng chữ 24 px.
-                    'inline-flex min-h-11 items-center sm:min-h-6 text-[13px] font-medium text-text-secondary leading-none',
+                    // Dưới 640 px vùng chạm 44×44 px như mọi nút — cả bề ngang: "Dự án" chỉ rộng 39 px
+                    // (BUG-108, run-20); từ 640 px giữ dòng chữ 24 px.
+                    'inline-flex min-h-11 min-w-11 items-center sm:min-h-6 sm:min-w-0 text-[13px] font-medium text-text-secondary leading-none',
                     'hover:text-text-primary transition-colors duration-120',
                     'rounded-[4px] px-0.5 -mx-0.5',
                     'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2'

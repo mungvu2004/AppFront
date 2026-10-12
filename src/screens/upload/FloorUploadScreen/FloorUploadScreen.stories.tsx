@@ -230,6 +230,7 @@ const NO_ACTIONS = {
   onRetryUpload: noop,
   onRemoveFile: noop,
   onSubmit: noop,
+  onRetryLoad: noop,
   onDismissError: noop,
 };
 
@@ -272,6 +273,7 @@ function footerOf(rows: readonly FloorUploadRowModel[]) {
     canSubmit: blockReasons.length === 0,
     blockReasons,
     isSubmitting: false,
+    isSubmitHidden: false,
   };
 }
 
@@ -291,6 +293,8 @@ function modelOf(
     isOffline: false,
     isDragActive: false,
     errorMessage: null,
+    isProjectMissing: false,
+    canRetryLoad: false,
     offlineNotice: null,
     offlineNoticeKey: 'floorUpload.offlineBanner',
     readOnlyNotice: null,
@@ -336,6 +340,8 @@ export function scenarioFor(state: SevenState): FloorUploadScreenViewProps {
     case 'error':
       return modelOf('error', [], {
         errorMessage: 'Không liên lạc được với máy chủ. Kiểm tra mạng rồi thử lại.',
+        canRetryLoad: true,
+        dropZone: { ...DROP_ZONE, isEnabled: false },
       });
 
     case 'success':
@@ -344,6 +350,7 @@ export function scenarioFor(state: SevenState): FloorUploadScreenViewProps {
     case 'forbidden':
       return modelOf('forbidden', allAttached, {
         canEdit: false,
+        footer: { ...footerOf(allAttached), isSubmitHidden: true },
         readOnlyNotice:
           'Vai hiện tại chỉ được xem danh sách tệp, không tải lên và không sửa.',
       });

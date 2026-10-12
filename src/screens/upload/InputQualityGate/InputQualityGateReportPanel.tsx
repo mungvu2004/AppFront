@@ -285,7 +285,7 @@ export function InputQualityGateReportPanel({
         ))}
       </ul>
 
-      <p className="text-[13px] text-text-secondary">{forecast.text}</p>
+      {forecast !== null && <p className="text-[13px] text-text-secondary">{forecast.text}</p>}
 
       {partialNotice !== null && <InlineAlert level="attention" message={partialNotice} />}
 

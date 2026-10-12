@@ -9,8 +9,8 @@
  * ## Không công thức tự chế (R-61) — màn không cộng cao độ, không đếm tay
  *
  * - Cao độ khi xếp lại chồng tầng: `createReorderLevelsCommand`. Hàm `restack`
- *   bên trong nó dựng lại CẢ chồng tầng từ `building.datumElevationMm`
- *   (`roomFloorCommands.ts:668-684`), và nó được gọi sẵn trong
+ *   bên trong nó dựng lại chồng tầng từ tầng thấp nhất hiện có (BUG-516) và
+ *   giữ cao độ ghi đè tay (BUG-517, `roomFloorCommands.ts`), và nó được gọi sẵn trong
  *   `validateReorderLevels` lẫn `createReorderLevelsCommand`. Phát lệnh reorder
  *   = cao độ được tính lại đúng, bởi mã đã có test. **Không một vòng lặp cộng
  *   dồn nào trong màn.**
@@ -33,8 +33,8 @@
  * ## Trạng thái máy chủ (R-64)
  *
  * Không `useState` nào giữ cờ đang-tải hay cờ hỏng. Danh sách tầng đi qua
- * `useQuery` dưới khoá `queryKeys.floor.list(projectId)` — đúng khoá
- * `invalidationMap.editFloor` dọn — và mọi lượt ghi gọi
+ * `useQuery` dưới khoá riêng `queryKeys.floor.manager(projectId)` (con của `floor.list`) —
+ * `invalidationMap.editFloor` dọn nó theo tiền tố — và mọi lượt ghi gọi
  * `applyInvalidation(queryClient, 'editFloor', …)`, không `invalidateQueries`
  * trần. `useShareLinks.ts` tự khai `isLoading`/`error` bằng tay; đó là ngoại lệ
  * đi trước, KHÔNG phải khuôn mẫu, và không một dòng nào ở đây chép nó.
@@ -146,6 +146,7 @@ import {
   findElevationConflict,
   floorWriteBodyOf,
   floorPlansOf,
+  isElevationOverridden,
   levelsOf,
   REORDER_FLOORS_TOAST_DESCRIPTION,
   roomsOfLevel,
@@ -156,6 +157,7 @@ import {
   stackTopMm,
   wallCountOfLevel,
   type FloorManagerGateway,
+  type FloorManagerSnapshot,
 } from './floorManagerGateway';
 import type {
   DuplicateElevationViolation,
@@ -176,6 +178,8 @@ import type {
 export const FLOOR_MANAGER_TEXT = {
   emptyTitle: 'Chưa có tầng nào',
   emptyNotice: 'Thêm tầng đầu tiên, hoặc nhập số tầng từ màn hình tạo dự án.',
+  /* Người xem không thêm được tầng, nên không mời họ thêm (BUG-522). */
+  viewerEmptyNotice: 'Khi người có quyền sửa thêm tầng, ngăn xếp tầng sẽ hiện ở đây.',
   forbiddenNotice: 'Vai của bạn chỉ xem được ngăn xếp tầng; mọi thao tác sửa đã được ẩn.',
   drawingsMissing: 'Chưa có bản vẽ',
   persistFailedTitle: 'Chưa lưu được thay đổi tầng',
@@ -300,21 +304,15 @@ export interface FloorManagerStateInput {
  * `SEVEN_STATES` của `src/lib/testing/sevenStateScenarios.ts`.
  *
  * Thứ tự nhánh là thứ tự "cái gì che cái gì" mà `floorManagerTypes.ts` khai:
- * `forbidden` → `collapsed` → `error` → `loading` → `empty` → `partial` →
+ * `error` → `loading` → `empty` → `forbidden` → `collapsed` → `partial` →
  * `success`. `loading` tách khỏi `empty` bằng chính cờ đang tải chứ không bằng
- * "không có dòng nào", vì cả hai đều không có dòng nào.
+ * "không có dòng nào", vì cả hai đều không có dòng nào. Lỗi đọc và dự án rỗng
+ * đứng TRƯỚC vai người xem: vai chỉ là dải chỉ đọc, không được che "Không tìm
+ * thấy dự án này" hay "Chưa có tầng nào" (BUG-522).
  */
 export function deriveFloorManagerScreenState(
   input: FloorManagerStateInput,
 ): FloorManagerScreenState {
-  if (input.isViewerRole) {
-    return 'forbidden';
-  }
-
-  if (input.isCollapsed) {
-    return 'collapsed';
-  }
-
   if (input.hasError) {
     return 'error';
   }
@@ -325,6 +323,14 @@ export function deriveFloorManagerScreenState(
 
   if (input.rowCount === 0) {
     return 'empty';
+  }
+
+  if (input.isViewerRole) {
+    return 'forbidden';
+  }
+
+  if (input.isCollapsed) {
+    return 'collapsed';
   }
 
   return input.needsDrawingCount > 0 ? 'partial' : 'success';
@@ -362,6 +368,21 @@ export const newFloorName = (index: number): string => {
   return normalized.ok ? normalized.value : raw;
 };
 
+/**
+ * Tên tầng thêm mới: số = số tầng từ mặt đất trở lên (trệt là số 0, như `nextFloorName` của
+ * wizard tạo dự án), ít nhất 1, bỏ qua tên đã có. Đếm cả tầng hầm nhảy mất một số (BUG-277).
+ */
+export const nextNewFloorName = (levels: readonly Pick<Level, 'name' | 'elevationMm'>[]): string => {
+  const taken = new Set(levels.map((level) => level.name.trim()));
+  let number = Math.max(1, levels.filter((level) => level.elevationMm >= 0).length);
+
+  while (taken.has(newFloorName(number))) {
+    number += 1;
+  }
+
+  return newFloorName(number);
+};
+
 /** Tên của bản sao, ví dụ `"Tầng 2 (bản sao)"`. */
 export const duplicateFloorName = (sourceName: string): string => {
   const suffix = ` (${FLOOR_MANAGER_TEXT.duplicateSuffix})`;
@@ -373,6 +394,9 @@ export const duplicateFloorName = (sourceName: string): string => {
 };
 
 /** Một tầng đổi trong một bước lịch sử, đã gộp: `before` của bản đầu, `after` của bản cuối. */
+/** Ảnh chụp của màn, kèm đồ thị trong kho lúc lượt đọc BẮT ĐẦU (R1-04). */
+type MountedSnapshot = FloorManagerSnapshot & { readonly baseGraph: FloorManagerSnapshot['graph'] };
+
 interface LevelChangeSummary {
   readonly id: string;
   readonly before: Level | null;
@@ -534,6 +558,8 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
     readonly field: FloorEditableField;
   } | null>(null);
   const [duplicateElevation, setDuplicateElevation] = useState<{
+    /** Tầng có ô cao độ bị từ chối — chỉ ô đó mang dấu lỗi (BUG-306). */
+    readonly floorId: string;
     readonly message: string;
     readonly violation: DuplicateElevationViolation;
   } | null>(null);
@@ -544,32 +570,77 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
   /* Lượt đọc máy chủ (R-64).                                                 */
   /* ---------------------------------------------------------------------- */
 
+  /* Lượt đọc đầu của lần gắn này đọc mới từ máy chủ; các lượt sau (sau một lượt ghi) giữ kho. */
+  const hasReadRef = useRef(false);
   const floorListQuery = useQuery({
-    queryKey: queryKeys.floor.list(projectId),
-    queryFn: ({ signal }) => gateway.readFloorList({ projectId, signal }),
+    // Khoá riêng `floor.manager`, không phải `floor.list` trần: ảnh chụp ở đây là `{ graph, floors, … }`,
+    // còn Tải bản vẽ và cổng chất lượng đọc `floor.list` là `Floor[]` (BUG-348).
+    queryKey: queryKeys.floor.manager(projectId),
+    queryFn: async ({ signal }): Promise<MountedSnapshot> => {
+      // Đồ thị trong kho lúc BẮT ĐẦU đọc: sửa trong lúc lượt đọc còn bay đổi kho, và ảnh chụp
+      // đọc trước lượt sửa ấy không được đè nó (R1-04).
+      const baseGraph = useStore.getState().spatial;
+      const snapshot = await gateway.readFloorList({ isMountRead: !hasReadRef.current, projectId, signal });
+
+      hasReadRef.current = true;
+
+      return { ...snapshot, baseGraph };
+    },
+    /* Quay lại màn trong SPA luôn đọc lại: tầng thêm ở nơi khác phải hiện (BUG-515). */
+    refetchOnMount: 'always',
   });
 
   const storeGraph = useStore((state) => state.spatial);
+  const storeProjectId = useStore((state) => state.spatialProjectId);
   const setSpatial = useStore((state) => state.setSpatial);
   const violations = useStore(selectViolations);
 
-  const loadedGraph = floorListQuery.data?.graph ?? null;
+  const snapshot = floorListQuery.data;
+  const loadedGraph = snapshot?.graph ?? null;
+  const { isFetchedAfterMount } = floorListQuery;
+  const appliedSnapshotRef = useRef<MountedSnapshot | null>(null);
 
-  /* Nạp đồ thị của dự án vào kho một lần, nếu kho còn trống. */
+  /*
+   * Nạp đồ thị vào kho khi kho trống, hoặc khi lượt đọc của CHÍNH lần gắn này đọc
+   * mới từ máy chủ (kho là của dự án khác hay lệch bộ tầng — BUG-515). Mỗi ảnh
+   * chụp được xét đúng một lần: sửa sau đó đổi `storeGraph` nhưng không được bị đè.
+   */
   useEffect(() => {
-    if (storeGraph === null && loadedGraph !== null) {
-      setSpatial(loadedGraph, null, {
-        floorRevisions: floorListQuery.data?.floorRevisions ?? {},
-        projectId,
-      });
+    if (
+      snapshot === undefined ||
+      loadedGraph === null ||
+      loadedGraph === storeGraph ||
+      appliedSnapshotRef.current === snapshot ||
+      (storeGraph !== null && (!isFetchedAfterMount || snapshot.fromStore))
+    ) {
+      return;
     }
-  }, [floorListQuery.data?.floorRevisions, loadedGraph, projectId, setSpatial, storeGraph]);
+
+    appliedSnapshotRef.current = snapshot;
+
+    /*
+     * Kho của dự án này đã đổi từ lúc bắt đầu đọc, hay còn sửa chưa lưu: người dùng đã sửa
+     * trong lúc lượt đọc còn bay. Nạp lúc này đè sửa ấy bằng bản đọc cũ hơn và xoá lịch sử
+     * hoàn tác (`setSpatial` → `temporal.clear()`), nên bỏ ảnh chụp này (R1-04).
+     */
+    if (
+      storeGraph !== null &&
+      storeProjectId === projectId &&
+      (storeGraph !== snapshot.baseGraph || useStore.getState().unsavedFloorIds.length > 0)
+    ) {
+      return;
+    }
+
+    setSpatial(loadedGraph, null, { floorRevisions: snapshot.floorRevisions, projectId });
+  }, [isFetchedAfterMount, loadedGraph, projectId, setSpatial, snapshot, storeGraph, storeProjectId]);
 
   /*
    * Đọc kho trước, lượt tải sau: giữa lúc `useEffect` trên chưa chạy, view vẫn
-   * có dữ liệu để vẽ — đúng cái màn trắng mà A11 tồn tại để chặn.
+   * có dữ liệu để vẽ — đúng cái màn trắng mà A11 tồn tại để chặn. Kho của dự án
+   * KHÁC thì không vẽ (đang tải) cho tới khi lượt đọc của dự án này về (BUG-515).
    */
-  const graph = storeGraph ?? loadedGraph;
+  const graph =
+    storeGraph === null ? loadedGraph : storeProjectId === projectId ? storeGraph : null;
   const hasError = floorListQuery.isError;
   const isLoading = floorListQuery.isPending || graph === null;
 
@@ -1119,17 +1190,21 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
   const onFloorFieldChange = useCallback(
     (floorId: string, field: FloorEditableField, draftValue: string) => {
       setEditing({ floorId, field });
-      updateDrafts((previous) => {
-        const current = previous[floorId] ?? {
-          name: '',
-          elevation: '',
-          height: '',
-        };
+      /* Bộ đệm mới gieo từ giá trị đang có của tầng, không từ chuỗi rỗng: khi cao độ bị
+         từ chối, bộ đệm được giữ để người dùng sửa tiếp, và hai ô kia (tên, chiều cao)
+         từng hiện trống vì đọc đúng bộ đệm rỗng đó (BUG-306). */
+      const level = levels.find((candidate) => String(candidate.id) === floorId);
+      const seed: FloorRowDraft =
+        level === undefined
+          ? { name: '', elevation: '', height: '' }
+          : { name: level.name, elevation: metreDraftText(level.elevationMm), height: metreDraftText(level.heightMm) };
 
-        return { ...previous, [floorId]: { ...current, [field]: draftValue } };
-      });
+      updateDrafts((previous) => ({
+        ...previous,
+        [floorId]: { ...(previous[floorId] ?? seed), [field]: draftValue },
+      }));
     },
-    [updateDrafts],
+    [levels, updateDrafts],
   );
 
   const onFloorFieldCancel = useCallback(
@@ -1203,7 +1278,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
         if (conflict !== null) {
           const message = conflict.reasons.join(' ');
 
-          setDuplicateElevation({ message, violation: conflict.violation });
+          setDuplicateElevation({ floorId, message, violation: conflict.violation });
           announce(message);
 
           return;
@@ -1294,7 +1369,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
       }
 
       const result = createAddFloorCommand(
-        { id: gateway.nextLevelId(), name: newFloorName(levelsOf(context.graph).length + 1) },
+        { id: gateway.nextLevelId(), name: nextNewFloorName(levelsOf(context.graph)) },
         context,
       );
       const added = result.ok ? addedLevelOf(result.data) : null;
@@ -1488,19 +1563,22 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
       return NO_ROWS;
     }
 
-    return levels.map((level) => {
+    return levels.map((level, index) => {
       const id = String(level.id);
+      const below = levels[index - 1];
       const drawingCount = floorsById.get(id)?.drawings.length ?? 0;
       const hasDrawing = drawingCount > 0;
       const counts = countsByLevel.get(id) ?? null;
       const health = explainHealthScore(violationsByLevel.get(id) ?? NO_VIOLATIONS);
-      const qcProgressRatio = health.score / HEALTH_SCORE_MAX;
+      /* Chưa có bản vẽ thì chưa có gì để kiểm: không có vi phạm KHÔNG có nghĩa là 100% (BUG-263). */
+      const qcProgressRatio = hasDrawing ? health.score / HEALTH_SCORE_MAX : 0;
 
       return {
         id,
         name: level.name,
         elevationText: metreText(level.elevationMm),
         elevationMm: millimetres(level.elevationMm),
+        isElevationOverridden: isElevationOverridden(level, below),
         heightText: metreText(level.heightMm),
         heightMm: millimetres(level.heightMm),
         drawingCountText: drawingCountText(drawingCount),
@@ -1510,12 +1588,13 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
         roomCountText: countText(counts?.roomCount ?? null),
         areaText: counts === null ? MISSING_VALUE : formatArea(counts.areaM2),
         areaM2: counts === null ? null : squareMetres(counts.areaM2),
-        qcProgressText: formatPercent(qcProgressRatio, { fractionDigits: 0 }),
+        qcProgressText: hasDrawing ? formatPercent(qcProgressRatio, { fractionDigits: 0 }) : MISSING_VALUE,
         qcProgressRatio,
         isSelected: selectedFloorId === id,
         isHovered: hoveredFloorId === id,
         needsDrawing: !hasDrawing,
         isHiddenIn3d: hiddenFloorIds.includes(id),
+        isElevationRefused: duplicateElevation?.floorId === id,
         draft: draftOf(level),
         editingField: editing?.floorId === id ? editing.field : null,
       };
@@ -1523,6 +1602,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
   }, [
     countsByLevel,
     draftOf,
+    duplicateElevation,
     editing,
     floorsById,
     hasError,
@@ -1538,16 +1618,26 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
       return NO_BANDS;
     }
 
-    return rows.map((row) => ({
-      levelId: row.id,
-      label: bandLabel(row.name, row.heightMm),
-      bandHeightRatio: row.heightMm / totalStackHeightMm,
-      isSelected: row.isSelected,
-      isHovered: row.isHovered,
-      isHiddenIn3d: row.isHiddenIn3d,
-      needsDrawing: row.needsDrawing,
-    }));
-  }, [rows, totalStackHeightMm]);
+    // Mép dưới của dải là cao độ của tầng, không phải đỉnh dải trước: cao độ ghi đè để hở
+    // một khoảng giữa hai tầng thì khoảng ấy nằm DƯỚI dải, không dồn lên đỉnh (BUG-357).
+    let previousTopMm: number = bottomMm ?? 0;
+
+    return rows.map((row) => {
+      const gapBelowMm = Math.max(0, row.elevationMm - previousTopMm);
+      previousTopMm = Math.max(previousTopMm, row.elevationMm + row.heightMm);
+
+      return {
+        levelId: row.id,
+        label: bandLabel(row.name, row.heightMm),
+        bandHeightRatio: row.heightMm / totalStackHeightMm,
+        gapBelowRatio: gapBelowMm / totalStackHeightMm,
+        isSelected: row.isSelected,
+        isHovered: row.isHovered,
+        isHiddenIn3d: row.isHiddenIn3d,
+        needsDrawing: row.needsDrawing,
+      };
+    });
+  }, [bottomMm, rows, totalStackHeightMm]);
 
   const elevationTicks = useMemo<readonly ElevationTickVm[]>(() => {
     if (bottomMm === null || topMm === null || !Number.isFinite(totalStackHeightMm)) {
@@ -1626,12 +1716,19 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
     return describeError(toAppError(floorListQuery.error)).description;
   }, [floorListQuery.error, hasError, isProjectMissing]);
 
+  // Câu "ẩn khỏi 3D không lưu" chỉ đúng khi đang có tầng ẩn; nói trước đó là cảnh báo về
+  // một việc chưa xảy ra (BUG-287).
+  const hasHiddenFloor = hiddenFloorIds.length > 0;
   const unsupportedNotices = useMemo(
     () =>
       FLOOR_MANAGER_MISSING_CAPABILITIES.filter(
-        (capability) => !gateway.supports[capability],
+        (capability) =>
+          !gateway.supports[capability] &&
+          (capability !== 'hideFloorFrom3d' || hasHiddenFloor) &&
+          /* Câu nhân bản/xoá tầng chỉ nói với người làm được hai việc đó (BUG-521). */
+          (capability !== 'persistFloorContents' || canEdit),
       ).map((capability) => FLOOR_MANAGER_UNSUPPORTED_NOTICES[capability]),
-    [gateway],
+    [canEdit, gateway, hasHiddenFloor],
   );
 
   return {
@@ -1648,7 +1745,8 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
     isCompact: options.isCompact ?? false,
     isAutoElevation,
 
-    emptyNotice: state === 'empty' ? FLOOR_MANAGER_TEXT.emptyNotice : null,
+    emptyNotice:
+      state !== 'empty' ? null : canEdit ? FLOOR_MANAGER_TEXT.emptyNotice : FLOOR_MANAGER_TEXT.viewerEmptyNotice,
     errorMessage,
     isProjectMissing,
     forbiddenNotice: isViewerRole ? FLOOR_MANAGER_TEXT.forbiddenNotice : null,

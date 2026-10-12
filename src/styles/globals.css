@@ -293,10 +293,17 @@
   .border-border-default-50 { border-color: color-mix(in srgb, var(--border-default) 50%, transparent); }
   .border-border-default-60 { border-color: color-mix(in srgb, var(--border-default) 60%, transparent); }
 
-  /* Vùng bấm cao thêm 2 px trên và dưới mà không đổi bố cục (công tắc 36×20 → vùng bấm 36×24, WCAG
-     2.5.8). Một quy tắc thay cho bốn lớp `before:*` — mỗi lớp `before:` kéo theo `content: var(--tw-content)`
-     và vượt ngân sách CSS 12 KiB. Phần tử phải `relative`. */
-  .hit-y-24::before { content: ''; position: absolute; inset: -2px 0; }
+  /* Vạch nhấn 2 px bên trái hàng bảng (Table.Row): một bộ quy tắc thay cho mười hai biến thể
+     `[&>td:first-child]:before:*`, mỗi biến thể kéo theo `content: var(--tw-content)` (ngân sách CSS 12 KiB).
+     Hiện khi hàng được chọn hoặc chính hàng đang được rê chuột (ND-R2: không cần `group` tổ tiên).
+     Rê chuột gác bằng `(hover: hover)`: màn cảm ứng giữ `:hover` trên hàng vừa chạm, trông như hàng được chọn. */
+  .row-edge > td:first-child { position: relative; }
+  .row-edge > td:first-child::before {
+    content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 2px; background-color: var(--accent);
+    transform: scaleY(0); transform-origin: center; transition: transform theme('transitionDuration.instant') theme('transitionTimingFunction.enter');
+  }
+  .row-edge-on > td:first-child::before { transform: scaleY(1); }
+  @media (hover: hover) { .row-edge:hover > td:first-child::before { transform: scaleY(1); } }
 
   /* `--bg-hover` là một lớp phủ trong suốt (6% / 3,5%): đặt thẳng làm nền thì vật thể
      nổi trên canvas (ghim bình luận) trong suốt khi rê chuột. Phủ nó LÊN nền surface. */

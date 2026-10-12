@@ -77,7 +77,7 @@
  *
  * | Trạng thái  | Nghĩa ở màn Phát hiện tệp CAD                                          |
  * |-------------|--------------------------------------------------------------------------|
- * | `empty`     | tệp không có lớp đặt tên, hệ thống chuyển sang ánh xạ theo loại hình học  |
+ * | `empty`     | tệp không có lớp đặt tên: không có gì để ánh xạ, lối sang nhánh AI        |
  * | `loading`   | đang đọc `.dwg`, số thực thể tăng dần                                    |
  * | `partial`   | một số tầng không có CAD, HOẶC có thực thể không hỗ trợ (liệt kê đích danh)|
  * | `error`     | tệp hỏng hoặc phiên bản mới hơn mức hỗ trợ; chỉ còn lựa chọn AI           |
@@ -418,6 +418,8 @@ export interface CadBranchConfirmViewModel {
   readonly isMappingPanelCollapsed: boolean;
   /** `false` khi chưa đủ điều kiện bấm "Nhập hình học" (chưa ánh xạ lớp nào). */
   readonly canImportGeometry: boolean;
+  /** Vì sao nút "Nhập hình học" đang khoá; `null` khi bấm được hoặc ngoài giai đoạn 2 (BUG-314). */
+  readonly importDisabledReason: string | null;
   readonly isImporting: boolean;
   /** Có thì bỏ chạy số, đổi giá trị tức thì (mục B). */
   readonly prefersReducedMotion: boolean;
@@ -435,6 +437,8 @@ export interface CadBranchConfirmViewModel {
   readonly forbiddenNotice: string | null;
   /** Câu của trạng thái `'success'`. `null` ở trạng thái khác. */
   readonly successNotice: string | null;
+  /** Dự án trả 404: màn chỉ còn dải "Không tìm thấy dự án này" + lối về (BUG-563, mẫu BUG-313). */
+  readonly isProjectMissing?: true;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -474,6 +478,8 @@ export interface CadBranchConfirmActions {
   readonly onToggleMappingPanelCollapsed: () => void;
   /** Tải lại tệp sau lỗi, hoặc thử lại truy vấn quyền. */
   readonly onRetry: () => void;
+  /** Về danh sách dự án — lối ra duy nhất khi dự án không tồn tại (BUG-563). */
+  readonly onBackToProjects: () => void;
 }
 
 /* -------------------------------------------------------------------------- */

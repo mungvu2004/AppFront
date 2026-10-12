@@ -37,6 +37,8 @@ import type { RoomLabelGapViewModel, RoomLabelLeftPanelProps, RoomLabelListProps
 export interface RoomLabelLeftPanelViewProps {
   readonly panel: RoomLabelLeftPanelProps;
   readonly list: RoomLabelListProps;
+  /** Câu rỗng khi bộ lọc "Chưa đặt tên" lọc sạch danh sách (BUG-321); `null` thì vẽ danh sách. */
+  readonly emptyListNotice: string | null;
 }
 
 const SUMMARY_PREFIX = 'Tổng diện tích sàn';
@@ -44,6 +46,9 @@ const SUMMARY_ROOM_SUFFIX = 'phòng';
 const UNNAMED_FILTER_LABEL = 'Chưa đặt tên';
 const GAPS_TITLE = 'Vòng tường hở';
 const GAPS_EMPTY_MESSAGE = 'Chưa thấy vòng tường hở nào ở tầng này.';
+/** BUG-407: không có khe giữa hai đầu tường, nhưng có phòng chưa kín — nói rõ phạm vi, không phủ nhận nhắc của phòng. */
+const gapsEmptyWithUnclosedRooms = (count: number): string =>
+  `Các đầu tường đều đã nối, nhưng ${count} phòng chưa kín vì có cạnh không có tường chạy dọc — chọn phòng để xem nhắc công năng.`;
 const GAP_WALLS_LABEL = 'Tường liên quan';
 const CHECK_GAPS_LABEL = 'Kiểm tra lại vòng hở';
 const NAVIGATE_WALLS_LABEL = 'Xem tại lớp tường';
@@ -81,11 +86,11 @@ function RoomLabelGapRow({ gap, onNavigateToWalls }: RoomLabelGapRowProps) {
   );
 }
 
-export function RoomLabelLeftPanel({ panel, list }: RoomLabelLeftPanelViewProps) {
+export function RoomLabelLeftPanel({ panel, list, emptyListNotice }: RoomLabelLeftPanelViewProps) {
   const { summary, gaps, showOnlyUnnamed, onToggleUnnamedFilter, onOpenNormalizePreview } = panel;
 
   return (
-    <div className="flex h-full w-[280px] shrink-0 flex-col overflow-hidden rounded-[12px] bg-bg-surface shadow-panel">
+    <div className="flex h-full w-[280px] shrink-0 flex-col overflow-hidden rounded-[12px] bg-bg-surface shadow-panel max-lg:w-full">
       <div className="flex shrink-0 flex-col gap-3 px-5 pb-3 pt-4">
         <p className="text-[13px] text-text-primary">
           <span>{SUMMARY_PREFIX} </span>
@@ -115,7 +120,9 @@ export function RoomLabelLeftPanel({ panel, list }: RoomLabelLeftPanelViewProps)
         <section aria-label={GAPS_TITLE} className="flex flex-col gap-2">
           <h3 className="text-[12px] font-semibold uppercase tracking-wide text-text-muted">{GAPS_TITLE}</h3>
           {gaps.length === 0 ? (
-            <p className="text-[13px] text-text-secondary">{GAPS_EMPTY_MESSAGE}</p>
+            <p className="text-[13px] text-text-secondary">
+              {summary.unclosedRoomCount > 0 ? gapsEmptyWithUnclosedRooms(summary.unclosedRoomCount) : GAPS_EMPTY_MESSAGE}
+            </p>
           ) : (
             <ul className="flex flex-col gap-2">
               {gaps.map((gap) => (
@@ -137,13 +144,19 @@ export function RoomLabelLeftPanel({ panel, list }: RoomLabelLeftPanelViewProps)
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
-        <RoomLabelList
-          isViewerRole={list.isViewerRole}
-          onHover={list.onHover}
-          onSelect={list.onSelect}
-          rooms={list.rooms}
-          selectedRoomId={list.selectedRoomId}
-        />
+        {emptyListNotice !== null ? (
+          <p className="px-3 py-4 text-[13px] text-text-secondary" role="status">
+            {emptyListNotice}
+          </p>
+        ) : (
+          <RoomLabelList
+            isViewerRole={list.isViewerRole}
+            onHover={list.onHover}
+            onSelect={list.onSelect}
+            rooms={list.rooms}
+            selectedRoomId={list.selectedRoomId}
+          />
+        )}
       </div>
     </div>
   );

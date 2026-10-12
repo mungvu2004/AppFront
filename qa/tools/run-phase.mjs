@@ -1,7 +1,9 @@
 // One deterministic run of a phase: typecheck, then the layers main → ui → api → edge, one Playwright
 // process each, strictly sequential (they share the real stack's rate limits), then the evidence check.
 // Usage (from qa/): node tools/run-phase.mjs --phase 01 --run-id run-03 [--layers main,ui,api,edge]
-//                   [--grep "SCR-01|SCR-02"] [--no-watch] [--no-typecheck]
+//                   [--grep "SCR-01|SCR-02"] [--no-watch] [--no-typecheck] [--workers N]
+// --workers N: Playwright workers for the ui/api/edge layers (files run in parallel, tests inside a file stay in
+// order); main is a serial chain and always gets 1. Default 1. Only for phases whose files are independent.
 // Default (config.defaults.watch): headed + config.defaults.slowMoMs, so the run can be watched; --no-watch = headless, slowMo 0.
 // Results: <resultsDir>/<runId>/<tag>[-api|-edge]/ (results.json, run.log, report/, artifacts/) and a
 // machine summary <resultsDir>/<runId>/<tag>/layers.json (also the last stdout line, prefixed LAYERS_JSON=).
@@ -26,6 +28,7 @@ const RUN_ID = opt('run-id', cfg.defaults.runId);
 const TAG = opt('tag', `phase${NN}`);
 const LAYERS = opt('layers', 'main,ui,api,edge').split(',').filter(Boolean);
 const GREP = opt('grep', '');
+const WORKERS = Math.max(1, Number(opt('workers', '1')) || 1);
 const WATCH = flag('no-watch') ? false : flag('watch') || cfg.defaults.watch !== false;
 const fill = (s) => s.replaceAll('{resultsDir}', cfg.resultsDir).replaceAll('{runId}', RUN_ID);
 
@@ -98,7 +101,7 @@ for (const layer of LAYERS) {
     continue;
   }
   mkdirSync(dir, { recursive: true });
-  const args = ['playwright', 'test', ...files, ...(WATCH ? ['--headed'] : []), ...(GREP ? ['--grep', GREP] : [])];
+  const args = ['playwright', 'test', ...files, ...(WATCH ? ['--headed'] : []), ...(GREP ? ['--grep', GREP] : []), '--workers', String(layer === 'main' ? 1 : WORKERS)];
   const t0 = Date.now();
   const log = createWriteStream(join(dir, 'run.log'));
   const code = await new Promise((done) => {

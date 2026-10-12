@@ -1259,6 +1259,8 @@ export const OBJECT_LAYER_TEXT = {
   attachNoWall: 'Không có tường nào đủ gần để gắn đối tượng này.',
   attachRefused: 'Không gắn được vào tường gần nhất.',
   addNoWall: 'Tầng này chưa có đoạn tường nào để đặt đối tượng mới lên.',
+  emptyNoWall:
+    'Tầng này chưa có đoạn tường nào, nên chưa có chỗ đặt cửa hay cửa sổ. Duyệt lớp tường trước rồi quay lại đây.',
   addRefused: 'Không thêm được đối tượng vào tường.',
   shortcutLayer: 'Đặt nhóm loại cho đối tượng đang chọn',
   shortcutSubtype: 'Đổi loại trong nhóm đang chọn',

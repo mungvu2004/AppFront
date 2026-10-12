@@ -37,6 +37,7 @@ import type { WallId } from '@/domain/spatial/types';
 import { millimetres } from '@/domain/units/types';
 import { formatArea, formatLength } from '@/lib/format/measure';
 import { MISSING_VALUE } from '@/lib/format/number';
+import { storeyInlineName } from '@/screens/viewer/ViewerShell/viewerStoreyStack';
 
 import {
   EXPLODE_PRESETS,
@@ -139,6 +140,7 @@ function buildFloor(
   return {
     id: def.id,
     name: def.name,
+    inlineName: storeyInlineName(def.name),
     elevationLabel: formatLength(millimetres(def.elevationMm), { unit: 'm' }),
     areaLabel: formatArea(def.areaM2),
     isVisible: true,
@@ -154,7 +156,6 @@ function buildTick(def: SampleFloorDef): ExplodedElevationTick {
   return {
     storeyId: def.id,
     fraction: def.elevationMm / STACK_TOP_MM,
-    label: formatLength(millimetres(def.elevationMm), { unit: 'm' }),
   };
 }
 
@@ -278,6 +279,7 @@ const PARTIAL_REVIEW_CAPTION = 'Tầng 02 chưa được người duyệt xác n
 
 const BASE: ExplodedViewProps = {
   state: 'success',
+  emptyMessage: 'Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.',
   separation: FULL_SEPARATION,
   activePresetId: presetFor(FULL_SEPARATION),
   presets: EXPLODE_PRESETS,

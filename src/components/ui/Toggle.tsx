@@ -66,7 +66,9 @@ export function Toggle(props: ToggleProps) {
 
   const defaultId = React.useId();
   const toggleId = id || defaultId;
-  const descId = [description ? `${toggleId}-desc` : undefined, props['aria-describedby']].filter(Boolean).join(' ') || undefined;
+  const descId = description ? `${toggleId}-desc` : undefined;
+  // The span below carries `descId` alone; the caller's ids follow it on the switch (BUG-196).
+  const describedBy = [descId, props['aria-describedby']].filter(Boolean).join(' ') || undefined;
 
   if (isLoading) {
     return (
@@ -85,28 +87,38 @@ export function Toggle(props: ToggleProps) {
       aria-checked={currentChecked}
       aria-label={!label ? ariaLabel : undefined}
       aria-labelledby={label ? `${toggleId}-label` : undefined}
-      aria-describedby={descId}
+      aria-describedby={describedBy}
       disabled={disabled || isReadOnly}
       onClick={() => {
         if (!disabled && !isReadOnly) toggle();
       }}
       className={cn(
-        'relative flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 outline-none transition-colors duration-180',
-        // Vùng bấm 36×24 (WCAG 2.5.8 không cần ngoại lệ khoảng cách) mà rãnh nhìn thấy vẫn 36×20:
-        // lớp giả trải 2 px trên và dưới, không đổi bố cục của hàng nào (nợ B #1, BUG-158).
-        'hit-y-24',
-        'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface focus-visible:animate-focus-ring',
-        // Rãnh tắt bằng `--border-control` (≥ 3:1 với nền và với núm, cả hai chủ đề — WCAG 1.4.11);
-        // `bg-sunken` cũ chỉ ~1,16:1 trên trắng nên công tắc tắt gần như vô hình.
-        currentChecked ? 'bg-accent' : 'bg-border-control',
+        // Hộp 36×24 thật (WCAG 2.5.8) mà rãnh nhìn thấy vẫn 36×20: lớp giả `::before` cũ cho vùng bấm 24
+        // nhưng hộp phần tử vẫn 20, nên mọi phép đo vùng chạm (getBoundingClientRect, axe) vẫn đọc 20 (BUG-158).
+        // `-my-0.5` trả lại 4 px ấy cho bố cục: hàng nào cũng giữ đúng chỗ như rãnh 20 px.
+        'group relative flex h-6 w-9 -my-0.5 shrink-0 items-center rounded-full outline-none',
         (disabled || isReadOnly) && 'cursor-not-allowed opacity-40',
       )}
     >
-      <motion.span
-        layout
-        transition={{ type: 'tween', ease: EASE.default, duration: durationSeconds('fast') }}
-        className="block h-4 w-4 rounded-full bg-bg-surface shadow-rest"
-      />
+      <span
+        className={cn(
+          'flex h-5 w-full items-center rounded-full p-0.5 transition-colors duration-180',
+          // The focus ring hugs the visible 36×20 track, 2 px off on every side — on the 36×24 box it sat 4 px
+          // above and below but 2 px at the sides, a pill fatter than the switch (review-1 #27).
+          'group-focus-visible:ring-2 group-focus-visible:ring-accent group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-bg-surface group-focus-visible:animate-focus-ring',
+          // Rãnh tắt bằng `--border-control` (≥ 3:1 với nền và với núm, cả hai chủ đề — WCAG 1.4.11);
+          // `bg-sunken` cũ chỉ ~1,16:1 trên trắng nên công tắc tắt gần như vô hình.
+          // `justify-end` moves the knob to the right when on; `layout` animates the move. It was lost
+          // with the old 20 px translate in d9bfe4a4, so an "on" switch kept its knob on the left.
+          currentChecked ? 'justify-end bg-accent' : 'bg-border-control',
+        )}
+      >
+        <motion.span
+          layout
+          transition={{ type: 'tween', ease: EASE.default, duration: durationSeconds('fast') }}
+          className="block h-4 w-4 rounded-full bg-bg-surface shadow-rest"
+        />
+      </span>
     </button>
   );
 

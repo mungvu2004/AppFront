@@ -145,15 +145,13 @@ export interface ProcessingLogLineViewModel {
 /* -------------------------------------------------------------------------- */
 
 export interface ProcessingSummaryViewModel {
-  /** Đã định dạng sẵn — ví dụ `"48 tường"`. */
-  readonly wallCountLabel: string;
-  readonly objectCountLabel: string;
-  readonly dimensionCountLabel: string;
-  readonly roomCountLabel: string;
-  /** Đã định dạng sẵn, dấu thập phân là dấu phẩy (A15) — ví dụ `"248,60 m²"`. */
-  readonly areaLabel: string;
-  /** Cả câu, đã ghép số — ví dụ `"Có 9 mức độ tin cậy dưới 0,75 cần bạn xem lại."`. */
-  readonly lowConfidenceSentence: string;
+  /**
+   * Tường, đối tượng, kích thước, phòng, diện tích — đã định dạng sẵn (A15), ví dụ `"48 tường"`,
+   * `"248,60 m²"`. Rỗng khi chưa đọc được số liệu: khối vẫn hiện để giữ hai lối đi tiếp.
+   */
+  readonly metricLabels: readonly string[];
+  /** Cả câu, đã ghép số — ví dụ `"Có 9 đối tượng có độ tin cậy dưới 0,75 cần bạn xem lại."`. */
+  readonly lowConfidenceSentence?: string;
   readonly onReviewWalls: () => void;
   readonly onCalibrateScale: () => void;
 }
@@ -184,6 +182,12 @@ export interface ProcessingErrorAlertViewModel {
   readonly technicalCode: string;
   readonly onRetry: () => void;
   readonly onGoToSupport: () => void;
+  /**
+   * Chính dự án trả 404: thử lại không sửa được, mã nội bộ không giúp gì — màn chỉ nói
+   * "không tìm thấy dự án" kèm lối về danh sách (BUG-312).
+   */
+  readonly isProjectMissing?: true;
+  readonly onBackToProjects?: () => void;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -209,8 +213,13 @@ export interface ProcessingScreenProps {
   readonly previewPanel: ProcessingPreviewViewModel;
   readonly logLines: readonly ProcessingLogLineViewModel[];
   readonly summary?: ProcessingSummaryViewModel;
-  /** Ví dụ `"Đã xong 2/4 tầng · Còn lại khoảng 4 phút 20 giây"`. */
+  /** Ví dụ `"Đã xong 2/4 tầng"` — đọc trong vùng `role=status`. */
   readonly overallSummaryLine: string;
+  /**
+   * Ví dụ `"Còn lại khoảng 4 phút 20 giây"`; `undefined` khi không còn gì để chờ. Hiện cùng dòng
+   * với `overallSummaryLine` nhưng NGOÀI vùng `role=status`: đổi theo giây, đọc lại liên tục (R1-03).
+   */
+  readonly remainingLine?: string;
   /** Ví dụ `"Đang chờ hàng đợi — vị trí 2"`. `undefined` khi không xếp hàng. */
   readonly queueLine?: string;
   /** Câu nói rõ xử lý VẪN TIẾP TỤC khi một tầng lỗi (mục [CẤM TUYỆT ĐỐI]). */
@@ -238,6 +247,8 @@ export interface ProcessingScreenProps {
   readonly prefersReducedMotion: boolean;
   /** Tên dự án cho breadcrumb, lấy từ bộ đệm (BUG-165). Vắng khi bộ đệm chưa có: breadcrumb bỏ cấp ấy. */
   readonly projectName?: string;
+  /** Cấp "Dự án" của đường dẫn về danh sách dự án (BUG-546). Vắng thì cấp đó là chữ thường. */
+  readonly onBackToProjects?: () => void;
 }
 
 /* -------------------------------------------------------------------------- */

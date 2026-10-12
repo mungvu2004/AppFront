@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store';
 import { UNDO_WINDOW_MS } from '../lib/mutations/undoTicket';
 
@@ -22,6 +22,14 @@ export interface UndoableToastState {
  *
  * A commit that hands over no undo raises no toast: a visible Undo that does
  * nothing is worse than no Undo at all.
+ *
+ * Only commits made after mount count. Each route that mounts its own
+ * `Toast.Provider` (/versions, export, project settings, dashboard, account)
+ * used to replay the store's last commit on arrival — an old wall edit showed
+ * "Hoàn tác" on /versions and its Undo ran `temporal.undo()` there. The commit
+ * present at mount is recognised by its undo closure, which `commit()` and
+ * `commitRuleConfig` create fresh per commit (a timestamp can repeat within a
+ * millisecond).
  */
 export function useUndoableToast(): UndoableToastState | null {
   const lastCommitLabel = useStore((state) => state.lastCommitLabel);
@@ -29,9 +37,10 @@ export function useUndoableToast(): UndoableToastState | null {
   const lastCommitUndo = useStore((state) => state.lastCommitUndo);
 
   const [toast, setToast] = useState<UndoableToastState | null>(null);
+  const undoAtMount = useRef(lastCommitUndo);
 
   useEffect(() => {
-    if (lastCommitLabel && lastCommitTimestamp && lastCommitUndo) {
+    if (lastCommitLabel && lastCommitTimestamp && lastCommitUndo && lastCommitUndo !== undoAtMount.current) {
       setToast({
         isVisible: true,
         label: lastCommitLabel,

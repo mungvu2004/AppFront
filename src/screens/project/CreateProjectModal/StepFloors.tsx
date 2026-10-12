@@ -9,6 +9,7 @@
  */
 
 import { Building2, Plus, Trash2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -18,6 +19,7 @@ import { Input } from '@/components/ui/Input';
 import { NumericField } from '@/components/ui/NumericField';
 import { Table } from '@/components/ui/Table';
 import { Toggle } from '@/components/ui/Toggle';
+import { Tooltip } from '@/components/ui/Tooltip';
 import { cn } from '@/lib/utils';
 
 import {
@@ -30,6 +32,14 @@ import {
 /** Cell padding: tighter below `sm`, where the dialog is the viewport minus its gutter. */
 const CELL_PAD = 'px-1.5 sm:px-3';
 
+/**
+ * Lines the controls of a row up on the top of their fields, not on the middle of a row
+ * a field's error made taller (BUG-230): body cells align top, and what is not a field
+ * sits in a box as tall as one (`Input`: 46 px below `sm`, 38 px from it), centred.
+ */
+const ROW_CELL = cn(CELL_PAD, 'align-top');
+const FIELD_HIGH = 'flex h-[46px] sm:h-[38px] items-center';
+
 export interface StepFloorsProps extends CreateProjectModalViewProps {
   readonly rowRefs: React.MutableRefObject<Map<string, HTMLTableRowElement>>;
 }
@@ -37,6 +47,22 @@ export interface StepFloorsProps extends CreateProjectModalViewProps {
 export function StepFloors(props: StepFloorsProps) {
   const { floorRows, isSubmitting, rowRefs } = props;
   const collisionRowId = props.collisionRowId;
+  // Bumped by every "Áp cho mọi tầng": the row fields drop a refused text even when the applied height equals
+  // the one a row already held (no value change for the field to see). `resetKey`, not `key`: no remount.
+  const [applyCount, setApplyCount] = useState(0);
+  // The click that adds the 50th floor locks "Thêm tầng" under the focus, which would fall to <body>:
+  // hand it to the name of the floor just added (the last row) instead.
+  const focusAddedName = useRef(false);
+  useEffect(() => {
+    if (!focusAddedName.current) return;
+    focusAddedName.current = false;
+    const added = floorRows.at(-1);
+    if (added) rowRefs.current.get(added.id)?.querySelector('input')?.focus();
+  }, [floorRows, rowRefs]);
+  const addFloor = (): void => {
+    focusAddedName.current = floorRows.length + 1 >= PROJECT_LIMITS.floorCountMax;
+    props.addFloor();
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -83,8 +109,9 @@ export function StepFloors(props: StepFloorsProps) {
           {/* Fits the dialog at every width, 375 px included (BUG-110): the two fields
               take `w-full` so they shrink with their column instead of forcing the
               table wider than the dialog, the long header may wrap, and cells pad
-              tighter below `sm`. */}
-          <Table.Root>
+              tighter below `sm`. Not a scroll box of its own (`overflow-visible`): the dialog
+              body scrolls, so the sticky column headers stay on top of a long list (BUG-202). */}
+          <Table.Root className="h-auto overflow-visible">
             <Table.Header>
               <tr>
                 <Table.Head className={CELL_PAD}>Tầng</Table.Head>
@@ -103,7 +130,7 @@ export function StepFloors(props: StepFloorsProps) {
                   }}
                   isAttention={row.problem !== null || row.nameProblem !== null}
                 >
-                  <Table.Cell className={CELL_PAD}>
+                  <Table.Cell className={ROW_CELL}>
                     <Input
                       className="w-full"
                       value={row.name}
@@ -113,8 +140,9 @@ export function StepFloors(props: StepFloorsProps) {
                       aria-label={`Tên tầng ${row.name}`}
                     />
                   </Table.Cell>
-                  <Table.Cell className={CELL_PAD}>
+                  <Table.Cell className={ROW_CELL}>
                     <NumericField
+                      resetKey={applyCount}
                       className="w-full"
                       value={row.clearHeightM ?? undefined}
                       onChange={(value) => props.setFloorHeight(row.id, value)}
@@ -126,40 +154,53 @@ export function StepFloors(props: StepFloorsProps) {
                       {...(row.problem !== null ? { error: row.problem } : {})}
                     />
                   </Table.Cell>
-                  <Table.Cell className={cn(CELL_PAD, 'text-text-secondary')}>{row.elevationLabel ?? '—'}</Table.Cell>
-                  <Table.Cell className={CELL_PAD}>
-                    <IconButton
-                      icon={<Trash2 size={16} aria-hidden="true" />}
-                      aria-label={`Xoá ${row.name}`}
-                      onClick={() => props.removeFloor(row.id)}
-                      disabled={isSubmitting}
-                    />
+                  <Table.Cell className={cn(ROW_CELL, 'text-text-secondary')}>
+                    <span className={FIELD_HIGH}>{row.elevationLabel ?? '—'}</span>
+                  </Table.Cell>
+                  <Table.Cell className={ROW_CELL}>
+                    <span className={FIELD_HIGH}>
+                      {/* Its tooltip to the left: on top, the first row's covered the "Cao độ" column header (BUG-232). */}
+                      <Tooltip label={`Xoá ${row.name}`} side="left" disabled={isSubmitting}>
+                        <IconButton
+                          icon={<Trash2 size={16} aria-hidden="true" />}
+                          aria-label={`Xoá ${row.name}`}
+                          onClick={() => props.removeFloor(row.id)}
+                          disabled={isSubmitting}
+                          tooltip={false}
+                        />
+                      </Tooltip>
+                    </span>
                   </Table.Cell>
                 </Table.Row>
               ))}
             </Table.Body>
           </Table.Root>
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="flex flex-col gap-1">
+          {/* Above the locked "Thêm tầng", not under it: wherever that button is in view, so is the
+              reason, never cut by the footer or faded under the body's bottom edge (BUG-231). */}
+          {props.floorCapNote !== null && (
+            <p id={FLOOR_CAP_NOTE_ID} className="text-[13px] leading-[18px] text-text-secondary">
+              {props.floorCapNote}
+            </p>
+          )}
+          {/* Both buttons line up with the apply field's box, not with its error line (BUG-230):
+              stacked below `sm`, side by side from it, each pushed down past the field's label. */}
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between">
+            {/* `mt-7`: the apply field's label above its box (`Input`: 20 px line + 8 px gap). */}
+            <span className={cn(FIELD_HIGH, 'sm:mt-7')}>
               <Button
                 variant="secondary"
                 size="sm"
                 iconBefore={<Plus size={16} aria-hidden="true" />}
-                onClick={props.addFloor}
+                onClick={addFloor}
                 disabled={isSubmitting || !props.canAddFloor}
                 aria-describedby={props.floorCapNote !== null ? FLOOR_CAP_NOTE_ID : undefined}
               >
                 Thêm tầng
               </Button>
-              {props.floorCapNote !== null && (
-                <p id={FLOOR_CAP_NOTE_ID} className="text-[13px] leading-[18px] text-text-secondary">
-                  {props.floorCapNote}
-                </p>
-              )}
-            </div>
-            <div className="flex items-end gap-2">
+            </span>
+            <div className="flex items-start gap-2">
               <NumericField
-                label="Chiều cao áp cho mọi tầng"
+                label={<span className="whitespace-nowrap">Chiều cao áp cho mọi tầng</span>}
                 className="w-full"
                 value={props.applyHeightM ?? undefined}
                 onChange={props.setApplyHeightM}
@@ -168,14 +209,19 @@ export function StepFloors(props: StepFloorsProps) {
                 unit="m"
                 disabled={isSubmitting}
               />
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={props.applyHeightToAllFloors}
-                disabled={isSubmitting || !props.canApplyHeight}
-              >
-                Áp cho mọi tầng
-              </Button>
+              <span className={cn(FIELD_HIGH, 'mt-7')}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    props.applyHeightToAllFloors();
+                    setApplyCount((count) => count + 1);
+                  }}
+                  disabled={isSubmitting || !props.canApplyHeight}
+                >
+                  Áp cho mọi tầng
+                </Button>
+              </span>
             </div>
           </div>
         </>

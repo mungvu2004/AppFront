@@ -24,7 +24,7 @@
     },
     "forbidden": {
       "title": "Không có quyền",
-      "description": "Tài khoản của bạn chưa được phép làm thao tác này. Liên hệ quản trị dự án."
+      "description": "Tài khoản của bạn chưa có quyền xem hoặc thay đổi nội dung này. Liên hệ quản trị dự án."
     },
     "notFound": {
       "title": "Không tìm thấy",
@@ -60,7 +60,7 @@
     },
     "unknown": {
       "title": "Có trục trặc",
-      "description": "Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại thao tác vừa làm."
+      "description": "Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại sau ít phút."
     }
   },
   "autosave": {
@@ -78,6 +78,7 @@
     "unnamedRoom": "Có phòng chưa đặt tên nên chưa lưu được tầng này. Đặt tên cho phòng đó rồi lưu lại.",
     "unknown": "Không lưu được thay đổi của tầng này.",
     "reloadFailed": "Không tải lại được tầng này. Thử lại sau.",
+    "reloadDiscarded": "Đã tải lại bản mới nhất của tầng; các thay đổi chưa lưu đã bị bỏ.",
     "scaleRedirtied": "Tỉ lệ tầng này vừa đổi trong lúc bạn sửa. Tải lại để sửa trên số đo mới."
   },
   "provisionalScale": {
@@ -253,9 +254,11 @@
         "emptyTitle": "Chưa có tầng nào",
         "emptyDescription": "Thêm ít nhất một tầng để sang bước xem lại.",
         "continueHint": "Nhập chiều cao thông thuỷ cho từng tầng, hoặc dùng \"Áp cho mọi tầng\", để sang bước xem lại.",
+        "continueFixHint": "Sửa các tầng đang báo lỗi để sang bước xem lại.",
         "missingName": "Chưa nhập tên tầng.",
         "missingHeight": "Chưa nhập chiều cao thông thuỷ.",
         "missingHeightBelow": "Chưa tính được cao độ vì tầng bên dưới còn thiếu chiều cao hợp lệ.",
+        "elevationBelowOutOfRange": "Chưa tính được cao độ vì một tầng bên dưới đã vượt giới hạn cao độ.",
         "elevationOutOfRange": "Cao độ vượt giới hạn cho phép ({{min}} đến {{max}} mét)."
       },
       "problems": {
@@ -308,7 +311,7 @@
       "general": {
         "name": "Tên dự án",
         "code": "Mã dự án",
-        "codeHint": "Mã ngắn để tra cứu nhanh; bỏ trống cũng được",
+        "codeHint": "Mã ngắn để tra cứu nhanh",
         "address": "Địa chỉ",
         "buildingType": "Loại công trình",
         "notes": "Ghi chú",
@@ -389,12 +392,13 @@
         "addressTooLong": "Địa chỉ không quá {{max}} ký tự.",
         "notesTooLong": "Ghi chú không quá {{max}} ký tự.",
         "snapRequired": "Chưa nhập dung sai bắt điểm.",
-        "emptyBlocked": "Bản này chưa xoá trống được.",
+        "emptyBlocked": "Giá trị đã lưu không xoá trống được; hãy nhập giá trị khác.",
         "snapNotInteger": "Dung sai bắt điểm phải là số nguyên.",
         "snapOutOfRange": "Dung sai bắt điểm áp dụng từ {{min}} đến {{max}}.",
         "confidenceOutOfRange": "Ngưỡng tin cậy nằm trong khoảng {{min}} đến {{max}}.",
         "scaleRequired": "Chưa nhập tỉ lệ bản vẽ.",
-        "scaleOutOfRange": "Tỉ lệ bản vẽ áp dụng từ {{min}} đến {{max}} milimét trên mỗi điểm ảnh."
+        "scaleOutOfRange": "Tỉ lệ bản vẽ áp dụng từ {{min}} đến {{max}} milimét trên mỗi điểm ảnh.",
+        "forbiddenChar": "{{field}} có {{kind}} ({{codePoint}}); hãy xoá ký tự đó."
       },
       "load": {
         "errorTitle": "Không tải được cài đặt dự án",
@@ -402,9 +406,10 @@
         "retry": "Thử lại",
         "conflictTitle": "Cài đặt đã đổi ở nơi khác",
         "conflictMessage": "Cài đặt dự án vừa được đổi ở nơi khác. Tải lại để xem bản mới nhất.",
-        "fieldRejected": "Máy chủ không nhận giá trị này. Kiểm tra lại ô này.",
-        "partGeneral": "Thông tin chung",
-        "partUnits": "Đơn vị đo",
+        "fieldRejected": "Giá trị này chưa hợp lệ nên chưa được lưu; hãy sửa lại.",
+        "unsavedProblems": "Chưa lưu vì còn ô cần sửa",
+        "chipRejected": "Chưa lưu vì còn ô cần sửa",
+        "chipReload": "Chưa lưu: cần tải lại bản mới nhất",
         "reloadDialogMessage": "Những thay đổi chưa lưu trên màn này sẽ mất, và bản mới nhất từ máy chủ sẽ thay vào chỗ đó.",
         "reloadDialogTitle": "Tải lại sẽ bỏ thay đổi chưa lưu",
         "reloadKeep": "Giữ thay đổi",
@@ -420,14 +425,6 @@
     },
     "graphReloadFailed": "Không tải lại được mô hình.",
     "graphReloadRetry": "Thử lại"
-  },
-  "dashboard": {
-    "stats": {
-      "all": "Tổng dự án",
-      "done": "Hoàn thành",
-      "qc": "Cần QC",
-      "processing": "Đang xử lý"
-    }
   },
   "account": {
     "title": "Cài đặt tài khoản",
@@ -668,17 +665,19 @@
     },
     "status": {
       "waiting": "Chờ xử lý",
+      "noDrawing": "Chưa có bản vẽ",
       "uploading": "Đang tải lên",
       "attached": "Đã gắn kèm",
       "error": "Lỗi"
     },
-    "cadPill": "Nhánh CAD · độ chính xác cao",
+    "cadPill": "Bản vẽ CAD · độ chính xác cao",
     "autoMatch": "Ghép tự động từ tên tệp — kiểm tra lại",
     "unassignedTray": "Tệp chưa gán tầng",
     "emptyState": "Chưa có tầng nào có bản vẽ. Kéo thả tệp đầu tiên để bắt đầu.",
     "noFloors": {
       "title": "Dự án chưa có tầng nào",
-      "description": "Bản vẽ được gán theo tầng. Thêm tầng ở màn Quản lý tầng; tệp thả vào trước đó chờ ở mục “Tệp chưa gán tầng”."
+      "description": "Bản vẽ được gán theo tầng. Thêm tầng ở màn Quản lý tầng rồi quay lại đây để tải bản vẽ.",
+      "action": "Thêm tầng"
     },
     "offlineBanner": "Đang làm việc ngoại tuyến",
     "footer": {
@@ -688,9 +687,11 @@
     "blockedSubmit": {
       "title": "Không thể bắt đầu xử lý",
       "missingFile": "Tầng {{floorName}} chưa có bản vẽ.",
+      "missingPage": "Tầng {{floorName}} chưa chọn trang của bản vẽ.",
       "missingElevation": "Tầng {{floorName}} chưa nhập cao độ.",
       "duplicateElevation": "Hai tầng {{floor1}} và {{floor2}} có cùng cao độ {{elevation}}.",
-      "uploading": "Tầng {{floorName}} đang tải lên bản vẽ."
+      "uploading": "Tầng {{floorName}} đang tải lên bản vẽ.",
+      "noFloors": "Dự án chưa có tầng nào. Thêm tầng ở màn Quản lý tầng trước khi xử lý."
     },
     "removeAction": {
       "aria": "Xoá bản vẽ {{fileName}}",
@@ -929,8 +930,8 @@
       "ariaLabel": "Báo cáo tổng kết",
       "reviewWalls": "Duyệt lớp tường",
       "calibrateScale": "Hiệu chỉnh tỷ lệ",
-      "lowConfidence": "Có {{count}} mức độ tin cậy dưới {{threshold}} cần bạn xem lại.",
-      "noLowConfidence": "Không có mức độ tin cậy nào dưới {{threshold}}."
+      "lowConfidence": "Có {{count}} đối tượng có độ tin cậy dưới {{threshold}} cần bạn xem lại.",
+      "noLowConfidence": "Không có đối tượng nào có độ tin cậy dưới {{threshold}}."
     },
     "missingProject": {
       "title": "Không xác định được dự án",
@@ -1058,13 +1059,12 @@
       "canvasAltPrefix": "Bản vẽ đã nắn của ",
       "canvasAltEmpty": "Chưa có bản vẽ nào để hiệu chỉnh.",
       "panelAriaLabel": "Bảng hiệu chỉnh tỷ lệ",
-      "sheetAriaLabel": "Tấm trượt hiệu chỉnh tỷ lệ",
       "collapse": "Thu gọn bảng",
       "expand": "Bung bảng"
     },
     "currentScale": {
       "title": "Tỷ lệ hiện tại",
-      "unknownValue": "chưa có",
+      "unknownValue": "Chưa có",
       "derivedLine": "1 pixel = {{millimetres}} · bản vẽ ở tỷ lệ khoảng {{ratio}}",
       "derivedLineUnknown": "Chưa đủ dữ liệu để suy ra tỷ lệ nguyên đồ"
     },
@@ -1098,6 +1098,7 @@
       "realLengthPlaceholder": "4800",
       "realLengthHint": "OCR đọc được {{value}} ngay cạnh đoạn này.",
       "realLengthNoHint": "Không có chuỗi kích thước nào gần đoạn này để gợi ý.",
+      "realLengthInvalid": "Chiều dài thật phải là một số lớn hơn 0, ví dụ 4800.",
       "remeasure": "Đo lại",
       "snapped": "Đã bắt vào {{target}}",
       "snapTarget": {
@@ -1162,12 +1163,12 @@
     },
     "shortcuts": {
       "title": "Phím tắt",
-      "cancelDrag": "huỷ đoạn đang kéo",
-      "axisLock": "khoá đoạn theo trục",
-      "remeasure": "đo lại",
-      "confirm": "xác nhận",
-      "nudgeFine": "nhích đầu đoạn một pixel",
-      "nudgeCoarse": "nhích đầu đoạn mười pixel"
+      "cancelDrag": "Huỷ đoạn đang kéo",
+      "axisLock": "Khoá đoạn theo trục",
+      "remeasure": "Đo lại",
+      "confirm": "Xác nhận",
+      "nudgeFine": "Nhích đầu đoạn một pixel",
+      "nudgeCoarse": "Nhích đầu đoạn mười pixel"
     },
     "state": {
       "emptyTitle": "Chưa có chuỗi kích thước nào để đối chiếu",
@@ -1180,6 +1181,8 @@
       "errorDescription": "Tỷ lệ đo trên một bản vẽ méo sẽ sai theo. Quay lại bước tiền xử lý để nắn lại ảnh, rồi hiệu chỉnh tỷ lệ.",
       "errorBackToPreprocessing": "Quay lại bước tiền xử lý",
       "errorRetry": "Tải lại ảnh",
+      "noDrawingTitle": "Tầng này chưa có bản vẽ",
+      "noDrawingDescription": "Chưa có bản vẽ nào được tải lên cho tầng này. Tải bản vẽ lên và chờ bước tiền xử lý xong rồi mới hiệu chỉnh tỷ lệ.",
       "successTitle": "Đã áp tỷ lệ cho bản vẽ",
       "successDescription": "Mọi kích thước dẫn xuất đã được tính lại theo tỷ lệ mới.",
       "successBadge": "đã duyệt",
@@ -1621,6 +1624,8 @@
       "emptyTitle": "Chưa nhận ra đối tượng nào",
       "emptyExplanation": "Nhận diện nội thất phụ thuộc kiểu vẽ của bản gốc, nên bản vẽ ít ký hiệu quy ước có thể không ra kết quả nào.",
       "emptyAction": "Thêm thủ công",
+      "emptyNoWall": "Tầng này chưa có đoạn tường nào, nên chưa có chỗ đặt cửa hay cửa sổ. Duyệt lớp tường trước rồi quay lại đây.",
+      "openWallLayerAction": "Sang duyệt tường",
       "partialNotice": "{{count}} mục dưới ngưỡng tin cậy, đã lọc sẵn",
       "furnitureAttention": "Nhận diện nội thất lỗi, cửa vẫn xong",
       "success": "{{total}}/{{total}} đối tượng đã duyệt",
@@ -1720,7 +1725,7 @@
         },
         "r": {
           "label": "R",
-          "description": "Bật chế độ duyệt bàn phím"
+          "description": "Bật hoặc tắt chế độ duyệt bàn phím"
         }
       }
     },
@@ -1789,7 +1794,8 @@
       "offsetXPixels": "Lệch X (pixel)",
       "offsetYPixels": "Lệch Y (pixel)",
       "offsetXMm": "Lệch X (mm)",
-      "offsetYMm": "Lệch Y (mm)"
+      "offsetYMm": "Lệch Y (mm)",
+      "unavailable": "Chưa có trục nào nên chưa tính được gốc toạ độ."
     },
     "alignmentPanel": {
       "title": "Căn chỉnh giữa các tầng",
@@ -1800,7 +1806,8 @@
         "cannotAlign": "Không căn được"
       },
       "rootFloorLabel": "Tầng gốc",
-      "rowAriaLabel": "{{floorName}}, lệch {{offset}} mm, {{status}}"
+      "rowAriaLabel": "{{floorName}}, lệch {{offset}} mm, {{status}}",
+      "unavailable": "Chưa có trục nào nên chưa căn chỉnh được giữa các tầng."
     },
     "warning": {
       "title": "Cảnh báo lệch quá ngưỡng",
@@ -1857,7 +1864,9 @@
       "ariaLabel": "Khung xem bản vẽ quản lý trục và gốc toạ độ",
       "originLabel": "Gốc toạ độ 0,0",
       "axisAriaLabel": "Trục {{code}}, {{description}}",
-      "shadowFloorAriaLabel": "Bóng ma tầng {{floorName}}"
+      "shadowFloorAriaLabel": "Bóng ma tầng {{floorName}}",
+      "emptyNotice": "Chưa có trục nào để hiện trên bản vẽ.",
+      "errorNotice": "Chưa vẽ được trục vì lớp trục của tầng này chưa đọc được."
     }
   },
   "floorManager": {
@@ -1963,12 +1972,14 @@
       "reorderToast": "Đã đổi thứ tự tầng."
     },
     "capability": {
-      "sessionOnlyHeading": "Những thay đổi chỉ sống trong phiên làm việc này",
-      "persistFloorContents": "Nội dung tầng (tường, phòng, nội thất) mới chỉ đổi trong phiên làm việc này; hệ thống chưa có chỗ lưu nó nên nó mất sau khi tải lại trang.",
-      "hideFloorFrom3d": "Ẩn tầng khỏi mô hình 3D chỉ có hiệu lực trong phiên làm việc này; hệ thống chưa có chỗ lưu lựa chọn đó nên nó mất sau khi tải lại trang."
+      "sessionOnlyTitle": "Một số thay đổi chưa được lưu",
+      "persistFloorContents": "Tường, phòng và nội thất đi theo khi nhân bản hay xoá tầng chưa được lưu; tải lại trang sẽ mất phần thay đổi đó.",
+      "hideFloorFrom3d": "Tầng đang ẩn khỏi mô hình 3D sẽ hiện lại sau khi tải lại trang."
     },
     "caption": {
-      "elevationRule": "Cao độ tính tự động từ chiều cao các tầng dưới trừ khi ghi đè."
+      "elevationRule": "Cao độ tính tự động từ chiều cao các tầng dưới.",
+      "elevationManual": "Cao độ đang nhập tay; ô ghi \"Ghi đè\" khác cao độ tính từ các tầng dưới.",
+      "elevationOverridden": "Ghi đè"
     },
     "route": {
       "missingProjectTitle": "Thiếu mã dự án",
@@ -2044,6 +2055,7 @@
       "unnamedFilter": "Chưa đặt tên",
       "gapsTitle": "Vòng tường hở",
       "gapsEmpty": "Chưa thấy vòng tường hở nào ở tầng này.",
+      "gapsEmptyUnclosedRooms": "Các đầu tường đều đã nối, nhưng {{count}} phòng chưa kín vì có cạnh không có tường chạy dọc — chọn phòng để xem nhắc công năng.",
       "gapWalls": "Tường liên quan",
       "checkGaps": "Kiểm tra lại vòng hở",
       "navigateWalls": "Xem tại lớp tường",
@@ -2077,6 +2089,7 @@
     },
     "fields": {
       "area": "Diện tích",
+      "areaCaption": "Diện tích sàn đo trong mép thông thuỷ của ranh phòng.",
       "perimeter": "Chu vi phòng",
       "clearHeight": "Chiều cao thông thuỷ",
       "clearHeightMissing": "Chưa có số đo chiều cao thông thuỷ cho phòng này.",
@@ -2099,7 +2112,8 @@
     },
     "normalize": {
       "title": "Xem trước chuẩn hoá tên",
-      "tableCaption": "Những tên sẽ đổi khi áp",
+      "changedSummary": "Bấm \"Áp dụng\" để đổi {{count}} tên phòng như bảng dưới.",
+      "tableCaption": "Tên phòng trước và sau khi chuẩn hoá",
       "columnCode": "Mã phòng",
       "columnFrom": "Tên hiện tại",
       "columnTo": "Tên sẽ thành",
@@ -2378,7 +2392,7 @@
     "regionLabel": "Thanh tra đối tượng",
     "groups": {
       "geometry": "Kích thước hình học",
-      "material": "Vật liệu",
+      "material": "Thông tin chung",
       "relations": "Quan hệ",
       "inspection": "Kiểm tra",
       "advanced": "Thông số nâng cao"
@@ -2864,6 +2878,7 @@
     "canvasRegionLabel": "Khung đối chiếu bản vẽ gốc và mô hình",
     "noticeRegionLabel": "Trạng thái của màn đối chiếu bản vẽ",
     "scaleFixLinkLabel": "Sang màn hiệu chỉnh tỷ lệ",
+    "uploadLinkLabel": "Tải bản vẽ lên",
     "confirm": {
       "button": "Xác nhận mô hình khớp bản vẽ",
       "withinTolerance": "Mọi vùng nằm trong dung sai, và bạn đã xác nhận tầng này khớp bản vẽ.",
@@ -2889,6 +2904,7 @@
       "errorScale": "Không căn được vì hai tầng đang dùng tỷ lệ khác nhau.",
       "forbidden": "Bạn chỉ được xem; việc đổi căn chỉnh dành cho người có quyền sửa.",
       "loading": "Đang tải ảnh bản vẽ gốc.",
+      "noDrawing": "Tầng này chưa có bản vẽ nào nên chưa có gì để đối chiếu. Tải bản vẽ lên rồi quay lại đây.",
       "noFloor": "Dự án này chưa có tầng nào để đối chiếu.",
       "partialDeviation": "Còn {{count}} vùng vượt dung sai.",
       "partialGeometry": "Còn {{count}} tầng chưa dựng hình học.",
@@ -2932,6 +2948,7 @@
     "captureButton": "Chụp ảnh khung nhìn",
     "notice": {
       "empty": "Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.",
+      "noModel": "Mô hình 3D sẽ xuất hiện sau khi bạn duyệt lớp tường.",
       "loading": "Đang tách các tầng...",
       "error": "Không tách được các tầng lúc này. Vui lòng thử lại sau.",
       "forbidden": "Bạn đang xem ở vai người xem nên không sửa được vị trí tầng."
