@@ -9,7 +9,11 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import {
+  createSampleBuilding,
+  sampleLevelId,
+  sampleWallId,
+} from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 
 import { diffScenes, isEmptyDiff } from '../diff';
@@ -155,6 +159,139 @@ describe('createPascalEditCommand', () => {
         ? change.after.thicknessMm
         : null,
     ).toBe(330);
+  });
+
+  it('C2 — tường đổi hình học qua Pascal thì MẤT dấu xác minh', () => {
+    const wall = baseScene.nodes[firstWallId];
+
+    if (wall === undefined || wall.type !== 'wall') {
+      throw new Error('cảnh nền phải có ít nhất một tường');
+    }
+
+    /* Tường ĐÃ được người duyệt xác minh — đúng thứ A5 cho phép, vì dấu ấy do
+       AppFront viết ra chứ không do Pascal. Rồi Pascal kéo nó đi chỗ khác. */
+    const reviewedThenMoved = {
+      ...wall,
+      end: [wall.end[0] + 1.5, wall.end[1]] as [number, number],
+      metadata: { appfront: { confidence: 1, source: 'human' as const, reviewed: true } },
+    };
+    const reviewedGraph = normalizeSpatial({
+      ...createSampleBuilding(),
+      walls: createSampleBuilding().walls.map((candidate, index) =>
+        index === 0 ? { ...candidate, source: 'human' as const, reviewed: true } : candidate,
+      ),
+    });
+
+    const result = createPascalEditCommand({
+      graph: reviewedGraph,
+      scene: sceneWith(firstWallId, reviewedThenMoved),
+      commit: { origin: 'local', changedNodeIds: [firstWallId] },
+      actorId: ACTOR,
+    });
+
+    expect(result.ok).toBe(true);
+
+    const change = result.ok ? result.data.changes[0] : null;
+
+    // Ảnh chụp "trước" giữ nguyên sự thật: tường ấy ĐÃ được duyệt.
+    expect(change?.before?.reviewed).toBe(true);
+    // Còn bản sau một lượt kéo thì không còn là bức tường người duyệt đã nhìn.
+    expect(change?.after?.reviewed).toBe(false);
+  });
+
+  it('3A — kéo một đầu tường kéo theo tường nối: CẢ HAI vào cùng một lệnh', () => {
+    /* `nodes/src/wall/move-endpoint-tool.tsx:150-200` dời đầu của mọi tường
+       chung điểm trong CÙNG một lượt ghi, nên cảnh gửi sang đây mang hai node
+       đã đổi. Bài này chứng minh đường lưu không đánh rơi tường thứ hai: một
+       lệnh, hai thay đổi, tức một lần Ctrl+Z trả lại cả hai.
+
+       Bộ mẫu A14 không dùng được: 48 tường của nó rải vòng qua 4 tầng
+       (`sampleLevelOf` = `index % 4`), nên không hai tường nào CÙNG TẦNG chung
+       một điểm — mà cùng tầng là điều kiện của chính công cụ ấy. */
+    const corner = { x: 4000, y: 0 };
+    const linkedBuilding = {
+      building: { confidence: 1, source: 'human' as const, reviewed: false, name: 'Hai tường', datumElevationMm: 0 },
+      levels: [
+        {
+          confidence: 1,
+          source: 'human' as const,
+          reviewed: false,
+          elevationMm: 0,
+          heightMm: 3000,
+          id: sampleLevelId(0),
+          name: 'Tầng 1',
+          order: 0,
+        },
+      ],
+      walls: [
+        {
+          confidence: 1,
+          source: 'human' as const,
+          reviewed: false,
+          centreline: { start: { x: 0, y: 0 }, end: corner },
+          heightMm: 3000,
+          id: sampleWallId(0),
+          kind: 'partition' as const,
+          levelId: sampleLevelId(0),
+          openingIds: [],
+          thicknessMm: 200,
+        },
+        {
+          confidence: 1,
+          source: 'human' as const,
+          reviewed: false,
+          centreline: { start: corner, end: { x: 4000, y: 4000 } },
+          heightMm: 3000,
+          id: sampleWallId(1),
+          kind: 'partition' as const,
+          levelId: sampleLevelId(0),
+          openingIds: [],
+          thicknessMm: 200,
+        },
+      ],
+      openings: [],
+      furniture: [],
+      rooms: [],
+      axes: [],
+      dimensions: [],
+      notes: [],
+    };
+
+    const linkedGraph = normalizeSpatial(linkedBuilding);
+    const { scene } = toPascalScene(linkedBuilding);
+    const [firstId, secondId] = Object.values(scene.nodes)
+      .filter((node) => node.type === 'wall')
+      .map((node) => node.id);
+
+    if (firstId === undefined || secondId === undefined) {
+      throw new Error('cảnh phải có đúng hai tường');
+    }
+
+    const left = scene.nodes[firstId];
+    const right = scene.nodes[secondId];
+
+    if (left === undefined || left.type !== 'wall' || right === undefined || right.type !== 'wall') {
+      throw new Error('cảnh phải có đúng hai tường');
+    }
+
+    // Một lượt kéo góc: điểm chung đi 0,4 m theo cả hai trục.
+    const moved: [number, number] = [left.end[0] + 0.4, left.end[1] + 0.4];
+    const nodes: Record<string, PascalNode> = {
+      ...scene.nodes,
+      [firstId]: { ...left, end: moved },
+      [secondId]: { ...right, start: moved },
+    };
+
+    const result = createPascalEditCommand({
+      graph: linkedGraph,
+      scene: { nodes, rootNodeIds: scene.rootNodeIds },
+      commit: { origin: 'local', changedNodeIds: [firstId, secondId] },
+      actorId: ACTOR,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.ok ? result.data.changes : []).toHaveLength(2);
+    expect(result.ok ? result.data.description : '').toBe('Từ màn Pascal: sửa tường 2.');
   });
 
   it('xoá một tường thành lệnh xoá mang ảnh chụp cũ, nên hoàn tác được', () => {

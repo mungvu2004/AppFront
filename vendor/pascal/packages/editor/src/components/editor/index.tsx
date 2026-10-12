@@ -35,7 +35,7 @@ import {
 } from 'react'
 import { ViewerOverlay } from '../../components/viewer-overlay'
 import { ViewerZoneSystem } from '../../components/viewer-zone-system'
-import { type SaveStatus, useAutoSave } from '../../hooks/use-auto-save'
+import { type CommitVerdict, type SaveStatus, useAutoSave } from '../../hooks/use-auto-save'
 import { useKeyboard } from '../../hooks/use-keyboard'
 import { useSaveShortcut } from '../../hooks/use-save-shortcut'
 import {
@@ -215,6 +215,20 @@ export interface EditorProps {
   onSaveShortcut?: () => boolean | undefined
   onDirty?: () => void
   onSaveStatusChange?: (status: SaveStatus) => void
+  /**
+   * Host rule check, run on the edited graph before the edit is adopted
+   * (AppFront F-15, decision 6A). A rejection undoes the operation and the
+   * message is handed back through `onCommitRejected`.
+   */
+  validateCommit?: (scene: SceneGraph) => CommitVerdict
+  /** What to show when `validateCommit` refuses an edit. */
+  onCommitRejected?: (message: string) => void
+  /**
+   * Viewer role: the scene store takes a read-only lease, so every write
+   * action is a no-op, the edit tools never arm, and the panels that already
+   * read `useScene(s => s.readOnly)` hide their edit affordances.
+   */
+  readOnly?: boolean
 
   // Version preview
   previewScene?: SceneGraph
@@ -1272,6 +1286,9 @@ function EditorContent({
   onSaveShortcut,
   onDirty,
   onSaveStatusChange,
+  validateCommit,
+  onCommitRejected,
+  readOnly = false,
   previewScene,
   isVersionPreviewMode = false,
   isLoading = false,
@@ -1319,6 +1336,8 @@ function EditorContent({
     onDirty,
     onSaveStatusChange,
     isVersionPreviewMode,
+    validateCommit,
+    onCommitRejected,
   })
 
   const handleSaveShortcut = useCallback(() => {
@@ -1439,6 +1458,15 @@ function EditorContent({
     useEditor.getState().setMode('select')
     return releaseReadOnly
   }, [isVersionPreviewMode])
+
+  // Same lock for a viewer-role host. Leases nest, so this and the preview
+  // lease above can be held at once without either releasing the other's.
+  useEffect(() => {
+    if (!readOnly) return
+    const releaseReadOnly = acquireSceneReadOnlyLease()
+    useEditor.getState().setMode('select')
+    return releaseReadOnly
+  }, [readOnly])
 
   useEffect(() => {
     if (!isPreviewMode) setPreviewStageMode('3d')

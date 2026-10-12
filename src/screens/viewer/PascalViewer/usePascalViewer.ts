@@ -23,12 +23,18 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import type {
+  PascalCommitVerdict,
+  PascalMountMode,
+  PascalSaveStatus,
+} from '@/components/pascal/pascalMountTypes';
 import { useShortcut } from '@/hooks/useShortcut';
 import { formatNumber } from '@/lib/format/number';
 import type { PascalScene, SkippedEntity } from '@/lib/pascal/types';
 import type { SpatialGraph } from '@/domain/spatial/types';
 
 import {
+  PASCAL_SAVE_LABELS,
   PASCAL_VIEWER_CAPTIONS,
   PASCAL_VIEWER_TITLE,
   type PascalViewerErrorCode,
@@ -74,6 +80,12 @@ interface MountModule {
     element: HTMLElement,
     options: {
       readonly scene: PascalScene;
+      readonly mode?: PascalMountMode;
+      readonly readOnly?: boolean;
+      readonly onSceneCommit?: (scene: PascalScene) => Promise<void>;
+      readonly onSaveStatus?: (status: PascalSaveStatus) => void;
+      readonly validateCommit?: (scene: PascalScene) => PascalCommitVerdict;
+      readonly onCommitRejected?: (message: string) => void;
       readonly onReadyChange?: (ready: boolean) => void;
       readonly onFatal?: (error: Error) => void;
       readonly onSceneLoaded?: (census: PascalSceneCensus) => void;
@@ -85,6 +97,16 @@ interface MountModule {
 export interface UsePascalViewerOptions {
   /** Bản vẽ cần dựng. `null` nghĩa là chưa có dữ liệu — màn ở trạng thái nạp. */
   readonly graph: SpatialGraph | null;
+  /** `edit` dựng trình soạn thảo Pascal; `view` chỉ dựng khung xem. */
+  readonly mode?: PascalMountMode;
+  /** Vai chỉ-xem. Ở `edit`, editor khoá store và ẩn mọi nút sửa. */
+  readonly readOnly?: boolean;
+  /** Đường lưu — xem `usePascalEdits`. Vắng thì editor không lưu được đi đâu. */
+  readonly onSceneCommit?: (scene: PascalScene) => Promise<void>;
+  /** Phán quyết 6A, chạy trước khi lượt sửa vào lịch sử của editor. */
+  readonly validateCommit?: (scene: PascalScene) => PascalCommitVerdict;
+  /** Lý do một lượt sửa bị chặn — màn hình dựng toast tiếng Việt từ đây. */
+  readonly onCommitRejected?: (message: string) => void;
   /** Khung xem có đang thu gọn không. Thu gọn thì KHÔNG dựng 3D, để đỡ tốn máy. */
   readonly collapsed?: boolean;
   /**
@@ -211,6 +233,11 @@ export function usePascalViewer({
   graph,
   collapsed = false,
   loadMount = defaultLoadMount,
+  mode = 'view',
+  readOnly = false,
+  onSceneCommit,
+  validateCommit,
+  onCommitRejected,
 }: UsePascalViewerOptions): UsePascalViewerResult {
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -230,6 +257,21 @@ export function usePascalViewer({
   const [droppedCount, setDroppedCount] = useState(0);
   /** Người dùng tự thu khung lại bằng Esc. Khác `collapsed` do nơi gọi truyền vào. */
   const [selfCollapsed, setSelfCollapsed] = useState(false);
+  /** Trạng thái lưu mà editor Pascal báo ra; `null` khi chưa có lượt nào. */
+  const [saveStatus, setSaveStatus] = useState<PascalSaveStatus | null>(null);
+  /**
+   * Hàm gọi lại của đường lưu, giữ trong ref chứ KHÔNG trong deps của hiệu ứng gắn.
+   *
+   * `usePascalEdits` dựng chúng bằng `useCallback` phụ thuộc bản vẽ, mà mỗi lượt
+   * lưu lại đổi bản vẽ — để chúng vào deps thì editor Pascal bị tháo và gắn lại
+   * sau MỖI lần lưu, tức người dùng mất vùng chọn, mất camera, và cảnh nạp lại
+   * từ đầu. Ref giữ bản mới nhất mà không động tới danh sách phụ thuộc.
+   */
+  const edits = useRef({ onSceneCommit, validateCommit, onCommitRejected });
+
+  useEffect(() => {
+    edits.current = { onSceneCommit, validateCommit, onCommitRejected };
+  }, [onSceneCommit, validateCommit, onCommitRejected]);
 
   const isCollapsed = selfCollapsed || (collapsed && !expanded);
 
@@ -306,6 +348,16 @@ export function usePascalViewer({
         if (disposed) return;
         handle = module.mount(element, {
           scene: result.scene,
+          mode,
+          readOnly,
+          onSceneCommit: async (next) => {
+            await edits.current.onSceneCommit?.(next);
+          },
+          validateCommit: (next) => edits.current.validateCommit?.(next) ?? { ok: true },
+          onCommitRejected: (message) => edits.current.onCommitRejected?.(message),
+          onSaveStatus: (status) => {
+            if (!disposed) setSaveStatus(status);
+          },
           onReadyChange: (value) => {
             if (!disposed) setReady(value);
           },
@@ -329,7 +381,7 @@ export function usePascalViewer({
       disposed = true;
       handle?.dispose();
     };
-  }, [shouldMount, result, loadMount, attempt]);
+  }, [shouldMount, result, loadMount, attempt, mode, readOnly]);
 
   const onRetry = useCallback(() => {
     setFailure(null);
@@ -436,6 +488,7 @@ export function usePascalViewer({
       summary,
       skipped: state === 'partial' ? skipped : [],
       errorCode: failure,
+      saveLabel: saveStatus === null ? null : PASCAL_SAVE_LABELS[saveStatus],
     },
     canvasRef,
     onRetry,

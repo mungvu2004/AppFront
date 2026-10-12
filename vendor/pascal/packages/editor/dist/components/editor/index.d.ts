@@ -1,6 +1,6 @@
 import { type ViewerImmersiveSession } from '@pascal-app/viewer';
 import { type ReactNode } from 'react';
-import { type SaveStatus } from '../../hooks/use-auto-save';
+import { type CommitVerdict, type SaveStatus } from '../../hooks/use-auto-save';
 import { type SceneGraph } from '../../lib/scene';
 import { type CommandPaletteEmptyAction } from '../ui/command-palette';
 import type { ExtraPanel } from '../ui/sidebar/icon-rail';
@@ -54,6 +54,20 @@ export interface EditorProps {
     onSaveShortcut?: () => boolean | undefined;
     onDirty?: () => void;
     onSaveStatusChange?: (status: SaveStatus) => void;
+    /**
+     * Host rule check, run on the edited graph before the edit is adopted
+     * (AppFront F-15, decision 6A). A rejection undoes the operation and the
+     * message is handed back through `onCommitRejected`.
+     */
+    validateCommit?: (scene: SceneGraph) => CommitVerdict;
+    /** What to show when `validateCommit` refuses an edit. */
+    onCommitRejected?: (message: string) => void;
+    /**
+     * Viewer role: the scene store takes a read-only lease, so every write
+     * action is a no-op, the edit tools never arm, and the panels that already
+     * read `useScene(s => s.readOnly)` hide their edit affordances.
+     */
+    readOnly?: boolean;
     previewScene?: SceneGraph;
     isVersionPreviewMode?: boolean;
     isLoading?: boolean;

@@ -43,6 +43,21 @@ export declare function decideExitFlush(opts: {
     guardAgainstSceneWipe?: boolean;
 }): ExitFlushDecision;
 export type SaveStatus = 'idle' | 'pending' | 'saving' | 'saved' | 'paused' | 'error';
+/**
+ * A host's verdict on the scene a write is about to persist.
+ *
+ * AppFront F-15 / decision 6A: the host owns rules the editor cannot know —
+ * a wall thinner than the project's standard, a mass delete, an opening that
+ * no longer sits in a wall. The verdict is asked BEFORE the write is adopted,
+ * so a rejected edit never reaches the server and never becomes the baseline
+ * the wipe guard measures the next write against.
+ */
+export type CommitVerdict = {
+    ok: true;
+} | {
+    ok: false;
+    message: string;
+};
 interface UseAutoSaveOptions {
     guardAgainstSceneWipe?: boolean;
     onSave?: (scene: SceneGraph, options?: {
@@ -51,6 +66,10 @@ interface UseAutoSaveOptions {
     onDirty?: () => void;
     onSaveStatusChange?: (status: SaveStatus) => void;
     isVersionPreviewMode?: boolean;
+    /** Host rule check run before a write is adopted. Omitted means "always ok". */
+    validateCommit?: (scene: SceneGraph) => CommitVerdict;
+    /** What the host shows when {@link UseAutoSaveOptions.validateCommit} says no. */
+    onCommitRejected?: (message: string) => void;
 }
 /**
  * Generic autosave hook. Subscribes to the scene store and debounces saves.
@@ -58,7 +77,7 @@ interface UseAutoSaveOptions {
  *
  * ⚠️  Mount in exactly ONE component (the Editor).
  */
-export declare function useAutoSave({ guardAgainstSceneWipe, onSave, onDirty, onSaveStatusChange, isVersionPreviewMode, }: UseAutoSaveOptions): {
+export declare function useAutoSave({ guardAgainstSceneWipe, onSave, onDirty, onSaveStatusChange, isVersionPreviewMode, validateCommit, onCommitRejected, }: UseAutoSaveOptions): {
     beginSceneLoad: () => void;
     completeSceneLoad: () => void;
     saveNow: () => void;

@@ -1,7 +1,10 @@
 /**
- * FIX-381 — nhóm khung nhìn mô hình: `/3d`, `/3d/exploded`, `/3d/measure`,
- * `/3d/pascal`, màn di động `/m/du-an/:projectId`. Tách khỏi `mainLandmark.test.tsx`
+ * FIX-381 — nhóm khung nhìn mô hình: `/3d` (nay là màn Pascal), `/3d/exploded`,
+ * `/3d/measure`, màn di động `/m/du-an/:projectId`. Tách khỏi `mainLandmark.test.tsx`
  * cũ để collect/chạy song song theo nhóm (PERF-01 FE-6).
+ *
+ * `/3d/pascal` không còn ở đây: sau F-15 nó chỉ `<Navigate>` về `/3d`, không
+ * dựng màn nào — xem `REDIRECT_PATHS` của `mainLandmarkHarness`.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
@@ -130,13 +133,18 @@ describe.each([
 });
 
 describe('[router] ranh giới lồng của /3d', () => {
-  it('chỉ lớp trong (ViewerShell) sập: phần dự phòng của nó là main duy nhất', async () => {
-    crash.target = 'viewer-shell';
-    const leaf = productRoutes.find(({ path }) => path === ROUTE_PATTERNS.projectViewer)?.leaf;
-    if (leaf === undefined) throw new Error('thiếu route /3d');
-    const router = createMemoryRouter([{ element: <Outlet />, children: [leaf] }], {
-      initialEntries: [concretePath(ROUTE_PATTERNS.projectViewer)],
-    });
+  it('chỉ lớp trong (màn Pascal) sập: phần dự phòng của nó là main duy nhất', async () => {
+    crash.target = 'pascal-viewer';
+    const route = productRoutes.find(({ path }) => path === ROUTE_PATTERNS.projectViewer);
+    if (route === undefined) throw new Error('thiếu route /3d');
+    /* `/3d` nay nằm TRONG nhóm `<ScreenMain>` (màn Pascal không tự có `<main>`),
+       nên landmark đến từ cha — dựng lá một mình thì không có `<main>` nào để đếm. */
+    const { leaf, parent } = route;
+    if (parent === undefined) throw new Error('/3d phải nằm trong nhóm ScreenMain');
+    const router = createMemoryRouter(
+      [{ element: <Outlet />, children: [{ element: parent.element, children: [leaf] }] }],
+      { initialEntries: [concretePath(ROUTE_PATTERNS.projectViewer)] },
+    );
     const { container } = render(
       <QueryClientProvider client={new QueryClient()}>
         <RouterProvider router={router} />
@@ -148,6 +156,6 @@ describe('[router] ranh giới lồng của /3d', () => {
       { timeout: 20_000 },
     );
     await waitFor(() => expect(container.querySelectorAll('main, [role="main"]')).toHaveLength(1));
-    expect(screen.queryByRole('main', { name: 'Khung nhìn mô hình' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Mô hình 3D' })).not.toBeInTheDocument();
   });
 });

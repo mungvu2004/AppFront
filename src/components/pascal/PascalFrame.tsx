@@ -5,16 +5,47 @@
  * vừa xuất hàm thường vừa khai component thì fast refresh không chạy được.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Editor } from '@pascal-app/editor';
 import { computeHeroFraming, heroCameraPose, Viewer } from '@pascal-app/viewer';
 import { useThree } from '@react-three/fiber';
 
 import type { PascalScene } from '@/lib/pascal/types';
 
-import { loadSceneIntoPascal, type PascalSceneCensus } from './pascalScene';
+import {
+  BUILTIN_PLUGIN_ID,
+  loadPascalPlugins,
+  loadSceneIntoPascal,
+  type PascalSceneCensus,
+} from './pascalScene';
+import type {
+  PascalCommitVerdict,
+  PascalMountMode,
+  PascalSaveStatus,
+} from './pascalMountTypes';
 
 export interface PascalFrameProps {
   readonly scene: PascalScene;
+  /**
+   * `view` dựng `<Viewer>` — khung xem thuần, không công cụ nào.
+   * `edit` dựng `<Editor>`, và khi ấy chính editor nạp cảnh qua `onLoad`.
+   */
+  readonly mode: PascalMountMode;
+  /** Vai chỉ-xem. Chỉ có nghĩa ở `edit`; `view` vốn đã không sửa được gì. */
+  readonly readOnly: boolean;
+  /**
+   * Cảnh sau một lượt sửa, để màn hình đổi nó thành lệnh AppFront.
+   *
+   * **Bắt buộc có ở `edit`.** Không truyền thì `useAutoSave` của Pascal rơi về
+   * `localStorage` — tức bản vẽ của người dùng nằm trong trình duyệt chứ không
+   * trên máy chủ, và A7 ("hệ thống tự lưu") thành một lời nói dối.
+   */
+  readonly onSceneCommit: ((scene: PascalScene) => Promise<void>) | undefined;
+  readonly onSaveStatus: ((status: PascalSaveStatus) => void) | undefined;
+  /** Phán quyết 6A, chạy TRƯỚC khi lượt sửa vào lịch sử và vào đường lưu. */
+  readonly validateCommit: ((scene: PascalScene) => PascalCommitVerdict) | undefined;
+  /** Lý do một lượt sửa bị chặn, để màn hình nói ra bằng tiếng Việt. */
+  readonly onCommitRejected: ((message: string) => void) | undefined;
   /**
    * **Phải đổi mỗi lần nạp cảnh mới.** Đo được: để nó cố định thì viewer giữ
    * nguyên phán quyết "sẵn sàng" của cảnh trước và không bao giờ nói lại.
@@ -86,6 +117,12 @@ export function HeroCamera({ ready }: { readonly ready: boolean }) {
 export function PascalFrame({
   scene,
   sceneKey,
+  mode,
+  readOnly,
+  onSceneCommit,
+  onSaveStatus,
+  validateCommit,
+  onCommitRejected,
   onReadyChange,
   onFatal,
   onSceneLoaded,
@@ -95,6 +132,8 @@ export function PascalFrame({
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    if (mode === 'edit') return;
+
     let cancelled = false;
 
     loadSceneIntoPascal(scene)
@@ -110,7 +149,7 @@ export function PascalFrame({
     return () => {
       cancelled = true;
     };
-  }, [scene, onFatal, onSceneLoaded]);
+  }, [mode, scene, onFatal, onSceneLoaded]);
 
   const handleReady = useCallback(
     (nextReady: boolean) => {
@@ -119,6 +158,58 @@ export function PascalFrame({
     },
     [onReadyChange],
   );
+
+  /**
+   * Cửa nạp của editor.
+   *
+   * Editor tự gọi `setScene` qua `applySceneGraphToEditor`, nên ở nhánh này
+   * KHÔNG gọi `loadSceneIntoPascal` — hai lượt nạp chồng nhau thì lượt sau huỷ
+   * lượt hydration của lượt trước. Nhưng registry node vẫn phải đầy trước đó:
+   * thiếu nó thì cảnh vào store mà không loại node nào vẽ được.
+   */
+  const handleLoad = useCallback(async () => {
+    await loadPascalPlugins();
+    onSceneLoaded?.({ nodeCount: Object.keys(scene.nodes).length, droppedIds: [] });
+
+    return {
+      nodes: scene.nodes as Record<string, unknown>,
+      rootNodeIds: [...scene.rootNodeIds],
+      installedPlugins: [BUILTIN_PLUGIN_ID],
+    };
+  }, [scene, onSceneLoaded]);
+
+  const handleSave = useCallback(
+    async (next: unknown): Promise<void> => {
+      await onSceneCommit?.(next as PascalScene);
+    },
+    [onSceneCommit],
+  );
+
+  const handleValidate = useMemo(
+    () =>
+      validateCommit === undefined
+        ? undefined
+        : (next: unknown) => validateCommit(next as PascalScene),
+    [validateCommit],
+  );
+
+  if (mode === 'edit') {
+    return (
+      <Editor
+        guardAgainstSceneWipe
+        readOnly={readOnly}
+        onLoad={handleLoad}
+        onSave={handleSave}
+        {...(onSaveStatus === undefined ? {} : { onSaveStatusChange: onSaveStatus })}
+        /* Editor không có `onSceneReadyChange`; `onLoaderChange` là cùng một
+           tín hiệu nhìn từ phía kia. Thiếu dòng này thì màn kẹt "đang nạp"
+           vĩnh viễn, vì `ready` của hook chỉ đến từ khung nhúng. */
+        onLoaderChange={(visible) => handleReady(!visible)}
+        {...(handleValidate === undefined ? {} : { validateCommit: handleValidate })}
+        {...(onCommitRejected === undefined ? {} : { onCommitRejected })}
+      />
+    );
+  }
 
   if (!loaded) return null;
 

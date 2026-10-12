@@ -28,6 +28,9 @@ import { builtinPlugin } from '@pascal-app/nodes';
 
 import type { PascalScene } from '@/lib/pascal/types';
 
+/** Id bộ loại node dựng sẵn. Cảnh nào vào store cũng phải khai nó, nếu không không gì vẽ ra. */
+export const BUILTIN_PLUGIN_ID: string = builtinPlugin.id;
+
 /** Registry là trạng thái toàn cục của Pascal; nạp hai lần là phí, không phải lỗi. */
 let pluginsLoaded: Promise<void> | null = null;
 

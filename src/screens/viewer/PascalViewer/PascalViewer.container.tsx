@@ -12,7 +12,7 @@
  */
 
 import { AlertCircle } from 'lucide-react';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -23,6 +23,10 @@ import {
 } from '@/components/feedback/ScreenErrorBoundary';
 import { denormalizeSpatial } from '@/domain/spatial/normalize';
 import type { SpatialGraph } from '@/domain/spatial/types';
+import { useNotifications } from '@/hooks/useNotifications';
+import { useSession } from '@/hooks/useSession';
+import { can } from '@/lib/auth/permissions';
+import type { ProjectRole } from '@/types/project';
 import { ROUTES } from '@/routes/paths';
 // Nhập THẲNG module, KHÔNG qua barrel `index.ts` của màn kia: đi qua barrel là
 // kéo cả cụm màn ấy vào chunk của route này, và cổng "chi phí thêm cho một màn"
@@ -35,10 +39,22 @@ import { selectViewerSpatial } from '@/screens/viewer/ViewerShell/viewerShellGat
 import { useStore } from '@/store';
 
 import { PascalViewer } from './PascalViewer';
+import { usePascalEdits } from './usePascalEdits';
 import { usePascalViewer, type UsePascalViewerOptions } from './usePascalViewer';
+
+/** Loại thông báo của một lượt sửa bị chặn — toast gom theo loại. */
+export const PASCAL_REJECTED_NOTIFICATION_TYPE = 'pascal.edit.rejected';
+
+/** Tiêu đề toast khi lượt sửa bị chặn; lý do đi vào phần mô tả. */
+export const PASCAL_REJECTED_TITLE = 'Không ghi được thay đổi';
 
 export interface PascalViewerContainerProps {
   readonly graph: SpatialGraph | null;
+  /**
+   * Vai chỉ-xem. Bỏ trống thì container tự hỏi quyền theo vai của dự án —
+   * `can('edit', 'layer', …)`, cùng cổng `VersionHistory` dùng cho nút khôi phục.
+   */
+  readonly readOnly?: boolean | undefined;
   readonly collapsed?: boolean | undefined;
   /**
    * Cửa nạp gói vách ngăn, tách ra để bài kiểm chạy qua **cây component thật**.
@@ -77,9 +93,45 @@ function PascalViewerBody({
   loadMount,
   onLeave,
   onReprocess,
+  readOnly,
 }: PascalViewerContainerProps) {
+  const session = useSession();
+  const storeRoles = useStore((state) => state.userRoles);
+  const spatial = useStore((state) => state.spatial);
+  const { publish } = useNotifications();
+
+  // Vai theo dự án đang mở là nguồn đúng nhất; phiên đăng nhập là nguồn dự phòng.
+  const roles: readonly ProjectRole[] = storeRoles.length > 0 ? storeRoles : session.roles;
+  const isReadOnly = readOnly ?? !can('edit', 'layer', { roles });
+
+  const onRejected = useCallback(
+    (reason: string) => {
+      publish({
+        description: reason,
+        title: PASCAL_REJECTED_TITLE,
+        type: PASCAL_REJECTED_NOTIFICATION_TYPE,
+      });
+    },
+    [publish],
+  );
+
+  /* Cảnh đã đẩy sang Pascal là mốc "trước" của lượt sửa đầu tiên. Hook dựng
+     nó trong một hiệu ứng, nên nó tới sau một nhịp — `usePascalEdits` chịu
+     được `null` và chỉ bỏ qua lượt ghi nào đến trước mốc ấy. */
+  const { onSceneCommit, validateCommit } = usePascalEdits({
+    spatial,
+    loadedScene: null,
+    readOnly: isReadOnly,
+    onRejected,
+  });
+
   const { viewModel, canvasRef, onRetry, onExpand } = usePascalViewer({
     graph,
+    mode: 'edit',
+    readOnly: isReadOnly,
+    onSceneCommit,
+    validateCommit,
+    onCommitRejected: onRejected,
     ...(collapsed === undefined ? {} : { collapsed }),
     ...(loadMount === undefined ? {} : { loadMount }),
   });
@@ -102,6 +154,7 @@ export function PascalViewerContainer({
   loadMount,
   onLeave,
   onReprocess,
+  readOnly,
 }: PascalViewerContainerProps) {
   return (
     <ScreenErrorBoundary
@@ -115,6 +168,7 @@ export function PascalViewerContainer({
         loadMount={loadMount}
         onLeave={onLeave}
         onReprocess={onReprocess}
+        readOnly={readOnly}
       />
     </ScreenErrorBoundary>
   );
@@ -146,9 +200,10 @@ export function PascalViewerRoute() {
   return (
     <div className="h-screen">
       <ProjectSpatialGate projectId={projectId}>
+        {/* Không còn `onLeave`: màn này LÀ `/3d` sau F-15, nên "về màn xem 3D"
+            sẽ trỏ về chính nó. Lối đi tiếp của trạng thái rỗng thì vẫn thật. */}
         <PascalViewerContainer
           graph={graph}
-          onLeave={projectId === undefined ? undefined : () => navigate(ROUTES.project.viewer(projectId))}
           onReprocess={
             projectId === undefined ? undefined : () => navigate(ROUTES.project.pipeline(projectId))
           }

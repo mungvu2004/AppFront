@@ -3,7 +3,14 @@
  * định nghĩa `UndoShortcuts`. `UndoShortcuts` được xuất có chủ đích: xem docblock
  * của nó — một binding không test được là một binding không ai chứng minh được. */
 import React, { lazy, useCallback, useState } from 'react';
-import { createBrowserRouter, Outlet, type RouteObject } from 'react-router-dom';
+import {
+  createBrowserRouter,
+  Navigate,
+  Outlet,
+  useLocation,
+  useParams,
+  type RouteObject,
+} from 'react-router-dom';
 
 import { ScreenMain } from '@/components/shell/ScreenMain';
 import { flushAutosaves } from '@/hooks/useAutosave';
@@ -18,6 +25,26 @@ import { useStore } from '@/store';
 import { ROUTE_PATTERNS } from './paths';
 import { RouteErrorScreen } from './RouteErrorScreen';
 import { PendingShell, SessionBootstrap } from './SessionBootstrap';
+
+/**
+ * `/3d/pascal` giờ chỉ là địa chỉ cũ của `/3d` (F-15).
+ *
+ * Màn Pascal đã là màn 3D duy nhất, nên route riêng của nó không còn việc gì —
+ * nhưng liên kết cũ thì vẫn nằm trong lịch sử trình duyệt và trong dấu trang.
+ * `replace` để nút Lùi không kẹt lại ở địa chỉ cũ, và `search` đi theo vì tham
+ * số truy vấn (ví dụ `?v=` của một phiên bản) thuộc về màn chứ không về đường.
+ */
+function PascalViewerRedirect() {
+  const { projectId } = useParams<{ projectId: string }>();
+  const { search, hash } = useLocation();
+
+  return (
+    <Navigate
+      replace
+      to={`${ROUTE_PATTERNS.projectViewer.replace(':projectId', projectId ?? '')}${search}${hash}`}
+    />
+  );
+}
 
 /**
  * Vỏ chờ dùng chung, để hai mươi mấy route không mỗi chỗ viết một kiểu.
@@ -50,7 +77,6 @@ const suspendedOutsideMain = (node: React.ReactNode) => (
 );
 
 // Lazy load screen routes
-const RouteViewer3D = lazy(() => import('../screens/viewer/Viewer3D').then(m => ({ default: m.Viewer3DRoute })));
 const RoutePascalViewer = lazy(() => import('../screens/viewer/PascalViewer').then(m => ({ default: m.PascalViewerRoute })));
 const RouteAuth = lazy(() => import('../screens/auth/AuthScreen').then(m => ({ default: m.AuthRoute })));
 const RouteInvitationAccept = lazy(() => import('../screens/auth/InvitationAccept').then(m => ({ default: m.InvitationAcceptRoute })));
@@ -345,7 +371,6 @@ export const routes: RouteObject[] = [
       { path: ROUTE_PATTERNS.invitationAccept, element: suspendedOutsideMain(<RouteInvitationAccept />) },
       { path: ROUTE_PATTERNS.passwordReset, element: suspendedOutsideMain(<RoutePasswordReset />) },
       { path: ROUTE_PATTERNS.dashboard, element: suspendedOutsideMain(<RouteDashboard />) },
-      { path: ROUTE_PATTERNS.projectViewer, element: suspendedOutsideMain(<RouteViewer3D />) },
       { path: ROUTE_PATTERNS.projectExploded, element: suspendedOutsideMain(<RouteExplodedView />) },
       { path: ROUTE_PATTERNS.projectMeasure, element: suspendedOutsideMain(<RouteMeasurementTool />) },
       // Màn di động: route MỚI, không thay chỗ một route tạm nào (R-66).
@@ -377,7 +402,8 @@ export const routes: RouteObject[] = [
           { path: ROUTE_PATTERNS.projectRooms, element: suspended(<RouteRoomLabelReview />) },
           { path: ROUTE_PATTERNS.projectFloors, element: suspended(<RouteFloorManager />) },
           { path: ROUTE_PATTERNS.projectThickness, element: suspended(<RouteThicknessStandardization />) },
-          { path: ROUTE_PATTERNS.projectViewerPascal, element: suspended(<RoutePascalViewer />) },
+          { path: ROUTE_PATTERNS.projectViewer, element: suspended(<RoutePascalViewer />) },
+          { path: ROUTE_PATTERNS.projectViewerPascal, element: <PascalViewerRedirect /> },
           { path: ROUTE_PATTERNS.projectRules, element: suspended(<RouteRules />) },
           { path: ROUTE_PATTERNS.projectRuleSettings, element: suspended(<RouteRuleSettings />) },
           { path: ROUTE_PATTERNS.projectExport, element: suspended(<RouteExportPanel />) },

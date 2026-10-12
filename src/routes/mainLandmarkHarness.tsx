@@ -25,13 +25,27 @@ export interface ProductRoute {
   readonly parent: RouteObject | undefined;
 }
 
+/**
+ * Route chỉ chuyển hướng, không dựng màn nào.
+ *
+ * `/3d/pascal` là địa chỉ cũ của `/3d` sau F-15: phần tử của nó là `<Navigate>`,
+ * nên nó KHÔNG có `<main>` và không thuộc phép kiểm landmark. Nó cũng không
+ * được nằm trong bốn nhóm, nếu không phép kiểm "hợp bốn nhóm đúng bằng tập
+ * route sản phẩm" sẽ đòi một landmark không bao giờ có.
+ */
+export const REDIRECT_PATHS: readonly string[] = [ROUTE_PATTERNS.projectViewerPascal];
+
 const rootChildren: RouteObject[] = routes[0]?.children ?? [];
 /* Phẳng hoá nhóm bọc `<main>` để lấy lại từng route lá cùng với cha của nó. */
 export const productRoutes: ProductRoute[] = [];
 for (const route of rootChildren) {
   const group = route.path === undefined ? route : undefined;
   for (const leaf of group?.children ?? [route]) {
-    if (leaf.path !== undefined && !DEMO_PATHS.includes(leaf.path)) {
+    if (
+      leaf.path !== undefined &&
+      !DEMO_PATHS.includes(leaf.path) &&
+      !REDIRECT_PATHS.includes(leaf.path)
+    ) {
       productRoutes.push({ path: leaf.path, leaf, parent: group });
     }
   }
@@ -97,7 +111,6 @@ export const VIEWER_PATHS: readonly string[] = [
   ROUTE_PATTERNS.projectViewer,
   '/projects/:projectId/3d/exploded',
   '/projects/:projectId/3d/measure',
-  '/projects/:projectId/3d/pascal',
   '/m/du-an/:projectId',
 ];
 

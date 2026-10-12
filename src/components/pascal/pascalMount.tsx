@@ -31,6 +31,12 @@ import { createRoot } from 'react-dom/client';
 import type { PascalScene } from '@/lib/pascal/types';
 
 import { PascalFrame } from './PascalFrame';
+import type {
+  PascalCommitVerdict,
+  PascalMountMode,
+  PascalSaveStatus,
+  PascalSceneCommit,
+} from './pascalMountTypes';
 import { clearPascalScene, type PascalSceneCensus } from './pascalScene';
 
 /** Cái người gọi cầm về, đủ để sống trọn vòng đời mà không chạm vào Pascal. */
@@ -53,6 +59,23 @@ export interface PascalMountOptions {
   readonly onSceneLoaded?: (census: PascalSceneCensus) => void;
   /** Máy không dựng được 3D — xem `PascalFrameProps.onRendererUnavailable`. */
   readonly onRendererUnavailable?: () => void;
+  /** `view` (mặc định) dựng `<Viewer>`; `edit` dựng `<Editor>` của Pascal. */
+  readonly mode?: PascalMountMode;
+  /** Vai chỉ-xem: editor khoá store, công cụ sửa không kích hoạt, nút sửa ẩn. */
+  readonly readOnly?: boolean;
+  /**
+   * Một lượt sửa đã xong, kèm cảnh sau lượt ấy.
+   *
+   * Ở `mode: 'edit'` đây là **đường lưu duy nhất**: thiếu nó thì editor Pascal
+   * rơi về `localStorage` của chính nó, và bản vẽ không bao giờ tới máy chủ.
+   */
+  readonly onSceneCommit?: PascalSceneCommit;
+  /** Editor đổi trạng thái lưu — để màn nói ra cho trình đọc màn hình (A7). */
+  readonly onSaveStatus?: (status: PascalSaveStatus) => void;
+  /** Phán quyết 6A, chạy trước khi lượt sửa vào lịch sử và vào đường lưu. */
+  readonly validateCommit?: (scene: PascalScene) => PascalCommitVerdict;
+  /** Lý do một lượt sửa bị chặn. Màn hình dựng toast tiếng Việt từ đây. */
+  readonly onCommitRejected?: (message: string) => void;
 }
 
 /**
@@ -78,6 +101,12 @@ export function mount(element: HTMLElement, options: PascalMountOptions): Pascal
         <PascalFrame
           scene={scene}
           sceneKey={sceneKey}
+          mode={options.mode ?? 'view'}
+          readOnly={options.readOnly ?? false}
+          onSceneCommit={options.onSceneCommit}
+          onSaveStatus={options.onSaveStatus}
+          validateCommit={options.validateCommit}
+          onCommitRejected={options.onCommitRejected}
           onReadyChange={options.onReadyChange}
           onFatal={options.onFatal}
           onSceneLoaded={options.onSceneLoaded}

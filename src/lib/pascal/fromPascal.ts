@@ -183,18 +183,18 @@ const asChange = <K extends EntityKind>(change: EntityChangeOfKind<K>): EntityCh
   change as EntityChange;
 
 /**
- * Siêu dữ liệu duyệt của bản CŨ, áp lên bản mới — hàng rào cuối của A5.
+ * Siêu dữ liệu duyệt của một lượt **sửa** đến từ Pascal — hàng rào A5, và C2.
  *
  * `toSpatialGraph` đã chặn node Pascal tự đẻ mang dấu xác minh về. Còn một lỗ
  * nhỏ hơn: một đối tượng **cũ** của AppFront đi sang Pascal mang theo
  * `metadata.appfront`, và bên kia tường sửa được túi siêu dữ liệu ấy. Sửa
  * `reviewed` thành `true` là đủ để một bức tường chưa ai duyệt về với dấu xanh.
+ * Nên `confidence` và `source` luôn lấy từ ảnh chụp "trước": Pascal đổi được
+ * hình học, không đổi được phán quyết của người duyệt.
  *
- * Đường ghi duy nhất vào bản vẽ là lệnh, nên hàng rào đặt ở đây: với một lượt
- * **sửa**, ba trường duyệt luôn lấy từ ảnh chụp "trước". Đây cũng đúng lời
- * `commands/business/shared.ts` đã ghi — "một lượt sửa mang theo siêu dữ liệu
- * nó tìm thấy" — nên Pascal đổi được hình học, không đổi được phán quyết của
- * người duyệt.
+ * Hàm này giữ cả ba trường, vì nó còn phục vụ phép so "có đổi gì không".
+ * `changeBetween` mới là chỗ bỏ `reviewed` đi, và chỉ khi lượt sửa là thật
+ * (04 §C2 — "mất dấu xác minh").
  */
 const withReviewOfPrevious = <K extends EntityKind>(
   before: EntityByKind[K],
@@ -225,7 +225,15 @@ const changeBetween = <K extends EntityKind>(
 
   const settled = withReviewOfPrevious<K>(from, to);
 
-  return sameValue(from, settled) ? null : asChange(changeForUpdate(kind, from, settled));
+  if (sameValue(from, settled)) {
+    return null;
+  }
+
+  /* C2 — lượt sửa này là thật, nên dấu xác minh KHÔNG sống sót qua nó. Đặt
+     `reviewed` sau phép so chứ không trong `withReviewOfPrevious`: so trước
+     thì một bức tường đã duyệt mà không ai đụng tới cũng thành "đã đổi", và
+     lượt nạp lại sinh ra một lệnh từ hư không. */
+  return asChange(changeForUpdate(kind, from, { ...settled, reviewed: false }));
 };
 
 /** Câu mô tả cho nhật ký hoạt động: đếm theo việc, rồi đếm theo loại. */

@@ -30,7 +30,7 @@
 
 import { act, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
@@ -132,9 +132,9 @@ describe('route: đọc kho qua cổng nạp kho dự án (B-V12-01)', () => {
 
   const renderRoute = () =>
     renderWithProviders(
-      <MemoryRouter initialEntries={['/projects/project-1/3d/pascal']}>
+      <MemoryRouter initialEntries={['/projects/project-1/3d']}>
         <Routes>
-          <Route path="/projects/:projectId/3d/pascal" element={<PascalViewerRoute />} />
+          <Route path="/projects/:projectId/3d" element={<PascalViewerRoute />} />
         </Routes>
       </MemoryRouter>,
       { keepStore: true },

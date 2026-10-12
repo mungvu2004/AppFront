@@ -13,6 +13,7 @@
  * ở đây), chứ không phải bằng cách ném.
  */
 
+import type { PascalSaveStatus } from '@/components/pascal/pascalMountTypes';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 
 /** Bảy trạng thái của A11, đặt tên lại cho đúng việc màn này làm. */
@@ -71,6 +72,13 @@ export interface PascalViewerViewModel {
   readonly skipped: readonly SkippedSummary[];
   /** Mã lỗi đọc được, để người dùng đọc cho người trực; chỉ có ở `error`. */
   readonly errorCode: PascalViewerErrorCode | null;
+  /**
+   * Trạng thái tự lưu, thành câu, cho trình đọc màn hình (A7).
+   *
+   * `null` khi chưa có lượt sửa nào — không có nút lưu, nên trước lượt sửa đầu
+   * tiên cũng không có gì để nói.
+   */
+  readonly saveLabel: string | null;
 }
 
 export interface PascalViewerProps {
@@ -102,6 +110,21 @@ export const PASCAL_VIEWER_CAPTIONS: Readonly<Record<PascalViewerState, string>>
   error: 'Không nạp được khung dựng hình.',
   forbidden: 'Màn xem 3D mới chưa bật cho tài khoản này.',
   collapsed: 'Khung xem đang thu gọn để đỡ tốn máy.',
+};
+
+/**
+ * Câu tiếng Việt cho từng trạng thái lưu của editor Pascal (A7).
+ *
+ * Không có nút lưu, nên những câu này là **cách duy nhất** người dùng biết bản
+ * vẽ của mình đã tới máy chủ hay chưa.
+ */
+export const PASCAL_SAVE_LABELS: Readonly<Record<PascalSaveStatus, string>> = {
+  idle: 'Chưa có thay đổi nào.',
+  pending: 'Đang chờ lưu…',
+  saving: 'Đang lưu…',
+  saved: 'Đã lưu',
+  paused: 'Tạm dừng lưu.',
+  error: 'Chưa lưu được thay đổi.',
 };
 
 /** Tiêu đề màn. Một chuỗi, để không chỗ nào tự chế ra bản khác. */

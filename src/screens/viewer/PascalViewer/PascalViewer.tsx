@@ -81,7 +81,7 @@ export function PascalViewer({
   onLeave,
   onReprocess,
 }: PascalViewerProps) {
-  const { state, caption, summary, skipped, errorCode } = viewModel;
+  const { state, caption, summary, skipped, errorCode, saveLabel } = viewModel;
 
   if (state === 'forbidden') {
     return (
@@ -89,7 +89,7 @@ export function PascalViewer({
         <EmptyState
           icon={<Lock aria-hidden="true" />}
           title="Chưa bật cho tài khoản này"
-          description="Màn xem 3D mới đang chạy thử theo nhóm. Người trực có thể bật nó cho bạn."
+          description="Vai của bạn chưa được xem mô hình 3D của dự án này. Người quản trị dự án có thể mở quyền."
         />
       </Frame>
     );
@@ -201,6 +201,13 @@ export function PascalViewer({
             </div>
           )}
         </div>
+
+        {/* A7 — không có nút lưu, nên dòng này là chỗ duy nhất nói ra việc lưu. */}
+        {saveLabel !== null && (
+          <p aria-live="polite" className="text-sm text-text-muted" role="status">
+            {saveLabel}
+          </p>
+        )}
 
         {summary !== null && (
           <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-text-muted">

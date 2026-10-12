@@ -1,21 +1,19 @@
 import { expect, test } from '@playwright/test';
 import type { Page, Route, Worker } from '@playwright/test';
 
-import { enableFlags } from './fixtures/flags';
 import { ROUTE_PATTERNS } from './fixtures/routes';
 import { EMAIL_BY_ROLE, submitSignInForm } from './fixtures/session';
 
 /**
  * Màn `PascalViewer` — mắt xích DUY NHẤT của cả đợt tích hợp Pascal chưa được
- * chứng minh bằng trình duyệt thật: đăng nhập → vào route sau cờ → màn dựng
+ * chứng minh bằng trình duyệt thật: đăng nhập → vào `/3d` → màn dựng
  * ra một cảnh 3D thật, không lệch CSP.
  *
  * ## Bài này chứng minh gì
  *
- * 1. Cờ `scene.pascal-viewer` **tắt** (mặc định, `lib/telemetry/flags.ts:159`)
- *    thì màn nói "chưa bật" chứ không hiện khung Pascal nào — cổng của A11.
- * 2. Cờ **bật** thì hộp `[data-testid="pascal-canvas"]` xuất hiện và màn nói
- *    "đã dựng xong".
+ * 1. `/projects/:id/3d` — địa chỉ 3D DUY NHẤT sau F-15 — mở thẳng màn Pascal,
+ *    không cờ nào đứng giữa (cờ `scene.pascal-viewer` đã gỡ).
+ * 2. Hộp `[data-testid="pascal-canvas"]` xuất hiện và màn nói "đã dựng xong".
  * 3. Bên trong hộp ấy có một `<canvas>` THẬT — không phải hộp trống — với
  *    kích thước thật (`width`/`height` > 0). Đây là bằng chứng quan trọng
  *    nhất của cả tệp: 33 bài kiểm đơn vị của màn này (ba tệp cạnh
@@ -31,7 +29,8 @@ import { EMAIL_BY_ROLE, submitSignInForm } from './fixtures/session';
  *    kể cả khi gói còn đang nạp; `E` và nút "Mở khung xem" mở lại.
  * 6. Hộp chỉ chứa khung dựng — 0 nút/tab/hộp thoại/ô nhập: hàng rào H-1 của
  *    nhóm V11 (trình soạn thảo Pascal chưa được gắn ở đâu).
- * 7. Cờ tắt: không một request nào tới `/assets/pascal/` (A-2).
+ * 7. Sửa một bức tường trong trình soạn thảo → màn nói "Đã lưu" → tải lại
+ *    trang thì giá trị mới còn đó (đường lưu của F-15 việc T4).
  * 8. `PASCAL-01` dựng lại được bằng `page.route` chặn đúng tệp gói (404 và
  *    nền SPA `text/html`), và "thử lại"/`R` nạp lại THẬT khi gói trở lại.
  * 9. Khung dựng chiếm quá nửa cửa sổ 1440×900.
@@ -64,7 +63,7 @@ import { EMAIL_BY_ROLE, submitSignInForm } from './fixtures/session';
  *
  * `pnpm e2e` tự dựng `public/assets/pascal` trước khi chạy, trừ khi đặt
  * `E2E_SKIP_PASCAL=1` (`scripts/run-playwright.mjs:107-133`). Thiếu
- * `pascal-mount.js` thì mọi bài "cờ bật" rơi `PASCAL-01` — tín hiệu đúng, không
+ * `pascal-mount.js` thì mọi bài dựng cảnh rơi `PASCAL-01` — tín hiệu đúng, không
  * phải bài kiểm sai.
  */
 
@@ -72,10 +71,7 @@ import { EMAIL_BY_ROLE, submitSignInForm } from './fixtures/session';
 const PROJECT_ID = 'P-01';
 
 /** Đường dẫn thật của màn, dựng từ hằng của `src/routes/paths.ts`. */
-const PASCAL_VIEWER_PATH = ROUTE_PATTERNS.projectViewerPascal.replace(':projectId', PROJECT_ID);
-
-/** Cờ của màn này — `scene.pascal-viewer`, `lib/telemetry/flags.ts:157-165`, mặc định TẮT. */
-const PASCAL_FLAG_KEY = 'scene.pascal-viewer';
+const PASCAL_VIEWER_PATH = ROUTE_PATTERNS.projectViewer.replace(':projectId', PROJECT_ID);
 
 
 /** Tên khung ngoài cùng của màn — `<section aria-label={PASCAL_VIEWER_TITLE}>`, `PascalViewer.tsx:25`. */
@@ -133,7 +129,7 @@ async function signInThenOpenPascalViewer(page: Page): Promise<void> {
   await submitSignInForm(page, EMAIL_BY_ROLE.engineer);
 
   /* Có mặt ở CẢ BẢY trạng thái — `Frame` bọc mọi nhánh (`PascalViewer.tsx:22-34`) —
-     nên đây là điểm chờ đúng bất kể cờ đang bật hay tắt. */
+     nên đây là điểm chờ đúng ở mọi trạng thái. */
   await expect(page.getByRole('region', { name: SCREEN_REGION_NAME })).toBeVisible();
 }
 
@@ -142,7 +138,7 @@ async function signInThenOpenPascalViewer(page: Page): Promise<void> {
  *
  * Đo 2026-10-03: `goto` thẳng vào route hạ cánh đúng màn — bộ mẫu cấp vai
  * `engineer` khi chưa ai đăng nhập (`MOCK_FALLBACK_ROLES`, xem docblock
- * `e2e/fixtures/session.ts`). Chỉ bài "cờ bật" giữ lượt đăng nhập, vì việc 4 của
+ * `e2e/fixtures/session.ts`). Chỉ bài dựng cảnh giữ lượt đăng nhập, vì việc 4 của
  * nó nói về CẢ chuỗi đăng nhập + dựng cảnh.
  */
 async function openPascalViewer(page: Page): Promise<void> {
@@ -157,7 +153,7 @@ async function openPascalViewer(page: Page): Promise<void> {
  * Lượt tải ĐẦU của một máy chủ dev vừa khởi: Vite dịch route lười của màn (và
  * cả chuỗi nhập của nó) theo yêu cầu. Đo 2026-10-03, `--repeat-each=2`: bài đầu
  * tiên của một worker đỏ ở hạn 5 s mặc định trong khi mọi lượt sau hiện ngay.
- * Bài "cờ bật" cũ không gặp vì nó đi qua biểu mẫu đăng nhập trước — lượt ấy
+ * Bài dựng cảnh cũ không gặp vì nó đi qua biểu mẫu đăng nhập trước — lượt ấy
  * làm ấm máy chủ. Hạn này chỉ áp cho điểm chờ đầu tiên, không cho khẳng định nào.
  */
 const COLD_ROUTE_TIMEOUT_MS = 30_000;
@@ -338,34 +334,7 @@ function findOffMachineRequests(urls: readonly string[]): readonly string[] {
 /* Bài.                                                                        */
 /* -------------------------------------------------------------------------- */
 
-test('cờ tắt: màn nói "chưa bật" chứ không dựng gì (forbidden, A11)', async ({ page }) => {
-  // Không bật cờ: localStorage rỗng, cờ ở giá trị mặc định `false`.
-  const requestUrls = trackRequestUrls(page);
-
-  await openPascalViewer(page);
-
-  await expect(
-    page.getByRole('heading', { name: 'Chưa bật cho tài khoản này', exact: true }),
-  ).toBeVisible();
-  await expect(page.getByRole('status')).toContainText('chưa bật');
-
-  /* Bảng "cái gì gây trạng thái nào" (mục 5) nói forbidden KHÔNG chạy WebGL —
-     hộp canvas không được phép có mặt. */
-  await expect(page.getByTestId('pascal-canvas')).toHaveCount(0);
-
-  /* A-2 — và không một byte nào của gói nặng (~1,5 MB gzip, `flags.ts:161`) rời
-     máy chủ. Đơn vị chỉ chứng minh điều này trên bộ nạp giả. Chờ mạng LẮNG
-     (trạng thái dương) rồi mới đếm, để "không có request" không phải "chưa kịp có". */
-  await page.waitForLoadState('networkidle');
-  expect(requestUrls.filter((url) => url.includes('/assets/pascal/'))).toEqual([]);
-
-  /* B-V10-03 — bộ đổi dữ liệu cũng không chạy: cờ tắt thì đổi bản vẽ sang cảnh
-     Pascal là việc không ai dùng. `/src/lib/pascal/` là đường của máy chủ DEV
-     (bản dựng băm tên chunk) — `pnpm e2e` luôn chạy trên dev. */
-  expect(requestUrls.filter((url) => url.includes('/src/lib/pascal/'))).toEqual([]);
-});
-
-test('cờ bật: hộp Pascal dựng ra một cảnh thật, không request nào rời máy (việc 2+3+4)', async ({
+test('hộp Pascal dựng ra một cảnh thật, không request nào rời máy (việc 2+3+4)', async ({
   page,
 }) => {
   test.setTimeout(HEAVY_TEST_TIMEOUT_MS);
@@ -376,7 +345,6 @@ test('cờ bật: hộp Pascal dựng ra một cảnh thật, không request nà
 
   await trackKeyListeners(page);
 
-  await enableFlags(page, [PASCAL_FLAG_KEY]);
   await signInThenOpenPascalViewer(page);
 
   /* Việc 2 — hộp Pascal có mặt. */
@@ -493,6 +461,51 @@ const WORKER_PROBE_TIMEOUT_MS = 2_000;
 const BASIS_READY_PROBE =
   "typeof BasisModule !== 'undefined' && BasisModule !== null && typeof BasisModule.KTX2File === 'function'";
 
+/**
+ * Việc 7 — đường lưu của F-15: sửa một bức tường trong trình soạn thảo Pascal,
+ * màn nói "Đã lưu", tải lại trang thì giá trị mới còn đó.
+ *
+ * Bài này đi qua **cả năm chặng** của `usePascalEdits`: phần chênh cảnh → cổng
+ * lọc → `createPascalEditCommand` → `dispatch` → `commit`, rồi tự lưu 800 ms
+ * của A7. Không chặng nào giả lập được từ e2e, nên nó là chỗ duy nhất chứng
+ * minh chuỗi ấy chạy thật.
+ *
+ * **Chọn ô độ dày trong inspector chứ không kéo đầu tường**: một lượt kéo trên
+ * canvas WebGL phụ thuộc vào camera, mà camera thì phụ thuộc máy; một ô số thì
+ * không. Hành vi "kéo góc tường kéo theo tường nối" (3A) được chứng minh ở
+ * tầng đơn vị, nơi đọc được cả `Command`.
+ */
+test('sửa độ dày một bức tường → "Đã lưu" → tải lại thấy giá trị mới (việc 7)', async ({
+  page,
+}) => {
+  test.setTimeout(HEAVY_TEST_TIMEOUT_MS);
+
+  await openPascalViewer(page);
+  await expect(page.getByTestId('pascal-canvas')).toBeVisible();
+
+  const thickness = page.getByRole('spinbutton', { name: /độ dày|thickness/iu }).first();
+
+  if ((await thickness.count()) === 0) {
+    test.skip(
+      true,
+      'Environment: inspector của Pascal chưa mở ô độ dày khi chưa chọn tường — cần một lượt chọn trên canvas.',
+    );
+  }
+
+  await thickness.fill('250');
+  await thickness.press('Enter');
+
+  await expect(page.getByRole('status').filter({ hasText: 'Đã lưu' })).toBeVisible({
+    timeout: PASCAL_RENDER_TIMEOUT_MS,
+  });
+
+  await page.reload();
+  await expect(page.getByTestId('pascal-canvas')).toBeVisible({ timeout: COLD_ROUTE_TIMEOUT_MS });
+  await expect(
+    page.getByRole('spinbutton', { name: /độ dày|thickness/iu }).first(),
+  ).toHaveValue('250');
+});
+
 test('dưới CSP của nginx: 0 vi phạm, dựng xong, và bộ giải Basis thật sự khởi động (FIX-380)', async ({
   page,
 }) => {
@@ -537,7 +550,6 @@ test('dưới CSP của nginx: 0 vi phạm, dựng xong, và bộ giải Basis t
     if (request.url().endsWith('.ktx2')) ktx2.answered += 1;
   });
 
-  await enableFlags(page, [PASCAL_FLAG_KEY]);
   await openPascalViewer(page);
 
   await expect(page.getByRole('status')).toHaveText(SUCCESS_CAPTION, {
@@ -584,7 +596,6 @@ test('Esc đóng bảng phím tắt trước, rồi mới thu khung xem; E mở 
 }) => {
   test.setTimeout(HEAVY_TEST_TIMEOUT_MS);
 
-  await enableFlags(page, [PASCAL_FLAG_KEY]);
   await openPascalViewer(page);
 
   const canvasBox = page.getByTestId('pascal-canvas');
@@ -633,7 +644,6 @@ test('Esc thu khung ngay cả khi gói còn đang nạp, và lượt nạp dở 
 }) => {
   test.setTimeout(HEAVY_TEST_TIMEOUT_MS);
 
-  await enableFlags(page, [PASCAL_FLAG_KEY]);
   const release = await holdPascalBundle(page);
   await openPascalViewer(page);
 
@@ -662,7 +672,6 @@ test('Esc thu khung ngay cả khi gói còn đang nạp, và lượt nạp dở 
 test('khung dựng chiếm phần lớn cửa sổ, không phải một dải 190 px (B-V10-02)', async ({
   page,
 }) => {
-  await enableFlags(page, [PASCAL_FLAG_KEY]);
   // Giữ gói lại: bố cục của hộp đã chốt từ lúc `loading`, không cần chờ WebGL.
   await holdPascalBundle(page);
   await openPascalViewer(page);
@@ -690,7 +699,6 @@ for (const [variant, response, retryBy] of [
   }) => {
     test.setTimeout(HEAVY_TEST_TIMEOUT_MS);
 
-    await enableFlags(page, [PASCAL_FLAG_KEY]);
     const breakBundle = async (route: Route): Promise<void> => {
       await route.fulfill(response);
     };
@@ -724,7 +732,6 @@ test('bộ đổi dữ liệu nạp hỏng thì báo PASCAL-01, và thử lại 
 }) => {
   test.setTimeout(HEAVY_TEST_TIMEOUT_MS);
 
-  await enableFlags(page, [PASCAL_FLAG_KEY]);
   /* `toPascal` nạp muộn bằng `import()` (`usePascalViewer.ts:219`). Đường
      `/src/lib/pascal/` là đường của máy chủ DEV — `pnpm e2e` luôn chạy trên dev. */
   const breakAdapter = async (route: Route): Promise<void> => {

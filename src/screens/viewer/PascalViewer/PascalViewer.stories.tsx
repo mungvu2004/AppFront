@@ -65,6 +65,7 @@ function viewModelFor(state: PascalViewerState): PascalViewerViewModel {
     summary: state === 'success' || state === 'partial' ? SAMPLE_SUMMARY : null,
     skipped: state === 'partial' ? SAMPLE_SKIPPED : [],
     errorCode: state === 'error' ? 'PASCAL-01' : null,
+    saveLabel: state === 'success' ? 'Đã lưu' : null,
   };
 }
 
