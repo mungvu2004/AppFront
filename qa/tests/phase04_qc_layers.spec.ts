@@ -8,7 +8,7 @@
  * pipeline itself read Phase 3's CP-5 work floor (runtime-session.json project.projectId, floors.workFloorId,
  * checkpoints.pipelineComplete): SCR-18 (OCR dimensions), SCR-14 (the warped drawing), SCR-22 (the source scan) and CP-6.
  * They SKIP with an "Environment:" reason when CP-5 is not recorded or the work floor's GET …/spatial/layer is not 200.
- * Produces: checkpoints.restorableVersion (CP-6) after an approve PUT 200 on the CP-5 work floor (Phase 6 restores it).
+ * Produces: checkpoints.restorableVersion (CP-6) after an approve PUT 200 on the CP-5 work floor (no phase-6 spec reads it since QA-06: they seed their own).
  * Serial per describe only: a failure skips the rest of its own screen, never the next screens (Playwright then starts a
  * new worker, which runs `beforeAll` again on a fresh project).
  *

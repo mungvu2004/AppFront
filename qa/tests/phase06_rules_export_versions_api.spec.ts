@@ -30,11 +30,13 @@
  * - No rate limit on N15-N22 / #36 (grep `rate_limit(` in rules/, versions/, spatial_read/, spatial_write/: none).
  * - `POST /api/auth/login` per IP 30 / 60 s (BE:auth/settings.py:36-37; override LOGIN_IP_LIMIT=120): THIS file 7
  *   (one admin login in each of the 6 signed-in tests) + 1 engineer login in "roles" = 8, 0 failed. Phase-6 UI layers:
- *   main `phase06_rules_export_versions.spec.ts` 1 (`signInAdmin`); ui `phase06_rules_export_versions_ui.spec.ts` 1
- *   (`signedInApi`, +1 browser login only for a dead stored session, its header); no edge spec at authoring time.
- *   Layers run sequentially → ≤ 11 per run, far below 30 even without the override.
+ *   main `phase06_rules_export_versions.spec.ts` 2 (`signedInApi` fixture + `signInAdmin`); ui
+ *   `phase06_rules_export_versions_ui.spec.ts` 2 (`signedInApi` per group, +1 browser login only for a dead stored
+ *   session, its header); edge 0 (+1 for a dead stored session). Layers run sequentially → ≤ 14 per run, far below 30
+ *   even without the override.
  * - `drawings_init` 60 / 600 s per user (BE:drawings/settings.py:135-136): ADMIN 4 (one pipeline project in "versions
- *   read", "restore", "label", "roles"); the main and ui specs 0.
+ *   read", "restore", "label", "roles"); main 1 and ui 1 (QA-06: each seeds its own pipeline project instead of reading
+ *   CP-5/CP-6; +1 per worker restart after a failed test); edge 4 → Phase 6 ≈ 10 per run, far below 60.
  * - `POST /api/users/invitations` 30 / 3600 s per admin (BE:users/router.py:55-63): THIS file 1. Phases 1-5 spend 27
  *   (phase05 header) → Phases 1-6 in one hour = 28 ≤ 30.
  * - `recovery_ip` 10 / 900 s per IP (override 60): 1 invitation accept.

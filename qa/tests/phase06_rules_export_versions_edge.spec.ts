@@ -1,7 +1,7 @@
 /**
  * Phase 6 — EDGE CASES, Track A (admin): SCR-28 Rule Report, SCR-29 Rule Settings, SCR-30 Export Panel,
- * SCR-31 Spatial JSON Viewer, SCR-32 Version History. Gaps left by `phase06_rules_export_versions.spec.ts` (serial,
- * shared CP-5/CP-6 work floor); inventory in `qa/coverage/phase06.md` (FE stamp 508f6e65).
+ * SCR-31 Spatial JSON Viewer, SCR-32 Version History. Gaps left by `phase06_rules_export_versions.spec.ts` (serial, own
+ * pipeline project since QA-06); inventory in `qa/coverage/phase06.md` (FE stamp 508f6e65).
  *
  * Every expected result cites the FE source of `F:/App/AppFront` @ 508f6e65 or, written `BE:`, AppBack. Short names:
  *   RR   src/screens/rules/RuleReport/      (RRV RuleReport.tsx, RRC RuleReport.container.tsx, RRS RuleReportSummary.tsx,

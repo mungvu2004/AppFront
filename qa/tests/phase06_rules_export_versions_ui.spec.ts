@@ -6,11 +6,14 @@
  * (helper `verifyAsAdmin` copied from there).
  *
  * Data:
- *   - Data states read the CP-2 project (`project.projectId`, Phase 2) after CP-5 (`checkpoints.pipelineComplete`);
- *     SCR-32 also needs CP-6 (`checkpoints.restorableVersion`) and the work floor (`floors.workFloorName`). Without them
- *     the test SKIPS before loading anything. A state the project's data cannot show (rule run `done` → no filter bar,
- *     no rows; no row with a floor → no ViolationDetail; no non-current version → no restore button) SKIPS with a
- *     `data:` reason.
+ *   - Data states (QA-06: no runtime-session.json checkpoint) run on ONE run-unique `qa-<runId>-u06-data-…` project this
+ *     file creates through the API before the group and deletes after it: `E2E_DRAWING_PNG` uploaded to its one floor,
+ *     the fake-ML run and its "before" + "after" versions awaited (`support/drawingSeed.ts` createPipelineProject; only
+ *     the pipeline creates versions, BE apps/worker/pipeline_persist/service.py:182-198), then the layer written once
+ *     through #35 (`support/layerSeed.ts` qcLayer) so the AI version is no longer "Hiện tại" (CP-6 on our own floor).
+ *     Without `E2E_DRAWING_PNG` the group SKIPS with an "Environment:" reason. A state the project's data cannot show
+ *     (rule run `done` → no filter bar, no rows; no row with a floor → no ViolationDetail; no non-current version → no
+ *     restore button) SKIPS with a `data:` reason.
  *   - One run-unique project with an 80-character name and ONE floor with a 65-character name (`qa-<runId>-u06-…`),
  *     created through the API before its group and deleted after it. Its floor has no layer and no version. The store
  *     still hydrates a graph for it (one level, `store/projectHydration.ts`), so rules / settings / export / data may
@@ -18,10 +21,13 @@
  *     record which one in a `state` annotation (no guessed copy). SCR-32 shows "<floor> chưa có phiên bản nào"
  *     (`useVersionHistory.ts:603`) with the long floor name.
  *
- * Budget — logins: 1 real admin API login (`signedInApi`, no-layer group); a browser login only to replace a dead stored
- * session (`ensureAdminSession`). Writes: 1 `POST /api/projects` (1 floor, BE #25 `floors`) + 1 `DELETE /api/projects/:id`
- * (API), nothing else — every test asserts the browser sent NO non-GET request under `/api/projects/` (`verifyAsAdmin`
- * guard). No rule switch / severity / preset is changed (autosave would PUT rule-config); the severity menu is only
+ * Budget — logins: 2 real admin API logins (`signedInApi`, one per group: data states, no-layer); a browser login only
+ * to replace a dead stored session (`ensureAdminSession`). A failed test starts a new worker, whose group `beforeAll`
+ * runs again (one more login, and for the data group one more pipeline project). `drawings_init` (60 / 600 s per user,
+ * BE drawings/settings.py:135-136): 1 per data-group run (≤ 1 + failed data tests). Writes, all through the API: 2
+ * `POST /api/projects` (data: 1 floor + drawing upload #5/#6/#7 + 1 #35 layer PUT; no-layer: 1 floor, BE #25 `floors`)
+ * + 2 `DELETE /api/projects/:id`, nothing else — every test asserts the browser sent NO non-GET request under
+ * `/api/projects/` (`verifyAsAdmin` guard). No rule switch / severity / preset is changed (autosave would PUT rule-config); the severity menu is only
  * opened. The label and restore dialogs are only opened, never submitted ("Gắn nhãn" / "Phục hồi" never clicked; R3:
  * the only restore of Phase 6 stays the main layer's last test). The `.json` export is a local blob download
  * (`exportPanelGateway.ts` startSpatialJsonExport + deliverViaAnchor, no request); it is the plan's download opt-in, same
@@ -33,15 +39,19 @@
  * G6: the editor tour mounts on `/export` only (`ExportPanel.container.tsx` `hostId="export-panel"`); it is dismissed
  * with the product's own "Bỏ qua hướng dẫn" (`e2e/fixtures/tour.ts`).
  */
+import { readFileSync } from 'node:fs';
+
 import { expect, test, type APIRequestContext, type Browser, type Locator, type Page } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { TOUR_APPEAR_TIMEOUT_MS, dismissTour } from '../../e2e/fixtures/tour';
-import { readBaseUrl } from '../../e2e/fullstack/env';
+import { PIPELINE_TIMEOUT_MS, readBaseUrl } from '../../e2e/fullstack/env';
 import { signedInApi } from './support/api';
 import { ensureAdminSession, readAdminCredentials } from './support/auth';
+import { createPipelineProject, deleteSeededProject, type SeededDrawing } from './support/drawingSeed';
 import { TEST_DATA_PREFIX } from './support/evidence';
-import { ADMIN_STORAGE_STATE_FILE, readState, requireState } from './support/state';
+import { qcLayer, writeLayer } from './support/layerSeed';
+import { ADMIN_STORAGE_STATE_FILE } from './support/state';
 import { UI_VIEWPORTS, verifyUi } from './support/ui-verify';
 
 /* Copy — every string checked in src/ (file noted). */
@@ -117,16 +127,15 @@ const LONG_FLOOR_NAME = 'Tầng kỹ thuật mái và phòng máy bơm nước s
 
 /* ---- helpers ---- */
 
-function requireCp5(): void {
-  test.skip(!readState().checkpoints.pipelineComplete, 'data: CP-5 not reached (checkpoints.pipelineComplete false)');
-}
+/** The data group's own pipeline project (set by its `beforeAll`). */
+let dataProject: SeededDrawing | undefined;
 
-function requireCp6(): void {
-  test.skip(!readState().checkpoints.restorableVersion, 'data: CP-6 not reached (checkpoints.restorableVersion false)');
-}
-
-const cp2 = (): string => requireState((s) => s.project.projectId, 'project.projectId', 'Phase 2');
-const workFloorName = (): string => requireState((s) => s.floors.workFloorName, 'floors.workFloorName', 'Phase 3');
+const seeded = (): SeededDrawing => {
+  if (dataProject === undefined) throw new Error('setup: the pipeline project of the data states was not created');
+  return dataProject;
+};
+const ownProject = (): string => seeded().projectId;
+const workFloorName = (): string => seeded().floorName;
 
 /** Own context from the admin storage state, rotated refresh cookie written back; records non-GET under /api/projects/. */
 async function verifyAsAdmin(browser: Browser, name: string, open: (page: Page) => Promise<void>): Promise<void> {
@@ -185,10 +194,10 @@ async function openRules(page: Page, projectId: string): Promise<string> {
   return state;
 }
 
-/** CP-2 `/rules` with the filter bar (`ready`/`partial`); SKIPS on `done` (RuleReport.tsx canFilter). */
+/** Seeded `/rules` with the filter bar (`ready`/`partial`); SKIPS on `done` (RuleReport.tsx canFilter). */
 async function openRulesFiltered(page: Page): Promise<void> {
-  const state = await openRules(page, cp2());
-  test.skip(state !== 'filters', `data: CP-2 rule run is "${state}", no filter bar; that state is U06_rules_report`);
+  const state = await openRules(page, ownProject());
+  test.skip(state !== 'filters', `data: the seeded rule run is "${state}", no filter bar; that state is U06_rules_report`);
 }
 
 async function pickLevel(page: Page, label: string): Promise<void> {
@@ -202,7 +211,7 @@ async function expandFirstGroup(page: Page): Promise<Locator> {
   await openRulesFiltered(page);
   const states = await groupExpanders(page).evaluateAll((els) => els.map((el) => el.getAttribute('aria-expanded')));
   const index = states.indexOf('false');
-  test.skip(index === -1, 'data: no collapsed rule group in the CP-2 report');
+  test.skip(index === -1, 'data: no collapsed rule group in the seeded report');
   const expander = groupExpanders(page).nth(index);
   await expander.click();
   await expect(expander).toHaveAttribute('aria-expanded', 'true');
@@ -243,8 +252,8 @@ function exportOpener(): (page: Page, projectId: string) => Promise<string> {
 }
 
 async function openExportPanel(page: Page, openExport: ReturnType<typeof exportOpener>): Promise<void> {
-  const state = await openExport(page, cp2());
-  test.skip(state !== 'panel', `data: CP-2 export panel is "${state}"`);
+  const state = await openExport(page, ownProject());
+  test.skip(state !== 'panel', `data: the seeded export panel is "${state}"`);
 }
 
 async function selectFormat(page: Page, extension: string): Promise<Locator> {
@@ -273,8 +282,8 @@ async function openData(page: Page, projectId: string): Promise<string> {
 }
 
 async function openDataTree(page: Page): Promise<void> {
-  const state = await openData(page, cp2());
-  test.skip(state !== 'tree', `data: CP-2 Spatial JSON viewer is "${state}"`);
+  const state = await openData(page, ownProject());
+  test.skip(state !== 'tree', `data: the seeded Spatial JSON viewer is "${state}"`);
 }
 
 /* ---- SCR-32 ---- */
@@ -298,267 +307,287 @@ async function openVersions(page: Page, projectId: string, floorName: string): P
 }
 
 async function openVersionsDiff(page: Page): Promise<void> {
-  const state = await openVersions(page, cp2(), workFloorName());
+  const state = await openVersions(page, ownProject(), workFloorName());
   test.skip(state !== 'diff', `data: the work floor shows "${state}", no version pair`);
 }
 
 /* ========================================================================== */
-/* Data states on the CP-2 project                                            */
+/* Data states on this file's own pipeline project                            */
 /* ========================================================================== */
 
-test.describe('U06 UI verify — SCR-28 rule report (CP-2, needs CP-5)', () => {
-  test.beforeEach(requireCp5);
-  test.beforeEach(() => test.setTimeout(TEST_TIMEOUT_MS));
+test.describe('U06 UI verify — data states (own pipeline project, this file creates it)', () => {
+  let admin: APIRequestContext | undefined;
 
-  test('U06 · SCR-28 rules, run result (summary + list or done panel)', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U06_rules_report', async (p) => {
-      const state = await openRules(p, cp2());
-      expect(state, 'CP-2 rule report state').not.toMatch(/^(empty|error)$/u);
-    });
+  test.beforeAll(async ({}, testInfo) => {
+    const drawing = process.env.E2E_DRAWING_PNG?.trim() ?? '';
+    test.skip(drawing === '', 'Environment: E2E_DRAWING_PNG is not set (qa.config.json env.vars); versions only come from the pipeline');
+    testInfo.setTimeout(PIPELINE_TIMEOUT_MS + 120_000);
+    const { email, password } = readAdminCredentials();
+    admin = await signedInApi(email, password);
+    dataProject = await createPipelineProject(admin, 'u06-data', readFileSync(drawing));
+    // CP-6 on our own floor: one layer write moves floorRevision on, so the AI version is no longer "Hiện tại".
+    await writeLayer({ request: admin, headers: {} }, dataProject.projectId, dataProject.floorId, qcLayer);
   });
 
-  test('U06 · SCR-28 rules, level filter "Vi phạm"', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U06_rules_filter_violation', async (p) => {
-      await openRulesFiltered(p);
-      await pickLevel(p, LEVEL_VIOLATION);
-      await expect(groupExpanders(p).first().or(p.getByText(FILTER_NO_MATCH, { exact: true })).first()).toBeVisible();
-    });
+  test.afterAll(async () => {
+    try {
+      const failure = admin && dataProject ? await deleteSeededProject(admin, dataProject.projectId) : null;
+      if (failure !== null) test.info().annotations.push({ type: 'cleanup', description: failure });
+    } finally {
+      dataProject = undefined;
+      await admin?.dispose();
+    }
   });
 
-  test('U06 · SCR-28 rules, level filter "Đạt" → passed rules', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U06_rules_filter_passed', async (p) => {
-      await openRulesFiltered(p);
-      await pickLevel(p, LEVEL_PASSED);
-      // RuleReportPassedList, or its one-line empty copy (RuleReport.tsx RuleReportBody).
-      await expect(groupExpanders(p)).toHaveCount(0);
-      const passedRow = p.getByRole('listitem').filter({ has: p.getByText(RULE_GROUP_LABEL, { exact: true }) });
-      await expect(p.getByText(PASSED_EMPTY_TEXT, { exact: true }).or(passedRow).first()).toBeVisible();
-    });
-  });
+  test.describe('U06 UI verify — SCR-28 rule report (seeded)', () => {
+    test.beforeEach(() => test.setTimeout(TEST_TIMEOUT_MS));
 
-  test('U06 · SCR-28 rules, rule group expanded (rows with "Xem")', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U06_rules_group_expanded', async (p) => {
-      const section = await expandFirstGroup(p);
-      await expect(section.getByRole('row').first()).toBeVisible();
-    });
-  });
-
-  test('U06 · SCR-28 rules, row → ViolationDetail sheet open', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U06_rules_violation_detail', async (p) => {
-      const section = await expandFirstGroup(p);
-      // ViolationDetail needs a floor (RuleReport.container.tsx: activeFloorId ?? row.levelId), as phase06 main.
-      const rows = section
-        .getByRole('row')
-        .filter({ has: p.getByRole('button', { name: VIEW_ROW, exact: true }) })
-        .filter({ hasNot: p.getByText('—', { exact: true }) });
-      test.skip((await rows.count()) === 0, 'data: the expanded group has no row with a floor');
-      await rows.first().getByRole('button').first().click();
-      await expect(p.getByRole('complementary', { name: VIOLATION_DETAIL })).toBeVisible();
-    });
-  });
-});
-
-test.describe('U06 UI verify — SCR-29 rule settings (CP-2, needs CP-5)', () => {
-  test.beforeEach(requireCp5);
-  test.beforeEach(() => test.setTimeout(TEST_TIMEOUT_MS));
-
-  test('U06 · SCR-29 rule settings, all groups', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U06_rulesettings_default', async (p) => {
-      expect(await openRuleSettings(p, cp2()), 'CP-2 rule settings state').toBe('rules');
-    });
-  });
-
-  test('U06 · SCR-29 rule settings, severity menu open (nothing chosen)', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U06_rulesettings_severity_menu', async (p) => {
-      expect(await openRuleSettings(p, cp2()), 'CP-2 rule settings state').toBe('rules');
-      // Opening the menu is view state; choosing would autosave a PUT (useRuleSettings.ts), so nothing is chosen.
-      await p.getByRole('combobox', { name: SEVERITY_SELECT }).first().click();
-      await expect(p.getByRole('option').first()).toBeVisible();
-    });
-  });
-});
-
-test.describe('U06 UI verify — SCR-30 export panel (CP-2, needs CP-5)', () => {
-  test.beforeEach(requireCp5);
-  test.beforeEach(() => test.setTimeout(TEST_TIMEOUT_MS));
-
-  test('U06 · SCR-30 export, .glb with "Tuỳ chọn" open', async ({ browser }) => {
-    const openExport = exportOpener();
-    await verifyAsAdmin(browser, 'U06_export_glb_options', async (p) => {
-      await openExportPanel(p, openExport);
-      await selectFormat(p, '.glb');
-      const toggle = p.getByRole('button', { name: OPTIONS_TOGGLE, exact: true });
-      if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
-      await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-      await expect(p.getByRole('radiogroup', { name: GLB_DETAIL, exact: true })).toBeVisible();
-    });
-  });
-
-  test('U06 · SCR-30 export, .json selected', async ({ browser }) => {
-    const openExport = exportOpener();
-    await verifyAsAdmin(browser, 'U06_export_json', async (p) => {
-      await openExportPanel(p, openExport);
-      await selectFormat(p, '.json');
-      const toggle = p.getByRole('button', { name: OPTIONS_TOGGLE, exact: true });
-      if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
-      await expect(p.getByRole('checkbox', { name: JSON_CONFIDENCE, exact: true })).toBeVisible();
-      await expect(p.getByRole('button', { name: EXPORT_BUTTON, exact: true })).toBeVisible();
-    });
-  });
-
-  test('U06 · SCR-30 export, .pdf blocked (no "Xuất")', async ({ browser }) => {
-    const openExport = exportOpener();
-    await verifyAsAdmin(browser, 'U06_export_pdf_blocked', async (p) => {
-      await openExportPanel(p, openExport);
-      await expect(await selectFormat(p, '.pdf')).toContainText(PDF_BLOCKED_CAPTION);
-      await expect(p.getByRole('button', { name: EXPORT_BUTTON, exact: true })).toHaveCount(0);
-    });
-  });
-
-  test('U06 · SCR-30 export, .png blocked (no 3D viewport)', async ({ browser }) => {
-    const openExport = exportOpener();
-    await verifyAsAdmin(browser, 'U06_export_png_blocked', async (p) => {
-      await openExportPanel(p, openExport);
-      // canCaptureImage is false without a viewport (exportPanelGateway.ts:239).
-      await expect(await selectFormat(p, '.png')).toContainText(IMAGE_BLOCKED_CAPTION);
-      await expect(p.getByRole('button', { name: EXPORT_BUTTON, exact: true })).toHaveCount(0);
-    });
-  });
-
-  test('U06 · SCR-30 export, .json exported → "Tệp đã xuất" row', async ({ browser }) => {
-    const openExport = exportOpener();
-    await verifyAsAdmin(browser, 'U06_export_json_done', async (p) => {
-      await openExportPanel(p, openExport);
-      await selectFormat(p, '.json');
-      const download = p.waitForEvent('download');
-      await p.getByRole('button', { name: EXPORT_BUTTON, exact: true }).click();
-      expect((await download).suggestedFilename(), 'suggested file name').toMatch(/\.json$/u);
-      await expect(p.getByRole('region', { name: EXPORT_HISTORY, exact: true })).toBeVisible();
-    });
-  });
-});
-
-test.describe('U06 UI verify — SCR-31 Spatial JSON viewer (CP-2, needs CP-5)', () => {
-  test.beforeEach(requireCp5);
-  test.beforeEach(() => test.setTimeout(TEST_TIMEOUT_MS));
-
-  test('U06 · SCR-31 data, tree loaded', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U06_data_tree', openDataTree);
-  });
-
-  test('U06 · SCR-31 data, search with matches', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U06_data_search_match', async (p) => {
-      await openDataTree(p);
-      // A top-level key read from the tree itself: guaranteed ≥1 match (phase06 main).
-      const term = (await jsonTree(p).getByRole('treeitem').first().locator('code').first().innerText()).trim();
-      await p.getByRole('textbox', { name: JSON_SEARCH, exact: true }).fill(term);
-      await expect(p.getByText(POSITIVE_MATCH_PATTERN)).toBeVisible();
-    });
-  });
-
-  test('U06 · SCR-31 data, search with no match ("0 / 0")', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U06_data_search_no_match', async (p) => {
-      await openDataTree(p);
-      await p.getByRole('textbox', { name: JSON_SEARCH, exact: true }).fill(NO_MATCH_TERM);
-      await expect(p.getByText(NO_MATCH_LABEL, { exact: true })).toBeVisible();
-    });
-  });
-
-  test('U06 · SCR-31 data, "Mở rộng tất cả"', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U06_data_expanded', async (p) => {
-      await openDataTree(p);
-      const items = jsonTree(p).getByRole('treeitem');
-      await p.getByRole('button', { name: COLLAPSE_ALL, exact: true }).click();
-      const collapsed = await items.count();
-      await p.getByRole('button', { name: EXPAND_ALL, exact: true }).click();
-      await expect.poll(() => items.count()).toBeGreaterThan(collapsed);
-    });
-  });
-
-  test('U06 · SCR-31 data, item selected + "Xem trước" tab (detail ≥1024)', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U06_data_preview', async (p) => {
-      await openDataTree(p);
-      const item = jsonTree(p).getByRole('treeitem').first();
-      await item.click();
-      await expect(item).toHaveAttribute('aria-selected', 'true');
-      if ((p.viewportSize()?.width ?? 0) < DETAIL_MIN_WIDTH) return; // detail half not rendered (NARROW_QUERY)
-      const preview = p.getByRole('tablist', { name: DETAIL_TABS, exact: true }).getByRole('tab', { name: 'Xem trước', exact: true });
-      await preview.click();
-      await expect(preview).toHaveAttribute('aria-selected', 'true');
-    });
-  });
-
-  test('U06 · SCR-31 data, "Thô" view mode', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U06_data_raw', async (p) => {
-      await openDataTree(p);
-      const raw = p.getByRole('radiogroup', { name: VIEW_MODE, exact: true }).getByRole('radio', { name: 'Thô', exact: true });
-      await raw.click();
-      await expect(raw).toHaveAttribute('aria-checked', 'true');
-    });
-  });
-});
-
-test.describe('U06 UI verify — SCR-32 version history (CP-2, needs CP-6)', () => {
-  test.beforeEach(requireCp5);
-  test.beforeEach(requireCp6);
-  test.beforeEach(() => test.setTimeout(TEST_TIMEOUT_MS));
-
-  test('U06 · SCR-32 versions, work floor, default pair, "Thay đổi"', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U06_versions_changes', async (p) => {
-      await openVersionsDiff(p);
-      await expect(diffTabs(p).getByRole('tab', { name: 'Thay đổi', exact: true })).toHaveAttribute('aria-selected', 'true');
-    });
-  });
-
-  for (const [label, slug] of [
-    ['JSON', 'json'],
-    ['Trực quan', 'visual'],
-  ] as const) {
-    test(`U06 · SCR-32 versions, "${label}" tab`, async ({ browser }) => {
-      await verifyAsAdmin(browser, `U06_versions_${slug}`, async (p) => {
-        await openVersionsDiff(p);
-        const tab = diffTabs(p).getByRole('tab', { name: label, exact: true });
-        await tab.click();
-        await expect(tab).toHaveAttribute('aria-selected', 'true');
-        await expect(p.getByRole('tabpanel', { name: label, exact: true })).toBeVisible();
+    test('U06 · SCR-28 rules, run result (summary + list or done panel)', async ({ browser }) => {
+      await verifyAsAdmin(browser, 'U06_rules_report', async (p) => {
+        const state = await openRules(p, ownProject());
+        expect(state, 'seeded rule report state').not.toMatch(/^(empty|error)$/u);
       });
     });
-  }
 
-  test('U06 · SCR-32 versions, label dialog open (not submitted)', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U06_versions_label_dialog', async (p) => {
-      await openVersionsDiff(p);
-      await p.getByRole('button', { name: LABEL_BUTTON, exact: true }).click();
-      const dialog = p.getByRole('dialog');
-      await expect(dialog).toContainText('Gắn nhãn phiên bản');
-      await expect(dialog.getByRole('textbox', { name: LABEL_FIELD, exact: true })).toBeVisible();
+    test('U06 · SCR-28 rules, level filter "Vi phạm"', async ({ browser }) => {
+      await verifyAsAdmin(browser, 'U06_rules_filter_violation', async (p) => {
+        await openRulesFiltered(p);
+        await pickLevel(p, LEVEL_VIOLATION);
+        await expect(groupExpanders(p).first().or(p.getByText(FILTER_NO_MATCH, { exact: true })).first()).toBeVisible();
+      });
+    });
+
+    test('U06 · SCR-28 rules, level filter "Đạt" → passed rules', async ({ browser }) => {
+      await verifyAsAdmin(browser, 'U06_rules_filter_passed', async (p) => {
+        await openRulesFiltered(p);
+        await pickLevel(p, LEVEL_PASSED);
+        // RuleReportPassedList, or its one-line empty copy (RuleReport.tsx RuleReportBody).
+        await expect(groupExpanders(p)).toHaveCount(0);
+        const passedRow = p.getByRole('listitem').filter({ has: p.getByText(RULE_GROUP_LABEL, { exact: true }) });
+        await expect(p.getByText(PASSED_EMPTY_TEXT, { exact: true }).or(passedRow).first()).toBeVisible();
+      });
+    });
+
+    test('U06 · SCR-28 rules, rule group expanded (rows with "Xem")', async ({ browser }) => {
+      await verifyAsAdmin(browser, 'U06_rules_group_expanded', async (p) => {
+        const section = await expandFirstGroup(p);
+        await expect(section.getByRole('row').first()).toBeVisible();
+      });
+    });
+
+    test('U06 · SCR-28 rules, row → ViolationDetail sheet open', async ({ browser }) => {
+      await verifyAsAdmin(browser, 'U06_rules_violation_detail', async (p) => {
+        const section = await expandFirstGroup(p);
+        // ViolationDetail needs a floor (RuleReport.container.tsx: activeFloorId ?? row.levelId), as phase06 main.
+        const rows = section
+          .getByRole('row')
+          .filter({ has: p.getByRole('button', { name: VIEW_ROW, exact: true }) })
+          .filter({ hasNot: p.getByText('—', { exact: true }) });
+        test.skip((await rows.count()) === 0, 'data: the expanded group has no row with a floor');
+        await rows.first().getByRole('button').first().click();
+        await expect(p.getByRole('complementary', { name: VIOLATION_DETAIL })).toBeVisible();
+      });
     });
   });
 
-  test('U06 · SCR-32 versions, restore confirm open (not confirmed)', async ({ browser }) => {
-    await verifyAsAdmin(browser, 'U06_versions_restore_confirm', async (p) => {
-      await openVersionsDiff(p);
-      // "Phục hồi phiên bản này" shows only when the pair's right version is not "Hiện tại" (VersionHistory.tsx).
-      // Walk the "Phiên bản đối chiếu" options (local pick; only GET snapshot reads) until it shows.
-      const restore = p.getByRole('button', { name: RESTORE_BUTTON, exact: true });
-      const right = p.getByRole('combobox', { name: RIGHT_VERSION_SELECT, exact: true });
-      let count = 1;
-      for (let index = 0; index < count && !(await restore.isVisible()); index += 1) {
-        await right.click();
-        const options = p.getByRole('option');
-        await expect(options.first()).toBeVisible();
-        count = await options.count();
-        await options.nth(index).click();
-        await restore.waitFor({ state: 'visible', timeout: 3_000 }).catch(() => undefined);
-      }
-      test.skip(!(await restore.isVisible()), 'data: no non-current version can be the reviewed one');
-      await restore.click();
-      const dialog = p.getByRole('dialog');
-      await expect(dialog).toContainText(RESTORE_CONFIRM_TITLE);
-      // R3: never "Phục hồi"; the context closes with the dialog open.
-      await expect(dialog.getByRole('button', { name: KEEP_AS_IS, exact: true })).toBeVisible();
+  test.describe('U06 UI verify — SCR-29 rule settings (seeded)', () => {
+    test.beforeEach(() => test.setTimeout(TEST_TIMEOUT_MS));
+
+    test('U06 · SCR-29 rule settings, all groups', async ({ browser }) => {
+      await verifyAsAdmin(browser, 'U06_rulesettings_default', async (p) => {
+        expect(await openRuleSettings(p, ownProject()), 'seeded rule settings state').toBe('rules');
+      });
+    });
+
+    test('U06 · SCR-29 rule settings, severity menu open (nothing chosen)', async ({ browser }) => {
+      await verifyAsAdmin(browser, 'U06_rulesettings_severity_menu', async (p) => {
+        expect(await openRuleSettings(p, ownProject()), 'seeded rule settings state').toBe('rules');
+        // Opening the menu is view state; choosing would autosave a PUT (useRuleSettings.ts), so nothing is chosen.
+        await p.getByRole('combobox', { name: SEVERITY_SELECT }).first().click();
+        await expect(p.getByRole('option').first()).toBeVisible();
+      });
     });
   });
+
+  test.describe('U06 UI verify — SCR-30 export panel (seeded)', () => {
+    test.beforeEach(() => test.setTimeout(TEST_TIMEOUT_MS));
+
+    test('U06 · SCR-30 export, .glb with "Tuỳ chọn" open', async ({ browser }) => {
+      const openExport = exportOpener();
+      await verifyAsAdmin(browser, 'U06_export_glb_options', async (p) => {
+        await openExportPanel(p, openExport);
+        await selectFormat(p, '.glb');
+        const toggle = p.getByRole('button', { name: OPTIONS_TOGGLE, exact: true });
+        if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+        await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        await expect(p.getByRole('radiogroup', { name: GLB_DETAIL, exact: true })).toBeVisible();
+      });
+    });
+
+    test('U06 · SCR-30 export, .json selected', async ({ browser }) => {
+      const openExport = exportOpener();
+      await verifyAsAdmin(browser, 'U06_export_json', async (p) => {
+        await openExportPanel(p, openExport);
+        await selectFormat(p, '.json');
+        const toggle = p.getByRole('button', { name: OPTIONS_TOGGLE, exact: true });
+        if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+        await expect(p.getByRole('checkbox', { name: JSON_CONFIDENCE, exact: true })).toBeVisible();
+        await expect(p.getByRole('button', { name: EXPORT_BUTTON, exact: true })).toBeVisible();
+      });
+    });
+
+    test('U06 · SCR-30 export, .pdf blocked (no "Xuất")', async ({ browser }) => {
+      const openExport = exportOpener();
+      await verifyAsAdmin(browser, 'U06_export_pdf_blocked', async (p) => {
+        await openExportPanel(p, openExport);
+        await expect(await selectFormat(p, '.pdf')).toContainText(PDF_BLOCKED_CAPTION);
+        await expect(p.getByRole('button', { name: EXPORT_BUTTON, exact: true })).toHaveCount(0);
+      });
+    });
+
+    test('U06 · SCR-30 export, .png blocked (no 3D viewport)', async ({ browser }) => {
+      const openExport = exportOpener();
+      await verifyAsAdmin(browser, 'U06_export_png_blocked', async (p) => {
+        await openExportPanel(p, openExport);
+        // canCaptureImage is false without a viewport (exportPanelGateway.ts:239).
+        await expect(await selectFormat(p, '.png')).toContainText(IMAGE_BLOCKED_CAPTION);
+        await expect(p.getByRole('button', { name: EXPORT_BUTTON, exact: true })).toHaveCount(0);
+      });
+    });
+
+    test('U06 · SCR-30 export, .json exported → "Tệp đã xuất" row', async ({ browser }) => {
+      const openExport = exportOpener();
+      await verifyAsAdmin(browser, 'U06_export_json_done', async (p) => {
+        await openExportPanel(p, openExport);
+        await selectFormat(p, '.json');
+        const download = p.waitForEvent('download');
+        await p.getByRole('button', { name: EXPORT_BUTTON, exact: true }).click();
+        expect((await download).suggestedFilename(), 'suggested file name').toMatch(/\.json$/u);
+        await expect(p.getByRole('region', { name: EXPORT_HISTORY, exact: true })).toBeVisible();
+      });
+    });
+  });
+
+  test.describe('U06 UI verify — SCR-31 Spatial JSON viewer (seeded)', () => {
+    test.beforeEach(() => test.setTimeout(TEST_TIMEOUT_MS));
+
+    test('U06 · SCR-31 data, tree loaded', async ({ browser }) => {
+      await verifyAsAdmin(browser, 'U06_data_tree', openDataTree);
+    });
+
+    test('U06 · SCR-31 data, search with matches', async ({ browser }) => {
+      await verifyAsAdmin(browser, 'U06_data_search_match', async (p) => {
+        await openDataTree(p);
+        // A top-level key read from the tree itself: guaranteed ≥1 match (phase06 main).
+        const term = (await jsonTree(p).getByRole('treeitem').first().locator('code').first().innerText()).trim();
+        await p.getByRole('textbox', { name: JSON_SEARCH, exact: true }).fill(term);
+        await expect(p.getByText(POSITIVE_MATCH_PATTERN)).toBeVisible();
+      });
+    });
+
+    test('U06 · SCR-31 data, search with no match ("0 / 0")', async ({ browser }) => {
+      await verifyAsAdmin(browser, 'U06_data_search_no_match', async (p) => {
+        await openDataTree(p);
+        await p.getByRole('textbox', { name: JSON_SEARCH, exact: true }).fill(NO_MATCH_TERM);
+        await expect(p.getByText(NO_MATCH_LABEL, { exact: true })).toBeVisible();
+      });
+    });
+
+    test('U06 · SCR-31 data, "Mở rộng tất cả"', async ({ browser }) => {
+      await verifyAsAdmin(browser, 'U06_data_expanded', async (p) => {
+        await openDataTree(p);
+        const items = jsonTree(p).getByRole('treeitem');
+        await p.getByRole('button', { name: COLLAPSE_ALL, exact: true }).click();
+        const collapsed = await items.count();
+        await p.getByRole('button', { name: EXPAND_ALL, exact: true }).click();
+        await expect.poll(() => items.count()).toBeGreaterThan(collapsed);
+      });
+    });
+
+    test('U06 · SCR-31 data, item selected + "Xem trước" tab (detail ≥1024)', async ({ browser }) => {
+      await verifyAsAdmin(browser, 'U06_data_preview', async (p) => {
+        await openDataTree(p);
+        const item = jsonTree(p).getByRole('treeitem').first();
+        await item.click();
+        await expect(item).toHaveAttribute('aria-selected', 'true');
+        if ((p.viewportSize()?.width ?? 0) < DETAIL_MIN_WIDTH) return; // detail half not rendered (NARROW_QUERY)
+        const preview = p.getByRole('tablist', { name: DETAIL_TABS, exact: true }).getByRole('tab', { name: 'Xem trước', exact: true });
+        await preview.click();
+        await expect(preview).toHaveAttribute('aria-selected', 'true');
+      });
+    });
+
+    test('U06 · SCR-31 data, "Thô" view mode', async ({ browser }) => {
+      await verifyAsAdmin(browser, 'U06_data_raw', async (p) => {
+        await openDataTree(p);
+        const raw = p.getByRole('radiogroup', { name: VIEW_MODE, exact: true }).getByRole('radio', { name: 'Thô', exact: true });
+        await raw.click();
+        await expect(raw).toHaveAttribute('aria-checked', 'true');
+      });
+    });
+  });
+
+  test.describe('U06 UI verify — SCR-32 version history (seeded, CP-6 on own floor)', () => {
+    test.beforeEach(() => test.setTimeout(TEST_TIMEOUT_MS));
+
+    test('U06 · SCR-32 versions, work floor, default pair, "Thay đổi"', async ({ browser }) => {
+      await verifyAsAdmin(browser, 'U06_versions_changes', async (p) => {
+        await openVersionsDiff(p);
+        await expect(diffTabs(p).getByRole('tab', { name: 'Thay đổi', exact: true })).toHaveAttribute('aria-selected', 'true');
+      });
+    });
+
+    for (const [label, slug] of [
+      ['JSON', 'json'],
+      ['Trực quan', 'visual'],
+    ] as const) {
+      test(`U06 · SCR-32 versions, "${label}" tab`, async ({ browser }) => {
+        await verifyAsAdmin(browser, `U06_versions_${slug}`, async (p) => {
+          await openVersionsDiff(p);
+          const tab = diffTabs(p).getByRole('tab', { name: label, exact: true });
+          await tab.click();
+          await expect(tab).toHaveAttribute('aria-selected', 'true');
+          await expect(p.getByRole('tabpanel', { name: label, exact: true })).toBeVisible();
+        });
+      });
+    }
+
+    test('U06 · SCR-32 versions, label dialog open (not submitted)', async ({ browser }) => {
+      await verifyAsAdmin(browser, 'U06_versions_label_dialog', async (p) => {
+        await openVersionsDiff(p);
+        await p.getByRole('button', { name: LABEL_BUTTON, exact: true }).click();
+        const dialog = p.getByRole('dialog');
+        await expect(dialog).toContainText('Gắn nhãn phiên bản');
+        await expect(dialog.getByRole('textbox', { name: LABEL_FIELD, exact: true })).toBeVisible();
+      });
+    });
+
+    test('U06 · SCR-32 versions, restore confirm open (not confirmed)', async ({ browser }) => {
+      await verifyAsAdmin(browser, 'U06_versions_restore_confirm', async (p) => {
+        await openVersionsDiff(p);
+        // "Phục hồi phiên bản này" shows only when the pair's right version is not "Hiện tại" (VersionHistory.tsx).
+        // Walk the "Phiên bản đối chiếu" options (local pick; only GET snapshot reads) until it shows.
+        const restore = p.getByRole('button', { name: RESTORE_BUTTON, exact: true });
+        const right = p.getByRole('combobox', { name: RIGHT_VERSION_SELECT, exact: true });
+        let count = 1;
+        for (let index = 0; index < count && !(await restore.isVisible()); index += 1) {
+          await right.click();
+          const options = p.getByRole('option');
+          await expect(options.first()).toBeVisible();
+          count = await options.count();
+          await options.nth(index).click();
+          await restore.waitFor({ state: 'visible', timeout: 3_000 }).catch(() => undefined);
+        }
+        test.skip(!(await restore.isVisible()), 'data: no non-current version can be the reviewed one');
+        await restore.click();
+        const dialog = p.getByRole('dialog');
+        await expect(dialog).toContainText(RESTORE_CONFIRM_TITLE);
+        // R3: never "Phục hồi"; the context closes with the dialog open.
+        await expect(dialog.getByRole('button', { name: KEEP_AS_IS, exact: true })).toBeVisible();
+      });
+    });
+  });
+
 });
 
 /* ========================================================================== */
