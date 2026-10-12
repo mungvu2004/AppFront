@@ -2148,6 +2148,63 @@ describe('useFloorUploadScreen — QA-03e', () => {
     });
     expect(result.current.isProjectMissing).toBe(true);
   });
+
+  // BUG-572: the FLOOR deleted elsewhere (project still there) — the 404 re-read dropped the card,
+  // and the file vanished with it, silently.
+  it('tầng bị xoá ở nơi khác: tệp về khay kèm câu báo, gán lại được (BUG-572)', async () => {
+    let reads = 0;
+    let goneId = '';
+    let goneName = '';
+    const harness = createHarness();
+    const readFloors: FloorUploadGateway['readFloors'] = async (input) => {
+      reads += 1;
+      const read = await harness.gateway.readFloors(input);
+
+      if (reads === 1 || !read.ok) {
+        return read;
+      }
+
+      goneName = read.data.find((floor) => floor.id === goneId)?.name ?? '';
+
+      return { ok: true, data: read.data.filter((floor) => floor.id !== goneId) };
+    };
+    const { result } = await ready({ ...harness.options, gateway: { ...harness.gateway, readFloors } });
+    const spoken = vi.spyOn(getAppAnnouncer(), 'announce');
+
+    goneId = result.current.floors[3]?.floorId ?? '';
+    const otherId = result.current.floors[0]?.floorId ?? '';
+
+    act(() => {
+      result.current.onFilesDropped([makeFile('mat-bang-tang-3.png')]);
+    });
+    await waitFor(() => {
+      expect(harness.uploads.size).toBe(1);
+    });
+    act(() => {
+      [...harness.uploads.values()][0]?.finish({ status: 'failed', failure: transferFailure('notFound', false) });
+    });
+
+    await waitFor(() => {
+      expect(result.current.floors.some((row) => row.floorId === goneId)).toBe(false);
+    });
+    expect(result.current.state).not.toBe('error');
+
+    const item = result.current.tray.items.find((entry) => entry.name === 'mat-bang-tang-3.png');
+
+    expect(goneName).not.toBe('');
+    expect(item?.error?.sentence).toContain(goneName);
+    expect(item?.error?.isRetryable).toBe(false);
+    expect(item?.assignOptions.length).toBeGreaterThan(0);
+    expect(spoken.mock.calls.flat()).toContain(item?.error?.sentence);
+
+    act(() => {
+      result.current.onReassign(item?.id ?? '', otherId);
+    });
+
+    expect(result.current.tray.items.some((entry) => entry.name === 'mat-bang-tang-3.png')).toBe(false);
+    expect(result.current.floors[0]?.file?.name).toBe('mat-bang-tang-3.png');
+    expect(result.current.floors[0]?.status).toBe('uploading');
+  });
 });
 
 /* BUG-532: four inits flew at once; the gateway now runs uploads through the MAX_PARALLEL_UPLOADS pool. */

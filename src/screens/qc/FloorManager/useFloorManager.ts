@@ -588,6 +588,12 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
     },
     /* Quay lại màn trong SPA luôn đọc lại: tầng thêm ở nơi khác phải hiện (BUG-515). */
     refetchOnMount: 'always',
+    /*
+     * Ảnh chụp mang THAM CHIẾU đồ thị (`graph`, `baseGraph`) mà chốt R1-04 so bằng `===`.
+     * Chia sẻ cấu trúc thay một đồ thị bằng bản cũ bằng-sâu của lượt trước (sau một lượt
+     * sắp xếp hỏng rồi lùi), nên lượt đọc lúc gắn bị coi là sửa giữa chừng và bị bỏ (BUG-515).
+     */
+    structuralSharing: false,
   });
 
   const storeGraph = useStore((state) => state.spatial);

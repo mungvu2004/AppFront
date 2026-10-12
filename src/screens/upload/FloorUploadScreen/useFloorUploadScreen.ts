@@ -836,6 +836,38 @@ export function useFloorUploadScreen(
     dropQueued(fileId);
   };
 
+  // Tầng của một tệp biến khỏi danh sách (xoá ở nơi khác, thường lộ ra qua 404 của lượt tải và
+  // lượt đọc lại của BUG-311): thẻ tầng đi, nhưng tệp không được đi theo im lặng — nó về khay
+  // kèm câu báo để gán lại (BUG-572). Lượt đọc hỏng giữ `data` cũ, nên cổng dự án mất không chạm đây.
+  const floorNamesRef = useRef<ReadonlyMap<string, string>>(new Map());
+  const releaseGoneFloorsRef = useRef<(present: readonly Floor[]) => void>(() => undefined);
+  releaseGoneFloorsRef.current = (present) => {
+    const ids = new Set(present.map((floor) => floor.id));
+
+    for (const attachment of attachmentsRef.current) {
+      if (attachment.floorId === null || ids.has(attachment.floorId)) {
+        continue;
+      }
+
+      const sentence = floorGoneSentence(floorNamesRef.current.get(attachment.floorId), attachment.file.name);
+
+      cancelTask(attachment.id);
+      patchAttachment(attachment.id, {
+        ...toTray(),
+        problem: { kind: 'transfer', sentence, isRetryable: false, titleKey: COPY.uploadErrorTitleKey },
+      });
+      getAppAnnouncer().announce(sentence);
+    }
+
+    floorNamesRef.current = new Map(present.map((floor) => [floor.id, floor.name]));
+  };
+
+  useEffect(() => {
+    if (floorsQuery.data !== undefined) {
+      releaseGoneFloorsRef.current(floorsQuery.data);
+    }
+  }, [floorsQuery.data]);
+
   const reassign = (fileId: string, floorId: string | null): void => {
     const attachment = findAttachment(fileId);
 
@@ -1377,6 +1409,13 @@ function toTray(): Partial<Attachment> {
 /** Câu báo khi một tệp bị đẩy về khay vì tầng của nó nhận tệp khác (NO-393). */
 function displacedSentence(fileName: string): string {
   return `${fileName} đã về khay tệp chưa gán tầng vì tầng ấy đã có tệp khác`;
+}
+
+/** Câu báo khi tầng của một tệp đã bị xoá ở nơi khác: tệp về khay chờ gán lại (BUG-572). */
+function floorGoneSentence(floorName: string | undefined, fileName: string): string {
+  const floor = floorName === undefined ? 'Tầng đã chọn' : floorName;
+
+  return `${floor} đã bị xoá ở nơi khác; ${fileName} đã về khay tệp chưa gán tầng, hãy gán cho tầng khác`;
 }
 
 /** Khung một tệp vừa nhận, trước khi lượt kiểm tra trả lời. */
