@@ -53,7 +53,16 @@ const SESSION_NOTICES_TITLE = 'Một số thay đổi chưa được lưu';
  * `<p>` as the floor-contents sentence (FloorManager.tsx:143-151), so it is matched as a substring, never `exact: true`.
  */
 const HIDE_3D_NOTICE = 'Tầng đang ẩn khỏi mô hình 3D sẽ hiện lại sau khi tải lại trang.';
-/** `useInputQualityGate.ts` COPY. */
+/** floorManagerGateway.ts:210-211 — the floor-contents sentence of the same strip (always listed: persistFloorContents unsupported). */
+const CONTENTS_NOTICE =
+  'Tường, phòng và nội thất đi theo khi nhân bản hay xoá tầng chưa được lưu; tải lại trang sẽ mất phần thay đổi đó.';
+/** FloorTable.tsx captions (BUG-289). */
+const CAPTION_AUTO = 'Cao độ tính tự động từ chiều cao các tầng dưới.';
+const CAPTION_MANUAL = 'Cao độ đang nhập tay; ô ghi "Ghi đè" khác cao độ tính từ các tầng dưới.';
+/** floorManagerGateway.ts:596 CHANGE_ELEVATION_TOAST_DESCRIPTION; FloorTableRow.tsx OVERRIDDEN_LABEL. */
+const ELEVATION_TOAST = 'Đã đổi cao độ tầng.';
+const OVERRIDDEN_LABEL = 'Ghi đè';
+/** useInputQualityGate.ts COPY. */
 const QUALITY_ACK_LABEL = 'Tôi đã đọc cảnh báo và vẫn muốn xử lý bản vẽ này';
 /** `InputQualityGateFooter.tsx` CONTINUE_BLOCKED_ACKNOWLEDGEMENT. */
 const QUALITY_ACK_BLOCKED = 'Đánh dấu ô xác nhận bên trên rồi thử lại.';
@@ -115,6 +124,25 @@ const floorRow = (page: Page, name: string): Locator =>
 async function floorRowNames(page: Page): Promise<string[]> {
   const labels = await floorRows(page).evaluateAll((rows) => rows.map((row) => row.getAttribute('aria-label') ?? ''));
   return labels.map((label) => label.replace(/, cao độ .*$/su, ''));
+}
+
+/**
+ * Request listener (not a response listener): counts what the page SENDS to /api/ while it runs, even a request that never
+ * gets an answer. `stop()` detaches it and returns `METHOD path` of every request matching `keep`.
+ */
+function recordRequests(target: Page, keep: (method: string, path: string) => boolean): { stop: () => string[] } {
+  const sent: string[] = [];
+  const onRequest = (request: { method: () => string; url: () => string }): void => {
+    const path = new URL(request.url()).pathname;
+    if (path.startsWith('/api/') && keep(request.method(), path)) sent.push(`${request.method()} ${path}`);
+  };
+  target.on('request', onRequest);
+  return {
+    stop: () => {
+      target.off('request', onRequest);
+      return sent;
+    },
+  };
 }
 
 /* ---- shared context: the flow continues from one screen to the next ---- */
@@ -336,8 +364,16 @@ test.describe('SCR-09 Floor Manager', () => {
     const undo = waitForApi(page, 'PATCH', reorderPath, [200]);
     await floorRow(page, middleName).focus();
     await page.keyboard.press(`${MOD}+z`);
-    await undo;
+    const undone = await undo;
     await expect.poll(() => floorRowNames(page)).toEqual(before);
+
+    await test.step('[09-A-017] Mod+Z sends PATCH /floors/reorder with the restored order (not just a local revert)', async () => {
+      const sentIds = Array.isArray(floorIds) ? floorIds.map(String) : [];
+      const restored = [...sentIds];
+      [restored[middleIndex - 1], restored[middleIndex]] = [sentIds[middleIndex] ?? '', sentIds[middleIndex - 1] ?? ''];
+      const undoIds = asRecord(undone.response.request().postDataJSON() as unknown, 'PATCH reorder (undo) request').floorIds;
+      expect.soft(undoIds, 'undo PATCH floorIds = the order before Alt+ArrowUp').toEqual(restored);
+    });
   });
 
   test('SCR-09 "Thu gọn lát cắt" / "Hiện lát cắt"; band "{work} · …" selects the row', async () => {
@@ -364,12 +400,20 @@ test.describe('SCR-09 Floor Manager', () => {
     // The switch starts OFF (useFloorManager.ts:516). On → elevations are read-only text; off → the inputs
     // (FloorTableRow.tsx:278-291).
     await expect(auto).toHaveAttribute('aria-checked', 'false');
-    await auto.click();
-    await expect(auto).toHaveAttribute('aria-checked', 'true');
-    await expect(workElevation).toHaveCount(0);
-    await auto.click();
-    await expect(auto).toHaveAttribute('aria-checked', 'false');
-    await expect(workElevation).toBeVisible();
+    await test.step('[09-A-013] toggle ON → text elevations + auto caption; OFF → inputs + manual caption; no request', async () => {
+      const sent = recordRequests(page, (_method, path) => path.includes(projectId) || path.startsWith('/api/floors'));
+      await auto.click();
+      await expect(auto).toHaveAttribute('aria-checked', 'true');
+      await expect(workElevation).toHaveCount(0);
+      await expect.soft(page.getByText(CAPTION_AUTO, { exact: true })).toBeVisible();
+      await captureEvidence(page, 'M03_09-A-013_auto_on_caption.png');
+      await auto.click();
+      await expect(auto).toHaveAttribute('aria-checked', 'false');
+      await expect(workElevation).toBeVisible();
+      await expect.soft(page.getByText(CAPTION_MANUAL, { exact: true })).toBeVisible();
+      await page.waitForTimeout(500);
+      expect.soft(sent.stop(), 'the switch is view state: no request either way').toEqual([]);
+    });
 
     // {work} sits between two floors that touch it, so `validateChangeLevelElevation`
     // (roomFloorCommands.ts) refuses ANY new elevation for it. The only valid elevation edit is on
@@ -385,6 +429,13 @@ test.describe('SCR-09 Floor Manager', () => {
     const { json } = await patch;
     expect(numberField(json, 'elevationMm', 'PATCH spatial (elevation)')).toBe(beforeMm + 1000);
     await captureEvidence(page, '09_floor_elevation.png');
+
+    // Plan row says the {work} row; the elevation that can move is the top floor {scratch} (see above), so "Ghi đè" is there.
+    await test.step('[09-A-011] after the elevation PATCH: toast "Đã đổi cao độ tầng." and "Ghi đè" on the edited row', async () => {
+      await expect.soft(page.getByRole('status').filter({ hasText: ELEVATION_TOAST }).first()).toBeVisible();
+      await expect.soft(floorRow(page, top.name).getByText(OVERRIDDEN_LABEL, { exact: true })).toBeVisible();
+      await captureEvidence(page, 'M03_09-A-011_elevation_toast_override.png');
+    });
   });
 
   test('SCR-09 "Thao tác khác cho tầng {scratch}" → "Ẩn khỏi mô hình 3D": session-only notice, no write', async () => {
@@ -394,6 +445,12 @@ test.describe('SCR-09 Floor Manager', () => {
 
     // useFloorManager.ts:1655-1664: the hide-in-3D sentence is listed only while a floor is hidden (BUG-287).
     await expect(page.getByText(HIDE_3D_NOTICE, { exact: false })).toHaveCount(0);
+    const strip = page.getByRole('status').filter({ has: page.getByRole('heading', { name: SESSION_NOTICES_TITLE, exact: true }) });
+    await test.step('[09-B-012] before hide: role=status "Một số thay đổi chưa được lưu" with the floor-contents sentence', async () => {
+      await expect.soft(strip).toHaveCount(1);
+      await expect.soft(strip).toContainText(CONTENTS_NOTICE);
+      await captureEvidence(page, 'M03_09-B-012_session_strip_before_hide.png');
+    });
     await more.click();
     await page.getByRole('menuitem', { name: 'Ẩn khỏi mô hình 3D', exact: true }).click();
     // The same sentence also goes to the live region (useFloorManager.ts:1092-1098 → announce), so the inline strip is
@@ -410,6 +467,12 @@ test.describe('SCR-09 Floor Manager', () => {
 
     await show.click();
     expect(writesSince(api, mark), 'hide/show in 3D sends no write (hideFloorFrom3d unsupported)').toEqual([]);
+
+    await test.step('[09-B-013] "Hiện trong mô hình 3D" → the hide sentence leaves the strip (it was there while hidden)', async () => {
+      await expect.soft(strip).not.toContainText(HIDE_3D_NOTICE);
+      await expect.soft(strip).toContainText(CONTENTS_NOTICE);
+      await captureEvidence(page, 'M03_09-B-013_session_strip_after_show.png');
+    });
   });
 });
 
@@ -513,14 +576,44 @@ test.describe('SCR-12 Processing', () => {
       .toBeGreaterThan(0);
     expect(api.slice(mark).some((entry) => entry.status < 400), 'at least one real /api/ response').toBe(true);
     await captureEvidence(page, '12_pipeline_complete.png');
+
+    await test.step('[12-B-003] CP-2 has 6 floors and 1 drawing → exactly "Đã xong 1/1 tầng"', async () => {
+      await expect.soft(page.getByText(/^Đã xong 1\/1 tầng/u)).toBeVisible();
+      await captureEvidence(page, 'M03_12-B-003_done_one_of_one.png');
+    });
+
+    await test.step('[12-C-008] completed → every step progressbar aria-valuenow 100', async () => {
+      const values = await page.getByRole('progressbar').evaluateAll((bars) =>
+        bars.map((bar) => `${bar.getAttribute('aria-label') ?? '?'}=${bar.getAttribute('aria-valuenow') ?? '?'}`),
+      );
+      expect.soft(values.length, 'six step progressbars (ProcessingStepList)').toBeGreaterThanOrEqual(6);
+      expect.soft(values.filter((value) => !value.endsWith('=100')), 'bars not at 100').toEqual([]);
+    });
+
+    await test.step('[12-B-042] after the completed frame the FE closes the stream: no reconnect within 3 s', async () => {
+      const opened = (): number => sse.requestUrls.filter((url) => url.includes(stream)).length;
+      const before = opened();
+      await page.waitForTimeout(3_000);
+      expect.soft(opened(), `no new request to ${stream} after "completed"`).toBe(before);
+    });
   });
 
   test('SCR-12 tabs "Xem trước" / "Nhật ký"; "Khoá cuộn tự động"; "Mở chi tiết bước …"', async () => {
     const tabs = page.getByRole('tablist', { name: 'Xem trước hoặc nhật ký', exact: true });
     await tabs.getByRole('tab', { name: 'Xem trước', exact: true }).click();
     await expect(tabs.getByRole('tab', { name: 'Xem trước', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await test.step('[12-B-020] "Xem trước" → img alt "Bản vẽ đang được xử lý — {floor}" (N7 sourceImageUrl)', async () => {
+      const workName = requireState((s) => s.floors.workFloorName, 'floors.workFloorName', 'Phase 3 SCR-09');
+      // useProcessingScreen.ts:149 previewAltPrefix.
+      await expect.soft(page.getByRole('img', { name: `Bản vẽ đang được xử lý — ${workName}`, exact: true })).toBeVisible();
+      await captureEvidence(page, 'M03_12-B-020_preview_image.png');
+    });
     await tabs.getByRole('tab', { name: 'Nhật ký', exact: true }).click();
     await expect(page.getByRole('log')).toBeVisible();
+    await test.step('[12-E-003] role=log has aria-live="polite" and tabIndex 0', async () => {
+      await expect.soft(page.getByRole('log')).toHaveAttribute('aria-live', 'polite');
+      await expect.soft(page.getByRole('log')).toHaveAttribute('tabindex', '0');
+    });
 
     const lock = page.getByRole('button', { name: 'Khoá cuộn tự động', exact: true });
     await expect(lock).toHaveAttribute('aria-pressed', 'false');
@@ -542,6 +635,16 @@ test.describe('SCR-12 Processing', () => {
 
     await lock.click();
     await expect(lock).toHaveAttribute('aria-pressed', 'false');
+
+    await test.step('[12-E-004] icon buttons "Khoá cuộn tự động" (aria-pressed) + "Sao chép nhật ký"; copy → toast "Đã chép nhật ký"', async () => {
+      await expect.soft(lock).toHaveAttribute('aria-pressed', /^(true|false)$/u);
+      const copy = page.getByRole('button', { name: 'Sao chép nhật ký', exact: true });
+      await expect.soft(copy).toBeVisible();
+      await copy.click();
+      // useProcessingScreen.ts:153 logCopied → NotificationHost toast (role=status).
+      await expect.soft(page.locator('[role="status"]:not([data-announcer])').filter({ hasText: 'Đã chép nhật ký' }).first()).toBeVisible();
+      await captureEvidence(page, 'M03_12-E-004_log_copied.png');
+    });
   });
 
   test('SCR-12 "Huỷ xử lý" is not rendered (cancel unsupported, G7)', async () => {
@@ -551,6 +654,35 @@ test.describe('SCR-12 Processing', () => {
   });
   // "Duyệt lớp tường" is the LAST test of this file (bottom), not here: it fails while BUG-285 is open, and in this serial
   // file a failure skips every later test (BUG-315: run-20 lost 8 cases of SCR-10/11/13/15 to it).
+});
+
+/* ========================================================================== */
+/* SCR-09 Floor Manager — after CP-5 (direct load). After the SCR-12 group, not */
+/* between its tests: "tabs" reads the screen the CP-5 test left open.          */
+/* ========================================================================== */
+
+test.describe('SCR-09 Floor Manager (after CP-5)', () => {
+  test('SCR-09 · FL-M-09-04 after CP-5 → /floors {work} row shows drawings, counts, QC % (direct load)', async () => {
+    requireState((s) => s.checkpoints.pipelineComplete, 'checkpoints.pipelineComplete', 'Phase 3 SCR-12 (CP-5)');
+    const workName = requireState((s) => s.floors.workFloorName, 'floors.workFloorName', 'Phase 3 SCR-09');
+    const row = floorRow(page, workName);
+
+    await test.step('[09-B-004] {work} row: "1 bản vẽ", wall/room counts, area m², QC % bar (verified badge at 100 %)', async () => {
+      await page.goto(ROUTES.project.floors(projectId));
+      await expect(row).toBeVisible();
+      await expect(row).toContainText('1 bản vẽ'); // FloorTableRow.tsx drawingCountText (Floor.drawings)
+      await expect.soft(row).toContainText('m²'); // formatArea
+      await expect.soft(row).toContainText(/\d+\s*%/u); // formatPercent
+      await captureEvidence(page, 'M03_09-B-004_floor_with_drawing.png');
+    });
+
+    await test.step('[09-B-005] direct load (no violations in store): QC must not read a verified "100 %" (suspected misleading)', async () => {
+      const text = await row.innerText();
+      await captureEvidence(page, 'M03_09-B-005_qc_direct_load.png', { caption: `row text: ${text.replace(/\s+/gu, ' ')}` });
+      // useFloorManager.ts:1520-1522: health score of ZERO violations = 100 %, read straight after a direct load.
+      expect.soft(text, 'QC % without QC data reads as verified 100 % (suspected)').not.toMatch(/100\s*%/u);
+    });
+  });
 });
 
 /* ========================================================================== */
@@ -629,6 +761,7 @@ test.describe('SCR-11 Input Quality Gate', () => {
     const pick = page.getByRole('button', { name: 'Chọn góc thủ công', exact: true });
     test.skip((await pick.count()) === 0, 'data: no finding offers "Chọn góc thủ công" for this drawing');
 
+    const sent = recordRequests(page, (method) => method === 'POST');
     await pick.click();
     const group = page.getByRole('group', { name: 'Bốn góc bản vẽ, kéo để chỉnh khung', exact: true });
     await expect(group).toBeVisible();
@@ -646,6 +779,13 @@ test.describe('SCR-11 Input Quality Gate', () => {
 
     await page.keyboard.press('Escape');
     await expect(group).toHaveCount(0);
+
+    await test.step('[11-A-020] Esc in corner mode → handles gone, "Chọn góc thủ công" back, 0 POST', async () => {
+      await expect.soft(page.getByRole('button', { name: 'Góc trên bên trái', exact: true })).toHaveCount(0);
+      await expect.soft(pick).toBeVisible();
+      await page.waitForTimeout(500);
+      expect.soft(sent.stop(), 'corner mode sends nothing until applied').toEqual([]);
+    });
   });
 
   test('SCR-11 "Tự động nắn" → "Huỷ" closes "Nắn thẳng bản vẽ tầng …"; no POST', async () => {
@@ -653,11 +793,16 @@ test.describe('SCR-11 Input Quality Gate', () => {
     test.skip((await straighten.count()) === 0, 'data: no finding offers "Tự động nắn" for this drawing');
     const mark = api.length;
 
+    const sent = recordRequests(page, (method, path) => method === 'POST' && path.endsWith('/straighten'));
     await straighten.click();
     const dialog = page.getByRole('dialog', { name: /^Nắn thẳng bản vẽ tầng /u });
     await expect(dialog).toBeVisible();
     await dialog.getByRole('button', { name: 'Huỷ', exact: true }).click();
     await expect(dialog).toHaveCount(0);
+    await test.step('[11-A-025] "Huỷ" → dialog closes, 0 POST …/straighten (request listener)', async () => {
+      await page.waitForTimeout(500);
+      expect.soft(sent.stop(), 'no straighten request was sent').toEqual([]);
+    });
     expect(countSince(api, mark, 'POST', /\/quality\/straighten$/u), 'cancel sends no straighten POST').toBe(0);
     await captureEvidence(page, '11_quality_straighten_cancel.png');
   });
@@ -667,6 +812,7 @@ test.describe('SCR-11 Input Quality Gate', () => {
     await expect(proceed).toBeVisible();
     await expect(proceed).not.toHaveAttribute('aria-disabled', 'true');
     const ack = page.getByRole('checkbox', { name: QUALITY_ACK_LABEL, exact: true });
+    const sent = recordRequests(page, (method) => method === 'POST' || method === 'PUT');
 
     if ((await ack.count()) > 0) {
       await proceed.click();
@@ -679,6 +825,9 @@ test.describe('SCR-11 Input Quality Gate', () => {
     await proceed.click();
     await expect.poll(() => pathOf(page)).toBe(ROUTES.project.pipeline(projectId));
     await captureEvidence(page, '11_quality_continue.png');
+    await test.step('[11-A-030] "Tiếp tục xử lý" → /projects/:id/pipeline with 0 POST/PUT (navigation only)', async () => {
+      expect.soft(sent.stop(), 'continuing only navigates').toEqual([]);
+    });
   });
 });
 
@@ -691,6 +840,18 @@ test.describe('SCR-13 Pipeline Graph', () => {
     await page.goto(ROUTES.project.pipelineGraph(projectId));
     await expect(page.getByText('Chưa có lượt xử lý nào để kể lại', { exact: true })).toBeVisible();
     await captureEvidence(page, '13_graph_empty.png');
+    await test.step('[13-B-001] empty story description + overview "Sơ đồ xử lý" drawn at opacity 0.4', async () => {
+      // pipelineGraphText.ts:209 emptyDescription; PipelineGraph.tsx:60,163 EMPTY_DIAGRAM_OPACITY on the overview wrapper.
+      await expect.soft(page.getByText('Khi một bản vẽ được đưa vào xử lý, sơ đồ và nhánh đã chọn sẽ hiện ở đây.', { exact: true })).toBeVisible();
+      const overview = page.getByRole('group', { name: 'Sơ đồ xử lý', exact: true }).or(page.getByRole('list', { name: 'Sơ đồ xử lý', exact: true }));
+      const opacity = await overview.first().evaluate((el) => {
+        let value = 1;
+        for (let node: Element | null = el; node !== null; node = node.parentElement) value *= Number(getComputedStyle(node).opacity);
+        return Math.round(value * 100) / 100;
+      });
+      await captureEvidence(page, 'M03_13-B-001_graph_empty_overview.png', { caption: `effective opacity of "Sơ đồ xử lý": ${String(opacity)}` });
+      expect.soft(opacity, 'overview drawn at 0.4 while there is no run').toBeCloseTo(0.4, 2);
+    });
   });
 });
 
@@ -705,6 +866,15 @@ test.describe('SCR-15 CAD Branch Confirm', () => {
     await expect(dialog).toHaveCount(0);
     await expect(page.getByText('Chưa có lớp nào để ánh xạ', { exact: true }).first()).toBeVisible();
     await captureEvidence(page, '15_cad_empty.png');
+    await test.step('[15-A-002] after "Huỷ": hand-off alert "Chuyển sang nhánh nhận dạng ảnh" + AI note, "Dùng đường từ CAD" / "Vẫn dùng AI"', async () => {
+      // CadBranchConfirm.tsx:92 AI_HANDOFF_TITLE, cadBranchConfirmText.ts:84,87,164.
+      const handoff = page.getByRole('alert').filter({ hasText: 'Chuyển sang nhánh nhận dạng ảnh' });
+      await expect.soft(handoff).toBeVisible();
+      await expect.soft(handoff).toContainText('Nếu bạn chọn nhánh AI, sẽ cần hiệu chỉnh tỷ lệ sau khi nhập hình học.');
+      await expect.soft(page.getByRole('button', { name: 'Dùng đường từ CAD', exact: true })).toBeVisible();
+      await expect.soft(page.getByRole('button', { name: 'Vẫn dùng AI', exact: true })).toBeVisible();
+      await captureEvidence(page, 'M03_15-A-002_cad_handoff.png');
+    });
   });
 });
 
