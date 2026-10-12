@@ -20,7 +20,7 @@
  * một mô hình bịa tại chỗ.
  */
 
-import type { Object3D } from 'three';
+import { Box3, Vector3, type Object3D } from 'three';
 import { describe, expect, it, vi } from 'vitest';
 
 import { normalizeSpatial } from '@/domain/spatial/normalize';
@@ -28,12 +28,19 @@ import { toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
 import type { LevelId } from '@/domain/spatial/types';
 import { createCleanBuildingScenario } from '@/lib/testing/fixtures';
 import type { BuildFloorInput } from '@/lib/three/build/floor';
+import {
+  buildingExtent,
+  frameHalfHeightM,
+  initialViewpoint,
+  orbitDistanceLimits,
+} from '@/lib/three/camera/modes';
 import { CAMERA_SETTINGS } from '@/lib/three/camera/settings';
 import { measureScene } from '@/lib/three/perf/budget';
 import { DEGRADE_WINDOW_MS, shadowMapTypeFor } from '@/lib/three/perf/monitor';
 import type { DetailLevel } from '@/lib/three/build/lod';
 
 import {
+  extentForAspect,
   finerDetail,
   mountMobileViewerScene,
   notchesForScale,
@@ -277,6 +284,30 @@ describe('mobileViewerScene — hàm thuần', () => {
 /* -------------------------------------------------------------------------- */
 /* Lắp cảnh.                                                                   */
 /* -------------------------------------------------------------------------- */
+
+describe('[BUG-485] extentForAspect', () => {
+  const extent = buildingExtent(new Box3(new Vector3(0, 0, 0), new Vector3(12, 3, 8)));
+
+  it('khung ngang giữ nguyên hộp', () => {
+    expect(extentForAspect(extent, 16 / 9)).toBe(extent);
+  });
+
+  it('khung dọc 375 × 700: điểm nhìn đầu nằm trong trần lùi, và nửa góc NGANG phủ đúng thứ khung vuông phủ', () => {
+    const aspect = 375 / 700;
+    const portrait = extentForAspect(extent, aspect);
+    const square = initialViewpoint(extent);
+    const fitted = initialViewpoint(portrait);
+    const verticalTangent = frameHalfHeightM(1);
+    const sinOf = (tangent: number): number => tangent / Math.hypot(1, tangent);
+
+    expect(portrait.centre).toBe(extent.centre);
+    expect(fitted.distanceM).toBeLessThanOrEqual(orbitDistanceLimits(portrait).maxM);
+    expect(fitted.distanceM * sinOf(verticalTangent * aspect)).toBeCloseTo(
+      square.distanceM * sinOf(verticalTangent),
+      6,
+    );
+  });
+});
 
 describe('mountMobileViewerScene — hai nhánh hỏng hợp lệ', () => {
   it('không có WebGL: trả ok false, không ném lỗi', () => {

@@ -172,7 +172,7 @@ export function MobileViewerBottomBar({
       {showsMeasurePanel && (
         <ToolPanel label={TOOL_LABELS.measure}>
           {measurements.length === 0 ? (
-            <p className="px-3 py-2 text-[13px] leading-relaxed text-text-secondary">
+            <p className="text-pretty px-3 py-2 text-[13px] leading-relaxed text-text-secondary">
               Chưa có phép đo nào. Chạm hai điểm trên mô hình để đo.
             </p>
           ) : (
