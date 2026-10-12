@@ -8,9 +8,9 @@
  *   đó phục vụ pipeline dispatch lệnh (chúng đòi danh sách `changes` của lượt
  *   sửa vừa rồi), còn đây là một màn thuần đọc. `src/store/selectors.ts` cũng
  *   gọi thẳng như vậy.
- * - **Gộp và đếm** — `groupViolationsByLevel`, `countBySeverity` và
+ * - **Gộp và đếm** — `groupViolationsByLevel` và
  *   `sortBySeverity` của `@/domain/rules/healthScore`. Không đếm tay, không gộp
- *   tay. Riêng gộp theo LUẬT (`ruleCode`) thì domain không có sẵn, nên
+ *   tay. Riêng gộp và đếm theo LUẬT (`ruleCode`) thì domain không có sẵn, nên
  *   {@link groupRowsByRule} tự viết theo đúng khuôn hình của
  *   `groupViolationsByLevel`: đó là việc ghép, không phải công thức tự chế.
  * - **Tên luật, câu mô tả, câu gợi ý** — lấy nguyên văn từ sổ đăng ký và từ
@@ -52,7 +52,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { EMPTY_RULE_CONFIG, type RuleConfig } from '@/domain/rules/config';
-import { countBySeverity, groupViolationsByLevel, sortBySeverity } from '@/domain/rules/healthScore';
+import { groupViolationsByLevel, sortBySeverity } from '@/domain/rules/healthScore';
 import {
   RULE_GROUP_LABELS,
   type RuleCode,
@@ -455,23 +455,31 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
     }
   }, [built, projectId, run]);
 
-  /* Bốn con số trần. Đếm bằng `countBySeverity` của domain, không đếm tay; "đạt"
-   * suy ra từ số luật đã chạy trừ đi số luật có ít nhất một lỗi. Gộp `suggestion`
-   * vào ô "cảnh báo" là chiều an toàn đã chốt: một gợi ý không bao giờ bị đếm
-   * vào ô "vi phạm", còn mức thật của từng hàng vẫn hiện nguyên ở chip. */
+  /* Bốn con số cùng một đơn vị: LUẬT (BUG-460). Trước đây "Tổng"/"Đạt" đếm luật
+   * còn "Cảnh báo"/"Vi phạm" đếm mục, nên bốn ô không cộng khớp và lệch với các tab
+   * lọc (tab liệt kê nhóm luật). Nay Tổng = Đạt + Cảnh báo + Vi phạm: một luật có
+   * ít nhất một mục `critical` là "vi phạm", còn lại (cảnh báo, gợi ý) là "cảnh
+   * báo" — một gợi ý không bao giờ bị đếm vào ô "vi phạm". Số mục của từng luật
+   * vẫn hiện ở tiêu đề nhóm. */
   const summary = useMemo<RuleReportSummary>(() => {
     if (run === null) {
       return EMPTY_SUMMARY;
     }
 
-    const counts = countBySeverity(run.violations);
-    const failedRuleCodes = new Set(run.violations.map((violation) => violation.ruleCode));
+    const criticalByRule = new Map<string, boolean>();
+    for (const violation of run.violations) {
+      criticalByRule.set(
+        violation.ruleCode,
+        criticalByRule.get(violation.ruleCode) === true || violation.severity === 'critical',
+      );
+    }
+    const violatedRules = [...criticalByRule.values()].filter(Boolean).length;
 
     return {
       evaluated: run.ranRuleCodes.length,
-      passed: run.ranRuleCodes.length - failedRuleCodes.size,
-      warnings: counts.warning + counts.suggestion,
-      violations: counts.critical,
+      passed: run.ranRuleCodes.length - criticalByRule.size,
+      warnings: criticalByRule.size - violatedRules,
+      violations: violatedRules,
     };
   }, [run]);
 

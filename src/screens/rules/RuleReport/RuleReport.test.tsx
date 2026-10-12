@@ -42,7 +42,7 @@ import type { ApiClient } from '@/api/client';
 import type { ProjectRuleConfig } from '@/api/schemas/ruleConfig';
 
 import { ALL_RULES, createDefaultRuleRegistry } from '@/domain/rules/defaults';
-import { countBySeverity, sortBySeverity } from '@/domain/rules/healthScore';
+import { sortBySeverity } from '@/domain/rules/healthScore';
 import { RULE_SEVERITY_LABELS } from '@/domain/rules/registry';
 import type { Rule, RuleCode, Violation } from '@/domain/rules/registry';
 import { runRules } from '@/domain/rules/runner';
@@ -287,7 +287,7 @@ describe('grep — không file sản phẩm nào trong thư mục màn viết c�
  *    `AccountSettings.test.tsx`), không phải mã sản phẩm: gộp theo luật ở đây
  *    là để có props hợp lệ cho `RuleReport`, không phải logic mà hook (W1)
  *    phải viết lại — hook vẫn phải tự dùng `groupViolationsByLevel` /
- *    `countBySeverity` / `sortBySeverity` của `healthScore.ts` như wiring.md
+ *    `sortBySeverity` của `healthScore.ts` như wiring.md
  *    mục 0-BIS.2 đòi hỏi.
  * ========================================================================== */
 
@@ -357,15 +357,18 @@ function toGroups(
   });
 }
 
+/** Bốn ô cùng đếm LUẬT, như `useRuleReport` (BUG-460). */
 function toSummary(violations: readonly Violation[]): RuleReportSummary {
-  const counts = countBySeverity(violations);
   const rulesWithFindings = new Set(violations.map((violation) => violation.ruleCode));
+  const criticalRules = new Set(
+    violations.filter((violation) => violation.severity === 'critical').map((violation) => violation.ruleCode),
+  );
 
   return {
     evaluated: ENABLED_RULES.length,
     passed: ENABLED_RULES.length - rulesWithFindings.size,
-    warnings: counts.warning + counts.suggestion,
-    violations: counts.critical,
+    warnings: rulesWithFindings.size - criticalRules.size,
+    violations: criticalRules.size,
   };
 }
 
@@ -1026,6 +1029,20 @@ describe('F-10 — useRuleReport đọc cấu hình N21', () => {
 
     expect(result.current.summary.evaluated).toBeGreaterThan(0);
     expect(ruleCodesOf(result.current.groups)).not.toContain(NOISY_RULE_CODE);
+  });
+
+  it('BUG-460: bốn ô cùng đếm luật — Tổng = Đạt + Cảnh báo + Vi phạm, khớp số nhóm của tab', async () => {
+    const { result } = setupReport({ read: async () => configRead(1) });
+
+    await waitFor(() => {
+      expect(result.current.status).not.toBe('loading');
+    });
+
+    const { evaluated, passed, warnings, violations } = result.current.summary;
+    const groups = result.current.groups;
+    expect(passed + warnings + violations).toBe(evaluated);
+    expect(violations).toBe(groups.filter((group) => group.rows.some((row) => row.severity === 'critical')).length);
+    expect(warnings + violations).toBe(groups.length);
   });
 
   it('đổi revision (lượt lưu ở màn cài đặt) → báo cáo chạy lại với cấu hình mới', async () => {

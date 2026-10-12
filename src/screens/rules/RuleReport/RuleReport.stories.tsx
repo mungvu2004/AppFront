@@ -18,7 +18,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 
 import { createDefaultRuleRegistry, ALL_RULES } from '@/domain/rules/defaults';
-import { countBySeverity, sortBySeverity } from '@/domain/rules/healthScore';
+import { sortBySeverity } from '@/domain/rules/healthScore';
 import type { Rule, RuleCode, Violation } from '@/domain/rules/registry';
 import { runRules } from '@/domain/rules/runner';
 import { displayCodeIn, isEntityOfKind, normalizeSpatial } from '@/domain/spatial/normalize';
@@ -123,15 +123,18 @@ function toGroups(violations: readonly Violation[]): readonly RuleReportGroup[] 
   });
 }
 
+/** Bốn ô cùng đếm LUẬT, như `useRuleReport` (BUG-460). */
 function toSummary(violations: readonly Violation[]): RuleReportSummary {
-  const counts = countBySeverity(violations);
   const rulesWithFindings = new Set(violations.map((violation) => violation.ruleCode));
+  const criticalRules = new Set(
+    violations.filter((violation) => violation.severity === 'critical').map((violation) => violation.ruleCode),
+  );
 
   return {
     evaluated: ENABLED_RULES.length,
     passed: ENABLED_RULES.length - rulesWithFindings.size,
-    warnings: counts.warning + counts.suggestion,
-    violations: counts.critical,
+    warnings: rulesWithFindings.size - criticalRules.size,
+    violations: criticalRules.size,
   };
 }
 
