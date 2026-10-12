@@ -52,16 +52,25 @@
  * - `POST …/floors/:fid/drawings/uploads` (`drawings_init` 60 per window per user, BE:drawings/router.py:39-46): 3.
  * - `PUT /api/projects/:id/settings`: ~8 (UI autosave) + 1 (API, conflict test). No limit.
  */
-import { closeSync, existsSync, ftruncateSync, openSync, rmSync, writeFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { closeSync, copyFileSync, existsSync, ftruncateSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 
 import { expect, test } from '@playwright/test';
-import type { Browser, BrowserContext, Locator, Page, Route } from '@playwright/test';
+import type { APIRequestContext, Browser, BrowserContext, Locator, Page, Route } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { waitForApi, watchApi } from '../../e2e/fullstack/apiWatch';
 import type { ApiEntry } from '../../e2e/fullstack/apiWatch';
 import { PIPELINE_TIMEOUT_MS, readBaseUrl } from '../../e2e/fullstack/env';
+import { newApiContext } from './support/api';
 import { ensureAdminSession, readAdminCredentials } from './support/auth';
+import {
+  createMeasuredFloorsProject,
+  createPipelineDrawingProject,
+  createSkewedDrawingProject,
+  rotatedPng,
+  SKEW_DEG,
+} from './support/drawingSeed';
 import { TEST_DATA_PREFIX, attachJson, captureEvidence, testEmail } from './support/evidence';
 import { ADMIN_STORAGE_STATE_FILE } from './support/state';
 
@@ -676,6 +685,12 @@ test.describe('E03 SCR-08 project settings', () => {
       const dialog = page.getByRole('dialog', { name: RELOAD_DIALOG, exact: true });
       await expect(dialog).toBeVisible();
       await dialog.getByRole('button', { name: 'Giữ thay đổi', exact: true }).click();
+      await expect(dialog).toHaveCount(0);
+      await expect(notes).toHaveValue(uiNotes);
+      // QA-03d S24: RD:17-23 Modal onClose → cancelReload — Esc closes the dialog like "Giữ thay đổi", the draft stays.
+      await alert.getByRole('button', { name: 'Tải lại', exact: true }).click();
+      await expect(dialog).toBeVisible();
+      await page.keyboard.press('Escape');
       await expect(dialog).toHaveCount(0);
       await expect(notes).toHaveValue(uiNotes);
 
@@ -1730,4 +1745,1157 @@ test.describe('E03 unknown project id (real 404, BE:projects/access.py:28-33)', 
       });
     });
   }
+});
+
+/* ================================================================= QA-03d gap rows (coverage/phase03.md @ 39016134) */
+/*
+ * One test per inventory gap row (row id in the title). Same rules as the rest of this file: own admin context, own
+ * `qa-<runId>-e03-…` project(s) deleted in `finally`. Seeds that need a drawing use `support/drawingSeed.ts` with this
+ * test's Bearer (`seedApi`); the seeded project goes to the same cleanup list.
+ *
+ * Mocks added here (each named "[mocked response]", each unpairable — see the inventory's mock table): settings read
+ * 500 (S36), member add 429 (S35), upload project read 500 (U30), upload chunk 500 (U17), quality read 500 (Q14),
+ * quality read with the focus floor still measuring (Q18, the real #30 body with one floor flipped), processing N7
+ * 500 (P13). "Held" requests (S38, F28r, U16/U20, U35) are NOT mocks: the real request is only delayed, then goes
+ * through and gets the real response.
+ *
+ * Budget added by this section: `POST /api/projects` 41 (+ deletes); `drawings_init` ≈ 18 (U12 1, U16 1, U17 2, U18 1,
+ * U19 2, U32 1, Q3 2, Q15 1, Q16 1, Q18 1, Q20 1, P8 1, P15 1, P18 1) — with the 3 above, ≈ 21 of 60 per 600 s;
+ * ≈ 13 fake-ML runs; `members_add` 1 real (S32, skipped without an active non-admin user) + 1 mocked; `POST
+ * /api/projects/:id/floors` 2 by API (F32r races). No mail is sent except the member-added notice of S32 (Mailpit).
+ */
+
+const FIELD_REJECTED = 'Giá trị này chưa hợp lệ nên chưa được lưu; hãy sửa lại.'; // SE:110 (BUG-356)
+const SAVE_CHIP_REJECTED = 'Chưa lưu vì còn ô cần sửa'; // SE:117 chipRejected (UPS:882-887)
+const FLOOR_TEXT = {
+  sameName: 'Tên tầng không đổi nên không có gì để lưu.', // FMG:878
+  addRefused: 'Chưa thêm được tầng', // UFM:187
+  persistFailed: 'Chưa lưu được thay đổi tầng', // UFM:181
+  undoRefused: 'Chưa hoàn tác được thay đổi tầng', // UFM:189
+  limit: 'Dự án đã đủ 50 tầng, thao tác vừa rồi đã được huỷ.', // UFM:191
+  listChanged: 'Danh sách tầng vừa đổi ở nơi khác, thứ tự chưa được lưu.', // UFM:192
+  undoExpired: 'Đã quá thời gian khôi phục tầng, tầng đã xoá không lấy lại được.', // UFM:196
+  contents:
+    'Tường, phòng và nội thất đi theo khi nhân bản hay xoá tầng chưa được lưu; tải lại trang sẽ mất phần thay đổi đó.', // FMG:210-211
+  captionManual: 'Cao độ đang nhập tay; ô ghi "Ghi đè" khác cao độ tính từ các tầng dưới.', // FT:83
+  captionAuto: 'Cao độ tính tự động từ chiều cao các tầng dưới.', // FT:82
+} as const;
+/** UFM:205 FLOOR_RESTORE_WINDOW_MS. */
+const FLOOR_RESTORE_WINDOW_MS = 570_000;
+const AUTO_MATCH = 'Ghép tự động từ tên tệp — kiểm tra lại'; // UFU:102
+const UPLOADING = 'Đang tải lên'; // UFU:122
+const OFFLINE_BANNER = 'Đang làm việc ngoại tuyến'; // UFU:108
+const AWAIT_NETWORK =
+  'Đang ngoại tuyến: tệp sẽ tự tải lên khi có mạng trở lại; nếu tải lại trang thì cần chọn lại tệp'; // UFU:265-266
+const QUALITY_LOAD_ERROR = 'Không đọc được kết quả kiểm tra chất lượng'; // IQ:58
+const QUALITY_WRITE_ERROR = 'Chưa xử lý được bản vẽ'; // IQ:66
+const QUALITY_WRITE_FALLBACK = 'Chưa xử lý được bản vẽ; hãy thử lại.'; // UIQ:154
+const REPORT_REGION = 'Báo cáo chất lượng'; // IQR:281
+const REGION_GROUP = 'Vùng có vấn đề trên bản vẽ'; // IQO:32
+const CHIPS_LIST = 'Tiến độ theo tầng'; // PFC:20
+const OBJECTS_LIST = 'Số đối tượng đã nhận theo tầng'; // PR:77
+const STEP_BAR = 'Bước đang xử lý'; // PSB:29
+const ALL_STEPS = 'Xem tất cả các bước'; // PR:87
+const BACKGROUND_STARTED = 'Sẽ báo cho bạn khi xử lý xong'; // UPR:152
+
+/** Bearer request context for the `drawingSeed.ts` fixtures (they take an `APIRequestContext`). Caller disposes it. */
+const seedApi = (admin: Admin): Promise<APIRequestContext> => newApiContext({ Authorization: `Bearer ${admin.token}` });
+
+/** W4 level id `L-<base36 UPPER>` (BE packages/core/ids.py) for a floor written through the API (#10). */
+const newLevelId = (): string => `L-${randomUUID().replace(/-/gu, '').toUpperCase().slice(0, 24)}`;
+
+/** A floor added "elsewhere" through the real #10 (BE floors/router.py:30-35), as the API spec's `floorBody`. */
+async function addFloorByApi(admin: Admin, project: ProjectRef, order: number): Promise<void> {
+  const res = await admin.context.request.post(`${PROJECTS_API}/${project.id}/floors`, {
+    headers: bearer(admin),
+    data: { id: newLevelId(), name: `${TEST_DATA_PREFIX}api-${String(order)}`, order, elevationMm: order * FLOOR_HEIGHT_MM, heightMm: FLOOR_HEIGHT_MM },
+  });
+  expect(res.status(), `the other writer: POST ${PROJECTS_API}/:id/floors`).toBe(201);
+}
+
+/** Project with free-form floor drafts (#25 `floors`, BE projects/schemas.py:56-66) — for stacks `createProject` never builds. */
+async function createProjectWithFloors(
+  admin: Admin,
+  slug: string,
+  floors: readonly { readonly name: string; readonly elevationMm: number; readonly heightMm: number }[],
+): Promise<ProjectRef> {
+  const name = `${TEST_DATA_PREFIX}e03-${slug}-${uniq()}`;
+  const created = await admin.context.request.post(PROJECTS_API, {
+    headers: bearer(admin),
+    data: { name, floors: floors.map((floor, order) => ({ ...floor, order })) },
+  });
+  expect(created.status(), `fixture POST ${PROJECTS_API} "${name}": ${(await created.text()).slice(0, 300)}`).toBe(201);
+  const id = stringField(await created.json(), 'id', 'POST /api/projects');
+  admin.cleanup.push(id);
+  return readProjectRef(admin, id);
+}
+
+/** `GET /api/projects/:id` → floors in order (ids never invented). */
+async function readProjectRef(admin: Admin, id: string): Promise<ProjectRef> {
+  const read = await admin.context.request.get(`${PROJECTS_API}/${id}`, { headers: bearer(admin) });
+  expect(read.status(), `fixture GET ${PROJECTS_API}/${id}`).toBe(200);
+  const body = asRecord(await read.json(), 'GET /api/projects/:id');
+  const floors = (Array.isArray(body.floors) ? body.floors : [])
+    .map((floor, index) => {
+      const record = asRecord(floor, `floors[${String(index)}]`);
+      return { id: stringField(record, 'id', 'floor'), name: stringField(record, 'name', 'floor'), order: typeof record.order === 'number' ? record.order : index };
+    })
+    .sort((first, second) => first.order - second.order)
+    .map(({ id: floorId, name }) => ({ id: floorId, name }));
+  return { id, name: stringField(body, 'name', 'project'), floors };
+}
+
+/** A `drawingSeed.ts` project made with this admin's Bearer, handed to its cleanup, floors read back. */
+async function seeded(admin: Admin, seed: (api: APIRequestContext) => Promise<string>): Promise<ProjectRef> {
+  const api = await seedApi(admin);
+  try {
+    const projectId = await seed(api);
+    admin.cleanup.push(projectId);
+    return await readProjectRef(admin, projectId);
+  } finally {
+    await api.dispose();
+  }
+}
+
+/**
+ * Holds the FIRST request that `match`es until `release()`, then lets it through to the real backend (`route.continue`):
+ * a delay, not a mocked response. Later matching requests pass at once.
+ */
+async function holdFirst(page: Page, match: (url: URL, method: string) => boolean): Promise<{ readonly seen: Promise<void>; release: () => Promise<void> }> {
+  let open: () => void = () => undefined;
+  let seenResolve: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => (open = resolve));
+  const seen = new Promise<void>((resolve) => (seenResolve = resolve));
+  let held = false;
+  const handler = async (route: Route): Promise<void> => {
+    const request = route.request();
+    if (held || !match(new URL(request.url()), request.method())) {
+      await route.fallback();
+      return;
+    }
+    held = true;
+    seenResolve();
+    await gate;
+    await route.continue().catch(() => undefined);
+  };
+  await page.route('**/api/**', handler);
+  return {
+    seen,
+    release: async () => {
+      open();
+      await page.unroute('**/api/**', handler);
+    },
+  };
+}
+
+/** Records every text the app announcer (`[data-announcer]`, src/lib/input/announcer.ts:52-57) writes; install before `goto`. */
+async function recordAnnouncements(page: Page): Promise<() => Promise<string[]>> {
+  await page.addInitScript(() => {
+    const seen: string[] = [];
+    (window as unknown as { __qaAnnounced: string[] }).__qaAnnounced = seen;
+    new MutationObserver(() => {
+      for (const node of document.querySelectorAll('[data-announcer]')) {
+        const text = node.textContent?.trim() ?? '';
+        if (text !== '' && !seen.includes(text)) seen.push(text);
+      }
+    }).observe(document, { subtree: true, childList: true, characterData: true });
+  });
+  return () => page.evaluate(() => (window as unknown as { __qaAnnounced?: string[] }).__qaAnnounced ?? []);
+}
+
+/** Header save indicator (PS:79 `SaveIndicator`, role="status"). */
+const saveIndicator = (page: Page): Locator => page.locator('header').getByRole('status');
+
+const projectReadRe = (id: string): RegExp => projectRe(id);
+
+/* ---------------------------------------------------------------- SCR-08 gap rows */
+
+test.describe('E03 SCR-08 project settings — gap rows (QA-03d)', () => {
+  test('E03 · SCR-08 [S3] "Chung" tab badge counts the fields that block the autosave (4), "Đơn vị đo" none', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'badge', 0, { code: 'QA-B3', address: 'qa địa chỉ badge' });
+      await openSettings(page, project);
+      const tablist = page.getByRole('tablist', { name: SETTINGS_TABS, exact: true });
+      const general = tablist.getByRole('tab', { name: /^Chung/u });
+      await expect(general).toHaveText('Chung'); // Tabs.tsx:143 a badge only when > 0
+      await page.getByRole('textbox', { name: NAME_LABEL, exact: true }).fill('');
+      await page.getByRole('textbox', { name: CODE_LABEL, exact: true }).fill('');
+      await page.getByRole('textbox', { name: ADDRESS_LABEL, exact: true }).fill('');
+      await page.getByRole('textbox', { name: NOTES_LABEL, exact: true }).fill('a'.repeat(501));
+      // UPS:834 generalProblemCount = name + code + address + notes; PS:124 `badge={tab.problemCount}`.
+      await expect(general).toHaveText(/^Chung\s*4$/u);
+      await expect(tablist.getByRole('tab', { name: /^Đơn vị đo/u })).toHaveText('Đơn vị đo');
+      await captureEvidence(page, 'E03_settings_tab_badge.png');
+    });
+  });
+
+  test('E03 · SCR-08 [S14] "Loại công trình" → "Công nghiệp" → PUT settings buildingType "industrial"; kept after reload', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page, api } = admin;
+      const project = await createProject(admin, 'btype');
+      await openSettings(page, project);
+      const select = page.getByRole('combobox', { name: 'Loại công trình', exact: true }); // GT:64-70
+      const mark = api.length;
+      const put = waitForApi(page, 'PUT', settingsRe(project.id), [200]);
+      await select.click();
+      await page.getByRole('option', { name: 'Công nghiệp', exact: true }).click(); // UPS:517-523
+      const body = asRecord(asRecord((await put).response.request().postDataJSON() as unknown, 'PUT').body, 'PUT body');
+      expect(body.buildingType, 'UPS:1427 setBuildingType → N6 body').toBe('industrial');
+      expect(countSince(api, mark, 'PATCH', projectRe(project.id)), 'building type is not a #26 field').toBe(0);
+      await expect(toastWith(page, SAVED_TOAST).first()).toBeVisible();
+      await page.reload();
+      await expect(page.getByRole('combobox', { name: 'Loại công trình', exact: true })).toContainText('Công nghiệp');
+      await captureEvidence(page, 'E03_settings_building_type.png');
+    });
+  });
+
+  test('E03 · SCR-08 [S19] "Mã dự án" of three spaces passes the field, server 422 `code` → one sentence at the field, no "Chưa lưu hết"', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'code422');
+      await openSettings(page, project);
+      // UPS:458-465 codeProblemFor checks length + forbidden characters of the trimmed text only; PSG:267-277 sends
+      // the untrimmed "   " and BE projects/schemas.py ProjectCode (strip → min_length 1) refuses it.
+      const patch = waitForApi(page, 'PATCH', projectRe(project.id), [422]);
+      await page.getByRole('textbox', { name: CODE_LABEL, exact: true }).fill('   ');
+      const { json } = await patch;
+      expect(asRecord(json, '422').field, 'BE names the field').toBe('code');
+      await expect(page.getByText(FIELD_REJECTED, { exact: true })).toHaveCount(1); // UPS:976-979, SE:110
+      await expect(page.getByRole('alert').filter({ hasText: SAVE_FAILURE_TITLE })).toHaveCount(0); // UPS:1058-1066
+      await expect(saveIndicator(page)).toContainText(SAVE_CHIP_REJECTED); // UPS:882-887
+      await captureEvidence(page, 'E03_settings_code_422_field.png');
+      await attachJson('E03_settings_code_422_field.json', { response: json as Json });
+    });
+  });
+
+  test('E03 · SCR-08 [S20] "Ghi chú" of only spaces → server 422 `body.notes` → the sentence under "Ghi chú", no "Chưa lưu hết"', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'notes422');
+      await openSettings(page, project);
+      // UPS:473-477 notesProblemFor: length ≤ 500 and no forbidden character in the trimmed text → accepted; PSG:280-290
+      // sends notes "   " (only "" is dropped); BE project_settings/schemas.py Notes strips → "" → min_length 1 → 422.
+      const put = waitForApi(page, 'PUT', settingsRe(project.id), [422]);
+      await page.getByRole('textbox', { name: NOTES_LABEL, exact: true }).fill('   ');
+      const { json } = await put;
+      expect(asRecord(json, '422').field).toBe('body.notes'); // SE:94 PROBLEM_KEY_BY_WIRE_FIELD
+      await expect(page.getByText(FIELD_REJECTED, { exact: true })).toHaveCount(1);
+      await expect(page.getByRole('alert').filter({ hasText: SAVE_FAILURE_TITLE })).toHaveCount(0);
+      await captureEvidence(page, 'E03_settings_notes_422_field.png');
+      await attachJson('E03_settings_notes_422_field.json', { response: json as Json });
+    });
+  });
+
+  test('E03 · SCR-08 [S21] name + code in one PATCH, 422 on `code` → "Chưa lưu hết": "Chưa lưu được tên dự án và mã dự án. …"', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'mixed422');
+      await openSettings(page, project);
+      const patch = waitForApi(page, 'PATCH', projectRe(project.id), [422]);
+      // Both edits inside one 800 ms autosave window (UPS:16) → one #26 body with name and code.
+      await page.getByRole('textbox', { name: NAME_LABEL, exact: true }).fill(`${project.name}x`.slice(-80));
+      await page.getByRole('textbox', { name: CODE_LABEL, exact: true }).fill('   ');
+      const { response } = await patch;
+      const sent = asRecord(response.request().postDataJSON() as unknown, 'PATCH body');
+      expect(Object.keys(sent).sort(), 'one PATCH carries name and code').toEqual(['code', 'name']);
+      // UPS:1040-1066: the name has no sentence of its own → the box names every unsaved field, SE:150-160 + NEXT_STEP.
+      const box = page.getByRole('alert').filter({ hasText: SAVE_FAILURE_TITLE });
+      await expect(box).toContainText('Chưa lưu được tên dự án và mã dự án. Sửa lại giá trị đó, hệ thống sẽ tự lưu tiếp.');
+      await expect(page.getByText(FIELD_REJECTED, { exact: true })).toHaveCount(1); // only at "Mã dự án"
+      await captureEvidence(page, 'E03_settings_mixed_422_box.png');
+    });
+  });
+
+  test('E03 · SCR-08 [S26 S28] "Đơn vị diện tích" line; "Ngưỡng tin cậy" refuses 1,5 and -1, Escape restores, 0,5 saves as "50%"', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page, api } = admin;
+      const project = await createProject(admin, 'confidence');
+      await openSettings(page, project);
+      await settingsTab(page, 'Đơn vị đo').click();
+      await expect(page.getByText('Mét vuông — ví dụ 248,60 m²', { exact: true })).toBeVisible(); // UPS:1392, UT:53-56
+      const field = page.getByRole('textbox', { name: 'Ngưỡng tin cậy', exact: true }); // UT:70-79
+      const before = await field.inputValue();
+      const mark = api.length;
+      await field.fill('1,5');
+      await expect(page.getByText('Giá trị không quá 1.', { exact: true })).toBeVisible(); // NF:67-72, PSG:194-195
+      await field.fill('-1');
+      await expect(page.getByText('Giá trị không nhỏ hơn 0.', { exact: true })).toBeVisible();
+      await captureEvidence(page, 'E03_settings_confidence_refused.png');
+      await field.press('Escape');
+      await expect(field).toHaveValue(before);
+      await quiet(page);
+      expect(countSince(api, mark, 'PUT', settingsRe(project.id)), 'refused values send no PUT').toBe(0);
+
+      const put = waitForApi(page, 'PUT', settingsRe(project.id), [200]);
+      await field.fill('0,5');
+      await field.press('Tab');
+      const body = asRecord(asRecord((await put).response.request().postDataJSON() as unknown, 'PUT').body, 'PUT body');
+      expect(body.confidenceThreshold).toBe(0.5);
+      await expect(page.getByText(/^50\s?%$/u)).toBeVisible(); // UPS:1398 formatPercent hint
+    });
+  });
+
+  test('E03 · SCR-08 [S29] "Tỉ lệ bản vẽ" refuses 0 and 1001; 2,5 saves and the preview reads "100 điểm ảnh ứng với 250 mm ngoài thực tế."', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page, api } = admin;
+      const project = await createProject(admin, 'scale');
+      await openSettings(page, project);
+      await settingsTab(page, 'Đơn vị đo').click();
+      const field = page.getByRole('textbox', { name: 'Tỉ lệ bản vẽ', exact: true }); // UT:81-91
+      const mark = api.length;
+      await field.fill('0');
+      await expect(page.getByText('Giá trị không nhỏ hơn 0,01.', { exact: true })).toBeVisible(); // PSG:196
+      await field.fill('1001');
+      await expect(page.getByText('Giá trị không quá 1.000.', { exact: true })).toBeVisible(); // PSG:197
+      await field.press('Escape');
+      await quiet(page);
+      expect(countSince(api, mark, 'PUT', settingsRe(project.id)), 'refused values send no PUT').toBe(0);
+
+      const put = waitForApi(page, 'PUT', settingsRe(project.id), [200]);
+      await field.fill('2,5');
+      await field.press('Tab');
+      const body = asRecord(asRecord((await put).response.request().postDataJSON() as unknown, 'PUT').body, 'PUT body');
+      expect(body.defaultScaleMmPerPx).toBe(2.5);
+      // UPS:560-574 scalePreviewLabelFor: 100 px × 2,5 mm = 250 mm (formatLength < 1 m stays in mm).
+      await expect(page.getByText('100 điểm ảnh ứng với 250 mm ngoài thực tế.', { exact: true })).toBeVisible();
+      await expect(page.getByText('2,5 milimét trên mỗi điểm ảnh', { exact: true })).toBeVisible(); // UPS:1400
+      await captureEvidence(page, 'E03_settings_scale_preview.png');
+    });
+  });
+
+  test('E03 · SCR-08 [S32] add an active user → "2 thành viên" + toast "Đã thêm …"; "Hoàn tác" removes them again', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      // #38 GET /api/users (admin only, BE users/router.py:49-52): an existing active non-admin account, so no invitation.
+      const list = await admin.context.request.get('/api/users', { headers: bearer(admin) });
+      expect(list.status(), 'GET /api/users').toBe(200);
+      const users = asRecord(await list.json(), 'GET /api/users').users;
+      const adminEmail = readAdminCredentials().email.toLowerCase();
+      const candidate = (Array.isArray(users) ? users : [])
+        .map((user) => asRecord(user, 'user'))
+        .find((user) => user.status === 'active' && user.role !== 'admin' && typeof user.email === 'string' && user.email.toLowerCase() !== adminEmail);
+      test.skip(candidate === undefined, 'data: no active non-admin account on this stack (an invitation would spend POST /api/users/invitations)');
+      const email = String(candidate?.email);
+      const name = String(candidate?.name);
+
+      const project = await createProject(admin, 'memberadd');
+      await openSettings(page, project);
+      await settingsTab(page, 'Thành viên').click();
+      const membersRe = new RegExp(`^/api/projects/${escapeRegExp(project.id)}/members$`, 'u');
+      const post = waitForApi(page, 'POST', membersRe, [200, 201]);
+      await page.getByRole('textbox', { name: MEMBER.email, exact: true }).fill(email);
+      await page.getByRole('button', { name: MEMBER.add, exact: true }).click();
+      await post;
+      await expect(page.getByText('2 thành viên', { exact: true })).toBeVisible(); // UPS:1403
+      await expect(page.getByRole('listitem').filter({ hasText: name })).toBeVisible(); // MT:57-75
+      const toast = toastWith(page, `Đã thêm ${name}; hoàn tác sẽ gỡ người này`).first(); // UPM:206
+      await expect(toast).toBeVisible();
+      await captureEvidence(page, 'E03_settings_member_added.png');
+
+      const del = waitForApi(page, 'DELETE', new RegExp(`^/api/projects/${escapeRegExp(project.id)}/members/[^/]+$`, 'u'), [200, 204]);
+      await toast.getByRole('button', { name: UNDO, exact: true }).click(); // UPM:191-200 undo → removeMemberById
+      await del;
+      await expect(page.getByText('1 thành viên', { exact: true })).toBeVisible();
+    });
+  });
+
+  test('E03 · SCR-08 [S35] [mocked response] member add 429 → "Bạn đã thêm nhiều thành viên…" and "Thêm thành viên" locked', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'member429');
+      await openSettings(page, project);
+      await settingsTab(page, 'Thành viên').click();
+      const membersPath = `/api/projects/${project.id}/members`;
+      // BE shape of a 429 (core/errors.py:84 `{code, requestId}` + Retry-After, project_members/router.py:26-30).
+      await page.route(
+        (url) => url.pathname === membersPath,
+        async (route) => {
+          if (route.request().method() !== 'POST') return route.fallback();
+          await route.fulfill({
+            status: 429,
+            headers: { 'Retry-After': '5' },
+            contentType: 'application/json',
+            body: JSON.stringify({ code: 'RATE_LIMITED', requestId: 'qa-e03-mock' }),
+          });
+        },
+      );
+      await page.getByRole('textbox', { name: MEMBER.email, exact: true }).fill(testEmail('e03-ratelimit'));
+      const add = page.getByRole('button', { name: MEMBER.add, exact: true });
+      await add.click();
+      await expect(page.getByText('Bạn đã thêm nhiều thành viên trong giờ này; hãy thử lại sau.', { exact: true })).toBeVisible(); // UPM:34, 91-94
+      await expect(add).toBeDisabled(); // UPM:143-149 lock ≥ 60 s (RATE_LIMIT_LOCK_FLOOR_SECONDS)
+      await captureEvidence(page, 'E03_settings_member_429.png');
+    });
+  });
+
+  test('E03 · SCR-08 [S36] [mocked response] settings read 500 → "Không tải được cài đặt dự án" + "Thử lại" (no save indicator); retry loads', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'settings500');
+      const settingsPath = `/api/projects/${project.id}/settings`;
+      const handler = async (route: Route): Promise<void> => {
+        if (route.request().method() !== 'GET') return route.fallback();
+        await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ code: 'INTERNAL', requestId: 'qa-e03-mock' }) });
+      };
+      const matcher = (url: URL): boolean => url.pathname === settingsPath;
+      await page.route(matcher, handler);
+      await page.goto(ROUTES.project.settings(project.id));
+      // PSG:410-414 reads #24 + N6 together; PS:61-66: not a 404 → "Thử lại" when `canRetryLoad` (UPS:1370).
+      const alert = page.getByRole('alert').filter({ hasText: LOAD_ERROR_SETTINGS });
+      await expect(alert).toBeVisible({ timeout: 45_000 });
+      const retry = alert.getByRole('button', { name: 'Thử lại', exact: true });
+      await expect(retry).toBeVisible();
+      await expect(alert.getByRole('button', { name: BACK_TO_PROJECTS })).toHaveCount(0);
+      await expect(saveIndicator(page)).toHaveCount(0); // PS:59 no save indicator on a load error (BUG-078)
+      await captureEvidence(page, 'E03_settings_load_500.png');
+      await page.unroute(matcher, handler);
+      await retry.click();
+      await expect(page.getByRole('textbox', { name: NAME_LABEL, exact: true })).toHaveValue(project.name);
+    });
+  });
+
+  test('E03 · SCR-08 [S38] while the settings read is held → "property-panel" skeleton, no form; released → the form', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'settingsload');
+      const settingsPath = `/api/projects/${project.id}/settings`;
+      const hold = await holdFirst(page, (url, method) => method === 'GET' && url.pathname === settingsPath);
+      try {
+        await page.goto(ROUTES.project.settings(project.id));
+        await hold.seen;
+        await expect(page.locator('.animate-pulse').first()).toBeVisible(); // PS:108-109 Skeleton preset (Skeleton.tsx:20)
+        await expect(page.getByRole('textbox', { name: NAME_LABEL, exact: true })).toHaveCount(0);
+        await captureEvidence(page, 'E03_settings_loading.png');
+      } finally {
+        await hold.release();
+      }
+      await expect(page.getByRole('textbox', { name: NAME_LABEL, exact: true })).toHaveValue(project.name);
+    });
+  });
+
+  test('E03 · SCR-08 [S39] header save indicator: "Chưa có thay đổi" on load → "Đã lưu lúc HH:MM" after a save', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'indicator');
+      await openSettings(page, project);
+      await expect(saveIndicator(page)).toHaveText('Chưa có thay đổi'); // vi.json autosave.idle (useSaveIndicator.ts:37)
+      const put = waitForApi(page, 'PUT', settingsRe(project.id), [200]);
+      await page.getByRole('textbox', { name: NOTES_LABEL, exact: true }).fill(`qa indicator ${uniq()}`);
+      await put;
+      await expect(saveIndicator(page)).toHaveText(/^Đã lưu lúc \d{1,2}:\d{2}$/u); // common.saved_at (useSaveIndicator.ts:40)
+      await captureEvidence(page, 'E03_settings_save_indicator.png');
+    });
+  });
+
+  test('E03 · SCR-08 [S44] project deleted elsewhere → "Xoá mọi tầng" and "Xoá dự án" fail inside their dialog (404 sentence), dialog stays', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'dangerfail', 1);
+      await openSettings(page, project);
+      await settingsTab(page, 'Vùng nguy hiểm').click();
+      const panel = page.getByRole('tabpanel', { name: 'Vùng nguy hiểm' });
+      // The other writer: the real #27 DELETE, so the dialog's own calls meet a real 404.
+      const gone = await admin.context.request.delete(`${PROJECTS_API}/${project.id}`, { headers: bearer(admin) });
+      expect(gone.status(), 'the other writer deletes the project').toBe(200);
+
+      await panel.getByRole('button', { name: DANGER.deleteFloors, exact: true }).click();
+      const floorsDialog = page.getByRole('dialog', { name: DANGER.deleteFloorsTitle, exact: true });
+      const read = waitForApi(page, 'GET', projectReadRe(project.id), [404]);
+      await floorsDialog.getByRole('button', { name: DANGER.deleteFloors, exact: true }).click();
+      await read; // PSG:513-517 reads #24 first
+      // UPS:1220-1226 + 1413-1414: the failure replaces the dialog message; the dialog stays open.
+      await expect(floorsDialog).toContainText(GENERIC_NOT_FOUND);
+      await captureEvidence(page, 'E03_settings_danger_floors_404.png');
+      await floorsDialog.getByRole('button', { name: DANGER.keep, exact: true }).click();
+      await expect(floorsDialog).toHaveCount(0);
+
+      await panel.getByRole('button', { name: DANGER.deleteProject, exact: true }).click();
+      const projectDialog = page.getByRole('dialog', { name: DANGER.deleteProjectTitle, exact: true });
+      await projectDialog.getByRole('textbox', { name: DANGER.typeName, exact: true }).fill(project.name);
+      const del = waitForApi(page, 'DELETE', projectRe(project.id), [404]);
+      await projectDialog.getByRole('button', { name: DANGER.deleteProject, exact: true }).click();
+      await del;
+      await expect(projectDialog).toContainText(GENERIC_NOT_FOUND); // UPS:1247-1252
+      expect(pathOf(page), 'a failed delete does not leave the screen').toBe(ROUTES.project.settings(project.id));
+      await captureEvidence(page, 'E03_settings_danger_project_404.png');
+    });
+  });
+});
+
+/* ---------------------------------------------------------------- SCR-09 gap rows */
+
+test.describe('E03 SCR-09 floor manager — gap rows (QA-03d)', () => {
+  test('E03 · SCR-09 [F5r] rename to the same name → "Chưa đổi được tên tầng — Tên tầng không đổi …", no PATCH', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page, api } = admin;
+      const project = await createProject(admin, 'fsame', 2);
+      await openFloors(page, project);
+      const floor = firstFloor(project);
+      const input = page.getByRole('textbox', { name: `Tên tầng ${floor.name}`, exact: true });
+      const mark = api.length;
+      await input.fill(`${floor.name}x`);
+      await input.fill(floor.name); // a draft equal to the saved name (UFM:1140-1153 onFloorFieldChange)
+      await input.press('Enter');
+      await expect(toastWith(page, `${RENAME_REFUSED} — ${FLOOR_TEXT.sameName}`).first()).toBeVisible(); // FMG:876-880, UFM:1195-1199
+      await quiet(page);
+      expect(countSince(api, mark, 'PATCH', spatialRe(project.id)), 'an unchanged name sends nothing').toBe(0);
+      await captureEvidence(page, 'E03_floors_rename_same.png');
+    });
+  });
+
+  test('E03 · SCR-09 [F9r] drag the last row\'s grip onto the first row → insertion line, PATCH reorder, new order', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'fdrag', 3);
+      await openFloors(page, project);
+      const before = await floorRowNames(page);
+      const first = before[0];
+      const last = before.at(-1);
+      if (first === undefined || last === undefined) throw new Error('no rows');
+      const dataTransfer = await page.evaluateHandle(() => new DataTransfer());
+      // FTR:240-249 grip `draggable` → onDragHandleStart; FTR:215-229 row dragover/drop; FT:122-142 handleDrop.
+      await page.getByRole('button', { name: `Đổi thứ tự tầng ${last}`, exact: true }).dispatchEvent('dragstart', { dataTransfer });
+      const target = floorRow(page, first);
+      await target.dispatchEvent('dragover', { dataTransfer });
+      await expect(target).toHaveClass(/border-t-accent/u); // FTR:209 showInsertionLineBefore
+      await captureEvidence(page, 'E03_floors_drag_insertion.png');
+      const reorder = waitForApi(page, 'PATCH', reorderRe, [200]);
+      await target.dispatchEvent('drop', { dataTransfer });
+      await reorder;
+      await expect.poll(() => floorRowNames(page)).toEqual([last, ...before.slice(0, -1)]);
+      await attachJson('E03_floors_drag_reorder.json', { before, after: await floorRowNames(page) });
+    });
+  });
+
+  test('E03 · SCR-09 [F19r] "Nhân bản" with "Sao chép nội thất" on → POST + the contents sentence is announced (session only)', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'fdupc', 2);
+      const announced = await recordAnnouncements(page);
+      await openFloors(page, project);
+      const source = firstFloor(project);
+      const row = floorRow(page, source.name);
+      await openRowMenu(page, source.name);
+      await page.getByRole('menuitem', { name: 'Nhân bản', exact: true }).click();
+      const copySwitch = row.getByRole('switch', { name: 'Sao chép nội thất sang tầng mới', exact: true });
+      await copySwitch.click();
+      await expect(copySwitch).toHaveAttribute('aria-checked', 'true');
+      const post = waitForApi(page, 'POST', floorsRe(project.id), [200, 201]);
+      await row.getByRole('button', { name: 'Nhân bản', exact: true }).click();
+      await post;
+      // UFM:1373-1382: persistFloorContents is unsupported → `announce(contents.notice)` (FMG:210-211).
+      await expect.poll(announced, { timeout: 15_000 }).toContain(FLOOR_TEXT.contents);
+      await captureEvidence(page, 'E03_floors_duplicate_contents.png');
+      await attachJson('E03_floors_duplicate_contents.json', { announced: await announced() });
+    });
+  });
+
+  test('E03 · SCR-09 [F21r] undo a floor delete after the 570 s restore window → "Đã quá thời gian khôi phục tầng…", no POST', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page, api } = admin;
+      const project = await createProject(admin, 'fexpire', 3);
+      await page.clock.install(); // time keeps flowing; only `setSystemTime` below jumps Date.now (UFM gateway.now)
+      await openFloors(page, project);
+      const top = project.floors[2] ?? firstFloor(project);
+      const del = waitForApi(page, 'DELETE', new RegExp(`^/api/floors/${escapeRegExp(top.id)}$`, 'u'), [200, 204]);
+      await openRowMenu(page, top.name);
+      await page.getByRole('menuitem', { name: 'Xoá tầng', exact: true }).click();
+      await del;
+      await expect(floorRow(page, top.name)).toHaveCount(0);
+      await page.clock.setSystemTime(Date.now() + FLOOR_RESTORE_WINDOW_MS + 1_000);
+      const mark = api.length;
+      await floorRow(page, firstFloor(project).name).focus();
+      await page.keyboard.press('Control+z'); // UFM:1459-1472 Mod+Z → undo; UFM:952-965 isExpired
+      await expect(toastWith(page, `${FLOOR_TEXT.undoRefused} — ${FLOOR_TEXT.undoExpired}`).first()).toBeVisible();
+      await quiet(page);
+      expect(countSince(api, mark, 'POST', floorsRe(project.id)), 'an expired restore is not sent').toBe(0);
+      await expect(floorRow(page, top.name)).toHaveCount(0);
+      await captureEvidence(page, 'E03_floors_undo_expired.png');
+    });
+  });
+
+  test('E03 · SCR-09 [F22r] 50 floors → "Thêm tầng" says "Chưa thêm được tầng — Dự án đã đủ 50 tầng…", no POST', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page, api } = admin;
+      const project = await createProject(admin, 'f50', 50);
+      await openFloors(page, project);
+      const mark = api.length;
+      await page.getByRole('button', { name: 'Thêm tầng', exact: true }).click();
+      // UFM:1295-1306 isAtFloorLimit (PROJECT_LIMITS.floorCountMax 50) → say, no command.
+      await expect(toastWith(page, `${FLOOR_TEXT.addRefused} — ${FLOOR_TEXT.limit}`).first()).toBeVisible();
+      await quiet(page);
+      expect(countSince(api, mark, 'POST', floorsRe(project.id)), 'no POST at the cap').toBe(0);
+      await expect(floorRows(page)).toHaveCount(50);
+      await captureEvidence(page, 'E03_floors_limit_local.png');
+    });
+  });
+
+  test('E03 · SCR-09 [F28r] while the floor list is held → table skeleton + pulsing section; released → rows', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'floading', 2);
+      const listPath = `/api/projects/${project.id}/floors`;
+      const hold = await holdFirst(page, (url, method) => method === 'GET' && url.pathname === listPath);
+      try {
+        await page.goto(ROUTES.project.floors(project.id));
+        await hold.seen;
+        await expect(page.locator('.animate-pulse').first()).toBeVisible(); // FT:263-265 Table.Skeleton, FSC:163
+        await expect(floorRows(page)).toHaveCount(0);
+        await captureEvidence(page, 'E03_floors_loading.png');
+      } finally {
+        await hold.release();
+      }
+      await expect(floorRows(page)).toHaveCount(2);
+    });
+  });
+
+  test('E03 · SCR-09 [F31r] footer "3 tầng · tổng cao 9,0 m · …"; caption follows "Tự động tính cao độ"', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'ffooter', 3);
+      await openFloors(page, project);
+      await expectSettledTotal(page, 3, '9,0'); // FT:320-322
+      await expect(page.getByText(FLOOR_TEXT.captionManual, { exact: true })).toBeVisible(); // FT:311 (auto starts OFF, UFM:516)
+      const auto = page.getByRole('switch', { name: AUTO_ELEVATION, exact: true });
+      await auto.click();
+      await expect(page.getByText(FLOOR_TEXT.captionAuto, { exact: true })).toBeVisible();
+      await captureEvidence(page, 'E03_floors_footer_caption.png');
+      await auto.click();
+      await expect(page.getByText(FLOOR_TEXT.captionManual, { exact: true })).toBeVisible();
+    });
+  });
+
+  test('E03 · SCR-09 [F32r] a floor added elsewhere at 49 → "Thêm tầng" meets the server cap: "Chưa lưu được thay đổi tầng — Dự án đã đủ 50 tầng…"', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'f49', 49);
+      await openFloors(page, project);
+      await addFloorByApi(admin, project, 49); // the 50th, unseen by this page
+      const post = waitForApi(page, 'POST', floorsRe(project.id), [422]);
+      await page.getByRole('button', { name: 'Thêm tầng', exact: true }).click();
+      const { json } = await post; // BE floors/service.py:86-89 FLOOR_LIMIT_REACHED
+      expect(asRecord(json, '422').code).toBe('FLOOR_LIMIT_REACHED');
+      await expect(toastWith(page, `${FLOOR_TEXT.persistFailed} — ${FLOOR_TEXT.limit}`).first()).toBeVisible(); // UFM:207-213, 703-706
+      await expect(floorRows(page)).toHaveCount(49); // "thao tác vừa rồi đã được huỷ"
+      await captureEvidence(page, 'E03_floors_limit_server.png');
+    });
+  });
+
+  test('E03 · SCR-09 [F32r] list changed elsewhere → Alt+ArrowUp meets FLOOR_REORDER_MISMATCH: "Danh sách tầng vừa đổi ở nơi khác…", order kept', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'fmismatch', 3);
+      await openFloors(page, project);
+      const before = await floorRowNames(page);
+      await addFloorByApi(admin, project, 3);
+      const middle = before[1];
+      if (middle === undefined) throw new Error('no middle row');
+      const reorder = waitForApi(page, 'PATCH', reorderRe, [422]);
+      await floorRow(page, middle).focus();
+      await page.keyboard.press('Alt+ArrowUp');
+      const { json } = await reorder; // BE floors/resolvers.py:102-113 / service.py:219-222
+      expect(asRecord(json, '422').code).toBe('FLOOR_REORDER_MISMATCH');
+      await expect(toastWith(page, `${FLOOR_TEXT.persistFailed} — ${FLOOR_TEXT.listChanged}`).first()).toBeVisible();
+      await expect.poll(() => floorRowNames(page)).toEqual(before);
+      await captureEvidence(page, 'E03_floors_reorder_mismatch.png');
+    });
+  });
+});
+
+/* ---------------------------------------------------------------- SCR-10 gap rows */
+
+test.describe('E03 SCR-10 floor upload — gap rows (QA-03d)', () => {
+  test('E03 · SCR-10 [U12] 3-page .pdf: picking "Trang 2" starts the upload with pageIndex 1', async ({ browser }, testInfo) => {
+    const threePages = testInfo.outputPath('ba-trang-chon.pdf');
+    writeFileSync(threePages, '%PDF-1.4\n1 0 obj << /Type /Pages /Count 3 >> endobj\n%%EOF\n', 'utf8');
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'upick', 1);
+      const floor = firstFloor(project);
+      await openUpload(page, project);
+      await page.getByTestId(FILE_INPUT).setInputFiles(threePages);
+      await tray(page).getByRole('combobox', { name: ASSIGN }).click();
+      await page.getByRole('option', { name: floor.name, exact: true }).click();
+      const picker = card(page, floor).getByRole('combobox', { name: PICK_PAGE });
+      const init = page.waitForRequest((request) => request.method() === 'POST' && uploadInitRe(project.id).test(new URL(request.url()).pathname));
+      await picker.click();
+      await page.getByRole('option', { name: 'Trang 2', exact: true }).click(); // UFU:808-820 pickPdfPage → startUpload
+      const body = asRecord((await init).postDataJSON() as unknown, 'init body');
+      expect(body.pageIndex, 'UFU:268-271 page 2 → pageIndex 1 (uploadTask.ts:430)').toBe(1);
+      expect(body.fileName).toBe('ba-trang-chon.pdf');
+      await expect(card(page, floor).getByText(WAITING, { exact: true })).toHaveCount(0); // left "Chờ xử lý"
+      await captureEvidence(page, 'E03_upload_pdf_page_picked.png');
+      await attachJson('E03_upload_pdf_page_picked.json', { init: body, status: await card(page, floor).getByRole('status').allInnerTexts().catch(() => []) });
+    });
+  });
+
+  test('E03 · SCR-10 [U16 U20] chunk held → "Đang tải lên" + progressbar; card menu "Huỷ" → back to "Chờ xử lý", no complete', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page, api } = admin;
+      const project = await createProject(admin, 'ucancel', 1);
+      const floor = firstFloor(project);
+      await openUpload(page, project);
+      const hold = await holdFirst(page, (url, method) => method === 'POST' && /\/drawings\/uploads\/[^/]+\/chunks$/u.test(url.pathname));
+      try {
+        await page.getByTestId(FILE_INPUT).setInputFiles(drawingPng());
+        await tray(page).getByRole('combobox', { name: ASSIGN }).click();
+        await page.getByRole('option', { name: floor.name, exact: true }).click();
+        await hold.seen;
+        const floorCard = card(page, floor);
+        await expect(floorCard.getByText(UPLOADING, { exact: true })).toBeVisible(); // UFU:122
+        // FUC:171-190 ProgressRail: sr-only role="progressbar" named "Đã tải N% của <file>" (UFU:1136-1139).
+        await expect(floorCard.getByRole('progressbar')).toHaveAccessibleName(new RegExp(`^Đã tải \\d+\\s?% của ${escapeRegExp(drawingName())}$`, 'u'));
+        await captureEvidence(page, 'E03_upload_uploading.png');
+        const menu = floorCard.getByRole('button', { name: `Tuỳ chọn của tầng ${floor.name}`, exact: true });
+        await menu.click();
+        const mark = api.length;
+        await floorCard.getByRole('button', { name: 'Huỷ', exact: true }).click(); // FUC:112-124 → UFU:1291-1293 cancelTask
+        await expect(floorCard.getByText(WAITING, { exact: true })).toBeVisible(); // UFU:298 cancelled → waiting
+        await expect(floorCard.getByRole('progressbar')).toHaveCount(0);
+        await quiet(page);
+        expect(countSince(api, mark, 'POST', /\/drawings\/uploads\/[^/]+\/complete$/u), 'a cancelled upload never completes').toBe(0);
+        await captureEvidence(page, 'E03_upload_cancelled.png');
+      } finally {
+        await hold.release();
+      }
+    });
+  });
+
+  test('E03 · SCR-10 [U17] [mocked response] chunk 500 → card "Lỗi" + sentence; menu "Thử lại" (real backend) → "Đã gắn kèm"', async ({ browser }) => {
+    test.setTimeout(240_000);
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'uretry', 1);
+      const floor = firstFloor(project);
+      await openUpload(page, project);
+      const handler = async (route: Route): Promise<void> => {
+        if (route.request().method() !== 'POST') return route.fallback();
+        await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ code: 'INTERNAL', requestId: 'qa-e03-mock' }) });
+      };
+      const matcher = (url: URL): boolean => /\/drawings\/uploads\/[^/]+\/chunks$/u.test(url.pathname);
+      await page.route(matcher, handler);
+      await page.getByTestId(FILE_INPUT).setInputFiles(drawingPng());
+      await tray(page).getByRole('combobox', { name: ASSIGN }).click();
+      await page.getByRole('option', { name: floor.name, exact: true }).click();
+      const floorCard = card(page, floor);
+      // uploadTask.ts:61-68 three attempts per chunk, then `failed`; a 500 is retryable and not terminal (FUG:323-326).
+      await expect(floorCard.getByText(STATUS_ERROR, { exact: true })).toBeVisible({ timeout: 60_000 });
+      await expect(floorCard.getByRole('alert')).toBeVisible(); // FUC:285-297
+      await captureEvidence(page, 'E03_upload_chunk_500.png');
+      await page.unroute(matcher, handler);
+      const complete = waitForApi(page, 'POST', new RegExp(`^/api/projects/${escapeRegExp(project.id)}/drawings/uploads/[^/]+/complete$`, 'u'), [200]);
+      await floorCard.getByRole('button', { name: `Tuỳ chọn của tầng ${floor.name}`, exact: true }).click();
+      await floorCard.getByRole('button', { name: 'Thử lại', exact: true }).click(); // FUC:125-137 → UFU:1294-1302
+      await complete;
+      await expect(floorCard.getByText(ATTACHED, { exact: true })).toBeVisible();
+    });
+  });
+
+  test('E03 · SCR-10 [U18] "mat-bang-tang-2.png" is matched to "Tầng 2" by name → uploads at once, hint "Ghép tự động từ tên tệp — kiểm tra lại"', async ({ browser }, testInfo) => {
+    test.setTimeout(240_000);
+    const named = testInfo.outputPath('mat-bang-tang-2.png');
+    copyFileSync(drawingPng(), named);
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'umatch', 2);
+      const second = project.floors[1] ?? firstFloor(project);
+      await openUpload(page, project);
+      const init = page.waitForRequest((request) => request.method() === 'POST' && uploadInitRe(project.id).test(new URL(request.url()).pathname));
+      await page.getByTestId(FILE_INPUT).setInputFiles(named);
+      // UFU:764-786 guessFloor(file) === guessFloor(floor) (VAL:350-377) → floorId set, isAutoMatched, startUpload.
+      const body = asRecord((await init).postDataJSON() as unknown, 'init body');
+      expect(body.floorId, 'matched to "Tầng 2"').toBe(second.id);
+      await expect(tray(page)).toHaveCount(0);
+      const secondCard = card(page, second);
+      await expect(secondCard.getByText(AUTO_MATCH, { exact: true })).toBeVisible(); // FUC:243-245, UFU:1134
+      await expect(secondCard.getByText(ATTACHED, { exact: true })).toBeVisible({ timeout: 60_000 });
+      await captureEvidence(page, 'E03_upload_auto_match.png');
+    });
+  });
+
+  test('E03 · SCR-10 [U19] a second file assigned to an occupied floor sends the first back to the tray (announced)', async ({ browser }, testInfo) => {
+    test.setTimeout(240_000);
+    const fileA = testInfo.outputPath('ban-ve-a.png');
+    const fileB = testInfo.outputPath('ban-ve-b.png');
+    copyFileSync(drawingPng(), fileA);
+    copyFileSync(drawingPng(), fileB);
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'udisplace', 1);
+      const floor = firstFloor(project);
+      const announced = await recordAnnouncements(page);
+      await openUpload(page, project);
+      await page.getByTestId(FILE_INPUT).setInputFiles([fileA, fileB]);
+      await expect(tray(page)).toContainText('2 tệp');
+      const item = (name: string): Locator => tray(page).getByRole('listitem').filter({ hasText: name });
+      await item('ban-ve-a.png').getByRole('combobox', { name: ASSIGN }).click();
+      await page.getByRole('option', { name: floor.name, exact: true }).click();
+      await expect(card(page, floor).getByText(ATTACHED, { exact: true })).toBeVisible({ timeout: 60_000 });
+
+      await item('ban-ve-b.png').getByRole('combobox', { name: ASSIGN }).click();
+      await page.getByRole('option', { name: floor.name, exact: true }).click(); // UFU:826-839 displaced → toTray()
+      await expect(item('ban-ve-a.png')).toBeVisible();
+      await expect(card(page, floor)).toContainText('ban-ve-b.png');
+      // UFU:1334-1336 displacedSentence.
+      await expect.poll(announced).toContain('ban-ve-a.png đã về khay tệp chưa gán tầng vì tầng ấy đã có tệp khác');
+      await captureEvidence(page, 'E03_upload_displaced.png');
+    });
+  });
+
+  test('E03 · SCR-10 [U25] overlapping floors → submit names the overlap ("… hai tầng chồng lấn … mm.")', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      // Tầng 2 starts at 1 m, inside Tầng 1 (0 m + 3 m): alignFloors overlap (src/domain/axes/alignFloors.ts:505-521).
+      const project = await createProjectWithFloors(admin, 'uoverlap', [
+        { name: 'Tầng 1', elevationMm: 0, heightMm: FLOOR_HEIGHT_MM },
+        { name: 'Tầng 2', elevationMm: 1_000, heightMm: FLOOR_HEIGHT_MM },
+      ]);
+      await openUpload(page, project);
+      await page.getByRole('button', { name: SUBMIT, exact: true }).click();
+      const notice = page.getByTestId(BLOCK_NOTICE);
+      await expect(notice).toContainText(BLOCKED_TITLE);
+      // UFU:986-1001 duplicateElevation reason = the domain sentence as it is.
+      await expect(notice).toContainText(/Tầng Tầng 2 bắt đầu ở cao độ .+ m, thấp hơn trần tầng Tầng 1 ở .+ m: hai tầng chồng lấn .+ mm\./u);
+      await captureEvidence(page, 'E03_upload_blocked_overlap.png');
+    });
+  });
+
+  test('E03 · SCR-10 [U30] [mocked response] project read 500 → "Không tải được danh sách tầng" + "Thử lại", no drop zone; retry loads', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'u500', 1);
+      const readPath = `/api/projects/${project.id}`;
+      const handler = async (route: Route): Promise<void> => {
+        if (route.request().method() !== 'GET') return route.fallback();
+        await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ code: 'INTERNAL', requestId: 'qa-e03-mock' }) });
+      };
+      const matcher = (url: URL): boolean => url.pathname === readPath;
+      await page.route(matcher, handler);
+      await page.goto(ROUTES.project.upload(project.id));
+      // FUG:220-227 readFloors = #24; FU:140-153 not a 404 → LOAD_ERROR_TITLE + "Thử lại" when retryable (UFU:1251).
+      const alert = page.getByRole('alert').filter({ hasText: UPLOAD_LOAD_ERROR });
+      await expect(alert).toBeVisible({ timeout: 45_000 });
+      await expect(page.getByTestId(DROPZONE)).toHaveCount(0);
+      const retry = alert.getByRole('button', { name: 'Thử lại', exact: true });
+      await expect(retry).toBeVisible();
+      await captureEvidence(page, 'E03_upload_load_500.png');
+      await page.unroute(matcher, handler);
+      await retry.click(); // UFU:1303-1305 floorsQuery.refetch
+      await expect(page.getByTestId(DROPZONE)).toBeVisible();
+    });
+  });
+
+  test('E03 · SCR-10 [U32] offline → "Đang làm việc ngoại tuyến"; a file assigned waits for the network; back online it uploads', async ({ browser }) => {
+    test.setTimeout(240_000);
+    await withAdmin(browser, async (admin) => {
+      const { page, api } = admin;
+      const project = await createProject(admin, 'uoffline', 1);
+      const floor = firstFloor(project);
+      await openUpload(page, project);
+      await admin.context.setOffline(true);
+      try {
+        await expect(page.getByText(OFFLINE_BANNER, { exact: true })).toBeVisible(); // FU:222-224, UFU:1253
+        await page.getByTestId(FILE_INPUT).setInputFiles(drawingPng());
+        const mark = api.length;
+        await tray(page).getByRole('combobox', { name: ASSIGN }).click();
+        await page.getByRole('option', { name: floor.name, exact: true }).click();
+        // UFU:626-660: offline → waiting + awaitingNetwork, the banner turns into the await-network sentence.
+        await expect(card(page, floor).getByText(WAITING, { exact: true })).toBeVisible();
+        // The announcer (src/lib/input/announcer.ts) repeats the sentence off screen; the banner comes first in the DOM.
+        await expect(page.getByText(AWAIT_NETWORK, { exact: true }).first()).toBeVisible();
+        expect(countSince(api, mark, 'POST', uploadInitRe(project.id)), 'no init while offline').toBe(0);
+        await captureEvidence(page, 'E03_upload_offline_waiting.png');
+      } finally {
+        await admin.context.setOffline(false);
+      }
+      await expect(card(page, floor).getByText(ATTACHED, { exact: true })).toBeVisible({ timeout: 90_000 }); // UFU:696-700 resume
+      await expect(page.getByText(OFFLINE_BANNER, { exact: true })).toHaveCount(0);
+    });
+  });
+
+  test('E03 · SCR-10 [U35] while the project read is held → three skeleton rows; released → drop zone and cards', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'uloading', 1);
+      const readPath = `/api/projects/${project.id}`;
+      const hold = await holdFirst(page, (url, method) => method === 'GET' && url.pathname === readPath);
+      try {
+        await page.goto(ROUTES.project.upload(project.id));
+        await hold.seen;
+        await expect(page.locator('.animate-pulse').first()).toBeVisible(); // FU:143-148 SKELETON_ROW_COUNT × table-row
+        await expect(page.locator('[data-floor-id]')).toHaveCount(0);
+        await captureEvidence(page, 'E03_upload_loading.png');
+      } finally {
+        await hold.release();
+      }
+      await expect(card(page, firstFloor(project))).toBeVisible();
+    });
+  });
+});
+
+/* ---------------------------------------------------------------- SCR-11 gap rows */
+
+test.describe('E03 SCR-11 input quality gate — gap rows (QA-03d)', () => {
+  test('E03 · SCR-11 [Q3] two measured floors: "Các tầng đã đo" click / Enter / ArrowRight move aria-current', async ({ browser }) => {
+    test.setTimeout(PIPELINE_TIMEOUT_MS + 120_000);
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await seeded(admin, async (api) => (await createMeasuredFloorsProject(api, 'e03-qtable', readFileSync(drawingPng()), ['Tầng 1', 'Tầng 2'])).projectId);
+      await page.goto(ROUTES.project.quality(project.id));
+      const report = page.getByRole('region', { name: REPORT_REGION, exact: true });
+      const row = (name: string): Locator => report.getByRole('row').filter({ hasText: name });
+      await expect(row('Tầng 1')).toHaveAttribute('aria-current', 'true'); // IQR:229-243, BE focus = first floor
+      await row('Tầng 2').click();
+      await expect(row('Tầng 2')).toHaveAttribute('aria-current', 'true');
+      await expect(row('Tầng 1')).not.toHaveAttribute('aria-current', 'true');
+      await captureEvidence(page, 'E03_quality_floor_table.png');
+      await row('Tầng 1').focus();
+      await page.keyboard.press('Enter'); // IQR:236-240
+      await expect(row('Tầng 1')).toHaveAttribute('aria-current', 'true');
+      await page.locator('body').click({ position: { x: 5, y: 5 } });
+      await page.keyboard.press('ArrowRight'); // UIQ:1089-1103 next floor
+      await expect(row('Tầng 2')).toHaveAttribute('aria-current', 'true');
+    });
+  });
+
+  test('E03 · SCR-11 [Q14] [mocked response] quality read 500 → "Không đọc được kết quả kiểm tra chất lượng" + "Thử lại", no footer; retry reads', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'q500', 1);
+      const handler = async (route: Route): Promise<void> => {
+        if (route.request().method() !== 'GET') return route.fallback();
+        await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ code: 'INTERNAL', requestId: 'qa-e03-mock' }) });
+      };
+      const matcher = (url: URL): boolean => url.pathname.startsWith(`/api/projects/${project.id}/floors/`) && url.pathname.endsWith('/quality');
+      await page.route(matcher, handler);
+      await page.goto(ROUTES.project.quality(project.id));
+      const alert = page.getByRole('alert').filter({ hasText: QUALITY_LOAD_ERROR }); // IQ:133-145
+      await expect(alert).toBeVisible({ timeout: 45_000 });
+      const retry = alert.getByRole('button', { name: 'Thử lại', exact: true });
+      await expect(retry).toBeVisible();
+      await expect(page.getByRole('button', { name: QUALITY.continue, exact: true })).toHaveCount(0); // UIQ:1038 actions hidden
+      await captureEvidence(page, 'E03_quality_load_500.png');
+      await page.unroute(matcher, handler);
+      await retry.click();
+      await expect(page.getByText(QUALITY.noDrawingTitle, { exact: true })).toBeVisible(); // real #30 404 upload → empty
+    });
+  });
+
+  test('E03 · SCR-11 [Q15] floor deleted elsewhere → "Nắn thẳng" fails: "Chưa xử lý được bản vẽ" strip, focus back on the action', async ({ browser }) => {
+    test.setTimeout(PIPELINE_TIMEOUT_MS + 120_000);
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await seeded(admin, async (api) => (await createSkewedDrawingProject(api, 'e03-qwrite', await rotatedPng(browser, drawingPng(), SKEW_DEG))).projectId);
+      await page.goto(ROUTES.project.quality(project.id));
+      const straighten = page.getByRole('button', { name: 'Tự động nắn', exact: true });
+      await expect(straighten).toBeVisible();
+      const floor = firstFloor(project);
+      const gone = await admin.context.request.delete(`/api/floors/${floor.id}`, { headers: bearer(admin) });
+      expect(gone.status(), 'the other writer deletes the floor').toBe(200);
+
+      await straighten.click();
+      const dialog = page.getByRole('dialog', { name: /^Nắn thẳng bản vẽ tầng /u });
+      const write = waitForApi(page, 'POST', /\/quality\/straighten$/u, [404]);
+      await dialog.getByRole('button', { name: 'Nắn thẳng', exact: true }).click();
+      await write;
+      // IQ:150-158 WRITE_ERROR_TITLE; inputQualityWriteErrors.ts: a 404 has no own sentence → UIQ:154 fallback.
+      const strip = page.getByRole('alert').filter({ hasText: QUALITY_WRITE_ERROR });
+      await expect(strip).toContainText(QUALITY_WRITE_FALLBACK);
+      // IQ:110-118: focus goes back to the action that failed, or to the strip when that button is gone.
+      const focused = await page.evaluate(() => {
+        const active = document.activeElement;
+        return { action: active?.getAttribute('data-quality-action') ?? null, isStripBox: active?.getAttribute('tabindex') === '-1' };
+      });
+      expect(focused.action === 'straighten' || focused.isStripBox, `focus after the failed write: ${JSON.stringify(focused)}`).toBe(true);
+      await captureEvidence(page, 'E03_quality_write_error.png');
+      await attachJson('E03_quality_write_error.json', { focused });
+    });
+  });
+
+  test('E03 · SCR-11 [Q16] hovering / focusing a finding lights its image region (border-2), the others stay thin', async ({ browser }) => {
+    test.setTimeout(PIPELINE_TIMEOUT_MS + 120_000);
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await seeded(admin, async (api) => (await createSkewedDrawingProject(api, 'e03-qhover', await rotatedPng(browser, drawingPng(), SKEW_DEG))).projectId);
+      await page.goto(ROUTES.project.quality(project.id));
+      const report = page.getByRole('region', { name: REPORT_REGION, exact: true });
+      const regions = page.getByRole('group', { name: REGION_GROUP, exact: true }).getByRole('button'); // IQO:149-185
+      await expect(regions.first()).toBeVisible();
+      await expect(page.locator('[aria-label^="Vùng ảnh có vấn đề:"].border-2')).toHaveCount(0);
+      // IQR:150-185 the finding card (tabIndex 0) → onHoverFinding + onHoverRegion(regionId).
+      const findingCard = report.getByRole('listitem').filter({ has: page.getByRole('button', { name: 'Tự động nắn', exact: true }) }).locator('div[tabindex="0"]').first();
+      await findingCard.hover();
+      await expect(page.locator('[aria-label^="Vùng ảnh có vấn đề:"].border-2')).toHaveCount(1); // IQO:165
+      await captureEvidence(page, 'E03_quality_hover_region.png');
+      await page.mouse.move(1, 1);
+      await expect(page.locator('[aria-label^="Vùng ảnh có vấn đề:"].border-2')).toHaveCount(0);
+      await findingCard.focus(); // keyboard path: onFocus = beginHover
+      await expect(page.locator('[aria-label^="Vùng ảnh có vấn đề:"].border-2')).toHaveCount(1);
+    });
+  });
+
+  test('E03 · SCR-11 [Q18] [mocked response] focus floor still measuring → "Mới có 0/1 tầng đo xong. … Còn chờ: Tầng 1."', async ({ browser }) => {
+    test.setTimeout(PIPELINE_TIMEOUT_MS + 120_000);
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await seeded(admin, async (api) => (await createPipelineDrawingProject(api, 'e03-qpartial', readFileSync(drawingPng()))).projectId);
+      // The real #30 body with its one floor flipped to "not measured yet" (a state the fake ML leaves within seconds).
+      await page.route(
+        (url) => url.pathname.endsWith('/quality') && url.pathname.includes(project.id),
+        async (route) => {
+          if (route.request().method() !== 'GET') return route.fallback();
+          const real = await route.fetch();
+          const body = asRecord(await real.json(), '#30');
+          const floors = Array.isArray(body.floors) ? body.floors.map((floor) => asRecord(floor, 'floor')) : [];
+          const pending = floors.map((floor) => {
+            const { measurement: _m, expectedConfidence: _c, frame: _f, ...rest } = floor;
+            return { ...rest, isMeasured: false, findings: [] };
+          });
+          await route.fulfill({ response: real, json: { ...body, floors: pending } });
+        },
+      );
+      await page.goto(ROUTES.project.quality(project.id));
+      // UIQ:896-898 partial; UIQ:928-946 counted + activeLine + pendingLine.
+      const report = page.getByRole('region', { name: REPORT_REGION, exact: true });
+      await expect(report).toContainText('Mới có 0/1 tầng đo xong.');
+      await expect(report).toContainText('Còn chờ: Tầng 1.');
+      await captureEvidence(page, 'E03_quality_partial.png');
+    });
+  });
+
+  test('E03 · SCR-11 [Q20] at 375 px the report sits under the drawing in the page flow (no horizontal scroll)', async ({ browser }) => {
+    test.setTimeout(PIPELINE_TIMEOUT_MS + 120_000);
+    await withAdmin(
+      browser,
+      async (admin) => {
+        const { page } = admin;
+        const project = await seeded(admin, async (api) => (await createPipelineDrawingProject(api, 'e03-qcompact', readFileSync(drawingPng()))).projectId);
+        await page.goto(ROUTES.project.quality(project.id));
+        const report = page.getByRole('region', { name: REPORT_REGION, exact: true });
+        const drawing = page.getByRole('img', { name: /^Bản vẽ tầng .+ đang xem để kiểm tra chất lượng đầu vào$/u }); // UIQ:143-144
+        await expect(report).toBeVisible();
+        await expect(drawing).toBeVisible();
+        const reportBox = await report.boundingBox();
+        const drawingBox = await drawing.boundingBox();
+        const overflow = await horizontalOverflow(page);
+        await captureEvidence(page, 'E03_quality_compact.png', { fullPage: true });
+        await attachJson('E03_quality_compact.json', { reportBox, drawingBox, horizontalOverflow: overflow });
+        // IQ:174-177 "Dưới 1024px báo cáo xếp dưới bản vẽ" (FIX-1381, BUG-291).
+        expect(reportBox !== null && drawingBox !== null && reportBox.y >= drawingBox.y + drawingBox.height - 1, 'report under the drawing').toBe(true);
+        expect(overflow, 'no horizontal scroll at 375 px').toBeLessThanOrEqual(0);
+      },
+      { viewport: COMPACT },
+    );
+  });
+});
+
+/* ---------------------------------------------------------------- SCR-12 gap rows */
+
+test.describe('E03 SCR-12 processing — gap rows (QA-03d)', () => {
+  test('E03 · SCR-12 [P8] an upload still receiving → "Để chạy nền và thông báo cho tôi"; click → "Sẽ báo cho bạn khi xử lý xong"', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'pbackground', 1);
+      const floor = firstFloor(project);
+      const png = readFileSync(drawingPng());
+      // #5 init + #6 chunk 0 and NO #7: the upload stays `receiving`, which N7 lists (BE drawings/latest.py:67) — a run
+      // that is not final (UPR:470-478), the only state the button is drawn for (UPR:844, PR:97-101).
+      const init = await admin.context.request.post(`${PROJECTS_API}/${project.id}/floors/${floor.id}/drawings/uploads`, {
+        headers: bearer(admin),
+        data: { fileName: `${TEST_DATA_PREFIX}e03-receiving.png`, floorId: floor.id, mimeType: 'image/png', projectId: project.id, sizeBytes: png.length },
+      });
+      expect(init.status(), 'setup: upload init (#5)').toBe(200);
+      const uploadId = stringField(await init.json(), 'id', 'init');
+      const chunk = await admin.context.request.post(`${PROJECTS_API}/${project.id}/drawings/uploads/${uploadId}/chunks`, {
+        headers: bearer(admin),
+        data: { chunk: png.toString('base64'), chunkIndex: 0 },
+      });
+      expect(chunk.status(), 'setup: upload chunk 0 (#6)').toBe(200);
+
+      await page.goto(ROUTES.project.pipeline(project.id));
+      const background = page.getByRole('button', { name: PROCESSING.background, exact: true });
+      await expect(background).toBeVisible();
+      await expect(page.getByRole('button', { name: PROCESSING.cancel, exact: true })).toHaveCount(0); // cancel unsupported
+      await background.click(); // UPR:880-926 runInBackground (supported) → notice
+      await expect(page.getByText(BACKGROUND_STARTED, { exact: true }).first()).toBeVisible();
+      await captureEvidence(page, 'E03_pipeline_background.png');
+    });
+  });
+
+  test('E03 · SCR-12 [P13] [mocked response] N7 read 500 → alert "Thử lại" + technical code + "Liên hệ hỗ trợ" (→ /tai-khoan); retry reads', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await createProject(admin, 'p500', 1);
+      const latestPath = `/api/projects/${project.id}/drawings/uploads/latest`; // endpoints.ts:100-102
+      const handler = async (route: Route): Promise<void> => {
+        if (route.request().method() !== 'GET') return route.fallback();
+        await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ code: 'INTERNAL', requestId: 'qa-e03-mock' }) });
+      };
+      const matcher = (url: URL): boolean => url.pathname === latestPath;
+      await page.route(matcher, handler);
+      await page.goto(ROUTES.project.pipeline(project.id));
+      // PR:258-272: not a missing project → InlineAlert + "Thử lại", then the code and "Liên hệ hỗ trợ".
+      const retry = page.getByRole('alert').getByRole('button', { name: PROCESSING.retry, exact: true });
+      await expect(retry).toBeVisible({ timeout: 45_000 });
+      const support = page.getByRole('button', { name: PROCESSING.support, exact: true });
+      await expect(support).toBeVisible();
+      await expect(page.locator('span.font-mono').first()).toHaveText(/\S+/u); // PR:265 technicalCode
+      await captureEvidence(page, 'E03_pipeline_read_500.png');
+      await attachJson('E03_pipeline_read_500.json', { technicalCode: await page.locator('span.font-mono').first().innerText() });
+      await page.unroute(matcher, handler);
+      await retry.click();
+      await expect(page.getByText(PROCESSING.emptyTitle, { exact: true })).toBeVisible();
+
+      await page.route(matcher, handler);
+      await page.reload();
+      await expect(support).toBeVisible({ timeout: 45_000 });
+      await support.click(); // UPR:831-840 → ROUTES.account
+      await expect.poll(() => pathOf(page)).toBe(ROUTES.account);
+      await page.unroute(matcher, handler);
+    });
+  });
+
+  test('E03 · SCR-12 [P15 P16] finished run: "Tiến độ theo tầng" chip aria-current + "đã xong"; "Số đối tượng đã nhận theo tầng" row', async ({ browser }) => {
+    test.setTimeout(PIPELINE_TIMEOUT_MS + 120_000);
+    await withAdmin(browser, async (admin) => {
+      const { page } = admin;
+      const project = await seeded(admin, async (api) => (await createPipelineDrawingProject(api, 'e03-pchips', readFileSync(drawingPng()))).projectId);
+      await page.goto(ROUTES.project.pipeline(project.id));
+      await expect(page.getByText(/^Đã xong 1\/1 tầng/u)).toBeVisible();
+      const floor = firstFloor(project);
+      const chip = page.getByRole('list', { name: CHIPS_LIST, exact: true }).getByRole('listitem'); // PFC:20-50
+      await expect(chip).toHaveCount(1);
+      await expect(chip).toHaveAttribute('aria-current', 'true');
+      await expect(chip).toContainText(floor.name);
+      await expect(chip).toContainText('đã xong'); // UPR:147
+      const objects = page.getByRole('list', { name: OBJECTS_LIST, exact: true }).getByRole('listitem'); // PR:161-180
+      await expect(objects).toHaveCount(1);
+      await expect(objects).toContainText(floor.name);
+      await expect(objects).toContainText(/\d+\s+đối tượng/u); // UPR:951-954 countLabel (N16 extraction)
+      await captureEvidence(page, 'E03_pipeline_floor_chips.png');
+    });
+  });
+
+  test('E03 · SCR-12 [P18] at 375 px a finished run shows the step bar "Bước đang xử lý" + "Xem tất cả các bước" (opens the list)', async ({ browser }) => {
+    test.setTimeout(PIPELINE_TIMEOUT_MS + 120_000);
+    await withAdmin(
+      browser,
+      async (admin) => {
+        const { page } = admin;
+        const project = await seeded(admin, async (api) => (await createPipelineDrawingProject(api, 'e03-pbar', readFileSync(drawingPng()))).projectId);
+        await page.goto(ROUTES.project.pipeline(project.id));
+        await expect(page.getByText(/^Đã xong 1\/1 tầng/u)).toBeVisible();
+        // PR:182-196 isSheet below 1024 px: ProcessingStepBar (PSB:56-75) + <details> "Xem tất cả các bước".
+        await expect(page.getByRole('group', { name: STEP_BAR, exact: true })).toBeVisible();
+        const details = page.locator('details').filter({ has: page.getByText(ALL_STEPS, { exact: true }) });
+        await expect(details).not.toHaveAttribute('open', '');
+        await page.getByText(ALL_STEPS, { exact: true }).click();
+        await expect(details).toHaveAttribute('open', '');
+        expect(await horizontalOverflow(page), 'no horizontal scroll at 375 px').toBeLessThanOrEqual(0);
+        await captureEvidence(page, 'E03_pipeline_compact_steps.png', { fullPage: true });
+      },
+      { viewport: COMPACT },
+    );
+  });
 });
