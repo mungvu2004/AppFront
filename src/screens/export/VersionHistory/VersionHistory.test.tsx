@@ -75,7 +75,7 @@ import {
   type VersionsServerFake,
 } from './versionHistoryFixtures';
 import * as UseVersionHistoryModule from './useVersionHistory';
-import { buildDiffGroups } from './versionHistoryModel';
+import { buildDiffGroups, buildRestoreConfirm as buildRestoreConfirmModel } from './versionHistoryModel';
 import { snapshotQueryKey, useVersionHistory } from './useVersionHistory';
 import * as VersionHistoryModule from './VersionHistory';
 import { VersionHistory } from './VersionHistory';
@@ -176,7 +176,7 @@ describe('R-72 — expectAccessible trên cây render thật', () => {
       restoreConfirm: {
         isOpen: true,
         title: 'Phục hồi phiên bản này?',
-        reassurance: 'Phục hồi giữ lại trạng thái hiện tại thành một phiên bản riêng; không có gì bị xoá.',
+        reassurance: 'Phục hồi giữ lại trạng thái hiện tại thành một phiên bản riêng; không phiên bản nào bị xoá.',
         confirmLabel: 'Phục hồi',
         cancelLabel: 'Huỷ',
         targetVersionLabel: 'v13',
@@ -1437,5 +1437,15 @@ describe('[BUG-456] tab "Thay đổi" không lấy mã nội bộ thô làm ch�
     expect(sentences).toContain('Thêm điểm #1');
     expect(sentences.some((sentence) => sentence.startsWith('Tường #1 '))).toBe(true);
     expect(groups.flatMap((group) => group.rows.map((row) => row.entityId))).toContain(ulidWall);
+  });
+});
+
+describe('[BUG-459] hộp phục hồi không tự mâu thuẫn về việc xoá', () => {
+  it('nói "không xoá phiên bản nào", và lịch sử hoàn tác là ngoại lệ có đánh dấu', () => {
+    const confirm = buildRestoreConfirmModel([], { kind: 'restore', versionId: 'v1' }, 'Tầng 1');
+
+    expect(confirm.reassurance).not.toMatch(/không xoá gì/u);
+    expect(confirm.reassurance).toMatch(/^Phục hồi không xoá phiên bản nào: /u);
+    expect(confirm.reassurance).toMatch(/Riêng lịch sử hoàn tác \(Ctrl\+Z\)/u);
   });
 });

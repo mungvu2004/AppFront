@@ -262,7 +262,7 @@ export interface RestoreConfirmModel {
   readonly title: string;
   /**
    * Câu bắt buộc trước khi bấm: nói rõ trạng thái hiện tại ĐƯỢC GIỮ LẠI thành một phiên bản
-   * riêng, và phục hồi không xoá gì. A9 + cấm tuyệt đối của đặc tả.
+   * riêng, và phục hồi không xoá phiên bản nào. A9 + cấm tuyệt đối của đặc tả.
    */
   readonly reassurance: string;
   readonly confirmLabel: string;

@@ -500,10 +500,13 @@ export const RESTORE_FORBIDDEN_REASON =
  * đúng cấm tuyệt đối của đặc tả, và đúng A9 (việc A8 không hoàn tác được thì phải hỏi).
  */
 export const RESTORE_CAPTION =
-  'Phục hồi không xoá gì: trạng thái hiện tại được giữ lại thành một phiên bản riêng, và bản phục hồi được thêm lên đầu danh sách';
+  'Phục hồi không xoá phiên bản nào: trạng thái hiện tại được giữ lại thành một phiên bản riêng, và bản phục hồi được thêm lên đầu danh sách';
 
-/** Câu trấn an thêm của hộp thoại: phục hồi thay lớp từ ngoài, nên Ctrl+Z mất lịch sử. */
-export const UNDO_HISTORY_CLEARED = 'Lịch sử hoàn tác (Ctrl+Z) của mọi tầng sẽ được xoá.';
+/**
+ * Câu trấn an thêm của hộp thoại: phục hồi thay lớp từ ngoài, nên Ctrl+Z mất lịch sử. Câu trước
+ * nói về PHIÊN BẢN; "Riêng" đánh dấu ngoại lệ để hai câu không đọc thành mâu thuẫn (BUG-459).
+ */
+export const UNDO_HISTORY_CLEARED = 'Riêng lịch sử hoàn tác (Ctrl+Z) của mọi tầng sẽ được xoá.';
 
 /** Hộp thoại đang mở: hỏi phục hồi, hay hỏi bỏ thay đổi chưa lưu (A9). */
 export type RestoreDialog =

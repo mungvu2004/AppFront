@@ -347,7 +347,7 @@ export function buildCompareModel(overrides: Partial<CompareModel> = {}): Compar
 
 /** Câu bắt buộc trước khi bấm phục hồi — không phá huỷ (A9 + cấm tuyệt đối của đặc tả). */
 export const SAMPLE_RESTORE_CAPTION =
-  'Phục hồi giữ lại trạng thái hiện tại thành một phiên bản riêng; không có gì bị xoá.';
+  'Phục hồi giữ lại trạng thái hiện tại thành một phiên bản riêng; không phiên bản nào bị xoá.';
 
 export const SAMPLE_FORBIDDEN_REASON = 'Bạn không có quyền phục hồi phiên bản trên tầng này.';
 
