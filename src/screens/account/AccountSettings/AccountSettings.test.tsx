@@ -195,6 +195,8 @@ describe('lỗi đọc cấp trang', () => {
 
     expect(screen.queryByRole('heading', { level: 2, name: 'Hồ sơ' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Thử lại' })).toBeTruthy();
+    // BUG-504: chưa tải được thì không có gì để lưu — không chip "Chưa có thay đổi" cạnh banner lỗi.
+    expect(screen.queryByText('Chưa có thay đổi')).toBeNull();
   });
 });
 

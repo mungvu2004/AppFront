@@ -106,8 +106,11 @@ export function AccountSettings({ vm }: AccountSettingsProps) {
               Hồ sơ, giao diện, thông báo, phím tắt và mật khẩu.
             </p>
           </div>
-          {/* A7: không có nút lưu, nên chỉ báo lưu phải nằm ở chỗ mắt tìm cái nút. */}
-          <SaveIndicator saveState={vm.saveState} label={vm.saveLabel} />
+          {/* A7: không có nút lưu, nên chỉ báo lưu phải nằm ở chỗ mắt tìm cái nút. Lỗi tải thì
+              chưa có gì để lưu: không hiện "Chưa có thay đổi" cạnh banner lỗi (BUG-504). */}
+          {vm.errorMessage === null ? (
+            <SaveIndicator saveState={vm.saveState} label={vm.saveLabel} />
+          ) : null}
         </header>
 
         {vm.errorMessage === null ? (
