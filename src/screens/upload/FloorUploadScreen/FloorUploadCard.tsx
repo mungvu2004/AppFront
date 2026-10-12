@@ -176,7 +176,15 @@ function ProgressRail({ row }: { row: FloorUploadRowModel }) {
           style={{ width: `${String(row.percent)}%` }}
         />
       </div>
-      <span aria-label={row.progressAriaLabel} className="sr-only" role="progressbar">
+      {/* Thanh tiến độ phải mang giá trị (ARIA 1.2, BUG-533), không chỉ một nhãn. */}
+      <span
+        aria-label={row.progressAriaLabel}
+        aria-valuemax={100}
+        aria-valuemin={0}
+        aria-valuenow={row.percent}
+        className="sr-only"
+        role="progressbar"
+      >
         {row.percentLabel}
       </span>
     </>
