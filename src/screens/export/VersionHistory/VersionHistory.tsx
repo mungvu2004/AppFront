@@ -38,12 +38,14 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
   const reviewedRow = model.rows.find((row) => row.id === reviewedVersionId) ?? null;
   const [isLabelOpen, setIsLabelOpen] = useState(false);
 
+  // Tiêu đề trang (h1) ở mọi trạng thái, như các màn có h1 sẵn (BUG-454).
   // Ô "Tầng" đứng trên mọi nhánh trả sớm (trừ `forbidden`): đổi tầng được cả khi tầng này rỗng/lỗi.
   // Rộng tới 672 (không phải 320): tên tầng dài 65 ký tự không bị cắt ở khổ rộng (BUG-455).
-  const withFloorSelect = (content: ReactNode) => (
+  const withHeader = (content: ReactNode) => (
     <div className="flex h-full flex-col gap-3">
-      {model.floorSelect !== null && (
-        <div className="max-w-2xl px-4 pt-4">
+      <h1 className="px-4 pt-4 text-[20px] font-semibold text-text-primary">Lịch sử phiên bản</h1>
+      {model.floorSelect !== null && model.state !== 'forbidden' && (
+        <div className="max-w-2xl px-4">
           <Select
             label={model.floorSelect.label}
             options={model.floorSelect.options.map((option) => ({ label: option.label, value: option.id }))}
@@ -57,7 +59,7 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
   );
 
   if (model.state === 'loading') {
-    return withFloorSelect(
+    return withHeader(
       <div className="flex h-full gap-4 p-4">
         <Skeleton preset="table-row" className="w-[360px]" />
         <Skeleton preset="property-panel" className="flex-1" />
@@ -66,7 +68,7 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
   }
 
   if (model.state === 'empty') {
-    return withFloorSelect(
+    return withHeader(
       <EmptyState
         icon={<History aria-hidden="true" />}
         title={model.emptyTitle}
@@ -76,18 +78,18 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
   }
 
   if (model.state === 'forbidden') {
-    return (
+    return withHeader(
       <EmptyState
         icon={<Lock aria-hidden="true" />}
         title="Không đủ quyền xem"
         description="Bạn không có quyền xem lịch sử phiên bản của bản vẽ này."
-      />
+      />,
     );
   }
 
   if (model.state === 'error') {
     // Có lối ra ngay trên cảnh báo (BUG-468) và lề 16 px như ô "Tầng" phía trên.
-    return withFloorSelect(
+    return withHeader(
       <div className="px-4">
         <InlineAlert
           level="violation"
@@ -101,7 +103,7 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
     );
   }
 
-  return withFloorSelect(
+  return withHeader(
     <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
       {model.savedAtLabel !== null && <p className="text-[13px] text-text-secondary">{model.savedAtLabel}</p>}
 
