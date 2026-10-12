@@ -30,6 +30,7 @@ import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
+import { useBreakpoint } from '@/hooks/useAppShell';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import type { Announcer } from '@/lib/input/announcer';
 
@@ -143,13 +144,19 @@ export function RuleSettingsContainer(props: RuleSettingsContainerProps) {
   );
 }
 
-/** Route thật của màn cài đặt bộ luật, đăng ký tại `src/routes/router.tsx`. */
+/**
+ * Route thật của màn cài đặt bộ luật, đăng ký tại `src/routes/router.tsx`.
+ *
+ * Mốc thu gọn (dưới 1024) đo ở đây và chuyển xuống hook — thiếu nó thì 375 vẫn vẽ
+ * hai cột và thẻ luật bị ép còn vài chục px (BUG-440).
+ */
 export function RuleSettingsRoute() {
   const { projectId } = useParams<{ projectId: string }>();
+  const isCompact = useBreakpoint('(width < 1024px)');
 
   return (
     <ProjectSpatialGate projectId={projectId}>
-      <RuleSettingsContainer onToast={publishRuleSettingsToast} />
+      <RuleSettingsContainer isCompact={isCompact} onToast={publishRuleSettingsToast} />
     </ProjectSpatialGate>
   );
 }

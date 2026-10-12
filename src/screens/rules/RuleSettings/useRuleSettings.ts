@@ -811,10 +811,11 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
 
   /**
    * Bậc thang bảy trạng thái của A11, chạy đúng một lần theo thứ tự này:
-   * `collapsed → forbidden → loading → error → empty → partial → ready`.
+   * `forbidden → loading → error → empty → collapsed → partial → ready`.
    *
-   * - `collapsed` đứng trước vì nó chỉ đổi CÁCH XẾP, và một người xem trên màn
-   *   hẹp vẫn phải thấy màn thu gọn chứ không phải màn "không có quyền".
+   * - `collapsed` chỉ đổi CÁCH XẾP của màn có dữ liệu, nên đứng sau bốn trạng
+   *   thái không có dữ liệu (cùng thứ tự `useViolationDetail`): đứng trước thì
+   *   màn hẹp vẽ danh sách luật trắng thay cho câu lỗi/không có quyền.
    * - `empty` là **chưa có mô hình**: 25 luật vẫn hiện đủ, nhưng không luật nào
    *   nói được nó đang ảnh hưởng bao nhiêu đối tượng.
    * - `partial` là **đọc xong nhưng chưa yên**: một ô ngưỡng đang báo lỗi, hoặc
@@ -823,10 +824,6 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
    *   nhưng KHÔNG làm cả màn thành lỗi — cài đặt vẫn đọc và sửa được.
    */
   const status = useMemo<RuleSettingsStatus>(() => {
-    if (isCompact) {
-      return 'collapsed';
-    }
-
     // Chỉ đọc KHÔNG phải `forbidden`: N21 cho mọi thành viên đọc, view vẽ dải lý do.
     if (configQuery.isLoadingError && readWireError(configQuery.error)?.status === FORBIDDEN_STATUS) {
       return 'forbidden';
@@ -847,6 +844,10 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
 
     if (graph === null) {
       return 'empty';
+    }
+
+    if (isCompact) {
+      return 'collapsed';
     }
 
     if (hasThresholdProblem || saveState === 'saving' || saveState === 'pending') {

@@ -579,6 +579,37 @@ describe('B-V12-04 — route thật: mỗi lượt sửa luật có toast "Hoàn
   });
 });
 
+describe('BUG-440 — route đo mốc thu gọn: dưới 1024 không còn hai cột', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(window, 'matchMedia');
+  });
+
+  it('khổ hẹp → điều hướng thành ô chọn "Mục cài đặt", không còn cột liên kết', async () => {
+    window.matchMedia = ((query: string) => ({
+      matches: true,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    })) as unknown as typeof window.matchMedia;
+    act(() => {
+      useStore.getState().setProject({ created_at: '', id: 'P-1', members: [], name: 'P-1', updated_at: '' });
+      useStore.getState().setSpatial(normalizeSpatial(createSampleBuilding()), null);
+      useStore.getState().setUserRoles(['admin']);
+    });
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/projects/P-1/rules/settings']}>
+        <Routes>
+          <Route path={ROUTE_PATTERNS.projectRuleSettings} element={<RuleSettingsRoute />} />
+        </Routes>
+      </MemoryRouter>,
+      { keepStore: true },
+    );
+
+    expect(await screen.findByRole('combobox', { name: 'Mục cài đặt' })).toBeTruthy();
+    expect(screen.queryByRole('navigation', { name: 'Mục cài đặt bộ luật' })).toBeNull();
+  });
+});
+
 /* ==========================================================================
  * F-10 — hook nối N21/N22: quyền theo vai, nạp không toast, baseVersion,
  * 409/422, tải lại, đổi dự án, gửi lại sau timeout, xả khi tháo (R13).
@@ -627,6 +658,7 @@ interface HookSetup {
   readonly roles?: readonly ProjectRole[];
   readonly projectId?: string;
   readonly isOnline?: () => boolean;
+  readonly isCompact?: boolean;
 }
 
 function setupHook(setup: HookSetup = {}) {
@@ -652,6 +684,7 @@ function setupHook(setup: HookSetup = {}) {
         projectId,
         gateway,
         ...(setup.isOnline !== undefined ? { isOnline: setup.isOnline } : {}),
+        ...(setup.isCompact !== undefined ? { isCompact: setup.isCompact } : {}),
       }),
     { initialProps: { projectId: setup.projectId ?? 'P-1' }, wrapper },
   );
@@ -694,6 +727,17 @@ describe('F-10 — useRuleSettings nối N21/N22', () => {
     await advance(0);
 
     expect(result.current.model.status).toBe('forbidden');
+  });
+
+  it('BUG-440: khổ hẹp không che trạng thái không có dữ liệu — 403 vẫn `forbidden`, 500 vẫn `error`', async () => {
+    const forbidden = setupHook({ isCompact: true, read: async () => ({ ok: false, error: wireError(403, 'FORBIDDEN') }) });
+    const failed = setupHook({ isCompact: true, read: async () => ({ ok: false, error: wireError(500, 'INTERNAL') }) });
+    const loaded = setupHook({ isCompact: true });
+    await advance(0);
+
+    expect(forbidden.result.current.model.status).toBe('forbidden');
+    expect(failed.result.current.model.status).toBe('error');
+    expect(loaded.result.current.model.status).toBe('collapsed');
   });
 
   it('lượt nạp không đặt lastCommit (không toast mời hoàn tác)', async () => {
