@@ -256,6 +256,7 @@ describe('ProjectSpatialGate', () => {
     const alert = await screen.findByRole('alert');
     expect(screen.queryByText(CHILD)).not.toBeInTheDocument();
     expect(useStore.getState().spatialLoading).toBe(false);
+    expect(alert.querySelector('svg')).not.toBeNull();
 
     const focusable = alert.querySelectorAll(
       'button, a[href], input, select, textarea, [tabindex]',
@@ -298,6 +299,8 @@ describe('ProjectSpatialGate', () => {
     expect(screen.getByText('Không tìm thấy dự án này')).toBeInTheDocument();
     expect(screen.queryByText(CHILD)).not.toBeInTheDocument();
     expect(alert.textContent).not.toMatch(/quyền/iu);
+    /* BUG-490: vòng tròn của EmptyState mang một glyph thật, không phải một vòng tô trống. */
+    expect(alert.querySelector('svg')).not.toBeNull();
 
     const focusable = alert.querySelectorAll(
       'button, a[href], input, select, textarea, [tabindex]',

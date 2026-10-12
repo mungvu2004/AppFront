@@ -1,3 +1,4 @@
+import { AlertCircle, SearchX } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -43,6 +44,9 @@ export const BACK_TO_PROJECTS_LABEL = 'Về danh sách dự án';
  * "không có" hay "không có quyền") và một lối ra. Nhãn nút cố ý trùng
  * `useNotFound.ts` (`dashboardLabel`). `useNavigate` chỉ sống ở đây để cổng vẫn
  * dựng được không cần router khi không có 404.
+ *
+ * Biểu tượng là một glyph thật: `EmptyState` đã tự vẽ vòng tròn nền, nên truyền
+ * thêm một `div` tròn tô màu vào đó chỉ ra một vòng tròn trống (BUG-490).
  */
 function ProjectNotFound() {
   const navigate = useNavigate();
@@ -50,7 +54,7 @@ function ProjectNotFound() {
   return (
     <div role="alert" className="flex h-full w-full items-center justify-center bg-bg-app p-6">
       <EmptyState
-        icon={<div className="w-8 h-8 rounded-full bg-state-violation-tint" aria-hidden="true" />}
+        icon={<SearchX aria-hidden="true" />}
         title={PROJECT_NOT_FOUND_TITLE}
         description={PROJECT_NOT_FOUND_DESCRIPTION}
         action={{ label: BACK_TO_PROJECTS_LABEL, onClick: () => navigate(ROUTES.dashboard) }}
@@ -78,7 +82,7 @@ export function ProjectSpatialGate({
     return inLandmark(
       <div role="alert" className="flex h-full w-full items-center justify-center bg-bg-app p-6">
         <EmptyState
-          icon={<div className="w-8 h-8 rounded-full bg-state-violation-tint" aria-hidden="true" />}
+          icon={<AlertCircle aria-hidden="true" />}
           title={report.description.title}
           description={report.description.description}
           {...(report.retryable
