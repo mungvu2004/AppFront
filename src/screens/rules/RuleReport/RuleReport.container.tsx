@@ -53,6 +53,7 @@ import {
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
 import type { Violation } from '@/domain/rules/registry';
+import { useBreakpoint } from '@/hooks/useAppShell';
 import { useStore } from '@/store';
 
 import { ViolationDetailContainer } from '../ViolationDetail';
@@ -219,13 +220,19 @@ export function RuleReportContainer(props: RuleReportContainerProps) {
   );
 }
 
-/** Route thật của màn báo cáo luật, đăng ký tại `src/routes/router.tsx`. */
+/**
+ * Route thật của màn báo cáo luật, đăng ký tại `src/routes/router.tsx`.
+ *
+ * Mốc thu gọn (dưới 1024) đo ở đây: thiếu nó thì 768/375 vẫn vẽ bảng năm cột và tấm
+ * chi tiết 420 px bên phải thay cho thẻ xếp chồng và tấm trượt từ cạnh dưới.
+ */
 export function RulesRoute() {
   const { projectId } = useParams<{ projectId: string }>();
+  const isCompact = useBreakpoint('(width < 1024px)');
 
   return (
     <ProjectSpatialGate projectId={projectId}>
-      <RuleReportContainer />
+      <RuleReportContainer isCompact={isCompact} />
     </ProjectSpatialGate>
   );
 }

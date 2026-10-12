@@ -263,7 +263,8 @@ export function RuleReportRows({
               <Table.Cell>
                 <Badge variant={SEVERITY_BADGE[row.severity]}>{SEVERITY_LABELS[row.severity]}</Badge>
               </Table.Cell>
-              <Table.Cell>
+              {/* `Table.Cell` mặc định không xuống dòng: thông điệp dài đẩy Tầng, Mã và "Xem" ra khỏi khung (BUG-433). */}
+              <Table.Cell className="whitespace-normal">
                 <RowMessage row={row} onSelectRow={onSelectRow} />
               </Table.Cell>
               <Table.Cell>

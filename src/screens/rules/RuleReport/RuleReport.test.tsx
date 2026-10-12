@@ -898,6 +898,49 @@ describe('R-73 — chọn một vi phạm mở ViolationDetailContainer dạng t
   });
 });
 
+describe('BUG-433 — route đo mốc thu gọn: dưới 1024 hàng là thẻ, không phải bảng năm cột', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(window, 'matchMedia');
+  });
+
+  it('khổ hẹp → nhóm mở ra là danh sách thẻ, không có <table>', async () => {
+    window.matchMedia = ((query: string) => ({
+      matches: true,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    })) as unknown as typeof window.matchMedia;
+    const { RulesRoute } = RuleReportContainerModule;
+    act(() => {
+      useStore.getState().setProject({ created_at: '', id: 'P-1', members: [], name: 'P-1', updated_at: '' });
+      useStore.getState().setSpatial(NORMALIZED_VIOLATED, 'bug-433');
+      useStore.getState().setUserRoles(['admin']);
+    });
+    const { container } = renderWithProviders(
+      <MemoryRouter initialEntries={[ROUTES.project.rules('P-1')]}>
+        <Routes>
+          <Route path="/projects/:projectId/rules" element={<RulesRoute />} />
+        </Routes>
+      </MemoryRouter>,
+      { keepStore: true },
+    );
+
+    const groupToggle = await waitFor(() => {
+      const toggle = container.querySelector<HTMLButtonElement>('h3 button[aria-expanded="false"]');
+      if (toggle === null) {
+        throw new Error('chưa có nhóm luật nào để mở — lượt chạy chưa xong');
+      }
+      return toggle;
+    });
+    fireEvent.click(groupToggle);
+
+    await waitFor(() => {
+      expect(container.querySelector('section li button')).not.toBeNull();
+    });
+    expect(container.querySelector('table')).toBeNull();
+  });
+});
+
 /* ==========================================================================
  * F-10 — báo cáo chạy luật với cấu hình của dự án (N21), không với sổ mặc định.
  * ========================================================================== */
