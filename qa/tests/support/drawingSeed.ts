@@ -9,12 +9,13 @@
  * SKEW_DETECTED finding (`actionKind: 'straighten'`, useInputQualityGate.ts:314-323) and ≥ 5° is "poor", which makes
  * `requiresAcknowledgement` true (useInputQualityGate.ts:1018). `estimate_skew` folds into (-45°, 45°] (geometry.py).
  *
- * {@link createPipelineProject} (phase 6) uploads the straight env PNG the same way and waits for the run itself (#8) and
- * its two versions (N17) instead of the quality read.
+ * BUG-346: {@link createPipelineDrawingProject} uploads the env drawing as it is and waits for the finished run instead
+ * (phase 04 SCR-18 / SCR-14 / SCR-22, which used to read Phase 3's CP-5 work floor). {@link createPipelineProject}
+ * (phase 6) does the same wait and then for the run's two versions (N17).
  *
  * Budget per seeded project: `POST /api/projects` 1, `GET /api/projects/:id` 1, upload init/chunk/complete 3 (init counts
- * against `drawings_init` 60 / 600 s per user, BE drawings/settings.py:135-136), progress / quality / N17 polls, `DELETE` 1
- * (by the caller) — one real pipeline run of the fake ML.
+ * against `drawings_init` 60 / 600 s per user, BE drawings/settings.py:135-136), progress / quality / N17 polls every
+ * 1-2 s, `DELETE` 1 (by the caller) — one real pipeline run of the fake ML (≤ PIPELINE_TIMEOUT_MS).
  */
 import { readFileSync } from 'node:fs';
 
@@ -155,6 +156,43 @@ export async function createSkewedDrawingProject(api: APIRequestContext, slug: s
 }
 
 /**
+ * Polls #8 progress of `uploadId` every 2 s until `completed` (BE drawings/progress.py:33-68). Own loop, not
+ * `expect.poll`: a `failed` run throws with its error code at once, not after PIPELINE_TIMEOUT_MS.
+ */
+async function waitForPipelineRun(api: APIRequestContext, projectId: string, uploadId: string): Promise<void> {
+  const deadline = Date.now() + PIPELINE_TIMEOUT_MS;
+  for (;;) {
+    const res = await api.get(`${PROJECTS}/${projectId}/drawings/uploads/${uploadId}/progress`);
+    const progress: Json = res.status() === 200 ? asRecord(await res.json(), '#8 progress') : { status: `#8 ${String(res.status())}` };
+    if (progress.status === 'completed') return;
+    if (progress.status === 'failed') throw new Error(`setup: the fixture pipeline run failed: ${String(progress.error)}`);
+    if (Date.now() > deadline) throw new Error(`setup: #8 progress still "${String(progress.status)}" after ${String(PIPELINE_TIMEOUT_MS)} ms`);
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
+  }
+}
+
+/**
+ * BUG-346 (phase 04 SCR-18 / SCR-14 / SCR-22): project `qa-<runId>-<slug>-<uniq>` whose one floor holds `png` (the env
+ * drawing, straight) and has run the whole fake-ML pipeline: resolves once #8 progress of the upload is `completed`
+ * (BE drawings/progress.py:33-68; a `failed` run throws with its error code at once) and the floor's N16 read answers 200 —
+ * the pipeline output (warped drawing, source scan, OCR dimensions, AI layer) the CP-5 work floor used to provide. Same
+ * readiness signal as phase03 `[BUG-285]` (CP-5 from the API). Deletes the project again when any setup step fails.
+ * Budget: as the file comment (one `drawings_init`, one fake-ML run) + one #8 GET per 2 s + one N16 GET.
+ */
+export async function createPipelineDrawingProject(api: APIRequestContext, slug: string, png: Buffer): Promise<SeededDrawing> {
+  const { projectId, floorId, floorName, uploadId } = await createDrawingProject(api, slug, png, ['Tầng 1']);
+  try {
+    await waitForPipelineRun(api, projectId, uploadId);
+    const layer = await api.get(`${PROJECTS}/${projectId}/floors/${floorId}/spatial/layer`);
+    expect(layer.status(), 'setup: N16 GET …/spatial/layer of the fixture floor after the run').toBe(200);
+    return { projectId, floorId, floorName };
+  } catch (error) {
+    await deleteSeededProject(api, projectId);
+    throw error;
+  }
+}
+
+/**
  * Phase 6 (versions): project `qa-<runId>-<slug>-<uniq>` whose FIRST floor holds `png` (the straight env drawing) and
  * a finished fake-ML run. Only the pipeline creates versions (BE apps/worker/pipeline_persist/service.py:182-198: a
  * "before" + an "after" version; autosave never makes one), so this waits for #8 `completed` and then for N17 to list
@@ -169,19 +207,7 @@ export async function createPipelineProject(
 ): Promise<SeededDrawing> {
   const { projectId, floorId, floorName, uploadId } = await createDrawingProject(api, slug, png, floorNames);
   try {
-    const progress = `${PROJECTS}/${projectId}/drawings/uploads/${uploadId}/progress`;
-    let status = '';
-    await expect
-      .poll(
-        async () => {
-          const res = await api.get(progress);
-          status = res.status() === 200 ? String(asRecord(await res.json(), '#8').status) : `#8 ${String(res.status())}`;
-          return status === 'completed' || status === 'failed';
-        },
-        { message: 'setup: pipeline run reaches a final status (#8)', timeout: PIPELINE_TIMEOUT_MS, intervals: [2_000] },
-      )
-      .toBe(true);
-    expect(status, 'setup: the fake-ML pipeline run completed (it writes the AI layer + 2 versions)').toBe('completed');
+    await waitForPipelineRun(api, projectId, uploadId);
     const versions = `${PROJECTS}/${projectId}/versions?floorId=${encodeURIComponent(floorId)}`;
     await expect
       .poll(

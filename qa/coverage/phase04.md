@@ -7,10 +7,10 @@ no phase-04 screen file, only the shared pieces listed under "Change impact" bel
 `coverage/phase04-be.md` (API spec), not here.
 
 Test keys:
-- **M** `tests/phase04_qc_layers.spec.ts` (serial per screen; SCR-16/17/19/20/21 on its own API-seeded floor, `support/layerSeed.ts`; SCR-18/14/22 + CP-6 on the CP-5 work floor, skipped with an `Environment:` reason without it — BUG-346) — title quoted by its prefix.
+- **M** `tests/phase04_qc_layers.spec.ts` (serial only for the SCR-16 select → approve → thickness → undo chain, every other case loads its own screen; SCR-16/17/19/20/21 on its own API-seeded floor, `support/layerSeed.ts`; SCR-18/14/22 each on an own drawing project per describe whose env drawing ran the pipeline, `support/drawingSeed.ts` createPipelineDrawingProject — BUG-346; only CP-6 on the CP-5 work floor, skipped with an `Environment:` reason without it) — title quoted by its prefix.
 - **E** `tests/phase04_qc_layers_edge.spec.ts` (non-serial, own project per test) — `E04 · …` titles.
 - **R9** `tests/phase09_roles_matrix.spec.ts` (Track B mock, viewer/engineer).
-- **UI** `tests/phase04_qc_layers_ui.spec.ts` (`U04 · …`, 4 viewports 1440/1024/768/375 with layout measurements; walls/objects/axes/rooms/thickness on an own seeded floor per test, dimensions/scale/overlay on the CP-5 work floor — BUG-323).
+- **UI** `tests/phase04_qc_layers_ui.spec.ts` (`U04 · …`, 4 viewports 1440/1024/768/375 with layout measurements; walls/objects/axes/rooms/thickness on an own seeded floor per test, dimensions/scale/overlay on an own drawing project per describe after a finished pipeline run, `support/drawingSeed.ts` — BUG-323 / BUG-346).
 
 Path short names: `W/` = `src/screens/qc/WallLayerReview/`, `O/` = `…/ObjectLayerReview/`, `D/` = `…/DimensionOcrReview/`,
 `A/` = `…/AxisGridManager/`, `R/` = `…/RoomLabelReview/`, `T/` = `…/ThicknessStandardization/`,

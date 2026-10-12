@@ -1016,7 +1016,11 @@ test.describe('E04 SCR-18 / SCR-19 dimension OCR and axes', () => {
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.scale(project.id, project.floor.id));
       await expect(page.getByRole('region', { name: SCALE.screen, exact: true })).toBeVisible();
       expect(writesSince(api, mark), 'empty dimensions + link write nothing').toEqual([]);
-      await captureEvidence(page, 'E04_dims_link_scale.png');
+      // BUG-419: the target IS the no-drawing scale screen (E04_scale_no_drawing shows the same state), so the shot names
+      // where it came from; the link itself is on E04_dims_empty.
+      await captureEvidence(page, 'E04_dims_link_scale.png', {
+        caption: `Reached by the link "${DIM.toScale}" of ${ROUTES.project.dimensions(project.id, project.floor.id)} (E04_dims_empty): same floor's scale screen, no drawing yet`,
+      });
     });
   });
 
@@ -1391,6 +1395,9 @@ test.describe('E04 SCR-14 scale calibration', () => {
 
       await notice.getByRole('button', { name: SCALE.goToUpload, exact: true }).click(); // ScaleCalibration.tsx:205 → useScaleCalibration.ts:1045
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.upload(project.id));
+      // BUG-418: the URL changes before the lazy upload screen mounts ("Đang tải màn hình…"); its floor card (the anchor of
+      // `uploadDrawing` above) shows the upload screen itself is up before the shot.
+      await expect(page.locator(`[data-floor-id="${project.floor.id}"]`)).toBeVisible();
       expect(writesSince(api, mark), 'scale error state writes nothing').toEqual([]);
       await captureEvidence(page, 'E04_scale_to_upload.png');
     });
