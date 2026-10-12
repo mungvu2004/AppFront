@@ -1065,8 +1065,9 @@ export function useFloorUploadScreen(
       attachment.file.size > MAX_UPLOAD_FILE_SIZE_BYTES
         ? sizeOverCap(attachment.file.size, MAX_UPLOAD_FILE_SIZE_BYTES)
         : formatFileSize(attachment.file.size);
+    // Một trang thì không có gì để chọn: không ô "Chọn trang", tệp tải ngay (BUG-530).
     const pageOptions =
-      attachment.pageCount === null || attachment.pageCount <= 0
+      attachment.pageCount === null || attachment.pageCount <= 1
         ? []
         : Array.from({ length: Math.min(attachment.pageCount, MAX_PDF_PAGE_COUNT) }, (_unused, index) => {
             const page = formatNumber(index + 1, { grouping: false });
