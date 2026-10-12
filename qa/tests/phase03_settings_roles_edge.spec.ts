@@ -131,6 +131,10 @@ test('FL-08-10 · SCR-08 · engineer: non-member 404, invited via notification, 
 
     await test.step('[08-D-010] owner "re-adds as viewer" → 200 already a member (no project role); fields stay editable, notes PUT 200', async () => {
       test.info().annotations.push({
+        type: 'BUG-513',
+        description: '08-D-010 current behaviour (QA-03e, decision pending): SCR-08 edit rights follow the session (global) role (ProjectSettings.container.tsx:167 → useProjectSettings.ts:754); the BE membership has no role, so a global engineer member edits and the save is 200.',
+      });
+      test.info().annotations.push({
         type: 'catalog-mismatch',
         description: '08-D-010: BE N3 has no role (AddMemberBody {email}); a member always acts with the system role, so a global engineer cannot be a project viewer and the 403 path is unreachable.',
       });
@@ -218,6 +222,10 @@ test('FL-08-11 · SCR-08 · viewer member: read-only settings, then re-added (no
 
     await test.step('[08-D-011] owner "re-adds as engineer" → 200 already a member (no project role); banner stays after reload', async () => {
       test.info().annotations.push({
+        type: 'BUG-513',
+        description: '08-D-011 current behaviour (QA-03e, decision pending): a global viewer member sees the read-only banner in every project (session role, useProjectSettings.ts:754); no project role can lift it.',
+      });
+      test.info().annotations.push({
         type: 'catalog-mismatch',
         description: '08-D-011: BE N3 has no role; a global viewer stays a viewer in every project, so "project engineer" cannot be set up.',
       });
@@ -247,6 +255,10 @@ test('FL-08-12 · SCR-08 · danger tab follows the global admin flag, not projec
     await addProjectMember(e.api, project.projectId, readAdminCredentials().email);
 
     await test.step('[08-D-012] admin member sees "Vùng nguy hiểm"; the engineer owner (2nd context) does not', async () => {
+      test.info().annotations.push({
+        type: 'BUG-513',
+        description: '08-D-012 current behaviour (QA-03e, decision pending): "Vùng nguy hiểm" follows the global admin flag (useProjectSettings.ts:755 canEdit && roles.includes("admin")), not project ownership: admin member sees it, engineer owner does not.',
+      });
       await openSettings(admin.page, project.projectId, project.name);
       expect.soft(await tabNames(admin.page)).toContain(TAB.danger); // UPS:755 canEdit && roles.includes('admin')
       await captureEvidence(admin.page, 'E03_08-D-012_admin-member-danger.png');

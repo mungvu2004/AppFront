@@ -847,8 +847,9 @@ test.describe('E03 SCR-08 project settings — real flows (QA-03d P1)', () => {
         const mark = log.length;
         await typeNumber(snap, '', true);
         await expect.soft(page.getByText('Chưa nhập dung sai bắt điểm.', { exact: true })).toBeVisible();
-        // Catalog also names hint "—" (UPS snapToleranceLabel); INP shows the hint only when there is no error, so the
-        // "—" cannot be on screen beside this message — not asserted (reported).
+        // Catalog fixed by QA-03e (hint dropped): Input.tsx:42,110-120 renders the hint only while the field has no error,
+        // so the error replaces it and the field is not described by a hint.
+        await expect.soft(snap).not.toHaveAttribute('aria-describedby', /-hint(\s|$)/u);
         await quiet(page);
         expect.soft(countSince(log, mark, 'PUT', settingsRe(pid))).toBe(0);
         await captureEvidence(page, 'E03_08-C-022_snap-empty.png');

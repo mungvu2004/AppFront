@@ -139,6 +139,10 @@ test.describe('SCR-12 processing — roles', () => {
         // only {email} and stores no project role (AppBack apps/api/project_members/schemas.py), so the per-project half of
         // G3 is not reachable on the real stack. What stays checkable: roles come from the global session (PRC useSession).
         test.info().annotations.push({ type: 'unknown', description: '12-D-007: no per-project role exists on the BE; only the global-role half is asserted' });
+        test.info().annotations.push({
+          type: 'BUG-513',
+          description: '12-D-007 current behaviour (QA-03e, decision pending): SCR-12 failure actions follow the session (global) role (ProcessingScreen.container.tsx:182,196); a global engineer member gets directions + details, a global viewer member gets none.',
+        });
         await eng.page.goto(ROUTES.project.pipeline(project.projectId));
         await expect.soft(eng.page.getByRole('alert').filter({ hasText: title })).toBeVisible({ timeout: 45_000 });
         await expect.soft(nextSteps(eng.page)).toBeVisible();

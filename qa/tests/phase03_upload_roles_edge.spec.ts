@@ -167,6 +167,10 @@ test('SCR-10 · FL-10-13 · engineer who is not a member opens the upload link',
 test('SCR-10 · FL-10-14 · engineer account that is only a viewer member uploads', async ({ browser }) => {
   await asMember(browser, '10-d-011', 'engineer', true, async ({ project }, _user, { page }) => {
     await test.step('[10-D-011] engineer account, member: upload controls shown (account role)', async () => {
+      test.info().annotations.push({
+        type: 'BUG-513',
+        description: '10-D-011 current behaviour (QA-03e, decision pending): SCR-10 upload controls follow the account role (FloorUploadScreen.container.tsx:155 session.roles); an engineer member gets the drop zone and the BE accepts the init.',
+      });
       await openUpload(page, project.projectId, floorIds(project));
       await expect(page.getByTestId(UP.dropzone)).toBeVisible();
       await expect(page.getByText(UP.readOnly, { exact: true })).toHaveCount(0);
@@ -185,6 +189,10 @@ test('SCR-10 · FL-10-14 · engineer account that is only a viewer member upload
 test('SCR-10 · FL-10-15 · viewer account that is an engineer member opens upload', async ({ browser }) => {
   await asMember(browser, '10-d-012', 'viewer', true, async ({ project }, user, { page }) => {
     await test.step('[10-D-012] read-only line, no drop zone (the BE refuses a viewer account too)', async () => {
+      test.info().annotations.push({
+        type: 'BUG-513',
+        description: '10-D-012 current behaviour (QA-03e, decision pending): a viewer account member is read-only on SCR-10 (FloorUploadScreen.container.tsx:155) and the BE answers its init 403; FE and BE agree on the account role.',
+      });
       await openUpload(page, project.projectId, floorIds(project));
       await expect(page.getByText(UP.readOnly, { exact: true })).toBeVisible();
       await expect(page.getByTestId(UP.dropzone)).toHaveCount(0);

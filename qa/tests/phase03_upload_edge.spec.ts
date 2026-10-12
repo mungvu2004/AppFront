@@ -879,7 +879,7 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
         await expect(page.getByRole('status').filter({ hasText: 'Đã xoá bản vẽ' })).toHaveCount(0);
       });
 
-      await test.step('[10-A-031] trash 4 files quickly → 2 toasts + "Đã thực hiện 2 thay đổi"; its "Hoàn tác" restores one grouped file', async () => {
+      await test.step('[10-A-031] trash 4 files quickly → 2 toasts + "Đã thực hiện 2 thay đổi"; its "Hoàn tác" restores one grouped file, 3 toasts left → no summary', async () => {
         const names = ['g1.txt', 'g2.txt', 'g3.txt', 'g4.txt'];
         await pick(page, names.map(note));
         await expect(tray(page).getByRole('listitem')).toHaveCount(4);
@@ -895,6 +895,10 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
         const stillUndoable = (await summary.count()) + (await toastWith(page, removedToast('g1.txt')).count());
         await captureEvidence(page, 'E03_10-A-031_grouped-undo.png', { caption: `after the summary undo: summary toasts ${String(await summary.count())}, g1 still undoable = ${String(stillUndoable > 0)}` });
         expect.soft(stillUndoable, 'the other grouped change stays undoable').toBeGreaterThan(0);
+        // Catalog fixed by QA-03e: Toast.tsx:228-254 groups only from 4 toasts; 4 − 1 = 3, so the summary turns back into
+        // plain toasts and g1 keeps its own "Hoàn tác" ("summary stays" needs 5 or more toasts).
+        await expect.soft(summary).toHaveCount(0);
+        await expect.soft(toastWith(page, removedToast('g1.txt'))).toHaveCount(1);
         await trashInTray(page, 'g2.txt');
         await page.clock.fastForward(8_100);
       });
@@ -1373,13 +1377,15 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
         await captureEvidence(page, 'E03_10-B-010_one-of-two.png');
       });
 
-      await test.step('[10-B-013] Tầng 1: "Đã gắn kèm", summary = server file name, no menu, progress label "Tải xong {name}"', async () => {
+      await test.step('[10-B-013] Tầng 1: "Đã gắn kèm", summary = server file name, no menu, no progress rail (QA-03e: rail only while uploading)', async () => {
+        await expect.soft(card(page, t1).getByText(ATTACHED, { exact: true })).toBeVisible(); // UFU:1097-1098 server drawing → attached
         await expect.soft(card(page, t1).getByText(serverName, { exact: true })).toBeVisible(); // UFU:1096-1119
         await expect.soft(menuButton(page, t1)).toHaveCount(0); // FUC:82-86
         const bars = await card(page, t1).getByRole('progressbar').count();
         await captureEvidence(page, 'E03_10-B-013_server-drawing-card.png', { caption: `server name "${serverName}"; progressbars on the card: ${String(bars)}` });
-        // UFU:1136-1138 builds "Tải xong {name}", but FUC:301 renders the rail only while uploading.
-        await expect.soft(card(page, t1).getByRole('progressbar', { name: `Tải xong ${serverName}` })).toHaveCount(1);
+        // Catalog fixed by QA-03e: FloorUploadCard.tsx:299 renders the rail (and its progressbar) only while uploading, so the
+        // "Tải xong {name}" label built at useFloorUploadScreen.ts:1136-1138 is never on screen for an attached card.
+        expect.soft(bars, 'an attached card has no progress rail').toBe(0);
       });
 
       await test.step('[10-B-014] Tầng 1 card "Gán cho tầng khác" → Tầng 2 → nothing happens: no request, the file stays', async () => {
