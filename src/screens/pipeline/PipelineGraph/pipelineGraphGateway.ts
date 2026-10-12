@@ -235,7 +235,11 @@ export interface RerunFromNodeInput {
 
 export interface PipelineGraphGateway {
   readonly supports: Readonly<Record<PipelineGraphCapability, boolean>>;
-  /** #24: `false` khi chính dự án trả 404 — màn nói "không tìm thấy" thay vì sơ đồ rỗng (BUG-313). */
+  /**
+   * #24: `false` khi chính dự án trả 404 — màn nói "không tìm thấy" thay vì sơ đồ rỗng (BUG-313).
+   * Lỗi khác (5xx, mạng, huỷ) thì ném: chưa biết dự án có tồn tại không, màn báo lỗi kèm "Thử lại"
+   * chứ không coi như tồn tại (BUG-557).
+   */
   readonly readProjectExists: (input: { readonly projectId: string; readonly signal?: AbortSignal }) => Promise<boolean>;
   readonly readRunOnce: (
     input: ReadRunInput,
@@ -304,11 +308,15 @@ export function createPipelineGraphGateway(
     readProjectExists: async ({ projectId, signal }) => {
       const result = await processing.readProject({ projectId, ...(signal !== undefined ? { signal } : {}) });
 
-      if (result.ok || !isProjectNotFound(result.error)) {
+      if (result.ok) {
         return true;
       }
 
-      return false;
+      if (isProjectNotFound(result.error)) {
+        return false;
+      }
+
+      throw result.error;
     },
 
     readRunOnce: async ({ projectId, signal, uploadId }) => {

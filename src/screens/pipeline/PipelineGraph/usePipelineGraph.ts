@@ -263,7 +263,7 @@ export function usePipelineGraph(options: UsePipelineGraphOptions): UsePipelineG
   /* ---- Ba lượt đọc, tất cả qua react-query (R-64) ------------------------ */
 
   const projectExistsQuery = useQuery({
-    queryKey: ['pipeline', 'project-exists', projectId],
+    queryKey: ['pipeline', 'project-exists', projectId, retryToken],
     queryFn: ({ signal }) => gateway.readProjectExists({ projectId, signal }),
   });
 
@@ -520,8 +520,12 @@ export function usePipelineGraph(options: UsePipelineGraphOptions): UsePipelineG
 
   /* ---- Bảy trạng thái (A11) --------------------------------------------- */
 
-  const failure = streamFailure;
-  const isPending = branchQuery.isPending || comparisonQuery.isPending;
+  // #24 hỏng (không phải 404) cũng là lỗi đọc có "Thử lại" (BUG-557); và chưa biết dự án có tồn
+  // tại không thì vẫn là đang tải, không thoáng hiện câu rỗng trước dải không tìm thấy (BUG-556).
+  const failure =
+    streamFailure ??
+    (projectExistsQuery.isError ? gateway.describeApiFailure(projectExistsQuery.error) : null);
+  const isPending = projectExistsQuery.isPending || branchQuery.isPending || comparisonQuery.isPending;
   const isRunning = stages.some((stage) => stage.status === 'running');
   const isEverythingDone =
     stages.length > 0 && stages.every((stage) => stage.status === 'done');
