@@ -99,7 +99,8 @@ const VIEW_MODE = 'Cách hiện cấu trúc';
 const DETAIL_TABS = 'Cách xem nội dung';
 /** `useSpatialJsonViewer.ts` matchLabel (`formatNumber`, vi grouping "."). */
 const POSITIVE_MATCH_PATTERN = /^[1-9][\d.]* \/ [1-9][\d.]*$/u;
-const NO_MATCH_LABEL = '0 / 0';
+/** `useSpatialJsonViewer.ts:88` NO_MATCH_LABEL (BUG-448, was "0 / 0"). */
+const NO_MATCH_LABEL = 'Không tìm thấy kết quả';
 const NO_MATCH_TERM = `${TEST_DATA_PREFIX}khong-khop-khoa-nao`;
 /** `SpatialJsonViewer.container.tsx:62` NARROW_QUERY `(width < 1024px)`: the detail half is not rendered below it. */
 const DETAIL_MIN_WIDTH = 1024;
@@ -488,7 +489,7 @@ test.describe('U06 UI verify — data states (own pipeline project, this file cr
       });
     });
 
-    test('U06 · SCR-31 data, search with no match ("0 / 0")', async ({ browser }) => {
+    test('U06 · SCR-31 data, search with no match ("Không tìm thấy kết quả")', async ({ browser }) => {
       await verifyAsAdmin(browser, 'U06_data_search_no_match', async (p) => {
         await openDataTree(p);
         await p.getByRole('textbox', { name: JSON_SEARCH, exact: true }).fill(NO_MATCH_TERM);
