@@ -128,13 +128,15 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
           </div>
         )}
 
-        <div className="min-w-0 flex-1 overflow-hidden">
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <VersionCompare model={model.compare} actions={actions} />
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-4 border-t border-border-default pt-3">
-        <div className="flex flex-col gap-1">
+      {/* Dính đáy: diff dài thì trang cuộn, thanh phục hồi vẫn trong khung. Dưới `lg` ghi chú nằm trên
+          nút (xếp chồng), nhóm nút xuống dòng thay vì đẩy trang cuộn ngang (BUG-437). */}
+      <div className="sticky bottom-0 flex flex-col gap-3 border-t border-border-default bg-bg-app pt-3 lg:flex-row lg:items-center">
+        <div className="flex flex-1 flex-col gap-1">
           <p className="text-[13px] text-text-secondary">{model.restoreCaption}</p>
           {!model.canRestore && model.restoreHiddenReason !== null && (
             <p className="flex items-center gap-1.5 text-[13px] text-text-tertiary">
@@ -144,7 +146,7 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
           {/*
             R-69: `canExportVersion` sai ⇒ nút RỜI KHỎI DOM, không phải bị tắt. Xuất một
             phiên bản là điều hướng sang S-34 và khả năng ấy đúng bằng "nơi gọi có cấp
