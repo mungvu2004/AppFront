@@ -27,8 +27,8 @@
  * ## Không công thức nghiệp vụ mới
  *
  * - Cao độ khi xếp lại chồng tầng: `createReorderLevelsCommand` (hàm `restack`
- *   private bên trong nó dồn cao độ từ tầng thấp nhất hiện có). Cổng và
- *   màn KHÔNG cộng cao độ.
+ *   private bên trong nó dồn cao độ từ tầng thấp nhất hiện có và giữ cao độ
+ *   ghi đè tay — BUG-517). Cổng và màn KHÔNG cộng cao độ.
  * - Đỉnh của một tầng: `ceilingElevationMm` (M-11, `alignFloors.ts:451`).
  * - Sao chép nội dung tầng: `copyFloor` (`copyFloor.ts:230`) lo TOÀN BỘ; cổng
  *   chỉ gói kết quả vào `changeForAdd`.
@@ -124,6 +124,8 @@ import {
 import {
   createChangeLevelElevationCommand,
   createReorderLevelsCommand,
+  isElevationOverridden,
+  overriddenLevelIds,
   validateChangeLevelElevation,
   type ChangeLevelElevationInput,
 } from '@/lib/commands/business/roomFloorCommands';
@@ -935,8 +937,15 @@ export function createChangeFloorHeightCommands(
     ...context,
     graph: applyPatch(context.graph, commandToPatches(height)),
   };
+  /*
+   * Cao độ ghi đè đọc trên ngăn xếp TRƯỚC khi đổi chiều cao (BUG-517): đọc sau
+   * thì tầng đặt ngay trên tầng vừa đổi cũng trông như "Ghi đè" và bị giữ chỗ.
+   */
   const reorder = createReorderLevelsCommand(
-    { levelIds: levelsOf(restacked.graph).map((entry) => entry.id) },
+    {
+      levelIds: levelsOf(restacked.graph).map((entry) => entry.id),
+      keptElevationIds: overriddenLevelIds(context),
+    },
     restacked,
   );
 
@@ -949,7 +958,7 @@ export function createChangeFloorHeightCommands(
 }
 
 /* Xuất lại hai hàm của tầng lệnh để hook và bài kiểm đọc đúng một nguồn. */
-export { createChangeLevelElevationCommand, createReorderLevelsCommand };
+export { createChangeLevelElevationCommand, createReorderLevelsCommand, isElevationOverridden };
 
 /* -------------------------------------------------------------------------- */
 /* Đường ghi — `dispatch` chạy qua `commit` (A10).                             */

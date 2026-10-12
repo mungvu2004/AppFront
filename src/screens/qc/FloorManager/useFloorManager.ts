@@ -9,8 +9,8 @@
  * ## Không công thức tự chế (R-61) — màn không cộng cao độ, không đếm tay
  *
  * - Cao độ khi xếp lại chồng tầng: `createReorderLevelsCommand`. Hàm `restack`
- *   bên trong nó dựng lại CẢ chồng tầng từ tầng thấp nhất hiện có
- *   (`roomFloorCommands.ts`, BUG-516), và nó được gọi sẵn trong
+ *   bên trong nó dựng lại chồng tầng từ tầng thấp nhất hiện có (BUG-516) và
+ *   giữ cao độ ghi đè tay (BUG-517, `roomFloorCommands.ts`), và nó được gọi sẵn trong
  *   `validateReorderLevels` lẫn `createReorderLevelsCommand`. Phát lệnh reorder
  *   = cao độ được tính lại đúng, bởi mã đã có test. **Không một vòng lặp cộng
  *   dồn nào trong màn.**
@@ -146,6 +146,7 @@ import {
   findElevationConflict,
   floorWriteBodyOf,
   floorPlansOf,
+  isElevationOverridden,
   levelsOf,
   REORDER_FLOORS_TOAST_DESCRIPTION,
   roomsOfLevel,
@@ -1557,7 +1558,7 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
         name: level.name,
         elevationText: metreText(level.elevationMm),
         elevationMm: millimetres(level.elevationMm),
-        isElevationOverridden: below !== undefined && level.elevationMm !== below.elevationMm + below.heightMm,
+        isElevationOverridden: isElevationOverridden(level, below),
         heightText: metreText(level.heightMm),
         heightMm: millimetres(level.heightMm),
         drawingCountText: drawingCountText(drawingCount),

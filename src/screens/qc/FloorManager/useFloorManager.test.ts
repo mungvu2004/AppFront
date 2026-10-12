@@ -315,6 +315,31 @@ describe('cao độ ghi đè (BUG-289)', () => {
   });
 });
 
+describe('đổi chiều cao giữ cao độ ghi đè (BUG-517)', () => {
+  it('Tầng mái đặt tay cao hơn 1 m: đổi chiều cao Tầng trệt chỉ dịch Tầng 2, Tầng mái giữ cao độ và nhãn "Ghi đè"', async () => {
+    const mounted = await mountSettled();
+    const groundId = String(FLOOR_MANAGER_SAMPLE_GROUND_ID);
+    const secondId = String(FLOOR_MANAGER_SAMPLE_SECOND_ID);
+    const roofId = String(FLOOR_MANAGER_SAMPLE_ROOF_ID);
+    const second = levelIn(storeGraph(), secondId);
+    const roofMm = second.elevationMm + second.heightMm + 1000;
+
+    await commitField(mounted, roofId, 'elevation', formatLength(roofMm, { unit: 'm', fractionDigits: 1 }).replace(' m', ''));
+    await waitFor(() => {
+      expect(rowOf(mounted, roofId).isElevationOverridden).toBe(true);
+    });
+
+    await commitField(mounted, groundId, 'height', '4,2');
+    await waitFor(() => {
+      expect(levelIn(storeGraph(), secondId).elevationMm).toBe(metresToMillimetres(metres(NEW_GROUND_HEIGHT_M)));
+    });
+
+    expect(levelIn(storeGraph(), roofId).elevationMm).toBe(roofMm);
+    expect(rowOf(mounted, roofId).isElevationOverridden).toBe(true);
+    expect(rowOf(mounted, secondId).isElevationOverridden).toBe(false);
+  });
+});
+
 describe('lát cắt theo cao độ ghi đè (BUG-357)', () => {
   it('Tầng mái đặt tay cao hơn 1 m: khoảng hở 1 m nằm dưới dải của nó, dải và khoảng hở cộng lại bằng 1', async () => {
     const mounted = await mountSettled();
