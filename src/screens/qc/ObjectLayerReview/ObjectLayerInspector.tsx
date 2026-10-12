@@ -170,12 +170,12 @@ const TYPE_OPTIONS = OBJECT_SUBTYPES.map((subtype) => ({
 
 const PANEL_TITLE = 'Đối tượng';
 const TYPE_SELECT_LABEL = 'Loại đối tượng';
-const WIDTH_LABEL = 'chiều rộng';
+const WIDTH_LABEL = 'Chiều rộng';
 const HEIGHT_LABEL = 'Chiều cao';
 const SILL_HEIGHT_LABEL = 'Cao độ bệ cửa';
 const HOST_WALL_LABEL = 'Tường chứa nó';
 const POSITION_LABEL = 'Vị trí trên tường';
-const SWING_LABEL = 'hướng mở';
+const SWING_LABEL = 'Hướng mở';
 const CONFIDENCE_LABEL = 'Độ tin cậy';
 const UNATTACHED_BADGE = 'Chưa gắn vào tường nào';
 /** Nội thất không áp tường nào — chỗ đứng bình thường của nó, không phải việc phải làm (B-V6-13). */

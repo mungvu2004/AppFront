@@ -50,8 +50,6 @@ const ATTACH_ACTION = 'Gắn vào tường gần nhất';
 /** Nội thất không áp tường nào — chỗ đứng bình thường của nó, không phải việc phải làm. */
 const FREE_STANDING = 'Đứng tự do';
 const EMPTY_GROUP = 'Chưa có đối tượng nào trong nhóm này';
-const TOTAL_PREFIX = 'tổng ';
-const TOTAL_SUFFIX = ' đối tượng';
 const EXPAND_PREFIX = 'Mở nhóm ';
 const COLLAPSE_PREFIX = 'Gấp nhóm ';
 
@@ -273,17 +271,6 @@ export function ObjectLayerList({
           selectedObjectId={selectedObjectId}
         />
       ))}
-
-      {/*
-        Tổng đếm từ chính `rows`, không từ một con số truyền riêng: ba nhóm ở
-        trên lọc ra từ đúng mảng này, nên tổng ở đây không thể lệch khỏi tổng ba
-        nhóm — "21 = 9 + 7 + 5 phải đúng ở mọi nơi xuất hiện".
-      */}
-      <p className="px-2 pt-2 text-[12px] text-text-muted">
-        {TOTAL_PREFIX}
-        <span className="font-mono tabular-nums text-text-secondary">{rows.length}</span>
-        {TOTAL_SUFFIX}
-      </p>
     </div>
   );
 }
