@@ -494,7 +494,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
 
   /* ---- Việc làm được ---------------------------------------------------- */
 
-  const { fetchNextPage, hasNextPage, isFetchingNextPage } = versionsQuery;
+  const { fetchNextPage, hasNextPage, isFetchingNextPage, refetch: refetchVersions } = versionsQuery;
 
   const actions = useMemo(
     (): VersionHistoryActions => ({
@@ -552,6 +552,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
       // Qua `queryFn` của chính truy vấn, nên vẫn trong giới hạn SNAPSHOT_CONCURRENCY.
       retrySnapshot: (versionId) =>
         void queryClient.refetchQueries({ queryKey: snapshotQueryKey(floorId, versionId), exact: true }),
+      retryVersions: () => void refetchVersions(),
     }),
     [
       banner,
@@ -568,6 +569,7 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
       openDialog,
       pair,
       queryClient,
+      refetchVersions,
       reloadFloor,
       rows,
       runRestore,

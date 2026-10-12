@@ -1221,6 +1221,36 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
     expect(result.current[0].errorMessage).toBe(message);
   });
 
+  it('[BUG-468] N17 500 → cảnh báo có "Thử lại", bấm thì nạp lại danh sách', async () => {
+    const server = createVersionsServerFake();
+
+    server.override('GET list', () => ({ error: wireError(500, 'INTERNAL'), ok: false }));
+    await hydrateFrom(server);
+
+    const api = createApiClient(server.http);
+    const gateway = createVersionHistoryGateway({ apiClient: api, floorId: WIRE_FLOOR_ID, projectId: WIRE_PROJECT_ID });
+    const { result } = renderHook(
+      () => useVersionHistory({ apiClient: api, floorId: WIRE_FLOOR_ID, gateway, projectId: WIRE_PROJECT_ID }),
+      { wrapper: withQueryClient() },
+    );
+
+    await waitFor(() => {
+      expect(result.current[0].state).toBe('error');
+    });
+
+    const { unmount } = renderWithProviders(<VersionHistory model={result.current[0]} actions={result.current[1]} />);
+    const retry = screen.getByRole('button', { name: 'Thử lại' });
+
+    server.override('GET list', () => ({ data: { items: [] }, ok: true }));
+    act(() => {
+      retry.click();
+    });
+    await waitFor(() => {
+      expect(result.current[0].state).toBe('empty');
+    });
+    unmount();
+  });
+
   it('toast hoàn tác của nhãn gửi N20 với nhãn cũ', async () => {
     const setup = await renderVersionHistoryHook();
 

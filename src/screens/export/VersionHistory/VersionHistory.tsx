@@ -83,12 +83,18 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
   }
 
   if (model.state === 'error') {
+    // Có lối ra ngay trên cảnh báo (BUG-468) và lề 16 px như ô "Tầng" phía trên.
     return withFloorSelect(
-      <InlineAlert
-        level="violation"
-        title="Không tải được lịch sử phiên bản"
-        message={model.errorMessage ?? 'Đã có lỗi xảy ra.'}
-      />,
+      <div className="px-4">
+        <InlineAlert
+          level="violation"
+          title="Không tải được lịch sử phiên bản"
+          message={model.errorMessage ?? 'Đã có lỗi xảy ra.'}
+          {...(actions.retryVersions !== undefined
+            ? { action: { label: 'Thử lại', onClick: actions.retryVersions } }
+            : {})}
+        />
+      </div>,
     );
   }
 
