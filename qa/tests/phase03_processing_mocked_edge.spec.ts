@@ -134,14 +134,6 @@ async function softPoll(read: () => number, expected: number, message: string, t
   expect.soft(read(), message).toBe(expected);
 }
 
-/** What has keyboard focus, as "<TAG> <name>". */
-const focusName = (page: Page): Promise<string> =>
-  page.evaluate(() => {
-    const el = document.activeElement as HTMLElement | null;
-    if (el === null || el === document.body) return 'BODY';
-    return `${el.tagName} ${(el.getAttribute('aria-label') ?? el.textContent ?? '').trim().replace(/\s+/gu, ' ').slice(0, 80)}`;
-  });
-
 const uploadOf = (project: SeededProject, index: number, uploadId: string, withPreview = true): UploadItem => {
   const floor = project.floors[index];
   if (floor === undefined) throw new Error(`fixture floor #${String(index)} missing`);
@@ -881,11 +873,17 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
         await openFailure(progress(uid, 'failed', 'wallSegmentation', 20, { error: '' }));
         const fallback = page.getByRole('alert').filter({ hasText: FALLBACK_SENTENCE });
         const readError = readAlert(page);
-        await expect(fallback.or(readError)).toBeVisible({ timeout: 40_000 });
-        const shown = (await fallback.isVisible()) ? 'pipeline-failure-unknown' : 'read-error-alert';
-        await attachJson('E03_12-B-073_empty-error.json', { shown, alert: await page.getByRole('alert').first().innerText() });
-        if (shown === 'read-error-alert') {
-          suspected('[12-B-073] #8 failed with error "" (what the BE sends for a run without error code) fails the FE ProgressSchema (error: string().min(1)): the screen shows the read-error alert instead of the failure');
+        const failedChip = chip(page, floor.name).filter({ hasText: 'lỗi' });
+        await expect(fallback.or(readError).or(failedChip)).toBeVisible({ timeout: 40_000 });
+        await settle(page, 3_000);
+        const shown = (await fallback.isVisible())
+          ? 'pipeline-failure-unknown'
+          : (await readError.isVisible())
+            ? 'read-error-alert'
+            : 'chip-loi-only';
+        await attachJson('E03_12-B-073_empty-error.json', { shown, steps: await stepLine(page).catch(() => 'n/a') });
+        if (shown !== 'pipeline-failure-unknown') {
+          suspected(`[12-B-073] #8 failed with error "" (BE progress.py:66-67 \`error_code or ""\`) fails the FE ProgressSchema (error: string().min(1)); the screen shows ${shown === 'chip-loi-only' ? 'only a "lỗi" chip over six queued steps — no PipelineFailure, no sentence, no "Thử lại"' : 'the read-error alert'} instead of the failure`);
         } else {
           await expect.soft(page.getByRole('button', { name: COPY_CODE })).toBeVisible();
           suspected('[12-B-073] failed run with error "" shows an empty error code label next to "Sao chép mã lỗi"');
@@ -940,9 +938,9 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
       await test.step('[12-E-009] the alert has role=alert; Tab reaches "Thử lại" then "Liên hệ hỗ trợ"', async () => {
         const retry = readAlert(page).getByRole('button', { name: RETRY, exact: true });
         await retry.focus();
-        expect.soft(await focusName(page)).toBe(`BUTTON ${RETRY}`);
+        await expect.soft(retry).toBeFocused();
         await page.keyboard.press('Tab');
-        expect.soft(await focusName(page)).toBe(`BUTTON ${SUPPORT}`); // PR:261-271 DOM order
+        await expect.soft(page.getByRole('button', { name: SUPPORT, exact: true })).toBeFocused(); // PR:261-271 DOM order
       });
 
       await test.step('[12-A-022] unroute; "Thử lại" → N7 re-read, real empty state "Chưa có bước nào để theo dõi"', async () => {
@@ -1020,9 +1018,18 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
         runs.uploads = [uploadOf(project, 0, u1)];
         runs.progressOf.set(u1, wireError(503, 'SERVICE_UNAVAILABLE'));
         await page.goto(pipeline);
-        await expect(readAlert(page)).toBeVisible({ timeout: 60_000 }); // UPR:731-732 every floor read failed
+        // UPR:731-732 every floor read failed → alert. The failed seed read switches the floor to polling, whose failure
+        // is written into the cache (setQueryData) and turns the query back to success (observed run-33-P9).
+        const shownAlert = await readAlert(page).waitFor({ timeout: 25_000 }).then(() => true, () => false);
+        await settle(page, 2_000);
+        const alertStays = await readAlert(page).isVisible();
+        const chipText = (await chips(page).first().textContent().catch(() => '')) ?? '';
+        await attachJson('E03_12-B-011_reads.json', { progressReads: runs.count(u1), shownAlert, alertStays, chip: chipText });
+        if (!alertStays) {
+          suspected(`[12-B-011] every #8 read 503: no lasting read-error alert (seen: ${String(shownAlert)}); the screen shows chip "${chipText.trim()}" over six queued steps with no sentence and no "Thử lại"`);
+        }
+        expect.soft(alertStays, 'read-error alert while every #8 read fails').toBe(true);
         await expect.soft(page.getByRole('button', { name: SUPPORT, exact: true })).toBeVisible();
-        await attachJson('E03_12-B-011_reads.json', { progressReads: runs.count(u1) });
         await captureEvidence(page, 'E03_12-B-011_every-progress-503.png');
       });
 
@@ -1063,13 +1070,14 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
         await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ code: 'INTERNAL', message: 'qa', requestId: 'qa-500' }) });
       };
       const layer500 = fail500(layerPath);
+      const isLayer = (url: URL): boolean => url.pathname === layerPath;
       const settings500 = fail500(settingsPath);
 
       await test.step('[12-C-021] #8 completed + N16 500 → summary with "Duyệt lớp tường" and "Hiệu chỉnh tỷ lệ", no metrics (BUG-285)', async () => {
         const u3 = fakeUploadId();
         runs.uploads = [uploadOf(project, 0, u3)];
         runs.progressOf.set(u3, ok(progress(u3, 'completed', 'qualityCheck', 100)));
-        await page.route((url) => url.pathname === layerPath, layer500);
+        await page.route(isLayer, layer500);
         await page.reload();
         const summary = page.getByRole('region', { name: SUMMARY, exact: true });
         await expect(summary).toBeVisible();
@@ -1078,7 +1086,7 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
         await expect.soft(summary.getByRole('button', { name: CALIBRATE, exact: true })).toBeVisible();
         await expect.soft(summary.locator('li')).toHaveCount(0); // PG:1023-1025, UPR:1249-1251
         await captureEvidence(page, 'E03_12-C-021_summary-without-metrics.png');
-        await page.unroute((url) => url.pathname === layerPath, layer500);
+        await page.unroute(isLayer, layer500);
       });
 
       await test.step('[12-C-020] #8 completed + N16 (real, empty floor document) + settings 500 → metrics shown, no confidence sentence', async () => {

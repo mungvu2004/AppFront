@@ -230,7 +230,7 @@ test.describe('U03 UI verify — SCR-12 processing flows (QA-03d P9)', () => {
 
       await test.step('[12-F-014] viewer member → PipelineFailure forbidden → verifyUi at four widths', async () => {
         const viewer = await poolUser(adminApi, 'viewer');
-        await addProjectMember(adminApi, failed.projectId, viewer.email);
+        await addProjectMember(engineerApi, failed.projectId, viewer.email); // admin is not a member of the engineer's project (404)
         const flow = await openFlow(browser, viewer);
         flows.push(flow);
         await verifyUi(flow.page, 'U03_12-F-014_failure-forbidden', async (p) => {
