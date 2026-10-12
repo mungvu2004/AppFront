@@ -633,7 +633,9 @@ export function useFloorUploadScreen(
             },
     });
 
-    if (taskState.status === 'done') {
+    // 404 giữa phiên: dự án (hay tầng) đã bị xoá ở nơi khác. Đọc lại dự án — nếu nó mất thì màn
+    // về "Không tìm thấy dự án này" như lúc mở trang, không để lỗi nằm lại trên thẻ (BUG-311).
+    if (taskState.status === 'done' || described?.kind === 'notFound') {
       invalidateFloor(floorId);
     }
   };
