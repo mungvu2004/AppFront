@@ -7,8 +7,8 @@ fa991a0d. Backend rules (N15/N16 reads, #17/#18 measurement rules, `MEASUREMENT_
 viewer 403, feature-flag endpoint) live in `coverage/phase05-be.md` (API spec), not here.
 
 Test keys:
-- **M** `tests/phase05_3d_viewer.spec.ts` (own `qa-<runId>-m05-…` project, two seeded floors via `support/layerSeed.ts`; serial per
-  describe only, BUG-346) — title quoted by its prefix.
+- **M** `tests/phase05_3d_viewer.spec.ts` (own `qa-<runId>-m05-…` project, two seeded floors via `support/layerSeed.ts`; serial in
+  SCR-25 only — SCR-23 cases open the viewer themselves, BUG-494) — title quoted by its prefix.
 - **E** `tests/phase05_3d_viewer_edge.spec.ts` (non-serial, own project per test) — `E05 · …` titles, quoted by their key words.
 - **R9** `tests/phase09_roles_matrix.spec.ts` (Track B mock, viewer).
 - **UI** dedicated UI-verify spec `phase05_*_ui.spec.ts` (owner: qa-verify-ui step; not counted here).
