@@ -401,7 +401,7 @@ export function ObjectLayerCanvas({
       */}
       <div
         aria-label={OBJECT_CANVAS_TEXT.legendLabel}
-        className="absolute bottom-4 left-4 flex items-center gap-3 rounded-[8px] bg-bg-surface-90 px-3 py-2 shadow-panel"
+        className="absolute bottom-4 left-4 flex flex-wrap items-center gap-3 whitespace-nowrap rounded-[8px] bg-bg-surface-90 px-3 py-2 shadow-panel"
       >
         {OBJECT_LAYER_IDS.filter((layer) => layerVisibility[layer]).map((layer) => (
           <span className="flex items-center gap-1.5 text-[12px] text-text-secondary" key={layer}>
