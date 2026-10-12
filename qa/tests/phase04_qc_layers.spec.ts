@@ -23,7 +23,10 @@
  * - Walls: listbox "Danh sách đoạn tường" is VIRTUALISED (`WallLayerList.tsx`); option name
  *   `${codeLabel} — ${status}`. codeLabel = `#${displayCodesOf(ids).get(id)}` (`wallLayerReviewGateway.ts`
  *   wallLabelOf, `domain/spatial/ids.ts`), order-independent, so it is derived here from the GET body.
- *   Keys J/K/Backspace/Mod+Z are `canvas` scope (`useWallLayerReview.ts`). Merge = ctrl-click a 2nd row
+ *   Keys J/K/Backspace/Mod+Z are `canvas` scope (`useWallLayerReview.ts`) — scope is the registry's resolution floor,
+ *   not a focus target: they fire from a focused list row (`lib/input/shortcutRegistry.ts` handleKeyDown; only text entry
+ *   blocks them). Codes are rank-numbered over the random seed ids (`displayCodesOf` order branch), so a delete shifts
+ *   every later code by one (BUG-423). Merge = ctrl-click a 2nd row
  *   (`onToggleSelect`), rail button "nối đoạn" (disabled name "nối đoạn — Chọn hai đoạn tường để gộp").
  *   Merge rules (`domain/walls/edit.ts` mergeWalls): same kind, thickness, elevations; angle < 2°;
  *   off-axis stray ≤ thickness/2. Delete toast "Đã xoá tường {code}." + "Hoàn tác" (region "Thông báo").
@@ -541,8 +544,14 @@ test.describe('SCR-16 Wall Layer Review', () => {
     );
     await captureEvidence(page, '16_walls_undo_flush.png');
   });
+});
+
+/** SCR-16 cases that open the walls screen themselves: not serial, a failure skips none of them. */
+test.describe('SCR-16 Wall Layer Review (own screen load)', () => {
+  test.beforeEach(useSeededFloor);
 
   test('SCR-16 view controls: filters, "Hiện tim tường", "Ẩn lớp tường", "Thu gọn hai panel", "Bỏ qua" (no PUT)', async () => {
+    await openWalls();
     const toggle = async (name: string): Promise<void> => {
       const box = page.getByRole('checkbox', { name, exact: true });
       const was = await box.isChecked();
@@ -627,24 +636,33 @@ test.describe('SCR-16 Wall Layer Review', () => {
 
   test('SCR-16 delete + undo: select a wall, Backspace (canvas focus), then "Hoàn tác" → removed, then restored', async () => {
     await openWalls();
-    const first = wallList().getByRole('option').first();
-
-    await first.click();
-    const code = await codeOfOption(first);
+    await wallList().getByRole('option').first().click();
+    // The selected row, not `.first()` again: the code is read from the row the click selected.
+    const code = await codeOfOption(selectedWall());
     const id = wallIdOf(code);
+    // "N/M tường đã duyệt" is the counter's aria-label (WallLayerLeftPanel.tsx:276, wallLayerReviewGateway.ts:1145).
+    const progress = page.locator('[aria-label$=" tường đã duyệt"]').first();
+    const before = (await progress.getAttribute('aria-label')) ?? '';
+    // BUG-423 (run-26): the delete DID happen (8 rows left after the merge's 9), but codes are rank-numbered over the seed
+    // ids, so the next wall took over "#W-002" and `wallOption(code)` still matched. Removal is proven by the id instead: the
+    // delete's autosave PUT lacks it, and the "N/M tường đã duyệt" total drops by one.
+    const removed = waitForLayerPut((body) => !wallsOf(body, '#35').some((wall) => wall.id === id));
 
+    // A focused row is not text entry, so the canvas-scope key fires (shortcutRegistry.ts handleKeyDown).
     await page.keyboard.press('Backspace');
-    await expect(wallOption(code)).toHaveCount(0);
     const toasts = page.getByRole('region', { name: 'Thông báo', exact: true });
 
     await expect(toasts.getByText(`Đã xoá tường ${code}.`, { exact: true })).toBeVisible();
-    // The restored layer reaches the server: Ctrl+S flushes it (the delete's own PUT lacks the wall).
+    expectLayerWrite(await removed);
+    await expect(progress).not.toHaveAttribute('aria-label', before);
+    // The restored layer reaches the server: Ctrl+S flushes it.
     const restored = waitForLayerPut((body) => wallsOf(body, '#35').some((wall) => wall.id === id));
 
     await toasts.getByRole('button', { name: 'Hoàn tác', exact: true }).last().click();
-    await expect(wallOption(code)).toHaveCount(1);
     await page.keyboard.press('Control+s');
     expectLayerWrite(await restored);
+    await expect(progress).toHaveAttribute('aria-label', before);
+    await expect(wallOption(code)).toHaveCount(1);
     await captureEvidence(page, '16_walls_delete_undo.png');
   });
 
