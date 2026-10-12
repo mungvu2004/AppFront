@@ -14,7 +14,7 @@
  *
  * Không hộp thoại nào được mở từ trong hộp thoại này (cấm tuyệt đối của đặc tả).
  */
-import { useId } from 'react';
+import { useEffect, useId, useRef } from 'react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Modal } from '@/components/overlay/Modal';
@@ -30,6 +30,19 @@ const TEXT = CAD_BRANCH_CONFIRM_TEXT.phase1;
 
 export function CadBranchConfirmDialog({ model, actions }: CadBranchConfirmDialogProps) {
   const rememberNoteId = useId();
+  const aiButtonRef = useRef<HTMLButtonElement>(null);
+  const wasCadChoiceDisabledRef = useRef(model.isCadChoiceDisabled);
+
+  // Nhánh CAD bị khoá SAU khi bẫy đã kích hoạt (đọc xong mới biết lỗi): `data-autofocus` dời sang
+  // nút AI không còn tác dụng và nút CAD vừa `disabled` làm tiêu điểm rơi mất — đưa nó về nút AI
+  // (BUG-560). Chỉ khi cờ ĐỔI: lúc mở, `data-autofocus` vẫn là đường đúng (xem đầu file).
+  useEffect(() => {
+    if (model.isOpen && model.isCadChoiceDisabled && !wasCadChoiceDisabledRef.current) {
+      aiButtonRef.current?.focus();
+    }
+
+    wasCadChoiceDisabledRef.current = model.isCadChoiceDisabled;
+  }, [model.isCadChoiceDisabled, model.isOpen]);
 
   return (
     <Modal.Root isOpen={model.isOpen} onClose={actions.onDismiss} width={560}>
@@ -77,6 +90,7 @@ export function CadBranchConfirmDialog({ model, actions }: CadBranchConfirmDialo
             {TEXT.buttons.dismiss}
           </Button>
           <Button
+            ref={aiButtonRef}
             variant="secondary"
             data-autofocus={model.isCadChoiceDisabled ? true : undefined}
             onClick={() => actions.onChooseBranch('ai')}

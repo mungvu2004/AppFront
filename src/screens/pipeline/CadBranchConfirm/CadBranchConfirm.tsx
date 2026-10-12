@@ -48,8 +48,15 @@
  * bại duy nhất A11 tồn tại để chặn — không có chỗ xảy ra.
  */
 
+import { useEffect, useRef } from 'react';
+
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { InlineAlert, type InlineAlertLevel } from '@/components/feedback/InlineAlert';
+import {
+  BACK_TO_PROJECTS_LABEL,
+  PROJECT_NOT_FOUND_DESCRIPTION,
+  PROJECT_NOT_FOUND_TITLE,
+} from '@/components/feedback/ProjectSpatialGate';
 import { Button } from '@/components/ui/Button';
 import { useCountUp } from '@/hooks/useCountUp';
 import type { NumberFormatOptions } from '@/lib/format/number';
@@ -250,8 +257,19 @@ interface CadBranchHandoffProps {
  * Hai nút là đúng hai lựa chọn chính của đặc tả; nút AI KHÔNG bao giờ bị khoá.
  */
 function CadBranchHandoff({ isCadChoiceDisabled, onChooseBranch }: CadBranchHandoffProps) {
+  const sectionRef = useRef<HTMLElement>(null);
+
+  // Khối này chỉ dựng khi hộp thoại vừa đóng. Hộp thoại mở lúc vào màn thường không có nút mở, nên
+  // bẫy trả tiêu điểm về `body`: khi đó khối nhận tiêu điểm vào nút đầu tiên bấm được (BUG-559). Có
+  // nút mở thật thì để tiêu điểm ở đó (A12). Effect gắn chạy sau effect dọn của `Modal`.
+  useEffect(() => {
+    if (document.activeElement === null || document.activeElement === document.body) {
+      sectionRef.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
+    }
+  }, []);
+
   return (
-    <section className="animate-panel-rise px-4 pb-2 motion-reduce:animate-none">
+    <section className="animate-panel-rise px-4 pb-2 motion-reduce:animate-none" ref={sectionRef}>
       <InlineAlert level="attention" message={AI_BRANCH_NOTICE} title={AI_HANDOFF_TITLE} />
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button
@@ -275,6 +293,24 @@ function CadBranchHandoff({ isCadChoiceDisabled, onChooseBranch }: CadBranchHand
 /* -------------------------------------------------------------------------- */
 
 export function CadBranchConfirm({ actions, model }: CadBranchConfirmProps) {
+  // Dự án không tồn tại: một câu, một lối ra, không hộp thoại — như Sơ đồ xử lý (BUG-563, BUG-313).
+  if (model.isProjectMissing === true) {
+    return (
+      <div aria-label={SCREEN_ARIA_LABEL} className="flex h-full min-h-0 w-full flex-col bg-bg-app p-4" role="region">
+        <InlineAlert
+          action={{ label: BACK_TO_PROJECTS_LABEL, onClick: actions.onBackToProjects }}
+          level="violation"
+          message={PROJECT_NOT_FOUND_DESCRIPTION}
+          title={PROJECT_NOT_FOUND_TITLE}
+        />
+      </div>
+    );
+  }
+
+  return <CadBranchConfirmBody actions={actions} model={model} />;
+}
+
+function CadBranchConfirmBody({ actions, model }: CadBranchConfirmProps) {
   const noticeMessage = messageFor(model);
   const noticeLevel = NOTICE_LEVELS[model.state];
   const isError = model.state === 'error';

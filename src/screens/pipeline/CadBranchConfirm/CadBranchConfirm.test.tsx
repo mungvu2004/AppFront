@@ -34,7 +34,7 @@
 
 import { readdirSync } from 'node:fs';
 import { useState } from 'react';
-import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { formatNumber } from '@/lib/format/number';
@@ -638,6 +638,97 @@ describe('CadBranchConfirm — bàn phím ở hộp thoại chốt nhánh [NGHIE
     });
 
     expect(document.activeElement).toBe(opener);
+  });
+});
+
+describe('CadBranchConfirm — tiêu điểm khi không có nút mở (BUG-559, BUG-560)', () => {
+  it('mở thẳng route rồi Esc: tiêu điểm vào khối bàn giao, không rơi về body (BUG-559)', async () => {
+    renderWiredScreen();
+    await settleDialog();
+    await act(async () => {
+      await nextFrame();
+    });
+
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    expect(document.activeElement).not.toBe(document.body);
+    expect(document.activeElement).toHaveRole('button');
+    expect(screen.getByText(AI_HANDOFF_TITLE).closest('section')?.contains(document.activeElement)).toBe(true);
+  });
+
+  it('nhánh CAD bị khoá sau khi bẫy đã bật: tiêu điểm chuyển về "Vẫn dùng AI" (BUG-560)', async () => {
+    const pending: { resolve: () => void } = { resolve: () => undefined };
+    const base = createMockCadBranchConfirmGateway();
+    const gateway = {
+      ...base,
+      readFloorAvailability: () =>
+        new Promise<Awaited<ReturnType<typeof base.readFloorAvailability>>>((resolve) => {
+          pending.resolve = () => {
+            resolve({
+              ok: false,
+              error: { code: 'INTERNAL', kind: 'http', raw: { code: 'INTERNAL' }, requestId: 'r', retryable: false, status: 500 },
+            });
+          };
+        }),
+    };
+    renderWithProviders(<CadBranchConfirmContainer floorId={FLOOR_ID} gateway={gateway} projectId={PROJECT_ID} />);
+    await act(async () => {
+      await nextFrame();
+    });
+
+    await act(async () => {
+      pending.resolve();
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: PRIMARY_BUTTON_LABEL })).toBeDisabled();
+    });
+
+    expect(document.activeElement).toBe(
+      within(screen.getByRole('dialog')).getByRole('button', { name: SECONDARY_BUTTON_LABEL }),
+    );
+  });
+});
+
+describe('CadBranchConfirm — dự án không tồn tại (BUG-563)', () => {
+  it('nói "Không tìm thấy dự án này" kèm lối về, không "Không thể đọc tệp CAD … NOT_FOUND"', async () => {
+    const onNavigate = vi.fn();
+    const base = createMockCadBranchConfirmGateway();
+    const gateway = {
+      ...base,
+      readFloorAvailability: () =>
+        Promise.resolve({
+          ok: false as const,
+          error: { code: 'NOT_FOUND', kind: 'http' as const, raw: { code: 'NOT_FOUND', resource: 'project' }, requestId: 'r', retryable: false, status: 404 },
+        }),
+    };
+    renderWithProviders(
+      <CadBranchConfirmContainer floorId={FLOOR_ID} gateway={gateway} onNavigate={onNavigate} projectId={PROJECT_ID} />,
+    );
+
+    expect(await screen.findByText('Không tìm thấy dự án này')).toBeInTheDocument();
+    expect(screen.queryByText(/NOT_FOUND/)).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Về danh sách dự án' }));
+    expect(onNavigate).toHaveBeenCalledWith('/');
+  });
+});
+
+describe('CadBranchConfirm — khung xem trước không có hình (BUG-564)', () => {
+  it('nói "Chưa có hình để xem trước" thay vì một hộp trống', async () => {
+    renderWithProviders(
+      <CadBranchConfirmContainer
+        floorId={FLOOR_ID}
+        gateway={createMockCadBranchConfirmGateway({ inspection: { ...CAD_SAMPLE_INSPECTION, entities: [] } })}
+        projectId={PROJECT_ID}
+      />,
+    );
+    await chooseCadBranch();
+
+    expect(screen.getByText('Chưa có hình để xem trước')).toBeInTheDocument();
   });
 });
 

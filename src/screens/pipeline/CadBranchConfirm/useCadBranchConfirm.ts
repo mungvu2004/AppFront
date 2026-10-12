@@ -55,6 +55,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
+import { isProjectNotFound } from '@/hooks/useProjectSpatial';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useShortcut } from '@/hooks/useShortcut';
 import { AUTH_ROLES, can } from '@/lib/auth/permissions';
@@ -763,6 +764,13 @@ export function useCadBranchConfirm(
     void query.refetch();
   }, [importMutation, query]);
 
+  const onBackToProjects = useCallback(() => {
+    options.onNavigate?.(ROUTES.dashboard);
+  }, [options]);
+
+  // #12 trả 404 `project`: dự án không có, không phải "không đọc được tệp CAD … NOT_FOUND" (BUG-563).
+  const isProjectMissing = query.isError && isProjectNotFound(query.error);
+
   const canImportGeometry =
     state !== 'forbidden' &&
     state !== 'error' &&
@@ -944,6 +952,7 @@ export function useCadBranchConfirm(
       partialNotice,
       forbiddenNotice: state === 'forbidden' ? COPY.forbiddenNotice : null,
       successNotice: state === 'success' ? COPY.successNotice : null,
+      ...(isProjectMissing ? { isProjectMissing: true as const } : {}),
     },
     actions: {
       onChooseBranch,
@@ -958,6 +967,7 @@ export function useCadBranchConfirm(
       onImportGeometry,
       onToggleMappingPanelCollapsed,
       onRetry,
+      onBackToProjects,
     },
     resolvedBranch,
   };

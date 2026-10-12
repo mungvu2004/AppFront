@@ -78,6 +78,7 @@ const ACTIONS: CadBranchConfirmActions = {
   onImportGeometry: NO_OP,
   onToggleMappingPanelCollapsed: NO_OP,
   onRetry: NO_OP,
+  onBackToProjects: NO_OP,
 };
 
 /* -------------------------------------------------------------------------- */
