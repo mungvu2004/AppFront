@@ -346,6 +346,8 @@ function panelFor(state: ScaleCalibrationState): ScalePanelViewModel {
     recalculationCaption: 'Đổi tỷ lệ sẽ tính lại mọi kích thước dẫn xuất của bản vẽ này.',
     statusCode: state === 'success' ? 'verified' : 'neutral',
     shortcutHints: SHORTCUT_HINTS,
+    isMethodLocked: false,
+    isCurrentScaleKnown: hasScale,
   };
 }
 

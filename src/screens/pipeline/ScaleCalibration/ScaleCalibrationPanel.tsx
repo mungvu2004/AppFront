@@ -103,7 +103,13 @@ export function ScaleCalibrationPanel({
               <Skeleton preset="property-panel" />
             ) : (
               <>
-                <p className="font-mono text-[20px] font-semibold tabular-nums text-text-primary">
+                <p
+                  className={clsx(
+                    'text-[20px] font-semibold text-text-primary',
+                    /* "Chưa có" ở phông mono 20 px có khoảng trắng rộng như hai dấu cách (BUG-411). */
+                    panel.isCurrentScaleKnown && 'font-mono tabular-nums',
+                  )}
+                >
                   {panel.currentScaleLabel}
                 </p>
                 <p className="text-[13px] text-text-secondary">{panel.derivedLine}</p>
@@ -133,8 +139,8 @@ export function ScaleCalibrationPanel({
           {!isLoading && (
             <>
               <section
-                aria-disabled={isForbidden}
-                className={clsx(isForbidden && 'pointer-events-none opacity-60')}
+                aria-disabled={isForbidden || panel.isMethodLocked}
+                className={clsx((isForbidden || panel.isMethodLocked) && 'pointer-events-none opacity-60')}
               >
                 {panel.method === 'dimensionString' ? (
                   <ScaleCalibrationMethodDimension
