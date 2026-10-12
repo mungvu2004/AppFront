@@ -26,6 +26,8 @@ chữ của lựa chọn mà người dùng đã chọn, hoặc chữ mô tả c
 | 5 | Màn 3D mới nặng tối đa bao nhiêu? | B | «Theo hết khuyên dùng» · «5B (trần riêng cho màn này)» | 2026-09-18 |
 | 6 | Chặn sửa sai làm kẹt công cụ Pascal thì sao? (chỉ áp dụng khi B3.7 thấy kẹt) | A | «Theo hết khuyên dùng» · «6A (thả tay rồi đưa về chỗ cũ)» | 2026-09-18 |
 
+> Đã thay bởi Bản 6 (câu 2, câu 4) — xem mục "Bản 6" ở cuối tệp.
+
 ## 3 trần dung lượng (KiB sau gzip)
 
 | Con số | Trần người dùng chọn | Nguyên lời | Ngày | Số tham chiếu lúc hỏi |
@@ -194,6 +196,8 @@ chỉ-xem **không phải một nhát cắt dung lượng**. Số đo ở `IMPLE
 
 ### Hệ quả của "chỉ-xem trước"
 
+> Đã thay bởi Bản 6.
+
 - Đích đợt này là **`core` + `viewer`**. `editor` và `nodes` **không** được cài. *(Lạc hậu, ghi
   2026-10-03: `package.json` nay cài đủ bốn gói; `nodes` được nạp thật ở
   `src/components/pascal/pascalScene.ts`, `editor` cài nhưng chưa nơi nào dựng — `grep pascal-app/editor src` ra 0.)* Fork **không** được
@@ -298,3 +302,47 @@ Người dùng ngày 2026-09-28 không quyết được vì mô tả khó hiểu
 
 Đây là **tự host một tập con**, phương án giữa trong ba phương án đã bày ra — chọn theo số đo, và
 ghi ở đây để người duyệt bác được nếu muốn.
+
+---
+
+## Bản 6 — Pascal thay toàn bộ 3D (2026-10-13)
+
+Nguồn: `F:/App/AppBack/backend/dieu-phoi/chay/F-15/prompt.md`, nguyên văn, không diễn giải. Chép
+đúng hai mục "Mục tiêu" và "Quyền sửa Pascal" của prompt gốc.
+
+### Mục tiêu (QUYẾT ĐỊNH MỚI, thay cho câu 2 «2A chỉ màn 3D chính», câu 4 «4A bật/tắt theo vai» và «Chỉ-xem trước» ở docs/pascal/00-quyet-dinh.md)
+
+> Pascal thay HOÀN TOÀN mọi phần 3D của AppFront mà Pascal thay được. Màn 3D cũ chỉ còn ở đúng
+> những chỗ Pascal chứng minh được là KHÔNG làm được, và mỗi chỗ đó phải có lý do kèm số đo hoặc
+> dòng mã.
+> Bước đầu tiên: ghi quyết định này thành "Bản 6" trong docs/pascal/00-quyet-dinh.md, chép nguyên
+> lời tôi ở trên.
+
+### Quyền sửa Pascal: ĐƯỢC SỬA TRỰC TIẾP
+
+> vendor/pascal là code clone về và là của tôi (xem vendor/pascal/NGUON.md: "mã của AppFront,
+> không phải một phụ thuộc"; MIT; không có remote về kho gốc; gói cài dạng workspace:*). Vì vậy:
+> - Pascal thiếu tính năng, sai hành vi hay vướng bất biến AppFront thì SỬA THẲNG trong
+>   vendor/pascal/packages/{core,viewer,editor,nodes}. Không viết lớp bọc, monkey-patch hay shim
+>   để né, cũng không xếp nó vào "KHÔNG THAY ĐƯỢC" chỉ vì Pascal gốc chưa có.
+> - Chỉ được gắn nhãn KHÔNG THAY ĐƯỢC khi việc sửa Pascal tốn hơn hẳn việc giữ màn cũ. Phải ghi rõ
+>   ước lượng hai phía.
+> - Giữ nguyên LICENSE và dòng bản quyền. Mỗi chỗ sửa trong vendor thì thêm một dòng vào mục "Đã
+>   sửa so với gốc" trong NGUON.md (tệp, lý do).
+> - Code trong vendor viết theo luật Biome của Pascal, không theo luật nội bộ AppFront. KHÔNG gỡ
+>   hai dòng loại trừ vendor trong .eslintrc.cjs và vitest.config.ts. Bề mặt API đổi thì sinh lại
+>   vendor/pascal/packages/*/dist (.d.ts) và chạy `pnpm pascal` để dựng lại pascal-mount.js.
+> - Cổng nhập vẫn giữ nguyên: chỉ src/components/pascal được nhập @pascal-app/*, còn
+>   src/lib/pascal chỉ được `import type`.
+
+### Câu cũ bị thay
+
+| Mã | Nội dung câu cũ | Chọn cũ | Dòng trong tệp (trước khi thêm Bản 6) |
+|---|---|---|---|
+| Câu 2 | Đợt đầu thay những màn nào? | 2A (chỉ màn 3D chính) | mục "6 đáp án", dòng 23 |
+| Câu 4 | Bật màn mới thế nào? | 4A (bật/tắt từ máy chủ theo vai) | mục "6 đáp án", dòng 25 |
+| «Chỉ-xem trước» | Hướng `editor` (Bản 4) | chỉ-xem trước (core+viewer), mở sửa sau | mục "Bản 4", dòng 191 |
+
+Kiểm kê thay thế toàn bộ theo quyết định này: `docs/pascal/06-thay-the-toan-bo.md`. Đường vào màn
+mới: `docs/pascal/05-dung-man-pascal.md` (viết lại theo Bản 6 — không còn cờ, không còn route
+`/3d/pascal`).

@@ -3,29 +3,31 @@
 Trang này trả lời đúng bốn câu: bật ở đâu, vào bằng đường nào, cần dựng gì, và
 hỏng thì đọc gì.
 
+**Theo Bản 6** (`docs/pascal/00-quyet-dinh.md`): Pascal thay toàn bộ 3D mà Pascal thay được. Mục 1–2
+dưới đây ghi **trạng thái đích** của việc 2–3 trong `F:/App/AppBack/backend/dieu-phoi/chay/F-15/prompt.md`
+— route và cờ đổi ở một việc F-15 khác, chưa chạy ở lượt viết tài liệu này (E.10: đây là mô tả đích,
+không phải "đã xong"). Đọc lại tệp này sau khi việc đó hợp nhất để xác nhận đúng thực tế.
+
 ---
 
-## 1. Bật cờ
+## 1. Không còn cờ (đích)
 
-Màn nằm sau cờ `scene.pascal-viewer`, **mặc định tắt**. Ba cách bật, theo thứ tự
-ưu tiên mà `lib/telemetry/flags.ts` đọc:
+Trước Bản 6, màn nằm sau cờ `scene.pascal-viewer` (mặc định tắt), chạy song song với màn 3D cũ. Cờ
+đó phải **gỡ**: không còn nhánh bật/tắt ở FE (`lib/telemetry/flags.ts`), mock
+(`src/api/__mocks__/client.ts`) hay BE (`flags.py`, `schemas.py`, openapi, test). Pascal hiện lên
+cho mọi người có quyền xem dự án — không cần bật gì thêm, không còn đường quay lại màn cũ bằng cờ.
 
-| Cách | Làm thế nào | Dùng khi |
-|---|---|---|
-| **Ghi đè tại máy** | Mở bàn điều khiển của trình duyệt: `localStorage.setItem('appfront-feature-flags', JSON.stringify({ 'scene.pascal-viewer': true }))` rồi tải lại trang | thử tại máy |
-| **Máy chủ** | Trả `{"scene.pascal-viewer": true}` trong bảng cờ của phiên | bật theo nhóm người dùng |
-| **Mặc định** | `false` trong `FEATURE_FLAGS` | không ai có ý kiến |
+Những màn 3D cũ còn giữ lại (xem `docs/pascal/06-thay-the-toan-bo.md`, nhãn **KHÔNG THAY ĐƯỢC**) thì
+giữ nguyên, không đi qua cờ.
 
-Tắt lại: `localStorage.removeItem('appfront-feature-flags')`.
-
-## 2. Đường vào
+## 2. Đường vào (đích)
 
 ```
-/projects/<mã dự án>/3d/pascal
+/projects/<mã dự án>/3d
 ```
 
-Màn 3D cũ vẫn ở `/projects/<mã dự án>/3d` và **không bị đụng tới**. Hai màn chạy
-song song; cờ quyết định màn mới có hiện hay không, không thay thế màn cũ.
+Route 3D chính, phải render Pascal. Route cũ `/3d/pascal` phải **bỏ** hoặc chuyển hướng về `/3d`.
+Mọi liên kết `paths.project.viewer(...)` trong ứng dụng mở Pascal.
 
 **Cần đăng nhập.** Route nằm sau cổng phiên của `routes/router.tsx`, nên phải có
 AppBack chạy ở `localhost:8080`. Không có nó thì mọi route đều rơi về màn đăng
