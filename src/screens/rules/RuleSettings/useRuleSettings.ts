@@ -149,6 +149,11 @@ export interface UseRuleSettingsOptions {
    * chỉ là không ai mời người dùng bấm.
    */
   readonly onToast?: (toast: RuleSettingsToast) => void;
+  /**
+   * "Tải lại" đã nạp bản của máy chủ: mọi toast hoàn tác đã phát giờ trỏ vào thay
+   * đổi không còn nữa, vỏ gỡ chúng khỏi màn (BUG-463). Vé của chúng đã hết hạn sẵn.
+   */
+  readonly onDiscardToasts?: () => void;
   readonly now?: () => number;
   readonly isOnline?: () => boolean;
   readonly announcer?: Announcer;
@@ -617,17 +622,25 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
   /* Tải lại bản của máy chủ (409) — hỏi trước khi bỏ sửa dở (A9).           */
   /* ---------------------------------------------------------------------- */
 
+  /** Tăng mỗi lượt tải lại; vé phát ở thế hệ cũ coi như đã hết hạn. */
+  const ticketGenerationRef = useRef(0);
+  const onDiscardToasts = options.onDiscardToasts;
+
   const reload = useCallback(async (): Promise<void> => {
     const result = await configQuery.refetch();
 
     // Lượt đọc lại hỏng thì react-query vẫn trả `data` cũ: không nạp nó, giữ dải lỗi.
     if (result.isSuccess) {
+      // Thay đổi cục bộ vừa bị bỏ: vé hoàn tác của chúng hết hạn ngay, nếu không bấm
+      // "Hoàn tác" sẽ ghi bản chụp cũ đè lên bản vừa nạp (BUG-463).
+      ticketGenerationRef.current += 1;
+      onDiscardToasts?.();
       hydrate(result.data);
       setSaveProblem(null);
       // Xoá trạng thái `failed` của lượt lưu cũ: không còn gì để gửi.
       void autosave.saveNow();
     }
-  }, [autosave, configQuery, hydrate]);
+  }, [autosave, configQuery, hydrate, onDiscardToasts]);
 
   const onReload = useCallback((): void => {
     if (hasUnsavedEdits()) {
@@ -669,13 +682,16 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
 
       // A8: đúng một vé cho mỗi thay đổi. Cửa sổ 8 giây do chính vé giữ
       // (`UNDO_WINDOW_MS`), nên ở đây không có bộ đếm thời gian nào.
+      const generation = ticketGenerationRef.current;
+      const clock = nowOption ?? Date.now;
       const ticket = createUndoTicket({
         description: label,
         undo: () => {
           result.undo();
           autosave.notifyChange();
         },
-        ...(nowOption !== undefined ? { now: nowOption } : {}),
+        // Sau một lượt tải lại, đồng hồ của vé nhảy tới vô cùng: vé báo `expired`.
+        now: () => (ticketGenerationRef.current === generation ? clock() : Number.POSITIVE_INFINITY),
       });
 
       onToast?.({

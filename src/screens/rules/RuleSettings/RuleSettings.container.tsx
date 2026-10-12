@@ -54,6 +54,8 @@ export interface RuleSettingsContainerProps {
   readonly isCompact?: boolean;
   /** Nơi nhận toast hoàn tác 8 giây (A8). Vắng mặt thì vé vẫn có, chỉ không ai mời bấm. */
   readonly onToast?: (toast: RuleSettingsToast) => void;
+  /** "Tải lại" đã bỏ thay đổi cục bộ: gỡ các toast hoàn tác của chúng (BUG-463). */
+  readonly onDiscardToasts?: () => void;
   /** Đồng hồ tiêm được, để bài kiểm lái cửa sổ hoàn tác và chỉ báo tự lưu. */
   readonly now?: () => number;
   /** Trạng thái mạng tiêm được, để bài kiểm dựng lượt lưu hỏng. */
@@ -95,6 +97,7 @@ function WiredRuleSettings(props: WiredRuleSettingsProps) {
     ...(props.canEdit !== undefined ? { canEdit: props.canEdit } : {}),
     ...(props.isCompact !== undefined ? { isCompact: props.isCompact } : {}),
     ...(props.onToast !== undefined ? { onToast: props.onToast } : {}),
+    ...(props.onDiscardToasts !== undefined ? { onDiscardToasts: props.onDiscardToasts } : {}),
     ...(props.now !== undefined ? { now: props.now } : {}),
     ...(props.isOnline !== undefined ? { isOnline: props.isOnline } : {}),
     ...(props.announcer !== undefined ? { announcer: props.announcer } : {}),
@@ -136,6 +139,7 @@ export function RuleSettingsContainer(props: RuleSettingsContainerProps) {
         {...(props.canEdit !== undefined ? { canEdit: props.canEdit } : {})}
         {...(props.isCompact !== undefined ? { isCompact: props.isCompact } : {})}
         {...(props.onToast !== undefined ? { onToast: props.onToast } : {})}
+        {...(props.onDiscardToasts !== undefined ? { onDiscardToasts: props.onDiscardToasts } : {})}
         {...(props.now !== undefined ? { now: props.now } : {})}
         {...(props.isOnline !== undefined ? { isOnline: props.isOnline } : {})}
         {...(props.announcer !== undefined ? { announcer: props.announcer } : {})}
@@ -156,7 +160,11 @@ export function RuleSettingsRoute() {
 
   return (
     <ProjectSpatialGate projectId={projectId}>
-      <RuleSettingsContainer isCompact={isCompact} onToast={publishRuleSettingsToast} />
+      <RuleSettingsContainer
+        isCompact={isCompact}
+        onDiscardToasts={discardRuleSettingsToasts}
+        onToast={publishRuleSettingsToast}
+      />
     </ProjectSpatialGate>
   );
 }
@@ -171,4 +179,8 @@ function publishRuleSettingsToast(toast: RuleSettingsToast): void {
     description: '',
     undoTicket: toast.undoTicket,
   });
+}
+
+function discardRuleSettingsToasts(): void {
+  appNotificationBus.withdraw(RULE_SETTINGS_NOTIFICATION_TYPE);
 }

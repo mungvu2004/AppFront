@@ -130,7 +130,7 @@ function useIsNarrow(): boolean {
 /**
  * Bus của phiên, cộng một người nghe.
  *
- * `list` và `subscribe` đi thẳng sang bus thật — `NotificationHost` phải thấy đúng một
+ * `list`, `subscribe` và `withdraw` đi thẳng sang bus thật — `NotificationHost` phải thấy đúng một
  * nguồn — chỉ `publish` là rẽ đôi.
  */
 function forwardingBus(
@@ -140,6 +140,7 @@ function forwardingBus(
   return {
     list: bus.list,
     subscribe: bus.subscribe,
+    withdraw: bus.withdraw,
     publish: (input: NotificationInput): void => {
       bus.publish(input);
       onToast(input);

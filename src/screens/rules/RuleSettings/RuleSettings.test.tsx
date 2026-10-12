@@ -68,7 +68,7 @@ import type { RuleSettingsProps, RuleSettingsStatus } from './types';
 import * as RuleSettingsModule from './RuleSettings';
 import { RuleSettingsRoute } from './RuleSettings.container';
 import { createRuleSettingsGateway, RULE_SETTINGS_READ_ONLY_REASON } from './ruleSettingsGateway';
-import { useRuleSettings } from './useRuleSettings';
+import { useRuleSettings, type RuleSettingsToast } from './useRuleSettings';
 
 /*
  * F-10: màn giờ đọc cấu hình bộ luật qua N21, nên cổng mặc định gọi
@@ -659,6 +659,8 @@ interface HookSetup {
   readonly projectId?: string;
   readonly isOnline?: () => boolean;
   readonly isCompact?: boolean;
+  readonly onToast?: (toast: RuleSettingsToast) => void;
+  readonly onDiscardToasts?: () => void;
 }
 
 function setupHook(setup: HookSetup = {}) {
@@ -685,6 +687,8 @@ function setupHook(setup: HookSetup = {}) {
         gateway,
         ...(setup.isOnline !== undefined ? { isOnline: setup.isOnline } : {}),
         ...(setup.isCompact !== undefined ? { isCompact: setup.isCompact } : {}),
+        ...(setup.onToast !== undefined ? { onToast: setup.onToast } : {}),
+        ...(setup.onDiscardToasts !== undefined ? { onDiscardToasts: setup.onDiscardToasts } : {}),
       }),
     { initialProps: { projectId: setup.projectId ?? 'P-1' }, wrapper },
   );
@@ -820,6 +824,31 @@ describe('F-10 — useRuleSettings nối N21/N22', () => {
     expect(result.current.model.saveProblem).toBeNull();
     expect(useStore.getState().ruleConfigRevision).toBe(7);
     expect(useStore.getState().ruleConfig.overrides).toEqual({ 'DOOR-WIDTH': { enabled: false } });
+  });
+
+  it('BUG-463: "Bỏ thay đổi và tải lại" làm vé hoàn tác cũ hết hạn và gỡ toast của nó', async () => {
+    const toasts: RuleSettingsToast[] = [];
+    const onDiscardToasts = vi.fn();
+    const reads = [wireConfig(3), wireConfig(7, { 'WALL-LENGTH': { enabled: false } })];
+    const { result } = setupHook({
+      read: async () => ({ ok: true, data: reads.shift() ?? wireConfig(7) }),
+      replace: async () => ({ ok: false, error: wireError(409, 'VERSION_CONFLICT', { remoteChanges: [] }) }),
+      onToast: (toast) => toasts.push(toast),
+      onDiscardToasts,
+    });
+    await advance(0);
+
+    act(() => result.current.onToggleRule('WALL-THICKNESS', false));
+    await advance(AFTER_DEBOUNCE_MS);
+    act(() => result.current.onReload());
+    act(() => result.current.onConfirmReload());
+    await advance(0);
+
+    expect(onDiscardToasts).toHaveBeenCalledTimes(1);
+    const ticket = toasts[0]?.undoTicket;
+    expect(ticket?.getStatus()).toBe('expired');
+    expect(ticket?.undo()).toEqual({ error: 'expired', ok: false });
+    expect(useStore.getState().ruleConfig.overrides).toEqual({ 'WALL-LENGTH': { enabled: false } });
   });
 
   it('lượt đọc lại hỏng: không nạp bản cũ, dải xung đột vẫn còn', async () => {

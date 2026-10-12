@@ -106,6 +106,24 @@ describe('createNotificationBus', () => {
     undoTicket: createUndoTicket({ description, undo }),
   });
 
+  it('withdraw(type) removes every notification of that type and closes its group (BUG-463)', () => {
+    const bus = createNotificationBus();
+    const seen: number[] = [];
+    bus.subscribe((list) => seen.push(list.length));
+
+    bus.publish(buildInput('Tắt luật', () => undefined, 'rule-settings'));
+    bus.publish(buildInput('Sửa tường', () => undefined));
+    bus.withdraw('rule-settings');
+
+    expect(bus.list().map((item) => item.type)).toEqual(['editWall']);
+    expect(seen.at(-1)).toBe(1);
+
+    // The withdrawn group is closed: the next change starts its own notification.
+    bus.publish(buildInput('Bật luật', () => undefined, 'rule-settings'));
+    expect(bus.list().filter((item) => item.type === 'rule-settings')).toHaveLength(1);
+    expect(bus.list().at(-1)?.description).toBe('Bật luật');
+  });
+
   it('merges 3 same-type notifications within 5 seconds into a single one, and undoes all 3', () => {
     const bus = createNotificationBus();
     const calls: string[] = [];
