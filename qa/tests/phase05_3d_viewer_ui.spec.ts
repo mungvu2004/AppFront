@@ -80,7 +80,7 @@ const MEASURE_OVERLAY = 'Lớp phủ công cụ đo';
 const MEASURE_LIST = 'Phép đo';
 const MEASURE_MODES = 'Chọn chế độ đo';
 const MEASURE_EMPTY_TEXT = 'Chưa có phép đo nào. Nhấn M rồi chọn hai điểm trên mô hình.';
-const UNIT_SELECT = 'đơn vị';
+const UNIT_SELECT = 'Đơn vị';
 /* SCR-26: PascalViewer.tsx, pascalViewerTypes.ts:90-101. */
 const PASCAL_RENDERED_PATTERN =
   /^(Đã dựng xong toàn bộ bản vẽ\.|Đã dựng xong, nhưng một số đối tượng chưa chuyển sang được\.)$/u;
