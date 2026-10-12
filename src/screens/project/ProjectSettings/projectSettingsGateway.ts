@@ -478,7 +478,14 @@ export function createProjectSettingsGateway(client: ApiClient): ProjectSettings
 
       pendingMemberKey = { projectId, email: normalized, key };
 
-      const result = await client.members.add({ projectId, email: normalized, idempotencyKey: key });
+      // Người bấm "Thêm thành viên": 429 phải hiện câu hạn mức và khoá nút NGAY, không chờ thang
+      // thử lại của client (BUG-510).
+      const result = await client.members.add({
+        projectId,
+        email: normalized,
+        idempotencyKey: key,
+        failFastOnRateLimit: true,
+      });
 
       if (!result.ok) {
         if (!keepsIdempotencyKey(result.error)) {

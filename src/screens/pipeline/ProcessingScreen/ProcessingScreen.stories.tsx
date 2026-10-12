@@ -244,7 +244,8 @@ function baseScenario(): ProcessingScreenProps {
     steps: stepsAt(2, { runningPercent: 45 }),
     previewPanel: previewOf('L2', { isScanning: true, withGeometry: true }),
     logLines: SAMPLE_LOG_LINES,
-    overallSummaryLine: 'Đã xong 2/4 tầng · Còn lại khoảng 4 phút 20 giây',
+    overallSummaryLine: 'Đã xong 2/4 tầng',
+    remainingLine: 'Còn lại khoảng 4 phút 20 giây',
     activeTab: 'preview',
     onTabChange: NO_OP,
     isLogAutoScrollLocked: false,
@@ -310,7 +311,8 @@ export function scenarioFor(state: SevenState): ProcessingScreenProps {
         floors: PARTIAL_FLOORS,
         steps: withStepFailure(stepsAt(3, { runningPercent: 62, failedIndex: 1 }), 1),
         previewPanel: previewOf('L3', { isScanning: true, withGeometry: true }),
-        overallSummaryLine: 'Đã xong 2/4 tầng · Còn lại khoảng 3 phút',
+        overallSummaryLine: 'Đã xong 2/4 tầng',
+        remainingLine: 'Còn lại khoảng 3 phút',
         partialNoticeLine: 'Tầng 2 gặp lỗi. Các tầng còn lại vẫn đang được xử lý.',
       };
 
@@ -349,7 +351,8 @@ export function scenarioFor(state: SevenState): ProcessingScreenProps {
       return {
         ...base,
         state: 'forbidden',
-        overallSummaryLine: 'Đã xong 2/4 tầng · Còn lại khoảng 4 phút 20 giây',
+        overallSummaryLine: 'Đã xong 2/4 tầng',
+        remainingLine: 'Còn lại khoảng 4 phút 20 giây',
         canCancel: false,
       };
 

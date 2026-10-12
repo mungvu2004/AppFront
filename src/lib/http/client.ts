@@ -500,7 +500,10 @@ export const createHttpClient = ({
               ...(retryAfterMs !== null ? { retryAfterSeconds: Math.ceil(retryAfterMs / 1000) } : {}),
             });
 
+            const rateLimitIsFinal = options.failFastOnRateLimit === true && response.status === 429;
+
             if (
+              !rateLimitIsFinal &&
               shouldRetryRequest({
                 attemptIndex,
                 method,

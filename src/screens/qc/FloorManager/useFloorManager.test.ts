@@ -1553,6 +1553,66 @@ describe('BUG-515 — kho dùng chung không che tầng của dự án trên URL
     expect(mountReads).toEqual([true, false]);
   });
 
+  // R1-04: back on the screen, the cached snapshot makes it interactive at once while the mount
+  // read is still in flight. An edit made then must survive that read, with its undo history.
+  it('sửa trong lúc lượt đọc lúc gắn còn bay: bản đọc về sau không đè sửa, không xoá hoàn tác (R1-04)', async () => {
+    const first = FLOOR_MANAGER_SAMPLE_LEVELS[0];
+
+    if (first === undefined) {
+      throw new Error('Bộ mẫu không có tầng nào.');
+    }
+
+    const warm = await mountSettled();
+
+    warm.unmount();
+
+    const base = createMockFloorManagerGateway();
+    const serverGraph = createFloorManagerSampleGraph();
+    let releaseRead: (() => void) | null = null;
+    const gateway: FloorManagerGateway = {
+      ...base,
+      readFloorList: async (input) => {
+        if (input.isMountRead !== true) {
+          return base.readFloorList(input);
+        }
+
+        const floors = (await base.readFloorList(input)).floors;
+
+        await new Promise<void>((resolve) => {
+          releaseRead = resolve;
+        });
+
+        return { floorRevisions: {}, floors, fromStore: false, graph: serverGraph };
+      },
+    };
+    const mounted = await mountSettled({ gateway, queryClient: warm.queryClient });
+
+    await waitFor(() => {
+      expect(releaseRead).not.toBeNull();
+    });
+    // A write's invalidation cancels and re-runs the read; an edit whose invalidation does not
+    // reach `floor.manager` (or a failed write) leaves the stale read in flight — that is the case here.
+    vi.spyOn(mounted.queryClient, 'invalidateQueries').mockResolvedValue(undefined);
+    await commitField(mounted, String(first.id), 'name', 'Tầng sửa giữa lượt đọc');
+
+    const edited = storeGraph();
+    const pastAfterEdit = useStore.temporal.getState().pastStates.length;
+
+    expect(pastAfterEdit).toBeGreaterThan(0);
+
+    await act(async () => {
+      releaseRead?.();
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(mounted.queryClient.isFetching()).toBe(0);
+    });
+
+    expect(storeGraph()).toBe(edited);
+    expect(rowOf(mounted, String(first.id)).name).toBe('Tầng sửa giữa lượt đọc');
+    expect(useStore.temporal.getState().pastStates.length).toBe(pastAfterEdit);
+  });
+
   it('rời màn rồi quay lại (cùng bộ đệm): đọc lại và hiện tầng thêm ở nơi khác', async () => {
     if (ROOF === undefined) {
       throw new Error('Bộ mẫu không có tầng nào.');

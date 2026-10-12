@@ -126,6 +126,8 @@ export interface WriteRequestOptions extends RequestOptions {
   idempotencyKey?: string;
   /** R3 (BE-00 §7): lượt ghi này an toàn khi gửi lại. Nơi gọi bật, không phải tầng này. */
   idempotent?: boolean;
+  /** 429 trả về ngay, không tự thử lại — lượt ghi do người dùng bấm (BUG-510). Mặc định tắt. */
+  failFastOnRateLimit?: boolean;
   /**
    * Ngân sách thời gian của lượt gửi.
    *
@@ -874,16 +876,20 @@ const decodeList = <S extends ZodTypeAny>(
   return safeParseList(schema, result.data, source) as ApiResult<z.output<S>[]>;
 };
 
-type TransportWriteOptions = Pick<HttpRequestOptions, 'idempotencyKey' | 'idempotent' | 'signal' | 'timeoutMode'>;
+type TransportWriteOptions = Pick<
+  HttpRequestOptions,
+  'failFastOnRateLimit' | 'idempotencyKey' | 'idempotent' | 'signal' | 'timeoutMode'
+>;
 
 /**
- * Bốn khoá đi thẳng xuống transport, từng khoá chép khi `!== undefined`.
+ * Năm khoá đi thẳng xuống transport, từng khoá chép khi `!== undefined`.
  *
  * Trải cả `undefined` xuống sẽ dựng ra `{ idempotent: undefined }`, thứ mà
  * `exactOptionalPropertyTypes` từ chối và `toStrictEqual` trong bài kiểm bắt
  * được: "khoá vắng" và "khoá mang undefined" là hai thứ khác nhau ở đây.
  */
 const toRequestOptions = (options: WriteRequestOptions = {}): TransportWriteOptions => ({
+  ...(options.failFastOnRateLimit !== undefined ? { failFastOnRateLimit: options.failFastOnRateLimit } : {}),
   ...(options.idempotencyKey !== undefined ? { idempotencyKey: options.idempotencyKey } : {}),
   ...(options.idempotent !== undefined ? { idempotent: options.idempotent } : {}),
   ...(options.signal !== undefined ? { signal: options.signal } : {}),
