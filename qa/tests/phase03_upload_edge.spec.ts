@@ -1369,7 +1369,7 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
         const got = await answer;
         expect.soft(got?.response.status() ?? 'none', 'init on the deleted floor').toBe(404);
         const alert = trayItem(page, name).getByRole('alert');
-        await expect.soft(alert).toContainText(`${t2.name} đã bị xoá ở nơi khác; ${name} đã về khay tệp chưa gán tầng, hãy gán cho tầng khác`, { timeout: 30_000 });
+        await expect.soft(alert).toContainText(`${t2.name} đã bị xoá ở nơi khác; ${name} đã về khay tệp chưa gán tầng, hãy gán cho tầng khác.`, { timeout: 30_000 });
         await expect.soft(card(page, t2)).toHaveCount(0);
         await expect.soft(trayItem(page, name).getByRole('button', { name: RETRY, exact: true })).toHaveCount(0);
         expect.soft(initsSince(flow, mark), 'one init, no retry').toHaveLength(1);

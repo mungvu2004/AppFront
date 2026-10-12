@@ -2192,7 +2192,9 @@ describe('useFloorUploadScreen — QA-03e', () => {
     const item = result.current.tray.items.find((entry) => entry.name === 'mat-bang-tang-3.png');
 
     expect(goneName).not.toBe('');
-    expect(item?.error?.sentence).toContain(goneName);
+    expect(item?.error?.sentence).toBe(
+      `${goneName} đã bị xoá ở nơi khác; mat-bang-tang-3.png đã về khay tệp chưa gán tầng, hãy gán cho tầng khác.`,
+    );
     expect(item?.error?.isRetryable).toBe(false);
     expect(item?.assignOptions.length).toBeGreaterThan(0);
     expect(spoken.mock.calls.flat()).toContain(item?.error?.sentence);

@@ -1415,7 +1415,7 @@ function displacedSentence(fileName: string): string {
 function floorGoneSentence(floorName: string | undefined, fileName: string): string {
   const floor = floorName === undefined ? 'Tầng đã chọn' : floorName;
 
-  return `${floor} đã bị xoá ở nơi khác; ${fileName} đã về khay tệp chưa gán tầng, hãy gán cho tầng khác`;
+  return `${floor} đã bị xoá ở nơi khác; ${fileName} đã về khay tệp chưa gán tầng, hãy gán cho tầng khác.`;
 }
 
 /** Khung một tệp vừa nhận, trước khi lượt kiểm tra trả lời. */
