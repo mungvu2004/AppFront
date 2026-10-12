@@ -19,7 +19,7 @@
  *     still hydrates a graph for it (one level, `store/projectHydration.ts`), so rules / settings / export / data may
  *     show their result layout rather than an "empty" copy: those cases wait for ANY settled state of the screen and
  *     record which one in a `state` annotation (no guessed copy). SCR-32 shows "<floor> chưa có phiên bản nào"
- *     (`useVersionHistory.ts:603`) with the long floor name.
+ *     (`useVersionHistory.ts:606`) with the long floor name.
  *
  * Budget — logins: 2 real admin API logins (`signedInApi`, one per group: data states, no-layer); a browser login only
  * to replace a dead stored session (`ensureAdminSession`). A failed test starts a new worker, whose group `beforeAll`
@@ -55,7 +55,7 @@ import { ADMIN_STORAGE_STATE_FILE } from './support/state';
 import { UI_VIEWPORTS, verifyUi } from './support/ui-verify';
 
 /* Copy — every string checked in src/ (file noted). */
-/* SCR-28: RuleReport.tsx, RuleReportSummary.tsx:156, RuleReportLabels.tsx:96-99, RuleReport.container.tsx. */
+/* SCR-28: RuleReport.tsx, RuleReportSummary.tsx:157, RuleReportLabels.tsx:96-99, RuleReport.container.tsx. */
 const RULES_TITLE = 'Kiểm tra luật không gian';
 const RERUN = 'Chạy kiểm tra lại';
 const LEVEL_FILTER = 'Lọc theo mức độ';
@@ -103,7 +103,7 @@ const NO_MATCH_LABEL = '0 / 0';
 const NO_MATCH_TERM = `${TEST_DATA_PREFIX}khong-khop-khoa-nao`;
 /** `SpatialJsonViewer.container.tsx:62` NARROW_QUERY `(width < 1024px)`: the detail half is not rendered below it. */
 const DETAIL_MIN_WIDTH = 1024;
-/* SCR-32: VersionHistory.tsx, VersionCompare.tsx:49-53, VersionLabelDialog.tsx, versionHistoryModel.ts:506-510. */
+/* SCR-32: VersionHistory.tsx, VersionCompare.tsx:49-53, VersionLabelDialog.tsx, versionHistoryModel.ts:538-542. */
 const FLOOR_SELECT = 'Tầng';
 const DIFF_TABS = 'Cách xem khác biệt';
 const RIGHT_VERSION_SELECT = 'Phiên bản đối chiếu';
@@ -112,7 +112,7 @@ const LABEL_FIELD = 'Nhãn';
 const RESTORE_BUTTON = 'Phục hồi phiên bản này';
 const RESTORE_CONFIRM_TITLE = /Phục hồi phiên bản .+ của .+\?/u;
 const KEEP_AS_IS = 'Để nguyên';
-const VERSIONS_EMPTY_SUFFIX = ' chưa có phiên bản nào'; // useVersionHistory.ts:603
+const VERSIONS_EMPTY_SUFFIX = ' chưa có phiên bản nào'; // useVersionHistory.ts:606
 /** `versionHistoryCompare.ts:33-34` TEACHING_SENTENCE (one version; below 1024 also shown for zero, BUG-473). */
 const VERSIONS_ONE_PATTERN = /^Mới có một phiên bản nên chưa có gì để so sánh/u;
 

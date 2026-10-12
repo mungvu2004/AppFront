@@ -90,9 +90,9 @@ const FLOOR_HEIGHT_MM = 3_000;
 
 /* Shared gate (PSG). */
 const GATE = {
-  notFoundTitle: 'Không tìm thấy dự án này', // PSG:36
-  notFoundDescription: 'Dự án có thể đã bị xoá, đường dẫn chưa đúng, hoặc bạn chưa được thêm vào dự án.', // PSG:37-38
-  backToProjects: 'Về danh sách dự án', // PSG:39
+  notFoundTitle: 'Không tìm thấy dự án này', // PSG:37
+  notFoundDescription: 'Dự án có thể đã bị xoá, đường dẫn chưa đúng, hoặc bạn chưa được thêm vào dự án.', // PSG:38-39
+  backToProjects: 'Về danh sách dự án', // PSG:40
 } as const;
 const GENERIC_UNKNOWN_TITLE = 'Có trục trặc'; // I18N errors.unknown.title (500 → unknown, lib/errors/toAppError.ts:10-18)
 const GENERIC_UNKNOWN = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại sau ít phút.'; // I18N errors.unknown.description
@@ -601,14 +601,14 @@ test.describe('E05 SCR-23 Viewer 3D', () => {
       const notFound = waitForApi(page, 'GET', /^\/api\/projects\/[^/]+(\/spatial)?$/u, [404]);
       await page.goto(ROUTES.project.viewer(projectId));
       await notFound;
-      // PSG:73-75 status notFound → ProjectNotFound, wrapped in <main> (V3C:424 wrapFallbackInMain).
+      // PSG:74-76 status notFound → ProjectNotFound, wrapped in <main> (V3C:424 wrapFallbackInMain).
       const alert = page.getByRole('alert').filter({ hasText: GATE.notFoundTitle });
       await expect(alert).toBeVisible();
       await expect(alert).toContainText(GATE.notFoundDescription);
       await expect(viewport(page)).toHaveCount(0);
       await captureEvidence(page, 'E05_viewer_unknown_project.png');
 
-      await alert.getByRole('button', { name: GATE.backToProjects, exact: true }).click(); // PSG:56
+      await alert.getByRole('button', { name: GATE.backToProjects, exact: true }).click(); // PSG:57
       await expect.poll(() => pathOf(page)).toBe(ROUTES.dashboard);
       await expect(page.getByRole('heading', { level: 1, name: DASHBOARD_TITLE, exact: true })).toBeVisible();
       expect(writesSince(api, mark), 'an unknown project writes nothing').toEqual([]);
@@ -672,7 +672,7 @@ test.describe('E05 SCR-23 Viewer 3D', () => {
       };
       await page.route('**/api/projects/**', handler);
       await page.goto(ROUTES.project.viewer(project.id));
-      // PSG:77-90 N15 failed with no graph in the store → error EmptyState; 500 → errors.unknown (not retryable: no button).
+      // PSG:78-91 N15 failed with no graph in the store → error EmptyState; 500 → errors.unknown (not retryable: no button).
       const alert = page.getByRole('alert').filter({ hasText: GENERIC_UNKNOWN });
       await expect(alert).toBeVisible({ timeout: ERROR_PAINT_TIMEOUT_MS });
       await expect(alert).toContainText(GENERIC_UNKNOWN_TITLE);
@@ -1447,7 +1447,7 @@ test.describe('E05 SCR-27 Mobile Viewer', () => {
         const notFound = waitForApi(page, 'GET', /^\/api\/projects\/[^/]+(\/spatial)?$/u, [404]);
         await page.goto(ROUTES.mobileViewer(projectId));
         await notFound;
-        const alert = page.getByRole('alert').filter({ hasText: GATE.notFoundTitle }); // MobileViewer.container.tsx:147, PSG:73-75
+        const alert = page.getByRole('alert').filter({ hasText: GATE.notFoundTitle }); // MobileViewer.container.tsx:147, PSG:74-76
         await expect(alert).toBeVisible();
         await expect(alert.getByRole('button', { name: GATE.backToProjects, exact: true })).toBeVisible();
         await expect(mobileRegion(page)).toHaveCount(0);

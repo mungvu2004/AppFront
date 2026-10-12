@@ -6,7 +6,8 @@
  * the 508f6e65..9d4d2792 `src/i18n/vi.json` change touches no block these five screens render (project.settings,
  * scaleCalibration, explodedView), so it adds no test.
  *
- * Every expected result cites the FE source of `F:/App/AppFront` @ 508f6e65 or, written `BE:`, AppBack. Short names:
+ * Every expected result cites the FE source of `F:/App/AppFront` @ 508f6e65 (line numbers of the five screens and PSG
+ * re-mapped to the QA-06 integration 5e2d939b) or, written `BE:`, AppBack. Short names:
  *   RR   src/screens/rules/RuleReport/      (RRV RuleReport.tsx, RRC RuleReport.container.tsx, RRS RuleReportSummary.tsx,
  *        RRG RuleReportGroups.tsx, RRL RuleReportLabels.tsx, URR useRuleReport.ts)
  *   RS   src/screens/rules/RuleSettings/    (RSV RuleSettings.tsx, RSC RuleSettings.container.tsx, RSG RuleSettingsGroups.tsx,
@@ -81,7 +82,7 @@ const NARROW = { width: 768, height: 1024 } as const;
 const PHONE = { width: 375, height: 812 } as const;
 type Viewport = { readonly width: number; readonly height: number };
 
-/** A "nothing was sent" claim waits past autosave (800 ms, A7 / URS:488) plus a round trip. */
+/** A "nothing was sent" claim waits past autosave (800 ms, A7 / URS:493) plus a round trip. */
 const QUIET_MS = 2_500;
 /** react-query retries a failed read once (src/lib/query/cachePolicy.ts:79-82) before the error state paints. */
 const ERROR_PAINT_TIMEOUT_MS = 30_000;
@@ -94,9 +95,9 @@ const CHUNK_BYTES = 5 * 1024 * 1024;
 
 /* Shared gate (PSG). */
 const GATE = {
-  notFoundTitle: 'Không tìm thấy dự án này', // PSG:36
-  notFoundDescription: 'Dự án có thể đã bị xoá, đường dẫn chưa đúng, hoặc bạn chưa được thêm vào dự án.', // PSG:37-38
-  backToProjects: 'Về danh sách dự án', // PSG:39,56
+  notFoundTitle: 'Không tìm thấy dự án này', // PSG:37
+  notFoundDescription: 'Dự án có thể đã bị xoá, đường dẫn chưa đúng, hoặc bạn chưa được thêm vào dự án.', // PSG:38-39
+  backToProjects: 'Về danh sách dự án', // PSG:40,57
 } as const;
 const GENERIC_UNKNOWN = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại sau ít phút.'; // I18N errors.unknown.description
 const DASHBOARD_TITLE = 'Dự án của tôi'; // support/auth.ts DASHBOARD_TITLE (ProjectDashboard.tsx h1)
@@ -104,55 +105,55 @@ const TOAST_UNDO = 'Hoàn tác'; // components/feedback/Toast.tsx:149
 
 /* SCR-28 copy. */
 const RR = {
-  heading: 'Kiểm tra luật không gian', // RRV:285
-  rerun: 'Chạy kiểm tra lại', // RRV:302
-  settingsLink: 'Cài đặt bộ luật', // RRV:296
-  confirm: 'Xác nhận đã xử lý', // RRV:355
+  heading: 'Kiểm tra luật không gian', // RRV:287
+  rerun: 'Chạy kiểm tra lại', // RRV:305
+  settingsLink: 'Cài đặt bộ luật', // RRV:298
+  confirm: 'Xác nhận đã xử lý', // RRV:358
   doneText: 'Không phát hiện vi phạm nào.', // RRV:141
   doneCount: /^\d[\d.]* luật đã chạy trên bản vẽ này và không luật nào bắt được lỗi\.$/u, // RRV:143-144
   doneBadge: 'Lượt chạy này không có vi phạm', // RRV:147
   toExport: 'Sang bước xuất bản', // RRV:150
   errorTitle: 'Không chạy được lượt kiểm tra', // RRV:183
-  configFailed: 'Không tải được cấu hình bộ luật của dự án.', // URR:137,698
+  configFailed: 'Không tải được cấu hình bộ luật của dự án.', // URR:137,706
   retry: 'Thử lại', // RRV:188
   noPassed: 'Chưa có luật nào chạy xong mà không ra lỗi.', // RRV:211
   noMatch: 'Không có mục nào khớp bộ lọc đang đặt. Nới bộ lọc để xem thêm.', // RRV:230
-  levelFilter: 'Lọc theo mức độ', // RRS:156
-  groupSelect: 'Nhóm luật', // RRS:165
-  view: 'Xem', // RRG:140
-  columns: ['Mức độ', 'Mô tả', 'Tầng', 'Mã đối tượng'], // RRG:243-246
+  levelFilter: 'Lọc theo mức độ', // RRS:157
+  groupSelect: 'Nhóm luật', // RRS:166
+  view: 'Xem', // RRG:141
+  columns: ['Mức độ', 'Mô tả', 'Tầng', 'Mã đối tượng'], // RRG:244-247
 } as const;
 /** RRL:74-80 GROUP_LABELS (also the Settings group labels, registry.ts RULE_GROUP_LABELS:84-90). */
 const GROUP_LABELS = ['Hình học', 'Lưu thông', 'Diện tích', 'Ghi chú', 'Cao độ tầng'] as const;
 
 /* SCR-29 copy. */
 const RS = {
-  heading: 'Cài đặt bộ luật không gian', // RSV:264
-  enabledCount: /^(\d+)\/(\d+) luật đang bật$/u, // RSV:266
-  loadErrorTitle: 'Không tải được cài đặt bộ luật', // RSV:277
-  restoreDefaults: 'Khôi phục mặc định', // RSV:322
+  heading: 'Cài đặt bộ luật không gian', // RSV:267
+  enabledCount: /^(\d+)\/(\d+) luật đang bật$/u, // RSV:270
+  loadErrorTitle: 'Không tải được cài đặt bộ luật', // RSV:282
+  restoreDefaults: 'Khôi phục mặc định', // RSV:328
   nav: 'Mục cài đặt bộ luật', // RSV:136
   generalNav: 'Ngưỡng chung', // RSV:87, RSG:122
   generalHash: '#rule-settings-general-thresholds', // RSV:66 sectionIdOf + RSV:57 GENERAL_SECTION_ID
   generalField: 'Góc lệch tối đa còn coi là hai đường song song', // domain/rules/thresholdSpecs.ts:100
   disableAll:
-    'Mọi luật đều đang tắt: lượt kiểm tra sẽ không soi gì nữa và mô hình báo sạch lỗi dù chưa được kiểm lần nào.', // URS:240-241
+    'Mọi luật đều đang tắt: lượt kiểm tra sẽ không soi gì nữa và mô hình báo sạch lỗi dù chưa được kiểm lần nào.', // URS:245-246
   conflict:
     'Bộ luật vừa được đổi ở nơi khác nên thay đổi của bạn chưa được lưu. Tải lại để xem bản mới nhất.', // RSW:299-300
   reload: 'Tải lại', // RSV:186
   reloadTitle: 'Tải lại bộ luật?', // RSD:20
   reloadLater: 'Để sau', // RSD:28
   reloadConfirm: 'Bỏ thay đổi và tải lại', // RSD:31
-  groupDescriptionOff: /^\d+ luật, 0 đang bật\.$/u, // URS:764
+  groupDescriptionOff: /^\d+ luật, 0 đang bật\.$/u, // URS:780
 } as const;
 /** domain/rules/registry.ts:446-449 (WALL-THICKNESS, severity warning) and :480-481 (WALL-LENGTH). */
 const WALL_THICKNESS = { code: 'WALL-THICKNESS', name: 'Bề dày tường nằm trong khoảng dựng được' } as const;
 const WALL_LENGTH = { code: 'WALL-LENGTH', name: 'Tường đủ dài để dựng' } as const;
 /** domain/rules/thresholdSpecs.ts:130-140 — key, label, 30..200 mm; default 60 (registry.ts:391). */
 const MIN_THICKNESS = { key: 'wall.minThicknessMm', label: 'Bề dày tường tối thiểu', valid: '45' } as const;
-/** src/lib/format/sentence.ts:6-8 `lowerFirst`, as RSR:141 / RSG:67 build the switch names. */
+/** src/lib/format/sentence.ts:6-8 `lowerFirst`, as RSR:146 / RSG:67 build the switch names. */
 const lowerFirst = (text: string): string => text.charAt(0).toLocaleLowerCase('vi') + text.slice(1);
-const ruleSwitchName = (sentence: string): string => `Bật hoặc tắt luật: ${lowerFirst(sentence)}`; // RSR:141
+const ruleSwitchName = (sentence: string): string => `Bật hoặc tắt luật: ${lowerFirst(sentence)}`; // RSR:146
 const groupSwitchName = (label: string): string => `Bật hoặc tắt cả nhóm: ${lowerFirst(label)}`; // RSG:67
 const severityName = (sentence: string): string => `Mức độ của luật: ${sentence}`; // RSR:70
 
@@ -162,25 +163,25 @@ const EP = {
   options: 'Tuỳ chọn', // EPO:232
   scope: 'Phạm vi', // EPO:69
   preflight: 'Kiểm tra trước khi xuất', // EPP:26
-  history: 'Tệp đã xuất', // EPV:112
-  historyCaption: 'Chỉ trong phiên làm việc này, sẽ mất khi tải lại trang.', // EPV:118
-  redownload: 'Tải lại', // EPV:151
+  history: 'Tệp đã xuất', // EPV:123
+  historyCaption: 'Chỉ trong phiên làm việc này, sẽ mất khi tải lại trang.', // EPV:129
+  redownload: 'Tải lại', // EPV:163
   exportButton: 'Xuất', // EPT:69
-  share: 'Chia sẻ', // EPV:239 (only when SHARE_LINKS_SUPPORTED, src/lib/export/shareLink.ts:354 = false)
+  share: 'Chia sẻ', // EPV:251 (only when SHARE_LINKS_SUPPORTED, src/lib/export/shareLink.ts:354 = false)
   confidence: 'Gồm độ tin cậy từng đối tượng', // EPO:190
   noFloor: 'Chưa chọn tầng nào để xuất.', // EPG:312
   unapproved: (name: string): string => `còn 1 tầng chưa duyệt: ${name}.`, // EPG:315-317
-  unreviewed: /Còn \d[\d.]* đối tượng chưa duyệt\./u, // EPG:335 (the row also holds "Sửa")
+  unreviewed: /Còn \d[\d.]* đối tượng chưa duyệt\./u, // EPG:337 (the row also holds "Sửa")
   notApprovedBadge: 'Chưa duyệt', // EPO:83
   notApprovedCaption: 'Tầng chưa duyệt vẫn xuất được, nhưng cần chú ý trước khi gửi đi.', // EPO:88
   fix: 'Sửa', // EPP:61
   pdfBlocked: 'Chưa tải về được: dự án chưa có bộ dựng tệp PDF, mới đếm được số trang.', // EPF:34-35
   imageBlocked:
     'Chưa tải về được: ảnh cần một khung nhìn ba chiều đang mở, màn này chưa gắn với khung nhìn nào.', // EPF:38-39
-  pdfNotice: 'Hồ sơ PDF mới đếm được số trang: dự án chưa có bộ dựng tệp PDF nên chưa tải về được.', // UEP:173-174
-  imageNotice: 'Ảnh cần một khung nhìn 3D đang mở; màn này chưa được gắn với khung nhìn nào nên chưa chụp được.', // UEP:177-178
+  pdfNotice: 'Hồ sơ PDF mới đếm được số trang: dự án chưa có bộ dựng tệp PDF nên chưa tải về được.', // UEP:175-176
+  imageNotice: 'Ảnh cần một khung nhìn 3D đang mở; màn này chưa được gắn với khung nhìn nào nên chưa chụp được.', // UEP:179-180
   pdfOptions: ['Gồm mặt bằng các tầng', 'Gồm bảng danh sách phòng', 'Gồm danh sách vi phạm', 'Gồm ảnh dựng 3D'], // EPO:144-165
-  pageCount: /\d[\d.]* trang/u, // UEP:512
+  pageCount: /\d[\d.]* trang/u, // UEP:515
   imageView: 'Góc nhìn hiện tại:', // EPO:179
   imageWidth: 'chiều rộng xuất:', // EPO:182
   /** GLB:133-138 `YYYY-MM-DD_HH-mm-ss`. */
@@ -190,14 +191,14 @@ const EP = {
 /* SCR-31 copy. */
 const SJ = {
   tree: 'Cấu trúc dữ liệu không gian', // SJT:60
-  search: 'Tìm theo khoá hoặc giá trị', // SJV:92
-  previous: 'Kết quả trước', // SJV:110
-  next: 'Kết quả sau', // SJV:116
-  viewMode: 'Cách hiện cấu trúc', // SJV:137
-  copy: 'Sao chép nhánh đang chọn', // SJV:145
-  download: 'Tải xuống .json', // SJV:226 (only with onDownload, SJV:219; the route passes none, SJC:229)
+  search: 'Tìm theo khoá hoặc giá trị', // SJV:104
+  previous: 'Kết quả trước', // SJV:122
+  next: 'Kết quả sau', // SJV:128
+  viewMode: 'Cách hiện cấu trúc', // SJV:149
+  copy: 'Sao chép nhánh đang chọn', // SJV:157
+  download: 'Tải xuống .json', // SJV:241 (only with onDownload, SJV:234; the route passes none, SJC:229)
   tabs: 'Cách xem nội dung', // SJD:136
-  emptyTitle: 'Chưa có dữ liệu không gian', // SJV:39
+  emptyTitle: 'Chưa có dữ liệu không gian', // SJV:48
   emptyDescription:
     'Bản vẽ này chưa được xử lý xong, nên chưa có Spatial JSON để xem. Chạy pipeline cho tầng rồi quay lại đây.', // SJV:40-41
   validity: /^(Hợp lệ theo hợp đồng Spatial JSON — 0 lỗi\.|\d[\d.]* lỗi nghiêm trọng · \d[\d.]* cảnh báo\.)$/u, // SJM:268-270
@@ -214,20 +215,20 @@ const VH = {
   list: 'Danh sách phiên bản', // VHL:137
   checkbox: (label: string): string => `Chọn phiên bản ${label} để so sánh`, // VHL:84
   current: 'Hiện tại', // VHL:94
-  floorSelect: 'Tầng', // UVH:601
+  floorSelect: 'Tầng', // UVH:604
   narrowSelect: 'phiên bản', // VHV:111
-  emptyTitle: (floor: string): string => `${floor} chưa có phiên bản nào`, // UVH:603 (capitalizeFirst)
-  emptyDescription: 'Phiên bản được lưu khi AI ghi kết quả và khi phục hồi một bản cũ.', // VHV:70
-  listErrorTitle: 'Không tải được lịch sử phiên bản', // VHV:89
+  emptyTitle: (floor: string): string => `${floor} chưa có phiên bản nào`, // UVH:606 (capitalizeFirst)
+  emptyDescription: 'Phiên bản được lưu khi AI ghi kết quả và khi phục hồi một bản cũ.', // VHV:72
+  listErrorTitle: 'Không tải được lịch sử phiên bản', // VHV:93
   listErrorReason: 'Máy chủ chưa trả được lịch sử phiên bản của tầng này', // VHG:57
-  restore: 'Phục hồi phiên bản này', // VHV:173
-  tag: 'Gắn nhãn phiên bản này', // VHV:160
+  restore: 'Phục hồi phiên bản này', // VHV:186
+  tag: 'Gắn nhãn phiên bản này', // VHV:173
   restoreCaption:
     'Phục hồi không xoá gì: trạng thái hiện tại được giữ lại thành một phiên bản riêng, và bản phục hồi được thêm lên đầu danh sách', // VHM:473-474
   undoCleared: 'Lịch sử hoàn tác (Ctrl+Z) của mọi tầng sẽ được xoá.', // VHM:477
-  restoreTitle: (label: string, floor: string): string => `Phục hồi phiên bản ${label} của ${floor}?`, // VHM:507
-  restoreConfirm: 'Phục hồi', // VHM:509
-  restoreCancel: 'Để nguyên', // VHM:510
+  restoreTitle: (label: string, floor: string): string => `Phục hồi phiên bản ${label} của ${floor}?`, // VHM:539
+  restoreConfirm: 'Phục hồi', // VHM:541
+  restoreCancel: 'Để nguyên', // VHM:542
   restoredToast: (label: string, floor: string): string =>
     `Đã phục hồi phiên bản ${label} của ${floor}; hoàn tác được trong 8 giây`, // UVH:443 + undoTicket.ts:18 (8000 ms) + datetime.ts:48,252-254
   undoneToast: 'Đã hoàn tác lượt phục hồi', // UVH:390
@@ -240,7 +241,7 @@ const VH = {
   labelHint: 'Để trống rồi bấm Gắn nhãn là gỡ nhãn.', // VHD:42
   labelMax: 60, // VHD:14
   labelCancel: 'Huỷ', // VHD:49
-  labeledToast: 'Đã gắn nhãn', // UVH:470 (previous label = '' when unset, UVH:533)
+  labeledToast: 'Đã gắn nhãn', // UVH:470 (previous label = '' when unset, UVH:534)
 } as const;
 
 /* SCR-32 diff tabs (VHX:205-213 renders TABS Tabs.Root/List/Tab). */
@@ -516,13 +517,13 @@ async function openProjectRoute(page: Page, url: string, projectId: string): Pro
 }
 
 const levelFilter = (page: Page): Locator => page.getByRole('radiogroup', { name: RR.levelFilter, exact: true });
-/** RRG:90-107 the group toggle is a button inside an `<h3>`. */
+/** RRG:90-108 the group toggle is a button inside an `<h3>`. */
 const groupExpanders = (page: Page): Locator => page.getByRole('heading', { level: 3 }).getByRole('button');
 const summaryValue = (page: Page, label: string): Locator =>
   page
     .locator('dl > div')
     .filter({ has: page.locator('dt').filter({ hasText: new RegExp(`^${label}$`, 'u') }) })
-    .locator('dd'); // RRS:55-62,79-84
+    .locator('dd'); // RRS:55-62,80-85
 
 async function openRules(page: Page, projectId: string): Promise<void> {
   await openProjectRoute(page, ROUTES.project.rules(projectId), projectId);
@@ -606,8 +607,8 @@ test.describe('E06 project gate', () => {
       const projectId = `prj_qa-e06-${uniq()}`;
       const mark = api.length;
       const routes: readonly (readonly [string, string])[] = [
-        ['rules', ROUTES.project.rules(projectId)], // RRC:223-230
-        ['rulesettings', ROUTES.project.ruleSettings(projectId)], // RSC:147-155
+        ['rules', ROUTES.project.rules(projectId)], // RRC:232-240
+        ['rulesettings', ROUTES.project.ruleSettings(projectId)], // RSC:157-170
         ['export', ROUTES.project.export(projectId)], // EP ExportPanel.container.tsx:220-229
         ['data', ROUTES.project.data(projectId)], // SJC:227-231
         ['versions', ROUTES.project.versions(projectId)], // VHC:246-252
@@ -615,7 +616,7 @@ test.describe('E06 project gate', () => {
       let alert: Locator | null = null;
       for (const [slug, url] of routes) {
         await page.goto(url);
-        alert = page.getByRole('alert').filter({ hasText: GATE.notFoundTitle }); // PSG:47-60,73-75
+        alert = page.getByRole('alert').filter({ hasText: GATE.notFoundTitle }); // PSG:48-61,74-76
         await expect(alert).toBeVisible();
         await expect(alert).toContainText(GATE.notFoundDescription);
         await captureEvidence(page, `E06_unknown_project_${slug}.png`);
@@ -638,21 +639,21 @@ test.describe('E06 SCR-28 Rule Report', () => {
       const { page } = admin;
       const project = await bareProject(admin, 'rules-done');
       await openRules(page, project.id);
-      // URR:585 no violation → 'done'; RRV:203-205,138-153 DonePanel; RRV:271 canFilter false in 'done'.
+      // URR:593 no violation → 'done'; RRV:203-205,138-153 DonePanel; RRV:271 canFilter false in 'done'.
       await expect(page.getByText(RR.doneText, { exact: true })).toBeVisible();
       await expect(page.getByText(RR.doneCount)).toBeVisible();
       await expect(page.getByText(RR.doneBadge, { exact: true })).toBeVisible();
       await expect(levelFilter(page)).toHaveCount(0);
       expect(await settledInt(summaryValue(page, 'Vi phạm')), 'Vi phạm').toBe(0);
-      // RRV:348-357 footer button enabled when violations = 0.
+      // RRV:351-360 footer button enabled when violations = 0.
       await expect(page.getByRole('button', { name: RR.confirm, exact: true })).toBeEnabled();
       await captureEvidence(page, 'E06_rules_done.png');
 
-      await page.getByRole('button', { name: RR.toExport, exact: true }).click(); // URR:660-666
+      await page.getByRole('button', { name: RR.toExport, exact: true }).click(); // URR:668-674
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.export(project.id));
       await page.goBack();
       await expect(page.getByRole('heading', { name: RR.heading, level: 2 })).toBeVisible();
-      await page.getByRole('button', { name: RR.confirm, exact: true }).click(); // RRV:353 onConfirmResolved
+      await page.getByRole('button', { name: RR.confirm, exact: true }).click(); // RRV:356 onConfirmResolved
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.export(project.id));
       await expect(page.getByRole('radiogroup', { name: EP.formats, exact: true })).toBeVisible();
       await captureEvidence(page, 'E06_rules_done_to_export.png');
@@ -664,23 +665,23 @@ test.describe('E06 SCR-28 Rule Report', () => {
       const { page } = admin;
       const project = await qcProject(admin, 'rules-passed');
       await openRules(page, project.id);
-      await expect(levelFilter(page)).toBeVisible(); // RRV:312 ready/partial
+      await expect(levelFilter(page)).toBeVisible(); // RRV:315 ready/partial
       const passed = await settledInt(summaryValue(page, 'Đạt'));
 
       const passedRadio = levelFilter(page).getByRole('radio', { name: 'Đạt', exact: true }); // RRL:95-100
       await passedRadio.click();
       await expect(passedRadio).toHaveAttribute('aria-checked', 'true');
-      // RRV:207-213: the passed list replaces the groups; RRG:342-353 one <li> per rule: name + group label.
+      // RRV:207-213: the passed list replaces the groups; RRG:344-355 one <li> per rule: name + group label.
       await expect(groupExpanders(page)).toHaveCount(0);
       const passedItems = page.getByRole('listitem').filter({ hasText: new RegExp(`(${GROUP_LABELS.join('|')})$`, 'u') });
       if (passed === 0) await expect(page.getByText(RR.noPassed, { exact: true })).toBeVisible();
-      else await expect(passedItems).toHaveCount(passed); // URR:531-552 = ranRuleCodes − failed = summary.passed (URR:472)
+      else await expect(passedItems).toHaveCount(passed); // URR:539-560 = ranRuleCodes − failed = summary.passed (URR:480)
       await captureEvidence(page, 'E06_rules_filter_passed.png');
 
       const warningRadio = levelFilter(page).getByRole('radio', { name: 'Cảnh báo', exact: true });
       await warningRadio.click();
       await expect(warningRadio).toHaveAttribute('aria-checked', 'true');
-      // URR:507-513 'warning' drops critical rows; RRG:317 a group summary starts with its severity label.
+      // URR:515-521 'warning' drops critical rows; RRG:319 a group summary starts with its severity label.
       const summaries = await groupExpanders(page).allInnerTexts();
       expect(summaries.filter((text) => text.includes('Nghiêm trọng ·')), 'critical groups under "Cảnh báo"').toEqual([]);
       if (summaries.length === 0) await expect(page.getByText(RR.noMatch, { exact: true })).toBeVisible();
@@ -702,7 +703,7 @@ test.describe('E06 SCR-28 Rule Report', () => {
       await group.click();
       await page.getByRole('option', { name: 'Cao độ tầng', exact: true }).click();
       await expect(group).toContainText('Cao độ tầng');
-      // RRV:227-232 isFiltered (URR:693-696) → the filter sentence, not "Không còn mục nào…".
+      // RRV:227-232 isFiltered (URR:701-704) → the filter sentence, not "Không còn mục nào…".
       await expect(page.getByText(RR.noMatch, { exact: true })).toBeVisible();
       await expect(groupExpanders(page)).toHaveCount(0);
       await captureEvidence(page, 'E06_rules_filter_no_match.png');
@@ -719,15 +720,15 @@ test.describe('E06 SCR-28 Rule Report', () => {
       const section = page.locator('section').filter({ has: expander });
       await expander.focus();
       await page.keyboard.press('Enter');
-      await expect(expander).toHaveAttribute('aria-expanded', 'true'); // RRG:93,111
+      await expect(expander).toHaveAttribute('aria-expanded', 'true'); // RRG:93,112
       for (const name of RR.columns) {
-        await expect(section.getByRole('columnheader', { name, exact: true })).toBeVisible(); // RRG:243-246
+        await expect(section.getByRole('columnheader', { name, exact: true })).toBeVisible(); // RRG:244-247
       }
       await expect(section.getByRole('button', { name: RR.view, exact: true }).first()).toBeVisible();
       await captureEvidence(page, 'E06_rules_group_keyboard_open.png');
       await page.keyboard.press('Enter');
       await expect(expander).toHaveAttribute('aria-expanded', 'false');
-      await expect(section.getByRole('columnheader')).toHaveCount(0); // RRG:111 body not rendered when closed
+      await expect(section.getByRole('columnheader')).toHaveCount(0); // RRG:112 body not rendered when closed
       await captureEvidence(page, 'E06_rules_group_keyboard_closed.png');
     });
   });
@@ -738,7 +739,7 @@ test.describe('E06 SCR-28 Rule Report', () => {
       const project = await qcProject(admin, 'rules-rerun');
       await openRules(page, project.id);
       const mark = api.length;
-      await page.getByRole('button', { name: RR.rerun, exact: true }).click(); // URR:632-647 query.refetch → runRules
+      await page.getByRole('button', { name: RR.rerun, exact: true }).click(); // URR:640-655 query.refetch → runRules
       await expect(page.getByRole('button', { name: RR.rerun, exact: true })).toBeEnabled();
       await quiet(page);
       const sent = api
@@ -747,7 +748,7 @@ test.describe('E06 SCR-28 Rule Report', () => {
         .filter((entry) => entry.method !== 'GET' || spatialRe(project.id).test(entry.path))
         .map((entry) => `${entry.method} ${entry.path}`);
       expect(sent, 'a re-run neither writes nor re-reads the model').toEqual([]);
-      // Observed (run-25-author): one GET rule-config right after the click. URR:632-647 does not refetch the config;
+      // Observed (run-25-author): one GET rule-config right after the click. URR:640-655 does not refetch the config;
       // react-query's focus refetch of the stale config query (the click focuses the page) is the likely source — recorded,
       // not asserted.
       const configReads = api.slice(mark).filter((entry) => entry.method === 'GET' && entry.path.endsWith('/rule-config')).length;
@@ -759,7 +760,7 @@ test.describe('E06 SCR-28 Rule Report', () => {
       await expander.click();
       await expect(expander).toHaveAttribute('aria-expanded', 'true');
       await page.locator('section').filter({ has: expander }).getByRole('button', { name: RR.view, exact: true }).first().click();
-      await expect.poll(() => pathOf(page)).toBe(ROUTES.project.viewer(project.id)); // URR:624-630
+      await expect.poll(() => pathOf(page)).toBe(ROUTES.project.viewer(project.id)); // URR:632-638
       await page.goBack();
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.rules(project.id));
       await expect(page.getByRole('heading', { name: RR.heading, level: 2 })).toBeVisible();
@@ -778,7 +779,7 @@ test.describe('E06 SCR-28 Rule Report', () => {
       // BE:apps/api/rules/catalog.py:19-25 knows the code; revision 0 on a fresh project (rules/schemas.py:61-62).
       expect(await putRuleConfig(admin, project.id, 0, { [WALL_LENGTH.code]: { enabled: false } }), 'N22 PUT').toBe(200);
       await openRules(page, project.id);
-      // URR:380-389 the registry follows the config; URR:470-471 evaluated = rules that ran.
+      // URR:380-389 the registry follows the config; URR:478-479 evaluated = rules that ran.
       const after = await settledInt(summaryValue(page, 'Tổng số kiểm tra'));
       expect(after, 'Tổng số kiểm tra after switching WALL-LENGTH off').toBe(before - 1);
       await captureEvidence(page, 'E06_rules_config_applied.png', { caption: `Tổng số kiểm tra ${String(before)} → ${String(after)}` });
@@ -794,7 +795,7 @@ test.describe('E06 SCR-28 Rule Report', () => {
       const handler = failGet(ruleConfigRe(project.id), counter);
       await page.route('**/api/projects/**', handler);
       await openProjectRoute(page, ROUTES.project.rules(project.id), project.id);
-      // URR:569-571 configQuery.isLoadingError → 'error'; RRV:179-191; URR:698 errorMessage.
+      // URR:577-579 configQuery.isLoadingError → 'error'; RRV:179-191; URR:706 errorMessage.
       await expect(page.getByText(RR.errorTitle, { exact: true })).toBeVisible({ timeout: ERROR_PAINT_TIMEOUT_MS });
       await expect(page.getByText(RR.configFailed, { exact: true })).toBeVisible();
       await expect(levelFilter(page)).toHaveCount(0);
@@ -802,7 +803,7 @@ test.describe('E06 SCR-28 Rule Report', () => {
 
       await page.unroute('**/api/projects/**', handler);
       const reread = waitForApi(page, 'GET', ruleConfigRe(project.id), [200]);
-      await page.getByRole('button', { name: RR.retry, exact: true }).click(); // URR:635-637 refetch the config
+      await page.getByRole('button', { name: RR.retry, exact: true }).click(); // URR:643-645 refetch the config
       await reread;
       await expect(page.getByText(RR.errorTitle, { exact: true })).toHaveCount(0);
       await expect(levelFilter(page).or(page.getByText(RR.doneText, { exact: true })).first()).toBeVisible();
@@ -831,13 +832,13 @@ test.describe('E06 SCR-29 Rule Settings', () => {
       expect(asRecord(offOverrides[WALL_THICKNESS.code], WALL_THICKNESS.code).enabled).toBe(false); // RSW:167-185
       const offRevision = asRecord((await off).json, 'PUT answer').revision;
 
-      // URS:928-934 label + "." → RSC:160-166 appNotificationBus toast with the undo ticket.
+      // URS:945-951 label + "." → RSC:175-181 appNotificationBus toast with the undo ticket.
       const offToast = toast(page, `Tắt luật ${WALL_THICKNESS.name}.`);
       await expect(offToast).toBeVisible();
       await captureEvidence(page, 'E06_rulesettings_toggle_toast.png');
 
       const back = waitForApi(page, 'PUT', ruleConfigRe(project.id), [200], AUTOSAVE_TIMEOUT_MS);
-      await offToast.getByRole('button', { name: TOAST_UNDO, exact: true }).click(); // URS:672-686 undo → notifyChange
+      await offToast.getByRole('button', { name: TOAST_UNDO, exact: true }).click(); // URS:687-702 undo → notifyChange
       await expect(ruleSwitch).toHaveAttribute('aria-checked', 'true');
       const backSent = asRecord((await back).response.request().postDataJSON(), 'PUT rule-config (undo)');
       expect(backSent.baseVersion, 'undo PUT builds on the first answer').toBe(offRevision);
@@ -873,8 +874,8 @@ test.describe('E06 SCR-29 Rule Settings', () => {
       await typeHeight(field, MIN_THICKNESS.valid);
       const sent = asRecord((await put).response.request().postDataJSON(), 'PUT rule-config (threshold)');
       const override = asRecord(asRecord(asRecord(sent.body, 'body').overrides, 'overrides')[WALL_THICKNESS.code], WALL_THICKNESS.code);
-      expect(asRecord(override.thresholds, 'thresholds')[MIN_THICKNESS.key]).toBe(Number(MIN_THICKNESS.valid)); // URS:962-999
-      await expect(toast(page, `Đổi ngưỡng ${MIN_THICKNESS.label}.`)).toBeVisible(); // URS:996-998
+      expect(asRecord(override.thresholds, 'thresholds')[MIN_THICKNESS.key]).toBe(Number(MIN_THICKNESS.valid)); // URS:979-1016
+      await expect(toast(page, `Đổi ngưỡng ${MIN_THICKNESS.label}.`)).toBeVisible(); // URS:1013-1015
       await captureEvidence(page, 'E06_rulesettings_threshold_saved.png');
       await attachJson('E06_rulesettings_threshold.json', { before, refused: ['250', '10'], saved: sent });
     });
@@ -893,7 +894,7 @@ test.describe('E06 SCR-29 Rule Settings', () => {
       await expect(severity).toContainText('Gợi ý');
       const sent = asRecord((await put).response.request().postDataJSON(), 'PUT rule-config (severity)');
       const override = asRecord(asRecord(asRecord(sent.body, 'body').overrides, 'overrides')[WALL_THICKNESS.code], WALL_THICKNESS.code);
-      expect(override.severity).toBe('suggestion'); // URS:946-953, RSW:175
+      expect(override.severity).toBe('suggestion'); // URS:963-970, RSW:175
       await expect(toast(page, `Đổi mức của luật ${WALL_THICKNESS.name}.`)).toBeVisible();
       await captureEvidence(page, 'E06_rulesettings_severity.png');
       await attachJson('E06_rulesettings_severity.json', { sent });
@@ -911,24 +912,24 @@ test.describe('E06 SCR-29 Rule Settings', () => {
       const geometry = page.getByRole('region', { name: GROUP_LABELS[0], exact: true }); // RSG:53-58 aria-labelledby h3
       await page.getByRole('switch', { name: groupSwitchName(GROUP_LABELS[0]), exact: true }).click(); // RSG:66-73
       await expect(geometry.getByRole('switch', { name: /^Bật hoặc tắt luật: /u, checked: true })).toHaveCount(0);
-      await expect(geometry.getByText(RS.groupDescriptionOff)).toBeVisible(); // URS:764
-      await expect(toast(page, `Tắt nhóm ${lowerFirst(GROUP_LABELS[0])}.`)).toBeVisible(); // URS:937-943
+      await expect(geometry.getByText(RS.groupDescriptionOff)).toBeVisible(); // URS:780
+      await expect(toast(page, `Tắt nhóm ${lowerFirst(GROUP_LABELS[0])}.`)).toBeVisible(); // URS:954-960
       await captureEvidence(page, 'E06_rulesettings_group_off.png');
 
       for (const label of GROUP_LABELS.slice(1)) {
         const groupSwitch = page.getByRole('switch', { name: groupSwitchName(label), exact: true });
-        if ((await groupSwitch.count()) === 0) continue; // URS:750-755 a group without rules is not rendered
+        if ((await groupSwitch.count()) === 0) continue; // URS:766-771 a group without rules is not rendered
         await groupSwitch.click();
         await expect(groupSwitch).toHaveAttribute('aria-checked', 'false');
       }
       const lastOff = waitForApi(page, 'PUT', ruleConfigRe(project.id), [200], AUTOSAVE_TIMEOUT_MS);
-      await expect(page.getByText(RS.disableAll, { exact: true })).toBeVisible(); // URS:890, RSV:190-192
-      await expect.poll(async () => (await header.innerText()).trim()).toBe(`0/${String(total)} luật đang bật`); // RSV:266
+      await expect(page.getByText(RS.disableAll, { exact: true })).toBeVisible(); // URS:907, RSV:190-192
+      await expect.poll(async () => (await header.innerText()).trim()).toBe(`0/${String(total)} luật đang bật`); // RSV:270
       await lastOff;
       await captureEvidence(page, 'E06_rulesettings_all_off.png');
 
       const reset = waitForApi(page, 'PUT', ruleConfigRe(project.id), [200], AUTOSAVE_TIMEOUT_MS);
-      await page.getByRole('button', { name: RS.restoreDefaults, exact: true }).click(); // URS:1059-1062
+      await page.getByRole('button', { name: RS.restoreDefaults, exact: true }).click(); // URS:1076-1079
       const resetSent = asRecord((await reset).response.request().postDataJSON(), 'PUT rule-config (reset)');
       expect(asRecord(resetSent.body, 'body').overrides, 'defaults = no override').toEqual({});
       await expect(page.getByText(RS.disableAll, { exact: true })).toHaveCount(0);
@@ -950,13 +951,13 @@ test.describe('E06 SCR-29 Rule Settings', () => {
       await page.getByRole('switch', { name: ruleSwitchName(WALL_THICKNESS.name), exact: true }).click();
       const conflict = await rejected;
       expect(asRecord(conflict.json, '409').code).toBe('VERSION_CONFLICT');
-      await expect(page.getByText(RS.conflict, { exact: true })).toBeVisible(); // URS:573-576, RSW:316-327, RSV:182-188
+      await expect(page.getByText(RS.conflict, { exact: true })).toBeVisible(); // URS:578-581, RSW:316-327, RSV:182-188
       await captureEvidence(page, 'E06_rulesettings_conflict.png');
 
-      await page.getByRole('button', { name: RS.reload, exact: true }).click(); // URS:632-639 unsaved edits → ask first
+      await page.getByRole('button', { name: RS.reload, exact: true }).click(); // URS:645-652 unsaved edits → ask first
       const dialog = page.getByRole('dialog').filter({ hasText: RS.reloadTitle });
       await expect(dialog).toBeVisible();
-      await dialog.getByRole('button', { name: RS.reloadLater, exact: true }).click(); // URS:646-648
+      await dialog.getByRole('button', { name: RS.reloadLater, exact: true }).click(); // URS:659-661
       await expect(dialog).toHaveCount(0);
       await expect(page.getByText(RS.conflict, { exact: true })).toBeVisible();
 
@@ -964,11 +965,11 @@ test.describe('E06 SCR-29 Rule Settings', () => {
       await expect(dialog).toBeVisible();
       await captureEvidence(page, 'E06_rulesettings_reload_dialog.png');
       const reread = waitForApi(page, 'GET', ruleConfigRe(project.id), [200]);
-      await dialog.getByRole('button', { name: RS.reloadConfirm, exact: true }).click(); // URS:641-644 → reload → hydrate
+      await dialog.getByRole('button', { name: RS.reloadConfirm, exact: true }).click(); // URS:654-657 → reload → hydrate
       await reread;
       await expect(page.getByRole('switch', { name: ruleSwitchName(WALL_LENGTH.name), exact: true })).toHaveAttribute('aria-checked', 'false');
       await expect(page.getByRole('switch', { name: ruleSwitchName(WALL_THICKNESS.name), exact: true })).toHaveAttribute('aria-checked', 'true');
-      await expect(page.getByText(RS.conflict, { exact: true })).toHaveCount(0); // URS:626 setSaveProblem(null)
+      await expect(page.getByText(RS.conflict, { exact: true })).toHaveCount(0); // URS:639 setSaveProblem(null)
       await captureEvidence(page, 'E06_rulesettings_reloaded.png');
       await attachJson('E06_rulesettings_conflict.json', { rejected: conflict.json });
     });
@@ -998,14 +999,14 @@ test.describe('E06 SCR-29 Rule Settings', () => {
       const { page } = admin;
       const project = await bareProject(admin, 'settings-flush');
       await openRules(page, project.id);
-      await page.getByRole('link', { name: RR.settingsLink, exact: true }).click(); // RRC:153-162 SPA navigation
+      await page.getByRole('link', { name: RR.settingsLink, exact: true }).click(); // RRC:154-163 SPA navigation
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.ruleSettings(project.id));
       const ruleSwitch = page.getByRole('switch', { name: ruleSwitchName(WALL_THICKNESS.name), exact: true });
       await expect(ruleSwitch).toBeEnabled();
 
       const put = waitForApi(page, 'PUT', ruleConfigRe(project.id), [200], AUTOSAVE_TIMEOUT_MS);
       await ruleSwitch.click();
-      await page.goBack(); // URS:587-614 unmount while pending → flush.pending + saveNow
+      await page.goBack(); // URS:592-619 unmount while pending → flush.pending + saveNow
       const { response } = await put;
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.rules(project.id));
       await openSettings(page, project.id);
@@ -1023,7 +1024,7 @@ test.describe('E06 SCR-29 Rule Settings', () => {
       const handler = failGet(ruleConfigRe(project.id), counter);
       await page.route('**/api/projects/**', handler);
       await openProjectRoute(page, ROUTES.project.ruleSettings(project.id), project.id);
-      // URS:844-846 'error'; URS:871-877 describeError(500 → unknown); RSV:274-282.
+      // URS:857-859 'error'; URS:888-894 describeError(500 → unknown); RSV:279-288.
       await expect(page.getByText(RS.loadErrorTitle, { exact: true })).toBeVisible({ timeout: ERROR_PAINT_TIMEOUT_MS });
       await expect(page.getByText(GENERIC_UNKNOWN, { exact: true })).toBeVisible();
       await expect(page.getByRole('switch')).toHaveCount(0);
@@ -1054,27 +1055,27 @@ test.describe('E06 SCR-30 Export Panel', () => {
       await selectFormat(page, '.json');
       await expandOptions(page);
       const confidence = page.getByRole('checkbox', { name: EP.confidence, exact: true });
-      await expect(confidence).toBeChecked(); // UEP:234 default true
+      await expect(confidence).toBeChecked(); // UEP:236 default true
       await setBox(confidence, false);
 
       const exportButton = page.getByRole('button', { name: EP.exportButton, exact: true });
       const plain = await downloadVia(page, () => exportButton.click());
       const plainName = plain.suggestedFilename();
-      // EPG:877-879 `<slug>_<GLB stamp>.json`.
+      // EPG:883-885 `<slug>_<GLB stamp>.json`.
       expect(plainName).toMatch(new RegExp(`^${escapeRegExp(fileSlug(project.name))}_${EP.stamp}\\.json$`, 'u'));
       const plainPath = testInfo.outputPath(`plain-${plainName}`);
       await plain.saveAs(plainPath);
       const plainText = readFileSync(plainPath, 'utf8');
       const plainJson = asRecord(JSON.parse(plainText), 'exported json');
       expect(Array.isArray(plainJson.walls) && plainJson.walls.length > 0, 'walls exported').toBe(true);
-      expect(plainText.includes('"confidence"'), 'no confidence key (EPG:398-406,419-430)').toBe(false);
+      expect(plainText.includes('"confidence"'), 'no confidence key (EPG:404-412,425-436)').toBe(false);
 
       const history = page.getByRole('region', { name: EP.history, exact: true });
       await expect(history).toContainText(plainName);
-      await expect(history.getByText(EP.historyCaption, { exact: true })).toBeVisible(); // EPV:117-119 canPersistHistory false
+      await expect(history.getByText(EP.historyCaption, { exact: true })).toBeVisible(); // EPV:128-130 canPersistHistory false
       await captureEvidence(page, 'E06_export_json_no_confidence.png');
 
-      const again = await downloadVia(page, () => history.getByRole('button', { name: EP.redownload, exact: true }).first().click()); // UEP:687-696
+      const again = await downloadVia(page, () => history.getByRole('button', { name: EP.redownload, exact: true }).first().click()); // UEP:690-699
       expect(again.suggestedFilename()).toBe(plainName);
 
       await setBox(confidence, true);
@@ -1084,7 +1085,7 @@ test.describe('E06 SCR-30 Export Panel', () => {
       expect(readFileSync(fullPath, 'utf8').includes('"confidence"'), 'confidence kept when checked').toBe(true);
 
       await openExport(page, project.id); // a new document: the gateway (and its session history) is new
-      await expect(page.getByRole('region', { name: EP.history, exact: true })).toHaveCount(0); // EPV:106-108 no files → null
+      await expect(page.getByRole('region', { name: EP.history, exact: true })).toHaveCount(0); // EPV:117-119 no files → null
       await captureEvidence(page, 'E06_export_history_after_reload.png');
       await attachJson('E06_export_json_no_confidence.json', {
         withoutConfidence: plainName,
@@ -1109,7 +1110,7 @@ test.describe('E06 SCR-30 Export Panel', () => {
         downloads += 1;
       });
       const mark = api.length;
-      await page.getByRole('button', { name: EP.exportButton, exact: true }).click(); // UEP:669-671 returns early
+      await page.getByRole('button', { name: EP.exportButton, exact: true }).click(); // UEP:672-674 returns early
       await quiet(page);
       expect(downloads, 'no download without a floor').toBe(0);
       await expect(page.getByRole('progressbar')).toHaveCount(0); // EPT:31-58 no run
@@ -1145,20 +1146,20 @@ test.describe('E06 SCR-30 Export Panel', () => {
       const { page } = admin;
       const project = await qcProject(admin, 'export-blocked');
       await openExport(page, project.id);
-      await expect(page.getByRole('button', { name: EP.share, exact: true })).toHaveCount(0); // EPV:237, UEP:716
+      await expect(page.getByRole('button', { name: EP.share, exact: true })).toHaveCount(0); // EPV:249, UEP:719
       await expandOptions(page);
 
       const png = await selectFormat(page, '.png');
       await expect(png).toContainText(EP.imageBlocked); // EPF:47-57,124
-      await expect(page.getByText(EP.imageNotice, { exact: true })).toBeVisible(); // UEP:585-587, EPV:244
+      await expect(page.getByText(EP.imageNotice, { exact: true })).toBeVisible(); // UEP:588-590, EPV:256
       await expect(page.getByRole('button', { name: EP.exportButton, exact: true })).toHaveCount(0); // EPT:64
       await expect(page.getByText(EP.imageView)).toBeVisible(); // EPO:175-185
       await expect(page.getByText(EP.imageWidth)).toBeVisible();
       await captureEvidence(page, 'E06_export_png_blocked.png');
 
       const pdf = await selectFormat(page, '.pdf');
-      await expect(pdf).toContainText(EP.pageCount); // UEP:512
-      await expect(page.getByText(EP.pdfNotice, { exact: true })).toBeVisible(); // UEP:581-583
+      await expect(pdf).toContainText(EP.pageCount); // UEP:515
+      await expect(page.getByText(EP.pdfNotice, { exact: true })).toBeVisible(); // UEP:584-586
       for (const label of EP.pdfOptions) await expect(page.getByRole('checkbox', { name: label, exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: EP.exportButton, exact: true })).toHaveCount(0);
       await captureEvidence(page, 'E06_export_pdf_options.png');
@@ -1190,7 +1191,7 @@ test.describe('E06 SCR-30 Export Panel', () => {
       const rows = await preflight.getByRole('listitem').allInnerTexts();
       await captureEvidence(page, 'E06_export_preflight.png');
 
-      await approval.getByRole('link', { name: EP.fix, exact: true }).click(); // EPP:43-62 → UEP:699-708 → navigate
+      await approval.getByRole('link', { name: EP.fix, exact: true }).click(); // EPP:43-63 → UEP:702-711 → navigate
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.floors(project.id)); // EPG:319
       await openExport(page, project.id);
       await page
@@ -1199,7 +1200,7 @@ test.describe('E06 SCR-30 Export Panel', () => {
         .filter({ hasText: EP.unreviewed })
         .getByRole('link', { name: EP.fix, exact: true })
         .click();
-      await expect.poll(() => pathOf(page)).toBe(ROUTES.project.objects(project.id, floor.id)); // EPG:336-339
+      await expect.poll(() => pathOf(page)).toBe(ROUTES.project.objects(project.id, floor.id)); // EPG:338-341
       // BUG-469: the shot shows the destination screen, not its lazy-route skeleton ("Đang tải màn hình...").
       await expect(page.getByRole('region', { name: 'Lớp đối tượng', exact: true })).toBeVisible();
       await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
@@ -1217,14 +1218,14 @@ test.describe('E06 SCR-31 Spatial JSON Viewer', () => {
       const { page, api } = admin;
       const project = await bareProject(admin, 'data-empty');
       await openData(page, project.id);
-      // USJ:158-164 entityCount 0 → 'empty'; SJV:187-194.
+      // USJ:161-167 entityCount 0 → 'empty'; SJV:201-208.
       await expect(page.getByText(SJ.emptyTitle, { exact: true })).toBeVisible();
       await expect(page.getByText(SJ.emptyDescription, { exact: true })).toBeVisible();
-      await expect(page.getByText(SJ.validity)).toHaveCount(0); // SJV:152 no validity line when empty
+      await expect(page.getByText(SJ.validity)).toHaveCount(0); // SJV:164 no validity line when empty
       await expect(page.getByText(SJ.emptyCounts, { exact: true })).toBeVisible(); // SJM:238-250
-      await expect(page.getByRole('button', { name: SJ.download, exact: true })).toHaveCount(0); // SJV:219, SJC:229
+      await expect(page.getByRole('button', { name: SJ.download, exact: true })).toHaveCount(0); // SJV:234, SJC:229
       const mark = api.length;
-      await page.getByRole('button', { name: SJ.copy, exact: true }).click(); // USJ:254-260 no onCopy → no-op
+      await page.getByRole('button', { name: SJ.copy, exact: true }).click(); // USJ:258-264 no onCopy → no-op
       await quiet(page);
       expect(writesSince(api, mark)).toEqual([]);
       await expect(page.getByText(SJ.emptyTitle, { exact: true })).toBeVisible();
@@ -1239,24 +1240,24 @@ test.describe('E06 SCR-31 Spatial JSON Viewer', () => {
       await openData(page, project.id);
       const tree = page.getByRole('tree', { name: SJ.tree, exact: true });
       await expect(tree.getByRole('treeitem').first()).toBeVisible();
-      const validity = (await page.getByText(SJ.validity).innerText()).trim(); // SJV:153-156
-      const counts = (await page.getByText(/^\d+ tầng · /u).innerText()).trim(); // SJV:217
+      const validity = (await page.getByText(SJ.validity).innerText()).trim(); // SJV:165-168
+      const counts = (await page.getByText(/^\d+ tầng · /u).innerText()).trim(); // SJV:232
 
       const search = page.getByRole('textbox', { name: SJ.search, exact: true });
       await search.fill(SJ.room);
-      const label = page.getByText(/^\d[\d.]* \/ [\d.]+$/u); // USJ:173-183, SJV:102-106
+      const label = page.getByText(/^\d[\d.]* \/ [\d.]+$/u); // USJ:176-187, SJV:114-118
       await expect(label).toHaveText(/^1 \/ [1-9][\d.]*$/u);
-      // USJ:125-139 matches open their ancestors; SJT:74 a match row is flashed.
+      // USJ:128-142 matches open their ancestors; SJT:74 a match row is flashed.
       const match = tree.getByRole('treeitem').filter({ hasText: new RegExp(escapeRegExp(SJ.room), 'iu') }).first();
       await expect(match).toBeVisible();
-      await page.getByRole('button', { name: SJ.next, exact: true }).click(); // USJ:213-234 selects the next match
+      await page.getByRole('button', { name: SJ.next, exact: true }).click(); // USJ:217-238 selects the next match
       const selected = tree.getByRole('treeitem', { selected: true });
       await expect(selected).toHaveCount(1);
       await expect(selected).toContainText(new RegExp(escapeRegExp(SJ.room), 'iu'));
       await captureEvidence(page, 'E06_data_search_match.png');
 
       await search.fill('qa-khong-co-khoa-nay');
-      await expect(label).toHaveText('0 / 0'); // USJ:178-180
+      await expect(label).toHaveText('0 / 0'); // USJ:182-184
       await page.getByRole('button', { name: SJ.previous, exact: true }).click();
       await page.getByRole('button', { name: SJ.next, exact: true }).click();
       await expect(label).toHaveText('0 / 0');
@@ -1304,7 +1305,7 @@ test.describe('E06 SCR-31 Spatial JSON Viewer', () => {
       const { page } = admin;
       const project = await qcProject(admin, 'data-raw');
       await openData(page, project.id);
-      const modes = page.getByRole('radiogroup', { name: SJ.viewMode, exact: true }); // SJV:136-141
+      const modes = page.getByRole('radiogroup', { name: SJ.viewMode, exact: true }); // SJV:148-153
       const tabs = page.getByRole('tablist', { name: SJ.tabs, exact: true });
       const jsonTab = tabs.getByRole('tab', { name: 'JSON', exact: true });
       const previewTab = tabs.getByRole('tab', { name: 'Xem trước', exact: true });
@@ -1322,7 +1323,7 @@ test.describe('E06 SCR-31 Spatial JSON Viewer', () => {
       await expect(firstWall).toHaveAttribute('aria-selected', 'true');
       await modes.getByRole('radio', { name: 'Thô', exact: true }).click();
       await previewTab.click();
-      // SJV:207 activeTabId = raw ? 'json' : model.activeTabId.
+      // SJV:222 activeTabId = raw ? 'json' : model.activeTabId.
       await expect(jsonTab).toHaveAttribute('aria-selected', 'true');
       await expect(previewTab).toHaveAttribute('aria-selected', 'false');
       await captureEvidence(page, 'E06_data_raw_locks_json.png');
@@ -1343,7 +1344,7 @@ test.describe('E06 SCR-31 Spatial JSON Viewer', () => {
         const project = await qcProject(admin, 'data-narrow');
         await openData(page, project.id);
         await expect(page.getByRole('tree', { name: SJ.tree, exact: true })).toBeVisible();
-        await expect(page.getByRole('tablist', { name: SJ.tabs, exact: true })).toHaveCount(0); // SJV:205-212
+        await expect(page.getByRole('tablist', { name: SJ.tabs, exact: true })).toHaveCount(0); // SJV:220-227
         await captureEvidence(page, 'E06_data_narrow_768.png');
         await page.setViewportSize(PHONE);
         await expect(page.getByRole('tree', { name: SJ.tree, exact: true })).toBeVisible();
@@ -1367,9 +1368,9 @@ test.describe('E06 SCR-32 Version History', () => {
       const project = await bareProject(admin, 'versions-empty');
       const floor = firstFloor(project);
       await openVersions(page, project.id, floor.id);
-      await expect(page.getByText(VH.emptyTitle(floor.name), { exact: true })).toBeVisible(); // UVH:489,603, VHV:65-72
+      await expect(page.getByText(VH.emptyTitle(floor.name), { exact: true })).toBeVisible(); // UVH:489,603, VHV:67-74
       await expect(page.getByText(VH.emptyDescription, { exact: true })).toBeVisible();
-      await expect(page.getByRole('combobox', { name: VH.floorSelect, exact: true })).toContainText(floor.name); // VHV:40-53
+      await expect(page.getByRole('combobox', { name: VH.floorSelect, exact: true })).toContainText(floor.name); // VHV:42-55
       await expect(page.getByRole('button', { name: VH.restore, exact: true })).toHaveCount(0);
       await captureEvidence(page, 'E06_versions_empty.png');
     });
@@ -1414,10 +1415,10 @@ test.describe('E06 SCR-32 Version History', () => {
         const project = await bareProject(admin, 'versions-narrow');
         const floor = firstFloor(project);
         await openVersions(page, project.id, floor.id);
-        // UVH:488 isNarrow → 'collapsed' (before the empty check); VHV:108-116 Select instead of VersionList.
+        // UVH:490 isNarrow → 'collapsed' (before the empty check); VHV:116-124 Select instead of VersionList.
         await expect(page.getByRole('combobox', { name: VH.narrowSelect, exact: true })).toBeVisible();
         await expect(versionList(page)).toHaveCount(0);
-        await expect(page.getByText(VH.restoreCaption, { exact: true })).toBeVisible(); // VHV:138
+        await expect(page.getByText(VH.restoreCaption, { exact: true })).toBeVisible(); // VHV:148
         await captureEvidence(page, 'E06_versions_narrow.png');
       },
       NARROW,
@@ -1433,7 +1434,7 @@ test.describe('E06 SCR-32 Version History', () => {
         const { project, versions } = await pipelineProject(admin, 'versions-tabs-sm');
         const floor = firstFloor(project);
         await openVersions(page, project.id, floor.id);
-        // VHC:67 (width < 1024px) → narrow at both widths: the "phiên bản" Select, compare below (VHV:108-133).
+        // VHC:67 (width < 1024px) → narrow at both widths: the "phiên bản" Select, compare below (VHV:116-141).
         await expect(page.getByRole('combobox', { name: VH.narrowSelect, exact: true })).toBeVisible();
         await expect(page.getByRole('tablist', { name: DIFF_TABS.list, exact: true }).getByRole('tab')).toHaveCount(3); // VHX:207
         await expect(diffTab(page, DIFF_TABS.changes)).toHaveAttribute('aria-selected', 'true');
@@ -1503,7 +1504,7 @@ test.describe('E06 SCR-32 Version History', () => {
 
         await quiet(page);
         const writes = writesSince(api, mark);
-        expect(writes, 'switching diff tabs is local (UVH:503 setTab: setActiveTab)').toEqual([]);
+        expect(writes, 'switching diff tabs is local (UVH:504 setTab: setActiveTab)').toEqual([]);
         await attachJson('E06_versions_tabs_keyboard.json', {
           keys: ['ArrowLeft', 'Home', 'End', 'ArrowRight', 'Tab'],
           selectedAfter: ['Trực quan', 'Thay đổi', 'Trực quan', 'Thay đổi'],
@@ -1523,7 +1524,7 @@ test.describe('E06 SCR-32 Version History', () => {
       const handler = failGet(versionsRe(project.id), counter);
       await page.route('**/api/projects/**', handler);
       await openProjectRoute(page, ROUTES.project.versions(project.id), project.id);
-      // UVH:480-487 not forbidden → 'error'; VHV:85-92 InlineAlert inside withFloorSelect.
+      // UVH:480-487 not forbidden → 'error'; VHV:87-100 InlineAlert inside withFloorSelect.
       await expect(page.getByText(VH.listErrorTitle, { exact: true })).toBeVisible({ timeout: ERROR_PAINT_TIMEOUT_MS });
       await expect(page.getByText(VH.listErrorReason, { exact: true })).toBeVisible();
       await expect(page.getByRole('combobox', { name: VH.floorSelect, exact: true })).toBeVisible();
@@ -1545,7 +1546,7 @@ test.describe('E06 SCR-32 Version History', () => {
       await expect(versionRow(page, newest.label)).toContainText(VH.current); // VHM:216 floorRevision = current
       const checked = versionList(page).getByRole('checkbox', { checked: true });
       await expect(checked).toHaveCount(2); // VHP:85-96 default pair = two newest full versions
-      await expect(page.getByRole('button', { name: VH.restore, exact: true })).toHaveCount(0); // VHV:163 right is current
+      await expect(page.getByRole('button', { name: VH.restore, exact: true })).toHaveCount(0); // VHV:176 right is current
       await expect(page.getByRole('button', { name: VH.tag, exact: true })).toBeVisible();
       // BUG-469: the action bar sits under the diff; bring it into the shot (only "Gắn nhãn…", no "Phục hồi…").
       await page.getByRole('button', { name: VH.tag, exact: true }).scrollIntoViewIfNeeded();
@@ -1556,8 +1557,8 @@ test.describe('E06 SCR-32 Version History', () => {
       await setBox(versionRow(page, newest.label).getByRole('checkbox'), false); // VHP:120-135
       await expect(checked).toHaveCount(1);
       await expect(page.getByText(VH.noPair, { exact: true })).toBeVisible(); // VHP:51-62, VHX:173-178
-      await expect(page.getByRole('button', { name: VH.restore, exact: true })).toBeDisabled(); // VHV:163-175
-      await expect(page.getByRole('button', { name: VH.tag, exact: true })).toHaveCount(0); // VHV:158
+      await expect(page.getByRole('button', { name: VH.restore, exact: true })).toBeDisabled(); // VHV:176-188
+      await expect(page.getByRole('button', { name: VH.tag, exact: true })).toHaveCount(0); // VHV:171
       await captureEvidence(page, 'E06_versions_single_pick.png');
       await setBox(versionRow(page, newest.label).getByRole('checkbox'), true);
       await expect(checked).toHaveCount(2);
@@ -1634,20 +1635,20 @@ test.describe('E06 SCR-32 Version History', () => {
       await writeLayer(admin.fx, project.id, floor.id, qcLayer);
       await openVersions(page, project.id, floor.id);
       await expect(versionRow(page, target.label)).not.toContainText(VH.current);
-      await expect(page.getByText(VH.restoreCaption, { exact: true })).toBeVisible(); // VHV:138
+      await expect(page.getByText(VH.restoreCaption, { exact: true })).toBeVisible(); // VHV:148
       const restoreButton = page.getByRole('button', { name: VH.restore, exact: true });
-      const dialog = page.getByRole('dialog').filter({ hasText: VH.restoreTitle(target.label, floor.name) }); // VHM:500-512
+      const dialog = page.getByRole('dialog').filter({ hasText: VH.restoreTitle(target.label, floor.name) }); // VHM:532-544
       const mark = api.length;
 
       await restoreButton.click();
       await expect(dialog).toBeVisible();
-      await expect(dialog).toContainText(`${VH.restoreCaption}. ${VH.undoCleared}`); // VHM:508
+      await expect(dialog).toContainText(`${VH.restoreCaption}. ${VH.undoCleared}`); // VHM:540
       await captureEvidence(page, 'E06_versions_restore_dialog.png');
-      await dialog.getByRole('button', { name: VH.restoreCancel, exact: true }).click(); // UVH:521-529
+      await dialog.getByRole('button', { name: VH.restoreCancel, exact: true }).click(); // UVH:522-530
       await expect(dialog).toHaveCount(0);
       await restoreButton.click();
       await expect(dialog).toBeVisible();
-      await page.keyboard.press('Escape'); // VHV:179 Modal onClose = cancelRestore
+      await page.keyboard.press('Escape'); // VHV:192 Modal onClose = cancelRestore
       await expect(dialog).toHaveCount(0);
       expect(writesSince(api, mark), '"Để nguyên" / Esc restore nothing').toEqual([]);
 
@@ -1694,7 +1695,7 @@ test.describe('E06 SCR-32 Version History', () => {
       await page.getByRole('dialog').getByRole('button', { name: VH.restoreConfirm, exact: true }).click();
       const conflict = await rejected;
       expect(asRecord(conflict.json, '409').code).toBe('VERSION_CONFLICT'); // VHG:118-131
-      const banner = page.getByText(VH.conflictTitle, { exact: true }); // VHV:99-106 InlineAlert title
+      const banner = page.getByText(VH.conflictTitle, { exact: true }); // VHV:107-114 InlineAlert title
       await expect(banner).toBeVisible();
       await expect(page.getByText(VH.conflictMessage)).toBeVisible();
       await expect(toast(page, /^Đã phục hồi phiên bản/u)).toHaveCount(0);
@@ -1702,7 +1703,7 @@ test.describe('E06 SCR-32 Version History', () => {
       await captureEvidence(page, 'E06_versions_restore_conflict.png');
 
       const layerReread = waitForApi(page, 'GET', new RegExp(`^/api/projects/${escapeRegExp(project.id)}/floors/${escapeRegExp(floor.id)}/spatial/layer$`, 'u'), [200]);
-      await page.getByRole('button', { name: VH.conflictDismiss, exact: true }).click(); // UVH:536-544 → reloadFloor
+      await page.getByRole('button', { name: VH.conflictDismiss, exact: true }).click(); // UVH:537-545 → reloadFloor
       await layerReread;
       await expect(banner).toHaveCount(0);
       // BUG-469: two layer writes moved floorRevision past every version, so NO row is "Hiện tại" (VHM:216); the shot
