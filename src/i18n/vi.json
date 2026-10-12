@@ -2109,7 +2109,8 @@
     },
     "normalize": {
       "title": "Xem trước chuẩn hoá tên",
-      "tableCaption": "Những tên sẽ đổi khi áp",
+      "changedSummary": "Bấm \"Áp dụng\" để đổi {{count}} tên phòng như bảng dưới.",
+      "tableCaption": "Tên phòng trước và sau khi chuẩn hoá",
       "columnCode": "Mã phòng",
       "columnFrom": "Tên hiện tại",
       "columnTo": "Tên sẽ thành",

@@ -52,6 +52,7 @@ import {
   ROOM_LABEL_FIXTURE_UNNAMED_COUNT,
 } from './roomLabelFixture';
 import {
+  canonicalRoomName,
   createMockRoomLabelReviewGateway,
   roomCodeLabel,
   ROOM_LABEL_TEXT,
@@ -470,6 +471,14 @@ describe('tự lưu — Ctrl+S với tới màn này (B-V7-01, F-04x-1)', () => 
 /* -------------------------------------------------------------------------- */
 
 describe('chuẩn hoá tên — luôn xem trước trước khi áp', () => {
+  it('[BUG-409] tên chuẩn viết hoa chữ đầu (A6); tên đã đúng thì không đổi', () => {
+    expect(canonicalRoomName('PHONG NGU 2')).toBe('Phòng ngủ 2');
+    expect(canonicalRoomName('bếp')).toBe('Bếp');
+    expect(canonicalRoomName('Bếp')).toBeNull();
+    expect(canonicalRoomName('Phòng ngủ 2')).toBeNull();
+    expect(ROOM_NAME_TARGETS.every((target) => target.charAt(0) === target.charAt(0).toLocaleUpperCase('vi'))).toBe(true);
+  });
+
   it('sinh bảng xem trước mà KHÔNG đổi một tên nào', async () => {
     const mounted = await mountSettled();
 
