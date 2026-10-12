@@ -264,6 +264,20 @@ describe('B-V12-03 — trạng thái "empty" không nói ngược dòng đếm l
   });
 });
 
+describe('BUG-464 — lỗi tải không phải ngõ cụt và không kèm số liệu cũ', () => {
+  it('trạng thái "error" có "Thử lại" gọi onReload; đầu trang không còn số luật hay nhãn lưu', async () => {
+    const RuleSettingsView = await loadRuleSettingsView();
+    const onReload = vi.fn();
+
+    render(<RuleSettingsView {...buildRuleSettingsProps({ status: 'error' }, { actions: { onReload } })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(onReload).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/luật đang bật/u)).toBeNull();
+    expect(screen.queryByText('Chưa có thay đổi')).toBeNull();
+  });
+});
+
 /* ==========================================================================
  * C. Tiếp cận được và toàn chữ tiếng Việt có dấu, trên cây render thật.
  * ========================================================================== */
@@ -849,6 +863,24 @@ describe('F-10 — useRuleSettings nối N21/N22', () => {
     expect(ticket?.getStatus()).toBe('expired');
     expect(ticket?.undo()).toEqual({ error: 'expired', ok: false });
     expect(useStore.getState().ruleConfig.overrides).toEqual({ 'WALL-LENGTH': { enabled: false } });
+  });
+
+  it('BUG-464: N21 hỏng rồi "Thử lại" (onReload) → đọc lại và ra `ready`', async () => {
+    let reads = 0;
+    const { result } = setupHook({
+      read: async () => {
+        reads += 1;
+        return reads === 1 ? { ok: false, error: wireError(500, 'INTERNAL') } : { ok: true, data: wireConfig(4) };
+      },
+    });
+    await advance(0);
+    expect(result.current.model.status).toBe('error');
+
+    act(() => result.current.onReload());
+    await advance(0);
+
+    expect(reads).toBe(2);
+    expect(result.current.model.status).toBe('ready');
   });
 
   it('lượt đọc lại hỏng: không nạp bản cũ, dải xung đột vẫn còn', async () => {
