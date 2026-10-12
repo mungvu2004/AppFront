@@ -8,7 +8,7 @@ N17–N20 version list/snapshot/restore/label rules, `VERSION_FLOOR_MISMATCH`, `
 label length 422) live in `coverage/phase06-be.md` (API spec), not here.
 
 Test keys:
-- **M** `tests/phase06_rules_export_versions.spec.ts` (serial, shared CP-5/CP-6 work floor) — title quoted by key words.
+- **M** `tests/phase06_rules_export_versions.spec.ts` (serial; own pipeline project seeded in `beforeAll` via `support/drawingSeed.ts` createPipelineProject + one #35 layer write = CP-6 on its own floor, QA-06) — title quoted by key words.
 - **E** `tests/phase06_rules_export_versions_edge.spec.ts` (non-serial, own project per test) — `E06 · …` titles.
 - **R9** `tests/phase09_roles_matrix.spec.ts` (Track B mock, viewer / engineer).
 - **UI** dedicated UI-verify spec `phase06_*_ui.spec.ts` (owner: qa-verify-ui step; not counted here).
