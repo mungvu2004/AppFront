@@ -68,7 +68,7 @@ const EXPLODED_ERROR_TEXT = 'Không tách được các tầng lúc này. Vui l�
 /** `MeasurementTool.tsx`, `MeasurementList.tsx`, `useViewerShell.ts:169`. */
 const PIN_LABEL = 'Ghim phép đo (phím Enter)';
 const DROP_DRAFT_LABEL = 'Bỏ phần đo dở (phím Esc)';
-const MEASURE_RAIL_TOOL = 'đo (M)';
+const MEASURE_RAIL_TOOL = 'Đo (M)';
 /** Copied from chain.fullstack.ts (never import a spec). */
 const PASCAL_FLAG_KEY = 'scene.pascal-viewer';
 const PASCAL_RENDERED_PATTERN =
@@ -777,7 +777,7 @@ test.describe('SCR-25 Measurement Tool', () => {
     if (pinnedName === '' || hitPoint === null) throw new Error('needs the pinned measurement of the previous SCR-25 row');
     const name = pinnedName;
     const row = list().getByRole('listitem').filter({ has: page.getByRole('button', { name: new RegExp(`^(Ẩn|Hiện) ${escapeRegExp(name)}$`, 'u') }) });
-    const unit = page.getByRole('combobox', { name: 'đơn vị' });
+    const unit = page.getByRole('combobox', { name: 'Đơn vị' });
     const chooseUnit = async (label: 'mm' | 'm'): Promise<void> => {
       await unit.click();
       await page.getByRole('option', { name: label, exact: true }).click();
