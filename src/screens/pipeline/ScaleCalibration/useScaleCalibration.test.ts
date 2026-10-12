@@ -553,6 +553,24 @@ describe('useScaleCalibration — áp dụng: PUT trước, commit sau (F-04x-2 
     );
   });
 
+  it('bản vẽ không tìm thấy khung (isWarped): áp xong vẫn ra success, không kẹt ở error (BUG-567)', async () => {
+    const harness = await makeHarness({ sourceFloorId: WARPED_MOCK_FLOOR_ID });
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    expect(mounted.result.current.model.state).toBe('error');
+    await typeReference(mounted);
+
+    await act(async () => {
+      mounted.result.current.actions.onApply();
+    });
+    await settleAsync();
+
+    expect(harness.writeLayer).toHaveBeenCalledTimes(1);
+    expect(mounted.result.current.model.state).toBe('success');
+    expect(mounted.result.current.model.successNotice).not.toBeNull();
+    expect(mounted.result.current.model.errorMessage).toBeNull();
+  });
+
   it('PUT 422 → kho giữ tỉ lệ cũ, không success, nói lý do', async () => {
     const harness = await makeHarness();
 

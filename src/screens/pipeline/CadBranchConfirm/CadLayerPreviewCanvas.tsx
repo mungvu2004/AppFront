@@ -55,7 +55,7 @@ import {
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { cn } from '@/lib/utils';
 
-import { PREVIEW_CANVAS_ARIA_LABEL } from './cadBranchConfirmText';
+import { PREVIEW_CANVAS_ARIA_LABEL, PREVIEW_EMPTY_TEXT } from './cadBranchConfirmText';
 import type {
   CadLayer,
   CadLayerPreviewCanvasProps,
@@ -249,7 +249,9 @@ export function CadLayerPreviewCanvas({ actions, model }: CadLayerPreviewCanvasP
   const hasHighlight = hoveredLayerId !== null || hoveredEntityId !== null;
 
   return (
-    <div className="relative h-full w-full flex-1 overflow-hidden rounded-[16px] border border-border-default bg-canvas-2d">
+    // `min-h-[320px]`: không có hình (bản build thật chưa đọc được thực thể) thì khung vẫn là một
+    // khung, không xẹp thành đường kẻ (BUG-564).
+    <div className="relative h-full min-h-[320px] w-full flex-1 overflow-hidden rounded-[16px] border border-border-default bg-canvas-2d">
       {isLoading ? (
         <Skeleton className="absolute inset-0" preset="canvas" />
       ) : hasDrawableExtent ? (
@@ -277,7 +279,11 @@ export function CadLayerPreviewCanvas({ actions, model }: CadLayerPreviewCanvasP
             );
           })}
         </svg>
-      ) : null}
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center p-4">
+          <p className="text-[13px] text-text-secondary">{PREVIEW_EMPTY_TEXT}</p>
+        </div>
+      )}
 
       {wallThicknessLegend.length === 0 ? null : (
         <ul

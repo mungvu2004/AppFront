@@ -233,6 +233,9 @@ export const DETECTED_UNIT_HINT_LABEL = 'Gợi ý đọc được từ tệp';
 export const PREVIEW_CANVAS_ARIA_LABEL =
   'Xem trước hình học sẽ được nhập, tô màu theo vai trò lớp đã gán';
 
+/** Câu của khung xem trước khi chưa có hình nào để vẽ — thay cho một hộp trống câm (BUG-564). */
+export const PREVIEW_EMPTY_TEXT = 'Chưa có hình để xem trước';
+
 /** Nhãn trình đọc màn hình cho Select vai trò của TỪNG hàng — bảy Select giống hệt nhau thì phải phân biệt được bằng tên lớp. */
 export const layerRoleSelectAriaLabel = (layerName: string): string =>
   `Vai trò của lớp ${layerName}`;

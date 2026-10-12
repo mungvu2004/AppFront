@@ -437,6 +437,8 @@ export interface CadBranchConfirmViewModel {
   readonly forbiddenNotice: string | null;
   /** Câu của trạng thái `'success'`. `null` ở trạng thái khác. */
   readonly successNotice: string | null;
+  /** Dự án trả 404: màn chỉ còn dải "Không tìm thấy dự án này" + lối về (BUG-563, mẫu BUG-313). */
+  readonly isProjectMissing?: true;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -476,6 +478,8 @@ export interface CadBranchConfirmActions {
   readonly onToggleMappingPanelCollapsed: () => void;
   /** Tải lại tệp sau lỗi, hoặc thử lại truy vấn quyền. */
   readonly onRetry: () => void;
+  /** Về danh sách dự án — lối ra duy nhất khi dự án không tồn tại (BUG-563). */
+  readonly onBackToProjects: () => void;
 }
 
 /* -------------------------------------------------------------------------- */

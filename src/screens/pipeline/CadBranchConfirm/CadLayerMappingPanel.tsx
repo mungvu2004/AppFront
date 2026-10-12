@@ -179,10 +179,12 @@ export function CadLayerMappingPanel({ actions, model }: CadLayerMappingPanelPro
 
   const roleSelectOptions = useMemo(() => toSelectOptions(roleOptions), [roleOptions]);
 
+  // `max-w-full`: 420 px là bề rộng ở khung rộng; dưới đó panel co theo cột, không đẩy trang cuộn
+  // ngang 61 px ở 375 (BUG-561). Bảng lớp tự cuộn trong `Table.Root`.
   return (
     <section
       aria-labelledby={PANEL_TITLE_ID}
-      className="flex w-[420px] shrink-0 flex-col gap-3 overflow-hidden"
+      className="flex w-[420px] max-w-full shrink-0 flex-col gap-3 overflow-hidden"
     >
       <h2 className="text-[15px] font-semibold text-text-primary" id={PANEL_TITLE_ID}>
         {PHASE_2_PANEL_TITLE}

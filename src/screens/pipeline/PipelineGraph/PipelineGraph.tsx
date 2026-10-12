@@ -44,6 +44,7 @@ import {
   PROJECT_NOT_FOUND_TITLE,
 } from '@/components/feedback/ProjectSpatialGate';
 import { Skeleton } from '@/components/feedback/Skeleton';
+import { Breadcrumb } from '@/components/shell/Breadcrumb';
 import { Button } from '@/components/ui/Button';
 
 import { PipelineGraphDetail } from './PipelineGraphDetail';
@@ -59,15 +60,19 @@ const SKELETON_ROW_COUNT = 3;
 /** Sơ đồ ở trạng thái rỗng vẽ mờ, không biến mất. */
 const EMPTY_DIAGRAM_OPACITY = 0.4;
 
-/** Đầu màn: đường dẫn, tiêu đề, câu dẫn. */
-function PipelineGraphHeader({ model }: Pick<PipelineGraphProps, 'model'>) {
+/**
+ * Đầu màn: đường dẫn, tiêu đề, câu dẫn. Breadcrumb chung: cấp "Dự án" bấm được về danh sách
+ * (BUG-546), nav mang tên "Đường dẫn trang" chứ không trùng tên nhóm sơ đồ (BUG-558).
+ */
+function PipelineGraphHeader({ actions, model }: PipelineGraphProps) {
   return (
     <div className="flex flex-col gap-2">
-      <nav aria-label={PIPELINE_GRAPH_TEXT.title} className="text-[13px] text-text-secondary">
-        <span>{BREADCRUMB_PROJECTS}</span>
-        <span aria-hidden="true"> › </span>
-        <span className="text-text-primary">{model.title}</span>
-      </nav>
+      <Breadcrumb
+        items={[
+          { id: 'projects', label: BREADCRUMB_PROJECTS, onClick: actions.onBackToProjects },
+          { id: 'pipeline-graph', label: model.title },
+        ]}
+      />
       <h1 className="text-[20px] font-medium text-text-primary">{model.title}</h1>
       <p className="max-w-[680px] text-[14px] text-text-secondary">{model.leadLine}</p>
     </div>
@@ -186,7 +191,7 @@ export function PipelineGraph({ actions, model }: PipelineGraphProps) {
   return (
     <div className="min-h-screen bg-bg-app">
       <div className="mx-auto flex max-w-[1080px] flex-col gap-6 p-8">
-        <PipelineGraphHeader model={model} />
+        <PipelineGraphHeader actions={actions} model={model} />
 
         {alert !== undefined ? (
           <div className="flex flex-col gap-2">

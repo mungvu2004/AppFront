@@ -18,7 +18,7 @@
 import { readdirSync } from 'node:fs';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 
 import { createMockApiClient, MOCK_MISSING_PROJECT_ID } from '@/api/__mocks__/client';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
@@ -127,6 +127,21 @@ describe('PipelineGraph — bảy trạng thái (A11, R-63)', () => {
     renderWithProviders(<PipelineGraph {...scenarioFor('collapsed')} />);
 
     expect(screen.getByRole('list', { name: PIPELINE_GRAPH_TEXT.title }).tagName).toBe('OL');
+  });
+});
+
+describe('PipelineGraph — breadcrumb (BUG-546, BUG-558)', () => {
+  it('cấp "Dự án" là nút về danh sách; nav tên "Đường dẫn trang", không trùng tên nhóm sơ đồ', () => {
+    const scenario = scenarioFor('success');
+    const onBackToProjects = vi.fn();
+    renderWithProviders(
+      <PipelineGraph actions={{ ...scenario.actions, onBackToProjects }} model={scenario.model} />,
+    );
+
+    const nav = screen.getByRole('navigation', { name: 'Đường dẫn trang' });
+    expect(screen.queryByRole('navigation', { name: PIPELINE_GRAPH_TEXT.title })).toBeNull();
+    fireEvent.click(within(nav).getByRole('button', { name: 'Dự án' }));
+    expect(onBackToProjects).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -251,6 +266,45 @@ describe('PipelineGraph — nghiệm thu', () => {
     expect(screen.queryByText(PIPELINE_GRAPH_TEXT.emptyTitle)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Về danh sách dự án' }));
     expect(onBackToProjects).toHaveBeenCalledTimes(1);
+  });
+
+  it('#24 còn đang đọc thì là skeleton, không thoáng hiện câu rỗng trước dải không tìm thấy (BUG-556)', async () => {
+    const gateway = {
+      ...createPipelineGraphGateway(createProcessingGateway(createMockApiClient())),
+      readProjectExists: () => new Promise<boolean>(() => undefined),
+    };
+    const { container } = renderWithProviders(
+      <PipelineGraphContainer gateway={gateway} projectId="project-1" roles={['admin']} />,
+    );
+
+    // Hai lượt đọc kia đã xong; chỉ #24 còn treo.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(screen.queryByText(PIPELINE_GRAPH_TEXT.emptyTitle)).toBeNull();
+    expect(container.querySelector('.animate-pulse')).not.toBeNull();
+  });
+
+  it('#24 trả 5xx thì báo lỗi đọc kèm "Thử lại", không coi như dự án tồn tại (BUG-557)', async () => {
+    const base = createMockApiClient();
+    const failing = vi.fn(() =>
+      Promise.resolve({
+        ok: false as const,
+        error: { code: 'INTERNAL', kind: 'http' as const, raw: { code: 'INTERNAL' }, requestId: 'r', retryable: true, status: 500 },
+      }),
+    );
+    const client = { ...base, projects: { ...base.projects, read: failing } };
+    const gateway = createPipelineGraphGateway(createProcessingGateway(client));
+
+    await expect(gateway.readProjectExists({ projectId: 'project-1' })).rejects.toBeTruthy();
+
+    renderWithProviders(<PipelineGraphContainer gateway={gateway} projectId="project-1" roles={['admin']} />);
+
+    const retry = await screen.findByRole('button', { name: PIPELINE_GRAPH_TEXT.retryLabel });
+    expect(screen.queryByText(PIPELINE_GRAPH_TEXT.emptyTitle)).toBeNull();
+    const callsBefore = failing.mock.calls.length;
+    fireEvent.click(retry);
+    await waitFor(() => {
+      expect(failing.mock.calls.length).toBeGreaterThan(callsBefore);
+    });
   });
 
   it('vai Kỹ sư không thấy chế độ chi tiết kỹ thuật', async () => {
