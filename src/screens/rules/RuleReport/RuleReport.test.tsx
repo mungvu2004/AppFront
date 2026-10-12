@@ -687,6 +687,25 @@ describe('năng lực bị gỡ thì bị gỡ khỏi DOM, không render nút v�
   });
 });
 
+describe('BUG-465 — chưa có kết quả thì không có gì để xác nhận, và chỉ một nút thử lại', () => {
+  it.each([['error'], ['loading']] as const)('%s: không nút "Xác nhận đã xử lý"', async (state) => {
+    const RuleReportView = await loadRuleReportView();
+    renderRuleReport(RuleReportView, propsFor(scenarioOf(state)));
+
+    expect(screen.queryByRole('button', { name: 'Xác nhận đã xử lý' })).toBeNull();
+  });
+
+  it('error: "Thử lại" ở thân là nút chạy lại duy nhất', async () => {
+    const RuleReportView = await loadRuleReportView();
+    const props = propsFor(scenarioOf('error'));
+    renderRuleReport(RuleReportView, props);
+
+    expect(screen.queryByRole('button', { name: 'Chạy kiểm tra lại' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(props.onRerun).toHaveBeenCalledTimes(1);
+  });
+});
+
 /* ==========================================================================
  * G. Màu chỉ là chip nhỏ và chấm — CẤM TUYỆT ĐỐI dải đỏ lớn.
  *
