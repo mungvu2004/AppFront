@@ -2054,6 +2054,7 @@
       "unnamedFilter": "Chưa đặt tên",
       "gapsTitle": "Vòng tường hở",
       "gapsEmpty": "Chưa thấy vòng tường hở nào ở tầng này.",
+      "gapsEmptyUnclosedRooms": "Các đầu tường đều đã nối, nhưng {{count}} phòng chưa kín vì có cạnh không có tường chạy dọc — chọn phòng để xem nhắc công năng.",
       "gapWalls": "Tường liên quan",
       "checkGaps": "Kiểm tra lại vòng hở",
       "navigateWalls": "Xem tại lớp tường",
@@ -2087,6 +2088,7 @@
     },
     "fields": {
       "area": "Diện tích",
+      "areaCaption": "Diện tích sàn đo trong mép thông thuỷ của ranh phòng.",
       "perimeter": "Chu vi phòng",
       "clearHeight": "Chiều cao thông thuỷ",
       "clearHeightMissing": "Chưa có số đo chiều cao thông thuỷ cho phòng này.",
@@ -2109,7 +2111,8 @@
     },
     "normalize": {
       "title": "Xem trước chuẩn hoá tên",
-      "tableCaption": "Những tên sẽ đổi khi áp",
+      "changedSummary": "Bấm \"Áp dụng\" để đổi {{count}} tên phòng như bảng dưới.",
+      "tableCaption": "Tên phòng trước và sau khi chuẩn hoá",
       "columnCode": "Mã phòng",
       "columnFrom": "Tên hiện tại",
       "columnTo": "Tên sẽ thành",
@@ -2874,6 +2877,7 @@
     "canvasRegionLabel": "Khung đối chiếu bản vẽ gốc và mô hình",
     "noticeRegionLabel": "Trạng thái của màn đối chiếu bản vẽ",
     "scaleFixLinkLabel": "Sang màn hiệu chỉnh tỷ lệ",
+    "uploadLinkLabel": "Tải bản vẽ lên",
     "confirm": {
       "button": "Xác nhận mô hình khớp bản vẽ",
       "withinTolerance": "Mọi vùng nằm trong dung sai, và bạn đã xác nhận tầng này khớp bản vẽ.",
@@ -2899,6 +2903,7 @@
       "errorScale": "Không căn được vì hai tầng đang dùng tỷ lệ khác nhau.",
       "forbidden": "Bạn chỉ được xem; việc đổi căn chỉnh dành cho người có quyền sửa.",
       "loading": "Đang tải ảnh bản vẽ gốc.",
+      "noDrawing": "Tầng này chưa có bản vẽ nào nên chưa có gì để đối chiếu. Tải bản vẽ lên rồi quay lại đây.",
       "noFloor": "Dự án này chưa có tầng nào để đối chiếu.",
       "partialDeviation": "Còn {{count}} vùng vượt dung sai.",
       "partialGeometry": "Còn {{count}} tầng chưa dựng hình học.",

@@ -128,6 +128,16 @@ describe('OverlayComparison — bảy trạng thái (A11, R-63)', () => {
     // một chuỗi gõ tay bắt đầu bằng `/` hay `http` ở tầng view.
     expect(scenario.model.scaleFixHref).not.toBeNull();
   });
+
+  it('[BUG-420] tầng chưa có bản vẽ mở lối "Tải bản vẽ lên" từ `model.uploadHref`', () => {
+    const scenario = scenarioFor('empty');
+
+    renderWithProviders(
+      <OverlayComparison {...scenario} model={{ ...scenario.model, uploadHref: '/projects/p/upload' }} />,
+    );
+
+    expect(screen.getByRole('link', { name: 'Tải bản vẽ lên' })).toHaveAttribute('href', '/projects/p/upload');
+  });
 });
 
 /* -------------------------------------------------------------------------- */

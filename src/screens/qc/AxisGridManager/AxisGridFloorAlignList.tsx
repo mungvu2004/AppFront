@@ -118,11 +118,12 @@ export function AxisGridFloorAlignList({
   const isFullyAligned =
     !isUnavailable &&
     warningBanner === null &&
-    floors.length > 0 &&
+    // BUG-336/404: một tầng thì chưa có gì để căn — "Đã duyệt" ở đó là nói dối.
+    floors.length > 1 &&
     floors.every((floor) => floor.status === 'ok');
 
   return (
-    <div className="flex w-[344px] shrink-0 flex-col gap-3 rounded-[12px] bg-bg-surface p-5 shadow-panel max-md:w-full">
+    <div className="flex w-[344px] shrink-0 flex-col gap-3 rounded-[12px] bg-bg-surface p-5 shadow-panel max-lg:w-full">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h3>
         {isFullyAligned && <Badge variant="neutral">{APPROVED_BADGE_LABEL}</Badge>}

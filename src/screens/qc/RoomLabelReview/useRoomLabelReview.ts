@@ -66,7 +66,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { computeCentroid, explainRoom, outlineContains } from '@/domain/rooms/area';
+import { computeCentroid, outlineContains } from '@/domain/rooms/area';
 import { displayCodesOf } from '@/domain/spatial/ids';
 import type {
   Level,
@@ -211,16 +211,12 @@ const NO_CANDIDATES: readonly RoomLabelMergeCandidate[] = [];
  */
 const UNCALIBRATED_SCALE = millimetresPerPixel(1);
 
-/*
- * Đoạn thứ hai của `explainRoom` — câu nói CÁCH diện tích ra con số đó.
- *
- * `explainRoom` trả về nhiều đoạn ngăn bằng một dòng trống: đoạn đầu là tiêu đề
- * "tên phòng — 18,40 m²", đoạn thứ hai là lời giải thích phép tính (đúng ở cả
- * nhánh phòng chưa đủ ba đỉnh). Lấy đúng đoạn đó là ĐỌC LẠI câu của M-07, không
- * phải viết một câu thứ hai có thể trôi khỏi bản gốc.
+/**
+ * Câu dưới "Diện tích" của thanh tra: nói diện tích đo Ở ĐÂU, bằng lời thường.
+ * Từng lấy đoạn phép tính của `explainRoom` (công thức dây giày, "x1 × y2 − x2 × y1")
+ * — chi tiết của người lập trình, không phải của người duyệt tên phòng (BUG-408).
  */
-const EXPLAIN_PARAGRAPH_SEPARATOR = '\n\n';
-const EXPLAIN_METHOD_PARAGRAPH_INDEX = 1;
+const AREA_CAPTION = 'Diện tích sàn đo trong mép thông thuỷ của ranh phòng.';
 
 /* -------------------------------------------------------------------------- */
 /* Phép ghép thuần — kiểm được mà không cần dựng hook.                          */
@@ -342,23 +338,9 @@ export function splitPointOf(
   return second === undefined ? null : toPoint(computeCentroid(second.outline));
 }
 
-/**
- * Câu giải thích diện tích, LẤY LẠI từ `explainRoom` — không viết câu mới.
- *
- * `''` khi tầng chưa có phòng nào: không có ranh phòng thì không có phép tính
- * nào để giải thích, và bịa một câu chung chung là viết một câu thứ hai.
- */
+/** Câu giải thích diện tích; `''` khi tầng chưa có phòng nào — không có ranh phòng thì không có gì để giải thích. */
 export function areaCaptionOf(room: Room | null): string {
-  if (room === null) {
-    return '';
-  }
-
-  const paragraphs = explainRoom({
-    outline: room.outline.map(toPointMm),
-    name: room.name,
-  }).split(EXPLAIN_PARAGRAPH_SEPARATOR);
-
-  return paragraphs[EXPLAIN_METHOD_PARAGRAPH_INDEX] ?? '';
+  return room === null ? '' : AREA_CAPTION;
 }
 
 /** Tám nhãn công năng làm gợi ý tên — GỢI Ý, không bao giờ ép (CẤM TUYỆT ĐỐI). */
@@ -557,7 +539,10 @@ export function useRoomLabelReview(
     [backgroundImageUrl, measures, roomCodes, rooms, ruleRouteHref, scale, scaleStatus, violations],
   );
 
-  const summary = useMemo<RoomLabelSummaryViewModel>(() => summaryOf(rooms, scaleStatus), [rooms, scaleStatus]);
+  const summary = useMemo<RoomLabelSummaryViewModel>(
+    () => summaryOf(rooms, violations, scaleStatus),
+    [rooms, scaleStatus, violations],
+  );
 
   const visibleRows = useMemo(
     () => applyUnnamedFilter(allRows, showOnlyUnnamed),

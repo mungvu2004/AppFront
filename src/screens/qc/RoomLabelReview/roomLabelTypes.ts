@@ -222,6 +222,8 @@ export interface RoomLabelCropViewModel {
 export interface RoomLabelNoticeViewModel {
   /** Mã luật, ví dụ `"ROOM-MIN-AREA"` — khớp `Rule.code` của tầng luật. */
   readonly ruleCode: string;
+  /** Tên luật tiếng Việt (`Rule.name`) — tiêu đề thẻ nhắc thay cho mã luật nội bộ (BUG-408). */
+  readonly ruleName: string;
   readonly severity: RuleSeverity;
   readonly message: string;
   readonly suggestion: string;
@@ -322,6 +324,12 @@ export interface RoomLabelSummaryViewModel {
   readonly totalAreaText: string;
   readonly roomCount: number;
   readonly unnamedCount: number;
+  /**
+   * Số phòng mang nhắc `ROOM-NOT-CLOSED` (cạnh phòng không có tường chạy dọc). Khác
+   * vòng tường hở (`gaps`, khe giữa hai đầu tường): panel trái phải nói ra cả hai,
+   * kẻo "chưa thấy vòng hở" mâu thuẫn với nhắc "phòng chưa kín" (BUG-407).
+   */
+  readonly unclosedRoomCount: number;
 }
 
 /* -------------------------------------------------------------------------- */

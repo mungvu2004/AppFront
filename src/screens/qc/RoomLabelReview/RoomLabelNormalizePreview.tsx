@@ -33,7 +33,7 @@ import { Button } from '@/components/ui/Button';
 import type { RoomLabelNormalizePreviewProps } from './roomLabelTypes';
 
 const DIALOG_TITLE = 'Xem trước chuẩn hoá tên';
-const TABLE_CAPTION = 'Những tên sẽ đổi khi áp';
+const TABLE_CAPTION = 'Tên phòng trước và sau khi chuẩn hoá';
 const COLUMN_CODE = 'Mã phòng';
 const COLUMN_FROM = 'Tên hiện tại';
 const COLUMN_TO = 'Tên sẽ thành';
@@ -43,7 +43,7 @@ const CLOSE_LABEL = 'Đóng';
 const APPLY_LABEL = 'Áp dụng';
 const EMPTY_NAME_PLACEHOLDER = 'Chưa đặt tên';
 
-const changedSummary = (changedCount: number) => `${changedCount} tên sẽ đổi khi bấm áp dụng.`;
+const changedSummary = (changedCount: number) => `Bấm "Áp dụng" để đổi ${changedCount} tên phòng như bảng dưới.`;
 
 export function RoomLabelNormalizePreview({ preview, onApply, onCancel }: RoomLabelNormalizePreviewProps) {
   const hasChanges = preview !== null && preview.changedCount > 0;

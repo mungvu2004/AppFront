@@ -103,7 +103,7 @@ const LINK_CLASS_NAME = cn(
 
 /** Khung chung của cột trái, để bốn nhánh thay thế không mỗi chỗ một bề rộng. */
 const LEFT_COLUMN_CLASS_NAME =
-  'flex h-full w-[280px] shrink-0 flex-col gap-3 overflow-y-auto rounded-[12px] bg-bg-surface p-4 shadow-panel max-md:h-auto max-md:w-full';
+  'flex h-full w-[280px] shrink-0 flex-col gap-3 overflow-y-auto rounded-[12px] bg-bg-surface p-4 shadow-panel max-lg:h-auto max-lg:w-full';
 
 /* -------------------------------------------------------------------------- */
 /* Cột trái — bốn nhánh loại trừ nhau, nhánh cuối là panel phòng thật.         */
@@ -170,10 +170,10 @@ function RoomLabelLeftColumn(props: RoomLabelReviewViewProps) {
   }
 
   return (
-    <div className="flex h-full min-h-0 shrink-0 flex-col gap-2 max-md:h-auto">
+    <div className="flex h-full min-h-0 shrink-0 flex-col gap-2 max-lg:h-auto">
       {viewerRoleNotice === null ? null : (
         <InlineAlert
-          className="w-[280px] shrink-0 max-md:w-full"
+          className="w-[280px] shrink-0 max-lg:w-full"
           level="attention"
           message={viewerRoleNotice}
           title={FORBIDDEN_TITLE}
@@ -275,19 +275,19 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
         </div>
       )}
 
-      {/* BUG-319: dưới 768 ba cột cố định (280 + canvas + 344) tràn ngang — xếp dọc và cuộn dọc. */}
+      {/* BUG-319/393/404: dưới 1024 ba cột cố định (280 + canvas + 344) tràn ngang hoặc bóp canvas còn ~110 px — xếp dọc và cuộn dọc. */}
       <div
         className={cn(
           'flex min-h-0 flex-1 gap-2 p-2',
           isCompact ? 'flex-col' : 'flex-row',
-          'max-md:flex-col max-md:overflow-y-auto',
+          'max-lg:flex-col max-lg:overflow-y-auto',
         )}
       >
         {isCollapsed ? null : <RoomLabelLeftColumn {...props} />}
 
         <section
           aria-label={CANVAS_SECTION_LABEL}
-          className="min-h-0 min-w-0 flex-1 overflow-hidden rounded-[16px] bg-bg-sunken max-md:h-[360px] max-md:flex-none"
+          className="min-h-0 min-w-0 flex-1 overflow-hidden rounded-[16px] bg-bg-sunken max-lg:h-[360px] max-lg:flex-none"
         >
           <RoomLabelCanvas
             backgroundImageAlt={backgroundImageAlt}

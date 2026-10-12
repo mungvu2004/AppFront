@@ -638,3 +638,97 @@ describe('[BUG-326] đọc lớp hỏng thay cả màn bằng một trạng thá
     expect(screen.queryByLabelText(CANVAS_ARIA_LABEL)).toBeNull();
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* [BUG-393] Mặt bằng vừa khung.                                               */
+/* -------------------------------------------------------------------------- */
+
+describe('[BUG-393] mặt bằng phòng vừa khung canvas, kể cả khi chọn một phòng', () => {
+  const FRAME = { width: 800, height: 600 };
+
+  /** Khung báo 800×600 ngay khi được theo dõi — thay bản rỗng của `beforeEach`. */
+  const measuredFrame = class {
+    private readonly onResize: ResizeObserverCallback;
+    constructor(onResize: ResizeObserverCallback) {
+      this.onResize = onResize;
+    }
+    observe(): void {
+      this.onResize([{ contentRect: FRAME } as ResizeObserverEntry], this as unknown as ResizeObserver);
+    }
+    unobserve(): void {
+      /* Không có gì để bỏ theo dõi. */
+    }
+    disconnect(): void {
+      /* Không có gì để ngắt. */
+    }
+  };
+
+  /** Hộp màn của từng nút chọn phòng = vị trí trong lớp nội dung + phép dịch camera. */
+  function roomBoxesOnScreen(container: HTMLElement) {
+    const layer = container.querySelector<HTMLElement>('div[style*="translate("]');
+    const match = /translate\(([-\d.e]+)px, ([-\d.e]+)px\)/u.exec(layer?.style.transform ?? '');
+    const [panX, panY] = [Number(match?.[1]), Number(match?.[2])];
+
+    return [...(layer?.querySelectorAll<HTMLElement>('button[aria-pressed]') ?? [])].map((button) => ({
+      left: panX + parseFloat(button.style.left),
+      top: panY + parseFloat(button.style.top),
+      right: panX + parseFloat(button.style.left) + parseFloat(button.style.width),
+      bottom: panY + parseFloat(button.style.top) + parseFloat(button.style.height),
+    }));
+  }
+
+  it('mọi phòng nằm trọn trong khung, trước và sau khi chọn phòng', async () => {
+    Object.defineProperty(window, 'ResizeObserver', { writable: true, value: measuredFrame });
+
+    const { container } = await renderSettled('success');
+    const inFrame = () => {
+      const boxes = roomBoxesOnScreen(container);
+
+      expect(boxes.length).toBe(ROOM_LABEL_FIXTURE_TOTAL);
+
+      for (const box of boxes) {
+        expect(box.left).toBeGreaterThanOrEqual(0);
+        expect(box.top).toBeGreaterThanOrEqual(0);
+        expect(box.right).toBeLessThanOrEqual(FRAME.width);
+        expect(box.bottom).toBeLessThanOrEqual(FRAME.height);
+      }
+    };
+
+    inFrame();
+
+    const firstRoom = container.querySelector<HTMLElement>('div[style*="translate("] button[aria-pressed]');
+
+    if (firstRoom !== null) {
+      fireEvent.click(firstRoom);
+    }
+
+    inFrame();
+  });
+});
+
+describe('[BUG-407] panel "Vòng tường hở" không phủ nhận nhắc "phòng chưa kín"', () => {
+  it('không có khe giữa hai đầu tường nhưng có phòng ROOM-NOT-CLOSED → nói rõ phạm vi và số phòng chưa kín', async () => {
+    await renderSettled('success');
+    const gapsSection = screen.getByRole('region', { name: 'Vòng tường hở' });
+
+    /* Kịch bản "success" không có tường nào: mọi phòng đều chưa kín, không khe đầu tường nào. */
+    expect(gapsSection).not.toHaveTextContent('Chưa thấy vòng tường hở nào ở tầng này.');
+    expect(gapsSection).toHaveTextContent(`Các đầu tường đều đã nối, nhưng ${ROOM_LABEL_FIXTURE_TOTAL} phòng chưa kín`);
+  });
+});
+
+describe('[BUG-408] thẻ nhắc công năng đặt tên luật tiếng Việt, không lộ mã luật nội bộ', () => {
+  it('chọn một phòng chưa kín → tiêu đề "Đường bao phòng kín bằng tường", không có chữ ROOM-NOT-CLOSED', async () => {
+    await renderSettled('success');
+    const [firstRoom] = screen.getAllByRole('option');
+
+    if (firstRoom !== undefined) {
+      fireEvent.click(firstRoom);
+    }
+
+    const notices = await screen.findByRole('region', { name: 'Nhắc công năng' });
+
+    expect(notices).toHaveTextContent('Đường bao phòng kín bằng tường');
+    expect(notices).not.toHaveTextContent(/ROOM-[A-Z-]+/u);
+  });
+});

@@ -57,6 +57,8 @@ import {
   centreOfBounds,
   computeContentBoundsPx,
   computeRoomBoundsPx,
+  contentPaddingFor,
+  fitMillimetresPerPixel,
   type RoomLabelBoundsPx,
   type RoomLabelRoomId,
 } from './roomLabelCanvasGeometry';
@@ -71,7 +73,7 @@ export function RoomLabelCanvas({
   rooms,
   selectedRoomId,
   hoveredRoomId,
-  millimetresPerPixel,
+  millimetresPerPixel: drawingMillimetresPerPixel,
   backgroundImageUrl,
   backgroundImageAlt,
   isInteractive,
@@ -115,9 +117,15 @@ export function RoomLabelCanvas({
     }
   }, [selectedRoomId, hoveredRoomId, haloSelect, haloHover, haloDeselect]);
 
+  /* BUG-393: tỷ lệ HIỂN THỊ cho cả mặt bằng vừa khung — chữ và nét vẫn giữ cỡ px vì chúng không nhân tỷ lệ này. */
+  const millimetresPerPixel = useMemo(
+    () => fitMillimetresPerPixel(rooms, drawingMillimetresPerPixel, frameSize),
+    [drawingMillimetresPerPixel, frameSize, rooms],
+  );
+
   const contentBounds = useMemo(
-    () => computeContentBoundsPx(rooms, millimetresPerPixel),
-    [rooms, millimetresPerPixel],
+    () => computeContentBoundsPx(rooms, millimetresPerPixel, contentPaddingFor(frameSize)),
+    [frameSize, rooms, millimetresPerPixel],
   );
 
   const selectedRoom = rooms.find((room) => room.id === selectedRoomId) ?? null;
@@ -143,7 +151,10 @@ export function RoomLabelCanvas({
     const localCentreX = focusCentre.x - contentBounds.x;
     const localCentreY = focusCentre.y - contentBounds.y;
 
-    return { x: frameSize.width / 2 - localCentreX, y: frameSize.height / 2 - localCentreY };
+    return {
+      x: keepInFrame(frameSize.width / 2 - localCentreX, frameSize.width - contentBounds.width),
+      y: keepInFrame(frameSize.height / 2 - localCentreY, frameSize.height - contentBounds.height),
+    };
   }, [contentBounds, frameSize, millimetresPerPixel, selectedRoom]);
 
   const handleFrameMouseLeave = useCallback(() => onHover(null), [onHover]);
@@ -251,6 +262,15 @@ export function RoomLabelCanvas({
       )}
     </div>
   );
+}
+
+/**
+ * BUG-393: mặt bằng vừa khung thì camera chỉ dịch trong phần khung còn thừa
+ * (`slack` ≥ 0), để dịch tới phòng chọn không đẩy phòng khác ra ngoài khung.
+ * Mặt bằng lớn hơn khung (chưa đo được khung) thì dịch tự do như cũ.
+ */
+function keepInFrame(pan: number, slack: number): number {
+  return slack < 0 ? pan : Math.min(Math.max(pan, 0), slack);
 }
 
 /* -------------------------------------------------------------------------- */

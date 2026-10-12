@@ -84,11 +84,9 @@ import type { ApiClient, ApiResult } from '@/api/client';
 import { readFloorLayerGraph } from '@/api/floorLayerGraph';
 import { createAppApiClient } from '@/api/appClient';
 import { createMockApiClient } from '@/api/__mocks__/client';
-import { ENDPOINTS } from '@/api/endpoints';
 import type { FloorImageQuality } from '@/api/schemas/quality';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import { pixels, type Pixels } from '@/domain/units/scale';
-import { toAppError } from '@/lib/errors';
 
 import type {
   OverlayMissingCapability,
@@ -353,21 +351,8 @@ export function createOverlayComparisonGateway(
         return result;
       }
 
-      if (result.data.floors.length === 0) {
-        // Lượt đọc luôn trả về mọi tầng của dự án, nên một danh sách rỗng nghĩa
-        // là đường dẫn trỏ vào một dự án không có tầng nào. Nói ra bằng lỗi hợp
-        // đồng chứ không dựng một bản ghi rỗng giả vờ là dữ liệu. `toAppError`
-        // dựng lỗi để mã và câu chữ đi qua đúng bảng của `src/lib/errors`.
-        return {
-          ok: false,
-          error: toAppError(
-            new Error(
-              `${ENDPOINTS.quality.assess(projectId, floorId)} không trả về tầng nào.`,
-            ),
-          ),
-        };
-      }
-
+      // Danh sách rỗng: chưa tầng nào có bản vẽ. Trả rỗng để màn nói "tầng này chưa có
+      // bản vẽ" kèm lối tải lên, không phải "không đọc được ảnh" (BUG-420).
       return { ok: true, data: result.data.floors.map(toScanSnapshot) };
     },
 

@@ -129,6 +129,7 @@ import {
 } from '@/domain/rooms/area';
 import { detectRooms, type DetectRoomsResult } from '@/domain/rooms/detect';
 import { ROOM_USAGE_LABELS, type Violation } from '@/domain/rules/registry';
+import { defaultRuleRegistry } from '@/domain/rules/defaults';
 import { runRules } from '@/domain/rules/runner';
 import { counterLabelOf, createId } from '@/domain/spatial/ids';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
@@ -799,7 +800,11 @@ export function labelFitsIn(
  * Tổng diện tích tính bằng `totalArea` — cộng ở đơn vị mm² rồi làm tròn MỘT
  * lần, KHÔNG cộng các `areaText` đã làm tròn của từng phòng.
  */
-export function summaryOf(rooms: readonly Room[], scaleStatus?: 'unresolved'): RoomLabelSummaryViewModel {
+export function summaryOf(
+  rooms: readonly Room[],
+  violations: readonly Violation[],
+  scaleStatus?: 'unresolved',
+): RoomLabelSummaryViewModel {
   return {
     totalAreaText: measureTextOf(
       formatArea(totalArea(rooms.map((room) => room.outline.map(toPointMm)))),
@@ -807,6 +812,9 @@ export function summaryOf(rooms: readonly Room[], scaleStatus?: 'unresolved'): R
     ),
     roomCount: rooms.length,
     unnamedCount: rooms.filter((room) => room.name.trim() === '').length,
+    unclosedRoomCount: new Set(
+      violations.filter((violation) => violation.ruleCode === 'ROOM-NOT-CLOSED').map((violation) => violation.entityId),
+    ).size,
   };
 }
 
@@ -844,6 +852,7 @@ export function noticesOfRoom(
     .filter((violation) => violation.entityId === roomId)
     .map((violation) => ({
       ruleCode: violation.ruleCode,
+      ruleName: defaultRuleRegistry().get(violation.ruleCode)?.name ?? violation.ruleCode,
       severity: violation.severity,
       message: violation.message,
       suggestion: violation.suggestion,
@@ -1001,13 +1010,21 @@ export function toRoomLabelRow(room: Room, options: ToRoomLabelRowOptions): Room
  * đều lấy từ `ROOM_USAGE_LABELS`. Chữ tự do LUÔN được chấp nhận: một tên không
  * khớp nhãn nào chỉ đơn giản không xuất hiện trong bảng xem trước.
  */
-export const ROOM_NAME_TARGETS: readonly string[] = Object.values(ROOM_USAGE_LABELS);
+/**
+ * BUG-409 (A6): `ROOM_USAGE_LABELS` viết thường vì luật chèn nó GIỮA câu ("bếp #R-002…");
+ * tên phòng, chip gợi ý và ô chọn công năng đứng một mình nên viết hoa chữ đầu.
+ */
+function sentenceCase(label: string): string {
+  return label.charAt(0).toLocaleUpperCase('vi') + label.slice(1);
+}
+
+export const ROOM_NAME_TARGETS: readonly string[] = Object.values(ROOM_USAGE_LABELS).map(sentenceCase);
 
 /** Cặp `RoomUsage` ↔ nhãn, cho danh sách gợi ý tên và ô chọn công năng. */
 export const ROOM_USAGE_CHOICES: readonly { readonly usage: RoomUsage; readonly label: string }[] =
   (Object.keys(ROOM_USAGE_LABELS) as readonly RoomUsage[]).map((usage) => ({
     usage,
-    label: ROOM_USAGE_LABELS[usage],
+    label: sentenceCase(ROOM_USAGE_LABELS[usage]),
   }));
 
 /** Dấu tổ hợp của tiếng Việt sau khi tách bằng `NFD`. */

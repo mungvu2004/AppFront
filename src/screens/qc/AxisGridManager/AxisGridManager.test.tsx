@@ -267,6 +267,19 @@ describe('[BUG-330][BUG-336] tầng chưa có trục: không số 0 giả, khôn
     expect(screen.getByText('Lệch X (pixel)')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Căn chỉnh tự động' })).toBeEnabled();
   });
+
+  it('[BUG-336][BUG-404] chỉ một tầng (chưa có gì để căn): không "Đã duyệt"; đủ tầng trong dung sai thì có', () => {
+    const args = scenarioArgsFor('success');
+    const { unmount } = renderWithProviders(
+      <AxisGridManager {...args} viewModel={{ ...args.viewModel, floors: args.viewModel.floors.slice(0, 1) }} />,
+    );
+
+    expect(screen.queryByText('Đã duyệt')).not.toBeInTheDocument();
+    unmount();
+
+    renderState('success');
+    expect(screen.getByText('Đã duyệt')).toBeInTheDocument();
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -361,4 +374,64 @@ describe('khả năng tiếp cận và tiếng Việt', () => {
       expectVietnamese(container);
     });
   }
+});
+
+/* -------------------------------------------------------------------------- */
+/* [BUG-404] Canvas vừa khung.                                                 */
+/* -------------------------------------------------------------------------- */
+
+describe('[BUG-404] canvas vừa khung: bong bóng, nhãn gốc giữ cỡ px và nằm trong khung', () => {
+  const FRAME = { width: 800, height: 600 };
+
+  afterEach(() => {
+    Reflect.deleteProperty(window, 'ResizeObserver');
+  });
+
+  it('viewBox ôm cả lưới cộng lề; mọi bong bóng 24 px màn, nằm trọn trong khung', () => {
+    /* jsdom không có `ResizeObserver`: gắn một bản báo khung 800×600 ngay khi được theo dõi. */
+    Object.defineProperty(window, 'ResizeObserver', {
+      configurable: true,
+      writable: true,
+      value: class {
+        private readonly onResize: ResizeObserverCallback;
+        constructor(onResize: ResizeObserverCallback) {
+          this.onResize = onResize;
+        }
+        observe(): void {
+          this.onResize([{ contentRect: FRAME } as ResizeObserverEntry], this as unknown as ResizeObserver);
+        }
+        disconnect(): void {
+          /* Không có gì để ngắt. */
+        }
+      },
+    });
+
+    const { container } = renderState('success');
+    const svg = container.querySelector(`svg[aria-label="${CANVAS_ARIA_LABEL}"]`);
+    const [x, y, width, height] = (svg?.getAttribute('viewBox') ?? '').split(' ').map(Number);
+    const bounds = axisGridScenarioFor('success').canvas.boundsPx;
+    /* `preserveAspectRatio` mặc định "meet": một đơn vị viewBox = `screenScale` px màn. */
+    const screenScale = Math.min(FRAME.width / (width ?? 1), FRAME.height / (height ?? 1));
+
+    expect(x).toBeLessThan(bounds.x);
+    expect(y).toBeLessThan(bounds.y);
+
+    const badges = [...container.querySelectorAll('g[transform*="scale("]')].filter((group) =>
+      group.querySelector('circle[r="12"]'),
+    );
+
+    expect(badges.length).toBeGreaterThan(0);
+
+    for (const badge of badges) {
+      const match = /translate\(([-\d.e]+) ([-\d.e]+)\) scale\(([-\d.e]+)\)/u.exec(badge.getAttribute('transform') ?? '');
+      const [cx, cy, unit] = [Number(match?.[1]), Number(match?.[2]), Number(match?.[3])];
+      const radius = 12 * unit;
+
+      expect(unit * screenScale).toBeCloseTo(1, 5);
+      expect(cx - radius).toBeGreaterThanOrEqual(x ?? 0);
+      expect(cy - radius).toBeGreaterThanOrEqual(y ?? 0);
+      expect(cx + radius).toBeLessThanOrEqual((x ?? 0) + (width ?? 0));
+      expect(cy + radius).toBeLessThanOrEqual((y ?? 0) + (height ?? 0));
+    }
+  });
 });

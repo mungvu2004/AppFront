@@ -82,9 +82,11 @@ function delaySecondsOf(delayMs: number): number {
 
 export interface AxisGridGhostFloorProps {
   readonly ghostFloors: readonly AxisCanvasGhostFloorViewModel[];
+  /** Đơn vị `viewBox` ứng với một px màn — nét giữ 1/2 px dù canvas co giãn (BUG-404). */
+  readonly unit: number;
 }
 
-export function AxisGridGhostFloor({ ghostFloors }: AxisGridGhostFloorProps) {
+export function AxisGridGhostFloor({ ghostFloors, unit }: AxisGridGhostFloorProps) {
   const delaysMs = staggerDelaysMs(ghostFloors.length);
 
   return (
@@ -103,7 +105,7 @@ export function AxisGridGhostFloor({ ghostFloors }: AxisGridGhostFloorProps) {
             role="presentation"
             stroke={floor.isHighlighted ? GHOST_FLOOR_HIGHLIGHT_TOKEN : GHOST_FLOOR_TOKEN}
             strokeWidth={
-              floor.isHighlighted ? GHOST_FLOOR_HIGHLIGHT_STROKE_WIDTH_PX : GHOST_FLOOR_STROKE_WIDTH_PX
+              (floor.isHighlighted ? GHOST_FLOOR_HIGHLIGHT_STROKE_WIDTH_PX : GHOST_FLOOR_STROKE_WIDTH_PX) * unit
             }
             style={{ opacity: floor.isVisible ? GHOST_FLOOR_OPACITY : 0 }}
             transition={{
