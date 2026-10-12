@@ -208,11 +208,14 @@ describe('the numbers this module owns', () => {
 });
 
 describe('isTerminalUploadError', () => {
-  it('calls 413 and 422 terminal, and nothing else', () => {
-    expect(isTerminalUploadError(httpError(413))).toBe(true);
-    expect(isTerminalUploadError(httpError(422))).toBe(true);
-    expect(isTerminalUploadError(httpError(500))).toBe(false);
-    expect(isTerminalUploadError(httpError(429))).toBe(false);
+  it('calls 401, 403, 404, 413 and 422 terminal, and keeps transient ones retryable', () => {
+    for (const status of [401, 403, 404, 413, 422]) {
+      expect(isTerminalUploadError(httpError(status)), String(status)).toBe(true);
+    }
+
+    for (const status of [409, 429, 500, 503]) {
+      expect(isTerminalUploadError(httpError(status)), String(status)).toBe(false);
+    }
   });
 });
 
@@ -434,6 +437,26 @@ describe('createUploadTask', () => {
 
     expect(final.failure).toMatchObject({ chunkIndex: null, stage: 'init', terminal: true });
     expect(recording.chunkBodies).toStrictEqual([]);
+  });
+
+  it('sends init once when the floor is gone (404), no retry (BUG-573)', async () => {
+    const manual = createManualClock();
+    const recording = createRecordingApi({
+      initUpload: async (): Promise<ApiResult<Progress>> => failWith(404),
+    });
+    const task = createUploadTask({
+      api: recording.api,
+      chunkSizeBytes: 4,
+      clock: manual.clock,
+      file: fakeFile(rampBytes(4)),
+      floorId: 'floor-1',
+      projectId: 'project-1',
+    });
+
+    const final = await runToEnd(task.start, manual);
+
+    expect(recording.initialised).toHaveLength(1);
+    expect(final.failure).toMatchObject({ attempts: 1, stage: 'init', terminal: true });
   });
 
   it('stops mid-flight when cancelled, and emits nothing after that', async () => {

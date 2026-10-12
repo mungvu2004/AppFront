@@ -319,8 +319,8 @@ export function createFloorUploadGateway(
     describeApiFailure: (error) => {
       const appError = toAppError(error);
 
-      // `isTerminalUploadError` là cùng phép kiểm mà `uploadTask` dùng cho 413
-      // và 422; gọi lại nó ở đây giữ cho hai nơi không lệch nhau về "thử lại
+      // `isTerminalUploadError` là cùng phép kiểm mà `uploadTask` dùng cho 401/403/404/413/422
+      // (BUG-573); gọi lại nó ở đây giữ cho hai nơi không lệch nhau về "thử lại
       // có nghĩa hay không".
       return {
         ...toFailure(appError),

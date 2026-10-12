@@ -195,9 +195,18 @@ export interface UploadScheduler {
  *
  * `upload` is what `toAppError` calls a 413 and `validation` is what it calls a
  * 422 — both are judgements about the bytes, so the same bytes get the same
- * answer next time.
+ * answer next time. `unauthenticated` (401 after the refresh already failed),
+ * `forbidden` (403) and `notFound` (404, e.g. the floor was deleted elsewhere)
+ * are judgements about the caller or the target: asking again changes nothing
+ * (BUG-573). Transient kinds (network, timeout, 409, 429, 5xx) keep retrying.
  */
-const TERMINAL_ERROR_KINDS: ReadonlySet<AppErrorKind> = new Set<AppErrorKind>(['upload', 'validation']);
+const TERMINAL_ERROR_KINDS: ReadonlySet<AppErrorKind> = new Set<AppErrorKind>([
+  'upload',
+  'validation',
+  'unauthenticated',
+  'forbidden',
+  'notFound',
+]);
 
 /** Percent of a whole. */
 const FULL_PERCENT = 100;
