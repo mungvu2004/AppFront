@@ -166,6 +166,12 @@ lại bằng đại lượng cân theo thời lượng:
 | Nhịp khung, cân theo thời lượng | 0 / 5 | **không** |
 | **CPU luồng chính mỗi giây** | **5 / 5** | **CÓ** — 1,202 đến 2,032 |
 
+
+> **Đã vá ở F-15 T3 (đo 2026-10-13).** `FrameLimiter` đẩy một khung mỗi nhịp rAF kể cả khi cảnh đứng
+> yên; nay chỉ đẩy khi có nhu cầu. Cảnh đứng yên 10 s: `ScriptDuration` **49,8 → 10,0 ms/s (−80 %)**,
+> `TaskDuration` 82,7 → 48,5 ms/s (−41 %). Tỉ số "~1,6 lần" dưới đây là số đo TRƯỚC bản vá; nhánh xoay
+> camera chưa phân biệt được với tiếng ồn (một cặp lượt, máy bận) — xem `bao-cao-T3.md`.
+
 Nên phát biểu đúng là: **Pascal vẫn chạm một điều kiện dừng**, chỉ khác lý do — nó tốn **~1,6 lần
 CPU luồng chính** để cho ra nhịp khung gần bằng màn cũ (19,7 → 22,2 ms, +13 %). Chốt phạm vi A vì
 thế là **chấp nhận chi phí CPU ấy**, không phải là "không còn điều kiện dừng nào bị chạm".
