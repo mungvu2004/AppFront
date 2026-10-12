@@ -283,6 +283,27 @@ describe('B-V1-45 — email không hiện hai lần', () => {
   });
 });
 
+describe('BUG-428 — mã lỗi cùng khuôn màn 404, không lộ mã nội bộ', () => {
+  it('caption là "Mã lỗi: 403 · <đường dẫn>", không có chữ FORBIDDEN', () => {
+    let seen: AccessDeniedVm | null = null;
+
+    function Probe() {
+      seen = useAccessDenied({ error: UNRECOGNIZED_ACCESS_ERROR });
+
+      return null;
+    }
+
+    renderWithProviders(
+      <MemoryRouter initialEntries={['/du-an/8f2a']}>
+        <Probe />
+      </MemoryRouter>,
+    );
+
+    expect((seen as AccessDeniedVm | null)?.errorCodeCaption).toBe('Mã lỗi: 403 · /du-an/8f2a');
+    expect(createAccessDeniedVm('forbidden', { error: UNRECOGNIZED_ACCESS_ERROR }).errorCodeCaption).not.toContain('FORBIDDEN');
+  });
+});
+
 describe('bộ mẫu theo đúng chữ của hook (B-V1-44, mục D)', () => {
   it('mọi chuỗi kịch bản "không có quyền" trùng chữ hook dựng với cùng phiên và cùng cổng', () => {
     let seen: AccessDeniedVm | null = null;

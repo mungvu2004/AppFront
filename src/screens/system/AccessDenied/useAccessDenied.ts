@@ -117,6 +117,12 @@ export const ACCESS_DENIED_TEXT = {
 } as const;
 
 /**
+ * Caption cùng khuôn màn 404 (`Mã lỗi: 404 · /đường-dẫn`): số HTTP + đường dẫn, không lộ mã
+ * nội bộ tiếng Anh (`FORBIDDEN`, `PROJECT_ACCESS_DENIED`… — lý do đã nói ở `reasonSentence`; BUG-428).
+ */
+export const accessDeniedCaption = (pathname: string): string => `${ACCESS_DENIED_TEXT.errorCodePrefix}403 · ${pathname}`;
+
+/**
  * Câu nêu đúng thứ đang bị hạn chế, khi và chỉ khi được phép nói tên.
  *
  * Tách thành hàm chứ không viết thẳng vào bảng chữ vì nó là chỗ DUY NHẤT tên dự
@@ -515,7 +521,7 @@ export function useAccessDenied(options: UseAccessDeniedOptions = {}): AccessDen
 
   /* ---- Viewmodel --------------------------------------------------------- */
 
-  const errorCodeCaption = `${ACCESS_DENIED_TEXT.errorCodePrefix}${inputError?.code ?? APP_ERROR_KIND_CONFIG.forbidden.code}`;
+  const errorCodeCaption = accessDeniedCaption(location.pathname);
 
   return {
     state,
