@@ -45,7 +45,7 @@
  * lần, và cuộn trên chính thẻ tầng chứ không trên cửa sổ.
  */
 
-import { useCallback, useEffect, useRef } from 'react';
+import { type FocusEvent, useCallback, useEffect, useRef } from 'react';
 import { clsx } from 'clsx';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -119,11 +119,19 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
   /**
    * Chân trang dính không được che điều khiển đang có tiêu điểm (WCAG 2.4.11, BUG-526): trình
    * duyệt chỉ cuộn điều khiển vào tới mép dưới khung nhìn, đúng chỗ chân trang đang đứng.
+   * Chỉ tiêu điểm bàn phím trong DOM của màn: lựa chọn của Select (portal) nhận focus lúc
+   * `mousedown`, cuộn giữa cú bấm làm listbox dời đi và lượt chọn bị mất (R1-02).
    */
-  const keepFocusAboveFooter = useCallback((target: HTMLElement): void => {
+  const keepFocusAboveFooter = useCallback((event: FocusEvent<HTMLElement>): void => {
     const footer = footerRef.current;
+    const target = event.target;
 
-    if (footer === null || footer.contains(target)) {
+    if (
+      footer === null ||
+      footer.contains(target) ||
+      !event.currentTarget.contains(target) ||
+      !target.matches(':focus-visible')
+    ) {
       return;
     }
 
@@ -227,7 +235,7 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
         event.preventDefault();
         props.onFilesDropped([...event.dataTransfer.files]);
       }}
-      onFocus={(event) => keepFocusAboveFooter(event.target)}
+      onFocus={keepFocusAboveFooter}
     >
       <div className="mx-auto flex max-w-[1120px] flex-col gap-6 p-8">
         <Breadcrumb

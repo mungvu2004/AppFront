@@ -964,10 +964,43 @@ describe('FloorUploadScreenView — QA-03e', () => {
     vi.spyOn(footer as HTMLElement, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 700, 800, 100));
     vi.spyOn(trash, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 720, 32, 32));
 
-    fireEvent.focus(trash);
+    act(() => trash.focus());
 
     expect(scrollBy).toHaveBeenCalledTimes(1);
     expect((scrollBy.mock.calls[0]?.[1] as number | undefined) ?? 0).toBeGreaterThanOrEqual(52);
+  });
+
+  // R1-02: a Select option (portal) took focus on mousedown, the page scrolled mid-click and the
+  // listbox moved away from the pointer — the floor choice was lost. A mouse focus inside the
+  // screen must not jolt the page either.
+  it('chọn tầng bằng chuột trong khay không cuộn trang và giữ lựa chọn (R1-02)', () => {
+    const onReassign = vi.fn();
+    renderWithProviders(<FloorUploadScreenView {...trayScenario()} onReassign={onReassign} />);
+    const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
+    const footer = screen.getByRole('button', { name: 'Bắt đầu xử lý' }).closest('.sticky') as HTMLElement;
+    const trayRow = screen.getByRole('button', { name: 'Xoá bản vẽ ban-ve-khong-ro-tang.dwg' }).closest('li') as HTMLElement;
+
+    vi.spyOn(footer, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 700, 800, 100));
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 720, 32, 32));
+
+    fireEvent.click(within(trayRow).getByRole('combobox', { name: 'Gán cho tầng khác' }));
+    const option = screen.getAllByRole('option')[1] as HTMLElement;
+
+    // The option lives in a portal outside the screen: its focus never scrolls the page.
+    act(() => option.focus());
+    expect(scrollBy).not.toHaveBeenCalled();
+
+    // Pointer modality: nothing matches :focus-visible, so the focus going back to the trigger
+    // after the click does not jolt the page either.
+    const matches = Element.prototype.matches;
+    vi.spyOn(Element.prototype, 'matches').mockImplementation(function (this: Element, selector: string) {
+      return selector === ':focus-visible' ? false : matches.call(this, selector);
+    });
+    fireEvent.click(option);
+
+    expect(scrollBy).not.toHaveBeenCalled();
+    expect(onReassign).toHaveBeenCalledTimes(1);
+    expect(onReassign).toHaveBeenCalledWith('tray-1', expect.any(String));
   });
 
   it('bảng tuỳ chọn đang mở nâng thẻ lên trên chân trang dính (BUG-526)', () => {
