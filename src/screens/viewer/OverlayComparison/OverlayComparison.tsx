@@ -76,6 +76,8 @@ const CANVAS_REGION_ARIA_LABEL = 'Khung đối chiếu bản vẽ gốc và mô 
 const NOTICE_REGION_ARIA_LABEL = 'Trạng thái của màn đối chiếu bản vẽ';
 
 const ERROR_LINK_LABEL = 'Sang màn hiệu chỉnh tỷ lệ';
+/** BUG-420: lối ra của tầng chưa có bản vẽ — cùng nhãn nút của màn Hiệu chỉnh tỷ lệ. */
+const UPLOAD_LINK_LABEL = 'Tải bản vẽ lên';
 
 /** Nút chữ của liên kết lỗi: cùng khuôn `DimensionOcrReview.tsx` (A1, A2). */
 const ERROR_LINK_CLASS_NAME =
@@ -175,6 +177,11 @@ export function OverlayComparison({ actions, model }: OverlayComparisonProps) {
               {isError && model.scaleFixHref !== null && (
                 <a className={ERROR_LINK_CLASS_NAME} href={model.scaleFixHref}>
                   {ERROR_LINK_LABEL}
+                </a>
+              )}
+              {model.uploadHref !== null && (
+                <a className={ERROR_LINK_CLASS_NAME} href={model.uploadHref}>
+                  {UPLOAD_LINK_LABEL}
                 </a>
               )}
             </div>

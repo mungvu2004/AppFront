@@ -60,6 +60,7 @@ import { millimetres } from '@/domain/units/types';
 import { useCanvasViewport, type ViewportState } from '@/hooks/useCanvasViewport';
 import { useCountUp } from '@/hooks/useCountUp';
 import { can } from '@/lib/auth/permissions';
+import { readWireError } from '@/lib/errors/wireError';
 import { formatLength } from '@/lib/format/measure';
 import { formatNumber, formatPercent, MISSING_VALUE } from '@/lib/format/number';
 import { MOTION_DURATIONS_MS } from '@/lib/motion/tokens';
@@ -115,6 +116,7 @@ const COPY = {
   layerGeometry: 'Hình học sinh ra',
   layerScan: 'Ảnh quét gốc',
   loadingNotice: 'Đang tải ảnh bản vẽ gốc.',
+  noDrawingNotice: 'Tầng này chưa có bản vẽ nào nên chưa có gì để đối chiếu. Tải bản vẽ lên rồi quay lại đây.',
   metricMax: 'Sai số lớn nhất',
   metricMean: 'Sai số trung bình',
   metricOverTolerance: 'số vùng vượt ngưỡng',
@@ -418,6 +420,14 @@ export function useOverlayComparison(
       const scans = await gateway.readFloorScans({ floorId: readFloorId, projectId });
 
       if (!scans.ok) {
+        const wire = readWireError(scans.error);
+
+        // Tầng chưa có bản vẽ: BE trả 404 `upload` (cùng khuôn `useInputQualityGate`). Đó là
+        // trạng thái rỗng "chưa có bản vẽ", không phải lỗi đọc ảnh (BUG-420).
+        if (wire?.status === 404 && wire.resource === 'upload') {
+          return { scans: EMPTY_SCANS, regions: EMPTY_REGIONS };
+        }
+
         throw scans.error;
       }
 
@@ -763,7 +773,12 @@ export function useOverlayComparison(
     }
 
     if (state === 'empty') {
-      return activeFloorId === null ? COPY.noFloorNotice : COPY.emptyNotice;
+      if (activeFloorId === null) {
+        return COPY.noFloorNotice;
+      }
+
+      // Tầng vắng hẳn khỏi lượt đọc ảnh = chưa có bản vẽ; có mặt mà không có ảnh = tầng nhập từ CAD.
+      return activeScan === null ? COPY.noDrawingNotice : COPY.emptyNotice;
     }
 
     if (state === 'forbidden') {
@@ -791,6 +806,7 @@ export function useOverlayComparison(
     return sentences.length === 0 ? null : sentences.join(' ');
   }, [
     activeFloorId,
+    activeScan,
     floorOptions.length,
     floorsWithScan,
     floorsWithoutGeometry,
@@ -819,6 +835,10 @@ export function useOverlayComparison(
     // Route tỷ lệ nhận mã tầng API, như route này — không phải mã `Level`.
     return ROUTES.project.scale(projectId, scanFloorIdOf(activeFloorId));
   }, [activeFloorId, hasScaleConflict, isFrameMissing, projectId, scanFloorIdOf, state]);
+
+  /** BUG-420: tầng chưa có bản vẽ → lối sang màn Tải bản vẽ, như màn Hiệu chỉnh tỷ lệ. */
+  const uploadHref =
+    state === 'empty' && activeFloorId !== null && activeScan === null ? ROUTES.project.upload(projectId) : null;
 
   /* ---------------------------------------------------------------------- */
   /* Ba lớp thị giác, và kiểu đối chiếu còn dùng được.                       */
@@ -1002,6 +1022,7 @@ export function useOverlayComparison(
       state,
       stateNotice,
       scaleFixHref,
+      uploadHref,
       floors: floorOptions,
       activeFloorId,
       compareMode,
@@ -1048,6 +1069,7 @@ export function useOverlayComparison(
       state,
       stateNotice,
       swipePosition,
+      uploadHref,
       toleranceMm,
       unsupportedCapabilities,
       viewport,

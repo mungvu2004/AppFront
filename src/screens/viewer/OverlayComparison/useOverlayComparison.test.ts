@@ -42,6 +42,7 @@ import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Level, LevelId } from '@/domain/spatial/types';
 import { millimetresPerPixel } from '@/domain/units/scale';
 import { MISSING_VALUE } from '@/lib/format/number';
+import type { HttpError } from '@/lib/http/types';
 import { MOTION_DURATIONS_MS } from '@/lib/motion/tokens';
 import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
 import { createTestQueryClient } from '@/lib/testing/render';
@@ -527,6 +528,30 @@ describe('useOverlayComparison — bảy trạng thái', () => {
     expect(model.state).toBe('error');
     expect(model.scaleFixHref).toBe(ROUTES.project.scale(PROJECT_ID, FLOOR_WARPED));
     expect(model.metrics.maxText).toBe(MISSING_VALUE);
+  });
+
+  it('[BUG-420] tầng chưa có bản vẽ (404 `upload`) là empty "chưa có bản vẽ" kèm lối tải lên, không phải lỗi đọc ảnh', async () => {
+    const noDrawing: HttpError = {
+      code: 'NOT_FOUND',
+      kind: 'http',
+      raw: { code: 'NOT_FOUND', resource: 'upload' },
+      requestId: 'r',
+      retryable: false,
+      status: 404,
+    };
+    const gateway = await makeGateway();
+    const mounted = mountHook({ ...gateway, readFloorScans: async () => ({ ok: false, error: noDrawing }) });
+
+    await settle(mounted);
+
+    const model = mounted.result.current.model;
+
+    expect(model.state).toBe('empty');
+    expect(model.stateNotice).toBe(
+      'Tầng này chưa có bản vẽ nào nên chưa có gì để đối chiếu. Tải bản vẽ lên rồi quay lại đây.',
+    );
+    expect(model.uploadHref).toBe(ROUTES.project.upload(PROJECT_ID));
+    expect(model.scaleFixHref).toBeNull();
   });
 
   it('hai tầng dùng tỷ lệ khác nhau cũng là error', async () => {

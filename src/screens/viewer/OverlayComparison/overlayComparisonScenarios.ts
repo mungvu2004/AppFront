@@ -290,6 +290,7 @@ const BASE: OverlayComparisonViewModel = {
   state: 'success',
   stateNotice: null,
   scaleFixHref: null,
+  uploadHref: null,
   floors: SAMPLE_FLOORS,
   activeFloorId: levelId('01'),
   scanUrl: SAMPLE_SCAN_URL,
