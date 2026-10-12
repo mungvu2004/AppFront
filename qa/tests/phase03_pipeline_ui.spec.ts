@@ -42,7 +42,7 @@
  * the page flow (InputQualityGate.tsx:156-168, FIX-1381 / BUG-291; it was a `fixed` bottom sheet, BUG-161), so SCR-11
  * report states shoot the full page like every other state — a viewport shot would cut the report off at 768 / 375.
  */
-import { writeFileSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
 
 import { expect, test, type APIRequestContext, type Browser, type Locator, type Page } from '@playwright/test';
 
@@ -140,7 +140,12 @@ async function verifyAsAdmin(
   shot: { readonly fullPage?: boolean } = {},
   watch?: (page: Page) => void,
 ): Promise<void> {
-  const context = await browser.newContext({ baseURL: readBaseUrl(), storageState: ADMIN_STORAGE_STATE_FILE });
+  // The only reader/writer of the stored admin session in the ui layer (QA-03d flow files sign in per context), so
+  // `--workers 4` cannot rotate its cookie under it. No file yet (phase 1 not run here) → ensureAdminSession signs in once.
+  const context = await browser.newContext({
+    baseURL: readBaseUrl(),
+    ...(existsSync(ADMIN_STORAGE_STATE_FILE) ? { storageState: ADMIN_STORAGE_STATE_FILE } : {}),
+  });
   try {
     await ensureAdminSession(context, ADMIN_STORAGE_STATE_FILE);
     const page = await context.newPage();
