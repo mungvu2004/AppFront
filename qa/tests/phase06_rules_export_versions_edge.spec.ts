@@ -225,8 +225,8 @@ const VH = {
   restore: 'Phục hồi phiên bản này', // VHV:186
   tag: 'Gắn nhãn phiên bản này', // VHV:173
   restoreCaption:
-    'Phục hồi không xoá gì: trạng thái hiện tại được giữ lại thành một phiên bản riêng, và bản phục hồi được thêm lên đầu danh sách', // VHM:473-474
-  undoCleared: 'Lịch sử hoàn tác (Ctrl+Z) của mọi tầng sẽ được xoá.', // VHM:477
+    'Phục hồi không xoá phiên bản nào: trạng thái hiện tại được giữ lại thành một phiên bản riêng, và bản phục hồi được thêm lên đầu danh sách', // VHM:502-503 (BUG-459)
+  undoCleared: 'Riêng lịch sử hoàn tác (Ctrl+Z) của mọi tầng sẽ được xoá.', // VHM:509 (BUG-459)
   restoreTitle: (label: string, floor: string): string => `Phục hồi phiên bản ${label} của ${floor}?`, // VHM:539
   restoreConfirm: 'Phục hồi', // VHM:541
   restoreCancel: 'Để nguyên', // VHM:542
