@@ -1046,9 +1046,9 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
         runs.progressOf.set(u1, wireError(503, 'SERVICE_UNAVAILABLE'));
         await page.goto(pipeline);
         await expect(readAlert(page)).toBeVisible({ timeout: 25_000 });
-        // QA-03f (T5): once the first failed read has filled the record, the viewed floor goes SSE (useProcessingScreen.ts:1014-1022)
-        // and stops asking #8 — the failure is kept through `onFailure` (processingGateway.ts:737-745). run-36 saw #8 stuck at 9
-        // reads for 45 s, so do not wait for a later poll: hold 10 s, then the alert must still be there.
+        // FIX-2433: a floor whose record has no progress yet stays on poll (it no longer goes SSE after a failed #8 read) and
+        // re-reads #8 every 5 s, each try spending ~4 s on 503 retries — so the #8 read count keeps growing while the alert
+        // stays up. Hold 10 s, then the alert must still be there.
         await settle(page, 10_000);
         await expect.soft(readAlert(page)).toBeVisible();
         await expect.soft(page.getByRole('button', { name: SUPPORT, exact: true })).toBeVisible();
