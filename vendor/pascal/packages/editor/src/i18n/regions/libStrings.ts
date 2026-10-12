@@ -52,18 +52,25 @@ export const libStrings = {
     noParcelFound: 'Không tìm thấy lô đất cho địa chỉ đó.',
     noParcelReason: (reason: string) => `Không có lô đất: ${reason}`,
     parcelGeometryUnusable: 'Hình học lô đất không dùng được.',
-    buildingRecentred: 'đã đưa toà nhà về giữa lô',
-    roadsUnavailable: (reason: string) => `không lấy được đường (${reason})`,
-    pascalMapUnavailable: (reason: string) => `không lấy được Pascal Map (${reason})`,
+    buildingRecentred: 'Đã đưa toà nhà về giữa lô',
+    roadsUnavailable: (reason: string) => `Không lấy được đường (${reason})`,
+    pascalMapUnavailable: (reason: string) => `Không lấy được Pascal Map (${reason})`,
   },
   lotTerrain: {
-    noLotRing: 'không có đường bao lô đất',
-    elevationLookupFailed: 'không tra được cao độ',
-    noElevations: 'không có cao độ nào',
+    noLotRing: 'Không có đường bao lô đất',
+    elevationLookupFailed: 'Không tra được cao độ',
+    noElevations: 'Không có cao độ nào',
     tooFewElevations: (valid: number, total: number) =>
-      `quá ít cao độ (${valid} trong ${total})`,
-    noParcelOrigin: 'không có gốc toạ độ lô đất',
-    noTerrain: 'không có địa hình',
+      `Quá ít cao độ (${valid} trong ${total})`,
+    noParcelOrigin: 'Không có gốc toạ độ lô đất',
+    noTerrain: 'Không có địa hình',
+    groundFlatWithin: (inches: number) => `Mặt đất phẳng trong khoảng ${inches}" (USGS)`,
+    reliefAcrossLot: (feet: string, points: number, unread: number) =>
+      `Địa hình: chênh ${feet}' trên lô đất (USGS, ${points} điểm${
+        unread > 0 ? `, ${unread} điểm chưa đọc được` : ''
+      })`,
+    terrainReadFailed: (reason: string) =>
+      `Không đọc được địa hình (${reason}) — mặt đất vẫn phẳng cho tới khi đọc được`,
   },
   levelPrintExport: {
     spanningNodeOmitted: (nodeType: string, id: string) =>

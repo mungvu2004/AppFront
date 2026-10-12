@@ -155,9 +155,9 @@ describe('area measurements', () => {
   })
 
   test('formats an area label with value and unit', () => {
-    expect(formatAreaLabel(12.34, 'metric')).toBe('12.3m²')
-    expect(formatAreaLabel(1, 'imperial')).toBe('10.8ft²')
-    expect(formatAreaLabel(12.34, 'metric', 2)).toBe('12.34m²')
+    expect(formatAreaLabel(12.34, 'metric')).toBe('12,3 m²')
+    expect(formatAreaLabel(1, 'imperial')).toBe('10,8 ft²')
+    expect(formatAreaLabel(12.34, 'metric', 2)).toBe('12,34 m²')
   })
 
   test('returns a placeholder for non-finite areas', () => {
@@ -179,9 +179,9 @@ describe('volume measurements', () => {
   })
 
   test('formats a volume label with value and unit', () => {
-    expect(formatVolumeLabel(12.34, 'metric')).toBe('12.3m³')
-    expect(formatVolumeLabel(1, 'imperial')).toBe('35.3ft³')
-    expect(formatVolumeLabel(12.34, 'metric', 2)).toBe('12.34m³')
+    expect(formatVolumeLabel(12.34, 'metric')).toBe('12,3 m³')
+    expect(formatVolumeLabel(1, 'imperial')).toBe('35,3 ft³')
+    expect(formatVolumeLabel(12.34, 'metric', 2)).toBe('12,34 m³')
   })
 
   test('returns a placeholder for non-finite volumes', () => {

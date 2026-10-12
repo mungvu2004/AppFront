@@ -263,11 +263,13 @@ export function describeTerrainSample(
   failure: string,
 ): string {
   if (summary) {
-    if (summary.flat) return `ground flat within ${Math.round(summary.reliefFt * 12)}" (USGS)`
-    const holes = summary.holes > 0 ? `, ${summary.holes} unread` : ''
-    return `terrain: ${summary.reliefFt.toFixed(1)}' of fall across the lot (USGS, ${summary.sampled} pts${holes})`
+    if (summary.flat) return vi.lotTerrain.groundFlatWithin(Math.round(summary.reliefFt * 12))
+    return vi.lotTerrain.reliefAcrossLot(
+      summary.reliefFt.toFixed(1).replace('.', ','),
+      summary.sampled,
+      summary.holes,
+    )
   }
-  if (failure && failure !== 'skipped')
-    return `terrain read failed (${failure}) — the ground is flat until it is read`
+  if (failure && failure !== 'skipped') return vi.lotTerrain.terrainReadFailed(failure)
   return ''
 }
