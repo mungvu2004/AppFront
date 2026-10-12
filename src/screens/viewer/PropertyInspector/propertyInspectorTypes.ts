@@ -324,6 +324,12 @@ export type PropertyStatusBadgeTone = 'verified' | 'attention' | 'violation' | '
 export interface PropertyStatusBadge {
   readonly label: string;
   readonly tone: PropertyStatusBadgeTone;
+  /**
+   * Lý do của "Vi phạm"/"Cần chú ý": câu của vi phạm nặng nhất, hiện ngay dưới đầu
+   * panel. Huy hiệu đỏ mà không nói vì sao thì người dùng phải cuộn tới nhóm
+   * "Kiểm tra" mới biết (BUG-489). Vắng khi không có vi phạm.
+   */
+  readonly reason?: string;
 }
 
 /** Đầu panel: h3 loại đối tượng, mã mono-lg, Badge trạng thái, nút khuôn, nút đóng. */

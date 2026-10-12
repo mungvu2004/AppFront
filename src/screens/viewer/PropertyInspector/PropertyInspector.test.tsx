@@ -1445,3 +1445,37 @@ describe('[N9] tự lưu', () => {
     expect(notice).not.toBeNull();
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* [BUG-489] huy hiệu "Vi phạm" của phòng nói ra lý do.                        */
+/* -------------------------------------------------------------------------- */
+
+describe('[BUG-489] phòng không có cửa đi', () => {
+  beforeEach(() => {
+    const graph = createCleanBuildingScenario().graph;
+
+    /* Gỡ mọi ô mở: phòng 0 còn tường bao nhưng không có cửa — ROOM-NO-DOOR (critical).
+     * Phòng chưa duyệt, vì "Đã duyệt" của người (A5) đứng trên mọi vi phạm. */
+    seedStore({
+      ...graph,
+      openings: [],
+      rooms: graph.rooms.map((room) => ({ ...room, reviewed: false })),
+      walls: graph.walls.map((wall) => ({ ...wall, openingIds: [] })),
+    });
+  });
+
+  it('huy hiệu "Vi phạm" đi kèm câu của vi phạm nặng nhất ngay dưới đầu panel', async () => {
+    const roomId = sampleRoomId(0);
+    const { container } = await renderWired([roomId]);
+    const blocking = selectViolations(useStore.getState()).find(
+      (candidate) => candidate.entityId === roomId && candidate.severity === 'critical',
+    );
+
+    expect(blocking, 'bộ mẫu không cửa phải sinh vi phạm critical cho phòng 0').toBeDefined();
+
+    const header = container.querySelector('h3')?.parentElement?.parentElement?.parentElement;
+
+    expect(within(container).getByText(PROPERTY_INSPECTOR_TEXT.status.violation)).toBeInTheDocument();
+    expect(header?.querySelector('p')?.textContent?.toLowerCase()).toBe(blocking?.message.toLowerCase());
+  });
+});

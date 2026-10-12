@@ -1600,12 +1600,16 @@ export function usePropertyInspector(
       return { label: TEXT.status.verified, tone: 'verified' };
     }
 
-    if (entityViolations.some(isBlocking)) {
-      return { label: TEXT.status.violation, tone: 'violation' };
+    const blocking = entityViolations.find(isBlocking);
+
+    if (blocking !== undefined) {
+      return { label: TEXT.status.violation, tone: 'violation', reason: capitalise(blocking.message) };
     }
 
-    return entityViolations.length > 0
-      ? { label: TEXT.status.attention, tone: 'attention' }
+    const first = entityViolations[0];
+
+    return first !== undefined
+      ? { label: TEXT.status.attention, tone: 'attention', reason: capitalise(first.message) }
       : { label: TEXT.status.neutral, tone: 'neutral' };
   }, [entityViolations, primaryEntity]);
 
