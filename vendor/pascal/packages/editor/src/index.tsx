@@ -448,10 +448,7 @@ export {
   planDimensionDrive,
   resolveDimensionDrive,
 } from './lib/floorplan/dimension-drive'
-export {
-  exportFloorplanPdf,
-  type FloorplanExportScope,
-} from './lib/floorplan/floorplan-export'
+export { type FloorplanExportScope } from './lib/floorplan/floorplan-export'
 export {
   createFloorplanContextExtensions,
   FLOORPLAN_CONTEXT_EXTENSION_KEY,
@@ -497,19 +494,7 @@ export {
   type ScheduleUnit,
   windowSchedule,
 } from './lib/floorplan/schedules'
-// Sheets — headless floor-plan geometry collection + the multi-sheet vector
-// PDF writer.
-export {
-  collectFloorplanSchedules,
-  collectSheetGeometry,
-  exportSheetsToPdf,
-  POINTS_PER_INCH,
-  resolveSheetRotationDeg,
-  type SheetGeometryEntry,
-  type SheetGeometryOptions,
-  type SheetPdfPage,
-  type SheetPdfWindow,
-} from './lib/floorplan/sheet-export'
+export { collectFloorplanSchedules } from './lib/floorplan/floorplan-export'
 // ── Site plan (WS1) ──────────────────────────────────────────────────
 export {
   boundsInsidePolygon,

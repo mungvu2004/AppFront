@@ -24,7 +24,6 @@ import {
   Download,
   Layers,
   ListTree,
-  Map as MapIcon,
   Save,
   ChevronDown,
   Send,
@@ -45,10 +44,6 @@ import {
 } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import {
-  exportFloorplanPdf,
-  type FloorplanExportScope,
-} from '../../../../../lib/floorplan/floorplan-export'
-import {
   LocalAppError,
   probeLocalApp,
   sendGlbToLocalApp,
@@ -66,7 +61,6 @@ import { Switch } from './../../../../../components/ui/primitives/switch'
 import { cn } from './../../../../../lib/utils'
 import { deleteLevelWithFallbackSelection } from './../../../../../lib/level-selection'
 import useEditor, { selectDefaultBuildingAndLevel } from './../../../../../store/use-editor'
-import useFloorplanMode from './../../../../../store/use-floorplan-mode'
 import { type SendToAppStep, useSendToApp } from './../../../../../store/use-send-to-app'
 import { AudioSettingsDialog } from './audio-settings-dialog'
 import { KeyboardShortcutsDialog } from './keyboard-shortcuts-dialog'
@@ -446,7 +440,6 @@ export function SettingsPanel({
   const modelExport = useEditor((state) => state.modelExport)
   const shadows = useViewer((state) => state.shadows)
   const setPhase = useEditor((state) => state.setPhase)
-  const floorplanMode = useFloorplanMode((state) => state.mode)
   const registryVersion = useRegistryVersion()
   const visibleOnlySwitchId = useId()
   const includeNodeTypeIdPrefix = useId()
@@ -462,10 +455,6 @@ export function SettingsPanel({
   const sendToBlenderMessage = useSendToApp((state) => state.message)
   const setSendToBlenderStep = useSendToApp((state) => state.setStep)
   const setSendToBlenderMessage = useSendToApp((state) => state.setMessage)
-  const [activeFloorplanExport, setActiveFloorplanExport] = useState<FloorplanExportScope | null>(
-    null,
-  )
-  const [floorplanExportError, setFloorplanExportError] = useState<string | null>(null)
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null)
   const [projectIdCopyState, setProjectIdCopyState] = useState<'idle' | 'copied' | 'error'>('idle')
   const exportableNodeTypes = useMemo(() => {
@@ -767,22 +756,6 @@ export function SettingsPanel({
     }
   }
 
-  const handleFloorplanExport = async (scope: FloorplanExportScope) => {
-    if (activeFloorplanExport) return
-
-    setActiveFloorplanExport(scope)
-    setFloorplanExportError(null)
-    try {
-      await exportFloorplanPdf(scope)
-    } catch (error) {
-      setFloorplanExportError(
-        vi.settingsPanel.couldNotExportFloorPlan(error instanceof Error ? error.message : vi.settingsPanel.tryAgain),
-      )
-    } finally {
-      setActiveFloorplanExport(null)
-    }
-  }
-
   return (
     <div
       className={cn(
@@ -1054,47 +1027,6 @@ export function SettingsPanel({
             <div className="grid gap-2 @sm:grid-cols-2">
               <PrintExportButton onlyVisible={exportOnlyVisible} />
             </div>
-          </div>
-
-          <div className="space-y-3 pt-2">
-            <div className="flex items-center justify-between">
-              <SettingsSubheading>{vi.settingsPanel.floorPlan}</SettingsSubheading>
-              <span className="text-muted-foreground text-xs">
-                {floorplanMode === 'default' ? vi.settingsPanel.defaultMode : vi.settingsPanel.expertMode}
-              </span>
-            </div>
-            <div className="grid gap-2 @sm:grid-cols-2">
-              <Button
-                aria-busy={activeFloorplanExport === 'full'}
-                className="w-full justify-start gap-2"
-                disabled={activeFloorplanExport !== null}
-                onClick={() => void handleFloorplanExport('full')}
-                variant="outline"
-              >
-                <MapIcon className="size-4" />
-                {vi.settingsPanel.fullFloorPlan}
-              </Button>
-              <Button
-                aria-busy={activeFloorplanExport === 'structure'}
-                className="w-full justify-start gap-2"
-                disabled={activeFloorplanExport !== null}
-                onClick={() => void handleFloorplanExport('structure')}
-                variant="outline"
-              >
-                <MapIcon className="size-4" />
-                {vi.settingsPanel.structureOnly}
-              </Button>
-            </div>
-            {activeFloorplanExport ? (
-              <p className="text-muted-foreground text-xs" role="status">
-                {vi.settingsPanel.preparingFloorPlanPdf}
-              </p>
-            ) : null}
-            {floorplanExportError ? (
-              <p className="break-words text-destructive text-xs" role="alert">
-                {floorplanExportError}
-              </p>
-            ) : null}
           </div>
         </SettingsSection>
 
