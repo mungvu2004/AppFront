@@ -89,7 +89,7 @@ import {
   type BackgroundWatchEntry,
   type BackgroundWatchRegistry,
 } from '@/lib/realtime/backgroundWatch';
-import { createPollingChannel } from '@/lib/realtime/pollingChannel';
+import { createPollingChannel, getDefaultVisibilityTarget } from '@/lib/realtime/pollingChannel';
 import type { PollingChannelHandle, PollingVisibilityTarget } from '@/lib/realtime/pollingChannel';
 import { createProgressStream } from '@/lib/realtime/progressStream';
 import type { ProgressStreamSource, ProgressStreamState } from '@/lib/realtime/progressStream';
@@ -802,6 +802,7 @@ export function createProcessingGateway(
   const now = options.now ?? ((): number => Date.now());
   const clock = options.clock ?? defaultClock;
   const backgroundWatches = options.backgroundWatches ?? backgroundWatchRegistry;
+  const visibility = options.visibilityTarget ?? getDefaultVisibilityTarget();
 
   return {
     // Bốn việc làm được hôm nay: theo dõi tiến độ, chạy nền, tổng kết (đếm từ N16)
@@ -885,6 +886,8 @@ export function createProcessingGateway(
 
         silenceTimer = clock.setTimeout(() => {
           silenceTimer = null;
+          // Tab ẩn: luồng đã tự đóng (hiện lại thì mở lại và hẹn lại) — không hỏi #8 trong lúc ẩn.
+          if (visibility?.hidden === true) return;
           void reader.read().then((event) => {
             if (closed) return;
 

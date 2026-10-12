@@ -291,14 +291,16 @@ describe('processingGateway', () => {
 
     it('does not probe while the stream is polling', async () => {
       const { client, calls } = scriptedClient();
-      // Tab ẩn: kênh quay vòng không hỏi, nên mọi lượt #8 đếm được là lượt dò.
-      const hidden = { hidden: true, addEventListener: () => undefined, removeEventListener: () => undefined };
+      // Tab ẩn SAU khi luồng mở (không bắn sự kiện, nên SSE vẫn mở): kênh quay vòng không hỏi,
+      // nên mọi lượt #8 đếm được là lượt dò — và lượt dò cũng không bắn khi tab ẩn (BUG-552).
+      const hidden = { hidden: false, addEventListener: () => undefined, removeEventListener: () => undefined };
       createProcessingGateway(client, {
         EventSourceImpl: MockEventSource as unknown as typeof EventSource,
         visibilityTarget: hidden,
       }).subscribeProgress(INPUT, recorder().handlers);
       latestSource().triggerOpen();
       latestSource().triggerMessage(progress());
+      hidden.hidden = true;
       // Ba lần mất kết nối → quay vòng; mỗi lần hỏng, kênh mở `EventSource` mới.
       for (let failure = 0; failure < 3; failure += 1) {
         latestSource().onerror?.(new Event('error'));

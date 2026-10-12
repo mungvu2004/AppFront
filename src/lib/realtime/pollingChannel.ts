@@ -38,7 +38,7 @@ const defaultClock: ChannelClock = {
   setTimeout: (fn, ms) => setTimeout(fn, ms),
 };
 
-const getDefaultVisibilityTarget = (): PollingVisibilityTarget | undefined =>
+export const getDefaultVisibilityTarget = (): PollingVisibilityTarget | undefined =>
   typeof document === 'undefined' ? undefined : document;
 
 const isAbortError = (error: unknown): boolean => error instanceof Error && error.name === 'AbortError';

@@ -148,6 +148,46 @@ describe('createProgressStream', () => {
     stream.close();
   });
 
+  it('BUG-552: closes the SSE while the tab is hidden and reopens it when visible', () => {
+    const visibilityTarget = new MockVisibilityTarget(false);
+    const stream = createProgressStream({
+      EventSourceImpl: MockEventSource as unknown as typeof EventSource,
+      fetchEvents: vi.fn(async () => []),
+      onEvent: vi.fn(),
+      url: 'https://api.example.com/events',
+      visibilityTarget,
+    });
+    expect(MockEventSource.instances).toHaveLength(1);
+
+    visibilityTarget.setHidden(true);
+    expect(MockEventSource.instances[0]?.closed).toBe(true);
+
+    visibilityTarget.setHidden(false);
+    expect(MockEventSource.instances).toHaveLength(2);
+    expect(MockEventSource.instances[1]?.closed).toBe(false);
+
+    stream.close();
+    visibilityTarget.setHidden(true);
+    visibilityTarget.setHidden(false);
+    expect(MockEventSource.instances).toHaveLength(2);
+  });
+
+  it('BUG-552: opened while hidden, no SSE until the tab is visible', () => {
+    const visibilityTarget = new MockVisibilityTarget(true);
+    const stream = createProgressStream({
+      EventSourceImpl: MockEventSource as unknown as typeof EventSource,
+      fetchEvents: vi.fn(async () => []),
+      onEvent: vi.fn(),
+      url: 'https://api.example.com/events',
+      visibilityTarget,
+    });
+    expect(MockEventSource.instances).toHaveLength(0);
+
+    visibilityTarget.setHidden(false);
+    expect(MockEventSource.instances).toHaveLength(1);
+    stream.close();
+  });
+
   /**
    * NO-154: sau `bump_token_version` cookie luồng cũ nhận 401, mà `EventSource`
    * không đọc được mã trạng thái — chỉ thấy lỗi lặp. Chuỗi SSE chết thì xin
