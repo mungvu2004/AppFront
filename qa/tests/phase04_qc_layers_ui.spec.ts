@@ -80,7 +80,8 @@ const FLOOR_NAV = 'Tầng của bản vẽ';
 const OBJECTS_SCREEN = 'Lớp đối tượng';
 const OBJECT_LIST = 'Danh sách đối tượng';
 const OBJECTS_EMPTY_TITLE = 'Chưa nhận ra đối tượng nào';
-const OBJECTS_EMPTY_ACTION = 'Thêm thủ công';
+/** The empty project's floor has no wall (see U04_walls_empty), so the EmptyState action is the wall-layer exit: ObjectLayerReview.tsx:70,97-99 (FIX-1812). */
+const OBJECTS_EMPTY_ACTION = 'Sang duyệt tường';
 const APPROVE_OBJECT = 'Duyệt đối tượng này';
 const OBJECT_FILTER = 'Lọc theo loại';
 /* SCR-18: dimensionOcrText.ts. */
