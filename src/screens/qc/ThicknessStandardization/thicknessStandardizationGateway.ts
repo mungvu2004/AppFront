@@ -599,6 +599,8 @@ export function toGroupRows(
   }
 
   return [...byMeasurement.entries()]
+    /* Số đo ĐÃ bằng nhóm chuẩn (220 → 220) không phải một đề xuất: tích vào cũng không đổi gì (BUG-421). */
+    .filter(([measuredMm, bucket]) => standardValueOf(bucket.group) !== measuredMm)
     .sort(([first], [second]) => first - second)
     .map(([measuredMm, bucket]) => ({
       measuredMm,
