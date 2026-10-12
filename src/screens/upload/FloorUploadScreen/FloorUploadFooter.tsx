@@ -13,6 +13,8 @@
  * không thêm nghĩa, nên nó chuyển sang trạng thái chờ của chính `Button`.
  */
 
+import type { Ref } from 'react';
+
 import { Button } from '@/components/ui/Button';
 import { useCountUp, type UseCountUpOptions } from '@/hooks/useCountUp';
 
@@ -43,9 +45,11 @@ export interface FloorUploadFooterProps {
   readonly footer: FloorUploadFooterModel;
   readonly blockNotice: FloorUploadBlockNotice | null;
   readonly onSubmit: () => void;
+  /** Màn đo chân trang để tiêu điểm không nằm dưới nó (BUG-526). */
+  readonly rootRef?: Ref<HTMLDivElement>;
 }
 
-export function FloorUploadFooter({ footer, blockNotice, onSubmit }: FloorUploadFooterProps) {
+export function FloorUploadFooter({ footer, blockNotice, onSubmit, rootRef }: FloorUploadFooterProps) {
   // Chỉ vế `đã xong` chạy số. Phần đuôi — dấu gạch, tổng số tầng, và chữ — cắt
   // ra từ chính `counterLabel` mà hook đã dựng, nên không có bản thứ hai của
   // con số hay của câu chữ ở tầng giao diện: `formatNumber` vẫn là nơi duy nhất
@@ -69,7 +73,7 @@ export function FloorUploadFooter({ footer, blockNotice, onSubmit }: FloorUpload
   const counterTail = footer.counterLabel.slice(footer.counterLabel.indexOf(COUNTER_SEPARATOR));
 
   return (
-    <div className="sticky bottom-0 z-20 flex flex-col gap-3 rounded-[12px] border border-border-default bg-bg-surface p-5">
+    <div ref={rootRef} className="sticky bottom-0 z-20 flex flex-col gap-3 rounded-[12px] border border-border-default bg-bg-surface p-5">
       {blockNotice !== null && (
         <div
           className="flex flex-col gap-1 rounded-[8px] bg-state-attention-tint p-3"
@@ -110,9 +114,12 @@ export function FloorUploadFooter({ footer, blockNotice, onSubmit }: FloorUpload
           </span>
         </p>
 
-        <Button loading={footer.isSubmitting} onClick={onSubmit} type="button" variant="primary">
-          {footer.submitLabel}
-        </Button>
+        {/* Người xem không bắt đầu được lượt xử lý; câu "chỉ được xem" đầu màn đã nói vì sao (BUG-536). */}
+        {!footer.isSubmitHidden && (
+          <Button loading={footer.isSubmitting} onClick={onSubmit} type="button" variant="primary">
+            {footer.submitLabel}
+          </Button>
+        )}
       </div>
     </div>
   );

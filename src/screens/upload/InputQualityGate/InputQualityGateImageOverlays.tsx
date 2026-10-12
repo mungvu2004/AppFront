@@ -102,13 +102,6 @@ const REGION_BORDER_CLASSES: Readonly<Record<QualityLevel, string>> = {
   poor: 'border-state-violation',
 };
 
-/** Nền rất nhạt cùng mức, để vùng đọc được cả khi ảnh nền tối. */
-const REGION_TINT_CLASSES: Readonly<Record<QualityLevel, string>> = {
-  good: 'bg-transparent',
-  attention: 'bg-state-attention-tint',
-  poor: 'bg-state-violation-tint',
-};
-
 /** Token `applyEmphasis` cầm cho mỗi mức — nó giữ nguyên token, chỉ đổi độ mờ. */
 const REGION_EMPHASIS_TOKENS: Readonly<Record<QualityLevel, ColorTokenName>> = {
   good: '--border-default',
@@ -144,10 +137,15 @@ export function ImageRegionLayer({
   }
 
   const hasHighlight = highlightedRegionId !== null;
+  // Vùng lớn vẽ trước, vùng nhỏ sau cùng nên nằm trên: con trỏ trong vùng "ảnh bị nghiêng" trúng
+  // chính nó chứ không trúng khung 96 % phủ lên (BUG-539).
+  const byAreaDescending = [...regions].sort(
+    (a, b) => b.widthRatio * b.heightRatio - a.widthRatio * a.heightRatio,
+  );
 
   return (
     <div aria-label={REGION_GROUP_LABEL} className="absolute inset-0" role="group">
-      {regions.map((region) => {
+      {byAreaDescending.map((region) => {
         const isHighlighted = region.id === highlightedRegionId;
         const appearance = applyEmphasis(
           REGION_EMPHASIS_TOKENS[region.level],
@@ -160,8 +158,9 @@ export function ImageRegionLayer({
             className={clsx(
               'absolute rounded-[4px] transition-opacity ease-in-out',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
+              // Chỉ viền, không nền: tint đặc của token che bản vẽ mà người duyệt phải nhìn
+              // (vùng RESOLUTION_TOO_LOW phủ cả ảnh, BUG-537).
               REGION_BORDER_CLASSES[region.level],
-              REGION_TINT_CLASSES[region.level],
               isHighlighted ? 'border-2' : 'border',
             )}
             key={region.id}
@@ -293,7 +292,10 @@ export function CornerHandleLayer({
               return;
             }
 
+            // Tay nắm đã dùng phím này: không để nó lan tới phím tắt đổi tầng trên `window`,
+            // nếu không vừa nhích vừa đổi tầng và mất bản nháp góc (BUG-540).
             event.preventDefault();
+            event.stopPropagation();
             onDragCorner(
               corner.id,
               clampRatio(corner.xRatio + nudge.dx),

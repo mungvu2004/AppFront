@@ -41,7 +41,7 @@
  * Khi chọn góc cụm ẩn (BUG-292) nên ảnh về 100%, không kẹt ở mức không còn nút chỉnh.
  */
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, type KeyboardEvent } from 'react';
 import { clsx } from 'clsx';
 
 import { ZoomCluster } from '@/components/canvas/ZoomCluster';
@@ -76,6 +76,17 @@ const FRAME_CLASSES =
 
 const ZOOMED_FRAME_CLASSES =
   'overflow-auto focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent';
+
+/**
+ * Khung đang phóng giữ phím mũi tên cho việc cuộn của trình duyệt: chặn lan lên `window` để
+ * phím tắt đổi tầng (`shortcutRegistry`) không `preventDefault` mất lượt cuộn — cùng cách
+ * `focusTrap` giữ Esc của nó (BUG-540). Không `preventDefault` ở đây: cuộn chính là việc cần.
+ */
+function keepArrowsForScroll(event: KeyboardEvent<HTMLDivElement>): void {
+  if (event.key.startsWith('Arrow')) {
+    event.stopPropagation();
+  }
+}
 
 /* -------------------------------------------------------------------------- */
 /* Panel.                                                                      */
@@ -131,6 +142,7 @@ export function InputQualityGateImagePanel({ actions, image }: InputQualityImage
         <div
           aria-label={isZoomed ? ZOOMED_FRAME_LABEL : undefined}
           className={clsx(isZoomed && ZOOMED_FRAME_CLASSES)}
+          onKeyDown={isZoomed ? keepArrowsForScroll : undefined}
           role={isZoomed ? 'group' : undefined}
           tabIndex={isZoomed ? 0 : undefined}
         >

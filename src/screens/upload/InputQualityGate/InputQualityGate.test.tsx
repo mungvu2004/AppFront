@@ -1029,3 +1029,79 @@ describe('InputQualityGateView — ba trạng thái mới của F-05a', () => {
     expectAccessible(container, { ignoreSelector: TABLE_ROW_DEBT_SELECTOR });
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* QA-03e — lớp phủ khung bản vẽ (BUG-537, BUG-539, BUG-540).                  */
+/* -------------------------------------------------------------------------- */
+
+describe('InputQualityGate — lớp phủ không che bản vẽ, không tranh phím (QA-03e)', () => {
+  const overlayRegions = [
+    { id: 'r-resolution', label: 'Vùng độ phân giải', level: 'poor', xRatio: 0, yRatio: 0, widthRatio: 1, heightRatio: 1 },
+    { id: 'r-skew', label: 'Vùng ảnh bị nghiêng', level: 'attention', xRatio: 0.08, yRatio: 0.12, widthRatio: 0.84, heightRatio: 0.72 },
+    { id: 'r-frame', label: 'Vùng khung', level: 'attention', xRatio: 0.02, yRatio: 0.02, widthRatio: 0.96, heightRatio: 0.96 },
+  ] as const;
+
+  function renderOverlay(extra: { corners?: { id: string; xRatio: number; yRatio: number }[] } = {}) {
+    const base = scenarioFor('success');
+
+    return renderWithProviders(
+      <InputQualityGateView
+        {...base}
+        model={{
+          ...base.model,
+          image: { ...base.model.image, regions: overlayRegions, corners: extra.corners ?? null },
+        }}
+      />,
+    );
+  }
+
+  function regionButtons(): HTMLElement[] {
+    return within(screen.getByRole('group', { name: 'Vùng có vấn đề trên bản vẽ' })).getAllByRole('button');
+  }
+
+  // BUG-537: the tint tokens are opaque, so a full-image region hid the drawing.
+  it('vùng phát hiện chỉ có viền, không nền đặc che bản vẽ (BUG-537)', () => {
+    renderOverlay();
+
+    for (const button of regionButtons()) {
+      expect(button.className).not.toMatch(/\bbg-/u);
+    }
+  });
+
+  // BUG-539: the 96 % frame region sat last in the DOM and swallowed the pointer of every smaller one.
+  it('vùng lớn vẽ trước, vùng nhỏ nằm trên cùng để con trỏ trúng vùng nhỏ (BUG-539)', () => {
+    renderOverlay();
+
+    expect(regionButtons().map((button) => button.getAttribute('aria-label'))).toEqual([
+      'Vùng độ phân giải',
+      'Vùng khung',
+      'Vùng ảnh bị nghiêng',
+    ]);
+  });
+
+  // BUG-540: a corner handle nudged AND the canvas shortcut switched floor, losing the corner draft.
+  it('mũi tên trên tay nắm góc chỉ nhích tay nắm, không tới phím tắt đổi tầng (BUG-540)', () => {
+    const onWindowKey = vi.fn();
+    window.addEventListener('keydown', onWindowKey);
+    renderOverlay({ corners: [{ id: 'tl', xRatio: 0.1, yRatio: 0.1 }] });
+
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Góc trên bên trái' }), { key: 'ArrowRight' });
+
+    window.removeEventListener('keydown', onWindowKey);
+    expect(onWindowKey).not.toHaveBeenCalled();
+  });
+
+  it('khung đang phóng: mũi tên cuộn khung, không tới phím tắt đổi tầng (BUG-540)', () => {
+    const onWindowKey = vi.fn();
+    window.addEventListener('keydown', onWindowKey);
+    renderOverlay();
+    fireEvent.click(screen.getByRole('button', { name: 'Phóng to' }));
+
+    const frame = screen.getByRole('group', { name: /Bản vẽ đang phóng/u });
+    const notCancelled = fireEvent.keyDown(frame, { key: 'ArrowRight' });
+
+    window.removeEventListener('keydown', onWindowKey);
+    expect(notCancelled).toBe(true);
+    expect(onWindowKey).not.toHaveBeenCalled();
+  });
+});

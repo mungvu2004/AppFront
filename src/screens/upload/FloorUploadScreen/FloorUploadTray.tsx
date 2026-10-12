@@ -9,11 +9,14 @@
  * ở thẻ tầng — không hộp thoại, không chặn cả trang.
  */
 
+import { useRef } from 'react';
+
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { IconButton } from '@/components/ui/IconButton';
 import { Select } from '@/components/ui/Select';
 import { Trash2 } from 'lucide-react';
 
+import { CHOOSE_FILE_BUTTON_ID } from './FloorUploadDropZone';
 import { SheetGlyph } from './FloorUploadGlyphs';
 import type { FloorUploadActions, FloorUploadTrayModel } from './types';
 
@@ -26,13 +29,29 @@ export interface FloorUploadTrayProps {
 }
 
 export function FloorUploadTray({ tray, actions }: FloorUploadTrayProps) {
+  const sectionRef = useRef<HTMLElement | null>(null);
+
   if (tray.items.length === 0) {
     return null;
   }
 
+  /**
+   * Xoá một tệp mà tiêu điểm không rơi về `<body>` (WCAG 2.4.3, BUG-525): sang thùng rác của
+   * tệp kế (hay tệp trước nếu là tệp cuối), hết tệp thì về nút "Chọn tệp".
+   */
+  const removeAndKeepFocus = (trash: HTMLElement, fileId: string): void => {
+    const buttons = [...(sectionRef.current?.querySelectorAll<HTMLElement>('[data-tray-remove]') ?? [])];
+    const index = buttons.indexOf(trash);
+    const neighbour = buttons[index + 1] ?? buttons[index - 1] ?? document.getElementById(CHOOSE_FILE_BUTTON_ID);
+
+    neighbour?.focus();
+    actions.onRemoveFile(fileId);
+  };
+
   return (
     <section
       aria-label={tray.title}
+      ref={sectionRef}
       className="flex flex-col gap-3 rounded-[12px] border border-border-default bg-bg-surface p-5"
     >
       <header className="flex items-baseline gap-2">
@@ -77,7 +96,8 @@ export function FloorUploadTray({ tray, actions }: FloorUploadTrayProps) {
                 <IconButton
                   aria-label={item.removeLabel}
                   icon={<Trash2 />}
-                  onClick={() => actions.onRemoveFile(item.id)}
+                  data-tray-remove=""
+                  onClick={(event) => removeAndKeepFocus(event.currentTarget, item.id)}
                   size="sm"
                 />
               )}

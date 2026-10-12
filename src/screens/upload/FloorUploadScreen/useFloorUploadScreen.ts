@@ -23,7 +23,8 @@
  *   ngưỡng cao độ hay chiều cao nào viết tay trong màn (R-71).
  * - **Cắt khúc, song song, trần dung lượng, tần suất báo tiến độ** — `src/lib/upload`
  *   qua `floorUploadGateway`. File này KHÔNG bóp tiến độ lần thứ hai và KHÔNG
- *   đếm số lượt tải song song: `createUploadTask` đã giữ cả hai.
+ *   đếm số lượt tải song song: `createUploadTask` giữ nhịp tiến độ, hàng
+ *   `createUploadScheduler` trong cổng giữ trần song song (BUG-532).
  * - **Hoàn tác một lượt xoá** — `createUndoTicket` (`src/lib/mutations/undoTicket.ts`)
  *   qua `gateway.createRemovalTicket`, cộng `onToast` tiêm vào. KHÔNG dùng
  *   `useUndoableToast`: hook đó lái undo/redo toàn cục của zundo qua store, một
@@ -59,6 +60,7 @@ import { PROJECT_LIMITS } from '@/domain/project/limits';
 import type { LevelId } from '@/domain/spatial/types';
 import { millimetres, millimetresToMetres } from '@/domain/units/types';
 import type { Millimetres } from '@/domain/units/types';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { can } from '@/lib/auth/permissions';
 import { BYTES_PER_UNIT, formatFileSize } from '@/lib/format/bytes';
 import { formatLength } from '@/lib/format/measure';
@@ -258,6 +260,20 @@ interface Attachment {
    * nói rõ điều đó.
    */
   readonly awaitingNetwork: boolean;
+  /** Người dùng vừa bấm "Huỷ" lượt tải này: thẻ mở "Thử lại" thay vì bắt xoá rồi chọn lại (BUG-534). */
+  readonly wasCancelled?: boolean;
+  /**
+   * Lỗi người dùng đã bấm "Đóng": câu ẩn đi, nhưng lỗi vẫn là lỗi — "Thử lại" còn nguyên (BUG-535).
+   * So bằng tham chiếu: lượt tải sau dựng `problem` mới, nên lỗi mới lại hiện ra.
+   */
+  readonly dismissedProblem?: FloorUploadInlineError | null;
+}
+
+/** Lỗi còn hiện trên thẻ/khay: mọi lỗi trừ đúng lỗi người dùng đã đóng. */
+function visibleProblem(attachment: Attachment | null): FloorUploadInlineError | null {
+  return attachment === null || attachment.problem === attachment.dismissedProblem
+    ? null
+    : attachment.problem;
 }
 
 const PICK_PAGE_SENTENCE = 'Hãy chọn trang bản vẽ để bắt đầu tải';
@@ -390,6 +406,7 @@ export function useFloorUploadScreen(
   attachmentsRef.current = attachments;
 
   const detectedNarrow = useNarrowViewport();
+  const reducedMotion = useReducedMotion();
   const isCollapsed = options.forceCollapsed ?? detectedNarrow;
   const canEdit = can('upload', 'floor', { roles });
 
@@ -616,7 +633,9 @@ export function useFloorUploadScreen(
             },
     });
 
-    if (taskState.status === 'done') {
+    // 404 giữa phiên: dự án (hay tầng) đã bị xoá ở nơi khác. Đọc lại dự án — nếu nó mất thì màn
+    // về "Không tìm thấy dự án này" như lúc mở trang, không để lỗi nằm lại trên thẻ (BUG-311).
+    if (taskState.status === 'done' || described?.kind === 'notFound') {
       invalidateFloor(floorId);
     }
   };
@@ -659,6 +678,7 @@ export function useFloorUploadScreen(
         percent: 0,
         problem: null,
         awaitingNetwork: true,
+        wasCancelled: false,
       });
       if (!awaitAnnouncedRef.current) {
         awaitAnnouncedRef.current = true;
@@ -687,6 +707,7 @@ export function useFloorUploadScreen(
       percent: 0,
       problem: null,
       awaitingNetwork: false,
+      wasCancelled: false,
     });
 
     void task.start().then((finalState) => {
@@ -818,7 +839,9 @@ export function useFloorUploadScreen(
   const reassign = (fileId: string, floorId: string | null): void => {
     const attachment = findAttachment(fileId);
 
-    if (!canEdit || attachment === null) {
+    // `branch === null`: tệp chưa qua (hoặc đã trượt) lượt kiểm phía máy — tệp bị từ chối không
+    // bao giờ được gán cho tầng và tải lên, máy chủ chỉ trả 422/413 y hệt (BUG-523).
+    if (!canEdit || attachment === null || attachment.branch === null) {
       return;
     }
 
@@ -846,6 +869,7 @@ export function useFloorUploadScreen(
       percent: 0,
       problem: null,
       awaitingNetwork: false,
+      wasCancelled: false,
     });
 
     if (floorId !== null) {
@@ -1061,8 +1085,9 @@ export function useFloorUploadScreen(
       attachment.file.size > MAX_UPLOAD_FILE_SIZE_BYTES
         ? sizeOverCap(attachment.file.size, MAX_UPLOAD_FILE_SIZE_BYTES)
         : formatFileSize(attachment.file.size);
+    // Một trang thì không có gì để chọn: không ô "Chọn trang", tệp tải ngay (BUG-530).
     const pageOptions =
-      attachment.pageCount === null || attachment.pageCount <= 0
+      attachment.pageCount === null || attachment.pageCount <= 1
         ? []
         : Array.from({ length: Math.min(attachment.pageCount, MAX_PDF_PAGE_COUNT) }, (_unused, index) => {
             const page = formatNumber(index + 1, { grouping: false });
@@ -1137,18 +1162,24 @@ export function useFloorUploadScreen(
             status === 'attached'
               ? `Tải xong ${file?.name ?? floor.name}`
               : `Đã tải ${formatPercent(percent, { fractionDigits: 0, source: 'percent' })} của ${file?.name ?? floor.name}`,
-          error: attachment?.problem ?? null,
-          reassignOptions: canEdit ? reassignOptions : [],
+          error: visibleProblem(attachment),
+          // Chỉ tệp của phiên này gán lại được; bản vẽ đã nằm trên máy chủ thì không có lượt
+          // chuyển nào để gửi, nên không có ô chọn (BUG-531).
+          reassignOptions: canEdit && attachment !== null ? reassignOptions : [],
           canCancelUpload: canEdit && status === 'uploading',
-          canRetryUpload: canEdit && attachment !== null && (attachment.problem?.isRetryable ?? false),
+          canRetryUpload:
+            canEdit &&
+            attachment !== null &&
+            ((attachment.problem?.isRetryable ?? false) || attachment.wasCancelled === true),
           canRemoveFile: canEdit && attachment !== null,
           removeLabel:
             canEdit && attachment !== null ? `Xoá bản vẽ ${attachment.file.name}` : null,
-          revealDelayMs: staggerDelayMs(index),
-          revealDurationMs: durationMs('standard'),
+          // Giảm chuyển động: thẻ hiện ngay, không so le (WCAG 2.3.3, BUG-527).
+          revealDelayMs: staggerDelayMs(index, { reducedMotion }),
+          revealDurationMs: durationMs('standard', { reducedMotion }),
         };
       }),
-    [attachmentByFloor, canEdit, floors, reassignOptions, stack],
+    [attachmentByFloor, canEdit, floors, reassignOptions, reducedMotion, stack],
   );
 
   const trayItems = useMemo<readonly FloorUploadTrayItemModel[]>(
@@ -1164,8 +1195,8 @@ export function useFloorUploadScreen(
             sizeLabel: model.sizeLabel,
             isCadBranch: model.isCadBranch,
             summaryLine: model.summaryLine,
-            error: attachment.problem,
-            assignOptions: canEdit ? reassignOptions : [],
+            error: visibleProblem(attachment),
+            assignOptions: canEdit && attachment.branch !== null ? reassignOptions : [],
             canRemoveFile: canEdit,
             removeLabel: canEdit ? `Xoá bản vẽ ${attachment.file.name}` : null,
           };
@@ -1195,6 +1226,7 @@ export function useFloorUploadScreen(
     canSubmit,
     blockReasons,
     isSubmitting,
+    isSubmitHidden: !canEdit,
   };
 
   /* ---------------------------------------------------------------------- */
@@ -1219,9 +1251,11 @@ export function useFloorUploadScreen(
     // chưa có danh sách thì màn hẹp phải nói lỗi chứ không vẽ vùng thả trống (BUG-072).
     if (floorsQuery.isPending) return 'loading';
     if (loadFailure !== null) return 'error';
+    // Câu mời "Kéo thả tệp đầu tiên" hiện ở mọi khổ: rỗng thắng thu gọn (BUG-528). Người xem
+    // không thả được tệp, nên với họ câu mời không có nghĩa — họ vẫn về `forbidden`.
+    if (canEdit && !hasAnyFile) return 'empty';
     if (isCollapsed) return 'collapsed';
     if (!canEdit) return 'forbidden';
-    if (!hasAnyFile) return 'empty';
     // Lỗi của MỘT tệp không bao giờ leo lên đây: nó ở lại trong `row.error`.
     // `'error'` của cả màn chỉ dành cho lượt đọc danh sách tầng hỏng.
     if (hasUploading || doneCount < rows.length) return 'partial';
@@ -1289,7 +1323,9 @@ export function useFloorUploadScreen(
     onReassign: reassign,
     onPickPdfPage: pickPdfPage,
     onCancelUpload: (fileId) => {
-      if (canEdit) cancelTask(fileId);
+      if (!canEdit) return;
+      cancelTask(fileId);
+      patchAttachment(fileId, { wasCancelled: true });
     },
     onRetryUpload: (fileId) => {
       const attachment = findAttachment(fileId);
@@ -1312,7 +1348,14 @@ export function useFloorUploadScreen(
     onBackToProjects:
       options.onNavigate === undefined ? undefined : () => options.onNavigate?.(ROUTES.dashboard),
     // Lỗi của một tệp đóng lại một mình; không hàng nào khác đổi.
-    onDismissError: (fileId) => patchAttachment(fileId, { problem: null }),
+    onDismissError: (fileId) =>
+      // Đọc lỗi ngay trong lượt cập nhật, không từ bản vẽ cũ của closure: lượt kiểm tệp có thể vừa
+      // đặt lỗi mà màn chưa vẽ lại.
+      setAttachments((previous) =>
+        previous.map((attachment) =>
+          attachment.id === fileId ? { ...attachment, dismissedProblem: attachment.problem } : attachment,
+        ),
+      ),
   };
 
   return { ...model, ...actions };
@@ -1327,6 +1370,7 @@ function toTray(): Partial<Attachment> {
     percent: 0,
     problem: null,
     awaitingNetwork: false,
+    wasCancelled: false,
   };
 }
 

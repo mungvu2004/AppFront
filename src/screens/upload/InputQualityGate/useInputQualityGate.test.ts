@@ -149,7 +149,11 @@ function createHarness(options: HarnessOptions = {}): Harness {
 
 function mountHook(
   harness: Harness,
-  extra: { onToast?: (toast: InputQualityToast) => void; roles?: readonly ProjectRole[] } = {},
+  extra: {
+    onToast?: (toast: InputQualityToast) => void;
+    roles?: readonly ProjectRole[];
+    forceCollapsed?: boolean;
+  } = {},
 ) {
   const queryClient = createQueryClient({ queries: { retry: false } });
   const gateway = createInputQualityGateway(harness.client, { createKey: harness.createKey });
@@ -159,7 +163,7 @@ function mountHook(
   return renderHook(
     (props: { projectId: string }) =>
       useInputQualityGate({
-        forceCollapsed: false,
+        forceCollapsed: extra.forceCollapsed ?? false,
         gateway,
         projectId: props.projectId,
         ...(extra.onToast !== undefined ? { onToast: extra.onToast } : {}),
@@ -751,5 +755,50 @@ describe('useInputQualityGate — vòng sửa review 1', () => {
     expect(model.noDrawingNotice).not.toBeNull();
     expect(model.footer.areActionsHidden).toBe(true);
     expect(model.findings).toEqual([]);
+  });
+});
+
+describe('useInputQualityGate — QA-03e', () => {
+  /** Kết quả đo mẫu, với tầng L1 sửa theo `patch`. */
+  async function sampleWith(
+    patch: (floor: ImageQualityAssessment['floors'][number]) => ImageQualityAssessment['floors'][number],
+  ): Promise<ApiResult<ImageQualityAssessment>> {
+    const sample = await createMockApiClient().quality.assess({ floorId: 'L1', projectId: PROJECT_ID });
+    if (!sample.ok) throw new Error('Không đọc được kết quả đo mẫu.');
+    const floors = sample.data.floors
+      .filter((floor) => MEASURED_FLOOR_IDS.includes(floor.floorId))
+      .map((floor) => (floor.floorId === 'L1' ? patch(floor) : floor));
+
+    return { ok: true, data: { ...sample.data, floorId: 'L1', floors } };
+  }
+
+  // BUG-538: BE +d° is counter-clockwise (geometry.estimate_skew: atan2(-dy, dx)); y grows downward on screen.
+  it('độ nghiêng dương: đường chỉ đi lên bên phải, cùng chiều bản vẽ (BUG-538)', async () => {
+    const result = await sampleWith((floor) => ({
+      ...floor,
+      ...(floor.measurement === undefined ? {} : { measurement: { ...floor.measurement, skewDeg: 5 } }),
+    }));
+    const mounted = mountHook(createHarness({ assessResults: [result] }));
+
+    await ready(mounted);
+
+    const line = mounted.result.current.model.image.skewLine;
+
+    expect(line).not.toBeNull();
+    expect(line?.endXRatio).toBeGreaterThan(line?.startXRatio ?? 1);
+    expect(line?.endYRatio).toBeLessThan(line?.startYRatio ?? 0);
+  });
+
+  // BUG-541: forbidden/collapsed won over the pass branch, so the viewer and < 1024 px lost "Bản vẽ đạt yêu cầu".
+  it.each([
+    ['người xem', { roles: ['viewer'] as const }],
+    ['khổ hẹp', { forceCollapsed: true }],
+  ])('bản vẽ đạt: %s vẫn có câu "Bản vẽ đạt yêu cầu" (BUG-541)', async (_name, extra) => {
+    const result = await sampleWith((floor) => ({ ...floor, findings: [] }));
+    const mounted = mountHook(createHarness({ assessResults: [result] }), extra);
+
+    await ready(mounted);
+
+    expect(mounted.result.current.model.passNotice).toMatch(/^Bản vẽ đạt yêu cầu\./u);
   });
 });

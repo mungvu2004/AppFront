@@ -82,6 +82,9 @@ const ADD_FLOORS_LABEL = 'Thêm tầng';
 /** Bao nhiêu khung xương lúc chưa biết có mấy tầng. */
 const SKELETON_ROW_COUNT = 3;
 
+/** Khoảng hở giữa điều khiển vừa nhận tiêu điểm và mép trên chân trang dính, px. */
+const FOCUS_CLEARANCE_PX = 8;
+
 /**
  * Gom mười hàm hành động lại thành một đối tượng để chuyền xuống các phần con.
  *
@@ -111,6 +114,25 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
   const actions = actionsOf(props);
 
   const cardsRef = useRef(new Map<string, HTMLElement>());
+  const footerRef = useRef<HTMLDivElement | null>(null);
+
+  /**
+   * Chân trang dính không được che điều khiển đang có tiêu điểm (WCAG 2.4.11, BUG-526): trình
+   * duyệt chỉ cuộn điều khiển vào tới mép dưới khung nhìn, đúng chỗ chân trang đang đứng.
+   */
+  const keepFocusAboveFooter = useCallback((target: HTMLElement): void => {
+    const footer = footerRef.current;
+
+    if (footer === null || footer.contains(target)) {
+      return;
+    }
+
+    const covered = target.getBoundingClientRect().bottom - footer.getBoundingClientRect().top;
+
+    if (covered > 0) {
+      window.scrollBy(0, covered + FOCUS_CLEARANCE_PX);
+    }
+  }, []);
   const scrolledRequestRef = useRef<number | null>(null);
 
   const registerCard = useCallback((floorId: string, element: HTMLElement | null): void => {
@@ -205,6 +227,7 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
         event.preventDefault();
         props.onFilesDropped([...event.dataTransfer.files]);
       }}
+      onFocus={(event) => keepFocusAboveFooter(event.target)}
     >
       <div className="mx-auto flex max-w-[1120px] flex-col gap-6 p-8">
         <Breadcrumb
@@ -246,7 +269,12 @@ export function FloorUploadScreenView(props: FloorUploadScreenViewProps) {
           <FloorUploadTray actions={actions} tray={tray} />
 
           {state !== 'error' && (
-            <FloorUploadFooter blockNotice={blockNotice} footer={footer} onSubmit={props.onSubmit} />
+            <FloorUploadFooter
+              blockNotice={blockNotice}
+              footer={footer}
+              onSubmit={props.onSubmit}
+              rootRef={footerRef}
+            />
           )}
         </div>
       </div>
