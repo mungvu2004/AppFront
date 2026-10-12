@@ -423,6 +423,16 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
         const firsts: string[] = [];
         for (const v of visited) if (v.kind !== 'zoom' && !firsts.includes(v.kind)) firsts.push(v.kind);
         expect.soft(firsts, `Tab order ${JSON.stringify(visited.map((v) => v.kind))}`).toEqual(['Dự án', 'region', 'metric', 'card', 'quickfix', 'row', 'checkbox', SECONDARY, CONTINUE]);
+        // QA-03e (BUG-539, FIX-2242): regions render largest → smallest so the small one sits on top
+        // (InputQualityGateImageOverlays.tsx:140-148); DOM order is Tab order, so Tab meets them large → small.
+        const tabRegions = visited.filter((v) => v.kind === 'region').map((v) => v.label);
+        const byArea = await regions(page).evaluateAll((els) =>
+          els
+            .map((el) => ({ label: el.getAttribute('aria-label') ?? '', area: parseFloat((el as HTMLElement).style.width) * parseFloat((el as HTMLElement).style.height) }))
+            .sort((a, b) => b.area - a.area)
+            .map((r) => r.label),
+        );
+        expect.soft(tabRegions, 'regions reached by Tab largest → smallest').toEqual(byArea);
         const noRing = visited.filter((v) => !v.ring).map((v) => v.label);
         expect.soft(noRing, 'focus ring visible on every stop').toEqual([]);
         await attachJson('E03_11-E-002_tab_order.json', { visited });
@@ -469,7 +479,7 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
         await button(page, 'Mức thu phóng 10%, bấm để về 100%').click();
       });
 
-      await test.step('[11-E-007] at 200 % ArrowRight inside the zoomed frame scrolls it (suspected: canvas shortcut preventDefaults)', async () => {
+      await test.step('[11-E-007] at 200 % ArrowRight inside the zoomed frame scrolls it (QA-03e BUG-540: InputQualityGateImagePanel.tsx:87 stopPropagation)', async () => {
         await zoomTo(200);
         const frame = page.getByRole('group', { name: ZOOMED_FRAME, exact: true });
         await frame.focus();
@@ -872,7 +882,7 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
         expect.soft(focused, 'focus after the Enter switch').toEqual({ tag: 'TR', current: 'true' });
       });
 
-      await test.step('[11-E-006] corner mode, focused handle, ArrowRight → nudge only (suspected: also switches floor)', async () => {
+      await test.step('[11-E-006] corner mode, focused handle, ArrowRight → nudge only, floor unchanged (QA-03e BUG-540: InputQualityGateImageOverlays.tsx:298)', async () => {
         await row(page, 'Tầng 2').click();
         await isActive(page, 'Tầng 2');
         await pickBtn().click();
@@ -1238,11 +1248,11 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
         await captureEvidence(page, 'E03_11-D-005_viewer_checkbox.png', { fullPage: true });
       });
 
-      await test.step('[11-D-007] clean Tầng 2 → pass notice (suspected: empty "Phát hiện")', async () => {
+      await test.step('[11-D-007] clean Tầng 2 → pass notice for the viewer (QA-03e BUG-541: useInputQualityGate.ts:931 passNotice from the verdict)', async () => {
         await row(page, 'Tầng 2').click();
         await isActive(page, 'Tầng 2');
         await captureEvidence(page, 'E03_11-D-007_viewer_clean_floor.png');
-        await expect.soft(report(page), 'pass notice for the viewer (status forbidden wins over pass)').toContainText(PASS);
+        await expect.soft(report(page), 'pass notice for the viewer (useInputQualityGate passNotice no longer tied to forbidden)').toContainText(PASS);
       });
 
       await test.step('[11-D-006] no-drawing project → empty state only, no "Tải bản vẽ lên", no footer', async () => {
@@ -1382,8 +1392,8 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
         await expect(continueBtn(page)).toHaveCount(0);
         await expect(page.locator(`footer[aria-label="${FOOTER}"]`).getByRole('button')).toHaveCount(0); // the alert carries its own way out
         await captureEvidence(page, 'E03_11-B-002_project_read_500.png');
-        // run-33: a 5xx is kind "unknown" (lib/errors kinds.ts retryable false) → the alert offers only "Tải bản vẽ khác"
-        // under a sentence that says "Hãy thử lại sau ít phút" — catalog 11-B-002 expects "Thử lại".
+        // run-33 had only "Tải bản vẽ khác" here; QA-03e BUG-509 makes a GET 5xx retryable (src/lib/http/client.ts:490-491,
+        // toAppError recovery "thử lại"), so useInputQualityGate canRetryLoad offers "Thử lại".
         await expect.soft(button(alert, RETRY), '#24 500: the alert offers "Thử lại"').toBeVisible();
         await page.unrouteAll({ behavior: 'ignoreErrors' });
       });

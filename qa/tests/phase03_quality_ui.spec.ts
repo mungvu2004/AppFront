@@ -176,12 +176,12 @@ test.describe('U03 SCR-11 input quality gate — UI flows (QA-03d P7)', () => {
         });
       });
 
-      await test.step('[11-F-018] below 1024 px the pass notice stays (suspected: empty "Phát hiện" instead)', async () => {
+      await test.step('[11-F-018] below 1024 px the pass notice stays (QA-03e BUG-541: useInputQualityGate.ts:931)', async () => {
         for (const vp of [{ width: 768, height: 1024 }, { width: 375, height: 812 }]) {
           await page.setViewportSize(vp);
           await tableReady(page);
           await captureEvidence(page, `U03_11-F-018_pass_compact_${String(vp.width)}.png`, { fullPage: true });
-          await expect.soft(report(page), `${String(vp.width)} px: pass notice ("collapsed" status wins over pass)`).toContainText(PASS);
+          await expect.soft(report(page), `${String(vp.width)} px: pass notice stays below 1024 px`).toContainText(PASS);
         }
       });
 
