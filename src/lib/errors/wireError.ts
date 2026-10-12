@@ -108,6 +108,18 @@ export function readWireError(error: unknown): WireErrorInfo | null {
 }
 
 /**
+ * Bậc thang của `lib/http/client.ts` đã lo lỗi này chưa? Lỗi `http` và `network` chỉ
+ * trả về SAU khi client đã tự hỏi lại những gì đáng hỏi (429/502/503/504 và mất kết
+ * nối, `RETRY_DELAYS_MS`). Tầng nào hỏi lại lần nữa là chạy cả bậc thang hai lượt:
+ * 503 thành 8 request, 500 thành 2 (BUG-570). `timeout` thì client không bao giờ hỏi lại.
+ */
+export function isLadderedByHttpClient(error: unknown): boolean {
+  const candidate = unwrap(error);
+
+  return isHttpErrorShape(candidate) && (candidate.kind === 'http' || candidate.kind === 'network');
+}
+
+/**
  * Lỗi này thử lại có ích không?
  *
  * Không đọc được gì (ví dụ `Error` trần mà `lib/autosave/spatialLayerSave.ts:42-44`

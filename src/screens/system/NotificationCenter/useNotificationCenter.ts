@@ -74,7 +74,7 @@ import { formatNumber } from '@/lib/format/number';
 import { MOTION_DURATIONS_MS } from '@/lib/motion/tokens';
 import { createOptimisticMutation } from '@/lib/mutations/createOptimisticMutation';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
-import { createUndoTicket, UNDO_WINDOW_MS } from '@/lib/mutations/undoTicket';
+import { afterUndoWindow, createUndoTicket } from '@/lib/mutations/undoTicket';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys, type QueryKey } from '@/lib/query/queryKeys';
 import { ROUTES } from '@/routes/paths';
@@ -691,7 +691,7 @@ export function useNotificationCenter(
 
   /**
    * Máy chủ không có lệnh "đánh dấu lại chưa đọc", nên nút bấm không gửi ngay:
-   * lệnh được giữ {@link UNDO_WINDOW_MS}, toast trên kênh chung mang nút "Hoàn
+   * lệnh được giữ một cửa sổ hoàn tác ({@link afterUndoWindow}), toast trên kênh chung mang nút "Hoàn
    * tác", và chỉ khi hết giờ mà không ai bấm thì `markRead` mới đi.
    *
    * Nghĩa lệnh đổi có chủ ý: trước đây "tất cả" gọi `markAllRead`, máy chủ đánh
@@ -745,12 +745,13 @@ export function useNotificationCenter(
 
       setPendingReadIds((current) => new Set([...current, ...ids]));
 
-      const timer = setTimeout(() => sendMarkRead(ids), UNDO_WINDOW_MS);
+      // Not a fixed 8 s: the window stops with the ticket while its toast is held (BUG-571).
+      const cancel = afterUndoWindow(() => sendMarkRead(ids));
       const undoTicket = createUndoTicket({
         description: title,
         now,
         undo: () => {
-          clearTimeout(timer);
+          cancel();
           clearPending(ids);
         },
       });

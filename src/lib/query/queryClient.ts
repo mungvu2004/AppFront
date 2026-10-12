@@ -1,6 +1,7 @@
 import { MutationCache, QueryCache, QueryClient, type DefaultOptions } from '@tanstack/react-query';
 
 import { reportError, toAppError, type AppError } from '@/lib/errors';
+import { isLadderedByHttpClient } from '@/lib/errors/wireError';
 import { CACHE_POLICY, listCachePolicyDefaults } from './cachePolicy';
 
 /**
@@ -10,8 +11,14 @@ export function normalizeQueryError(error: unknown): AppError {
   return toAppError(error);
 }
 
+/**
+ * One layer retries a failure, not two: what the HTTP client's ladder already handled
+ * (`http`, `network`) is final here, so a 503 is 4 requests rather than 8 and a 500 is
+ * asked once — "Thử lại" is the person's (BUG-570). A timeout, which the client never
+ * retries, still gets this layer's one retry.
+ */
 const shouldRetry = (limit: number) => (failureCount: number, error: unknown): boolean =>
-  failureCount < limit && normalizeQueryError(error).retryable;
+  failureCount < limit && !isLadderedByHttpClient(error) && normalizeQueryError(error).retryable;
 
 /**
  * Creates a QueryClient carrying this application's cache policy.

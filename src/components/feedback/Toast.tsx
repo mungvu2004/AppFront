@@ -5,7 +5,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import { cn } from '../../lib/utils';
 import { createUuid } from '../../lib/http/ids';
 import { durationMs } from '../../lib/motion';
-import { UNDO_WINDOW_MS } from '../../lib/mutations/undoTicket';
+import { UNDO_WINDOW_MS, holdUndoWindows } from '../../lib/mutations/undoTicket';
 import { Button } from '../ui/Button';
 import type { UndoableToastState } from '../../hooks/useUndoableToast';
 import { useUndoableToast } from '../../hooks/useUndoableToast';
@@ -42,6 +42,12 @@ export interface ToastItemProps {
   onRemove: (id: string) => void;
   resetKey?: number; // Used to trigger timer reset for grouped toast
   /**
+   * `Date.now()` when the change this toast undoes was made. The window runs from
+   * there, not from mount: a slot that mounts late (the summary, or a toast coming
+   * back out of it) must not offer an undo its ticket has already refused.
+   */
+  startedAt?: number;
+  /**
    * Toast gộp nhiều lượt: bấm "Hoàn tác" chỉ gỡ một lượt khỏi nhóm, nên nó ở lại.
    * Mọi toast khác rời đi ngay sau khi hoàn tác (A8): lời mời đã dùng xong mà còn
    * treo đó là hứa hoàn tác thêm một lần nữa.
@@ -50,25 +56,37 @@ export interface ToastItemProps {
 }
 
 const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
-  ({ toast, index, onRemove, resetKey = 0, keepAfterUndo = false }, ref) => {
+  ({ toast, index, onRemove, resetKey = 0, keepAfterUndo = false, startedAt }, ref) => {
     const [isHovered, setIsHovered] = useState(false);
+    const [isFocused, setIsFocused] = useState(false);
     const [isExiting, setIsExiting] = useState(false);
     const [progress, setProgress] = useState(100);
     const rafRef = useRef<number | null>(null);
     const lastTimeRef = useRef<number | undefined>(undefined);
     const timeLeftRef = useRef(UNDO_WINDOW_MS);
 
-    // Reset timer when resetKey changes (e.g. new item grouped or item popped)
+    // Reset timer when resetKey changes (e.g. new item grouped or item popped): what is
+    // left of the window of the change it now undoes.
     useEffect(() => {
-      timeLeftRef.current = UNDO_WINDOW_MS;
-      setProgress(100);
+      const timeLeft = startedAt === undefined ? UNDO_WINDOW_MS : UNDO_WINDOW_MS - (Date.now() - startedAt);
+      timeLeftRef.current = timeLeft;
+      setProgress(Math.max(0, (timeLeft / UNDO_WINDOW_MS) * 100));
       lastTimeRef.current = undefined;
-    }, [resetKey]);
+    }, [resetKey, startedAt]);
 
-    // Hover holds a plain notice, never an undo: the ticket behind "Hoàn tác" expires on
-    // the wall clock, so a held toast offered an undo that did nothing (BUG-524). The bar
-    // IS the undo window (`UNDO_WINDOW_MS`).
-    const isHeld = isHovered && !toast.onUndo;
+    // Hover or focus holds the toast — a person is reading it or reaching for "Hoàn tác"
+    // (WCAG 2.2.1, BUG-571). An undo toast holds its ticket's clock with it, so the button
+    // never offers an undo the ticket would refuse (BUG-524). The bar IS the undo window.
+    const isHeld = isHovered || isFocused;
+    const hasUndo = toast.onUndo !== undefined;
+
+    useEffect(() => {
+      if (!isHeld || !hasUndo || isExiting) {
+        return undefined;
+      }
+
+      return holdUndoWindows();
+    }, [isHeld, hasUndo, isExiting]);
 
     useEffect(() => {
       if (isHeld || isExiting) {
@@ -134,6 +152,10 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
         }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        onFocus={() => setIsFocused(true)}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) setIsFocused(false);
+        }}
       >
         <div className={cn('p-4 flex items-center gap-3 transition-opacity duration-340', isPeek ? 'opacity-0' : 'opacity-100')}>
           {/* BUG-131: min-w-0 lets the span shrink, break-words wraps a name with no space — "Hoàn tác" stays in.
@@ -193,8 +215,11 @@ function ToastViewport({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** A queued toast remembers when its change was made: its undo window runs from there. */
+type QueuedToast = ToastMessage & { createdAt: number };
+
 export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [queue, setQueue] = useState<ToastMessage[]>([]);
+  const [queue, setQueue] = useState<QueuedToast[]>([]);
   const [summaryResetKey, setSummaryResetKey] = useState(0);
 
   // Hàm cập nhật state phải THUẦN: `src/main.tsx` bật StrictMode, nên React gọi
@@ -203,7 +228,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   // hai id khác nhau và tăng resetKey hai lần, nên toast thỉnh thoảng nhân đôi
   // hoặc mất. Sinh id trước, rồi để hàm cập nhật chỉ còn việc ghép mảng.
   const addToast = useCallback((toast: Omit<ToastMessage, 'id'>) => {
-    const newToast = { ...toast, id: createUuid() };
+    const newToast = { ...toast, createdAt: Date.now(), id: createUuid() };
 
     setQueue((prev) => [newToast, ...prev]);
     setSummaryResetKey((k) => k + 1);
@@ -229,14 +254,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }, [undoableToast, addToast]);
 
   // Compute UI slots based on locked logic
-  let displaySlots: (ToastMessage & { resetKey?: number })[] = [];
+  let displaySlots: (QueuedToast & { resetKey?: number })[] = [];
 
   if (queue.length <= 3) {
     displaySlots = queue;
   } else if (queue.length > 0) {
     // 4 or more toasts
-    const slot1 = queue[0] as ToastMessage;
-    const slot2 = queue[1] as ToastMessage;
+    const slot1 = queue[0] as QueuedToast;
+    const slot2 = queue[1] as QueuedToast;
     const groupedItems = queue.slice(2);
     
     // Safe Domain Extraction Fallback
@@ -250,11 +275,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     const handleSummaryUndo = () => {
       const target = groupedItems[0];
       if (target && target.onUndo) target.onUndo();
-      setQueue(prev => target ? (prev.filter(t => t.id !== target.id) as ToastMessage[]) : prev);
+      setQueue(prev => target ? prev.filter(t => t.id !== target.id) : prev);
       setSummaryResetKey(k => k + 1);
     };
 
-    const summaryToast: ToastMessage & { resetKey: number } = {
+    // Its window is its target's — the change "Hoàn tác" takes back — not a fresh 8 s per
+    // new toast: a fresh one outlived that change's ticket and pressed it for nothing.
+    const summaryToast: QueuedToast & { resetKey: number } = {
+      createdAt: groupedItems[0]?.createdAt ?? Date.now(),
       id: 'summary-toast-group',
       message: summaryMessage,
       onUndo: handleSummaryUndo,
@@ -266,7 +294,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const handleRemoveSlot = (id: string) => {
     if (id === 'summary-toast-group') {
-      setQueue(prev => prev.length <= 3 ? prev : [prev[0] as ToastMessage, prev[1] as ToastMessage]);
+      setQueue(prev => prev.length <= 3 ? prev : [prev[0] as QueuedToast, prev[1] as QueuedToast]);
     } else {
       removeToast(id);
     }
@@ -283,6 +311,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             index={index}
             onRemove={handleRemoveSlot}
             resetKey={toast.resetKey ?? 0}
+            startedAt={toast.createdAt}
             keepAfterUndo={toast.id === 'summary-toast-group'}
           />
         ))}

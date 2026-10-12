@@ -54,7 +54,7 @@ import { createMockApiClient, MOCK_NOTIFICATIONS } from '@/api/__mocks__/client'
 import { resolveApiBaseUrl } from '@/api/appClient';
 import { ENDPOINTS, toApiUrl } from '@/api/endpoints';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
-import { UNDO_WINDOW_MS } from '@/lib/mutations/undoTicket';
+import { UNDO_WINDOW_MS, holdUndoWindows } from '@/lib/mutations/undoTicket';
 import { ROUTES } from '@/routes/paths';
 
 import { NotificationCenter } from './NotificationCenter';
@@ -679,6 +679,29 @@ describe('B-V2-06 — "đánh dấu tất cả đã đọc" có toast hoàn tác
 
     passUndoWindow();
 
+    expect(fake.markRead).not.toHaveBeenCalled();
+  });
+
+  // BUG-571: while its toast is held the ticket still says yes, so nothing may be sent yet.
+  it('toast đang được giữ thì chưa gửi gì qua 8 giây, và Hoàn tác vẫn trả lại số chưa đọc', async () => {
+    const { fake, bus } = await mountWithUnread(3);
+
+    act(() => {
+      notificationProps().onMarkAllRead();
+    });
+    const release = holdUndoWindows();
+    // Async: lets a mark-read that went out reach the gateway (its `onMutate` awaits `cancelQueries`).
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(UNDO_WINDOW_MS * 2);
+    });
+
+    expect(fake.markRead).not.toHaveBeenCalled();
+    expect(bus.list()).toHaveLength(1);
+    pressUndo(bus);
+    release();
+    passUndoWindow();
+
+    expect(notificationProps().unreadCount).toBe(3);
     expect(fake.markRead).not.toHaveBeenCalled();
   });
 
