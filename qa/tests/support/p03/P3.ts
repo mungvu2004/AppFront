@@ -60,6 +60,16 @@ export function watchWrites(page: Page): Write[] {
       .catch(() => undefined);
     log.push(entry);
   });
+  // Diagnostics: a request that never got a response, and console errors, land in the same log (method FAILED / CONSOLE).
+  page.on('requestfailed', (request) => {
+    const url = new URL(request.url());
+    if (!url.pathname.startsWith('/api/')) return;
+    log.push({ method: 'FAILED', path: `${request.method()} ${url.pathname} ${request.failure()?.errorText ?? ''}`, status: 0, body: null, ready: Promise.resolve() });
+  });
+  page.on('console', (message) => {
+    if (message.type() !== 'error') return;
+    log.push({ method: 'CONSOLE', path: message.text().slice(0, 300), status: 0, body: null, ready: Promise.resolve() });
+  });
   return log;
 }
 
@@ -67,7 +77,7 @@ export function watchWrites(page: Page): Write[] {
 export const writesSince = (log: readonly Write[], mark: number): string[] =>
   log
     .slice(mark)
-    .filter((entry) => entry.method !== 'GET')
+    .filter((entry) => entry.method !== 'GET' && entry.method !== 'CONSOLE')
     .map((entry) => `${entry.method} ${entry.path} ${String(entry.status)}`);
 
 /** Calls since `mark` matching `method` + `path`. */
@@ -90,7 +100,7 @@ export async function nthCall(log: readonly Write[], mark: number, method: strin
 
 /** Non-GET floor writes since `mark` (POST/PATCH/DELETE on floors, reorder, spatial). */
 export const floorWritesSince = (log: readonly Write[], mark: number): Write[] =>
-  log.slice(mark).filter((entry) => entry.method !== 'GET' && /\/floors(\/|$)/u.test(entry.path));
+  log.slice(mark).filter((entry) => ['POST', 'PATCH', 'PUT', 'DELETE'].includes(entry.method) && /\/floors(\/|$)/u.test(entry.path));
 
 /* ---- admin session ------------------------------------------------------------------------------ */
 

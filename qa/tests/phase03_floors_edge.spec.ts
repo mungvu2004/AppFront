@@ -297,36 +297,55 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         await captureEvidence(page, 'E03_09-A-003_double_add.png');
       });
 
+      // Same-type notifications within 5 s collapse into ONE toast whose ticket undoes them all (notificationBus.ts:72-190,
+      // DEFAULT_GROUP_WINDOW_MS 5000): the two adds above share one "Đã thêm tầng." toast. The "older step" toast of
+      // 09-A-033 is therefore made the catalog's way: an add, then a rename (another type) on top of it.
       const markUndo = log.length;
       const notLatest = toastWith(page, `${T.undoRefused} — ${T.undoNotLatest}`);
-      await test.step('[09-A-033] "Hoàn tác" on the older "Tầng 4" toast → "không còn là thay đổi gần nhất", no request', async () => {
-        // Newest toast first in the DOM (NH:93); index 1 of the two "Đã thêm tầng." toasts is Tầng 4's.
-        await toastWith(page, TOAST.added).nth(1).getByRole('button', { name: 'Hoàn tác', exact: true }).dispatchEvent('click');
+      await test.step('[09-A-033] rename on top of the adds, then "Hoàn tác" on the add toast → "không còn là thay đổi gần nhất", no request', async () => {
+        const input = nameInput(page, 'Tầng 2');
+        await input.fill('Tầng hai');
+        await input.press('Enter');
+        const rename = await nthCall(log, markUndo, 'PATCH', spatialRe(projectId));
+        expect(rename.status).toBe(200);
+        await expect(toastWith(page, TOAST.renamed).first()).toBeVisible();
+        const markClick = log.length;
+        await undoFromToast(page, TOAST.added); // the add toast is now a 4 px peek under the rename toast (TST:107-128)
         await expect.soft(notLatest.first()).toBeVisible(); // UFM:946-950
         await captureEvidence(page, 'E03_09-A-033_older_toast_refused.png');
+        await quiet(page);
+        expect.soft(floorWritesSince(log, markClick), 'a refused toast undo sends nothing').toEqual([]);
+        await expect.soft(floorRows(page)).toHaveCount(5);
       });
 
-      await test.step('[09-A-034] row focused Mod+Z → DELETE "Tầng 5"; its toast "Hoàn tác" → same refusal', async () => {
+      await test.step('[09-A-034] row focused Mod+Z (undoes the rename), then that step\'s toast "Hoàn tác" → same refusal', async () => {
+        const mark = log.length;
         await floorRow(page, 'Tầng 1').focus();
         await page.keyboard.press('Control+z'); // UFM:1464-1473 Mod+Z
-        const del = await nthCall(log, markUndo, 'DELETE', deleteOf(ids[1] ?? ''));
-        expect.soft(del.status).toBeLessThan(300);
-        await expect(floorRow(page, 'Tầng 5')).toHaveCount(0);
-        await undoFromToast(page, TOAST.added); // newest "Đã thêm tầng." = Tầng 5's; history top is now Tầng 4's step
-        await expect.soft(notLatest).toHaveCount(2); // UFM:938-950
+        const back = await nthCall(log, mark, 'PATCH', spatialRe(projectId));
+        expect.soft(bodyOf(back).name).toBe('Tầng 2');
+        await expect(nameInput(page, 'Tầng 2')).toHaveValue('Tầng 2');
+        const markClick = log.length;
+        await undoFromToast(page, TOAST.renamed); // its step left the history top (UFM:938-950)
+        await expect.soft(notLatest.first()).toBeVisible();
+        await quiet(page);
+        expect.soft(floorWritesSince(log, markClick)).toEqual([]);
         await captureEvidence(page, 'E03_09-A-034_modz_then_toast.png');
       });
 
-      await test.step('[09-A-036] Mod+Z undoes "Tầng 4" (DELETE); Mod+Z on an empty history → nothing', async () => {
+      await test.step('[09-A-036] Mod+Z undoes "Tầng 5" then "Tầng 4" (DELETE each); Mod+Z on an empty history → nothing', async () => {
         await floorRow(page, 'Tầng 1').focus();
+        const mark = log.length;
         await page.keyboard.press('Control+z');
-        await nthCall(log, markUndo, 'DELETE', deleteOf(ids[0] ?? ''));
+        await nthCall(log, mark, 'DELETE', deleteOf(ids[1] ?? ''));
+        await page.keyboard.press('Control+z');
+        await nthCall(log, mark, 'DELETE', deleteOf(ids[0] ?? ''));
         await expect(floorRows(page)).toHaveCount(3);
         const toastsBefore = await page.getByRole('status').filter({ hasText: /^Chưa / }).count();
-        const mark = log.length;
+        const markEmpty = log.length;
         await page.keyboard.press('Control+z'); // UFM:938-944: no step, no ticket → silent
         await quiet(page);
-        expect.soft(floorWritesSince(log, mark), 'empty history sends nothing').toEqual([]);
+        expect.soft(floorWritesSince(log, markEmpty), 'empty history sends nothing').toEqual([]);
         expect.soft(await page.getByRole('status').filter({ hasText: /^Chưa / }).count()).toBeLessThanOrEqual(toastsBefore);
         await expect.soft(floorRows(page)).toHaveCount(3);
       });
@@ -339,13 +358,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         expect.soft(floorWritesSince(log, mark), 'no redo request').toEqual([]);
         expect.soft(await rowNames(page)).toEqual(['Tầng 1', 'Tầng 2', 'Tầng 3']);
         await attachJson('E03_09-A-037_no_redo.json', { writesSinceUndoSteps: writesSince(log, markUndo) });
-        // The only floor writes of steps 11–14 are the two Mod+Z DELETEs.
-        expect.soft(floorWritesSince(log, markUndo).map((w) => `${w.method} ${w.path}`)).toEqual([
-          `DELETE /api/floors/${ids[1] ?? ''}`,
-          `DELETE /api/floors/${ids[0] ?? ''}`,
-        ]);
       });
-
       await test.step('[09-B-024] add, API-DELETE it, toast "Hoàn tác" → DELETE 404 → row stays + "Chưa lưu được…" toast', async () => {
         const mark = log.length;
         await addButton(page).click();
@@ -684,6 +697,15 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         await commitNumber(elevInput(page, 'Tầng 1'), '-31');
         const patch = await nthCall(log, mark, 'PATCH', spatialOf(projectId, f1.id));
         expect(patch.status).toBe(422); // BE ELEVATION_MIN −30000
+        await page.waitForTimeout(1_000);
+        const readError = page.getByRole('alert').filter({ hasText: 'Không đọc được danh sách tầng' });
+        if ((await readError.count()) > 0) {
+          await captureEvidence(page, 'E03_09-B-021_read_error_after_422.png');
+          await attachJson('E03_09-B-021_read_error_after_422.json', {
+            calls: log.slice(mark).map((w) => `${w.method} ${w.path} ${String(w.status)} ${JSON.stringify(w.json ?? null).slice(0, 300)}`),
+          });
+        }
+        await expect(readError, 'the floor list stays readable after a refused PATCH').toHaveCount(0);
         await expect.soft(elevInput(page, 'Tầng 1')).toHaveValue('0,0');
         await expect.soft(floorRow(page, 'Tầng 1').getByText(OVERRIDDEN, { exact: true })).toHaveCount(0);
         await captureEvidence(page, 'E03_09-B-021_elevation_422_rollback.png');
@@ -1053,7 +1075,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         const order = [
           at((l) => l === COLLAPSE),
           at((l) => l.startsWith('Tầng 1 · ')),
-          at((l) => l === ADD),
+          at((l) => l.startsWith(ADD)), // a Button's text can be doubled in textContent
           at((l) => l.startsWith('Tầng 1, cao độ')),
           at((l) => l === AUTO),
         ];
@@ -1386,15 +1408,17 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         await expect(strip).toHaveCount(0);
       });
 
-      await test.step('[09-C-033] overlap seeded, change a height → worst overlap FloorIssue.message announced', async () => {
-        await seed([[f1.id, 0, 3_000], [f2.id, 2_000, 3_000], [f3Id, 6_000, 3_000]]);
+      await test.step('[09-C-033] overlap seeded, change the top elevation → worst overlap FloorIssue.message announced', async () => {
+        // A height change cannot keep an overlap here: with the basement below 0 m every height change restacks from
+        // datum 0 (09-C-028) and the overlap is gone. An elevation change also runs announceStackIssue (UFM:1252).
+        await seed([[basement.id, -3_000, 3_000], [f1.id, 0, 3_000], [f2.id, 2_000, 3_000], [f3Id, 6_000, 3_000]]);
         const before = (await announced()).length;
         const mark = log.length;
-        await commitNumber(heightInput(page, 'Tầng 3'), '3,2'); // top floor: no restack, overlap stays (UFM:1043-1050)
-        await nthCall(log, mark, 'PATCH', spatialOf(projectId, f3Id));
+        await commitNumber(elevInput(page, 'Tầng 3'), '6,5');
+        expect((await nthCall(log, mark, 'PATCH', spatialOf(projectId, f3Id))).status).toBe(200);
         await expect
-          .poll(async () => (await announced()).slice(before).map((a) => a.text).join(' | '), { timeout: 10_000 })
-          .toContain('hai tầng chồng lấn'); // AF:512-521
+          .poll(async () => (await announced()).slice(before).map((x) => x.text).join(' | '), { timeout: 10_000 })
+          .toContain('hai tầng chồng lấn'); // AF:512-521, UFM:1043-1050
         await attachJson('E03_09-C-033_overlap_announced.json', { announced: (await announced()).slice(before) });
       });
     }, [
@@ -1407,6 +1431,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
   test('SCR-09 · FL-09-08 · 49 floors: server cap from elsewhere, then the 50-floor local cap and scrolling', async ({ browser }) => {
     await withFloors(browser, async ({ page, log, api }, project) => {
       const projectId = project.id;
+      const announced = await recordAllAnnouncements(page);
       await openFloors(page, projectId, 49);
 
       await test.step('[09-B-029] API-add the 50th floor, "Thêm tầng" → 422 FLOOR_LIMIT_REACHED toast, 49 rows', async () => {
@@ -1435,10 +1460,12 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
 
       await test.step('[09-C-002] menu "Nhân bản" + confirm at 50 → same refusal, no POST', async () => {
         const mark = log.length;
-        const refusals = await toastWith(page, `${T.addRefused} — ${T.limit}`).count();
+        const said = (await announced()).filter((x) => x.text === T.limit).length;
         await menuAction(page, 'Tầng 1', MENU.duplicate);
         await floorRow(page, 'Tầng 1').getByRole('button', { name: CONFIRM_DUPLICATE, exact: true }).click();
-        await expect.soft(toastWith(page, `${T.addRefused} — ${T.limit}`)).toHaveCount(refusals + 1); // UFM:1343
+        // UFM:1343 → say(): toast (may fold into the 09-C-001 toast, same type within 5 s) + assertive announcement.
+        await expect.poll(async () => (await announced()).filter((x) => x.text === T.limit).length).toBe(said + 1);
+        await expect.soft(toastWith(page, `${T.addRefused} — ${T.limit}`).first()).toBeVisible();
         await quiet(page);
         expect.soft(callsSince(log, mark, 'POST', floorsRe(projectId))).toEqual([]);
       });
