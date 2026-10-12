@@ -7,8 +7,10 @@
  * geometry to pick; `afterAll` deletes the project (its measurements and the 3D vertex edit go with it). Nothing reads
  * Phase 2/3 (CP-2…CP-5): no case here needs the pipeline output itself (drawing, OCR, scale) — "Đối chiếu bản vẽ" is only a
  * navigation check. Needs only CP-0 with `FEATURE_FLAGS='{"scene.pascal-viewer": true}'` (SCR-26).
- * Serial per describe only (SCR-23, SCR-25 continue on the page of their previous test): a failure skips the rest of its
- * own screen, never the next screens (Playwright then starts a new worker, which runs `beforeAll` on a fresh project).
+ * Only SCR-25 is serial ("manage" works on the measurement the previous test pinned): a failure there skips the rest of
+ * SCR-25, never the next screens (Playwright then starts a new worker, which runs `beforeAll` on a fresh project).
+ * SCR-23 cases share the open viewer page, but each opens it itself when it is not there (`openViewer`, BUG-494):
+ * one failed SCR-23 case no longer skips the other five.
  * Budget per worker: `POST /api/auth/login` 3 (`signInAdmin` desktop + mobile, `signedInApi` for the fixture calls);
  * 1 project + 2 #35 seed PUTs + 1 DELETE (no rate limit, `support/layerSeed.ts`).
  *
@@ -201,8 +203,13 @@ async function canvasOnlyShot(page: Page): Promise<CanvasShot> {
   const box = await main.locator('canvas').first().boundingBox();
 
   if (box === null) throw new Error('viewport canvas has no bounding box');
+  // BUG-494: a handle, not the role locator — `visibility: hidden` drops <main> from the accessibility tree, so
+  // `getByRole('main')` could not find it again to restore it (30 s timeout).
+  const handle = await main.elementHandle();
+
+  if (handle === null) throw new Error('viewport <main> not found');
   const toggle = (only: boolean): Promise<void> =>
-    main.evaluate((element, canvasOnly) => {
+    handle.evaluate((element, canvasOnly) => {
       const root = element as HTMLElement;
       const canvas = root.querySelector('canvas');
 
@@ -215,6 +222,7 @@ async function canvasOnlyShot(page: Page): Promise<CanvasShot> {
     return { png: await page.screenshot({ clip: box }), box };
   } finally {
     await toggle(false);
+    await handle.dispose();
   }
 }
 
@@ -392,7 +400,13 @@ test.afterAll(async () => {
 /* ---- SCR-23 Viewer 3D ---------------------------------------------------------------------- */
 
 test.describe('SCR-23 Viewer 3D', () => {
-  test.describe.configure({ mode: 'serial' });
+  // BUG-494: not serial. After a failed case the next one runs in a fresh worker (new page, not on /3d): it opens the viewer.
+  const openViewer = async (): Promise<void> => {
+    if (new URL(page.url()).pathname === ROUTES.project.viewer(projectId)) return;
+    await page.goto(ROUTES.project.viewer(projectId));
+    await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
+    await expect(viewport(page)).toHaveAttribute('aria-busy', 'false', { timeout: SCENE_TIMEOUT_MS });
+  };
 
   test('SCR-23 load: viewport + canvas with non-blank pixels, Draco under CSP', async () => {
     await navigateThenWaitForApi(
@@ -424,6 +438,7 @@ test.describe('SCR-23 Viewer 3D', () => {
 
   test('SCR-23 presets "Góc nhìn sẵn", "Chế độ xem" 2D, keys O / F / 0 / Esc change the camera', async () => {
     test.setTimeout(HEAVY_TEST_TIMEOUT_MS);
+    await openViewer();
     const presetSelect = page.getByRole('combobox', { name: 'Góc nhìn sẵn' });
     const cube = page.getByRole('group', { name: 'Khối định hướng' });
     const choosePreset = async (label: string): Promise<void> => {
@@ -489,6 +504,7 @@ test.describe('SCR-23 Viewer 3D', () => {
   });
 
   test('SCR-23 room search: "/" → "Tìm phòng theo tên hoặc mã" → result is framed and selected', async () => {
+    await openViewer();
     // `ObjectSearch` renders nothing without rooms (`ObjectSearch.tsx:115`); the seeded layer has two per floor.
     await expect(page.getByRole('button', { name: SEARCH_TRIGGER, exact: true }), 'room search (seeded rooms)').toBeVisible();
 
@@ -522,6 +538,7 @@ test.describe('SCR-23 Viewer 3D', () => {
   });
 
   test('SCR-23 side panels "Bảng phụ của khung nhìn 3D": Diện tích phòng / Thư viện đồ đạc / Lịch sử thao tác', async () => {
+    await openViewer();
     const nav = page.getByRole('navigation', { name: PANELS_NAV });
     const labels = Object.keys(PANEL_IDS) as (keyof typeof PANEL_IDS)[];
 
@@ -543,6 +560,7 @@ test.describe('SCR-23 Viewer 3D', () => {
 
   test('SCR-23 wall selected → "Sửa hình học tường" → vertex edit → PUT …/spatial/layer from 3D', async () => {
     test.setTimeout(HEAVY_TEST_TIMEOUT_MS);
+    await openViewer();
     const enter = page.getByRole('button', { name: ENTER_WALL_EDIT, exact: true });
 
     await page.mouse.move(5, 5);
@@ -606,6 +624,7 @@ test.describe('SCR-23 Viewer 3D', () => {
   });
 
   test('SCR-23 sibling navigation: "Tách tầng" / "Công cụ đo" / "Đối chiếu bản vẽ"', async () => {
+    await openViewer();
     const nav = page.getByRole('navigation', { name: SIBLINGS_NAV });
     const backToViewer = async (): Promise<void> => {
       await page.goBack();
