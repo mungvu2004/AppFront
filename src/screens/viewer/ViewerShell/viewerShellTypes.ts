@@ -312,6 +312,13 @@ export interface ViewerPointPx {
  */
 export interface ViewerShellProps {
   readonly state: ViewerScreenState;
+  /**
+   * Đồ thị có hình để dựng (`ViewerShellData.hasModel`). `false` thì vỏ không vẽ
+   * các điều khiển khung nhìn (ViewCube, bản đồ nhỏ, thu phóng, chú giải, thang
+   * cao độ) — chúng không điều khiển được gì và từng đè lên câu trạng thái rỗng
+   * cùng nút đi tiếp của màn chủ (BUG-486). Vắng thì coi như có.
+   */
+  readonly hasModel?: boolean;
 
   /* Thanh trên. */
   readonly breadcrumbs: readonly ViewerBreadcrumbItem[];

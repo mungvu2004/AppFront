@@ -67,6 +67,7 @@ export const VIEWER_SHELL_LABEL = 'Vỏ khung nhìn 3D';
 export function ViewerShell(props: ViewerShellProps) {
   const {
     state,
+    hasModel,
     breadcrumbs,
     viewMode,
     onViewModeChange,
@@ -178,35 +179,40 @@ export function ViewerShell(props: ViewerShellProps) {
             </div>
           )}
 
-          {/* Thang cao độ tầng, dọc mép trái. */}
-          <div className="pointer-events-none absolute bottom-16 left-2 top-2 flex items-center">
-            <ViewerElevationScale storeys={storeys} />
-          </div>
+          {/* Không có hình thì không có gì để điều khiển (BUG-486). */}
+          {hasModel !== false && (
+            <>
+              {/* Thang cao độ tầng, dọc mép trái. */}
+              <div className="pointer-events-none absolute bottom-16 left-2 top-2 flex items-center">
+                <ViewerElevationScale storeys={storeys} />
+              </div>
 
-          {/* ViewCube 72 góc trên phải, bản đồ nhỏ ngay dưới. */}
-          <div className="pointer-events-none absolute right-2 top-2">
-            <ViewerTopRightControls
-              activePresetId={activePresetId}
-              onCubeFaceSelect={onCubeFaceSelect}
-              presets={presets}
-            />
-          </div>
+              {/* ViewCube 72 góc trên phải, bản đồ nhỏ ngay dưới. */}
+              <div className="pointer-events-none absolute right-2 top-2">
+                <ViewerTopRightControls
+                  activePresetId={activePresetId}
+                  onCubeFaceSelect={onCubeFaceSelect}
+                  presets={presets}
+                />
+              </div>
 
-          {/* Cụm thu phóng góc phải dưới. */}
-          <div className="absolute bottom-2 right-2">
-            <ViewerZoomControls
-              onFitAll={onFitAll}
-              onZoomIn={onZoomIn}
-              onZoomOut={onZoomOut}
-              onZoomReset={onZoomReset}
-              zoomLabel={zoomLabel}
-            />
-          </div>
+              {/* Cụm thu phóng góc phải dưới. */}
+              <div className="absolute bottom-2 right-2">
+                <ViewerZoomControls
+                  onFitAll={onFitAll}
+                  onZoomIn={onZoomIn}
+                  onZoomOut={onZoomOut}
+                  onZoomReset={onZoomReset}
+                  zoomLabel={zoomLabel}
+                />
+              </div>
 
-          {/* Chú giải góc trái dưới. */}
-          <div className="absolute bottom-2 left-2">
-            <ViewerLegend legend={legend} />
-          </div>
+              {/* Chú giải góc trái dưới. */}
+              <div className="absolute bottom-2 left-2">
+                <ViewerLegend legend={legend} />
+              </div>
+            </>
+          )}
         </ViewerViewport>
 
         {/* Panel phải trượt vào bằng cách kẹp `width`/`opacity`, không gỡ

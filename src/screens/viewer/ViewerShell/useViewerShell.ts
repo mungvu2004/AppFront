@@ -1077,6 +1077,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
 
   return {
     state,
+    hasModel: data.hasModel,
 
     breadcrumbs,
     viewMode,

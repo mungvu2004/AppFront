@@ -102,6 +102,7 @@ export function Viewer3DSceneSlot(props: Viewer3DSceneSlotProps) {
       />
 
       <Viewer3DOverlays
+        isSceneEmpty={model.state === 'empty'}
         isSectionOrthographic={props.frame.isOrthographic && props.frame.sectionPlane !== null}
         isWallEditing={props.isWallEditing}
         onExitWallEditMode={props.onExitWallEditMode}

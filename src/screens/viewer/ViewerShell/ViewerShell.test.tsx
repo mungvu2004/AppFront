@@ -1321,3 +1321,32 @@ describe('[BUG-478] thang cao độ đọc được trên mọi màu canvas', ()
     expect(scale).not.toHaveClass('text-text-muted');
   });
 });
+
+describe('[BUG-486] chưa có hình thì không vẽ điều khiển khung nhìn', () => {
+  it('hasModel = false: không thang cao độ, không chú giải; mặc định thì có', () => {
+    const queryClient = createTestQueryClient();
+    const { result } = renderHook(
+      () => useViewerShell({ projectId: 'P-001', spatial: VIEWER_FIXTURE_SPATIAL }),
+      {
+        wrapper: ({ children }: { children: ReactNode }) => (
+          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        ),
+      },
+    );
+
+    expect(result.current.hasModel).toBe(true);
+
+    const empty = render(<ViewerShell {...result.current} hasModel={false} />);
+    expect(screen.queryByRole('list', { name: 'Cao độ tầng' })).toBeNull();
+    expect(screen.queryByLabelText('Chú giải')).toBeNull();
+    empty.unmount();
+
+    render(<ViewerShell {...result.current} />);
+    expect(screen.getByRole('list', { name: 'Cao độ tầng' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Chú giải')).toBeInTheDocument();
+  });
+
+  it('shellDataOf: đồ thị trống thì hasModel = false', () => {
+    expect(shellDataOf(null).hasModel).toBe(false);
+  });
+});
