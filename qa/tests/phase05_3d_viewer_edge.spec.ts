@@ -589,6 +589,21 @@ async function blockerAt(page: Page, [x, y]: Point): Promise<string | null> {
   }, [x, y]);
 }
 
+/**
+ * `null` when Playwright's actionability check (trial click: visible, stable, enabled, receives the pointer) passes on
+ * `target`; else the reason, e.g. "<div …> intercepts pointer events" — tells an app overlay from a test bug (BUG-495).
+ */
+async function trialClickBlocker(target: Locator): Promise<string | null> {
+  const plain = (text: string): string => text.replace(/\u001b\[[0-9;]*m/gu, '').trim();
+  return target.click({ trial: true, timeout: 5_000 }).then(
+    () => null,
+    (error: unknown) => {
+      const lines = error instanceof Error ? error.message.split('\n') : [];
+      return plain(lines.find((line) => line.includes('intercepts')) ?? lines[0] ?? 'not clickable');
+    },
+  );
+}
+
 /* ================================================================= SCR-23 Viewer 3D */
 
 test.describe('E05 SCR-23 Viewer 3D', () => {
@@ -1093,16 +1108,9 @@ test.describe('E05 SCR-24 Exploded View', () => {
         topCard: page.getByRole('button', { name: EX.card(upper.name) }),
       };
       const reachable: Record<string, string> = {};
-      const plain = (text: string): string => text.replace(/\u001b\[[0-9;]*m/gu, '').trim();
       for (const [key, target] of Object.entries(targets)) {
         await expect(target).toBeVisible();
-        reachable[key] = await target.click({ trial: true, timeout: 5_000 }).then(
-          () => 'clickable',
-          (error: unknown) => {
-            const lines = error instanceof Error ? error.message.split('\n') : [];
-            return plain(lines.find((line) => line.includes('intercepts')) ?? 'not clickable');
-          },
-        );
+        reachable[key] = (await trialClickBlocker(target)) ?? 'clickable';
       }
       await captureEvidence(page, 'E05_exploded_top_right_click.png');
       await attachJson('E05_exploded_top_right_click.json', reachable);
@@ -1315,8 +1323,12 @@ test.describe('E05 SCR-25 Measurement Tool', () => {
       await captureEvidence(page, 'E05_measure_list_500.png');
 
       await page.unroute('**/api/projects/**', handler);
+      const retry = alert.getByRole('button', { name: MT.retry, exact: true });
+      // BUG-495: a covered "Thử lại" is an app bug (minimap over the alert), not a missing refetch — say which.
+      const blocked = await trialClickBlocker(retry);
+      if (blocked !== null) throw new Error(`"${MT.retry}" in the load-error alert does not receive the click: ${blocked}`);
       const refetch = waitForApi(page, 'GET', matcher, [200]);
-      await alert.getByRole('button', { name: MT.retry, exact: true }).click(); // UMT:886-890 refetch
+      await retry.click(); // UMT:886-890 refetch
       await refetch;
       await expect(alert).toHaveCount(0);
       await expect(page.getByRole('button', { name: `Ẩn ${name}`, exact: true })).toBeVisible();
