@@ -122,7 +122,7 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
 
 /** Nút chữ của màn: cùng khuôn nút bung bảng của `RoomLabelReview` (A1, A2). */
 const LINK_CLASS_NAME = cn(
-  'self-start rounded-[6px] px-1.5 py-0.5 text-[13px] text-accent',
+  'self-start rounded-[6px] px-1.5 py-1 text-[13px] text-accent',
   'transition-colors duration-120 hover:bg-accent-wash',
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
 );
