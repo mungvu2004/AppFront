@@ -129,6 +129,7 @@ import {
 } from '@/domain/rooms/area';
 import { detectRooms, type DetectRoomsResult } from '@/domain/rooms/detect';
 import { ROOM_USAGE_LABELS, type Violation } from '@/domain/rules/registry';
+import { defaultRuleRegistry } from '@/domain/rules/defaults';
 import { runRules } from '@/domain/rules/runner';
 import { counterLabelOf, createId } from '@/domain/spatial/ids';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
@@ -851,6 +852,7 @@ export function noticesOfRoom(
     .filter((violation) => violation.entityId === roomId)
     .map((violation) => ({
       ruleCode: violation.ruleCode,
+      ruleName: defaultRuleRegistry().get(violation.ruleCode)?.name ?? violation.ruleCode,
       severity: violation.severity,
       message: violation.message,
       suggestion: violation.suggestion,

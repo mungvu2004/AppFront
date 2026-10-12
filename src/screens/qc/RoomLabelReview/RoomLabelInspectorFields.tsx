@@ -166,7 +166,7 @@ export function RoomLabelNoticeList({ notices }: RoomLabelNoticeListProps) {
       <ul className="flex flex-col gap-2">
         {notices.map((notice) => (
           <li className="flex flex-col gap-1 rounded-[8px] bg-bg-sunken px-2.5 py-2" key={notice.ruleCode}>
-            <span className="font-mono text-[12px] text-text-secondary">{notice.ruleCode}</span>
+            <span className="text-[12px] font-semibold text-text-secondary">{notice.ruleName}</span>
             <p className="text-[13px] text-text-primary">{notice.message}</p>
             <p className="text-[13px] text-text-secondary">{notice.suggestion}</p>
             <a

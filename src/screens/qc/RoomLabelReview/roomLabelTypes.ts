@@ -222,6 +222,8 @@ export interface RoomLabelCropViewModel {
 export interface RoomLabelNoticeViewModel {
   /** Mã luật, ví dụ `"ROOM-MIN-AREA"` — khớp `Rule.code` của tầng luật. */
   readonly ruleCode: string;
+  /** Tên luật tiếng Việt (`Rule.name`) — tiêu đề thẻ nhắc thay cho mã luật nội bộ (BUG-408). */
+  readonly ruleName: string;
   readonly severity: RuleSeverity;
   readonly message: string;
   readonly suggestion: string;

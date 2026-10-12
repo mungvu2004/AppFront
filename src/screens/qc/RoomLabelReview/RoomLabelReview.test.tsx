@@ -716,3 +716,19 @@ describe('[BUG-407] panel "Vòng tường hở" không phủ nhận nhắc "phò
     expect(gapsSection).toHaveTextContent(`Các đầu tường đều đã nối, nhưng ${ROOM_LABEL_FIXTURE_TOTAL} phòng chưa kín`);
   });
 });
+
+describe('[BUG-408] thẻ nhắc công năng đặt tên luật tiếng Việt, không lộ mã luật nội bộ', () => {
+  it('chọn một phòng chưa kín → tiêu đề "Đường bao phòng kín bằng tường", không có chữ ROOM-NOT-CLOSED', async () => {
+    await renderSettled('success');
+    const [firstRoom] = screen.getAllByRole('option');
+
+    if (firstRoom !== undefined) {
+      fireEvent.click(firstRoom);
+    }
+
+    const notices = await screen.findByRole('region', { name: 'Nhắc công năng' });
+
+    expect(notices).toHaveTextContent('Đường bao phòng kín bằng tường');
+    expect(notices).not.toHaveTextContent(/ROOM-[A-Z-]+/u);
+  });
+});
