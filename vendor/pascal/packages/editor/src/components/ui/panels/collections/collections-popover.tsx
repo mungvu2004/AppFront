@@ -27,6 +27,7 @@ import {
   PopoverTrigger,
 } from '../../../../components/ui/primitives/popover'
 import { cn } from '../../../../lib/utils'
+import { controlsAndPanels as vi } from '../../../../i18n/regions/controlsAndPanels'
 
 interface CollectionsPopoverProps {
   nodeId: AnyNodeId
@@ -101,7 +102,7 @@ export function CollectionsPopover({ nodeId, collectionIds, children }: Collecti
           <div className="flex items-center gap-1.5">
             <Layers className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="font-semibold text-foreground text-xs tracking-tight">
-              Collections
+              {vi.collectionsPopover.collections}
             </span>
           </div>
           <button
@@ -113,7 +114,7 @@ export function CollectionsPopover({ nodeId, collectionIds, children }: Collecti
             type="button"
           >
             <Plus className="h-3 w-3" />
-            New
+            {vi.collectionsPopover.new}
           </button>
         </div>
 
@@ -131,7 +132,7 @@ export function CollectionsPopover({ nodeId, collectionIds, children }: Collecti
                   setCreateName('')
                 }
               }}
-              placeholder="Collection name…"
+              placeholder={vi.collectionsPopover.collectionNamePlaceholder}
               value={createName}
             />
             <button
@@ -161,7 +162,7 @@ export function CollectionsPopover({ nodeId, collectionIds, children }: Collecti
             <div className="flex flex-col items-center justify-center gap-2 px-4 py-8 text-center">
               <Layers className="h-6 w-6 text-muted-foreground/40" />
               <p className="text-muted-foreground text-xs">
-                No collections yet. Create one to group items together.
+                {vi.collectionsPopover.noCollectionsYet}
               </p>
             </div>
           ) : (
@@ -179,7 +180,7 @@ export function CollectionsPopover({ nodeId, collectionIds, children }: Collecti
                       key={collection.id}
                     >
                       <span className="truncate text-foreground/80 text-xs">
-                        Delete "{collection.name}"?
+                        {vi.collectionsPopover.deleteCollectionConfirm(collection.name)}
                       </span>
                       <div className="flex shrink-0 items-center gap-1">
                         <button
@@ -190,14 +191,14 @@ export function CollectionsPopover({ nodeId, collectionIds, children }: Collecti
                           }}
                           type="button"
                         >
-                          Delete
+                          {vi.collectionsPopover.delete}
                         </button>
                         <button
                           className="rounded-md px-2 py-0.5 font-medium text-[11px] text-muted-foreground transition-colors hover:bg-white/10"
                           onClick={() => setDeletingId(null)}
                           type="button"
                         >
-                          Cancel
+                          {vi.collectionsPopover.cancel}
                         </button>
                       </div>
                     </li>
@@ -308,14 +309,14 @@ export function CollectionsPopover({ nodeId, collectionIds, children }: Collecti
                             }}
                           >
                             <Pencil className="h-3.5 w-3.5" />
-                            Rename
+                            {vi.collectionsPopover.rename}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => setDeletingId(collection.id)}
                             variant="destructive"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
-                            Delete
+                            {vi.collectionsPopover.delete}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

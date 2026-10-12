@@ -56,6 +56,7 @@ import { deleteLevelWithFallbackSelection } from '../../lib/level-selection'
 import { unitMemberLevels, leaveUnitFocus } from '../../lib/units'
 import { useLinearDisplay } from '../../lib/use-linear-display'
 import { cn } from '../../lib/utils'
+import { controlsAndPanels as vi } from '../../i18n/regions/controlsAndPanels'
 import { ActionButton } from './controls/action-button'
 import { SliderControl } from './controls/slider-control'
 import { LevelDuplicateDialog } from './level-duplicate-dialog'
@@ -178,9 +179,9 @@ function LevelRow({
         { label: '10 ft', height: 3.048 },
       ]
     : [
-        { label: '2.5 m', height: 2.5 },
-        { label: '3.0 m', height: 3.0 },
-        { label: '3.5 m', height: 3.5 },
+        { label: '2,5 m', height: 2.5 },
+        { label: '3,0 m', height: 3.0 },
+        { label: '3,5 m', height: 3.5 },
       ]
 
   return (
@@ -203,7 +204,7 @@ function LevelRow({
         >
           <button
             {...dragHandleProps}
-            aria-label={`Reorder ${getLevelDisplayName(level)}`}
+            aria-label={vi.floatingLevelSelector.reorderLevel(getLevelDisplayName(level))}
             className={cn(
               'ml-0.5 flex h-6 w-4 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground/35 opacity-0 transition-colors hover:bg-white/5 hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50 group-hover/level:opacity-100',
               isDragging && 'cursor-grabbing opacity-100',
@@ -213,7 +214,7 @@ function LevelRow({
               dragHandleProps?.onClick?.(e)
             }}
             ref={dragHandleRef}
-            title="Drag to reorder"
+            title={vi.floatingLevelSelector.dragToReorder}
             type="button"
           >
             <GripVertical className="h-3.5 w-3.5" />
@@ -234,7 +235,7 @@ function LevelRow({
               <span
                 className="ml-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
                 style={{ backgroundColor: unitDotColor }}
-                title="Focused unit has zones here"
+                title={vi.floatingLevelSelector.focusedUnitHasZones}
               />
             )}
           </button>
@@ -245,7 +246,7 @@ function LevelRow({
               <button
                 className="mr-0.5 shrink-0 whitespace-nowrap rounded px-1 py-0.5 font-mono text-[10px] text-muted-foreground/50 tabular-nums transition-colors hover:bg-white/5 hover:text-foreground"
                 onClick={(e) => e.stopPropagation()}
-                title="Level height"
+                title={vi.floatingLevelSelector.levelHeight}
                 type="button"
               >
                 {storeyHeightLabel}
@@ -259,7 +260,7 @@ function LevelRow({
               sideOffset={8}
             >
               <SliderControl
-                label="Level height"
+                label={vi.floatingLevelSelector.levelHeight}
                 max={20}
                 min={1}
                 onChange={(v) => updateNode(level.id, { height: v })}
@@ -302,7 +303,7 @@ function LevelRow({
                 type="button"
               >
                 <Copy className="h-3 w-3" />
-                Duplicate level
+                {vi.floatingLevelSelector.duplicateLevel}
               </button>
               <button
                 className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-muted-foreground text-xs transition-colors hover:bg-white/10 hover:text-foreground"
@@ -313,7 +314,7 @@ function LevelRow({
                 type="button"
               >
                 <Copy className="h-3 w-3" />
-                Duplicate with options...
+                {vi.floatingLevelSelector.duplicateWithOptions}
               </button>
               {onPaste && (
                 <button
@@ -325,7 +326,7 @@ function LevelRow({
                   type="button"
                 >
                   <ClipboardPaste className="h-3 w-3" />
-                  Paste copied selection
+                  {vi.floatingLevelSelector.pasteCopiedSelection}
                 </button>
               )}
               <button
@@ -335,11 +336,15 @@ function LevelRow({
                   e.stopPropagation()
                   onRequestDelete()
                 }}
-                title={canDeleteLevel ? 'Delete level' : 'The ground level cannot be deleted'}
+                title={
+                  canDeleteLevel
+                    ? vi.floatingLevelSelector.deleteLevel
+                    : vi.floatingLevelSelector.groundLevelCannotDelete
+                }
                 type="button"
               >
                 <Trash2 className="h-3 w-3" />
-                Delete level
+                {vi.floatingLevelSelector.deleteLevel}
               </button>
             </PopoverContent>
           </Popover>
@@ -431,12 +436,12 @@ function UnitFocusChip() {
         className="h-2 w-2 shrink-0 rounded-full"
         style={{ backgroundColor: focusedUnit.color }}
       />
-      <span className="truncate">{focusedUnit.name || 'Unit'}</span>
+      <span className="truncate">{focusedUnit.name || vi.floatingLevelSelector.unit}</span>
       <button
-        aria-label="Exit unit focus"
+        aria-label={vi.floatingLevelSelector.exitUnitFocus}
         className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
         onClick={() => leaveUnitFocus()}
-        title="Exit unit focus"
+        title={vi.floatingLevelSelector.exitUnitFocus}
         type="button"
       >
         <X className="h-3 w-3" />
@@ -651,7 +656,7 @@ export function FloatingLevelSelector() {
               // read only from outside: nothing here depends on it.
               data-guide-target="level-add"
               onClick={handleAddAbove}
-              title="Add level above"
+              title={vi.floatingLevelSelector.addLevelAbove}
               type="button"
             >
               <Plus className="h-2.5 w-2.5" />
@@ -663,7 +668,7 @@ export function FloatingLevelSelector() {
             <button
               className={cn(addButtonClass, 'bottom-0 translate-y-1/2')}
               onClick={handleAddBelow}
-              title="Add level below"
+              title={vi.floatingLevelSelector.addLevelBelow}
               type="button"
             >
               <Plus className="h-2.5 w-2.5" />
@@ -720,7 +725,7 @@ export function FloatingLevelSelector() {
                         <button
                           className={cn(addButtonClass, 'bottom-0 translate-y-1/2')}
                           onClick={() => handleInsertBetween(sortedIndex - 1)}
-                          title="Insert level here"
+                          title={vi.floatingLevelSelector.insertLevelHere}
                           type="button"
                         >
                           <Plus className="h-2.5 w-2.5" />
@@ -740,11 +745,11 @@ export function FloatingLevelSelector() {
       <Dialog onOpenChange={(open) => !open && setDeletingLevel(null)} open={!!deletingLevel}>
         <DialogContent showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>Delete level</DialogTitle>
+            <DialogTitle>{vi.floatingLevelSelector.deleteLevelDialogTitle}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete{' '}
-              <strong>{deletingLevel ? getLevelDisplayName(deletingLevel) : ''}</strong>? All
-              walls, floors, and objects on this level will be permanently removed.
+              {vi.floatingLevelSelector.deleteLevelConfirmBefore}
+              <strong>{deletingLevel ? getLevelDisplayName(deletingLevel) : ''}</strong>
+              {vi.floatingLevelSelector.deleteLevelConfirmAfter}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -753,14 +758,14 @@ export function FloatingLevelSelector() {
               onClick={() => setDeletingLevel(null)}
               type="button"
             >
-              Cancel
+              {vi.floatingLevelSelector.cancel}
             </button>
             <button
               className="rounded-full bg-red-600 px-4 py-2 text-sm text-white transition-colors hover:bg-red-700"
               onClick={handleConfirmDelete}
               type="button"
             >
-              Delete
+              {vi.floatingLevelSelector.delete}
             </button>
           </DialogFooter>
         </DialogContent>

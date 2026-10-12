@@ -7,6 +7,7 @@ import { lazy, type ReactNode, Suspense, useState, useSyncExternalStore } from '
 import { editorHostPanelRegistry, pluginInstallLocks } from '../../../../lib/plugin-panels'
 import { IconRefImage } from '../../icon-ref'
 import { Button } from '../../primitives/button'
+import { primitivesAndSidebar as vi } from '../../../../i18n/regions/primitivesAndSidebar'
 
 const PLUGIN_AUTHORING_URL =
   'https://editor.pascal.app/docs/developers/plugins'
@@ -82,7 +83,7 @@ export function PluginsPanel() {
             variant="ghost"
           >
             <ChevronLeft className="h-4 w-4" />
-            All plugins
+            {vi.pluginsPanel.allPlugins}
           </Button>
 
           <div className="mt-5 flex items-start gap-4">
@@ -95,23 +96,23 @@ export function PluginsPanel() {
                 {panel.badge && <PluginBadge label={panel.badge} />}
               </div>
               <p className="text-sidebar-foreground/50 text-sm">
-                {installed ? 'Installed' : 'Not installed'}
+                {installed ? vi.pluginsPanel.installed : vi.pluginsPanel.notInstalled}
               </p>
             </div>
           </div>
 
           <p className="mt-5 text-sidebar-foreground/70 text-sm">
-            {panel.description ?? 'Adds a new tool panel to the editor.'}
+            {panel.description ?? vi.pluginsPanel.defaultDescription}
           </p>
 
           <dl className="mt-6 divide-y divide-border/50 rounded-xl border border-border/60">
             <div className="p-3">
-              <dt className="text-sidebar-foreground/50 text-xs">Plugin ID</dt>
+              <dt className="text-sidebar-foreground/50 text-xs">{vi.pluginsPanel.pluginId}</dt>
               <dd className="mt-1 break-all text-sidebar-foreground text-sm">{pluginId}</dd>
             </div>
             {panel.creator && (
               <div className="p-3">
-                <dt className="text-sidebar-foreground/50 text-xs">Creator</dt>
+                <dt className="text-sidebar-foreground/50 text-xs">{vi.pluginsPanel.creator}</dt>
                 <dd className="mt-1 text-sm">
                   {panel.creator.url ? (
                     <a
@@ -131,7 +132,7 @@ export function PluginsPanel() {
             )}
             {panel.pluginUrl && (
               <div className="p-3">
-                <dt className="text-sidebar-foreground/50 text-xs">Plugin</dt>
+                <dt className="text-sidebar-foreground/50 text-xs">{vi.pluginsPanel.plugin}</dt>
                 <dd className="mt-1 text-sm">
                   <a
                     className="inline-flex items-center gap-1 text-sidebar-foreground underline-offset-4 hover:underline"
@@ -139,7 +140,7 @@ export function PluginsPanel() {
                     rel="noreferrer"
                     target="_blank"
                   >
-                    View plugin
+                    {vi.pluginsPanel.viewPlugin}
                     <ExternalLink className="h-3 w-3" />
                   </a>
                 </dd>
@@ -169,7 +170,7 @@ export function PluginsPanel() {
               }}
               variant={installed ? 'outline' : 'default'}
             >
-              {installed ? 'Uninstall' : 'Install'}
+              {installed ? vi.pluginsPanel.uninstall : vi.pluginsPanel.install}
             </Button>
           )}
         </div>
@@ -181,7 +182,7 @@ export function PluginsPanel() {
             rel="noreferrer"
             target="_blank"
           >
-            Create a Pascal plugin
+            {vi.pluginsPanel.createPlugin}
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
         </div>
@@ -192,9 +193,9 @@ export function PluginsPanel() {
   return (
     <div className="flex h-full flex-col overflow-y-auto p-4">
       <div className="mb-5">
-        <h2 className="font-semibold text-lg text-sidebar-foreground">Plugins</h2>
+        <h2 className="font-semibold text-lg text-sidebar-foreground">{vi.pluginsPanel.heading}</h2>
         <p className="mt-1 text-sidebar-foreground/60 text-sm">
-          Add focused tools and content to this project.
+          {vi.pluginsPanel.subheading}
         </p>
       </div>
 
@@ -220,13 +221,13 @@ export function PluginsPanel() {
                         {panel.badge && <PluginBadge label={panel.badge} />}
                       </div>
                       <p className="text-sidebar-foreground/50 text-xs">
-                        {installed ? 'Installed' : 'Not installed'}
+                        {installed ? vi.pluginsPanel.installed : vi.pluginsPanel.notInstalled}
                       </p>
                     </div>
                     <ChevronRight className="h-4 w-4 shrink-0 text-sidebar-foreground/50" />
                   </div>
                   <p className="mt-2 text-sidebar-foreground/60 text-sm">
-                    {panel.description ?? 'Adds a new tool panel to the editor.'}
+                    {panel.description ?? vi.pluginsPanel.defaultDescription}
                   </p>
                 </div>
               </div>
@@ -242,7 +243,7 @@ export function PluginsPanel() {
           rel="noreferrer"
           target="_blank"
         >
-          Create a Pascal plugin
+          {vi.pluginsPanel.createPlugin}
           <ExternalLink className="h-3.5 w-3.5" />
         </a>
       </div>

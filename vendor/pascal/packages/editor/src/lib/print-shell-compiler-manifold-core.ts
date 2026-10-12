@@ -5,6 +5,7 @@ import type {
   ManifoldMeshData,
   ManifoldRuntimeOptions,
 } from './print-shell-compiler-protocol'
+import { libStrings as vi } from '../i18n/regions/libStrings'
 
 let modulePromise: Promise<ManifoldToplevel> | null = null
 const MANIFOLD_OUTPUT_WELD_EPSILON_METERS = 2e-5
@@ -278,7 +279,7 @@ export async function compileManifoldMeshData(
         {
           severity: 'error',
           code: 'no_shell_meshes',
-          message: 'No structural meshes are available for Manifold compilation.',
+          message: vi.printShellCompiler.noShellMeshes,
           nodeIds: [],
         },
       ],
@@ -295,9 +296,10 @@ export async function compileManifoldMeshData(
         diagnostics.push({
           severity: 'error',
           code: 'manifold_input_failed',
-          message: `Node ${mesh.nodeId}: ${
-            error instanceof Error ? error.message : 'Manifold rejected the shell input.'
-          }`,
+          message: vi.printShellCompiler.inputFailed(
+            mesh.nodeId,
+            error instanceof Error ? error.message : vi.printShellCompiler.inputRejected,
+          ),
           nodeIds: [mesh.nodeId],
         })
       }
@@ -324,7 +326,7 @@ export async function compileManifoldMeshData(
           {
             severity: 'error',
             code: 'manifold_union_failed',
-            message: `Manifold union failed with ${status}.`,
+            message: vi.printShellCompiler.unionFailed(status),
             nodeIds: sourceNodeIds,
           },
         ],
@@ -342,7 +344,7 @@ export async function compileManifoldMeshData(
           {
             severity: 'error',
             code: 'manifold_union_failed',
-            message: 'Manifold produced no printable triangles.',
+            message: vi.printShellCompiler.noPrintableTriangles,
             nodeIds: sourceNodeIds,
           },
         ],
@@ -365,7 +367,7 @@ export async function compileManifoldMeshData(
         {
           severity: 'error',
           code: 'manifold_worker_failed',
-          message: error instanceof Error ? error.message : 'Manifold compilation failed.',
+          message: error instanceof Error ? error.message : vi.printShellCompiler.compileFailed,
           nodeIds: sourceNodeIds,
         },
       ],

@@ -55,6 +55,7 @@ import {
 import { createFloorplanPdfDocument, type FloorplanPdfDocument } from './floorplan-pdfkit-document'
 import { renderFloorplanGeometryToPdfKit } from './floorplan-pdfkit-renderer'
 import { FLOORPLAN_VIEW_ROTATION_DEG } from './geometry'
+import { libStrings as vi } from '../../i18n/regions/libStrings'
 
 /**
  * Floorplan PDF export.
@@ -188,7 +189,8 @@ export async function exportFloorplanPdf(scope: FloorplanExportScope): Promise<v
   const drawingType = useDrawingView.getState().drawingType
   const annotationLayoutOverrides = useDrawingView.getState().annotationLayoutOverrides
   const drawingLabel =
-    DRAWING_TYPE_OPTIONS.find((option) => option.id === drawingType)?.label ?? 'Floor plan'
+    DRAWING_TYPE_OPTIONS.find((option) => option.id === drawingType)?.label ??
+    vi.floorplanExport.floorPlanFallback
   const levels = resolveExportLevels(nodes)
   if (levels.length === 0) {
     console.warn('[floorplan-export] no level to export')
@@ -384,7 +386,11 @@ function drawFloorplanSchedulePages(
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(14)
     doc.setLineWidth(0.5)
-    doc.text(`${levelLabel} - Construction Schedules`, PAGE_MARGIN_PT, PAGE_MARGIN_PT + 12)
+    doc.text(
+      vi.floorplanExport.constructionSchedulesTitle(levelLabel),
+      PAGE_MARGIN_PT,
+      PAGE_MARGIN_PT + 12,
+    )
     y = PAGE_MARGIN_PT + TITLE_BAND_PT + 8
   }
 
@@ -392,7 +398,11 @@ function drawFloorplanSchedulePages(
     doc.setTextColor('#111827')
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(11)
-    doc.text(`${schedule.title}${continued ? ' (CONTINUED)' : ''}`, PAGE_MARGIN_PT, y + 11)
+    doc.text(
+      continued ? vi.floorplanExport.scheduleTitleContinued(schedule.title) : schedule.title,
+      PAGE_MARGIN_PT,
+      y + 11,
+    )
     y += 18
     doc.setFillColor('#334155')
     doc.rect(PAGE_MARGIN_PT, y, tableWidth, headerHeight, 'F')
@@ -421,7 +431,7 @@ function drawFloorplanSchedulePages(
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(8)
       for (const issue of schedule.issues) {
-        doc.text(`WARNING: ${issue}`, PAGE_MARGIN_PT, y + 9)
+        doc.text(vi.floorplanExport.scheduleIssueWarning(issue), PAGE_MARGIN_PT, y + 9)
         y += 13
       }
     }
@@ -1063,7 +1073,7 @@ function levelIndexOf(node: AnyNode): number {
 function levelLabelOf(node: AnyNode): string {
   const name = node.name?.trim()
   if (name) return name
-  return `Level ${levelIndexOf(node)}`
+  return vi.floorplanExport.levelFallback(levelIndexOf(node))
 }
 
 function nextFrames(count: number): Promise<void> {

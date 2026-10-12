@@ -12,6 +12,7 @@ import {
   ShortcutToken,
   shortcutDisplayValue,
 } from './../../../../../components/ui/primitives/shortcut-token'
+import { primitivesAndSidebar as vi } from './../../../../../i18n/regions/primitivesAndSidebar'
 
 type Shortcut = {
   keys: string[]
@@ -26,163 +27,163 @@ type ShortcutCategory = {
 
 const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
   {
-    title: 'Editor Navigation',
+    title: 'Điều hướng trình chỉnh sửa',
     shortcuts: [
-      { keys: ['1'], action: 'Switch to Site phase' },
-      { keys: ['2'], action: 'Switch to Structure phase' },
-      { keys: ['3'], action: 'Switch to Furnish phase' },
-      { keys: ['F'], action: 'Switch to Furnish layer' },
-      { keys: ['Z'], action: 'Switch to Zones layer' },
+      { keys: ['1'], action: 'Chuyển sang giai đoạn Khu đất' },
+      { keys: ['2'], action: 'Chuyển sang giai đoạn Kết cấu' },
+      { keys: ['3'], action: 'Chuyển sang giai đoạn Nội thất' },
+      { keys: ['F'], action: 'Chuyển sang lớp Nội thất' },
+      { keys: ['Z'], action: 'Chuyển sang lớp Vùng' },
       {
         keys: ['Cmd/Ctrl', 'Arrow Up'],
-        action: 'Select next level in the active building',
+        action: 'Chọn tầng kế tiếp trong toà nhà đang hoạt động',
       },
       {
         keys: ['Cmd/Ctrl', 'Arrow Down'],
-        action: 'Select previous level in the active building',
+        action: 'Chọn tầng trước đó trong toà nhà đang hoạt động',
       },
-      { keys: ['Cmd/Ctrl', 'B'], action: 'Toggle sidebar' },
+      { keys: ['Cmd/Ctrl', 'B'], action: 'Ẩn/hiện thanh bên' },
     ],
   },
   {
-    title: 'Modes & History',
+    title: 'Chế độ & lịch sử',
     shortcuts: [
-      { keys: ['V'], action: 'Switch to Select mode' },
-      { keys: ['B'], action: 'Switch to Build mode' },
-      { keys: ['M'], action: 'Activate the last measurement tool' },
-      { keys: ['X'], action: 'Switch to Delete mode' },
+      { keys: ['V'], action: 'Chuyển sang chế độ Chọn' },
+      { keys: ['B'], action: 'Chuyển sang chế độ Dựng' },
+      { keys: ['M'], action: 'Bật công cụ đo gần nhất' },
+      { keys: ['X'], action: 'Chuyển sang chế độ Xoá' },
       {
         keys: ['Esc'],
-        action: 'Cancel the active tool and return to Select mode',
-        note: 'Mid-draw it cancels only the chain in progress and keeps the tool armed; press it again to leave the tool.',
+        action: 'Huỷ công cụ đang dùng và trở về chế độ Chọn',
+        note: 'Giữa lúc vẽ, nó chỉ huỷ chuỗi đang vẽ và vẫn giữ công cụ sẵn sàng; bấm lần nữa để thoát công cụ.',
       },
-      { keys: ['Delete / Backspace'], action: 'Delete selected objects' },
-      { keys: ['Cmd/Ctrl', 'Z'], action: 'Undo' },
-      { keys: ['Cmd/Ctrl', 'Shift', 'Z'], action: 'Redo' },
-      { keys: ['Cmd/Ctrl', 'S'], action: 'Save' },
+      { keys: ['Delete / Backspace'], action: 'Xoá các đối tượng đã chọn' },
+      { keys: ['Cmd/Ctrl', 'Z'], action: 'Hoàn tác' },
+      { keys: ['Cmd/Ctrl', 'Shift', 'Z'], action: 'Làm lại' },
+      { keys: ['Cmd/Ctrl', 'S'], action: 'Lưu' },
     ],
   },
   {
-    title: 'Selection',
+    title: 'Chọn',
     shortcuts: [
       {
         keys: ['Cmd/Ctrl', 'C'],
-        action: 'Copy the selected objects',
-        note: 'The copied selection can be pasted into another level, project, or browser tab.',
+        action: 'Chép các đối tượng đã chọn',
+        note: 'Phần đã chép có thể dán vào tầng khác, dự án khác, hoặc tab trình duyệt khác.',
       },
       {
         keys: ['Cmd/Ctrl', 'X'],
-        action: 'Cut the selected objects',
-        note: 'Copies the selection to the clipboard, then removes it from this scene.',
+        action: 'Cắt các đối tượng đã chọn',
+        note: 'Chép phần chọn vào bộ nhớ tạm, rồi xoá nó khỏi cảnh này.',
       },
       {
         keys: ['Cmd/Ctrl', 'V'],
-        action: 'Paste and place copied objects',
+        action: 'Dán và đặt các đối tượng đã chép',
         note:
-          'Carries a preview under the cursor. Click to place it, or press Escape to cancel.',
+          'Mang theo một bản xem trước dưới con trỏ. Bấm để đặt nó, hoặc nhấn Escape để huỷ.',
       },
       {
         keys: ['Cmd/Ctrl', 'Left click'],
-        action: 'Add or remove an object from multi-selection',
-        note: 'Works in Select mode on the 3D canvas, the 2D floor plan, and the scene graph.',
+        action: 'Thêm hoặc bỏ một đối tượng khỏi vùng chọn nhiều',
+        note: 'Hoạt động ở chế độ Chọn trên khung nhìn 3D, mặt bằng 2D, và đồ thị cảnh.',
       },
       {
         keys: ['Shift', 'Left click'],
-        action: 'Add or remove an object from canvas multi-selection',
-        note: 'In the scene graph, Shift-click selects the visible range like a file browser.',
+        action: 'Thêm hoặc bỏ một đối tượng khỏi vùng chọn nhiều trên khung vẽ',
+        note: 'Trong đồ thị cảnh, Shift-bấm chọn dải đang hiện như trình quản lý tệp.',
       },
       {
         keys: ['Left click'],
-        action: 'Move the whole multi-selection',
+        action: 'Di chuyển toàn bộ vùng chọn nhiều',
         note:
-          'With 2+ objects selected, in 2D and 3D alike: drag the selection (or its dashed box) to slide it; click it to pick it up and place with the next click.',
+          'Với 2 đối tượng trở lên đã chọn, ở cả 2D và 3D: kéo vùng chọn (hoặc khung nét đứt của nó) để trượt; bấm vào nó để nhấc lên và đặt với lần bấm kế tiếp.',
       },
       {
         keys: ['R', 'T'],
-        action: 'Rotate a multi-selection ±45° around its center',
-        note: 'Also works mid-move while carrying the selection.',
+        action: 'Xoay vùng chọn nhiều ±45° quanh tâm',
+        note: 'Cũng hoạt động giữa lúc di chuyển khi đang mang vùng chọn.',
       },
       {
         keys: ['Cmd/Ctrl', 'G'],
-        action: 'Group the multi-selection (session only)',
+        action: 'Nhóm vùng chọn nhiều (chỉ trong phiên này)',
         note:
-          'Editor-only. Plain click a member later to reselect the whole group. Not saved with the project.',
+          'Chỉ trong trình chỉnh sửa. Bấm thường vào một thành viên sau đó để chọn lại cả nhóm. Không lưu cùng dự án.',
       },
       {
         keys: ['Cmd/Ctrl', 'Shift', 'G'],
-        action: 'Ungroup the session selection',
-        note: 'Keeps the current selection; only dissolves the session group.',
+        action: 'Bỏ nhóm vùng chọn trong phiên này',
+        note: 'Giữ nguyên vùng chọn hiện tại; chỉ tách nhóm của phiên này.',
       },
       {
         keys: ['Esc'],
-        action: 'Clear the selection',
-        note: 'Clicking empty space does the same.',
+        action: 'Bỏ chọn',
+        note: 'Bấm vào khoảng trống cũng có tác dụng tương tự.',
       },
     ],
   },
   {
-    title: 'Direct Manipulation',
+    title: 'Thao tác trực tiếp',
     shortcuts: [
       {
         keys: ['Cmd/Ctrl', 'Left click'],
-        action: 'Move the selected movable object under the cursor',
-        note: 'Drag in Select mode with a single object selected. Guided snapping and guides are enabled by default.',
+        action: 'Di chuyển đối tượng có thể di chuyển dưới con trỏ',
+        note: 'Kéo ở chế độ Chọn với một đối tượng duy nhất đã chọn. Bắt dính và đường dẫn hướng dẫn được bật theo mặc định.',
       },
       {
         keys: ['Cmd/Ctrl', 'Right click'],
-        action: 'Rotate the selected object under the cursor',
-        note: 'Drag left or right in Select mode with a single object selected. Rotation snaps to 15° increments by default.',
+        action: 'Xoay đối tượng đã chọn dưới con trỏ',
+        note: 'Kéo sang trái hoặc phải ở chế độ Chọn với một đối tượng duy nhất đã chọn. Xoay bắt theo bước 15° theo mặc định.',
       },
       {
         keys: ['Cmd/Ctrl', 'Shift', 'Right click'],
-        action: 'Rotate freely',
-        note: 'Hold Shift during the drag to bypass the 15° rotation increment.',
+        action: 'Xoay tự do',
+        note: 'Giữ Shift trong lúc kéo để bỏ qua bước xoay 15°.',
       },
     ],
   },
   {
-    title: 'Drawing Tools',
+    title: 'Công cụ vẽ',
     shortcuts: [
       // Shift and Ctrl each mean one thing held and another tapped, and only
       // the hold was documented — which read as the taps not existing. Both
       // taps are listed first because they are the ones nobody discovers.
       {
         keys: ['Shift'],
-        action: 'Cycle the snapping mode',
-        note: 'Tap and release without pressing anything else, while a drawing or move gesture is available.',
+        action: 'Đổi vòng chế độ bắt dính',
+        note: 'Bấm rồi thả ra, không bấm gì khác, khi đang vẽ hoặc di chuyển.',
       },
       {
         keys: ['Cmd/Ctrl'],
-        action: 'Cycle the grid step: 0.5 m → 0.25 m → 0.1 m → 0.05 m',
-        note: 'Tap and release on its own. Use it when the default half-metre grid is too coarse — placing a window, for instance.',
+        action: 'Đổi vòng bước lưới: 0,5 m → 0,25 m → 0,1 m → 0,05 m',
+        note: 'Bấm rồi thả ra một mình. Dùng khi lưới nửa mét mặc định quá thô — ví dụ khi đặt cửa sổ.',
       },
       {
         keys: ['Shift'],
-        action: 'Bypass guided snapping and angle constraints',
-        note: 'Hold during the active gesture. Passive guide or measurement feedback may stay visible.',
+        action: 'Bỏ qua bắt dính có hướng dẫn và ràng buộc góc',
+        note: 'Giữ trong lúc thực hiện cử chỉ. Hướng dẫn hoặc phản hồi đo lường thụ động có thể vẫn hiện.',
       },
       {
         keys: ['Shift'],
-        action: 'Rotate freely, bypassing the default 15° rotation snap',
-        note: 'Hold while dragging a rotate handle or direct-rotation gesture.',
+        action: 'Xoay tự do, bỏ qua bước bắt dính xoay 15° mặc định',
+        note: 'Giữ trong lúc kéo tay cầm xoay hoặc cử chỉ xoay trực tiếp.',
       },
     ],
   },
   {
-    title: 'Item Placement',
+    title: 'Đặt đồ đạc',
     shortcuts: [
       {
         keys: ['R', 'T'],
-        action: 'Rotate item; with a door selected, R toggles open/closed and T closes',
+        action: 'Xoay đồ đạc; với cửa đã chọn, R bật/tắt mở-đóng và T đóng lại',
       },
       {
         keys: ['E'],
-        action: 'Operate the selected node — doors, windows, and cabinet doors/drawers animate open/closed',
+        action: 'Vận hành nút đã chọn — cửa, cửa sổ, và cửa/ngăn kéo tủ chuyển động mở/đóng',
       },
       {
         keys: ['Shift'],
-        action: 'Temporarily bypass placement validation constraints',
-        note: 'Hold while placing.',
+        action: 'Tạm thời bỏ qua ràng buộc kiểm tra khi đặt',
+        note: 'Giữ trong lúc đặt.',
       },
     ],
   },
@@ -191,18 +192,18 @@ const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
     shortcuts: [
       {
         keys: ['W', 'A', 'S', 'D'],
-        action: 'Pan camera',
-        note: 'Moves in screen space, similar to dragging the camera view.',
+        action: 'Di camera',
+        note: 'Di chuyển trong không gian màn hình, giống như kéo khung nhìn camera.',
       },
       {
         keys: ['Middle click'],
-        action: 'Pan camera',
-        note: 'Drag with the middle mouse button, or hold Space while dragging with the left mouse button.',
+        action: 'Di camera',
+        note: 'Kéo bằng nút chuột giữa, hoặc giữ Space trong lúc kéo bằng nút chuột trái.',
       },
       {
         keys: ['Right click'],
-        action: 'Orbit camera',
-        note: 'Drag with the right mouse button.',
+        action: 'Xoay quỹ đạo camera',
+        note: 'Kéo bằng nút chuột phải.',
       },
     ],
   },
@@ -227,15 +228,14 @@ export function KeyboardShortcutsDialog() {
       <DialogTrigger asChild>
         <Button className="w-full justify-start gap-2" variant="outline">
           <Keyboard className="size-4" />
-          Keyboard shortcuts
+          {vi.keyboardShortcutsDialog.button}
         </Button>
       </DialogTrigger>
       <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden p-0 sm:max-w-3xl">
         <DialogHeader className="shrink-0 border-b px-6 py-4">
-          <DialogTitle>Keyboard shortcuts</DialogTitle>
+          <DialogTitle>{vi.keyboardShortcutsDialog.title}</DialogTitle>
           <DialogDescription>
-            Shortcuts are context-aware. Guided constraints are enabled by default; hold Shift
-            during an active gesture to build freely.
+            {vi.keyboardShortcutsDialog.description}
           </DialogDescription>
         </DialogHeader>
 

@@ -7,6 +7,7 @@ import type {
   PrintMeshData,
 } from './print-export'
 import { extractPreparedPrintMesh, prepareSceneForPrint } from './print-export'
+import { libStrings as vi } from '../i18n/regions/libStrings'
 
 const ZIP_MTIME = new Date(2000, 0, 1, 0, 0, 0)
 const PART_GAP_MM = 5
@@ -85,7 +86,7 @@ function appendMeshObject(lines: string[], name: string, parts: PlacedPrint3mfPa
 
 export function createPrint3mf(
   parts: Print3mfPart[],
-  title = 'Pascal print export',
+  title = vi.print3mf.defaultTitle,
 ): Uint8Array<ArrayBuffer> {
   const placements: PlacedPrint3mfPart[] = []
   let cursorX = 0
@@ -148,7 +149,7 @@ export function exportSceneToPrint3mf(
     prepared.report.bounds && prepared.report.invalidTriangleCount === 0
       ? [
           {
-            name: 'Pascal print model',
+            name: vi.print3mf.printModelName,
             mesh: extractPreparedPrintMesh(prepared.scene),
             bounds: prepared.report.bounds,
           },

@@ -33,6 +33,7 @@ import {
 } from '../../lib/floorplan'
 import { getFloorplanNodeExtension } from '../../lib/floorplan/floorplan-extension'
 import { buildFloorplanContext, floorplanLayerRank } from '../../lib/floorplan/floorplan-readonly'
+import { editorAndViewer as vi } from '../../i18n/regions/editorAndViewer'
 import { subscribeNavigationSyncPose } from '../../store/navigation-sync-pose-store'
 import useEditor, { type NavigationSyncPose } from '../../store/use-editor'
 import {
@@ -970,9 +971,9 @@ export function FloorplanPreview({
             fontWeight: 600,
           }}
         >
-          Floor
+          {vi.floorplanPreview.floor}
           <select
-            aria-label="Floor"
+            aria-label={vi.floorplanPreview.floor}
             onChange={(event) => chooseLevel(event.target.value)}
             style={{
               border: '1px solid rgba(148,163,184,.55)',
@@ -1014,28 +1015,28 @@ export function FloorplanPreview({
         }}
       >
         <button
-          aria-label="Zoom out"
+          aria-label={vi.floorplanPreview.zoomOut}
           onClick={() => zoom(1.2)}
           style={controlStyle}
-          title="Zoom out"
+          title={vi.floorplanPreview.zoomOut}
           type="button"
         >
           <Minus size={16} />
         </button>
         <button
-          aria-label="Fit floor plan"
+          aria-label={vi.floorplanPreview.fitFloorPlan}
           onClick={() => updateLocalViewBox(fittedViewBox)}
           style={controlStyle}
-          title="Fit floor plan"
+          title={vi.floorplanPreview.fitFloorPlan}
           type="button"
         >
           <Maximize2 size={15} />
         </button>
         <button
-          aria-label="Zoom in"
+          aria-label={vi.floorplanPreview.zoomIn}
           onClick={() => zoom(0.8)}
           style={controlStyle}
-          title="Zoom in"
+          title={vi.floorplanPreview.zoomIn}
           type="button"
         >
           <Plus size={16} />

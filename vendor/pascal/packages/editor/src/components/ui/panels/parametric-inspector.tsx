@@ -19,6 +19,7 @@ import { commitParametricNodeFields } from '../../../lib/parametric-node-update'
 import { sfxEmitter } from '../../../lib/sfx-bus'
 import { collectZoneContentIds } from '../../../lib/zone-content'
 import useEditor from '../../../store/use-editor'
+import { controlsAndPanels as vi } from '../../../i18n/regions/controlsAndPanels'
 import { IconRefImage } from '../icon-ref'
 import { ActionButton, ActionGroup } from '../controls/action-button'
 import { PanelSection } from '../controls/panel-section'
@@ -167,10 +168,14 @@ export function ParametricInspector({
         </Suspense>
       )}
       {(canMove || canDelete || (parametrics.actions && parametrics.actions.length > 0)) && (
-        <PanelSection title="Actions">
+        <PanelSection title={vi.parametricInspector.actions}>
           <ActionGroup className={isZone ? 'flex-col' : parametrics.actions?.length ? 'grid grid-cols-2 gap-2' : undefined}>
             {canMove && (
-              <ActionButton icon={<Move className="h-4 w-4" />} label="Move" onClick={handleMove} />
+              <ActionButton
+                icon={<Move className="h-4 w-4" />}
+                label={vi.parametricInspector.move}
+                onClick={handleMove}
+              />
             )}
             {parametrics.actions?.map((action, i) => (
               <ParamActionButton action={action} key={`paramaction-${i}`} nodeId={selectedId} />
@@ -181,13 +186,13 @@ export function ParametricInspector({
                   <ActionButton
                     className="w-full flex-none"
                     icon={<Trash2 className="h-4 w-4 text-red-400" />}
-                    label="Delete"
+                    label={vi.parametricInspector.delete}
                     onClick={() => handleDelete(false)}
                   />
                   <ActionButton
                     className="w-full flex-none"
                     icon={<Trash2 className="h-4 w-4 text-red-400" />}
-                    label="Delete with contents"
+                    label={vi.parametricInspector.deleteWithContents}
                     onClick={() => handleDelete(true)}
                   />
                 </>
@@ -195,7 +200,7 @@ export function ParametricInspector({
                 <ActionButton
                   className="border-red-500/40 text-red-200 hover:bg-red-500/15"
                   icon={<Trash2 className="h-4 w-4" />}
-                  label="Delete"
+                  label={vi.parametricInspector.delete}
                   onClick={() => handleDelete()}
                 />
               ))}

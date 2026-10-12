@@ -11,6 +11,7 @@ import { furnishTools } from '../../../action-menu/furnish-tools'
 import { CATALOG_ITEMS } from '../../../item-catalog/catalog-items'
 import { ItemCatalog } from '../../../item-catalog/item-catalog'
 import { type FunctionTreeNode, FunctionTreePanel } from './function-tree-panel'
+import { primitivesAndSidebar as vi } from '../../../../../i18n/regions/primitivesAndSidebar'
 
 const PLACEMENT_TAGS = new Set(['floor', 'wall', 'ceiling', 'countertop'])
 
@@ -167,9 +168,9 @@ function LegacyItemsPanel({
   // filter even before they own any items. Selecting "Mine" with no
   // matching items falls through to the empty/no-results state.
   const sourceChips: Array<{ id: AssetInput['source']; label: string }> = [
-    { id: 'library', label: 'Library' },
-    { id: 'community', label: 'Community' },
-    { id: 'mine', label: 'Mine' },
+    { id: 'library', label: vi.itemsPanel.library },
+    { id: 'community', label: vi.itemsPanel.community },
+    { id: 'mine', label: vi.itemsPanel.mine },
   ]
   const allTags = Array.from(new Set(categoryItems.flatMap((item) => item.tags ?? [])))
   const placementTags = allTags.filter((t) => PLACEMENT_TAGS.has(t))
@@ -242,7 +243,7 @@ function LegacyItemsPanel({
               setSearch(e.target.value)
               onSearchChange?.(e.target.value)
             }}
-            placeholder="Search..."
+            placeholder={vi.itemsPanel.searchPlaceholder}
             type="text"
             value={search}
           />
@@ -284,7 +285,7 @@ function LegacyItemsPanel({
                   onClick={() => setActivePlacementTag(null)}
                   type="button"
                 >
-                  All
+                  {vi.itemsPanel.all}
                 </button>
                 {placementTags.map((tag) => {
                   const count = placementCount(tag)
@@ -376,7 +377,7 @@ function LegacyItemsPanel({
         ) : isServerSearch && search && searchResults?.length === 0 ? (
           (emptyState ?? (
             <div className="flex h-full items-center justify-center text-muted-foreground text-xs">
-              No results for &ldquo;{search}&rdquo;
+              {vi.itemsPanel.noResultsFor(search)}
             </div>
           ))
         ) : (

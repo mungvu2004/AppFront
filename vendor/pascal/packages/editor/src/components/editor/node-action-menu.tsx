@@ -3,6 +3,7 @@
 import { Icon } from '@iconify/react'
 import { Copy, Group, Move, PencilRuler, Search, Spline, Trash2, Ungroup } from 'lucide-react'
 import type { MouseEventHandler, PointerEventHandler } from 'react'
+import { editorAndViewer as vi } from '../../i18n/regions/editorAndViewer'
 import { RegistryActionContributions } from './registry-action-contributions'
 
 type NodeActionMenuProps = {
@@ -48,10 +49,10 @@ export function NodeActionMenu({
     >
       {onFind && (
         <button
-          aria-label="Find in catalog"
+          aria-label={vi.nodeActionMenu.findInCatalog}
           className="tooltip-trigger rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           onClick={onFind}
-          title="Find in catalog"
+          title={vi.nodeActionMenu.findInCatalog}
           type="button"
         >
           <Search className="h-4 w-4" />
@@ -59,10 +60,10 @@ export function NodeActionMenu({
       )}
       {onMove && (
         <button
-          aria-label="Move"
+          aria-label={vi.nodeActionMenu.move}
           className="tooltip-trigger rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           onClick={onMove}
-          title="Move"
+          title={vi.nodeActionMenu.move}
           type="button"
         >
           <Move className="h-4 w-4" />
@@ -70,10 +71,10 @@ export function NodeActionMenu({
       )}
       {onEditMesh && (
         <button
-          aria-label="Edit mesh"
+          aria-label={vi.nodeActionMenu.editMesh}
           className="tooltip-trigger rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           onClick={onEditMesh}
-          title="Edit mesh"
+          title={vi.nodeActionMenu.editMesh}
           type="button"
         >
           <PencilRuler className="h-4 w-4" />
@@ -81,10 +82,10 @@ export function NodeActionMenu({
       )}
       {onGroup && (
         <button
-          aria-label="Group selection"
+          aria-label={vi.nodeActionMenu.groupSelection}
           className="tooltip-trigger rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           onClick={onGroup}
-          title="Group (Ctrl/Cmd+G)"
+          title={vi.nodeActionMenu.group}
           type="button"
         >
           <Group className="h-4 w-4" />
@@ -92,10 +93,10 @@ export function NodeActionMenu({
       )}
       {onUngroup && (
         <button
-          aria-label="Ungroup selection"
+          aria-label={vi.nodeActionMenu.ungroupSelection}
           className="tooltip-trigger rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           onClick={onUngroup}
-          title="Ungroup (Ctrl/Cmd+Shift+G)"
+          title={vi.nodeActionMenu.ungroup}
           type="button"
         >
           <Ungroup className="h-4 w-4" />
@@ -103,10 +104,10 @@ export function NodeActionMenu({
       )}
       {onCurve && (
         <button
-          aria-label="Curve"
+          aria-label={vi.nodeActionMenu.curve}
           className="tooltip-trigger rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           onClick={onCurve}
-          title="Curve"
+          title={vi.nodeActionMenu.curve}
           type="button"
         >
           <Spline className="h-4 w-4" />
@@ -115,10 +116,10 @@ export function NodeActionMenu({
       <RegistryActionContributions />
       {onDuplicate && (
         <button
-          aria-label="Duplicate"
+          aria-label={vi.nodeActionMenu.duplicate}
           className="tooltip-trigger rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           onClick={onDuplicate}
-          title="Duplicate"
+          title={vi.nodeActionMenu.duplicate}
           type="button"
         >
           <Copy className="h-4 w-4" />
@@ -126,10 +127,10 @@ export function NodeActionMenu({
       )}
       {onAddHole && (
         <button
-          aria-label="Cut Out"
+          aria-label={vi.nodeActionMenu.cutOut}
           className="tooltip-trigger rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           onClick={onAddHole}
-          title="Cut Out"
+          title={vi.nodeActionMenu.cutOut}
           type="button"
         >
           <Icon height={16} icon="carbon:cut-out" width={16} />
@@ -137,10 +138,10 @@ export function NodeActionMenu({
       )}
       {onDelete && (
         <button
-          aria-label="Delete"
+          aria-label={vi.nodeActionMenu.delete}
           className="tooltip-trigger rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
           onClick={onDelete}
-          title="Delete"
+          title={vi.nodeActionMenu.delete}
           type="button"
         >
           <Trash2 className="h-4 w-4" />

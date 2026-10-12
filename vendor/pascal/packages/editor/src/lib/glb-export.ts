@@ -39,6 +39,7 @@ import {
   type GLTFWriter,
 } from 'three/examples/jsm/exporters/GLTFExporter.js'
 import { createExportTextureUtils, type ExportTextureUtils } from './export-texture-utils'
+import { libStrings as vi } from '../i18n/regions/libStrings'
 import { cloneExportUserData } from './export-user-data'
 import {
   type CompressedTextureDecompressor,
@@ -1675,28 +1676,28 @@ function nodeDisplayLabel(node: AnyNode): string {
   if (node.name) return node.name
   switch (node.type) {
     case 'item':
-      return (node as { asset?: { name?: string } }).asset?.name || 'Item'
+      return (node as { asset?: { name?: string } }).asset?.name || vi.glbExport.item
     case 'wall':
-      return 'Wall'
+      return vi.glbExport.wall
     case 'door':
-      return 'Door'
+      return vi.glbExport.door
     case 'window':
-      return 'Window'
+      return vi.glbExport.window
     case 'cabinet':
     case 'cabinet-module':
-      return 'Cabinet'
+      return vi.glbExport.cabinet
     case 'slab':
-      return 'Slab'
+      return vi.glbExport.slab
     case 'ceiling':
-      return 'Ceiling'
+      return vi.glbExport.ceiling
     case 'roof':
-      return 'Roof'
+      return vi.glbExport.roof
     case 'fence':
-      return 'Fence'
+      return vi.glbExport.fence
     case 'column':
-      return 'Column'
+      return vi.glbExport.column
     case 'stair':
-      return 'Stairs'
+      return vi.glbExport.stairs
     default:
       return node.type
   }

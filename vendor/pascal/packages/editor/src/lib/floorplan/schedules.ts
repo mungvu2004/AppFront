@@ -3,6 +3,8 @@ import { deriveZoneQuantityReport, resolveAutoZonePolygon } from '@pascal-app/co
 import { collectFloorplanSchedules } from './floorplan-export'
 import type { FloorplanSchedule } from './floorplan-extension'
 import { resolveMarkDetail } from './marks'
+import { formatWithUnitVi } from '../../i18n/format'
+import { libStrings as vi } from '../../i18n/regions/libStrings'
 
 /**
  * Construction-document schedule DATA — WS3.
@@ -125,7 +127,7 @@ function openingRow(
 ): OpeningScheduleRow {
   const remarks: string[] = []
   if (opening.roughOpeningWidth === undefined || opening.roughOpeningHeight === undefined) {
-    remarks.push('VERIFY R.O.')
+    remarks.push(vi.schedules.verifyRoughOpening)
   }
   const wall = opening.wallId ? (nodes[opening.wallId] as WallNode | undefined) : undefined
   if (
@@ -133,7 +135,7 @@ function openingRow(
     wall.type === 'wall' &&
     (wall.frontSide === 'exterior' || wall.backSide === 'exterior')
   ) {
-    remarks.push('Exterior')
+    remarks.push(vi.schedules.exterior)
   }
 
   return {
@@ -176,7 +178,7 @@ function groupOpeningRows(rows: readonly OpeningScheduleRow[]): OpeningScheduleR
 }
 
 function openingTypeLabel(opening: DoorNode | WindowNode): string {
-  if (opening.openingKind === 'opening') return 'Opening'
+  if (opening.openingKind === 'opening') return vi.schedules.opening
   return titleCase(
     opening.type === 'door' ? (opening as DoorNode).doorType : (opening as WindowNode).windowType,
   )
@@ -198,12 +200,12 @@ function openingFrame(opening: DoorNode | WindowNode, unit: ScheduleUnit): strin
 }
 
 function doorHardware(door: DoorNode): string {
-  if (door.openingKind === 'opening') return 'None'
+  if (door.openingKind === 'opening') return vi.schedules.hardwareNone
   const hardware: string[] = []
-  if (door.doorCloser) hardware.push('Closer')
-  if (door.panicBar) hardware.push('Panic bar')
-  if (door.threshold) hardware.push('Threshold')
-  return hardware.length > 0 ? hardware.join(', ') : 'Standard'
+  if (door.doorCloser) hardware.push(vi.schedules.hardwareCloser)
+  if (door.panicBar) hardware.push(vi.schedules.hardwarePanicBar)
+  if (door.threshold) hardware.push(vi.schedules.hardwareThreshold)
+  return hardware.length > 0 ? hardware.join(', ') : vi.schedules.hardwareStandard
 }
 
 // ── Room schedule ────────────────────────────────────────────────────
@@ -230,7 +232,7 @@ export function roomSchedule(
       const resolved = polygon === zone.polygon ? zone : { ...zone, polygon }
       const report = deriveZoneQuantityReport(resolved, nodes as Record<string, AnyNode>)
       const number = zone.roomNumber.trim()
-      if (!number) issues.push(`Room ${zone.name.trim() || zone.id} has no room number`)
+      if (!number) issues.push(vi.schedules.roomMissingNumber(zone.name.trim() || zone.id))
       else {
         const owners = seenNumbers.get(number.toLocaleUpperCase())
         if (owners) owners.push(zone.id)
@@ -250,7 +252,7 @@ export function roomSchedule(
   }
 
   for (const [number, owners] of seenNumbers) {
-    if (owners.length > 1) issues.push(`Duplicate room number ${number} (${owners.length} rooms)`)
+    if (owners.length > 1) issues.push(vi.schedules.duplicateRoomNumber(number, owners.length))
   }
 
   rows.sort((left, right) => left.number.localeCompare(right.number, 'en', { numeric: true }))
@@ -293,8 +295,8 @@ export function formatScheduleLength(metres: number, unit: ScheduleUnit): string
 function formatArea(squareMetres: number, unit: ScheduleUnit): string {
   if (!Number.isFinite(squareMetres)) return '—'
   return unit === 'metric'
-    ? `${squareMetres.toFixed(2)} m²`
-    : `${(squareMetres * SQUARE_FEET_PER_SQUARE_METER).toFixed(1)} ft²`
+    ? formatWithUnitVi(Number(squareMetres.toFixed(2)), 'm²')
+    : formatWithUnitVi(Number((squareMetres * SQUARE_FEET_PER_SQUARE_METER).toFixed(1)), 'ft²')
 }
 
 function greatestCommonDivisor(a: number, b: number): number {

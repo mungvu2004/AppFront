@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { usePerfActionReceipts } from '../../lib/perf-actions'
 import { usePerfStats } from '../../lib/perf-panel-store'
+import { vi } from '../../i18n/vi'
 
 // Rendered OUTSIDE <Canvas> (drei <Html> wrappers carry a camera-driven
 // transform, which turns position:fixed into "fixed relative to the wrapper"
@@ -226,7 +227,7 @@ export const PerfPanel = () => {
           {stats ? `${stats.fps} fps` : '—'}
         </span>
         <button
-          aria-label="Dock panel to the side"
+          aria-label={vi.perfPanel.dockAriaLabel}
           onClick={dock}
           onPointerDown={(e) => e.stopPropagation()}
           style={{
