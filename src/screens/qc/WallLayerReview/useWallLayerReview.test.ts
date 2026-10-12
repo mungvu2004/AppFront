@@ -890,6 +890,25 @@ describe('hợp đồng canvas mở rộng', () => {
     mounted.unmount();
   });
 
+  it('[BUG-403] bản đồ nhỏ đi theo thu phóng — vùng nhìn hẹp lại khi phóng to', async () => {
+    const mounted = await mountSettled();
+
+    act(() => mounted.result.current.canvas.onFrameResize({ width: 300, height: 480 }));
+    await waitFor(() => expect(mounted.result.current.canvas.viewport.zoom).toBeLessThan(1));
+    expect(mounted.result.current.canvas.drawingSizePx).not.toBeNull();
+
+    const before = mounted.result.current.canvas.miniMapViewport;
+
+    for (let step = 0; step < 6; step += 1) {
+      act(() => mounted.result.current.canvas.onZoomIn());
+    }
+
+    await waitFor(() => expect(mounted.result.current.canvas.miniMapViewport.width).toBeLessThan(before.width));
+    expect(mounted.result.current.canvas.miniMapViewport.height).toBeLessThan(before.height);
+
+    mounted.unmount();
+  });
+
   it('[BUG-403] sửa tường (xoá cột tường biên trái) không tự phóng/dịch mặt bằng — mốc vừa khung chốt theo tầng', async () => {
     const mounted = await mountSettled();
 

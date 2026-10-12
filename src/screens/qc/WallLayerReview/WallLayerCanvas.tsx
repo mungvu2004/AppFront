@@ -389,7 +389,7 @@ export function WallLayerCanvas({
         onZoomOut={onZoomOut}
         zoomLevel={zoomPercent}
       />
-      <MiniMap initialViewport={miniMapViewport} onViewportChange={onMiniMapViewportChange}>
+      <MiniMap onViewportChange={onMiniMapViewportChange} viewport={miniMapViewport}>
         {viewBox === undefined ? null : (
           <svg aria-label={MINIMAP_LABEL} className="h-full w-full" role="img" viewBox={viewBox}>
             {shapes.map((shape) => (

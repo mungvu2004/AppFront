@@ -137,6 +137,7 @@ import {
   isLowConfidence,
   measurementOutcomeToPx,
   miniMapCentreMm,
+  miniMapRectOf,
   isStandardThickness,
   reviewProgressLabel,
   runWallCommand,
@@ -1638,13 +1639,13 @@ export function useWallLayerReview(
   );
 
   /*
-   * Vùng nhìn ban đầu của bản đồ nhỏ, phần trăm khổ bản vẽ.
-   *
-   * `MiniMap` giữ vùng nhìn của riêng nó sau lượt đầu (`useMiniMap` là kho cục
-   * bộ của component), nên đây đúng là giá trị KHỞI TẠO chứ không phải một điều
-   * khiển có chủ — tên prop của component nói thẳng như vậy (`initialViewport`).
+   * Vùng nhìn của bản đồ nhỏ, phần trăm khổ bản vẽ: vùng ĐANG thấy của canvas, nên khung trên
+   * bản đồ đi theo thu phóng/vừa khung (BUG-403 nợ). Chưa đo khung hay chưa có ảnh → mặc định.
    */
-  const miniMapViewport = MINIMAP_INITIAL_VIEWPORT;
+  const miniMapViewport =
+    drawingSizePx === null || frameSizePx === null
+      ? MINIMAP_INITIAL_VIEWPORT
+      : miniMapRectOf(visibleDrawingRect(viewport, frameSizePx), drawingSizePx);
 
   /*
    * Phím `F` — phủ khắp vùng đang chọn.

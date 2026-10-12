@@ -328,7 +328,7 @@ export interface WallLayerCanvasViewProps extends WallLayerCanvasProps {
   readonly onResetZoom: () => void;
   /** Phím `F` và nút "vừa khung": phủ khắp vùng đang chọn, hoặc cả bản vẽ khi chưa chọn gì. */
   readonly onFitToScreen: () => void;
-  /** Vùng nhìn bản đồ nhỏ, đơn vị PHẦN TRĂM khổ bản vẽ — đúng đơn vị `useMiniMap` dùng. */
+  /** Vùng nhìn bản đồ nhỏ (vùng canvas đang thấy), PHẦN TRĂM khổ bản vẽ — đúng đơn vị `useMiniMap` dùng. */
   readonly miniMapViewport: WallLayerViewportRectPercent;
   /** Người dùng kéo/bấm trên bản đồ nhỏ; hook dịch tâm nhìn theo. */
   readonly onMiniMapViewportChange: (rect: WallLayerViewportRectPercent) => void;
