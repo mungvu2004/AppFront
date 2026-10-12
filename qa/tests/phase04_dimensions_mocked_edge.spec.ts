@@ -181,6 +181,17 @@ const dimsPath = (floor: SeededFloor): string => ROUTES.project.dimensions(floor
 const gets = (flow: Flow, mark: number, path: RegExp): number =>
   flow.log.slice(mark).filter((entry) => entry.method === 'GET' && path.test(entry.path)).length;
 
+/**
+ * Full load of SCR-18 that must come back FRESH (F-08: nothing persisted), checked on the counter. run-51-P3-r2 once
+ * showed a non-fresh list after `page.reload()` in FL-18-M3; the hard check makes such a load fail here, with the
+ * dialogs the page raised in the message.
+ */
+async function freshLoad(page: Page, flow: Flow, path: string, counter: string): Promise<void> {
+  await page.goto(path);
+  await expect(region(page)).toBeVisible();
+  await expect(progress(page), `fresh counter after a full load (dialogs: ${JSON.stringify(flow.dialogs)})`).toHaveText(counter);
+}
+
 const rowClass = async (page: Page, n: number): Promise<string> => (await option(page, n).getAttribute('class')) ?? '';
 
 /** Seeds a Q1 (or Q2 with `floors`) project, opens an admin flow, runs `body`, cleans up. */
@@ -528,7 +539,7 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
       });
 
       await test.step('[18-C-002] default filter: "Độ tin cậy thấp" when an unreviewed row is below threshold', async () => {
-        await page.reload();
+        await freshLoad(page, flow, dimsPath(floor), progressText(1, 6));
         await expect(region(page)).toBeVisible();
         await expect.soft(radio(page, DIM.low)).toHaveAttribute('aria-checked', 'true');
         note('18-C-002 "else Tất cả" branch: FL-18-M1 opens with every confidence above the threshold and lists all 8 rows.');
@@ -552,7 +563,7 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
       });
 
       await test.step('[18-C-005] status: reviewed → verified; below threshold → attention; else neutral', async () => {
-        await page.reload();
+        await freshLoad(page, flow, dimsPath(floor), progressText(1, 6));
         await expect(region(page)).toBeVisible();
         await radio(page, DIM.all).click();
         expect.soft(await rowClass(page, 1)).toContain('border-state-verified');
@@ -579,7 +590,7 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
       });
 
       await test.step('[18-B-011] ⚑ low-confidence preset → notice "2 mục dưới ngưỡng tin cậy, đã lọc sẵn"', async () => {
-        await page.reload();
+        await freshLoad(page, flow, dimsPath(floor), progressText(1, 6));
         await expect(region(page)).toBeVisible();
         await expect(radio(page, DIM.low)).toHaveAttribute('aria-checked', 'true');
         // ⚑ dead copy: lowConfidencePartialNotice (DT:109-110) is never rendered (UD:473-474).
@@ -652,32 +663,39 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
         await ev(page, '18-C-028', 'field_not_refocused');
       });
 
+      const kbField = (): ReturnType<typeof field> => keyboardSection(page).getByRole('textbox');
+      const kbCode = async (): Promise<string> =>
+        ((await kbField().getAttribute('aria-label')) ?? '').replace('Giá trị kích thước ', '');
+
       await test.step('[18-C-029] ⚑ `R` in the auto-focused field must leave keyboard mode (legend says so)', async () => {
-        await field(page, 2).click();
+        await kbField().focus();
         await page.keyboard.press('r');
         // ⚑ BUG-334 partly fixed: the legend says R = "Tắt chế độ duyệt bàn phím" (DK:59-64) but SR:507 skips text fields.
         await expect.soft(keyboardSection(page), '⚑ R leaves keyboard mode').toHaveCount(0);
-        await ev(page, '18-C-029', 'r_in_field');
+        await ev(page, '18-C-029', 'r_in_field', `row in keyboard mode: ${await kbCode().catch(() => '—')}`);
         if ((await keyboardSection(page).count()) === 0) {
           await selectRow(page, 2);
           await page.getByRole('button', { name: DIM.keyboardOn, exact: true }).click();
+        } else {
+          await page.keyboard.press('Escape'); // drop the typed "r" (UNF:144-148)
         }
       });
 
       await test.step('[18-C-030] legend "Tab — Sang cột sau": Tab goes to the off button', async () => {
         await expect.soft(keyboardSection(page).getByText('Sang cột sau', { exact: true })).toBeVisible();
-        await field(page, 2).click();
+        await kbField().focus();
         await page.keyboard.press('Tab');
         await expect.soft(page.getByRole('button', { name: DIM.keyboardOff, exact: true })).toBeFocused();
         await ev(page, '18-C-030', 'tab_to_off_button');
       });
 
       await test.step('[18-A-023] approving the last unreviewed row → row null, mode falls back to the panel footer', async () => {
-        await field(page, 2).click();
-        await field(page, 2).press('Enter');
-        await expect(keyboardSection(page).getByText(dimCode(3), { exact: true })).toBeVisible();
-        await field(page, 3).click();
-        await field(page, 3).press('Enter');
+        // Enter on each row left (M-002, M-003; M-004 is reviewed) until no row is left to review.
+        for (let left = 2; left > 0 && (await kbField().count()) > 0; left -= 1) {
+          await kbField().focus();
+          await page.keyboard.press('Enter');
+          await painted(page);
+        }
         await expect.soft(canvasFrame(page)).toBeVisible();
         await expect.soft(panel(page).getByRole('region', { name: DIM.keyboardCaption, exact: true })).toBeVisible();
         await expect.soft(progress(page)).toHaveText(progressText(4, 4));
@@ -912,11 +930,14 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
           await expect(options(page)).toHaveCount(4);
           await approveButton(page, 3).click();
           await expect(approveButton(page, 3)).toHaveCount(0);
+          await expect.soft(region(page).getByRole('button', { name: DIM.undo, exact: true }), 'no "Hoàn tác" control on the screen').toHaveCount(0);
           await progress(page).click();
           await page.keyboard.press('Control+z');
           await painted(page);
-          await expect.soft(approveButton(page, 3), 'Mod+Z does not undo (UD:539-541 onUndo unused)').toHaveCount(0);
-          await expect.soft(region(page).getByRole('button', { name: DIM.undo, exact: true })).toHaveCount(0);
+          // Catalog correction: the screen binds no Mod+Z (UD:539-541 onUndo unused), but the shell's app-wide Ctrl+Z
+          // (src/hooks/useShortcut.ts:166-175 useGlobalShortcuts) takes the approve back (run-51-P3-r1/r2, fresh load too).
+          await expect.soft(approveButton(page, 3), 'Ctrl+Z (shell) reverts the approve').toBeVisible();
+          note('18-C-027: catalog says "no Mod+Z binding"; the app-wide Ctrl+Z of the shell undoes the approve — asserted as observed.');
           await ev(page, '18-C-027', 'no_undo_key');
         });
 
