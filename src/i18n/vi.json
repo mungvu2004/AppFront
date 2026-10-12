@@ -2392,7 +2392,7 @@
     "regionLabel": "Thanh tra đối tượng",
     "groups": {
       "geometry": "Kích thước hình học",
-      "material": "Vật liệu",
+      "material": "Thông tin chung",
       "relations": "Quan hệ",
       "inspection": "Kiểm tra",
       "advanced": "Thông số nâng cao"

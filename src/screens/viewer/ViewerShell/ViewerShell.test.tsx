@@ -54,6 +54,7 @@ import {
 
 import { ViewerShellContainer } from './ViewerShell.container';
 import { ViewerShell, VIEWER_SHELL_LABEL } from './ViewerShell';
+import { ViewerElevationScale } from './ViewerOverlays';
 import { scenarioArgsFor } from './ViewerShell.stories';
 import {
   FIXTURE_ROOM_COUNT,
@@ -1294,5 +1295,58 @@ describe('thu phóng ở góc nhìn phẳng (Trên xuống)', () => {
     expect(zoomedIn).toBeGreaterThan(start);
     expect(percent(result.current.zoomLabel)).toBeLessThan(zoomedIn);
     unmount();
+  });
+});
+
+describe('[BUG-478] thang cao độ đọc được trên mọi màu canvas', () => {
+  it('nằm trên nền đệm bg-surface-90, chữ phụ — không trần trên canvas', () => {
+    render(
+      <ViewerElevationScale
+        storeys={(['0,00 m', '3,00 m'] as const).map((elevationLabel, index) => ({
+          code: String(index + 1),
+          elevationLabel,
+          id: `L-${String(index)}`,
+          inlineName: `tầng ${String(index + 1)}`,
+          isActive: false,
+          isReady: true,
+          isVisible: true,
+          name: `Tầng ${String(index + 1)}`,
+        }))}
+      />,
+    );
+
+    const scale = screen.getByRole('list', { name: 'Cao độ tầng' });
+
+    expect(scale).toHaveClass('bg-bg-surface-90', 'text-text-secondary');
+    expect(scale).not.toHaveClass('text-text-muted');
+  });
+});
+
+describe('[BUG-486] chưa có hình thì không vẽ điều khiển khung nhìn', () => {
+  it('hasModel = false: không thang cao độ, không chú giải; mặc định thì có', () => {
+    const queryClient = createTestQueryClient();
+    const { result } = renderHook(
+      () => useViewerShell({ projectId: 'P-001', spatial: VIEWER_FIXTURE_SPATIAL }),
+      {
+        wrapper: ({ children }: { children: ReactNode }) => (
+          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        ),
+      },
+    );
+
+    expect(result.current.hasModel).toBe(true);
+
+    const empty = render(<ViewerShell {...result.current} hasModel={false} />);
+    expect(screen.queryByRole('list', { name: 'Cao độ tầng' })).toBeNull();
+    expect(screen.queryByLabelText('Chú giải')).toBeNull();
+    empty.unmount();
+
+    render(<ViewerShell {...result.current} />);
+    expect(screen.getByRole('list', { name: 'Cao độ tầng' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Chú giải')).toBeInTheDocument();
+  });
+
+  it('shellDataOf: đồ thị trống thì hasModel = false', () => {
+    expect(shellDataOf(null).hasModel).toBe(false);
   });
 });

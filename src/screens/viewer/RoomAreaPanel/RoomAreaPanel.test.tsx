@@ -572,3 +572,19 @@ describe('[N5] trạng thái thu gọn', () => {
     expect(areas[0]).toBeCloseTo(27.6, 2);
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* [BUG-479] Nhãn điều khiển viết hoa chữ đầu (A6), ô tầng nói "Toàn nhà".     */
+/* -------------------------------------------------------------------------- */
+
+describe('[BUG-479] nhãn điều khiển', () => {
+  it('ô chuyển nhóm và nút xuất viết hoa chữ đầu; chưa chọn tầng thì ô tầng hiện "Toàn nhà"', () => {
+    const props = propsOf('success');
+    const { getByRole, getByText } = render(<RoomAreaPanel {...props} activeLevelId={null} />);
+
+    expect(getByText('Theo tầng')).toBeInTheDocument();
+    expect(getByText('Theo công năng')).toBeInTheDocument();
+    expect(getByRole('button', { name: /^Xuất bảng$/ })).toBeInTheDocument();
+    expect(getByText('Toàn nhà')).toBeInTheDocument();
+  });
+});
