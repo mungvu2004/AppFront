@@ -683,6 +683,17 @@ test.describe('SCR-24 Exploded View', () => {
     await full.click();
     await expect(slider).toHaveValue(separated);
 
+    // BUG-491: the shot proves "Tách hết" only with the model drawn — wait for model pixels, shoot before any floor is hidden.
+    await page.mouse.move(5, 5);
+    await expect
+      .poll(async () => geometryOf(await canvasOnlyShot(page)).fraction, {
+        message: 'exploded view: canvas shows only its background colour after "Tách hết" (no storey drawn)',
+        timeout: SCENE_TIMEOUT_MS,
+      })
+      .toBeGreaterThan(0.01);
+    await settledCanvas(page);
+    await captureEvidence(page, '24_exploded.png');
+
     // Card eye `ExplodedViewFloorCards.tsx:173`: "Ẩn {inlineName}" (storeyInlineName, viewerStoreyStack.ts:120-124), "Tầng 1" -> "Ẩn tầng 1".
     // Scope to the screen so the shell rail's identical eye (`ViewerStoreyRail.tsx:93`) never matches.
     const cardName = escapeRegExp(storeyInlineName(floorName));
@@ -691,7 +702,6 @@ test.describe('SCR-24 Exploded View', () => {
     const show = cards.getByRole('button', { name: new RegExp(`^Hiện ${cardName}$`, 'u') });
     await hide.click();
     await expect(show).toBeVisible();
-    await captureEvidence(page, '24_exploded.png');
 
     await show.click(); // local only: restore what this test changed
     await expect(hide).toBeVisible();
