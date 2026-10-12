@@ -418,6 +418,16 @@ describe('Lớp trên cùng (A9/A12) — lỗi B-V12b-01, B-V12b-02', () => {
     expect(screen.queryByRole('button', { name: 'xoá' })).toBeNull();
   });
 
+  it('BUG-429: nút tên người dùng trong bảng có vùng chạm ≥ 24 px', async () => {
+    const UserManagementView = await loadUserManagementView();
+    const model: UserManagementViewModel = { ...USER_MANAGEMENT_SCENARIO_SUCCESS, detail: null };
+    renderWithProviders(<UserManagementView actions={buildActions()} model={model} />);
+
+    for (const row of model.rows) {
+      expect(await screen.findByRole('button', { name: row.name })).toHaveClass('min-h-6');
+    }
+  });
+
   it('BUG-077: link "Gửi lại" lời mời có vùng chạm 44 px dưới 640, 24 px từ đó, ở cả bảng lẫn thẻ', async () => {
     const UserManagementView = await loadUserManagementView();
     for (const isCollapsed of [false, true]) {
