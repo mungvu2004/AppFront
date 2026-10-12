@@ -557,7 +557,10 @@ export function useRoomLabelReview(
     [backgroundImageUrl, measures, roomCodes, rooms, ruleRouteHref, scale, scaleStatus, violations],
   );
 
-  const summary = useMemo<RoomLabelSummaryViewModel>(() => summaryOf(rooms, scaleStatus), [rooms, scaleStatus]);
+  const summary = useMemo<RoomLabelSummaryViewModel>(
+    () => summaryOf(rooms, violations, scaleStatus),
+    [rooms, scaleStatus, violations],
+  );
 
   const visibleRows = useMemo(
     () => applyUnnamedFilter(allRows, showOnlyUnnamed),

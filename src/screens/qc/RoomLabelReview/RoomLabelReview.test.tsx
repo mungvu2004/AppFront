@@ -705,3 +705,14 @@ describe('[BUG-393] mặt bằng phòng vừa khung canvas, kể cả khi chọn
     inFrame();
   });
 });
+
+describe('[BUG-407] panel "Vòng tường hở" không phủ nhận nhắc "phòng chưa kín"', () => {
+  it('không có khe giữa hai đầu tường nhưng có phòng ROOM-NOT-CLOSED → nói rõ phạm vi và số phòng chưa kín', async () => {
+    await renderSettled('success');
+    const gapsSection = screen.getByRole('region', { name: 'Vòng tường hở' });
+
+    /* Kịch bản "success" không có tường nào: mọi phòng đều chưa kín, không khe đầu tường nào. */
+    expect(gapsSection).not.toHaveTextContent('Chưa thấy vòng tường hở nào ở tầng này.');
+    expect(gapsSection).toHaveTextContent(`Các đầu tường đều đã nối, nhưng ${ROOM_LABEL_FIXTURE_TOTAL} phòng chưa kín`);
+  });
+});

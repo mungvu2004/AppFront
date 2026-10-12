@@ -2052,6 +2052,7 @@
       "unnamedFilter": "Chưa đặt tên",
       "gapsTitle": "Vòng tường hở",
       "gapsEmpty": "Chưa thấy vòng tường hở nào ở tầng này.",
+      "gapsEmptyUnclosedRooms": "Các đầu tường đều đã nối, nhưng {{count}} phòng chưa kín vì có cạnh không có tường chạy dọc — chọn phòng để xem nhắc công năng.",
       "gapWalls": "Tường liên quan",
       "checkGaps": "Kiểm tra lại vòng hở",
       "navigateWalls": "Xem tại lớp tường",

@@ -799,7 +799,11 @@ export function labelFitsIn(
  * Tổng diện tích tính bằng `totalArea` — cộng ở đơn vị mm² rồi làm tròn MỘT
  * lần, KHÔNG cộng các `areaText` đã làm tròn của từng phòng.
  */
-export function summaryOf(rooms: readonly Room[], scaleStatus?: 'unresolved'): RoomLabelSummaryViewModel {
+export function summaryOf(
+  rooms: readonly Room[],
+  violations: readonly Violation[],
+  scaleStatus?: 'unresolved',
+): RoomLabelSummaryViewModel {
   return {
     totalAreaText: measureTextOf(
       formatArea(totalArea(rooms.map((room) => room.outline.map(toPointMm)))),
@@ -807,6 +811,9 @@ export function summaryOf(rooms: readonly Room[], scaleStatus?: 'unresolved'): R
     ),
     roomCount: rooms.length,
     unnamedCount: rooms.filter((room) => room.name.trim() === '').length,
+    unclosedRoomCount: new Set(
+      violations.filter((violation) => violation.ruleCode === 'ROOM-NOT-CLOSED').map((violation) => violation.entityId),
+    ).size,
   };
 }
 
