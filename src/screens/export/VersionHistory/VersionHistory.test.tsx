@@ -75,6 +75,7 @@ import {
   type VersionsServerFake,
 } from './versionHistoryFixtures';
 import * as UseVersionHistoryModule from './useVersionHistory';
+import { buildDiffGroups } from './versionHistoryModel';
 import { snapshotQueryKey, useVersionHistory } from './useVersionHistory';
 import * as VersionHistoryModule from './VersionHistory';
 import { VersionHistory } from './VersionHistory';
@@ -1411,5 +1412,30 @@ describe('nút phục hồi rời khỏi DOM khi canRestore false', () => {
     renderWithProviders(<VersionHistoryView {...props} />);
 
     expect(screen.queryByRole('button', { name: /phục hồi/iu })).not.toBeNull();
+  });
+});
+
+describe('[BUG-456] tab "Thay đổi" không lấy mã nội bộ thô làm chủ thể', () => {
+  it('mã ULID thành số thứ tự trong nhóm, mã đọc được (W-014) giữ nguyên', () => {
+    const ulidWall = 'W-03H178Y099CC541AUHEQYUW8W';
+    const groups = buildDiffGroups({
+      added: [
+        { entityId: ulidWall, entityType: 'wall', kind: 'added' },
+        { entityId: 'W-014', entityType: 'wall', kind: 'added' },
+        { entityId: `V-${ulidWall}-end`, entityType: 'vertex', kind: 'added' },
+      ],
+      changed: [
+        { entityId: ulidWall, entityType: 'wall', kind: 'changed', field: 'thickness_mm', oldValue: 200, newValue: 220 },
+      ],
+      removed: [],
+    });
+    const sentences = groups.flatMap((group) => group.rows.map((row) => row.sentence));
+
+    expect(sentences.join(' ')).not.toMatch(/03H178Y099CC541AUHEQYUW8W/u);
+    expect(sentences).toContain('Thêm tường #1');
+    expect(sentences).toContain('Thêm tường W-014');
+    expect(sentences).toContain('Thêm điểm #1');
+    expect(sentences.some((sentence) => sentence.startsWith('Tường #1 '))).toBe(true);
+    expect(groups.flatMap((group) => group.rows.map((row) => row.entityId))).toContain(ulidWall);
   });
 });
