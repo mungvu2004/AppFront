@@ -101,7 +101,6 @@ const BREADCRUMB_NAV = 'Đường dẫn trang'; // src/components/shell/Breadcru
 const BREADCRUMB_PROJECTS = 'Dự án'; // FU:59
 const CAD_SENTENCE = 'Bản vẽ CAD (.dwg) chưa được hỗ trợ; hãy xuất sang PDF rồi tải lại.'; // FUG:85
 const VALIDATION_SENTENCE = 'Kiểm tra lại các trường được đánh dấu rồi thử lại.'; // src/i18n/vi.json errors.validation
-const NOT_FOUND_GENERIC = 'Nội dung này có thể đã bị xoá, hoặc đường dẫn chưa đúng.'; // vi.json errors.notFound
 const UNDO = 'Hoàn tác'; // TST:149
 const unsupported = (ext: string): string => `Định dạng ${ext} chưa nhận được. Định dạng hỗ trợ: .png, .jpg, .pdf.`; // UFU:212-216
 const UNREADABLE_PDF = 'Không đọc được nội dung tệp .pdf.'; // UFU:222-223
@@ -1340,14 +1339,25 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
         expect.soft(seen[1]).toEqual(['chunk 0', 'chunk 1', 'complete']);
       });
 
-      await test.step('[10-B-019] Tầng 2 deleted by the API, then a PNG assigned to it → init 404 → "Nội dung này có thể đã bị xoá…"; no "Thử lại"', async () => {
+      // QA-03f (FIX-2426, BUG-572): after the init 404 the floor re-read (BUG-311) no longer holds Tầng 2, so its card leaves and the
+      // file returns to the tray with the floor-gone sentence, not retryable (useFloorUploadScreen.ts:844-866, 1415-1419 at ecab056b;
+      // tray alert FloorUploadTray.tsx:106-115). `refusedUpload` waits for the card's "Lỗi", which no longer stays — inline here.
+      await test.step('[10-B-019] Tầng 2 deleted by the API, then a PNG assigned to it → init 404 → card gone, file back in the tray with "Tầng 2 đã bị xoá ở nơi khác…"; no "Thử lại"', async () => {
         const removed = await uploaderApi.delete(`/api/floors/${t2.id}`);
         expect(removed.status(), 'the other writer: DELETE /api/floors/:id').toBe(200);
-        const r = await refusedUpload(file('tang-da-xoa.png', png), t2, false);
-        expect.soft(r.status).toBe(404);
-        await expect.soft(card(page, t2).getByRole('alert')).toContainText(NOT_FOUND_GENERIC);
-        expect.soft(await noRetry(t2)).toBe(0);
-        await captureEvidence(page, 'E03_10-B-019_floor-deleted-404.png', { caption: `init ${String(r.status)} ${r.code}` });
+        const name = 'tang-da-xoa.png';
+        await pick(page, file(name, png));
+        const mark = flow.sent.length;
+        const answer = waitForApi(page, 'POST', INIT_RE, [404], 30_000).catch(() => null);
+        await assignFromTray(page, name, t2.name);
+        const got = await answer;
+        expect.soft(got?.response.status() ?? 'none', 'init on the deleted floor').toBe(404);
+        const alert = trayItem(page, name).getByRole('alert');
+        await expect.soft(alert).toContainText(`${t2.name} đã bị xoá ở nơi khác; ${name} đã về khay tệp chưa gán tầng, hãy gán cho tầng khác`, { timeout: 30_000 });
+        await expect.soft(card(page, t2)).toHaveCount(0);
+        await expect.soft(trayItem(page, name).getByRole('button', { name: RETRY, exact: true })).toHaveCount(0);
+        expect.soft(initsSince(flow, mark), 'one init, no retry').toHaveLength(1);
+        await captureEvidence(page, 'E03_10-B-019_floor-deleted-404.png', { caption: `init ${String(got?.response.status() ?? 'none')}` });
       });
     } finally {
       await closeFlow(flow);
