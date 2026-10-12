@@ -9,7 +9,7 @@
  * MEMBER_LAST_EDITOR of the self-removal.
  *
  * ## Real-backend budget per run
- * - `POST /api/auth/login`: 1 (pool viewer); the admin rides the stored session.
+ * - `POST /api/auth/login`: 5 (admin ×4, own login per flow, no shared session file; pool viewer ×1).
  * - `POST /api/projects`: 4, each deleted in `finally`. `POST …/members`: 1 (viewer). Invitations: 0 (or 1, first fill).
  * - `PUT …/settings`: ~20 (4 widths × notes save, 409 states and the API writer); `PATCH /api/projects/:id` 4 (F-014).
  * - `DELETE …/members/:self` → 422: 4. No mail.

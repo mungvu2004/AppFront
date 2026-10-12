@@ -7,17 +7,14 @@
  * MT MembersTab.tsx · MRD MemberRemoveDialog.tsx · DZ DangerZoneTab.tsx · RD ProjectSettingsReloadDialog.tsx ·
  * I18N src/i18n/vi.json · HTTP src/lib/http/{client,retry}.ts.
  */
-import { existsSync } from 'node:fs';
-
 import { expect, type APIRequestContext, type Browser, type BrowserContext, type Locator, type Page, type Request, type Route } from '@playwright/test';
 
 import { ROUTES } from '../../../../e2e/fixtures/routes';
 import { watchApi, type ApiEntry } from '../../../../e2e/fullstack/apiWatch';
 import { readBaseUrl } from '../../../../e2e/fullstack/env';
 import { newApiContext } from '../api';
-import { ensureAdminSession } from '../auth';
+import { readAdminCredentials } from '../auth';
 import { signInPoolUser, type PoolUser } from '../phase03Seed';
-import { ADMIN_STORAGE_STATE_FILE } from '../state';
 
 /* ---- copy (each string read in src/) ---------------------------------------------------------- */
 
@@ -157,7 +154,6 @@ export interface Session {
   readonly log: ApiEntry[];
   /** Bearer API of this session's user (for phase03Seed helpers); disposed by `closeSession`. */
   readonly api: APIRequestContext;
-  readonly isAdmin: boolean;
 }
 
 /** Refresh body: `accessToken`/`access_token`, optional `data` wrapper (src/lib/auth/refresh.ts:85-100). */
@@ -170,24 +166,27 @@ function readAccessToken(json: unknown): string {
 }
 
 /**
- * Browser context of the stored admin (`ADMIN_STORAGE_STATE_FILE`; 0 logins while alive) or of a pool user (1 login),
+ * Browser context of the phase admin or of a pool user (1 login each, through the context's own cookie jar),
  * plus a Bearer API context of the same user taken from one refresh in the context's own jar.
  */
 export async function openSession(browser: Browser, user: PoolUser | 'admin', viewport: { width: number; height: number } = DESKTOP): Promise<Session> {
-  const isAdmin = user === 'admin';
-  const context = await browser.newContext({
-    baseURL: readBaseUrl(),
-    viewport,
-    ...(isAdmin && existsSync(ADMIN_STORAGE_STATE_FILE) ? { storageState: ADMIN_STORAGE_STATE_FILE } : {}),
-  });
+  const context = await browser.newContext({ baseURL: readBaseUrl(), viewport });
   try {
-    if (isAdmin) await ensureAdminSession(context, ADMIN_STORAGE_STATE_FILE);
-    else await signInPoolUser(context, user);
+    if (user === 'admin') {
+      // Own admin login (as P3 `withFloorsAdmin`): the stored admin session file's refresh cookie rotates, so files
+      // running in parallel (`--workers 4`) must not share it.
+      const { email, password } = readAdminCredentials();
+      const login = await context.request.post('/api/auth/login', {
+        data: { email, password, rememberMe: false },
+        headers: { Origin: readBaseUrl() },
+      });
+      expect(login.status(), 'setup: POST /api/auth/login (admin, own session)').toBe(204);
+    } else await signInPoolUser(context, user);
     const refreshed = await context.request.post('/api/auth/refresh', { headers: { Origin: readBaseUrl() } });
     expect(refreshed.status(), 'POST /api/auth/refresh (session token)').toBe(200);
     const api = await newApiContext({ Authorization: `Bearer ${readAccessToken(await refreshed.json())}` });
     const page = await context.newPage();
-    return { context, page, log: watchApi(page), api, isAdmin };
+    return { context, page, log: watchApi(page), api };
   } catch (error) {
     await context.close();
     throw error;
@@ -195,7 +194,6 @@ export async function openSession(browser: Browser, user: PoolUser | 'admin', vi
 }
 
 export async function closeSession(session: Session): Promise<void> {
-  if (session.isAdmin) await session.context.storageState({ path: ADMIN_STORAGE_STATE_FILE }).catch(() => undefined);
   await session.api.dispose().catch(() => undefined);
   await session.context.close().catch(() => undefined);
 }

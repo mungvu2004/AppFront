@@ -16,7 +16,7 @@
  * - FL-08-16: DELETE /api/floors/:id (2nd floor) → 500; DELETE /api/projects/:id → 500 once. Unpairable: 5xx.
  *
  * ## Real-backend budget per run
- * - `POST /api/auth/login`: 0 while the stored admin session lives (1 UI sign-in otherwise); 1 more for the pool engineer's
+ * - `POST /api/auth/login`: 4 admin (own login per flow, no shared session file); 1 more for the pool engineer's
  *   first fill only (invitation + accept, see below). `POST /api/auth/refresh`: 2 per flow + 1 per page load.
  * - `POST /api/projects`: 4 (one per flow), each deleted in `finally`.
  * - `POST /api/projects/:id/members` (`members_add` 60 / 3600 s per actor): 2 real (FL-08-15 steps 3 and 7).

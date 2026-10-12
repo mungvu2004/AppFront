@@ -10,7 +10,7 @@
  * `catalog-mismatch` annotation; the FE/BE role-source mismatch the rows describe is unreachable on this stack.
  *
  * ## Real-backend budget per run
- * - `POST /api/auth/login`: 3 (pool engineer ×2, pool viewer ×1); the admin rides the stored session (0, or 1 UI sign-in).
+ * - `POST /api/auth/login`: 6 (admin ×3, own login per flow, no shared session file; pool engineer ×2, pool viewer ×1).
  * - `POST /api/users/invitations`: 0, or 1 per pool slot filled for the first time (`engineer:shared`, `viewer:shared`).
  * - `POST /api/projects`: 3 (2 by the admin, 1 by the pool engineer), each deleted in `finally`.
  * - `POST /api/projects/:id/members` (`members_add` 60 / 3600 s per actor): admin 4 (add + re-add ×2), engineer 1.
