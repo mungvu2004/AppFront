@@ -218,6 +218,8 @@ export interface ProjectSettingsModel extends ProjectMembersModel {
   readonly pendingDanger: ProjectSettingsDangerAction | null;
   readonly dangerDialogTitle: string | null;
   readonly dangerDialogMessage: string | null;
+  /** Câu lỗi của lượt xoá vừa hỏng, đọc qua `role="alert"` — không thay câu mô tả (BUG-511). */
+  readonly dangerDialogError: string | null;
   readonly dangerConfirmLabel: string | null;
   readonly dangerConfirmationExpected: string | null;
   readonly dangerConfirmationText: string;
@@ -1411,7 +1413,8 @@ export function useProjectSettings(options: UseProjectSettingsOptions): ProjectS
     pendingDanger,
     dangerDialogTitle: pendingDanger === null ? null : DANGER_TITLES[pendingDanger],
     dangerDialogMessage:
-      pendingDanger === null ? null : (dangerFailure ?? DANGER_MESSAGES[pendingDanger]),
+      pendingDanger === null ? null : DANGER_MESSAGES[pendingDanger],
+    dangerDialogError: pendingDanger === null ? null : dangerFailure,
     dangerConfirmLabel: pendingDanger === null ? null : DANGER_CONFIRM_LABELS[pendingDanger],
     dangerConfirmationExpected,
     dangerConfirmationText,

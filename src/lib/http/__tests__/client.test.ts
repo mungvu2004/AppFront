@@ -229,6 +229,81 @@ describe('http/client.ts', () => {
     expect(result.ok).toBe(true);
   });
 
+  // BUG-509: the ladder's last 503, and any 500, came back `retryable: false`, so no read
+  // error offered "Thử lại". Running out of automatic tries is not "the user may not ask again".
+  it('a 5xx read stays retryable for the caller after the ladder runs out; a keyless POST does not', async () => {
+    const respond = (status: number) => () =>
+      Promise.resolve(new Response('{}', { headers: { 'Content-Type': 'application/json' }, status }));
+    const errorOf = async (pending: Promise<Awaited<ReturnType<ReturnType<typeof createHttpClient>['get']>>>) => {
+      await vi.advanceTimersByTimeAsync(10_000);
+      const result = await pending;
+      if (result.ok) throw new Error('expected a failure');
+      return result.error;
+    };
+
+    const unavailable = createHttpClient({ baseUrl: 'https://api.example.com', fetchImpl: vi.fn(respond(503)) });
+    expect(await errorOf(unavailable.get('/projects/p'))).toMatchObject({ retryable: true, status: 503 });
+
+    const broken = createHttpClient({ baseUrl: 'https://api.example.com', fetchImpl: vi.fn(respond(500)) });
+    expect(await errorOf(broken.get('/projects/p'))).toMatchObject({ retryable: true, status: 500 });
+    expect(await errorOf(broken.post('/projects', { body: {} }))).toMatchObject({ retryable: false, status: 500 });
+  });
+
+  // BUG-510: three 5 s Retry-After waits on a keyed POST outran the 15 s deadline, and the
+  // 429 surfaced as `timeout` — "Máy chủ phản hồi quá lâu" instead of the quota sentence.
+  it('answers with the 429 itself when the Retry-After wait would outlive the deadline', async () => {
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ code: 'RATE_LIMITED' }), {
+          headers: { 'Content-Type': 'application/json', 'Retry-After': '5' },
+          status: 429,
+        }),
+      ),
+    );
+    const client = createHttpClient({ baseUrl: 'https://api.example.com', fetchImpl });
+
+    const pending = client.post('/projects/p/members', { body: { email: 'a@b.c' }, idempotencyKey: 'k-1' });
+    await vi.advanceTimersByTimeAsync(15_000);
+    const result = await pending;
+
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toMatchObject({ code: 'RATE_LIMITED', kind: 'http', retryAfterSeconds: 5, status: 429 });
+  });
+
+  // BUG-514: React Query's cancelRefetch aborted the flight's initiator while its body was
+  // still streaming; the read failed as `parse`, and the refetch that had joined the flight
+  // kept that phantom error — "Không đọc được danh sách tầng" over a healthy 200.
+  it('a GET joining a flight aborted mid-body asks again on its own signal', async () => {
+    let calls = 0;
+    const fetchImpl = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      calls += 1;
+      const signal = init?.signal;
+      if (calls === 1) {
+        const body = new ReadableStream({
+          start(controller) {
+            signal?.addEventListener('abort', () => controller.error(signal.reason), { once: true });
+          },
+        });
+        return Promise.resolve(new Response(body, { headers: { 'Content-Type': 'application/json' } }));
+      }
+      return Promise.resolve(new Response('[]', { headers: { 'Content-Type': 'application/json' } }));
+    });
+    const client = createHttpClient({ baseUrl: 'https://api.example.com', fetchImpl });
+
+    const cancelled = new AbortController();
+    const abandoned = client.get('/projects/p/floors', { signal: cancelled.signal });
+    await vi.advanceTimersByTimeAsync(0); // headers in, body still streaming
+    cancelled.abort();
+    const refetch = client.get('/projects/p/floors', { signal: new AbortController().signal });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(await abandoned).toMatchObject({ error: { kind: 'aborted' }, ok: false });
+    expect(await refetch).toStrictEqual({ data: [], ok: true });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
   it('sanitizes sensitive query params in request logs and telemetry', async () => {
     const telemetry = vi.fn();
     const fetchImpl = vi.fn((input: RequestInfo | URL) => {

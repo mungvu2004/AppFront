@@ -128,6 +128,39 @@ describe('Toast.Provider and Toast.Item', () => {
     expect(screen.queryByText('Đã xoá')).not.toBeInTheDocument();
   });
 
+  // BUG-524: hover froze the bar, but the undo ticket behind "Hoàn tác" expires on the wall clock —
+  // after 8 s of hover the button was still there and pressing it restored nothing.
+  it('hover does not hold an undo toast past its window; a plain notice is still held', () => {
+    const Both = () => {
+      const { addToast } = useToast();
+      return (
+        <>
+          <Button onClick={() => addToast({ message: 'Đã xoá tệp', onUndo: vi.fn() })}>Undo toast</Button>
+          <Button onClick={() => addToast({ message: 'Thông báo thường' })}>Plain toast</Button>
+        </>
+      );
+    };
+
+    render(
+      <Toast.Provider>
+        <Both />
+      </Toast.Provider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Plain toast' }));
+    fireEvent.mouseEnter(screen.getByText('Thông báo thường').closest('[role="status"]')!);
+    fireEvent.click(screen.getByRole('button', { name: 'Undo toast' }));
+    fireEvent.mouseEnter(screen.getByText('Đã xoá tệp').closest('[role="status"]')!);
+
+    act(() => {
+      vi.advanceTimersByTime(9000);
+    });
+
+    expect(screen.queryByText('Đã xoá tệp')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Hoàn tác' })).not.toBeInTheDocument();
+    expect(screen.getByText('Thông báo thường')).toBeInTheDocument();
+  });
+
   it('groups 4 toasts correctly and uses safe domain label', async () => {
     render(
       <Toast.Provider>
@@ -206,5 +239,12 @@ describe('Toast.Provider viewport', () => {
       '[html[data-drawer=sheet]_&]:bottom-auto',
       '[html[data-drawer=sheet]_&]:top-4',
     );
+  });
+
+  // BUG-512: at 375 px the bottom-right toast covered the "Ghi chú" field being typed in.
+  it('moves to the top edge below 640 px', () => {
+    render(<Toast.Provider><span /></Toast.Provider>);
+
+    expect(screen.getByRole('region', { name: 'Thông báo' })).toHaveClass('max-sm:bottom-auto', 'max-sm:top-4');
   });
 });

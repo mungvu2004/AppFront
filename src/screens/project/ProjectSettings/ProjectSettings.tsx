@@ -158,6 +158,9 @@ export function ProjectSettingsView(props: ProjectSettingsViewProps) {
         <Modal.Body>
           <div className="flex flex-col gap-3">
             <p className="text-[14px] text-text-primary">{props.dangerDialogMessage}</p>
+            {props.dangerDialogError !== null && (
+              <InlineAlert level="violation" message={props.dangerDialogError} />
+            )}
             {props.dangerConfirmationExpected !== null && (
               <Input
                 label="Gõ lại tên dự án để xác nhận"

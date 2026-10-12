@@ -65,8 +65,13 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
       lastTimeRef.current = undefined;
     }, [resetKey]);
 
+    // Hover holds a plain notice, never an undo: the ticket behind "Hoàn tác" expires on
+    // the wall clock, so a held toast offered an undo that did nothing (BUG-524). The bar
+    // IS the undo window (`UNDO_WINDOW_MS`).
+    const isHeld = isHovered && !toast.onUndo;
+
     useEffect(() => {
-      if (isHovered || isExiting) {
+      if (isHeld || isExiting) {
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
         lastTimeRef.current = undefined;
         return;
@@ -90,11 +95,10 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
 
       rafRef.current = requestAnimationFrame(animate);
       return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); };
-    }, [isHovered, isExiting, onRemove, toast.id, resetKey]);
+    }, [isHeld, isExiting, onRemove, toast.id, resetKey]);
 
-    // Hoàn tác xong thì toast đã hết việc: rời đi ngay. Không thế thì chuột vừa
-    // bấm vẫn nằm trên toast — đồng hồ dừng vì `isHovered` — và toast ở lại mãi,
-    // che nút bên dưới, với một nút "Hoàn tác" không còn gì để làm (B-V4-11).
+    // Hoàn tác xong thì toast đã hết việc: rời đi ngay. Không thế thì nó treo tới
+    // hết cửa sổ, che nút bên dưới, với một nút "Hoàn tác" không còn gì để làm (B-V4-11).
     const onUndoClick = () => {
       if (toast.onUndo) {
         toast.onUndo();
@@ -169,6 +173,7 @@ ToastItem.displayName = 'Toast.Item';
  * Vùng neo toast, dùng chung cho `Toast.Provider` và `NotificationHost`. Ngăn đang mở
  * (`Drawer` đặt `data-drawer` lên <html>) chiếm góc dưới-phải, nơi có nút chân của nó:
  * ngăn bên → toast lùi sang trái ngăn; tờ dưới 1024 px → toast lên mép trên (BUG-227).
+ * Dưới 640 px toast cũng lên mép trên: ở dưới nó che ô đang gõ, như "Ghi chú" (BUG-512).
  */
 function ToastViewport({ children }: { children: React.ReactNode }) {
   return (
@@ -179,6 +184,7 @@ function ToastViewport({ children }: { children: React.ReactNode }) {
         'pointer-events-none fixed bottom-4 right-4 z-50 flex flex-col-reverse items-end gap-2',
         '[html[data-drawer=side]_&]:right-[calc(1rem+var(--drawer-inset))]',
         '[html[data-drawer=sheet]_&]:bottom-auto [html[data-drawer=sheet]_&]:top-4',
+        'max-sm:bottom-auto max-sm:top-4',
       )}
       role="region"
     >

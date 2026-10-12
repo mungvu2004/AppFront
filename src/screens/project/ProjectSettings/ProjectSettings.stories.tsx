@@ -98,6 +98,7 @@ const base: ProjectSettingsViewProps = {
   pendingDanger: null,
   dangerDialogTitle: null,
   dangerDialogMessage: null,
+  dangerDialogError: null,
   dangerConfirmLabel: null,
   dangerConfirmationExpected: null,
   dangerConfirmationText: '',
