@@ -9,8 +9,12 @@
  * SKEW_DETECTED finding (`actionKind: 'straighten'`, useInputQualityGate.ts:314-323) and ≥ 5° is "poor", which makes
  * `requiresAcknowledgement` true (useInputQualityGate.ts:1018). `estimate_skew` folds into (-45°, 45°] (geometry.py).
  *
- * Budget per seeded project: `POST /api/projects` 1, `GET /api/projects/:id` 1, upload init/chunk/complete 3, progress
- * and quality polls, `DELETE` 1 (by the caller) — one real pipeline run of the fake ML.
+ * {@link createPipelineProject} (phase 6) uploads the straight env PNG the same way and waits for the run itself (#8) and
+ * its two versions (N17) instead of the quality read.
+ *
+ * Budget per seeded project: `POST /api/projects` 1, `GET /api/projects/:id` 1, upload init/chunk/complete 3 (init counts
+ * against `drawings_init` 60 / 600 s per user, BE drawings/settings.py:135-136), progress / quality / N17 polls, `DELETE` 1
+ * (by the caller) — one real pipeline run of the fake ML.
  */
 import { readFileSync } from 'node:fs';
 
@@ -81,16 +85,17 @@ export async function deleteSeededProject(api: APIRequestContext, projectId: str
   }
 }
 
-/**
- * Project `qa-<runId>-<slug>-<uniq>` with one floor holding `png` as its drawing; resolves once #30 reports the floor
- * measured with a SKEW_DETECTED finding. Deletes the project again when any setup step fails.
- */
-export async function createSkewedDrawingProject(api: APIRequestContext, slug: string, png: Buffer): Promise<SeededDrawing> {
+/** Project `qa-<runId>-<slug>-<uniq>` with `floorNames`; `png` uploaded to the FIRST floor (#5 init → #6 chunk 0 → #7). */
+async function createDrawingProject(
+  api: APIRequestContext,
+  slug: string,
+  png: Buffer,
+  floorNames: readonly string[],
+): Promise<SeededDrawing & { readonly uploadId: string }> {
   expect(png.length, 'fixture drawing fits one upload chunk').toBeLessThanOrEqual(CHUNK_BYTES);
   const name = `${TEST_DATA_PREFIX}${slug}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-  const floorName = 'Tầng 1';
   const created = await api.post(PROJECTS, {
-    data: { name, floors: [{ name: floorName, order: 0, elevationMm: 0, heightMm: 3_000 }] },
+    data: { name, floors: floorNames.map((floorName, order) => ({ name: floorName, order, elevationMm: order * 3_000, heightMm: 3_000 })) },
   });
   expect(created.status(), `setup: POST ${PROJECTS} "${name}"`).toBe(201);
   const projectId = asRecord(await created.json(), `POST ${PROJECTS}`).id;
@@ -99,8 +104,10 @@ export async function createSkewedDrawingProject(api: APIRequestContext, slug: s
     const read = await api.get(`${PROJECTS}/${projectId}`);
     expect(read.status(), `setup: GET ${PROJECTS}/${projectId}`).toBe(200);
     const rows = asRecord(await read.json(), `GET ${PROJECTS}/:id`).floors;
-    const floorId = Array.isArray(rows) ? asRecord(rows[0], 'floor').id : undefined;
-    if (typeof floorId !== 'string') throw new Error('setup: the fixture floor was not created');
+    const floorName = floorNames[0] ?? '';
+    const row = Array.isArray(rows) ? rows.map((item) => asRecord(item, 'floor')).find((item) => item.name === floorName) : undefined;
+    const floorId = row?.id;
+    if (typeof floorId !== 'string') throw new Error(`setup: the fixture floor "${floorName}" was not created`);
 
     // #5 init → #6 chunk 0 → #7 complete (drawings/router.py; FE body uploadTask.ts:424-433).
     const base = `${PROJECTS}/${projectId}/drawings/uploads`;
@@ -113,7 +120,20 @@ export async function createSkewedDrawingProject(api: APIRequestContext, slug: s
     expect(chunk.status(), 'setup: upload chunk 0 (#6)').toBe(200);
     const done = await api.post(`${base}/${uploadId}/complete`, { data: { uploadId } });
     expect(done.status(), `setup: upload complete (#7): ${(await done.text()).slice(0, 300)}`).toBe(200);
+    return { projectId, floorId, floorName, uploadId };
+  } catch (error) {
+    await deleteSeededProject(api, projectId);
+    throw error;
+  }
+}
 
+/**
+ * Project `qa-<runId>-<slug>-<uniq>` with one floor holding `png` as its drawing; resolves once #30 reports the floor
+ * measured with a SKEW_DETECTED finding. Deletes the project again when any setup step fails.
+ */
+export async function createSkewedDrawingProject(api: APIRequestContext, slug: string, png: Buffer): Promise<SeededDrawing> {
+  const { projectId, floorId, floorName } = await createDrawingProject(api, slug, png, ['Tầng 1']);
+  try {
     // #30 answers 404 until the drawing is stored, then `isMeasured` once the quality step has run.
     await expect
       .poll(
@@ -127,6 +147,53 @@ export async function createSkewedDrawingProject(api: APIRequestContext, slug: s
         { message: `setup: #30 lists SKEW_DETECTED for the ${String(SKEW_DEG)}° drawing`, timeout: PIPELINE_TIMEOUT_MS, intervals: [2_000] },
       )
       .toBe('skew');
+    return { projectId, floorId, floorName };
+  } catch (error) {
+    await deleteSeededProject(api, projectId);
+    throw error;
+  }
+}
+
+/**
+ * Phase 6 (versions): project `qa-<runId>-<slug>-<uniq>` whose FIRST floor holds `png` (the straight env drawing) and
+ * a finished fake-ML run. Only the pipeline creates versions (BE apps/worker/pipeline_persist/service.py:182-198: a
+ * "before" + an "after" version; autosave never makes one), so this waits for #8 `completed` and then for N17 to list
+ * both — the same calls as `phase06_rules_export_versions_api.spec.ts` pipelineProject. The AI ("after") version stays
+ * "Hiện tại" until the caller writes the layer once (CP-6, `layerSeed.ts` writeLayer). Deletes the project on failure.
+ */
+export async function createPipelineProject(
+  api: APIRequestContext,
+  slug: string,
+  png: Buffer,
+  floorNames: readonly string[] = ['Tầng 1'],
+): Promise<SeededDrawing> {
+  const { projectId, floorId, floorName, uploadId } = await createDrawingProject(api, slug, png, floorNames);
+  try {
+    const progress = `${PROJECTS}/${projectId}/drawings/uploads/${uploadId}/progress`;
+    let status = '';
+    await expect
+      .poll(
+        async () => {
+          const res = await api.get(progress);
+          status = res.status() === 200 ? String(asRecord(await res.json(), '#8').status) : `#8 ${String(res.status())}`;
+          return status === 'completed' || status === 'failed';
+        },
+        { message: 'setup: pipeline run reaches a final status (#8)', timeout: PIPELINE_TIMEOUT_MS, intervals: [2_000] },
+      )
+      .toBe(true);
+    expect(status, 'setup: the fake-ML pipeline run completed (it writes the AI layer + 2 versions)').toBe('completed');
+    const versions = `${PROJECTS}/${projectId}/versions?floorId=${encodeURIComponent(floorId)}`;
+    await expect
+      .poll(
+        async () => {
+          const res = await api.get(versions);
+          if (res.status() !== 200) return -1;
+          const items = asRecord(await res.json(), 'N17').items;
+          return Array.isArray(items) ? items.length : -1;
+        },
+        { message: 'setup: N17 lists the pipeline "before" + "after" versions', timeout: 60_000, intervals: [1_000] },
+      )
+      .toBeGreaterThanOrEqual(2);
     return { projectId, floorId, floorName };
   } catch (error) {
     await deleteSeededProject(api, projectId);
