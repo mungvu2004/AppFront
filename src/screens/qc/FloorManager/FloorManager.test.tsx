@@ -651,6 +651,8 @@ describe('bố cục gọn đo ở route (BUG-251)', () => {
     const following = Boolean(section.compareDocumentPosition(screen.getByRole('table')) & Node.DOCUMENT_POSITION_FOLLOWING);
     expect(following).toBe(!sectionAfterTable);
     expect(section.parentElement?.parentElement).toHaveClass(layout);
+    // BUG-520: route đứng một mình, khung `h-dvh` cho `h-full` của màn một chỗ bám.
+    expect(screen.getByRole('region', { name: SCREEN_ARIA_LABEL }).parentElement).toHaveClass('h-dvh');
     vi.unstubAllGlobals();
   });
 
@@ -768,5 +770,17 @@ describe('rê lên dòng bảng làm sáng dải lát cắt (BUG-519)', () => {
 
     expect(hovered).toHaveLength(1);
     expect(hovered[0]).toHaveAccessibleName(bands[1]!.label);
+  });
+});
+
+describe('khung bảng có chiều cao xác định (BUG-520)', () => {
+  it('vùng nội dung là cột flex lấp phần còn lại, nên khung bảng tự cuộn thay vì kéo dài trang', () => {
+    renderWithProviders(<FloorManager {...scenarioArgsFor('partial')} />);
+    const frame = screen.getByRole('table').closest('[class~="rounded-[8px]"]');
+    const content = frame?.closest('[class~="max-w-[1120px]"][class~="flex-1"]');
+
+    expect(frame).toHaveClass('min-h-0', 'flex-1', 'overflow-auto');
+    expect(content).toHaveClass('flex', 'flex-col');
+    expect(content?.firstElementChild).toHaveClass('flex-1');
   });
 });
