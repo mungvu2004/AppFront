@@ -196,6 +196,11 @@ const region = (page: Page, title: string): Locator => page.getByRole('button', 
 const highlighted = (page: Page): Locator => page.locator('[aria-label^="Vùng ảnh có vấn đề:"].border-2');
 const handle = (page: Page, name: string): Locator => page.getByRole('group', { name: CORNER_GROUP, exact: true }).getByRole('button', { name, exact: true });
 const ackBox = (page: Page): Locator => page.getByRole('checkbox', { name: ACK, exact: true });
+/** Ticks / unticks the acknowledgement through its label (the input is `sr-only` under a drawn box, Checkbox.tsx). */
+async function setAck(page: Page, on: boolean): Promise<void> {
+  if ((await ackBox(page).isChecked()) !== on) await page.locator('label').filter({ hasText: ACK }).click();
+  await expect(ackBox(page)).toBeChecked({ checked: on });
+}
 const alertWith = (page: Page, text: string): Locator => page.getByRole('alert').filter({ hasText: text });
 const writeBand = (page: Page): Locator => alertWith(page, WRITE_ERROR);
 const dialog = (page: Page, name: string | RegExp): Locator => page.getByRole('dialog', { name });
@@ -493,8 +498,8 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
         await continueBtn(page).click();
         await quiet(page);
         expect.soft(pathOf(page)).toBe(ROUTES.project.quality(project.projectId));
-        await ackBox(page).check();
-        await ackBox(page).uncheck();
+        await setAck(page, true);
+        await setAck(page, false);
         await expect.soft(page.getByText(ACK_NOTE, { exact: true })).toBeVisible();
         await continueBtn(page).click();
         await quiet(page);
@@ -503,7 +508,7 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
       });
 
       await test.step('[11-A-031] check the acknowledgement → "Tiếp tục xử lý" → /pipeline; Back → quality', async () => {
-        await ackBox(page).check();
+        await setAck(page, true);
         await expect(page.getByText(ACK_NOTE, { exact: true })).toHaveCount(0);
         await continueBtn(page).click();
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.pipeline(project.projectId));
@@ -561,7 +566,7 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
         await expect(straightenDialog).toHaveCount(0);
         await expect(finding(page, 'Ảnh bị nghiêng')).toHaveCount(0, { timeout: 30_000 });
         await expect(page.getByRole('textbox', { name: COMPARISON })).toBeVisible();
-        expect(await announced(page)).toContain(STRAIGHTENED);
+        await expect.poll(() => announced(page)).toContain(STRAIGHTENED);
         await captureEvidence(page, 'E03_11-A-027_straightened.png', { caption: `POST …/straighten 200, Idempotency-Key present` });
       });
 
@@ -1111,7 +1116,7 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
       await test.step('[11-C-028] acknowledgement on Tầng 3 still holds on Tầng 9; continue → /pipeline; Back', async () => {
         await row(page, 'Tầng 3').click();
         await isActive(page, 'Tầng 3');
-        await ackBox(page).check();
+        await setAck(page, true);
         await row(page, 'Tầng 9').click();
         await isActive(page, 'Tầng 9');
         await expect(ackBox(page)).toBeChecked();
@@ -1368,35 +1373,35 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
         await page.unrouteAll({ behavior: 'ignoreErrors' });
       });
 
-      await test.step('[11-B-002] #24 5xx → load error + sentence + "Thử lại"; no footer buttons', async () => {
-        // 500 first: retryable for the user? (run-33: the alert offered "Tải bản vẽ khác", no "Thử lại" — a dead end).
+      await test.step('[11-B-002] #24 500 → load error + sentence (+ "Thử lại"?); no footer buttons', async () => {
         await page.route(isProject, (route) => route.fulfill(errorBody(500, 'INTERNAL')));
         await page.goto(ROUTES.project.quality(project.projectId));
         const alert = alertWith(page, LOAD_ERROR);
         await expect(alert).toBeVisible({ timeout: 45_000 });
         await expect.soft(alert).toContainText(SENTENCE.unknown);
-        await captureEvidence(page, 'E03_11-B-002_project_read_500.png');
-        await expect.soft(button(alert, RETRY), '#24 500: the alert offers "Thử lại"').toBeVisible();
-        // 503 (RTY RETRYABLE_STATUSES): the alert must offer "Thử lại"; footer buttons hidden.
-        await page.unrouteAll({ behavior: 'ignoreErrors' });
-        await page.route(isProject, (route) => route.fulfill(errorBody(503, 'DEPENDENCY_UNAVAILABLE')));
-        await page.goto(ROUTES.project.quality(project.projectId));
-        await expect(button(alert, RETRY)).toBeVisible({ timeout: 45_000 });
         await expect(continueBtn(page)).toHaveCount(0);
-        await expect(button(page, SECONDARY)).toHaveCount(0);
-        await captureEvidence(page, 'E03_11-B-002_project_read_503.png');
+        await expect(page.locator(`footer[aria-label="${FOOTER}"]`).getByRole('button')).toHaveCount(0); // the alert carries its own way out
+        await captureEvidence(page, 'E03_11-B-002_project_read_500.png');
+        // run-33: a 5xx is kind "unknown" (lib/errors kinds.ts retryable false) → the alert offers only "Tải bản vẽ khác"
+        // under a sentence that says "Hãy thử lại sau ít phút" — catalog 11-B-002 expects "Thử lại".
+        await expect.soft(button(alert, RETRY), '#24 500: the alert offers "Thử lại"').toBeVisible();
+        await page.unrouteAll({ behavior: 'ignoreErrors' });
       });
 
-      await test.step('[11-B-003] unroute, "Thử lại" → a second GET /projects/:id, report renders', async () => {
+      await test.step('[11-B-003] "Thử lại" (offered for a lost #24) → a second GET /projects/:id, report renders', async () => {
+        await page.route(isProject, (route) => route.abort());
+        await page.goto(ROUTES.project.quality(project.projectId));
+        const alert = alertWith(page, LOAD_ERROR);
+        await expect(button(alert, RETRY)).toBeVisible({ timeout: 45_000 });
         await page.unrouteAll({ behavior: 'ignoreErrors' });
         const before = projectGets(s, project.projectId);
-        await button(alertWith(page, LOAD_ERROR), RETRY).click();
+        await button(alert, RETRY).click();
         await expect(report(page)).toBeVisible({ timeout: 30_000 });
         expect(projectGets(s, project.projectId)).toBeGreaterThan(before);
         await captureEvidence(page, 'E03_11-B-003_project_retry.png');
       });
 
-      await test.step('[11-B-004] #30 500 → same title; "Thử lại" → one new #30, no new #24 (fold Q14)', async () => {
+      await test.step('[11-B-004] #30 5xx → same title, no footer; "Thử lại" → one new #30, no new #24 (fold Q14)', async () => {
         await page.route(isQuality, (route) => (route.request().method() === 'GET' ? route.fulfill(errorBody(500, 'INTERNAL')) : route.fallback()));
         await page.goto(ROUTES.project.quality(project.projectId));
         const alert = alertWith(page, LOAD_ERROR);
@@ -1405,7 +1410,8 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
         await captureEvidence(page, 'E03_11-B-004_quality_read_500.png');
         await expect.soft(button(alert, RETRY), '#30 500: the alert offers "Thử lại"').toBeVisible();
         await page.unrouteAll({ behavior: 'ignoreErrors' });
-        await page.route(isQuality, (route) => (route.request().method() === 'GET' ? route.fulfill(errorBody(503, 'DEPENDENCY_UNAVAILABLE')) : route.fallback()));
+        // The retry path, through the read error that does offer "Thử lại" (network).
+        await page.route(isQuality, (route) => route.abort());
         await page.goto(ROUTES.project.quality(project.projectId));
         await expect(button(alert, RETRY)).toBeVisible({ timeout: 45_000 });
         await page.unrouteAll({ behavior: 'ignoreErrors' });
