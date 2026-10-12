@@ -386,7 +386,7 @@ test.describe('U06 UI verify — data states (own pipeline project, this file cr
       });
     });
 
-    test('U06 · SCR-28 rules, row → ViolationDetail sheet open', async ({ browser }) => {
+    test('U06 · SCR-28 rules, row (card below 1024) → ViolationDetail sheet open and in view', async ({ browser }) => {
       await verifyAsAdmin(browser, 'U06_rules_violation_detail', async (p) => {
         const section = await expandFirstGroup(p);
         // ViolationDetail needs a floor (RuleReport.container.tsx: activeFloorId ?? row.levelId), as phase06 main.
@@ -395,7 +395,16 @@ test.describe('U06 UI verify — data states (own pipeline project, this file cr
           .filter({ hasNot: p.getByText('—', { exact: true }) });
         test.skip((await rows.count()) === 0, 'data: the expanded group has no row with a floor');
         await rows.first().getByRole('button').first().click();
-        await expect(p.getByRole('complementary', { name: VIOLATION_DETAIL })).toBeVisible();
+        const sheet = p.getByRole('complementary', { name: VIOLATION_DETAIL });
+        await expect(sheet).toBeVisible();
+        // Below 1024 the row is a card and the detail is a bottom sheet (ViolationDetail.tsx:105 PANEL_BOTTOM, max 70 %
+        // high). `absolute bottom-0` of its container can land below the fold when the page is taller than the window;
+        // SOFT so the remaining widths are still measured, with the sheet box noted for the review.
+        if ((p.viewportSize()?.width ?? 0) < DETAIL_MIN_WIDTH) {
+          const box = await sheet.boundingBox();
+          test.info().annotations.push({ type: 'sheet', description: `${String(p.viewportSize()?.width)} px: ${JSON.stringify(box)}` });
+          await expect.soft(sheet, 'bottom sheet fully inside the viewport').toBeInViewport({ ratio: 1 });
+        }
       });
     });
   });
