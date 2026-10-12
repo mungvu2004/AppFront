@@ -944,12 +944,14 @@ test.describe('SCR-27 Mobile Viewer', () => {
     await tool('Đo').click();
     await expect(tool('Đo')).toHaveAttribute('aria-pressed', 'true');
     await expect(mobile.getByRole('group', { name: 'Đo', exact: true })).toBeVisible();
+    // BUG-492: shot while the tool bar is on screen ("Đo" pressed + its sheet); the "Thông tin" sheet below covers the bar.
+    await expect(tools).toBeInViewport();
+    await captureEvidence(mobile, '27_mobile_tools.png');
 
     await tool('Thông tin').click();
     await expect(tool('Thông tin')).toHaveAttribute('aria-pressed', 'true');
     await expect(mobile.getByRole('dialog', { name: MOBILE_INFO_SHEET })).toBeVisible();
 
     await expect(mobile.getByRole('button', { name: MOBILE_SHARE })).toHaveCount(0);
-    await captureEvidence(mobile, '27_mobile_tools.png');
   });
 });
