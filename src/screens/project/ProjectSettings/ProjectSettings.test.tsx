@@ -141,6 +141,7 @@ function baseProps(): ProjectSettingsViewProps {
     pendingDanger: null,
     dangerDialogTitle: null,
     dangerDialogMessage: null,
+    dangerDialogError: null,
     dangerConfirmLabel: null,
     dangerConfirmationExpected: null,
     dangerConfirmationText: '',
@@ -366,6 +367,28 @@ describe('ProjectSettingsView, vùng nguy hiểm', () => {
     expect(dialog.getByRole('button', { name: 'Xoá dự án' })).toBeDisabled();
     expect(screen.getByLabelText('Gõ lại tên dự án để xác nhận')).toBeInTheDocument();
     expect(confirmDanger).not.toHaveBeenCalled();
+  });
+
+  // BUG-511: the failure replaced the dialog's <p> with no live region, so screen readers stayed silent.
+  it('lượt xoá hỏng: câu lỗi nằm trong role="alert", câu hậu quả vẫn còn', () => {
+    const consequence = 'Dự án cùng toàn bộ tầng, bản vẽ và mô hình bên trong sẽ bị xoá vĩnh viễn. Không hoàn tác được.';
+    const failure = 'Không tìm thấy dữ liệu bạn yêu cầu.';
+    render(
+      <ProjectSettingsView
+        {...baseProps()}
+        activeTab="danger"
+        pendingDanger="deleteProject"
+        dangerDialogTitle="Xoá dự án này?"
+        dangerDialogMessage={consequence}
+        dangerDialogError={failure}
+        dangerConfirmLabel="Xoá dự án"
+      />,
+    );
+
+    const dialog = within(screen.getByRole('dialog'));
+
+    expect(dialog.getByRole('alert')).toHaveTextContent(failure);
+    expect(dialog.getByText(consequence)).toBeInTheDocument();
   });
 
   it('chỉ có đúng hai việc nguy hiểm, mỗi việc một câu hậu quả', () => {
