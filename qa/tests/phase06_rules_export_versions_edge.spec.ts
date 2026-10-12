@@ -1,7 +1,10 @@
 /**
  * Phase 6 — EDGE CASES, Track A (admin): SCR-28 Rule Report, SCR-29 Rule Settings, SCR-30 Export Panel,
  * SCR-31 Spatial JSON Viewer, SCR-32 Version History. Gaps left by `phase06_rules_export_versions.spec.ts` (serial, own
- * pipeline project since QA-06); inventory in `qa/coverage/phase06.md` (FE stamp 508f6e65).
+ * pipeline project since QA-06); inventory in `qa/coverage/phase06.md` (FE stamp 9d4d2792).
+ * The two `diff tabs` tests (SCR-32) cover `src/components/ui/Tabs.tsx` @ 9d4d2792 (`h-11 sm:h-9`, keyboard handler);
+ * the 508f6e65..9d4d2792 `src/i18n/vi.json` change touches no block these five screens render (project.settings,
+ * scaleCalibration, explodedView), so it adds no test.
  *
  * Every expected result cites the FE source of `F:/App/AppFront` @ 508f6e65 or, written `BE:`, AppBack. Short names:
  *   RR   src/screens/rules/RuleReport/      (RRV RuleReport.tsx, RRC RuleReport.container.tsx, RRS RuleReportSummary.tsx,
@@ -16,6 +19,7 @@
  *        VHD VersionLabelDialog.tsx, VHX VersionCompare.tsx, UVH useVersionHistory.ts, VHG versionHistoryGateway.ts,
  *        VHM versionHistoryModel.ts, VHP versionHistoryCompare.ts)
  *   PSG  src/components/feedback/ProjectSpatialGate.tsx   NF src/hooks/useNumericField.ts   GLB src/lib/export/exportGlb.ts
+ *   TABS src/components/ui/Tabs.tsx (@ 9d4d2792)
  *   I18N src/i18n/vi.json (`errors.*`)
  *
  * ## Non-serial
@@ -29,7 +33,7 @@
  *   version; only the pipeline and a restore do (BE:apps/api/versions/router.py:62-82).
  * Nothing reads the Phase 2/3/4 checkpoints: the shared CP-5/CP-6 work floor is never touched.
  *
- * ## Mocks — "[mocked response]" in the title (3 of 34)
+ * ## Mocks — "[mocked response]" in the title (3 of 36)
  * - `GET /api/projects/:p/rule-config` 500 on SCR-28 — unpairable: 5xx is not producible on the shared stack.
  * - `GET /api/projects/:p/rule-config` 500 on SCR-29 — unpairable: same.
  * - `GET /api/projects/:p/versions?floorId=` 500 on SCR-32 — unpairable: same.
@@ -37,18 +41,18 @@
  *
  * ## Writes on the real stack (own `qa-<runId>-e06-…` projects only)
  * Projects created/deleted; layers written by API (#35); rule-config written by the screen and by API (N22); versions
- * labelled / restored on own pipeline floors (N19/N20); four pipeline runs of the fake ML. Exports are browser
+ * labelled / restored on own pipeline floors (N19/N20); six pipeline runs of the fake ML. Exports are browser
  * downloads saved under the test output dir. No mail, no account, registry or feature-flag change.
  *
  * ## Real-backend budget per run (BE defaults; QA stack override `qa-limits.override.yml`)
  * - `POST /api/auth/login` (120 / 60 s per IP on the QA stack): 0 when the stored session is alive; 1 UI sign-in when
  *   it is dead. No failed login.
  * - `POST /api/auth/refresh` (300 / 60 s): 2 per test (session check + fixture token) + 1 per page load ≈ 4–7 per test,
- *   ≈ 190 for the 34 tests spread over several minutes.
- * - `POST /api/projects`: 33 (all but the unknown-project test), each deleted in `finally`; no rate limit
+ *   ≈ 200 for the 36 tests spread over several minutes.
+ * - `POST /api/projects`: 35 (all but the unknown-project test), each deleted in `finally`; no rate limit
  *   (BE:apps/api/projects/router.py:54).
  * - `POST …/drawings/uploads` init (#5, `drawings_init` 60 / 600 s per user, BE:apps/api/drawings/router.py:39-46):
- *   4 (one per pipeline test) — with phase 3 spending ≤ 34 in the same window this stays under 60.
+ *   6 (one per pipeline test) — with phase 3 spending ≤ 34 in the same window this stays under 60.
  * - `PUT …/spatial/layer`, `PUT …/rule-config`, `POST …/versions/:v/restore`, `PATCH …/label`: a handful per test, no
  *   rate limit (no `rate_limit(` in BE spatial_write/, rules/, versions/ routers).
  */
@@ -238,6 +242,20 @@ const VH = {
   labelCancel: 'Huỷ', // VHD:49
   labeledToast: 'Đã gắn nhãn', // UVH:470 (previous label = '' when unset, UVH:533)
 } as const;
+
+/* SCR-32 diff tabs (VHX:205-213 renders TABS Tabs.Root/List/Tab). */
+const DIFF_TABS = {
+  list: 'Cách xem khác biệt', // VHX:52,206
+  changes: 'Thay đổi', // VHP:27 (COMPARE_TABS order: changes, json, visual)
+  json: 'JSON', // VHP:28
+  visual: 'Trực quan', // VHP:29
+  /** TABS:133-134 `h-11 sm:h-9`: 44 px below Tailwind `sm`, 36 px from it. */
+  heightBelowSm: 44,
+  heightFromSm: 36,
+} as const;
+/** Tailwind 3.4.6 default `sm` = `@media (min-width: 640px)` (tailwind.config.ts sets no `theme.screens`). */
+const BELOW_SM = { width: 639, height: 900 } as const;
+const AT_SM = { width: 640, height: 900 } as const;
 
 /* ---------------------------------------------------------------- small helpers */
 
@@ -556,6 +574,15 @@ async function openData(page: Page, projectId: string): Promise<void> {
 const versionList = (page: Page): Locator => page.getByRole('navigation', { name: VH.list, exact: true });
 const versionRow = (page: Page, label: string): Locator =>
   versionList(page).getByRole('listitem').filter({ has: page.getByRole('checkbox', { name: VH.checkbox(label), exact: true }) });
+
+const diffTab = (page: Page, label: string): Locator =>
+  page.getByRole('tablist', { name: DIFF_TABS.list, exact: true }).getByRole('tab', { name: label, exact: true });
+/** Rounded rendered heights of the three diff tabs, in DOM order. */
+const diffTabHeights = (page: Page): Promise<number[]> =>
+  page
+    .getByRole('tablist', { name: DIFF_TABS.list, exact: true })
+    .getByRole('tab')
+    .evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().height)));
 
 /** `/versions` with a fresh document; waits for N17 200 of `floorId` (VHC:206 picks the only floor). */
 async function openVersions(page: Page, projectId: string, floorId: string, query = ''): Promise<void> {
@@ -1378,6 +1405,97 @@ test.describe('E06 SCR-32 Version History', () => {
         await captureEvidence(page, 'E06_versions_narrow.png');
       },
       NARROW,
+    );
+  });
+
+  test('E06 · SCR-32 diff tabs at the Tailwind sm edge: 639 px → "Thay đổi" / "JSON" / "Trực quan" 44 px tall, 640 px → 36 px', async ({ browser }) => {
+    test.setTimeout(PIPELINE_TEST_TIMEOUT_MS);
+    await withAdmin(
+      browser,
+      async (admin) => {
+        const { page } = admin;
+        const { project, versions } = await pipelineProject(admin, 'versions-tabs-sm');
+        const floor = firstFloor(project);
+        await openVersions(page, project.id, floor.id);
+        // VHC:67 (width < 1024px) → narrow at both widths: the "phiên bản" Select, compare below (VHV:108-133).
+        await expect(page.getByRole('combobox', { name: VH.narrowSelect, exact: true })).toBeVisible();
+        await expect(page.getByRole('tablist', { name: DIFF_TABS.list, exact: true }).getByRole('tab')).toHaveCount(3); // VHX:207
+        await expect(diffTab(page, DIFF_TABS.changes)).toHaveAttribute('aria-selected', 'true');
+        const below = DIFF_TABS.heightBelowSm;
+        await expect.poll(() => diffTabHeights(page), { message: 'TABS:134 h-11 below sm' }).toEqual([below, below, below]);
+        const at639 = await diffTabHeights(page);
+        await captureEvidence(page, 'E06_versions_tabs_639.png');
+
+        await page.setViewportSize(AT_SM);
+        const from = DIFF_TABS.heightFromSm;
+        await expect.poll(() => diffTabHeights(page), { message: 'TABS:134 sm:h-9 from 640 px' }).toEqual([from, from, from]);
+        await expect(diffTab(page, DIFF_TABS.changes)).toHaveAttribute('aria-selected', 'true'); // resize keeps the tab
+        await captureEvidence(page, 'E06_versions_tabs_640.png');
+        await attachJson('E06_versions_tabs_sm.json', {
+          versions: versions.map((v) => v.label),
+          heightsAt639: at639,
+          heightsAt640: await diffTabHeights(page),
+        });
+      },
+      BELOW_SM,
+    );
+  });
+
+  test('E06 · SCR-32 diff tabs by keyboard (375 px): roving tabindex; ArrowLeft wraps to "Trực quan", Home / End, ArrowRight wraps back; Tab enters the active panel; no request', async ({ browser }) => {
+    test.setTimeout(PIPELINE_TEST_TIMEOUT_MS);
+    await withAdmin(
+      browser,
+      async (admin) => {
+        const { page, api } = admin;
+        const { project } = await pipelineProject(admin, 'versions-tabs-keys');
+        const floor = firstFloor(project);
+        await openVersions(page, project.id, floor.id);
+        const changes = diffTab(page, DIFF_TABS.changes);
+        const json = diffTab(page, DIFF_TABS.json);
+        const visual = diffTab(page, DIFF_TABS.visual);
+        const panel = (label: string): Locator => page.getByRole('tabpanel', { name: label, exact: true }); // VHX:229-235
+        await expect(changes).toHaveAttribute('aria-selected', 'true');
+        // TABS:129 roving tabindex: only the active tab is in the Tab order.
+        await expect(changes).toHaveAttribute('tabindex', '0');
+        await expect(json).toHaveAttribute('tabindex', '-1');
+        await expect(visual).toHaveAttribute('tabindex', '-1');
+        const mark = api.length;
+
+        await changes.focus();
+        await page.keyboard.press('ArrowLeft'); // TABS:105 (index - 1 + n) % n → last
+        await expect(visual).toHaveAttribute('aria-selected', 'true');
+        await expect(visual).toBeFocused(); // TABS:114-115
+        await expect(panel(DIFF_TABS.visual)).toBeVisible();
+        await expect(panel(DIFF_TABS.changes)).toBeHidden(); // VHX:235 hidden when not active
+        await captureEvidence(page, 'E06_versions_tabs_wrap_left.png');
+
+        await page.keyboard.press('Home'); // TABS:106
+        await expect(changes).toHaveAttribute('aria-selected', 'true');
+        await expect(changes).toBeFocused();
+        await page.keyboard.press('End'); // TABS:107
+        await expect(visual).toHaveAttribute('aria-selected', 'true');
+        await expect(visual).toBeFocused();
+        await page.keyboard.press('ArrowRight'); // TABS:104 (index + 1) % n → first
+        await expect(changes).toHaveAttribute('aria-selected', 'true');
+        await expect(changes).toBeFocused();
+        await expect(panel(DIFF_TABS.changes)).toBeVisible();
+
+        await page.keyboard.press('Tab'); // inactive tabs are -1 (TABS:129); the visible panel is tabIndex 0 (VHX:234)
+        await expect(panel(DIFF_TABS.changes)).toBeFocused();
+        await changes.scrollIntoViewIfNeeded(); // focus scrolled the panel; bring the tabs + panel ring into the shot
+        await captureEvidence(page, 'E06_versions_tabs_tab_into_panel.png');
+
+        await quiet(page);
+        const writes = writesSince(api, mark);
+        expect(writes, 'switching diff tabs is local (UVH:503 setTab: setActiveTab)').toEqual([]);
+        await attachJson('E06_versions_tabs_keyboard.json', {
+          keys: ['ArrowLeft', 'Home', 'End', 'ArrowRight', 'Tab'],
+          selectedAfter: ['Trực quan', 'Thay đổi', 'Trực quan', 'Thay đổi'],
+          focusedAfterTab: 'tabpanel "Thay đổi"',
+          writesSinceFirstKey: writes,
+        });
+      },
+      PHONE,
     );
   });
 

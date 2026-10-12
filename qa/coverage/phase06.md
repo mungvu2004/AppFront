@@ -1,9 +1,13 @@
-<!-- qa-sources fe=508f6e65 -->
+<!-- qa-sources fe=9d4d2792 -->
 # Phase 06 — Rules, export, data, versions: FE coverage inventory
 
 Screens SCR-28 Rule Report (`/projects/:p/rules`), SCR-29 Rule Settings (`/projects/:p/rules/settings`), SCR-30 Export
 Panel (`/projects/:p/export`), SCR-31 Spatial JSON Viewer (`/projects/:p/data`), SCR-32 Version History
-(`/projects/:p/versions`). Source `F:/App/AppFront` @ 508f6e65. Backend rules (N21/N22 rule-config body rules and 409,
+(`/projects/:p/versions`). Source `F:/App/AppFront` @ 9d4d2792 (re-inventory from 508f6e65: no file of the five screens,
+the gate, `useNumericField` or `useProjectSpatial` changed, so every citation below still holds; the changes that reach
+these screens are `src/components/ui/Tabs.tsx` — `h-11 sm:h-9`, used by SCR-32 `VH/VersionCompare.tsx:205-213` — and
+`src/i18n/vi.json`, whose changed blocks (`project.settings`, `scaleCalibration`, `explodedView`) none of the five
+screens renders: their copy is inline TS/TSX and the runtime `common`/`errors`/`autosave` blocks did not change). Backend rules (N21/N22 rule-config body rules and 409,
 N17–N20 version list/snapshot/restore/label rules, `VERSION_FLOOR_MISMATCH`, `LAYER_INTEGRITY_BROKEN`, viewer 403,
 label length 422) live in `coverage/phase06-be.md` (API spec), not here.
 
@@ -16,7 +20,7 @@ Test keys:
 Path short names: `RR/` = `src/screens/rules/RuleReport/`, `RS/` = `src/screens/rules/RuleSettings/`,
 `EP/` = `src/screens/export/ExportPanel/`, `SJ/` = `src/screens/export/SpatialJsonViewer/`,
 `VH/` = `src/screens/export/VersionHistory/`, `PSG` = `src/components/feedback/ProjectSpatialGate.tsx`,
-`NF` = `src/hooks/useNumericField.ts`.
+`NF` = `src/hooks/useNumericField.ts`, `TABS` = `src/components/ui/Tabs.tsx`.
 
 ## Shared — project gate (all five routes)
 
@@ -156,7 +160,7 @@ Path short names: `RR/` = `src/screens/rules/RuleReport/`, `RS/` = `src/screens/
 | 107 | List | "Danh sách phiên bản": rows by day, `vN`, avatar, "Hiện tại", tag badge, relative time, diff dots | `VH/VersionList.tsx:55-162`, `VH/versionHistoryModel.ts:181-237` | M, E "pipeline floor: newest version is Hiện tại" | covered |
 | 108 | Checkbox | "Chọn phiên bản vN để so sánh": default pair = two newest full; third pick disabled; unpick one → "Chưa chọn đủ hai phiên bản để so sánh" | `VH/VersionList.tsx:80-85`, `VH/versionHistoryCompare.ts:44,51-62,85-135` | M "uncheck default pair, check two", E "pipeline floor … unticking it" | covered |
 | 109 | Text | One version only → "Mới có một phiên bản nên chưa có gì để so sánh…" | `VH/versionHistoryCompare.ts:33-34,58`, `VH/VersionCompare.tsx:173-178` | — | gap (the pipeline always writes two versions; P3) |
-| 110 | Tabs | "Cách xem khác biệt" Thay đổi / JSON / Trực quan + left/right version Selects + counts | `VH/VersionCompare.tsx:180-248`, `VH/versionHistoryCompare.ts:26-30` | M "…tabs Thay đổi / JSON / Trực quan" | covered (left/right Selects: gap, P3) |
+| 110 | Tabs | "Cách xem khác biệt" Thay đổi / JSON / Trực quan + left/right version Selects + counts | `VH/VersionCompare.tsx:180-248`, `VH/versionHistoryCompare.ts:26-30`, `TABS:122-162` | M "…tabs Thay đổi / JSON / Trực quan", UI "diff tab keyboard focus + tab height" | covered (left/right Selects: gap, P3) |
 | 111 | Button | "Xem thêm phiên bản" (cursor page) | `VH/VersionHistory.tsx:123-127`, `VH/useVersionHistory.ts:545-549` | M "…Xem thêm phiên bản" (branch only when > 50) | gap (needs > 50 versions, `VH/versionHistoryGateway.ts:51`; P3) |
 | 112 | Row | Snapshot read failed → "Chưa tải được nội dung bản này" + "Thử lại tải nội dung vN"; metadata-only retention notice | `VH/VersionList.tsx:97-114`, `VH/versionHistoryModel.ts:389-391`, `VH/versionHistoryGateway.ts:54` | — | gap (N18 failure is mock-only; retention needs > MAX_FULL_VERSIONS versions — P3) |
 | 113 | Button | "Phục hồi phiên bản này": absent when the reviewed (right) version is "Hiện tại"; disabled with no right version | `VH/VersionHistory.tsx:163-175` | E "pipeline floor: newest … no Phục hồi; … restore disabled" | covered |
@@ -171,12 +175,16 @@ Path short names: `RR/` = `src/screens/rules/RuleReport/`, `RS/` = `src/screens/
 | 122 | Button | "Xuất phiên bản này" (only with `onExportVersion`) | `VH/VersionHistory.tsx:153-157` | — | n/a-by-design (the route passes none) |
 | 123 | Permission | Viewer: restore and label absent + "Vai trò của bạn trên dự án này chỉ đọc được lịch sử…" | `VH/VersionHistory.tsx:139-144`, `VH/versionHistoryModel.ts:464-465`, `VH/VersionHistory.container.tsx:143` | R9 "SCR-32 [V] restore and label absent" | covered (Track B) |
 | 124 | Layout | < 1024 px: Select "phiên bản" replaces the list (status `collapsed`, also when empty) | `VH/VersionHistory.container.tsx:67,86-108`, `VH/VersionHistory.tsx:108-116`, `VH/useVersionHistory.ts:488` | E "narrow window (768 px) → version Select" | covered |
+| 125 | Layout | Diff tabs touch target: 44 px tall below Tailwind `sm` (640 px), 36 px from it — boundary 639 / 640 px (changed since 508f6e65) | `TABS:133-134`, `tailwind.config.ts` (no `theme.screens` → default `sm` 640 px), `VH/VersionCompare.tsx:205-213` | E "diff tabs at the Tailwind sm edge: 639 px → … 44 px tall, 640 px → 36 px"; UI "diff tab keyboard focus + tab height" (1440/1024/768/375) | covered |
+| 126 | Keyboard | Diff tabs: roving tabindex (active 0, others −1); ArrowLeft from the first wraps to "Trực quan", ArrowRight from the last wraps to "Thay đổi", Home / End; focus follows; Tab enters the visible panel (`tabIndex 0`, hidden panels skipped); local only (no request) | `TABS:98-120,129`, `VH/VersionCompare.tsx:144-153,229-235`, `VH/useVersionHistory.ts:503` | E "diff tabs by keyboard (375 px): roving tabindex; ArrowLeft wraps…"; UI (ArrowRight only) | covered |
 
 ## Summary
 
-- FE rows: 124 — covered 88 (incl. 4 Track-B-only rows and 3 "absent as designed" rows), gap 23, n/a-by-design 13,
+- FE rows: 126 — covered 90 (incl. 4 Track-B-only rows and 3 "absent as designed" rows), gap 23, n/a-by-design 13,
   UNKNOWN 0 (two gaps carry an UNKNOWN reason: #90 issue rows, #96 broken graph).
-- Edge spec: 34 tests, 3 `[mocked response]` (8.8 % < 35 %), all three `unpairable` (5xx): rule-config GET on
+- Changed since 508f6e65: `TABS` (rows #110, #125, #126 — two new edge tests); `vi.json` (no row: no block these screens
+  render changed). No gap is open from the 9d4d2792 changes.
+- Edge spec: 36 tests, 3 `[mocked response]` (8.3 % < 35 %), all three `unpairable` (5xx): rule-config GET on
   SCR-28 and SCR-29, versions GET on SCR-32 — rows for `coverage/phase06-be.md`.
 - Gap priority: (1) luồng chính — none open; (2) lỗi — #74 export failure, #53/#119 non-409 save/write copy, #96
   broken graph; (3) biên — #71 export cancel, #111 "Xem thêm phiên bản", #112 snapshot retry/retention, #118 discard

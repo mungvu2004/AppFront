@@ -552,6 +552,26 @@ test.describe('U06 UI verify — data states (own pipeline project, this file cr
       });
     }
 
+    test('U06 · SCR-32 versions, diff tab keyboard focus + tab height (44 below sm, 36 from sm)', async ({ browser }) => {
+      // Tabs.tsx TabsTab: `h-11 sm:h-9` (44 px below Tailwind `sm` = 640 px, 36 px from it); ArrowRight moves the
+      // selection and focus to the next tab (handleKeyDown), so the focus-visible ring is in the shot.
+      await verifyAsAdmin(browser, 'U06_versions_tabs_keyboard', async (p) => {
+        await openVersionsDiff(p);
+        const tabs = diffTabs(p).getByRole('tab');
+        const changes = diffTabs(p).getByRole('tab', { name: 'Thay đổi', exact: true });
+        const json = diffTabs(p).getByRole('tab', { name: 'JSON', exact: true });
+        await changes.focus();
+        await p.keyboard.press('ArrowRight');
+        await expect(json).toHaveAttribute('aria-selected', 'true');
+        await expect(json).toBeFocused();
+        await expect(p.getByRole('tabpanel', { name: 'JSON', exact: true })).toBeVisible();
+        const expected = (p.viewportSize()?.width ?? 0) < 640 ? 44 : 36;
+        const heights = await tabs.evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().height)));
+        expect(heights.length, 'diff tabs (Thay đổi / JSON / Trực quan)').toBe(3);
+        expect(heights, `tab heights at ${p.viewportSize()?.width ?? '?'} px`).toEqual(heights.map(() => expected));
+      });
+    });
+
     test('U06 · SCR-32 versions, label dialog open (not submitted)', async ({ browser }) => {
       await verifyAsAdmin(browser, 'U06_versions_label_dialog', async (p) => {
         await openVersionsDiff(p);
