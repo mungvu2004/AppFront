@@ -262,6 +262,18 @@ interface Attachment {
   readonly awaitingNetwork: boolean;
   /** Người dùng vừa bấm "Huỷ" lượt tải này: thẻ mở "Thử lại" thay vì bắt xoá rồi chọn lại (BUG-534). */
   readonly wasCancelled?: boolean;
+  /**
+   * Lỗi người dùng đã bấm "Đóng": câu ẩn đi, nhưng lỗi vẫn là lỗi — "Thử lại" còn nguyên (BUG-535).
+   * So bằng tham chiếu: lượt tải sau dựng `problem` mới, nên lỗi mới lại hiện ra.
+   */
+  readonly dismissedProblem?: FloorUploadInlineError | null;
+}
+
+/** Lỗi còn hiện trên thẻ/khay: mọi lỗi trừ đúng lỗi người dùng đã đóng. */
+function visibleProblem(attachment: Attachment | null): FloorUploadInlineError | null {
+  return attachment === null || attachment.problem === attachment.dismissedProblem
+    ? null
+    : attachment.problem;
 }
 
 const PICK_PAGE_SENTENCE = 'Hãy chọn trang bản vẽ để bắt đầu tải';
@@ -1148,7 +1160,7 @@ export function useFloorUploadScreen(
             status === 'attached'
               ? `Tải xong ${file?.name ?? floor.name}`
               : `Đã tải ${formatPercent(percent, { fractionDigits: 0, source: 'percent' })} của ${file?.name ?? floor.name}`,
-          error: attachment?.problem ?? null,
+          error: visibleProblem(attachment),
           // Chỉ tệp của phiên này gán lại được; bản vẽ đã nằm trên máy chủ thì không có lượt
           // chuyển nào để gửi, nên không có ô chọn (BUG-531).
           reassignOptions: canEdit && attachment !== null ? reassignOptions : [],
@@ -1181,7 +1193,7 @@ export function useFloorUploadScreen(
             sizeLabel: model.sizeLabel,
             isCadBranch: model.isCadBranch,
             summaryLine: model.summaryLine,
-            error: attachment.problem,
+            error: visibleProblem(attachment),
             assignOptions: canEdit && attachment.branch !== null ? reassignOptions : [],
             canRemoveFile: canEdit,
             removeLabel: canEdit ? `Xoá bản vẽ ${attachment.file.name}` : null,
@@ -1333,7 +1345,8 @@ export function useFloorUploadScreen(
     onBackToProjects:
       options.onNavigate === undefined ? undefined : () => options.onNavigate?.(ROUTES.dashboard),
     // Lỗi của một tệp đóng lại một mình; không hàng nào khác đổi.
-    onDismissError: (fileId) => patchAttachment(fileId, { problem: null }),
+    onDismissError: (fileId) =>
+      patchAttachment(fileId, { dismissedProblem: findAttachment(fileId)?.problem ?? null }),
   };
 
   return { ...model, ...actions };
