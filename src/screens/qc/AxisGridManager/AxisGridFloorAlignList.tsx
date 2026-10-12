@@ -118,7 +118,8 @@ export function AxisGridFloorAlignList({
   const isFullyAligned =
     !isUnavailable &&
     warningBanner === null &&
-    floors.length > 0 &&
+    // BUG-336/404: một tầng thì chưa có gì để căn — "Đã duyệt" ở đó là nói dối.
+    floors.length > 1 &&
     floors.every((floor) => floor.status === 'ok');
 
   return (

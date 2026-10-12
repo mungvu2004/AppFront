@@ -267,6 +267,19 @@ describe('[BUG-330][BUG-336] tầng chưa có trục: không số 0 giả, khôn
     expect(screen.getByText('Lệch X (pixel)')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Căn chỉnh tự động' })).toBeEnabled();
   });
+
+  it('[BUG-336][BUG-404] chỉ một tầng (chưa có gì để căn): không "Đã duyệt"; đủ tầng trong dung sai thì có', () => {
+    const args = scenarioArgsFor('success');
+    const { unmount } = renderWithProviders(
+      <AxisGridManager {...args} viewModel={{ ...args.viewModel, floors: args.viewModel.floors.slice(0, 1) }} />,
+    );
+
+    expect(screen.queryByText('Đã duyệt')).not.toBeInTheDocument();
+    unmount();
+
+    renderState('success');
+    expect(screen.getByText('Đã duyệt')).toBeInTheDocument();
+  });
 });
 
 /* -------------------------------------------------------------------------- */
