@@ -291,7 +291,7 @@ export function RuleReport(props: RuleReportViewProps) {
             {props.settingsPath === undefined ? null : (
               <a
                 href={props.settingsPath}
-                className={cn('rounded text-sm text-accent underline', FOCUS_RING)}
+                className={cn('rounded py-1 text-sm text-accent underline', FOCUS_RING)}
               >
                 Cài đặt bộ luật
               </a>
