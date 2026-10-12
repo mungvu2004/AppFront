@@ -61,6 +61,7 @@ import {
   createRenameRoomCommand,
   createReorderLevelsCommand,
   createSplitRoomCommand,
+  isElevationOverridden,
   validateChangeLevelElevation,
   validateMergeRooms,
   validateRenameRoom,
@@ -1382,6 +1383,60 @@ describe('room and level commands', () => {
     expect(applied.byId[LEVEL_ONE]).toMatchObject({ order: 1, elevationMm: 600 });
     expect(applied.byId[LEVEL_THREE]).toMatchObject({ order: 2, elevationMm: 4200 });
     expect(command.description).toMatch(/xếp chồng lại từ cao độ \S?3,0 m\.$/u);
+  });
+
+  it('keeps a hand-typed elevation the reorder does not need to move (BUG-517)', () => {
+    const overriddenGraph = normalizeSpatial({
+      ...graphFixture,
+      levels: levels.map((level) => (level.id === LEVEL_THREE ? { ...level, elevationMm: 8000 } : level)),
+    });
+    const command = expectCommand(
+      createReorderLevelsCommand(
+        { levelIds: [LEVEL_TWO, LEVEL_ONE, LEVEL_THREE] },
+        { ...context, graph: overriddenGraph },
+      ),
+    );
+    const applied = applyCommand(overriddenGraph, command);
+
+    expect(applied.byId[LEVEL_TWO]).toMatchObject({ order: 0, elevationMm: 0 });
+    expect(applied.byId[LEVEL_ONE]).toMatchObject({ order: 1, elevationMm: 3600 });
+    expect(applied.byId[LEVEL_THREE]).toMatchObject({ order: 2, elevationMm: 8000 });
+    expect(command.description).toBe(
+      'Sắp xếp lại 3 tầng: 2 tầng đổi vị trí, 2 tầng đổi cao độ; xếp chồng lại từ cao độ 0,0 m, ' +
+        'giữ nguyên cao độ ghi đè của 1 tầng.',
+    );
+  });
+
+  it('stacks a hand-typed storey on the one below when its elevation would overlap it (BUG-517)', () => {
+    const overriddenGraph = normalizeSpatial({
+      ...graphFixture,
+      levels: levels.map((level) =>
+        level.id === LEVEL_TWO
+          ? { ...level, elevationMm: 4000 }
+          : level.id === LEVEL_THREE
+            ? { ...level, elevationMm: 7600 }
+            : level,
+      ),
+    });
+    const command = expectCommand(
+      createReorderLevelsCommand(
+        { levelIds: [LEVEL_ONE, LEVEL_THREE, LEVEL_TWO] },
+        { ...context, graph: overriddenGraph },
+      ),
+    );
+    const applied = applyCommand(overriddenGraph, command);
+
+    expect(applied.byId[LEVEL_THREE]).toMatchObject({ order: 1, elevationMm: 3600 });
+    expect(applied.byId[LEVEL_TWO]).toMatchObject({ order: 2, elevationMm: 7200 });
+    expect(command.description).not.toContain('ghi đè');
+  });
+
+  it('flags an elevation as overridden only above the bottom and off the top of the storey below', () => {
+    const [one, two, three] = levels;
+
+    expect(isElevationOverridden(one!, undefined)).toBe(false);
+    expect(isElevationOverridden(two!, one)).toBe(false);
+    expect(isElevationOverridden({ ...three!, elevationMm: 8000 }, two)).toBe(true);
   });
 
   it('refuses an ordering that leaves a storey out', () => {
