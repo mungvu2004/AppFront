@@ -271,6 +271,8 @@ test.describe('SCR-09 Floor Manager', () => {
     const add = page.getByRole('button', { name: 'Thêm tầng', exact: true });
     await expect(add).toBeVisible();
     await expect(floorRows(page).first()).toBeVisible();
+    // The .state project is reused across runs (run-full replays this chain), so count relative to the rows already there.
+    const before = await floorRows(page).count();
 
     const created: { id: string; name: string }[] = [];
     for (const what of ['work', 'scratch']) {
@@ -288,7 +290,7 @@ test.describe('SCR-09 Floor Manager', () => {
       draft.floors.scratchFloorName = scratchFloor.name;
     });
 
-    await expect(floorRows(page)).toHaveCount(6);
+    await expect(floorRows(page)).toHaveCount(before + 2);
     for (const floor of created) {
       // An editor sees "Chưa có bản vẽ" once per row: only the attention badge (FloorTableRow.tsx:314-317);
       // the count text next to it is no longer drawn (BUG-250, FIX-1284). Exactly one match (BUG-278 strict mode).
