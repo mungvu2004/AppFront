@@ -1,3 +1,4 @@
+import { AlertTriangle, FolderX } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -50,7 +51,7 @@ function ProjectNotFound() {
   return (
     <div role="alert" className="flex h-full w-full items-center justify-center bg-bg-app p-6">
       <EmptyState
-        icon={<div className="w-8 h-8 rounded-full bg-state-violation-tint" aria-hidden="true" />}
+        icon={<FolderX aria-hidden="true" className="text-state-violation-text" />}
         title={PROJECT_NOT_FOUND_TITLE}
         description={PROJECT_NOT_FOUND_DESCRIPTION}
         action={{ label: BACK_TO_PROJECTS_LABEL, onClick: () => navigate(ROUTES.dashboard) }}
@@ -78,7 +79,7 @@ export function ProjectSpatialGate({
     return inLandmark(
       <div role="alert" className="flex h-full w-full items-center justify-center bg-bg-app p-6">
         <EmptyState
-          icon={<div className="w-8 h-8 rounded-full bg-state-violation-tint" aria-hidden="true" />}
+          icon={<AlertTriangle aria-hidden="true" className="text-state-violation-text" />}
           title={report.description.title}
           description={report.description.description}
           {...(report.retryable

@@ -194,7 +194,8 @@ describe('ProjectSpatialGate', () => {
 
     renderGate(api, 'project-1');
 
-    await screen.findByRole('alert');
+    const alert = await screen.findByRole('alert');
+    expect(alert.querySelector('svg.text-state-violation-text')).not.toBeNull();
     expect(screen.queryByText(CHILD)).not.toBeInTheDocument();
     expect(screen.queryByText('Không tải lại được mô hình.')).not.toBeInTheDocument();
     expect(useStore.getState().spatialLoading).toBe(false);
@@ -296,6 +297,8 @@ describe('ProjectSpatialGate', () => {
 
     const alert = await screen.findByRole('alert');
     expect(screen.getByText('Không tìm thấy dự án này')).toBeInTheDocument();
+    // BUG-461: biểu tượng là một hình vẽ thật mang màu vi phạm, không phải đĩa tô nhạt trống.
+    expect(alert.querySelector('svg.text-state-violation-text')).not.toBeNull();
     expect(screen.queryByText(CHILD)).not.toBeInTheDocument();
     expect(alert.textContent).not.toMatch(/quyền/iu);
 
