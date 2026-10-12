@@ -485,8 +485,9 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
     if (forbidden) return 'forbidden';
     if (versionsQuery.isPending) return 'loading';
     if (errorMessage !== null) return 'error';
-    if (isNarrow) return 'collapsed';
+    // Rỗng thắng thu gọn: dưới 1024 tầng không phiên bản vẫn phải nói "chưa có phiên bản nào" (BUG-473).
     if (summaries.length === 0) return 'empty';
+    if (isNarrow) return 'collapsed';
 
     return snapshotsInFlight || visual.isBuilding || rows.some((row) => row.isMetadataOnly) ? 'partial' : 'success';
   })();

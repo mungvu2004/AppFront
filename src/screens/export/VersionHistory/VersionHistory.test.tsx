@@ -1068,6 +1068,38 @@ describe('F-08 — phục hồi qua bộ lưu theo tầng và replaceFloorLayer'
     expect(screen.getByRole('combobox')).toBeTruthy();
   });
 
+  it('[BUG-473] tầng rỗng dưới 1024 → vẫn empty, không câu "Mới có một phiên bản"', async () => {
+    const server = createVersionsServerFake();
+
+    server.override('GET list', () => ({ data: { items: [] }, ok: true }));
+    await hydrateFrom(server);
+
+    const api = createApiClient(server.http);
+    const gateway = createVersionHistoryGateway({ apiClient: api, floorId: WIRE_FLOOR_ID, projectId: WIRE_PROJECT_ID });
+    const { result } = renderHook(
+      () =>
+        useVersionHistory({
+          apiClient: api,
+          floorId: WIRE_FLOOR_ID,
+          floorOptions: FLOOR_OPTIONS,
+          gateway,
+          isNarrow: true,
+          projectId: WIRE_PROJECT_ID,
+        }),
+      { wrapper: withQueryClient() },
+    );
+
+    await waitFor(() => {
+      expect(result.current[0].state).toBe('empty');
+    });
+
+    const [model, actions] = result.current;
+
+    renderWithProviders(<VersionHistory model={model} actions={actions} />);
+    expect(screen.getByText('Tầng 1 chưa có phiên bản nào')).toBeTruthy();
+    expect(screen.queryByText(/Mới có một phiên bản/)).toBeNull();
+  });
+
   it('N18 chưa về → câu "đang nạp", không "Không có khác biệt"', async () => {
     const server = createVersionsServerFake();
     let release: () => void = () => undefined;
