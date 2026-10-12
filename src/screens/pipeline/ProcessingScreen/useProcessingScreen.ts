@@ -181,9 +181,8 @@ const remainingSentence = (duration: string): string => `Còn khoảng ${duratio
 const doneFloorsSentence = (done: string, total: string): string =>
   `Đã xong ${done}/${total} ${UNIT.floor}`;
 
-/** Ví dụ `"Đã xong 2/4 tầng · Còn lại khoảng 4 phút 20 giây"`. */
-const overallSentence = (doneClause: string, duration: string | null): string =>
-  duration === null ? doneClause : `${doneClause} · Còn lại khoảng ${duration}`;
+/** Ví dụ `"Còn lại khoảng 4 phút 20 giây"` — ngoài vùng `role=status`: đổi mỗi giây (R1-03). */
+const overallRemainingSentence = (duration: string): string => `Còn lại khoảng ${duration}`;
 
 /** Một cách đếm "đối tượng" cho cả chip tầng lẫn báo cáo tổng kết: tường + ô mở + phòng (BUG-353). */
 const objectTotalOf = (counts: Pick<ProcessingExtractionSummary, 'openingCount' | 'roomCount' | 'wallCount'>): number =>
@@ -1333,19 +1332,21 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
 
   const overallSummaryLine = useMemo(() => {
     if (records.length === 0) return NO_RUN_SENTENCE;
-    const doneClause = doneFloorsSentence(
+
+    return doneFloorsSentence(
       formatNumber(doneCount, { fractionDigits: 0 }),
       formatNumber(records.length, { fractionDigits: 0 }),
     );
+  }, [doneCount, records.length]);
+
+  const remainingLine = useMemo(() => {
     const slowest = records
       .map((record) => record.remainingSeconds)
       .filter((seconds): seconds is number => seconds !== null);
+    const duration = slowest.length === 0 ? null : durationLabelOf(Math.max(...slowest));
 
-    return overallSentence(
-      doneClause,
-      slowest.length === 0 ? null : durationLabelOf(Math.max(...slowest)),
-    );
-  }, [doneCount, records]);
+    return duration === null ? undefined : overallRemainingSentence(duration);
+  }, [records]);
 
   const queuePosition = records.find((record) => record.queuePosition !== undefined)?.queuePosition;
 
@@ -1430,6 +1431,7 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     logLines,
     ...(summary !== undefined ? { summary } : {}),
     overallSummaryLine,
+    ...(remainingLine !== undefined ? { remainingLine } : {}),
     ...(queuePosition !== undefined
       ? { queueLine: queueSentence(formatNumber(queuePosition, { fractionDigits: 0 })) }
       : {}),

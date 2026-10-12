@@ -664,12 +664,20 @@ describe('useProcessingScreen', () => {
       latestSource().triggerOpen();
     });
 
+    const remainingLines: (string | undefined)[] = [];
+
     for (let stageIndex = 0; stageIndex < STAGES.length; stageIndex += 1) {
       await act(async () => {
         latestSource().triggerMessage(progressAt(upload.uploadId, stageIndex));
         await clock.advance(POLL_INTERVAL_MS);
       });
+
+      // R1-03: the remaining time is its own field, kept out of the status line.
+      expect(mounted.result.current.overallSummaryLine).toBe('Đã xong 0/1 tầng');
+      remainingLines.push(mounted.result.current.remainingLine);
     }
+
+    expect(remainingLines.some((line) => line !== undefined && /^Còn lại khoảng \S/u.test(line))).toBe(true);
 
     await act(async () => {
       latestSource().triggerMessage(finishedProgress(upload.uploadId));
@@ -678,6 +686,7 @@ describe('useProcessingScreen', () => {
 
     expect(mounted.result.current.state).toBe('success');
     expect(mounted.result.current.overallSummaryLine).toBe('Đã xong 1/1 tầng');
+    expect(mounted.result.current.remainingLine).toBeUndefined();
 
     mounted.unmount();
   });

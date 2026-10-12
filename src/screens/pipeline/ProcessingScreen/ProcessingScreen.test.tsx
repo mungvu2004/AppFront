@@ -801,6 +801,25 @@ describe('ProcessingScreen — màn rỗng (BUG-165)', () => {
     expect(status).toBeDefined();
     expect(status?.closest('[role="tabpanel"]')).toBeNull();
   });
+
+  // R1-03: "Còn lại khoảng …" changes every second; inside the polite region the reader re-read
+  // the whole sentence at every tick.
+  it('R1-03: thời gian còn lại hiện cùng dòng nhưng ngoài mọi vùng role=status', () => {
+    const props = scenarioFor('partial');
+    const view = renderWithProviders(<ProcessingScreen {...props} />);
+    const statusText = (): string[] => screen.getAllByRole('status').map((node) => node.textContent ?? '');
+    const before = statusText();
+
+    expect(screen.getByText('Đã xong 2/4 tầng').closest('p')).toHaveTextContent(
+      'Đã xong 2/4 tầng · Còn lại khoảng 3 phút',
+    );
+    expect(before.some((text) => text.includes('Còn lại khoảng'))).toBe(false);
+
+    view.rerender(<ProcessingScreen {...props} remainingLine="Còn lại khoảng 2 phút 59 giây" />);
+
+    expect(screen.getByText(/Còn lại khoảng 2 phút 59 giây/u)).toBeInTheDocument();
+    expect(statusText()).toEqual(before);
+  });
 });
 
 describe('ProcessingScreen — khổ hẹp (BUG-294)', () => {

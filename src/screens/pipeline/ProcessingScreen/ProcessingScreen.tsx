@@ -282,12 +282,18 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
 
             {props.summary !== undefined ? <ProcessingSummary summary={props.summary} /> : null}
 
-            {/* Vùng thông báo tiến độ nằm NGOÀI hai tab: tab "Xem trước" mặc định giấu nhật ký (BUG-554). */}
-            <div className="flex flex-col items-center gap-1 text-center" role="status">
-              <p className="text-[14px] text-text-primary">{props.overallSummaryLine}</p>
-              {props.partialNoticeLine !== undefined ? (
-                <p className="text-[13px] text-text-secondary">{props.partialNoticeLine}</p>
-              ) : null}
+            {/* Vùng thông báo tiến độ nằm NGOÀI hai tab: tab "Xem trước" mặc định giấu nhật ký (BUG-554).
+                Thời gian còn lại đổi mỗi giây nên đứng ngoài vùng `role=status` (R1-03). */}
+            <div className="flex flex-col items-center gap-1 text-center">
+              <p className="text-[14px] text-text-primary">
+                <span role="status">{props.overallSummaryLine}</span>
+                {props.remainingLine !== undefined ? ` · ${props.remainingLine}` : null}
+              </p>
+              <div role="status">
+                {props.partialNoticeLine !== undefined ? (
+                  <p className="text-[13px] text-text-secondary">{props.partialNoticeLine}</p>
+                ) : null}
+              </div>
             </div>
           </>
         )}
