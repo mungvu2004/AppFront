@@ -76,7 +76,6 @@ import {
   type VersionsServerFake,
 } from './versionHistoryFixtures';
 import * as UseVersionHistoryModule from './useVersionHistory';
-import { buildDiffGroups, buildRestoreConfirm as buildRestoreConfirmModel } from './versionHistoryModel';
 import { snapshotQueryKey, useVersionHistory } from './useVersionHistory';
 import * as VersionHistoryModule from './VersionHistory';
 import { VersionHistory } from './VersionHistory';
@@ -90,7 +89,13 @@ import {
   VERSION_LIST_FAILED_REASON,
 } from './versionHistoryGateway';
 import * as ModelModule from './versionHistoryModel';
-import { SNAPSHOT_FAILED_NOTICE, SNAPSHOT_RETRY_LABEL, UNDO_RETRY_TOAST } from './versionHistoryModel';
+import {
+  buildDiffGroups,
+  buildRestoreConfirm as buildRestoreConfirmModel,
+  SNAPSHOT_FAILED_NOTICE,
+  SNAPSHOT_RETRY_LABEL,
+  UNDO_RETRY_TOAST,
+} from './versionHistoryModel';
 
 afterEach(() => {
   cleanup();
