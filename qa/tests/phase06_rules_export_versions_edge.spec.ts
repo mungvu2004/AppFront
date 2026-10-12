@@ -201,7 +201,7 @@ const SJ = {
   tabs: 'Cách xem nội dung', // SJD:136
   emptyTitle: 'Chưa có dữ liệu không gian', // SJV:48
   emptyDescription:
-    'Bản vẽ này chưa được xử lý xong, nên chưa có Spatial JSON để xem. Chạy pipeline cho tầng rồi quay lại đây.', // SJV:40-41
+    'Bản vẽ này chưa được xử lý xong, nên chưa có tường, phòng hay đối tượng nào để xem. Xử lý bản vẽ của tầng rồi quay lại đây.', // SJV:49-50 (BUG-454)
   validity: /^(Hợp lệ theo hợp đồng Spatial JSON — 0 lỗi\.|\d[\d.]* lỗi nghiêm trọng · \d[\d.]* cảnh báo\.)$/u, // SJM:268-270
   noSelection: 'Chọn một nút ở cây bên trái để xem chi tiết của nó.', // SJD:80
   entityCode: 'Mã đối tượng', // SJD:110
