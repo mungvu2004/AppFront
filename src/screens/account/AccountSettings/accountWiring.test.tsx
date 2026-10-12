@@ -31,7 +31,11 @@ import { AvatarReplaceDialog } from './AvatarReplaceDialog';
 import { PasswordSection } from './PasswordSection';
 import { useAccountAuth, type AccountAuthModel } from './useAccountAuth';
 import { ACCOUNT_STACKED_QUERY } from './useAccountPreferences';
-import { ACCOUNT_AUTOSAVE_DEBOUNCE_MS, ACCOUNT_LOCAL_ONLY_LABEL } from './useAccountSettings';
+import {
+  ACCOUNT_AUTOSAVE_DEBOUNCE_MS,
+  ACCOUNT_FIELD_REJECTED_LABEL,
+  ACCOUNT_LOCAL_ONLY_LABEL,
+} from './useAccountSettings';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -176,6 +180,10 @@ describe('N12 422 — lỗi buộc vào đúng ô, không thử lại bằng l�
       screen.getByText('Họ tên cần từ 1 đến 120 ký tự, không chứa ký tự điều khiển.'),
     ).toBeTruthy();
     expect(announcer.announce.mock.calls.some((call) => call[1] === 'assertive')).toBe(true);
+    // BUG-503: lỗi nhập không phải lỗi hệ thống — chip và bộ đọc màn hình không hứa "thử lưu lại".
+    expect(screen.getByText(ACCOUNT_FIELD_REJECTED_LABEL)).toBeTruthy();
+    expect(screen.queryByText(/thử lưu lại/)).toBeNull();
+    expect(announcer.announce).toHaveBeenCalledWith(ACCOUNT_FIELD_REJECTED_LABEL, 'assertive');
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(60_000);
