@@ -1373,13 +1373,15 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
         await captureEvidence(page, 'E03_10-B-010_one-of-two.png');
       });
 
-      await test.step('[10-B-013] Tầng 1: "Đã gắn kèm", summary = server file name, no menu, progress label "Tải xong {name}"', async () => {
+      await test.step('[10-B-013] Tầng 1: "Đã gắn kèm", summary = server file name, no menu, no progress rail (QA-03e: rail only while uploading)', async () => {
+        await expect.soft(card(page, t1).getByText(ATTACHED, { exact: true })).toBeVisible(); // UFU:1097-1098 server drawing → attached
         await expect.soft(card(page, t1).getByText(serverName, { exact: true })).toBeVisible(); // UFU:1096-1119
         await expect.soft(menuButton(page, t1)).toHaveCount(0); // FUC:82-86
         const bars = await card(page, t1).getByRole('progressbar').count();
         await captureEvidence(page, 'E03_10-B-013_server-drawing-card.png', { caption: `server name "${serverName}"; progressbars on the card: ${String(bars)}` });
-        // UFU:1136-1138 builds "Tải xong {name}", but FUC:301 renders the rail only while uploading.
-        await expect.soft(card(page, t1).getByRole('progressbar', { name: `Tải xong ${serverName}` })).toHaveCount(1);
+        // Catalog fixed by QA-03e: FloorUploadCard.tsx:299 renders the rail (and its progressbar) only while uploading, so the
+        // "Tải xong {name}" label built at useFloorUploadScreen.ts:1136-1138 is never on screen for an attached card.
+        expect.soft(bars, 'an attached card has no progress rail').toBe(0);
       });
 
       await test.step('[10-B-014] Tầng 1 card "Gán cho tầng khác" → Tầng 2 → nothing happens: no request, the file stays', async () => {
