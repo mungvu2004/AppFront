@@ -27,7 +27,7 @@
  * ## Không công thức nghiệp vụ mới
  *
  * - Cao độ khi xếp lại chồng tầng: `createReorderLevelsCommand` (hàm `restack`
- *   private bên trong nó dồn cao độ từ `building.datumElevationMm`). Cổng và
+ *   private bên trong nó dồn cao độ từ tầng thấp nhất hiện có). Cổng và
  *   màn KHÔNG cộng cao độ.
  * - Đỉnh của một tầng: `ceilingElevationMm` (M-11, `alignFloors.ts:451`).
  * - Sao chép nội dung tầng: `copyFloor` (`copyFloor.ts:230`) lo TOÀN BỘ; cổng
@@ -640,7 +640,7 @@ export function defaultNewFloorHeightMm(graph: NormalizedSpatial | null): number
  * Cao độ của một tầng đặt lên đỉnh ngăn xếp.
  *
  * `stackTopMm` gọi `ceilingElevationMm` (M-11); toà nhà chưa có tầng nào thì mốc
- * là `building.datumElevationMm` — đúng chỗ `restack` bắt đầu.
+ * là `building.datumElevationMm`.
  */
 export function nextFloorElevationMm(graph: NormalizedSpatial | null, building: Building): number {
   return stackTopMm(graph) ?? building.datumElevationMm;
@@ -1400,13 +1400,14 @@ export const FLOOR_MANAGER_SAMPLE_ROOF_ID: LevelId = 'L-FLOORROOF0000' as LevelI
 /**
  * Công trình mẫu.
  *
- * `datumElevationMm` là `-3000`, đúng cao độ tầng thấp nhất của bảng trên: đó là
- * chỗ `restack` bắt đầu xếp chồng, nên mốc chuẩn phải bằng đáy ngăn xếp thì bật
- * "Tự động tính cao độ" mới không dịch cả toà nhà lên (mục H của bản thiết kế).
+ * `datumElevationMm` là `0`, đúng như toà nhà mà đường đọc thật dựng
+ * (`FLOOR_LAYER_BUILDING`): tầng hầm của bảng trên nằm DƯỚI mốc `+0.000`.
+ * `restack` xếp chồng từ tầng thấp nhất chứ không từ mốc (BUG-516), nên bộ mẫu
+ * không cần đặt mốc bằng đáy ngăn xếp để che lỗi ấy nữa.
  */
 export const FLOOR_MANAGER_SAMPLE_BUILDING: Building = {
   name: 'Nhà mẫu quản lý tầng',
-  datumElevationMm: -3000,
+  datumElevationMm: 0,
   confidence: 1,
   source: 'human',
   reviewed: true,

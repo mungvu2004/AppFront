@@ -9,8 +9,8 @@
  * ## Không công thức tự chế (R-61) — màn không cộng cao độ, không đếm tay
  *
  * - Cao độ khi xếp lại chồng tầng: `createReorderLevelsCommand`. Hàm `restack`
- *   bên trong nó dựng lại CẢ chồng tầng từ `building.datumElevationMm`
- *   (`roomFloorCommands.ts:668-684`), và nó được gọi sẵn trong
+ *   bên trong nó dựng lại CẢ chồng tầng từ tầng thấp nhất hiện có
+ *   (`roomFloorCommands.ts`, BUG-516), và nó được gọi sẵn trong
  *   `validateReorderLevels` lẫn `createReorderLevelsCommand`. Phát lệnh reorder
  *   = cao độ được tính lại đúng, bởi mã đã có test. **Không một vòng lặp cộng
  *   dồn nào trong màn.**

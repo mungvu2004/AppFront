@@ -252,6 +252,11 @@ describe('đổi chiều cao một tầng', () => {
     expect(levelIn(storeGraph(), groundId).heightMm).toBe(expectedHeightMm);
     expect(levelIn(storeGraph(), secondId).elevationMm).toBe(expectedHeightMm);
 
+    /* BUG-516: mốc `+0.000` của toà nhà mẫu là 0 như đường đọc thật; tầng hầm vẫn ở -3,0 m. */
+    const basement = FLOOR_MANAGER_SAMPLE_LEVELS[0];
+
+    expect(basement !== undefined && levelIn(storeGraph(), String(basement.id)).elevationMm).toBe(-3000);
+
     /* Và view-model nói cùng một chuyện, bằng chuỗi người đọc. */
     expect(rowOf(mounted, groundId).heightText).toBe('4,2 m');
     expect(rowOf(mounted, secondId).elevationText).toBe('4,2 m');

@@ -1365,6 +1365,25 @@ describe('room and level commands', () => {
     expect(command.description).toContain('2 tầng đổi vị trí');
   });
 
+  it('re-stacks from the lowest storey, not the +0.000 datum, so a basement stays put (BUG-516)', () => {
+    const basementGraph = normalizeSpatial({
+      ...graphFixture,
+      levels: levels.map((level) => ({ ...level, elevationMm: level.elevationMm - 3000 })),
+    });
+    const command = expectCommand(
+      createReorderLevelsCommand(
+        { levelIds: [LEVEL_TWO, LEVEL_ONE, LEVEL_THREE] },
+        { ...context, graph: basementGraph },
+      ),
+    );
+    const applied = applyCommand(basementGraph, command);
+
+    expect(applied.byId[LEVEL_TWO]).toMatchObject({ order: 0, elevationMm: -3000 });
+    expect(applied.byId[LEVEL_ONE]).toMatchObject({ order: 1, elevationMm: 600 });
+    expect(applied.byId[LEVEL_THREE]).toMatchObject({ order: 2, elevationMm: 4200 });
+    expect(command.description).toMatch(/xếp chồng lại từ cao độ \S?3,0 m\.$/u);
+  });
+
   it('refuses an ordering that leaves a storey out', () => {
     expect(
       expectReasons(createReorderLevelsCommand({ levelIds: [LEVEL_TWO, LEVEL_ONE] }, context)).join(' '),
