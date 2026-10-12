@@ -181,6 +181,12 @@ async function settled(candidates: Readonly<Record<string, Locator>>): Promise<s
 const levelFilter = (page: Page): Locator => page.getByRole('radiogroup', { name: LEVEL_FILTER, exact: true });
 /** Group expanders: `RuleReportSection` puts the toggle button inside an `<h3>` (phase06 main). */
 const groupExpanders = (page: Page): Locator => page.getByRole('heading', { level: 3 }).getByRole('button');
+/**
+ * Finding rows of an expanded group: a `<table>` row from 1024 px, a card `<li>` below it (`RuleReportGroups.tsx:209-237`,
+ * compact via `RuleReport.container.tsx:234` `useBreakpoint('(width < 1024px)')`, BUG-433). Both hold the message button
+ * first, the floor ("—" when none) and "Xem".
+ */
+const findingRows = (section: Locator): Locator => section.getByRole('row').or(section.getByRole('listitem'));
 
 /** `/rules` with a run result (`ready`/`partial` filter bar, `done`, or the empty / error copy). Returns the state. */
 async function openRules(page: Page, projectId: string): Promise<string> {
@@ -372,10 +378,11 @@ test.describe('U06 UI verify — data states (own pipeline project, this file cr
       });
     });
 
-    test('U06 · SCR-28 rules, rule group expanded (rows with "Xem")', async ({ browser }) => {
+    test('U06 · SCR-28 rules, rule group expanded (rows with "Xem"; cards below 1024)', async ({ browser }) => {
       await verifyAsAdmin(browser, 'U06_rules_group_expanded', async (p) => {
         const section = await expandFirstGroup(p);
-        await expect(section.getByRole('row').first()).toBeVisible();
+        await expect(findingRows(section).first()).toBeVisible();
+        await expect(section.getByRole('button', { name: VIEW_ROW, exact: true }).first()).toBeVisible();
       });
     });
 
@@ -383,8 +390,7 @@ test.describe('U06 UI verify — data states (own pipeline project, this file cr
       await verifyAsAdmin(browser, 'U06_rules_violation_detail', async (p) => {
         const section = await expandFirstGroup(p);
         // ViolationDetail needs a floor (RuleReport.container.tsx: activeFloorId ?? row.levelId), as phase06 main.
-        const rows = section
-          .getByRole('row')
+        const rows = findingRows(section)
           .filter({ has: p.getByRole('button', { name: VIEW_ROW, exact: true }) })
           .filter({ hasNot: p.getByText('—', { exact: true }) });
         test.skip((await rows.count()) === 0, 'data: the expanded group has no row with a floor');
