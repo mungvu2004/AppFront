@@ -31,6 +31,8 @@ export function AvatarReplaceDialog(props: AvatarReplaceDialogProps) {
   const warning = props.hasExistingAvatar
     ? 'Ảnh cũ không khôi phục được.'
     : 'Sau khi đặt chỉ thay được, không gỡ được.';
+  // Nhãn nút theo đúng câu hỏi: chưa có ảnh thì "Đặt ảnh", không "Thay ảnh" (BUG-501).
+  const confirmLabel = props.hasExistingAvatar ? 'Thay ảnh' : 'Đặt ảnh';
 
   return (
     <Modal.Root isOpen={props.isOpen} onClose={props.onCancel} width={480}>
@@ -52,7 +54,7 @@ export function AvatarReplaceDialog(props: AvatarReplaceDialogProps) {
           Huỷ
         </Button>
         <Button variant="primary" onClick={props.onConfirm} loading={props.isSending}>
-          Thay ảnh
+          {confirmLabel}
         </Button>
       </Modal.Footer>
     </Modal.Root>
