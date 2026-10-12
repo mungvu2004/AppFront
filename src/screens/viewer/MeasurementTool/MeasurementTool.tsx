@@ -18,7 +18,7 @@
  *
  * | `state` | Màn hiện gì |
  * |---|---|
- * | `empty` | Lời mời đo, giữa khung nhìn |
+ * | `empty` | Lời mời đo, trên nền đệm ngay dưới cụm điều khiển |
  * | `measuring` | Lớp phủ vẽ bản nháp; nhãn bám con trỏ, chữ đều, KHÔNG chạy số |
  * | `partial` | Câu nhắc chuỗi đo chưa đóng; hàng hết neo mang chấm cần chú ý |
  * | `error` | `errorMessage` + nút gọi `onRetry` |
@@ -141,14 +141,6 @@ function KeyAction({ icon, label, hint, onClick, disabled }: KeyActionProps) {
   );
 }
 
-function EmptyInvitation() {
-  return (
-    <div className="absolute inset-0 flex items-center justify-center p-8 text-center">
-      <p className="max-w-sm text-[14px] leading-relaxed text-text-secondary">{EMPTY_INVITATION}</p>
-    </div>
-  );
-}
-
 export function MeasurementTool(props: MeasurementToolProps) {
   const { state } = props;
 
@@ -160,8 +152,6 @@ export function MeasurementTool(props: MeasurementToolProps) {
       className="pointer-events-none absolute inset-0"
       role="region"
     >
-      {state === 'empty' && <EmptyInvitation />}
-
       <MeasurementOverlay
         draft={props.draft}
         highlightedId={props.highlightedId}
@@ -193,33 +183,57 @@ export function MeasurementTool(props: MeasurementToolProps) {
           />
         </div>
 
-        <div className={cn('pointer-events-auto flex items-center gap-2 px-1.5 py-1', FLOATING_SURFACE)}>
-          {props.draft !== null && (
+        {/* Viên thuốc phím và chip bắt điểm chung một hàng (xuống dòng khi hẹp): ở 375
+            cột chỉ còn ~180 px dọc dưới bản đồ nhỏ, và lời mời đo phải vừa trên chú giải. */}
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <div
+            className={cn(
+              'pointer-events-auto flex items-center gap-2 px-1.5 py-1',
+              FLOATING_SURFACE,
+            )}
+          >
+            {props.draft !== null && (
+              <KeyAction
+                disabled={!props.canPin}
+                hint="Enter"
+                icon={<Pin aria-hidden="true" className="h-[18px] w-[18px]" />}
+                label="Ghim phép đo (phím Enter)"
+                onClick={props.onPin}
+              />
+            )}
+
             <KeyAction
-              disabled={!props.canPin}
-              hint="Enter"
-              icon={<Pin aria-hidden="true" className="h-[18px] w-[18px]" />}
-              label="Ghim phép đo (phím Enter)"
-              onClick={props.onPin}
+              hint="Esc"
+              icon={<X aria-hidden="true" className="h-[18px] w-[18px]" />}
+              label="Bỏ phần đo dở (phím Esc)"
+              onClick={props.onEscape}
             />
-          )}
 
-          <KeyAction
-            hint="Esc"
-            icon={<X aria-hidden="true" className="h-[18px] w-[18px]" />}
-            label="Bỏ phần đo dở (phím Esc)"
-            onClick={props.onEscape}
-          />
+            <KeyAction
+              hint="M"
+              icon={<Ruler aria-hidden="true" className="h-[18px] w-[18px]" />}
+              label="Bật tắt công cụ đo (phím M)"
+              onClick={props.onToggleTool}
+            />
+          </div>
 
-          <KeyAction
-            hint="M"
-            icon={<Ruler aria-hidden="true" className="h-[18px] w-[18px]" />}
-            label="Bật tắt công cụ đo (phím M)"
-            onClick={props.onToggleTool}
-          />
+          <MeasurementSnapChip snap={props.snap} />
         </div>
 
-        <MeasurementSnapChip snap={props.snap} />
+        {/* Lời mời đo nằm trong cột, trên nền đệm như mọi chữ nổi khác: chữ trần trên
+            canvas tối không đạt 4,5:1 (BUG-483), và giữa khung nhìn thì ở 375 nó đè
+            lên cột điều khiển. */}
+        {state === 'empty' && (
+          <p
+            className={cn(
+              'max-w-sm px-3 py-1.5 text-center text-[13px] leading-snug text-text-secondary',
+              FLOATING_SURFACE,
+              'rounded-2xl',
+            )}
+          >
+            {EMPTY_INVITATION}
+          </p>
+        )}
 
         {isCollapsed && (
           <button
@@ -238,7 +252,12 @@ export function MeasurementTool(props: MeasurementToolProps) {
         )}
 
         {state === 'partial' && (
-          <p className={cn('px-3 py-1.5 text-[12px] leading-none text-text-secondary', FLOATING_SURFACE)}>
+          <p
+            className={cn(
+              'px-3 py-1.5 text-[12px] leading-none text-text-secondary',
+              FLOATING_SURFACE,
+            )}
+          >
             {PARTIAL_HINT}
           </p>
         )}
