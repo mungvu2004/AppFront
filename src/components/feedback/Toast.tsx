@@ -65,8 +65,13 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
       lastTimeRef.current = undefined;
     }, [resetKey]);
 
+    // Hover holds a plain notice, never an undo: the ticket behind "Hoàn tác" expires on
+    // the wall clock, so a held toast offered an undo that did nothing (BUG-524). The bar
+    // IS the undo window (`UNDO_WINDOW_MS`).
+    const isHeld = isHovered && !toast.onUndo;
+
     useEffect(() => {
-      if (isHovered || isExiting) {
+      if (isHeld || isExiting) {
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
         lastTimeRef.current = undefined;
         return;
@@ -90,11 +95,10 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
 
       rafRef.current = requestAnimationFrame(animate);
       return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); };
-    }, [isHovered, isExiting, onRemove, toast.id, resetKey]);
+    }, [isHeld, isExiting, onRemove, toast.id, resetKey]);
 
-    // Hoàn tác xong thì toast đã hết việc: rời đi ngay. Không thế thì chuột vừa
-    // bấm vẫn nằm trên toast — đồng hồ dừng vì `isHovered` — và toast ở lại mãi,
-    // che nút bên dưới, với một nút "Hoàn tác" không còn gì để làm (B-V4-11).
+    // Hoàn tác xong thì toast đã hết việc: rời đi ngay. Không thế thì nó treo tới
+    // hết cửa sổ, che nút bên dưới, với một nút "Hoàn tác" không còn gì để làm (B-V4-11).
     const onUndoClick = () => {
       if (toast.onUndo) {
         toast.onUndo();
