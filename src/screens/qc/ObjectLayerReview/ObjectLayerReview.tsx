@@ -67,6 +67,7 @@ const SCREEN_ARIA_LABEL = 'Lớp đối tượng';
 const CANVAS_REGION_LABEL = 'Mặt bằng lớp đối tượng';
 const EMPTY_TITLE = 'Chưa nhận ra đối tượng nào';
 const EMPTY_ACTION = 'Thêm thủ công';
+const OPEN_WALL_LAYER_ACTION = 'Sang duyệt tường';
 const LOW_CONFIDENCE_FILTER = 'Chỉ hiện mục dưới ngưỡng';
 
 /** Số dòng khung xương của panel trái lúc đang tải — một dòng cho mỗi nhóm, cộng một. */
@@ -93,7 +94,11 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
   if (model.emptyNotice !== null) {
     return (
       <EmptyState
-        action={{ label: EMPTY_ACTION, onClick: model.onAddManually }}
+        action={
+          model.onOpenWallLayer === null
+            ? { label: EMPTY_ACTION, onClick: model.onAddManually }
+            : { label: OPEN_WALL_LAYER_ACTION, onClick: model.onOpenWallLayer }
+        }
         description={model.emptyNotice}
         icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-bg-sunken" />}
         title={EMPTY_TITLE}

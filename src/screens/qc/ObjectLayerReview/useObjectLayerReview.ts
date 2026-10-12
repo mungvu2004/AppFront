@@ -80,6 +80,7 @@ import {
 } from '@/lib/selection/selectionOps';
 import { createSelectionChannel } from '@/lib/selection/syncChannel';
 import type { ColorTokenName } from '@/lib/coloring/scales';
+import { ROUTES } from '@/routes/paths';
 import { useStore } from '@/store';
 import { currentSelection } from '@/store/commit';
 import type { ProjectRole } from '@/types/project';
@@ -1332,6 +1333,9 @@ export function useObjectLayerReview(
   }, [draggingObjectId, level, selectedObject, wallOfObject]);
 
   const tokens = useMemo(() => dataLayerTokens(layerVisibility), [layerVisibility]);
+  /* Tầng đã đọc xong mà không có đoạn tường nào: không có chỗ đặt cửa (BUG-422). */
+  const hasNoWall = level !== null && solidWalls.length === 0;
+  const { onNavigate } = options;
 
   /*
    * Lớp vẽ theo pixel KHUNG (BUG-403): `<svg>` phủ kín khung với `viewBox` là vùng bản vẽ đang
@@ -1373,7 +1377,12 @@ export function useObjectLayerReview(
     isCollapsed,
     isViewerRole,
     viewerRoleNotice: isViewerRole ? OBJECT_LAYER_TEXT.forbidden : null,
-    emptyNotice: reviewCounter.total === 0 && !isLoading && !hasError ? OBJECT_LAYER_TEXT.emptyExplanation : null,
+    emptyNotice:
+      reviewCounter.total === 0 && !isLoading && !hasError
+        ? hasNoWall
+          ? OBJECT_LAYER_TEXT.emptyNoWall
+          : OBJECT_LAYER_TEXT.emptyExplanation
+        : null,
     errorMessage: hasError
       ? isFloorNotFound(floorLayer.error)
         ? floorLayer.errorMessage
@@ -1438,6 +1447,10 @@ export function useObjectLayerReview(
     onSelectLayerObjects,
     onToggleLowConfidenceOnly,
     onAddManually,
+    onOpenWallLayer:
+      hasNoWall && onNavigate !== undefined
+        ? () => onNavigate(ROUTES.project.walls(projectId, floorId))
+        : null,
     saveBlock,
     provisionalScaleNotice,
     readFailure,

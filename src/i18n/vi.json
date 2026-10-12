@@ -1623,6 +1623,8 @@
       "emptyTitle": "Chưa nhận ra đối tượng nào",
       "emptyExplanation": "Nhận diện nội thất phụ thuộc kiểu vẽ của bản gốc, nên bản vẽ ít ký hiệu quy ước có thể không ra kết quả nào.",
       "emptyAction": "Thêm thủ công",
+      "emptyNoWall": "Tầng này chưa có đoạn tường nào, nên chưa có chỗ đặt cửa hay cửa sổ. Duyệt lớp tường trước rồi quay lại đây.",
+      "openWallLayerAction": "Sang duyệt tường",
       "partialNotice": "{{count}} mục dưới ngưỡng tin cậy, đã lọc sẵn",
       "furnitureAttention": "Nhận diện nội thất lỗi, cửa vẫn xong",
       "success": "{{total}}/{{total}} đối tượng đã duyệt",

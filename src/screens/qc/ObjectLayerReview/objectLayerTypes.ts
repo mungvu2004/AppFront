@@ -626,6 +626,11 @@ export interface ObjectLayerReviewModel {
    * hoàn tác được như mọi lệnh khác, và KHÔNG đặt cờ duyệt (A5).
    */
   readonly onAddManually: () => void;
+  /**
+   * Tầng chưa có đoạn tường nào: "Thêm thủ công" chỉ dẫn tới toast lỗi, nên trạng thái rỗng mở
+   * màn Duyệt tường thay vào đó (BUG-422). `null` khi tầng có tường hoặc không có lối điều hướng.
+   */
+  readonly onOpenWallLayer: (() => void) | null;
   /** Khối lưu lớp của tầng — dải "Tải lại" / "Không lưu được" (F-04x-1). */
   readonly saveBlock?: FloorLayerSaveBlock | null | undefined;
   /** Dải tỉ lệ tạm (F-04x-2); `null` khi tầng đã có tỉ lệ thật. */
