@@ -1381,10 +1381,11 @@ test.describe('E05 SCR-26 Pascal Viewer', () => {
       await page.keyboard.press('Escape'); // UPV:360-367
       const expand = page.getByRole('button', { name: PV.expand, exact: true });
       await expect(page.getByRole('heading', { name: PV.collapsedTitle, exact: true })).toBeVisible();
+      await expect(page.getByTestId('pascal-canvas')).toHaveCount(0);
+      await captureEvidence(page, 'E05_pascal_summary_collapse.png'); // BUG-493: the collapsed frame, before it re-opens
       await expand.click(); // PVV:125 onExpand (UPV:337-340)
       await expect(page.getByTestId('pascal-canvas')).toBeVisible();
       await expect(caption).toHaveText(PV.rendered, { timeout: PASCAL_RENDER_TIMEOUT_MS });
-      await captureEvidence(page, 'E05_pascal_summary_collapse.png');
     });
   });
 
@@ -1408,11 +1409,21 @@ test.describe('E05 SCR-26 Pascal Viewer', () => {
       await captureEvidence(page, 'E05_pascal_mount_failed.png');
 
       await page.unroute(`**${PV.mountPath}*`, handler);
+      const retried = page.waitForResponse((response) => new URL(response.url()).pathname === PV.mountPath, {
+        timeout: PASCAL_RENDER_TIMEOUT_MS,
+      });
       await page.keyboard.press('r'); // UPV:370-378 R only while failing
+      const retry = await retried; // UPV:47-58 mountUrl(attempt): the retry carries `attempt=N`
+      expect(retry.status()).toBe(200);
       await expect(page.getByTestId('pascal-canvas')).toBeVisible({ timeout: PASCAL_RENDER_TIMEOUT_MS });
       await expect(page.getByRole('status').filter({ hasText: PV.rendered })).toHaveText(PV.rendered, { timeout: PASCAL_RENDER_TIMEOUT_MS });
-      await captureEvidence(page, 'E05_pascal_mount_retry.png');
-      await attachJson('E05_pascal_mount_failed.json', { abortedMountRequests: aborted.length, queries: aborted });
+      await expect(page.getByRole('heading', { name: PV.errorTitle, exact: true })).toHaveCount(0);
+      const retryQuery = new URL(retry.url()).search;
+      // BUG-493: the rendered frame alone looks like "summary"; the strip says it is the retry after PASCAL-01.
+      await captureEvidence(page, 'E05_pascal_mount_retry.png', {
+        caption: `R after PASCAL-01: ${String(aborted.length)} aborted ${PV.mountPath} request(s), retry ${retryQuery} → ${String(retry.status())}`,
+      });
+      await attachJson('E05_pascal_mount_failed.json', { abortedMountRequests: aborted.length, queries: aborted, retryQuery, retryStatus: retry.status() });
     });
   });
 
