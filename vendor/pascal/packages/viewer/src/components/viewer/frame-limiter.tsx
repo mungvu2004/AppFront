@@ -1,5 +1,7 @@
+import { useInteractive, useScene } from '@pascal-app/core'
 import { useThree } from '@react-three/fiber'
 import { useLayoutEffect, useRef } from 'react'
+import { isLiveFrameHeld } from '../../lib/live-frame-hold'
 import { timeSpan } from '../../lib/perf-tracks'
 import useViewer from '../../store/use-viewer'
 
@@ -12,6 +14,60 @@ type FrameLimiterProps = {
 export type FrameClock = {
   sample: (wallTimeMs: number, intervalMs: number) => number | null
   step: (seconds: number) => number
+}
+
+/**
+ * How long after the last pointer/wheel/key event the loop keeps running at
+ * full rate. Interaction moves the camera, the hover highlight and the tools
+ * by mutating three objects directly — no React render, so nothing calls
+ * `invalidate()` — and the eased transitions those start (zone fade, item
+ * lerp, camera damping) outlive the event itself.
+ */
+export const INTERACTION_TAIL_MS = 500
+
+/**
+ * Does this rAF tick owe a frame?
+ *
+ * The limiter drives R3F by hand (`frameloop: 'never'`), and before this gate
+ * it advanced every tick forever: a scene standing still still paid ~50
+ * frames/second of systems plus a draw, which is where AppFront measured
+ * Pascal at ~1.6x the main-thread CPU of its own on-demand viewer
+ * (docs/pascal/01-ho-so-cong-T4.1.md §8d).
+ *
+ * `frames` is R3F's own demand counter: every prop update invalidates
+ * (`invalidateInstance`), drei's camera controls invalidate on every control
+ * event, and the viewer's own systems (scene-ready, atmosphere, materials,
+ * node batches) call `invalidate()` when they leave work behind. `render()`
+ * decrements it, so one invalidate buys exactly one frame.
+ */
+export function frameDemanded({
+  frames,
+  hotUntilMs,
+  liveFrameHeld,
+  now,
+  pendingWork,
+}: {
+  frames: number
+  hotUntilMs: number
+  liveFrameHeld: boolean
+  now: number
+  pendingWork: boolean
+}): boolean {
+  return frames > 0 || pendingWork || liveFrameHeld || now < hotUntilMs
+}
+
+/**
+ * Work the viewer owes that no `invalidate()` announces: nodes waiting to be
+ * built, and door/window animations, which deliberately do NOT mark dirty per
+ * tick (a mark is one-shot work, not a needs-frame signal — see
+ * door-animation-system.tsx).
+ */
+function hasPendingFrameWork(): boolean {
+  if (useScene.getState().dirtyNodes.size > 0) return true
+  const interactive = useInteractive.getState()
+  for (const _ in interactive.doorAnimations) return true
+  for (const _ in interactive.windowAnimations) return true
+  return false
 }
 
 /**
@@ -59,11 +115,30 @@ const DRAW_DISABLED =
       .map((s) => s.trim()),
   ).has('draw')
 
+/**
+ * `?frameloop=always` — advance every tick the way the limiter did before the
+ * demand gate, so the two behaviours can be measured against each other in one
+ * build, on one page, on one machine (scripts/pascal-perf, e2e/pascal-perf.spec.ts).
+ * It is a measurement switch, not a supported viewer mode.
+ */
+const FRAMELOOP_ALWAYS =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('frameloop') === 'always'
+
+const INTERACTION_EVENTS = [
+  'pointerdown',
+  'pointermove',
+  'pointerup',
+  'pointercancel',
+  'wheel',
+] as const
+
 const FrameLimiter: React.FC<FrameLimiterProps> = ({ fps = 50, paused = false, onFrameError }) => {
   const { advance: advanceFrame, set, frameloop: initFrameloop } = useThree()
   const onFrameErrorRef = useRef(onFrameError)
   onFrameErrorRef.current = onFrameError
   const nextFrameTimeRef = useRef(0)
+  const internal = useThree((state) => state.internal)
   const renderer = useThree((state) => state.gl)
   const size = useThree((state) => state.size)
   const dpr = useThree((state) => state.viewport.dpr)
@@ -97,11 +172,27 @@ const FrameLimiter: React.FC<FrameLimiterProps> = ({ fps = 50, paused = false, o
       renderer.setSize(size.width, size.height, false)
       sizeSynced = true
     }
+    let hotUntilMs = 0
+    function heatUp() {
+      hotUntilMs = performance.now() + INTERACTION_TAIL_MS
+    }
     function tick(t: DOMHighResTimeStamp) {
       raf = requestAnimationFrame(tick)
       syncSize()
       const frameTime = clock.sample(t, interval)
       if (frameTime === null) return
+      if (
+        !FRAMELOOP_ALWAYS &&
+        !frameDemanded({
+          frames: internal.frames,
+          hotUntilMs,
+          liveFrameHeld: isLiveFrameHeld(),
+          now: t,
+          pendingWork: hasPendingFrameWork(),
+        })
+      ) {
+        return
+      }
       nextFrameTimeRef.current = frameTime
       timeSpan('frame-cpu', () => advance(frameTime))
     }
@@ -123,8 +214,15 @@ const FrameLimiter: React.FC<FrameLimiterProps> = ({ fps = 50, paused = false, o
         timeSpan('frame-cpu', () => advance(frameTime))
       }, interval)
     } else {
-      // Kick off custom render loop
+      // Kick off custom render loop. The first interaction tail starts open so
+      // the scene's first frames are never gated behind an invalidate that
+      // the initial mount may have fired before this effect ran.
+      heatUp()
       raf = requestAnimationFrame(tick)
+      for (const type of INTERACTION_EVENTS) {
+        renderer.domElement.addEventListener(type, heatUp, { passive: true })
+      }
+      window.addEventListener('keydown', heatUp, { passive: true })
       // rAF can stall while a tab is hidden, unfocused, or occluded. With the
       // default loop disabled, force one current frame as soon as it resumes.
       document.addEventListener('visibilitychange', onVisibilityChange)
@@ -142,6 +240,10 @@ const FrameLimiter: React.FC<FrameLimiterProps> = ({ fps = 50, paused = false, o
       document.removeEventListener('visibilitychange', onVisibilityChange)
       window.removeEventListener('focus', kick)
       window.removeEventListener('pageshow', kick)
+      window.removeEventListener('keydown', heatUp)
+      for (const type of INTERACTION_EVENTS) {
+        renderer.domElement.removeEventListener(type, heatUp)
+      }
       set({ frameloop: initFrameloop })
     }
   }, [
@@ -149,6 +251,7 @@ const FrameLimiter: React.FC<FrameLimiterProps> = ({ fps = 50, paused = false, o
     dpr,
     fps,
     initFrameloop,
+    internal,
     paused,
     renderPaused,
     renderer,

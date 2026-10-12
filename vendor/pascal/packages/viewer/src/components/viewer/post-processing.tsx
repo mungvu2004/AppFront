@@ -752,6 +752,12 @@ const PostProcessingPasses = ({
     bgSkyDeepTarget.current.set(deepSkyColor(bgTheme.backgroundSky ?? bgTheme.background))
     bgSkyDeepCurrent.current.lerp(bgSkyDeepTarget.current, Math.min(delta, 0.1) * 4)
     bgSkyDeepUniform.current.value.copy(bgSkyDeepCurrent.current)
+    // The lerp above is the one viewer effect that needs frames nobody asks
+    // for: a theme change invalidates once, and the frame limiter now only
+    // advances on demand. Keep asking while the colour is still travelling,
+    // and stop the moment it lands (`manhattanDistanceTo` is cheap and the
+    // threshold is a 1/255 colour step — below it nothing is visible).
+    if (bgCurrent.current.manhattanDistanceTo(bgTarget.current) > 1 / 255) invalidate()
     camProjInvUniform.current.value.copy(camera.projectionMatrixInverse)
     camWorldUniform.current.value.copy(camera.matrixWorld)
     // Ink colour follows the (lerping) background luminance — snaps dark↔light.
