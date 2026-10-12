@@ -27,8 +27,9 @@ import { EMAIL_BY_ROLE, submitSignInForm } from './fixtures/session';
  * 5. `Esc` đóng ĐÚNG MỘT lớp: bảng phím tắt trước, khung Pascal sau — lời hứa
  *    A12 "Esc đóng lớp trên cùng" giữa hai phạm vi phím (`dialog` › `canvas`),
  *    kể cả khi gói còn đang nạp; `E` và nút "Mở khung xem" mở lại.
- * 6. Hộp chỉ chứa khung dựng — 0 nút/tab/hộp thoại/ô nhập: hàng rào H-1 của
- *    nhóm V11 (trình soạn thảo Pascal chưa được gắn ở đâu).
+ * 6. Hộp chứa trình soạn thảo Pascal (F-15 gắn `<Editor>` vào đúng hộp này), và
+ *    điều khiển của nó không còn nhãn tiếng Anh thường gặp. Hàng rào H-1 cũ của
+ *    nhóm V11 ("editor chưa gắn ở đâu", 0 nút) hết hiệu lực từ F-15.
  * 7. Sửa một bức tường trong trình soạn thảo → màn nói "Đã lưu" → tải lại
  *    trang thì giá trị mới còn đó (đường lưu của F-15 việc T4).
  * 8. `PASCAL-01` dựng lại được bằng `page.route` chặn đúng tệp gói (404 và
@@ -76,6 +77,14 @@ const PASCAL_VIEWER_PATH = ROUTE_PATTERNS.projectViewer.replace(':projectId', PR
 
 /** Tên khung ngoài cùng của màn — `<section aria-label={PASCAL_VIEWER_TITLE}>`, `PascalViewer.tsx:25`. */
 const SCREEN_REGION_NAME = 'Mô hình 3D';
+
+/**
+ * Chú thích trạng thái của MÀN — `<p role="status">` đầu tiên, nằm trong `Frame`
+ * ngay trên khung dựng (`PascalViewer.tsx:58`). Từ F-15 việc T4, màn có thêm một
+ * `role="status"` thứ hai cho dòng tự lưu ("Đã lưu", `PascalViewer.tsx:207`), nên
+ * `getByRole('status')` trần là hai phần tử và Playwright từ chối ở chế độ strict.
+ */
+const caption = (page: Page) => page.getByRole('status').first();
 
 /** Khung nhìn của mọi bài — cùng cỡ các số đo trong tệp này. */
 const VIEWPORT = { width: 1440, height: 900 } as const;
@@ -356,7 +365,7 @@ test('hộp Pascal dựng ra một cảnh thật, không request nào rời máy
      `true` qua `onReadyChange` thật của gói Pascal. Bằng chứng cụ thể: một
      <canvas> thật, kích thước thật (>0) cả ở khung nhìn (bounding box) lẫn ở
      vùng đệm vẽ (width/height của chính nó). */
-  await expect(page.getByRole('status')).toHaveText(SUCCESS_CAPTION, {
+  await expect(caption(page)).toHaveText(SUCCESS_CAPTION, {
     timeout: PASCAL_RENDER_TIMEOUT_MS,
   });
   const canvasEl = canvasBox.locator('canvas');
@@ -394,20 +403,17 @@ test('hộp Pascal dựng ra một cảnh thật, không request nào rời máy
      phải mang mã băm nội dung (`vite.config.ts`), không thì bản cũ nằm lì sau triển khai. */
   expect(requestUrls).toContainEqual(expect.stringMatching(/\/assets\/pascal\/pascal-mount\.js\?v=[0-9a-f]{8}$/u));
 
-  /* H-1 (V11) — hàng rào: hộp chỉ chứa khung dựng, KHÔNG chứa điều khiển nào của
-     trình soạn thảo Pascal. Hôm nay AppFront chỉ dựng gói `viewer`
-     (`PascalFrame.tsx`), không nơi nào nhập `@pascal-app/editor`; ngày ai đó gắn
-     `Editor` vào hộp này, sidebar/hộp thoại tiếng Anh của fork (nợ A6,
-     `docs/pascal/00-quyet-dinh.md`) hiện ra mà chưa có kế hoạch kiểm — đỏ ở đây
-     là tín hiệu viết lại mục V11 của `docs/notes/e2e/plan.md`. Chỉ đếm bốn lớp
-     vai tương tác; cố ý KHÔNG đếm `[role]` trần (một `role="img"` cho canvas
-     không phải editor). Chạy SAU khi khung hình có hình học: trước đó hộp còn trống, xanh giả. */
-  await expect(canvasBox.getByRole('button')).toHaveCount(0);
-  await expect(canvasBox.getByRole('tab')).toHaveCount(0);
-  await expect(canvasBox.getByRole('tablist')).toHaveCount(0);
-  await expect(canvasBox.getByRole('dialog')).toHaveCount(0);
-  await expect(canvasBox.getByRole('alertdialog')).toHaveCount(0);
-  await expect(canvasBox.locator('input, select, textarea, a[href]')).toHaveCount(0);
+  /* H-1 của nhóm V11 đã HẾT HIỆU LỰC từ F-15: hàng rào ấy nói "trình soạn thảo
+     Pascal chưa được gắn ở đâu" và đếm 0 nút trong hộp. F-15 gắn `<Editor>` vào
+     đúng hộp này, nên lời hứa đảo chiều — cái phải canh bây giờ là editor CÓ mặt
+     và điều khiển của nó nói tiếng Việt. Số đo 2026-10-13: 76 nút trong hộp. */
+  await expect(canvasBox.getByRole('button').first()).toBeVisible();
+  const englishControl = await canvasBox
+    .getByRole('button')
+    .filter({ hasText: /^(Settings|Export|Cancel|Save|Delete)$/u })
+    .count();
+
+  expect(englishControl).toBe(0);
 
 
   /* Việc 3c — KHÔNG node nào bị store Pascal dọn đi. Nó dọn node mồ côi và
@@ -552,7 +558,7 @@ test('dưới CSP của nginx: 0 vi phạm, dựng xong, và bộ giải Basis t
 
   await openPascalViewer(page);
 
-  await expect(page.getByRole('status')).toHaveText(SUCCESS_CAPTION, {
+  await expect(caption(page)).toHaveText(SUCCESS_CAPTION, {
     timeout: PASCAL_RENDER_TIMEOUT_MS,
   });
 
@@ -599,7 +605,7 @@ test('Esc đóng bảng phím tắt trước, rồi mới thu khung xem; E mở 
   await openPascalViewer(page);
 
   const canvasBox = page.getByTestId('pascal-canvas');
-  await expect(page.getByRole('status')).toHaveText(SUCCESS_CAPTION, {
+  await expect(caption(page)).toHaveText(SUCCESS_CAPTION, {
     timeout: PASCAL_RENDER_TIMEOUT_MS,
   });
 
@@ -625,7 +631,7 @@ test('Esc đóng bảng phím tắt trước, rồi mới thu khung xem; E mở 
   await page.keyboard.press('Escape');
   await expect(canvasBox).toHaveCount(0);
   await expect(page.getByRole('heading', { name: COLLAPSED_HEADING, exact: true })).toBeVisible();
-  await expect(page.getByRole('status')).toContainText('thu gọn');
+  await expect(caption(page)).toContainText('thu gọn');
 
   /* Và đó là lớp DUY NHẤT đóng — phần còn lại của màn vẫn còn nguyên. */
   await expect(page.getByRole('region', { name: SCREEN_REGION_NAME })).toBeVisible();
@@ -634,7 +640,7 @@ test('Esc đóng bảng phím tắt trước, rồi mới thu khung xem; E mở 
      chỉ phát sự kiện tay. Gõ chữ thường như người dùng gõ; sổ khai `'E'`. */
   await page.keyboard.press('e');
   await expect(canvasBox).toBeVisible();
-  await expect(page.getByRole('status')).toHaveText(SUCCESS_CAPTION, {
+  await expect(caption(page)).toHaveText(SUCCESS_CAPTION, {
     timeout: PASCAL_RENDER_TIMEOUT_MS,
   });
 });
@@ -648,7 +654,7 @@ test('Esc thu khung ngay cả khi gói còn đang nạp, và lượt nạp dở 
   await openPascalViewer(page);
 
   const canvasBox = page.getByTestId('pascal-canvas');
-  await expect(page.getByRole('status')).toHaveText(LOADING_CAPTION);
+  await expect(caption(page)).toHaveText(LOADING_CAPTION);
   await expect(canvasBox).toBeVisible();
 
   await page.keyboard.press('Escape');
@@ -659,12 +665,12 @@ test('Esc thu khung ngay cả khi gói còn đang nạp, và lượt nạp dở 
      `textContent` lặp đôi (bản sao `aria-hidden` giữ bề rộng, `Button.tsx:74`). */
   await page.getByRole('button', { name: 'Mở khung xem', exact: true }).click();
   await expect(canvasBox).toBeVisible();
-  await expect(page.getByRole('status')).toHaveText(LOADING_CAPTION);
+  await expect(caption(page)).toHaveText(LOADING_CAPTION);
 
   /* Lượt nạp bị thu giữa chừng vẫn đang treo; thả nó ra thì lượt mở lại phải
      dùng được chính lượt nạp ấy và dựng xong. */
   release();
-  await expect(page.getByRole('status')).toHaveText(SUCCESS_CAPTION, {
+  await expect(caption(page)).toHaveText(SUCCESS_CAPTION, {
     timeout: PASCAL_RENDER_TIMEOUT_MS,
   });
 });
@@ -706,7 +712,7 @@ for (const [variant, response, retryBy] of [
     await openPascalViewer(page);
 
     await expect(page.getByRole('heading', { name: ERROR_HEADING, exact: true })).toBeVisible();
-    await expect(page.getByRole('status')).toHaveText('Không nạp được khung dựng hình.');
+    await expect(caption(page)).toHaveText('Không nạp được khung dựng hình.');
     await expect(page.getByText('kèm mã PASCAL-01.')).toBeVisible();
     await expect(page.getByTestId('pascal-canvas')).toHaveCount(0);
 
@@ -720,7 +726,7 @@ for (const [variant, response, retryBy] of [
       await page.keyboard.press('r');
     }
 
-    await expect(page.getByRole('status')).toHaveText(SUCCESS_CAPTION, {
+    await expect(caption(page)).toHaveText(SUCCESS_CAPTION, {
       timeout: PASCAL_RENDER_TIMEOUT_MS,
     });
     await expect(page.getByTestId('pascal-canvas').locator('canvas')).toHaveCount(1);
