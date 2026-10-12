@@ -437,8 +437,17 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
    * không phải thay đổi của người dùng — không nhãn lịch sử, không toast mời
    * "hoàn tác", không đánh thức bộ tự lưu.
    */
+  /** Tăng mỗi lượt nạp; vé phát ở thế hệ cũ coi như đã hết hạn. */
+  const ticketGenerationRef = useRef(0);
+  const onDiscardToasts = options.onDiscardToasts;
+
   const hydrate = useCallback(
     (next: LoadedRuleConfig): void => {
+      // Mọi lượt nạp là bản máy chủ mới hơn (tải lại, refetch nền) hoặc dự án khác: vé hoàn tác
+      // cũ hết hạn ngay và toast của chúng bị gỡ, nếu không "Hoàn tác" ghi bản chụp cũ đè lên
+      // bản vừa nạp — hoặc ghi cấu hình của dự án A vào dự án B (BUG-463).
+      ticketGenerationRef.current += 1;
+      onDiscardToasts?.();
       useStore.getState().hydrateRuleConfig({
         projectId,
         revision: next.revision,
@@ -447,7 +456,7 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
       // Slice dựng object mới, nên mốc là bản trong store chứ không phải `next.config`.
       lastPersistedRef.current = { projectId, config: useStore.getState().ruleConfig };
     },
-    [projectId],
+    [onDiscardToasts, projectId],
   );
 
   useEffect(() => {
@@ -622,25 +631,18 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
   /* Tải lại bản của máy chủ (409) — hỏi trước khi bỏ sửa dở (A9).           */
   /* ---------------------------------------------------------------------- */
 
-  /** Tăng mỗi lượt tải lại; vé phát ở thế hệ cũ coi như đã hết hạn. */
-  const ticketGenerationRef = useRef(0);
-  const onDiscardToasts = options.onDiscardToasts;
-
   const reload = useCallback(async (): Promise<void> => {
     const result = await configQuery.refetch();
 
     // Lượt đọc lại hỏng thì react-query vẫn trả `data` cũ: không nạp nó, giữ dải lỗi.
     if (result.isSuccess) {
-      // Thay đổi cục bộ vừa bị bỏ: vé hoàn tác của chúng hết hạn ngay, nếu không bấm
-      // "Hoàn tác" sẽ ghi bản chụp cũ đè lên bản vừa nạp (BUG-463).
-      ticketGenerationRef.current += 1;
-      onDiscardToasts?.();
+      // `hydrate` làm vé hoàn tác của thay đổi vừa bỏ hết hạn và gỡ toast của chúng (BUG-463).
       hydrate(result.data);
       setSaveProblem(null);
       // Xoá trạng thái `failed` của lượt lưu cũ: không còn gì để gửi.
       void autosave.saveNow();
     }
-  }, [autosave, configQuery, hydrate, onDiscardToasts]);
+  }, [autosave, configQuery, hydrate]);
 
   const onReload = useCallback((): void => {
     if (hasUnsavedEdits()) {
@@ -690,7 +692,7 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
           result.undo();
           autosave.notifyChange();
         },
-        // Sau một lượt tải lại, đồng hồ của vé nhảy tới vô cùng: vé báo `expired`.
+        // Sau một lượt nạp (`hydrate`), đồng hồ của vé nhảy tới vô cùng: vé báo `expired`.
         now: () => (ticketGenerationRef.current === generation ? clock() : Number.POSITIVE_INFINITY),
       });
 
