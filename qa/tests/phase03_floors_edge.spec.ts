@@ -188,12 +188,28 @@ const focusedLabel = (page: Page): Promise<string> =>
 
 const bodyOf = (call: Write): Record<string, unknown> => call.body ?? {};
 
+/**
+ * After a refused floor write the screen can drop to "Không đọc được danh sách tầng" although every GET answers 200
+ * (bug candidate, QA-03d P3 probe: add → API delete → toast undo → DELETE 404). The flow records it as a soft failure
+ * with its own evidence, presses "Thử lại" (FT:215-223) and goes on, so the later rows are still checked.
+ */
+async function readable(page: Page, tag: string): Promise<void> {
+  await page.waitForTimeout(1_000);
+  const readError = page.getByRole('alert').filter({ hasText: 'Không đọc được danh sách tầng' });
+  if ((await readError.count()) === 0) return;
+  await captureEvidence(page, `E03_${tag}_read_error_after_refused_write.png`);
+  expect.soft(false, `${tag}: floor list read error after a refused write (GETs 200)`).toBe(true);
+  await readError.getByRole('button', { name: 'Thử lại', exact: true }).click();
+  await expect(floorRows(page).first()).toBeVisible();
+}
+
 /* ================================================================= flows */
 
 test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
   test('SCR-09 · FL-09-01 · Look at a 3-floor stack, add floors, undo through toasts and Mod+Z', async ({ browser }) => {
     await withFloors(browser, async ({ page, log, api }, project) => {
       const projectId = project.id;
+      const announced = await recordAllAnnouncements(page);
       await openFloors(page, projectId, 3);
 
       await test.step('[09-E-001] region, h2, section, elevation scale, breadcrumb', async () => {
@@ -368,8 +384,10 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         await undoFromToast(page, TOAST.added);
         const del = await nthCall(log, mark, 'DELETE', deleteOf(newId));
         expect(del.status).toBe(404);
+        await readable(page, '09-B-024');
         await expect.soft(floorRow(page, String(bodyOf(post).name))).toBeVisible(); // UFM:984-993 redo
         await expect.soft(toastWith(page, `${T.persistFailed} — ${T.floorGone}`).first()).toBeVisible(); // UFM:224-226
+        expect.soft((await announced()).map((x) => x.text), 'say() also announces the failure (UFM:690-699)').toContain(T.floorGone);
         await captureEvidence(page, 'E03_09-B-024_undo_inverse_404.png');
       });
     }, stackOf(3), '09-fl01');
@@ -570,6 +588,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         await input.press('Enter');
         const patch = await nthCall(log, mark, 'PATCH', spatialOf(projectId, f1.id));
         expect(patch.status).toBe(404);
+        await readable(page, '09-B-019');
         await expect.soft(nameInput(page, name120)).toHaveValue(name120); // UFM:864-877 first request failed → undo
       });
 
@@ -583,6 +602,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         await menuAction(page, name120, MENU.remove);
         const del = await nthCall(log, mark, 'DELETE', deleteOf(f1.id));
         expect(del.status).toBe(404);
+        await readable(page, '09-B-018');
         await expect.soft(floorRow(page, name120)).toHaveCount(1);
         await expect.soft(toastWith(page, T.persistFailed).first()).toBeVisible();
         await captureEvidence(page, 'E03_09-B-018_delete_404.png');
@@ -697,15 +717,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         await commitNumber(elevInput(page, 'Tầng 1'), '-31');
         const patch = await nthCall(log, mark, 'PATCH', spatialOf(projectId, f1.id));
         expect(patch.status).toBe(422); // BE ELEVATION_MIN −30000
-        await page.waitForTimeout(1_000);
-        const readError = page.getByRole('alert').filter({ hasText: 'Không đọc được danh sách tầng' });
-        if ((await readError.count()) > 0) {
-          await captureEvidence(page, 'E03_09-B-021_read_error_after_422.png');
-          await attachJson('E03_09-B-021_read_error_after_422.json', {
-            calls: log.slice(mark).map((w) => `${w.method} ${w.path} ${String(w.status)} ${JSON.stringify(w.json ?? null).slice(0, 300)}`),
-          });
-        }
-        await expect(readError, 'the floor list stays readable after a refused PATCH').toHaveCount(0);
+        await readable(page, '09-B-021');
         await expect.soft(elevInput(page, 'Tầng 1')).toHaveValue('0,0');
         await expect.soft(floorRow(page, 'Tầng 1').getByText(OVERRIDDEN, { exact: true })).toHaveCount(0);
         await captureEvidence(page, 'E03_09-B-021_elevation_422_rollback.png');
@@ -781,6 +793,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         const patch = await nthCall(log, mark, 'PATCH', spatialOf(projectId, f3.id));
         expect(bodyOf(patch).heightMm).toBe(3_500_000);
         expect(patch.status).toBe(422);
+        await readable(page, '09-C-023');
         await expect.soft(heightInput(page, 'Tầng 3')).toHaveValue('3,6');
         await captureEvidence(page, 'E03_09-C-023_thousands_422.png');
       });
@@ -799,6 +812,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
           results.push(`${typed} → ${String(bodyOf(patch).heightMm)} ${String(patch.status)}`);
           expect.soft(bodyOf(patch).heightMm).toBe(mm);
           expect.soft(patch.status).toBe(status); // BE HEIGHT_MIN 2000 / HEIGHT_MAX 10000
+          if (status !== 200) await readable(page, `09-C-020-${String(mm)}`);
           await expect.soft(heightInput(page, 'Tầng 3')).toHaveValue(shown);
         }
         const mark = log.length;
@@ -806,6 +820,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         const patch = await nthCall(log, mark, 'PATCH', spatialOf(projectId, f1.id));
         results.push(`elevation -30,1 → ${String(bodyOf(patch).elevationMm)} ${String(patch.status)}`);
         expect.soft(patch.status).toBe(422);
+        await readable(page, '09-C-020');
         await expect.soft(elevInput(page, 'Tầng 1')).toHaveValue('0,0');
         await attachJson('E03_09-C-020_bounds.json', { results });
       });
@@ -822,6 +837,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         const patch = await nthCall(log, mark, 'PATCH', spatialOf(projectId, f1.id));
         expect.soft(bodyOf(patch).heightMm).toBe(0);
         expect.soft(patch.status).toBe(422);
+        await readable(page, '09-C-021');
         await quiet(page);
         expect.soft(callsSince(log, mark, 'PATCH', spatialRe(projectId))).toHaveLength(1);
         await expect.soft(heightInput(page, 'Tầng 1')).toHaveValue('3,0');
@@ -876,6 +892,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         const first = await nthCall(log, mark, 'PATCH', spatialRe(projectId));
         expect.soft(first.path).toMatch(spatialOf(projectId, f2.id));
         expect.soft(first.status).toBe(422);
+        await readable(page, '09-B-020');
         await quiet(page);
         expect.soft(callsSince(log, mark, 'PATCH', spatialRe(projectId)), 'nothing sent after the first failure').toHaveLength(1);
         await expect.soft(heightInput(page, 'Tầng 2')).toHaveValue('3,0');
@@ -1022,6 +1039,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         await page.keyboard.press('Alt+ArrowUp');
         const reorder = await nthCall(log, mark, 'PATCH', reorderRe);
         expect(reorder.status).toBe(422);
+        await readable(page, '09-B-027');
         expect.soft((reorder.json as { code?: string } | undefined)?.code).toBe('FLOOR_REORDER_MISMATCH'); // BE resolvers.py:113
         await expect.soft(toastWith(page, `${T.persistFailed} — ${T.listChanged}`).first()).toBeVisible(); // UFM:192, 211
         await captureEvidence(page, 'E03_09-B-027_reorder_mismatch.png');
@@ -1274,6 +1292,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         await undoFromToast(page, TOAST.removed('Tầng 2'));
         const post = await nthCall(log, mark, 'POST', floorsRe(projectId));
         expect(post.status).toBe(409); // BE service.py:83 FLOOR_ID_TAKEN
+        await readable(page, '09-B-026');
         await expect.soft(toastWith(page, `${T.persistFailed} — ${T.idTaken}`).first()).toBeVisible(); // UFM:190, 209
         await captureEvidence(page, 'E03_09-B-026_restore_id_taken.png');
       });
@@ -1441,6 +1460,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         await addButton(page).click();
         const post = await nthCall(log, mark, 'POST', floorsRe(projectId));
         expect(post.status).toBe(422);
+        await readable(page, '09-B-029');
         expect.soft((post.json as { code?: string } | undefined)?.code).toBe('FLOOR_LIMIT_REACHED'); // BE service.py:89
         await expect.soft(toastWith(page, `${T.persistFailed} — ${T.limit}`).first()).toBeVisible(); // UFM:191, 210
         await expect(floorRows(page)).toHaveCount(49);
@@ -1521,6 +1541,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         await menuAction(page, 'Tầng chung', MENU.remove);
         const del = await nthCall(log, mark, 'DELETE', deleteOf(shared));
         expect(del.status).toBe(409); // BE resolvers.py:50 FLOOR_ID_AMBIGUOUS
+        await readable(page, '09-B-028');
         await expect.soft(toastWith(page, `${T.persistFailed} — ${T.idAmbiguous}`).first()).toBeVisible(); // UFM:193-194, 212
         await expect.soft(floorRow(page, 'Tầng chung')).toHaveCount(1);
         await captureEvidence(page, 'E03_09-B-028_id_ambiguous.png');
