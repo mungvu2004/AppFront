@@ -80,7 +80,7 @@ export interface ViolationDetailContainerProps {
  */
 function ViolationDetailCrashFallback({ report, retry }: ScreenErrorFallback) {
   return (
-    <div className="absolute right-0 top-0 flex h-full w-[420px] items-center justify-center border-l border-border-default bg-bg-surface">
+    <div className="absolute right-0 top-0 flex h-full w-[420px] max-w-full items-center justify-center border-l border-border-default bg-bg-surface">
       <EmptyState
         description={report.description.description}
         icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-state-violation-tint" />}

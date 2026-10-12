@@ -70,7 +70,8 @@ export interface RuleReportSummaryStripProps {
 /**
  * The four figures, in the order the contract fixes them.
  *
- * `cảnh báo` holds warnings and suggestions together, deliberately: a suggestion
+ * All four count RULES, so total = passed + warnings + violations (BUG-460).
+ * `cảnh báo` holds rules whose findings are warnings or suggestions: a suggestion
  * is never counted as a violation, so the alarming number is the one that has
  * actually earned it. Each row still shows its own severity in words.
  */

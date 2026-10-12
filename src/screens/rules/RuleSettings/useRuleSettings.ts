@@ -149,6 +149,11 @@ export interface UseRuleSettingsOptions {
    * chỉ là không ai mời người dùng bấm.
    */
   readonly onToast?: (toast: RuleSettingsToast) => void;
+  /**
+   * "Tải lại" đã nạp bản của máy chủ: mọi toast hoàn tác đã phát giờ trỏ vào thay
+   * đổi không còn nữa, vỏ gỡ chúng khỏi màn (BUG-463). Vé của chúng đã hết hạn sẵn.
+   */
+  readonly onDiscardToasts?: () => void;
   readonly now?: () => number;
   readonly isOnline?: () => boolean;
   readonly announcer?: Announcer;
@@ -617,17 +622,25 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
   /* Tải lại bản của máy chủ (409) — hỏi trước khi bỏ sửa dở (A9).           */
   /* ---------------------------------------------------------------------- */
 
+  /** Tăng mỗi lượt tải lại; vé phát ở thế hệ cũ coi như đã hết hạn. */
+  const ticketGenerationRef = useRef(0);
+  const onDiscardToasts = options.onDiscardToasts;
+
   const reload = useCallback(async (): Promise<void> => {
     const result = await configQuery.refetch();
 
     // Lượt đọc lại hỏng thì react-query vẫn trả `data` cũ: không nạp nó, giữ dải lỗi.
     if (result.isSuccess) {
+      // Thay đổi cục bộ vừa bị bỏ: vé hoàn tác của chúng hết hạn ngay, nếu không bấm
+      // "Hoàn tác" sẽ ghi bản chụp cũ đè lên bản vừa nạp (BUG-463).
+      ticketGenerationRef.current += 1;
+      onDiscardToasts?.();
       hydrate(result.data);
       setSaveProblem(null);
       // Xoá trạng thái `failed` của lượt lưu cũ: không còn gì để gửi.
       void autosave.saveNow();
     }
-  }, [autosave, configQuery, hydrate]);
+  }, [autosave, configQuery, hydrate, onDiscardToasts]);
 
   const onReload = useCallback((): void => {
     if (hasUnsavedEdits()) {
@@ -669,13 +682,16 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
 
       // A8: đúng một vé cho mỗi thay đổi. Cửa sổ 8 giây do chính vé giữ
       // (`UNDO_WINDOW_MS`), nên ở đây không có bộ đếm thời gian nào.
+      const generation = ticketGenerationRef.current;
+      const clock = nowOption ?? Date.now;
       const ticket = createUndoTicket({
         description: label,
         undo: () => {
           result.undo();
           autosave.notifyChange();
         },
-        ...(nowOption !== undefined ? { now: nowOption } : {}),
+        // Sau một lượt tải lại, đồng hồ của vé nhảy tới vô cùng: vé báo `expired`.
+        now: () => (ticketGenerationRef.current === generation ? clock() : Number.POSITIVE_INFINITY),
       });
 
       onToast?.({
@@ -811,10 +827,11 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
 
   /**
    * Bậc thang bảy trạng thái của A11, chạy đúng một lần theo thứ tự này:
-   * `collapsed → forbidden → loading → error → empty → partial → ready`.
+   * `forbidden → loading → error → empty → collapsed → partial → ready`.
    *
-   * - `collapsed` đứng trước vì nó chỉ đổi CÁCH XẾP, và một người xem trên màn
-   *   hẹp vẫn phải thấy màn thu gọn chứ không phải màn "không có quyền".
+   * - `collapsed` chỉ đổi CÁCH XẾP của màn có dữ liệu, nên đứng sau bốn trạng
+   *   thái không có dữ liệu (cùng thứ tự `useViolationDetail`): đứng trước thì
+   *   màn hẹp vẽ danh sách luật trắng thay cho câu lỗi/không có quyền.
    * - `empty` là **chưa có mô hình**: 25 luật vẫn hiện đủ, nhưng không luật nào
    *   nói được nó đang ảnh hưởng bao nhiêu đối tượng.
    * - `partial` là **đọc xong nhưng chưa yên**: một ô ngưỡng đang báo lỗi, hoặc
@@ -823,10 +840,6 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
    *   nhưng KHÔNG làm cả màn thành lỗi — cài đặt vẫn đọc và sửa được.
    */
   const status = useMemo<RuleSettingsStatus>(() => {
-    if (isCompact) {
-      return 'collapsed';
-    }
-
     // Chỉ đọc KHÔNG phải `forbidden`: N21 cho mọi thành viên đọc, view vẽ dải lý do.
     if (configQuery.isLoadingError && readWireError(configQuery.error)?.status === FORBIDDEN_STATUS) {
       return 'forbidden';
@@ -847,6 +860,10 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
 
     if (graph === null) {
       return 'empty';
+    }
+
+    if (isCompact) {
+      return 'collapsed';
     }
 
     if (hasThresholdProblem || saveState === 'saving' || saveState === 'pending') {

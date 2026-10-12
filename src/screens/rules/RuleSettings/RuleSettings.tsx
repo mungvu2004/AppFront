@@ -255,6 +255,9 @@ export function RuleSettings(props: RuleSettingsProps) {
   const hasContent =
     model.status === 'ready' || model.status === 'partial' || model.status === 'collapsed';
   const showRestoreDefaults = hasContent && !model.isDefault && capabilities.canEditRules;
+  // Chưa đọc được cấu hình (đang tải, lỗi, không có quyền) thì chưa có số luật hay
+  // trạng thái lưu nào để nói — số cũ ở đầu trang mâu thuẫn với câu lỗi (BUG-464).
+  const hasConfig = hasContent || model.status === 'empty';
 
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-bg-app">
@@ -262,11 +265,13 @@ export function RuleSettings(props: RuleSettingsProps) {
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex flex-col gap-1">
             <h2 className="text-base font-semibold text-text-primary">Cài đặt bộ luật không gian</h2>
-            <p className="text-sm text-text-secondary">
-              {enabledText}/{totalText} luật đang bật
-            </p>
+            {hasConfig && (
+              <p className="text-sm text-text-secondary">
+                {enabledText}/{totalText} luật đang bật
+              </p>
+            )}
           </div>
-          <SaveIndicator saveState={model.saveState} label={model.saveCaption} />
+          {hasConfig && <SaveIndicator saveState={model.saveState} label={model.saveCaption} />}
         </header>
 
         {model.status === 'loading' && <Skeleton preset="property-panel" />}
@@ -278,6 +283,7 @@ export function RuleSettings(props: RuleSettingsProps) {
             description={
               model.errorMessage ?? 'Đã có lỗi khi tải cấu hình bộ luật. Thử lại sau ít phút.'
             }
+            action={{ label: 'Thử lại', onClick: props.onReload, variant: 'secondary' }}
           />
         )}
 
