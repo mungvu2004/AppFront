@@ -15,6 +15,7 @@ import {
 import { skylightParametrics } from './parametrics'
 import { buildSkylightRoofCut } from './roof-cut'
 import { SkylightNode } from './schema'
+import { vi } from '../i18n/vi'
 
 // In-world handle constants. Offsets are measured from the skylight's
 // edge to the arrow's CENTER, so they need to clear half the chevron's
@@ -266,12 +267,12 @@ export const skylightDefinition: NodeDefinition<typeof SkylightNode> = {
     move: () => import('./move-tool'),
   },
   toolHints: [
-    { key: 'Left click', label: 'Place skylight on roof' },
-    { key: 'Esc', label: 'Cancel' },
+    { key: 'Left click', label: vi.skylight.shortcuts.place },
+    { key: 'Esc', label: vi.skylight.shortcuts.cancel },
   ],
 
   presentation: {
-    label: 'Skylight',
+    label: vi.skylight.catalogLabel,
     description: 'Framed glass opening on a roof segment.',
     icon: { kind: 'url', src: '/icons/skylight.webp' },
     paletteSection: 'structure',

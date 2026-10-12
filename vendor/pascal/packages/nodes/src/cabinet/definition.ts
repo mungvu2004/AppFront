@@ -91,6 +91,7 @@ import {
   resolveCabinetRunWallSnap,
   resolveCabinetWallFaceOffset,
 } from './wall-snap'
+import { vi } from '../i18n/vi'
 
 type CabinetEditableNode = CabinetNodeType | CabinetModuleNodeType
 
@@ -2471,10 +2472,10 @@ export const cabinetDefinition: NodeDefinition<typeof CabinetNode> = {
   },
   tool: () => import('./tool'),
   toolHints: [
-    { key: 'Click', label: 'Place cabinet' },
+    { key: 'Click', label: vi.cabinet.shortcuts.place },
     {
       key: 'I',
-      label: 'Placement type',
+      label: vi.cabinet.shortcuts.placementType,
       chip: {
         subscribe: (onChange) => useCabinetPlacementType.subscribe(onChange),
         value: () => useCabinetPlacementType.getState().type,
@@ -2484,13 +2485,13 @@ export const cabinetDefinition: NodeDefinition<typeof CabinetNode> = {
         tooltip: 'Placement type — click or press I to toggle',
       },
     },
-    { key: 'Alt', label: 'Force place' },
-    { key: 'R / T', label: 'Rotate' },
-    { key: 'Esc', label: 'Cancel run / exit' },
+    { key: 'Alt', label: vi.cabinet.shortcuts.forcePlace },
+    { key: 'R / T', label: vi.cabinet.shortcuts.rotate },
+    { key: 'Esc', label: vi.cabinet.shortcuts.cancelRun },
   ],
 
   presentation: {
-    label: 'Modular Cabinet',
+    label: vi.cabinet.catalogLabel,
     description: 'A configurable parametric base cabinet.',
     icon: { kind: 'url', src: '/icons/item.webp' },
     paletteSection: 'furnish',
@@ -2663,7 +2664,7 @@ export const cabinetModuleDefinition: NodeDefinition<typeof CabinetModuleNode> =
   },
 
   presentation: {
-    label: 'Cabinet Module',
+    label: vi.cabinet.moduleLabel,
     description: 'An editable module inside a modular cabinet run.',
     icon: { kind: 'url', src: '/icons/item.webp' },
     paletteSection: 'furnish',

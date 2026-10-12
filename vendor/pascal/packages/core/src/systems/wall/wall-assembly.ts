@@ -43,6 +43,7 @@
  * faces and no cladding or sheathing is drawn (see `resolveWallAssembly`).
  */
 
+import { vi } from '../../i18n/vi'
 import type { WallNode } from '../../schema'
 import type { WallAssembly } from '../../schema/nodes/wall'
 import { DEFAULT_WALL_THICKNESS } from './wall-footprint'
@@ -330,7 +331,7 @@ export type WallAssemblyPreset = {
 export const WALL_ASSEMBLY_PRESETS: readonly WallAssemblyPreset[] = [
   {
     id: 'exterior-2x4-siding',
-    label: 'Exterior 2x4 — lap siding',
+    label: vi.wallAssembly.presets.exterior2x4Siding,
     category: 'exterior',
     assembly: {
       preset: 'exterior-2x4-siding',
@@ -343,7 +344,7 @@ export const WALL_ASSEMBLY_PRESETS: readonly WallAssemblyPreset[] = [
   },
   {
     id: 'exterior-2x6-siding',
-    label: 'Exterior 2x6 — lap siding',
+    label: vi.wallAssembly.presets.exterior2x6Siding,
     category: 'exterior',
     assembly: {
       preset: 'exterior-2x6-siding',
@@ -356,7 +357,7 @@ export const WALL_ASSEMBLY_PRESETS: readonly WallAssemblyPreset[] = [
   },
   {
     id: 'exterior-2x6-stucco',
-    label: 'Exterior 2x6 — stucco',
+    label: vi.wallAssembly.presets.exterior2x6Stucco,
     category: 'exterior',
     assembly: {
       preset: 'exterior-2x6-stucco',
@@ -371,7 +372,7 @@ export const WALL_ASSEMBLY_PRESETS: readonly WallAssemblyPreset[] = [
   },
   {
     id: 'exterior-2x6-brick',
-    label: 'Exterior 2x6 — brick veneer',
+    label: vi.wallAssembly.presets.exterior2x6Brick,
     category: 'exterior',
     assembly: {
       preset: 'exterior-2x6-brick',
@@ -385,7 +386,7 @@ export const WALL_ASSEMBLY_PRESETS: readonly WallAssemblyPreset[] = [
   },
   {
     id: 'interior-2x4-drywall',
-    label: 'Interior 2x4 — drywall both sides',
+    label: vi.wallAssembly.presets.interior2x4Drywall,
     category: 'interior',
     // 4.5 in total, the typical 2x4 partition.
     assembly: {
@@ -396,7 +397,7 @@ export const WALL_ASSEMBLY_PRESETS: readonly WallAssemblyPreset[] = [
   },
   {
     id: 'interior-2x6-plumbing',
-    label: 'Interior 2x6 — plumbing wall',
+    label: vi.wallAssembly.presets.interior2x6Plumbing,
     category: 'interior',
     assembly: {
       preset: 'interior-2x6-plumbing',
@@ -406,7 +407,7 @@ export const WALL_ASSEMBLY_PRESETS: readonly WallAssemblyPreset[] = [
   },
   {
     id: 'exterior-cmu-stucco',
-    label: 'Exterior CMU 8" — stucco',
+    label: vi.wallAssembly.presets.exteriorCmuStucco,
     category: 'masonry',
     assembly: {
       preset: 'exterior-cmu-stucco',
@@ -417,12 +418,11 @@ export const WALL_ASSEMBLY_PRESETS: readonly WallAssemblyPreset[] = [
       exterior: { finish: 'stucco', thickness: STUCCO_3_COAT },
       interior: { finish: 'drywall', thickness: FURRING_1X + GYPSUM_HALF },
     },
-    unverified:
-      '1x3 furring at 3/4 in is nominal-lumber practice, not a code-cited assembly layer; the furring and the 1/2 in board are drawn as one 1-1/4 in interior finish.',
+    unverified: vi.wallAssembly.unverifiedCmuStucco,
   },
   {
     id: 'cmu-8-furred-drywall',
-    label: 'CMU 8" — furring + drywall',
+    label: vi.wallAssembly.presets.cmu8FurredDrywall,
     category: 'masonry',
     assembly: {
       preset: 'cmu-8-furred-drywall',
@@ -433,8 +433,7 @@ export const WALL_ASSEMBLY_PRESETS: readonly WallAssemblyPreset[] = [
       exterior: { finish: 'none', thickness: 0 },
       interior: { finish: 'drywall', thickness: FURRING_1X + GYPSUM_HALF },
     },
-    unverified:
-      '1x3 furring at 3/4 in is nominal-lumber practice, not a code-cited assembly layer; the furring and the 1/2 in board are drawn as one 1-1/4 in interior finish.',
+    unverified: vi.wallAssembly.unverifiedCmuFurredDrywall,
   },
 ] as const
 

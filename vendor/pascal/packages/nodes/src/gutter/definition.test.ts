@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { GutterNode } from '@pascal-app/core'
 import { gutterDefinition } from './definition'
+import { vi } from '../i18n/vi'
 
 describe('gutter paint capability', () => {
   test('paints the complete gutter through the gutter slot', () => {
@@ -8,7 +9,7 @@ describe('gutter paint capability', () => {
     const paint = gutterDefinition.capabilities.paint
 
     expect(gutterDefinition.capabilities.slots?.(node)).toEqual([
-      { slotId: 'gutter', label: 'Gutter', default: 'library:preset-softwhite' },
+      { slotId: 'gutter', label: vi.gutter.slots.gutter, default: 'library:preset-softwhite' },
     ])
     expect(paint?.materialTarget).toBe('gutter')
     expect(

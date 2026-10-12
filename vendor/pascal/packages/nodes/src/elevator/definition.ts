@@ -16,6 +16,7 @@ import { elevatorPaint } from './paint'
 import { elevatorParametrics } from './parametrics'
 import { ElevatorNode } from './schema'
 import { elevatorSlots } from './slots'
+import { vi } from '../i18n/vi'
 
 const SIDE_HANDLE_OFFSET = 0.22
 const HEIGHT_HANDLE_OFFSET = 0.3
@@ -182,9 +183,9 @@ export const elevatorDefinition: NodeDefinition<typeof ElevatorNode> = {
   // snapping chip shows during placement.
   snapDraftDirectional: false,
   toolHints: [
-    { key: 'Left click', label: 'Place elevator' },
-    { key: 'R / T', label: 'Rotate' },
-    { key: 'Esc', label: 'Cancel' },
+    { key: 'Left click', label: vi.elevator.shortcuts.place },
+    { key: 'R / T', label: vi.elevator.shortcuts.rotate },
+    { key: 'Esc', label: vi.elevator.shortcuts.cancel },
   ],
   surfaceRole: 'joinery',
 
@@ -273,7 +274,7 @@ export const elevatorDefinition: NodeDefinition<typeof ElevatorNode> = {
   },
 
   presentation: {
-    label: 'Elevator',
+    label: vi.elevator.catalogLabel,
     description: 'A multi-level elevator shaft with configurable openings per level.',
     icon: { kind: 'url', src: '/icons/wallcut.webp' },
     paletteSection: 'structure',

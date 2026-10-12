@@ -4,6 +4,7 @@ import { buildLinesetFloorplan } from './floorplan'
 import { buildLinesetGeometry } from './geometry'
 import { linesetParametrics } from './parametrics'
 import { LinesetNode } from './schema'
+import { vi } from '../i18n/vi'
 
 /**
  * Refrigerant lineset — the copper suction + liquid pair joining a split
@@ -114,14 +115,14 @@ export const linesetDefinition: NodeDefinition<typeof LinesetNode> = {
 
   tool: () => import('./tool'),
   toolHints: [
-    { key: 'Click', label: 'Start lineset' },
-    { key: 'Click again', label: 'Place it (locked to 45°)' },
-    { key: 'Alt + drag', label: 'Go vertical ↕, click to place' },
-    { key: 'Esc', label: 'Cancel start point' },
+    { key: 'Click', label: vi.lineset.shortcuts.start },
+    { key: 'Click again', label: vi.lineset.shortcuts.placeLocked45 },
+    { key: 'Alt + drag', label: vi.lineset.shortcuts.goVertical },
+    { key: 'Esc', label: vi.lineset.shortcuts.cancelStart },
   ],
 
   presentation: {
-    label: 'Lineset',
+    label: vi.lineset.catalogLabel,
     description:
       'Refrigerant lineset — copper suction + liquid pair joining a condenser to the indoor coil.',
     icon: { kind: 'url', src: '/icons/lineset.webp' },

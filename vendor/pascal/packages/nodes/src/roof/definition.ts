@@ -21,6 +21,7 @@ import useRoofPlacementMode, {
   standardRoofToolHintVisibility,
 } from './roof-placement-mode'
 import { RoofNode } from './schema'
+import { vi } from '../i18n/vi'
 
 const MOVE_FRONT_OFFSET = 0.35
 const MIN_ROOF_FOOTPRINT = 1
@@ -197,10 +198,10 @@ export const roofDefinition: NodeDefinition<typeof RoofNode> = {
   },
   tool: () => import('./tool'),
   toolHints: [
-    { key: 'Left click', label: 'Set roof footprint' },
+    { key: 'Left click', label: vi.roof.shortcuts.setFootprint },
     {
       key: 'P',
-      label: 'Placement',
+      label: vi.roof.shortcuts.placementGroup,
       visible: conicalRoofToolHintVisibility,
       chip: {
         subscribe: (onChange) => useRoofPlacementMode.subscribe(onChange),
@@ -221,24 +222,24 @@ export const roofDefinition: NodeDefinition<typeof RoofNode> = {
     },
     {
       key: 'R',
-      label: 'Rotate roof direction 90°',
+      label: vi.roof.shortcuts.rotate90,
       visible: standardRoofToolHintVisibility,
     },
-    { key: 'Esc', label: 'Cancel' },
+    { key: 'Esc', label: vi.roof.shortcuts.cancel },
   ],
   toolOptions: [
     {
       id: 'footprintSource',
-      label: 'Create from',
+      label: vi.roof.shortcuts.createFromGroup,
       choices: [
         {
           value: 'draw',
-          label: 'Draw',
+          label: vi.roof.shortcuts.draw,
           description: 'Draw the roof footprint with two corner clicks.',
         },
         {
           value: 'room',
-          label: 'Room',
+          label: vi.roof.shortcuts.room,
           description: 'Hover a room to preview its boundary, then click to place.',
         },
       ],
@@ -266,7 +267,7 @@ export const roofDefinition: NodeDefinition<typeof RoofNode> = {
   },
 
   presentation: {
-    label: 'Roof',
+    label: vi.roof.catalogLabel,
     description: 'A pitched / hip / gable roof composed of one or more segments.',
     icon: { kind: 'url', src: '/icons/roof.webp' },
     paletteSection: 'structure',
