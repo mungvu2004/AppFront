@@ -32,8 +32,8 @@ SSE cases write `A03_<slug>.json` with the frames, no cookie value). Author run:
 pipeline test with the signed-URL fetch: completed, `sourceUrl` on `localhost:9000` (MinIO) served 200 `image/*`.
 `run-18-author` (`--grep "gaps:"`, only the 3 new tests, headless): **3 passed**
 (`F:/App/qa-results/run-18-author/phase03-api/results.json`; evidence `run-18-author/evidence/A03_pdf_*`, `A03_race_*`, `A03_gone_floor_*`).
-UI specs of the phase (layer main / ui / edge): `phase03_pipeline.spec.ts`, `phase03_pipeline_ui.spec.ts`,
-`phase03_pipeline_edge.spec.ts`.
+UI specs of the phase (layer main / ui / edge): `phase03_pipeline.spec.ts`, `phase03_pipeline_ui.spec.ts` and the QA-03d
+flow files `phase03_*_edge.spec.ts` / `phase03_*_ui.spec.ts` (inventory: `F:/App/AppBack/backend/dieu-phoi/chay/QA-03d/flow-plan.md`).
 Endpoints called by the phase's screens (FE `src/api/endpoints.ts`, `src/lib/upload/uploadTask.ts:424-490`,
 `projectSettingsGateway.ts`, `floorManagerGateway.ts`): the nine of the task + read-backs `GET /api/projects/:id/settings`
 (N5), `GET /api/projects/:id/floors` (#12), `GET …/drawings/uploads/:uid/progress` (#8), `GET …/quality` (#30, SCR-11),
@@ -287,14 +287,48 @@ API (N17–N20) are not called by any phase-3 screen.
 
 ## Mock pairing (UI `[mocked response]` tests of phase 3)
 
-Searched `qa/tests/phase03_*.spec.ts` (main `phase03_pipeline.spec.ts`, ui `phase03_pipeline_ui.spec.ts`, edge
-`phase03_pipeline_edge.spec.ts`) for `[mocked response]` / `page.route`: **1 mocked test** (edge).
+Searched `qa/tests/phase03_*.spec.ts` (layers main / ui / edge, QA-03d flow files included) for `[mocked response]` /
+`page.route`. Each row is one mocked flow (`test()`); a "held" request (the real request delayed, then answered by the
+backend) is not a mock and is not listed on its own. Pairing = a real API test in `phase03_pipeline_api.spec.ts`
+("A03 · …"), `phase03_projects_api.spec.ts` (FL-A1-*) or `phase03_upload_api.spec.ts` (FL-A2-*) that proves the same
+contract on the real stack, or `unpairable` + reason. 5xx, aborted requests and `context.setOffline` are unpairable
+throughout: the shared stack cannot fail on demand.
 
-| UI test | Endpoint + faked response | Pairing |
+**Mock share by row** (catalog rows = `test.step('[row id]')`, UI layers main + ui + edge): about 187 / 893 = **0.21** on
+`qa/phase03-depth` after the QA-03d integration; with P9's two files (`qa/p03-P9`) about 210 / 916 = **0.23**
+(flow-split.md: 212 / 952 = 0.22). Limit 0.35.
+
+| UI flow (file) | Endpoint + faked response | Pairing |
 |---|---|---|
-| `phase03_pipeline_edge.spec.ts` E03 SCR-09 "[mocked response] GET floors 500 → "Không đọc được danh sách tầng" + "Thử lại" recovers" | `GET /api/projects/:id/floors` → 500 | unpairable: 5xx (no safe way to make #12 fail on the real stack). The real 200 `FloorOut[]` it recovers to is read back in floor-create, floor-patch, reorder (`A03_*_list*.json`) |
+| FL-08-13 settings load (`phase03_settings_mocked_edge`; folds S36, S38) | #24 `GET /api/projects/:id` → 503 `DEPENDENCY_UNAVAILABLE` every try; N5 `GET …/settings` → 500 `INTERNAL` | unpairable: 5xx. The real 200 bodies it recovers to: "A03 · settings N5/N6 versioning" |
+| FL-08-14 autosave failures (`phase03_settings_mocked_edge`) | N6 `PUT …/settings` → 422 `VALIDATION` field `body.buildingType`; 428 `PRECONDITION_REQUIRED`; 500; 503 ×4; aborted ×4; offline | 422: "A03 · settings body rules" (enum → 422 with field) + "A03 · gates: 422 VALIDATION reports count / field"; 428: "A03 · settings baseVersion and body types" (no baseVersion → 428); 500 / 503 / abort / offline unpairable |
+| FL-08-15 members (`phase03_settings_mocked_edge`; folds S35) | #24 body with 29 extra fake members (80-char names); N3 `POST …/members` → 500, 503 (then the real 201), 429 `RATE_LIMITED` Retry-After 5; N4 `DELETE …/members/:uid` → 500 ×2 | real 201 / idempotent add: FL-A1-02 + "A03 · members N3 / N4"; fake member list: unpairable (30 real accounts cost 30 invitations, cap 30 / 3600 s); 429: unpairable (`members_add` 60 / 3600 s per actor is shared with phase 2); 5xx unpairable |
+| FL-08-16 danger actions (`phase03_settings_mocked_edge`) | #11 `DELETE /api/floors/:id` (2nd floor) → 500; `DELETE /api/projects/:id` → 500 once | unpairable: 5xx. Real #11 200: "A03 · floor delete #11"; real project delete: FL-A1-03 |
+| FL-U08-04 load error, UI verify (`phase03_settings_ui`) | #24 → 503 every try | unpairable: 5xx (same contract as FL-08-13) |
+| FL-09-11 floor list load (`phase03_floors_mocked_edge`; folds the old "GET floors 500" and F28r) | #12 `GET …/floors` → 500, aborted; `GET …/floors/:fid/spatial/layer` → 500 | unpairable: 5xx / network. Real 200 `FloorOut[]`: "A03 · floor list #12" |
+| FL-09-12 persist failures (`phase03_floors_mocked_edge`) | #10 `POST …/floors` → 500, aborted; #11 `DELETE /api/floors/:id` → 403; #34 `PATCH …/spatial` → 500 (the reorder itself is real) | 403: "A03 · roles" (viewer member → 403 FORBIDDEN on floor writes) + FL-A1-03; 5xx / abort unpairable |
+| FL-U09-03 skeleton + load error, UI verify (`phase03_floors_ui`) | #12 → 500 | unpairable: 5xx (as FL-09-11) |
+| FL-10-16 floor list on upload (`phase03_upload_mocked_edge`; folds U30, U35) | #24 → 500, 503 ×4, aborted, 403, 200 with a bad `floors[]`, a floor at 400 m elevation | 403: "A03 · roles" (engineer non-member); bad body and out-of-range elevation: unpairable (the BE refuses to store them: "A03 · floors #10 create" body rules, "A03 · floor numbers on #34"); 5xx / abort unpairable |
+| FL-10-17 uploads in flight (`phase03_upload_mocked_edge`; folds U16/U20) | #5 init / #6 chunk held, then the real responses | holds only, no fake body; real init / chunk / complete: "A03 · chunks #6 + complete #7 bookkeeping", FL-A2-01 |
+| FL-10-18 init / chunk / complete failures (`phase03_upload_mocked_edge`; folds U17) | #5 → aborted, 429 + Retry-After, 500, held past timeout, 200 `{}`; #6 → 503 once, 500; #7 → 500, held past timeout; #6 401 + `POST /api/auth/refresh` 401 | 429: FL-A2-07 (real `drawings_init` budget refusal); 401: "A03 · anonymous" (every phase-3 route → 401 UNAUTHENTICATED); 200 `{}`: unpairable (the real #5 always returns its schema, "A03 · upload init #5 rules"); 5xx / abort / timeout unpairable |
+| FL-10-19 offline (`phase03_upload_mocked_edge`; folds U32) | `context.setOffline` | unpairable: no network; the real upload once online is FL-A2-03's path |
+| FL-U10-04 loading / error / uploading / offline, UI verify (`phase03_upload_ui`) | #24 held, 503; #6 held; offline | unpairable: 5xx / offline (as FL-10-16, FL-10-19) |
+| FL-11-08 quality read failures and bodies (`phase03_quality_edge`; folds Q14, Q18) | #24 → 500; #30 `GET …/quality` → 5xx, aborted, 404; drawing file aborted; #30 bodies rewritten (skew / contrast / noise boundaries, unmeasured floors, `expectedConfidence`, unknown finding code) | 404: "A03 · quality #30 / #31 / #32 lookups"; real #30 body: "A03 · quality #30 after a run"; rewritten metric values / finding code: unpairable (fake-ML returns one fixed measurement); 5xx / abort unpairable |
+| FL-11-09 quality writes (`phase03_quality_edge`; folds Q15) | #32 straighten / #31 corners → held, 409 `QUALITY_DRAWING_CHANGED`, 422 `IMAGE_TOO_LARGE`, 422 `FILE_CORRUPT`, 503 every retry, 500, aborted, 422 `PDF_UNREADABLE` | real #32 + Idempotency-Key replay: FL-A2-08; real #31: FL-A2-09 + "A03 · quality #31 happy path"; 409 `QUALITY_DRAWING_CHANGED`: unpairable (racy, removed from the API spec, gap 2); 422 codes on #31 / #32: unpairable (needs a stored drawing that fails re-processing; the same codes on #7: "A03 · complete #7 judges magic bytes", "A03 · gaps: complete #7 PDF branches"); 5xx / abort unpairable |
+| FL-U11-04 quality, UI verify (`phase03_quality_ui`) | #30 held, 500, unmeasured body; #32 → 422 | as FL-11-08 / FL-11-09 |
+| FL-12-12 one-floor live run (`phase03_processing_mocked_edge`, P9) | N7 `GET …/drawings/uploads/latest` + #8 `GET …/progress` answered from test state (fake upload ids); S1 SSE routed to a local streaming server; `page.clock` | real N7 / #8 / S1 frames of one run: "A03 · happy path with drawing.png", FL-A2-03, "A03 · N7 latest uploads"; stage-by-stage states: unpairable (a fake-ML run ends about 0.5 s after #7) |
+| FL-12-13 background notify (`phase03_processing_mocked_edge`, P9; folds old P8) | N7 / #8 / S1 as FL-12-12 | as FL-12-12; a real `receiving` upload listed by N7: "A03 · N7 latest uploads" |
+| FL-12-14 multi-floor live runs (`phase03_processing_mocked_edge`, P9) | N7 / #8 / S1: partial results, failed floor, superseded and deleted floors | superseded run: FL-A2-04; failed-floor outcomes: FL-A2-05; deleted floor left out of N7: "A03 · N7 latest uploads"; the simultaneous live states: unpairable |
+| FL-12-15 PipelineFailure per error code (`phase03_processing_mocked_edge`, P9) | #8 / N7 final `failed` with each server error code | codes the stack produces (`FILE_CORRUPT`, `FILE_TYPE_MISMATCH`, `PDF_UNREADABLE`…): FL-A2-05, "A03 · complete #7 judges magic bytes"; the other codes: unpairable (fake-ML cannot fail with them) |
+| FL-12-16 read errors (`phase03_processing_mocked_edge`, P9; folds old P13) | N7 → 500, 422; #8 → 503; #24 → 500; offline; N5 / N16 → 500; clipboard refused | N7 422: "A03 · N7 paging" (bad limit / cursor → 422); 5xx / offline / clipboard unpairable |
+| FL-12-17 SSE drop and fallback (`phase03_processing_mocked_edge`, P9) | S1 dropped / reconnected / silent through the local stream server; #8 polling | real S1 heartbeat, resume and close on revocation: FL-A2-06, "A03 · S1 resume", "A03 · S1 session gates"; a dropped connection on demand: unpairable |
+| FL-U12-01 processing, UI verify (`phase03_processing_ui`, P9) | N7 / #8 mocked, S1 held by a local server | as FL-12-12 / FL-12-16 |
+| FL-13-02 graph project read (`phase03_graph_cad_edge`) | #24 held, 500, aborted | unpairable: 5xx / abort; the real 404 of an unknown id: "A03 · gates: a malformed project id" |
+| FL-15-04 CAD floor list (`phase03_graph_cad_edge`) | #12 held, 500, aborted, 403; #12 body with `drawings[]` rewritten to `.dwg` names | 403: "A03 · roles"; `.dwg` drawings: unpairable (the BE refuses `.dwg` at init, "A03 · upload init #5 rules" → 422 `CAD_NOT_SUPPORTED`, so no stored drawing carries that name); 5xx / abort unpairable |
+| FL-U15-03 CAD loading, UI verify (`phase03_graph_cad_ui`) | #12 held through four captures | hold only, no fake body; real #12: "A03 · floor list #12" |
+| old `phase03_pipeline_edge` "E03 · SCR-12 [P13] N7 read 500" (kept until `qa/p03-P9` is merged, then deleted) | N7 → 500 `INTERNAL` | unpairable: 5xx (same contract as FL-12-16) |
 
-Real responses the edge spec gets from the stack (not mocked) and this spec also proves: N6 422 `body.notes` bidi
+Real responses the edge flows get from the stack (not mocked) and the API spec also proves: N6 422 `body.notes` bidi
 (set-rules `notes_bidi`), N6 409 `VERSION_CONFLICT` (set-ver), #5 422 `CAD_NOT_SUPPORTED` (init-rules `.DWG`).
 
 ## Rate-limit budget (one run)

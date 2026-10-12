@@ -269,7 +269,10 @@ No phase-03 `_ui` spec exists at this stamp. Test names are shortened to their l
 
 | Test | Mocked response | Pair |
 |---|---|---|
-| E · SCR-09 [mocked response] GET floors 500 | `GET /api/projects/:id/floors` 500 | unpairable: 5xx is not producible on the shared stack — needs its "unpairable" row in `coverage/phase03-be.md` (BE agent) |
+| E · SCR-09 [mocked response] GET floors 500 (folded into FL-09-11, deleted in QA-03d) | `GET /api/projects/:id/floors` 500 | unpairable: 5xx is not producible on the shared stack |
+
+Since QA-03d every `[mocked response]` flow and its pair (or `unpairable` + reason) is listed in `coverage/phase03-be.md`
+"Mock pairing".
 
 ## QA-03d (gap rows, run-32-p03fe)
 
@@ -285,6 +288,21 @@ No phase-03 `_ui` spec exists at this stamp. Test names are shortened to their l
   button. **F15** FE accepts a code / notes of only spaces (checks the trimmed text, sends the raw one); BE strips and 422s (S19/S20 assert the field
   sentence that results).
 - Remaining gap rows: none open (Q16 hover, P15-P18 display rows covered but unverified live; P17, F32r ID_TAKEN/AMBIGUOUS, U25 range → n/a).
+
+## QA-03d flows (authoritative inventory)
+
+Since QA-03d the phase-3 FE tests are user flows, one `test()` per flow and one `test.step('[<row id>] …')` per catalog row.
+The authoritative inventory is no longer this file's per-screen tables but:
+- `F:/App/AppBack/backend/dieu-phoi/chay/QA-03d/flow-catalog.md`: every testable row (1342) with its expected result;
+- `F:/App/AppBack/backend/dieu-phoi/chay/QA-03d/flow-plan.md`: every flow, its steps in order, its spec file and the reverse
+  index row → flow (0 unmapped rows); `flow-split.md` gives the files, owners and totals.
+
+Spec files (`qa/tests/`): edge `phase03_{settings,floors,upload,quality,processing,graph_cad,journeys}_edge`, the
+`*_mocked_edge` / `*_roles_edge` / `phase03_processing_failure_edge` branches; ui `phase03_{settings,floors,upload,quality,
+processing,graph_cad}_ui`; api `phase03_projects_api`, `phase03_upload_api` (+ the kept `phase03_pipeline_api`); main chain
+`phase03_pipeline.spec.ts` with the FL-M steps. The isolated tests of `phase03_pipeline_edge.spec.ts` were folded into these
+flows and deleted; only P9's two SCR-12 tests stay there until `qa/p03-P9` is merged. The tables above are kept as the
+pre-QA-03d history; where they disagree with flow-catalog.md, the catalog wins.
 
 ## Summary
 
