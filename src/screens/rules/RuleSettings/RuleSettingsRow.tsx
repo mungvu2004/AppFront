@@ -133,16 +133,19 @@ export function RuleSettingsRuleRow({
   onChangeSeverity,
   onChangeThreshold,
 }: RuleSettingsRuleRowProps) {
+  // Luật tắt: làm mờ từng phần, KHÔNG làm mờ ghi chú "Đã được thay thế bởi" — đó là lời
+  // giải thích duy nhất cho trạng thái tắt, phải giữ tương phản AA (BUG-457).
+  const dimmed = cn('transition-opacity duration-standard', !row.enabled && 'opacity-40');
+
   return (
     <div
       className={cn(
         'flex flex-wrap items-center gap-3 border-b border-border-default py-3 last:border-b-0',
-        'transition-opacity duration-standard',
-        !row.enabled && 'opacity-40',
         !isCollapsed && 'min-h-[56px]',
       )}
     >
       <Toggle
+        className={dimmed}
         aria-label={`Bật hoặc tắt luật: ${lowerFirst(row.sentence)}`}
         checked={row.enabled}
         isReadOnly={!canEdit}
@@ -152,9 +155,11 @@ export function RuleSettingsRuleRow({
       />
 
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p className="text-sm text-text-primary">{row.sentence}</p>
-        <p className="text-xs text-text-secondary">{row.description}</p>
-        <p className="text-xs text-text-secondary">{row.impactCaption}</p>
+        <div className={cn('flex flex-col gap-0.5', dimmed)}>
+          <p className="text-sm text-text-primary">{row.sentence}</p>
+          <p className="text-xs text-text-secondary">{row.description}</p>
+          <p className="text-xs text-text-secondary">{row.impactCaption}</p>
+        </div>
         {row.supersededBy !== null && (
           <p className="text-xs text-state-attention-text">
             Đã được thay thế bởi {supersededByLabel ?? row.supersededBy}
@@ -162,7 +167,7 @@ export function RuleSettingsRuleRow({
         )}
       </div>
 
-      <div className={cn('shrink-0', isCollapsed && 'basis-full pl-11')}>
+      <div className={cn('shrink-0', isCollapsed && 'basis-full pl-11', dimmed)}>
         <SeverityPicker
           ruleSentence={row.sentence}
           value={row.severity}
@@ -174,7 +179,7 @@ export function RuleSettingsRuleRow({
       </div>
 
       {row.thresholds.length > 0 && (
-        <div className="flex basis-full flex-wrap items-center gap-2 pl-11">
+        <div className={cn('flex basis-full flex-wrap items-center gap-2 pl-11', dimmed)}>
           {row.thresholds.map((threshold) => (
             <ThresholdField
               key={threshold.key}

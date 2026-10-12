@@ -164,6 +164,21 @@ describe('A11 — bảy trạng thái của VersionHistory', () => {
   });
 });
 
+describe('[BUG-454] tiêu đề trang', () => {
+  it('cả bảy trạng thái có đúng một h1 "Lịch sử phiên bản"', async () => {
+    const VersionHistoryView = await loadVersionHistoryView();
+
+    for (const state of SEVEN_STATES) {
+      const { unmount } = renderWithProviders(<VersionHistoryView {...buildVersionHistoryProps(state)} />);
+
+      expect(screen.getAllByRole('heading', { level: 1 }).map((h) => h.textContent), `trạng thái: ${state}`).toEqual([
+        'Lịch sử phiên bản',
+      ]);
+      unmount();
+    }
+  });
+});
+
 /* ==========================================================================
  * 2 và 3. Tiếp cận được, toàn chữ tiếng Việt có dấu (R-72, R-67).
  * ========================================================================== */
