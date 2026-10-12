@@ -863,19 +863,35 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
         await captureEvidence(page, 'E03_10-A-029_undo-expired.png', { caption: 'clock +8.1 s after the trash click' });
       });
 
-      // QA-03e (BUG-524, FIX-2203): hover holds a plain notice, never an undo — an undo toast runs its full
-      // bar (= UNDO_WINDOW_MS, the ticket's window) and leaves with its "Hoàn tác" (Toast.tsx:59-72, 91).
-      await test.step('[10-A-030] trash, hover the toast, 9 s pass → the undo toast is gone (hover does not hold it); no stale "Hoàn tác"', async () => {
+      // QA-03f (BUG-571, FIX-2427): hover or focus holds every toast, undo included, and stops the ticket's clock with it, so
+      // "Hoàn tác" still works when pressed (Toast.tsx:80-89, 153-158 and undoTicket.ts:57-76 at 854987d6, WCAG 2.2.1). Off the
+      // pointer, the rest of the window runs out (Toast.tsx:91-116).
+      await test.step('[10-A-030] trash, hover the toast, 9 s pass → the undo toast is still there and "Hoàn tác" restores the file; pointer off → the rest of the window runs out', async () => {
         await pick(page, note('ghi-chu-hover.txt'));
         await trashInTray(page, 'ghi-chu-hover.txt');
         const toast = toastWith(page, removedToast('ghi-chu-hover.txt'));
         await expect(toast.first()).toBeVisible();
         await toast.first().hover();
         await page.clock.fastForward(9_000);
-        await expect.soft(toast, 'a hovered undo toast still leaves after 8 s').toHaveCount(0);
-        await expect.soft(trayItem(page, 'ghi-chu-hover.txt'), 'the expired removal stays').toHaveCount(0);
+        await expect.soft(toast, 'a hovered undo toast is held past 8 s').toHaveCount(1);
         await captureEvidence(page, 'E03_10-A-030_hover-then-undo.png', { caption: `hover + 9 s: removal toasts left ${String(await toast.count())}` });
+        await toast.first().getByRole('button', { name: UNDO, exact: true }).click();
+        await expect.soft(trayItem(page, 'ghi-chu-hover.txt'), 'the held ticket still undoes').toBeVisible();
+        await expect.soft(toast, 'used: the toast leaves').toHaveCount(0);
+
+        // Same file again: hold, then let go — the remaining window (< 8 s) runs out, the removal stays and the tray is empty
+        // again for [10-A-031].
+        await trashInTray(page, 'ghi-chu-hover.txt');
+        const toast2 = toastWith(page, removedToast('ghi-chu-hover.txt'));
+        await expect(toast2.first()).toBeVisible();
+        await toast2.first().hover();
+        await page.clock.fastForward(9_000);
+        await expect.soft(toast2, 'held while hovered').toHaveCount(1);
         await page.mouse.move(0, 0);
+        await page.clock.fastForward(8_100);
+        await expect.soft(toast2, 'pointer off: the rest of the window runs out').toHaveCount(0);
+        await expect.soft(trayItem(page, 'ghi-chu-hover.txt'), 'the expired removal stays').toHaveCount(0);
+        await captureEvidence(page, 'E03_10-A-030_released-expired.png');
         await expect(page.getByRole('status').filter({ hasText: 'Đã xoá bản vẽ' })).toHaveCount(0);
       });
 
