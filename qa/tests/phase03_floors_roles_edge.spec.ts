@@ -37,6 +37,7 @@ const FORBIDDEN_SENTENCE = 'Vai của bạn chỉ xem được ngăn xếp tần
 const SESSION_STRIP = 'Một số thay đổi chưa được lưu'; // FM:77
 const CAPTION_MANUAL = 'Cao độ đang nhập tay; ô ghi "Ghi đè" khác cao độ tính từ các tầng dưới.'; // FT:83
 const EMPTY_TITLE = 'Chưa có tầng nào'; // FT:75
+const VIEWER_EMPTY_NOTICE = 'Khi người có quyền sửa thêm tầng, ngăn xếp tầng sẽ hiện ở đây.'; // useFloorManager.ts:182 (QA-03e BUG-522)
 const NOT_FOUND_TITLE = 'Không tìm thấy dự án này'; // PSGATE:37
 const BACK_TO_PROJECTS = 'Về danh sách dự án'; // PSGATE:40
 const MOD = process.platform === 'darwin' ? 'Meta' : 'Control';
@@ -74,12 +75,13 @@ test.describe('SCR-09 floors — roles', () => {
         await captureEvidence(page, 'E03_09-D-003_viewer_banner.png');
       });
 
-      await test.step('[09-D-011] the contents strip "Một số thay đổi chưa được lưu" is not shown to a reader (suspected)', async () => {
+      // QA-03e (BUG-521, FIX-2225): unsupportedNotices drops the persistFloorContents sentence without canEdit (useFloorManager.ts:1722).
+      await test.step('[09-D-011] the contents strip "Một số thay đổi chưa được lưu" is not shown to a reader', async () => {
         const strip = statusWithTitle(page, SESSION_STRIP);
         await captureEvidence(page, 'E03_09-D-011_viewer_session_strip.png', {
           caption: `role=status "${SESSION_STRIP}" count: ${String(await strip.count())} (expected 0 for a viewer)`,
         });
-        await expect.soft(strip, 'a viewer cannot duplicate or delete, so the contents warning does not apply (suspected)').toHaveCount(0);
+        await expect.soft(strip, 'a viewer cannot duplicate or delete, so the contents warning does not apply').toHaveCount(0);
       });
 
       const mark = api.length;
@@ -142,19 +144,26 @@ test.describe('SCR-09 floors — roles', () => {
         expect.soft(await floorRowNames(page)).toEqual(names);
       });
 
-      await test.step('[09-D-012] viewer opens the 0-floor project → "Chưa có tầng nào" (suspected: forbidden wins)', async () => {
+      // QA-03e (BUG-522, FIX-2226): state order error → loading → empty → forbidden (the role is only the read-only strip,
+      // useFloorManager.ts:1752); a viewer's empty state reads viewerEmptyNotice (useFloorManager.ts:182) with no "Thêm tầng"
+      // (FloorTable.tsx:191-199 action only when canEdit).
+      await test.step('[09-D-012] viewer opens the 0-floor project → "Chưa có tầng nào" + the viewer sentence, no "Thêm tầng"', async () => {
         await page.goto(ROUTES.project.floors(empty.projectId));
         await expect(statusWithTitle(page, FORBIDDEN_TITLE)).toBeVisible();
         await captureEvidence(page, 'E03_09-D-012_viewer_empty_project.png');
-        await expect.soft(page.getByText(EMPTY_TITLE, { exact: true }), 'empty state for a viewer (suspected missing)').toBeVisible();
+        await expect.soft(page.getByText(EMPTY_TITLE, { exact: true }), 'empty state for a viewer').toBeVisible();
+        await expect.soft(page.getByText(VIEWER_EMPTY_NOTICE, { exact: true })).toBeVisible();
+        await expect.soft(page.getByRole('button', { name: 'Thêm tầng', exact: true })).toHaveCount(0);
       });
 
-      await test.step('[09-D-013] viewer opens an unknown project → "Không tìm thấy dự án này" (suspected: forbidden wins)', async () => {
+      // QA-03e (BUG-522): error is checked first, so a viewer gets the not-found alert + "Về danh sách dự án" (FloorTable.tsx:202-213).
+      await test.step('[09-D-013] viewer opens an unknown project → "Không tìm thấy dự án này" + "Về danh sách dự án"', async () => {
         await page.goto(ROUTES.project.floors(unknownProjectId()));
         await expect(page.getByRole('heading', { name: 'Quản lý tầng', exact: true })).toBeVisible();
         await page.waitForTimeout(1_500); // the 404 read settles
         await captureEvidence(page, 'E03_09-D-013_viewer_unknown_project.png');
-        await expect.soft(page.getByText(NOT_FOUND_TITLE, { exact: true }), 'not-found for a viewer (suspected missing)').toBeVisible();
+        await expect.soft(page.getByText(NOT_FOUND_TITLE, { exact: true }), 'not-found for a viewer').toBeVisible();
+        await expect.soft(page.getByRole('button', { name: 'Về danh sách dự án', exact: true })).toBeVisible();
       });
     } finally {
       await closePage(open);
