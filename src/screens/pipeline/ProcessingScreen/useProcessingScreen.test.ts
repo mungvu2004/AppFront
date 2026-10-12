@@ -1725,15 +1725,47 @@ describe('useProcessingScreen — QA-03e (SCR-12)', () => {
     expect(mounted.result.current.state).toBe('error');
     expect(mounted.result.current.errorAlert?.technicalCode).toBe('SERVICE_UNAVAILABLE');
 
-    // Lượt hỏi đã ghi bản ghi nên tầng chuyển sang SSE: một nhịp đọc được xoá lỗi đọc.
+    // Chưa đọc được lượt nào thì tầng vẫn hỏi (không sang SSE, QA-03h); hết 503 thì lượt hỏi kế
+    // đọc được, xoá lỗi đọc, và tầng đang xem mới sang SSE.
+    expect(MockEventSource.instances).toHaveLength(0);
+    harness.queue(upload.uploadId, progressAt(upload.uploadId, 1));
     await act(async () => {
-      latestSource().triggerOpen();
-      latestSource().triggerMessage(progressAt(upload.uploadId, 1));
-      await clock.advance(0);
+      await clock.advance(OTHER_FLOOR_POLL_INTERVAL_MS * 2);
     });
     await settle(clock);
     expect(mounted.result.current.state).not.toBe('error');
     expect(mounted.result.current.errorAlert).toBeUndefined();
+    expect(MockEventSource.instances.length).toBeGreaterThan(0);
+    mounted.unmount();
+  });
+
+  it('BUG-550: #8 trả 503 SAU thang thử lại của lib/http: alert lỗi đọc vẫn hiện (QA-03h)', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 1);
+    // Như `lib/http`: 503 chỉ về sau thang 300+900+2700 ms; lượt bị huỷ giữa thang trả `aborted`.
+    const client: ApiClient = {
+      ...harness.client,
+      drawings: {
+        ...harness.client.drawings,
+        progress: ({ signal }) =>
+          new Promise((resolve) => {
+            const timer = setTimeout(() => resolve({ ok: false, error: UNAVAILABLE }), 3_900);
+            signal?.addEventListener('abort', () => {
+              clearTimeout(timer);
+              resolve({ ok: false, error: { kind: 'aborted', requestId: 'r', retryable: false, raw: null } });
+            });
+          }),
+      },
+    };
+    const mounted = mountHook(client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+    await settle(clock);
+    await act(async () => {
+      await clock.advance(3_900 * 3);
+    });
+    await settle(clock);
+
+    expect(mounted.result.current.state).toBe('error');
+    expect(mounted.result.current.errorAlert?.technicalCode).toBe('SERVICE_UNAVAILABLE');
     mounted.unmount();
   });
 

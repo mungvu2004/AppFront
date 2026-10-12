@@ -1019,6 +1019,10 @@ export function useProcessingScreen(options: UseProcessingScreenOptions): Proces
     // Chưa có #8 mồi: chưa biết tầng đã cuối hay chưa.
     if (query?.data === undefined || record === undefined) return 'none';
     if (isFinalStatus(record.progress?.status) || record.failure?.isTerminal === true) return 'none';
+    // Mồi hỏng thì `dang-noi` của kênh hỏi ghi bản ghi rỗng vào đệm (query thành `success`): chưa
+    // đọc được #8 lượt nào thì vẫn hỏi. Chuyển SSE lúc đó huỷ lượt đọc giữa thang 5xx của lib/http,
+    // lượt huỷ không phải lỗi (BUG-574) và SSE không đọc #8 — lỗi đọc mất, alert không hiện (BUG-550).
+    if (record.progress === undefined) return 'poll';
     return index === focusIndex && !isBackgroundStreamOpen ? 'sse' : 'poll';
   });
   const modesKey = floorUploads
