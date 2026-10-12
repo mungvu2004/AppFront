@@ -215,6 +215,22 @@ describe('[NGHIEM-2] tổng số đối tượng trên màn đã ráp', () => {
     expect(canvasTotal).toBe(TOTAL_OBJECTS);
     expect(TOTAL_OBJECTS).toBe(21);
   });
+
+  it('[BUG-417] "Tổng 21 đối tượng" viết hoa chữ đầu và chỉ một lần; nhãn panel phải viết hoa (A6)', async () => {
+    renderState('success');
+
+    const list = await screen.findByRole('group', { name: LIST_LABEL });
+    const totals = [...document.querySelectorAll('p')].filter((p) =>
+      /^tổng \d+ đối tượng$/iu.test(p.textContent ?? ''),
+    );
+
+    expect(totals.map((p) => p.textContent)).toEqual([`Tổng ${TOTAL_OBJECTS} đối tượng`]);
+
+    fireEvent.click(within(list).getAllByRole('option')[0] as HTMLElement);
+
+    expect(await screen.findByText('Chiều rộng')).toBeInTheDocument();
+    expect(screen.queryByText('chiều rộng')).toBeNull();
+  });
 });
 
 /* -------------------------------------------------------------------------- */

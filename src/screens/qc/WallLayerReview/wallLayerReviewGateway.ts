@@ -119,8 +119,10 @@ import {
   WALL_LAYER_FIXTURE_LEVEL,
   WALL_LAYER_FIXTURE_WALLS,
 } from './wallLayerReviewFixture';
+import { isThicknessBand } from './wallLayerHatch';
 import type {
   WallLayerCanvasShape,
+  WallLayerLegendLevels,
   WallLayerMeasurementPx,
   WallLayerPointerReading,
   WallLayerRectPx,
@@ -915,34 +917,6 @@ export const zoomPercentOf = (zoom: number): number =>
 /** Một lần phóng là một trăm phần trăm. */
 const ZOOM_PERCENT_PER_UNIT = 100;
 
-/**
- * Mức phóng để một vùng vừa khít khung, cộng lề thở.
- *
- * Cần CẢ khổ khung (chỉ view biết, báo lên bằng `onFrameResize`) lẫn khổ vùng
- * muốn phủ. Thiếu một trong hai thì trả `null` và nơi gọi giữ nguyên mức phóng —
- * đoán một con số ở đây là đúng thứ R-69 cấm.
- */
-export function fitZoomFor(
-  frame: WallLayerSizePx | null,
-  bounds: WallLayerRectPx | null,
-): number | null {
-  if (frame === null || bounds === null) {
-    return null;
-  }
-
-  if (frame.width === 0 || frame.height === 0 || bounds.width === 0 || bounds.height === 0) {
-    return null;
-  }
-
-  const byWidth = (frame.width * FIT_MARGIN_RATIO) / bounds.width;
-  const byHeight = (frame.height * FIT_MARGIN_RATIO) / bounds.height;
-
-  return clampZoom(byWidth < byHeight ? byWidth : byHeight);
-}
-
-/** Chừa 10% lề quanh vùng phủ, để đường viền ngoài cùng không dính mép khung. */
-const FIT_MARGIN_RATIO = 0.9;
-
 /** Thang vùng nhìn của `useMiniMap`: x/y/rộng/cao đều kẹp trong 0..100. */
 const MINIMAP_VIEWPORT_SPAN = 100;
 
@@ -1112,8 +1086,10 @@ export function drawingSizeOf(
  * canvas hỏi là ba băng độ dày — hai khái niệm khác nhau, và dựng một
  * `ColoringMode` giả chỉ để lọc ba con số là đi vòng cho xa hơn.
  */
-export const legendLevelsOf = (walls: readonly Wall[]): readonly WallThicknessChoice[] =>
-  WALL_THICKNESS_CHOICES.filter((choice) => walls.some((wall) => wall.thicknessMm === choice));
+export const legendLevelsOf = (walls: readonly Wall[]): WallLayerLegendLevels => ({
+  levels: WALL_THICKNESS_CHOICES.filter((choice) => walls.some((wall) => wall.thicknessMm === choice)),
+  hasUnbanded: walls.some((wall) => !isThicknessBand(wall.thicknessMm)),
+});
 
 /** Nhãn của khung canvas — "Mặt bằng Tầng 1 — 48 tường". */
 export const canvasLabelOf = (level: Level | null, total: number): string =>

@@ -55,7 +55,7 @@ import {
 
 const REVIEWED_SUFFIX = ' đối tượng đã duyệt';
 const LAYER_TREE_LABEL = 'Cây lớp';
-const TOTAL_PREFIX = 'tổng ';
+const TOTAL_PREFIX = 'Tổng ';
 const TOTAL_SUFFIX = ' đối tượng';
 const FILTER_ROW_LABEL = 'Lọc theo loại';
 const SHOW_LAYER_PREFIX = 'Hiện lớp ';

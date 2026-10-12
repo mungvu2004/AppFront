@@ -64,6 +64,7 @@ import type {
   ObjectLayerId,
   ObjectLayerLeftPanelProps,
   ObjectLayerListProps,
+  ObjectLayerReviewModel,
   ObjectLayerVisibility,
   ObjectSubtype,
 } from './objectLayerTypes';
@@ -248,8 +249,12 @@ export interface ObjectDragMeasurement {
 export interface ObjectLayerCanvasViewProps extends ObjectLayerCanvasProps {
   /** 21 đối tượng đã đặt chỗ sẵn, cùng thứ tự với `objects`. */
   readonly placements: readonly ObjectPlacementViewModel[];
-  /** `null` khi không ai đang kéo Slider vị trí. */
+  /** `null` khi không ai đang kéo Slider vị trí. Toạ độ là pixel KHUNG (BUG-403). */
   readonly dragMeasurement: ObjectDragMeasurement | null;
+  readonly viewBoxPx: ObjectLayerReviewModel['viewBoxPx'];
+  readonly surfaceRectPx: ObjectLayerReviewModel['surfaceRectPx'];
+  readonly haloRectPx: ObjectLayerReviewModel['haloRectPx'];
+  readonly onFrameResize: ObjectLayerReviewModel['onFrameResize'];
   readonly onApprove?: ((objectId: string) => void) | undefined;
   readonly onDelete?: ((objectId: string) => void) | undefined;
   readonly onChangeSubtype?: ((objectId: string, subtype: ObjectSubtype) => void) | undefined;
@@ -287,13 +292,13 @@ export interface ObjectLayerListViewProps extends ObjectLayerListProps {
  * một thẻ nào đều nằm ở file `.ts`, để file view chỉ còn việc dựng thẻ và ở
  * dưới trần 400 dòng của R-22.
  *
- * ## Vì sao `<svg>` KHÔNG có `viewBox`
+ * ## `viewBox` là vùng bản vẽ đang thấy (BUG-403)
  *
- * Một đơn vị SVG là một pixel của khung vẽ, và mọi toạ độ trong props đã là
- * pixel bản vẽ. Nhờ vậy `SelectionHalo` — vốn là một `<div>` định vị tuyệt đối,
- * không phải một thẻ SVG — nằm chồng đúng lên ký hiệu mà không cần một phép quy
- * đổi nào giữa hai hệ. Đặt `viewBox` vào sẽ tạo ra hệ thứ hai, và view sẽ phải
- * tự đổi qua lại: đúng thứ "không một phép hình học nào ở lớp canvas" cấm.
+ * Toạ độ ký hiệu và tường là pixel bản vẽ; tầng chưa hiệu chỉnh đọc 1 mm = 1 px, nên vẽ thẳng
+ * chúng lên khung (bản cũ, không `viewBox`) chỉ thấy góc trên-trái của một mặt bằng 8.000 px.
+ * Hook nay đo khung, tính "vừa khung" (`qc/shared/canvasFit.ts`) và giao `viewBoxPx`; lớp phủ
+ * HTML (`SelectionHalo`, tay cầm, `MeasurementLabel`, ảnh nền) nhận toạ độ đã đổi sang pixel
+ * KHUNG — view vẫn không tự đổi qua lại giữa hai hệ.
  *
  * ## Ba màu, không bao giờ bốn
  *

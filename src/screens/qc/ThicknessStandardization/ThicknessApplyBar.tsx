@@ -71,6 +71,7 @@ const unchangedDetail = (wall: ThicknessSegmentRow): string =>
   `Lệch ${wall.deviationLabel} · Độ tin cậy: ${wall.confidenceLabel} · ${wall.floorName}`;
 
 export function ThicknessApplyBar({
+  canPreview,
   preview,
   toleranceMm,
   onChangeTolerance,
@@ -107,28 +108,31 @@ export function ThicknessApplyBar({
 
   return (
     <div className="flex flex-col gap-3 border-t border-border-default bg-bg-surface p-4">
+      {/* Hai cụm xuống dòng NGUYÊN KHỐI: nút chính luôn ở mép phải cụm của nó (BUG-412). */}
       <div className="flex flex-wrap items-end gap-3">
-        <NumericField
-          className="w-32"
-          label={TOLERANCE_LABEL}
-          onChange={handleToleranceChange}
-          unit="mm"
-          value={toleranceMm}
-        />
-        <Button onClick={() => onReapplyFilter(false)} size="sm" variant="secondary">
-          {REAPPLY_FILTER_LABEL}
-        </Button>
-
-        <div className="flex-1" />
-
-        <Button onClick={onUndo} size="sm" variant="ghost">
-          {UNDO_LABEL}
-        </Button>
-        {preview === null && (
-          <Button onClick={onOpenPreview} size="sm" variant="primary">
-            {OPEN_PREVIEW_LABEL}
+        <div className="flex items-end gap-3">
+          <NumericField
+            className="w-32"
+            label={TOLERANCE_LABEL}
+            onChange={handleToleranceChange}
+            unit="mm"
+            value={toleranceMm}
+          />
+          <Button onClick={() => onReapplyFilter(false)} size="sm" variant="secondary">
+            {REAPPLY_FILTER_LABEL}
           </Button>
-        )}
+        </div>
+
+        <div className="ml-auto flex items-center gap-3">
+          <Button onClick={onUndo} size="sm" variant="ghost">
+            {UNDO_LABEL}
+          </Button>
+          {preview === null && (
+            <Button disabled={!canPreview} onClick={onOpenPreview} size="sm" variant="primary">
+              {OPEN_PREVIEW_LABEL}
+            </Button>
+          )}
+        </div>
       </div>
 
       {reapplyWarning !== null && (

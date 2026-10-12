@@ -1535,6 +1535,7 @@ export function useScaleCalibration(
     // nhiễu (BUG-341). Tiêu đề do view đặt (`errorTitle` vắng ở nhánh này).
     return { title: undefined, description: COPY.warpingNotice, code: null };
   }, [query.error, query.isError, state]);
+  const isNoDrawing = errorDescription !== null && 'isNoDrawing' in errorDescription;
 
   const errorCode = errorDescription?.code ?? null;
 
@@ -1738,7 +1739,10 @@ export function useScaleCalibration(
         areActionsHidden: state === 'forbidden',
         recalculationCaption: COPY.recalculationCaption,
         statusCode: state === 'success' ? 'verified' : 'neutral',
-        shortcutHints,
+        /* Tầng chưa có bản vẽ: không có gì để kéo hay đo — quy trình mờ đi, bảng phím ẩn (BUG-411). */
+        isMethodLocked: isNoDrawing,
+        isCurrentScaleKnown: displayRatio !== null,
+        shortcutHints: isNoDrawing ? [] : shortcutHints,
       },
       statusBar: {
         x: cursorPixels.x,
@@ -1756,7 +1760,7 @@ export function useScaleCalibration(
       errorCode,
       // Ảnh méo không đặt tiêu đề: view dùng tiêu đề "nắn ảnh thất bại" của chính nó (B-V5-04).
       ...(errorDescription?.title !== undefined ? { errorTitle: errorDescription.title } : {}),
-      ...(errorDescription !== null && 'isNoDrawing' in errorDescription ? { isNoDrawing: true } : {}),
+      ...(isNoDrawing ? { isNoDrawing: true } : {}),
       emptyNotice: isEmptyState ? COPY.emptyNotice : null,
       partialNotice: state === 'partial' ? COPY.partialNotice : null,
       forbiddenNotice: state === 'forbidden' ? COPY.forbiddenNotice : null,
@@ -1794,6 +1798,7 @@ export function useScaleCalibration(
     errorDescription,
     highlightedRowId,
     isCompact,
+    isNoDrawing,
     isPanelCollapsed,
     isEmptyState,
     lowConfidenceCount,

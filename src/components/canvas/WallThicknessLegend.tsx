@@ -20,8 +20,16 @@ interface WallThicknessLegendProps {
   state?: 'empty' | 'loading' | 'partial' | 'error' | 'success' | 'no-permission' | 'collapsed';
   /** Cấp nào đang có dữ liệu (để hiển thị partial) */
   availableLevels?: WallThickness[];
+  /**
+   * Nhãn mục cho tường NGOÀI bốn cấp (vd 200/150 mm), vẽ bằng màu `--wall-idle` như canvas tô
+   * chúng. Vắng mặt thì không có mục này (BUG-416).
+   */
+  otherLabel?: string | undefined;
   className?: string;
 }
+
+/** Màu của tường ngoài bốn cấp — đúng màu `wallStrokeToken` trả cho độ dày lạ. */
+const OTHER_THICKNESS_TOKEN = 'var(--wall-idle)';
 
 /**
  * WallThicknessLegend — chú giải 4 cấp độ dày tường.
@@ -32,6 +40,7 @@ export function WallThicknessLegend({
   isVisible = true,
   state = 'success',
   availableLevels = WALL_THICKNESS_LEVELS,
+  otherLabel,
   className,
 }: WallThicknessLegendProps) {
   const { activeThickness, toggleThickness, clearFilter } = useWallThicknessLegend();
@@ -177,6 +186,17 @@ export function WallThicknessLegend({
           </button>
         );
       })}
+
+      {otherLabel === undefined ? null : (
+        <div className="flex items-center gap-2 px-2 py-1">
+          <span
+            className="shrink-0 rounded-[3px]"
+            style={{ width: 16, height: 16, backgroundColor: OTHER_THICKNESS_TOKEN }}
+            aria-hidden="true"
+          />
+          <span className="font-mono text-sm text-text-primary leading-none">{otherLabel}</span>
+        </div>
+      )}
     </div>
   );
 }

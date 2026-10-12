@@ -1032,6 +1032,10 @@ describe('useScaleCalibration — bảy trạng thái', () => {
       'Bề rộng cửa đi điển hình',
       'Diện tích phòng lớn nhất',
     ]);
+    // BUG-411: quy trình khoá lại, bảng phím ẩn, "Chưa có" là chữ chứ không phải số.
+    expect(model.panel.isMethodLocked).toBe(true);
+    expect(model.panel.shortcutHints).toEqual([]);
+    expect(model.panel.isCurrentScaleKnown).toBe(false);
     mounted.unmount();
   });
 

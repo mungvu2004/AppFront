@@ -30,7 +30,7 @@
  */
 
 import { lowerFirst } from '@/lib/format/sentence';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
 
 import { wallStrokeToken } from '@/components/canvas/materialMap';
@@ -66,6 +66,9 @@ const AXIS_PADDING_BINS = 4;
 
 /** Số vạch chữ tối đa trên trục x; nhiều hơn thì chữ chồng nhau. */
 const AXIS_TICK_TARGET = 6;
+
+/** Khoảng cách tối thiểu giữa hai nhãn trục x (nhãn 3 chữ số mono 11 px rộng ~20 px) — BUG-394. */
+const AXIS_TICK_MIN_GAP_PX = 32;
 
 /* -------------------------------------------------------------------------- */
 /* Chuỗi tiếng Việt tĩnh — khớp `docs/notes/thickness/t6.i18n.fragment.json`.  */
@@ -156,14 +159,47 @@ export function ThicknessHistogram({
     });
   }, [maxMm, minMm, percentAt, thresholds]);
 
-  /** Vạch chữ trên trục x — thưa dần khi cột nhiều, tối đa {@link AXIS_TICK_TARGET}. */
+  /* Bề rộng vùng vẽ: nhãn trục x thưa theo PIXEL, không chỉ theo số cột (BUG-394). */
+  const [plotWidthPx, setPlotWidthPx] = useState(0);
+
+  useEffect(() => {
+    const plot = plotRef.current;
+
+    if (plot === null) {
+      return undefined;
+    }
+
+    const observer = new ResizeObserver(() => setPlotWidthPx(plot.clientWidth));
+
+    observer.observe(plot);
+
+    return () => observer.disconnect();
+    /* Lúc đang tải vùng vẽ chưa có trong cây: đo lại khi nó xuất hiện. */
+  }, [isLoading]);
+
+  /**
+   * Vạch chữ trên trục x — thưa dần khi cột nhiều, tối đa {@link AXIS_TICK_TARGET}, và bỏ nhãn
+   * nào đứng gần nhãn trước hơn {@link AXIS_TICK_MIN_GAP_PX}: năm cột 200–220 mm trên trục
+   * 0–400 mm từng dính thành "200205210215220" ở 768.
+   */
   const ticks = useMemo(() => {
     const stride = Math.max(1, Math.ceil(bins.length / AXIS_TICK_TARGET));
+    const kept: { startMm: number; leftPercent: number }[] = [];
 
-    return bins
-      .filter((_, index) => index % stride === 0)
-      .map((bin) => ({ startMm: bin.startMm, leftPercent: percentAt(bin.startMm) }));
-  }, [bins, percentAt]);
+    for (const [index, bin] of bins.entries()) {
+      const leftPercent = percentAt(bin.startMm);
+      const last = kept[kept.length - 1];
+      const isCrowded =
+        last !== undefined &&
+        ((leftPercent - last.leftPercent) * plotWidthPx) / PERCENT < AXIS_TICK_MIN_GAP_PX;
+
+      if (index % stride === 0 && !isCrowded) {
+        kept.push({ startMm: bin.startMm, leftPercent });
+      }
+    }
+
+    return kept;
+  }, [bins, percentAt, plotWidthPx]);
 
   /** Vị trí con trỏ thành mi-li-mét, bắt về đúng bậc cột gần nhất. */
   const millimetresAt = useCallback(

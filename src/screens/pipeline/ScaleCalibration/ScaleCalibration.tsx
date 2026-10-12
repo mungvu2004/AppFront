@@ -202,7 +202,8 @@ export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
                 title={(isError ? model.errorTitle : undefined) ?? NOTICE_TITLES[model.state]}
               />
               {isError && model.isNoDrawing === true && (
-                <Button onClick={actions.onGoToUpload} size="sm" variant="secondary">
+                /* Lối ra DUY NHẤT của tầng chưa có bản vẽ nên là nút chính (BUG-411). */
+                <Button onClick={actions.onGoToUpload} size="sm" variant="primary">
                   {GO_TO_UPLOAD_LABEL}
                 </Button>
               )}

@@ -80,6 +80,7 @@ import {
 } from '@/lib/selection/selectionOps';
 import { createSelectionChannel } from '@/lib/selection/syncChannel';
 import type { ColorTokenName } from '@/lib/coloring/scales';
+import { ROUTES } from '@/routes/paths';
 import { useStore } from '@/store';
 import { currentSelection } from '@/store/commit';
 import type { ProjectRole } from '@/types/project';
@@ -127,6 +128,10 @@ import {
   runObjectTransaction,
   wallBoundsPx,
   wallOutlinesOf,
+  boundsOfPoints,
+  drawingSizeOf,
+  scaleOfLevel,
+  toPixelPoint,
   type ObjectLayerBackground,
   type ObjectLayerDispatchDeps,
   type ObjectLayerGraphPort,
@@ -142,9 +147,21 @@ import {
   type ObjectLayerScreenState,
   type ObjectLayerVisibility,
   type ObjectReviewCounter,
+  type HostWallOutlineViewModel,
   type ObjectSubtype,
+  type PixelPoint,
   type ReviewObject,
 } from './objectLayerTypes';
+import {
+  fitCanvasView,
+  rotatedBounds,
+  toFramePoint,
+  toFrameRect,
+  visibleDrawingRect,
+  type CanvasFitRect,
+  type CanvasFitSize,
+  type CanvasFitView,
+} from '../shared/canvasFit';
 import { useFloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 
@@ -275,6 +292,9 @@ export const subtypeSlotsOf = (layer: ObjectLayerId): readonly ObjectSubtype[] =
 /* -------------------------------------------------------------------------- */
 /* Hook.                                                                       */
 /* -------------------------------------------------------------------------- */
+
+/** Khung nhìn chưa đo được khung: pixel bản vẽ đọc thẳng là pixel khung. */
+const IDENTITY_VIEW: CanvasFitView = { x: 0, y: 0, zoom: 1 };
 
 /** Cổng thật dựng đúng một lần cho suốt đời component. */
 function useResolvedGateway(
@@ -986,13 +1006,43 @@ export function useObjectLayerReview(
   /* Bấm liên kết tường chủ — chọn tường đó và bay khung nhìn tới (R-07).     */
   /* ---------------------------------------------------------------------- */
 
-  const drawingSize = useMemo(
-    () => ({
-      width: background?.widthMm ?? 0,
-      height: background?.heightMm ?? 0,
-    }),
-    [background],
-  );
+  /*
+   * Khung canvas (BUG-403): canvas đo khung rồi báo lên, hook đặt mặt bằng vừa khung. Khung nhìn
+   * của `useCanvasViewport` là phần NGƯỜI DÙNG lái (bay tới tường chủ), đọc trên lớp "vừa khung".
+   */
+  const [frameSizePx, setFrameSizePx] = useState<CanvasFitSize | null>(null);
+  const onFrameResize = useCallback((size: CanvasFitSize) => {
+    setFrameSizePx((previous) =>
+      previous !== null && previous.width === size.width && previous.height === size.height
+        ? previous
+        : size,
+    );
+  }, []);
+
+  const wallOutlinesPx = useMemo<readonly HostWallOutlineViewModel[]>(() => {
+    const scale = scaleOfLevel(level);
+
+    return wallOutlines.map((wall) => ({
+      id: wall.id,
+      outline: wall.outline.map((point) => toPixelPoint(point, scale)),
+    }));
+  }, [level, wallOutlines]);
+
+  const surfacePx = useMemo<CanvasFitRect | null>(() => {
+    const drawing = drawingSizeOf(background ?? undefined, level);
+
+    if (drawing !== null) {
+      return { x: 0, y: 0, ...drawing };
+    }
+
+    const box = boundsOfPoints(wallOutlinesPx.flatMap((wall) => wall.outline));
+
+    return box === null
+      ? null
+      : { x: box.minX, y: box.minY, width: box.maxX - box.minX, height: box.maxY - box.minY };
+  }, [background, level, wallOutlinesPx]);
+
+  const fitView = fitCanvasView(frameSizePx, surfacePx) ?? IDENTITY_VIEW;
 
   const onSelectHostWall = useCallback(
     (wallId: WallId) => {
@@ -1005,11 +1055,28 @@ export function useObjectLayerReview(
       const outline = wallOutlines.find((shape) => shape.id === wallId);
       const bounds = outline === undefined ? null : wallBoundsPx(outline.outline, level);
 
-      if (bounds !== null) {
-        flyToBounds(bounds, drawingSize.width, drawingSize.height);
+      if (bounds !== null && frameSizePx !== null) {
+        /* `flyToBounds` làm việc trên lớp "vừa khung": đưa hộp tường về pixel khung của lớp ấy. */
+        const min = toFramePoint(fitView, { x: bounds.minX, y: bounds.minY });
+        const max = toFramePoint(fitView, { x: bounds.maxX, y: bounds.maxY });
+
+        flyToBounds(
+          { minX: min.x, minY: min.y, maxX: max.x, maxY: max.y },
+          frameSizePx.width,
+          frameSizePx.height,
+        );
       }
     },
-    [drawingSize, flyToBounds, level, pushSelection, selectedIds, selectionContext, wallOutlines],
+    [
+      fitView,
+      flyToBounds,
+      frameSizePx,
+      level,
+      pushSelection,
+      selectedIds,
+      selectionContext,
+      wallOutlines,
+    ],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -1266,6 +1333,23 @@ export function useObjectLayerReview(
   }, [draggingObjectId, level, selectedObject, wallOfObject]);
 
   const tokens = useMemo(() => dataLayerTokens(layerVisibility), [layerVisibility]);
+  /* Tầng đã đọc xong mà không có đoạn tường nào: không có chỗ đặt cửa (BUG-422). */
+  const hasNoWall = level !== null && solidWalls.length === 0;
+  const { onNavigate } = options;
+
+  /*
+   * Lớp vẽ theo pixel KHUNG (BUG-403): `<svg>` phủ kín khung với `viewBox` là vùng bản vẽ đang
+   * thấy; ảnh nền, vòng chọn và số đo là HTML ở toạ độ khung, không lớp `scale()` nào.
+   */
+  const view: CanvasFitView = {
+    x: viewport.x + viewport.zoom * fitView.x,
+    y: viewport.y + viewport.zoom * fitView.y,
+    zoom: viewport.zoom * fitView.zoom,
+  };
+  const hasFrame = frameSizePx !== null && frameSizePx.width > 0 && frameSizePx.height > 0;
+  const activePlacement =
+    placements.find((placement) => placement.id === (selectedObjectId ?? hoveredObjectId)) ?? null;
+  const onFrame = (point: PixelPoint): PixelPoint => toFramePoint(view, point);
 
   const hasFurnitureAttention = furnitureQuery.isError;
 
@@ -1293,7 +1377,12 @@ export function useObjectLayerReview(
     isCollapsed,
     isViewerRole,
     viewerRoleNotice: isViewerRole ? OBJECT_LAYER_TEXT.forbidden : null,
-    emptyNotice: reviewCounter.total === 0 && !isLoading && !hasError ? OBJECT_LAYER_TEXT.emptyExplanation : null,
+    emptyNotice:
+      reviewCounter.total === 0 && !isLoading && !hasError
+        ? hasNoWall
+          ? OBJECT_LAYER_TEXT.emptyNoWall
+          : OBJECT_LAYER_TEXT.emptyExplanation
+        : null,
     errorMessage: hasError
       ? isFloorNotFound(floorLayer.error)
         ? floorLayer.errorMessage
@@ -1319,10 +1408,27 @@ export function useObjectLayerReview(
     onToggleCollapsed,
 
     placements,
-    dragMeasurement,
+    dragMeasurement:
+      dragMeasurement === null
+        ? null
+        : {
+            ...dragMeasurement,
+            wallStartPx: onFrame(dragMeasurement.wallStartPx),
+            wallEndPx: onFrame(dragMeasurement.wallEndPx),
+            objectPx: onFrame(dragMeasurement.objectPx),
+            midToStartPx: onFrame(dragMeasurement.midToStartPx),
+            midToEndPx: onFrame(dragMeasurement.midToEndPx),
+          },
     rows,
     inspector,
-    wallOutlines,
+    wallOutlines: wallOutlinesPx,
+    viewBoxPx: surfacePx === null || !hasFrame ? surfacePx : visibleDrawingRect(view, frameSizePx),
+    surfaceRectPx: surfacePx === null ? null : toFrameRect(view, surfacePx),
+    haloRectPx:
+      activePlacement === null
+        ? null
+        : toFrameRect(view, rotatedBounds(activePlacement.boundsPx, activePlacement.angleDeg)),
+    onFrameResize,
     backgroundImageUrl: background?.imageUrl ?? null,
     backgroundImageAlt: background?.imageAlt ?? '',
     millimetresPerPixel: millimetresPerPixelOf(level),
@@ -1331,7 +1437,7 @@ export function useObjectLayerReview(
     dataLayerTokens: tokens,
     confidenceTokenOf,
     undoStepCount: dispatchBundle.history.undoSteps().length,
-    viewport,
+    viewport: view,
     activeLayer,
     activeSubtype,
     isLowConfidenceOnly: lowConfidenceOnly,
@@ -1341,6 +1447,10 @@ export function useObjectLayerReview(
     onSelectLayerObjects,
     onToggleLowConfidenceOnly,
     onAddManually,
+    onOpenWallLayer:
+      hasNoWall && onNavigate !== undefined
+        ? () => onNavigate(ROUTES.project.walls(projectId, floorId))
+        : null,
     saveBlock,
     provisionalScaleNotice,
     readFailure,

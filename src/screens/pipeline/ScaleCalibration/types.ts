@@ -487,6 +487,13 @@ export interface ScalePanelViewModel {
    */
   readonly statusCode: ViewStatusCode;
   readonly shortcutHints: readonly ScaleShortcutHint[];
+  /**
+   * Tầng chưa có bản vẽ: khối phương pháp hiện nhưng mờ và không bấm được, như ở `forbidden` —
+   * ô "Chiều dài thật" và "Đo lại" không còn mời một quy trình không chạy được (BUG-411).
+   */
+  readonly isMethodLocked: boolean;
+  /** `false` khi chưa có tỷ lệ: nhãn "Chưa có" là chữ, không phải số — không dùng phông mono. */
+  readonly isCurrentScaleKnown: boolean;
 }
 
 /* -------------------------------------------------------------------------- */

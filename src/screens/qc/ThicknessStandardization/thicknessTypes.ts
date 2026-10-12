@@ -455,6 +455,8 @@ export interface ThicknessSummaryProps {
  * tác).
  */
 export interface ThicknessApplyBarProps {
+  /** `false` khi tầng chưa có đoạn tường nào: "Xem trước" không có gì để xem (BUG-412). */
+  readonly canPreview: boolean;
   readonly preview: ApplyPreview | null;
   readonly toleranceMm: number;
   readonly onChangeTolerance: (mm: number) => void;

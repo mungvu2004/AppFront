@@ -853,9 +853,36 @@ describe('hợp đồng canvas mở rộng', () => {
     expect(canvas.canvasLabel).toContain(FIXTURE_LEVEL.name);
     expect(canvas.canvasLabel).toContain(String(WALL_LAYER_FIXTURE_TOTAL));
     expect(canvas.isWallLayerVisible).toBe(true);
-    expect(canvas.legendLevels).toEqual([...WALL_LAYER_THICKNESS_CHOICES]);
+    /* Bộ mẫu có tường 175/235/90 mm: chú giải cần mục "Khác" cho chúng (BUG-416). */
+    expect(canvas.legendLevels).toEqual({ levels: [...WALL_LAYER_THICKNESS_CHOICES], hasUnbanded: true });
     expect(canvas.drawingSizePx).not.toBeNull();
     expect(canvas.measurement).toBeNull();
+
+    mounted.unmount();
+  });
+
+  it('[BUG-403] mở tầng là thấy trọn lớp tường giữa khung, 100% = vừa khung', async () => {
+    const mounted = await mountSettled();
+
+    act(() => mounted.result.current.canvas.onFrameResize({ width: 300, height: 480 }));
+
+    await waitFor(() => expect(mounted.result.current.canvas.viewport.zoom).toBeLessThan(1));
+    const { canvas } = mounted.result.current;
+    const bounds = canvas.contentBoundsPx!;
+    const box = {
+      x: canvas.viewport.x + bounds.x * canvas.viewport.zoom,
+      y: canvas.viewport.y + bounds.y * canvas.viewport.zoom,
+      width: bounds.width * canvas.viewport.zoom,
+      height: bounds.height * canvas.viewport.zoom,
+    };
+
+    expect(canvas.zoomPercent).toBe(100);
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(300 + 0.5);
+    expect(box.y + box.height).toBeLessThanOrEqual(480 + 0.5);
+    expect(box.x + box.width / 2).toBeCloseTo(150, 0);
+    expect(box.y + box.height / 2).toBeCloseTo(240, 0);
 
     mounted.unmount();
   });

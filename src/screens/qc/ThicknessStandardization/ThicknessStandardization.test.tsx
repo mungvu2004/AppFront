@@ -75,6 +75,8 @@ import { useStore } from '@/store';
 
 import { BACK_TO_FLOORS_LABEL, FLOOR_MISSING_TITLE } from '../shared/floorLayerReadFailure';
 
+import { ThicknessApplyBar } from './ThicknessApplyBar';
+import { ThicknessPreviewCanvas } from './ThicknessPreviewCanvas';
 import { ThicknessStandardizationContainer } from './ThicknessStandardization.container';
 import { ProvisionalScale, scenarioArgsFor } from './ThicknessStandardization.stories';
 import {
@@ -322,6 +324,40 @@ describe('[NGHIEM-1] bảy trạng thái của A11', () => {
       unmount();
     }
   }, HEAVY_TEST_TIMEOUT_MS);
+
+  it('[BUG-412] chưa có đoạn nào: "Xem trước" tắt, khung xem trước không còn ô chú giải trắng mồ côi', () => {
+    const noop = (): void => undefined;
+    const { unmount } = renderWithProviders(
+      <>
+        <ThicknessApplyBar
+          canPreview={false}
+          onApplyPreview={noop}
+          onCancelPreview={noop}
+          onChangeTolerance={noop}
+          onDismissReapplyWarning={noop}
+          onOpenPreview={noop}
+          onReapplyFilter={noop}
+          onUndo={noop}
+          preview={null}
+          reapplyWarning={null}
+          toleranceMm={DEFAULT_TOLERANCE_MM}
+        />
+        <ThicknessPreviewCanvas
+          hoveredGroup={null}
+          hoveredWallId={null}
+          isCollapsed={false}
+          legend={[]}
+          onHoverWall={noop}
+          shapes={[]}
+        />
+      </>,
+    );
+
+    expect(screen.getByRole('button', { name: OPEN_PREVIEW_LABEL })).toBeDisabled();
+    expect(screen.queryByRole('list', { name: 'Chú giải độ dày tường' })).toBeNull();
+
+    unmount();
+  });
 });
 
 /* -------------------------------------------------------------------------- */

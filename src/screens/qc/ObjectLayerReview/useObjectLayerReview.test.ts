@@ -1274,6 +1274,24 @@ describe('"Thêm thủ công" trên cổng thật, tầng rỗng (B-V6-41)', () 
     second.unmount();
   });
 
+  it('[BUG-422] tầng KHÔNG có tường: câu rỗng nói lý do và lối ra là màn Duyệt tường', async () => {
+    const graph = normalizeSpatial({ ...denormalizeSpatial(emptyGraph()), walls: [] });
+    const onNavigate = vi.fn();
+    const mounted = await mountSettled({
+      gateway: { ...createMockObjectLayerReviewGateway({ graph }), seed: [] },
+      floorId: sampleLevelId(1),
+      onNavigate,
+    });
+
+    expect(mounted.result.current.emptyNotice).toBe(OBJECT_LAYER_TEXT.emptyNoWall);
+    expect(mounted.result.current.onOpenWallLayer).not.toBeNull();
+
+    mounted.result.current.onOpenWallLayer?.();
+    expect(onNavigate).toHaveBeenCalledWith(expect.stringMatching(/\/layers\/walls$/u));
+
+    mounted.unmount();
+  });
+
   it('đề nghị mang mã mới chưa có trong đồ thị, đúng dạng mã cửa, và lệnh được nhận', () => {
     const graph = emptyGraph();
     const level = graph.byId[sampleLevelId(2)] as Level;

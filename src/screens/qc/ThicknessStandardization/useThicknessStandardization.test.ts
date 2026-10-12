@@ -422,10 +422,11 @@ describe('áp chuẩn hoá', () => {
     console.log(`[S-18] câu xem trước = ${String(preview?.sentence)}`);
 
     expect(preview).not.toBeNull();
-    expect(preview?.totalWalls).toBe(FIXTURE_SEGMENT_COUNT);
+    /* Ba đoạn đo đúng giá trị nhóm chuẩn không còn là dòng đề xuất (BUG-421), nên không nằm trong lượt áp. */
+    expect(preview?.totalWalls).toBe(FIXTURE_SEGMENT_COUNT - 3);
     expect(preview?.unchangedWalls).toHaveLength(FIXTURE_EXCEEDING_COUNT);
     expect(preview?.sentence).toBe(
-      '48 tường → 3 nhóm chuẩn. 6 tường lệch quá 30 mm sẽ không đổi.',
+      '45 tường → 3 nhóm chuẩn. 6 tường lệch quá 30 mm sẽ không đổi.',
     );
 
     /* Xem trước là XEM: ngăn xếp vẫn trống, kho chưa đổi một số nào. */
@@ -786,6 +787,17 @@ describe('Bảy trạng thái', () => {
     expect(mounted.result.current.state).toBe('empty');
     expect(mounted.result.current.emptyNotice).not.toBeNull();
     expect(mounted.result.current.emptyNotice ?? '').toContain('dung sai');
+  });
+
+  it('[BUG-421] mọi đoạn đã đúng nhóm: không còn dòng đề xuất "220 → 220" nào để tích', async () => {
+    const mounted = await mountScenario(THICKNESS_SCENARIO_EMPTY);
+
+    const noOps = mounted.result.current.groupRows.filter(
+      (row) => row.suggestedGroup === row.measuredMm,
+    );
+
+    expect(mounted.result.current.segmentRows.some((row) => row.normalizedGroup === row.measuredMm)).toBe(true);
+    expect(noOps).toEqual([]);
   });
 
   it('trạng thái lỗi có câu lỗi, và hai bảng vẫn đọc được', async () => {

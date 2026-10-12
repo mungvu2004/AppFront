@@ -37,7 +37,18 @@
 
 import { WallThicknessLegend } from '@/components/canvas/WallThicknessLegend';
 
-import type { WallLayerScreenState, WallThicknessChoice } from './types';
+import type { WallLayerScreenState } from './types';
+import type { WallLayerLegendLevels } from './wallLayerHatch';
+
+/** Mục cho tường ngoài ba băng chuẩn (BUG-416). */
+const OTHER_THICKNESS_LABEL = 'Khác';
+
+/**
+ * Ở `collapsed` ray công cụ nổi ở góc trái trên khung (`left-4`, rộng 56 px) và chú giải ở góc
+ * trái dưới cao ~150 px: khung thấp (1024, 375) là chúng chồng nhau, chú giải che nút "Mở lại hai
+ * panel" (BUG-398). Dời chú giải sang phải đúng bề ngang ray — bằng `style`, không thêm lớp CSS.
+ */
+const COLLAPSED_RAIL_CLEARANCE = { position: 'absolute', left: 64, top: 0, bottom: 0 } as const;
 
 /**
  * Bộ trạng thái của `WallThicknessLegend`.
@@ -73,19 +84,23 @@ export interface WallLayerLegendProps {
   /** Cờ lớp Tường trong cây lớp. Tắt lớp Tường thì chú giải mới được ẩn. */
   readonly isWallLayerVisible: boolean;
   /**
-   * Những băng độ dày thật sự có trên tầng đang xem, sinh từ P-07
-   * (`generateLegend`) ở hook. Chỉ dùng ở trạng thái `partial`; các trạng thái
-   * khác hiện đủ cả thang để người đọc luôn thấy cùng một bảng quy chiếu.
+   * Những băng độ dày thật sự có trên tầng đang xem (chỉ dùng ở trạng thái `partial`; các trạng
+   * thái khác hiện đủ cả thang), cộng cờ mục "Khác" cho tường ngoài ba băng — ở MỌI trạng thái.
    */
-  readonly levels: readonly WallThicknessChoice[];
+  readonly levels: WallLayerLegendLevels;
 }
 
 export function WallLayerLegend({ state, isWallLayerVisible, levels }: WallLayerLegendProps) {
-  return (
+  const legend = (
     <WallThicknessLegend
-      availableLevels={[...levels]}
+      availableLevels={[...levels.levels]}
+      /* Khối bọc ở `collapsed` rộng 0: không cho chữ "110 mm" gãy dòng theo nó. */
+      className="whitespace-nowrap"
       isVisible={isWallLayerVisible}
+      otherLabel={levels.hasUnbanded ? OTHER_THICKNESS_LABEL : undefined}
       state={LEGEND_STATE[state]}
     />
   );
+
+  return state === 'collapsed' ? <div style={COLLAPSED_RAIL_CLEARANCE}>{legend}</div> : legend;
 }
