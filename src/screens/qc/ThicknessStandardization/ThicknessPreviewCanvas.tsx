@@ -178,28 +178,30 @@ export function ThicknessPreviewCanvas({
           </>
         )}
 
-        {/* Chú giải độ dày — nhãn và token màu đã ghép sẵn ở hook (A1, A15). */}
-        <ul
-          aria-label={LEGEND_LABEL}
-          className="absolute bottom-3 left-3 flex flex-col gap-1 rounded-[8px] bg-bg-surface p-2 shadow-float"
-        >
-          {legend.map((entry) => (
-            <li key={String(entry.group)} className="flex items-center gap-2">
-              <span
-                aria-hidden="true"
-                className="shrink-0 rounded-[3px]"
-                style={{
-                  backgroundColor: entry.colorToken,
-                  height: LEGEND_SWATCH_PX,
-                  width: LEGEND_SWATCH_PX,
-                }}
-              />
-              <span className="font-mono text-xs leading-none text-text-primary">
-                {entry.label}
-              </span>
-            </li>
-          ))}
-        </ul>
+        {/* Chú giải độ dày — nhãn và token màu đã ghép sẵn ở hook (A1, A15). Rỗng thì không có khung trắng mồ côi (BUG-412). */}
+        {legend.length === 0 ? null : (
+          <ul
+            aria-label={LEGEND_LABEL}
+            className="absolute bottom-3 left-3 flex flex-col gap-1 rounded-[8px] bg-bg-surface p-2 shadow-float"
+          >
+            {legend.map((entry) => (
+              <li key={String(entry.group)} className="flex items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className="shrink-0 rounded-[3px]"
+                  style={{
+                    backgroundColor: entry.colorToken,
+                    height: LEGEND_SWATCH_PX,
+                    width: LEGEND_SWATCH_PX,
+                  }}
+                />
+                <span className="font-mono text-xs leading-none text-text-primary">
+                  {entry.label}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </aside>
   );

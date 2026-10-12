@@ -368,6 +368,7 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
         {isViewerRole ? null : (
           <div className="overflow-hidden rounded-[12px] bg-bg-surface shadow-panel">
             <ThicknessApplyBar
+              canPreview={props.segmentRows.length > 0}
               onApplyPreview={onApplyPreview}
               onCancelPreview={onCancelPreview}
               onChangeTolerance={onChangeTolerance}
