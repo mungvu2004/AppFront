@@ -35,7 +35,7 @@
  *   - selection, filters, "Thu gọn hai panel", "Thông số nâng cao", "Lọc theo loại", keyboard mode, "Thu gọn bảng" are view
  *     state; "Thêm trục ngang" is in memory only (F-08, `useAxisGridManager.ts` persistAxisGrid unsupported);
  *   - dialogs are opened and never confirmed: "Xem trước chuẩn hoá tên", "Gộp hai phòng", "Áp tỉ lệ này cho N tầng…"
- *     (only GET floors + GET spatial, phase04_qc_layers.spec.ts SCR-14 all-floors case), thickness "Xem trước" (the PUT
+ *     (only GET floors + GET spatial, phase04_pipeline.spec.ts SCR-14 all-floors case), thickness "Xem trước" (the PUT
  *     is "Áp dụng", never clicked); the reference line is drawn and its length typed, "Áp dụng tỷ lệ" is not clicked
  *     for this-floor scope.
  * Sessions: every test opens its OWN context from Phase 1's admin storage state and writes the rotated refresh cookie back
@@ -71,7 +71,7 @@ const WALLS_EMPTY_NOTICE =
   'Chưa phát hiện được đoạn tường nào ở tầng này. Bạn có thể vẽ tường thủ công bằng phím W, hoặc chạy lại với ngưỡng thấp hơn.'; // useWallLayerReview.ts:204
 const APPROVE_WALL = 'Duyệt đoạn này';
 const WALL_ADVANCED = 'Thông số nâng cao';
-const WALL_LOW_CONFIDENCE = 'Chỉ hiện độ tin cậy thấp'; // phase04_qc_layers.spec.ts view-controls case
+const WALL_LOW_CONFIDENCE = 'Chỉ hiện độ tin cậy thấp'; // phase04_pipeline.spec.ts view-controls case
 const WALL_NO_MATCH = 'Không có đoạn tường nào khớp bộ lọc đang bật. Bỏ bớt một bộ lọc để thấy lại danh sách.';
 const COLLAPSE_PANELS = 'Thu gọn hai panel';
 const EXPAND_PANELS = 'Mở lại hai panel';
@@ -96,7 +96,7 @@ const KEYBOARD_CAPTION = 'Chế độ duyệt bàn phím — đường nhanh nh�
 const GRIDS_SCREEN = 'Quản lý trục và gốc toạ độ';
 const GRIDS_EMPTY_TITLE = 'Chưa có trục nào';
 const ADD_HORIZONTAL_AXIS = 'Thêm trục ngang';
-const AXIS_ROW = /^Trục (.+?), cách trục kế là /u; // phase04_qc_layers.spec.ts AXIS_LABEL_PATTERN
+const AXIS_ROW = /^Trục (.+?), cách trục kế là /u; // phase04_pipeline.spec.ts AXIS_LABEL_PATTERN
 /* SCR-20: RoomLabelReview.tsx, RoomLabelList.tsx, RoomLabelInspector.tsx, RoomLabelNormalizePreview.tsx, RoomLabelActionDialogs.tsx. */
 const ROOMS_SCREEN = 'Duyệt tên phòng';
 const ROOM_LIST = 'Danh sách phòng';
@@ -288,7 +288,7 @@ async function settled(target: Locator): Promise<void> {
   expect(still, 'overlay still moving after 5 s').toBe(true);
 }
 
-/** Checkbox / Radio.Item: focus + Space (sr-only input under a drawn box, phase04_qc_layers.spec.ts `pressSpaceOn`). */
+/** Checkbox / Radio.Item: focus + Space (sr-only input under a drawn box, phase04_pipeline.spec.ts `pressSpaceOn`). */
 async function pressSpaceOn(control: Locator): Promise<void> {
   await control.focus();
   await control.page().keyboard.press('Space');
@@ -362,7 +362,7 @@ async function openGridsData(page: Page, floor: Floor): Promise<void> {
 
 /** qcLayer's two 200 mm partitions form one group to standardise (the accept box). */
 async function openThicknessData(page: Page, floor: Floor): Promise<void> {
-  await page.emulateMedia({ reducedMotion: 'reduce' }); // group rows are `motion.tr` (phase04_qc_layers.spec.ts SCR-21)
+  await page.emulateMedia({ reducedMotion: 'reduce' }); // group rows are `motion.tr` (phase04_pipeline.spec.ts SCR-21)
   await openSeeded(page, ROUTES.project.thickness(floor.projectId, floor.floorId), page.getByRole('checkbox', { name: THICKNESS_ACCEPT }).first());
 }
 
@@ -376,7 +376,7 @@ async function openScaleData(page: Page, floor: Floor): Promise<void> {
   test.skip((await drawing.count()) === 0, 'data: no warped drawing on the drawing floor after its run; the no-drawing state is U04_scale_no_drawing');
 }
 
-/** "Vẽ đường tham chiếu"; box-relative drag 20 % → 80 % at 50 %; 5000 + Enter (phase04_qc_layers.spec.ts `openScaleAndDraw`). */
+/** "Vẽ đường tham chiếu"; box-relative drag 20 % → 80 % at 50 %; 5000 + Enter (phase04_pipeline.spec.ts `openScaleAndDraw`). */
 async function drawReferenceLine(page: Page): Promise<void> {
   await page.getByRole('radiogroup', { name: SCALE_METHODS, exact: true }).getByRole('radio', { name: SCALE_REFERENCE, exact: true }).click();
   const canvas = page.getByRole('group', { name: SCALE_CANVAS, exact: true });
