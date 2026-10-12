@@ -151,15 +151,15 @@ const SUBTYPE_ICONS: Readonly<Record<ObjectSubtype, ComponentType<OutlineIconPro
 /** Bốn hướng mở có radio riêng — xem lý do "bốn, không phải năm" ở đầu file. */
 interface SwingOption {
   readonly value: 'left' | 'right' | 'double' | 'sliding';
-  /** Nhãn tiếng Việt, viết thường kiểu câu (A6) — khớp `SWING_LABELS` của `lib/viewmodel/toViewModel.ts`. */
+  /** Nhãn tiếng Việt HIỆN cạnh icon, viết hoa chữ đầu (A6) — cùng nghĩa `SWING_LABELS` của `lib/viewmodel/toViewModel.ts`. */
   readonly label: string;
   readonly icon: ComponentType<OutlineIconProps>;
 }
 
 const SWING_OPTIONS: readonly SwingOption[] = [
-  { icon: ArrowLeft, label: 'mở trái', value: 'left' },
-  { icon: ArrowRight, label: 'mở phải', value: 'right' },
-  { icon: Columns2, label: 'hai cánh', value: 'double' },
+  { icon: ArrowLeft, label: 'Mở trái', value: 'left' },
+  { icon: ArrowRight, label: 'Mở phải', value: 'right' },
+  { icon: Columns2, label: 'Hai cánh', value: 'double' },
   { icon: ArrowLeftRight, label: 'Trượt', value: 'sliding' },
 ];
 
@@ -364,6 +364,7 @@ function ObjectInspectorBody({
                       isActive ? 'bg-accent-wash text-accent' : 'text-text-muted',
                     )}
                     key={option.value}
+                    title={option.label}
                   >
                     <Icon aria-hidden="true" className="h-4 w-4" />
                   </span>
@@ -371,8 +372,8 @@ function ObjectInspectorBody({
               })}
             </div>
           ) : (
+            /* Cột dọc, mỗi lựa chọn có chữ cạnh icon: hàng ngang chỉ-icon không tên nhìn thấy và tràn mép phải 1440 (BUG-399). */
             <Radio.Group
-              className="flex-row items-center gap-2"
               onChange={(value) => onChangeSwing(inspector.id, value as SwingOption['value'])}
               value={inspector.swing}
             >
@@ -381,9 +382,13 @@ function ObjectInspectorBody({
 
                 return (
                   <Radio.Item
-                    aria-label={option.label}
                     key={option.value}
-                    label={<Icon aria-hidden="true" className="h-4 w-4" />}
+                    label={
+                      <span className="flex items-center gap-1.5">
+                        <Icon aria-hidden="true" className="h-4 w-4" />
+                        {option.label}
+                      </span>
+                    }
                     value={option.value}
                   />
                 );
