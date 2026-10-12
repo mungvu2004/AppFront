@@ -119,8 +119,10 @@ import {
   WALL_LAYER_FIXTURE_LEVEL,
   WALL_LAYER_FIXTURE_WALLS,
 } from './wallLayerReviewFixture';
+import { isThicknessBand } from './wallLayerHatch';
 import type {
   WallLayerCanvasShape,
+  WallLayerLegendLevels,
   WallLayerMeasurementPx,
   WallLayerPointerReading,
   WallLayerRectPx,
@@ -1084,8 +1086,10 @@ export function drawingSizeOf(
  * canvas hỏi là ba băng độ dày — hai khái niệm khác nhau, và dựng một
  * `ColoringMode` giả chỉ để lọc ba con số là đi vòng cho xa hơn.
  */
-export const legendLevelsOf = (walls: readonly Wall[]): readonly WallThicknessChoice[] =>
-  WALL_THICKNESS_CHOICES.filter((choice) => walls.some((wall) => wall.thicknessMm === choice));
+export const legendLevelsOf = (walls: readonly Wall[]): WallLayerLegendLevels => ({
+  levels: WALL_THICKNESS_CHOICES.filter((choice) => walls.some((wall) => wall.thicknessMm === choice)),
+  hasUnbanded: walls.some((wall) => !isThicknessBand(wall.thicknessMm)),
+});
 
 /** Nhãn của khung canvas — "Mặt bằng Tầng 1 — 48 tường". */
 export const canvasLabelOf = (level: Level | null, total: number): string =>

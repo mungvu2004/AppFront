@@ -853,7 +853,8 @@ describe('hợp đồng canvas mở rộng', () => {
     expect(canvas.canvasLabel).toContain(FIXTURE_LEVEL.name);
     expect(canvas.canvasLabel).toContain(String(WALL_LAYER_FIXTURE_TOTAL));
     expect(canvas.isWallLayerVisible).toBe(true);
-    expect(canvas.legendLevels).toEqual([...WALL_LAYER_THICKNESS_CHOICES]);
+    /* Bộ mẫu có tường 175/235/90 mm: chú giải cần mục "Khác" cho chúng (BUG-416). */
+    expect(canvas.legendLevels).toEqual({ levels: [...WALL_LAYER_THICKNESS_CHOICES], hasUnbanded: true });
     expect(canvas.drawingSizePx).not.toBeNull();
     expect(canvas.measurement).toBeNull();
 

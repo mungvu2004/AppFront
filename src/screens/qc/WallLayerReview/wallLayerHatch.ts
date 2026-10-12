@@ -234,6 +234,15 @@ export interface WallLayerViewportPx {
   readonly zoom: number;
 }
 
+/**
+ * Chú giải độ dày: băng chuẩn có thật trên tầng, và cờ "có tường ngoài ba băng" — tường 200/150 mm
+ * vẽ bằng màu riêng mà chú giải từng không có mục nào cho nó (BUG-416).
+ */
+export interface WallLayerLegendLevels {
+  readonly levels: readonly WallThicknessChoice[];
+  readonly hasUnbanded: boolean;
+}
+
 /** Nhãn đo của công cụ đo — mọi toạ độ bằng px, khoảng cách đã thành chuỗi. */
 export interface WallLayerMeasurementPx {
   readonly state: MeasurementState;
@@ -273,8 +282,8 @@ export interface WallLayerCanvasViewProps extends WallLayerCanvasProps {
   readonly contentBoundsPx: WallLayerRectPx | null;
   /** Cờ lớp Tường của cây lớp — chú giải hiện theo cờ này. */
   readonly isWallLayerVisible: boolean;
-  /** Những băng độ dày có thật trên tầng, sinh từ P-07 (`generateLegend`). */
-  readonly legendLevels: readonly WallThicknessChoice[];
+  /** Những băng độ dày có thật trên tầng, cộng cờ mục "Khác" (BUG-416). */
+  readonly legendLevels: WallLayerLegendLevels;
   /** `null` khi công cụ đo không chạy. Toạ độ là pixel KHUNG, như ba trường dưới (BUG-403). */
   readonly measurement: WallLayerMeasurementPx | null;
   /** Vùng bản vẽ đang thấy — `viewBox` của `<svg>` phủ kín khung. `null` khi chưa có gì để vẽ. */

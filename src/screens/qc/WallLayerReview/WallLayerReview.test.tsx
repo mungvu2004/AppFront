@@ -38,7 +38,7 @@
  * (nới cho cả bảy là tắt phép kiểm chứ không phải vượt qua nó, R-70).
  */
 
-import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -305,6 +305,16 @@ describe('[NGHIEM-2] chú giải độ dày', () => {
     }
 
     expect(await screen.findByText(expectation?.name ?? '')).toBeInTheDocument();
+  });
+
+  it('[BUG-416] tường ngoài ba băng (175/235/90 mm của bộ mẫu) có mục "Khác" ở cả partial lẫn success', async () => {
+    for (const state of ['partial', 'success'] as const) {
+      const { unmount } = renderState(state);
+      const legend = await screen.findByRole('group', { name: 'Lọc theo độ dày tường' });
+
+      expect(within(legend).getByText('Khác')).toBeInTheDocument();
+      unmount();
+    }
   });
 
   it('lớp Tường TẮT là điều kiện duy nhất chú giải được ẩn', async () => {
