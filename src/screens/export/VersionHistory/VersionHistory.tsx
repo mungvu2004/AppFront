@@ -114,7 +114,7 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
       <div className={model.isNarrow ? 'flex flex-1 flex-col gap-4 overflow-hidden' : 'flex flex-1 gap-4 overflow-hidden'}>
         {model.isNarrow ? (
           <Select
-            label="phiên bản"
+            label="Phiên bản"
             options={model.rows.map((row) => ({ label: `${row.label} — ${row.description}`, value: row.id }))}
             {...(reviewedVersionId !== null ? { value: reviewedVersionId } : {})}
             onChange={actions.selectRightVersion}
