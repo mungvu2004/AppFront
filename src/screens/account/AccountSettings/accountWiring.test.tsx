@@ -30,6 +30,7 @@ import {
 import { AvatarReplaceDialog } from './AvatarReplaceDialog';
 import { PasswordSection } from './PasswordSection';
 import { useAccountAuth, type AccountAuthModel } from './useAccountAuth';
+import { ACCOUNT_STACKED_QUERY } from './useAccountPreferences';
 import { ACCOUNT_AUTOSAVE_DEBOUNCE_MS, ACCOUNT_LOCAL_ONLY_LABEL } from './useAccountSettings';
 
 afterEach(() => {
@@ -509,6 +510,30 @@ describe('N14 — ảnh đại diện qua hộp thoại A9', () => {
     await new Promise((resolve) => setTimeout(resolve, ACCOUNT_AUTOSAVE_DEBOUNCE_MS + 200));
 
     expect(save).not.toHaveBeenCalled();
+  });
+});
+
+describe('BUG-497, BUG-502 — route đo mốc khổ hẹp, hai khối xếp nhãn lên trên ô', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(window, 'matchMedia');
+  });
+
+  it.each([
+    [true, true],
+    [false, false],
+  ])('(width < 1024px) khớp = %s → hàng "Họ tên" xếp dọc = %s', async (matches, stacked) => {
+    window.matchMedia = ((query: string) => ({
+      matches: query === ACCOUNT_STACKED_QUERY ? matches : false,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    })) as unknown as typeof window.matchMedia;
+
+    mount(settingsGateway());
+    const field = await loaded();
+    const row = field.closest('div.flex.items-start');
+
+    expect(row?.classList.contains('flex-col')).toBe(stacked);
   });
 });
 

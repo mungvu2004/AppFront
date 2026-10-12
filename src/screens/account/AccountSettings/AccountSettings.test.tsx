@@ -475,6 +475,7 @@ function vmFor(
         flashedField: isPartial ? 'fullName' : null,
         rowClassName: DENSITY_ROW_CLASS.comfortable,
         motionOff,
+        isStacked: false,
       },
       appearance: {
         theme: 'light',
@@ -490,6 +491,7 @@ function vmFor(
         flashedField: null,
         rowClassName: DENSITY_ROW_CLASS.comfortable,
         motionOff,
+        isStacked: false,
       },
     },
     tables: {

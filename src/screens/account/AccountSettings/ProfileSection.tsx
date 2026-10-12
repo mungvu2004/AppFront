@@ -107,6 +107,8 @@ export interface ProfileSectionProps {
   readonly rowClassName: string;
   /** Giảm chuyển động đang có hiệu lực. */
   readonly motionOff: boolean;
+  /** Khổ hẹp: nhãn nằm trên ô, ô rộng hết thẻ (BUG-502). */
+  readonly isStacked: boolean;
 }
 
 export function ProfileSection(props: ProfileSectionProps) {
@@ -176,7 +178,7 @@ export function ProfileSection(props: ProfileSectionProps) {
       <AvatarReplaceDialog {...props.avatarReplace} />
 
       <div className="flex flex-col">
-        <FieldRow label="Họ tên" className={rowClass} flash={flashOf('fullName')}>
+        <FieldRow isStacked={props.isStacked} label="Họ tên" className={rowClass} flash={flashOf('fullName')}>
           <Input
             aria-label="Họ tên"
             value={props.fullName}
@@ -186,7 +188,7 @@ export function ProfileSection(props: ProfileSectionProps) {
           />
         </FieldRow>
 
-        <FieldRow label="Chức danh" className={rowClass} flash={flashOf('jobTitle')}>
+        <FieldRow isStacked={props.isStacked} label="Chức danh" className={rowClass} flash={flashOf('jobTitle')}>
           <Input
             aria-label="Chức danh"
             value={props.jobTitle}
@@ -197,10 +199,17 @@ export function ProfileSection(props: ProfileSectionProps) {
           />
         </FieldRow>
 
-        <FieldRow label="Thư điện tử" className={rowClass}>
+        <FieldRow isStacked={props.isStacked} label="Thư điện tử" className={rowClass}>
           <div className="flex flex-col gap-1">
+            {/* `min-w-0 flex-1`: thư dài cắt "…" trong cột, nút không bị đẩy ra ngoài thẻ (BUG-497). */}
             <div className="flex items-center gap-2">
-              <Input aria-label="Thư điện tử" value={props.email} isReadOnly readOnly />
+              <Input
+                aria-label="Thư điện tử"
+                value={props.email}
+                isReadOnly
+                readOnly
+                wrapperClassName="min-w-0 flex-1"
+              />
               <Button
                 variant="ghost"
                 size="sm"
@@ -216,7 +225,7 @@ export function ProfileSection(props: ProfileSectionProps) {
           </div>
         </FieldRow>
 
-        <FieldRow label="Điện thoại" className={rowClass} flash={flashOf('phone')}>
+        <FieldRow isStacked={props.isStacked} label="Điện thoại" className={rowClass} flash={flashOf('phone')}>
           <Input
             aria-label="Điện thoại"
             type="tel"
@@ -240,7 +249,7 @@ export function ProfileSection(props: ProfileSectionProps) {
           trái của `FieldRow` đã viết nó rồi. Dạng ghép cho phép giữ đúng một
           nhãn nhìn thấy và một `<label htmlFor>` cho trình đọc màn hình.
         */}
-        <FieldRow label="Ngôn ngữ" className={rowClass} flash={flashOf('language')} isLast>
+        <FieldRow isStacked={props.isStacked} label="Ngôn ngữ" className={rowClass} flash={flashOf('language')} isLast>
           <Select.Root
             value={props.language}
             onChange={props.onLanguageChange}

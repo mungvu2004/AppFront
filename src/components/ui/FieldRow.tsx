@@ -21,6 +21,11 @@ export interface FieldRowProps extends React.HTMLAttributes<HTMLDivElement> {
    * columns share a 20 px line, so the first lines sit level (nợ B #3, BUG-121).
    */
   isText?: boolean;
+  /**
+   * Narrow screen: the label sits above the value and both take the full width, so a 375 px
+   * card does not squeeze the value into a ~160 px column (BUG-497, BUG-502).
+   */
+  isStacked?: boolean;
 }
 
 export function FieldRow({
@@ -33,6 +38,7 @@ export function FieldRow({
   flash,
   collapsed,
   isText,
+  isStacked,
   className,
   ...props
 }: FieldRowProps) {
@@ -62,6 +68,7 @@ export function FieldRow({
     <div
       className={cn(
         'flex items-start min-h-[36px] py-2 transition-colors duration-340',
+        isStacked && 'flex-col gap-1',
         !isLast && 'border-b border-border-default',
         flash && 'bg-accent-wash',
         isReadOnly && 'opacity-60',
@@ -69,12 +76,12 @@ export function FieldRow({
       )}
       {...props}
     >
-      <div className={cn('w-[40%] flex-shrink-0 pr-4', !isText && 'pt-[9px]')}>
+      <div className={cn('flex-shrink-0', isStacked ? 'w-full' : ['w-[40%] pr-4', !isText && 'pt-[9px]'])}>
         <span className="text-[14px] font-medium leading-[20px] text-text-secondary">
           {label}
         </span>
       </div>
-      <div className={cn('w-[60%] flex-shrink-0', isText && 'leading-[20px]')}>
+      <div className={cn(isStacked ? 'w-full' : 'w-[60%]', 'flex-shrink-0', isText && 'leading-[20px]')}>
         {isMixed ? (
           <span className="flex h-[36px] items-center text-[14px] text-text-muted">—</span>
         ) : (

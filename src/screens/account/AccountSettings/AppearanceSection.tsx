@@ -98,6 +98,8 @@ export interface AppearanceSectionProps {
    * này là kết quả.
    */
   readonly motionOff: boolean;
+  /** Khổ hẹp: nhãn nằm trên điều khiển, điều khiển rộng hết thẻ (BUG-497, BUG-502). */
+  readonly isStacked: boolean;
 }
 
 interface SegmentedFieldProps<T extends string> {
@@ -194,7 +196,7 @@ export function AppearanceSection(props: AppearanceSectionProps) {
 
   return (
     <div className="flex flex-col">
-      <FieldRow label="Chủ đề" className={rowClass} flash={flashOf('theme')}>
+      <FieldRow isStacked={props.isStacked} label="Chủ đề" className={rowClass} flash={flashOf('theme')}>
         <SegmentedField
           ariaLabel="Chủ đề"
           options={THEME_OPTIONS}
@@ -205,6 +207,7 @@ export function AppearanceSection(props: AppearanceSectionProps) {
       </FieldRow>
 
       <FieldRow
+        isStacked={props.isStacked}
         label="Dùng nền tối cho khung nhìn 3D"
         className={rowClass}
         flash={flashOf('viewportDark')}
@@ -217,7 +220,7 @@ export function AppearanceSection(props: AppearanceSectionProps) {
         />
       </FieldRow>
 
-      <FieldRow label="Giảm chuyển động" className={rowClass} flash={flashOf('reducedMotion')}>
+      <FieldRow isStacked={props.isStacked} label="Giảm chuyển động" className={rowClass} flash={flashOf('reducedMotion')}>
         <Toggle
           checked={props.reducedMotion}
           onChange={props.onReducedMotionChange}
@@ -226,7 +229,7 @@ export function AppearanceSection(props: AppearanceSectionProps) {
         />
       </FieldRow>
 
-      <FieldRow label="Hiện lưới 100 mm" className={rowClass} flash={flashOf('showGrid')}>
+      <FieldRow isStacked={props.isStacked} label="Hiện lưới 100 mm" className={rowClass} flash={flashOf('showGrid')}>
         <Toggle
           checked={props.showGrid}
           onChange={props.onShowGridChange}
@@ -235,7 +238,7 @@ export function AppearanceSection(props: AppearanceSectionProps) {
         />
       </FieldRow>
 
-      <FieldRow label="Mật độ hiển thị" className={rowClass} flash={flashOf('density')} isLast>
+      <FieldRow isStacked={props.isStacked} label="Mật độ hiển thị" className={rowClass} flash={flashOf('density')} isLast>
         <SegmentedField
           ariaLabel="Mật độ hiển thị"
           options={DENSITY_OPTIONS}
