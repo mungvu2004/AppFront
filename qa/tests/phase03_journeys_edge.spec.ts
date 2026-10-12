@@ -113,7 +113,7 @@ const SCALE = {
   scope: 'Phạm vi áp tỷ lệ',
   thisFloor: 'Chỉ áp cho tầng này',
   apply: 'Áp dụng tỷ lệ',
-  applied: 'Đã áp tỷ lệ cho bản vẽ',
+  applied: 'Đã áp tỷ lệ cho bản vẽ', // ScaleCalibration.tsx:73; QA-03e BUG-567: also after FRAME_NOT_FOUND (useScaleCalibration.ts:1485)
 } as const; // phase04_qc_layers.spec.ts SCR-14 (ScaleCalibration SP:61)
 const QUALITY_CONTINUE = 'Tiếp tục xử lý'; // UIQ:145
 const QUALITY_ACK = 'Tôi đã đọc cảnh báo và vẫn muốn xử lý bản vẽ này'; // phase03_pipeline.spec.ts QUALITY_ACK_LABEL

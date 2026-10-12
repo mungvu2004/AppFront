@@ -195,7 +195,9 @@ test('SCR-15 · FL-U15-01 · admin: dialog with many floors, then stage 2 open /
 
     const boxes: Record<number, { panel: { x: number; y: number; w: number; h: number } | null; canvas: { x: number; y: number; w: number; h: number } | null }> = {};
 
-    await test.step('[15-F-003] Esc → hand-off "Dùng đường từ CAD" → stage 2 ×4 (h-scroll expected at 375: w-[420px] shrink-0)', async () => {
+    // QA-03e (BUG-561, FIX-2292): the mapping panel is `w-[420px] max-w-full shrink-0` (CadLayerMappingPanel.tsx:187), so it
+    // never runs past the viewport — no horizontal scroll at 375.
+    await test.step('[15-F-003] Esc → hand-off "Dùng đường từ CAD" → stage 2 ×4; the mapping panel fits every width', async () => {
       opened(
         await verifyUi(page, 'U03_15-F-003_stage_two', async (p) => {
           await openStageTwo(p, url);
@@ -207,11 +209,10 @@ test('SCR-15 · FL-U15-01 · admin: dialog with many floors, then stage 2 open /
           boxes[width(p)] = { panel: await box(mappingPanel(p)), canvas: await box(previewBox(p)) };
         }),
       );
-      test.info().annotations.push({
-        type: 'suspected-bug',
-        description: '15-F-003: stage-2 mapping section is fixed w-[420px] shrink-0 (CLM:185) → horizontal scroll at 375 (see U03_15-F-003_stage_two.json)',
-      });
       await attachJson('U03_15-F-003_boxes.json', boxes);
+      for (const [w, got] of Object.entries(boxes)) {
+        if (got.panel !== null) expect.soft(got.panel.x + got.panel.w, `${w}px: mapping panel right edge inside the viewport`).toBeLessThanOrEqual(Number(w));
+      }
     });
 
     await test.step('[15-F-011] from the same captures: < 1024 mapping stacks above the canvas; side by side from 1024', async () => {
