@@ -1542,10 +1542,10 @@ test.describe('E06 SCR-32 Version History', () => {
     });
   });
 
-  test('E06 · SCR-32 pipeline floor: newest version is "Hiện tại" → no "Phục hồi phiên bản này"; unticking it → "Chưa chọn đủ hai phiên bản để so sánh", restore disabled, no label button', async ({ browser }) => {
+  test('E06 · SCR-32 pipeline floor: newest version is "Hiện tại" → no "Phục hồi phiên bản này"; unticking it → "Chưa chọn đủ hai phiên bản để so sánh"; restore and label act on the one still ticked', async ({ browser }) => {
     test.setTimeout(PIPELINE_TEST_TIMEOUT_MS);
     await withAdmin(browser, async (admin) => {
-      const { page } = admin;
+      const { page, api } = admin;
       const { project, versions } = await pipelineProject(admin, 'versions-pair');
       const floor = firstFloor(project);
       const [newest, older] = versions;
@@ -1565,9 +1565,20 @@ test.describe('E06 SCR-32 Version History', () => {
       await setBox(versionRow(page, newest.label).getByRole('checkbox'), false); // VHP:120-135
       await expect(checked).toHaveCount(1);
       await expect(page.getByText(VH.noPair, { exact: true })).toBeVisible(); // VHP:51-62, VHX:173-178
-      await expect(page.getByRole('button', { name: VH.restore, exact: true })).toBeDisabled(); // VHV:176-188
-      await expect(page.getByRole('button', { name: VH.tag, exact: true })).toHaveCount(0); // VHV:171
-      await captureEvidence(page, 'E06_versions_single_pick.png');
+      // BUG-470: the reviewed version is right ?? left (VHV:37-38), i.e. the older one still ticked: not "Hiện tại", so
+      // "Phục hồi phiên bản này" is enabled and aimed at it (VHV:176-188), and "Gắn nhãn phiên bản này" shows (VHV:171).
+      const restoreButton = page.getByRole('button', { name: VH.restore, exact: true });
+      await expect(restoreButton).toBeEnabled();
+      await expect(page.getByRole('button', { name: VH.tag, exact: true })).toBeVisible();
+      await restoreButton.scrollIntoViewIfNeeded();
+      await captureEvidence(page, 'E06_versions_single_pick.png', { caption: `only ${older.label} ticked: restore enabled` });
+      const mark = api.length;
+      await restoreButton.click();
+      const dialog = page.getByRole('dialog');
+      await expect(dialog).toContainText(VH.restoreTitle(older.label, floor.name)); // VHM:539 target = the ticked one
+      await dialog.getByRole('button', { name: VH.restoreCancel, exact: true }).click(); // R3: never confirmed
+      await expect(dialog).toHaveCount(0);
+      expect(writesSince(api, mark), '"Để nguyên" sends nothing').toEqual([]);
       await setBox(versionRow(page, newest.label).getByRole('checkbox'), true);
       await expect(checked).toHaveCount(2);
       await attachJson('E06_versions_pair.json', { versions: versions.map((v) => v.label) });
