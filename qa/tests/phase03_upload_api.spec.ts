@@ -27,8 +27,8 @@
  * - SSE: ≤ 7 concurrent streams of `p12-up-owner` (FL-A2-06, the 7th is the 429 precondition; A2-03's resume stream is
  *   opened after its live one closed); `viewer:shared` 1 for ~17 s (A2-10); nginx limit_conn 30 / IP.
  * - QA-03i added A2-01 BE2-G-006 / 008 / 009 / 020 / 029 / 054, A2-03 BE2-G-194 / 126, A2-09 BE2-G-139 and FL-A2-10
- *   (`BE:` main 4633e479 for these). Engineer-owned projects are not deleted by `ownProject`'s cleanup since #27 became
- *   admin-only (BUG-513): the cleanup notes the 403 and the project stays.
+ *   (`BE:` main 4633e479 for these). #27 is admin-only (BUG-513): `ownProject`'s cleanup adds the admin and the admin
+ *   deletes (`deleteSeededProject`), +1 members_add and +1 admin login per engineer-owned project.
  */
 import { expect, test, type APIRequestContext } from '@playwright/test';
 

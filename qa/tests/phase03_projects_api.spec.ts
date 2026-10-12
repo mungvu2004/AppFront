@@ -21,8 +21,8 @@
  *   own-email 200 of BE1-G-088), `p12-proj-owner` 6 (+1 FL-A1-01 admin into P for BE1-G-050). Viewer 403s are refused
  *   before the limiter (project_members/router.py:46) and spend nothing.
  * - Projects: FL-A1-01 2 (P by the owner, deleted in-flow by the admin at BE1-G-050; Q by the admin), FL-A1-02 1,
- *   FL-A1-03 1. #27 DELETE is admin-only (BUG-513), so an owner-made project the admin is not a member of (FL-A1-02)
- *   is NOT removed by `ownProject`'s cleanup (it notes the 403).
+ *   FL-A1-03 1. #27 DELETE is admin-only (BUG-513): `ownProject`'s cleanup adds the admin to an owner-made project
+ *   (FL-A1-02) and the admin deletes it (`deleteSeededProject`).
  * - #42 / #43 disable / enable: admin 1 + 1 (+ 1 enable per `p12User`).
  * - S1: FL-A1-01 opens 1 stream of `p12-proj-owner` (BE1-G-050, answered 404).
  * - Pipeline worker: no run (the FL-A1-01 uploads stay `receiving`).

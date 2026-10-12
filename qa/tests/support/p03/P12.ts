@@ -14,6 +14,7 @@ import { expect, test, type APIRequestContext, type APIResponse } from '@playwri
 import { PIPELINE_TIMEOUT_MS } from '../../../../e2e/fullstack/env';
 import { apiBaseUrl, captureExchange, signedInApi } from '../api';
 import { readAdminCredentials } from '../auth';
+import { deleteSeededProject } from '../drawingSeed';
 import { EVIDENCE_DIR, TEST_DATA_PREFIX } from '../evidence';
 import { poolUser, type PoolRole, type PoolUser } from '../phase03Seed';
 
@@ -190,7 +191,7 @@ export async function disableUser(admin: APIRequestContext, user: PoolUser, ev: 
   return sent;
 }
 
-/** Project of `api`'s user with hook floors `names` (orders 0..n-1, 3 m apart); deleted by `cleanup` (200 / 404 ok). */
+/** Project of `api`'s user with hook floors `names` (orders 0..n-1, 3 m apart); deleted by `cleanup` via {@link deleteSeededProject} (admin fallback, BUG-513). */
 export async function ownProject(
   api: APIRequestContext,
   ev: string,
@@ -205,8 +206,8 @@ export async function ownProject(
   const project = asJson(sent.body);
   const id = String(project.id);
   cleanup.add(async () => {
-    const res = await api.delete(`/api/projects/${id}`);
-    if (res.status() !== 200 && res.status() !== 404) note(`DELETE /api/projects/${id} → ${String(res.status())}`);
+    const failed = await deleteSeededProject(api, id);
+    if (failed !== null) note(failed);
   });
   const floors = asArray(project.floors ?? [], 'floors')
     .map((f) => asJson(f))
