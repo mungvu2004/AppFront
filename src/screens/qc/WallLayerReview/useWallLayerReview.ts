@@ -1527,7 +1527,14 @@ export function useWallLayerReview(
       (drawingSizePx === null ? null : { x: 0, y: 0, ...drawingSizePx }),
     [contentBoundsPx, drawingSizePx],
   );
-  const baseScale = fitCanvasView(frameSizePx, fitAllBoundsPx)?.zoom ?? DEFAULT_ZOOM;
+  /*
+   * Hộp ấy CHỐT một lần mỗi tầng (lúc "mở tầng là vừa khung" bên dưới): tính lại theo từng lượt
+   * sửa thì vẽ/tách/xoá/đổi độ dày làm cả mặt bằng tự phóng/dịch (review-1 #1). Khung đổi cỡ thì
+   * hệ số vẫn tính lại từ hộp đã chốt.
+   */
+  const [lockedFit, setLockedFit] = useState<{ levelId: LevelId; boundsPx: WallLayerRectPx } | null>(null);
+  const fitReferencePx = lockedFit !== null && lockedFit.levelId === levelId ? lockedFit.boundsPx : fitAllBoundsPx;
+  const baseScale = fitCanvasView(frameSizePx, fitReferencePx)?.zoom ?? DEFAULT_ZOOM;
 
   const viewport = useMemo<WallLayerViewportPx>(
     () => centredCanvasView(frameSizePx, toPixelPoint(viewCenter, scaleOfLevel(level)), zoom * baseScale),
@@ -1608,17 +1615,15 @@ export function useWallLayerReview(
    * Mở một tầng là thấy trọn tầng ấy (BUG-403): một lần cho mỗi tầng, khi đã có thứ để phủ.
    * Kho giữ mức phóng/tâm nhìn của màn trước (hoặc (0; 0) mặc định), không phải của tầng này.
    */
-  const fittedLevelRef = useRef<LevelId | null>(null);
-
   useEffect(() => {
-    if (levelId === null || fitAllBoundsPx === null || fittedLevelRef.current === levelId) {
+    if (levelId === null || fitAllBoundsPx === null || lockedFit?.levelId === levelId) {
       return;
     }
 
-    fittedLevelRef.current = levelId;
+    setLockedFit({ boundsPx: fitAllBoundsPx, levelId });
     setZoom(DEFAULT_ZOOM);
     setViewCenter(toMillimetrePoint(centreOfBounds(fitAllBoundsPx), scaleOfLevel(level)));
-  }, [fitAllBoundsPx, level, levelId, setViewCenter, setZoom]);
+  }, [fitAllBoundsPx, level, levelId, lockedFit, setViewCenter, setZoom]);
 
   /** Bản đồ nhỏ: kéo hoặc bấm một chỗ thì tâm nhìn đi theo. */
   const onMiniMapViewportChange = useCallback(

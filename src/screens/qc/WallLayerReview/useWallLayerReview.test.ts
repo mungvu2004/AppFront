@@ -888,6 +888,29 @@ describe('hợp đồng canvas mở rộng', () => {
     mounted.unmount();
   });
 
+  it('[BUG-403] sửa tường (xoá cột tường biên trái) không tự phóng/dịch mặt bằng — mốc vừa khung chốt theo tầng', async () => {
+    const mounted = await mountSettled();
+
+    act(() => mounted.result.current.canvas.onFrameResize({ width: 300, height: 480 }));
+    await waitFor(() => expect(mounted.result.current.canvas.viewport.zoom).toBeLessThan(1));
+
+    const before = mounted.result.current.canvas.viewport;
+    const bounds = mounted.result.current.canvas.contentBoundsPx!;
+    const edges = mounted.result.current.canvas.shapes.filter((shape) => shape.boundsPx.x === bounds.x);
+
+    for (const edge of edges) {
+      await act(async () => {
+        mounted.result.current.panel.onDelete(edge.id);
+        await Promise.resolve();
+      });
+    }
+    await waitFor(() => expect(mounted.result.current.canvas.contentBoundsPx).not.toEqual(bounds));
+
+    expect(mounted.result.current.canvas.viewport).toEqual(before);
+
+    mounted.unmount();
+  });
+
   it('bốn mục menu chuột phải nối vào đúng việc của chúng', async () => {
     const mounted = await mountSettled();
     const wall = wallAt(0);
