@@ -18,7 +18,7 @@
  *
  * | `state` | Màn hiện gì |
  * |---|---|
- * | `empty` | Lời mời đo, giữa khung nhìn |
+ * | `empty` | Lời mời đo, trên nền đệm ngay dưới cụm điều khiển |
  * | `measuring` | Lớp phủ vẽ bản nháp; nhãn bám con trỏ, chữ đều, KHÔNG chạy số |
  * | `partial` | Câu nhắc chuỗi đo chưa đóng; hàng hết neo mang chấm cần chú ý |
  * | `error` | `errorMessage` + nút gọi `onRetry` |
@@ -85,6 +85,18 @@ const EMPTY_INVITATION = 'Chưa có phép đo nào. Nhấn M rồi chọn hai đ
 /** Câu nhắc của trạng thái một phần: chuỗi đo còn dở. */
 const PARTIAL_HINT = 'Chuỗi đo chưa đóng. Chọn thêm điểm để đóng chuỗi, hoặc nhấn Esc để bỏ.';
 
+/** Dải góc trên phải của vỏ: bản đồ nhỏ 160 (`MiniMap.tsx`) + lề `right-2` 8 + khe 8. */
+const CORNER_COLUMN_PX = 160 + 16;
+
+/** Đáy bản đồ nhỏ + khe: `top-2` 8 + ViewCube + khe 8 + bản đồ 120 + khe 8. */
+const BELOW_CORNER_PX = 8 + VIEWER_LAYOUT.cubePx + 8 + 120 + 8;
+
+/**
+ * Dưới bề rộng khung nhìn này, bên trái dải góc (khung − 176 − 12) hẹp hơn viên
+ * thuốc Ghim/Esc/M (~230 px) nên cột xuống dưới bản đồ nhỏ thay vì chen cạnh nó.
+ */
+const CORNER_SPLIT_PX = 420;
+
 /** Nền chung của mọi mảnh chữ trôi trên canvas: đủ mờ để đọc được trên mọi nền. */
 const FLOATING_SURFACE = 'rounded-full bg-bg-surface-90 shadow-float';
 
@@ -129,14 +141,6 @@ function KeyAction({ icon, label, hint, onClick, disabled }: KeyActionProps) {
   );
 }
 
-function EmptyInvitation() {
-  return (
-    <div className="absolute inset-0 flex items-center justify-center p-8 text-center">
-      <p className="max-w-sm text-[14px] leading-relaxed text-text-secondary">{EMPTY_INVITATION}</p>
-    </div>
-  );
-}
-
 export function MeasurementTool(props: MeasurementToolProps) {
   const { state } = props;
 
@@ -148,8 +152,6 @@ export function MeasurementTool(props: MeasurementToolProps) {
       className="pointer-events-none absolute inset-0"
       role="region"
     >
-      {state === 'empty' && <EmptyInvitation />}
-
       <MeasurementOverlay
         draft={props.draft}
         highlightedId={props.highlightedId}
@@ -157,11 +159,19 @@ export function MeasurementTool(props: MeasurementToolProps) {
         unitJustChanged={props.unitJustChanged}
       />
 
-      {/* Cột giữa chừa dải ViewCube góc trên phải (ô 72 + lề 8 + khe 8); bốn chế độ
-          đo rộng ~515 px nên khung hẹp thì xuống dòng thay vì tràn dưới ViewCube (BUG-375). */}
+      {/* Cột giữa chừa CẢ dải góc trên phải của vỏ — ViewCube 72 VÀ bản đồ nhỏ 160×120
+          ngay dưới nó — chứ không chỉ ViewCube: cột cao hơn ViewCube nên thanh báo lỗi
+          và nút "Thử lại" từng nằm dưới bản đồ nhỏ (BUG-474), và ở 375 thanh chế độ
+          xuống ba dòng chạm bản đồ nhỏ (BUG-375). Khung hẹp hơn CORNER_SPLIT_PX thì
+          bên trái dải góc không đủ chỗ cho một nút chế độ, nên cả cột xuống dưới bản đồ
+          nhỏ và dùng hết bề ngang. Phần trăm của padding tính theo BỀ RỘNG khung, nên
+          `clamp((ngưỡng - 100%) * 100)` là một công tắc theo bề rộng không cần lớp CSS. */}
       <div
-        className="absolute inset-x-0 top-3 flex flex-col items-center gap-2 pl-3"
-        style={{ paddingRight: VIEWER_LAYOUT.cubePx + 16 }}
+        className="absolute inset-x-0 top-0 flex flex-col items-center gap-2 pl-3"
+        style={{
+          paddingTop: `clamp(12px, (${String(CORNER_SPLIT_PX)}px - 100%) * 100, ${String(BELOW_CORNER_PX)}px)`,
+          paddingRight: `clamp(12px, (100% - ${String(CORNER_SPLIT_PX)}px) * 100, ${String(CORNER_COLUMN_PX)}px)`,
+        }}
       >
         <div className={cn('pointer-events-auto p-1', FLOATING_SURFACE, 'rounded-2xl')}>
           <SegmentedControl
@@ -173,33 +183,57 @@ export function MeasurementTool(props: MeasurementToolProps) {
           />
         </div>
 
-        <div className={cn('pointer-events-auto flex items-center gap-2 px-1.5 py-1', FLOATING_SURFACE)}>
-          {props.draft !== null && (
+        {/* Viên thuốc phím và chip bắt điểm chung một hàng (xuống dòng khi hẹp): ở 375
+            cột chỉ còn ~180 px dọc dưới bản đồ nhỏ, và lời mời đo phải vừa trên chú giải. */}
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <div
+            className={cn(
+              'pointer-events-auto flex items-center gap-2 px-1.5 py-1',
+              FLOATING_SURFACE,
+            )}
+          >
+            {props.draft !== null && (
+              <KeyAction
+                disabled={!props.canPin}
+                hint="Enter"
+                icon={<Pin aria-hidden="true" className="h-[18px] w-[18px]" />}
+                label="Ghim phép đo (phím Enter)"
+                onClick={props.onPin}
+              />
+            )}
+
             <KeyAction
-              disabled={!props.canPin}
-              hint="Enter"
-              icon={<Pin aria-hidden="true" className="h-[18px] w-[18px]" />}
-              label="Ghim phép đo (phím Enter)"
-              onClick={props.onPin}
+              hint="Esc"
+              icon={<X aria-hidden="true" className="h-[18px] w-[18px]" />}
+              label="Bỏ phần đo dở (phím Esc)"
+              onClick={props.onEscape}
             />
-          )}
 
-          <KeyAction
-            hint="Esc"
-            icon={<X aria-hidden="true" className="h-[18px] w-[18px]" />}
-            label="Bỏ phần đo dở (phím Esc)"
-            onClick={props.onEscape}
-          />
+            <KeyAction
+              hint="M"
+              icon={<Ruler aria-hidden="true" className="h-[18px] w-[18px]" />}
+              label="Bật tắt công cụ đo (phím M)"
+              onClick={props.onToggleTool}
+            />
+          </div>
 
-          <KeyAction
-            hint="M"
-            icon={<Ruler aria-hidden="true" className="h-[18px] w-[18px]" />}
-            label="Bật tắt công cụ đo (phím M)"
-            onClick={props.onToggleTool}
-          />
+          <MeasurementSnapChip snap={props.snap} />
         </div>
 
-        <MeasurementSnapChip snap={props.snap} />
+        {/* Lời mời đo nằm trong cột, trên nền đệm như mọi chữ nổi khác: chữ trần trên
+            canvas tối không đạt 4,5:1 (BUG-483), và giữa khung nhìn thì ở 375 nó đè
+            lên cột điều khiển. */}
+        {state === 'empty' && (
+          <p
+            className={cn(
+              'max-w-sm px-3 py-1.5 text-center text-[13px] leading-snug text-text-secondary',
+              FLOATING_SURFACE,
+              'rounded-2xl',
+            )}
+          >
+            {EMPTY_INVITATION}
+          </p>
+        )}
 
         {isCollapsed && (
           <button
@@ -218,7 +252,12 @@ export function MeasurementTool(props: MeasurementToolProps) {
         )}
 
         {state === 'partial' && (
-          <p className={cn('px-3 py-1.5 text-[12px] leading-none text-text-secondary', FLOATING_SURFACE)}>
+          <p
+            className={cn(
+              'px-3 py-1.5 text-[12px] leading-none text-text-secondary',
+              FLOATING_SURFACE,
+            )}
+          >
             {PARTIAL_HINT}
           </p>
         )}

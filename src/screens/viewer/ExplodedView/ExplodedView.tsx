@@ -112,13 +112,16 @@ export function ExplodedView(props: ExplodedViewProps) {
           />
 
           {/* Ngay TRÁI ViewCube của vỏ, không dưới nó: ở `right-3` nút nằm trọn dưới
-              ViewCube và mặt "Trục đo" nhận cú bấm thay nút (BUG-371). */}
+              ViewCube và mặt "Trục đo" nhận cú bấm thay nút (BUG-371). Nút nổi trên
+              canvas nên mang nền đệm như mọi điều khiển nổi khác — biểu tượng xám
+              trần trên nền cảnh tối gần như biến mất (BUG-481). */}
           <div
             className="absolute top-3 flex flex-col items-end gap-2"
             style={{ right: EXPLODED_LAYOUT.captureRightPx }}
           >
             <IconButton
               aria-label="Chụp ảnh khung nhìn"
+              className="bg-bg-surface-90 shadow-float"
               disabled={props.isCapturing}
               icon={<Camera aria-hidden="true" className="h-[18px] w-[18px]" />}
               loading={props.isCapturing}

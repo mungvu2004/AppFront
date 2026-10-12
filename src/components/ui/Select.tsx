@@ -167,6 +167,36 @@ SelectTrigger.displayName = 'Select.Trigger';
 
 // ─── Select.Content ───────────────────────────────────────────────────────────
 
+/** Khe giữa trigger và menu, và giữa menu và mép khung nhìn. */
+const MENU_GAP_PX = 4;
+/** Trần chiều cao menu — cùng số với lớp `max-h-[300px]`. */
+const MENU_MAX_PX = 300;
+/** Dưới khoảng này (≈ ba mục) thì bên dưới coi như không đủ chỗ. */
+const MENU_FLIP_BELOW_PX = 160;
+
+/**
+ * Menu mở xuống; bên dưới hẹp hơn `MENU_FLIP_BELOW_PX` mà bên trên rộng hơn thì
+ * lật lên. Chiều cao luôn kẹp theo khoảng trống của phía đã chọn, nên menu không
+ * bao giờ ra ngoài khung nhìn — trước đây `top = đáy trigger + 4` cố định, và ô
+ * gần đáy trang (Đơn vị của công cụ đo ở 768/375) mở menu xuống dưới mép (BUG-484).
+ */
+type MenuPlacement =
+  | { readonly top: number; readonly maxHeight: number }
+  | { readonly bottom: number; readonly maxHeight: number; readonly transformOrigin: 'bottom' };
+
+function placeMenu(rect: DOMRect): MenuPlacement {
+  const below = window.innerHeight - rect.bottom - 2 * MENU_GAP_PX;
+  const above = rect.top - 2 * MENU_GAP_PX;
+  if (below < MENU_FLIP_BELOW_PX && above > below) {
+    return {
+      bottom: window.innerHeight - rect.top + MENU_GAP_PX,
+      maxHeight: Math.min(MENU_MAX_PX, above),
+      transformOrigin: 'bottom',
+    };
+  }
+  return { top: rect.bottom + MENU_GAP_PX, maxHeight: Math.min(MENU_MAX_PX, below) };
+}
+
 const SelectContent = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ children, className }, ref) => {
     const { isOpen, listboxRef, listboxId, triggerId, triggerRef } =
@@ -210,10 +240,10 @@ const SelectContent = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEle
             )}
             style={{
               position: 'fixed',
-              top: rect.bottom + 4,
               left: rect.left,
               width: rect.width,
               zIndex: 9999,
+              ...placeMenu(rect),
             }}
           >
             {children}
