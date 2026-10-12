@@ -89,7 +89,7 @@ const VERSION_LIST = 'Danh sách phiên bản';
 const MEASURE_PIN_BLOCKED =
   'Bạn chỉ có quyền xem dự án này, nên chưa ghim được phép đo. vẫn đo và đọc số bình thường.';
 const MEASURE_PIN = 'Ghim phép đo (phím Enter)';
-const MEASURE_TOOL = 'đo (M)';
+const MEASURE_TOOL = 'Đo (M)';
 const VIEWER_RAIL = 'Công cụ khung nhìn';
 const VIEWER_VIEWPORT = 'Khung nhìn mô hình';
 /** Status bar of the viewer fixture (e2e/v9/v9.ts FIXTURE_STATUS). */

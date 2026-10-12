@@ -68,7 +68,7 @@ const EXPLODED_ERROR_TEXT = 'Không tách được các tầng lúc này. Vui l�
 /** `MeasurementTool.tsx`, `MeasurementList.tsx`, `useViewerShell.ts:169`. */
 const PIN_LABEL = 'Ghim phép đo (phím Enter)';
 const DROP_DRAFT_LABEL = 'Bỏ phần đo dở (phím Esc)';
-const MEASURE_RAIL_TOOL = 'đo (M)';
+const MEASURE_RAIL_TOOL = 'Đo (M)';
 /** Copied from chain.fullstack.ts (never import a spec). */
 const PASCAL_FLAG_KEY = 'scene.pascal-viewer';
 const PASCAL_RENDERED_PATTERN =
@@ -664,9 +664,9 @@ test.describe('SCR-24 Exploded View', () => {
     await full.click();
     await expect(slider).toHaveValue(separated);
 
-    // Card eye `ExplodedViewFloorCards.tsx:173` reads "Ẩn tầng Tầng 1" today; the BUG-384 card patch makes it "Ẩn tầng 1".
-    // Accept both; scope to the screen so the shell rail's "Ẩn tầng 1" (`ViewerStoreyRail.tsx:86-89`) never matches.
-    const cardName = `(${escapeRegExp(`tầng ${floorName}`)}|${escapeRegExp(storeyInlineName(floorName))})`;
+    // Card eye `ExplodedViewFloorCards.tsx:173`: "Ẩn {inlineName}" (storeyInlineName, viewerStoreyStack.ts:120-124), "Tầng 1" -> "Ẩn tầng 1".
+    // Scope to the screen so the shell rail's identical eye (`ViewerStoreyRail.tsx:93`) never matches.
+    const cardName = escapeRegExp(storeyInlineName(floorName));
     const cards = page.getByRole('region', { name: EXPLODED_REGION, exact: true });
     const hide = cards.getByRole('button', { name: new RegExp(`^Ẩn ${cardName}$`, 'u') });
     const show = cards.getByRole('button', { name: new RegExp(`^Hiện ${cardName}$`, 'u') });
@@ -777,7 +777,7 @@ test.describe('SCR-25 Measurement Tool', () => {
     if (pinnedName === '' || hitPoint === null) throw new Error('needs the pinned measurement of the previous SCR-25 row');
     const name = pinnedName;
     const row = list().getByRole('listitem').filter({ has: page.getByRole('button', { name: new RegExp(`^(Ẩn|Hiện) ${escapeRegExp(name)}$`, 'u') }) });
-    const unit = page.getByRole('combobox', { name: 'đơn vị' });
+    const unit = page.getByRole('combobox', { name: 'Đơn vị' });
     const chooseUnit = async (label: 'mm' | 'm'): Promise<void> => {
       await unit.click();
       await page.getByRole('option', { name: label, exact: true }).click();

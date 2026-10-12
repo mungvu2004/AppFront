@@ -164,24 +164,22 @@ const EX = {
   captureError: 'Chưa chụp được khung nhìn. Đợi mô hình dựng xong rồi bấm chụp lại.', // UEX:152-153
   livePrefix: 'Đã tách ', // UEX:149
   cardPrefix: 'Chọn tầng ', // EXF:132-135
-  /* EXF:134-135 "Chọn tầng {floor.name}, cao độ …" today ("Chọn tầng Tầng 1"); the BUG-384 card patch makes it
-     "Chọn {storeyInlineName}" ("Chọn tầng 1"). The card pattern accepts both. */
-  card: (name: string): RegExp =>
-    new RegExp(`^Chọn (${escapeRegExp(`tầng ${name}`)}|${escapeRegExp(storeyInlineName(name))}), cao độ `, 'u'),
+  /* ExplodedViewFloorCards.tsx:134-135 "Chọn {inlineName}, cao độ …" ("Tầng 1" -> "Chọn tầng 1"; viewerStoreyStack.ts:120-124). */
+  card: (name: string): RegExp => new RegExp(`^Chọn ${escapeRegExp(storeyInlineName(name))}, cao độ `, 'u'),
 } as const;
 
 /* SCR-25 copy. */
 const MT = {
   list: 'Phép đo', // MTL:60,201
   emptyHint: 'Chưa có phép đo nào. Nhấn M rồi chọn hai điểm trên mô hình.', // MTL:61, MTV:82
-  unit: 'đơn vị', // MTL:62
+  unit: 'Đơn vị', // MeasurementList.tsx:62
   collapse: 'Thu gọn mục Phép đo', // MTL:63,208
   expandPattern: /^Mở mục Phép đo, 1 phép đo$/u, // MTL:183, MTG:322,434
   chip: /^1 phép đo — mở lại danh sách phép đo$/u, // MTV:198-211 countLabel + sr-only suffix (MTG:322,434)
   modes: 'Chọn chế độ đo', // MTV:162
   modeLabels: ['Điểm đến điểm', 'Vuông góc với bề mặt', 'Chiều cao', 'Diện tích mặt sàn'], // MTT:45-50
   toggleTool: 'Bật tắt công cụ đo (phím M)', // MTV:191
-  railTool: 'đo (M)', // UVS:169, VTR:59
+  railTool: 'Đo (M)', // useViewerShell.ts:173-177, ViewerToolRail.tsx:61
   railIdle: 'Quay quanh mô hình (R)', // UVS:167, UMT:186
   deleteGone: 'Phép đo này đã bị xoá ở nơi khác', // UMT:216
   loadError: 'Chưa tải được danh sách phép đo của dự án. Kiểm tra kết nối rồi thử lại.', // UMT:195
@@ -812,7 +810,7 @@ test.describe('E05 SCR-23 Viewer 3D', () => {
     });
   });
 
-  test('E05 · SCR-23 tool rail keys R / H / C / V / M and "cô lập (Alt+H)" click set aria-pressed', async ({ browser }) => {
+  test('E05 · SCR-23 tool rail keys R / H / C / V / M and "Cô lập (Alt+H)" click set aria-pressed', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const project = await createProject(admin, 'v3-tools');
@@ -821,10 +819,10 @@ test.describe('E05 SCR-23 Viewer 3D', () => {
       const rail = toolRail(page);
       // UVS:167-173 labels, VTR:59-60 "{label} ({key})" + aria-pressed; VSS:73-79 keys.
       const byKey: readonly (readonly [string, string])[] = [
-        ['H', 'kéo màn (H)'],
-        ['C', 'mặt cắt (C)'],
-        ['V', 'chọn (V)'],
-        ['M', 'đo (M)'],
+        ['H', 'Kéo màn (H)'],
+        ['C', 'Mặt cắt (C)'],
+        ['V', 'Chọn (V)'],
+        ['M', 'Đo (M)'],
         ['R', 'Quay quanh mô hình (R)'],
       ];
       await expect(rail.getByRole('button', { name: 'Quay quanh mô hình (R)', exact: true })).toHaveAttribute('aria-pressed', 'true'); // UVS:460
@@ -833,8 +831,8 @@ test.describe('E05 SCR-23 Viewer 3D', () => {
         await expect(rail.getByRole('button', { name, exact: true }), `key ${key}`).toHaveAttribute('aria-pressed', 'true');
       }
       expect(pathOf(page), 'M on /3d switches the tool, not the route').toBe(ROUTES.project.viewer(project.id));
-      await rail.getByRole('button', { name: 'cô lập (Alt+H)', exact: true }).click();
-      await expect(rail.getByRole('button', { name: 'cô lập (Alt+H)', exact: true })).toHaveAttribute('aria-pressed', 'true');
+      await rail.getByRole('button', { name: 'Cô lập (Alt+H)', exact: true }).click();
+      await expect(rail.getByRole('button', { name: 'Cô lập (Alt+H)', exact: true })).toHaveAttribute('aria-pressed', 'true');
       await expect(rail.getByRole('button', { name: 'Quay quanh mô hình (R)', exact: true })).toHaveAttribute('aria-pressed', 'false');
       await captureEvidence(page, 'E05_viewer_tool_keys.png');
     });
@@ -1002,7 +1000,9 @@ test.describe('E05 SCR-24 Exploded View', () => {
       // UEX:849-860 fewer than 2 storeys → 'empty'; EXV:73-75,89 screen controls hidden.
       await expect(page.getByText(EX.empty, { exact: true })).toBeVisible({ timeout: SCENE_TIMEOUT_MS });
       // The shell rail keeps its one "Độ tách" (VS/ViewerShell.tsx:133-145); the screen adds no second one (FIX-1724).
+      // Empty exploded view: the shell slider is disabled (useExplodedView.ts:937 separationDisabled, ViewerStoreyRail.tsx:127; BUG-389).
       await expect(page.getByRole('slider', { name: EX.slider, exact: true })).toHaveCount(1);
+      await expect(page.getByRole('slider', { name: EX.slider, exact: true })).toBeDisabled();
       await expect(page.getByRole('slider', { name: EX.collapsedSlider, exact: true })).toHaveCount(0);
       await expect(page.getByRole('button', { name: EX.capture, exact: true })).toHaveCount(0);
       await expect(page.getByRole('radiogroup', { name: EX.presets, exact: true })).toHaveCount(0);
