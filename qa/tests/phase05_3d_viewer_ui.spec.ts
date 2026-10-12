@@ -54,21 +54,27 @@ const BUILDING_TEXT = 'Đang dựng mô hình'; // Viewer3D.tsx LoadingContent
 const VIEWER_EMPTY_TEXT = 'Mô hình 3D sẽ xuất hiện sau khi bạn duyệt lớp tường.'; // Viewer3D.tsx EmptyContent
 const PANELS_NAV = 'Bảng phụ của khung nhìn 3D';
 const PANEL_IDS = { 'Diện tích phòng': 'rooms', 'Thư viện đồ đạc': 'furniture', 'Lịch sử thao tác': 'history' } as const;
+/** Viewer3DPanels.tsx:79-91,111-114 lazy-chunk fallback, `role="status"` (BUG-379): gone once the panel itself renders. */
+const PANEL_LOADING = /^Đang tải (bảng diện tích phòng|thư viện đồ đạc|lịch sử thao tác)…$/u;
 const SEARCH_TRIGGER = 'Tìm phòng';
 const SEARCH_INPUT = 'Tìm phòng theo tên hoặc mã';
 const SEARCH_LIST = 'Kết quả tìm phòng';
 const PRESET_SELECT = 'Góc nhìn sẵn';
 const PRESET_TOP = 'Trên xuống'; // phase05_3d_viewer.spec.ts presets case
-/* SCR-24: ExplodedView.tsx, ExplodedViewRail.tsx, ExplodedViewFloorCards.tsx:158. */
-const EXPLODED_SLIDER = 'Độ tách các tầng';
-const EXPLODED_EMPTY_TEXT = 'Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.';
+/* SCR-24: ExplodedView.tsx, ExplodedViewRail.tsx, ExplodedViewFloorCards.tsx:173. The normal layout has no slider of its
+   own (FIX-1724; the shell rail's "Độ tách" is there in every state), so the presets row is the screen's ready signal. */
+const EXPLODED_LOADING_TEXT = 'Đang tách các tầng...'; // ExplodedView.tsx:54
+const EXPLODED_EMPTY_TEXT = 'Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.'; // useExplodedView.ts:143
+/** ≥ 2 storeys but no buildable part (useExplodedView.ts:146,859-860, BUG-382). */
+const EXPLODED_NO_MODEL_TEXT = VIEWER_EMPTY_TEXT;
 const EXPLODED_ERROR_TEXT = 'Không tách được các tầng lúc này. Vui lòng thử lại sau.';
-const HIDE_FLOOR = /^Ẩn tầng /u;
-const EXPLODE_PRESETS = 'Mức tách sẵn'; // ExplodedViewRail.tsx
+const HIDE_FLOOR = /^Ẩn tầng /u; // ExplodedViewFloorCards.tsx:173 — the shell rail eye reads the same (FIX-1706): scope to EXPLODED_REGION
+const EXPLODED_REGION = 'Nội dung tách tầng'; // ExplodedView.tsx:78
+const EXPLODE_PRESETS = 'Mức tách sẵn'; // ExplodedViewRail.tsx:90
 const EXPLODE_MEDIUM = 'Tách vừa'; // explodedViewTypes.ts:136, separation 0,5 > LABEL_REVEAL_SEPARATION 0,2
 const EXPLODE_FULL = 'Tách hết';
 /** Floor cards show only past LABEL_REVEAL_SEPARATION (useExplodedView.ts:399 areLabelsVisible); default "Gộp" hides them. */
-const FLOOR_CARD = /^Chọn tầng .+, cao độ /u; // ExplodedViewFloorCards.tsx:121
+const FLOOR_CARD = /^Chọn tầng .+, cao độ /u; // ExplodedViewFloorCards.tsx:132-135
 /* SCR-25: MeasurementTool.tsx, MeasurementList.tsx:60-62. */
 const MEASURE_OVERLAY = 'Lớp phủ công cụ đo';
 const MEASURE_LIST = 'Phép đo';
@@ -182,25 +188,29 @@ async function openViewerData(page: Page, openViewer: ReturnType<typeof viewerOp
   await expect(page.getByText(VIEWER_EMPTY_TEXT, { exact: true }), 'seeded layer: viewer empty state').toHaveCount(0);
 }
 
-/** Exploded view of `projectId`: waits for the rail, the empty copy or the error copy (phase05 main SCR-24). */
+/** Exploded view of `projectId`: waits for the presets, either empty copy or the error copy, then for the build to end. */
 async function openExploded(page: Page, projectId: string): Promise<void> {
   await page.goto(ROUTES.project.exploded(projectId));
   await expect(viewport(page)).toBeVisible({ timeout: 15_000 });
   await dismissTour(page);
   await expect(
     page
-      .getByRole('slider', { name: EXPLODED_SLIDER })
+      .getByRole('radiogroup', { name: EXPLODE_PRESETS })
       .or(page.getByText(EXPLODED_EMPTY_TEXT, { exact: true }))
+      .or(page.getByText(EXPLODED_NO_MODEL_TEXT, { exact: true }))
       .or(page.getByText(EXPLODED_ERROR_TEXT, { exact: true }))
       .first(),
   ).toBeVisible({ timeout: SCENE_TIMEOUT_MS });
+  // The presets also show while 'loading' (ExplodedView.tsx:75,86); the state settles once the loading copy is gone.
+  await expect(page.getByText(EXPLODED_LOADING_TEXT, { exact: true })).toHaveCount(0, { timeout: SCENE_TIMEOUT_MS });
   await expect(page.getByText(EXPLODED_ERROR_TEXT, { exact: true }), 'exploded view error state').toHaveCount(0);
 }
 
-/** Exploded view of the seeded project: two storeys with geometry, never the < 2 storeys empty state (U05_exploded_empty). */
+/** Exploded view of the seeded project: two storeys with geometry, never either empty state (U05_exploded_empty). */
 async function openExplodedData(page: Page, projectId: string): Promise<void> {
   await openExploded(page, projectId);
   await expect(page.getByText(EXPLODED_EMPTY_TEXT, { exact: true }), 'two seeded storeys: exploded empty state').toHaveCount(0);
+  await expect(page.getByText(EXPLODED_NO_MODEL_TEXT, { exact: true }), 'seeded layers: exploded "no model" state').toHaveCount(0);
 }
 
 /** A preset (local view state) past the label threshold → the floor cards with their "Ẩn tầng …" buttons appear. */
@@ -276,7 +286,10 @@ test.describe('U05 UI verify — SCR-23 viewer 3D (own seeded project)', () => {
         const toggle = p.getByRole('navigation', { name: PANELS_NAV }).getByRole('button', { name: label, exact: true });
         await toggle.click();
         await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-        await expect(p.locator(`#viewer-3d-panel-${id}`)).toBeVisible();
+        const panel = p.locator(`#viewer-3d-panel-${id}`);
+        await expect(panel).toBeVisible();
+        // The id wraps the Suspense fallback too: shoot the panel, not its "Đang tải …" placeholder.
+        await expect(panel.getByRole('status').filter({ hasText: PANEL_LOADING })).toHaveCount(0, { timeout: SCENE_TIMEOUT_MS });
       });
     });
   }
@@ -317,10 +330,11 @@ test.describe('U05 UI verify — SCR-24 exploded view (own seeded project)', () 
   test('U05 · SCR-24 exploded, one floor hidden (local)', async ({ browser }) => {
     await verifySeeded(browser, 'U05_exploded_floor_hidden', async (p, projectId) => {
       await openExplodedFull(p, projectId);
-      const hide = p.getByRole('button', { name: HIDE_FLOOR }).first();
+      const cards = p.getByRole('region', { name: EXPLODED_REGION, exact: true });
+      const hide = cards.getByRole('button', { name: HIDE_FLOOR }).first();
       const label = (await hide.getAttribute('aria-label')) ?? '';
       await hide.click();
-      await expect(p.getByRole('button', { name: label.replace(/^Ẩn/u, 'Hiện'), exact: true })).toBeVisible();
+      await expect(cards.getByRole('button', { name: label.replace(/^Ẩn/u, 'Hiện'), exact: true })).toBeVisible();
     });
   });
 });

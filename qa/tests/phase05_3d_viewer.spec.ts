@@ -59,8 +59,11 @@ const ENTER_WALL_EDIT = 'Sửa hình học tường';
 /** `wallGeometryEditorTypes.ts` WALL_GEOMETRY_EDITOR_TEXT. */
 const WALL_EDITOR_REGION = 'Sửa hình học tường';
 const VERTEX_X_PATTERN = /^Toạ độ x /u;
-/** `useExplodedView.ts` EmptyMessage = `vi.json:2924`. */
+/** `useExplodedView.ts:143` = `vi.json:2942`; ≥ 2 storeys without a buildable part → `useExplodedView.ts:146,859-860` (BUG-382). */
 const EXPLODED_EMPTY_TEXT = 'Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.';
+const EXPLODED_NO_MODEL_TEXT = VIEWER_EMPTY_TEXT;
+/** `ExplodedView.tsx:54`; the presets also show while loading (`ExplodedView.tsx:75,86`). */
+const EXPLODED_LOADING_TEXT = 'Đang tách các tầng...';
 const EXPLODED_ERROR_TEXT = 'Không tách được các tầng lúc này. Vui lòng thử lại sau.';
 /** `MeasurementTool.tsx`, `MeasurementList.tsx`, `useViewerShell.ts:169`. */
 const PIN_LABEL = 'Ghim phép đo (phím Enter)';
@@ -336,6 +339,10 @@ const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/
 
 /** Two storeys, both layered: the exploded view needs ≥ 2 storeys with geometry (`useExplodedView.ts`). */
 const SEEDED_FLOORS = ['Tầng 1', 'Tầng 2'] as const;
+/** `useViewerShell.ts:167-169` (BUG-384): "Tầng 1" → "tầng 1". */
+const storeyInlineName = (name: string): string => (/^tầng(\s|$)/iu.test(name) ? `t${name.slice(1)}` : `tầng ${name}`);
+/** `ExplodedView.tsx:78`: the floor cards live here; the shell rail eye (also "Ẩn tầng 1", FIX-1706) does not. */
+const EXPLODED_REGION = 'Nội dung tách tầng';
 
 let context: BrowserContext;
 let page: Page;
@@ -627,19 +634,25 @@ test.describe('SCR-23 Viewer 3D', () => {
 /* ---- SCR-24 Exploded View ------------------------------------------------------------------ */
 
 test.describe('SCR-24 Exploded View', () => {
-  test('SCR-24 "Tách hết", "Độ tách các tầng", "Ẩn tầng {seeded floor}"', async () => {
+  test('SCR-24 "Tách hết", "Độ tách", "Ẩn tầng {seeded floor}"', async () => {
     await page.goto(ROUTES.project.exploded(projectId));
     await dismissTour(page);
-    const slider = page.getByRole('slider', { name: 'Độ tách các tầng' });
+    // FIX-1724: no screen slider in the normal layout; the shell storey rail's "Độ tách" drives the same value
+    // (`ViewerStoreyRail.tsx:114-130`, `useExplodedView.ts:786-790`).
+    const slider = page.getByRole('slider', { name: 'Độ tách', exact: true });
+    const presets = page.getByRole('radiogroup', { name: 'Mức tách sẵn' });
     const empty = page.getByText(EXPLODED_EMPTY_TEXT, { exact: true });
+    const noModel = page.getByText(EXPLODED_NO_MODEL_TEXT, { exact: true });
     const failure = page.getByText(EXPLODED_ERROR_TEXT, { exact: true });
 
-    await expect(slider.or(empty).or(failure).first()).toBeVisible({ timeout: SCENE_TIMEOUT_MS });
+    await expect(presets.or(empty).or(noModel).or(failure).first()).toBeVisible({ timeout: SCENE_TIMEOUT_MS });
+    await expect(page.getByText(EXPLODED_LOADING_TEXT, { exact: true })).toHaveCount(0, { timeout: SCENE_TIMEOUT_MS });
     await expect(failure, 'exploded view error state').toHaveCount(0);
-    // Two seeded storeys with geometry: never the "< 2 storeys" empty state (that one is `U05_exploded_empty`).
+    // Two seeded storeys with geometry: never the "< 2 storeys" empty state (that one is `U05_exploded_empty`) nor "no model".
     await expect(empty, 'exploded view empty state with two seeded storeys').toHaveCount(0);
+    await expect(noModel, 'exploded view "no model" state with seeded layers').toHaveCount(0);
 
-    const full = page.getByRole('radiogroup', { name: 'Mức tách sẵn' }).getByRole('radio', { name: 'Tách hết', exact: true });
+    const full = presets.getByRole('radio', { name: 'Tách hết', exact: true });
     await full.click();
     await expect(full).toHaveAttribute('aria-checked', 'true');
     const separated = await slider.inputValue();
@@ -651,8 +664,12 @@ test.describe('SCR-24 Exploded View', () => {
     await full.click();
     await expect(slider).toHaveValue(separated);
 
-    const hide = page.getByRole('button', { name: `Ẩn tầng ${floorName}`, exact: true });
-    const show = page.getByRole('button', { name: `Hiện tầng ${floorName}`, exact: true });
+    // Card eye `ExplodedViewFloorCards.tsx:173` reads "Ẩn tầng Tầng 1" today; the BUG-384 card patch makes it "Ẩn tầng 1".
+    // Accept both; scope to the screen so the shell rail's "Ẩn tầng 1" (`ViewerStoreyRail.tsx:86-89`) never matches.
+    const cardName = `(${escapeRegExp(`tầng ${floorName}`)}|${escapeRegExp(storeyInlineName(floorName))})`;
+    const cards = page.getByRole('region', { name: EXPLODED_REGION, exact: true });
+    const hide = cards.getByRole('button', { name: new RegExp(`^Ẩn ${cardName}$`, 'u') });
+    const show = cards.getByRole('button', { name: new RegExp(`^Hiện ${cardName}$`, 'u') });
     await hide.click();
     await expect(show).toBeVisible();
     await captureEvidence(page, '24_exploded.png');

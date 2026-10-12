@@ -116,7 +116,7 @@ const V3 = {
   cube: 'Khối định hướng', // VOV:45
   preset: 'Góc nhìn sẵn', // VTB:72
   tools: 'Công cụ khung nhìn', // VTR:49
-  separation: 'Độ tách', // UVS:1087, VSR:110-111 (label wraps the range input)
+  separation: 'Độ tách', // UVS:1099, VSR:114-115 (label wraps the range input)
   inspector: 'Thanh tra đối tượng', // VIN:55
   nothingSelected: 'Chưa chọn đối tượng', // VIN:100
   searchTrigger: 'Tìm phòng', // OS:58
@@ -146,17 +146,28 @@ const WALL_EDITOR = {
 } as const;
 const WALLS_SCREEN = 'Duyệt lớp tường'; // src/screens/qc/WallLayerReview/WallLayerReview.tsx:84 (phase04 edge WALL.screen)
 
+/** UVS:167-169 `storeyInlineName` (BUG-384): "Tầng 1" → "tầng 1", "Mái" → "tầng Mái"; the rail eye reads "Ẩn {this}" (VSR:87-89). */
+const storeyInlineName = (name: string): string => (/^tầng(\s|$)/iu.test(name) ? `t${name.slice(1)}` : `tầng ${name}`);
+
 /* SCR-24 copy. */
 const EX = {
-  empty: 'Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.', // EXV:46
-  presets: 'Mức tách sẵn', // EXR:81
+  empty: 'Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.', // UEX:143, EXV:42-48,85
+  presets: 'Mức tách sẵn', // EXR:90
   merged: 'Gộp', // EXT:133
   medium: 'Tách vừa', // EXT:136
-  slider: 'Độ tách các tầng', // EXR:94,120
-  capture: 'Chụp ảnh khung nhìn', // EXV:118
-  captureError: 'Chưa chụp được khung nhìn. Đợi mô hình dựng xong rồi bấm chụp lại.', // UEX:146-147
-  livePrefix: 'Đã tách ', // UEX:143
-  cardPrefix: 'Chọn tầng ', // EXF:121-125
+  /* FIX-1724: the normal (non-collapsed) screen has no slider of its own; separation is the shell storey rail's
+     "Độ tách" (VSR:114-130, name from the wrapping <label>, UVS:1099). "Độ tách các tầng" is only the collapsed rail (EXR:103). */
+  slider: 'Độ tách', // VSR:114-130
+  sliderSelector: '[aria-label="Tầng"] input[type=range]', // VSR:53,116 (the input itself has no aria-label)
+  collapsedSlider: 'Độ tách các tầng', // EXR:103, collapsed only
+  capture: 'Chụp ảnh khung nhìn', // EXV:121
+  captureError: 'Chưa chụp được khung nhìn. Đợi mô hình dựng xong rồi bấm chụp lại.', // UEX:152-153
+  livePrefix: 'Đã tách ', // UEX:149
+  cardPrefix: 'Chọn tầng ', // EXF:132-135
+  /* EXF:134-135 "Chọn tầng {floor.name}, cao độ …" today ("Chọn tầng Tầng 1"); the BUG-384 card patch makes it
+     "Chọn {storeyInlineName}" ("Chọn tầng 1"). The card pattern accepts both. */
+  card: (name: string): RegExp =>
+    new RegExp(`^Chọn (${escapeRegExp(`tầng ${name}`)}|${escapeRegExp(storeyInlineName(name))}), cao độ `, 'u'),
 } as const;
 
 /* SCR-25 copy. */
@@ -755,7 +766,7 @@ test.describe('E05 SCR-23 Viewer 3D', () => {
     });
   });
 
-  test('E05 · SCR-23 storey rail: digit 2, Shift+click adds, eye "Ẩn {name}" ↔ "Hiện {name}"', async ({ browser }) => {
+  test('E05 · SCR-23 storey rail: digit 2, Shift+click adds, eye "Ẩn tầng {n}" ↔ "Hiện tầng {n}"', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const project = await createProject(admin, 'v3-storeys', ['Tầng 1', 'Tầng 2']);
@@ -775,12 +786,13 @@ test.describe('E05 SCR-23 Viewer 3D', () => {
       await expect(option(lower)).toHaveAttribute('aria-selected', 'true');
       await expect(option(upper)).toHaveAttribute('aria-selected', 'true');
 
-      await page.getByRole('button', { name: `Ẩn ${lower.name}`, exact: true }).click(); // VSR:82-85
-      const show = page.getByRole('button', { name: `Hiện ${lower.name}`, exact: true });
+      const lowerInline = storeyInlineName(lower.name); // "Tầng 1" → "tầng 1"
+      await page.getByRole('button', { name: `Ẩn ${lowerInline}`, exact: true }).click(); // VSR:86-90
+      const show = page.getByRole('button', { name: `Hiện ${lowerInline}`, exact: true });
       await expect(show).toHaveAttribute('aria-pressed', 'false');
       await captureEvidence(page, 'E05_viewer_storey_rail.png');
       await show.click();
-      await expect(page.getByRole('button', { name: `Ẩn ${lower.name}`, exact: true })).toHaveAttribute('aria-pressed', 'true');
+      await expect(page.getByRole('button', { name: `Ẩn ${lowerInline}`, exact: true })).toHaveAttribute('aria-pressed', 'true');
     });
   });
 
@@ -987,9 +999,11 @@ test.describe('E05 SCR-24 Exploded View', () => {
       await seedBox(admin, project, firstFloor(project), roomNameFor('ex-one'));
       await openSpatialRoute(page, ROUTES.project.exploded(project.id), project);
       await dismissTour(page);
-      // UEX:139,846-847 fewer than 2 storeys → 'empty'; EXV:75-77,87,91 controls hidden.
+      // UEX:849-860 fewer than 2 storeys → 'empty'; EXV:73-75,89 screen controls hidden.
       await expect(page.getByText(EX.empty, { exact: true })).toBeVisible({ timeout: SCENE_TIMEOUT_MS });
-      await expect(page.getByRole('slider', { name: EX.slider, exact: true })).toHaveCount(0);
+      // The shell rail keeps its one "Độ tách" (VS/ViewerShell.tsx:133-145); the screen adds no second one (FIX-1724).
+      await expect(page.getByRole('slider', { name: EX.slider, exact: true })).toHaveCount(1);
+      await expect(page.getByRole('slider', { name: EX.collapsedSlider, exact: true })).toHaveCount(0);
       await expect(page.getByRole('button', { name: EX.capture, exact: true })).toHaveCount(0);
       await expect(page.getByRole('radiogroup', { name: EX.presets, exact: true })).toHaveCount(0);
       await captureEvidence(page, 'E05_exploded_one_floor.png');
@@ -1004,9 +1018,10 @@ test.describe('E05 SCR-24 Exploded View', () => {
       for (const floor of project.floors) await seedBox(admin, project, floor, roomNameFor(`ex-${floor.name}`));
       await openSpatialRoute(page, ROUTES.project.exploded(project.id), project);
       await dismissTour(page);
-      const slider = page.getByRole('slider', { name: EX.slider, exact: true });
-      await expect(slider).toBeVisible({ timeout: SCENE_TIMEOUT_MS });
+      const slider = page.getByRole('slider', { name: EX.slider, exact: true }); // shell rail, UEX:786-790 same value
       const presets = page.getByRole('radiogroup', { name: EX.presets, exact: true });
+      await expect(presets).toBeVisible({ timeout: SCENE_TIMEOUT_MS }); // EXV:75,89-102 screen controls
+      await expect(page.getByRole('slider', { name: EX.collapsedSlider, exact: true }), 'one separation control (FIX-1724)').toHaveCount(0);
       const cards = page.getByRole('button', { name: new RegExp(`^${EX.cardPrefix}`, 'u') });
 
       await presets.getByRole('radio', { name: EX.merged, exact: true }).click(); // EXT:133 separation 0
@@ -1022,8 +1037,8 @@ test.describe('E05 SCR-24 Exploded View', () => {
 
       // UEX:798-812 Space: MAX, then back to the previous value after cycleHalfMs (EXT:194). Sample every frame.
       await viewport(page).focus();
-      const sampled = page.evaluate((label) => new Promise<string[]>((resolve) => {
-        const input = document.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`);
+      const sampled = page.evaluate((selector) => new Promise<string[]>((resolve) => {
+        const input = document.querySelector<HTMLInputElement>(selector);
         const seen = new Set<string>();
         const end = performance.now() + 3_000;
         const tick = (): void => {
@@ -1032,7 +1047,7 @@ test.describe('E05 SCR-24 Exploded View', () => {
           else resolve([...seen]);
         };
         tick();
-      }), EX.slider);
+      }), EX.sliderSelector);
       await page.keyboard.press('Space');
       const values = await sampled;
       expect(values, 'Space reaches full separation').toContain('1');
@@ -1047,14 +1062,14 @@ test.describe('E05 SCR-24 Exploded View', () => {
       const { page } = admin;
       const project = await createProject(admin, 'ex-card', ['Tầng 1', 'Tầng 2']);
       for (const floor of project.floors) await seedBox(admin, project, floor, roomNameFor(`card-${floor.name}`));
-      // The lower card: the top card can sit under the minimap (see the clickability test below).
+      // The lower card; the top card's clickability (cards left of the minimap, EXT:171 cardsRightPx) is the test below.
       const [lower] = project.floors as [FloorRef, FloorRef];
       await openSpatialRoute(page, ROUTES.project.exploded(project.id), project);
       await dismissTour(page);
-      await expect(page.getByRole('slider', { name: EX.slider, exact: true })).toBeVisible({ timeout: SCENE_TIMEOUT_MS });
+      await expect(page.getByRole('radiogroup', { name: EX.presets, exact: true })).toBeVisible({ timeout: SCENE_TIMEOUT_MS });
       await page.getByRole('radiogroup', { name: EX.presets, exact: true }).getByRole('radio', { name: EX.medium, exact: true }).click();
 
-      await page.getByRole('button', { name: new RegExp(`^${EX.cardPrefix}${escapeRegExp(lower.name)}, cao độ `, 'u') }).click(); // EXF:120-133
+      await page.getByRole('button', { name: EX.card(lower.name) }).click(); // EXF:130-135
       // UEX:377-384 onFloorActivate → onStoreyActivate(id, false) → rail option aria-selected (VSR:62).
       await expect(page.getByRole('option', { name: new RegExp(`^${escapeRegExp(lower.name)}, cao độ `, 'u') })).toHaveAttribute('aria-selected', 'true');
       await captureEvidence(page, 'E05_exploded_card_select.png');
@@ -1069,12 +1084,13 @@ test.describe('E05 SCR-24 Exploded View', () => {
       const [, upper] = project.floors as [FloorRef, FloorRef];
       await openSpatialRoute(page, ROUTES.project.exploded(project.id), project);
       await dismissTour(page);
-      await expect(page.getByRole('slider', { name: EX.slider, exact: true })).toBeVisible({ timeout: SCENE_TIMEOUT_MS });
+      await expect(page.getByRole('radiogroup', { name: EX.presets, exact: true })).toBeVisible({ timeout: SCENE_TIMEOUT_MS });
       await page.getByRole('radiogroup', { name: EX.presets, exact: true }).getByRole('radio', { name: EX.medium, exact: true }).click();
-      // EXV:116 capture at `right-3 top-3` of the scene; VS/ViewerShell.tsx:178-184 ViewCube + minimap at `right-2 top-2`.
+      // EXV:116-119 capture at `right: captureRightPx` 88 (EXT:165, left of the ViewCube); EXF:95-96 cards at `cardsRightPx`
+      // 176 (EXT:171, left of the minimap); shell ViewCube + minimap at `right-2 top-2` (BUG-371, FIX-1721).
       const targets = {
         capture: page.getByRole('button', { name: EX.capture, exact: true }),
-        topCard: page.getByRole('button', { name: new RegExp(`^${EX.cardPrefix}${escapeRegExp(upper.name)}, cao độ `, 'u') }),
+        topCard: page.getByRole('button', { name: EX.card(upper.name) }),
       };
       const reachable: Record<string, string> = {};
       const plain = (text: string): string => text.replace(/\u001b\[[0-9;]*m/gu, '').trim();

@@ -39,8 +39,8 @@ Path short names: `V3/` = `src/screens/viewer/Viewer3D/`, `VS/` = `…/ViewerShe
 | 15 | Keyboard | Keys R/H/M/C/V activate the tool | `VS/viewerShellShortcuts.ts:73-89,143-153` | E "SCR-23 tool rail keys" | covered |
 | 16 | Listbox | Storey rail options "{name}, cao độ {elevation}", aria-selected; Shift+click additive | `VS/ViewerStoreyRail.tsx:56-79`, `VS/useViewerShell.ts:622-630` | E "SCR-23 storey rail" | covered |
 | 17 | Keyboard | Digits 1-4 select the n-th storey from the bottom | `VS/viewerShellShortcuts.ts:44,133-141` | E "SCR-23 storey rail" (digit 2) | covered |
-| 18 | Toggle | Storey eye "Ẩn {name}" / "Hiện {name}" (aria-pressed) | `VS/ViewerStoreyRail.tsx:81-101`, `VS/useViewerShell.ts:632-636` | E "SCR-23 storey rail" | covered |
-| 19 | Slider | "Độ tách" range 0–1, step 0,01 | `VS/ViewerStoreyRail.tsx:108-126`, `VS/useViewerShell.ts:638-645,1087` | E "SCR-23 separation" (value), M SCR-24 (exploded slider) | covered |
+| 18 | Toggle | Storey eye "Ẩn {inline name}" / "Hiện {inline name}" (aria-pressed; "Tầng 1" → "Ẩn tầng 1", BUG-384) | `VS/ViewerStoreyRail.tsx:86-106`, `VS/useViewerShell.ts:167-169,623` | E "SCR-23 storey rail" | covered |
+| 19 | Slider | "Độ tách" range 0–1, step 0,01 (also the separation control of SCR-24's normal layout) | `VS/ViewerStoreyRail.tsx:114-130`, `VS/useViewerShell.ts:1099` | E "SCR-23 separation" (value), M SCR-24 (Home key), E "SCR-24 presets" (value, Space) | covered |
 | 20 | Keyboard | E toggles separation 0 ↔ remembered (0,5) | `VS/viewerShellShortcuts.ts:62,202-210`, `VS/useViewerShell.ts:142,466,848-849` | E "SCR-23 separation" | covered |
 | 21 | Group | Zoom cluster "Thu nhỏ", "Mức thu phóng {x}, bấm để về mức chuẩn", "Phóng to", "Vừa khung hình" | `VS/ViewerChrome.tsx:125-166`, `VS/useViewerShell.ts:1002-1010,1102-1108` | E "SCR-23 zoom cluster" | covered |
 | 22 | Keyboard | O orthographic, 0 fit all, F frame selection (fit all when nothing selected) | `VS/viewerShellShortcuts.ts:47-59,157-201`, `VS/useViewerShell.ts:686-700` | M SCR-23 presets | covered |
@@ -102,19 +102,19 @@ Path short names: `V3/` = `src/screens/viewer/Viewer3D/`, `VS/` = `…/ViewerShe
 
 | # | Group | Element / state | Source (file:line) | Covering test | Status |
 |---|---|---|---|---|---|
-| 71 | State | empty (< 2 storeys): "Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.", no controls | `EX/ExplodedView.tsx:42-50,75-91`, `EX/useExplodedView.ts:139,846-847` | E "SCR-24 one floor", M SCR-24 (asserted absent, two seeded storeys) | covered |
+| 71 | State | empty (< 2 storeys): "Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.", no controls; ≥ 2 storeys without a model: "Mô hình 3D sẽ xuất hiện sau khi bạn duyệt lớp tường." (BUG-382) | `EX/ExplodedView.tsx:42-48,73-89`, `EX/useExplodedView.ts:143-146,849-860` | E "SCR-24 one floor", M SCR-24 (asserted absent, two seeded storeys) | covered |
 | 72 | State | loading "Đang tách các tầng..." | `EX/ExplodedView.tsx:52-60,88` | — | gap (transient; P3) |
 | 73 | State | error "Không tách được các tầng lúc này. Vui lòng thử lại sau." | `EX/ExplodedView.tsx:62-70,89`, `EX/useExplodedView.ts:835-836` | M SCR-24 (asserted absent) | gap (needs a build failure; not producible) |
 | 74 | State | forbidden sr-only "…không sửa được vị trí tầng." | `EX/ExplodedView.tsx:129-131` | — | gap (role matrix) |
 | 75 | Segmented | "Mức tách sẵn": Gộp / Tách vừa / Tách hết | `EX/ExplodedViewRail.tsx:81-85`, `EX/explodedViewTypes.ts:132-140` | M SCR-24 (Tách hết), E "SCR-24 presets" (Gộp, Tách vừa) | covered |
-| 76 | Slider | "Độ tách các tầng" (vertical; collapsed variant) | `EX/ExplodedViewRail.tsx:88-104,117-133` | M SCR-24 (Home key), E "SCR-24 presets" | covered |
+| 76 | Slider | "Độ tách các tầng" — collapsed variant only; the normal layout uses the shell "Độ tách" (#19, FIX-1724) | `EX/ExplodedViewRail.tsx:98-113,127-137` | E "SCR-24 presets" (asserted absent in the normal layout) | gap (collapsed layout; P3) |
 | 77 | Live | aria-live "Đã tách {x %}" | `EX/ExplodedView.tsx:133-135`, `EX/useExplodedView.ts:143,411` | E "SCR-24 presets" | covered |
 | 78 | Cards | Floor cards only when separation > 20 % | `EX/ExplodedViewFloorCards.tsx:75-77`, `EX/useExplodedView.ts:399`, `EX/explodedViewTypes.ts:170` | E "SCR-24 presets" | covered |
-| 79 | Button | Card "Chọn tầng {name}, cao độ …, diện tích …" → storey activated (+ frame); top card must take the click | `EX/ExplodedViewFloorCards.tsx:120-133`, `EX/useExplodedView.ts:377-384` | E "SCR-24 floor card" (lower card), E "SCR-24 … receive a mouse click" (top card) | covered — top card FAILS (minimap intercepts) |
-| 80 | Toggle | "Ẩn tầng {name}" / "Hiện tầng {name}" | `EX/ExplodedViewFloorCards.tsx:157-170` | M SCR-24 | covered |
+| 79 | Button | Card "Chọn tầng {name}, cao độ …, diện tích …" → storey activated (+ frame); top card must take the click | `EX/ExplodedViewFloorCards.tsx:95-96,130-135`, `EX/useExplodedView.ts:377-384` | E "SCR-24 floor card" (lower card), E "SCR-24 … receive a mouse click" (top card) | covered — top card failed in run-25 (minimap intercepts); app fix FIX-1721, re-run pending |
+| 80 | Toggle | "Ẩn tầng {name}" / "Hiện tầng {name}" | `EX/ExplodedViewFloorCards.tsx:173` | M SCR-24 | covered |
 | 81 | Badge | "Cần chú ý" + attention caption in the card name | `EX/ExplodedViewFloorCards.tsx:121-125,148-152` | — | gap (needs an attention caption from the alignment model; P3) |
 | 82 | Keyboard | Space: separate fully, then back after one ambient beat | `EX/useExplodedView.ts:131,798-825`, `EX/explodedViewTypes.ts:194` | E "SCR-24 presets" | covered |
-| 83 | Button | "Chụp ảnh khung nhìn" (disabled while capturing), error "Chưa chụp được khung nhìn…" | `EX/ExplodedView.tsx:116-125`, `EX/useExplodedView.ts:146-150,740-774` | E "SCR-24 … receive a mouse click" | covered — FAILS (ViewCube "Trục đo" intercepts the click); error branch: gap |
+| 83 | Button | "Chụp ảnh khung nhìn" (disabled while capturing), error "Chưa chụp được khung nhìn…" | `EX/ExplodedView.tsx:116-128`, `EX/useExplodedView.ts:152-153,740-774` | E "SCR-24 … receive a mouse click" | covered — failed in run-25 (ViewCube "Trục đo" intercepts the click); app fix FIX-1721, re-run pending; error branch: gap |
 | 84 | Hover | Card hover dims the other floors | `EX/ExplodedViewFloorCards.tsx:91-116` | — | gap (P3, visual) |
 
 ## SCR-25 Measurement Tool (`/projects/:p/3d/measure`)
@@ -201,14 +201,15 @@ Mock share (edge layer): 4 / 33 = 12,1 % (limit `rules.maxMockedShare` 35 %).
 
 ## Summary
 
-- FE rows: 140. covered 96 (6 of them FAIL on the real stack: #54, #79, #83, #124, #132, #135 — listed below), gap 41, UNKNOWN 1 (#9), n/a-by-design 2 (#6, #111) — counts by the Status column.
+- FE rows: 140. covered 94 (6 of them FAILED in run-25: #54, #79, #83, #124, #132, #135 — listed below), gap 43, UNKNOWN 1 (#9), n/a-by-design 2 (#6, #111) — counts by the Status column.
 - Edge tests authored: 33 (`tests/phase05_3d_viewer_edge.spec.ts`), 29 real + 4 mocked. Author run `run-25-author`
   (`phase05-edge`): 29 passed, 4 failed — all four are suspected APP failures, left failing:
   - #54 SCR-23 wall editor: after "abc" + Enter the message says the coordinate went back to the old number, but the field
     still shows "abc" (`WallGeometryVertexTable.tsx:41` shows `draftValue` while the cell is `invalid`). No PUT is sent.
   - #79/#83 SCR-24: "Chụp ảnh khung nhìn" (`ExplodedView.tsx:116`, `right-3 top-3`) sits under the shell ViewCube ("Trục đo"
     intercepts), and the top floor card sits under the minimap viewport rectangle (`components/canvas/MiniMap.tsx:118`) —
-    neither takes a mouse click (`E05_exploded_top_right_click.json`).
+    neither takes a mouse click (`E05_exploded_top_right_click.json`). QA-05 FIX-1721 moved both (`explodedViewTypes.ts:165`
+    `captureRightPx` 88, `:171` `cardsRightPx` 176); re-run pending.
   - #124/#135 SCR-27 at 375×812: the model area `<main>` (`MobileViewer.tsx:236`, `min-h-0 flex-1`) is 0 px tall — the route
     is mounted outside `ScreenMain` with no viewport height (compare the `h-screen` fix of `PascalViewerRoute`, B-V10-02), so
     the bottom bar sits right under the top bar and every state layer is clipped. The partial/empty tests that "passed"
