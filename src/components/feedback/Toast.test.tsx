@@ -240,4 +240,11 @@ describe('Toast.Provider viewport', () => {
       '[html[data-drawer=sheet]_&]:top-4',
     );
   });
+
+  // BUG-512: at 375 px the bottom-right toast covered the "Ghi chú" field being typed in.
+  it('moves to the top edge below 640 px', () => {
+    render(<Toast.Provider><span /></Toast.Provider>);
+
+    expect(screen.getByRole('region', { name: 'Thông báo' })).toHaveClass('max-sm:bottom-auto', 'max-sm:top-4');
+  });
 });

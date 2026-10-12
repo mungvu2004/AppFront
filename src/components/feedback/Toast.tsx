@@ -173,6 +173,7 @@ ToastItem.displayName = 'Toast.Item';
  * Vùng neo toast, dùng chung cho `Toast.Provider` và `NotificationHost`. Ngăn đang mở
  * (`Drawer` đặt `data-drawer` lên <html>) chiếm góc dưới-phải, nơi có nút chân của nó:
  * ngăn bên → toast lùi sang trái ngăn; tờ dưới 1024 px → toast lên mép trên (BUG-227).
+ * Dưới 640 px toast cũng lên mép trên: ở dưới nó che ô đang gõ, như "Ghi chú" (BUG-512).
  */
 function ToastViewport({ children }: { children: React.ReactNode }) {
   return (
@@ -183,6 +184,7 @@ function ToastViewport({ children }: { children: React.ReactNode }) {
         'pointer-events-none fixed bottom-4 right-4 z-50 flex flex-col-reverse items-end gap-2',
         '[html[data-drawer=side]_&]:right-[calc(1rem+var(--drawer-inset))]',
         '[html[data-drawer=sheet]_&]:bottom-auto [html[data-drawer=sheet]_&]:top-4',
+        'max-sm:bottom-auto max-sm:top-4',
       )}
       role="region"
     >
