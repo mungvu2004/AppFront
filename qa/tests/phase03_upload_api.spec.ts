@@ -13,15 +13,22 @@
  *
  * ## Real-backend budget per run of this file
  * - `drawings_init` per user per 600 s (BE default 60; QA stack 300 = E2E_DRAWINGS_INIT_RATE_LIMIT):
- *   `p12-up-owner` ≈ 33 (A2-01 9, A2-02 11, A2-03 2, A2-04 2, A2-05 4, A2-06 1, A2-08 1, A2-09 2; inits refused by the
- *   1 MiB body ceiling are not counted), `p12-up-member` 1, `p12-up-budget` INIT_LIMIT + 1 (bucket burnt on purpose:
- *   a re-run of FL-A2-07 inside 600 s fails at its first init — wait 10 min). The admin spends none.
- * - `POST /api/auth/login` (120 / 60 s): ≈ 22 (admin + owner per flow, + member / second session where used).
- * - `POST /api/users/invitations` (30 / 3600 s per admin): 0 once the three slots are filled; first run ever 3.
- * - `members_add` (60 / 3600 s per actor): `p12-up-owner` 3. #42 / #43 disable / enable: admin 1 + 1.
- * - Pipeline worker (fake ML): ≈ 22 runs (A2-02 7 superseding each other on one floor, A2-03 2, A2-04 2, A2-05 4,
- *   A2-08 2, A2-09 5); the real 121 s wait of BE2-G-027 dominates FL-A2-01.
- * - SSE: ≤ 7 concurrent streams of `p12-up-owner` (FL-A2-06, the 7th is the 429 precondition); nginx limit_conn 30 / IP.
+ *   `p12-up-owner` ≈ 44 (A2-01 19, A2-02 11, A2-03 2, A2-04 2, A2-05 4, A2-06 1, A2-08 1, A2-09 2, A2-10 1; inits refused
+ *   by the 1 MiB body ceiling are not counted, every 422 after the gate is), `p12-up-member` 1, `p12-up-budget`
+ *   INIT_LIMIT + 1 (bucket burnt on purpose: a re-run of FL-A2-07 inside 600 s fails at its first init — wait 10 min).
+ *   The admin spends none.
+ * - `POST /api/auth/login` (120 / 60 s): ≈ 25 (admin + owner per flow, + member / second session / viewer where used).
+ * - `POST /api/users/invitations` (30 / 3600 s per admin): 0 once the slots are filled; first run ever 4 (the three P12
+ *   slots + `viewer:shared`, which other phase-03 files fill too).
+ * - `members_add` (60 / 3600 s per actor): `p12-up-owner` 4. #42 / #43 disable / enable: admin 1 + 1.
+ * - Pipeline worker (fake ML): ≈ 25 runs (A2-02 7 superseding each other on one floor, A2-03 2, A2-04 2, A2-05 4,
+ *   A2-08 2, A2-09 7 incl. the two BE2-G-139 rhombus runs left running, A2-10 1); the real 121 s wait of BE2-G-027
+ *   dominates FL-A2-01. #35 scale writes: A2-03 2.
+ * - SSE: ≤ 7 concurrent streams of `p12-up-owner` (FL-A2-06, the 7th is the 429 precondition; A2-03's resume stream is
+ *   opened after its live one closed); `viewer:shared` 1 for ~17 s (A2-10); nginx limit_conn 30 / IP.
+ * - QA-03i added A2-01 BE2-G-006 / 008 / 009 / 020 / 029 / 054, A2-03 BE2-G-194 / 126, A2-09 BE2-G-139 and FL-A2-10
+ *   (`BE:` main 4633e479 for these). #27 is admin-only (BUG-513): `ownProject`'s cleanup adds the admin and the admin
+ *   deletes (`deleteSeededProject`), +1 members_add and +1 admin login per engineer-owned project.
  */
 import { expect, test, type APIRequestContext } from '@playwright/test';
 
@@ -62,6 +69,7 @@ import {
   latestItems,
   layerPath,
   makePdf,
+  newLevelId,
   noisePng,
   note,
   ownProject,
@@ -94,6 +102,7 @@ import {
   framelessPng,
   deleteSeededProject,
   oversizePng,
+  poolUser,
   rotatedPng,
   SKEW_DEG,
   waitForQualityFindings,
@@ -131,7 +140,7 @@ const dims = (entry: Json | undefined): [unknown, unknown] => {
 };
 
 test.describe('A03 · phase-3 BE2 lifecycles (upload, pipeline, stream, quality) — QA-03d P12', () => {
-  test('FL-A2-01 · BE2 · init rules: size cap edge, parallel and variant inits, chunk body guards, dedupe window expiry', async () => {
+  test('FL-A2-01 · BE2 · init rules: size cap edge, parallel and variant inits, chunk body guards, W21 floorId, fileName / mimeType limits, idempotency keys on #5 and #6, dedupe window expiry', async () => {
     test.setTimeout(270_000);
     const cleanup = new Cleanup();
     try {
@@ -213,6 +222,82 @@ test.describe('A03 · phase-3 BE2 lifecycles (upload, pipeline, stream, quality)
           chunk: 'AAAA', chunkIndex: 0, uploadId: iUid,
         }, ['422 PATH_BODY_MISMATCH field uploadId: the W21 guard compares every path key the body declares (core/routing.py:138-151), before Pydantic']);
         expectError(sent, 422, 'PATH_BODY_MISMATCH', { field: 'uploadId' });
+      });
+
+      await test.step('[BE2-G-006] init body floorId ≠ path floor → 422 PATH_BODY_MISMATCH field floorId (W21)', async () => {
+        const sent = await initUpload(e1, 'BE2-G-006_init_floor_id_mismatch_422', pid, fid, { floorId: newLevelId() }, [
+          '422 PATH_BODY_MISMATCH field floorId: the W21 guard compares every path key the body declares (core/routing.py:138-151)',
+        ]);
+        expectError(sent, 422, 'PATH_BODY_MISMATCH', { field: 'floorId' });
+      });
+
+      await test.step('[BE2-G-008] fileName blank after trim → 422 field fileName; 256 code points after NFC (512 NFD) → 422 fileName; 255 after NFC → 200', async () => {
+        // clean_file_name: clean_text (strip + NFC) THEN 1..255 (drawings/schemas.py:34-52, packages/core/text.py:34-46).
+        const nfd = (n: number): string => 'e\u0301'.repeat(n); // "é" decomposed: 2 code points → 1 after NFC
+        const cases: Array<[string, string]> = [
+          ['blank', '   '],
+          ['nfc_256', `${nfd(252)}.png`],
+        ];
+        for (const [slug, fileName] of cases) {
+          const sent = await initUpload(e1, `BE2-G-008_init_${slug}_422`, pid, fid, { fileName }, [
+            '422 VALIDATION field fileName: the length is counted after trim + NFC (drawings/schemas.py:44-48)',
+          ]);
+          expectError(sent, 422, 'VALIDATION', { field: 'fileName' });
+        }
+        const ok = await initUpload(e1, 'BE2-G-008_init_nfc_255_200', pid, fid, { fileName: `${nfd(251)}.png` }, [
+          '200 Progress pending: 506 code points sent, 255 after NFC (the limit is inclusive)',
+        ]);
+        expect.soft(ok.res.status()).toBe(200);
+        expect.soft(asJson(ok.body).status).toBe('pending');
+      });
+
+      await test.step('[BE2-G-009] fileName with a Cc (U+0007) / a bidi override (U+202E) → 422 VALIDATION field fileName', async () => {
+        for (const [slug, fileName] of [['cc_bel', `${PREFIX}a\u0007b.png`], ['rlo', `${PREFIX}a\u202Egnp.exe.png`]] as const) {
+          const sent = await initUpload(e1, `BE2-G-009_init_${slug}_422`, pid, fid, { fileName }, [
+            '422 VALIDATION field fileName: clean_text refuses Cc and the bidi override / isolate set (packages/core/text.py:22-46)',
+          ]);
+          expectError(sent, 422, 'VALIDATION', { field: 'fileName' });
+        }
+      });
+
+      await test.step('[BE2-G-020] init mimeType of 256 chars → 422 VALIDATION field mimeType', async () => {
+        const sent = await initUpload(e1, 'BE2-G-020_init_mime_256_422', pid, fid, { fileName: `${PREFIX}mime.png`, mimeType: `image/${'x'.repeat(250)}` }, [
+          '422 VALIDATION field mimeType: max_length MIME_TYPE_MAX 255 (drawings/schemas.py:29,63)',
+        ]);
+        expectError(sent, 422, 'VALIDATION', { field: 'mimeType' });
+      });
+
+      let chunkUid = '';
+      await test.step('[BE2-G-029] init with Idempotency-Key K → 200; same K + another body → 422 IDEMPOTENCY_KEY_REUSED; a malformed key → 422 VALIDATION field idempotencyKey', async () => {
+        const key = `qa-p12-init-${uniq()}`;
+        const body = initBody(pid, fid, { fileName: `${PREFIX}a2-01-key.png`, sizeBytes: 3 });
+        const first = await call(e1, 'BE2-G-029_init_key_200', 'POST', initPath(pid, fid), body, ['200 Progress pending (a new upload)'], { 'Idempotency-Key': key });
+        expect(first.res.status(), 'init with a key').toBe(200);
+        chunkUid = String(asJson(first.body).id);
+        const reused = await call(e1, 'BE2-G-029_init_same_key_other_body_422', 'POST', initPath(pid, fid), { ...body, sizeBytes: 4 }, [
+          '422 IDEMPOTENCY_KEY_REUSED: same key, another request digest (core/idempotency.py:225-233)',
+        ], { 'Idempotency-Key': key });
+        expectError(reused, 422, 'IDEMPOTENCY_KEY_REUSED');
+        const malformed = await call(e1, 'BE2-G-029_init_malformed_key_422', 'POST', initPath(pid, fid), body, [
+          '422 VALIDATION field idempotencyKey: the key must match ^[A-Za-z0-9_-]{8,128}$ (core/idempotency.py:48,79-83; packages/db/models/idempotency.py:35)',
+        ], { 'Idempotency-Key': 'bad key!' });
+        expectError(malformed, 422, 'VALIDATION', { field: 'idempotencyKey' });
+      });
+
+      await test.step('[BE2-G-054] chunk 0 sent twice with the SAME Idempotency-Key and different bytes → 200 both (idempotency "off" on #6: no replay, no KEY_REUSED)', async () => {
+        const key = `qa-p12-chunk-${uniq()}`;
+        const path = `/api/projects/${pid}/drawings/uploads/${chunkUid}/chunks`;
+        const a = await call(e1, 'BE2-G-054_chunk0_key_200', 'POST', path, { chunk: Buffer.from([1, 2, 3]).toString('base64'), chunkIndex: 0 }, [
+          '200 Progress pending: #6 is route_options(idempotency="off"), the key is not read (drawings/router.py:70-71, core/routing.py AppRoute.uses_idempotency)',
+        ], { 'Idempotency-Key': key });
+        const b = await call(e1, 'BE2-G-054_chunk0_same_key_other_bytes_200', 'POST', path, { chunk: Buffer.from([4, 5, 6]).toString('base64'), chunkIndex: 0 }, [
+          '200 again: another body under the same key is neither replayed nor refused; the index is overwritten (uploads.py:249-270 upsert)',
+        ], { 'Idempotency-Key': key });
+        for (const [what, sent] of [['first', a], ['second', b]] as const) {
+          expect.soft(sent.res.status(), what).toBe(200);
+          expect.soft(asJson(sent.body).id, what).toBe(chunkUid);
+          expect.soft(asJson(sent.body).status, what).toBe('pending');
+        }
       });
 
       await test.step('[BE2-G-027] at t0 + 122 s (UPLOAD_INIT_DEDUPE_S 120, server clock) init I again → 200 with a NEW upload id', async () => {
@@ -326,8 +411,8 @@ test.describe('A03 · phase-3 BE2 lifecycles (upload, pipeline, stream, quality)
     }
   });
 
-  test('FL-A2-03 · BE2 · one plain-page run on #8 and S1, layer at the project default scale, scale demoted by a re-upload', async ({ browser }) => {
-    test.setTimeout(2 * PIPELINE_TIMEOUT_MS + 60_000);
+  test('FL-A2-03 · BE2 · one plain-page run on #8 and S1, S1 resume, layer at the project default scale, scale demoted by a re-upload, human scale blocks quality writes', async ({ browser }) => {
+    test.setTimeout(2 * PIPELINE_TIMEOUT_MS + 90_000);
     const cleanup = new Cleanup();
     const conns: SseConn[] = [];
     try {
@@ -413,6 +498,25 @@ test.describe('A03 · phase-3 BE2 lifecycles (upload, pipeline, stream, quality)
         expect.soft(again.frames.map((f) => f.data.status)).toEqual(['completed']);
       });
 
+      await test.step('[BE2-G-194] reopen S1 with ?lastEventId = the first live event → no snapshot; the following frames replayed in order, no duplicates', async () => {
+        expect(live.frames.length, 'precondition: snapshot + ≥ 2 live events').toBeGreaterThanOrEqual(3);
+        const from = live.frames[1] as SseFrame;
+        const expected = live.frames.slice(2);
+        const last = expected[expected.length - 1] as SseFrame;
+        const resumed = await SseConn.open(`${path}?lastEventId=${encodeURIComponent(from.id)}`, { cookie: await streamCookieOf(e1) });
+        conns.push(resumed);
+        await resumed.until((c) => c.frames.some((f) => f.id === last.id), 10_000);
+        await sleep(1_000);
+        await resumed.close();
+        await captureStream('BE2-G-194_resume_inside_stream', path, { lastEventId: from.id, cookie: '<owner stream cookie>' }, resumed, [
+          'well-formed, ≤ tail, not trimmed → cursor = lastEventId: XREAD from there, no snapshot frame (streams/sse.py:279-292)',
+        ]);
+        expect.soft(resumed.status).toBe(200);
+        expect.soft(resumed.frames.map((f) => f.id), 'the ids after lastEventId, in order').toEqual(expected.map((f) => f.id));
+        expect.soft(resumed.frames.map((f) => f.data), 'the same data').toEqual(expected.map((f) => f.data));
+        expect.soft(new Set(resumed.frames.map((f) => f.id)).size, 'no duplicate frame').toBe(resumed.frames.length);
+      });
+
       await test.step('[BE2-G-205] N16 after the run: no walls / openings; level scale = project defaultScaleMmPerPx; scaleStatus "unresolved"', async () => {
         const sent = await call(e1, 'BE2-G-205_n16_after_run', 'GET', layerPath(pid, fid), undefined, [
           'a plain page (no render_plan marker): the fake ML answers nothing (packages/ml_contracts/fakes.py:25-36) and the build falls back to the project default scale (pipeline_build/build.py:199-220)',
@@ -425,6 +529,7 @@ test.describe('A03 · phase-3 BE2 lifecycles (upload, pipeline, stream, quality)
         expect.soft(layer.scaleStatus).toBe('unresolved');
       });
 
+      let reupload = { uid: '', endedAt: undefined as unknown };
       await test.step('[BE2-G-158] #35 human scale, then re-upload the page on the floor → N16 scaleStatus "unresolved" again (page_key changed); the merge of the new run replaces the scale', async () => {
         const rev = Number(asJson((await call(e1, 'BE2-G-158_n16_before', 'GET', layerPath(pid, fid), undefined, ['N16 revision'])).body).revision);
         const human = await call(e1, 'BE2-G-158_scale_write_200', 'PUT', layerPath(pid, fid), { baseVersion: rev, body: { scaleMillimetresPerPixel: 3 } }, [
@@ -435,6 +540,7 @@ test.describe('A03 · phase-3 BE2 lifecycles (upload, pipeline, stream, quality)
         expect.soft(reviewed, 'human scale → no scaleStatus (W24)').not.toHaveProperty('scaleStatus');
         const second = await finishedUpload(e1, 'BE2-G-158_reupload', pid, fid, plain, `${PREFIX}a2-03-again.png`);
         expect.soft(second.final.status).toBe('completed');
+        reupload = { uid: second.uid, endedAt: second.final.endedAt };
         const after = asJson((await call(e1, 'BE2-G-158_n16_after_reupload', 'GET', layerPath(pid, fid), undefined, [
           'scaleStatus "unresolved": the human scale belongs to the old page_key (spatial_read/router.py:77-78, assemble.py:27-36); the new run merges on ANOTHER page, where the human scale ranks 0, so its project-default scale replaces 3 (spatial_write/writer.py:376-391)',
         ])).body);
@@ -442,6 +548,26 @@ test.describe('A03 · phase-3 BE2 lifecycles (upload, pipeline, stream, quality)
         const value = asJson(after.level ?? {}).scaleMillimetresPerPixel;
         note(`BE2-G-158 scale after the re-upload run: ${String(value)} (catalog "kept" 3 is only the read-side state before the new run persists)`);
         expect.soft(value, 'the new page carries its own (project default) scale').toBe(scale);
+      });
+
+      await test.step('[BE2-G-126] #35 human scale on the completed re-upload → #32 straighten and #31 corners → 422 QUALITY_LAYER_REVIEWED; nothing re-queued', async () => {
+        expect(reupload.uid, 'precondition: the BE2-G-158 re-upload ran').not.toBe('');
+        const rev = Number(asJson((await call(e1, 'BE2-G-126_n16_before', 'GET', layerPath(pid, fid), undefined, ['N16 revision'])).body).revision);
+        const human = await call(e1, 'BE2-G-126_scale_write_200', 'PUT', layerPath(pid, fid), { baseVersion: rev, body: { scaleMillimetresPerPixel: 4 } }, [
+          '200: scale-only human write → scale_source "human" (#35, phase 4 owns its rules)',
+        ]);
+        expect(human.res.status(), '#35 scale write').toBe(200);
+        const straighten = await call(e1, 'BE2-G-126_straighten_422', 'POST', qualityPath(pid, fid, '/straighten'), {}, [
+          '422 QUALITY_LAYER_REVIEWED: has_human_geometry (scale_source == "human") AND a completed run of the drawing (quality/service.py:114-120; spatial_read/documents.py:165-176)',
+        ]);
+        expectError(straighten, 422, 'QUALITY_LAYER_REVIEWED');
+        const corners = await call(e1, 'BE2-G-126_corners_422', 'POST', qualityPath(pid, fid, '/corners'), { corners: CORNERS_C1 }, [
+          '422 QUALITY_LAYER_REVIEWED: the geometry passes first, then the same editability check',
+        ]);
+        expectError(corners, 422, 'QUALITY_LAYER_REVIEWED');
+        const p = await progressOf(e1, 'BE2-G-126_progress_after', pid, reupload.uid, '#8 of the re-upload: still the same completed run');
+        expect.soft(p.status).toBe('completed');
+        expect.soft(p.endedAt, 'nothing re-queued').toBe(reupload.endedAt);
       });
     } finally {
       for (const c of conns) await c.close();
@@ -804,7 +930,7 @@ test.describe('A03 · phase-3 BE2 lifecycles (upload, pipeline, stream, quality)
     }
   });
 
-  test('FL-A2-09 · BE2 · manual corners lifecycle: anon, path guard, key replay, newest run wins in N7, frame state, no-op, undo corners', async () => {
+  test('FL-A2-09 · BE2 · manual corners lifecycle: anon, path guard, key replay, newest run wins in N7, frame state, no-op, undo corners, top-left start rule', async () => {
     test.setTimeout(3 * PIPELINE_TIMEOUT_MS);
     const cleanup = new Cleanup();
     try {
@@ -907,7 +1033,93 @@ test.describe('A03 · phase-3 BE2 lifecycles (upload, pipeline, stream, quality)
           'C2 ran; the undo half cannot be driven through the API',
         ]);
       });
+
+      await test.step('[BE2-G-139] #31 on the framed floor: first point not top-left (beyond eps 0.002) → 422 field corners; a 45° rhombus starting at its top vertex → 200, then starting at its left vertex → 200', async () => {
+        const path = qualityPath(pid, framedFid, '/corners');
+        const c = (x: number, y: number): Json => ({ xRatio: x, yRatio: y });
+        const notTl = await call(e1, 'BE2-G-139_corners_not_top_left_422', 'POST', path, { corners: [c(0.95, 0.05), c(0.95, 0.95), c(0.05, 0.95), c(0.05, 0.05)] }, [
+          '422 VALIDATION field corners: x + y of the first point > min(x + y) + QUALITY_CORNER_EPS (quality/geometry.py:71-73; settings.py:23)',
+        ]);
+        expectError(notTl, 422, 'VALIDATION', { field: 'corners' });
+        // A 45° rhombus has two "top-left" vertices with the same x + y: (0.5, 0) and (0, 0.5) — both are valid starts (NO-227).
+        const rhombi: Array<[string, Json[]]> = [
+          ['top_first', [c(0.5, 0), c(1, 0.5), c(0.5, 1), c(0, 0.5)]],
+          ['left_first', [c(0, 0.5), c(0.5, 0), c(1, 0.5), c(0.5, 1)]],
+        ];
+        for (const [slug, corners] of rhombi) {
+          const sent = await call(e1, `BE2-G-139_corners_rhombus_${slug}_200`, 'POST', path, { corners }, [
+            '200 QualityAssessmentOut: the tie within eps is accepted; a new run is queued on the framed upload (quality/service.py:319-345, geometry.py:54-78)',
+          ]);
+          expect.soft(sent.res.status(), slug).toBe(200);
+        }
+      });
     } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('FL-A2-10 · BE2 · viewer member reads a finished run (N7, #30, N16, N15 → 200); S1 stays open after its terminal frame', async () => {
+    test.setTimeout(PIPELINE_TIMEOUT_MS + 90_000);
+    const cleanup = new Cleanup();
+    const conns: SseConn[] = [];
+    try {
+      const { admin, e1 } = await owner(cleanup);
+      const viewer = await poolUser(admin, 'viewer');
+      const project = await ownProject(e1, 'FL-A2-10', cleanup, ['T1']);
+      const pid = project.id;
+      const fid = project.floors[0] as string;
+      const run = await finishedUpload(e1, 'FL-A2-10_setup_run', pid, fid, drawingPng(), `${PREFIX}a2-10.png`);
+      expect(run.final.status, 'setup: the drawing.png run completes').toBe('completed');
+      await addMember(e1, 'FL-A2-10_setup_add_viewer', pid, viewer.email);
+      const vApi = await userApi(viewer, cleanup);
+      let n16Revision: unknown;
+
+      await test.step('[BE2-G-095] viewer member GET N7 latest uploads → 200, one item: T1 with the finished upload', async () => {
+        const items = await latestItems(vApi, 'BE2-G-095_viewer_n7_200', pid, '200 N7: require_project() = member gate only, no permission key (drawings/latest.py:120-123)');
+        expect.soft(items.map((i) => [i.floorId, i.uploadId])).toEqual([[fid, run.uid]]);
+      });
+
+      await test.step('[BE2-G-107] viewer member GET #30 quality of T1 (completed run) → 200 with the T1 entry', async () => {
+        const entry = await qualityEntry(vApi, 'BE2-G-107_viewer_quality_200', pid, fid);
+        expect.soft(entry?.floorId, '#30 lists T1 (member gate only, quality/router.py:30-37)').toBe(fid);
+      });
+
+      await test.step('[BE2-G-152] viewer member GET N16 layer of T1 → 200, revision ≥ 1 after the run', async () => {
+        const sent = await call(vApi, 'BE2-G-152_viewer_n16_200', 'GET', layerPath(pid, fid), undefined, [
+          '200 FloorLayerDocumentOut: member gate only (spatial_read/router.py:71-87)',
+        ]);
+        expect.soft(sent.res.status()).toBe(200);
+        n16Revision = asJson(sent.body).revision;
+        expect.soft(Number(n16Revision), 'the run wrote the layer').toBeGreaterThanOrEqual(1);
+      });
+
+      await test.step('[BE2-G-160] viewer member GET N15 project spatial graph → 200, floorRevisions lists T1 at the N16 revision', async () => {
+        const sent = await call(vApi, 'BE2-G-160_viewer_n15_200', 'GET', `/api/projects/${pid}/spatial`, undefined, [
+          '200 SpatialGraphDocumentOut {graph, floorRevisions}: member gate only (spatial_read/router.py:65-68)',
+        ]);
+        expect.soft(sent.res.status()).toBe(200);
+        const revisions = asArray(asJson(sent.body).floorRevisions ?? []).map((r) => asJson(r));
+        expect.soft(revisions).toEqual([{ floorId: fid, revision: n16Revision }]);
+      });
+
+      await test.step('[BE2-G-192] viewer opens S1 on the completed upload → one snapshot frame, already terminal (completed); the server keeps the stream open: a ": ping" ~15 s later and no end', async () => {
+        const path = streamPath(pid, run.uid);
+        const conn = await SseConn.open(path, { cookie: await streamCookieOf(vApi) });
+        conns.push(conn);
+        await conn.until((c) => c.pings.length >= 1 || c.end !== undefined, (STREAM_HEARTBEAT_S + 6) * 1000);
+        await sleep(1_000);
+        const openAfterPing = conn.end === undefined;
+        await conn.close();
+        await captureStream('BE2-G-192_open_after_terminal', path, { cookie: '<viewer stream cookie>' }, { ...conn.record(), openAfterPing }, [
+          '_pump has no terminal-status check: after the completed frame it keeps reading and sends ": ping" every STREAM_HEARTBEAT_S until the client leaves (streams/sse.py:387-405); the FE must close',
+        ]);
+        expect(conn.status, 'S1 opens for a viewer member').toBe(200);
+        expect.soft(conn.frames.map((f) => f.data.status), 'only the terminal snapshot').toEqual(['completed']);
+        expect.soft(conn.pings.length, 'a heartbeat after the terminal frame').toBeGreaterThanOrEqual(1);
+        expect.soft(openAfterPing, 'the server did not end the stream after the final status').toBe(true);
+      });
+    } finally {
+      for (const c of conns) await c.close();
       await cleanup.run();
     }
   });
