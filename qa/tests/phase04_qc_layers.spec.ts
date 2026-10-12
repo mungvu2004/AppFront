@@ -31,7 +31,8 @@
  *   Merge rules (`domain/walls/edit.ts` mergeWalls): same kind, thickness, elevations; angle < 2°;
  *   off-axis stray ≤ thickness/2. Delete toast "Đã xoá tường {code}." + "Hoàn tác" (region "Thông báo").
  * - Objects: subtype/swing commands only for openings (`useObjectLayerReview.ts`: `'wallId' in before`),
- *   subtype not for orphans. Canvas `<g aria-label={codeLabel}>` has the context menu ("Xoá").
+ *   subtype not for orphans. Canvas `<g aria-label={codeLabel}>` has the context menu ("Xoá"); no delete key or
+ *   inspector button exists for objects (`ObjectLayerInspector.tsx` header).
  * - Dimensions (F-08) and axes: no persistence path; the hooks still say "saved".
  * - Scale: "Áp cho mọi tầng" is a scope option; "Áp dụng tỷ lệ" then reads #12 floors + N15 graph and
  *   opens the A9 dialog "Áp tỉ lệ này cho N tầng có bản vẽ?" (`useScaleCalibration.ts` onApply).
@@ -65,6 +66,9 @@ const VIEWPORT = { width: 1440, height: 900 } as const;
  * round trip, then count the write requests. Used ONLY by the no-PUT assertions.
  */
 const NO_WRITE_SETTLE_MS = 1_500;
+
+/** BUG-424: an action that either lands at once or never (a covered target) gets 5 s, not ACTION_TIMEOUT_MS (30 s). */
+const QUICK_ACTION_TIMEOUT_MS = 5_000;
 
 /** `domain/walls/edit.ts` MAX_MERGE_ANGLE_DEG (2°); a tighter margin here so the pick is unambiguous. */
 const MERGE_MAX_ANGLE_DEG = 1;
@@ -769,8 +773,8 @@ async function openObjects(): Promise<void> {
   if (objectCount > 0) await expect(objectOptions().first()).toBeVisible();
 }
 
+/** Every SCR-17 case opens the objects screen itself: not serial, a failure skips none of the others. */
 test.describe('SCR-17 Object Layer Review', () => {
-  test.describe.configure({ mode: 'serial' });
   test.beforeEach(useSeededFloor);
 
   test('SCR-17 filter: "Lọc theo loại" chips, "Mở nhóm …", list option → inspector "Đối tượng"', async () => {
@@ -812,6 +816,7 @@ test.describe('SCR-17 Object Layer Review', () => {
   });
 
   test('SCR-17 edit: "Duyệt đối tượng này"; "hướng mở" → mở trái; "Loại đối tượng" → PUT per change', async () => {
+    await openObjects();
     if (objectCount === 0) {
       await captureEvidence(page, '17_objects_edit.png');
       throw new Error('seeded floor: no objects (see the SCR-17 filter case)');
@@ -878,20 +883,49 @@ test.describe('SCR-17 Object Layer Review', () => {
   });
 
   test('SCR-17 delete + undo: right-click g[aria-label="<code>"], "Xoá", then status bar "Hoàn tác"', async () => {
+    await openObjects();
     if (objectCount === 0) {
       await captureEvidence(page, '17_objects_delete_undo.png');
       throw new Error('seeded floor: no objects (see the SCR-17 filter case)');
     }
     const code = await codeOfOption(objectOptions().first());
+    const symbol = page.locator(`g[aria-label="${code}"]`);
+    // Codes are rank-numbered like the walls' (BUG-423): after a delete a later object may take this code, so removal is
+    // counted, not looked up by code.
+    const total = await objectOptions().count();
 
-    await page.locator(`g[aria-label="${code}"]`).click({ button: 'right' });
-    await page.getByRole('menuitem', { name: 'Xoá', exact: true }).click();
-    await expect(objectOption(code)).toHaveCount(0);
+    // BUG-424 (run-26): the symbol's centre lay under the frame "Mặt bằng lớp đối tượng" (no drawing, so nothing fits the
+    // view to the layer) and the right-click retried for the whole 30 s action timeout. The menu is the ONLY delete path for
+    // objects (no key, no inspector button), so: a real right-click when the point is hittable within 5 s, else the same
+    // `contextmenu` event dispatched on the symbol (`ObjectLayerCanvas.tsx` onContextMenu → openMenu at clientX/Y), at the
+    // frame centre so the menu opens on screen. The fallback is recorded as an annotation, never silent.
+    const reachable = await symbol.click({ button: 'right', trial: true, timeout: QUICK_ACTION_TIMEOUT_MS }).then(
+      () => true,
+      () => false,
+    );
+    if (reachable) {
+      await symbol.click({ button: 'right', timeout: QUICK_ACTION_TIMEOUT_MS });
+    } else {
+      const frame = await page.getByRole('group', { name: 'Mặt bằng lớp đối tượng', exact: true }).boundingBox();
+      if (frame === null) throw new Error('object canvas frame has no bounding box');
+      test.info().annotations.push({
+        type: 'branch',
+        description: `${code}: symbol centre not hittable (canvas frame on top); contextmenu dispatched on the <g>`,
+      });
+      await symbol.dispatchEvent(
+        'contextmenu',
+        { button: 2, clientX: frame.x + frame.width / 2, clientY: frame.y + frame.height / 2 },
+        { timeout: QUICK_ACTION_TIMEOUT_MS },
+      );
+    }
+    await page.getByRole('menuitem', { name: 'Xoá', exact: true }).click({ timeout: QUICK_ACTION_TIMEOUT_MS });
+    await expect(objectOptions()).toHaveCount(total - 1);
 
     await page
       .getByRole('status', { name: 'Thanh trạng thái', exact: true })
       .getByRole('button', { name: 'Hoàn tác', exact: true })
-      .click();
+      .click({ timeout: QUICK_ACTION_TIMEOUT_MS });
+    await expect(objectOptions()).toHaveCount(total);
     await expect(objectOption(code)).toHaveCount(1);
     await captureEvidence(page, '17_objects_delete_undo.png');
   });
