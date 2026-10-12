@@ -268,6 +268,18 @@ describe('Bảy trạng thái', () => {
     unmount();
   });
 
+  it('[BUG-454] rỗng: không khung JSON kể ngược lại, không lộ "pipeline" / "Spatial JSON"', () => {
+    const { container, unmount } = renderWithProviders(
+      <SpatialJsonViewer {...buildSpatialJsonViewerProps('empty')} />,
+    );
+
+    expect(screen.getByText('Chưa có dữ liệu không gian')).toBeInTheDocument();
+    expect(screen.queryByRole('tablist', { name: 'Cách xem nội dung' })).toBeNull();
+    expect(container.textContent).not.toMatch(/pipeline|Spatial JSON/u);
+
+    unmount();
+  });
+
   it('trạng thái một phần vẫn hiện dữ liệu, kèm một câu nói rõ đang làm mới', () => {
     renderWithProviders(<SpatialJsonViewer {...buildSpatialJsonViewerProps('partial')} />);
 
