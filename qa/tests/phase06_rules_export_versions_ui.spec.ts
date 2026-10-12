@@ -113,6 +113,8 @@ const RESTORE_BUTTON = 'Phục hồi phiên bản này';
 const RESTORE_CONFIRM_TITLE = /Phục hồi phiên bản .+ của .+\?/u;
 const KEEP_AS_IS = 'Để nguyên';
 const VERSIONS_EMPTY_SUFFIX = ' chưa có phiên bản nào'; // useVersionHistory.ts:603
+/** `versionHistoryCompare.ts:33-34` TEACHING_SENTENCE (one version; below 1024 also shown for zero, BUG-473). */
+const VERSIONS_ONE_PATTERN = /^Mới có một phiên bản nên chưa có gì để so sánh/u;
 
 const PROJECTS_PATH = '/api/projects';
 /** 4 widths × (load + store hydration + rule run / diff). */
@@ -301,6 +303,7 @@ async function openVersions(page: Page, projectId: string, floorName: string): P
   const state = await settled({
     diff: diffTabs(page),
     empty: page.getByText(`${floorName}${VERSIONS_EMPTY_SUFFIX}`, { exact: true }),
+    oneVersion: page.getByText(VERSIONS_ONE_PATTERN),
   });
   noteState(state);
   return state;
@@ -678,11 +681,15 @@ test.describe('U06 UI verify — no-layer project, 80-char name + 65-char floor 
   });
 
   test('U06 · SCR-32 versions, floor without versions → empty copy with the 65-char name', async ({ browser }) => {
-    // run-01-author: below 1024 this fails — `useVersionHistory.ts:488-489` returns 'collapsed' before 'empty', so a
-    // floor with 0 versions shows "Mới có một phiên bản nên chưa có gì để so sánh…" (versionHistoryCompare.ts:34)
-    // and a disabled "Phục hồi phiên bản này". App behaviour, not asserted away.
+    // BUG-473: below 1024 `useVersionHistory.ts:488-489` returns 'collapsed' before 'empty', so a floor with 0 versions
+    // shows the one-version sentence (versionHistoryCompare.ts:33-34) instead of "<floor> chưa có phiên bản nào". The
+    // open step settles on that sentence (no 30 s wait, every width measured) and the wrong copy stays a SOFT failure:
+    // app behaviour, not asserted away.
     await verifyAsAdmin(browser, 'U06_versions_empty', async (p) => {
-      expect(await openVersions(p, own(), LONG_FLOOR_NAME)).toBe('empty');
+      const state = await openVersions(p, own(), LONG_FLOOR_NAME);
+      expect
+        .soft(state, `${String(p.viewportSize()?.width)} px: app shows the one-version copy for 0 versions (useVersionHistory.ts:488-489)`)
+        .toBe('empty');
     });
   });
 });
