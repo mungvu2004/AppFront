@@ -217,7 +217,7 @@ const VH = {
   checkbox: (label: string): string => `Chọn phiên bản ${label} để so sánh`, // VHL:84
   current: 'Hiện tại', // VHL:94
   floorSelect: 'Tầng', // UVH:604
-  narrowSelect: 'phiên bản', // VHV:111
+  narrowSelect: 'Phiên bản', // VHV:119 (BUG-455 capitalised)
   emptyTitle: (floor: string): string => `${floor} chưa có phiên bản nào`, // UVH:606 (capitalizeFirst)
   emptyDescription: 'Phiên bản được lưu khi AI ghi kết quả và khi phục hồi một bản cũ.', // VHV:72
   listErrorTitle: 'Không tải được lịch sử phiên bản', // VHV:93
@@ -1408,7 +1408,7 @@ test.describe('E06 SCR-32 Version History', () => {
     });
   });
 
-  test('E06 · SCR-32 narrow window (768 px) → version Select "phiên bản" replaces the list', async ({ browser }) => {
+  test('E06 · SCR-32 narrow window (768 px) → version Select "Phiên bản" replaces the list', async ({ browser }) => {
     await withAdmin(
       browser,
       async (admin) => {
@@ -1435,7 +1435,7 @@ test.describe('E06 SCR-32 Version History', () => {
         const { project, versions } = await pipelineProject(admin, 'versions-tabs-sm');
         const floor = firstFloor(project);
         await openVersions(page, project.id, floor.id);
-        // VHC:67 (width < 1024px) → narrow at both widths: the "phiên bản" Select, compare below (VHV:116-141).
+        // VHC:67 (width < 1024px) → narrow at both widths: the "Phiên bản" Select, compare below (VHV:116-141).
         await expect(page.getByRole('combobox', { name: VH.narrowSelect, exact: true })).toBeVisible();
         await expect(page.getByRole('tablist', { name: DIFF_TABS.list, exact: true }).getByRole('tab')).toHaveCount(3); // VHX:207
         await expect(diffTab(page, DIFF_TABS.changes)).toHaveAttribute('aria-selected', 'true');
