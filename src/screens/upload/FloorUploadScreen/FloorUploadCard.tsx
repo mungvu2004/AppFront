@@ -74,8 +74,17 @@ function CadPill() {
  * phải `addEventListener` toàn cục — R-72 cấm cái sau, và một lớp phủ gọn trong
  * một thẻ thì chưa tới mức cần sổ đăng ký phím tắt.
  */
-function CardMenu({ row, actions }: { row: FloorUploadRowModel; actions: FloorUploadActions }) {
-  const [isOpen, setOpen] = useState(false);
+function CardMenu({
+  row,
+  actions,
+  isOpen,
+  setOpen,
+}: {
+  row: FloorUploadRowModel;
+  actions: FloorUploadActions;
+  isOpen: boolean;
+  setOpen: (update: (open: boolean) => boolean) => void;
+}) {
   const fileId = row.file === null ? null : row.file.id;
   const canRemove = row.canRemoveFile && row.removeLabel !== null;
 
@@ -85,7 +94,7 @@ function CardMenu({ row, actions }: { row: FloorUploadRowModel; actions: FloorUp
     return null;
   }
 
-  const close = (): void => setOpen(false);
+  const close = (): void => setOpen(() => false);
 
   return (
     <div
@@ -182,6 +191,9 @@ export function FloorUploadCard({
   registerCard,
 }: FloorUploadCardProps) {
   const cardRef = useRef<HTMLLIElement | null>(null);
+  // Bảng tuỳ chọn mở thì thẻ nổi trên chân trang dính (`z-20`): thẻ là một ngữ cảnh xếp chồng
+  // (`panel-rise` giữ `transform`), nên `z-10` của bảng không thoát ra được (BUG-526).
+  const [isMenuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     registerCard(row.floorId, cardRef.current);
@@ -198,6 +210,7 @@ export function FloorUploadCard({
     <li
       className={clsx(
         'animate-panel-rise relative rounded-[12px] border border-border-default bg-bg-surface p-5',
+        isMenuOpen && 'z-30',
         isCollapsed ? 'flex flex-col gap-3' : 'flex min-h-[96px] flex-row flex-wrap items-center gap-4',
       )}
       data-floor-id={row.floorId}
@@ -229,7 +242,7 @@ export function FloorUploadCard({
 
         <div className="flex shrink-0 items-center gap-2">
           <Badge variant={row.statusVariant}>{row.statusLabel}</Badge>
-          <CardMenu actions={actions} row={row} />
+          <CardMenu actions={actions} isOpen={isMenuOpen} row={row} setOpen={setMenuOpen} />
         </div>
       </div>
 
