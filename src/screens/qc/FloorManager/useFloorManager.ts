@@ -393,6 +393,9 @@ export const duplicateFloorName = (sourceName: string): string => {
 };
 
 /** Một tầng đổi trong một bước lịch sử, đã gộp: `before` của bản đầu, `after` của bản cuối. */
+/** Ảnh chụp của màn, kèm đồ thị trong kho lúc lượt đọc BẮT ĐẦU (R1-04). */
+type MountedSnapshot = FloorManagerSnapshot & { readonly baseGraph: FloorManagerSnapshot['graph'] };
+
 interface LevelChangeSummary {
   readonly id: string;
   readonly before: Level | null;
@@ -572,12 +575,15 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
     // Khoá riêng `floor.manager`, không phải `floor.list` trần: ảnh chụp ở đây là `{ graph, floors, … }`,
     // còn Tải bản vẽ và cổng chất lượng đọc `floor.list` là `Floor[]` (BUG-348).
     queryKey: queryKeys.floor.manager(projectId),
-    queryFn: async ({ signal }) => {
+    queryFn: async ({ signal }): Promise<MountedSnapshot> => {
+      // Đồ thị trong kho lúc BẮT ĐẦU đọc: sửa trong lúc lượt đọc còn bay đổi kho, và ảnh chụp
+      // đọc trước lượt sửa ấy không được đè nó (R1-04).
+      const baseGraph = useStore.getState().spatial;
       const snapshot = await gateway.readFloorList({ isMountRead: !hasReadRef.current, projectId, signal });
 
       hasReadRef.current = true;
 
-      return snapshot;
+      return { ...snapshot, baseGraph };
     },
     /* Quay lại màn trong SPA luôn đọc lại: tầng thêm ở nơi khác phải hiện (BUG-515). */
     refetchOnMount: 'always',
@@ -591,12 +597,12 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
   const snapshot = floorListQuery.data;
   const loadedGraph = snapshot?.graph ?? null;
   const { isFetchedAfterMount } = floorListQuery;
-  const appliedSnapshotRef = useRef<FloorManagerSnapshot | null>(null);
+  const appliedSnapshotRef = useRef<MountedSnapshot | null>(null);
 
   /*
    * Nạp đồ thị vào kho khi kho trống, hoặc khi lượt đọc của CHÍNH lần gắn này đọc
    * mới từ máy chủ (kho là của dự án khác hay lệch bộ tầng — BUG-515). Mỗi ảnh
-   * chụp nạp đúng một lần: sửa sau đó đổi `storeGraph` nhưng không được bị đè.
+   * chụp được xét đúng một lần: sửa sau đó đổi `storeGraph` nhưng không được bị đè.
    */
   useEffect(() => {
     if (
@@ -610,8 +616,22 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
     }
 
     appliedSnapshotRef.current = snapshot;
+
+    /*
+     * Kho của dự án này đã đổi từ lúc bắt đầu đọc, hay còn sửa chưa lưu: người dùng đã sửa
+     * trong lúc lượt đọc còn bay. Nạp lúc này đè sửa ấy bằng bản đọc cũ hơn và xoá lịch sử
+     * hoàn tác (`setSpatial` → `temporal.clear()`), nên bỏ ảnh chụp này (R1-04).
+     */
+    if (
+      storeGraph !== null &&
+      storeProjectId === projectId &&
+      (storeGraph !== snapshot.baseGraph || useStore.getState().unsavedFloorIds.length > 0)
+    ) {
+      return;
+    }
+
     setSpatial(loadedGraph, null, { floorRevisions: snapshot.floorRevisions, projectId });
-  }, [isFetchedAfterMount, loadedGraph, projectId, setSpatial, snapshot, storeGraph]);
+  }, [isFetchedAfterMount, loadedGraph, projectId, setSpatial, snapshot, storeGraph, storeProjectId]);
 
   /*
    * Đọc kho trước, lượt tải sau: giữa lúc `useEffect` trên chưa chạy, view vẫn
