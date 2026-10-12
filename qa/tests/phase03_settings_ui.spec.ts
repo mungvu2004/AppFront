@@ -98,7 +98,7 @@ test('FL-U08-01 · SCR-08 · UI verify: admin states (heights, toast, refusals, 
       });
     });
 
-    await test.step('[08-F-023] "Thành viên": < 640 input and button 46 px; ≥ 640 38 px, tabs 36 px', async () => {
+    await test.step('[08-F-023] "Thành viên": < 640 input, button and "Nhóm cài đặt" select 46 px; ≥ 640 38 px; ≥ 1024 tabs 36 px', async () => {
       const sizes: string[] = [];
       await verifyUi(page, 'U03_08-F-023_members', async (p) => {
         await open();
@@ -108,11 +108,14 @@ test('FL-U08-01 · SCR-08 · UI verify: admin states (heights, toast, refusals, 
         const button = await height(p.getByRole('button', { name: MEMBER.add, exact: true }));
         const expected = w < 640 ? 46 : 38; // AMF:41, Input.tsx:70
         if (input !== expected || button !== expected) sizes.push(`${String(w)}: input ${String(input)}, button ${String(button)} (want ${String(expected)})`);
-        const tab = p.getByRole('tablist', { name: TABS_LABEL, exact: true }).getByRole('tab').first();
-        if ((await tab.count()) > 0) {
-          const h = await height(tab);
-          const want = w < 640 ? 44 : 36; // Tabs.tsx:133 h-11 sm:h-9
-          if (h !== want) sizes.push(`${String(w)}: tab ${String(h)} (want ${String(want)})`);
+        // Catalog fixed by QA-03e: below 1024 px the tab strip is a Select (useProjectSettings.ts:603, ProjectSettings.tsx:112-118),
+        // so the "tabs 44 px below 640" of the catalog never renders; the Select trigger is measured there instead.
+        if (w < 1024) {
+          const h = await height(p.getByRole('combobox', { name: TABS_LABEL, exact: true }));
+          if (h !== expected) sizes.push(`${String(w)}: select ${String(h)} (want ${String(expected)})`); // Select.tsx:144
+        } else {
+          const h = await height(p.getByRole('tablist', { name: TABS_LABEL, exact: true }).getByRole('tab').first());
+          if (h !== 36) sizes.push(`${String(w)}: tab ${String(h)} (want 36)`); // Tabs.tsx:134 h-11 sm:h-9
         }
       });
       expect.soft(sizes).toEqual([]);
