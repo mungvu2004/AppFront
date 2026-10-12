@@ -1,10 +1,11 @@
 import type { CabinetModuleNode, CabinetNode, ParametricDescriptor } from '@pascal-app/core'
 import { cabinetCornerUnlinkPatchesOnDelete, cabinetEmptyRunCascadeDeleteIds } from './run-ops'
+import { vi } from '../i18n/vi'
 
 export const cabinetParametrics: ParametricDescriptor<CabinetNode> = {
   groups: [
     {
-      label: 'Dimensions',
+      label: vi.common.dimensions,
       fields: [
         { key: 'width', kind: 'number', unit: 'm', min: 0.3, max: 3, step: 0.05 },
         { key: 'depth', kind: 'number', unit: 'm', min: 0.3, max: 1.2, step: 0.01 },
@@ -12,7 +13,7 @@ export const cabinetParametrics: ParametricDescriptor<CabinetNode> = {
       ],
     },
     {
-      label: 'Position',
+      label: vi.common.position,
       fields: [{ key: 'position', kind: 'vec3' }],
     },
   ],
@@ -29,7 +30,7 @@ export const cabinetParametrics: ParametricDescriptor<CabinetNode> = {
 export const cabinetModuleParametrics: ParametricDescriptor<CabinetModuleNode> = {
   groups: [
     {
-      label: 'Dimensions',
+      label: vi.common.dimensions,
       fields: [
         { key: 'width', kind: 'number', unit: 'm', min: 0.3, max: 3, step: 0.05 },
         { key: 'depth', kind: 'number', unit: 'm', min: 0.3, max: 1.2, step: 0.01 },
@@ -37,7 +38,7 @@ export const cabinetModuleParametrics: ParametricDescriptor<CabinetModuleNode> =
       ],
     },
     {
-      label: 'Position',
+      label: vi.common.position,
       fields: [{ key: 'position', kind: 'vec3' }],
     },
   ],

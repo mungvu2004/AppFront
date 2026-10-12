@@ -1,5 +1,6 @@
 import type { ParametricDescriptor } from '@pascal-app/core'
 import type { TurbineVentNode } from './schema'
+import { vi } from '../i18n/vi'
 
 /**
  * Inspector descriptor for the turbine vent. Move / Duplicate need the
@@ -10,7 +11,7 @@ export const turbineVentParametrics: ParametricDescriptor<TurbineVentNode> = {
   customPanel: () => import('./panel'),
   groups: [
     {
-      label: 'Style',
+      label: vi.common.style,
       fields: [
         {
           key: 'style',
@@ -21,7 +22,7 @@ export const turbineVentParametrics: ParametricDescriptor<TurbineVentNode> = {
       ],
     },
     {
-      label: 'Dimensions',
+      label: vi.common.dimensions,
       fields: [
         { key: 'diameter', kind: 'number', unit: 'm', min: 0.15, max: 1000, step: 0.01 },
         { key: 'height', kind: 'number', unit: 'm', min: 0.2, max: 1000, step: 0.01 },
@@ -30,7 +31,7 @@ export const turbineVentParametrics: ParametricDescriptor<TurbineVentNode> = {
       ],
     },
     {
-      label: 'Motion',
+      label: vi.common.motion,
       fields: [{ key: 'spinSpeed', kind: 'number', unit: 'rad/s', min: 0, max: 4, step: 0.1 }],
     },
   ],

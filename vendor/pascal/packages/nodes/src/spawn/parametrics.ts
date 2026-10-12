@@ -1,5 +1,6 @@
 import type { ParametricDescriptor } from '@pascal-app/core'
 import type { SpawnNode } from './schema'
+import { vi } from '../i18n/vi'
 
 /**
  * Inspector descriptor for spawn. Tiny — spawn has only position + rotation,
@@ -8,7 +9,7 @@ import type { SpawnNode } from './schema'
 export const spawnParametrics: ParametricDescriptor<SpawnNode> = {
   groups: [
     {
-      label: 'Transform',
+      label: vi.common.transform,
       fields: [
         { key: 'position', kind: 'vec3' },
         // rotation on spawn is a scalar yaw (not vec3). Phase 4 will support a

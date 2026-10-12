@@ -1,10 +1,11 @@
 import type { ParametricDescriptor } from '@pascal-app/core'
 import type { GutterNode } from './schema'
+import { vi } from '../i18n/vi'
 
 export const gutterParametrics: ParametricDescriptor<GutterNode> = {
   groups: [
     {
-      label: 'Profile',
+      label: vi.common.profile,
       fields: [
         {
           key: 'profile',
@@ -15,7 +16,7 @@ export const gutterParametrics: ParametricDescriptor<GutterNode> = {
       ],
     },
     {
-      label: 'Dimensions',
+      label: vi.common.dimensions,
       fields: [
         { key: 'length', kind: 'number', unit: 'm', min: 0.2, max: 1000, step: 0.05 },
         { key: 'size', kind: 'number', unit: 'm', min: 0.05, max: 0.3, step: 0.005 },
@@ -30,14 +31,14 @@ export const gutterParametrics: ParametricDescriptor<GutterNode> = {
       ],
     },
     {
-      label: 'End caps',
+      label: vi.common.endCaps,
       fields: [
         { key: 'endCapLeft', kind: 'boolean' },
         { key: 'endCapRight', kind: 'boolean' },
       ],
     },
     {
-      label: 'Hangers',
+      label: vi.common.hangers,
       fields: [
         {
           key: 'hangerStyle',

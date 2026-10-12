@@ -13,6 +13,7 @@ import {
 import { useViewer } from '@pascal-app/viewer'
 import { MapPin, Search } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { vi } from '../i18n/vi'
 
 const METRES_PER_FOOT = 0.3048
 
@@ -179,9 +180,9 @@ export function SiteNodePanel() {
   )
 
   return (
-    <PanelWrapper title="Site">
+    <PanelWrapper title={vi.common.siteField}>
       {parcelProvider ? (
-        <PanelSection title="Address">
+        <PanelSection title={vi.common.address}>
           <label className="space-y-1 text-sm">
             <span className="text-muted-foreground">Street address</span>
             <input
@@ -227,18 +228,18 @@ export function SiteNodePanel() {
       ) : null}
 
       {node.parcel ? (
-        <PanelSection title="Parcel">
-          <Row label="APN" value={node.parcel.apn || '—'} />
-          <Row label="County" value={node.parcel.county || '—'} />
+        <PanelSection title={vi.common.parcel}>
+          <Row label={vi.common.apn} value={node.parcel.apn || '—'} />
+          <Row label={vi.common.county} value={node.parcel.county || '—'} />
           <Row
-            label="Lot area"
+            label={vi.common.lotArea}
             value={
               node.parcel.lotAreaSqFt
                 ? `${Math.round(node.parcel.lotAreaSqFt).toLocaleString()} sq ft`
                 : '—'
             }
           />
-          <Row label="Source" value={node.parcel.layer || node.parcel.source || '—'} />
+          <Row label={vi.common.source} value={node.parcel.layer || node.parcel.source || '—'} />
           {node.parcel.notes?.length ? (
             <p className="text-muted-foreground text-xs leading-snug">
               {node.parcel.notes.join(' ')}
@@ -247,7 +248,7 @@ export function SiteNodePanel() {
         </PanelSection>
       ) : null}
 
-      <PanelSection title="Setbacks">
+      <PanelSection title={vi.common.setbacks}>
         {setbackField('front', 'Front')}
         {setbackField('side', 'Side')}
         {setbackField('rear', 'Rear')}
@@ -275,7 +276,7 @@ export function SiteNodePanel() {
         </label>
       </PanelSection>
 
-      <PanelSection title="Terrain">
+      <PanelSection title={vi.common.terrain}>
         <label className="space-y-1 text-sm">
           <span className="text-muted-foreground">Contour interval (site plan and 3D)</span>
           <select
@@ -309,7 +310,7 @@ export function SiteNodePanel() {
         )}
       </PanelSection>
 
-      <PanelSection title="Orientation">
+      <PanelSection title={vi.common.orientation}>
         <label className="space-y-1 text-sm">
           <span className="text-muted-foreground">Front (street) edge</span>
           <select

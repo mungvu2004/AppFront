@@ -1,10 +1,11 @@
 import type { ParametricDescriptor } from '@pascal-app/core'
 import type { LinesetNode } from './schema'
+import { vi } from '../i18n/vi'
 
 export const linesetParametrics: ParametricDescriptor<LinesetNode> = {
   groups: [
     {
-      label: 'Lines',
+      label: vi.common.lines,
       fields: [
         {
           key: 'suctionDiameter',
@@ -25,7 +26,7 @@ export const linesetParametrics: ParametricDescriptor<LinesetNode> = {
       ],
     },
     {
-      label: 'Insulation',
+      label: vi.common.insulation,
       fields: [
         {
           key: 'insulated',

@@ -23,6 +23,7 @@ import { Move, Trash2 } from 'lucide-react'
 import { useCallback } from 'react'
 
 import { planColumnEdit } from './hosted-resize'
+import { vi } from '../i18n/vi'
 
 const SELECT_CLASS =
   'h-10 w-full rounded-lg border border-border/50 bg-[#2C2C2E] px-3 text-sm text-foreground outline-none transition-colors hover:bg-[#3e3e3e] focus:ring-1 focus:ring-border'
@@ -353,7 +354,7 @@ export default function ColumnPanel() {
       title={node.name || 'Column'}
       width={300}
     >
-      <PanelSection title="Preset">
+      <PanelSection title={vi.common.preset}>
         <select
           className={SELECT_CLASS}
           onChange={(event) => {
@@ -371,7 +372,7 @@ export default function ColumnPanel() {
         </select>
       </PanelSection>
 
-      <PanelSection title="Shape">
+      <PanelSection title={vi.common.shape}>
         <div className="grid grid-cols-2 gap-2 px-1 pt-1">
           {SUPPORT_STYLE_OPTIONS.map((option) => {
             const isSelected = supportStyle === option.value
@@ -415,7 +416,7 @@ export default function ColumnPanel() {
         {isBraceSupport ? (
           <>
             <SliderControl
-              label="Brace Width"
+              label={vi.common.braceWidth}
               max={0.8}
               min={0.04}
               onChange={(value) => handleUpdate({ braceWidth: value, width: value })}
@@ -425,7 +426,7 @@ export default function ColumnPanel() {
               value={node.braceWidth ?? node.width}
             />
             <SliderControl
-              label="Brace Depth"
+              label={vi.common.braceDepth}
               max={0.8}
               min={0.04}
               onChange={(value) => handleUpdate({ braceDepth: value, depth: value })}
@@ -536,7 +537,7 @@ export default function ColumnPanel() {
               })}
             </div>
             <SliderControl
-              label="Edge Softness"
+              label={vi.common.edgeSoftness}
               max={0.12}
               min={0}
               onChange={(value) => handleUpdate({ edgeSoftness: value })}
@@ -547,7 +548,7 @@ export default function ColumnPanel() {
             />
             {(node.crossSection === 'square' || node.crossSection === 'rectangular') && (
               <SliderControl
-                label="Shaft Corner Radius"
+                label={vi.common.shaftCornerRadius}
                 max={0.3}
                 min={0}
                 onChange={(value) => handleUpdate({ shaftCornerRadius: value })}
@@ -561,7 +562,7 @@ export default function ColumnPanel() {
         )}
       </PanelSection>
 
-      <PanelSection title="Dimensions">
+      <PanelSection title={vi.common.dimensions}>
         {managedByLeanTo && (
           <p className="px-1 pt-1 text-muted-foreground text-xs leading-relaxed">
             Height and footprint are controlled by the lean-to extension. Rotate or change the
@@ -587,7 +588,7 @@ export default function ColumnPanel() {
         )}
         {!managedByLeanTo && (
           <SliderControl
-            label="Height"
+            label={vi.common.height}
             max={1000}
             min={0.8}
             onChange={(value) => handleUpdate({ height: value })}
@@ -608,7 +609,7 @@ export default function ColumnPanel() {
               supportStyle === 'portal-frame' ||
               supportStyle === 'box-frame') && (
               <SliderControl
-                label="Bottom Spread"
+                label={vi.common.bottomSpread}
                 max={1000}
                 min={0.2}
                 onChange={(value) =>
@@ -662,14 +663,14 @@ export default function ColumnPanel() {
             />
             <ToggleControl
               checked={node.bracePlateEnabled ?? true}
-              label="Connector Plates"
+              label={vi.common.connectorPlates}
               onChange={(checked) => handleUpdate({ bracePlateEnabled: checked })}
             />
           </>
         ) : !managedByLeanTo ? (
           <>
             <SliderControl
-              label="Width"
+              label={vi.common.width}
               max={1000}
               min={0.12}
               onChange={(value) =>
@@ -686,7 +687,7 @@ export default function ColumnPanel() {
             />
             {node.crossSection === 'rectangular' && (
               <SliderControl
-                label="Depth"
+                label={vi.common.depth}
                 max={1000}
                 min={0.12}
                 onChange={(value) => handleUpdate({ depth: value })}
@@ -701,7 +702,7 @@ export default function ColumnPanel() {
       </PanelSection>
 
       {!isBraceSupport && (
-        <PanelSection title="Shaft">
+        <PanelSection title={vi.common.shaft}>
           <select
             className={SELECT_CLASS}
             onChange={(event) =>
@@ -716,7 +717,7 @@ export default function ColumnPanel() {
           </select>
           {shaftProfile === 'straight' && (
             <SliderControl
-              label="Shaft Width"
+              label={vi.common.shaftWidth}
               max={1.2}
               min={0.3}
               onChange={(value) => handleUpdate({ shaftStartScale: value, shaftEndScale: value })}
@@ -728,7 +729,7 @@ export default function ColumnPanel() {
           {shaftProfile === 'tapered' && (
             <>
               <SliderControl
-                label="Bottom Width"
+                label={vi.common.bottomWidth}
                 max={1.2}
                 min={0.3}
                 onChange={(value) => handleUpdate({ shaftStartScale: value })}
@@ -737,7 +738,7 @@ export default function ColumnPanel() {
                 value={node.shaftStartScale ?? 0.82}
               />
               <SliderControl
-                label="Top Width"
+                label={vi.common.topWidth}
                 max={1.2}
                 min={0.3}
                 onChange={(value) => handleUpdate({ shaftEndScale: value })}
@@ -746,7 +747,7 @@ export default function ColumnPanel() {
                 value={node.shaftEndScale ?? 0.72}
               />
               <SliderControl
-                label="Taper"
+                label={vi.common.taper}
                 max={0.45}
                 min={0}
                 onChange={(value) => handleUpdate({ shaftTaper: value })}
@@ -759,7 +760,7 @@ export default function ColumnPanel() {
           {shaftProfile === 'bulged' && (
             <>
               <SliderControl
-                label="End Width"
+                label={vi.common.endWidth}
                 max={1.2}
                 min={0.3}
                 onChange={(value) => handleUpdate({ shaftStartScale: value, shaftEndScale: value })}
@@ -768,7 +769,7 @@ export default function ColumnPanel() {
                 value={node.shaftStartScale ?? 0.68}
               />
               <SliderControl
-                label="Bulge"
+                label={vi.common.bulge}
                 max={0.35}
                 min={0}
                 onChange={(value) => handleUpdate({ shaftBulge: value })}
@@ -781,7 +782,7 @@ export default function ColumnPanel() {
           {shaftProfile === 'hourglass' && (
             <>
               <SliderControl
-                label="End Width"
+                label={vi.common.endWidth}
                 max={1.2}
                 min={0.3}
                 onChange={(value) => handleUpdate({ shaftStartScale: value, shaftEndScale: value })}
@@ -790,7 +791,7 @@ export default function ColumnPanel() {
                 value={node.shaftStartScale ?? 0.84}
               />
               <SliderControl
-                label="Waist"
+                label={vi.common.waist}
                 max={0.35}
                 min={0}
                 onChange={(value) => handleUpdate({ shaftBulge: value })}
@@ -801,7 +802,7 @@ export default function ColumnPanel() {
             </>
           )}
           <SliderControl
-            label="Segment Twist"
+            label={vi.common.segmentTwist}
             max={90}
             min={-90}
             onChange={(value) =>
@@ -819,7 +820,7 @@ export default function ColumnPanel() {
           />
           {Math.abs(node.shaftTwistStep ?? 0) > 0.001 && (
             <SliderControl
-              label="Twist Segments"
+              label={vi.common.twistSegments}
               max={48}
               min={4}
               onChange={(value) => handleUpdate({ shaftSegmentCount: Math.round(value) })}
@@ -829,7 +830,7 @@ export default function ColumnPanel() {
             />
           )}
           <SliderControl
-            label="Ring Pairs"
+            label={vi.common.ringPairs}
             max={4}
             min={0}
             onChange={(value) =>
@@ -846,7 +847,7 @@ export default function ColumnPanel() {
           />
           {(node.ringCount ?? 0) > 0 && (
             <SliderControl
-              label="Ring Thickness"
+              label={vi.common.ringThickness}
               max={0.14}
               min={0.01}
               onChange={(value) => handleUpdate({ ringThickness: value })}
@@ -858,7 +859,7 @@ export default function ColumnPanel() {
           )}
           {(node.ringCount ?? 0) > 0 && (
             <SliderControl
-              label="Ring Spread"
+              label={vi.common.ringSpread}
               max={0.45}
               min={0.04}
               onChange={(value) => handleUpdate({ ringSpread: value, ringPlacement: 'ends' })}
@@ -871,7 +872,7 @@ export default function ColumnPanel() {
       )}
 
       {!isBraceSupport && (
-        <PanelSection title="Ends">
+        <PanelSection title={vi.common.ends}>
           <select
             className={SELECT_CLASS}
             onChange={(event) => {
@@ -910,7 +911,7 @@ export default function ColumnPanel() {
           </select>
           {node.capitalStyle !== 'none' && (
             <SliderControl
-              label="Top Height"
+              label={vi.common.topHeight}
               max={0.8}
               min={0.06}
               onChange={(value) => handleUpdate({ capitalHeight: value })}
@@ -922,7 +923,7 @@ export default function ColumnPanel() {
           )}
           {node.capitalStyle !== 'none' && (
             <SliderControl
-              label="Top Width"
+              label={vi.common.topWidth}
               max={2.4}
               min={0.6}
               onChange={(value) =>
@@ -938,7 +939,7 @@ export default function ColumnPanel() {
           )}
           {node.capitalStyle !== 'none' && node.crossSection === 'rectangular' && (
             <SliderControl
-              label="Top Depth"
+              label={vi.common.topDepth}
               max={2.4}
               min={0.6}
               onChange={(value) => handleUpdate({ capitalDepthScale: value })}
@@ -949,7 +950,7 @@ export default function ColumnPanel() {
           )}
           {node.capitalStyle === 'stepped' && (
             <SliderControl
-              label="Top Tiers"
+              label={vi.common.topTiers}
               max={8}
               min={3}
               onChange={(value) => handleUpdate({ capitalTierCount: Math.round(value) })}
@@ -960,7 +961,7 @@ export default function ColumnPanel() {
           )}
           {node.capitalStyle === 'stepped' && (
             <SliderControl
-              label="Top Step Spread"
+              label={vi.common.topStepSpread}
               max={0.9}
               min={0.05}
               onChange={(value) => handleUpdate({ capitalStepSpread: value })}
@@ -1020,7 +1021,7 @@ export default function ColumnPanel() {
           </select>
           {node.baseStyle !== 'none' && (
             <SliderControl
-              label="Bottom Height"
+              label={vi.common.bottomHeight}
               max={0.8}
               min={0.06}
               onChange={(value) => handleUpdate({ baseHeight: value })}
@@ -1032,7 +1033,7 @@ export default function ColumnPanel() {
           )}
           {node.baseStyle !== 'none' && (
             <SliderControl
-              label="Bottom Width"
+              label={vi.common.bottomWidth}
               max={2.4}
               min={0.6}
               onChange={(value) =>
@@ -1048,7 +1049,7 @@ export default function ColumnPanel() {
           )}
           {node.baseStyle !== 'none' && node.crossSection === 'rectangular' && (
             <SliderControl
-              label="Bottom Depth"
+              label={vi.common.bottomDepth}
               max={2.4}
               min={0.6}
               onChange={(value) => handleUpdate({ baseDepthScale: value })}
@@ -1059,7 +1060,7 @@ export default function ColumnPanel() {
           )}
           {node.baseStyle === 'round-rings' && (
             <SliderControl
-              label="Plinth Thickness"
+              label={vi.common.plinthThickness}
               max={0.7}
               min={0.2}
               onChange={(value) => handleUpdate({ basePlinthHeightRatio: value })}
@@ -1070,7 +1071,7 @@ export default function ColumnPanel() {
           )}
           {node.baseStyle === 'round-rings' && (
             <SliderControl
-              label="Round Band Width"
+              label={vi.common.roundBandWidth}
               max={1.2}
               min={0.5}
               onChange={(value) => handleUpdate({ baseRoundBandScale: value })}
@@ -1081,7 +1082,7 @@ export default function ColumnPanel() {
           )}
           {node.baseStyle === 'round-rings' && (
             <SliderControl
-              label="Neck Width"
+              label={vi.common.neckWidth}
               max={1}
               min={0.35}
               onChange={(value) => handleUpdate({ baseNeckScale: value })}
@@ -1092,7 +1093,7 @@ export default function ColumnPanel() {
           )}
           {node.baseStyle === 'stepped-square' && (
             <SliderControl
-              label="Bottom Tiers"
+              label={vi.common.bottomTiers}
               max={8}
               min={3}
               onChange={(value) => handleUpdate({ baseTierCount: Math.round(value) })}
@@ -1103,7 +1104,7 @@ export default function ColumnPanel() {
           )}
           {node.baseStyle === 'stepped-square' && (
             <SliderControl
-              label="Bottom Step Spread"
+              label={vi.common.bottomStepSpread}
               max={0.9}
               min={0.05}
               onChange={(value) => handleUpdate({ baseStepSpread: value })}
@@ -1115,9 +1116,9 @@ export default function ColumnPanel() {
         </PanelSection>
       )}
 
-      <PanelSection title="Transform">
+      <PanelSection title={vi.common.transform}>
         <SliderControl
-          label="Yaw"
+          label={vi.common.yaw}
           max={180}
           min={-180}
           onChange={(value) => handleUpdate({ rotation: (value * Math.PI) / 180 })}
@@ -1128,13 +1129,13 @@ export default function ColumnPanel() {
         />
       </PanelSection>
 
-      <PanelSection title="Actions">
+      <PanelSection title={vi.common.actions}>
         <ActionGroup>
-          <ActionButton icon={<Move className="h-4 w-4" />} label="Move" onClick={handleMove} />
+          <ActionButton icon={<Move className="h-4 w-4" />} label={vi.common.move} onClick={handleMove} />
           <ActionButton
             className="border-red-500/40 text-red-200 hover:bg-red-500/15"
             icon={<Trash2 className="h-4 w-4" />}
-            label="Delete"
+            label={vi.common.delete}
             onClick={handleDelete}
           />
         </ActionGroup>

@@ -13,6 +13,7 @@ import {
 import { useViewer } from '@pascal-app/viewer'
 import { Move, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
+import { vi } from '../i18n/vi'
 
 export default function SpawnPanel() {
   const selectedId = useViewer((s) => s.selection.selectedIds[0])
@@ -97,10 +98,10 @@ export default function SpawnPanel() {
     <PanelWrapper
       icon="/icons/spawn-point.webp"
       onClose={handleClose}
-      title="Spawn Point"
+      title={vi.common.spawnPointField}
       width={300}
     >
-      <PanelSection title="Position">
+      <PanelSection title={vi.common.position}>
         <SliderControl
           label="X"
           max={node.position[0] + 2}
@@ -139,9 +140,9 @@ export default function SpawnPanel() {
         />
       </PanelSection>
 
-      <PanelSection title="Facing">
+      <PanelSection title={vi.common.facing}>
         <SliderControl
-          label="Yaw"
+          label={vi.common.yaw}
           max={storedRotationDegrees + 90}
           min={storedRotationDegrees - 90}
           onChange={handleRotationChange}
@@ -153,13 +154,13 @@ export default function SpawnPanel() {
         />
       </PanelSection>
 
-      <PanelSection title="Actions">
+      <PanelSection title={vi.common.actions}>
         <ActionGroup>
-          <ActionButton icon={<Move className="h-4 w-4" />} label="Move" onClick={handleMove} />
+          <ActionButton icon={<Move className="h-4 w-4" />} label={vi.common.move} onClick={handleMove} />
           <ActionButton
             className="border-red-500/40 text-red-200 hover:bg-red-500/15"
             icon={<Trash2 className="h-4 w-4" />}
-            label="Delete"
+            label={vi.common.delete}
             onClick={handleDelete}
           />
         </ActionGroup>

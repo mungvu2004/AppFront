@@ -42,6 +42,7 @@ import { useCallback, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { getStairDestinationUpdates } from './destination'
 import { getStairTypeChange } from './stair-type'
+import { vi } from '../i18n/vi'
 
 const RAILING_MODE_OPTIONS: { label: string; value: StairRailingMode }[] = [
   { label: 'None', value: 'none' },
@@ -288,7 +289,7 @@ export default function StairPanel() {
       title={node.name || 'Staircase'}
       width={300}
     >
-      <PanelSection title="Type">
+      <PanelSection title={vi.common.type}>
         <SegmentedControl
           onChange={handleStairTypeChange}
           options={STAIR_TYPE_OPTIONS}
@@ -296,12 +297,12 @@ export default function StairPanel() {
         />
       </PanelSection>
 
-      <PanelSection title="Opening">
+      <PanelSection title={vi.common.opening}>
         <div className="space-y-3">
           {attachedDeck ? null : (
             <ToggleControl
               checked={(node.slabOpeningMode ?? 'none') === 'destination'}
-              label="Auto Cutout"
+              label={vi.common.autoCutoutShort}
               onChange={handleAutoCutoutChange}
             />
           )}
@@ -367,7 +368,7 @@ export default function StairPanel() {
               </div>
             ) : (
               <MetricControl
-                label="Rise"
+                label={vi.common.rise}
                 max={1000}
                 min={0.2}
                 onChange={(value) => handleUpdate({ totalRise: value })}
@@ -389,7 +390,7 @@ export default function StairPanel() {
 
               {(node.slabOpeningMode ?? 'none') === 'destination' ? (
                 <MetricControl
-                  label="Opening Offset"
+                  label={vi.common.openingOffsetField}
                   max={0.5}
                   min={0}
                   onChange={(value) => handleUpdate({ openingOffset: value })}
@@ -416,7 +417,7 @@ export default function StairPanel() {
               </div>
               {(node.topLandingMode ?? 'none') === 'integrated' && (
                 <MetricControl
-                  label="Top Landing"
+                  label={vi.common.topLandingField}
                   max={5}
                   min={0.3}
                   onChange={(value) => handleUpdate({ topLandingDepth: value })}
@@ -432,7 +433,7 @@ export default function StairPanel() {
       </PanelSection>
 
       {node.stairType === 'straight' && (
-        <PanelSection title="Segments">
+        <PanelSection title={vi.common.segments}>
           <div className="flex flex-col gap-1">
             {segments.map((seg, i) => (
               <button
@@ -449,12 +450,12 @@ export default function StairPanel() {
           <div className="flex gap-1.5">
             <ActionButton
               icon={<Plus className="h-3.5 w-3.5" />}
-              label="Add flight"
+              label={vi.common.addFlight}
               onClick={handleAddFlight}
             />
             <ActionButton
               icon={<Plus className="h-3.5 w-3.5" />}
-              label="Add landing"
+              label={vi.common.addLanding}
               onClick={handleAddLanding}
             />
           </div>
@@ -462,9 +463,9 @@ export default function StairPanel() {
       )}
 
       {(node.stairType === 'curved' || node.stairType === 'spiral') && (
-        <PanelSection title="Geometry">
+        <PanelSection title={vi.common.geometry}>
           <MetricControl
-            label="Width"
+            label={vi.common.width}
             max={10}
             min={0.4}
             onChange={(value) => handleUpdate({ width: value })}
@@ -474,7 +475,7 @@ export default function StairPanel() {
             value={node.width ?? 1}
           />
           <MetricControl
-            label="Steps"
+            label={vi.common.stepsField}
             max={32}
             min={2}
             onChange={(value) => handleUpdate({ stepCount: Math.max(2, Math.round(value)) })}
@@ -486,13 +487,13 @@ export default function StairPanel() {
           {node.stairType !== 'spiral' && (
             <ToggleControl
               checked={node.fillToFloor ?? true}
-              label="Fit To Floor"
+              label={vi.common.fitToFloorField}
               onChange={(checked) => handleUpdate({ fillToFloor: checked })}
             />
           )}
           {(node.stairType === 'spiral' || !(node.fillToFloor ?? true)) && (
             <MetricControl
-              label="Thickness"
+              label={vi.common.thickness}
               max={1}
               min={0.02}
               onChange={(value) => handleUpdate({ thickness: value })}
@@ -503,7 +504,7 @@ export default function StairPanel() {
             />
           )}
           <MetricControl
-            label="Inner Radius"
+            label={vi.common.innerRadiusField}
             max={10}
             min={node.stairType === 'spiral' ? 0.05 : 0.2}
             onChange={(value) => handleUpdate({ innerRadius: value })}
@@ -513,7 +514,7 @@ export default function StairPanel() {
             value={node.innerRadius ?? 0.9}
           />
           <SliderControl
-            label="Sweep"
+            label={vi.common.sweep}
             max={node.stairType === 'spiral' ? 720 : 270}
             min={node.stairType === 'spiral' ? -720 : -270}
             onChange={(degrees) => handleUpdate({ sweepAngle: (degrees * Math.PI) / 180 })}
@@ -526,12 +527,12 @@ export default function StairPanel() {
             <>
               <ToggleControl
                 checked={node.showCenterColumn ?? true}
-                label="Center Column"
+                label={vi.common.centerColumnField}
                 onChange={(checked) => handleUpdate({ showCenterColumn: checked })}
               />
               <ToggleControl
                 checked={node.showStepSupports ?? true}
-                label="Step Supports"
+                label={vi.common.stepSupportsField}
                 onChange={(checked) => handleUpdate({ showStepSupports: checked })}
               />
             </>
@@ -539,7 +540,7 @@ export default function StairPanel() {
         </PanelSection>
       )}
 
-      <PanelSection title="Position">
+      <PanelSection title={vi.common.position}>
         <SliderControl
           label="X"
           onChange={(v) => {
@@ -577,7 +578,7 @@ export default function StairPanel() {
           value={node.position[2]}
         />
         <SliderControl
-          label="Rotation"
+          label={vi.common.rotation}
           max={180}
           min={-180}
           onChange={(degrees) => {
@@ -606,7 +607,7 @@ export default function StairPanel() {
         </div>
       </PanelSection>
 
-      <PanelSection title="Railing">
+      <PanelSection title={vi.common.railing}>
         <SegmentedControl
           onChange={(value) => handleUpdate({ railingMode: value })}
           options={RAILING_MODE_OPTIONS}
@@ -620,7 +621,7 @@ export default function StairPanel() {
               value={node.railingStyle ?? 'balusters'}
             />
             <SliderControl
-              label="Height"
+              label={vi.common.height}
               max={1.4}
               min={0.7}
               onChange={(value) => handleUpdate({ railingHeight: value })}
@@ -633,18 +634,18 @@ export default function StairPanel() {
         )}
       </PanelSection>
 
-      <PanelSection title="Actions">
+      <PanelSection title={vi.common.actions}>
         <ActionGroup>
-          <ActionButton icon={<Move className="h-3.5 w-3.5" />} label="Move" onClick={handleMove} />
+          <ActionButton icon={<Move className="h-3.5 w-3.5" />} label={vi.common.move} onClick={handleMove} />
           <ActionButton
             icon={<Copy className="h-3.5 w-3.5" />}
-            label="Duplicate"
+            label={vi.common.duplicate}
             onClick={handleDuplicate}
           />
           <ActionButton
             className="hover:bg-red-500/20"
             icon={<Trash2 className="h-3.5 w-3.5 text-red-400" />}
-            label="Delete"
+            label={vi.common.delete}
             onClick={handleDelete}
           />
         </ActionGroup>

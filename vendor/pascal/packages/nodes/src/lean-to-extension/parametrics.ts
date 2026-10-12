@@ -1,5 +1,6 @@
 import type { LeanToExtensionNode, ParametricDescriptor } from '@pascal-app/core'
 import { leanToLowEdgeHeight, MIN_LEAN_TO_POST_HEIGHT, resolveLeanToLayout } from './layout'
+import { vi } from '../i18n/vi'
 
 const degrees = (rise: number, run: number) =>
   Math.max(1, Math.min(45, (Math.atan2(rise, Math.max(0.001, run)) * 180) / Math.PI))
@@ -89,11 +90,11 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
   },
   groups: [
     {
-      label: 'Size',
+      label: vi.common.size,
       fields: [
         {
           key: 'canopyForm',
-          label: 'Roof form',
+          label: vi.common.roofForm,
           kind: 'enum',
           options: ['mono', 'gable', 'butterfly'],
           display: 'segmented',
@@ -101,13 +102,13 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'autoSpan',
-          label: 'Match host width',
+          label: vi.common.matchHostWidth,
           kind: 'boolean',
           visibleIf: (node) => node.hostKind !== 'freestanding',
         },
         {
           key: 'span',
-          label: 'Width',
+          label: vi.common.width,
           kind: 'number',
           unit: 'm',
           min: 0.5,
@@ -116,7 +117,7 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'projection',
-          label: 'Projection',
+          label: vi.common.projection,
           kind: 'number',
           unit: 'm',
           min: 0.5,
@@ -125,7 +126,7 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'highEdgeHeight',
-          label: 'High edge height',
+          label: vi.common.highEdgeHeight,
           kind: 'number',
           unit: 'm',
           min: 0.8,
@@ -135,7 +136,7 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'pitch',
-          label: 'Slope',
+          label: vi.common.slope,
           kind: 'number',
           unit: '°',
           min: 1,
@@ -145,11 +146,11 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
       ],
     },
     {
-      label: 'Connection',
+      label: vi.common.connection,
       fields: [
         {
           key: 'connectionMode',
-          label: 'Roof connection',
+          label: vi.common.roofConnection,
           kind: 'enum',
           options: ['auto', 'manual'],
           display: 'segmented',
@@ -157,14 +158,14 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'highSideMode',
-          label: 'High-side support',
+          label: vi.common.highSideSupport,
           kind: 'enum',
           options: ['wall-ledger', 'independent-high-beam'],
           visibleIf: (node) => node.hostKind === 'wall',
         },
         {
           key: 'connectionOffset',
-          label: 'Connection offset',
+          label: vi.common.connectionOffset,
           kind: 'number',
           unit: 'm',
           min: -1,
@@ -174,30 +175,30 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'matchHostRoofMaterial',
-          label: 'Match host roof material',
+          label: vi.common.matchHostRoofMaterial,
           kind: 'boolean',
           visibleIf: (node) => node.connectionMode === 'auto' && Boolean(node.hostRoofId),
         },
         {
           key: 'matchHostRoofStructure',
-          label: 'Match host roof structure',
+          label: vi.common.matchHostRoofStructure,
           kind: 'boolean',
           visibleIf: (node) => node.connectionMode === 'auto' && Boolean(node.hostRoofId),
         },
       ],
     },
     {
-      label: 'Structure',
+      label: vi.common.structure,
       fields: [
         {
           key: 'postLayoutMode',
-          label: 'Post layout',
+          label: vi.common.postLayout,
           kind: 'enum',
           options: ['count', 'target-spacing'],
         },
         {
           key: 'postCount',
-          label: 'Post count',
+          label: vi.common.postCount,
           kind: 'number',
           min: 2,
           max: 20,
@@ -206,7 +207,7 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'postSpacing',
-          label: 'Post spacing',
+          label: vi.common.postSpacing,
           kind: 'number',
           unit: 'm',
           min: 0.3,
@@ -216,7 +217,7 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'postWidth',
-          label: 'Post width',
+          label: vi.common.postWidth,
           kind: 'number',
           unit: 'm',
           min: 0.05,
@@ -225,7 +226,7 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'postDepth',
-          label: 'Post depth',
+          label: vi.common.postDepth,
           kind: 'number',
           unit: 'm',
           min: 0.05,
@@ -234,7 +235,7 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'beamHeight',
-          label: 'Beam height',
+          label: vi.common.beamHeight,
           kind: 'number',
           unit: 'm',
           min: 0.05,
@@ -243,7 +244,7 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'beamWidth',
-          label: 'Beam width',
+          label: vi.common.beamWidth,
           kind: 'number',
           unit: 'm',
           min: 0.05,
@@ -252,31 +253,31 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'framingStrategy',
-          label: 'Framing',
+          label: vi.common.framing,
           kind: 'enum',
           options: ['hidden', 'rafters', 'purlins', 'covering-specific'],
         },
         {
           key: 'autoMiterCorners',
-          label: 'Auto miter corners',
+          label: vi.common.autoMiterCorners,
           kind: 'boolean',
         },
       ],
     },
     {
-      label: 'Drainage',
+      label: vi.common.drainage,
       fields: [
-        { key: 'gutterEnabled', label: 'Gutters', kind: 'boolean' },
+        { key: 'gutterEnabled', label: vi.common.gutters, kind: 'boolean' },
         {
           key: 'gutterProfile',
-          label: 'Gutter profile',
+          label: vi.common.gutterProfile,
           kind: 'enum',
           options: ['k-style', 'half-round', 'box'],
           visibleIf: (node) => node.gutterEnabled,
         },
         {
           key: 'gutterSize',
-          label: 'Gutter size',
+          label: vi.common.gutterSize,
           kind: 'number',
           unit: 'm',
           min: 0.04,
@@ -286,13 +287,13 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'downspoutEnabled',
-          label: 'Downspout',
+          label: vi.common.downspout,
           kind: 'boolean',
           visibleIf: (node) => node.gutterEnabled,
         },
         {
           key: 'downspoutPosition',
-          label: 'Downspout position',
+          label: vi.common.downspoutPosition,
           kind: 'number',
           min: -1,
           max: 1,
@@ -302,17 +303,17 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
       ],
     },
     {
-      label: 'Advanced',
+      label: vi.common.advanced,
       fields: [
         {
           key: 'resizeLock',
-          label: 'When resizing',
+          label: vi.common.whenResizing,
           kind: 'enum',
           options: ['preserve-high-edge', 'preserve-low-edge', 'preserve-pitch'],
         },
         {
           key: 'lowEdgeHeight',
-          label: 'Outer edge height',
+          label: vi.common.outerEdgeHeight,
           kind: 'number',
           unit: 'm',
           min: 0.2,
@@ -322,7 +323,7 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'roofThickness',
-          label: 'Roof thickness',
+          label: vi.common.roofThickness,
           kind: 'number',
           unit: 'm',
           min: 0.02,
@@ -331,7 +332,7 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'shingleThickness',
-          label: 'Shingle thickness',
+          label: vi.common.shingleThickness,
           kind: 'number',
           unit: 'm',
           min: 0,
@@ -340,13 +341,13 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'coveringType',
-          label: 'Roof covering',
+          label: vi.common.roofCovering,
           kind: 'enum',
           options: ['generic', 'shingle', 'metal-panel'],
         },
         {
           key: 'highOverhang',
-          label: 'High-side overhang',
+          label: vi.common.highSideOverhang,
           kind: 'number',
           unit: 'm',
           min: 0,
@@ -355,7 +356,7 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'lowOverhang',
-          label: 'Outer overhang',
+          label: vi.common.outerOverhang,
           kind: 'number',
           unit: 'm',
           min: 0,
@@ -364,7 +365,7 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'leftOverhang',
-          label: 'Left overhang',
+          label: vi.common.leftOverhang,
           kind: 'number',
           unit: 'm',
           min: 0,
@@ -373,17 +374,17 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'rightOverhang',
-          label: 'Right overhang',
+          label: vi.common.rightOverhang,
           kind: 'number',
           unit: 'm',
           min: 0,
           max: 1.5,
           step: 0.05,
         },
-        { key: 'sideFlashing', label: 'Side flashing', kind: 'boolean' },
+        { key: 'sideFlashing', label: vi.common.sideFlashing, kind: 'boolean' },
         {
           key: 'flashingProjection',
-          label: 'Flashing projection',
+          label: vi.common.flashingProjection,
           kind: 'number',
           unit: 'm',
           min: 0.01,
@@ -393,7 +394,7 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'flashingHeight',
-          label: 'Flashing height',
+          label: vi.common.flashingHeight,
           kind: 'number',
           unit: 'm',
           min: 0.03,
@@ -403,19 +404,19 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'leftEndCondition',
-          label: 'Left end',
+          label: vi.common.leftEnd,
           kind: 'enum',
           options: ['open', 'wall-abutment', 'joined'],
         },
         {
           key: 'rightEndCondition',
-          label: 'Right end',
+          label: vi.common.rightEnd,
           kind: 'enum',
           options: ['open', 'wall-abutment', 'joined'],
         },
         {
           key: 'ledgerVerticalOffset',
-          label: 'High beam offset',
+          label: vi.common.highBeamOffset,
           kind: 'number',
           unit: 'm',
           min: -1,
@@ -425,7 +426,7 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'ledgerDepth',
-          label: 'High beam depth',
+          label: vi.common.highBeamDepth,
           kind: 'number',
           unit: 'm',
           min: 0.03,
@@ -435,7 +436,7 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'ledgerHeight',
-          label: 'High beam height',
+          label: vi.common.highBeamHeight,
           kind: 'number',
           unit: 'm',
           min: 0.05,
@@ -445,7 +446,7 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'lowBeamInset',
-          label: 'Beam setback',
+          label: vi.common.beamSetback,
           kind: 'number',
           unit: 'm',
           min: 0,
@@ -454,7 +455,7 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'postInset',
-          label: 'Post inset',
+          label: vi.common.postInset,
           kind: 'number',
           unit: 'm',
           min: 0,
@@ -463,7 +464,7 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'rafterWidth',
-          label: 'Rafter width',
+          label: vi.common.rafterWidth,
           kind: 'number',
           unit: 'm',
           min: 0.03,
@@ -473,7 +474,7 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'rafterHeight',
-          label: 'Rafter height',
+          label: vi.common.rafterHeight,
           kind: 'number',
           unit: 'm',
           min: 0.03,
@@ -482,7 +483,7 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'rafterSpacing',
-          label: 'Rafter spacing',
+          label: vi.common.rafterSpacing,
           kind: 'number',
           unit: 'm',
           min: 0.2,
@@ -492,7 +493,7 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'rafterEndInset',
-          label: 'Rafter end inset',
+          label: vi.common.rafterEndInset,
           kind: 'number',
           unit: 'm',
           min: 0,
@@ -502,7 +503,7 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'purlinWidth',
-          label: 'Purlin width',
+          label: vi.common.purlinWidth,
           kind: 'number',
           unit: 'm',
           min: 0.03,
@@ -513,7 +514,7 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'purlinHeight',
-          label: 'Purlin height',
+          label: vi.common.purlinHeight,
           kind: 'number',
           unit: 'm',
           min: 0.03,
@@ -524,7 +525,7 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'purlinSpacing',
-          label: 'Purlin spacing',
+          label: vi.common.purlinSpacing,
           kind: 'number',
           unit: 'm',
           min: 0.2,
@@ -535,13 +536,13 @@ export const leanToExtensionParametrics: ParametricDescriptor<LeanToExtensionNod
         },
         {
           key: 'postBracing',
-          label: 'Post bracing',
+          label: vi.common.postBracing,
           kind: 'enum',
           options: ['none', 'knee'],
         },
         {
           key: 'footingStyle',
-          label: 'Footings',
+          label: vi.common.footings,
           kind: 'enum',
           options: ['none', 'base-plate', 'concrete-pad'],
         },

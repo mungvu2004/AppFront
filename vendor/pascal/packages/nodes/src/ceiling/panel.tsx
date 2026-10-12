@@ -24,6 +24,7 @@ import {
 import { useViewer } from '@pascal-app/viewer'
 import { Edit, Move, Plus, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef } from 'react'
+import { vi } from '../i18n/vi'
 
 /**
  * Phase 5 Stage E — ceiling inspector (kind-owned).
@@ -244,7 +245,7 @@ export function CeilingPanel() {
       title={node.name || 'Ceiling'}
       width={320}
     >
-      <PanelSection title="Height">
+      <PanelSection title={vi.common.height}>
         <SegmentedControl
           onChange={handleTopModeChange}
           options={[
@@ -259,7 +260,7 @@ export function CeilingPanel() {
           </div>
         ) : (
           <SliderControl
-            label="Height"
+            label={vi.common.height}
             max={Math.min(1000, maxHeight)}
             min={0}
             onChange={handleHeightChange}
@@ -301,14 +302,14 @@ export function CeilingPanel() {
         )}
       </PanelSection>
 
-      <PanelSection title="Info">
+      <PanelSection title={vi.common.info}>
         <div className="flex items-center justify-between px-2 py-1 text-muted-foreground text-sm">
           <span>Area</span>
           <span className="font-mono text-white">{area.toFixed(2)} m²</span>
         </div>
       </PanelSection>
 
-      <PanelSection title="Holes">
+      <PanelSection title={vi.common.holes}>
         {node.holes && node.holes.length > 0 ? (
           <div className="flex flex-col gap-1 pb-2">
             {node.holes.map((hole, index) => {
@@ -342,7 +343,7 @@ export function CeilingPanel() {
                     {isEditing ? (
                       <ActionButton
                         className="h-7 bg-primary text-primary-foreground hover:bg-primary/90"
-                        label="Done"
+                        label={vi.common.doneAction}
                         onClick={() =>
                           useInteractionScope
                             .getState()
@@ -387,14 +388,14 @@ export function CeilingPanel() {
             className="w-full"
             disabled={editingHole?.nodeId === selectedId}
             icon={<Plus className="h-3.5 w-3.5" />}
-            label="Add Hole"
+            label={vi.common.addHole}
             onClick={handleAddHole}
           />
         </div>
       </PanelSection>
 
       <ActionGroup>
-        <ActionButton icon={<Move className="h-3.5 w-3.5" />} label="Move" onClick={handleMove} />
+        <ActionButton icon={<Move className="h-3.5 w-3.5" />} label={vi.common.move} onClick={handleMove} />
       </ActionGroup>
     </PanelWrapper>
   )
