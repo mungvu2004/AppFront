@@ -680,7 +680,7 @@ export interface ReorderLevelsInput {
   readonly levelIds: readonly LevelId[];
 }
 
-/** Where each level lands once the stack is rebuilt from the datum upwards. */
+/** Where each level lands once the stack is rebuilt from its base upwards. */
 interface StackedLevel {
   readonly level: Level;
   readonly order: number;
@@ -688,7 +688,25 @@ interface StackedLevel {
 }
 
 /**
- * Rebuilds the stack from the datum, each storey sitting on the one below.
+ * The elevation the stack is rebuilt from: the lowest storey it has now.
+ *
+ * Not `building.datumElevationMm` — that is the project's `+0.000`, and a
+ * basement sits below it. Re-stacking from the datum lifted a -3,0 m basement to
+ * 0,0 m and every storey above by the same depth (BUG-516). The building's datum
+ * is only the fallback for a stack with no storey to read.
+ */
+const stackBaseMm = (context: CommandContext, levelIds: readonly LevelId[]): number => {
+  const elevations = levelIds.flatMap((levelId) => {
+    const elevationMm = readOf(context.graph, 'level', levelId)?.elevationMm;
+
+    return elevationMm !== undefined && Number.isFinite(elevationMm) ? [elevationMm] : [];
+  });
+
+  return elevations.length === 0 ? context.graph.building.datumElevationMm : Math.min(...elevations);
+};
+
+/**
+ * Rebuilds the stack from its lowest storey, each storey sitting on the one below.
  *
  * Re-stacking rather than only renumbering is what makes the command mean
  * something: moving a storey in the list moves the storeys above it by that
@@ -696,7 +714,7 @@ interface StackedLevel {
  */
 const restack = (context: CommandContext, levelIds: readonly LevelId[]): StackedLevel[] => {
   const stacked: StackedLevel[] = [];
-  let elevationMm = context.graph.building.datumElevationMm;
+  let elevationMm = stackBaseMm(context, levelIds);
 
   levelIds.forEach((levelId, order) => {
     const level = readOf(context.graph, 'level', levelId);
@@ -804,7 +822,7 @@ export function createReorderLevelsCommand(
       ROOM_FLOOR_COMMAND_TYPES.reorderLevels,
       `Sắp xếp lại ${formatCount(stacked.length)} tầng: ${formatCount(reordered)} tầng đổi vị trí, ` +
         `${formatCount(raised)} tầng đổi cao độ; xếp chồng lại từ cao độ ` +
-        `${formatElevationM(context.graph.building.datumElevationMm)}.`,
+        `${formatElevationM(stacked[0]?.elevationMm ?? context.graph.building.datumElevationMm)}.`,
       moved.map((entry) =>
         changeForUpdate('level', entry.level, {
           ...entry.level,

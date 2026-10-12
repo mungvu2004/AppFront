@@ -19,8 +19,9 @@
  *
  * ## Kéo đổi thứ tự
  *
- * Chuột: HTML5 drag/drop trên tay nắm mỗi dòng, đường chèn 2px là viền trên
- * của dòng đang được trỏ tới. Bàn phím (A12, đường hạng nhất): dòng đang focus
+ * Chuột: HTML5 drag/drop trên tay nắm mỗi dòng. Nửa trên của dòng = chèn
+ * trước nó (đường chèn 2px ở viền trên), nửa dưới = chèn sau nó — nên dòng cuối
+ * cũng nhận được hàng kéo tới (BUG-518; đường chèn khi đó là viền dưới của nó). Bàn phím (A12, đường hạng nhất): dòng đang focus
  * + `Alt+↑`/`Alt+↓` hoán vị hai tầng liền kề — xử lý trong `FloorTableRow.tsx`.
  */
 
@@ -190,7 +191,7 @@ export function FloorTable({
   if (state === 'empty') {
     return (
       <EmptyState
-        action={{ label: ADD_FLOOR_LABEL, onClick: onAddFloor }}
+        {...(canEdit ? { action: { label: ADD_FLOOR_LABEL, onClick: onAddFloor } } : {})}
         className="h-full"
         description={emptyNotice ?? ''}
         icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-bg-sunken" />}
@@ -298,6 +299,7 @@ export function FloorTable({
                   onUploadDrawing={onUploadDrawing}
                   row={row}
                   rows={rows}
+                  showInsertionLineAfter={dragOverIndex === rows.length && index === rows.length - 1}
                   showInsertionLineBefore={dragOverIndex === index}
                 />
               ))

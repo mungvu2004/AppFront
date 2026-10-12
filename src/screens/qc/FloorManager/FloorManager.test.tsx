@@ -651,6 +651,8 @@ describe('bố cục gọn đo ở route (BUG-251)', () => {
     const following = Boolean(section.compareDocumentPosition(screen.getByRole('table')) & Node.DOCUMENT_POSITION_FOLLOWING);
     expect(following).toBe(!sectionAfterTable);
     expect(section.parentElement?.parentElement).toHaveClass(layout);
+    // BUG-520: route đứng một mình, khung `h-dvh` cho `h-full` của màn một chỗ bám.
+    expect(screen.getByRole('region', { name: SCREEN_ARIA_LABEL }).parentElement).toHaveClass('h-dvh');
     vi.unstubAllGlobals();
   });
 
@@ -735,5 +737,59 @@ describe('bảng tầng vừa khung (BUG-250)', () => {
     for (const row of within(table).getAllByRole('row', { name: /, cao độ / })) {
       expect(row).not.toHaveClass('flex');
     }
+  });
+});
+
+describe('kéo thả tới cuối bảng (BUG-518)', () => {
+  it('thả vào nửa dưới dòng cuối thì hàng kéo xuống CUỐI, không chèn trước dòng cuối', () => {
+    const base = scenarioArgsFor('partial');
+    const onReorderFloors = vi.fn();
+    renderWithProviders(<FloorManager {...base} onReorderFloors={onReorderFloors} />);
+    const ids = base.rows.map((row) => row.id);
+    const first = base.rows[0]!;
+    const rows = screen.getAllByRole('row', { name: /, cao độ / });
+    const last = rows[rows.length - 1]!;
+
+    fireEvent.dragStart(screen.getByRole('button', { name: `Đổi thứ tự tầng ${first.name}` }));
+    /* jsdom không có DragEvent: MouseEvent mang được clientY. Khung jsdom cao 0 nên 10 px là nửa dưới. */
+    fireEvent(last, new MouseEvent('dragover', { bubbles: true, cancelable: true, clientY: 10 }));
+    expect(last).toHaveClass('border-accent');
+    fireEvent.drop(last);
+
+    expect(onReorderFloors).toHaveBeenCalledWith([...ids.slice(1), first.id]);
+  });
+});
+
+describe('rê lên dòng bảng làm sáng dải lát cắt (BUG-519)', () => {
+  it('dải của tầng đang được rê mang nền hover; dải khác thì không', () => {
+    const base = scenarioArgsFor('partial');
+    const bands = base.bands.map((band, index) => ({ ...band, isHovered: index === 1 }));
+    renderWithProviders(<FloorManager {...base} bands={bands} />);
+
+    const hovered = sectionBands().filter((band) => band.classList.contains('bg-bg-hover'));
+
+    expect(hovered).toHaveLength(1);
+    expect(hovered[0]).toHaveAccessibleName(bands[1]!.label);
+  });
+});
+
+describe('khung bảng có chiều cao xác định (BUG-520)', () => {
+  it('vùng nội dung là cột flex lấp phần còn lại, nên khung bảng tự cuộn thay vì kéo dài trang', () => {
+    renderWithProviders(<FloorManager {...scenarioArgsFor('partial')} />);
+    const frame = screen.getByRole('table').closest('[class~="rounded-[8px]"]');
+    const content = frame?.closest('[class~="max-w-[1120px]"][class~="flex-1"]');
+
+    expect(frame).toHaveClass('min-h-0', 'flex-1', 'overflow-auto');
+    expect(content).toHaveClass('flex', 'flex-col');
+    expect(content?.firstElementChild).toHaveClass('flex-1');
+  });
+});
+
+describe('người xem ở dự án rỗng (BUG-522)', () => {
+  it('"Chưa có tầng nào" hiện, nhưng không có nút "Thêm tầng"', () => {
+    renderWithProviders(<FloorManager {...scenarioArgsFor('empty')} canEdit={false} />);
+
+    expect(screen.getByText('Chưa có tầng nào')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: ADD_FLOOR_LABEL })).not.toBeInTheDocument();
   });
 });

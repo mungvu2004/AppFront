@@ -157,8 +157,17 @@ export function FloorManager(props: FloorManagerViewProps) {
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-[1120px] flex-1 px-8 pb-8">
-        <div className={cn('flex min-h-[480px] items-stretch gap-6', isCompact || isCollapsed ? 'flex-col' : 'flex-row')}>
+      {/* Vùng nội dung lấp phần còn lại của khung và có chiều cao xác định, nên khung bảng tự
+          cuộn còn "Thêm tầng" và lát cắt đứng yên — 50 tầng không kéo cả trang dài 5850 px (BUG-520).
+          Khổ gọn: bảng giữ ít nhất 480 px, lát cắt nằm dưới, trang cuộn phần dư. */}
+      <div className="mx-auto flex min-h-0 w-full max-w-[1120px] flex-1 flex-col px-8 pb-8">
+        <div
+          className={cn(
+            'flex flex-1 items-stretch gap-6',
+            isCompact ? 'min-h-0' : 'min-h-[480px]',
+            isCompact || isCollapsed ? 'flex-col' : 'flex-row',
+          )}
+        >
           {isLoadError || !isCollapsed ? null : (
             <button className={EXPAND_BUTTON_CLASS_NAME} onClick={onToggleCollapsed} type="button">
               {EXPAND_SECTION_LABEL}
@@ -166,7 +175,7 @@ export function FloorManager(props: FloorManagerViewProps) {
           )}
           {isCompact ? null : sectionCut}
 
-          <div className="min-h-0 min-w-0 flex-1 self-stretch">
+          <div className={cn('min-h-0 min-w-0 flex-1 self-stretch', isCompact && 'min-h-[480px]')}>
             <FloorTable
               canEdit={props.canEdit}
               emptyNotice={props.emptyNotice}

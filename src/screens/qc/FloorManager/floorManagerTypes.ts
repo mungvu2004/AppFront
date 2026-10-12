@@ -257,18 +257,19 @@ export interface DuplicateElevationViolation {
  * ## Bất biến ràng buộc `state` với dữ liệu
  *
  * 1. `state === 'empty'`   ⟺ `rows` rỗng ⟺ `emptyNotice !== null`.
- * 2. `state === 'loading'` ⟺ `rows` rỗng, `emptyNotice`/`errorMessage`/
- *    `forbiddenNotice` đều `null` — đây là cách `loading` tách khỏi `empty` dù
- *    cả hai đều không có dòng nào.
+ * 2. `state === 'loading'` ⟺ `rows` rỗng, `emptyNotice`/`errorMessage` đều
+ *    `null` — đây là cách `loading` tách khỏi `empty` dù cả hai đều không có
+ *    dòng nào.
  * 3. `state === 'partial'` ⟺ có ít nhất một dòng `needsDrawing === true`.
  * 4. `state === 'error'`   ⟺ `errorMessage !== null`.
  * 5. `state === 'success'` ⟺ `rows` không rỗng và MỌI dòng có
  *    `needsDrawing === false`.
- * 6. `state === 'forbidden'` ⟺ `canEdit === false` ⟺ `forbiddenNotice !== null`.
- * 7. `state === 'collapsed'` ⟺ `isCollapsed === true`.
+ * 6. `canEdit === false` ⟺ `forbiddenNotice !== null`; `state === 'forbidden'`
+ *    ⟹ `canEdit === false` (lỗi, đang tải, rỗng vẫn thắng vai — BUG-522).
+ * 7. `state === 'collapsed'` ⟹ `isCollapsed === true`.
  *
  * Thứ tự che nhau (hàm suy trạng thái của hook đi đúng thứ tự này):
- * `forbidden` → `collapsed` → `error` → `loading` → `empty` → `partial` →
+ * `error` → `loading` → `empty` → `forbidden` → `collapsed` → `partial` →
  * `success`.
  */
 export interface FloorManagerViewProps {

@@ -208,15 +208,47 @@ describe('readProjectLayerGraph — màn quản lý tầng (B-V6-01 phần V7)',
     );
   });
 
-  it('cổng thật của màn tầng: kho đã có thì giữ kho', async () => {
+  it('cổng thật của màn tầng: kho của đúng dự án thì giữ kho', async () => {
     const apiClient = createMockApiClient();
     const readLayer = vi.spyOn(apiClient.spatial, 'readLayer');
 
-    useStore.getState().setSpatial(normalizeSpatial(SAMPLE_BUILDING), null);
-    const { graph } = await createFloorManagerGateway({ api: apiClient }).readFloorList({ projectId: PROJECT_ID });
+    useStore.getState().setSpatial(normalizeSpatial(SAMPLE_BUILDING), null, { floorRevisions: {}, projectId: PROJECT_ID });
+    const { fromStore, graph } = await createFloorManagerGateway({ api: apiClient }).readFloorList({ projectId: PROJECT_ID });
 
     expect(readLayer).not.toHaveBeenCalled();
+    expect(fromStore).toBe(true);
     expect(graph).toBe(useStore.getState().spatial);
+  });
+
+  it('BUG-515: kho của dự án KHÁC (hay không rõ dự án) thì đọc N16, không dùng lại', async () => {
+    const apiClient = createMockApiClient();
+    const readLayer = vi.spyOn(apiClient.spatial, 'readLayer');
+    const gateway = createFloorManagerGateway({ api: apiClient });
+
+    useStore.getState().setSpatial(normalizeSpatial(SAMPLE_BUILDING), null, { floorRevisions: {}, projectId: 'P-OTHER' });
+    const other = await gateway.readFloorList({ projectId: PROJECT_ID });
+
+    expect(other.fromStore).toBe(false);
+    expect(other.graph).not.toBe(useStore.getState().spatial);
+    expect(readLayer).toHaveBeenCalledTimes(other.floors.length);
+
+    useStore.getState().setSpatial(normalizeSpatial(SAMPLE_BUILDING), null);
+
+    expect((await gateway.readFloorList({ projectId: PROJECT_ID })).fromStore).toBe(false);
+  });
+
+  it('BUG-515: lượt đọc đầu của một lần gắn màn đọc mới, trừ khi kho còn sửa chưa lưu', async () => {
+    const apiClient = createMockApiClient();
+    const gateway = createFloorManagerGateway({ api: apiClient });
+
+    useStore.getState().setSpatial(normalizeSpatial(SAMPLE_BUILDING), null, { floorRevisions: {}, projectId: PROJECT_ID });
+
+    expect((await gateway.readFloorList({ isMountRead: true, projectId: PROJECT_ID })).fromStore).toBe(false);
+
+    useStore.getState().setUnsavedFloorIds(['L1']);
+
+    expect((await gateway.readFloorList({ isMountRead: true, projectId: PROJECT_ID })).fromStore).toBe(true);
+    useStore.getState().setUnsavedFloorIds([]);
   });
 });
 

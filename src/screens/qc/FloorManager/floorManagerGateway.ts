@@ -27,7 +27,7 @@
  * ## Không công thức nghiệp vụ mới
  *
  * - Cao độ khi xếp lại chồng tầng: `createReorderLevelsCommand` (hàm `restack`
- *   private bên trong nó dồn cao độ từ `building.datumElevationMm`). Cổng và
+ *   private bên trong nó dồn cao độ từ tầng thấp nhất hiện có). Cổng và
  *   màn KHÔNG cộng cao độ.
  * - Đỉnh của một tầng: `ceilingElevationMm` (M-11, `alignFloors.ts:451`).
  * - Sao chép nội dung tầng: `copyFloor` (`copyFloor.ts:230`) lo TOÀN BỘ; cổng
@@ -640,7 +640,7 @@ export function defaultNewFloorHeightMm(graph: NormalizedSpatial | null): number
  * Cao độ của một tầng đặt lên đỉnh ngăn xếp.
  *
  * `stackTopMm` gọi `ceilingElevationMm` (M-11); toà nhà chưa có tầng nào thì mốc
- * là `building.datumElevationMm` — đúng chỗ `restack` bắt đầu.
+ * là `building.datumElevationMm`.
  */
 export function nextFloorElevationMm(graph: NormalizedSpatial | null, building: Building): number {
   return stackTopMm(graph) ?? building.datumElevationMm;
@@ -1123,6 +1123,12 @@ export { UNDO_WINDOW_MS };
 export interface ReadFloorListInput {
   readonly projectId: string;
   readonly signal?: AbortSignal;
+  /**
+   * `true` ở lượt đọc ĐẦU của một lần gắn màn: kho có thể đã cũ (tầng thêm ở nơi
+   * khác, màn một tầng chỉ nạp một tầng), nên chỉ giữ kho khi nó còn sửa chưa lưu
+   * (BUG-515). Vắng mặt = lượt đọc lại sau một lượt ghi: kho đúng dự án thì giữ.
+   */
+  readonly isMountRead?: boolean;
 }
 
 /**
@@ -1138,6 +1144,29 @@ export interface FloorManagerSnapshot {
   readonly floorRevisions: Readonly<Record<string, number>>;
   readonly floors: readonly Floor[];
   readonly graph: NormalizedSpatial | null;
+  /** `true` khi `graph` là chính đồ thị đang nằm trong kho — không có gì để nạp lại (BUG-515). */
+  readonly fromStore: boolean;
+}
+
+/**
+ * Đồ thị trong kho mà lượt đọc danh sách tầng được phép dùng lại, hoặc `null`.
+ *
+ * Kho dùng chung giữa các màn, nên "kho có thì giữ" là không đủ (BUG-515): nó có
+ * thể là đồ thị của dự án khác (chuyển SPA A → B), hay đã cũ lúc quay lại màn.
+ * Chỉ dùng lại kho của ĐÚNG dự án này; ở lượt đọc đầu của một lần gắn màn thì
+ * thêm điều kiện kho còn sửa chưa lưu, vì đọc lại lúc đó là đè mất chúng.
+ */
+export function reusableStoredGraph(
+  stored: NormalizedSpatial | null,
+  input: ReadFloorListInput,
+): NormalizedSpatial | null {
+  const state = useStore.getState();
+
+  if (stored === null || state.spatialProjectId !== input.projectId) {
+    return null;
+  }
+
+  return input.isMountRead === true && state.unsavedFloorIds.length === 0 ? null : stored;
 }
 
 export interface PersistAddFloorInput {
@@ -1271,18 +1300,20 @@ export function createFloorManagerGateway(
         throw result.error;
       }
 
-      /* Kho có thì giữ (không đè sửa chưa lưu); kho rỗng thì đọc N16 của từng tầng (B-V6-01). */
-      const stored = graph.read();
-      const read =
-        stored === null
-          ? await readProjectLayerRead(api.spatial, {
-              floorIds: result.data.map((floor) => floor.id),
-              projectId: input.projectId,
-              signal: input.signal,
-            })
-          : { floorRevisions: {}, graph: stored };
+      /* Kho của dự án này thì giữ (không đè sửa chưa lưu); không thì đọc N16 của từng tầng (B-V6-01, BUG-515). */
+      const stored = reusableStoredGraph(graph.read(), input);
 
-      return { floorRevisions: read.floorRevisions, floors: result.data, graph: read.graph };
+      if (stored !== null) {
+        return { floorRevisions: {}, floors: result.data, fromStore: true, graph: stored };
+      }
+
+      const read = await readProjectLayerRead(api.spatial, {
+        floorIds: result.data.map((floor) => floor.id),
+        projectId: input.projectId,
+        signal: input.signal,
+      });
+
+      return { floorRevisions: read.floorRevisions, floors: result.data, fromStore: false, graph: read.graph };
     },
 
     graph,
@@ -1400,13 +1431,14 @@ export const FLOOR_MANAGER_SAMPLE_ROOF_ID: LevelId = 'L-FLOORROOF0000' as LevelI
 /**
  * Công trình mẫu.
  *
- * `datumElevationMm` là `-3000`, đúng cao độ tầng thấp nhất của bảng trên: đó là
- * chỗ `restack` bắt đầu xếp chồng, nên mốc chuẩn phải bằng đáy ngăn xếp thì bật
- * "Tự động tính cao độ" mới không dịch cả toà nhà lên (mục H của bản thiết kế).
+ * `datumElevationMm` là `0`, đúng như toà nhà mà đường đọc thật dựng
+ * (`FLOOR_LAYER_BUILDING`): tầng hầm của bảng trên nằm DƯỚI mốc `+0.000`.
+ * `restack` xếp chồng từ tầng thấp nhất chứ không từ mốc (BUG-516), nên bộ mẫu
+ * không cần đặt mốc bằng đáy ngăn xếp để che lỗi ấy nữa.
  */
 export const FLOOR_MANAGER_SAMPLE_BUILDING: Building = {
   name: 'Nhà mẫu quản lý tầng',
-  datumElevationMm: -3000,
+  datumElevationMm: 0,
   confidence: 1,
   source: 'human',
   reviewed: true,
@@ -1638,12 +1670,19 @@ export function createMockFloorManagerGateway(
       hideFloorFrom3d: false,
     },
 
-    readFloorList: () => {
+    readFloorList: (input) => {
       if (seed.failReadFloorList === true) {
         return Promise.reject(new Error('Không tải được danh sách tầng của dự án.'));
       }
 
-      return Promise.resolve({ floorRevisions: {}, floors, graph });
+      /* Như cổng thật: kho của đúng dự án này là đồ thị đang sửa, không nạp đè bằng bộ mẫu. */
+      const stored = useStore.getState().spatialProjectId === input.projectId ? useStore.getState().spatial : null;
+
+      return Promise.resolve(
+        stored === null
+          ? { floorRevisions: {}, floors, fromStore: false, graph }
+          : { floorRevisions: {}, floors, fromStore: true, graph: stored },
+      );
     },
 
     graph: { read: () => useStore.getState().spatial ?? graph },

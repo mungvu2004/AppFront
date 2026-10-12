@@ -110,7 +110,10 @@ interface Mounted {
   readonly queryClient: QueryClient;
 }
 
-type MountOptions = Partial<Omit<UseFloorManagerOptions, 'registry'>>;
+type MountOptions = Partial<Omit<UseFloorManagerOptions, 'registry'>> & {
+  /** Dùng chung bộ đệm giữa hai lần gắn — đúng cảnh rời màn rồi quay lại trong SPA. */
+  readonly queryClient?: QueryClient;
+};
 
 function mountHook(options: MountOptions = {}): Mounted {
   const registry = createShortcutRegistry();
@@ -122,7 +125,7 @@ function mountHook(options: MountOptions = {}): Mounted {
     },
     destroy: () => undefined,
   };
-  const queryClient = createTestQueryClient();
+  const queryClient = options.queryClient ?? createTestQueryClient();
   const wrapper = ({ children }: { children: ReactNode }): ReactNode =>
     createElement(QueryClientProvider, { client: queryClient }, children);
 
@@ -251,6 +254,11 @@ describe('đổi chiều cao một tầng', () => {
 
     expect(levelIn(storeGraph(), groundId).heightMm).toBe(expectedHeightMm);
     expect(levelIn(storeGraph(), secondId).elevationMm).toBe(expectedHeightMm);
+
+    /* BUG-516: mốc `+0.000` của toà nhà mẫu là 0 như đường đọc thật; tầng hầm vẫn ở -3,0 m. */
+    const basement = FLOOR_MANAGER_SAMPLE_LEVELS[0];
+
+    expect(basement !== undefined && levelIn(storeGraph(), String(basement.id)).elevationMm).toBe(-3000);
 
     /* Và view-model nói cùng một chuyện, bằng chuỗi người đọc. */
     expect(rowOf(mounted, groundId).heightText).toBe('4,2 m');
@@ -793,6 +801,49 @@ describe('bảng tầng', () => {
       'Thêm tầng đầu tiên, hoặc nhập số tầng từ màn hình tạo dự án.',
     );
     expect(mounted.result.current.bands).toHaveLength(0);
+  });
+
+  it('BUG-522: người xem mở dự án rỗng thấy trạng thái Rỗng, không lời mời thêm tầng', async () => {
+    const gateway = createMockFloorManagerGateway({
+      graph: createFloorManagerSampleGraph({ levels: [] }),
+      floors: [],
+    });
+    const mounted = await mountSettled({ gateway, roles: ['viewer'] });
+
+    await waitFor(() => {
+      expect(mounted.result.current.state).toBe('empty');
+    });
+    expect(mounted.result.current.emptyNotice).toBe(FLOOR_MANAGER_TEXT.viewerEmptyNotice);
+    expect(mounted.result.current.forbiddenNotice).not.toBeNull();
+  });
+
+  it('BUG-522: người xem mở mã dự án lạ thấy "không tìm thấy dự án", không chỉ dải quyền', async () => {
+    const notFound: HttpError = { kind: 'http', status: 404, requestId: 'REQ-404', retryable: false, raw: null };
+    const gateway: FloorManagerGateway = {
+      ...createMockFloorManagerGateway(),
+      readFloorList: () => Promise.reject(notFound),
+    };
+    const mounted = await mountSettled({ gateway, roles: ['viewer'] });
+
+    await waitFor(() => {
+      expect(mounted.result.current.state).toBe('error');
+    });
+    expect(mounted.result.current.isProjectMissing).toBe(true);
+  });
+
+  it('BUG-521: người xem không nghe câu nhân bản/xoá tầng chưa lưu; người sửa vẫn nghe', async () => {
+    const viewer = await mountSettled({ roles: ['viewer'] });
+
+    expect(viewer.result.current.unsupportedNotices).not.toContain(
+      FLOOR_MANAGER_UNSUPPORTED_NOTICES.persistFloorContents,
+    );
+    viewer.unmount();
+
+    const editor = await mountSettled();
+
+    expect(editor.result.current.unsupportedNotices).toContain(
+      FLOOR_MANAGER_UNSUPPORTED_NOTICES.persistFloorContents,
+    );
   });
 });
 
@@ -1430,5 +1481,86 @@ describe('useFloorManager — bộ đệm dùng chung với Tải bản vẽ (BU
     const own = queryClient.getQueryCache().findAll({ queryKey: listKey });
     expect(own.length).toBeGreaterThan(0);
     expect(own.every((query) => query.state.dataUpdateCount >= 2)).toBe(true);
+  });
+});
+
+describe('BUG-515 — kho dùng chung không che tầng của dự án trên URL', () => {
+  const ROOF = FLOOR_MANAGER_SAMPLE_LEVELS[FLOOR_MANAGER_SAMPLE_LEVELS.length - 1];
+  const sampleNames = FLOOR_MANAGER_SAMPLE_LEVELS.map((entry) => entry.name).sort();
+  const rowNames = (mounted: Mounted): readonly string[] =>
+    mounted.result.current.rows.map((row) => row.name).sort();
+
+  it('kho đang giữ dự án KHÁC: màn hiện tầng của dự án này và nạp chúng vào kho', async () => {
+    if (ROOF === undefined) {
+      throw new Error('Bộ mẫu không có tầng nào.');
+    }
+
+    const other = createFloorManagerSampleGraph({
+      levels: [{ ...ROOF, id: 'L-OTHERPROJ0000' as LevelId, name: 'A tầng 1' }],
+    });
+    useStore.getState().setSpatial(other, null, { floorRevisions: {}, projectId: 'P-OTHER' });
+
+    const mounted = await mountSettled();
+
+    await waitFor(() => {
+      expect(rowNames(mounted)).toEqual(sampleNames);
+    });
+    expect(useStore.getState().spatialProjectId).toBe(PROJECT_ID);
+  });
+
+  it('lượt đọc đầu của lần gắn là lượt đọc mới; lượt đọc lại sau đó giữ kho', async () => {
+    const base = createMockFloorManagerGateway();
+    const mountReads: boolean[] = [];
+    const gateway: FloorManagerGateway = {
+      ...base,
+      readFloorList: (input) => {
+        mountReads.push(input.isMountRead === true);
+
+        return base.readFloorList(input);
+      },
+    };
+    const mounted = await mountSettled({ gateway });
+
+    await act(async () => {
+      await mounted.queryClient.invalidateQueries();
+    });
+
+    expect(mountReads).toEqual([true, false]);
+  });
+
+  it('rời màn rồi quay lại (cùng bộ đệm): đọc lại và hiện tầng thêm ở nơi khác', async () => {
+    if (ROOF === undefined) {
+      throw new Error('Bộ mẫu không có tầng nào.');
+    }
+
+    let serverGraph = createFloorManagerSampleGraph();
+    const base = createMockFloorManagerGateway();
+    const gateway: FloorManagerGateway = {
+      ...base,
+      readFloorList: async (input) =>
+        input.isMountRead === true
+          ? { ...(await base.readFloorList(input)), fromStore: false, graph: serverGraph }
+          : base.readFloorList(input),
+    };
+    const first = await mountSettled({ gateway });
+
+    first.unmount();
+    serverGraph = createFloorManagerSampleGraph({
+      levels: [
+        ...FLOOR_MANAGER_SAMPLE_LEVELS,
+        {
+          ...ROOF,
+          id: 'L-EXTERNAL00000' as LevelId,
+          name: 'Tầng thêm ngoài',
+          elevationMm: ROOF.elevationMm + ROOF.heightMm,
+        },
+      ],
+    });
+
+    const second = await mountSettled({ gateway, queryClient: first.queryClient });
+
+    await waitFor(() => {
+      expect(rowNames(second)).toContain('Tầng thêm ngoài');
+    });
   });
 });

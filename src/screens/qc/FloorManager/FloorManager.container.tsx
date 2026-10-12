@@ -259,14 +259,18 @@ function FloorManagerRouteBody({
     navigate(ROUTES.dashboard);
   }, [navigate]);
 
+  // Không vỏ nào cấp chiều cao cho route này: thiếu khung `h-dvh` thì `h-full` của màn
+  // không bám vào đâu, khung bảng cao bằng 50 tầng và cả trang cuộn (BUG-520).
   return (
-    <FloorManagerContainer
-      isCompact={isCompact}
-      onBackToProjects={handleBackToProjects}
-      onNavigateToDrawings={handleNavigateToDrawings}
-      projectId={projectId}
-      roles={roles}
-    />
+    <div className="h-dvh">
+      <FloorManagerContainer
+        isCompact={isCompact}
+        onBackToProjects={handleBackToProjects}
+        onNavigateToDrawings={handleNavigateToDrawings}
+        projectId={projectId}
+        roles={roles}
+      />
+    </div>
   );
 }
 
