@@ -109,9 +109,14 @@ const PANEL_CLASS =
   'max-lg:h-[var(--flp-sheet-height)] max-lg:w-full';
 
 /** Biến thể `collapsed`: luôn là tấm trượt đáy, bất kể bề rộng khung nhìn. */
-const COLLAPSED_PANEL_CLASS =
-  `${PANEL_BASE_CLASS} fixed inset-x-0 bottom-0 h-[var(--flp-sheet-height)] w-full ` +
-  'rounded-t-xl shadow-overlay';
+/**
+ * Khổ hẹp: panel nằm TRONG LUỒNG, ngay dưới thanh tab của cột thanh tra — không
+ * còn là tấm `fixed` ghim đáy màn hình. Tấm ghim đáy phủ lên khung Thuộc tính và
+ * chính thanh tab đã mở nó, nên không còn đường đóng; chiều cao 240 px của nó lại
+ * cắt đôi hàng chip và đáy thẻ (BUG-475). Khung bọc của `Viewer3DPanels` đã tự
+ * cuộn ở 360 px.
+ */
+const COLLAPSED_PANEL_CLASS = `${PANEL_BASE_CLASS} w-full`;
 
 const GRID_STYLE: CSSProperties = {
   gap: gridGapPx,
@@ -187,7 +192,7 @@ function PanelContent({
 
         <ul
           aria-label={GRID_LABEL}
-          className={isCollapsed ? 'flex overflow-x-auto pb-1' : 'grid'}
+          className={isCollapsed ? 'flex shrink-0 overflow-x-auto pb-1' : 'grid'}
           style={isCollapsed ? ROW_STYLE : GRID_STYLE}
         >
           <AnimatePresence initial={false}>
