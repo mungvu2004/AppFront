@@ -73,7 +73,6 @@ const RETRY_LABEL = 'Thử lại';
 
 const TABS_ARIA_LABEL = 'Xem trước hoặc nhật ký';
 const TAB_PREVIEW_LABEL = 'Xem trước';
-const TAB_TOUCH_CLASS = 'h-11 sm:h-9';
 const TAB_LOG_LABEL = 'Nhật ký';
 
 const FLOOR_OBJECTS_ARIA_LABEL = 'Số đối tượng đã nhận theo tầng';
@@ -136,8 +135,8 @@ function ProcessingPanels(props: ProcessingScreenProps) {
     >
       <Tabs.List aria-label={TABS_ARIA_LABEL}>
         {/* Vùng chạm 44 dưới 640 px, cùng khuôn `Button` (h-11 sm:h-9). */}
-        <Tabs.Tab className={TAB_TOUCH_CLASS} id="preview">{TAB_PREVIEW_LABEL}</Tabs.Tab>
-        <Tabs.Tab className={TAB_TOUCH_CLASS} id="log">{TAB_LOG_LABEL}</Tabs.Tab>
+        <Tabs.Tab id="preview">{TAB_PREVIEW_LABEL}</Tabs.Tab>
+        <Tabs.Tab id="log">{TAB_LOG_LABEL}</Tabs.Tab>
       </Tabs.List>
       <div className="relative pt-4">
         <Tabs.Panel id="preview">
