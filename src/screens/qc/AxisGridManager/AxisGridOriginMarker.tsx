@@ -44,9 +44,11 @@ const ORIGIN_ARIA_LABEL = 'Gốc toạ độ 0,0';
 
 export interface AxisGridOriginMarkerProps {
   readonly origin: AxisCanvasOriginViewModel;
+  /** Đơn vị `viewBox` ứng với một px màn — dấu gốc và nhãn giữ cỡ px dù canvas co giãn (BUG-404). */
+  readonly unit: number;
 }
 
-export function AxisGridOriginMarker({ origin }: AxisGridOriginMarkerProps) {
+export function AxisGridOriginMarker({ origin, unit }: AxisGridOriginMarkerProps) {
   return (
     <motion.g
       animate={{ x: origin.pointPx.x, y: origin.pointPx.y }}
@@ -54,40 +56,42 @@ export function AxisGridOriginMarker({ origin }: AxisGridOriginMarkerProps) {
       role="img"
       transition={{ duration: durationSeconds('slow') }}
     >
-      <circle
-        cx={0}
-        cy={0}
-        fill="var(--bg-surface)"
-        r={ORIGIN_RADIUS_PX}
-        stroke={ORIGIN_TOKEN}
-        strokeWidth={ORIGIN_STROKE_WIDTH_PX}
-      />
-      <line
-        stroke={ORIGIN_TOKEN}
-        strokeWidth={ORIGIN_STROKE_WIDTH_PX}
-        x1={-ORIGIN_CROSS_HALF_LENGTH_PX}
-        x2={ORIGIN_CROSS_HALF_LENGTH_PX}
-        y1={0}
-        y2={0}
-      />
-      <line
-        stroke={ORIGIN_TOKEN}
-        strokeWidth={ORIGIN_STROKE_WIDTH_PX}
-        x1={0}
-        x2={0}
-        y1={-ORIGIN_CROSS_HALF_LENGTH_PX}
-        y2={ORIGIN_CROSS_HALF_LENGTH_PX}
-      />
-      <text
-        className="select-none tabular-nums"
-        dominantBaseline="middle"
-        fill={ORIGIN_LABEL_TOKEN}
-        fontSize={ORIGIN_LABEL_FONT_SIZE_PX}
-        x={ORIGIN_RADIUS_PX + ORIGIN_LABEL_OFFSET_PX}
-        y={0}
-      >
-        {origin.label}
-      </text>
+      <g transform={`scale(${unit})`}>
+        <circle
+          cx={0}
+          cy={0}
+          fill="var(--bg-surface)"
+          r={ORIGIN_RADIUS_PX}
+          stroke={ORIGIN_TOKEN}
+          strokeWidth={ORIGIN_STROKE_WIDTH_PX}
+        />
+        <line
+          stroke={ORIGIN_TOKEN}
+          strokeWidth={ORIGIN_STROKE_WIDTH_PX}
+          x1={-ORIGIN_CROSS_HALF_LENGTH_PX}
+          x2={ORIGIN_CROSS_HALF_LENGTH_PX}
+          y1={0}
+          y2={0}
+        />
+        <line
+          stroke={ORIGIN_TOKEN}
+          strokeWidth={ORIGIN_STROKE_WIDTH_PX}
+          x1={0}
+          x2={0}
+          y1={-ORIGIN_CROSS_HALF_LENGTH_PX}
+          y2={ORIGIN_CROSS_HALF_LENGTH_PX}
+        />
+        <text
+          className="select-none tabular-nums"
+          dominantBaseline="middle"
+          fill={ORIGIN_LABEL_TOKEN}
+          fontSize={ORIGIN_LABEL_FONT_SIZE_PX}
+          x={ORIGIN_RADIUS_PX + ORIGIN_LABEL_OFFSET_PX}
+          y={0}
+        >
+          {origin.label}
+        </text>
+      </g>
     </motion.g>
   );
 }

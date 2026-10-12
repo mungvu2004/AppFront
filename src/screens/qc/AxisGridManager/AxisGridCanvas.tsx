@@ -32,7 +32,7 @@
  * hai đầu lưới, không riêng một đầu) — một lựa chọn trình bày cục bộ, không
  * phải một quyết định nghiệp vụ cần hỏi.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 
 import { AxisGridGhostFloor } from './AxisGridGhostFloor';
@@ -52,13 +52,18 @@ const AXIS_BADGE_FILL_TOKEN = 'var(--bg-surface)';
 /* -------------------------------------------------------------------------- */
 
 const AXIS_STROKE_WIDTH_PX = 1;
-/** Nét gạch-chấm 1px: gạch 8, hở 3, chấm 1, hở 3. */
-const AXIS_DASH_ARRAY = '8 3 1 3';
+/** Nét gạch-chấm 1px: gạch 8, hở 3, chấm 1, hở 3 (px màn). */
+const AXIS_DASH_ARRAY = [8, 3, 1, 3];
 const AXIS_BADGE_DIAMETER_PX = 24;
 const AXIS_BADGE_RADIUS_PX = AXIS_BADGE_DIAMETER_PX / 2;
 const AXIS_BADGE_STROKE_WIDTH_PX = 1;
 /** Cỡ 13, chữ đều — đúng đặc tả "nhãn trục là chữ đều (tabular figures) cỡ 13". */
 const AXIS_LABEL_FONT_SIZE_PX = 13;
+
+/** BUG-404: bong bóng nằm NGOÀI đầu trục một khoảng (px màn) — không chồng lên nhau hay lên dấu gốc ở góc lưới. */
+const AXIS_BADGE_OVERHANG_PX = AXIS_BADGE_RADIUS_PX + 8;
+/** BUG-404: lề quanh lưới khi vừa khung (px màn) — đủ chỗ cho bong bóng, không bị mép khung cắt nửa. */
+const FIT_MARGIN_PX = AXIS_BADGE_OVERHANG_PX + AXIS_BADGE_RADIUS_PX + 4;
 
 const AXIS_TRANSITION_CLASSES = 'transition-colors duration-180 motion-reduce:transition-none';
 
@@ -71,18 +76,60 @@ const CANVAS_ARIA_LABEL = 'Khung xem bản vẽ quản lý trục và gốc to�
 const CANVAS_READ_ONLY_NOTICE_ID = 'axis-grid-canvas-read-only';
 
 /* -------------------------------------------------------------------------- */
+/* Vừa khung — BUG-404.                                                        */
+/* -------------------------------------------------------------------------- */
+
+interface CanvasFit {
+  readonly viewBox: string;
+  /** Số đơn vị `viewBox` ứng với MỘT px màn — nét, bong bóng, chữ nhân với nó để giữ đúng cỡ px ở mọi tỷ lệ bản vẽ. */
+  readonly unit: number;
+}
+
+/**
+ * `viewBox` = hộp bao lưới cộng lề {@link FIT_MARGIN_PX} tính theo px MÀN, và cỡ
+ * một px màn trong đơn vị `viewBox`. Chưa đo được khung (jsdom, lần vẽ đầu) thì
+ * coi một đơn vị là một px. Kỹ thuật dựng hình thuần (như `object-fit: contain`),
+ * không phải hình học nghiệp vụ.
+ */
+function fitCanvas(
+  bounds: AxisCanvasViewModel['boundsPx'],
+  frame: { readonly width: number; readonly height: number },
+): CanvasFit {
+  const usableWidth = frame.width - FIT_MARGIN_PX * 2;
+  const usableHeight = frame.height - FIT_MARGIN_PX * 2;
+  const measured =
+    usableWidth > 0 && usableHeight > 0 ? Math.max(bounds.width / usableWidth, bounds.height / usableHeight) : 0;
+  const unit = measured > 0 ? measured : 1;
+  const pad = FIT_MARGIN_PX * unit;
+
+  return {
+    unit,
+    viewBox: `${bounds.x - pad} ${bounds.y - pad} ${bounds.width + pad * 2} ${bounds.height + pad * 2}`,
+  };
+}
+
+/* -------------------------------------------------------------------------- */
 /* Một trục: đoạn thẳng nét gạch-chấm + hai bong bóng nhãn ở hai đầu.          */
 /* -------------------------------------------------------------------------- */
 
 interface AxisFigureProps {
   readonly axis: AxisCanvasAxisViewModel;
   readonly isInteractive: boolean;
+  readonly unit: number;
   readonly onPointerDownAxis: (event: ReactPointerEvent<SVGGElement>, axisId: string) => void;
   readonly onSelect: (axisId: string) => void;
 }
 
-function AxisFigure({ axis, isInteractive, onPointerDownAxis, onSelect }: AxisFigureProps) {
+function AxisFigure({ axis, isInteractive, onPointerDownAxis, onSelect, unit }: AxisFigureProps) {
   const token = axis.isHighlighted ? AXIS_HIGHLIGHT_TOKEN : AXIS_DEFAULT_TOKEN;
+  const overhang = AXIS_BADGE_OVERHANG_PX * unit;
+  const isHorizontal = axis.direction === 'horizontal';
+  const start = isHorizontal
+    ? { x: axis.startPx.x - overhang, y: axis.startPx.y }
+    : { x: axis.startPx.x, y: axis.startPx.y - overhang };
+  const end = isHorizontal
+    ? { x: axis.endPx.x + overhang, y: axis.endPx.y }
+    : { x: axis.endPx.x, y: axis.endPx.y + overhang };
 
   const handleClick = useCallback(
     (event: ReactMouseEvent<SVGGElement>) => {
@@ -115,18 +162,18 @@ function AxisFigure({ axis, isInteractive, onPointerDownAxis, onSelect }: AxisFi
     >
       <line
         stroke={token}
-        strokeDasharray={AXIS_DASH_ARRAY}
-        strokeWidth={AXIS_STROKE_WIDTH_PX}
-        x1={axis.startPx.x}
-        x2={axis.endPx.x}
-        y1={axis.startPx.y}
-        y2={axis.endPx.y}
+        strokeDasharray={AXIS_DASH_ARRAY.map((dash) => dash * unit).join(' ')}
+        strokeWidth={AXIS_STROKE_WIDTH_PX * unit}
+        x1={start.x}
+        x2={end.x}
+        y1={start.y}
+        y2={end.y}
       />
       {([
-        ['start', axis.startPx],
-        ['end', axis.endPx],
-      ] as const).map(([end, point]) => (
-        <g key={end} transform={`translate(${point.x} ${point.y})`}>
+        ['start', start],
+        ['end', end],
+      ] as const).map(([key, point]) => (
+        <g key={key} transform={`translate(${point.x} ${point.y}) scale(${unit})`}>
           <circle fill={AXIS_BADGE_FILL_TOKEN} r={AXIS_BADGE_RADIUS_PX} stroke={token} strokeWidth={AXIS_BADGE_STROKE_WIDTH_PX} />
           <text
             className="select-none tabular-nums"
@@ -159,7 +206,29 @@ export interface AxisGridCanvasProps {
 
 export function AxisGridCanvas({ canvas, isInteractive, onAxisDrag, onAxisSelect, viewerRoleNotice }: AxisGridCanvasProps) {
   const [draggingAxisId, setDraggingAxisId] = useState<string | null>(null);
+  const [frame, setFrame] = useState({ width: 0, height: 0 });
+  const svgRef = useRef<SVGSVGElement | null>(null);
   const visibleAxes = canvas.axes.filter((axis) => axis.isVisible);
+
+  useEffect(() => {
+    const svg = svgRef.current;
+
+    if (svg === null || typeof ResizeObserver === 'undefined') {
+      return undefined;
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+
+      if (entry !== undefined) {
+        setFrame({ width: entry.contentRect.width, height: entry.contentRect.height });
+      }
+    });
+
+    observer.observe(svg);
+
+    return () => observer.disconnect();
+  }, []);
 
   /**
    * Toạ độ con trỏ — KHÔNG một phép tính nào ở đây, đúng khuôn
@@ -221,7 +290,7 @@ export function AxisGridCanvas({ canvas, isInteractive, onAxisDrag, onAxisSelect
     }
   }, [isInteractive, onAxisSelect]);
 
-  const viewBox = `${canvas.boundsPx.x} ${canvas.boundsPx.y} ${canvas.boundsPx.width} ${canvas.boundsPx.height}`;
+  const fit = fitCanvas(canvas.boundsPx, frame);
 
   return (
     <div
@@ -236,10 +305,11 @@ export function AxisGridCanvas({ canvas, isInteractive, onAxisDrag, onAxisSelect
         onClick={handleBackgroundClick}
         onPointerMove={handleSvgPointerMove}
         onPointerUp={handleSvgPointerUp}
+        ref={svgRef}
         role="img"
-        viewBox={viewBox}
+        viewBox={fit.viewBox}
       >
-        <AxisGridGhostFloor ghostFloors={canvas.ghostFloors} />
+        <AxisGridGhostFloor ghostFloors={canvas.ghostFloors} unit={fit.unit} />
 
         {visibleAxes.map((axis) => (
           <AxisFigure
@@ -248,10 +318,11 @@ export function AxisGridCanvas({ canvas, isInteractive, onAxisDrag, onAxisSelect
             key={axis.id}
             onPointerDownAxis={handlePointerDownAxis}
             onSelect={onAxisSelect}
+            unit={fit.unit}
           />
         ))}
 
-        <AxisGridOriginMarker origin={canvas.origin} />
+        <AxisGridOriginMarker origin={canvas.origin} unit={fit.unit} />
       </svg>
 
       {isInteractive ? null : (
