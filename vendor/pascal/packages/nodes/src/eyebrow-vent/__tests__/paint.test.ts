@@ -2,13 +2,14 @@ import { describe, expect, test } from 'bun:test'
 import { eyebrowVentDefinition } from '../definition'
 import { eyebrowVentPaint, resolveEyebrowVentMaterialRole } from '../paint'
 import { EyebrowVentNode } from '../schema'
+import { vi } from '../../i18n/vi'
 
 describe('eyebrow vent paint', () => {
   test('presents the front slot as Louvers', () => {
     const node = EyebrowVentNode.parse({})
     expect(eyebrowVentDefinition.capabilities.slots?.(node)).toContainEqual({
       slotId: 'front',
-      label: 'Louvers',
+      label: vi.eyebrowVent.slots.louvers,
       default: 'library:preset-softwhite',
     })
   })

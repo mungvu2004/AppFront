@@ -18,6 +18,7 @@ import { itemFloorplanMoveTarget } from './floorplan-move'
 import { itemPaint } from './paint'
 import { itemParametrics } from './parametrics'
 import { ItemNode } from './schema'
+import { vi } from '../i18n/vi'
 
 // The two floor gizmos flank the item at mid-height so they never overlap,
 // even on small items: move sits past the left edge, rotate past the right
@@ -204,7 +205,7 @@ export const itemDefinition: NodeDefinition<typeof ItemNode> = {
       asset: {
         id: 'placeholder',
         category: 'misc',
-        name: 'Item',
+        name: vi.item.catalogLabel,
         thumbnail: '',
         src: 'asset:placeholder',
         dimensions: [1, 1, 1],
@@ -347,15 +348,15 @@ export const itemDefinition: NodeDefinition<typeof ItemNode> = {
   },
 
   toolHints: [
-    { key: 'Left click', label: 'Place item' },
-    { key: 'R / T', label: 'Rotate' },
-    { key: 'Shift', label: 'Cycle snapping mode' },
-    { key: 'Alt', label: 'Force place' },
-    { key: 'Esc', label: 'Cancel' },
+    { key: 'Left click', label: vi.item.shortcuts.place },
+    { key: 'R / T', label: vi.item.shortcuts.rotate },
+    { key: 'Shift', label: vi.item.shortcuts.cycleSnapping },
+    { key: 'Alt', label: vi.item.shortcuts.forcePlace },
+    { key: 'Esc', label: vi.item.shortcuts.cancel },
   ],
 
   presentation: {
-    label: 'Item',
+    label: vi.item.catalogLabel,
     description: 'A catalog-backed item (furniture, fixtures, decorations).',
     icon: { kind: 'url', src: '/icons/item.webp' },
     paletteSection: 'furnish',

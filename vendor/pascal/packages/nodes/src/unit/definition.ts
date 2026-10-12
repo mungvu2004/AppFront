@@ -1,6 +1,7 @@
 import { type NodeDefinition, UnitNode as UnitNodeSchema } from '@pascal-app/core'
 import { unitParametrics } from './parametrics'
 import { UnitNode } from './schema'
+import { vi } from '../i18n/vi'
 
 /**
  * Unit — a referencing overlay, not a container. It lists member zone ids
@@ -31,7 +32,7 @@ export const unitDefinition: NodeDefinition<typeof UnitNode> = {
   dirtyTracking: false,
 
   presentation: {
-    label: 'Unit',
+    label: vi.unit.catalogLabel,
     description: 'A named group of zones forming one apartment, hotel room or commercial lot.',
     icon: { kind: 'url', src: '/icons/zone.webp' },
     paletteSection: 'site',

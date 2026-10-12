@@ -18,6 +18,7 @@ import {
   resolveDownspoutRouting,
 } from './routing'
 import { DownspoutNode } from './schema'
+import { vi } from '../i18n/vi'
 
 // Mirrors the parametric `min`s so handle drags can't shrink the pipe
 // past what the inspector would accept.
@@ -177,7 +178,7 @@ export const downspoutDefinition: NodeDefinition<typeof DownspoutNode> = {
   },
 
   capabilities: {
-    slots: () => [{ slotId: 'surface', label: 'Surface', default: 'library:preset-softwhite' }],
+    slots: () => [{ slotId: 'surface', label: vi.downspout.slots.surface, default: 'library:preset-softwhite' }],
     selectable: { hitVolume: 'bbox' },
     duplicable: true,
     deletable: true,
@@ -203,13 +204,13 @@ export const downspoutDefinition: NodeDefinition<typeof DownspoutNode> = {
   preview: () => import('./preview'),
   tool: () => import('./tool'),
   toolHints: [
-    { key: 'Hover gutter', label: 'Highlight outlet' },
-    { key: 'Left click', label: 'Drop downspout from outlet' },
-    { key: 'Esc', label: 'Cancel' },
+    { key: 'Hover gutter', label: vi.downspout.shortcuts.highlightOutlet },
+    { key: 'Left click', label: vi.downspout.shortcuts.drop },
+    { key: 'Esc', label: vi.downspout.shortcuts.cancel },
   ],
 
   presentation: {
-    label: 'Downspout',
+    label: vi.downspout.catalogLabel,
     description: 'Vertical drop pipe from a gutter outlet to the ground.',
     icon: { kind: 'url', src: '/icons/downspout.webp' },
     paletteSection: 'structure',

@@ -4,6 +4,7 @@ import { buildHvacEquipmentGeometry } from './geometry'
 import { hvacEquipmentParametrics } from './parametrics'
 import { getHvacEquipmentPorts } from './ports'
 import { HvacEquipmentNode } from './schema'
+import { vi } from '../i18n/vi'
 
 /**
  * Phase 3 of the HVAC node system — equipment cabinets (furnace /
@@ -85,13 +86,13 @@ export const hvacEquipmentDefinition: NodeDefinition<typeof HvacEquipmentNode> =
 
   tool: () => import('./tool'),
   toolHints: [
-    { key: 'Click', label: 'Place unit' },
-    { key: 'R / T', label: 'Rotate ±45°' },
-    { key: 'Esc', label: 'Exit' },
+    { key: 'Click', label: vi.hvacEquipment.shortcuts.place },
+    { key: 'R / T', label: vi.hvacEquipment.shortcuts.rotate45 },
+    { key: 'Esc', label: vi.hvacEquipment.shortcuts.exit },
   ],
 
   presentation: {
-    label: 'HVAC Unit',
+    label: vi.hvacEquipment.catalogLabel,
     description:
       'Furnace, air handler, or condenser — duct runs connect to its supply/return collars.',
     icon: { kind: 'url', src: '/icons/HVAC.webp' },

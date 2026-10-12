@@ -4,6 +4,7 @@ import { buildDuctTerminalGeometry } from './geometry'
 import { ductTerminalParametrics } from './parametrics'
 import { getDuctTerminalPorts } from './ports'
 import { DuctTerminalNode } from './schema'
+import { vi } from '../i18n/vi'
 
 /**
  * Phase 3 of the HVAC node system — duct terminals: supply registers,
@@ -79,14 +80,14 @@ export const ductTerminalDefinition: NodeDefinition<typeof DuctTerminalNode> = {
 
   tool: () => import('./tool'),
   toolHints: [
-    { key: 'Click', label: 'Place register' },
-    { key: 'M', label: 'Mount: floor / ceiling / wall' },
-    { key: 'R / T', label: 'Rotate ±45° (floor / ceiling)' },
-    { key: 'Esc', label: 'Exit' },
+    { key: 'Click', label: vi.ductTerminal.shortcuts.place },
+    { key: 'M', label: vi.ductTerminal.shortcuts.mount },
+    { key: 'R / T', label: vi.ductTerminal.shortcuts.rotate45FloorCeiling },
+    { key: 'Esc', label: vi.ductTerminal.shortcuts.exit },
   ],
 
   presentation: {
-    label: 'Register',
+    label: vi.ductTerminal.catalogLabel,
     description:
       'Duct terminal — supply register, ceiling diffuser, or return grille. Duct runs end at its collar.',
     icon: { kind: 'url', src: '/icons/registers.webp' },

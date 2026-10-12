@@ -4,6 +4,7 @@ import {
   ZoneNode as ZoneNodeSchema,
 } from '@pascal-app/core'
 import type { FloorplanNodeExtension } from '@pascal-app/editor'
+import { vi } from '../i18n/vi'
 import { polygonMeasurementFeatures } from '../shared/polygon-measurement'
 import { buildZoneContextualDimensions } from './contextual-dimensions'
 import { buildZoneFloorplan } from './floorplan'
@@ -60,7 +61,7 @@ export const zoneDefinition: NodeDefinition<typeof ZoneNode> = {
       polygonMeasurementFeatures({
         featurePrefix: 'zone',
         height: 0,
-        label: 'Zone',
+        label: vi.zone.slotLabel,
         polygon: resolveAutoZonePolygon(node, ctx.resolve),
       }),
     quickMeasure: (node, ctx) => zoneQuickMeasurement(node, ctx),
@@ -100,8 +101,8 @@ export const zoneDefinition: NodeDefinition<typeof ZoneNode> = {
   },
 
   presentation: {
-    label: 'Zone',
-    description: 'A polygonal site zone (lawn, water, paving) with a TSL gradient material.',
+    label: vi.zone.catalogLabel,
+    description: vi.zone.catalogDescription,
     icon: { kind: 'url', src: '/icons/zone.webp' },
     paletteSection: 'site',
     paletteOrder: 20,

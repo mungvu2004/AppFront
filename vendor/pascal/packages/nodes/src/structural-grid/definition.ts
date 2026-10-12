@@ -2,6 +2,7 @@ import type { NodeDefinition } from '@pascal-app/core'
 import type { FloorplanNodeExtension } from '@pascal-app/editor'
 import { buildStructuralGridFloorplan } from './floorplan'
 import { StructuralGridNode } from './schema'
+import { vi } from '../i18n/vi'
 
 export const structuralGridDefinition: NodeDefinition<typeof StructuralGridNode> = {
   kind: 'structural-grid',
@@ -39,14 +40,14 @@ export const structuralGridDefinition: NodeDefinition<typeof StructuralGridNode>
   dirtyTracking: false,
   floorplan: buildStructuralGridFloorplan,
   toolHints: [
-    { key: 'Left click', label: 'Start grid axis' },
-    { key: 'Left click', label: 'Finish grid axis' },
-    { key: 'Alt', label: 'Bypass snapping' },
-    { key: 'Esc', label: 'Cancel' },
+    { key: 'Left click', label: vi.structuralGrid.shortcuts.startAxis },
+    { key: 'Left click', label: vi.structuralGrid.shortcuts.finishAxis },
+    { key: 'Alt', label: vi.structuralGrid.shortcuts.bypassSnapping },
+    { key: 'Esc', label: vi.structuralGrid.shortcuts.cancel },
   ],
 
   presentation: {
-    label: 'Structural Grid',
+    label: vi.structuralGrid.catalogLabel,
     description: 'Persistent construction grid axis with identification bubbles.',
     icon: { kind: 'url', src: '/icons/structural-grid.webp' },
     paletteSection: 'structure',
