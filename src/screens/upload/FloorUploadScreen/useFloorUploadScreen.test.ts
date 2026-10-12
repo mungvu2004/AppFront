@@ -32,7 +32,12 @@ import { addPendingCommand, deletePendingCommand, listPendingCommands } from '@/
 import { getAppAnnouncer } from '@/lib/input/announcer';
 import { createTestQueryClient } from '@/lib/testing/render';
 import type { HttpError } from '@/lib/http';
-import { MAX_UPLOAD_FILE_SIZE_BYTES, type UploadTask, type UploadTaskState } from '@/lib/upload';
+import {
+  MAX_UPLOAD_FILE_SIZE_BYTES,
+  type UploadFailure,
+  type UploadTask,
+  type UploadTaskState,
+} from '@/lib/upload';
 import { formatFileSize } from '@/lib/format/bytes';
 import { createUploadTask } from '@/lib/upload/uploadTask';
 import type { UploadCandidate } from '@/lib/upload/validate';
@@ -1951,8 +1956,8 @@ describe('useFloorUploadScreen — QA-03e', () => {
     return view;
   };
 
-  const transferFailure = (kind: 'upload' | 'notFound', retryable: boolean) => ({
-    stage: 'init' as const,
+  const transferFailure = (kind: 'upload' | 'notFound', retryable: boolean): UploadFailure => ({
+    stage: 'init',
     chunkIndex: null,
     attempts: 1,
     terminal: !retryable,
@@ -1963,7 +1968,7 @@ describe('useFloorUploadScreen — QA-03e', () => {
       params: {},
       requestId: 'r-qa03e',
       retryable,
-      severity: 'lỗi' as const,
+      severity: 'lỗi',
       recovery: 'thử lại',
     },
   });
