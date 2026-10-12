@@ -971,9 +971,11 @@ export function useInputQualityGate(
       return null;
     }
 
+    // Máy chủ đo góc dương là ngược kim đồng hồ (`atan2(-dy, dx)`), còn trục y màn hình hướng
+    // xuống: phải đảo dấu thì đường mới nghiêng cùng chiều bản vẽ (BUG-538).
     const angle = degreesToRadians(degrees(measurement.skewDeg));
     const halfWidth = Math.cos(angle) * SKEW_LINE_HALF_LENGTH_RATIO;
-    const halfHeight = Math.sin(angle) * SKEW_LINE_HALF_LENGTH_RATIO;
+    const halfHeight = -Math.sin(angle) * SKEW_LINE_HALF_LENGTH_RATIO;
 
     return {
       startXRatio: IMAGE_CENTRE_RATIO - halfWidth,
