@@ -818,7 +818,9 @@ export function useFloorUploadScreen(
   const reassign = (fileId: string, floorId: string | null): void => {
     const attachment = findAttachment(fileId);
 
-    if (!canEdit || attachment === null) {
+    // `branch === null`: tệp chưa qua (hoặc đã trượt) lượt kiểm phía máy — tệp bị từ chối không
+    // bao giờ được gán cho tầng và tải lên, máy chủ chỉ trả 422/413 y hệt (BUG-523).
+    if (!canEdit || attachment === null || attachment.branch === null) {
       return;
     }
 
@@ -1165,7 +1167,7 @@ export function useFloorUploadScreen(
             isCadBranch: model.isCadBranch,
             summaryLine: model.summaryLine,
             error: attachment.problem,
-            assignOptions: canEdit ? reassignOptions : [],
+            assignOptions: canEdit && attachment.branch !== null ? reassignOptions : [],
             canRemoveFile: canEdit,
             removeLabel: canEdit ? `Xoá bản vẽ ${attachment.file.name}` : null,
           };
