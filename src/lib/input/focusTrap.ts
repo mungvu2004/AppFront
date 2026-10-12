@@ -17,7 +17,8 @@
  *   bubbling to the window listener, because "Esc đóng lớp trên cùng"
  *   (invariant A12) must hold even for a layer that forgot to wire closing.
  * - **Focus goes home.** The element focused at `activate` is remembered
- *   and focused again at `release`; if it has left the document by then,
+ *   and focused again at `release` (a focused `body` is no opener); if
+ *   there was none, or it has left the document by then,
  *   focus falls to the caller's fallback, then to the first focusable
  *   element on the page, and as a last resort to `body` — anywhere but
  *   nowhere.
@@ -186,7 +187,10 @@ export function createFocusTrap(
     }
 
     active = true;
-    opener = doc.activeElement instanceof HTMLElement ? doc.activeElement : null;
+    // A layer that opens on mount finds `body` focused. Body is no opener: going "home"
+    // to it strands the keyboard, so release falls through to the fallback chain (BUG-559).
+    opener =
+      doc.activeElement instanceof HTMLElement && doc.activeElement !== doc.body ? doc.activeElement : null;
 
     if (!container.hasAttribute('tabindex')) {
       // Negative, so the container can hold the focus without joining the

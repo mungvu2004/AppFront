@@ -250,6 +250,29 @@ describe('createFocusTrap', () => {
     expect(document.activeElement).toBe(fallback);
   });
 
+  // BUG-559: a dialog that opens on mount found `body` focused, kept it as the opener and
+  // sent the focus back to `body` on close — nowhere a keyboard user can continue from.
+  it('treats a focused body as no opener: release goes to the fallback, else the first control outside', () => {
+    const { opener, dialog } = buildDialog();
+    const fallback = document.createElement('button');
+    document.body.appendChild(fallback);
+
+    (document.activeElement as HTMLElement | null)?.blur();
+    expect(document.activeElement).toBe(document.body);
+
+    const withFallback = createFocusTrap(dialog, { fallbackFocus: fallback });
+    withFallback.activate();
+    withFallback.release();
+    expect(document.activeElement).toBe(fallback);
+
+    fallback.blur();
+    fallback.remove();
+    const withoutFallback = createFocusTrap(dialog);
+    withoutFallback.activate();
+    withoutFallback.release();
+    expect(document.activeElement).toBe(opener);
+  });
+
   it('leaves the focus somewhere on the page even with no opener and no fallback', () => {
     const { opener, dialog } = buildDialog();
 
