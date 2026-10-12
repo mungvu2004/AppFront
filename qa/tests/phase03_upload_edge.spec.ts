@@ -879,7 +879,7 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
         await expect(page.getByRole('status').filter({ hasText: 'Đã xoá bản vẽ' })).toHaveCount(0);
       });
 
-      await test.step('[10-A-031] trash 4 files quickly → 2 toasts + "Đã thực hiện 2 thay đổi"; its "Hoàn tác" restores one grouped file', async () => {
+      await test.step('[10-A-031] trash 4 files quickly → 2 toasts + "Đã thực hiện 2 thay đổi"; its "Hoàn tác" restores one grouped file, 3 toasts left → no summary', async () => {
         const names = ['g1.txt', 'g2.txt', 'g3.txt', 'g4.txt'];
         await pick(page, names.map(note));
         await expect(tray(page).getByRole('listitem')).toHaveCount(4);
@@ -895,6 +895,10 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
         const stillUndoable = (await summary.count()) + (await toastWith(page, removedToast('g1.txt')).count());
         await captureEvidence(page, 'E03_10-A-031_grouped-undo.png', { caption: `after the summary undo: summary toasts ${String(await summary.count())}, g1 still undoable = ${String(stillUndoable > 0)}` });
         expect.soft(stillUndoable, 'the other grouped change stays undoable').toBeGreaterThan(0);
+        // Catalog fixed by QA-03e: Toast.tsx:228-254 groups only from 4 toasts; 4 − 1 = 3, so the summary turns back into
+        // plain toasts and g1 keeps its own "Hoàn tác" ("summary stays" needs 5 or more toasts).
+        await expect.soft(summary).toHaveCount(0);
+        await expect.soft(toastWith(page, removedToast('g1.txt'))).toHaveCount(1);
         await trashInTray(page, 'g2.txt');
         await page.clock.fastForward(8_100);
       });
