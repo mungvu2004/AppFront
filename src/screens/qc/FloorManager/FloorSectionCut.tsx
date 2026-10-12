@@ -104,6 +104,8 @@ function SectionBand({ band, onSelectFloor, onHoverFloor }: SectionBandProps) {
         'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
         band.needsDrawing ? 'bg-state-attention-tint' : 'bg-bg-sunken',
         band.isHiddenIn3d && 'border-dashed',
+        /* Rê lên dòng bảng hay lên dải đều sáng dải này (BUG-519); đang chọn vẫn thắng. */
+        band.isHovered && 'bg-bg-hover',
         band.isSelected && 'bg-bg-selected border-l-2 border-l-accent',
       )}
       onClick={() => onSelectFloor(band.levelId)}

@@ -757,3 +757,16 @@ describe('kéo thả tới cuối bảng (BUG-518)', () => {
     expect(onReorderFloors).toHaveBeenCalledWith([...ids.slice(1), first.id]);
   });
 });
+
+describe('rê lên dòng bảng làm sáng dải lát cắt (BUG-519)', () => {
+  it('dải của tầng đang được rê mang nền hover; dải khác thì không', () => {
+    const base = scenarioArgsFor('partial');
+    const bands = base.bands.map((band, index) => ({ ...band, isHovered: index === 1 }));
+    renderWithProviders(<FloorManager {...base} bands={bands} />);
+
+    const hovered = sectionBands().filter((band) => band.classList.contains('bg-bg-hover'));
+
+    expect(hovered).toHaveLength(1);
+    expect(hovered[0]).toHaveAccessibleName(bands[1]!.label);
+  });
+});
