@@ -1595,7 +1595,14 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
           await page.keyboard.press('Tab');
           expect.soft(await focusedLabel(page), 'Tab from the last table control lands in the cut').toBe(COLLAPSE);
           const sectionBox = await section(page).boundingBox();
-          const tableBox = await table.boundingBox();
+          // The table column is the table's scroll box: the <table> itself loses the width of that box's own scrollbar,
+          // which shows or not with the platform's scrollbar mode (run-40: 17 px), so it is not the column width.
+          const tableBox = await table.evaluate((el) => {
+            let box: Element = el;
+            while (box.parentElement !== null && !/auto|scroll/u.test(getComputedStyle(box).overflowY)) box = box.parentElement;
+            const r = box.getBoundingClientRect();
+            return { x: r.x, y: r.y, width: r.width, height: r.height };
+          });
           await captureEvidence(page, 'E03_09-F-018_compact_cut.png', { fullPage: true });
           await attachJson('E03_09-F-018_compact_cut.json', { sectionBox, tableBox });
           expect.soft(Math.round(sectionBox?.height ?? 0), 'FM:100 h-[400px]').toBe(400);
