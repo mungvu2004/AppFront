@@ -45,6 +45,7 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { BACK_TO_PROJECTS_LABEL } from '@/components/feedback/ProjectSpatialGate';
 import { Skeleton } from '@/components/feedback/Skeleton';
+import { Breadcrumb } from '@/components/shell/Breadcrumb';
 import { Button } from '@/components/ui/Button';
 import { Tabs } from '@/components/ui/Tabs';
 
@@ -58,8 +59,6 @@ import type { ProcessingScreenProps } from './types';
 
 const BREADCRUMB_PROJECTS = 'Dự án';
 const BREADCRUMB_PIPELINE = 'Xử lý';
-/** Tên dự án dài cắt "…" (title giữ đủ) để ba cấp vẫn một dòng ở 375 px, như `Breadcrumb`. */
-const BREADCRUMB_NAME_CLASS = 'inline-block max-w-[140px] truncate align-top sm:max-w-xs';
 
 const RUN_IN_BACKGROUND_LABEL = 'Để chạy nền và thông báo cho tôi';
 const CANCEL_LABEL = 'Huỷ xử lý';
@@ -228,19 +227,21 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
     <div className="min-h-screen bg-bg-app">
       <div className="mx-auto flex max-w-[1280px] flex-col gap-6 p-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <nav aria-label={BREADCRUMB_PIPELINE} className="min-w-0 text-[13px] text-text-secondary">
-            <span>{BREADCRUMB_PROJECTS}</span>
-            <span aria-hidden="true"> › </span>
-            {props.projectName !== undefined ? (
-              <>
-                <span className={BREADCRUMB_NAME_CLASS} title={props.projectName}>
-                  {props.projectName}
-                </span>
-                <span aria-hidden="true"> › </span>
-              </>
-            ) : null}
-            <span className="text-text-primary">{BREADCRUMB_PIPELINE}</span>
-          </nav>
+          {/* Đường dẫn chung: "Dự án" bấm được về danh sách, như ở Tải bản vẽ và Cổng chất lượng (BUG-546). */}
+          <div className="min-w-0">
+            <Breadcrumb
+              ariaLabel={BREADCRUMB_PIPELINE}
+              items={[
+                {
+                  id: 'projects',
+                  label: BREADCRUMB_PROJECTS,
+                  ...(props.onBackToProjects !== undefined ? { onClick: props.onBackToProjects } : {}),
+                },
+                ...(props.projectName !== undefined ? [{ id: 'project', label: props.projectName }] : []),
+                { id: 'current', label: BREADCRUMB_PIPELINE },
+              ]}
+            />
+          </div>
           <ProcessingActions {...props} />
         </div>
 
@@ -281,7 +282,8 @@ export function ProcessingScreen(props: ProcessingScreenProps) {
 
             {props.summary !== undefined ? <ProcessingSummary summary={props.summary} /> : null}
 
-            <div className="flex flex-col items-center gap-1 text-center">
+            {/* Vùng thông báo tiến độ nằm NGOÀI hai tab: tab "Xem trước" mặc định giấu nhật ký (BUG-554). */}
+            <div className="flex flex-col items-center gap-1 text-center" role="status">
               <p className="text-[14px] text-text-primary">{props.overallSummaryLine}</p>
               {props.partialNoticeLine !== undefined ? (
                 <p className="text-[13px] text-text-secondary">{props.partialNoticeLine}</p>

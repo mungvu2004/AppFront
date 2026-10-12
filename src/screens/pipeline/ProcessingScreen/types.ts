@@ -242,6 +242,8 @@ export interface ProcessingScreenProps {
   readonly prefersReducedMotion: boolean;
   /** Tên dự án cho breadcrumb, lấy từ bộ đệm (BUG-165). Vắng khi bộ đệm chưa có: breadcrumb bỏ cấp ấy. */
   readonly projectName?: string;
+  /** Cấp "Dự án" của đường dẫn về danh sách dự án (BUG-546). Vắng thì cấp đó là chữ thường. */
+  readonly onBackToProjects?: () => void;
 }
 
 /* -------------------------------------------------------------------------- */

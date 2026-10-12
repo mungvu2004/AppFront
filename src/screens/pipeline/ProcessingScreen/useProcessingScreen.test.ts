@@ -14,13 +14,13 @@
  */
 
 import { createElement, type ReactNode } from 'react';
-import { QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 
 import { createMockApiClient } from '@/api/__mocks__/client';
 import type { ApiClient, ApiResult, LatestFloorUpload } from '@/api/client';
-import type { Progress } from '@/api/schemas';
+import { ProgressSchema, type Progress } from '@/api/schemas';
 import { SAMPLE_BUILDING, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import * as auth from '@/lib/auth';
 import type { HttpError } from '@/lib/http';
@@ -1425,7 +1425,8 @@ describe('useProcessingScreen', () => {
       await clock.flushMicrotasks();
     });
     expect(backgroundWatches.has(`${PROJECT_ID}:${focused.uploadId}`)).toBe(true);
-    expect(backgroundWatches.has(`${PROJECT_ID}:${waiting.uploadId}`)).toBe(false);
+    // Tầng còn `pending` cũng được giao cho sổ nền (BUG-542).
+    expect(backgroundWatches.has(`${PROJECT_ID}:${waiting.uploadId}`)).toBe(true);
 
     harness.queue(focused.uploadId, OFFLINE);
     await act(async () => {
@@ -1476,7 +1477,8 @@ describe('useProcessingScreen', () => {
       await clock.flushMicrotasks();
     });
     expect(backgroundWatches.has(`${PROJECT_ID}:${streamed.uploadId}`)).toBe(true);
-    expect(backgroundWatches.has(`${PROJECT_ID}:${waiting.uploadId}`)).toBe(false);
+    // Tầng còn `pending` cũng được giao cho sổ nền (BUG-542).
+    expect(backgroundWatches.has(`${PROJECT_ID}:${waiting.uploadId}`)).toBe(true);
 
     harness.queue(waiting.uploadId, progressAt(waiting.uploadId, 1));
     await act(async () => {
@@ -1663,5 +1665,146 @@ describe('processingGateway — NO-154 qua cổng tiến độ', () => {
 
     expect(refreshSingleFlight).toHaveBeenCalledTimes(1);
     stop();
+  });
+});
+
+describe('useProcessingScreen — QA-03e (SCR-12)', () => {
+  let clock: FakeClock;
+
+  beforeEach(() => {
+    clock = installFakeClock();
+  });
+
+  afterEach(() => {
+    onlineManager.setOnline(true);
+    clock.restore();
+  });
+
+  const UNAVAILABLE: HttpError = {
+    code: 'SERVICE_UNAVAILABLE',
+    kind: 'http',
+    raw: { code: 'SERVICE_UNAVAILABLE' },
+    requestId: 'r-503',
+    retryable: true,
+    status: 503,
+  };
+
+  it('BUG-543: lượt đã xong, không tầng nào chạy: chip của tầng đang hiện bước có aria-current', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 2);
+    uploads.forEach((upload) => harness.queue(upload.uploadId, finishedProgress(upload.uploadId)));
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+    await settle(clock);
+
+    expect(mounted.result.current.floors.map((floor) => floor.isActive)).toEqual([true, false]);
+    mounted.unmount();
+  });
+
+  it('BUG-550: mọi lượt đọc #8 trả 503: alert lỗi đọc ở lại cả sau lượt hỏi, đọc được thì hết', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 1);
+    const upload = uploads[0]!;
+    for (let attempt = 0; attempt < 4; attempt += 1) harness.queue(upload.uploadId, UNAVAILABLE);
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+    await settle(clock);
+    await act(async () => {
+      await clock.advance(OTHER_FLOOR_POLL_INTERVAL_MS * 2);
+    });
+    await settle(clock);
+
+    expect(harness.callsFor(upload.uploadId)).toBeGreaterThan(1);
+    expect(mounted.result.current.state).toBe('error');
+    expect(mounted.result.current.errorAlert?.technicalCode).toBe('SERVICE_UNAVAILABLE');
+
+    // Lượt hỏi đã ghi bản ghi nên tầng chuyển sang SSE: một nhịp đọc được xoá lỗi đọc.
+    await act(async () => {
+      latestSource().triggerOpen();
+      latestSource().triggerMessage(progressAt(upload.uploadId, 1));
+      await clock.advance(0);
+    });
+    await settle(clock);
+    expect(mounted.result.current.state).not.toBe('error');
+    expect(mounted.result.current.errorAlert).toBeUndefined();
+    mounted.unmount();
+  });
+
+  it('BUG-551: mở màn khi mất mạng: báo lỗi mạng thay vì khung xương; có mạng lại thì đọc tiếp', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 1);
+    onlineManager.setOnline(false);
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+    await settle(clock);
+
+    expect(mounted.result.current.state).toBe('error');
+    expect(mounted.result.current.errorAlert?.technicalCode).toBe('NETWORK');
+
+    await act(async () => {
+      onlineManager.setOnline(true);
+    });
+    await settle(clock);
+    expect(mounted.result.current.state).not.toBe('error');
+    mounted.unmount();
+  });
+
+  it('BUG-553: tầng 1 xong, tầng 2 chỉ hỏng lượt đọc: không câu "gặp lỗi … vẫn đang được xử lý"', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 2);
+    const [done, unread] = [uploads[0]!, uploads[1]!];
+    harness.queue(done.uploadId, finishedProgress(done.uploadId));
+    harness.queue(unread.uploadId, progressAt(unread.uploadId, 1));
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+    await settle(clock);
+
+    await act(async () => {
+      latestSource().triggerOpen();
+    });
+    harness.queue(unread.uploadId, UNAVAILABLE);
+    await act(async () => {
+      await clock.advance(SSE_SILENCE_PROBE_MS);
+    });
+    await act(() => clock.advance(1));
+    await settle(clock);
+
+    expect(mounted.result.current.floors[1]?.status).toBe('failed');
+    expect(mounted.result.current.partialNoticeLine).toBeUndefined();
+    mounted.unmount();
+  });
+
+  it('BUG-553: tầng hỏng khi các tầng khác đã xong: câu không nói "vẫn đang được xử lý"', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 2);
+    const [done, failing] = [uploads[0]!, uploads[1]!];
+    harness.queue(done.uploadId, finishedProgress(done.uploadId));
+    harness.queue(failing.uploadId, progressAt(failing.uploadId, 1, { status: 'failed', error: 'FILE_CORRUPT' }));
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+    await settle(clock);
+
+    expect(mounted.result.current.partialNoticeLine).toBe(`${failing.floorName} gặp lỗi.`);
+    mounted.unmount();
+  });
+
+  it('BUG-549/545: lượt hỏng không mã: S-11 nhận mã PROCESSING và dải tầng của màn', async () => {
+    const harness = makeScriptedClient();
+    const uploads = await readFloorUploads(harness.client, 2);
+    const [done, failing] = [uploads[0]!, uploads[1]!];
+    harness.queue(done.uploadId, finishedProgress(done.uploadId));
+    harness.queue(failing.uploadId, progressAt(failing.uploadId, 1, { status: 'failed' }));
+    const mounted = mountHook(harness.client, uploads, createTestQueryClient(), new MockVisibilityTarget());
+    await settle(clock);
+
+    const failed = mounted.result.current.failedPipelineStep;
+    expect(failed?.failureCode).toBe('PROCESSING');
+    expect(failed?.failureFloors).toEqual([
+      { floorId: done.floorId, floorName: done.floorName, status: 'done' },
+      { floorId: failing.floorId, floorName: failing.floorName, status: 'failed' },
+    ]);
+    mounted.unmount();
+  });
+
+  it('BUG-549: ProgressSchema nhận error "" (BE gửi khi error_code rỗng) và bỏ trường đó', () => {
+    const parsed = ProgressSchema.safeParse({ error: '', id: 'u-1', progressPercent: 40, status: 'failed', step: 'preprocess' });
+
+    expect(parsed.success).toBe(true);
+    expect(parsed.success && 'error' in parsed.data).toBe(false);
   });
 });

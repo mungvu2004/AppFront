@@ -91,6 +91,7 @@ import {
   createAppPipelineFailureGateway,
   type PipelineFailureDetail,
   type PipelineFailureGateway,
+  type PipelineFailureRawFloor,
   type PipelineFailureRawLogLine,
   type PipelineFailureRawStep,
   type PipelineFailureRetryOutcome,
@@ -220,6 +221,11 @@ export interface UsePipelineFailureOptions extends PipelineFailureContainerProps
   readonly failureCode?: string;
   /** Tên tầng theo N7 — thay mã tầng ở nhãn tầng. */
   readonly failureFloorName?: string;
+  /**
+   * Các tầng màn Xử lý đã đọc — dải "Tiến độ theo tầng" khi chưa đọc được chi tiết (`stepFailureDetail`
+   * chưa có endpoint), thay vì một danh sách rỗng (BUG-545).
+   */
+  readonly failureFloors?: readonly PipelineFailureRawFloor[];
 }
 
 /** Nhãn bước tải lên khi lượt hỏng do lỗi tạm: v1 chạy lượt mới bằng cách tải lại. */
@@ -329,7 +335,7 @@ function useResolvedGateway(injected: PipelineFailureGateway | undefined): Pipel
 
 /** `(options) => PipelineFailureProps` cho `PipelineFailure.tsx`. */
 export function usePipelineFailure(options: UsePipelineFailureOptions): PipelineFailureProps {
-  const { failureCode, failureFloorName, floorId, projectId, stepId } = options;
+  const { failureCode, failureFloorName, failureFloors, floorId, projectId, stepId } = options;
   const serverError = failureCode === undefined ? null : describePipelineError(failureCode);
   const roles = toProjectRoles(options.roles);
   const gateway = useResolvedGateway(options.gateway);
@@ -579,48 +585,53 @@ export function usePipelineFailure(options: UsePipelineFailureOptions): Pipeline
 
   const floors = useMemo<readonly PipelineFailureFloorViewModel[]>(
     () =>
-      (detail?.floors ?? []).map((floor) => ({
+      (detail?.floors ?? failureFloors ?? []).map((floor) => ({
         id: floor.floorId,
         label: floor.floorName,
         status: floor.status,
         statusLabel: PIPELINE_FAILURE_FLOOR_STATUS_LABELS[floor.status],
-        isFailedFloor: floor.floorId === detail?.floorId,
+        isFailedFloor: floor.floorId === (detail?.floorId ?? floorId),
       })),
-    [detail],
+    [detail, failureFloors, floorId],
   );
 
   const isCompact = options.forceCollapsed ?? isCollapsed;
   const isReading = failureQuery.isPending;
   const isRetrying = retryMutation.isPending;
-  const hasEveryFloorFailed = floors.length > 0 && floors.every((floor) => floor.status === 'failed');
+  // Chỉ chi tiết của máy chủ nói được "mọi tầng hỏng"; dải mượn từ màn Xử lý thì không đổi trạng thái.
+  const detailFloors = detail?.floors ?? [];
+  const hasEveryFloorFailed = detailFloors.length > 0 && detailFloors.every((floor) => floor.status === 'failed');
   const hasFailedStep = steps.some((step) => step.status === 'failed');
   const canAct = can('upload', 'floor', { roles });
 
   /**
    * Thứ tự xét, cùng khuôn `useProcessingScreen.ts:685` và `usePipelineGraph.ts:530`:
-   * đang chạy → lỗi → không có quyền → xong → rỗng → thu gọn → một phần.
+   * đang chạy → thu gọn → lỗi → không có quyền → xong → rỗng → một phần.
    *
    * Hai chỗ riêng của màn này:
    *
    * - `loading` gộp cả lượt đọc đầu tiên LẪN lượt chạy lại, vì cả hai đều là "cái
    *   ô đang chạy" và cả hai đều dựng {@link PipelineFailureRetryingBand}. Không có
    *   nhánh thứ tám cho "đang đọc" — hợp đồng chỉ có bảy.
-   * - `success` xét TRƯỚC `collapsed`: một lượt chạy lại vừa xong phải nói ra điều
+   * - `success` thắng `collapsed`: một lượt chạy lại vừa xong phải nói ra điều
    *   đó ở mọi bề rộng, chứ không im lặng thu gọn (A11).
+   * - `collapsed` xét TRƯỚC lỗi và quyền: nút "Thu gọn" luôn được vẽ, nên bấm nó
+   *   phải thu gọn thân ở mọi nhánh (BUG-544). Nút và nhật ký của `forbidden` vẫn
+   *   ẩn theo `canAct`, không theo nhánh.
    */
   const state: PipelineFailureState =
     isReading || isRetrying
       ? 'loading'
-      : failureQuery.isError || hasEveryFloorFailed
-        ? 'error'
-        : !canAct
-          ? 'forbidden'
-          : isResolved
-            ? 'success'
-            : detail !== null && !hasFailedStep
-              ? 'empty'
-              : isCompact
-                ? 'collapsed'
+      : isCompact && !isResolved
+        ? 'collapsed'
+        : failureQuery.isError || hasEveryFloorFailed
+          ? 'error'
+          : !canAct
+            ? 'forbidden'
+            : isResolved
+              ? 'success'
+              : detail !== null && !hasFailedStep
+                ? 'empty'
                 : 'partial';
 
   /* ---------------------------------------------------------------------- */
@@ -741,6 +752,11 @@ export function usePipelineFailure(options: UsePipelineFailureOptions): Pipeline
 
   const onOpenSupport = useCallback(() => {
     onNavigateRef.current?.(ROUTES.account);
+  }, []);
+
+  /** Cấp "Dự án" của đường dẫn về danh sách dự án, như ở Tải bản vẽ và Cổng chất lượng (BUG-546). */
+  const onBackToProjects = useCallback(() => {
+    onNavigateRef.current?.(ROUTES.dashboard);
   }, []);
 
   /* ---------------------------------------------------------------------- */
@@ -947,10 +963,11 @@ export function usePipelineFailure(options: UsePipelineFailureOptions): Pipeline
         onRetry,
       },
       // `null` ĐÚNG ở `forbidden`: ba nút hành động biến mất hẳn, không khoá mờ.
-      nextSteps: state === 'forbidden' ? null : nextSteps,
+      nextSteps: canAct ? nextSteps : null,
       retryNotice,
     };
   }, [
+    canAct,
     errorCode,
     failedStepId,
     failedStepLabel,
@@ -991,7 +1008,7 @@ export function usePipelineFailure(options: UsePipelineFailureOptions): Pipeline
   const technicalDetails = useMemo<PipelineFailureTechnicalDetails | null>(() => {
     // Người không có quyền không thấy nhật ký, và cách đúng để nói điều đó là khối
     // biến mất chứ không phải một nút khoá mờ.
-    if (state === 'forbidden') {
+    if (!canAct) {
       return null;
     }
 
@@ -1002,7 +1019,7 @@ export function usePipelineFailure(options: UsePipelineFailureOptions): Pipeline
       logLines,
       copyLog: copyActionOf('log', PIPELINE_FAILURE_TEXT.copyLogAriaLabel, onCopyLog),
     };
-  }, [copyActionOf, isTechnicalOpen, logLines, onCopyLog, onToggleTechnical, state]);
+  }, [canAct, copyActionOf, isTechnicalOpen, logLines, onCopyLog, onToggleTechnical]);
 
   return {
     state,
@@ -1011,10 +1028,12 @@ export function usePipelineFailure(options: UsePipelineFailureOptions): Pipeline
     keptWork,
     technicalDetails,
     collapsedSummaryLine: collapsedSummaryLine(floorLabel, failedStepLabel, errorCode),
-    collapseToggleLabel: isCompact
-      ? PIPELINE_FAILURE_TEXT.expandLabel
-      : PIPELINE_FAILURE_TEXT.collapseLabel,
+    collapseToggleLabel:
+      state === 'collapsed'
+        ? PIPELINE_FAILURE_TEXT.expandLabel
+        : PIPELINE_FAILURE_TEXT.collapseLabel,
     onToggleCollapse,
+    onBackToProjects,
     motionDurationName: MOTION_SLOT,
     prefersReducedMotion,
   };

@@ -7,7 +7,14 @@ import {
   type ChannelState,
   type EventChannelHandle,
 } from './eventChannel';
-import { createPollingChannel, POLL_INTERVAL_MS, type PollingChannelHandle, type PollingFetchInput, type PollingVisibilityTarget } from './pollingChannel';
+import {
+  createPollingChannel,
+  getDefaultVisibilityTarget,
+  POLL_INTERVAL_MS,
+  type PollingChannelHandle,
+  type PollingFetchInput,
+  type PollingVisibilityTarget,
+} from './pollingChannel';
 import { mergeEvents, type ProgressPatchEvent } from './mergeEvents';
 
 export const SSE_RETRY_INTERVAL_MS = 60_000;
@@ -91,6 +98,10 @@ export function createProgressStream<TPatch extends object = Progress>({
   let sseFailures = 0;
   let refreshedSinceOpen = false;
   let sseHandle: EventChannelHandle | null = null;
+  // Tab ẩn thì SSE đóng (kênh hỏi tự dừng theo cùng nguồn); hiện lại thì mở lại (BUG-552).
+  let isSseParked = false;
+  const visibility = visibilityTarget ?? getDefaultVisibilityTarget();
+  const isHidden = (): boolean => visibility?.hidden ?? false;
 
   function clearRetryTimer(): void {
     if (retryTimer === null) return;
@@ -205,6 +216,11 @@ export function createProgressStream<TPatch extends object = Progress>({
   function startSse(): void {
     if (closed) return;
 
+    if (isHidden()) {
+      isSseParked = true;
+      return;
+    }
+
     activeToken += 1;
     const token = activeToken;
     source = 'sse';
@@ -248,6 +264,25 @@ export function createProgressStream<TPatch extends object = Progress>({
     });
   }
 
+  function handleVisibilityChange(): void {
+    if (closed) return;
+
+    if (isHidden()) {
+      if (sseHandle !== null) {
+        activeToken += 1;
+        stopSse();
+        isSseParked = true;
+      }
+      return;
+    }
+
+    if (isSseParked) {
+      isSseParked = false;
+      startSse();
+    }
+  }
+
+  visibility?.addEventListener('visibilitychange', handleVisibilityChange);
   startSse();
 
   return {
@@ -256,6 +291,7 @@ export function createProgressStream<TPatch extends object = Progress>({
 
       closed = true;
       activeToken += 1;
+      visibility?.removeEventListener('visibilitychange', handleVisibilityChange);
       clearRetryTimer();
       stopPolling();
       stopSse();

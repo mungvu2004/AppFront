@@ -170,7 +170,9 @@ export type FloorWire = z.input<typeof FloorSchema>;
 export const ProgressSchema = z
   .object({
     endedAt: isoDateTimeSchema.optional(),
-    error: z.string().min(1).optional(),
+    // BE gửi `error_code or ""` (apps/api/drawings/progress.py): `""` là "không mã", không phải gói hỏng —
+    // loại cả lượt đọc thì lượt hỏng không bao giờ tới màn lỗi (BUG-549).
+    error: z.string().optional(),
     id: idSchema,
     progressPercent: z.number().int().min(0).max(100),
     startedAt: isoDateTimeSchema.optional(),
@@ -180,7 +182,7 @@ export const ProgressSchema = z
   .strict()
   .transform((wireProgress) => ({
     ...(wireProgress.endedAt !== undefined ? { endedAt: wireProgress.endedAt } : {}),
-    ...(wireProgress.error !== undefined ? { error: wireProgress.error } : {}),
+    ...(wireProgress.error !== undefined && wireProgress.error !== '' ? { error: wireProgress.error } : {}),
     id: wireProgress.id,
     progressPercent: wireProgress.progressPercent,
     ...(wireProgress.startedAt !== undefined ? { startedAt: wireProgress.startedAt } : {}),
