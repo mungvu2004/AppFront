@@ -19,6 +19,9 @@
  * PG …/processingGateway.ts · PSL …/ProcessingStepList.tsx · PLP …/ProcessingLogPanel.tsx · PPP …/ProcessingPreviewPanel.tsx ·
  * PET src/screens/pipeline/pipelineErrorText.ts · UPF src/screens/pipeline/PipelineFailure/usePipelineFailure.ts ·
  * PFA …/PipelineFailureAlert.tsx · PFT …/pipelineFailureText.ts · PS src/lib/realtime/progressStream.ts · EC …/eventChannel.ts.
+ * Line numbers follow fix/qa03e-int with the QA-03e SCR-12 fixes (C4a FIX-2270..2282, R-src b4a590c0 FIX-2342): the steps
+ * that used to record suspected bugs (12-C-005, 12-B-073/074, 12-B-011, 12-B-015, 12-B-041, 12-C-023, 12-E-010) now
+ * assert the fixed behaviour.
  *
  * ## Users
  * The shared admin for every flow (no upload init anywhere: runs are mocked); FL-12-13 last step: the shared pool viewer
@@ -83,7 +86,8 @@ const BG_FAILED_DESC = 'Mở lại màn xử lý để xem chi tiết lỗi.'; /
 const LOG_COPY_FAILED = 'Không chép được nhật ký'; // UPR:154
 const LOG_COPY_FAILED_DESC = 'Trình duyệt chặn khay nhớ tạm. Chọn các dòng trong nhật ký rồi chép bằng tay.'; // UPR:155
 const NO_LOW_CONFIDENCE = /độ tin cậy dưới/u; // UPR lowConfidenceSentence / noLowConfidenceSentence
-const partialNotice = (names: string): string => `${names} gặp lỗi. Các tầng còn lại vẫn đang được xử lý.`; // UPR:198-199
+/** Only while another floor is still non-final; with none left it is just "{floor} gặp lỗi." (BUG-553, UPR:197-199). */
+const partialNotice = (names: string): string => `${names} gặp lỗi. Các tầng còn lại vẫn đang được xử lý.`; // UPR:197-199
 /* PipelineFailure (S-11). */
 const NEXT_STEPS = 'Hướng đi tiếp'; // PFA:63
 const RERUN_BY_UPLOAD = 'Tải lại bản vẽ để chạy lượt mới'; // UPF:226
@@ -93,10 +97,10 @@ const SKIP_FLOOR = 'Bỏ qua tầng đó'; // PFT skipFloorLabel
 const RETRY_STEP = /^Thử lại bước này/u; // PFA:93 aria-label "Thử lại bước này — Thử lại bước …"
 const COPY_CODE = 'Sao chép mã lỗi'; // PFT copyCodeAriaLabel
 const FALLBACK_SENTENCE = 'Bước xử lý gặp lỗi mà hệ thống chưa phân loại được.'; // PET:84
-const DETAIL_UNSUPPORTED_CAUSE =
-  'Máy chủ chưa có phần trả chi tiết của riêng một bước, nên phần dưới chỉ hiện được những gì lượt xử lý đã ghi lại.'; // PFT
+/** A failed run without a code (`error` absent or "") reaches S-11 as `PROCESSING` (BUG-549: src/api/schemas/index.ts:185 drops "", UPR:1406-1408, PET:96-100). */
+const NO_CODE = 'PROCESSING'; // src/lib/errors/kinds.ts:142
 const summarySentence = (step: string, floor: string): string => `Bước ${step} ở ${floor} không hoàn tất được.`; // PFT summarySentence
-const detailUnsupportedSummary = (floor: string): string => `Chưa đọc được chi tiết bước hỏng ở ${floor}.`; // PFT
+const detailUnsupportedSummary = (floor: string): string => `Chưa đọc được chi tiết bước hỏng ở ${floor}.`; // PFT (no longer reached from #8)
 const FILE_CORRUPT_SENTENCE = 'Tệp bản vẽ bị hỏng nên không mở được.'; // PET:62
 
 const STEP_SETTLE_MS = 1_500;
@@ -110,7 +114,12 @@ const chip = (page: Page, floor: string): Locator => chips(page).filter({ hasTex
 const chipDot = (page: Page, floor: string): Locator => chip(page, floor).locator('span[aria-hidden="true"]').first();
 const stepRows = (page: Page): Locator => page.locator(`ol[aria-label="${STEPS}"] > li`);
 const stepRow = (page: Page, label: string): Locator => stepRows(page).filter({ hasText: label });
+/** The live part only: `<span role="status">Đã xong x/y tầng</span>` (PR:289, BUG-554). */
 const overall = (page: Page): Locator => page.getByText(/^Đã xong \d+\/\d+ tầng/u);
+/** The whole line: the status span plus " · Còn lại khoảng …", which stays OUTSIDE the live region (PR:288-291, R1-03). */
+const overallLine = (page: Page): Locator => page.locator('p:has(> span[role="status"])').filter({ hasText: /^Đã xong \d+\/\d+ tầng/u });
+/** The always-present live region of the partial notice, right after the overall line (PR:292-296). */
+const partialRegion = (page: Page): Locator => page.locator('p:has(> span[role="status"]) + div[role="status"]');
 const skeletonRows = (page: Page): Locator => page.locator('div.flex.items-center.gap-4.p-3:has(> .animate-pulse)');
 const toastWith = (page: Page, text: string): Locator => page.getByRole('status').filter({ hasText: text });
 const tab = (page: Page, name: string): Locator =>
@@ -121,9 +130,6 @@ const nextSteps = (page: Page): Locator => page.getByRole('group', { name: NEXT_
 const previewUrl = (uploadId: string): string => `${readBaseUrl()}/qa-preview/${uploadId}.png`;
 const settle = (page: Page, ms = STEP_SETTLE_MS): Promise<void> => page.waitForTimeout(ms);
 
-const suspected = (description: string): void => {
-  test.info().annotations.push({ type: 'suspected-bug', description });
-};
 const note = (description: string): void => {
   test.info().annotations.push({ type: 'note', description });
 };
@@ -239,7 +245,7 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
         await expect.soft(chip(page, floor.name)).toContainText('Đang xử lý'); // UPR:146
         await expect.soft(chip(page, floor.name)).toHaveAttribute('aria-current', 'true');
         await expect.soft(stepRow(page, stageLabel('preprocess')).locator('.animate-pipeline-sweep')).toHaveCount(1); // PSL:147
-        await expect.soft(overall(page)).toHaveText('Đã xong 0/1 tầng'); // no estimate before 3 timed stages
+        await expect.soft(overallLine(page)).toHaveText('Đã xong 0/1 tầng'); // no estimate before 3 timed stages (UPR:1342-1349)
         await expect.soft(page.getByRole('button', { name: BACKGROUND, exact: true })).toBeVisible(); // UPR:844
         note('[12-B-004] "Còn khoảng …" is checked in [12-C-004] after [12-B-034]: estimateRemainingSeconds needs 3 done stages with a measured duration (pipeline.ts)');
         await captureEvidence(page, 'E03_12-B-004_running-focus.png');
@@ -255,24 +261,33 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
         await expect.soft(chips(page).first()).toHaveText(new RegExp(`${floor.name}\\s*Đang xử lý`, 'u'));
       });
 
-      await test.step('[12-E-010] no aria-live region other than role=log (hidden tab) holds the progress / overall line (records the gap)', async () => {
+      await test.step('[12-E-010] "Đã xong x/y tầng" is announced from its own role=status outside the tabs; steps and chips stay out of live regions; the panel is a named region', async () => {
+        // BUG-554 (FIX-2276) + R1-03 (FIX-2342): PR:285-296 — span[role=status] for the done clause, an always-present
+        // div[role=status] for the partial notice, both outside the tabpanels; BUG-547 (FIX-2275): PPP:76,90 role=region.
         const live = await page.evaluate(() => {
           const near = (el: Element | null): string | null =>
             el?.closest('[aria-live], [role="status"], [role="alert"], [role="log"]')?.outerHTML.slice(0, 80) ?? null;
-          const overallLine = [...document.querySelectorAll('p')].find((p) => /^Đã xong \d+\/\d+ tầng/u.test(p.textContent ?? ''));
+          const overallStatus = [...document.querySelectorAll('[role="status"]')].find((el) =>
+            /^Đã xong \d+\/\d+ tầng$/u.test(el.textContent?.trim() ?? ''),
+          );
           return {
-            overallLine: near(overallLine ?? null),
+            overallStatus: overallStatus?.outerHTML.slice(0, 80) ?? null,
+            overallInTabpanel: overallStatus?.closest('[role="tabpanel"]') != null,
+            partialRegion: overallStatus?.parentElement?.nextElementSibling?.getAttribute('role') ?? null,
             steps: near(document.querySelector('ol[aria-label="Các bước xử lý"]')),
             chips: near(document.querySelector('ul[aria-label="Tiến độ theo tầng"]')),
             logMounted: document.querySelector('[role="log"]') !== null,
           };
         });
         await attachJson('E03_12-E-010_live-regions.json', live);
-        expect.soft(live.overallLine, 'overall line inside a live region').toBeNull(); // PR:284-289
-        expect.soft(live.steps, 'step list inside a live region').toBeNull();
-        expect.soft(live.chips, 'floor chips inside a live region').toBeNull();
+        expect.soft(live.overallStatus, 'overall line inside role=status').not.toBeNull();
+        expect.soft(live.overallInTabpanel, 'overall status outside the tabs').toBe(false);
+        expect.soft(live.partialRegion, 'partial-notice live region present before any failure').toBe('status');
+        expect.soft(live.steps, 'step list outside any live region').toBeNull();
+        expect.soft(live.chips, 'floor chips outside any live region').toBeNull();
         expect.soft(live.logMounted, 'role=log only mounts with the "Nhật ký" tab').toBe(false);
-        note('[12-E-010] a11y gap recorded: progress changes are announced nowhere while the "Xem trước" tab is open');
+        await expect.soft(overall(page)).toHaveRole('status');
+        await expect.soft(page.getByRole('region', { name: PREVIEW, exact: true })).toBeVisible();
       });
 
       await test.step('[12-B-032] frame step=wallSegmentation → "Tách lớp tường" running, "Tiền xử lý" done (C3)', async () => {
@@ -297,10 +312,8 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
         await settle(page);
         const line = await stepLine(page);
         await attachJson('E03_12-C-005_lower-read.json', { after: line, expected: runningAt(2) });
-        if (line !== runningAt(2)) {
-          suspected(`[12-C-005] a lower #8 read (preprocess) after the SSE frame at stage 3 moved the running stage back to queued: ${line} (PG keepObservedDone only keeps "done")`);
-        }
-        expect.soft(line, 'steps keep stage 3 after a lower read').toBe(runningAt(2)); // UPR:402-414, PG:511-520
+        // BUG-548 (FIX-2271): keepObservedDone keeps a stage seen `running` as well as `done` (PG:500-525,622,630).
+        expect.soft(line, 'steps keep stage 3 after a lower read').toBe(runningAt(2));
         runs.progressOf.set(uid, ok(progress(uid, 'running', 'openingAndFurnitureDetection', 40)));
       });
 
@@ -333,7 +346,8 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
       await test.step('[12-C-004] (moved after [12-B-034]) "Còn khoảng {duration}" only on the running step row; overall "· Còn lại khoảng"', async () => {
         await expect.soft(stepRows(page).filter({ hasText: /Còn khoảng / })).toHaveCount(1); // UPR:177,1188-1190
         await expect.soft(stepRow(page, stageLabel('dimensionReading'))).toContainText(/Còn khoảng \S/u);
-        await expect.soft(overall(page)).toHaveText(/^Đã xong 0\/1 tầng · Còn lại khoảng \S/u); // UPR:184-185
+        await expect.soft(overallLine(page)).toHaveText(/^Đã xong 0\/1 tầng · Còn lại khoảng \S/u); // UPR:185,1342-1349; PR:288-291
+        await expect.soft(overall(page), '"Còn lại khoảng …" outside the live region (R1-03)').toHaveText('Đã xong 0/1 tầng');
         await captureEvidence(page, 'E03_12-C-004_remaining-on-running-row.png');
       });
 
@@ -388,7 +402,7 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
       });
 
       await test.step('[12-C-003] remaining never reads "Còn lại khoảng 0 giây" (BUG-352)', async () => {
-        const text = (await overall(page).textContent()) ?? '';
+        const text = (await overallLine(page).textContent()) ?? '';
         await attachJson('E03_12-C-003_overall.json', { overall: text });
         expect.soft(text).not.toMatch(/Còn lại khoảng 0 giây/u); // UPR:424-432
         note('[12-C-003] 0 s only happens once every stage is done (completed); that line is checked in FL-12-13 [12-A-026]');
@@ -512,10 +526,26 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
         await expect.poll(() => stepLine(page)).toBe(runningAt(4)); // UPR:642-686 seed from #8
         runs.progressOf.set(u2, ok(progress(u2, 'completed', 'qualityCheck', 100)));
         await sse.send(u2, [progress(u2, 'completed', 'qualityCheck', 100)]);
-        await expect(overall(page)).toHaveText('Đã xong 1/1 tầng'); // no "Còn lại khoảng 0 giây" (BUG-352)
+        await expect(overallLine(page)).toHaveText('Đã xong 1/1 tầng'); // no "Còn lại khoảng 0 giây" (BUG-352)
         await expect.soft(page.getByRole('region', { name: SUMMARY, exact: true })).toBeVisible();
         await attachJson('E03_12-A-026_sse-connections.json', { u2: sse.of(u2).map((c) => c.url) });
         await captureEvidence(page, 'E03_12-A-026_reload-then-done.png');
+      });
+
+      await test.step('[12-A-019] on a `pending` floor (upload still receiving) → the toast too; a second click adds none', async () => {
+        // BUG-542 (FIX-2277): a `pending` floor is handed to the background registry like a running one (UPR:913-921).
+        const u5 = fakeUploadId();
+        runs.uploads = [uploadOf(project, 0, u5)];
+        runs.progressOf.set(u5, ok(progress(u5, 'pending', 'preprocess', 0)));
+        await page.goto(ROUTES.project.pipeline(project.projectId)); // full load: an empty background registry
+        await expect(chip(page, floor.name)).toContainText('đang chờ');
+        const button = page.getByRole('button', { name: BACKGROUND, exact: true });
+        await button.click();
+        await expect.soft(toastWith(page, BG_STARTED)).toContainText(BG_STARTED_DESC);
+        await button.click(); // already in the registry → nothing new (UPR:919-921)
+        await settle(page, 800);
+        await expect.soft(toastWith(page, BG_STARTED)).toHaveCount(1);
+        await captureEvidence(page, 'E03_12-A-019_pending-floor-toast.png');
       });
 
       await test.step('[12-A-018] N7 → u3 running; background, leave; failed frame → toast "{floor} gặp lỗi khi xử lý" / "Mở lại màn xử lý để xem chi tiết lỗi."', async () => {
@@ -619,11 +649,11 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
           await settle(page, 300);
         }
         const focus = (await stepRow(page, stageLabel('dimensionReading')).textContent()) ?? '';
-        const line = (await overall(page).textContent()) ?? '';
+        const line = (await overallLine(page).textContent()) ?? '';
         const focusS = durationSeconds(/Còn khoảng (.+)$/u.exec(focus)?.[1] ?? '');
         const overallS = durationSeconds(/Còn lại khoảng (.+)$/u.exec(line)?.[1] ?? '');
         await attachJson('E03_12-C-002_remaining.json', { focusRow: focus, overall: line, focusS, overallS });
-        expect.soft(overallS, 'overall uses the slowest floor (floor 2)').toBeGreaterThan(focusS); // UPR:1310-1317
+        expect.soft(overallS, 'overall uses the slowest floor (floor 2)').toBeGreaterThan(focusS); // UPR:1342-1349
         expect.soft(overallS).toBeGreaterThanOrEqual(60);
         await captureEvidence(page, 'E03_12-C-002_slowest-floor-remaining.png');
       });
@@ -652,7 +682,7 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
         set(u3, progress(u3, 'running', 'preprocess', 5));
         await page.clock.fastForward(30_000);
         await expect.soft(chip(page, f3.name)).toContainText('Đang xử lý');
-        await expect.soft(page.getByText(partialNotice(f1.name), { exact: true })).toBeVisible(); // UPR:1322-1330
+        await expect.soft(page.getByText(partialNotice(f1.name), { exact: true })).toBeVisible(); // UPR:1352-1361
         await expect.soft(nextSteps(page)).toHaveCount(0);
         await captureEvidence(page, 'E03_12-B-008_partial-failed-notice.png');
       });
@@ -707,15 +737,18 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
         await expect.soft(chip(page, f2.name)).toContainText('Đang xử lý');
       });
 
-      await test.step('[12-C-023] while floor 2 reads 503 and floor 1 is done the notice says "Các tầng còn lại vẫn đang được xử lý." (suspected bug)', async () => {
+      await test.step('[12-C-023] floor 2 only fails a READ (503) while floor 1 is done → chip "lỗi" but no "{tầng} gặp lỗi…" notice', async () => {
+        // BUG-553 (FIX-2282): the notice names only floors the SERVER reports failed (UPR:766-770), and its clause
+        // "Các tầng còn lại vẫn đang được xử lý." only while another floor is non-final (UPR:197-199,1352-1361). The short
+        // variant "{tầng} gặp lỗi." (no floor left running) never renders: every floor is then final and S-11 replaces
+        // the screen (UPR:1400-1410, container) — it is pinned by vitest useProcessingScreen.test.ts "BUG-553 …".
         fail503Once(u2c);
         await page.clock.fastForward(120_000);
-        const notice = page.getByText(partialNotice(f2.name), { exact: true });
-        await expect.soft(notice).toBeVisible(); // UPR:198-199,1322-1330: the only other floor is DONE
-        if (await notice.isVisible()) {
-          suspected(`[12-C-023] "${partialNotice(f2.name)}" while the only other floor (${f1.name}) is already done and floor 2 only failed a READ (503)`);
-        }
-        await captureEvidence(page, 'E03_12-C-023_notice-wrong-when-others-done.png');
+        await expect.soft(chip(page, f2.name)).toContainText('lỗi'); // read error: chip only (UPR:461-464)
+        await expect.soft(chip(page, f1.name)).toContainText('đã xong');
+        await expect.soft(partialRegion(page)).toHaveText('');
+        await expect.soft(page.getByText(/gặp lỗi\./u)).toHaveCount(0);
+        await captureEvidence(page, 'E03_12-C-023_read-error-no-notice.png');
       });
 
       await test.step('[12-B-013] floor 2 #8 404 → polling stops, N7 re-read once, floor 2 drops out of the chips', async () => {
@@ -868,35 +901,27 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
         await captureEvidence(page, 'E03_12-B-072_unknown-code.png');
       });
 
-      await test.step('[12-B-073] error "" → unknown branch with an EMPTY code label; "Sao chép mã lỗi" copies "" (suspected bug)', async () => {
-        // BE writes `error_code or ""` (apps/api/drawings/progress.py:66-67); the FE ProgressSchema has error min(1).
-        await openFailure(progress(uid, 'failed', 'wallSegmentation', 20, { error: '' }));
-        const fallback = page.getByRole('alert').filter({ hasText: FALLBACK_SENTENCE });
-        const readError = readAlert(page);
-        const failedChip = chip(page, floor.name).filter({ hasText: 'lỗi' });
-        await expect(fallback.or(readError).or(failedChip)).toBeVisible({ timeout: 40_000 });
-        await settle(page, 3_000);
-        const shown = (await fallback.isVisible())
-          ? 'pipeline-failure-unknown'
-          : (await readError.isVisible())
-            ? 'read-error-alert'
-            : 'chip-loi-only';
-        await attachJson('E03_12-B-073_empty-error.json', { shown, steps: await stepLine(page).catch(() => 'n/a') });
-        if (shown !== 'pipeline-failure-unknown') {
-          suspected(`[12-B-073] #8 failed with error "" (BE progress.py:66-67 \`error_code or ""\`) fails the FE ProgressSchema (error: string().min(1)); the screen shows ${shown === 'chip-loi-only' ? 'only a "lỗi" chip over six queued steps — no PipelineFailure, no sentence, no "Thử lại"' : 'the read-error alert'} instead of the failure`);
-        } else {
-          await expect.soft(page.getByRole('button', { name: COPY_CODE })).toBeVisible();
-          suspected('[12-B-073] failed run with error "" shows an empty error code label next to "Sao chép mã lỗi"');
-        }
-        expect.soft(shown, 'S-11 unknown branch').toBe('pipeline-failure-unknown');
-        await captureEvidence(page, 'E03_12-B-073_empty-error-code.png');
+      /** BUG-549 (FIX-2279): a failed run without a code reaches S-11 as PROCESSING with the unclassified sentence. */
+      const checkNoCode = async (body: Record<string, unknown>): Promise<void> => {
+        await openFailure(body);
+        const alert = page.getByRole('alert').filter({ hasText: summarySentence(stageLabel('wallSegmentation'), floor.name) });
+        await expect(alert).toContainText(FALLBACK_SENTENCE); // UPF:890-896 serverError branch, PET:96-100
+        await expect.soft(page.getByText(NO_CODE, { exact: true }).first()).toBeVisible(); // UPF:575-577 server code
+        await expect.soft(page.getByRole('button', { name: COPY_CODE })).toBeVisible();
+        await expect.soft(alert.getByRole('button')).toHaveCount(0); // unknown code → action contactAdmin
+        await expect.soft(page.getByText(detailUnsupportedSummary(floor.name))).toHaveCount(0);
+      };
+
+      await test.step('[12-B-073] error "" → S-11 with code PROCESSING and "Bước xử lý gặp lỗi mà hệ thống chưa phân loại được."', async () => {
+        // BE writes `error_code or ""` (apps/api/drawings/progress.py:66-67); ProgressSchema now reads "" as "no code"
+        // (src/api/schemas/index.ts:173-185) instead of rejecting the whole read.
+        await checkNoCode(progress(uid, 'failed', 'wallSegmentation', 20, { error: '' }));
+        await expect.soft(readAlert(page)).toHaveCount(0);
+        await captureEvidence(page, 'E03_12-B-073_empty-error-processing.png');
       });
 
-      await test.step('[12-B-074] failed without `error` → "Chưa đọc được chi tiết bước hỏng ở {floor}." + the "not returned yet" sentence', async () => {
-        await openFailure(progress(uid, 'failed', 'wallSegmentation', 20));
-        const alert = page.getByRole('alert').filter({ hasText: detailUnsupportedSummary(floor.name) }); // UPF:883-891
-        await expect(alert).toBeVisible();
-        await expect.soft(alert).toContainText(DETAIL_UNSUPPORTED_CAUSE);
+      await test.step('[12-B-074] failed without `error` → the same PROCESSING failure (no "Chưa đọc được chi tiết …")', async () => {
+        await checkNoCode(progress(uid, 'failed', 'wallSegmentation', 20));
         await captureEvidence(page, 'E03_12-B-074_no-error-field.png');
       });
     } finally {
@@ -975,24 +1000,24 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
         await expect.soft(readAlert(page)).toHaveCount(0);
       });
 
-      await test.step('[12-B-015] offline, in-app navigate to /pipeline → read-error alert; online + "Thử lại" → recovers', async () => {
+      await test.step('[12-B-015] offline, in-app navigate to /pipeline → NETWORK read-error alert with "Thử lại" + "Liên hệ hỗ trợ"; online → recovers', async () => {
+        // BUG-551 (FIX-2281): a read paused by TanStack (fetchStatus "paused") is a NETWORK read error (UPR:746-761,797);
+        // back online the paused reads resume by themselves.
         // The lazy route chunk must be in the page first: an unknown project's pipeline loads it (404, no N7 cache).
         await page.goto(ROUTES.project.pipeline(`prj_qa-e03-${Date.now().toString(36)}`));
         await expect(page.getByText('Không tìm thấy dự án này', { exact: true })).toBeVisible({ timeout: 30_000 });
         await flow.context.setOffline(true);
         await spaNavigate(page, pipeline);
         const alert = readAlert(page);
-        const shownAlert = await alert.waitFor({ timeout: 15_000 }).then(() => true, () => false);
-        const skeleton = await skeletonRows(page).count();
-        await attachJson('E03_12-B-015_offline.json', { alert: shownAlert, skeletonRows: skeleton });
-        await captureEvidence(page, 'E03_12-B-015_offline-read.png');
-        if (!shownAlert) {
-          suspected(`[12-B-015] offline at open: no read-error alert after 15 s (skeleton rows: ${String(skeleton)}) — the reads wait for the network (TanStack networkMode "online"), the screen says nothing`);
-        }
-        expect.soft(shownAlert, 'read-error alert while offline').toBe(true);
+        await expect(alert).toBeVisible({ timeout: 15_000 });
+        await expect.soft(page.getByRole('button', { name: SUPPORT, exact: true })).toBeVisible();
+        await expect.soft(page.locator('span.font-mono').first()).toContainText('NETWORK'); // src/lib/errors/kinds.ts:50-51
+        await expect.soft(skeletonRows(page)).toHaveCount(0);
+        await attachJson('E03_12-B-015_offline.json', { code: await page.locator('span.font-mono').first().innerText() });
+        await captureEvidence(page, 'E03_12-B-015_offline-network-alert.png');
         await flow.context.setOffline(false);
-        if (shownAlert) await alert.getByRole('button', { name: RETRY, exact: true }).click();
         await expect(page.getByText(EMPTY_TITLE, { exact: true })).toBeVisible({ timeout: 30_000 });
+        await expect.soft(alert).toHaveCount(0);
       });
 
       await test.step('[12-B-017] fresh context, #24 500 → breadcrumb without the project name, screen otherwise normal', async () => {
@@ -1005,7 +1030,8 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
         await expect(fresh.page.getByText(EMPTY_TITLE, { exact: true })).toBeVisible();
         await settle(fresh.page, 2_500); // #24 retried once (queryClient retry 1)
         const crumb = fresh.page.getByRole('navigation', { name: 'Xử lý', exact: true });
-        await expect.soft(crumb).toHaveText('Dự án › Xử lý'); // PR:234-241
+        // BUG-546 (FIX-2274): shared Breadcrumb, "›" is aria-hidden with no spaces in the DOM (Breadcrumb.tsx:38-46).
+        await expect.soft(crumb).toHaveText(/^Dự án\s*›\s*Xử lý$/u);
         await expect.soft(crumb).not.toContainText(project.name);
         await captureEvidence(fresh.page, 'E03_12-B-017_breadcrumb-no-name.png');
         await closeFlow(fresh);
@@ -1013,24 +1039,25 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
       });
 
       const u1 = fakeUploadId();
-      await test.step('[12-B-011] N7 fake upload + every #8 503 → the same read-error alert', async () => {
+      await test.step('[12-B-011] N7 fake upload + every #8 503 → the read-error alert stays until a read succeeds', async () => {
+        // BUG-550 (FIX-2280): a pending read failure on every floor keeps state "error" (UPR:752-758,799).
         runs.n7Answer = null;
         runs.uploads = [uploadOf(project, 0, u1)];
         runs.progressOf.set(u1, wireError(503, 'SERVICE_UNAVAILABLE'));
         await page.goto(pipeline);
-        // UPR:731-732 every floor read failed → alert. The failed seed read switches the floor to polling, whose failure
-        // is written into the cache (setQueryData) and turns the query back to success (observed run-33-P9).
-        const shownAlert = await readAlert(page).waitFor({ timeout: 25_000 }).then(() => true, () => false);
-        await settle(page, 2_000);
-        const alertStays = await readAlert(page).isVisible();
-        const chipText = (await chips(page).first().textContent().catch(() => '')) ?? '';
-        await attachJson('E03_12-B-011_reads.json', { progressReads: runs.count(u1), shownAlert, alertStays, chip: chipText });
-        if (!alertStays) {
-          suspected(`[12-B-011] every #8 read 503: no lasting read-error alert (seen: ${String(shownAlert)}); the screen shows chip "${chipText.trim()}" over six queued steps with no sentence and no "Thử lại"`);
-        }
-        expect.soft(alertStays, 'read-error alert while every #8 read fails').toBe(true);
+        await expect(readAlert(page)).toBeVisible({ timeout: 25_000 });
+        // The failed seed read switches the floor to polling; a failed poll used to turn the query back to success.
+        const mark = runs.count(u1);
+        await expect.poll(() => runs.count(u1), { message: 'a later #8 poll (also 503)', timeout: 45_000 }).toBeGreaterThan(mark);
+        await settle(page);
+        await expect.soft(readAlert(page)).toBeVisible();
         await expect.soft(page.getByRole('button', { name: SUPPORT, exact: true })).toBeVisible();
+        await attachJson('E03_12-B-011_reads.json', { progressReads: runs.count(u1) });
         await captureEvidence(page, 'E03_12-B-011_every-progress-503.png');
+        runs.progressOf.set(u1, ok(progress(u1, 'running', 'wallSegmentation', 20)));
+        await readAlert(page).getByRole('button', { name: RETRY, exact: true }).click(); // UPR:826-829
+        await expect(readAlert(page)).toHaveCount(0, { timeout: 30_000 });
+        await expect.soft(chip(page, floor.name)).toContainText('Đang xử lý');
       });
 
       await test.step('[12-B-021] N7 item without sourceImageUrl, #8 running → "Đang chờ ảnh xem trước…" in the 4:3 frame', async () => {
@@ -1191,10 +1218,8 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
         await settle(page, 500);
         const readsWhileHidden = runs.count(uid) - reads;
         await attachJson('E03_12-B-041_hidden.json', { openWhileHidden, readsWhileHidden });
-        if (openWhileHidden > 0) {
-          suspected('[12-B-041] hidden tab: the SSE stream stays open (progressStream passes visibilityTarget only to the polling channel; the gateway docblock says listening stops)');
-        }
-        expect.soft(openWhileHidden, 'SSE closed while hidden').toBe(0); // PS visibilityTarget, pollingChannel.ts:16-18,53
+        // BUG-552 (FIX-2270): hidden → the stream closes and parks, visible → it reopens (PS:101-104,267-285; PG:895).
+        expect.soft(openWhileHidden, 'SSE closed while hidden').toBe(0);
         expect.soft(readsWhileHidden, 'no #8 read while hidden').toBe(0);
         await setHidden(false);
         await expect.poll(() => sse.open(uid).length, { message: 'listening again', timeout: 15_000 }).toBeGreaterThan(0);
