@@ -62,6 +62,7 @@ import {
 } from '@/lib/offline/markerCommands';
 import { addPendingCommand, deletePendingCommand, listPendingCommands } from '@/lib/offline/queueStore';
 import {
+  createUploadScheduler,
   createUploadTask,
   guessFloorFromFileName,
   isTerminalUploadError,
@@ -215,6 +216,9 @@ export function createFloorUploadGateway(
 ): FloorUploadGateway {
   const locks = options.locks === undefined ? defaultTabLocks() : options.locks;
   const sessionId = options.sessionId ?? TAB_SESSION_ID;
+  // Mọi lượt tải của màn đi qua MỘT hàng có trần `MAX_PARALLEL_UPLOADS`: gán bốn tệp một lúc
+  // thì lượt thứ tư chờ một chỗ trống, không bay init song song (BUG-532).
+  const uploadPool = createUploadScheduler();
 
   return {
     readFloors: async ({ projectId }) => {
@@ -234,8 +238,8 @@ export function createFloorUploadGateway(
 
     guessFloor: (name) => guessFloorFromFileName(name),
 
-    createUpload: ({ file, floorId, id, onProgress, pageIndex, projectId }) =>
-      createUploadTask({
+    createUpload: ({ file, floorId, id, onProgress, pageIndex, projectId }) => {
+      const task = createUploadTask({
         api: client.drawings,
         file,
         floorId,
@@ -243,7 +247,11 @@ export function createFloorUploadGateway(
         onProgress,
         ...(pageIndex !== undefined ? { pageIndex } : {}),
         ...(id !== undefined ? { id } : {}),
-      }),
+      });
+
+      // Huỷ lúc còn chờ chỗ: `start` của task đã huỷ trả `cancelled` ngay và nhả chỗ.
+      return { ...task, start: () => uploadPool.run(() => task.start()) };
+    },
 
     enqueueOffline: async ({ fileName, floorId, pageIndex, projectId, sizeBytes }) => {
       // Khoá phiên được cấp trước khi lệnh hiện ra, để tab khác mở màn không

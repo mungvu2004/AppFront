@@ -23,7 +23,8 @@
  *   ngưỡng cao độ hay chiều cao nào viết tay trong màn (R-71).
  * - **Cắt khúc, song song, trần dung lượng, tần suất báo tiến độ** — `src/lib/upload`
  *   qua `floorUploadGateway`. File này KHÔNG bóp tiến độ lần thứ hai và KHÔNG
- *   đếm số lượt tải song song: `createUploadTask` đã giữ cả hai.
+ *   đếm số lượt tải song song: `createUploadTask` giữ nhịp tiến độ, hàng
+ *   `createUploadScheduler` trong cổng giữ trần song song (BUG-532).
  * - **Hoàn tác một lượt xoá** — `createUndoTicket` (`src/lib/mutations/undoTicket.ts`)
  *   qua `gateway.createRemovalTicket`, cộng `onToast` tiêm vào. KHÔNG dùng
  *   `useUndoableToast`: hook đó lái undo/redo toàn cục của zundo qua store, một
