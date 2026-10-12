@@ -59,6 +59,7 @@ import { PROJECT_LIMITS } from '@/domain/project/limits';
 import type { LevelId } from '@/domain/spatial/types';
 import { millimetres, millimetresToMetres } from '@/domain/units/types';
 import type { Millimetres } from '@/domain/units/types';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { can } from '@/lib/auth/permissions';
 import { BYTES_PER_UNIT, formatFileSize } from '@/lib/format/bytes';
 import { formatLength } from '@/lib/format/measure';
@@ -390,6 +391,7 @@ export function useFloorUploadScreen(
   attachmentsRef.current = attachments;
 
   const detectedNarrow = useNarrowViewport();
+  const reducedMotion = useReducedMotion();
   const isCollapsed = options.forceCollapsed ?? detectedNarrow;
   const canEdit = can('upload', 'floor', { roles });
 
@@ -1146,11 +1148,12 @@ export function useFloorUploadScreen(
           canRemoveFile: canEdit && attachment !== null,
           removeLabel:
             canEdit && attachment !== null ? `Xoá bản vẽ ${attachment.file.name}` : null,
-          revealDelayMs: staggerDelayMs(index),
-          revealDurationMs: durationMs('standard'),
+          // Giảm chuyển động: thẻ hiện ngay, không so le (WCAG 2.3.3, BUG-527).
+          revealDelayMs: staggerDelayMs(index, { reducedMotion }),
+          revealDurationMs: durationMs('standard', { reducedMotion }),
         };
       }),
-    [attachmentByFloor, canEdit, floors, reassignOptions, stack],
+    [attachmentByFloor, canEdit, floors, reassignOptions, reducedMotion, stack],
   );
 
   const trayItems = useMemo<readonly FloorUploadTrayItemModel[]>(

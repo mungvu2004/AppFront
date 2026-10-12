@@ -209,7 +209,7 @@ export function FloorUploadCard({
   return (
     <li
       className={clsx(
-        'animate-panel-rise relative rounded-[12px] border border-border-default bg-bg-surface p-5',
+        'animate-panel-rise motion-reduce:animate-none relative rounded-[12px] border border-border-default bg-bg-surface p-5',
         isMenuOpen && 'z-30',
         isCollapsed ? 'flex flex-col gap-3' : 'flex min-h-[96px] flex-row flex-wrap items-center gap-4',
       )}
