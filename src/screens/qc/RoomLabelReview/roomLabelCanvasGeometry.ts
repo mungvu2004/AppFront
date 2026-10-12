@@ -85,6 +85,13 @@ export function svgPointsAttr(points: readonly RoomLabelPointPx[]): string {
 /** Đệm quanh hộp bao nội dung, để đa giác sát mép không bị viền khung nuốt mất. */
 export const CONTENT_PADDING_PX = 48;
 
+/** Đệm theo khung: khung hẹp thì đệm co lại, kẻo đệm nuốt hết chỗ vẽ (BUG-393). */
+export function contentPaddingFor(frame: { readonly width: number; readonly height: number }): number {
+  return frame.width > 0 && frame.height > 0
+    ? Math.min(CONTENT_PADDING_PX, frame.width / 8, frame.height / 8)
+    : CONTENT_PADDING_PX;
+}
+
 /** Hộp bao trục thẳng của MỘT phòng, đơn vị px — dùng cho `SelectionHalo` và nút bàn phím. */
 export function computeRoomBoundsPx(
   room: RoomLabelViewModel,
@@ -99,6 +106,7 @@ export function computeRoomBoundsPx(
 export function computeContentBoundsPx(
   rooms: readonly RoomLabelViewModel[],
   millimetresPerPixel: number,
+  padding: number = CONTENT_PADDING_PX,
 ): RoomLabelBoundsPx | null {
   const allPoints = rooms.flatMap((room) => roomOutlinePx(room, millimetresPerPixel));
   const bounds = boundsOfPoints(allPoints);
@@ -108,16 +116,16 @@ export function computeContentBoundsPx(
   }
 
   return {
-    x: bounds.x - CONTENT_PADDING_PX,
-    y: bounds.y - CONTENT_PADDING_PX,
-    width: bounds.width + CONTENT_PADDING_PX * 2,
-    height: bounds.height + CONTENT_PADDING_PX * 2,
+    x: bounds.x - padding,
+    y: bounds.y - padding,
+    width: bounds.width + padding * 2,
+    height: bounds.height + padding * 2,
   };
 }
 
 /**
  * BUG-393: tỷ lệ HIỂN THỊ (mm mỗi px màn) để toàn bộ mặt bằng — cộng đệm
- * {@link CONTENT_PADDING_PX} — vừa khung `frame`. Tầng chưa hiệu chỉnh dùng 1 mm/px
+ * {@link contentPaddingFor} — vừa khung `frame`. Tầng chưa hiệu chỉnh dùng 1 mm/px
  * nên một phòng 4 m đã rộng 4000 px, nằm ngoài khung. Chưa đo được khung (jsdom,
  * lần vẽ đầu) hay chưa có phòng thì giữ nguyên tỷ lệ bản vẽ.
  */
@@ -127,8 +135,9 @@ export function fitMillimetresPerPixel(
   frame: { readonly width: number; readonly height: number },
 ): number {
   const bounds = boundsOfPoints(rooms.flatMap((room) => room.outlineMm));
-  const usableWidth = frame.width - CONTENT_PADDING_PX * 2;
-  const usableHeight = frame.height - CONTENT_PADDING_PX * 2;
+  const padding = contentPaddingFor(frame);
+  const usableWidth = frame.width - padding * 2;
+  const usableHeight = frame.height - padding * 2;
 
   if (bounds === null || usableWidth <= 0 || usableHeight <= 0) {
     return millimetresPerPixel;
@@ -177,9 +186,9 @@ export function cssVar(token: string): string {
 /* Hằng số dựng hình — mọi con số vẽ đều đặt tên ở đây, không rải trong JSX.   */
 /* -------------------------------------------------------------------------- */
 
-/** Tối thiểu 640 từ 1280px; dưới 1280 tối thiểu 60vh (như FIX-1506), dưới 768 lấp vùng 360 px — BUG-317. */
+/** Tối thiểu 640 từ 1280px; dưới 1280 tối thiểu 60vh (như FIX-1506), dưới 1024 lấp vùng 360 px — BUG-317, BUG-404. */
 export const ROOM_LABEL_CANVAS_FRAME_CLASSES =
-  'relative h-full min-h-[320px] w-full overflow-hidden rounded-[16px] border border-border-default bg-canvas-2d p-3 md:min-h-[60vh] xl:min-h-[640px]';
+  'relative h-full min-h-[320px] w-full overflow-hidden rounded-[16px] border border-border-default bg-canvas-2d p-3 lg:min-h-[60vh] xl:min-h-[640px]';
 
 /** Độ mờ ảnh nền bản vẽ gốc — cùng mức với `ObjectLayerCanvas` (đặc tả gốc). */
 export const BACKGROUND_IMAGE_OPACITY = 0.2;

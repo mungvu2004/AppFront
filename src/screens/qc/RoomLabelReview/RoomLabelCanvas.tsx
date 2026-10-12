@@ -57,6 +57,7 @@ import {
   centreOfBounds,
   computeContentBoundsPx,
   computeRoomBoundsPx,
+  contentPaddingFor,
   fitMillimetresPerPixel,
   type RoomLabelBoundsPx,
   type RoomLabelRoomId,
@@ -123,8 +124,8 @@ export function RoomLabelCanvas({
   );
 
   const contentBounds = useMemo(
-    () => computeContentBoundsPx(rooms, millimetresPerPixel),
-    [rooms, millimetresPerPixel],
+    () => computeContentBoundsPx(rooms, millimetresPerPixel, contentPaddingFor(frameSize)),
+    [frameSize, rooms, millimetresPerPixel],
   );
 
   const selectedRoom = rooms.find((room) => room.id === selectedRoomId) ?? null;

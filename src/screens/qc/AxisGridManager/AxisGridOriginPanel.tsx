@@ -81,7 +81,7 @@ export function AxisGridOriginPanel({
   const offsetYMm = useCountUp(origin.offsetYMm, { format: { fractionDigits: MM_FRACTION_DIGITS } });
 
   return (
-    <div className="flex w-[344px] shrink-0 flex-col gap-4 rounded-[12px] bg-bg-surface p-5 shadow-panel max-md:w-full">
+    <div className="flex w-[344px] shrink-0 flex-col gap-4 rounded-[12px] bg-bg-surface p-5 shadow-panel max-lg:w-full">
       <h3 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h3>
 
       {unavailableNotice !== null ? (

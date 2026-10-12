@@ -90,7 +90,7 @@ export function RoomLabelLeftPanel({ panel, list, emptyListNotice }: RoomLabelLe
   const { summary, gaps, showOnlyUnnamed, onToggleUnnamedFilter, onOpenNormalizePreview } = panel;
 
   return (
-    <div className="flex h-full w-[280px] shrink-0 flex-col overflow-hidden rounded-[12px] bg-bg-surface shadow-panel max-md:w-full">
+    <div className="flex h-full w-[280px] shrink-0 flex-col overflow-hidden rounded-[12px] bg-bg-surface shadow-panel max-lg:w-full">
       <div className="flex shrink-0 flex-col gap-3 px-5 pb-3 pt-4">
         <p className="text-[13px] text-text-primary">
           <span>{SUMMARY_PREFIX} </span>
