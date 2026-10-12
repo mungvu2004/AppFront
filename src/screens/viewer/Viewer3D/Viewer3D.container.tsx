@@ -127,6 +127,7 @@
  * dự án khác thì ranh giới gắn LẠI.
  */
 
+import { AlertCircle } from 'lucide-react';
 import { useCallback, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -197,7 +198,7 @@ function Viewer3DCrashFallback({ report, retry }: ScreenErrorFallback) {
     <main className="absolute inset-0 flex items-center justify-center bg-bg-app">
       <EmptyState
         description={report.description.description}
-        icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-state-violation-tint" />}
+        icon={<AlertCircle aria-hidden="true" />}
         title={report.description.title}
         {...(report.retryable
           ? { action: { label: report.description.primaryButtonLabel, onClick: retry } }

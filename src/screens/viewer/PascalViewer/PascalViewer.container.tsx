@@ -11,6 +11,7 @@
  * `src/App.tsx` dùng.
  */
 
+import { AlertCircle } from 'lucide-react';
 import { useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -59,7 +60,7 @@ function CrashFallback({ report, retry }: ScreenErrorFallback) {
   return (
     <div className="flex h-full items-center justify-center bg-bg-app">
       <EmptyState
-        icon={<div className="h-8 w-8 rounded-full bg-state-violation-tint" aria-hidden="true" />}
+        icon={<AlertCircle aria-hidden="true" />}
         title={report.description.title}
         description={report.description.description}
         {...(report.retryable
