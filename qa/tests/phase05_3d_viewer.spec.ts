@@ -664,9 +664,9 @@ test.describe('SCR-24 Exploded View', () => {
     await full.click();
     await expect(slider).toHaveValue(separated);
 
-    // Card eye `ExplodedViewFloorCards.tsx:173` reads "Ẩn tầng Tầng 1" today; the BUG-384 card patch makes it "Ẩn tầng 1".
-    // Accept both; scope to the screen so the shell rail's "Ẩn tầng 1" (`ViewerStoreyRail.tsx:86-89`) never matches.
-    const cardName = `(${escapeRegExp(`tầng ${floorName}`)}|${escapeRegExp(storeyInlineName(floorName))})`;
+    // Card eye `ExplodedViewFloorCards.tsx:173`: "Ẩn {inlineName}" (storeyInlineName, viewerStoreyStack.ts:120-124), "Tầng 1" -> "Ẩn tầng 1".
+    // Scope to the screen so the shell rail's identical eye (`ViewerStoreyRail.tsx:93`) never matches.
+    const cardName = escapeRegExp(storeyInlineName(floorName));
     const cards = page.getByRole('region', { name: EXPLODED_REGION, exact: true });
     const hide = cards.getByRole('button', { name: new RegExp(`^Ẩn ${cardName}$`, 'u') });
     const show = cards.getByRole('button', { name: new RegExp(`^Hiện ${cardName}$`, 'u') });
