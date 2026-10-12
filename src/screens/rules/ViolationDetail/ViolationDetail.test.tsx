@@ -468,6 +468,24 @@ describe('A11 — bảy trạng thái của ViolationDetail', () => {
   });
 });
 
+describe('BUG-434 — tấm thu gọn mở trong khung nhìn và nhận tiêu điểm (A12)', () => {
+  it('thu gọn: tấm `fixed` cao 70vh (route cuộn theo tài liệu), tiêu điểm vào tấm khi mở', () => {
+    renderView(propsFor(scenarioOf('collapsed')));
+
+    const sheet = screen.getByRole('complementary', { name: 'Chi tiết vi phạm' });
+    expect(sheet).toHaveClass('fixed', 'max-h-[70vh]');
+    expect(sheet).not.toHaveClass('absolute');
+    expect(sheet.contains(document.activeElement)).toBe(true);
+  });
+
+  it('khổ rộng: tiêu điểm cũng vào tấm khi mở', () => {
+    renderView(propsFor(scenarioOf('success')));
+
+    const panel = screen.getByRole('complementary', { name: 'Chi tiết vi phạm' });
+    expect(panel.contains(document.activeElement)).toBe(true);
+  });
+});
+
 /* ==========================================================================
  * D. R-72 — expectAccessible, expectVietnamese. A1 — expectNoRawColor.
  * ========================================================================== */
