@@ -8,15 +8,16 @@
  * Users: the phase admin (API + browser login per flow, no stored session file) owns every project; pool
  * `engineer:shared` (FL-U13-02) and `viewer:shared` (FL-U15-02) are added to one own project each. Safe under
  * `--workers 4`: no shared project, no user state change.
- * Mocks: only FL-U15-03 ("[mocked response]": `GET …/floors` held through the four captures, then let through).
+ * Mocks: FL-U15-03 ("[mocked response]": `GET …/floors` held through the four captures, then let through).
+ * and FL-U13-01 [15-F-006]/[15-F-007] ("[mocked response]": `GET …/floors` answered 404 without `resource`).
  *
  * Real-backend budget per run: logins 2 per flow = 10; `POST /api/projects` 5 (deleted); members add 2; no upload.
  */
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { attachJson } from './support/evidence';
-import { holdRequests } from './support/p03/P6';
+import { fulfillJson, holdRequests } from './support/p03/P6';
 import {
   CAD,
   GATE,
@@ -105,36 +106,50 @@ test('SCR-13/15 · FL-U13-01 · admin: graph compact list, then dead links on gr
       for (const [w, got] of Object.entries(facts)) expect.soft(got, `${w}px`).toEqual({ inColumn: true, buttonInView: true });
     });
 
-    const unknownCad = ROUTES.project.cadConfirm(unknown, bogusFloorId());
+    // QA-03f (T1): an unknown project no longer opens the dialog — a 404 `project` on #12 is "project missing", only the shared
+    // not-found strip (useCadBranchConfirm.ts:771-772, CadBranchConfirm.tsx:296-307; edge [15-B-004]). The error dialog is
+    // reached on the own project through a failing #12, as edge [15-E-004] does (phase03_graph_cad_edge.spec.ts:655-664).
+    // The mock is a 404 WITHOUT `resource: 'project'`: not project-missing (useProjectSpatial.ts:31-35), state 'error'
+    // (useCadBranchConfirm.ts:601-602), and not retried — 404 is not transient (retry.ts:3, 30-31) and the notFound kind is
+    // `retryable: false` (kinds.ts:90-99), so the shots do not wait out the 5xx retries of BUG-570 (queryClient.ts:13-14).
+    const pid = project.projectId;
+    const cadUrl = ROUTES.project.cadConfirm(pid, bogusFloorId());
+    const failRead = (route: Route): Promise<void> =>
+      route.request().method() === 'GET' ? fulfillJson(route, 404, { code: 'NOT_FOUND', requestId: 'qa-p10-mock' }) : route.fallback();
+    await page.route(`**/api/projects/${pid}/floors`, failRead);
+    try {
+      await test.step('[15-F-006] [mocked response] #12 404 (not the project): error dialog with the NOT_FOUND alert ×4', async () => {
+        opened(
+          await verifyUi(
+            page,
+            'U03_15-F-006_cad_error_dialog',
+            async (p) => {
+              await p.goto(cadUrl);
+              // cadChoiceDisabledReason = failure.sentence (useCadBranchConfirm.ts:680, 898-903): the notFound description.
+              await expect(cadDialog(p).getByRole('alert')).toContainText(NOT_FOUND_SENTENCE);
+              await expect.soft(cadDialog(p).getByRole('button', { name: CAD.useCad, exact: true })).toBeDisabled();
+            },
+            undefined,
+            { fullPage: false },
+          ),
+        );
+      });
 
-    await test.step('[15-F-006] unknown project cad-confirm: error dialog with the NOT_FOUND alert ×4', async () => {
-      opened(
-        await verifyUi(
-          page,
-          'U03_15-F-006_cad_error_dialog',
-          async (p) => {
-            await p.goto(unknownCad);
-            await expect(cadDialog(p).getByRole('alert')).toContainText(NOT_FOUND_SENTENCE);
-            await expect.soft(cadDialog(p).getByRole('button', { name: CAD.useCad, exact: true })).toBeDisabled();
-          },
-          undefined,
-          { fullPage: false },
-        ),
-      );
-    });
-
-    await test.step('[15-F-007] Esc → "Không thể đọc tệp CAD" notice + hand-off ×4', async () => {
-      opened(
-        await verifyUi(page, 'U03_15-F-007_cad_error_handoff', async (p) => {
-          await p.goto(unknownCad);
-          await expect(cadDialog(p).getByRole('alert')).toBeVisible();
-          await p.keyboard.press('Escape');
-          await expect(cadDialog(p)).toHaveCount(0);
-          await expect(notice(p)).toContainText(CAD.errorTitle);
-          await expect(handoffAlert(p)).toBeVisible();
-        }),
-      );
-    });
+      await test.step('[15-F-007] Esc → "Không thể đọc tệp CAD" notice + hand-off ×4', async () => {
+        opened(
+          await verifyUi(page, 'U03_15-F-007_cad_error_handoff', async (p) => {
+            await p.goto(cadUrl);
+            await expect(cadDialog(p).getByRole('alert')).toBeVisible();
+            await p.keyboard.press('Escape');
+            await expect(cadDialog(p)).toHaveCount(0);
+            await expect(notice(p)).toContainText(CAD.errorTitle); // CadBranchConfirm.tsx:95, 145, 335-345
+            await expect(handoffAlert(p)).toBeVisible(); // CadBranchConfirm.tsx:273
+          }),
+        );
+      });
+    } finally {
+      await page.unroute(`**/api/projects/${pid}/floors`, failRead);
+    }
   });
 });
 

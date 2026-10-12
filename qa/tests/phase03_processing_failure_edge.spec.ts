@@ -296,7 +296,9 @@ test.describe('SCR-12 processing — failed runs', () => {
 
       await test.step('[12-B-078] only floor 1 (first failed in N7 order) is described; floor 2\'s name and FILE_CORRUPT are absent', async () => {
         await expect.soft(page.getByText(failureTitle(PREPROCESS, f1.name), { exact: true })).toBeVisible();
-        await expect.soft(page.getByText(f2.name, { exact: false })).toHaveCount(0);
+        // QA-03f (T4): the BUG-545 "Tiến độ theo tầng" strip lists every floor, "Tầng 2 hỏng" included (usePipelineFailure.ts:586-595,
+        // PipelineFailure.tsx:96, outside the band) — only the failure alert must not name floor 2.
+        await expect.soft(page.getByRole('alert').filter({ hasText: /không hoàn tất được\./u }).getByText(f2.name)).toHaveCount(0);
         await expect.soft(page.getByText('FILE_CORRUPT', { exact: false })).toHaveCount(0);
       });
 

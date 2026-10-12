@@ -840,14 +840,16 @@ test.describe('X cross-screen journeys', () => {
           await captureEvidence(page, 'E03_13-D-004_non_member_graph.png');
         });
 
-        await test.step('[15-D-005] cad-confirm: floor list 404 → "Không thể đọc tệp CAD" … "Mã lỗi: NOT_FOUND" (not forbidden, not the shared strip)', async () => {
+        // QA-03f (T2): a 404 `project` on #12 is "project missing" (useCadBranchConfirm.ts:771-772), so cad-confirm shows the same
+        // shared strip as the other routes, no dialog and no CAD notice (CadBranchConfirm.tsx:296-307; BUG-563).
+        await test.step('[15-D-005] cad-confirm: floor list 404 → shared "Không tìm thấy dự án này" strip, no "Không thể đọc tệp CAD", no "Mã lỗi: NOT_FOUND"', async () => {
           const read = waitForApi(page, 'GET', projectWriteRe(pid, '/floors'), [404]);
           await page.goto(ROUTES.project.cadConfirm(pid, s3.floorId));
           await read;
-          await expect.soft(page.getByText(CAD.errorTitle, { exact: true }).first()).toBeVisible();
-          await expect.soft(page.getByText(/Mã lỗi: NOT_FOUND/u).first()).toBeVisible();
+          await expect.soft(page.getByRole('alert').filter({ hasText: NOT_FOUND_TITLE })).toBeVisible();
+          await expect.soft(page.getByText(CAD.errorTitle, { exact: true })).toHaveCount(0);
+          await expect.soft(page.getByText(/Mã lỗi: NOT_FOUND/u)).toHaveCount(0);
           await expect.soft(page.getByText(CAD.forbiddenTitle, { exact: true })).toHaveCount(0);
-          await expect.soft(page.getByText(NOT_FOUND_TITLE, { exact: true })).toHaveCount(0);
           await captureEvidence(page, 'E03_15-D-005_non_member_cad.png');
         });
       } finally {
