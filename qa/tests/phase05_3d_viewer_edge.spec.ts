@@ -164,10 +164,8 @@ const EX = {
   captureError: 'Chưa chụp được khung nhìn. Đợi mô hình dựng xong rồi bấm chụp lại.', // UEX:152-153
   livePrefix: 'Đã tách ', // UEX:149
   cardPrefix: 'Chọn tầng ', // EXF:132-135
-  /* EXF:134-135 "Chọn tầng {floor.name}, cao độ …" today ("Chọn tầng Tầng 1"); the BUG-384 card patch makes it
-     "Chọn {storeyInlineName}" ("Chọn tầng 1"). The card pattern accepts both. */
-  card: (name: string): RegExp =>
-    new RegExp(`^Chọn (${escapeRegExp(`tầng ${name}`)}|${escapeRegExp(storeyInlineName(name))}), cao độ `, 'u'),
+  /* ExplodedViewFloorCards.tsx:134-135 "Chọn {inlineName}, cao độ …" ("Tầng 1" -> "Chọn tầng 1"; viewerStoreyStack.ts:120-124). */
+  card: (name: string): RegExp => new RegExp(`^Chọn ${escapeRegExp(storeyInlineName(name))}, cao độ `, 'u'),
 } as const;
 
 /* SCR-25 copy. */
