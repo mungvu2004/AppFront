@@ -101,12 +101,12 @@ packages` touches only `packages/vision/preprocess/pdf.py` (not on these routes)
 
 ## Mock pairing (every `[mocked response]` test of the phase's UI specs)
 
-| UI test | Endpoint + faked response | Pairing |
+| UI test (by title: line numbers drift, BUG-496) | Endpoint + faked response | Pairing |
 |---|---|---|
-| `phase05_3d_viewer_edge.spec.ts:648` "E05 · SCR-23 [mocked response] GET …/spatial 500 → gate error" | N15 `GET /api/projects/:p/spatial` → 500 | unpairable: 5xx — N15 has no 5xx branch a healthy stack reaches (graph.py:67 `load_documents`; only a corrupt `floor_documents` row → `DocumentCorruptError`, spatial_read/documents.py, written straight into the DB); its 200 / 404 / 401 answers are asserted for real (phase04 api reads, roles, anon) |
-| `phase05_3d_viewer_edge.spec.ts:1274` "E05 · SCR-25 [mocked response] GET measurements 500 → …" | #16 `GET /api/projects/:p/measurements` → 500 | unpairable: 5xx — #16 has no error branch past the project gate (service.py:76-84 is one SELECT); its 200 / 404 / 401 answers are asserted for real (create, roles, anon) |
-| `phase05_3d_viewer_edge.spec.ts:1363` "E05 · SCR-26 [mocked response] pascal-mount.js network loss → …" | static `/assets/pascal/pascal-mount.js` → aborted (network) | unpairable: network loss of a static asset, not an API route |
-| `phase05_3d_viewer_edge.spec.ts:1391` "E05 · SCR-26 [mocked response] flag "scene.pascal-viewer" off → …" | #9 `GET /api/feature-flags` → real body with `scene.pascal-viewer: false` | unpairable: feature flag — stack-wide env `FEATURE_FLAGS` (CP-0 sets it `true` for every role; turning it off breaks every other Pascal test). The off / per-role resolution is BE pytest `telemetry/tests/test_feature_flags_route.py` (telemetry/router.py:32-38, flags.py:53-60) |
+| `phase05_3d_viewer_edge.spec.ts` "E05 · SCR-23 [mocked response] GET …/spatial 500 → gate error" | N15 `GET /api/projects/:p/spatial` → 500 | unpairable: 5xx — N15 has no 5xx branch a healthy stack reaches (graph.py:67 `load_documents`; only a corrupt `floor_documents` row → `DocumentCorruptError`, spatial_read/documents.py, written straight into the DB); its 200 / 404 / 401 answers are asserted for real (phase04 api reads, roles, anon) |
+| `phase05_3d_viewer_edge.spec.ts` "E05 · SCR-25 [mocked response] GET measurements 500 → …" | #16 `GET /api/projects/:p/measurements` → 500 | unpairable: 5xx — #16 has no error branch past the project gate (service.py:76-84 is one SELECT); its 200 / 404 / 401 answers are asserted for real (create, roles, anon) |
+| `phase05_3d_viewer_edge.spec.ts` "E05 · SCR-26 [mocked response] pascal-mount.js network loss → …" | static `/assets/pascal/pascal-mount.js` → aborted (network) | unpairable: network loss of a static asset, not an API route |
+| `phase05_3d_viewer_edge.spec.ts` "E05 · SCR-26 [mocked response] flag "scene.pascal-viewer" off → …" | #9 `GET /api/feature-flags` → real body with `scene.pascal-viewer: false` | unpairable: feature flag — stack-wide env `FEATURE_FLAGS` (CP-0 sets it `true` for every role; turning it off breaks every other Pascal test). The off / per-role resolution is BE pytest `telemetry/tests/test_feature_flags_route.py` (telemetry/router.py:32-38, flags.py:53-60) |
 | `phase05_3d_viewer.spec.ts`, `phase05_3d_viewer_ui.spec.ts` | — | 0 `page.route` / `[mocked response]` (grep; ui header: "No faked response") |
 
 ## Contract notes (FE ↔ BE)
