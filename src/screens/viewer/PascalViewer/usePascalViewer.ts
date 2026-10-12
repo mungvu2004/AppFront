@@ -23,7 +23,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import { useShortcut } from '@/hooks/useShortcut';
 import { formatNumber } from '@/lib/format/number';
 import type { PascalScene, SkippedEntity } from '@/lib/pascal/types';
@@ -213,7 +212,6 @@ export function usePascalViewer({
   collapsed = false,
   loadMount = defaultLoadMount,
 }: UsePascalViewerOptions): UsePascalViewerResult {
-  const enabled = useFeatureFlag('scene.pascal-viewer');
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const [ready, setReady] = useState(false);
@@ -263,8 +261,7 @@ export function usePascalViewer({
   } | null>(null);
 
   useEffect(() => {
-    // Cờ tắt thì không ai xem cảnh — đổi bản vẽ là việc thừa (B-V10-03).
-    if (!enabled || graph === null || isEmpty) {
+    if (graph === null || isEmpty) {
       setResult(null);
 
       return;
@@ -285,9 +282,9 @@ export function usePascalViewer({
     };
     /* `attempt` có mặt vì "thử lại" phải chạy lại CẢ lượt nạp này: thiếu nó thì
        nạp hỏng → thử lại → `result` vẫn `null` và màn kẹt "đang nạp" mãi (B-V10-04). */
-  }, [enabled, graph, isEmpty, attempt]);
+  }, [graph, isEmpty, attempt]);
 
-  const shouldMount = enabled && !isCollapsed && result !== null && !isEmpty;
+  const shouldMount = !isCollapsed && result !== null && !isEmpty;
 
   useEffect(() => {
     if (!shouldMount) return;
@@ -364,7 +361,7 @@ export function usePascalViewer({
       description: 'Thu khung xem 3d lại',
       onTrigger: () => setSelfCollapsed(true),
     },
-    { enabled: enabled && !isCollapsed },
+    { enabled: !isCollapsed },
   );
 
   useShortcut(
@@ -375,7 +372,7 @@ export function usePascalViewer({
       description: 'Thử nạp lại khung dựng hình',
       onTrigger: onRetry,
     },
-    { enabled: enabled && failure !== null },
+    { enabled: failure !== null },
   );
 
   useShortcut(
@@ -386,7 +383,7 @@ export function usePascalViewer({
       description: 'Mở lại khung xem 3d',
       onTrigger: onExpand,
     },
-    { enabled: enabled && isCollapsed },
+    { enabled: isCollapsed },
   );
 
   const skipped = useMemo(() => {
@@ -404,21 +401,22 @@ export function usePascalViewer({
     ];
   }, [result, droppedCount]);
 
-  const state: PascalViewerState = !enabled
-    ? 'forbidden'
-    : isCollapsed
-      ? 'collapsed'
-      : failure !== null
-        ? 'error'
-        : isEmpty
-          ? 'empty'
-          : result === null
+  /* `forbidden` không còn nguồn ở đây: cờ `scene.pascal-viewer` đã bị gỡ (F-15),
+     màn Pascal là màn 3D duy nhất. Trạng thái vẫn nằm trong hợp đồng của view —
+     A11 đòi đủ bảy — và nơi gọi dựng nó khi vai không được xem bản vẽ. */
+  const state: PascalViewerState = isCollapsed
+    ? 'collapsed'
+    : failure !== null
+      ? 'error'
+      : isEmpty
+        ? 'empty'
+        : result === null
+          ? 'loading'
+          : !ready
             ? 'loading'
-            : !ready
-              ? 'loading'
-              : skipped.length > 0
-                ? 'partial'
-                : 'success';
+            : skipped.length > 0
+              ? 'partial'
+              : 'success';
 
   const summary = useMemo(() => {
     if (graph === null || (state !== 'success' && state !== 'partial')) return null;

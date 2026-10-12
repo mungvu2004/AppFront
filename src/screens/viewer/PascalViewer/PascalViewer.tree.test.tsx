@@ -35,11 +35,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { renderWithProviders } from '@/lib/testing/render';
-import {
-  __resetFeatureFlagsForTests,
-  setFeatureFlagOverride,
-} from '@/lib/telemetry/flags';
-
 import { useStore } from '@/store';
 
 import { PascalViewerContainer, PascalViewerRoute } from './PascalViewer.container';
@@ -71,15 +66,6 @@ const stubMount = () => {
     ready: () => announceReady?.(true),
   };
 };
-
-beforeEach(() => {
-  __resetFeatureFlagsForTests();
-  setFeatureFlagOverride('scene.pascal-viewer', true);
-});
-
-afterEach(() => {
-  __resetFeatureFlagsForTests();
-});
 
 describe('cây thật: container → view → hook', () => {
   it('hộp cho Pascal cắm vào CÓ MẶT ngay lúc đang nạp', () => {
@@ -120,16 +106,6 @@ describe('cây thật: container → view → hook', () => {
 
     // Bộ mẫu chuẩn A14: 48 tường.
     expect(screen.getByText('48')).toBeInTheDocument();
-  });
-
-  it('cờ tắt thì KHÔNG dựng hộp và KHÔNG nạp gói', () => {
-    setFeatureFlagOverride('scene.pascal-viewer', false);
-    const bench = stubMount();
-
-    renderWithProviders(<PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />);
-
-    expect(screen.queryByTestId('pascal-canvas')).not.toBeInTheDocument();
-    expect(bench.calls()).toBe(0);
   });
 
   it('rời màn thì gọi dispose', async () => {

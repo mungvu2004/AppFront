@@ -21,11 +21,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import type { SpatialGraph } from '@/domain/spatial/types';
 import type * as ToPascalModule from '@/lib/pascal/toPascal';
-import {
-  __resetFeatureFlagsForTests,
-  setFeatureFlagOverride,
-} from '@/lib/telemetry/flags';
-
 import { usePascalViewer, type UsePascalViewerOptions, type UsePascalViewerResult } from './usePascalViewer';
 
 /**
@@ -196,33 +191,18 @@ const press = (key: string): void => {
 };
 
 beforeEach(() => {
-  __resetFeatureFlagsForTests();
-  setFeatureFlagOverride('scene.pascal-viewer', true);
   adapter.calls = 0;
   adapter.failNext = 0;
 });
 
 afterEach(() => {
-  __resetFeatureFlagsForTests();
   delete window.__zod_globalConfig;
   vi.unstubAllEnvs();
 });
 
 describe('máy trạng thái', () => {
-  it('cờ tắt thì "forbidden", và KHÔNG nạp gói', () => {
-    setFeatureFlagOverride('scene.pascal-viewer', false);
-    const bench = harness();
-    const loadMount = vi.fn(bench.loadMount);
-
-    const probe = mountHook({ graph: GRAPH, loadMount });
-
-    expect(probe.state).toBe('forbidden');
-    expect(loadMount).not.toHaveBeenCalled();
-  });
-
-  it('cờ tắt thì KHÔNG chạy cả bộ đổi dữ liệu — không ai xem cảnh ấy (B-V10-03)', async () => {
-    setFeatureFlagOverride('scene.pascal-viewer', false);
-    mountHook({ graph: GRAPH, loadMount: harness().loadMount });
+  it('bản vẽ rỗng thì KHÔNG chạy bộ đổi dữ liệu — không có gì để dựng', async () => {
+    mountHook({ graph: EMPTY_GRAPH, loadMount: harness().loadMount });
 
     // Xem `ADAPTER_SETTLE_MS`: không có mốc dương cho "không làm gì".
     await import('@/lib/pascal/toPascal');
