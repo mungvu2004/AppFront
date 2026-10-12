@@ -222,6 +222,8 @@ export interface ExplodedFloorViewModel {
   readonly id: string;
   /** Tên người đọc, ví dụ "Tầng 01". */
   readonly name: string;
+  /** Tên đặt giữa câu, ví dụ "tầng 01" trong "Ẩn tầng 01" (`storeyInlineName`, BUG-384). */
+  readonly inlineName: string;
   /** Cao độ ĐÃ ĐỊNH DẠNG, ví dụ "3,20 m". Vỏ dựng chuỗi này. */
   readonly elevationLabel: string;
   /** Diện tích ĐÃ ĐỊNH DẠNG, ví dụ "62,40 m²"; "—" khi tầng chưa có phòng nào. */

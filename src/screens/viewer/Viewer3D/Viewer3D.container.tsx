@@ -411,18 +411,17 @@ export function Viewer3DRoute() {
   if (id === undefined || id.length === 0) {
     return (
       <div className="p-6">
-        <InlineAlert
-          level="violation"
-          message={MISSING_PARAMS_MESSAGE}
-          title={MISSING_PARAMS_TITLE}
-        />
+        <InlineAlert level="violation" message={MISSING_PARAMS_MESSAGE} title={MISSING_PARAMS_TITLE} />
       </div>
     );
   }
 
+  // Khung `h-dvh`: không vỏ nào cấp chiều cao cho route (cùng gốc BUG-373, khuôn `MobileViewerRoute`).
   return (
-    <ProjectSpatialGate projectId={id} wrapFallbackInMain>
-      <Viewer3DContainer projectId={id} roles={session.roles} />
-    </ProjectSpatialGate>
+    <div className="h-dvh">
+      <ProjectSpatialGate projectId={id} wrapFallbackInMain>
+        <Viewer3DContainer projectId={id} roles={session.roles} />
+      </ProjectSpatialGate>
+    </div>
   );
 }

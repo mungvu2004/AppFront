@@ -54,6 +54,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Vector3 } from 'three';
 
 import { resolveUseMockApi } from '@/api/appClient';
+import { useBreakpoint } from '@/hooks/useAppShell';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSceneTransition } from '@/hooks/useSceneTransition';
 import { can } from '@/lib/auth/permissions';
@@ -109,6 +110,7 @@ import {
 } from './viewerShellShortcuts';
 import {
   clampSeparation,
+  storeyInlineName,
   stackedHeightMm,
   stackStoreys,
   type StackableStorey,
@@ -159,14 +161,8 @@ export function storeyShortLabel(name: string): string {
   return short === '' ? name : short.charAt(0).toLocaleUpperCase('vi') + short.slice(1);
 }
 
-/**
- * Tên tầng đặt GIỮA câu, một cách viết duy nhất: "Tầng trệt" → "tầng trệt",
- * "Tầng 1" → "tầng 1", "Mái" → "tầng Mái". Ghép thẳng `name` vào "Ẩn …" từng
- * cho "Ẩn Tầng trệt", còn ghép thêm "tầng" thì ra "tầng Tầng 1" (BUG-384).
- */
-export function storeyInlineName(name: string): string {
-  return /^tầng(\s|$)/iu.test(name) ? `t${name.slice(1)}` : `tầng ${name}`;
-}
+/** Mốc `md` của Tailwind — từ đây hai ray đứng dọc. */
+const MD_UP_QUERY = '(min-width: 768px)';
 
 /**
  * Sáu công cụ của ray trái, kèm phím của chúng. Không công cụ nào sửa mô hình — đo
@@ -174,11 +170,11 @@ export function storeyInlineName(name: string): string {
  */
 const VIEWER_TOOLS: readonly ViewerToolViewModel[] = Object.freeze([
   { id: 'orbit', label: 'Quay quanh mô hình', keyLabel: TOOL_COMBOS.orbit },
-  { id: 'pan', label: 'kéo màn', keyLabel: TOOL_COMBOS.pan },
-  { id: 'measure', label: 'đo', keyLabel: TOOL_COMBOS.measure },
-  { id: 'section', label: 'mặt cắt', keyLabel: TOOL_COMBOS.section },
-  { id: 'select', label: 'chọn', keyLabel: TOOL_COMBOS.select },
-  { id: 'isolate', label: 'cô lập', keyLabel: ISOLATE_COMBO },
+  { id: 'pan', label: 'Kéo màn', keyLabel: TOOL_COMBOS.pan },
+  { id: 'measure', label: 'Đo', keyLabel: TOOL_COMBOS.measure },
+  { id: 'section', label: 'Mặt cắt', keyLabel: TOOL_COMBOS.section },
+  { id: 'select', label: 'Chọn', keyLabel: TOOL_COMBOS.select },
+  { id: 'isolate', label: 'Cô lập', keyLabel: ISOLATE_COMBO },
 ]);
 
 /** Bốn góc nhìn của `Select` trên thanh trên. */
@@ -440,6 +436,8 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
   } = options;
 
   const reducedMotion = useReducedMotion();
+  // Dưới `md` hai ray nằm ngang (`ViewerToolRail`, `ViewerStoreyRail`): khai đúng hướng ấy.
+  const isMdUp = useBreakpoint(MD_UP_QUERY);
 
   /* ---- Dữ liệu ---------------------------------------------------------- */
 
@@ -1087,6 +1085,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     activePresetId,
     onPresetChange: goToPreset,
 
+    railOrientation: isMdUp ? 'vertical' : 'horizontal',
     tools: VIEWER_TOOLS,
     activeToolId,
     onToolChange: setActiveToolId,

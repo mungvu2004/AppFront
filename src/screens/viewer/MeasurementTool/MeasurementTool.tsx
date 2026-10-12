@@ -62,6 +62,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { Kbd } from '@/components/ui/Kbd';
 import { SegmentedControl, type SegmentedControlOption } from '@/components/ui/SegmentedControl';
 import { cn } from '@/lib/utils';
+import { VIEWER_LAYOUT } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 
 import { MeasurementOverlay } from './MeasurementOverlay';
 import { MeasurementSnapChip } from './MeasurementSnapChip';
@@ -156,11 +157,16 @@ export function MeasurementTool(props: MeasurementToolProps) {
         unitJustChanged={props.unitJustChanged}
       />
 
-      <div className="absolute left-1/2 top-3 flex w-full max-w-md -translate-x-1/2 flex-col items-center gap-2 px-3">
-        <div className={cn('pointer-events-auto p-1', FLOATING_SURFACE)}>
+      {/* Cột giữa chừa dải ViewCube góc trên phải (ô 72 + lề 8 + khe 8); bốn chế độ
+          đo rộng ~515 px nên khung hẹp thì xuống dòng thay vì tràn dưới ViewCube (BUG-375). */}
+      <div
+        className="absolute inset-x-0 top-3 flex flex-col items-center gap-2 pl-3"
+        style={{ paddingRight: VIEWER_LAYOUT.cubePx + 16 }}
+      >
+        <div className={cn('pointer-events-auto p-1', FLOATING_SURFACE, 'rounded-2xl')}>
           <SegmentedControl
             aria-label="Chọn chế độ đo"
-            className="rounded-full bg-transparent"
+            className="h-auto flex-wrap justify-center bg-transparent [&>button]:h-7"
             onChange={props.onModeChange}
             options={MODE_OPTIONS}
             value={props.mode}

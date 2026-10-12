@@ -216,6 +216,12 @@ describe('MeasurementTool — khả năng tiếp cận, tiếng Việt (R-72)', 
     expectVietnamese(container);
   });
 
+  it('ô chọn đơn vị viết hoa chữ đầu: "Đơn vị" (A6, BUG-376)', () => {
+    renderWithProviders(<MeasurementList {...measurementToolScenarioFor('ready')} />);
+
+    expect(screen.getByRole('combobox', { name: 'Đơn vị' })).toBeInTheDocument();
+  });
+
   it('mọi chuỗi hiển thị ở trạng thái đang đo cũng là tiếng Việt có dấu', () => {
     const { container } = renderWithProviders(<MeasurementTool {...measurementToolScenarioFor('measuring')} />);
 

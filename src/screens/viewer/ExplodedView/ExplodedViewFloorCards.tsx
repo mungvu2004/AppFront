@@ -131,8 +131,8 @@ export function ExplodedViewFloorCards({
               <button
                 aria-label={
                   floor.attentionCaption === null
-                    ? `Chọn tầng ${floor.name}, cao độ ${floor.elevationLabel}, diện tích ${floor.areaLabel}`
-                    : `Chọn tầng ${floor.name}, cao độ ${floor.elevationLabel}, diện tích ${floor.areaLabel}. ${floor.attentionCaption}`
+                    ? `Chọn ${floor.inlineName}, cao độ ${floor.elevationLabel}, diện tích ${floor.areaLabel}`
+                    : `Chọn ${floor.inlineName}, cao độ ${floor.elevationLabel}, diện tích ${floor.areaLabel}. ${floor.attentionCaption}`
                 }
                 className={cn(
                   'absolute inset-0',
@@ -170,7 +170,7 @@ export function ExplodedViewFloorCards({
 
               <div className="relative z-10 shrink-0 pointer-events-auto">
                 <IconButton
-                  aria-label={floor.isVisible ? `Ẩn tầng ${floor.name}` : `Hiện tầng ${floor.name}`}
+                  aria-label={floor.isVisible ? `Ẩn ${floor.inlineName}` : `Hiện ${floor.inlineName}`}
                   icon={
                     floor.isVisible ? (
                       <Eye aria-hidden="true" className="h-[16px] w-[16px]" />

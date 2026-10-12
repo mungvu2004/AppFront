@@ -73,6 +73,7 @@ export function ViewerShell(props: ViewerShellProps) {
     presets,
     activePresetId,
     onPresetChange,
+    railOrientation = 'vertical',
     tools,
     activeToolId,
     onToolChange,
@@ -82,6 +83,7 @@ export function ViewerShell(props: ViewerShellProps) {
     separation,
     onSeparationChange,
     separationLabel,
+    separationDisabled = false,
     frame,
     renderScene,
     sceneActions,
@@ -114,7 +116,7 @@ export function ViewerShell(props: ViewerShellProps) {
   return (
     <section
       aria-label={VIEWER_SHELL_LABEL}
-      className="flex h-full w-full flex-col overflow-y-auto overflow-x-hidden bg-bg-app lg:overflow-hidden"
+      className="relative flex h-full w-full flex-col overflow-y-auto overflow-x-hidden bg-bg-app lg:overflow-hidden"
     >
       <ViewerTopBar
         activePresetId={activePresetId}
@@ -135,13 +137,16 @@ export function ViewerShell(props: ViewerShellProps) {
             <ViewerToolRail
               activeToolId={activeToolId}
               onToolChange={onToolChange}
+              orientation={railOrientation}
               tools={tools}
             />
             <ViewerStoreyRail
               onSeparationChange={onSeparationChange}
               onStoreyActivate={onStoreyActivate}
               onStoreyVisibilityToggle={onStoreyVisibilityToggle}
+              orientation={railOrientation}
               separation={separation}
+              separationDisabled={separationDisabled}
               separationLabel={separationLabel}
               storeys={storeys}
             />
@@ -167,6 +172,7 @@ export function ViewerShell(props: ViewerShellProps) {
               <ViewerToolRail
                 activeToolId={activeToolId}
                 onToolChange={onToolChange}
+                orientation={railOrientation}
                 tools={tools}
               />
             </div>

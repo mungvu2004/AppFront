@@ -74,7 +74,6 @@ import { VIEWER_SCREEN_STATES } from './viewerShellScenarios';
 import {
   ALL_VIEWER_TOOLS,
   defaultViewerShellGateway,
-  storeyInlineName,
   storeyShortLabel,
   projectNameQueryKey,
   useViewerShell,
@@ -88,7 +87,7 @@ import {
   type ViewerScreenState,
 } from './viewerShellTypes';
 import { isClipped, sectionPlaneFor } from './viewerSectionPlane';
-import { stackStoreys, storeySpreadMm, type StackableStorey } from './viewerStoreyStack';
+import { stackStoreys, storeyInlineName, storeySpreadMm, type StackableStorey } from './viewerStoreyStack';
 
 /* -------------------------------------------------------------------------- */
 /* Bộ dựng.                                                                    */
@@ -175,9 +174,52 @@ describe('[VS-2] vai Người xem', () => {
       expect(button).not.toBeDisabled();
     }
 
-    expect(viewerRail.getByRole('button', { name: /^đo/u })).toBeInTheDocument();
+    expect(viewerRail.getByRole('button', { name: /^Đo/u })).toBeInTheDocument();
     /* B-V9-05: tên vai là danh từ chung, viết thường giữa câu. */
     expect(screen.getByText('Bạn đang xem ở vai người xem nên không sửa được mô hình.')).toBeInTheDocument();
+  });
+});
+
+describe('[BUG-385] khung nhìn giữ cử chỉ của nó khi vỏ cuộn được (dưới lg)', () => {
+  it('lăn chuột trên khung nhìn chặn cuộn trang; kéo ngón không bị cuộn nuốt', () => {
+    renderState('success');
+    const viewport = screen.getByRole('main', { name: 'Khung nhìn mô hình' });
+    const wheel = new WheelEvent('wheel', { cancelable: true, bubbles: true, deltaY: 100 });
+
+    viewport.dispatchEvent(wheel);
+
+    expect(wheel.defaultPrevented).toBe(true);
+    expect(viewport).toHaveClass('touch-none');
+  });
+});
+
+describe('[A11y] hướng của hai ray theo bố cục thật (QA-05)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function stubMdUp(matches: boolean): void {
+    vi.stubGlobal('matchMedia', (media: string) => ({
+      matches,
+      media,
+      addEventListener: (): void => undefined,
+      removeEventListener: (): void => undefined,
+    }));
+  }
+
+  it('dưới md hai ray nằm ngang nên khai "horizontal"; từ md trở lên khai "vertical"', () => {
+    stubMdUp(false);
+    const { unmount } = renderState('success');
+
+    expect(screen.getByRole('toolbar', { name: 'Công cụ khung nhìn' })).toHaveAttribute('aria-orientation', 'horizontal');
+    expect(screen.getByRole('listbox')).toHaveAttribute('aria-orientation', 'horizontal');
+    unmount();
+
+    stubMdUp(true);
+    renderState('success');
+
+    expect(screen.getByRole('toolbar', { name: 'Công cụ khung nhìn' })).toHaveAttribute('aria-orientation', 'vertical');
+    expect(screen.getByRole('listbox')).toHaveAttribute('aria-orientation', 'vertical');
   });
 });
 
@@ -298,6 +340,8 @@ describe('[VS-5] bộ mẫu', () => {
     expect(storeyInlineName('Tầng 1')).toBe('tầng 1');
     expect(storeyInlineName('Tầng')).toBe('tầng');
     expect(storeyInlineName('Mái')).toBe('tầng Mái');
+    expect(storeyInlineName('Tầng 1')).toBe('tầng 1');
+    expect(storeyInlineName('TẦNG 1')).toBe('tầng 1');
   });
 });
 
@@ -1123,6 +1167,20 @@ describe('[VS-16] một bức tường, một mã (B-V8-05)', () => {
       result.current.sceneActions.selectEntity(null, false);
       result.current.sceneActions.hoverEntity(null);
     });
+    unmount();
+  });
+
+  it('sáu nhãn ray công cụ viết hoa chữ đầu (A6, BUG-376)', () => {
+    const { result, unmount } = renderShellHook();
+
+    expect(result.current.tools.map((tool) => tool.label)).toEqual([
+      'Quay quanh mô hình',
+      'Kéo màn',
+      'Đo',
+      'Mặt cắt',
+      'Chọn',
+      'Cô lập',
+    ]);
     unmount();
   });
 

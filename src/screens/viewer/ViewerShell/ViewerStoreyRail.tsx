@@ -38,6 +38,8 @@ export interface ViewerStoreyRailProps {
   readonly separation: number;
   readonly onSeparationChange: (value: number) => void;
   readonly separationLabel: string;
+  readonly separationDisabled: boolean;
+  readonly orientation: 'horizontal' | 'vertical';
 }
 
 export function ViewerStoreyRail({
@@ -47,6 +49,8 @@ export function ViewerStoreyRail({
   separation,
   onSeparationChange,
   separationLabel,
+  separationDisabled,
+  orientation,
 }: ViewerStoreyRailProps) {
   return (
     <div
@@ -58,6 +62,7 @@ export function ViewerStoreyRail({
         className="flex w-full flex-col items-center gap-1 max-md:min-w-0 max-md:flex-1 max-md:flex-row max-md:overflow-x-auto"
         role="listbox"
         aria-multiselectable
+        aria-orientation={orientation}
       >
         {storeys.map((storey) => (
           <li className="w-full max-md:w-auto" key={storey.id}>
@@ -115,10 +120,11 @@ export function ViewerStoreyRail({
         <span className="text-[10px] leading-none text-text-muted">{separationLabel}</span>
         <input
           className={cn(
-            'h-24 w-6 cursor-pointer accent-accent [direction:rtl] [writing-mode:vertical-lr]',
+            'h-24 w-6 cursor-pointer accent-accent disabled:cursor-not-allowed disabled:opacity-50 [direction:rtl] [writing-mode:vertical-lr]',
             'max-md:h-6 max-md:w-24 max-md:[direction:ltr] max-md:[writing-mode:horizontal-tb]',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app',
           )}
+          disabled={separationDisabled}
           max={MAX_SEPARATION}
           min={MIN_SEPARATION}
           onChange={(event): void => {

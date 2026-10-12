@@ -130,7 +130,8 @@ const TabsTab = forwardRef<HTMLButtonElement, TabsTabProps>(
         onClick={() => onChange(id)}
         onKeyDown={handleKeyDown}
         className={cn(
-          'relative h-9 px-4 flex items-center justify-center gap-1.5 text-[14px] font-medium',
+          // 44 px dưới `sm` (vùng chạm), 36 px từ `sm` như cũ.
+          'relative h-11 sm:h-9 px-4 flex items-center justify-center gap-1.5 text-[14px] font-medium',
           'transition-colors duration-120 outline-none',
           'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 rounded-[4px]',
           isActive ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary',

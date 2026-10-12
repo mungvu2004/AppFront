@@ -322,6 +322,8 @@ export interface ViewerShellProps {
   readonly onPresetChange: (id: ViewerPresetId) => void;
 
   /* Ray công cụ. */
+  /** Hướng THẬT của hai ray: dưới `md` chúng nằm ngang (khai cho `aria-orientation`). */
+  readonly railOrientation?: 'horizontal' | 'vertical';
   readonly tools: readonly ViewerToolViewModel[];
   readonly activeToolId: ViewerToolId;
   readonly onToolChange: (id: ViewerToolId) => void;
@@ -333,6 +335,8 @@ export interface ViewerShellProps {
   readonly separation: number;
   readonly onSeparationChange: (value: number) => void;
   readonly separationLabel: string;
+  /** Màn không có gì để tách (vd tách tầng rỗng): thanh "Độ tách" tắt (BUG-389). */
+  readonly separationDisabled?: boolean;
 
   /* Khung nhìn. */
   readonly frame: ViewerSceneFrame;

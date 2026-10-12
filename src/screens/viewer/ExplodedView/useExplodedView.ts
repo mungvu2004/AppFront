@@ -90,6 +90,7 @@ import { BUILDING_MESSAGE } from '@/screens/viewer/ViewerShell/useViewerShell';
 import {
   MAX_SEPARATION,
   MIN_SEPARATION,
+  storeyInlineName,
 } from '@/screens/viewer/ViewerShell/viewerStoreyStack';
 import type {
   ViewerSceneFrame,
@@ -268,6 +269,7 @@ function floorsOf(
     return {
       id: probe.id,
       name: shell?.name ?? probe.name,
+      inlineName: shell?.inlineName ?? storeyInlineName(probe.name),
       // Chuỗi cao độ của VỎ, không một định dạng thứ hai: `useViewerShell` đã gọi
       // `formatLength(…, { unit: 'm' })` và hai bản sẽ lệch nhau vào đúng lúc
       // không ai nhìn.
@@ -932,6 +934,7 @@ export function useExplodedView(options: UseExplodedViewScreenOptions): ViewerSh
   return {
     ...shell,
     state,
+    separationDisabled: state === 'empty',
     status: state === 'loading' ? { ...shell.status, liveMessage: BUILDING_MESSAGE } : shell.status,
   };
 }
