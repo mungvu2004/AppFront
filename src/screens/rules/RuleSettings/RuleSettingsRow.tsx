@@ -54,7 +54,7 @@ interface SeverityPickerProps {
 function SeverityPicker({ ruleSentence, value, canEdit, onChange }: SeverityPickerProps) {
   if (!canEdit) {
     return (
-      <span className="w-[128px] shrink-0 text-sm text-text-secondary">{SEVERITY_LABELS[value]}</span>
+      <span className="w-40 shrink-0 text-sm text-text-secondary">{SEVERITY_LABELS[value]}</span>
     );
   }
 
@@ -65,7 +65,7 @@ function SeverityPicker({ ruleSentence, value, canEdit, onChange }: SeverityPick
         onChange(next as RuleSeverity);
       }}
       options={SEVERITY_OPTIONS.map((option) => ({ ...option }))}
-      className="w-[128px] shrink-0"
+      className="w-40 shrink-0"
     >
       <Select.Label className="sr-only">{`Mức độ của luật: ${ruleSentence}`}</Select.Label>
       <Select.Trigger options={SEVERITY_OPTIONS.map((option) => ({ ...option }))} />
@@ -118,7 +118,12 @@ export interface RuleSettingsRuleRowProps {
   readonly onChangeThreshold: (code: RuleCode, key: string, value: number) => void;
 }
 
-/** Một dòng luật — cao 56 từ 1024 trở lên, xuống dòng dưới tên luật khi thu gọn. */
+/**
+ * Một dòng luật — cao 56 từ 1024 trở lên. Tên và mô tả xuống dòng chứ không cắt;
+ * ô ngưỡng nằm trên dòng riêng dưới tên luật (tới năm ô — chung một dòng với tên
+ * thì chúng ăn hết chỗ của tên, BUG-439); số đối tượng bị ảnh hưởng là một dòng chữ
+ * dưới mô tả. Thu gọn thì ô mức độ cũng xuống dòng dưới tên.
+ */
 export function RuleSettingsRuleRow({
   row,
   canEdit,
@@ -131,10 +136,10 @@ export function RuleSettingsRuleRow({
   return (
     <div
       className={cn(
-        'flex items-center gap-3 border-b border-border-default py-3 last:border-b-0',
+        'flex flex-wrap items-center gap-3 border-b border-border-default py-3 last:border-b-0',
         'transition-opacity duration-standard',
         !row.enabled && 'opacity-40',
-        isCollapsed ? 'flex-wrap' : 'min-h-[56px]',
+        !isCollapsed && 'min-h-[56px]',
       )}
     >
       <Toggle
@@ -147,8 +152,9 @@ export function RuleSettingsRuleRow({
       />
 
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p className="truncate text-sm text-text-primary">{row.sentence}</p>
-        <p className="truncate text-xs text-text-secondary">{row.description}</p>
+        <p className="text-sm text-text-primary">{row.sentence}</p>
+        <p className="text-xs text-text-secondary">{row.description}</p>
+        <p className="text-xs text-text-secondary">{row.impactCaption}</p>
         {row.supersededBy !== null && (
           <p className="text-xs text-state-attention-text">
             Đã được thay thế bởi {supersededByLabel ?? row.supersededBy}
@@ -156,12 +162,7 @@ export function RuleSettingsRuleRow({
         )}
       </div>
 
-      <div
-        className={cn(
-          'flex shrink-0 flex-wrap items-center gap-2',
-          isCollapsed && 'basis-full justify-end pl-11',
-        )}
-      >
+      <div className={cn('shrink-0', isCollapsed && 'basis-full pl-11')}>
         <SeverityPicker
           ruleSentence={row.sentence}
           value={row.severity}
@@ -170,18 +171,22 @@ export function RuleSettingsRuleRow({
             onChangeSeverity(row.code, severity);
           }}
         />
-        {row.thresholds.map((threshold) => (
-          <ThresholdField
-            key={threshold.key}
-            threshold={threshold}
-            canEdit={canEdit}
-            onChange={(value) => {
-              onChangeThreshold(row.code, threshold.key, value);
-            }}
-          />
-        ))}
-        <span className="whitespace-nowrap text-xs text-text-secondary">{row.impactCaption}</span>
       </div>
+
+      {row.thresholds.length > 0 && (
+        <div className="flex basis-full flex-wrap items-center gap-2 pl-11">
+          {row.thresholds.map((threshold) => (
+            <ThresholdField
+              key={threshold.key}
+              threshold={threshold}
+              canEdit={canEdit}
+              onChange={(value) => {
+                onChangeThreshold(row.code, threshold.key, value);
+              }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
