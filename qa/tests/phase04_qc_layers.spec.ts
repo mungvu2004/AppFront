@@ -854,7 +854,7 @@ test.describe('SCR-17 Object Layer Review', () => {
     await captureEvidence(page, '17_objects_filter.png');
   });
 
-  test('SCR-17 edit: "Duyệt đối tượng này"; "hướng mở" → mở trái; "Loại đối tượng" → PUT per change', async () => {
+  test('SCR-17 edit: "Duyệt đối tượng này"; "Hướng mở" → "Mở trái"; "Loại đối tượng" → PUT per change', async () => {
     await openObjects();
     if (objectCount === 0) {
       await captureEvidence(page, '17_objects_edit.png');
@@ -892,12 +892,12 @@ test.describe('SCR-17 Object Layer Review', () => {
 
     // Swing first, while the opening is still a door (`buildChangeObjectSwingCommand`); windows are skipped.
     if (isDoor) {
-      const left = objectInspector().getByRole('radio', { name: 'mở trái', exact: true });
+      const left = objectInspector().getByRole('radio', { name: 'Mở trái', exact: true }); // ObjectLayerInspector.tsx:160-161 (A6, BUG-399)
       const swing = (await left.isChecked())
-        ? objectInspector().getByRole('radio', { name: 'mở phải', exact: true })
+        ? objectInspector().getByRole('radio', { name: 'Mở phải', exact: true })
         : left;
 
-      if (swing !== left) test.info().annotations.push({ type: 'branch', description: 'already "mở trái": set "mở phải"' });
+      if (swing !== left) test.info().annotations.push({ type: 'branch', description: 'already "Mở trái": set "Mở phải"' });
       const put = waitForLayerPut();
 
       await pressSpaceOn(swing);
@@ -933,30 +933,11 @@ test.describe('SCR-17 Object Layer Review', () => {
     // counted, not looked up by code.
     const total = await objectOptions().count();
 
-    // BUG-424 (run-26): the symbol's centre lay under the frame "Mặt bằng lớp đối tượng" (no drawing, so nothing fits the
-    // view to the layer) and the right-click retried for the whole 30 s action timeout. The menu is the ONLY delete path for
-    // objects (no key, no inspector button), so: a real right-click when the point is hittable within 5 s, else the same
-    // `contextmenu` event dispatched on the symbol (`ObjectLayerCanvas.tsx` onContextMenu → openMenu at clientX/Y), at the
-    // frame centre so the menu opens on screen. The fallback is recorded as an annotation, never silent.
-    const reachable = await symbol.click({ button: 'right', trial: true, timeout: QUICK_ACTION_TIMEOUT_MS }).then(
-      () => true,
-      () => false,
-    );
-    if (reachable) {
-      await symbol.click({ button: 'right', timeout: QUICK_ACTION_TIMEOUT_MS });
-    } else {
-      const frame = await page.getByRole('group', { name: 'Mặt bằng lớp đối tượng', exact: true }).boundingBox();
-      if (frame === null) throw new Error('object canvas frame has no bounding box');
-      test.info().annotations.push({
-        type: 'branch',
-        description: `${code}: symbol centre not hittable (canvas frame on top); contextmenu dispatched on the <g>`,
-      });
-      await symbol.dispatchEvent(
-        'contextmenu',
-        { button: 2, clientX: frame.x + frame.width / 2, clientY: frame.y + frame.height / 2 },
-        { timeout: QUICK_ACTION_TIMEOUT_MS },
-      );
-    }
+    // BUG-424 (run-26): the symbol's centre lay under the frame "Mặt bằng lớp đối tượng" and the right-click retried for the
+    // whole 30 s action timeout. FIX-1800 fits the object canvas to the layer (`ObjectLayerCanvas.tsx` svg viewBox), so the
+    // symbol is on screen. The menu is the ONLY delete path for objects (no key, no inspector button): a REAL right-click
+    // (`ObjectLayerCanvas.tsx:124` onContextMenu), 5 s, and the case fails when the symbol is unreachable — that is a user bug.
+    await symbol.click({ button: 'right', timeout: QUICK_ACTION_TIMEOUT_MS });
     await page.getByRole('menuitem', { name: 'Xoá', exact: true }).click({ timeout: QUICK_ACTION_TIMEOUT_MS });
     await expect(objectOptions()).toHaveCount(total - 1);
 

@@ -130,8 +130,10 @@ const OBJ = {
   emptyTitle: 'Chưa nhận ra đối tượng nào', // OV:67, OG:1250
   emptyExplanation:
     'Nhận diện nội thất phụ thuộc kiểu vẽ của bản gốc, nên bản vẽ ít ký hiệu quy ước có thể không ra kết quả nào.', // OG:1251-1252
-  addManually: 'Thêm thủ công', // OV:68
-  addNoWall: 'Tầng này chưa có đoạn tường nào để đặt đối tượng mới lên.', // OG:1261
+  addManually: 'Thêm thủ công', // OV:69 (floor with at least one wall)
+  emptyNoWall:
+    'Tầng này chưa có đoạn tường nào, nên chưa có chỗ đặt cửa hay cửa sổ. Duyệt lớp tường trước rồi quay lại đây.', // OG:1262-1263 (FIX-1812)
+  openWallLayer: 'Sang duyệt tường', // OV:70, OV:97-99 (replaces "Thêm thủ công" when the floor has no wall)
   approve: 'Duyệt đối tượng này', // OI:184
   inspectorEmpty: 'Chọn một đối tượng trên bản vẽ hoặc trong danh sách để xem chi tiết.', // OI:185
 } as const;
@@ -218,7 +220,8 @@ const SCALE = {
 } as const;
 const OVERLAY = {
   screen: 'Màn đối chiếu bản vẽ', // VV:74
-  readError: 'Không đọc được ảnh bản vẽ gốc của tầng này.', // UV:111
+  noDrawing: 'Tầng này chưa có bản vẽ nào nên chưa có gì để đối chiếu. Tải bản vẽ lên rồi quay lại đây.', // UV:119 (BUG-420)
+  toUpload: 'Tải bản vẽ lên', // VV:80
   toScale: 'Sang màn hiệu chỉnh tỷ lệ', // VV:78
   modes: 'Kiểu đối chiếu', // VT:59
   sideBySide: 'Cạnh nhau', // V/types.ts:153
@@ -921,20 +924,21 @@ function doorAndWindow(ids: { wall: string; door: string; window: string }): Lay
 }
 
 test.describe('E04 SCR-17 object layer review', () => {
-  test('E04 · SCR-17 no wall, no object → empty state; "Thêm thủ công" → "Tầng này chưa có đoạn tường nào…" toast, no write', async ({ browser }) => {
+  test('E04 · SCR-17 no wall, no object → "Tầng này chưa có đoạn tường nào…" empty state; "Sang duyệt tường" → walls screen, no write', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page, api } = admin;
       const project = await createProject(admin, 'obj-empty');
       await openObjects(page, project);
-      await expect(page.getByText(OBJ.emptyTitle, { exact: true })).toBeVisible(); // OV:83-90
-      // UO:1294 emptyNotice; shown by the list EmptyState (OV:83-90) and the status bar (ObjectLayerStatusBar.tsx).
-      await expect(page.getByText(OBJ.emptyExplanation, { exact: true }).first()).toBeVisible();
+      await expect(page.getByText(OBJ.emptyTitle, { exact: true })).toBeVisible(); // OV:94-105
+      // UO:1380-1384 emptyNotice = emptyNoWall (hasNoWall, UO:1337); shown by the list EmptyState and the status bar.
+      await expect(page.getByText(OBJ.emptyNoWall, { exact: true }).first()).toBeVisible();
+      // UO:1450-1453 onOpenWallLayer is set, so the EmptyState action is the wall-layer exit, not "Thêm thủ công".
+      await expect(page.getByRole('button', { name: OBJ.addManually, exact: true })).toHaveCount(0);
       const mark = api.length;
-      await page.getByRole('button', { name: OBJ.addManually, exact: true }).click();
-      // UO:946-962: no wall to host a door → notification bus publishes addNoWall.
-      await expect(toastsRegion(page).getByText(OBJ.addNoWall)).toBeVisible();
+      await page.getByRole('button', { name: OBJ.openWallLayer, exact: true }).click();
+      await expect.poll(() => pathOf(page)).toBe(ROUTES.project.walls(project.id, project.floor.id));
       await quiet(page);
-      expect(writesSince(api, mark), '"Thêm thủ công" without a wall writes nothing').toEqual([]);
+      expect(writesSince(api, mark), '"Sang duyệt tường" writes nothing').toEqual([]);
       await captureEvidence(page, 'E04_objects_add_no_wall.png');
     });
   });
@@ -1172,18 +1176,19 @@ test.describe('E04 SCR-20 room label review', () => {
       await page.getByRole('button', { name: ROOM.normalize, exact: true }).click();
       const dialog = page.getByRole('dialog', { name: ROOM.normalizeDialog, exact: true });
       await expect(dialog).toBeVisible();
-      // RG canonicalRoomName: key "phong ngu" → ROOM_USAGE_LABELS.bedroom "phòng ngủ" (domain/rules/registry.ts:423) + ordinal.
-      await expect(dialog.getByText('phòng ngủ 2', { exact: true })).toBeVisible();
+      // RG:1067-1083 canonicalRoomName: key "phong ngu" → ROOM_NAME_TARGETS (RG:1021, sentenceCase of
+      // ROOM_USAGE_LABELS.bedroom) "Phòng ngủ" + ordinal.
+      await expect(dialog.getByText('Phòng ngủ 2', { exact: true })).toBeVisible();
       await expect(dialog.getByText('PHONG NGU 2', { exact: true })).toBeVisible();
       await captureEvidence(page, 'E04_rooms_normalize_preview.png');
 
       const put = waitForLayerPut(page, project, (body) =>
-        arrayOf(asRecord(body.layer, 'layer').rooms, 'rooms').some((room) => room.name === 'phòng ngủ 2'),
+        arrayOf(asRecord(body.layer, 'layer').rooms, 'rooms').some((room) => room.name === 'Phòng ngủ 2'),
       );
       await dialog.getByRole('button', { name: ROOM.apply, exact: true }).click();
       expect((await put).response.status(), 'normalize PUT').toBe(200);
       await expect(dialog).toHaveCount(0);
-      await expect(roomOptions(page).first()).toHaveAccessibleName(/ · phòng ngủ 2 · /u); // RoomLabelList.tsx:70
+      await expect(roomOptions(page).first()).toHaveAccessibleName(/ · Phòng ngủ 2 · /u); // RoomLabelList.tsx:70
       await captureEvidence(page, 'E04_rooms_normalize_applied.png');
     });
   });
@@ -1463,16 +1468,18 @@ test.describe('E04 SCR-14 scale calibration', () => {
 /* ================================================================= SCR-22 overlay comparison */
 
 test.describe('E04 SCR-22 overlay comparison', () => {
-  test('E04 · SCR-22 floor without drawing → "Không đọc được ảnh bản vẽ gốc…", no scale link, confirm disabled, no write', async ({ browser }) => {
+  test('E04 · SCR-22 floor without drawing → "Tầng này chưa có bản vẽ nào…" + "Tải bản vẽ lên" link, no scale link, confirm disabled, no write', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page, api } = admin;
       const project = await createProject(admin, 'overlay-nodrawing');
       const mark = api.length;
       await page.goto(ROUTES.project.overlay(project.id, project.floor.id));
       await expect(page.getByRole('region', { name: OVERLAY.screen, exact: true })).toBeVisible();
-      // VG:356-369 no floor in the assess list → error; UV:584-586,757-762 errorReadNotice (VV:156-163, a plain div + alert);
-      // UV:811-817 no fix link.
-      await expect(page.getByRole('alert').filter({ hasText: OVERLAY.readError })).toBeVisible();
+      // The floor is absent from the scan read → state `empty`, activeScan null → noDrawingNotice (UV:775-781), shown by an
+      // `attention` InlineAlert (VV:100,170-171; InlineAlert.tsx:44 role="alert") with the upload link (UV:839-841, VV:182-186).
+      await expect(page.getByRole('alert').filter({ hasText: OVERLAY.noDrawing })).toBeVisible();
+      await expect(page.getByRole('link', { name: OVERLAY.toUpload, exact: true })).toHaveAttribute('href', ROUTES.project.upload(project.id));
+      // UV:826-837 scaleFixHref only in `error` state (VV:177): no scale link.
       await expect(page.getByRole('link', { name: OVERLAY.toScale })).toHaveCount(0);
       // UV:881-891: no measurement (VG:338-343 deviationRegions/matchMetrics unsupported) → canConfirm false.
       await expect(page.getByRole('button', { name: OVERLAY.confirm, exact: true })).toBeDisabled();

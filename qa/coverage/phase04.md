@@ -90,7 +90,7 @@ Path short names: `W/` = `src/screens/qc/WallLayerReview/`, `O/` = `…/ObjectLa
 | 58 | List | orphan badge "Chưa gắn vào tường nào" + "Gắn vào tường gần nhất" | `O/ObjectLayerList.tsx:48-49`, `O/ObjectLayerInspector.tsx:180,183` | — | gap (orphan opening is a critical integrity issue on #35 — BE:integrity.py:55 — so not seedable; furniture "Đứng tự do" only) |
 | 59 | Inspector | "Duyệt đối tượng này" → PUT | `O/ObjectLayerInspector.tsx:184`, `O/useObjectLayerReview.ts:755-773` | M SCR-17 edit | covered |
 | 60 | Edge | Double click approve → one PUT, disabled | `O/useObjectLayerReview.ts:759` | E "SCR-17 double click …" | covered |
-| 61 | Inspector | "hướng mở" radios mở trái / mở phải / hai cánh / Trượt | `O/ObjectLayerInspector.tsx:160-163,178` | M SCR-17 edit | covered |
+| 61 | Inspector | "Hướng mở" radios Mở trái / Mở phải / Hai cánh / Trượt | `O/ObjectLayerInspector.tsx:160-163,178` | M SCR-17 edit | covered |
 | 62 | Inspector | combobox "Loại đối tượng" | `O/ObjectLayerInspector.tsx:172` | M SCR-17 edit | covered |
 | 63 | Inspector | position slider "Vị trí trên tường", host wall link "Tường chứa nó" | `O/ObjectLayerInspector.tsx:176-177`, `O/useObjectLayerReview.ts:777-800` | — | gap (P2) |
 | 64 | Inspector | empty prompt "Chọn một đối tượng…" | `O/ObjectLayerInspector.tsx:185` | E "SCR-17 double click … Esc" | covered |
@@ -100,8 +100,8 @@ Path short names: `W/` = `src/screens/qc/WallLayerReview/`, `O/` = `…/ObjectLa
 | 68 | Canvas | right-click `g[aria-label=code]` → "Xoá", status bar "Hoàn tác" | `O/ObjectLayerStatusBar.tsx:34`, `O/objectLayerReviewGateway.ts:1183` | M SCR-17 delete + undo | covered |
 | 69 | Status bar | "Thu gọn hai panel" / "Mở lại hai panel" | `O/ObjectLayerStatusBar.tsx:35-36` | — | gap (P3) |
 | 70 | Filter | partial "Chỉ hiện mục dưới ngưỡng" (low-confidence preset) | `O/ObjectLayerReview.tsx:69,100-123`, `O/objectLayerReviewGateway.ts:1240` | — | gap (needs a pipeline partial result) |
-| 71 | State | empty "Chưa nhận ra đối tượng nào" + explanation + "Thêm thủ công" | `O/ObjectLayerReview.tsx:67-68,83-90`, `O/useObjectLayerReview.ts:1294` | M SCR-17 filter (skip branch), E "SCR-17 no wall, no object" | covered |
-| 72 | Action | "Thêm thủ công" with no wall → toast "Tầng này chưa có đoạn tường nào…" | `O/useObjectLayerReview.ts:946-962`, `O/objectLayerReviewGateway.ts:1261` | E "SCR-17 no wall, no object" | covered |
+| 71 | State | empty "Chưa nhận ra đối tượng nào" + explanation (floor with walls) / "Tầng này chưa có đoạn tường nào…" (no wall) | `O/ObjectLayerReview.tsx:68,94-105`, `O/useObjectLayerReview.ts:1380-1384`, `O/objectLayerReviewGateway.ts:1251-1252,1262-1263` | M SCR-17 filter (skip branch), E "SCR-17 no wall, no object" | covered |
+| 72 | Action | no wall: "Sang duyệt tường" replaces "Thêm thủ công" → walls screen, no write (FIX-1812; the `addNoWall` toast is unreachable on the route, which always passes `onNavigate`) | `O/ObjectLayerReview.tsx:70,97-99`, `O/useObjectLayerReview.ts:1450-1453` | E "SCR-17 no wall, no object" | covered |
 | 73 | Action | "Thêm thủ công" with a wall → door added (PUT) | `O/useObjectLayerReview.ts:953-980` | E "SCR-17 one wall, no object" | covered |
 | 74 | Action | "Thêm thủ công" refused (domain reasons) "Không thêm được đối tượng vào tường." | `O/useObjectLayerReview.ts:968-976`, `O/objectLayerReviewGateway.ts:1262` | — | gap (P3) |
 | 75 | State | loading skeleton, error "Không tải được lớp đối tượng của tầng." | `O/ObjectLayerReview.tsx:73-98`, `O/objectLayerReviewGateway.ts:1258` | — | gap (P3; same read path as #47-49) |
@@ -158,7 +158,7 @@ Path short names: `W/` = `src/screens/qc/WallLayerReview/`, `O/` = `…/ObjectLa
 | 111 | Select | "Công năng" | `R/RoomLabelInspector.tsx:83` | M SCR-20 edit | covered |
 | 112 | Button | "Duyệt phòng này" | `R/RoomLabelInspector.tsx:85,159` | M SCR-20 edit | covered |
 | 113 | Modal | "Chuẩn hoá tên" → "Xem trước chuẩn hoá tên", Huỷ / Đóng | `R/RoomLabelNormalizePreview.tsx:35-46` | M SCR-20 modals | covered |
-| 114 | Modal | normalize preview "Áp dụng" → PUT canonical name ("phòng ngủ 2") | `R/roomLabelReviewGateway.ts:1009-1066`, `domain/rules/registry.ts:421-430` | E "SCR-20 Chuẩn hoá tên …" | covered |
+| 114 | Modal | normalize preview "Áp dụng" → PUT canonical name ("Phòng ngủ 2", sentence case, BUG-409) | `R/roomLabelReviewGateway.ts:1021,1067-1083`, `domain/rules/registry.ts:421-430` | E "SCR-20 Chuẩn hoá tên …" | covered |
 | 115 | Modal | "Gộp phòng" → "Gộp hai phòng", Huỷ | `R/RoomLabelActionDialogs.tsx:25-30` | M SCR-20 modals | covered |
 | 116 | Modal | single room → "Không còn phòng nào khác ở tầng này để gộp.", Esc closes | `R/RoomLabelActionDialogs.tsx:28` | E "SCR-20 Gộp phòng with a single room" | covered |
 | 117 | Modal | merge / split refusals "Chưa gộp được: …", "Chưa tách được: …" | `R/roomLabelReviewGateway.ts:232-241` | — | gap (P2; needs a dividing wall geometry) |
@@ -227,7 +227,7 @@ Path short names: `W/` = `src/screens/qc/WallLayerReview/`, `O/` = `…/ObjectLa
 | 165 | Layout | < 1280 px → collapsed, "Cạnh nhau — Khung quá hẹp…" disabled | `V/useOverlayComparison.ts:122,165,362,830-833` | E "SCR-22 viewport 1024 …" | covered |
 | 166 | Button | "Xác nhận mô hình khớp bản vẽ" disabled (no measurement source) | `V/useOverlayComparison.ts:104,881-891`, `V/overlayComparisonGateway.ts:338-343` | E "SCR-22 floor without drawing …" | covered |
 | 167 | Panel | metrics Sai số trung bình / lớn nhất / số vùng vượt ngưỡng, "Dung sai", "Chưa đo được vùng lệch nào." | `V/OverlayComparisonPanel.tsx:49-56,115-125`, `V/useOverlayComparison.ts:118-120` | M SCR-22 swipe (sentence) | covered |
-| 168 | State | error read "Không đọc được ảnh bản vẽ gốc của tầng này.", no fix link | `V/overlayComparisonGateway.ts:356-369`, `V/useOverlayComparison.ts:111,757-762,811-817` | E "SCR-22 floor without drawing …" | covered |
+| 168 | State | floor without drawing: `empty` notice "Tầng này chưa có bản vẽ nào nên chưa có gì để đối chiếu. Tải bản vẽ lên rồi quay lại đây." + link "Tải bản vẽ lên", no scale link (BUG-420; the `error` read notice "Không đọc được ảnh bản vẽ gốc…" needs a failing scan read) | `V/useOverlayComparison.ts:119,775-781,826-841`, `V/OverlayComparison.tsx:80,170-186` | E "SCR-22 floor without drawing …", U `U04_overlay_no_drawing` | covered |
 | 169 | State | error frame / scale conflict + link "Sang màn hiệu chỉnh tỷ lệ" | `V/useOverlayComparison.ts:110,112,811-822`, `V/OverlayComparison.tsx:78,168-171` | — | gap (pipeline data) |
 | 170 | State | empty CAD "Tầng này nhập từ CAD…", no floor "Dự án này chưa có tầng nào…" | `V/useOverlayComparison.ts:109,121,765-767` | — | gap (CAD branch unreachable, plan F-07) |
 | 171 | State | forbidden "Bạn chỉ được xem…", read-only notice | `V/useOverlayComparison.ts:113`, `V/OverlayComparisonToolbar.tsx:62` | — | gap (R9 does not open SCR-22) |

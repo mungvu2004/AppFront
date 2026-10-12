@@ -21,7 +21,7 @@
  *     `…/spatial/layer` answers an empty document (BE apps/api/spatial_read/router.py:71-86 `empty_document`), so every
  *     screen shows its empty state there — with the long names in floor nav / floor select. Scale and overlay read the
  *     floor's drawing, which it lacks: scale shows its `error` notice (no drawing yet, BUG-337 — useScaleCalibration.ts:1517-1522,
- *     no machine code), overlay "Không đọc được ảnh bản vẽ gốc…".
+ *     no machine code), overlay "Tầng này chưa có bản vẽ nào…" + "Tải bản vẽ lên" (BUG-420, useOverlayComparison.ts:119,781,839-841).
  *
  * Budget — logins: 4 real admin API logins (`signedInApi`: the empty-project group + the three drawing describes; again
  * for a group re-entered after a failed test, which starts a new worker); a browser login only to replace a dead stored
@@ -80,7 +80,8 @@ const FLOOR_NAV = 'Tầng của bản vẽ';
 const OBJECTS_SCREEN = 'Lớp đối tượng';
 const OBJECT_LIST = 'Danh sách đối tượng';
 const OBJECTS_EMPTY_TITLE = 'Chưa nhận ra đối tượng nào';
-const OBJECTS_EMPTY_ACTION = 'Thêm thủ công';
+/** The empty project's floor has no wall (see U04_walls_empty), so the EmptyState action is the wall-layer exit: ObjectLayerReview.tsx:70,97-99 (FIX-1812). */
+const OBJECTS_EMPTY_ACTION = 'Sang duyệt tường';
 const APPROVE_OBJECT = 'Duyệt đối tượng này';
 const OBJECT_FILTER = 'Lọc theo loại';
 /* SCR-18: dimensionOcrText.ts. */
@@ -134,8 +135,12 @@ const OVERLAY_TOOLBAR = 'Thanh công cụ đối chiếu bản vẽ';
 const OVERLAY_PANEL = 'Kết quả đối chiếu bản vẽ và mô hình';
 const OVERLAY_LOADING = 'Đang tải ảnh bản vẽ gốc.';
 const OVERLAY_NO_SCAN = 'Tầng này nhập từ CAD nên không có ảnh bản vẽ gốc để đối chiếu.'; // useOverlayComparison.ts:109,766
-/** A floor with no drawing: the scan read fails → state `error` (useOverlayComparison.ts:111,584,762). */
+/** The scan read itself failed → state `error` (useOverlayComparison.ts:112,772). */
 const OVERLAY_READ_FAILED = 'Không đọc được ảnh bản vẽ gốc của tầng này.';
+/** A floor with no drawing (absent from the scan read) → state `empty`, activeScan null (useOverlayComparison.ts:119,781). */
+const OVERLAY_NO_DRAWING = 'Tầng này chưa có bản vẽ nào nên chưa có gì để đối chiếu. Tải bản vẽ lên rồi quay lại đây.';
+/** Its exit to the upload screen (OverlayComparison.tsx:80,182-186; useOverlayComparison.ts:839-841). */
+const OVERLAY_UPLOAD_LINK = 'Tải bản vẽ lên';
 const OVERLAY_MODES = 'Kiểu đối chiếu';
 const OVERLAY_SWIPE = 'Trượt';
 const OVERLAY_DIVIDER = 'Đường chia đôi, dùng phím mũi tên trái và phải để dịch';
@@ -395,7 +400,12 @@ async function openOverlayData(page: Page, floor: Floor): Promise<void> {
   await expect(page.getByRole('toolbar', { name: OVERLAY_TOOLBAR, exact: true })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(OVERLAY_LOADING, { exact: true })).toHaveCount(0, { timeout: 15_000 });
   test.skip(
-    await page.getByText(OVERLAY_NO_SCAN, { exact: true }).or(page.getByText(OVERLAY_READ_FAILED, { exact: true })).first().isVisible(),
+    await page
+      .getByText(OVERLAY_NO_SCAN, { exact: true })
+      .or(page.getByText(OVERLAY_READ_FAILED, { exact: true }))
+      .or(page.getByText(OVERLAY_NO_DRAWING, { exact: true }))
+      .first()
+      .isVisible(),
     'data: no readable source scan on the drawing floor after its run; the no-drawing state is U04_overlay_no_drawing',
   );
   await expect(page.getByRole('region', { name: OVERLAY_PANEL, exact: true })).toBeVisible();
@@ -741,11 +751,15 @@ test.describe('U04 UI verify — empty floor, 80-char project + 65-char floor na
     });
   });
 
-  test('U04 · SCR-22 overlay, no drawing → read-failed notice + long floor name', async ({ browser }) => {
+  test('U04 · SCR-22 overlay, no drawing → no-drawing notice + upload link + long floor name', async ({ browser }) => {
     await verifyAsAdmin(browser, 'U04_overlay_no_drawing', async (p) => {
       await p.goto(ROUTES.project.overlay(own().projectId, own().floorId));
       await expect(p.getByRole('region', { name: OVERLAY_SCREEN, exact: true })).toBeVisible({ timeout: 15_000 });
-      await expect(p.getByText(OVERLAY_READ_FAILED, { exact: true })).toBeVisible({ timeout: 15_000 });
+      await expect(p.getByText(OVERLAY_NO_DRAWING, { exact: true })).toBeVisible({ timeout: 15_000 });
+      await expect(p.getByRole('link', { name: OVERLAY_UPLOAD_LINK, exact: true })).toHaveAttribute(
+        'href',
+        ROUTES.project.upload(own().projectId),
+      );
     });
   });
 });
