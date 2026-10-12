@@ -26,6 +26,7 @@ import { useViewer } from '@pascal-app/viewer'
 import { Trash2 } from 'lucide-react'
 import { useCallback } from 'react'
 import { Vector3 } from 'three'
+import { vi } from '../i18n/vi'
 
 const cn = (...classes: Array<string | false | undefined | null>): string =>
   classes.filter(Boolean).join(' ')
@@ -264,7 +265,7 @@ export default function SkylightPanel() {
       title={node.name || 'Skylight'}
       width={300}
     >
-      <PanelSection title="Type">
+      <PanelSection title={vi.common.type}>
         <div className="grid grid-cols-2 gap-2 px-1 pt-1">
           {SKYLIGHT_TYPE_ORDER.map((skylightType) => {
             const isSelected = activeSkylightType === skylightType
@@ -288,7 +289,7 @@ export default function SkylightPanel() {
           })}
         </div>
         <SliderControl
-          label="Glass Thickness"
+          label={vi.common.glassThickness}
           max={0.05}
           min={0.002}
           onChange={(v) => previewProp({ glassThickness: v })}
@@ -302,7 +303,7 @@ export default function SkylightPanel() {
         {activeSkylightType === 'lantern' && (
           <>
             <SliderControl
-              label="Lantern Height"
+              label={vi.common.lanternHeight}
               max={1.0}
               min={0.05}
               onChange={(v) => previewProp({ lanternHeight: v })}
@@ -314,7 +315,7 @@ export default function SkylightPanel() {
               value={node.lanternHeight ?? 0.25}
             />
             <SliderControl
-              label="Top Scale"
+              label={vi.common.topScale}
               max={0.95}
               min={0}
               onChange={(v) => previewProp({ lanternTopScale: v })}
@@ -330,7 +331,7 @@ export default function SkylightPanel() {
         {activeSkylightType === 'opening' && (
           <>
             <SliderControl
-              label="Open"
+              label={vi.common.open}
               max={1}
               min={0}
               onChange={(v) => previewProp({ operationState: v })}
@@ -342,7 +343,7 @@ export default function SkylightPanel() {
               value={Math.round((node.operationState ?? 0) * 100) / 100}
             />
             <SliderControl
-              label="Opening Angle"
+              label={vi.common.openingAngle}
               max={80}
               min={0}
               onChange={(deg) => previewProp({ openingAngle: (deg * Math.PI) / 180 })}
@@ -373,7 +374,7 @@ export default function SkylightPanel() {
             />
             {(node.motorHousing ?? false) && (
               <SliderControl
-                label="Motor Housing"
+                label={vi.common.motorHousing}
                 max={0.2}
                 min={0.03}
                 onChange={(v) => previewProp({ motorHousingSize: v })}
@@ -390,7 +391,7 @@ export default function SkylightPanel() {
         {activeSkylightType === 'sliding' && (
           <>
             <SliderControl
-              label="Open"
+              label={vi.common.open}
               max={1}
               min={0}
               onChange={(v) => previewProp({ operationState: v })}
@@ -410,7 +411,7 @@ export default function SkylightPanel() {
               value={(node.slideDirection ?? 'z') as any}
             />
             <SliderControl
-              label="Track Width"
+              label={vi.common.trackWidth}
               max={0.12}
               min={0.02}
               onChange={(v) => previewProp({ trackWidth: v })}
@@ -425,9 +426,9 @@ export default function SkylightPanel() {
         )}
       </PanelSection>
 
-      <PanelSection title="Dimensions">
+      <PanelSection title={vi.common.dimensions}>
         <SliderControl
-          label="Width"
+          label={vi.common.width}
           max={1000}
           min={0.3}
           onChange={(v) => previewProp({ width: v })}
@@ -439,7 +440,7 @@ export default function SkylightPanel() {
           value={node.width}
         />
         <SliderControl
-          label="Height"
+          label={vi.common.height}
           max={1000}
           min={0.3}
           onChange={(v) => previewProp({ height: v })}
@@ -452,9 +453,9 @@ export default function SkylightPanel() {
         />
       </PanelSection>
 
-      <PanelSection title="Frame">
+      <PanelSection title={vi.common.frame}>
         <SliderControl
-          label="Thickness"
+          label={vi.common.thickness}
           max={0.2}
           min={0.02}
           onChange={(v) => previewProp({ frameThickness: v })}
@@ -466,7 +467,7 @@ export default function SkylightPanel() {
           value={node.frameThickness ?? 0.05}
         />
         <SliderControl
-          label="Depth"
+          label={vi.common.depth}
           max={0.3}
           min={0.02}
           onChange={(v) => previewProp({ frameDepth: v })}
@@ -478,7 +479,7 @@ export default function SkylightPanel() {
           value={node.frameDepth ?? 0.08}
         />
         <SliderControl
-          label="Cutout Offset"
+          label={vi.common.cutoutOffset}
           max={0.2}
           min={0}
           onChange={(v) => previewProp({ cutoutOffset: v })}
@@ -491,7 +492,7 @@ export default function SkylightPanel() {
         />
       </PanelSection>
 
-      <PanelSection title="Curb">
+      <PanelSection title={vi.common.curb}>
         <SegmentedControl
           onChange={(v) => handleUpdate({ curb: v === 'yes' })}
           options={[
@@ -502,7 +503,7 @@ export default function SkylightPanel() {
         />
         {(node.curb ?? false) && (
           <SliderControl
-            label="Height"
+            label={vi.common.height}
             max={0.3}
             min={0.02}
             onChange={(v) => previewProp({ curbHeight: v })}
@@ -516,7 +517,7 @@ export default function SkylightPanel() {
         )}
       </PanelSection>
 
-      <PanelSection title="Position">
+      <PanelSection title={vi.common.position}>
         <SliderControl
           label="X"
           max={Math.round(worldMaxX * 10) / 10}
@@ -550,7 +551,7 @@ export default function SkylightPanel() {
           value={worldZ_now}
         />
         <SliderControl
-          label="Rotation"
+          label={vi.common.rotation}
           max={180}
           min={-180}
           onChange={(degrees) => {
@@ -569,12 +570,12 @@ export default function SkylightPanel() {
         />
       </PanelSection>
 
-      <PanelSection title="Actions">
+      <PanelSection title={vi.common.actions}>
         <ActionGroup>
           <ActionButton
             className="hover:bg-red-500/20"
             icon={<Trash2 className="h-3.5 w-3.5 text-red-400" />}
-            label="Delete"
+            label={vi.common.delete}
             onClick={handleDelete}
           />
         </ActionGroup>

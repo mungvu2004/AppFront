@@ -30,6 +30,7 @@ import {
 import { useViewer } from '@pascal-app/viewer'
 import { Trash2 } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
+import { vi } from '../i18n/vi'
 
 const MODE_LABELS: Record<ConstructionDimensionNode['mode'], string> = {
   linear: 'Linear',
@@ -143,16 +144,16 @@ export default function ConstructionDimensionPanel() {
     <PanelWrapper
       icon="/icons/blueprint.webp"
       onClose={() => setSelection({ selectedIds: [] })}
-      title="Construction Dimension"
+      title={vi.common.constructionDimension}
       width={320}
     >
-      <PanelSection title="Dimension">
+      <PanelSection title={vi.common.dimension}>
         <div className="flex items-center justify-between gap-3 text-sm">
           <span className="text-muted-foreground">Mode</span>
           <span className="font-medium text-foreground">{MODE_LABELS[dimension.mode]}</span>
         </div>
         <SliderControl
-          label="Feature count"
+          label={vi.common.featureCount}
           max={999}
           min={1}
           onChange={(featureCount) => update({ featureCount })}
@@ -172,9 +173,9 @@ export default function ConstructionDimensionPanel() {
         ) : null}
       </PanelSection>
 
-      <PanelSection title="Drawing coordination">
+      <PanelSection title={vi.common.drawingCoordination}>
         <SelectField
-          label="Primary drawing"
+          label={vi.common.primaryDrawing}
           onChange={(drawingType) =>
             update({ drawingType: drawingType as ConstructionDrawingType })
           }
@@ -226,28 +227,28 @@ export default function ConstructionDimensionPanel() {
         </p>
       </PanelSection>
 
-      <PanelSection title="Notation">
+      <PanelSection title={vi.common.notation}>
         <TextField
-          label="Prefix"
+          label={vi.common.prefix}
           onCommit={(prefix) => update({ prefix })}
           value={dimension.prefix}
         />
         <TextField
-          label="Suffix"
+          label={vi.common.suffix}
           onCommit={(suffix) => update({ suffix })}
           value={dimension.suffix}
         />
         <TextField
-          label="Text override"
+          label={vi.common.textOverride}
           onCommit={(textOverride) => update({ textOverride: textOverride || null })}
-          placeholder="Use measured value"
+          placeholder={vi.common.useMeasuredValue}
           value={dimension.textOverride ?? ''}
         />
       </PanelSection>
 
-      <PanelSection title="Standards">
+      <PanelSection title={vi.common.standards}>
         <SelectField
-          label="Datum policy"
+          label={vi.common.datumPolicy}
           onChange={(datumPolicy) =>
             update({ datumPolicy: datumPolicy as ConstructionDimensionDatumPolicy })
           }
@@ -255,7 +256,7 @@ export default function ConstructionDimensionPanel() {
           value={dimension.datumPolicy}
         />
         <SelectField
-          label="Terminator"
+          label={vi.common.terminator}
           onChange={(terminator) =>
             update({ terminator: terminator as ConstructionDimensionTerminator })
           }
@@ -263,7 +264,7 @@ export default function ConstructionDimensionPanel() {
           value={dimension.terminator}
         />
         <SelectField
-          label="Text position"
+          label={vi.common.textPosition}
           onChange={(textPosition) =>
             update({ textPosition: textPosition as ConstructionDimensionTextPosition })
           }
@@ -271,7 +272,7 @@ export default function ConstructionDimensionPanel() {
           value={dimension.textPosition}
         />
         <SelectField
-          label="Imperial precision"
+          label={vi.common.imperialPrecision}
           onChange={(imperialPrecision) =>
             update({
               imperialPrecision: imperialPrecision as ConstructionDimensionImperialPrecision,
@@ -281,7 +282,7 @@ export default function ConstructionDimensionPanel() {
           value={dimension.imperialPrecision}
         />
         <SelectField
-          label="Metric notation"
+          label={vi.common.metricNotation}
           onChange={(metricNotation) =>
             update({ metricNotation: metricNotation as ConstructionDimensionMetricNotation })
           }
@@ -289,7 +290,7 @@ export default function ConstructionDimensionPanel() {
           value={dimension.metricNotation}
         />
         <SliderControl
-          label="Extension gap"
+          label={vi.common.extensionGap}
           max={0.5}
           min={0}
           onChange={(extensionStartGap) => update({ extensionStartGap })}
@@ -298,7 +299,7 @@ export default function ConstructionDimensionPanel() {
           value={dimension.extensionStartGap}
         />
         <SliderControl
-          label="Extension overshoot"
+          label={vi.common.extensionOvershoot}
           max={0.5}
           min={0}
           onChange={(extensionOvershoot) => update({ extensionOvershoot })}
@@ -308,12 +309,12 @@ export default function ConstructionDimensionPanel() {
         />
       </PanelSection>
 
-      <PanelSection title="Actions">
+      <PanelSection title={vi.common.actions}>
         <ActionGroup>
           <ActionButton
             className="border-red-500/40 text-red-200 hover:bg-red-500/15"
             icon={<Trash2 className="h-4 w-4" />}
-            label="Delete"
+            label={vi.common.delete}
             onClick={() => {
               triggerSFX('sfx:structure-delete')
               deleteNode(dimension.id)
@@ -353,7 +354,7 @@ function FoundationControllerField({
   return (
     <SelectField
       disabled={foundationControllers.length === 0}
-      label="Foundation controller"
+      label={vi.common.foundationController}
       onChange={(controllingDimensionId) =>
         onChange(
           controllingDimensionId as NonNullable<
@@ -365,7 +366,7 @@ function FoundationControllerField({
         label: controller.name || 'Foundation dimension',
         value: controller.id,
       }))}
-      placeholder="No foundation dimensions"
+      placeholder={vi.common.noFoundationDimensions}
       value={value}
     />
   )

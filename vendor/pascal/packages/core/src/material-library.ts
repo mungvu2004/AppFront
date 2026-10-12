@@ -93,10 +93,10 @@ export type MaterialSurface = (typeof MATERIAL_SURFACES)[number]
 export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   {
     id: 'wood-finewood27',
-    label: 'Finewood 27',
+    label: 'Gỗ mịn 27',
     category: 'wood',
     surfaces: ['floor', 'wall', 'furniture'],
-    description: 'Fine wood finish',
+    description: 'Lớp phủ gỗ mịn',
     previewThumbnailUrl: '/material/wood/finewood_27/finewood_27_thumb.webp',
     preset: {
       maps: {
@@ -131,10 +131,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'wood-floorplank1',
-    label: 'Floor Plank 1',
+    label: 'Ván sàn 1',
     category: 'wood',
     surfaces: ['floor'],
-    description: 'Wood plank finish',
+    description: 'Lớp phủ ván gỗ',
     previewThumbnailUrl: '/material/wood/floor_plank_1/floor_plank_1_thumb.webp',
     preset: {
       maps: {
@@ -168,10 +168,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'wood-hungarianparquet10',
-    label: 'Hungarian Parquet 10',
+    label: 'Gỗ ghép Hungary 10',
     category: 'wood',
     surfaces: ['floor'],
-    description: 'Parquet wood finish',
+    description: 'Lớp phủ gỗ ghép',
     previewThumbnailUrl: '/material/wood/hungarian_parquet_10/hungarian_parquet_10_thumb.webp',
     preset: {
       maps: {
@@ -205,10 +205,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'wood-hungarianparquet2',
-    label: 'Hungarian Parquet 2',
+    label: 'Gỗ ghép Hungary 2',
     category: 'wood',
     surfaces: ['floor'],
-    description: 'Parquet wood finish',
+    description: 'Lớp phủ gỗ ghép',
     previewThumbnailUrl: '/material/wood/hungarian_parquet_2/hungarian_parquet_2_thumb.webp',
     preset: {
       maps: {
@@ -242,10 +242,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'wood-squareparquet21',
-    label: 'Square Parquet 21',
+    label: 'Gỗ ghép vuông 21',
     category: 'wood',
     surfaces: ['floor'],
-    description: 'Parquet wood finish',
+    description: 'Lớp phủ gỗ ghép',
     previewThumbnailUrl: '/material/wood/square_parquet_21/square_parquet_21_thumb.webp',
     preset: {
       maps: {
@@ -279,10 +279,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'wood-squareparquet23',
-    label: 'Square Parquet 23',
+    label: 'Gỗ ghép vuông 23',
     category: 'wood',
     surfaces: ['floor'],
-    description: 'Parquet wood finish',
+    description: 'Lớp phủ gỗ ghép',
     previewThumbnailUrl: '/material/wood/square_wood_parquet_23/square_wood_parquet_23_thumb.webp',
     preset: {
       maps: {
@@ -318,10 +318,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'wood-woodfine1',
-    label: 'Wood Fine 1',
+    label: 'Gỗ mịn 1',
     category: 'wood',
     surfaces: ['floor', 'wall', 'furniture'],
-    description: 'Fine wood finish',
+    description: 'Lớp phủ gỗ mịn',
     previewThumbnailUrl: '/material/wood/wood_fine/wood_fine_thumb.webp',
     preset: {
       maps: {
@@ -355,10 +355,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'wood-woodfine11',
-    label: 'Wood Fine 11',
+    label: 'Gỗ mịn 11',
     category: 'wood',
     surfaces: ['floor', 'wall', 'furniture'],
-    description: 'Fine wood finish',
+    description: 'Lớp phủ gỗ mịn',
     previewThumbnailUrl: '/material/wood/wood_fine_11/wood_fine_11_thumb.webp',
     preset: {
       maps: {
@@ -392,10 +392,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'wood-woodfine13',
-    label: 'Wood Fine 13',
+    label: 'Gỗ mịn 13',
     category: 'wood',
     surfaces: ['floor', 'wall', 'furniture'],
-    description: 'Fine wood finish',
+    description: 'Lớp phủ gỗ mịn',
     previewThumbnailUrl: '/material/wood/wood_fine_13/wood_fine_13_thumb.webp',
     preset: {
       maps: {
@@ -429,10 +429,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'wood-woodfine2',
-    label: 'Wood Fine 2',
+    label: 'Gỗ mịn 2',
     category: 'wood',
     surfaces: ['floor', 'wall', 'furniture'],
-    description: 'Fine wood finish',
+    description: 'Lớp phủ gỗ mịn',
     previewThumbnailUrl: '/material/wood/wood_fine_2/wood_fine_2_thumb.webp',
     preset: {
       maps: {
@@ -466,10 +466,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'wood-woodfine22',
-    label: 'Wood Fine 22',
+    label: 'Gỗ mịn 22',
     category: 'wood',
     surfaces: ['floor', 'wall', 'furniture'],
-    description: 'Fine wood finish',
+    description: 'Lớp phủ gỗ mịn',
     previewThumbnailUrl: '/material/wood/wood_fine_22/wood_fine_22_thumb.webp',
     preset: {
       maps: {
@@ -503,10 +503,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'wood-woodfine24',
-    label: 'Wood Fine 24',
+    label: 'Gỗ mịn 24',
     category: 'wood',
     surfaces: ['floor', 'wall', 'furniture'],
-    description: 'Fine wood finish',
+    description: 'Lớp phủ gỗ mịn',
     previewThumbnailUrl: '/material/wood/wood_fine_24/wood_fine_24_thumb.webp',
     preset: {
       maps: {
@@ -540,10 +540,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'wood-woodparquet14',
-    label: 'Wood Parquet 14',
+    label: 'Gỗ ghép 14',
     category: 'wood',
     surfaces: ['floor'],
-    description: 'Parquet wood finish',
+    description: 'Lớp phủ gỗ ghép',
     previewThumbnailUrl: '/material/wood/wood_parquet_14/wood_parquet_14_thumb.webp',
     preset: {
       maps: {
@@ -579,10 +579,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'wood-woodenparquet11',
-    label: 'Wooden Parquet 11',
+    label: 'Gỗ ghép 11',
     category: 'wood',
     surfaces: ['floor'],
-    description: 'Parquet wood finish',
+    description: 'Lớp phủ gỗ ghép',
     previewThumbnailUrl: '/material/wood/wooden_parquet_11/wooden_parquet_11_thumb.webp',
     preset: {
       maps: {
@@ -616,10 +616,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'wood-woodparquet121',
-    label: 'Wood Parquet 121',
+    label: 'Gỗ ghép 121',
     category: 'wood',
     surfaces: ['floor'],
-    description: 'Parquet wood finish',
+    description: 'Lớp phủ gỗ ghép',
     previewThumbnailUrl: '/material/wood/woodparquet_121/woodparquet_121_thumb.webp',
     preset: {
       maps: {
@@ -654,10 +654,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'wood-woodparquet56',
-    label: 'Wood Parquet 56',
+    label: 'Gỗ ghép 56',
     category: 'wood',
     surfaces: ['floor'],
-    description: 'Parquet wood finish',
+    description: 'Lớp phủ gỗ ghép',
     previewThumbnailUrl: '/material/wood/woodparquet_56/woodparquet_56_thumb.webp',
     preset: {
       maps: {
@@ -693,10 +693,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'wood-woodparquet65',
-    label: 'Wood Parquet 65',
+    label: 'Gỗ ghép 65',
     category: 'wood',
     surfaces: ['floor'],
-    description: 'Parquet wood finish',
+    description: 'Lớp phủ gỗ ghép',
     previewThumbnailUrl: '/material/wood/woodparquet_65/woodparquet_65_thumb.webp',
     preset: {
       maps: {
@@ -732,10 +732,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'wood-woodparquet99',
-    label: 'Wood Parquet 99',
+    label: 'Gỗ ghép 99',
     category: 'wood',
     surfaces: ['floor'],
-    description: 'Parquet wood finish',
+    description: 'Lớp phủ gỗ ghép',
     previewThumbnailUrl: '/material/wood/woodparquet_99/woodparquet_99_thumb.webp',
     preset: {
       maps: {
@@ -771,10 +771,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'wood-woodplank19',
-    label: 'Wood Plank 19',
+    label: 'Ván gỗ 19',
     category: 'wood',
     surfaces: ['floor', 'wall'],
-    description: 'Wood plank finish',
+    description: 'Lớp phủ ván gỗ',
     previewThumbnailUrl: '/material/wood/woodplank_19/woodplank_19_thumb.webp',
     preset: {
       maps: {
@@ -809,10 +809,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'wood-woodplank48',
-    label: 'Wood Plank 48',
+    label: 'Ván gỗ 48',
     category: 'wood',
     surfaces: ['floor', 'wall'],
-    description: 'Wood plank finish',
+    description: 'Lớp phủ ván gỗ',
     previewThumbnailUrl: '/material/wood/woodplank_48/woodplank_48_thumb.webp',
     preset: {
       maps: {
@@ -847,10 +847,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'flooring-tile85a',
-    label: 'Quarry Tile',
+    label: 'Gạch đá tự nhiên',
     category: 'tile',
     surfaces: ['floor'],
-    description: 'Floor tile finish',
+    description: 'Lớp phủ gạch sàn',
     previewThumbnailUrl: '/material/flooring/tile_quarry/tile_quarry_thumb.webp',
     preset: {
       maps: {
@@ -885,10 +885,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'flooring-rusticbrick',
-    label: 'Rustic Brick',
+    label: 'Gạch thô mộc',
     category: 'brick',
     surfaces: ['wall', 'floor', 'outdoor'],
-    description: 'Brick finish',
+    description: 'Lớp phủ gạch',
     previewThumbnailUrl: '/material/flooring/brick_wall_rustic/brick_wall_rustic_thumb.webp',
     preset: {
       maps: {
@@ -924,10 +924,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'flooring-agedbrick',
-    label: 'Aged Brick',
+    label: 'Gạch cũ',
     category: 'brick',
     surfaces: ['wall', 'floor', 'outdoor'],
-    description: 'Brick finish',
+    description: 'Lớp phủ gạch',
     previewThumbnailUrl: '/material/flooring/brick_wall_aged/brick_wall_aged_thumb.webp',
     preset: {
       maps: {
@@ -963,10 +963,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'flooring-weatheredbrick',
-    label: 'Weathered Brick',
+    label: 'Gạch phong hoá',
     category: 'brick',
     surfaces: ['wall', 'floor', 'outdoor'],
-    description: 'Brick finish',
+    description: 'Lớp phủ gạch',
     previewThumbnailUrl: '/material/flooring/brick_wall_weathered/brick_wall_weathered_thumb.webp',
     preset: {
       maps: {
@@ -1003,10 +1003,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'flooring-garagedoor',
-    label: 'Garage Panel',
+    label: 'Tấm cửa ga-ra',
     category: 'metal',
     surfaces: ['wall', 'furniture'],
-    description: 'Panel finish',
+    description: 'Lớp phủ tấm',
     previewThumbnailUrl: '/material/flooring/garage_panel/garage_panel_thumb.webp',
     preset: {
       maps: {
@@ -1040,10 +1040,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'flooring-greenlabradorite',
-    label: 'Green Labradorite',
+    label: 'Đá labradorit xanh',
     category: 'stone',
     surfaces: ['floor', 'wall'],
-    description: 'Stone flooring finish',
+    description: 'Lớp phủ sàn đá',
     previewThumbnailUrl: '/material/flooring/green_labradorite/green_labradorite_thumb.webp',
     preset: {
       maps: {
@@ -1077,10 +1077,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'flooring-ground13',
-    label: 'Earth Ground',
+    label: 'Mặt đất',
     category: 'ground',
     surfaces: ['outdoor', 'floor'],
-    description: 'Ground surface finish',
+    description: 'Lớp phủ mặt đất',
     previewThumbnailUrl: '/material/flooring/ground_earth/ground_earth_thumb.webp',
     preset: {
       maps: {
@@ -1116,10 +1116,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'flooring-pooltiles',
-    label: 'Pool Tiles',
+    label: 'Gạch bể bơi',
     category: 'tile',
     surfaces: ['floor', 'outdoor'],
-    description: 'Pool tile finish',
+    description: 'Lớp phủ gạch bể bơi',
     previewThumbnailUrl: '/material/flooring/pool_tiles/pool_tiles_thumb.webp',
     preset: {
       maps: {
@@ -1153,10 +1153,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'flooring-tiles3',
-    label: 'Checker Tiles',
+    label: 'Gạch ô cờ',
     category: 'tile',
     surfaces: ['floor'],
-    description: 'Tile flooring finish',
+    description: 'Lớp phủ sàn gạch',
     previewThumbnailUrl: '/material/flooring/tiles_checker/tiles_checker_thumb.webp',
     preset: {
       maps: {
@@ -1190,10 +1190,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'flooring-tiles4',
-    label: 'Grid Tiles',
+    label: 'Gạch lưới ô',
     category: 'tile',
     surfaces: ['floor'],
-    description: 'Tile flooring finish',
+    description: 'Lớp phủ sàn gạch',
     previewThumbnailUrl: '/material/flooring/tiles_grid/tiles_grid_thumb.webp',
     preset: {
       maps: {
@@ -1227,10 +1227,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'flooring-wallstone1',
-    label: 'Stone Wall',
+    label: 'Tường đá',
     category: 'stone',
     surfaces: ['wall', 'floor', 'outdoor'],
-    description: 'Stone finish',
+    description: 'Lớp phủ đá',
     previewThumbnailUrl: '/material/flooring/stone_wall/stone_wall_thumb.webp',
     preset: {
       maps: {
@@ -1264,10 +1264,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'flooring-woodenceramic3',
-    label: 'Wooden Ceramic 3',
+    label: 'Gạch men giả gỗ 3',
     category: 'tile',
     surfaces: ['floor'],
-    description: 'Wood-look ceramic flooring finish',
+    description: 'Lớp phủ sàn gạch men giả gỗ',
     previewThumbnailUrl: '/material/flooring/wooden_ceramic_3/wooden_ceramic_3_thumb.webp',
     preset: {
       maps: {
@@ -1301,10 +1301,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'flooring-ceramic53',
-    label: 'Ceramic Mosaic',
+    label: 'Gạch khảm sứ',
     category: 'tile',
     surfaces: ['floor', 'wall'],
-    description: 'Ceramic flooring finish',
+    description: 'Lớp phủ sàn gạch men',
     previewThumbnailUrl: '/material/flooring/ceramic_mosaic/ceramic_mosaic_thumb.webp',
     preset: {
       maps: {
@@ -1340,10 +1340,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'flooring-terrazzo19',
-    label: 'Terrazzo',
+    label: 'Đá mài Terrazzo',
     category: 'stone',
     surfaces: ['floor', 'wall'],
-    description: 'Terrazzo flooring finish',
+    description: 'Lớp phủ sàn đá mài',
     previewThumbnailUrl: '/material/flooring/terrazzo/terrazzo_thumb.webp',
     preset: {
       maps: {
@@ -1378,10 +1378,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'flooring-tile79',
-    label: 'Stone Tile',
+    label: 'Gạch đá',
     category: 'stone',
     surfaces: ['floor', 'wall'],
-    description: 'Floor tile finish',
+    description: 'Lớp phủ gạch sàn',
     previewThumbnailUrl: '/material/flooring/tile_stone/tile_stone_thumb.webp',
     preset: {
       maps: {
@@ -1416,10 +1416,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'flooring-tile86',
-    label: 'Terracotta Tile',
+    label: 'Gạch đất nung',
     category: 'tile',
     surfaces: ['floor'],
-    description: 'Floor tile finish',
+    description: 'Lớp phủ gạch sàn',
     previewThumbnailUrl: '/material/flooring/tile_terracotta/tile_terracotta_thumb.webp',
     preset: {
       maps: {
@@ -1454,10 +1454,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'flooring-greenquartzitea',
-    label: 'Green Quartzite A',
+    label: 'Đá thạch anh xanh A',
     category: 'stone',
     surfaces: ['floor', 'wall'],
-    description: 'Green quartzite flooring finish',
+    description: 'Lớp phủ sàn đá thạch anh xanh',
     previewThumbnailUrl:
       '/material/flooring/green_glass_quartzite/green_glass_quartzite_thumb.webp',
     preset: {
@@ -1493,10 +1493,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'flooring-darkceramic22',
-    label: 'Dark Ceramic Grunge',
+    label: 'Gạch men cũ sẫm',
     category: 'tile',
     surfaces: ['floor'],
-    description: 'Dark ceramic flooring finish',
+    description: 'Lớp phủ sàn gạch men sẫm',
     previewThumbnailUrl: '/material/flooring/dark_ceramic_grunge/dark_ceramic_grunge_thumb.webp',
     preset: {
       maps: {
@@ -1534,10 +1534,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'flooring-lightceramic24',
-    label: 'Light Ceramic Grunge',
+    label: 'Gạch men cũ nhạt',
     category: 'tile',
     surfaces: ['floor'],
-    description: 'Light ceramic flooring finish',
+    description: 'Lớp phủ sàn gạch men nhạt',
     previewThumbnailUrl: '/material/flooring/light_ceramic_grunge/light_ceramic_grunge_thumb.webp',
     preset: {
       maps: {
@@ -1576,10 +1576,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'flooring-statuarettowhite',
-    label: 'Statuaretto White',
+    label: 'Đá cẩm thạch trắng Statuaretto',
     category: 'stone',
     surfaces: ['floor', 'wall'],
-    description: 'White marble flooring finish',
+    description: 'Lớp phủ sàn đá cẩm thạch trắng',
     previewThumbnailUrl: '/material/flooring/statuaretto/statuaretto_thumb.webp',
     preset: {
       maps: {
@@ -1613,10 +1613,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'flooring-tile20',
-    label: 'Mosaic Tile',
+    label: 'Gạch khảm',
     category: 'tile',
     surfaces: ['floor', 'wall'],
-    description: 'Floor tile finish',
+    description: 'Lớp phủ gạch sàn',
     previewThumbnailUrl: '/material/flooring/tile_mosaic/tile_mosaic_thumb.webp',
     preset: {
       maps: {
@@ -1652,10 +1652,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'flooring-tile68',
-    label: 'Pattern Tile',
+    label: 'Gạch hoa văn',
     category: 'tile',
     surfaces: ['floor', 'wall'],
-    description: 'Floor tile finish',
+    description: 'Lớp phủ gạch sàn',
     previewThumbnailUrl: '/material/flooring/tile_pattern/tile_pattern_thumb.webp',
     preset: {
       maps: {
@@ -1691,10 +1691,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'flooring-woodenceramic2',
-    label: 'Wooden Ceramic 2',
+    label: 'Gạch men giả gỗ 2',
     category: 'tile',
     surfaces: ['floor'],
-    description: 'Wood-look ceramic flooring finish',
+    description: 'Lớp phủ sàn gạch men giả gỗ',
     previewThumbnailUrl: '/material/flooring/wooden_ceramic_2/wooden_ceramic_2_thumb.webp',
     preset: {
       maps: {
@@ -1728,10 +1728,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'flooring-woodparquet76',
-    label: 'Wood Parquet',
+    label: 'Gỗ ghép sàn',
     category: 'wood',
     surfaces: ['floor'],
-    description: 'Wood parquet flooring finish',
+    description: 'Lớp phủ sàn gỗ ghép',
     previewThumbnailUrl: '/material/flooring/woodparquet/woodparquet_thumb.webp',
     preset: {
       maps: {
@@ -1767,10 +1767,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'roof-classicshingles',
-    label: 'Classic Shingles',
+    label: 'Tấm lợp cổ điển',
     category: 'roofing',
     surfaces: ['roof'],
-    description: 'Classic roof shingle finish',
+    description: 'Lớp phủ tấm lợp mái cổ điển',
     previewThumbnailUrl: '/material/roofing/roof_shingles_classic/roof_shingles_classic_thumb.webp',
     preset: {
       maps: {
@@ -1809,10 +1809,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'roof-claytiles',
-    label: 'Clay Tiles',
+    label: 'Ngói đất sét',
     category: 'roofing',
     surfaces: ['roof'],
-    description: 'Clay roof tile finish',
+    description: 'Lớp phủ ngói đất sét',
     previewThumbnailUrl: '/material/roofing/roof_tiles_clay/roof_tiles_clay_thumb.webp',
     preset: {
       maps: {
@@ -1848,10 +1848,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'roof-terracottatiles',
-    label: 'Terracotta Tiles',
+    label: 'Ngói đất nung',
     category: 'roofing',
     surfaces: ['roof'],
-    description: 'Terracotta roof tile finish',
+    description: 'Lớp phủ ngói đất nung',
     previewThumbnailUrl: '/material/roofing/roof_tiles_terracotta/roof_tiles_terracotta_thumb.webp',
     preset: {
       maps: {
@@ -1890,10 +1890,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'roof-greyshingles',
-    label: 'Grey Shingles',
+    label: 'Tấm lợp xám',
     category: 'roofing',
     surfaces: ['roof'],
-    description: 'Grey composition shingle finish',
+    description: 'Lớp phủ tấm lợp hỗn hợp xám',
     previewThumbnailUrl: '/material/roofing/roof_shingles_grey/roof_shingles_grey_thumb.webp',
     preset: {
       maps: {
@@ -1931,10 +1931,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'roof-weatheredshingles',
-    label: 'Weathered Shingles',
+    label: 'Tấm lợp phong hoá',
     category: 'roofing',
     surfaces: ['roof'],
-    description: 'Weathered roof shingle finish',
+    description: 'Lớp phủ tấm lợp mái phong hoá',
     previewThumbnailUrl:
       '/material/roofing/roof_shingles_weathered/roof_shingles_weathered_thumb.webp',
     preset: {
@@ -1975,9 +1975,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-white',
-    label: 'White',
+    label: 'Trắng',
     category: 'colors',
-    description: 'Clean painted finish',
+    description: 'Lớp sơn sạch',
     // Real white paint reflects ~80%; a literal #ffffff albedo kills GI/shadow
     // contrast, so "white" is clamped to ≈0.83 linear.
     previewColor: '#e9e9e9',
@@ -2009,9 +2009,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-softwhite',
-    label: 'Soft White',
+    label: 'Trắng ấm',
     category: 'colors',
-    description: 'Warm off-white painted finish',
+    description: 'Lớp sơn trắng ngà ấm',
     previewColor: '#ebe7df',
     preset: {
       maps: {},
@@ -2041,9 +2041,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-cream',
-    label: 'Cream',
+    label: 'Kem',
     category: 'colors',
-    description: 'Soft cream painted finish',
+    description: 'Lớp sơn kem dịu',
     previewColor: '#efe3cc',
     preset: {
       maps: {},
@@ -2073,9 +2073,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-beige',
-    label: 'Beige',
+    label: 'Be',
     category: 'colors',
-    description: 'Balanced beige painted finish',
+    description: 'Lớp sơn be hài hoà',
     previewColor: '#d9c7ad',
     preset: {
       maps: {},
@@ -2105,9 +2105,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-lightgrey',
-    label: 'Light grey',
+    label: 'Xám nhạt',
     category: 'colors',
-    description: 'Cool light grey painted finish',
+    description: 'Lớp sơn xám nhạt mát',
     previewColor: '#d8d6d1',
     preset: {
       maps: {},
@@ -2137,9 +2137,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-greige',
-    label: 'Greige',
+    label: 'Xám be',
     category: 'colors',
-    description: 'Neutral greige painted finish',
+    description: 'Lớp sơn xám be trung tính',
     previewColor: '#c8c1b8',
     preset: {
       maps: {},
@@ -2169,9 +2169,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-midgrey',
-    label: 'Mid grey',
+    label: 'Xám vừa',
     category: 'colors',
-    description: 'Neutral mid grey painted finish',
+    description: 'Lớp sơn xám vừa trung tính',
     previewColor: '#8b8a86',
     preset: {
       maps: {},
@@ -2201,9 +2201,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-charcoal',
-    label: 'Charcoal',
+    label: 'Xám than',
     category: 'colors',
-    description: 'Dark charcoal painted finish',
+    description: 'Lớp sơn xám than đậm',
     previewColor: '#4e5257',
     preset: {
       maps: {},
@@ -2233,9 +2233,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-nearblack',
-    label: 'Near-black',
+    label: 'Gần đen',
     category: 'colors',
-    description: 'Soft near-black painted finish',
+    description: 'Lớp sơn gần đen dịu',
     previewColor: '#232322',
     preset: {
       maps: {},
@@ -2265,9 +2265,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-blush',
-    label: 'Blush',
+    label: 'Hồng phấn',
     category: 'colors',
-    description: 'Pale blush painted finish',
+    description: 'Lớp sơn hồng phấn nhạt',
     previewColor: '#e8c6c0',
     preset: {
       maps: {},
@@ -2297,9 +2297,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-tomato',
-    label: 'Tomato',
+    label: 'Cà chua',
     category: 'colors',
-    description: 'Warm tomato red painted finish',
+    description: 'Lớp sơn đỏ cà chua ấm',
     previewColor: '#c0594f',
     preset: {
       maps: {},
@@ -2329,9 +2329,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-brickred',
-    label: 'Brick red',
+    label: 'Đỏ gạch',
     category: 'colors',
-    description: 'Deep brick red painted finish',
+    description: 'Lớp sơn đỏ gạch đậm',
     previewColor: '#9e3b34',
     preset: {
       maps: {},
@@ -2361,9 +2361,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-oxblood',
-    label: 'Oxblood',
+    label: 'Đỏ huyết bò',
     category: 'colors',
-    description: 'Dark oxblood painted finish',
+    description: 'Lớp sơn đỏ huyết bò đậm',
     previewColor: '#6f2c2a',
     preset: {
       maps: {},
@@ -2393,9 +2393,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-peach',
-    label: 'Peach',
+    label: 'Hồng đào',
     category: 'colors',
-    description: 'Soft peach painted finish',
+    description: 'Lớp sơn hồng đào dịu',
     previewColor: '#f0c3a0',
     preset: {
       maps: {},
@@ -2425,9 +2425,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-terracotta',
-    label: 'Terracotta',
+    label: 'Đất nung',
     category: 'colors',
-    description: 'Warm terracotta painted finish',
+    description: 'Lớp sơn đất nung ấm',
     previewColor: '#c86f4c',
     preset: {
       maps: {},
@@ -2457,9 +2457,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-burntorange',
-    label: 'Burnt orange',
+    label: 'Cam cháy',
     category: 'colors',
-    description: 'Burnt orange painted finish',
+    description: 'Lớp sơn cam cháy',
     previewColor: '#b25a2c',
     preset: {
       maps: {},
@@ -2489,9 +2489,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-clay',
-    label: 'Clay',
+    label: 'Đất sét',
     category: 'colors',
-    description: 'Deep clay painted finish',
+    description: 'Lớp sơn đất sét đậm',
     previewColor: '#8f4a2e',
     preset: {
       maps: {},
@@ -2521,9 +2521,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-paleyellow',
-    label: 'Pale yellow',
+    label: 'Vàng nhạt',
     category: 'colors',
-    description: 'Pale yellow painted finish',
+    description: 'Lớp sơn vàng nhạt',
     previewColor: '#f2e3b3',
     preset: {
       maps: {},
@@ -2553,9 +2553,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-mustard',
-    label: 'Mustard',
+    label: 'Vàng mù tạt',
     category: 'colors',
-    description: 'Warm mustard painted finish',
+    description: 'Lớp sơn vàng mù tạt ấm',
     previewColor: '#c8a449',
     preset: {
       maps: {},
@@ -2585,9 +2585,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-ochre',
-    label: 'Ochre',
+    label: 'Vàng đất',
     category: 'colors',
-    description: 'Warm ochre painted finish',
+    description: 'Lớp sơn vàng đất ấm',
     previewColor: '#b8852f',
     preset: {
       maps: {},
@@ -2617,9 +2617,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-gold',
-    label: 'Gold',
+    label: 'Vàng kim',
     category: 'colors',
-    description: 'Deep gold painted finish',
+    description: 'Lớp sơn vàng kim đậm',
     previewColor: '#9c7320',
     preset: {
       maps: {},
@@ -2649,9 +2649,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-mint',
-    label: 'Mint',
+    label: 'Bạc hà',
     category: 'colors',
-    description: 'Soft mint painted finish',
+    description: 'Lớp sơn bạc hà dịu',
     previewColor: '#cfe0cf',
     preset: {
       maps: {},
@@ -2681,9 +2681,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-sage',
-    label: 'Sage',
+    label: 'Xanh xô thơm',
     category: 'colors',
-    description: 'Muted sage painted finish',
+    description: 'Lớp sơn xanh xô thơm trầm',
     previewColor: '#bcc5b2',
     preset: {
       maps: {},
@@ -2713,9 +2713,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-olive',
-    label: 'Olive',
+    label: 'Xanh ô liu',
     category: 'colors',
-    description: 'Natural olive painted finish',
+    description: 'Lớp sơn xanh ô liu tự nhiên',
     previewColor: '#8d9368',
     preset: {
       maps: {},
@@ -2745,9 +2745,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-forest',
-    label: 'Forest',
+    label: 'Xanh rừng',
     category: 'colors',
-    description: 'Deep forest green painted finish',
+    description: 'Lớp sơn xanh rừng đậm',
     previewColor: '#4f6b57',
     preset: {
       maps: {},
@@ -2777,9 +2777,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-paleteal',
-    label: 'Pale teal',
+    label: 'Lục lam nhạt',
     category: 'colors',
-    description: 'Pale teal painted finish',
+    description: 'Lớp sơn lục lam nhạt',
     previewColor: '#b9d2cf',
     preset: {
       maps: {},
@@ -2809,9 +2809,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-teal',
-    label: 'Teal',
+    label: 'Lục lam',
     category: 'colors',
-    description: 'Balanced teal painted finish',
+    description: 'Lớp sơn lục lam hài hoà',
     previewColor: '#4f8a86',
     preset: {
       maps: {},
@@ -2841,9 +2841,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-deepteal',
-    label: 'Deep teal',
+    label: 'Lục lam đậm',
     category: 'colors',
-    description: 'Deep teal painted finish',
+    description: 'Lớp sơn lục lam đậm',
     previewColor: '#2f5f5c',
     preset: {
       maps: {},
@@ -2873,9 +2873,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-powderblue',
-    label: 'Powder blue',
+    label: 'Xanh phấn',
     category: 'colors',
-    description: 'Powder blue painted finish',
+    description: 'Lớp sơn xanh phấn',
     previewColor: '#cddce8',
     preset: {
       maps: {},
@@ -2905,9 +2905,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-softblue',
-    label: 'Soft Blue',
+    label: 'Xanh dịu',
     category: 'colors',
-    description: 'Muted blue painted finish',
+    description: 'Lớp sơn xanh dịu trầm',
     previewColor: '#c7d6e3',
     preset: {
       maps: {},
@@ -2937,9 +2937,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-sky',
-    label: 'Sky',
+    label: 'Xanh da trời',
     category: 'colors',
-    description: 'Sky blue painted finish',
+    description: 'Lớp sơn xanh da trời',
     previewColor: '#8fb4d4',
     preset: {
       maps: {},
@@ -2969,9 +2969,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-slateblue',
-    label: 'Slate Blue',
+    label: 'Xanh đá phiến',
     category: 'colors',
-    description: 'Muted slate blue painted finish',
+    description: 'Lớp sơn xanh đá phiến trầm',
     previewColor: '#6f87a4',
     preset: {
       maps: {},
@@ -3001,9 +3001,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-royalblue',
-    label: 'Royal blue',
+    label: 'Xanh hoàng gia',
     category: 'colors',
-    description: 'Royal blue painted finish',
+    description: 'Lớp sơn xanh hoàng gia',
     previewColor: '#3a5a9c',
     preset: {
       maps: {},
@@ -3033,9 +3033,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-navy',
-    label: 'Navy',
+    label: 'Xanh hải quân',
     category: 'colors',
-    description: 'Classic navy painted finish',
+    description: 'Lớp sơn xanh hải quân cổ điển',
     previewColor: '#2f4865',
     preset: {
       maps: {},
@@ -3065,9 +3065,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-lavender',
-    label: 'Lavender',
+    label: 'Tím oải hương',
     category: 'colors',
-    description: 'Soft lavender painted finish',
+    description: 'Lớp sơn tím oải hương dịu',
     previewColor: '#c9c2da',
     preset: {
       maps: {},
@@ -3097,9 +3097,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-plum',
-    label: 'Plum',
+    label: 'Tím mận',
     category: 'colors',
-    description: 'Muted plum painted finish',
+    description: 'Lớp sơn tím mận trầm',
     previewColor: '#6d4a63',
     preset: {
       maps: {},
@@ -3129,9 +3129,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-aubergine',
-    label: 'Aubergine',
+    label: 'Tím cà',
     category: 'colors',
-    description: 'Deep aubergine painted finish',
+    description: 'Lớp sơn tím cà đậm',
     previewColor: '#594354',
     preset: {
       maps: {},
@@ -3161,9 +3161,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-petal',
-    label: 'Petal',
+    label: 'Hồng cánh hoa',
     category: 'colors',
-    description: 'Pale petal pink painted finish',
+    description: 'Lớp sơn hồng cánh hoa nhạt',
     previewColor: '#f0d3da',
     preset: {
       maps: {},
@@ -3193,9 +3193,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-rose',
-    label: 'Rose',
+    label: 'Hồng phai',
     category: 'colors',
-    description: 'Muted rose painted finish',
+    description: 'Lớp sơn hồng phai trầm',
     previewColor: '#cf8fa6',
     preset: {
       maps: {},
@@ -3225,9 +3225,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-dustyrose',
-    label: 'Dusty Rose',
+    label: 'Hồng khói',
     category: 'colors',
-    description: 'Muted rose painted finish',
+    description: 'Lớp sơn hồng phai trầm',
     previewColor: '#c48a8d',
     preset: {
       maps: {},
@@ -3257,9 +3257,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-berry',
-    label: 'Berry',
+    label: 'Đỏ mọng',
     category: 'colors',
-    description: 'Deep berry painted finish',
+    description: 'Lớp sơn đỏ mọng đậm',
     previewColor: '#8f4a5a',
     preset: {
       maps: {},
@@ -3289,9 +3289,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-sand',
-    label: 'Sand',
+    label: 'Cát',
     category: 'colors',
-    description: 'Warm sand painted finish',
+    description: 'Lớp sơn cát ấm',
     previewColor: '#ddccae',
     preset: {
       maps: {},
@@ -3321,9 +3321,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-tan',
-    label: 'Tan',
+    label: 'Nâu rám',
     category: 'colors',
-    description: 'Natural tan painted finish',
+    description: 'Lớp sơn nâu rám tự nhiên',
     previewColor: '#c4a87f',
     preset: {
       maps: {},
@@ -3353,9 +3353,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-taupe',
-    label: 'Taupe',
+    label: 'Nâu xám',
     category: 'colors',
-    description: 'Earthy taupe painted finish',
+    description: 'Lớp sơn nâu xám kiểu đất',
     previewColor: '#8f7a64',
     preset: {
       maps: {},
@@ -3385,9 +3385,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-espresso',
-    label: 'Espresso',
+    label: 'Nâu cà phê',
     category: 'colors',
-    description: 'Dark espresso painted finish',
+    description: 'Lớp sơn nâu cà phê đậm',
     previewColor: '#4a382c',
     preset: {
       maps: {},
@@ -3417,10 +3417,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-metal',
-    label: 'Metal',
+    label: 'Kim loại',
     category: 'metal',
     surfaces: ['furniture', 'wall'],
-    description: 'Brushed metal finish',
+    description: 'Lớp phủ kim loại chải xước',
     previewColor: '#c0c0c0',
     preset: {
       maps: {},
@@ -3450,9 +3450,9 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'preset-glass',
-    label: 'Glass',
+    label: 'Kính',
     category: 'glass',
-    description: 'Light glass finish',
+    description: 'Lớp phủ kính sáng',
     previewColor: '#87ceeb',
     preset: {
       maps: {},
@@ -3484,10 +3484,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'fabric-linen',
-    label: 'Linen',
+    label: 'Vải lanh',
     category: 'fabric',
     surfaces: ['furniture', 'wall'],
-    description: 'Natural linen weave',
+    description: 'Vải lanh dệt tự nhiên',
     previewThumbnailUrl: '/material/fabric/linen_hikari_fabric/linen_hikari_fabric_thumb.webp',
     preset: {
       maps: {
@@ -3520,10 +3520,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'fabric-cotton',
-    label: 'Cotton',
+    label: 'Vải cotton',
     category: 'fabric',
     surfaces: ['furniture', 'wall'],
-    description: 'Plain cotton weave',
+    description: 'Vải cotton dệt trơn',
     previewThumbnailUrl: '/material/fabric/blue_cotton/blue_cotton_thumb.webp',
     preset: {
       maps: {
@@ -3558,10 +3558,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'fabric-velvet',
-    label: 'Velvet',
+    label: 'Nhung',
     category: 'fabric',
     surfaces: ['furniture'],
-    description: 'Velvet with a soft sheen',
+    description: 'Nhung có ánh mượt dịu',
     previewThumbnailUrl: '/material/fabric/red_velvet/red_velvet_thumb.webp',
     preset: {
       maps: {
@@ -3596,10 +3596,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'fabric-wool',
-    label: 'Wool',
+    label: 'Len',
     category: 'fabric',
     surfaces: ['furniture'],
-    description: 'Matte wool felt',
+    description: 'Dạ len mờ',
     previewThumbnailUrl: '/material/fabric/white_wool/white_wool_thumb.webp',
     preset: {
       maps: {
@@ -3634,10 +3634,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'fabric-suede',
-    label: 'Suede',
+    label: 'Da lộn',
     category: 'fabric',
     surfaces: ['furniture'],
-    description: 'Matte suede nap',
+    description: 'Da lộn mờ xù',
     previewThumbnailUrl: '/material/fabric/suede/suede_thumb.webp',
     preset: {
       maps: {
@@ -3672,10 +3672,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'fabric-boucle',
-    label: 'Bouclé',
+    label: 'Vải Bouclé',
     category: 'fabric',
     surfaces: ['furniture'],
-    description: 'Looped bouclé upholstery',
+    description: 'Vải bọc Bouclé dệt vòng',
     previewThumbnailUrl: '/material/fabric/wool_boucle/wool_boucle_thumb.webp',
     preset: {
       maps: {
@@ -3708,10 +3708,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'leather-black',
-    label: 'Black Leather',
+    label: 'Da đen',
     category: 'leather',
     surfaces: ['furniture'],
-    description: 'Smooth black leather',
+    description: 'Da đen mịn',
     previewThumbnailUrl: '/material/leather/black_leather/black_leather_thumb.webp',
     preset: {
       maps: {
@@ -3745,10 +3745,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'leather-calf',
-    label: 'Calf Leather',
+    label: 'Da bê',
     category: 'leather',
     surfaces: ['furniture'],
-    description: 'Pebbled calf leather',
+    description: 'Da bê vân sỏi',
     previewThumbnailUrl: '/material/leather/calf_leather/calf_leather_thumb.webp',
     preset: {
       maps: {
@@ -3783,10 +3783,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'concrete-plaster',
-    label: 'Painted Plaster',
+    label: 'Thạch cao sơn',
     category: 'concrete',
     surfaces: ['wall', 'ceiling'],
-    description: 'Smooth painted plaster wall',
+    description: 'Tường thạch cao sơn mịn',
     previewThumbnailUrl: '/material/concrete/plaster_painted/plaster_painted_thumb.webp',
     preset: {
       maps: {
@@ -3821,10 +3821,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'concrete-polished',
-    label: 'Polished Concrete',
+    label: 'Bê tông mài',
     category: 'concrete',
     surfaces: ['floor', 'wall'],
-    description: 'Polished concrete floor',
+    description: 'Sàn bê tông mài bóng',
     previewThumbnailUrl: '/material/concrete/concrete_polished/concrete_polished_thumb.webp',
     preset: {
       maps: {
@@ -3858,10 +3858,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'concrete-raw',
-    label: 'Raw Concrete',
+    label: 'Bê tông thô',
     category: 'concrete',
     surfaces: ['wall', 'floor', 'outdoor'],
-    description: 'Board-formed raw concrete',
+    description: 'Bê tông thô đổ khuôn ván',
     previewThumbnailUrl: '/material/concrete/concrete_raw/concrete_raw_thumb.webp',
     preset: {
       maps: {
@@ -3896,10 +3896,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'concrete-plate',
-    label: 'Concrete Plate',
+    label: 'Tấm bê tông',
     category: 'concrete',
     surfaces: ['wall', 'floor'],
-    description: 'Smooth cast concrete plate',
+    description: 'Tấm bê tông đúc mịn',
     previewThumbnailUrl: '/material/concrete/concrete_plate/concrete_plate_thumb.webp',
     preset: {
       maps: {
@@ -3934,10 +3934,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'concrete-stucco',
-    label: 'White Stucco',
+    label: 'Vữa trát trắng',
     category: 'concrete',
     surfaces: ['wall', 'outdoor'],
-    description: 'Exterior stucco render',
+    description: 'Vữa trát ngoài nhà',
     previewThumbnailUrl: '/material/concrete/white_stucco/white_stucco_thumb.webp',
     preset: {
       maps: {
@@ -3972,10 +3972,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'concrete-drywall',
-    label: 'Prepared Drywall',
+    label: 'Thạch cao đã hoàn thiện',
     category: 'concrete',
     surfaces: ['wall', 'ceiling'],
-    description: 'Smooth prepared drywall ready for paint',
+    description: 'Thạch cao mịn sẵn sàng sơn',
     previewThumbnailUrl: '/material/concrete/prepared_drywall/prepared_drywall_thumb.webp',
     preset: {
       maps: {
@@ -4010,10 +4010,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'metal-copper',
-    label: 'Copper',
+    label: 'Đồng',
     category: 'metal',
     surfaces: ['furniture', 'wall'],
-    description: 'Warm copper',
+    description: 'Đồng ấm',
     previewThumbnailUrl: '/material/metal/copper_metal/copper_metal_thumb.webp',
     preset: {
       maps: {
@@ -4048,10 +4048,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'metal-polished',
-    label: 'Polished Metal',
+    label: 'Kim loại mài bóng',
     category: 'metal',
     surfaces: ['furniture', 'wall'],
-    description: 'Polished stainless steel',
+    description: 'Thép không gỉ mài bóng',
     previewThumbnailUrl: '/material/metal/polished_metal/polished_metal_thumb.webp',
     preset: {
       maps: {
@@ -4087,10 +4087,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'metal-steel',
-    label: 'Brushed Steel',
+    label: 'Thép chải xước',
     category: 'metal',
     surfaces: ['furniture', 'wall'],
-    description: 'Brushed stainless steel',
+    description: 'Thép không gỉ chải xước',
     previewThumbnailUrl:
       '/material/metal/stainless_steel_brushed/stainless_steel_brushed_thumb.webp',
     preset: {
@@ -4130,10 +4130,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
     // Parameter-only metal (no texture maps) — a worked example of a non-PBR
     // catalog finish driven purely by three.js material settings.
     id: 'metal-brass',
-    label: 'Brass',
+    label: 'Đồng thau',
     category: 'metal',
     surfaces: ['furniture', 'wall'],
-    description: 'Polished brass (flat metal, no maps)',
+    description: 'Đồng thau mài bóng (kim loại phẳng, không vân)',
     previewColor: '#b08d57',
     preset: {
       maps: {},
@@ -4165,10 +4165,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
     // Parameter-only chrome (no texture maps) — moderate metalness so it reads
     // as bright metal under direct/ambient light without needing an env map.
     id: 'metal-chrome',
-    label: 'Chrome',
+    label: 'Crôm mạ bóng',
     category: 'metal',
     surfaces: ['furniture', 'wall'],
-    description: 'Polished chrome (flat metal, no maps)',
+    description: 'Crôm mài bóng (kim loại phẳng, không vân)',
     previewColor: '#c8ccce',
     preset: {
       maps: {},
@@ -4205,10 +4205,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
    */
   {
     id: 'siding-lap-white',
-    label: 'Lap siding — white',
+    label: 'Ván ốp lợp vảy — trắng',
     category: 'wood',
     surfaces: ['wall', 'outdoor'],
-    description: 'Exterior clapboard lap siding, painted white',
+    description: 'Ván ốp ngoài kiểu lợp vảy, sơn trắng',
     previewColor: '#e9e9e9',
     preset: {
       maps: {
@@ -4240,10 +4240,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'siding-lap-greige',
-    label: 'Lap siding — greige',
+    label: 'Ván ốp lợp vảy — xám be',
     category: 'wood',
     surfaces: ['wall', 'outdoor'],
-    description: 'Exterior clapboard lap siding, painted greige',
+    description: 'Ván ốp ngoài kiểu lợp vảy, sơn xám be',
     previewColor: '#c8c1b8',
     preset: {
       maps: {
@@ -4275,10 +4275,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'siding-lap-gray',
-    label: 'Lap siding — gray',
+    label: 'Ván ốp lợp vảy — xám',
     category: 'wood',
     surfaces: ['wall', 'outdoor'],
-    description: 'Exterior clapboard lap siding, painted gray',
+    description: 'Ván ốp ngoài kiểu lợp vảy, sơn xám',
     previewColor: '#8b8a86',
     preset: {
       maps: {
@@ -4310,10 +4310,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'siding-lap-sage',
-    label: 'Lap siding — sage',
+    label: 'Ván ốp lợp vảy — xanh xô thơm',
     category: 'wood',
     surfaces: ['wall', 'outdoor'],
-    description: 'Exterior clapboard lap siding, painted sage',
+    description: 'Ván ốp ngoài kiểu lợp vảy, sơn xanh xô thơm',
     previewColor: '#bcc5b2',
     preset: {
       maps: {
@@ -4345,10 +4345,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'siding-lap-cedar',
-    label: 'Lap siding — cedar',
+    label: 'Ván ốp lợp vảy — gỗ tuyết tùng',
     category: 'wood',
     surfaces: ['wall', 'outdoor'],
-    description: 'Exterior clapboard lap siding, stained cedar',
+    description: 'Ván ốp ngoài kiểu lợp vảy, nhuộm màu gỗ tuyết tùng',
     previewColor: '#b5825a',
     preset: {
       maps: {
@@ -4380,10 +4380,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'siding-lap-forest',
-    label: 'Lap siding — forest',
+    label: 'Ván ốp lợp vảy — xanh rừng',
     category: 'wood',
     surfaces: ['wall', 'outdoor'],
-    description: 'Exterior clapboard lap siding, painted forest',
+    description: 'Ván ốp ngoài kiểu lợp vảy, sơn xanh rừng',
     previewColor: '#4f6b57',
     preset: {
       maps: {
@@ -4415,10 +4415,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'siding-lap-navy',
-    label: 'Lap siding — navy',
+    label: 'Ván ốp lợp vảy — xanh hải quân',
     category: 'wood',
     surfaces: ['wall', 'outdoor'],
-    description: 'Exterior clapboard lap siding, painted navy',
+    description: 'Ván ốp ngoài kiểu lợp vảy, sơn xanh hải quân',
     previewColor: '#2f4865',
     preset: {
       maps: {
@@ -4450,10 +4450,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'siding-lap-yellow',
-    label: 'Lap siding — yellow',
+    label: 'Ván ốp lợp vảy — vàng',
     category: 'wood',
     surfaces: ['wall', 'outdoor'],
-    description: 'Exterior clapboard lap siding, painted yellow',
+    description: 'Ván ốp ngoài kiểu lợp vảy, sơn vàng',
     previewColor: '#f2e3b3',
     preset: {
       maps: {
@@ -4485,10 +4485,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'siding-lap-nearblack',
-    label: 'Lap siding — nearblack',
+    label: 'Ván ốp lợp vảy — gần đen',
     category: 'wood',
     surfaces: ['wall', 'outdoor'],
-    description: 'Exterior clapboard lap siding, painted nearblack',
+    description: 'Ván ốp ngoài kiểu lợp vảy, sơn gần đen',
     previewColor: '#232322',
     preset: {
       maps: {
@@ -4520,10 +4520,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'siding-lap-clay',
-    label: 'Lap siding — clay',
+    label: 'Ván ốp lợp vảy — đất sét',
     category: 'wood',
     surfaces: ['wall', 'outdoor'],
-    description: 'Exterior clapboard lap siding, painted clay',
+    description: 'Ván ốp ngoài kiểu lợp vảy, sơn đất sét',
     previewColor: '#8f4a2e',
     preset: {
       maps: {
@@ -4555,10 +4555,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'siding-batten-cream',
-    label: 'Board & batten — cream',
+    label: 'Ván che khe — kem',
     category: 'wood',
     surfaces: ['wall', 'outdoor'],
-    description: 'Exterior board-and-batten siding, painted cream',
+    description: 'Ván ốp ngoài kiểu che khe, sơn kem',
     previewColor: '#efe3cc',
     preset: {
       maps: {
@@ -4590,10 +4590,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'siding-batten-sand',
-    label: 'Board & batten — sand',
+    label: 'Ván che khe — cát',
     category: 'wood',
     surfaces: ['wall', 'outdoor'],
-    description: 'Exterior board-and-batten siding, painted sand',
+    description: 'Ván ốp ngoài kiểu che khe, sơn cát',
     previewColor: '#ddccae',
     preset: {
       maps: {
@@ -4625,10 +4625,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'siding-batten-charcoal',
-    label: 'Board & batten — charcoal',
+    label: 'Ván che khe — xám than',
     category: 'wood',
     surfaces: ['wall', 'outdoor'],
-    description: 'Exterior board-and-batten siding, painted charcoal',
+    description: 'Ván ốp ngoài kiểu che khe, sơn xám than',
     previewColor: '#4e5257',
     preset: {
       maps: {
@@ -4660,10 +4660,10 @@ export const MATERIAL_CATALOG: MaterialCatalogItem[] = [
   },
   {
     id: 'siding-batten-olive',
-    label: 'Board & batten — olive',
+    label: 'Ván che khe — xanh ô liu',
     category: 'wood',
     surfaces: ['wall', 'outdoor'],
-    description: 'Exterior board-and-batten siding, painted olive',
+    description: 'Ván ốp ngoài kiểu che khe, sơn xanh ô liu',
     previewColor: '#8d9368',
     preset: {
       maps: {

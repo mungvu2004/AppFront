@@ -1,10 +1,11 @@
 import type { ParametricDescriptor } from '@pascal-app/core'
 import type { LiquidLineNode } from './schema'
+import { vi } from '../i18n/vi'
 
 export const liquidLineParametrics: ParametricDescriptor<LiquidLineNode> = {
   groups: [
     {
-      label: 'Line',
+      label: vi.common.line,
       fields: [
         {
           key: 'diameter',

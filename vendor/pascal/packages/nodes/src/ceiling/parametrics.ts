@@ -1,5 +1,6 @@
 import type { ParametricDescriptor } from '@pascal-app/core'
 import type { CeilingNode } from './schema'
+import { vi } from '../i18n/vi'
 
 /**
  * Inspector descriptor for ceiling.
@@ -11,7 +12,7 @@ import type { CeilingNode } from './schema'
 export const ceilingParametrics: ParametricDescriptor<CeilingNode> = {
   groups: [
     {
-      label: 'Dimensions',
+      label: vi.common.dimensions,
       fields: [{ key: 'height', kind: 'number', unit: 'm', min: 0.1, max: 1000, step: 0.05 }],
     },
   ],

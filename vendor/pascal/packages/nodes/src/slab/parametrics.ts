@@ -1,5 +1,6 @@
 import { MIN_SLAB_THICKNESS, type ParametricDescriptor } from '@pascal-app/core'
 import type { SlabNode } from './schema'
+import { vi } from '../i18n/vi'
 
 /**
  * Inspector descriptor for slab.
@@ -14,7 +15,7 @@ import type { SlabNode } from './schema'
 export const slabParametrics: ParametricDescriptor<SlabNode> = {
   groups: [
     {
-      label: 'Elevation',
+      label: vi.common.elevation,
       fields: [
         { key: 'elevation', kind: 'number', unit: 'm', min: -1, max: 1, step: 0.01 },
         {

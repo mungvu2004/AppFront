@@ -1,15 +1,16 @@
 import type { ParametricDescriptor, RoofNode } from '@pascal-app/core'
+import { vi } from '../i18n/vi'
 
 export const roofParametrics: ParametricDescriptor<RoofNode> = {
   groups: [
     {
-      label: 'Position',
+      label: vi.common.position,
       fields: [
         { key: 'position', kind: 'vec3' },
         {
           key: 'rotation',
           kind: 'number',
-          label: 'Rotation (rad)',
+          label: vi.common.rotationRad,
           min: -Math.PI,
           max: Math.PI,
           step: Math.PI / 36,

@@ -25,6 +25,7 @@ import { useCallback, useEffect, useMemo } from 'react'
 import { constrainCurtainOpening, curtainOpeningLimits } from '../shared/curtain-opening-limits'
 import { createOpeningPropertyPreview } from '../shared/opening-property-preview'
 import { openingPropertyPreviewHost } from '../shared/opening-property-preview-host'
+import { vi } from '../i18n/vi'
 
 function isSameWindowValue(current: unknown, next: unknown): boolean {
   if (typeof current === 'number' && typeof next === 'number') {
@@ -342,7 +343,7 @@ export default function WindowPanel() {
       title={node.name || 'Window'}
       width={320}
     >
-      <PanelSection title="Type">
+      <PanelSection title={vi.common.type}>
         <SegmentedControl
           onChange={(value) =>
             handleUpdate({
@@ -368,7 +369,7 @@ export default function WindowPanel() {
       </PanelSection>
 
       {showWindowTypeSection && (
-        <PanelSection title="Window Type">
+        <PanelSection title={vi.common.windowType}>
           <div className="grid grid-cols-2 gap-2 px-1 pt-1">
             {windowTypeOptions.map((option) => {
               const isSelected = displayedWindowType === option.value
@@ -458,7 +459,7 @@ export default function WindowPanel() {
         </PanelSection>
       )}
 
-      <PanelSection title="Position">
+      <PanelSection title={vi.common.position}>
         <SliderControl
           label={
             <>
@@ -488,21 +489,21 @@ export default function WindowPanel() {
             <ActionButton
               className="w-full"
               icon={<FlipHorizontal2 className="h-4 w-4" />}
-              label="Flip Side"
+              label={vi.common.flipSideField}
               onClick={handleFlip}
             />
           </div>
         )}
       </PanelSection>
 
-      <PanelSection title="Dimensions">
+      <PanelSection title={vi.common.dimensions}>
         {limits && (
           <p className="text-[11px] text-muted-foreground">
             Size is limited to the wall, including clearance for the opening frame.
           </p>
         )}
         <SliderControl
-          label="Width"
+          label={vi.common.width}
           max={limits?.width}
           min={0.01}
           onChange={(v) => preview?.preview(getDimensionUpdates({ width: v }))}
@@ -516,7 +517,7 @@ export default function WindowPanel() {
           value={node.width}
         />
         <SliderControl
-          label="Height"
+          label={vi.common.height}
           max={limits?.height}
           min={0.01}
           onChange={(v) => preview?.preview(getDimensionUpdates({ height: v }))}
@@ -532,7 +533,7 @@ export default function WindowPanel() {
       </PanelSection>
 
       {showWindowShapeSection && (
-        <PanelSection title="Top Shape">
+        <PanelSection title={vi.common.topShape}>
           <SegmentedControl
             onChange={(value) =>
               handleUpdate({
@@ -570,7 +571,7 @@ export default function WindowPanel() {
               />
               {openingRadiusMode === 'all' ? (
                 <SliderControl
-                  label="Corner Radius"
+                  label={vi.common.cornerRadius}
                   max={maxRoundedRadius}
                   min={0}
                   onChange={(value) => previewWindowUpdate('cornerRadius', value)}
@@ -610,7 +611,7 @@ export default function WindowPanel() {
                 </>
               )}
               <SliderControl
-                label="Reveal Radius"
+                label={vi.common.revealRadius}
                 max={0.08}
                 min={0}
                 onChange={(value) => previewWindowUpdate('openingRevealRadius', value)}
@@ -628,7 +629,7 @@ export default function WindowPanel() {
           {windowShape === 'arch' && (
             <div className="mt-2 flex flex-col gap-1">
               <SliderControl
-                label="Arch Height"
+                label={vi.common.archHeight}
                 max={Math.max(0.05, node.height)}
                 min={0.05}
                 onChange={(value) => previewWindowUpdate('archHeight', value)}
@@ -647,7 +648,7 @@ export default function WindowPanel() {
       )}
 
       {showOpeningShapeSection && (
-        <PanelSection title="Opening Shape">
+        <PanelSection title={vi.common.openingShape}>
           <SegmentedControl
             onChange={(value) =>
               handleUpdate({ openingShape: value as WindowNode['openingShape'] })
@@ -673,7 +674,7 @@ export default function WindowPanel() {
               />
               {openingRadiusMode === 'all' ? (
                 <SliderControl
-                  label="Corner Radius"
+                  label={vi.common.cornerRadius}
                   max={maxRoundedRadius}
                   min={0}
                   onChange={(value) => previewWindowUpdate('cornerRadius', value)}
@@ -713,7 +714,7 @@ export default function WindowPanel() {
                 </>
               )}
               <SliderControl
-                label="Reveal Radius"
+                label={vi.common.revealRadius}
                 max={0.08}
                 min={0}
                 onChange={(value) => previewWindowUpdate('openingRevealRadius', value)}
@@ -731,7 +732,7 @@ export default function WindowPanel() {
           {openingShape === 'arch' && (
             <div className="mt-2 flex flex-col gap-1">
               <SliderControl
-                label="Arch Height"
+                label={vi.common.archHeight}
                 max={Math.max(0.05, node.height)}
                 min={0.05}
                 onChange={(value) => previewWindowUpdate('archHeight', value)}
@@ -752,9 +753,9 @@ export default function WindowPanel() {
       {!isOpening && (
         <>
           {showFrameSection && (
-            <PanelSection title="Frame">
+            <PanelSection title={vi.common.frame}>
               <SliderControl
-                label="Thickness"
+                label={vi.common.thickness}
                 min={0}
                 onChange={(v) => previewWindowUpdate('frameThickness', v)}
                 onCommit={(v) => commitWindowPreview('frameThickness', v)}
@@ -767,7 +768,7 @@ export default function WindowPanel() {
                 value={node.frameThickness}
               />
               <SliderControl
-                label="Depth"
+                label={vi.common.depth}
                 min={0}
                 onChange={(v) => previewWindowUpdate('frameDepth', v)}
                 onCommit={(v) => commitWindowPreview('frameDepth', v)}
@@ -783,9 +784,9 @@ export default function WindowPanel() {
           )}
 
           {showGridSection && (
-            <PanelSection title="Grid">
+            <PanelSection title={vi.common.grid}>
               <SliderControl
-                label="Columns"
+                label={vi.common.columns}
                 max={8}
                 min={1}
                 onChange={(v) => {
@@ -797,7 +798,7 @@ export default function WindowPanel() {
                 value={numCols}
               />
               <SliderControl
-                label="Rows"
+                label={vi.common.rows}
                 max={8}
                 min={1}
                 onChange={(v) => {
@@ -829,7 +830,7 @@ export default function WindowPanel() {
                   ))}
                   <div className="mt-1 border-border/50 border-t pt-1">
                     <SliderControl
-                      label="Divider"
+                      label={vi.common.divider}
                       max={0.1}
                       min={0.005}
                       onChange={(v) => handleUpdate({ columnDividerThickness: v })}
@@ -862,7 +863,7 @@ export default function WindowPanel() {
                   ))}
                   <div className="mt-1 border-border/50 border-t pt-1">
                     <SliderControl
-                      label="Divider"
+                      label={vi.common.divider}
                       max={0.1}
                       min={0.005}
                       onChange={(v) => handleUpdate({ rowDividerThickness: v })}
@@ -878,16 +879,16 @@ export default function WindowPanel() {
           )}
 
           {showSillSection && (
-            <PanelSection title="Sill">
+            <PanelSection title={vi.common.sill}>
               <ToggleControl
                 checked={node.sill}
-                label="Enable Sill"
+                label={vi.common.enableSill}
                 onChange={(checked) => handleUpdate({ sill: checked })}
               />
               {node.sill && (
                 <div className="mt-1 flex flex-col gap-1">
                   <SliderControl
-                    label="Depth"
+                    label={vi.common.depth}
                     min={0}
                     onChange={(v) => handleUpdate({ sillDepth: v })}
                     precision={3}
@@ -896,7 +897,7 @@ export default function WindowPanel() {
                     value={node.sillDepth}
                   />
                   <SliderControl
-                    label="Thickness"
+                    label={vi.common.thickness}
                     min={0}
                     onChange={(v) => handleUpdate({ sillThickness: v })}
                     precision={3}
@@ -911,18 +912,18 @@ export default function WindowPanel() {
         </>
       )}
 
-      <PanelSection title="Actions">
+      <PanelSection title={vi.common.actions}>
         <ActionGroup>
-          <ActionButton icon={<Move className="h-3.5 w-3.5" />} label="Move" onClick={handleMove} />
+          <ActionButton icon={<Move className="h-3.5 w-3.5" />} label={vi.common.move} onClick={handleMove} />
           <ActionButton
             icon={<Copy className="h-3.5 w-3.5" />}
-            label="Duplicate"
+            label={vi.common.duplicate}
             onClick={handleDuplicate}
           />
           <ActionButton
             className="hover:bg-red-500/20"
             icon={<Trash2 className="h-3.5 w-3.5 text-red-400" />}
-            label="Delete"
+            label={vi.common.delete}
             onClick={handleDelete}
           />
         </ActionGroup>
