@@ -23,6 +23,8 @@ import { expect, type APIRequestContext, type Browser } from '@playwright/test';
 
 import { ImageQualityAssessmentSchema } from '../../../src/api/schemas/quality';
 import { PIPELINE_TIMEOUT_MS } from '../../../e2e/fullstack/env';
+import { signedInApi } from './api';
+import { readAdminCredentials } from './auth';
 import { TEST_DATA_PREFIX } from './evidence';
 
 type Json = Record<string, unknown>;
@@ -76,10 +78,24 @@ export async function rotatedPng(browser: Browser, pngPath: string, deg: number)
   }
 }
 
-/** Deletes a fixture project; 200 / 404 are fine, anything else is returned for an annotation, never thrown. */
+/**
+ * Deletes a fixture project; 200 / 404 are fine, anything else is returned for an annotation, never thrown.
+ * Deleting needs the admin role (BUG-513, BE-BIND #27): on 403 the owner adds the admin as a member and the admin
+ * deletes, so projects seeded by engineers are not left behind.
+ */
 export async function deleteSeededProject(api: APIRequestContext, projectId: string): Promise<string | null> {
   try {
-    const res = await api.delete(`${PROJECTS}/${projectId}`);
+    let res = await api.delete(`${PROJECTS}/${projectId}`);
+    if (res.status() === 403) {
+      const { email, password } = readAdminCredentials();
+      await api.post(`${PROJECTS}/${projectId}/members`, { data: { email } });
+      const admin = await signedInApi(email, password);
+      try {
+        res = await admin.delete(`${PROJECTS}/${projectId}`);
+      } finally {
+        await admin.dispose();
+      }
+    }
     return res.status() === 200 || res.status() === 404 ? null : `DELETE ${PROJECTS}/${projectId} → ${String(res.status())}`;
   } catch (error) {
     return `DELETE ${PROJECTS}/${projectId}: ${String(error)}`;
