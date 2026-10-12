@@ -676,13 +676,19 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
         if ((await keyboardSection(page).count()) === 0) {
           await selectRow(page, 2);
           await page.getByRole('button', { name: DIM.keyboardOn, exact: true }).click();
-        } else {
-          await page.keyboard.press('Escape'); // drop the typed "r" (UNF:144-148)
         }
+        // The typed "r" is not a number: the field drops it on blur (DR:240-245). No Esc here — Esc in the field also
+        // deselects the row (18-C-014) and would drop the mode to the panel footer.
       });
 
       await test.step('[18-C-030] legend "Tab — Sang cột sau": Tab goes to the off button', async () => {
         await expect.soft(keyboardSection(page).getByText('Sang cột sau', { exact: true })).toBeVisible();
+        if ((await kbField().count()) === 0) {
+          note('18-C-030: keyboard mode had no row left selected; M-002 re-selected to bring the field back.');
+          await page.getByRole('button', { name: DIM.keyboardOff, exact: true }).click();
+          await selectRow(page, 2);
+          await page.getByRole('button', { name: DIM.keyboardOn, exact: true }).click();
+        }
         await kbField().focus();
         await page.keyboard.press('Tab');
         await expect.soft(page.getByRole('button', { name: DIM.keyboardOff, exact: true })).toBeFocused();
