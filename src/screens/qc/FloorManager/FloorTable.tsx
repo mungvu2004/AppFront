@@ -191,7 +191,7 @@ export function FloorTable({
   if (state === 'empty') {
     return (
       <EmptyState
-        action={{ label: ADD_FLOOR_LABEL, onClick: onAddFloor }}
+        {...(canEdit ? { action: { label: ADD_FLOOR_LABEL, onClick: onAddFloor } } : {})}
         className="h-full"
         description={emptyNotice ?? ''}
         icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-bg-sunken" />}

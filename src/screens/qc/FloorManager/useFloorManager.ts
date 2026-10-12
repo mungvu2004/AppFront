@@ -177,6 +177,8 @@ import type {
 export const FLOOR_MANAGER_TEXT = {
   emptyTitle: 'Chưa có tầng nào',
   emptyNotice: 'Thêm tầng đầu tiên, hoặc nhập số tầng từ màn hình tạo dự án.',
+  /* Người xem không thêm được tầng, nên không mời họ thêm (BUG-522). */
+  viewerEmptyNotice: 'Khi người có quyền sửa thêm tầng, ngăn xếp tầng sẽ hiện ở đây.',
   forbiddenNotice: 'Vai của bạn chỉ xem được ngăn xếp tầng; mọi thao tác sửa đã được ẩn.',
   drawingsMissing: 'Chưa có bản vẽ',
   persistFailedTitle: 'Chưa lưu được thay đổi tầng',
@@ -301,21 +303,15 @@ export interface FloorManagerStateInput {
  * `SEVEN_STATES` của `src/lib/testing/sevenStateScenarios.ts`.
  *
  * Thứ tự nhánh là thứ tự "cái gì che cái gì" mà `floorManagerTypes.ts` khai:
- * `forbidden` → `collapsed` → `error` → `loading` → `empty` → `partial` →
+ * `error` → `loading` → `empty` → `forbidden` → `collapsed` → `partial` →
  * `success`. `loading` tách khỏi `empty` bằng chính cờ đang tải chứ không bằng
- * "không có dòng nào", vì cả hai đều không có dòng nào.
+ * "không có dòng nào", vì cả hai đều không có dòng nào. Lỗi đọc và dự án rỗng
+ * đứng TRƯỚC vai người xem: vai chỉ là dải chỉ đọc, không được che "Không tìm
+ * thấy dự án này" hay "Chưa có tầng nào" (BUG-522).
  */
 export function deriveFloorManagerScreenState(
   input: FloorManagerStateInput,
 ): FloorManagerScreenState {
-  if (input.isViewerRole) {
-    return 'forbidden';
-  }
-
-  if (input.isCollapsed) {
-    return 'collapsed';
-  }
-
   if (input.hasError) {
     return 'error';
   }
@@ -326,6 +322,14 @@ export function deriveFloorManagerScreenState(
 
   if (input.rowCount === 0) {
     return 'empty';
+  }
+
+  if (input.isViewerRole) {
+    return 'forbidden';
+  }
+
+  if (input.isCollapsed) {
+    return 'collapsed';
   }
 
   return input.needsDrawingCount > 0 ? 'partial' : 'success';
@@ -1720,7 +1724,8 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
     isCompact: options.isCompact ?? false,
     isAutoElevation,
 
-    emptyNotice: state === 'empty' ? FLOOR_MANAGER_TEXT.emptyNotice : null,
+    emptyNotice:
+      state !== 'empty' ? null : canEdit ? FLOOR_MANAGER_TEXT.emptyNotice : FLOOR_MANAGER_TEXT.viewerEmptyNotice,
     errorMessage,
     isProjectMissing,
     forbiddenNotice: isViewerRole ? FLOOR_MANAGER_TEXT.forbiddenNotice : null,

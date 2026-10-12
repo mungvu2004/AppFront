@@ -784,3 +784,12 @@ describe('khung bảng có chiều cao xác định (BUG-520)', () => {
     expect(content?.firstElementChild).toHaveClass('flex-1');
   });
 });
+
+describe('người xem ở dự án rỗng (BUG-522)', () => {
+  it('"Chưa có tầng nào" hiện, nhưng không có nút "Thêm tầng"', () => {
+    renderWithProviders(<FloorManager {...scenarioArgsFor('empty')} canEdit={false} />);
+
+    expect(screen.getByText('Chưa có tầng nào')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: ADD_FLOOR_LABEL })).not.toBeInTheDocument();
+  });
+});

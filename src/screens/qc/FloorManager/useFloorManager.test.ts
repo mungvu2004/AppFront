@@ -803,6 +803,34 @@ describe('bảng tầng', () => {
     expect(mounted.result.current.bands).toHaveLength(0);
   });
 
+  it('BUG-522: người xem mở dự án rỗng thấy trạng thái Rỗng, không lời mời thêm tầng', async () => {
+    const gateway = createMockFloorManagerGateway({
+      graph: createFloorManagerSampleGraph({ levels: [] }),
+      floors: [],
+    });
+    const mounted = await mountSettled({ gateway, roles: ['viewer'] });
+
+    await waitFor(() => {
+      expect(mounted.result.current.state).toBe('empty');
+    });
+    expect(mounted.result.current.emptyNotice).toBe(FLOOR_MANAGER_TEXT.viewerEmptyNotice);
+    expect(mounted.result.current.forbiddenNotice).not.toBeNull();
+  });
+
+  it('BUG-522: người xem mở mã dự án lạ thấy "không tìm thấy dự án", không chỉ dải quyền', async () => {
+    const notFound: HttpError = { kind: 'http', status: 404, requestId: 'REQ-404', retryable: false, raw: null };
+    const gateway: FloorManagerGateway = {
+      ...createMockFloorManagerGateway(),
+      readFloorList: () => Promise.reject(notFound),
+    };
+    const mounted = await mountSettled({ gateway, roles: ['viewer'] });
+
+    await waitFor(() => {
+      expect(mounted.result.current.state).toBe('error');
+    });
+    expect(mounted.result.current.isProjectMissing).toBe(true);
+  });
+
   it('BUG-521: người xem không nghe câu nhân bản/xoá tầng chưa lưu; người sửa vẫn nghe', async () => {
     const viewer = await mountSettled({ roles: ['viewer'] });
 
