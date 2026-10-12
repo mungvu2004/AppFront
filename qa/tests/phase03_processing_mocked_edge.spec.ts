@@ -1046,10 +1046,10 @@ test.describe('E03 SCR-12 processing — mocked-response flows (QA-03d P9)', () 
         runs.progressOf.set(u1, wireError(503, 'SERVICE_UNAVAILABLE'));
         await page.goto(pipeline);
         await expect(readAlert(page)).toBeVisible({ timeout: 25_000 });
-        // The failed seed read switches the floor to polling; a failed poll used to turn the query back to success.
-        const mark = runs.count(u1);
-        await expect.poll(() => runs.count(u1), { message: 'a later #8 poll (also 503)', timeout: 45_000 }).toBeGreaterThan(mark);
-        await settle(page);
+        // QA-03f (T5): once the first failed read has filled the record, the viewed floor goes SSE (useProcessingScreen.ts:1014-1022)
+        // and stops asking #8 — the failure is kept through `onFailure` (processingGateway.ts:737-745). run-36 saw #8 stuck at 9
+        // reads for 45 s, so do not wait for a later poll: hold 10 s, then the alert must still be there.
+        await settle(page, 10_000);
         await expect.soft(readAlert(page)).toBeVisible();
         await expect.soft(page.getByRole('button', { name: SUPPORT, exact: true })).toBeVisible();
         await attachJson('E03_12-B-011_reads.json', { progressReads: runs.count(u1) });
