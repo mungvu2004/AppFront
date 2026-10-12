@@ -757,9 +757,15 @@ test.describe('A03 · phase-3 BE2 lifecycles (upload, pipeline, stream, quality)
         const sent = await call(e1, 'BE2-G-124_straighten_key_200', 'POST', path, {}, ['200 QualityAssessmentOut re-measured, new finding ids; a new run of the same upload (quality/service.py:355-380)'], { 'Idempotency-Key': key });
         expect(sent.res.status(), 'straighten').toBe(200);
         firstBody = sent.body;
-        const queued = await progressOf(e1, 'BE2-G-124_progress_queued', pid, uid, '#8 right after #32: the new run (pending | running)');
+        const queued = await progressOf(e1, 'BE2-G-124_progress_queued', pid, uid, '#8 right after #32: the new run (pending | running, or completed after run 1 ended)');
         note(`#8 right after #32: ${String(queued.status)}`);
-        expect.soft(['pending', 'running']).toContain(queued.status);
+        // QA-03f (E1): the straighten run can finish before this read (run-36: 222 ms run, read 95 ms later) — a `completed`
+        // that STARTED after run 1 ended is the new run too.
+        const isNewRun =
+          queued.status === 'completed'
+            ? Date.parse(String(queued.startedAt)) > Date.parse(String(before.endedAt))
+            : ['pending', 'running'].includes(String(queued.status));
+        expect.soft(isNewRun, `#8 is the new run: ${String(queued.status)} startedAt ${String(queued.startedAt)} > run 1 endedAt ${String(before.endedAt)}`).toBe(true);
         const entry = asArray(asJson(sent.body).floors).map((f) => asJson(f)).find((f) => f.floorId === fid);
         const idsAfter = asArray(entry?.findings ?? []).map((f) => asJson(f).id);
         expect.soft(idsAfter.filter((id) => findingsBefore.includes(id)), 'finding ids renewed').toEqual([]);
