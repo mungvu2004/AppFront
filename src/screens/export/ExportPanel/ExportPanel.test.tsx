@@ -220,6 +220,20 @@ describe('[BUG-466] .glb mà chưa chọn tầng nào: không nút "Xuất", kh�
   });
 });
 
+describe('[BUG-443] mọi dòng kiểm tra trước khi xuất viết hoa chữ đầu (A6)', () => {
+  it('dòng "Còn N tầng chưa duyệt" viết hoa như hai dòng anh em', () => {
+    const level = { id: 'L-1', name: 'Tầng 1', order: 0, elevation: 0, height: 3000, reviewed: false };
+    const rows = buildPreflightRows({
+      projectId: 'P-1',
+      graph: null,
+      levels: [level as never],
+      violations: [],
+    });
+
+    expect(rows.find((row) => row.id === 'approval')?.label).toBe('Còn 1 tầng chưa duyệt: Tầng 1.');
+  });
+});
+
 /* ==========================================================================
  * E. Tầng chưa duyệt vẫn chọn được, mang caption cần chú ý.
  * ========================================================================== */

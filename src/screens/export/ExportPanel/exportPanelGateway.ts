@@ -312,7 +312,7 @@ export function buildPreflightRows(input: PreflightInput): readonly PreflightRow
           ? 'Chưa chọn tầng nào để xuất.'
           : unapprovedLevels.length === 0
             ? `Cả ${formatNumber(levels.length)} tầng đã chọn đều đã duyệt.`
-            : `còn ${formatNumber(unapprovedLevels.length)} tầng chưa duyệt: ${unapprovedLevels
+            : `Còn ${formatNumber(unapprovedLevels.length)} tầng chưa duyệt: ${unapprovedLevels
                 .map((level) => level.name)
                 .join(', ')}.`,
       tone: unapprovedLevels.length === 0 && levels.length > 0 ? 'ok' : 'attention',
