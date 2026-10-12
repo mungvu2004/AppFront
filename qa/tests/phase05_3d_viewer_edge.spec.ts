@@ -174,7 +174,7 @@ const EX = {
 const MT = {
   list: 'Phép đo', // MTL:60,201
   emptyHint: 'Chưa có phép đo nào. Nhấn M rồi chọn hai điểm trên mô hình.', // MTL:61, MTV:82
-  unit: 'đơn vị', // MTL:62
+  unit: 'Đơn vị', // MeasurementList.tsx:62
   collapse: 'Thu gọn mục Phép đo', // MTL:63,208
   expandPattern: /^Mở mục Phép đo, 1 phép đo$/u, // MTL:183, MTG:322,434
   chip: /^1 phép đo — mở lại danh sách phép đo$/u, // MTV:198-211 countLabel + sr-only suffix (MTG:322,434)
