@@ -207,7 +207,7 @@ export function ObjectLayerCanvas({
   useEffect(() => {
     const frame = frameRef.current;
 
-    if (frame === null) {
+    if (frame === null || typeof ResizeObserver === 'undefined') {
       return undefined;
     }
 
