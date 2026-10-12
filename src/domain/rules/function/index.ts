@@ -201,9 +201,14 @@ function countText(value: number): string {
   return formatNumber(value, { fractionDigits: 0 });
 }
 
-/** "phòng ngủ P-3 (Ngủ 1)", for the start of a sentence. */
-function roomText(room: Room, context: RuleContext): string {
-  return `${ROOM_USAGE_LABELS[room.usage]} ${displayCodeIn(context.graph, room.id)} (${room.name})`;
+/**
+ * "Phòng P-3 (Ngủ 1)", for the start of a sentence; pass `'phòng'` mid-sentence. The usage is
+ * not repeated before the code ("bếp P-2 (Bếp)" — BUG-408), and an unnamed room drops the brackets.
+ */
+function roomText(room: Room, context: RuleContext, noun = 'Phòng'): string {
+  const name = room.name.trim();
+
+  return `${noun} ${displayCodeIn(context.graph, room.id)}${name === '' ? '' : ` (${name})`}`;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -526,8 +531,8 @@ export const checkRoomHasDoor: FunctionCheck = (context) => {
       finding(
         room.id,
         [room.id, ...room.wallIds],
-        `${roomText(room, context)} không có cửa đi nào trên ${countText(room.wallIds.length)} tường bao ` +
-          'của nó, nên không vào được.',
+        `${roomText(room, context)} không có cửa đi nào` +
+          `${room.wallIds.length > 0 ? ` trên ${countText(room.wallIds.length)} tường bao của nó` : ''}, nên không vào được.`,
         'Thêm một cửa đi vào một tường bao, hoặc gộp phòng này với không gian bên cạnh.',
       ),
     );
@@ -906,7 +911,7 @@ export const checkDoorBlocksPath: FunctionCheck = (context) => {
         finding(
           opening.id,
           [opening.id, opening.wallId, room.id],
-          `Cửa đi ${displayCodeIn(context.graph, opening.id)} mở vào ${roomText(room, context)} rộng ${lengthText(widthMm)}: cánh ` +
+          `Cửa đi ${displayCodeIn(context.graph, opening.id)} mở vào ${roomText(room, context, 'phòng')} rộng ${lengthText(widthMm)}: cánh ` +
             `${lengthText(leafMm)} chỉ chừa lại ${lengthText(Math.max(0, leftMm))}, dưới mức ` +
             `${lengthText(minPassageMm)} để đi lọt.`,
           `Đổi sang cửa trượt hoặc cửa mở ngược ra khỏi lối đi, hoặc thu hẹp cánh xuống ` +
