@@ -193,7 +193,7 @@ export type PreflightTone = 'ok' | 'attention';
 
 export interface PreflightRow {
   readonly id: 'approval' | 'violations' | 'unreviewed';
-  /** Câu tiếng thường, ví dụ "Còn 3 vi phạm chưa xử lý." */
+  /** Câu tiếng thường, ví dụ "Còn 3 phát hiện từ kiểm tra luật chưa xử lý." */
   readonly label: string;
   readonly tone: PreflightTone;
   /** Liên kết đi sửa, lấy từ `ROUTES`. `null` khi không có nơi để đi. */

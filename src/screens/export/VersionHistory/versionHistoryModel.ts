@@ -281,13 +281,42 @@ function toneHeading(tone: DiffTone): string {
 }
 
 /**
+ * Mã có một khúc chữ-số hoa dài (kiểu ULID của máy chủ: "W-03H178Y099CC541AUHEQYUW8W") — người
+ * đọc không nhận ra được nó. Mã ngắn kiểu "W-014" hay "A-AXIS0000000" vẫn đọc được nên giữ.
+ */
+const OPAQUE_ID = /[0-9A-Z]{16,}/u;
+
+/**
  * Nhóm diff theo LOẠI đối tượng, mỗi hàng là một câu tiếng thường.
  *
  * Câu do `formatChange` sinh, không do màn ghép: nó là nơi duy nhất biết "dày" đi với
- * `thickness_mm` và đơn vị nào đi với con số nào (R-61).
+ * `thickness_mm` và đơn vị nào đi với con số nào (R-61). Mã đục (ULID) được thay bằng số thứ tự
+ * trong nhóm ("Thêm tường #2") trước khi vào câu — mã thô chỉ còn ở tab JSON (BUG-456).
  */
 export function buildDiffGroups(diff: VersionDiff): readonly DiffGroupModel[] {
   const rowsByKind = new Map<EntityKind, DiffRowModel[]>();
+  const shortIds = new Map<string, string>();
+  const shortCounts = new Map<EntityKind, number>();
+  const shortIdOf = (entityType: EntityKind, entityId: string): string => {
+    if (!OPAQUE_ID.test(entityId)) {
+      return entityId;
+    }
+
+    const key = `${entityType}:${entityId}`;
+    const known = shortIds.get(key);
+
+    if (known !== undefined) {
+      return known;
+    }
+
+    const ordinal = (shortCounts.get(entityType) ?? 0) + 1;
+    const short = `#${formatNumber(ordinal)}`;
+
+    shortCounts.set(entityType, ordinal);
+    shortIds.set(key, short);
+
+    return short;
+  };
 
   for (const tone of TONE_ORDER) {
     entriesOf(diff, tone).forEach((entry, index) => {
@@ -299,7 +328,7 @@ export function buildDiffGroups(diff: VersionDiff): readonly DiffGroupModel[] {
         entityId: entry.entityId,
         entityType: entry.entityType,
         tone,
-        sentence: formatChange(entry),
+        sentence: formatChange({ ...entry, entityId: shortIdOf(entry.entityType, entry.entityId) }),
       });
       rowsByKind.set(entry.entityType, rows);
     });
@@ -471,10 +500,13 @@ export const RESTORE_FORBIDDEN_REASON =
  * đúng cấm tuyệt đối của đặc tả, và đúng A9 (việc A8 không hoàn tác được thì phải hỏi).
  */
 export const RESTORE_CAPTION =
-  'Phục hồi không xoá gì: trạng thái hiện tại được giữ lại thành một phiên bản riêng, và bản phục hồi được thêm lên đầu danh sách';
+  'Phục hồi không xoá phiên bản nào: trạng thái hiện tại được giữ lại thành một phiên bản riêng, và bản phục hồi được thêm lên đầu danh sách';
 
-/** Câu trấn an thêm của hộp thoại: phục hồi thay lớp từ ngoài, nên Ctrl+Z mất lịch sử. */
-export const UNDO_HISTORY_CLEARED = 'Lịch sử hoàn tác (Ctrl+Z) của mọi tầng sẽ được xoá.';
+/**
+ * Câu trấn an thêm của hộp thoại: phục hồi thay lớp từ ngoài, nên Ctrl+Z mất lịch sử. Câu trước
+ * nói về PHIÊN BẢN; "Riêng" đánh dấu ngoại lệ để hai câu không đọc thành mâu thuẫn (BUG-459).
+ */
+export const UNDO_HISTORY_CLEARED = 'Riêng lịch sử hoàn tác (Ctrl+Z) của mọi tầng sẽ được xoá.';
 
 /** Hộp thoại đang mở: hỏi phục hồi, hay hỏi bỏ thay đổi chưa lưu (A9). */
 export type RestoreDialog =

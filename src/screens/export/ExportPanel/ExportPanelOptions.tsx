@@ -40,8 +40,8 @@ import type {
 } from './types';
 
 const DETAIL_OPTIONS: { label: string; value: ExportDetailChoice }[] = [
-  { label: 'cao', value: 'high' },
-  { label: 'vừa', value: 'medium' },
+  { label: 'Cao', value: 'high' },
+  { label: 'Vừa', value: 'medium' },
   { label: 'Gọn', value: 'low' },
 ];
 
@@ -179,7 +179,7 @@ function FormatOptionsBody({ formatId, options, capabilities, onChangeOptions }:
           Góc nhìn hiện tại: <span className="font-mono text-text-primary">{options.image.viewId}</span>
         </p>
         <p>
-          chiều rộng xuất: <span className="font-mono text-text-primary">{options.image.widthLabel}</span>
+          Chiều rộng xuất: <span className="font-mono text-text-primary">{options.image.widthLabel}</span>
         </p>
       </div>
     );
@@ -225,7 +225,7 @@ export function ExportPanelOptions({
           aria-expanded={options.isExpanded}
           onClick={onToggleOptionsExpanded}
           className={cn(
-            'flex w-full items-center justify-between gap-2 rounded px-1 py-1 text-left',
+            'flex min-h-11 w-full items-center justify-between gap-2 rounded px-1 py-1 text-left sm:min-h-6',
             FOCUS_RING,
           )}
         >

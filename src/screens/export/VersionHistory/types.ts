@@ -262,7 +262,7 @@ export interface RestoreConfirmModel {
   readonly title: string;
   /**
    * Câu bắt buộc trước khi bấm: nói rõ trạng thái hiện tại ĐƯỢC GIỮ LẠI thành một phiên bản
-   * riêng, và phục hồi không xoá gì. A9 + cấm tuyệt đối của đặc tả.
+   * riêng, và phục hồi không xoá phiên bản nào. A9 + cấm tuyệt đối của đặc tả.
    */
   readonly reassurance: string;
   readonly confirmLabel: string;
@@ -352,6 +352,8 @@ export interface VersionHistoryActions {
   readonly selectFloor: (floorId: string) => void;
   /** Nạp lại N18 của một bản vừa hỏng tạm thời (NO-368). */
   readonly retrySnapshot?: (versionId: string) => void;
+  /** Nạp lại N17 sau khi danh sách phiên bản hỏng (BUG-468). Vắng thì cảnh báo lỗi không có nút. */
+  readonly retryVersions?: () => void;
 }
 
 /** View thuần: test được CHỈ từ props, không chạm store, không chạm mạng (mục D, R-60). */

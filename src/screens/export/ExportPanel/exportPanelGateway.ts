@@ -304,7 +304,7 @@ export function buildPreflightRows(input: PreflightInput): readonly PreflightRow
   const unreviewed = collectUnreviewed(graph, levels);
   const violationCount = violations.length;
 
-  return [
+  const rows: PreflightRow[] = [
     {
       id: 'approval',
       label:
@@ -312,7 +312,7 @@ export function buildPreflightRows(input: PreflightInput): readonly PreflightRow
           ? 'Chưa chọn tầng nào để xuất.'
           : unapprovedLevels.length === 0
             ? `Cả ${formatNumber(levels.length)} tầng đã chọn đều đã duyệt.`
-            : `còn ${formatNumber(unapprovedLevels.length)} tầng chưa duyệt: ${unapprovedLevels
+            : `Còn ${formatNumber(unapprovedLevels.length)} tầng chưa duyệt: ${unapprovedLevels
                 .map((level) => level.name)
                 .join(', ')}.`,
       tone: unapprovedLevels.length === 0 && levels.length > 0 ? 'ok' : 'attention',
@@ -323,7 +323,9 @@ export function buildPreflightRows(input: PreflightInput): readonly PreflightRow
       label:
         violationCount === 0
           ? 'Không còn vi phạm nào.'
-          : `Còn ${formatNumber(violationCount)} vi phạm chưa xử lý.`,
+          : // Đếm PHÁT HIỆN (mọi mức), không đếm luật: ô "Vi phạm" của báo cáo luật đếm luật có
+            // phát hiện nghiêm trọng, nên "N vi phạm" ở đây sẽ nói ngược với nó (BUG-460).
+            `Còn ${formatNumber(violationCount)} phát hiện từ kiểm tra luật chưa xử lý.`,
       tone: violationCount === 0 ? 'ok' : 'attention',
       fixHref: violationCount === 0 ? null : ROUTES.project.rules(projectId),
     },
@@ -340,6 +342,10 @@ export function buildPreflightRows(input: PreflightInput): readonly PreflightRow
           : ROUTES.project.objects(projectId, unreviewed.levelId),
     },
   ];
+
+  // Chưa chọn tầng nào thì "mọi đối tượng … đều đã duyệt" là đúng một cách rỗng — một chấm
+  // xanh nằm ngay dưới "Chưa chọn tầng nào để xuất." (BUG-466). Bỏ hẳn dòng ấy.
+  return levels.length === 0 ? rows.filter((row) => row.id !== 'unreviewed') : rows;
 }
 
 interface UnreviewedTally {

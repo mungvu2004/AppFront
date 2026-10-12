@@ -165,9 +165,11 @@ const PHASE_COUNT_UNIT: Readonly<Record<'build' | 'encode', string>> = Object.fr
   encode: 'phần',
 });
 
-/** Nơi tệp xuất hiện sau khi xuất xong, nói luôn cả giới hạn của danh sách. */
-const DESTINATION_CAPTION =
-  'Tệp tải về thư mục tải xuống của trình duyệt; danh sách dưới đây chỉ giữ trong phiên làm việc này.';
+/**
+ * Nơi tệp xuất hiện sau khi xuất xong. Không nhắc "danh sách dưới đây": trước lượt xuất đầu
+ * tiên chưa có danh sách nào (BUG-446); giới hạn phiên làm việc do chính khối "Tệp đã xuất" nói.
+ */
+const DESTINATION_CAPTION = 'Tệp tải về thư mục tải xuống của trình duyệt.';
 
 /** Vì sao hồ sơ PDF mới đếm được trang mà chưa tải về được. */
 const PDF_NOTICE_CAPTION =
@@ -287,7 +289,8 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
   const [selectedFormatId, setSelectedFormatId] = useState<ExportFormatId>('glb');
   const [deselectedFloorIds, setDeselectedFloorIds] = useState<readonly string[]>([]);
   const [optionsView, setOptionsView] = useState<ExportOptionsView>(() =>
-    initialOptions(activeFloorId ?? ''),
+    // Không có khung nhìn thì nhãn "Góc nhìn hiện tại:" vẫn phải có giá trị (BUG-467).
+    initialOptions(activeFloorId ?? MISSING_VALUE),
   );
 
   // Bề ngang ảnh đến sau một nhịp vì `@/lib/export/screenshot` được nạp muộn;
