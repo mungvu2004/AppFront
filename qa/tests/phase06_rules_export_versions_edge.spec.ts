@@ -170,7 +170,7 @@ const EP = {
   share: 'Chia sẻ', // EPV:251 (only when SHARE_LINKS_SUPPORTED, src/lib/export/shareLink.ts:354 = false)
   confidence: 'Gồm độ tin cậy từng đối tượng', // EPO:190
   noFloor: 'Chưa chọn tầng nào để xuất.', // EPG:312
-  unapproved: (name: string): string => `còn 1 tầng chưa duyệt: ${name}.`, // EPG:315-317
+  unapproved: (name: string): string => `Còn 1 tầng chưa duyệt: ${name}.`, // EPG:315-317 (BUG-443 capitalised)
   unreviewed: /Còn \d[\d.]* đối tượng chưa duyệt\./u, // EPG:337 (the row also holds "Sửa")
   notApprovedBadge: 'Chưa duyệt', // EPO:83
   notApprovedCaption: 'Tầng chưa duyệt vẫn xuất được, nhưng cần chú ý trước khi gửi đi.', // EPO:88
@@ -1174,7 +1174,7 @@ test.describe('E06 SCR-30 Export Panel', () => {
     });
   });
 
-  test('E06 · SCR-30 preflight on an unreviewed floor: "còn 1 tầng chưa duyệt: …" → "Sửa" opens the floors; "Còn N đối tượng chưa duyệt." → that floor\'s objects; scope badge "Chưa duyệt"', async ({ browser }) => {
+  test('E06 · SCR-30 preflight on an unreviewed floor: "Còn 1 tầng chưa duyệt: …" → "Sửa" opens the floors; "Còn N đối tượng chưa duyệt." → that floor\'s objects; scope badge "Chưa duyệt"', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const project = await qcProject(admin, 'export-preflight');
