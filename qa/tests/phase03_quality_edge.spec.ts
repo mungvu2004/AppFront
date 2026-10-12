@@ -1370,8 +1370,14 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
       });
 
       await test.step('[11-B-001] delayed #30: skeleton; "Tiếp tục xử lý" aria-disabled with the reading reason', async () => {
+        // Held until the loading state is captured, not for a fixed 3 s: under 4 workers the boot alone outlasted
+        // that window and the skeleton was gone before the check (run-42).
+        let release = (): void => undefined;
+        const held = new Promise<void>((resolve) => {
+          release = resolve;
+        });
         await page.route(isQuality, async (route) => {
-          await new Promise((resolve) => setTimeout(resolve, 3_000));
+          await held;
           await route.fallback();
         });
         await page.goto(ROUTES.project.quality(project.projectId));
@@ -1380,6 +1386,7 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
         await expect.soft(continueBtn(page)).toHaveAttribute('aria-disabled', 'true');
         await expect.soft(continueBtn(page)).toHaveAccessibleDescription(READING_REASON);
         await captureEvidence(page, 'E03_11-B-001_loading.png');
+        release();
         await expect(report(page)).toBeVisible({ timeout: 30_000 });
         await page.unrouteAll({ behavior: 'ignoreErrors' });
       });
