@@ -116,7 +116,7 @@ export function ViewerShell(props: ViewerShellProps) {
   return (
     <section
       aria-label={VIEWER_SHELL_LABEL}
-      className="flex h-full w-full flex-col overflow-y-auto overflow-x-hidden bg-bg-app lg:overflow-hidden"
+      className="relative flex h-full w-full flex-col overflow-y-auto overflow-x-hidden bg-bg-app lg:overflow-hidden"
     >
       <ViewerTopBar
         activePresetId={activePresetId}
