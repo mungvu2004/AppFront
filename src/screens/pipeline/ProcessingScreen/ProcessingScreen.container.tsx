@@ -125,6 +125,7 @@ function WiredProcessingScreen(props: ProcessingScreenContainerProps) {
       <PipelineFailureContainer
         floorId={failedPipelineStep.floorId}
         failureFloorName={failedPipelineStep.failureFloorName}
+        failureFloors={failedPipelineStep.failureFloors}
         {...(failedPipelineStep.failureCode !== undefined
           ? { failureCode: failedPipelineStep.failureCode }
           : {})}
