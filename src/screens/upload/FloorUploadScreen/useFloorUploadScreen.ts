@@ -1349,7 +1349,13 @@ export function useFloorUploadScreen(
       options.onNavigate === undefined ? undefined : () => options.onNavigate?.(ROUTES.dashboard),
     // Lỗi của một tệp đóng lại một mình; không hàng nào khác đổi.
     onDismissError: (fileId) =>
-      patchAttachment(fileId, { dismissedProblem: findAttachment(fileId)?.problem ?? null }),
+      // Đọc lỗi ngay trong lượt cập nhật, không từ bản vẽ cũ của closure: lượt kiểm tệp có thể vừa
+      // đặt lỗi mà màn chưa vẽ lại.
+      setAttachments((previous) =>
+        previous.map((attachment) =>
+          attachment.id === fileId ? { ...attachment, dismissedProblem: attachment.problem } : attachment,
+        ),
+      ),
   };
 
   return { ...model, ...actions };
