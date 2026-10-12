@@ -271,6 +271,39 @@ describe('http/client.ts', () => {
     if (result.ok) return;
     expect(result.error).toMatchObject({ code: 'RATE_LIMITED', kind: 'http', retryAfterSeconds: 5, status: 429 });
   });
+
+  // BUG-514: React Query's cancelRefetch aborted the flight's initiator while its body was
+  // still streaming; the read failed as `parse`, and the refetch that had joined the flight
+  // kept that phantom error — "Không đọc được danh sách tầng" over a healthy 200.
+  it('a GET joining a flight aborted mid-body asks again on its own signal', async () => {
+    let calls = 0;
+    const fetchImpl = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      calls += 1;
+      const signal = init?.signal;
+      if (calls === 1) {
+        const body = new ReadableStream({
+          start(controller) {
+            signal?.addEventListener('abort', () => controller.error(signal.reason), { once: true });
+          },
+        });
+        return Promise.resolve(new Response(body, { headers: { 'Content-Type': 'application/json' } }));
+      }
+      return Promise.resolve(new Response('[]', { headers: { 'Content-Type': 'application/json' } }));
+    });
+    const client = createHttpClient({ baseUrl: 'https://api.example.com', fetchImpl });
+
+    const cancelled = new AbortController();
+    const abandoned = client.get('/projects/p/floors', { signal: cancelled.signal });
+    await vi.advanceTimersByTimeAsync(0); // headers in, body still streaming
+    cancelled.abort();
+    const refetch = client.get('/projects/p/floors', { signal: new AbortController().signal });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(await abandoned).toMatchObject({ error: { kind: 'aborted' }, ok: false });
+    expect(await refetch).toStrictEqual({ data: [], ok: true });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
   it('sanitizes sensitive query params in request logs and telemetry', async () => {
     const telemetry = vi.fn();
     const fetchImpl = vi.fn((input: RequestInfo | URL) => {

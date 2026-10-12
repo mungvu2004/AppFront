@@ -535,6 +535,14 @@ export const createHttpClient = ({
             errorKind = undefined;
             return ok(data);
           } catch (parseError) {
+            // The signal fired while the body was still streaming: an abort (or the deadline),
+            // not a malformed answer. Rethrown, the catch below names it so, and a single-flight
+            // joiner sees `aborted` and asks again on its own signal instead of keeping a
+            // phantom read error (BUG-514).
+            if (managedAbortSignal.signal.aborted) {
+              throw parseError;
+            }
+
             const responseRequestId = response.headers.get(REQUEST_ID_HEADER) ?? requestId;
             const parseHttpError = createHttpError({
               kind: 'parse',
