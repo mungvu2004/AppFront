@@ -589,6 +589,21 @@ async function blockerAt(page: Page, [x, y]: Point): Promise<string | null> {
   }, [x, y]);
 }
 
+/**
+ * `null` when Playwright's actionability check (trial click: visible, stable, enabled, receives the pointer) passes on
+ * `target`; else the reason, e.g. "<div …> intercepts pointer events" — tells an app overlay from a test bug (BUG-495).
+ */
+async function trialClickBlocker(target: Locator): Promise<string | null> {
+  const plain = (text: string): string => text.replace(/\u001b\[[0-9;]*m/gu, '').trim();
+  return target.click({ trial: true, timeout: 5_000 }).then(
+    () => null,
+    (error: unknown) => {
+      const lines = error instanceof Error ? error.message.split('\n') : [];
+      return plain(lines.find((line) => line.includes('intercepts')) ?? lines[0] ?? 'not clickable');
+    },
+  );
+}
+
 /* ================================================================= SCR-23 Viewer 3D */
 
 test.describe('E05 SCR-23 Viewer 3D', () => {
@@ -1093,16 +1108,9 @@ test.describe('E05 SCR-24 Exploded View', () => {
         topCard: page.getByRole('button', { name: EX.card(upper.name) }),
       };
       const reachable: Record<string, string> = {};
-      const plain = (text: string): string => text.replace(/\u001b\[[0-9;]*m/gu, '').trim();
       for (const [key, target] of Object.entries(targets)) {
         await expect(target).toBeVisible();
-        reachable[key] = await target.click({ trial: true, timeout: 5_000 }).then(
-          () => 'clickable',
-          (error: unknown) => {
-            const lines = error instanceof Error ? error.message.split('\n') : [];
-            return plain(lines.find((line) => line.includes('intercepts')) ?? 'not clickable');
-          },
-        );
+        reachable[key] = (await trialClickBlocker(target)) ?? 'clickable';
       }
       await captureEvidence(page, 'E05_exploded_top_right_click.png');
       await attachJson('E05_exploded_top_right_click.json', reachable);
@@ -1315,8 +1323,12 @@ test.describe('E05 SCR-25 Measurement Tool', () => {
       await captureEvidence(page, 'E05_measure_list_500.png');
 
       await page.unroute('**/api/projects/**', handler);
+      const retry = alert.getByRole('button', { name: MT.retry, exact: true });
+      // BUG-495: a covered "Thử lại" is an app bug (minimap over the alert), not a missing refetch — say which.
+      const blocked = await trialClickBlocker(retry);
+      if (blocked !== null) throw new Error(`"${MT.retry}" in the load-error alert does not receive the click: ${blocked}`);
       const refetch = waitForApi(page, 'GET', matcher, [200]);
-      await alert.getByRole('button', { name: MT.retry, exact: true }).click(); // UMT:886-890 refetch
+      await retry.click(); // UMT:886-890 refetch
       await refetch;
       await expect(alert).toHaveCount(0);
       await expect(page.getByRole('button', { name: `Ẩn ${name}`, exact: true })).toBeVisible();
@@ -1369,10 +1381,11 @@ test.describe('E05 SCR-26 Pascal Viewer', () => {
       await page.keyboard.press('Escape'); // UPV:360-367
       const expand = page.getByRole('button', { name: PV.expand, exact: true });
       await expect(page.getByRole('heading', { name: PV.collapsedTitle, exact: true })).toBeVisible();
+      await expect(page.getByTestId('pascal-canvas')).toHaveCount(0);
+      await captureEvidence(page, 'E05_pascal_summary_collapse.png'); // BUG-493: the collapsed frame, before it re-opens
       await expand.click(); // PVV:125 onExpand (UPV:337-340)
       await expect(page.getByTestId('pascal-canvas')).toBeVisible();
       await expect(caption).toHaveText(PV.rendered, { timeout: PASCAL_RENDER_TIMEOUT_MS });
-      await captureEvidence(page, 'E05_pascal_summary_collapse.png');
     });
   });
 
@@ -1396,11 +1409,21 @@ test.describe('E05 SCR-26 Pascal Viewer', () => {
       await captureEvidence(page, 'E05_pascal_mount_failed.png');
 
       await page.unroute(`**${PV.mountPath}*`, handler);
+      const retried = page.waitForResponse((response) => new URL(response.url()).pathname === PV.mountPath, {
+        timeout: PASCAL_RENDER_TIMEOUT_MS,
+      });
       await page.keyboard.press('r'); // UPV:370-378 R only while failing
+      const retry = await retried; // UPV:47-58 mountUrl(attempt): the retry carries `attempt=N`
+      expect(retry.status()).toBe(200);
       await expect(page.getByTestId('pascal-canvas')).toBeVisible({ timeout: PASCAL_RENDER_TIMEOUT_MS });
       await expect(page.getByRole('status').filter({ hasText: PV.rendered })).toHaveText(PV.rendered, { timeout: PASCAL_RENDER_TIMEOUT_MS });
-      await captureEvidence(page, 'E05_pascal_mount_retry.png');
-      await attachJson('E05_pascal_mount_failed.json', { abortedMountRequests: aborted.length, queries: aborted });
+      await expect(page.getByRole('heading', { name: PV.errorTitle, exact: true })).toHaveCount(0);
+      const retryQuery = new URL(retry.url()).search;
+      // BUG-493: the rendered frame alone looks like "summary"; the strip says it is the retry after PASCAL-01.
+      await captureEvidence(page, 'E05_pascal_mount_retry.png', {
+        caption: `R after PASCAL-01: ${String(aborted.length)} aborted ${PV.mountPath} request(s), retry ${retryQuery} → ${String(retry.status())}`,
+      });
+      await attachJson('E05_pascal_mount_failed.json', { abortedMountRequests: aborted.length, queries: aborted, retryQuery, retryStatus: retry.status() });
     });
   });
 
