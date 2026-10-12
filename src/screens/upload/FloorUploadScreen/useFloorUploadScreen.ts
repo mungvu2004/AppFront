@@ -260,6 +260,8 @@ interface Attachment {
    * nói rõ điều đó.
    */
   readonly awaitingNetwork: boolean;
+  /** Người dùng vừa bấm "Huỷ" lượt tải này: thẻ mở "Thử lại" thay vì bắt xoá rồi chọn lại (BUG-534). */
+  readonly wasCancelled?: boolean;
 }
 
 const PICK_PAGE_SENTENCE = 'Hãy chọn trang bản vẽ để bắt đầu tải';
@@ -662,6 +664,7 @@ export function useFloorUploadScreen(
         percent: 0,
         problem: null,
         awaitingNetwork: true,
+        wasCancelled: false,
       });
       if (!awaitAnnouncedRef.current) {
         awaitAnnouncedRef.current = true;
@@ -690,6 +693,7 @@ export function useFloorUploadScreen(
       percent: 0,
       problem: null,
       awaitingNetwork: false,
+      wasCancelled: false,
     });
 
     void task.start().then((finalState) => {
@@ -851,6 +855,7 @@ export function useFloorUploadScreen(
       percent: 0,
       problem: null,
       awaitingNetwork: false,
+      wasCancelled: false,
     });
 
     if (floorId !== null) {
@@ -1148,7 +1153,10 @@ export function useFloorUploadScreen(
           // chuyển nào để gửi, nên không có ô chọn (BUG-531).
           reassignOptions: canEdit && attachment !== null ? reassignOptions : [],
           canCancelUpload: canEdit && status === 'uploading',
-          canRetryUpload: canEdit && attachment !== null && (attachment.problem?.isRetryable ?? false),
+          canRetryUpload:
+            canEdit &&
+            attachment !== null &&
+            ((attachment.problem?.isRetryable ?? false) || attachment.wasCancelled === true),
           canRemoveFile: canEdit && attachment !== null,
           removeLabel:
             canEdit && attachment !== null ? `Xoá bản vẽ ${attachment.file.name}` : null,
@@ -1300,7 +1308,9 @@ export function useFloorUploadScreen(
     onReassign: reassign,
     onPickPdfPage: pickPdfPage,
     onCancelUpload: (fileId) => {
-      if (canEdit) cancelTask(fileId);
+      if (!canEdit) return;
+      cancelTask(fileId);
+      patchAttachment(fileId, { wasCancelled: true });
     },
     onRetryUpload: (fileId) => {
       const attachment = findAttachment(fileId);
@@ -1338,6 +1348,7 @@ function toTray(): Partial<Attachment> {
     percent: 0,
     problem: null,
     awaitingNetwork: false,
+    wasCancelled: false,
   };
 }
 
