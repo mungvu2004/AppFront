@@ -73,6 +73,7 @@ export function ViewerShell(props: ViewerShellProps) {
     presets,
     activePresetId,
     onPresetChange,
+    railOrientation = 'vertical',
     tools,
     activeToolId,
     onToolChange,
@@ -136,12 +137,14 @@ export function ViewerShell(props: ViewerShellProps) {
             <ViewerToolRail
               activeToolId={activeToolId}
               onToolChange={onToolChange}
+              orientation={railOrientation}
               tools={tools}
             />
             <ViewerStoreyRail
               onSeparationChange={onSeparationChange}
               onStoreyActivate={onStoreyActivate}
               onStoreyVisibilityToggle={onStoreyVisibilityToggle}
+              orientation={railOrientation}
               separation={separation}
               separationDisabled={separationDisabled}
               separationLabel={separationLabel}
@@ -169,6 +172,7 @@ export function ViewerShell(props: ViewerShellProps) {
               <ViewerToolRail
                 activeToolId={activeToolId}
                 onToolChange={onToolChange}
+                orientation={railOrientation}
                 tools={tools}
               />
             </div>

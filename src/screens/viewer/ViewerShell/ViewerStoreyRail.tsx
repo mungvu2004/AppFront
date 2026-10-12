@@ -39,6 +39,7 @@ export interface ViewerStoreyRailProps {
   readonly onSeparationChange: (value: number) => void;
   readonly separationLabel: string;
   readonly separationDisabled: boolean;
+  readonly orientation: 'horizontal' | 'vertical';
 }
 
 export function ViewerStoreyRail({
@@ -49,6 +50,7 @@ export function ViewerStoreyRail({
   onSeparationChange,
   separationLabel,
   separationDisabled,
+  orientation,
 }: ViewerStoreyRailProps) {
   return (
     <div
@@ -60,6 +62,7 @@ export function ViewerStoreyRail({
         className="flex w-full flex-col items-center gap-1 max-md:min-w-0 max-md:flex-1 max-md:flex-row max-md:overflow-x-auto"
         role="listbox"
         aria-multiselectable
+        aria-orientation={orientation}
       >
         {storeys.map((storey) => (
           <li className="w-full max-md:w-auto" key={storey.id}>

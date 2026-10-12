@@ -180,6 +180,36 @@ describe('[VS-2] vai Người xem', () => {
   });
 });
 
+describe('[A11y] hướng của hai ray theo bố cục thật (QA-05)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function stubMdUp(matches: boolean): void {
+    vi.stubGlobal('matchMedia', (media: string) => ({
+      matches,
+      media,
+      addEventListener: (): void => undefined,
+      removeEventListener: (): void => undefined,
+    }));
+  }
+
+  it('dưới md hai ray nằm ngang nên khai "horizontal"; từ md trở lên khai "vertical"', () => {
+    stubMdUp(false);
+    const { unmount } = renderState('success');
+
+    expect(screen.getByRole('toolbar', { name: 'Công cụ khung nhìn' })).toHaveAttribute('aria-orientation', 'horizontal');
+    expect(screen.getByRole('listbox')).toHaveAttribute('aria-orientation', 'horizontal');
+    unmount();
+
+    stubMdUp(true);
+    renderState('success');
+
+    expect(screen.getByRole('toolbar', { name: 'Công cụ khung nhìn' })).toHaveAttribute('aria-orientation', 'vertical');
+    expect(screen.getByRole('listbox')).toHaveAttribute('aria-orientation', 'vertical');
+  });
+});
+
 /* -------------------------------------------------------------------------- */
 /* [VS-3] Độ tách: 0 trả lại đúng cao độ thật.                                 */
 /* -------------------------------------------------------------------------- */

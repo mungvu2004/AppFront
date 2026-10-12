@@ -54,6 +54,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Vector3 } from 'three';
 
 import { resolveUseMockApi } from '@/api/appClient';
+import { useBreakpoint } from '@/hooks/useAppShell';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSceneTransition } from '@/hooks/useSceneTransition';
 import { can } from '@/lib/auth/permissions';
@@ -159,6 +160,9 @@ export function storeyShortLabel(name: string): string {
 
   return short === '' ? name : short.charAt(0).toLocaleUpperCase('vi') + short.slice(1);
 }
+
+/** Mốc `md` của Tailwind — từ đây hai ray đứng dọc. */
+const MD_UP_QUERY = '(min-width: 768px)';
 
 /**
  * Sáu công cụ của ray trái, kèm phím của chúng. Không công cụ nào sửa mô hình — đo
@@ -432,6 +436,8 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
   } = options;
 
   const reducedMotion = useReducedMotion();
+  // Dưới `md` hai ray nằm ngang (`ViewerToolRail`, `ViewerStoreyRail`): khai đúng hướng ấy.
+  const isMdUp = useBreakpoint(MD_UP_QUERY);
 
   /* ---- Dữ liệu ---------------------------------------------------------- */
 
@@ -1079,6 +1085,7 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     activePresetId,
     onPresetChange: goToPreset,
 
+    railOrientation: isMdUp ? 'vertical' : 'horizontal',
     tools: VIEWER_TOOLS,
     activeToolId,
     onToolChange: setActiveToolId,

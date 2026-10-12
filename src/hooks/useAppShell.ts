@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
 
-// ─── Breakpoint hook (private) ─────────────────────────────────────────────
+// ─── Breakpoint hook ───────────────────────────────────────────────────────
 
-function useBreakpoint(query: string): boolean {
+/** `true` khi `query` khớp; `false` khi môi trường không có `matchMedia` (jsdom trần). */
+export function useBreakpoint(query: string): boolean {
   const [matches, setMatches] = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia(query).matches : false
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia(query).matches
+      : false
   );
   useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
     const media = window.matchMedia(query);
     setMatches(media.matches);
     const listener = (e: MediaQueryListEvent) => setMatches(e.matches);

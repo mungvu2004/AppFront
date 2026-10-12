@@ -322,6 +322,8 @@ export interface ViewerShellProps {
   readonly onPresetChange: (id: ViewerPresetId) => void;
 
   /* Ray công cụ. */
+  /** Hướng THẬT của hai ray: dưới `md` chúng nằm ngang (khai cho `aria-orientation`). */
+  readonly railOrientation?: 'horizontal' | 'vertical';
   readonly tools: readonly ViewerToolViewModel[];
   readonly activeToolId: ViewerToolId;
   readonly onToolChange: (id: ViewerToolId) => void;
