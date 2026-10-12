@@ -802,6 +802,21 @@ describe('bảng tầng', () => {
     );
     expect(mounted.result.current.bands).toHaveLength(0);
   });
+
+  it('BUG-521: người xem không nghe câu nhân bản/xoá tầng chưa lưu; người sửa vẫn nghe', async () => {
+    const viewer = await mountSettled({ roles: ['viewer'] });
+
+    expect(viewer.result.current.unsupportedNotices).not.toContain(
+      FLOOR_MANAGER_UNSUPPORTED_NOTICES.persistFloorContents,
+    );
+    viewer.unmount();
+
+    const editor = await mountSettled();
+
+    expect(editor.result.current.unsupportedNotices).toContain(
+      FLOOR_MANAGER_UNSUPPORTED_NOTICES.persistFloorContents,
+    );
+  });
 });
 
 /* -------------------------------------------------------------------------- */

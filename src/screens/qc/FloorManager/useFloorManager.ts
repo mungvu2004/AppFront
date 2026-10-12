@@ -1698,9 +1698,12 @@ export function useFloorManager(options: UseFloorManagerOptions): UseFloorManage
     () =>
       FLOOR_MANAGER_MISSING_CAPABILITIES.filter(
         (capability) =>
-          !gateway.supports[capability] && (capability !== 'hideFloorFrom3d' || hasHiddenFloor),
+          !gateway.supports[capability] &&
+          (capability !== 'hideFloorFrom3d' || hasHiddenFloor) &&
+          /* Câu nhân bản/xoá tầng chỉ nói với người làm được hai việc đó (BUG-521). */
+          (capability !== 'persistFloorContents' || canEdit),
       ).map((capability) => FLOOR_MANAGER_UNSUPPORTED_NOTICES[capability]),
-    [gateway, hasHiddenFloor],
+    [canEdit, gateway, hasHiddenFloor],
   );
 
   return {
