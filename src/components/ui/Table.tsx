@@ -8,6 +8,7 @@ import { Checkbox } from './Checkbox';
 import { EmptyState } from '../feedback/EmptyState';
 import { durationSeconds } from '../../lib/motion';
 import { Skeleton } from '../feedback/Skeleton';
+import { useScrollEdgeShadow } from '../../hooks/useScrollEdgeShadow';
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
@@ -31,10 +32,18 @@ export interface TableRootProps extends React.HTMLAttributes<HTMLDivElement> {
   onSort?: ((key: string) => void) | undefined;
 }
 
-function TableRoot({ className, children, sortKey, sortDir, onSort, ...props }: TableRootProps) {
+function TableRoot({ className, children, sortKey, sortDir, onSort, style, ...props }: TableRootProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const boxShadow = useScrollEdgeShadow(ref);
+
   return (
     <TableContext.Provider value={{ sortKey, sortDir, onSort }}>
-      <div className={twMerge('w-full h-full overflow-auto relative', className)} {...props}>
+      <div
+        className={twMerge('w-full h-full overflow-auto relative', className)}
+        ref={ref}
+        style={boxShadow === undefined ? style : { boxShadow, ...style }}
+        {...props}
+      >
         <table className="w-full text-left border-collapse text-sm">
           {children}
         </table>

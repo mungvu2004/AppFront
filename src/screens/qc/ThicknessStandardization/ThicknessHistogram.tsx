@@ -165,7 +165,7 @@ export function ThicknessHistogram({
   useEffect(() => {
     const plot = plotRef.current;
 
-    if (plot === null) {
+    if (plot === null || typeof ResizeObserver === 'undefined') {
       return undefined;
     }
 

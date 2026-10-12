@@ -303,7 +303,7 @@ export function UserManagementTable({
                 <Avatar alt={row.name} initials={initialsOf(row.name, row.email)} size="default" {...avatarSrcProp(row.avatarUrl)} />
                 <div className="flex min-w-0 flex-col">
                   <button
-                    className={cn('text-left font-medium text-text-primary [overflow-wrap:anywhere]', FOCUS_RING)}
+                    className={cn('min-h-6 text-left font-medium text-text-primary [overflow-wrap:anywhere]', FOCUS_RING)}
                     onClick={() => actions.onSelectUser(row.id)}
                     type="button"
                   >

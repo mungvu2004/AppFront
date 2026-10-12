@@ -185,6 +185,7 @@ function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewM
       placements={model.placements}
       selectedObjectId={model.selectedObjectId}
       surfaceRectPx={model.surfaceRectPx}
+      unitPx={model.unitPx}
       viewBoxPx={model.viewBoxPx}
       wallOutlines={model.wallOutlines}
       {...editing}

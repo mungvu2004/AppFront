@@ -920,6 +920,21 @@ const ZOOM_PERCENT_PER_UNIT = 100;
 /** Thang vùng nhìn của `useMiniMap`: x/y/rộng/cao đều kẹp trong 0..100. */
 const MINIMAP_VIEWPORT_SPAN = 100;
 
+/** Vùng bản vẽ đang thấy (px) → vùng nhìn của bản đồ nhỏ, phần trăm khổ bản vẽ kẹp trong 0..100. */
+export function miniMapRectOf(visible: WallLayerRectPx, drawing: WallLayerSizePx): WallLayerViewportRectPercent {
+  const percent = (value: number, total: number): number =>
+    Math.min(MINIMAP_VIEWPORT_SPAN, Math.max(0, (value / total) * MINIMAP_VIEWPORT_SPAN));
+  const width = percent(visible.width, drawing.width);
+  const height = percent(visible.height, drawing.height);
+
+  return {
+    x: Math.min(percent(visible.x, drawing.width), MINIMAP_VIEWPORT_SPAN - width),
+    y: Math.min(percent(visible.y, drawing.height), MINIMAP_VIEWPORT_SPAN - height),
+    width,
+    height,
+  };
+}
+
 /** Tâm của một hộp, đơn vị pixel bản vẽ. */
 export const centreOfBounds = (bounds: WallLayerRectPx): Point => ({
   x: bounds.x + bounds.width / HALF,

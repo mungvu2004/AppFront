@@ -115,7 +115,7 @@ export function wallThicknessFillToken(thicknessMm: number): string {
 /** `id` của `<pattern>` gạch chéo; `fill="url(#…)"` trỏ vào đây. */
 export const WALL_HATCH_PATTERN_ID = 'wall-layer-review-hatch';
 
-/** Cạnh một ô lát của mẫu, tính bằng đơn vị người dùng của SVG (= px bản vẽ). */
+/** Cạnh một ô lát của mẫu, px MÀN (canvas nhân với `unitPx` — review-1 #3). */
 export const WALL_HATCH_TILE_PX = 12;
 
 /** Nét gạch 2px — đúng đặc tả. */
@@ -130,7 +130,7 @@ export const WALL_HATCH_PATTERN_TRANSFORM = 'rotate(45)';
 /** Thang cần chú ý của P-06 — dùng cho cả nét gạch lẫn chấm cần chú ý. */
 export const ATTENTION_TOKEN = 'var(--state-attention)';
 
-/** Bán kính chấm cần chú ý, đơn vị người dùng của SVG. */
+/** Bán kính chấm cần chú ý, px MÀN (nhân với `unitPx`). */
 export const ATTENTION_DOT_RADIUS_PX = 5;
 
 /* -------------------------------------------------------------------------- */
@@ -276,6 +276,8 @@ export interface WallLayerCanvasViewProps extends WallLayerCanvasProps {
   /** `aria-label` của khung, có số liệu — ví dụ `"Mặt bằng tầng 1 — 48 tường"`. */
   readonly canvasLabel: string;
   readonly viewport: WallLayerViewportPx;
+  /** Một px MÀN tính bằng px bản vẽ (= 1 / `viewport.zoom`): gạch chéo, chấm chú ý giữ cỡ ở mọi mức phóng. */
+  readonly unitPx: number;
   /** Kích thước ảnh bản vẽ. `null` khi chưa có ảnh. */
   readonly drawingSizePx: WallLayerSizePx | null;
   /** Vùng chứa hết đa giác, cho bản đồ nhỏ. `null` khi chưa có tường nào. */
@@ -326,7 +328,7 @@ export interface WallLayerCanvasViewProps extends WallLayerCanvasProps {
   readonly onResetZoom: () => void;
   /** Phím `F` và nút "vừa khung": phủ khắp vùng đang chọn, hoặc cả bản vẽ khi chưa chọn gì. */
   readonly onFitToScreen: () => void;
-  /** Vùng nhìn bản đồ nhỏ, đơn vị PHẦN TRĂM khổ bản vẽ — đúng đơn vị `useMiniMap` dùng. */
+  /** Vùng nhìn bản đồ nhỏ (vùng canvas đang thấy), PHẦN TRĂM khổ bản vẽ — đúng đơn vị `useMiniMap` dùng. */
   readonly miniMapViewport: WallLayerViewportRectPercent;
   /** Người dùng kéo/bấm trên bản đồ nhỏ; hook dịch tâm nhìn theo. */
   readonly onMiniMapViewportChange: (rect: WallLayerViewportRectPercent) => void;

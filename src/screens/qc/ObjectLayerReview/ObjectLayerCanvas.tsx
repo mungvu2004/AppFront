@@ -68,6 +68,7 @@ interface ObjectSymbolFigureProps {
   readonly onSelect: (objectId: string | null) => void;
   readonly onHover: (objectId: string | null) => void;
   readonly onOpenMenu: (event: ReactMouseEvent<SVGGElement>, objectId: string) => void;
+  readonly unitPx: number;
 }
 
 /**
@@ -85,6 +86,7 @@ function ObjectSymbolFigure({
   onSelect,
   onHover,
   onOpenMenu,
+  unitPx,
 }: ObjectSymbolFigureProps) {
   const symbol = buildObjectSymbol({
     subtype: placement.subtype,
@@ -167,7 +169,7 @@ function ObjectSymbolFigure({
           cx={placement.centrePx.x}
           cy={placement.centrePx.y}
           fill="var(--state-attention)"
-          r={5}
+          r={5 * unitPx}
         >
           <title>{OBJECT_CANVAS_TEXT.orphanTitle}</title>
         </circle>
@@ -198,6 +200,7 @@ export function ObjectLayerCanvas({
   placements,
   selectedObjectId,
   surfaceRectPx,
+  unitPx,
   viewBoxPx,
   wallOutlines,
 }: ObjectLayerCanvasViewProps) {
@@ -207,7 +210,7 @@ export function ObjectLayerCanvas({
   useEffect(() => {
     const frame = frameRef.current;
 
-    if (frame === null) {
+    if (frame === null || typeof ResizeObserver === 'undefined') {
       return undefined;
     }
 
@@ -340,6 +343,7 @@ export function ObjectLayerCanvas({
               onOpenMenu={handleOpenMenu}
               onSelect={onSelect}
               placement={placement}
+              unitPx={unitPx}
             />
           ))}
         </svg>

@@ -1011,6 +1011,7 @@ export function useObjectLayerReview(
    * của `useCanvasViewport` là phần NGƯỜI DÙNG lái (bay tới tường chủ), đọc trên lớp "vừa khung".
    */
   const [frameSizePx, setFrameSizePx] = useState<CanvasFitSize | null>(null);
+  const [flownWallId, setFlownWallId] = useState<WallId | null>(null);
   const onFrameResize = useCallback((size: CanvasFitSize) => {
     setFrameSizePx((previous) =>
       previous !== null && previous.width === size.width && previous.height === size.height
@@ -1065,6 +1066,7 @@ export function useObjectLayerReview(
           frameSizePx.width,
           frameSizePx.height,
         );
+        setFlownWallId(wallId);
       }
     },
     [
@@ -1078,6 +1080,24 @@ export function useObjectLayerReview(
       wallOutlines,
     ],
   );
+
+  /*
+   * Màn không có nút vừa khung: bỏ chọn tường vừa bay tới (chọn thứ khác, Esc) thì trả khung nhìn
+   * về vừa khung — không thì kẹt ở mức phóng ấy tới khi đổi tầng (review-1 #2, A12).
+   */
+  useEffect(() => {
+    if (flownWallId === null || selectedIds.includes(flownWallId)) {
+      return;
+    }
+
+    setFlownWallId(null);
+
+    if (frameSizePx !== null) {
+      const frame = { minX: 0, minY: 0, maxX: frameSizePx.width, maxY: frameSizePx.height };
+
+      flyToBounds(frame, frameSizePx.width, frameSizePx.height, { padding: 0 });
+    }
+  }, [flownWallId, flyToBounds, frameSizePx, selectedIds]);
 
   /* ---------------------------------------------------------------------- */
   /* Lớp con, chip lọc, nhóm gấp.                                            */
@@ -1238,7 +1258,7 @@ export function useObjectLayerReview(
       description: 'Đóng thanh tra đối tượng',
       onTrigger: () => onSelect(null),
     },
-    { ...shortcutOptions, enabled: selectedObjectId !== null },
+    { ...shortcutOptions, enabled: selectedObjectId !== null || flownWallId !== null },
   );
 
   /* ---------------------------------------------------------------------- */
@@ -1423,6 +1443,7 @@ export function useObjectLayerReview(
     inspector,
     wallOutlines: wallOutlinesPx,
     viewBoxPx: surfacePx === null || !hasFrame ? surfacePx : visibleDrawingRect(view, frameSizePx),
+    unitPx: 1 / view.zoom,
     surfaceRectPx: surfacePx === null ? null : toFrameRect(view, surfacePx),
     haloRectPx:
       activePlacement === null

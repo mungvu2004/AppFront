@@ -55,7 +55,7 @@
 
 import { readFileSync } from 'node:fs';
 
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Room, RoomId } from '@/domain/spatial/types';
@@ -730,5 +730,7 @@ describe('[BUG-408] thẻ nhắc công năng đặt tên luật tiếng Việt, 
 
     expect(notices).toHaveTextContent('Đường bao phòng kín bằng tường');
     expect(notices).not.toHaveTextContent(/ROOM-[A-Z-]+/u);
+    /* BUG-325: link "Xem luật không gian" 119×20 → vùng chạm ≥ 24 px. */
+    expect(within(notices).getAllByRole('link', { name: 'Xem luật không gian' })[0]).toHaveClass('min-h-6');
   });
 });

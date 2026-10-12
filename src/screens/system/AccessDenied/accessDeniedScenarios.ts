@@ -48,7 +48,7 @@ import {
   type AccessRequestVm,
   type ProjectOwnerVm,
 } from './accessDeniedModel';
-import { ACCESS_DENIED_TEXT, REASON_SENTENCE, restrictionSentenceOf } from './useAccessDenied';
+import { ACCESS_DENIED_TEXT, accessDeniedCaption, REASON_SENTENCE, restrictionSentenceOf } from './useAccessDenied';
 
 const noop = (): void => undefined;
 
@@ -186,7 +186,7 @@ export function createAccessDeniedVm(
       : null,
     backToProjects: actionFor(ACCESS_DENIED_TEXT.backToProjectsLabel, options.onBackToProjects),
     enterProject: state === 'success' ? actionFor(ACCESS_DENIED_TEXT.enterProjectLabel, options.onEnterProject) : null,
-    errorCodeCaption: `${ACCESS_DENIED_TEXT.errorCodePrefix}${options.error?.code ?? 'FORBIDDEN'}`,
+    errorCodeCaption: accessDeniedCaption('/'),
     isCompact: state === 'collapsed',
   };
 }

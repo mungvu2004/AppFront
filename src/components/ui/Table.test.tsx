@@ -350,3 +350,36 @@ describe('Table.Row hover edge', () => {
     expect(css).not.toMatch(/row-edge-on[^{}]*row-edge:hover/);
   });
 });
+
+/* BUG-405/394 nợ: ở 768/375 bảng rộng (918 px) cuộn ngang mà thanh cuộn overlay ẩn — mép có bóng. */
+describe('Table.Root scroll hint', () => {
+  it('casts an edge shadow on the side that still has columns to scroll to', () => {
+    const scrollWidth = vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(918);
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(311);
+
+    try {
+      render(
+        <Table.Root data-testid="root">
+          <Table.Body>
+            <Table.Row>
+              <Table.Cell>Ô</Table.Cell>
+            </Table.Row>
+          </Table.Body>
+        </Table.Root>,
+      );
+      const root = screen.getByTestId('root');
+
+      expect(root.style.boxShadow).toContain('inset -');
+      expect(root.style.boxShadow).not.toContain('inset 12px');
+
+      root.scrollLeft = 607;
+      fireEvent.scroll(root);
+
+      expect(root.style.boxShadow).toContain('inset 12px');
+      expect(root.style.boxShadow).not.toContain('inset -');
+    } finally {
+      scrollWidth.mockRestore();
+      clientWidth.mockRestore();
+    }
+  });
+});

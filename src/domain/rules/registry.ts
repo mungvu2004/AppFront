@@ -632,8 +632,10 @@ const roomHasDoorRule: Rule = {
         {
           entityId: room.id,
           message:
-            `Phòng ${displayCodeIn(context.graph, room.id)} không có cửa đi nào trên ${formatNumber(room.wallIds.length, { fractionDigits: 0 })} ` +
-            'tường bao của nó.',
+            `Phòng ${displayCodeIn(context.graph, room.id)} không có cửa đi nào` +
+            (room.wallIds.length > 0
+              ? ` trên ${formatNumber(room.wallIds.length, { fractionDigits: 0 })} tường bao của nó.`
+              : '.'),
           suggestion: 'Thêm một cửa đi vào một tường bao, hoặc gộp phòng này với phòng bên cạnh.',
         },
       ];

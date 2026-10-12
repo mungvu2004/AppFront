@@ -599,6 +599,8 @@ export interface ObjectLayerReviewModel {
   readonly viewport: ObjectLayerViewport;
   /** Vùng bản vẽ đang thấy — `viewBox` của `<svg>` phủ kín khung (BUG-403). */
   readonly viewBoxPx: PixelRect | null;
+  /** Một px MÀN tính bằng px bản vẽ (= 1 / `viewport.zoom`) — chấm "chưa gắn" giữ cỡ (review-1 #4). */
+  readonly unitPx: number;
   /** Hộp ảnh nền, pixel KHUNG. */
   readonly surfaceRectPx: PixelRect | null;
   /** Hộp của đối tượng đang chọn (hoặc đang rê), pixel KHUNG. */

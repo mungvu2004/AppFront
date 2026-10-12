@@ -23,7 +23,11 @@ import {
   ATTENTION_DOT_RADIUS_PX,
   ATTENTION_TOKEN,
   WALL_CENTRELINE_TOKEN,
+  WALL_HATCH_LINE_WIDTH_PX,
+  WALL_HATCH_OPACITY,
   WALL_HATCH_PATTERN_ID,
+  WALL_HATCH_PATTERN_TRANSFORM,
+  WALL_HATCH_TILE_PX,
   toSvgPoints,
   wallThicknessFillToken,
 } from './wallLayerHatch';
@@ -46,6 +50,36 @@ export interface WallShapeFigureProps {
   readonly onToggleSelect: (wallId: WallId) => void;
   readonly onHover: (wallId: WallId | null) => void;
   readonly onOpenMenu: (event: ReactMouseEvent<SVGGElement>, wallId: WallId) => void;
+  /** Một px màn tính bằng px bản vẽ — chấm chú ý giữ cỡ px màn khi vừa khung ở hệ số nhỏ. */
+  readonly unitPx: number;
+}
+
+/**
+ * Mẫu gạch chéo dưới ngưỡng tin cậy. Ô và nét là px MÀN: `scale(unitPx)` bù hệ số phóng, không thì
+ * tầng chưa hiệu chỉnh vừa khung ở ~0,05 có ô 0,6 px — tín hiệu không-màu biến mất (review-1 #3).
+ */
+export function WallHatchDefs({ unitPx }: { readonly unitPx: number }) {
+  return (
+    <defs>
+      <pattern
+        height={WALL_HATCH_TILE_PX}
+        id={WALL_HATCH_PATTERN_ID}
+        patternTransform={`${WALL_HATCH_PATTERN_TRANSFORM} scale(${unitPx})`}
+        patternUnits="userSpaceOnUse"
+        width={WALL_HATCH_TILE_PX}
+      >
+        <line
+          opacity={WALL_HATCH_OPACITY}
+          stroke={ATTENTION_TOKEN}
+          strokeWidth={WALL_HATCH_LINE_WIDTH_PX}
+          x1={0}
+          x2={0}
+          y1={0}
+          y2={WALL_HATCH_TILE_PX}
+        />
+      </pattern>
+    </defs>
+  );
 }
 
 /**
@@ -66,6 +100,7 @@ export function WallShapeFigure({
   onToggleSelect,
   onHover,
   onOpenMenu,
+  unitPx,
 }: WallShapeFigureProps) {
   const points = toSvgPoints(shape.outline);
 
@@ -108,7 +143,7 @@ export function WallShapeFigure({
             cx={shape.attentionDotPx.x}
             cy={shape.attentionDotPx.y}
             fill={ATTENTION_TOKEN}
-            r={ATTENTION_DOT_RADIUS_PX}
+            r={ATTENTION_DOT_RADIUS_PX * unitPx}
           />
         </>
       ) : null}

@@ -30,7 +30,8 @@ import { sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Level, Point, Wall, WallId } from '@/domain/spatial/types';
 import { WALL_COMMAND_TYPES } from '@/lib/commands/business/wallCommands';
-import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
+import { __resetFloorLayerSavers, FLOOR_LAYER_RELOAD_DISCARDED, flushAutosaves } from '@/hooks/useAutosave';
+import { appNotificationBus } from '@/hooks/useNotifications';
 import type * as conflictModule from '@/lib/versioning/conflict';
 import { resolveConflict } from '@/lib/versioning/conflict';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
@@ -877,12 +878,56 @@ describe('hợp đồng canvas mở rộng', () => {
     };
 
     expect(canvas.zoomPercent).toBe(100);
+    /* Gạch chéo/chấm chú ý tính theo px MÀN: một px màn = 1 / hệ số, bằng px bản vẽ (review-1 #3). */
+    expect(canvas.unitPx).toBeCloseTo(1 / canvas.viewport.zoom, 9);
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.y).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(300 + 0.5);
     expect(box.y + box.height).toBeLessThanOrEqual(480 + 0.5);
     expect(box.x + box.width / 2).toBeCloseTo(150, 0);
     expect(box.y + box.height / 2).toBeCloseTo(240, 0);
+
+    mounted.unmount();
+  });
+
+  it('[BUG-403] bản đồ nhỏ đi theo thu phóng — vùng nhìn hẹp lại khi phóng to', async () => {
+    const mounted = await mountSettled();
+
+    act(() => mounted.result.current.canvas.onFrameResize({ width: 300, height: 480 }));
+    await waitFor(() => expect(mounted.result.current.canvas.viewport.zoom).toBeLessThan(1));
+    expect(mounted.result.current.canvas.drawingSizePx).not.toBeNull();
+
+    const before = mounted.result.current.canvas.miniMapViewport;
+
+    for (let step = 0; step < 6; step += 1) {
+      act(() => mounted.result.current.canvas.onZoomIn());
+    }
+
+    await waitFor(() => expect(mounted.result.current.canvas.miniMapViewport.width).toBeLessThan(before.width));
+    expect(mounted.result.current.canvas.miniMapViewport.height).toBeLessThan(before.height);
+
+    mounted.unmount();
+  });
+
+  it('[BUG-403] sửa tường (xoá cột tường biên trái) không tự phóng/dịch mặt bằng — mốc vừa khung chốt theo tầng', async () => {
+    const mounted = await mountSettled();
+
+    act(() => mounted.result.current.canvas.onFrameResize({ width: 300, height: 480 }));
+    await waitFor(() => expect(mounted.result.current.canvas.viewport.zoom).toBeLessThan(1));
+
+    const before = mounted.result.current.canvas.viewport;
+    const bounds = mounted.result.current.canvas.contentBoundsPx!;
+    const edges = mounted.result.current.canvas.shapes.filter((shape) => shape.boundsPx.x === bounds.x);
+
+    for (const edge of edges) {
+      await act(async () => {
+        mounted.result.current.panel.onDelete(edge.id);
+        await Promise.resolve();
+      });
+    }
+    await waitFor(() => expect(mounted.result.current.canvas.contentBoundsPx).not.toEqual(bounds));
+
+    expect(mounted.result.current.canvas.viewport).toEqual(before);
 
     mounted.unmount();
   });
@@ -1467,6 +1512,11 @@ describe('tự lưu — bộ lưu lớp chung (F-04x-1)', () => {
       expect(mounted.result.current.saveBlock).toBeNull();
     });
     expect(useStore.getState().floorMeta[floorId]?.revision).toBe(3);
+    /* [BUG-415] Lỗi lưu của bản đã bỏ hết nghĩa: nhãn không còn "Lưu thất bại", và có câu báo đã bỏ. */
+    await waitFor(() => {
+      expect(mounted.result.current.statusBar.saveLabel).not.toContain('Lưu thất bại');
+    });
+    expect(appNotificationBus.list().map(({ title }) => title)).toContain(FLOOR_LAYER_RELOAD_DISCARDED);
 
     /* Ngăn hoàn tác của màn rỗng: Ctrl+Z không đổi gì trên bản vừa tải. */
     const reloaded = useStore.getState().spatial;
