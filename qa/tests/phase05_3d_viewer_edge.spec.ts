@@ -181,7 +181,7 @@ const MT = {
   modes: 'Chọn chế độ đo', // MTV:162
   modeLabels: ['Điểm đến điểm', 'Vuông góc với bề mặt', 'Chiều cao', 'Diện tích mặt sàn'], // MTT:45-50
   toggleTool: 'Bật tắt công cụ đo (phím M)', // MTV:191
-  railTool: 'đo (M)', // UVS:169, VTR:59
+  railTool: 'Đo (M)', // useViewerShell.ts:173-177, ViewerToolRail.tsx:61
   railIdle: 'Quay quanh mô hình (R)', // UVS:167, UMT:186
   deleteGone: 'Phép đo này đã bị xoá ở nơi khác', // UMT:216
   loadError: 'Chưa tải được danh sách phép đo của dự án. Kiểm tra kết nối rồi thử lại.', // UMT:195
@@ -812,7 +812,7 @@ test.describe('E05 SCR-23 Viewer 3D', () => {
     });
   });
 
-  test('E05 · SCR-23 tool rail keys R / H / C / V / M and "cô lập (Alt+H)" click set aria-pressed', async ({ browser }) => {
+  test('E05 · SCR-23 tool rail keys R / H / C / V / M and "Cô lập (Alt+H)" click set aria-pressed', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const project = await createProject(admin, 'v3-tools');
@@ -821,10 +821,10 @@ test.describe('E05 SCR-23 Viewer 3D', () => {
       const rail = toolRail(page);
       // UVS:167-173 labels, VTR:59-60 "{label} ({key})" + aria-pressed; VSS:73-79 keys.
       const byKey: readonly (readonly [string, string])[] = [
-        ['H', 'kéo màn (H)'],
-        ['C', 'mặt cắt (C)'],
-        ['V', 'chọn (V)'],
-        ['M', 'đo (M)'],
+        ['H', 'Kéo màn (H)'],
+        ['C', 'Mặt cắt (C)'],
+        ['V', 'Chọn (V)'],
+        ['M', 'Đo (M)'],
         ['R', 'Quay quanh mô hình (R)'],
       ];
       await expect(rail.getByRole('button', { name: 'Quay quanh mô hình (R)', exact: true })).toHaveAttribute('aria-pressed', 'true'); // UVS:460
@@ -833,8 +833,8 @@ test.describe('E05 SCR-23 Viewer 3D', () => {
         await expect(rail.getByRole('button', { name, exact: true }), `key ${key}`).toHaveAttribute('aria-pressed', 'true');
       }
       expect(pathOf(page), 'M on /3d switches the tool, not the route').toBe(ROUTES.project.viewer(project.id));
-      await rail.getByRole('button', { name: 'cô lập (Alt+H)', exact: true }).click();
-      await expect(rail.getByRole('button', { name: 'cô lập (Alt+H)', exact: true })).toHaveAttribute('aria-pressed', 'true');
+      await rail.getByRole('button', { name: 'Cô lập (Alt+H)', exact: true }).click();
+      await expect(rail.getByRole('button', { name: 'Cô lập (Alt+H)', exact: true })).toHaveAttribute('aria-pressed', 'true');
       await expect(rail.getByRole('button', { name: 'Quay quanh mô hình (R)', exact: true })).toHaveAttribute('aria-pressed', 'false');
       await captureEvidence(page, 'E05_viewer_tool_keys.png');
     });
