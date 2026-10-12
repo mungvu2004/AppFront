@@ -10,8 +10,8 @@
  * `afterAll`. Without `E2E_DRAWING_PNG` the whole file SKIPS with an "Environment:" reason.
  *
  * Budget per worker: `POST /api/auth/login` 2 (`signedInApi` for the fixture calls + `signInAdmin`; a failed test starts
- * a new worker: 2 more); `drawings_init` (60 / 600 s per user, BE drawings/settings.py:135-136) 1; 1 project + 1 #35
- * PUT + 1 DELETE (no rate limit); no invitation.
+ * a new worker that re-runs `beforeAll`: 2 more logins, 1 more `drawings_init` and project); `drawings_init` (60 / 600 s
+ * per user, BE drawings/settings.py:135-136) 1; 1 project + 1 #35 PUT + 1 DELETE (no rate limit); no invitation.
  *
  * Contracts verified in source (c4978eb4):
  * - RuleReport: rules run client-side (`useRuleReport.ts` `runRules`); "Chạy kiểm tra lại" is a
@@ -56,7 +56,10 @@ import { createPipelineProject, deleteSeededProject } from './support/drawingSee
 import { captureEvidence } from './support/evidence';
 import { qcLayer, writeLayer } from './support/layerSeed';
 
-test.describe.configure({ mode: 'serial' });
+// BUG-471: not serial, so one failure no longer skips the rest. Every test opens its own route (no test reads state an
+// earlier one left); one worker keeps file order, so the restore stays last (R3). A failed test restarts the worker and
+// `beforeAll` seeds a fresh project (see Budget).
+test.describe.configure({ mode: 'default' });
 
 const VIEWPORT = { width: 1440, height: 900 } as const;
 
@@ -182,10 +185,24 @@ async function expandFirstRuleGroup(): Promise<Locator | null> {
   return page.locator('section').filter({ has: expander });
 }
 
-async function pickSelectOption(combobox: Locator, option: string): Promise<void> {
+/** Opens a `Select` and returns ITS listbox (`aria-controls`), never a sibling popup still running its exit animation. */
+async function openSelect(combobox: Locator): Promise<Locator> {
   await combobox.click();
-  await page.getByRole('option', { name: option, exact: true }).click();
+  await expect(combobox).toHaveAttribute('aria-expanded', 'true');
+  const listbox = page.locator(`[id="${(await combobox.getAttribute('aria-controls')) ?? ''}"]`);
+  await expect(listbox).toBeVisible();
+  return listbox;
+}
+
+/** BUG-471: picks inside the open listbox, then waits until that popup has left the DOM (AnimatePresence exit). */
+async function pickFromOpenSelect(combobox: Locator, listbox: Locator, option: string): Promise<void> {
+  await listbox.getByRole('option', { name: option, exact: true }).click();
   await expect(combobox).toContainText(option);
+  await expect(listbox).toHaveCount(0);
+}
+
+async function pickSelectOption(combobox: Locator, option: string): Promise<void> {
+  await pickFromOpenSelect(combobox, await openSelect(combobox), option);
 }
 
 test.describe('SCR-28 Rule Report', () => {
@@ -222,11 +239,10 @@ test.describe('SCR-28 Rule Report', () => {
     await pickSelectOption(groupSelect, 'Hình học');
 
     const floorSelect = page.getByRole('combobox', { name: 'Tầng', exact: true });
-    await floorSelect.click();
-    const floorOptions = (await page.getByRole('option').allInnerTexts()).map((text) => text.trim());
+    const floorList = await openSelect(floorSelect);
+    const floorOptions = (await floorList.getByRole('option').allInnerTexts()).map((text) => text.trim());
     const floorChoice = floorOptions.find((text) => text !== 'Tất cả các tầng') ?? 'Tất cả các tầng';
-    await page.getByRole('option', { name: floorChoice, exact: true }).click();
-    await expect(floorSelect).toContainText(floorChoice);
+    await pickFromOpenSelect(floorSelect, floorList, floorChoice);
 
     // Back to the unfiltered list so a group with rows exists.
     await pickSelectOption(floorSelect, 'Tất cả các tầng');
@@ -306,10 +322,14 @@ function expectVersionedBody(sent: unknown, what: string): void {
   asRecord(body.body, `${what}.body`);
 }
 
+async function openRuleSettings(): Promise<void> {
+  await page.goto(ROUTES.project.ruleSettings(projectId));
+  await expect(page.getByRole('heading', { name: 'Cài đặt bộ luật không gian', level: 2 })).toBeVisible();
+}
+
 test.describe('SCR-29 Rule Settings', () => {
   test('SCR-29 Rule Settings — toggle a rule autosaves PUT rule-config with undo toast', async () => {
-    await page.goto(ROUTES.project.ruleSettings(projectId));
-    await expect(page.getByRole('heading', { name: 'Cài đặt bộ luật không gian', level: 2 })).toBeVisible();
+    await openRuleSettings();
     const toggle = page.getByRole('switch', { name: /^Bật hoặc tắt luật: /u }).first();
     await expect(toggle).toBeEnabled();
     const before = await toggle.getAttribute('aria-checked');
@@ -325,6 +345,7 @@ test.describe('SCR-29 Rule Settings', () => {
   });
 
   test('SCR-29 Rule Settings — preset "Văn phòng", then "Khôi phục mặc định"', async () => {
+    await openRuleSettings();
     const preset = page.getByRole('region', { name: 'Bộ luật sẵn', exact: true }).getByRole('button', { name: /^Văn phòng/u });
 
     const presetPut = waitForApi(page, 'PUT', ruleConfigPath(), [200], AUTOSAVE_TIMEOUT_MS);
@@ -359,11 +380,15 @@ async function selectFormat(extension: string): Promise<Locator> {
   return radio;
 }
 
+async function openExportPanel(): Promise<void> {
+  await page.goto(ROUTES.project.export(projectId));
+  await expect(page.getByRole('radiogroup', { name: 'Định dạng xuất', exact: true })).toBeVisible();
+  await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
+}
+
 test.describe('SCR-30 Export Panel', () => {
   test('SCR-30 Export Panel — .glb options, scope checkboxes, preflight', async () => {
-    await page.goto(ROUTES.project.export(projectId));
-    await expect(page.getByRole('radiogroup', { name: 'Định dạng xuất', exact: true })).toBeVisible();
-    await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
+    await openExportPanel();
 
     await selectFormat('.glb');
     const optionsToggle = page.getByRole('button', { name: 'Tuỳ chọn', exact: true });
@@ -388,6 +413,7 @@ test.describe('SCR-30 Export Panel', () => {
   });
 
   test('SCR-30 Export Panel — .json "Xuất" downloads and lists "Tệp đã xuất"', async ({}, testInfo) => {
+    await openExportPanel();
     await selectFormat('.json');
     await expect(page.getByRole('checkbox', { name: 'Gồm độ tin cậy từng đối tượng', exact: true })).toBeVisible();
 
@@ -406,6 +432,7 @@ test.describe('SCR-30 Export Panel', () => {
   });
 
   test('SCR-30 Export Panel — .pdf is not downloadable ("Chưa tải về được…")', async () => {
+    await openExportPanel();
     const pdf = await selectFormat('.pdf');
     await expect(pdf).toContainText(PDF_BLOCKED_CAPTION);
     // `ExportPanelFooter`: canExportSelected=false removes "Xuất" from the DOM.
@@ -484,8 +511,7 @@ async function openVersionsForWorkFloor(): Promise<void> {
   await page.goto(ROUTES.project.versions(projectId));
   const floorSelect = page.getByRole('combobox', { name: 'Tầng', exact: true });
   await expect(floorSelect).toBeVisible();
-  await floorSelect.click();
-  await page.getByRole('option', { name: workFloorName, exact: true }).click();
+  await pickSelectOption(floorSelect, workFloorName);
   await expect
     .poll(() => api.slice(mark).some(isWorkFloorList), { message: `no N17 200 for floor ${workFloorId}` })
     .toBe(true);
@@ -550,6 +576,8 @@ test.describe('SCR-32 Version History', () => {
   });
 
   test('SCR-32 Version History — "Gắn nhãn phiên bản này" sends PATCH label', async () => {
+    // Fresh page: the default pair is restored and its RIGHT version is the one labelled.
+    await openVersionsForWorkFloor();
     await page.getByRole('button', { name: 'Gắn nhãn phiên bản này', exact: true }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
