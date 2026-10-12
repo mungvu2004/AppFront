@@ -115,6 +115,30 @@ export function computeContentBoundsPx(
   };
 }
 
+/**
+ * BUG-393: tỷ lệ HIỂN THỊ (mm mỗi px màn) để toàn bộ mặt bằng — cộng đệm
+ * {@link CONTENT_PADDING_PX} — vừa khung `frame`. Tầng chưa hiệu chỉnh dùng 1 mm/px
+ * nên một phòng 4 m đã rộng 4000 px, nằm ngoài khung. Chưa đo được khung (jsdom,
+ * lần vẽ đầu) hay chưa có phòng thì giữ nguyên tỷ lệ bản vẽ.
+ */
+export function fitMillimetresPerPixel(
+  rooms: readonly RoomLabelViewModel[],
+  millimetresPerPixel: number,
+  frame: { readonly width: number; readonly height: number },
+): number {
+  const bounds = boundsOfPoints(rooms.flatMap((room) => room.outlineMm));
+  const usableWidth = frame.width - CONTENT_PADDING_PX * 2;
+  const usableHeight = frame.height - CONTENT_PADDING_PX * 2;
+
+  if (bounds === null || usableWidth <= 0 || usableHeight <= 0) {
+    return millimetresPerPixel;
+  }
+
+  const fitted = Math.max(bounds.width / usableWidth, bounds.height / usableHeight);
+
+  return fitted > 0 ? fitted : millimetresPerPixel;
+}
+
 function boundsOfPoints(points: readonly RoomLabelPointPx[]): RoomLabelBoundsPx | null {
   if (points.length === 0) {
     return null;

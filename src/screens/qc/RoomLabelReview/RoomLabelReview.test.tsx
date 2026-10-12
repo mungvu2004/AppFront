@@ -638,3 +638,70 @@ describe('[BUG-326] đọc lớp hỏng thay cả màn bằng một trạng thá
     expect(screen.queryByLabelText(CANVAS_ARIA_LABEL)).toBeNull();
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* [BUG-393] Mặt bằng vừa khung.                                               */
+/* -------------------------------------------------------------------------- */
+
+describe('[BUG-393] mặt bằng phòng vừa khung canvas, kể cả khi chọn một phòng', () => {
+  const FRAME = { width: 800, height: 600 };
+
+  /** Khung báo 800×600 ngay khi được theo dõi — thay bản rỗng của `beforeEach`. */
+  const measuredFrame = class {
+    private readonly onResize: ResizeObserverCallback;
+    constructor(onResize: ResizeObserverCallback) {
+      this.onResize = onResize;
+    }
+    observe(): void {
+      this.onResize([{ contentRect: FRAME } as ResizeObserverEntry], this as unknown as ResizeObserver);
+    }
+    unobserve(): void {
+      /* Không có gì để bỏ theo dõi. */
+    }
+    disconnect(): void {
+      /* Không có gì để ngắt. */
+    }
+  };
+
+  /** Hộp màn của từng nút chọn phòng = vị trí trong lớp nội dung + phép dịch camera. */
+  function roomBoxesOnScreen(container: HTMLElement) {
+    const layer = container.querySelector<HTMLElement>('div[style*="translate("]');
+    const match = /translate\(([-\d.e]+)px, ([-\d.e]+)px\)/u.exec(layer?.style.transform ?? '');
+    const [panX, panY] = [Number(match?.[1]), Number(match?.[2])];
+
+    return [...(layer?.querySelectorAll<HTMLElement>('button[aria-pressed]') ?? [])].map((button) => ({
+      left: panX + parseFloat(button.style.left),
+      top: panY + parseFloat(button.style.top),
+      right: panX + parseFloat(button.style.left) + parseFloat(button.style.width),
+      bottom: panY + parseFloat(button.style.top) + parseFloat(button.style.height),
+    }));
+  }
+
+  it('mọi phòng nằm trọn trong khung, trước và sau khi chọn phòng', async () => {
+    Object.defineProperty(window, 'ResizeObserver', { writable: true, value: measuredFrame });
+
+    const { container } = await renderSettled('success');
+    const inFrame = () => {
+      const boxes = roomBoxesOnScreen(container);
+
+      expect(boxes.length).toBe(ROOM_LABEL_FIXTURE_TOTAL);
+
+      for (const box of boxes) {
+        expect(box.left).toBeGreaterThanOrEqual(0);
+        expect(box.top).toBeGreaterThanOrEqual(0);
+        expect(box.right).toBeLessThanOrEqual(FRAME.width);
+        expect(box.bottom).toBeLessThanOrEqual(FRAME.height);
+      }
+    };
+
+    inFrame();
+
+    const firstRoom = container.querySelector<HTMLElement>('div[style*="translate("] button[aria-pressed]');
+
+    if (firstRoom !== null) {
+      fireEvent.click(firstRoom);
+    }
+
+    inFrame();
+  });
+});
