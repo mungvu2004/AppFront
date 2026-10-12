@@ -1,5 +1,5 @@
 import { useInteractive, useScene } from '@pascal-app/core'
-import { useThree } from '@react-three/fiber'
+import { useStore, useThree } from '@react-three/fiber'
 import { useLayoutEffect, useRef } from 'react'
 import { isLiveFrameHeld } from '../../lib/live-frame-hold'
 import { timeSpan } from '../../lib/perf-tracks'
@@ -24,6 +24,27 @@ export type FrameClock = {
  * lerp, camera damping) outlive the event itself.
  */
 export const INTERACTION_TAIL_MS = 500
+
+/**
+ * Has the scene finished its first build?
+ *
+ * Measured in a real browser: gating frames during the FIRST build leaves the
+ * viewer stuck on "loading" — the readiness chain (SceneReadyTracker, material
+ * and item loads, the progressive wall budget) needs frames that no
+ * `invalidate()` announces, and one missed frame ends the chain for good. So
+ * the demand gate only takes effect once the host has been told the scene is
+ * ready; before that the loop runs flat out, exactly as it used to.
+ */
+let sceneSettled = false
+
+/** Called by SceneReadyTracker: `true` on ready, `false` when a new scene loads. */
+export function setViewerSceneSettled(settled: boolean) {
+  sceneSettled = settled
+}
+
+export function viewerSceneSettled(): boolean {
+  return sceneSettled
+}
 
 /**
  * Does this rAF tick owe a frame?
@@ -54,6 +75,11 @@ export function frameDemanded({
   pendingWork: boolean
 }): boolean {
   return frames > 0 || pendingWork || liveFrameHeld || now < hotUntilMs
+}
+
+/** The gate as the limiter asks it, scene-settled guard included. */
+function shouldAdvance(demand: Parameters<typeof frameDemanded>[0]): boolean {
+  return !sceneSettled || frameDemanded(demand)
 }
 
 /**
@@ -138,7 +164,11 @@ const FrameLimiter: React.FC<FrameLimiterProps> = ({ fps = 50, paused = false, o
   const onFrameErrorRef = useRef(onFrameError)
   onFrameErrorRef.current = onFrameError
   const nextFrameTimeRef = useRef(0)
-  const internal = useThree((state) => state.internal)
+  // The store, not `state.internal`: a selector that returns the internal
+  // object re-runs this effect on every render in environments where its
+  // identity is not stable, and each re-run restarts the rAF loop with a fresh
+  // clock baseline (so the first tick after it never advances).
+  const store = useStore()
   const renderer = useThree((state) => state.gl)
   const size = useThree((state) => state.size)
   const dpr = useThree((state) => state.viewport.dpr)
@@ -172,6 +202,7 @@ const FrameLimiter: React.FC<FrameLimiterProps> = ({ fps = 50, paused = false, o
       renderer.setSize(size.width, size.height, false)
       sizeSynced = true
     }
+    const canvas = renderer.domElement as HTMLElement | undefined
     let hotUntilMs = 0
     function heatUp() {
       hotUntilMs = performance.now() + INTERACTION_TAIL_MS
@@ -183,8 +214,8 @@ const FrameLimiter: React.FC<FrameLimiterProps> = ({ fps = 50, paused = false, o
       if (frameTime === null) return
       if (
         !FRAMELOOP_ALWAYS &&
-        !frameDemanded({
-          frames: internal.frames,
+        !shouldAdvance({
+          frames: store.getState().internal.frames,
           hotUntilMs,
           liveFrameHeld: isLiveFrameHeld(),
           now: t,
@@ -219,8 +250,10 @@ const FrameLimiter: React.FC<FrameLimiterProps> = ({ fps = 50, paused = false, o
       // the initial mount may have fired before this effect ran.
       heatUp()
       raf = requestAnimationFrame(tick)
+      // A headless renderer (the bake worker, @react-three/test-renderer) has
+      // no canvas element — there is no pointer there to wake the loop either.
       for (const type of INTERACTION_EVENTS) {
-        renderer.domElement.addEventListener(type, heatUp, { passive: true })
+        canvas?.addEventListener(type, heatUp, { passive: true })
       }
       window.addEventListener('keydown', heatUp, { passive: true })
       // rAF can stall while a tab is hidden, unfocused, or occluded. With the
@@ -242,7 +275,7 @@ const FrameLimiter: React.FC<FrameLimiterProps> = ({ fps = 50, paused = false, o
       window.removeEventListener('pageshow', kick)
       window.removeEventListener('keydown', heatUp)
       for (const type of INTERACTION_EVENTS) {
-        renderer.domElement.removeEventListener(type, heatUp)
+        canvas?.removeEventListener(type, heatUp)
       }
       set({ frameloop: initFrameloop })
     }
@@ -251,13 +284,13 @@ const FrameLimiter: React.FC<FrameLimiterProps> = ({ fps = 50, paused = false, o
     dpr,
     fps,
     initFrameloop,
-    internal,
     paused,
     renderPaused,
     renderer,
     set,
     size.height,
     size.width,
+    store,
   ])
 
   return null
