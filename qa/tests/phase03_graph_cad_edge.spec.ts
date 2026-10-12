@@ -28,7 +28,6 @@ import {
   CAD,
   GATE,
   GRAPH,
-  NOT_FOUND_SENTENCE,
   bogusFloorId,
   cadDialog,
   cellTexts,
@@ -59,6 +58,7 @@ const apiSince = (sent: readonly { method: string; path: string }[], mark: numbe
     .map((r) => `${r.method} ${r.path}`);
 
 const softly = expect.configure({ soft: true });
+const BREADCRUMB_NAV = 'Đường dẫn trang'; // src/components/shell/Breadcrumb.tsx:21 NAV_LABEL
 
 const isDetailsOpen = (page: Page): Promise<boolean> => optionsDetails(page).evaluate((d) => (d as HTMLDetailsElement).open);
 
@@ -122,32 +122,36 @@ test('SCR-13 · FL-13-01 · admin opens the graph of an own project by URL, read
       expect.soft(GRAPH.technical.filter((term) => text.includes(term)), 'PGT:9-14').toEqual([]);
     });
 
-    await test.step('[13-E-001] one h1; breadcrumb nav and diagram group share the name "Sơ đồ xử lý"', async () => {
+    // QA-03e (BUG-558, FIX-2291): the header uses the shared Breadcrumb (PipelineGraph.tsx:67-74), whose nav is named
+    // "Đường dẫn trang" (src/components/shell/Breadcrumb.tsx:21, 25-29), no longer the diagram group's name.
+    await test.step('[13-E-001] one h1; breadcrumb nav "Đường dẫn trang", only the diagram group is named "Sơ đồ xử lý"', async () => {
       await expect.soft(page.getByRole('heading', { level: 1 })).toHaveCount(1);
-      await expect.soft(page.locator(`nav[aria-label="${GRAPH.title}"]`)).toHaveCount(1);
+      await expect.soft(page.getByRole('navigation', { name: BREADCRUMB_NAV, exact: true })).toHaveCount(1);
+      await expect.soft(page.locator(`nav[aria-label="${GRAPH.title}"]`)).toHaveCount(0);
       await expect.soft(group).toHaveCount(1);
-      test.info().annotations.push({
-        type: 'a11y-finding',
-        description: '13-E-001: breadcrumb <nav aria-label="Sơ đồ xử lý"> duplicates the diagram group name (PG:66, PGO:312)',
-      });
     });
 
     await test.step('[13-E-002] group semantics; edge svg aria-hidden; nothing focusable in the content', async () => {
       await expect.soft(group).toHaveAttribute('role', 'group');
       await expect.soft(group.locator('svg')).toHaveAttribute('aria-hidden', 'true');
       await expect.soft(group).toContainText(GRAPH.blocks[0][0]);
+      // QA-03e (BUG-546): the breadcrumb's "Dự án" button sits above the h1 in the same container; the content below has none.
       const focusable = await content.evaluate(
-        (root) => root.querySelectorAll('a[href],button,input,select,textarea,summary,[tabindex]:not([tabindex="-1"])').length,
+        (root) => [...root.querySelectorAll('a[href],button,input,select,textarea,summary,[tabindex]:not([tabindex="-1"])')].filter((el) => el.closest('nav') === null).length,
       );
       expect.soft(focusable, 'Tab from the h1 reaches nothing inside the content').toBe(0);
     });
 
-    await test.step('[13-A-002] breadcrumb "Dự án › Sơ đồ xử lý" has no link (no way out on screen)', async () => {
-      const nav = page.locator(`nav[aria-label="${GRAPH.title}"]`);
-      await expect.soft(nav).toHaveText(`${GRAPH.breadcrumbProjects} › ${GRAPH.title}`);
-      await expect.soft(nav.locator('a, [role="link"]')).toHaveCount(0);
+    // QA-03e (BUG-546, FIX-2291): "Dự án" is a button → onBackToProjects (PipelineGraph.tsx:72,
+    // PipelineGraph.container.tsx:137-138 ROUTES.dashboard); the last crumb is aria-current="page" (Breadcrumb.tsx:50-56).
+    await test.step('[13-A-002] breadcrumb "Dự án › Sơ đồ xử lý": "Dự án" is a button back to "/", the last crumb is the current page', async () => {
+      const nav = page.getByRole('navigation', { name: BREADCRUMB_NAV, exact: true });
+      await expect.soft(nav).toHaveText(new RegExp(`^${GRAPH.breadcrumbProjects}\\s*›\\s*${GRAPH.title}$`, 'u'));
+      await expect.soft(nav.locator('[aria-current="page"]')).toHaveText(GRAPH.title);
       await expect.soft(content.locator('a, [role="link"]')).toHaveCount(0);
       await captureEvidence(page, 'E03_13-A-002_breadcrumb_no_link.png');
+      await nav.getByRole('button', { name: GRAPH.breadcrumbProjects, exact: true }).click();
+      await softly.poll(() => pathOf(page)).toBe(ROUTES.dashboard);
     });
 
     const unknown = unknownProjectId();
@@ -193,7 +197,9 @@ test('SCR-13 · FL-13-02 · [mocked response] slow or failing project read (#24)
     const { page } = flow;
     const pid = project.projectId;
 
-    await test.step('[13-B-007] unknown id, #24 held 2 s: empty story while pending, then the not-found strip', async () => {
+    // QA-03e (BUG-556, FIX-2291): isPending includes the #24 query (usePipelineGraph.ts:528), so the screen stays a skeleton
+    // (PipelineGraph.tsx:160-163) until #24 answers — no empty story flashes before the not-found strip.
+    await test.step('[13-B-007] unknown id, #24 held 2 s: skeleton while pending (no empty story), then the not-found strip', async () => {
       const unknown = unknownProjectId();
       const hold = await holdRequests(page, (r) => r.method() === 'GET' && projectRe(unknown).test(new URL(r.url()).pathname));
       try {
@@ -203,13 +209,9 @@ test('SCR-13 · FL-13-02 · [mocked response] slow or failing project read (#24)
           .getByText(GRAPH.emptyTitle, { exact: true })
           .waitFor({ state: 'visible', timeout: 1_500 })
           .then(() => true, () => false);
-        // Catalog: isPending ignores #24 (UPG:524 vs 265-268), so the empty story shows first — asserted as described.
-        expect.soft(flashed, 'admin sees the empty story while #24 is pending (UPG:524)').toBe(true);
-        test.info().annotations.push({
-          type: 'suspected-bug',
-          description: `13-B-007: unknown project flashes "${GRAPH.emptyTitle}" before the not-found strip (flash seen: ${String(flashed)})`,
-        });
-        await captureEvidence(page, 'E03_13-B-007_pending_flash.png');
+        expect.soft(flashed, 'no empty story while #24 is pending').toBe(false);
+        await expect.soft(page.locator('.animate-pulse').first(), 'skeleton while #24 is pending').toBeVisible();
+        await captureEvidence(page, 'E03_13-B-007_pending_flash.png', { caption: `empty story seen while pending: ${String(flashed)}` });
         await page.waitForTimeout(500);
       } finally {
         await hold.release('continue');
@@ -219,29 +221,33 @@ test('SCR-13 · FL-13-02 · [mocked response] slow or failing project read (#24)
       await captureEvidence(page, 'E03_13-B-007_then_not_found.png');
     });
 
-    await test.step('[13-B-008] own project, #24 → 500, then aborted: empty story, no alert, no "Thử lại"', async () => {
+    // QA-03e (BUG-557, FIX-2291): readProjectExists throws anything but 200 / 404 `project` (pipelineGraphGateway.ts:308-320);
+    // the hook makes it the read failure (usePipelineGraph.ts:525-527, 709-716) → InlineAlert + "Thử lại" + <code> technicalCode
+    // (PipelineGraph.tsx:198-206); "Thử lại" bumps retryToken and reads #24 again (usePipelineGraph.ts:237, 266).
+    await test.step('[13-B-008] own project, #24 → 500, then aborted: alert + "Thử lại" + code, no empty story; "Thử lại" re-reads #24', async () => {
+      const alert = page.getByRole('alert');
       const read = (route: Route): Promise<void> =>
         route.request().method() === 'GET' ? fulfillJson(route, 500, { code: 'INTERNAL', requestId: 'qa-p10-mock' }) : route.fallback();
       await page.route(`**/api/projects/${pid}`, read);
       await page.goto(ROUTES.project.pipelineGraph(pid));
-      await expect.soft(page.getByText(GRAPH.emptyTitle, { exact: true })).toBeVisible();
-      await expect.soft(page.getByRole('alert')).toHaveCount(0);
-      await expect.soft(page.getByRole('button', { name: GRAPH.retry, exact: true })).toHaveCount(0);
+      await expect.soft(alert.getByRole('button', { name: GRAPH.retry, exact: true })).toBeVisible({ timeout: 45_000 });
+      await expect.soft(page.locator('code').filter({ hasText: 'INTERNAL' })).toBeVisible();
+      await expect.soft(page.getByText(GRAPH.emptyTitle, { exact: true })).toHaveCount(0);
       await captureEvidence(page, 'E03_13-B-008_read_500.png');
       await page.unroute(`**/api/projects/${pid}`, read);
 
       const abort = (route: Route): Promise<void> => (route.request().method() === 'GET' ? route.abort('failed') : route.fallback());
       await page.route(`**/api/projects/${pid}`, abort);
       await page.reload();
-      await expect.soft(page.getByText(GRAPH.emptyTitle, { exact: true })).toBeVisible({ timeout: 15_000 });
-      await expect.soft(page.getByRole('alert')).toHaveCount(0);
-      await expect.soft(page.getByRole('button', { name: GRAPH.retry, exact: true })).toHaveCount(0);
+      await expect.soft(alert.getByRole('button', { name: GRAPH.retry, exact: true })).toBeVisible({ timeout: 45_000 });
+      await expect.soft(page.locator('code').filter({ hasText: 'NETWORK' })).toBeVisible();
+      await expect.soft(page.getByText(GRAPH.emptyTitle, { exact: true })).toHaveCount(0);
       await captureEvidence(page, 'E03_13-B-008_read_aborted.png');
-      test.info().annotations.push({
-        type: 'suspected-bug',
-        description: '13-B-008: a 5xx / aborted #24 is treated as "project exists" (PGG:307-310): no error, no retry',
-      });
       await page.unroute(`**/api/projects/${pid}`, abort);
+
+      await alert.getByRole('button', { name: GRAPH.retry, exact: true }).click();
+      await expect.soft(page.getByText(GRAPH.emptyTitle, { exact: true })).toBeVisible({ timeout: 45_000 });
+      await expect.soft(alert).toHaveCount(0);
     });
   });
 });
@@ -333,9 +339,11 @@ test('SCR-15 · FL-15-01 · admin opens CAD confirm, reads the dialog, leaves it
       await captureEvidence(page, 'E03_15-E-002_esc_handoff.png');
     });
 
-    await test.step('[15-E-003] focus after close is not <body> and lands in the hand-off (suspected)', async () => {
+    // QA-03e (BUG-559, FIX-2292 + FIX-2206): the hand-off takes focus when it falls to <body> (CadBranchConfirm.tsx:259-268);
+    // focusTrap.ts no longer counts <body> as the opener.
+    await test.step('[15-E-003] focus after close is not <body> and lands in the hand-off', async () => {
       const name = await focusedName(page);
-      expect.soft(name, 'suspected: no opener, focus falls to <body> (CBD:8-16)').not.toBe('BODY');
+      expect.soft(name, 'focus after closing the mount-opened dialog').not.toBe('BODY');
       const inside = await handoff(page).evaluate((s) => s.contains(document.activeElement));
       expect.soft(inside, 'focus lands inside the hand-off').toBe(true);
       await attachJson('E03_15-E-003_focus.json', { focused: name, insideHandoff: inside });
@@ -444,18 +452,19 @@ test('SCR-15 · FL-15-02 · admin picks the CAD branch and works stage 2 (mappin
       await captureEvidence(page, 'E03_15-B-019_mapping_panel.png');
     });
 
-    await test.step('[15-B-020] preview canvas: no svg, no legend, no text, no accessible name (blank box)', async () => {
+    // QA-03e (BUG-564, FIX-2292): with no drawable extent the canvas shows PREVIEW_EMPTY_TEXT (CadLayerPreviewCanvas.tsx:281-284,
+    // cadBranchConfirmText.ts:237) inside a min-h-[320px] frame (CadLayerPreviewCanvas.tsx:254).
+    await test.step('[15-B-020] preview canvas: no svg, no legend; the sentence "Chưa có hình để xem trước"; frame ≥ 320 px tall', async () => {
       const box = previewBox(page);
       await expect(box).toBeVisible();
       const facts = await box.evaluate((el) => ({
         svg: el.querySelectorAll('svg').length,
         legend: el.querySelectorAll('ul').length,
         text: (el.textContent ?? '').trim(),
-        ariaLabel: el.getAttribute('aria-label'),
-        role: el.getAttribute('role'),
+        height: Math.round(el.getBoundingClientRect().height),
       }));
-      expect.soft(facts).toEqual({ svg: 0, legend: 0, text: '', ariaLabel: null, role: null });
-      test.info().annotations.push({ type: 'ux-finding', description: '15-B-020: stage-2 preview is a blank box with no text or name' });
+      expect.soft({ svg: facts.svg, legend: facts.legend, text: facts.text }).toEqual({ svg: 0, legend: 0, text: CAD.previewEmpty });
+      expect.soft(facts.height, 'the empty frame keeps its 320 px').toBeGreaterThanOrEqual(320);
       await captureEvidence(page, 'E03_15-B-020_blank_canvas.png');
       await attachJson('E03_15-B-020_canvas.json', facts);
     });
@@ -605,12 +614,11 @@ test('SCR-15 · FL-15-02 · admin picks the CAD branch and works stage 2 (mappin
   });
 });
 
-test('SCR-15 · FL-15-03 · CAD confirm with a bogus floor id, then on an unknown project', async ({ browser }) => {
+test('SCR-15 · FL-15-03 · CAD confirm with a bogus floor id, on an unknown project, then [mocked response] a failing floor read', async ({ browser }) => {
   await withAdminProject(browser, '15-a-015', 0, async ({ flow, project }) => {
     const { page, log } = flow;
     const dialog = cadDialog(page);
     const unknown = unknownProjectId();
-    const errorText = `${NOT_FOUND_SENTENCE} ${CAD.errorCodePrefix}NOT_FOUND`;
 
     await test.step('[15-A-015] own project + random floor id → normal dialog, no error', async () => {
       await page.goto(ROUTES.project.cadConfirm(project.projectId, bogusFloorId()));
@@ -629,48 +637,62 @@ test('SCR-15 · FL-15-03 · CAD confirm with a bogus floor id, then on an unknow
       await captureEvidence(page, 'E03_15-B-026_no_floor_rows.png');
     });
 
-    await test.step('[15-E-004] unknown project: focus starts on "Vẫn dùng AI" (CAD disabled)', async () => {
+    // QA-03e (BUG-563, FIX-2292): a 404 `project` on #12 is "project missing" (useCadBranchConfirm.ts:771-772): the screen is
+    // only the shared not-found strip + "Về danh sách dự án" (CadBranchConfirm.tsx:295-306), no dialog, no CAD notice.
+    await test.step('[15-B-004] unknown project → only "Không tìm thấy dự án này" + its sentence + "Về danh sách dự án"; no dialog, no CAD notice', async () => {
       await page.goto(ROUTES.project.cadConfirm(unknown, bogusFloorId()));
-      await expect(dialog.getByRole('alert')).toBeVisible();
-      await expect.soft(dialog.getByRole('button', { name: CAD.useAi, exact: true })).toBeFocused();
-      await attachJson('E03_15-E-004_focus.json', { focused: await focusedName(page) });
-    });
-
-    await test.step('[15-B-008] dialog violation alert with the NOT_FOUND sentence; CAD disabled in dialog and hand-off', async () => {
-      await expect(dialog.getByRole('alert')).toContainText(NOT_FOUND_SENTENCE);
-      await expect(dialog.getByRole('button', { name: CAD.useCad, exact: true })).toBeDisabled();
-      await captureEvidence(page, 'E03_15-B-008_dialog_error.png');
-      await page.keyboard.press('Escape');
-      await expect(dialog).toHaveCount(0);
-      await expect(handoff(page).getByRole('button', { name: CAD.useCad, exact: true })).toBeDisabled();
-      await captureEvidence(page, 'E03_15-B-008_handoff_disabled.png');
-    });
-
-    await test.step('[15-B-004] notice "Không thể đọc tệp CAD" … NOT_FOUND; "Vẫn dùng AI" + "Đọc lại tệp"; no project strip', async () => {
-      await expect.soft(notice(page)).toContainText(CAD.errorTitle);
-      await expect.soft(notice(page)).toContainText(errorText);
-      await expect.soft(notice(page).getByRole('button', { name: CAD.useAi, exact: true })).toBeVisible();
-      await expect.soft(notice(page).getByRole('button', { name: CAD.retry, exact: true })).toBeVisible();
-      await expect.soft(page.getByText(GATE.notFoundTitle, { exact: true })).toHaveCount(0);
-      test.info().annotations.push({
-        type: 'suspected-bug',
-        description: '15-B-004: unknown project on SCR-15 shows "Không thể đọc tệp CAD … NOT_FOUND", not the shared not-found strip (BUG-313 pattern)',
-      });
+      const strip = page.getByRole('alert').filter({ hasText: GATE.notFoundTitle });
+      await expect(strip).toBeVisible({ timeout: 45_000 });
+      await expect.soft(strip).toContainText(GATE.notFoundSentence);
+      await expect.soft(dialog).toHaveCount(0);
+      await expect.soft(page.getByText(CAD.errorTitle, { exact: true })).toHaveCount(0);
+      await expect.soft(page.getByText(`${CAD.errorCodePrefix}NOT_FOUND`)).toHaveCount(0);
       await captureEvidence(page, 'E03_15-B-004_error_notice.png');
+      await strip.getByRole('button', { name: GATE.backToProjects, exact: true }).click();
+      await expect.poll(() => pathOf(page)).toBe(ROUTES.dashboard);
     });
 
-    await test.step('[15-A-016] "Đọc lại tệp" → a second floors read (404); error stays', async () => {
-      const reads = (): number => log.filter((e) => floorsRe(unknown).test(e.path) && e.status === 404).length;
-      const before = reads();
-      await notice(page).getByRole('button', { name: CAD.retry, exact: true }).click();
-      await softly.poll(reads).toBeGreaterThan(before);
-      await expect.soft(notice(page)).toContainText(CAD.errorTitle);
-    });
+    // The CAD-disabled dialog and the error notice are now reached through a failing floor read (#12 500) on the own project:
+    // the dialog opens with CAD enabled while #12 is pending, then the error locks it (useCadBranchConfirm.ts:680, 898-903).
+    const pid = project.projectId;
+    const failRead = (route: Route): Promise<void> =>
+      route.request().method() === 'GET' ? fulfillJson(route, 500, { code: 'INTERNAL', requestId: 'qa-p10-mock' }) : route.fallback();
+    await page.route(`**/api/projects/${pid}/floors`, failRead);
+    try {
+      await test.step('[15-E-004] [mocked response] #12 500 while the dialog is open → CAD disabled, focus moves to "Vẫn dùng AI"', async () => {
+        await page.goto(ROUTES.project.cadConfirm(pid, bogusFloorId()));
+        await expect(dialog.getByRole('alert')).toBeVisible({ timeout: 45_000 });
+        // BUG-560: CadBranchConfirmDialog.tsx:37-45 focuses the AI button when isCadChoiceDisabled flips to true while open.
+        await expect.soft(dialog.getByRole('button', { name: CAD.useAi, exact: true })).toBeFocused();
+        await attachJson('E03_15-E-004_focus.json', { focused: await focusedName(page) });
+      });
 
-    await test.step('[15-A-018] error notice "Vẫn dùng AI" → /pipeline', async () => {
-      await notice(page).getByRole('button', { name: CAD.useAi, exact: true }).click();
-      await expect.poll(() => pathOf(page)).toBe(ROUTES.project.pipeline(unknown));
-    });
+      await test.step('[15-B-008] dialog violation alert with the 500 sentence; CAD disabled in dialog and hand-off', async () => {
+        await expect(dialog.getByRole('alert')).toContainText(ERR.unknown); // cadChoiceDisabledReason = failure.sentence
+        await expect(dialog.getByRole('button', { name: CAD.useCad, exact: true })).toBeDisabled();
+        await captureEvidence(page, 'E03_15-B-008_dialog_error.png');
+        await page.keyboard.press('Escape');
+        await expect(dialog).toHaveCount(0);
+        await expect(handoff(page).getByRole('button', { name: CAD.useCad, exact: true })).toBeDisabled();
+        await captureEvidence(page, 'E03_15-B-008_handoff_disabled.png');
+      });
+
+      await test.step('[15-A-016] "Đọc lại tệp" → a second floors read (500); error stays', async () => {
+        await expect(notice(page)).toContainText(CAD.errorTitle);
+        const reads = (): number => log.filter((e) => floorsRe(pid).test(e.path) && e.status === 500).length;
+        const before = reads();
+        await notice(page).getByRole('button', { name: CAD.retry, exact: true }).click();
+        await softly.poll(reads, { timeout: 45_000 }).toBeGreaterThan(before);
+        await expect.soft(notice(page)).toContainText(CAD.errorTitle, { timeout: 45_000 });
+      });
+
+      await test.step('[15-A-018] error notice "Vẫn dùng AI" → /pipeline', async () => {
+        await notice(page).getByRole('button', { name: CAD.useAi, exact: true }).click();
+        await expect.poll(() => pathOf(page)).toBe(ROUTES.project.pipeline(pid));
+      });
+    } finally {
+      await page.unroute(`**/api/projects/${pid}/floors`, failRead);
+    }
   });
 });
 

@@ -198,7 +198,10 @@ export const PR = {
   calibrate: 'Hiệu chỉnh tỷ lệ', // CALIBRATE_SCALE_LABEL
 } as const;
 
-/** "Đã xong {done}/{total} tầng" (useProcessingScreen.ts doneFloorsSentence), optionally "· Còn lại khoảng …". */
+/**
+ * "Đã xong {done}/{total} tầng" (useProcessingScreen.ts doneFloorsSentence). Since QA-03e R1-03 (FIX-2342) it is its own
+ * `<span role="status">` (ProcessingScreen.tsx:289 on fix/qa03e-int); "· Còn lại khoảng …" (remainingLine, :290) is outside it.
+ */
 export const doneLine = (done: number, total: number): RegExp => new RegExp(`^Đã xong ${String(done)}/${String(total)} tầng`, 'u');
 
 export const PF = {

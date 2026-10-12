@@ -51,9 +51,6 @@ import {
 } from './support/phase03Seed';
 
 const png = (name: string) => pngFile(name, envDrawingPng());
-const suspected = (row: string, what: string): void => {
-  test.info().annotations.push({ type: 'suspected-bug', description: `${row}: ${what}` });
-};
 
 /** A pool owner's 1-floor project, `role` user added (or not) as a member, and that user's browser session. */
 async function asMember(
@@ -108,15 +105,12 @@ test('SCR-10 · FL-10-11 · viewer member tries every upload action', async ({ b
         await captureEvidence(page, 'E03_10-D-003_viewer_drop.png');
       });
 
-      await test.step('[10-D-005] "Bắt đầu xử lý" is clickable but does nothing: no notice, no navigation', async () => {
-        const submit = page.getByRole('button', { name: UP.submit, exact: true });
-        await expect.soft(submit).toBeEnabled();
-        const before = new URL(page.url()).pathname;
-        await submit.click();
-        await page.waitForTimeout(1_500);
-        suspected('10-D-005', 'viewer submit is a silent no-op (UFU submit: !canEdit → return)');
+      // QA-03e (BUG-536, FIX-2256): `footer.isSubmitHidden = !canEdit` (useFloorUploadScreen.ts:1229) and the footer
+      // renders no "Bắt đầu xử lý" for a viewer (FloorUploadFooter.tsx:118); the read-only sentence stays.
+      await test.step('[10-D-005] viewer: no "Bắt đầu xử lý" button; the read-only sentence stays; no notice', async () => {
+        await expect.soft(page.getByRole('button', { name: UP.submit, exact: true }), 'no submit for a viewer').toHaveCount(0);
+        await expect.soft(page.getByText(UP.readOnly, { exact: true })).toBeVisible(); // UFU:112
         await expect.soft(page.getByTestId(UP.blockNotice)).toHaveCount(0);
-        expect.soft(new URL(page.url()).pathname).toBe(before);
         await captureEvidence(page, 'E03_10-D-005_viewer_submit_noop.png');
       });
 

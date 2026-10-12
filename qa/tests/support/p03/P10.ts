@@ -106,6 +106,7 @@ export const CAD = {
   panelTitle: 'Ánh xạ lớp từ tệp CAD', // CBT PHASE_2_PANEL_TITLE
   panelHeaders: ['Tên lớp', 'Số thực thể', 'Màu gốc', 'Vai trò'] as const, // CBT
   noData: 'Không có dữ liệu', // Table.tsx TableEmpty
+  previewEmpty: 'Chưa có hình để xem trước', // cadBranchConfirmText.ts:237 PREVIEW_EMPTY_TEXT (QA-03e BUG-564)
   options: 'Tuỳ chọn nhập', // CBT ADVANCED_OPTIONS_LABEL
   unitLabel: 'Đơn vị bản vẽ', // CBT
   originLabel: 'Gốc toạ độ', // CBT

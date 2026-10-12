@@ -78,6 +78,8 @@ test('FL-U08-01 · SCR-08 · UI verify: admin states (heights, toast, refusals, 
         const toast = toastWith(p, COPY.savedToast).first();
         await expect(toast.getByRole('button', { name: COPY.undo, exact: true })).toBeVisible();
         const t = await boxOf(toast);
+        // QA-03e (BUG-512, FIX-2204): below 640 px the viewport pins toasts to the top edge (Toast.tsx:187 max-sm:top-4).
+        if (width(p) < 640) expect.soft(t.y, `${String(width(p))}: toast at the top edge`).toBeLessThan((p.viewportSize()?.height ?? 0) / 2);
         for (const label of [LABEL.name, LABEL.code, LABEL.address, LABEL.notes]) {
           const c = await boxOf(textbox(p, label));
           const overlap = c.x < t.x + t.width && t.x < c.x + c.width && c.y < t.y + t.height && t.y < c.y + c.height;

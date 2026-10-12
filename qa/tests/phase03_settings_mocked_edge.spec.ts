@@ -399,7 +399,10 @@ test('FL-08-15 · SCR-08 · [mocked response] member add / undo / remove failure
       await expect(page.getByText('2 thành viên', { exact: true })).toBeVisible();
     });
 
-    await test.step('[08-B-033] other email → 429 → rate sentence, button locked with a new key; +60 s → enabled', async () => {
+    // QA-03e (BUG-510, FIX-2344, R-src): members.add sends `failFastOnRateLimit: true` (projectSettingsGateway.ts:487), so the
+    // client returns the 429 on the first answer (src/lib/http/client.ts:503) with retryAfterSeconds: ONE POST, the quota
+    // sentence and the lock appear at once; the lock stays max(Retry-After, 60) s.
+    await test.step('[08-B-033] other email → 429 → rate sentence + locked button at once, one POST, a new key; +60 s → enabled', async () => {
       const handler = (route: Route): Promise<void> =>
         route.request().method() === 'POST' ? fulfillError(route, 429, 'RATE_LIMITED', {}, { 'Retry-After': '5' }) : route.fallback();
       const matcher = (url: URL): boolean => url.pathname === membersPath(id);
@@ -407,9 +410,8 @@ test('FL-08-15 · SCR-08 · [mocked response] member add / undo / remove failure
       const mark = posts.length;
       await email.fill(testEmail('p2-429'));
       await add.click();
-      // The HTTP client retries a keyed POST on 429 after Retry-After (HTTP retry.ts); wait for whatever sentence ends it.
       const errorLine = page.getByRole('alert').filter({ hasNotText: COPY.loadError }).last();
-      await expect(errorLine).toBeVisible({ timeout: 45_000 });
+      await expect(errorLine).toBeVisible({ timeout: 5_000 });
       await expect.soft(errorLine).toHaveText(MEMBER.rateLimited); // UPM:268-272
       await expect.soft(add).toBeDisabled(); // UPM:320-326 lock max(Retry-After, 60) s
       const key = posts[mark]?.headers()['idempotency-key'];
@@ -418,6 +420,7 @@ test('FL-08-15 · SCR-08 · [mocked response] member add / undo / remove failure
       await page.unroute(matcher, handler);
       await page.clock.fastForward(61_000);
       await expect.soft(add).toBeEnabled();
+      expect.soft(posts.length - mark, 'one POST for that email: a clicked add is not retried on 429').toBe(1);
     });
   } finally {
     await deleteSeededProject(s.api, project.projectId);

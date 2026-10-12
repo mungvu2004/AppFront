@@ -844,7 +844,10 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         await expect.soft(page.getByText('phải lớn hơn 0 m')).toHaveCount(0);
       });
 
-      await test.step('[09-A-008] top elevation 8 m (override), bottom height 4 m → one PATCH per changed level + toast', async () => {
+      // QA-03e (BUG-517, FIX-2332, on fix/qa03e-int): restack keeps a "Ghi đè" elevation while it still sits on or above the
+      // top of the storey under it (roomFloorCommands.ts:743-764); the height command reads the overrides from before the
+      // change (floorManagerGateway.ts:947). Tầng 3 at 8 m stays above Tầng 2's new top (7 m): only two levels change.
+      await test.step('[09-A-008] top elevation 8 m (override), bottom height 4 m → one PATCH per changed level (2) + toast; 8 m kept', async () => {
         const markTop = log.length;
         await commitNumber(elevInput(page, 'Tầng 3'), '8');
         expect((await nthCall(log, markTop, 'PATCH', spatialOf(projectId, f3.id))).status).toBe(200);
@@ -853,33 +856,31 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         await commitNumber(heightInput(page, 'Tầng 1'), '4'); // FMG:913-949 height + restack, one transaction
         const bottom = await nthCall(log, mark, 'PATCH', spatialOf(projectId, f1.id));
         const middle = await nthCall(log, mark, 'PATCH', spatialOf(projectId, f2.id));
-        const top = await nthCall(log, mark, 'PATCH', spatialOf(projectId, f3.id));
         expect.soft(bodyOf(bottom).heightMm).toBe(4_000);
         expect.soft(bodyOf(middle).elevationMm).toBe(4_000);
-        expect.soft(bodyOf(top).elevationMm).toBe(7_000);
         await quiet(page);
-        expect.soft(callsSince(log, mark, 'PATCH', spatialRe(projectId))).toHaveLength(3);
+        expect.soft(callsSince(log, mark, 'PATCH', spatialOf(projectId, f3.id)), 'the 8 m override is not rewritten').toEqual([]);
+        expect.soft(callsSince(log, mark, 'PATCH', spatialRe(projectId))).toHaveLength(2);
         await expect.soft(toastWith(page, TOAST.height).first()).toBeVisible();
         await captureEvidence(page, 'E03_09-A-008_restack.png');
       });
 
-      await test.step('[09-C-029] restack rewrote every elevation from the datum: the top floor\'s "Ghi đè" gap is gone', async () => {
-        // Suspected design gap (catalog): a manual override is erased by any height change below it.
-        test.info().annotations.push({ type: 'design-gap', description: '09-C-029: restack from datum erases manual elevation overrides' });
-        await expect.soft(elevInput(page, 'Tầng 3')).toHaveValue('7,0');
-        await expect.soft(floorRow(page, 'Tầng 3').getByText(OVERRIDDEN, { exact: true })).toHaveCount(0);
+      await test.step('[09-C-029] the restack keeps the top floor\'s hand-typed 8,0 m and its "Ghi đè" (BUG-517)', async () => {
+        await expect.soft(elevInput(page, 'Tầng 3')).toHaveValue('8,0');
+        await expect.soft(floorRow(page, 'Tầng 3').getByText(OVERRIDDEN, { exact: true })).toBeVisible(); // isElevationOverridden, RFC:705
         await captureEvidence(page, 'E03_09-C-029_override_erased.png');
       });
 
-      await test.step('[09-A-009] toast "Hoàn tác" → PATCH per level with the before values; 8 m override restored', async () => {
+      await test.step('[09-A-009] toast "Hoàn tác" → PATCH per changed level with the before values; the 8 m override stays', async () => {
         const mark = log.length;
         await undoFromToast(page, TOAST.height); // newest "Đã đổi chiều cao tầng." = the 4 m one
         const bottom = await nthCall(log, mark, 'PATCH', spatialOf(projectId, f1.id));
         const middle = await nthCall(log, mark, 'PATCH', spatialOf(projectId, f2.id));
-        const top = await nthCall(log, mark, 'PATCH', spatialOf(projectId, f3.id));
         expect.soft(bodyOf(bottom).heightMm).toBe(3_000);
         expect.soft(bodyOf(middle).elevationMm).toBe(3_000);
-        expect.soft(bodyOf(top).elevationMm).toBe(8_000);
+        await quiet(page);
+        // BUG-517: the forward change never touched Tầng 3, so its undo sends nothing for it.
+        expect.soft(callsSince(log, mark, 'PATCH', spatialOf(projectId, f3.id))).toEqual([]);
         await expect.soft(heightInput(page, 'Tầng 1')).toHaveValue('3,0');
         await expect.soft(elevInput(page, 'Tầng 3')).toHaveValue('8,0');
         await expect.soft(floorRow(page, 'Tầng 3').getByText(OVERRIDDEN, { exact: true })).toBeVisible();
@@ -1016,15 +1017,18 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         const mark = log.length;
         const dataTransfer = await page.evaluateHandle(() => new DataTransfer());
         await grip(page, 'Tầng 3').dispatchEvent('dragstart', { dataTransfer });
-        // No drop target exists after the last row (FTR:215-230): the last row is the furthest one can drop on.
-        await floorRow(page, 'Tầng 2').dispatchEvent('dragover', { dataTransfer });
-        await floorRow(page, 'Tầng 2').dispatchEvent('drop', { dataTransfer });
+        // QA-03e (BUG-518, FIX-2222): the lower half of a row inserts AFTER it, so the last row takes a drop past it
+        // (FloorTableRow.tsx:216 insertion line, :226-227 `clientY > top + height / 2` → index + 1): aim at the lower half.
+        const lastBox = await floorRow(page, 'Tầng 2').boundingBox();
+        const lowerHalf = { clientX: (lastBox?.x ?? 0) + 10, clientY: (lastBox?.y ?? 0) + (lastBox?.height ?? 0) * 0.75 };
+        await floorRow(page, 'Tầng 2').dispatchEvent('dragover', { dataTransfer, ...lowerHalf });
+        await floorRow(page, 'Tầng 2').dispatchEvent('drop', { dataTransfer, ...lowerHalf });
         await nthCall(log, mark, 'PATCH', reorderRe);
         await quiet(page);
         const after = await rowNames(page);
         await captureEvidence(page, 'E03_09-A-021_drag_to_end.png');
         await attachJson('E03_09-A-021_drag_to_end.json', { after, writes: writesSince(log, mark) });
-        expect.soft(after.at(-1), 'suspected: drop inserts BEFORE the hovered row, the last slot is unreachable by drag').toBe('Tầng 3');
+        expect.soft(after.at(-1), 'a drop past the last row reaches the last slot').toBe('Tầng 3');
       });
 
       let before: string[] = [];
@@ -1058,7 +1062,8 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         await page.waitForTimeout(1_000);
         await captureEvidence(page, 'E03_09-B-034_spa_back.png');
         await attachJson('E03_09-B-034_spa_back.json', { rows: await rowNames(page) });
-        // Suspected (catalog): rows come from the store graph kept across the SPA trip (UFM:591-595, FMG:1274-1283).
+        // QA-03e (BUG-515, FIX-2221): each mount reads N16 fresh (useFloorManager.ts:590 refetchOnMount 'always',
+        // floorManagerGateway.ts:1178 isMountRead) unless the store holds unsaved edits.
         await expect.soft(floorRow(page, 'Tầng thêm ngoài')).toHaveCount(1);
       });
     }, [
@@ -1115,7 +1120,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         const bandHovered = await classOf(band(page, 'Tầng 2'));
         await captureEvidence(page, 'E03_09-A-040_select_hover.png');
         await attachJson('E03_09-A-040_select_hover.json', { bandBefore, bandHovered });
-        // FSC:96-126 SectionBand ignores `isHovered`: catalog says hovering a row highlights its band.
+        // QA-03e (BUG-519, FIX-2223): SectionBand applies bg-bg-hover when isHovered (FloorSectionCut.tsx:108).
         expect.soft(bandHovered, 'hover row → band highlighted').not.toBe(bandBefore);
         await page.mouse.move(0, 0);
       });
@@ -1384,7 +1389,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         const server = await readFloors(api, projectId);
         await captureEvidence(page, 'E03_09-C-028_restack_datum.png');
         await attachJson('E03_09-C-028_restack_datum.json', { server, writes: writesSince(log, mark) });
-        // Suspected (catalog): restack starts at datum 0 m (RFC:697-712) and lifts the basement.
+        // QA-03e (BUG-516, FIX-2220): restack starts from the LOWEST storey (roomFloorCommands.ts:724 stackBaseMm), not datum 0.
         expect.soft(server.find((f) => f.id === basement.id)?.elevationMm, 'basement elevation after the restack').toBe(-3_000);
         await expect.soft(elevInput(page, 'Tầng hầm 1')).toHaveValue(/^[-−]3,0$/u);
       });
@@ -1427,17 +1432,19 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         await expect(strip).toHaveCount(0);
       });
 
-      await test.step('[09-C-033] overlap seeded, change the top elevation → worst overlap FloorIssue.message announced', async () => {
-        // A height change cannot keep an overlap here: with the basement below 0 m every height change restacks from
-        // datum 0 (09-C-028) and the overlap is gone. An elevation change also runs announceStackIssue (UFM:1252).
+      // QA-03e: back to the plan's check (a height change). With BUG-516 the basement stays put; with BUG-517 the restack still
+      // re-seats an overlapping storey (it is below the top under it, roomFloorCommands.ts:743-764), so the seeded overlap is
+      // repaired and the worst issue left is the clear height of the changed floor (2,0 m < 2,4 m, alignFloors.ts:455-478),
+      // announced by the height command's onApplied (useFloorManager.ts:1316-1329 announceStackIssue).
+      await test.step('[09-C-033] overlap seeded, change a height → worst stack FloorIssue.message announced (clear height 2,0 m)', async () => {
         await seed([[basement.id, -3_000, 3_000], [f1.id, 0, 3_000], [f2.id, 2_000, 3_000], [f3Id, 6_000, 3_000]]);
         const before = (await announced()).length;
         const mark = log.length;
-        await commitNumber(elevInput(page, 'Tầng 3'), '6,5');
+        await commitNumber(heightInput(page, 'Tầng 3'), '2');
         expect((await nthCall(log, mark, 'PATCH', spatialOf(projectId, f3Id))).status).toBe(200);
         await expect
           .poll(async () => (await announced()).slice(before).map((x) => x.text).join(' | '), { timeout: 10_000 })
-          .toContain('hai tầng chồng lấn'); // AF:512-521, UFM:1043-1050
+          .toContain('có chiều cao thông thuỷ 2,000 m'); // alignFloors.ts:473 metreText = toFixed(3)
         await attachJson('E03_09-C-033_overlap_announced.json', { announced: (await announced()).slice(before) });
       });
     }, [
@@ -1527,7 +1534,7 @@ test.describe('SCR-09 floor manager — real flows (QA-03d P3)', () => {
         const names = await rowNames(page);
         await captureEvidence(page, 'E03_09-A-047_spa_switch.png');
         await attachJson('E03_09-A-047_spa_switch.json', { names });
-        // Suspected (catalog): the store graph of A is reused without a spatialProjectId check (FMG:1275-1283).
+        // QA-03e (BUG-515, FIX-2221): the store graph is reused only for the same spatialProjectId (floorManagerGateway.ts:1178).
         expect.soft(names).toEqual(['B tầng 1', 'B tầng 2']);
       });
 

@@ -101,7 +101,6 @@ const BREADCRUMB_NAV = 'Đường dẫn trang'; // src/components/shell/Breadcru
 const BREADCRUMB_PROJECTS = 'Dự án'; // FU:59
 const CAD_SENTENCE = 'Bản vẽ CAD (.dwg) chưa được hỗ trợ; hãy xuất sang PDF rồi tải lại.'; // FUG:85
 const VALIDATION_SENTENCE = 'Kiểm tra lại các trường được đánh dấu rồi thử lại.'; // src/i18n/vi.json errors.validation
-const UPLOAD_413_SENTENCE = 'Tệp tải lên chưa xong. Kiểm tra kết nối rồi thử lại với tệp khác nếu cần.'; // vi.json errors.upload
 const NOT_FOUND_GENERIC = 'Nội dung này có thể đã bị xoá, hoặc đường dẫn chưa đúng.'; // vi.json errors.notFound
 const UNDO = 'Hoàn tác'; // TST:149
 const unsupported = (ext: string): string => `Định dạng ${ext} chưa nhận được. Định dạng hỗ trợ: .png, .jpg, .pdf.`; // UFU:212-216
@@ -297,7 +296,7 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
     }
   });
 
-  test('FL-10-02 · SCR-10 add files by chooser, keyboard and drag; every client refusal; refused files still assignable', async ({ browser }, testInfo) => {
+  test('FL-10-02 · SCR-10 add files by chooser, keyboard and drag; every client refusal; refused files are not assignable', async ({ browser }, testInfo) => {
     test.setTimeout(300_000);
     const png = envDrawingPng();
     const disk = (name: string, bytes: Buffer): string => {
@@ -394,10 +393,11 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
         await expect(item.getByRole('alert')).toHaveCount(0);
       });
 
-      await test.step('[10-B-016] after "Đóng" the .txt stays (name, "Gán cho tầng khác", trash) without its sentence', async () => {
+      await test.step('[10-B-016] after "Đóng" the .txt stays (name, trash; no "Gán cho tầng khác") without its sentence', async () => {
         const item = trayItem(page, 'ghi-chu.txt');
         await expect.soft(item).toBeVisible();
-        await expect.soft(item.getByRole('combobox', { name: ASSIGN })).toBeVisible();
+        // QA-03e (BUG-523): a refused file never gets a floor picker (useFloorUploadScreen.ts:1199, FloorUploadTray.tsx:76).
+        await expect.soft(item.getByRole('combobox', { name: ASSIGN })).toHaveCount(0);
         await expect.soft(item.getByRole('button', { name: 'Xoá bản vẽ ghi-chu.txt', exact: true })).toBeVisible();
         await expect.soft(item.getByText(unsupported('.txt'), { exact: true })).toHaveCount(0);
         await item.scrollIntoViewIfNeeded();
@@ -581,34 +581,35 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
         await refusalShot('qua-tran.png', 'E03_10-C-001_over-cap.png');
       });
 
-      await test.step('[10-C-019] a refused ghi-chu.txt assigned to Tầng 1 → expected no upload; record the init actually sent', async () => {
+      // QA-03e (BUG-523, FIX-2245): a tray file without a validated branch offers no floor picker
+      // (useFloorUploadScreen.ts:1199 `assignOptions: canEdit && attachment.branch !== null ? … : []`,
+      // FloorUploadTray.tsx:76) and `reassign` ignores it (useFloorUploadScreen.ts:842-846).
+      await test.step('[10-C-019] a refused ghi-chu.txt offers no "Gán cho tầng khác" → it cannot be assigned; no init', async () => {
         await pick(page, txt);
-        await expect(trayItem(page, 'ghi-chu.txt').getByRole('alert')).toContainText(unsupported('.txt'));
+        const item = trayItem(page, 'ghi-chu.txt');
+        await expect(item.getByRole('alert')).toContainText(unsupported('.txt'));
         const mark = flow.sent.length;
-        await assignFromTray(page, 'ghi-chu.txt', t1.name); // UFU:818-853 reassign never re-checks the refusal
+        await expect.soft(item.getByRole('combobox', { name: ASSIGN }), 'a refused file has no floor picker').toHaveCount(0); // UFU:1199, FUT:76
         await quiet(page);
         const sent = initsSince(flow, mark).map((r) => r.init);
-        const answers = flow.log.filter((e) => e.method === 'POST' && INIT_RE.test(e.path)).map((e) => `${String(e.status)} ${e.code ?? ''}`);
-        if (sent.length > 0) suspected(`10-C-019: a client-refused .txt was uploaded anyway (init ${JSON.stringify(sent)}, answers ${answers.join(', ')})`);
-        await captureEvidence(page, 'E03_10-C-019_refused-file-assigned.png', {
-          caption: [`inits after assigning the refused .txt: ${String(sent.length)}`, `init answers so far: ${answers.join(', ')}`],
-        });
-        await attachJson('E03_10-C-019_refused-file-assigned.json', { inits: sent, initAnswers: answers });
+        const pickers = await item.getByRole('combobox', { name: ASSIGN }).count();
+        await captureEvidence(page, 'E03_10-C-019_refused-file-assigned.png', { caption: `refused .txt: floor pickers ${String(pickers)}, inits ${String(sent.length)}` });
+        await attachJson('E03_10-C-019_refused-file-assigned.json', { inits: sent, pickers });
         expect.soft(sent, 'a file the screen refused is never uploaded').toHaveLength(0);
       });
 
-      await test.step('[10-B-020] the refused 100 MiB + 1 file assigned to Tầng 2 → init 413 → upload sentence; no "Thử lại"', async () => {
-        const answer = waitForApi(page, 'POST', INIT_RE, [413], 15_000).catch(() => null);
-        await assignFromTray(page, 'qua-tran.png', t2.name);
-        const got = await answer;
-        expect.soft(got?.response.status() ?? 'no init', 'BE refuses the declared size (413)').toBe(413);
-        const alert = card(page, t2).getByRole('alert');
-        await expect.soft(alert).toContainText(UPLOAD_413_SENTENCE);
-        await menuButton(page, t2).click();
-        await expect.soft(card(page, t2).getByRole('button', { name: RETRY, exact: true })).toHaveCount(0); // terminal (FUG:323-326)
-        await page.keyboard.press('Escape');
-        await card(page, t2).scrollIntoViewIfNeeded();
-        await captureEvidence(page, 'E03_10-B-020_init-413.png');
+      // Catalog 10-B-020 reached init 413 only through the refusal bypass above. With BUG-523 fixed the
+      // over-cap file stays a tray-only refusal (the size check runs first, UFU:186-211), so the step asserts that.
+      await test.step('[10-B-020] the refused 100 MiB + 1 file offers no "Gán cho tầng khác" → no init; the size sentence stays', async () => {
+        const mark = flow.sent.length;
+        const item = trayItem(page, 'qua-tran.png');
+        await expect.soft(item.getByRole('combobox', { name: ASSIGN }), 'an over-cap file has no floor picker').toHaveCount(0); // UFU:1199
+        await expect.soft(item.getByRole('alert')).toContainText('Tệp nặng 100,1 MB, vượt trần 100,0 MB của một tệp.');
+        await expect.soft(card(page, t2).getByText(NO_DRAWING, { exact: true })).toBeVisible();
+        await quiet(page);
+        expect.soft(initsSince(flow, mark), 'no init for a refused file').toHaveLength(0);
+        await item.scrollIntoViewIfNeeded();
+        await captureEvidence(page, 'E03_10-B-020_init-413.png', { caption: 'over-cap tray file: no floor picker, no init (BUG-523)' });
       });
     } finally {
       await closeFlow(flow);
@@ -828,9 +829,11 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
         expect(writesSince(flow, mark), 'trash + undo are local').toEqual([]);
       });
 
-      await test.step('[10-E-015] after the trash click focus is not on <body> (recorded)', async () => {
+      await test.step('[10-E-015] after trashing the last tray file focus is on "Chọn tệp", not <body>', async () => {
         await captureEvidence(page, 'E03_10-E-015_focus-after-trash.png', { caption: `focus right after the trash click: ${focusAfterTrash}` });
         expect.soft(focusAfterTrash, 'focus after removing a tray file').not.toBe('BODY');
+        // QA-03e (BUG-525, FIX-2246): next/previous tray trash, else the "Chọn tệp" button (FloorUploadTray.tsx:45, FUD:36,95).
+        expect.soft(focusAfterTrash, 'the tray was empty after the trash → "Chọn tệp"').toMatch(new RegExp(`^BUTTON ${SELECT_FILE}`, 'u'));
       });
 
       await test.step('[10-E-012] removal toast role="status" aria-live="polite"; Tab reaches "Hoàn tác", Enter restores within 8 s', async () => {
@@ -861,21 +864,19 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
         await captureEvidence(page, 'E03_10-A-029_undo-expired.png', { caption: 'clock +8.1 s after the trash click' });
       });
 
-      await test.step('[10-A-030] trash, hover the toast, 9 s pass → toast still shown; its "Hoàn tác" should restore the file', async () => {
+      // QA-03e (BUG-524, FIX-2203): hover holds a plain notice, never an undo — an undo toast runs its full
+      // bar (= UNDO_WINDOW_MS, the ticket's window) and leaves with its "Hoàn tác" (Toast.tsx:59-72, 91).
+      await test.step('[10-A-030] trash, hover the toast, 9 s pass → the undo toast is gone (hover does not hold it); no stale "Hoàn tác"', async () => {
         await pick(page, note('ghi-chu-hover.txt'));
         await trashInTray(page, 'ghi-chu-hover.txt');
-        const toast = toastWith(page, removedToast('ghi-chu-hover.txt')).first();
-        await toast.hover(); // TST:68-72 the bar pauses; the ticket's own clock does not
+        const toast = toastWith(page, removedToast('ghi-chu-hover.txt'));
+        await expect(toast.first()).toBeVisible();
+        await toast.first().hover();
         await page.clock.fastForward(9_000);
-        await expect.soft(toast, 'hovered toast stays').toBeVisible();
-        await toast.getByRole('button', { name: UNDO, exact: true }).click();
-        const restored = await trayItem(page, 'ghi-chu-hover.txt').isVisible().catch(() => false);
-        if (!restored) suspected('10-A-030: a hovered removal toast still offers "Hoàn tác" after 8 s but the click restores nothing (ticket expired)');
-        await captureEvidence(page, 'E03_10-A-030_hover-then-undo.png', { caption: `hover + 9 s, then "Hoàn tác": file restored = ${String(restored)}` });
-        await expect.soft(trayItem(page, 'ghi-chu-hover.txt'), 'a visible "Hoàn tác" restores the file').toBeVisible();
+        await expect.soft(toast, 'a hovered undo toast still leaves after 8 s').toHaveCount(0);
+        await expect.soft(trayItem(page, 'ghi-chu-hover.txt'), 'the expired removal stays').toHaveCount(0);
+        await captureEvidence(page, 'E03_10-A-030_hover-then-undo.png', { caption: `hover + 9 s: removal toasts left ${String(await toast.count())}` });
         await page.mouse.move(0, 0);
-        if (restored) await trashInTray(page, 'ghi-chu-hover.txt');
-        await page.clock.fastForward(8_100);
         await expect(page.getByRole('status').filter({ hasText: 'Đã xoá bản vẽ' })).toHaveCount(0);
       });
 
@@ -1178,11 +1179,11 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
         const mark = flow.sent.length;
         await assignFromTray(page, 'mot-trang.pdf', t2.name);
         const [init] = await inits(flow, mark, 1);
-        expect(init !== undefined && 'pageIndex' in init, 'init carries no pageIndex').toBe(false); // UFU:269-277
+        expect(init !== undefined && 'pageIndex' in init, 'init carries no pageIndex').toBe(false); // UFU:284-300, 649-668
         await waitAttached(page, t2);
         const pickers = await card(page, t2).getByRole('combobox', { name: PICK_PAGE }).count();
         await captureEvidence(page, 'E03_10-A-019_one-page-pdf.png', { caption: `"Chọn trang" on a 1-page PDF card: ${String(pickers)}` });
-        expect.soft(pickers, 'a 1-page PDF offers no page picker').toBe(0);
+        expect.soft(pickers, 'a 1-page PDF offers no page picker').toBe(0); // QA-03e BUG-530: pageOptions only when pageCount > 1 (UFU:1089-1092, FUC:215)
       });
 
       await test.step('[10-C-016] /Count 0 PDF → no "N trang", no picker, init without pageIndex; complete 422 → validation sentence', async () => {
@@ -1388,15 +1389,17 @@ test.describe('E03 SCR-10 floor upload — flows (QA-03d P5)', () => {
         expect.soft(bars, 'an attached card has no progress rail').toBe(0);
       });
 
-      await test.step('[10-B-014] Tầng 1 card "Gán cho tầng khác" → Tầng 2 → nothing happens: no request, the file stays', async () => {
+      await test.step('[10-B-014] Tầng 1 server-drawing card offers no "Gán cho tầng khác"; no request, the file stays', async () => {
         const mark = flow.sent.length;
-        await assignFromCard(page, t1, t2.name); // UFU:819-823 server drawing id is no attachment → return
+        // QA-03e (BUG-531, FIX-2251): a card holding only a server drawing gets `reassignOptions: []`
+        // (useFloorUploadScreen.ts:1168 `canEdit && attachment !== null`), so FloorUploadCard.tsx:268 renders no picker.
+        await expect.soft(card(page, t1).getByRole('combobox', { name: ASSIGN }), 'no floor picker on a server drawing').toHaveCount(0);
         await quiet(page);
         expect.soft(writesSince(flow, mark)).toEqual([]);
         await expect.soft(card(page, t1).getByText(ATTACHED, { exact: true })).toBeVisible();
         await expect.soft(card(page, t2).getByText(NO_DRAWING, { exact: true })).toBeVisible();
-        suspected('10-B-014: a server-drawing card offers "Gán cho tầng khác", and choosing a floor does nothing (no request, no message)');
-        await captureEvidence(page, 'E03_10-B-014_server-card-reassign-noop.png', { caption: `writes after picking Tầng 2: ${JSON.stringify(writesSince(flow, mark))}` });
+        const pickers = await card(page, t1).getByRole('combobox', { name: ASSIGN }).count();
+        await captureEvidence(page, 'E03_10-B-014_server-card-reassign-noop.png', { caption: `floor pickers on the server card: ${String(pickers)}` });
       });
 
       await test.step('[10-A-014] pick tang-1.png → stays in the tray (Tầng 1 has a drawing); no init', async () => {
