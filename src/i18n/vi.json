@@ -78,6 +78,7 @@
     "unnamedRoom": "Có phòng chưa đặt tên nên chưa lưu được tầng này. Đặt tên cho phòng đó rồi lưu lại.",
     "unknown": "Không lưu được thay đổi của tầng này.",
     "reloadFailed": "Không tải lại được tầng này. Thử lại sau.",
+    "reloadDiscarded": "Đã tải lại bản mới nhất của tầng; các thay đổi chưa lưu đã bị bỏ.",
     "scaleRedirtied": "Tỉ lệ tầng này vừa đổi trong lúc bạn sửa. Tải lại để sửa trên số đo mới."
   },
   "provisionalScale": {

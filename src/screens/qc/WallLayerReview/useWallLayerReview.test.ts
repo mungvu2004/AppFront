@@ -30,7 +30,8 @@ import { sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Level, Point, Wall, WallId } from '@/domain/spatial/types';
 import { WALL_COMMAND_TYPES } from '@/lib/commands/business/wallCommands';
-import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
+import { __resetFloorLayerSavers, FLOOR_LAYER_RELOAD_DISCARDED, flushAutosaves } from '@/hooks/useAutosave';
+import { appNotificationBus } from '@/hooks/useNotifications';
 import type * as conflictModule from '@/lib/versioning/conflict';
 import { resolveConflict } from '@/lib/versioning/conflict';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
@@ -1467,6 +1468,11 @@ describe('tự lưu — bộ lưu lớp chung (F-04x-1)', () => {
       expect(mounted.result.current.saveBlock).toBeNull();
     });
     expect(useStore.getState().floorMeta[floorId]?.revision).toBe(3);
+    /* [BUG-415] Lỗi lưu của bản đã bỏ hết nghĩa: nhãn không còn "Lưu thất bại", và có câu báo đã bỏ. */
+    await waitFor(() => {
+      expect(mounted.result.current.statusBar.saveLabel).not.toContain('Lưu thất bại');
+    });
+    expect(appNotificationBus.list().map(({ title }) => title)).toContain(FLOOR_LAYER_RELOAD_DISCARDED);
 
     /* Ngăn hoàn tác của màn rỗng: Ctrl+Z không đổi gì trên bản vừa tải. */
     const reloaded = useStore.getState().spatial;

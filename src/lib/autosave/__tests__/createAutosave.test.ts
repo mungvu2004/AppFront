@@ -332,6 +332,25 @@ describe('createAutosave', () => {
     expect(autosave.getLastError()).toBeUndefined();
   });
 
+  it('[BUG-415] reset() clears a stale failure once nothing is left to save, and is a no-op while changes remain', async () => {
+    let pending: Draft | undefined = { text: 'draft' };
+    const save = vi.fn().mockRejectedValue(wireError(409, 'CONFLICT'));
+    const autosave = createAutosave<Draft>({ getChanges: () => pending, isOnline: () => true, save });
+
+    autosave.notifyChange();
+    await vi.advanceTimersByTimeAsync(800);
+    expect(autosave.getState()).toBe('failed');
+
+    /* Changes still pending: a reset must not hide them behind "saved". */
+    autosave.reset();
+    expect(autosave.getState()).toBe('failed');
+
+    pending = undefined;
+    autosave.reset();
+    expect(autosave.getState()).toBe('saved');
+    expect(autosave.getLastError()).toBeUndefined();
+  });
+
   it('lets the caller inject its own isTransientError rule', async () => {
     const save = vi.fn().mockRejectedValue(new Error('network down'));
     const getChanges = vi.fn((): Draft | undefined => ({ text: 'draft' }));

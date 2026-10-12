@@ -8,6 +8,7 @@ import { queryClient } from '@/lib/query/queryClient';
 
 import { createAutosave, type Autosave, type AutosaveEngine } from '../lib/autosave/createAutosave';
 import { formatClockTime } from '../lib/format/datetime';
+import { appNotificationBus } from './useNotifications';
 import type { RootState } from '../store';
 import { useStore } from '../store';
 
@@ -164,9 +165,8 @@ function useEngineLabel(autosave: Autosave): string | null {
     if (state === 'saved') {
       const lastSavedAt = autosave.getLastSavedAt();
 
-      if (lastSavedAt !== undefined) {
-        setLabel(`Đã lưu lúc ${formatClockTime(new Date(lastSavedAt))}`);
-      }
+      // Chưa lưu lần nào mà về 'saved' (engine `reset()` sau tải lại — BUG-415): bỏ nhãn lỗi cũ.
+      setLabel(lastSavedAt === undefined ? null : `Đã lưu lúc ${formatClockTime(new Date(lastSavedAt))}`);
 
       return;
     }
@@ -274,6 +274,8 @@ let book: SaverBook | null = null;
 
 const RELOAD_FAILED = 'Không tải lại được tầng này. Thử lại sau.';
 const SAVE_UNAVAILABLE = 'Không lưu được thay đổi của tầng này.';
+/** Toast sau "Tải lại" ở dải xung đột: sửa cục bộ (vd. duyệt tường) đã bị bỏ — `vi.json` `floorLayerSave.reloadDiscarded`. */
+export const FLOOR_LAYER_RELOAD_DISCARDED = 'Đã tải lại bản mới nhất của tầng; các thay đổi chưa lưu đã bị bỏ.';
 
 const bump = (target: SaverBook): void => {
   target.version += 1;
@@ -551,10 +553,18 @@ export function useFloorLayerAutosave({
       }
 
       if (read.ok) {
+        const discarded = (current.saver?.getBlock(target) ?? null) !== null;
+
         current.reloadErrors.delete(target);
         current.saver?.discardFloor(target);
         // Lớp, `dimensions`, `level` (khớp lớp đã quy đổi, review-1 P2-2) và `scaleStatus` — chung với VersionHistory.
         loaded.applyFloorLayerRead(target, read.data);
+        // Lỗi lưu của bản vừa bỏ hết nghĩa: tầng khác còn sửa chờ thì `reset` không làm gì (BUG-415).
+        current.engine.reset();
+
+        if (discarded) {
+          appNotificationBus.publish({ description: '', title: FLOOR_LAYER_RELOAD_DISCARDED, type: 'floor-layer-reload' });
+        }
       } else {
         current.reloadErrors.set(target, RELOAD_FAILED);
       }

@@ -38,6 +38,11 @@ export interface Autosave {
  */
 export interface AutosaveEngine extends Autosave {
   getLastError: () => unknown;
+  /**
+   * Bỏ lỗi cũ khi thứ hỏng đã bị thay (tầng vừa tải lại bản máy chủ — BUG-415): về `'saved'`
+   * nếu `getChanges` không còn gì và không lượt nào đang chạy; còn sửa chờ thì không làm gì.
+   */
+  reset: () => void;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -251,11 +256,25 @@ export function createAutosave<TChanges>(options: CreateAutosaveOptions<TChanges
     return attemptSave();
   };
 
+  const reset = (): void => {
+    if (running || options.getChanges() !== undefined) {
+      return;
+    }
+
+    clearDebounceTimer();
+    clearMaxWaitTimer();
+    clearRetryTimer();
+    retryAttempt = 0;
+    lastError = undefined;
+    setState('saved');
+  };
+
   return {
     getLastError: () => lastError,
     getLastSavedAt: () => lastSavedAt,
     getState: () => state,
     notifyChange,
+    reset,
     saveNow,
     subscribe: (listener) => {
       listeners.add(listener);
