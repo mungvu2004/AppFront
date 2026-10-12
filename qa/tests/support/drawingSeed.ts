@@ -9,8 +9,12 @@
  * SKEW_DETECTED finding (`actionKind: 'straighten'`, useInputQualityGate.ts:314-323) and ≥ 5° is "poor", which makes
  * `requiresAcknowledgement` true (useInputQualityGate.ts:1018). `estimate_skew` folds into (-45°, 45°] (geometry.py).
  *
- * Budget per seeded project: `POST /api/projects` 1, `GET /api/projects/:id` 1, upload init/chunk/complete 3, progress
- * and quality polls, `DELETE` 1 (by the caller) — one real pipeline run of the fake ML.
+ * BUG-346: {@link createPipelineDrawingProject} uploads the env drawing as it is and waits for the finished run instead
+ * (phase 04 SCR-18 / SCR-14 / SCR-22, which used to read Phase 3's CP-5 work floor).
+ *
+ * Budget per seeded project: `POST /api/projects` 1, `GET /api/projects/:id` 1, upload init/chunk/complete 3 (one
+ * `drawings_init`, 60 / 600 s per user, BE drawings/router.py:39-46 + settings.py:23-24), progress or quality polls every
+ * 2 s, `DELETE` 1 (by the caller) — one real pipeline run of the fake ML (≤ PIPELINE_TIMEOUT_MS).
  */
 import { readFileSync } from 'node:fs';
 
@@ -81,11 +85,21 @@ export async function deleteSeededProject(api: APIRequestContext, projectId: str
   }
 }
 
+/** Ids of a fixture upload, handed to the readiness wait of {@link uploadDrawingProject}. */
+interface UploadedDrawing extends SeededDrawing {
+  readonly uploadId: string;
+}
+
 /**
- * Project `qa-<runId>-<slug>-<uniq>` with one floor holding `png` as its drawing; resolves once #30 reports the floor
- * measured with a SKEW_DETECTED finding. Deletes the project again when any setup step fails.
+ * Project `qa-<runId>-<slug>-<uniq>` with one floor holding `png` as its drawing, uploaded through #5 → #6 → #7; resolves
+ * once `ready` does. Deletes the project again when any setup step (or `ready`) fails.
  */
-export async function createSkewedDrawingProject(api: APIRequestContext, slug: string, png: Buffer): Promise<SeededDrawing> {
+async function uploadDrawingProject(
+  api: APIRequestContext,
+  slug: string,
+  png: Buffer,
+  ready: (drawing: UploadedDrawing) => Promise<void>,
+): Promise<SeededDrawing> {
   expect(png.length, 'fixture drawing fits one upload chunk').toBeLessThanOrEqual(CHUNK_BYTES);
   const name = `${TEST_DATA_PREFIX}${slug}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
   const floorName = 'Tầng 1';
@@ -114,6 +128,20 @@ export async function createSkewedDrawingProject(api: APIRequestContext, slug: s
     const done = await api.post(`${base}/${uploadId}/complete`, { data: { uploadId } });
     expect(done.status(), `setup: upload complete (#7): ${(await done.text()).slice(0, 300)}`).toBe(200);
 
+    await ready({ projectId, floorId, floorName, uploadId });
+    return { projectId, floorId, floorName };
+  } catch (error) {
+    await deleteSeededProject(api, projectId);
+    throw error;
+  }
+}
+
+/**
+ * Project `qa-<runId>-<slug>-<uniq>` with one floor holding `png` as its drawing; resolves once #30 reports the floor
+ * measured with a SKEW_DETECTED finding. Deletes the project again when any setup step fails.
+ */
+export async function createSkewedDrawingProject(api: APIRequestContext, slug: string, png: Buffer): Promise<SeededDrawing> {
+  return uploadDrawingProject(api, slug, png, async ({ projectId, floorId }) => {
     // #30 answers 404 until the drawing is stored, then `isMeasured` once the quality step has run.
     await expect
       .poll(
@@ -127,9 +155,30 @@ export async function createSkewedDrawingProject(api: APIRequestContext, slug: s
         { message: `setup: #30 lists SKEW_DETECTED for the ${String(SKEW_DEG)}° drawing`, timeout: PIPELINE_TIMEOUT_MS, intervals: [2_000] },
       )
       .toBe('skew');
-    return { projectId, floorId, floorName };
-  } catch (error) {
-    await deleteSeededProject(api, projectId);
-    throw error;
-  }
+  });
+}
+
+/**
+ * BUG-346 (phase 04 SCR-18 / SCR-14 / SCR-22): project `qa-<runId>-<slug>-<uniq>` whose one floor holds `png` (the env
+ * drawing, straight) and has run the whole fake-ML pipeline: resolves once #8 progress of the upload is `completed`
+ * (BE drawings/progress.py:33-68; a `failed` run throws with its error code at once) and the floor's N16 read answers 200 —
+ * the pipeline output (warped drawing, source scan, OCR dimensions, AI layer) the CP-5 work floor used to provide. Same
+ * readiness signal as phase03 `[BUG-285]` (CP-5 from the API). Deletes the project again when any setup step fails.
+ * Budget: as the file comment (one `drawings_init`, one fake-ML run) + one #8 GET per 2 s + one N16 GET.
+ */
+export async function createPipelineDrawingProject(api: APIRequestContext, slug: string, png: Buffer): Promise<SeededDrawing> {
+  return uploadDrawingProject(api, slug, png, async ({ projectId, floorId, uploadId }) => {
+    // Own loop, not `expect.poll`: a `failed` run must end the setup at once, not after PIPELINE_TIMEOUT_MS.
+    const deadline = Date.now() + PIPELINE_TIMEOUT_MS;
+    for (;;) {
+      const res = await api.get(`${PROJECTS}/${projectId}/drawings/uploads/${uploadId}/progress`);
+      const progress: Json = res.status() === 200 ? asRecord(await res.json(), '#8 progress') : { status: `#8 ${String(res.status())}` };
+      if (progress.status === 'completed') break;
+      if (progress.status === 'failed') throw new Error(`setup: the fixture pipeline run failed: ${String(progress.error)}`);
+      if (Date.now() > deadline) throw new Error(`setup: #8 progress still "${String(progress.status)}" after ${String(PIPELINE_TIMEOUT_MS)} ms`);
+      await new Promise((resolve) => setTimeout(resolve, 2_000));
+    }
+    const layer = await api.get(`${PROJECTS}/${projectId}/floors/${floorId}/spatial/layer`);
+    expect(layer.status(), 'setup: N16 GET …/spatial/layer of the fixture floor after the run').toBe(200);
+  });
 }

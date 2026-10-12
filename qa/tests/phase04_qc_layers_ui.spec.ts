@@ -9,10 +9,13 @@
  *   - BUG-323: walls, objects, axes, rooms and thickness states run on the test's OWN project (`qa-<runId>-u04-…`, one floor),
  *     created through the API and its layer written through #35 (`support/layerSeed.ts` qcLayer) before the page opens,
  *     deleted in `finally` (`verifySeeded`). They never read Phase 3, so they reach their state whatever CP-5 did.
- *   - Only the states that need the pipeline output read Phase 3's CP-5 work floor (`project.projectId` +
- *     `floors.workFloorId`): dimensions (OCR), scale (the warped drawing), overlay (the source scan). `verifyOnWorkFloor`
- *     SKIPS them with an `Environment:` reason when CP-5 is not recorded or that floor's GET …/spatial/layer is not 200
- *     (run-22: CP-5 recorded, 404 — BUG-346); a state whose rows the floor lacks (fake ML) SKIPS with a `data:` reason.
+ *   - BUG-346: the states that need the pipeline output — dimensions (OCR), scale (the warped drawing), overlay (the source
+ *     scan) — no longer read Phase 3's CP-5 work floor (run-22 / run-26: CP-5 recorded, its GET …/spatial/layer 404, every
+ *     such state skipped). Each of their three describes uploads the env drawing (`E2E_DRAWING_PNG`) to its OWN
+ *     `qa-<runId>-u04-…` project in `beforeAll` and waits for the finished run (`support/drawingSeed.ts`
+ *     createPipelineDrawingProject: #5 → #6 → #7, #8 progress `completed`, N16 200), then deletes it in `afterAll`
+ *     (`ownDrawingFloor`). They SKIP with an `Environment:` reason only when `E2E_DRAWING_PNG` is missing; a state whose
+ *     rows the fake ML did not produce (no OCR dimension, no readable scan) SKIPS with a `data:` reason.
  *   - One run-unique project with an 80-character name and ONE floor with a 65-character name (`qa-<runId>-u04-…`),
  *     created through the API before its group and deleted after it. Its floor has no drawing and no layer: GET
  *     `…/spatial/layer` answers an empty document (BE apps/api/spatial_read/router.py:71-86 `empty_document`), so every
@@ -20,12 +23,15 @@
  *     floor's drawing, which it lacks: scale shows its `error` notice (no drawing yet, BUG-337 — useScaleCalibration.ts:1517-1522,
  *     no machine code), overlay "Không đọc được ảnh bản vẽ gốc…".
  *
- * Budget — logins: 1 real admin API login (`signedInApi`, empty-project group; again after a failed test, which starts a new
- * worker); a browser login only to replace a dead stored session (`ensureAdminSession`). The seeded and work-floor states
- * take their fixture token from their own context (`layerApiOf`, 1 refresh, no login). Writes through the API only: the
- * empty project (1 `POST /api/projects` with 1 floor, BE #25 `floors`, + 1 DELETE) and 14 seeded projects (each 1 POST +
- * 1 #35 PUT + 1 DELETE, no rate limit) — every test also asserts that the browser sent NO non-GET request under
- * `/api/projects/` (`verifyIn` guard):
+ * Budget — logins: 4 real admin API logins (`signedInApi`: the empty-project group + the three drawing describes; again
+ * for a group re-entered after a failed test, which starts a new worker); a browser login only to replace a dead stored
+ * session (`ensureAdminSession`). The seeded states take their fixture token from their own context (`layerApiOf`,
+ * 1 refresh, no login). Writes through the API only: the empty project (1 `POST /api/projects` with 1 floor, BE #25
+ * `floors`, + 1 DELETE), 14 seeded projects (each 1 POST + 1 #35 PUT + 1 DELETE, no rate limit) and 3 drawing projects
+ * (each 1 POST + upload init / chunk / complete + 1 DELETE: 3 `drawings_init`, 60 / 600 s per user, BE
+ * drawings/router.py:39-46; 3 fake-ML runs, each awaited in its describe's `beforeAll` within PIPELINE_TIMEOUT_MS + 60 s,
+ * #8 polled every 2 s) — every test also asserts that the browser sent NO non-GET request under `/api/projects/`
+ * (`verifyIn` guard):
  *   - selection, filters, "Thu gọn hai panel", "Thông số nâng cao", "Lọc theo loại", keyboard mode, "Thu gọn bảng" are view
  *     state; "Thêm trục ngang" is in memory only (F-08, `useAxisGridManager.ts` persistAxisGrid unsupported);
  *   - dialogs are opened and never confirmed: "Xem trước chuẩn hoá tên", "Gộp hai phòng", "Áp tỉ lệ này cho N tầng…"
@@ -33,24 +39,27 @@
  *     is "Áp dụng", never clicked); the reference line is drawn and its length typed, "Áp dụng tỷ lệ" is not clicked
  *     for this-floor scope.
  * Sessions: every test opens its OWN context from Phase 1's admin storage state and writes the rotated refresh cookie back
- * in `finally` (phase03 chain): 31 tests × (4 loads + 1 session check) + at most 15 fixture tokens (14 seeded tests + 1
- * work-floor probe) = 170 `POST /api/auth/refresh` over several minutes (`auth_refresh_total` 300 / 60 s per sid).
+ * in `finally` (phase03 chain): 31 tests × (4 loads + 1 session check) + 14 fixture tokens (seeded tests) = 169
+ * `POST /api/auth/refresh` over several minutes (`auth_refresh_total` 300 / 60 s per sid).
  * BUG-347: actions inside `open` time out after 10 s (`OPEN_ACTION_TIMEOUT_MS`), so a control pushed off-screen at one
  * width costs 10 s, not the 30 s ACTION_TIMEOUT_MS, before `verifyUi` records it as `openError`.
  * No faked response: every state is the real stack. Non-serial: each test uses its own context and page.
  * G6: the editor tour only mounts on the walls screen (`EditorTourContainer hostId="wall-layer-review"`); it is dismissed
  * with the product's own "Bỏ qua hướng dẫn" (`e2e/fixtures/tour.ts`). BUG-143: framer-motion overlays end with `settled()`.
  */
+import { existsSync, readFileSync } from 'node:fs';
+
 import { expect, test, type APIRequestContext, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { TOUR_APPEAR_TIMEOUT_MS, dismissTour } from '../../e2e/fixtures/tour';
-import { NAVIGATION_TIMEOUT_MS, readBaseUrl } from '../../e2e/fullstack/env';
+import { NAVIGATION_TIMEOUT_MS, PIPELINE_TIMEOUT_MS, readBaseUrl } from '../../e2e/fullstack/env';
 import { signedInApi } from './support/api';
 import { ensureAdminSession, readAdminCredentials } from './support/auth';
+import { createPipelineDrawingProject, deleteSeededProject, type SeededDrawing } from './support/drawingSeed';
 import { TEST_DATA_PREFIX } from './support/evidence';
-import { createQcProject, deleteProject, layerApiOf, layerStatus } from './support/layerSeed';
-import { ADMIN_STORAGE_STATE_FILE, readState } from './support/state';
+import { createQcProject, deleteProject, layerApiOf } from './support/layerSeed';
+import { ADMIN_STORAGE_STATE_FILE } from './support/state';
 import { UI_VIEWPORTS, verifyUi } from './support/ui-verify';
 
 /* Copy — every string checked in src/ (file noted). */
@@ -141,7 +150,7 @@ const LONG_FLOOR_NAME = 'Tầng kỹ thuật mái và phòng máy bơm nước s
 
 /* ---- helpers ---- */
 
-/** A floor a state opens on: this test's seeded one, or Phase 3's CP-5 work floor. */
+/** A floor a state opens on: this test's seeded one, or its describe's drawing floor. */
 interface Floor {
   readonly projectId: string;
   readonly floorId: string;
@@ -202,31 +211,46 @@ async function verifySeeded(
   });
 }
 
-let workFloorStatus: Promise<number> | undefined;
-
 /**
- * A state that needs the pipeline output (OCR dimensions, the warped drawing, the source scan): Phase 3's CP-5 work floor.
- * SKIPS with an `Environment:` reason when CP-5 is not recorded or that floor's N16 read is not 200 (BUG-346; probed once
- * per worker) — the no-data states are the U04_*_empty / _no_drawing cases.
+ * BUG-346: a describe whose states need the pipeline output (OCR dimensions, the warped drawing, the source scan) gets a
+ * floor of its OWN. Registers in the calling describe a `beforeAll` that uploads the env drawing to a new
+ * `qa-<runId>-<slug>-…` project and waits for the finished run (`createPipelineDrawingProject`, one real API login) and an
+ * `afterAll` that deletes it; returns the floor. The no-data states are the U04_*_empty / _no_drawing cases.
  */
-async function verifyOnWorkFloor(
+function ownDrawingFloor(slug: string): () => Floor {
+  let admin: APIRequestContext | undefined;
+  let drawn: SeededDrawing | undefined;
+  test.beforeAll(async () => {
+    const png = process.env.E2E_DRAWING_PNG?.trim() ?? '';
+    test.skip(png === '' || !existsSync(png), 'Environment: E2E_DRAWING_PNG is not an existing file (qa.config.json env.vars)');
+    test.info().setTimeout(PIPELINE_TIMEOUT_MS + 60_000);
+    const { email, password } = readAdminCredentials();
+    admin = await signedInApi(email, password);
+    drawn = await createPipelineDrawingProject(admin, slug, readFileSync(png));
+  });
+  test.afterAll(async () => {
+    try {
+      const failure = admin && drawn ? await deleteSeededProject(admin, drawn.projectId) : null;
+      if (failure !== null) test.info().annotations.push({ type: 'cleanup', description: failure });
+    } finally {
+      await admin?.dispose();
+    }
+  });
+  return () => {
+    if (drawn === undefined) throw new Error('setup: the drawing project was not created');
+    return drawn;
+  };
+}
+
+/** A state on its describe's drawing floor (`ownDrawingFloor`), in its own admin context. */
+async function verifyOnFloor(
   browser: Browser,
   name: string,
+  floor: Floor,
   open: (page: Page, floor: Floor) => Promise<void>,
   shot: Shot = {},
 ): Promise<void> {
-  const state = readState();
-  const floor: Floor = { projectId: state.project.projectId ?? '', floorId: state.floors.workFloorId ?? '' };
-  test.skip(
-    !state.checkpoints.pipelineComplete || floor.projectId === '' || floor.floorId === '',
-    'Environment: CP-5 not recorded by Phase 3 (checkpoints.pipelineComplete / work floor id missing)',
-  );
-  await inAdminContext(browser, async (context) => {
-    workFloorStatus ??= layerApiOf(context).then((api) => layerStatus(api, floor.projectId, floor.floorId));
-    const status = await workFloorStatus;
-    test.skip(status !== 200, `Environment: CP-5 work floor GET …/spatial/layer answered ${String(status)}, not 200 (no pipeline layer on the stack)`);
-    await verifyIn(context, name, (page) => open(page, floor), shot);
-  });
+  await inAdminContext(browser, (context) => verifyIn(context, name, (page) => open(page, floor), shot));
 }
 
 /** BUG-143: finite animations under `target` done, then its box and opacity hold still for 3 frames (phase03 `settled`). */
@@ -295,7 +319,7 @@ async function openSeeded(page: Page, url: string, ready: Locator): Promise<void
   await expect(ready).toBeVisible({ timeout: 15_000 });
 }
 
-/** A layer screen of the CP-5 work floor: waits for `ready` or `empty`, SKIPS when `empty` shows. */
+/** A layer screen of a drawing floor: waits for `ready` or `empty`, SKIPS when `empty` shows. */
 async function openDataOrSkip(page: Page, url: string, ready: Locator, empty: Locator, reason: string): Promise<void> {
   await page.goto(url);
   await expect(ready.or(empty).first()).toBeVisible({ timeout: 15_000 });
@@ -317,7 +341,7 @@ async function openDimsData(page: Page, floor: Floor): Promise<void> {
     ROUTES.project.dimensions(floor.projectId, floor.floorId),
     dimOptions(page).first(),
     page.getByText(DIMS_EMPTY_TITLE, { exact: true }),
-    'OCR read no dimension string on the work floor (fake ML); the empty state is U04_dims_empty',
+    'OCR read no dimension string on the drawing floor (fake ML); the empty state is U04_dims_empty',
   );
 }
 
@@ -337,14 +361,14 @@ async function openThicknessData(page: Page, floor: Floor): Promise<void> {
   await openSeeded(page, ROUTES.project.thickness(floor.projectId, floor.floorId), page.getByRole('checkbox', { name: THICKNESS_ACCEPT }).first());
 }
 
-/** Scale screen of the work floor with its drawing; SKIPS when the floor has none (CP-4 not reached). */
+/** Scale screen of the drawing floor with its warped drawing; SKIPS when the screen shows none. */
 async function openScaleData(page: Page, floor: Floor): Promise<void> {
   await page.goto(ROUTES.project.scale(floor.projectId, floor.floorId));
   await expect(page.getByRole('region', { name: SCALE_SCREEN, exact: true })).toBeVisible({ timeout: 15_000 });
   const drawing = page.getByRole('img', { name: SCALE_DRAWING_ALT });
   // Loaded = the drawing, or a notice (loading has no notice, `NOTICE_LEVELS.loading` null).
   await expect(drawing.or(page.getByRole('region', { name: SCALE_NOTICE, exact: true })).first()).toBeVisible({ timeout: 15_000 });
-  test.skip((await drawing.count()) === 0, 'data: the work floor has no drawing (CP-4 not reached); the no-drawing state is U04_scale_no_drawing');
+  test.skip((await drawing.count()) === 0, 'data: no warped drawing on the drawing floor after its run; the no-drawing state is U04_scale_no_drawing');
 }
 
 /** "Vẽ đường tham chiếu"; box-relative drag 20 % → 80 % at 50 %; 5000 + Enter (phase04_qc_layers.spec.ts `openScaleAndDraw`). */
@@ -365,20 +389,21 @@ async function drawReferenceLine(page: Page): Promise<void> {
   await expect(page.getByLabel(SCALE_COMPUTATION, { exact: true })).toContainText('mm/px');
 }
 
-/** Overlay of the work floor with a scan; SKIPS when the floor has none (CP-4 not reached). */
+/** Overlay of the drawing floor with its scan; SKIPS when the screen reads none. */
 async function openOverlayData(page: Page, floor: Floor): Promise<void> {
   await page.goto(ROUTES.project.overlay(floor.projectId, floor.floorId));
   await expect(page.getByRole('toolbar', { name: OVERLAY_TOOLBAR, exact: true })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(OVERLAY_LOADING, { exact: true })).toHaveCount(0, { timeout: 15_000 });
   test.skip(
     await page.getByText(OVERLAY_NO_SCAN, { exact: true }).or(page.getByText(OVERLAY_READ_FAILED, { exact: true })).first().isVisible(),
-    'data: the work floor has no readable source scan (CP-4 not reached); the no-drawing state is U04_overlay_no_drawing',
+    'data: no readable source scan on the drawing floor after its run; the no-drawing state is U04_overlay_no_drawing',
   );
   await expect(page.getByRole('region', { name: OVERLAY_PANEL, exact: true })).toBeVisible();
 }
 
 /* ========================================================================== */
-/* Data states: seeded floor per test (BUG-323); pipeline states on CP-5     */
+/* Data states: seeded floor per test (BUG-323); pipeline states on a drawing */
+/* floor per describe (BUG-346)                                               */
 /* ========================================================================== */
 
 test.describe('U04 UI verify — SCR-16 walls (own seeded floor)', () => {
@@ -458,15 +483,17 @@ test.describe('U04 UI verify — SCR-17 objects (own seeded floor)', () => {
   });
 });
 
-test.describe('U04 UI verify — SCR-18 dimensions (CP-5 work floor)', () => {
+test.describe('U04 UI verify — SCR-18 dimensions (own drawing floor)', () => {
+  const drawingFloor = ownDrawingFloor('u04-dims');
+
   test('U04 · SCR-18 dimensions, list', async ({ browser }) => {
-    await verifyOnWorkFloor(browser, 'U04_dims_list', async (p, floor) => {
+    await verifyOnFloor(browser, 'U04_dims_list', drawingFloor(), async (p, floor) => {
       await openDimsData(p, floor);
     });
   });
 
   test('U04 · SCR-18 dimensions, row selected → "Thanh so sánh với hình học"', async ({ browser }) => {
-    await verifyOnWorkFloor(browser, 'U04_dims_selected', async (p, floor) => {
+    await verifyOnFloor(browser, 'U04_dims_selected', drawingFloor(), async (p, floor) => {
       await openDimsData(p, floor);
       await dimOptions(p).first().click();
       await expect(p.getByLabel(DIMS_COMPARE_BAR, { exact: true })).toBeVisible();
@@ -538,15 +565,17 @@ test.describe('U04 UI verify — SCR-21 thickness (own seeded floor)', () => {
   });
 });
 
-test.describe('U04 UI verify — SCR-14 scale (CP-5 work floor)', () => {
+test.describe('U04 UI verify — SCR-14 scale (own drawing floor)', () => {
+  const drawingFloor = ownDrawingFloor('u04-scale');
+
   test('U04 · SCR-14 scale, drawing loaded', async ({ browser }) => {
-    await verifyOnWorkFloor(browser, 'U04_scale_drawing', openScaleData);
+    await verifyOnFloor(browser, 'U04_scale_drawing', drawingFloor(), openScaleData);
   });
 
   test('U04 · SCR-14 scale, "Thu gọn bảng" → panel collapsed', async ({ browser }) => {
-    await verifyOnWorkFloor(browser, 'U04_scale_panel_collapsed', async (p, floor) => {
+    await verifyOnFloor(browser, 'U04_scale_panel_collapsed', drawingFloor(), async (p, floor) => {
       await openScaleData(p, floor);
-      // On the work floor so the collapsed panel sits beside a drawing. Since BUG-322 (FIX-1503) the toggle also works in
+      // On the drawing floor so the collapsed panel sits beside a drawing. Since BUG-322 (FIX-1503) the toggle also works in
       // the `error` state: useScaleCalibration.ts:1464,1747 `isPanelCollapsed` follows the button, not `state`.
       await p.getByRole('button', { name: SCALE_COLLAPSE, exact: true }).click();
       await expect(p.getByRole('button', { name: SCALE_EXPAND, exact: true })).toBeVisible();
@@ -554,7 +583,7 @@ test.describe('U04 UI verify — SCR-14 scale (CP-5 work floor)', () => {
   });
 
   test('U04 · SCR-14 scale, reference line drawn + "Chiều dài thật" 5000 (not applied)', async ({ browser }) => {
-    await verifyOnWorkFloor(browser, 'U04_scale_refline', async (p, floor) => {
+    await verifyOnFloor(browser, 'U04_scale_refline', drawingFloor(), async (p, floor) => {
       await openScaleData(p, floor);
       await drawReferenceLine(p);
       await expect(p.getByRole('button', { name: SCALE_APPLY, exact: true })).toBeEnabled();
@@ -562,7 +591,7 @@ test.describe('U04 UI verify — SCR-14 scale (CP-5 work floor)', () => {
   });
 
   test('U04 · SCR-14 scale, "Áp cho mọi tầng" → confirm dialog (not confirmed)', async ({ browser }) => {
-    await verifyOnWorkFloor(browser, 'U04_scale_all_floors_dialog', async (p, floor) => {
+    await verifyOnFloor(browser, 'U04_scale_all_floors_dialog', drawingFloor(), async (p, floor) => {
       await openScaleData(p, floor);
       await drawReferenceLine(p);
       const all = p.getByRole('radiogroup', { name: SCALE_SCOPE, exact: true }).getByRole('radio', { name: SCALE_ALL_FLOORS, exact: true });
@@ -575,13 +604,15 @@ test.describe('U04 UI verify — SCR-14 scale (CP-5 work floor)', () => {
   });
 });
 
-test.describe('U04 UI verify — SCR-22 overlay (CP-5 work floor)', () => {
+test.describe('U04 UI verify — SCR-22 overlay (own drawing floor)', () => {
+  const drawingFloor = ownDrawingFloor('u04-overlay');
+
   test('U04 · SCR-22 overlay, scan + model', async ({ browser }) => {
-    await verifyOnWorkFloor(browser, 'U04_overlay_default', openOverlayData);
+    await verifyOnFloor(browser, 'U04_overlay_default', drawingFloor(), openOverlayData);
   });
 
   test('U04 · SCR-22 overlay, "Kiểu đối chiếu" → "Trượt" (divider)', async ({ browser }) => {
-    await verifyOnWorkFloor(browser, 'U04_overlay_swipe', async (p, floor) => {
+    await verifyOnFloor(browser, 'U04_overlay_swipe', drawingFloor(), async (p, floor) => {
       await openOverlayData(p, floor);
       const swipe = p.getByRole('radiogroup', { name: OVERLAY_MODES, exact: true }).getByRole('radio', { name: OVERLAY_SWIPE, exact: true });
       test.skip(await swipe.isDisabled(), 'data: swipe mode disabled for this floor ("Trượt — <reason>")');

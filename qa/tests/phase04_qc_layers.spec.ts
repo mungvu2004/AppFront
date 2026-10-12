@@ -4,16 +4,24 @@
  *
  * Data (BUG-346): `beforeAll` creates its OWN `qa-<runId>-m04-…` project (two floors) through the real API and writes the
  * first floor's layer through #35 (`support/layerSeed.ts` qcLayer: walls, a door and a window, two rooms, a table); the
- * project is deleted in `afterAll`. SCR-16, SCR-17, SCR-19, SCR-20 and SCR-21 run on that floor. Only the cases that need the
- * pipeline itself read Phase 3's CP-5 work floor (runtime-session.json project.projectId, floors.workFloorId,
- * checkpoints.pipelineComplete): SCR-18 (OCR dimensions), SCR-14 (the warped drawing), SCR-22 (the source scan) and CP-6.
- * They SKIP with an "Environment:" reason when CP-5 is not recorded or the work floor's GET …/spatial/layer is not 200.
- * Produces: checkpoints.restorableVersion (CP-6) after an approve PUT 200 on the CP-5 work floor (Phase 6 restores it).
- * Serial per describe only: a failure skips the rest of its own screen, never the next screens (Playwright then starts a
- * new worker, which runs `beforeAll` again on a fresh project).
+ * project is deleted in `afterAll`. SCR-16, SCR-17, SCR-19, SCR-20 and SCR-21 run on that floor.
+ * BUG-346 (run-26: CP-5 recorded, its work floor's GET …/spatial/layer 404, so these cases were skipped): the cases that need
+ * the pipeline output — SCR-18 (OCR dimensions), SCR-14 (the warped drawing), SCR-22 (the source scan) — no longer read
+ * Phase 3. Each of those describes uploads the env drawing (`E2E_DRAWING_PNG`) to its OWN `qa-<runId>-m04-…` project in its
+ * `beforeAll` (`support/drawingSeed.ts` createPipelineDrawingProject: #5 → #6 → #7, then #8 progress `completed` and N16
+ * 200) and deletes it in its `afterAll`; they SKIP with an "Environment:" reason only when `E2E_DRAWING_PNG` is missing.
+ * Only CP-6 still reads Phase 3's CP-5 work floor (runtime-session.json project.projectId, floors.workFloorId,
+ * checkpoints.pipelineComplete): it produces checkpoints.restorableVersion after an approve PUT 200 there (Phase 6 restores
+ * that floor's AI version), and SKIPS with an "Environment:" reason when CP-5 is missing or that floor's N16 read is not 200.
+ * Serial only where a case continues the previous one (SCR-16 select → approve → thickness → undo); every other case opens
+ * its screen itself, so a failure never skips a sibling. A failed test makes Playwright start a new worker, which runs the
+ * `beforeAll` hooks again (fresh seeded project, and a fresh drawing project for a pipeline describe still to run).
  *
  * Budget per worker: `POST /api/auth/login` 2 (`signInAdmin` + `signedInApi` for the fixture calls; a failed test starts a
- * new worker: 2 more); 1 project + 1 #35 seed PUT + 1 DELETE; the CP-5 probe is 1 N16 GET per gated test.
+ * new worker: 2 more); the seeded project: 1 POST + 1 #35 seed PUT + 1 DELETE; the three drawing projects: 1 POST + 1 GET
+ * + upload init/chunk/complete + 1 DELETE each, i.e. 3 `drawings_init` (60 / 600 s per user, BE drawings/router.py:39-46;
+ * +1 per pipeline describe re-entered by a new worker) and 3 fake-ML runs, each awaited in its own `beforeAll` with a
+ * PIPELINE_TIMEOUT_MS + 60 s budget (#8 polled every 2 s); the CP-5 probe is 1 N16 GET (CP-6 only).
  *
  * Contracts verified in source (c4978eb4):
  * - Layer read/write: `GET|PUT /api/projects/:p/floors/:f/spatial/layer` (`api/endpoints.ts` spatial.layer).
@@ -39,6 +47,8 @@
  * - Checkbox/Radio.Item are `sr-only` inputs under a drawn box: driven by focus + Space, the proven
  *   path of `e2e/v7/thickness-standardization.spec.ts`.
  */
+import { existsSync, readFileSync } from 'node:fs';
+
 import { expect, test, type APIRequestContext, type BrowserContext, type Locator, type Page, type Response } from '@playwright/test';
 
 import { FloorLayerWriteResultSchema } from '../../src/api/schemas/spatialLayer';
@@ -52,9 +62,10 @@ import {
   watchApi,
   type ApiResult,
 } from '../../e2e/fullstack/apiWatch';
-import { ACTION_TIMEOUT_MS, AUTOSAVE_TIMEOUT_MS, NAVIGATION_TIMEOUT_MS, readBaseUrl } from '../../e2e/fullstack/env';
+import { ACTION_TIMEOUT_MS, AUTOSAVE_TIMEOUT_MS, NAVIGATION_TIMEOUT_MS, PIPELINE_TIMEOUT_MS, readBaseUrl } from '../../e2e/fullstack/env';
 import { signedInApi } from './support/api';
 import { readAdminCredentials, signInAdmin } from './support/auth';
+import { createPipelineDrawingProject, deleteSeededProject, type SeededDrawing } from './support/drawingSeed';
 import { captureEvidence } from './support/evidence';
 import { createQcProject, deleteProject, layerStatus, type LayerApi, type SeededFloor } from './support/layerSeed';
 import { readState, updateState } from './support/state';
@@ -148,7 +159,7 @@ let page: Page;
 let fixtureApi: APIRequestContext | undefined;
 /** This file's own project: floor 0 carries `qcLayer`, floor 1 is empty (floor-nav target). */
 let seeded: readonly SeededFloor[] = [];
-/** The floor under test, set by each describe's `beforeEach` (`useSeededFloor` / `useWorkFloor`). */
+/** The floor under test, set by each describe's `beforeEach` (`useSeededFloor` / `useOwnDrawingFloor` / `useWorkFloor`). */
 let projectId = '';
 let floorId = '';
 /** Every non-GET request under `/api/projects/` (request time, not response time). */
@@ -202,11 +213,38 @@ function useSeededFloor(): void {
   floorId = own.floorId;
 }
 
+/**
+ * BUG-346: a describe whose cases need the pipeline output (warped drawing, source scan, OCR dimensions) on a floor of its
+ * OWN: `beforeAll` uploads the env drawing to a new `qa-<runId>-<slug>-…` project and waits for the finished run
+ * (`createPipelineDrawingProject`), `afterAll` deletes it, `beforeEach` points `projectId` / `floorId` at it.
+ */
+function useOwnDrawingFloor(slug: string): void {
+  let drawn: SeededDrawing | undefined;
+
+  test.beforeAll(async () => {
+    const png = process.env.E2E_DRAWING_PNG?.trim() ?? '';
+    test.skip(png === '' || !existsSync(png), 'Environment: E2E_DRAWING_PNG is not an existing file (qa.config.json env.vars)');
+    test.info().setTimeout(PIPELINE_TIMEOUT_MS + 60_000);
+    if (fixtureApi === undefined) throw new Error('setup: no fixture API context');
+    drawn = await createPipelineDrawingProject(fixtureApi, slug, readFileSync(png));
+  });
+  test.afterAll(async () => {
+    if (drawn === undefined || fixtureApi === undefined) return;
+    const failed = await deleteSeededProject(fixtureApi, drawn.projectId);
+    if (failed !== null) test.info().annotations.push({ type: 'cleanup', description: failed });
+  });
+  test.beforeEach(() => {
+    if (drawn === undefined) throw new Error('setup: the drawing project was not created');
+    projectId = drawn.projectId;
+    floorId = drawn.floorId;
+  });
+}
+
 let workFloorStatus: Promise<number> | undefined;
 
 /**
- * Cases that need the pipeline output (drawing, OCR, AI version): Phase 3's CP-5 work floor, or SKIP with the reason.
- * BUG-346: run-22 recorded CP-5 while that floor answered GET …/spatial/layer 404 — probed once per worker here.
+ * CP-6 only (it must touch the floor Phase 6 restores): Phase 3's CP-5 work floor, or SKIP with the reason.
+ * Run-22 / run-26 recorded CP-5 while that floor answered GET …/spatial/layer 404 — probed once per worker here.
  */
 async function useWorkFloor(): Promise<void> {
   const state = readState();
@@ -936,8 +974,7 @@ test.describe('SCR-17 Object Layer Review', () => {
 /* ======================================================================== */
 
 test.describe('SCR-18 Dimension OCR Review', () => {
-  test.describe.configure({ mode: 'serial' });
-  test.beforeEach(useWorkFloor);
+  useOwnDrawingFloor('m04-dims');
 
   test('SCR-18 local only: "Chưa duyệt"; "Giá trị kích thước <code>" + Enter; "Duyệt kích thước <code>" → saved, NO PUT (F-08)', async () => {
     await page.goto(ROUTES.project.dimensions(projectId, floorId));
@@ -995,7 +1032,6 @@ test.describe('SCR-18 Dimension OCR Review', () => {
 const AXIS_LABEL_PATTERN = /^Trục (.+?), cách trục kế là /u;
 
 test.describe('SCR-19 Axis Grid Manager', () => {
-  test.describe.configure({ mode: 'serial' });
   test.beforeEach(useSeededFloor);
 
   test('SCR-19 local only: "Thêm trục ngang"; "Ẩn trục X"; "Xoá trục X", then undo → in memory, NO PUT', async () => {
@@ -1054,16 +1090,20 @@ const roomsOf = (body: Json): Json[] => arrayOf(layerOf(body, '#35').rooms, '#35
 
 let roomCount = 0;
 
+async function openRooms(): Promise<void> {
+  const body = await openLayerScreen(ROUTES.project.rooms(projectId, floorId));
+
+  roomCount = arrayOf(layerOf(body, 'N16').rooms, 'N16.layer.rooms').length;
+  await expect(page.getByRole('region', { name: 'Duyệt tên phòng', exact: true })).toBeVisible();
+  await dismissTour(page);
+}
+
+/** Both SCR-20 cases open the rooms screen themselves: not serial. */
 test.describe('SCR-20 Room Label Review', () => {
-  test.describe.configure({ mode: 'serial' });
   test.beforeEach(useSeededFloor);
 
   test('SCR-20 edit: option in "Danh sách phòng"; "Tên phòng"; "Công năng"; "Duyệt phòng này" → PUT layer', async () => {
-    const body = await openLayerScreen(ROUTES.project.rooms(projectId, floorId));
-
-    roomCount = arrayOf(layerOf(body, 'N16').rooms, 'N16.layer.rooms').length;
-    await expect(page.getByRole('region', { name: 'Duyệt tên phòng', exact: true })).toBeVisible();
-    await dismissTour(page);
+    await openRooms();
     if (roomCount === 0) {
       await expect(page.getByRole('heading', { name: 'Chưa dò ra phòng nào' })).toBeVisible();
       await captureEvidence(page, '20_rooms_edit.png');
@@ -1109,6 +1149,7 @@ test.describe('SCR-20 Room Label Review', () => {
   });
 
   test('SCR-20 modals: "Chuẩn hoá tên" then "Huỷ"/"Đóng"; "Gộp phòng" then cancel → closed, NO PUT', async () => {
+    await openRooms();
     if (roomCount === 0) {
       await captureEvidence(page, '20_rooms_modals_cancel.png');
       throw new Error('seeded floor: no room (see the SCR-20 edit case)');
@@ -1143,7 +1184,6 @@ test.describe('SCR-20 Room Label Review', () => {
 /* ======================================================================== */
 
 test.describe('SCR-21 Thickness Standardization', () => {
-  test.describe.configure({ mode: 'serial' });
   test.beforeEach(useSeededFloor);
 
   test('SCR-21 apply: slider "Ngưỡng giữa 110 mm và 220 mm"; tick "Đồng ý chuẩn hoá …"; "Xem trước" → "Áp dụng" → bulk PUT, "Hoàn tác"', async () => {
@@ -1232,9 +1272,9 @@ async function openScaleAndDraw(): Promise<void> {
   await expect(page.getByLabel('Phép tính ra tỷ lệ', { exact: true })).toContainText('mm/px');
 }
 
+/** Every SCR-14 case draws its own reference line on a fresh load: not serial. */
 test.describe('SCR-14 Scale Calibration', () => {
-  test.describe.configure({ mode: 'serial' });
-  test.beforeEach(useWorkFloor);
+  useOwnDrawingFloor('m04-scale');
 
   test('SCR-14 refline: "Vẽ đường tham chiếu"; drag 20 % → 80 % at 50 %; "Chiều dài thật" = 5000 + Enter → two handles, scale computed', async () => {
     await openScaleAndDraw();
@@ -1243,6 +1283,7 @@ test.describe('SCR-14 Scale Calibration', () => {
   });
 
   test('SCR-14 apply: "Chỉ áp cho tầng này", then "Áp dụng tỷ lệ" → PUT …/spatial/layer, "Đã áp tỷ lệ cho bản vẽ"', async () => {
+    await openScaleAndDraw();
     await scaleScope('Chỉ áp cho tầng này').click();
     await expect(scaleScope('Chỉ áp cho tầng này')).toHaveAttribute('aria-checked', 'true');
     const put = waitForLayerPut((body) => typeof body.scaleMillimetresPerPixel === 'number');
@@ -1284,8 +1325,7 @@ test.describe('SCR-14 Scale Calibration', () => {
 /* ======================================================================== */
 
 test.describe('SCR-22 Overlay Comparison', () => {
-  test.describe.configure({ mode: 'serial' });
-  test.beforeEach(useWorkFloor);
+  useOwnDrawingFloor('m04-overlay');
 
   test('SCR-22 swipe: "Kiểu đối chiếu" → "Trượt"; divider slider + arrows; "Độ mờ ảnh nguồn" → divider moves, "Chưa đo được vùng lệch nào."', async () => {
     await page.goto(ROUTES.project.overlay(projectId, floorId));
