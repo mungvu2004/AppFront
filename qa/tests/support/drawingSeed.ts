@@ -86,8 +86,32 @@ export async function deleteSeededProject(api: APIRequestContext, projectId: str
   }
 }
 
+/**
+ * Uploads `png` (one chunk, ≤ {@link CHUNK_BYTES}) to `floorId` as `fileName`: #5 init → #6 chunk 0 → #7 complete
+ * (drawings/router.py; FE body uploadTask.ts:424-433); each step must answer 200. Returns the upload id (#8 key).
+ */
+export async function uploadDrawing(
+  api: APIRequestContext,
+  projectId: string,
+  floorId: string,
+  png: Buffer,
+  fileName: string,
+): Promise<string> {
+  const base = `${PROJECTS}/${projectId}/drawings/uploads`;
+  const init = await api.post(`${PROJECTS}/${projectId}/floors/${floorId}/drawings/uploads`, {
+    data: { fileName, floorId, mimeType: 'image/png', projectId, sizeBytes: png.length },
+  });
+  expect(init.status(), 'setup: upload init (#5)').toBe(200);
+  const uploadId = String(asRecord(await init.json(), 'init').id);
+  const chunk = await api.post(`${base}/${uploadId}/chunks`, { data: { chunk: png.toString('base64'), chunkIndex: 0 } });
+  expect(chunk.status(), 'setup: upload chunk 0 (#6)').toBe(200);
+  const done = await api.post(`${base}/${uploadId}/complete`, { data: { uploadId } });
+  expect(done.status(), `setup: upload complete (#7): ${(await done.text()).slice(0, 300)}`).toBe(200);
+  return uploadId;
+}
+
 /** Project `qa-<runId>-<slug>-<uniq>` with `floorNames`; `png` uploaded to the FIRST floor (#5 init → #6 chunk 0 → #7). */
-async function createDrawingProject(
+export async function createDrawingProject(
   api: APIRequestContext,
   slug: string,
   png: Buffer,
@@ -110,17 +134,7 @@ async function createDrawingProject(
     const floorId = row?.id;
     if (typeof floorId !== 'string') throw new Error(`setup: the fixture floor "${floorName}" was not created`);
 
-    // #5 init → #6 chunk 0 → #7 complete (drawings/router.py; FE body uploadTask.ts:424-433).
-    const base = `${PROJECTS}/${projectId}/drawings/uploads`;
-    const init = await api.post(`${PROJECTS}/${projectId}/floors/${floorId}/drawings/uploads`, {
-      data: { fileName: `${name}.png`, floorId, mimeType: 'image/png', projectId, sizeBytes: png.length },
-    });
-    expect(init.status(), 'setup: upload init (#5)').toBe(200);
-    const uploadId = String(asRecord(await init.json(), 'init').id);
-    const chunk = await api.post(`${base}/${uploadId}/chunks`, { data: { chunk: png.toString('base64'), chunkIndex: 0 } });
-    expect(chunk.status(), 'setup: upload chunk 0 (#6)').toBe(200);
-    const done = await api.post(`${base}/${uploadId}/complete`, { data: { uploadId } });
-    expect(done.status(), `setup: upload complete (#7): ${(await done.text()).slice(0, 300)}`).toBe(200);
+    const uploadId = await uploadDrawing(api, projectId, floorId, png, `${name}.png`);
     return { projectId, floorId, floorName, uploadId };
   } catch (error) {
     await deleteSeededProject(api, projectId);

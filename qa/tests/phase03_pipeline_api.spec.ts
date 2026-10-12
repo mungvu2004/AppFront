@@ -33,7 +33,8 @@
  *   (init-rules 13, dedupe 3, chunks 2, reject 3, pipeline 1, sse-gates 1, roles 1, gaps-pdf 4, gaps-gone-floor 1) + main ≤ 2
  *   + edge 3 (by its header) + ui 0 = 34 ≤ 60 per run. A second full run inside the same 600 s would reach 68 > 60 (429)
  *   → wait 10 min between full phase-3 runs; a --grep re-run of only the "gaps" tests spends 5.
- *   The 61 inits of "roles" are spent by its own fresh engineer (own bucket, deleted afterwards).
+ *   The INIT_LIMIT + 1 inits of "roles" (61 at the BE default; 301 with the QA override DRAWINGS_INIT_RATE_LIMIT=300,
+ *   read from E2E_DRAWINGS_INIT_RATE_LIMIT) are spent by its own fresh engineer (own bucket, deleted afterwards).
  * - `POST /api/users/invitations` 30 / 3600 s per admin (BE:users/router.py): THIS file 2 ("roles"). Phase 1 spends 8,
  *   Phase 2 ≤ 15 → Phases 1-3 in one hour = 25 ≤ 30.
  * - `recovery_ip` 10 / 900 s per IP (override 60): 2 invitation accepts.
@@ -70,7 +71,8 @@ const FOREIGN_ORIGIN = 'http://evil.example.test';
 const CHUNK_BYTES = 5 * 1024 * 1024;
 /** `UPLOAD_MAX_BYTES` (BE:drawings/settings.py:130). */
 const UPLOAD_MAX_BYTES = 104_857_600;
-const INIT_LIMIT = 60; // BE:drawings/settings.py:135
+/** BE:drawings/settings.py:23 default 60; the QA stack raises it (qa-limits.override.yml, mirrored in qa.config.json env.vars). */
+const INIT_LIMIT = Number(process.env.E2E_DRAWINGS_INIT_RATE_LIMIT ?? '60');
 const STREAM_MAX_PER_USER = 6; // BE:streams/settings.py:34
 const SSE_RETRY_AFTER = '5'; // BE:streams/sse.py:65
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]); // packages/vision/preprocess/sniff.py

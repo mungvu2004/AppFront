@@ -24,7 +24,8 @@
     "vars": {
       "E2E_FULLSTACK_BASE_URL": "http://localhost:18080",
       "E2E_DRAWING_PNG": "F:/App/AppBack/backend/dieu-phoi/chay/F-14/drawing.png",
-      "E2E_MAILPIT_URL": "http://localhost:8025"
+      "E2E_MAILPIT_URL": "http://localhost:8025",
+      "E2E_DRAWINGS_INIT_RATE_LIMIT": "300"
     },
     "healthUrl": "http://localhost:18080/api/health",
     "mockBaseUrl": "http://127.0.0.1:5173",
