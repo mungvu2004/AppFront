@@ -737,3 +737,23 @@ describe('bảng tầng vừa khung (BUG-250)', () => {
     }
   });
 });
+
+describe('kéo thả tới cuối bảng (BUG-518)', () => {
+  it('thả vào nửa dưới dòng cuối thì hàng kéo xuống CUỐI, không chèn trước dòng cuối', () => {
+    const base = scenarioArgsFor('partial');
+    const onReorderFloors = vi.fn();
+    renderWithProviders(<FloorManager {...base} onReorderFloors={onReorderFloors} />);
+    const ids = base.rows.map((row) => row.id);
+    const first = base.rows[0]!;
+    const rows = screen.getAllByRole('row', { name: /, cao độ / });
+    const last = rows[rows.length - 1]!;
+
+    fireEvent.dragStart(screen.getByRole('button', { name: `Đổi thứ tự tầng ${first.name}` }));
+    /* jsdom không có DragEvent: MouseEvent mang được clientY. Khung jsdom cao 0 nên 10 px là nửa dưới. */
+    fireEvent(last, new MouseEvent('dragover', { bubbles: true, cancelable: true, clientY: 10 }));
+    expect(last).toHaveClass('border-accent');
+    fireEvent.drop(last);
+
+    expect(onReorderFloors).toHaveBeenCalledWith([...ids.slice(1), first.id]);
+  });
+});

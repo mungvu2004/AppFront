@@ -112,6 +112,8 @@ export interface FloorTableRowProps {
   readonly duplicatingFloorId: string | null;
   readonly copyFurniture: boolean;
   readonly showInsertionLineBefore: boolean;
+  /** Đường chèn ở viền DƯỚI — chỉ dòng cuối, khi thả vào nửa dưới của nó (BUG-518). */
+  readonly showInsertionLineAfter: boolean;
   /** Dòng xuống hàng như thẻ thay vì trải mười cột (BUG-250). */
   readonly isStacked: boolean;
   readonly nameInputRef: (element: HTMLInputElement | null) => void;
@@ -127,7 +129,8 @@ export interface FloorTableRowProps {
   readonly onSetCopyFurniture: (value: boolean) => void;
   readonly onConfirmDuplicate: (floorId: string) => void;
   readonly onDragHandleStart: (floorId: string) => void;
-  readonly onDragOverRow: (index: number) => void;
+  /** Vị trí chèn: `index` khi trỏ nửa trên của dòng, `index + 1` khi trỏ nửa dưới (BUG-518). */
+  readonly onDragOverRow: (insertIndex: number) => void;
   readonly onDropRow: () => void;
   readonly onDragEnd: () => void;
 }
@@ -153,6 +156,7 @@ export function FloorTableRow({
   duplicatingFloorId,
   copyFurniture,
   showInsertionLineBefore,
+  showInsertionLineAfter,
   isStacked,
   nameInputRef,
   onSelectFloor,
@@ -209,6 +213,7 @@ export function FloorTableRow({
         row.isSelected ? 'bg-bg-selected' : row.isHovered ? 'bg-bg-hover' : undefined,
         row.isHiddenIn3d && 'opacity-50',
         showInsertionLineBefore && 'border-t-2 border-t-accent',
+        showInsertionLineAfter && 'border-accent',
         isStacked && STACKED_ROW,
       )}
       onClick={() => onSelectFloor(row.id)}
@@ -218,7 +223,8 @@ export function FloorTableRow({
         }
 
         event.preventDefault();
-        onDragOverRow(index);
+        const box = event.currentTarget.getBoundingClientRect();
+        onDragOverRow(event.clientY > box.top + box.height / 2 ? index + 1 : index);
       }}
       onDrop={(event) => {
         if (!canEdit) {
