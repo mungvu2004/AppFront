@@ -84,20 +84,32 @@ export function ExplodedViewFloorCards({
    * dưới chúng. Bản trước bám `right-3` và chỉ né theo chiều dọc (`top-20`): bản
    * đồ nhỏ cao tới y≈208 nên vẫn vẽ đè lên thẻ tầng trên cùng và nuốt cú bấm của
    * nó (BUG-371). Nay cột đứng TRÁI cả dải góc phải (`cardsRightPx`), nên không
-   * lớp nào của vỏ chạm tới thẻ; `top-20`/`bottom-20` giữ nửa thẻ trên cùng và
-   * dưới cùng không bị `overflow-hidden` cắt, và giữ thẻ dưới nút chụp.
+   * lớp nào của vỏ chạm tới thẻ; dải dọc giữ nửa thẻ trên cùng và dưới cùng không
+   * bị `overflow-hidden` cắt, và giữ thẻ dưới nút chụp.
    *
    * Khung hẹp (BUG-370): `right` kẹp bằng `min/max` để mép trái thẻ không bao giờ
    * qua mép trái khung nhìn, và bề rộng co theo khung. Khi ấy thẻ có thể chồng
-   * lên bản đồ nhỏ — `z-10` để thẻ (thứ người dùng đang thao tác) nằm trên.
+   * lên bản đồ nhỏ, chú giải và cụm thu phóng — nên dải dọc của cột bắt đầu dưới
+   * bản đồ nhỏ và dừng trên chú giải (`cardsTopPx`/`cardsBottomPx`, BUG-480).
    * Cột phủ cả bề ngang nên nó `pointer-events-none`; chỉ thẻ nhận chuột.
+   *
+   * Khung thấp quá thì thẻ chồng nhau còn tệ hơn chạm bản đồ nhỏ, nên mép trên
+   * lùi lên tới mức đủ một bước `cardPitchPx` cho mỗi khoảng giữa hai thẻ (không
+   * quá `top-20` cũ).
+   * ponytail: 375×812 từ bốn tầng trở lên thẻ trên cùng vẫn chạm đáy bản đồ nhỏ;
+   * cần hết thì thu thẻ một dòng ở khung hẹp.
    */
-  const { cardWidthPx, cardsRightPx, cardsEdgePx } = EXPLODED_LAYOUT;
+  const { cardWidthPx, cardsRightPx, cardsEdgePx, cardsTopPx, cardsBottomPx, cardPitchPx } = EXPLODED_LAYOUT;
+  const bandPx = cardsBottomPx + Math.max(0, floors.length - 1) * cardPitchPx;
+  const cardsTop = `max(80px, min(${String(cardsTopPx)}px, 100% - ${String(bandPx)}px))`;
   const cardRight = `min(${String(cardsRightPx)}px, max(${String(cardsEdgePx)}px, 100% - ${String(cardWidthPx + cardsEdgePx)}px))`;
   const cardWidth = `min(${String(cardWidthPx)}px, 100% - ${String(2 * cardsEdgePx)}px)`;
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-20 bottom-20 z-10">
+    <div
+      className="pointer-events-none absolute inset-x-0 z-10"
+      style={{ top: cardsTop, bottom: cardsBottomPx }}
+    >
       {floors.map((floor) => {
         const isDimmed = hoveredStoreyId !== null && hoveredStoreyId !== floor.id;
 

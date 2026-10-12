@@ -171,6 +171,17 @@ export const EXPLODED_LAYOUT = Object.freeze({
   cardsRightPx: 176,
   /** Khoảng hở tối thiểu giữa thẻ tầng và mép khung nhìn khi khung hẹp (BUG-370). */
   cardsEdgePx: 12,
+  /**
+   * Mép trên/dưới của dải TÂM thẻ tầng. Khung hẹp (375) thì thẻ không né được dải
+   * góc phải theo chiều ngang, nên phải né theo chiều dọc (BUG-480): 242 = đáy bản
+   * đồ nhỏ 208 (`top-2` 8 + ViewCube 72 + khe 8 + bản đồ 120) + 8 + nửa thẻ 26;
+   * 116 = chú giải góc trái dưới 82 (`bottom-2` 8 + 74) + 8 + nửa thẻ 26 — cụm thu
+   * phóng thấp hơn chú giải nên cùng được né.
+   */
+  cardsTopPx: 242,
+  cardsBottomPx: 116,
+  /** Bước tối thiểu giữa tâm hai thẻ: thẻ cao 52 + khe 4. */
+  cardPitchPx: 56,
 });
 
 /**
