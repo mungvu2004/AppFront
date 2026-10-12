@@ -191,13 +191,19 @@ test.describe('SCR-12 processing — real flows', () => {
         await captureEvidence(page, 'E03_12-B-002_no-run-empty.png');
       });
 
-      await test.step('[12-A-032] breadcrumb "Dự án" and the project name are plain text (no link / button) — records the gap', async () => {
-        const crumbs = page.getByRole('navigation', { name: PR.nav, exact: true }); // PR:231-243 spans only
-        await expect.soft(crumbs).toContainText('Dự án');
+      // QA-03e (BUG-546, FIX-2274): the shared Breadcrumb (ProcessingScreen.tsx:232-243): "Dự án" is a <button> → onBackToProjects
+      // (useProcessingScreen.ts:880, ROUTES.dashboard); the project name a plain span (Breadcrumb.tsx:126-133); nav name stays "Xử lý".
+      await test.step('[12-A-032] breadcrumb "Dự án" is a button back to the project list; the project name stays plain text', async () => {
+        const crumbs = page.getByRole('navigation', { name: PR.nav, exact: true });
         await expect.soft(crumbs).toContainText(project.name);
         await expect.soft(crumbs.getByRole('link')).toHaveCount(0);
-        await expect.soft(crumbs.getByRole('button')).toHaveCount(0);
-        await captureEvidence(page, 'E03_12-A-032_breadcrumb-plain.png', { caption: 'breadcrumb: no link, no button (no way back via breadcrumb)' });
+        await expect.soft(crumbs.getByRole('button')).toHaveCount(1);
+        await expect.soft(crumbs.getByRole('button', { name: 'Dự án', exact: true })).toBeVisible();
+        await captureEvidence(page, 'E03_12-A-032_breadcrumb-plain.png', { caption: 'breadcrumb: "Dự án" is a button, the project name plain text' });
+        await crumbs.getByRole('button', { name: 'Dự án', exact: true }).click();
+        await expect.poll(() => pathOf(page)).toBe(ROUTES.dashboard);
+        await page.goto(ROUTES.project.pipeline(projectId));
+        await expect(page.getByText(PR.emptyTitle, { exact: true })).toBeVisible({ timeout: 45_000 });
       });
 
       await test.step('[12-A-004] "Tải bản vẽ" → /projects/:id/upload', async () => {
@@ -561,22 +567,13 @@ test.describe('SCR-12 processing — shared finished run', () => {
         await expect.soft(log).toHaveAttribute('tabindex', '-1');
       });
 
-      await test.step('[12-E-011] aria-label "Nhật ký xử lý" / "Xem trước bản vẽ đang xử lý" on role-less divs is absent from the accessibility tree (records the gap)', async () => {
-        const names = async (): Promise<string[]> => {
-          const found: string[] = [];
-          const walk = (node: { name?: string; children?: unknown[] } | null): void => {
-            if (node === null) return;
-            if (typeof node.name === 'string') found.push(node.name);
-            for (const child of node.children ?? []) walk(child as { name?: string; children?: unknown[] });
-          };
-          walk((await page.accessibility.snapshot()) as { name?: string; children?: unknown[] } | null);
-          return found;
-        };
-        expect.soft(await page.locator(`[aria-label="${PR.previewPanel}"]`).count(), 'preview label is in the DOM').toBe(1);
-        expect.soft(await names(), 'preview label not exposed').not.toContain(PR.previewPanel);
+      // QA-03e (BUG-547, FIX-2275): both panels carry role="region" with their aria-label (ProcessingLogPanel.tsx:69,
+      // ProcessingPreviewPanel.tsx:76,90), so the names reach the accessibility tree.
+      await test.step('[12-E-011] panels "Nhật ký xử lý" / "Xem trước bản vẽ đang xử lý" are named regions in the accessibility tree', async () => {
+        await expect.soft(page.getByRole('region', { name: PR.previewPanel, exact: true })).toHaveCount(1);
         await tab(page, PR.tabLog).click();
-        expect.soft(await page.locator(`[aria-label="${PR.logPanel}"]`).count(), 'log label is in the DOM').toBe(1);
-        expect.soft(await names(), 'log label not exposed').not.toContain(PR.logPanel);
+        await expect.soft(page.getByRole('region', { name: PR.logPanel, exact: true })).toHaveCount(1);
+        await captureEvidence(page, 'E03_12-E-011_named-regions.png');
         await tab(page, PR.tabPreview).click();
       });
 

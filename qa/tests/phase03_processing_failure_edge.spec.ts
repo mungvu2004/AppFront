@@ -75,7 +75,9 @@ test.describe('SCR-12 processing — failed runs', () => {
       await test.step('[12-A-034] /pipeline → PipelineFailure replaces the screen (no tabs, chips, "Đã xong" line); title "Bước Tiền xử lý ở {floor} không hoàn tất được."', async () => {
         await expect(alert).toBeVisible({ timeout: 45_000 });
         await expect(page.getByRole('tablist', { name: PR.tabs })).toHaveCount(0);
-        await expect(page.getByRole('list', { name: PR.chips, exact: true }).getByRole('listitem')).toHaveCount(0);
+        // QA-03e (BUG-545): S-11 draws its own "Tiến độ theo tầng" strip (PipelineFailureProgress.tsx:51) from the floors the
+        // processing screen read; the processing chips are gone, so exactly one list of that name remains.
+        await expect(page.getByRole('list', { name: PR.chips, exact: true })).toHaveCount(1);
         await expect(page.getByText(/^Đã xong \d+\/\d+ tầng/u)).toHaveCount(0);
         await captureEvidence(page, 'E03_12-A-034_failure-replaces.png');
       });
@@ -103,10 +105,17 @@ test.describe('SCR-12 processing — failed runs', () => {
         await captureEvidence(page, 'E03_12-B-075_failure-anatomy.png', { fullPage: true });
       });
 
-      await test.step('[12-B-076] "Tiến độ theo tầng" on PipelineFailure is an empty list (records the gap)', async () => {
-        const strip = page.getByRole('list', { name: PR.chips, exact: true }); // PFP floors from detail (unsupported) → []
+      // QA-03e (BUG-545, FIX-2273): without a detail read the strip uses the processing screen's floors
+      // (useProcessingScreen.ts:1417-1421 failureFloors → usePipelineFailure.ts:588-593); the failed floor is aria-current, "hỏng".
+      await test.step('[12-B-076] "Tiến độ theo tầng" on PipelineFailure lists the floor: "{floor} hỏng", aria-current', async () => {
+        const strip = page.getByRole('list', { name: PR.chips, exact: true });
         await expect.soft(strip).toHaveCount(1);
-        await expect.soft(strip.getByRole('listitem')).toHaveCount(0);
+        const item = strip.getByRole('listitem');
+        await expect.soft(item).toHaveCount(1);
+        await expect.soft(item).toContainText(RENAMED);
+        await expect.soft(item).toContainText('hỏng'); // pipelineFailureText.ts:119
+        await expect.soft(item).toHaveAttribute('aria-current', 'true'); // PipelineFailureProgress.tsx:55
+        await captureEvidence(page, 'E03_12-B-076_failure-floor-strip.png');
       });
 
       await test.step('[12-B-053] "Tệp bản vẽ bị hỏng nên không mở được." + code "FILE_CORRUPT"; primary "Tải lên bản vẽ rõ hơn"', async () => {

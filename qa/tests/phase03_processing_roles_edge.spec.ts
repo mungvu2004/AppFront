@@ -96,13 +96,16 @@ test.describe('SCR-12 processing — roles', () => {
         await captureEvidence(page, 'E03_12-D-003_viewer-failure.png');
       });
 
-      await test.step('[12-D-004] viewer clicks "Thu gọn" → label "Mở lại" but the body stays expanded, aria-expanded stays true (suspected bug)', async () => {
+      // QA-03e (BUG-544, FIX-2272): `collapsed` is checked before error/forbidden (usePipelineFailure.ts:622-628), so the viewer's
+      // "Thu gọn" collapses the body to the summary line (PipelineFailure.tsx:61, 82, 91-93); aria-expanded follows.
+      await test.step('[12-D-004] viewer clicks "Thu gọn" → label "Mở lại", aria-expanded false, the body collapses to the summary line', async () => {
         await button(page, PF.collapse).click();
         const toggle = button(page, PF.expand);
         await expect.soft(toggle).toBeVisible();
-        await expect.soft(toggle).toHaveAttribute('aria-expanded', 'true'); // PF: aria-expanded = state !== 'collapsed'
-        await expect.soft(page.getByRole('alert').filter({ hasText: title })).toBeVisible();
-        await captureEvidence(page, 'E03_12-D-004_viewer-collapse.png', { caption: 'viewer pressed "Thu gọn": label vs body' });
+        await expect.soft(toggle).toHaveAttribute('aria-expanded', 'false');
+        await expect.soft(page.getByRole('alert').filter({ hasText: title }), 'the failure band is folded away').toHaveCount(0);
+        await expect.soft(page.getByRole('list', { name: PR.chips, exact: true }), 'the floor strip is folded away').toHaveCount(0);
+        await captureEvidence(page, 'E03_12-D-004_viewer-collapse.png', { caption: 'viewer pressed "Thu gọn": collapsed summary only' });
       });
 
       await test.step('[12-D-002] owner uploads drawing.png on the floor; viewer reloads → done screen with "Duyệt lớp tường" / "Hiệu chỉnh tỷ lệ", no read-only banner', async () => {
