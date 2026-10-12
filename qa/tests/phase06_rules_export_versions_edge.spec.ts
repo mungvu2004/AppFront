@@ -174,7 +174,8 @@ const EP = {
   unreviewed: /Còn \d[\d.]* đối tượng chưa duyệt\./u, // EPG:337 (the row also holds "Sửa")
   notApprovedBadge: 'Chưa duyệt', // EPO:83
   notApprovedCaption: 'Tầng chưa duyệt vẫn xuất được, nhưng cần chú ý trước khi gửi đi.', // EPO:88
-  fix: 'Sửa', // EPP:61
+  /** EPP:62 visible "Sửa" + sr-only ": <row label>" (BUG-442): the accessible name is "Sửa: Còn …". */
+  fix: /^Sửa/u,
   pdfBlocked: 'Chưa tải về được: dự án chưa có bộ dựng tệp PDF, mới đếm được số trang.', // EPF:34-35
   imageBlocked:
     'Chưa tải về được: ảnh cần một khung nhìn ba chiều đang mở, màn này chưa gắn với khung nhìn nào.', // EPF:38-39
@@ -1191,14 +1192,14 @@ test.describe('E06 SCR-30 Export Panel', () => {
       const rows = await preflight.getByRole('listitem').allInnerTexts();
       await captureEvidence(page, 'E06_export_preflight.png');
 
-      await approval.getByRole('link', { name: EP.fix, exact: true }).click(); // EPP:43-63 → UEP:702-711 → navigate
+      await approval.getByRole('link', { name: EP.fix }).click(); // EPP:43-63 → UEP:702-711 → navigate
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.floors(project.id)); // EPG:319
       await openExport(page, project.id);
       await page
         .getByRole('region', { name: EP.preflight, exact: true })
         .getByRole('listitem')
         .filter({ hasText: EP.unreviewed })
-        .getByRole('link', { name: EP.fix, exact: true })
+        .getByRole('link', { name: EP.fix })
         .click();
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.objects(project.id, floor.id)); // EPG:338-341
       // BUG-469: the shot shows the destination screen, not its lazy-route skeleton ("Đang tải màn hình...").
