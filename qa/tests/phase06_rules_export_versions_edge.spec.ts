@@ -1200,6 +1200,9 @@ test.describe('E06 SCR-30 Export Panel', () => {
         .getByRole('link', { name: EP.fix, exact: true })
         .click();
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.objects(project.id, floor.id)); // EPG:336-339
+      // BUG-469: the shot shows the destination screen, not its lazy-route skeleton ("Đang tải màn hình...").
+      await expect(page.getByRole('region', { name: 'Lớp đối tượng', exact: true })).toBeVisible();
+      await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
       await captureEvidence(page, 'E06_export_preflight_to_objects.png');
       await attachJson('E06_export_preflight.json', { rows, objectsPath: pathOf(page) });
     });
@@ -1305,6 +1308,18 @@ test.describe('E06 SCR-31 Spatial JSON Viewer', () => {
       const tabs = page.getByRole('tablist', { name: SJ.tabs, exact: true });
       const jsonTab = tabs.getByRole('tab', { name: 'JSON', exact: true });
       const previewTab = tabs.getByRole('tab', { name: 'Xem trước', exact: true });
+      // BUG-469: select walls[0] first, so the final shot proves the NODE preview, not the empty "Chọn một nút…".
+      const walls = page
+        .getByRole('tree', { name: SJ.tree, exact: true })
+        .locator('[role="treeitem"][aria-level="1"]')
+        .filter({ has: page.locator('code', { hasText: /^walls$/u }) });
+      await walls.focus();
+      await page.keyboard.press('ArrowRight'); // SJT:91-95
+      const firstWall = walls.locator('xpath=following-sibling::*[@role="treeitem"][1]');
+      await expect(firstWall).toHaveAttribute('aria-level', '2');
+      await firstWall.focus();
+      await page.keyboard.press('Enter'); // SJT:81-85
+      await expect(firstWall).toHaveAttribute('aria-selected', 'true');
       await modes.getByRole('radio', { name: 'Thô', exact: true }).click();
       await previewTab.click();
       // SJV:207 activeTabId = raw ? 'json' : model.activeTabId.
@@ -1315,6 +1330,7 @@ test.describe('E06 SCR-31 Spatial JSON Viewer', () => {
       await tree.click();
       await expect(tree).toHaveAttribute('aria-checked', 'true');
       await expect(previewTab).toHaveAttribute('aria-selected', 'true'); // the click above was kept in activeTabId
+      await expect(page.getByText(SJ.entityCode, { exact: true })).toBeVisible(); // SJD:108-115 walls[0] preview
       await captureEvidence(page, 'E06_data_tree_preview.png');
     });
   });
@@ -1531,7 +1547,11 @@ test.describe('E06 SCR-32 Version History', () => {
       await expect(checked).toHaveCount(2); // VHP:85-96 default pair = two newest full versions
       await expect(page.getByRole('button', { name: VH.restore, exact: true })).toHaveCount(0); // VHV:163 right is current
       await expect(page.getByRole('button', { name: VH.tag, exact: true })).toBeVisible();
-      await captureEvidence(page, 'E06_versions_current_no_restore.png');
+      // BUG-469: the action bar sits under the diff; bring it into the shot (only "Gắn nhãn…", no "Phục hồi…").
+      await page.getByRole('button', { name: VH.tag, exact: true }).scrollIntoViewIfNeeded();
+      await captureEvidence(page, 'E06_versions_current_no_restore.png', {
+        caption: `${newest.label} "${VH.current}"; "${VH.restore}": 0`,
+      });
 
       await setBox(versionRow(page, newest.label).getByRole('checkbox'), false); // VHP:120-135
       await expect(checked).toHaveCount(1);
@@ -1565,7 +1585,11 @@ test.describe('E06 SCR-32 Version History', () => {
       const field = dialog.getByRole('textbox', { name: VH.labelField, exact: true });
       await field.pressSequentially('x'.repeat(VH.labelMax + 10));
       expect((await field.inputValue()).length, 'maxLength (VHD:14,44)').toBe(VH.labelMax);
-      await captureEvidence(page, 'E06_versions_label_max.png');
+      // BUG-469: the tag button click scrolled the list away; the row being labelled goes back into the shot.
+      await versionRow(page, newest.label).scrollIntoViewIfNeeded();
+      await captureEvidence(page, 'E06_versions_label_max.png', {
+        caption: `"${VH.labelField}": ${String(VH.labelMax + 10)} typed, ${String(VH.labelMax)} kept`,
+      });
       await dialog.getByRole('button', { name: VH.labelCancel, exact: true }).click(); // VHD:48-50
       await expect(dialog).toHaveCount(0);
       await tagButton.click();
@@ -1584,6 +1608,7 @@ test.describe('E06 SCR-32 Version History', () => {
       await expect(versionRow(page, newest.label)).toContainText(label); // VHL:95
       const labeledToast = toast(page, VH.labeledToast);
       await expect(labeledToast).toBeVisible(); // UVH:454-470
+      await versionRow(page, newest.label).scrollIntoViewIfNeeded(); // BUG-469: row + its new label in the shot
       await captureEvidence(page, 'E06_versions_labeled_toast.png');
 
       const cleared = waitForApi(page, 'PATCH', labelRe(project.id), [200]);
@@ -1591,6 +1616,7 @@ test.describe('E06 SCR-32 Version History', () => {
       const clearedSent = asRecord((await cleared).response.request().postDataJSON(), 'PATCH label (undo)');
       expect(clearedSent.label, 'undo sends the previous (empty) label').toBe('');
       await expect(versionRow(page, newest.label)).not.toContainText(label);
+      await versionRow(page, newest.label).scrollIntoViewIfNeeded(); // BUG-469: the row, label gone
       await captureEvidence(page, 'E06_versions_label_undone.png');
       await attachJson('E06_versions_label.json', { tagged: taggedSent, undo: clearedSent });
     });
@@ -1672,13 +1698,20 @@ test.describe('E06 SCR-32 Version History', () => {
       await expect(banner).toBeVisible();
       await expect(page.getByText(VH.conflictMessage)).toBeVisible();
       await expect(toast(page, /^Đã phục hồi phiên bản/u)).toHaveCount(0);
+      await banner.scrollIntoViewIfNeeded(); // BUG-469: the restore click scrolled to the action bar, under the diff
       await captureEvidence(page, 'E06_versions_restore_conflict.png');
 
       const layerReread = waitForApi(page, 'GET', new RegExp(`^/api/projects/${escapeRegExp(project.id)}/floors/${escapeRegExp(floor.id)}/spatial/layer$`, 'u'), [200]);
       await page.getByRole('button', { name: VH.conflictDismiss, exact: true }).click(); // UVH:536-544 → reloadFloor
       await layerReread;
       await expect(banner).toHaveCount(0);
-      await captureEvidence(page, 'E06_versions_conflict_reloaded.png');
+      // BUG-469: two layer writes moved floorRevision past every version, so NO row is "Hiện tại" (VHM:216); the shot
+      // shows the reloaded list for that claim.
+      await expect(versionList(page).getByText(VH.current, { exact: true })).toHaveCount(0);
+      await versionRow(page, target.label).scrollIntoViewIfNeeded();
+      await captureEvidence(page, 'E06_versions_conflict_reloaded.png', {
+        caption: `"${VH.conflictTitle}" gone; floor written after every version: no "${VH.current}" row`,
+      });
       await attachJson('E06_versions_restore_conflict.json', { rejected: conflict.json });
     });
   });
