@@ -1,6 +1,6 @@
 /**
  * Phase 4 — EDGE CASES, Track A (admin): SCR-16 walls, SCR-17 objects, SCR-18 dimensions, SCR-19 axes, SCR-20 rooms,
- * SCR-21 thickness, SCR-14 scale, SCR-22 overlay. Gaps left by `phase04_qc_layers.spec.ts` (serial, CP-5 work floor);
+ * SCR-21 thickness, SCR-14 scale, SCR-22 overlay. Gaps left by `phase04_pipeline.spec.ts` (serial, CP-5 work floor);
  * inventory in `qa/coverage/phase04.md` (FE stamp 60778e96).
  *
  * Every expected result cites the FE source of `F:/App/AppFront` @ 60778e96 (8f03047b for tests authored before it) or, written `BE:`, AppBack (`apps/api/…`,

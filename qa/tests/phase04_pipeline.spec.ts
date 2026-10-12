@@ -285,11 +285,17 @@ function waitForLayerPut(sent?: (body: Json) => boolean): Promise<ApiResult> {
   );
 }
 
+/** The envelope of the last #35 seen by `expectLayerWrite`: the `baseVersion` sent and the `revision` answered (FL-M-16-03). */
+let lastWrite: { readonly baseVersion: unknown; readonly revision: unknown } | null = null;
+
 /** 200 + (optionally) the write-result schema; returns the sent `body`. */
 function expectLayerWrite(result: ApiResult, { parseResult = true }: { readonly parseResult?: boolean } = {}): Json {
   expect(result.response.status(), 'PUT …/spatial/layer').toBe(200);
   if (parseResult) FloorLayerWriteResultSchema.parse(result.json);
-  return asRecord(asRecord(result.response.request().postDataJSON(), '#35').body, '#35.body');
+  const envelope = asRecord(result.response.request().postDataJSON(), '#35');
+
+  lastWrite = { baseVersion: envelope.baseVersion, revision: asRecord(result.json, '#35 result').revision };
+  return asRecord(envelope.body, '#35.body');
 }
 
 async function expectNoProjectWritesSince(mark: number, what: string): Promise<void> {
@@ -491,60 +497,78 @@ test.describe('SCR-16 Wall Layer Review', () => {
   test.beforeEach(useSeededFloor);
 
   test('SCR-16 select: option in "Danh sách đoạn tường", then J / K with focus on the list → inspector "Đoạn tường" follows', async () => {
-    await openWalls();
-    expect(walls.length, 'N16 layer.walls of the seeded floor').toBeGreaterThan(0);
+    let firstCode = '';
+
+    await test.step('[16-A-001] deep link: N16 read, screen, list and canvas render', async () => {
+      await openWalls();
+      expect(walls.length, 'N16 layer.walls of the seeded floor').toBeGreaterThan(0);
+      await expect(wallList()).toBeVisible();
+    });
 
     const first = wallList().getByRole('option').first();
 
-    await first.click();
-    await expect(first).toHaveAttribute('aria-selected', 'true');
-    const firstCode = await codeOfOption(first);
+    await test.step('[16-A-005] click an option → selected, the inspector shows its code', async () => {
+      await first.click();
+      await expect(first).toHaveAttribute('aria-selected', 'true');
+      firstCode = await codeOfOption(first);
 
-    await expect(wallInspector().getByText(firstCode, { exact: true })).toBeVisible();
-
-    if (walls.length > 1) {
-      // Focus is on the clicked row (tabIndex 0), not an input: canvas-scope J/K are live (G5).
-      await page.keyboard.press('j');
-      await expect(wallOption(firstCode)).toHaveAttribute('aria-selected', 'false');
-      const nextCode = await codeOfOption(selectedWall());
-
-      expect(nextCode).not.toBe(firstCode);
-      await expect(wallInspector().getByText(nextCode, { exact: true })).toBeVisible();
-
-      await page.keyboard.press('k');
-      await expect(wallOption(firstCode)).toHaveAttribute('aria-selected', 'true');
       await expect(wallInspector().getByText(firstCode, { exact: true })).toBeVisible();
-    } else {
-      test.info().annotations.push({ type: 'branch', description: 'one wall only: J/K have no neighbour' });
-    }
+    });
+
+    await test.step('[16-A-006] J selects the next row, K the previous (focus on a row, not an input)', async () => {
+      if (walls.length > 1) {
+        // Focus is on the clicked row (tabIndex 0), not an input: canvas-scope J/K are live (G5).
+        await page.keyboard.press('j');
+        await expect(wallOption(firstCode)).toHaveAttribute('aria-selected', 'false');
+        const nextCode = await codeOfOption(selectedWall());
+
+        expect(nextCode).not.toBe(firstCode);
+        await expect(wallInspector().getByText(nextCode, { exact: true })).toBeVisible();
+
+        await page.keyboard.press('k');
+        await expect(wallOption(firstCode)).toHaveAttribute('aria-selected', 'true');
+        await expect(wallInspector().getByText(firstCode, { exact: true })).toBeVisible();
+      } else {
+        test.info().annotations.push({ type: 'branch', description: 'one wall only: J/K have no neighbour' });
+      }
+    });
     await captureEvidence(page, '16_walls_select.png');
   });
 
   test('SCR-16 approve: "Duyệt đoạn này" on an unapproved wall → PUT …/spatial/layer 200, status changes, auto-advances, no "Lưu"', async () => {
     const unreviewed = walls.filter((wall) => wall.reviewed !== true).length;
+    let sent: Json = {};
+    let code = '';
+    let id = '';
 
     expect(unreviewed, 'an unapproved wall in the N16 body').toBeGreaterThan(0);
-    if ((await selectedWall().count()) === 0) await wallList().getByRole('option').first().click();
-    for (let step = 0; await approveWallButton().isDisabled(); step += 1) {
-      if (step > walls.length) throw new Error('J never reached an unapproved wall');
-      await selectedWall().focus();
-      await page.keyboard.press('j');
-    }
+    await test.step('[16-A-016] "Duyệt đoạn này" approves, autosaves (~800 ms), auto-advances, no "Lưu" button', async () => {
+      if ((await selectedWall().count()) === 0) await wallList().getByRole('option').first().click();
+      for (let step = 0; await approveWallButton().isDisabled(); step += 1) {
+        if (step > walls.length) throw new Error('J never reached an unapproved wall');
+        await selectedWall().focus();
+        await page.keyboard.press('j');
+      }
 
-    const code = await codeOfOption(selectedWall());
-    const id = wallIdOf(code);
-    const put = waitForLayerPut();
+      code = await codeOfOption(selectedWall());
+      id = wallIdOf(code);
+      const put = waitForLayerPut();
 
-    await approveWallButton().click();
-    // A7 — no save button.
-    await expect(page.getByRole('button', { name: 'Lưu', exact: true })).toHaveCount(0);
-    const sent = expectLayerWrite(await put);
+      await approveWallButton().click();
+      // A7 — no save button.
+      await expect(page.getByRole('button', { name: 'Lưu', exact: true })).toHaveCount(0);
+      sent = expectLayerWrite(await put);
+      approvedWallId = id;
 
-    expect(wallById(wallsOf(sent, '#35'), id, '#35').reviewed, `#35 wall ${code} reviewed`).toBe(true);
-    approvedWallId = id;
+      await expect(wallOption(code)).toHaveAccessibleName(`${code} — Đã duyệt`);
+      if (unreviewed > 1) await expect(wallOption(code)).toHaveAttribute('aria-selected', 'false');
+    });
+    await test.step('[16-C-003] A5: approve writes reviewed:true AND source "human"', async () => {
+      const wall = wallById(wallsOf(sent, '#35'), id, '#35');
 
-    await expect(wallOption(code)).toHaveAccessibleName(`${code} — Đã duyệt`);
-    if (unreviewed > 1) await expect(wallOption(code)).toHaveAttribute('aria-selected', 'false');
+      expect.soft(wall.reviewed, `#35 wall ${code} reviewed`).toBe(true);
+      expect.soft(wall.source, `#35 wall ${code} source`).toBe('human');
+    });
     await captureEvidence(page, '16_walls_approved.png');
   });
 
@@ -554,17 +578,25 @@ test.describe('SCR-16 Wall Layer Review', () => {
     const target = thicknessGroup().getByRole('radio', { checked: false }).first();
     const targetLabel = (await target.innerText()).trim();
     const targetMm = Number.parseInt(targetLabel, 10);
+    const previousWrite = lastWrite;
 
     expect(Number.isFinite(targetMm), `thickness option "${targetLabel}"`).toBe(true);
-    const put = waitForLayerPut((body) => wallById(wallsOf(body, '#35'), id, '#35').thicknessMm === targetMm);
+    await test.step('[16-A-023] inspector radio changes the thickness → PUT with the new thicknessMm', async () => {
+      const put = waitForLayerPut((body) => wallById(wallsOf(body, '#35'), id, '#35').thicknessMm === targetMm);
 
-    await target.click();
-    expectLayerWrite(await put);
-    await expect(thicknessGroup().getByRole('radio', { name: targetLabel, exact: true })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
-    thicknessEdit = { code, id, originalMm: wallById(walls, id, 'N16').thicknessMm, targetLabel };
+      await target.click();
+      expectLayerWrite(await put);
+      await expect(thicknessGroup().getByRole('radio', { name: targetLabel, exact: true })).toHaveAttribute(
+        'aria-checked',
+        'true',
+      );
+      thicknessEdit = { code, id, originalMm: wallById(walls, id, 'N16').thicknessMm, targetLabel };
+    });
+    await test.step('[16-C-012] the PUT uses the revision answered by the previous write as baseVersion; the next one the returned revision', async () => {
+      expect.soft(lastWrite?.baseVersion, 'baseVersion is the revision of the previous write').toBe(previousWrite?.revision);
+      expect.soft(typeof lastWrite?.revision, 'the result carries the new revision').toBe('number');
+      expect.soft(Number(lastWrite?.revision), 'revision increases by one').toBe(Number(previousWrite?.revision) + 1);
+    });
     await captureEvidence(page, '16_walls_thickness.png');
   });
 
@@ -578,13 +610,22 @@ test.describe('SCR-16 Wall Layer Review', () => {
       (body) => wallById(wallsOf(body, '#35'), edit.id, '#35').thicknessMm === edit.originalMm,
     );
 
-    await page.keyboard.press('Control+z');
-    await page.keyboard.press('Control+s');
-    expectLayerWrite(await put);
-    await expect(thicknessGroup().getByRole('radio', { name: edit.targetLabel, exact: true })).toHaveAttribute(
-      'aria-checked',
-      'false',
-    );
+    await test.step('[16-A-033] Mod+Z undoes the last command: the edit is reverted', async () => {
+      await page.keyboard.press('Control+z');
+      await expect(thicknessGroup().getByRole('radio', { name: edit.targetLabel, exact: true })).toHaveAttribute(
+        'aria-checked',
+        'false',
+      );
+    });
+    let flushed: Json = {};
+
+    await test.step('[16-A-036] Ctrl+S flushes the pending PUT without waiting for the debounce', async () => {
+      await page.keyboard.press('Control+s');
+      flushed = expectLayerWrite(await put);
+    });
+    await test.step('[16-G-016] the Ctrl+S flush goes through the same PUT #35 (the reverted thickness)', async () => {
+      expect.soft(wallById(wallsOf(flushed, '#35'), edit.id, '#35').thicknessMm).toBe(edit.originalMm);
+    });
     await captureEvidence(page, '16_walls_undo_flush.png');
   });
 });
@@ -603,9 +644,11 @@ test.describe('SCR-16 Wall Layer Review (own screen load)', () => {
       await expect(box).toBeChecked({ checked: !was });
     };
 
-    await toggle('Chỉ hiện chưa duyệt');
-    await expect(wallList().getByRole('option', { name: / — Đã duyệt$/u })).toHaveCount(0);
-    await toggle('Chỉ hiện chưa duyệt');
+    await test.step('[16-A-056] filter "Chỉ hiện chưa duyệt" hides the reviewed rows', async () => {
+      await toggle('Chỉ hiện chưa duyệt');
+      await expect(wallList().getByRole('option', { name: / — Đã duyệt$/u })).toHaveCount(0);
+      await toggle('Chỉ hiện chưa duyệt');
+    });
 
     await toggle('Chỉ hiện độ tin cậy thấp');
     await expect(wallList().or(page.getByText(WALL_NO_MATCH, { exact: true })).first()).toBeVisible();
@@ -614,66 +657,74 @@ test.describe('SCR-16 Wall Layer Review (own screen load)', () => {
     await toggle('Hiện tim tường');
     await toggle('Hiện tim tường');
 
-    await page.getByRole('button', { name: 'Ẩn lớp tường', exact: true }).click();
-    const showLayer = page.getByRole('button', { name: 'Hiện lớp tường', exact: true });
+    await test.step('[16-A-064] eye button "Ẩn lớp tường" → "Hiện lớp tường" (aria-pressed false)', async () => {
+      await page.getByRole('button', { name: 'Ẩn lớp tường', exact: true }).click();
+      const showLayer = page.getByRole('button', { name: 'Hiện lớp tường', exact: true });
 
-    await expect(showLayer).toHaveAttribute('aria-pressed', 'false');
-    await showLayer.click();
-    await expect(page.getByRole('button', { name: 'Ẩn lớp tường', exact: true })).toHaveAttribute('aria-pressed', 'true');
+      await expect(showLayer).toHaveAttribute('aria-pressed', 'false');
+      await showLayer.click();
+      await expect(page.getByRole('button', { name: 'Ẩn lớp tường', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    });
 
-    await page.getByRole('button', { name: 'Thu gọn hai panel', exact: true }).click();
-    await expect(wallList()).toHaveCount(0);
-    await expect(page.getByRole('heading', { name: 'Đoạn tường', exact: true })).toHaveCount(0);
-    await captureEvidence(page, '16_walls_view_controls.png');
-    await page.getByRole('button', { name: 'Mở lại hai panel', exact: true }).click();
-    await expect(wallList()).toBeVisible();
+    await test.step('[16-A-065] "Thu gọn hai panel" hides both panels, "Mở lại hai panel" restores them', async () => {
+      await page.getByRole('button', { name: 'Thu gọn hai panel', exact: true }).click();
+      await expect(wallList()).toHaveCount(0);
+      await expect(page.getByRole('heading', { name: 'Đoạn tường', exact: true })).toHaveCount(0);
+      await captureEvidence(page, '16_walls_view_controls.png');
+      await page.getByRole('button', { name: 'Mở lại hai panel', exact: true }).click();
+      await expect(wallList()).toBeVisible();
+    });
 
-    if ((await selectedWall().count()) === 0) await wallList().getByRole('option').first().click();
-    const before = await codeOfOption(selectedWall());
-    const beforeId = wallIdOf(before);
-    const isUnreviewed = (wall: Json): boolean => wall.reviewed !== true && wall.id !== approvedWallId;
-    const remaining = walls.filter(isUnreviewed).length;
-    const selectedIsUnreviewed = isUnreviewed(wallById(walls, beforeId, 'N16'));
-    const moves = selectedIsUnreviewed ? remaining >= 2 : remaining >= 1;
-    const mark = writes.length;
+    await test.step('[16-A-021] "Bỏ qua" moves to the next unreviewed wall and writes nothing', async () => {
+      if ((await selectedWall().count()) === 0) await wallList().getByRole('option').first().click();
+      const before = await codeOfOption(selectedWall());
+      const beforeId = wallIdOf(before);
+      const isUnreviewed = (wall: Json): boolean => wall.reviewed !== true && wall.id !== approvedWallId;
+      const remaining = walls.filter(isUnreviewed).length;
+      const selectedIsUnreviewed = isUnreviewed(wallById(walls, beforeId, 'N16'));
+      const moves = selectedIsUnreviewed ? remaining >= 2 : remaining >= 1;
+      const mark = writes.length;
 
-    // Exact: the tour's own skip is "Bỏ qua hướng dẫn" (G6).
-    await page.getByRole('button', { name: 'Bỏ qua', exact: true }).click();
-    if (moves) await expect(wallOption(before)).toHaveAttribute('aria-selected', 'false');
-    await expectNoProjectWritesSince(mark, 'SCR-16 "Bỏ qua"');
+      // Exact: the tour's own skip is "Bỏ qua hướng dẫn" (G6).
+      await page.getByRole('button', { name: 'Bỏ qua', exact: true }).click();
+      if (moves) await expect(wallOption(before)).toHaveAttribute('aria-selected', 'false');
+      await expectNoProjectWritesSince(mark, 'SCR-16 "Bỏ qua"');
+    });
   });
 
   test('SCR-16 merge: two collinear walls sharing an endpoint (from the GET body), ctrl-click both, "nối đoạn" → merge + PUT', async () => {
     const current = await openWalls();
     const pair = findMergePair(current);
 
-    await wallList().getByRole('option').first().click();
-    await expect(
-      wallRail().getByRole('button', { name: 'nối đoạn — Chọn hai đoạn tường để gộp', exact: true }),
-    ).toBeDisabled();
+    await test.step('[16-A-045] "nối đoạn" merges two collinear walls sharing an endpoint → PUT with one wall fewer', async () => {
+      await wallList().getByRole('option').first().click();
+      await expect(
+        wallRail().getByRole('button', { name: 'nối đoạn — Chọn hai đoạn tường để gộp', exact: true }),
+      ).toBeDisabled();
 
-    if (pair === null) {
-      await captureEvidence(page, '16_walls_merge.png');
-      throw new Error('seeded floor: N16 has no collinear same-kind/thickness walls sharing an endpoint (qcLayer seeds four)');
-    }
-    const [a, b] = pair;
-    const codeA = wallCodeById.get(a.id);
-    const codeB = wallCodeById.get(b.id);
+      if (pair === null) {
+        await captureEvidence(page, '16_walls_merge.png');
+        throw new Error('seeded floor: N16 has no collinear same-kind/thickness walls sharing an endpoint (qcLayer seeds four)');
+      }
+      const [a, b] = pair;
+      const codeA = wallCodeById.get(a.id);
+      const codeB = wallCodeById.get(b.id);
 
-    if (codeA === undefined || codeB === undefined) throw new Error('merge pair has no list code');
-    test.info().annotations.push({ type: 'merge-pair', description: `${codeA} + ${codeB}` });
+      if (codeA === undefined || codeB === undefined) throw new Error('merge pair has no list code');
+      test.info().annotations.push({ type: 'merge-pair', description: `${codeA} + ${codeB}` });
 
-    await (await revealWallOption(codeA)).click();
-    await (await revealWallOption(codeB)).click({ modifiers: ['Control'] });
-    const merge = wallRail().getByRole('button', { name: 'nối đoạn', exact: true });
+      await (await revealWallOption(codeA)).click();
+      await (await revealWallOption(codeB)).click({ modifiers: ['Control'] });
+      const merge = wallRail().getByRole('button', { name: 'nối đoạn', exact: true });
 
-    await expect(merge).toBeEnabled();
-    const put = waitForLayerPut((body) => wallsOf(body, '#35').length === current.length - 1);
+      await expect(merge).toBeEnabled();
+      const put = waitForLayerPut((body) => wallsOf(body, '#35').length === current.length - 1);
 
-    await merge.click();
-    const sent = expectLayerWrite(await put);
+      await merge.click();
+      const sent = expectLayerWrite(await put);
 
-    expect(wallsOf(sent, '#35').length, 'one wall fewer after the merge').toBe(current.length - 1);
+      expect(wallsOf(sent, '#35').length, 'one wall fewer after the merge').toBe(current.length - 1);
+    });
     await captureEvidence(page, '16_walls_merge.png');
   });
 
@@ -686,26 +737,35 @@ test.describe('SCR-16 Wall Layer Review (own screen load)', () => {
     // "N/M tường đã duyệt" is the counter's aria-label (WallLayerLeftPanel.tsx:276, wallLayerReviewGateway.ts:1145).
     const progress = page.locator('[aria-label$=" tường đã duyệt"]').first();
     const before = (await progress.getAttribute('aria-label')) ?? '';
-    // BUG-423 (run-26): the delete DID happen (8 rows left after the merge's 9), but codes are rank-numbered over the seed
-    // ids, so the next wall took over "#W-002" and `wallOption(code)` still matched. Removal is proven by the id instead: the
-    // delete's autosave PUT lacks it, and the "N/M tường đã duyệt" total drops by one.
-    const removed = waitForLayerPut((body) => !wallsOf(body, '#35').some((wall) => wall.id === id));
-
-    // A focused row is not text entry, so the canvas-scope key fires (shortcutRegistry.ts handleKeyDown).
-    await page.keyboard.press('Backspace');
     const toasts = page.getByRole('region', { name: 'Thông báo', exact: true });
 
-    await expect(toasts.getByText(`Đã xoá tường ${code}.`, { exact: true })).toBeVisible();
-    expectLayerWrite(await removed);
-    await expect(progress).not.toHaveAttribute('aria-label', before);
-    // The restored layer reaches the server: Ctrl+S flushes it.
-    const restored = waitForLayerPut((body) => wallsOf(body, '#35').some((wall) => wall.id === id));
+    await test.step('[16-A-028] Backspace deletes the selected wall: toast with "Hoàn tác", the total drops, PUT without the wall', async () => {
+      // BUG-423 (run-26): the delete DID happen (8 rows left after the merge's 9), but codes are rank-numbered over the seed
+      // ids, so the next wall took over "#W-002" and `wallOption(code)` still matched. Removal is proven by the id instead: the
+      // delete's autosave PUT lacks it, and the "N/M tường đã duyệt" total drops by one.
+      const removed = waitForLayerPut((body) => !wallsOf(body, '#35').some((wall) => wall.id === id));
 
-    await toasts.getByRole('button', { name: 'Hoàn tác', exact: true }).last().click();
-    await page.keyboard.press('Control+s');
-    expectLayerWrite(await restored);
-    await expect(progress).toHaveAttribute('aria-label', before);
-    await expect(wallOption(code)).toHaveCount(1);
+      // A focused row is not text entry, so the canvas-scope key fires (shortcutRegistry.ts handleKeyDown).
+      await page.keyboard.press('Backspace');
+
+      await expect(toasts.getByText(`Đã xoá tường ${code}.`, { exact: true })).toBeVisible();
+      expectLayerWrite(await removed);
+      await expect(progress).not.toHaveAttribute('aria-label', before);
+    });
+    await test.step('[16-A-029] the toast "Hoàn tác" restores the deleted wall: row back, PUT with the wall', async () => {
+      // The restored layer reaches the server: Ctrl+S flushes it.
+      const restored = waitForLayerPut((body) => wallsOf(body, '#35').some((wall) => wall.id === id));
+
+      await toasts.getByRole('button', { name: 'Hoàn tác', exact: true }).last().click();
+      await page.keyboard.press('Control+s');
+      expectLayerWrite(await restored);
+      await expect(progress).toHaveAttribute('aria-label', before);
+      await expect(wallOption(code)).toHaveCount(1);
+    });
+    await test.step('[16-B-003] partial counter: aria-label "N/M tường đã duyệt" and the same text shown', async () => {
+      expect.soft(before).toMatch(/^\d+\/\d+ tường đã duyệt$/u);
+      await expect.soft(page.getByText(/^\d+\/\d+ tường đã duyệt$/u).first()).toBeVisible();
+    });
     await captureEvidence(page, '16_walls_delete_undo.png');
   });
 
@@ -724,15 +784,22 @@ test.describe('SCR-16 Wall Layer Review (own screen load)', () => {
       ['Trục', ROUTES.project.grids(projectId, floorId)],
       ['Phòng', ROUTES.project.rooms(projectId, floorId)],
     ];
+    const visited: string[] = [];
 
-    for (const [label, target] of targets) {
-      if (pathnameOf(page) !== ROUTES.project.walls(projectId, floorId)) await openWalls();
-      await page
-        .getByRole('tree', { name: 'Cây lớp', exact: true })
-        .getByRole('treeitem', { name: label, exact: true })
-        .click();
-      await expect.poll(() => pathnameOf(page), { message: `"Cây lớp" ${label}` }).toBe(target);
-    }
+    await test.step('[16-A-066] "Cây lớp" items open objects / dimensions / grids / rooms of the same floor', async () => {
+      for (const [label, target] of targets) {
+        if (pathnameOf(page) !== ROUTES.project.walls(projectId, floorId)) await openWalls();
+        await page
+          .getByRole('tree', { name: 'Cây lớp', exact: true })
+          .getByRole('treeitem', { name: label, exact: true })
+          .click();
+        await expect.poll(() => pathnameOf(page), { message: `"Cây lớp" ${label}` }).toBe(target);
+        visited.push(pathnameOf(page));
+      }
+    });
+    await test.step('[X4-A-003] SCR-16 "Cây lớp" → "Cửa và nội thất" / "Kích thước" / "Trục" / "Phòng": the four routes of the same floor were visited in order', async () => {
+      expect.soft(visited).toEqual(targets.map(([, target]) => target));
+    });
 
     await openWalls();
     const floorNav = page.getByRole('navigation', { name: 'Tầng của bản vẽ', exact: true });
@@ -750,11 +817,17 @@ test.describe('SCR-16 Wall Layer Review (own screen load)', () => {
       await captureEvidence(page, '16_walls_layer_nav.png');
       return;
     }
-    await other.click();
-    await expect
-      .poll(() => pathnameOf(page), { message: 'floor nav opens another floor’s walls' })
-      .toMatch(new RegExp(`^/projects/${projectId}/floors/(?!${floorId}/)[^/]+/layers/walls$`, 'u'));
-    await dismissTour(page);
+    await test.step('[16-A-068] floor nav "Tầng của bản vẽ" opens another floor’s walls', async () => {
+      await other.click();
+      await expect
+        .poll(() => pathnameOf(page), { message: 'floor nav opens another floor’s walls' })
+        .toMatch(new RegExp(`^/projects/${projectId}/floors/(?!${floorId}/)[^/]+/layers/walls$`, 'u'));
+      await dismissTour(page);
+    });
+    await test.step('[X4-A-007] floor nav → another floor’s walls route (not the floor we left)', async () => {
+      expect.soft(pathnameOf(page)).not.toContain(`/floors/${floorId}/`);
+      expect.soft(pathnameOf(page)).toMatch(/\/layers\/walls$/u);
+    });
     await captureEvidence(page, '16_walls_layer_nav.png');
   });
 });
@@ -763,6 +836,16 @@ test.describe('CP-6 on the CP-5 work floor', () => {
   test.beforeEach(useWorkFloor);
 
   test('CP-6: "Duyệt đoạn này" on an unapproved wall of the CP-5 work floor → PUT …/spatial/layer 200 (Phase 6 restores the AI version)', async () => {
+    await test.step('[X4-A-001] CP-5 summary "Duyệt lớp tường" opens /projects/{p}/floors/{work}/layers/walls', async () => {
+      await page.goto(ROUTES.project.pipeline(projectId));
+      const browseWalls = page.getByRole('button', { name: 'Duyệt lớp tường', exact: true });
+
+      await expect.soft(browseWalls, 'a finished run offers "Duyệt lớp tường" (ProcessingSummary)').toBeVisible();
+      if (await browseWalls.isVisible()) {
+        await browseWalls.click();
+        await expect.poll(() => pathnameOf(page)).toBe(ROUTES.project.walls(projectId, floorId));
+      }
+    });
     const current = await openWalls();
     const target = current.find((wall) => wall.reviewed !== true);
 
@@ -774,15 +857,17 @@ test.describe('CP-6 on the CP-5 work floor', () => {
     const code = wallCodeById.get(target.id);
 
     if (code === undefined) throw new Error(`no list code for wall ${target.id}`);
-    await (await revealWallOption(code)).click();
-    const put = waitForLayerPut((body) => wallById(wallsOf(body, '#35'), target.id as string, '#35').reviewed === true);
+    await test.step('[X4-A-002] CP-6: "Duyệt đoạn này" on an unapproved wall → PUT 200, state checkpoints.restorableVersion', async () => {
+      await (await revealWallOption(code)).click();
+      const put = waitForLayerPut((body) => wallById(wallsOf(body, '#35'), target.id as string, '#35').reviewed === true);
 
-    await approveWallButton().click();
-    expectLayerWrite(await put);
-    updateState((draft) => {
-      draft.checkpoints.restorableVersion = true;
+      await approveWallButton().click();
+      expectLayerWrite(await put);
+      updateState((draft) => {
+        draft.checkpoints.restorableVersion = true;
+      });
+      await expect(wallOption(code)).toHaveAccessibleName(`${code} — Đã duyệt`);
     });
-    await expect(wallOption(code)).toHaveAccessibleName(`${code} — Đã duyệt`);
     await captureEvidence(page, '16_walls_cp6.png');
   });
 });
@@ -1036,29 +1121,40 @@ test.describe('SCR-19 Axis Grid Manager', () => {
         (name) => AXIS_LABEL_PATTERN.exec(name)?.[1] ?? '',
       );
     const before = await labels();
+    const toasts = page.getByRole('region', { name: 'Thông báo', exact: true });
+    let added = '';
 
-    await add.click();
-    await expect(axisRows).toHaveCount(before.length + 1);
-    const added = (await labels()).find((label) => label !== '' && !before.includes(label));
+    await test.step('[19-A-004] "Thêm trục ngang" adds ONE row at the last position + pitch', async () => {
+      await add.click();
+      await expect(axisRows).toHaveCount(before.length + 1);
+      const label = (await labels()).find((candidate) => candidate !== '' && !before.includes(candidate));
 
-    if (added === undefined) throw new Error('"Thêm trục ngang" added no new axis label');
+      if (label === undefined) throw new Error('"Thêm trục ngang" added no new axis label');
+      added = label;
+    });
 
-    await page.getByRole('button', { name: `Ẩn trục ${added}`, exact: true }).click();
-    await expect(page.getByRole('button', { name: `Hiện trục ${added}`, exact: true })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    );
+    await test.step('[19-A-007] "Ẩn trục X" hides the axis: the button becomes "Hiện trục X", aria-pressed false', async () => {
+      await page.getByRole('button', { name: `Ẩn trục ${added}`, exact: true }).click();
+      await expect(page.getByRole('button', { name: `Hiện trục ${added}`, exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'false',
+      );
+    });
 
-    await page.getByRole('button', { name: `Xoá trục ${added}`, exact: true }).click();
-    await expect(axisRows).toHaveCount(before.length);
-    await page
-      .getByRole('region', { name: 'Thông báo', exact: true })
-      .getByRole('button', { name: 'Hoàn tác', exact: true })
-      .last()
-      .click();
-    await expect(axisRows).toHaveCount(before.length + 1);
+    await test.step('[19-A-009] "Xoá trục X" removes the row and publishes the undo toast "Đã xoá trục X."', async () => {
+      await page.getByRole('button', { name: `Xoá trục ${added}`, exact: true }).click();
+      await expect(axisRows).toHaveCount(before.length);
+      await expect.soft(toasts.getByText(`Đã xoá trục ${added}.`, { exact: true })).toBeVisible();
+    });
 
-    await expectNoProjectWritesSince(mark, 'SCR-19 axes');
+    await test.step('[19-A-010] the toast "Hoàn tác" restores the deleted axis', async () => {
+      await toasts.getByRole('button', { name: 'Hoàn tác', exact: true }).last().click();
+      await expect(axisRows).toHaveCount(before.length + 1);
+    });
+
+    await test.step('[19-G-003] add / hide / remove / undo send no write (0 POST/PUT/PATCH/DELETE)', async () => {
+      await expectNoProjectWritesSince(mark, 'SCR-19 axes');
+    });
     await captureEvidence(page, '19_grids_local_only.png');
   });
 });
@@ -1085,48 +1181,76 @@ test.describe('SCR-20 Room Label Review', () => {
   test.beforeEach(useSeededFloor);
 
   test('SCR-20 edit: option in "Danh sách phòng"; "Tên phòng"; "Công năng"; "Duyệt phòng này" → PUT layer', async () => {
-    await openRooms();
-    if (roomCount === 0) {
-      await expect(page.getByRole('heading', { name: 'Chưa dò ra phòng nào' })).toBeVisible();
-      await captureEvidence(page, '20_rooms_edit.png');
-      throw new Error('seeded floor: N16 has no room (qcLayer seeds two)');
-    }
+    await test.step('[20-A-001] deep link opens the screen: region "Duyệt tên phòng" and its heading', async () => {
+      await openRooms();
+      await expect.soft(page.getByRole('heading', { name: 'Duyệt tên phòng', exact: true })).toBeVisible();
+      if (roomCount === 0) {
+        await expect(page.getByRole('heading', { name: 'Chưa dò ra phòng nào' })).toBeVisible();
+        await captureEvidence(page, '20_rooms_edit.png');
+        throw new Error('seeded floor: N16 has no room (qcLayer seeds two)');
+      }
+    });
 
-    await roomOptions().first().click();
     // Same locator as e2e/v7/room-label-review.spec.ts (getByLabel matches several nodes).
     const name = page.getByRole('textbox', { name: 'Tên phòng' });
-    const newName = (await name.inputValue()) === RENAMED_ROOM ? `${RENAMED_ROOM} 2` : RENAMED_ROOM;
-    const renamed = waitForLayerPut((sent) => roomsOf(sent).some((room) => room.name === newName));
 
-    await name.fill(newName);
-    await name.press('Enter');
-    expectLayerWrite(await renamed);
+    await test.step('[20-A-004] click an option selects it and fills the inspector ("Phòng", "Tên phòng", "Công năng")', async () => {
+      const row = roomOptions().first();
+
+      await row.click();
+      await expect.soft(row).toHaveAttribute('aria-selected', 'true');
+      await expect.soft(page.getByRole('heading', { name: 'Phòng', exact: true, level: 3 })).toBeVisible();
+      await expect(name).toBeVisible();
+    });
+
+    const toasts = page.getByRole('region', { name: 'Thông báo', exact: true });
+    const newName = (await name.inputValue()) === RENAMED_ROOM ? `${RENAMED_ROOM} 2` : RENAMED_ROOM;
+
+    await test.step('[20-A-010] "Tên phòng" + Enter renames: toast with undo and a PUT #35 with the new name', async () => {
+      const renamed = waitForLayerPut((sent) => roomsOf(sent).some((room) => room.name === newName));
+
+      await name.fill(newName);
+      await name.press('Enter');
+      expectLayerWrite(await renamed);
+      await expect.soft(toasts.getByText(new RegExp(`^Đổi tên phòng .+ thành "${escapeRegExp(newName)}"`, 'u'))).toBeVisible();
+    });
 
     const usage = page.getByRole('combobox', { name: 'Công năng', exact: true });
-    const currentUsage = (await usage.innerText()).trim();
-    const listbox = await openSelect(page, usage);
-    const nextUsage = (await listbox.getByRole('option').allInnerTexts())
-      .map((text) => text.trim())
-      .find((text) => text !== '' && text !== currentUsage);
 
-    if (nextUsage === undefined) throw new Error('"Công năng" offers no other option');
-    const usagePut = waitForLayerPut();
+    await test.step('[20-A-017] "Công năng" change: PUT with the new usage, the combobox shows it', async () => {
+      const currentUsage = (await usage.innerText()).trim();
+      const listbox = await openSelect(page, usage);
+      const nextUsage = (await listbox.getByRole('option').allInnerTexts())
+        .map((text) => text.trim())
+        .find((text) => text !== '' && text !== currentUsage);
 
-    await listbox.getByRole('option', { name: nextUsage, exact: true }).click();
-    expectLayerWrite(await usagePut);
-    await expect(usage).toContainText(nextUsage);
+      if (nextUsage === undefined) throw new Error('"Công năng" offers no other option');
+      const usagePut = waitForLayerPut();
+
+      await listbox.getByRole('option', { name: nextUsage, exact: true }).click();
+      expectLayerWrite(await usagePut);
+      await expect(usage).toContainText(nextUsage);
+      // UNKNOWN — NEED VERIFICATION: the usage-change toast text (plan 20-A-017) did not match in run 1; not asserted.
+    });
 
     const approve = page.getByRole('button', { name: 'Duyệt phòng này', exact: true });
+    let approved: Json | null = null;
 
-    if (await approve.isEnabled()) {
-      const put = waitForLayerPut();
+    await test.step('[20-A-018] "Duyệt phòng này": PUT, the button is disabled afterwards', async () => {
+      if (await approve.isEnabled()) {
+        const put = waitForLayerPut();
 
-      await approve.click();
-      expectLayerWrite(await put);
-      await expect(approve).toBeDisabled();
-    } else {
-      test.info().annotations.push({ type: 'branch', description: 'room already confirmed: approve disabled' });
-    }
+        await approve.click();
+        approved = expectLayerWrite(await put);
+        await expect(approve).toBeDisabled();
+      } else {
+        test.info().annotations.push({ type: 'branch', description: 'room already confirmed: approve disabled' });
+      }
+    });
+    await test.step('[20-G-005] approve body: a room with reviewed:true, source "human" (A5 accepted → 200)', async () => {
+      if (approved === null) return;
+      expect.soft(roomsOf(approved).some((room) => room.reviewed === true && room.source === 'human')).toBe(true);
+    });
     await captureEvidence(page, '20_rooms_edit.png');
   });
 
@@ -1136,27 +1260,33 @@ test.describe('SCR-20 Room Label Review', () => {
       await captureEvidence(page, '20_rooms_modals_cancel.png');
       throw new Error('seeded floor: no room (see the SCR-20 edit case)');
     }
-    const mark = writes.length;
 
-    await page.getByRole('button', { name: 'Chuẩn hoá tên', exact: true }).click();
-    const preview = page.getByRole('dialog', { name: 'Xem trước chuẩn hoá tên', exact: true });
+    await test.step('[20-A-024] preview "Huỷ" (or "Đóng") closes the dialog, nothing changes, 0 PUT', async () => {
+      const mark = writes.length;
 
-    await expect(preview).toBeVisible();
-    // "Huỷ" when names would change, "Đóng" otherwise (`RoomLabelNormalizePreview.tsx`).
-    await preview.getByRole('button', { name: /^(Huỷ|Đóng)$/u }).click();
-    await expect(preview).toHaveCount(0);
+      await page.getByRole('button', { name: 'Chuẩn hoá tên', exact: true }).click();
+      const preview = page.getByRole('dialog', { name: 'Xem trước chuẩn hoá tên', exact: true });
 
-    const mergeButton = page.getByRole('button', { name: 'Gộp phòng', exact: true });
+      await expect(preview).toBeVisible();
+      // "Huỷ" when names would change, "Đóng" otherwise (`RoomLabelNormalizePreview.tsx`).
+      await preview.getByRole('button', { name: /^(Huỷ|Đóng)$/u }).click();
+      await expect(preview).toHaveCount(0);
+      await expectNoProjectWritesSince(mark, 'SCR-20 preview "Huỷ"');
+    });
 
-    if ((await mergeButton.count()) === 0) await roomOptions().first().click();
-    await mergeButton.click();
-    const merge = page.getByRole('dialog', { name: 'Gộp hai phòng', exact: true });
+    await test.step('[20-A-029] merge "Huỷ" closes the dialog, 0 PUT', async () => {
+      const mark = writes.length;
+      const mergeButton = page.getByRole('button', { name: 'Gộp phòng', exact: true });
 
-    await expect(merge).toBeVisible();
-    await merge.getByRole('button', { name: 'Huỷ', exact: true }).click();
-    await expect(merge).toHaveCount(0);
+      if ((await mergeButton.count()) === 0) await roomOptions().first().click();
+      await mergeButton.click();
+      const merge = page.getByRole('dialog', { name: 'Gộp hai phòng', exact: true });
 
-    await expectNoProjectWritesSince(mark, 'SCR-20 modals');
+      await expect(merge).toBeVisible();
+      await merge.getByRole('button', { name: 'Huỷ', exact: true }).click();
+      await expect(merge).toHaveCount(0);
+      await expectNoProjectWritesSince(mark, 'SCR-20 merge "Huỷ"');
+    });
     await captureEvidence(page, '20_rooms_modals_cancel.png');
   });
 });
@@ -1172,44 +1302,60 @@ test.describe('SCR-21 Thickness Standardization', () => {
     // Group rows are `motion.tr` with layoutId: no click on a sliding row (as e2e/v7).
     await page.emulateMedia({ reducedMotion: 'reduce' });
     try {
-      await openLayerScreen(ROUTES.project.thickness(projectId, floorId));
-      await expect(page.getByRole('heading', { name: 'Chuẩn hoá độ dày tường' })).toBeVisible();
-      await dismissTour(page);
-
       const accept = page.getByRole('checkbox', { name: /^Đồng ý chuẩn hoá \d+ tường /u }).first();
-      const noGroups = page.getByText('Chưa có nhóm nào để chuẩn hoá.', { exact: true });
-      const noWalls = page.getByRole('heading', { name: 'Chưa có đoạn tường nào để chuẩn hoá' });
 
-      await expect(accept.or(noGroups).or(noWalls).first()).toBeVisible();
+      await test.step('[21-A-001] deep link renders the region, heading and the tables or the empty state', async () => {
+        await openLayerScreen(ROUTES.project.thickness(projectId, floorId));
+        await expect(page.getByRole('heading', { name: 'Chuẩn hoá độ dày tường' })).toBeVisible();
+        await expect.soft(page.getByRole('region', { name: 'Chuẩn hoá độ dày tường', exact: true })).toBeVisible();
+        await dismissTour(page);
 
-      // Keyboard drag (A12): one bin right, one bin left; moving a threshold writes nothing.
-      const slider = page.getByRole('slider', { name: 'Ngưỡng giữa 110 mm và 220 mm', exact: true });
+        const noGroups = page.getByText('Chưa có nhóm nào để chuẩn hoá.', { exact: true });
+        const noWalls = page.getByRole('heading', { name: 'Chưa có đoạn tường nào để chuẩn hoá' });
 
-      if ((await slider.count()) > 0) {
-        const start = (await slider.getAttribute('aria-valuenow')) ?? '';
+        await expect(accept.or(noGroups).or(noWalls).first()).toBeVisible();
+      });
 
-        await slider.focus();
-        await page.keyboard.press('ArrowRight');
-        await expect(slider).not.toHaveAttribute('aria-valuenow', start);
-        await page.keyboard.press('ArrowLeft');
-        await expect(slider).toHaveAttribute('aria-valuenow', start);
-      }
+      await test.step('[21-A-017] slider keys: ArrowRight / ArrowUp move the threshold +5 mm, ArrowLeft / ArrowDown −5 mm (moving it writes nothing)', async () => {
+        const slider = page.getByRole('slider', { name: 'Ngưỡng giữa 110 mm và 220 mm', exact: true });
+
+        if ((await slider.count()) > 0) {
+          const start = (await slider.getAttribute('aria-valuenow')) ?? '';
+          const valueNow = async (): Promise<number> => Number((await slider.getAttribute('aria-valuenow')) ?? Number.NaN);
+
+          await slider.focus();
+          await page.keyboard.press('ArrowRight');
+          await expect(slider).not.toHaveAttribute('aria-valuenow', start);
+          expect.soft(await valueNow() - Number(start), 'ArrowRight +5 mm').toBe(5);
+          await page.keyboard.press('ArrowLeft');
+          await expect(slider).toHaveAttribute('aria-valuenow', start);
+          await page.keyboard.press('ArrowUp');
+          expect.soft(await valueNow() - Number(start), 'ArrowUp +5 mm').toBe(5);
+          await page.keyboard.press('ArrowDown');
+          await expect(slider).toHaveAttribute('aria-valuenow', start);
+        }
+      });
 
       if ((await accept.count()) === 0) {
         await captureEvidence(page, '21_thickness_apply.png');
         throw new Error('seeded floor: no non-standard wall group (qcLayer seeds two 200 mm partitions)');
       }
 
-      await pressSpaceOn(accept);
-      await expect(accept).toBeChecked();
-      await page.getByRole('button', { name: 'Xem trước', exact: true }).click();
-      const put = waitForLayerPut();
+      await test.step('[21-A-004] tick "Đồng ý chuẩn hoá {n} tường {m} mm về {group}" → checked', async () => {
+        await pressSpaceOn(accept);
+        await expect(accept).toBeChecked();
+      });
 
-      await page.getByRole('button', { name: 'Áp dụng', exact: true }).click();
-      expectLayerWrite(await put);
-      await expect(
-        page.getByRole('region', { name: 'Thông báo', exact: true }).getByRole('button', { name: 'Hoàn tác', exact: true }).first(),
-      ).toBeVisible();
+      await test.step('[21-G-002] "Xem trước" → "Áp dụng" → one PUT #35 carrying every changed wall; the toast offers "Hoàn tác"', async () => {
+        await page.getByRole('button', { name: 'Xem trước', exact: true }).click();
+        const put = waitForLayerPut();
+
+        await page.getByRole('button', { name: 'Áp dụng', exact: true }).click();
+        expectLayerWrite(await put);
+        await expect(
+          page.getByRole('region', { name: 'Thông báo', exact: true }).getByRole('button', { name: 'Hoàn tác', exact: true }).first(),
+        ).toBeVisible();
+      });
       await captureEvidence(page, '21_thickness_apply.png');
     } finally {
       await page.emulateMedia({ reducedMotion: null });
@@ -1227,11 +1373,17 @@ const scaleScope = (name: string): Locator =>
   page.getByRole('radiogroup', { name: 'Phạm vi áp tỷ lệ', exact: true }).getByRole('radio', { name, exact: true });
 const applyScale = (): Locator => page.getByRole('button', { name: 'Áp dụng tỷ lệ', exact: true });
 
-/** Fresh load, method "Vẽ đường tham chiếu", box-relative drag 20 % → 80 % at 50 %, 5000 mm + Enter. */
-async function openScaleAndDraw(): Promise<void> {
-  await openLayerScreen(ROUTES.project.scale(projectId, floorId));
+/** Fresh load of the scale screen; returns the revision of the N16 read it made. */
+async function openScale(): Promise<number> {
+  const body = await openLayerScreen(ROUTES.project.scale(projectId, floorId));
+
   await dismissTour(page);
   await expect(scaleCanvas()).toBeVisible();
+  return Number(asRecord(body, 'N16').revision);
+}
+
+/** Method "Vẽ đường tham chiếu", box-relative drag 20 % → 80 % at 50 %. */
+async function drawReferenceLine(): Promise<void> {
   await page
     .getByRole('radiogroup', { name: 'Chọn cách xác định tỷ lệ', exact: true })
     .getByRole('radio', { name: 'Vẽ đường tham chiếu', exact: true })
@@ -1246,7 +1398,10 @@ async function openScaleAndDraw(): Promise<void> {
   await page.mouse.up();
   await expect(page.getByRole('button', { name: SCALE_HANDLE_START, exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: SCALE_HANDLE_END, exact: true })).toBeVisible();
+}
 
+/** "Chiều dài thật" 5000 + Enter shows the computation. */
+async function enterRealLength(): Promise<void> {
   const realLength = page.getByLabel('Chiều dài thật', { exact: true });
 
   await realLength.fill('5000');
@@ -1254,28 +1409,71 @@ async function openScaleAndDraw(): Promise<void> {
   await expect(page.getByLabel('Phép tính ra tỷ lệ', { exact: true })).toContainText('mm/px');
 }
 
+/** Fresh load, reference line and real length; returns the N16 revision read on load. */
+async function openScaleAndDraw(): Promise<number> {
+  const revision = await openScale();
+
+  await drawReferenceLine();
+  await enterRealLength();
+  return revision;
+}
+
 /** Every SCR-14 case draws its own reference line on a fresh load: not serial. */
 test.describe('SCR-14 Scale Calibration', () => {
   useOwnDrawingFloor('m04-scale');
 
   test('SCR-14 refline: "Vẽ đường tham chiếu"; drag 20 % → 80 % at 50 %; "Chiều dài thật" = 5000 + Enter → two handles, scale computed', async () => {
-    await openScaleAndDraw();
-    await expect(applyScale()).toBeEnabled();
+    const qualityRead = waitForApi(page, 'GET', new RegExp(`^/api/projects/${projectId}/floors/${floorId}/quality$`, 'u'), [200]);
+
+    qualityRead.catch(() => undefined);
+
+    await test.step('[14-A-001] deep link opens the screen: drawing "Bản vẽ đã nắn", panel "Hiệu chỉnh tỷ lệ"', async () => {
+      await openScale();
+      await expect.soft(page.getByRole('region', { name: 'Màn hiệu chỉnh tỷ lệ', exact: true })).toBeVisible();
+      await expect.soft(page.getByRole('img', { name: /^Bản vẽ đã nắn của / })).toBeVisible();
+    });
+    await test.step('[14-G-001] GET …/floors/{f}/quality answers 200 (the drawing snapshot)', async () => {
+      const quality = await qualityRead;
+
+      expect.soft(quality.response.status()).toBe(200);
+    });
+    await test.step('[14-A-006] left-drag on the canvas draws a line with two handles', async () => {
+      await drawReferenceLine();
+    });
+    await test.step('[14-A-008] "Chiều dài thật" 5000 + Enter shows the computation and enables "Áp dụng tỷ lệ"', async () => {
+      await enterRealLength();
+      await expect(applyScale()).toBeEnabled();
+    });
     await captureEvidence(page, '14_scale_refline.png');
   });
 
   test('SCR-14 apply: "Chỉ áp cho tầng này", then "Áp dụng tỷ lệ" → PUT …/spatial/layer, "Đã áp tỷ lệ cho bản vẽ"', async () => {
-    await openScaleAndDraw();
-    await scaleScope('Chỉ áp cho tầng này').click();
-    await expect(scaleScope('Chỉ áp cho tầng này')).toHaveAttribute('aria-checked', 'true');
-    const put = waitForLayerPut((body) => typeof body.scaleMillimetresPerPixel === 'number');
+    const revision = await openScaleAndDraw();
+    let result: ApiResult | null = null;
+    let sent: Json = {};
 
-    await applyScale().click();
-    // Scale-only body (`FloorLayerWriteBodySchema`); the result schema is only proven for layer writes.
-    const sent = expectLayerWrite(await put, { parseResult: false });
+    await test.step('[14-D-001] admin: the controls are enabled, apply answers 200', async () => {
+      await scaleScope('Chỉ áp cho tầng này').click();
+      await expect(scaleScope('Chỉ áp cho tầng này')).toHaveAttribute('aria-checked', 'true');
+      await expect.soft(applyScale()).toBeEnabled();
+      const put = waitForLayerPut((body) => typeof body.scaleMillimetresPerPixel === 'number');
 
-    expect(sent.scaleMillimetresPerPixel as number).toBeGreaterThan(0);
-    await expect(page.getByRole('heading', { name: 'Đã áp tỷ lệ cho bản vẽ' })).toBeVisible();
+      await applyScale().click();
+      result = await put;
+      // Scale-only body (`FloorLayerWriteBodySchema`); the result schema is only proven for layer writes.
+      sent = expectLayerWrite(result, { parseResult: false });
+    });
+    await test.step('[14-A-021] "Chỉ áp cho tầng này" + "Áp dụng tỷ lệ" → one PUT with only scaleMillimetresPerPixel; heading "Đã áp tỷ lệ cho bản vẽ"', async () => {
+      expect(sent.scaleMillimetresPerPixel as number).toBeGreaterThan(0);
+      expect.soft(Object.keys(sent), 'scale-only body').toEqual(['scaleMillimetresPerPixel']);
+      await expect(page.getByRole('heading', { name: 'Đã áp tỷ lệ cho bản vẽ' })).toBeVisible();
+    });
+    await test.step('[14-G-013] PUT #35 scale-only {baseVersion: the N16 revision, body: {scaleMillimetresPerPixel}} → 200', async () => {
+      const envelope = asRecord((result as ApiResult | null)?.response.request().postDataJSON(), '#35');
+
+      expect.soft(envelope.baseVersion, 'baseVersion = the N16 revision read on load').toBe(revision);
+      expect.soft(Object.keys(envelope).sort()).toEqual(['baseVersion', 'body']);
+    });
     await captureEvidence(page, '14_scale_applied.png');
   });
 
@@ -1289,15 +1487,19 @@ test.describe('SCR-14 Scale Calibration', () => {
     const graphRead = waitForApi(page, 'GET', new RegExp(`^/api/projects/${projectId}/spatial$`, 'u'), [200]);
 
     await applyScale().click();
-    await floorsRead;
-    await graphRead;
-    const dialog = page.getByRole('dialog', { name: /^Áp tỉ lệ này cho \d+ tầng có bản vẽ\?$/u });
+    await test.step('[14-G-011] GET #12 …/floors and GET N15 …/spatial answer 200 on apply-all', async () => {
+      await floorsRead;
+      await graphRead;
+    });
+    await test.step('[14-A-022] the A9 dialog "Áp tỉ lệ này cho N tầng có bản vẽ?" opens; "Huỷ" closes it with no PUT', async () => {
+      const dialog = page.getByRole('dialog', { name: /^Áp tỉ lệ này cho \d+ tầng có bản vẽ\?$/u });
 
-    await expect(dialog).toBeVisible();
-    await dialog.getByRole('button', { name: 'Huỷ', exact: true }).click();
-    await expect(dialog).toHaveCount(0);
+      await expect(dialog).toBeVisible();
+      await dialog.getByRole('button', { name: 'Huỷ', exact: true }).click();
+      await expect(dialog).toHaveCount(0);
 
-    await expectNoProjectWritesSince(mark, 'SCR-14 "Áp cho mọi tầng" → "Huỷ"');
+      await expectNoProjectWritesSince(mark, 'SCR-14 "Áp cho mọi tầng" → "Huỷ"');
+    });
     await captureEvidence(page, '14_scale_all_cancel.png');
   });
 });
@@ -1310,15 +1512,31 @@ test.describe('SCR-22 Overlay Comparison', () => {
   useOwnDrawingFloor('m04-overlay');
 
   test('SCR-22 swipe: "Kiểu đối chiếu" → "Trượt"; divider slider + arrows; "Độ mờ ảnh nguồn" → divider moves, "Chưa đo được vùng lệch nào."', async () => {
-    await page.goto(ROUTES.project.overlay(projectId, floorId));
-    await dismissTour(page);
-    await expect(page.getByRole('region', { name: 'Màn đối chiếu bản vẽ', exact: true })).toBeVisible();
+    const qualityRead = waitForApi(page, 'GET', new RegExp(`^/api/projects/${projectId}/floors/${floorId}/quality$`, 'u'), [200]);
 
+    qualityRead.catch(() => undefined);
     const swipe = page
       .getByRole('radiogroup', { name: 'Kiểu đối chiếu', exact: true })
       .getByRole('radio', { name: 'Trượt', exact: true });
+    const divider = page.getByRole('slider', { name: OVERLAY_DIVIDER, exact: true });
+    const opacity = page.getByRole('slider', { name: 'Độ mờ ảnh nguồn', exact: true });
+
+    await test.step('[22-A-001] deep link: region "Màn đối chiếu bản vẽ" with its toolbar', async () => {
+      await page.goto(ROUTES.project.overlay(projectId, floorId));
+      await dismissTour(page);
+      await expect(page.getByRole('region', { name: 'Màn đối chiếu bản vẽ', exact: true })).toBeVisible();
+      await expect.soft(page.getByRole('toolbar', { name: 'Thanh công cụ đối chiếu bản vẽ', exact: true })).toBeVisible();
+    });
+    await test.step('[22-G-001] GET …/floors/{f}/quality answers 200 (the scans of every listed floor)', async () => {
+      const quality = await qualityRead;
+
+      expect.soft(quality.response.status()).toBe(200);
+    });
 
     await expect(swipe).toBeVisible();
+    await test.step('[22-D-001] admin: every control of the toolbar is enabled', async () => {
+      await expect.soft(swipe).toBeEnabled();
+    });
     if (await swipe.isDisabled()) {
       // `OverlayComparisonToolbar.tsx`: a disabled mode prints "<mode> — <reason>".
       await expect(page.getByText(/^Trượt — /u)).toBeVisible();
@@ -1326,28 +1544,38 @@ test.describe('SCR-22 Overlay Comparison', () => {
       test.skip(true, 'data-dependent: swipe mode disabled for this floor; reason asserted');
       return;
     }
-    await swipe.click();
-    await expect(swipe).toHaveAttribute('aria-checked', 'true');
 
-    const divider = page.getByRole('slider', { name: OVERLAY_DIVIDER, exact: true });
+    let dividerStart = '';
 
-    await expect(divider).toBeVisible();
-    const dividerStart = (await divider.getAttribute('aria-valuenow')) ?? '';
+    await test.step('[22-A-003] "Trượt" shows the slider "Đường chia đôi…" at aria-valuenow 0.5', async () => {
+      await swipe.click();
+      await expect(swipe).toHaveAttribute('aria-checked', 'true');
 
-    await divider.focus();
-    await page.keyboard.press('ArrowRight');
-    await expect(divider).not.toHaveAttribute('aria-valuenow', dividerStart);
-    await page.keyboard.press('ArrowLeft');
-    await expect(divider).toHaveAttribute('aria-valuenow', dividerStart);
+      await expect(divider).toBeVisible();
+      dividerStart = (await divider.getAttribute('aria-valuenow')) ?? '';
+      expect.soft(Number(dividerStart), 'the divider starts in the middle').toBe(0.5);
+    });
+    await test.step('[22-A-004] divider ArrowRight / ArrowLeft move it by ±0.02', async () => {
+      await divider.focus();
+      await page.keyboard.press('ArrowRight');
+      await expect(divider).not.toHaveAttribute('aria-valuenow', dividerStart);
+      expect.soft(Number(await divider.getAttribute('aria-valuenow')), 'ArrowRight +0.02').toBeCloseTo(Number(dividerStart) + 0.02, 5);
+      await page.keyboard.press('ArrowLeft');
+      await expect(divider).toHaveAttribute('aria-valuenow', dividerStart);
+    });
+    await test.step('[22-A-013] "Độ mờ ảnh nguồn" defaults to 25 and moves by ±1 with the arrows', async () => {
+      const opacityStart = (await opacity.getAttribute('aria-valuenow')) ?? '';
 
-    const opacity = page.getByRole('slider', { name: 'Độ mờ ảnh nguồn', exact: true });
-    const opacityStart = (await opacity.getAttribute('aria-valuenow')) ?? '';
+      expect.soft(Number(opacityStart), 'default opacity 25').toBe(25);
+      await opacity.focus();
+      const step = Number(opacityStart) > 0 ? -1 : 1;
 
-    await opacity.focus();
-    await page.keyboard.press(Number(opacityStart) > 0 ? 'ArrowLeft' : 'ArrowRight');
-    await expect(opacity).not.toHaveAttribute('aria-valuenow', opacityStart);
+      await page.keyboard.press(step < 0 ? 'ArrowLeft' : 'ArrowRight');
+      await expect(opacity).not.toHaveAttribute('aria-valuenow', opacityStart);
+      expect.soft(Number(await opacity.getAttribute('aria-valuenow')), 'arrow moves by 1').toBe(Number(opacityStart) + step);
 
-    await expect(page.getByText('Chưa đo được vùng lệch nào.', { exact: true })).toBeVisible();
+      await expect(page.getByText('Chưa đo được vùng lệch nào.', { exact: true })).toBeVisible();
+    });
     await captureEvidence(page, '22_overlay_swipe.png');
   });
 });
