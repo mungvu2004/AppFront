@@ -214,6 +214,17 @@ function deleteProjectStep(api: APIRequestContext, id: string): () => Promise<vo
   };
 }
 
+/**
+ * Cleanup of a project the admin is not a member of: #27 DELETE is admin-only (BUG-513, AppBack projects/router.py:80),
+ * so a member first adds the admin (N3, project.settings.edit; 200 if already a member), then the admin deletes.
+ */
+function adminDeleteStep(member: APIRequestContext, admin: APIRequestContext, id: string): () => Promise<void> {
+  return async () => {
+    await member.post(`/api/projects/${id}/members`, { data: { email: readAdminCredentials().email } });
+    await deleteProjectStep(admin, id)();
+  };
+}
+
 async function adminApi(cleanup: Cleanup): Promise<APIRequestContext> {
   const { email, password } = readAdminCredentials();
   const admin = await signedInApi(email, password);
@@ -862,7 +873,7 @@ test.describe('A02 GET /api/project-summaries (N1, BE:projects/router.py:32,38,8
 /* ------------------------------------------------------------------ roles and owners */
 
 test.describe('A02 role / owner matrix (require_permission + require_project, BE:projects/access.py, access/deps.py:65-74)', () => {
-  test('A02 · role/owner matrix: viewer member 403 FORBIDDEN on writes, non-members 404 NOT_FOUND (even the admin), engineer creates/edits/deletes its own, cursor bound to its user', async () => {
+  test('A02 · role/owner matrix: viewer member 403 FORBIDDEN on writes, non-members 404 NOT_FOUND (even the admin), engineer creates/edits its own (delete is admin-only, BUG-513), cursor bound to its user', async () => {
     // permissions/matrix.py:50-51 (project.create + project.settings.edit: admin, engineer; not viewer); access.py:45-86
     // (one query: live project AND member, else 404 — then the permission, else 403; K08: 404 beats 403, access.py:62-85).
     const cleanup = new Cleanup();
@@ -916,7 +927,7 @@ test.describe('A02 role / owner matrix (require_permission + require_project, BE
       ]);
       expect(peSent.res.status()).toBe(201);
       const pe = expectProjectOut(peSent.body);
-      cleanup.add(deleteProjectStep(engineer.api, String(pe.id)));
+      cleanup.add(adminDeleteStep(engineer.api, admin, String(pe.id))); // the admin must stay a non-member until then
       expect(asArray(pe.members).map((m) => [asJson(m).id, asJson(m).role])).toEqual([[engineer.id, 'engineer']]);
       const pePath = `/api/projects/${String(pe.id)}`;
 
@@ -934,14 +945,14 @@ test.describe('A02 role / owner matrix (require_permission + require_project, BE
       ]);
       expectError(stolen, 422, 'CURSOR_INVALID', {}, true);
 
-      // Engineer member edits and deletes PE (project.settings.edit). NB: the FE offers delete only to admins
-      // (plan G2) — the BE does not restrict it further.
+      // Engineer member edits PE (project.settings.edit) but cannot delete it: #27 needs the system role admin, as the FE
+      // offers delete only to admins (BUG-513, AppBack projects/router.py:80, access.py:88-98).
       const eRename = await call(engineer.api, 'role_engineer_patch_200', 'PATCH', pePath, { name: `${String(pe.name)}-R` }, ['200 engineer renames its project']);
       expect.soft(eRename.res.status()).toBe(200);
-      const eDelete = await call(engineer.api, 'role_engineer_delete_200', 'DELETE', pePath, undefined, ['200 engineer member deletes (project.settings.edit)']);
-      expect.soft(eDelete.res.status()).toBe(200);
-      const gone = await call(engineer.api, 'role_engineer_get_deleted_404', 'GET', pePath, undefined, ['404 after its own delete']);
-      expectError(gone, 404, 'NOT_FOUND', { resource: 'project' }, true);
+      const eDelete = await call(engineer.api, 'role_engineer_delete_403', 'DELETE', pePath, undefined, ['403 FORBIDDEN: engineer member, not an admin (#27 admin-only)']);
+      expect.soft(expectError(eDelete, 403, 'FORBIDDEN', {}, true)).not.toHaveProperty('resource');
+      const kept = await call(engineer.api, 'role_engineer_get_after_delete_200', 'GET', pePath, undefined, ['200: the refused delete left PE in place']);
+      expect.soft(kept.res.status()).toBe(200);
     } finally {
       await cleanup.run();
     }
@@ -1807,12 +1818,17 @@ test.describe('A02 a user without any project (pairs E02 "[mocked response] no p
       const created = await call(user.api, 'fresh_create_201', 'POST', '/api/projects', { name: projectName('fresh') }, ['201: the empty state\'s "Tạo dự án mới" path']);
       expect(created.res.status()).toBe(201);
       const project = expectProjectOut(created.body);
-      cleanup.add(deleteProjectStep(user.api, String(project.id)));
+      cleanup.add(adminDeleteStep(user.api, admin, String(project.id)));
       const one = await call(user.api, 'fresh_summaries_one', 'GET', '/api/project-summaries', undefined, ['200: one item, no nextCursor']);
       const body = expectKeys(one.body, ['items'], []);
       expect(asArray(body.items).map((i) => asJson(i).id)).toEqual([project.id]);
 
-      const deleted = await call(user.api, 'fresh_delete_200', 'DELETE', `/api/projects/${String(project.id)}`, undefined, ['200']);
+      // BUG-513: #27 is admin-only — the engineer adds the admin (N3, project.settings.edit), the admin deletes.
+      const joined = await call(user.api, 'fresh_add_admin_201', 'POST', `/api/projects/${String(project.id)}/members`, { email: readAdminCredentials().email }, [
+        '201: the engineer adds the admin so an admin member can delete (#27 require_project("admin"))',
+      ]);
+      expect(joined.res.status()).toBe(201);
+      const deleted = await call(admin, 'fresh_delete_by_admin_200', 'DELETE', `/api/projects/${String(project.id)}`, undefined, ['200 admin member deletes']);
       expect(deleted.res.status()).toBe(200);
       const empty = await call(user.api, 'fresh_summaries_empty_again', 'GET', '/api/project-summaries', undefined, ['200 {"items": []} again']);
       expect(empty.body).toEqual({ items: [] });

@@ -236,7 +236,7 @@ test.describe('A03 · phase-3 BE1 lifecycles (projects, floors, members) — QA-
     }
   });
 
-  test('FL-A1-03 · BE1 · roles on the admin project: viewer / non-member refused before body validation, engineer member deletes the project', async () => {
+  test('FL-A1-03 · BE1 · roles on the admin project: viewer / non-member refused before body validation, engineer member refused the project delete (admin-only, BUG-513)', async () => {
     const cleanup = new Cleanup();
     try {
       const admin = await adminApi(cleanup);
@@ -285,14 +285,15 @@ test.describe('A03 · phase-3 BE1 lifecycles (projects, floors, members) — QA-
         }
       });
 
-      await test.step('[BE1-G-047] engineer MEMBER (not the creator) DELETE /api/projects/{id} → 200; admin GET → 404 (BE allows what SCR-08 hides as "Vùng nguy hiểm")', async () => {
-        const del = await call(memApi, 'BE1-G-047_engineer_member_delete_200', 'DELETE', `/api/projects/${pid}`, undefined, [
-          '200 ProjectOut: DELETE needs project.settings.edit, which an engineer member has (projects/router.py:79, matrix.py:51)',
+      await test.step('[BE1-G-047] engineer MEMBER (not the creator) DELETE /api/projects/{id} → 403 FORBIDDEN; admin GET → 200 (only an admin deletes, as SCR-08 "Vùng nguy hiểm")', async () => {
+        // BUG-513 (FIX-2331): #27 is require_project("admin") — member first (404, K08), then the system role admin
+        // (AppBack apps/api/projects/router.py:80, access.py:88-98); FE useProjectSettings.ts:755 canDelete is admin-only.
+        const del = await call(memApi, 'BE1-G-047_engineer_member_delete_403', 'DELETE', `/api/projects/${pid}`, undefined, [
+          '403 FORBIDDEN: an engineer member is not an admin (projects/router.py:80, access.py:96)',
         ]);
-        expect(del.res.status(), 'engineer member deletes the admin project').toBe(200);
-        const gone = await call(admin, 'BE1-G-047_admin_read_404', 'GET', `/api/projects/${pid}`, undefined, ['404 NOT_FOUND project: soft-deleted']);
-        expectError(gone, 404, 'NOT_FOUND', { resource: 'project' });
-        expect.soft(errBody(gone.body).code).toBe('NOT_FOUND');
+        expectError(del, 403, 'FORBIDDEN');
+        const kept = await call(admin, 'BE1-G-047_admin_read_200', 'GET', `/api/projects/${pid}`, undefined, ['200 ProjectOut: the refused DELETE left the project in place']);
+        expect(kept.res.status(), 'project still exists').toBe(200);
       });
     } finally {
       await cleanup.run();
