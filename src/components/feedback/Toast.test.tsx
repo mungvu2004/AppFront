@@ -2,6 +2,7 @@ import { render, screen, act, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Toast, useToast } from './Toast';
 import { Button } from '../ui/Button';
+import { createUndoTicket } from '../../lib/mutations/undoTicket';
 
 // Mock requestAnimationFrame for predictable timers
 const originalRaf = global.requestAnimationFrame;
@@ -10,11 +11,11 @@ const originalCaf = global.cancelAnimationFrame;
 describe('Toast.Provider and Toast.Item', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    let time = 0;
+    // The frame time is the (faked) clock, as in a browser: a shared counter bumped once per callback ran
+    // three animating toasts three times too fast.
     global.requestAnimationFrame = vi.fn((cb) => {
       return setTimeout(() => {
-        time += 16;
-        cb(time);
+        cb(Date.now());
       }, 16) as unknown as number;
     });
     global.cancelAnimationFrame = vi.fn((id) => clearTimeout(id as unknown as number));
@@ -128,37 +129,148 @@ describe('Toast.Provider and Toast.Item', () => {
     expect(screen.queryByText('Đã xoá')).not.toBeInTheDocument();
   });
 
-  // BUG-524: hover froze the bar, but the undo ticket behind "Hoàn tác" expires on the wall clock —
-  // after 8 s of hover the button was still there and pressing it restored nothing.
-  it('hover does not hold an undo toast past its window; a plain notice is still held', () => {
-    const Both = () => {
+  // BUG-571 (WCAG 2.2.1): a person reading or reaching for "Hoàn tác" keeps it. BUG-524 stands: the toast
+  // never offers an undo its ticket would refuse — the hold stops the ticket's clock too (`holdUndoWindows`).
+  describe('an undo toast that is hovered or focused', () => {
+    const TicketToast = ({ undo }: { undo: () => void }) => {
       const { addToast } = useToast();
       return (
+        <Button
+          onClick={() => {
+            const ticket = createUndoTicket({ description: 'Hoàn tác xoá tệp', undo });
+            addToast({ message: 'Đã xoá tệp', onUndo: () => void ticket.undo() });
+          }}
+        >
+          Undo toast
+        </Button>
+      );
+    };
+
+    const toastOf = (text: string) => screen.getByText(text).closest('[role="status"]')!;
+
+    it('hovered: stays past 8 s and its "Hoàn tác" still undoes', () => {
+      const undo = vi.fn();
+      render(
+        <Toast.Provider>
+          <TicketToast undo={undo} />
+        </Toast.Provider>
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Undo toast' }));
+      fireEvent.mouseEnter(toastOf('Đã xoá tệp'));
+      act(() => {
+        vi.advanceTimersByTime(9000);
+      });
+
+      expect(screen.getByText('Đã xoá tệp')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Hoàn tác' }));
+      expect(undo).toHaveBeenCalledTimes(1);
+    });
+
+    it('focused from the keyboard: stays past 8 s and its "Hoàn tác" still undoes', () => {
+      const undo = vi.fn();
+      render(
+        <Toast.Provider>
+          <TicketToast undo={undo} />
+        </Toast.Provider>
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Undo toast' }));
+      fireEvent.focus(screen.getByRole('button', { name: 'Hoàn tác' }));
+      act(() => {
+        vi.advanceTimersByTime(9000);
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Hoàn tác' }));
+      expect(undo).toHaveBeenCalledTimes(1);
+    });
+
+    it('let go: the rest of the window runs out and the toast leaves with its "Hoàn tác"', () => {
+      render(
+        <Toast.Provider>
+          <TicketToast undo={vi.fn()} />
+        </Toast.Provider>
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Undo toast' }));
+      fireEvent.mouseEnter(toastOf('Đã xoá tệp'));
+      act(() => {
+        vi.advanceTimersByTime(9000);
+      });
+      fireEvent.mouseLeave(toastOf('Đã xoá tệp'));
+      act(() => {
+        vi.advanceTimersByTime(9000);
+      });
+
+      expect(screen.queryByText('Đã xoá tệp')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Hoàn tác' })).not.toBeInTheDocument();
+    });
+  });
+
+  it('a plain notice is held by hover too', () => {
+    const Plain = () => {
+      const { addToast } = useToast();
+      return <Button onClick={() => addToast({ message: 'Thông báo thường' })}>Plain toast</Button>;
+    };
+
+    render(
+      <Toast.Provider>
+        <Plain />
+      </Toast.Provider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Plain toast' }));
+    fireEvent.mouseEnter(screen.getByText('Thông báo thường').closest('[role="status"]')!);
+    act(() => {
+      vi.advanceTimersByTime(9000);
+    });
+
+    expect(screen.getByText('Thông báo thường')).toBeInTheDocument();
+  });
+
+  // next-batch QA-03e: the summary slot opened a fresh 8 s on every new toast while the change it undoes was
+  // older, so "Hoàn tác" there could press an expired ticket and do nothing. A slot's window is its change's.
+  it('the summary slot and a slot that comes back from it never outlive the change they undo', () => {
+    const tickets: Array<ReturnType<typeof createUndoTicket>> = [];
+    const Many = () => {
+      const { addToast } = useToast();
+      const add = (n: number) => {
+        const ticket = createUndoTicket({ description: `Hoàn tác ${String(n)}`, undo: vi.fn() });
+        tickets[n] = ticket;
+        addToast({ message: `Item ${String(n)} tường`, onUndo: () => void ticket.undo() });
+      };
+      return (
         <>
-          <Button onClick={() => addToast({ message: 'Đã xoá tệp', onUndo: vi.fn() })}>Undo toast</Button>
-          <Button onClick={() => addToast({ message: 'Thông báo thường' })}>Plain toast</Button>
+          <Button onClick={() => [1, 2, 3, 4].forEach(add)}>Four</Button>
+          <Button onClick={() => add(5)}>Fifth</Button>
         </>
       );
     };
 
     render(
       <Toast.Provider>
-        <Both />
+        <Many />
       </Toast.Provider>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Plain toast' }));
-    fireEvent.mouseEnter(screen.getByText('Thông báo thường').closest('[role="status"]')!);
-    fireEvent.click(screen.getByRole('button', { name: 'Undo toast' }));
-    fireEvent.mouseEnter(screen.getByText('Đã xoá tệp').closest('[role="status"]')!);
-
+    fireEvent.click(screen.getByRole('button', { name: 'Four' }));
     act(() => {
-      vi.advanceTimersByTime(9000);
+      vi.advanceTimersByTime(5000);
     });
+    fireEvent.click(screen.getByRole('button', { name: 'Fifth' }));
+    expect(screen.getByText('Đã sửa 3 tường')).toBeInTheDocument();
 
-    expect(screen.queryByText('Đã xoá tệp')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Hoàn tác' })).not.toBeInTheDocument();
-    expect(screen.getByText('Thông báo thường')).toBeInTheDocument();
+    // In steps, so each removal renders before the next frame — as it does in a browser.
+    for (let step = 0; step < 40; step += 1) {
+      act(() => {
+        vi.advanceTimersByTime(100);
+      });
+    }
+
+    // t = 9 s: tickets 1–4 (t = 0) are spent; only change 5 can still be taken back.
+    expect(tickets[3]?.getStatus()).toBe('expired');
+    expect(screen.getByText('Item 5 tường')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Hoàn tác' })).toHaveLength(1);
   });
 
   it('groups 4 toasts correctly and uses safe domain label', async () => {

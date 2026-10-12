@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createNotificationBus, type NotificationInput } from '../notificationBus';
-import { UNDO_WINDOW_MS, combineUndoTickets, createUndoTicket } from '../undoTicket';
+import {
+  UNDO_WINDOW_MS,
+  afterUndoWindow,
+  combineUndoTickets,
+  createUndoTicket,
+  holdUndoWindows,
+} from '../undoTicket';
 
 /**
  * Invariant A8 is a number three modules read, so it is pinned here rather than
@@ -414,5 +420,147 @@ describe('createNotificationBus — grouping messages with nothing to undo', () 
     // ticket is the child's own.
     expect(notification?.description).toBe('Đã xoá tường W-3.');
     expect(notification?.undoTicket).toBe(undoable.undoTicket);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Holding the window while a person reads the toast (BUG-571, WCAG 2.2.1).    */
+/* -------------------------------------------------------------------------- */
+
+describe('holdUndoWindows', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('stops the clock while held: still undoable 12 s in, and the rest of the window runs after release', () => {
+    const undo = vi.fn();
+    const ticket = createUndoTicket({ description: 'Hoàn tác', undo });
+
+    vi.advanceTimersByTime(7000);
+    const release = holdUndoWindows();
+    vi.advanceTimersByTime(5000);
+    expect(ticket.getStatus()).toBe('active');
+
+    release();
+    vi.advanceTimersByTime(UNDO_WINDOW_MS - 7000 - 1);
+    expect(ticket.getStatus()).toBe('active');
+    vi.advanceTimersByTime(1);
+    expect(ticket.getStatus()).toBe('expired');
+    expect(ticket.undo()).toEqual({ error: 'expired', ok: false });
+    expect(undo).not.toHaveBeenCalled();
+  });
+
+  it('a press during the hold runs the undo', () => {
+    const undo = vi.fn();
+    const ticket = createUndoTicket({ description: 'Hoàn tác', undo });
+    const release = holdUndoWindows();
+
+    vi.advanceTimersByTime(UNDO_WINDOW_MS * 2);
+
+    expect(ticket.undo()).toEqual({ data: undefined, ok: true });
+    expect(undo).toHaveBeenCalledTimes(1);
+    release();
+  });
+
+  it('counts overlapping holds once, and a second release is a no-op', () => {
+    const ticket = createUndoTicket({ description: 'Hoàn tác', undo: vi.fn() });
+    const hover = holdUndoWindows();
+    const focus = holdUndoWindows();
+
+    vi.advanceTimersByTime(10_000);
+    hover();
+    hover();
+    vi.advanceTimersByTime(10_000);
+    expect(ticket.getStatus()).toBe('active');
+
+    focus();
+    vi.advanceTimersByTime(UNDO_WINDOW_MS);
+    expect(ticket.getStatus()).toBe('expired');
+  });
+
+  it('never brings back a ticket that had already expired', () => {
+    const ticket = createUndoTicket({ description: 'Hoàn tác', undo: vi.fn() });
+
+    vi.advanceTimersByTime(UNDO_WINDOW_MS);
+    const release = holdUndoWindows();
+    vi.advanceTimersByTime(UNDO_WINDOW_MS);
+
+    expect(ticket.getStatus()).toBe('expired');
+    release();
+  });
+
+  it('holds a group with its children: it still dies with the first of them', () => {
+    const older = createUndoTicket({ description: 'A', undo: vi.fn() });
+    vi.advanceTimersByTime(3000);
+    const newer = createUndoTicket({ description: 'B', undo: vi.fn() });
+    const group = combineUndoTickets([older, newer], { description: 'Hoàn tác 2 thay đổi' });
+    const release = holdUndoWindows();
+
+    vi.advanceTimersByTime(20_000);
+    expect(group?.getStatus()).toBe('active');
+    release();
+
+    vi.advanceTimersByTime(UNDO_WINDOW_MS - 3000);
+    expect(older.getStatus()).toBe('expired');
+    expect(group?.getStatus()).toBe('expired');
+    expect(newer.getStatus()).toBe('active');
+  });
+});
+
+describe('afterUndoWindow', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('acts when the window closes, and not at the old eight seconds while it is held', () => {
+    const run = vi.fn();
+    afterUndoWindow(run);
+
+    vi.advanceTimersByTime(6000);
+    const release = holdUndoWindows();
+    vi.advanceTimersByTime(4000);
+    expect(run).not.toHaveBeenCalled();
+
+    release();
+    vi.advanceTimersByTime(1999);
+    expect(run).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancel stops it', () => {
+    const run = vi.fn();
+    const cancel = afterUndoWindow(run);
+
+    cancel();
+    vi.advanceTimersByTime(UNDO_WINDOW_MS * 2);
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('keeps a bus notification on screen while its ticket is held', () => {
+    const bus = createNotificationBus();
+    bus.publish({
+      description: '',
+      title: 'Đã xoá tường W-4',
+      type: 'wall',
+      undoTicket: createUndoTicket({ description: 'Hoàn tác', undo: vi.fn() }),
+    });
+
+    vi.advanceTimersByTime(1000);
+    const release = holdUndoWindows();
+    vi.advanceTimersByTime(UNDO_WINDOW_MS);
+    expect(bus.list()).toHaveLength(1);
+
+    release();
+    vi.advanceTimersByTime(UNDO_WINDOW_MS - 1000);
+    expect(bus.list()).toHaveLength(0);
   });
 });

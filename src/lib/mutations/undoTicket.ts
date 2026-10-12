@@ -30,22 +30,63 @@ export interface CreateUndoTicketOptions {
 
 export interface UndoTicket {
   description: string;
-  expiresAt: number;
+  /** Moves later while a hold is on ({@link holdUndoWindows}); read it when you need it, do not keep it. */
+  readonly expiresAt: number;
   getStatus: () => UndoTicketStatus;
   id: string;
   undo: () => Result<void, UndoTicketError>;
 }
 
+let activeHolds = 0;
+let heldSince = 0;
+let heldBeforeMs = 0;
+
+/** Wall-clock milliseconds spent under a hold so far, the current one included. */
+const heldMs = (): number => heldBeforeMs + (activeHolds > 0 ? Date.now() - heldSince : 0);
+
+/**
+ * Stops every undo window's clock until the returned release is called (BUG-571,
+ * WCAG 2.2.1): a person hovering or focusing an undo toast is reading it or
+ * reaching for "Hoàn tác", and the ticket behind the button must still say yes
+ * when they press it. Holds nest (hover and focus at once); a release runs once.
+ *
+ * ponytail: one hold for every ticket — the toast only has its `onUndo`, not its
+ * ticket. A ticket whose toast is not the held one lives a little longer than its
+ * toast, never shorter, so no toast offers an undo its ticket would refuse.
+ */
+export function holdUndoWindows(): () => void {
+  if (activeHolds === 0) {
+    heldSince = Date.now();
+  }
+  activeHolds += 1;
+
+  let released = false;
+
+  return () => {
+    if (released) {
+      return;
+    }
+    released = true;
+    activeHolds -= 1;
+
+    if (activeHolds === 0) {
+      heldBeforeMs += Date.now() - heldSince;
+    }
+  };
+}
+
 /**
  * A ticket good for one undo, valid for `ttlMs` (default {@link UNDO_WINDOW_MS})
- * from creation.
+ * of un-held time from creation ({@link holdUndoWindows}).
  * Calling `undo()` after it expires never runs the underlying action; it
  * returns the 'expired' error instead.
  */
 export function createUndoTicket(options: CreateUndoTicketOptions): UndoTicket {
   const now = options.now ?? Date.now;
   const ttlMs = options.ttlMs ?? UNDO_WINDOW_MS;
-  const expiresAt = now() + ttlMs;
+  const deadline = now() + ttlMs;
+  const heldAtCreation = heldMs();
+  const expiresAt = (): number => deadline + heldMs() - heldAtCreation;
   let used = false;
 
   const getStatus = (): UndoTicketStatus => {
@@ -53,7 +94,7 @@ export function createUndoTicket(options: CreateUndoTicketOptions): UndoTicket {
       return 'used';
     }
 
-    return now() >= expiresAt ? 'expired' : 'active';
+    return now() >= expiresAt() ? 'expired' : 'active';
   };
 
   const undo = (): Result<void, UndoTicketError> => {
@@ -69,11 +110,46 @@ export function createUndoTicket(options: CreateUndoTicketOptions): UndoTicket {
 
   return {
     description: options.description,
-    expiresAt,
+    get expiresAt() {
+      return expiresAt();
+    },
     getStatus,
     id: createUuid(),
     undo,
   };
+}
+
+/**
+ * Runs `run` after `windowMs` (default {@link UNDO_WINDOW_MS}) of un-held time —
+ * the timer that goes with a ticket. A plain `setTimeout` for the same eight
+ * seconds would act while a held toast still offers "Hoàn tác" and its ticket
+ * still says yes: a session revoked, a notification marked read, a toast pulled
+ * out from under the pointer (BUG-571). Returns a cancel.
+ *
+ * ponytail: re-checks at the remaining time while held; a hold that starts in the
+ * window's last milliseconds re-checks that often until it is released.
+ */
+export function afterUndoWindow(run: () => void, windowMs: number = UNDO_WINDOW_MS): () => void {
+  const startedAt = Date.now();
+  const heldAtStart = heldMs();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const arm = (delayMs: number): void => {
+    timer = setTimeout(() => {
+      const left = windowMs - (Date.now() - startedAt - (heldMs() - heldAtStart));
+
+      if (left > 0) {
+        arm(left);
+        return;
+      }
+
+      run();
+    }, delayMs);
+  };
+
+  arm(windowMs);
+
+  return () => clearTimeout(timer);
 }
 
 export interface CombineUndoTicketsOptions {
@@ -116,10 +192,9 @@ export function combineUndoTickets(
   }
 
   const now = options.now ?? Date.now;
-  const expiresAt = tickets.reduce(
-    (earliest, ticket) => Math.min(earliest, ticket.expiresAt),
-    first.expiresAt,
-  );
+  // Read each time: a hold moves every child's end, and the group's with them.
+  const expiresAt = (): number =>
+    tickets.reduce((earliest, ticket) => Math.min(earliest, ticket.expiresAt), first.expiresAt);
   let used = false;
 
   const getStatus = (): UndoTicketStatus => {
@@ -127,7 +202,7 @@ export function combineUndoTickets(
       return 'used';
     }
 
-    return now() >= expiresAt ? 'expired' : 'active';
+    return now() >= expiresAt() ? 'expired' : 'active';
   };
 
   const undo = (): Result<void, UndoTicketError> => {
@@ -150,7 +225,9 @@ export function combineUndoTickets(
 
   return {
     description: options.description,
-    expiresAt,
+    get expiresAt() {
+      return expiresAt();
+    },
     getStatus,
     id: createUuid(),
     undo,

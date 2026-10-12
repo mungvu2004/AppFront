@@ -73,7 +73,9 @@ export const CACHE_POLICY = {
 
   /**
    * Retry counts.
-   * Read queries: 1, enough to survive a momentary network blip without a long wait.
+   * Read queries: 1, and only for what the HTTP client's own ladder does not retry
+   * (a timeout, a non-HTTP failure); 5xx/429 and dropped connections are the
+   * ladder's alone (`queryClient.ts` shouldRetry, BUG-570).
    * Mutations: 0, because writes are not idempotent and a retry can create duplicates.
    */
   retry: {

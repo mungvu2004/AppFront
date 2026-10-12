@@ -51,7 +51,7 @@ import { z } from 'zod';
 import { useToast } from '@/components/feedback/Toast';
 import { MIN_PASSWORD_LENGTH, PasswordSchema } from '@/api/schemas';
 import { formatTimestamp } from '@/lib/format/datetime';
-import { UNDO_WINDOW_MS, createUndoTicket, type UndoTicket } from '@/lib/mutations/undoTicket';
+import { afterUndoWindow, createUndoTicket, type UndoTicket } from '@/lib/mutations/undoTicket';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 import {
@@ -225,7 +225,8 @@ export const accountSessionsQueryKey = ['account', 'auth', 'sessions'] as const;
 /** Một lượt thu hồi đang đợi hết cửa sổ hoàn tác. */
 interface PendingRevocation {
   readonly ticket: UndoTicket;
-  readonly timer: ReturnType<typeof setTimeout>;
+  /** Huỷ hẹn giờ gửi của {@link afterUndoWindow}. */
+  readonly cancel: () => void;
 }
 
 /** Ba ô mật khẩu. */
@@ -477,7 +478,7 @@ export function useAccountAuth(options: UseAccountAuthOptions = {}): AccountAuth
 
     return () => {
       for (const [sessionId, entry] of pending) {
-        clearTimeout(entry.timer);
+        entry.cancel();
 
         if (entry.ticket.getStatus() === 'active') {
           void gateway.revokeSession({ sessionId });
@@ -537,7 +538,7 @@ export function useAccountAuth(options: UseAccountAuthOptions = {}): AccountAuth
           const entry = pendingRef.current.get(sessionId);
 
           if (entry !== undefined) {
-            clearTimeout(entry.timer);
+            entry.cancel();
             pendingRef.current.delete(sessionId);
           }
 
@@ -549,14 +550,16 @@ export function useAccountAuth(options: UseAccountAuthOptions = {}): AccountAuth
         ticket.undo();
       });
 
-      const timer = setTimeout(() => {
-        // Vé hết hạn nghĩa là người dùng đã để nó trôi qua: giờ mới gửi đi.
+      // Hết cửa sổ nghĩa là người dùng đã để nó trôi qua: giờ mới gửi đi. Cửa sổ dừng
+      // cùng vé khi toast đang được rê/focus (BUG-571) — hẹn giờ cố định 8 s từng gửi
+      // trong lúc "Hoàn tác" còn hiện và vé còn nhận.
+      const cancel = afterUndoWindow(() => {
         if (ticket.getStatus() !== 'used') {
           commitRevoke(sessionId);
         }
-      }, UNDO_WINDOW_MS);
+      });
 
-      pendingRef.current.set(sessionId, { ticket, timer });
+      pendingRef.current.set(sessionId, { cancel, ticket });
     },
     [commitRevoke, now, sessionsQuery.data, showUndoToast],
   );
