@@ -1476,7 +1476,13 @@ export function useScaleCalibration(
       return 'loading';
     }
 
-    if (query.isError || drawing?.isWarped === true) {
+    if (query.isError) {
+      return 'error';
+    }
+
+    // Không tìm thấy khung chỉ là cảnh báo của BE (FRAME_NOT_FOUND, mức attention): người dùng vẫn
+    // đo và áp được. Áp xong thì lời nhắc "có thể méo" nhường chỗ cho câu thành công (BUG-567).
+    if (drawing?.isWarped === true && applyOutcome !== 'success') {
       return 'error';
     }
 
