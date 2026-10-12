@@ -1391,6 +1391,9 @@ test.describe('E04 SCR-14 scale calibration', () => {
 
       await notice.getByRole('button', { name: SCALE.goToUpload, exact: true }).click(); // ScaleCalibration.tsx:205 → useScaleCalibration.ts:1045
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.upload(project.id));
+      // BUG-418: the URL changes before the lazy upload screen mounts ("Đang tải màn hình…"); its floor card (the anchor of
+      // `uploadDrawing` above) shows the upload screen itself is up before the shot.
+      await expect(page.locator(`[data-floor-id="${project.floor.id}"]`)).toBeVisible();
       expect(writesSince(api, mark), 'scale error state writes nothing').toEqual([]);
       await captureEvidence(page, 'E04_scale_to_upload.png');
     });
