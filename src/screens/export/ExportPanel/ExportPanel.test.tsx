@@ -185,7 +185,7 @@ describe('khối kiểm tra trước khi xuất không bao giờ chặn nút "Xu
       expect(button).not.toBeDisabled();
     }
 
-    expect(container.textContent).toMatch(/Còn \d+ vi phạm chưa xử lý\./u);
+    expect(container.textContent).toMatch(/Còn \d+ phát hiện từ kiểm tra luật chưa xử lý\./u);
   });
 });
 
@@ -217,6 +217,14 @@ describe('[BUG-466] .glb mà chưa chọn tầng nào: không nút "Xuất", kh�
 
     expect(rows.map((row) => row.id)).not.toContain('unreviewed');
     expect(rows.find((row) => row.id === 'approval')?.tone).toBe('attention');
+  });
+});
+
+describe('[BUG-460] dòng kiểm tra đếm phát hiện, không gọi chúng là "vi phạm"', () => {
+  it('ba phát hiện → "Còn 3 phát hiện từ kiểm tra luật chưa xử lý."', () => {
+    const rows = buildPreflightRows({ projectId: 'P-1', graph: null, levels: [], violations: [{}, {}, {}] as never });
+
+    expect(rows.find((row) => row.id === 'violations')?.label).toBe('Còn 3 phát hiện từ kiểm tra luật chưa xử lý.');
   });
 });
 
@@ -475,7 +483,7 @@ describe('[BUG-442] liên kết "Sửa" và nút "Tuỳ chọn": vùng chạm đ
     render(<ExportPanelView {...buildExportPanelProps('success')} />);
 
     const [link] = screen.getAllByRole('link', { name: /^Sửa/u });
-    expect(link).toHaveAccessibleName(/^Sửa\s*:\s*Còn \d+ vi phạm/u);
+    expect(link).toHaveAccessibleName(/^Sửa\s*:\s*Còn \d+ phát hiện/u);
     expect(link).toHaveClass('min-h-11', 'sm:min-h-6');
     expect(screen.getByRole('button', { name: 'Tuỳ chọn' })).toHaveClass('min-h-11', 'sm:min-h-6');
   });

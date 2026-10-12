@@ -323,7 +323,9 @@ export function buildPreflightRows(input: PreflightInput): readonly PreflightRow
       label:
         violationCount === 0
           ? 'Không còn vi phạm nào.'
-          : `Còn ${formatNumber(violationCount)} vi phạm chưa xử lý.`,
+          : // Đếm PHÁT HIỆN (mọi mức), không đếm luật: ô "Vi phạm" của báo cáo luật đếm luật có
+            // phát hiện nghiêm trọng, nên "N vi phạm" ở đây sẽ nói ngược với nó (BUG-460).
+            `Còn ${formatNumber(violationCount)} phát hiện từ kiểm tra luật chưa xử lý.`,
       tone: violationCount === 0 ? 'ok' : 'attention',
       fixHref: violationCount === 0 ? null : ROUTES.project.rules(projectId),
     },
