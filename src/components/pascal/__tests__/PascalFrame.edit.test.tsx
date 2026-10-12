@@ -41,8 +41,15 @@ const renderEdit = (overrides: Record<string, unknown> = {}) =>
       mode="edit"
       readOnly={false}
       scene={scene}
-      sceneKey="k1"
+      sceneKey={1}
       onSceneCommit={async () => undefined}
+      onSaveStatus={undefined}
+      validateCommit={undefined}
+      onCommitRejected={undefined}
+      onReadyChange={undefined}
+      onFatal={undefined}
+      onSceneLoaded={undefined}
+      onRendererUnavailable={undefined}
       {...overrides}
     />,
   );

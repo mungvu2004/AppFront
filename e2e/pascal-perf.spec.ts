@@ -47,12 +47,12 @@ const SAMPLE_MS = 10_000;
 /** Đăng nhập + nạp gói Pascal + dựng cảnh + hai khoảng 10 s, cho cả hai nhánh. */
 const TEST_TIMEOUT_MS = 900_000;
 
-type CpuSample = {
+interface CpuSample {
   /** Mili giây CPU luồng chính mỗi giây đồng hồ — mọi task của trang. */
   readonly taskMsPerSecond: number;
   /** Phần của nó là JavaScript. */
   readonly scriptMsPerSecond: number;
-};
+}
 
 /**
  * Chênh `TaskDuration`/`ScriptDuration` quanh `during()`, quy về mỗi giây.
