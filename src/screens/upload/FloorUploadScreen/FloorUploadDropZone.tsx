@@ -32,6 +32,9 @@ export const DROP_ZONE_TEST_ID = 'floor-upload-dropzone';
 /** Mã của ô chọn tệp ẩn — test bắn `change` vào đúng nó. */
 export const FILE_INPUT_TEST_ID = 'floor-upload-file-input';
 
+/** `id` của nút "Chọn tệp" — khay đưa tiêu điểm về đây khi tệp cuối của khay bị xoá (BUG-525). */
+export const CHOOSE_FILE_BUTTON_ID = 'floor-upload-choose-file';
+
 /**
  * Mọi lớp quyết định hộp của vùng thả, gộp một chỗ.
  *
@@ -89,6 +92,7 @@ export function FloorUploadDropZone({ model, isDragActive, onFilesChosen }: Floo
         type="file"
       />
       <Button
+        id={CHOOSE_FILE_BUTTON_ID}
         onClick={() => inputRef.current?.click()}
         size="sm"
         type="button"
