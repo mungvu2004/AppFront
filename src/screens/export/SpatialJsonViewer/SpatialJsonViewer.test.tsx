@@ -401,14 +401,14 @@ describe('useSpatialJsonViewer', () => {
     expect(model.nodes.some((node) => node.isMatch)).toBe(true);
   });
 
-  it('ô tìm kiếm không khớp gì thì nói 0, không giấu bộ đếm đi', () => {
+  it('[BUG-448] ô tìm kiếm không khớp gì thì nói rõ là không tìm thấy, không chỉ "0 / 0"', () => {
     const { result } = renderHook(() => useSpatialJsonViewer(baseOptions));
 
     act(() => {
       result.current[1].onSearchChange('khong-co-khoa-nao-ten-nay');
     });
 
-    expect(result.current[0].matchLabel).toBe('0 / 0');
+    expect(result.current[0].matchLabel).toBe('Không tìm thấy kết quả');
   });
 
   it('chọn một nút thì mở mọi nút cha của nó', () => {

@@ -101,7 +101,7 @@ export function SpatialJsonViewer({ actions, model }: SpatialJsonViewerProps) {
         </div>
 
         {model.matchLabel !== null ? (
-          <span className="font-mono text-[13px] leading-5 text-text-secondary" aria-live="polite">
+          <span className="text-[13px] leading-5 tabular-nums text-text-secondary" aria-live="polite">
             {model.matchLabel}
           </span>
         ) : null}
