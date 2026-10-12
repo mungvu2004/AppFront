@@ -540,6 +540,8 @@ export interface PipelineFailureProps {
   /** Nhãn nút thu gọn/mở lại, ĐÃ chọn theo `state` — ví dụ "Thu gọn" hoặc "Mở lại". */
   readonly collapseToggleLabel: string;
   readonly onToggleCollapse: () => void;
+  /** Cấp "Dự án" của đường dẫn — vắng thì cấp đó là chữ thường. */
+  readonly onBackToProjects?: () => void;
   /**
    * Slot thời lượng cho hai chuyển động của màn: mở/đóng khối chi tiết kỹ thuật, và
    * dải hoà tan thành toast. Điều phối viên chốt `'standard'` (260ms) — xem ghi chú

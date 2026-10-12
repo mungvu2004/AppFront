@@ -779,3 +779,46 @@ describe('usePipelineFailure — O-01 và chuyển động', () => {
     expect(mounted.result.current.prefersReducedMotion).toBe(false);
   });
 });
+
+describe('usePipelineFailure — QA-03e (SCR-12)', () => {
+  it('BUG-544: người xem bấm "Thu gọn": thân thu gọn và nhãn đổi cùng lúc', async () => {
+    const mounted = await mountSettled(createMockPipelineFailureGateway(), { roles: ['viewer'] });
+    expect(mounted.result.current.state).toBe('forbidden');
+
+    act(() => {
+      mounted.result.current.onToggleCollapse();
+    });
+
+    expect(mounted.result.current.state).toBe('collapsed');
+    expect(mounted.result.current.collapseToggleLabel).toBe(PIPELINE_FAILURE_TEXT.expandLabel);
+
+    act(() => {
+      mounted.result.current.onToggleCollapse();
+    });
+    // Mở lại: vẫn là người xem — nút và nhật ký vẫn ẩn.
+    expect(mounted.result.current.state).toBe('forbidden');
+    expect(mounted.result.current.technicalDetails).toBeNull();
+  });
+
+  it('BUG-545: chưa đọc được chi tiết (bản thật): dải tầng lấy từ các tầng màn Xử lý đã đọc', async () => {
+    const failureFloors = [
+      { floorId: 'L1', floorName: 'Tầng 1', status: 'done' as const },
+      { floorId: FLOOR_ID, floorName: 'Tầng 2', status: 'failed' as const },
+    ];
+    const mounted = await mountSettled(createPipelineFailureGateway(), { failureFloors });
+
+    expect(mounted.result.current.floors.map((floor) => [floor.label, floor.statusLabel, floor.isFailedFloor])).toEqual([
+      ['Tầng 1', 'đã xong', false],
+      ['Tầng 2', 'hỏng', true],
+    ]);
+    expect(mounted.result.current.state).not.toBe('error');
+  });
+
+  it('BUG-546: cấp "Dự án" của breadcrumb về danh sách dự án', async () => {
+    const onNavigate = vi.fn();
+    const mounted = await mountSettled(createMockPipelineFailureGateway(), { onNavigate });
+
+    mounted.result.current.onBackToProjects?.();
+    expect(onNavigate).toHaveBeenCalledWith(ROUTES.dashboard);
+  });
+});

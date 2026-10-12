@@ -13,6 +13,8 @@ export type { BreadcrumbItem, BreadcrumbOption };
 
 interface BreadcrumbProps {
   items: readonly BreadcrumbItem[];
+  /** Tên của `<nav>`. Vắng thì là tên chung; màn nào đã có tên riêng được neo (Xử lý) thì giữ. */
+  ariaLabel?: string;
 }
 
 /** Một tên cho mọi breadcrumb, cùng chữ với các màn quản trị. */
@@ -20,11 +22,11 @@ const NAV_LABEL = 'Đường dẫn trang';
 
 // ─── Breadcrumb ───────────────────────────────────────────────────────────────
 
-export function Breadcrumb({ items }: BreadcrumbProps) {
+export function Breadcrumb({ ariaLabel = NAV_LABEL, items }: BreadcrumbProps) {
   const { openDropdownId, openDropdown, closeDropdown, dropdownZIndex } = useBreadcrumb();
 
   return (
-    <nav className="flex items-center" aria-label={NAV_LABEL}>
+    <nav className="flex items-center" aria-label={ariaLabel}>
       <ol className="flex items-center gap-0">
         {items.map((item, index) => {
           const isLast = index === items.length - 1;

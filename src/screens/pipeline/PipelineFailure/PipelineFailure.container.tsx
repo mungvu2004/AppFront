@@ -59,6 +59,7 @@ import { PipelineFailure } from './PipelineFailure';
 import {
   PIPELINE_FAILURE_SCREEN_CODE,
   type PipelineFailureGateway,
+  type PipelineFailureRawFloor,
 } from './pipelineFailureGateway';
 import type { PipelineFailureContainerProps } from './types';
 import { usePipelineFailure } from './usePipelineFailure';
@@ -83,6 +84,8 @@ export interface PipelineFailureScreenContainerProps extends PipelineFailureCont
   readonly failureCode?: string;
   /** Tên tầng theo N7. */
   readonly failureFloorName?: string;
+  /** Các tầng màn Xử lý đã đọc — dải "Tiến độ theo tầng" khi chưa đọc được chi tiết (BUG-545). */
+  readonly failureFloors?: readonly PipelineFailureRawFloor[];
 }
 
 /** Cùng khuôn `ScreenCrashFallback` của `App.tsx:29-42` — R-62. */
@@ -121,6 +124,7 @@ function WiredPipelineFailure(props: PipelineFailureScreenContainerProps) {
     ...(props.forceCollapsed !== undefined ? { forceCollapsed: props.forceCollapsed } : {}),
     ...(props.failureCode !== undefined ? { failureCode: props.failureCode } : {}),
     ...(props.failureFloorName !== undefined ? { failureFloorName: props.failureFloorName } : {}),
+    ...(props.failureFloors !== undefined ? { failureFloors: props.failureFloors } : {}),
   });
 
   return <PipelineFailure {...screenProps} />;
