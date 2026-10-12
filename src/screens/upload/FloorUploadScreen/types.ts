@@ -241,6 +241,8 @@ export interface FloorUploadFooterModel {
   /** Lý do đang có, đọc được cả trước khi bấm. Rỗng ⟺ `canSubmit === true`. */
   readonly blockReasons: readonly FloorUploadBlockReason[];
   readonly isSubmitting: boolean;
+  /** Vai chỉ xem: không có nút chính — bấm mà không làm gì là lời hứa không giữ (BUG-536). */
+  readonly isSubmitHidden: boolean;
 }
 
 /** Danh sách lý do sau một lượt bấm bị chặn. `null` cho tới lúc người dùng bấm. */

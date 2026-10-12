@@ -114,9 +114,12 @@ export function FloorUploadFooter({ footer, blockNotice, onSubmit, rootRef }: Fl
           </span>
         </p>
 
-        <Button loading={footer.isSubmitting} onClick={onSubmit} type="button" variant="primary">
-          {footer.submitLabel}
-        </Button>
+        {/* Người xem không bắt đầu được lượt xử lý; câu "chỉ được xem" đầu màn đã nói vì sao (BUG-536). */}
+        {!footer.isSubmitHidden && (
+          <Button loading={footer.isSubmitting} onClick={onSubmit} type="button" variant="primary">
+            {footer.submitLabel}
+          </Button>
+        )}
       </div>
     </div>
   );

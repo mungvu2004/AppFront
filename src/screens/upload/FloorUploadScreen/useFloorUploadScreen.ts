@@ -1224,6 +1224,7 @@ export function useFloorUploadScreen(
     canSubmit,
     blockReasons,
     isSubmitting,
+    isSubmitHidden: !canEdit,
   };
 
   /* ---------------------------------------------------------------------- */

@@ -273,6 +273,7 @@ function footerOf(rows: readonly FloorUploadRowModel[]) {
     canSubmit: blockReasons.length === 0,
     blockReasons,
     isSubmitting: false,
+    isSubmitHidden: false,
   };
 }
 
@@ -349,6 +350,7 @@ export function scenarioFor(state: SevenState): FloorUploadScreenViewProps {
     case 'forbidden':
       return modelOf('forbidden', allAttached, {
         canEdit: false,
+        footer: { ...footerOf(allAttached), isSubmitHidden: true },
         readOnlyNotice:
           'Vai hiện tại chỉ được xem danh sách tệp, không tải lên và không sửa.',
       });
