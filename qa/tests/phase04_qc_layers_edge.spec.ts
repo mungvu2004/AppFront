@@ -220,7 +220,8 @@ const SCALE = {
 } as const;
 const OVERLAY = {
   screen: 'Màn đối chiếu bản vẽ', // VV:74
-  readError: 'Không đọc được ảnh bản vẽ gốc của tầng này.', // UV:111
+  noDrawing: 'Tầng này chưa có bản vẽ nào nên chưa có gì để đối chiếu. Tải bản vẽ lên rồi quay lại đây.', // UV:119 (BUG-420)
+  toUpload: 'Tải bản vẽ lên', // VV:80
   toScale: 'Sang màn hiệu chỉnh tỷ lệ', // VV:78
   modes: 'Kiểu đối chiếu', // VT:59
   sideBySide: 'Cạnh nhau', // V/types.ts:153
@@ -1466,16 +1467,18 @@ test.describe('E04 SCR-14 scale calibration', () => {
 /* ================================================================= SCR-22 overlay comparison */
 
 test.describe('E04 SCR-22 overlay comparison', () => {
-  test('E04 · SCR-22 floor without drawing → "Không đọc được ảnh bản vẽ gốc…", no scale link, confirm disabled, no write', async ({ browser }) => {
+  test('E04 · SCR-22 floor without drawing → "Tầng này chưa có bản vẽ nào…" + "Tải bản vẽ lên" link, no scale link, confirm disabled, no write', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page, api } = admin;
       const project = await createProject(admin, 'overlay-nodrawing');
       const mark = api.length;
       await page.goto(ROUTES.project.overlay(project.id, project.floor.id));
       await expect(page.getByRole('region', { name: OVERLAY.screen, exact: true })).toBeVisible();
-      // VG:356-369 no floor in the assess list → error; UV:584-586,757-762 errorReadNotice (VV:156-163, a plain div + alert);
-      // UV:811-817 no fix link.
-      await expect(page.getByRole('alert').filter({ hasText: OVERLAY.readError })).toBeVisible();
+      // The floor is absent from the scan read → state `empty`, activeScan null → noDrawingNotice (UV:775-781), shown by an
+      // `attention` InlineAlert (VV:100,170-171; InlineAlert.tsx:44 role="alert") with the upload link (UV:839-841, VV:182-186).
+      await expect(page.getByRole('alert').filter({ hasText: OVERLAY.noDrawing })).toBeVisible();
+      await expect(page.getByRole('link', { name: OVERLAY.toUpload, exact: true })).toHaveAttribute('href', ROUTES.project.upload(project.id));
+      // UV:826-837 scaleFixHref only in `error` state (VV:177): no scale link.
       await expect(page.getByRole('link', { name: OVERLAY.toScale })).toHaveCount(0);
       // UV:881-891: no measurement (VG:338-343 deviationRegions/matchMetrics unsupported) → canConfirm false.
       await expect(page.getByRole('button', { name: OVERLAY.confirm, exact: true })).toBeDisabled();
