@@ -1143,7 +1143,9 @@ export function useFloorUploadScreen(
               ? `Tải xong ${file?.name ?? floor.name}`
               : `Đã tải ${formatPercent(percent, { fractionDigits: 0, source: 'percent' })} của ${file?.name ?? floor.name}`,
           error: attachment?.problem ?? null,
-          reassignOptions: canEdit ? reassignOptions : [],
+          // Chỉ tệp của phiên này gán lại được; bản vẽ đã nằm trên máy chủ thì không có lượt
+          // chuyển nào để gửi, nên không có ô chọn (BUG-531).
+          reassignOptions: canEdit && attachment !== null ? reassignOptions : [],
           canCancelUpload: canEdit && status === 'uploading',
           canRetryUpload: canEdit && attachment !== null && (attachment.problem?.isRetryable ?? false),
           canRemoveFile: canEdit && attachment !== null,
