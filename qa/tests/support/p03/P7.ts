@@ -119,7 +119,12 @@ export interface PlanSpec {
   readonly dots?: number;
 }
 
-export const CLEAN: PlanSpec = { width: 2000, height: 2000 };
+/**
+ * Clean framed drawing whose stored page still has a short edge ≥ 2000: a found frame makes the pipeline crop the page to
+ * it (apps/worker/pipeline_orchestrate/preprocess.py `rectify(page, quad)`), and the border sits 6 % in → 2300 → ≈ 2039.
+ * Exact sizes (2000 / 1999 / 1200 / 1199) therefore need `frame: false` (no crop).
+ */
+export const CLEAN: PlanSpec = { width: 2300, height: 2300 };
 
 /** A straight plan drawn in a browser canvas: border (optional), three walls joined to it, boxes, dots. PNG bytes. */
 export async function planPng(browser: Browser, spec: PlanSpec): Promise<Buffer> {
@@ -285,10 +290,13 @@ export async function shootWidthsInPlace(page: Page, name: string, marker: () =>
       });
       return {
         horizontalOverflowPx: Math.max(0, (document.scrollingElement ?? document.documentElement).scrollWidth - vw),
+        // A control scrolled away inside its own scroll box (the zoomed drawing frame) is not off the page.
         offscreen: controls
           .filter((el) => {
             const r = el.getBoundingClientRect();
-            return r.right > vw + 1 || r.left < -1;
+            let box = el.parentElement;
+            while (box !== null && !/auto|scroll/u.test(getComputedStyle(box).overflowX)) box = box.parentElement;
+            return box === null && (r.right > vw + 1 || r.left < -1);
           })
           .map((el) => (el.getAttribute('aria-label') ?? (el as HTMLElement).innerText).trim().slice(0, 60)),
         brokenImages: [...document.images].filter((img) => img.complete && img.naturalWidth === 0).map((img) => img.alt),

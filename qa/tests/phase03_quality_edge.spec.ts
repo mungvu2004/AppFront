@@ -323,10 +323,13 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
         const want = { left: r.xRatio * 100, top: r.yRatio * 100, width: r.widthRatio * 100, height: r.heightRatio * 100 };
         for (const k of ['left', 'top', 'width', 'height'] as const) expect.soft(got[k], `region ${k}`).toBeCloseTo(want[k], 2);
         await captureEvidence(page, 'E03_11-C-024_region_position.png', { caption: `style ${JSON.stringify(got)} · #30 ${JSON.stringify(want)}` });
+        // The regions lie ON the drawing: an opaque tint (--state-attention-tint #fcf6e6) hides it (RESOLUTION_TOO_LOW = whole image).
+        const tint = await regions(page).evaluateAll((els) => els.map((el) => getComputedStyle(el).backgroundColor));
+        expect.soft(tint.filter((c) => !/rgba\(.*,\s*0?\.\d+\)|transparent|rgba\(0, 0, 0, 0\)/u.test(c)), `region fills let the drawing show through: ${JSON.stringify(tint)}`).toEqual([]);
       });
 
       await test.step('[11-C-025] skew line through the centre at the measured angle', async () => {
-        const line = imagePanel(page).locator('svg line');
+        const line = imagePanel(page).locator('svg[preserveAspectRatio="none"] line'); // IQO:219-234 (icons have their own lines)
         const rad = (m.skewDeg * Math.PI) / 180;
         const want = { x1: (0.5 - Math.cos(rad) * 0.4) * 100, y1: (0.5 - Math.sin(rad) * 0.4) * 100, x2: (0.5 + Math.cos(rad) * 0.4) * 100, y2: (0.5 + Math.sin(rad) * 0.4) * 100 };
         const got: Record<string, number> = {};
@@ -335,6 +338,9 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
           expect.soft(got[k], `skew line ${k}`).toBeCloseTo(want[k], 2);
         }
         await captureEvidence(page, 'E03_11-C-025_skew_line.png', { caption: `line ${JSON.stringify(got)}` });
+        // BE estimate_skew: +d° = the drawing turned counter-clockwise (preprocess/geometry.py SkewEstimate), so its walls
+        // RISE to the right; with y down the overlay must end higher than it starts. Source draws 0.5 ± sin → mirrored.
+        expect.soft(Math.sign((got.y1 ?? 0) - (got.y2 ?? 0)), 'skew line leans the same way as the drawing').toBe(Math.sign(m.skewDeg));
       });
 
       await test.step('[11-A-013] hover linked metric "Độ nghiêng" → its region; unlinked rows have no tabindex', async () => {
@@ -657,7 +663,7 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
 
       await test.step('[11-C-019] finding "Không tìm thấy khung bản vẽ" + "Chọn góc thủ công"', async () => {
         await expect(finding(page, 'Không tìm thấy khung bản vẽ')).toContainText('Bạn có thể tự chọn 4 góc.');
-        await expect(pickBtn()).toHaveText(PICK);
+        await expect(pickBtn()).toHaveAccessibleName(PICK);
         await captureEvidence(page, 'E03_11-C-019_frame_finding.png');
       });
 
@@ -670,7 +676,7 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
         const at = await corners.getByRole('button').evaluateAll((els) => els.map((el) => `${(el as HTMLElement).style.left},${(el as HTMLElement).style.top}`));
         expect(at).toEqual(['10%,10%', '90%,10%', '90%,90%', '10%,90%']);
         await expect(page.getByText(CORNER_HINT, { exact: true })).toBeVisible();
-        await expect(pickBtn()).toHaveText(SEND);
+        await expect(pickBtn()).toHaveAccessibleName(SEND);
         pickingZoom = await content(page).evaluate((el) => (el as HTMLElement).style.width);
         await captureEvidence(page, 'E03_11-A-017_corner_mode.png');
       });
@@ -738,7 +744,7 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
         await captureEvidence(page, 'E03_11-E-010_esc_dialog_only.png');
         await page.keyboard.press('Escape');
         await expect.soft(corners).toHaveCount(0);
-        await expect.soft(pickBtn()).toHaveText(PICK);
+        await expect.soft(pickBtn()).toHaveAccessibleName(PICK);
       });
 
       await test.step('[11-A-018] zoom cluster absent and 100 % while picking; back at 150 % after (BUG-292)', async () => {
@@ -758,7 +764,7 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
         await page.reload();
         await expect(report(page)).toBeVisible({ timeout: 45_000 });
         await expect(corners).toHaveCount(0);
-        await expect(pickBtn()).toHaveText(PICK);
+        await expect(pickBtn()).toHaveAccessibleName(PICK);
         await isActive(page, 'Tầng 2');
         await captureEvidence(page, 'E03_11-A-036_reload_drops_corners.png');
       });
@@ -807,7 +813,7 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
       await test.step('[11-A-006] ArrowLeft → Tầng 2 again; label "Chọn góc thủ công"', async () => {
         await page.keyboard.press('ArrowLeft');
         await isActive(page, 'Tầng 2');
-        await expect(pickBtn()).toHaveText(PICK);
+        await expect(pickBtn()).toHaveAccessibleName(PICK);
         await captureEvidence(page, 'E03_11-A-006_arrow_previous_floor.png');
       });
 
@@ -918,15 +924,17 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
   test('SCR-11 · FL-11-03 · admin walks 13 crafted floors and reads every metric level', async ({ browser }) => {
     test.setTimeout(SETUP_TIMEOUT_MS + 240_000);
     await flow(async (f) => {
-      const framed = (width: number, height: number): Promise<Buffer> => planPng(browser, { width, height });
+      // Exact sizes are frameless: a found frame makes the pipeline crop the page to it (see P7.ts CLEAN), so a framed
+      // 2000 px canvas would be measured ≈ 1772. Those floors add a FRAME_NOT_FOUND (attention) finding, nothing else.
+      const sized = (width: number, height: number): Promise<Buffer> => planPng(browser, { width, height, frame: false });
       const pngs: Buffer[] = [
         await planPng(browser, CLEAN),
-        await framed(1500, 1500),
-        await planPng(browser, { width: 1000, height: 1000, frame: false }),
-        await framed(2000, 2400),
-        await framed(1999, 2400),
-        await framed(1200, 1600),
-        await framed(1199, 1600),
+        await sized(1500, 1500),
+        await sized(1000, 1000),
+        await sized(2000, 2400),
+        await sized(1999, 2400),
+        await sized(1200, 1600),
+        await sized(1199, 1600),
         await skewedEnvPng(browser, 2),
         await skewedEnvPng(browser, -SKEW),
         await planPng(browser, { ...CLEAN, ink: 85, paper: 235 }),
@@ -1360,16 +1368,23 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
         await page.unrouteAll({ behavior: 'ignoreErrors' });
       });
 
-      await test.step('[11-B-002] #24 500 → load error + sentence + "Thử lại"; no footer buttons', async () => {
+      await test.step('[11-B-002] #24 5xx → load error + sentence + "Thử lại"; no footer buttons', async () => {
+        // 500 first: retryable for the user? (run-33: the alert offered "Tải bản vẽ khác", no "Thử lại" — a dead end).
         await page.route(isProject, (route) => route.fulfill(errorBody(500, 'INTERNAL')));
         await page.goto(ROUTES.project.quality(project.projectId));
         const alert = alertWith(page, LOAD_ERROR);
         await expect(alert).toBeVisible({ timeout: 45_000 });
         await expect.soft(alert).toContainText(SENTENCE.unknown);
-        await expect(button(alert, RETRY)).toBeVisible();
+        await captureEvidence(page, 'E03_11-B-002_project_read_500.png');
+        await expect.soft(button(alert, RETRY), '#24 500: the alert offers "Thử lại"').toBeVisible();
+        // 503 (RTY RETRYABLE_STATUSES): the alert must offer "Thử lại"; footer buttons hidden.
+        await page.unrouteAll({ behavior: 'ignoreErrors' });
+        await page.route(isProject, (route) => route.fulfill(errorBody(503, 'DEPENDENCY_UNAVAILABLE')));
+        await page.goto(ROUTES.project.quality(project.projectId));
+        await expect(button(alert, RETRY)).toBeVisible({ timeout: 45_000 });
         await expect(continueBtn(page)).toHaveCount(0);
         await expect(button(page, SECONDARY)).toHaveCount(0);
-        await captureEvidence(page, 'E03_11-B-002_project_read_500.png');
+        await captureEvidence(page, 'E03_11-B-002_project_read_503.png');
       });
 
       await test.step('[11-B-003] unroute, "Thử lại" → a second GET /projects/:id, report renders', async () => {
@@ -1388,6 +1403,11 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
         await expect(alert).toBeVisible({ timeout: 45_000 });
         await expect(continueBtn(page)).toHaveCount(0);
         await captureEvidence(page, 'E03_11-B-004_quality_read_500.png');
+        await expect.soft(button(alert, RETRY), '#30 500: the alert offers "Thử lại"').toBeVisible();
+        await page.unrouteAll({ behavior: 'ignoreErrors' });
+        await page.route(isQuality, (route) => (route.request().method() === 'GET' ? route.fulfill(errorBody(503, 'DEPENDENCY_UNAVAILABLE')) : route.fallback()));
+        await page.goto(ROUTES.project.quality(project.projectId));
+        await expect(button(alert, RETRY)).toBeVisible({ timeout: 45_000 });
         await page.unrouteAll({ behavior: 'ignoreErrors' });
         const gets = qualityGets(s);
         const projects = projectGets(s, project.projectId);

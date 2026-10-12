@@ -110,10 +110,11 @@ test.describe('U03 SCR-11 input quality gate — UI flows (QA-03d P7)', () => {
       const { page } = await session(f, browser);
 
       await test.step('[11-F-015] zoomed 200 % scroll frame', async () => {
-        await verifyUi(page, 'U03_11-F-015_zoom_200', async (p) => {
-          await openQuality(p, project.projectId);
-          for (let i = 0; i < 10; i += 1) await button(p, 'Phóng to').click();
-          await expect(p.getByRole('group', { name: ZOOMED_FRAME, exact: true })).toBeVisible();
+        // In place: `verifyUi` counts the regions scrolled away inside the zoomed frame as controls off the page.
+        await openQuality(page, project.projectId);
+        for (let i = 0; i < 10; i += 1) await button(page, 'Phóng to').click();
+        await shootWidthsInPlace(page, 'U03_11-F-015_zoom_200', async () => {
+          await expect.soft(page.getByRole('group', { name: ZOOMED_FRAME, exact: true })).toBeVisible();
         });
       });
 
@@ -133,7 +134,7 @@ test.describe('U03 SCR-11 input quality gate — UI flows (QA-03d P7)', () => {
           async (p) => {
             await openQuality(p, project.projectId);
             await pickBtn(p).click();
-            await expect(pickBtn(p)).toHaveText(SEND);
+            await expect(pickBtn(p)).toHaveAccessibleName(SEND);
             await pickBtn(p).click();
             await expect(p.getByRole('dialog', { name: CORNERS_DIALOG })).toBeVisible();
           },
