@@ -92,7 +92,6 @@ import { useCountUp } from '@/hooks/useCountUp';
 import { useFloorLayer } from '@/hooks/useFloorLayer';
 import { useProjectConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
 import { appNotificationBus } from '@/hooks/useNotifications';
-import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
@@ -134,7 +133,6 @@ import {
   clampZoom,
   cursorLabelOf,
   DEFAULT_ZOOM,
-  fitZoomFor,
   formatScaleLabel,
   isLowConfidence,
   measurementOutcomeToPx,
@@ -169,6 +167,13 @@ import {
   type WallLayerViewportRectPercent,
 } from './wallLayerReviewGateway';
 import type { WallLayerLeftPanelExtras } from './WallLayerLeftPanel';
+import {
+  centredCanvasView,
+  fitCanvasView,
+  toFramePoint,
+  toFrameRect,
+  visibleDrawingRect,
+} from '../shared/canvasFit';
 import { useFloorLayerReadFailure, type FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useProvisionalScaleNotice, type ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import type { WallLayerStatusBarProps } from './WallLayerStatusBar';
@@ -1446,7 +1451,6 @@ export function useWallLayerReview(
   /* Hợp đồng mở rộng của lớp canvas — mọi toạ độ đã là pixel bản vẽ.         */
   /* ---------------------------------------------------------------------- */
 
-  const prefersReducedMotion = useReducedMotion();
   const zoom = useStore((current) => current.zoom);
   const viewCenter = useStore((current) => current.viewCenter);
   const hiddenLayers = useStore((current) => current.hiddenLayers);
@@ -1509,11 +1513,26 @@ export function useWallLayerReview(
    * phóng, phím `F` và bản đồ nhỏ đã lái ngược được qua `setZoom`/`setViewCenter`
    * (xem khối "Lái khung nhìn" ngay dưới).
    */
-  const viewport = useMemo<WallLayerViewportPx>(() => {
-    const centre = toPixelPoint(viewCenter, scaleOfLevel(level));
+  const [frameSizePx, setFrameSizePx] = useState<WallLayerSizePx | null>(null);
 
-    return { x: centre.x, y: centre.y, zoom };
-  }, [level, viewCenter, zoom]);
+  /*
+   * Hệ số "vừa khung" của cả lớp (BUG-403): mức phóng của kho đọc TƯƠNG ĐỐI với nó, nên 100%
+   * là thấy trọn mặt bằng dù tầng chưa hiệu chỉnh (1 mm = 1 px, mặt bằng 8 m = 8.220 px).
+   * Tâm nhìn của kho đặt vào GIỮA khung — bản trước lấy nó làm độ dời, nên tâm (0; 0) mặc định
+   * ghim góc trên-trái bản vẽ vào góc khung và "vừa khung" đẩy bản vẽ ra ngoài.
+   */
+  const fitAllBoundsPx = useMemo<WallLayerRectPx | null>(
+    () =>
+      contentBoundsPx ??
+      (drawingSizePx === null ? null : { x: 0, y: 0, ...drawingSizePx }),
+    [contentBoundsPx, drawingSizePx],
+  );
+  const baseScale = fitCanvasView(frameSizePx, fitAllBoundsPx)?.zoom ?? DEFAULT_ZOOM;
+
+  const viewport = useMemo<WallLayerViewportPx>(
+    () => centredCanvasView(frameSizePx, toPixelPoint(viewCenter, scaleOfLevel(level)), zoom * baseScale),
+    [baseScale, frameSizePx, level, viewCenter, zoom],
+  );
 
   const legendLevels = useMemo(() => legendLevelsOf(walls), [walls]);
 
@@ -1533,8 +1552,6 @@ export function useWallLayerReview(
 
   const setZoom = useStore((current) => current.setZoom);
   const setViewCenter = useStore((current) => current.setViewCenter);
-
-  const [frameSizePx, setFrameSizePx] = useState<WallLayerSizePx | null>(null);
 
   const onFrameResize = useCallback((size: WallLayerSizePx) => {
     setFrameSizePx((previous) =>
@@ -1581,14 +1598,27 @@ export function useWallLayerReview(
       return;
     }
 
-    const nextZoom = fitZoomFor(frameSizePx, fitBoundsPx);
+    const fitted = fitCanvasView(frameSizePx, fitBoundsPx);
 
-    if (nextZoom !== null) {
-      setZoom(nextZoom);
+    setZoom(fitted === null ? DEFAULT_ZOOM : clampZoom(fitted.zoom / baseScale));
+    setViewCenter(toMillimetrePoint(centreOfBounds(fitBoundsPx), scaleOfLevel(level)));
+  }, [baseScale, fitBoundsPx, frameSizePx, level, setViewCenter, setZoom]);
+
+  /*
+   * Mở một tầng là thấy trọn tầng ấy (BUG-403): một lần cho mỗi tầng, khi đã có thứ để phủ.
+   * Kho giữ mức phóng/tâm nhìn của màn trước (hoặc (0; 0) mặc định), không phải của tầng này.
+   */
+  const fittedLevelRef = useRef<LevelId | null>(null);
+
+  useEffect(() => {
+    if (levelId === null || fitAllBoundsPx === null || fittedLevelRef.current === levelId) {
+      return;
     }
 
-    setViewCenter(toMillimetrePoint(centreOfBounds(fitBoundsPx), scaleOfLevel(level)));
-  }, [fitBoundsPx, frameSizePx, level, setViewCenter, setZoom]);
+    fittedLevelRef.current = levelId;
+    setZoom(DEFAULT_ZOOM);
+    setViewCenter(toMillimetrePoint(centreOfBounds(fitAllBoundsPx), scaleOfLevel(level)));
+  }, [fitAllBoundsPx, level, levelId, setViewCenter, setZoom]);
 
   /** Bản đồ nhỏ: kéo hoặc bấm một chỗ thì tâm nhìn đi theo. */
   const onMiniMapViewportChange = useCallback(
@@ -1743,6 +1773,33 @@ export function useWallLayerReview(
     onToggleCollapsed,
   };
 
+  /*
+   * Lớp vẽ theo pixel KHUNG (BUG-403): `<svg>` phủ kín khung với `viewBox` là vùng bản vẽ đang
+   * thấy, còn ảnh nền, vòng chọn và nhãn đo là HTML đứng ở toạ độ khung — không lớp `scale()`
+   * nào để viền và chữ của chúng teo theo hệ số "vừa khung".
+   */
+  const hasFrame = frameSizePx !== null && frameSizePx.width > 0 && frameSizePx.height > 0;
+  const surfacePx = drawingSizePx === null ? contentBoundsPx : { x: 0, y: 0, ...drawingSizePx };
+  const activeWallId = selectedWallId ?? (hoveredId as WallId | null) ?? null;
+  const activeWall = shapes.find((shape) => shape.id === activeWallId) ?? null;
+  const frameLayer = {
+    viewBoxPx:
+      surfacePx === null || !hasFrame ? surfacePx : visibleDrawingRect(viewport, frameSizePx),
+    surfaceRectPx: surfacePx === null ? null : toFrameRect(viewport, surfacePx),
+    haloRectPx: activeWall === null ? null : toFrameRect(viewport, activeWall.boundsPx),
+  };
+  const onFrame = (point: WallLayerMeasurementPx['startPx']) =>
+    point === null ? null : toFramePoint(viewport, point);
+  const frameMeasurement: WallLayerMeasurementPx | null =
+    measurement === null
+      ? null
+      : {
+          ...measurement,
+          startPx: onFrame(measurement.startPx),
+          currentPx: onFrame(measurement.currentPx),
+          midPx: onFrame(measurement.midPx),
+        };
+
   const canvas: WallLayerCanvasViewProps = {
     shapes,
     selectedWallId,
@@ -1768,8 +1825,8 @@ export function useWallLayerReview(
     contentBoundsPx,
     isWallLayerVisible,
     legendLevels,
-    measurement,
-    prefersReducedMotion,
+    measurement: frameMeasurement,
+    ...frameLayer,
     onApprove,
     onRequestThicknessChange,
     onRequestSplit,

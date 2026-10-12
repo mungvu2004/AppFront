@@ -168,15 +168,19 @@ function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewM
       backgroundImageAlt={model.backgroundImageAlt}
       backgroundImageUrl={model.backgroundImageUrl}
       dragMeasurement={model.dragMeasurement}
+      haloRectPx={model.haloRectPx}
       hoveredObjectId={model.hoveredObjectId}
       isInteractive={!model.isViewerRole}
       layerVisibility={model.layerVisibility}
       millimetresPerPixel={model.millimetresPerPixel}
       objects={model.objects}
+      onFrameResize={model.onFrameResize}
       onHover={model.onHover}
       onSelect={model.onSelect}
       placements={model.placements}
       selectedObjectId={model.selectedObjectId}
+      surfaceRectPx={model.surfaceRectPx}
+      viewBoxPx={model.viewBoxPx}
       wallOutlines={model.wallOutlines}
       {...editing}
     />

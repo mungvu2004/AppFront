@@ -33,7 +33,6 @@ import { Skeleton } from '@/components/feedback/Skeleton';
 import type { ContextMenuGroup } from '@/hooks/useContextMenu';
 import { useContextMenu } from '@/hooks/useContextMenu';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
-import { cssDurationMs } from '@/lib/motion';
 
 import { WallLayerLegend } from './WallLayerLegend';
 import { WallShapeFigure } from './WallLayerShapeFigure';
@@ -90,6 +89,7 @@ export function WallLayerCanvas({
   canvasLabel,
   contentBoundsPx,
   drawingSizePx,
+  haloRectPx,
   hoveredWallId,
   isInteractive,
   isWallLayerVisible,
@@ -112,11 +112,12 @@ export function WallLayerCanvas({
   onResetZoom,
   onZoomIn,
   onZoomOut,
-  prefersReducedMotion,
   selectedWallId,
   shapes,
   showCentrelines,
   state,
+  surfaceRectPx,
+  viewBoxPx,
   viewport,
   zoomPercent,
 }: WallLayerCanvasViewProps) {
@@ -138,14 +139,9 @@ export function WallLayerCanvas({
       const entry = entries[0];
 
       if (entry !== undefined) {
-        const size = { width: entry.contentRect.width, height: entry.contentRect.height };
-
-        setFrameSize(size);
-        /*
-         * Lên hook, nguyên số của `ResizeObserver`. "Vừa khung" cần biết khung
-         * rộng bao nhiêu mới khớp được thật, và khung là thứ chỉ view biết.
-         */
-        onFrameResize(size);
+        setFrameSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+        /* Lên hook: khổ hộp đệm — hệ toạ độ của lớp vẽ `absolute inset-0` mà "vừa khung" cần. */
+        onFrameResize({ width: frame.clientWidth, height: frame.clientHeight });
       }
     });
 
@@ -167,14 +163,9 @@ export function WallLayerCanvas({
   /**
    * Toạ độ con trỏ cho thanh trạng thái — KHÔNG một phép tính nào ở đây.
    *
-   * `getScreenCTM().inverse()` là ma trận của chính `<svg>`, và `<svg>` mang
-   * `viewBox` đúng bằng khổ ảnh bản vẽ tính theo pixel — nên trình duyệt trả về
-   * thẳng toạ độ PIXEL BẢN VẼ, đã gộp sẵn cả phép dịch lẫn mức phóng của khung
-   * nhìn. View chỉ chuyển tiếp hai con số đó; hook quy ra milimét và định dạng.
-   *
-   * jsdom không cài `getScreenCTM`, nên nhánh `null` là đường đi thật của bài
-   * kiểm chứ không phải một lối thoát phòng hờ — bài kiểm gọi thẳng
-   * `canvas.onPointerMove(...)` để đo chuỗi toạ độ.
+   * `getScreenCTM().inverse()` của `<svg>` (mang `viewBox` pixel bản vẽ) trả thẳng toạ độ PIXEL
+   * BẢN VẼ, đã gộp dịch và phóng; hook quy ra milimét. jsdom không cài `getScreenCTM`, nên nhánh
+   * `null` là đường của bài kiểm — nó gọi thẳng `canvas.onPointerMove(...)`.
    */
   const readPointer = useCallback(
     (event: ReactMouseEvent<SVGSVGElement>): { readonly xPx: number; readonly yPx: number } | null => {
@@ -273,11 +264,12 @@ export function WallLayerCanvas({
     return contentBoundsPx;
   }, [contentBoundsPx, drawingSizePx]);
 
-  const activeShape =
-    shapes.find((shape) => shape.id === (selectedWallId ?? hoveredWallId)) ?? null;
-
   const viewBox =
     surface === null ? undefined : `${surface.x} ${surface.y} ${surface.width} ${surface.height}`;
+  const frameViewBox =
+    viewBoxPx === null
+      ? undefined
+      : `${viewBoxPx.x} ${viewBoxPx.y} ${viewBoxPx.width} ${viewBoxPx.height}`;
 
   return (
     <div
@@ -308,25 +300,32 @@ export function WallLayerCanvas({
               role="img"
             />
           ) : (
-            <div
-              className="absolute left-0 top-0 origin-top-left motion-reduce:transition-none"
-              style={{
-                height: surface.height,
-                transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
-                transitionDuration: cssDurationMs('slow', { reducedMotion: prefersReducedMotion }),
-                transitionProperty: 'transform',
-                width: surface.width,
-              }}
-            >
-              {backgroundImageUrl === null ? (
-                <div aria-hidden="true" className="absolute inset-0 bg-bg-sunken" />
+            <>
+              {/* Ảnh nền + `<svg>` + lớp phủ đứng ở pixel KHUNG do hook tính (BUG-403): không lớp `scale()` nào. */}
+              {surfaceRectPx === null ? null : backgroundImageUrl === null ? (
+                <div
+                  aria-hidden="true"
+                  className="absolute bg-bg-sunken"
+                  style={{
+                    height: surfaceRectPx.height,
+                    left: surfaceRectPx.x,
+                    top: surfaceRectPx.y,
+                    width: surfaceRectPx.width,
+                  }}
+                />
               ) : (
                 <img
                   alt={backgroundImageAlt}
-                  className="pointer-events-none absolute inset-0 block h-full w-full select-none"
+                  className="pointer-events-none absolute block select-none"
                   draggable={false}
                   src={backgroundImageUrl}
-                  style={{ opacity: BACKGROUND_IMAGE_OPACITY }}
+                  style={{
+                    height: surfaceRectPx.height,
+                    left: surfaceRectPx.x,
+                    opacity: BACKGROUND_IMAGE_OPACITY,
+                    top: surfaceRectPx.y,
+                    width: surfaceRectPx.width,
+                  }}
                 />
               )}
 
@@ -336,7 +335,7 @@ export function WallLayerCanvas({
                 onClick={handleCanvasClick}
                 onMouseMove={handlePointerMove}
                 role="img"
-                viewBox={viewBox}
+                viewBox={frameViewBox}
               >
                 <defs>
                   <pattern
@@ -374,15 +373,15 @@ export function WallLayerCanvas({
                 ))}
               </svg>
 
-              {activeShape === null ? null : (
+              {haloRectPx === null ? null : (
                 <SelectionHalo
                   hasEntered={halo.hasEntered}
-                  height={activeShape.boundsPx.height}
+                  height={haloRectPx.height}
                   isVisible={halo.isVisible}
                   variant={halo.variant}
-                  width={activeShape.boundsPx.width}
-                  x={activeShape.boundsPx.x}
-                  y={activeShape.boundsPx.y}
+                  width={haloRectPx.width}
+                  x={haloRectPx.x}
+                  y={haloRectPx.y}
                 />
               )}
 
@@ -395,7 +394,7 @@ export function WallLayerCanvas({
                   state={measurement.state}
                 />
               )}
-            </div>
+            </>
           )}
         </>
       )}

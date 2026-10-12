@@ -595,8 +595,16 @@ export interface ObjectLayerReviewModel {
   readonly confidenceTokenOf: (objectId: string) => ColorTokenName;
   /** Số bước còn hoàn tác được — D-06 gộp 20 lượt kéo thành đúng một bước. */
   readonly undoStepCount: number;
-  /** Khung nhìn canvas; bấm liên kết tường chủ bay tới bằng R-07. */
+  /** Khung nhìn canvas (pixel bản vẽ → pixel khung); bấm liên kết tường chủ bay tới bằng R-07. */
   readonly viewport: ObjectLayerViewport;
+  /** Vùng bản vẽ đang thấy — `viewBox` của `<svg>` phủ kín khung (BUG-403). */
+  readonly viewBoxPx: PixelRect | null;
+  /** Hộp ảnh nền, pixel KHUNG. */
+  readonly surfaceRectPx: PixelRect | null;
+  /** Hộp của đối tượng đang chọn (hoặc đang rê), pixel KHUNG. */
+  readonly haloRectPx: PixelRect | null;
+  /** Canvas báo khổ khung đo được — "vừa khung" cần nó. */
+  readonly onFrameResize: (size: { readonly width: number; readonly height: number }) => void;
   /** Nhóm loại đang chọn (`D`/`W`/`F`). */
   readonly activeLayer: ObjectLayerId | null;
   readonly activeSubtype: ObjectSubtype | null;

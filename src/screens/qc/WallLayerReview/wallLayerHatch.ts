@@ -200,7 +200,6 @@ export function toSvgPoints(outline: readonly Point[]): string {
  *   cây lớp, nội dung sinh từ P-07 (`generateLegend`).
  * - `measurement` — nhãn đo của công cụ đo; `MeasurementLabel` nhận chuỗi
  *   khoảng cách ĐÃ định dạng, không tự tính.
- * - `prefersReducedMotion` — cùng khuôn `ScaleCalibrationCanvasProps`.
  * - `onApprove` / `onRequestThicknessChange` / `onRequestSplit` / `onDelete` —
  *   bốn mục menu chuột phải. Hai mục giữa là YÊU CẦU chứ không phải lệnh:
  *   `WallLayerViewProps.onChangeThickness` cần một `thicknessMm`, `onSplit` cần
@@ -276,9 +275,14 @@ export interface WallLayerCanvasViewProps extends WallLayerCanvasProps {
   readonly isWallLayerVisible: boolean;
   /** Những băng độ dày có thật trên tầng, sinh từ P-07 (`generateLegend`). */
   readonly legendLevels: readonly WallThicknessChoice[];
-  /** `null` khi công cụ đo không chạy. */
+  /** `null` khi công cụ đo không chạy. Toạ độ là pixel KHUNG, như ba trường dưới (BUG-403). */
   readonly measurement: WallLayerMeasurementPx | null;
-  readonly prefersReducedMotion: boolean;
+  /** Vùng bản vẽ đang thấy — `viewBox` của `<svg>` phủ kín khung. `null` khi chưa có gì để vẽ. */
+  readonly viewBoxPx: WallLayerRectPx | null;
+  /** Hộp ảnh nền (bản vẽ, hoặc hộp bao tường khi chưa có ảnh), pixel KHUNG. */
+  readonly surfaceRectPx: WallLayerRectPx | null;
+  /** Hộp của tường đang chọn (hoặc đang rê), pixel KHUNG — `SelectionHalo` bám vào nó. */
+  readonly haloRectPx: WallLayerRectPx | null;
   readonly onApprove: (wallId: WallId) => void;
   /** Xin đổi độ dày: đưa tiêu điểm về điều khiển ba lựa chọn của thanh tra. */
   readonly onRequestThicknessChange: (wallId: WallId) => void;
