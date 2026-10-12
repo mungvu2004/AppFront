@@ -22,6 +22,14 @@ export const isNetworkError = (error: unknown): boolean => {
   return error instanceof TypeError;
 };
 
+/**
+ * A status worth asking again later: any 5xx, plus the ladder's own 429. This is what a
+ * person's "Thử lại" turns on, and it does not change when the client's ladder runs out
+ * (BUG-509) — `shouldRetryRequest` is the one that counts attempts.
+ */
+export const isTransientStatus = (status: number): boolean =>
+  status >= 500 || RETRYABLE_STATUSES.has(status);
+
 export const isRetryableMethod = (method: HttpMethod, idempotencyKey?: string): boolean =>
   method === 'GET' || Boolean(idempotencyKey);
 

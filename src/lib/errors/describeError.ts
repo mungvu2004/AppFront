@@ -50,6 +50,10 @@ const resolvePrimaryLabel = (kind: AppErrorKind, error: AppError): string => {
     return readMessage('common.close');
   }
 
+  if (error.recovery === 'thử lại') {
+    return readMessage('common.retry');
+  }
+
   return readMessage(APP_ERROR_KIND_CONFIG[kind].primaryButtonKey);
 };
 

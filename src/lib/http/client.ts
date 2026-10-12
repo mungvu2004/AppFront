@@ -4,6 +4,7 @@ import { createIdempotencyKey, createRequestId } from './ids';
 import {
   computeRetryDelayMs,
   isRetryableMethod,
+  isTransientStatus,
   parseRetryAfterMs,
   shouldRetryRequest,
   waitForRetry,
@@ -484,14 +485,10 @@ export const createHttpClient = ({
 
             const raw = await readErrorPayload(response);
             const errorCode = extractErrorCode(raw);
+            // "May the caller ask again?", not "will this client ask again?": the ladder
+            // running out made every 5xx read final, and no screen offered "Thử lại" (BUG-509).
             const retryable =
-              isRetryableMethod(method, idempotencyKey) &&
-              shouldRetryRequest({
-                attemptIndex,
-                method,
-                status: response.status,
-                ...(idempotencyKey ? { idempotencyKey } : {}),
-              });
+              isRetryableMethod(method, idempotencyKey) && isTransientStatus(response.status);
             const retryAfterMs = parseRetryAfterMs(response.headers.get('Retry-After'));
             const httpError = createHttpError({
               kind: 'http',

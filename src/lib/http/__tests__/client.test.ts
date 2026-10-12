@@ -229,6 +229,26 @@ describe('http/client.ts', () => {
     expect(result.ok).toBe(true);
   });
 
+  // BUG-509: the ladder's last 503, and any 500, came back `retryable: false`, so no read
+  // error offered "Thử lại". Running out of automatic tries is not "the user may not ask again".
+  it('a 5xx read stays retryable for the caller after the ladder runs out; a keyless POST does not', async () => {
+    const respond = (status: number) => () =>
+      Promise.resolve(new Response('{}', { headers: { 'Content-Type': 'application/json' }, status }));
+    const errorOf = async (pending: Promise<Awaited<ReturnType<ReturnType<typeof createHttpClient>['get']>>>) => {
+      await vi.advanceTimersByTimeAsync(10_000);
+      const result = await pending;
+      if (result.ok) throw new Error('expected a failure');
+      return result.error;
+    };
+
+    const unavailable = createHttpClient({ baseUrl: 'https://api.example.com', fetchImpl: vi.fn(respond(503)) });
+    expect(await errorOf(unavailable.get('/projects/p'))).toMatchObject({ retryable: true, status: 503 });
+
+    const broken = createHttpClient({ baseUrl: 'https://api.example.com', fetchImpl: vi.fn(respond(500)) });
+    expect(await errorOf(broken.get('/projects/p'))).toMatchObject({ retryable: true, status: 500 });
+    expect(await errorOf(broken.post('/projects', { body: {} }))).toMatchObject({ retryable: false, status: 500 });
+  });
+
   it('sanitizes sensitive query params in request logs and telemetry', async () => {
     const telemetry = vi.fn();
     const fetchImpl = vi.fn((input: RequestInfo | URL) => {
