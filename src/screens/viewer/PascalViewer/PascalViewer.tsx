@@ -15,17 +15,47 @@
 import { AlertTriangle, Box, EyeOff, Lock, MonitorOff } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { Button } from '@/components/ui/Button';
 
-import { PASCAL_VIEWER_TITLE, type PascalViewerProps } from './pascalViewerTypes';
+import {
+  PASCAL_LEAVE_LABEL,
+  PASCAL_REPROCESS_LABEL,
+  PASCAL_VIEWER_TITLE,
+  type PascalViewerProps,
+} from './pascalViewerTypes';
 
-/** Khung chứa, dùng chung cho cả bảy nhánh để không nhánh nào lạc ra ngoài bố cục. */
-function Frame({ caption, children }: { caption: string; children: React.ReactNode }) {
+/**
+ * Khung chứa, dùng chung cho cả bảy nhánh để không nhánh nào lạc ra ngoài bố cục.
+ *
+ * Đầu màn có tiêu đề và lối ra (BUG-487). Dòng trạng thái chỉ HIỆN khi có khung
+ * dựng (`showCaption`); ở các nhánh `EmptyState` nó lặp đúng ý của khối giữa
+ * trang nên chỉ còn cho trình đọc màn hình (`sr-only`), vẫn là `role="status"`.
+ */
+function Frame({
+  caption,
+  children,
+  onLeave,
+  showCaption = false,
+}: {
+  caption: string;
+  children: React.ReactNode;
+  onLeave?: (() => void) | undefined;
+  showCaption?: boolean;
+}) {
   return (
     <section
       aria-label={PASCAL_VIEWER_TITLE}
       className="flex h-full min-h-[24rem] flex-col gap-3 bg-bg-app p-4"
     >
-      <p className="text-sm text-text-muted" role="status">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-[16px] font-semibold text-text-primary">{PASCAL_VIEWER_TITLE}</h2>
+        {onLeave !== undefined && (
+          <Button onClick={onLeave} size="sm" variant="secondary">
+            {PASCAL_LEAVE_LABEL}
+          </Button>
+        )}
+      </div>
+      <p className={showCaption ? 'text-sm text-text-muted' : 'sr-only'} role="status">
         {caption}
       </p>
       <div className="min-h-0 flex-1">{children}</div>
@@ -43,12 +73,19 @@ function Skeleton() {
   );
 }
 
-export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: PascalViewerProps) {
+export function PascalViewer({
+  viewModel,
+  canvasRef,
+  onRetry,
+  onExpand,
+  onLeave,
+  onReprocess,
+}: PascalViewerProps) {
   const { state, caption, summary, skipped, errorCode } = viewModel;
 
   if (state === 'forbidden') {
     return (
-      <Frame caption={caption}>
+      <Frame caption={caption} onLeave={onLeave}>
         <EmptyState
           icon={<Lock aria-hidden="true" />}
           title="Chưa bật cho tài khoản này"
@@ -60,11 +97,14 @@ export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: Pascal
 
   if (state === 'empty') {
     return (
-      <Frame caption={caption}>
+      <Frame caption={caption} onLeave={onLeave}>
         <EmptyState
           icon={<Box aria-hidden="true" />}
           title="Chưa có gì để dựng"
           description="Bản vẽ này chưa có tường, phòng hay ô mở nào. Dò lại bản vẽ rồi quay lại đây."
+          {...(onReprocess === undefined
+            ? {}
+            : { action: { label: PASCAL_REPROCESS_LABEL, onClick: onReprocess } })}
         />
       </Frame>
     );
@@ -84,7 +124,7 @@ export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: Pascal
    */
   if (state === 'error' && errorCode === 'PASCAL-03') {
     return (
-      <Frame caption={caption}>
+      <Frame caption={caption} onLeave={onLeave}>
         <EmptyState
           icon={<MonitorOff aria-hidden="true" />}
           title="Máy này chưa dựng được mô hình 3D"
@@ -100,7 +140,7 @@ export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: Pascal
 
   if (state === 'error') {
     return (
-      <Frame caption={caption}>
+      <Frame caption={caption} onLeave={onLeave}>
         <EmptyState
           icon={<AlertTriangle aria-hidden="true" />}
           title="Không nạp được khung dựng hình"
@@ -117,7 +157,7 @@ export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: Pascal
 
   if (state === 'collapsed') {
     return (
-      <Frame caption={caption}>
+      <Frame caption={caption} onLeave={onLeave}>
         <EmptyState
           icon={<EyeOff aria-hidden="true" />}
           title="Khung xem đang thu gọn"
@@ -146,7 +186,7 @@ export function PascalViewer({ viewModel, canvasRef, onRetry, onExpand }: Pascal
   const isBooting = state === 'loading';
 
   return (
-    <Frame caption={caption}>
+    <Frame caption={caption} onLeave={onLeave} showCaption>
       <div className="flex h-full min-h-0 flex-col gap-3">
         <div className="relative min-h-[12rem] flex-1">
           <div

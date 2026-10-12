@@ -84,6 +84,13 @@ export interface PascalViewerProps {
   readonly onRetry: () => void;
   /** Mở lại khung xem khi đang thu gọn. */
   readonly onExpand: () => void;
+  /**
+   * Lối ra về màn xem 3D quen thuộc — đặt ở đầu màn, có ở mọi trạng thái, để
+   * rỗng/lỗi/cờ tắt không thành ngõ cụt (BUG-487). Vắng thì không có nút.
+   */
+  readonly onLeave?: (() => void) | undefined;
+  /** Sang màn xử lý bản vẽ — lối đi tiếp của trạng thái `empty`. Vắng thì không có nút. */
+  readonly onReprocess?: (() => void) | undefined;
 }
 
 /** Nhãn tiếng Việt cho từng trạng thái, viết thường kiểu câu (A6). */
@@ -99,3 +106,9 @@ export const PASCAL_VIEWER_CAPTIONS: Readonly<Record<PascalViewerState, string>>
 
 /** Tiêu đề màn. Một chuỗi, để không chỗ nào tự chế ra bản khác. */
 export const PASCAL_VIEWER_TITLE = 'Mô hình 3D';
+
+/** Nút lối ra ở đầu màn, về `/3d`. */
+export const PASCAL_LEAVE_LABEL = 'Về màn xem 3D';
+
+/** Hành động của trạng thái rỗng, sang màn xử lý bản vẽ. */
+export const PASCAL_REPROCESS_LABEL = 'Xử lý lại bản vẽ';
