@@ -113,7 +113,7 @@ const RESTORE_BUTTON = 'Phục hồi phiên bản này';
 const RESTORE_CONFIRM_TITLE = /Phục hồi phiên bản .+ của .+\?/u;
 const KEEP_AS_IS = 'Để nguyên';
 const VERSIONS_EMPTY_SUFFIX = ' chưa có phiên bản nào'; // useVersionHistory.ts:606
-/** `versionHistoryCompare.ts:33-34` TEACHING_SENTENCE (one version; below 1024 also shown for zero, BUG-473). */
+/** `versionHistoryCompare.ts:33-34` TEACHING_SENTENCE (one version; was also shown for zero below 1024 until BUG-473). */
 const VERSIONS_ONE_PATTERN = /^Mới có một phiên bản nên chưa có gì để so sánh/u;
 
 const PROJECTS_PATH = '/api/projects';
@@ -681,15 +681,12 @@ test.describe('U06 UI verify — no-layer project, 80-char name + 65-char floor 
   });
 
   test('U06 · SCR-32 versions, floor without versions → empty copy with the 65-char name', async ({ browser }) => {
-    // BUG-473: below 1024 `useVersionHistory.ts:488-489` returns 'collapsed' before 'empty', so a floor with 0 versions
-    // shows the one-version sentence (versionHistoryCompare.ts:33-34) instead of "<floor> chưa có phiên bản nào". The
-    // open step settles on that sentence (no 30 s wait, every width measured) and the wrong copy stays a SOFT failure:
-    // app behaviour, not asserted away.
+    // BUG-473 (fixed, FIX-1952): `useVersionHistory.ts:489-490` checks 'empty' before the below-1024 'collapsed', so every
+    // width shows "<floor> chưa có phiên bản nào". The open step still settles on the one-version sentence
+    // (versionHistoryCompare.ts:33-34) if it ever comes back, so a regression fails here fast instead of timing out.
     await verifyAsAdmin(browser, 'U06_versions_empty', async (p) => {
       const state = await openVersions(p, own(), LONG_FLOOR_NAME);
-      expect
-        .soft(state, `${String(p.viewportSize()?.width)} px: app shows the one-version copy for 0 versions (useVersionHistory.ts:488-489)`)
-        .toBe('empty');
+      expect(state, `${String(p.viewportSize()?.width)} px: a floor with 0 versions shows the empty copy`).toBe('empty');
     });
   });
 });

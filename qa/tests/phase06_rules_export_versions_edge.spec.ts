@@ -1376,7 +1376,7 @@ test.describe('E06 SCR-32 Version History', () => {
       const project = await bareProject(admin, 'versions-empty');
       const floor = firstFloor(project);
       await openVersions(page, project.id, floor.id);
-      await expect(page.getByText(VH.emptyTitle(floor.name), { exact: true })).toBeVisible(); // UVH:489,603, VHV:67-74
+      await expect(page.getByText(VH.emptyTitle(floor.name), { exact: true })).toBeVisible(); // UVH:489,606, VHV:67-74
       await expect(page.getByText(VH.emptyDescription, { exact: true })).toBeVisible();
       await expect(page.getByRole('combobox', { name: VH.floorSelect, exact: true })).toContainText(floor.name); // VHV:42-55
       await expect(page.getByRole('button', { name: VH.restore, exact: true })).toHaveCount(0);
@@ -1415,7 +1415,7 @@ test.describe('E06 SCR-32 Version History', () => {
     });
   });
 
-  test('E06 · SCR-32 narrow window (768 px) → version Select "Phiên bản" replaces the list', async ({ browser }) => {
+  test('E06 · SCR-32 narrow window (768 px), floor without versions → "<floor> chưa có phiên bản nào", no "Phiên bản" Select', async ({ browser }) => {
     await withAdmin(
       browser,
       async (admin) => {
@@ -1423,10 +1423,13 @@ test.describe('E06 SCR-32 Version History', () => {
         const project = await bareProject(admin, 'versions-narrow');
         const floor = firstFloor(project);
         await openVersions(page, project.id, floor.id);
-        // UVH:490 isNarrow → 'collapsed' (before the empty check); VHV:116-124 Select instead of VersionList.
-        await expect(page.getByRole('combobox', { name: VH.narrowSelect, exact: true })).toBeVisible();
+        // BUG-473: UVH:489 'empty' is checked before UVH:490 isNarrow → 'collapsed', so 0 versions at 768 px is the empty
+        // state (VHV:67-74 inside withFloorSelect), not the "Phiên bản" Select of VHV:116-124 (covered by the diff-tabs test).
+        await expect(page.getByText(VH.emptyTitle(floor.name), { exact: true })).toBeVisible();
+        await expect(page.getByText(VH.emptyDescription, { exact: true })).toBeVisible();
+        await expect(page.getByRole('combobox', { name: VH.floorSelect, exact: true })).toBeVisible();
+        await expect(page.getByRole('combobox', { name: VH.narrowSelect, exact: true })).toHaveCount(0);
         await expect(versionList(page)).toHaveCount(0);
-        await expect(page.getByText(VH.restoreCaption, { exact: true })).toBeVisible(); // VHV:148
         await captureEvidence(page, 'E06_versions_narrow.png');
       },
       NARROW,
@@ -1444,6 +1447,7 @@ test.describe('E06 SCR-32 Version History', () => {
         await openVersions(page, project.id, floor.id);
         // VHC:67 (width < 1024px) → narrow at both widths: the "Phiên bản" Select, compare below (VHV:116-141).
         await expect(page.getByRole('combobox', { name: VH.narrowSelect, exact: true })).toBeVisible();
+        await expect(versionList(page)).toHaveCount(0); // the Select replaces the list
         await expect(page.getByRole('tablist', { name: DIFF_TABS.list, exact: true }).getByRole('tab')).toHaveCount(3); // VHX:207
         await expect(diffTab(page, DIFF_TABS.changes)).toHaveAttribute('aria-selected', 'true');
         const below = DIFF_TABS.heightBelowSm;
