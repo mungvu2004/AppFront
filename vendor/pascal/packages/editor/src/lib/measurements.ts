@@ -1,4 +1,5 @@
 import type { MeasurementPoint } from '@pascal-app/core'
+import { formatWithUnitVi } from '../i18n/format'
 
 export type LinearUnit = 'metric' | 'imperial'
 export type MetricNotation = 'meters' | 'millimeters'
@@ -153,7 +154,8 @@ export function formatAreaLabel(
 ): string {
   if (!Number.isFinite(squareMeters)) return '--'
 
-  return `${squareMetersToAreaUnit(squareMeters, unit).toFixed(fractionDigits)}${getAreaUnitLabel(unit)}`
+  const rounded = Number(squareMetersToAreaUnit(squareMeters, unit).toFixed(fractionDigits))
+  return formatWithUnitVi(rounded, getAreaUnitLabel(unit))
 }
 
 export function cubicMetersToVolumeUnit(cubicMeters: number, unit: LinearUnit): number {
@@ -171,7 +173,8 @@ export function formatVolumeLabel(
 ): string {
   if (!Number.isFinite(cubicMeters)) return '--'
 
-  return `${cubicMetersToVolumeUnit(cubicMeters, unit).toFixed(fractionDigits)}${getVolumeUnitLabel(unit)}`
+  const rounded = Number(cubicMetersToVolumeUnit(cubicMeters, unit).toFixed(fractionDigits))
+  return formatWithUnitVi(rounded, getVolumeUnitLabel(unit))
 }
 
 export function formatLinearMeasurement(

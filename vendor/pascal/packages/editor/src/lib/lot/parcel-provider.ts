@@ -5,6 +5,7 @@
  * answers that no service is available.
  */
 import { useSyncExternalStore } from 'react'
+import { libStrings as vi } from '../../i18n/regions/libStrings'
 
 export type ParcelEndpoint = 'autocomplete' | 'resolve' | 'roads' | 'elevation' | 'dossier'
 
@@ -40,4 +41,4 @@ export function useParcelProvider(): ParcelProvider | null {
   return useSyncExternalStore(subscribe, getParcelProvider, getParcelProvider)
 }
 
-export const NO_PARCEL_SERVICE = 'No parcel service is available.'
+export const NO_PARCEL_SERVICE = vi.parcelProvider.noParcelService
