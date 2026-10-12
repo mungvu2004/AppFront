@@ -776,7 +776,30 @@ describe('ProcessingScreen — màn rỗng (BUG-165)', () => {
   it('breadcrumb nêu tên dự án khi biết tên', () => {
     renderWithProviders(<ProcessingScreen {...scenarioFor('empty')} projectName="Nhà phố Quận 3" />);
 
-    expect(screen.getByRole('navigation', { name: 'Xử lý' })).toHaveTextContent('Dự án › Nhà phố Quận 3 › Xử lý');
+    expect(screen.getByRole('navigation', { name: 'Xử lý' })).toHaveTextContent('Dự án›Nhà phố Quận 3›Xử lý');
+  });
+
+  it('BUG-546: cấp "Dự án" của breadcrumb là nút về danh sách dự án', () => {
+    const onBackToProjects = vi.fn();
+    renderWithProviders(<ProcessingScreen {...scenarioFor('partial')} onBackToProjects={onBackToProjects} />);
+
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Xử lý' })).getByRole('button', { name: 'Dự án' }));
+    expect(onBackToProjects).toHaveBeenCalledTimes(1);
+  });
+
+  it('BUG-547: panel Xem trước có role region nên tên được đọc', () => {
+    renderWithProviders(<ProcessingScreen {...scenarioFor('partial')} />);
+
+    expect(screen.getByRole('region', { name: 'Xem trước bản vẽ đang xử lý' })).toBeInTheDocument();
+  });
+
+  it('BUG-554: dòng tóm tắt tiến độ nằm trong vùng role=status, ngoài hai tab', () => {
+    const props = scenarioFor('partial');
+    renderWithProviders(<ProcessingScreen {...props} />);
+
+    const status = screen.getAllByRole('status').find((node) => node.textContent?.includes(props.overallSummaryLine));
+    expect(status).toBeDefined();
+    expect(status?.closest('[role="tabpanel"]')).toBeNull();
   });
 });
 

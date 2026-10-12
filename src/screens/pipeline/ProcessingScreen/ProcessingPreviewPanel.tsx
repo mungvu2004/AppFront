@@ -73,7 +73,7 @@ export function ProcessingPreviewPanel({ prefersReducedMotion, preview }: Proces
 
   if (activeFloorId === null) {
     return (
-      <div aria-label={PANEL_LABEL} className={FRAME_CLASSES}>
+      <div aria-label={PANEL_LABEL} role="region" className={FRAME_CLASSES}>
         <EmptyState description={NO_FLOOR_DESCRIPTION} icon={<ImageOff aria-hidden="true" />} title={NO_FLOOR_TITLE} />
       </div>
     );
@@ -87,7 +87,7 @@ export function ProcessingPreviewPanel({ prefersReducedMotion, preview }: Proces
   const showStaticSweep = isScanning && prefersReducedMotion;
 
   return (
-    <div aria-label={PANEL_LABEL} className={FRAME_CLASSES}>
+    <div aria-label={PANEL_LABEL} role="region" className={FRAME_CLASSES}>
       {sourceImageUrl === undefined ? (
         <span className="px-4 text-center text-[13px] text-text-muted">{WAITING_IMAGE_LABEL}</span>
       ) : (
