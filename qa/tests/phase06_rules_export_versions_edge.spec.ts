@@ -196,6 +196,7 @@ const SJ = {
   search: 'Tìm theo khoá hoặc giá trị', // SJV:104
   previous: 'Kết quả trước', // SJV:122
   next: 'Kết quả sau', // SJV:128
+  noMatch: 'Không tìm thấy kết quả', // USJ:88 NO_MATCH_LABEL (BUG-448, was "0 / 0")
   viewMode: 'Cách hiện cấu trúc', // SJV:149
   copy: 'Sao chép nhánh đang chọn', // SJV:157
   download: 'Tải xuống .json', // SJV:241 (only with onDownload, SJV:234; the route passes none, SJC:229)
@@ -1239,7 +1240,7 @@ test.describe('E06 SCR-31 Spatial JSON Viewer', () => {
     });
   });
 
-  test('E06 · SCR-31 search a seeded room → "1 / N", its row shown; "Kết quả sau" selects it; no match → "0 / 0" and stepping does nothing', async ({ browser }) => {
+  test('E06 · SCR-31 search a seeded room → "1 / N", its row shown; "Kết quả sau" selects it; no match → "Không tìm thấy kết quả" and stepping does nothing', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
       const project = await qcProject(admin, 'data-search');
@@ -1251,7 +1252,8 @@ test.describe('E06 SCR-31 Spatial JSON Viewer', () => {
 
       const search = page.getByRole('textbox', { name: SJ.search, exact: true });
       await search.fill(SJ.room);
-      const label = page.getByText(/^\d[\d.]* \/ [\d.]+$/u); // USJ:176-187, SJV:114-118
+      // USJ:176-187, SJV:114-118: "<i> / <n>", or USJ:88 NO_MATCH_LABEL when nothing matches (BUG-448).
+      const label = page.getByText(/^\d[\d.]* \/ [\d.]+$/u).or(page.getByText(SJ.noMatch, { exact: true }));
       await expect(label).toHaveText(/^1 \/ [1-9][\d.]*$/u);
       // USJ:128-142 matches open their ancestors; SJT:74 a match row is flashed.
       const match = tree.getByRole('treeitem').filter({ hasText: new RegExp(escapeRegExp(SJ.room), 'iu') }).first();
@@ -1263,10 +1265,10 @@ test.describe('E06 SCR-31 Spatial JSON Viewer', () => {
       await captureEvidence(page, 'E06_data_search_match.png');
 
       await search.fill('qa-khong-co-khoa-nay');
-      await expect(label).toHaveText('0 / 0'); // USJ:182-184
+      await expect(label).toHaveText(SJ.noMatch); // USJ:182-184
       await page.getByRole('button', { name: SJ.previous, exact: true }).click();
       await page.getByRole('button', { name: SJ.next, exact: true }).click();
-      await expect(label).toHaveText('0 / 0');
+      await expect(label).toHaveText(SJ.noMatch);
       await captureEvidence(page, 'E06_data_search_no_match.png');
       await attachJson('E06_data_search.json', { validity, counts, query: SJ.room });
     });
