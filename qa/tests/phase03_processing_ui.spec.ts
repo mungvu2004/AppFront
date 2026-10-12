@@ -139,7 +139,8 @@ test.describe('U03 UI verify — SCR-12 processing flows (QA-03d P9)', () => {
         runs.progressOf.set(u2, { body: progress(u2, 'running', 'wallSegmentation', 20) });
         await verifyUi(page, 'U03_12-F-007_failed-floor-notice', async (p) => {
           await p.goto(pipeline);
-          await expect(p.getByText(partialNotice(f1.name), { exact: true })).toBeVisible(); // PR:284-289
+          // Floor 2 still runs → the long variant, inside the notice's own role=status (UPR:197-199,1352-1361; PR:292-296).
+          await expect(p.getByRole('status').filter({ hasText: partialNotice(f1.name) })).toBeVisible();
         });
       });
 
