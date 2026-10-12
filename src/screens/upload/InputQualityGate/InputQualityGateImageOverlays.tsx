@@ -102,13 +102,6 @@ const REGION_BORDER_CLASSES: Readonly<Record<QualityLevel, string>> = {
   poor: 'border-state-violation',
 };
 
-/** Nền rất nhạt cùng mức, để vùng đọc được cả khi ảnh nền tối. */
-const REGION_TINT_CLASSES: Readonly<Record<QualityLevel, string>> = {
-  good: 'bg-transparent',
-  attention: 'bg-state-attention-tint',
-  poor: 'bg-state-violation-tint',
-};
-
 /** Token `applyEmphasis` cầm cho mỗi mức — nó giữ nguyên token, chỉ đổi độ mờ. */
 const REGION_EMPHASIS_TOKENS: Readonly<Record<QualityLevel, ColorTokenName>> = {
   good: '--border-default',
@@ -160,8 +153,9 @@ export function ImageRegionLayer({
             className={clsx(
               'absolute rounded-[4px] transition-opacity ease-in-out',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
+              // Chỉ viền, không nền: tint đặc của token che bản vẽ mà người duyệt phải nhìn
+              // (vùng RESOLUTION_TOO_LOW phủ cả ảnh, BUG-537).
               REGION_BORDER_CLASSES[region.level],
-              REGION_TINT_CLASSES[region.level],
               isHighlighted ? 'border-2' : 'border',
             )}
             key={region.id}
