@@ -184,7 +184,7 @@ const EP = {
   pdfOptions: ['Gồm mặt bằng các tầng', 'Gồm bảng danh sách phòng', 'Gồm danh sách vi phạm', 'Gồm ảnh dựng 3D'], // EPO:144-165
   pageCount: /\d[\d.]* trang/u, // UEP:515
   imageView: 'Góc nhìn hiện tại:', // EPO:179
-  imageWidth: 'chiều rộng xuất:', // EPO:182
+  imageWidth: 'Chiều rộng xuất:', // EPO:182 (BUG-467: own line, capitalised)
   /** GLB:133-138 `YYYY-MM-DD_HH-mm-ss`. */
   stamp: '\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}',
 } as const;
