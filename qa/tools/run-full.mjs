@@ -1,0 +1,132 @@
+// One command for a phase run on the f14 stack, with the steps that were done by hand (and got forgotten):
+//   1. BE build source (backendSourceRoot) at origin/main; web image built from a commit whose tree equals HEAD
+//      outside qa/ (a qa-only commit does not need a rebuild). Either stale → `chuoi.sh build` + `up`.
+//   2. Static check: fixed waits in this phase's specs (setTimeout in a route handler, waitForTimeout) — listed,
+//      not failed; they caused FL-11-09 / CP-5 style flakes in phase 03.
+//   3. Previous phase's main chain (its .state project feeds this phase's main), then run-phase.mjs for phase NN.
+//   4. Failure table with each failing test's status in the last runs (red once among greens → "flaky?").
+// Usage (from qa/, under the stack lock):
+//   node F:/App/qa-results/tools/stack-lock.mjs node tools/run-full.mjs --phase 04 --run-id run-50 [--workers 4]
+//        [--layers main,ui,api,edge] [--grep re] [--no-prev] [--no-build] [--history 6]
+// Exit code = run-phase's. Never prunes images/volumes.
+import { spawnSync } from 'node:child_process';
+import { existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const SUITE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const REPO = resolve(SUITE, '..');
+const cfg = JSON.parse(readFileSync(join(SUITE, 'qa.config.json'), 'utf8'));
+const argv = process.argv.slice(2);
+const flag = (n) => argv.includes(`--${n}`);
+const opt = (n, d) => (argv.includes(`--${n}`) ? argv[argv.indexOf(`--${n}`) + 1] : d);
+const NN = String(opt('phase', '')).padStart(2, '0');
+const RUN_ID = opt('run-id', '');
+if (!/^\d{2}$/u.test(NN) || RUN_ID === '') {
+  console.error('usage: node tools/run-full.mjs --phase NN --run-id run-XX [--workers 4] [--layers ...] [--grep re] [--no-prev] [--no-build]');
+  process.exit(2);
+}
+const WORKERS = opt('workers', '4');
+const HISTORY = Number(opt('history', '6'));
+const F14 = 'F:/App/AppBack/backend/dieu-phoi/chay/F-14';
+// chuoi.sh builds from this detached worktree (its BE default), not from config.backendSourceRoot (the main checkout).
+const BE_SRC = 'C:/Users/mxuan/orca/workspaces/AppBack/qa-main';
+const STAMP = join(F14, '.built-be');
+
+const sh = (cmd, cwd = SUITE) => spawnSync(cmd, { cwd, shell: true, encoding: 'utf8' });
+const out = (cmd, cwd) => sh(cmd, cwd).stdout.trim();
+const live = (cmd, cwd = SUITE) => spawnSync(cmd, { cwd, shell: true, stdio: 'inherit' }).status ?? 1;
+const say = (s) => console.log(`[run-full] ${s}`);
+
+/* 1. versions */
+if (!flag('no-build')) {
+  sh('git fetch -q origin', BE_SRC);
+  const beHead = out('git rev-parse --short HEAD', BE_SRC);
+  const beMain = out('git rev-parse --short origin/main', BE_SRC);
+  if (beHead !== beMain) {
+    say(`BE build source ${beHead} ≠ origin/main ${beMain} → checkout --detach origin/main`);
+    if (sh('git checkout -q --detach origin/main', BE_SRC).status !== 0) {
+      say('BE source has local changes; fix by hand');
+      process.exit(2);
+    }
+  }
+  const builtBe = existsSync(STAMP) ? readFileSync(STAMP, 'utf8').trim() : '';
+  const label = out(`docker inspect ${cfg.versionCheck.webImage} --format "{{index .Config.Labels \\"${cfg.versionCheck.webRevisionLabel}\\"}}"`);
+  const head = out('git rev-parse --short HEAD', REPO);
+  // Same app tree as HEAD outside qa/ → the image is current even if its label is an older commit.
+  const webOk = label !== '' && sh(`git diff --quiet ${label} HEAD -- . ":(exclude)qa"`, REPO).status === 0;
+  // Only image inputs count: a docs/DEBT-only commit on main does not need a rebuild.
+  const beOk = builtBe !== '' && sh(`git diff --quiet ${builtBe} origin/main -- apps packages deploy pyproject.toml uv.lock`, BE_SRC).status === 0;
+  say(`web image ${label || '?'} (HEAD ${head}) ${webOk ? 'current' : 'STALE'}; api/worker ${builtBe || '?'} vs ${beMain} ${beOk ? 'current' : 'STALE'}`);
+  if (!webOk || !beOk) {
+    for (const d of readdirSync(F14).filter((d) => d.startsWith('web-ctx-'))) rmSync(join(F14, d), { recursive: true, force: true });
+    // chuoi.sh is Git Bash; `shell: true` is cmd.exe on Windows, so call bash directly.
+    const built = spawnSync('bash', ['-c', `WEB_SHA=${head} bash chuoi.sh build && bash chuoi.sh up`], { cwd: F14, stdio: 'inherit' });
+    if (built.status !== 0) {
+      say('build/up failed');
+      process.exit(1);
+    }
+    writeFileSync(STAMP, `${beMain}\n`);
+  }
+  const health = out(`curl -s -o /dev/null -w "%{http_code}" ${cfg.env.healthUrl}`);
+  if (health !== '200') {
+    say(`health ${health}: bring the stack up (${cfg.env.bringUp})`);
+    process.exit(1);
+  }
+}
+
+/* 2. fixed waits */
+const specs = readdirSync(join(SUITE, 'tests')).filter((f) => f.startsWith(`phase${NN}_`) && f.endsWith('.ts'));
+const waits = [];
+for (const f of specs) {
+  readFileSync(join(SUITE, 'tests', f), 'utf8')
+    .split('\n')
+    .forEach((line, i) => {
+      if (/waitForTimeout\(|setTimeout\(\s*resolve\s*,\s*\d/u.test(line) && !/fixed-wait-ok/u.test(line)) waits.push(`${f}:${i + 1}`);
+    });
+}
+if (waits.length) say(`fixed waits (flake risk; mark intended ones with "fixed-wait-ok"): ${waits.length}\n  ${waits.join('\n  ')}`);
+
+/* 3. run */
+const prev = String(Number(NN) - 1).padStart(2, '0');
+const layers = opt('layers', 'main,ui,api,edge');
+const extra = `${opt('grep', '') ? ` --grep "${opt('grep', '')}"` : ''} --layers ${layers}`;
+if (!flag('no-prev') && layers.split(',').includes('main') && Number(NN) > 1) {
+  say(`phase ${prev} main first (its .state project feeds phase ${NN} main)`);
+  if (live(`node tools/run-phase.mjs --phase ${prev} --run-id ${RUN_ID} --layers main --no-typecheck`) !== 0) say(`phase ${prev} main red — phase ${NN} main may fail on state`);
+}
+const code = live(`node tools/run-phase.mjs --phase ${NN} --run-id ${RUN_ID} --workers ${WORKERS}${extra}`);
+
+/* 4. failures with history */
+const root = cfg.resultsDir;
+const runs = readdirSync(root)
+  .filter((d) => d.startsWith('run-') && statSync(join(root, d)).isDirectory())
+  .sort((a, b) => statSync(join(root, a)).mtimeMs - statSync(join(root, b)).mtimeMs);
+const statuses = (run) => {
+  const map = new Map();
+  for (const tag of [`phase${NN}`, `phase${NN}-ui`, `phase${NN}-api`, `phase${NN}-edge`]) {
+    const file = join(root, run, tag, 'results.json');
+    if (!existsSync(file)) continue;
+    const walk = (s) => {
+      for (const x of s.suites ?? []) walk(x);
+      for (const sp of s.specs ?? []) for (const t of sp.tests) map.set(sp.title, t.results.at(-1)?.status ?? t.status);
+    };
+    try {
+      walk(JSON.parse(readFileSync(file, 'utf8')));
+    } catch {
+      /* partial run */
+    }
+  }
+  return map;
+};
+const now = statuses(RUN_ID);
+const past = runs.filter((r) => r !== RUN_ID).map((r) => statuses(r));
+const red = [...now].filter(([, s]) => s === 'failed' || s === 'timedOut');
+say(`${red.length} failing test(s) in ${RUN_ID}`);
+for (const [title, s] of red) {
+  // Last HISTORY runs that ran this test (oldest → newest): P pass, F fail, s skip.
+  const hist = past.filter((m) => m.has(title)).slice(-HISTORY).map((m) => ({ passed: 'P', skipped: 's' })[m.get(title)] ?? 'F').join('');
+  const greens = (hist.match(/P/gu) ?? []).length;
+  console.log(`  ${s === 'timedOut' ? 'T' : 'F'} [${hist}] ${greens >= 2 ? 'flaky? ' : ''}${title.slice(0, 140)}`);
+}
+process.exit(code);
