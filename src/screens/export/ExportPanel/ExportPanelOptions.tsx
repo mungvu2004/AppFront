@@ -40,8 +40,8 @@ import type {
 } from './types';
 
 const DETAIL_OPTIONS: { label: string; value: ExportDetailChoice }[] = [
-  { label: 'cao', value: 'high' },
-  { label: 'vừa', value: 'medium' },
+  { label: 'Cao', value: 'high' },
+  { label: 'Vừa', value: 'medium' },
   { label: 'Gọn', value: 'low' },
 ];
 
