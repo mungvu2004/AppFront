@@ -7,7 +7,7 @@ import { lazy, type ReactNode, Suspense, useState, useSyncExternalStore } from '
 import { editorHostPanelRegistry, pluginInstallLocks } from '../../../../lib/plugin-panels'
 import { IconRefImage } from '../../icon-ref'
 import { Button } from '../../primitives/button'
-import { primitivesAndSidebar as vi } from '../../../i18n/regions/primitivesAndSidebar'
+import { primitivesAndSidebar as vi } from '../../../../i18n/regions/primitivesAndSidebar'
 
 const PLUGIN_AUTHORING_URL =
   'https://editor.pascal.app/docs/developers/plugins'
