@@ -168,6 +168,8 @@ const tablist = (page: Page): Locator => page.getByRole('tablist', { name: SETTI
 /** A tab by its label; the accessible name may carry a problem badge after it (TABS:141-152). */
 const tab = (page: Page, label: string): Locator => tablist(page).getByRole('tab', { name: new RegExp(`^${escapeRegExp(label)}`, 'u') });
 const failureBox = (page: Page): Locator => page.getByRole('alert').filter({ hasText: SAVE_FAILURE_TITLE });
+/** Alerts of the screen itself: the app announcer keeps a hidden `role="alert"` region on every page (announcer.ts). */
+const screenAlerts = (page: Page): Locator => page.getByRole('alert').and(page.locator(':not([data-announcer])'));
 const conflictStrip = (page: Page): Locator => page.getByRole('alert').filter({ hasText: CONFLICT_TITLE });
 const horizontalOverflow = (page: Page): Promise<number> =>
   page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -433,7 +435,7 @@ test.describe('E03 SCR-08 project settings — real flows (QA-03d P1)', () => {
         const patch = waitForApi(page, 'PATCH', projectRe(pid), [200]);
         await name.fill('abc');
         expect(sentJson(await patch, 'PATCH').name).toBe('abc');
-        await expect(page.getByRole('alert')).toHaveCount(0);
+        await expect(screenAlerts(page)).toHaveCount(0);
       });
 
       await test.step('[08-C-004] maxlength 80; an 80-character name → PATCH 200, field keeps 80 chars', async () => {
@@ -721,7 +723,7 @@ test.describe('E03 SCR-08 project settings — real flows (QA-03d P1)', () => {
         ]);
         await quiet(page);
         await expect.soft(code).toHaveValue('');
-        await expect.soft(page.getByRole('alert')).toHaveCount(0);
+        await expect.soft(screenAlerts(page)).toHaveCount(0);
         expect.soft(countSince(log, mark, 'PATCH', projectRe(pid)), 'empty code is not sent').toBe(0);
       });
 
@@ -915,7 +917,7 @@ test.describe('E03 SCR-08 project settings — real flows (QA-03d P1)', () => {
         await expect.soft(confidence).toHaveValue('1');
         await quiet(page);
         expect.soft(countSince(log, mark, 'PUT', settingsRe(pid))).toBe(0);
-        await expect.soft(page.getByRole('alert')).toHaveCount(0);
+        await expect.soft(screenAlerts(page)).toHaveCount(0);
       });
 
       await test.step('[08-C-027] "0,7555" → one PUT; server 0.756 adopted, hint "76%"; no second PUT', async () => {
