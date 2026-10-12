@@ -1176,18 +1176,19 @@ test.describe('E04 SCR-20 room label review', () => {
       await page.getByRole('button', { name: ROOM.normalize, exact: true }).click();
       const dialog = page.getByRole('dialog', { name: ROOM.normalizeDialog, exact: true });
       await expect(dialog).toBeVisible();
-      // RG canonicalRoomName: key "phong ngu" → ROOM_USAGE_LABELS.bedroom "phòng ngủ" (domain/rules/registry.ts:423) + ordinal.
-      await expect(dialog.getByText('phòng ngủ 2', { exact: true })).toBeVisible();
+      // RG:1067-1083 canonicalRoomName: key "phong ngu" → ROOM_NAME_TARGETS (RG:1021, sentenceCase of
+      // ROOM_USAGE_LABELS.bedroom) "Phòng ngủ" + ordinal.
+      await expect(dialog.getByText('Phòng ngủ 2', { exact: true })).toBeVisible();
       await expect(dialog.getByText('PHONG NGU 2', { exact: true })).toBeVisible();
       await captureEvidence(page, 'E04_rooms_normalize_preview.png');
 
       const put = waitForLayerPut(page, project, (body) =>
-        arrayOf(asRecord(body.layer, 'layer').rooms, 'rooms').some((room) => room.name === 'phòng ngủ 2'),
+        arrayOf(asRecord(body.layer, 'layer').rooms, 'rooms').some((room) => room.name === 'Phòng ngủ 2'),
       );
       await dialog.getByRole('button', { name: ROOM.apply, exact: true }).click();
       expect((await put).response.status(), 'normalize PUT').toBe(200);
       await expect(dialog).toHaveCount(0);
-      await expect(roomOptions(page).first()).toHaveAccessibleName(/ · phòng ngủ 2 · /u); // RoomLabelList.tsx:70
+      await expect(roomOptions(page).first()).toHaveAccessibleName(/ · Phòng ngủ 2 · /u); // RoomLabelList.tsx:70
       await captureEvidence(page, 'E04_rooms_normalize_applied.png');
     });
   });

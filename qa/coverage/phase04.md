@@ -158,7 +158,7 @@ Path short names: `W/` = `src/screens/qc/WallLayerReview/`, `O/` = `…/ObjectLa
 | 111 | Select | "Công năng" | `R/RoomLabelInspector.tsx:83` | M SCR-20 edit | covered |
 | 112 | Button | "Duyệt phòng này" | `R/RoomLabelInspector.tsx:85,159` | M SCR-20 edit | covered |
 | 113 | Modal | "Chuẩn hoá tên" → "Xem trước chuẩn hoá tên", Huỷ / Đóng | `R/RoomLabelNormalizePreview.tsx:35-46` | M SCR-20 modals | covered |
-| 114 | Modal | normalize preview "Áp dụng" → PUT canonical name ("phòng ngủ 2") | `R/roomLabelReviewGateway.ts:1009-1066`, `domain/rules/registry.ts:421-430` | E "SCR-20 Chuẩn hoá tên …" | covered |
+| 114 | Modal | normalize preview "Áp dụng" → PUT canonical name ("Phòng ngủ 2", sentence case, BUG-409) | `R/roomLabelReviewGateway.ts:1021,1067-1083`, `domain/rules/registry.ts:421-430` | E "SCR-20 Chuẩn hoá tên …" | covered |
 | 115 | Modal | "Gộp phòng" → "Gộp hai phòng", Huỷ | `R/RoomLabelActionDialogs.tsx:25-30` | M SCR-20 modals | covered |
 | 116 | Modal | single room → "Không còn phòng nào khác ở tầng này để gộp.", Esc closes | `R/RoomLabelActionDialogs.tsx:28` | E "SCR-20 Gộp phòng with a single room" | covered |
 | 117 | Modal | merge / split refusals "Chưa gộp được: …", "Chưa tách được: …" | `R/roomLabelReviewGateway.ts:232-241` | — | gap (P2; needs a dividing wall geometry) |
