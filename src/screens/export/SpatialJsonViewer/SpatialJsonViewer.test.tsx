@@ -250,6 +250,24 @@ describe('Bảy trạng thái', () => {
     unmount();
   });
 
+  it('[BUG-450] thu gọn + "Thô" thay cây bằng khung JSON / Xem trước, hai tab đều bấm được', () => {
+    const props = buildSpatialJsonViewerProps('collapsed');
+    const onChangeTab = vi.fn();
+    const { unmount } = renderWithProviders(
+      <SpatialJsonViewer
+        actions={{ ...props.actions, onChangeTab }}
+        model={{ ...props.model, viewMode: 'raw', activeTabId: 'json' }}
+      />,
+    );
+
+    expect(screen.queryByRole('tree', { name: 'Cấu trúc dữ liệu không gian' })).toBeNull();
+    const tabs = screen.getByRole('tablist', { name: 'Cách xem nội dung' });
+    fireEvent.click(within(tabs).getByRole('tab', { name: 'Xem trước' }));
+    expect(onChangeTab).toHaveBeenCalledWith('preview');
+
+    unmount();
+  });
+
   it('trạng thái một phần vẫn hiện dữ liệu, kèm một câu nói rõ đang làm mới', () => {
     renderWithProviders(<SpatialJsonViewer {...buildSpatialJsonViewerProps('partial')} />);
 

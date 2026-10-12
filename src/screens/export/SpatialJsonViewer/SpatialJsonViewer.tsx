@@ -8,8 +8,8 @@
  * ## Bố cục ở 1440
  *
  * Thanh trên 56 · dải kiểm tra hợp lệ · cây trái 400 · nửa phải co giãn · chân
- * 32. Dưới 1024 thì nửa phải ẩn hẳn và cây chiếm trọn chiều rộng — đó cũng là
- * trạng thái "thu gọn" của A11, không phải một chế độ thứ hai.
+ * 32. Dưới 1024 chỉ một khung chiếm trọn chiều rộng — cây khi "Cây", khung JSON /
+ * Xem trước khi "Thô" — đó cũng là trạng thái "thu gọn" của A11, không phải một chế độ thứ hai.
  *
  * ## Màn này không có nút Lưu, và cũng không có nút Sửa
  *
@@ -56,6 +56,7 @@ function ValidityDot({ isValid }: { readonly isValid: boolean }) {
 
 export function SpatialJsonViewer({ actions, model }: SpatialJsonViewerProps) {
   const selectedNode = model.nodes.find((node) => node.id === model.selectedNodeId) ?? null;
+  const isRawOnly = model.isNarrow && model.viewMode === 'raw';
 
   if (model.state === 'forbidden') {
     return (
@@ -174,37 +175,40 @@ export function SpatialJsonViewer({ actions, model }: SpatialJsonViewerProps) {
       ) : null}
 
       <div className="flex min-h-0 flex-1 gap-3 px-3 pb-3">
-        <section
-          aria-label="Cấu trúc dự án"
-          className={`min-h-0 overflow-auto rounded-[12px] bg-bg-surface ${
-            model.isNarrow ? 'flex-1' : 'w-[400px] shrink-0'
-          }`}
-        >
-          {model.state === 'loading' ? (
-            <div className="p-5">
-              <Skeleton preset="property-panel" />
-            </div>
-          ) : model.state === 'empty' ? (
-            <div className="flex h-full items-center justify-center p-5">
-              <EmptyState
-                icon={<div className="h-8 w-8 rounded-full bg-bg-sunken" aria-hidden="true" />}
-                title={EMPTY_TITLE}
-                description={EMPTY_DESCRIPTION}
+        {/* Dưới 1024 chỉ có chỗ cho một khung: "Thô" đổi cây lấy khung JSON / Xem trước (BUG-450). */}
+        {isRawOnly ? null : (
+          <section
+            aria-label="Cấu trúc dự án"
+            className={`min-h-0 overflow-auto rounded-[12px] bg-bg-surface ${
+              model.isNarrow ? 'flex-1' : 'w-[400px] shrink-0'
+            }`}
+          >
+            {model.state === 'loading' ? (
+              <div className="p-5">
+                <Skeleton preset="property-panel" />
+              </div>
+            ) : model.state === 'empty' ? (
+              <div className="flex h-full items-center justify-center p-5">
+                <EmptyState
+                  icon={<div className="h-8 w-8 rounded-full bg-bg-sunken" aria-hidden="true" />}
+                  title={EMPTY_TITLE}
+                  description={EMPTY_DESCRIPTION}
+                />
+              </div>
+            ) : (
+              <SpatialJsonTree
+                nodes={model.nodes}
+                selectedNodeId={model.selectedNodeId}
+                onToggle={actions.onToggleNode}
+                onSelect={actions.onSelectNode}
               />
-            </div>
-          ) : (
-            <SpatialJsonTree
-              nodes={model.nodes}
-              selectedNodeId={model.selectedNodeId}
-              onToggle={actions.onToggleNode}
-              onSelect={actions.onSelectNode}
-            />
-          )}
-        </section>
+            )}
+          </section>
+        )}
 
-        {model.isNarrow ? null : (
+        {model.isNarrow && !isRawOnly ? null : (
           <SpatialJsonDetail
-            activeTabId={model.viewMode === 'raw' ? 'json' : model.activeTabId}
+            activeTabId={model.viewMode === 'raw' && !isRawOnly ? 'json' : model.activeTabId}
             onChangeTab={actions.onChangeTab}
             rawText={model.rawText}
             selectedNode={selectedNode}
