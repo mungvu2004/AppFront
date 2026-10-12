@@ -37,7 +37,7 @@ import { subscribeWallBuildInteractions } from '../../systems/wall/wall-build-li
 import { ImmersiveXRPresentationProvider } from '../../xr/presentation-context'
 import { SceneRenderer } from '../renderers/scene-renderer'
 import { BATCH_SPIKE_ENABLED, BatchedMeshSpike } from './batched-mesh-spike'
-import FrameLimiter from './frame-limiter'
+import FrameLimiter, { setViewerSceneSettled } from './frame-limiter'
 import { Lights } from './lights'
 import { PerfMonitor } from './perf-monitor'
 import { PerfPanel } from './perf-panel'
@@ -360,6 +360,7 @@ function SceneReadyTracker({
     waitedFramesRef.current = 0
     waitStartRef.current = null
     onSceneReadyChangeRef.current?.(false)
+    setViewerSceneSettled(false)
     invalidate()
   }, [invalidate, sceneReadyKey])
 
@@ -389,6 +390,9 @@ function SceneReadyTracker({
     }
 
     readyRef.current = true
+    // The frame limiter gates frames only from here on: the first build needs
+    // every frame (see frame-limiter.tsx `sceneSettled`).
+    setViewerSceneSettled(true)
     onSceneReadyChangeRef.current(true)
   }, 10)
 
@@ -655,9 +659,9 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
         ref={subscribeWallBuildInteractions}
         key={immersiveActive ? 'webgl-xr' : 'webgpu'}
         camera={{ position: [50, 50, 50], fov: 50 }}
-        className={`transition-colors duration-700 ${
+        className={
           transparentBackground ? 'bg-transparent' : isDark ? 'bg-[#1f2433]' : 'bg-[#fafafa]'
-        }`}
+        }
         dpr={[1, maxDpr]}
         events={pointerEvents}
         frameloop="never"
