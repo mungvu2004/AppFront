@@ -180,6 +180,19 @@ describe('[VS-2] vai Người xem', () => {
   });
 });
 
+describe('[BUG-385] khung nhìn giữ cử chỉ của nó khi vỏ cuộn được (dưới lg)', () => {
+  it('lăn chuột trên khung nhìn chặn cuộn trang; kéo ngón không bị cuộn nuốt', () => {
+    renderState('success');
+    const viewport = screen.getByRole('main', { name: 'Khung nhìn mô hình' });
+    const wheel = new WheelEvent('wheel', { cancelable: true, bubbles: true, deltaY: 100 });
+
+    viewport.dispatchEvent(wheel);
+
+    expect(wheel.defaultPrevented).toBe(true);
+    expect(viewport).toHaveClass('touch-none');
+  });
+});
+
 describe('[A11y] hướng của hai ray theo bố cục thật (QA-05)', () => {
   afterEach(() => {
     vi.unstubAllGlobals();

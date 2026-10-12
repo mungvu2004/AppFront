@@ -26,7 +26,7 @@
  * `local/no-raw-duration` không có gì để bắt.
  */
 
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { cn } from '@/lib/utils';
@@ -83,6 +83,27 @@ export function ViewerViewport({
   hoverPointPx,
   children,
 }: ViewerViewportProps) {
+  const viewportRef = useRef<HTMLElement>(null);
+
+  /* Dưới `lg` vỏ cuộn dọc, nên một nấc lăn trên mô hình vừa thu phóng vừa cuộn
+     trang. `onWheel` của React gắn dạng passive, không chặn được — gắn listener
+     gốc `passive: false` để thu phóng là việc DUY NHẤT nấc lăn làm (BUG-385). */
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (viewport === null) {
+      return undefined;
+    }
+    const listener = (event: WheelEvent): void => {
+      event.preventDefault();
+      onWheel(Math.sign(event.deltaY));
+    };
+    viewport.addEventListener('wheel', listener, { passive: false });
+
+    return (): void => {
+      viewport.removeEventListener('wheel', listener);
+    };
+  }, [onWheel]);
+
   return (
     <main
       /* Tín hiệu dương "cảnh chưa sẵn sàng" cho trình đọc màn hình và e2e
@@ -90,7 +111,8 @@ export function ViewerViewport({
       aria-busy={state === 'loading'}
       aria-label="Khung nhìn mô hình"
       className={cn(
-        'relative min-w-0 flex-1 overflow-hidden bg-canvas-3d',
+        /* `touch-none`: kéo ngón để xoay không bị cuộn trang nuốt (`pointercancel`). */
+        'relative min-w-0 flex-1 touch-none overflow-hidden bg-canvas-3d',
         /* Dưới `lg` vỏ cuộn dọc nên khung nhìn tự mang chiều cao; từ `lg` nó kéo
            theo dòng ba cột và giữ bề ngang tối thiểu cũ (BUG-369, BUG-385). */
         'h-[60vh] min-h-[320px] max-md:flex-none lg:h-auto lg:min-h-0 lg:min-w-[480px]',
@@ -109,9 +131,7 @@ export function ViewerViewport({
         onPointerMove(pointOf(event), event.buttons);
       }}
       onPointerUp={onPointerUp}
-      onWheel={(event): void => {
-        onWheel(Math.sign(event.deltaY));
-      }}
+      ref={viewportRef}
       style={{
         borderRadius: VIEWER_LAYOUT.viewportRadiusPx,
         margin: VIEWER_LAYOUT.viewportInsetPx,
