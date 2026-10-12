@@ -18,7 +18,8 @@ calls the versions API.
 (QA-03d)", one rule per test ("depth …" below). Run `run-32-p03api` (headless, `QA_SKIP_INVITES=1`):
 46 passed, 2 failed, 1 skipped — both failures were test bugs (fixed: the S1 revoked-session code is `SESSION_REVOKED`;
 the racy `QUALITY_DRAWING_CHANGED` test was removed, see gap 2); re-run `run-32-p03api/phase03-rerun-api` 7/7 passed and
-`phase03-rerun2-api` (the two strengthened quality tests). "roles" is skipped in run-32 because the caller reported the
+`phase03-rerun2-api` 2/2 (the two strengthened quality tests). **Final full run after the fixes:
+`run-32-p03api/phase03-final-api` — 47 passed, 1 skipped ("roles"), 0 failed, evidence ok.** "roles" is skipped in run-32 because the caller reported the
 `users_invite` bucket at its hourly cap (no invitation was sent); its QA-03d rows are written but not yet executed.
 Re-checked in run-18: `git log -1 -- apps/api/{projects,project_settings,floors,drawings,streams,quality,files,core} packages`
 -> bf83f815 itself, whose diff touches only `apps/api/notifications` + docs, so the inventory below (first written on this
