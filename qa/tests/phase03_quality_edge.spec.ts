@@ -336,7 +336,8 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
       await test.step('[11-C-025] skew line through the centre at the measured angle', async () => {
         const line = imagePanel(page).locator('svg[preserveAspectRatio="none"] line'); // IQO:219-234 (icons have their own lines)
         const rad = (m.skewDeg * Math.PI) / 180;
-        const want = { x1: (0.5 - Math.cos(rad) * 0.4) * 100, y1: (0.5 - Math.sin(rad) * 0.4) * 100, x2: (0.5 + Math.cos(rad) * 0.4) * 100, y2: (0.5 + Math.sin(rad) * 0.4) * 100 };
+        // QA-03f (T3): BUG-538 flipped the y half: halfHeight = -sin (useInputQualityGate.ts:985-993), drawn as-is (IQO:229-232).
+        const want = { x1: (0.5 - Math.cos(rad) * 0.4) * 100, y1: (0.5 + Math.sin(rad) * 0.4) * 100, x2: (0.5 + Math.cos(rad) * 0.4) * 100, y2: (0.5 - Math.sin(rad) * 0.4) * 100 };
         const got: Record<string, number> = {};
         for (const k of ['x1', 'y1', 'x2', 'y2'] as const) {
           got[k] = parseFloat((await line.getAttribute(k)) ?? 'NaN');
@@ -344,7 +345,7 @@ test.describe('E03 SCR-11 input quality gate — flows (QA-03d P7)', () => {
         }
         await captureEvidence(page, 'E03_11-C-025_skew_line.png', { caption: `line ${JSON.stringify(got)}` });
         // BE estimate_skew: +d° = the drawing turned counter-clockwise (preprocess/geometry.py SkewEstimate), so its walls
-        // RISE to the right; with y down the overlay must end higher than it starts. Source draws 0.5 ± sin → mirrored.
+        // RISE to the right; with y down the overlay must end higher than it starts (source draws 0.5 ∓ sin since BUG-538).
         expect.soft(Math.sign((got.y1 ?? 0) - (got.y2 ?? 0)), 'skew line leans the same way as the drawing').toBe(Math.sign(m.skewDeg));
       });
 
