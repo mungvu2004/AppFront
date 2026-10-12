@@ -111,47 +111,56 @@ function ObjectLayerListRow({
       role="option"
       tabIndex={0}
     >
+      {/*
+        Dòng một: mã + kích thước ĐỦ chữ. Thanh độ tin cậy xuống dòng hai cạnh tường chủ: chung
+        một dòng với nó, kích thước 1440 bị cắt còn "900 x 2…" (BUG-400). `title` cho khổ hẹp hơn nữa.
+      */}
       <div className="flex items-center gap-2">
         <span className="w-14 shrink-0 truncate font-mono text-text-primary">{row.codeLabel}</span>
-        <span className="min-w-0 flex-1 truncate font-mono tabular-nums text-text-secondary">
+        <span
+          className="min-w-0 flex-1 truncate font-mono tabular-nums text-text-secondary"
+          title={row.sizeLabel}
+        >
           {row.sizeLabel}
         </span>
-        <ConfidenceMeter noTooltip value={row.confidence} />
+      </div>
+
+      <div className="flex items-center gap-2">
+        {/*
+          Tường chủ. `null` không bao giờ vẽ ra một ô trống: một đối tượng không
+          gắn vào tường nào là một việc phải làm, không phải một trường thiếu.
+        */}
+        {row.isOrphan ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="attention">{ORPHAN_BADGE}</Badge>
+            <button
+              className={cn(
+                'rounded-[6px] px-1.5 py-0.5 text-[12px] text-accent',
+                'transition-colors duration-120 hover:bg-accent-wash',
+                'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+              )}
+              onClick={(event) => {
+                /* Bấm hành động KHÔNG kéo theo một lượt chọn dòng ngoài ý muốn. */
+                event.stopPropagation();
+                onAttachToNearestWall(row.id);
+              }}
+              type="button"
+            >
+              {ATTACH_ACTION}
+            </button>
+          </div>
+        ) : row.hostWallLabel === null ? (
+          <span className="text-[12px] text-text-muted">{FREE_STANDING}</span>
+        ) : (
+          <span className="font-mono text-[12px] text-text-muted">{row.hostWallLabel}</span>
+        )}
+        <ConfidenceMeter className="ml-auto" noTooltip value={row.confidence} />
         <span
           aria-hidden="true"
           className={cn('h-1.5 w-1.5 shrink-0 rounded-full', STATUS_DOT_TOKEN[row.statusCode])}
           title={STATUS_LABEL[row.statusCode]}
         />
       </div>
-
-      {/*
-        Tường chủ. `null` không bao giờ vẽ ra một ô trống: một đối tượng không
-        gắn vào tường nào là một việc phải làm, không phải một trường thiếu.
-      */}
-      {row.isOrphan ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="attention">{ORPHAN_BADGE}</Badge>
-          <button
-            className={cn(
-              'rounded-[6px] px-1.5 py-0.5 text-[12px] text-accent',
-              'transition-colors duration-120 hover:bg-accent-wash',
-              'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-            )}
-            onClick={(event) => {
-              /* Bấm hành động KHÔNG kéo theo một lượt chọn dòng ngoài ý muốn. */
-              event.stopPropagation();
-              onAttachToNearestWall(row.id);
-            }}
-            type="button"
-          >
-            {ATTACH_ACTION}
-          </button>
-        </div>
-      ) : row.hostWallLabel === null ? (
-        <span className="text-[12px] text-text-muted">{FREE_STANDING}</span>
-      ) : (
-        <span className="font-mono text-[12px] text-text-muted">{row.hostWallLabel}</span>
-      )}
     </div>
   );
 }
