@@ -57,6 +57,13 @@ export interface HttpRequestOptions<TBody = undefined> {
   headers?: HeadersInit;
   idempotencyKey?: string;
   idempotent?: boolean;
+  /**
+   * A 429 comes back at once, with `retryAfterSeconds`, instead of riding the retry ladder.
+   * For a write a person just clicked: the screen states the limit and locks the button now,
+   * not after the ladder's waits (BUG-510). Off by default — writes the app sends by itself
+   * (offline replay, background jobs) keep waiting the limit out.
+   */
+  failFastOnRateLimit?: boolean;
   disableSingleFlight?: boolean;
   query?: Record<string, QueryParamValue>;
   responseType?: HttpResponseType;

@@ -272,6 +272,39 @@ describe('http/client.ts', () => {
     expect(result.error).toMatchObject({ code: 'RATE_LIMITED', kind: 'http', retryAfterSeconds: 5, status: 429 });
   });
 
+  // BUG-510 (decided in QA-03e R): a write a person clicked gets the 429 back at once, so the
+  // screen states the limit and locks its button now; without the flag the ladder still waits.
+  it('a keyed write with failFastOnRateLimit answers its 429 on the first try; without it the ladder retries', async () => {
+    const rateLimited = (): Promise<Response> =>
+      Promise.resolve(
+        new Response(JSON.stringify({ code: 'RATE_LIMITED' }), {
+          headers: { 'Content-Type': 'application/json', 'Retry-After': '1' },
+          status: 429,
+        }),
+      );
+    const fastFetch = vi.fn(rateLimited);
+    const fast = createHttpClient({ baseUrl: 'https://api.example.com', fetchImpl: fastFetch });
+
+    const result = await fast.post('/projects/p/members', {
+      body: { email: 'a@b.c' },
+      failFastOnRateLimit: true,
+      idempotencyKey: 'k-1',
+    });
+
+    expect(fastFetch).toHaveBeenCalledTimes(1);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toMatchObject({ code: 'RATE_LIMITED', kind: 'http', retryAfterSeconds: 1, status: 429 });
+
+    const ladderFetch = vi.fn(rateLimited);
+    const ladder = createHttpClient({ baseUrl: 'https://api.example.com', fetchImpl: ladderFetch });
+    const pending = ladder.post('/projects/p/members', { body: { email: 'a@b.c' }, idempotencyKey: 'k-2' });
+    await vi.advanceTimersByTimeAsync(15_000);
+    await pending;
+
+    expect(ladderFetch.mock.calls.length).toBeGreaterThan(1);
+  });
+
   // BUG-514: React Query's cancelRefetch aborted the flight's initiator while its body was
   // still streaming; the read failed as `parse`, and the refetch that had joined the flight
   // kept that phantom error — "Không đọc được danh sách tầng" over a healthy 200.

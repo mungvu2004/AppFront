@@ -229,7 +229,11 @@ describe('thành viên trong useProjectSettings', () => {
 
     await addEmail(hook, ' Newcomer@Example.com ');
 
-    expect(server.membersAdd.mock.calls[0]?.[0]).toMatchObject({ email: 'newcomer@example.com' });
+    // BUG-510: the click's 429 must come back at once — the add opts out of the client's 429 ladder.
+    expect(server.membersAdd.mock.calls[0]?.[0]).toMatchObject({
+      email: 'newcomer@example.com',
+      failFastOnRateLimit: true,
+    });
     expect(hook.onToast).toHaveBeenCalledTimes(1);
 
     const toast = hook.onToast.mock.calls[0]?.[0] as { message: string; onUndo?: () => void };
