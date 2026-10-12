@@ -4,6 +4,7 @@ import { type SceneMaterialId } from '@pascal-app/core'
 import { Eraser, Plus, RotateCcw } from 'lucide-react'
 import { useState } from 'react'
 import { useMaterialPaintPanelModel } from '../../../lib/material-paint-panel-model'
+import { controlsAndPanels as vi } from '../../../i18n/regions/controlsAndPanels'
 import { Button } from '../primitives/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../primitives/tooltip'
 import { MaterialPicker } from './material-picker'
@@ -38,7 +39,7 @@ export function MaterialPaintPanel({ onCreateMaterialRequest }: MaterialPaintPan
           variant={paintEraser ? 'default' : 'outline'}
         >
           <Eraser />
-          Erase
+          {vi.materialPaintPanel.erase}
         </Button>
         <Button
           className="flex-1"
@@ -48,7 +49,7 @@ export function MaterialPaintPanel({ onCreateMaterialRequest }: MaterialPaintPan
           variant="outline"
         >
           <RotateCcw />
-          Reset all
+          {vi.materialPaintPanel.resetAll}
         </Button>
       </div>
 
@@ -67,12 +68,12 @@ export function MaterialPaintPanel({ onCreateMaterialRequest }: MaterialPaintPan
       <div className="mt-2 shrink-0 space-y-1.5 border-border/60 border-t pt-2">
         <div className="flex items-center justify-between">
           <span className="font-medium text-muted-foreground text-xs uppercase tracking-[0.12em]">
-            Scene materials
+            {vi.materialPaintPanel.sceneMaterials}
           </span>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                aria-label="Add material"
+                aria-label={vi.materialPaintPanel.addMaterial}
                 onClick={createCustomMaterial}
                 size="icon-sm"
                 type="button"
@@ -81,7 +82,7 @@ export function MaterialPaintPanel({ onCreateMaterialRequest }: MaterialPaintPan
                 <Plus />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Add material</TooltipContent>
+            <TooltipContent>{vi.materialPaintPanel.addMaterial}</TooltipContent>
           </Tooltip>
         </div>
         <div className="subtle-scrollbar max-h-56 overflow-y-auto">
@@ -89,7 +90,7 @@ export function MaterialPaintPanel({ onCreateMaterialRequest }: MaterialPaintPan
             <SceneMaterialList autoEditId={autoEditMaterialId} />
           ) : (
             <p className="px-0.5 py-1 text-muted-foreground text-xs">
-              No custom materials yet — add one with +.
+              {vi.materialPaintPanel.noCustomMaterials}
             </p>
           )}
         </div>

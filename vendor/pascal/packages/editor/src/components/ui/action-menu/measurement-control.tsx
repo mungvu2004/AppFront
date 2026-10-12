@@ -23,15 +23,16 @@ import type { CreatableMeasurementKind } from '../../../lib/measurement-kind'
 import { cn } from '../../../lib/utils'
 import useEditor from '../../../store/use-editor'
 import useFloorplanMode from '../../../store/use-floorplan-mode'
+import { controlsAndPanels as vi } from '../../../i18n/regions/controlsAndPanels'
 import { Popover, PopoverContent, PopoverTrigger } from '../primitives/popover'
 import { ActionButton } from './action-button'
 
 const measurementOptions = [
-  { kind: 'distance', label: 'Distance', icon: Ruler },
-  { kind: 'angle', label: 'Angle', icon: Triangle },
-  { kind: 'area', label: 'Area', icon: Square },
-  { kind: 'perimeter', label: 'Perimeter', icon: Waypoints },
-  { kind: 'volume', label: 'Volume', icon: Box },
+  { kind: 'distance', label: vi.measurementControl.distance, icon: Ruler },
+  { kind: 'angle', label: vi.measurementControl.angle, icon: Triangle },
+  { kind: 'area', label: vi.measurementControl.area, icon: Square },
+  { kind: 'perimeter', label: vi.measurementControl.perimeter, icon: Waypoints },
+  { kind: 'volume', label: vi.measurementControl.volume, icon: Box },
 ] as const satisfies readonly {
   kind: CreatableMeasurementKind
   label: string
@@ -39,20 +40,20 @@ const measurementOptions = [
 }[]
 
 const measurementMenuOptions = [
-  { kind: 'smart', label: 'Smart', icon: ScanSearch },
+  { kind: 'smart', label: vi.measurementControl.smart, icon: ScanSearch },
   ...measurementOptions,
 ] as const
 
 const constructionDimensionOptions = [
-  { mode: 'linear', chainMode: 'point-to-point', label: 'Linear dimension', icon: Ruler },
-  { mode: 'linear', chainMode: 'continuous', label: 'Continuous dimension', icon: Waypoints },
-  { mode: 'radius', chainMode: 'point-to-point', label: 'Radius dimension', icon: CircleIcon },
-  { mode: 'diameter', chainMode: 'point-to-point', label: 'Diameter dimension', icon: CircleIcon },
-  { mode: 'center-mark', chainMode: 'point-to-point', label: 'Center mark', icon: Crosshair },
-  { mode: 'chord', chainMode: 'point-to-point', label: 'Chord dimension', icon: Minus },
-  { mode: 'arc-length', chainMode: 'point-to-point', label: 'Arc length', icon: CircleIcon },
-  { mode: 'angular', chainMode: 'point-to-point', label: 'Angular dimension', icon: Triangle },
-  { mode: 'coordinate', chainMode: 'continuous', label: 'Coordinate dimensions', icon: Grid2X2 },
+  { mode: 'linear', chainMode: 'point-to-point', label: vi.measurementControl.linearDimension, icon: Ruler },
+  { mode: 'linear', chainMode: 'continuous', label: vi.measurementControl.continuousDimension, icon: Waypoints },
+  { mode: 'radius', chainMode: 'point-to-point', label: vi.measurementControl.radiusDimension, icon: CircleIcon },
+  { mode: 'diameter', chainMode: 'point-to-point', label: vi.measurementControl.diameterDimension, icon: CircleIcon },
+  { mode: 'center-mark', chainMode: 'point-to-point', label: vi.measurementControl.centerMark, icon: Crosshair },
+  { mode: 'chord', chainMode: 'point-to-point', label: vi.measurementControl.chordDimension, icon: Minus },
+  { mode: 'arc-length', chainMode: 'point-to-point', label: vi.measurementControl.arcLength, icon: CircleIcon },
+  { mode: 'angular', chainMode: 'point-to-point', label: vi.measurementControl.angularDimension, icon: Triangle },
+  { mode: 'coordinate', chainMode: 'continuous', label: vi.measurementControl.coordinateDimensions, icon: Grid2X2 },
 ] as const satisfies readonly {
   mode: ConstructionDimensionMode
   chainMode: ConstructionDimensionChainMode
@@ -98,9 +99,9 @@ export function MeasurementControl() {
       ? ScanSearch
       : selectedOption.icon
   const selectedLabel = isConstructionDimensionActive
-    ? (activeConstructionDimensionOption?.label ?? 'Linear dimension')
+    ? (activeConstructionDimensionOption?.label ?? vi.measurementControl.linearDimension)
     : isSmartActive
-      ? 'Smart'
+      ? vi.measurementControl.smart
       : selectedOption.label
 
   const activateMeasurement = (kind: CreatableMeasurementKind) => {
@@ -148,7 +149,7 @@ export function MeasurementControl() {
     <Popover onOpenChange={setIsOpen} open={isOpen}>
       <div className="flex items-center">
         <ActionButton
-          aria-label={`Measure: ${selectedLabel}`}
+          aria-label={vi.measurementControl.measure(selectedLabel)}
           aria-pressed={isControlActive}
           className={cn(
             'rounded-r-none p-0 text-muted-foreground',
@@ -156,7 +157,7 @@ export function MeasurementControl() {
               ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20'
               : 'hover:bg-cyan-500/15 hover:text-cyan-400',
           )}
-          label={`Measure: ${selectedLabel}`}
+          label={vi.measurementControl.measure(selectedLabel)}
           onClick={handlePrimaryClick}
           shortcut="M"
           size="icon"
@@ -169,7 +170,7 @@ export function MeasurementControl() {
           <button
             aria-expanded={isOpen}
             aria-haspopup="menu"
-            aria-label="Measurement options"
+            aria-label={vi.measurementControl.measurementOptions}
             className={cn(
               'flex h-11 w-6 items-center justify-center rounded-r-lg text-muted-foreground transition-colors',
               isOpen
@@ -192,7 +193,7 @@ export function MeasurementControl() {
         side="top"
         sideOffset={14}
       >
-        <div aria-label="Measurement type" className="space-y-1" role="menu">
+        <div aria-label={vi.measurementControl.measurementType} className="space-y-1" role="menu">
           {measurementMenuOptions.map((option) => {
             const OptionIcon = option.icon
             const isSmart = option.kind === 'smart'
@@ -228,7 +229,7 @@ export function MeasurementControl() {
             <>
               <div className="my-1.5 h-px bg-border/60" />
               <div className="px-2.5 pt-1 pb-0.5 font-semibold text-[10px] text-muted-foreground uppercase tracking-wider">
-                Floor plan
+                {vi.measurementControl.floorPlan}
               </div>
 
               {constructionDimensionOptions.map((option) => {
