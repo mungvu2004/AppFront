@@ -5,6 +5,7 @@ import { XIcon } from 'lucide-react'
 import type * as React from 'react'
 
 import { cn } from '../../../lib/utils'
+import { primitivesAndSidebar as vi } from '../../../i18n/regions/primitivesAndSidebar'
 
 function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
@@ -64,7 +65,7 @@ function DialogContent({
             data-slot="dialog-close"
           >
             <XIcon />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">{vi.dialog.close}</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>
