@@ -809,6 +809,9 @@ describe('bàn phím và vùng chọn', () => {
     act(() => mounted.result.current.onFrameResize({ width: 600, height: 400 }));
     const fit = mounted.result.current.viewport;
 
+    /* Chấm "chưa gắn" tính theo px MÀN (review-1 #4). */
+    expect(mounted.result.current.unitPx).toBeCloseTo(1 / fit.zoom, 9);
+
     await run(() => mounted.result.current.onSelectHostWall(hostWallId as `W-${string}`));
     await waitFor(() => expect(mounted.result.current.viewport.zoom).toBeGreaterThan(fit.zoom * 1.5));
 

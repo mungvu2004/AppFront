@@ -35,16 +35,10 @@ import { useContextMenu } from '@/hooks/useContextMenu';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 
 import { WallLayerLegend } from './WallLayerLegend';
-import { WallShapeFigure } from './WallLayerShapeFigure';
+import { WallHatchDefs, WallShapeFigure } from './WallLayerShapeFigure';
 import type { WallLayerCanvasViewProps, WallLayerRectPx } from './wallLayerHatch';
 import {
-  ATTENTION_TOKEN,
   BACKGROUND_IMAGE_OPACITY,
-  WALL_HATCH_LINE_WIDTH_PX,
-  WALL_HATCH_OPACITY,
-  WALL_HATCH_PATTERN_ID,
-  WALL_HATCH_PATTERN_TRANSFORM,
-  WALL_HATCH_TILE_PX,
   toSvgPoints,
   wallThicknessFillToken,
 } from './wallLayerHatch';
@@ -117,6 +111,7 @@ export function WallLayerCanvas({
   showCentrelines,
   state,
   surfaceRectPx,
+  unitPx,
   viewBoxPx,
   viewport,
   zoomPercent,
@@ -337,25 +332,7 @@ export function WallLayerCanvas({
                 role="img"
                 viewBox={frameViewBox}
               >
-                <defs>
-                  <pattern
-                    height={WALL_HATCH_TILE_PX}
-                    id={WALL_HATCH_PATTERN_ID}
-                    patternTransform={WALL_HATCH_PATTERN_TRANSFORM}
-                    patternUnits="userSpaceOnUse"
-                    width={WALL_HATCH_TILE_PX}
-                  >
-                    <line
-                      opacity={WALL_HATCH_OPACITY}
-                      stroke={ATTENTION_TOKEN}
-                      strokeWidth={WALL_HATCH_LINE_WIDTH_PX}
-                      x1={0}
-                      x2={0}
-                      y1={0}
-                      y2={WALL_HATCH_TILE_PX}
-                    />
-                  </pattern>
-                </defs>
+                <WallHatchDefs unitPx={unitPx} />
 
                 {shapes.map((shape) => (
                   <WallShapeFigure
@@ -369,6 +346,7 @@ export function WallLayerCanvas({
                     onToggleSelect={onToggleSelect}
                     shape={shape}
                     showCentrelines={showCentrelines}
+                    unitPx={unitPx}
                   />
                 ))}
               </svg>

@@ -878,6 +878,8 @@ describe('hợp đồng canvas mở rộng', () => {
     };
 
     expect(canvas.zoomPercent).toBe(100);
+    /* Gạch chéo/chấm chú ý tính theo px MÀN: một px màn = 1 / hệ số, bằng px bản vẽ (review-1 #3). */
+    expect(canvas.unitPx).toBeCloseTo(1 / canvas.viewport.zoom, 9);
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.y).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(300 + 0.5);

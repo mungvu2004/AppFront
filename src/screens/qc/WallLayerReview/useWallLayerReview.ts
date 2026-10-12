@@ -1839,6 +1839,7 @@ export function useWallLayerReview(
 
     /* -- Khung nhìn lái ngược được (T8) ---------------------------------- */
     zoomPercent: zoomPercentOf(zoom),
+    unitPx: 1 / viewport.zoom,
     onZoomIn,
     onZoomOut,
     onResetZoom,

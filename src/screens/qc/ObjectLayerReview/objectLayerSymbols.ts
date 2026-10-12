@@ -252,6 +252,7 @@ export interface ObjectLayerCanvasViewProps extends ObjectLayerCanvasProps {
   /** `null` khi không ai đang kéo Slider vị trí. Toạ độ là pixel KHUNG (BUG-403). */
   readonly dragMeasurement: ObjectDragMeasurement | null;
   readonly viewBoxPx: ObjectLayerReviewModel['viewBoxPx'];
+  readonly unitPx: ObjectLayerReviewModel['unitPx'];
   readonly surfaceRectPx: ObjectLayerReviewModel['surfaceRectPx'];
   readonly haloRectPx: ObjectLayerReviewModel['haloRectPx'];
   readonly onFrameResize: ObjectLayerReviewModel['onFrameResize'];
