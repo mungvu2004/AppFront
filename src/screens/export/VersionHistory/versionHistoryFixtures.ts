@@ -184,7 +184,7 @@ export const SAMPLE_VISUAL_CAPTION =
 
 /**
  * Không có đồ thị không gian trong fixture, nên tab "trực quan" ở đúng nhánh mà
- * `buildVisualModel` sinh ra trong hoàn cảnh ấy: `sceneFrame` là `null` ⇒ `isAvailable`
+ * `buildVisualModel` sinh ra trong hoàn cảnh ấy: `scene` là `null` ⇒ `isAvailable`
  * là `false` và lý do là `NO_MODEL_REASON` (`versionHistoryScene.ts:34`). `isBuilding`
  * bắt buộc là `false` vì mã thật tính nó bằng `isAvailable && isFetchingDiff` — một
  * fixture "đang dựng" mà không có cảnh là một trạng thái mã thật không sinh ra được.
@@ -196,8 +196,7 @@ export const SAMPLE_VISUAL: VisualDiffModel = {
   unavailableReason: NO_MODEL_REASON,
   isBuilding: false,
   caption: SAMPLE_VISUAL_CAPTION,
-  sceneLevels: [],
-  sceneFrame: null,
+  scene: null,
   changedEntityIds: ['W-005', 'W-014', 'W-021'],
   hoveredEntityId: null,
 };

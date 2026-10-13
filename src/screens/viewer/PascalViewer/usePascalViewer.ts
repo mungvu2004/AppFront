@@ -76,7 +76,7 @@ interface PascalSceneCensus {
 }
 
 /** Hình dạng tối thiểu của gói vách ngăn mà màn này dựa vào. */
-interface MountModule {
+export interface MountModule {
   readonly mount: (
     element: HTMLElement,
     options: {
@@ -94,7 +94,11 @@ interface MountModule {
       readonly onRendererUnavailable?: () => void;
       readonly explodeLevels?: boolean;
     },
-  ) => { readonly dispose: () => void };
+  ) => {
+    readonly dispose: () => void;
+    readonly setHighlight?: (nodeIds: readonly string[]) => void;
+    readonly frameEntity?: (entityId: string) => boolean;
+  };
 }
 
 export interface UsePascalViewerOptions {
@@ -168,7 +172,7 @@ declare global {
  *
  * Trước khi thêm thẻ script, bật `window.__zod_globalConfig.jitless` (B-V10-05).
  */
-const defaultLoadMount = (): Promise<MountModule> => {
+export const defaultLoadMount = (): Promise<MountModule> => {
   if (mountModulePromise !== null) {
     return mountModulePromise;
   }

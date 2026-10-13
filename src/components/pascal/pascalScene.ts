@@ -22,10 +22,13 @@
  *    rào đó.
  */
 
+import { emitter } from '@pascal-app/core';
 import useScene from '@pascal-app/core/store';
 import { loadPlugin } from '@pascal-app/core/registry';
 import { builtinPlugin } from '@pascal-app/nodes';
+import { useViewer } from '@pascal-app/viewer';
 
+import { bodyOfPascalId } from '@/lib/pascal/ids';
 import type { PascalScene } from '@/lib/pascal/types';
 
 /** Id bộ loại node dựng sẵn. Cảnh nào vào store cũng phải khai nó, nếu không không gì vẽ ra. */
@@ -71,6 +74,31 @@ export const loadSceneIntoPascal = async (scene: PascalScene): Promise<PascalSce
   const droppedIds = Object.keys(scene.nodes).filter((id) => !(id in after.nodes));
 
   return { nodeCount: Object.keys(after.nodes).length, droppedIds };
+};
+
+/**
+ * Tô sáng node theo mã Pascal, qua đường chọn bản địa của viewer.
+ *
+ * `externalSelectedIds` là chỗ Pascal để chủ nhà tô sáng mà không đụng vùng chọn sửa được.
+ */
+export const highlightPascalNodes = (ids: readonly string[]): void => {
+  useViewer.getState().setExternalSelectedIds([...ids] as never);
+};
+
+/**
+ * Khuôn camera của Pascal vào một đối tượng AppFront (ghim cộng tác, R-07).
+ *
+ * Trả `false` khi không node nào mang mã ấy — ghim trỏ vào đối tượng đã bị xoá thì để camera
+ * yên còn hơn bay tới chỗ trống. Camera chỉ nghe sự kiện này khi editor đang chạy (`mode: 'edit'`).
+ */
+export const frameEntityInPascal = (entityId: string): boolean => {
+  const nodeId = Object.keys(useScene.getState().nodes).find((id) => bodyOfPascalId(id) === entityId);
+
+  if (nodeId === undefined) return false;
+
+  emitter.emit('camera-controls:focus', { nodeId: nodeId as never });
+
+  return true;
 };
 
 /** Trả store về rỗng. Dùng khi rời màn, để cảnh cũ không sống sót sang lượt sau. */

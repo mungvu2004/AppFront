@@ -17,7 +17,7 @@
  *    `VERSION_FLOOR_MISMATCH` thành `{ kind: 'purged' }`.
  *
  * Hai khả năng dựng cảnh (`canShowCurrentModel3d`, `canHighlightEntity`) đứng trên
- * `mountViewerScene` và dựng mô hình HIỆN TẠI, không dựng lại bản cũ (`types.ts`, mục 1).
+ * khung xem Pascal và dựng mô hình HIỆN TẠI, không dựng lại bản cũ (`types.ts`, mục 1).
  * Xuất một phiên bản là điều hướng sang S-34 — `canExportVersion` do nơi ráp quyết.
  */
 
