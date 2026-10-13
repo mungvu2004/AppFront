@@ -61,8 +61,9 @@ interface OffsetFieldRowProps {
 
 function OffsetFieldRow({ label, text, suffix, isLast = false }: OffsetFieldRowProps) {
   return (
-    <FieldRow isLast={isLast} label={label}>
-      <span className="flex h-9 items-center gap-0.5 font-mono text-[14px] tabular-nums text-text-primary">
+    /* BUG-613: giá trị là chữ, không phải ô 36 px — `isText` cho nhãn và số chung một dòng 20 px. */
+    <FieldRow isLast={isLast} isText label={label}>
+      <span className="flex items-center gap-0.5 font-mono text-[14px] leading-[20px] tabular-nums text-text-primary">
         <span>{text}</span>
         <span className="text-text-secondary">{suffix}</span>
       </span>

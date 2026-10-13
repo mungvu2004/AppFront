@@ -8,7 +8,9 @@
  * điểm gốc (`origin.pointPx`) và đường bao bóng ma (`ghostFloor.outlinePx`)
  * tới nơi ĐÃ TÍNH SẴN trong `AxisCanvasViewModel` (T3, `axisGridTypes.ts`,
  * đã đóng băng). Kéo trục (`onAxisDrag`) chỉ chuyển tiếp toạ độ pixel do
- * TRÌNH DUYỆT đổi qua `getScreenCTM().inverse()` — đúng khuôn
+ * TRÌNH DUYỆT đổi qua `getScreenCTM().inverse()`, ĐÚNG MỘT lần lúc thả chuột —
+ * trong lúc kéo canvas chỉ vẽ trục ở chỗ con trỏ, nên một lần kéo là một bước
+ * hoàn tác chứ không phải một bước cho mỗi `pointermove` (BUG-595) — đúng khuôn
  * `WallLayerCanvas.tsx`'s `readPointer` — chọn trục X hay Y theo
  * `axis.direction` là đọc một trường có sẵn, không phải suy hình học.
  *
@@ -35,6 +37,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 
+import { fitCanvas } from './axisGridCanvasFit';
 import { AxisGridGhostFloor } from './AxisGridGhostFloor';
 import { AxisGridOriginMarker } from './AxisGridOriginMarker';
 import type { AxisCanvasAxisViewModel, AxisCanvasViewModel } from './axisGridTypes';
@@ -69,44 +72,14 @@ const AXIS_TRANSITION_CLASSES = 'transition-colors duration-180 motion-reduce:tr
 
 /** Khung canvas: tối thiểu 640 từ 1280px, bo 16, thụt 12; dưới 1280 tối thiểu 60vh (như FIX-1506), dưới 1024 lấp vùng 360 px — BUG-317, BUG-404. */
 const CANVAS_FRAME_CLASSES =
-  'relative h-full min-h-[320px] w-full overflow-hidden rounded-[16px] border border-border-default bg-canvas-2d p-3 lg:min-h-[60vh] xl:min-h-[640px]';
+  'relative h-full min-h-[320px] w-full overflow-hidden rounded-[16px] border border-border-default p-3 lg:min-h-[60vh] xl:min-h-[640px]';
+/** BUG-413: khung chưa có trục cùng nền chìm với khung bản vẽ trống của SCR-18/20; có trục thì là giấy vẽ. */
+const CANVAS_EMPTY_BG = 'bg-bg-sunken';
+const CANVAS_DRAWING_BG = 'bg-canvas-2d';
 
 /** `canvas.ariaLabel` của bảng đối chiếu S15-T4-copy.md. */
 const CANVAS_ARIA_LABEL = 'Khung xem bản vẽ quản lý trục và gốc toạ độ';
 const CANVAS_READ_ONLY_NOTICE_ID = 'axis-grid-canvas-read-only';
-
-/* -------------------------------------------------------------------------- */
-/* Vừa khung — BUG-404.                                                        */
-/* -------------------------------------------------------------------------- */
-
-interface CanvasFit {
-  readonly viewBox: string;
-  /** Số đơn vị `viewBox` ứng với MỘT px màn — nét, bong bóng, chữ nhân với nó để giữ đúng cỡ px ở mọi tỷ lệ bản vẽ. */
-  readonly unit: number;
-}
-
-/**
- * `viewBox` = hộp bao lưới cộng lề {@link FIT_MARGIN_PX} tính theo px MÀN, và cỡ
- * một px màn trong đơn vị `viewBox`. Chưa đo được khung (jsdom, lần vẽ đầu) thì
- * coi một đơn vị là một px. Kỹ thuật dựng hình thuần (như `object-fit: contain`),
- * không phải hình học nghiệp vụ.
- */
-function fitCanvas(
-  bounds: AxisCanvasViewModel['boundsPx'],
-  frame: { readonly width: number; readonly height: number },
-): CanvasFit {
-  const usableWidth = frame.width - FIT_MARGIN_PX * 2;
-  const usableHeight = frame.height - FIT_MARGIN_PX * 2;
-  const measured =
-    usableWidth > 0 && usableHeight > 0 ? Math.max(bounds.width / usableWidth, bounds.height / usableHeight) : 0;
-  const unit = measured > 0 ? measured : 1;
-  const pad = FIT_MARGIN_PX * unit;
-
-  return {
-    unit,
-    viewBox: `${bounds.x - pad} ${bounds.y - pad} ${bounds.width + pad * 2} ${bounds.height + pad * 2}`,
-  };
-}
 
 /* -------------------------------------------------------------------------- */
 /* Một trục: đoạn thẳng nét gạch-chấm + hai bong bóng nhãn ở hai đầu.          */
@@ -116,20 +89,24 @@ interface AxisFigureProps {
   readonly axis: AxisCanvasAxisViewModel;
   readonly isInteractive: boolean;
   readonly unit: number;
+  /** Toạ độ con trỏ trong lúc kéo (y của trục ngang, x của trục dọc) — vẽ trục ở đó, chưa gửi lệnh. */
+  readonly dragCoordinatePx: number | null;
   readonly onPointerDownAxis: (event: ReactPointerEvent<SVGGElement>, axisId: string) => void;
   readonly onSelect: (axisId: string) => void;
 }
 
-function AxisFigure({ axis, isInteractive, onPointerDownAxis, onSelect, unit }: AxisFigureProps) {
+function AxisFigure({ axis, dragCoordinatePx, isInteractive, onPointerDownAxis, onSelect, unit }: AxisFigureProps) {
   const token = axis.isHighlighted ? AXIS_HIGHLIGHT_TOKEN : AXIS_DEFAULT_TOKEN;
   const overhang = AXIS_BADGE_OVERHANG_PX * unit;
   const isHorizontal = axis.direction === 'horizontal';
+  const lineY = dragCoordinatePx ?? axis.startPx.y;
+  const lineX = dragCoordinatePx ?? axis.startPx.x;
   const start = isHorizontal
-    ? { x: axis.startPx.x - overhang, y: axis.startPx.y }
-    : { x: axis.startPx.x, y: axis.startPx.y - overhang };
+    ? { x: axis.startPx.x - overhang, y: lineY }
+    : { x: lineX, y: axis.startPx.y - overhang };
   const end = isHorizontal
-    ? { x: axis.endPx.x + overhang, y: axis.endPx.y }
-    : { x: axis.endPx.x, y: axis.endPx.y + overhang };
+    ? { x: axis.endPx.x + overhang, y: dragCoordinatePx ?? axis.endPx.y }
+    : { x: dragCoordinatePx ?? axis.endPx.x, y: axis.endPx.y + overhang };
 
   const handleClick = useCallback(
     (event: ReactMouseEvent<SVGGElement>) => {
@@ -206,6 +183,7 @@ export interface AxisGridCanvasProps {
 
 export function AxisGridCanvas({ canvas, isInteractive, onAxisDrag, onAxisSelect, viewerRoleNotice }: AxisGridCanvasProps) {
   const [draggingAxisId, setDraggingAxisId] = useState<string | null>(null);
+  const [dragCoordinatePx, setDragCoordinatePx] = useState<number | null>(null);
   const [frame, setFrame] = useState({ width: 0, height: 0 });
   const svgRef = useRef<SVGSVGElement | null>(null);
   const visibleAxes = canvas.axes.filter((axis) => axis.isVisible);
@@ -275,14 +253,20 @@ export function AxisGridCanvas({ canvas, isInteractive, onAxisDrag, onAxisSelect
         return;
       }
 
-      onAxisDrag(draggingAxisId, axis.direction === 'horizontal' ? reading.y : reading.x);
+      setDragCoordinatePx(axis.direction === 'horizontal' ? reading.y : reading.x);
     },
-    [draggingAxisId, onAxisDrag, readPointer, visibleAxes],
+    [draggingAxisId, readPointer, visibleAxes],
   );
 
+  /* Thả chuột: ĐÚNG MỘT lượt `onAxisDrag` cho cả lần kéo (BUG-595). Bấm mà không kéo thì không gửi gì. */
   const handleSvgPointerUp = useCallback(() => {
+    if (draggingAxisId !== null && dragCoordinatePx !== null) {
+      onAxisDrag(draggingAxisId, dragCoordinatePx);
+    }
+
     setDraggingAxisId(null);
-  }, []);
+    setDragCoordinatePx(null);
+  }, [dragCoordinatePx, draggingAxisId, onAxisDrag]);
 
   const handleBackgroundClick = useCallback(() => {
     if (isInteractive) {
@@ -290,13 +274,13 @@ export function AxisGridCanvas({ canvas, isInteractive, onAxisDrag, onAxisSelect
     }
   }, [isInteractive, onAxisSelect]);
 
-  const fit = fitCanvas(canvas.boundsPx, frame);
+  const fit = fitCanvas(canvas.boundsPx, frame, FIT_MARGIN_PX);
 
   return (
     <div
       aria-describedby={isInteractive ? undefined : CANVAS_READ_ONLY_NOTICE_ID}
       aria-label={CANVAS_ARIA_LABEL}
-      className={CANVAS_FRAME_CLASSES}
+      className={`${CANVAS_FRAME_CLASSES} ${canvas.axes.length === 0 ? CANVAS_EMPTY_BG : CANVAS_DRAWING_BG}`}
       role="group"
     >
       <svg
@@ -314,6 +298,7 @@ export function AxisGridCanvas({ canvas, isInteractive, onAxisDrag, onAxisSelect
         {visibleAxes.map((axis) => (
           <AxisFigure
             axis={axis}
+            dragCoordinatePx={axis.id === draggingAxisId ? dragCoordinatePx : null}
             isInteractive={isInteractive}
             key={axis.id}
             onPointerDownAxis={handlePointerDownAxis}
@@ -322,7 +307,8 @@ export function AxisGridCanvas({ canvas, isInteractive, onAxisDrag, onAxisSelect
           />
         ))}
 
-        <AxisGridOriginMarker origin={canvas.origin} unit={fit.unit} />
+        {/* BUG-404: chưa có trục thì chưa có gốc toạ độ để chỉ — panel phải đã nói vậy. */}
+        {canvas.axes.length === 0 ? null : <AxisGridOriginMarker origin={canvas.origin} unit={fit.unit} />}
       </svg>
 
       {isInteractive ? null : (

@@ -39,7 +39,7 @@
  * làm việc đó qua ĐÚNG hành động công khai `setSpatial(null, null)`.
  */
 
-import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -306,7 +306,10 @@ describe('[NGHIEM-1] bảy trạng thái của A11', () => {
       expect(approveButtons().length).toBeGreaterThan(0);
     });
     for (const button of approveButtons()) {
-      expect(button.getAttribute('aria-label') ?? '').toMatch(new RegExp(`^${button.textContent?.trim() ?? '∅'} #`, 'u'));
+      /* `Button` vẽ nhãn hai lần (một bản ẩn giữ bề rộng, `aria-hidden`) — đọc bản nhìn thấy. */
+      const visible = button.querySelector('span.absolute')?.textContent?.trim() ?? '∅';
+
+      expect(button.getAttribute('aria-label') ?? '').toMatch(new RegExp(`^${visible} #`, 'u'));
     }
   });
 
@@ -674,7 +677,163 @@ describe('[BUG-334] chế độ duyệt bàn phím ở màn rỗng', () => {
     expect(screen.getByRole('region', { name: DIMENSION_OCR_TEXT.screen.canvasAriaLabel })).toBeInTheDocument();
     expect(screen.getByText(DIMENSION_OCR_TEXT.states.empty.title)).toBeInTheDocument();
     expect(within(panel).getByRole('button', { name: DIMENSION_OCR_TEXT.keyboard.toggleOffLabel })).toBeInTheDocument();
-    expect(within(panel).getByText('Tắt chế độ duyệt bàn phím', { selector: 'dd' })).toBeInTheDocument();
-    expect(within(panel).getByText('Bỏ sửa', { selector: 'dd' })).toBeInTheDocument();
+    /* BUG-583: ô nhập nuốt phím R, nên bảng phím chỉ Esc là lối tắt chế độ — không hứa R. */
+    expect(
+      within(panel).getByText(DIMENSION_OCR_TEXT.keyboard.keys.escInKeyboardMode.description, { selector: 'dd' }),
+    ).toBeInTheDocument();
+    expect(within(panel).queryByText('R', { selector: 'kbd' })).not.toBeInTheDocument();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* QA-04c — SCR-18 trên màn đã ráp (BUG-577/583/603/610/612/335/338/413/325).  */
+/* -------------------------------------------------------------------------- */
+
+/** Mã hiển thị (không dấu #) của hàng chưa duyệt thứ `index` đang có nút duyệt. */
+function unreviewedDisplayId(index: number): string {
+  return (approveButtons()[index]?.getAttribute('aria-label') ?? '')
+    .replace(DIMENSION_OCR_TEXT.row.approveButtonAriaLabelPrefix, '')
+    .replace('#', '');
+}
+
+describe('QA-04c SCR-18 trên màn đã ráp', () => {
+  it('[BUG-577] câu "chưa lưu lên máy chủ" hiện cố định trên màn', async () => {
+    renderState('partial');
+
+    await screen.findByRole('group', { name: LIST_LABEL });
+
+    expect(screen.getByText(DIMENSION_OCR_TEXT.screen.unsavedNotice)).toBeInTheDocument();
+  });
+
+  it('[BUG-583a] Enter trên một hàng khác chỉ CHỌN nó; Enter lần hai mới duyệt', async () => {
+    const registry = createShortcutRegistry();
+
+    renderState('partial', registry);
+    await screen.findByRole('group', { name: LIST_LABEL });
+
+    const firstId = unreviewedDisplayId(0);
+    const secondId = unreviewedDisplayId(1);
+    const first = rowOf(dimensionEntityIdOf(firstId)) as HTMLElement;
+    const second = rowOf(dimensionEntityIdOf(secondId)) as HTMLElement;
+
+    fireEvent.click(first);
+    await waitFor(() => {
+      expect(first.getAttribute('aria-selected')).toBe('true');
+    });
+
+    second.focus();
+    fireEvent.keyDown(second, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(second.getAttribute('aria-selected')).toBe('true');
+    });
+    expect(entityInStore(firstId)?.reviewed).toBe(false);
+    expect(entityInStore(secondId)?.reviewed).toBe(false);
+
+    fireEvent.keyDown(second, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(entityInStore(secondId)?.reviewed).toBe(true);
+    });
+  });
+
+  it('[BUG-583b] chế độ bàn phím: sau Enter tiêu điểm tự vào ô của chuỗi kế tiếp', async () => {
+    const user = userEvent.setup({ delay: null });
+    const registry = createShortcutRegistry();
+
+    renderState('partial', registry);
+    await screen.findByRole('group', { name: LIST_LABEL });
+
+    const displayId = unreviewedDisplayId(0);
+
+    fireEvent.click(rowOf(dimensionEntityIdOf(displayId)) as HTMLElement);
+    act(() => {
+      registry.handleKeyDown({ key: 'R', ctrlKey: false }, null);
+    });
+
+    const panel = await screen.findByLabelText(DIMENSION_OCR_TEXT.keyboard.caption);
+    const field = within(panel).getByLabelText(`${DIMENSION_OCR_TEXT.row.inputAriaLabelPrefix}#${displayId}`);
+
+    expect(document.activeElement).toBe(field);
+
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(entityInStore(displayId)?.reviewed).toBe(true);
+    });
+    await waitFor(() => {
+      const focused = document.activeElement;
+
+      expect(focused?.tagName).toBe('INPUT');
+      expect(focused?.getAttribute('aria-label')).not.toBe(
+        `${DIMENSION_OCR_TEXT.row.inputAriaLabelPrefix}#${displayId}`,
+      );
+    });
+  });
+
+  it('[BUG-603] Esc trong ô đang gõ chỉ huỷ sửa — hàng vẫn được chọn', async () => {
+    const user = userEvent.setup({ delay: null });
+    const registry = createShortcutRegistry();
+
+    renderState('partial', registry);
+    await screen.findByRole('group', { name: LIST_LABEL });
+
+    const displayId = unreviewedDisplayId(0);
+    const row = rowOf(dimensionEntityIdOf(displayId)) as HTMLElement;
+
+    fireEvent.click(row);
+    await waitFor(() => {
+      expect(row.getAttribute('aria-selected')).toBe('true');
+    });
+
+    const field = within(row).getByLabelText(`${DIMENSION_OCR_TEXT.row.inputAriaLabelPrefix}#${displayId}`);
+
+    await user.click(field);
+    await user.keyboard('9');
+    await user.keyboard('{Escape}');
+
+    expect(row.getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('[BUG-610/612] hàng có nút duyệt thật, nhãn trạng thái bằng chữ, câu "Gắn với" không mono', async () => {
+    renderState('partial');
+    await screen.findByRole('group', { name: LIST_LABEL });
+
+    const displayId = unreviewedDisplayId(0);
+    const row = rowOf(dimensionEntityIdOf(displayId)) as HTMLElement;
+    const approve = within(row).getByRole('button', {
+      name: `${DIMENSION_OCR_TEXT.row.approveButtonAriaLabelPrefix}#${displayId}`,
+    });
+
+    /* Cùng `Button` của SCR-16/17/20: vùng chạm 44 px dưới 640 px (BUG-325). */
+    expect(approve.className).toContain('min-h-11');
+    expect(within(row).getByText(DIMENSION_OCR_TEXT.row.statusUnreviewedLabel)).toBeInTheDocument();
+
+    for (const caption of screen.queryAllByText(/^Gắn với /u)) {
+      expect(caption.className).not.toContain('font-mono');
+    }
+  });
+
+  it('[BUG-413] màn có breadcrumb và tiêu đề như các màn QC anh em', async () => {
+    renderState('partial');
+
+    expect(await screen.findByRole('heading', { name: DIMENSION_OCR_TEXT.screen.title })).toBeInTheDocument();
+    expect(screen.getByText(DIMENSION_OCR_TEXT.screen.breadcrumb)).toBeInTheDocument();
+  });
+
+  it('[BUG-335/338/325] màn rỗng: khung bản vẽ có câu giải thích, biểu tượng thật, nút đủ lớn', async () => {
+    renderState('empty');
+
+    const title = await screen.findByText(DIMENSION_OCR_TEXT.states.empty.title);
+    const canvas = screen.getByRole('region', { name: DIMENSION_OCR_TEXT.screen.canvasAriaLabel });
+
+    expect(within(canvas).getByText(DIMENSION_OCR_TEXT.screen.canvasEmptyNotice)).toBeInTheDocument();
+    expect(title.parentElement?.querySelector('svg')).not.toBeNull();
+    expect(
+      screen.getByRole('button', { name: DIMENSION_OCR_TEXT.keyboard.toggleOnLabel }).className,
+    ).toContain('min-h-11');
+    expect(screen.getByRole('link', { name: DIMENSION_OCR_TEXT.states.empty.actionLabel }).className).toContain(
+      'min-h-11',
+    );
   });
 });

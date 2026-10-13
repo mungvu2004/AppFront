@@ -92,6 +92,7 @@ import { useStore } from '@/store';
 import type { ProjectRole } from '@/types/project';
 
 import { useFloorLayerReadFailure, type FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
+import { useLeaveWarning } from '../shared/useLeaveWarning';
 
 import {
   announceSpacingViolation,
@@ -158,8 +159,8 @@ export const AXIS_GRID_TEXT = {
   addAxisVertical: 'Thêm trục dọc',
   warningActionLabel: 'Xem trên bản vẽ',
   originCanvasLabel: '0,0',
-  emptyNotice:
-    'Bạn có thể vẽ trục thủ công từ bản vẽ, hoặc cho hệ thống suy ra trục từ hình học tường bao.',
+  /* BUG-594: không hứa "suy ra từ tường bao" — trạng thái rỗng nghĩa là lượt dò ấy đã không ra gì. */
+  emptyNotice: 'Chưa dò được trục nào từ tường bao của tầng này. Thêm trục bằng tay để bắt đầu.',
   viewerRoleNotice:
     'Vai trò hiện tại chỉ được xem, không được chỉnh sửa các trục. Liên hệ quản trị dự án nếu cần.',
   /**
@@ -171,6 +172,12 @@ export const AXIS_GRID_TEXT = {
   originNotPersisted:
     'Đã ghim gốc toạ độ cho phiên làm việc này. Hệ thống chưa có chỗ lưu lựa chọn đó, nên nó mất sau khi tải lại trang.',
   shortcutUndo: 'Hoàn tác thay đổi trục gần nhất',
+  /** BUG-578: chưa có endpoint ghi lưới trục — nói thật, cố định trên màn. */
+  unsavedNotice: 'Trục chỉ giữ trong phiên này — tải lại trang sẽ mất các thay đổi.',
+  /** BUG-594, BUG-601: "Căn chỉnh tự động" bị khoá thì nói vì sao. */
+  autoAlignViewer: 'Vai người xem không căn chỉnh được các tầng.',
+  autoAlignSingleFloor: 'Cần ít nhất hai tầng có trục để căn chỉnh.',
+  autoAlignNothing: 'Các tầng đã khớp nhau, không còn gì để căn.',
 } as const;
 
 const AXIS_GROUP_TITLES: Readonly<Record<AxisGridDirection, string>> = {
@@ -351,6 +358,10 @@ export interface UseAxisGridManagerResult extends AxisGridManagerProps {
   readonly canUndo: boolean;
   /** Đọc lớp hỏng khi chưa có tài liệu → cả màn là một trạng thái lỗi (BUG-326). */
   readonly readFailure: FloorLayerReadFailure | null;
+  /** BUG-578: câu "chỉ giữ trong phiên". `null` ở vai chỉ xem — vai đó không sửa gì. */
+  readonly unsavedNotice: string | null;
+  /** BUG-594/601: vì sao "Căn chỉnh tự động" bị khoá; `null` khi bấm được và có việc để làm. */
+  readonly autoAlignBlockedReason: string | null;
 }
 
 /** Cổng thật dựng đúng một lần cho suốt đời component. */
@@ -456,8 +467,8 @@ export function useAxisGridManager(
   /*
    * Trục của tầng: cái đã lưu thắng; tầng chưa có trục nào thì lưới được DÒ từ
    * tường chịu lực bằng `detectAxes` (M-10) và hiện ra như một bản xem trước.
-   * Một lượt bấm "Suy ra từ tường bao" (`onRetry` ở trạng thái rỗng) mới ghi
-   * bản xem trước đó vào đồ thị — không lượt ghi tự động nào lúc tải màn.
+   * Lần sửa đầu tiên (thêm, xoá, kéo — `previewEntities`) mới ghi bản xem
+   * trước đó vào đồ thị — không lượt ghi tự động nào lúc tải màn.
    */
   const detectedPreview = useMemo(
     () => (storedAxes.length > 0 ? [] : detectAxesOfLevel(graph, level)),
@@ -637,6 +648,42 @@ export function useAxisGridManager(
     [graph, levelId],
   );
 
+  /**
+   * Bản xem trước dò từ tường, thành thực thể để GHI (BUG-320, BUG-594).
+   *
+   * Trục xem trước chưa có thực thể nào, nên xoá hay kéo nó trước đây không làm
+   * gì. Lần sửa đầu tiên ghi cả lưới dò được trong MỘT lệnh `axis.add` — bỏ trục
+   * bị xoá, hoặc đặt trục bị kéo ở toạ độ mới — nên một Ctrl+Z trả về bản xem trước.
+   * `[]` khi tầng đã có trục lưu: lúc đó không có gì để ghi thêm.
+   */
+  const previewEntities = useCallback(
+    (edit?: { readonly rowId: string; readonly coordinateMm?: Millimetres }): Axis[] => {
+      if (storedAxes.length > 0 || levelId === null) {
+        return [];
+      }
+
+      return labelledAxes.flatMap((labelled) => {
+        const isEdited = edit !== undefined && axisRowId(labelled.axis.direction, labelled.label) === edit.rowId;
+
+        if (isEdited && edit.coordinateMm === undefined) {
+          return [];
+        }
+
+        return [
+          createAxisEntity({
+            id: gateway.nextAxisId(),
+            levelId,
+            label: labelled.label,
+            direction: labelled.axis.direction,
+            coordinateMm: isEdited && edit.coordinateMm !== undefined ? edit.coordinateMm : labelled.axis.coordinateMm,
+            extent,
+          }),
+        ];
+      });
+    },
+    [extent, gateway, labelledAxes, levelId, storedAxes.length],
+  );
+
   const onAxisAdd = useCallback(
     (direction: AxisGridDirection) => {
       if (levelId === null) {
@@ -679,19 +726,7 @@ export function useAxisGridManager(
        * dò từ tường. Ghi riêng trục mới thì `storedAxes` hết rỗng và bản xem
        * trước biến mất — nên ghi cả lưới dò được cùng trục mới trong một lệnh.
        */
-      const previewAxes =
-        storedAxes.length > 0
-          ? []
-          : labelledAxes.map((labelled) =>
-              createAxisEntity({
-                id: gateway.nextAxisId(),
-                levelId,
-                label: labelled.label,
-                direction: labelled.axis.direction,
-                coordinateMm: labelled.axis.coordinateMm,
-                extent,
-              }),
-            );
+      const previewAxes = previewEntities();
 
       void run(
         buildAddAxisCommand({ axes: [...previewAxes, axis], actorId: gateway.actorId }),
@@ -708,9 +743,9 @@ export function useAxisGridManager(
       gateway,
       labelledAxes,
       levelId,
+      previewEntities,
       rejectWhenTooClose,
       run,
-      storedAxes.length,
     ],
   );
 
@@ -747,7 +782,7 @@ export function useAxisGridManager(
         (item) => axisRowId(item.axis.direction, item.label) === axisId,
       );
 
-      if (before === undefined || labelled === undefined) {
+      if (labelled === undefined) {
         return;
       }
 
@@ -769,26 +804,36 @@ export function useAxisGridManager(
         return;
       }
 
-      void run(buildMoveAxisCommand({ before, coordinateMm, actorId: gateway.actorId }));
+      void run(
+        before === undefined
+          ? buildAddAxisCommand({ axes: previewEntities({ rowId: axisId, coordinateMm }), actorId: gateway.actorId })
+          : buildMoveAxisCommand({ before, coordinateMm, actorId: gateway.actorId }),
+      );
     },
-    [axisByRowId, gateway, labelledAxes, rejectWhenTooClose, run, snapTargets],
+    [axisByRowId, gateway, labelledAxes, previewEntities, rejectWhenTooClose, run, snapTargets],
   );
 
   const onAxisRemove = useCallback(
     (axisId: string) => {
       const axis = axisByRowId.get(axisId);
+      const label = axis?.label ?? labelledAxes.find((item) => axisRowId(item.axis.direction, item.label) === axisId)?.label;
 
-      if (axis === undefined) {
+      if (label === undefined) {
         return;
       }
 
-      void run(buildRemoveAxisCommand({ axis, actorId: gateway.actorId })).then((ok) => {
+      const command =
+        axis === undefined
+          ? buildAddAxisCommand({ axes: previewEntities({ rowId: axisId }), actorId: gateway.actorId })
+          : buildRemoveAxisCommand({ axis, actorId: gateway.actorId });
+
+      void run(command).then((ok) => {
         if (!ok) {
           return;
         }
 
         const ticket = createAxisUndoTicket({
-          description: removeToastDescription(axis.label),
+          description: removeToastDescription(label),
           now: gateway.now,
           undo: () => {
             applyUndo();
@@ -803,7 +848,7 @@ export function useAxisGridManager(
         });
       });
     },
-    [applyUndo, axisByRowId, gateway, notifications, run],
+    [applyUndo, axisByRowId, gateway, labelledAxes, notifications, previewEntities, run],
   );
 
   const onViewOnDrawing = useCallback(
@@ -934,42 +979,17 @@ export function useAxisGridManager(
   }, []);
 
   /**
-   * "Thử lại" ở trạng thái lỗi, "Suy ra từ tường bao" ở trạng thái rỗng.
+   * "Thử lại" ở trạng thái lỗi.
    *
-   * Hợp đồng props đã đóng băng và chỉ có MỘT hàm cho hai nút này; view chọn
-   * nhãn theo `state`. Lượt suy ra ghi cả lưới dò được vào đồ thị bằng ĐÚNG MỘT
-   * lệnh `axis.add` mang nhiều `changeForAdd`, nên nó cũng hoàn tác được trong
-   * một thao tác.
+   * Nhánh "Suy ra từ tường bao" ở trạng thái rỗng đã bỏ (BUG-594): trạng thái
+   * rỗng chỉ có khi lượt dò từ tường KHÔNG ra trục nào, nên nút ấy không bao giờ
+   * suy ra được gì. Trạng thái rỗng nay mời "Thêm trục ngang" (`onAxisAdd`).
    */
   const onRetry = useCallback(() => {
     if (hasError) {
       void axisLayerQuery.refetch();
-
-      return;
     }
-
-    if (levelId === null || detectedPreview.length === 0) {
-      return;
-    }
-
-    const preview = labelAxes(detectedPreview);
-
-    void run(
-      buildAddAxisCommand({
-        axes: preview.map((labelled) =>
-          createAxisEntity({
-            id: gateway.nextAxisId(),
-            levelId,
-            label: labelled.label,
-            direction: labelled.axis.direction,
-            coordinateMm: labelled.axis.coordinateMm,
-            extent,
-          }),
-        ),
-        actorId: gateway.actorId,
-      }),
-    );
-  }, [axisLayerQuery, detectedPreview, extent, gateway, hasError, levelId, run]);
+  }, [axisLayerQuery, hasError]);
 
   /* ---------------------------------------------------------------------- */
   /* Phím tắt (A12) — không một `addEventListener` nào (R-72).                */
@@ -1168,6 +1188,22 @@ export function useAxisGridManager(
 
   const floorsAllWithinTolerance = floors.every((floor) => floor.status === 'ok');
 
+  /* BUG-594/601: cùng lệnh `onAutoAlign` sẽ chạy — `null` là không còn gì để dời. */
+  const autoAlignCommand = useMemo(
+    () => (graph === null ? null : buildAutoAlignCommand({ report, graph, actorId: gateway.actorId })),
+    [gateway.actorId, graph, report],
+  );
+  const autoAlignBlockedReason = !canEdit
+    ? AXIS_GRID_TEXT.autoAlignViewer
+    : report.floors.length < 2
+      ? AXIS_GRID_TEXT.autoAlignSingleFloor
+      : autoAlignCommand === null
+        ? AXIS_GRID_TEXT.autoAlignNothing
+        : null;
+
+  /* BUG-578: ngăn xếp còn bước là còn sửa đổi chỉ sống trong trang này — hỏi trước khi rời. */
+  useLeaveWarning(dispatchBundle.history.canUndo());
+
   const state = deriveAxisGridScreenState({
     isViewerRole,
     isCollapsed,
@@ -1250,5 +1286,7 @@ export function useAxisGridManager(
     historyStepCount: () => dispatchBundle.history.undoSteps().length,
     canUndo: dispatchBundle.history.canUndo(),
     readFailure,
+    unsavedNotice: canEdit ? AXIS_GRID_TEXT.unsavedNotice : null,
+    autoAlignBlockedReason,
   };
 }

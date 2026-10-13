@@ -28,6 +28,7 @@
  * đăng ký một trình nghe sự kiện nào trên `window` hay `document` (R-72).
  */
 
+import { Button } from '@/components/ui/Button';
 import { Kbd } from '@/components/ui/Kbd';
 import { useTransition } from '@/hooks/useTransition';
 import { cn } from '@/lib/utils';
@@ -53,21 +54,15 @@ export interface DimensionOcrKeyboardModeViewProps extends DimensionOcrKeyboardM
 }
 
 /**
- * Bốn phím của nửa phải, đúng thứ tự đặc tả liệt kê. Bảng chỉ hiện khi chế độ
- * ĐANG bật, nên R ở đây là phím TẮT (BUG-334).
+ * Ba phím của nửa phải. Bảng chỉ hiện khi chế độ ĐANG bật (BUG-334), và lúc
+ * đó tiêu điểm luôn ở ô nhập — nơi phím R bị nuốt — nên lối tắt chế độ là Esc,
+ * không phải R (BUG-583). Bảng không hứa một phím không chạy.
  */
 const KEY_LEGEND = [
   DIMENSION_OCR_TEXT.keyboard.keys.enter,
   DIMENSION_OCR_TEXT.keyboard.keys.tab,
-  DIMENSION_OCR_TEXT.keyboard.keys.esc,
-  { label: DIMENSION_OCR_TEXT.keyboard.keys.r.label, description: DIMENSION_OCR_TEXT.keyboard.toggleOffLabel },
+  DIMENSION_OCR_TEXT.keyboard.keys.escInKeyboardMode,
 ] as const;
-
-const TOGGLE_CLASS_NAME = cn(
-  'self-start rounded-[6px] px-1.5 py-0.5 text-[13px] text-accent',
-  'transition-colors duration-120 hover:bg-accent-wash',
-  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-);
 
 /* -------------------------------------------------------------------------- */
 /* Ảnh cắt duy nhất, hoà tan khi sang chuỗi kế tiếp.                            */
@@ -111,9 +106,10 @@ export function DimensionOcrKeyboardMode({
     */
     return (
       <div className="flex items-center gap-2">
-        <button className={TOGGLE_CLASS_NAME} onClick={onToggle} type="button">
+        {/* BUG-325: `Button` — vùng chạm 44 px dưới 640 px, không phải chữ 24 px. */}
+        <Button className="shrink-0" onClick={onToggle} size="sm" type="button" variant="ghost">
           {DIMENSION_OCR_TEXT.keyboard.toggleOnLabel}
-        </button>
+        </Button>
         <span className="flex items-center gap-1.5 text-[12px] text-text-muted">
           {DIMENSION_OCR_TEXT.keyboard.shortcutHint}
           <Kbd>{DIMENSION_OCR_TEXT.keyboard.keys.r.label}</Kbd>
@@ -147,8 +143,10 @@ export function DimensionOcrKeyboardMode({
             được xem không có gì để duyệt, nên vỏ màn không bật chế độ này cho
             nó — ô ở đây luôn là ô sửa được.
           */}
+          {/* `key` theo hàng: sang chuỗi kế tiếp là ô MỚI tự lấy tiêu điểm (BUG-583). */}
           <DimensionValueField
             hasAutoFocus
+            key={row.id}
             isViewerRole={false}
             onCancelEdit={onCancelEdit}
             onCommit={() => onApprove(row.id)}
@@ -171,9 +169,9 @@ export function DimensionOcrKeyboardMode({
         ))}
       </dl>
 
-      <button className={TOGGLE_CLASS_NAME} onClick={onToggle} type="button">
+      <Button onClick={onToggle} size="sm" type="button" variant="ghost">
         {DIMENSION_OCR_TEXT.keyboard.toggleOffLabel}
-      </button>
+      </Button>
     </section>
   );
 }
