@@ -71,7 +71,11 @@ describe('cây thật: container → view → hook', () => {
   it('hộp cho Pascal cắm vào CÓ MẶT ngay lúc đang nạp', () => {
     const bench = stubMount();
 
-    renderWithProviders(<PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />);
+    renderWithProviders(
+      <MemoryRouter>
+        <PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />
+      </MemoryRouter>,
+    );
 
     // Đây là dòng bắt được vòng chết: lúc này màn vẫn `loading`.
     expect(screen.getByTestId('pascal-canvas')).toBeInTheDocument();
@@ -80,7 +84,11 @@ describe('cây thật: container → view → hook', () => {
   it('gói vách ngăn ĐƯỢC nạp, và nạp vào đúng cái hộp ấy', async () => {
     const bench = stubMount();
 
-    renderWithProviders(<PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />);
+    renderWithProviders(
+      <MemoryRouter>
+        <PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(bench.calls()).toBe(1);
@@ -92,7 +100,11 @@ describe('cây thật: container → view → hook', () => {
   it('nạp xong thì màn rời khỏi "đang nạp" và nói ra số đo', async () => {
     const bench = stubMount();
 
-    renderWithProviders(<PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />);
+    renderWithProviders(
+      <MemoryRouter>
+        <PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(bench.calls()).toBe(1);
@@ -112,7 +124,9 @@ describe('cây thật: container → view → hook', () => {
     const bench = stubMount();
 
     const view = renderWithProviders(
-      <PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />,
+      <MemoryRouter>
+        <PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />
+      </MemoryRouter>,
     );
 
     await waitFor(() => {
