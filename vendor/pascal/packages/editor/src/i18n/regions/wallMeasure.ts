@@ -31,6 +31,9 @@ export const wallMeasure = {
     nudgeUp: (field: string) => `Tăng ${field} 10 mm`,
     nudgeDown: (field: string) => `Giảm ${field} 10 mm`,
     invalid: "Giá trị chưa hợp lệ nên toạ độ đã trở về số cũ.",
+    addVertex: "Thêm đỉnh giữa tường",
+    removeVertex: (corner: string) => `Xoá đỉnh ${corner} và gộp tường`,
+    cannotChange: "Không đổi được đỉnh ở đây: tường chưa tách hoặc gộp được.",
     hint: "Phím mũi tên lên/xuống dịch 10 mm, giữ Shift để dịch 100 mm. Tường nối ở đỉnh đi theo.",
   },
 } as const;
