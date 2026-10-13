@@ -251,6 +251,11 @@ export const primitivesAndSidebar = {
     site: 'Khu đất',
     noBuildingsYet: 'Chưa có toà nhà nào',
   },
+  treeNodeDefaults: {
+    wall: 'Tường',
+    door: 'Cửa',
+    window: 'Cửa sổ',
+  },
   treeNodeActions: {
     hide: 'Ẩn',
     show: 'Hiện',

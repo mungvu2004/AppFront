@@ -22,6 +22,7 @@ import { useViewer } from '@pascal-app/viewer'
 import { Trash2, X } from 'lucide-react'
 import { useCallback, useMemo } from 'react'
 import { PanelSelect, PanelTextField } from '../shared/panel-fields'
+import { vi } from '../i18n/vi'
 
 const UNIT_KIND_LABELS: Record<UnitKind, string> = {
   apartment: 'Apartment',
@@ -189,7 +190,7 @@ export default function UnitPanel({ node }: { node: UnitNode }) {
           <ActionButton
             className="text-destructive hover:text-destructive"
             icon={<Trash2 className="h-3.5 w-3.5" />}
-            label="Delete"
+            label={vi.common.delete}
             onClick={handleDelete}
           />
         </ActionGroup>

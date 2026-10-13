@@ -41,6 +41,7 @@ import { useEffect } from 'react'
 import { getHistoryCommandState, runRedo, runUndo } from '../../../lib/history'
 import { deleteLevelWithFallbackSelection } from '../../../lib/level-selection'
 import { createUnitInBuilding, enterUnitFocus, leaveUnitFocus } from '../../../lib/units'
+import { vi } from '../../../i18n/vi'
 import { useCommandRegistry } from '../../../store/use-command-registry'
 import type { StructureTool } from '../../../store/use-editor'
 import useEditor from '../../../store/use-editor'
@@ -305,7 +306,10 @@ export function EditorCommands() {
       {
         // AppFront #32: horizontal cut, dragged from the slider it mounts.
         id: 'editor.viewer.section-plane',
-        label: () => (useSectionPlane.getState().enabled ? 'Tắt mặt cắt' : 'Bật mặt cắt'),
+        label: () =>
+          useSectionPlane.getState().enabled
+            ? vi.commandPalette.sectionPlaneOff
+            : vi.commandPalette.sectionPlaneOn,
         group: 'Viewer Controls',
         icon: <Layers className="h-4 w-4" />,
         keywords: ['mat cat', 'section', 'clip', 'cut'],

@@ -2,6 +2,7 @@
 
 import { ActionButton, ActionGroup, PanelSection } from '@pascal-app/editor'
 import { Copy, Move, Trash2 } from 'lucide-react'
+import { vi } from '../i18n/vi'
 
 /**
  * Move / Duplicate / Delete buttons at the bottom of the dormer
@@ -28,7 +29,7 @@ export function DormerActionsSection({
         <ActionButton
           className="hover:bg-red-500/20"
           icon={<Trash2 className="h-3.5 w-3.5 text-red-400" />}
-          label="Delete"
+          label={vi.common.delete}
           onClick={onDelete}
         />
       </ActionGroup>
