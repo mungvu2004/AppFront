@@ -30,6 +30,7 @@ import { initializeGpuRenderer, type RendererPowerPreference } from '../../lib/r
 import { getSceneTheme } from '../../lib/scene-themes'
 import { installTextureNodeNullGuard } from '../../lib/texture-node-guard'
 import useViewer, { type RenderContext } from '../../store/use-viewer'
+import { LevelCameraFocus } from '../../systems/level/level-camera-focus'
 import { FloorElevationSystem } from '../../systems/floor-elevation/floor-elevation-system'
 import { GeometrySystem } from '../../systems/geometry/geometry-system'
 import { PerfActionSettleSystem } from '../../systems/perf-action-settle/perf-action-settle-system'
@@ -811,6 +812,7 @@ function ViewerScene({
       <StairOpeningSystem />
       <RoofElevationSystem />
       <RegisteredSystems />
+      <LevelCameraFocus />
       {BATCH_SPIKE_ENABLED && <BatchedMeshSpike />}
       {children}
     </>

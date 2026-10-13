@@ -546,9 +546,12 @@ export {
   type HistoryCommandResult,
   type HistoryCommandState,
   installHistoryCommandDelegate,
+  type HistoryJumpKind,
+  type HistoryJumpListener,
   runRedo,
   runUndo,
   subscribeHistoryCommandState,
+  subscribeHistoryJumps,
 } from './lib/history'
 export {
   type EditorHostTreeChildren,

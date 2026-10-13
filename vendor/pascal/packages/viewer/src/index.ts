@@ -259,6 +259,12 @@ export { InteractiveSystem } from './systems/interactive/interactive-system'
 // manages item-mounted light sources.
 export { ItemSystem } from './systems/item/item-system'
 export { ItemLightSystem } from './systems/item-light/item-light-system'
+export {
+  fitToBounds,
+  LevelCameraFocus,
+  type LevelFraming,
+  levelBounds,
+} from './systems/level/level-camera-focus'
 export { LevelSystem } from './systems/level/level-system'
 export {
   EXPLODED_GAP,
