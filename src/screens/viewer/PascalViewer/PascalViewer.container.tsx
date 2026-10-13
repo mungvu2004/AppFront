@@ -267,6 +267,7 @@ function PascalViewerBody({
     onHistoryJump,
     onMeasurementDelete,
     explodeLevels,
+    mountKey: projectId ?? spatialProjectId ?? '',
     ...(collapsed === undefined ? {} : { collapsed }),
     ...(loadMount === undefined ? {} : { loadMount }),
   });
