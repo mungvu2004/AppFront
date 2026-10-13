@@ -33,17 +33,22 @@ import type { PascalScene } from '@/lib/pascal/types';
 import { PascalFrame } from './PascalFrame';
 import type {
   PascalCommitVerdict,
+  PascalInitialTool,
   PascalHistoryJump,
   PascalMountMode,
   PascalSaveStatus,
   PascalSceneCommit,
 } from './pascalMountTypes';
-import { clearPascalScene, type PascalSceneCensus } from './pascalScene';
+import { clearPascalScene, frameEntityInPascal, highlightPascalNodes, type PascalSceneCensus } from './pascalScene';
 
 /** Cái người gọi cầm về, đủ để sống trọn vòng đời mà không chạm vào Pascal. */
 export interface PascalMountHandle {
   /** Nạp một cảnh khác vào cùng khung đang chạy. */
   readonly setScene: (scene: PascalScene) => void;
+  /** Khuôn camera vào một đối tượng theo mã AppFront; `false` khi không có node nào mang mã ấy. */
+  readonly frameEntity: (entityId: string) => boolean;
+  /** Tô sáng các node theo mã Pascal; mảng rỗng là bỏ tô sáng. */
+  readonly setHighlight: (nodeIds: readonly string[]) => void;
   /** Gỡ gốc React thứ hai và trả store về rỗng. Gọi được nhiều lần. */
   readonly dispose: () => void;
 }
@@ -77,8 +82,12 @@ export interface PascalMountOptions {
   readonly validateCommit?: (scene: PascalScene) => PascalCommitVerdict;
   /** Lý do một lượt sửa bị chặn. Màn hình dựng toast tiếng Việt từ đây. */
   readonly onCommitRejected?: (message: string) => void;
+  /** Công cụ bật sẵn sau khi cảnh đã nạp (chỉ ở `mode: 'edit'`). */
+  readonly initialTool?: PascalInitialTool;
   /** Người dùng vừa hoàn tác/làm lại — xem `PascalFrameProps.onHistoryJump` (A8). */
   readonly onHistoryJump?: (kind: PascalHistoryJump) => void;
+  /** Mở ở chế độ tách tầng (`/3d?view=exploded`, F-15 W2-C2). */
+  readonly explodeLevels?: boolean;
 }
 
 /**
@@ -110,6 +119,8 @@ export function mount(element: HTMLElement, options: PascalMountOptions): Pascal
           onSaveStatus={options.onSaveStatus}
           validateCommit={options.validateCommit}
           onCommitRejected={options.onCommitRejected}
+          explodeLevels={options.explodeLevels ?? false}
+          initialTool={options.initialTool}
           onReadyChange={options.onReadyChange}
           onFatal={options.onFatal}
           onSceneLoaded={options.onSceneLoaded}
@@ -125,6 +136,10 @@ export function mount(element: HTMLElement, options: PascalMountOptions): Pascal
   return {
     setScene: (scene) => {
       if (!disposed) render(scene);
+    },
+    frameEntity: (entityId) => !disposed && frameEntityInPascal(entityId),
+    setHighlight: (nodeIds) => {
+      if (!disposed) highlightPascalNodes(nodeIds);
     },
     dispose: () => {
       if (disposed) return;

@@ -13,6 +13,7 @@ import {
 } from '../item-catalog/catalog-filter'
 import { CATALOG_ITEMS } from '../item-catalog/catalog-items'
 import { ItemCatalog } from '../item-catalog/item-catalog'
+import { DetectedFurnitureStrip } from './detected-furniture-strip'
 
 /**
  * "Thư viện đồ đạc" — AppFront F-15 W2-D (#103, #104, #108).
@@ -44,6 +45,8 @@ export function FurnitureLibraryPanel() {
           {vi.count(items.length)}
         </span>
       </header>
+
+      <DetectedFurnitureStrip readOnly={readOnly} />
 
       <label className="relative block">
         <span className="sr-only">{vi.searchLabel}</span>

@@ -156,7 +156,6 @@ const FALLBACK_MAIN_OWNERS = [
   'auth/RecoveryRoute.tsx',
   'dashboard/ProjectDashboard/ProjectDashboard.container.tsx',
   'system/MobileViewer/MobileViewer.container.tsx',
-  'viewer/ExplodedView/ExplodedView.container.tsx',
   'viewer/MeasurementTool/MeasurementTool.container.tsx',
   'viewer/Viewer3D/Viewer3D.container.tsx',
   'viewer/ViewerShell/ViewerShell.container.tsx',

@@ -25,6 +25,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type {
   PascalCommitVerdict,
+  PascalInitialTool,
   PascalHistoryJump,
   PascalMountMode,
   PascalSaveStatus,
@@ -76,7 +77,7 @@ interface PascalSceneCensus {
 }
 
 /** Hình dạng tối thiểu của gói vách ngăn mà màn này dựa vào. */
-interface MountModule {
+export interface MountModule {
   readonly mount: (
     element: HTMLElement,
     options: {
@@ -92,8 +93,14 @@ interface MountModule {
       readonly onFatal?: (error: Error) => void;
       readonly onSceneLoaded?: (census: PascalSceneCensus) => void;
       readonly onRendererUnavailable?: () => void;
+      readonly explodeLevels?: boolean;
+      readonly initialTool?: PascalInitialTool;
     },
-  ) => { readonly dispose: () => void };
+  ) => {
+    readonly dispose: () => void;
+    readonly setHighlight?: (nodeIds: readonly string[]) => void;
+    readonly frameEntity?: (entityId: string) => boolean;
+  };
 }
 
 export interface UsePascalViewerOptions {
@@ -109,10 +116,14 @@ export interface UsePascalViewerOptions {
   readonly validateCommit?: (scene: PascalScene) => PascalCommitVerdict;
   /** Lý do một lượt sửa bị chặn — màn hình dựng toast tiếng Việt từ đây. */
   readonly onCommitRejected?: (message: string) => void;
+  /** Công cụ bật sẵn — `measure` khi URL có `?tool=measure`. */
+  readonly initialTool?: PascalInitialTool | undefined;
   /** Người dùng vừa hoàn tác/làm lại trong editor Pascal — màn dựng toast (A8). */
   readonly onHistoryJump?: (kind: PascalHistoryJump) => void;
   /** Khung xem có đang thu gọn không. Thu gọn thì KHÔNG dựng 3D, để đỡ tốn máy. */
   readonly collapsed?: boolean;
+  /** Mở ở chế độ tách tầng — `/3d?view=exploded`. */
+  readonly explodeLevels?: boolean;
   /**
    * Cửa nạp gói, tách ra để bài kiểm thay được. Mặc định là `import()` thật.
    * Không đặt kiểu trả về là `Promise<MountModule>` cứng ở đây vì `import()`
@@ -165,7 +176,7 @@ declare global {
  *
  * Trước khi thêm thẻ script, bật `window.__zod_globalConfig.jitless` (B-V10-05).
  */
-const defaultLoadMount = (): Promise<MountModule> => {
+export const defaultLoadMount = (): Promise<MountModule> => {
   if (mountModulePromise !== null) {
     return mountModulePromise;
   }
@@ -242,7 +253,9 @@ export function usePascalViewer({
   onSceneCommit,
   validateCommit,
   onCommitRejected,
+  initialTool,
   onHistoryJump,
+  explodeLevels = false,
 }: UsePascalViewerOptions): UsePascalViewerResult {
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -357,6 +370,8 @@ export function usePascalViewer({
           scene: result.scene,
           mode,
           readOnly,
+          explodeLevels,
+          ...(initialTool === undefined ? {} : { initialTool }),
           onSceneCommit: async (next) => {
             await edits.current.onSceneCommit?.(next);
           },
@@ -391,7 +406,7 @@ export function usePascalViewer({
       disposed = true;
       handle?.dispose();
     };
-  }, [shouldMount, result, loadMount, attempt, mode, readOnly]);
+  }, [shouldMount, result, loadMount, attempt, mode, readOnly, explodeLevels, initialTool]);
 
   const onRetry = useCallback(() => {
     setFailure(null);

@@ -2,6 +2,7 @@
 
 import {
   type AnyNode,
+  type AnyNodeId,
   type MeasurementNode,
   type MeasurementPoint,
   measurementAngle,
@@ -42,11 +43,15 @@ import {
 } from 'three'
 import { LineBasicNodeMaterial, MeshBasicNodeMaterial } from 'three/webgpu'
 import { useShallow } from 'zustand/react/shallow'
+import { vi } from '../i18n/vi'
 import {
   measurementDependencyIds,
   type ResolvedMeasurementPayload,
   resolveMeasurementNode,
 } from './resolve'
+
+/** Opacity of the other measurements while one is hovered (#68). */
+const MEASUREMENT_DIMMED_OPACITY = 0.3
 
 type MeasurementRenderData = {
   fillGeometry: BufferGeometry | null
@@ -335,6 +340,13 @@ export const MeasurementRenderer = ({ node }: { node: MeasurementNode }) => {
     (state) =>
       state.hoveredId === node.id || state.selection.selectedIds.some((id) => id === node.id),
   )
+  // #68: while another measurement is hovered, this one steps back.
+  const dimmed = useViewer(
+    (state) =>
+      state.hoveredId !== null &&
+      state.hoveredId !== node.id &&
+      useScene.getState().nodes[state.hoveredId as AnyNodeId]?.type === 'measurement',
+  )
   const ownOverride = useLiveNodeOverrides((state) => state.overrides.get(node.id)) as
     | Partial<MeasurementNode>
     | undefined
@@ -357,7 +369,7 @@ export const MeasurementRenderer = ({ node }: { node: MeasurementNode }) => {
   const data = buildRenderData(resolved.payload)
   const label = useMemo(() => {
     const value = formatMeasurement(resolved.payload, unit, metricNotation)
-    return resolved.dangling.length > 0 ? `Unlinked · ${value}` : value
+    return resolved.dangling.length > 0 ? `${vi.measurement.unlinkedPrefix}${value}` : value
   }, [metricNotation, resolved, unit])
   const color = measurementPresentationColor(resolved.dangling.length > 0, active)
   const lineMaterial = useMemo(
@@ -365,22 +377,24 @@ export const MeasurementRenderer = ({ node }: { node: MeasurementNode }) => {
       new LineBasicNodeMaterial({
         color,
         linewidth: 2,
+        transparent: dimmed,
+        opacity: dimmed ? MEASUREMENT_DIMMED_OPACITY : 1,
         depthTest: false,
         depthWrite: false,
       }),
-    [color],
+    [color, dimmed],
   )
   const fillMaterial = useMemo(
     () =>
       new MeshBasicNodeMaterial({
         color,
         transparent: true,
-        opacity: 0.12,
+        opacity: dimmed ? 0.12 * MEASUREMENT_DIMMED_OPACITY : 0.12,
         side: DoubleSide,
         depthTest: false,
         depthWrite: false,
       }),
-    [color],
+    [color, dimmed],
   )
 
   useEffect(
@@ -449,6 +463,7 @@ export const MeasurementRenderer = ({ node }: { node: MeasurementNode }) => {
                 effectiveNode.measurement.kind === 'distance' ? '-translate-y-3' : ''
               }`}
               style={{
+                opacity: dimmed ? MEASUREMENT_DIMMED_OPACITY : 1,
                 textShadow: `-1px -1px 0 ${color}, 1px -1px 0 ${color}, -1px 1px 0 ${color}, 1px 1px 0 ${color}`,
               }}
             >

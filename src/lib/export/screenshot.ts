@@ -257,6 +257,7 @@ export interface CaptureContext2DLike {
   fillText(text: string, x: number, y: number): void;
   createImageData(width: number, height: number): CaptureImageDataLike;
   putImageData(image: CaptureImageDataLike, dx: number, dy: number): void;
+  drawImage(image: CanvasImageSource, dx: number, dy: number, dw: number, dh: number): void;
 }
 
 /** The little of a canvas a capture needs: a context, and a file at the end. */
@@ -935,6 +936,11 @@ export function toImageData(
   return image;
 }
 
+/** A finished picture of the scene — the Pascal canvas — drawn into the frame as it is. */
+export interface CaptureBitmap {
+  readonly source: CanvasImageSource;
+}
+
 /**
  * Paint a composition onto a 2D context.
  *
@@ -948,7 +954,7 @@ export function toImageData(
 export function drawCapture(
   context: CaptureContext2DLike,
   composition: CaptureComposition,
-  pixels: Uint8Array,
+  pixels: Uint8Array | CaptureBitmap,
   palette: Palette,
 ): void {
   const colourOf = (token: ColorTokenName): string => {
@@ -965,11 +971,21 @@ export function drawCapture(
   // only the band brings a surface with it.
   context.clearRect(0, 0, composition.widthPx, composition.heightPx);
 
-  context.putImageData(
-    toImageData(context, pixels, composition.frame.widthPx, composition.frame.heightPx),
-    composition.frame.xPx,
-    composition.frame.yPx,
-  );
+  if (pixels instanceof Uint8Array) {
+    context.putImageData(
+      toImageData(context, pixels, composition.frame.widthPx, composition.frame.heightPx),
+      composition.frame.xPx,
+      composition.frame.yPx,
+    );
+  } else {
+    context.drawImage(
+      pixels.source,
+      composition.frame.xPx,
+      composition.frame.yPx,
+      composition.frame.widthPx,
+      composition.frame.heightPx,
+    );
+  }
 
   for (const rect of composition.rects) {
     context.fillStyle = colourOf(rect.token);
@@ -1158,6 +1174,49 @@ export async function captureViewport(
   input: CaptureViewportInput,
   host: CaptureHostOptions = {},
 ): Promise<CaptureResult> {
+  return finishCapture(input, host, (frame, options) =>
+    renderFrame(
+      input,
+      frame.widthPx,
+      frame.heightPx,
+      options.transparentBackground,
+      host.createTarget ?? createCaptureTarget,
+    ),
+  );
+}
+
+/** What {@link captureCanvas} needs: the picture is already on `canvas`, so no renderer. */
+export type CaptureCanvasInput = Omit<CaptureViewportInput, 'renderer' | 'scene' | 'camera'> & {
+  /**
+   * The live Pascal canvas (`data-testid="pascal-canvas"`). It is drawn as it stands, so it
+   * must still hold its last frame — call this straight after a render, as the editor's
+   * snapshot capture does. Its own size is the viewport.
+   */
+  readonly canvas: CanvasImageSource;
+};
+
+/**
+ * Capture the Pascal canvas with the same information band as {@link captureViewport}.
+ *
+ * Nothing on the viewer is touched — no render target, no clear alpha — because nothing is
+ * rendered: the canvas is copied. `options.transparentBackground` is therefore not honoured
+ * (whatever the canvas holds is what the file gets).
+ */
+export async function captureCanvas(
+  input: CaptureCanvasInput,
+  host: CaptureHostOptions = {},
+): Promise<CaptureResult> {
+  return finishCapture(input, host, () => ({ source: input.canvas }));
+}
+
+async function finishCapture(
+  input: Omit<CaptureViewportInput, 'renderer' | 'scene' | 'camera'>,
+  host: CaptureHostOptions,
+  grab: (
+    frame: { readonly widthPx: number; readonly heightPx: number },
+    options: CaptureOptions,
+  ) => Uint8Array | CaptureBitmap,
+): Promise<CaptureResult> {
   if (
     !Number.isFinite(input.viewport.widthPx) ||
     !Number.isFinite(input.viewport.heightPx) ||
@@ -1190,13 +1249,7 @@ export async function captureViewport(
     palette,
   });
 
-  const pixels = renderFrame(
-    input,
-    frame.widthPx,
-    frame.heightPx,
-    options.transparentBackground,
-    host.createTarget ?? createCaptureTarget,
-  );
+  const pixels = grab(frame, options);
 
   const canvas = (host.createCanvas ?? createCaptureCanvas)(
     composition.widthPx,

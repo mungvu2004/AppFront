@@ -222,7 +222,7 @@ describe('buildMeasurementFloorplan', () => {
     })
 
     const geometry = buildMeasurementFloorplan(node, context('metric'))
-    expect(geometry && labels(geometry)).toEqual(['Unlinked · 2m'])
+    expect(geometry && labels(geometry)).toEqual(['Mất liên kết · 2m'])
     expect(
       geometry && flattenGeometry(geometry).find((entry) => entry.kind === 'line'),
     ).toMatchObject({ stroke: '#dc2626' })

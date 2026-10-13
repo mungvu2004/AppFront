@@ -46,6 +46,18 @@ function PascalViewerRedirect() {
   );
 }
 
+/** `/3d/exploded` cũ → `/3d?view=exploded`: tách tầng nay là chế độ của Pascal (F-15 W2-C2). */
+function ExplodedViewRedirect() {
+  const { projectId } = useParams<{ projectId: string }>();
+
+  return (
+    <Navigate
+      replace
+      to={`${ROUTE_PATTERNS.projectViewer.replace(':projectId', projectId ?? '')}?view=exploded`}
+    />
+  );
+}
+
 /**
  * Vỏ chờ dùng chung, để hai mươi mấy route không mỗi chỗ viết một kiểu.
  *
@@ -94,7 +106,6 @@ const RouteInputQualityGate = lazy(() => import('../screens/upload/InputQualityG
 const RouteProcessing = lazy(() => import('../screens/pipeline/ProcessingScreen').then(m => ({ default: m.ProcessingScreenRoute })));
 const RouteScaleCalibration = lazy(() => import('../screens/pipeline/ScaleCalibration').then(m => ({ default: m.ScaleCalibrationRoute })));
 const RouteOverlayComparison = lazy(() => import('../screens/viewer/OverlayComparison').then(m => ({ default: m.OverlayComparisonRoute })));
-const RouteExplodedView = lazy(() => import('../screens/viewer/ExplodedView').then(m => ({ default: m.ExplodedViewRoute })));
 const RouteMeasurementTool = lazy(() => import('../screens/viewer/MeasurementTool').then(m => ({ default: m.MeasurementToolRoute })));
 const RouteRules = lazy(() => import('../screens/rules/RuleReport').then(m => ({ default: m.RulesRoute })));
 const RouteRuleSettings = lazy(() => import('../screens/rules/RuleSettings').then(m => ({ default: m.RuleSettingsRoute })));
@@ -371,7 +382,7 @@ export const routes: RouteObject[] = [
       { path: ROUTE_PATTERNS.invitationAccept, element: suspendedOutsideMain(<RouteInvitationAccept />) },
       { path: ROUTE_PATTERNS.passwordReset, element: suspendedOutsideMain(<RoutePasswordReset />) },
       { path: ROUTE_PATTERNS.dashboard, element: suspendedOutsideMain(<RouteDashboard />) },
-      { path: ROUTE_PATTERNS.projectExploded, element: suspendedOutsideMain(<RouteExplodedView />) },
+      { path: ROUTE_PATTERNS.projectExploded, element: <ExplodedViewRedirect /> },
       { path: ROUTE_PATTERNS.projectMeasure, element: suspendedOutsideMain(<RouteMeasurementTool />) },
       // Màn di động: route MỚI, không thay chỗ một route tạm nào (R-66).
       { path: ROUTE_PATTERNS.mobileViewer, element: suspendedOutsideMain(<RouteMobileViewer />) },

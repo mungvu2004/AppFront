@@ -215,11 +215,9 @@ Ghi ra để lượt sau không dựng lại lần nữa.
 
 ## 4. Một thứ nữa mà nơi ráp phải cấp
 
-`CollaborationSceneTarget` (`useCollaborationLayer.ts`) cần ba thứ từ cảnh 3D
-đang chạy: gốc cây lưới, `FrameOptions` của camera hiện tại, và một `goTo`.
-`screens/viewer/Viewer3D` đã có `CameraDirector` và cây lưới, nhưng
-`ViewerSceneHandle` hiện **không xuất gốc cây ra ngoài** — nó chỉ có
-`frameEntities`. Nơi ráp lớp phủ vào `Viewer3D` sẽ phải chọn một trong hai: xuất
-thêm gốc cây, hoặc đổi `CollaborationSceneTarget` thành một lời gọi
-`frameEntities` duy nhất. Cả hai đều là thay đổi ngoài phạm vi bốn file của lớp
-logic này, nên nó nằm ở đây chứ không nằm trong một `TODO`.
+`CollaborationSceneTarget` (`useCollaborationLayer.ts`) chỉ còn một hàm:
+`frameEntity(objectId)`. Nơi cấp nó là `PascalMountHandle.frameEntity`
+(`src/components/pascal/pascalMount.tsx`), bắn sự kiện `camera-controls:focus` của Pascal.
+Chỗ gắn lớp phủ vào khung Pascal là `viewerSceneSlot` do W2-C1 cấp; tới lúc đó `scene` vẫn
+là `null` ở mọi nơi ráp và bấm ghim không làm gì (không vỡ). Camera chỉ nghe sự kiện khi
+khung chạy ở `mode: 'edit'`.

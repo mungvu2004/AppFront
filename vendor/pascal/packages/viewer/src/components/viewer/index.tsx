@@ -31,6 +31,7 @@ import { getSceneTheme } from '../../lib/scene-themes'
 import { installTextureNodeNullGuard } from '../../lib/texture-node-guard'
 import useViewer, { type RenderContext } from '../../store/use-viewer'
 import { LevelCameraFocus } from '../../systems/level/level-camera-focus'
+import { SectionPlaneGroup } from '../../systems/section-plane/section-plane'
 import { FloorElevationSystem } from '../../systems/floor-elevation/floor-elevation-system'
 import { GeometrySystem } from '../../systems/geometry/geometry-system'
 import { PerfActionSettleSystem } from '../../systems/perf-action-settle/perf-action-settle-system'
@@ -42,6 +43,7 @@ import FrameLimiter, { setViewerSceneSettled } from './frame-limiter'
 import { Lights } from './lights'
 import { PerfMonitor } from './perf-monitor'
 import { PerfPanel } from './perf-panel'
+import { ViewCubeBridge } from './view-cube'
 import { PointerRaycastLayers } from './pointer-raycast-layers'
 import PostProcessing, { DEFAULT_HOVER_STYLES, type HoverStyles } from './post-processing'
 import { RegisteredSystems } from './registered-systems'
@@ -797,12 +799,16 @@ function ViewerScene({
   useBvh: boolean
   SceneWrapper?: ViewerImmersiveSession['Scene']
 }) {
-  const renderedScene = useBvh ? (
-    <SceneBvh>
-      <SceneRenderer />
-    </SceneBvh>
-  ) : (
-    <SceneRenderer />
+  const renderedScene = (
+    <SectionPlaneGroup>
+      {useBvh ? (
+        <SceneBvh>
+          <SceneRenderer />
+        </SceneBvh>
+      ) : (
+        <SceneRenderer />
+      )}
+    </SectionPlaneGroup>
   )
   const spatialScene = (
     <>
@@ -813,6 +819,7 @@ function ViewerScene({
       <RoofElevationSystem />
       <RegisteredSystems />
       <LevelCameraFocus />
+      <ViewCubeBridge />
       {BATCH_SPIKE_ENABLED && <BatchedMeshSpike />}
       {children}
     </>

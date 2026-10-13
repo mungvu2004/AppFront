@@ -22,9 +22,11 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { guideEmitter } from '../../../lib/guide-events'
+import { findGuideScaleMismatch } from '../../../lib/floorplan/guide-scale'
 import { getGuideImageName } from '../../../lib/local-guide-image'
 import { cn } from '../../../lib/utils'
 import useEditor from '../../../store/use-editor'
+import { toFixedVi } from '../../../i18n/format'
 import { controlsAndPanels as vi } from '../../../i18n/regions/controlsAndPanels'
 import { ActionButton, ActionGroup } from '../controls/action-button'
 import { PanelSection } from '../controls/panel-section'
@@ -63,6 +65,16 @@ export function ReferencePanel() {
       ? (s.nodes[selectedReferenceId as AnyNode['id']] as ReferenceNode | undefined)
       : undefined,
   )
+  // #95: a calibrated sheet whose scale disagrees with another floor's sheet.
+  const scaleMismatch = useScene((s) => {
+    if (node?.type !== 'guide') return null
+    const mismatch = findGuideScaleMismatch(node, s.nodes)
+    if (!mismatch) return null
+    const level = s.nodes[mismatch.levelId as AnyNode['id']]
+    const levelName =
+      level?.name || (level?.type === 'level' ? vi.referencePanel.levelFallback(level.level) : '')
+    return vi.referencePanel.scaleMismatch(toFixedVi(mismatch.percent, 1), levelName)
+  })
   const isScaleFlowActive = useEditor(
     (s) => s.referenceScaleActiveGuideId !== null && s.referenceScaleActiveGuideId === node?.id,
   )
@@ -240,6 +252,12 @@ export function ReferencePanel() {
               />
             </ActionGroup>
 
+            {guideLocked && (
+              <p className="px-0.5 text-muted-foreground text-xs leading-snug">
+                {vi.referencePanel.lockedHint}
+              </p>
+            )}
+
             {replaceError && (
               <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1.5 text-destructive text-xs">
                 {replaceError}
@@ -263,6 +281,15 @@ export function ReferencePanel() {
               />
               <span className="truncate text-muted-foreground">{scaleStatus}</span>
             </div>
+
+            {scaleMismatch && (
+              <div
+                className="rounded-md border border-amber-500/35 bg-amber-500/10 px-2 py-1.5 text-amber-700 text-xs dark:text-amber-300"
+                role="status"
+              >
+                {scaleMismatch}
+              </div>
+            )}
 
             {!node.scaleReference && (
               <p className="px-0.5 text-muted-foreground text-xs leading-snug">

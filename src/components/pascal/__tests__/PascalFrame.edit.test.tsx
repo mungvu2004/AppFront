@@ -174,3 +174,25 @@ describe('[A8] cú nhảy lịch sử đi ra ngoài', () => {
     expect(historyJumps.listeners.size).toBe(0);
   });
 });
+
+describe('PascalFrame — `/3d?view=exploded` (F-15 W2-C2)', () => {
+  it('bật tách tầng hết cỡ khi được yêu cầu', async () => {
+    const { useLevelExplode, useViewer } = await import('@pascal-app/viewer');
+    useViewer.getState().setLevelMode('stacked');
+    useLevelExplode.getState().setAmount(0.2);
+
+    renderEdit({ explodeLevels: true });
+
+    expect(useViewer.getState().levelMode).toBe('exploded');
+    expect(useLevelExplode.getState().amount).toBe(1);
+  });
+
+  it('không đụng chế độ tầng khi không yêu cầu', async () => {
+    const { useViewer } = await import('@pascal-app/viewer');
+    useViewer.getState().setLevelMode('stacked');
+
+    renderEdit();
+
+    expect(useViewer.getState().levelMode).toBe('stacked');
+  });
+});

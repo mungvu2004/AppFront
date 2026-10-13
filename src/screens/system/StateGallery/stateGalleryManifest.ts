@@ -652,22 +652,6 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     },
   },
   {
-    id: 'viewer/ExplodedView',
-    name: 'ExplodedView',
-    area: 'viewer',
-    group: 'H',
-    label: 'tách tầng',
-    storyExportNames: {
-      empty: 'Rong',
-      loading: 'DangTai',
-      partial: 'MotPhan',
-      error: 'Loi',
-      success: 'ThanhCong',
-      forbidden: 'KhongCoQuyen',
-      collapsed: 'ThuGon',
-    },
-  },
-  {
     id: 'viewer/FurnitureLibraryPanel',
     name: 'FurnitureLibraryPanel',
     area: 'viewer',

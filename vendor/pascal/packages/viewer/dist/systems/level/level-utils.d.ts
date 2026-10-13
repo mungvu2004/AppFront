@@ -1,4 +1,18 @@
 export declare const EXPLODED_GAP = 5;
+export declare const useLevelExplode: import("zustand").UseBoundStore<import("zustand").StoreApi<{
+    amount: number;
+    setAmount: (amount: number) => void;
+}>>;
+export declare const LEVEL_LABEL_MIN_EXPLODE = 0.35;
+export declare function isLevelLabelVisible(levelMode: 'stacked' | 'exploded' | 'solo' | 'manual', amount: number): boolean;
+export declare function prefersReducedMotion(): boolean;
+export declare const LEVEL_MISALIGN_TOLERANCE_M = 0.25;
+export type LevelMisalignment = {
+    lowerLevelId: string;
+    upperLevelId: string;
+    offsetM: number;
+};
+export declare function findLevelMisalignments(nodes: Record<string, unknown>, tolerance?: number): LevelMisalignment[];
 /**
  * The Y a level settles at under the given presentation mode — its stacked
  * elevation plus the exploded gap. Analytic (scene store + mode), never a
