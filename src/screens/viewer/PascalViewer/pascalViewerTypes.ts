@@ -13,6 +13,7 @@
  * ở đây), chứ không phải bằng cách ném.
  */
 
+import { formatClockTime } from '@/lib/format/datetime';
 import type { PascalSaveStatus } from '@/components/pascal/pascalMountTypes';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 
@@ -125,6 +126,13 @@ export const PASCAL_SAVE_LABELS: Readonly<Record<PascalSaveStatus, string>> = {
   saved: 'Đã lưu',
   paused: 'Tạm dừng lưu.',
   error: 'Chưa lưu được thay đổi.',
+};
+
+/** Câu trạng thái lưu; khi đã lưu thì kèm giờ: "Đã lưu lúc 14:32" (#24). */
+export const saveLabelOf = (status: PascalSaveStatus | null, savedAt: number | null): string | null => {
+  if (status === null) return null;
+  if (status === 'saved' && savedAt !== null) return `${PASCAL_SAVE_LABELS.saved} lúc ${formatClockTime(savedAt)}`;
+  return PASCAL_SAVE_LABELS[status];
 };
 
 /** Tiêu đề màn. Một chuỗi, để không chỗ nào tự chế ra bản khác. */

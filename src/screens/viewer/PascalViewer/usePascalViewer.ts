@@ -34,7 +34,7 @@ import type { PascalScene, SkippedEntity } from '@/lib/pascal/types';
 import type { SpatialGraph } from '@/domain/spatial/types';
 
 import {
-  PASCAL_SAVE_LABELS,
+  saveLabelOf,
   PASCAL_VIEWER_CAPTIONS,
   PASCAL_VIEWER_TITLE,
   type PascalViewerErrorCode,
@@ -259,6 +259,8 @@ export function usePascalViewer({
   const [selfCollapsed, setSelfCollapsed] = useState(false);
   /** Trạng thái lưu mà editor Pascal báo ra; `null` khi chưa có lượt nào. */
   const [saveStatus, setSaveStatus] = useState<PascalSaveStatus | null>(null);
+  // #24 — giờ của lượt lưu thành công gần nhất, cho câu "Đã lưu lúc HH:MM".
+  const [savedAt, setSavedAt] = useState<number | null>(null);
   /**
    * Hàm gọi lại của đường lưu, giữ trong ref chứ KHÔNG trong deps của hiệu ứng gắn.
    *
@@ -356,7 +358,9 @@ export function usePascalViewer({
           validateCommit: (next) => edits.current.validateCommit?.(next) ?? { ok: true },
           onCommitRejected: (message) => edits.current.onCommitRejected?.(message),
           onSaveStatus: (status) => {
-            if (!disposed) setSaveStatus(status);
+            if (disposed) return;
+            setSaveStatus(status);
+            if (status === 'saved') setSavedAt(Date.now());
           },
           onReadyChange: (value) => {
             if (!disposed) setReady(value);
@@ -488,7 +492,7 @@ export function usePascalViewer({
       summary,
       skipped: state === 'partial' ? skipped : [],
       errorCode: failure,
-      saveLabel: saveStatus === null ? null : PASCAL_SAVE_LABELS[saveStatus],
+      saveLabel: saveLabelOf(saveStatus, savedAt),
     },
     canvasRef,
     onRetry,
