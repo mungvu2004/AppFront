@@ -18,6 +18,7 @@ import {
   runAsSingleSceneHistoryStep,
   SlabNode,
   spatialGridManager,
+  StructuralGridNode,
   useScene,
   type WallNode,
   WallNode as WallSchema,
@@ -966,5 +967,33 @@ describe('snapWallDraftPointDetailed', () => {
     })
     expect(freed.point).toEqual([2, 0])
     expect(freed.snap).toBeNull()
+  })
+})
+
+describe('snapWallDraftPointDetailed — structural grid', () => {
+  const axis = (id: string, start: WallPlanPoint, end: WallPlanPoint, label: string) =>
+    StructuralGridNode.parse({ id, parentId: LEVEL_ID, start, end, label })
+  const gridAxes = [
+    axis('structural-grid_1', [2, 0], [2, 8], '1'),
+    axis('structural-grid_a', [0, 3], [8, 3], 'A'),
+  ]
+
+  test('snaps near a grid crossing and reports "gridIntersection"', () => {
+    const result = snapWallDraftPointDetailed({ point: [2.15, 3.1], walls: [], gridAxes })
+    expect(result.point).toEqual([2, 3])
+    expect(result.snap).toBe('gridIntersection')
+  })
+
+  test('does not snap when out of reach or when magnetic snap is off', () => {
+    expect(snapWallDraftPointDetailed({ point: [4, 5], walls: [], gridAxes }).snap).toBeNull()
+    expect(
+      snapWallDraftPointDetailed({ point: [2.15, 3.1], walls: [], gridAxes, magnetic: false }).snap,
+    ).not.toBe('gridIntersection')
+  })
+
+  test('a wall corner wins over a grid crossing', () => {
+    const wall = makeWall([2.05, 3.05], [6, 3.05], 'wall_corner')
+    const result = snapWallDraftPointDetailed({ point: [2.1, 3.1], walls: [wall], gridAxes })
+    expect(result.snap).toBe('endpoint')
   })
 })
