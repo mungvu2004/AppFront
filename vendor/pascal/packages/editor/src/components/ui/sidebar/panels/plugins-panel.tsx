@@ -158,10 +158,14 @@ export function PluginsPanel() {
                 {lock.actionLabel}
               </Button>
             </div>
-          ) : (
+          ) : readOnly ? null : (
+            /* Viewer role: the button is REMOVED, not disabled. A greyed
+               "Install" still says the action exists for this person and
+               something is merely wrong right now; a viewer has no such
+               action at all, and a screen reader reading out a disabled
+               control it can never reach is noise either way. */
             <Button
               className="mt-5 rounded-full"
-              disabled={readOnly}
               onClick={() => {
                 const next = installed
                   ? installedPlugins.filter((id) => id !== pluginId)
