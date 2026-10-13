@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { emitter } from '@pascal-app/core';
 import { appFrontEditorPanels, Editor, subscribeHistoryJumps, useEditor } from '@pascal-app/editor';
 import {
   computeHeroFraming,
@@ -18,6 +19,7 @@ import { useThree } from '@react-three/fiber';
 
 import type { PascalScene } from '@/lib/pascal/types';
 
+import { createPickMeasure } from './pascalPick';
 import {
   BUILTIN_PLUGIN_ID,
   loadPascalPlugins,
@@ -28,6 +30,7 @@ import type {
   PascalCommitVerdict,
   PascalInitialTool,
   PascalHistoryJump,
+  PascalMeasureResult,
   PascalMountMode,
   PascalSaveStatus,
 } from './pascalMountTypes';
@@ -95,6 +98,10 @@ export interface PascalFrameProps {
   readonly onHistoryJump: ((kind: PascalHistoryJump) => void) | undefined;
   /** Bật tách tầng hết cỡ khi khung đứng lên — `/3d?view=exploded`. */
   readonly explodeLevels?: boolean;
+  /** Chạm chọn ở `view` — xem `PascalMountOptions.onPick`. */
+  readonly onPick?: ((nodeId: string | null) => void) | undefined;
+  readonly measure?: boolean;
+  readonly onMeasure?: ((result: PascalMeasureResult) => void) | undefined;
 }
 
 /** `fov` của `PerspectiveCamera` mà `ViewerCamera` của Pascal dựng (`viewer-camera.tsx`). */
@@ -152,6 +159,9 @@ export function PascalFrame({
   initialTool,
   onHistoryJump,
   explodeLevels = false,
+  onPick,
+  measure = false,
+  onMeasure,
 }: PascalFrameProps) {
   const [loaded, setLoaded] = useState(false);
   const [ready, setReady] = useState(false);
@@ -167,6 +177,22 @@ export function PascalFrame({
     editor.setToolDefaults('measurement', { kind: editor.lastMeasurementKind });
     editor.armToolMode({ mode: 'build', tool: 'measurement' });
   }, [initialTool, mode, ready]);
+
+  /* Chạm chọn / đo ở `view`: nghe bus của core (viewer phát `node:click` khi
+     bấm vào node, `grid:click` khi bấm ra nền), không cần sửa vendor. */
+  useEffect(() => {
+    if (mode !== 'view' || (onPick === undefined && !measure)) return undefined;
+    const handle = createPickMeasure({ measure, onPick, onMeasure });
+    const onNode = (event: { node: { id: string }; position: [number, number, number] }) =>
+      handle(event.node.id, event.position);
+    const onGrid = (event: { position: [number, number, number] }) => handle(null, event.position);
+    emitter.on('node:click', onNode);
+    emitter.on('grid:click', onGrid);
+    return () => {
+      emitter.off('node:click', onNode);
+      emitter.off('grid:click', onGrid);
+    };
+  }, [mode, measure, onPick, onMeasure]);
 
   useEffect(() => {
     if (!explodeLevels) return;

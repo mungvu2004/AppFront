@@ -37,3 +37,8 @@ export type PascalSceneCommit = (scene: PascalScene) => Promise<void>;
  * thay vì `import type` xuyên tường, cùng lý do `PascalSaveStatus` ở trên.
  */
 export type PascalHistoryJump = 'undo' | 'redo';
+
+/** Một lượt đo hai điểm ở khung xem; host định dạng số theo A15. */
+export interface PascalMeasureResult {
+  readonly distanceM: number;
+}

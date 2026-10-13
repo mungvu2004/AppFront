@@ -37,6 +37,7 @@ import type {
   PascalHistoryJump,
   PascalMountMode,
   PascalSaveStatus,
+  PascalMeasureResult,
   PascalSceneCommit,
 } from './pascalMountTypes';
 import { clearPascalScene, frameEntityInPascal, highlightPascalNodes, type PascalSceneCensus } from './pascalScene';
@@ -88,6 +89,12 @@ export interface PascalMountOptions {
   readonly onHistoryJump?: (kind: PascalHistoryJump) => void;
   /** Mở ở chế độ tách tầng (`/3d?view=exploded`, F-15 W2-C2). */
   readonly explodeLevels?: boolean;
+  /** Chạm/bấm một đối tượng ở `view` — mã node Pascal, hoặc `null` khi chạm khoảng trống. */
+  readonly onPick?: (nodeId: string | null) => void;
+  /** Bật đo hai điểm ở `view`: khi bật, chạm không còn gọi `onPick`. */
+  readonly measure?: boolean;
+  /** Một lượt đo xong (hai điểm). */
+  readonly onMeasure?: (result: PascalMeasureResult) => void;
 }
 
 /**
@@ -126,6 +133,9 @@ export function mount(element: HTMLElement, options: PascalMountOptions): Pascal
           onSceneLoaded={options.onSceneLoaded}
           onRendererUnavailable={options.onRendererUnavailable}
           onHistoryJump={options.onHistoryJump}
+          onPick={options.onPick}
+          measure={options.measure ?? false}
+          onMeasure={options.onMeasure}
         />
       </StrictMode>,
     );
