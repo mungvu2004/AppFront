@@ -22,6 +22,7 @@
  */
 
 import type {
+  Axis,
   Building,
   Furniture,
   FurnitureKind,
@@ -46,6 +47,7 @@ import type {
   PascalReview,
   PascalSiteNode,
   PascalSlabNode,
+  PascalStructuralGridNode,
   PascalVec3,
   PascalWallNode,
   PascalWindowNode,
@@ -334,6 +336,22 @@ const zoneNodeOf = (room: Room, levelNodeId: PascalNodeId): PascalZoneNode => ({
   },
 });
 
+/** Độ dài tối đa của nhãn trục trong lược đồ Pascal (`structural-grid.ts`). */
+const GRID_LABEL_MAX = 12;
+
+const gridNodeOf = (axis: Axis, levelNodeId: PascalNodeId): PascalStructuralGridNode => ({
+  object: 'node',
+  id: toPascalId('structural-grid', axis.id),
+  type: 'structural-grid',
+  parentId: levelNodeId,
+  start: [metresOf(axis.line.start.x), metresOf(axis.line.start.y)],
+  end: [metresOf(axis.line.end.x), metresOf(axis.line.end.y)],
+  label: axis.label.trim().slice(0, GRID_LABEL_MAX) || '?',
+  showStartBubble: true,
+  showEndBubble: true,
+  metadata: { appfront: originOf(axis, { direction: axis.direction, label: axis.label }) },
+});
+
 /** Chiều cao dựng hình của một món đồ, mét: thang lấy chiều cao tầng, còn lại lấy bảng. */
 const heightOfFurniture = (furniture: Furniture, levelHeightMm: number): number =>
   furniture.kind === 'stair'
@@ -610,7 +628,24 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
   }
 
   for (const axis of graph.axes) {
-    skipped.push(skip(axis.id, 'trục định vị', 'Pascal chưa có loại node nào cho trục định vị.'));
+    const levelNodeId = levelNodeIdOf.get(axis.levelId);
+
+    if (levelNodeId === undefined) {
+      skipped.push(skip(axis.id, 'trục định vị', `Trục thuộc tầng ${axis.levelId} mà tầng ấy không có trong bản vẽ.`));
+      continue;
+    }
+
+    const { start, end } = axis.line;
+
+    if (!isUsable(start.x, start.y, end.x, end.y)) {
+      skipped.push(skip(axis.id, 'trục định vị', 'Toạ độ hai đầu trục không phải một số đo được.'));
+      continue;
+    }
+
+    const node = gridNodeOf(axis, levelNodeId);
+
+    nodes[node.id] = node;
+    adopt(levelNodeId, node.id);
   }
 
   for (const dimension of graph.dimensions) {

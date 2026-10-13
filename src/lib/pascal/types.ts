@@ -286,6 +286,19 @@ export interface PascalItemNode extends PascalNodeCommon {
   };
 }
 
+/**
+ * Trục định vị; con của tầng. `start`/`end` là toạ độ mặt bằng (m) cùng hệ với tường.
+ * `label` của lược đồ Pascal dài 1–12 ký tự; nhãn gốc đầy đủ nằm ở `metadata.appfront.fields`.
+ */
+export interface PascalStructuralGridNode extends PascalNodeCommon {
+  readonly type: 'structural-grid';
+  readonly start: PascalPoint2;
+  readonly end: PascalPoint2;
+  readonly label: string;
+  readonly showStartBubble: boolean;
+  readonly showEndBubble: boolean;
+}
+
 /** Một node bất kỳ trong số tám loại AppFront viết ra. */
 export type PascalNode =
   | PascalSiteNode
@@ -296,7 +309,8 @@ export type PascalNode =
   | PascalWindowNode
   | PascalZoneNode
   | PascalSlabNode
-  | PascalItemNode;
+  | PascalItemNode
+  | PascalStructuralGridNode;
 
 /** Loại node AppFront viết ra, đọc từ chính hợp trên. */
 export type PascalNodeType = PascalNode['type'];
