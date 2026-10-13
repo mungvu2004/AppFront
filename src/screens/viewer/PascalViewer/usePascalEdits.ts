@@ -23,7 +23,7 @@
  * xếp, và hai ngăn xếp lệch nhau là lỗi không ai dựng lại được.
  */
 
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import type { PascalCommitVerdict } from '@/components/pascal/pascalMountTypes';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
@@ -70,8 +70,8 @@ export interface UsePascalEditsOptions {
 }
 
 export interface UsePascalEditsResult {
-  /** Truyền cho khung nhúng: cảnh sau một lượt sửa. */
-  readonly onSceneCommit: (scene: PascalScene) => Promise<void>;
+  /** Truyền cho khung nhúng: cảnh sau một lượt sửa. `true` khi lượt ấy đã vào kho. */
+  readonly onSceneCommit: (scene: PascalScene) => Promise<boolean>;
   /** Truyền cho khung nhúng: phán quyết 6A, chạy trước khi lượt sửa vào lịch sử. */
   readonly validateCommit: (scene: PascalScene) => PascalCommitVerdict;
 }
@@ -101,6 +101,13 @@ export function usePascalEdits({
 }: UsePascalEditsOptions): UsePascalEditsResult {
   /** Cảnh máy chủ đang giữ. Mốc "trước" của lượt sửa kế tiếp. */
   const savedScene = useRef<PascalScene | null>(null);
+
+  /* Cảnh từ nguồn ngoài vừa nạp vào editor thay mốc: lượt sửa sau so với nó,
+     không so với lượt lưu cũ — thiếu dòng này thì thay đổi ngoài bị ghi lại
+     như một lượt sửa của Pascal. */
+  useEffect(() => {
+    savedScene.current = null;
+  }, [loadedScene]);
   /** Sổ id của phiên: đối tượng Pascal vừa vẽ giữ nguyên id qua nhiều lượt sửa. */
   const idBook = useRef<PascalIdBook>(new Map());
   const gate = useMemo(() => createChangeGate(), []);
@@ -197,19 +204,19 @@ export function usePascalEdits({
   );
 
   const onSceneCommit = useCallback(
-    async (scene: PascalScene): Promise<void> => {
-      if (readOnly) return;
+    async (scene: PascalScene): Promise<boolean> => {
+      if (readOnly) return false;
 
       const built = buildFor(scene);
 
-      if (built === null) return;
+      if (built === null) return false;
 
       if (!built.ok) {
         if (built.error.code !== 'PASCAL_NO_CHANGE') {
           onRejected(built.error.reasons[0] ?? PASCAL_REJECTED_FALLBACK);
         }
 
-        return;
+        return false;
       }
 
       label.current = built.data.description;
@@ -219,10 +226,12 @@ export function usePascalEdits({
       if (!result.ok) {
         onRejected(result.error.reasons[0] ?? PASCAL_REJECTED_FALLBACK);
 
-        return;
+        return false;
       }
 
       savedScene.current = scene;
+
+      return true;
     },
     [buildFor, deps, onRejected, readOnly],
   );

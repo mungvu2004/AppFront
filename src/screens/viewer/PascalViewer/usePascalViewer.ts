@@ -102,6 +102,7 @@ export interface MountModule {
     },
   ) => {
     readonly dispose: () => void;
+    readonly setScene?: (scene: PascalScene) => void;
     readonly setHighlight?: (nodeIds: readonly string[]) => void;
     readonly frameEntity?: (entityId: string) => boolean;
   };
@@ -114,8 +115,12 @@ export interface UsePascalViewerOptions {
   readonly mode?: PascalMountMode;
   /** Vai chỉ-xem. Ở `edit`, editor khoá store và ẩn mọi nút sửa. */
   readonly readOnly?: boolean;
-  /** Đường lưu — xem `usePascalEdits`. Vắng thì editor không lưu được đi đâu. */
-  readonly onSceneCommit?: (scene: PascalScene) => Promise<void>;
+  /**
+   * Đường lưu — xem `usePascalEdits`. Vắng thì editor không lưu được đi đâu.
+   * Trả `true` khi lượt sửa đã vào kho: bản vẽ mới sinh ra từ đó là tiếng vọng
+   * của chính editor và KHÔNG được nạp ngược vào nó.
+   */
+  readonly onSceneCommit?: (scene: PascalScene) => Promise<boolean | void>;
   /** Phán quyết 6A, chạy trước khi lượt sửa vào lịch sử của editor. */
   readonly validateCommit?: (scene: PascalScene) => PascalCommitVerdict;
   /** Lý do một lượt sửa bị chặn — màn hình dựng toast tiếng Việt từ đây. */
@@ -132,6 +137,8 @@ export interface UsePascalViewerOptions {
   readonly collapsed?: boolean;
   /** Mở ở chế độ tách tầng — `/3d?view=exploded`. */
   readonly explodeLevels?: boolean;
+  /** Danh tính của cảnh (mã dự án). Đổi khoá thì khung gỡ ra và gắn lại từ đầu. */
+  readonly mountKey?: string;
   /**
    * Cửa nạp gói, tách ra để bài kiểm thay được. Mặc định là `import()` thật.
    * Không đặt kiểu trả về là `Promise<MountModule>` cứng ở đây vì `import()`
@@ -270,6 +277,7 @@ export function usePascalViewer({
   onHistoryJump,
   onMeasurementDelete,
   explodeLevels = false,
+  mountKey = '',
 }: UsePascalViewerOptions): UsePascalViewerResult {
   const canvasRef = useRef<HTMLDivElement>(null);
   /* Tay cầm của khung đang chạy; `sceneTarget` đọc nó lúc gọi nên đứng vững qua
@@ -341,7 +349,20 @@ export function usePascalViewer({
   const [result, setResult] = useState<{
     readonly scene: PascalScene;
     readonly skipped: readonly SkippedEntity[];
+    /** Bản vẽ này sinh ra từ lượt lưu của chính editor — cảnh đã nằm trong đó. */
+    readonly echo: boolean;
   } | null>(null);
+  /** Bản mới nhất cho hiệu ứng gắn, để `result` không nằm trong deps của nó. */
+  const resultRef = useRef(result);
+  resultRef.current = result;
+  /** Cảnh đang nằm trong editor: lúc gắn, hoặc lượt đẩy từ nguồn ngoài gần nhất. */
+  const [pascalScene, setPascalScene] = useState<PascalScene | null>(null);
+  /**
+   * Một lượt lưu của editor đang ghi vào kho. Bản vẽ đổi trong lúc cờ dựng là
+   * tiếng vọng của lượt ấy. Dựng TRƯỚC khi gọi đường lưu, vì `commit` đổi kho
+   * ngay trong lúc gọi và React có thể chạy hiệu ứng trước khi lời gọi trả về.
+   */
+  const echoPending = useRef(false);
 
   useEffect(() => {
     if (graph === null || isEmpty) {
@@ -351,10 +372,12 @@ export function usePascalViewer({
     }
 
     let cancelled = false;
+    const echo = echoPending.current;
+    echoPending.current = false;
 
     import('@/lib/pascal/toPascal')
       .then(({ toPascalScene }) => {
-        if (!cancelled) setResult(toPascalScene(graph));
+        if (!cancelled) setResult({ ...toPascalScene(graph), echo });
       })
       .catch(() => {
         if (!cancelled) setFailure('PASCAL-01');
@@ -373,7 +396,8 @@ export function usePascalViewer({
     if (!shouldMount) return;
 
     const element = canvasRef.current;
-    if (element === null || result === null) return;
+    const initial = resultRef.current;
+    if (element === null || initial === null) return;
 
     let disposed = false;
     let handle: ReturnType<MountModule['mount']> | null = null;
@@ -388,13 +412,19 @@ export function usePascalViewer({
       .then((module) => {
         if (disposed) return;
         handle = module.mount(element, {
-          scene: result.scene,
+          scene: initial.scene,
           mode,
           readOnly,
           explodeLevels,
           ...(initialTool === undefined ? {} : { initialTool }),
           onSceneCommit: async (next) => {
-            await edits.current.onSceneCommit?.(next);
+            echoPending.current = true;
+            try {
+              if ((await edits.current.onSceneCommit?.(next)) !== true) echoPending.current = false;
+            } catch (cause) {
+              echoPending.current = false;
+              throw cause;
+            }
           },
           validateCommit: (next) => edits.current.validateCommit?.(next) ?? { ok: true },
           onCommitRejected: (message) => edits.current.onCommitRejected?.(message),
@@ -426,6 +456,7 @@ export function usePascalViewer({
           },
         });
         mountedRef.current = handle;
+        setPascalScene(initial.scene);
       })
       .catch(() => {
         if (!disposed) setFailure('PASCAL-01');
@@ -434,9 +465,23 @@ export function usePascalViewer({
     return () => {
       disposed = true;
       mountedRef.current = null;
+      setPascalScene(null);
       handle?.dispose();
     };
-  }, [shouldMount, result, loadMount, attempt, mode, readOnly, explodeLevels, initialTool]);
+    /* KHÔNG có `result`: mỗi lượt lưu đổi bản vẽ, và gỡ-gắn lại theo nó là mất
+       vùng chọn, camera và lịch sử hoàn tác của editor sau MỖI lần sửa. Cảnh
+       đổi từ nguồn ngoài đi qua `setScene` ở hiệu ứng dưới. */
+  }, [shouldMount, mountKey, loadMount, attempt, mode, readOnly, explodeLevels, initialTool]);
+
+  /* Cảnh đổi từ nguồn ngoài (người khác sửa, khôi phục phiên bản…) → nạp vào
+     editor đang chạy. Tiếng vọng của lượt lưu của chính editor thì bỏ qua. */
+  useEffect(() => {
+    const handle = mountedRef.current;
+    if (handle === null || result === null || result.echo || result.scene === pascalScene) return;
+    if (pascalScene === null) return;
+    handle.setScene?.(result.scene);
+    setPascalScene(result.scene);
+  }, [result, pascalScene]);
 
   const onRetry = useCallback(() => {
     setFailure(null);
@@ -547,7 +592,7 @@ export function usePascalViewer({
     },
     canvasRef,
     sceneTarget,
-    loadedScene: result?.scene ?? null,
+    loadedScene: pascalScene,
     onRetry,
     onExpand,
   };
