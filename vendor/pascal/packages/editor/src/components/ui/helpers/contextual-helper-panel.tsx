@@ -1,4 +1,4 @@
-import { Icon } from '@iconify/react'
+import { Icon } from '../../../lib/offline-icons'
 import type { ToolHint } from '@pascal-app/core'
 import { Fragment, useSyncExternalStore } from 'react'
 import {

@@ -1,6 +1,6 @@
 import '../../../three-types'
 
-import { Icon } from '@iconify/react'
+import { Icon } from '../../../lib/offline-icons'
 import {
   type AnyNodeId,
   emitter,
