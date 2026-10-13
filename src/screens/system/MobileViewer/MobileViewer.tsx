@@ -211,7 +211,7 @@ export function MobileViewer({
     >
       {/* Mặt vẽ của module cảnh, dưới mọi lớp chữ. View không dựng cảnh ở đây. */}
       {canvasRef !== undefined && state !== 'error' && (
-        <canvas aria-hidden="true" className="absolute inset-0 block h-full w-full" ref={canvasRef} />
+        <div aria-hidden="true" className="absolute inset-0 block h-full w-full" ref={canvasRef} />
       )}
 
       <header
