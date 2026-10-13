@@ -226,7 +226,12 @@ const changeBetween = <K extends EntityKind>(
   const settled = withReviewOfPrevious<K>(from, to);
 
   if (sameValue(from, settled)) {
-    return null;
+    /* Hình học không đổi, chỉ `reviewed` đổi: đó là cú bấm "Duyệt"/"Bỏ qua"
+       của panel "Kiểm duyệt" — hành động của người (A5), nên đi qua nguyên
+       văn. `confidence` và `source` vẫn lấy từ "trước". */
+    return to.reviewed === from.reviewed
+      ? null
+      : asChange(changeForUpdate(kind, from, { ...settled, reviewed: to.reviewed }));
   }
 
   /* C2 — lượt sửa này là thật, nên dấu xác minh KHÔNG sống sót qua nó. Đặt

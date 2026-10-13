@@ -127,6 +127,28 @@ describe('createPascalEditCommand', () => {
     expect(after !== null && after !== undefined && 'thicknessMm' in after ? after.thicknessMm : null).toBe(330);
   });
 
+  it('A5 — bấm "Duyệt" mà không đổi hình học thì lệnh mang `reviewed: true`', () => {
+    const wall = baseScene.nodes[firstWallId];
+
+    if (wall === undefined || wall.type !== 'wall') {
+      throw new Error('cảnh nền phải có ít nhất một tường');
+    }
+
+    const approved = { ...wall, review: { ...wall.review, reviewed: true } };
+    const result = createPascalEditCommand({
+      graph,
+      scene: sceneWith(firstWallId, approved),
+      commit: { origin: 'local', changedNodeIds: [firstWallId] },
+      actorId: ACTOR,
+    });
+
+    const change = result.ok ? result.data.changes[0] : null;
+
+    expect(change?.before?.reviewed).toBe(false);
+    expect(change?.after?.reviewed).toBe(true);
+    expect(change?.after?.source).toBe('ai');
+  });
+
   it('A5 — Pascal sửa `reviewed` trong siêu dữ liệu thì lệnh KHÔNG mang dấu ấy về', () => {
     const wall = baseScene.nodes[firstWallId];
 
