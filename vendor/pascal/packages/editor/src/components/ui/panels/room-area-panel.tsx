@@ -20,6 +20,7 @@ import {
   roomAreaTable,
   roomAreaTableToText,
 } from '../../../lib/floorplan/room-area'
+import { roomAreaStateOf } from '../../../lib/floorplan/room-area-state'
 import { cn } from '../../../lib/utils'
 
 /**
@@ -178,6 +179,13 @@ export function RoomAreaPanel() {
   }, [nodes, levelId, levelNames])
 
   const hasRows = table.groups.length > 0
+  const state = roomAreaStateOf({
+    sceneLoaded: Object.keys(nodes).length > 0,
+    rowCount: table.groups.reduce((sum, group) => sum + group.rows.length, 0),
+    issueCount: table.issues.length,
+    readOnly,
+    collapsed,
+  })
 
   return (
     <div className="flex h-full flex-col gap-3 overflow-y-auto p-3 text-sm">
@@ -302,7 +310,29 @@ export function RoomAreaPanel() {
         </div>
       )}
 
-      {hasRows ? (
+      {state === 'forbidden' && (
+        <div className="rounded-md border border-border/60 bg-accent/40 px-2 py-1.5 text-xs" role="status">
+          {vi.forbiddenNotice}
+        </div>
+      )}
+
+      {state === 'loading' ? (
+        <div aria-busy="true" className="flex flex-col gap-2" role="status">
+          <span className="sr-only">{vi.loading}</span>
+          {[0, 1, 2].map((index) => (
+            <div className="h-10 animate-pulse rounded-md bg-muted" key={index} />
+          ))}
+        </div>
+      ) : state === 'error' ? (
+        <div className="rounded-lg border border-border/60 border-dashed px-3 py-6 text-center" role="alert">
+          <p className="font-medium">{vi.errorTitle}</p>
+          <ul className="mt-1 text-muted-foreground text-xs">
+            {table.issues.map((issue) => (
+              <li key={issue}>{issue}</li>
+            ))}
+          </ul>
+        </div>
+      ) : hasRows ? (
         <div className="flex flex-col gap-3">
           {table.groups.map((group) => (
             <section key={group.key}>
@@ -409,8 +439,9 @@ export function RoomAreaPanel() {
           ))}
         </ul>
         <p className="mt-2">{vi.areaFormula}</p>
-        {table.issues.length > 0 && (
-          <ul className="mt-2 flex flex-col gap-1">
+        {table.issues.length > 0 && state !== 'error' && (
+          <ul className="mt-2 flex flex-col gap-1" role="status">
+            <li className="font-medium">{vi.partialTitle}</li>
             {table.issues.map((issue) => (
               <li key={issue}>{issue}</li>
             ))}
