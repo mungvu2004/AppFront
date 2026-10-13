@@ -90,8 +90,6 @@ export interface MountModule {
       readonly validateCommit?: (scene: PascalScene) => PascalCommitVerdict;
       readonly onCommitRejected?: (message: string) => void;
       readonly onHistoryJump?: (kind: PascalHistoryJump) => void;
-  /** Người dùng vừa xoá một phép đo — màn dựng toast hoàn tác (#63, A8). */
-  readonly onMeasurementDelete?: (event: PascalMeasurementDelete) => void;
       readonly onMeasurementDelete?: (event: PascalMeasurementDelete) => void;
       readonly onReadyChange?: (ready: boolean) => void;
       readonly onFatal?: (error: Error) => void;
@@ -124,6 +122,8 @@ export interface UsePascalViewerOptions {
   readonly initialTool?: PascalInitialTool | undefined;
   /** Người dùng vừa hoàn tác/làm lại trong editor Pascal — màn dựng toast (A8). */
   readonly onHistoryJump?: (kind: PascalHistoryJump) => void;
+  /** Người dùng vừa xoá một phép đo — màn dựng toast hoàn tác (#63, A8). */
+  readonly onMeasurementDelete?: (event: PascalMeasurementDelete) => void;
   /** Khung xem có đang thu gọn không. Thu gọn thì KHÔNG dựng 3D, để đỡ tốn máy. */
   readonly collapsed?: boolean;
   /** Mở ở chế độ tách tầng — `/3d?view=exploded`. */
@@ -292,7 +292,7 @@ export function usePascalViewer({
    * sau MỖI lần lưu, tức người dùng mất vùng chọn, mất camera, và cảnh nạp lại
    * từ đầu. Ref giữ bản mới nhất mà không động tới danh sách phụ thuộc.
    */
-  const edits = useRef({ onSceneCommit, validateCommit, onCommitRejected, onHistoryJump });
+  const edits = useRef({ onSceneCommit, validateCommit, onCommitRejected, onHistoryJump, onMeasurementDelete });
 
   useEffect(() => {
     edits.current = { onSceneCommit, validateCommit, onCommitRejected, onHistoryJump, onMeasurementDelete };
