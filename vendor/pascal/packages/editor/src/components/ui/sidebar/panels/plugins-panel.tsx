@@ -1,6 +1,6 @@
 'use client'
 
-import { Icon } from '@iconify/react'
+import { Icon } from '../../../../lib/offline-icons'
 import { type IconRef, useScene } from '@pascal-app/core'
 import { ChevronLeft, ChevronRight, ExternalLink, Lock, Puzzle } from 'lucide-react'
 import { lazy, type ReactNode, Suspense, useState, useSyncExternalStore } from 'react'

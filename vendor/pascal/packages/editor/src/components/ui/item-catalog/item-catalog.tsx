@@ -18,6 +18,8 @@ export function ItemCatalog({
   overrideItems,
   leadingTile,
   emptyState,
+  monochrome = false,
+  readOnly = false,
 }: {
   category: CatalogCategory
   items?: AssetInput[]
@@ -30,6 +32,18 @@ export function ItemCatalog({
   leadingTile?: React.ReactNode
   /** Rendered when there are no items to show. Replaces the empty grid. */
   emptyState?: React.ReactNode
+  /**
+   * Draw the thumbnails as one-colour silhouettes (AppFront A1 — #103).
+   *
+   * AppFront's palette is token-only at the UI layer, and a photographic
+   * thumbnail smuggles a second palette into the sidebar: twenty product shots
+   * are twenty accent colours competing with the one colour that is supposed to
+   * mean "interactive" (A2). The image is kept — it is the only thing that says
+   * what the item looks like — but it is reduced to the panel's own ink.
+   */
+  monochrome?: boolean
+  /** Viewer role: a tile reads as locked and clicking it arms nothing (#108). */
+  readOnly?: boolean
 }) {
   const selectedItem = useEditor((state) => state.selectedItem)
   const filteredItems = filterCatalogItems({ category, items: itemsOverride, overrideItems, search, activePlacementTag, activeFunctionalTag })
@@ -52,9 +66,12 @@ export function ItemCatalog({
             className={cn(
               'group relative flex flex-col gap-1.5 rounded-xl p-1.5 transition-colors hover:cursor-pointer hover:bg-sidebar-accent',
               isSelected && 'bg-sidebar-accent ring-2 ring-primary-foreground',
+              readOnly && 'cursor-not-allowed opacity-60 hover:bg-transparent',
             )}
+            disabled={readOnly}
             key={index}
             onClick={() => {
+              if (readOnly) return
               triggerSFX('sfx:menu-click')
               activateCatalogItem(item)
             }}
@@ -64,7 +81,10 @@ export function ItemCatalog({
             <div className="relative aspect-square w-full overflow-hidden rounded-lg">
               <img
                 alt={item.name}
-                className="h-full w-full object-cover"
+                className={cn(
+                  'h-full w-full object-cover',
+                  monochrome && 'opacity-80 grayscale contrast-125',
+                )}
                 loading="eager"
                 src={resolveCdnUrl(item.thumbnail) || ''}
               />
