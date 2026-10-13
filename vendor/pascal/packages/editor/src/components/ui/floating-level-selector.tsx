@@ -23,12 +23,20 @@ import {
   type AnyNodeId,
   type BuildingNode,
   DEFAULT_LEVEL_HEIGHT,
+  getLevelElevations,
   getStoredLevelHeight,
   LevelNode,
   useScene,
 } from '@pascal-app/core'
-import { markPerfAction, useViewer } from '@pascal-app/viewer'
 import {
+  findLevelMisalignments,
+  isLevelLabelVisible,
+  markPerfAction,
+  useLevelExplode,
+  useViewer,
+} from '@pascal-app/viewer'
+import {
+  AlertTriangle,
   Box as BoxIcon,
   ClipboardPaste,
   Copy,
@@ -180,6 +188,91 @@ function LevelSourceBadges({ levelId }: { levelId: AnyNodeId }) {
         </span>
       )}
     </span>
+  )
+}
+
+const viNumber = (value: number) =>
+  value.toLocaleString('vi-VN', { maximumFractionDigits: 2, minimumFractionDigits: 1 })
+
+/**
+ * Elevation + AppFront floor area under a level row (#99). The area comes from
+ * `metadata.appfront.areaM2`, written by AppFront's `toPascalScene`; Pascal
+ * scenes without it show elevation only. Hidden until levels are pulled far
+ * enough apart (#100) so the stacked list stays compact.
+ */
+function LevelFacts({ level }: { level: LevelNode }) {
+  const visible = useLevelLabelVisible()
+  const baseY = useScene((s) => getLevelElevations(s.nodes).get(level.id)?.baseY ?? 0)
+  if (!visible) return null
+  const area = (level.metadata as { appfront?: { areaM2?: unknown } } | undefined)?.appfront
+    ?.areaM2
+  return (
+    <div className="pb-1 pl-6 text-[10px] text-muted-foreground/60 tabular-nums">
+      {viLevels.elevation(viNumber(baseY))}
+      {typeof area === 'number' && ` · ${viLevels.area(viNumber(area))}`}
+    </div>
+  )
+}
+
+function useLevelLabelVisible() {
+  const levelMode = useViewer((s) => s.levelMode)
+  const amount = useLevelExplode((s) => s.amount)
+  return isLevelLabelVisible(levelMode, amount)
+}
+
+/** Continuous 0 → 1 level separation (#31/#98); 0 is stacked. */
+function LevelExplodeSlider() {
+  const levelMode = useViewer((s) => s.levelMode)
+  const setLevelMode = useViewer((s) => s.setLevelMode)
+  const amount = useLevelExplode((s) => s.amount)
+  const setAmount = useLevelExplode((s) => s.setAmount)
+  const value = levelMode === 'exploded' ? amount : 0
+  return (
+    <label className="mt-1 flex items-center gap-2 rounded-lg border border-border bg-background/90 px-2 py-1 text-[10px] text-muted-foreground shadow-2xl backdrop-blur-md">
+      <span className="shrink-0">{viLevels.explode}</span>
+      <input
+        aria-label={viLevels.explode}
+        className="w-24 accent-primary"
+        max={1}
+        min={0}
+        onChange={(e) => {
+          const next = Number(e.target.value)
+          setAmount(next)
+          setLevelMode(next > 0 ? 'exploded' : 'stacked')
+        }}
+        step={0.05}
+        title={viLevels.explodeHint}
+        type="range"
+        value={value}
+      />
+    </label>
+  )
+}
+
+/** Warning for consecutive levels whose walls do not line up (#101). */
+function LevelMisalignmentWarnings() {
+  const visible = useLevelLabelVisible()
+  const warnings = useScene(
+    useShallow((s) =>
+      findLevelMisalignments(s.nodes).map((m) => {
+        const name = (id: string) => {
+          const node = s.nodes[id as AnyNodeId]
+          return node?.type === 'level' ? getLevelDisplayName(node as LevelNode) : id
+        }
+        return viLevels.misaligned(name(m.lowerLevelId), name(m.upperLevelId), viNumber(m.offsetM))
+      }),
+    ),
+  )
+  if (!visible || warnings.length === 0) return null
+  return (
+    <ul className="mt-1 max-w-56 space-y-0.5 rounded-lg border border-amber-500/40 bg-background/90 px-2 py-1 text-[10px] text-amber-500 shadow-2xl backdrop-blur-md" role="status">
+      {warnings.map((text) => (
+        <li className="flex items-start gap-1" key={text}>
+          <AlertTriangle className="mt-px h-3 w-3 shrink-0" />
+          <span>{text}</span>
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -403,6 +496,7 @@ function LevelRow({
           </Popover>
         </div>
       )}
+      {!isEditing && <LevelFacts level={level} />}
       <LevelDuplicateDialog
         level={level}
         onConfirm={(preset) => {
@@ -791,6 +885,8 @@ export function FloatingLevelSelector() {
             </SortableContext>
           </DndContext>
         </div>
+        <LevelExplodeSlider />
+        <LevelMisalignmentWarnings />
         <UnitFocusChip />
       </div>
 
