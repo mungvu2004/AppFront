@@ -1,5 +1,5 @@
 import type { AnyNode, AnyNodeId, DoorNode, WindowNode, ZoneNode } from '@pascal-app/core'
-import { deriveZoneQuantityReport, resolveAutoZonePolygon } from '@pascal-app/core'
+import { deriveZoneQuantityReport, resolveAutoZonePolygon, reviewStateOf } from '@pascal-app/core'
 import { formatNumberVi } from '../../i18n/format'
 import { roomArea as vi } from '../../i18n/regions/roomArea'
 
@@ -90,7 +90,6 @@ export type RoomAreaSceneInput =
 
 /** A4: a fourth band is the thing this cap exists to prevent. */
 const MAX_BANDS = 3
-const SUSPECT_CONFIDENCE = 0.6
 
 function formatArea(squareMetres: number): string {
   return `${formatNumberVi(squareMetres)} m²`
@@ -106,11 +105,7 @@ function formatMetres(metres: number): string {
  * it is unsure and `trusted` otherwise — AI output can never reach `reviewed`.
  */
 function readStatus(zone: ZoneNode): RoomAreaStatus {
-  const metadata = (zone.metadata ?? {}) as Record<string, unknown>
-  if (metadata.reviewed === true) return 'reviewed'
-  const confidence = metadata.confidence
-  if (typeof confidence === 'number' && confidence < SUSPECT_CONFIDENCE) return 'suspect'
-  return 'trusted'
+  return reviewStateOf(zone.review)
 }
 
 function normalizeNodes(scene: RoomAreaSceneInput): Readonly<Record<string, AnyNode>> {

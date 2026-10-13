@@ -41,6 +41,14 @@ export declare const BuildingNode: z.ZodObject<{
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`building_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"building">>;
     children: z.ZodDefault<z.ZodArray<z.ZodUnion<readonly [z.ZodDefault<z.ZodTemplateLiteral<`level_${string}`>>, z.ZodDefault<z.ZodTemplateLiteral<`elevator_${string}`>>, z.ZodDefault<z.ZodTemplateLiteral<`unit_${string}`>>]>>>;

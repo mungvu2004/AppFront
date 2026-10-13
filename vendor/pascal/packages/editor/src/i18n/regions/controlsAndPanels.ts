@@ -221,4 +221,24 @@ export const controlsAndPanels = {
     rotationSubscript: "xoay",
     scaleSubscript: "tl",
   },
+  // Panel kiểm duyệt (A5): độ tin cậy, nguồn dữ liệu, và dấu "đã duyệt" mà chỉ
+  // người duyệt đặt được. Đúng ba trạng thái — xem `review-section.tsx` (A4).
+  // Hai trạng thái inspector từng hiện trắng (`inspector-state.ts`).
+  inspectorNotice: {
+    forbidden: "Bạn đang ở vai người xem — không sửa được thuộc tính.",
+    missing: "Không còn tìm thấy đối tượng đã chọn. Hãy chọn lại.",
+  },
+  reviewInspector: {
+    title: "Kiểm duyệt",
+    confidence: "Độ tin cậy",
+    confidencePercent: (ratio: number) => `${formatNumberVi(ratio * 100)} %`,
+    confidenceUnknown: "Chưa có",
+    approve: "Duyệt",
+    reject: "Bỏ qua",
+    stateReviewed: "Đã duyệt",
+    stateSuspect: "Cần xem lại",
+    stateTrusted: "Tin cậy, chờ duyệt",
+    sourceAi: "Nguồn: AI",
+    sourceHuman: "Nguồn: người vẽ",
+  },
 } as const;

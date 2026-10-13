@@ -27,6 +27,7 @@ vi.mock('@pascal-app/editor', () => ({
     editorProps.current = props;
     return null;
   },
+  appFrontEditorPanels: [],
   subscribeHistoryJumps: (listener: (kind: 'undo' | 'redo') => void) => {
     historyJumps.listeners.add(listener);
     return () => historyJumps.listeners.delete(listener);

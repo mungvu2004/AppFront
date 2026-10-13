@@ -43,6 +43,14 @@ export declare const LevelNode: z.ZodObject<{
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`level_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"level">>;
     children: z.ZodDefault<z.ZodArray<z.ZodPipe<z.ZodString, z.ZodTransform<`block_${string}` | `ceiling_${string}` | `item_${string}` | `procedural-item_${string}` | `column_${string}` | `construction-dimension_${string}` | `wall_${string}` | `roof_${string}` | `slab_${string}` | `fence_${string}` | `structural-grid_${string}` | `imesh_${string}` | `zone_${string}` | `stair_${string}` | `scan_${string}` | `guide_${string}` | `measurement_${string}` | `spawn_${string}` | `shelf_${string}` | `duct-segment_${string}` | `duct-fitting_${string}` | `duct-terminal_${string}` | `hvac-equipment_${string}` | `lineset_${string}` | `liquid-line_${string}` | `pipe-segment_${string}` | `pipe-fitting_${string}` | `pipe-trap_${string}`, string>>>>;

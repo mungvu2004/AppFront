@@ -53,6 +53,7 @@ import {
 } from '@/lib/commands/business/shared';
 import { changeForAdd, changeForRemove, changeForUpdate } from '@/lib/commands/createCommand';
 import type { Command, EntityChange, EntityChangeOfKind } from '@/lib/commands/types';
+import { formatLength } from '@/lib/format/measure';
 import { err, ok, type Result } from '@/lib/http/types';
 
 import { sameValue } from './diff';
@@ -62,7 +63,7 @@ import { toSpatialGraph, type PascalIdBook } from './toSpatial';
 import type { PascalNodeType, PascalScene } from './types';
 
 /** Vì sao một lượt thay đổi của Pascal không thành lệnh được. */
-export type PascalRefusalCode = 'PASCAL_NO_CHANGE' | 'PASCAL_UNKNOWN_NODE';
+export type PascalRefusalCode = 'PASCAL_NO_CHANGE' | 'PASCAL_UNKNOWN_NODE' | 'PASCAL_WALL_BELOW_OPENING';
 
 /**
  * Lời từ chối, mang thêm một mã máy đọc được.
@@ -226,7 +227,12 @@ const changeBetween = <K extends EntityKind>(
   const settled = withReviewOfPrevious<K>(from, to);
 
   if (sameValue(from, settled)) {
-    return null;
+    /* Hình học không đổi, chỉ `reviewed` đổi: đó là cú bấm "Duyệt"/"Bỏ qua"
+       của panel "Kiểm duyệt" — hành động của người (A5), nên đi qua nguyên
+       văn. `confidence` và `source` vẫn lấy từ "trước". */
+    return to.reviewed === from.reviewed
+      ? null
+      : asChange(changeForUpdate(kind, from, { ...settled, reviewed: to.reviewed }));
   }
 
   /* C2 — lượt sửa này là thật, nên dấu xác minh KHÔNG sống sót qua nó. Đặt
@@ -250,6 +256,43 @@ const describe = (changes: readonly EntityChange[]): string => {
   const parts = [...countOf].map(([key, count]) => `${key} ${formatCount(count)}`);
 
   return `Từ màn Pascal: ${parts.join(', ')}.`;
+};
+
+/**
+ * #20 (A9) — tường không được thấp hơn đỉnh ô mở cao nhất trên nó.
+ *
+ * Chỉ soát những tường mà lượt này chạm tới: tường đổi, và tường chứa ô mở
+ * đổi. Câu trả về là lời từ chối; `validateCommit` hoàn lại lượt sửa và nói
+ * câu ấy cho người dùng, nên không có gì đã ghi phải hoàn tác bằng tay.
+ */
+const wallBelowOpening = (
+  changes: readonly EntityChange[],
+  after: ReturnType<typeof toSpatialGraph>['graph'],
+): string | null => {
+  const touched = new Set<string>();
+
+  for (const change of changes) {
+    const entity = change.after;
+
+    if (entity === null || entity === undefined) continue;
+    if (change.kind === 'wall') touched.add(entity.id);
+    if (change.kind === 'opening' && 'wallId' in entity) touched.add(entity.wallId);
+  }
+
+  for (const wall of after.walls) {
+    if (!touched.has(wall.id)) continue;
+
+    const tops = after.openings
+      .filter((opening) => opening.wallId === wall.id)
+      .map((opening) => opening.sillHeightMm + opening.heightMm);
+    const highest = Math.max(...tops);
+
+    if (tops.length > 0 && wall.heightMm < highest) {
+      return `Tường cao ${formatLength(wall.heightMm)}, thấp hơn đỉnh ô mở cao nhất trên nó (${formatLength(highest)}). Hạ ô mở trước, hoặc giữ tường cao ít nhất ${formatLength(highest)}.`;
+    }
+  }
+
+  return null;
 };
 
 /**
@@ -325,6 +368,12 @@ export const createPascalEditCommand = (input: PascalEditInput): PascalEditResul
       code: 'PASCAL_NO_CHANGE',
       reasons: ['Thay đổi này không làm bản vẽ khác đi nên không có gì để ghi.'],
     });
+  }
+
+  const tooLow = wallBelowOpening(changes, after);
+
+  if (tooLow !== null) {
+    return err({ type: PASCAL_COMMAND_TYPE, code: 'PASCAL_WALL_BELOW_OPENING', reasons: [tooLow] });
   }
 
   const context: CommandContext = {

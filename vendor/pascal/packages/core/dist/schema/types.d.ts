@@ -66,6 +66,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`site_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"site">>;
     polygon: z.ZodDefault<z.ZodOptional<z.ZodObject<{
@@ -200,6 +208,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`building_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"building">>;
     children: z.ZodDefault<z.ZodArray<z.ZodUnion<readonly [z.ZodDefault<z.ZodTemplateLiteral<`level_${string}`>>, z.ZodDefault<z.ZodTemplateLiteral<`elevator_${string}`>>, z.ZodDefault<z.ZodTemplateLiteral<`unit_${string}`>>]>>>;
@@ -246,6 +262,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`elevator_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"elevator">>;
@@ -356,6 +380,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`unit_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"unit">>;
     name: z.ZodDefault<z.ZodString>;
@@ -410,6 +442,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`level_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"level">>;
     children: z.ZodDefault<z.ZodArray<z.ZodPipe<z.ZodString, z.ZodTransform<`block_${string}` | `ceiling_${string}` | `item_${string}` | `procedural-item_${string}` | `column_${string}` | `construction-dimension_${string}` | `wall_${string}` | `roof_${string}` | `slab_${string}` | `fence_${string}` | `structural-grid_${string}` | `imesh_${string}` | `zone_${string}` | `stair_${string}` | `scan_${string}` | `guide_${string}` | `measurement_${string}` | `spawn_${string}` | `shelf_${string}` | `duct-segment_${string}` | `duct-fitting_${string}` | `duct-terminal_${string}` | `hvac-equipment_${string}` | `lineset_${string}` | `liquid-line_${string}` | `pipe-segment_${string}` | `pipe-fitting_${string}` | `pipe-trap_${string}`, string>>>>;
@@ -457,6 +497,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`leanto_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"lean-to-extension">>;
@@ -633,6 +681,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`column_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"column">>;
@@ -865,6 +921,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`construction-dimension_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"construction-dimension">>;
     anchors: z.ZodDefault<z.ZodArray<z.ZodUnion<readonly [z.ZodTuple<[z.ZodNumber, z.ZodNumber, z.ZodNumber], null>, z.ZodObject<{
@@ -993,6 +1057,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`block_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"block">>;
     children: z.ZodDefault<z.ZodArray<z.ZodString>>;
@@ -1058,6 +1130,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`structural-grid_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"structural-grid">>;
     start: z.ZodDefault<z.ZodTuple<[z.ZodNumber, z.ZodNumber], null>>;
@@ -1106,6 +1186,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`wall_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"wall">>;
@@ -1491,6 +1579,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`fence_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"fence">>;
     material: z.ZodOptional<z.ZodObject<{
@@ -1611,6 +1707,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     position: z.ZodDefault<z.ZodTuple<[z.ZodNumber, z.ZodNumber, z.ZodNumber], null>>;
     rotation: z.ZodDefault<z.ZodNumber>;
@@ -1850,6 +1954,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     position: z.ZodDefault<z.ZodTuple<[z.ZodNumber, z.ZodNumber, z.ZodNumber], null>>;
     rotation: z.ZodDefault<z.ZodNumber>;
@@ -2094,6 +2206,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`item_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"item">>;
     position: z.ZodDefault<z.ZodTuple<[z.ZodNumber, z.ZodNumber, z.ZodNumber], null>>;
@@ -2231,6 +2351,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`procedural-item_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"procedural-item">>;
@@ -2641,6 +2769,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`imesh_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"imported-mesh">>;
     position: z.ZodDefault<z.ZodTuple<[z.ZodNumber, z.ZodNumber, z.ZodNumber], null>>;
@@ -2691,6 +2827,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`zone_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"zone">>;
@@ -2761,6 +2905,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`slab_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"slab">>;
@@ -2857,6 +3009,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`ceiling_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"ceiling">>;
     children: z.ZodDefault<z.ZodArray<z.ZodUnion<readonly [z.ZodDefault<z.ZodTemplateLiteral<`item_${string}`>>, z.ZodDefault<z.ZodTemplateLiteral<`procedural-item_${string}`>>]>>>;
@@ -2948,6 +3108,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`roof_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"roof">>;
@@ -3213,6 +3381,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`rseg_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"roof-segment">>;
     material: z.ZodOptional<z.ZodObject<{
@@ -3469,6 +3645,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`shelf_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"shelf">>;
     children: z.ZodDefault<z.ZodArray<z.ZodString>>;
@@ -3570,6 +3754,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`stair_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"stair">>;
@@ -3795,6 +3987,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`sseg_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"stair-segment">>;
     material: z.ZodOptional<z.ZodObject<{
@@ -3889,6 +4089,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`scan_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"scan">>;
     url: z.ZodDefault<z.ZodNullable<z.ZodString>>;
@@ -3944,6 +4152,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`guide_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"guide">>;
@@ -4001,6 +4217,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`measurement_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"measurement">>;
@@ -4127,6 +4351,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`spawn_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"spawn">>;
     position: z.ZodDefault<z.ZodTuple<[z.ZodNumber, z.ZodNumber, z.ZodNumber], null>>;
@@ -4173,6 +4405,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`window_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"window">>;
@@ -4341,6 +4581,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`door_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"door">>;
@@ -4533,6 +4781,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`bvent_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"box-vent">>;
     material: z.ZodOptional<z.ZodObject<{
@@ -4630,6 +4886,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`rvent_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"ridge-vent">>;
     material: z.ZodOptional<z.ZodObject<{
@@ -4718,6 +4982,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`tvent_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"turbine-vent">>;
@@ -4810,6 +5082,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`cupola_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"cupola">>;
     material: z.ZodOptional<z.ZodObject<{
@@ -4898,6 +5178,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`eyebrow-vent_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"eyebrow-vent">>;
@@ -4989,6 +5277,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`gutter_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"gutter">>;
@@ -5096,6 +5392,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`chimney_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"chimney">>;
@@ -5272,6 +5576,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`solarpanel_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"solar-panel">>;
     material: z.ZodOptional<z.ZodObject<{
@@ -5405,6 +5717,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`skylight_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"skylight">>;
@@ -5552,6 +5872,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`dormer_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"dormer">>;
@@ -5771,6 +6099,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`downspout_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"downspout">>;
     material: z.ZodOptional<z.ZodObject<{
@@ -5873,6 +6209,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`duct-segment_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"duct-segment">>;
     path: z.ZodArray<z.ZodTuple<[z.ZodNumber, z.ZodNumber, z.ZodNumber], null>>;
@@ -5962,6 +6306,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`duct-fitting_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"duct-fitting">>;
@@ -6061,6 +6413,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`duct-terminal_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"duct-terminal">>;
     position: z.ZodDefault<z.ZodTuple<[z.ZodNumber, z.ZodNumber, z.ZodNumber], null>>;
@@ -6127,6 +6487,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`hvac-equipment_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"hvac-equipment">>;
@@ -6199,6 +6567,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`lineset_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"lineset">>;
     path: z.ZodArray<z.ZodTuple<[z.ZodNumber, z.ZodNumber, z.ZodNumber], null>>;
@@ -6247,6 +6623,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`liquid-line_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"liquid-line">>;
     path: z.ZodArray<z.ZodTuple<[z.ZodNumber, z.ZodNumber, z.ZodNumber], null>>;
@@ -6292,6 +6676,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`pipe-segment_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"pipe-segment">>;
@@ -6370,6 +6762,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`pipe-fitting_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"pipe-fitting">>;
     position: z.ZodDefault<z.ZodTuple<[z.ZodNumber, z.ZodNumber, z.ZodNumber], null>>;
@@ -6441,6 +6841,14 @@ export declare const AnyNode: z.ZodDiscriminatedUnion<readonly [BareDiscriminato
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`pipe-trap_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"pipe-trap">>;
