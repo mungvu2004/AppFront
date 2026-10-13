@@ -23,6 +23,7 @@ vi.mock('@pascal-app/editor', () => ({
     editorProps.current = props;
     return null;
   },
+  appFrontEditorPanels: [],
 }));
 
 vi.mock('../pascalScene', () => ({
