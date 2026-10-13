@@ -38,6 +38,7 @@ const frame = (cameraControls?: boolean) => (
     onCommitRejected={undefined}
     onReadyChange={undefined}
     onFatal={undefined}
+    onHistoryJump={undefined}
     onSceneLoaded={undefined}
     onRendererUnavailable={undefined}
   />
