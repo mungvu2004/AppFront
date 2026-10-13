@@ -55,4 +55,20 @@ describe('VersionVisualDiff trên Pascal', () => {
 
     expect(await screen.findByText('Máy này không dựng được 3D')).toBeTruthy();
   });
+
+  it('dựng lại khi cặp phiên bản đổi cảnh, và dispose cảnh cũ', async () => {
+    const dispose = vi.fn();
+    const mount = vi.fn(() => ({ dispose, setHighlight: vi.fn() }));
+    loadMount.mockResolvedValue({ mount });
+    const other = { nodes: {}, rootNodeIds: ['x'] } as unknown as PascalScene;
+
+    const { rerender } = render(<VersionVisualDiff visual={visual()} />);
+    await waitFor(() => expect(mount).toHaveBeenCalledTimes(1));
+
+    rerender(<VersionVisualDiff visual={visual({ scene: other })} />);
+
+    await waitFor(() => expect(mount).toHaveBeenCalledTimes(2));
+    expect(dispose).toHaveBeenCalledTimes(1);
+    expect((mount.mock.calls[1] as unknown as [HTMLElement, Record<string, unknown>])[1]).toMatchObject({ scene: other });
+  });
 });

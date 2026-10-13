@@ -76,7 +76,7 @@ import {
   UNDO_RETRY_TOAST,
   writeErrorNotice,
 } from './versionHistoryModel';
-import { buildVisualModel, convertScene } from './versionHistoryScene';
+import { buildVisualModel, convertScene, graphOfVersion } from './versionHistoryScene';
 
 /** Lượt N18 cùng lúc. */
 export const SNAPSHOT_CONCURRENCY = 2;
@@ -265,19 +265,28 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
 
   /* ---- Tab "Trực quan", vùng so sánh ----------------------------------- */
 
-  const scene = useMemo(() => convertScene(graph), [graph]);
+  // Bản cũ có nội dung N18 thì dựng cảnh của CHÍNH nó; chưa có thì lùi về mô hình hiện tại.
+  const leftIndex = summaries.findIndex((item) => item.id === leftVersionId);
+  const leftRead = leftIndex < 0 ? undefined : snapshotData[leftIndex];
+  const leftSource = leftRead?.kind === 'snapshot' ? leftRead.source : undefined;
+  const sceneGraph = useMemo(
+    () => (leftSource === undefined ? graph : (graphOfVersion(graph, leftSource) ?? graph)),
+    [graph, leftSource],
+  );
+  const scene = useMemo(() => convertScene(sceneGraph), [sceneGraph]);
   const visual = useMemo(
     (): VisualDiffModel =>
       buildVisualModel({
         capabilities: gateway.capabilities,
-        graph,
+        graph: sceneGraph,
         scene,
+        isOldVersion: sceneGraph !== graph,
         diff,
         leftVersionLabel: builds.find((build) => build.row.id === leftVersionId)?.row.label ?? null,
         hoveredEntityId,
         isFetchingDiff: pairFetching,
       }),
-    [gateway.capabilities, graph, scene, diff, builds, leftVersionId, hoveredEntityId, pairFetching],
+    [gateway.capabilities, graph, sceneGraph, scene, diff, builds, leftVersionId, hoveredEntityId, pairFetching],
   );
 
   const compare = useMemo(

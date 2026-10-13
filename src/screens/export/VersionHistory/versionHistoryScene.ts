@@ -12,7 +12,7 @@
  * tại, còn `VisualDiffModel.caption` nói thẳng điều đó ra cho người đọc.
  */
 
-import { denormalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
+import { denormalizeSpatial, normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import { formatNumber } from '@/lib/format/number';
 import { toPascalScene } from '@/lib/pascal/toPascal';
 import type { PascalScene } from '@/lib/pascal/types';
@@ -20,6 +20,7 @@ import type { VersionDiff } from '@/lib/versioning/diff';
 
 import type { VersionHistoryCapabilities, VisualDiffModel } from './types';
 import { changedEntityIdsOf } from './versionHistoryModel';
+import type { VersionSnapshotSource } from './versionSnapshotAdapter';
 
 /* -------------------------------------------------------------------------- */
 /* 1 — Câu nói ra khi không dựng được                                         */
@@ -71,6 +72,28 @@ export function convertScene(graph: NormalizedSpatial | null): SceneConversion {
   }
 }
 
+/**
+ * Đồ thị của MỘT phiên bản cũ: lớp + kích thước từ N18, còn trục/tầng/toà nhà mượn của đồ thị hiện
+ * tại (N18 không mang chúng). `null` khi chưa có đồ thị hiện tại để mượn.
+ */
+export function graphOfVersion(
+  current: NormalizedSpatial | null,
+  source: VersionSnapshotSource,
+): NormalizedSpatial | null {
+  if (current === null) {
+    return null;
+  }
+
+  return normalizeSpatial({
+    ...denormalizeSpatial(current),
+    dimensions: [...source.dimensions],
+    furniture: source.layer.furniture,
+    openings: source.layer.openings,
+    rooms: source.layer.rooms,
+    walls: source.layer.walls,
+  });
+}
+
 /** Vì sao tab "Trực quan" không dựng được cảnh; `null` khi nó dựng được. */
 export function unavailableReasonOf(
   canShowCurrentModel3d: boolean,
@@ -101,6 +124,8 @@ export interface VisualModelInput {
   readonly leftVersionLabel: string | null;
   readonly hoveredEntityId: string | null;
   readonly isFetchingDiff: boolean;
+  /** `graph`/`scene` là của bản CŨ `leftVersionLabel`, không phải mô hình hiện tại. */
+  readonly isOldVersion?: boolean;
 }
 
 /**
@@ -126,9 +151,11 @@ export function buildVisualModel(input: VisualModelInput): VisualDiffModel {
     unavailableReason: unavailableReasonOf(capabilities.canShowCurrentModel3d, graph, scene),
     isBuilding: isAvailable && input.isFetchingDiff,
     caption:
-      leftVersionLabel === null
-        ? `Đây là mô hình hiện tại chứ không phải một bản cũ; ${marked}`
-        : `Đây là mô hình hiện tại chứ không phải phiên bản ${leftVersionLabel}; ${marked}`,
+      input.isOldVersion === true && leftVersionLabel !== null
+        ? `Đây là phiên bản ${leftVersionLabel}; ${marked}`
+        : leftVersionLabel === null
+          ? `Đây là mô hình hiện tại chứ không phải một bản cũ; ${marked}`
+          : `Đây là mô hình hiện tại chứ không phải phiên bản ${leftVersionLabel}; ${marked}`,
     scene: scene.scene,
     changedEntityIds,
     hoveredEntityId: capabilities.canHighlightEntity ? input.hoveredEntityId : null,

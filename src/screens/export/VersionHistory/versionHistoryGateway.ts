@@ -204,7 +204,9 @@ export function createVersionHistoryGateway(options: CreateVersionHistoryGateway
       }
     }
 
-    return { kind: 'snapshot', snapshot: toVersionSnapshot(unwrap(result)) };
+    const source = unwrap(result);
+
+    return { kind: 'snapshot', snapshot: toVersionSnapshot(source), source };
   };
 
   const send = async (versionId: string, baseVersion: number): Promise<RestoreOutcome & { sequence?: number }> => {
