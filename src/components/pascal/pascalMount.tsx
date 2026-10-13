@@ -103,6 +103,8 @@ export interface PascalMountOptions {
   readonly measure?: boolean;
   /** Một lượt đo xong (hai điểm). */
   readonly onMeasure?: (result: PascalMeasureResult) => void;
+  /** Màn di động: `view` tắt post-FX lúc đầu, bật lại khi nạp xong lần đầu. DPR đã ≤ 1,5 sẵn trong `<Viewer>`. */
+  readonly lite?: boolean;
 }
 
 /**
@@ -138,6 +140,7 @@ export function mount(element: HTMLElement, options: PascalMountOptions): Pascal
           onSaveAsTemplate={options.onSaveAsTemplate}
           explodeLevels={options.explodeLevels ?? false}
           initialTool={options.initialTool}
+          lite={options.lite ?? false}
           onReadyChange={options.onReadyChange}
           onFatal={options.onFatal}
           onSceneLoaded={options.onSceneLoaded}
