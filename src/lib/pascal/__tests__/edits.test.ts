@@ -516,12 +516,12 @@ describe('đổi mẫu đồ đạc', () => {
     expect(result.ok).toBe(true);
 
     const model = { id: 'catalog-sofa-2', src: 'asset://catalog/sofa-2' };
-    const swapped = createSampleBuilding();
-    const first = swapped.furniture[0];
+    const sample = createSampleBuilding();
+    const [first, ...rest] = sample.furniture;
 
     if (first === undefined) throw new Error('bộ mẫu phải có đồ đạc');
 
-    swapped.furniture[0] = { ...first, model };
+    const swapped = { ...sample, furniture: [{ ...first, model }, ...rest] };
 
     const back = toPascalScene(swapped).scene;
     const node = Object.values(back.nodes).find((n) => n.type === 'item');

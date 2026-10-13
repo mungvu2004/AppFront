@@ -23,7 +23,7 @@ vi.mock('../pascalScene', () => ({
 }));
 
 const { PascalFrame } = await import('../PascalFrame');
-const scene = toPascalScene(createSampleBuilding());
+const scene = toPascalScene(createSampleBuilding()).scene;
 
 const frame = (cameraControls?: boolean) => (
   <PascalFrame
