@@ -7,6 +7,7 @@ import { editorAndViewer } from "./regions/editorAndViewer";
 import { editorRoot } from "./regions/editorRootDoNotEdit";
 import { libStrings } from "./regions/libStrings";
 import { primitivesAndSidebar } from "./regions/primitivesAndSidebar";
+import { roomArea } from "./regions/roomArea";
 
 export const vi = {
   ...controlsAndPanels,
@@ -15,4 +16,6 @@ export const vi = {
   ...primitivesAndSidebar,
   // Chuỗi UI của components/editor/index.tsx — đã áp dụng tại chỗ ở việc gộp M1.
   editorRoot,
+  // Bảng "Diện tích phòng" + lưới thẻ đồ đạc (F-15 W2-D).
+  roomArea,
 } as const;
