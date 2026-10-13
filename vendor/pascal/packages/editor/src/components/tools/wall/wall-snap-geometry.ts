@@ -9,11 +9,18 @@ import {
   isCurvedWall,
   type WallNode,
 } from '@pascal-app/core'
+import { vi } from '../../../i18n/vi'
 
 export type WallPlanPoint = [number, number]
 
 /** Which kind of existing-geometry snap produced a drafted point. */
 export type WallDraftSnapKind = 'endpoint' | 'midpoint' | 'intersection' | 'wall'
+
+/**
+ * User-facing name of each snap kind, shown next to the beacon. A `wall` snap
+ * is the foot of the perpendicular from the cursor onto the wall, hence "Vuông góc".
+ */
+export const WALL_DRAFT_SNAP_LABELS: Record<WallDraftSnapKind, string> = vi.wallMeasure.snapLabels
 
 export type WallSnapRadii = Partial<Record<WallDraftSnapKind, number>>
 

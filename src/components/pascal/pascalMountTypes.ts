@@ -21,6 +21,9 @@ export type PascalMountMode = 'view' | 'edit';
  */
 export type PascalSaveStatus = 'idle' | 'pending' | 'saving' | 'saved' | 'paused' | 'error';
 
+/** Công cụ editor bật sẵn khi khung đứng — `measure` cho `/3d?tool=measure` (F-15 W2-B). */
+export type PascalInitialTool = 'measure';
+
 /** Phán quyết 6A cho một lượt sửa: cho qua, hoặc chặn kèm lý do tiếng Việt. */
 export type PascalCommitVerdict = { readonly ok: true } | { readonly ok: false; readonly message: string };
 

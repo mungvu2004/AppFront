@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { appFrontEditorPanels, Editor } from '@pascal-app/editor';
+import { appFrontEditorPanels, Editor, useEditor } from '@pascal-app/editor';
 import { computeHeroFraming, heroCameraPose, Viewer } from '@pascal-app/viewer';
 import { useThree } from '@react-three/fiber';
 
@@ -20,6 +20,7 @@ import {
 } from './pascalScene';
 import type {
   PascalCommitVerdict,
+  PascalInitialTool,
   PascalMountMode,
   PascalSaveStatus,
 } from './pascalMountTypes';
@@ -46,6 +47,8 @@ export interface PascalFrameProps {
   readonly validateCommit: ((scene: PascalScene) => PascalCommitVerdict) | undefined;
   /** Lý do một lượt sửa bị chặn, để màn hình nói ra bằng tiếng Việt. */
   readonly onCommitRejected: ((message: string) => void) | undefined;
+  /** Công cụ bật sẵn khi editor đã nạp xong cảnh — xem `PascalInitialTool`. */
+  readonly initialTool?: PascalInitialTool | undefined;
   /**
    * **Phải đổi mỗi lần nạp cảnh mới.** Đo được: để nó cố định thì viewer giữ
    * nguyên phán quyết "sẵn sàng" của cảnh trước và không bao giờ nói lại.
@@ -127,9 +130,19 @@ export function PascalFrame({
   onFatal,
   onSceneLoaded,
   onRendererUnavailable,
+  initialTool,
 }: PascalFrameProps) {
   const [loaded, setLoaded] = useState(false);
   const [ready, setReady] = useState(false);
+
+  /* `/3d?tool=measure`: bật công cụ đo một lần, khi editor đã đứng. Vai chỉ xem
+     vẫn đo được (#67) — đo không ghi gì vào cảnh. */
+  useEffect(() => {
+    if (mode !== 'edit' || !ready || initialTool !== 'measure') return;
+    const editor = useEditor.getState();
+    editor.setMode('build');
+    editor.setTool('measurement');
+  }, [initialTool, mode, ready]);
 
   useEffect(() => {
     if (mode === 'edit') return;

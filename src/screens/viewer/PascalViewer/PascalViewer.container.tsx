@@ -13,7 +13,7 @@
 
 import { AlertCircle } from 'lucide-react';
 import { useCallback, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ProjectSpatialGate } from '@/components/feedback/ProjectSpatialGate';
@@ -99,6 +99,8 @@ function PascalViewerBody({
   const storeRoles = useStore((state) => state.userRoles);
   const spatial = useStore((state) => state.spatial);
   const { publish } = useNotifications();
+  const [searchParams] = useSearchParams();
+  const initialTool = searchParams.get('tool') === 'measure' ? 'measure' : undefined;
 
   // Vai theo dự án đang mở là nguồn đúng nhất; phiên đăng nhập là nguồn dự phòng.
   const roles: readonly ProjectRole[] = storeRoles.length > 0 ? storeRoles : session.roles;
@@ -132,6 +134,7 @@ function PascalViewerBody({
     onSceneCommit,
     validateCommit,
     onCommitRejected: onRejected,
+    initialTool,
     ...(collapsed === undefined ? {} : { collapsed }),
     ...(loadMount === undefined ? {} : { loadMount }),
   });

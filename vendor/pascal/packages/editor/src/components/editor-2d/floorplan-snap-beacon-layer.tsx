@@ -2,6 +2,7 @@
 
 import { useWallSnapIndicator, type WallSnapKind } from '@pascal-app/editor'
 import { memo } from 'react'
+import { WALL_DRAFT_SNAP_LABELS } from '../tools/wall/wall-snap-geometry'
 import { useFloorplanRender } from './floorplan-render-context'
 
 /**
@@ -36,6 +37,15 @@ export const FloorplanSnapBeaconLayer = memo(function FloorplanSnapBeaconLayer()
   return (
     <g pointerEvents="none">
       <SnapMarker color={COLOR} kind={point.kind} m={m} stroke={stroke} x={point.x} z={point.z} />
+      <text
+        fill={COLOR}
+        fontSize={11 * upp}
+        fontWeight={600}
+        x={point.x + m * 1.8}
+        y={point.z - m * 1.8}
+      >
+        {WALL_DRAFT_SNAP_LABELS[point.kind]}
+      </text>
     </g>
   )
 })

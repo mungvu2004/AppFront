@@ -25,6 +25,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type {
   PascalCommitVerdict,
+  PascalInitialTool,
   PascalMountMode,
   PascalSaveStatus,
 } from '@/components/pascal/pascalMountTypes';
@@ -90,6 +91,7 @@ interface MountModule {
       readonly onFatal?: (error: Error) => void;
       readonly onSceneLoaded?: (census: PascalSceneCensus) => void;
       readonly onRendererUnavailable?: () => void;
+      readonly initialTool?: PascalInitialTool;
     },
   ) => { readonly dispose: () => void };
 }
@@ -107,6 +109,8 @@ export interface UsePascalViewerOptions {
   readonly validateCommit?: (scene: PascalScene) => PascalCommitVerdict;
   /** Lý do một lượt sửa bị chặn — màn hình dựng toast tiếng Việt từ đây. */
   readonly onCommitRejected?: (message: string) => void;
+  /** Công cụ bật sẵn — `measure` khi URL có `?tool=measure`. */
+  readonly initialTool?: PascalInitialTool | undefined;
   /** Khung xem có đang thu gọn không. Thu gọn thì KHÔNG dựng 3D, để đỡ tốn máy. */
   readonly collapsed?: boolean;
   /**
@@ -238,6 +242,7 @@ export function usePascalViewer({
   onSceneCommit,
   validateCommit,
   onCommitRejected,
+  initialTool,
 }: UsePascalViewerOptions): UsePascalViewerResult {
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -350,6 +355,7 @@ export function usePascalViewer({
           scene: result.scene,
           mode,
           readOnly,
+          ...(initialTool === undefined ? {} : { initialTool }),
           onSceneCommit: async (next) => {
             await edits.current.onSceneCommit?.(next);
           },
@@ -381,7 +387,7 @@ export function usePascalViewer({
       disposed = true;
       handle?.dispose();
     };
-  }, [shouldMount, result, loadMount, attempt, mode, readOnly]);
+  }, [shouldMount, result, loadMount, attempt, mode, readOnly, initialTool]);
 
   const onRetry = useCallback(() => {
     setFailure(null);

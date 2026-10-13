@@ -33,6 +33,7 @@ import type { PascalScene } from '@/lib/pascal/types';
 import { PascalFrame } from './PascalFrame';
 import type {
   PascalCommitVerdict,
+  PascalInitialTool,
   PascalMountMode,
   PascalSaveStatus,
   PascalSceneCommit,
@@ -76,6 +77,8 @@ export interface PascalMountOptions {
   readonly validateCommit?: (scene: PascalScene) => PascalCommitVerdict;
   /** Lý do một lượt sửa bị chặn. Màn hình dựng toast tiếng Việt từ đây. */
   readonly onCommitRejected?: (message: string) => void;
+  /** Công cụ bật sẵn sau khi cảnh đã nạp (chỉ ở `mode: 'edit'`). */
+  readonly initialTool?: PascalInitialTool;
 }
 
 /**
@@ -107,6 +110,7 @@ export function mount(element: HTMLElement, options: PascalMountOptions): Pascal
           onSaveStatus={options.onSaveStatus}
           validateCommit={options.validateCommit}
           onCommitRejected={options.onCommitRejected}
+          initialTool={options.initialTool}
           onReadyChange={options.onReadyChange}
           onFatal={options.onFatal}
           onSceneLoaded={options.onSceneLoaded}

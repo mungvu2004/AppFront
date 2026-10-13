@@ -10,6 +10,7 @@ import { primitivesAndSidebar } from "./regions/primitivesAndSidebar";
 import { furnitureLibrary } from "./regions/furnitureLibrary";
 import { overlayLevels } from "./regions/overlayLevels";
 import { roomArea } from "./regions/roomArea";
+import { wallMeasure } from "./regions/wallMeasure";
 
 export const vi = {
   ...controlsAndPanels,
@@ -24,4 +25,6 @@ export const vi = {
   furnitureLibrary,
   // Dấu "tầng có ảnh nguồn / hình học" trên bộ chọn tầng (F-15 W2-D #96).
   overlayLevels,
+  // Nhãn bắt điểm của tường + tên phép đo (F-15 W2-B).
+  wallMeasure,
 } as const;

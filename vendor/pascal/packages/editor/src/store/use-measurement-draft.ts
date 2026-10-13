@@ -12,6 +12,7 @@ import {
 } from '@pascal-app/core'
 import { useViewer } from '@pascal-app/viewer'
 import { create } from 'zustand'
+import { vi } from '../i18n/vi'
 
 export type MeasurementKind = 'distance' | 'angle' | 'area' | 'perimeter' | 'volume'
 export type MeasurementDraftOwner = '2d' | '3d'
@@ -532,7 +533,7 @@ export function commitMeasurementDraft(owner: MeasurementDraftOwner): Measuremen
 
   const { createNode, nodes } = useScene.getState()
   const count = Object.values(nodes).filter((node) => node.type === 'measurement').length
-  const node = MeasurementNode.parse({ name: `Measurement ${count + 1}`, measurement })
+  const node = MeasurementNode.parse({ name: vi.wallMeasure.measurementName(count + 1), measurement })
   createNode(node, levelId)
   draft.reset()
   return node.id
