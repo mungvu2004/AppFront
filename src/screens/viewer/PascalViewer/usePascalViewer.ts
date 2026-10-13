@@ -145,6 +145,8 @@ export interface UsePascalViewerResult {
   readonly canvasRef: React.RefObject<HTMLDivElement | null>;
   /** Đích khuôn camera cho lớp phủ cộng tác — `false` khi khung chưa dựng. */
   readonly sceneTarget: { readonly frameEntity: (entityId: string) => boolean };
+  /** Cảnh đã đẩy sang Pascal — mốc "trước" cho `usePascalEdits`; `null` khi chưa dựng xong. */
+  readonly loadedScene: PascalScene | null;
   readonly onRetry: () => void;
   readonly onExpand: () => void;
 }
@@ -545,6 +547,7 @@ export function usePascalViewer({
     },
     canvasRef,
     sceneTarget,
+    loadedScene: result?.scene ?? null,
     onRetry,
     onExpand,
   };

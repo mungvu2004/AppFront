@@ -12,7 +12,7 @@
  */
 
 import { AlertCircle } from 'lucide-react';
-import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -21,14 +21,18 @@ import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
+import type { ApiClient } from '@/api/client';
 import { denormalizeSpatial } from '@/domain/spatial/normalize';
 import type { SpatialGraph } from '@/domain/spatial/types';
+import { useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useSession } from '@/hooks/useSession';
 import { useShortcut } from '@/hooks/useShortcut';
 import type { PascalMeasurementDelete } from '@/components/pascal/pascalMountTypes';
 import { can } from '@/lib/auth/permissions';
 import { savePascalNodeAsTemplate } from '@/lib/pascal/template';
+import type { PascalScene } from '@/lib/pascal/types';
 import { createUndoTicket } from '@/lib/mutations/undoTicket';
 import type { ProjectRole } from '@/types/project';
 import { ROUTES } from '@/routes/paths';
@@ -71,6 +75,12 @@ export const PASCAL_REJECTED_NOTIFICATION_TYPE = 'pascal.edit.rejected';
 /** Tiêu đề toast khi lượt sửa bị chặn; lý do đi vào phần mô tả. */
 export const PASCAL_REJECTED_TITLE = 'Không ghi được thay đổi';
 
+/** Loại thông báo khi bộ tự lưu tầng không gửi được thay đổi lên máy chủ (A7). */
+export const PASCAL_SAVE_FAILED_NOTIFICATION_TYPE = 'pascal.save.failed';
+
+/** Tiêu đề toast khi lưu hỏng; câu chi tiết của bộ tự lưu đi vào mô tả. */
+export const PASCAL_SAVE_FAILED_TITLE = 'Chưa lưu được thay đổi';
+
 /** Loại thông báo của một cú nhảy lịch sử — toast gom theo loại (A8). */
 export const PASCAL_HISTORY_NOTIFICATION_TYPE = 'pascal.history.jump';
 
@@ -106,6 +116,10 @@ export interface PascalViewerContainerProps {
    * màn cha truyền vào qua đây thay vì container tự đoán.
    */
   readonly extraPanels?: readonly PascalSidePanel[] | undefined;
+  /** Dự án mà bộ tự lưu tầng ghi vào. Vắng thì lấy dự án của kho đang nạp. */
+  readonly projectId?: string | undefined;
+  /** Chỉ dành cho test — mặc định bộ tự lưu dùng client của ứng dụng. */
+  readonly apiClient?: Pick<ApiClient, 'spatial'> | undefined;
 }
 
 /** Thứ người dùng thấy thay cho màn đã sập. Chữ lấy thẳng từ `report.description`. */
@@ -125,15 +139,18 @@ function CrashFallback({ report, retry }: ScreenErrorFallback) {
 }
 
 function PascalViewerBody({
+  apiClient,
   graph,
   collapsed,
   extraPanels,
   loadMount,
   onLeave,
   onReprocess,
+  projectId,
   readOnly,
 }: PascalViewerContainerProps) {
   const session = useSession();
+  const spatialProjectId = useStore((state) => state.spatialProjectId);
   const storeRoles = useStore((state) => state.userRoles);
   const spatial = useStore((state) => state.spatial);
   const { publish } = useNotifications();
@@ -188,12 +205,37 @@ function PascalViewerBody({
     [publish],
   );
 
-  /* Cảnh đã đẩy sang Pascal là mốc "trước" của lượt sửa đầu tiên. Hook dựng
-     nó trong một hiệu ứng, nên nó tới sau một nhịp — `usePascalEdits` chịu
-     được `null` và chỉ bỏ qua lượt ghi nào đến trước mốc ấy. */
+  /* A7 — bộ tự lưu lớp tầng dùng chung (cùng saver màn `/3d` cũ dùng): mọi
+     `commit` của `usePascalEdits` làm kho đổi, saver thấy tầng bị đổi và gửi
+     PUT `…/spatial/layer` sau 800 ms. Thiếu nó thì editor nói "đã lưu" mà
+     không gì tới máy chủ (F-15 R2). */
+  const floorSave = useFloorLayerAutosave({
+    projectId: projectId ?? spatialProjectId ?? '',
+    ...(apiClient === undefined ? {} : { apiClient }),
+  });
+  const indicator = useSaveIndicator(floorSave.autosave);
+  /* Câu lưu của màn lấy từ bộ tự lưu AppFront — lưu THẬT xong mới "Đã lưu lúc
+     HH:MM". Trạng thái lưu nội bộ của editor Pascal không còn lên màn. */
+  const saveLabel =
+    floorSave.saveBlock?.message ?? (indicator.state === 'saved' ? floorSave.label : indicator.label);
+
+  useEffect(() => {
+    if (indicator.state !== 'failed') return;
+
+    publish({
+      description: indicator.label,
+      title: PASCAL_SAVE_FAILED_TITLE,
+      type: PASCAL_SAVE_FAILED_NOTIFICATION_TYPE,
+    });
+  }, [indicator.state, indicator.label, publish]);
+
+  /* Cảnh đã đẩy sang Pascal là mốc "trước" của lượt sửa đầu tiên. Hook xem
+     dựng nó trong một hiệu ứng, nên nó về qua state sau một nhịp —
+     `usePascalEdits` chịu được `null` và chỉ bỏ qua lượt ghi đến trước mốc ấy. */
+  const [loadedScene, setLoadedScene] = useState<PascalScene | null>(null);
   const { onSceneCommit, validateCommit } = usePascalEdits({
     spatial,
-    loadedScene: null,
+    loadedScene,
     readOnly: isReadOnly,
     onRejected,
   });
@@ -213,7 +255,7 @@ function PascalViewerBody({
     });
   }, []);
 
-  const { viewModel, canvasRef, sceneTarget, onRetry, onExpand } = usePascalViewer({
+  const { viewModel, canvasRef, sceneTarget, loadedScene: viewerScene, onRetry, onExpand } = usePascalViewer({
     graph,
     mode: 'edit',
     readOnly: isReadOnly,
@@ -228,6 +270,10 @@ function PascalViewerBody({
     ...(collapsed === undefined ? {} : { collapsed }),
     ...(loadMount === undefined ? {} : { loadMount }),
   });
+
+  useEffect(() => {
+    setLoadedScene(viewerScene);
+  }, [viewerScene]);
 
   const [activePanel, setActivePanel] = useState<PascalSidePanelId | null>(null);
 
@@ -274,7 +320,7 @@ function PascalViewerBody({
 
   return (
     <PascalViewer
-      viewModel={viewModel}
+      viewModel={{ ...viewModel, saveLabel }}
       canvasRef={canvasRef}
       onRetry={onRetry}
       onExpand={onExpand}
@@ -289,12 +335,14 @@ function PascalViewerBody({
 }
 
 export function PascalViewerContainer({
+  apiClient,
   graph,
   collapsed,
   extraPanels,
   loadMount,
   onLeave,
   onReprocess,
+  projectId,
   readOnly,
 }: PascalViewerContainerProps) {
   return (
@@ -304,12 +352,14 @@ export function PascalViewerContainer({
       renderFallback={(fallback) => <CrashFallback {...fallback} />}
     >
       <PascalViewerBody
+        apiClient={apiClient}
         collapsed={collapsed}
         extraPanels={extraPanels}
         graph={graph}
         loadMount={loadMount}
         onLeave={onLeave}
         onReprocess={onReprocess}
+        projectId={projectId}
         readOnly={readOnly}
       />
     </ScreenErrorBoundary>
@@ -346,6 +396,7 @@ export function PascalViewerRoute() {
             sẽ trỏ về chính nó. Lối đi tiếp của trạng thái rỗng thì vẫn thật. */}
         <PascalViewerContainer
           graph={graph}
+          projectId={projectId}
           onReprocess={
             projectId === undefined ? undefined : () => navigate(ROUTES.project.pipeline(projectId))
           }

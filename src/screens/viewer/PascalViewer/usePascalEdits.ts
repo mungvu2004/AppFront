@@ -136,8 +136,8 @@ export function usePascalEdits({
         },
       },
       rules: createIncrementalRuleRunner(),
-      /* Bước `sync` không xếp hàng gì: `commit` đã làm bản vẽ bẩn và tự lưu
-         800 ms của A7 (`hooks/useAutosave.ts`) nhặt nó lên. Một lượt gửi thứ
+      /* Bước `sync` không xếp hàng gì: `commit` đã làm bản vẽ bẩn và bộ tự lưu
+         tầng mà container gắn (`useFloorLayerAutosave`) nhặt nó lên sau 800 ms. Một lượt gửi thứ
          hai ở đây là gửi hai lần cùng một thay đổi. */
       sync: { enqueue: () => undefined },
     };
