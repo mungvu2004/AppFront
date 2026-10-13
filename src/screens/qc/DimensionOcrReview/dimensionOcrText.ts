@@ -69,8 +69,11 @@ export const keyboardModeCaption =
 /** Nhãn phím Enter. */
 export const keyEnterLabel = 'Enter';
 
-/** Mô tả hành động Enter: lưu và nhảy dòng sau. */
-export const keyEnterDescription = 'Lưu và nhảy dòng sau';
+/**
+ * Mô tả hành động Enter: duyệt và nhảy dòng sau. KHÔNG nói "lưu" — chưa có
+ * endpoint ghi lớp kích thước, nên không gì được lưu lên máy chủ (BUG-577).
+ */
+export const keyEnterDescription = 'Duyệt và nhảy dòng sau';
 
 /** Nhãn phím Tab. */
 export const keyTabLabel = 'Tab';
@@ -84,11 +87,34 @@ export const keyEscLabel = 'Esc';
 /** Mô tả hành động Esc: bỏ sửa. */
 export const keyEscDescription = 'Bỏ sửa';
 
+/**
+ * Esc trong chế độ duyệt bàn phím: tiêu điểm luôn ở ô nhập, mà ô nhập nuốt phím
+ * R, nên Esc là lối tắt chế độ — lần đầu bỏ sửa, lần sau tắt (BUG-583).
+ */
+export const keyEscKeyboardModeDescription = 'Bỏ sửa, bấm lần nữa để tắt chế độ';
+
 /** Nhãn phím R. */
 export const keyRLabel = 'R';
 
 /** Mô tả hành động R trong sổ phím tắt: R bật VÀ tắt chế độ duyệt bàn phím. */
 export const keyRDescription = 'Bật hoặc tắt chế độ duyệt bàn phím';
+
+/** Mô tả Mod+Z trong sổ phím: hoàn tác bằng ngăn xếp của chính màn (BUG-582). */
+export const keyUndoDescription = 'Hoàn tác thay đổi kích thước gần nhất';
+
+/**
+ * Câu nói thật khi chưa có endpoint ghi lớp kích thước (F-08, BUG-577): mọi lần
+ * duyệt và sửa chỉ nằm trong trang đang mở.
+ */
+export const unsavedNotice =
+  'Kích thước chưa lưu lên máy chủ — tải lại trang sẽ mất các lần duyệt và sửa.';
+
+/** Nhãn trạng thái của một hàng (BUG-610): chữ đi kèm chấm màu, không chấm trơn. */
+export const rowStatusReviewedLabel = 'Đã duyệt';
+export const rowStatusUnreviewedLabel = 'Chưa duyệt';
+
+/** Câu giữa khung bản vẽ khi không có chuỗi nào để vẽ (BUG-335). */
+export const canvasEmptyNotice = 'Chưa có chuỗi kích thước nào để vẽ trên bản vẽ.';
 
 /** Nhãn của đơn vị cố định: "mm". */
 export const unitLabel = 'mm';
@@ -207,6 +233,10 @@ export const DIMENSION_OCR_COLLAPSED_STATE = {
 export const DIMENSION_OCR_TEXT = {
   screen: {
     title: 'Đọc kích thước OCR',
+    breadcrumb: 'Dự án > Đọc kích thước OCR',
+    description: 'Đối chiếu số OCR đọc được với ảnh cắt gốc, sửa số sai rồi duyệt từng chuỗi.',
+    unsavedNotice,
+    canvasEmptyNotice,
     canvasAriaLabel,
     dimensionListAriaLabel,
     comparisonBarAriaLabel,
@@ -227,6 +257,8 @@ export const DIMENSION_OCR_TEXT = {
     imageAltPrefix: 'Cắt vùng gốc của chuỗi kích thước ',
     inputAriaLabelPrefix: 'Giá trị kích thước ',
     approveButtonAriaLabelPrefix: 'Duyệt kích thước ',
+    statusReviewedLabel: rowStatusReviewedLabel,
+    statusUnreviewedLabel: rowStatusUnreviewedLabel,
   },
   comparisonBar: {
     ariaLabel: comparisonBarAriaLabel,
@@ -240,7 +272,9 @@ export const DIMENSION_OCR_TEXT = {
       enter: { label: keyEnterLabel, description: keyEnterDescription },
       tab: { label: keyTabLabel, description: keyTabDescription },
       esc: { label: keyEscLabel, description: keyEscDescription },
+      escInKeyboardMode: { label: keyEscLabel, description: keyEscKeyboardModeDescription },
       r: { label: keyRLabel, description: keyRDescription },
+      undo: { label: 'Mod+Z', description: keyUndoDescription },
     },
   },
   states: {

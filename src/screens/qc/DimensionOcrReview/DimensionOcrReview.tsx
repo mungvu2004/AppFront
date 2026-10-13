@@ -44,9 +44,13 @@
  * khung, và không một con số nào viết thô ngoài bề rộng khung (R-71).
  */
 
+import { Ruler } from 'lucide-react';
+
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
+import { Button } from '@/components/ui/Button';
+import { getButtonStyles } from '@/components/ui/buttonVariants';
 import { cn } from '@/lib/utils';
 
 import { DIMENSION_OCR_TEXT } from './dimensionOcrText';
@@ -80,12 +84,32 @@ const EXPAND_PANEL_LABEL = DIMENSION_OCR_TEXT.states.collapsed.title;
 /** Số dòng khung xương của nửa phải lúc đang tải — một dòng cho mỗi nhóm, cộng một. */
 const SKELETON_ROWS = [0, 1, 2, 3];
 
-/** Nút chữ của màn: cùng khuôn nút "duyệt" của `DimensionOcrRow` (A1, A2). */
-const LINK_CLASS_NAME = cn(
-  'self-center rounded-[6px] px-1.5 py-0.5 text-[13px] text-accent',
-  'transition-colors duration-120 hover:bg-accent-wash',
-  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-);
+/** Lối ra của trạng thái rỗng: một liên kết mang dáng `Button` — vùng chạm đủ (BUG-325, AES-08). */
+const EMPTY_ACTION_CLASS_NAME = getButtonStyles({ variant: 'primary', size: 'md', className: 'self-center' });
+
+/** Đầu màn như SCR-19/20 (BUG-413): breadcrumb, tiêu đề, một câu mô tả. */
+function DimensionOcrHeader() {
+  return (
+    <header className="shrink-0 px-4 pb-1 pt-3">
+      <p className="text-[12px] text-text-muted">{DIMENSION_OCR_TEXT.screen.breadcrumb}</p>
+      <h2 className="text-[18px] font-semibold text-text-primary">{DIMENSION_OCR_TEXT.screen.title}</h2>
+      <p className="text-[13px] text-text-secondary">{DIMENSION_OCR_TEXT.screen.description}</p>
+    </header>
+  );
+}
+
+/** BUG-577: câu nói thật, cố định trên màn — chưa có chỗ lưu lớp kích thước lên máy chủ. */
+function DimensionOcrUnsavedNotice({ notice }: { readonly notice: string | null }) {
+  if (notice === null) {
+    return null;
+  }
+
+  return (
+    <div className="shrink-0 px-4 pb-1">
+      <InlineAlert level="attention" message={notice} role="note" />
+    </div>
+  );
+}
 
 /* -------------------------------------------------------------------------- */
 /* Nửa phải — danh sách duyệt, hoặc câu nói thay cho nó.                       */
@@ -139,7 +163,7 @@ function DimensionOcrPanelBody({ model, scaleCalibrationHref }: DimensionOcrPane
       <div className="flex h-full flex-col items-center justify-center gap-2 p-3">
         <EmptyState
           description={model.emptyNotice}
-          icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-bg-sunken" />}
+          icon={<Ruler />}
           title={DIMENSION_OCR_TEXT.states.empty.title}
         />
         {/*
@@ -147,7 +171,7 @@ function DimensionOcrPanelBody({ model, scaleCalibrationHref }: DimensionOcrPane
           callback: đích là trang hiệu chỉnh tỷ lệ, và container dựng đường dẫn
           bằng `ROUTES.project.scale(...)` nên không có chuỗi thô nào ở đây (R-65).
         */}
-        <a className={LINK_CLASS_NAME} href={scaleCalibrationHref}>
+        <a className={EMPTY_ACTION_CLASS_NAME} href={scaleCalibrationHref}>
           {DIMENSION_OCR_TEXT.states.empty.actionLabel}
         </a>
       </div>
@@ -204,6 +228,7 @@ export function DimensionOcrReview({
         className="flex h-full min-h-0 w-full flex-col bg-bg-app"
         role="region"
       >
+        <DimensionOcrUnsavedNotice notice={model.unsavedNotice} />
         <div className="mx-auto flex h-full min-h-0 w-full max-w-[1440px] flex-col p-2">
           <DimensionOcrKeyboardMode
             isActive
@@ -227,6 +252,8 @@ export function DimensionOcrReview({
       className="flex h-full min-h-0 w-full flex-col bg-bg-app"
       role="region"
     >
+      <DimensionOcrHeader />
+      <DimensionOcrUnsavedNotice notice={model.unsavedNotice} />
       <div className="mx-auto flex min-h-0 w-full max-w-[1440px] flex-1 flex-col gap-2 p-2 lg:flex-row">
         {/* Nửa trái 60% — bản vẽ gốc. Bung ra cả khung khi bảng duyệt thu gọn. */}
         <section
@@ -245,14 +272,20 @@ export function DimensionOcrReview({
             onSelect={model.onSelect}
             selectedDimensionId={model.selectedDimensionId}
           />
+          {/* BUG-335: khung bản vẽ rỗng nói vì sao nó rỗng, như Duyệt đối tượng. */}
+          {model.emptyNotice === null ? null : (
+            <p className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 text-center text-[13px] text-text-secondary">
+              {DIMENSION_OCR_TEXT.screen.canvasEmptyNotice}
+            </p>
+          )}
         </section>
 
         {/* Nửa phải 40% — danh sách duyệt, dải đối chiếu dính đáy, cửa vào bàn phím. */}
         {isCollapsed ? (
           <div className="flex shrink-0 items-start justify-end p-1">
-            <button className={LINK_CLASS_NAME} onClick={model.onToggleCollapsed} type="button">
+            <Button onClick={model.onToggleCollapsed} size="sm" type="button" variant="secondary">
               {EXPAND_PANEL_LABEL}
-            </button>
+            </Button>
           </div>
         ) : (
           <aside
