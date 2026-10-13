@@ -7,6 +7,7 @@ import { editorAndViewer } from "./regions/editorAndViewer";
 import { editorRoot } from "./regions/editorRootDoNotEdit";
 import { libStrings } from "./regions/libStrings";
 import { primitivesAndSidebar } from "./regions/primitivesAndSidebar";
+import { furnitureClash } from "./regions/furnitureClash";
 import { furnitureLibrary } from "./regions/furnitureLibrary";
 import { overlayLevels } from "./regions/overlayLevels";
 import { roomArea } from "./regions/roomArea";
@@ -24,4 +25,6 @@ export const vi = {
   furnitureLibrary,
   // Dấu "tầng có ảnh nguồn / hình học" trên bộ chọn tầng (F-15 W2-D #96).
   overlayLevels,
+  // Bảng "Va chạm đồ đạc" (F-15 W2-A #22).
+  furnitureClash,
 } as const;

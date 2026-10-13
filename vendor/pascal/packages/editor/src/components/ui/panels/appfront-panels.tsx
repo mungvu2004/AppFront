@@ -1,9 +1,11 @@
 'use client'
 
-import { Armchair, Ruler } from 'lucide-react'
+import { Armchair, Ruler, TriangleAlert } from 'lucide-react'
+import { furnitureClash as viClash } from '../../../i18n/regions/furnitureClash'
 import { furnitureLibrary as viFurniture } from '../../../i18n/regions/furnitureLibrary'
 import { roomArea as vi } from '../../../i18n/regions/roomArea'
 import type { ExtraPanel } from '../sidebar/icon-rail'
+import { FurnitureClashPanel } from './furniture-clash-panel'
 import { FurnitureLibraryPanel } from './furniture-library-panel'
 import { RoomAreaPanel } from './room-area-panel'
 
@@ -29,5 +31,11 @@ export const appFrontEditorPanels: ExtraPanel[] = [
     label: viFurniture.title,
     icon: <Armchair className="size-4" />,
     component: FurnitureLibraryPanel,
+  },
+  {
+    id: 'appfront-furniture-clash',
+    label: viClash.title,
+    icon: <TriangleAlert className="size-4" />,
+    component: FurnitureClashPanel,
   },
 ]
