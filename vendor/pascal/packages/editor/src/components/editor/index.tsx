@@ -588,7 +588,10 @@ function ViewerCanvasControlsHint({
   }
 
   return (
-    <div className="pointer-events-none absolute bottom-24 left-1/2 z-40 max-w-[calc(100%-2rem)] -translate-x-1/2">
+    // Embedded in a narrow host frame (size container < 1400px) the column is too
+    // narrow for a centred hint to clear the 320px inspector at `right-4`:
+    // centre it in the space left of the inspector instead.
+    <div className="pointer-events-none absolute top-14 left-1/2 z-40 max-w-[calc(100%-2rem)] -translate-x-1/2 @max-[1400px]:left-[calc((100%-21rem)/2)] @max-[1400px]:max-w-[calc(100%-22rem)]">
       <section
         aria-label={vi.editorRoot.cameraControlsHint}
         className="pointer-events-auto flex items-start gap-3 rounded-2xl border border-border/35 bg-background/90 px-3.5 py-2.5 shadow-elevation-4 backdrop-blur-xl"

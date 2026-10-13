@@ -370,7 +370,7 @@ export const ViewerControlsBar = ({
       )}
     >
       <TooltipProvider delayDuration={0}>
-        <div className="corner-smooth pointer-events-auto flex h-12 max-w-[calc(100vw-1rem)] flex-row items-center justify-center gap-0.5 overflow-hidden rounded-2xl border border-border/40 bg-background/95 p-1 shadow-elevation-4 backdrop-blur-xl transition-colors duration-200 ease-out sm:h-14 sm:gap-1.5 sm:p-1.5">
+        <div className="corner-smooth pointer-events-auto flex h-12 max-w-[calc(100cqw-1rem)] flex-row items-center justify-center gap-0.5 overflow-hidden rounded-2xl border border-border/40 bg-background/95 p-1 shadow-elevation-4 backdrop-blur-xl transition-colors duration-200 ease-out sm:h-14 sm:gap-1.5 sm:p-1.5">
           {((canShowScans && (!glbActive || glbHasScans)) ||
             (canShowGuides && (!glbActive || glbHasGuides))) && (
             <>
