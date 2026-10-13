@@ -22,6 +22,7 @@ import {
   readFloorplanContext,
   withFloorplanGeometryMetadata,
 } from '@pascal-app/editor'
+import { vi } from '../i18n/vi'
 import { measurementResolvedEditPoints } from './edit'
 import { resolveMeasurementNode } from './resolve'
 
@@ -58,7 +59,7 @@ export function buildMeasurementFloorplan(
     Boolean(selected),
   )
   const style = lineStyle(stroke)
-  const statusPrefix = resolved.dangling.length > 0 ? 'Unlinked · ' : ''
+  const statusPrefix = resolved.dangling.length > 0 ? vi.measurement.unlinkedPrefix : ''
   const editHandles: FloorplanGeometry[] = editable
     ? measurementResolvedEditPoints(measurement).map((point, vertexIndex) => ({
         kind: 'endpoint-handle',

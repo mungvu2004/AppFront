@@ -568,6 +568,8 @@ export const vi = {
       removeLastPoint: 'Xoá điểm cuối',
       finishAndContinue: 'Hoàn tất và tiếp tục',
     },
+    /** Tiền tố nhãn của phép đo mất điểm neo (F-15 W2-B). */
+    unlinkedPrefix: 'Mất liên kết · ',
   },
   pipeFitting: {
     catalogLabel: 'Khớp nối ống nước',
