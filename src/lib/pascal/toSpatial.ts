@@ -487,11 +487,13 @@ const collectLevelChildren = (
         const max = readCorner(fields, 'max');
         const roomId = readString(fields, 'roomId');
 
+        const kind = readOneOf(fields, 'kind', FURNITURE_KINDS) ?? 'other';
+
         collector.furniture.push({
           ...reviewOf(child, knownId !== null),
           id: knownId ?? collector.mint('furniture', child.id),
           levelId,
-          kind: readOneOf(fields, 'kind', FURNITURE_KINDS) ?? 'other',
+          kind,
           centre,
           boundingBox: itemBoxOf(
             centre,
@@ -501,6 +503,7 @@ const collectLevelChildren = (
           ),
           rotationDeg: planDegreesOf(child.rotation[1]),
           ...(roomId !== null && isIdOfKind('room', roomId) ? { roomId } : {}),
+          ...(child.asset.id !== `appfront-${kind}` ? { model: { id: child.asset.id, src: child.asset.src } } : {}),
         });
         break;
       }

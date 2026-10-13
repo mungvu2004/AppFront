@@ -360,13 +360,13 @@ const itemNodeOf = (
     rotation: [0, yawOf(furniture.rotationDeg), 0],
     scale: [1, 1, 1],
     asset: {
-      id: `appfront-${furniture.kind}`,
+      id: furniture.model?.id ?? `appfront-${furniture.kind}`,
       category: furniture.kind,
       name: label,
       thumbnail: '',
       // `asset://…` là dạng nội bộ mà `AssetUrl` nhận (`schema/asset-url.js`);
       // AppFront chưa có mô hình GLB cho đồ đạc nên đây là chỗ giữ chỗ hợp lệ.
-      src: `asset://appfront/${furniture.kind}`,
+      src: furniture.model?.src ?? `asset://appfront/${furniture.kind}`,
       dimensions: [widthM, heightM, depthM],
     },
     metadata: {
