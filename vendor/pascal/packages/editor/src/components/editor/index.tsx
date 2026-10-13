@@ -73,6 +73,7 @@ import { EditorCommands } from '../ui/command-palette/editor-commands'
 import { FloatingLevelSelector } from '../ui/floating-level-selector'
 import { HelperManager } from '../ui/helpers/helper-manager'
 import { PanelManager } from '../ui/panels/panel-manager'
+import { KeyboardShortcutsDialogHost } from '../ui/sidebar/panels/settings-panel/keyboard-shortcuts-dialog'
 import { ErrorBoundary } from '../ui/primitives/error-boundary'
 import { useSidebarStore } from '../ui/primitives/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/primitives/tooltip'
@@ -1714,6 +1715,8 @@ function EditorContent({
             />
             <EditorCommands />
             <CommandPalette emptyAction={commandPaletteEmptyAction} />
+            {/* `?` target (AppFront #23): one shortcuts dialog for every sidebar tab. */}
+            <KeyboardShortcutsDialogHost />
           </>
         )}
       </>
