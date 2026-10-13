@@ -86,7 +86,7 @@ function fixture(): Record<string, AnyNode> {
     parentId: 'level_1',
     name: 'Bếp',
     occupancy: 'Phụ trợ',
-    metadata: { confidence: 0.4 },
+    review: { confidence: 0.4 },
     polygon: [
       [6, 0],
       [8, 0],
@@ -100,7 +100,7 @@ function fixture(): Record<string, AnyNode> {
     parentId: 'level_2',
     name: 'Phòng ngủ',
     occupancy: 'Ở',
-    metadata: { reviewed: true },
+    review: { reviewed: true },
     polygon: [
       [0, 0],
       [4, 0],
