@@ -371,7 +371,7 @@ export const useMeasurementDraft = create<MeasurementDraftState>((set, get) => (
     if (state.stage !== 'collecting' || state.vertexDrag || (state.owner && state.owner !== owner))
       return false
     if (state.levelId && state.levelId !== activeLevelId) {
-      set({ error: 'The active level changed. Start a new measurement.' })
+      set({ error: vi.wallMeasure.draftErrors.levelChanged })
       return false
     }
     if (state.kind === 'distance' && state.points.length >= 2) return false
@@ -419,13 +419,13 @@ export const useMeasurementDraft = create<MeasurementDraftState>((set, get) => (
     }
 
     if (!areMeasurementPointsCoplanar(state.points, MEASUREMENT_PLANAR_TOLERANCE)) {
-      set({ error: 'Measurement points must be on one plane.' })
+      set({ error: vi.wallMeasure.draftErrors.notPlanar })
       return false
     }
 
     let normal = measurementNormal(state.points)
     if (!normal) {
-      set({ error: 'Measurement points must enclose an area.' })
+      set({ error: vi.wallMeasure.draftErrors.noArea })
       return false
     }
     if (
@@ -531,7 +531,12 @@ export function commitMeasurementDraft(owner: MeasurementDraftOwner): Measuremen
   const measurement = draft.getCommitPayload(owner)
   if (!measurement) return null
 
-  const { createNode, nodes } = useScene.getState()
+  const { createNode, nodes, readOnly } = useScene.getState()
+  if (readOnly) {
+    // #67: a viewer keeps the live reading but cannot pin it — say why.
+    useMeasurementDraft.setState({ error: vi.wallMeasure.draftErrors.readOnlyPin })
+    return null
+  }
   const count = Object.values(nodes).filter((node) => node.type === 'measurement').length
   const node = MeasurementNode.parse({ name: vi.wallMeasure.measurementName(count + 1), measurement })
   createNode(node, levelId)

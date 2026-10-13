@@ -139,9 +139,12 @@ export function PascalFrame({
      vẫn đo được (#67) — đo không ghi gì vào cảnh. */
   useEffect(() => {
     if (mode !== 'edit' || !ready || initialTool !== 'measure') return;
+    /* Cùng đường với phím M của Pascal (`editor/src/hooks/use-keyboard.ts`). */
     const editor = useEditor.getState();
-    editor.setMode('build');
-    editor.setTool('measurement');
+    editor.setPhase('structure');
+    editor.setStructureLayer('elements');
+    editor.setToolDefaults('measurement', { kind: editor.lastMeasurementKind });
+    editor.armToolMode({ mode: 'build', tool: 'measurement' });
   }, [initialTool, mode, ready]);
 
   useEffect(() => {
