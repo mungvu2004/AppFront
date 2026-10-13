@@ -427,10 +427,10 @@ async function runChain(
       [200],
     );
     await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
-    const viewport = page.getByRole('main', { name: 'Khung nhìn mô hình' });
-
-    await expect(viewport).toBeVisible();
-    await expect(viewport.locator('canvas').first()).toBeVisible();
+    // F-15: `/3d` là màn Pascal — vỏ `Khung nhìn mô hình` cũ không còn ở đây.
+    await expect(page.getByTestId('pascal-canvas').locator('canvas').first()).toBeVisible({
+      timeout: PASCAL_RENDER_TIMEOUT_MS,
+    });
     await expect(page).not.toHaveURL(ACCESS_DENIED_PATTERN);
   });
 
@@ -470,6 +470,39 @@ async function runChain(
     // B-V10-41 phía BE: tên tệp cố định thì không được `immutable`.
     expect(script.headers()['cache-control'] ?? '').toContain('no-cache');
     await expect(page).not.toHaveURL(ACCESS_DENIED_PATTERN);
+  });
+
+  await test.step('8c. Pascal: sửa độ dày tường, tải lại vẫn còn (F-15)', async () => {
+    const saveStatus = page.getByRole('status').filter({ hasText: /^(Đã lưu|Đang lưu|Chưa|Tạm)/u }).first();
+    const openThickness = async () => {
+      await page.getByText(/ W-[0-9A-Z]+$/u).first().click();
+      await page.getByRole('button', { name: /Expand panel|Mở rộng/u }).first().click();
+      const row = page
+        .locator('div.group')
+        .filter({ has: page.locator('span', { hasText: /^Độ dày( tường)?$/u }) })
+        .first();
+      await expect(row).toBeVisible();
+      return row;
+    };
+    const thickness = await openThickness();
+
+    await thickness.locator('.cursor-text').click();
+    await thickness.locator('input').fill('0,25');
+    await thickness.locator('input').press('Enter');
+    await expect(thickness).toContainText('0,250');
+    await expect(saveStatus).toHaveText(/^Đã lưu/u, { timeout: PASCAL_RENDER_TIMEOUT_MS });
+    await page.reload();
+    await expect(page.getByRole('status').filter({ hasText: PASCAL_RENDERED_PATTERN })).toHaveText(
+      PASCAL_RENDERED_PATTERN,
+      { timeout: PASCAL_RENDER_TIMEOUT_MS },
+    );
+    const reloaded = await openThickness();
+
+    await expect(reloaded).toContainText('0,250');
+    const shotDir = process.env.E2E_SHOT_DIR;
+    if (shotDir !== undefined && shotDir !== '') {
+      await page.screenshot({ path: `${shotDir}/shot-3-reloaded.png`, fullPage: false });
+    }
   });
 
   await test.step('9. phục hồi phiên bản', async () => {
