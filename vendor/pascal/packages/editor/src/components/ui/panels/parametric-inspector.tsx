@@ -325,7 +325,17 @@ function FieldRenderer({ field, nodeId, onUpdate }: FieldRendererProps) {
     const n = s.nodes[nodeId]
     return n ? visibleIf(n as AnyNode) : false
   })
+  // Link fields resolve their href from the whole node; a string keeps the
+  // subscription cheap.
+  const href = useScene((s) => {
+    const n = s.nodes[nodeId]
+    return field.kind === 'link' && n ? field.href(n as AnyNode) : null
+  })
   if (!visible) return null
+
+  if (field.kind === 'link') {
+    return <ParametricFieldControl field={field} onChange={onUpdate} value={href} />
+  }
 
   if (field.kind === 'custom') {
     return <CustomFieldRenderer Comp={field.component} nodeId={nodeId} onUpdate={onUpdate} />
