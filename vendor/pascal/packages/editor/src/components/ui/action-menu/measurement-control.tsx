@@ -12,6 +12,7 @@ import {
   Crosshair,
   Grid2X2,
   Minus,
+  MoveVertical,
   Ruler,
   ScanSearch,
   Square,
@@ -30,6 +31,8 @@ import { ActionButton } from './action-button'
 
 const measurementOptions = [
   { kind: 'distance', label: vi.measurementControl.distance, icon: Ruler },
+  { kind: 'perpendicular', label: vi.measurementControl.perpendicular, icon: Ruler },
+  { kind: 'height', label: vi.measurementControl.height, icon: MoveVertical },
   { kind: 'angle', label: vi.measurementControl.angle, icon: Triangle },
   { kind: 'area', label: vi.measurementControl.area, icon: Square },
   { kind: 'perimeter', label: vi.measurementControl.perimeter, icon: Waypoints },

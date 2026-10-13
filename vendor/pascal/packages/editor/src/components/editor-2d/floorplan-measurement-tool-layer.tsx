@@ -408,11 +408,16 @@ export function resolveFloorplanMeasurementAxisSnap(
   }
 }
 
+const isTwoPointKind = (kind: string) =>
+  kind === 'distance' || kind === 'perpendicular' || kind === 'height'
+
 function isMeasurementKind(
   value: unknown,
-): value is 'distance' | 'angle' | 'area' | 'perimeter' | 'volume' {
+): value is 'distance' | 'perpendicular' | 'height' | 'angle' | 'area' | 'perimeter' | 'volume' {
   return (
     value === 'distance' ||
+    value === 'perpendicular' ||
+    value === 'height' ||
     value === 'angle' ||
     value === 'area' ||
     value === 'perimeter' ||
@@ -539,7 +544,7 @@ function measurementVertexSnapAnchors(
 
 function closeBaseAndMaybeCommit(): boolean {
   const draft = useMeasurementDraft.getState()
-  if (draft.kind === 'distance' || draft.kind === 'angle') return false
+  if (isTwoPointKind(draft.kind) || draft.kind === 'angle') return false
   if (!draft.closeBase('2d', [0, 1, 0])) return false
   if (draft.kind === 'area' || draft.kind === 'perimeter') commitMeasurementDraft('2d')
   return true
@@ -970,7 +975,7 @@ export function FloorplanMeasurementToolLayer() {
       if (isExtrusionControlTarget(event.target)) return
       consume(event)
       if (draft.owner !== '2d' || draft.stage !== 'collecting' || draft.vertexDrag) return
-      if (draft.kind === 'distance') return
+      if (isTwoPointKind(draft.kind)) return
       const polygon = draft.kind === 'area' || draft.kind === 'perimeter' || draft.kind === 'volume'
       const threshold = event.pointerType === 'touch' ? 22 : VERTEX_HANDLE_DISTANCE_PX
       const vertexIndex = closestVertexIndex(event, draft.points, threshold)
@@ -1124,7 +1129,7 @@ export function FloorplanMeasurementToolLayer() {
       }
       if (event.detail > 1 || draft.stage !== 'collecting') return
 
-      const vertexIndex = draft.kind === 'distance' ? null : closestVertexIndex(event, draft.points)
+      const vertexIndex = isTwoPointKind(draft.kind) ? null : closestVertexIndex(event, draft.points)
       if (vertexIndex !== null) {
         if (vertexIndex === 0 && draft.points.length >= 3 && draft.kind !== 'angle') {
           closeBaseAndMaybeCommit()
@@ -1145,7 +1150,7 @@ export function FloorplanMeasurementToolLayer() {
     const onDoubleClick = (event: MouseEvent) => {
       const draft = useMeasurementDraft.getState()
       if (draft.owner !== '2d' || draft.stage !== 'collecting') return
-      if (draft.kind === 'distance' || draft.kind === 'angle') return
+      if (isTwoPointKind(draft.kind) || draft.kind === 'angle') return
       if (isExtrusionControlTarget(event.target)) return
       consume(event)
       if (suppressNextClick.current) {
@@ -1219,7 +1224,7 @@ export function FloorplanMeasurementToolLayer() {
     } | null = null
     let segmentLabel: { angle: number; point: MeasurementPoint; text: string } | null = null
 
-    if (kind === 'distance' && livePoints.length >= 2) {
+    if (isTwoPointKind(kind) && livePoints.length >= 2) {
       const start = livePoints[0]!
       const end = livePoints[livePoints.length - 1]!
       label = {
@@ -1269,7 +1274,7 @@ export function FloorplanMeasurementToolLayer() {
       }
     }
 
-    if (kind !== 'distance' && stage === 'collecting') {
+    if (!isTwoPointKind(kind) && stage === 'collecting') {
       const segmentEnd = vertexDrag ? points[vertexDrag.index] : hover?.point
       const segmentStart = vertexDrag
         ? (axisGuide?.from ?? points[(vertexDrag.index - 1 + points.length) % points.length])
@@ -1336,7 +1341,7 @@ export function FloorplanMeasurementToolLayer() {
       ? '#22c55e'
       : RETICLE_COLOR
   const distanceStrokeColor =
-    kind === 'distance' && axisGuide?.snapped
+    isTwoPointKind(kind) && axisGuide?.snapped
       ? axisGuide.axis === 'x'
         ? X_AXIS_COLOR
         : Z_AXIS_COLOR
@@ -1374,7 +1379,7 @@ export function FloorplanMeasurementToolLayer() {
           />
         </g>
       ) : null}
-      {kind === 'distance' && preview.planPoints.length >= 2 ? (
+      {isTwoPointKind(kind) && preview.planPoints.length >= 2 ? (
         <line
           stroke={distanceStrokeColor}
           strokeLinecap="round"

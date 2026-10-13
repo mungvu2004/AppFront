@@ -8,6 +8,8 @@ import {
   measurementAngle,
   measurementArea,
   measurementDistance,
+  measurementHeight,
+  measurementPerpendicularDistance,
   measurementPerimeter,
   measurementPrismVolume,
 } from '@pascal-app/core'
@@ -70,8 +72,18 @@ export function buildMeasurementFloorplan(
       }))
     : []
 
-  if (measurement.kind === 'distance') {
+  if (
+    measurement.kind === 'distance' ||
+    measurement.kind === 'perpendicular' ||
+    measurement.kind === 'height'
+  ) {
     const [start, end] = measurement.points
+    const value =
+      measurement.kind === 'perpendicular'
+        ? measurementPerpendicularDistance(start, end, measurement.normal)
+        : measurement.kind === 'height'
+          ? measurementHeight(start, end)
+          : measurementDistance(start, end)
     const [x1, y1] = projectPoint(start)
     const [x2, y2] = projectPoint(end)
     const collapsedHitTarget: FloorplanGeometry[] =
@@ -117,7 +129,7 @@ export function buildMeasurementFloorplan(
             appearance: 'outlined',
             cx: (x1 + x2) / 2,
             cy: (y1 + y2) / 2,
-            text: `${statusPrefix}${formatLinearMeasurement(measurementDistance(start, end), unit, metricNotation)}`,
+            text: `${statusPrefix}${formatLinearMeasurement(value, unit, metricNotation)}`,
             angle: Math.atan2(y2 - y1, x2 - x1),
             offsetPx: 14,
           },

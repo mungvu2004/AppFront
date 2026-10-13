@@ -276,11 +276,16 @@ export function selectClosestMeasurementVertexIndex(
   return closestIndex
 }
 
+const isTwoPointKind = (kind: string) =>
+  kind === 'distance' || kind === 'perpendicular' || kind === 'height'
+
 function isMeasurementKind(
   value: unknown,
-): value is 'distance' | 'angle' | 'area' | 'perimeter' | 'volume' {
+): value is MeasurementKind {
   return (
     value === 'distance' ||
+    value === 'perpendicular' ||
+    value === 'height' ||
     value === 'angle' ||
     value === 'area' ||
     value === 'perimeter' ||
@@ -1521,7 +1526,7 @@ const MeasurementDraftPreview: FC<{
 
     let label: { position: Vector3; text: string } | null = null
     let extrusionControlPosition: Vector3 | null = null
-    if (kind === 'distance' && livePoints.length >= 2) {
+    if (isTwoPointKind(kind) && livePoints.length >= 2) {
       const start = livePoints[0]!
       const end = livePoints[livePoints.length - 1]!
       label = {
@@ -1623,7 +1628,7 @@ const MeasurementDraftPreview: FC<{
       ? [...preview.worldPoints, preview.worldPoints[0]!]
       : preview.worldPoints
   const distanceStrokeColor =
-    kind === 'distance' && axisGuide?.snapped ? GUIDE_COLORS[axisGuide.axis] : DRAFT_COLOR
+    isTwoPointKind(kind) && axisGuide?.snapped ? GUIDE_COLORS[axisGuide.axis] : DRAFT_COLOR
 
   return (
     <group>
@@ -1734,7 +1739,7 @@ const MeasurementDraftPreview: FC<{
       {preview.label ? (
         <DraftLabel
           appearance="outlined"
-          offset={kind === 'distance'}
+          offset={isTwoPointKind(kind)}
           position={preview.label.position}
         >
           {preview.label.text}
@@ -1884,7 +1889,7 @@ export const MeasurementTool: FC = () => {
       if (event.button !== 0 || useViewer.getState().cameraDragging) return
       const draft = useMeasurementDraft.getState()
       if (draft.owner !== '3d' || draft.stage !== 'collecting' || draft.vertexDrag) return
-      if (draft.kind === 'distance') return
+      if (isTwoPointKind(draft.kind)) return
       const levelObject = getLevelObject()
       if (!levelObject) return
       const threshold = event.pointerType === 'touch' ? 22 : VERTEX_HANDLE_DISTANCE_PX
@@ -2086,7 +2091,7 @@ export const MeasurementTool: FC = () => {
       const levelObject = getLevelObject()
       if (!levelObject) return
       const vertexIndex =
-        draft.kind === 'distance' ? null : closestVertexIndex(event, levelObject, draft.points)
+        isTwoPointKind(draft.kind) ? null : closestVertexIndex(event, levelObject, draft.points)
       if (vertexIndex !== null) {
         if (vertexIndex === 0 && draft.points.length >= 3 && draft.kind !== 'angle') {
           finishMeasurementDraft('3d')
@@ -2122,7 +2127,7 @@ export const MeasurementTool: FC = () => {
     const onDoubleClick = (event: MouseEvent) => {
       const draft = useMeasurementDraft.getState()
       if (draft.owner !== '3d' || draft.stage !== 'collecting') return
-      if (draft.kind === 'distance' || draft.kind === 'angle') return
+      if (isTwoPointKind(draft.kind) || draft.kind === 'angle') return
       consume(event)
       if (suppressNextClick.current) {
         suppressNextClick.current = false

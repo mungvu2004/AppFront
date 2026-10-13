@@ -14,7 +14,18 @@ import { useViewer } from '@pascal-app/viewer'
 import { create } from 'zustand'
 import { vi } from '../i18n/vi'
 
-export type MeasurementKind = 'distance' | 'angle' | 'area' | 'perimeter' | 'volume'
+export type MeasurementKind =
+  | 'distance'
+  | 'perpendicular'
+  | 'height'
+  | 'angle'
+  | 'area'
+  | 'perimeter'
+  | 'volume'
+
+/** Kinds that finish after exactly two points. */
+const isTwoPointKind = (kind: MeasurementKind) =>
+  kind === 'distance' || kind === 'perpendicular' || kind === 'height'
 export type MeasurementDraftOwner = '2d' | '3d'
 export type MeasurementDraftStage = 'collecting' | 'extruding' | 'ready'
 export type MeasurementAxis = 'x' | 'y' | 'z'
@@ -50,6 +61,12 @@ export type MeasurementVertexDrag = {
 
 export type MeasurementDraftPayload =
   | { kind: 'distance'; points: [MeasurementAnchor, MeasurementAnchor] }
+  | {
+      kind: 'perpendicular'
+      points: [MeasurementAnchor, MeasurementAnchor]
+      normal: MeasurementPoint
+    }
+  | { kind: 'height'; points: [MeasurementAnchor, MeasurementAnchor] }
   | { kind: 'angle'; points: [MeasurementAnchor, MeasurementAnchor, MeasurementAnchor] }
   | { kind: 'area'; base: MeasurementAnchor[] }
   | { kind: 'perimeter'; base: MeasurementAnchor[] }
@@ -176,6 +193,22 @@ function payloadFor(state: MeasurementDraftState): MeasurementDraftPayload | nul
     return { kind: 'distance', points: [anchorAt(0), anchorAt(1)] }
   }
 
+  if (state.kind === 'height') {
+    const [start, end] = state.points
+    if (!(start && end)) return null
+    return { kind: 'height', points: [anchorAt(0), anchorAt(1)] }
+  }
+
+  if (state.kind === 'perpendicular') {
+    const [start, end] = state.points
+    if (!(start && end)) return null
+    return {
+      kind: 'perpendicular',
+      points: [anchorAt(0), anchorAt(1)],
+      normal: clonePoint(state.baseNormal ?? [0, 1, 0]),
+    }
+  }
+
   if (state.kind === 'angle') {
     if (state.points.length !== 3) return null
     return { kind: 'angle', points: [anchorAt(0), anchorAt(1), anchorAt(2)] }
@@ -249,7 +282,7 @@ export const useMeasurementDraft = create<MeasurementDraftState>((set, get) => (
       state.levelId !== useViewer.getState().selection.levelId ||
       state.stage !== 'collecting' ||
       state.vertexDrag ||
-      state.kind === 'distance' ||
+      isTwoPointKind(state.kind) ||
       state.kind === 'angle' ||
       state.points.length < 3 ||
       !Number.isInteger(edgeIndex) ||
@@ -374,7 +407,7 @@ export const useMeasurementDraft = create<MeasurementDraftState>((set, get) => (
       set({ error: vi.wallMeasure.draftErrors.levelChanged })
       return false
     }
-    if (state.kind === 'distance' && state.points.length >= 2) return false
+    if (isTwoPointKind(state.kind) && state.points.length >= 2) return false
     if (state.kind === 'angle' && state.points.length >= 3) return false
 
     const polygon = state.kind === 'area' || state.kind === 'perimeter' || state.kind === 'volume'
@@ -384,8 +417,12 @@ export const useMeasurementDraft = create<MeasurementDraftState>((set, get) => (
     const points = [...state.points, projectedPoint]
     const anchors = [...state.anchors, anchorWithFallback(anchor, projectedPoint)]
     const planeNormal = polygon && state.points.length === 0 ? normalizePoint(surfaceNormal) : null
+    const surfaceBaseNormal =
+      state.kind === 'perpendicular' && state.points.length === 0
+        ? normalizePoint(surfaceNormal)
+        : null
     const ready =
-      (state.kind === 'distance' && points.length === 2) ||
+      (isTwoPointKind(state.kind) && points.length === 2) ||
       (state.kind === 'angle' && points.length === 3)
     set({
       owner,
@@ -395,6 +432,7 @@ export const useMeasurementDraft = create<MeasurementDraftState>((set, get) => (
       collectionPlane: planeNormal
         ? { point: clonePoint(projectedPoint), normal: planeNormal }
         : state.collectionPlane,
+      baseNormal: surfaceBaseNormal ?? state.baseNormal,
       stage: ready ? 'ready' : 'collecting',
       hover: null,
       hoverOwner: null,
@@ -411,7 +449,7 @@ export const useMeasurementDraft = create<MeasurementDraftState>((set, get) => (
       state.levelId !== useViewer.getState().selection.levelId ||
       state.stage !== 'collecting' ||
       state.vertexDrag ||
-      state.kind === 'distance' ||
+      isTwoPointKind(state.kind) ||
       state.kind === 'angle' ||
       state.points.length < 3
     ) {
@@ -550,7 +588,7 @@ export function finishMeasurementDraft(
 ): boolean {
   const draft = useMeasurementDraft.getState()
   if (draft.stage === 'collecting') {
-    if (draft.kind === 'distance' || draft.kind === 'angle') return false
+    if (isTwoPointKind(draft.kind) || draft.kind === 'angle') return false
     if (!draft.closeBase(owner, preferredNormal)) return false
     if (draft.kind === 'area' || draft.kind === 'perimeter') {
       return commitMeasurementDraft(owner) !== null

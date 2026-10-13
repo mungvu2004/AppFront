@@ -1,5 +1,7 @@
 export const CREATABLE_MEASUREMENT_KINDS = [
   'distance',
+  'perpendicular',
+  'height',
   'angle',
   'area',
   'perimeter',
