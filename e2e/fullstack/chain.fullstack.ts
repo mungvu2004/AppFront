@@ -475,7 +475,14 @@ async function runChain(
   await test.step('8c. Pascal: sửa độ dày tường, tải lại vẫn còn (F-15)', async () => {
     const saveStatus = page.getByRole('status').filter({ hasText: /^(Đã lưu|Đang lưu|Chưa|Tạm)/u }).first();
     const openThickness = async () => {
-      await page.getByText(/^Tường /u).first().click();
+      // Dự án thật có nhiều tầng, tầng chọn sẵn có thể rỗng: bấm lần lượt tới tầng có tường.
+      const wall = page.getByText(/^Tường /u).first();
+      for (const level of await page.getByText(/^Tầng /u).all()) {
+        if (await wall.isVisible()) break;
+        await level.click();
+      }
+      console.log(`[fullstack] 8c tường: ${await wall.innerText()}`);
+      await wall.click();
       await page.getByRole('button', { name: /Expand panel|Mở rộng/u }).first().click();
       const row = page
         .locator('div.group')
@@ -491,6 +498,8 @@ async function runChain(
     await thickness.locator('input').press('Enter');
     await expect(thickness).toContainText('0,250');
     await expect(saveStatus).toHaveText(/^Đã lưu/u, { timeout: PASCAL_RENDER_TIMEOUT_MS });
+    const writes = api.filter((entry) => entry.method !== 'GET').map((entry) => `${entry.method} ${entry.path}`);
+    console.log(`[fullstack] 8c ghi: ${writes.slice(-5).join(' | ')}`);
     await page.reload();
     await expect(page.getByRole('status').filter({ hasText: PASCAL_RENDERED_PATTERN })).toHaveText(
       PASCAL_RENDERED_PATTERN,
@@ -498,11 +507,11 @@ async function runChain(
     );
     const reloaded = await openThickness();
 
-    await expect(reloaded).toContainText('0,250');
     const shotDir = process.env.E2E_SHOT_DIR;
     if (shotDir !== undefined && shotDir !== '') {
       await page.screenshot({ path: `${shotDir}/shot-3-reloaded.png`, fullPage: false });
     }
+    await expect(reloaded).toContainText('0,250');
   });
 
   await test.step('9. phục hồi phiên bản', async () => {
