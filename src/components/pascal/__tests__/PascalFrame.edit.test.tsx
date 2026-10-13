@@ -22,7 +22,6 @@ const historyJumps = vi.hoisted(() => ({
 }));
 
 vi.mock('@pascal-app/editor', () => ({
-  appFrontEditorPanels: [],
   Editor: (props: Record<string, unknown>) => {
     editorProps.current = props;
     return null;
