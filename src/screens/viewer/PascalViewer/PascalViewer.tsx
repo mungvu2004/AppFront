@@ -255,7 +255,7 @@ export function PascalViewer({
               ref={canvasRef}
               data-testid="pascal-canvas"
               aria-label="Khung dựng mô hình 3D"
-              className="absolute inset-0 overflow-hidden rounded-md border border-border-default bg-bg-sunken"
+              className="absolute inset-0 overflow-hidden rounded-md border border-border-default bg-bg-sunken [contain:layout]"
             />
             {sceneOverlay}
             {isBooting && (

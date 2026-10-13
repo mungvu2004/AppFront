@@ -1,3 +1,5 @@
+import { vi } from '../i18n/vi'
+
 export type ContextualShortcutHint = {
   // A combo of keys pressed together (rendered joined by "+"). An entry may
   // itself be an array of alternatives (rendered joined by "/"), e.g.
@@ -77,7 +79,7 @@ export function resolveSelectModeHelpHints({
 
     hints.push({
       keys: [[COMMAND_KEY, SHIFT_KEY], LEFT_CLICK],
-      label: 'Add or remove objects from the selection',
+      label: vi.contextualHelp.addOrRemove,
       active: true,
     })
     return hints
@@ -89,23 +91,23 @@ export function resolveSelectModeHelpHints({
   if (selectedCount > 1) {
     hints.push({
       keys: [LEFT_CLICK],
-      label: 'Click or drag the selection to move it as one',
+      label: vi.contextualHelp.moveSelection,
     })
-    hints.push({ keys: [ROTATE_KEYS], label: 'Rotate the selection ±45°' })
+    hints.push({ keys: [ROTATE_KEYS], label: vi.contextualHelp.rotateSelection })
     hints.push({
       keys: [COMMAND_KEY, 'G'],
-      label: 'Group selection (session only)',
+      label: vi.contextualHelp.groupSelection,
     })
     hints.push({
       keys: [COMMAND_KEY, SHIFT_KEY, 'G'],
-      label: 'Ungroup session selection',
+      label: vi.contextualHelp.ungroupSelection,
     })
     hints.push({
       keys: [[COMMAND_KEY, SHIFT_KEY], LEFT_CLICK],
-      label: 'Add or remove objects from the selection',
+      label: vi.contextualHelp.addOrRemove,
       active: commandPressed || shiftPressed,
     })
-    hints.push({ keys: [ESC_KEY], label: 'Clear the selection (or click outside)' })
+    hints.push({ keys: [ESC_KEY], label: vi.contextualHelp.clearSelection })
     return hints
   }
 
@@ -115,12 +117,12 @@ export function resolveSelectModeHelpHints({
   // detaches the joint mid-drag; a fitting's cluster adds rotate arcs, with
   // R / T (and Alt to switch axis) for keyboard rotation.
   if (mepSelection === 'run') {
-    hints.push({ keys: [CLICK], label: 'Click a handle dot to show move arrows' })
-    hints.push({ keys: [ALT_KEY], label: 'Detach the joint while dragging an arrow' })
+    hints.push({ keys: [CLICK], label: vi.contextualHelp.mepRunHandle })
+    hints.push({ keys: [ALT_KEY], label: vi.contextualHelp.mepRunDetach })
   } else if (mepSelection === 'fitting') {
-    hints.push({ keys: [CLICK], label: 'Click the handle dot to show move + rotate handles' })
-    hints.push({ keys: [ROTATE_KEYS], label: 'Rotate ±45°' })
-    hints.push({ keys: [ALT_KEY], label: 'Switch the rotation axis (Y → X → Z)' })
+    hints.push({ keys: [CLICK], label: vi.contextualHelp.mepFittingHandle })
+    hints.push({ keys: [ROTATE_KEYS], label: vi.contextualHelp.mepFittingRotate })
+    hints.push({ keys: [ALT_KEY], label: vi.contextualHelp.mepFittingAxis })
   }
 
   // The rows are the same whatever modifier is held — guides/snapping are
@@ -130,28 +132,28 @@ export function resolveSelectModeHelpHints({
   if (hasMovableSelection) {
     hints.push({
       keys: [LEFT_CLICK],
-      label: 'Drag selected movable object',
+      label: vi.contextualHelp.dragMovable,
     })
   }
 
   if (hasRotatableSelection) {
     hints.push({
       keys: [COMMAND_KEY, RIGHT_CLICK],
-      label: 'Drag left or right to rotate selected object',
+      label: vi.contextualHelp.rotateSelected,
     })
   }
 
   if (hasOpeningRadiusSelection) {
     hints.push({
       keys: [SHIFT_KEY],
-      label: 'Adjust one side’s corner radius',
+      label: vi.contextualHelp.openingRadius,
       active: shiftPressed,
     })
   }
 
   hints.push({
     keys: [[COMMAND_KEY, SHIFT_KEY], LEFT_CLICK],
-    label: 'Add or remove objects from the selection',
+    label: vi.contextualHelp.addOrRemove,
     active: commandPressed || shiftPressed,
   })
 
