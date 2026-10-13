@@ -76,6 +76,8 @@ export interface PascalMountOptions {
   readonly validateCommit?: (scene: PascalScene) => PascalCommitVerdict;
   /** Lý do một lượt sửa bị chặn. Màn hình dựng toast tiếng Việt từ đây. */
   readonly onCommitRejected?: (message: string) => void;
+  /** Mở ở chế độ tách tầng (`/3d?view=exploded`, F-15 W2-C2). */
+  readonly explodeLevels?: boolean;
 }
 
 /**
@@ -107,6 +109,7 @@ export function mount(element: HTMLElement, options: PascalMountOptions): Pascal
           onSaveStatus={options.onSaveStatus}
           validateCommit={options.validateCommit}
           onCommitRejected={options.onCommitRejected}
+          explodeLevels={options.explodeLevels ?? false}
           onReadyChange={options.onReadyChange}
           onFatal={options.onFatal}
           onSceneLoaded={options.onSceneLoaded}

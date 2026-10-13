@@ -90,6 +90,7 @@ interface MountModule {
       readonly onFatal?: (error: Error) => void;
       readonly onSceneLoaded?: (census: PascalSceneCensus) => void;
       readonly onRendererUnavailable?: () => void;
+      readonly explodeLevels?: boolean;
     },
   ) => { readonly dispose: () => void };
 }
@@ -109,6 +110,8 @@ export interface UsePascalViewerOptions {
   readonly onCommitRejected?: (message: string) => void;
   /** Khung xem có đang thu gọn không. Thu gọn thì KHÔNG dựng 3D, để đỡ tốn máy. */
   readonly collapsed?: boolean;
+  /** Mở ở chế độ tách tầng — `/3d?view=exploded`. */
+  readonly explodeLevels?: boolean;
   /**
    * Cửa nạp gói, tách ra để bài kiểm thay được. Mặc định là `import()` thật.
    * Không đặt kiểu trả về là `Promise<MountModule>` cứng ở đây vì `import()`
@@ -238,6 +241,7 @@ export function usePascalViewer({
   onSceneCommit,
   validateCommit,
   onCommitRejected,
+  explodeLevels = false,
 }: UsePascalViewerOptions): UsePascalViewerResult {
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -350,6 +354,7 @@ export function usePascalViewer({
           scene: result.scene,
           mode,
           readOnly,
+          explodeLevels,
           onSceneCommit: async (next) => {
             await edits.current.onSceneCommit?.(next);
           },
@@ -381,7 +386,7 @@ export function usePascalViewer({
       disposed = true;
       handle?.dispose();
     };
-  }, [shouldMount, result, loadMount, attempt, mode, readOnly]);
+  }, [shouldMount, result, loadMount, attempt, mode, readOnly, explodeLevels]);
 
   const onRetry = useCallback(() => {
     setFailure(null);
