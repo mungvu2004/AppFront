@@ -1,6 +1,6 @@
 # Kiểm kê thay thế toàn bộ — Bản 6
 
-Trạng thái cập nhật ở M2, 2026-10-13, theo báo cáo các việc đã gộp đến e77ea150.
+Trạng thái cập nhật ở M2, 2026-10-13, theo báo cáo các việc đã gộp đến 735c47a6.
 
 Theo quyết định Bản 6 (`docs/pascal/00-quyet-dinh.md`): Pascal thay HOÀN TOÀN mọi phần 3D của
 AppFront mà Pascal thay được. Tài liệu này gắn lại ba nhãn cho **109 tính năng** đã đo ở
@@ -37,7 +37,7 @@ F-15 chỉ cấm giữ hai engine chạy song song, không cấm lớp bọc h�
 | 7 | Ba loại bắt điểm có tên riêng (kể cả "Vuông góc") | SAU KHI SỬA | `nodes/src/tools/wall/wall-snap-geometry.ts`: thêm nhãn riêng, cơ chế đã có | 3 | xong (W2-B: nhãn bắt điểm có tên) |
 | 8 | Sửa 3D ⇒ 2D khớp | THAY ĐƯỢC | Pascal **hơn** (C3 — một nguồn dữ liệu) | 0 | chưa — không có báo cáo xong |
 | 9 | Chip đối chiếu bản vẽ gốc AI | SAU KHI SỬA | cộng vào #5: lưu `originalTrace` lúc tạo node | gộp #5 | chưa từng chạy |
-| 10 | Thêm/xoá đỉnh = split/merge nghiệp vụ | SAU KHI SỬA | `nodes/src/wall`: viết `merge-tool` nghiệp vụ (hiện chỉ gộp mesh hiển thị) | 10 | chưa — W2-B chưa viết merge-tool nghiệp vụ |
+| 10 | Thêm/xoá đỉnh = split/merge nghiệp vụ | SAU KHI SỬA | `nodes/src/wall`: viết `merge-tool` nghiệp vụ (hiện chỉ gộp mesh hiển thị) | 10 | xong (S12: tách/gộp tường tại đỉnh) |
 | 11 | Bảng đỉnh sửa x/y, nudge phím mũi tên | SAU KHI SỬA | `editor/src/components`: panel "WallVertexTable" mới, gắn `sidebarTabs` | 14 | xong (W2-B: bảng đỉnh sửa x/y) |
 | 12 | Ghi bị từ chối có lý do; Esc thoát lớp trên | SAU KHI SỬA | đo cơ chế từ chối hiện có trước (04 ghi KHÔNG BIẾT), vá câu giải thích nếu thiếu | 6 | xong (đo: có sẵn) |
 | 13 | Ghi qua `commit(patch,label)`, không `set()` | THAY ĐƯỢC | việc AppFront-side: mọi đường sửa đi qua `src/lib/pascal/fromPascal.ts` rồi `commit()` của store AppFront — không sửa vendor | 8 | chưa — không có báo cáo xong |
@@ -49,13 +49,13 @@ F-15 chỉ cấm giữ hai engine chạy song song, không cấm lớp bọc h�
 | 19 | Ctrl+Z 1 bước, gộp theo phiên kéo (D-06) | THAY ĐƯỢC | chấp nhận gộp theo phiên thay vì cửa sổ 400 ms tường minh — cùng tinh thần D-06 | 0 | chưa — không có báo cáo xong |
 | 20 | Từ chối đổi chiều cao tường thấp hơn ô mở (A9) | SAU KHI SỬA | `nodes/src/wall`: ràng buộc `wallHeight ≥ max(openingHeight)`, map sang dialog A9 ở AppFront overlay | 8 | xong (W2-A) |
 | 21 | Đổi bề rộng bao nội thất (qua `scale`, không phải mm) | THAY ĐƯỢC | việc AppFront-side: `src/lib/pascal` quy đổi scale↔mm hai chiều, không sửa vendor | 6 | xong (W2-A) |
-| 22 | Cảnh báo `FURNITURE-CLASH` nêu tên + link "Xem quy tắc" | SAU KHI SỬA | `nodes/src/lib/item-polygon-overlap.ts` lộ ra UI + `ruleCode`; panel cảnh báo mới trong `editor` | 16 | xong (W2-A; thiếu link Xem quy tắc) |
+| 22 | Cảnh báo `FURNITURE-CLASH` nêu tên + link "Xem quy tắc" | SAU KHI SỬA | `nodes/src/lib/item-polygon-overlap.ts` lộ ra UI + `ruleCode`; panel cảnh báo mới trong `editor` | 16 | xong (W2-A lượt 3: có link "Xem quy tắc") |
 | 23 | 4 phím tắt qua registry; không nút Lưu | SAU KHI SỬA | thiếu `?`/Ctrl+F — cộng việc #42 | gộp #42 | xong (W2-C1: ? mở bảng phím tắt; Ctrl+F ở #42) |
 | 24 | Tự lưu 800 ms, "Đã lưu lúc HH:MM" | THAY ĐƯỢC | việc AppFront-side: tự debounce 800 ms rồi gọi `onSave` của `<Editor>` (không dùng `localStorage` mặc định của Pascal); caption hiển thị ở `inspectorFooter` do AppFront vẽ | 6 | xong (W2-A) |
-| 25 | Nút "Lưu làm khuôn mẫu" | SAU KHI SỬA | đo trước (04: KHÔNG BIẾT); nếu thiếu, thêm nút trong `item-catalog` | 8 | chưa — cần onSaveAsTemplate |
+| 25 | Nút "Lưu làm khuôn mẫu" | SAU KHI SỬA | đo trước (04: KHÔNG BIẾT); nếu thiếu, thêm nút trong `item-catalog` | 8 | xong (W2-A lượt 3: onSaveAsTemplate; đã xoá PropertyInspector cũ) |
 | 26 | Duyệt/Bỏ qua → `reviewed/source` cứng, badge chỉ người duyệt đặt | SAU KHI SỬA | cộng vào #5: UI nút Duyệt/Bỏ qua + badge | gộp #5 | xong (W2-A) |
 | 27 | Trường "Độ tin cậy" % | SAU KHI SỬA | cộng vào #5: hiển thị field `confidence` | gộp #5 | xong (W2-A) |
-| 28 | 8 kiểu control (thiếu "link", nhóm "inspection") | SAU KHI SỬA | `editor/src/components/parametric-field-control.tsx`: thêm kiểu "link" + nhóm "inspection" | 6 | chưa — cần kiểu link ở core |
+| 28 | 8 kiểu control (thiếu "link", nhóm "inspection") | SAU KHI SỬA | `editor/src/components/parametric-field-control.tsx`: thêm kiểu "link" + nhóm "inspection" | 6 | xong (W2-A lượt 3: kiểu link) |
 
 **Tổng giờ cụm 1 (không gộp trùng):** ~113 h vendor/AppFront (hạ tầng #1 ≈12h, #5 ≈24h dùng chung
 nhiều dòng).
@@ -80,7 +80,7 @@ nhiều dòng).
 | 40 | Lỗi WebGL câu thường, tiếng Việt (A6) | SAU KHI SỬA | `unsupported-gpu-fallback.*`: Việt hoá — phần của việc 7 (nợ A6) trong prompt gốc F-15 | 4 | xong (kiểm) |
 | 41 | Không quyền: gỡ nút khỏi DOM | SAU KHI SỬA | hạ tầng RBAC #30 | gộp #30 | xong (W2-C1 lượt 3) |
 | 42 | Ô tìm Ctrl+F, không dấu (Q2) | SAU KHI SỬA | lệnh mới trong command palette của Pascal gọi chuẩn hoá bỏ dấu đã có ở `lib/format` AppFront (gộp #23) | 20 | xong (W2-C1 lượt 3) |
-| 43 | Lớp phủ cộng tác luôn có mặt (VO-1) | SAU KHI SỬA | `viewer`: hệ presence/cursor đa người dùng mới, nối `CollaborationLayer` hiện có | 24 | chưa — chưa có hệ presence/cursor; W2-E mới khuôn camera vào ghim |
+| 43 | Lớp phủ cộng tác luôn có mặt (VO-1) | SAU KHI SỬA | `viewer`: hệ presence/cursor đa người dùng mới, nối `CollaborationLayer` hiện có | 24 | một phần (S5: ghim cộng tác trên canvas Pascal) — thiếu: presence/cursor đa người dùng |
 | 44 | Chế độ sửa hình học tường (VO-2, VP-4) | THAY ĐƯỢC | — | 0 | chưa — không có báo cáo xong |
 | 45 | Ba bảng phụ loại trừ nhau, cột 344px (VP-2) | SAU KHI SỬA | dùng slot `sidebarTabs` để dựng đúng 3 panel AppFront ("Diện tích phòng"/"Lịch sử thao tác"/…); nếu khe không đủ mềm, sửa `panel-manager.tsx` | 10 | xong (W2-C1) |
 | 46 | Esc đóng bảng phụ đang mở (VP-3, A12) | SAU KHI SỬA | `editor/src/hooks/use-keyboard.ts`: thêm nhánh Escape đóng sidebar panel | 3 | xong (W2-C1) |
@@ -123,13 +123,13 @@ dịch ra.
 | # | Tính năng | Nhãn | Việc vendor/AppFront cần | Giờ | Trạng thái F-15 |
 |---|---|---|---|---|---|
 | 57 | Đo điểm-đến-điểm | THAY ĐƯỢC | AppFront tự vẽ nhãn đo bằng `viewerSceneSlot`, định dạng số ở `lib/format` (A15), không dùng HUD chữ của Pascal | 4 | xong (W2-B: nhãn đo dấu phẩy) |
-| 58 | Đo vuông góc bề mặt (point-to-plane) | SAU KHI SỬA | `core`: thêm `measurement-kind` `pointToPlane`; tool tương tác mới trong `nodes` | 14 | chưa — chưa có kind đo vuông góc ở core; giữ màn MeasurementTool cũ |
-| 59 | Đo chiều cao | SAU KHI SỬA | `core`: thêm `measurement-kind` `height`, dùng height-anchor sẵn có làm chế độ đo thật | 8 | chưa — chưa có kind đo chiều cao ở core; giữ màn MeasurementTool cũ |
+| 58 | Đo vuông góc bề mặt (point-to-plane) | SAU KHI SỬA | `core`: thêm `measurement-kind` `pointToPlane`; tool tương tác mới trong `nodes` | 14 | xong (S11: đo vuông góc; màn MeasurementTool cũ vẫn giữ vì phép đo lưu server chưa có trên Pascal) |
+| 59 | Đo chiều cao | SAU KHI SỬA | `core`: thêm `measurement-kind` `height`, dùng height-anchor sẵn có làm chế độ đo thật | 8 | xong (S11: đo chiều cao; màn MeasurementTool cũ vẫn giữ) |
 | 60 | Đo diện tích (≥3 điểm) | THAY ĐƯỢC | cùng cách #57 (AppFront format nhãn + đơn vị riêng) | 4 | xong (W2-B: nhãn đo dấu phẩy) |
-| 61 | Chip bắt điểm có "giao trục" | SAU KHI SỬA | `core/registry`: thêm snap kind `axisIntersection` | 6 | chưa — chưa nối structural-grid vào công cụ đo; giữ màn cũ |
+| 61 | Chip bắt điểm có "giao trục" | SAU KHI SỬA | `core/registry`: thêm snap kind `axisIntersection` | 6 | một phần (S9: trục AppFront thành structural-grid) — thiếu: nhãn "Giao trục" chưa có nơi phát |
 | 62 | Ghim phép đo, tên "Phép đo N" | THAY ĐƯỢC | AppFront đặt tên lúc tạo qua API `createMeasurement(name)` | 2 | xong (W2-B: tên "Phép đo N") |
-| 63 | Xoá phép đo kèm toast hoàn tác (A8) | THAY ĐƯỢC | AppFront bọc `onDelete` rồi tự hiện toast (như #55) | 3 | chưa — chưa có toast hoàn tác khi xoá phép đo |
-| 64 | Đổi đơn vị mm/cm/m (3 nấc) | THAY ĐƯỢC | AppFront overlay hiển thị số theo 3 nấc, Pascal lưu SI | 4 | một phần (nấc cm trong bộ định dạng số đo) — thiếu: giao diện chưa mở nấc cm (MetricNotation chỉ m/mm) |
+| 63 | Xoá phép đo kèm toast hoàn tác (A8) | THAY ĐƯỢC | AppFront bọc `onDelete` rồi tự hiện toast (như #55) | 3 | xong (S10: toast hoàn tác khi xoá phép đo) |
+| 64 | Đổi đơn vị mm/cm/m (3 nấc) | THAY ĐƯỢC | AppFront overlay hiển thị số theo 3 nấc, Pascal lưu SI | 4 | xong (S10: đơn vị mm/cm/m) |
 | 65 | Giá trị đo không "chạy số" cho tới ghim | SAU KHI SỬA | đo trước xem `@number-flow` có áp cho HUD đo không (nghi vi phạm A15, 04 ghi KHÔNG BIẾT); nếu có, AppFront tự vẽ HUD riêng thay Pascal's | 6 | xong (W2-B đo: đạt sẵn, HUD đo không chạy số) |
 | 66 | Phím M/Esc/Enter/Delete có nút chuột song song (A12) | SAU KHI SỬA | xác nhận + thêm nút nếu thiếu | 4 | xong (W2-B đo: đạt sẵn, có phím M và nút song song) |
 | 67 | Trạng thái forbidden: đo được, không ghim được, có giải thích | SAU KHI SỬA | hạ tầng RBAC #30 | gộp #30 | xong (W2-B: vai chỉ xem đo được, không ghim được, có lời giải thích) |
@@ -159,9 +159,9 @@ dịch ra.
 
 | # | Tính năng | Nhãn | Việc vendor/AppFront cần | Giờ | Trạng thái F-15 |
 |---|---|---|---|---|---|
-| 87 | Ba lớp thị giác đúng 3 (A4) | SAU KHI SỬA | AppFront vẽ thêm 2 lớp (hình học chiếu, lệch gạch chéo) qua `viewerSceneSlot`, không sửa `core` | 10 | chưa — W2-D/W2-D2 chưa làm |
-| 88 | Ba kiểu đối chiếu: chồng lớp / trượt / cạnh nhau | THAY ĐƯỢC | AppFront dựng swipe/side-by-side ở lớp UI riêng qua `viewerSceneSlot`, Pascal chỉ cấp canvas | 8 | chưa — W2-D/W2-D2 chưa làm |
-| 89 | Đường chia kéo chuột + phím, tay cầm tự nói là gì (A12) | THAY ĐƯỢC | cùng cách #88, AppFront-side | 6 | chưa — W2-D/W2-D2 chưa làm |
+| 87 | Ba lớp thị giác đúng 3 (A4) | SAU KHI SỬA | AppFront vẽ thêm 2 lớp (hình học chiếu, lệch gạch chéo) qua `viewerSceneSlot`, không sửa `core` | 10 | xong (S7: lớp thị giác ảnh nguồn) |
+| 88 | Ba kiểu đối chiếu: chồng lớp / trượt / cạnh nhau | THAY ĐƯỢC | AppFront dựng swipe/side-by-side ở lớp UI riêng qua `viewerSceneSlot`, Pascal chỉ cấp canvas | 8 | xong (S7: chồng lớp / trượt / cạnh nhau) |
+| 89 | Đường chia kéo chuột + phím, tay cầm tự nói là gì (A12) | THAY ĐƯỢC | cùng cách #88, AppFront-side | 6 | xong (S7: tay cầm có nhãn, phím mũi tên) |
 | 90 | Độ mờ ảnh nguồn bằng slider % (mất A6/A15) | SAU KHI SỬA | AppFront bọc control riêng gọi `guide.opacity` qua API `<Editor>`, đổi nhãn/định dạng số | 3 | chưa — thiếu Việt hoá và định dạng % |
 | 91 | Đo lệch tự động: trung bình/lớn nhất/đếm vượt dung sai | **THAY ĐƯỢC** (chấp nhận mức Pascal) | AppFront tự khai chưa làm (04 §D1 — `supported:false` ở `overlayComparisonGateway.ts`); **khuyến nghị: không làm nốt tính năng chưa từng chạy**, dùng mức Pascal hiện có (không có đo lệch) | 0 | chưa — chấp nhận mức Pascal (D1) |
 | 92 | Danh sách vùng lệch, chọn hàng vẽ đường đo | **THAY ĐƯỢC** (chấp nhận mức Pascal) | cùng lý do #91 (D1) | 0 | chưa — chấp nhận mức Pascal (D1) |
