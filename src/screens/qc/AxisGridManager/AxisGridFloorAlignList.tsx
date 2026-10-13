@@ -47,6 +47,8 @@ export interface AxisGridFloorAlignListProps
   readonly warningBanner: AxisGridWarningBanner | null;
   /** Tầng chưa có trục (rỗng/lỗi): khoá nút căn, bỏ nhãn "Đã duyệt" và hàng 0 mm giả (BUG-330, BUG-336). */
   readonly unavailableNotice: string | null;
+  /** BUG-594/601: nút căn bấm vào không làm được gì (vai xem, một tầng, đã khớp) — khoá và nói vì sao. */
+  readonly blockedReason: string | null;
 }
 
 const PANEL_TITLE = 'Căn chỉnh giữa các tầng';
@@ -113,8 +115,11 @@ export function AxisGridFloorAlignList({
   onFloorRowHover,
   onViewFloorOnDrawing,
   unavailableNotice,
+  blockedReason,
 }: AxisGridFloorAlignListProps) {
   const isUnavailable = unavailableNotice !== null;
+  /* Tầng chưa có trục đã có câu riêng; không chép thêm câu khoá thứ hai. */
+  const shownBlockedReason = isUnavailable ? null : blockedReason;
   const isFullyAligned =
     !isUnavailable &&
     warningBanner === null &&
@@ -131,7 +136,7 @@ export function AxisGridFloorAlignList({
 
       <Button
         className="self-start"
-        disabled={isUnavailable}
+        disabled={isUnavailable || blockedReason !== null}
         onClick={() => onAutoAlign()}
         size="sm"
         variant="secondary"
@@ -140,6 +145,7 @@ export function AxisGridFloorAlignList({
       </Button>
 
       {isUnavailable && <p className="text-[13px] text-text-secondary">{unavailableNotice}</p>}
+      {shownBlockedReason !== null && <p className="text-[13px] text-text-secondary">{shownBlockedReason}</p>}
 
       {!isUnavailable && warningBanner !== null && (
         <div className="flex flex-col items-start gap-2 rounded-lg bg-state-attention-tint p-3" role="alert">

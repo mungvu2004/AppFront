@@ -23,6 +23,7 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createMockApiClient } from '@/api/__mocks__/client';
+import { getAppAnnouncer } from '@/lib/input/announcer';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { createTestQueryClient } from '@/lib/testing/render';
@@ -65,6 +66,7 @@ import {
   DIMENSION_OCR_REVIEW_SCENARIOS,
   dimensionOcrScenarioFor,
 } from './dimensionOcrReviewScenarios';
+import { DIMENSION_OCR_TEXT } from './dimensionOcrText';
 import {
   applyDimensionFilters,
   deriveScreenState,
@@ -885,6 +887,131 @@ describe('chọn hàng, canvas và ảnh cắt', () => {
         (candidate) => candidate.id === IMPLAUSIBLE_TARGET_ID,
       )?.statusCode,
     ).toBe('attention');
+
+    mounted.unmount();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* QA-04c — SCR-18 nói thật, giữ đúng số vừa gõ, Mod+Z, Esc (BUG-577/580/582/603). */
+/* -------------------------------------------------------------------------- */
+
+describe('QA-04c SCR-18', () => {
+  it('[BUG-580] gõ rồi Enter ngay (cùng một lượt xử lý) duyệt với ĐÚNG số vừa gõ', async () => {
+    const mounted = await mountSettled();
+    /* Cùng một closure cho cả hai lời gọi — đúng điều xảy ra khi blur chốt số rồi Enter duyệt. */
+    const { onEdit, onApprove } = mounted.result.current;
+
+    await run(() => {
+      onEdit(UNREVIEWED_ID, 2400);
+      onApprove(UNREVIEWED_ID);
+    });
+
+    await waitFor(() => {
+      expect(entityInStore(UNREVIEWED_ID)?.reviewed).toBe(true);
+    });
+    expect(entityInStore(UNREVIEWED_ID)?.overrideValueMm).toBe(2400);
+
+    mounted.unmount();
+  });
+
+  it('[BUG-577] không bao giờ nói "Đã lưu"; nói thật là chưa lưu, và hỏi trước khi rời trang', async () => {
+    const announcer = getAppAnnouncer();
+    const spoken = vi.spyOn(announcer, 'announce');
+    const mounted = await mountSettled();
+    const leave = (): boolean => {
+      const event = new Event('beforeunload', { cancelable: true });
+
+      window.dispatchEvent(event);
+
+      return event.defaultPrevented;
+    };
+
+    expect(mounted.result.current.unsavedNotice).toBe(DIMENSION_OCR_TEXT.screen.unsavedNotice);
+    expect(DIMENSION_OCR_TEXT.keyboard.keys.enter.description).not.toMatch(/lưu/iu);
+    expect(leave()).toBe(false);
+
+    await run(() => {
+      mounted.result.current.onApprove(UNREVIEWED_ID);
+    });
+    await waitFor(() => {
+      expect(entityInStore(UNREVIEWED_ID)?.reviewed).toBe(true);
+    });
+    /* Quá cửa sổ 800 ms của A7: một bộ tự lưu giả sẽ nói "Đã lưu lúc …" ở đây. */
+    await act(async () => {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 1000);
+      });
+    });
+
+    expect(spoken.mock.calls.map(([message]) => message).join(' | ')).not.toMatch(/Đã lưu/u);
+    expect(leave()).toBe(true);
+
+    mounted.unmount();
+  });
+
+  it('[BUG-577] vai người xem không sửa gì nên không có câu "chưa lưu"', async () => {
+    const mounted = await mountSettled({ roles: ['viewer'] });
+
+    expect(mounted.result.current.unsavedNotice).toBeNull();
+
+    mounted.unmount();
+  });
+
+  it('[BUG-582] Mod+Z hoàn tác bằng ngăn xếp của chính màn', async () => {
+    const mounted = await mountSettled();
+
+    await run(() => {
+      mounted.result.current.onApprove(UNREVIEWED_ID);
+    });
+    await waitFor(() => {
+      expect(entityInStore(UNREVIEWED_ID)?.reviewed).toBe(true);
+    });
+
+    await act(async () => {
+      mounted.registry.handleKeyDown({ key: 'z', ctrlKey: true }, null);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(entityInStore(UNREVIEWED_ID)?.reviewed).toBe(false);
+    });
+
+    mounted.unmount();
+  });
+
+  it('[BUG-603] bấm lại vào hàng đang sửa không xoá bản nháp', async () => {
+    const mounted = await mountSettled();
+
+    await run(() => {
+      mounted.result.current.onEdit(UNREVIEWED_ID, 2400);
+    });
+    await run(() => {
+      mounted.result.current.onSelect(UNREVIEWED_ID);
+    });
+
+    expect(mounted.result.current.rows.find((row) => row.id === UNREVIEWED_ID)?.valueMm).toBe(2400);
+
+    mounted.unmount();
+  });
+
+  it('[BUG-583] Esc trong chế độ bàn phím: lần đầu bỏ sửa, lần sau tắt chế độ', async () => {
+    const mounted = await mountSettled();
+
+    await run(() => {
+      mounted.result.current.onSelect(UNREVIEWED_ID);
+    });
+    await pressKey(mounted.registry, 'R');
+    await run(() => {
+      mounted.result.current.onEdit(UNREVIEWED_ID, 2400);
+    });
+
+    await pressKey(mounted.registry, 'Escape');
+    expect(mounted.result.current.isKeyboardReviewMode).toBe(true);
+    expect(mounted.result.current.selectedDimensionId).toBe(UNREVIEWED_ID);
+
+    await pressKey(mounted.registry, 'Escape');
+    expect(mounted.result.current.isKeyboardReviewMode).toBe(false);
 
     mounted.unmount();
   });

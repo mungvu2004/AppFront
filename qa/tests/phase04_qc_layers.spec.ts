@@ -1001,7 +1001,11 @@ test.describe('SCR-18 Dimension OCR Review', () => {
       await approveNext.click();
       await expect(page.getByRole('button', { name: label, exact: true })).toHaveCount(0);
     }
-    await expect(page.getByRole('status').filter({ hasText: /^Đã lưu lúc \d{2}:\d{2}$/u })).toHaveCount(1);
+    // BUG-577: no PUT exists (F-08), so the screen says so and never announces "Đã lưu lúc HH:mm".
+    await expect(
+      page.getByText('Kích thước chưa lưu lên máy chủ — tải lại trang sẽ mất các lần duyệt và sửa.', { exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole('status').filter({ hasText: /^Đã lưu lúc/u })).toHaveCount(0);
     await expectNoProjectWritesSince(mark, 'SCR-18 dimensions (F-08)');
     await captureEvidence(page, '18_dims_local_only.png');
   });

@@ -36,6 +36,7 @@
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { pixels } from '@/domain/units/scale';
 import type { HttpError } from '@/lib/http/types';
 import { expectAccessible } from '@/lib/testing/expectAccessible';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
@@ -53,6 +54,8 @@ import { useStore } from '@/store';
 
 import { BACK_TO_FLOORS_LABEL, FLOOR_MISSING_TITLE } from '../shared/floorLayerReadFailure';
 
+import { AxisGridCanvas } from './AxisGridCanvas';
+import { fitCanvas } from './axisGridCanvasFit';
 import { AxisGridManager } from './AxisGridManager';
 import { AxisGridManagerContainer } from './AxisGridManager.container';
 import { scenarioArgsFor } from './AxisGridManager.stories';
@@ -433,5 +436,110 @@ describe('[BUG-404] canvas vừa khung: bong bóng, nhãn gốc giữ cỡ px v�
       expect(cx + radius).toBeLessThanOrEqual((x ?? 0) + (width ?? 0));
       expect(cy + radius).toBeLessThanOrEqual((y ?? 0) + (height ?? 0));
     }
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* QA-04c — SCR-19 (BUG-578/594/595/601/404/335/338/413/613/325).              */
+/* -------------------------------------------------------------------------- */
+
+describe('QA-04c SCR-19 trên màn', () => {
+  it('[BUG-578] câu "chỉ giữ trong phiên" hiện cố định dưới đầu màn', () => {
+    renderWithProviders(<AxisGridManager {...scenarioArgsFor('success')} unsavedNotice="Trục chỉ giữ trong phiên này." />);
+
+    expect(screen.getByText('Trục chỉ giữ trong phiên này.')).toBeInTheDocument();
+  });
+
+  it('[BUG-594][BUG-601] "Căn chỉnh tự động" bị khoá thì nói lý do ngay dưới nút', () => {
+    renderWithProviders(
+      <AxisGridManager {...scenarioArgsFor('success')} autoAlignBlockedReason="Vai người xem không căn chỉnh được các tầng." />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Căn chỉnh tự động' })).toBeDisabled();
+    expect(screen.getByText('Vai người xem không căn chỉnh được các tầng.')).toBeInTheDocument();
+  });
+
+  it('[BUG-594][BUG-338] trạng thái rỗng: biểu tượng thật, và nút làm được việc (thêm trục), không "Suy ra" chết', () => {
+    const onAxisAdd = vi.fn();
+
+    renderWithProviders(<AxisGridManager {...scenarioArgsFor('empty')} onAxisAdd={onAxisAdd} />);
+
+    expect(screen.queryByRole('button', { name: 'Suy ra từ tường bao' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm trục ngang' }));
+    expect(onAxisAdd).toHaveBeenCalledWith('horizontal');
+    expect(screen.getByText('Chưa có trục nào').parentElement?.querySelector('svg')).not.toBeNull();
+  });
+
+  it('[BUG-404][BUG-335] tầng chưa có trục: không vẽ dấu gốc "0,0" khổng lồ đè lên câu giải thích', () => {
+    renderState('empty');
+
+    expect(screen.queryByRole('img', { name: 'Gốc toạ độ 0,0' })).not.toBeInTheDocument();
+    expect(screen.getByText('Chưa có trục nào để hiện trên bản vẽ.')).toBeInTheDocument();
+  });
+
+  it('[BUG-404] hộp bao rỗng: viewBox bằng đúng khung, một đơn vị là một px — không phóng mấy chục lần', () => {
+    const fit = fitCanvas({ x: pixels(0), y: pixels(0), width: pixels(0), height: pixels(0) }, { width: 800, height: 600 }, 36);
+
+    expect(fit.unit).toBe(1);
+    expect(fit.viewBox).toBe('-400 -300 800 600');
+  });
+
+  it('[BUG-595] một lần kéo trục là MỘT lượt onAxisDrag lúc thả chuột, không một lượt mỗi pointermove', () => {
+    const onAxisDrag = vi.fn();
+    const viewModel = axisGridScenarioFor('success');
+    const { container } = renderWithProviders(
+      <AxisGridCanvas
+        canvas={viewModel.canvas}
+        isInteractive
+        onAxisDrag={onAxisDrag}
+        onAxisSelect={() => undefined}
+        viewerRoleNotice={null}
+      />,
+    );
+    const svg = container.querySelector('svg') as SVGSVGElement;
+    const identity = { inverse: () => identity };
+
+    Object.assign(svg, { getScreenCTM: () => identity });
+    vi.stubGlobal(
+      'DOMPoint',
+      class {
+        constructor(
+          readonly x: number,
+          readonly y: number,
+        ) {}
+        matrixTransform(): this {
+          return this;
+        }
+      },
+    );
+
+    const axis = viewModel.canvas.axes.find((item) => item.isVisible);
+    const figure = container.querySelector(`g[aria-label="${axis?.label ?? ''}"]`) as SVGGElement;
+
+    fireEvent.pointerDown(figure, { pointerId: 1, clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(svg, { pointerId: 1, clientX: 11, clientY: 11 });
+    fireEvent.pointerMove(svg, { pointerId: 1, clientX: 12, clientY: 12 });
+    fireEvent.pointerMove(svg, { pointerId: 1, clientX: 13, clientY: 13 });
+
+    expect(onAxisDrag).not.toHaveBeenCalled();
+
+    fireEvent.pointerUp(svg, { pointerId: 1 });
+
+    expect(onAxisDrag).toHaveBeenCalledTimes(1);
+    vi.unstubAllGlobals();
+  });
+
+  it('[BUG-613] bốn độ lệch gốc toạ độ: nhãn và giá trị cùng một dòng chữ (FieldRow isText)', () => {
+    renderState('success');
+
+    const label = screen.getByText('Lệch X (pixel)');
+
+    expect(label.parentElement?.className ?? '').not.toContain('pt-[9px]');
+  });
+
+  it('[BUG-325] nút bung bảng dùng Button — vùng chạm 44 px dưới 640 px', () => {
+    renderState('collapsed');
+
+    expect(screen.getByRole('button', { name: EXPAND_PANEL_LABEL }).className).toContain('min-h-11');
   });
 });
