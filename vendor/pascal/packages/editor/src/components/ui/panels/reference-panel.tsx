@@ -27,6 +27,8 @@ import { getGuideImageName } from '../../../lib/local-guide-image'
 import { cn } from '../../../lib/utils'
 import useEditor from '../../../store/use-editor'
 import { toFixedVi } from '../../../i18n/format'
+import { GUIDE_COMPARE_MODES } from '../../../lib/floorplan/guide-compare'
+import { overlayLevels } from '../../../i18n/regions/overlayLevels'
 import { controlsAndPanels as vi } from '../../../i18n/regions/controlsAndPanels'
 import { ActionButton, ActionGroup } from '../controls/action-button'
 import { PanelSection } from '../controls/panel-section'
@@ -51,6 +53,7 @@ export function ReferencePanel() {
     selectedReferenceId ? s.guideUi[selectedReferenceId] : undefined,
   )
   const setGuideLocked = useEditor((s) => s.setGuideLocked)
+  const setGuideCompareMode = useEditor((s) => s.setGuideCompareMode)
   const setGuideScaleReferenceVisible = useEditor((s) => s.setGuideScaleReferenceVisible)
   const clearGuideUi = useEditor((s) => s.clearGuideUi)
   const updateNode = useScene((s) => s.updateNode)
@@ -270,6 +273,34 @@ export function ReferencePanel() {
               </div>
             )}
           </PanelSection>
+
+          {!isScan && (
+            <PanelSection title={overlayLevels.compareTitle}>
+              <div aria-label={overlayLevels.compareTitle} className="flex gap-1" role="radiogroup">
+                {GUIDE_COMPARE_MODES.map((mode) => (
+                  <button
+                    aria-checked={(guideUi?.compareMode ?? 'overlay') === mode}
+                    className={cn(
+                      'flex-1 rounded-md border px-2 py-1 text-xs',
+                      (guideUi?.compareMode ?? 'overlay') === mode
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border/50 text-muted-foreground',
+                    )}
+                    key={mode}
+                    onClick={() => setGuideCompareMode(node.id, mode)}
+                    role="radio"
+                    type="button"
+                  >
+                    {mode === 'overlay'
+                      ? overlayLevels.compareOverlay
+                      : mode === 'swipe'
+                        ? overlayLevels.compareSwipe
+                        : overlayLevels.compareSideBySide}
+                  </button>
+                ))}
+              </div>
+            </PanelSection>
+          )}
 
           <PanelSection title={vi.referencePanel.referenceScale}>
             <div className="flex items-center gap-2 rounded-md border border-border/50 bg-background/40 px-2.5 py-2 text-sm">
