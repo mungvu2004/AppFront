@@ -251,11 +251,12 @@ export function PascalViewer({
       <div className="flex h-full min-h-0 flex-col gap-3">
         <div className="flex min-h-0 flex-1 gap-3">
           <div className="relative min-h-[12rem] min-w-0 flex-1">
+            {/* `contain:layout`: hộp `fixed` của Pascal neo vào khung này; `container-type:size`: `cqh`/`cqw` trong vendor đo khung chứ không đo viewport. */}
             <div
               ref={canvasRef}
               data-testid="pascal-canvas"
               aria-label="Khung dựng mô hình 3D"
-              className="absolute inset-0 overflow-hidden rounded-md border border-border-default bg-bg-sunken [contain:layout]"
+              className="absolute inset-0 overflow-hidden rounded-md border border-border-default bg-bg-sunken [contain:layout] [container-type:size]"
             />
             {sceneOverlay}
             {isBooting && (

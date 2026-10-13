@@ -15,7 +15,9 @@ import { EMAIL_BY_ROLE, submitSignInForm } from './fixtures/session';
 const PROJECT_ID = 'P-01';
 const VIEWER_PATH = ROUTE_PATTERNS.projectViewer.replace(':projectId', PROJECT_ID);
 const SCREEN_REGION_NAME = 'Mô hình 3D';
-const VIEWPORT = { width: 1440, height: 900 } as const;
+// `E2E_VIEWPORT=1280x720` chụp khổ khác (bố cục khung nhúng, F-15 R4).
+const [VIEWPORT_W, VIEWPORT_H] = (process.env.E2E_VIEWPORT ?? '1440x900').split('x').map(Number);
+const VIEWPORT = { width: VIEWPORT_W ?? 1440, height: VIEWPORT_H ?? 900 } as const;
 const SHOT_DIR = 'F:/App/AppBack/backend/dieu-phoi/chay/F-15/' + (process.env.E2E_SHOT_RUN ?? 'M1');
 const RENDER_TIMEOUT_MS = 60_000;
 
@@ -83,8 +85,11 @@ test('đăng nhập → /3d dựng Pascal → sửa tường → "Đã lưu" →
   await thickness.locator('input').fill('0,25');
   await thickness.locator('input').press('Enter');
   await expect(thickness).toContainText('0,250');
+  // Inspector đang mở: ảnh để soát nó nằm gọn trong khung nhúng (F-15 R4).
+  await page.screenshot({ path: `${SHOT_DIR}/shot-2a-inspector.png`, fullPage: false });
+  const after = await thickness.innerText();
   await expect(saveStatus(page)).toHaveText(/^Đã lưu/u, { timeout: RENDER_TIMEOUT_MS });
-  console.log(`[M1] độ dày: ${before.replace(/\s+/gu, ' ')} → ${(await thickness.innerText()).replace(/\s+/gu, ' ')}`);
+  console.log(`[M1] độ dày: ${before.replace(/\s+/gu, ' ')} → ${after.replace(/\s+/gu, ' ')}`);
 
   await page.screenshot({ path: `${SHOT_DIR}/shot-2-saved.png`, fullPage: false });
   const inspectorText = await page.evaluate(() => document.body.innerText);
