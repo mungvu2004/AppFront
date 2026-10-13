@@ -1,12 +1,18 @@
 'use client'
 
-import { type AnyNodeId, useScene, type WallNode } from '@pascal-app/core'
+import { type AnyNodeId, runAsSingleSceneHistoryStep, useScene, type WallNode } from '@pascal-app/core'
 import { useViewer } from '@pascal-app/viewer'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { type KeyboardEvent, useEffect, useState } from 'react'
 import { toFixedVi } from '../../../i18n/format'
 import { wallMeasure } from '../../../i18n/regions/wallMeasure'
-import { moveWallCorner, parseCoordinate, type WallVertexEnd } from './wall-vertex-table'
+import {
+  moveWallCorner,
+  parseCoordinate,
+  planAddVertex,
+  planRemoveVertex,
+  type WallVertexEnd,
+} from './wall-vertex-table'
 
 const vi = wallMeasure.vertexTable
 
@@ -40,6 +46,18 @@ export function WallVertexPanel() {
     if (patches.length > 0) useScene.getState().updateNodes(patches)
   }
 
+  // One history step each: the plan goes down the same save path as any edit.
+  const reshape = (plan: ReturnType<typeof planAddVertex>) => {
+    if ('error' in plan) return setError(vi.cannotChange)
+    setError(null)
+    const scene = useScene.getState()
+    runAsSingleSceneHistoryStep(useScene, () => scene.applyNodeChanges(plan.changes))
+  }
+  const addVertex = () => {
+    const length = Math.hypot(wall.end[0] - wall.start[0], wall.end[1] - wall.start[1])
+    reshape(planAddVertex(useScene.getState().nodes, wall, length / 2))
+  }
+
   return (
     <div className="flex flex-col gap-3 p-3 text-sm">
       {readOnly && <p className="text-muted-foreground">{vi.readOnly}</p>}
@@ -54,7 +72,18 @@ export function WallVertexPanel() {
         <tbody>
           {(['start', 'end'] as const).map((end) => (
             <tr key={end}>
-              <th className="pr-2 text-left font-medium">{vi.cornerName[end]}</th>
+              <th className="pr-2 text-left font-medium">
+                {vi.cornerName[end]}
+                <button
+                  aria-label={vi.removeVertex(vi.cornerName[end])}
+                  className="ml-1 rounded px-1 text-xs hover:bg-accent disabled:opacity-40"
+                  disabled={readOnly}
+                  onClick={() => reshape(planRemoveVertex(useScene.getState().nodes, wall, end))}
+                  type="button"
+                >
+                  ×
+                </button>
+              </th>
               {([0, 1] as const).map((axis) => (
                 <td key={axis}>
                   <CoordinateField
@@ -73,6 +102,14 @@ export function WallVertexPanel() {
           ))}
         </tbody>
       </table>
+      <button
+        className="self-start rounded border border-border px-2 py-1 text-xs hover:bg-accent disabled:opacity-40"
+        disabled={readOnly}
+        onClick={addVertex}
+        type="button"
+      >
+        {vi.addVertex}
+      </button>
       {error && (
         <p className="text-destructive" role="alert">
           {error}

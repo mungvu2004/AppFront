@@ -1,4 +1,4 @@
-import type { AnyNode, AnyNodeId, WallNode } from '@pascal-app/core'
+import { type AnyNode, type AnyNodeId, planWallDivisions, planWallMerge, type WallNode } from '@pascal-app/core'
 
 export type WallVertexEnd = 'start' | 'end'
 type PlanPoint = [number, number]
@@ -44,4 +44,41 @@ export function parseCoordinate(text: string): number | null {
   if (!/^-?\d+(\.\d+)?$/.test(trimmed)) return null
   const value = Number(trimmed)
   return Number.isFinite(value) ? value : null
+}
+
+type WallChanges = ReturnType<typeof planWallMerge>['changes']
+
+/** Adds a vertex `distance` meters from the wall start: the wall becomes two, openings stay on their span. */
+export function planAddVertex(
+  nodes: Record<string, AnyNode>,
+  wall: WallNode,
+  distance: number,
+): { changes: WallChanges } | { error: string } {
+  try {
+    return { changes: planWallDivisions(nodes as Record<AnyNodeId, AnyNode>, wall.id, [distance]).changes }
+  } catch (e) {
+    return { error: (e as Error).message }
+  }
+}
+
+/** Removes the vertex at `end`: merges the wall with the one continuing it in line (errors if none/not mergeable). */
+export function planRemoveVertex(
+  nodes: Record<string, AnyNode>,
+  wall: WallNode,
+  end: WallVertexEnd,
+): { changes: WallChanges } | { error: string } {
+  const at = wall[end] as PlanPoint
+  const other = Object.values(nodes).find(
+    (n) =>
+      n.type === 'wall' &&
+      n.id !== wall.id &&
+      n.parentId === wall.parentId &&
+      (samePoint(n.start as PlanPoint, at) || samePoint(n.end as PlanPoint, at)),
+  )
+  if (!other) return { error: 'No wall continues here.' }
+  try {
+    return { changes: planWallMerge(nodes as Record<AnyNodeId, AnyNode>, [wall.id, other.id as AnyNodeId]).changes }
+  } catch (e) {
+    return { error: (e as Error).message }
+  }
 }

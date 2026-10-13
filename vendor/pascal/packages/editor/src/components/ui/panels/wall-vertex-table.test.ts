@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import type { AnyNode, WallNode } from '@pascal-app/core'
-import { moveWallCorner, parseCoordinate } from './wall-vertex-table'
+import { moveWallCorner, parseCoordinate, planAddVertex, planRemoveVertex } from './wall-vertex-table'
 
 const wall = (id: string, start: [number, number], end: [number, number], parentId = 'level_1') =>
   ({ id, type: 'wall', parentId, start, end }) as unknown as WallNode
@@ -33,5 +33,30 @@ describe('parseCoordinate', () => {
     expect(parseCoordinate('abc')).toBeNull()
     expect(parseCoordinate('')).toBeNull()
     expect(parseCoordinate('1,2,3')).toBeNull()
+  })
+})
+
+describe('add / remove vertex', () => {
+  const a = wall('wall_a', [0, 0], [4, 0])
+  const nodes = { wall_a: a } as unknown as Record<string, AnyNode>
+
+  test('split then merge restores one straight wall', () => {
+    const split = planAddVertex(nodes, a, 1)
+    if ('error' in split) throw Error(split.error)
+    expect(split.changes.create).toHaveLength(1)
+    const created = split.changes.create[0]!.node as WallNode
+    const after = {
+      wall_a: { ...a, ...(split.changes.update.find((u) => u.id === 'wall_a')?.data ?? {}) },
+      [created.id]: created,
+    } as unknown as Record<string, AnyNode>
+    const joint = (after.wall_a as WallNode).end
+    expect(joint).toEqual([1, 0])
+    const merged = planRemoveVertex(after, after.wall_a as WallNode, 'end')
+    if ('error' in merged) throw Error(merged.error)
+    expect(merged.changes.delete).toHaveLength(1)
+  })
+
+  test('removing a lone end vertex reports an error', () => {
+    expect('error' in planRemoveVertex(nodes, a, 'end')).toBe(true)
   })
 })
