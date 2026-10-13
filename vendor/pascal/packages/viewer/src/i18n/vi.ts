@@ -20,5 +20,7 @@ export const vi = {
   },
   perfPanel: {
     dockAriaLabel: 'Ghim bảng sang cạnh',
+    triangles: 'Tam giác',
+    thousand: 'nghìn',
   },
 } as const

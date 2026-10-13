@@ -371,7 +371,7 @@ export function SliderControl({
       <div className="flex-1" />
 
       {/* Value — click to edit */}
-      <div className="flex items-center text-xs">
+      <div className="flex min-w-0 items-center whitespace-nowrap text-xs">
         {isEditing ? (
           <>
             {hint && (
@@ -417,7 +417,7 @@ export function SliderControl({
             className="flex cursor-text items-center text-foreground/60 transition-colors hover:text-foreground"
             onClick={handleValueClick}
           >
-            <span className="font-mono tabular-nums tracking-tight" suppressHydrationWarning>
+            <span className="min-w-0 truncate font-mono tabular-nums tracking-tight" suppressHydrationWarning>
               {toFixedVi(displayValue, precision)}
             </span>
             {displayUnit && <span className="ml-[1px] text-muted-foreground">{displayUnit}</span>}
