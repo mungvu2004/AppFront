@@ -182,3 +182,15 @@ export const PASCAL_SIDE_PANEL_WIDTH_PX = 344;
 
 /** Nhãn vùng chứa các tab, cho trình đọc màn hình. */
 export const PASCAL_SIDE_PANEL_RAIL_LABEL = 'Bảng phụ';
+
+/** Câu toast cho hai chiều của lịch sử, tiếng Việt kiểu câu (A6, A8). */
+export const PASCAL_HISTORY_TOASTS = {
+  undo: {
+    title: 'Đã hoàn tác thay đổi gần nhất',
+    description: 'Bản vẽ đã lùi một bước và đang được lưu lại.',
+  },
+  redo: {
+    title: 'Đã làm lại thay đổi vừa hoàn tác',
+    description: 'Bản vẽ đã tiến lại một bước và đang được lưu lại.',
+  },
+} as const;

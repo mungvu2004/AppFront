@@ -21,6 +21,9 @@ export type HistoryCommandDelegate = {
 export declare function installHistoryCommandDelegate(delegate: HistoryCommandDelegate): () => void;
 export declare function getHistoryCommandState(): HistoryCommandState;
 export declare function subscribeHistoryCommandState(listener: () => void): () => void;
+export type HistoryJumpKind = 'undo' | 'redo';
+export type HistoryJumpListener = (kind: HistoryJumpKind) => void;
+export declare function subscribeHistoryJumps(listener: HistoryJumpListener): () => void;
 export declare function shouldCancelDraftOnHistoryJump(): boolean;
 export declare function runUndo(): HistoryCommandResult;
 export declare function runRedo(): HistoryCommandResult;

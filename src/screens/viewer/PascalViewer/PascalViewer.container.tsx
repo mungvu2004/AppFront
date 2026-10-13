@@ -41,6 +41,7 @@ import { useStore } from '@/store';
 
 import { PascalViewer } from './PascalViewer';
 import {
+  PASCAL_HISTORY_TOASTS,
   PASCAL_SIDE_PANEL_LABELS,
   type PascalSidePanel,
   type PascalSidePanelId,
@@ -68,12 +69,6 @@ export const PASCAL_REJECTED_TITLE = 'Không ghi được thay đổi';
 
 /** Loại thông báo của một cú nhảy lịch sử — toast gom theo loại (A8). */
 export const PASCAL_HISTORY_NOTIFICATION_TYPE = 'pascal.history.jump';
-
-/** Câu toast cho hai chiều của lịch sử, tiếng Việt kiểu câu (A6, A8). */
-export const PASCAL_HISTORY_TITLES = {
-  undo: 'Đã hoàn tác thay đổi gần nhất',
-  redo: 'Đã làm lại thay đổi vừa hoàn tác',
-} as const;
 
 export interface PascalViewerContainerProps {
   readonly graph: SpatialGraph | null;
@@ -147,7 +142,7 @@ function PascalViewerBody({
   const onHistoryJump = useCallback(
     (kind: 'undo' | 'redo') => {
       publish({
-        title: PASCAL_HISTORY_TITLES[kind],
+        ...PASCAL_HISTORY_TOASTS[kind],
         type: PASCAL_HISTORY_NOTIFICATION_TYPE,
       });
     },
