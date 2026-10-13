@@ -119,12 +119,12 @@ describe('sampleLotTerrain', () => {
     })
     expect(thrown.ok).toBe(false)
     expect(thrown.reason).toBe('offline')
-    expect((await sampleLotTerrain([[0, 0]], ORIGIN)).reason).toBe('no lot ring')
+    expect((await sampleLotTerrain([[0, 0]], ORIGIN)).reason).toBe('Không có đường bao lô đất')
   })
 
   test('the status fragment reads plainly', () => {
     expect(describeTerrainSample(null, 'USGS down')).toBe(
-      'terrain read failed (USGS down) — the ground is flat until it is read',
+      'Không đọc được địa hình (USGS down) — mặt đất vẫn phẳng cho tới khi đọc được',
     )
     expect(describeTerrainSample(null, 'skipped')).toBe('')
     expect(
@@ -141,7 +141,7 @@ describe('sampleLotTerrain', () => {
         },
         '',
       ),
-    ).toBe("terrain: 4.6' of fall across the lot (USGS, 79 pts, 2 unread)")
+    ).toBe("Địa hình: chênh 4,6' trên lô đất (USGS, 79 điểm, 2 điểm chưa đọc được)")
     expect(
       describeTerrainSample(
         {
@@ -156,6 +156,6 @@ describe('sampleLotTerrain', () => {
         },
         '',
       ),
-    ).toBe('ground flat within 2" (USGS)')
+    ).toBe('Mặt đất phẳng trong khoảng 2" (USGS)')
   })
 })

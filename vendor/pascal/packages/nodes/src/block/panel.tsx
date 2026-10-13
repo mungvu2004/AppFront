@@ -34,6 +34,7 @@ import {
   renameBlockMaterialSlot,
 } from './material-slots'
 import { blockSlots } from './slots'
+import { vi } from '../i18n/vi'
 
 const SLOT_TRAILING_ACTION_CLASS =
   'm-2 ml-0 flex w-8 shrink-0 items-center justify-center rounded-md'
@@ -266,7 +267,7 @@ export default function BlockPanel() {
 
   return (
     <PanelWrapper icon="/icons/cube.webp" onClose={close} title={node.name || 'Block'} width={340}>
-      <PanelSection title="Position">
+      <PanelSection title={vi.common.position}>
         {(
           [
             { axis: 0, label: 'X', onChange: updatePositionX },
@@ -286,7 +287,7 @@ export default function BlockPanel() {
         ))}
       </PanelSection>
 
-      <PanelSection title="Slots">
+      <PanelSection title={vi.common.slots}>
         <div className="rounded-md border border-border/50 bg-background/40 px-2.5 py-2 text-muted-foreground text-xs">
           {selectionLabel}
         </div>
@@ -296,7 +297,7 @@ export default function BlockPanel() {
             className={SLOT_DISABLED_ACTION_CLASS}
             disabled={!canOperateOnFaces || selectedFaceIds.length === 0 || readOnly}
             icon={<Plus className="h-3.5 w-3.5" />}
-            label="Add slot"
+            label={vi.common.addSlot}
             onClick={addMaterialSlot}
             title={
               slotEditTitle ??
@@ -399,13 +400,13 @@ export default function BlockPanel() {
         </div>
       </PanelSection>
 
-      <PanelSection title="Actions">
+      <PanelSection title={vi.common.actions}>
         <ActionGroup>
-          <ActionButton icon={<Move className="h-4 w-4" />} label="Move" onClick={move} />
+          <ActionButton icon={<Move className="h-4 w-4" />} label={vi.common.move} onClick={move} />
           <ActionButton
             className="border-red-500/40 text-red-200 hover:bg-red-500/15"
             icon={<Trash2 className="h-4 w-4" />}
-            label="Delete"
+            label={vi.common.delete}
             onClick={() => {
               useScene.getState().deleteNode(node.id)
               setViewerSelection({ selectedIds: [] })

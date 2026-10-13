@@ -6,6 +6,7 @@ import { buildPipeSegmentFloorplan } from './floorplan'
 import { buildPipeSegmentGeometry } from './geometry'
 import { pipeSegmentParametrics } from './parametrics'
 import { PipeSegmentNode } from './schema'
+import { vi } from '../i18n/vi'
 
 /**
  * Phase 4 of the distribution-system effort (the research doc's Phase 2)
@@ -123,18 +124,18 @@ export const pipeSegmentDefinition: NodeDefinition<typeof PipeSegmentNode> = {
 
   tool: () => import('./tool'),
   toolHints: [
-    { key: 'Click', label: 'Start run' },
-    { key: 'Click again', label: 'Place and continue' },
-    { key: 'Q', label: 'Waste / vent' },
-    { key: 'S', label: 'Slope / level' },
+    { key: 'Click', label: vi.pipeSegment.shortcuts.startRun },
+    { key: 'Click again', label: vi.pipeSegment.shortcuts.placeAndContinue },
+    { key: 'Q', label: vi.pipeSegment.shortcuts.wasteVent },
+    { key: 'S', label: vi.pipeSegment.shortcuts.slopeLevel },
     createRunHangerToolHint('pipe-segment'),
-    { key: '[ / ]', label: 'Pipe size down / up' },
-    { key: 'Alt + drag', label: 'Vertical stack ↕, click to place' },
-    { key: 'Esc', label: 'Exit drawing' },
+    { key: '[ / ]', label: vi.pipeSegment.shortcuts.sizeDownUp },
+    { key: 'Alt + drag', label: vi.pipeSegment.shortcuts.verticalStack },
+    { key: 'Esc', label: vi.pipeSegment.shortcuts.exitDrawing },
   ],
 
   presentation: {
-    label: 'DWV Pipe',
+    label: vi.pipeSegment.catalogLabel,
     description: 'Drain / waste / vent pipe run — draw level or toggle a ¼″ per foot fall with S.',
     icon: { kind: 'url', src: '/icons/dwv-pipes.webp' },
     paletteSection: 'structure',

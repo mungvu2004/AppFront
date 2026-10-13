@@ -1,5 +1,6 @@
 'use client'
 
+import { clampSwipePercent, type GuideCompareMode } from '../lib/floorplan/guide-compare'
 import type { AssetInput } from '@pascal-app/core'
 import {
   type AnyNode,
@@ -264,6 +265,8 @@ export type SurfaceHoleTarget = { nodeId: string; holeIndex: number }
 export type GuideUiState = {
   locked?: boolean
   scaleReferenceVisible?: boolean
+  compareMode?: GuideCompareMode
+  swipePercent?: number
 }
 
 type EditorState = {
@@ -399,6 +402,8 @@ type EditorState = {
   guideUi: Record<string, GuideUiState>
   setGuideLocked: (guideId: string, locked: boolean) => void
   setGuideScaleReferenceVisible: (guideId: string, visible: boolean) => void
+  setGuideCompareMode: (guideId: string, mode: GuideCompareMode) => void
+  setGuideSwipePercent: (guideId: string, percent: number) => void
   clearGuideUi: (guideId: string) => void
   // Space detection for cutaway mode
   spaces: Record<string, Space>
@@ -1303,6 +1308,17 @@ const useEditor = create<EditorState>()(
               ...state.guideUi[guideId],
               scaleReferenceVisible: visible,
             },
+          },
+        })),
+      setGuideCompareMode: (guideId, compareMode) =>
+        set((state) => ({
+          guideUi: { ...state.guideUi, [guideId]: { ...state.guideUi[guideId], compareMode } },
+        })),
+      setGuideSwipePercent: (guideId, percent) =>
+        set((state) => ({
+          guideUi: {
+            ...state.guideUi,
+            [guideId]: { ...state.guideUi[guideId], swipePercent: clampSwipePercent(percent) },
           },
         })),
       clearGuideUi: (guideId) =>

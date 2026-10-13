@@ -8,6 +8,7 @@ import { buildTurbineVentFloorplan } from './floorplan'
 import { turbineVentPaint } from './paint'
 import { turbineVentParametrics } from './parametrics'
 import { TurbineVentNode } from './schema'
+import { vi } from '../i18n/vi'
 
 const SIDE_HANDLE_OFFSET = 0.25
 const HEIGHT_HANDLE_OFFSET = 0.2
@@ -94,8 +95,8 @@ export const turbineVentDefinition: NodeDefinition<typeof TurbineVentNode> = {
 
   capabilities: {
     slots: () => [
-      { slotId: 'base', label: 'Base', default: 'library:preset-softwhite' },
-      { slotId: 'head', label: 'Head', default: 'library:preset-softwhite' },
+      { slotId: 'base', label: vi.turbineVent.slots.base, default: 'library:preset-softwhite' },
+      { slotId: 'head', label: vi.turbineVent.slots.head, default: 'library:preset-softwhite' },
     ],
     selectable: { hitVolume: 'bbox' },
     duplicable: true,
@@ -123,12 +124,12 @@ export const turbineVentDefinition: NodeDefinition<typeof TurbineVentNode> = {
     move: () => import('./move-tool'),
   },
   toolHints: [
-    { key: 'Left click', label: 'Place turbine vent on roof' },
-    { key: 'Esc', label: 'Cancel' },
+    { key: 'Left click', label: vi.turbineVent.shortcuts.place },
+    { key: 'Esc', label: vi.turbineVent.shortcuts.cancel },
   ],
 
   presentation: {
-    label: 'Turbine Vent',
+    label: vi.turbineVent.catalogLabel,
     description: 'Wind-driven spinning whirlybird exhaust vent for a roof slope.',
     icon: { kind: 'url', src: '/icons/turbine-vent.webp' },
     paletteSection: 'structure',

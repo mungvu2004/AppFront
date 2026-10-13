@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'bun:test'
-import { resolveLevelVisibility } from './level-utils'
+import {
+  findLevelMisalignments,
+  isLevelLabelVisible,
+  LEVEL_LABEL_MIN_EXPLODE,
+  resolveLevelVisibility,
+  useLevelExplode,
+} from './level-utils'
 
 const decide = (
   overrides: Partial<Parameters<typeof resolveLevelVisibility>[0]> = {},
@@ -65,5 +71,44 @@ describe('resolveLevelVisibility', () => {
         nodeVisible: false,
       }),
     ).toEqual({ visible: false, shadowOnly: false })
+  })
+})
+
+describe('continuous explode (AppFront)', () => {
+  test('amount is clamped to 0..1', () => {
+    useLevelExplode.getState().setAmount(3)
+    expect(useLevelExplode.getState().amount).toBe(1)
+    useLevelExplode.getState().setAmount(-1)
+    expect(useLevelExplode.getState().amount).toBe(0)
+    useLevelExplode.getState().setAmount(1)
+  })
+
+  test('labels show only once levels are far enough apart', () => {
+    expect(isLevelLabelVisible('exploded', LEVEL_LABEL_MIN_EXPLODE)).toBe(true)
+    expect(isLevelLabelVisible('exploded', LEVEL_LABEL_MIN_EXPLODE - 0.01)).toBe(false)
+    expect(isLevelLabelVisible('stacked', 1)).toBe(false)
+  })
+
+  test('misalignment flags consecutive levels whose walls are offset', () => {
+    const level = (id: string, n: number) => ({ id, type: 'level', level: n })
+    const wall = (id: string, parentId: string, dx: number) => ({
+      id,
+      type: 'wall',
+      parentId,
+      start: [dx, 0],
+      end: [dx + 4, 0],
+    })
+    const nodes = {
+      l0: level('l0', 0),
+      l1: level('l1', 1),
+      l2: level('l2', 2),
+      w0: wall('w0', 'l0', 0),
+      w1: wall('w1', 'l1', 0.1),
+      w2: wall('w2', 'l2', 2),
+    }
+    const found = findLevelMisalignments(nodes)
+    expect(found).toHaveLength(1)
+    expect(found[0]).toMatchObject({ lowerLevelId: 'l1', upperLevelId: 'l2' })
+    expect(found[0]!.offsetM).toBeCloseTo(1.9)
   })
 })

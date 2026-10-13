@@ -4,10 +4,12 @@
 //   2. Static check: fixed waits in this phase's specs (setTimeout in a route handler, waitForTimeout) — listed,
 //      not failed; they caused FL-11-09 / CP-5 style flakes in phase 03.
 //   3. Previous phase's main chain (its .state project feeds this phase's main), then run-phase.mjs for phase NN.
-//   4. Failure table with each failing test's status in the last runs (red once among greens → "flaky?").
+//   4. Failing tests run once more in the same run (--retries 1): red-red = real, red-green = "flaky" (back to the author, never
+//      accepted). Failure table with each test's recent history, and <runId>/reds.json grouped by error signature for triage.
+//   Headless by default (slowMo 0); --watch = headed + config slowMo, for the acceptance run only.
 // Usage (from qa/, under the stack lock):
 //   node F:/App/qa-results/tools/stack-lock.mjs node tools/run-full.mjs --phase 04 --run-id run-50 [--workers 4]
-//        [--layers main,ui,api,edge] [--grep re] [--no-prev] [--no-build] [--history 6]
+//        [--layers main,ui,api,edge] [--grep re] [--no-prev] [--no-build] [--history 6] [--watch] [--retries 1] [--check]
 // Exit code = run-phase's. Never prunes images/volumes.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -75,6 +77,11 @@ if (!flag('no-build')) {
   }
 }
 
+if (flag('check')) {
+  say('--check: versions ok, no run');
+  process.exit(0);
+}
+
 /* 2. fixed waits */
 const specs = readdirSync(join(SUITE, 'tests')).filter((f) => f.startsWith(`phase${NN}_`) && f.endsWith('.ts'));
 const waits = [];
@@ -87,21 +94,30 @@ for (const f of specs) {
 }
 if (waits.length) say(`fixed waits (flake risk; mark intended ones with "fixed-wait-ok"): ${waits.length}\n  ${waits.join('\n  ')}`);
 
+/* 2b. shared main-chain state: worktrees start without it (QA-04c run-52 failed on it) */
+const STATE = join(SUITE, 'tests', '.state', 'runtime-session.json');
+if (!existsSync(STATE) && Number(NN) > 2 && opt('layers', 'main').split(',').includes('main')) {
+  say(`missing ${STATE}: copy F:/App/AppFront/qa/tests/.state/ into this suite (or run with --layers ui,api,edge)`);
+  process.exit(2);
+}
+
 /* 3. run */
 const prev = String(Number(NN) - 1).padStart(2, '0');
 const layers = opt('layers', 'main,ui,api,edge');
 const extra = `${opt('grep', '') ? ` --grep "${opt('grep', '')}"` : ''} --layers ${layers}`;
 if (!flag('no-prev') && layers.split(',').includes('main') && Number(NN) > 1) {
   say(`phase ${prev} main first (its .state project feeds phase ${NN} main)`);
-  if (live(`node tools/run-phase.mjs --phase ${prev} --run-id ${RUN_ID} --layers main --no-typecheck`) !== 0) say(`phase ${prev} main red — phase ${NN} main may fail on state`);
+  if (live(`node tools/run-phase.mjs --phase ${prev} --run-id ${RUN_ID} --layers main --no-typecheck --no-watch`) !== 0) say(`phase ${prev} main red — phase ${NN} main may fail on state`);
 }
-const code = live(`node tools/run-phase.mjs --phase ${NN} --run-id ${RUN_ID} --workers ${WORKERS}${extra}`);
+const watch = flag('watch') ? '' : ' --no-watch';
+const code = live(`node tools/run-phase.mjs --phase ${NN} --run-id ${RUN_ID} --workers ${WORKERS} --retries ${opt('retries', '1')}${watch}${extra}`);
 
 /* 4. failures with history */
 const root = cfg.resultsDir;
 const runs = readdirSync(root)
   .filter((d) => d.startsWith('run-') && statSync(join(root, d)).isDirectory())
   .sort((a, b) => statSync(join(root, a)).mtimeMs - statSync(join(root, b)).mtimeMs);
+const detail = new Map();
 const statuses = (run) => {
   const map = new Map();
   for (const tag of [`phase${NN}`, `phase${NN}-ui`, `phase${NN}-api`, `phase${NN}-edge`]) {
@@ -109,7 +125,14 @@ const statuses = (run) => {
     if (!existsSync(file)) continue;
     const walk = (s) => {
       for (const x of s.suites ?? []) walk(x);
-      for (const sp of s.specs ?? []) for (const t of sp.tests) map.set(sp.title, t.results.at(-1)?.status ?? t.status);
+      for (const sp of s.specs ?? [])
+        for (const t of sp.tests) {
+          const last = t.results.at(-1);
+          const status = { expected: 'passed', unexpected: last?.status === 'timedOut' ? 'timedOut' : 'failed', flaky: 'flaky', skipped: 'skipped' }[t.status] ?? last?.status;
+          const error = (t.results.find((r) => r.error)?.error?.message ?? '').replace(/\u001b\[[0-9;]*m/gu, '').split('\n').find((l) => l.trim()) ?? '';
+          map.set(sp.title, status);
+          if (run === RUN_ID) detail.set(sp.title, { file: sp.file, line: sp.line, tag, error: error.trim().slice(0, 300) });
+        }
     };
     try {
       walk(JSON.parse(readFileSync(file, 'utf8')));
@@ -121,12 +144,22 @@ const statuses = (run) => {
 };
 const now = statuses(RUN_ID);
 const past = runs.filter((r) => r !== RUN_ID).map((r) => statuses(r));
-const red = [...now].filter(([, s]) => s === 'failed' || s === 'timedOut');
-say(`${red.length} failing test(s) in ${RUN_ID}`);
+const red = [...now].filter(([, s]) => s === 'failed' || s === 'timedOut' || s === 'flaky');
+say(`${red.filter(([, s]) => s !== 'flaky').length} failing, ${red.filter(([, s]) => s === 'flaky').length} flaky test(s) in ${RUN_ID}`);
+// Triage input: one group per error signature (numbers, ids, quoted values stripped), so one agent takes a group, not a test.
+const signature = (e) => e.replace(/"[^"]*"|'[^']*'|`[^`]*`/gu, '…').replace(/\d+/gu, 'N').slice(0, 160);
+const groups = {};
+for (const [title, s] of red) {
+  const d = detail.get(title) ?? {};
+  const key = s === 'flaky' ? 'flaky' : signature(d.error ?? '');
+  (groups[key] ??= []).push({ title, status: s, ...d });
+}
+writeFileSync(join(root, RUN_ID, 'reds.json'), JSON.stringify(groups, null, 2));
+say(`${Object.keys(groups).length} group(s) → ${join(root, RUN_ID, 'reds.json')}`);
 for (const [title, s] of red) {
   // Last HISTORY runs that ran this test (oldest → newest): P pass, F fail, s skip.
   const hist = past.filter((m) => m.has(title)).slice(-HISTORY).map((m) => ({ passed: 'P', skipped: 's' })[m.get(title)] ?? 'F').join('');
   const greens = (hist.match(/P/gu) ?? []).length;
-  console.log(`  ${s === 'timedOut' ? 'T' : 'F'} [${hist}] ${greens >= 2 ? 'flaky? ' : ''}${title.slice(0, 140)}`);
+  console.log(`  ${{ timedOut: 'T', flaky: '~' }[s] ?? 'F'} [${hist}] ${greens >= 2 && s !== 'flaky' ? 'flaky? ' : ''}${title.slice(0, 140)}`);
 }
 process.exit(code);

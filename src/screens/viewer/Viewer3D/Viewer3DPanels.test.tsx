@@ -28,7 +28,6 @@ import {
   VIEWER_3D_EXIT_WALL_EDIT_LABEL,
   VIEWER_3D_FURNITURE_PANEL_LABEL,
   VIEWER_3D_HISTORY_PANEL_LABEL,
-  VIEWER_3D_INSPECTOR_LABEL,
   VIEWER_3D_EXPLODED_LINK_LABEL,
   VIEWER_3D_MEASURE_LINK_LABEL,
   VIEWER_3D_OVERLAY_LINK_LABEL,
@@ -52,7 +51,6 @@ import {
  */
 import '@/screens/viewer/FurnitureLibraryPanel';
 import '@/screens/viewer/HistoryPanel';
-import '@/screens/viewer/PropertyInspector';
 import '@/screens/viewer/RoomAreaPanel';
 
 /** `window.matchMedia` thật của môi trường, trả lại nguyên vẹn sau mỗi lượt. */
@@ -166,29 +164,6 @@ function renderPanels(
 ) {
   return renderWithProviders(<StatefulPanels {...overrides} />);
 }
-
-/* -------------------------------------------------------------------------- */
-/* [VP-1] PropertyInspector — hiện khi có đối tượng đang chọn.                  */
-/* -------------------------------------------------------------------------- */
-
-describe('[VP-1] panel thanh tra thuộc tính', () => {
-  it('chưa chọn gì thì KHÔNG dựng — vỏ đã có câu "Chưa chọn đối tượng" của nó', () => {
-    renderPanels();
-
-    expect(screen.queryByRole('region', { name: VIEWER_3D_INSPECTOR_LABEL })).toBeNull();
-    expect(screen.queryByRole('region', { name: 'Thuộc tính đối tượng' })).toBeNull();
-  });
-
-  it('chọn một bức tường thì panel thật sự hiện ra trong DOM', async () => {
-    renderPanels({ selectedEntityId: WALL_ID, selectedEntityIds: [WALL_ID] });
-
-    expect(screen.getByRole('region', { name: VIEWER_3D_INSPECTOR_LABEL })).toBeInTheDocument();
-
-    await waitFor(() => {
-      expect(screen.getByRole('region', { name: 'Thuộc tính đối tượng' })).toBeInTheDocument();
-    }, LAZY_WAIT);
-  });
-});
 
 /* -------------------------------------------------------------------------- */
 /* [VP-2] Ba bảng phụ — bấm nút bật thì bảng hiện ra.                           */

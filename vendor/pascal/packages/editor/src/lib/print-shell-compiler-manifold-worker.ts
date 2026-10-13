@@ -20,6 +20,8 @@ import type {
   ManifoldWorkerRequest,
   ManifoldWorkerResponse,
 } from './print-shell-compiler-protocol'
+import { formatWithUnitVi } from '../i18n/format'
+import { libStrings as vi } from '../i18n/regions/libStrings'
 
 const WORKER_TIMEOUT_MS = 60_000
 
@@ -64,7 +66,7 @@ function resetWorker(error: Error) {
 function getWorker(): Worker {
   if (worker) return worker
   if (typeof Worker === 'undefined') {
-    throw new Error('Web Workers are unavailable in this environment.')
+    throw new Error(vi.printShellCompiler.workerUnavailable)
   }
   worker = new Worker(new URL('./print-shell-compiler-manifold.worker.ts', import.meta.url), {
     type: 'module',
@@ -77,10 +79,10 @@ function getWorker(): Worker {
     pending.resolve(event.data)
   })
   worker.addEventListener('error', (event) => {
-    resetWorker(new Error(event.message || 'The Manifold worker failed.'))
+    resetWorker(new Error(event.message || vi.printShellCompiler.workerFailed))
   })
   worker.addEventListener('messageerror', () => {
-    resetWorker(new Error('The Manifold worker returned an unreadable response.'))
+    resetWorker(new Error(vi.printShellCompiler.workerUnreadableResponse))
   })
   return worker
 }
@@ -97,14 +99,14 @@ export const runManifoldWorker: ManifoldCompileRunner = (meshes) => {
 
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
-      resetWorker(new Error(`The Manifold worker exceeded ${WORKER_TIMEOUT_MS / 1000} seconds.`))
+      resetWorker(new Error(vi.printShellCompiler.workerTimedOut(WORKER_TIMEOUT_MS / 1000)))
     }, WORKER_TIMEOUT_MS)
     pendingRequests.set(id, { resolve, reject, timeout })
     try {
       activeWorker.postMessage(request, transfer)
     } catch (error) {
       resetWorker(
-        error instanceof Error ? error : new Error('Failed to start the Manifold worker.'),
+        error instanceof Error ? error : new Error(vi.printShellCompiler.workerStartFailed),
       )
     }
   })
@@ -160,7 +162,7 @@ export async function compileSemanticPrintShellWithManifold(
       {
         severity: 'error',
         code: 'manifold_worker_failed',
-        message: error instanceof Error ? error.message : 'The Manifold worker failed.',
+        message: error instanceof Error ? error.message : vi.printShellCompiler.workerFailed,
         nodeIds: Array.from(input.sourceNodeIds).sort(),
       },
     ])
@@ -184,9 +186,10 @@ export async function compileSemanticPrintShellWithManifold(
   diagnostics.push({
     severity: 'info',
     code: runner === runManifoldWorker ? 'manifold_worker_compiler' : 'manifold_compiler_candidate',
-    message: `Compiled with Manifold in ${output.durationMs.toFixed(1)} ms${
-      runner === runManifoldWorker ? ' off the main thread' : ' through the in-process test runner'
-    }.`,
+    message: vi.printShellCompiler.compiledWithDuration(
+      formatWithUnitVi(Number(output.durationMs.toFixed(1)), 'ms'),
+      runner === runManifoldWorker,
+    ),
     nodeIds: Array.from(input.sourceNodeIds).sort(),
   })
   return {

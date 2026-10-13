@@ -20,6 +20,7 @@ import { constrainCurtainOpening, curtainOpeningLimits } from '../shared/curtain
 import { createOpeningPropertyPreview } from '../shared/opening-property-preview'
 import { openingPropertyPreviewHost } from '../shared/opening-property-preview-host'
 import { scaleHandleHeight } from './door-math'
+import { vi } from '../i18n/vi'
 
 const doorTypeOptions = [
   { label: 'Hinged', value: 'hinged', available: true },
@@ -493,7 +494,7 @@ export default function DoorPanel() {
       title={node.name || 'Door'}
       width={320}
     >
-      <PanelSection title="Type">
+      <PanelSection title={vi.common.type}>
         <div className="flex flex-col gap-2 px-1 pb-1">
           <SegmentedControl
             onChange={(v) =>
@@ -555,7 +556,7 @@ export default function DoorPanel() {
         )}
       </PanelSection>
 
-      <PanelSection title="Position">
+      <PanelSection title={vi.common.position}>
         <SliderControl
           label={
             <>
@@ -575,7 +576,7 @@ export default function DoorPanel() {
             <ActionButton
               className="w-full"
               icon={<FlipHorizontal2 className="h-4 w-4" />}
-              label="Flip Side"
+              label={vi.common.flipSideField}
               onClick={handleFlip}
             />
           </div>
@@ -583,7 +584,7 @@ export default function DoorPanel() {
       </PanelSection>
 
       {showFoldSection && (
-        <PanelSection title="Fold">
+        <PanelSection title={vi.common.fold}>
           <div className="flex flex-col gap-2 px-1 pb-1">
             <div className="space-y-1">
               <span className="font-medium text-[10px] text-muted-foreground/80 uppercase tracking-wider">
@@ -600,7 +601,7 @@ export default function DoorPanel() {
             </div>
           </div>
           <SliderControl
-            label="Open"
+            label={vi.common.open}
             max={100}
             min={0}
             onChange={(v) => handleUpdate({ operationState: v / 100 })}
@@ -614,7 +615,7 @@ export default function DoorPanel() {
       )}
 
       {showSlideSection && (
-        <PanelSection title="Slide">
+        <PanelSection title={vi.common.slide}>
           <div className="flex flex-col gap-2 px-1 pb-1">
             <div className="space-y-1">
               <span className="font-medium text-[10px] text-muted-foreground/80 uppercase tracking-wider">
@@ -631,7 +632,7 @@ export default function DoorPanel() {
             </div>
           </div>
           <SliderControl
-            label="Open"
+            label={vi.common.open}
             max={100}
             min={0}
             onChange={(v) => handleUpdate({ operationState: v / 100 })}
@@ -645,9 +646,9 @@ export default function DoorPanel() {
       )}
 
       {showGarageSection && (
-        <PanelSection title="Garage">
+        <PanelSection title={vi.common.garage}>
           <SliderControl
-            label="Open"
+            label={vi.common.open}
             max={100}
             min={0}
             onChange={(v) => handleUpdate({ operationState: v / 100 })}
@@ -659,7 +660,7 @@ export default function DoorPanel() {
           />
           {isSectionalGarageDoor && (
             <SliderControl
-              label="Panels"
+              label={vi.common.panels}
               max={8}
               min={3}
               onChange={(v) => handleUpdate({ garagePanelCount: Math.round(v) })}
@@ -672,14 +673,14 @@ export default function DoorPanel() {
         </PanelSection>
       )}
 
-      <PanelSection title="Dimensions">
+      <PanelSection title={vi.common.dimensions}>
         {limits && (
           <p className="text-[11px] text-muted-foreground">
             Size is limited to the wall, including clearance for the opening frame.
           </p>
         )}
         <SliderControl
-          label="Width"
+          label={vi.common.width}
           max={Math.min(maxDoorWidth, limits?.width ?? Infinity)}
           min={Math.min(0.5, limits?.width ?? 0.5)}
           onChange={(v) => previewDoorUpdate('width', v)}
@@ -693,7 +694,7 @@ export default function DoorPanel() {
           value={node.width}
         />
         <SliderControl
-          label="Height"
+          label={vi.common.height}
           max={limits?.height ?? 1000}
           min={Math.min(1, limits?.height ?? 1)}
           onChange={(v) => preview?.preview(heightUpdates(v))}
@@ -709,7 +710,7 @@ export default function DoorPanel() {
       </PanelSection>
 
       {showDoorShapeSection && (
-        <PanelSection title="Top Shape">
+        <PanelSection title={vi.common.topShape}>
           <div className="flex flex-col gap-2 px-1 pb-1">
             <SegmentedControl
               onChange={(v) =>
@@ -750,7 +751,7 @@ export default function DoorPanel() {
               </div>
               {openingRadiusMode === 'all' ? (
                 <SliderControl
-                  label="Corner Radius"
+                  label={vi.common.cornerRadius}
                   max={maxRoundedRadius}
                   min={0}
                   onChange={(v) => previewDoorUpdate('cornerRadius', v)}
@@ -788,7 +789,7 @@ export default function DoorPanel() {
                 </>
               )}
               <SliderControl
-                label="Reveal Radius"
+                label={vi.common.revealRadius}
                 max={0.08}
                 min={0}
                 onChange={(v) => previewDoorUpdate('openingRevealRadius', v)}
@@ -805,7 +806,7 @@ export default function DoorPanel() {
           )}
           {doorShape === 'arch' && (
             <SliderControl
-              label="Arch Height"
+              label={vi.common.archHeight}
               max={node.height}
               min={0.05}
               onChange={(v) => previewDoorUpdate('archHeight', v)}
@@ -823,7 +824,7 @@ export default function DoorPanel() {
       )}
 
       {showOpeningShapeSection && (
-        <PanelSection title="Opening Shape">
+        <PanelSection title={vi.common.openingShape}>
           <div className="flex flex-col gap-2 px-1 pb-1">
             <SegmentedControl
               onChange={(v) =>
@@ -859,7 +860,7 @@ export default function DoorPanel() {
               </div>
               {openingRadiusMode === 'all' ? (
                 <SliderControl
-                  label="Corner Radius"
+                  label={vi.common.cornerRadius}
                   max={maxRoundedRadius}
                   min={0}
                   onChange={(v) => previewDoorUpdate('cornerRadius', v)}
@@ -897,7 +898,7 @@ export default function DoorPanel() {
                 </>
               )}
               <SliderControl
-                label="Reveal Radius"
+                label={vi.common.revealRadius}
                 max={0.08}
                 min={0}
                 onChange={(v) => previewDoorUpdate('openingRevealRadius', v)}
@@ -914,7 +915,7 @@ export default function DoorPanel() {
           )}
           {openingShape === 'arch' && (
             <SliderControl
-              label="Arch Height"
+              label={vi.common.archHeight}
               max={node.height}
               min={0.05}
               onChange={(v) => previewDoorUpdate('archHeight', v)}
@@ -934,9 +935,9 @@ export default function DoorPanel() {
       {!isCutoutOnly && (
         <>
           {showFrameSection && (
-            <PanelSection title="Frame">
+            <PanelSection title={vi.common.frame}>
               <SliderControl
-                label="Thickness"
+                label={vi.common.thickness}
                 max={0.2}
                 min={0.01}
                 onChange={(v) => handleUpdate({ frameThickness: v })}
@@ -946,7 +947,7 @@ export default function DoorPanel() {
                 value={node.frameThickness}
               />
               <SliderControl
-                label="Depth"
+                label={vi.common.depth}
                 max={0.3}
                 min={0.01}
                 onChange={(v) => handleUpdate({ frameDepth: v })}
@@ -959,9 +960,9 @@ export default function DoorPanel() {
           )}
 
           {showContentPaddingSection && (
-            <PanelSection title="Content Padding">
+            <PanelSection title={vi.common.contentPadding}>
               <SliderControl
-                label="Horizontal"
+                label={vi.common.horizontal}
                 max={0.2}
                 min={0}
                 onChange={(v) => handleUpdate({ contentPadding: [v, node.contentPadding[1]] })}
@@ -971,7 +972,7 @@ export default function DoorPanel() {
                 value={node.contentPadding[0]}
               />
               <SliderControl
-                label="Vertical"
+                label={vi.common.vertical}
                 max={0.2}
                 min={0}
                 onChange={(v) => handleUpdate({ contentPadding: [node.contentPadding[0], v] })}
@@ -984,7 +985,7 @@ export default function DoorPanel() {
           )}
 
           {showSwingSection && (
-            <PanelSection title="Swing">
+            <PanelSection title={vi.common.swing}>
               <div className="flex flex-col gap-2 px-1 pb-1">
                 {supportsHingeSide && (
                   <div className="space-y-1">
@@ -1019,16 +1020,16 @@ export default function DoorPanel() {
           )}
 
           {showThresholdSection && (
-            <PanelSection title="Threshold">
+            <PanelSection title={vi.common.threshold}>
               <ToggleControl
                 checked={node.threshold}
-                label="Enable Threshold"
+                label={vi.common.enableThreshold}
                 onChange={(checked) => handleUpdate({ threshold: checked })}
               />
               {node.threshold && (
                 <div className="mt-1 flex flex-col gap-1">
                   <SliderControl
-                    label="Height"
+                    label={vi.common.height}
                     max={0.1}
                     min={0.005}
                     onChange={(v) => handleUpdate({ thresholdHeight: v })}
@@ -1043,18 +1044,18 @@ export default function DoorPanel() {
           )}
 
           {showHandleSection && (
-            <PanelSection title="Handle">
+            <PanelSection title={vi.common.handle}>
               {isSwingDoor && (
                 <ToggleControl
                   checked={node.handle}
-                  label="Enable Handle"
+                  label={vi.common.enableHandle}
                   onChange={(checked) => handleUpdate({ handle: checked })}
                 />
               )}
               {(node.handle || !isSwingDoor) && (
                 <div className="mt-1 flex flex-col gap-1">
                   <SliderControl
-                    label="Height"
+                    label={vi.common.height}
                     max={node.height - 0.1}
                     min={0.5}
                     onChange={(v) => handleUpdate({ handleHeight: v })}
@@ -1084,21 +1085,21 @@ export default function DoorPanel() {
           )}
 
           {showHardwareSection && (
-            <PanelSection title="Hardware">
+            <PanelSection title={vi.common.hardware}>
               <ToggleControl
                 checked={node.doorCloser}
-                label="Door Closer"
+                label={vi.common.doorCloser}
                 onChange={(checked) => handleUpdate({ doorCloser: checked })}
               />
               <ToggleControl
                 checked={node.panicBar}
-                label="Panic Bar"
+                label={vi.common.panicBar}
                 onChange={(checked) => handleUpdate({ panicBar: checked })}
               />
               {node.panicBar && (
                 <div className="mt-1 flex flex-col gap-1">
                   <SliderControl
-                    label="Bar Height"
+                    label={vi.common.barHeight}
                     max={node.height - 0.1}
                     min={0.5}
                     onChange={(v) => handleUpdate({ panicBarHeight: v })}
@@ -1113,7 +1114,7 @@ export default function DoorPanel() {
           )}
 
           {showSegmentsSection && (
-            <PanelSection title="Segments">
+            <PanelSection title={vi.common.segments}>
               {node.segments.map((seg, i) => {
                 const numCols = seg.columnRatios.length
                 const colSum = seg.columnRatios.reduce((a, b) => a + b, 0)
@@ -1140,7 +1141,7 @@ export default function DoorPanel() {
                     />
 
                     <SliderControl
-                      label="Height"
+                      label={vi.common.height}
                       max={95}
                       min={5}
                       onChange={(v) => setSegmentHeightRatio(i, v / 100)}
@@ -1151,7 +1152,7 @@ export default function DoorPanel() {
                     />
 
                     <SliderControl
-                      label="Columns"
+                      label={vi.common.columns}
                       max={8}
                       min={1}
                       onChange={(v) => {
@@ -1182,7 +1183,7 @@ export default function DoorPanel() {
                           />
                         ))}
                         <SliderControl
-                          label="Divider"
+                          label={vi.common.divider}
                           max={0.1}
                           min={0.005}
                           onChange={(v) => {
@@ -1202,7 +1203,7 @@ export default function DoorPanel() {
                     {seg.type === 'panel' && (
                       <div className="mt-1 border-border/50 border-t pt-1">
                         <SliderControl
-                          label="Inset"
+                          label={vi.common.inset}
                           max={0.1}
                           min={0}
                           onChange={(v) => {
@@ -1217,7 +1218,7 @@ export default function DoorPanel() {
                           value={seg.panelInset}
                         />
                         <SliderControl
-                          label="Depth"
+                          label={vi.common.depth}
                           max={0.1}
                           min={0}
                           onChange={(v) => {
@@ -1268,18 +1269,18 @@ export default function DoorPanel() {
         </>
       )}
 
-      <PanelSection title="Actions">
+      <PanelSection title={vi.common.actions}>
         <ActionGroup>
-          <ActionButton icon={<Move className="h-3.5 w-3.5" />} label="Move" onClick={handleMove} />
+          <ActionButton icon={<Move className="h-3.5 w-3.5" />} label={vi.common.move} onClick={handleMove} />
           <ActionButton
             icon={<Copy className="h-3.5 w-3.5" />}
-            label="Duplicate"
+            label={vi.common.duplicate}
             onClick={handleDuplicate}
           />
           <ActionButton
             className="hover:bg-red-500/20"
             icon={<Trash2 className="h-3.5 w-3.5 text-red-400" />}
-            label="Delete"
+            label={vi.common.delete}
             onClick={handleDelete}
           />
         </ActionGroup>

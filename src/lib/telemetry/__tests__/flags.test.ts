@@ -177,7 +177,6 @@ describe('the flag table', () => {
       'rules.parallel-run': false,
       'export.pdf-vector': false,
       'qc.live-collaboration': false,
-      'scene.pascal-viewer': false,
     });
   });
 

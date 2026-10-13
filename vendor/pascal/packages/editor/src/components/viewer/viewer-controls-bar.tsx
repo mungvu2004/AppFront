@@ -26,6 +26,7 @@ import {
   Square,
   SwatchBook,
 } from 'lucide-react'
+import { editorAndViewer as vi } from '../../i18n/regions/editorAndViewer'
 import { cn } from '../../lib/utils'
 import { ActionButton } from '../ui/action-menu/action-button'
 import {
@@ -41,41 +42,73 @@ import {
 import { TooltipProvider } from '../ui/primitives/tooltip'
 
 const levelModeLabels: Record<'stacked' | 'exploded' | 'solo', string> = {
-  stacked: 'Stacked',
-  exploded: 'Exploded',
-  solo: 'Solo',
+  stacked: vi.viewerControlsBar.levelStacked,
+  exploded: vi.viewerControlsBar.levelExploded,
+  solo: vi.viewerControlsBar.levelSolo,
 }
 
 const wallModeConfig = {
   up: {
     icon: (props: any) => (
-      <img alt="Full height" height={28} src="/icons/room.webp" width={28} {...props} />
+      <img
+        alt={vi.viewerControlsBar.wallFullHeight}
+        height={28}
+        src="/icons/room.webp"
+        width={28}
+        {...props}
+      />
     ),
-    label: 'Full height',
+    label: vi.viewerControlsBar.wallFullHeight,
   },
   cutaway: {
     icon: (props: any) => (
-      <img alt="Cutaway" height={28} src="/icons/wallcut.webp" width={28} {...props} />
+      <img
+        alt={vi.viewerControlsBar.wallCutaway}
+        height={28}
+        src="/icons/wallcut.webp"
+        width={28}
+        {...props}
+      />
     ),
-    label: 'Cutaway',
+    label: vi.viewerControlsBar.wallCutaway,
   },
   down: {
     icon: (props: any) => (
-      <img alt="Low" height={28} src="/icons/walllow.webp" width={28} {...props} />
+      <img
+        alt={vi.viewerControlsBar.wallLow}
+        height={28}
+        src="/icons/walllow.webp"
+        width={28}
+        {...props}
+      />
     ),
-    label: 'Low',
+    label: vi.viewerControlsBar.wallLow,
   },
 }
 
 const SHADING_OPTIONS = [
-  { id: 'solid', name: 'Solid', detail: 'Flat and fast — no ambient occlusion', icon: Box },
-  { id: 'rendered', name: 'Rendered', detail: 'Full ambient occlusion', icon: Sparkles },
+  {
+    id: 'solid',
+    name: vi.viewerControlsBar.solidName,
+    detail: vi.viewerControlsBar.solidDetail,
+    icon: Box,
+  },
+  {
+    id: 'rendered',
+    name: vi.viewerControlsBar.renderedName,
+    detail: vi.viewerControlsBar.renderedDetail,
+    icon: Sparkles,
+  },
 ] as const
 
 const EDGE_OPTIONS = [
-  { id: 'off', name: 'Off', detail: 'No edge lines' },
-  { id: 'soft', name: 'Soft', detail: 'Faint outline of major creases' },
-  { id: 'strong', name: 'Strong', detail: 'Crisp, opaque edge lines' },
+  { id: 'off', name: vi.viewerControlsBar.edgeOff, detail: vi.viewerControlsBar.edgeOffDetail },
+  { id: 'soft', name: vi.viewerControlsBar.edgeSoft, detail: vi.viewerControlsBar.edgeSoftDetail },
+  {
+    id: 'strong',
+    name: vi.viewerControlsBar.edgeStrong,
+    detail: vi.viewerControlsBar.edgeStrongDetail,
+  },
 ] as const satisfies readonly { id: EdgeMode; name: string; detail: string }[]
 
 // Keep the dropdown open when flipping an in-place toggle row.
@@ -101,7 +134,7 @@ function VisibilityMenu({
       <DropdownMenuTrigger asChild>
         <ActionButton
           className="hover:bg-white/5 hover:text-foreground"
-          label="Visibility"
+          label={vi.viewerControlsBar.visibility}
           size="icon"
           tooltipSide="top"
           variant="ghost"
@@ -115,7 +148,7 @@ function VisibilityMenu({
             onSelect={(e) => keepOpen(e, () => useViewer.getState().setShowScans(!showScans))}
           >
             <img alt="" className="h-4 w-4 object-contain" src="/icons/mesh.webp" />
-            <span>Scans</span>
+            <span>{vi.viewerControlsBar.scans}</span>
             {showScans ? (
               <Eye className="ml-auto h-4 w-4 text-foreground" />
             ) : (
@@ -128,7 +161,7 @@ function VisibilityMenu({
             onSelect={(e) => keepOpen(e, () => useViewer.getState().setShowGuides(!showGuides))}
           >
             <img alt="" className="h-4 w-4 object-contain" src="/icons/floorplan.webp" />
-            <span>Guides</span>
+            <span>{vi.viewerControlsBar.guides}</span>
             {showGuides ? (
               <Eye className="ml-auto h-4 w-4 text-foreground" />
             ) : (
@@ -158,7 +191,7 @@ function DisplayMenu() {
       <DropdownMenuTrigger asChild>
         <ActionButton
           className="hover:bg-white/5 hover:text-foreground"
-          label="Display settings"
+          label={vi.viewerControlsBar.displaySettings}
           size="icon"
           tooltipSide="top"
           variant="ghost"
@@ -171,8 +204,10 @@ function DisplayMenu() {
           onSelect={(e) => keepOpen(e, () => useViewer.getState().setShadows(!shadows))}
         >
           <Contrast className="h-4 w-4" />
-          <span>Shadows</span>
-          <span className="ml-auto text-muted-foreground text-xs">{shadows ? 'On' : 'Off'}</span>
+          <span>{vi.viewerControlsBar.shadows}</span>
+          <span className="ml-auto text-muted-foreground text-xs">
+            {shadows ? vi.viewerControlsBar.on : vi.viewerControlsBar.off}
+          </span>
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={(e) =>
@@ -184,18 +219,20 @@ function DisplayMenu() {
           }
         >
           <Camera className="h-4 w-4" />
-          <span>Camera</span>
+          <span>{vi.viewerControlsBar.camera}</span>
           <span className="ml-auto text-muted-foreground text-xs">
-            {cameraMode === 'perspective' ? 'Perspective' : 'Orthographic'}
+            {cameraMode === 'perspective'
+              ? vi.viewerControlsBar.perspective
+              : vi.viewerControlsBar.orthographic}
           </span>
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={(e) => keepOpen(e, () => useViewer.getState().setTextures(!textures))}
         >
           {textures ? <Palette className="h-4 w-4" /> : <Square className="h-4 w-4" />}
-          <span>Colors</span>
+          <span>{vi.viewerControlsBar.colors}</span>
           <span className="ml-auto text-muted-foreground text-xs">
-            {textures ? 'Colored' : 'Monochrome'}
+            {textures ? vi.viewerControlsBar.colored : vi.viewerControlsBar.monochrome}
           </span>
         </DropdownMenuItem>
 
@@ -204,7 +241,7 @@ function DisplayMenu() {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <activeShading.icon className="h-4 w-4" />
-            <span>Render</span>
+            <span>{vi.viewerControlsBar.render}</span>
             <span className="ml-auto text-muted-foreground text-xs">{activeShading.name}</span>
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="min-w-56">
@@ -232,7 +269,7 @@ function DisplayMenu() {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <SwatchBook className="h-4 w-4" />
-            <span>Theme</span>
+            <span>{vi.viewerControlsBar.theme}</span>
             <span className="ml-auto truncate text-muted-foreground text-xs">
               {activeTheme.name}
             </span>
@@ -267,7 +304,7 @@ function DisplayMenu() {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <PenLine className="h-4 w-4" />
-            <span>Edges</span>
+            <span>{vi.viewerControlsBar.edges}</span>
             <span className="ml-auto text-muted-foreground text-xs">{activeEdges.name}</span>
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="min-w-56">
@@ -333,7 +370,7 @@ export const ViewerControlsBar = ({
       )}
     >
       <TooltipProvider delayDuration={0}>
-        <div className="corner-smooth pointer-events-auto flex h-12 max-w-[calc(100vw-1rem)] flex-row items-center justify-center gap-0.5 overflow-hidden rounded-2xl border border-border/40 bg-background/95 p-1 shadow-elevation-4 backdrop-blur-xl transition-colors duration-200 ease-out sm:h-14 sm:gap-1.5 sm:p-1.5">
+        <div className="corner-smooth pointer-events-auto flex h-12 max-w-[calc(100cqw-1rem)] flex-row items-center justify-center gap-0.5 overflow-hidden rounded-2xl border border-border/40 bg-background/95 p-1 shadow-elevation-4 backdrop-blur-xl transition-colors duration-200 ease-out sm:h-14 sm:gap-1.5 sm:p-1.5">
           {((canShowScans && (!glbActive || glbHasScans)) ||
             (canShowGuides && (!glbActive || glbHasGuides))) && (
             <>
@@ -352,7 +389,11 @@ export const ViewerControlsBar = ({
                 ? 'hover:bg-white/5 hover:text-amber-400'
                 : 'bg-amber-500/20 text-amber-400'
             }
-            label={`Levels: ${levelMode === 'manual' ? 'Manual' : levelModeLabels[levelMode as keyof typeof levelModeLabels]}`}
+            label={vi.viewerControlsBar.levels(
+              levelMode === 'manual'
+                ? vi.viewerControlsBar.levelManual
+                : levelModeLabels[levelMode as keyof typeof levelModeLabels],
+            )}
             onClick={() => {
               if (levelMode === 'manual') return useViewer.getState().setLevelMode('stacked')
               const modes: ('stacked' | 'exploded' | 'solo')[] = ['stacked', 'exploded', 'solo']
@@ -376,7 +417,7 @@ export const ViewerControlsBar = ({
                   ? 'opacity-60 grayscale hover:bg-white/5 hover:opacity-100 hover:grayscale-0'
                   : 'bg-white/10'
               }
-              label={`Walls: ${wallModeConfig[safeWallMode].label}`}
+              label={vi.viewerControlsBar.walls(wallModeConfig[safeWallMode].label)}
               onClick={() => {
                 const modes: ('cutaway' | 'up' | 'down')[] = ['cutaway', 'up', 'down']
                 const nextIndex = (modes.indexOf(safeWallMode) + 1) % modes.length
@@ -403,7 +444,9 @@ export const ViewerControlsBar = ({
                 ? 'bg-emerald-500/20 text-emerald-400'
                 : 'hover:bg-white/5 hover:text-emerald-400'
             }
-            label={`Walkthrough: ${walkthroughActive ? 'On' : 'Off'}`}
+            label={vi.viewerControlsBar.walkthrough(
+              walkthroughActive ? vi.viewerControlsBar.on : vi.viewerControlsBar.off,
+            )}
             onClick={onWalkthroughToggle}
             size="icon"
             tooltipSide="top"
@@ -417,14 +460,14 @@ export const ViewerControlsBar = ({
           {/* Camera actions */}
           <ActionButton
             className="group hidden hover:bg-white/5 sm:inline-flex"
-            label="Orbit left"
+            label={vi.viewerControlsBar.orbitLeft}
             onClick={() => emitter.emit('camera-controls:orbit-ccw')}
             size="icon"
             tooltipSide="top"
             variant="ghost"
           >
             <img
-              alt="Orbit left"
+              alt={vi.viewerControlsBar.orbitLeft}
               className="h-[28px] w-[28px] -scale-x-100 object-contain opacity-70 transition-opacity group-hover:opacity-100"
               src="/icons/rotate.webp"
             />
@@ -432,14 +475,14 @@ export const ViewerControlsBar = ({
 
           <ActionButton
             className="group hidden hover:bg-white/5 sm:inline-flex"
-            label="Orbit right"
+            label={vi.viewerControlsBar.orbitRight}
             onClick={() => emitter.emit('camera-controls:orbit-cw')}
             size="icon"
             tooltipSide="top"
             variant="ghost"
           >
             <img
-              alt="Orbit right"
+              alt={vi.viewerControlsBar.orbitRight}
               className="h-[28px] w-[28px] object-contain opacity-70 transition-opacity group-hover:opacity-100"
               src="/icons/rotate.webp"
             />
@@ -447,14 +490,14 @@ export const ViewerControlsBar = ({
 
           <ActionButton
             className="group hover:bg-white/5"
-            label="Top view"
+            label={vi.viewerControlsBar.topView}
             onClick={() => emitter.emit('camera-controls:top-view')}
             size="icon"
             tooltipSide="top"
             variant="ghost"
           >
             <img
-              alt="Top view"
+              alt={vi.viewerControlsBar.topView}
               className="h-[28px] w-[28px] object-contain opacity-70 transition-opacity group-hover:opacity-100"
               src="/icons/topview.webp"
             />

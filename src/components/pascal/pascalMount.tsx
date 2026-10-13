@@ -30,13 +30,32 @@ import { createRoot } from 'react-dom/client';
 
 import type { PascalScene } from '@/lib/pascal/types';
 
+// CSS của chính Pascal (Tailwind v4), đã khoanh vào `.pascal-root` lúc dựng —
+// xem `scripts/pascal-css-scope.mjs`. `?inline` giữ nó trong chính gói này.
+import pascalCss from '../../../vendor/pascal/packages/editor/src/styles/globals.css?inline';
+
 import { PascalFrame } from './PascalFrame';
-import { clearPascalScene, type PascalSceneCensus } from './pascalScene';
+import type {
+  PascalCommitVerdict,
+  PascalTemplateResult,
+  PascalInitialTool,
+  PascalHistoryJump,
+  PascalMeasurementDelete,
+  PascalMountMode,
+  PascalSaveStatus,
+  PascalMeasureResult,
+  PascalSceneCommit,
+} from './pascalMountTypes';
+import { clearPascalScene, frameEntityInPascal, highlightPascalNodes, type PascalSceneCensus } from './pascalScene';
 
 /** Cái người gọi cầm về, đủ để sống trọn vòng đời mà không chạm vào Pascal. */
 export interface PascalMountHandle {
   /** Nạp một cảnh khác vào cùng khung đang chạy. */
   readonly setScene: (scene: PascalScene) => void;
+  /** Khuôn camera vào một đối tượng theo mã AppFront; `false` khi không có node nào mang mã ấy. */
+  readonly frameEntity: (entityId: string) => boolean;
+  /** Tô sáng các node theo mã Pascal; mảng rỗng là bỏ tô sáng. */
+  readonly setHighlight: (nodeIds: readonly string[]) => void;
   /** Gỡ gốc React thứ hai và trả store về rỗng. Gọi được nhiều lần. */
   readonly dispose: () => void;
 }
@@ -53,6 +72,59 @@ export interface PascalMountOptions {
   readonly onSceneLoaded?: (census: PascalSceneCensus) => void;
   /** Máy không dựng được 3D — xem `PascalFrameProps.onRendererUnavailable`. */
   readonly onRendererUnavailable?: () => void;
+  /** `view` (mặc định) dựng `<Viewer>`; `edit` dựng `<Editor>` của Pascal. */
+  readonly mode?: PascalMountMode;
+  /** Chỉ ở `view`: xoay một ngón, chụm để thu phóng, hai ngón để dời (chuột: kéo, lăn). */
+  readonly cameraControls?: boolean;
+  /** Vai chỉ-xem: editor khoá store, công cụ sửa không kích hoạt, nút sửa ẩn. */
+  readonly readOnly?: boolean;
+  /**
+   * Một lượt sửa đã xong, kèm cảnh sau lượt ấy.
+   *
+   * Ở `mode: 'edit'` đây là **đường lưu duy nhất**: thiếu nó thì editor Pascal
+   * rơi về `localStorage` của chính nó, và bản vẽ không bao giờ tới máy chủ.
+   */
+  readonly onSceneCommit?: PascalSceneCommit;
+  /** Editor đổi trạng thái lưu — để màn nói ra cho trình đọc màn hình (A7). */
+  readonly onSaveStatus?: (status: PascalSaveStatus) => void;
+  /** Phán quyết 6A, chạy trước khi lượt sửa vào lịch sử và vào đường lưu. */
+  readonly validateCommit?: (scene: PascalScene) => PascalCommitVerdict;
+  /** Lý do một lượt sửa bị chặn. Màn hình dựng toast tiếng Việt từ đây. */
+  readonly onCommitRejected?: (message: string) => void;
+  /** "Lưu làm khuôn mẫu" (#25): host lưu node làm khuôn, trả câu để hiện. */
+  readonly onSaveAsTemplate?: (nodeId: string) => Promise<PascalTemplateResult>;
+  /** Công cụ bật sẵn sau khi cảnh đã nạp (chỉ ở `mode: 'edit'`). */
+  readonly initialTool?: PascalInitialTool;
+  /** Người dùng vừa hoàn tác/làm lại — xem `PascalFrameProps.onHistoryJump` (A8). */
+  readonly onHistoryJump?: (kind: PascalHistoryJump) => void;
+  /** Người dùng vừa xoá một phép đo — xem `PascalFrameProps.onMeasurementDelete` (#63). */
+  readonly onMeasurementDelete?: (event: PascalMeasurementDelete) => void;
+  /** Mở ở chế độ tách tầng (`/3d?view=exploded`, F-15 W2-C2). */
+  readonly explodeLevels?: boolean;
+  /** Chạm/bấm một đối tượng ở `view` — mã node Pascal, hoặc `null` khi chạm khoảng trống. */
+  readonly onPick?: (nodeId: string | null) => void;
+  /** Bật đo hai điểm ở `view`: khi bật, chạm không còn gọi `onPick`. */
+  readonly measure?: boolean;
+  /** Một lượt đo xong (hai điểm). */
+  readonly onMeasure?: (result: PascalMeasureResult) => void;
+  /** Màn di động: `view` tắt post-FX lúc đầu, bật lại khi nạp xong lần đầu. DPR đã ≤ 1,5 sẵn trong `<Viewer>`. */
+  readonly lite?: boolean;
+}
+
+/** Phần tử chứa khung Pascal — mọi luật CSS của Pascal chỉ chạm bên trong nó. */
+const PASCAL_ROOT_CLASS = 'pascal-root';
+const PASCAL_CSS_ID = 'pascal-css';
+
+/**
+ * Nạp CSS của Pascal một lần cho cả trang. Không gỡ khi đóng khung: mọi selector
+ * đã khoanh trong `.pascal-root`, nên nó không chạm gì khi không còn khung nào.
+ */
+function injectPascalCss(): void {
+  if (!pascalCss || document.getElementById(PASCAL_CSS_ID)) return;
+  const style = document.createElement('style');
+  style.id = PASCAL_CSS_ID;
+  style.textContent = pascalCss;
+  document.head.append(style);
 }
 
 /**
@@ -62,6 +134,8 @@ export interface PascalMountOptions {
  * mới mount; cảnh vào store sau khi khung đã đứng. Chi tiết ở `pascalScene.ts`.
  */
 export function mount(element: HTMLElement, options: PascalMountOptions): PascalMountHandle {
+  injectPascalCss();
+  element.classList.add(PASCAL_ROOT_CLASS);
   const root = createRoot(element, {
     onUncaughtError: (error: unknown) => {
       options.onFatal?.(error instanceof Error ? error : new Error(String(error)));
@@ -78,10 +152,26 @@ export function mount(element: HTMLElement, options: PascalMountOptions): Pascal
         <PascalFrame
           scene={scene}
           sceneKey={sceneKey}
+          mode={options.mode ?? 'view'}
+          cameraControls={options.cameraControls ?? false}
+          readOnly={options.readOnly ?? false}
+          onSceneCommit={options.onSceneCommit}
+          onSaveStatus={options.onSaveStatus}
+          validateCommit={options.validateCommit}
+          onCommitRejected={options.onCommitRejected}
+          onSaveAsTemplate={options.onSaveAsTemplate}
+          explodeLevels={options.explodeLevels ?? false}
+          initialTool={options.initialTool}
+          lite={options.lite ?? false}
           onReadyChange={options.onReadyChange}
           onFatal={options.onFatal}
           onSceneLoaded={options.onSceneLoaded}
           onRendererUnavailable={options.onRendererUnavailable}
+          onHistoryJump={options.onHistoryJump}
+          onPick={options.onPick}
+          measure={options.measure ?? false}
+          onMeasure={options.onMeasure}
+          onMeasurementDelete={options.onMeasurementDelete}
         />
       </StrictMode>,
     );
@@ -93,10 +183,15 @@ export function mount(element: HTMLElement, options: PascalMountOptions): Pascal
     setScene: (scene) => {
       if (!disposed) render(scene);
     },
+    frameEntity: (entityId) => !disposed && frameEntityInPascal(entityId),
+    setHighlight: (nodeIds) => {
+      if (!disposed) highlightPascalNodes(nodeIds);
+    },
     dispose: () => {
       if (disposed) return;
       disposed = true;
       root.unmount();
+      element.classList.remove(PASCAL_ROOT_CLASS);
       clearPascalScene();
     },
   };

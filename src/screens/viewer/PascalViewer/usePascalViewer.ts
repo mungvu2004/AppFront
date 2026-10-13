@@ -23,13 +23,22 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { useFeatureFlag } from '@/hooks/useFeatureFlag';
+import type {
+  PascalCommitVerdict,
+  PascalTemplateResult,
+  PascalInitialTool,
+  PascalHistoryJump,
+  PascalMeasurementDelete,
+  PascalMountMode,
+  PascalSaveStatus,
+} from '@/components/pascal/pascalMountTypes';
 import { useShortcut } from '@/hooks/useShortcut';
 import { formatNumber } from '@/lib/format/number';
 import type { PascalScene, SkippedEntity } from '@/lib/pascal/types';
 import type { SpatialGraph } from '@/domain/spatial/types';
 
 import {
+  saveLabelOf,
   PASCAL_VIEWER_CAPTIONS,
   PASCAL_VIEWER_TITLE,
   type PascalViewerErrorCode,
@@ -70,24 +79,66 @@ interface PascalSceneCensus {
 }
 
 /** Hình dạng tối thiểu của gói vách ngăn mà màn này dựa vào. */
-interface MountModule {
+export interface MountModule {
   readonly mount: (
     element: HTMLElement,
     options: {
       readonly scene: PascalScene;
+      readonly mode?: PascalMountMode;
+      readonly readOnly?: boolean;
+      readonly onSceneCommit?: (scene: PascalScene) => Promise<void>;
+      readonly onSaveStatus?: (status: PascalSaveStatus) => void;
+      readonly validateCommit?: (scene: PascalScene) => PascalCommitVerdict;
+      readonly onCommitRejected?: (message: string) => void;
+      readonly onSaveAsTemplate?: (nodeId: string) => Promise<PascalTemplateResult>;
+      readonly onHistoryJump?: (kind: PascalHistoryJump) => void;
+      readonly onMeasurementDelete?: (event: PascalMeasurementDelete) => void;
       readonly onReadyChange?: (ready: boolean) => void;
       readonly onFatal?: (error: Error) => void;
       readonly onSceneLoaded?: (census: PascalSceneCensus) => void;
       readonly onRendererUnavailable?: () => void;
+      readonly explodeLevels?: boolean;
+      readonly initialTool?: PascalInitialTool;
     },
-  ) => { readonly dispose: () => void };
+  ) => {
+    readonly dispose: () => void;
+    readonly setScene?: (scene: PascalScene) => void;
+    readonly setHighlight?: (nodeIds: readonly string[]) => void;
+    readonly frameEntity?: (entityId: string) => boolean;
+  };
 }
 
 export interface UsePascalViewerOptions {
   /** Bản vẽ cần dựng. `null` nghĩa là chưa có dữ liệu — màn ở trạng thái nạp. */
   readonly graph: SpatialGraph | null;
+  /** `edit` dựng trình soạn thảo Pascal; `view` chỉ dựng khung xem. */
+  readonly mode?: PascalMountMode;
+  /** Vai chỉ-xem. Ở `edit`, editor khoá store và ẩn mọi nút sửa. */
+  readonly readOnly?: boolean;
+  /**
+   * Đường lưu — xem `usePascalEdits`. Vắng thì editor không lưu được đi đâu.
+   * Trả `true` khi lượt sửa đã vào kho: bản vẽ mới sinh ra từ đó là tiếng vọng
+   * của chính editor và KHÔNG được nạp ngược vào nó.
+   */
+  readonly onSceneCommit?: (scene: PascalScene) => Promise<boolean | void>;
+  /** Phán quyết 6A, chạy trước khi lượt sửa vào lịch sử của editor. */
+  readonly validateCommit?: (scene: PascalScene) => PascalCommitVerdict;
+  /** Lý do một lượt sửa bị chặn — màn hình dựng toast tiếng Việt từ đây. */
+  readonly onCommitRejected?: (message: string) => void;
+  /** "Lưu làm khuôn mẫu" (#25) — vắng thì Pascal không hiện nút. */
+  readonly onSaveAsTemplate?: (nodeId: string) => Promise<PascalTemplateResult>;
+  /** Công cụ bật sẵn — `measure` khi URL có `?tool=measure`. */
+  readonly initialTool?: PascalInitialTool | undefined;
+  /** Người dùng vừa hoàn tác/làm lại trong editor Pascal — màn dựng toast (A8). */
+  readonly onHistoryJump?: (kind: PascalHistoryJump) => void;
+  /** Người dùng vừa xoá một phép đo — màn dựng toast hoàn tác (#63, A8). */
+  readonly onMeasurementDelete?: (event: PascalMeasurementDelete) => void;
   /** Khung xem có đang thu gọn không. Thu gọn thì KHÔNG dựng 3D, để đỡ tốn máy. */
   readonly collapsed?: boolean;
+  /** Mở ở chế độ tách tầng — `/3d?view=exploded`. */
+  readonly explodeLevels?: boolean;
+  /** Danh tính của cảnh (mã dự án). Đổi khoá thì khung gỡ ra và gắn lại từ đầu. */
+  readonly mountKey?: string;
   /**
    * Cửa nạp gói, tách ra để bài kiểm thay được. Mặc định là `import()` thật.
    * Không đặt kiểu trả về là `Promise<MountModule>` cứng ở đây vì `import()`
@@ -99,6 +150,10 @@ export interface UsePascalViewerOptions {
 export interface UsePascalViewerResult {
   readonly viewModel: PascalViewerViewModel;
   readonly canvasRef: React.RefObject<HTMLDivElement | null>;
+  /** Đích khuôn camera cho lớp phủ cộng tác — `false` khi khung chưa dựng. */
+  readonly sceneTarget: { readonly frameEntity: (entityId: string) => boolean };
+  /** Cảnh đã đẩy sang Pascal — mốc "trước" cho `usePascalEdits`; `null` khi chưa dựng xong. */
+  readonly loadedScene: PascalScene | null;
   readonly onRetry: () => void;
   readonly onExpand: () => void;
 }
@@ -140,7 +195,7 @@ declare global {
  *
  * Trước khi thêm thẻ script, bật `window.__zod_globalConfig.jitless` (B-V10-05).
  */
-const defaultLoadMount = (): Promise<MountModule> => {
+export const defaultLoadMount = (): Promise<MountModule> => {
   if (mountModulePromise !== null) {
     return mountModulePromise;
   }
@@ -212,9 +267,26 @@ export function usePascalViewer({
   graph,
   collapsed = false,
   loadMount = defaultLoadMount,
+  mode = 'view',
+  readOnly = false,
+  onSceneCommit,
+  validateCommit,
+  onCommitRejected,
+  onSaveAsTemplate,
+  initialTool,
+  onHistoryJump,
+  onMeasurementDelete,
+  explodeLevels = false,
+  mountKey = '',
 }: UsePascalViewerOptions): UsePascalViewerResult {
-  const enabled = useFeatureFlag('scene.pascal-viewer');
   const canvasRef = useRef<HTMLDivElement>(null);
+  /* Tay cầm của khung đang chạy; `sceneTarget` đọc nó lúc gọi nên đứng vững qua
+     các lần dựng lại. */
+  const mountedRef = useRef<ReturnType<MountModule['mount']> | null>(null);
+  const sceneTarget = useMemo(
+    () => ({ frameEntity: (entityId: string) => mountedRef.current?.frameEntity?.(entityId) ?? false }),
+    [],
+  );
 
   const [ready, setReady] = useState(false);
   const [failure, setFailure] = useState<PascalViewerErrorCode | null>(null);
@@ -232,6 +304,23 @@ export function usePascalViewer({
   const [droppedCount, setDroppedCount] = useState(0);
   /** Người dùng tự thu khung lại bằng Esc. Khác `collapsed` do nơi gọi truyền vào. */
   const [selfCollapsed, setSelfCollapsed] = useState(false);
+  /** Trạng thái lưu mà editor Pascal báo ra; `null` khi chưa có lượt nào. */
+  const [saveStatus, setSaveStatus] = useState<PascalSaveStatus | null>(null);
+  // #24 — giờ của lượt lưu thành công gần nhất, cho câu "Đã lưu lúc HH:MM".
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  /**
+   * Hàm gọi lại của đường lưu, giữ trong ref chứ KHÔNG trong deps của hiệu ứng gắn.
+   *
+   * `usePascalEdits` dựng chúng bằng `useCallback` phụ thuộc bản vẽ, mà mỗi lượt
+   * lưu lại đổi bản vẽ — để chúng vào deps thì editor Pascal bị tháo và gắn lại
+   * sau MỖI lần lưu, tức người dùng mất vùng chọn, mất camera, và cảnh nạp lại
+   * từ đầu. Ref giữ bản mới nhất mà không động tới danh sách phụ thuộc.
+   */
+  const edits = useRef({ onSceneCommit, validateCommit, onCommitRejected, onHistoryJump, onSaveAsTemplate, onMeasurementDelete });
+
+  useEffect(() => {
+    edits.current = { onSceneCommit, validateCommit, onCommitRejected, onHistoryJump, onSaveAsTemplate, onMeasurementDelete };
+  }, [onSceneCommit, validateCommit, onCommitRejected, onHistoryJump, onSaveAsTemplate, onMeasurementDelete]);
 
   const isCollapsed = selfCollapsed || (collapsed && !expanded);
 
@@ -260,21 +349,35 @@ export function usePascalViewer({
   const [result, setResult] = useState<{
     readonly scene: PascalScene;
     readonly skipped: readonly SkippedEntity[];
+    /** Bản vẽ này sinh ra từ lượt lưu của chính editor — cảnh đã nằm trong đó. */
+    readonly echo: boolean;
   } | null>(null);
+  /** Bản mới nhất cho hiệu ứng gắn, để `result` không nằm trong deps của nó. */
+  const resultRef = useRef(result);
+  resultRef.current = result;
+  /** Cảnh đang nằm trong editor: lúc gắn, hoặc lượt đẩy từ nguồn ngoài gần nhất. */
+  const [pascalScene, setPascalScene] = useState<PascalScene | null>(null);
+  /**
+   * Một lượt lưu của editor đang ghi vào kho. Bản vẽ đổi trong lúc cờ dựng là
+   * tiếng vọng của lượt ấy. Dựng TRƯỚC khi gọi đường lưu, vì `commit` đổi kho
+   * ngay trong lúc gọi và React có thể chạy hiệu ứng trước khi lời gọi trả về.
+   */
+  const echoPending = useRef(false);
 
   useEffect(() => {
-    // Cờ tắt thì không ai xem cảnh — đổi bản vẽ là việc thừa (B-V10-03).
-    if (!enabled || graph === null || isEmpty) {
+    if (graph === null || isEmpty) {
       setResult(null);
 
       return;
     }
 
     let cancelled = false;
+    const echo = echoPending.current;
+    echoPending.current = false;
 
     import('@/lib/pascal/toPascal')
       .then(({ toPascalScene }) => {
-        if (!cancelled) setResult(toPascalScene(graph));
+        if (!cancelled) setResult({ ...toPascalScene(graph), echo });
       })
       .catch(() => {
         if (!cancelled) setFailure('PASCAL-01');
@@ -285,18 +388,19 @@ export function usePascalViewer({
     };
     /* `attempt` có mặt vì "thử lại" phải chạy lại CẢ lượt nạp này: thiếu nó thì
        nạp hỏng → thử lại → `result` vẫn `null` và màn kẹt "đang nạp" mãi (B-V10-04). */
-  }, [enabled, graph, isEmpty, attempt]);
+  }, [graph, isEmpty, attempt]);
 
-  const shouldMount = enabled && !isCollapsed && result !== null && !isEmpty;
+  const shouldMount = !isCollapsed && result !== null && !isEmpty;
 
   useEffect(() => {
     if (!shouldMount) return;
 
     const element = canvasRef.current;
-    if (element === null || result === null) return;
+    const initial = resultRef.current;
+    if (element === null || initial === null) return;
 
     let disposed = false;
-    let handle: { dispose: () => void } | null = null;
+    let handle: ReturnType<MountModule['mount']> | null = null;
 
     setReady(false);
     setFailure(null);
@@ -308,7 +412,35 @@ export function usePascalViewer({
       .then((module) => {
         if (disposed) return;
         handle = module.mount(element, {
-          scene: result.scene,
+          scene: initial.scene,
+          mode,
+          readOnly,
+          explodeLevels,
+          ...(initialTool === undefined ? {} : { initialTool }),
+          onSceneCommit: async (next) => {
+            echoPending.current = true;
+            try {
+              if ((await edits.current.onSceneCommit?.(next)) !== true) echoPending.current = false;
+            } catch (cause) {
+              echoPending.current = false;
+              throw cause;
+            }
+          },
+          validateCommit: (next) => edits.current.validateCommit?.(next) ?? { ok: true },
+          onCommitRejected: (message) => edits.current.onCommitRejected?.(message),
+          ...(edits.current.onSaveAsTemplate === undefined
+            ? {}
+            : {
+                onSaveAsTemplate: (nodeId: string) =>
+                  edits.current.onSaveAsTemplate?.(nodeId) ?? Promise.resolve({ ok: false, message: '' }),
+              }),
+          onHistoryJump: (kind) => edits.current.onHistoryJump?.(kind),
+          onMeasurementDelete: (event) => edits.current.onMeasurementDelete?.(event),
+          onSaveStatus: (status) => {
+            if (disposed) return;
+            setSaveStatus(status);
+            if (status === 'saved') setSavedAt(Date.now());
+          },
           onReadyChange: (value) => {
             if (!disposed) setReady(value);
           },
@@ -323,6 +455,8 @@ export function usePascalViewer({
             if (!disposed) setFailure('PASCAL-03');
           },
         });
+        mountedRef.current = handle;
+        setPascalScene(initial.scene);
       })
       .catch(() => {
         if (!disposed) setFailure('PASCAL-01');
@@ -330,9 +464,24 @@ export function usePascalViewer({
 
     return () => {
       disposed = true;
+      mountedRef.current = null;
+      setPascalScene(null);
       handle?.dispose();
     };
-  }, [shouldMount, result, loadMount, attempt]);
+    /* KHÔNG có `result`: mỗi lượt lưu đổi bản vẽ, và gỡ-gắn lại theo nó là mất
+       vùng chọn, camera và lịch sử hoàn tác của editor sau MỖI lần sửa. Cảnh
+       đổi từ nguồn ngoài đi qua `setScene` ở hiệu ứng dưới. */
+  }, [shouldMount, mountKey, loadMount, attempt, mode, readOnly, explodeLevels, initialTool]);
+
+  /* Cảnh đổi từ nguồn ngoài (người khác sửa, khôi phục phiên bản…) → nạp vào
+     editor đang chạy. Tiếng vọng của lượt lưu của chính editor thì bỏ qua. */
+  useEffect(() => {
+    const handle = mountedRef.current;
+    if (handle === null || result === null || result.echo || result.scene === pascalScene) return;
+    if (pascalScene === null) return;
+    handle.setScene?.(result.scene);
+    setPascalScene(result.scene);
+  }, [result, pascalScene]);
 
   const onRetry = useCallback(() => {
     setFailure(null);
@@ -364,7 +513,7 @@ export function usePascalViewer({
       description: 'Thu khung xem 3d lại',
       onTrigger: () => setSelfCollapsed(true),
     },
-    { enabled: enabled && !isCollapsed },
+    { enabled: !isCollapsed },
   );
 
   useShortcut(
@@ -375,7 +524,7 @@ export function usePascalViewer({
       description: 'Thử nạp lại khung dựng hình',
       onTrigger: onRetry,
     },
-    { enabled: enabled && failure !== null },
+    { enabled: failure !== null },
   );
 
   useShortcut(
@@ -386,7 +535,7 @@ export function usePascalViewer({
       description: 'Mở lại khung xem 3d',
       onTrigger: onExpand,
     },
-    { enabled: enabled && isCollapsed },
+    { enabled: isCollapsed },
   );
 
   const skipped = useMemo(() => {
@@ -404,21 +553,22 @@ export function usePascalViewer({
     ];
   }, [result, droppedCount]);
 
-  const state: PascalViewerState = !enabled
-    ? 'forbidden'
-    : isCollapsed
-      ? 'collapsed'
-      : failure !== null
-        ? 'error'
-        : isEmpty
-          ? 'empty'
-          : result === null
+  /* `forbidden` không còn nguồn ở đây: cờ `scene.pascal-viewer` đã bị gỡ (F-15),
+     màn Pascal là màn 3D duy nhất. Trạng thái vẫn nằm trong hợp đồng của view —
+     A11 đòi đủ bảy — và nơi gọi dựng nó khi vai không được xem bản vẽ. */
+  const state: PascalViewerState = isCollapsed
+    ? 'collapsed'
+    : failure !== null
+      ? 'error'
+      : isEmpty
+        ? 'empty'
+        : result === null
+          ? 'loading'
+          : !ready
             ? 'loading'
-            : !ready
-              ? 'loading'
-              : skipped.length > 0
-                ? 'partial'
-                : 'success';
+            : skipped.length > 0
+              ? 'partial'
+              : 'success';
 
   const summary = useMemo(() => {
     if (graph === null || (state !== 'success' && state !== 'partial')) return null;
@@ -438,8 +588,11 @@ export function usePascalViewer({
       summary,
       skipped: state === 'partial' ? skipped : [],
       errorCode: failure,
+      saveLabel: saveLabelOf(saveStatus, savedAt),
     },
     canvasRef,
+    sceneTarget,
+    loadedScene: pascalScene,
     onRetry,
     onExpand,
   };

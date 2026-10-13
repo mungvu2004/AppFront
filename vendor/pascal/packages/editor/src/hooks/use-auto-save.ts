@@ -84,12 +84,27 @@ export function decideExitFlush(opts: {
 
 export type SaveStatus = 'idle' | 'pending' | 'saving' | 'saved' | 'paused' | 'error'
 
+/**
+ * A host's verdict on the scene a write is about to persist.
+ *
+ * AppFront F-15 / decision 6A: the host owns rules the editor cannot know —
+ * a wall thinner than the project's standard, a mass delete, an opening that
+ * no longer sits in a wall. The verdict is asked BEFORE the write is adopted,
+ * so a rejected edit never reaches the server and never becomes the baseline
+ * the wipe guard measures the next write against.
+ */
+export type CommitVerdict = { ok: true } | { ok: false; message: string }
+
 interface UseAutoSaveOptions {
   guardAgainstSceneWipe?: boolean
   onSave?: (scene: SceneGraph, options?: { keepalive?: boolean }) => Promise<void>
   onDirty?: () => void
   onSaveStatusChange?: (status: SaveStatus) => void
   isVersionPreviewMode?: boolean
+  /** Host rule check run before a write is adopted. Omitted means "always ok". */
+  validateCommit?: (scene: SceneGraph) => CommitVerdict
+  /** What the host shows when {@link UseAutoSaveOptions.validateCommit} says no. */
+  onCommitRejected?: (message: string) => void
 }
 
 /**
@@ -104,6 +119,8 @@ export function useAutoSave({
   onDirty,
   onSaveStatusChange,
   isVersionPreviewMode = false,
+  validateCommit,
+  onCommitRejected,
 }: UseAutoSaveOptions): {
   beginSceneLoad: () => void
   completeSceneLoad: () => void
@@ -128,6 +145,12 @@ export function useAutoSave({
   const onSaveStatusChangeRef = useRef(onSaveStatusChange)
   const isVersionPreviewModeRef = useRef(isVersionPreviewMode)
   const guardAgainstSceneWipeRef = useRef(guardAgainstSceneWipe)
+  const validateCommitRef = useRef(validateCommit)
+  const onCommitRejectedRef = useRef(onCommitRejected)
+  // A rejected edit is undone, and that undo is itself a store write. Without
+  // this latch the subscription would validate the rollback, reject it again
+  // if the host is strict about the direction of travel, and loop.
+  const isRevertingRef = useRef(false)
 
   useEffect(() => {
     onSaveRef.current = onSave
@@ -144,6 +167,12 @@ export function useAutoSave({
   useEffect(() => {
     guardAgainstSceneWipeRef.current = guardAgainstSceneWipe
   }, [guardAgainstSceneWipe])
+  useEffect(() => {
+    validateCommitRef.current = validateCommit
+  }, [validateCommit])
+  useEffect(() => {
+    onCommitRejectedRef.current = onCommitRejected
+  }, [onCommitRejected])
 
   const setSaveStatus = useCallback((status: SaveStatus) => {
     onSaveStatusChangeRef.current?.(status)
@@ -251,6 +280,34 @@ export function useAutoSave({
         state.materials !== lastMaterialsRef ||
         pluginsEdited
       if (!changed) return
+
+      // 6A — the host's rule check runs on the edited graph BEFORE the edit is
+      // adopted. A rejection undoes the operation through the normal history
+      // stack, so the user keeps their redo and nothing bypasses the store.
+      const validate = validateCommitRef.current
+      if (validate && !isRevertingRef.current) {
+        const verdict = validate({
+          nodes: state.nodes,
+          rootNodeIds: state.rootNodeIds,
+          collections: state.collections,
+          materials: state.materials,
+          installedPlugins: state.installedPlugins,
+        } as SceneGraph)
+
+        if (!verdict.ok) {
+          isRevertingRef.current = true
+          try {
+            useScene.temporal.getState().undo()
+          } finally {
+            isRevertingRef.current = false
+          }
+          lastNodesSnapshot = JSON.stringify(useScene.getState().nodes)
+          lastCollectionsRef = useScene.getState().collections
+          lastMaterialsRef = useScene.getState().materials
+          onCommitRejectedRef.current?.(verdict.message)
+          return
+        }
+      }
 
       lastNodesSnapshot = currentNodesSnapshot
       lastCollectionsRef = state.collections

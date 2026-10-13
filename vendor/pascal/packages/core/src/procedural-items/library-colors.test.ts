@@ -41,7 +41,7 @@ test('exact matches ignore hex casing and report zero CIE76 distance', () => {
   expect(nearestLibraryColorRef('#EBE7DF')).toEqual({
     ref: 'library:preset-softwhite',
     color: '#ebe7df',
-    name: 'Soft White',
+    name: 'Trắng ấm',
     distance: 0,
   })
 })
@@ -112,17 +112,17 @@ test('scene, library, and hex overrides are preserved while other slots are snap
 })
 
 const finishSamples = [
-  ['wood', '#aa7744', 'wood-finewood27', 'Finewood 27', '#a77440'],
-  ['wood', '#89664d', 'wood-woodplank48', 'Wood Plank 48', '#88654c'],
-  ['wood', '#683222', 'wood-hungarianparquet2', 'Hungarian Parquet 2', '#663020'],
-  ['wood', '#301a0a', 'wood-squareparquet21', 'Square Parquet 21', '#3e220d'],
-  ['metal', '#666666', 'metal-steel', 'Brushed Steel', '#636363'],
-  ['metal', '#c8ccce', 'metal-chrome', 'Chrome', '#c8ccce'],
-  ['metal', '#b18e58', 'metal-brass', 'Brass', '#b08d57'],
-  ['metal', '#cd855c', 'metal-copper', 'Copper', '#cc845b'],
-  ['metal', '#f4f4f4', 'metal-polished', 'Polished Metal', '#f3f3f3'],
-  ['metal', '#c7ccd2', 'preset-metal', 'Metal', '#c7ccd2'],
-  ['glass', '#ff0000', 'preset-glass', 'Glass', '#87ceeb'],
+  ['wood', '#aa7744', 'wood-finewood27', 'Gỗ mịn 27', '#a77440'],
+  ['wood', '#89664d', 'wood-woodplank48', 'Ván gỗ 48', '#88654c'],
+  ['wood', '#683222', 'wood-hungarianparquet2', 'Gỗ ghép Hungary 2', '#663020'],
+  ['wood', '#301a0a', 'wood-squareparquet21', 'Gỗ ghép vuông 21', '#3e220d'],
+  ['metal', '#666666', 'metal-steel', 'Thép chải xước', '#636363'],
+  ['metal', '#c8ccce', 'metal-chrome', 'Crôm mạ bóng', '#c8ccce'],
+  ['metal', '#b18e58', 'metal-brass', 'Đồng thau', '#b08d57'],
+  ['metal', '#cd855c', 'metal-copper', 'Đồng', '#cc845b'],
+  ['metal', '#f4f4f4', 'metal-polished', 'Kim loại mài bóng', '#f3f3f3'],
+  ['metal', '#c7ccd2', 'preset-metal', 'Kim loại', '#c7ccd2'],
+  ['glass', '#ff0000', 'preset-glass', 'Kính', '#87ceeb'],
 ] as const
 
 for (const [finish, color, id, label, tone] of finishSamples) {

@@ -3,6 +3,7 @@
 import { emitter, nodeRegistry } from '@pascal-app/core'
 import { X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
+import { editorAndViewer as vi } from '../../i18n/regions/editorAndViewer'
 import { getFloorplanNodeExtension } from '../../lib/floorplan/floorplan-extension'
 import { isFloorplanToolAvailableInMode } from '../../lib/floorplan/floorplan-mode'
 import useEditor from '../../store/use-editor'
@@ -34,9 +35,7 @@ export function FloorplanModeCoordinator() {
     emitter.emit('tool:cancel')
     useEditor.getState().setMode('select')
     if (priorFloorplanMode === 'expert') {
-      showNotice(
-        `Switched to Default. The unfinished ${toolLabel} draft was canceled; saved Expert annotations are hidden, not deleted.`,
-      )
+      showNotice(vi.floorplanModeCoordinator.switchedToDefault(toolLabel))
     } else {
       showExpertModeNotice(toolLabel)
     }
@@ -66,11 +65,11 @@ export function FloorplanModeCoordinator() {
           }}
           type="button"
         >
-          Switch to Expert
+          {vi.floorplanModeCoordinator.switchToExpert}
         </button>
       ) : null}
       <button
-        aria-label="Dismiss"
+        aria-label={vi.floorplanModeCoordinator.dismiss}
         className="shrink-0 rounded p-1 text-muted-foreground hover:bg-white/10 hover:text-foreground"
         onClick={dismissNotice}
         type="button"

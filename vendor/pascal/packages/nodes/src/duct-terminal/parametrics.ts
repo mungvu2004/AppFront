@@ -1,10 +1,11 @@
 import type { ParametricDescriptor } from '@pascal-app/core'
 import type { DuctTerminalNode } from './schema'
+import { vi } from '../i18n/vi'
 
 export const ductTerminalParametrics: ParametricDescriptor<DuctTerminalNode> = {
   groups: [
     {
-      label: 'Terminal',
+      label: vi.common.terminal,
       fields: [
         {
           key: 'terminalType',
@@ -20,14 +21,14 @@ export const ductTerminalParametrics: ParametricDescriptor<DuctTerminalNode> = {
       ],
     },
     {
-      label: 'Face',
+      label: vi.common.face,
       fields: [
         { key: 'width', kind: 'number', unit: 'm', min: 0.1, max: 1000, step: 0.05 },
         { key: 'depth', kind: 'number', unit: 'm', min: 0.05, max: 1000, step: 0.05 },
       ],
     },
     {
-      label: 'Collar',
+      label: vi.common.collar,
       fields: [
         {
           key: 'collarShape',
@@ -65,7 +66,7 @@ export const ductTerminalParametrics: ParametricDescriptor<DuctTerminalNode> = {
       ],
     },
     {
-      label: 'Placement',
+      label: vi.common.placement,
       fields: [{ key: 'position', kind: 'vec3' }],
     },
   ],

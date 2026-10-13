@@ -27,6 +27,8 @@ import { computeArea } from '@/domain/rooms/area';
 import { millimetresPerPixel } from '@/domain/units/scale';
 import { createId, isIdOfKind, type EntityKind, type IdByKind } from '@/domain/spatial/ids';
 import type {
+  Axis,
+  AxisDirection,
   BoundingBox,
   Building,
   Furniture,
@@ -178,6 +180,7 @@ const readCorner = (fields: Fields, corner: 'min' | 'max'): Point | null => {
   return typeof x === 'number' && typeof y === 'number' && isUsable(x, y) ? { x, y } : null;
 };
 
+const AXIS_DIRECTIONS: readonly AxisDirection[] = ['horizontal', 'vertical'];
 const WALL_KINDS: readonly WallKind[] = ['loadBearing', 'partition', 'envelope'];
 const ROOM_USAGES: readonly RoomUsage[] = [
   'livingRoom',
@@ -210,7 +213,11 @@ const SWING_DIRECTIONS: readonly SwingDirection[] = ['left', 'right', 'double', 
  * đó đúng là `AUTHORED_BY_HAND`.
  */
 const reviewOf = (node: PascalNode, trusted: boolean): ReviewMetadata => {
-  const origin = node.metadata?.appfront;
+  // `review` trước `metadata.appfront`: `review` là trường hạng nhất mà trình
+  // soạn Pascal ghi thẳng vào (panel "Kiểm duyệt"), nên khi người duyệt vừa
+  // bấm "Duyệt" thì nó là bản mới, còn `metadata.appfront` vẫn là bản lượt đi
+  // đã gắn. Đọc sai thứ tự là mất đúng cú bấm vừa rồi.
+  const origin = node.review ?? node.metadata?.appfront;
 
   if (!trusted || origin === undefined) {
     return { ...AUTHORED_BY_HAND };
@@ -280,6 +287,7 @@ interface Collector {
   readonly openings: Opening[];
   readonly rooms: Room[];
   readonly furniture: Furniture[];
+  readonly axes: Axis[];
   /** Id tường phía Pascal → id tường phía AppFront, để phòng nối lại được. */
   readonly wallIdOfNode: Map<PascalNodeId, WallId>;
   /** Id phòng → id tường **phía Pascal** của nó, giải ở lượt cuối. */
@@ -291,13 +299,67 @@ interface Collector {
 const positionIsUsable = (position: PascalVec3): boolean => isUsable(...position);
 
 /** Hộp bao dựng quanh tâm, cho đồ đạc mà Pascal vừa đặt và AppFront chưa biết. */
-const boxAround = (centre: Point, dimensions: PascalVec3): BoundingBox => {
-  const halfWidth = millimetresOf(dimensions[0]) / 2;
-  const halfDepth = millimetresOf(dimensions[2]) / 2;
+const boxAround = (centre: Point, dimensions: PascalVec3, scale: PascalVec3): BoundingBox => {
+  const halfWidth = (millimetresOf(dimensions[0]) * scale[0]) / 2;
+  const halfDepth = (millimetresOf(dimensions[2]) * scale[2]) / 2;
 
   return {
     min: { x: centre.x - halfWidth, y: centre.y - halfDepth },
     max: { x: centre.x + halfWidth, y: centre.y + halfDepth },
+  };
+};
+
+/**
+ * Một tỉ lệ coi như "chưa ai kéo". Pascal ghi `[1, 1, 1]` cho mọi món đồ lượt
+ * đi gắn, nên lệch khỏi 1 nghĩa là người dùng vừa kéo tay cầm.
+ *
+ * Dung sai `1e-9` là để chống sai số dấu phẩy động của chính Pascal, không
+ * phải để bỏ qua một lần kéo thật: tay cầm nhỏ nhất của nó đổi tỉ lệ ở bậc
+ * phần nghìn, lớn hơn ngưỡng này sáu bậc.
+ */
+const SCALE_EPSILON = 1e-9;
+
+const isUnscaled = (scale: PascalVec3): boolean =>
+  Math.abs(scale[0] - 1) < SCALE_EPSILON && Math.abs(scale[2] - 1) < SCALE_EPSILON;
+
+/**
+ * Hộp bao của một món đồ Pascal, mm — **có tính `scale`**.
+ *
+ * Người dùng đổi bề rộng một món đồ trong Pascal bằng cách kéo `scale`, chứ
+ * không phải bằng cách nhập mm: `dimensions` của `asset` là số danh nghĩa của
+ * mẫu và không đổi. Nên bề rộng thật là `dimensions × scale`, và lượt về phải
+ * nhân vào — đọc thẳng `metadata.appfront.boundingBox` là đọc lại cái hộp
+ * AppFront gắn ở lượt ĐI, tức **mất trắng** lần kéo vừa rồi, im lặng.
+ *
+ * Khi tỉ lệ còn là 1 thì hộp đã lưu được dùng nguyên văn: nó giữ đúng số mm
+ * gốc (kể cả hộp không cân quanh tâm), không qua mét rồi về mm nên không có
+ * sai số làm mọi món đồ chưa ai chạm tới lệch đi một phần nghìn mỗi vòng.
+ */
+const itemBoxOf = (
+  centre: Point,
+  stored: { readonly min: Point; readonly max: Point } | null,
+  dimensions: PascalVec3,
+  scale: PascalVec3,
+): BoundingBox => {
+  if (stored === null) {
+    return boxAround(centre, dimensions, scale);
+  }
+
+  if (isUnscaled(scale)) {
+    return stored;
+  }
+
+  // Kéo quanh tâm món đồ: giãn khoảng cách từ tâm tới từng cạnh, nên một hộp
+  // không cân vẫn giữ được độ không cân của nó sau khi kéo.
+  return {
+    min: {
+      x: centre.x + (stored.min.x - centre.x) * scale[0],
+      y: centre.y + (stored.min.y - centre.y) * scale[2],
+    },
+    max: {
+      x: centre.x + (stored.max.x - centre.x) * scale[0],
+      y: centre.y + (stored.max.y - centre.y) * scale[2],
+    },
   };
 };
 
@@ -429,16 +491,47 @@ const collectLevelChildren = (
         const max = readCorner(fields, 'max');
         const roomId = readString(fields, 'roomId');
 
+        const kind = readOneOf(fields, 'kind', FURNITURE_KINDS) ?? 'other';
+
         collector.furniture.push({
           ...reviewOf(child, knownId !== null),
           id: knownId ?? collector.mint('furniture', child.id),
           levelId,
-          kind: readOneOf(fields, 'kind', FURNITURE_KINDS) ?? 'other',
+          kind,
           centre,
-          boundingBox:
-            min !== null && max !== null ? { min, max } : boxAround(centre, child.asset.dimensions),
+          boundingBox: itemBoxOf(
+            centre,
+            min !== null && max !== null ? { min, max } : null,
+            child.asset.dimensions,
+            child.scale,
+          ),
           rotationDeg: planDegreesOf(child.rotation[1]),
           ...(roomId !== null && isIdOfKind('room', roomId) ? { roomId } : {}),
+          ...(child.asset.id !== `appfront-${kind}` ? { model: { id: child.asset.id, src: child.asset.src } } : {}),
+        });
+        break;
+      }
+
+      case 'structural-grid': {
+        if (!isUsable(...child.start, ...child.end)) {
+          collector.skip(child.id, 'trục định vị', 'Toạ độ hai đầu trục không phải một số đo được.');
+          break;
+        }
+
+        const fields = fieldsOf(child);
+        const knownId = appFrontIdOf('axis', child.id);
+        const start: Point = { x: millimetresOf(child.start[0]), y: millimetresOf(child.start[1]) };
+        const end: Point = { x: millimetresOf(child.end[0]), y: millimetresOf(child.end[1]) };
+
+        collector.axes.push({
+          ...reviewOf(child, knownId !== null),
+          id: knownId ?? collector.mint('axis', child.id),
+          levelId,
+          label: readString(fields, 'label') ?? child.label,
+          direction:
+            readOneOf(fields, 'direction', AXIS_DIRECTIONS) ??
+            (Math.abs(end.x - start.x) >= Math.abs(end.y - start.y) ? 'horizontal' : 'vertical'),
+          line: { start, end },
         });
         break;
       }
@@ -544,6 +637,7 @@ export const toSpatialGraph = (scene: PascalScene, idBook?: PascalIdBook): Spati
     openings: [],
     rooms: [],
     furniture: [],
+    axes: [],
     wallIdOfNode: new Map(),
     boundaryNodeIdsOf: new Map(),
     mint,
@@ -585,7 +679,7 @@ export const toSpatialGraph = (scene: PascalScene, idBook?: PascalIdBook): Spati
       openings: collector.openings,
       furniture: collector.furniture,
       rooms,
-      axes: [],
+      axes: collector.axes,
       dimensions: [],
       notes: [],
     },

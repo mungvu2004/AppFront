@@ -12,6 +12,7 @@ import {
   type NodePanelModel,
   PANEL_MODEL_EXTENSION,
 } from '@pascal-app/editor'
+import { vi } from '../i18n/vi'
 import { buildWallContextualDimensions } from './contextual-dimensions'
 import { hasWallCurveBlockingChildren } from './curve-eligibility'
 import { useWallDrawingMode } from './drawing-mode'
@@ -205,29 +206,29 @@ export const wallDefinition: NodeDefinition<typeof WallNode> = {
   floorplanMoveTarget: wallFloorplanMoveTarget,
   floorplanSiblingOverrides: wallFloorplanSiblingOverrides,
   toolHints: [
-    { key: 'Left click', label: 'Set wall start / end' },
+    { key: 'Left click', label: vi.wall.shortcuts.setStartEnd },
     {
       key: 'R',
-      label: 'Shape',
+      label: vi.wall.shortcuts.shape,
       chip: {
         subscribe: (onChange) => useWallDrawingMode.subscribe(onChange),
         value: () => useWallDrawingMode.getState().mode,
         cycle: () => useWallDrawingMode.getState().toggle(),
-        labels: { line: 'Shape: Line', rectangle: 'Shape: Rectangle' },
+        labels: { line: vi.wall.shortcuts.shapeLine, rectangle: vi.wall.shortcuts.shapeRectangle },
         icons: { line: 'lucide:minus', rectangle: 'lucide:square' },
-        tooltip: 'Wall shape — click or press R to toggle',
+        tooltip: vi.wall.shortcuts.shapeTooltip,
       },
     },
-    { key: 'Esc', label: 'Cancel' },
+    { key: 'Esc', label: vi.wall.shortcuts.cancel },
   ],
   // The split session (`split-session.ts`) is the wall's own reshape; the HUD
   // shows these while it runs. The snapping chip comes from the scope.
   affordanceHints: {
     split: [
-      { key: 'Left click', label: 'Split at the marks' },
+      { key: 'Left click', label: vi.wall.shortcuts.splitAtMarks },
       {
         key: 'Scroll',
-        label: 'Cuts',
+        label: vi.wall.shortcuts.cuts,
         chip: {
           subscribe: (onChange) => useWallSplit.subscribe(onChange),
           value: () => String(useWallSplit.getState().draft?.cuts ?? 1),
@@ -238,30 +239,29 @@ export const wallDefinition: NodeDefinition<typeof WallNode> = {
           labels: Object.fromEntries(
             SPLIT_CUT_COUNTS.map((count) => [
               count,
-              count === '1' ? 'Cuts: 1' : `Cuts: ${count}, even`,
+              count === '1' ? vi.wall.shortcuts.cutsOne : vi.wall.shortcuts.cutsEven(count),
             ]),
           ),
           icons: Object.fromEntries(SPLIT_CUT_COUNTS.map((count) => [count, 'lucide:scissors'])),
-          tooltip: 'Number of cuts — scroll or click to change',
+          tooltip: vi.wall.shortcuts.cutsTooltip,
         },
       },
       {
         key: 'Alt',
-        label: 'Free placement',
+        label: vi.wall.shortcuts.freePlacement,
         // Several cuts are evenly spaced, so there is nothing to place freely.
         visible: {
           subscribe: (onChange) => useWallSplit.subscribe(onChange),
           value: () => (useWallSplit.getState().draft?.cuts ?? 1) === 1,
         },
       },
-      { key: 'Esc', label: 'Cancel' },
+      { key: 'Esc', label: vi.wall.shortcuts.cancel },
     ],
   },
 
   presentation: {
-    label: 'Wall',
-    description:
-      'A straight or curved wall segment. Hosts doors, windows, lean-to extensions, and wall-mounted items.',
+    label: vi.wall.catalogLabel,
+    description: vi.wall.presentationDescription,
     icon: { kind: 'url', src: '/icons/wall.webp' },
     paletteSection: 'structure',
     paletteOrder: 10,

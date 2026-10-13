@@ -24,7 +24,6 @@ import {
   Download,
   Layers,
   ListTree,
-  Map as MapIcon,
   Save,
   ChevronDown,
   Send,
@@ -45,10 +44,6 @@ import {
 } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import {
-  exportFloorplanPdf,
-  type FloorplanExportScope,
-} from '../../../../../lib/floorplan/floorplan-export'
-import {
   LocalAppError,
   probeLocalApp,
   sendGlbToLocalApp,
@@ -66,12 +61,12 @@ import { Switch } from './../../../../../components/ui/primitives/switch'
 import { cn } from './../../../../../lib/utils'
 import { deleteLevelWithFallbackSelection } from './../../../../../lib/level-selection'
 import useEditor, { selectDefaultBuildingAndLevel } from './../../../../../store/use-editor'
-import useFloorplanMode from './../../../../../store/use-floorplan-mode'
 import { type SendToAppStep, useSendToApp } from './../../../../../store/use-send-to-app'
 import { AudioSettingsDialog } from './audio-settings-dialog'
 import { KeyboardShortcutsDialog } from './keyboard-shortcuts-dialog'
 import { LoadBuildDialog, type PendingImport } from './load-build-dialog'
 import { PrintExportButton } from './print-export-button'
+import { primitivesAndSidebar as vi } from '../../../../../i18n/regions/primitivesAndSidebar'
 
 type SceneNode = Record<string, unknown> & {
   id?: unknown
@@ -106,10 +101,10 @@ const MODEL_EXPORT_FORMATS = [
 type ModelExportFormat = (typeof MODEL_EXPORT_FORMATS)[number]['format']
 
 const SEND_TO_BLENDER_STEP_LABEL: Record<SendToAppStep, string> = {
-  probing: 'Looking for Blender…',
-  exporting: 'Preparing the scene…',
-  sending: 'Sending to Blender…',
-  importing: 'Blender is importing…',
+  probing: vi.settingsPanel.probing,
+  exporting: vi.settingsPanel.exportingScene,
+  sending: vi.settingsPanel.sendingToBlender,
+  importing: vi.settingsPanel.blenderImporting,
 }
 
 const BLENDER_ADDON_URL = 'https://github.com/pascalorg/blender-addon#install'
@@ -359,11 +354,11 @@ function FloorSettingsSection() {
 
   return (
     <div className="space-y-3">
-      <label className="font-medium text-muted-foreground text-xs uppercase">Floors</label>
+      <label className="font-medium text-muted-foreground text-xs uppercase">{vi.settingsPanel.floors}</label>
       <div className="grid grid-cols-2 gap-2">
         <Button className="justify-start" onClick={addFloor} size="sm" type="button" variant="outline">
           <ArrowUp className="size-3.5" />
-          Add floor
+          {vi.settingsPanel.addFloor}
         </Button>
         <Button
           className="justify-start"
@@ -373,13 +368,13 @@ function FloorSettingsSection() {
           variant="outline"
         >
           <ArrowDown className="size-3.5" />
-          Add basement
+          {vi.settingsPanel.addBasement}
         </Button>
       </div>
 
       <div className="space-y-1 rounded-md border p-1">
         {levels.length === 0 ? (
-          <div className="px-2 py-2 text-muted-foreground text-xs">No floors yet</div>
+          <div className="px-2 py-2 text-muted-foreground text-xs">{vi.settingsPanel.noFloorsYet}</div>
         ) : (
           levels.map((level) => {
             const isSelected = level.id === selectedLevelId
@@ -404,11 +399,11 @@ function FloorSettingsSection() {
                   </span>
                 </button>
                 <button
-                  aria-label={`Remove ${getLevelDisplayName(level)}`}
+                  aria-label={vi.settingsPanel.removeFloor(getLevelDisplayName(level))}
                   className="flex size-7 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-30"
                   disabled={!canDelete}
                   onClick={() => deleteLevelWithFallbackSelection(level.id)}
-                  title={canDelete ? 'Remove floor' : 'The ground floor cannot be removed'}
+                  title={canDelete ? vi.settingsPanel.removeFloorTitle : vi.settingsPanel.groundFloorCannotBeRemoved}
                   type="button"
                 >
                   <Trash2 className="size-3.5" />
@@ -419,7 +414,7 @@ function FloorSettingsSection() {
         )}
       </div>
       <p className="text-muted-foreground text-xs">
-        Select a floor to make it active. The ground floor is always kept as the building datum.
+        {vi.settingsPanel.selectFloorHint}
       </p>
     </div>
   )
@@ -445,7 +440,6 @@ export function SettingsPanel({
   const modelExport = useEditor((state) => state.modelExport)
   const shadows = useViewer((state) => state.shadows)
   const setPhase = useEditor((state) => state.setPhase)
-  const floorplanMode = useFloorplanMode((state) => state.mode)
   const registryVersion = useRegistryVersion()
   const visibleOnlySwitchId = useId()
   const includeNodeTypeIdPrefix = useId()
@@ -461,10 +455,6 @@ export function SettingsPanel({
   const sendToBlenderMessage = useSendToApp((state) => state.message)
   const setSendToBlenderStep = useSendToApp((state) => state.setStep)
   const setSendToBlenderMessage = useSendToApp((state) => state.setMessage)
-  const [activeFloorplanExport, setActiveFloorplanExport] = useState<FloorplanExportScope | null>(
-    null,
-  )
-  const [floorplanExportError, setFloorplanExportError] = useState<string | null>(null)
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null)
   const [projectIdCopyState, setProjectIdCopyState] = useState<'idle' | 'copied' | 'error'>('idle')
   const exportableNodeTypes = useMemo(() => {
@@ -703,7 +693,7 @@ export function SettingsPanel({
       if (artifact.warnings?.length) setModelExportWarning(artifact.warnings.join(' '))
     } catch (error) {
       setModelExportError(
-        error instanceof Error ? error.message : `Couldn’t export ${label}. Try again.`,
+        error instanceof Error ? error.message : vi.settingsPanel.couldNotExport(label),
       )
     } finally {
       setActiveModelExport(null)
@@ -720,14 +710,14 @@ export function SettingsPanel({
       if (probe.status === 'unreachable') {
         setSendToBlenderMessage({
           tone: 'error',
-          text: 'Blender isn’t listening. Open Blender with the Pascal add-on installed and enabled, then try again.',
+          text: vi.settingsPanel.blenderUnreachable,
         })
         return
       }
       if (probe.status === 'refused') {
         setSendToBlenderMessage({
           tone: 'error',
-          text: `Blender is open but hasn’t allowed ${window.location.origin} yet. In Blender, open the Pascal tab in the 3D viewport sidebar (N) and click Allow.`,
+          text: vi.settingsPanel.blenderRefused(window.location.origin),
         })
         return
       }
@@ -753,32 +743,16 @@ export function SettingsPanel({
       const done = await waitForLocalImport(probe.base, queued.id)
       setSendToBlenderMessage({
         tone: 'info',
-        text: done.summary ? `Sent to Blender. ${done.summary}.` : 'Sent to Blender.',
+        text: done.summary ? vi.settingsPanel.sentToBlenderWithSummary(done.summary) : vi.settingsPanel.sentToBlender,
       })
     } catch (error) {
       const text =
         error instanceof LocalAppError || error instanceof Error
           ? error.message
-          : 'Couldn’t send the scene to Blender. Try again.'
+          : vi.settingsPanel.couldNotSendToBlender
       setSendToBlenderMessage({ tone: 'error', text })
     } finally {
       setSendToBlenderStep(null)
-    }
-  }
-
-  const handleFloorplanExport = async (scope: FloorplanExportScope) => {
-    if (activeFloorplanExport) return
-
-    setActiveFloorplanExport(scope)
-    setFloorplanExportError(null)
-    try {
-      await exportFloorplanPdf(scope)
-    } catch (error) {
-      setFloorplanExportError(
-        `Couldn’t export the floor plan. ${error instanceof Error ? error.message : 'Try again.'}`,
-      )
-    } finally {
-      setActiveFloorplanExport(null)
     }
   }
 
@@ -795,19 +769,19 @@ export function SettingsPanel({
         </section>
         {projectId && (
           <SettingsSection
-            description="Reference this project from the API, MCP tools, or support."
-            title="Project"
+            description={vi.settingsPanel.projectDescription}
+            title={vi.settingsPanel.project}
           >
             <div className="flex items-center gap-2">
               <Input
-                aria-label="Project ID"
+                aria-label={vi.settingsPanel.projectId}
                 className="font-mono text-xs"
                 readOnly
                 value={projectId}
               />
               <Button
                 aria-label={
-                  projectIdCopyState === 'copied' ? 'Project ID copied' : 'Copy project ID'
+                  projectIdCopyState === 'copied' ? vi.settingsPanel.projectIdCopied : vi.settingsPanel.copyProjectId
                 }
                 className="rounded-full"
                 onClick={() => void handleCopyProjectId()}
@@ -821,10 +795,10 @@ export function SettingsPanel({
                   <Copy className="size-3.5" />
                 )}
                 {projectIdCopyState === 'copied'
-                  ? 'Copied'
+                  ? vi.settingsPanel.copied
                   : projectIdCopyState === 'error'
-                    ? 'Try again'
-                    : 'Copy'}
+                    ? vi.settingsPanel.tryAgain
+                    : vi.settingsPanel.copy}
               </Button>
             </div>
           </SettingsSection>
@@ -832,44 +806,44 @@ export function SettingsPanel({
 
         {/* Sharing (only for cloud projects) */}
         {projectId && !isLocalProject && (
-          <SettingsSection description="Control who can open this project." title="Sharing">
+          <SettingsSection description={vi.settingsPanel.sharingDescription} title={vi.settingsPanel.sharing}>
             <SettingsSwitchRow
               checked={!(projectVisibility?.isPrivate ?? false)}
               description={
                 projectVisibility?.isPrivate
-                  ? 'Only you can view it.'
-                  : 'Anyone with the link can view it.'
+                  ? vi.settingsPanel.onlyYouCanView
+                  : vi.settingsPanel.anyoneWithLinkCanView
               }
-              label="Public project"
+              label={vi.settingsPanel.publicProject}
               onCheckedChange={(checked) => handleVisibilityChange('isPrivate', !checked)}
             />
             <SettingsSwitchRow
               checked={projectVisibility?.showScansPublic ?? true}
-              description="Visible in the public viewer."
-              label="Show 3D scans"
+              description={vi.settingsPanel.visibleInPublicViewer}
+              label={vi.settingsPanel.show3dScans}
               onCheckedChange={(checked) => handleVisibilityChange('showScansPublic', checked)}
             />
             <SettingsSwitchRow
               checked={projectVisibility?.showGuidesPublic ?? true}
-              description="Visible in the public viewer."
-              label="Show floor plans"
+              description={vi.settingsPanel.visibleInPublicViewer}
+              label={vi.settingsPanel.showFloorPlans}
               onCheckedChange={(checked) => handleVisibilityChange('showGuidesPublic', checked)}
             />
           </SettingsSection>
         )}
 
-        <SettingsSection description="Rendering options for this editor session." title="Viewer">
+        <SettingsSection description={vi.settingsPanel.viewerDescription} title={vi.settingsPanel.viewer}>
           <SettingsSwitchRow
             checked={shadows}
-            description="Cast shadows from lights."
-            label="Shadows"
+            description={vi.settingsPanel.shadowsDescription}
+            label={vi.settingsPanel.shadows}
             onCheckedChange={(checked) => useViewer.getState().setShadows(checked)}
           />
         </SettingsSection>
 
-        <SettingsSection description="Download the scene or hand it to another app." title="Export">
+        <SettingsSection description={vi.settingsPanel.exportDescription} title={vi.settingsPanel.export}>
           <div className="space-y-3">
-            <SettingsSubheading>3D model</SettingsSubheading>
+            <SettingsSubheading>{vi.settingsPanel.model3d}</SettingsSubheading>
             <details
               className="group"
               onKeyDownCapture={(event) => {
@@ -878,21 +852,21 @@ export function SettingsPanel({
               }}
             >
               <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between rounded-md border px-3 font-medium text-sm focus-visible:outline-2 focus-visible:outline-ring">
-                Export options
+                {vi.settingsPanel.exportOptions}
                 <ChevronDown aria-hidden="true" className="size-4 group-open:rotate-180" />
               </summary>
               <div className="space-y-3 pt-3">
                 <div className="flex items-center justify-between gap-4 rounded-md border p-3">
                   <div className="min-w-0">
                     <label className="font-medium text-sm" htmlFor={visibleOnlySwitchId}>
-                      Visible nodes only
+                      {vi.settingsPanel.visibleNodesOnly}
                     </label>
                     <div className="text-muted-foreground text-xs">
-                      Exclude hidden furniture and other hidden scene nodes
+                      {vi.settingsPanel.excludeHiddenNodes}
                     </div>
                   </div>
                   <Switch
-                    aria-label="Export visible nodes only"
+                    aria-label={vi.settingsPanel.exportVisibleNodesOnly}
                     checked={exportOnlyVisible}
                     id={visibleOnlySwitchId}
                     onCheckedChange={setExportOnlyVisible}
@@ -900,10 +874,9 @@ export function SettingsPanel({
                 </div>
 
                 <fieldset className="space-y-2 rounded-md border p-3">
-                  <legend className="px-1 font-medium text-sm">Include in file</legend>
+                  <legend className="px-1 font-medium text-sm">{vi.settingsPanel.includeInFile}</legend>
                   <p className="text-muted-foreground text-xs">
-                    Choose which procedural content is baked into model files. GLB and USDZ use the
-                    textured portable path; STL and OBJ remain geometry-only.
+                    {vi.settingsPanel.procContentDescription}
                   </p>
                   {exportableNodeTypes.length > 0 ? (
                     <div className="space-y-2 pt-1">
@@ -915,13 +888,12 @@ export function SettingsPanel({
                               {label}
                               {!supportsGeometryOnly && (
                                 <span className="text-muted-foreground text-xs">
-                                  {' '}
-                                  (GLB/USDZ only)
+                                  {vi.settingsPanel.glbUsdzOnly}
                                 </span>
                               )}
                             </label>
                             <Switch
-                              aria-label={`Include ${label} in model files`}
+                              aria-label={vi.settingsPanel.includeInModelFiles(label)}
                               checked={!excludedNodeTypes.includes(type)}
                               id={switchId}
                               onCheckedChange={(included) =>
@@ -934,18 +906,18 @@ export function SettingsPanel({
                     </div>
                   ) : (
                     <p className="text-muted-foreground text-xs">
-                      No optional procedural content is present.
+                      {vi.settingsPanel.noOptionalProcContent}
                     </p>
                   )}
                   <p className="text-muted-foreground text-xs">
-                    Viewer surroundings are excluded unless selected separately below.
+                    {vi.settingsPanel.viewerSurroundingsExcluded}
                   </p>
                 </fieldset>
                 {exportablePresentations.length > 0 ? (
                   <fieldset className="space-y-2 rounded-md border p-3">
-                    <legend className="px-1 font-medium text-sm">Viewer surroundings</legend>
+                    <legend className="px-1 font-medium text-sm">{vi.settingsPanel.viewerSurroundings}</legend>
                     <p className="text-muted-foreground text-xs">
-                      Optional static surroundings are included only in GLB and USDZ.
+                      {vi.settingsPanel.optionalStaticSurroundings}
                     </p>
                     <div className="space-y-2 pt-1">
                       {exportablePresentations.map((contribution, index) => {
@@ -960,7 +932,7 @@ export function SettingsPanel({
                               {label}
                             </label>
                             <Switch
-                              aria-label={`Include ${label} in GLB and USDZ`}
+                              aria-label={vi.settingsPanel.includeInGlbUsdz(label)}
                               checked={includedPresentationIds.includes(contribution.id)}
                               id={switchId}
                               onCheckedChange={(included) =>
@@ -991,7 +963,7 @@ export function SettingsPanel({
                     variant="outline"
                   >
                     <Download aria-hidden="true" className="size-4" />
-                    {isActive ? `Exporting ${label}…` : `Export ${label}`}
+                    {isActive ? vi.settingsPanel.exporting(label) : vi.settingsPanel.exportFormat(label)}
                   </Button>
                 )
               })}
@@ -1008,19 +980,19 @@ export function SettingsPanel({
                 <Send aria-hidden="true" className="size-4" />
                 {sendToBlenderStep
                   ? SEND_TO_BLENDER_STEP_LABEL[sendToBlenderStep]
-                  : 'Send to Blender'}
+                  : vi.settingsPanel.sendToBlender}
               </Button>
               <p className="text-muted-foreground text-xs">
-                Needs the{' '}
+                {vi.settingsPanel.needsThe}{' '}
                 <a
                   className="underline underline-offset-2"
                   href={BLENDER_ADDON_URL}
                   rel="noreferrer"
                   target="_blank"
                 >
-                  Pascal add-on for Blender
+                  {vi.settingsPanel.pascalAddonForBlender}
                 </a>{' '}
-                running in an open Blender.
+                {vi.settingsPanel.runningInOpenBlender}
               </p>
             </div>
             {sendToBlenderMessage ? (
@@ -1038,7 +1010,7 @@ export function SettingsPanel({
 
             {activeModelExport ? (
               <p className="text-muted-foreground text-xs" role="status">
-                Preparing {activeModelExport.toUpperCase()} file…
+                {vi.settingsPanel.preparingFormatFile(activeModelExport.toUpperCase())}
               </p>
             ) : null}
             {modelExportError ? (
@@ -1048,7 +1020,7 @@ export function SettingsPanel({
             ) : null}
             {modelExportWarning ? (
               <p className="text-foreground text-xs" role="status">
-                Warning: {modelExportWarning}
+                {vi.settingsPanel.warningPrefix}{modelExportWarning}
               </p>
             ) : null}
 
@@ -1056,54 +1028,13 @@ export function SettingsPanel({
               <PrintExportButton onlyVisible={exportOnlyVisible} />
             </div>
           </div>
-
-          <div className="space-y-3 pt-2">
-            <div className="flex items-center justify-between">
-              <SettingsSubheading>Floor plan</SettingsSubheading>
-              <span className="text-muted-foreground text-xs">
-                {floorplanMode === 'default' ? 'Default mode' : 'Expert mode'}
-              </span>
-            </div>
-            <div className="grid gap-2 @sm:grid-cols-2">
-              <Button
-                aria-busy={activeFloorplanExport === 'full'}
-                className="w-full justify-start gap-2"
-                disabled={activeFloorplanExport !== null}
-                onClick={() => void handleFloorplanExport('full')}
-                variant="outline"
-              >
-                <MapIcon className="size-4" />
-                Full floor plan
-              </Button>
-              <Button
-                aria-busy={activeFloorplanExport === 'structure'}
-                className="w-full justify-start gap-2"
-                disabled={activeFloorplanExport !== null}
-                onClick={() => void handleFloorplanExport('structure')}
-                variant="outline"
-              >
-                <MapIcon className="size-4" />
-                Structure only
-              </Button>
-            </div>
-            {activeFloorplanExport ? (
-              <p className="text-muted-foreground text-xs" role="status">
-                Preparing floor-plan PDF…
-              </p>
-            ) : null}
-            {floorplanExportError ? (
-              <p className="break-words text-destructive text-xs" role="alert">
-                {floorplanExportError}
-              </p>
-            ) : null}
-          </div>
         </SettingsSection>
 
         {/* Thumbnail (only for cloud projects) */}
         {projectId && !isLocalProject && (
           <SettingsSection
-            description="Refresh the preview shown in your project list."
-            title="Thumbnail"
+            description={vi.settingsPanel.thumbnailDescription}
+            title={vi.settingsPanel.thumbnail}
           >
             <div className="grid gap-2 @sm:grid-cols-2">
               <Button
@@ -1113,15 +1044,15 @@ export function SettingsPanel({
                 variant="outline"
               >
                 <Camera className="size-4" />
-                {isGeneratingThumbnail ? 'Generating…' : 'Generate thumbnail'}
+                {isGeneratingThumbnail ? vi.settingsPanel.generating : vi.settingsPanel.generateThumbnail}
               </Button>
             </div>
           </SettingsSection>
         )}
 
         <SettingsSection
-          description="Keep a JSON copy of the scene, or restore one."
-          title="Save and load"
+          description={vi.settingsPanel.saveAndLoadDescription}
+          title={vi.settingsPanel.saveAndLoad}
         >
           <div className="grid gap-2 @sm:grid-cols-2">
             <Button
@@ -1130,7 +1061,7 @@ export function SettingsPanel({
               variant="outline"
             >
               <Save className="size-4" />
-              Save build
+              {vi.settingsPanel.saveBuild}
             </Button>
             <Button
               className="w-full justify-start gap-2"
@@ -1138,7 +1069,7 @@ export function SettingsPanel({
               variant="outline"
             >
               <Upload className="size-4" />
-              Load build
+              {vi.settingsPanel.loadBuild}
             </Button>
           </div>
 
@@ -1157,7 +1088,7 @@ export function SettingsPanel({
           />
         </SettingsSection>
 
-        <SettingsSection description="Sound levels and keyboard shortcuts." title="Preferences">
+        <SettingsSection description={vi.settingsPanel.preferencesDescription} title={vi.settingsPanel.preferences}>
           <div className="grid gap-2 @sm:grid-cols-2">
             <AudioSettingsDialog />
             <KeyboardShortcutsDialog />
@@ -1165,20 +1096,20 @@ export function SettingsPanel({
         </SettingsSection>
 
         <SettingsSection
-          description="Inspect how nodes are nested in this scene."
-          title="Scene graph"
+          description={vi.settingsPanel.sceneGraphDescription}
+          title={vi.settingsPanel.sceneGraph}
         >
           <Dialog>
             <DialogTrigger asChild>
               <div className="grid gap-2 @sm:grid-cols-2">
                 <Button className="w-full justify-start gap-2" variant="outline">
                   <ListTree className="size-4" />
-                  Explore scene graph
+                  {vi.settingsPanel.exploreSceneGraph}
                 </Button>
               </div>
             </DialogTrigger>
             <DialogContent className="h-[80vh] max-w-[95vw] gap-0 overflow-hidden border-0 bg-[#1e1e1e] p-0 shadow-none sm:max-w-5xl">
-              <DialogTitle className="sr-only">Scene Graph</DialogTitle>
+              <DialogTitle className="sr-only">{vi.settingsPanel.sceneGraph}</DialogTitle>
               <div
                 className="flex h-full min-h-0 w-full min-w-0 *:h-full *:w-full *:overflow-y-auto"
                 onContextMenuCapture={blockSceneGraphMutations}
@@ -1195,8 +1126,8 @@ export function SettingsPanel({
         </SettingsSection>
 
         <SettingsSection
-          description="Removes every node from this scene. This cannot be undone."
-          title="Danger zone"
+          description={vi.settingsPanel.dangerZoneDescription}
+          title={vi.settingsPanel.dangerZone}
           tone="destructive"
         >
           <div className="grid gap-2 @sm:grid-cols-2">
@@ -1206,7 +1137,7 @@ export function SettingsPanel({
               variant="destructive"
             >
               <Trash2 className="size-4" />
-              Clear and start new
+              {vi.settingsPanel.clearAndStartNew}
             </Button>
           </div>
         </SettingsSection>

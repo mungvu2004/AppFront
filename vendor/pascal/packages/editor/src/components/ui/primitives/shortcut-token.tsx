@@ -1,28 +1,29 @@
-import { Icon } from '@iconify/react'
+import { Icon } from '../../../lib/offline-icons'
 import type * as React from 'react'
 
 import { cn } from '../../../lib/utils'
+import { primitivesAndSidebar as vi } from '../../../i18n/regions/primitivesAndSidebar'
 
 const MOUSE_SHORTCUTS = {
   Click: {
     icon: 'ph:mouse-left-click-fill',
-    label: 'Left click',
+    label: vi.shortcutToken.leftClick,
   },
   'Left click': {
     icon: 'ph:mouse-left-click-fill',
-    label: 'Left click',
+    label: vi.shortcutToken.leftClick,
   },
   'Middle click': {
     icon: 'qlementine-icons:mouse-middle-button-16',
-    label: 'Middle click',
+    label: vi.shortcutToken.middleClick,
   },
   'Right click': {
     icon: 'ph:mouse-right-click-fill',
-    label: 'Right click',
+    label: vi.shortcutToken.rightClick,
   },
   Scroll: {
     icon: 'ph:mouse-scroll-fill',
-    label: 'Scroll',
+    label: vi.shortcutToken.scroll,
   },
 } as const
 

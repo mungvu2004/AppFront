@@ -2,11 +2,15 @@
 
 import {
   type AnyNode,
+  type AnyNodeId,
   type MeasurementNode,
   type MeasurementPoint,
   measurementAngle,
   measurementArea,
   measurementDistance,
+  measurementHeight,
+  measurementPerpendicularDistance,
+  measurementPerpendicularFoot,
   measurementNormal,
   measurementPerimeter,
   measurementPrismVolume,
@@ -42,11 +46,15 @@ import {
 } from 'three'
 import { LineBasicNodeMaterial, MeshBasicNodeMaterial } from 'three/webgpu'
 import { useShallow } from 'zustand/react/shallow'
+import { vi } from '../i18n/vi'
 import {
   measurementDependencyIds,
   type ResolvedMeasurementPayload,
   resolveMeasurementNode,
 } from './resolve'
+
+/** Opacity of the other measurements while one is hovered (#68). */
+const MEASUREMENT_DIMMED_OPACITY = 0.3
 
 type MeasurementRenderData = {
   fillGeometry: BufferGeometry | null
@@ -68,6 +76,7 @@ function fallbackMarkerNormal(
   ) {
     return measurementNormal(measurement.base) ?? [0, 1, 0]
   }
+  if (measurement.kind === 'perpendicular') return measurement.normal
   if (measurement.kind === 'angle') {
     const [start, vertex, end] = measurement.points
     const normal = new Vector3(...start)
@@ -187,8 +196,7 @@ const midpoint = (start: MeasurementPoint, end: MeasurementPoint): MeasurementPo
 
 function buildFillGeometry(measurement: ResolvedMeasurementPayload): BufferGeometry | null {
   if (
-    measurement.kind === 'distance' ||
-    measurement.kind === 'angle' ||
+    'points' in measurement ||
     measurement.kind === 'perimeter'
   ) {
     return null
@@ -241,6 +249,20 @@ function buildRenderData(measurement: ResolvedMeasurementPayload): MeasurementRe
     pushSegment(start, end)
     markerPoints = [start, end]
     labelPosition = midpoint(start, end)
+  } else if (measurement.kind === 'perpendicular') {
+    const [origin, point] = measurement.points
+    const foot = measurementPerpendicularFoot(origin, point, measurement.normal)
+    pushSegment(origin, foot)
+    pushSegment(foot, point)
+    markerPoints = [origin, point]
+    labelPosition = midpoint(foot, point)
+  } else if (measurement.kind === 'height') {
+    const [start, end] = measurement.points
+    const corner: MeasurementPoint = [start[0], end[1], start[2]]
+    pushSegment(start, corner)
+    pushSegment(corner, end)
+    markerPoints = [start, end]
+    labelPosition = midpoint(start, corner)
   } else if (measurement.kind === 'angle') {
     const [start, vertex, end] = measurement.points
     pushSegment(start, vertex)
@@ -296,6 +318,17 @@ function formatMeasurement(
   if (measurement.kind === 'distance') {
     return formatLinearMeasurement(measurementDistance(...measurement.points), unit, metricNotation)
   }
+  if (measurement.kind === 'perpendicular') {
+    const [origin, point] = measurement.points
+    return `⊥ ${formatLinearMeasurement(
+      measurementPerpendicularDistance(origin, point, measurement.normal),
+      unit,
+      metricNotation,
+    )}`
+  }
+  if (measurement.kind === 'height') {
+    return `H ${formatLinearMeasurement(measurementHeight(...measurement.points), unit, metricNotation)}`
+  }
   if (measurement.kind === 'angle') {
     return formatAngleRadians(measurementAngle(...measurement.points))
   }
@@ -335,6 +368,13 @@ export const MeasurementRenderer = ({ node }: { node: MeasurementNode }) => {
     (state) =>
       state.hoveredId === node.id || state.selection.selectedIds.some((id) => id === node.id),
   )
+  // #68: while another measurement is hovered, this one steps back.
+  const dimmed = useViewer(
+    (state) =>
+      state.hoveredId !== null &&
+      state.hoveredId !== node.id &&
+      useScene.getState().nodes[state.hoveredId as AnyNodeId]?.type === 'measurement',
+  )
   const ownOverride = useLiveNodeOverrides((state) => state.overrides.get(node.id)) as
     | Partial<MeasurementNode>
     | undefined
@@ -357,7 +397,7 @@ export const MeasurementRenderer = ({ node }: { node: MeasurementNode }) => {
   const data = buildRenderData(resolved.payload)
   const label = useMemo(() => {
     const value = formatMeasurement(resolved.payload, unit, metricNotation)
-    return resolved.dangling.length > 0 ? `Unlinked · ${value}` : value
+    return resolved.dangling.length > 0 ? `${vi.measurement.unlinkedPrefix}${value}` : value
   }, [metricNotation, resolved, unit])
   const color = measurementPresentationColor(resolved.dangling.length > 0, active)
   const lineMaterial = useMemo(
@@ -365,22 +405,24 @@ export const MeasurementRenderer = ({ node }: { node: MeasurementNode }) => {
       new LineBasicNodeMaterial({
         color,
         linewidth: 2,
+        transparent: dimmed,
+        opacity: dimmed ? MEASUREMENT_DIMMED_OPACITY : 1,
         depthTest: false,
         depthWrite: false,
       }),
-    [color],
+    [color, dimmed],
   )
   const fillMaterial = useMemo(
     () =>
       new MeshBasicNodeMaterial({
         color,
         transparent: true,
-        opacity: 0.12,
+        opacity: dimmed ? 0.12 * MEASUREMENT_DIMMED_OPACITY : 0.12,
         side: DoubleSide,
         depthTest: false,
         depthWrite: false,
       }),
-    [color],
+    [color, dimmed],
   )
 
   useEffect(
@@ -449,6 +491,7 @@ export const MeasurementRenderer = ({ node }: { node: MeasurementNode }) => {
                 effectiveNode.measurement.kind === 'distance' ? '-translate-y-3' : ''
               }`}
               style={{
+                opacity: dimmed ? MEASUREMENT_DIMMED_OPACITY : 1,
                 textShadow: `-1px -1px 0 ${color}, 1px -1px 0 ${color}, -1px 1px 0 ${color}, 1px 1px 0 ${color}`,
               }}
             >

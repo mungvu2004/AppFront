@@ -729,6 +729,12 @@ một tỉ số, cặp 4 và 5 bị bỏ im lặng.
 | 2 | CPU luồng chính mỗi giây | **5 / 5** | **CÓ** |
 | — | p50 theo đếm (cách cũ, in để đối chiếu) | 5 / 5 | có |
 
+
+> **Đã vá ở F-15 T3 (đo 2026-10-13).** `FrameLimiter` đẩy một khung mỗi nhịp rAF kể cả khi cảnh đứng
+> yên; nay chỉ đẩy khi có nhu cầu. Cảnh đứng yên 10 s: `ScriptDuration` **49,8 → 10,0 ms/s (−80 %)**,
+> `TaskDuration` 82,7 → 48,5 ms/s (−41 %). Tỉ số "~1,6 lần" dưới đây là số đo TRƯỚC bản vá; nhánh xoay
+> camera chưa phân biệt được với tiếng ồn (một cặp lượt, máy bận) — xem `bao-cao-T3.md`.
+
 **Pascal vẫn chạm điều kiện dừng, nhưng vì lý do khác hẳn.** Cách cũ nói "Pascal cho khung chậm hơn
 7,75 lần" — đó là đọc lại `maxFps = 50`. Số mới nói: nhịp khung người dùng thật sự thấy gần như bằng
 nhau (19,7 → 22,2 ms, **+13 %**), còn cái Pascal tốn thêm là **CPU luồng chính ~1,6 lần** để cho ra

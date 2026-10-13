@@ -3,7 +3,11 @@
  * định nghĩa `UndoShortcuts`. `UndoShortcuts` được xuất có chủ đích: xem docblock
  * của nó — một binding không test được là một binding không ai chứng minh được. */
 import React, { lazy, useCallback, useState } from 'react';
-import { createBrowserRouter, Outlet, type RouteObject } from 'react-router-dom';
+import {
+  createBrowserRouter,
+  Outlet,
+  type RouteObject,
+} from 'react-router-dom';
 
 import { ScreenMain } from '@/components/shell/ScreenMain';
 import { flushAutosaves } from '@/hooks/useAutosave';
@@ -16,6 +20,7 @@ import {
 import { useStore } from '@/store';
 
 import { ROUTE_PATTERNS } from './paths';
+import { ExplodedViewRedirect, PascalViewerRedirect } from './viewerRedirects';
 import { RouteErrorScreen } from './RouteErrorScreen';
 import { PendingShell, SessionBootstrap } from './SessionBootstrap';
 
@@ -50,7 +55,6 @@ const suspendedOutsideMain = (node: React.ReactNode) => (
 );
 
 // Lazy load screen routes
-const RouteViewer3D = lazy(() => import('../screens/viewer/Viewer3D').then(m => ({ default: m.Viewer3DRoute })));
 const RoutePascalViewer = lazy(() => import('../screens/viewer/PascalViewer').then(m => ({ default: m.PascalViewerRoute })));
 const RouteAuth = lazy(() => import('../screens/auth/AuthScreen').then(m => ({ default: m.AuthRoute })));
 const RouteInvitationAccept = lazy(() => import('../screens/auth/InvitationAccept').then(m => ({ default: m.InvitationAcceptRoute })));
@@ -68,7 +72,6 @@ const RouteInputQualityGate = lazy(() => import('../screens/upload/InputQualityG
 const RouteProcessing = lazy(() => import('../screens/pipeline/ProcessingScreen').then(m => ({ default: m.ProcessingScreenRoute })));
 const RouteScaleCalibration = lazy(() => import('../screens/pipeline/ScaleCalibration').then(m => ({ default: m.ScaleCalibrationRoute })));
 const RouteOverlayComparison = lazy(() => import('../screens/viewer/OverlayComparison').then(m => ({ default: m.OverlayComparisonRoute })));
-const RouteExplodedView = lazy(() => import('../screens/viewer/ExplodedView').then(m => ({ default: m.ExplodedViewRoute })));
 const RouteMeasurementTool = lazy(() => import('../screens/viewer/MeasurementTool').then(m => ({ default: m.MeasurementToolRoute })));
 const RouteRules = lazy(() => import('../screens/rules/RuleReport').then(m => ({ default: m.RulesRoute })));
 const RouteRuleSettings = lazy(() => import('../screens/rules/RuleSettings').then(m => ({ default: m.RuleSettingsRoute })));
@@ -345,8 +348,7 @@ export const routes: RouteObject[] = [
       { path: ROUTE_PATTERNS.invitationAccept, element: suspendedOutsideMain(<RouteInvitationAccept />) },
       { path: ROUTE_PATTERNS.passwordReset, element: suspendedOutsideMain(<RoutePasswordReset />) },
       { path: ROUTE_PATTERNS.dashboard, element: suspendedOutsideMain(<RouteDashboard />) },
-      { path: ROUTE_PATTERNS.projectViewer, element: suspendedOutsideMain(<RouteViewer3D />) },
-      { path: ROUTE_PATTERNS.projectExploded, element: suspendedOutsideMain(<RouteExplodedView />) },
+      { path: ROUTE_PATTERNS.projectExploded, element: <ExplodedViewRedirect /> },
       { path: ROUTE_PATTERNS.projectMeasure, element: suspendedOutsideMain(<RouteMeasurementTool />) },
       // Màn di động: route MỚI, không thay chỗ một route tạm nào (R-66).
       { path: ROUTE_PATTERNS.mobileViewer, element: suspendedOutsideMain(<RouteMobileViewer />) },
@@ -377,7 +379,8 @@ export const routes: RouteObject[] = [
           { path: ROUTE_PATTERNS.projectRooms, element: suspended(<RouteRoomLabelReview />) },
           { path: ROUTE_PATTERNS.projectFloors, element: suspended(<RouteFloorManager />) },
           { path: ROUTE_PATTERNS.projectThickness, element: suspended(<RouteThicknessStandardization />) },
-          { path: ROUTE_PATTERNS.projectViewerPascal, element: suspended(<RoutePascalViewer />) },
+          { path: ROUTE_PATTERNS.projectViewer, element: suspended(<RoutePascalViewer />) },
+          { path: ROUTE_PATTERNS.projectViewerPascal, element: <PascalViewerRedirect /> },
           { path: ROUTE_PATTERNS.projectRules, element: suspended(<RouteRules />) },
           { path: ROUTE_PATTERNS.projectRuleSettings, element: suspended(<RouteRuleSettings />) },
           { path: ROUTE_PATTERNS.projectExport, element: suspended(<RouteExportPanel />) },

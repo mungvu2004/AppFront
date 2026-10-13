@@ -1,6 +1,7 @@
 import type { AnyNode, AnyNodeId, ParametricDescriptor, PipeSegmentNode } from '@pascal-app/core'
 import { getPipeFittingPorts } from './ports'
 import type { PipeFittingNode } from './schema'
+import { vi } from '../i18n/vi'
 
 /** A pipe endpoint sitting this close to a fitting hub counts as mated. */
 const MATE_TOL_M = 0.05
@@ -59,7 +60,7 @@ export const pipeFittingParametrics: ParametricDescriptor<PipeFittingNode> = {
 
   groups: [
     {
-      label: 'Fitting',
+      label: vi.common.fitting,
       fields: [
         {
           key: 'fittingType',
@@ -99,7 +100,7 @@ export const pipeFittingParametrics: ParametricDescriptor<PipeFittingNode> = {
       ],
     },
     {
-      label: 'Connections',
+      label: vi.common.connections,
       fields: [
         { key: 'diameter', kind: 'number', unit: 'in', min: 1.25, max: 6, step: 0.25 },
         {
@@ -115,7 +116,7 @@ export const pipeFittingParametrics: ParametricDescriptor<PipeFittingNode> = {
       ],
     },
     {
-      label: 'Placement',
+      label: vi.common.placement,
       fields: [
         { key: 'position', kind: 'vec3' },
         { key: 'rotation', kind: 'vec3' },

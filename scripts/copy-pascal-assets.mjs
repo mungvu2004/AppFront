@@ -84,6 +84,16 @@ const LIBRARY_SOURCE = join('vendor', 'pascal', 'packages', 'core', 'src', 'mate
  */
 const MATERIAL_WANTED = /\.ktx2$/;
 
+/**
+ * Biểu tượng ảnh của editor Pascal: mã vendor viết `<img src="/icons/x.webp">` (đường tuyệt đối
+ * của app Next gốc), nên tệp phải nằm đúng ở `/icons/` — không có thì mọi nút thành ảnh vỡ.
+ * Chỉ chép tệp ≤ 40 KB: 19 tệp lớn hơn (mái/ống gió/ống nước) đẩy tài sản vượt
+ * trần 8 000 KiB của cổng kích thước; công cụ ấy sẽ còn ảnh vỡ cho tới khi nén lại được.
+ */
+const ICON_SOURCE = join('vendor', 'pascal', 'assets', 'icons');
+const ICON_TARGET = join('public', 'icons');
+const ICON_MAX_BYTES = 40_000;
+
 /** Đếm đệ quy, để dòng tổng kết nói được số thật chứ không nói "xong". */
 const countFiles = (dir) => {
   let total = 0;
@@ -139,6 +149,22 @@ const referenced = [
 ];
 const missing = referenced.filter((rel) => !existsSync(join(MATERIAL_TARGET, rel)));
 
+rmSync(ICON_TARGET, { force: true, recursive: true });
+mkdirSync(ICON_TARGET, { recursive: true });
+const iconsSkipped = [];
+let iconCount = 0;
+// Không đệ quy: `icons/fittings/` (MEP, 450 KiB) không có chỗ nào gọi tới và làm tài sản vượt trần.
+for (const name of readdirSync(ICON_SOURCE).filter((n) => statSync(join(ICON_SOURCE, n)).isFile())) {
+  if (statSync(join(ICON_SOURCE, name)).size > ICON_MAX_BYTES) {
+    iconsSkipped.push(name);
+    continue;
+  }
+  copyFileSync(join(ICON_SOURCE, name), join(ICON_TARGET, name));
+  iconCount += 1;
+}
+// Con trỏ của khung vẽ mặt bằng: `url('/cursor.svg')` trong `floorplan-panel.tsx`.
+copyFileSync(join('vendor', 'pascal', 'assets', 'cursor.svg'), join('public', 'cursor.svg'));
+
 mkdirSync(BASIS_TARGET, { recursive: true });
 const basisCopied = readdirSync(BASIS_SOURCE).filter((name) => BASIS_WANTED.test(name));
 for (const name of basisCopied) {
@@ -158,4 +184,8 @@ if (missing.length > 0) {
       (materials.length > 6 ? ` … và ${String(materials.length - 6)} nữa.` : '.'),
   );
 }
+console.log(
+  `Đã chép ${String(iconCount)} biểu tượng vào ${ICON_TARGET}/` +
+    (iconsSkipped.length > 0 ? `, bỏ ${String(iconsSkipped.length)} tệp > 40 KB: ${iconsSkipped.join(', ')}` : ''),
+);
 console.log(`Đã chép ${String(basisCopied.length)} tệp bộ giải Basis vào ${BASIS_TARGET}/: ${basisCopied.join(', ')}`);

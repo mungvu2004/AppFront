@@ -28,39 +28,40 @@ import {
   patchCompartment,
   type SinkLayout,
 } from './stack'
+import { vi } from '../i18n/vi'
 
 const COMPARTMENT_TYPE_OPTIONS = [
-  { value: 'shelf', label: 'Shelf' },
-  { value: 'drawer', label: 'Drawer' },
-  { value: 'door', label: 'Door' },
-  { value: 'oven', label: 'Oven' },
-  { value: 'microwave', label: 'Micro' },
-  { value: 'dishwasher', label: 'Washer' },
-  { value: 'cooktop', label: 'Hob' },
-  { value: 'sink', label: 'Sink' },
-  { value: 'pull-out-pantry', label: 'Pullout' },
+  { value: 'shelf', label: vi.cabinet.panel.shelf },
+  { value: 'drawer', label: vi.cabinet.panel.drawer },
+  { value: 'door', label: vi.cabinet.panel.door },
+  { value: 'oven', label: vi.cabinet.panel.oven },
+  { value: 'microwave', label: vi.cabinet.panel.microwave },
+  { value: 'dishwasher', label: vi.cabinet.panel.dishwasher },
+  { value: 'cooktop', label: vi.cabinet.panel.cooktop },
+  { value: 'sink', label: vi.cabinet.panel.sink },
+  { value: 'pull-out-pantry', label: vi.cabinet.panel.pullOut },
 ] as const
 
-const FRIDGE_TYPE_OPTION = { value: 'fridge', label: 'Fridge' } as const
-const HOOD_TYPE_OPTION = { value: 'hood', label: 'Chimney' } as const
+const FRIDGE_TYPE_OPTION = { value: 'fridge', label: vi.cabinet.panel.fridge } as const
+const HOOD_TYPE_OPTION = { value: 'hood', label: vi.cabinet.panel.hood } as const
 const COMPARTMENT_TYPE_CONTROL_OPTIONS = [...COMPARTMENT_TYPE_OPTIONS, FRIDGE_TYPE_OPTION] as const
 const WALL_COMPARTMENT_TYPE_CONTROL_OPTIONS = [
-  { value: 'shelf', label: 'Shelf' },
-  { value: 'drawer', label: 'Drawer' },
-  { value: 'door', label: 'Door' },
+  { value: 'shelf', label: vi.cabinet.panel.shelf },
+  { value: 'drawer', label: vi.cabinet.panel.drawer },
+  { value: 'door', label: vi.cabinet.panel.door },
   HOOD_TYPE_OPTION,
 ] as const
 
 const FRIDGE_STYLE_OPTIONS = [
-  { value: 'fridge-single', label: 'Single' },
-  { value: 'fridge-double', label: 'Double' },
-  { value: 'fridge-top-freezer', label: 'Top Freezer' },
-  { value: 'fridge-bottom-freezer', label: 'Bottom Freezer' },
+  { value: 'fridge-single', label: vi.cabinet.panel.single },
+  { value: 'fridge-double', label: vi.cabinet.panel.double },
+  { value: 'fridge-top-freezer', label: vi.cabinet.panel.topFreezer },
+  { value: 'fridge-bottom-freezer', label: vi.cabinet.panel.bottomFreezer },
 ] as const
 
 const COOKTOP_STYLE_OPTIONS = [
-  { value: 'cooktop-gas', label: 'Gas' },
-  { value: 'cooktop-induction', label: 'Induction' },
+  { value: 'cooktop-gas', label: vi.cabinet.panel.gas },
+  { value: 'cooktop-induction', label: vi.cabinet.panel.induction },
 ] as const
 
 const GAS_COOKTOP_LAYOUT_OPTIONS = [
@@ -76,22 +77,22 @@ const INDUCTION_COOKTOP_LAYOUT_OPTIONS = [
 ] as const satisfies Array<{ value: CooktopLayout; label: string }>
 
 const SINK_LAYOUT_OPTIONS = [
-  { value: 'single', label: 'Single' },
-  { value: 'double', label: 'Double' },
+  { value: 'single', label: vi.cabinet.panel.single },
+  { value: 'double', label: vi.cabinet.panel.double },
   { value: 'double-offset', label: '60/40' },
 ] as const satisfies Array<{ value: SinkLayout; label: string }>
 
 const PULL_OUT_PANTRY_RACK_STYLE_OPTIONS = [
-  { value: 'wire', label: 'Wire' },
-  { value: 'tray', label: 'Tray' },
-  { value: 'glass', label: 'Glass' },
+  { value: 'wire', label: vi.cabinet.panel.wire },
+  { value: 'tray', label: vi.cabinet.panel.tray },
+  { value: 'glass', label: vi.cabinet.panel.glass },
 ] as const satisfies Array<{ value: (typeof PULL_OUT_PANTRY_RACK_STYLES)[number]; label: string }>
 
 const DOOR_TYPE_OPTIONS = [
-  { value: 'single-left', label: 'Left' },
-  { value: 'single-right', label: 'Right' },
-  { value: 'double', label: 'Double' },
-  { value: 'glass', label: 'Glass' },
+  { value: 'single-left', label: vi.cabinet.panel.left },
+  { value: 'single-right', label: vi.cabinet.panel.right },
+  { value: 'double', label: vi.cabinet.panel.double },
+  { value: 'glass', label: vi.cabinet.panel.glass },
 ] as const
 
 const ICON_BUTTON_CLASS =
@@ -278,7 +279,7 @@ export function CompartmentCard({
       {total > 1 && !isHood && !isCooktop && type !== 'sink' && (
         <div className="pb-2">
           <SliderControl
-            label="Height"
+            label={vi.cabinet.panel.height}
             max={carcassHeight}
             min={0.1}
             onChange={onResizeHeight}
@@ -292,7 +293,7 @@ export function CompartmentCard({
 
       {type === 'shelf' && (
         <Stepper
-          label="Shelves"
+          label={vi.cabinet.panel.shelves}
           max={8}
           min={0}
           onChange={(value) => onReplace(patchCompartment(compartment, { shelfCount: value }))}
@@ -302,7 +303,7 @@ export function CompartmentCard({
 
       {type === 'drawer' && (
         <Stepper
-          label="Drawers"
+          label={vi.cabinet.panel.drawers}
           max={6}
           min={1}
           onChange={(value) => onReplace(patchCompartment(compartment, { drawerCount: value }))}
@@ -314,7 +315,7 @@ export function CompartmentCard({
         <div className="space-y-2">
           <div>
             <div className="px-1 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-              Style
+              {vi.cabinet.panel.style}
             </div>
             <SegmentedControl
               onChange={(value) => onReplace(patchCompartment(compartment, { doorType: value }))}
@@ -341,14 +342,14 @@ export function CompartmentCard({
                 )
               }
             }}
-            title="Flip the door hinge to the opposite side"
+            title={vi.cabinet.panel.flipHingeTitle}
             type="button"
           >
             <FlipHorizontal2 className="h-3.5 w-3.5" />
-            Flip hinge
+            {vi.cabinet.panel.flipHinge}
           </button>
           <Stepper
-            label="Shelves inside"
+            label={vi.cabinet.panel.shelvesInside}
             max={8}
             min={0}
             onChange={(value) => onReplace(patchCompartment(compartment, { shelfCount: value }))}
@@ -360,7 +361,7 @@ export function CompartmentCard({
       {isFridge && (
         <div>
           <div className="px-1 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-            Style
+            {vi.cabinet.panel.style}
           </div>
           <SegmentedControl
             onChange={(value) =>
@@ -432,7 +433,7 @@ export function CompartmentCard({
           </div>
           <ToggleControl
             checked={compartmentCooktopBurnersOn(compartment)}
-            label="Burners on"
+            label={vi.cabinet.panel.burnersOn}
             onChange={(checked) => {
               const count = compartmentCooktopElementCount(
                 compartment,
@@ -452,7 +453,7 @@ export function CompartmentCard({
           {type === 'cooktop-gas' && (
             <ToggleControl
               checked={compartmentCooktopShowGrate(compartment)}
-              label="Top grate"
+              label={vi.cabinet.panel.topGrate}
               onChange={(checked) =>
                 onReplace(patchCompartment(compartment, { cooktopShowGrate: checked }))
               }
@@ -480,7 +481,7 @@ export function CompartmentCard({
       {type === 'pull-out-pantry' && (
         <div className="space-y-2">
           <Stepper
-            label="Baskets"
+            label={vi.cabinet.panel.baskets}
             max={8}
             min={2}
             onChange={(value) => onReplace(patchCompartment(compartment, { shelfCount: value }))}

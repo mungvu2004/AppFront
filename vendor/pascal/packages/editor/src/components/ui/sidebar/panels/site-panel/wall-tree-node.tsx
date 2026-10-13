@@ -3,6 +3,7 @@ import { useViewer } from '@pascal-app/viewer'
 import Image from 'next/image'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
+import { vi } from '../../../../../i18n/vi'
 import useEditor from './../../../../../store/use-editor'
 import { InlineRenameInput } from './inline-rename-input'
 import { focusTreeNode, handleTreeSelection, TreeNode, TreeNodeWrapper } from './tree-node'
@@ -87,7 +88,7 @@ export const WallTreeNode = memo(function WallTreeNode({
       isVisible={isVisible}
       label={
         <InlineRenameInput
-          defaultName="Wall"
+          defaultName={vi.treeNodeDefaults.wall}
           isEditing={isEditing}
           nodeId={nodeId as AnyNodeId}
           onStartEditing={handleStartEditing}

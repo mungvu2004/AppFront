@@ -3,6 +3,11 @@
 Đây là **kế hoạch**, không phải spec test. Không một dòng `*.spec.ts` nào được viết ở
 lượt này. Chặng thi công chỉ chạy **sau** khi kế hoạch được người duyệt.
 
+> **Hết hiệu lực một phần sau F-15 (gộp 2026-10-13).** Cờ `scene.pascal-viewer` đã bị **gỡ** khỏi FE,
+> và `/projects/:id/3d/pascal` chỉ còn là `<Navigate>` về `/projects/:id/3d` — nơi Pascal là màn 3D
+> duy nhất. Mọi câu dưới đây nói về "cờ tắt / cờ bật" (ca V10-a, V10-b) và về route `/3d/pascal` là
+> **số đo lịch sử ngày 2026-09-30**, không phải trạng thái sản phẩm hiện tại.
+
 Đo ngày **2026-09-30**, nhánh `e2e/prep` (base từ `mungvu2004/tich-hop-pascal`).
 Bản đồ điều phối của lượt đo này: `dag.md`. Bảng hở: `coverage-map.md`.
 Câu phải hỏi người dùng: `questions.md`.
@@ -596,7 +601,7 @@ không được mang chúng. Một ca: `grep` chuỗi đánh dấu của chúng 
 4. **Cấm hạ ngưỡng độ phủ, cấm nâng timeout, cấm `test.skip` không ghi lý do + điều kiện
    mở lại.**
 5. **Cấm `pnpm e2e:visual` như một cách "sửa" bài đỏ.**
-6. **Cấm biến nợ A6 của Pascal thành 16 ca đỏ.**
+6. **Nhãn Pascal: đã Việt hoá trong vendor (F-15) — không còn nợ A6 để biến thành 16 ca đỏ.**
 
 
 ---
@@ -2252,7 +2257,7 @@ Ghi chú khác biệt nhỏ: V11 ghi "cờ bật … qua `addInitScript`"; spec 
 2. **Đường tới:** **KHÔNG CÓ.** Không route, không nút, không phím nào của AppFront dựng `Editor` (V11 #6-#7; đo lớp 2 grep: 0). Vai: không liên quan (không dựng ⇒ không ai có quyền gì).
 3. **Tiền đề:** để tới *màn chủ* (không phải bề mặt): cờ `scene.pascal-viewer` bật (mặc định tắt, `lib/telemetry/flags.ts:157-165`) bằng `addInitScript` (khoá `appfront-feature-flags`, `e2e/pascal-viewer.spec.ts:72,75,125-131`) — bật cờ là **vào** tính năng, không phải tránh nó (cấm 3 không bị vi phạm). Không tour (tour do `ViewerShellContainer` gắn; màn Pascal không dùng vỏ đó — V11 #5: hộp không có button; đo lớp 2: toàn trang `button:0`).
    Thời hạn: dùng hằng đã có `PASCAL_RENDER_TIMEOUT_MS = 60_000` (`spec:92`) và `HEAVY_TEST_TIMEOUT_MS = 90_000` (`spec:115`) — **không tạo hằng mới, không nâng** (cấm 4). Pascal tốn ~1,6× CPU luồng chính (`flags.ts:163`); một lượt chờ không phải phép đo nhịp khung.
-4. **Giá trị nghiệp vụ:** cho 16 bề mặt ⇒ **không có** (người dùng không thấy chúng ⇒ đỏ cũng không mất gì) ⇒ **BỎ** 16 mục con (mỗi bề mặt một dòng lý do ở trường 13). Cho **ca hàng rào** (H-1, trường 6) ⇒ có: nếu có người gắn `Editor` vào màn Pascal mà không ai cập nhật kế hoạch, thì người dùng sẽ thấy sidebar/hộp thoại/thanh điều khiển **tiếng Anh** (nợ A6 `docs/pascal/00-quyet-dinh.md:202`) và nhận **tính năng chưa có kế hoạch kiểm** — e2e vẫn xanh vì không ai kiểm. H-1 đỏ đúng lúc ấy ⇒ đó là lúc cần biết.
+4. **Giá trị nghiệp vụ:** cho 16 bề mặt ⇒ **không có** (người dùng không thấy chúng ⇒ đỏ cũng không mất gì) ⇒ **BỎ** 16 mục con (mỗi bề mặt một dòng lý do ở trường 13). Cho **ca hàng rào** (H-1, trường 6) ⇒ có: nếu có người gắn `Editor` vào màn Pascal mà không ai cập nhật kế hoạch, thì người dùng sẽ thấy sidebar/hộp thoại/thanh điều khiển của một công cụ (đã Việt hoá trong vendor (F-15), nhưng chưa có kế hoạch kiểm cho công cụ đó) và nhận **tính năng chưa có kế hoạch kiểm** — e2e vẫn xanh vì không ai kiểm. H-1 đỏ đúng lúc ấy ⇒ đó là lúc cần biết.
 5. **Đã kiểm ở tầng đơn vị:** với *bề mặt editor*: **không có** ở phía AppFront — mã fork nằm ở `vendor/pascal/packages/editor/src/` (**không** phải `src/vendor/...`, HOP-DONG-BO-SUNG 7.1) và test của fork chạy bằng `bun test src` (`editor/package.json`; V11), **không** nằm trong `pnpm test`/`pnpm coverage` của AppFront; việc vitest có nhặt chúng không: **chưa đo**. Tệp tồn tại nhưng **chưa đọc, chưa chạy**: `components/viewer/viewer-stage.test.tsx`, `viewer-stage-modes.test.ts` (V11 2.3). Với *màn chủ Pascal* (bề mặt AppFront): `PascalViewer` **33 bài / 3 tệp** (`don-vi-theo-man.md`; BO-SUNG mục 5: đặc tả ghi 41, số thật 33), tất cả jsdom **không WebGL** ⇒ không bài nào từng thấy một khung hình thật (`usePascalViewer.test.tsx`, `PascalViewer.test.tsx:126-196` phủ nhánh GPU không hỗ trợ). **Không thuộc mục này** — nó là `e2e/pascal-viewer.spec.ts` + mục của nhóm khác; ở đây chỉ trỏ tới.
 6. **Ca luồng chính:** **không áp dụng — bề mặt không được dựng.** Ngoại lệ DUY NHẤT là **ca hàng rào H-1**:
    - **H-1 — "hộp Pascal chỉ chứa khung dựng, không chứa điều khiển editor".** Dựng bằng cách **mở rộng** `e2e/pascal-viewer.spec.ts` (không viết lại; HOP-DONG mục 5). Thêm vào bài `cờ bật` (`spec:308-…`), ngay sau dòng `expect(canvasBox.locator('canvas')).toHaveCount(1, …)` (`spec:332`) — *đã có sẵn nửa đầu của hàng rào*: đúng một `<canvas>`:
@@ -2267,14 +2272,14 @@ Ghi chú khác biệt nhỏ: V11 ghi "cờ bật … qua `addInitScript`"; spec 
 8. **Ca bàn phím (A12):** **không áp dụng** cho editor. Phạm vi phím thật của màn chủ (đọc mã, V11): `Esc` `scope:'canvas'`, `enabled: enabled && !isCollapsed` — `src/screens/viewer/PascalViewer/usePascalViewer.ts:301-310` (BO-SUNG 7.6: hoạt động cả lúc đang nạp); `E`/`R` cùng phạm vi `canvas` (`:316-331`, theo grep đầu file: `scope:'canvas'` ở `:305,316,327`). Không `dialog`/`sidePanel`. Editor có bộ phím riêng ở fork (`use-keyboard.ts`, `04-doi-chieu` dòng 66) nhưng **không đăng ký** vào sổ AppFront vì không dựng — **chưa đo** sổ đăng ký trên màn Pascal (ai cần biết phải đo `appShortcutRegistry.listShortcuts()` trong trang, như V9).
 9. **Ca tự lưu (A7):** **không áp dụng — bề mặt không được dựng.**
 10. **Ca hoàn tác (A8/A9):** **không áp dụng — bề mặt không được dựng.** (`delete-confirmation-dialog` của fork là hộp xác nhận của *fork*; A9 của AppFront chứng minh ở `ShareScreen`, không ở đây — V11 2.5.)
-11. **Ca định dạng (A6/A15):** **không áp dụng — bề mặt không được dựng.** Nợ A6 của Pascal (toàn bộ nhãn fork là tiếng Anh) **ghi một lần ở đây, không thành ca**: `docs/pascal/00-quyet-dinh.md:202`, `unsupported-gpu-fallback.tsx:5-9`. Ranh giới: nhãn **AppFront vẽ** (`PascalViewer.tsx`, `pascalViewerTypes.ts:90-98`: `mô hình 3d`, `khung dựng mô hình 3d`, bảy chú thích trạng thái…) thì A6 áp dụng và đơn vị đã phủ; nhãn **fork vẽ** là nợ. Hộp `pascal-canvas` bọc `DIV.transition-colors duration-700 bg-[#fafafa]` của fork (V11 #5): hai vi phạm (mục B `duration-700`, A1 `#fafafa`) **nợ đã ghi** ở `00-quyet-dinh.md` (đoạn ~200-203: "`transition-colors duration-700` trên Canvas"). Thẻ GPU tiếng Anh `unsupported-gpu-fallback.tsx` đã bị `PascalFrame.tsx:33-43` chặn bằng `onRendererUnavailable` — **không** lọt ra màn (`PascalViewer.test.tsx:126-196`).
+11. **Ca định dạng (A6/A15):** **không áp dụng — bề mặt không được dựng.** Nhãn Pascal: đã Việt hoá trong vendor (F-15) — không thành ca. Ranh giới: nhãn **AppFront vẽ** (`PascalViewer.tsx`, `pascalViewerTypes.ts:90-98`: `mô hình 3d`, `khung dựng mô hình 3d`, bảy chú thích trạng thái…) thì A6 áp dụng và đơn vị đã phủ; nhãn **fork vẽ** là nợ. Hộp `pascal-canvas` bọc `DIV.transition-colors duration-700 bg-[#fafafa]` của fork (V11 #5): hai vi phạm (mục B `duration-700`, A1 `#fafafa`) **nợ đã ghi** ở `00-quyet-dinh.md` (đoạn ~200-203: "`transition-colors duration-700` trên Canvas"). Thẻ GPU tiếng Anh `unsupported-gpu-fallback.tsx` đã bị `PascalFrame.tsx:33-43` chặn bằng `onRendererUnavailable` — **không** lọt ra màn (`PascalViewer.test.tsx:126-196`).
 12. **Mốc neo:** cho H-1 và màn chủ (không cho editor):
     - `getByTestId('pascal-canvas')` — `src/screens/viewer/PascalViewer/PascalViewer.tsx:154` (đọc lớp 2: `data-testid="pascal-canvas"` ở dòng 154, `aria-label="khung dựng mô hình 3d"` ở dòng sau; **ngoại lệ testid hợp lệ**: một `<canvas>` không role, hợp đồng mục 7)
     - `getByLabel('khung dựng mô hình 3d')` — cùng khối `PascalViewer.tsx:150-157`
     - `getByRole('region',{name:'mô hình 3d'})` — `<section aria-label="mô hình 3d">`, V11 #1 (`:25`, **dòng chưa tự dò**, tin V11)
     - `canvasBox.locator('canvas')` — không role; `spec:331-332` đã dùng
     - `role=status` `đã dựng xong toàn bộ bản vẽ.` (đo lớp 2)
-    - Nhãn **editor**: **NOT FOUND trên màn** (cả 6 nhóm). Nguồn tiếng Anh của fork để dành, *không* chép lại ở đây (V11 mục 2 đã liệt kê; lặp lại là mười sáu lần nợ A6): sidebar tab thật là **2** (`Site`, `Settings`, `icon-rail.tsx:30-42`), không 5.
+    - Nhãn **editor**: **NOT FOUND trên màn** (cả 6 nhóm). Nguồn nhãn của fork — đã Việt hoá trong vendor (F-15); *không* chép lại ở đây (V11 mục 2 đã liệt kê): sidebar tab thật là **2** (`Site`, `Settings`, `icon-rail.tsx:30-42`), không 5.
 13. **KHÔNG kiểm được** (trường dài nhất; mỗi nhóm một dòng bằng chứng + **vì sao bỏ mục riêng**):
 
     | Nhóm (số bề mặt) | Bằng chứng KHÔNG render | Vì sao bỏ mục riêng | Ai chứng minh phần còn lại |
@@ -2287,12 +2292,12 @@ Ghi chú khác biệt nhỏ: V11 ghi "cờ bật … qua `addInitScript`"; spec 
     | **điện thoại** (mobile-selection-bar, mobile-panel-sheet, mobile-tab-bar) | như trên; **không phải** route `mobileViewer` của AppFront (probe: canvas 300×150, cảnh chưa dựng) | như trên | mục `mobileViewer` của nhóm khác |
 
     Cộng dồn thêm những gì **cũng không kiểm được** dù không thuộc 16: (a) **chất lượng hình** (canvas có điểm ảnh ≠ có điểm ảnh ĐÚNG; `pascal-viewer.spec.ts` 1b); (b) **hiệu năng** (~1,6× CPU không đo lại); (c) `PASCAL-01/02` — có `page.route` dựng được (BO-SUNG 7.5) nhưng thuộc nhóm màn chủ; (d) `success` vs `partial` (bảng `<dl>` số đo) — nhóm màn chủ; (e) bốn con số `tầng/tường/ô mở/phòng` lệch A14 (Q4 của `questions.md`) — không thuộc editor; (f) CSP: 1 vi phạm `eval` (BO-SUNG 7.4, Q5) — nhóm màn chủ.
-    **Điều kiện mở lại** (thay cho `test.skip`, cấm 4): mục V11 mở lại khi **một** trong ba xảy ra — (i) H-1 đỏ (ai đó gắn `Editor`); (ii) `grep -rn "pascal-app/editor" src` ≠ 0; (iii) người dùng quyết định phạm vi A "xem + sửa" (`00-quyet-dinh.md`, đoạn "Hệ quả của chỉ-xem trước") không còn hoãn. Lúc ấy viết lại 6 nhóm từ nhãn ở `ghi-chu-V11.md` mục 2, và nợ A6 vẫn ghi một lần.
+    **Điều kiện mở lại** (thay cho `test.skip`, cấm 4): mục V11 mở lại khi **một** trong ba xảy ra — (i) H-1 đỏ (ai đó gắn `Editor`); (ii) `grep -rn "pascal-app/editor" src` ≠ 0; (iii) người dùng quyết định phạm vi A "xem + sửa" (`00-quyet-dinh.md`, đoạn "Hệ quả của chỉ-xem trước") không còn hoãn. Lúc ấy viết lại 6 nhóm từ nhãn ở `ghi-chu-V11.md` mục 2 (nhãn Pascal: đã Việt hoá trong vendor (F-15)).
 
 **Vì sao một ca hàng rào đáng hơn 16 ca `test.skip`** (câu điều phối yêu cầu nói rõ):
 - 16 ca `test.skip` là 16 chỗ **im lặng**: chạy thì báo "skipped", không chứng minh điều gì, và không có gì kích hoạt chúng khi bề mặt hiện ra — người gỡ `skip` đầu tiên phải biết trước là nó đã hiện. Cấm 4 chỉ cho phép `skip` khi kèm lý do + điều kiện mở lại; điều kiện "khi editor được gắn" **không quan sát được bằng máy** ở dạng `skip`.
 - H-1 là **một** khẳng định đếm được (`count 0` ×3-4) đặt vào bài **đã tồn tại**, tốn ~0 giây thêm (không thêm lượt đăng nhập, không thêm cờ), **xanh hôm nay** (đo lớp 2) và **đỏ đúng lúc** một điều khiển editor xuất hiện trong hộp ấy. Đỏ ở H-1 là *tín hiệu*, không phải nợ.
-- H-1 không nhân nợ A6: nó không đọc chữ nào của fork, chỉ đếm vai.
+- H-1: nhãn Pascal đã Việt hoá trong vendor (F-15); H-1 không đọc chữ nào của fork, chỉ đếm vai.
 - **Giới hạn thật của H-1** (không hứa hơn): nó chỉ thấy editor được gắn **bên trong** `[data-testid="pascal-canvas"]`. Nếu ai gắn `Editor` ở chỗ khác (route khác, `body`, portal) thì H-1 vẫn xanh. Bù bằng điều kiện (ii) ở trên (`grep` — đó là lệnh, không phải bài; **chưa** có bài e2e/CI nào chạy nó; ghi làm gợi ý cho điều phối, không phải quyết định của tôi).
 - H-1 cũng không thấy editor nếu nó dựng **trong** canvas (WebGL/`<canvas>` thuần) — DOM không nói gì. Chấp nhận.
 

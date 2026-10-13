@@ -30,19 +30,21 @@
 
 import { act, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { renderWithProviders } from '@/lib/testing/render';
-import {
-  __resetFeatureFlagsForTests,
-  setFeatureFlagOverride,
-} from '@/lib/telemetry/flags';
-
 import { useStore } from '@/store';
 
 import { PascalViewerContainer, PascalViewerRoute } from './PascalViewer.container';
+
+/** Lời trạng thái của màn; lớp cộng tác (S5) có `status` riêng, đứng sau trong DOM. */
+const screenStatus = (): HTMLElement => {
+  const [first] = screen.getAllByRole('status');
+  if (first === undefined) throw new Error('Màn không có vùng trạng thái.');
+  return first;
+};
 
 const GRAPH = createSampleBuilding();
 
@@ -72,20 +74,15 @@ const stubMount = () => {
   };
 };
 
-beforeEach(() => {
-  __resetFeatureFlagsForTests();
-  setFeatureFlagOverride('scene.pascal-viewer', true);
-});
-
-afterEach(() => {
-  __resetFeatureFlagsForTests();
-});
-
 describe('cây thật: container → view → hook', () => {
   it('hộp cho Pascal cắm vào CÓ MẶT ngay lúc đang nạp', () => {
     const bench = stubMount();
 
-    renderWithProviders(<PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />);
+    renderWithProviders(
+      <MemoryRouter>
+        <PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />
+      </MemoryRouter>,
+    );
 
     // Đây là dòng bắt được vòng chết: lúc này màn vẫn `loading`.
     expect(screen.getByTestId('pascal-canvas')).toBeInTheDocument();
@@ -94,7 +91,11 @@ describe('cây thật: container → view → hook', () => {
   it('gói vách ngăn ĐƯỢC nạp, và nạp vào đúng cái hộp ấy', async () => {
     const bench = stubMount();
 
-    renderWithProviders(<PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />);
+    renderWithProviders(
+      <MemoryRouter>
+        <PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(bench.calls()).toBe(1);
@@ -106,7 +107,11 @@ describe('cây thật: container → view → hook', () => {
   it('nạp xong thì màn rời khỏi "đang nạp" và nói ra số đo', async () => {
     const bench = stubMount();
 
-    renderWithProviders(<PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />);
+    renderWithProviders(
+      <MemoryRouter>
+        <PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(bench.calls()).toBe(1);
@@ -115,28 +120,20 @@ describe('cây thật: container → view → hook', () => {
     bench.ready();
 
     await waitFor(() => {
-      expect(screen.getByRole('status')).not.toHaveTextContent('Đang nạp');
+      expect(screenStatus()).not.toHaveTextContent('Đang nạp');
     });
 
     // Bộ mẫu chuẩn A14: 48 tường.
     expect(screen.getByText('48')).toBeInTheDocument();
   });
 
-  it('cờ tắt thì KHÔNG dựng hộp và KHÔNG nạp gói', () => {
-    setFeatureFlagOverride('scene.pascal-viewer', false);
-    const bench = stubMount();
-
-    renderWithProviders(<PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />);
-
-    expect(screen.queryByTestId('pascal-canvas')).not.toBeInTheDocument();
-    expect(bench.calls()).toBe(0);
-  });
-
   it('rời màn thì gọi dispose', async () => {
     const bench = stubMount();
 
     const view = renderWithProviders(
-      <PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />,
+      <MemoryRouter>
+        <PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />
+      </MemoryRouter>,
     );
 
     await waitFor(() => {
@@ -152,13 +149,19 @@ describe('cây thật: container → view → hook', () => {
 });
 
 describe('route: đọc kho qua cổng nạp kho dự án (B-V12-01)', () => {
-  const PROJECT = { created_at: '', id: 'project-1', members: [], name: 'Dự án mẫu', updated_at: '' };
+  const PROJECT = {
+    created_at: '',
+    id: 'project-1',
+    members: [],
+    name: 'Dự án mẫu',
+    updated_at: '',
+  };
 
   const renderRoute = () =>
     renderWithProviders(
-      <MemoryRouter initialEntries={['/projects/project-1/3d/pascal']}>
+      <MemoryRouter initialEntries={['/projects/project-1/3d']}>
         <Routes>
-          <Route path="/projects/:projectId/3d/pascal" element={<PascalViewerRoute />} />
+          <Route path="/projects/:projectId/3d" element={<PascalViewerRoute />} />
         </Routes>
       </MemoryRouter>,
       { keepStore: true },
@@ -180,7 +183,7 @@ describe('route: đọc kho qua cổng nạp kho dự án (B-V12-01)', () => {
 
     renderRoute();
 
-    expect(screen.getByRole('status')).toHaveTextContent('Đang nạp');
+    expect(screenStatus()).toHaveTextContent('Đang nạp');
     expect(screen.queryByText('48')).not.toBeInTheDocument();
   });
 
@@ -188,13 +191,27 @@ describe('route: đọc kho qua cổng nạp kho dự án (B-V12-01)', () => {
     vi.stubEnv('VITE_USE_MOCK_API', 'false');
     act(() => {
       useStore.getState().setProject(PROJECT);
-      useStore.getState().setSpatial(normalizeSpatial({ ...GRAPH, axes: [], dimensions: [], furniture: [], levels: [], openings: [], rooms: [], walls: [] }), null);
+      useStore
+        .getState()
+        .setSpatial(
+          normalizeSpatial({
+            ...GRAPH,
+            axes: [],
+            dimensions: [],
+            furniture: [],
+            levels: [],
+            openings: [],
+            rooms: [],
+            walls: [],
+          }),
+          null,
+        );
     });
 
     try {
       renderRoute();
 
-      expect(screen.getByRole('status')).toHaveTextContent('Bản vẽ chưa có đối tượng nào để dựng.');
+      expect(screenStatus()).toHaveTextContent('Bản vẽ chưa có đối tượng nào để dựng.');
     } finally {
       vi.unstubAllEnvs();
     }

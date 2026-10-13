@@ -1,6 +1,6 @@
 'use client'
 
-import { Icon } from '@iconify/react'
+import { Icon } from '../../lib/offline-icons'
 import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import useEditor, { type FloorplanSelectionTool } from '../../store/use-editor'
 import { useFloorplanDraftPreview } from '../../store/use-floorplan-draft-preview'

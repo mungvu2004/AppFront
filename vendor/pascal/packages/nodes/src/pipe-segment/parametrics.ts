@@ -2,6 +2,7 @@ import type { ParametricDescriptor } from '@pascal-app/core'
 import { findAutomaticRunEndCapIds } from '../shared/automatic-run-end-cap'
 import { fittingDeletionPlansForRun } from '../shared/fitting-deletion-cleanup'
 import type { PipeSegmentNode } from './schema'
+import { vi } from '../i18n/vi'
 
 export const pipeSegmentParametrics: ParametricDescriptor<PipeSegmentNode> = {
   derive: (next) =>
@@ -25,12 +26,12 @@ export const pipeSegmentParametrics: ParametricDescriptor<PipeSegmentNode> = {
   trailingSection: () => import('../shared/run-hanger-inspector'),
   groups: [
     {
-      label: 'Hangers',
+      label: vi.common.hangers,
       fields: [
-        { key: 'autoHangers', label: 'Auto hangers', kind: 'boolean' },
+        { key: 'autoHangers', label: vi.common.autoHangers, kind: 'boolean' },
         {
           key: 'hangerStyle',
-          label: 'Hanger lines',
+          label: vi.common.hangerLines,
           kind: 'enum',
           options: ['single', 'double'],
           display: 'segmented',
@@ -38,7 +39,7 @@ export const pipeSegmentParametrics: ParametricDescriptor<PipeSegmentNode> = {
         },
         {
           key: 'hangerSpacing',
-          label: 'Spacing',
+          label: vi.common.spacing,
           kind: 'number',
           unit: 'm',
           min: 0.05,
@@ -48,7 +49,7 @@ export const pipeSegmentParametrics: ParametricDescriptor<PipeSegmentNode> = {
         },
         {
           key: 'hangerMaxReach',
-          label: 'Maximum reach',
+          label: vi.common.maximumReach,
           kind: 'number',
           unit: 'm',
           min: 0.01,
@@ -59,7 +60,7 @@ export const pipeSegmentParametrics: ParametricDescriptor<PipeSegmentNode> = {
       ],
     },
     {
-      label: 'Drainage',
+      label: vi.common.drainage,
       fields: [
         {
           key: 'system',
@@ -78,7 +79,7 @@ export const pipeSegmentParametrics: ParametricDescriptor<PipeSegmentNode> = {
       ],
     },
     {
-      label: 'Construction',
+      label: vi.common.construction,
       fields: [
         {
           key: 'pipeMaterial',

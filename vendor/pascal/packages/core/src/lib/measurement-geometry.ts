@@ -31,6 +31,30 @@ export function measurementDistance(start: MeasurementPoint, end: MeasurementPoi
   return magnitude(subtract(end, start))
 }
 
+export function measurementHeight(start: MeasurementPoint, end: MeasurementPoint): number {
+  return Math.abs(end[1] - start[1])
+}
+
+/** Foot of the perpendicular from `point` onto the plane through `origin` with `normal`. */
+export function measurementPerpendicularFoot(
+  origin: MeasurementPoint,
+  point: MeasurementPoint,
+  normal: MeasurementPoint,
+): MeasurementPoint {
+  const length = magnitude(normal)
+  if (length <= GEOMETRY_EPSILON) return point
+  const offset = dot(subtract(point, origin), normal) / (length * length)
+  return [point[0] - normal[0] * offset, point[1] - normal[1] * offset, point[2] - normal[2] * offset]
+}
+
+export function measurementPerpendicularDistance(
+  origin: MeasurementPoint,
+  point: MeasurementPoint,
+  normal: MeasurementPoint,
+): number {
+  return measurementDistance(measurementPerpendicularFoot(origin, point, normal), point)
+}
+
 export function measurementAnchorFallback(anchor: MeasurementAnchor): MeasurementPoint {
   return Array.isArray(anchor) ? anchor : anchor.fallback
 }
@@ -182,6 +206,8 @@ export function remapMeasurementReferences(
 
   switch (measurement.kind) {
     case 'distance':
+    case 'perpendicular':
+    case 'height':
       return {
         ...measurement,
         points: [remap(measurement.points[0]), remap(measurement.points[1])],
@@ -241,7 +267,7 @@ export function measurementAnchorReferenceNodeIds(
 
 export function measurementReferenceNodeIds(measurement: MeasurementPayload): AnyNodeId[] {
   const anchors =
-    measurement.kind === 'distance' || measurement.kind === 'angle'
+    'points' in measurement
       ? measurement.points
       : measurement.base
   return measurementAnchorReferenceNodeIds(anchors)

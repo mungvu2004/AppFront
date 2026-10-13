@@ -79,6 +79,29 @@ export interface AppFrontOrigin {
   readonly fields?: Readonly<Record<string, unknown>>;
 }
 
+/**
+ * Trạng thái duyệt của một node, trường `review` hạng nhất của lược đồ Pascal
+ * (`core/src/schema/review.ts`).
+ *
+ * Đây là **cùng ba trường** `AppFrontOrigin` mang, và đó là cố ý: `review` là
+ * nơi Pascal đọc/ghi được bằng kiểu (panel "Kiểm duyệt" của trình soạn ghi
+ * thẳng vào đây), còn `metadata.appfront` là túi AppFront sở hữu, nơi giữ
+ * thêm `fields` riêng từng loại mà lược đồ Pascal không có chỗ chứa. Lượt đi
+ * ghi cả hai từ một nguồn; lượt về đọc `review` trước, vì nó là thứ Pascal
+ * vừa sửa.
+ *
+ * Cả ba trường `optional`: `setScene` **không** parse qua zod, nên mặc định
+ * của lược đồ không bao giờ được áp, và vắng mặt là hình dạng bình thường.
+ */
+export interface PascalReview {
+  /** Dấu "đã duyệt" — chỉ hành động của người đặt được (A5). */
+  readonly reviewed?: boolean;
+  /** Độ tin cậy `[0, 1]`. */
+  readonly confidence?: number;
+  /** Dữ liệu đến từ mô hình AI hay từ người. */
+  readonly source?: DataSource;
+}
+
 /** Túi siêu dữ liệu của một node; `appfront` là phần AppFront sở hữu. */
 export interface PascalMetadata {
   readonly appfront?: AppFrontOrigin;
@@ -92,6 +115,7 @@ interface PascalNodeCommon {
   readonly parentId: PascalNodeId | null;
   readonly name?: string;
   readonly metadata?: PascalMetadata;
+  readonly review?: PascalReview;
 }
 
 /**
@@ -262,6 +286,19 @@ export interface PascalItemNode extends PascalNodeCommon {
   };
 }
 
+/**
+ * Trục định vị; con của tầng. `start`/`end` là toạ độ mặt bằng (m) cùng hệ với tường.
+ * `label` của lược đồ Pascal dài 1–12 ký tự; nhãn gốc đầy đủ nằm ở `metadata.appfront.fields`.
+ */
+export interface PascalStructuralGridNode extends PascalNodeCommon {
+  readonly type: 'structural-grid';
+  readonly start: PascalPoint2;
+  readonly end: PascalPoint2;
+  readonly label: string;
+  readonly showStartBubble: boolean;
+  readonly showEndBubble: boolean;
+}
+
 /** Một node bất kỳ trong số tám loại AppFront viết ra. */
 export type PascalNode =
   | PascalSiteNode
@@ -272,7 +309,8 @@ export type PascalNode =
   | PascalWindowNode
   | PascalZoneNode
   | PascalSlabNode
-  | PascalItemNode;
+  | PascalItemNode
+  | PascalStructuralGridNode;
 
 /** Loại node AppFront viết ra, đọc từ chính hợp trên. */
 export type PascalNodeType = PascalNode['type'];

@@ -1,5 +1,5 @@
 /**
- * Ba route của vỏ 3D (`/3d`, `/3d/exploded`, `/3d/measure`) cấp chiều cao cho
+ * Hai route của vỏ 3D (`/3d`, `/3d/measure`) cấp chiều cao cho
  * màn — cùng gốc BUG-373: `ViewerShell` dùng `h-full`, mà dưới router không vỏ
  * nào cấp chiều cao, nên vỏ chỉ cao bằng nội dung (529 px ở 1440×900, dải trống
  * bên dưới). jsdom không đo bố cục, nên bài khẳng định cái khung `h-dvh` bọc
@@ -12,7 +12,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders } from '@/lib/testing/render';
 
-import { ExplodedViewRoute } from './ExplodedView';
 import { MeasurementToolRoute } from './MeasurementTool';
 import { Viewer3DRoute } from './Viewer3D';
 
@@ -24,7 +23,6 @@ vi.mock('@/components/feedback/ProjectSpatialGate', () => ({
 
 const ROUTES: ReadonlyArray<readonly [string, ComponentType]> = [
   ['/3d', Viewer3DRoute],
-  ['/3d/exploded', ExplodedViewRoute],
   ['/3d/measure', MeasurementToolRoute],
 ];
 

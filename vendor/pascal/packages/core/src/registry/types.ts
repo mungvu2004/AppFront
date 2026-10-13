@@ -2726,6 +2726,11 @@ export type ParamGroup<N> = {
   fields: ParamField<N>[]
   /** Whether this inspector group is open when it is first rendered. */
   defaultExpanded?: boolean
+  /**
+   * AppFront #28: an "inspection" group holds read-only QC facts (rule
+   * links, review state) rather than editable geometry.
+   */
+  role?: 'inspection'
 }
 
 export type ParamField<N> =
@@ -2762,6 +2767,14 @@ export type ParamField<N> =
   | { key: keyof N; label?: string; kind: 'color'; visibleIf?: (n: N) => boolean }
   | { key: keyof N; label?: string; kind: 'material'; visibleIf?: (n: N) => boolean }
   | { key: keyof N; label?: string; kind: 'ref'; refKind: string; visibleIf?: (n: N) => boolean }
+  /** AppFront #28: a read-only link (e.g. "Xem quy tắc"); `href` null hides it. */
+  | {
+      key: string
+      label?: string
+      kind: 'link'
+      href: (n: N) => string | null
+      visibleIf?: (n: N) => boolean
+    }
   /** Escape hatch for fields that don't map to a single node key —
    *  derived values (`length` from `start`/`end`), sliders with
    *  dynamic min/max (curve sagitta bounded by chord length),

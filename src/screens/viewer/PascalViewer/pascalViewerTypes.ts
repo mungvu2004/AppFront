@@ -13,6 +13,8 @@
  * ở đây), chứ không phải bằng cách ném.
  */
 
+import { formatClockTime } from '@/lib/format/datetime';
+import type { PascalSaveStatus } from '@/components/pascal/pascalMountTypes';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 
 /** Bảy trạng thái của A11, đặt tên lại cho đúng việc màn này làm. */
@@ -71,6 +73,13 @@ export interface PascalViewerViewModel {
   readonly skipped: readonly SkippedSummary[];
   /** Mã lỗi đọc được, để người dùng đọc cho người trực; chỉ có ở `error`. */
   readonly errorCode: PascalViewerErrorCode | null;
+  /**
+   * Trạng thái tự lưu, thành câu, cho trình đọc màn hình (A7).
+   *
+   * `null` khi chưa có lượt sửa nào — không có nút lưu, nên trước lượt sửa đầu
+   * tiên cũng không có gì để nói.
+   */
+  readonly saveLabel: string | null;
 }
 
 export interface PascalViewerProps {
@@ -91,6 +100,17 @@ export interface PascalViewerProps {
   readonly onLeave?: (() => void) | undefined;
   /** Sang màn xử lý bản vẽ — lối đi tiếp của trạng thái `empty`. Vắng thì không có nút. */
   readonly onReprocess?: (() => void) | undefined;
+  /**
+   * Ba bảng phụ của màn (#45). Rỗng thì cột bảng không dựng chút nào — màn
+   * vẫn là một màn hoàn chỉnh, đúng như trước khi có bảng nào.
+   */
+  readonly panels?: readonly PascalSidePanel[] | undefined;
+  /** Bảng đang mở, hoặc `null`. Loại trừ nhau theo đúng kiểu dữ liệu. */
+  readonly activePanel?: PascalSidePanelId | null | undefined;
+  /** Bấm một tab: mở nó, hoặc đóng nếu nó đang mở. */
+  readonly onPanelChange?: ((panel: PascalSidePanelId | null) => void) | undefined;
+  /** Lớp phủ DOM đè lên khung 3D (ghim cộng tác) — cùng ô `relative` với canvas. */
+  readonly sceneOverlay?: React.ReactNode;
 }
 
 /** Nhãn tiếng Việt cho từng trạng thái, viết thường kiểu câu (A6). */
@@ -104,6 +124,28 @@ export const PASCAL_VIEWER_CAPTIONS: Readonly<Record<PascalViewerState, string>>
   collapsed: 'Khung xem đang thu gọn để đỡ tốn máy.',
 };
 
+/**
+ * Câu tiếng Việt cho từng trạng thái lưu của editor Pascal (A7).
+ *
+ * Không có nút lưu, nên những câu này là **cách duy nhất** người dùng biết bản
+ * vẽ của mình đã tới máy chủ hay chưa.
+ */
+export const PASCAL_SAVE_LABELS: Readonly<Record<PascalSaveStatus, string>> = {
+  idle: 'Chưa có thay đổi nào.',
+  pending: 'Đang chờ lưu…',
+  saving: 'Đang lưu…',
+  saved: 'Đã lưu',
+  paused: 'Tạm dừng lưu.',
+  error: 'Chưa lưu được thay đổi.',
+};
+
+/** Câu trạng thái lưu; khi đã lưu thì kèm giờ: "Đã lưu lúc 14:32" (#24). */
+export const saveLabelOf = (status: PascalSaveStatus | null, savedAt: number | null): string | null => {
+  if (status === null) return null;
+  if (status === 'saved' && savedAt !== null) return `${PASCAL_SAVE_LABELS.saved} lúc ${formatClockTime(savedAt)}`;
+  return PASCAL_SAVE_LABELS[status];
+};
+
 /** Tiêu đề màn. Một chuỗi, để không chỗ nào tự chế ra bản khác. */
 export const PASCAL_VIEWER_TITLE = 'Mô hình 3D';
 
@@ -112,3 +154,53 @@ export const PASCAL_LEAVE_LABEL = 'Về màn xem 3D';
 
 /** Hành động của trạng thái rỗng, sang màn xử lý bản vẽ. */
 export const PASCAL_REPROCESS_LABEL = 'Xử lý lại bản vẽ';
+
+/* -------------------------------------------------------------------------- */
+/* Ba bảng phụ của màn (#45, #36).                                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Bảng phụ nào đang mở. Đúng một, hoặc không cái nào (#45 — loại trừ nhau).
+ *
+ * Ba bảng này là **giao diện AppFront**, không phải 3D, nên chúng ở lại cây
+ * React của AppFront chứ không đi qua `extraSidebarPanels` của `<Editor>`:
+ * gốc React thứ hai của Pascal có bản `react` riêng, và một component
+ * AppFront dựng bằng `react` của gói chính mà render bằng `react-dom` của
+ * gói Pascal là hai bộ hook chồng nhau — lỗi lúc chạy, không phải lúc dịch.
+ * Cột nằm cạnh khung dựng, cùng hàng, nên vẫn là một màn.
+ */
+export type PascalSidePanelId = 'rooms' | 'history' | 'furniture';
+
+/** Một bảng phụ: cái tab, và thứ nó mở ra. */
+export interface PascalSidePanel {
+  readonly id: PascalSidePanelId;
+  /** Nhãn tab, tiếng Việt kiểu câu (A6). */
+  readonly label: string;
+  /** Nội dung bảng. Chỉ dựng khi bảng đang mở. */
+  readonly render: () => React.ReactNode;
+}
+
+/** Nhãn tab của ba bảng, một chỗ để không bản nào lệch bản nào. */
+export const PASCAL_SIDE_PANEL_LABELS: Readonly<Record<PascalSidePanelId, string>> = {
+  rooms: 'Diện tích phòng',
+  history: 'Lịch sử thao tác',
+  furniture: 'Thư viện đồ đạc',
+};
+
+/** Bề ngang cột bảng phụ — 344 px, cùng số màn cũ dùng (#45). */
+export const PASCAL_SIDE_PANEL_WIDTH_PX = 344;
+
+/** Nhãn vùng chứa các tab, cho trình đọc màn hình. */
+export const PASCAL_SIDE_PANEL_RAIL_LABEL = 'Bảng phụ';
+
+/** Câu toast cho hai chiều của lịch sử, tiếng Việt kiểu câu (A6, A8). */
+export const PASCAL_HISTORY_TOASTS = {
+  undo: {
+    title: 'Đã hoàn tác thay đổi gần nhất',
+    description: 'Bản vẽ đã lùi một bước và đang được lưu lại.',
+  },
+  redo: {
+    title: 'Đã làm lại thay đổi vừa hoàn tác',
+    description: 'Bản vẽ đã tiến lại một bước và đang được lưu lại.',
+  },
+} as const;

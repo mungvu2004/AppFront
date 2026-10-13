@@ -2,6 +2,7 @@ import NumberFlow from '@number-flow/react'
 import { useState } from 'react'
 
 import { Slider } from './../../components/ui/slider'
+import { primitivesAndSidebar as vi } from './../../i18n/regions/primitivesAndSidebar'
 
 export function SliderDemo() {
   const [value, setValue] = useState<number[]>([28.1])
@@ -10,7 +11,7 @@ export function SliderDemo() {
     <div className="flex min-h-screen items-center justify-center bg-[#ededed] px-8">
       <section className="w-full max-w-lg">
         <div className="mb-2 flex items-end justify-between">
-          <h2 className="font-semibold text-black text-xl tracking-tight">Temperature</h2>
+          <h2 className="font-semibold text-black text-xl tracking-tight">{vi.sliderDemo.temperature}</h2>
           <NumberFlow
             className="font-medium text-black/45 text-xl"
             format={{ minimumFractionDigits: 1, maximumFractionDigits: 1 }}
@@ -20,7 +21,7 @@ export function SliderDemo() {
         </div>
 
         <Slider
-          aria-label="Temperature"
+          aria-label={vi.sliderDemo.temperature}
           max={100}
           min={0}
           onValueChange={setValue}

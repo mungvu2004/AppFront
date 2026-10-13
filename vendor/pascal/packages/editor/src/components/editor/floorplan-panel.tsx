@@ -1,6 +1,6 @@
 'use client'
 
-import { Icon } from '@iconify/react'
+import { Icon } from '../../lib/offline-icons'
 import {
   type AnyNode,
   type AnyNodeId,
@@ -219,6 +219,16 @@ import {
 
 import { PALETTE_COLORS } from '../ui/primitives/color-dot'
 import { FloorplanCompassButton } from '../viewer/floorplan-compass-button'
+import {
+  getSideBySideOffsetX,
+  getSwipeClipRect,
+  getSwipeHandleX,
+  nextSwipePercent,
+  SWIPE_DEFAULT_PERCENT,
+} from '../../lib/floorplan/guide-compare'
+import { normalizeDecimalVi } from '../../i18n/format'
+import { overlayLevels } from '../../i18n/regions/overlayLevels'
+import { editorAndViewer as vi } from '../../i18n/regions/editorAndViewer'
 import { resolveFloorplanBackgroundSelection } from './floorplan-background-selection'
 import {
   subscribeFloorplanCameraNavigation,
@@ -2473,14 +2483,15 @@ function formatMeasurement(
   value: number,
   unit: 'metric' | 'imperial',
   metersPerUnit: number | null = null,
-  metricNotation: 'meters' | 'millimeters' = 'meters',
+  metricNotation: 'meters' | 'centimeters' | 'millimeters' = 'meters',
 ) {
   const measuredValue = metersPerUnit && metersPerUnit > 0 ? value * metersPerUnit : value
   return formatLinearMeasurement(measuredValue, unit, metricNotation)
 }
 
 function formatNumber(value: number, fractionDigits = 2) {
-  return Number.parseFloat(value.toFixed(fractionDigits)).toString()
+  // Dấu thập phân là dấu phẩy (A15); `parseReferenceScaleLength` đọc lại được cả hai dấu.
+  return Number.parseFloat(value.toFixed(fractionDigits)).toString().replace('.', ',')
 }
 
 function convertReferenceLengthToMeters(value: number, unit: ReferenceScaleUnit) {
@@ -2509,7 +2520,7 @@ const REFERENCE_SCALE_LINGO_UNIT: Record<ReferenceScaleUnit, 'm' | 'cm' | 'ft' |
 function parseReferenceScaleLength(raw: string, unit: ReferenceScaleUnit): number | null {
   const unitId = REFERENCE_SCALE_LINGO_UNIT[unit]
   return parseMeasurement(
-    raw,
+    normalizeDecimalVi(raw),
     { kind: 'length', unitId },
     { bareUnit: unitId, system: unit === 'feet' || unit === 'inches' ? 'us' : 'metric' },
   )
@@ -2518,7 +2529,7 @@ function parseReferenceScaleLength(raw: string, unit: ReferenceScaleUnit): numbe
 function referenceScaleLengthHint(raw: string, unit: ReferenceScaleUnit): string | null {
   const unitId = REFERENCE_SCALE_LINGO_UNIT[unit]
   return measurementHint(
-    raw,
+    normalizeDecimalVi(raw),
     { kind: 'length', unitId },
     {
       bareUnit: unitId,
@@ -2603,7 +2614,7 @@ function formatArea(
   }
   return (
     <>
-      {Number.parseFloat(scaledAreaSqM.toFixed(1))}
+      {formatNumber(scaledAreaSqM, 1)}
       <tspan dx="0.12em">m</tspan>
       <tspan baselineShift="super" fontSize="0.75em">
         2
@@ -2956,6 +2967,11 @@ function FloorplanGuideImage({
 }) {
   const resolvedUrl = useResolvedAssetUrl(guide.url)
   const dimensions = useGuideImageDimensions(resolvedUrl)
+  const compareMode = useEditor((s) => s.guideUi[guide.id]?.compareMode ?? 'overlay')
+  const swipePercent = useEditor(
+    (s) => s.guideUi[guide.id]?.swipePercent ?? SWIPE_DEFAULT_PERCENT,
+  )
+  const setGuideSwipePercent = useEditor((s) => s.setGuideSwipePercent)
 
   if (!(guide.opacity > 0 && guide.scale > 0 && resolvedUrl && dimensions)) {
     return null
@@ -3013,15 +3029,59 @@ function FloorplanGuideImage({
           y={-planHeight / 2}
         />
       ) : null}
-      <image
-        height={planHeight}
-        href={resolvedUrl}
-        pointerEvents="none"
-        preserveAspectRatio="none"
-        width={planWidth}
-        x={-planWidth / 2}
-        y={-planHeight / 2}
-      />
+      {compareMode === 'swipe' ? (
+        <>
+          <clipPath id={`guide-swipe-${guide.id}`}>
+            <rect {...getSwipeClipRect(planWidth, planHeight, swipePercent)} />
+          </clipPath>
+          <image
+            clipPath={`url(#guide-swipe-${guide.id})`}
+            height={planHeight}
+            href={resolvedUrl}
+            pointerEvents="none"
+            preserveAspectRatio="none"
+            width={planWidth}
+            x={-planWidth / 2}
+            y={-planHeight / 2}
+          />
+          <g
+            aria-label={overlayLevels.swipeHandle}
+            aria-orientation="horizontal"
+            aria-valuemax={100}
+            aria-valuemin={0}
+            aria-valuenow={Math.round(swipePercent)}
+            aria-valuetext={overlayLevels.swipeValue(swipePercent)}
+            onKeyDown={(event) => {
+              const next = nextSwipePercent(swipePercent, event.key)
+              if (next === null) return
+              event.preventDefault()
+              event.stopPropagation()
+              setGuideSwipePercent(guide.id, next)
+            }}
+            role="slider"
+            style={{ cursor: 'ew-resize', outline: 'none' }}
+            tabIndex={0}
+            transform={`translate(${getSwipeHandleX(planWidth, swipePercent)} 0)`}
+          >
+            <line stroke="currentColor" strokeWidth={2} vectorEffect="non-scaling-stroke" y1={-planHeight / 2} y2={planHeight / 2} />
+            <circle fill="currentColor" r={Math.max(planHeight * 0.02, 0.05)} />
+          </g>
+        </>
+      ) : (
+        <image
+          height={planHeight}
+          href={resolvedUrl}
+          pointerEvents="none"
+          preserveAspectRatio="none"
+          width={planWidth}
+          x={
+            compareMode === 'sideBySide'
+              ? getSideBySideOffsetX(planWidth) - planWidth / 2
+              : -planWidth / 2
+          }
+          y={-planHeight / 2}
+        />
+      )}
     </g>
   )
 }
@@ -3544,7 +3604,9 @@ function FloorplanGuideHandleHint({
             rotationModifierPressed ? 'opacity-40' : 'opacity-100',
           )}
         >
-          <span className="font-medium text-[11px] lowercase leading-none">resize</span>
+          <span className="font-medium text-[11px] lowercase leading-none">
+            {vi.floorplanPanel.resizeHint}
+          </span>
           <Icon
             aria-hidden="true"
             className="h-3.5 w-3.5 shrink-0"
@@ -3559,7 +3621,9 @@ function FloorplanGuideHandleHint({
             rotationModifierPressed ? 'opacity-100' : 'opacity-40',
           )}
         >
-          <span className="font-medium text-[11px] lowercase leading-none">rotate</span>
+          <span className="font-medium text-[11px] lowercase leading-none">
+            {vi.floorplanPanel.rotateHint}
+          </span>
           {isMacPlatform ? (
             <Command aria-hidden="true" className="h-3.5 w-3.5 shrink-0" strokeWidth={2.2} />
           ) : (
@@ -3575,9 +3639,13 @@ function FloorplanGuideHandleHint({
 
         {showScaleHint && (
           <div className="flex items-center gap-1.5 opacity-40">
-            <span className="font-medium text-[11px] lowercase leading-none">set scale</span>
+            <span className="font-medium text-[11px] lowercase leading-none">
+              {vi.floorplanPanel.setScaleHint}
+            </span>
             <Ruler aria-hidden="true" className="h-3.5 w-3.5 shrink-0" strokeWidth={2.2} />
-            <span className="font-medium text-[11px] lowercase leading-none">panel</span>
+            <span className="font-medium text-[11px] lowercase leading-none">
+              {vi.floorplanPanel.panelHint}
+            </span>
           </div>
         )}
       </div>
@@ -11301,17 +11369,18 @@ export function FloorplanPanel({
                 <Ruler className="h-4 w-4 text-foreground/80" />
               </div>
               <div className="min-w-0">
-                <div className="font-medium text-sm">Set overlay scale</div>
+                <div className="font-medium text-sm">
+                  {vi.floorplanPanel.setOverlayScaleTitle}
+                </div>
                 <div className="mt-0.5 text-muted-foreground text-xs leading-4">
-                  Enter the real-world length of the line you just drew. The image will resize to
-                  match it.
+                  {vi.floorplanPanel.setOverlayScaleDescription}
                 </div>
               </div>
             </div>
 
             <div className="mb-3 rounded-xl border border-border/70 bg-white/5 px-3 py-2">
               <div className="text-[11px] text-muted-foreground uppercase tracking-wide">
-                Drawn line
+                {vi.floorplanPanel.drawnLine}
               </div>
               <div className="mt-1 font-medium text-sm">
                 {formatMeasurement(
@@ -11325,7 +11394,7 @@ export function FloorplanPanel({
 
             <label className="block">
               <span className="mb-1.5 block font-medium text-muted-foreground text-xs">
-                Real length
+                {vi.floorplanPanel.realLength}
               </span>
               <div className="grid grid-cols-[1fr_8.25rem] gap-2">
                 <input
@@ -11335,7 +11404,7 @@ export function FloorplanPanel({
                     referenceScaleInputError ? 'border-destructive/60' : 'border-border',
                   )}
                   onChange={(event) => setReferenceScaleValue(event.target.value)}
-                  placeholder={`e.g. 3.5, 180cm or 5'11"`}
+                  placeholder={vi.floorplanPanel.referenceLengthPlaceholder}
                   type="text"
                   value={referenceScaleValue}
                 />
@@ -11346,10 +11415,10 @@ export function FloorplanPanel({
                   }
                   value={referenceScaleUnit}
                 >
-                  <option value="meters">Meters</option>
-                  <option value="centimeters">Centimeters</option>
-                  <option value="feet">Feet</option>
-                  <option value="inches">Inches</option>
+                  <option value="meters">{vi.floorplanPanel.unitMeters}</option>
+                  <option value="centimeters">{vi.floorplanPanel.unitCentimeters}</option>
+                  <option value="feet">{vi.floorplanPanel.unitFeet}</option>
+                  <option value="inches">{vi.floorplanPanel.unitInches}</option>
                 </select>
               </div>
               <span
@@ -11358,16 +11427,14 @@ export function FloorplanPanel({
                   referenceScaleInputError ? 'text-destructive' : 'text-muted-foreground',
                 )}
               >
-                {referenceScaleInputError ??
-                  referenceScaleHint ??
-                  'Any decimal works. Use the known real length, not the drawn value.'}
+                {referenceScaleInputError ?? referenceScaleHint ?? vi.floorplanPanel.anyDecimalHint}
               </span>
             </label>
 
             <div className="mt-3 rounded-lg bg-muted/45 px-3 py-2 text-muted-foreground text-xs">
               {pendingReferenceImageScaleFactor
-                ? `Image will scale ${formatNumber(pendingReferenceImageScaleFactor, 3)}x from the first point.`
-                : 'Enter a length greater than 0.'}
+                ? vi.floorplanPanel.imageWillScale(pendingReferenceImageScaleFactor)
+                : vi.floorplanPanel.enterLengthGreaterThanZero}
             </div>
 
             <div className="mt-4 flex justify-end gap-2">
@@ -11376,14 +11443,14 @@ export function FloorplanPanel({
                 onClick={() => setPendingReferenceScale(null)}
                 type="button"
               >
-                Cancel
+                {vi.floorplanPanel.cancel}
               </button>
               <button
                 className="h-8 rounded-lg bg-foreground px-3 font-medium text-background text-xs transition hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={!pendingReferenceMetersPerUnit}
                 type="submit"
               >
-                Save Scale
+                {vi.floorplanPanel.saveScale}
               </button>
             </div>
           </form>
@@ -11391,7 +11458,7 @@ export function FloorplanPanel({
 
         {levelNode?.type !== 'level' && !hasAmbientBuildingLevel ? (
           <div className="flex h-full items-center justify-center px-6 text-center text-muted-foreground text-sm">
-            Switch to a building level to view and edit the floorplan.
+            {vi.floorplanPanel.switchToBuildingLevel}
           </div>
         ) : isFloorplanOpen ? (
           // The panel stays mounted in 3D mode (display:none) to keep the

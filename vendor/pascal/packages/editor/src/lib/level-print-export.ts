@@ -25,6 +25,7 @@ import {
   isPrintFeatureThicknessDiagnostic,
 } from './print-feature-thickness'
 import { compileSemanticPrintShell } from './print-shell-compiler'
+import { libStrings as vi } from '../i18n/regions/libStrings'
 import type { PrintShellCompileResult } from './print-shell-compiler-baseline'
 
 const ZIP_MTIME = new Date(2000, 0, 1, 0, 0, 0)
@@ -282,7 +283,7 @@ export async function exportSceneLevelsForPrint(
     diagnostics.push({
       severity: 'error',
       code: 'unsplit_spanning_node',
-      message: `${node.type} ${id} spans levels and was omitted. Hide it or define a deterministic split before downloading level parts.`,
+      message: vi.levelPrintExport.spanningNodeOmitted(node.type, id),
     })
   }
 
@@ -290,7 +291,7 @@ export async function exportSceneLevelsForPrint(
     diagnostics.push({
       severity: 'error',
       code: 'no_visible_levels',
-      message: 'No visible level nodes remain in the print scope.',
+      message: vi.levelPrintExport.noVisibleLevels,
     })
   }
 
@@ -381,7 +382,7 @@ export async function exportSceneLevelsForPrint(
       diagnostics.push({
         severity: 'error',
         code: 'invalid_plinth_dimensions',
-        message: 'Plinth margin must be non-negative and thickness must be positive.',
+        message: vi.levelPrintExport.invalidPlinthDimensions,
       })
     } else {
       const buildingIds = new Set(levels.map((level) => level.parentId ?? 'unparented-building'))
@@ -392,13 +393,13 @@ export async function exportSceneLevelsForPrint(
         diagnostics.push({
           severity: 'error',
           code: 'multiple_building_plinth',
-          message: 'A plinth currently requires the print scope to contain exactly one building.',
+          message: vi.levelPrintExport.multiplePlinthBuildings,
         })
       } else if (!lowestLevel || !lowestPart || !bounds) {
         diagnostics.push({
           severity: 'error',
           code: 'plinth_missing_footprint',
-          message: 'The lowest visible level has no structural bounds for plinth generation.',
+          message: vi.levelPrintExport.plinthMissingFootprint,
         })
       } else {
         const widthMeters = ((bounds.width + marginMm * 2) * options.scale) / MILLIMETERS_PER_METER
@@ -418,7 +419,7 @@ export async function exportSceneLevelsForPrint(
             options.minimumFeatureMm,
           )
           const filename = format === 'stl' ? '00_plinth.stl' : null
-          const objectName = '00 Plinth'
+          const objectName = `00 ${vi.levelPrintExport.plinthLabel}`
           plinthArtifact = {
             filename,
             objectName,
@@ -437,7 +438,7 @@ export async function exportSceneLevelsForPrint(
           plinthPart = {
             kind: 'plinth',
             levelId: lowestLevel.id,
-            label: 'Plinth',
+            label: vi.levelPrintExport.plinthLabel,
             objectName,
             filename,
             sourceBaseMeters: null,
@@ -447,8 +448,7 @@ export async function exportSceneLevelsForPrint(
           diagnostics.push({
             severity: 'info',
             code: 'rectangular_plinth_experimental',
-            message:
-              'The plinth is a separate rectangular part derived from the lowest level bounds; footprint shaping and connectors are not implemented yet.',
+            message: vi.levelPrintExport.plinthExperimentalNotice,
           })
         } finally {
           disposeObject3DResources(mesh)
@@ -462,9 +462,9 @@ export async function exportSceneLevelsForPrint(
     code: 'level_parts_experimental',
     message: options.compileShells
       ? options.compileShell
-        ? 'Level parts use stored level bases and worker-backed Manifold semantic shell compilation; known wall, slab, roof, and plinth dimensions are measured, while mesh-observed thin features and self-intersections remain pending.'
-        : 'Level parts use stored level bases and the experimental synchronous semantic shell compiler; known wall, slab, roof, and plinth dimensions are measured, while worker execution, mesh-observed thin features, and self-intersections remain pending.'
-      : 'Level parts use stored level bases and semantic separation but are not boolean-unioned printable shells yet.',
+        ? vi.levelPrintExport.levelPartsNoticeWorker
+        : vi.levelPrintExport.levelPartsNoticeSync
+      : vi.levelPrintExport.levelPartsNoticeBasic,
   })
 
   const files: Zippable = {}
@@ -501,7 +501,7 @@ export async function exportSceneLevelsForPrint(
   return {
     data:
       format === '3mf'
-        ? createPrint3mf(packageParts, 'Pascal level parts')
+        ? createPrint3mf(packageParts, vi.levelPrintExport.levelPartsPackageName)
         : zipSync(files, { level: 0 }),
     report: {
       kind: 'print-level-export-report',

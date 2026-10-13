@@ -2,8 +2,8 @@
  * `MobileViewer` đã nối dây — hook cộng view, cộng canvas thật.
  *
  * File này tách khỏi `MobileViewer.container.tsx` vì đúng MỘT lý do, và lý do
- * ấy là một con số: nó nhập TĨNH `mobileViewerScene.ts`, thứ kéo theo cả
- * `three`. Ngân sách `routeChunk` của `scripts/check-bundle-size.mjs` là 280
+ * ấy là một con số: nó nhập TĨNH `mobileViewerPascal.ts`, thứ kéo theo cả
+ * cửa nạp gói Pascal. Ngân sách `routeChunk` của `scripts/check-bundle-size.mjs` là 280
  * KiB và nó đo **bao đóng nhập tĩnh** của một chunk tải muộn; `Viewer3D` — màn
  * duy nhất khác cũng dựng cảnh riêng — đã đứng ở 253,1 KiB vì đúng phép nhập
  * tĩnh ấy. Container `lazy()` file này, nên `three` rơi vào `dynamicImports`
@@ -40,7 +40,7 @@ import { appNotificationBus } from '@/hooks/useNotifications';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 
 import { MobileViewer } from './MobileViewer';
-import { mountMobileViewerScene } from './mobileViewerScene';
+import { mountMobileViewerPascal } from './mobileViewerPascal';
 import { useMobileViewer, type UseMobileViewerOptions } from './useMobileViewer';
 
 /**
@@ -62,12 +62,12 @@ export function ConnectedMobileViewer({
   notifications,
   ...options
 }: ConnectedMobileViewerProps) {
-  const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [canvas, setCanvas] = useState<HTMLDivElement | null>(null);
 
   const model = useMobileViewer({
     ...options,
     canvas,
-    mountScene: mountScene ?? mountMobileViewerScene,
+    mountScene: mountScene ?? mountMobileViewerPascal,
     notifications: notifications ?? appNotificationBus,
   });
 

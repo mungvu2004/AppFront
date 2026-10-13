@@ -12,16 +12,15 @@
  * tại, còn `VisualDiffModel.caption` nói thẳng điều đó ra cho người đọc.
  */
 
-import { isEntityOfKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
-import { toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
-import { millimetres, millimetresToMetres, RADIANS_PER_TURN } from '@/domain/units/types';
+import { denormalizeSpatial, normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import { formatNumber } from '@/lib/format/number';
-import type { BuildFloorInput } from '@/lib/three/build/floor';
+import { toPascalScene } from '@/lib/pascal/toPascal';
+import type { PascalScene } from '@/lib/pascal/types';
 import type { VersionDiff } from '@/lib/versioning/diff';
-import type { ViewerSceneFrame } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 
 import type { VersionHistoryCapabilities, VisualDiffModel } from './types';
 import { changedEntityIdsOf } from './versionHistoryModel';
+import type { VersionSnapshotSource } from './versionSnapshotAdapter';
 
 /* -------------------------------------------------------------------------- */
 /* 1 — Câu nói ra khi không dựng được                                         */
@@ -40,27 +39,24 @@ export const BROKEN_MODEL_REASON =
 /* -------------------------------------------------------------------------- */
 /* 2 — Đồ thị thành đầu vào dựng sàn                                          */
 /* -------------------------------------------------------------------------- */
-
-const EMPTY_LEVELS: readonly BuildFloorInput[] = Object.freeze([]);
+/* 2 — Đồ thị thành cảnh Pascal                                               */
+/* -------------------------------------------------------------------------- */
 
 export interface SceneConversion {
-  readonly levels: readonly BuildFloorInput[];
+  /** `null` khi chưa có đồ thị hoặc nó không thành hình được. */
+  readonly scene: PascalScene | null;
   /** Đồ thị có nhưng không thành hình được — khác hẳn với "chưa có đồ thị nào". */
   readonly failed: boolean;
 }
 
 /** Chưa có gì để dựng, và cũng chưa có gì hỏng. */
-export const NO_SCENE: SceneConversion = Object.freeze({ levels: EMPTY_LEVELS, failed: false });
+export const NO_SCENE: SceneConversion = Object.freeze({ scene: null, failed: false });
 
 /**
- * Đồ thị không gian thành đầu vào dựng sàn, một mục cho mỗi tầng.
+ * Đồ thị không gian thành cảnh Pascal — cùng bộ đổi `toPascalScene` mà màn 3D chính dùng.
  *
- * Khuôn chép từ `useViewer3D.ts:402-425`. `toBuildFloorInput` NÉM khi đồ thị hỏng chỉ
- * mục hoặc mang số đo không hữu hạn: đó là một mô hình không dựng được, không phải sự
- * cố kỹ thuật để hiện mã lỗi — nó thành một câu giải thích trên tab.
- *
- * Mã tầng lấy qua `isEntityOfKind('level', …)` chứ không ép kiểu: `byKind.level` khai
- * kiểu là `EntityId[]`, và `toBuildFloorInput` đòi đúng `LevelId`.
+ * `toPascalScene` NÉM khi đồ thị mang số đo không hữu hạn: đó là một mô hình không dựng
+ * được, không phải sự cố kỹ thuật để hiện mã lỗi — nó thành một câu giải thích trên tab.
  */
 export function convertScene(graph: NormalizedSpatial | null): SceneConversion {
   if (graph === null) {
@@ -68,26 +64,34 @@ export function convertScene(graph: NormalizedSpatial | null): SceneConversion {
   }
 
   try {
-    const levels: BuildFloorInput[] = [];
+    const { scene } = toPascalScene(denormalizeSpatial(graph));
 
-    for (const id of graph.byKind.level) {
-      const entity = graph.byId[id];
-
-      if (entity === undefined || !isEntityOfKind('level', entity)) {
-        continue;
-      }
-
-      const input = toBuildFloorInput(graph, entity.id);
-
-      if (input !== null) {
-        levels.push(input);
-      }
-    }
-
-    return { levels, failed: false };
+    return scene.rootNodeIds.length === 0 ? { scene: null, failed: true } : { scene, failed: false };
   } catch {
-    return { levels: EMPTY_LEVELS, failed: true };
+    return { scene: null, failed: true };
   }
+}
+
+/**
+ * Đồ thị của MỘT phiên bản cũ: lớp + kích thước từ N18, còn trục/tầng/toà nhà mượn của đồ thị hiện
+ * tại (N18 không mang chúng). `null` khi chưa có đồ thị hiện tại để mượn.
+ */
+export function graphOfVersion(
+  current: NormalizedSpatial | null,
+  source: VersionSnapshotSource,
+): NormalizedSpatial | null {
+  if (current === null) {
+    return null;
+  }
+
+  return normalizeSpatial({
+    ...denormalizeSpatial(current),
+    dimensions: [...source.dimensions],
+    furniture: source.layer.furniture,
+    openings: source.layer.openings,
+    rooms: source.layer.rooms,
+    walls: source.layer.walls,
+  });
 }
 
 /** Vì sao tab "Trực quan" không dựng được cảnh; `null` khi nó dựng được. */
@@ -102,7 +106,7 @@ export function unavailableReasonOf(
   if (graph === null) {
     return NO_MODEL_REASON;
   }
-  if (scene.failed || scene.levels.length === 0) {
+  if (scene.failed || scene.scene === null) {
     return BROKEN_MODEL_REASON;
   }
 
@@ -110,108 +114,18 @@ export function unavailableReasonOf(
 }
 
 /* -------------------------------------------------------------------------- */
-/* 3 — Khung nhìn mở đầu                                                      */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Vòng quay nghỉ của khung nhìn mở đầu, tính theo vòng.
- *
- * Bốn hằng camera dưới đây lặp lại `DEFAULT_CAMERA_RIG`
- * (`lib/three/present/director.ts:54`) thay vì nhập nó về, và đó là một lượt đánh đổi
- * có cân: `director.ts` nhập `three` ở dòng đầu, nên một `import` từ đây kéo cả `three`
- * vào phần gói TĨNH của tuyến lịch sử phiên bản — mà cổng kích thước gói đo theo TỪNG
- * tuyến, và cảnh 3D của màn này cố ý chỉ được nhập động lúc người dùng mở tab này.
- * Cùng tiền lệ: `ViewerShell/useViewerShell.ts:346` cũng khai `AXONOMETRIC_POLAR_RAD`
- * của riêng nó thay vì dùng chung.
- */
-const CAMERA_RESTING_TURN = 0.05;
-
-/** Năm mươi độ, tính theo vòng: đủ dốc để đọc mặt bằng, đủ thấp để tường còn mặt. */
-const CAMERA_ELEVATION_TURN = 50 / 360;
-
-/** Khoảng trống chừa quanh mô hình sau khi khuôn hình, theo tỉ lệ bề rộng của nó. */
-const CAMERA_MARGIN = 1.03;
-
-/** Khoảng cách tối thiểu, cho một mô hình quá nhỏ để tự quyết định khuôn hình. */
-const MIN_CAMERA_DISTANCE_M = 8;
-
-/** Một phần tư vòng — góc chúc đo từ trục +Y, nên nó là mốc trừ đi độ cao camera. */
-const QUARTER_TURN_RAD = RADIANS_PER_TURN / 4;
-
-/** Bề rộng lớn nhất của các tầng, tính bằng mét; `null` khi không tầng nào có tường. */
-function spanMetresOf(levels: readonly BuildFloorInput[]): number | null {
-  let minX = Number.POSITIVE_INFINITY;
-  let minY = Number.POSITIVE_INFINITY;
-  let maxX = Number.NEGATIVE_INFINITY;
-  let maxY = Number.NEGATIVE_INFINITY;
-
-  for (const level of levels) {
-    for (const wall of level.walls) {
-      for (const point of [wall.centreline.start, wall.centreline.end]) {
-        minX = Math.min(minX, point.x);
-        minY = Math.min(minY, point.y);
-        maxX = Math.max(maxX, point.x);
-        maxY = Math.max(maxY, point.y);
-      }
-    }
-  }
-
-  if (!Number.isFinite(minX) || !Number.isFinite(minY)) {
-    return null;
-  }
-
-  return millimetresToMetres(millimetres(Math.max(maxX - minX, maxY - minY)));
-}
-
-/**
- * Khung cảnh mở đầu của tab "Trực quan".
- *
- * View mount bằng khung này rồi ghi đè đúng hai trường của mình
- * (`selectedEntityIds`, `hoveredEntityId`), nên hai trường ấy để trống ở đây. Không
- * tầng nào dựng được thì trả `null` và view hiện câu caption thay vì canvas — đó là
- * kết quả hợp lệ, không phải một chỗ còn dang dở.
- */
-export function buildSceneFrame(
-  levels: readonly BuildFloorInput[],
-  reducedMotion: boolean,
-): ViewerSceneFrame | null {
-  if (levels.length === 0) {
-    return null;
-  }
-
-  const span = spanMetresOf(levels);
-  const framed = span === null ? 0 : span * CAMERA_MARGIN;
-
-  return {
-    azimuthRad: CAMERA_RESTING_TURN * RADIANS_PER_TURN,
-    polarRad: QUARTER_TURN_RAD - CAMERA_ELEVATION_TURN * RADIANS_PER_TURN,
-    distanceM: Math.max(framed, MIN_CAMERA_DISTANCE_M),
-    isOrthographic: false,
-    visibleStoreyIds: levels.map((level) => level.level.id),
-    separation: 0,
-    selectedEntityIds: [],
-    hoveredEntityId: null,
-    sectionPlane: null,
-    isolatedEntityIds: null,
-    hiddenEntityIds: [],
-    reducedMotion,
-  };
-}
-
-/* -------------------------------------------------------------------------- */
-/* 4 — Mô hình của tab                                                        */
-/* -------------------------------------------------------------------------- */
 
 export interface VisualModelInput {
   readonly capabilities: VersionHistoryCapabilities;
   readonly graph: NormalizedSpatial | null;
   readonly scene: SceneConversion;
-  readonly sceneFrame: ViewerSceneFrame | null;
   readonly diff: VersionDiff | null;
   /** Nhãn của bản CŨ trong cặp đang so — câu caption nêu đích danh nó. */
   readonly leftVersionLabel: string | null;
   readonly hoveredEntityId: string | null;
   readonly isFetchingDiff: boolean;
+  /** `graph`/`scene` là của bản CŨ `leftVersionLabel`, không phải mô hình hiện tại. */
+  readonly isOldVersion?: boolean;
 }
 
 /**
@@ -225,8 +139,8 @@ export interface VisualModelInput {
  * không còn trong đồ thị là đối tượng đã bị xoá, và tô sáng nó là tô vào chỗ trống.
  */
 export function buildVisualModel(input: VisualModelInput): VisualDiffModel {
-  const { capabilities, graph, scene, sceneFrame, diff, leftVersionLabel } = input;
-  const isAvailable = capabilities.canShowCurrentModel3d && sceneFrame !== null;
+  const { capabilities, graph, scene, diff, leftVersionLabel } = input;
+  const isAvailable = capabilities.canShowCurrentModel3d && scene.scene !== null;
   const found = diff === null ? [] : changedEntityIdsOf(diff);
   const changedEntityIds =
     graph === null ? found : found.filter((id) => graph.byId[id] !== undefined);
@@ -237,11 +151,12 @@ export function buildVisualModel(input: VisualModelInput): VisualDiffModel {
     unavailableReason: unavailableReasonOf(capabilities.canShowCurrentModel3d, graph, scene),
     isBuilding: isAvailable && input.isFetchingDiff,
     caption:
-      leftVersionLabel === null
-        ? `Đây là mô hình hiện tại chứ không phải một bản cũ; ${marked}`
-        : `Đây là mô hình hiện tại chứ không phải phiên bản ${leftVersionLabel}; ${marked}`,
-    sceneLevels: scene.levels,
-    sceneFrame,
+      input.isOldVersion === true && leftVersionLabel !== null
+        ? `Đây là phiên bản ${leftVersionLabel}; ${marked}`
+        : leftVersionLabel === null
+          ? `Đây là mô hình hiện tại chứ không phải một bản cũ; ${marked}`
+          : `Đây là mô hình hiện tại chứ không phải phiên bản ${leftVersionLabel}; ${marked}`,
+    scene: scene.scene,
     changedEntityIds,
     hoveredEntityId: capabilities.canHighlightEntity ? input.hoveredEntityId : null,
   };

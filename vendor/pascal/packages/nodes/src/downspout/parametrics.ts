@@ -1,12 +1,13 @@
 import type { ParametricDescriptor } from '@pascal-app/core'
 import { DownspoutPositionEditor } from './inspector-editors'
 import type { DownspoutNode } from './schema'
+import { vi } from '../i18n/vi'
 
 export const downspoutParametrics: ParametricDescriptor<DownspoutNode> = {
   derive: (_next, patch) => ('length' in patch ? { lengthMode: 'manual' } : {}),
   groups: [
     {
-      label: 'Dimensions',
+      label: vi.common.dimensions,
       fields: [
         { key: 'length', kind: 'number', unit: 'm', min: 0.1, max: 1000, step: 0.05 },
         { key: 'diameter', kind: 'number', unit: 'm', min: 0.02, max: 0.15, step: 0.005 },
@@ -20,7 +21,7 @@ export const downspoutParametrics: ParametricDescriptor<DownspoutNode> = {
       ],
     },
     {
-      label: 'Hardware',
+      label: vi.common.hardware,
       fields: [
         // Wall straps clamping the run, like the gutter's hangers.
         {
@@ -48,7 +49,7 @@ export const downspoutParametrics: ParametricDescriptor<DownspoutNode> = {
       ],
     },
     {
-      label: 'Placement',
+      label: vi.common.placement,
       fields: [
         // Slide the outlet (and so this downspout) along the eave. Edits
         // the linked outlet's offset on the host gutter — the only way to

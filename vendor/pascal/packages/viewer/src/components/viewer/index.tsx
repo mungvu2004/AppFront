@@ -30,6 +30,8 @@ import { initializeGpuRenderer, type RendererPowerPreference } from '../../lib/r
 import { getSceneTheme } from '../../lib/scene-themes'
 import { installTextureNodeNullGuard } from '../../lib/texture-node-guard'
 import useViewer, { type RenderContext } from '../../store/use-viewer'
+import { LevelCameraFocus } from '../../systems/level/level-camera-focus'
+import { SectionPlaneGroup } from '../../systems/section-plane/section-plane'
 import { FloorElevationSystem } from '../../systems/floor-elevation/floor-elevation-system'
 import { GeometrySystem } from '../../systems/geometry/geometry-system'
 import { PerfActionSettleSystem } from '../../systems/perf-action-settle/perf-action-settle-system'
@@ -37,10 +39,11 @@ import { subscribeWallBuildInteractions } from '../../systems/wall/wall-build-li
 import { ImmersiveXRPresentationProvider } from '../../xr/presentation-context'
 import { SceneRenderer } from '../renderers/scene-renderer'
 import { BATCH_SPIKE_ENABLED, BatchedMeshSpike } from './batched-mesh-spike'
-import FrameLimiter from './frame-limiter'
+import FrameLimiter, { setViewerSceneSettled } from './frame-limiter'
 import { Lights } from './lights'
 import { PerfMonitor } from './perf-monitor'
 import { PerfPanel } from './perf-panel'
+import { ViewCubeBridge } from './view-cube'
 import { PointerRaycastLayers } from './pointer-raycast-layers'
 import PostProcessing, { DEFAULT_HOVER_STYLES, type HoverStyles } from './post-processing'
 import { RegisteredSystems } from './registered-systems'
@@ -49,6 +52,7 @@ import { useSceneAtmosphere } from './scene-atmosphere'
 import { SceneBvh } from './scene-bvh'
 import { SelectionManager } from './selection-manager'
 import { UnsupportedGpuViewerFallback } from './unsupported-gpu-fallback'
+import { TouchCameraControls } from './touch-camera-controls'
 import { ViewerCamera } from './viewer-camera'
 
 // Must be in place before any node material builds — a null texture pulled by
@@ -360,6 +364,7 @@ function SceneReadyTracker({
     waitedFramesRef.current = 0
     waitStartRef.current = null
     onSceneReadyChangeRef.current?.(false)
+    setViewerSceneSettled(false)
     invalidate()
   }, [invalidate, sceneReadyKey])
 
@@ -389,6 +394,9 @@ function SceneReadyTracker({
     }
 
     readyRef.current = true
+    // The frame limiter gates frames only from here on: the first build needs
+    // every frame (see frame-limiter.tsx `sceneSettled`).
+    setViewerSceneSettled(true)
     onSceneReadyChangeRef.current(true)
   }, 10)
 
@@ -480,6 +488,11 @@ interface ViewerProps {
   renderPaused?: boolean
   /** Host-provided immersive XR session wrappers for the main scene. */
   immersive?: ViewerImmersiveSession
+  /**
+   * AppFront addition: built-in touch/mouse camera for view-only hosts (no
+   * editor controls). One finger/drag orbits, pinch/wheel zooms, two fingers pan.
+   */
+  cameraControls?: boolean
 }
 
 /** Imperative handle exposed via `ref` on `<Viewer>`. */
@@ -513,6 +526,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
     disablePostFx = false,
     renderPaused = false,
     immersive,
+    cameraControls = false,
   },
   ref,
 ) {
@@ -655,9 +669,9 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
         ref={subscribeWallBuildInteractions}
         key={immersiveActive ? 'webgl-xr' : 'webgpu'}
         camera={{ position: [50, 50, 50], fov: 50 }}
-        className={`transition-colors duration-700 ${
+        className={
           transparentBackground ? 'bg-transparent' : isDark ? 'bg-[#1f2433]' : 'bg-[#fafafa]'
-        }`}
+        }
         dpr={[1, maxDpr]}
         events={pointerEvents}
         frameloop="never"
@@ -744,6 +758,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
                 onFrameError={composeRenderErrorHandlers(onRenderError)}
                 paused={renderPaused}
               />
+              {cameraControls && <TouchCameraControls />}
               <ViewerScene
                 disablePostFx={disablePostFx}
                 hoverStyles={hoverStyles}
@@ -792,12 +807,16 @@ function ViewerScene({
   useBvh: boolean
   SceneWrapper?: ViewerImmersiveSession['Scene']
 }) {
-  const renderedScene = useBvh ? (
-    <SceneBvh>
-      <SceneRenderer />
-    </SceneBvh>
-  ) : (
-    <SceneRenderer />
+  const renderedScene = (
+    <SectionPlaneGroup>
+      {useBvh ? (
+        <SceneBvh>
+          <SceneRenderer />
+        </SceneBvh>
+      ) : (
+        <SceneRenderer />
+      )}
+    </SectionPlaneGroup>
   )
   const spatialScene = (
     <>
@@ -807,6 +826,8 @@ function ViewerScene({
       <StairOpeningSystem />
       <RoofElevationSystem />
       <RegisteredSystems />
+      <LevelCameraFocus />
+      <ViewCubeBridge />
       {BATCH_SPIKE_ENABLED && <BatchedMeshSpike />}
       {children}
     </>

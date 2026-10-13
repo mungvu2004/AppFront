@@ -27,6 +27,7 @@ import {
 import { restingFloorplanAffectedIds } from '../shared/resting-surface-plan'
 import { bakeProceduralAnimationClips } from './animation'
 import { proceduralFloorplanMoveTarget } from './move-session'
+import { vi } from '../i18n/vi'
 
 const GIZMO_SIDE_OFFSET = 0.3
 const GIZMO_FRONT_OFFSET = 0.3
@@ -350,7 +351,7 @@ export const proceduralItemDefinition: NodeDefinition<typeof ProceduralItemNode>
     }
   },
   presentation: {
-    label: 'Procedural item',
+    label: vi.proceduralItem.catalogLabel,
     description: 'Experimental editable recipe',
     icon: { kind: 'iconify', name: 'lucide:boxes' },
   },

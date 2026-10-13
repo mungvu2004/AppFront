@@ -9,6 +9,7 @@ import { snapLengthToCorner } from './length-snap'
 import { gutterPaint } from './paint'
 import { gutterParametrics } from './parametrics'
 import { GutterNode } from './schema'
+import { vi } from '../i18n/vi'
 
 // Edge-to-arrow-center offset, matching the box-vent / ridge-vent
 // cadence so a roof's worth of accessories all read at the same scale.
@@ -157,7 +158,7 @@ export const gutterDefinition: NodeDefinition<typeof GutterNode> = {
   },
 
   capabilities: {
-    slots: () => [{ slotId: 'gutter', label: 'Gutter', default: 'library:preset-softwhite' }],
+    slots: () => [{ slotId: 'gutter', label: vi.gutter.slots.gutter, default: 'library:preset-softwhite' }],
     selectable: { hitVolume: 'bbox' },
     duplicable: true,
     deletable: true,
@@ -186,12 +187,12 @@ export const gutterDefinition: NodeDefinition<typeof GutterNode> = {
     move: () => import('./move-tool'),
   },
   toolHints: [
-    { key: 'Left click', label: 'Place gutter on roof eave' },
-    { key: 'Esc', label: 'Cancel' },
+    { key: 'Left click', label: vi.gutter.shortcuts.place },
+    { key: 'Esc', label: vi.gutter.shortcuts.cancel },
   ],
 
   presentation: {
-    label: 'Gutter',
+    label: vi.gutter.catalogLabel,
     description: 'Rain-water channel running along the eave of a roof segment.',
     icon: { kind: 'url', src: '/icons/gutter.webp' },
     paletteSection: 'structure',

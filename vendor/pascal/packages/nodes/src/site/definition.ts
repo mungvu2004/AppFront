@@ -2,6 +2,7 @@ import { type NodeDefinition, SiteNode as SiteNodeSchema } from '@pascal-app/cor
 import { polygonMeasurementFeatures } from '../shared/polygon-measurement'
 import { siteParametrics } from './parametrics'
 import { SiteNode } from './schema'
+import { vi } from '../i18n/vi'
 
 /**
  * Site — Stage A. Top-level container under the scene root; holds
@@ -36,7 +37,7 @@ export const siteDefinition: NodeDefinition<typeof SiteNode> = {
       polygonMeasurementFeatures({
         featurePrefix: 'site',
         height: 0,
-        label: 'Property',
+        label: vi.site.propertyLabel,
         polygon: node.polygon.points,
       }),
   },
@@ -49,7 +50,7 @@ export const siteDefinition: NodeDefinition<typeof SiteNode> = {
   },
 
   presentation: {
-    label: 'Site',
+    label: vi.site.catalogLabel,
     description: 'The top-level container holding buildings, zones, and the property boundary.',
     icon: { kind: 'url', src: '/icons/site-flag.webp' },
     paletteSection: 'site',

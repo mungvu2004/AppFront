@@ -1,11 +1,12 @@
 import type { ParametricDescriptor } from '@pascal-app/core'
 import type { SkylightNode } from './schema'
+import { vi } from '../i18n/vi'
 
 export const skylightParametrics: ParametricDescriptor<SkylightNode> = {
   customPanel: () => import('./panel'),
   groups: [
     {
-      label: 'Type',
+      label: vi.common.type,
       fields: [
         {
           key: 'skylightType',
@@ -16,7 +17,7 @@ export const skylightParametrics: ParametricDescriptor<SkylightNode> = {
       ],
     },
     {
-      label: 'Dimensions',
+      label: vi.common.dimensions,
       fields: [
         { key: 'width', kind: 'number', unit: 'm', min: 0.3, max: 1000, step: 0.05 },
         { key: 'height', kind: 'number', unit: 'm', min: 0.3, max: 1000, step: 0.05 },
@@ -26,7 +27,7 @@ export const skylightParametrics: ParametricDescriptor<SkylightNode> = {
       ],
     },
     {
-      label: 'Curb',
+      label: vi.common.curb,
       fields: [
         { key: 'curb', kind: 'boolean' },
         {
@@ -41,7 +42,7 @@ export const skylightParametrics: ParametricDescriptor<SkylightNode> = {
       ],
     },
     {
-      label: 'Opening',
+      label: vi.common.opening,
       fields: [
         {
           key: 'operationState',
@@ -77,7 +78,7 @@ export const skylightParametrics: ParametricDescriptor<SkylightNode> = {
       ],
     },
     {
-      label: 'Lantern',
+      label: vi.common.lantern,
       fields: [
         {
           key: 'lanternHeight',

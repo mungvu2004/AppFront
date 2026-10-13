@@ -32,10 +32,6 @@ import {
 } from '@/lib/offline/networkMonitor';
 import { renderWithProviders } from '@/lib/testing/render';
 import { useStore } from '@/store';
-import type { DetailLevel } from '@/lib/three/build/lod';
-import type { EntityHit } from '@/lib/three/interaction/hitTest';
-import { SCENE_BUDGET } from '@/lib/three/perf/budget';
-import { DEGRADE_WINDOW_MS } from '@/lib/three/perf/monitor';
 import { ROUTES } from '@/routes/paths';
 
 import type { MobileViewerModel, MobileViewerSceneOptions } from './mobileViewerTypes';
@@ -84,34 +80,22 @@ function monitorOf(status: Partial<NetworkMonitorStatus> = {}): () => NetworkMon
 interface SceneSpy {
   readonly mount: UseMobileViewerOptions['mountScene'];
   readonly options: () => MobileViewerSceneOptions | null;
-  readonly floors: () => readonly (string | null)[];
   readonly disposals: () => number;
 }
 
-/**
- * Khoảng cách mà mỗi pixel của cú chạm giả quy ra, milimét.
- *
- * Chạm ở pixel 0 rồi pixel 1 cho hai điểm cách nhau đúng 3450 mm — ví dụ chốt
- * của `formatLength` (`measure.ts:112-119`), nên trị số hiện ra phải là "3,45 m".
- */
-const MM_PER_TAP_PIXEL = 3450;
-
-/** Cảnh giả: không three, không WebGL — chỉ giữ lại ai gọi nó với cái gì. */
+/** Cảnh giả: không Pascal, không WebGL — chỉ giữ lại ai gọi nó với cái gì. */
 function sceneSpy(): SceneSpy {
   let options: MobileViewerSceneOptions | null = null;
   let disposals = 0;
-  const floors: (string | null)[] = [];
 
   return {
-    mount: (_canvas, given) => {
+    mount: (_element, given) => {
       options = given;
+      given.onReady();
 
       return {
         ok: true,
         handle: {
-          setActiveFloor: (floorId) => floors.push(floorId),
-          currentDetail: () => 'block',
-          pickMeasurePoint: (xPx: number) => ({ x: xPx * MM_PER_TAP_PIXEL, y: 0 }) as never,
           dispose: () => {
             disposals += 1;
           },
@@ -119,7 +103,6 @@ function sceneSpy(): SceneSpy {
       };
     },
     options: () => options,
-    floors: () => floors,
     disposals: () => disposals,
   };
 }
@@ -139,7 +122,7 @@ function Probe({
 
 interface Harness {
   readonly model: () => MobileViewerModel;
-  readonly canvas: HTMLCanvasElement;
+  readonly canvas: HTMLDivElement;
   readonly notices: readonly NotificationInput[];
   readonly unmount: () => void;
 }
@@ -147,7 +130,7 @@ interface Harness {
 function render(overrides: Partial<UseMobileViewerOptions> = {}): Harness {
   const notices: NotificationInput[] = [];
   let latest: MobileViewerModel | null = null;
-  const canvas = document.createElement('canvas');
+  const canvas = document.createElement('div');
 
   const options: UseMobileViewerOptions = {
     projectId: PROJECT_ID,
@@ -238,9 +221,6 @@ describe('Bảy trạng thái', () => {
     await waitFor(() => {
       expect(harness.model().state).toBe('loading');
     });
-
-    // Đúng lời hứa của mục (B): lúc đang tải, nhãn nói rõ đang ở mức GỌN.
-    expect(harness.model().detailLabel).toBe('Đang tải mức gọn');
   });
 
   it('empty: dự án không có tầng nào', async () => {
@@ -371,169 +351,18 @@ describe('Bảy trạng thái', () => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* R-04 — mức chi tiết và ngưỡng fps.                                          */
-/* -------------------------------------------------------------------------- */
-
-describe('mức chi tiết — R-04', () => {
-  it('cảnh được lắp ở mức GỌN trước, không phải mức đầy đủ', async () => {
-    const spy = sceneSpy();
-
-    render({ mountScene: spy.mount });
-
-    await waitFor(() => {
-      expect(spy.options()).not.toBeNull();
-    });
-
-    expect(spy.options()?.initialDetail).toBe<DetailLevel>('block');
-    expect(spy.options()?.floorIds).toHaveLength(SPATIAL.byKind.level.length);
-  });
-
-  it('nâng lên mức đầy đủ thì hết chuyện để nói — nhãn về null', async () => {
-    const spy = sceneSpy();
-    const harness = render({ mountScene: spy.mount });
-
-    await waitFor(() => {
-      expect(spy.options()).not.toBeNull();
-    });
-
-    act(() => {
-      spy.options()?.onDetailChange('full');
-    });
-
-    expect(harness.model().detailLabel).toBeNull();
-  });
-
-  it('HẠ xuống thì nói ra là đã hạ, không im lặng', async () => {
-    const spy = sceneSpy();
-    const harness = render({ mountScene: spy.mount });
-
-    await waitFor(() => {
-      expect(spy.options()).not.toBeNull();
-    });
-
-    act(() => {
-      spy.options()?.onDetailChange('full');
-    });
-    act(() => {
-      spy.options()?.onDetailChange('block');
-    });
-
-    expect(harness.model().detailLabel).toBe('Đã hạ xuống mức gọn để hình chạy mượt');
-  });
-
-  it('fps thấp một nhịp KHÔNG thành error — R-04 hạ mức chi tiết trước đã', async () => {
-    const spy = sceneSpy();
-    const harness = render({ mountScene: spy.mount, now: () => 0 });
-
-    await waitFor(() => {
-      expect(harness.model().state).toBe('success');
-    });
-
-    act(() => {
-      spy.options()?.onFrameRate(SCENE_BUDGET.minFrameRate.mobile - 1);
-    });
-
-    expect(harness.model().state).toBe('success');
-  });
-
-  it('chưa xuống tới mức gọn thì fps thấp kéo dài vẫn chưa phải error', async () => {
-    const spy = sceneSpy();
-    let clock = 0;
-    const harness = render({ mountScene: spy.mount, now: () => clock });
-
-    await waitFor(() => {
-      expect(harness.model().state).toBe('success');
-    });
-
-    act(() => {
-      spy.options()?.onDetailChange('full');
-      spy.options()?.onFrameRate(SCENE_BUDGET.minFrameRate.mobile - 1);
-    });
-
-    clock = DEGRADE_WINDOW_MS + 1;
-
-    act(() => {
-      spy.options()?.onFrameRate(SCENE_BUDGET.minFrameRate.mobile - 1);
-    });
-
-    expect(harness.model().state).not.toBe('error');
-  });
-
-  it('đã ở mức gọn mà vẫn thấp suốt cả cửa sổ thì mời sang bản 2D', async () => {
-    const spy = sceneSpy();
-    let clock = 0;
-    const harness = render({ mountScene: spy.mount, now: () => clock });
-
-    await waitFor(() => {
-      expect(harness.model().state).toBe('success');
-    });
-
-    act(() => {
-      spy.options()?.onFrameRate(SCENE_BUDGET.minFrameRate.mobile - 1);
-    });
-
-    clock = DEGRADE_WINDOW_MS + 1;
-
-    act(() => {
-      spy.options()?.onFrameRate(SCENE_BUDGET.minFrameRate.mobile - 1);
-    });
-
-    await waitFor(() => {
-      expect(harness.model().state).toBe('error');
-    });
-
-    expect(harness.model().fallback2dHref).toBe(ROUTES.project.floors(PROJECT_ID));
-  });
-
-  it('fps hồi lại thì đồng hồ đếm chạy lại từ đầu', async () => {
-    const spy = sceneSpy();
-    let clock = 0;
-    const harness = render({ mountScene: spy.mount, now: () => clock });
-
-    await waitFor(() => {
-      expect(harness.model().state).toBe('success');
-    });
-
-    act(() => {
-      spy.options()?.onFrameRate(SCENE_BUDGET.minFrameRate.mobile - 1);
-    });
-
-    clock = DEGRADE_WINDOW_MS + 1;
-
-    act(() => {
-      spy.options()?.onFrameRate(SCENE_BUDGET.minFrameRate.mobile);
-      spy.options()?.onFrameRate(SCENE_BUDGET.minFrameRate.mobile - 1);
-    });
-
-    expect(harness.model().state).toBe('success');
-  });
-});
-
-/* -------------------------------------------------------------------------- */
 /* Tầng, công cụ, và tấm thông tin.                                            */
 /* -------------------------------------------------------------------------- */
 
 describe('tầng và công cụ', () => {
-  it('mở màn đã có sẵn một tầng đang xem, và cảnh được báo tầng ấy', async () => {
-    const spy = sceneSpy();
-    const harness = render({ mountScene: spy.mount });
-
-    await waitFor(() => {
-      expect(harness.model().activeFloorId).not.toBeNull();
-    });
-
-    await waitFor(() => {
-      expect(spy.floors().at(-1)).toBe(harness.model().activeFloorId);
-    });
-  });
-
-  it('chọn tầng khác thì cảnh đổi theo', async () => {
-    const spy = sceneSpy();
-    const harness = render({ mountScene: spy.mount });
+  it('mở màn đã có sẵn một tầng đang xem; chọn tầng khác thì dải tầng đổi theo', async () => {
+    const harness = render();
 
     await waitFor(() => {
       expect(harness.model().floors.length).toBeGreaterThan(1);
     });
+
+    expect(harness.model().activeFloorId).not.toBeNull();
 
     const second = harness.model().floors[1];
 
@@ -541,9 +370,7 @@ describe('tầng và công cụ', () => {
       harness.model().onSelectFloor(second?.id ?? '');
     });
 
-    await waitFor(() => {
-      expect(spy.floors().at(-1)).toBe(second?.id);
-    });
+    expect(harness.model().activeFloorId).toBe(second?.id);
   });
 
   it('rời màn thì cảnh được trả lại đúng một lần — R-05', async () => {
@@ -570,7 +397,7 @@ describe('tầng và công cụ', () => {
     const wallId = SPATIAL.byKind.wall.at(0) ?? '';
 
     act(() => {
-      spy.options()?.onPick({ entityId: wallId, kind: 'wall' } as unknown as EntityHit);
+      spy.options()?.onPick(`wall_${wallId}`);
     });
 
     expect(harness.model().selection?.entityId).toBe(wallId);
@@ -583,7 +410,7 @@ describe('tầng và công cụ', () => {
     expect(harness.model().selection).toBeNull();
   });
 
-  it('công cụ đo đang mở thì HAI cú chạm thành một phép đo, không phải một lượt chọn', async () => {
+  it('công cụ đo mở thì cảnh dựng với `measure`, và một phép đo hiện theo A15', async () => {
     const spy = sceneSpy();
     const harness = render({ mountScene: spy.mount });
 
@@ -591,24 +418,22 @@ describe('tầng và công cụ', () => {
       expect(spy.options()).not.toBeNull();
     });
 
+    expect(spy.options()?.measure).toBe(false);
+
     act(() => {
       harness.model().onSelectTool('measure');
     });
 
-    const tap = (xPx: number): void => {
-      harness.canvas.dispatchEvent(new MouseEvent('pointerdown', { clientX: xPx, clientY: 0 }));
-      spy.options()?.onPick(null);
-    };
+    await waitFor(() => {
+      expect(spy.options()?.measure).toBe(true);
+    });
 
     act(() => {
-      tap(0);
-      tap(1);
+      spy.options()?.onMeasure(3.45);
     });
 
     expect(harness.model().measurements).toHaveLength(1);
     expect(harness.model().measurements[0]?.valueLabel).toBe('3,45 m');
-    // Đo KHÔNG mở tấm thông tin: hai việc dùng chung một cú chạm nhưng không
-    // dùng chung một kết quả.
     expect(harness.model().selection).toBeNull();
   });
 });

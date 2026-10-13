@@ -14,7 +14,6 @@ import { createMockApiClient } from '@/api/__mocks__/client';
 import { measureDistance, MEASUREMENT_LABELS } from '@/domain/measure/measure';
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
-import type { EntityHit } from '@/lib/three/interaction/hitTest';
 import { storeysOf } from '@/screens/viewer/ViewerShell';
 
 import {
@@ -25,14 +24,15 @@ import {
   MOBILE_KIND_LABELS,
   selectionOf,
   toMobileMeasurement,
+  type MobilePick,
 } from './mobileViewerGateway';
 
 const SPATIAL = normalizeSpatial(createSampleBuilding());
 const STOREYS = storeysOf(SPATIAL);
 
 /** Một cú chạm giả: chỉ hai trường mà `selectionOf` thật sự đọc. */
-function hitOn(entityId: string, kind: EntityHit['kind']): EntityHit {
-  return { entityId, kind } as unknown as EntityHit;
+function hitOn(entityId: string, kind: MobilePick['kind']): MobilePick {
+  return { entityId, kind };
 }
 
 function firstIdOfKind(kind: 'wall' | 'room'): string {

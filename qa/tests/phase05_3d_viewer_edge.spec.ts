@@ -1004,7 +1004,8 @@ test.describe('E05 SCR-23 Viewer 3D', () => {
 
 /* ================================================================= SCR-24 Exploded View */
 
-test.describe('E05 SCR-24 Exploded View', () => {
+// F-15 W2-C2: màn ExplodedView cũ đã xoá, /3d/exploded chuyển sang /3d?view=exploded của Pascal — tách tầng Pascal kiểm ở e2e/v9/exploded.spec.ts
+test.describe.skip('E05 SCR-24 Exploded View', () => {
   test('E05 · SCR-24 one floor → empty "Tách tầng xuất hiện khi bản vẽ có từ hai tầng trở lên.", no rail, no capture', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
