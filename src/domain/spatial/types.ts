@@ -171,6 +171,8 @@ export interface Furniture extends ReviewMetadata {
   centre: Point;
   boundingBox: BoundingBox;
   rotationDeg: Degrees;
+  /** Catalogue model chosen for this item (e.g. after a Pascal "replace all"); absent = the stock model of `kind`. */
+  model?: { id: string; src: string };
 }
 
 /** What a room is used for. */

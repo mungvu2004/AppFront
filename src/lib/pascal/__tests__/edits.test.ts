@@ -498,3 +498,34 @@ describe('diffScenes', () => {
     );
   });
 });
+
+describe('đổi mẫu đồ đạc', () => {
+  const itemNode = Object.values(baseScene.nodes).find((node) => node.type === 'item');
+
+  it('mẫu mới đi qua lệnh, và khứ hồi giữ nguyên mẫu', () => {
+    if (itemNode === undefined || itemNode.type !== 'item') throw new Error('cảnh nền phải có đồ đạc');
+
+    const asset = { ...itemNode.asset, id: 'catalog-sofa-2', src: 'asset://catalog/sofa-2' };
+    const result = createPascalEditCommand({
+      graph,
+      scene: sceneWith(itemNode.id, { ...itemNode, asset }),
+      commit: { origin: 'local', changedNodeIds: [itemNode.id] },
+      actorId: ACTOR,
+    });
+
+    expect(result.ok).toBe(true);
+
+    const model = { id: 'catalog-sofa-2', src: 'asset://catalog/sofa-2' };
+    const swapped = createSampleBuilding();
+    const first = swapped.furniture[0];
+
+    if (first === undefined) throw new Error('bộ mẫu phải có đồ đạc');
+
+    swapped.furniture[0] = { ...first, model };
+
+    const back = toPascalScene(swapped).scene;
+    const node = Object.values(back.nodes).find((n) => n.type === 'item');
+
+    expect(node?.type === 'item' ? node.asset.id : null).toBe('catalog-sofa-2');
+  });
+});
