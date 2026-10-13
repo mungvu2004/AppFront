@@ -25,6 +25,8 @@ dist-ssr/
 # git. Chạy lại sau mỗi lần nâng `three` hoặc đổi tài sản Pascal.
 public/pascal/
 public/basis/
+public/icons/
+public/cursor.svg
 
 # Lượt dựng thứ hai của Pascal (`pnpm build:pascal`, xem vite.pascal.config.ts).
 # Kết quả dựng, sinh lại được; đích nằm trong `public/` để lượt dựng chính chép
