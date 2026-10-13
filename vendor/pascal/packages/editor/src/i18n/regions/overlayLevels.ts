@@ -12,4 +12,11 @@ export const overlayLevels = {
   area: (value: string) => `${value} m²`,
   misaligned: (lower: string, upper: string, offset: string) =>
     `${upper} lệch trục so với ${lower} ${offset} m`,
+  // F-15 S7 — so sánh ảnh nguồn (#87–#89).
+  compareTitle: "So sánh ảnh nguồn",
+  compareOverlay: "Chồng lớp",
+  compareSwipe: "Trượt",
+  compareSideBySide: "Cạnh nhau",
+  swipeHandle: "Tay cầm so sánh ảnh nguồn và hình học",
+  swipeValue: (percent: number) => `Hiện ${Math.round(percent)}% ảnh nguồn`,
 } as const;

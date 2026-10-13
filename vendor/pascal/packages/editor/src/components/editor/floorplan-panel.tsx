@@ -219,7 +219,15 @@ import {
 
 import { PALETTE_COLORS } from '../ui/primitives/color-dot'
 import { FloorplanCompassButton } from '../viewer/floorplan-compass-button'
+import {
+  getSideBySideOffsetX,
+  getSwipeClipRect,
+  getSwipeHandleX,
+  nextSwipePercent,
+  SWIPE_DEFAULT_PERCENT,
+} from '../../lib/floorplan/guide-compare'
 import { normalizeDecimalVi } from '../../i18n/format'
+import { overlayLevels } from '../../i18n/regions/overlayLevels'
 import { editorAndViewer as vi } from '../../i18n/regions/editorAndViewer'
 import { resolveFloorplanBackgroundSelection } from './floorplan-background-selection'
 import {
@@ -2959,6 +2967,11 @@ function FloorplanGuideImage({
 }) {
   const resolvedUrl = useResolvedAssetUrl(guide.url)
   const dimensions = useGuideImageDimensions(resolvedUrl)
+  const compareMode = useEditor((s) => s.guideUi[guide.id]?.compareMode ?? 'overlay')
+  const swipePercent = useEditor(
+    (s) => s.guideUi[guide.id]?.swipePercent ?? SWIPE_DEFAULT_PERCENT,
+  )
+  const setGuideSwipePercent = useEditor((s) => s.setGuideSwipePercent)
 
   if (!(guide.opacity > 0 && guide.scale > 0 && resolvedUrl && dimensions)) {
     return null
@@ -3016,15 +3029,59 @@ function FloorplanGuideImage({
           y={-planHeight / 2}
         />
       ) : null}
-      <image
-        height={planHeight}
-        href={resolvedUrl}
-        pointerEvents="none"
-        preserveAspectRatio="none"
-        width={planWidth}
-        x={-planWidth / 2}
-        y={-planHeight / 2}
-      />
+      {compareMode === 'swipe' ? (
+        <>
+          <clipPath id={`guide-swipe-${guide.id}`}>
+            <rect {...getSwipeClipRect(planWidth, planHeight, swipePercent)} />
+          </clipPath>
+          <image
+            clipPath={`url(#guide-swipe-${guide.id})`}
+            height={planHeight}
+            href={resolvedUrl}
+            pointerEvents="none"
+            preserveAspectRatio="none"
+            width={planWidth}
+            x={-planWidth / 2}
+            y={-planHeight / 2}
+          />
+          <g
+            aria-label={overlayLevels.swipeHandle}
+            aria-orientation="horizontal"
+            aria-valuemax={100}
+            aria-valuemin={0}
+            aria-valuenow={Math.round(swipePercent)}
+            aria-valuetext={overlayLevels.swipeValue(swipePercent)}
+            onKeyDown={(event) => {
+              const next = nextSwipePercent(swipePercent, event.key)
+              if (next === null) return
+              event.preventDefault()
+              event.stopPropagation()
+              setGuideSwipePercent(guide.id, next)
+            }}
+            role="slider"
+            style={{ cursor: 'ew-resize', outline: 'none' }}
+            tabIndex={0}
+            transform={`translate(${getSwipeHandleX(planWidth, swipePercent)} 0)`}
+          >
+            <line stroke="currentColor" strokeWidth={2} vectorEffect="non-scaling-stroke" y1={-planHeight / 2} y2={planHeight / 2} />
+            <circle fill="currentColor" r={Math.max(planHeight * 0.02, 0.05)} />
+          </g>
+        </>
+      ) : (
+        <image
+          height={planHeight}
+          href={resolvedUrl}
+          pointerEvents="none"
+          preserveAspectRatio="none"
+          width={planWidth}
+          x={
+            compareMode === 'sideBySide'
+              ? getSideBySideOffsetX(planWidth) - planWidth / 2
+              : -planWidth / 2
+          }
+          y={-planHeight / 2}
+        />
+      )}
     </g>
   )
 }
