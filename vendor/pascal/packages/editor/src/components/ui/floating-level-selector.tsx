@@ -32,11 +32,13 @@ import {
   ClipboardPaste,
   Copy,
   GripVertical,
+  Image as ImageIcon,
   MoreVertical,
   Plus,
   Trash2,
   X,
 } from 'lucide-react'
+import { Box as BoxIcon } from 'lucide-react'
 import {
   type ButtonHTMLAttributes,
   type CSSProperties,
@@ -57,6 +59,7 @@ import { unitMemberLevels, leaveUnitFocus } from '../../lib/units'
 import { useLinearDisplay } from '../../lib/use-linear-display'
 import { cn } from '../../lib/utils'
 import { controlsAndPanels as vi } from '../../i18n/regions/controlsAndPanels'
+import { overlayLevels as viLevels } from '../../i18n/regions/overlayLevels'
 import { ActionButton } from './controls/action-button'
 import { SliderControl } from './controls/slider-control'
 import { LevelDuplicateDialog } from './level-duplicate-dialog'
@@ -130,6 +133,61 @@ function LevelInlineRename({
 }
 
 // ── Level row with three-dot menu ───────────────────────────────────────────
+
+/**
+ * What a level already holds — AppFront F-15 W2-D (#96).
+ *
+ * Picking a level to trace over is a guess until the selector says whether that
+ * level has a source image, geometry, both or nothing; the overlay flow asks
+ * exactly that question before anything is drawn. Read from the scene rather
+ * than passed in, so every caller of the selector gets the flags.
+ */
+function LevelSourceBadges({ levelId }: { levelId: AnyNodeId }) {
+  const flags = useScene((state) => {
+    let hasScan = false
+    let hasGeometry = false
+    for (const node of Object.values(state.nodes) as AnyNode[]) {
+      if (node.parentId !== levelId) continue
+      if (node.type === 'scan' || node.type === 'guide') hasScan = true
+      else if (node.type === 'wall' || node.type === 'zone' || node.type === 'slab') {
+        hasGeometry = true
+      }
+      if (hasScan && hasGeometry) break
+    }
+    return { hasScan, hasGeometry }
+  }, shallowFlags)
+
+  if (!(flags.hasScan || flags.hasGeometry)) {
+    return (
+      <span className="ml-1.5 shrink-0 text-[9px] text-muted-foreground/40" title={viLevels.emptyLevel}>
+        —
+      </span>
+    )
+  }
+
+  return (
+    <span className="ml-1.5 flex shrink-0 items-center gap-1 text-muted-foreground/50">
+      {flags.hasScan && (
+        <span aria-label={viLevels.hasScan} title={viLevels.hasScan}>
+          <ImageIcon className="h-3 w-3" />
+        </span>
+      )}
+      {flags.hasGeometry && (
+        <span aria-label={viLevels.hasGeometry} title={viLevels.hasGeometry}>
+          <BoxIcon className="h-3 w-3" />
+        </span>
+      )}
+    </span>
+  )
+}
+
+/** Equality for the two booleans above, so the badge does not re-render per node write. */
+function shallowFlags(
+  left: { hasScan: boolean; hasGeometry: boolean },
+  right: { hasScan: boolean; hasGeometry: boolean },
+): boolean {
+  return left.hasScan === right.hasScan && left.hasGeometry === right.hasGeometry
+}
 
 function LevelRow({
   level,
@@ -238,6 +296,7 @@ function LevelRow({
                 title={vi.floatingLevelSelector.focusedUnitHasZones}
               />
             )}
+            <LevelSourceBadges levelId={level.id} />
           </button>
 
           {/* Storey height badge — opens the height popover */}

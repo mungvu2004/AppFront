@@ -8,6 +8,7 @@ import { editorRoot } from "./regions/editorRootDoNotEdit";
 import { libStrings } from "./regions/libStrings";
 import { primitivesAndSidebar } from "./regions/primitivesAndSidebar";
 import { furnitureLibrary } from "./regions/furnitureLibrary";
+import { overlayLevels } from "./regions/overlayLevels";
 import { roomArea } from "./regions/roomArea";
 
 export const vi = {
@@ -21,4 +22,6 @@ export const vi = {
   roomArea,
   // Bảng phụ "Thư viện đồ đạc" (F-15 W2-D).
   furnitureLibrary,
+  // Dấu "tầng có ảnh nguồn / hình học" trên bộ chọn tầng (F-15 W2-D #96).
+  overlayLevels,
 } as const;
