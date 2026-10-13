@@ -8,7 +8,7 @@ import {
   useScene,
 } from '@pascal-app/core'
 import { useViewer } from '@pascal-app/viewer'
-import { Copy, Maximize2, Minimize2, ScanSearch, Undo2 } from 'lucide-react'
+import { Copy, ExternalLink, Maximize2, Minimize2, ScanSearch, Undo2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { roomArea as vi } from '../../../i18n/regions/roomArea'
 import {
@@ -22,6 +22,7 @@ import {
 } from '../../../lib/floorplan/room-area'
 import { roomAreaStateOf } from '../../../lib/floorplan/room-area-state'
 import { cn } from '../../../lib/utils'
+import { RoomAreaFullPage } from './room-area-full-page'
 
 /**
  * "Diện tích phòng" — the room-area panel of AppFront F-15 W2-D (#71–86).
@@ -88,8 +89,11 @@ export function RoomAreaPanel() {
   const [pendingRename, setPendingRename] = useState<PendingRename | null>(null)
   const [copied, setCopied] = useState(false)
   const [gapReport, setGapReport] = useState<string | null>(null)
+  const [fullPage, setFullPage] = useState(false)
+  const fullPageButtonRef = useRef<HTMLButtonElement | null>(null)
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const closeFullPage = useCallback(() => setFullPage(false), [])
   const levelNames = useMemo(() => levelNamesOf(nodes), [nodes])
   const table = useMemo(
     () =>
@@ -100,6 +104,12 @@ export function RoomAreaPanel() {
         ...(collapsed ? { limit: COLLAPSED_LIMIT } : {}),
       }),
     [nodes, grouping, sort, levelId, collapsed],
+  )
+
+  // The full-page view lists every room; only the level filter carries over.
+  const fullTable = useMemo(
+    () => roomAreaTable(nodes, { grouping, sort, ...(levelId ? { levelIds: [levelId] } : {}) }),
+    [nodes, grouping, sort, levelId],
   )
 
   useEffect(
@@ -200,6 +210,16 @@ export function RoomAreaPanel() {
             type="button"
           >
             <Copy className="size-4" />
+          </button>
+          <button
+            aria-label={vi.openFullPage}
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+            onClick={() => setFullPage(true)}
+            ref={fullPageButtonRef}
+            title={vi.openFullPage}
+            type="button"
+          >
+            <ExternalLink className="size-4" />
           </button>
           <button
             aria-label={collapsed ? vi.fullTable : vi.collapsed}
@@ -426,6 +446,25 @@ export function RoomAreaPanel() {
           </button>
           {gapReport && <p className="mt-2 text-muted-foreground text-xs">{gapReport}</p>}
         </div>
+      )}
+
+      {fullPage && (
+        <RoomAreaFullPage
+          copied={copied}
+          grouping={grouping}
+          onClose={closeFullPage}
+          onCopy={() => {
+            void navigator.clipboard?.writeText(roomAreaTableToText(fullTable)).then(() => {
+              setCopied(true)
+              setTimeout(() => setCopied(false), UNDO_WINDOW_MS)
+            })
+          }}
+          onGroupingChange={setGrouping}
+          onSortChange={setSort}
+          returnFocusTo={fullPageButtonRef}
+          sort={sort}
+          table={fullTable}
+        />
       )}
 
       <footer className="mt-auto border-border/50 border-t pt-2 text-muted-foreground text-xs">
