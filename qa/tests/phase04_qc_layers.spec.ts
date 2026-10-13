@@ -44,7 +44,7 @@
  *   inspector button exists for objects (`ObjectLayerInspector.tsx` header).
  * - Dimensions (F-08) and axes: no persistence path; the hooks still say "saved".
  * - Scale: "Áp cho mọi tầng" is a scope option; "Áp dụng tỷ lệ" then reads #12 floors + N15 graph and
- *   opens the A9 dialog "Áp tỉ lệ này cho N tầng có bản vẽ?" (`useScaleCalibration.ts` onApply).
+ *   opens the A9 dialog "Áp tỷ lệ này cho N tầng có bản vẽ?" (`useScaleCalibration.ts` onApply).
  * - Checkbox/Radio.Item are `sr-only` inputs under a drawn box: driven by focus + Space, the proven
  *   path of `e2e/v7/thickness-standardization.spec.ts`.
  */
@@ -1283,7 +1283,7 @@ test.describe('SCR-14 Scale Calibration', () => {
     await captureEvidence(page, '14_scale_applied.png');
   });
 
-  test('SCR-14 all floors: "Áp cho mọi tầng", then "Huỷ" in "Áp tỉ lệ này cho N tầng có bản vẽ?" → GET floors + spatial, NO PUT', async () => {
+  test('SCR-14 all floors: "Áp cho mọi tầng", then "Huỷ" in "Áp tỷ lệ này cho N tầng có bản vẽ?" → GET floors + spatial, NO PUT', async () => {
     await openScaleAndDraw();
     await scaleScope('Áp cho mọi tầng').click();
     await expect(scaleScope('Áp cho mọi tầng')).toHaveAttribute('aria-checked', 'true');
@@ -1295,7 +1295,7 @@ test.describe('SCR-14 Scale Calibration', () => {
     await applyScale().click();
     await floorsRead;
     await graphRead;
-    const dialog = page.getByRole('dialog', { name: /^Áp tỉ lệ này cho \d+ tầng có bản vẽ\?$/u });
+    const dialog = page.getByRole('dialog', { name: /^Áp tỷ lệ này cho \d+ tầng có bản vẽ\?$/u });
 
     await expect(dialog).toBeVisible();
     await dialog.getByRole('button', { name: 'Huỷ', exact: true }).click();
@@ -1313,7 +1313,7 @@ test.describe('SCR-14 Scale Calibration', () => {
 test.describe('SCR-22 Overlay Comparison', () => {
   useOwnDrawingFloor('m04-overlay');
 
-  test('SCR-22 swipe: "Kiểu đối chiếu" → "Trượt"; divider slider + arrows; "Độ mờ ảnh nguồn" → divider moves, "Chưa đo được vùng lệch nào."', async () => {
+  test('SCR-22 swipe: "Kiểu đối chiếu" → "Trượt"; divider slider + arrows; "Độ mờ ảnh nguồn" → divider moves, "Chưa có số đo — …" (BUG-331)', async () => {
     await page.goto(ROUTES.project.overlay(projectId, floorId));
     await dismissTour(page);
     await expect(page.getByRole('region', { name: 'Màn đối chiếu bản vẽ', exact: true })).toBeVisible();
@@ -1351,7 +1351,7 @@ test.describe('SCR-22 Overlay Comparison', () => {
     await page.keyboard.press(Number(opacityStart) > 0 ? 'ArrowLeft' : 'ArrowRight');
     await expect(opacity).not.toHaveAttribute('aria-valuenow', opacityStart);
 
-    await expect(page.getByText('Chưa đo được vùng lệch nào.', { exact: true })).toBeVisible();
+    await expect(page.getByText('Chưa có số đo — cần căn ảnh quét vào mô hình trước.', { exact: true })).toBeVisible();
     await captureEvidence(page, '22_overlay_swipe.png');
   });
 });

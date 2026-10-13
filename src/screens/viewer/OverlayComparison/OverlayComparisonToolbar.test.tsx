@@ -147,7 +147,7 @@ describe('OverlayComparisonToolbar', () => {
 
   it('canEdit === false tắt MỌI điều khiển, và nói ra được vì sao', () => {
     const { container } = renderWithProviders(
-      <OverlayComparisonToolbar {...toolbarPropsOf('forbidden')} />,
+      <OverlayComparisonToolbar {...toolbarPropsOf('forbidden')} canLockAlignment />,
     );
 
     /* Bốn cụm điều khiển của thanh, kiểm từng cái một: một cụm quên `disabled`
@@ -188,5 +188,11 @@ describe('OverlayComparisonToolbar', () => {
        soát này chạy thật. */
     expectAccessible(container);
     expectVietnamese(container);
+  });
+
+  it('ẩn "Khoá căn" khi cổng chưa đặt được ảnh vào mô hình — không điều khiển chết (BUG-599)', () => {
+    renderWithProviders(<OverlayComparisonToolbar {...toolbarPropsOf('partial')} />);
+
+    expect(screen.queryByLabelText('Khoá căn')).toBeNull();
   });
 });

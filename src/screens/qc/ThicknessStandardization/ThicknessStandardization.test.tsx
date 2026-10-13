@@ -689,17 +689,17 @@ describe('dải lưu lớp (F-04x-1)', () => {
   });
 });
 
-describe('dải tỉ lệ tạm (F-04x-2)', () => {
+describe('dải tỷ lệ tạm (F-04x-2)', () => {
   const NOTICE = provisionalScaleNoticeOf('unresolved')?.message ?? '';
 
-  it('tầng unresolved: dải chú ý + "Hiệu chỉnh tỉ lệ" gọi onNavigate', async () => {
+  it('tầng unresolved: dải chú ý + "Hiệu chỉnh tỷ lệ" gọi onNavigate', async () => {
     const onNavigate = vi.fn();
     renderWithProviders(
       <ThicknessStandardizationContainer {...scenarioArgsFor('partial')} {...ProvisionalScale.args} onNavigate={onNavigate} />,
     );
 
     expect(await screen.findByText(NOTICE)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Hiệu chỉnh tỉ lệ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hiệu chỉnh tỷ lệ' }));
     expect(onNavigate).toHaveBeenCalledTimes(1);
   });
 
@@ -709,7 +709,7 @@ describe('dải tỉ lệ tạm (F-04x-2)', () => {
     await waitFor(() => {
       expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
     });
-    expect(screen.queryByRole('button', { name: 'Hiệu chỉnh tỉ lệ' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Hiệu chỉnh tỷ lệ' })).not.toBeInTheDocument();
   });
 });
 

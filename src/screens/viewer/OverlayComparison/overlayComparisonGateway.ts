@@ -80,7 +80,7 @@
  * điều đó.
  */
 
-import type { ApiClient, ApiResult } from '@/api/client';
+import type { ApiClient, ApiResult, Floor } from '@/api/client';
 import { readFloorLayerGraph } from '@/api/floorLayerGraph';
 import { createAppApiClient } from '@/api/appClient';
 import { createMockApiClient } from '@/api/__mocks__/client';
@@ -238,6 +238,8 @@ export interface OverlayComparisonGateway {
    * (B-V9-06). Cùng đường nạp các màn QC dùng; lỗi thì ném.
    */
   readonly readFloorLayer: (input: ReadFloorScanInput) => Promise<NormalizedSpatial>;
+  /** Danh sách tầng của dự án (#12) — mở thẳng link thì ô chọn tầng vẫn đủ tầng (BUG-600). */
+  readonly readFloorList: (input: { readonly projectId: string }) => Promise<ApiResult<Floor[]>>;
   /**
    * Chỗ ảnh quét nằm trong khung đối chiếu sau khi đặt vào không gian mô hình.
    *
@@ -357,6 +359,7 @@ export function createOverlayComparisonGateway(
     },
 
     readFloorLayer: (input) => readFloorLayerGraph(client.spatial, input),
+    readFloorList: ({ projectId }) => client.floors.list({ projectId }),
 
     readScanPlacement: async () => unsupported('imageToModelTransform'),
     readDeviationRegions: async () => unsupported('deviationRegions'),

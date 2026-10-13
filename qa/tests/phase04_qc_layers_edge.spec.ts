@@ -1489,7 +1489,7 @@ test.describe('E04 SCR-22 overlay comparison', () => {
     });
   });
 
-  test('E04 · SCR-22 viewport 1024 (< 1280) → "Cạnh nhau" disabled with its reason; "Khoá căn" toggles', async ({ browser }) => {
+  test('E04 · SCR-22 viewport 1024 (< 1280) → "Cạnh nhau" disabled with its reason; "Khoá căn" hidden (BUG-599)', async ({ browser }) => {
     await withAdmin(
       browser,
       async (admin) => {
@@ -1501,13 +1501,8 @@ test.describe('E04 SCR-22 overlay comparison', () => {
         // UV:165,362 narrow → collapsed; UV:830-833 disabledCompareModes.sideBySide; VT:64-65,79-81.
         await expect(modes.getByRole('radio', { name: OVERLAY.sideBySide, exact: true })).toBeDisabled();
         await expect(page.getByText(`${OVERLAY.sideBySide} — ${OVERLAY.sideBySideDisabled}`, { exact: true })).toBeVisible();
-        const mark = api.length;
-        const lock = page.getByRole('switch', { name: OVERLAY.lock, exact: true }); // VT:164-170
-        const was = await lock.getAttribute('aria-checked');
-        await lock.click();
-        await expect(lock).not.toHaveAttribute('aria-checked', was ?? '');
-        await quiet(page);
-        expect(writesSince(api, mark), '"Khoá căn" writes nothing').toEqual([]);
+        // BUG-599: no `imageToModelTransform` yet, so the dead "Khoá căn" switch is not drawn at all.
+        await expect(page.getByRole('switch', { name: OVERLAY.lock, exact: true })).toHaveCount(0);
         await captureEvidence(page, 'E04_overlay_narrow.png');
       },
       { viewport: NARROW },

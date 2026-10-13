@@ -5,7 +5,7 @@ import { PROVISIONAL_MEASURE_TEXT, measureTextOf, provisionalScaleNoticeOf } fro
 describe('provisionalScale', () => {
   it('swaps the measure for the fixed text while the scale is provisional', () => {
     expect(measureTextOf('12,5 m', 'unresolved')).toBe(PROVISIONAL_MEASURE_TEXT);
-    expect(PROVISIONAL_MEASURE_TEXT).toBe('Chưa có — tỉ lệ tạm');
+    expect(PROVISIONAL_MEASURE_TEXT).toBe('Chưa có — tỷ lệ tạm');
   });
 
   it('keeps the measure when the scale is settled', () => {
@@ -15,7 +15,7 @@ describe('provisionalScale', () => {
   it('raises an attention notice only for a provisional scale', () => {
     expect(provisionalScaleNoticeOf('unresolved')).toEqual({
       level: 'attention',
-      message: 'Tỉ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỉ lệ.',
+      message: 'Tỷ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỷ lệ.',
     });
     expect(provisionalScaleNoticeOf(undefined)).toBeNull();
   });

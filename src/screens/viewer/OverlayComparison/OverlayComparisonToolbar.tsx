@@ -86,7 +86,7 @@ function FloorSelect({ floors, activeFloorId, canEdit, onSelectFloor }: FloorSel
 
   return (
     <Select.Root
-      className="w-[176px] shrink-0"
+      className="w-[264px] max-w-full shrink-0"
       disabled={!canEdit}
       onChange={(value) => onSelectFloor(value as LevelId)}
       options={options}
@@ -186,6 +186,7 @@ export function OverlayComparisonToolbar({
   scanOpacityPercent,
   scanOpacityText,
   isAlignmentLocked,
+  canLockAlignment = false,
   isStacked,
   canEdit,
   onSelectFloor,
@@ -225,16 +226,19 @@ export function OverlayComparisonToolbar({
           scanOpacityPercent={scanOpacityPercent}
           scanOpacityText={scanOpacityText}
         />
-        <div className="shrink-0 whitespace-nowrap">
-          <Toggle
-            checked={isAlignmentLocked}
-            disabled={!canEdit}
-            label={ALIGNMENT_LOCK_LABEL}
-            onChange={() => {
-              onToggleAlignmentLock();
-            }}
-          />
-        </div>
+        {/* Ẩn tới khi đặt được ảnh vào mô hình: bật/tắt mà không đổi gì là điều khiển chết (BUG-599). */}
+        {canLockAlignment && (
+          <div className="shrink-0 whitespace-nowrap">
+            <Toggle
+              checked={isAlignmentLocked}
+              disabled={!canEdit}
+              label={ALIGNMENT_LOCK_LABEL}
+              onChange={() => {
+                onToggleAlignmentLock();
+              }}
+            />
+          </div>
+        )}
       </div>
 
       {!canEdit && <p className="text-[12px] leading-[16px] text-text-muted">{READ_ONLY_NOTICE}</p>}

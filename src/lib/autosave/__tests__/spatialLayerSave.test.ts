@@ -644,7 +644,7 @@ describe('saveScale — F-04x-2 bước 5', () => {
     });
     expect(saver.getBlock(FLOOR_A)).toStrictEqual({ kind: 'reload', message: LAYER_SAVE_MESSAGES.scaleRedirtied });
     expect(LAYER_SAVE_MESSAGES.scaleRedirtied).toBe(
-      'Tỉ lệ tầng này vừa đổi trong lúc bạn sửa. Tải lại để sửa trên số đo mới.',
+      'Tỷ lệ tầng này vừa đổi trong lúc bạn sửa. Tải lại để sửa trên số đo mới.',
     );
 
     await saver.flush();

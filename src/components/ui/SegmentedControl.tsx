@@ -1,7 +1,5 @@
 import React, { useState, useId, useRef } from 'react';
-import { motion } from '../motion';
 import { cn } from '../../lib/utils';
-import { durationSeconds, EASE } from '../../lib/motion';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -55,6 +53,11 @@ export interface SegmentedItemProps extends Omit<React.ButtonHTMLAttributes<HTML
   value: string;
   swatch?: string | undefined;
   isActive?: boolean;
+  /**
+   * Có thì ô đang chọn vẽ con trượt nổi. Con trượt là một khối CSS nằm TRONG ô (`inset-0`), nên nó
+   * luôn đúng chỗ ô — bản framer `layoutId` cũ đo vị trí một lần rồi chiếu lại, và lệch khỏi ô
+   * khi khung cuộn hay đổi bề rộng (BUG-410). Đổi lại: con trượt nhảy, không trượt.
+   */
   layoutId?: string;
 }
 
@@ -75,11 +78,7 @@ const SegmentedItem = React.forwardRef<HTMLButtonElement, SegmentedItemProps>(
       {...props}
     >
       {isActive && layoutId && (
-        <motion.div
-          layoutId={layoutId}
-          className="absolute inset-0 rounded bg-bg-surface shadow-rest"
-          transition={{ type: 'tween', ease: EASE.default, duration: durationSeconds('fast') }}
-        />
+        <span aria-hidden="true" className="absolute inset-0 rounded bg-bg-surface shadow-rest" data-segment-thumb />
       )}
       <span className="relative z-10 flex items-center justify-center gap-1.5">
         {swatch && (

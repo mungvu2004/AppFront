@@ -110,7 +110,7 @@ export function countOverTolerance(
 const METRIC_LABELS = Object.freeze({
   mean: 'Sai số trung bình',
   max: 'Sai số lớn nhất',
-  overTolerance: 'số vùng vượt ngưỡng',
+  overTolerance: 'Số vùng vượt ngưỡng',
 });
 
 /** Ba con số ở đầu panel, tính từ bộ mẫu tại một dung sai cho trước. */
@@ -300,6 +300,9 @@ const BASE: OverlayComparisonViewModel = {
   scanOpacityText: '25%',
   swipePosition: 0.5,
   isAlignmentLocked: false,
+  canLockAlignment: false,
+  canRetry: false,
+  zoomPercent: 100,
   layers: buildLayers(25, true),
   geometry: SAMPLE_GEOMETRY,
   viewport: IDENTITY_VIEWPORT,
@@ -313,6 +316,7 @@ const BASE: OverlayComparisonViewModel = {
     buttonLabel: 'Xác nhận mô hình khớp bản vẽ',
     isConfirmed: false,
     canConfirm: true,
+    disabledReason: null,
     confirmedNotice: null,
   },
   role: 'engineer',
@@ -382,6 +386,7 @@ export const OVERLAY_COMPARISON_SCENARIOS: Readonly<
       buttonLabel: 'Xác nhận mô hình khớp bản vẽ',
       isConfirmed: true,
       canConfirm: false,
+      disabledReason: null,
       confirmedNotice: {
         text: 'Mọi vùng nằm trong dung sai, và bạn đã xác nhận tầng này khớp bản vẽ.',
         statusCode: 'verified',
