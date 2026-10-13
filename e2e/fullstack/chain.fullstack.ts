@@ -516,6 +516,9 @@ async function runChain(
 
     await shot('shot-3-reloaded');
     await expect(reloaded).toContainText('0,250');
+    // Bước 11 đối chiếu số PUT cuối chuỗi: tính cả lượt lưu của Pascal (một ở bước 7, một ở đây).
+    autosaveCount = countEntries(api, 'PUT', layerPath());
+    expect(autosaveCount).toBe(2);
   });
 
   await test.step('9. phục hồi phiên bản', async () => {
