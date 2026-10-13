@@ -127,6 +127,26 @@ describe('createPascalEditCommand', () => {
     expect(after !== null && after !== undefined && 'thicknessMm' in after ? after.thicknessMm : null).toBe(330);
   });
 
+  it('#20 — hạ tường thấp hơn đỉnh ô mở trên nó thì bị từ chối kèm câu tiếng Việt', () => {
+    const door = Object.values(baseScene.nodes).find((node) => node.type === 'door');
+    const wall = door?.parentId === undefined || door.parentId === null ? undefined : baseScene.nodes[door.parentId];
+
+    if (wall === undefined || wall.type !== 'wall') {
+      throw new Error('cảnh nền phải có một cửa nằm trên tường');
+    }
+
+    const result = createPascalEditCommand({
+      graph,
+      scene: sceneWith(wall.id, { ...wall, height: 1 }),
+      commit: { origin: 'local', changedNodeIds: [wall.id] },
+      actorId: ACTOR,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.ok ? null : result.error.code).toBe('PASCAL_WALL_BELOW_OPENING');
+    expect(result.ok ? '' : result.error.reasons[0]).toMatch(/^Tường cao 1,00 m, thấp hơn đỉnh ô mở/);
+  });
+
   it('A5 — bấm "Duyệt" mà không đổi hình học thì lệnh mang `reviewed: true`', () => {
     const wall = baseScene.nodes[firstWallId];
 
