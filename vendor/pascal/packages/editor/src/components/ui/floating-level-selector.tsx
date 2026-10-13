@@ -29,6 +29,7 @@ import {
 } from '@pascal-app/core'
 import { markPerfAction, useViewer } from '@pascal-app/viewer'
 import {
+  Box as BoxIcon,
   ClipboardPaste,
   Copy,
   GripVertical,
@@ -38,7 +39,6 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import { Box as BoxIcon } from 'lucide-react'
 import {
   type ButtonHTMLAttributes,
   type CSSProperties,
@@ -143,19 +143,21 @@ function LevelInlineRename({
  * than passed in, so every caller of the selector gets the flags.
  */
 function LevelSourceBadges({ levelId }: { levelId: AnyNodeId }) {
-  const flags = useScene((state) => {
-    let hasScan = false
-    let hasGeometry = false
-    for (const node of Object.values(state.nodes) as AnyNode[]) {
-      if (node.parentId !== levelId) continue
-      if (node.type === 'scan' || node.type === 'guide') hasScan = true
-      else if (node.type === 'wall' || node.type === 'zone' || node.type === 'slab') {
-        hasGeometry = true
+  const flags = useScene(
+    useShallow((state) => {
+      let hasScan = false
+      let hasGeometry = false
+      for (const node of Object.values(state.nodes) as AnyNode[]) {
+        if (node.parentId !== levelId) continue
+        if (node.type === 'scan' || node.type === 'guide') hasScan = true
+        else if (node.type === 'wall' || node.type === 'zone' || node.type === 'slab') {
+          hasGeometry = true
+        }
+        if (hasScan && hasGeometry) break
       }
-      if (hasScan && hasGeometry) break
-    }
-    return { hasScan, hasGeometry }
-  }, shallowFlags)
+      return { hasScan, hasGeometry }
+    }),
+  )
 
   if (!(flags.hasScan || flags.hasGeometry)) {
     return (
@@ -179,14 +181,6 @@ function LevelSourceBadges({ levelId }: { levelId: AnyNodeId }) {
       )}
     </span>
   )
-}
-
-/** Equality for the two booleans above, so the badge does not re-render per node write. */
-function shallowFlags(
-  left: { hasScan: boolean; hasGeometry: boolean },
-  right: { hasScan: boolean; hasGeometry: boolean },
-): boolean {
-  return left.hasScan === right.hasScan && left.hasGeometry === right.hasGeometry
 }
 
 function LevelRow({
