@@ -318,6 +318,7 @@ export const createPascalEditCommand = (input: PascalEditInput): PascalEditResul
     ...after.openings,
     ...after.furniture,
     ...after.rooms,
+    ...after.axes,
   ]) {
     afterById.set(entity.id, entity);
   }
