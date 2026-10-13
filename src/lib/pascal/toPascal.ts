@@ -32,7 +32,7 @@ import type {
   Wall,
 } from '@/domain/spatial/types';
 import { degrees, degreesToRadians, millimetres, millimetresToMetres } from '@/domain/units/types';
-import { FURNITURE_KIND_LABELS } from '@/lib/commands/business/shared';
+import { FURNITURE_KIND_LABELS, WALL_KIND_LABELS } from '@/lib/commands/business/shared';
 
 import { BUILDING_NODE_ID, SITE_NODE_ID, toPascalId } from './ids';
 import type {
@@ -192,6 +192,12 @@ const levelNodeOf = (
 /* Tường và ô mở.                                                              */
 /* -------------------------------------------------------------------------- */
 
+/** Tên node tường trên cây Pascal — thiếu `name` thì Pascal tự điền "Wall" (A6). */
+const wallNodeNameOf = (wall: Wall): string => {
+  const kindLabel = WALL_KIND_LABELS[wall.kind];
+  return `${kindLabel.charAt(0).toUpperCase()}${kindLabel.slice(1)} ${wall.id}`;
+};
+
 const wallNodeOf = (
   wall: Wall,
   levelNodeId: PascalNodeId,
@@ -200,6 +206,7 @@ const wallNodeOf = (
   object: 'node',
   id: toPascalId('wall', wall.id),
   type: 'wall',
+  name: wallNodeNameOf(wall),
   parentId: levelNodeId,
   children,
   start: [metresOf(wall.centreline.start.x), metresOf(wall.centreline.start.y)],
