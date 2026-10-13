@@ -2,6 +2,10 @@
 // quy ước đặt tên và vốn từ. Chỉ gom các chuỗi thật sự hiển thị cho người dùng (nhãn
 // trong bảng kê xuất ra, văn bản hộp thoại xuất...), không gom log/console/so sánh nội bộ.
 export const libStrings = {
+  // Tên hiển thị mặc định của node trên cây và bảng thuộc tính (không đổi id/kind).
+  nodeDisplay: {
+    slab: 'Sàn',
+  },
   glbExport: {
     item: 'Đồ đạc',
     wall: 'Tường',

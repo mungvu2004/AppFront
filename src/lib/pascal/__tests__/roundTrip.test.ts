@@ -79,6 +79,14 @@ describe('toPascalScene — lượt đi', () => {
     expect(countOf('item')).toBe(SAMPLE_FURNITURE_COUNT);
   });
 
+  it('đặt tên tường theo loại và số thứ tự trong tầng, không lộ mã nội bộ', () => {
+    const walls = Object.values(scene.nodes).filter((node) => node.type === 'wall');
+    const names = walls.map((node) => node.name);
+
+    expect(names.every((name) => /^(Tường chịu lực|Vách ngăn|Tường bao) \d+$/.test(String(name)))).toBe(true);
+    expect(names.some((name) => String(name).includes('FIXTURE'))).toBe(false);
+  });
+
   it('dựng mỗi trục định vị thành một node structural-grid, mét thay milimét', () => {
     const grids = Object.values(scene.nodes).filter((node) => node.type === 'structural-grid');
 
