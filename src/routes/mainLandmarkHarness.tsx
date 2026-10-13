@@ -28,12 +28,16 @@ export interface ProductRoute {
 /**
  * Route chỉ chuyển hướng, không dựng màn nào.
  *
+ * `/3d/exploded` chuyển hướng tới `/3d?view=exploded` (W2-C2).
  * `/3d/pascal` là địa chỉ cũ của `/3d` sau F-15: phần tử của nó là `<Navigate>`,
  * nên nó KHÔNG có `<main>` và không thuộc phép kiểm landmark. Nó cũng không
  * được nằm trong bốn nhóm, nếu không phép kiểm "hợp bốn nhóm đúng bằng tập
  * route sản phẩm" sẽ đòi một landmark không bao giờ có.
  */
-export const REDIRECT_PATHS: readonly string[] = [ROUTE_PATTERNS.projectViewerPascal];
+export const REDIRECT_PATHS: readonly string[] = [
+  ROUTE_PATTERNS.projectViewerPascal,
+  ROUTE_PATTERNS.projectExploded,
+];
 
 const rootChildren: RouteObject[] = routes[0]?.children ?? [];
 /* Phẳng hoá nhóm bọc `<main>` để lấy lại từng route lá cùng với cha của nó. */
@@ -109,7 +113,6 @@ export const FLOORS_ADMIN_PATHS: readonly string[] = [
 
 export const VIEWER_PATHS: readonly string[] = [
   ROUTE_PATTERNS.projectViewer,
-  '/projects/:projectId/3d/exploded',
   '/projects/:projectId/3d/measure',
   '/m/du-an/:projectId',
 ];
