@@ -5,8 +5,12 @@ export { PascalViewer } from './PascalViewer';
 export { PascalViewerContainer, PascalViewerRoute } from './PascalViewer.container';
 export { usePascalViewer } from './usePascalViewer';
 export {
+  PASCAL_SIDE_PANEL_LABELS,
+  PASCAL_SIDE_PANEL_WIDTH_PX,
   PASCAL_VIEWER_CAPTIONS,
   PASCAL_VIEWER_TITLE,
+  type PascalSidePanel,
+  type PascalSidePanelId,
   type PascalViewerProps,
   type PascalViewerState,
   type PascalViewerViewModel,

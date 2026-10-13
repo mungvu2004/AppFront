@@ -12,7 +12,7 @@
  */
 
 import { AlertCircle } from 'lucide-react';
-import { useCallback, useMemo } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -25,6 +25,7 @@ import { denormalizeSpatial } from '@/domain/spatial/normalize';
 import type { SpatialGraph } from '@/domain/spatial/types';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useSession } from '@/hooks/useSession';
+import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
 import type { ProjectRole } from '@/types/project';
 import { ROUTES } from '@/routes/paths';
@@ -39,8 +40,25 @@ import { selectViewerSpatial } from '@/screens/viewer/ViewerShell/viewerShellGat
 import { useStore } from '@/store';
 
 import { PascalViewer } from './PascalViewer';
+import {
+  PASCAL_SIDE_PANEL_LABELS,
+  type PascalSidePanel,
+  type PascalSidePanelId,
+} from './pascalViewerTypes';
 import { usePascalEdits } from './usePascalEdits';
 import { usePascalViewer, type UsePascalViewerOptions } from './usePascalViewer';
+
+/*
+ * Bảng lịch sử nạp muộn, và đó là một phép đo chứ không phải thói quen: ngân
+ * sách `routeChunk` là 280 KiB, `HistoryPanel` là ~4 000 dòng, còn bảng chỉ
+ * dựng khi người dùng mở nó. Nhập tĩnh là bắt mọi lượt mở `/3d` trả tiền cho
+ * một bảng phần lớn phiên không ai bấm tới.
+ */
+const LazyHistoryPanel = lazy(() =>
+  import('@/screens/viewer/HistoryPanel').then((module) => ({
+    default: module.HistoryPanelContainer,
+  })),
+);
 
 /** Loại thông báo của một lượt sửa bị chặn — toast gom theo loại. */
 export const PASCAL_REJECTED_NOTIFICATION_TYPE = 'pascal.edit.rejected';
@@ -69,6 +87,14 @@ export interface PascalViewerContainerProps {
   /** Lối ra ở đầu màn và hành động của trạng thái rỗng — `PascalViewerProps`. */
   readonly onLeave?: (() => void) | undefined;
   readonly onReprocess?: (() => void) | undefined;
+  /**
+   * Bảng phụ thêm vào ba cái của màn (#45).
+   *
+   * "Lịch sử thao tác" đã nối sẵn ở đây. "Diện tích phòng" và "Thư viện đồ
+   * đạc" cần cổng riêng của chúng (`onOpenExport`, `onCheckWallGaps`…), nên
+   * màn cha truyền vào qua đây thay vì container tự đoán.
+   */
+  readonly extraPanels?: readonly PascalSidePanel[] | undefined;
 }
 
 /** Thứ người dùng thấy thay cho màn đã sập. Chữ lấy thẳng từ `report.description`. */
@@ -90,6 +116,7 @@ function CrashFallback({ report, retry }: ScreenErrorFallback) {
 function PascalViewerBody({
   graph,
   collapsed,
+  extraPanels,
   loadMount,
   onLeave,
   onReprocess,
@@ -136,6 +163,49 @@ function PascalViewerBody({
     ...(loadMount === undefined ? {} : { loadMount }),
   });
 
+  const [activePanel, setActivePanel] = useState<PascalSidePanelId | null>(null);
+
+  const panels = useMemo<readonly PascalSidePanel[]>(
+    () => [
+      {
+        id: 'history',
+        label: PASCAL_SIDE_PANEL_LABELS.history,
+        render: () => (
+          <Suspense fallback={<p className="p-3 text-sm text-text-muted">Đang mở bảng…</p>}>
+            <LazyHistoryPanel />
+          </Suspense>
+        ),
+      },
+      ...(extraPanels ?? []),
+    ],
+    [extraPanels],
+  );
+
+  /* A12/#46 — Esc đóng lớp trên cùng, và khi một bảng phụ đang mở thì bảng ấy
+     LÀ lớp trên cùng của màn. Đăng ký ở `sidePanel` chứ không ở `global`, nên
+     một hộp thoại mở đè lên vẫn giành Esc trước. `enabled` tắt hẳn đăng ký khi
+     không bảng nào mở: không bảng nào mở thì Esc không thuộc về màn này. */
+  useShortcut(
+    {
+      id: 'pascalViewer.sidePanel.close',
+      combo: 'Escape',
+      scope: 'sidePanel',
+      description: 'Đóng bảng phụ đang mở',
+      onTrigger: () => setActivePanel(null),
+    },
+    { enabled: activePanel !== null },
+  );
+
+  /* #37 — phím của màn đi qua registry chung, nên lượt trùng phím nào cũng bị
+     `shortcutRegistry` báo ra thay vì im lặng đè lên nhau. */
+  useShortcut({
+    id: 'pascalViewer.sidePanel.history',
+    combo: 'Ctrl+H',
+    scope: 'canvas',
+    description: 'Mở hoặc đóng bảng lịch sử thao tác',
+    onTrigger: () => setActivePanel((current) => (current === 'history' ? null : 'history')),
+  });
+
   return (
     <PascalViewer
       viewModel={viewModel}
@@ -144,6 +214,9 @@ function PascalViewerBody({
       onExpand={onExpand}
       onLeave={onLeave}
       onReprocess={onReprocess}
+      panels={panels}
+      activePanel={activePanel}
+      onPanelChange={setActivePanel}
     />
   );
 }
@@ -151,6 +224,7 @@ function PascalViewerBody({
 export function PascalViewerContainer({
   graph,
   collapsed,
+  extraPanels,
   loadMount,
   onLeave,
   onReprocess,
@@ -164,6 +238,7 @@ export function PascalViewerContainer({
     >
       <PascalViewerBody
         collapsed={collapsed}
+        extraPanels={extraPanels}
         graph={graph}
         loadMount={loadMount}
         onLeave={onLeave}

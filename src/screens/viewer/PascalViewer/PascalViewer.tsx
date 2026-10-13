@@ -20,7 +20,10 @@ import { Button } from '@/components/ui/Button';
 import {
   PASCAL_LEAVE_LABEL,
   PASCAL_REPROCESS_LABEL,
+  PASCAL_SIDE_PANEL_RAIL_LABEL,
   PASCAL_VIEWER_TITLE,
+  type PascalSidePanel,
+  type PascalSidePanelId,
   type PascalViewerProps,
 } from './pascalViewerTypes';
 
@@ -73,6 +76,60 @@ function Skeleton() {
   );
 }
 
+/**
+ * Cột bảng phụ: hàng tab trên, bảng đang mở dưới (#45).
+ *
+ * Loại trừ nhau là **cấu tạo**, không phải quy ước: `activePanel` là một giá
+ * trị, nên hai bảng cùng mở không biểu diễn được. Bề ngang 344 px cố định;
+ * chỉ cột trượt vào trượt ra có hoạt cảnh, và `motion-reduce` tắt nó (#33).
+ */
+function SidePanelColumn({
+  panels,
+  activePanel,
+  onPanelChange,
+}: {
+  panels: readonly PascalSidePanel[];
+  activePanel: PascalSidePanelId | null;
+  onPanelChange: (panel: PascalSidePanelId | null) => void;
+}) {
+  const open = panels.find((panel) => panel.id === activePanel) ?? null;
+
+  return (
+    <div className="flex min-h-0 gap-2">
+      <div
+        aria-label={PASCAL_SIDE_PANEL_RAIL_LABEL}
+        className="flex flex-col gap-1"
+        role="group"
+      >
+        {panels.map((panel) => {
+          const isOpen = panel.id === activePanel;
+          return (
+            <Button
+              key={panel.id}
+              aria-expanded={isOpen}
+              onClick={() => onPanelChange(isOpen ? null : panel.id)}
+              size="sm"
+              variant={isOpen ? 'primary' : 'secondary'}
+            >
+              {panel.label}
+            </Button>
+          );
+        })}
+      </div>
+
+      {open !== null && (
+        <div
+          aria-label={open.label}
+          className="min-h-0 w-[344px] shrink-0 overflow-y-auto rounded-md border border-border-default bg-bg-surface transition-[width] duration-standard motion-reduce:transition-none"
+          role="region"
+        >
+          {open.render()}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function PascalViewer({
   viewModel,
   canvasRef,
@@ -80,6 +137,9 @@ export function PascalViewer({
   onExpand,
   onLeave,
   onReprocess,
+  panels,
+  activePanel,
+  onPanelChange,
 }: PascalViewerProps) {
   const { state, caption, summary, skipped, errorCode, saveLabel } = viewModel;
 
@@ -188,17 +248,27 @@ export function PascalViewer({
   return (
     <Frame caption={caption} onLeave={onLeave} showCaption>
       <div className="flex h-full min-h-0 flex-col gap-3">
-        <div className="relative min-h-[12rem] flex-1">
-          <div
-            ref={canvasRef}
-            data-testid="pascal-canvas"
-            aria-label="Khung dựng mô hình 3D"
-            className="absolute inset-0 overflow-hidden rounded-md border border-border-default bg-bg-sunken"
-          />
-          {isBooting && (
-            <div className="absolute inset-0">
-              <Skeleton />
-            </div>
+        <div className="flex min-h-0 flex-1 gap-3">
+          <div className="relative min-h-[12rem] min-w-0 flex-1">
+            <div
+              ref={canvasRef}
+              data-testid="pascal-canvas"
+              aria-label="Khung dựng mô hình 3D"
+              className="absolute inset-0 overflow-hidden rounded-md border border-border-default bg-bg-sunken"
+            />
+            {isBooting && (
+              <div className="absolute inset-0">
+                <Skeleton />
+              </div>
+            )}
+          </div>
+
+          {panels !== undefined && panels.length > 0 && (
+            <SidePanelColumn
+              activePanel={activePanel ?? null}
+              onPanelChange={onPanelChange ?? (() => undefined)}
+              panels={panels}
+            />
           )}
         </div>
 
