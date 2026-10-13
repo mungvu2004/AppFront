@@ -5,10 +5,7 @@
 import React, { lazy, useCallback, useState } from 'react';
 import {
   createBrowserRouter,
-  Navigate,
   Outlet,
-  useLocation,
-  useParams,
   type RouteObject,
 } from 'react-router-dom';
 
@@ -23,40 +20,9 @@ import {
 import { useStore } from '@/store';
 
 import { ROUTE_PATTERNS } from './paths';
+import { ExplodedViewRedirect, PascalViewerRedirect } from './viewerRedirects';
 import { RouteErrorScreen } from './RouteErrorScreen';
 import { PendingShell, SessionBootstrap } from './SessionBootstrap';
-
-/**
- * `/3d/pascal` giờ chỉ là địa chỉ cũ của `/3d` (F-15).
- *
- * Màn Pascal đã là màn 3D duy nhất, nên route riêng của nó không còn việc gì —
- * nhưng liên kết cũ thì vẫn nằm trong lịch sử trình duyệt và trong dấu trang.
- * `replace` để nút Lùi không kẹt lại ở địa chỉ cũ, và `search` đi theo vì tham
- * số truy vấn (ví dụ `?v=` của một phiên bản) thuộc về màn chứ không về đường.
- */
-function PascalViewerRedirect() {
-  const { projectId } = useParams<{ projectId: string }>();
-  const { search, hash } = useLocation();
-
-  return (
-    <Navigate
-      replace
-      to={`${ROUTE_PATTERNS.projectViewer.replace(':projectId', projectId ?? '')}${search}${hash}`}
-    />
-  );
-}
-
-/** `/3d/exploded` cũ → `/3d?view=exploded`: tách tầng nay là chế độ của Pascal (F-15 W2-C2). */
-function ExplodedViewRedirect() {
-  const { projectId } = useParams<{ projectId: string }>();
-
-  return (
-    <Navigate
-      replace
-      to={`${ROUTE_PATTERNS.projectViewer.replace(':projectId', projectId ?? '')}?view=exploded`}
-    />
-  );
-}
 
 /**
  * Vỏ chờ dùng chung, để hai mươi mấy route không mỗi chỗ viết một kiểu.
