@@ -75,15 +75,20 @@ describe('[#45] ba bảng phụ loại trừ nhau', () => {
       expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
     }
 
-    expect(screen.queryByRole('region')).not.toBeInTheDocument();
+    for (const label of Object.values(PASCAL_SIDE_PANEL_LABELS)) {
+      expect(screen.queryByRole('region', { name: label })).not.toBeInTheDocument();
+    }
   });
 
   it('mở đúng MỘT bảng, và chỉ bảng ấy có nội dung', () => {
     renderPanels('history');
 
-    const regions = screen.getAllByRole('region');
-    expect(regions).toHaveLength(1);
-    expect(regions[0]).toHaveAccessibleName(PASCAL_SIDE_PANEL_LABELS.history);
+    expect(
+      screen.getByRole('region', { name: PASCAL_SIDE_PANEL_LABELS.history }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('region', { name: PASCAL_SIDE_PANEL_LABELS.rooms }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText('Nội dung bảng lịch sử thao tác')).toBeInTheDocument();
     expect(screen.queryByText('Nội dung bảng diện tích phòng')).not.toBeInTheDocument();
   });
@@ -91,7 +96,9 @@ describe('[#45] ba bảng phụ loại trừ nhau', () => {
   it('cột bảng rộng đúng 344 px', () => {
     renderPanels('rooms');
 
-    expect(screen.getByRole('region')).toHaveClass('w-[344px]');
+    expect(screen.getByRole('region', { name: PASCAL_SIDE_PANEL_LABELS.rooms })).toHaveClass(
+      'w-[344px]',
+    );
   });
 
   it('tab đang mở nói ra trạng thái của nó', () => {
@@ -135,7 +142,9 @@ describe('[#33] giảm chuyển động', () => {
   it('hoạt cảnh của cột tắt khi người dùng xin giảm chuyển động', () => {
     renderPanels('rooms');
 
-    expect(screen.getByRole('region')).toHaveClass('motion-reduce:transition-none');
+    expect(screen.getByRole('region', { name: PASCAL_SIDE_PANEL_LABELS.rooms })).toHaveClass(
+      'motion-reduce:transition-none',
+    );
   });
 });
 
