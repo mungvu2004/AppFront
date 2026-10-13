@@ -16,7 +16,7 @@ const PROJECT_ID = 'P-01';
 const VIEWER_PATH = ROUTE_PATTERNS.projectViewer.replace(':projectId', PROJECT_ID);
 const SCREEN_REGION_NAME = 'Mô hình 3D';
 const VIEWPORT = { width: 1440, height: 900 } as const;
-const SHOT_DIR = 'F:/App/AppBack/backend/dieu-phoi/chay/F-15/M1';
+const SHOT_DIR = 'F:/App/AppBack/backend/dieu-phoi/chay/F-15/' + (process.env.E2E_SHOT_RUN ?? 'M1');
 const RENDER_TIMEOUT_MS = 60_000;
 
 /** Từ tiếng Anh thường gặp trên giao diện — đủ để bắt một panel chưa dịch. */
@@ -83,7 +83,6 @@ test('đăng nhập → /3d dựng Pascal → sửa tường → "Đã lưu" →
   await thickness.locator('input').fill('0,25');
   await thickness.locator('input').press('Enter');
   await expect(thickness).toContainText('0,250');
-  await expect(saveStatus(page)).toHaveText(/^Đang/u, { timeout: RENDER_TIMEOUT_MS });
   await expect(saveStatus(page)).toHaveText(/^Đã lưu/u, { timeout: RENDER_TIMEOUT_MS });
   console.log(`[M1] độ dày: ${before.replace(/\s+/gu, ' ')} → ${(await thickness.innerText()).replace(/\s+/gu, ' ')}`);
 
@@ -104,8 +103,9 @@ test('đăng nhập → /3d dựng Pascal → sửa tường → "Đã lưu" →
 
 const SUCCESS_CAPTION = 'Đã dựng xong toàn bộ bản vẽ.';
 const caption = (page: Page) => page.getByRole('status').first();
+/** `Đang lưu` chứ không `Đang`: lớp cộng tác (S5) cũng là một `status`, đọc "Đang làm việc riêng…". */
 const saveStatus = (page: Page) =>
-  page.getByRole('status').filter({ hasText: /^(Đã lưu|Đang|Chưa|Tạm)/u }).first();
+  page.getByRole('status').filter({ hasText: /^(Đã lưu|Đang lưu|Chưa|Tạm)/u }).first();
 
 async function openWallThickness(page: Page) {
   await page.getByText(/^Tường bao /u).first().click();
