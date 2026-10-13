@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import Image from 'next/image'
 import { type ReactNode, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { getPascalRoot } from '../../../lib/pascal-root'
 import useEditor from '../../../store/use-editor'
 import { controlsAndPanels as vi } from '../../../i18n/regions/controlsAndPanels'
 
@@ -104,6 +105,6 @@ export function MobilePanelSheet({ open, onClose, icon, title, children }: Mobil
         </motion.div>
       )}
     </AnimatePresence>,
-    document.body,
+    getPascalRoot() ?? document.body,
   )
 }

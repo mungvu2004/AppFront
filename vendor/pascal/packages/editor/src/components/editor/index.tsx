@@ -52,6 +52,7 @@ import {
   type SceneGraph,
   writePersistedSelection,
 } from '../../lib/scene'
+import { getPascalRoot } from '../../lib/pascal-root'
 import { disposeSFXBus, initSFXBus } from '../../lib/sfx-bus'
 import { useUnitFocusRules } from '../../lib/units'
 import { type CameraHintAction, useCameraHintFocus } from '../../store/use-camera-hint-focus'
@@ -1490,9 +1491,11 @@ function EditorContent({
   }, [isPreviewMode])
 
   useEffect(() => {
-    document.body.classList.add('dark')
+    // AppFront: dark on the Pascal root, not on AppFront's body (portals land in the root).
+    const themeRoot = getPascalRoot() ?? document.body
+    themeRoot.classList.add('dark')
     return () => {
-      document.body.classList.remove('dark')
+      themeRoot.classList.remove('dark')
     }
   }, [])
 

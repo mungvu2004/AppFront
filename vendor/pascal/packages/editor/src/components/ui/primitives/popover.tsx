@@ -3,6 +3,7 @@
 import * as PopoverPrimitive from '@radix-ui/react-popover'
 import type * as React from 'react'
 
+import { getPascalRoot } from '../../../lib/pascal-root'
 import { cn } from '../../../lib/utils'
 
 function Popover({ ...props }: React.ComponentProps<typeof PopoverPrimitive.Root>) {
@@ -20,7 +21,7 @@ function PopoverContent({
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Content>) {
   return (
-    <PopoverPrimitive.Portal>
+    <PopoverPrimitive.Portal container={getPascalRoot()}>
       <PopoverPrimitive.Content
         align={align}
         className={cn(
