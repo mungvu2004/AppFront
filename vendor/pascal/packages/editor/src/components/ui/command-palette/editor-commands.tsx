@@ -2,7 +2,7 @@
 
 import type { AnyNodeId } from '@pascal-app/core'
 import { DEFAULT_LEVEL_HEIGHT, LevelNode, type UnitNode, useScene } from '@pascal-app/core'
-import { useViewer } from '@pascal-app/viewer'
+import { useSectionPlane, useViewer } from '@pascal-app/viewer'
 import {
   AppWindow,
   ArrowRight,
@@ -302,6 +302,15 @@ export function EditorCommands() {
       },
 
       // ── Viewer Controls ──────────────────────────────────────────────────
+      {
+        // AppFront #32: horizontal cut, dragged from the slider it mounts.
+        id: 'editor.viewer.section-plane',
+        label: () => (useSectionPlane.getState().enabled ? 'Tắt mặt cắt' : 'Bật mặt cắt'),
+        group: 'Viewer Controls',
+        icon: <Layers className="h-4 w-4" />,
+        keywords: ['mat cat', 'section', 'clip', 'cut'],
+        execute: () => run(() => useSectionPlane.getState().toggle()),
+      },
       {
         id: 'editor.viewer.wall-mode',
         label: 'Wall Mode',

@@ -1,4 +1,5 @@
 import { Keyboard } from 'lucide-react'
+import { create } from 'zustand'
 import { Button } from './../../../../../components/ui/primitives/button'
 import {
   Dialog,
@@ -6,7 +7,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from './../../../../../components/ui/primitives/dialog'
 import {
   ShortcutToken,
@@ -25,7 +25,29 @@ type ShortcutCategory = {
   shortcuts: Shortcut[]
 }
 
-const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
+/**
+ * Open state of the ONE shortcuts dialog. The settings-panel button and the
+ * `?` key (use-keyboard.ts, AppFront A12/#23) both flip it; the dialog itself
+ * is mounted once by the editor (`KeyboardShortcutsDialogHost`) so `?` works
+ * whichever sidebar tab is showing.
+ */
+export const useShortcutsDialog = create<{
+  open: boolean
+  setOpen: (open: boolean) => void
+}>((set) => ({ open: false, setOpen: (open) => set({ open }) }))
+
+export const SHORTCUT_CATEGORIES: ShortcutCategory[] = [
+  {
+    title: 'Tìm và trợ giúp',
+    shortcuts: [
+      { keys: ['?'], action: 'Mở bảng phím tắt này' },
+      {
+        keys: ['Cmd/Ctrl', 'F'],
+        action: 'Tìm lệnh, không cần gõ dấu',
+        note: 'Cmd/Ctrl + K mở cùng bảng lệnh.',
+      },
+    ],
+  },
   {
     title: 'Điều hướng trình chỉnh sửa',
     shortcuts: [
@@ -223,14 +245,24 @@ function ShortcutKeys({ keys }: { keys: string[] }) {
 }
 
 export function KeyboardShortcutsDialog() {
+  const setOpen = useShortcutsDialog((s) => s.setOpen)
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button className="w-full justify-start gap-2" variant="outline">
-          <Keyboard className="size-4" />
-          {vi.keyboardShortcutsDialog.button}
-        </Button>
-      </DialogTrigger>
+    <Button
+      className="w-full justify-start gap-2"
+      onClick={() => setOpen(true)}
+      variant="outline"
+    >
+      <Keyboard className="size-4" />
+      {vi.keyboardShortcutsDialog.button}
+    </Button>
+  )
+}
+
+export function KeyboardShortcutsDialogHost() {
+  const open = useShortcutsDialog((s) => s.open)
+  const setOpen = useShortcutsDialog((s) => s.setOpen)
+  return (
+    <Dialog onOpenChange={setOpen} open={open}>
       <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden p-0 sm:max-w-3xl">
         <DialogHeader className="shrink-0 border-b px-6 py-4">
           <DialogTitle>{vi.keyboardShortcutsDialog.title}</DialogTitle>

@@ -23,6 +23,7 @@ import {
   rotateGroupPatches,
 } from '../components/editor/group-transform-shared'
 import { steppedRotation } from '../components/tools/item/placement-math'
+import { useShortcutsDialog } from '../components/ui/sidebar/panels/settings-panel/keyboard-shortcuts-dialog'
 import { resolveDirectManipulationNode } from '../lib/direct-manipulation'
 import { toggleDoorOpenState } from '../lib/door-interaction'
 import { guideEmitter } from '../lib/guide-events'
@@ -392,6 +393,13 @@ export const useKeyboard = ({
           sfxEmitter.emit('sfx:grid-snap')
           return
         }
+      }
+
+      // AppFront #23 (A12): `?` opens the shortcuts table from anywhere.
+      if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault()
+        useShortcutsDialog.getState().setOpen(true)
+        return
       }
 
       if (e.key === 'Escape') {

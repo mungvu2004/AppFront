@@ -17,7 +17,9 @@ import {
   PERF_OVERLAY_ENABLED,
   recordPerfSample,
   SceneEnvironment,
+  SectionPlaneControl,
   useViewer,
+  ViewCube,
   Viewer,
   type ViewerImmersiveSession,
   ViewerPresentations,
@@ -71,6 +73,7 @@ import { EditorCommands } from '../ui/command-palette/editor-commands'
 import { FloatingLevelSelector } from '../ui/floating-level-selector'
 import { HelperManager } from '../ui/helpers/helper-manager'
 import { PanelManager } from '../ui/panels/panel-manager'
+import { KeyboardShortcutsDialogHost } from '../ui/sidebar/panels/settings-panel/keyboard-shortcuts-dialog'
 import { ErrorBoundary } from '../ui/primitives/error-boundary'
 import { useSidebarStore } from '../ui/primitives/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/primitives/tooltip'
@@ -1180,6 +1183,9 @@ const ViewerCanvas = memo(function ViewerCanvas({
               onDismiss={dismissCameraControlsHint}
             />
           ) : null}
+          {/* AppFront #32/#34: section-plane slider and view cube, DOM over the canvas. */}
+          {!(showLoader || isFirstPersonMode) && <SectionPlaneControl />}
+          {!(showLoader || isFirstPersonMode) && <ViewCube />}
           <SelectionPersistenceManager enabled={hasLoadedInitialScene && !showLoader} />
           <Viewer
             defaultRender={EDITOR_DEFAULT_RENDER}
@@ -1709,6 +1715,8 @@ function EditorContent({
             />
             <EditorCommands />
             <CommandPalette emptyAction={commandPaletteEmptyAction} />
+            {/* `?` target (AppFront #23): one shortcuts dialog for every sidebar tab. */}
+            <KeyboardShortcutsDialogHost />
           </>
         )}
       </>
