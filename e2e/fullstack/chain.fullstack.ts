@@ -475,7 +475,7 @@ async function runChain(
   await test.step('8c. Pascal: sửa độ dày tường, tải lại vẫn còn (F-15)', async () => {
     const saveStatus = page.getByRole('status').filter({ hasText: /^(Đã lưu|Đang lưu|Chưa|Tạm)/u }).first();
     const openThickness = async () => {
-      await page.getByText(/ W-[0-9A-Z]+$/u).first().click();
+      await page.getByText(/^Tường /u).first().click();
       await page.getByRole('button', { name: /Expand panel|Mở rộng/u }).first().click();
       const row = page
         .locator('div.group')
