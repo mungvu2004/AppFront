@@ -8,6 +8,9 @@ import {
   measurementAngle,
   measurementArea,
   measurementDistance,
+  measurementHeight,
+  measurementPerpendicularDistance,
+  measurementPerpendicularFoot,
   measurementNormal,
   measurementPerimeter,
   measurementPrismVolume,
@@ -73,6 +76,7 @@ function fallbackMarkerNormal(
   ) {
     return measurementNormal(measurement.base) ?? [0, 1, 0]
   }
+  if (measurement.kind === 'perpendicular') return measurement.normal
   if (measurement.kind === 'angle') {
     const [start, vertex, end] = measurement.points
     const normal = new Vector3(...start)
@@ -192,8 +196,7 @@ const midpoint = (start: MeasurementPoint, end: MeasurementPoint): MeasurementPo
 
 function buildFillGeometry(measurement: ResolvedMeasurementPayload): BufferGeometry | null {
   if (
-    measurement.kind === 'distance' ||
-    measurement.kind === 'angle' ||
+    'points' in measurement ||
     measurement.kind === 'perimeter'
   ) {
     return null
@@ -246,6 +249,20 @@ function buildRenderData(measurement: ResolvedMeasurementPayload): MeasurementRe
     pushSegment(start, end)
     markerPoints = [start, end]
     labelPosition = midpoint(start, end)
+  } else if (measurement.kind === 'perpendicular') {
+    const [origin, point] = measurement.points
+    const foot = measurementPerpendicularFoot(origin, point, measurement.normal)
+    pushSegment(origin, foot)
+    pushSegment(foot, point)
+    markerPoints = [origin, point]
+    labelPosition = midpoint(foot, point)
+  } else if (measurement.kind === 'height') {
+    const [start, end] = measurement.points
+    const corner: MeasurementPoint = [start[0], end[1], start[2]]
+    pushSegment(start, corner)
+    pushSegment(corner, end)
+    markerPoints = [start, end]
+    labelPosition = midpoint(start, corner)
   } else if (measurement.kind === 'angle') {
     const [start, vertex, end] = measurement.points
     pushSegment(start, vertex)
@@ -300,6 +317,17 @@ function formatMeasurement(
 ): string {
   if (measurement.kind === 'distance') {
     return formatLinearMeasurement(measurementDistance(...measurement.points), unit, metricNotation)
+  }
+  if (measurement.kind === 'perpendicular') {
+    const [origin, point] = measurement.points
+    return `⊥ ${formatLinearMeasurement(
+      measurementPerpendicularDistance(origin, point, measurement.normal),
+      unit,
+      metricNotation,
+    )}`
+  }
+  if (measurement.kind === 'height') {
+    return `H ${formatLinearMeasurement(measurementHeight(...measurement.points), unit, metricNotation)}`
   }
   if (measurement.kind === 'angle') {
     return formatAngleRadians(measurementAngle(...measurement.points))

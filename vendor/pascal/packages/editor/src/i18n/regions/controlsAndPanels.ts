@@ -7,6 +7,8 @@ export const controlsAndPanels = {
   measurementControl: {
     distance: "Khoảng cách",
     angle: "Góc",
+    perpendicular: "Vuông góc bề mặt",
+    height: "Chiều cao",
     area: "Diện tích",
     perimeter: "Chu vi",
     volume: "Thể tích",
