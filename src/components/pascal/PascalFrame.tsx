@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { appFrontEditorPanels, Editor, useEditor } from '@pascal-app/editor';
+import { appFrontEditorPanels, Editor, subscribeHistoryJumps, useEditor } from '@pascal-app/editor';
 import { computeHeroFraming, heroCameraPose, Viewer } from '@pascal-app/viewer';
 import { useThree } from '@react-three/fiber';
 
@@ -21,6 +21,7 @@ import {
 import type {
   PascalCommitVerdict,
   PascalInitialTool,
+  PascalHistoryJump,
   PascalMountMode,
   PascalSaveStatus,
 } from './pascalMountTypes';
@@ -76,6 +77,16 @@ export interface PascalFrameProps {
    * chạm tới — bài đơn vị giả lập `mount`, còn máy chạy e2e thì có GPU.
    */
   readonly onRendererUnavailable: (() => void) | undefined;
+  /**
+   * Người dùng vừa hoàn tác hoặc làm lại (A8 — mọi thay đổi hoàn tác được,
+   * kèm toast hoàn tác).
+   *
+   * Chỉ cú nhảy THẬT của người dùng đi qua đây. Hai chỗ khác trong Pascal gọi
+   * thẳng `useScene.temporal.undo()` — `use-auto-save` lùi một lượt sửa bị
+   * `validateCommit` chặn, và bộ quản affordance chọn lùi một lượt thay thế
+   * hỏng — cả hai không phải việc người dùng bấm, nên không báo ra.
+   */
+  readonly onHistoryJump: ((kind: PascalHistoryJump) => void) | undefined;
 }
 
 /** `fov` của `PerspectiveCamera` mà `ViewerCamera` của Pascal dựng (`viewer-camera.tsx`). */
@@ -131,6 +142,7 @@ export function PascalFrame({
   onSceneLoaded,
   onRendererUnavailable,
   initialTool,
+  onHistoryJump,
 }: PascalFrameProps) {
   const [loaded, setLoaded] = useState(false);
   const [ready, setReady] = useState(false);
@@ -166,6 +178,14 @@ export function PascalFrame({
       cancelled = true;
     };
   }, [mode, scene, onFatal, onSceneLoaded]);
+
+  /* Đăng ký ở gốc thứ hai, không ở màn: `subscribeHistoryJumps` là một ô
+     chứa ở mức module của gói Pascal, mà gói ấy chỉ tồn tại trong lượt dựng
+     này. Chỉ ở `edit` — `<Viewer>` thuần không có lịch sử để nhảy. */
+  useEffect(() => {
+    if (mode !== 'edit' || onHistoryJump === undefined) return undefined;
+    return subscribeHistoryJumps(onHistoryJump);
+  }, [mode, onHistoryJump]);
 
   const handleReady = useCallback(
     (nextReady: boolean) => {

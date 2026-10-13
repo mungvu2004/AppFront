@@ -26,6 +26,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   PascalCommitVerdict,
   PascalInitialTool,
+  PascalHistoryJump,
   PascalMountMode,
   PascalSaveStatus,
 } from '@/components/pascal/pascalMountTypes';
@@ -87,6 +88,7 @@ interface MountModule {
       readonly onSaveStatus?: (status: PascalSaveStatus) => void;
       readonly validateCommit?: (scene: PascalScene) => PascalCommitVerdict;
       readonly onCommitRejected?: (message: string) => void;
+      readonly onHistoryJump?: (kind: PascalHistoryJump) => void;
       readonly onReadyChange?: (ready: boolean) => void;
       readonly onFatal?: (error: Error) => void;
       readonly onSceneLoaded?: (census: PascalSceneCensus) => void;
@@ -111,6 +113,8 @@ export interface UsePascalViewerOptions {
   readonly onCommitRejected?: (message: string) => void;
   /** Công cụ bật sẵn — `measure` khi URL có `?tool=measure`. */
   readonly initialTool?: PascalInitialTool | undefined;
+  /** Người dùng vừa hoàn tác/làm lại trong editor Pascal — màn dựng toast (A8). */
+  readonly onHistoryJump?: (kind: PascalHistoryJump) => void;
   /** Khung xem có đang thu gọn không. Thu gọn thì KHÔNG dựng 3D, để đỡ tốn máy. */
   readonly collapsed?: boolean;
   /**
@@ -243,6 +247,7 @@ export function usePascalViewer({
   validateCommit,
   onCommitRejected,
   initialTool,
+  onHistoryJump,
 }: UsePascalViewerOptions): UsePascalViewerResult {
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -272,11 +277,11 @@ export function usePascalViewer({
    * sau MỖI lần lưu, tức người dùng mất vùng chọn, mất camera, và cảnh nạp lại
    * từ đầu. Ref giữ bản mới nhất mà không động tới danh sách phụ thuộc.
    */
-  const edits = useRef({ onSceneCommit, validateCommit, onCommitRejected });
+  const edits = useRef({ onSceneCommit, validateCommit, onCommitRejected, onHistoryJump });
 
   useEffect(() => {
-    edits.current = { onSceneCommit, validateCommit, onCommitRejected };
-  }, [onSceneCommit, validateCommit, onCommitRejected]);
+    edits.current = { onSceneCommit, validateCommit, onCommitRejected, onHistoryJump };
+  }, [onSceneCommit, validateCommit, onCommitRejected, onHistoryJump]);
 
   const isCollapsed = selfCollapsed || (collapsed && !expanded);
 
@@ -361,6 +366,7 @@ export function usePascalViewer({
           },
           validateCommit: (next) => edits.current.validateCommit?.(next) ?? { ok: true },
           onCommitRejected: (message) => edits.current.onCommitRejected?.(message),
+          onHistoryJump: (kind) => edits.current.onHistoryJump?.(kind),
           onSaveStatus: (status) => {
             if (!disposed) setSaveStatus(status);
           },

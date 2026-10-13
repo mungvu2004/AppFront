@@ -825,7 +825,11 @@ const ViewerSceneContent = memo(function ViewerSceneContent({
   // selection, editing handles, and the tool manager (which mounts the site
   // boundary flags) so the framed shot stays clean.
   const isCaptureMode = useEditor((s) => s.isCaptureMode)
-  const noEditing = isVersionPreviewMode || isFirstPersonMode || isStudioMode || isCaptureMode
+  // A viewer-role host (`readOnly`) holds the scene read-only lease: its
+  // handles and floating action menus are not mounted at all (AppFront #30/#41).
+  const sceneReadOnly = useScene((s) => s.readOnly)
+  const noEditing =
+    isVersionPreviewMode || isFirstPersonMode || isStudioMode || isCaptureMode || sceneReadOnly
   return (
     <>
       <SceneEnvironment />

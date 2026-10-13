@@ -34,6 +34,7 @@ import { PascalFrame } from './PascalFrame';
 import type {
   PascalCommitVerdict,
   PascalInitialTool,
+  PascalHistoryJump,
   PascalMountMode,
   PascalSaveStatus,
   PascalSceneCommit,
@@ -79,6 +80,8 @@ export interface PascalMountOptions {
   readonly onCommitRejected?: (message: string) => void;
   /** Công cụ bật sẵn sau khi cảnh đã nạp (chỉ ở `mode: 'edit'`). */
   readonly initialTool?: PascalInitialTool;
+  /** Người dùng vừa hoàn tác/làm lại — xem `PascalFrameProps.onHistoryJump` (A8). */
+  readonly onHistoryJump?: (kind: PascalHistoryJump) => void;
 }
 
 /**
@@ -115,6 +118,7 @@ export function mount(element: HTMLElement, options: PascalMountOptions): Pascal
           onFatal={options.onFatal}
           onSceneLoaded={options.onSceneLoaded}
           onRendererUnavailable={options.onRendererUnavailable}
+          onHistoryJump={options.onHistoryJump}
         />
       </StrictMode>,
     );

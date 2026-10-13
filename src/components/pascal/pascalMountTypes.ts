@@ -29,3 +29,11 @@ export type PascalCommitVerdict = { readonly ok: true } | { readonly ok: false; 
 
 /** Cảnh sau một lượt sửa, trên đường thành một lệnh AppFront. */
 export type PascalSceneCommit = (scene: PascalScene) => Promise<void>;
+
+/**
+ * Một cú nhảy lịch sử NGƯỜI DÙNG vừa làm — `undo` hoặc `redo`.
+ *
+ * Chép đúng bộ giá trị của `HistoryJumpKind` (`editor/src/lib/history.ts`)
+ * thay vì `import type` xuyên tường, cùng lý do `PascalSaveStatus` ở trên.
+ */
+export type PascalHistoryJump = 'undo' | 'redo';

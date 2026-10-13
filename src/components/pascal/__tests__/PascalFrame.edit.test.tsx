@@ -17,11 +17,19 @@ import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuildi
 import { toPascalScene } from '@/lib/pascal/toPascal';
 
 const editorProps = vi.hoisted(() => ({ current: null as Record<string, unknown> | null }));
+const historyJumps = vi.hoisted(() => ({
+  listeners: new Set<(kind: 'undo' | 'redo') => void>(),
+}));
 
 vi.mock('@pascal-app/editor', () => ({
+  appFrontEditorPanels: [],
   Editor: (props: Record<string, unknown>) => {
     editorProps.current = props;
     return null;
+  },
+  subscribeHistoryJumps: (listener: (kind: 'undo' | 'redo') => void) => {
+    historyJumps.listeners.add(listener);
+    return () => historyJumps.listeners.delete(listener);
   },
 }));
 
@@ -50,12 +58,14 @@ const renderEdit = (overrides: Record<string, unknown> = {}) =>
       onFatal={undefined}
       onSceneLoaded={undefined}
       onRendererUnavailable={undefined}
+      onHistoryJump={undefined}
       {...overrides}
     />,
   );
 
 beforeEach(() => {
   editorProps.current = null;
+  historyJumps.listeners.clear();
 });
 
 describe('PascalFrame ở chế độ sửa', () => {
@@ -130,5 +140,37 @@ describe('PascalFrame ở chế độ sửa', () => {
 
     expect(editorProps.current).not.toHaveProperty('validateCommit');
     expect(editorProps.current).not.toHaveProperty('onCommitRejected');
+  });
+});
+
+/*
+ * A8 — mọi thay đổi hoàn tác được, KÈM TOAST.
+ *
+ * Khung đăng ký ở gốc thứ hai vì `subscribeHistoryJumps` là một ô chứa ở mức
+ * module của gói Pascal; bài này canh đúng hai việc: nó có đăng ký, và nó gỡ
+ * đăng ký khi rời màn — một listener sống sót một lượt gắn lại là một toast
+ * nhân đôi sau mỗi lần đổi bản vẽ.
+ */
+describe('[A8] cú nhảy lịch sử đi ra ngoài', () => {
+  it('đăng ký khi có nơi nghe, và báo đúng chiều', () => {
+    const onHistoryJump = vi.fn();
+    renderEdit({ onHistoryJump });
+
+    expect(historyJumps.listeners.size).toBe(1);
+    for (const listener of historyJumps.listeners) listener('undo');
+    expect(onHistoryJump).toHaveBeenCalledWith('undo');
+  });
+
+  it('gỡ đăng ký khi rời màn', () => {
+    const { unmount } = renderEdit({ onHistoryJump: vi.fn() });
+    expect(historyJumps.listeners.size).toBe(1);
+
+    unmount();
+    expect(historyJumps.listeners.size).toBe(0);
+  });
+
+  it('không nơi nào nghe thì không đăng ký gì', () => {
+    renderEdit();
+    expect(historyJumps.listeners.size).toBe(0);
   });
 });
