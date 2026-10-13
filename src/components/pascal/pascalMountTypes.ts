@@ -48,3 +48,12 @@ export type PascalHistoryJump = 'undo' | 'redo';
 export interface PascalMeasureResult {
   readonly distanceM: number;
 }
+
+/**
+ * Người dùng vừa xoá một phép đo đã ghim (#63, A8). `ordinal` là số thứ tự của
+ * nó trong tầng ("Đã xoá phép đo N"); `undo` là đúng cú hoàn tác của editor.
+ */
+export interface PascalMeasurementDelete {
+  readonly ordinal: number;
+  readonly undo: () => void;
+}

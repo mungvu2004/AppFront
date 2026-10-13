@@ -7,7 +7,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { emitter } from '@pascal-app/core';
-import { appFrontEditorPanels, Editor, subscribeHistoryJumps, useEditor } from '@pascal-app/editor';
+import {
+  appFrontEditorPanels,
+  Editor,
+  runUndo,
+  subscribeHistoryJumps,
+  subscribeMeasurementDeletes,
+  useEditor,
+} from '@pascal-app/editor';
 import {
   computeHeroFraming,
   heroCameraPose,
@@ -32,6 +39,7 @@ import type {
   PascalInitialTool,
   PascalHistoryJump,
   PascalMeasureResult,
+  PascalMeasurementDelete,
   PascalMountMode,
   PascalSaveStatus,
 } from './pascalMountTypes';
@@ -101,6 +109,8 @@ export interface PascalFrameProps {
    * hỏng — cả hai không phải việc người dùng bấm, nên không báo ra.
    */
   readonly onHistoryJump: ((kind: PascalHistoryJump) => void) | undefined;
+  /** Người dùng vừa xoá một phép đo — màn dựng toast có nút hoàn tác (#63). */
+  readonly onMeasurementDelete?: ((event: PascalMeasurementDelete) => void) | undefined;
   /** Bật tách tầng hết cỡ khi khung đứng lên — `/3d?view=exploded`. */
   readonly explodeLevels?: boolean;
   /** Chạm chọn ở `view` — xem `PascalMountOptions.onPick`. */
@@ -165,6 +175,7 @@ export function PascalFrame({
   onRendererUnavailable,
   initialTool,
   onHistoryJump,
+  onMeasurementDelete,
   explodeLevels = false,
   onPick,
   measure = false,
@@ -234,6 +245,11 @@ export function PascalFrame({
     if (mode !== 'edit' || onHistoryJump === undefined) return undefined;
     return subscribeHistoryJumps(onHistoryJump);
   }, [mode, onHistoryJump]);
+
+  useEffect(() => {
+    if (mode !== 'edit' || onMeasurementDelete === undefined) return undefined;
+    return subscribeMeasurementDeletes(({ ordinal }) => onMeasurementDelete({ ordinal, undo: runUndo }));
+  }, [mode, onMeasurementDelete]);
 
   const handleReady = useCallback(
     (nextReady: boolean) => {

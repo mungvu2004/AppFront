@@ -28,6 +28,7 @@ import type {
   PascalTemplateResult,
   PascalInitialTool,
   PascalHistoryJump,
+  PascalMeasurementDelete,
   PascalMountMode,
   PascalSaveStatus,
 } from '@/components/pascal/pascalMountTypes';
@@ -91,6 +92,7 @@ export interface MountModule {
       readonly onCommitRejected?: (message: string) => void;
       readonly onSaveAsTemplate?: (nodeId: string) => Promise<PascalTemplateResult>;
       readonly onHistoryJump?: (kind: PascalHistoryJump) => void;
+      readonly onMeasurementDelete?: (event: PascalMeasurementDelete) => void;
       readonly onReadyChange?: (ready: boolean) => void;
       readonly onFatal?: (error: Error) => void;
       readonly onSceneLoaded?: (census: PascalSceneCensus) => void;
@@ -124,6 +126,8 @@ export interface UsePascalViewerOptions {
   readonly initialTool?: PascalInitialTool | undefined;
   /** Người dùng vừa hoàn tác/làm lại trong editor Pascal — màn dựng toast (A8). */
   readonly onHistoryJump?: (kind: PascalHistoryJump) => void;
+  /** Người dùng vừa xoá một phép đo — màn dựng toast hoàn tác (#63, A8). */
+  readonly onMeasurementDelete?: (event: PascalMeasurementDelete) => void;
   /** Khung xem có đang thu gọn không. Thu gọn thì KHÔNG dựng 3D, để đỡ tốn máy. */
   readonly collapsed?: boolean;
   /** Mở ở chế độ tách tầng — `/3d?view=exploded`. */
@@ -262,6 +266,7 @@ export function usePascalViewer({
   onSaveAsTemplate,
   initialTool,
   onHistoryJump,
+  onMeasurementDelete,
   explodeLevels = false,
 }: UsePascalViewerOptions): UsePascalViewerResult {
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -301,11 +306,11 @@ export function usePascalViewer({
    * sau MỖI lần lưu, tức người dùng mất vùng chọn, mất camera, và cảnh nạp lại
    * từ đầu. Ref giữ bản mới nhất mà không động tới danh sách phụ thuộc.
    */
-  const edits = useRef({ onSceneCommit, validateCommit, onCommitRejected, onHistoryJump, onSaveAsTemplate });
+  const edits = useRef({ onSceneCommit, validateCommit, onCommitRejected, onHistoryJump, onSaveAsTemplate, onMeasurementDelete });
 
   useEffect(() => {
-    edits.current = { onSceneCommit, validateCommit, onCommitRejected, onHistoryJump, onSaveAsTemplate };
-  }, [onSceneCommit, validateCommit, onCommitRejected, onHistoryJump, onSaveAsTemplate]);
+    edits.current = { onSceneCommit, validateCommit, onCommitRejected, onHistoryJump, onSaveAsTemplate, onMeasurementDelete };
+  }, [onSceneCommit, validateCommit, onCommitRejected, onHistoryJump, onSaveAsTemplate, onMeasurementDelete]);
 
   const isCollapsed = selfCollapsed || (collapsed && !expanded);
 
@@ -398,6 +403,7 @@ export function usePascalViewer({
                   edits.current.onSaveAsTemplate?.(nodeId) ?? Promise.resolve({ ok: false, message: '' }),
               }),
           onHistoryJump: (kind) => edits.current.onHistoryJump?.(kind),
+          onMeasurementDelete: (event) => edits.current.onMeasurementDelete?.(event),
           onSaveStatus: (status) => {
             if (disposed) return;
             setSaveStatus(status);

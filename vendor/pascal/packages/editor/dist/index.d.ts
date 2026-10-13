@@ -121,7 +121,7 @@ export { boundsInsidePolygon, buildingRecentreOffset, buildSitePlanDrawing, cast
 export { commitFreshPlacementSubtree, createFreshPlacementSubtree, } from './lib/fresh-planar-placement';
 export { exportSceneToGlb, type GlbExportOptions } from './lib/glb-export';
 export { type EditorGridEvent, type GridEventScreenProjection, getGridEventScreenProjection, } from './lib/grid-event-presentation';
-export { getHistoryCommandState, type HistoryCommandDelegate, type HistoryCommandResult, type HistoryCommandState, type HistoryJumpKind, type HistoryJumpListener, installHistoryCommandDelegate, runRedo, runUndo, subscribeHistoryCommandState, subscribeHistoryJumps, } from './lib/history';
+export { getHistoryCommandState, type HistoryCommandDelegate, type HistoryCommandResult, type HistoryCommandState, type HistoryJumpKind, type HistoryJumpListener, installHistoryCommandDelegate, runRedo, runUndo, subscribeHistoryCommandState, subscribeHistoryJumps, subscribeMeasurementDeletes, } from './lib/history';
 export { type EditorHostTreeChildren, type EditorHostTreeChildrenProps, editorHostTreeChildrenRegistry, registerEditorHostTreeChildren, } from './lib/host-tree-children';
 export { DRAFTING_SURFACE_EXTENSION_KEY, type DraftingSurfaceExtension, } from './lib/interaction/registered-drafting';
 export { boundaryReshapeScope, curveReshapeScope, endpointReshapeScope, holeEditScope, meshEditScope, movingNodeOf, scopeNodeId, } from './lib/interaction/scope';

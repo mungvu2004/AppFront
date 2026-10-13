@@ -200,7 +200,7 @@ function buildFloorplanGeometries(
   installedPlugins: readonly string[] | undefined,
   level: AnyNode,
   unit: 'metric' | 'imperial',
-  metricNotation: 'meters' | 'millimeters',
+  metricNotation: 'meters' | 'centimeters' | 'millimeters',
 ): FloorplanRenderEntry[] {
   const building = level.parentId ? nodes[level.parentId] : undefined
   const levelTree = collectLevelTree(level, nodes)

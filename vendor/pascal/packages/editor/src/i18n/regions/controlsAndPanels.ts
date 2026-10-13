@@ -25,6 +25,10 @@ export const controlsAndPanels = {
     measurementType: "Loại đo",
     floorPlan: "Mặt bằng",
     constructionDimension: "Kích thước dựng hình",
+    unitLabel: "Đơn vị hiển thị",
+    unitMeters: "Mét (m)",
+    unitCentimeters: "Xăng-ti-mét (cm)",
+    unitMillimeters: "Mi-li-mét (mm)",
   },
   viewToggles: {
     fileTooLarge: "Tệp quá lớn. Kích thước tối đa là 200 MB.",

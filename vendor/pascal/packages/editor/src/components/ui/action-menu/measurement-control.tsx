@@ -18,6 +18,7 @@ import {
   Triangle,
   Waypoints,
 } from 'lucide-react'
+import { useViewer } from '@pascal-app/viewer'
 import { useState } from 'react'
 import type { CreatableMeasurementKind } from '../../../lib/measurement-kind'
 import { cn } from '../../../lib/utils'
@@ -61,7 +62,15 @@ const constructionDimensionOptions = [
   icon: typeof Ruler
 }[]
 
+const unitOptions = [
+  { notation: 'meters', short: 'm', label: vi.measurementControl.unitMeters },
+  { notation: 'centimeters', short: 'cm', label: vi.measurementControl.unitCentimeters },
+  { notation: 'millimeters', short: 'mm', label: vi.measurementControl.unitMillimeters },
+] as const
+
 export function MeasurementControl() {
+  const metricNotation = useViewer((state) => state.metricNotation)
+  const setMetricNotation = useViewer((state) => state.setMetricNotation)
   const [isOpen, setIsOpen] = useState(false)
   const mode = useEditor((state) => state.mode)
   const tool = useEditor((state) => state.tool)
@@ -224,6 +233,32 @@ export function MeasurementControl() {
               </button>
             )
           })}
+
+          <div className="my-1.5 h-px bg-border/60" />
+          <div
+            aria-label={vi.measurementControl.unitLabel}
+            className="flex gap-1 px-1 pb-0.5"
+            role="radiogroup"
+          >
+            {unitOptions.map((option) => (
+              <button
+                aria-checked={metricNotation === option.notation}
+                aria-label={option.label}
+                className={cn(
+                  'h-8 flex-1 rounded-md text-xs transition-colors',
+                  metricNotation === option.notation
+                    ? 'bg-white/10 text-foreground'
+                    : 'text-muted-foreground hover:bg-white/8 hover:text-foreground',
+                )}
+                key={option.notation}
+                onClick={() => setMetricNotation(option.notation)}
+                role="radio"
+                type="button"
+              >
+                {option.short}
+              </button>
+            ))}
+          </div>
 
           {floorplanMode === 'expert' ? (
             <>

@@ -552,6 +552,7 @@ export {
   runUndo,
   subscribeHistoryCommandState,
   subscribeHistoryJumps,
+  subscribeMeasurementDeletes,
 } from './lib/history'
 export {
   type EditorHostTreeChildren,

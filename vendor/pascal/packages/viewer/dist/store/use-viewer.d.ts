@@ -3,7 +3,7 @@ import type { Object3D } from 'three';
 import type { EdgeMode } from '../lib/edge-style';
 import type { ColorPreset, RenderShading } from '../lib/materials';
 export type RenderContext = 'editor' | 'viewer';
-export type MetricNotation = 'meters' | 'millimeters';
+export type MetricNotation = 'meters' | 'centimeters' | 'millimeters';
 export type WallMode = 'up' | 'cutaway' | 'down' | 'translucent';
 type SelectionPath = {
     buildingId: BuildingNode['id'] | null;
