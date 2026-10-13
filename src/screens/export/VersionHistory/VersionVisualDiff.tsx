@@ -1,13 +1,10 @@
 /**
- * Tab "Trực quan" — khối 3D của mô hình HIỆN TẠI, tô sáng những đối tượng đã đổi.
+ * Tab "Trực quan" — khối 3D của phiên bản CŨ trong cặp so (lùi về mô hình hiện tại khi bản cũ
+ * chưa có nội dung), tô sáng những đối tượng đã đổi.
  *
- * ## Nó KHÔNG phải cái đặc tả vẽ ra, và caption nói thẳng điều đó
- *
- * Đặc tả gốc đòi "hai mô hình chồng lên nhau". Không có bộ đổi `VersionSnapshot` → cảnh
- * (docblock `./types`), và store Pascal là một singleton nên cũng không dựng được hai cảnh
- * cạnh nhau. Thứ dựng được là mô hình HIỆN TẠI với các mã đã đổi tô sáng qua
- * `externalSelectedIds` của viewer Pascal. `visual.caption` vì thế bắt buộc hiện ở mọi nhánh
- * có mô hình: người đọc không được phép tưởng khối 3D này là bản cũ.
+ * Store Pascal là một singleton nên không dựng được hai cảnh cạnh nhau: tab dựng MỘT cảnh qua
+ * khung `view` của nó, và rời tab thì `dispose` trả chỗ lại cho cảnh kế. `visual.caption` bắt
+ * buộc hiện ở mọi nhánh có mô hình để người đọc biết đang nhìn bản nào.
  *
  * ## Vì sao nạp gói Pascal lúc chạy
  *
@@ -61,14 +58,12 @@ export function VersionVisualDiff({ visual }: VersionVisualDiffProps) {
   const [isRendererMissing, setRendererMissing] = useState(false);
   const handleRef = useRef<ReturnType<MountModule['mount']> | null>(null);
 
-  /** Mọi thứ lượt lắp cảnh cần, đọc qua một ref để nó không lắp lại mỗi lần render. */
-  const sceneRef = useRef(visual);
+  /** Mã tô sáng đọc qua một ref để đổi chúng không dựng lại cảnh. */
   const highlightIds = highlightIdsOf(visual);
   const highlightKey = highlightIds.join('|');
   const highlightRef = useRef(highlightIds);
 
   useEffect(() => {
-    sceneRef.current = visual;
     highlightRef.current = highlightIds;
   });
 
@@ -76,9 +71,10 @@ export function VersionVisualDiff({ visual }: VersionVisualDiffProps) {
     setHost(next);
   }, []);
 
-  /* Phần tử chỉ được render khi cảnh đã có, nên hiệu ứng này chạy đúng một lần cho mỗi phần tử. */
+  const scene = visual.scene;
+
+  /* Chạy lại khi đổi cảnh (đổi cặp phiên bản): dựng lại đúng cảnh mới, dispose cảnh cũ. */
   useEffect(() => {
-    const scene = sceneRef.current.scene;
 
     if (host === null || scene === null) {
       return undefined;
@@ -114,7 +110,7 @@ export function VersionVisualDiff({ visual }: VersionVisualDiffProps) {
       handleRef.current?.dispose();
       handleRef.current = null;
     };
-  }, [host]);
+  }, [host, scene]);
 
   /* Trỏ vào một hàng diff, hoặc đổi cặp phiên bản: tô sáng lại. */
   useEffect(() => {

@@ -65,6 +65,7 @@ import type { ApiClient, SpatialLayer } from '@/api/client';
 import type { FloorVersionSummary } from '@/api/schemas/versions';
 import type { Dimension, Level } from '@/domain/spatial/types';
 import type { PascalScene } from '@/lib/pascal/types';
+import type { VersionSnapshotSource } from './versionSnapshotAdapter';
 import type { UndoTicket } from '@/lib/mutations/undoTicket';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
 import type { EntityKind, VersionDiff, VersionSnapshot } from '@/lib/versioning/diff';
@@ -398,7 +399,12 @@ export interface VersionPage {
 
 /** N18: nội dung, hoặc "không còn nội dung" (`VERSION_SNAPSHOT_PURGED`/`VERSION_FLOOR_MISMATCH`). */
 export type VersionSnapshotRead =
-  | { readonly kind: 'snapshot'; readonly snapshot: VersionSnapshot }
+  | {
+      readonly kind: 'snapshot';
+      readonly snapshot: VersionSnapshot;
+      /** Lớp + kích thước thô của bản ấy — tab "Trực quan" dựng cảnh bản CŨ từ đây. */
+      readonly source?: VersionSnapshotSource;
+    }
   | { readonly kind: 'purged' };
 
 /** N16 rút gọn: lớp, kích thước và `revision` đi cùng nhau. */
