@@ -33,6 +33,8 @@ export const roomArea = {
   collapsed: "Thu gọn",
   collapsedHint: (count: number) => `${count} phòng lớn nhất`,
   fullTable: "Bảng toàn trang",
+  openFullPage: "Mở toàn trang",
+  closeFullTable: "Đóng bảng toàn trang",
   copyTable: "Sao chép bảng",
   copied: "Đã sao chép bảng",
 
