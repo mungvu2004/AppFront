@@ -32,13 +32,13 @@
 import { createAppApiClient } from '@/api/appClient';
 import type { ProjectsApi } from '@/api/client';
 import type { Measurement } from '@/domain/measure/measure';
-import { MEASUREMENT_LABELS } from '@/domain/measure/measure';
+import { MEASUREMENT_LABELS, measureDistance } from '@/domain/measure/measure';
 import { isEntityOfKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { LevelId } from '@/domain/spatial/types';
+import { metres, metresToMillimetres, millimetres } from '@/domain/units/types';
 import { formatAngle, formatArea, formatLength } from '@/lib/format/measure';
 import { createNetworkMonitor, type NetworkMonitor } from '@/lib/offline/networkMonitor';
 import type { SelectableKind } from '@/lib/selection/selectionOps';
-import type { EntityHit } from '@/lib/three/interaction/hitTest';
 import { toViewModel } from '@/lib/viewmodel/toViewModel';
 import type { ViewAttribute, ViewModel } from '@/lib/viewmodel/types';
 import type { ViewerStorey } from '@/screens/viewer/ViewerShell';
@@ -267,7 +267,7 @@ function viewModelOf(spatial: NormalizedSpatial, entityId: string): ViewModel | 
  * @returns `null` khi không còn gì để hiện.
  */
 export function selectionOf(
-  hit: EntityHit | null,
+  hit: MobilePick | null,
   spatial: NormalizedSpatial | null,
   canEditOnDesktop: boolean,
 ): MobileViewerSelection | null {
@@ -293,6 +293,12 @@ export function selectionOf(
     // không mời — thà không có câu nào còn hơn một câu dẫn tới ngõ cụt.
     needsDesktopToEdit: canEditOnDesktop && kept.length > 0,
   };
+}
+
+/** Thứ vừa chạm trúng: mã đối tượng AppFront và loại của nó. */
+export interface MobilePick {
+  readonly entityId: string;
+  readonly kind: SelectableKind;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -332,6 +338,16 @@ export function toMobileMeasurement(
     kindLabel: MEASUREMENT_LABELS[measurement.kind],
     valueLabel: measurementValueLabel(measurement),
   };
+}
+
+/** Một lượt đo hai điểm của Pascal (mét) thành dòng hiện ra, định dạng theo A15. */
+export function measurementOfDistance(distanceM: number, id: string): MobileViewerMeasurement {
+  const lengthMm = metresToMillimetres(metres(distanceM));
+
+  return toMobileMeasurement(
+    measureDistance({ x: millimetres(0), y: millimetres(0) }, { x: lengthMm, y: millimetres(0) }),
+    id,
+  );
 }
 
 /* -------------------------------------------------------------------------- */
