@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Editor } from '@pascal-app/editor';
+import { appFrontEditorPanels, Editor } from '@pascal-app/editor';
 import { computeHeroFraming, heroCameraPose, Viewer } from '@pascal-app/viewer';
 import { useThree } from '@react-three/fiber';
 
@@ -198,6 +198,11 @@ export function PascalFrame({
       <Editor
         guardAgainstSceneWipe
         readOnly={readOnly}
+        /* Bảng phụ của AppFront (F-15 W2-D). Danh sách khai TRONG vendor vì
+           `ExtraPanel.component` là một component React, mà Pascal chạy ở gốc
+           React thứ hai với bản React riêng — component dựng ở đây sẽ do bộ
+           dựng sai khởi tạo. Xem `components/ui/panels/appfront-panels.tsx`. */
+        extraSidebarPanels={appFrontEditorPanels}
         onLoad={handleLoad}
         onSave={handleSave}
         {...(onSaveStatus === undefined ? {} : { onSaveStatusChange: onSaveStatus })}

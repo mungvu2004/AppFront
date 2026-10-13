@@ -192,4 +192,7 @@ export { type StairPreviewPoint, useStairBuildPreview, } from './store/use-stair
 export { useUploadStore } from './store/use-upload';
 export { useWallMoveGhosts, type WallMoveGhostBridge } from './store/use-wall-move-ghosts';
 export { default as useWallSnapIndicator, type WallSnapKind, type WallSnapPoint, } from './store/use-wall-snap-indicator';
+export { appFrontEditorPanels } from './components/ui/panels/appfront-panels';
+export { FurnitureLibraryPanel } from './components/ui/panels/furniture-library-panel';
+export { RoomAreaPanel } from './components/ui/panels/room-area-panel';
 //# sourceMappingURL=index.d.ts.map

@@ -880,3 +880,7 @@ export {
   type WallSnapKind,
   type WallSnapPoint,
 } from './store/use-wall-snap-indicator'
+// Bảng phụ AppFront dựng trong editor (F-15 W2-D) — xem appfront-panels.tsx.
+export { appFrontEditorPanels } from './components/ui/panels/appfront-panels'
+export { FurnitureLibraryPanel } from './components/ui/panels/furniture-library-panel'
+export { RoomAreaPanel } from './components/ui/panels/room-area-panel'
