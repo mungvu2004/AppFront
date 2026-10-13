@@ -1,5 +1,5 @@
 /**
- * FIX-381 — nhóm khung nhìn mô hình: `/3d` (nay là màn Pascal), `/3d/exploded`,
+ * FIX-381 — nhóm khung nhìn mô hình: `/3d` (nay là màn Pascal),
  * `/3d/measure`, màn di động `/m/du-an/:projectId`. Tách khỏi `mainLandmark.test.tsx`
  * cũ để collect/chạy song song theo nhóm (PERF-01 FE-6).
  *

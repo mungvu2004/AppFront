@@ -71,7 +71,11 @@ describe('cây thật: container → view → hook', () => {
   it('hộp cho Pascal cắm vào CÓ MẶT ngay lúc đang nạp', () => {
     const bench = stubMount();
 
-    renderWithProviders(<PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />);
+    renderWithProviders(
+      <MemoryRouter>
+        <PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />
+      </MemoryRouter>,
+    );
 
     // Đây là dòng bắt được vòng chết: lúc này màn vẫn `loading`.
     expect(screen.getByTestId('pascal-canvas')).toBeInTheDocument();
@@ -80,7 +84,11 @@ describe('cây thật: container → view → hook', () => {
   it('gói vách ngăn ĐƯỢC nạp, và nạp vào đúng cái hộp ấy', async () => {
     const bench = stubMount();
 
-    renderWithProviders(<PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />);
+    renderWithProviders(
+      <MemoryRouter>
+        <PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(bench.calls()).toBe(1);
@@ -92,7 +100,11 @@ describe('cây thật: container → view → hook', () => {
   it('nạp xong thì màn rời khỏi "đang nạp" và nói ra số đo', async () => {
     const bench = stubMount();
 
-    renderWithProviders(<PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />);
+    renderWithProviders(
+      <MemoryRouter>
+        <PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(bench.calls()).toBe(1);
@@ -112,7 +124,9 @@ describe('cây thật: container → view → hook', () => {
     const bench = stubMount();
 
     const view = renderWithProviders(
-      <PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />,
+      <MemoryRouter>
+        <PascalViewerContainer graph={GRAPH} loadMount={bench.loadMount} />
+      </MemoryRouter>,
     );
 
     await waitFor(() => {
@@ -128,7 +142,13 @@ describe('cây thật: container → view → hook', () => {
 });
 
 describe('route: đọc kho qua cổng nạp kho dự án (B-V12-01)', () => {
-  const PROJECT = { created_at: '', id: 'project-1', members: [], name: 'Dự án mẫu', updated_at: '' };
+  const PROJECT = {
+    created_at: '',
+    id: 'project-1',
+    members: [],
+    name: 'Dự án mẫu',
+    updated_at: '',
+  };
 
   const renderRoute = () =>
     renderWithProviders(
@@ -164,7 +184,21 @@ describe('route: đọc kho qua cổng nạp kho dự án (B-V12-01)', () => {
     vi.stubEnv('VITE_USE_MOCK_API', 'false');
     act(() => {
       useStore.getState().setProject(PROJECT);
-      useStore.getState().setSpatial(normalizeSpatial({ ...GRAPH, axes: [], dimensions: [], furniture: [], levels: [], openings: [], rooms: [], walls: [] }), null);
+      useStore
+        .getState()
+        .setSpatial(
+          normalizeSpatial({
+            ...GRAPH,
+            axes: [],
+            dimensions: [],
+            furniture: [],
+            levels: [],
+            openings: [],
+            rooms: [],
+            walls: [],
+          }),
+          null,
+        );
     });
 
     try {
