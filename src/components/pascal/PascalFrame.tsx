@@ -117,6 +117,8 @@ export interface PascalFrameProps {
   readonly onPick?: ((nodeId: string | null) => void) | undefined;
   readonly measure?: boolean;
   readonly onMeasure?: ((result: PascalMeasureResult) => void) | undefined;
+  /** Chỉ ở `view`: post-FX tắt cho tới khi lần nạp đầu xong. */
+  readonly lite?: boolean;
 }
 
 /** `fov` của `PerspectiveCamera` mà `ViewerCamera` của Pascal dựng (`viewer-camera.tsx`). */
@@ -180,9 +182,11 @@ export function PascalFrame({
   onPick,
   measure = false,
   onMeasure,
+  lite = false,
 }: PascalFrameProps) {
   const [loaded, setLoaded] = useState(false);
   const [ready, setReady] = useState(false);
+  const [firstLoadDone, setFirstLoadDone] = useState(false);
 
   /* `/3d?tool=measure`: bật công cụ đo một lần, khi editor đã đứng. Vai chỉ xem
      vẫn đo được (#67) — đo không ghi gì vào cảnh. */
@@ -254,6 +258,7 @@ export function PascalFrame({
   const handleReady = useCallback(
     (nextReady: boolean) => {
       setReady(nextReady);
+      if (nextReady) setFirstLoadDone(true);
       onReadyChange?.(nextReady);
     },
     [onReadyChange],
@@ -323,6 +328,7 @@ export function PascalFrame({
     <Viewer
       cameraControls={cameraControls}
       sceneReadyKey={sceneKey}
+      disablePostFx={lite && !firstLoadDone}
       onSceneReadyChange={handleReady}
       {...(onRendererUnavailable === undefined ? {} : { onRendererUnavailable })}
     >
