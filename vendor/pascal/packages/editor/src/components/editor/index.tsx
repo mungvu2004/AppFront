@@ -17,7 +17,9 @@ import {
   PERF_OVERLAY_ENABLED,
   recordPerfSample,
   SceneEnvironment,
+  SectionPlaneControl,
   useViewer,
+  ViewCube,
   Viewer,
   type ViewerImmersiveSession,
   ViewerPresentations,
@@ -1180,6 +1182,9 @@ const ViewerCanvas = memo(function ViewerCanvas({
               onDismiss={dismissCameraControlsHint}
             />
           ) : null}
+          {/* AppFront #32/#34: section-plane slider and view cube, DOM over the canvas. */}
+          {!(showLoader || isFirstPersonMode) && <SectionPlaneControl />}
+          {!(showLoader || isFirstPersonMode) && <ViewCube />}
           <SelectionPersistenceManager enabled={hasLoadedInitialScene && !showLoader} />
           <Viewer
             defaultRender={EDITOR_DEFAULT_RENDER}

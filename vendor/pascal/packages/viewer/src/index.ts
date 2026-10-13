@@ -267,6 +267,14 @@ export {
 } from './systems/level/level-camera-focus'
 export { LevelSystem } from './systems/level/level-system'
 export {
+  clampSectionHeight,
+  SectionPlaneGroup,
+  sectionPlaneAt,
+  useSectionPlane,
+} from './systems/section-plane/section-plane'
+export { ViewCube, type ViewCubeFace, viewCubePose } from './components/viewer/view-cube'
+export { SectionPlaneControl } from './components/viewer/section-plane-control'
+export {
   EXPLODED_GAP,
   getLevelPresentationY,
   snapLevelsToTruePositions,
