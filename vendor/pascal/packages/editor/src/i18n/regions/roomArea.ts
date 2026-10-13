@@ -43,7 +43,7 @@ export const roomArea = {
   areaFormula: "Diện tích tính theo đường bao trong của tường (công thức dây giày)",
   openings: (doors: number, windows: number) => `${doors} cửa · ${windows} cửa sổ`,
   perimeter: "Chu vi",
-  ceilingHeight: "Cao",
+  ceilingHeight: "Chiều cao",
 
   emptyTitle: "Chưa có phòng nào đo được",
   emptyBody: "Phòng chỉ hiện ở đây khi đường bao tường đã kín.",

@@ -1,8 +1,10 @@
 'use client'
 
-import { Ruler } from 'lucide-react'
+import { Armchair, Ruler } from 'lucide-react'
+import { furnitureLibrary as viFurniture } from '../../../i18n/regions/furnitureLibrary'
 import { roomArea as vi } from '../../../i18n/regions/roomArea'
 import type { ExtraPanel } from '../sidebar/icon-rail'
+import { FurnitureLibraryPanel } from './furniture-library-panel'
 import { RoomAreaPanel } from './room-area-panel'
 
 /**
@@ -21,5 +23,11 @@ export const appFrontEditorPanels: ExtraPanel[] = [
     label: vi.title,
     icon: <Ruler className="size-4" />,
     component: RoomAreaPanel,
+  },
+  {
+    id: 'appfront-furniture',
+    label: viFurniture.title,
+    icon: <Armchair className="size-4" />,
+    component: FurnitureLibraryPanel,
   },
 ]

@@ -7,6 +7,7 @@ import { editorAndViewer } from "./regions/editorAndViewer";
 import { editorRoot } from "./regions/editorRootDoNotEdit";
 import { libStrings } from "./regions/libStrings";
 import { primitivesAndSidebar } from "./regions/primitivesAndSidebar";
+import { furnitureLibrary } from "./regions/furnitureLibrary";
 import { roomArea } from "./regions/roomArea";
 
 export const vi = {
@@ -18,4 +19,6 @@ export const vi = {
   editorRoot,
   // Bảng "Diện tích phòng" + lưới thẻ đồ đạc (F-15 W2-D).
   roomArea,
+  // Bảng phụ "Thư viện đồ đạc" (F-15 W2-D).
+  furnitureLibrary,
 } as const;
