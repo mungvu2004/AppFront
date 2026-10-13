@@ -73,6 +73,7 @@ import { EditorCommands } from '../ui/command-palette/editor-commands'
 import { FloatingLevelSelector } from '../ui/floating-level-selector'
 import { HelperManager } from '../ui/helpers/helper-manager'
 import { PanelManager } from '../ui/panels/panel-manager'
+import { SaveAsTemplateContext, type SaveAsTemplateResult } from '../ui/panels/save-as-template'
 import { KeyboardShortcutsDialogHost } from '../ui/sidebar/panels/settings-panel/keyboard-shortcuts-dialog'
 import { ErrorBoundary } from '../ui/primitives/error-boundary'
 import { useSidebarStore } from '../ui/primitives/sidebar'
@@ -227,6 +228,11 @@ export interface EditorProps {
   validateCommit?: (scene: SceneGraph) => CommitVerdict
   /** What to show when `validateCommit` refuses an edit. */
   onCommitRejected?: (message: string) => void
+  /**
+   * "Lưu làm khuôn mẫu" (AppFront #25): the host stores the node as a property
+   * template and returns the sentence to show. Omitted → no button.
+   */
+  onSaveAsTemplate?: (nodeId: string) => Promise<SaveAsTemplateResult>
   /**
    * Viewer role: the scene store takes a read-only lease, so every write
    * action is a no-op, the edit tools never arm, and the panels that already
@@ -1792,7 +1798,9 @@ function EditorContent({
 export default function Editor(props: EditorProps) {
   return (
     <Profiler id="editor" onRender={recordEditorRender}>
-      <EditorContent {...props} />
+      <SaveAsTemplateContext.Provider value={props.onSaveAsTemplate ?? null}>
+        <EditorContent {...props} />
+      </SaveAsTemplateContext.Provider>
     </Profiler>
   )
 }

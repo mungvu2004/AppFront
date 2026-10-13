@@ -60,9 +60,6 @@ const FurnitureLibraryPanelContainer = lazy(async () => ({
 const HistoryPanelContainer = lazy(async () => ({
   default: (await import('@/screens/viewer/HistoryPanel')).HistoryPanelContainer,
 }));
-const PropertyInspectorContainer = lazy(async () => ({
-  default: (await import('@/screens/viewer/PropertyInspector')).PropertyInspectorContainer,
-}));
 const RoomAreaPanelContainer = lazy(async () => ({
   default: (await import('@/screens/viewer/RoomAreaPanel')).RoomAreaPanelContainer,
 }));
@@ -246,23 +243,7 @@ export function Viewer3DPanels(props: Viewer3DPanelsProps) {
 
   return (
     <div className="flex min-h-0 shrink-0 flex-col border-t border-border-default">
-      {props.selectedEntityId !== null && (
-        <section
-          aria-label={VIEWER_3D_INSPECTOR_LABEL}
-          className="min-h-0 max-h-[320px] overflow-y-auto"
-        >
-          <LazyPanel loadingLabel={PANEL_LOADING_LABELS.inspector}>
-            <PropertyInspectorContainer
-              onDismiss={props.onDismissInspector}
-              onNavigateToObject={props.onNavigateToObject}
-              onOpenRuleScreen={props.onOpenRuleScreen}
-              saveLabel={props.saveLabel}
-              selectedEntityId={props.selectedEntityId}
-              selectedEntityIds={props.selectedEntityIds}
-            />
-          </LazyPanel>
-        </section>
-      )}
+      {/* Panel thuộc tính cũ đã thay bằng inspector Pascal (F-15 W2-A). */}
 
       {props.canEditWallGeometry && (
         <div className="shrink-0 px-2 pt-2">

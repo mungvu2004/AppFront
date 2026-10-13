@@ -63,6 +63,14 @@ export interface EditorProps {
     /** What to show when `validateCommit` refuses an edit. */
     onCommitRejected?: (message: string) => void;
     /**
+     * "Lưu làm khuôn mẫu" (AppFront #25): the host stores the node as a property
+     * template and returns the sentence to show. Omitted → no button.
+     */
+    onSaveAsTemplate?: (nodeId: string) => Promise<{
+        ok: boolean;
+        message: string;
+    }>;
+    /**
      * Viewer role: the scene store takes a read-only lease, so every write
      * action is a no-op, the edit tools never arm, and the panels that already
      * read `useScene(s => s.readOnly)` hide their edit affordances.

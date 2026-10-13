@@ -232,6 +232,10 @@ export const controlsAndPanels = {
     forbidden: "Bạn đang ở vai người xem — không sửa được thuộc tính.",
     missing: "Không còn tìm thấy đối tượng đã chọn. Hãy chọn lại.",
   },
+  // Nút "Lưu làm khuôn mẫu" (#25); câu kết quả do host (AppFront) trả về.
+  saveAsTemplate: {
+    label: "Lưu làm khuôn mẫu",
+  },
   reviewInspector: {
     title: "Kiểm duyệt",
     confidence: "Độ tin cậy",

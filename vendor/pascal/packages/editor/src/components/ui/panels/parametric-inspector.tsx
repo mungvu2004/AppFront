@@ -25,6 +25,7 @@ import { ActionButton, ActionGroup } from '../controls/action-button'
 import { PanelSection } from '../controls/panel-section'
 import { ParametricFieldControl } from './parametric-field-control'
 import { ReviewSection } from './review-section'
+import { SaveAsTemplateButton } from './save-as-template'
 import { InspectorFooterContext, PanelWrapper } from './panel-wrapper'
 
 /**
@@ -182,6 +183,7 @@ export function ParametricInspector({
             {parametrics.actions?.map((action, i) => (
               <ParamActionButton action={action} key={`paramaction-${i}`} nodeId={selectedId} />
             ))}
+            <SaveAsTemplateButton nodeId={selectedId} />
             {canDelete &&
               (isZone ? (
                 <>

@@ -33,6 +33,7 @@ import type { PascalScene } from '@/lib/pascal/types';
 import { PascalFrame } from './PascalFrame';
 import type {
   PascalCommitVerdict,
+  PascalTemplateResult,
   PascalInitialTool,
   PascalHistoryJump,
   PascalMountMode,
@@ -82,6 +83,8 @@ export interface PascalMountOptions {
   readonly validateCommit?: (scene: PascalScene) => PascalCommitVerdict;
   /** Lý do một lượt sửa bị chặn. Màn hình dựng toast tiếng Việt từ đây. */
   readonly onCommitRejected?: (message: string) => void;
+  /** "Lưu làm khuôn mẫu" (#25): host lưu node làm khuôn, trả câu để hiện. */
+  readonly onSaveAsTemplate?: (nodeId: string) => Promise<PascalTemplateResult>;
   /** Công cụ bật sẵn sau khi cảnh đã nạp (chỉ ở `mode: 'edit'`). */
   readonly initialTool?: PascalInitialTool;
   /** Người dùng vừa hoàn tác/làm lại — xem `PascalFrameProps.onHistoryJump` (A8). */
@@ -119,6 +122,7 @@ export function mount(element: HTMLElement, options: PascalMountOptions): Pascal
           onSaveStatus={options.onSaveStatus}
           validateCommit={options.validateCommit}
           onCommitRejected={options.onCommitRejected}
+          onSaveAsTemplate={options.onSaveAsTemplate}
           explodeLevels={options.explodeLevels ?? false}
           initialTool={options.initialTool}
           onReadyChange={options.onReadyChange}

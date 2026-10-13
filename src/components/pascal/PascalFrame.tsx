@@ -26,6 +26,7 @@ import {
 } from './pascalScene';
 import type {
   PascalCommitVerdict,
+  PascalTemplateResult,
   PascalInitialTool,
   PascalHistoryJump,
   PascalMountMode,
@@ -54,6 +55,8 @@ export interface PascalFrameProps {
   readonly validateCommit: ((scene: PascalScene) => PascalCommitVerdict) | undefined;
   /** Lý do một lượt sửa bị chặn, để màn hình nói ra bằng tiếng Việt. */
   readonly onCommitRejected: ((message: string) => void) | undefined;
+  /** "Lưu làm khuôn mẫu" (#25) — vắng thì editor không hiện nút. */
+  readonly onSaveAsTemplate?: ((nodeId: string) => Promise<PascalTemplateResult>) | undefined;
   /** Công cụ bật sẵn khi editor đã nạp xong cảnh — xem `PascalInitialTool`. */
   readonly initialTool?: PascalInitialTool | undefined;
   /**
@@ -145,6 +148,7 @@ export function PascalFrame({
   onSaveStatus,
   validateCommit,
   onCommitRejected,
+  onSaveAsTemplate,
   onReadyChange,
   onFatal,
   onSceneLoaded,
@@ -263,6 +267,7 @@ export function PascalFrame({
         onLoaderChange={(visible) => handleReady(!visible)}
         {...(handleValidate === undefined ? {} : { validateCommit: handleValidate })}
         {...(onCommitRejected === undefined ? {} : { onCommitRejected })}
+        {...(onSaveAsTemplate === undefined || readOnly ? {} : { onSaveAsTemplate })}
       />
     );
   }
