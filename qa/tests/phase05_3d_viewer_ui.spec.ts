@@ -316,7 +316,8 @@ test.describe('U05 UI verify — SCR-23 viewer 3D (own seeded project)', () => {
   });
 });
 
-test.describe('U05 UI verify — SCR-24 exploded view (own seeded project)', () => {
+// F-15 W2-C2: màn ExplodedView cũ đã xoá, /3d/exploded chuyển sang /3d?view=exploded của Pascal — tách tầng Pascal kiểm ở e2e/v9/exploded.spec.ts
+test.describe.skip('U05 UI verify — SCR-24 exploded view (own seeded project)', () => {
   test.beforeEach(() => test.setTimeout(TEST_TIMEOUT_MS));
 
   test('U05 · SCR-24 exploded, "Tách vừa" → floors separated', async ({ browser }) => {
@@ -455,7 +456,7 @@ test.describe('U05 UI verify — empty project, 80-char name + 65-char floor nam
     });
   });
 
-  test('U05 · SCR-24 exploded, one storey → empty state', async ({ browser }) => {
+  test.skip('U05 · SCR-24 exploded, one storey → empty state', async ({ browser }) => {
     await verifyAsAdmin(browser, 'U05_exploded_empty', async (p) => {
       await openExploded(p, own());
       await expect(p.getByText(EXPLODED_EMPTY_TEXT, { exact: true })).toBeVisible();
