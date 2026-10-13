@@ -43,6 +43,8 @@ export interface PascalFrameProps {
    * `edit` dựng `<Editor>`, và khi ấy chính editor nạp cảnh qua `onLoad`.
    */
   readonly mode: PascalMountMode;
+  /** Chỉ ở `view`: bật điều khiển camera chạm/chuột của `<Viewer>` (F-15 S1). */
+  readonly cameraControls?: boolean;
   /** Vai chỉ-xem. Chỉ có nghĩa ở `edit`; `view` vốn đã không sửa được gì. */
   readonly readOnly: boolean;
   /**
@@ -150,6 +152,7 @@ export function PascalFrame({
   scene,
   sceneKey,
   mode,
+  cameraControls = false,
   readOnly,
   onSceneCommit,
   onSaveStatus,
@@ -302,6 +305,7 @@ export function PascalFrame({
 
   return (
     <Viewer
+      cameraControls={cameraControls}
       sceneReadyKey={sceneKey}
       onSceneReadyChange={handleReady}
       {...(onRendererUnavailable === undefined ? {} : { onRendererUnavailable })}

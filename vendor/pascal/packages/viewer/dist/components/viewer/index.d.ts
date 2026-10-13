@@ -95,6 +95,8 @@ interface ViewerProps {
     renderPaused?: boolean;
     /** Host-provided immersive XR session wrappers for the main scene. */
     immersive?: ViewerImmersiveSession;
+    /** AppFront: built-in touch/mouse camera for view-only hosts. */
+    cameraControls?: boolean;
 }
 /** Imperative handle exposed via `ref` on `<Viewer>`. */
 export type ViewerHandle = {

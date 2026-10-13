@@ -69,6 +69,8 @@ export interface PascalMountOptions {
   readonly onRendererUnavailable?: () => void;
   /** `view` (mặc định) dựng `<Viewer>`; `edit` dựng `<Editor>` của Pascal. */
   readonly mode?: PascalMountMode;
+  /** Chỉ ở `view`: xoay một ngón, chụm để thu phóng, hai ngón để dời (chuột: kéo, lăn). */
+  readonly cameraControls?: boolean;
   /** Vai chỉ-xem: editor khoá store, công cụ sửa không kích hoạt, nút sửa ẩn. */
   readonly readOnly?: boolean;
   /**
@@ -124,6 +126,7 @@ export function mount(element: HTMLElement, options: PascalMountOptions): Pascal
           scene={scene}
           sceneKey={sceneKey}
           mode={options.mode ?? 'view'}
+          cameraControls={options.cameraControls ?? false}
           readOnly={options.readOnly ?? false}
           onSceneCommit={options.onSceneCommit}
           onSaveStatus={options.onSaveStatus}

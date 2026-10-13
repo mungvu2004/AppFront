@@ -52,6 +52,7 @@ import { useSceneAtmosphere } from './scene-atmosphere'
 import { SceneBvh } from './scene-bvh'
 import { SelectionManager } from './selection-manager'
 import { UnsupportedGpuViewerFallback } from './unsupported-gpu-fallback'
+import { TouchCameraControls } from './touch-camera-controls'
 import { ViewerCamera } from './viewer-camera'
 
 // Must be in place before any node material builds — a null texture pulled by
@@ -487,6 +488,11 @@ interface ViewerProps {
   renderPaused?: boolean
   /** Host-provided immersive XR session wrappers for the main scene. */
   immersive?: ViewerImmersiveSession
+  /**
+   * AppFront addition: built-in touch/mouse camera for view-only hosts (no
+   * editor controls). One finger/drag orbits, pinch/wheel zooms, two fingers pan.
+   */
+  cameraControls?: boolean
 }
 
 /** Imperative handle exposed via `ref` on `<Viewer>`. */
@@ -520,6 +526,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
     disablePostFx = false,
     renderPaused = false,
     immersive,
+    cameraControls = false,
   },
   ref,
 ) {
@@ -751,6 +758,7 @@ const Viewer = forwardRef<ViewerHandle, ViewerProps>(function Viewer(
                 onFrameError={composeRenderErrorHandlers(onRenderError)}
                 paused={renderPaused}
               />
+              {cameraControls && <TouchCameraControls />}
               <ViewerScene
                 disablePostFx={disablePostFx}
                 hoverStyles={hoverStyles}
