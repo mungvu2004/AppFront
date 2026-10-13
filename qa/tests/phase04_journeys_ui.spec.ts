@@ -5,7 +5,7 @@
  * (`support/ui-verify.ts` `verifyUi`: re-opens the state per width, measures layout defects, shoots
  * `U04_<row id>_<slug>_<width>.png`, attaches `U04_<row id>_<slug>.json`). `H` rows use a hard `expect`.
  *
- * Data: D1 (`createPipelineDrawingProject` as the POOL ADMIN `p04-journeys`: own `drawings_init` bucket, one fake-ML run,
+ * Data: D1 (`createPipelineDrawingProject` as the POOL ADMIN `p04-journeys-ui`: own `drawings_init` bucket, one fake-ML run,
  * provisional scale, AI layer) + W2 (a second writer, `secondWriter`, only for the 409 banner of [17-F-010]). The browser
  * session is the pool admin. No mock, no clock. Request budget: 3 logins, 1 `POST /api/projects`, 1 `drawings_init`,
  * ≤ 4 second-writer PUTs (one per width of [17-F-010]).
@@ -50,7 +50,7 @@ test.describe('E04 journeys — UI verification flow (QA-04c P1)', () => {
     let run: WallsRun | undefined;
     let projectId: string | undefined;
     try {
-      const pool = await poolUser(admin, 'admin', 'p04-journeys');
+      const pool = await poolUser(admin, 'admin', 'p04-journeys-ui');
       owner = await signedInApi(pool.email, pool.password);
       const d1 = await createPipelineDrawingProject(owner, 'e04-x-u1', envDrawingPng());
       projectId = d1.projectId;

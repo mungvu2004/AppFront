@@ -19,7 +19,7 @@
  * CP src/lib/query/cachePolicy.ts · UFL src/hooks/useFloorLayer.ts.
  *
  * ## Users and data
- * Projects are owned by the POOL ADMIN of this file (`poolUser(admin, 'admin', 'p04-journeys')`, own `drawings_init` bucket;
+ * Projects are owned by the POOL ADMIN of this file (`poolUser(admin, 'admin', 'p04-journeys-edge')`, own `drawings_init` bucket;
  * the env admin is at ~57/60 per 600 s in a full run). FL-X-01 signs in as the FRESH pool engineer (`p04-fresh`, a member of
  * its two projects; a new browser context has no tour storage). D1 = `createPipelineDrawingProject` (env drawing after the
  * fake-ML run: provisional scale, AI layer); DM = a 2-floor project with the drawing on floor 1 only (floor 2 has no scan,
@@ -27,7 +27,7 @@
  *
  * ## Request budget per full run
  * - `POST /api/auth/login`: per flow 1 owner API + 1 browser (+ 1 env admin API for the pool, + 1 fresh engineer in FL-X-01) ≈ 10.
- * - `drawings_init`: FL-X-01 1, FL-X-03 1, FL-X-04 1 = 3 (pool admin `p04-journeys`); 3 fake-ML runs awaited in each seed.
+ * - `drawings_init`: FL-X-01 1, FL-X-03 1, FL-X-04 1 = 3 (pool admin `p04-journeys-edge`); 3 fake-ML runs awaited in each seed.
  * - `POST /api/projects` 5; #35 PUT: ≈ 6 per D1 flow; `POST …/members` 3; no invitations once the pool slots exist (else 2).
  */
 import { expect, test, type Locator, type Page } from '@playwright/test';
@@ -81,6 +81,7 @@ import {
   statusBar,
   thickenFirst,
   secondWriter,
+  thicknessGroup,
   wallOption,
   wallRows,
   writesSince,
@@ -155,7 +156,7 @@ const calibrateButton = (page: Page): Locator => page.getByRole('button', { name
 test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
   test('SCR-X · FL-X-01 · editor tour: first visit, skip, Esc, backdrop, steps, reopen, per host, screens without tour', async ({ browser }) => {
     test.setTimeout(PIPELINE_TIMEOUT_MS + 240_000);
-    const { admin, owner } = await ownerOf('p04-journeys');
+    const { admin, owner } = await ownerOf('p04-journeys-edge');
     let run: WallsRun | undefined;
     const projects: string[] = [];
     try {
@@ -480,7 +481,7 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
 
   test('SCR-X · FL-X-03 · provisional banner → scale → Back, rescale, pending edit + scale, undo, cache collisions, 409 block', async ({ browser }) => {
     test.setTimeout(PIPELINE_TIMEOUT_MS + 420_000);
-    const { admin, pool, owner } = await ownerOf('p04-journeys');
+    const { admin, pool, owner } = await ownerOf('p04-journeys-edge');
     let run: WallsRun | undefined;
     let projectId: string | undefined;
     try {
@@ -592,9 +593,21 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         expect.soft(reviewed.length, 'a reviewed wall exists').toBeGreaterThan(0);
         for (const row of reviewed) expect.soft(row.after, `reviewed ${row.id} unchanged`).toBe(row.before);
         const ratios = unreviewed.map((row) => row.after / row.before);
-        const k = typeof scaleBefore === 'number' && typeof scaleAfter === 'number' ? scaleAfter / scaleBefore : ratios[0];
-        for (const ratio of ratios) expect.soft(ratio, 'unreviewed thickness × k').toBeCloseTo(k as number, 1);
+        expect(typeof scaleBefore, 'setup: provisional scale is a number').toBe('number');
+        expect(typeof scaleAfter, 'setup: applied scale is a number').toBe('number');
+        const k = (scaleAfter as number) / (scaleBefore as number);
+        expect(unreviewed.length, 'an unreviewed wall exists').toBeGreaterThan(0);
+        for (const ratio of ratios) expect.soft(ratio, 'unreviewed thickness × k').toBeCloseTo(k, 1);
         await expect.soft(bannerOf(page)).toHaveCount(0);
+        // UI side: an unreviewed wall selected on SCR-16 shows a BE-rescaled thickness (a checked radio, if any, is one of the new values).
+        const unreviewedLabel = (await rowLabels(page)).find((label) => !/đã duyệt/iu.test(label)) ?? '';
+        expect(unreviewedLabel, 'setup: an unreviewed row on SCR-16').not.toBe('');
+        await selectRow(page, codeOfLabel(unreviewedLabel));
+        const checked = thicknessGroup(page).getByRole('radio', { checked: true });
+        if ((await checked.count()) > 0) {
+          const text = (await checked.first().innerText()).trim();
+          expect.soft(unreviewed.map((row) => `${String(row.after)} mm`), 'SCR-16 shows a rescaled thickness').toContain(text);
+        }
         await ev(page, 'X4-A-020', 'rescaled-walls');
       });
 
@@ -654,9 +667,11 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         await expect(page.getByText('Kiểm tra chất lượng đầu vào').first()).toBeVisible({ timeout: 60_000 });
         await on(screens.overlay);
         await expect(page.getByLabel('Màn đối chiếu bản vẽ', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
+        // The floor has a drawing: the "no drawing" notice (shape-collision symptom) must not appear on SCR-22.
+        await expect.soft(page.getByText(/^Tầng này chưa có bản vẽ nào/u), 'SCR-22 has a drawing').toHaveCount(0);
         await on(screens.quality);
         await expect.soft(page.getByText('Kiểm tra chất lượng đầu vào').first()).toBeVisible({ timeout: 15_000 });
-        await expect.soft(page.getByRole('alert').filter({ hasText: /không|lỗi/iu }), 'no error after SCR-22 → SCR-11').toHaveCount(0);
+        await expect.soft(page.getByText(/^Tầng này chưa có bản vẽ nào/u), 'no "no drawing" notice after SCR-22 → SCR-11').toHaveCount(0);
         await ev(page, 'X4-A-024', 'quality-cache-shape');
       });
 
@@ -667,6 +682,7 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         const conflict = waitForApi(page, 'PUT', layerRe(d1.projectId, d1.floorId), [409]);
         await applyScale(page).click();
         await conflict;
+        await expect.soft(page.getByRole('button', { name: WALL.reload, exact: true }), 'SCR-14 itself has no "Tải lại"').toHaveCount(0);
         await on(screens.walls);
         const banner = page.getByRole('alert').filter({ hasText: WALL.conflict });
         await expect.soft(banner).toBeVisible();
@@ -674,7 +690,8 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         await ev(page, 'X4-A-025', 'scale-409-blocks-walls');
         await banner.getByRole('button', { name: WALL.reload, exact: true }).click();
         const dialog = page.getByRole('dialog', { name: WALL.confirmTitle, exact: true });
-        if ((await dialog.count()) > 0) await dialog.getByRole('button', { name: WALL.confirmReload, exact: true }).click();
+        await expect(dialog).toBeVisible();
+        await dialog.getByRole('button', { name: WALL.confirmReload, exact: true }).click();
         await expect.soft(banner).toHaveCount(0);
       });
 
@@ -725,7 +742,7 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
 
   test('SCR-X · FL-X-04 · /3d ↔ overlay: store floors, "Chọn tầng", active floor beats the URL', async ({ browser }) => {
     test.setTimeout(PIPELINE_TIMEOUT_MS + 240_000);
-    const { admin, pool, owner } = await ownerOf('p04-journeys');
+    const { admin, pool, owner } = await ownerOf('p04-journeys-edge');
     let run: WallsRun | undefined;
     let projectId: string | undefined;
     try {
