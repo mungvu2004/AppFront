@@ -82,10 +82,13 @@ import { useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { useFloorLayer } from '@/hooks/useFloorLayer';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
+import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
 import { toPoint, toPointMm, type CommandContext, type CommandResult } from '@/lib/commands/business/shared';
+import { newestEntryId, undoIfNewest } from '@/lib/commands/history';
 import type { Command } from '@/lib/commands/types';
 import { ok } from '@/lib/http/types';
+import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys } from '@/lib/query/queryKeys';
@@ -157,7 +160,11 @@ export const ROOM_LABEL_SCREEN_TEXT = {
     'Không còn phòng nào chưa đặt tên. Tắt bộ lọc "Chưa đặt tên" để xem lại toàn bộ phòng của tầng.',
   viewerRoleNotice:
     'Bạn đang xem với vai người xem: đổi tên, đổi công năng, gộp, tách và duyệt đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa lớp phòng.',
+  undoShortcut: 'Hoàn tác thay đổi phòng gần nhất.',
 } as const;
+
+/** Toast "Hoàn tác" bị từ chối vì đã có bước mới hơn (BUG-579, cùng khuôn SCR-16/17/21). */
+const ROOM_UNDO_REFUSED_TYPE = 'roomLabelReview.undoRefused';
 
 /* -------------------------------------------------------------------------- */
 /* Tham số vào và giá trị ra.                                                  */
@@ -191,6 +198,8 @@ export interface UseRoomLabelReviewOptions {
    * không đi đâu cả — và bài kiểm thấy đúng đường dẫn `ROUTES` ghép ra.
    */
   readonly onNavigate?: (href: string) => void;
+  /** Sổ phím tắt tiêm được; vắng mặt thì dùng sổ dùng chung của ứng dụng. */
+  readonly shortcutRegistry?: ShortcutRegistry;
 }
 
 /** Đúng hợp đồng đã đóng băng, không thêm một lát nào. */
@@ -699,11 +708,17 @@ export function useRoomLabelReview(
 
       invalidate();
 
+      /* Vé giữ đúng bước của lệnh này, không "bước trên cùng" lúc bấm (BUG-579/582). */
+      const entryId = newestEntryId(dispatchBundle.history);
       const ticket = createRoomLabelUndoTicket({
         description: command.description,
         now: gateway.now,
         undo: () => {
-          applyUndo();
+          const refused = undoIfNewest(dispatchBundle.history, entryId, applyUndo);
+
+          if (refused !== null) {
+            notifications.publish({ type: ROOM_UNDO_REFUSED_TYPE, title: refused, description: '' });
+          }
         },
       });
 
@@ -770,7 +785,8 @@ export function useRoomLabelReview(
     (roomId: RoomId) => {
       const room = roomById(roomId);
 
-      if (room === null || room.reviewed) {
+      /* Phòng chưa tên thì duyệt không đổi được trạng thái (vẫn "chưa đặt tên") — view tắt nút và nói vì sao (BUG-602). */
+      if (room === null || room.reviewed || room.name.trim() === '') {
         return;
       }
 
@@ -833,6 +849,21 @@ export function useRoomLabelReview(
     invalidate();
     refetchRoomLayer();
   }, [invalidate, refetchRoomLayer]);
+
+  /* BUG-582: Mod+Z đi vào ngăn xếp của chính màn — cùng việc với "Hoàn tác" — không rơi xuống undo toàn cục. */
+  useShortcut(
+    {
+      id: 'roomLabelReview.undo',
+      combo: 'Mod+Z',
+      scope: 'canvas',
+      description: ROOM_LABEL_SCREEN_TEXT.undoShortcut,
+      onTrigger: onUndo,
+    },
+    {
+      ...(options.shortcutRegistry === undefined ? {} : { registry: options.shortcutRegistry }),
+      enabled: canEdit,
+    },
+  );
 
   const navigate = options.onNavigate;
 

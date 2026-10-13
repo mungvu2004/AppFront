@@ -734,3 +734,33 @@ describe('[BUG-408] thẻ nhắc công năng đặt tên luật tiếng Việt, 
     expect(within(notices).getAllByRole('link', { name: 'Xem luật không gian' })[0]).toHaveClass('min-h-6');
   });
 });
+
+describe('P04 cụm C — thanh tra phòng chỉ mời việc làm được (SCR-20)', () => {
+  it('[BUG-602] phòng chưa tên: "Duyệt phòng này" tắt và nói vì sao', async () => {
+    await renderSettled('partial');
+
+    fireEvent.click(screen.getAllByRole('option', { name: /Cần chú ý$/u })[0] as HTMLElement);
+
+    const approve = await screen.findByRole('button', { name: 'Duyệt phòng này' });
+
+    expect(approve).toBeDisabled();
+    expect(approve).toHaveAccessibleDescription('Đặt tên phòng trước khi duyệt.');
+  });
+
+  it('[BUG-586/605] câu tách phòng chỉ đúng đường, và nút "Sang lớp tường" đi tới đó', async () => {
+    const onNavigate = vi.fn();
+    const rendered = renderWithProviders(
+      <RoomLabelReviewContainer {...scenarioArgsFor('partial')} onNavigate={onNavigate} />,
+    );
+
+    await waitFor(() => {
+      expect(rendered.container.querySelectorAll('polygon').length).toBeGreaterThan(0);
+    });
+    fireEvent.click(screen.getAllByRole('option')[0] as HTMLElement);
+
+    expect(screen.queryByText(/Bấm lên ranh phòng/u)).toBeNull();
+    fireEvent.click(await screen.findByRole('button', { name: 'Sang lớp tường' }));
+
+    expect(onNavigate).toHaveBeenCalledWith(expect.stringContaining('/walls'));
+  });
+});

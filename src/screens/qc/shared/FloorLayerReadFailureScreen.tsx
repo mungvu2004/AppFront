@@ -3,6 +3,7 @@
  * hai nhánh thay màn của `ProjectSpatialGate`. Câu chữ và lối ra đến từ
  * `useFloorLayerReadFailure` (`floorLayerReadFailure.ts`).
  */
+import { AlertCircle } from 'lucide-react';
 import { EmptyState } from '@/components/feedback/EmptyState';
 
 import type { FloorLayerReadFailure } from './floorLayerReadFailure';
@@ -17,7 +18,7 @@ export function FloorLayerReadFailureScreen({ failure }: FloorLayerReadFailureSc
       <EmptyState
         action={{ label: failure.actionLabel, onClick: failure.onAction }}
         description={failure.description}
-        icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-state-violation-tint" />}
+        icon={<AlertCircle />}
         title={failure.title}
       />
     </div>

@@ -169,7 +169,7 @@ export const DEFAULT_TOLERANCE_MM = 30;
 export const HISTOGRAM_BIN_MM = 5;
 
 /** Chiều cao khung biểu đồ, px — khung xương lúc tải PHẢI đúng chiều cao này để không nhảy khung. */
-export const HISTOGRAM_HEIGHT_PX = 200;
+export const HISTOGRAM_HEIGHT_PX = 120;
 
 /** Bề rộng cố định của canvas xem trước, px. */
 export const THICKNESS_PREVIEW_CANVAS_WIDTH_PX = 320;
@@ -359,6 +359,8 @@ export interface ThicknessPreviewCanvasProps {
   /** Tường đang trỏ tới — cùng khái niệm với {@link ThicknessSegmentTableProps.hoveredWallId}. */
   readonly hoveredWallId: WallId | null;
   readonly onHoverWall: (wallId: WallId | null) => void;
+  /** Tường của cột biểu đồ đang trỏ tới — được tô như tường đang trỏ (BUG-606). */
+  readonly hoveredBinWallIds?: readonly WallId[] | undefined;
   /** `true` ở trạng thái `collapsed` — CẤM TUYỆT ĐỐI: ẩn canvas xem trước, không xoá dữ liệu. */
   readonly isCollapsed: boolean;
 }
@@ -391,6 +393,8 @@ export interface ThicknessGroupTableProps {
   readonly onHoverGroup: (group: ThicknessGroup | null) => void;
   /** Tích/bỏ tích một dòng — CẤM TUYỆT ĐỐI: không tích sẵn, người dùng phải tự bấm. */
   readonly onToggleAccepted: (measuredMm: number, accepted: boolean) => void;
+  /** Vai người xem: không cột "Đồng ý" (BUG-601). */
+  readonly isReadOnly?: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -422,7 +426,7 @@ export interface ThicknessSegmentTableProps {
   readonly onToggleAllSelected: (selected: boolean) => void;
   /** Bỏ chọn tất cả — nút "Bỏ chọn" của `TableActionBar`. */
   readonly onClearSelection: () => void;
-  /** Đổi nhóm chuẩn hoá của MỘT hàng qua `SegmentedControl` ngay trong ô "độ dày chuẩn hoá". */
+  /** Đổi nhóm chuẩn hoá của MỘT hàng ngay trong ô "độ dày chuẩn hoá" — một lượt ghi thật (BUG-585). */
   readonly onChangeNormalizedGroup: (wallId: WallId, group: ThicknessGroup) => void;
   /** Gán một nhóm chuẩn cho TẤT CẢ hàng đang chọn — hành động chính phát từ `TableActionBar`. */
   readonly onApplySelectedGroup: (group: ThicknessGroup) => void;
@@ -432,6 +436,8 @@ export interface ThicknessSegmentTableProps {
    * `setTimeout`.
    */
   readonly flashingWallIds: readonly WallId[];
+  /** Vai người xem: chỉ chữ, không ô chọn hàng, không ô đổi nhóm, không dải hành động (BUG-601). */
+  readonly isReadOnly?: boolean;
 }
 
 /* -------------------------------------------------------------------------- */

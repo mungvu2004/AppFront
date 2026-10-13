@@ -101,8 +101,8 @@ const SUMMARY_GROUP_LABEL = 'Tóm tắt chuẩn hoá độ dày tường';
 const OPEN_PREVIEW_LABEL = 'Xem trước';
 const APPLY_LABEL = 'Áp dụng';
 const UNDO_LABEL = 'Hoàn tác';
-const REAPPLY_FILTER_LABEL = 'Áp dụng lại bộ lọc';
-const REAPPLY_WARNING_TITLE = 'Áp dụng lại bộ lọc sẽ đổi tường đã duyệt';
+const REAPPLY_FILTER_LABEL = 'Áp lại cho mọi tường lệch nhóm';
+const REAPPLY_WARNING_TITLE = 'Áp lại cho mọi tường lệch nhóm sẽ đổi tường đã duyệt';
 const LOW_THRESHOLD_LABEL = `Ngưỡng giữa ${lowerFirst(THICKNESS_GROUP_LABELS[110])} và ${lowerFirst(THICKNESS_GROUP_LABELS[220])}`;
 const HIGH_THRESHOLD_LABEL = `Ngưỡng giữa ${lowerFirst(THICKNESS_GROUP_LABELS[330])} và ${lowerFirst(THICKNESS_GROUP_LABELS.CONCRETE_COLUMN)}`;
 
@@ -548,15 +548,19 @@ describe('[NGHIEM-4] áp dụng lại bộ lọc không bao giờ ghi đè im l�
     expect(history.undoSteps()).toHaveLength(0);
   }, HEAVY_TEST_TIMEOUT_MS);
 
-  it('"Loại tường đã duyệt ra rồi áp lại" giữ nguyên độ dày của tường đã duyệt', async () => {
+  it('"Loại tường đã duyệt ra rồi xem trước" giữ nguyên độ dày của tường đã duyệt', async () => {
     const { history } = await renderMain();
 
     fireEvent.click(screen.getByRole('button', { name: REAPPLY_FILTER_LABEL }));
     await screen.findByText(REAPPLY_WARNING_TITLE);
 
     fireEvent.click(
-      screen.getByRole('button', { name: 'Loại tường đã duyệt ra rồi áp lại' }),
+      screen.getByRole('button', { name: 'Loại tường đã duyệt ra rồi xem trước' }),
     );
+
+    /* BUG-593: đường áp lại mở bảng xem trước; chỉ "Áp dụng" trong bảng mới ghi. */
+    expect(history.undoSteps()).toHaveLength(0);
+    fireEvent.click(await screen.findByRole('button', { name: 'Áp dụng' }));
 
     await waitFor(() => {
       expect(history.undoSteps()).toHaveLength(1);
@@ -578,6 +582,62 @@ describe('[NGHIEM-4] áp dụng lại bộ lọc không bao giờ ghi đè im l�
 /* -------------------------------------------------------------------------- */
 /* Bốn bộ khẳng định dùng chung.                                               */
 /* -------------------------------------------------------------------------- */
+
+describe('P04 cụm C — điều khiển chỉ hiện khi dùng được', () => {
+  it('[BUG-601] vai người xem: không ô chọn hàng, không ô "Đồng ý", không ô đổi nhóm', async () => {
+    renderWithProviders(
+      <ThicknessStandardizationContainer
+        floorId={FLOOR_ID}
+        gateway={createMockThicknessStandardizationGateway()}
+        projectId={PROJECT_ID}
+        roles={['viewer']}
+      />,
+    );
+
+    await screen.findAllByRole('table');
+
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+    expect(screen.queryAllByRole('combobox')).toHaveLength(0);
+    expect(screen.queryAllByRole('radiogroup')).toHaveLength(0);
+  }, HEAVY_TEST_TIMEOUT_MS);
+
+  it('[BUG-585/593] ô đổi nhóm của hàng ghi thật một bước, và không mời chọn "Cột BTCT"', async () => {
+    const { history } = await renderMain();
+    const target = wallsOfMeasurement(195)[0] as Wall;
+
+    expect(screen.queryAllByRole('radiogroup', { name: /^Độ dày chuẩn hoá của đoạn /u })).toHaveLength(0);
+
+    const row = screen
+      .getAllByRole('row')
+      .find((entry) => within(entry).queryByRole('checkbox', { name: new RegExp(target.id, 'u') }) !== null);
+
+    fireEvent.click(within(row as HTMLElement).getByRole('combobox', { name: /^Độ dày chuẩn hoá của đoạn /u }));
+
+    expect(screen.queryByRole('option', { name: 'Cột BTCT' })).toBeNull();
+    fireEvent.click(screen.getByRole('option', { name: '330 mm' }));
+
+    await waitFor(() => {
+      expect(history.undoSteps()).toHaveLength(1);
+    });
+    expect(thicknessInStore(target.id)).toBe(330);
+  }, HEAVY_TEST_TIMEOUT_MS);
+
+  it('[BUG-611] nhãn tóm tắt không in lại con số đứng ngay trên nó', async () => {
+    const { container } = await renderMain();
+    const group = within(container).getByRole('group', { name: SUMMARY_GROUP_LABEL });
+
+    for (const line of within(group).getAllByRole('status')) {
+      const visible = [...line.childNodes]
+        .filter((node) => !(node instanceof HTMLElement && node.classList.contains('sr-only')))
+        .map((node) => node.textContent ?? '')
+        .join('');
+
+      expect(visible).not.toMatch(/^\d/u);
+    }
+
+    expect(group.querySelector('.text-state-verified-text')).toBeNull();
+  }, HEAVY_TEST_TIMEOUT_MS);
+});
 
 describe('đường dẫn đầu màn (B-V6-43)', () => {
   it('màn phủ mọi tầng nên không nêu tầng nào: "Dự án > Độ dày tường"', () => {

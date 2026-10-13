@@ -56,7 +56,10 @@ import {
 import {
   THICKNESS_PREVIEW_CANVAS_WIDTH_PX,
   type ThicknessPreviewCanvasProps,
+  type ThicknessWallShapeViewModel,
 } from './thicknessTypes';
+
+const NO_WALL_IDS: NonNullable<ThicknessPreviewCanvasProps['hoveredBinWallIds']> = [];
 
 /* -------------------------------------------------------------------------- */
 /* Chuỗi tiếng Việt tĩnh — khớp `docs/notes/thickness/t6.i18n.fragment.json`.  */
@@ -80,6 +83,7 @@ export function ThicknessPreviewCanvas({
   hoveredWallId,
   onHoverWall,
   isCollapsed,
+  hoveredBinWallIds = NO_WALL_IDS,
 }: ThicknessPreviewCanvasProps) {
   const projection = useMemo(() => computePreviewProjection(shapes), [shapes]);
 
@@ -104,7 +108,11 @@ export function ThicknessPreviewCanvas({
     return null;
   }
 
-  const hasHover = hoveredGroup !== null || hoveredWallId !== null;
+  /* Rê một cột biểu đồ thì tường của cột đó sáng lên (BUG-606) — cùng cách một tường đang trỏ. */
+  const binWalls = new Set(hoveredBinWallIds);
+  const isMatchedFigure = (figure: Pick<ThicknessWallShapeViewModel, 'wallId' | 'group'>): boolean =>
+    figure.wallId === hoveredWallId || figure.group === hoveredGroup || binWalls.has(figure.wallId);
+  const hasHover = hoveredGroup !== null || hoveredWallId !== null || binWalls.size > 0;
 
   return (
     <aside
@@ -133,8 +141,7 @@ export function ThicknessPreviewCanvas({
               viewBox={`0 0 ${String(THICKNESS_PREVIEW_CANVAS_WIDTH_PX)} ${String(THICKNESS_PREVIEW_CANVAS_HEIGHT_PX)}`}
             >
               {figures.map((figure) => {
-                const isMatched =
-                  figure.wallId === hoveredWallId || figure.group === hoveredGroup;
+                const isMatched = isMatchedFigure(figure);
 
                 return (
                   <polygon
@@ -161,9 +168,7 @@ export function ThicknessPreviewCanvas({
 
             {/* Viền cho những tường khớp cột biểu đồ đang trỏ tới. */}
             {figures
-              .filter(
-                (figure) => figure.wallId === hoveredWallId || figure.group === hoveredGroup,
-              )
+              .filter(isMatchedFigure)
               .map((figure) => (
                 <SelectionHalo
                   key={figure.wallId}

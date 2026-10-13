@@ -1,6 +1,6 @@
 /**
  * Bảng chi tiết 48 đoạn của màn "Chuẩn hoá độ dày tường" (2.3 của brief T7).
- * Cột: mã · độ dày đo được · độ dày chuẩn hoá (`SegmentedControl` trong ô) ·
+ * Cột: mã · độ dày đo được · độ dày chuẩn hoá (`Select` trong ô) ·
  * sai lệch (chấm cần chú ý khi vượt dung sai) · độ tin cậy · tầng · trạng
  * thái, cộng cột chọn hàng theo lô ở đầu bảng.
  *
@@ -19,6 +19,14 @@
  * tiêu điểm — ô chọn, `SegmentedControl`, và các điều khiển khác bên trong đã
  * tự có vòng tiêu điểm riêng — nên xoá hẳn thuộc tính đó là đúng ngữ nghĩa.
  *
+ * ## Ô "độ dày chuẩn hoá" là một `Select` ghi thật (BUG-585, BUG-405)
+ *
+ * Bốn nút `SegmentedControl` trên mỗi hàng (~400 px × 48 hàng) trông như sửa ngay nhưng chỉ ghi đè
+ * cục bộ, và đẩy bảng tới ~1.040 px: cắt cột phải ở 768, 30 nút ra ngoài màn ở 375. Một `Select`
+ * ~124 px chọn nhóm là MỘT lượt ghi kèm toast hoàn tác, như SCR-16. Chỉ ba nhóm có giá trị mm —
+ * "Cột BTCT" không có lệnh áp nên không được mời chọn (BUG-593); hàng đang là cột hiện chữ đó.
+ * Vai người xem (`isReadOnly`) chỉ thấy chữ, không ô chọn hàng, không dải hành động (BUG-601).
+ *
  * ## Đổi độ dày theo lô cần chọn nhóm trước khi áp
  *
  * `TableActionBar.onChangeThickness` không mang tham số, nhưng
@@ -35,6 +43,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ConfidenceMeter } from '@/components/ui/ConfidenceMeter';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { Select } from '@/components/ui/Select';
 import { Table } from '@/components/ui/Table';
 import { TableActionBar } from '@/components/ui/TableActionBar';
 import { cn } from '@/lib/utils';
@@ -111,15 +120,18 @@ const OPTION_LABELS: Readonly<Record<ThicknessGroup, string>> = {
   CONCRETE_COLUMN: 'Cột BTCT',
 };
 
-const GROUP_OPTIONS = THICKNESS_GROUP_DISPLAY_ORDER.map((group) => ({
-  label: OPTION_LABELS[group],
-  value: GROUP_KEY_OF[group],
-}));
+/* Chỉ nhóm có giá trị mm: "Cột BTCT" không có lệnh áp, chọn nó thì "Áp dụng" im lặng (BUG-593). */
+const GROUP_OPTIONS = THICKNESS_GROUP_DISPLAY_ORDER.filter((group) => group !== 'CONCRETE_COLUMN').map(
+  (group) => ({
+    label: OPTION_LABELS[group],
+    value: GROUP_KEY_OF[group],
+  }),
+);
 
 /** Nhóm mặc định của bảng chọn nhóm theo lô trước khi người dùng tự chọn. */
 const DEFAULT_GROUP_KEY: ThicknessGroupKey = '110';
 
-const segmentedControlLabel = (code: string): string => `Độ dày chuẩn hoá của đoạn ${code}`;
+const groupSelectLabel = (code: string): string => `Độ dày chuẩn hoá của đoạn ${code}`;
 
 const chooseGroupPrompt = (count: number): string => `Chọn nhóm áp cho ${count} tường đã chọn:`;
 
@@ -136,6 +148,7 @@ export function ThicknessSegmentTable({
   onChangeNormalizedGroup,
   onApplySelectedGroup,
   flashingWallIds,
+  isReadOnly = false,
 }: ThicknessSegmentTableProps) {
   const [isPickingGroup, setIsPickingGroup] = useState(false);
   const [pendingGroupKey, setPendingGroupKey] = useState<ThicknessGroupKey>(DEFAULT_GROUP_KEY);
@@ -168,7 +181,9 @@ export function ThicknessSegmentTable({
       >
         <Table.Header>
           <Table.Row tabIndex={undefined}>
-            <Table.CheckboxHead checked={allSelected} indeterminate={someSelected} onChange={onToggleAllSelected} />
+            {isReadOnly ? null : (
+              <Table.CheckboxHead checked={allSelected} indeterminate={someSelected} onChange={onToggleAllSelected} />
+            )}
             <Table.Head>{HEADER_CODE}</Table.Head>
             <Table.Head className="whitespace-normal" sortKey="measured">
               {HEADER_MEASURED}
@@ -182,7 +197,7 @@ export function ThicknessSegmentTable({
         </Table.Header>
         <Table.Body>
           {rows.length === 0 ? (
-            <Table.Empty colSpan={COLUMN_COUNT} message={EMPTY_MESSAGE} />
+            <Table.Empty colSpan={isReadOnly ? COLUMN_COUNT - 1 : COLUMN_COUNT} message={EMPTY_MESSAGE} />
           ) : (
             rows.map((row) => (
               <Table.Row
@@ -194,20 +209,36 @@ export function ThicknessSegmentTable({
                 selected={selected.has(row.wallId)}
                 tabIndex={undefined}
               >
-                <Table.CheckboxCell
-                  checked={selected.has(row.wallId)}
-                  onChange={(checked) => onToggleRowSelected(row.wallId, checked)}
-                  rowId={row.wallId}
-                />
+                {isReadOnly ? null : (
+                  <Table.CheckboxCell
+                    checked={selected.has(row.wallId)}
+                    onChange={(checked) => onToggleRowSelected(row.wallId, checked)}
+                    rowId={row.wallId}
+                  />
+                )}
                 <Table.Cell className="font-mono tabular-nums">{row.code}</Table.Cell>
                 <Table.Cell className="font-mono tabular-nums">{row.measuredLabel}</Table.Cell>
                 <Table.Cell>
-                  <SegmentedControl
-                    aria-label={segmentedControlLabel(row.code)}
-                    onChange={(key) => onChangeNormalizedGroup(row.wallId, GROUP_OF_KEY[key])}
-                    options={GROUP_OPTIONS}
-                    value={GROUP_KEY_OF[row.normalizedGroup]}
-                  />
+                  {isReadOnly ? (
+                    OPTION_LABELS[row.normalizedGroup]
+                  ) : (
+                    <Select.Root
+                      className="w-[124px]"
+                      onChange={(key) => onChangeNormalizedGroup(row.wallId, GROUP_OF_KEY[key as ThicknessGroupKey])}
+                      options={GROUP_OPTIONS}
+                      value={row.normalizedGroup === 'CONCRETE_COLUMN' ? undefined : GROUP_KEY_OF[row.normalizedGroup]}
+                    >
+                      <Select.Label className="sr-only">{groupSelectLabel(row.code)}</Select.Label>
+                      <Select.Trigger options={GROUP_OPTIONS} placeholder={OPTION_LABELS[row.normalizedGroup]} />
+                      <Select.Content>
+                        {GROUP_OPTIONS.map((option, index) => (
+                          <Select.Item index={index} key={option.value} value={option.value}>
+                            {option.label}
+                          </Select.Item>
+                        ))}
+                      </Select.Content>
+                    </Select.Root>
+                  )}
                 </Table.Cell>
                 <Table.Cell>
                   <span className="inline-flex items-center gap-1.5 font-mono tabular-nums">
@@ -256,12 +287,14 @@ export function ThicknessSegmentTable({
         </div>
       )}
 
-      <TableActionBar
-        entityName={ENTITY_NAME}
-        onChangeThickness={() => setIsPickingGroup(true)}
-        onDeselect={handleDeselect}
-        selectedCount={selected.size}
-      />
+      {isReadOnly ? null : (
+        <TableActionBar
+          entityName={ENTITY_NAME}
+          onChangeThickness={() => setIsPickingGroup(true)}
+          onDeselect={handleDeselect}
+          selectedCount={selected.size}
+        />
+      )}
     </div>
   );
 }

@@ -51,6 +51,8 @@
  * một nút "Thử lại" trỏ vào đó không hứa gì nó không làm (E.10).
  */
 
+import { LayoutGrid } from 'lucide-react';
+
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
@@ -152,7 +154,7 @@ function RoomLabelLeftColumn(props: RoomLabelReviewViewProps) {
         <EmptyState
           action={{ label: EMPTY_ACTION_LABEL, onClick: onCheckWallGaps }}
           description={emptyNotice}
-          icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-bg-sunken" />}
+          icon={<LayoutGrid />}
           title={EMPTY_TITLE}
         />
       </div>
@@ -223,6 +225,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
     onChangeUsage,
     onHover,
     onMerge,
+    onNavigateToWalls,
     onRename,
     onSelect,
     onSplit,
@@ -254,7 +257,9 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
   return (
     <div
       aria-label={SCREEN_TITLE}
-      className="flex h-full min-h-0 w-full flex-col bg-bg-app"
+      // Cao bằng khung nhìn như SCR-16/17 (BUG-324/329): route nằm trong `ScreenMain` (display: contents)
+      // nên `h-full` không có chiều cao, và thanh tra kéo trang dài theo nội dung thay vì tự cuộn.
+      className="flex h-screen min-h-0 w-full flex-col bg-bg-app"
       role="region"
     >
       <header className="shrink-0 px-4 pb-1 pt-3">
@@ -316,6 +321,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
               usageOptions,
               areaCaption,
               mergeCandidates,
+              onNavigateToWalls,
               splitPointMm,
               viewerRoleNotice,
             }}

@@ -33,6 +33,7 @@ import type { Level, Room, RoomId, Wall } from '@/domain/spatial/types';
 import { millimetres } from '@/domain/units/types';
 import { formatArea, formatLength } from '@/lib/format/measure';
 import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
+import { createShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { PROVISIONAL_MEASURE_TEXT } from '@/lib/viewmodel/provisionalScale';
@@ -177,6 +178,7 @@ function mountHook(options: MountOptions = {}): Mounted {
         ...(options.levelId === undefined ? {} : { levelId: options.levelId }),
         ...(options.forceCollapsed === undefined ? {} : { forceCollapsed: options.forceCollapsed }),
         ...(options.forceCompact === undefined ? {} : { forceCompact: options.forceCompact }),
+        ...(options.shortcutRegistry === undefined ? {} : { shortcutRegistry: options.shortcutRegistry }),
       }),
     { wrapper },
   );
@@ -365,6 +367,72 @@ describe('hoàn tác trả lại vùng chọn LÚC LỆNH CHẠY (B-V7-09, A8)',
     });
     /* Trước bản sửa: vùng chọn trước lần bấm gần nhất — phòng kia, thanh tra #R-005 đóng. */
     expect(useStore.getState().selectedIds).toEqual([ROOM_R005.id]);
+  });
+});
+
+describe('P04 cụm C — hoàn tác và duyệt (SCR-20)', () => {
+  it('[BUG-582] Mod+Z hoàn tác bằng ngăn xếp của chính màn, như nút "Hoàn tác"', async () => {
+    const shortcutRegistry = createShortcutRegistry();
+    const mounted = await mountSettled({ shortcutRegistry });
+
+    await act(async () => {
+      mounted.result.current.onRename(ROOM_R005.id, 'phòng ngủ chính');
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(nameInStore(ROOM_R005.id)).toBe('phòng ngủ chính');
+    });
+
+    await act(async () => {
+      shortcutRegistry.handleKeyDown({ key: 'z', ctrlKey: true }, null);
+      await Promise.resolve();
+    });
+
+    expect(nameInStore(ROOM_R005.id)).toBe(ROOM_R005.name);
+  });
+
+  it('[BUG-579] "Hoàn tác" trên toast cũ không lùi bước của lệnh sau', async () => {
+    const notifications: NotificationBus = createNotificationBus({ groupWindowMs: 0 });
+    const mounted = await mountSettled({ notifications });
+    const other = ROOM_LABEL_FIXTURE_ROOMS.find((room) => room.id !== ROOM_R005.id && room.name !== '') as Room;
+
+    await act(async () => {
+      mounted.result.current.onRename(ROOM_R005.id, 'phòng ngủ chính');
+      await Promise.resolve();
+    });
+    await act(async () => {
+      mounted.result.current.onChangeUsage(other.id, 'kitchen');
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(rowOf(mounted, other.id).usage).toBe('kitchen');
+    });
+
+    const renameTicket = notifications.list().find((entry) => entry.type !== 'roomLabelReview.undoRefused')?.undoTicket;
+
+    await act(async () => {
+      renameTicket?.undo();
+      await Promise.resolve();
+    });
+
+    expect(rowOf(mounted, other.id).usage).toBe('kitchen');
+    expect(nameInStore(ROOM_R005.id)).toBe('phòng ngủ chính');
+  });
+
+  it('[BUG-602] duyệt phòng chưa đặt tên không ghi gì', async () => {
+    const mounted = await mountSettled();
+    const unnamed = mounted.result.current.rooms.find((row) => row.status === 'unnamed');
+
+    expect(unnamed).toBeDefined();
+
+    await act(async () => {
+      mounted.result.current.onApprove(unnamed?.id as RoomId);
+      await Promise.resolve();
+    });
+
+    const graph = useStore.getState().spatial;
+
+    expect((graph?.byId[unnamed?.id as RoomId] as Room | undefined)?.reviewed).toBe(false);
   });
 });
 

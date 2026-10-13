@@ -130,14 +130,19 @@ export function RoomLabelLeftPanel({ panel, list, emptyListNotice }: RoomLabelLe
               ))}
             </ul>
           )}
-          <Button fullWidth onClick={panel.onCheckWallGaps} size="sm" variant="ghost">
+          {/* Hành động phụ của khối vòng hở là nút chữ, không thêm một nút rộng khác kiểu (BUG-615). */}
+          <button
+            className="inline-flex min-h-6 w-fit items-center rounded-[4px] text-[13px] text-accent underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+            onClick={panel.onCheckWallGaps}
+            type="button"
+          >
             {CHECK_GAPS_LABEL}
-          </Button>
+          </button>
         </section>
 
         {/* Vai Người xem: KHÔNG hộp thoại, chỉ ẩn nút thao tác hàng loạt. */}
         {!panel.isViewerRole && (
-          <Button fullWidth onClick={onOpenNormalizePreview} variant="secondary">
+          <Button fullWidth onClick={onOpenNormalizePreview} size="sm" variant="secondary">
             {NORMALIZE_LABEL}
           </Button>
         )}
