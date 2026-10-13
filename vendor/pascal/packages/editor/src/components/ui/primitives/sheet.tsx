@@ -4,6 +4,7 @@ import * as SheetPrimitive from '@radix-ui/react-dialog'
 import { XIcon } from 'lucide-react'
 import type * as React from 'react'
 
+import { getPascalRoot } from '../../../lib/pascal-root'
 import { cn } from '../../../lib/utils'
 import { primitivesAndSidebar as vi } from '../../../i18n/regions/primitivesAndSidebar'
 
@@ -20,7 +21,7 @@ function SheetClose({ ...props }: React.ComponentProps<typeof SheetPrimitive.Clo
 }
 
 function SheetPortal({ ...props }: React.ComponentProps<typeof SheetPrimitive.Portal>) {
-  return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />
+  return <SheetPrimitive.Portal container={getPascalRoot()} data-slot="sheet-portal" {...props} />
 }
 
 function SheetOverlay({

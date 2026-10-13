@@ -25,6 +25,9 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import tailwindcss from '@tailwindcss/postcss';
+
+import { pascalCssScope } from './scripts/pascal-css-scope.mjs';
 
 /** Bảy biến `process.env.NEXT_PUBLIC_*` mà mã Pascal đọc ở TẦNG MODULE. */
 const PASCAL_ENV_DEFINES = {
@@ -61,6 +64,11 @@ export default defineConfig({
     },
   },
   define: PASCAL_ENV_DEFINES,
+  // CSS của chính Pascal: Tailwind v4 như app gốc, rồi khoanh vào `.pascal-root`
+  // (lý do ở `scripts/pascal-css-scope.mjs`). Cấu hình nội tuyến nên
+  // `postcss.config.js` (Tailwind 3 của AppFront) không chạy ở lượt dựng này.
+  // `optimize` để Lightning CSS gỡ CSS lồng trước khi ta tiền tố selector.
+  css: { postcss: { plugins: [tailwindcss({ optimize: true }), pascalCssScope()] } },
   build: {
     outDir: 'public/assets/pascal',
     emptyOutDir: true,

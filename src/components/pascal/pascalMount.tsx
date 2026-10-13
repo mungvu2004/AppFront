@@ -30,6 +30,10 @@ import { createRoot } from 'react-dom/client';
 
 import type { PascalScene } from '@/lib/pascal/types';
 
+// CSS của chính Pascal (Tailwind v4), đã khoanh vào `.pascal-root` lúc dựng —
+// xem `scripts/pascal-css-scope.mjs`. `?inline` giữ nó trong chính gói này.
+import pascalCss from '../../../vendor/pascal/packages/editor/src/styles/globals.css?inline';
+
 import { PascalFrame } from './PascalFrame';
 import type {
   PascalCommitVerdict,
@@ -107,6 +111,22 @@ export interface PascalMountOptions {
   readonly lite?: boolean;
 }
 
+/** Phần tử chứa khung Pascal — mọi luật CSS của Pascal chỉ chạm bên trong nó. */
+const PASCAL_ROOT_CLASS = 'pascal-root';
+const PASCAL_CSS_ID = 'pascal-css';
+
+/**
+ * Nạp CSS của Pascal một lần cho cả trang. Không gỡ khi đóng khung: mọi selector
+ * đã khoanh trong `.pascal-root`, nên nó không chạm gì khi không còn khung nào.
+ */
+function injectPascalCss(): void {
+  if (!pascalCss || document.getElementById(PASCAL_CSS_ID)) return;
+  const style = document.createElement('style');
+  style.id = PASCAL_CSS_ID;
+  style.textContent = pascalCss;
+  document.head.append(style);
+}
+
 /**
  * Dựng khung Pascal vào một phần tử DOM.
  *
@@ -114,6 +134,8 @@ export interface PascalMountOptions {
  * mới mount; cảnh vào store sau khi khung đã đứng. Chi tiết ở `pascalScene.ts`.
  */
 export function mount(element: HTMLElement, options: PascalMountOptions): PascalMountHandle {
+  injectPascalCss();
+  element.classList.add(PASCAL_ROOT_CLASS);
   const root = createRoot(element, {
     onUncaughtError: (error: unknown) => {
       options.onFatal?.(error instanceof Error ? error : new Error(String(error)));
@@ -169,6 +191,7 @@ export function mount(element: HTMLElement, options: PascalMountOptions): Pascal
       if (disposed) return;
       disposed = true;
       root.unmount();
+      element.classList.remove(PASCAL_ROOT_CLASS);
       clearPascalScene();
     },
   };
