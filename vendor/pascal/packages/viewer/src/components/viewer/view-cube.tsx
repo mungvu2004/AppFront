@@ -83,7 +83,7 @@ export function ViewCube() {
   return (
     <nav
       aria-label={labels.ariaLabel}
-      className="pointer-events-auto absolute right-3 bottom-3 z-10 grid grid-cols-3 gap-1 rounded-lg border border-border bg-background/90 p-1.5 text-xs shadow-sm"
+      className="pointer-events-auto absolute top-3 left-3 z-10 grid grid-cols-3 gap-1 rounded-lg border border-border bg-background/90 p-1.5 text-xs shadow-sm"
     >
       {VIEW_CUBE_FACES.map((face) => (
         <button

@@ -16,4 +16,6 @@ export const contextualHelp = {
   dragMovable: "Kéo đối tượng đang chọn",
   rotateSelected: "Kéo sang trái hoặc phải để xoay đối tượng đang chọn",
   openingRadius: "Chỉnh bán kính góc của một cạnh",
+  // Nhãn ba thao tác máy ảnh ở hộp gợi ý đỉnh canvas (khoá theo CameraHintAction).
+  cameraAction: { Pan: "Kéo", Rotate: "Xoay", Zoom: "Thu phóng" },
 } as const;
