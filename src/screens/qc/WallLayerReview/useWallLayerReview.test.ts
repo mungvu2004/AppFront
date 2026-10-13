@@ -1541,10 +1541,10 @@ describe('tự lưu — bộ lưu lớp chung (F-04x-1)', () => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* Tỉ lệ tạm (F-04x-2 [8].7).                                                  */
+/* Tỷ lệ tạm (F-04x-2 [8].7).                                                  */
 /* -------------------------------------------------------------------------- */
 
-describe('tỉ lệ tạm (F-04x-2)', () => {
+describe('tỷ lệ tạm (F-04x-2)', () => {
   it('tầng unresolved: có dải, chiều dài thanh tra là PROVISIONAL_MEASURE_TEXT', async () => {
     const mounted = await mountSettled({
       gateway: createMockWallLayerReviewGateway({ graph: FIXTURE_GRAPH, scaleStatus: 'unresolved' }),

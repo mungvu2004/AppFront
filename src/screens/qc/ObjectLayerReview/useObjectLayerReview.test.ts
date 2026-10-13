@@ -1365,8 +1365,8 @@ describe('tầng của URL không có trong đồ thị (B-V6-40)', () => {
   });
 });
 
-describe('tỉ lệ tạm (F-04x-2)', () => {
-  it('tầng unresolved: hook trả dải, "Hiệu chỉnh tỉ lệ" mở màn tỉ lệ của tầng', async () => {
+describe('tỷ lệ tạm (F-04x-2)', () => {
+  it('tầng unresolved: hook trả dải, "Hiệu chỉnh tỷ lệ" mở màn tỉ lệ của tầng', async () => {
     const onNavigate = vi.fn();
     const mounted = await mountSettled({
       gateway: createMockObjectLayerReviewGateway({ scaleStatus: 'unresolved' }),

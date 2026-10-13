@@ -86,6 +86,7 @@ export function ScaleCalibrationMethodReference({ actions, reference }: ScaleCal
         <p className="font-mono text-[16px] font-semibold tabular-nums text-text-primary">
           {reference.livePixelLengthLabel ?? MISSING_VALUE}
         </p>
+        {reference.tooShortNotice !== null && <InlineAlert level="attention" message={reference.tooShortNotice} />}
         <div className="flex flex-wrap items-center gap-2">
           <Kbd>Esc</Kbd>
           <Kbd>Shift</Kbd>

@@ -26,13 +26,6 @@
  * `src/lib/input/cursors.ts` (khoảng trống dành cho "Space held hoặc pan gesture,
  * đứng yên") — để không đụng độ với kéo trái vẽ đường tham chiếu.
  *
- * ## Vì sao tay nắm bù ngược zoom
- *
- * Tay nắm nằm trong cùng lớp nhận `transform: scale(zoom)` để vị trí của nó luôn
- * khớp đúng điểm tỉ lệ đang bám theo khi kéo/phóng; `scale(1 / zoom)` cục bộ giữ
- * đường kính 10px không đổi trên màn hình dù khung nhìn phóng to bao nhiêu — nét
- * 2px của chính đoạn thẳng dùng `vector-effect="non-scaling-stroke"` cho cùng lý do.
- *
  * ## Vì sao đo bằng ResizeObserver thay vì đọc `naturalWidth`
  *
  * {@link MeasurementLabel} và {@link SelectionHalo} nhận toạ độ PIXEL của lớp phủ,
@@ -42,19 +35,18 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { CSSProperties, PointerEvent, WheelEvent } from 'react';
+import type { CSSProperties, KeyboardEvent, PointerEvent, WheelEvent } from 'react';
 
 import { dimensionStrokeToken } from '@/components/canvas/materialMap';
 import { MeasurementLabel } from '@/components/canvas/MeasurementLabel';
-import { MiniMap } from '@/components/canvas/MiniMap';
 import { SelectionHalo } from '@/components/canvas/SelectionHalo';
-import { ZoomCluster } from '@/components/canvas/ZoomCluster';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import type { MeasurementState, Point } from '@/hooks/useMeasurementLabel';
 import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 import { cssDurationMs } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
+import { CanvasNavigation, ReferenceHandle } from './ScaleCalibrationCanvasControls';
 import type {
   DimensionStringRow,
   ImageRatioPoint,
@@ -68,10 +60,6 @@ import type {
 
 const CANVAS_ARIA_LABEL = 'Bản vẽ đã nắn, kéo để vẽ đường tham chiếu';
 const ROW_ARIA_LABEL_PREFIX = 'Chuỗi kích thước ';
-const HANDLE_ARIA_LABEL: Readonly<Record<ReferenceLineEndpoint, string>> = {
-  start: 'Đầu đoạn tham chiếu, dùng phím mũi tên để nhích',
-  end: 'Cuối đoạn tham chiếu, dùng phím mũi tên để nhích',
-};
 const FORBIDDEN_DESCRIPTION =
   'Bản vẽ vẫn xem và phóng to được, nhưng không kéo được đường tham chiếu. Nhờ người có quyền sửa dự án đặt tỷ lệ giúp.';
 const FORBIDDEN_DESCRIPTION_ID = 'scale-calibration-canvas-forbidden';
@@ -80,6 +68,9 @@ const FORBIDDEN_DESCRIPTION_ID = 'scale-calibration-canvas-forbidden';
 const WHEEL_ZOOM_STEP = 1.1;
 /** Nút giữa chuột (button === 1), dùng để kéo nền thay vì vẽ. */
 const MIDDLE_MOUSE_BUTTON = 1;
+
+/** Tâm khung ảnh — chỗ Enter trên canvas đặt đoạn mới khi không có chuột (BUG-607). */
+const FRAME_CENTRE: ImageRatioPoint = { x: 0.5, y: 0.5 };
 
 const FRAME_CLASSES =
   'relative aspect-square w-full overflow-hidden rounded-[16px] border border-border-default bg-canvas-2d';
@@ -98,27 +89,6 @@ function rowRectStyle(row: DimensionStringRow): CSSProperties {
   };
 }
 
-interface ReferenceHandleProps {
-  readonly endpoint: ReferenceLineEndpoint;
-  readonly point: ImageRatioPoint;
-  readonly zoom: number;
-}
-
-function ReferenceHandle({ endpoint, point, zoom }: ReferenceHandleProps) {
-  return (
-    <button
-      aria-label={HANDLE_ARIA_LABEL[endpoint]}
-      className="absolute h-[10px] w-[10px] rounded-full border-2 border-accent bg-white"
-      style={{
-        left: `${point.x * 100}%`,
-        top: `${point.y * 100}%`,
-        transform: `translate(-50%, -50%) scale(${1 / zoom})`,
-      }}
-      type="button"
-    />
-  );
-}
-
 export function ScaleCalibrationCanvas({
   actions,
   canvas,
@@ -127,13 +97,18 @@ export function ScaleCalibrationCanvas({
   const {
     onCancelDrag,
     onEndDrag,
+    onFitView,
     onHoverDimensionRow,
+    onMiniMapViewportChange,
     onMoveCursor,
     onMoveDrag,
+    onNudgeEndpoint,
     onPan,
     onSelectDimensionRow,
     onStartDrag,
     onZoom,
+    onZoomIn,
+    onZoomOut,
   } = actions;
 
   const contentRef = useRef<HTMLDivElement | null>(null);
@@ -276,6 +251,29 @@ export function ScaleCalibrationCanvas({
     [canvas.viewport.zoom, onZoom, ratioAt],
   );
 
+  const handleGrabEndpoint = useCallback(
+    (endpoint: ReferenceLineEndpoint) => {
+      onStartDrag(FRAME_CENTRE, endpoint);
+    },
+    [onStartDrag],
+  );
+
+  /** Đường bàn phím (BUG-607): Enter trên khung khi chưa có đoạn → đoạn ở tâm, mũi tên dời đầu cuối. */
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      const isFrameEnter = event.key === 'Enter' && event.target === event.currentTarget;
+
+      if (!isFrameEnter || !canvas.isInteractive || canvas.referenceLine !== null) {
+        return;
+      }
+
+      event.preventDefault();
+      onStartDrag(FRAME_CENTRE);
+      onEndDrag(FRAME_CENTRE);
+    },
+    [canvas.isInteractive, canvas.referenceLine, onEndDrag, onStartDrag],
+  );
+
   const viewportDuration = cssDurationMs('slow', { reducedMotion: prefersReducedMotion });
 
   const cursorClass = !canvas.isInteractive
@@ -318,12 +316,14 @@ export function ScaleCalibrationCanvas({
       aria-describedby={canvas.isInteractive ? undefined : FORBIDDEN_DESCRIPTION_ID}
       aria-label={CANVAS_ARIA_LABEL}
       className={cn(FRAME_CLASSES, cursorClass)}
+      onKeyDown={handleKeyDown}
       onPointerDown={handlePointerDown}
       onPointerLeave={handlePointerLeave}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onWheel={handleWheel}
       role="group"
+      tabIndex={canvas.isInteractive ? 0 : undefined}
     >
       {canvas.isImageLoading ? (
         <Skeleton className="absolute inset-0" preset="canvas" />
@@ -408,8 +408,20 @@ export function ScaleCalibrationCanvas({
 
           {draft !== null && canvas.isInteractive ? (
             <>
-              <ReferenceHandle endpoint="start" point={draft.start} zoom={canvas.viewport.zoom} />
-              <ReferenceHandle endpoint="end" point={draft.end} zoom={canvas.viewport.zoom} />
+              <ReferenceHandle
+                endpoint="start"
+                onGrab={handleGrabEndpoint}
+                onNudge={onNudgeEndpoint}
+                point={draft.start}
+                zoom={canvas.viewport.zoom}
+              />
+              <ReferenceHandle
+                endpoint="end"
+                onGrab={handleGrabEndpoint}
+                onNudge={onNudgeEndpoint}
+                point={draft.end}
+                zoom={canvas.viewport.zoom}
+              />
             </>
           ) : null}
 
@@ -431,8 +443,14 @@ export function ScaleCalibrationCanvas({
         </p>
       ) : null}
 
-      <ZoomCluster />
-      <MiniMap />
+      <CanvasNavigation
+        miniMapViewport={canvas.miniMapViewport}
+        onFitView={onFitView}
+        onMiniMapViewportChange={onMiniMapViewportChange}
+        onZoomIn={onZoomIn}
+        onZoomOut={onZoomOut}
+        zoomPercent={canvas.zoomPercent}
+      />
     </div>
   );
 }

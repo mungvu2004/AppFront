@@ -183,6 +183,8 @@ export const modifierForShortcut = (code: ShortcutCode): ModifierShortcut | null
 export interface ShortcutTarget {
   readonly tagName: string;
   readonly isContentEditable?: boolean;
+  /** `role` của phần tử — một `Element` thật có sẵn; fixture test bỏ trống được. */
+  getAttribute?(name: string): string | null;
 }
 
 /** Elements that swallow every printable key while they hold the focus. */

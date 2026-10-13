@@ -82,7 +82,7 @@ export const LAYER_SAVE_MESSAGES = {
   integrity: (count: number): string => `Tầng này có ${count} chỗ hỏng liên kết hình học nên chưa lưu được.`,
   reload: 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.',
   unnamedRoom: 'Có phòng chưa đặt tên nên chưa lưu được tầng này. Đặt tên cho phòng đó rồi lưu lại.',
-  scaleRedirtied: 'Tỉ lệ tầng này vừa đổi trong lúc bạn sửa. Tải lại để sửa trên số đo mới.',
+  scaleRedirtied: 'Tỷ lệ tầng này vừa đổi trong lúc bạn sửa. Tải lại để sửa trên số đo mới.',
   unknown: 'Không lưu được thay đổi của tầng này.',
 } as const;
 

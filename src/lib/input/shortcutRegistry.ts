@@ -225,6 +225,8 @@ export interface ShortcutKeyEvent {
   readonly shiftKey?: boolean;
   /** True while a key auto-repeats; a repeat is not a second press. */
   readonly repeat?: boolean;
+  /** True when the focused widget already answered the key (a radio group's arrows). */
+  readonly defaultPrevented?: boolean;
   preventDefault?(): void;
 }
 
@@ -378,6 +380,30 @@ const eventMatches = (parsed: ParsedCombo, event: ShortcutKeyEvent): boolean => 
   return true;
 };
 
+/** Elements whose lone Enter/Space is their own activation (button click, link follow). */
+const ACTIVATABLE_TAGS: ReadonlySet<string> = new Set(['BUTTON', 'A', 'SUMMARY']);
+const ACTIVATABLE_ROLES: ReadonlySet<string> = new Set([
+  'button', 'link', 'radio', 'checkbox', 'switch', 'tab', 'menuitem', 'menuitemradio', 'menuitemcheckbox', 'option',
+]);
+
+/**
+ * Does the focused control own this key? A lone Enter/Space activates a focused
+ * button, link or radio — a canvas "confirm" on Enter must not swallow it (BUG-597).
+ */
+const isControlActivation = (event: ShortcutKeyEvent, code: ShortcutCode, target: ShortcutTarget | null): boolean => {
+  if ((code !== 'ENTER' && code !== 'SPACE') || target === null) {
+    return false;
+  }
+
+  if (event.ctrlKey === true || event.metaKey === true || event.altKey === true) {
+    return false;
+  }
+
+  const role = target.getAttribute?.('role') ?? null;
+
+  return ACTIVATABLE_TAGS.has(target.tagName.toUpperCase()) || (role !== null && ACTIVATABLE_ROLES.has(role));
+};
+
 /** The focused element as `isTextEntryTarget` wants it, or null. */
 const targetOf = (event: KeyboardEvent): ShortcutTarget | null => {
   const candidate = event.target as { tagName?: unknown } | null | undefined;
@@ -508,6 +534,13 @@ export function createShortcutRegistry(
     }
 
     if (MODIFIER_KEY_CODES.has(code)) {
+      return false;
+    }
+
+    // The focused control answers first: a widget that already handled the key
+    // (arrows inside a radio group) or a lone Enter/Space on a button keeps it.
+    // Escape still falls through — A12's close-top-layer promise (BUG-597).
+    if (code !== 'ESCAPE' && (event.defaultPrevented === true || isControlActivation(event, code, target))) {
       return false;
     }
 

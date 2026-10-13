@@ -773,17 +773,17 @@ describe('bộ đếm ở trạng thái Xong (BT-08)', () => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* Dải tỉ lệ tạm (F-04x-2 [8].7).                                              */
+/* Dải tỷ lệ tạm (F-04x-2 [8].7).                                              */
 /* -------------------------------------------------------------------------- */
 
-describe('dải tỉ lệ tạm (F-04x-2)', () => {
+describe('dải tỷ lệ tạm (F-04x-2)', () => {
   const NOTICE = provisionalScaleNoticeOf('unresolved')?.message ?? '';
 
   beforeEach(() => {
     useStore.getState().setSpatial(null, null);
   });
 
-  it('tầng unresolved: dải chú ý + "Hiệu chỉnh tỉ lệ" mở màn tỉ lệ; chiều dài là PROVISIONAL_MEASURE_TEXT', async () => {
+  it('tầng unresolved: dải chú ý + "Hiệu chỉnh tỷ lệ" mở màn tỉ lệ; chiều dài là PROVISIONAL_MEASURE_TEXT', async () => {
     const onNavigate = vi.fn();
     const args = { ...scenarioArgsFor('partial'), ...ProvisionalScale.args, onNavigate };
 
@@ -795,7 +795,7 @@ describe('dải tỉ lệ tạm (F-04x-2)', () => {
 
     expect(await screen.findByText(NOTICE)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Hiệu chỉnh tỉ lệ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hiệu chỉnh tỷ lệ' }));
     expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.scale(args.projectId, args.floorId));
   });
 
@@ -805,7 +805,7 @@ describe('dải tỉ lệ tạm (F-04x-2)', () => {
     await screen.findByRole('tree', { name: 'Cây lớp' });
 
     expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Hiệu chỉnh tỉ lệ' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Hiệu chỉnh tỷ lệ' })).not.toBeInTheDocument();
   });
 });
 

@@ -59,6 +59,8 @@ import { Modal } from '@/components/overlay/Modal';
 import { StatusBar } from '@/components/shell/StatusBar';
 import { Button } from '@/components/ui/Button';
 
+import { FloorLayerSaveBanner } from '../../qc/WallLayerReview/FloorLayerSaveBanner';
+
 import { ScaleCalibrationCanvas } from './ScaleCalibrationCanvas';
 import { ScaleCalibrationPanel } from './ScaleCalibrationPanel';
 import type { ScaleCalibrationProps, ScaleCalibrationState, ScaleCalibrationViewModel } from './types';
@@ -187,6 +189,8 @@ export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
     >
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row lg:items-stretch">
         <div className="flex min-w-0 flex-1 flex-col gap-3 p-3">
+          {/* Xung đột 409 / tầng khoá lưu: có "Tải lại", không thì mọi lượt áp sau hỏng im lặng (BUG-598). */}
+          <FloorLayerSaveBanner saveBlock={model.saveBlock ?? null} />
           {model.provisionalScaleNotice !== undefined && (
             <InlineAlert level="attention" message={model.provisionalScaleNotice} />
           )}

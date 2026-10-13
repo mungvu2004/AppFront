@@ -756,10 +756,10 @@ describe('chip lọc "Chưa đặt tên"', () => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* Tỉ lệ tạm (F-04x-2 [8].7).                                                  */
+/* Tỷ lệ tạm (F-04x-2 [8].7).                                                  */
 /* -------------------------------------------------------------------------- */
 
-describe('tỉ lệ tạm (F-04x-2)', () => {
+describe('tỷ lệ tạm (F-04x-2)', () => {
   it('tầng unresolved: dải mở màn tỉ lệ; diện tích, chu vi, tổng là PROVISIONAL_MEASURE_TEXT', async () => {
     const onNavigate = vi.fn();
     const mounted = await mountSettled({
