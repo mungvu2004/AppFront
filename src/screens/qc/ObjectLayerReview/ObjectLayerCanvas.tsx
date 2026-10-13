@@ -19,8 +19,7 @@
  * 260 ms).
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { MouseEvent as ReactMouseEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 
 import { ContextMenu } from '@/components/canvas/ContextMenu';
 import { MeasurementLabel } from '@/components/canvas/MeasurementLabel';
@@ -32,6 +31,7 @@ import { staggerDelayMs } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
 import {
+  HOST_WALL_HIGHLIGHT_TOKEN,
   OBJECT_CANVAS_COLOR_COUNT_TEST_ID,
   OBJECT_CANVAS_FRAME_CLASSES,
   OBJECT_CANVAS_READ_ONLY_ID,
@@ -155,9 +155,7 @@ function ObjectSymbolFigure({
               key={stroke.id}
               stroke={token}
               strokeDasharray={stroke.dashArray ?? undefined}
-              strokeWidth={
-                isSelected || isHovered ? SYMBOL_STROKE_WIDTH_PX * 2 : SYMBOL_STROKE_WIDTH_PX
-              }
+              strokeWidth={isSelected || isHovered ? SYMBOL_STROKE_WIDTH_PX * 2 : SYMBOL_STROKE_WIDTH_PX}
               vectorEffect="non-scaling-stroke"
             />
           ))}
@@ -187,6 +185,7 @@ export function ObjectLayerCanvas({
   backgroundImageUrl,
   dragMeasurement,
   haloRectPx,
+  highlightedWallId,
   hoveredObjectId,
   isInteractive,
   layerVisibility,
@@ -328,6 +327,7 @@ export function ObjectLayerCanvas({
               fill={WALL_IDLE_TOKEN}
               key={wall.id}
               points={wall.outline.map((point) => `${point.x},${point.y}`).join(' ')}
+              {...(wall.id === highlightedWallId ? { stroke: HOST_WALL_HIGHLIGHT_TOKEN, strokeWidth: 3 * unitPx } : {})}
             />
           ))}
 
@@ -417,7 +417,7 @@ export function ObjectLayerCanvas({
             {OBJECT_LAYER_LABELS[layer]}
           </span>
         ))}
-        <span className="font-mono text-[12px] tabular-nums text-text-primary">
+        <span className="text-[12px] tabular-nums text-text-primary">
           {placements.length}
           <span className="text-text-secondary">{OBJECT_CANVAS_TEXT.objectCountSuffix}</span>
         </span>

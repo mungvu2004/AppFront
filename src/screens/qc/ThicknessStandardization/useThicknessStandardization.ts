@@ -58,7 +58,7 @@ import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
 import type { Command } from '@/lib/commands/types';
-import type { HistoryStack } from '@/lib/commands/history';
+import { newestEntryId, undoIfNewest, type HistoryStack } from '@/lib/commands/history';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { durationMs } from '@/lib/motion';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
@@ -203,6 +203,8 @@ export type UseThicknessStandardizationResult = ThicknessStandardizationProps &
 const NO_WALL_IDS: readonly WallId[] = [];
 const NO_MEASUREMENTS: ReadonlySet<number> = new Set<number>();
 const NO_OVERRIDES: ReadonlyMap<WallId, ThicknessGroup> = new Map<WallId, ThicknessGroup>();
+/** Toast "Hoàn tác" bị từ chối vì đã có bước mới hơn (BUG-579). */
+const THICKNESS_UNDO_REFUSED_TYPE = 'thicknessStandardization.undoRefused';
 
 /* -------------------------------------------------------------------------- */
 /* Phép ghép thuần — kiểm được mà không cần dựng hook.                          */
@@ -627,11 +629,17 @@ export function useThicknessStandardization(
       setHasApplied(true);
       flashWalls(commands.flatMap((command) => command.scope.entityIds as readonly WallId[]));
 
+      /* BUG-579: vé giữ đúng bước của lượt áp này, không "bước trên cùng" lúc bấm. */
+      const entryId = newestEntryId(dispatchBundle.history);
       const ticket = createThicknessUndoTicket({
         description: label,
         now: gateway.now,
         undo: () => {
-          applyUndo();
+          const refused = undoIfNewest(dispatchBundle.history, entryId, applyUndo);
+
+          if (refused !== null) {
+            notifications.publish({ type: THICKNESS_UNDO_REFUSED_TYPE, title: refused, description: '' });
+          }
         },
       });
 

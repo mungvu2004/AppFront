@@ -16,9 +16,8 @@
  * không có đường phím tắt nào được giao cho T7 (D/W/F/1/2/3 đều là đổi
  * loại), nút "Duyệt đối tượng này" ở đây là nơi DUY NHẤT một hành động thật
  * gọi được nó — đúng khuôn "Duyệt đoạn này" của `WallLayerInspector.tsx`,
- * đổi nhãn cho khớp đối tượng. Không thêm nút xoá: `onDelete` chưa có phím
- * tắt nào giao cho T7 lẫn không được liệt trong đặc tả UI, nên để trống ở
- * đây — nếu T5/T8 định tuyến nó qua phím tắt thì không cần một view khác.
+ * đổi nhãn cho khớp đối tượng. Nút "Xoá đối tượng" (ghost, dưới nút duyệt)
+ * có từ BUG-589: trước đó chỉ chuột phải trúng ký hiệu nhỏ mới xoá được.
  *
  * ## Vai Người xem — thay control bằng hiển thị tĩnh, không khoá mờ
  *
@@ -85,6 +84,7 @@ import { cn } from '@/lib/utils';
 import {
   OBJECT_SUBTYPES,
   OBJECT_SUBTYPE_LABELS,
+  OBJECT_SUBTYPE_LAYER,
   type ObjectLayerInspectorProps,
   type ObjectSubtype,
 } from './objectLayerTypes';
@@ -163,7 +163,10 @@ const SWING_OPTIONS: readonly SwingOption[] = [
   { icon: ArrowLeftRight, label: 'Trượt', value: 'sliding' },
 ];
 
-const TYPE_OPTIONS = OBJECT_SUBTYPES.map((subtype) => ({
+/* Chỉ các loại lỗ mở: lỗ mở không đổi sang đồ đạc được, chọn một loại nội thất là im lặng (BUG-590). */
+const OPENING_SUBTYPES = OBJECT_SUBTYPES.filter((subtype) => OBJECT_SUBTYPE_LAYER[subtype] !== 'furniture');
+
+const TYPE_OPTIONS = OPENING_SUBTYPES.map((subtype) => ({
   label: OBJECT_SUBTYPE_LABELS[subtype],
   value: subtype,
 }));
@@ -182,6 +185,7 @@ const UNATTACHED_BADGE = 'Chưa gắn vào tường nào';
 const FREE_STANDING_LABEL = 'Đứng tự do';
 const ATTACH_NEAREST_LABEL = 'Gắn vào tường gần nhất';
 const APPROVE_LABEL = 'Duyệt đối tượng này';
+const DELETE_LABEL = 'Xoá đối tượng';
 const EMPTY_MESSAGE = 'Chọn một đối tượng trên bản vẽ hoặc trong danh sách để xem chi tiết.';
 
 export function ObjectLayerInspector({
@@ -202,7 +206,7 @@ export function ObjectLayerInspector({
       </div>
 
       {inspector === null ? (
-        <p className="px-5 text-[13px] text-text-secondary">{EMPTY_MESSAGE}</p>
+        <p className="px-5 pb-5 text-[13px] text-text-secondary">{EMPTY_MESSAGE}</p>
       ) : (
         <ObjectInspectorBody
           inspector={inspector}
@@ -235,10 +239,12 @@ function ObjectInspectorBody({
   onDragPosition,
   onApprove,
   onAttachToNearestWall,
+  onDelete,
   onSelectHostWall,
 }: ObjectInspectorBodyProps) {
   const { hostWallId, hostWallLabel } = inspector;
   const CurrentTypeIcon = SUBTYPE_ICONS[inspector.subtype];
+  const isFurniture = OBJECT_SUBTYPE_LAYER[inspector.subtype] === 'furniture'; // loại, hướng mở chỉ đọc (BUG-590)
 
   return (
     <div className="flex flex-1 flex-col overflow-y-auto pb-5">
@@ -252,7 +258,7 @@ function ObjectInspectorBody({
           <CurrentTypeIcon className="h-[18px] w-[18px]" />
         </span>
 
-        {isViewerRole ? (
+        {isViewerRole || isFurniture ? (
           <div className="flex h-[46px] sm:h-[38px] flex-1 items-center px-3 text-[14px] text-text-primary">
             {OBJECT_SUBTYPE_LABELS[inspector.subtype]}
           </div>
@@ -265,7 +271,7 @@ function ObjectInspectorBody({
           >
             <Select.Trigger aria-label={TYPE_SELECT_LABEL} options={TYPE_OPTIONS} />
             <Select.Content>
-              {OBJECT_SUBTYPES.map((subtype, index) => {
+              {OPENING_SUBTYPES.map((subtype, index) => {
                 const Icon = SUBTYPE_ICONS[subtype];
 
                 return (
@@ -350,6 +356,7 @@ function ObjectInspectorBody({
             </FieldRow>
           )}
 
+        {isFurniture ? null : (
         <FieldRow label={SWING_LABEL}>
           {isViewerRole ? (
             <div aria-label={SWING_LABEL} className="flex h-9 items-center gap-3" role="group">
@@ -396,6 +403,7 @@ function ObjectInspectorBody({
             </Radio.Group>
           )}
         </FieldRow>
+        )}
 
         <FieldRow isLast label={CONFIDENCE_LABEL}>
           <span className="flex h-9 items-center">
@@ -414,6 +422,7 @@ function ObjectInspectorBody({
           >
             {APPROVE_LABEL}
           </Button>
+          <Button fullWidth onClick={() => onDelete(inspector.id)} variant="ghost">{DELETE_LABEL}</Button>
         </div>
       )}
     </div>

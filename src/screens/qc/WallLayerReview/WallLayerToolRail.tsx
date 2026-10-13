@@ -56,23 +56,26 @@ export interface WallLayerToolRailProps {
 
 interface WallLayerToolDef {
   readonly id: WallLayerToolId;
-  /** Nhãn tiếng Việt, viết thường kiểu câu (A6). */
+  /** Nhãn tiếng Việt, kiểu câu viết hoa chữ đầu (A6, BUG-604). */
   readonly label: string;
   readonly icon: LucideIcon;
   /** Tên phím — chữ hoa vì đây là tên phím, ngoại lệ của A6. */
   readonly kbd?: string;
-  /** `true` cho công cụ chỉnh sửa — ẩn hẳn ở vai Người xem. */
+  /**
+   * `true` cho công cụ cần canvas tương tác — ẩn hẳn ở vai Người xem. "Đo" thuộc nhóm này: canvas của
+   * người xem không nhận lượt bấm nên công cụ đo bấm không đo được gì (BUG-601).
+   */
   readonly isEditTool: boolean;
 }
 
 const TOOLS: readonly WallLayerToolDef[] = [
-  { id: 'select', label: 'chọn', icon: MousePointer2, kbd: 'V', isEditTool: false },
-  { id: 'drawWall', label: 'vẽ tường', icon: Square, kbd: 'W', isEditTool: true },
-  { id: 'splitWall', label: 'Tách đoạn', icon: Scissors, isEditTool: true },
-  { id: 'measure', label: 'đo', icon: Ruler, kbd: 'M', isEditTool: false },
+  { id: 'select', label: 'Chọn', icon: MousePointer2, kbd: 'V', isEditTool: false },
+  { id: 'drawWall', label: 'Vẽ tường', icon: Square, kbd: 'W', isEditTool: true },
+  { id: 'splitWall', label: 'Tách đoạn', icon: Scissors, kbd: 'X', isEditTool: true },
+  { id: 'measure', label: 'Đo', icon: Ruler, kbd: 'M', isEditTool: true },
 ];
 
-const MERGE_LABEL = 'nối đoạn';
+const MERGE_LABEL = 'Nối đoạn';
 const MERGE_HINT = 'Chọn hai đoạn tường để gộp';
 const RAIL_ARIA_LABEL = 'Công cụ lớp tường';
 const COLLAPSE_LABEL = 'Thu gọn hai panel';

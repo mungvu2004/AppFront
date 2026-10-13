@@ -58,6 +58,7 @@ const LAYER_TREE_LABEL = 'Cây lớp';
 const TOTAL_PREFIX = 'Tổng ';
 const TOTAL_SUFFIX = ' đối tượng';
 const FILTER_ROW_LABEL = 'Lọc theo loại';
+const EMPTY_SUBTYPE_PREFIX = 'Tầng này không có ';
 const SHOW_LAYER_PREFIX = 'Hiện lớp ';
 const HIDE_LAYER_PREFIX = 'Ẩn lớp ';
 
@@ -139,6 +140,7 @@ function ObjectLayerTreeRow({ layer, count, isVisible, onToggle }: ObjectLayerTr
 /* -------------------------------------------------------------------------- */
 
 export function ObjectLayerLeftPanel({
+  availableSubtypes,
   counts,
   furnitureAttentionNotice,
   layerVisibility,
@@ -239,6 +241,8 @@ export function ObjectLayerLeftPanel({
       <div aria-label={FILTER_ROW_LABEL} className="flex flex-wrap gap-1.5" role="group">
         {OBJECT_SUBTYPES.map((subtype: ObjectSubtype) => {
           const isOn = subtypeFilters.has(subtype);
+          /* Loại không có mặt trên tầng: chip lọc ra danh sách rỗng, nên tắt kèm lý do (BUG-590). Chip đang bật vẫn tắt được. */
+          const isEmpty = !availableSubtypes.has(subtype) && !isOn;
 
           return (
             <button
@@ -250,9 +254,12 @@ export function ObjectLayerLeftPanel({
                 isOn
                   ? 'border-accent bg-accent-wash text-accent'
                   : 'border-border-default text-text-secondary hover:bg-bg-hover hover:text-text-primary',
+                'disabled:cursor-not-allowed disabled:text-text-muted disabled:hover:bg-transparent disabled:hover:text-text-muted',
               )}
+              disabled={isEmpty}
               key={subtype}
               onClick={() => onToggleSubtypeFilter(subtype)}
+              title={isEmpty ? `${EMPTY_SUBTYPE_PREFIX}${OBJECT_SUBTYPE_LABELS[subtype].toLowerCase()}.` : undefined}
               type="button"
             >
               {OBJECT_SUBTYPE_LABELS[subtype]}

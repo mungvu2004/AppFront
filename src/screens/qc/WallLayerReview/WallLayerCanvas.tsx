@@ -224,11 +224,13 @@ export function WallLayerCanvas({
       event.preventDefault();
       onSelect(wallId);
 
+      /* Tường đã duyệt: "Duyệt" không làm gì, nên không đưa nó ra (BUG-604). */
+      const isReviewed = shapes.find((shape) => shape.id === wallId)?.isReviewed ?? false;
       const groups: ContextMenuGroup[] = [
         {
           id: 'wall',
           items: [
-            { id: 'approve', label: MENU_LABELS.approve, action: () => onApprove(wallId) },
+            ...(isReviewed ? [] : [{ id: 'approve', label: MENU_LABELS.approve, action: () => onApprove(wallId) }]),
             {
               id: 'thickness',
               label: MENU_LABELS.changeThickness,
@@ -247,7 +249,7 @@ export function WallLayerCanvas({
 
       openMenu(event.clientX, event.clientY, groups);
     },
-    [onApprove, onDelete, onRequestSplit, onRequestThicknessChange, onSelect, openMenu],
+    [onApprove, onDelete, onRequestSplit, onRequestThicknessChange, onSelect, openMenu, shapes],
   );
 
   /** Khung của lớp vẽ: ảnh bản vẽ nếu đã có, không thì vừa đủ ôm hết tường. */

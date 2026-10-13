@@ -106,7 +106,9 @@ export function ObjectLayerToolRail({
   onSelectSubtypeSlot,
   isViewerRole,
 }: ObjectLayerToolRailProps) {
-  const subtypeSlots = activeLayer === null ? [] : subtypesOfLayer(activeLayer);
+  /* Đồ đạc không đổi loại được (không lệnh nào làm việc đó): không đưa ba ô chết (BUG-590). */
+  const subtypeSlots =
+    activeLayer === null || activeLayer === 'furniture' ? [] : subtypesOfLayer(activeLayer);
 
   return (
     <div

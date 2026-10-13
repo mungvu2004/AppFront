@@ -103,7 +103,7 @@ const WALL = {
   onlyNonStandard: 'Chỉ hiện độ dày không chuẩn', // WLP:79
   continue: 'Sang lớp cửa và nội thất', // WLP:95
   rail: 'Công cụ lớp tường', // WTR:77
-  merge: 'nối đoạn', // WTR:75
+  merge: 'Nối đoạn', // WTR:75
   reviewed: 'Đã duyệt', // WL:72
   conflict: 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.', // SLS:83
   reload: 'Tải lại', // FSB:37

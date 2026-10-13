@@ -66,6 +66,7 @@ import './FloorLayerSaveConfirm';
 import type { WallLayerViewProps } from './types';
 import { WallLayerInspector } from './WallLayerInspector';
 import { WallLayerReviewContainer } from './WallLayerReview.container';
+import { WallLayerStatusBar } from './WallLayerStatusBar';
 import { ProvisionalScale, scenarioArgsFor } from './WallLayerReview.stories';
 import {
   WALL_LAYER_FIXTURE_BUILDING,
@@ -503,6 +504,7 @@ describe('nhãn mã tường', () => {
         advanced: { elevationOffsetLabel: '0', startPointLabel: '0', endPointLabel: '0' },
       },
       thicknessChoices: THICKNESS_BANDS,
+      thicknessFocusRequest: 0,
       isViewerRole: false,
       viewerRoleNotice: '',
       onApprove: vi.fn(),
@@ -706,15 +708,32 @@ describe('thứ tự ray công cụ (BC-02)', () => {
     await screen.findByRole('toolbar', { name: 'Công cụ lớp tường' });
 
     const labels = railLabels();
-    const mergeAt = labels.findIndex((label) => label.startsWith('nối đoạn'));
-    const measureAt = labels.findIndex((label) => label.startsWith('đo'));
+    const mergeAt = labels.findIndex((label) => label.startsWith('Nối đoạn'));
+    const measureAt = labels.findIndex((label) => label.startsWith('Đo'));
 
     expect(mergeAt).toBeGreaterThan(-1);
     expect(measureAt).toBeGreaterThan(-1);
     expect(mergeAt).toBeLessThan(measureAt);
   });
 
-  it('vai Người xem: "đo" vẫn hiện, "nối đoạn" bị ẩn', async () => {
+  it('[BUG-604] nhãn ray viết hoa chữ đầu (A6), và "Tách đoạn" có phím X', async () => {
+    renderWithProviders(
+      <MemoryRouter>
+        <WallLayerReviewContainer {...scenarioArgsFor('partial')} />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole('toolbar', { name: 'Công cụ lớp tường' });
+
+    const labels = railLabels();
+
+    expect(labels).toEqual(
+      expect.arrayContaining(['Chọn (phím V)', 'Vẽ tường (phím W)', 'Tách đoạn (phím X)', 'Đo (phím M)']),
+    );
+    expect(labels.filter((label) => label.charAt(0) !== label.charAt(0).toLocaleUpperCase('vi'))).toEqual([]);
+  });
+
+  it('[BUG-601] vai Người xem: "Đo" và "Nối đoạn" bị ẩn — canvas người xem không nhận lượt bấm', async () => {
     renderWithProviders(
       <MemoryRouter>
         <WallLayerReviewContainer {...scenarioArgsFor('forbidden')} />
@@ -725,8 +744,8 @@ describe('thứ tự ray công cụ (BC-02)', () => {
 
     const labels = railLabels();
 
-    expect(labels.some((label) => label.startsWith('đo'))).toBe(true);
-    expect(labels.some((label) => label.startsWith('nối đoạn'))).toBe(false);
+    expect(labels.some((label) => label.startsWith('Đo'))).toBe(false);
+    expect(labels.some((label) => label.startsWith('Nối đoạn'))).toBe(false);
   });
 });
 
@@ -787,5 +806,160 @@ describe('dải tỉ lệ tạm (F-04x-2)', () => {
 
     expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Hiệu chỉnh tỉ lệ' })).not.toBeInTheDocument();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Đợt sửa P04 cụm A (SCR-16) — mỗi ca đỏ trước bản sửa.                        */
+/* -------------------------------------------------------------------------- */
+
+describe('đợt sửa P04 — SCR-16', () => {
+  const inspectorPanel = (overrides: Partial<WallLayerViewProps>): WallLayerViewProps =>
+    ({
+      inspector: null,
+      thicknessChoices: THICKNESS_BANDS,
+      thicknessFocusRequest: 0,
+      isViewerRole: false,
+      viewerRoleNotice: '',
+      onApprove: vi.fn(),
+      onSkip: vi.fn(),
+      onChangeThickness: vi.fn(),
+      rows: [],
+      ...overrides,
+    }) as unknown as WallLayerViewProps;
+
+  it('[BUG-601] vai Người xem: "Thu gọn hai panel" thu gọn thật, không chỉ đổi nhãn', async () => {
+    renderState('forbidden');
+
+    expect(await screen.findByRole('tree', { name: 'Cây lớp' })).toBeInTheDocument();
+
+    await act(async () => {
+      screen.getByRole('button', { name: 'Thu gọn hai panel' }).click();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('tree', { name: 'Cây lớp' })).not.toBeInTheDocument();
+    });
+  });
+
+  it('[BUG-324] gốc màn cao bằng khung nhìn, nên thanh trạng thái dính đáy', async () => {
+    renderState('partial');
+
+    expect(await screen.findByRole('region', { name: 'Duyệt lớp tường' })).toHaveClass('h-screen');
+  });
+
+  it('[BUG-395] dưới 1280 panel trái không bị khoá 560 px (danh sách còn ~3 hàng)', async () => {
+    renderState('partial');
+
+    const tree = await screen.findByRole('tree', { name: 'Cây lớp' });
+    const panel = tree.closest('.shadow-panel');
+
+    expect(panel).not.toBeNull();
+    expect(panel?.className).not.toContain('h-[560px]');
+  });
+
+  it('[BUG-396] hàng danh sách không tràn mép phải: không huy hiệu chữ 70 px, hàng cắt tràn', async () => {
+    /* jsdom đo mọi khung 0 px nên danh sách ảo không dựng hàng nào; cho khung cuộn một chiều cao. */
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      { x: 0, y: 0, top: 0, left: 0, right: 280, bottom: 800, width: 280, height: 800, toJSON: () => ({}) } as DOMRect,
+    );
+    renderState('partial');
+
+    const options = await screen.findAllByRole('option');
+
+    expect(options.length).toBeGreaterThan(0);
+
+    for (const option of options) {
+      expect(option).toHaveClass('overflow-hidden');
+      expect(within(option).queryByText('Cần chú ý')).not.toBeInTheDocument();
+    }
+  });
+
+  it('[BUG-614] bộ lọc panel trái: nhãn 13 px ngang cây lớp, có tiêu đề nhóm "Bộ lọc"', async () => {
+    renderState('partial');
+
+    expect(await screen.findByText('Bộ lọc')).toBeInTheDocument();
+    expect(screen.getByText('Chỉ hiện chưa duyệt')).toHaveClass('text-[13px]');
+    expect(screen.getByText('Hiện tim tường')).toHaveClass('text-[13px]');
+  });
+
+  it('[BUG-612][BUG-616] thanh trạng thái: câu không mono; lưu thất bại dùng màu vi phạm kèm biểu tượng', () => {
+    const { rerender } = renderWithProviders(
+      <WallLayerStatusBar cursorLabel="Chưa rê chuột lên bản vẽ" saveFailed={false} saveLabel="Đã lưu" scaleLabel="12 mm/px" />,
+    );
+
+    expect(screen.getByText('Chưa rê chuột lên bản vẽ')).not.toHaveClass('font-mono');
+    expect(screen.getByText('Đã lưu')).toHaveClass('text-text-muted');
+
+    rerender(
+      <WallLayerStatusBar cursorLabel="Chưa rê chuột lên bản vẽ" saveFailed saveLabel="Lưu thất bại" scaleLabel="12 mm/px" />,
+    );
+
+    const failed = screen.getByText('Lưu thất bại');
+
+    expect(failed).toHaveClass('text-state-violation-text');
+    expect(failed).not.toHaveClass('text-text-muted');
+    expect(failed.querySelector('svg')).not.toBeNull();
+  });
+
+  it('[BUG-329] thẻ Đoạn tường trống có đệm dưới', () => {
+    renderWithProviders(<WallLayerInspector panel={inspectorPanel({})} />);
+
+    expect(screen.getByText(/Chọn một đoạn tường/u)).toHaveClass('pb-5');
+  });
+
+  it('[BUG-604] "Đổi độ dày" đưa focus vào ba lựa chọn độ dày', () => {
+    const wall = {
+      id: WALL_LAYER_FIXTURE_WALLS[0]?.id,
+      codeLabel: '#W-001',
+      thicknessMm: 220,
+      lengthLabel: '4.250,00 mm',
+      heightLabel: '3,00 m',
+      confidence: 0.71,
+      kindLabel: 'Tường gạch',
+      advanced: { elevationOffsetLabel: '0', startPointLabel: '0', endPointLabel: '0' },
+    };
+    const { rerender } = renderWithProviders(
+      <WallLayerInspector panel={inspectorPanel({ inspector: wall } as Partial<WallLayerViewProps>)} />,
+    );
+
+    expect(document.activeElement?.getAttribute('role')).not.toBe('radio');
+
+    rerender(
+      <WallLayerInspector
+        panel={inspectorPanel({ inspector: wall, thicknessFocusRequest: 1 } as Partial<WallLayerViewProps>)}
+      />,
+    );
+
+    expect(document.activeElement?.getAttribute('role')).toBe('radio');
+    expect(document.activeElement?.getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('[BUG-604] menu chuột phải của tường ĐÃ duyệt không đưa "Duyệt" chết', async () => {
+    const { container } = renderState('partial');
+
+    await screen.findByRole('tree', { name: 'Cây lớp' });
+
+    const reviewed = WALL_LAYER_FIXTURE_WALLS.find((wall) => wall.reviewed);
+    const unreviewed = WALL_LAYER_FIXTURE_WALLS.find((wall) => !wall.reviewed);
+    const figureOf = (id: string | undefined): Element => {
+      const figure = container.querySelector(`g[role="presentation"][aria-label="#${wallDisplayCode(id ?? '')}"]`);
+
+      if (figure === null) {
+        throw new Error(`không thấy hình tường ${id ?? ''}`);
+      }
+
+      return figure;
+    };
+
+    fireEvent.contextMenu(figureOf(reviewed?.id));
+    expect(within(await screen.findByRole('menu')).queryByRole('menuitem', { name: 'Duyệt' })).not.toBeInTheDocument();
+
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+    fireEvent.contextMenu(figureOf(unreviewed?.id));
+    await waitFor(() => {
+      expect(within(screen.getByRole('menu')).getByRole('menuitem', { name: 'Duyệt' })).toBeInTheDocument();
+    });
   });
 });

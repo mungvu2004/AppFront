@@ -69,8 +69,12 @@ export function FieldRow({
       )}
       {...props}
     >
-      <div className={cn('w-[40%] flex-shrink-0 pr-4', !isText && 'pt-[9px]')}>
-        <span className="text-[14px] font-medium leading-[20px] text-text-secondary">
+      {/*
+        Nhãn 13 px, căn giữa trong đúng ô 36 px của giá trị (\`h-9\`) — \`pt-[9px]\` cũ lệch ~5 px so với
+        giá trị căn giữa, và nhãn 14 px đậm trông to hơn giá trị (BUG-613).
+      */}
+      <div className={cn('w-[40%] flex-shrink-0 pr-4', !isText && 'flex min-h-[36px] items-center')}>
+        <span className="text-[13px] leading-[20px] text-text-secondary">
           {label}
         </span>
       </div>

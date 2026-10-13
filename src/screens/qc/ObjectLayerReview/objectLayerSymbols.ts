@@ -102,6 +102,9 @@ export const OBJECT_LAYER_COLOR_TOKENS: Readonly<Record<ObjectLayerId, string>> 
  */
 export const WALL_IDLE_TOKEN = 'var(--wall-idle)';
 
+/** Viền tường chủ vừa bấm "Tường chứa nó" — màu nhấn, vì đó là thứ người dùng vừa chỉ tới (BUG-591). */
+export const HOST_WALL_HIGHLIGHT_TOKEN = 'var(--accent)';
+
 /** Màu dữ liệu của một lớp con. */
 export function objectLayerColorToken(layer: ObjectLayerId): string {
   return OBJECT_LAYER_COLOR_TOKENS[layer];
@@ -255,6 +258,8 @@ export interface ObjectLayerCanvasViewProps extends ObjectLayerCanvasProps {
   readonly unitPx: ObjectLayerReviewModel['unitPx'];
   readonly surfaceRectPx: ObjectLayerReviewModel['surfaceRectPx'];
   readonly haloRectPx: ObjectLayerReviewModel['haloRectPx'];
+  /** Tường chủ vừa bấm từ thanh tra — tô viền để thấy nó, đối tượng vẫn được chọn (BUG-591). */
+  readonly highlightedWallId: ObjectLayerReviewModel['highlightedWallId'];
   readonly onFrameResize: ObjectLayerReviewModel['onFrameResize'];
   readonly onApprove?: ((objectId: string) => void) | undefined;
   readonly onDelete?: ((objectId: string) => void) | undefined;
@@ -271,6 +276,8 @@ export interface ObjectLayerCanvasViewProps extends ObjectLayerCanvasProps {
  */
 export interface ObjectLayerLeftPanelViewProps extends ObjectLayerLeftPanelProps {
   readonly furnitureAttentionNotice: string | null;
+  /** Loại con có ít nhất một đối tượng trên tầng — chip của loại vắng bị tắt kèm lý do (BUG-590). */
+  readonly availableSubtypes: ReadonlySet<ObjectSubtype>;
 }
 
 /**

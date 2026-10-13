@@ -649,7 +649,7 @@ test.describe('SCR-16 Wall Layer Review (own screen load)', () => {
 
     await wallList().getByRole('option').first().click();
     await expect(
-      wallRail().getByRole('button', { name: 'nối đoạn — Chọn hai đoạn tường để gộp', exact: true }),
+      wallRail().getByRole('button', { name: 'Nối đoạn — Chọn hai đoạn tường để gộp', exact: true }),
     ).toBeDisabled();
 
     if (pair === null) {
@@ -665,7 +665,7 @@ test.describe('SCR-16 Wall Layer Review (own screen load)', () => {
 
     await (await revealWallOption(codeA)).click();
     await (await revealWallOption(codeB)).click({ modifiers: ['Control'] });
-    const merge = wallRail().getByRole('button', { name: 'nối đoạn', exact: true });
+    const merge = wallRail().getByRole('button', { name: 'Nối đoạn', exact: true });
 
     await expect(merge).toBeEnabled();
     const put = waitForLayerPut((body) => wallsOf(body, '#35').length === current.length - 1);

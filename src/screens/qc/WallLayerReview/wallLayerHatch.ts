@@ -267,6 +267,8 @@ export interface WallLayerCanvasShape extends WallShapeViewModel {
   readonly attentionDotPx: PointPx;
   /** Cổng bật gạch chéo; ngưỡng sống ở `materialMap.isLowConfidence`. */
   readonly isLowConfidence: boolean;
+  /** Đã duyệt — menu chuột phải không đưa "Duyệt" chết (BUG-604). */
+  readonly isReviewed: boolean;
 }
 
 /** Mọi thứ view canvas nhận. Thuần cộng thêm lên `WallLayerCanvasProps`. */

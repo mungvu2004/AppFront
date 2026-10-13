@@ -612,6 +612,10 @@ export interface ObjectLayerReviewModel {
   readonly activeSubtype: ObjectSubtype | null;
   /** Nhánh (a) của trạng thái một phần: chỉ hiện mục dưới ngưỡng tin cậy. */
   readonly isLowConfidenceOnly: boolean;
+  /** Loại con có ít nhất một đối tượng trên tầng (BUG-590). */
+  readonly availableSubtypes: ReadonlySet<ObjectSubtype>;
+  /** Tường chủ vừa bấm "Tường chứa nó" — canvas tô viền nó (BUG-591). */
+  readonly highlightedWallId: WallId | null;
   readonly onSelectLayer: (layer: ObjectLayerId) => void;
   readonly onSelectSubtypeSlot: (slot: 1 | 2 | 3) => void;
   /** Thêm/bớt một đối tượng khỏi vùng chọn (S-10). */

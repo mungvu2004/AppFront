@@ -88,6 +88,7 @@ const FILTER_KEYS: readonly WallLayerFilterKey[] = [
 const LAYER_TREE_ARIA_LABEL = 'Cây lớp';
 const FLOOR_NAV_ARIA_LABEL = 'Tầng của bản vẽ';
 const CENTRELINES_LABEL = 'Hiện tim tường';
+const FILTER_GROUP_TITLE = 'Bộ lọc';
 const SHOW_WALL_LAYER_LABEL = 'Hiện lớp tường';
 const HIDE_WALL_LAYER_LABEL = 'Ẩn lớp tường';
 const REVIEWED_SUFFIX = ' tường đã duyệt';
@@ -271,7 +272,8 @@ export function WallLayerLeftPanel({
   const isComplete = panel.state === 'success';
 
   return (
-    <div className="order-1 flex h-[560px] w-full shrink-0 flex-col overflow-hidden rounded-[12px] bg-bg-surface shadow-panel xl:order-none xl:h-full xl:w-[280px]">
+    /* Dưới 1280 panel cao theo nội dung và vùng ngoài cuộn — không nén danh sách còn ~3 hàng (BUG-395). */
+    <div className="order-1 flex w-full shrink-0 flex-col overflow-hidden rounded-[12px] bg-bg-surface shadow-panel xl:order-none xl:h-full xl:w-[280px]">
       <div className="flex shrink-0 flex-col gap-4 px-5 pb-3 pt-4">
         <div aria-label={reviewProgressLabel} className="flex flex-col gap-1.5">
           <p className="text-[13px] text-text-primary">
@@ -331,23 +333,28 @@ export function WallLayerLeftPanel({
         </div>
 
         <div className="flex flex-col gap-1">
+          {/* Nhãn 13 px ngang cây lớp, và một tiêu đề cho nhóm lọc (BUG-614). */}
           <Checkbox
             checked={extras.showCentrelines}
             label={CENTRELINES_LABEL}
             onChange={extras.onToggleCentrelines}
+            size="sm"
           />
+          <p className="pt-2 text-[12px] text-text-muted">{FILTER_GROUP_TITLE}</p>
           {FILTER_KEYS.map((key) => (
             <Checkbox
               checked={filters[key]}
               key={key}
               label={FILTER_LABELS[key]}
               onChange={() => onToggleFilter(key)}
+              size="sm"
             />
           ))}
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+      {/* px-3: chữ của hàng thẳng lề với tiêu đề và ô chọn ở trên (BUG-396). */}
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-2">
         {panel.state === 'error' && panel.errorMessage !== null && (
           <div className="px-3 pb-2 pt-1">
             <InlineAlert level="violation" message={panel.errorMessage} />
