@@ -239,3 +239,20 @@ Sửa thêm thì thêm một dòng ở đây — đừng để người sau ph�
 | `vendor/pascal/packages/editor/src/components/ui/sidebar/panels/site-panel/window-tree-node.tsx` | defaultName "Window" → vi.treeNodeDefaults.window (H4) | H4 |
 | `vendor/pascal/packages/nodes/src/dormer/panel-actions-section.tsx` | nhãn "Delete" → vi.common.delete (H4) | H4 |
 | `vendor/pascal/packages/nodes/src/unit/unit-panel.tsx` | nhãn "Delete" → vi.common.delete (H4) | H4 |
+| `vendor/pascal/packages/viewer/src/components/viewer/index.tsx` | prop `cameraControls` — bật điều khiển camera chạm/chuột cho `<Viewer>` chế độ xem (F-15 S1) | S1 |
+| `vendor/pascal/packages/viewer/src/components/viewer/touch-camera-controls.tsx` | mới — xoay/chụm/dời, không quán tính | S1 |
+| `vendor/pascal/packages/viewer/src/lib/camera-gesture.ts` (+ .test.ts) | mới — hàm thuần tính pose từ cử chỉ | S1 |
+| `vendor/pascal/packages/viewer/dist/components/viewer/index.d.ts` | sinh tay thêm `cameraControls?: boolean` | S1 |
+| `vendor/pascal/packages/editor` | guide-compare (overlay/swipe/sideBySide) in floorplan-panel, use-editor, reference-panel, overlayLevels i18n | S7 |
+| `vendor/pascal/packages/editor/src/i18n/regions/wallMeasure.ts` | thêm nhãn bắt điểm "Giao trục" (gridIntersection) | S9 |
+| `vendor/pascal/packages/editor/src/components/tools/wall/wall-snap-geometry.ts` | thêm 'gridIntersection' vào WallDraftSnapKind | S9 |
+| `vendor/pascal/packages/viewer/src/store/use-viewer.ts` | MetricNotation thêm 'centimeters' (nấc mm/cm/m, #64) | S10 |
+| `vendor/pascal/packages/editor/src/components/ui/action-menu/measurement-control.tsx` | hàng nút đổi đơn vị m/cm/mm trong menu đo (#64) | S10 |
+| `vendor/pascal/packages/editor/src/i18n/regions/controlsAndPanels.ts` | chữ cho nút đơn vị (#64) | S10 |
+| `vendor/pascal/packages/editor/src/lib/history.ts` + index.tsx | subscribeMeasurementDeletes — sự kiện xoá phép đo cho toast hoàn tác (#63) | S10 |
+| `vendor/pascal/packages/editor/src/{components/**,...}` | kiểu cục bộ 'meters'\|'millimeters' mở rộng thêm 'centimeters' (#64) | S10 |
+| `vendor/pascal/packages/{editor,viewer}/dist/*.d.ts` | sửa tay đúng ba chỗ (subscribeMeasurementDeletes, MetricNotation); chưa sinh lại toàn bộ | S10 |
+| `vendor/pascal/packages/{core,nodes,editor}` | measurement kinds perpendicular + height (F-15 S11) | S11 |
+| `vendor/pascal/packages/editor/src/components/ui/panels/wall-vertex-{table.ts,table.test.ts,panel.tsx}`, editor/src/i18n/regions/wallMeasure.ts | S12 thêm/xoá đỉnh = tách/gộp tường | S12 |
+| `vendor/pascal/packages/editor/src/components/ui/helpers/contextual-helper-panel.tsx` | ô gợi ý phím đặt giữa-đáy (bottom-24 left-1/2) thay vì giữa-phải, để không chồng lên inspector | S14 |
+| `vendor/pascal/packages/editor/src/lib/contextual-help.ts`, helper-manager.tsx, i18n/regions/contextualHelp.ts (mới), i18n/vi.ts, lib/contextual-help.test.ts | dịch nhãn gợi ý chọn đối tượng sang tiếng Việt qua bảng vi | S14 |
