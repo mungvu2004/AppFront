@@ -194,8 +194,12 @@ export const controlsAndPanels = {
     delete: "Xoá",
     show: "Hiện",
     hide: "Ẩn",
-    unlock: "Mở khoá",
-    lock: "Khoá",
+    unlock: "Mở khoá ảnh",
+    lock: "Khoá ảnh",
+    lockedHint: "Ảnh đang khoá: không kéo dịch, xoay hay đổi cỡ trên mặt bằng khi vẽ theo.",
+    scaleMismatch: (percent: string, level: string) =>
+      `Tỉ lệ ảnh lệch ${percent}% so với ${level}. Hiệu chỉnh lại tỉ lệ để tường các tầng khớp nhau.`,
+    levelFallback: (level: number) => `Tầng ${level}`,
     overlayImageUnavailable: "Ảnh phủ không còn tồn tại. Thay ảnh để khôi phục.",
     referenceScale: "Tỉ lệ tham chiếu",
     clickBothEndsHint:

@@ -13,6 +13,16 @@ export const furnitureLibrary = {
   emptyTitle: "Không có đồ đạc nào khớp",
   emptyBody: "Bỏ dấu, bớt chữ, hoặc chọn nhóm khác.",
   count: (shown: number) => `${shown} mẫu`,
+  detectedTitle: "Đã phát hiện",
+  detectedHint: "Chọn một mẫu bên dưới rồi bấm \"Thay thế tất cả\", hoặc kéo thẻ mẫu thả vào nhóm.",
+  detectedGroup: (name: string, count: number) => `${name} (${count})`,
+  replaceAll: "Thay thế tất cả",
+  replaceAllNeedsItem: "Chọn một mẫu trong thư viện trước",
+  previewTitle: (name: string, count: number) => `Thay thế tất cả ${count} ${name}?`,
+  previewBody: "Xem lại danh sách trước khi áp. Chưa có thay đổi nào được thực hiện. Cả lô hoàn tác bằng một lần Ctrl+Z.",
+  previewList: "Danh sách đồ đạc sẽ được thay thế",
+  previewRow: (from: string, index: number, to: string) => `${from} ${index} → ${to}`,
+  cancel: "Huỷ",
 
   group: {
     all: "Tất cả",

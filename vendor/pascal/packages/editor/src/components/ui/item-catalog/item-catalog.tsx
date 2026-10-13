@@ -8,6 +8,7 @@ import { cn } from './../../../lib/utils'
 import useEditor, { type CatalogCategory } from './../../../store/use-editor'
 import { resolveAssetSnapTarget, SnapTargetBadge } from '../snap-target-badge'
 import { activateCatalogItem, filterCatalogItems, isCatalogItemSelected } from '../../../lib/catalog-panel-model'
+import { CATALOG_DRAG_TYPE } from './batch-replace'
 
 export function ItemCatalog({
   category,
@@ -69,7 +70,13 @@ export function ItemCatalog({
               readOnly && 'cursor-not-allowed opacity-60 hover:bg-transparent',
             )}
             disabled={readOnly}
+            // #107: a tile can be dropped on a detected group to replace it.
+            draggable={!readOnly}
             key={index}
+            onDragStart={(event) => {
+              event.dataTransfer.setData(CATALOG_DRAG_TYPE, item.id)
+              event.dataTransfer.effectAllowed = 'copy'
+            }}
             onClick={() => {
               if (readOnly) return
               triggerSFX('sfx:menu-click')
