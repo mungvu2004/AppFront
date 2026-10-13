@@ -14,7 +14,7 @@ import { vi } from '../../../i18n/vi'
 export type WallPlanPoint = [number, number]
 
 /** Which kind of existing-geometry snap produced a drafted point. */
-export type WallDraftSnapKind = 'endpoint' | 'midpoint' | 'intersection' | 'wall'
+export type WallDraftSnapKind = 'endpoint' | 'midpoint' | 'intersection' | 'wall' | 'gridIntersection'
 
 /**
  * User-facing name of each snap kind, shown next to the beacon. A `wall` snap

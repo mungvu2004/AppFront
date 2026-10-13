@@ -6,6 +6,7 @@ export const wallMeasure = {
     midpoint: "Giữa",
     intersection: "Giao điểm",
     wall: "Vuông góc",
+    gridIntersection: "Giao trục",
   },
   /** Tên mặc định của phép đo vừa ghim (#62). */
   measurementName: (index: number) => `Phép đo ${index}`,

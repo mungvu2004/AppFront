@@ -27,6 +27,8 @@ import { computeArea } from '@/domain/rooms/area';
 import { millimetresPerPixel } from '@/domain/units/scale';
 import { createId, isIdOfKind, type EntityKind, type IdByKind } from '@/domain/spatial/ids';
 import type {
+  Axis,
+  AxisDirection,
   BoundingBox,
   Building,
   Furniture,
@@ -178,6 +180,7 @@ const readCorner = (fields: Fields, corner: 'min' | 'max'): Point | null => {
   return typeof x === 'number' && typeof y === 'number' && isUsable(x, y) ? { x, y } : null;
 };
 
+const AXIS_DIRECTIONS: readonly AxisDirection[] = ['horizontal', 'vertical'];
 const WALL_KINDS: readonly WallKind[] = ['loadBearing', 'partition', 'envelope'];
 const ROOM_USAGES: readonly RoomUsage[] = [
   'livingRoom',
@@ -284,6 +287,7 @@ interface Collector {
   readonly openings: Opening[];
   readonly rooms: Room[];
   readonly furniture: Furniture[];
+  readonly axes: Axis[];
   /** Id tường phía Pascal → id tường phía AppFront, để phòng nối lại được. */
   readonly wallIdOfNode: Map<PascalNodeId, WallId>;
   /** Id phòng → id tường **phía Pascal** của nó, giải ở lượt cuối. */
@@ -508,6 +512,30 @@ const collectLevelChildren = (
         break;
       }
 
+      case 'structural-grid': {
+        if (!isUsable(...child.start, ...child.end)) {
+          collector.skip(child.id, 'trục định vị', 'Toạ độ hai đầu trục không phải một số đo được.');
+          break;
+        }
+
+        const fields = fieldsOf(child);
+        const knownId = appFrontIdOf('axis', child.id);
+        const start: Point = { x: millimetresOf(child.start[0]), y: millimetresOf(child.start[1]) };
+        const end: Point = { x: millimetresOf(child.end[0]), y: millimetresOf(child.end[1]) };
+
+        collector.axes.push({
+          ...reviewOf(child, knownId !== null),
+          id: knownId ?? collector.mint('axis', child.id),
+          levelId,
+          label: readString(fields, 'label') ?? child.label,
+          direction:
+            readOneOf(fields, 'direction', AXIS_DIRECTIONS) ??
+            (Math.abs(end.x - start.x) >= Math.abs(end.y - start.y) ? 'horizontal' : 'vertical'),
+          line: { start, end },
+        });
+        break;
+      }
+
       case 'slab': {
         /*
          * Sàn dựng RA từ đường bao phòng ở lượt đi, nên lượt về không mang gì
@@ -609,6 +637,7 @@ export const toSpatialGraph = (scene: PascalScene, idBook?: PascalIdBook): Spati
     openings: [],
     rooms: [],
     furniture: [],
+    axes: [],
     wallIdOfNode: new Map(),
     boundaryNodeIdsOf: new Map(),
     mint,
@@ -650,7 +679,7 @@ export const toSpatialGraph = (scene: PascalScene, idBook?: PascalIdBook): Spati
       openings: collector.openings,
       furniture: collector.furniture,
       rooms,
-      axes: [],
+      axes: collector.axes,
       dimensions: [],
       notes: [],
     },

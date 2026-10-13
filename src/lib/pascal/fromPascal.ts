@@ -111,6 +111,7 @@ const KIND_OF_NODE_TYPE: Readonly<Record<PascalNodeType, EntityKind | null>> = {
   // lượt sửa một tấm sàn phải đi qua chính cái phòng của nó.
   slab: null,
   item: 'furniture',
+  'structural-grid': 'axis',
 };
 
 /** Tên tiếng Việt của từng loại, cho câu mô tả trong nhật ký hoạt động. */
@@ -317,6 +318,7 @@ export const createPascalEditCommand = (input: PascalEditInput): PascalEditResul
     ...after.openings,
     ...after.furniture,
     ...after.rooms,
+    ...after.axes,
   ]) {
     afterById.set(entity.id, entity);
   }
