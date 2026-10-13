@@ -1,5 +1,6 @@
 // Gợi ý phím ở ô trợ giúp ngữ cảnh khi đang chọn đối tượng (lib/contextual-help.ts).
 // Nhãn viết hoa chữ đầu (AppFront A6).
+import { toFixedVi } from "../format";
 
 export const contextualHelp = {
   addOrRemove: "Thêm hoặc bỏ đối tượng khỏi vùng chọn",
@@ -18,4 +19,11 @@ export const contextualHelp = {
   openingRadius: "Chỉnh bán kính góc của một cạnh",
   // Nhãn ba thao tác máy ảnh ở hộp gợi ý đỉnh canvas (khoá theo CameraHintAction).
   cameraAction: { Pan: "Kéo", Rotate: "Xoay", Zoom: "Thu phóng" },
+  // Bảng gợi ý công cụ tường: chip chế độ bắt điểm, bước lưới, kiểu liên tục (F-15 H7).
+  snapModeLabel: { grid: "Lưới", lines: "Đường gióng", angles: "Góc", off: "Tắt" },
+  snapping: (mode: string) => `Bắt điểm: ${mode}`,
+  snappingTooltip: "Chế độ bắt điểm — bấm hoặc nhấn Shift để đổi",
+  gridStep: (value: number) => `Lưới: ${toFixedVi(value, 2)} m`,
+  gridStepTooltip: "Bước lưới — bấm hoặc nhấn Ctrl để đổi",
+  wallContinuation: { room: "Phòng (tự khép)", single: "Tường đơn" },
 } as const;
