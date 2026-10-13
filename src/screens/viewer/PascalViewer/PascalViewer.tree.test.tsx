@@ -39,6 +39,13 @@ import { useStore } from '@/store';
 
 import { PascalViewerContainer, PascalViewerRoute } from './PascalViewer.container';
 
+/** Lời trạng thái của màn; lớp cộng tác (S5) có `status` riêng, đứng sau trong DOM. */
+const screenStatus = (): HTMLElement => {
+  const [first] = screen.getAllByRole('status');
+  if (first === undefined) throw new Error('Màn không có vùng trạng thái.');
+  return first;
+};
+
 const GRAPH = createSampleBuilding();
 
 /** Gói vách ngăn giả, đủ đúng hợp đồng `mount(el, options)`. */
@@ -113,7 +120,7 @@ describe('cây thật: container → view → hook', () => {
     bench.ready();
 
     await waitFor(() => {
-      expect(screen.getByRole('status')).not.toHaveTextContent('Đang nạp');
+      expect(screenStatus()).not.toHaveTextContent('Đang nạp');
     });
 
     // Bộ mẫu chuẩn A14: 48 tường.
@@ -176,7 +183,7 @@ describe('route: đọc kho qua cổng nạp kho dự án (B-V12-01)', () => {
 
     renderRoute();
 
-    expect(screen.getByRole('status')).toHaveTextContent('Đang nạp');
+    expect(screenStatus()).toHaveTextContent('Đang nạp');
     expect(screen.queryByText('48')).not.toBeInTheDocument();
   });
 
@@ -204,7 +211,7 @@ describe('route: đọc kho qua cổng nạp kho dự án (B-V12-01)', () => {
     try {
       renderRoute();
 
-      expect(screen.getByRole('status')).toHaveTextContent('Bản vẽ chưa có đối tượng nào để dựng.');
+      expect(screenStatus()).toHaveTextContent('Bản vẽ chưa có đối tượng nào để dựng.');
     } finally {
       vi.unstubAllEnvs();
     }

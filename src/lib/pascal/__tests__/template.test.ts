@@ -7,7 +7,7 @@ import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { NO_PROJECT_REASON, NOT_IN_DRAWING_REASON, savePascalNodeAsTemplate } from '../template';
 
 const spatial = normalizeSpatial(createSampleBuilding());
-const wall = Object.values(spatial.byId).find((entity) => entity.id.startsWith('wall'));
+const wall = Object.values(spatial.byId).find((entity) => entity.id.startsWith('W-'));
 if (wall === undefined) throw new Error('Bộ mẫu thiếu tường.');
 
 const apiWith = (result: unknown) => ({ propertyTemplates: { create: vi.fn().mockResolvedValue(result), list: vi.fn() } });

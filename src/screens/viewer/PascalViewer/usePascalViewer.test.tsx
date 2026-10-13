@@ -344,9 +344,9 @@ describe('máy trạng thái', () => {
       expect(probe.state).toBe('partial');
     }, { timeout: ASYNC_TIMEOUT_MS });
 
-    // Bộ mẫu chuẩn có 4 trục và 34 kích thước không sang Pascal được (A14).
+    // Bộ mẫu chuẩn có 34 kích thước không sang Pascal được (A14); trục nay là `structural-grid` (S9).
     const kinds = probe.viewModel.skipped.map((item) => item.kind);
-    expect(kinds).toContain('trục định vị');
+    expect(kinds).toContain('kích thước');
     expect(probe.viewModel.summary).toMatchObject({ wallLabel: '48' });
   });
 });

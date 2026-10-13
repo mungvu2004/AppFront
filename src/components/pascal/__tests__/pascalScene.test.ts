@@ -17,6 +17,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   createSampleBuilding,
+  SAMPLE_AXIS_COUNT,
   SAMPLE_DOOR_COUNT,
   SAMPLE_FURNITURE_COUNT,
   SAMPLE_LEVEL_COUNT,
@@ -35,7 +36,7 @@ import {
 } from '../pascalScene';
 
 /**
- * Site + building + tầng + tường + ô mở + phòng + **sàn** + đồ đạc.
+ * Site + building + tầng + tường + ô mở + phòng + **sàn** + đồ đạc + trục (`structural-grid`, S9).
  *
  * `SAMPLE_ROOM_COUNT` đếm HAI lần, và đó không phải lỗi gõ: một phòng ra hai
  * node — `zone` là khối không gian, `slab` là mặt sàn nhìn thấy được. Bỏ `slab`
@@ -48,7 +49,8 @@ const EXPECTED_NODE_COUNT =
   SAMPLE_DOOR_COUNT +
   SAMPLE_WINDOW_COUNT +
   SAMPLE_ROOM_COUNT * 2 +
-  SAMPLE_FURNITURE_COUNT;
+  SAMPLE_FURNITURE_COUNT +
+  SAMPLE_AXIS_COUNT;
 
 describe('nạp cảnh AppFront vào Pascal thật', () => {
   beforeEach(() => {
