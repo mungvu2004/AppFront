@@ -127,6 +127,25 @@ describe('createPascalEditCommand', () => {
     expect(after !== null && after !== undefined && 'thicknessMm' in after ? after.thicknessMm : null).toBe(330);
   });
 
+  it('#18 — ghi độ dày vào mô hình rồi nạp lại: Pascal đọc đúng giá trị vừa ghi', () => {
+    const result = createPascalEditCommand({
+      graph,
+      scene: sceneWith(firstWallId, thickerWall()),
+      commit: { origin: 'local', changedNodeIds: [firstWallId] },
+      actorId: ACTOR,
+    });
+    const after = result.ok ? result.data.changes[0]?.after : null;
+
+    if (after === null || after === undefined || !('thicknessMm' in after)) {
+      throw new Error('lệnh phải mang tường đã sửa');
+    }
+
+    const written = { ...createSampleBuilding(), walls: createSampleBuilding().walls.map((wall) => (wall.id === after.id ? after : wall)) };
+    const reread = Object.values(toPascalScene(written).scene.nodes).find((node) => node.id === firstWallId);
+
+    expect(reread?.type === 'wall' ? reread.thickness : null).toBeCloseTo(0.33);
+  });
+
   it('#20 — hạ tường thấp hơn đỉnh ô mở trên nó thì bị từ chối kèm câu tiếng Việt', () => {
     const door = Object.values(baseScene.nodes).find((node) => node.type === 'door');
     const wall = door?.parentId === undefined || door.parentId === null ? undefined : baseScene.nodes[door.parentId];
