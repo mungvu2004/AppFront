@@ -1,13 +1,15 @@
 'use client'
 
-import { Armchair, Ruler, TriangleAlert } from 'lucide-react'
+import { Armchair, Ruler, Spline, TriangleAlert } from 'lucide-react'
 import { furnitureClash as viClash } from '../../../i18n/regions/furnitureClash'
 import { furnitureLibrary as viFurniture } from '../../../i18n/regions/furnitureLibrary'
 import { roomArea as vi } from '../../../i18n/regions/roomArea'
+import { wallMeasure } from '../../../i18n/regions/wallMeasure'
 import type { ExtraPanel } from '../sidebar/icon-rail'
 import { FurnitureClashPanel } from './furniture-clash-panel'
 import { FurnitureLibraryPanel } from './furniture-library-panel'
 import { RoomAreaPanel } from './room-area-panel'
+import { WallVertexPanel } from './wall-vertex-panel'
 
 /**
  * The editor side-panels AppFront mounts (F-15 W2-D).
@@ -37,5 +39,11 @@ export const appFrontEditorPanels: ExtraPanel[] = [
     label: viClash.title,
     icon: <TriangleAlert className="size-4" />,
     component: FurnitureClashPanel,
+  },
+  {
+    id: 'appfront-wall-vertices',
+    label: wallMeasure.vertexTable.title,
+    icon: <Spline className="size-4" />,
+    component: WallVertexPanel,
   },
 ]

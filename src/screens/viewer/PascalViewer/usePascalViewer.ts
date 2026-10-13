@@ -25,6 +25,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type {
   PascalCommitVerdict,
+  PascalInitialTool,
   PascalHistoryJump,
   PascalMountMode,
   PascalSaveStatus,
@@ -93,6 +94,7 @@ export interface MountModule {
       readonly onSceneLoaded?: (census: PascalSceneCensus) => void;
       readonly onRendererUnavailable?: () => void;
       readonly explodeLevels?: boolean;
+      readonly initialTool?: PascalInitialTool;
     },
   ) => {
     readonly dispose: () => void;
@@ -114,6 +116,8 @@ export interface UsePascalViewerOptions {
   readonly validateCommit?: (scene: PascalScene) => PascalCommitVerdict;
   /** Lý do một lượt sửa bị chặn — màn hình dựng toast tiếng Việt từ đây. */
   readonly onCommitRejected?: (message: string) => void;
+  /** Công cụ bật sẵn — `measure` khi URL có `?tool=measure`. */
+  readonly initialTool?: PascalInitialTool | undefined;
   /** Người dùng vừa hoàn tác/làm lại trong editor Pascal — màn dựng toast (A8). */
   readonly onHistoryJump?: (kind: PascalHistoryJump) => void;
   /** Khung xem có đang thu gọn không. Thu gọn thì KHÔNG dựng 3D, để đỡ tốn máy. */
@@ -249,6 +253,7 @@ export function usePascalViewer({
   onSceneCommit,
   validateCommit,
   onCommitRejected,
+  initialTool,
   onHistoryJump,
   explodeLevels = false,
 }: UsePascalViewerOptions): UsePascalViewerResult {
@@ -366,6 +371,7 @@ export function usePascalViewer({
           mode,
           readOnly,
           explodeLevels,
+          ...(initialTool === undefined ? {} : { initialTool }),
           onSceneCommit: async (next) => {
             await edits.current.onSceneCommit?.(next);
           },
@@ -400,7 +406,7 @@ export function usePascalViewer({
       disposed = true;
       handle?.dispose();
     };
-  }, [shouldMount, result, loadMount, attempt, mode, readOnly, explodeLevels]);
+  }, [shouldMount, result, loadMount, attempt, mode, readOnly, explodeLevels, initialTool]);
 
   const onRetry = useCallback(() => {
     setFailure(null);

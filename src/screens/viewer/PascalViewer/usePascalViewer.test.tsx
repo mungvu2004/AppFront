@@ -494,3 +494,27 @@ describe('tách tầng qua `?view=exploded` (F-15 W2-C2)', () => {
     expect(seen[0]?.['explodeLevels']).toBe(true);
   });
 });
+
+describe('/3d?tool=measure', () => {
+  it('chuyển công cụ bật sẵn xuống khung Pascal, và không chuyển khi không có', async () => {
+    const seen: Array<Record<string, unknown>> = [];
+    const loadMount = (() =>
+      Promise.resolve({
+        mount: (_element: HTMLElement, options: Record<string, unknown>) => {
+          seen.push(options);
+          return { dispose: vi.fn() };
+        },
+      })) as unknown as () => Promise<never>;
+
+    mountHook({ graph: GRAPH, mode: 'edit', initialTool: 'measure', loadMount });
+    mountHook({ graph: GRAPH, mode: 'edit', loadMount });
+
+    await vi.waitFor(() => {
+      expect(seen).toHaveLength(2);
+    }, { timeout: ASYNC_TIMEOUT_MS });
+    expect(seen.map((options) => options['initialTool'])).toEqual(
+      expect.arrayContaining(['measure', undefined]),
+    );
+    expect(seen.filter((options) => 'initialTool' in options)).toHaveLength(1);
+  });
+});

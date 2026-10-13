@@ -11,6 +11,7 @@ import { furnitureClash } from "./regions/furnitureClash";
 import { furnitureLibrary } from "./regions/furnitureLibrary";
 import { overlayLevels } from "./regions/overlayLevels";
 import { roomArea } from "./regions/roomArea";
+import { wallMeasure } from "./regions/wallMeasure";
 
 export const vi = {
   ...controlsAndPanels,
@@ -27,4 +28,6 @@ export const vi = {
   overlayLevels,
   // Bảng "Va chạm đồ đạc" (F-15 W2-A #22).
   furnitureClash,
+  // Nhãn bắt điểm của tường + tên phép đo (F-15 W2-B).
+  wallMeasure,
 } as const;

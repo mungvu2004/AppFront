@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { appFrontEditorPanels, Editor, subscribeHistoryJumps } from '@pascal-app/editor';
+import { appFrontEditorPanels, Editor, subscribeHistoryJumps, useEditor } from '@pascal-app/editor';
 import {
   computeHeroFraming,
   heroCameraPose,
@@ -26,6 +26,7 @@ import {
 } from './pascalScene';
 import type {
   PascalCommitVerdict,
+  PascalInitialTool,
   PascalHistoryJump,
   PascalMountMode,
   PascalSaveStatus,
@@ -53,6 +54,8 @@ export interface PascalFrameProps {
   readonly validateCommit: ((scene: PascalScene) => PascalCommitVerdict) | undefined;
   /** Lý do một lượt sửa bị chặn, để màn hình nói ra bằng tiếng Việt. */
   readonly onCommitRejected: ((message: string) => void) | undefined;
+  /** Công cụ bật sẵn khi editor đã nạp xong cảnh — xem `PascalInitialTool`. */
+  readonly initialTool?: PascalInitialTool | undefined;
   /**
    * **Phải đổi mỗi lần nạp cảnh mới.** Đo được: để nó cố định thì viewer giữ
    * nguyên phán quyết "sẵn sàng" của cảnh trước và không bao giờ nói lại.
@@ -146,11 +149,24 @@ export function PascalFrame({
   onFatal,
   onSceneLoaded,
   onRendererUnavailable,
+  initialTool,
   onHistoryJump,
   explodeLevels = false,
 }: PascalFrameProps) {
   const [loaded, setLoaded] = useState(false);
   const [ready, setReady] = useState(false);
+
+  /* `/3d?tool=measure`: bật công cụ đo một lần, khi editor đã đứng. Vai chỉ xem
+     vẫn đo được (#67) — đo không ghi gì vào cảnh. */
+  useEffect(() => {
+    if (mode !== 'edit' || !ready || initialTool !== 'measure') return;
+    /* Cùng đường với phím M của Pascal (`editor/src/hooks/use-keyboard.ts`). */
+    const editor = useEditor.getState();
+    editor.setPhase('structure');
+    editor.setStructureLayer('elements');
+    editor.setToolDefaults('measurement', { kind: editor.lastMeasurementKind });
+    editor.armToolMode({ mode: 'build', tool: 'measurement' });
+  }, [initialTool, mode, ready]);
 
   useEffect(() => {
     if (!explodeLevels) return;

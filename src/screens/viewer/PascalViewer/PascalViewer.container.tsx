@@ -130,6 +130,12 @@ function PascalViewerBody({
   const storeRoles = useStore((state) => state.userRoles);
   const spatial = useStore((state) => state.spatial);
   const { publish } = useNotifications();
+  /* `/3d?tool=measure` (route đo cũ chuyển hướng về đây). Đọc thẳng URL một lần
+     thay vì `useSearchParams`, để thân màn không bắt buộc nằm trong `<Router>`. */
+  const initialTool = useMemo(
+    () => (new URLSearchParams(window.location.search).get('tool') === 'measure' ? 'measure' : undefined),
+    [],
+  );
 
   // Vai theo dự án đang mở là nguồn đúng nhất; phiên đăng nhập là nguồn dự phòng.
   const roles: readonly ProjectRole[] = storeRoles.length > 0 ? storeRoles : session.roles;
@@ -179,6 +185,7 @@ function PascalViewerBody({
     onSceneCommit,
     validateCommit,
     onCommitRejected: onRejected,
+    initialTool,
     onHistoryJump,
     explodeLevels,
     ...(collapsed === undefined ? {} : { collapsed }),
