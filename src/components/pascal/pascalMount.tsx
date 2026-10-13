@@ -81,6 +81,8 @@ export interface PascalMountOptions {
   readonly onHistoryJump?: (kind: PascalHistoryJump) => void;
   /** Mở ở chế độ tách tầng (`/3d?view=exploded`, F-15 W2-C2). */
   readonly explodeLevels?: boolean;
+  /** Màn di động: `view` tắt post-FX lúc đầu, bật lại khi nạp xong lần đầu. DPR đã ≤ 1,5 sẵn trong `<Viewer>`. */
+  readonly lite?: boolean;
 }
 
 /**
@@ -113,6 +115,7 @@ export function mount(element: HTMLElement, options: PascalMountOptions): Pascal
           validateCommit={options.validateCommit}
           onCommitRejected={options.onCommitRejected}
           explodeLevels={options.explodeLevels ?? false}
+          lite={options.lite ?? false}
           onReadyChange={options.onReadyChange}
           onFatal={options.onFatal}
           onSceneLoaded={options.onSceneLoaded}

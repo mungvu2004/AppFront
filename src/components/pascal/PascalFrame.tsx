@@ -92,6 +92,8 @@ export interface PascalFrameProps {
   readonly onHistoryJump: ((kind: PascalHistoryJump) => void) | undefined;
   /** Bật tách tầng hết cỡ khi khung đứng lên — `/3d?view=exploded`. */
   readonly explodeLevels?: boolean;
+  /** Chỉ ở `view`: post-FX tắt cho tới khi lần nạp đầu xong. */
+  readonly lite?: boolean;
 }
 
 /** `fov` của `PerspectiveCamera` mà `ViewerCamera` của Pascal dựng (`viewer-camera.tsx`). */
@@ -148,9 +150,11 @@ export function PascalFrame({
   onRendererUnavailable,
   onHistoryJump,
   explodeLevels = false,
+  lite = false,
 }: PascalFrameProps) {
   const [loaded, setLoaded] = useState(false);
   const [ready, setReady] = useState(false);
+  const [firstLoadDone, setFirstLoadDone] = useState(false);
 
   useEffect(() => {
     if (!explodeLevels) return;
@@ -189,6 +193,7 @@ export function PascalFrame({
   const handleReady = useCallback(
     (nextReady: boolean) => {
       setReady(nextReady);
+      if (nextReady) setFirstLoadDone(true);
       onReadyChange?.(nextReady);
     },
     [onReadyChange],
@@ -256,6 +261,7 @@ export function PascalFrame({
   return (
     <Viewer
       sceneReadyKey={sceneKey}
+      disablePostFx={lite && !firstLoadDone}
       onSceneReadyChange={handleReady}
       {...(onRendererUnavailable === undefined ? {} : { onRendererUnavailable })}
     >
