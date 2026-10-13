@@ -27,6 +27,12 @@ export type PascalInitialTool = 'measure';
 /** Phán quyết 6A cho một lượt sửa: cho qua, hoặc chặn kèm lý do tiếng Việt. */
 export type PascalCommitVerdict = { readonly ok: true } | { readonly ok: false; readonly message: string };
 
+/** Câu trả lời của host cho "Lưu làm khuôn mẫu" (#25) — Pascal hiện nguyên `message`. */
+export interface PascalTemplateResult {
+  readonly ok: boolean;
+  readonly message: string;
+}
+
 /** Cảnh sau một lượt sửa, trên đường thành một lệnh AppFront. */
 export type PascalSceneCommit = (scene: PascalScene) => Promise<void>;
 

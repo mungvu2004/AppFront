@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { z } from 'zod'
 import { BaseNode } from './base'
-import { Review, reviewStateOf } from './review'
+import { Review, reviewStateOf, withReviewCleared } from './review'
 
 const issuePaths = (value: unknown): string[] => {
   const result = Review.safeParse(value)
@@ -57,5 +57,25 @@ describe('reviewStateOf — the three states (A4/A5)', () => {
     expect(reviewStateOf({ confidence: 0.59 })).toBe('suspect')
     expect(reviewStateOf({ confidence: 0.6 })).toBe('trusted')
     expect(reviewStateOf(undefined)).toBe('trusted')
+  })
+})
+
+describe('withReviewCleared — a geometry edit voids the sign-off', () => {
+  const reviewed = { review: { reviewed: true, source: 'ai' as const } }
+
+  test('geometry patch on a reviewed node clears reviewed, keeps source', () => {
+    expect(withReviewCleared(reviewed, { thickness: 0.3 } as { review?: Review })).toEqual({
+      thickness: 0.3,
+      review: { reviewed: false, source: 'ai' },
+    } as never)
+  })
+
+  test('rename, an explicit review patch, or an unreviewed node pass through', () => {
+    const rename = { name: 'Tường A' } as { review?: Review }
+    expect(withReviewCleared(reviewed, rename)).toBe(rename)
+    const approve = { review: { reviewed: true } }
+    expect(withReviewCleared({}, approve)).toBe(approve)
+    const move = { position: [1, 0, 0] } as { review?: Review }
+    expect(withReviewCleared({ review: { reviewed: false } }, move)).toBe(move)
   })
 })

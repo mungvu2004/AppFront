@@ -26,7 +26,7 @@ export function FurnitureClashPanel() {
       ) : (
         <ul className="flex flex-col gap-1.5">
           {clashes.map((clash) => (
-            <li key={`${clash.a.id}:${clash.b.id}`}>
+            <li className="flex flex-col gap-0.5" key={`${clash.a.id}:${clash.b.id}`}>
               <button
                 aria-label={vi.select(clash.a.name)}
                 className="flex w-full flex-col gap-0.5 rounded-md border border-border/60 px-2.5 py-1.5 text-left hover:bg-accent/50"
@@ -38,6 +38,13 @@ export function FurnitureClashPanel() {
                   {vi.ruleLabel}: <code>{clash.ruleCode}</code>
                 </span>
               </button>
+              {/* Relative to `/projects/:id/3d` → the project's rule screen. */}
+              <a
+                className="self-end px-1 text-primary text-xs underline-offset-2 hover:underline"
+                href={`rules?rule=${encodeURIComponent(clash.ruleCode)}`}
+              >
+                {vi.viewRule}
+              </a>
             </li>
           ))}
         </ul>

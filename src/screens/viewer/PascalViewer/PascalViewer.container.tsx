@@ -27,6 +27,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useSession } from '@/hooks/useSession';
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
+import { savePascalNodeAsTemplate } from '@/lib/pascal/template';
 import type { ProjectRole } from '@/types/project';
 import { ROUTES } from '@/routes/paths';
 // Nhập THẲNG module, KHÔNG qua barrel `index.ts` của màn kia: đi qua barrel là
@@ -178,6 +179,21 @@ function PascalViewerBody({
     onRejected,
   });
 
+  /* #25 "Lưu làm khuôn mẫu": cùng lời gọi `propertyTemplates.create` màn cũ dùng.
+     Máy khách API nạp động để màn 3D không kéo cả `appClient` vào chunk của nó. */
+  const onSaveAsTemplate = useCallback(async (nodeId: string) => {
+    const { createAppApiClient } = await import('@/api/appClient');
+    const state = useStore.getState();
+    const projectId = state.project?.id;
+
+    return savePascalNodeAsTemplate({
+      nodeId,
+      spatial: state.spatial,
+      projectId: projectId === undefined || projectId === '' ? null : projectId,
+      api: createAppApiClient(),
+    });
+  }, []);
+
   const { viewModel, canvasRef, onRetry, onExpand } = usePascalViewer({
     graph,
     mode: 'edit',
@@ -185,6 +201,7 @@ function PascalViewerBody({
     onSceneCommit,
     validateCommit,
     onCommitRejected: onRejected,
+    ...(isReadOnly ? {} : { onSaveAsTemplate }),
     initialTool,
     onHistoryJump,
     explodeLevels,

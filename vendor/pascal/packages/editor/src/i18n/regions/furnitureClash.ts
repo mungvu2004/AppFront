@@ -7,5 +7,6 @@ export const furnitureClash = {
   none: "Không có đồ đạc nào chồng lên nhau.",
   row: (a: string, b: string) => `«${a}» chồng lên «${b}»`,
   ruleLabel: "Quy tắc",
+  viewRule: "Xem quy tắc",
   select: (a: string) => `Chọn «${a}»`,
 } as const;

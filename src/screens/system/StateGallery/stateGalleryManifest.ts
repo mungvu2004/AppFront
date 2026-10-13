@@ -716,22 +716,6 @@ const SCREEN_DEFS: readonly ScreenDef[] = [
     },
   },
   {
-    id: 'viewer/PropertyInspector',
-    name: 'PropertyInspector',
-    area: 'viewer',
-    group: 'H',
-    label: 'Xem thuộc tính đối tượng',
-    storyExportNames: {
-      empty: 'Rong',
-      loading: 'DangTai',
-      partial: 'MotPhan',
-      error: 'Loi',
-      success: 'Xong',
-      forbidden: 'KhongCoQuyen',
-      collapsed: 'ThuGon',
-    },
-  },
-  {
     id: 'viewer/RoomAreaPanel',
     name: 'RoomAreaPanel',
     area: 'viewer',

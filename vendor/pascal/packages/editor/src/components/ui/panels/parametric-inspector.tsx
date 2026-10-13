@@ -25,6 +25,7 @@ import { ActionButton, ActionGroup } from '../controls/action-button'
 import { PanelSection } from '../controls/panel-section'
 import { ParametricFieldControl } from './parametric-field-control'
 import { ReviewSection } from './review-section'
+import { SaveAsTemplateButton } from './save-as-template'
 import { InspectorFooterContext, PanelWrapper } from './panel-wrapper'
 
 /**
@@ -182,6 +183,7 @@ export function ParametricInspector({
             {parametrics.actions?.map((action, i) => (
               <ParamActionButton action={action} key={`paramaction-${i}`} nodeId={selectedId} />
             ))}
+            <SaveAsTemplateButton nodeId={selectedId} />
             {canDelete &&
               (isZone ? (
                 <>
@@ -323,7 +325,17 @@ function FieldRenderer({ field, nodeId, onUpdate }: FieldRendererProps) {
     const n = s.nodes[nodeId]
     return n ? visibleIf(n as AnyNode) : false
   })
+  // Link fields resolve their href from the whole node; a string keeps the
+  // subscription cheap.
+  const href = useScene((s) => {
+    const n = s.nodes[nodeId]
+    return field.kind === 'link' && n ? field.href(n as AnyNode) : null
+  })
   if (!visible) return null
+
+  if (field.kind === 'link') {
+    return <ParametricFieldControl field={field} onChange={onUpdate} value={href} />
+  }
 
   if (field.kind === 'custom') {
     return <CustomFieldRenderer Comp={field.component} nodeId={nodeId} onUpdate={onUpdate} />

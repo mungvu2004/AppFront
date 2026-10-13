@@ -57,3 +57,20 @@ export const reviewStateOf = (review: Review | undefined): ReviewState => {
   const confidence = review?.confidence
   return typeof confidence === 'number' && confidence < SUSPECT_CONFIDENCE ? 'suspect' : 'trusted'
 }
+
+/** Patch keys that do not touch geometry, so a sign-off survives them. */
+const NON_GEOMETRY_KEYS = new Set(['review', 'name', 'metadata', 'visible', 'children', 'provenance'])
+
+/**
+ * A geometry edit voids the reviewer's sign-off (A5): the shape they approved
+ * is gone. Returns the patch with `review.reviewed: false` added when the node
+ * was reviewed and the patch changes anything beyond {@link NON_GEOMETRY_KEYS}.
+ */
+export const withReviewCleared = <P extends { review?: Review }>(
+  current: { review?: Review },
+  patch: P,
+): P => {
+  if (current.review?.reviewed !== true || 'review' in patch) return patch
+  if (Object.keys(patch).every((key) => NON_GEOMETRY_KEYS.has(key))) return patch
+  return { ...patch, review: { ...current.review, reviewed: false } }
+}
