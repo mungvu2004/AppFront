@@ -3,6 +3,7 @@
 import type { WindowNode } from '@pascal-app/core'
 import { ActionButton, PanelSection } from '@pascal-app/editor'
 import { Move, Pencil, Plus } from 'lucide-react'
+import { vi } from '../i18n/vi'
 
 export function DormerWindowsSection({
   windows,
@@ -32,37 +33,37 @@ export function DormerWindowsSection({
                 type="button"
               >
                 <span className="block truncate font-medium text-foreground text-xs">
-                  {window.name || `Window ${index + 1}`}
+                  {window.name || vi.dormer.panel.windowN(index + 1)}
                 </span>
                 <span className="block truncate text-[10px] text-muted-foreground capitalize">
-                  {window.dormerFace ?? 'front'} · {window.width.toFixed(2)} ×{' '}
+                  {vi.dormer.panel.face[window.dormerFace ?? 'front']} · {window.width.toFixed(2)} ×{' '}
                   {window.height.toFixed(2)} m
                 </span>
               </button>
               <button
-                aria-label={`Edit ${window.name || `Window ${index + 1}`}`}
+                aria-label={vi.dormer.panel.editNamed(window.name || vi.dormer.panel.windowN(index + 1))}
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-[#3e3e3e] hover:text-foreground"
                 onClick={() => onEdit(window)}
-                title="Edit window"
+                title={vi.dormer.panel.editWindow}
                 type="button"
               >
                 <Pencil className="h-3.5 w-3.5" />
               </button>
               <button
-                aria-label={`Move ${window.name || `Window ${index + 1}`}`}
+                aria-label={vi.dormer.panel.moveNamed(window.name || vi.dormer.panel.windowN(index + 1))}
                 className="flex h-8 shrink-0 items-center justify-center gap-1 rounded-md px-2 text-muted-foreground text-xs transition-colors hover:bg-[#3e3e3e] hover:text-foreground"
                 onClick={() => onMove(window)}
-                title="Move window"
+                title={vi.dormer.panel.moveWindow}
                 type="button"
               >
                 <Move className="h-3.5 w-3.5" />
-                Move
+                {vi.common.move}
               </button>
             </div>
           ))}
         </div>
       ) : (
-        <div className="px-2 py-3 text-center text-muted-foreground text-xs">No windows</div>
+        <div className="px-2 py-3 text-center text-muted-foreground text-xs">{vi.dormer.panel.noWindows}</div>
       )}
 
       <div className="px-1 pt-2 pb-1">
@@ -70,12 +71,12 @@ export function DormerWindowsSection({
           className="w-full"
           disabled={!canAdd}
           icon={<Plus className="h-3.5 w-3.5" />}
-          label="Add Window"
+          label={vi.dormer.panel.addWindow}
           onClick={onAdd}
         />
         {!canAdd && (
           <p className="px-1 pt-2 text-center text-[10px] text-muted-foreground">
-            Increase the dormer width to add another window.
+            {vi.dormer.panel.increaseWidth}
           </p>
         )}
       </div>
