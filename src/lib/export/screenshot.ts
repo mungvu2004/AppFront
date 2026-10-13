@@ -7,28 +7,11 @@
  * render, read the pixels back, resize it again — is a visible flash and a
  * moved camera, and it is taken on the very frame the person was looking at.
  *
- * So nothing here draws to the screen. The frame is rendered into an **offscreen
- * render target**, read back, and the target is freed at once. Three promises
- * follow from that, and they are the reason this module is shaped the way it is:
- *
- * - **The camera is never written to.** Not its aspect, not its projection
- *   matrix, not its position. The capture keeps the viewport's own aspect ratio
- *   — the height comes from `1440 × viewport.height / viewport.width` — so
- *   there is no aspect to correct and no correction to undo. What the file shows
- *   is what the person was looking at, framed exactly as they framed it.
- * - **The renderer is put back.** The two things a capture must change on it —
- *   which target it draws into, and the clear alpha when the background is asked
- *   to be transparent — are read before and restored in a `finally`, so a render
- *   that throws leaves the renderer exactly as it was found. Its size and pixel
- *   ratio are never touched at all, because the offscreen target carries the
- *   capture's dimensions instead.
- * - **The buffer is freed every time.** {@link CaptureTargetLike.dispose} is
- *   called in the same `finally`. A render target is a texture and a depth
- *   buffer in the driver — around 84 MB at `resolution: 3` — and a garbage
- *   collector cannot free either of them, exactly as `three/perf/dispose.ts`
- *   explains. Four captures in a row therefore cost one target's worth of
- *   graphics memory, not four; `screenshotQueue.ts` depends on that and its test
- *   proves it.
+ * So nothing here renders. The Pascal canvas already holds the frame the person is
+ * looking at; {@link captureCanvas} copies it into a 2D canvas of its own, 1440 px
+ * wide at 1× and keeping the viewport's own aspect ratio, and adds the band. The
+ * camera, the renderer and the viewer's size are never touched, because nothing
+ * here can name them.
  *
  * ## The information band
  *
@@ -67,7 +50,7 @@
  *
  * | Brief            | Here                                     |
  * |------------------|------------------------------------------|
- * | `chupKhungNhin`  | {@link captureViewport}                  |
+ * | `chupKhungNhin`  | {@link captureCanvas}                  |
  * | `doPhanGiai`     | `resolution`                             |
  * | `nenTrongSuot`   | `transparentBackground`                  |
  * | `coChuGiai`      | `includeLegend`                          |
@@ -77,7 +60,6 @@
  * and sentence style, as invariant A6 requires.
  */
 
-import { WebGLRenderTarget, type Camera, type Object3D } from 'three';
 
 import {
   checkContrast,
@@ -108,7 +90,7 @@ export const CAPTURE_WIDTH_PX = 1440;
 /** The PNG mime type. Lossless, and the only common format that keeps alpha. */
 export const SCREENSHOT_MIME_TYPE = 'image/png';
 
-/** Bytes per pixel in the buffer read back from the render target. */
+/** Bytes per pixel, for the memory estimate. */
 const CHANNELS_PER_PIXEL = 4;
 
 const BYTES_PER_MEGABYTE = 1024 * 1024;
@@ -183,54 +165,6 @@ export interface CaptureScaleInput {
 export interface CaptureViewportSize {
   readonly widthPx: number;
   readonly heightPx: number;
-}
-
-/* -------------------------------------------------------------------------- */
-/* The little of three.js a capture touches.                                   */
-/* -------------------------------------------------------------------------- */
-
-/**
- * The little of a `WebGLRenderTarget` this module holds: a size, and the one
- * method that frees the driver's memory.
- *
- * A real target satisfies this without a cast, and a test can stand in for one
- * without a WebGL context — which is what lets the queue's memory test count
- * every buffer that was taken and every buffer that was given back.
- */
-export interface CaptureTargetLike {
-  readonly width: number;
-  readonly height: number;
-  dispose(): void;
-}
-
-/**
- * The little of a `WebGLRenderer` a capture uses.
- *
- * Every method here is either read-and-restore (`getRenderTarget` /
- * `setRenderTarget`, `getClearAlpha` / `setClearAlpha`) or read-only
- * (`render`, `readRenderTargetPixels`). There is deliberately no `setSize` and
- * no `setPixelRatio` on this interface: the capture cannot resize the canvas
- * the person is looking at, because it cannot name the method that would.
- */
-export interface CaptureRendererLike {
-  render(scene: Object3D, camera: Camera): void;
-  getRenderTarget(): CaptureTargetLike | null;
-  setRenderTarget(target: CaptureTargetLike | null): void;
-  readRenderTargetPixels(
-    target: CaptureTargetLike,
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    buffer: Uint8Array,
-  ): void;
-  getClearAlpha(): number;
-  setClearAlpha(alpha: number): void;
-}
-
-/** The real target. Sized in device pixels, freed after every capture. */
-export function createCaptureTarget(widthPx: number, heightPx: number): CaptureTargetLike {
-  return new WebGLRenderTarget(widthPx, heightPx);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -911,31 +845,6 @@ export function missingTokenMessage(token: ColorTokenName): string {
   return `Bảng màu không có token ${token}, không vẽ được dải thông tin.`;
 }
 
-/**
- * Turn the pixels the renderer read back into an image the canvas accepts.
- *
- * WebGL numbers its rows from the bottom and a canvas numbers them from the
- * top, so the buffer is copied row by row in reverse. Doing it here rather than
- * with a second render — three has no "flip the framebuffer" switch — costs one
- * pass over the pixels and no graphics memory at all.
- */
-export function toImageData(
-  context: CaptureContext2DLike,
-  pixels: Uint8Array,
-  widthPx: number,
-  heightPx: number,
-): CaptureImageDataLike {
-  const image = context.createImageData(widthPx, heightPx);
-  const rowLength = widthPx * CHANNELS_PER_PIXEL;
-
-  for (let row = 0; row < heightPx; row += 1) {
-    const source = (heightPx - 1 - row) * rowLength;
-    image.data.set(pixels.subarray(source, source + rowLength), row * rowLength);
-  }
-
-  return image;
-}
-
 /** A finished picture of the scene — the Pascal canvas — drawn into the frame as it is. */
 export interface CaptureBitmap {
   readonly source: CanvasImageSource;
@@ -954,7 +863,7 @@ export interface CaptureBitmap {
 export function drawCapture(
   context: CaptureContext2DLike,
   composition: CaptureComposition,
-  pixels: Uint8Array | CaptureBitmap,
+  pixels: CaptureBitmap,
   palette: Palette,
 ): void {
   const colourOf = (token: ColorTokenName): string => {
@@ -971,21 +880,13 @@ export function drawCapture(
   // only the band brings a surface with it.
   context.clearRect(0, 0, composition.widthPx, composition.heightPx);
 
-  if (pixels instanceof Uint8Array) {
-    context.putImageData(
-      toImageData(context, pixels, composition.frame.widthPx, composition.frame.heightPx),
-      composition.frame.xPx,
-      composition.frame.yPx,
-    );
-  } else {
-    context.drawImage(
-      pixels.source,
-      composition.frame.xPx,
-      composition.frame.yPx,
-      composition.frame.widthPx,
-      composition.frame.heightPx,
-    );
-  }
+  context.drawImage(
+    pixels.source,
+    composition.frame.xPx,
+    composition.frame.yPx,
+    composition.frame.widthPx,
+    composition.frame.heightPx,
+  );
 
   for (const rect of composition.rects) {
     context.fillStyle = colourOf(rect.token);
@@ -1005,22 +906,8 @@ export function drawCapture(
 /* The capture itself.                                                         */
 /* -------------------------------------------------------------------------- */
 
-/** What the viewer looked like, before the capture and after it. */
-export interface RendererState {
-  readonly target: CaptureTargetLike | null;
-  readonly clearAlpha: number;
-}
-
-/** Read the two things a capture is allowed to change. */
-export function readRendererState(renderer: CaptureRendererLike): RendererState {
-  return { target: renderer.getRenderTarget(), clearAlpha: renderer.getClearAlpha() };
-}
-
 /** Everything a capture is asked for. */
-export interface CaptureViewportInput {
-  readonly renderer: CaptureRendererLike;
-  readonly scene: Object3D;
-  readonly camera: Camera;
+export interface CaptureInput {
   /** The on-screen canvas. Only its ratio is used; it is never resized. */
   readonly viewport: CaptureViewportSize;
   /** Anything omitted falls back to {@link DEFAULT_CAPTURE_OPTIONS}. */
@@ -1034,8 +921,6 @@ export interface CaptureViewportInput {
 
 /** How the host environment is wired; every field has a production default. */
 export interface CaptureHostOptions {
-  /** How the offscreen target is made. A test passes a stand-in. */
-  readonly createTarget?: (widthPx: number, heightPx: number) => CaptureTargetLike;
   /** How the offscreen canvas is made. A test passes a stand-in. */
   readonly createCanvas?: (widthPx: number, heightPx: number) => CaptureCanvasLike;
   /**
@@ -1091,44 +976,6 @@ export function estimateCaptureMemoryMb(widthPx: number, heightPx: number): numb
 }
 
 /**
- * Render the frame offscreen and hand back its pixels, leaving the renderer as
- * it was found.
- *
- * The target is freed in the `finally`, so a render that throws frees it too —
- * a leaked render target is the one failure mode of this module that a person
- * would not notice until the fourth or fifth capture.
- */
-function renderFrame(
-  input: CaptureViewportInput,
-  widthPx: number,
-  heightPx: number,
-  transparentBackground: boolean,
-  createTarget: (widthPx: number, heightPx: number) => CaptureTargetLike,
-): Uint8Array {
-  const { renderer } = input;
-  const before = readRendererState(renderer);
-  const target = createTarget(widthPx, heightPx);
-  const pixels = new Uint8Array(widthPx * heightPx * CHANNELS_PER_PIXEL);
-
-  try {
-    if (transparentBackground) {
-      renderer.setClearAlpha(0);
-    }
-    renderer.setRenderTarget(target);
-    renderer.render(input.scene, input.camera);
-    renderer.readRenderTargetPixels(target, 0, 0, widthPx, heightPx, pixels);
-  } finally {
-    // Unbind before freeing: a target that is still current when it is disposed
-    // is a target the next frame draws into after the driver has taken it back.
-    renderer.setRenderTarget(before.target);
-    renderer.setClearAlpha(before.clearAlpha);
-    target.dispose();
-  }
-
-  return pixels;
-}
-
-/**
  * The file name a capture is offered under.
  *
  * The same shape `buildGlbFileName` gives an export — project, storey, date and
@@ -1149,44 +996,8 @@ export function buildScreenshotFileName(
   return [toFileSlug(projectName), ...level, formatExportTimestamp(capturedAt)].join('_') + '.png';
 }
 
-/**
- * Take one picture of the viewer, 1440 px wide, without touching the viewer.
- *
- * ```ts
- * const shot = await captureViewport({
- *   renderer, scene, camera,
- *   viewport: { widthPx: canvas.clientWidth, heightPx: canvas.clientHeight },
- *   options: { resolution: 2 },
- *   info: { projectName, levelName, coloringMode, capturedAt: new Date() },
- *   legend, scale: { millimetresPerPixel }, palette,
- * });
- * ```
- *
- * The promise settles once: with the PNG, or with the error that stopped it.
- * Either way the renderer is back where it started and the offscreen buffer has
- * been freed before the caller hears anything.
- *
- * @throws RangeError when the viewport has no area.
- * @throws Error when no 2D context or no PNG can be had, or when the palette is
- *   missing a token the band needs.
- */
-export async function captureViewport(
-  input: CaptureViewportInput,
-  host: CaptureHostOptions = {},
-): Promise<CaptureResult> {
-  return finishCapture(input, host, (frame, options) =>
-    renderFrame(
-      input,
-      frame.widthPx,
-      frame.heightPx,
-      options.transparentBackground,
-      host.createTarget ?? createCaptureTarget,
-    ),
-  );
-}
-
 /** What {@link captureCanvas} needs: the picture is already on `canvas`, so no renderer. */
-export type CaptureCanvasInput = Omit<CaptureViewportInput, 'renderer' | 'scene' | 'camera'> & {
+export type CaptureCanvasInput = CaptureInput & {
   /**
    * The live Pascal canvas (`data-testid="pascal-canvas"`). It is drawn as it stands, so it
    * must still hold its last frame — call this straight after a render, as the editor's
@@ -1196,7 +1007,7 @@ export type CaptureCanvasInput = Omit<CaptureViewportInput, 'renderer' | 'scene'
 };
 
 /**
- * Capture the Pascal canvas with the same information band as {@link captureViewport}.
+ * Capture the Pascal canvas with the same information band as {@link captureCanvas}.
  *
  * Nothing on the viewer is touched — no render target, no clear alpha — because nothing is
  * rendered: the canvas is copied. `options.transparentBackground` is therefore not honoured
@@ -1210,12 +1021,12 @@ export async function captureCanvas(
 }
 
 async function finishCapture(
-  input: Omit<CaptureViewportInput, 'renderer' | 'scene' | 'camera'>,
+  input: CaptureInput,
   host: CaptureHostOptions,
   grab: (
     frame: { readonly widthPx: number; readonly heightPx: number },
     options: CaptureOptions,
-  ) => Uint8Array | CaptureBitmap,
+  ) => CaptureBitmap,
 ): Promise<CaptureResult> {
   if (
     !Number.isFinite(input.viewport.widthPx) ||

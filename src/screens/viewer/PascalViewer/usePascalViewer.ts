@@ -135,6 +135,8 @@ export interface UsePascalViewerOptions {
 export interface UsePascalViewerResult {
   readonly viewModel: PascalViewerViewModel;
   readonly canvasRef: React.RefObject<HTMLDivElement | null>;
+  /** Đích khuôn camera cho lớp phủ cộng tác — `false` khi khung chưa dựng. */
+  readonly sceneTarget: { readonly frameEntity: (entityId: string) => boolean };
   readonly onRetry: () => void;
   readonly onExpand: () => void;
 }
@@ -258,6 +260,13 @@ export function usePascalViewer({
   explodeLevels = false,
 }: UsePascalViewerOptions): UsePascalViewerResult {
   const canvasRef = useRef<HTMLDivElement>(null);
+  /* Tay cầm của khung đang chạy; `sceneTarget` đọc nó lúc gọi nên đứng vững qua
+     các lần dựng lại. */
+  const mountedRef = useRef<ReturnType<MountModule['mount']> | null>(null);
+  const sceneTarget = useMemo(
+    () => ({ frameEntity: (entityId: string) => mountedRef.current?.frameEntity?.(entityId) ?? false }),
+    [],
+  );
 
   const [ready, setReady] = useState(false);
   const [failure, setFailure] = useState<PascalViewerErrorCode | null>(null);
@@ -355,7 +364,7 @@ export function usePascalViewer({
     if (element === null || result === null) return;
 
     let disposed = false;
-    let handle: { dispose: () => void } | null = null;
+    let handle: ReturnType<MountModule['mount']> | null = null;
 
     setReady(false);
     setFailure(null);
@@ -397,6 +406,7 @@ export function usePascalViewer({
             if (!disposed) setFailure('PASCAL-03');
           },
         });
+        mountedRef.current = handle;
       })
       .catch(() => {
         if (!disposed) setFailure('PASCAL-01');
@@ -404,6 +414,7 @@ export function usePascalViewer({
 
     return () => {
       disposed = true;
+      mountedRef.current = null;
       handle?.dispose();
     };
   }, [shouldMount, result, loadMount, attempt, mode, readOnly, explodeLevels, initialTool]);
@@ -516,6 +527,7 @@ export function usePascalViewer({
       saveLabel: saveLabelOf(saveStatus, savedAt),
     },
     canvasRef,
+    sceneTarget,
     onRetry,
     onExpand,
   };

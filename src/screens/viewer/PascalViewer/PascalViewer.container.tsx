@@ -36,6 +36,7 @@ import { ROUTES } from '@/routes/paths';
 // Và luật nhà mẫu nhập từ ĐÚNG module giữ `VIEWER_FIXTURE_SPATIAL`, không từ
 // `Viewer3D/useViewer3DSource`: hai màn cùng nhập module thứ hai ấy thì Rollup
 // tách nó ra một chunk dùng chung 507 byte và cổng lại đỏ vì 39 byte.
+import { CollaborationLayerContainer } from '@/screens/system/CollaborationLayer';
 import { selectViewerSpatial } from '@/screens/viewer/ViewerShell/viewerShellGateway';
 import { useStore } from '@/store';
 
@@ -178,7 +179,7 @@ function PascalViewerBody({
     onRejected,
   });
 
-  const { viewModel, canvasRef, onRetry, onExpand } = usePascalViewer({
+  const { viewModel, canvasRef, sceneTarget, onRetry, onExpand } = usePascalViewer({
     graph,
     mode: 'edit',
     readOnly: isReadOnly,
@@ -246,6 +247,7 @@ function PascalViewerBody({
       panels={panels}
       activePanel={activePanel}
       onPanelChange={setActivePanel}
+      sceneOverlay={<CollaborationLayerContainer scene={sceneTarget} />}
     />
   );
 }
