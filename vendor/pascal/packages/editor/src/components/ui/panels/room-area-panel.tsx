@@ -327,11 +327,7 @@ export function RoomAreaPanel() {
                       <span className="mt-1.5">
                         <StatusDot status={row.status} />
                       </span>
-                      <button
-                        className="flex-1 text-left"
-                        onClick={() => selectRow(row)}
-                        type="button"
-                      >
+                      <div className="min-w-0 flex-1">
                         {editingId === row.id ? (
                           <input
                             aria-label={vi.renameLabel(row.name)}
@@ -345,7 +341,6 @@ export function RoomAreaPanel() {
                               setDraftName(event.target.value)
                               scheduleRename(row.id, row.name, event.target.value)
                             }}
-                            onClick={(event) => event.stopPropagation()}
                             onKeyDown={(event) => {
                               if (event.key === 'Enter') event.currentTarget.blur()
                               if (event.key === 'Escape') {
@@ -356,8 +351,11 @@ export function RoomAreaPanel() {
                             value={draftName}
                           />
                         ) : (
-                          <span
-                            className="font-medium"
+                          /* The name is the button, so the rename input never
+                             ends up nested inside one. */
+                          <button
+                            className="w-full text-left font-medium"
+                            onClick={() => selectRow(row)}
                             onDoubleClick={(event) => {
                               event.stopPropagation()
                               if (readOnly) return
@@ -365,16 +363,17 @@ export function RoomAreaPanel() {
                               setEditingId(row.id)
                             }}
                             title={readOnly ? vi.readOnlyRename : vi.renameLabel(row.name)}
+                            type="button"
                           >
                             {row.number ? `${row.number} · ` : ''}
                             {row.name}
-                          </span>
+                          </button>
                         )}
                         <div className="text-muted-foreground text-xs">
                           {vi.openings(row.doorCount, row.windowCount)} · {vi.perimeter}{' '}
                           {row.perimeterText} · {vi.ceilingHeight} {row.ceilingHeightText}
                         </div>
-                      </button>
+                      </div>
                       <span className="mt-0.5 shrink-0 tabular-nums">{row.areaText}</span>
                     </div>
                   </li>
