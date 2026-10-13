@@ -491,13 +491,20 @@ async function runChain(
       await expect(row).toBeVisible();
       return row;
     };
+    const shot = async (name: string): Promise<void> => {
+      const shotDir = process.env.E2E_SHOT_DIR;
+
+      if (shotDir !== undefined && shotDir !== '') await page.screenshot({ path: `${shotDir}/${name}.png`, fullPage: false });
+    };
     const thickness = await openThickness();
 
+    await shot('shot-1-pascal');
     await thickness.locator('.cursor-text').click();
     await thickness.locator('input').fill('0,25');
     await thickness.locator('input').press('Enter');
     await expect(thickness).toContainText('0,250');
     await expect(saveStatus).toHaveText(/^Đã lưu/u, { timeout: PASCAL_RENDER_TIMEOUT_MS });
+    await shot('shot-2-saved');
     const writes = api.filter((entry) => entry.method !== 'GET').map((entry) => `${entry.method} ${entry.path}`);
     console.log(`[fullstack] 8c ghi: ${writes.slice(-5).join(' | ')}`);
     await page.reload();
@@ -507,10 +514,7 @@ async function runChain(
     );
     const reloaded = await openThickness();
 
-    const shotDir = process.env.E2E_SHOT_DIR;
-    if (shotDir !== undefined && shotDir !== '') {
-      await page.screenshot({ path: `${shotDir}/shot-3-reloaded.png`, fullPage: false });
-    }
+    await shot('shot-3-reloaded');
     await expect(reloaded).toContainText('0,250');
   });
 
