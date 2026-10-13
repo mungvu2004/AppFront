@@ -87,6 +87,8 @@ const FLOOR_GONE = 'Tầng này không còn tồn tại. Mở Quản lý tầng 
 
 /* ---------------------------------------------------------------- session and locators */
 
+const softly = expect.configure({ soft: true });
+
 let adminApi: APIRequestContext;
 
 test.beforeAll(async () => {
@@ -336,7 +338,9 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         const applied = await applyGroup(page, built, 0, 200);
         expect(applied.response.status()).toBe(200);
         const put = waitForPut(page, built.project.projectId, floorId, (walls) => ids.slice(0, 5).every((id) => thicknessOf(walls, id) === 200));
-        await toasts(page).getByRole('button', { name: UNDO, exact: true }).first().click(); // UT:630-643
+        // The newest toast of THIS apply (NotificationHost.tsx:96-98 renders newest first), not an older toast still in its window.
+        const toast = toasts(page).getByRole('status').filter({ hasText: 'Chuẩn hoá độ dày 5 tường.' }).first();
+        await toast.getByRole('button', { name: UNDO, exact: true }).click(); // UT:630-643
         expect.soft((await put).response.status()).toBe(200);
         await expect.poll(async () => (await column(page, 2)).filter((text) => /^200,0/u.test(text)).length).toBe(5);
         await ev(page, '21-A-013', 'toast-undo');
@@ -354,18 +358,20 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
       await test.step('[21-A-043] Ctrl+S right after "Áp dụng": the PUT is sent before the 800 ms debounce', async () => {
         if (!(await acceptBox(page, 200).isChecked())) await tick(acceptBox(page, 200));
         await button(page, PREVIEW_BTN).click();
-        const stamps: number[] = [];
-        page.on('request', (request) => {
-          if (request.method() === 'PUT' && LAYER_PATH.test(new URL(request.url()).pathname)) stamps.push(Date.now());
-        });
+        // Fake clock, paused: the 800 ms autosave debounce cannot fire on its own, so a PUT can only come from the Ctrl+S
+        // flush (RT:233-235). A wall-clock threshold from "Áp dụng" passed on the debounce alone (review QA-04c).
+        await page.clock.install();
+        await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100));
         const put = waitForPut(page, built.project.projectId, floorId);
-        const t0 = Date.now();
-        await button(page, APPLY).click();
-        await page.keyboard.press('Control+S'); // RT:233-235 flush
-        await put;
-        const delay = (stamps[0] ?? Number.POSITIVE_INFINITY) - t0;
-        await attachJson('E04_21-A-043_timing.json', { delayMs: delay });
-        expect.soft(delay, 'PUT start - click (ms); the autosave debounce alone is 800 ms').toBeLessThan(800 + 400); // slowMo 400 ms between the two actions
+        try {
+          await button(page, APPLY).click(); // UT:613-620: the apply goes through the store, i.e. the debounced autosave
+          await page.keyboard.press('Control+S'); // RT:233-235 flush
+          const result = await put.catch(() => null);
+          await attachJson('E04_21-A-043_put.json', { status: result?.response.status() ?? null });
+          expect.soft(result?.response.status(), 'Ctrl+S sends the PUT while the debounce clock is held').toBe(200);
+        } finally {
+          await page.clock.resume();
+        }
         await ev(page, '21-A-043', 'ctrl-s');
       });
     });
@@ -906,15 +912,12 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         const from = flow.sent.length;
         const toastsBefore = await toasts(page).getByRole('button', { name: UNDO, exact: true }).count();
         await picker().getByRole('button', { name: APPLY, exact: true }).click(); // TST:109-112, TG:901-925,927-940
-        const feedback = await expect
+        await softly
           .poll(
             async () => putsTo(flow, floorId, from) > 0 || (await toasts(page).getByRole('button', { name: UNDO, exact: true }).count()) > toastsBefore || (await region(page).getByRole('alert').count()) > 0,
-            { timeout: 4_000 },
+            { timeout: 4_000, message: 'a PUT, a toast or an alert follows "Áp dụng" on "Cột BTCT"' },
           )
-          .toBe(true)
-          .then(() => true)
-          .catch(() => false);
-        expect.soft(feedback, 'a PUT, a toast or an alert follows "Áp dụng" on "Cột BTCT"').toBe(true);
+          .toBe(true);
         await ev(page, '21-A-034', 'picker-column');
       });
 
@@ -1148,8 +1151,8 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         await button(page, PREVIEW_BTN).click();
         await button(page, APPLY).click();
         await put;
-        // The autosave of a second floor, if any, follows the first within its debounce: wait for the quiet result.
-        await expect.poll(() => putsTo(flow, floorB, from), { timeout: 3_000 }).toBe(0).catch(() => undefined);
+        // The autosave of a second floor, if any, follows the first within its 800 ms debounce: outlast it, then count.
+        await page.waitForTimeout(1_500); // fixed-wait-ok: absence of a write, no signal exists for "nothing sent"
         expect.soft(putsTo(flow, floorB, from), 'no PUT to the other floor').toBe(0); // UT:388, SLS:178-190
         await ev(page, '21-G-005', 'apply-two-floors');
       });

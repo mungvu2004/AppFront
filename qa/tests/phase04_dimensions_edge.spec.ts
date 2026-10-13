@@ -216,10 +216,9 @@ test.describe('E04 SCR-18 dimension OCR review — real flows (QA-04c P3)', () =
         await expect(region(page)).toBeVisible();
         // ⚑ C2 bug: DG:1110 returns whatever graph the store has (UD:424-434); no read of the route floor.
         await expect
-          .poll(() => n16Gets(flow, before, f2.floorId), { message: '⚑ GET N16 of floor 2', timeout: 5_000 })
-          .toBeGreaterThanOrEqual(1)
-          .catch(() => undefined);
-        expect.soft(n16Gets(flow, before, f2.floorId), '⚑ GET N16 of the route floor').toBeGreaterThanOrEqual(1);
+          .configure({ soft: true })
+          .poll(() => n16Gets(flow, before, f2.floorId), { message: '⚑ GET N16 of the route floor (floor 2)', timeout: 5_000 })
+          .toBeGreaterThanOrEqual(1);
         note('18-C-016: the route change is client-side (spaGo, P11); SCR-18 has no floor nav of its own.');
         await ev(page, '18-C-016', 'stale_store_other_floor');
       });

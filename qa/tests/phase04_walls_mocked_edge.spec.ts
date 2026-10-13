@@ -259,7 +259,7 @@ test.describe('E04 SCR-16 walls — mocked-response flows (QA-04c P1)', () => {
         await banner.getByRole('button', { name: WALL.reload, exact: true }).click();
         m.layerRead = '500';
         await page.getByRole('dialog', { name: WALL.confirmTitle, exact: true }).getByRole('button', { name: WALL.confirmReload, exact: true }).click();
-        await expect.soft(alertWith('Không tải lại được tầng này. Thử lại sau.')).toBeVisible({ timeout: 30_000 });
+        await expect(alertWith('Không tải lại được tầng này. Thử lại sau.')).toBeVisible({ timeout: 30_000 });
         await ev(page, '16-B-022', 'reload-read-fails');
         m.layerRead = 'real';
       });
@@ -295,7 +295,8 @@ test.describe('E04 SCR-16 walls — mocked-response flows (QA-04c P1)', () => {
         const retried = waitForLayerPut(page, q1.projectId, floor.id);
         await page.keyboard.press('1'); // the next edit
         expect.soft((await retried).response.status(), 'the next edit sends again').toBe(200);
-        expect.soft(putsSince(run!, mark).length).toBeGreaterThanOrEqual(1);
+        await quiet(page);
+        expect.soft(putsSince(run!, mark), 'one PUT for the next edit').toHaveLength(1);
       });
 
       await test.step('[16-G-013] PUT 401 with a live session: refresh and retry, no banner', async () => {
@@ -344,25 +345,36 @@ test.describe('E04 SCR-16 walls — mocked-response flows (QA-04c P1)', () => {
       await test.step('[16-B-028] PUT 503 / network abort is retried at 5 s, 15 s, 45 s: "Có thay đổi chờ đồng bộ" during the retries, then "Lưu thất bại…"; the held body is resent first', async () => {
         await fresh(7);
         await freezeClock(page);
-        m.write = 'abort';
-        const mark = run!.puts.length;
-        await page.keyboard.press('3');
-        await page.clock.runFor(900);
-        await expect.poll(() => putsSince(run!, mark).length, { message: 'attempt 1' }).toBe(1);
-        await expect.soft(statusBar(page)).toContainText('Có thay đổi chờ đồng bộ');
-        for (const [rung, wait, label] of [[2, 5_000, 'attempt 2'], [3, 15_000, 'attempt 3'], [4, 45_000, 'attempt 4']] as const) {
-          await page.clock.runFor(wait - 100);
-          await tick(page);
-          expect.soft(putsSince(run!, mark).length, `${label} not before ${String(wait)} ms`).toBe(rung - 1);
-          await page.clock.runFor(200);
-          await expect.poll(() => putsSince(run!, mark).length, { message: label }).toBe(rung);
-          if (rung < 4) await expect.soft(statusBar(page)).toContainText('Có thay đổi chờ đồng bộ');
+        // Two passes on the same page: 503 DEPENDENCY_UNAVAILABLE, then a network abort. A failed save restarts the ladder at
+        // the next edit (CA notifyChange: failed → retryAttempt = 0), so pass 2 needs no navigation.
+        const passes = [
+          { name: '503', mode: { status: 503, code: 'DEPENDENCY_UNAVAILABLE' } as WriteMode, key: '3' },
+          { name: 'abort', mode: 'abort' as WriteMode, key: '1' },
+        ];
+        const ladder: Json[] = [];
+        for (const pass of passes) {
+          m.write = pass.mode;
+          const mark = run!.puts.length;
+          await page.keyboard.press(pass.key);
+          await page.clock.runFor(900);
+          await expect.poll(() => putsSince(run!, mark).length, { message: `${pass.name} attempt 1` }).toBe(1);
+          await expect.soft(statusBar(page)).toContainText('Có thay đổi chờ đồng bộ');
+          // RS:1 RETRY_SCHEDULE_MS = [5_000, 15_000, 45_000]
+          for (const [rung, wait, label] of [[2, 5_000, 'attempt 2'], [3, 15_000, 'attempt 3'], [4, 45_000, 'attempt 4']] as const) {
+            await page.clock.runFor(wait - 100);
+            await tick(page);
+            expect.soft(putsSince(run!, mark).length, `${pass.name} ${label} not before ${String(wait)} ms`).toBe(rung - 1);
+            await page.clock.runFor(200);
+            await expect.poll(() => putsSince(run!, mark).length, { message: `${pass.name} ${label}` }).toBe(rung);
+            if (rung < 4) await expect.soft(statusBar(page)).toContainText('Có thay đổi chờ đồng bộ');
+          }
+          await expect.soft(statusBar(page)).toContainText('Lưu thất bại. Hệ thống sẽ thử lưu lại ở lần chỉnh sửa tới.');
+          const sent = putsSince(run!, mark);
+          const bodies = sent.map((put) => JSON.stringify({ base: put.baseVersion, walls: put.walls }));
+          ladder.push({ pass: pass.name, attempts: sent.length, identicalBodies: new Set(bodies).size === 1 });
+          expect.soft(new Set(bodies).size, `${pass.name}: the same body is resent each time`).toBe(1);
         }
-        await expect.soft(statusBar(page)).toContainText('Lưu thất bại. Hệ thống sẽ thử lưu lại ở lần chỉnh sửa tới.');
-        const sent = putsSince(run!, mark);
-        const bodies = sent.map((put) => JSON.stringify({ base: put.baseVersion, walls: put.walls }));
-        await attachJson('E04_16-B-028_retry-ladder.json', { attempts: sent.length, identicalBodies: new Set(bodies).size === 1 });
-        expect.soft(new Set(bodies).size, 'the same body is resent each time').toBe(1);
+        await attachJson('E04_16-B-028_retry-ladder.json', { passes: ladder });
         await ev(page, '16-B-028', 'retry-ladder-failed');
         await page.clock.resume();
         m.write = 'real';

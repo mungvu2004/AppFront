@@ -97,6 +97,8 @@ async function build(
   layered: number,
   extra: ReadonlyArray<readonly [number, (levelId: string) => Json]>,
 ): Promise<RoleProject> {
+  // No leak window: createQcProject deletes its project itself when it fails after the POST (layerSeed.ts:217-220), and the id is
+  // registered here before any further write of this builder.
   const floors = await createQcProject(env.layerApi, slug, names, layered);
   const first = floors[0];
   if (first === undefined) throw new Error('seed: no floor');

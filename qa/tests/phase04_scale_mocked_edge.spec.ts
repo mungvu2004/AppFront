@@ -258,6 +258,7 @@ test.describe('E04 SCR-14 scale calibration — mocked responses (QA-04c P6)', (
         mode = 'abort';
         await applyBtn(page).click();
         await expect.soft(panelOf(page).getByText(new RegExp(`^${SCALE.failed} ${ERR.network.replace(/\./gu, '\\.')}`, 'u'))).toBeVisible();
+        await flush(page);
         expect.soft(puts, 'the network failure is not retried either').toEqual(['http', 'abort']);
       });
     } finally {

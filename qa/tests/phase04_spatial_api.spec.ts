@@ -422,8 +422,9 @@ test.describe('A04 phase-4 spatial backend flows (settings N5, quality #30, #35 
       const n15Post1 = await readGraph(owner.api, 'be03_n15_after_first_run', pid, '200 N15 after the first run');
 
       await test.step('[BE4-G-028] ⚑ human scale saved before any drawing, then drawing + pipeline: the pipeline scale wins (scaleStatus "unresolved", scale ≠ the human value)', async () => {
-        expect.soft(humanBeforeDrawing.res.status()).toBe(200);
-        expect.soft(n16Fresh.revision).toBe(0);
+        // Hard: without the human write on a fresh floor the ⚑ checks below would prove nothing.
+        expect(humanBeforeDrawing.res.status(), 'the human scale was saved before the drawing').toBe(200);
+        expect(n16Fresh.revision, 'the floor was fresh (revision 0)').toBe(0);
         expect.soft(scaleOf(n16Post1), 'the scale of the first drawing is the pipeline one, not the stale human value').not.toBe(HUMAN_1);
         expect.soft(n16Post1.scaleStatus, 'a scale without evidence for this page stays provisional').toBe('unresolved');
       });
@@ -483,6 +484,8 @@ test.describe('A04 phase-4 spatial backend flows (settings N5, quality #30, #35 
       const meta33 = await call(owner.api, 'be03_meta33_area', 'GET', `/api/projects/${pid}/floors/${f2}/spatial`, undefined, ['200 #33 with areaM2 20']);
       const floorsArea = await readFloors(owner.api, 'be03_floors_area', pid, '200 #12 areaM2');
       await test.step('[BE4-G-105] areaM2 after a #35 with a room is on #33 (and #12): 4000 × 5000 mm → 20', async () => {
+        // Before any room the area is absent (BE floors/lookup.py:40,47 NULL -> omitted): the 20 below is the #35's doing.
+        for (const f of floorsBefore) expect.soft(f, `#12 before any room: floor ${String(f.id)}`).not.toHaveProperty('areaM2');
         expect.soft(meta33.res.status()).toBe(200);
         expect.soft(asJson(meta33.body).areaM2).toBe(20);
         expect.soft(floorsArea.find((f) => f.id === f2)?.areaM2).toBe(20);

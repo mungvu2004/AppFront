@@ -22,7 +22,7 @@ import { expect, test, type Browser } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { attachJson } from './support/evidence';
-import { recordAnnouncements } from './support/p03/P5';
+import { recordAllAnnouncements } from './support/p03/P3';
 import {
   OBJ,
   SAVE,
@@ -72,6 +72,7 @@ async function withFlow(browser: Browser, body: (session: Session) => Promise<vo
 
 const putRe = (pid: string, fid: string): RegExp => new RegExp(`^/api/projects/${pid}/floors/${fid}/spatial/layer$`, 'u');
 const serverError = { status: 500, body: wireErrorBody('INTERNAL_ERROR') } as const;
+const AUTOSAVE_FAILED = 'Lưu thất bại. Hệ thống sẽ thử lưu lại ở lần chỉnh sửa tới.'; // vi.json autosave.failed (USI:64-65,132-133)
 const UNKNOWN_DESCRIPTION = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại sau ít phút.'; // vi.json errors.unknown.description
 
 /* ================================================================= FL-17-M1 */
@@ -88,6 +89,7 @@ test('SCR-17 · FL-17-M1 [mocked response] read failures, refetch error, backgro
     const background = await mockRoute(page, backgroundRe(pid, fid), 'GET');
     const skeletonRows = page.locator('div.flex.items-center.gap-4.p-3:has(> .animate-pulse)');
     const failureScreen = page.getByRole('alert').filter({ has: page.getByRole('button', { name: 'Thử lại', exact: true }) });
+    let n16At500 = 0; // N16 hits before the 500 load of [17-B-010] (hits() counts every GET since the mock was installed)
 
     await test.step('[17-B-001] Loading: 4 skeleton rows in the left panel; counter "0/0 đối tượng đã duyệt"; canvas already says "Chưa có đối tượng nào để vẽ trên mặt bằng."', async () => {
       const hold = deferred();
@@ -106,6 +108,7 @@ test('SCR-17 · FL-17-M1 [mocked response] read failures, refetch error, backgro
 
     await test.step('[17-B-010] N16 500 → failure screen with describeError copy ("Có trục trặc" / "Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại sau ít phút.") + "Thử lại"', async () => {
       n16.set(serverError);
+      n16At500 = n16.hits();
       await page.goto(url);
       await expect(failureScreen).toBeVisible({ timeout: 30_000 }); // the HTTP ladder (300 + 900 + 2 700 ms) runs first
       await expect.soft(failureScreen.getByRole('heading', { name: 'Có trục trặc', exact: true })).toBeVisible();
@@ -115,7 +118,8 @@ test('SCR-17 · FL-17-M1 [mocked response] read failures, refetch error, backgro
     });
 
     await test.step('[17-G-006] N16 500 → retry screen', async () => {
-      expect.soft(n16.hits(), 'N16 asked more than once (the client ladder) and answered 500').toBeGreaterThanOrEqual(1);
+      // src/lib/http/retry.ts:5 RETRY_DELAYS_MS = [300, 900, 2700]: the 500 is asked again before the failure screen.
+      expect.soft(n16.hits() - n16At500, 'N16 asked more than once (the client ladder) and answered 500').toBeGreaterThan(1);
       await expect.soft(screen(page), 'the screen is never blank').toBeVisible();
       await expect.soft(page.getByRole('listbox')).toHaveCount(0);
       await ev(page, '17-G-006', 'retry_screen');
@@ -171,11 +175,12 @@ test('SCR-17 · FL-17-M1 [mocked response] read failures, refetch error, backgro
     await test.step('[17-B-014] Background read (GET …/spatial) fails → canvas without image, no error anywhere, objects still listed', async () => {
       n16.set('pass');
       background.set(serverError);
+      const backgroundBefore = background.hits();
       await page.goto(url);
       await expect(allOptions(page)).toHaveCount(3);
       await expect.soft(page.getByRole('alert').filter({ hasText: /\S/u }), 'no error anywhere').toHaveCount(0);
       await expect.soft(page.getByRole('group', { name: OBJ.canvas, exact: true }).locator('img')).toHaveCount(0);
-      expect.soft(background.hits(), 'the background read was attempted').toBeGreaterThanOrEqual(1);
+      expect.soft(background.hits() - backgroundBefore, 'the background read was attempted (and answered 500)').toBeGreaterThanOrEqual(1);
       await ev(page, '17-B-014', 'background_500_swallowed');
     });
 
@@ -228,7 +233,21 @@ test('SCR-17 · FL-17-M2 [mocked response] save failures: reload read, 422 integ
   test.setTimeout(FLOW_TIMEOUT);
   await withFlow(browser, async (s) => {
     const { page } = s;
-    const announced = await recordAnnouncements(page);
+    const announced = await recordAllAnnouncements(page);
+    /** "failed" sentences spoken on the assertive announcer (`[data-announcer="assertive"]`, src/lib/input/announcer.ts:52-58). */
+    const failedSpoken = async (): Promise<number> =>
+      (await announced()).filter((entry) => entry.urgency === 'assertive' && entry.text === AUTOSAVE_FAILED).length;
+    /** Moves the page clock 1 s per poll until the PUT mock saw `count` calls (a retry rung is 5 s, RS:1). */
+    const putsReach = (count: number, message: string): Promise<void> =>
+      expect
+        .poll(
+          async () => {
+            await page.clock.fastForward(1_000);
+            return puts.hits();
+          },
+          { message, timeout: 30_000 },
+        )
+        .toBeGreaterThanOrEqual(count);
     const project = await objectsQ1(s, 'fm2');
     const pid = project.projectId;
     const fid = at(project.floors, 0, 'floor').floorId;
@@ -309,18 +328,19 @@ test('SCR-17 · FL-17-M2 [mocked response] save failures: reload read, 422 integ
       await openObjects(page, pid, fid);
       puts.set({ status: 503, body: wireErrorBody('DEPENDENCY_UNAVAILABLE') });
       const before = puts.hits();
+      const failedBefore = await failedSpoken();
       await edit('#D-001');
-      await expect.poll(() => puts.hits(), { message: 'the 503 is retried silently' }).toBeGreaterThan(before);
+      await putsReach(before + 2, 'the 503 is retried silently (first PUT + the 5 s rung)');
       await expect.soft(page.getByRole('alert').filter({ hasText: SAVE.unknown }), 'no blocking banner while the engine still retries').toHaveCount(0);
       await expect
         .poll(
           async () => {
             await page.clock.fastForward(60_000);
-            return (await announced()).some((text) => text.startsWith('Lưu thất bại'));
+            return failedSpoken();
           },
-          { message: 'the "failed" announcement after the ladder', timeout: 90_000, intervals: [400] },
+          { message: 'the assertive "failed" announcement after the ladder', timeout: 90_000, intervals: [400] },
         )
-        .toBe(true);
+        .toBeGreaterThan(failedBefore);
       await ev(page, '17-B-025', 'save_503_failed');
       await attachJson('E04_17-B-025_announcements.json', { announced: await announced(), putsSeen: puts.hits() });
     });
@@ -329,17 +349,18 @@ test('SCR-17 · FL-17-M2 [mocked response] save failures: reload read, 422 integ
       await openObjects(page, pid, fid);
       puts.set('abort');
       const before = puts.hits();
+      const failedBefore = await failedSpoken();
       await edit('#S-001');
-      await expect.poll(() => puts.hits(), { message: 'a dropped connection is retried' }).toBeGreaterThan(before);
+      await putsReach(before + 2, 'a dropped connection is retried (first PUT + the 5 s rung)');
       await expect
         .poll(
           async () => {
             await page.clock.fastForward(60_000);
-            return (await announced()).filter((text) => text.startsWith('Lưu thất bại')).length;
+            return failedSpoken();
           },
-          { message: 'a "failed" announcement for the network ladder', timeout: 90_000, intervals: [400] },
+          { message: 'an assertive "failed" announcement for the network ladder', timeout: 90_000, intervals: [400] },
         )
-        .toBeGreaterThanOrEqual(1);
+        .toBeGreaterThan(failedBefore);
       await ev(page, '17-G-018', 'network_failed');
       puts.set('pass');
     });

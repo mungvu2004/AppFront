@@ -332,6 +332,7 @@ export async function selectRow(page: Page, n: number): Promise<void> {
  * (A7, useAutosave AUTOSAVE_DEBOUNCE_MS): resolves at once with the write when one is sent, else `null` after `ms`.
  */
 export async function writeWithin(page: Page, ms = 2_500): Promise<string | null> {
+  // fixed-wait-ok: "nothing was sent" has no event to wait for; the waitForRequest timeout is the observation window.
   const request = await page
     .waitForRequest((r) => r.method() !== 'GET' && new URL(r.url()).pathname.startsWith('/api/projects/'), { timeout: ms })
     .catch(() => null);

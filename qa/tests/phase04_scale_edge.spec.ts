@@ -1311,6 +1311,8 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await staleWrite(owner.api, { projectId: a.projectId, floorId: a1.id }); // … so this write makes floor 2 stale
         await confirmAll().click();
         await expect(panelOf(page).getByText('Đã áp tỉ lệ cho 1 tầng. Không lưu được tỉ lệ cho: Tầng 2. Bỏ qua vì chưa có bản vẽ: Tầng 3, Tầng 4.', { exact: true })).toBeVisible();
+        // The source gives these warped floors state `error`, not `partial` (USC state order: warped && no success → error): its title shows.
+        await expect.soft(page.getByText(SCALE.warpedTitle, { exact: true }).first(), 'state error: the warped-drawing title (SC:72)').toBeVisible();
         note('state `partial` is outranked by `error` on these warped floors (USC state order: warped && no success → error); the report text is what is asserted');
         await evidence(page, '14-B-020', 'partial-report');
       });
@@ -1322,6 +1324,10 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await expect(dialogFor(2)).toBeVisible();
         await confirmAll().click();
         await expect(panelOf(page).getByText(/Chưa gửi vì tầng đang bị khoá lưu: Tầng 2\./u)).toBeVisible();
+        // The whole report (USC:221-233, one sentence per non-empty group joined by a space): floor 1 saved again, 3 / 4 skipped.
+        await expect
+          .soft(panelOf(page).getByText('Đã áp tỉ lệ cho 1 tầng. Chưa gửi vì tầng đang bị khoá lưu: Tầng 2. Bỏ qua vì chưa có bản vẽ: Tầng 3, Tầng 4.', { exact: true }))
+          .toBeVisible();
         expect.soft(putsA(mark).filter((r) => r.path.includes(a1.id)), 'no PUT for the blocked floor').toHaveLength(0);
         await evidence(page, '14-B-021', 'blocked-floor-report');
       });

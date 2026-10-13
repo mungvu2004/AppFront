@@ -966,8 +966,11 @@ test('SCR-17 · FL-17-05 undo stack, toast ticket, autosave, reload, leave guard
       await optionOf(page, '#S-001').click();
       await approveButton(page).click();
       await toastWith(page, 'Đã xoá đối tượng D-001.').getByRole('button', { name: OBJ.undo, exact: true }).click({ timeout: QUICK });
-      await expect.poll(() => s.puts.length - mark, { message: 'delete, approve and the undo are saved' }).toBeGreaterThanOrEqual(1);
+      await nextPut(s, mark); // firm marker: the edits reached the server; quiet() then lets the undo's own PUT go out
       await quiet(page);
+      const last = s.puts.at(-1);
+      expect.soft(last !== undefined && putList(last, 'openings').some((o) => o.id === doorEntity), '⚑ last PUT: the deleted door is back').toBe(true);
+      expect.soft(last === undefined ? undefined : openingIn(last, windowEntity)?.reviewed, '⚑ last PUT: the window stays approved').toBe(true);
       await expect.soft(optionOf(page, '#D-001'), 'the deleted door is back').toHaveCount(1);
       expect.soft(await labelOf('#S-001'), 'the newer edit (window approved) is kept').toBe('#S-001 — Đã duyệt');
       await ev(page, '17-C-027', 'toast_undo_ticket');

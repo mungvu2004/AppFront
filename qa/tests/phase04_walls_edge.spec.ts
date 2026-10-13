@@ -291,6 +291,13 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
       run = await openWallsRun(browser);
       const { page } = run;
       let continueBefore = -1;
+      // [16-C-016] is measured during the double click of [16-A-020] (the only 5 → 6 transition of the flow).
+      const countUp: { labelAtClick: string | null; digitAt100: string | null; digitAt300: string | null } = {
+        labelAtClick: null,
+        digitAt100: null,
+        digitAt300: null,
+      };
+      const reviewedDigits = (): Locator => counter(page).locator('span.font-mono.font-semibold');
 
       await test.step('[16-A-009] J / K walk the filtered rows only', async () => {
         await openWalls(page, seeded.project.projectId, floor.id);
@@ -300,11 +307,11 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await expect(wallRows(page)).toHaveCount(3);
         await wallOption(page, code(1)).click();
         await page.keyboard.press('j');
-        expect.soft(await selectedCode(page), 'J skips the reviewed W2').toBe(code(3));
+        expect(await selectedCode(page), 'J skips the reviewed W2').toBe(code(3));
         await page.keyboard.press('j');
-        expect.soft(await selectedCode(page), 'J skips the reviewed W4').toBe(code(5));
+        expect(await selectedCode(page), 'J skips the reviewed W4').toBe(code(5));
         await page.keyboard.press('k');
-        expect.soft(await selectedCode(page), 'K back to W3').toBe(code(3));
+        expect(await selectedCode(page), 'K back to W3').toBe(code(3));
         await ev(page, '16-A-009', 'filtered-jk');
       });
 
@@ -335,8 +342,19 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await expect(wallRows(page)).toHaveCount(6);
         const mark = run!.puts.length;
         const put = waitForLayerPut(page, seeded.project.projectId, floor.id);
+        // Frozen clock: the 260 ms count-up (UW:1219-1220, WLP:264, rAF) only moves with runFor.
+        await freezeClock(page);
         await approveButton(page).dblclick(); // W1 is the last unreviewed wall: nothing to advance to
+        // The command applies async (UW:878 run().then): wait until W1 is reviewed (button disabled) before reading the label.
+        await expect(approveButton(page)).toBeDisabled();
+        countUp.labelAtClick = await counter(page).getAttribute('aria-label');
+        await page.clock.runFor(100);
+        countUp.digitAt100 = await reviewedDigits().textContent();
+        await page.clock.runFor(200);
+        countUp.digitAt300 = await reviewedDigits().textContent();
+        await page.clock.runFor(700); // past the 800 ms autosave debounce
         expect.soft((await put).response.status()).toBe(200);
+        await page.clock.resume();
         await quiet(page);
         expect.soft(putsSince(run!, mark), 'PUTs after a double click').toHaveLength(1);
         await ev(page, '16-A-020', 'double-click-one-put');
@@ -352,6 +370,10 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         expect.soft(await selectedCode(page), 'selection stays on W1').toBe(code(1));
         await expect.soft(inspector(page).getByText(code(1), { exact: true })).toBeVisible();
         await expect.soft(counter(page)).toHaveAttribute('aria-label', '6/6 tường đã duyệt');
+        await expect.soft(approveButton(page)).toBeDisabled();
+        await expect.soft(reviewedDigits()).toHaveClass(/text-state-verified/u);
+        // WLP:294-300: the bar width is progressFraction * 100 %.
+        await expect.soft(counter(page).locator('div.bg-state-verified')).toHaveAttribute('style', /width: 100%/u);
         await expect.soft(page.getByRole('button', { name: WALL.continue, exact: true })).toBeVisible();
         await ev(page, '16-A-018', 'last-wall-success');
       });
@@ -360,14 +382,19 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         const panel = counter(page);
         await expect.soft(panel.locator('span.font-mono.font-semibold')).toHaveClass(/text-state-verified/u);
         await expect.soft(panel.locator('div.bg-state-verified')).toHaveCount(1);
+        await expect.soft(panel.locator('div.bg-state-verified')).toHaveAttribute('style', /width: 100%/u);
         await expect.soft(page.getByRole('button', { name: WALL.continue, exact: true })).toBeVisible();
         await ev(page, '16-B-004', 'success-state');
       });
 
       await test.step('[16-C-016] Count-up of the reviewed counter (260 ms) ends on the exact value', async () => {
-        // UW:600-606 reviewProgressLabel(reviewedCount.text, total): the label may pass through intermediate digits.
-        await expect.poll(async () => counter(page).getAttribute('aria-label'), { timeout: 3_000 }).toBe('6/6 tường đã duyệt');
-        await expect.soft(counter(page).locator('span.font-mono.font-semibold')).toHaveText('6');
+        // Values captured at the [16-A-020] double click (clock frozen). Catalog: the aria-label is exact at once, only the
+        // digits run. ⚑ UW:1219-1220 builds the label from reviewedCount.text (the running count), so it may read 5/6.
+        await attachJson('E04_16-C-016_count-up.json', countUp);
+        expect.soft(countUp.labelAtClick, '⚑ aria-label exact right after the approve').toBe('6/6 tường đã duyệt');
+        expect.soft(countUp.digitAt100, 'mid-run digit is a whole number between 5 and 6').toMatch(/^[56]$/u);
+        expect.soft(countUp.digitAt300, 'digits settled after the 260 ms run').toBe('6');
+        await expect.soft(reviewedDigits()).toHaveText('6');
         await ev(page, '16-C-016', 'counter-settled');
       });
 
@@ -1472,14 +1499,14 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         const frameRect = map.locator('div.border-accent');
         const read = async (): Promise<string> => (await frameRect.getAttribute('style')) ?? '';
         const before = await read();
-        const probe = await centreOf(0).catch(() => ({ x: 0, y: 0 }));
+        const probe = await centreOf(0).catch(() => null); // null = no box: the check below then fails, never passes
         const box = await surface.boundingBox();
         if (box === null) throw new Error('mini map has no box');
         await surface.click({ position: { x: box.width * 0.15, y: box.height * 0.2 } });
         const moved = await read();
         expect.soft(moved, 'the viewport frame of the mini map moved').not.toBe(before);
-        const probeAfter = await centreOf(0).catch(() => ({ x: 0, y: 0 }));
-        expect.soft(probe.x !== probeAfter.x || probe.y !== probeAfter.y, 'the canvas moved with it').toBe(true);
+        const probeAfter = await centreOf(0).catch(() => null);
+        expect.soft(probe !== null && probeAfter !== null && (probe.x !== probeAfter.x || probe.y !== probeAfter.y), `the canvas moved with it: ${JSON.stringify({ probe, probeAfter })}`).toBe(true);
         await surface.click({ position: { x: box.width * 0.85, y: box.height * 0.8 } });
         expect.soft(await read(), 'a second click moves it again').not.toBe(moved);
         await surface.focus();
@@ -1907,7 +1934,8 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         const put = waitForLayerPut(page, q1.projectId, floor.id);
         await page.clock.runFor(5_100); // OFFLINE_RECHECK_MS
         expect.soft((await put).response.status()).toBe(200);
-        expect.soft(putsSince(run!, mark).length, 'one PUT once online').toBeGreaterThanOrEqual(1);
+        await quiet(page);
+        expect.soft(putsSince(run!, mark), 'one PUT once online').toHaveLength(1);
       });
     } finally {
       await run?.flow.context.setOffline(false).catch(() => undefined);

@@ -87,6 +87,8 @@ const BACK_TO_FLOORS = 'Về quản lý tầng';
 
 /* ---------------------------------------------------------------- session and locators */
 
+const softly = expect.configure({ soft: true });
+
 let adminApi: APIRequestContext;
 
 test.beforeAll(async () => {
@@ -749,10 +751,14 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
 
   test('SCR-19 · FL-19-06 · two floors: alignment list, ghost, warnings, auto-align and undo', async ({ browser }) => {
     test.setTimeout(300_000);
-    const shifted = await gridsTwoFloors(adminApi, '19-06', { shiftMm: 200, lowF2: true });
-    const identical = await gridsTwoFloors(adminApi, '19-06b', { shiftMm: 0 });
-    const widened = await gridsTwoFloors(adminApi, '19-06w', { shiftMm: 0, widenMm: 400, lowF2: true });
-    await withFlow(browser, [shifted, identical, widened], async (flow, announced) => {
+    const builts: Built[] = []; // seeded inside the flow so `finally` deletes whatever was made before a failure
+    await withFlow(browser, builts, async (flow, announced) => {
+      const shifted = await gridsTwoFloors(adminApi, '19-06', { shiftMm: 200, lowF2: true });
+      builts.push(shifted);
+      const identical = await gridsTwoFloors(adminApi, '19-06b', { shiftMm: 0 });
+      builts.push(identical);
+      const widened = await gridsTwoFloors(adminApi, '19-06w', { shiftMm: 0, widenMm: 400, lowF2: true });
+      builts.push(widened);
       const { page } = flow;
       const mark = flow.sent.length;
       const [f1, f2] = shifted.project.floors;
@@ -810,7 +816,8 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
         const row = floorRow(page, f2.name);
         await expect.soft(row).toHaveAccessibleName(/Không căn được$/u); // ALF:605-616; AFL:57-61
         const banner = warningBanner(page);
-        await expect.soft(banner).toContainText(`${f2.name} chỉ khớp được 0 trục với tầng chuẩn ${f1.name}, chưa đủ căn cứ để chồng tầng.`); // UAG:1157-1167
+        // Whole sentence of the banner <p> (AFL:143). ALF:613 prefixes "Tầng " to the name "Tầng 2" -> "Tầng Tầng 2" (app bug candidate, stays red).
+        await expect.soft(banner.locator('p')).toHaveText(`${f2.name} chỉ khớp được 0 trục với tầng chuẩn ${f1.name}, chưa đủ căn cứ để chồng tầng.`); // UAG:1157-1167; ALF:612-614
         await expect.soft(banner.getByRole('button', { name: VIEW_ON_DRAWING, exact: true })).toBeVisible();
         await ev(page, '19-A-033', 'unalignable-banner');
       });
@@ -825,7 +832,9 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
         await expect(ghostSwitch(page)).toHaveAttribute('aria-checked', 'false');
         await warningBanner(page).getByRole('button', { name: VIEW_ON_DRAWING, exact: true }).click();
         await expect.soft(ghostSwitch(page)).toHaveAttribute('aria-checked', 'true'); // UAG:869-881
-        expect.soft((await announced()).some((text) => new RegExp(`^${escapeRegExp(f2.name)}, lệch .+ mm\\.$`, 'u').test(text)), '"{name}, lệch {x} mm."').toBe(true);
+        await softly
+          .poll(async () => (await announced()).some((text) => new RegExp(`^${escapeRegExp(f2.name)}, lệch .+ mm\\.$`, 'u').test(text)), { message: '"{name}, lệch {x} mm."' })
+          .toBe(true);
       });
 
       /** Both floors get stored axes through client-side hops; the page ends on floor 2. */
@@ -843,7 +852,11 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
         // A pure 200 mm shift is aligned by translation (residual 0, ALF header), so the plan's "shifted 200 mm" floor is widened instead.
         await storeBoth(widened);
         await expect.soft(floorRow(page, f2.name)).toHaveAccessibleName(/Cần chú ý$/u);
-        await expect.soft(warningBanner(page)).toContainText(new RegExp(`^${escapeRegExp(f2.name)} còn lệch [0-9.]+ mm so với tầng chuẩn ${escapeRegExp(f1.name)}, vượt ngưỡng 150 mm[.]`, 'u')); // ALF:61,622-630
+        // Banner <p> (AFL:143), whole sentence; ALF:175-177 writes the residual with a decimal comma ("200" / "200,5"). ALF:627
+        // prefixes "Tầng " to the name "Tầng 2" -> "Tầng Tầng 2" (app bug candidate): the correct sentence is asserted and stays red.
+        await expect
+          .soft(warningBanner(page).locator('p'))
+          .toHaveText(new RegExp(`^${escapeRegExp(f2.name)} còn lệch \\d+(?:,\\d)? mm so với tầng chuẩn ${escapeRegExp(f1.name)}, vượt ngưỡng 150 mm\\.$`, 'u')); // ALF:61,620-630
         await ev(page, '19-A-035', 'attention-banner');
       });
 
@@ -860,33 +873,49 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
         await expect.soft(warningBanner(page)).not.toContainText(/chiều cao|thông thuỷ|chồng/iu);
       });
 
+      /** x of vertical axis "1" of the open floor, in canvas units (ACV:163-167; 1 unit = 50 mm, AGG:331). */
+      const axisOneX = async (): Promise<number> => Number(await axisGroup(page, '1').locator('line').getAttribute('x1'));
+      let xBeforeAlign = Number.NaN;
+
       await test.step('[19-A-036] "Căn chỉnh tự động" with an alignable floor: one command, toast with undo', async () => {
         await storeBoth(shifted); // F2 = F1 moved 200 mm: alignable by translation
+        xBeforeAlign = await axisOneX();
+        expect(Number.isFinite(xBeforeAlign), 'axis "1" is drawn on F2').toBe(true);
         await page.getByRole('button', { name: AUTO_ALIGN, exact: true }).click();
         const toast = toasts(page).getByText('Đã căn chỉnh 1 tầng thành công.', { exact: true });
         await expect.soft(toast).toBeVisible(); // UAG:890-926; AGG:724-725,856-882
         await expect.soft(toasts(page).getByRole('button', { name: UNDO, exact: true })).toBeVisible();
         await expect.soft(floorRow(page, f2.name)).toHaveAccessibleName(new RegExp(`^${escapeRegExp(f2.name)}, lệch 0 mm, `, 'u'));
+        // A pure shift already reads "lệch 0 mm" before aligning (offsetText = maxResidualMm, UAG:1084): the move is the proof.
+        await softly
+          .poll(async () => Math.round(Math.abs((await axisOneX()) - xBeforeAlign) * 50), { message: 'F2 axes moved by 200 mm' })
+          .toBe(200);
         await ev(page, '19-A-036', 'auto-align');
       });
 
       await test.step('[19-A-037] the toast "Hoàn tác" after auto-align restores and announces', async () => {
         await toasts(page).getByRole('button', { name: UNDO, exact: true }).click();
         await expect.poll(async () => (await announced()).includes('Đã hoàn tác căn chỉnh.')).toBe(true); // UAG:912-916; AGG:728
+        await softly.poll(axisOneX, { message: 'undo puts F2 axes back where they were' }).toBeCloseTo(xBeforeAlign, 3);
       });
 
       await test.step('[19-A-038] ⚑ "Căn chỉnh tự động" with nothing to move is silent (expected: feedback)', async () => {
         await storeBoth(identical); // identical floors: nothing to move
         const spoken = (await announced()).length;
+        const shown = await toasts(page).getByRole('status').count();
         await page.getByRole('button', { name: AUTO_ALIGN, exact: true }).click();
-        await expect.soft(toasts(page).getByText(/Đã căn chỉnh/u), 'a click that moves nothing must say so').toHaveCount(1); // AGG:827-834,872-874; UAG:899-901
-        expect.soft((await announced()).length, 'and announce it').toBeGreaterThan(spoken);
+        // Any new toast (Toast.tsx:142 role=status): the copy of the expected feedback is not in the source, so it is not guessed.
+        await expect.soft(toasts(page).getByRole('status'), 'a click that moves nothing must say so').toHaveCount(shown + 1); // AGG:827-834,872-874; UAG:899-901
+        await softly.poll(async () => (await announced()).length, { message: 'and announce it' }).toBeGreaterThan(spoken);
         await ev(page, '19-A-038', 'auto-align-nothing');
       });
 
       await test.step('[19-A-039] all floors within tolerance (≥ 2 floors): badge "Đã duyệt"', async () => {
         await expect.soft(page.getByText(APPROVED, { exact: true })).toBeVisible(); // AFL:55,118-130
         await expect.soft(warningBanner(page)).toHaveCount(0);
+        const dot = floorRow(page, f2.name).locator('span[aria-hidden="true"]'); // [19-C-009] the "ok" variant
+        await expect.soft(dot).toHaveAttribute('title', 'Trong dung sai'); // AFL:57-61,99-103
+        await expect.soft(floorRow(page, f2.name)).toHaveAccessibleName(/, Trong dung sai$/u); // AFL:69-73
         await ev(page, '19-A-039', 'approved-badge');
         expect.soft(writesSince(flow, mark), 'on a floors-screen entry the saver is not watching: no PUT').toEqual([]);
       });
@@ -924,12 +953,8 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
         const from = flow.sent.length;
         await addButton(page, 'h').click();
         await expect(rows(page, H_GROUP)).toHaveCount(3);
-        // The autosave debounce is 800 ms: wait for a PUT to show up (it should not), polled not slept.
-        const sent = await expect
-          .poll(() => putsOf(f1.id, from), { timeout: 5_000 })
-          .toBe(0)
-          .then(() => 0)
-          .catch(() => putsOf(f1.id, from));
+        await page.waitForTimeout(1_500); // fixed-wait-ok: absence of a write, no signal exists for "nothing sent" (debounce 800 ms)
+        const sent = putsOf(f1.id, from);
         await attachJson('E04_19-A-040_puts.json', { puts: putsOf(f1.id, from), writes: writesSince(flow, from) });
         expect.soft(sent, 'axis commands after an SPA entry must not write the layer (AUS:403-433, SLS:51-66)').toBe(0);
         await ev(page, '19-A-040', 'hidden-put');
@@ -952,11 +977,8 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
         const from = flow.sent.length;
         await page.getByRole('button', { name: AUTO_ALIGN, exact: true }).click();
         await expect.soft(toasts(page).getByText(/Đã căn chỉnh/u)).toBeVisible();
-        const sent = await expect
-          .poll(() => putsOf(f2.id, from), { timeout: 5_000 })
-          .toBe(0)
-          .then(() => 0)
-          .catch(() => putsOf(f2.id, from));
+        await page.waitForTimeout(1_500); // fixed-wait-ok: absence of a write, no signal exists for "nothing sent" (debounce 800 ms)
+        const sent = putsOf(f2.id, from);
         await attachJson('E04_19-A-041_puts.json', { puts: putsOf(f2.id, from) });
         expect.soft(sent, 'auto-align must not persist F2\'s shifted walls (AGG:865-869, AUS:345,403-433)').toBe(0);
       });

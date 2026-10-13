@@ -864,8 +864,11 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
         });
 
         await test.step('[18-E-015] save state reaches screen readers only through the announcer — nothing visible', async () => {
-          const box = await page.locator('[data-announcer="polite"]').boundingBox();
-          expect.soft(box === null || (box.width <= 1 && box.height <= 1), 'announcer is visually hidden (1 px)').toBe(true);
+          // src/lib/input/announcer.ts:41-58: one polite region, hidden by a 1 x 1 px clip (not display: none).
+          const polite = page.locator('[data-announcer="polite"]');
+          await expect(polite).toHaveCount(1);
+          const box = await polite.boundingBox();
+          expect.soft(box !== null && box.width <= 1 && box.height <= 1, `announcer is visually hidden (1 px), box ${JSON.stringify(box)}`).toBe(true);
           await expect.soft(region(page).getByText(/Đã lưu/u)).toHaveCount(0);
           await ev(page, '18-E-015', 'announcer_only');
         });
@@ -940,11 +943,12 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
           await progress(page).click();
           await page.keyboard.press('Control+z');
           await painted(page);
-          // Catalog correction: the screen binds no Mod+Z (UD:539-541 onUndo unused), but the shell's app-wide Ctrl+Z
-          // (src/hooks/useShortcut.ts:166-175 useGlobalShortcuts) takes the approve back (run-51-P3-r1/r2, fresh load too).
-          await expect.soft(approveButton(page, 3), 'Ctrl+Z (shell) reverts the approve').toBeVisible();
-          note('18-C-027: catalog says "no Mod+Z binding"; the app-wide Ctrl+Z of the shell undoes the approve — asserted as observed.');
-          await ev(page, '18-C-027', 'no_undo_key');
+          // Catalog row under review (QA-04c review-mau-P23): the screen binds no Mod+Z (UD:539-541 onUndo unused), but the
+          // shell's app-wide Ctrl+Z (src/routes/router.tsx:222 'global.undo') may take the approve back. Recorded, not asserted,
+          // until the coordinator settles the catalog line.
+          const reverted = await approveButton(page, 3).isVisible();
+          note(`18-C-027: after Ctrl+Z the approve of #M-003 is ${reverted ? 'reverted (shell global.undo)' : 'kept'}; catalog says "no Mod+Z binding".`);
+          await ev(page, '18-C-027', 'no_undo_key', `Ctrl+Z reverted the approve: ${String(reverted)}`);
         });
 
         await test.step('[18-C-015] ⚑ SCR-18 of floor 2 after visiting floor 1 lists only floor 2\'s dimensions', async () => {
@@ -954,8 +958,7 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
           await spaGo(page, dimsPath(second));
           await expect(region(page)).toBeVisible();
           // ⚑ C2 bug: dimensionsOf takes every dimension of the store graph (DG:344-345, UD:447-450).
-          await expect.poll(() => shownCodes(page), { message: '⚑ only #M-011..#M-013' }).toEqual(['#M-011', '#M-012', '#M-013']).catch(() => undefined);
-          expect.soft(await shownCodes(page), '⚑ floor 2 lists only its own rows').toEqual(['#M-011', '#M-012', '#M-013']);
+          await expect.configure({ soft: true }).poll(() => shownCodes(page), { message: '⚑ floor 2 lists only its own rows (#M-011..#M-013)' }).toEqual(['#M-011', '#M-012', '#M-013']);
           note('18-C-015: SCR-16 → floor 2 and SCR-16 → "Kích thước" are client-side route changes (spaGo = history.pushState + popstate, P11).');
           await ev(page, '18-C-015', 'floor2_rows_mixed');
         });

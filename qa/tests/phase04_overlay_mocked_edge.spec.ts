@@ -128,6 +128,8 @@ test.describe('SCR-22 overlay — mocked-response flow (QA-04c P7)', () => {
         await expect(noticeRegion(page)).toBeVisible({ timeout: 30_000 });
         await ev(page, '22-B-009', 'n16_failed');
         await expect.soft(page.getByText(OV.noFloor, { exact: true }), 'wrong cause: the read failed, the project has floors').toHaveCount(0);
+        // Absence alone passes on a blank region too: a read-error alert must be there (copy not fixed by the source for N16).
+        await expect.soft(page.getByRole('alert').filter({ hasNotText: OV.noFloor }).first(), 'a read-error alert').toBeVisible();
         await reset(page);
       });
 
@@ -215,15 +217,15 @@ test.describe('SCR-22 overlay — mocked-response flow (QA-04c P7)', () => {
         await reset(page);
       });
 
-      await test.step('[22-G-004] [mock] GET #30 500 → read error, no retry control; a 503 is retried by the HTTP ladder (1 + 3) only', async () => {
+      await test.step('[22-G-004] [mock] GET #30 500 → read error after one request; a 503 is retried by the HTTP ladder (1 + 3) only', async () => {
         await onGet(page, QUALITY, (route) => wire(route, 500, { code: 'INTERNAL' }));
         const startAt = qualityGets();
         await page.goto(ROUTES.project.overlay(projectId, floorId));
         await expect(alertWith(page, OV.readFailed)).toBeVisible({ timeout: 30_000 });
         const after500 = qualityGets() - startAt;
         note(`22-G-004: #30 requests until the 500 notice: ${String(after500)}`);
-        expect.soft(after500, '500 is not on the ladder: the screen reads once (+ at most the query layer\'s one retry)').toBeLessThanOrEqual(2);
-        await expect.soft(page.getByRole('button', { name: RETRY_CONTROL })).toHaveCount(0);
+        expect.soft(after500, '500 is not on the ladder (HTTP retry.ts: 429/502/503/504 only): exactly one request').toBe(1);
+        // The retry control is asserted (⚑, B-004) in [22-B-004]; not asserted absent here, which would lock the bug in.
         await reset(page);
         await onGet(page, QUALITY, (route) => wire(route, 503, { code: 'UNAVAILABLE' }));
         const start503 = qualityGets();
@@ -251,16 +253,12 @@ test.describe('SCR-22 overlay — mocked-response flow (QA-04c P7)', () => {
         });
         const mark = log.length;
         await page.goto(ROUTES.project.overlay(projectId, floorId));
-        await expect.poll(() => new URL(page.url()).pathname).not.toBe('/projects');
+        // Marker: the real #30 answered after the 401 (D1's frame-missing alert); the session is valid, so no /login.
+        await expect.soft(alertWith(page, OV.frameMissing), 'after the refresh the real #30 is read again').toBeVisible({ timeout: 30_000 });
         const refreshed = log.slice(mark).filter((e) => e.method === 'POST' && e.path === REFRESH);
         note(`22-G-006: ${String(refreshed.length)} refresh call(s) after the 401; ended on ${new URL(page.url()).pathname}`);
-        if (new URL(page.url()).pathname === '/login') {
-          await ev(page, '22-G-006', 'ended_on_login');
-        } else {
-          await expect.soft(alertWith(page, OV.frameMissing), 'after the refresh the real #30 is read again').toBeVisible({ timeout: 30_000 });
-          expect.soft(refreshed.length, 'a refresh happened between the 401 and the retry').toBeGreaterThanOrEqual(1);
-          await ev(page, '22-G-006', 'refreshed_and_read');
-        }
+        expect(refreshed.length, 'a refresh happened between the 401 and the retry').toBeGreaterThanOrEqual(1);
+        await ev(page, '22-G-006', 'refreshed_and_read');
         await reset(page);
       });
 
@@ -271,6 +269,7 @@ test.describe('SCR-22 overlay — mocked-response flow (QA-04c P7)', () => {
         await page.goto(ROUTES.project.overlay(projectId, floorId));
         await expect(noticeRegion(page)).toBeVisible({ timeout: 30_000 });
         await expect.soft(page.getByText(OV.noFloor, { exact: true }), 'N16 500 is not "the project has no floors"').toHaveCount(0);
+        await expect.soft(page.getByRole('alert').filter({ hasNotText: OV.noFloor }).first(), 'N16 500: a read-error alert').toBeVisible();
         expect.soft(qualityGets() - q0, 'no #30 call when N16 gave no floor').toBe(0);
         note(`22-G-009: N16 requests ${String(layerGets() - l0)}, notice "${(await noticeText(page)) ?? ''}"`);
         await ev(page, '22-G-009', 'n16_500');
@@ -279,6 +278,7 @@ test.describe('SCR-22 overlay — mocked-response flow (QA-04c P7)', () => {
         await page.goto(ROUTES.project.overlay(projectId, floorId));
         await expect(noticeRegion(page)).toBeVisible({ timeout: 30_000 });
         await expect.soft(page.getByText(OV.noFloor, { exact: true }), 'N16 abort is not "the project has no floors"').toHaveCount(0);
+        await expect.soft(page.getByRole('alert').filter({ hasNotText: OV.noFloor }).first(), 'N16 abort: a read-error alert').toBeVisible();
         await reset(page);
       });
 

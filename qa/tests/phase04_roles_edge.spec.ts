@@ -10,7 +10,7 @@
  * - Steps marked ⚑ assert the CORRECT behaviour from the source / spec with `expect.soft`: they stay red while the app is
  *   wrong (candidate bugs: 16-D-006, 16-D-007, 16-D-008, 17-D-004, 17-D-007, 17-D-011, 19-D-005, 20-D-006, 21-D-001,
  *   21-D-003, 22-D-004, X4-D-003, 14-D-008, 14-G-016, 14-D-009, 22-D-008).
- * - No `waitForTimeout` except {@link quiet} (a "nothing was sent" claim must outlast the 800 ms autosave debounce).
+ * - No `waitForTimeout`: a "nothing was sent" claim first runs {@link quiet} (Ctrl+S flush + a same-origin round trip).
  *
  * Source (FE @ master 6c662bcb), short names: WLR src/screens/qc/WallLayerReview/ (WTR ToolRail, WI Inspector, WL List, WCV Canvas,
  * UW useWallLayerReview.ts, FSB FloorLayerSaveBanner) · OLR …/ObjectLayerReview/ (OT ToolRail, OS StatusBar, OI Inspector, OCV Canvas,
@@ -40,6 +40,7 @@ import { attachJson, captureEvidence } from './support/evidence';
 import { poolUser } from './support/phase03Seed';
 import { spaGo, pathOf } from './support/p03/P11';
 import { closeFlow, openFlow, recordAnnouncements } from './support/p03/P5';
+import { flush } from './support/p04/P5';
 import {
   DEMOTE_SLOT,
   closeRolesEnv,
@@ -65,10 +66,12 @@ import {
 /* ---------------------------------------------------------------- constants (each cites its source) */
 
 const MOD = process.platform === 'darwin' ? 'Meta' : 'Control';
-/** Autosave fires 800 ms after the last change (useAutosave, A7); a "nothing was sent" claim waits past it. */
-const QUIET_MS = 1_500;
-// fixed-wait-ok: proving "no PUT was sent" needs a window longer than the 800 ms autosave debounce; there is no event to wait for.
-const quiet = (page: Page): Promise<void> => page.waitForTimeout(QUIET_MS);
+/**
+ * Marker before a "nothing was sent" claim, no fixed wait: Ctrl+S flushes any autosave still in its 800 ms debounce right now
+ * (router.tsx:230-238 global.save -> flushAutosaves), then a same-origin round trip lets the page's own requests reach the
+ * log (`support/p04/P5.ts` flush). A write the screen queued is therefore in `flow.sent` when the count is read.
+ */
+const quiet = (page: Page): Promise<void> => flush(page);
 
 /* SCR-16 */
 const WALL = {
@@ -370,7 +373,12 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         await expect.soft(inspector.getByText(WALL.viewerNotice, { exact: true })).toBeVisible();
         const group = inspector.getByRole('group', { name: WALL.thickness, exact: true });
         await expect.soft(group).toBeVisible();
-        await expect.soft(group).toContainText('110 mm');
+        // The choice shown as current is the selected wall's own thickness (WallLayerInspector.tsx:58-79 `choice === value`),
+        // read from the selected row's badge (WallLayerList.tsx:176-183); a thickness off the 110/220/330 bands bolds none.
+        const listed = /(\d+)\s*mm/u.exec(await wallOptions(page).first().innerText())?.[1];
+        const current = group.locator('span.font-semibold');
+        if (listed === '110' || listed === '220' || listed === '330') await expect.soft(current).toHaveText(`${listed} mm`);
+        else await expect.soft(current, `selected wall is ${String(listed)} mm: no band is current`).toHaveCount(0);
         await expect.soft(inspector.getByRole('radiogroup')).toHaveCount(0);
         await expect.soft(inspector.getByRole('button', { name: WALL.approve, exact: true })).toHaveCount(0);
         await expect.soft(inspector.getByRole('button', { name: WALL.skip, exact: true })).toHaveCount(0);
@@ -736,7 +744,8 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         const accept = tables.getByRole('checkbox', { name: /^Đồng ý chuẩn hoá \d+ tường /u });
         const rowBoxes = tables.getByRole('checkbox', { name: /^Chọn dòng /u });
         const rowGroups = tables.getByRole('radiogroup', { name: /^Độ dày chuẩn hoá của đoạn /u });
-        await expect(accept.first()).toBeVisible();
+        // Soft: the fix may well remove the group checkboxes for a viewer; the counts below then pass on 0 (review QA-04c).
+        await expect(tables.locator('tbody tr').first(), 'the tables have their rows (loaded marker)').toBeVisible();
         const live = page.locator(':enabled');
         await expect.soft(accept.and(live), 'enabled group checkboxes').toHaveCount(0);
         await expect.soft(rowBoxes.and(live), 'enabled row checkboxes').toHaveCount(0);
@@ -808,6 +817,7 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         const before = await axisRows(page).count();
         await page.keyboard.press(`${MOD}+z`);
         await expect.soft(axisRows(page)).toHaveCount(before);
+        await quiet(page);
         expect.soft(writesSince(flow, mark)).toEqual([]);
         await captureEvidence(page, ev('19-D-004', 'viewer_axis_undo'));
       });
@@ -1282,24 +1292,27 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         await put;
         const banner = alertWith(wallsPage, WALL.forbidden);
         await expect(banner).toBeVisible();
+        await expect.soft(banner, 'violation level (FloorLayerSaveBanner.tsx:27, InlineAlert.tsx:33)').toHaveClass(/border-state-violation/u);
         await expect.soft(banner.getByRole('button', { name: WALL.reload, exact: true })).toHaveCount(0);
         await captureEvidence(wallsPage, ev('16-B-024', 'demoted_wall_save_403'));
       });
 
       await test.step('[17-B-022] save 403 on SCR-17 → violation banner "Bạn không còn quyền sửa tầng này." (no button)', async () => {
         await objectsPage.bringToFront();
-        const put = nextPut(objectsPage, q1.projectId, floor.floorId, [403]);
+        // 200 too, so [17-G-015] reads the status the server really gave instead of one the wait filtered for.
+        const put = nextPut(objectsPage, q1.projectId, floor.floorId, [200, 403]);
         await objectsPage.getByRole('button', { name: OBJ.approve, exact: true }).click();
         objectPut = await put;
         const banner = alertWith(objectsPage, WALL.forbidden);
         await expect(banner).toBeVisible();
+        await expect.soft(banner).toHaveClass(/border-state-violation/u); // FloorLayerSaveBanner.tsx:27, InlineAlert.tsx:33
         await expect.soft(banner.getByRole('button')).toHaveCount(0);
         await captureEvidence(objectsPage, ev('17-B-022', 'demoted_object_save_403'));
       });
 
       await test.step('[17-G-015] PUT 403 FORBIDDEN → forbidden banner (17-B-022)', async () => {
         expect(objectPut, 'the SCR-17 PUT of the previous step').toBeDefined();
-        expect.soft(objectPut?.response.status()).toBe(403);
+        expect(objectPut?.response.status(), 'the server refused the demoted account').toBe(403);
         expect.soft((objectPut?.json as { code?: unknown } | undefined)?.code, 'wire error code').toBe('FORBIDDEN');
         await expect.soft(alertWith(objectsPage, WALL.forbidden)).toBeVisible();
         await captureEvidence(objectsPage, ev('17-G-015', 'demoted_object_forbidden_code'));
@@ -1325,6 +1338,7 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         await renamePage.bringToFront();
         const name = renamePage.getByRole('textbox', { name: ROOM.name });
         await expect.soft(name, 'the page still offers the edit controls').toBeEditable();
+        await captureEvidence(renamePage, ev('20-D-008', 'demoted_room_controls_on')); // before the rename: the stale engineer UI
         const current = await name.inputValue();
         const put = nextPut(renamePage, q1.projectId, floor.floorId, [403]);
         await name.fill(`${current} QA`);

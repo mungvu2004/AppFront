@@ -901,7 +901,8 @@ test('SCR-20 · FL-20-05 · merge and split', async ({ browser }) => {
         .soft(toastOf(page, /Gộp phòng "qa gộp con" #\S+ 14,82 m² vào phòng "qa gộp mẹ" #\S+ 14,82 m²; phòng sau khi gộp rộng 29,64 m²/u))
         .toBeVisible();
       await expect.soft(roomOptions(page)).toHaveCount(1);
-      expect.soft(putsOf(f1.id, mark).length >= 1, 'a PUT carried the merge').toBe(true);
+      await flush(page); // marker: anything pending is sent and logged
+      expect.soft(putsOf(f1.id, mark), 'one PUT carried the merge').toHaveLength(1);
       await captureEvidence(page, 'E04_20-A-031_merged.png');
     });
 
@@ -1022,7 +1023,12 @@ test('SCR-20 · FL-20-05 · merge and split', async ({ browser }) => {
     await test.step('[20-A-038] ⚑ with no split point the hint must be one the user can follow (a click on the outline picks the cut)', async () => {
       await selectRoom(page, code(split, 's')); // already split: its outline is one part, no dividing wall is left inside it
       await expect.soft(page.getByText(ROOM.splitHint, { exact: true })).toBeVisible();
-      await canvasButton(page, 'qa tách S').click();
+      // On the outline, as the hint says, not the centre: the room button covers exactly the room's bounding box
+      // (RoomLabelCanvas.tsx:20-32,302-317), so 2 px inside its left edge is on the boundary wall.
+      const room = canvasButton(page, 'qa tách S');
+      const box = await room.boundingBox();
+      if (box === null) throw new Error('room "qa tách S" is not drawn');
+      await room.click({ position: { x: 2, y: box.height / 2 } });
       await expect.soft(splitButton, 'following the hint ("bấm lên ranh phòng") offers "Tách phòng"').toBeVisible();
       await captureEvidence(page, 'E04_20-A-038_split-hint.png');
     });

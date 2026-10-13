@@ -295,7 +295,10 @@ test.describe('SCR-22 overlay — drawing floor D1 (read-only walks)', () => {
         await markShell(page);
         await link.click();
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.scale(floor.projectId, floor.floorId));
-        expect.soft(await shellKept(page).catch(() => false), 'the click is a plain <a href>: a full document load').toBe(false);
+        // Marker: SCR-14 is painted (ScaleCalibration.tsx:66,184-186), so a full load has finished and the evaluate has a live context.
+        await expect(page.getByRole('region', { name: 'Màn hiệu chỉnh tỷ lệ', exact: true })).toBeVisible();
+        await page.waitForLoadState('domcontentloaded');
+        expect.soft(await shellKept(page), 'the click is a plain <a href>: a full document load').toBe(false);
         await ev(page, '22-A-019', 'scale_link_target');
       });
 

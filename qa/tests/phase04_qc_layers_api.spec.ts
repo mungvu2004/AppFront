@@ -382,14 +382,18 @@ const drawingPng = (): Buffer => {
 
 /** #8 Progress (BE:drawings/router.py:102-106, progress.py:33-68) polled every 2 s until `completed` | `failed`. */
 async function pipelineFinal(api: APIRequestContext, projectId: string, uploadId: string): Promise<Json> {
-  const deadline = Date.now() + PIPELINE_TIMEOUT_MS;
   let last: Json = {};
-  while (Date.now() < deadline) {
-    const res = await api.get(`/api/projects/${projectId}/drawings/uploads/${uploadId}/progress`);
-    last = (await res.json().catch(() => ({}))) as Json;
-    if (last.status === 'completed' || last.status === 'failed') return last;
-    await new Promise((resolve) => setTimeout(resolve, 2_000));
-  }
+  // Polled, not slept: the 2 s cadence is the poll interval; a run that never ends fails here with its last status.
+  await expect
+    .poll(
+      async () => {
+        const res = await api.get(`/api/projects/${projectId}/drawings/uploads/${uploadId}/progress`);
+        last = (await res.json().catch(() => ({}))) as Json;
+        return last.status;
+      },
+      { message: '#8 progress reaches completed | failed', intervals: [2_000], timeout: PIPELINE_TIMEOUT_MS },
+    )
+    .toMatch(/^(?:completed|failed)$/u);
   return last;
 }
 

@@ -70,14 +70,12 @@ import { createPipelineDrawingProject, deleteSeededProject, type SeededDrawing }
 import { captureEvidence } from './support/evidence';
 import { createQcProject, deleteProject, layerStatus, type LayerApi, type SeededFloor } from './support/layerSeed';
 import { readState, updateState } from './support/state';
+import { flush } from './support/p04/P5';
 
 const VIEWPORT = { width: 1440, height: 900 } as const;
 
-/**
- * "Nothing was written" has no network signal: wait past the 800 ms autosave debounce (G5) plus a
- * round trip, then count the write requests. Used ONLY by the no-PUT assertions.
- */
-const NO_WRITE_SETTLE_MS = 1_500;
+/** Every status a read may answer: a wait filtered on [200] alone makes the "answers 200" check that follows always true. */
+const ANY_STATUS = [200, 304, 400, 401, 403, 404, 409, 422, 429, 500, 502, 503, 504] as const;
 
 /** BUG-424: an action that either lands at once or never (a covered target) gets 5 s, not ACTION_TIMEOUT_MS (30 s). */
 const QUICK_ACTION_TIMEOUT_MS = 5_000;
@@ -299,8 +297,9 @@ function expectLayerWrite(result: ApiResult, { parseResult = true }: { readonly 
 }
 
 async function expectNoProjectWritesSince(mark: number, what: string): Promise<void> {
-  // G5 exception: no network signal exists for "nothing sent"; see NO_WRITE_SETTLE_MS.
-  await page.waitForTimeout(NO_WRITE_SETTLE_MS);
+  // Marker, not a fixed wait: Ctrl+S flushes any autosave still in its 800 ms debounce (router.tsx:230-238 global.save ->
+  // flushAutosaves), then a same-origin round trip puts every earlier request of the page in `writes` (support/p04/P5 flush).
+  await flush(page);
   const sent = writes.slice(mark).map((entry) => `${entry.method} ${entry.path}`);
 
   expect(sent, `${what}: no write request (PUT/POST/PATCH/DELETE) expected`).toEqual([]);
@@ -1203,7 +1202,7 @@ test.describe('SCR-14 Scale Calibration', () => {
   useOwnDrawingFloor('m04-scale');
 
   test('SCR-14 refline: "Vẽ đường tham chiếu"; drag 20 % → 80 % at 50 %; "Chiều dài thật" = 5000 + Enter → two handles, scale computed', async () => {
-    const qualityRead = waitForApi(page, 'GET', new RegExp(`^/api/projects/${projectId}/floors/${floorId}/quality$`, 'u'), [200]);
+    const qualityRead = waitForApi(page, 'GET', new RegExp(`^/api/projects/${projectId}/floors/${floorId}/quality$`, 'u'), ANY_STATUS);
 
     qualityRead.catch(() => undefined);
 
@@ -1263,13 +1262,13 @@ test.describe('SCR-14 Scale Calibration', () => {
     await expect(scaleScope('Áp cho mọi tầng')).toHaveAttribute('aria-checked', 'true');
 
     const mark = writes.length;
-    const floorsRead = waitForApi(page, 'GET', new RegExp(`^/api/projects/${projectId}/floors$`, 'u'), [200]);
-    const graphRead = waitForApi(page, 'GET', new RegExp(`^/api/projects/${projectId}/spatial$`, 'u'), [200]);
+    const floorsRead = waitForApi(page, 'GET', new RegExp(`^/api/projects/${projectId}/floors$`, 'u'), ANY_STATUS);
+    const graphRead = waitForApi(page, 'GET', new RegExp(`^/api/projects/${projectId}/spatial$`, 'u'), ANY_STATUS);
 
     await applyScale().click();
     await test.step('[14-G-011] GET #12 …/floors and GET N15 …/spatial answer 200 on apply-all', async () => {
-      await floorsRead;
-      await graphRead;
+      expect.soft((await floorsRead).response.status(), 'GET #12 …/floors').toBe(200);
+      expect.soft((await graphRead).response.status(), 'GET N15 …/spatial').toBe(200);
     });
     await test.step('[14-A-022] the A9 dialog "Áp tỉ lệ này cho N tầng có bản vẽ?" opens; "Huỷ" closes it with no PUT', async () => {
       const dialog = page.getByRole('dialog', { name: /^Áp tỉ lệ này cho \d+ tầng có bản vẽ\?$/u });
@@ -1292,7 +1291,7 @@ test.describe('SCR-22 Overlay Comparison', () => {
   useOwnDrawingFloor('m04-overlay');
 
   test('SCR-22 swipe: "Kiểu đối chiếu" → "Trượt"; divider slider + arrows; "Độ mờ ảnh nguồn" → divider moves, "Chưa đo được vùng lệch nào."', async () => {
-    const qualityRead = waitForApi(page, 'GET', new RegExp(`^/api/projects/${projectId}/floors/${floorId}/quality$`, 'u'), [200]);
+    const qualityRead = waitForApi(page, 'GET', new RegExp(`^/api/projects/${projectId}/floors/${floorId}/quality$`, 'u'), ANY_STATUS);
 
     qualityRead.catch(() => undefined);
     const swipe = page
