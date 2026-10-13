@@ -220,20 +220,22 @@ const levelNodeOf = (
 /* -------------------------------------------------------------------------- */
 
 /** Tên node tường trên cây Pascal — thiếu `name` thì Pascal tự điền "Wall" (A6). */
-const wallNodeNameOf = (wall: Wall): string => {
+// Mã tường là khoá nội bộ (vd. W-000101FIXTURE0), không hiển thị: tên là loại + số thứ tự trong tầng.
+const wallNodeNameOf = (wall: Wall, ordinal: number): string => {
   const kindLabel = WALL_KIND_LABELS[wall.kind];
-  return `${kindLabel.charAt(0).toUpperCase()}${kindLabel.slice(1)} ${wall.id}`;
+  return `${kindLabel.charAt(0).toUpperCase()}${kindLabel.slice(1)} ${ordinal}`;
 };
 
 const wallNodeOf = (
   wall: Wall,
+  ordinal: number,
   levelNodeId: PascalNodeId,
   children: readonly PascalNodeId[],
 ): PascalWallNode => ({
   object: 'node',
   id: toPascalId('wall', wall.id),
   type: 'wall',
-  name: wallNodeNameOf(wall),
+  name: wallNodeNameOf(wall, ordinal),
   parentId: levelNodeId,
   children,
   start: [metresOf(wall.centreline.start.x), metresOf(wall.centreline.start.y)],
@@ -518,6 +520,7 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
   }
 
   const wallNodeIdOf = new Map<string, PascalNodeId>();
+  const wallCountOfLevel = new Map<string, number>();
 
   for (const wall of graph.walls) {
     const levelNodeId = levelNodeIdOf.get(wall.levelId);
@@ -541,7 +544,9 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
       continue;
     }
 
-    const node = wallNodeOf(wall, levelNodeId, childrenFor(toPascalId('wall', wall.id)));
+    const ordinal = (wallCountOfLevel.get(wall.levelId) ?? 0) + 1;
+    wallCountOfLevel.set(wall.levelId, ordinal);
+    const node = wallNodeOf(wall, ordinal, levelNodeId, childrenFor(toPascalId('wall', wall.id)));
 
     nodes[node.id] = node;
     wallNodeIdOf.set(wall.id, node.id);

@@ -276,7 +276,7 @@ export function SlabPanel() {
     <PanelWrapper
       icon="/icons/floor.webp"
       onClose={handleClose}
-      title={node.name || 'Slab'}
+      title={node.name || vi.nodeDisplay.slab}
       width={320}
     >
       <PanelSection title={vi.common.elevation}>
