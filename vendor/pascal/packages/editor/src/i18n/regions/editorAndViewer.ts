@@ -182,6 +182,10 @@ export const editorAndViewer = {
     viewerLayout: 'Bố cục khung nhìn',
     split: 'Chia đôi',
   },
+  commandPalette: {
+    sectionPlaneOn: 'Bật mặt cắt',
+    sectionPlaneOff: 'Tắt mặt cắt',
+  },
   walkthroughHud: {
     toExit: 'để thoát',
     click: 'Nhấp',
