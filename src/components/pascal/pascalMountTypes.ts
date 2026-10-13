@@ -37,3 +37,12 @@ export type PascalSceneCommit = (scene: PascalScene) => Promise<void>;
  * thay vì `import type` xuyên tường, cùng lý do `PascalSaveStatus` ở trên.
  */
 export type PascalHistoryJump = 'undo' | 'redo';
+
+/**
+ * Người dùng vừa xoá một phép đo đã ghim (#63, A8). `ordinal` là số thứ tự của
+ * nó trong tầng ("Đã xoá phép đo N"); `undo` là đúng cú hoàn tác của editor.
+ */
+export interface PascalMeasurementDelete {
+  readonly ordinal: number;
+  readonly undo: () => void;
+}

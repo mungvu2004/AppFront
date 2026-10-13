@@ -35,6 +35,7 @@ import type {
   PascalCommitVerdict,
   PascalInitialTool,
   PascalHistoryJump,
+  PascalMeasurementDelete,
   PascalMountMode,
   PascalSaveStatus,
   PascalSceneCommit,
@@ -86,6 +87,8 @@ export interface PascalMountOptions {
   readonly initialTool?: PascalInitialTool;
   /** Người dùng vừa hoàn tác/làm lại — xem `PascalFrameProps.onHistoryJump` (A8). */
   readonly onHistoryJump?: (kind: PascalHistoryJump) => void;
+  /** Người dùng vừa xoá một phép đo — xem `PascalFrameProps.onMeasurementDelete` (#63). */
+  readonly onMeasurementDelete?: (event: PascalMeasurementDelete) => void;
   /** Mở ở chế độ tách tầng (`/3d?view=exploded`, F-15 W2-C2). */
   readonly explodeLevels?: boolean;
 }
@@ -126,6 +129,7 @@ export function mount(element: HTMLElement, options: PascalMountOptions): Pascal
           onSceneLoaded={options.onSceneLoaded}
           onRendererUnavailable={options.onRendererUnavailable}
           onHistoryJump={options.onHistoryJump}
+          onMeasurementDelete={options.onMeasurementDelete}
         />
       </StrictMode>,
     );

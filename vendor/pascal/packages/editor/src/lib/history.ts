@@ -161,7 +161,7 @@ export function shouldCancelDraftOnHistoryJump(): boolean {
   return registeredDraftingConfig(scope)?.cancelOnHistoryJump === true
 }
 
-export function runUndo(): HistoryCommandResult {
+function doUndo(): HistoryCommandResult {
   if (shouldCancelDraftOnHistoryJump()) emitter.emit('tool:cancel')
   if (historyCommandDelegate) {
     const result = historyCommandDelegate.undo()
@@ -182,7 +182,7 @@ export function runUndo(): HistoryCommandResult {
   return { kind: 'applied', persistence: 'local' }
 }
 
-export function runRedo(): HistoryCommandResult {
+function doRedo(): HistoryCommandResult {
   if (shouldCancelDraftOnHistoryJump()) emitter.emit('tool:cancel')
   if (historyCommandDelegate) {
     const result = historyCommandDelegate.redo()
@@ -199,6 +199,59 @@ export function runRedo(): HistoryCommandResult {
   refreshSceneAfterHistoryJump(previewLayout)
   emitHistoryJump('redo')
   return { kind: 'applied', persistence: 'local' }
+}
+
+function runAsJump(run: () => HistoryCommandResult): HistoryCommandResult {
+  isHistoryJumping = true
+  try {
+    return run()
+  } finally {
+    isHistoryJumping = false
+  }
+}
+
+export function runUndo(): HistoryCommandResult {
+  return runAsJump(doUndo)
+}
+
+export function runRedo(): HistoryCommandResult {
+  return runAsJump(doRedo)
+}
+
+/**
+ * A measurement the user deleted (#63, AppFront A8). `ordinal` is its 1-based
+ * position among the level's measurements before the delete, which is the "N"
+ * in "Đã xoá phép đo N". Undo/redo jumps never fire this — they restore or
+ * remove nodes without being a fresh delete.
+ */
+export type MeasurementDeleteListener = (event: { ordinal: number }) => void
+
+const measurementDeleteListeners = new Set<MeasurementDeleteListener>()
+let isHistoryJumping = false
+let stopWatchingMeasurements: (() => void) | null = null
+
+function watchMeasurementDeletes() {
+  return useScene.subscribe((state, previous) => {
+    if (isHistoryJumping || state.nodes === previous.nodes) return
+    let ordinal = 0
+    for (const [id, node] of Object.entries(previous.nodes)) {
+      if (node.type !== 'measurement') continue
+      ordinal += 1
+      if (state.nodes[id as AnyNodeId]) continue
+      for (const listener of [...measurementDeleteListeners]) listener({ ordinal })
+    }
+  })
+}
+
+export function subscribeMeasurementDeletes(listener: MeasurementDeleteListener): () => void {
+  measurementDeleteListeners.add(listener)
+  stopWatchingMeasurements ??= watchMeasurementDeletes()
+  return () => {
+    measurementDeleteListeners.delete(listener)
+    if (measurementDeleteListeners.size > 0) return
+    stopWatchingMeasurements?.()
+    stopWatchingMeasurements = null
+  }
 }
 
 /**

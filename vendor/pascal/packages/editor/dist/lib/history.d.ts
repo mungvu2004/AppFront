@@ -24,6 +24,10 @@ export declare function subscribeHistoryCommandState(listener: () => void): () =
 export type HistoryJumpKind = 'undo' | 'redo';
 export type HistoryJumpListener = (kind: HistoryJumpKind) => void;
 export declare function subscribeHistoryJumps(listener: HistoryJumpListener): () => void;
+export type MeasurementDeleteListener = (event: {
+    ordinal: number;
+}) => void;
+export declare function subscribeMeasurementDeletes(listener: MeasurementDeleteListener): () => void;
 export declare function shouldCancelDraftOnHistoryJump(): boolean;
 export declare function runUndo(): HistoryCommandResult;
 export declare function runRedo(): HistoryCommandResult;

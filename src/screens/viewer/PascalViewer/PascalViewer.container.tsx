@@ -26,7 +26,9 @@ import type { SpatialGraph } from '@/domain/spatial/types';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useSession } from '@/hooks/useSession';
 import { useShortcut } from '@/hooks/useShortcut';
+import type { PascalMeasurementDelete } from '@/components/pascal/pascalMountTypes';
 import { can } from '@/lib/auth/permissions';
+import { createUndoTicket } from '@/lib/mutations/undoTicket';
 import type { ProjectRole } from '@/types/project';
 import { ROUTES } from '@/routes/paths';
 // Nhập THẲNG module, KHÔNG qua barrel `index.ts` của màn kia: đi qua barrel là
@@ -69,6 +71,9 @@ export const PASCAL_REJECTED_TITLE = 'Không ghi được thay đổi';
 
 /** Loại thông báo của một cú nhảy lịch sử — toast gom theo loại (A8). */
 export const PASCAL_HISTORY_NOTIFICATION_TYPE = 'pascal.history.jump';
+
+/** Loại thông báo của một phép đo vừa bị xoá — kèm nút hoàn tác (A8, #63). */
+export const PASCAL_MEASUREMENT_DELETE_NOTIFICATION_TYPE = 'pascal.measurement.deleted';
 
 export interface PascalViewerContainerProps {
   readonly graph: SpatialGraph | null;
@@ -157,6 +162,19 @@ function PascalViewerBody({
     [publish],
   );
 
+  const onMeasurementDelete = useCallback(
+    ({ ordinal, undo }: PascalMeasurementDelete) => {
+      const title = `Đã xoá phép đo ${ordinal}`;
+      publish({
+        description: 'Bấm "Hoàn tác" để đưa phép đo trở lại.',
+        title,
+        type: PASCAL_MEASUREMENT_DELETE_NOTIFICATION_TYPE,
+        undoTicket: createUndoTicket({ description: title, undo: () => undo() }),
+      });
+    },
+    [publish],
+  );
+
   const onRejected = useCallback(
     (reason: string) => {
       publish({
@@ -187,6 +205,7 @@ function PascalViewerBody({
     onCommitRejected: onRejected,
     initialTool,
     onHistoryJump,
+    onMeasurementDelete,
     explodeLevels,
     ...(collapsed === undefined ? {} : { collapsed }),
     ...(loadMount === undefined ? {} : { loadMount }),

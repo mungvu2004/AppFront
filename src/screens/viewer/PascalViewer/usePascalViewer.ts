@@ -27,6 +27,7 @@ import type {
   PascalCommitVerdict,
   PascalInitialTool,
   PascalHistoryJump,
+  PascalMeasurementDelete,
   PascalMountMode,
   PascalSaveStatus,
 } from '@/components/pascal/pascalMountTypes';
@@ -89,6 +90,9 @@ export interface MountModule {
       readonly validateCommit?: (scene: PascalScene) => PascalCommitVerdict;
       readonly onCommitRejected?: (message: string) => void;
       readonly onHistoryJump?: (kind: PascalHistoryJump) => void;
+  /** Người dùng vừa xoá một phép đo — màn dựng toast hoàn tác (#63, A8). */
+  readonly onMeasurementDelete?: (event: PascalMeasurementDelete) => void;
+      readonly onMeasurementDelete?: (event: PascalMeasurementDelete) => void;
       readonly onReadyChange?: (ready: boolean) => void;
       readonly onFatal?: (error: Error) => void;
       readonly onSceneLoaded?: (census: PascalSceneCensus) => void;
@@ -255,6 +259,7 @@ export function usePascalViewer({
   onCommitRejected,
   initialTool,
   onHistoryJump,
+  onMeasurementDelete,
   explodeLevels = false,
 }: UsePascalViewerOptions): UsePascalViewerResult {
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -290,8 +295,8 @@ export function usePascalViewer({
   const edits = useRef({ onSceneCommit, validateCommit, onCommitRejected, onHistoryJump });
 
   useEffect(() => {
-    edits.current = { onSceneCommit, validateCommit, onCommitRejected, onHistoryJump };
-  }, [onSceneCommit, validateCommit, onCommitRejected, onHistoryJump]);
+    edits.current = { onSceneCommit, validateCommit, onCommitRejected, onHistoryJump, onMeasurementDelete };
+  }, [onSceneCommit, validateCommit, onCommitRejected, onHistoryJump, onMeasurementDelete]);
 
   const isCollapsed = selfCollapsed || (collapsed && !expanded);
 
@@ -378,6 +383,7 @@ export function usePascalViewer({
           validateCommit: (next) => edits.current.validateCommit?.(next) ?? { ok: true },
           onCommitRejected: (message) => edits.current.onCommitRejected?.(message),
           onHistoryJump: (kind) => edits.current.onHistoryJump?.(kind),
+          onMeasurementDelete: (event) => edits.current.onMeasurementDelete?.(event),
           onSaveStatus: (status) => {
             if (disposed) return;
             setSaveStatus(status);
