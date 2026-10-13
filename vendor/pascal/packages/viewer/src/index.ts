@@ -268,8 +268,15 @@ export {
 export { LevelSystem } from './systems/level/level-system'
 export {
   EXPLODED_GAP,
+  findLevelMisalignments,
   getLevelPresentationY,
+  isLevelLabelVisible,
+  LEVEL_LABEL_MIN_EXPLODE,
+  LEVEL_MISALIGN_TOLERANCE_M,
+  type LevelMisalignment,
+  prefersReducedMotion,
   snapLevelsToTruePositions,
+  useLevelExplode,
 } from './systems/level/level-utils'
 export { getRoofMaterialArray, levelWallCladdingRef } from './systems/roof/roof-materials'
 // Generic roof-segment primitives. Kinds that compose CSG against

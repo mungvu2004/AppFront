@@ -13,7 +13,7 @@
 
 import { AlertCircle } from 'lucide-react';
 import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ProjectSpatialGate } from '@/components/feedback/ProjectSpatialGate';
@@ -134,6 +134,8 @@ function PascalViewerBody({
   // Vai theo dự án đang mở là nguồn đúng nhất; phiên đăng nhập là nguồn dự phòng.
   const roles: readonly ProjectRole[] = storeRoles.length > 0 ? storeRoles : session.roles;
   const isReadOnly = readOnly ?? !can('edit', 'layer', { roles });
+  const [searchParams] = useSearchParams();
+  const explodeLevels = searchParams.get('view') === 'exploded';
 
   /* A8 — mọi thay đổi hoàn tác được, KÈM TOAST. Không có nút lưu (A7), nên
      toast này là chỗ duy nhất nói ra rằng cú nhảy vừa rồi đã thành việc thật
@@ -178,6 +180,7 @@ function PascalViewerBody({
     validateCommit,
     onCommitRejected: onRejected,
     onHistoryJump,
+    explodeLevels,
     ...(collapsed === undefined ? {} : { collapsed }),
     ...(loadMount === undefined ? {} : { loadMount }),
   });

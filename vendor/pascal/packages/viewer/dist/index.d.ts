@@ -60,7 +60,7 @@ export { InteractiveSystem } from './systems/interactive/interactive-system';
 export { ItemSystem } from './systems/item/item-system';
 export { ItemLightSystem } from './systems/item-light/item-light-system';
 export { LevelSystem } from './systems/level/level-system';
-export { EXPLODED_GAP, getLevelPresentationY, snapLevelsToTruePositions, } from './systems/level/level-utils';
+export { EXPLODED_GAP, findLevelMisalignments, getLevelPresentationY, isLevelLabelVisible, LEVEL_LABEL_MIN_EXPLODE, LEVEL_MISALIGN_TOLERANCE_M, type LevelMisalignment, prefersReducedMotion, snapLevelsToTruePositions, useLevelExplode, } from './systems/level/level-utils';
 export { getRoofMaterialArray, levelWallCladdingRef } from './systems/roof/roof-materials';
 export { clipGeometryBySegmentTrim, generateRoofSegmentGeometry, getRoofOuterSurfaceFrameAtPoint, getRoofSegmentBrushes, mapRoofGroupMaterialIndex, ROOF_MATERIAL_SLOT_COUNT, RoofSystem, remapRoofShellFaces, roofCsgDummyMats, type SurfaceFrame, } from './systems/roof/roof-system';
 export { ScanSystem } from './systems/scan/scan-system';

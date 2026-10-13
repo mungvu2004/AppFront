@@ -7,7 +7,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { appFrontEditorPanels, Editor, subscribeHistoryJumps } from '@pascal-app/editor';
-import { computeHeroFraming, heroCameraPose, Viewer } from '@pascal-app/viewer';
+import {
+  computeHeroFraming,
+  heroCameraPose,
+  useLevelExplode,
+  useViewer,
+  Viewer,
+} from '@pascal-app/viewer';
 import { useThree } from '@react-three/fiber';
 
 import type { PascalScene } from '@/lib/pascal/types';
@@ -84,6 +90,8 @@ export interface PascalFrameProps {
    * hỏng — cả hai không phải việc người dùng bấm, nên không báo ra.
    */
   readonly onHistoryJump: ((kind: PascalHistoryJump) => void) | undefined;
+  /** Bật tách tầng hết cỡ khi khung đứng lên — `/3d?view=exploded`. */
+  readonly explodeLevels?: boolean;
 }
 
 /** `fov` của `PerspectiveCamera` mà `ViewerCamera` của Pascal dựng (`viewer-camera.tsx`). */
@@ -139,9 +147,16 @@ export function PascalFrame({
   onSceneLoaded,
   onRendererUnavailable,
   onHistoryJump,
+  explodeLevels = false,
 }: PascalFrameProps) {
   const [loaded, setLoaded] = useState(false);
   const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    if (!explodeLevels) return;
+    useLevelExplode.getState().setAmount(1);
+    useViewer.getState().setLevelMode('exploded');
+  }, [explodeLevels]);
 
   useEffect(() => {
     if (mode === 'edit') return;

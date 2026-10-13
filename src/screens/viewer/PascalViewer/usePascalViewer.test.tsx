@@ -474,3 +474,23 @@ describe('dọn dẹp', () => {
     }, { timeout: ASYNC_TIMEOUT_MS });
   });
 });
+
+describe('tách tầng qua `?view=exploded` (F-15 W2-C2)', () => {
+  it('truyền `explodeLevels` xuống hợp đồng mount', async () => {
+    const seen: Array<Record<string, unknown>> = [];
+    const loadMount = (() =>
+      Promise.resolve({
+        mount: (_element: HTMLElement, options: Record<string, unknown>) => {
+          seen.push(options);
+          return { dispose: vi.fn() };
+        },
+      })) as unknown as () => Promise<never>;
+
+    mountHook({ graph: GRAPH, loadMount, explodeLevels: true });
+
+    await vi.waitFor(() => {
+      expect(seen).toHaveLength(1);
+    }, { timeout: ASYNC_TIMEOUT_MS });
+    expect(seen[0]?.['explodeLevels']).toBe(true);
+  });
+});

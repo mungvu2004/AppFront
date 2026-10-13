@@ -79,6 +79,8 @@ export interface PascalMountOptions {
   readonly onCommitRejected?: (message: string) => void;
   /** Người dùng vừa hoàn tác/làm lại — xem `PascalFrameProps.onHistoryJump` (A8). */
   readonly onHistoryJump?: (kind: PascalHistoryJump) => void;
+  /** Mở ở chế độ tách tầng (`/3d?view=exploded`, F-15 W2-C2). */
+  readonly explodeLevels?: boolean;
 }
 
 /**
@@ -110,6 +112,7 @@ export function mount(element: HTMLElement, options: PascalMountOptions): Pascal
           onSaveStatus={options.onSaveStatus}
           validateCommit={options.validateCommit}
           onCommitRejected={options.onCommitRejected}
+          explodeLevels={options.explodeLevels ?? false}
           onReadyChange={options.onReadyChange}
           onFatal={options.onFatal}
           onSceneLoaded={options.onSceneLoaded}
