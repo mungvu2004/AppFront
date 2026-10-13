@@ -30,6 +30,38 @@ export type HistoryCommandDelegate = {
   undo: () => HistoryCommandResult
 }
 
+/**
+ * A history jump the user actually made, as opposed to the internal rollbacks
+ * `use-auto-save` and the selection affordance manager perform: those call
+ * `useScene.temporal` straight and never reach `runUndo`/`runRedo`.
+ *
+ * AppFront needs this for invariant A8 — every change is undoable and says so
+ * with a toast. The host cannot derive it from `subscribeHistoryCommandState`,
+ * which fires on every scene commit and cannot tell a jump from an edit.
+ */
+export type HistoryJumpKind = 'undo' | 'redo'
+
+export type HistoryJumpListener = (kind: HistoryJumpKind) => void
+
+const historyJumpListeners = new Set<HistoryJumpListener>()
+
+export function subscribeHistoryJumps(listener: HistoryJumpListener): () => void {
+  historyJumpListeners.add(listener)
+  return () => {
+    historyJumpListeners.delete(listener)
+  }
+}
+
+function emitHistoryJump(kind: HistoryJumpKind): void {
+  for (const listener of [...historyJumpListeners]) {
+    try {
+      listener(kind)
+    } catch (error) {
+      console.error('[History] History jump listener failed', error)
+    }
+  }
+}
+
 let historyCommandDelegate: HistoryCommandDelegate | null = null
 let historyCommandDelegateSubscription: (() => void) | null = null
 const historyCommandListeners = new Set<() => void>()
@@ -135,7 +167,10 @@ export function runUndo(): HistoryCommandResult {
     const result = historyCommandDelegate.undo()
     // Mark only real jumps: a no-op undo must not open a receipt (or
     // interrupt one that is still settling).
-    if (result.kind !== 'empty') markPerfAction('undo')
+    if (result.kind !== 'empty') {
+      markPerfAction('undo')
+      emitHistoryJump('undo')
+    }
     return result
   }
   if (useScene.temporal.getState().pastStates.length === 0) return { kind: 'empty' }
@@ -143,6 +178,7 @@ export function runUndo(): HistoryCommandResult {
   const previewLayout = capturePreviewLayout()
   useScene.temporal.getState().undo()
   refreshSceneAfterHistoryJump(previewLayout)
+  emitHistoryJump('undo')
   return { kind: 'applied', persistence: 'local' }
 }
 
@@ -150,7 +186,10 @@ export function runRedo(): HistoryCommandResult {
   if (shouldCancelDraftOnHistoryJump()) emitter.emit('tool:cancel')
   if (historyCommandDelegate) {
     const result = historyCommandDelegate.redo()
-    if (result.kind !== 'empty') markPerfAction('redo')
+    if (result.kind !== 'empty') {
+      markPerfAction('redo')
+      emitHistoryJump('redo')
+    }
     return result
   }
   if (useScene.temporal.getState().futureStates.length === 0) return { kind: 'empty' }
@@ -158,6 +197,7 @@ export function runRedo(): HistoryCommandResult {
   const previewLayout = capturePreviewLayout()
   useScene.temporal.getState().redo()
   refreshSceneAfterHistoryJump(previewLayout)
+  emitHistoryJump('redo')
   return { kind: 'applied', persistence: 'local' }
 }
 

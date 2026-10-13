@@ -66,6 +66,15 @@ export const PASCAL_REJECTED_NOTIFICATION_TYPE = 'pascal.edit.rejected';
 /** Tiêu đề toast khi lượt sửa bị chặn; lý do đi vào phần mô tả. */
 export const PASCAL_REJECTED_TITLE = 'Không ghi được thay đổi';
 
+/** Loại thông báo của một cú nhảy lịch sử — toast gom theo loại (A8). */
+export const PASCAL_HISTORY_NOTIFICATION_TYPE = 'pascal.history.jump';
+
+/** Câu toast cho hai chiều của lịch sử, tiếng Việt kiểu câu (A6, A8). */
+export const PASCAL_HISTORY_TITLES = {
+  undo: 'Đã hoàn tác thay đổi gần nhất',
+  redo: 'Đã làm lại thay đổi vừa hoàn tác',
+} as const;
+
 export interface PascalViewerContainerProps {
   readonly graph: SpatialGraph | null;
   /**
@@ -131,6 +140,20 @@ function PascalViewerBody({
   const roles: readonly ProjectRole[] = storeRoles.length > 0 ? storeRoles : session.roles;
   const isReadOnly = readOnly ?? !can('edit', 'layer', { roles });
 
+  /* A8 — mọi thay đổi hoàn tác được, KÈM TOAST. Không có nút lưu (A7), nên
+     toast này là chỗ duy nhất nói ra rằng cú nhảy vừa rồi đã thành việc thật
+     và đang trên đường lưu. Chỉ cú nhảy người dùng bấm mới tới đây — xem
+     `PascalFrameProps.onHistoryJump`. */
+  const onHistoryJump = useCallback(
+    (kind: 'undo' | 'redo') => {
+      publish({
+        title: PASCAL_HISTORY_TITLES[kind],
+        type: PASCAL_HISTORY_NOTIFICATION_TYPE,
+      });
+    },
+    [publish],
+  );
+
   const onRejected = useCallback(
     (reason: string) => {
       publish({
@@ -159,6 +182,7 @@ function PascalViewerBody({
     onSceneCommit,
     validateCommit,
     onCommitRejected: onRejected,
+    onHistoryJump,
     ...(collapsed === undefined ? {} : { collapsed }),
     ...(loadMount === undefined ? {} : { loadMount }),
   });
