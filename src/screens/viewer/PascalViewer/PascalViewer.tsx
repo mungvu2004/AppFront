@@ -140,6 +140,7 @@ export function PascalViewer({
   panels,
   activePanel,
   onPanelChange,
+  sceneOverlay,
 }: PascalViewerProps) {
   const { state, caption, summary, skipped, errorCode, saveLabel } = viewModel;
 
@@ -256,6 +257,7 @@ export function PascalViewer({
               aria-label="Khung dựng mô hình 3D"
               className="absolute inset-0 overflow-hidden rounded-md border border-border-default bg-bg-sunken"
             />
+            {sceneOverlay}
             {isBooting && (
               <div className="absolute inset-0">
                 <Skeleton />

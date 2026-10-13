@@ -109,6 +109,8 @@ export interface PascalViewerProps {
   readonly activePanel?: PascalSidePanelId | null | undefined;
   /** Bấm một tab: mở nó, hoặc đóng nếu nó đang mở. */
   readonly onPanelChange?: ((panel: PascalSidePanelId | null) => void) | undefined;
+  /** Lớp phủ DOM đè lên khung 3D (ghim cộng tác) — cùng ô `relative` với canvas. */
+  readonly sceneOverlay?: React.ReactNode;
 }
 
 /** Nhãn tiếng Việt cho từng trạng thái, viết thường kiểu câu (A6). */
