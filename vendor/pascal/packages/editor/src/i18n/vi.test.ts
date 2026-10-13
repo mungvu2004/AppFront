@@ -58,6 +58,7 @@ const FRAGMENT_OR_LOANWORD_EXEMPT = new Set([
   "ảnh hướng dẫn",
   "vt",
   "xoay",
+  "Xoay",
   "tl",
   "đổi cỡ",
   "đặt tỉ lệ",
