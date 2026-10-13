@@ -55,4 +55,9 @@ export const roomArea = {
   renamed: (name: string) => `Đã đổi tên thành "${name}"`,
   undoRename: "Hoàn tác",
   readOnlyRename: "Vai chỉ xem không đổi được tên phòng",
+
+  loading: "Đang nạp danh sách phòng…",
+  errorTitle: "Không đo được phòng nào",
+  partialTitle: "Có phòng chưa đo được",
+  forbiddenNotice: "Bạn đang ở vai người xem — xem được bảng nhưng không đổi được tên phòng.",
 } as const;
