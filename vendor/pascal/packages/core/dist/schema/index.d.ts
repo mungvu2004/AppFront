@@ -71,6 +71,7 @@ export { buildEnabledWallFaceBandPatch, buildWallFaceBandCountPatch, getEffectiv
 export { WindowConstructionType, WindowDimensionReference, WindowNode, WindowType, } from './nodes/window.js';
 export { ZoneNode } from './nodes/zone.js';
 export { PROVENANCE_MAX_ID_BYTES, PROVENANCE_MAX_LINEAGE_IDS, PROVENANCE_MAX_NAMESPACE_BYTES, PROVENANCE_MAX_NODE_ID_BYTES, PROVENANCE_MAX_REFS, Provenance, ProvenanceLineage, ProvenanceLineageOp, ProvenanceRef, ProvenanceRole, } from './provenance.js';
+export { Review, type ReviewState, ReviewSource, reviewStateOf, SUSPECT_CONFIDENCE } from './review.js';
 export { generateSceneMaterialId, SceneMaterial, type SceneMaterialId } from './scene-material.js';
 export { type ParsedSourceRef, parseSourceRef, SourceRefString } from './source-ref.js';
 export { MAX_TERRAIN_SIDE, TerrainData } from './terrain.js';

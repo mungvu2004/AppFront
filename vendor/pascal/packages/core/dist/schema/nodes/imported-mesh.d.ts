@@ -50,6 +50,14 @@ export declare const ImportedMeshNode: z.ZodObject<{
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     id: z.ZodDefault<z.ZodTemplateLiteral<`imesh_${string}`>>;
     type: z.ZodDefault<z.ZodLiteral<"imported-mesh">>;
     position: z.ZodDefault<z.ZodTuple<[z.ZodNumber, z.ZodNumber, z.ZodNumber], null>>;

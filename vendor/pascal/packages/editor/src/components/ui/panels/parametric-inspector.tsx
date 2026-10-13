@@ -24,6 +24,7 @@ import { IconRefImage } from '../icon-ref'
 import { ActionButton, ActionGroup } from '../controls/action-button'
 import { PanelSection } from '../controls/panel-section'
 import { ParametricFieldControl } from './parametric-field-control'
+import { ReviewSection } from './review-section'
 import { InspectorFooterContext, PanelWrapper } from './panel-wrapper'
 
 /**
@@ -167,6 +168,7 @@ export function ParametricInspector({
           <CustomPanelSlot Component={TrailingSection} nodeId={selectedId} />
         </Suspense>
       )}
+      <ReviewSection nodeId={selectedId} onUpdate={handleUpdate} />
       {(canMove || canDelete || (parametrics.actions && parametrics.actions.length > 0)) && (
         <PanelSection title={vi.parametricInspector.actions}>
           <ActionGroup className={isZone ? 'flex-col' : parametrics.actions?.length ? 'grid grid-cols-2 gap-2' : undefined}>

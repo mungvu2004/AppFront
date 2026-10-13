@@ -125,6 +125,11 @@ export declare function prepareProceduralPlacement(recipe: Recipe, nodes: QueryN
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
     wallId?: string | undefined;
     side?: "front" | "back" | undefined;
     supportSlabId?: string | undefined;
