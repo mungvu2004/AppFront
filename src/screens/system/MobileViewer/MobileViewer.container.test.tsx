@@ -1,37 +1,20 @@
 /**
- * Lớp gộp: cảnh 3D có thật sự nhận được HÌNH không.
+ * Lớp gộp: cảnh Pascal có thật sự nhận được ĐỒ THỊ và đưa kết quả chạm/đo về không.
  *
- * ## Vì sao file này tồn tại
+ * Đi qua ĐÚNG đường sản phẩm — `MobileViewerContainer` → `lazy()` →
+ * `ConnectedMobileViewer` → `useMobileViewer` — với một `mountScene` giả (không
+ * chạm WebGL, không nạp gói Pascal), rồi:
  *
- * Hợp đồng bản đầu chỉ cấp `floorIds: readonly string[]` cho cảnh — MÃ tầng,
- * không phải hình. Với riêng mã tầng thì `mobileViewerScene.ts` không dựng được
- * một tam giác nào: cảnh lắp xong, `mount.ok` là `true`, cả bảy trạng thái xanh,
- * mọi cổng xanh — và người dùng nhìn vào một mô hình RỖNG. Một màn 3D rỗng mà
- * mọi cổng đều xanh là đúng thất bại mà bài kiểm này tồn tại để chặn, nên nó
- * không dừng ở "typecheck xanh":
+ * 1. đòi đồ thị đưa xuống khác rỗng và `toPascalScene` dựng được node từ nó;
+ * 2. gọi `onPick` bằng mã node Pascal và đòi tấm thông tin mở đúng đối tượng;
+ * 3. gọi `onMeasure` và đòi khoảng cách hiện theo A15 (dấu phẩy).
  *
- * 1. đi qua ĐÚNG đường sản phẩm — `MobileViewerContainer` → `lazy()` →
- *    `ConnectedMobileViewer` → `useMobileViewer` — chứ không gọi hook trần;
- * 2. bắt lấy `MobileViewerSceneOptions` mà container/hook thật sự đưa xuống;
- * 3. rồi **dựng hình thật** từ mảng `levels` ấy bằng `buildFloorAtDetail` và đòi
- *    số tam giác khác 0. Đây là bước không giả được: một `levels` rỗng, một
- *    `levels` toàn tầng không tường, hay một phép chuyển hỏng đều rơi ở đây.
- *
- * ## Ba thứ khác cũng chỉ chỗ này kiểm được
- *
- * - **R-62** — ranh giới lỗi là bản `components/feedback`, và nó có mặt thật.
- * - **R-73** — mọi chỗ tiêm đi xuyên container, nên một màn khác mở được màn này
- *   mà không viết thêm dòng logic nào.
- * - Hai tham số BẮT BUỘC của hook (`mountScene`, `NotificationBus`) có người
- *   cấp — thiếu một trong hai là lỗi biên dịch, nhưng "có mặc định THẬT" thì chỉ
- *   chạy mới biết.
- *
- * Cảnh vào bằng chỗ tiêm nên không lượt nào chạm WebGL; `three` vẫn được nhập
- * (module cảnh nằm sau `lazy()`), và đó là ý muốn — nhánh nhập ấy cũng phải chạy
- * được trong `jsdom`.
+ * Hai thứ khác cũng chỉ chỗ này kiểm được: ranh giới lỗi `components/feedback`
+ * có mặt thật (R-62), và mọi chỗ tiêm đi xuyên container (R-73).
  */
 
-import { waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
 import type { ProjectsApi } from '@/api/client';
@@ -40,14 +23,11 @@ import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { NotificationInput } from '@/lib/mutations/notificationBus';
 import type { NetworkMonitor, NetworkMonitorStatus } from '@/lib/offline/networkMonitor';
 import { renderWithProviders } from '@/lib/testing/render';
-import { buildFloorAtDetail } from '@/lib/three/build/lod';
+import { toPascalScene } from '@/lib/pascal/toPascal';
 
 import { MobileViewerContainer } from './MobileViewer.container';
 import type { MobileViewerGateway } from './mobileViewerGateway';
-import {
-  MOBILE_VIEWER_MODEL_TOKEN,
-  type MobileViewerSceneOptions,
-} from './mobileViewerTypes';
+import type { MobileViewerSceneOptions } from './mobileViewerTypes';
 
 /*
  * Nạp trước nhánh sau `lazy()` — ở PHẠM VI MODULE, không trong thân hàm mà bài kiểm gọi.
@@ -55,7 +35,7 @@ import {
  * Lượt nạp này từng nằm trong `mountContainer()`, kèm đúng lời giải thích rằng nó tồn tại để
  * `waitFor` bên dưới chỉ đo việc của màn chứ không đo lượt biên dịch `three`. Chẩn đoán đúng,
  * chỗ đặt sai: `mountContainer()` được gọi TỪ TRONG bài kiểm, nên lượt biên dịch `three` cùng
- * ~15 module `lib/three` vẫn đếm vào 5 000 ms của bài. Nhập tĩnh ở đây đưa nó sang pha
+ * ~15 module của cảnh vẫn đếm vào 5 000 ms của bài. Nhập tĩnh ở đây đưa nó sang pha
  * `collect`, pha không bị `testTimeout` chặn.
  *
  * `lazy()` trong `MobileViewer.container.tsx` KHÔNG đổi — promise của nó chỉ phân giải từ cache
@@ -65,9 +45,6 @@ import './MobileViewer.connected';
 
 const SPATIAL = normalizeSpatial(createSampleBuilding());
 const PROJECT_ID = 'P-000000001';
-
-/** Bộ mẫu A14 có bốn tầng; con số này là thứ phép chuyển phải giữ nguyên. */
-const FIXTURE_STOREY_COUNT = 4;
 
 function projectsApiOf(): Pick<ProjectsApi, 'read'> {
   return {
@@ -129,12 +106,7 @@ async function mountContainer(): Promise<Mounted> {
 
         return {
           ok: true,
-          handle: {
-            setActiveFloor: () => undefined,
-            currentDetail: () => 'block',
-            pickMeasurePoint: () => null,
-            dispose: () => undefined,
-          },
+          handle: { dispose: () => undefined },
         };
       }}
       notifications={{ publish: (input) => notices.push(input) }}
@@ -162,77 +134,56 @@ async function mountContainer(): Promise<Mounted> {
   };
 }
 
-/* -------------------------------------------------------------------------- */
-/* Lỗ hổng đã biết: `levels` có xuống tới cảnh không.                          */
-/* -------------------------------------------------------------------------- */
-
-describe('MobileViewerContainer — cảnh nhận được HÌNH, không chỉ mã tầng', () => {
-  it('truyền xuống một `levels` khác rỗng, đúng một mục cho mỗi tầng của đồ thị', async () => {
+describe('MobileViewerContainer — cảnh Pascal nhận đồ thị và trả kết quả về', () => {
+  it('truyền xuống đồ thị khác rỗng mà Pascal dựng được node từ nó', async () => {
     const mounted = await mountContainer();
-    const options = mounted.options();
+    const { graph, measure } = mounted.options();
 
-    expect(options.levels).toHaveLength(FIXTURE_STOREY_COUNT);
-    expect(options.floorIds).toHaveLength(FIXTURE_STOREY_COUNT);
-    expect(options.levels.map((level) => level.level.id)).toEqual([...options.floorIds]);
+    expect(graph.walls.length).toBeGreaterThan(0);
+    expect(graph.rooms.length).toBeGreaterThan(0);
+    expect(measure).toBe(false);
+    expect(Object.keys(toPascalScene(graph).scene.nodes).length).toBeGreaterThan(0);
 
     mounted.unmount();
   });
 
-  it('mỗi tầng mang tường và phòng thật — một mảng đúng độ dài mà rỗng ruột vẫn là mô hình rỗng', async () => {
+  it('chạm một tường (mã node Pascal) thì mở tấm thông tin đúng đối tượng', async () => {
     const mounted = await mountContainer();
-    const { levels } = mounted.options();
+    const wall = mounted.options().graph.walls[0];
 
-    // Một vòng lặp trên mảng rỗng khẳng định được đúng không gì cả; chốt độ dài
-    // trước rồi mới đi vào từng mục.
-    expect(levels.length).toBeGreaterThan(0);
+    expect(wall).toBeDefined();
+    act(() => mounted.options().onPick(`wall_${wall?.id ?? ''}`));
 
-    for (const input of levels) {
-      expect(input.walls.length).toBeGreaterThan(0);
-      expect(input.rooms.length).toBeGreaterThan(0);
-    }
+    await waitFor(() => {
+      expect(screen.getByText(`Tường ${wall?.id ?? ''}`)).toBeTruthy();
+    });
 
     mounted.unmount();
   });
 
-  it('dựng được hình THẬT từ `levels` ấy: số tam giác của mức `block` khác 0', async () => {
+  it('chạm khoảng trống hoặc node lạ thì không mở gì', async () => {
     const mounted = await mountContainer();
 
-    let triangles = 0;
+    act(() => mounted.options().onPick('wall_k3n9lạ'));
+    act(() => mounted.options().onPick(null));
 
-    for (const input of mounted.options().levels) {
-      const group = buildFloorAtDetail(input, 'block');
-
-      group.traverse((object) => {
-        const geometry = (object as { geometry?: { getAttribute?: (name: string) => unknown } })
-          .geometry;
-        const position = geometry?.getAttribute?.('position') as { count?: number } | undefined;
-
-        if (position?.count !== undefined) {
-          triangles += position.count;
-        }
-      });
-    }
-
-    expect(triangles).toBeGreaterThan(0);
+    expect(screen.queryByRole('dialog')).toBeNull();
 
     mounted.unmount();
   });
 
-  it('cấp `tokenOfPartKind`, và nó trả về đúng token DUY NHẤT của hợp đồng', async () => {
-    const mounted = await mountContainer();
-    const { tokenOfPartKind } = mounted.options();
-
-    expect(tokenOfPartKind).toBeTypeOf('function');
-    expect(tokenOfPartKind?.('wall')).toBe(MOBILE_VIEWER_MODEL_TOKEN);
-    expect(tokenOfPartKind?.('floorSlab')).toBe(MOBILE_VIEWER_MODEL_TOKEN);
-
-    mounted.unmount();
-  });
-
-  it('mở màn ở mức gọn — R-04 đòi thấy khối nhà trước, chi tiết sau', async () => {
+  it('một phép đo xong thì hiện khoảng cách dấu phẩy (A15)', async () => {
     const mounted = await mountContainer();
 
-    expect(mounted.options().initialDetail).toBe('block');
+    await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: /^Đo/ }));
+    await waitFor(() => {
+      expect(mounted.options().measure).toBe(true);
+    });
+    act(() => mounted.options().onMeasure(3.45));
+
+    await waitFor(() => {
+      expect(screen.getByText(/3,45/)).toBeTruthy();
+    });
 
     mounted.unmount();
   });

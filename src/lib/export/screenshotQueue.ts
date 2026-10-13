@@ -49,10 +49,10 @@ import type { LevelId } from '@/domain/spatial/types';
 import { formatNumber } from '@/lib/format/number';
 
 import {
-  captureViewport,
+  captureCanvas,
+  type CaptureCanvasInput,
   type CaptureHostOptions,
   type CaptureResult,
-  type CaptureViewportInput,
 } from './screenshot';
 
 /* -------------------------------------------------------------------------- */
@@ -194,11 +194,11 @@ export const QUEUE_CANCELLED_MESSAGE = 'Đã huỷ chụp hàng loạt; các t�
  * });
  */
 export function createFloorCapture(
-  input: CaptureViewportInput,
+  input: CaptureCanvasInput,
   host: CaptureHostOptions = {},
 ): (job: ScreenshotJob) => Promise<CaptureResult> {
   return (job) =>
-    captureViewport(
+    captureCanvas(
       input.info === undefined
         ? input
         : { ...input, info: { ...input.info, levelName: job.levelName } },

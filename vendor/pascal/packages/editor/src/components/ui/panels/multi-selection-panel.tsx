@@ -15,6 +15,7 @@ import useSessionGroups, {
   ungroupCurrentSelection,
 } from '../../../store/use-session-groups'
 import { ActionButton, ActionGroup } from '../controls/action-button'
+import { controlsAndPanels as vi } from '../../../i18n/regions/controlsAndPanels'
 import { PanelWrapper } from './panel-wrapper'
 import { formatSelectionBreakdown } from './selection-breakdown'
 
@@ -37,28 +38,28 @@ export function MultiSelectionActions() {
       {showGroup && (
         <ActionButton
           icon={<Group className="h-4 w-4" />}
-          label="Group"
+          label={vi.multiSelectionPanel.group}
           onClick={() => groupCurrentSelection()}
-          title="Group (Ctrl/Cmd+G)"
+          title={vi.multiSelectionPanel.groupShortcut}
         />
       )}
       {showUngroup && (
         <ActionButton
           icon={<Ungroup className="h-4 w-4" />}
-          label="Ungroup"
+          label={vi.multiSelectionPanel.ungroup}
           onClick={() => ungroupCurrentSelection()}
-          title="Ungroup (Ctrl/Cmd+Shift+G)"
+          title={vi.multiSelectionPanel.ungroupShortcut}
         />
       )}
       <ActionButton
         icon={<Copy className="h-4 w-4" />}
-        label="Duplicate"
+        label={vi.multiSelectionPanel.duplicate}
         onClick={() => duplicateSelectionAndPickUp()}
       />
       <ActionButton
         className="border-red-500/40 text-red-200 hover:bg-red-500/15"
         icon={<Trash2 className="h-4 w-4 text-red-400" />}
-        label="Delete"
+        label={vi.multiSelectionPanel.delete}
         onClick={() => deleteSelection()}
       />
     </ActionGroup>
@@ -90,15 +91,14 @@ export function MultiSelectionPanel({ footer }: { footer?: React.ReactNode }) {
       title={
         matchedGroup
           ? `${matchedGroup.label} · ${selectedIds.length}`
-          : `${selectedIds.length} selected`
+          : vi.multiSelectionPanel.selectedCount(selectedIds.length)
       }
       width={320}
     >
       {breakdown && <div className="px-3 py-3 text-muted-foreground text-xs">{breakdown}</div>}
       {matchedGroup && (
         <div className="border-border/50 border-t px-3 py-2 text-muted-foreground text-xs">
-          {matchedGroup.label} (session only). Plain click reselects all members. Not saved with the
-          project.
+          {matchedGroup.label} {vi.multiSelectionPanel.sessionGroupNotSaved}
         </div>
       )}
       <div className="border-border/50 border-t p-3">

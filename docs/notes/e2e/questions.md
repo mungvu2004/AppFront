@@ -1305,7 +1305,7 @@ Ba câu; câu nào cũng có số đã đo. Không hỏi câu nào mà dữ ki�
 **Số đo:** trong nhóm này — tường: `Duyệt lớp tường`, `Cây lớp`, `Thanh trạng thái`, **`Ẩn lớp Tường`** (hoa giữa câu); kích thước: `Bản vẽ lớp kích thước OCR`, `Kích thước đọc được`; trục: `Căn chỉnh tự động`; đối tượng viết thường (`lớp đối tượng`, `cây lớp`) [V6 F7]. Ngoài nhóm (đo V1/V3 cùng đợt): dashboard `Dự án của tôi`, `Dự án mới`, login `Đăng nhập`, `Thư điện tử`; còn cài đặt dự án viết thường (`tên dự án`, `cài đặt dự án`). Quy tắc: `CLAUDE.md` A6 — "viết thường, kiểu câu. Ngoại lệ chữ hoa: mã trục, mã lỗi, tên phím".
 - **A.** Đọc nghiêm: chữ đầu cũng viết thường ⇒ ca quét đỏ trên hàng chục nhãn ở nhiều màn (không chỉ nhóm này).
 - **B.** Đọc "kiểu câu" = hoa chữ đầu câu được; ca chỉ bắt chữ hoa **giữa câu** (như `Ẩn lớp Tường`) và mã máy lọt lên giao diện (P2).
-- **Khuyến nghị: B** cho e2e, vì A biến nợ toàn ứng dụng thành hàng chục ca đỏ ở một nhóm (cùng tinh thần "cấm biến nợ A6 thành 16 ca đỏ"). Đề nghị người dùng chốt câu chữ của A6 ở `CLAUDE.md` trước khi ca quét được viết.
+- **Khuyến nghị: B** cho e2e, vì A biến nợ toàn ứng dụng thành hàng chục ca đỏ ở một nhóm (nhãn Pascal đã Việt hoá trong vendor (F-15), không còn ca đỏ cần cấm riêng). Đề nghị người dùng chốt câu chữ của A6 ở `CLAUDE.md` trước khi ca quét được viết.
 
 ### Q3 — Ca "nói thật về tự lưu" của tường: ghim hiện trạng hay bỏ tới khi có endpoint?
 **Số đo:** sau xoá, thanh trạng thái đọc "Có thay đổi chưa lưu" ở 0 s **và vẫn ở 1,3 s** ([V6 F3]); `persistWallLayer` NOT FOUND (`wallLayerReviewGateway.ts:39` [✓]); nút chứa chữ "lưu": 0/35 màn (HOP-DONG mục 2). Sau chuỗi thử lại 5/15/45 s hiện gì: **chưa đo** — nhưng không quyết định câu này (ca W-2 chỉ khẳng định KHÔNG có chữ `/Đã lưu/`).

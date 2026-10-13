@@ -34,7 +34,7 @@ const roundTrip = (graph: SpatialGraph): SpatialGraph =>
 const byId = <T extends { id: string }>(items: readonly T[]): readonly T[] =>
   [...items].sort((left, right) => left.id.localeCompare(right.id));
 
-/** Phần đồ thị mà lượt đi có mang sang — trục, kích thước và ghi chú thì không. */
+/** Phần đồ thị mà lượt đi có mang sang — kích thước và ghi chú thì không. */
 const surviving = (graph: SpatialGraph): unknown => ({
   building: graph.building,
   levels: byId(graph.levels),
@@ -79,10 +79,24 @@ describe('toPascalScene — lượt đi', () => {
     expect(countOf('item')).toBe(SAMPLE_FURNITURE_COUNT);
   });
 
-  it('bỏ qua trục định vị, kích thước và ghi chú — mỗi thứ kèm một lý do đọc được', () => {
-    expect(skipped).toHaveLength(SAMPLE_AXIS_COUNT + SAMPLE_DIMENSION_COUNT + 1);
+  it('đặt tên tường theo loại và số thứ tự trong tầng, không lộ mã nội bộ', () => {
+    const walls = Object.values(scene.nodes).filter((node) => node.type === 'wall');
+    const names = walls.map((node) => node.name);
+
+    expect(names.every((name) => /^(Tường chịu lực|Vách ngăn|Tường bao) \d+$/.test(String(name)))).toBe(true);
+    expect(names.some((name) => String(name).includes('FIXTURE'))).toBe(false);
+  });
+
+  it('dựng mỗi trục định vị thành một node structural-grid, mét thay milimét', () => {
+    const grids = Object.values(scene.nodes).filter((node) => node.type === 'structural-grid');
+
+    expect(grids).toHaveLength(SAMPLE_AXIS_COUNT);
+    expect(grids[1]?.type === 'structural-grid' ? grids[1].start : null).toEqual([0, 3]);
+  });
+
+  it('bỏ qua kích thước và ghi chú — mỗi thứ kèm một lý do đọc được', () => {
+    expect(skipped).toHaveLength(SAMPLE_DIMENSION_COUNT + 1);
     expect(skipped.every((item) => item.reason.length > 0)).toBe(true);
-    expect(skipped.filter((item) => item.kind === 'trục định vị')).toHaveLength(SAMPLE_AXIS_COUNT);
     expect(skipped.filter((item) => item.kind === 'kích thước')).toHaveLength(SAMPLE_DIMENSION_COUNT);
     expect(skipped.filter((item) => item.kind === 'ghi chú')).toHaveLength(1);
   });
@@ -129,8 +143,11 @@ describe('vòng tròn AppFront → Pascal → AppFront', () => {
     expect(surviving(returned)).toEqual(surviving(original));
   });
 
-  it('trả trục, kích thước và ghi chú về rỗng — lượt đi không mang chúng sang', () => {
-    expect(returned.axes).toEqual([]);
+  it('trả đủ trục định vị: id, nhãn, hướng, hai đầu, dấu xác minh', () => {
+    expect(byId(returned.axes)).toEqual(byId(original.axes));
+  });
+
+  it('trả kích thước và ghi chú về rỗng — lượt đi không mang chúng sang', () => {
     expect(returned.dimensions).toEqual([]);
     expect(returned.notes).toEqual([]);
   });

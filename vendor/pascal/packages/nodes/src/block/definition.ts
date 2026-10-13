@@ -13,6 +13,7 @@ import { blockParametrics } from './parametrics'
 import { BlockNode } from './schema'
 import { blockSlots } from './slots'
 import { blockSurfaceProvider } from './surface'
+import { vi } from '../i18n/vi'
 
 export function blockBounds(node: BlockNodeType) {
   const xs = node.topology.vertices.map((vertex) => vertex.position[0])
@@ -124,11 +125,11 @@ export const blockDefinition: NodeDefinition<typeof BlockNode> = {
   preview: () => import('./preview'),
   tool: () => import('./tool'),
   toolHints: [
-    { key: 'Left click', label: 'Place block' },
-    { key: 'Esc', label: 'Cancel' },
+    { key: 'Left click', label: vi.block.shortcuts.place },
+    { key: 'Esc', label: vi.block.shortcuts.cancel },
   ],
   presentation: {
-    label: 'Block',
+    label: vi.block.catalogLabel,
     description: 'A topology-backed solid edited directly in the canvas.',
     icon: { kind: 'url', src: '/icons/cube.webp' },
     paletteSection: 'structure',

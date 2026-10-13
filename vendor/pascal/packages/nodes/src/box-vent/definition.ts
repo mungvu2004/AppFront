@@ -8,6 +8,7 @@ import { buildBoxVentFloorplan } from './floorplan'
 import { boxVentPaint } from './paint'
 import { boxVentParametrics } from './parametrics'
 import { BoxVentNode } from './schema'
+import { vi } from '../i18n/vi'
 
 // Edge-to-arrow-center offset, matching the chimney / dormer cadence.
 const SIDE_HANDLE_OFFSET = 0.25
@@ -188,8 +189,8 @@ export const boxVentDefinition: NodeDefinition<typeof BoxVentNode> = {
 
   capabilities: {
     slots: () => [
-      { slotId: 'base', label: 'Base', default: 'library:preset-softwhite' },
-      { slotId: 'top', label: 'Top', default: 'library:preset-softwhite' },
+      { slotId: 'base', label: vi.boxVent.slots.base, default: 'library:preset-softwhite' },
+      { slotId: 'top', label: vi.boxVent.slots.top, default: 'library:preset-softwhite' },
     ],
     selectable: { hitVolume: 'bbox' },
     duplicable: true,
@@ -217,12 +218,12 @@ export const boxVentDefinition: NodeDefinition<typeof BoxVentNode> = {
     move: () => import('./move-tool'),
   },
   toolHints: [
-    { key: 'Left click', label: 'Place box vent on roof' },
-    { key: 'Esc', label: 'Cancel' },
+    { key: 'Left click', label: vi.boxVent.shortcuts.place },
+    { key: 'Esc', label: vi.boxVent.shortcuts.cancel },
   ],
 
   presentation: {
-    label: 'Box Vent',
+    label: vi.boxVent.catalogLabel,
     description: 'Small louvered exhaust vent that sits on a roof slope.',
     icon: { kind: 'url', src: '/icons/box-vent.webp' },
     paletteSection: 'structure',

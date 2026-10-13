@@ -22,6 +22,7 @@
  */
 
 import type {
+  Axis,
   Building,
   Furniture,
   FurnitureKind,
@@ -32,7 +33,7 @@ import type {
   Wall,
 } from '@/domain/spatial/types';
 import { degrees, degreesToRadians, millimetres, millimetresToMetres } from '@/domain/units/types';
-import { FURNITURE_KIND_LABELS } from '@/lib/commands/business/shared';
+import { FURNITURE_KIND_LABELS, WALL_KIND_LABELS } from '@/lib/commands/business/shared';
 
 import { BUILDING_NODE_ID, SITE_NODE_ID, toPascalId } from './ids';
 import type {
@@ -43,8 +44,10 @@ import type {
   PascalNode,
   PascalNodeId,
   PascalPoint2,
+  PascalReview,
   PascalSiteNode,
   PascalSlabNode,
+  PascalStructuralGridNode,
   PascalVec3,
   PascalWallNode,
   PascalWindowNode,
@@ -128,6 +131,30 @@ const originOf = (
   ...(fields === undefined ? {} : { fields }),
 });
 
+/**
+ * Trường `review` hạng nhất, dẫn ra từ chính `metadata.appfront` vừa gắn.
+ *
+ * Làm thành **một lượt trên cây đã dựng** thay vì thêm `review:` vào tám chỗ
+ * gọi `originOf`: tám chỗ thì chỉ cần một chỗ quên là một bức tường đi sang
+ * Pascal không có trạng thái duyệt, và không có phép kiểm nào bắt được. Ở đây
+ * thì không node nào có `metadata.appfront` mà thiếu `review`, theo cấu trúc.
+ */
+const withReviewField = (nodes: Record<PascalNodeId, PascalNode>): void => {
+  for (const [id, node] of Object.entries(nodes)) {
+    const origin = node.metadata?.appfront;
+
+    if (origin === undefined) continue;
+
+    const review: PascalReview = {
+      reviewed: origin.reviewed,
+      confidence: origin.confidence,
+      source: origin.source,
+    };
+
+    nodes[id] = { ...node, review };
+  }
+};
+
 const skip = (id: string, kind: string, reason: string): SkippedEntity => ({ id, kind, reason });
 
 /* -------------------------------------------------------------------------- */
@@ -192,14 +219,23 @@ const levelNodeOf = (
 /* Tường và ô mở.                                                              */
 /* -------------------------------------------------------------------------- */
 
+/** Tên node tường trên cây Pascal — thiếu `name` thì Pascal tự điền "Wall" (A6). */
+// Mã tường là khoá nội bộ (vd. W-000101FIXTURE0), không hiển thị: tên là loại + số thứ tự trong tầng.
+const wallNodeNameOf = (wall: Wall, ordinal: number): string => {
+  const kindLabel = WALL_KIND_LABELS[wall.kind];
+  return `${kindLabel.charAt(0).toUpperCase()}${kindLabel.slice(1)} ${ordinal}`;
+};
+
 const wallNodeOf = (
   wall: Wall,
+  ordinal: number,
   levelNodeId: PascalNodeId,
   children: readonly PascalNodeId[],
 ): PascalWallNode => ({
   object: 'node',
   id: toPascalId('wall', wall.id),
   type: 'wall',
+  name: wallNodeNameOf(wall, ordinal),
   parentId: levelNodeId,
   children,
   start: [metresOf(wall.centreline.start.x), metresOf(wall.centreline.start.y)],
@@ -302,6 +338,22 @@ const zoneNodeOf = (room: Room, levelNodeId: PascalNodeId): PascalZoneNode => ({
   },
 });
 
+/** Độ dài tối đa của nhãn trục trong lược đồ Pascal (`structural-grid.ts`). */
+const GRID_LABEL_MAX = 12;
+
+const gridNodeOf = (axis: Axis, levelNodeId: PascalNodeId): PascalStructuralGridNode => ({
+  object: 'node',
+  id: toPascalId('structural-grid', axis.id),
+  type: 'structural-grid',
+  parentId: levelNodeId,
+  start: [metresOf(axis.line.start.x), metresOf(axis.line.start.y)],
+  end: [metresOf(axis.line.end.x), metresOf(axis.line.end.y)],
+  label: axis.label.trim().slice(0, GRID_LABEL_MAX) || '?',
+  showStartBubble: true,
+  showEndBubble: true,
+  metadata: { appfront: originOf(axis, { direction: axis.direction, label: axis.label }) },
+});
+
 /** Chiều cao dựng hình của một món đồ, mét: thang lấy chiều cao tầng, còn lại lấy bảng. */
 const heightOfFurniture = (furniture: Furniture, levelHeightMm: number): number =>
   furniture.kind === 'stair'
@@ -328,13 +380,13 @@ const itemNodeOf = (
     rotation: [0, yawOf(furniture.rotationDeg), 0],
     scale: [1, 1, 1],
     asset: {
-      id: `appfront-${furniture.kind}`,
+      id: furniture.model?.id ?? `appfront-${furniture.kind}`,
       category: furniture.kind,
       name: label,
       thumbnail: '',
       // `asset://…` là dạng nội bộ mà `AssetUrl` nhận (`schema/asset-url.js`);
       // AppFront chưa có mô hình GLB cho đồ đạc nên đây là chỗ giữ chỗ hợp lệ.
-      src: `asset://appfront/${furniture.kind}`,
+      src: furniture.model?.src ?? `asset://appfront/${furniture.kind}`,
       dimensions: [widthM, heightM, depthM],
     },
     metadata: {
@@ -468,6 +520,7 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
   }
 
   const wallNodeIdOf = new Map<string, PascalNodeId>();
+  const wallCountOfLevel = new Map<string, number>();
 
   for (const wall of graph.walls) {
     const levelNodeId = levelNodeIdOf.get(wall.levelId);
@@ -491,7 +544,9 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
       continue;
     }
 
-    const node = wallNodeOf(wall, levelNodeId, childrenFor(toPascalId('wall', wall.id)));
+    const ordinal = (wallCountOfLevel.get(wall.levelId) ?? 0) + 1;
+    wallCountOfLevel.set(wall.levelId, ordinal);
+    const node = wallNodeOf(wall, ordinal, levelNodeId, childrenFor(toPascalId('wall', wall.id)));
 
     nodes[node.id] = node;
     wallNodeIdOf.set(wall.id, node.id);
@@ -578,7 +633,24 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
   }
 
   for (const axis of graph.axes) {
-    skipped.push(skip(axis.id, 'trục định vị', 'Pascal chưa có loại node nào cho trục định vị.'));
+    const levelNodeId = levelNodeIdOf.get(axis.levelId);
+
+    if (levelNodeId === undefined) {
+      skipped.push(skip(axis.id, 'trục định vị', `Trục thuộc tầng ${axis.levelId} mà tầng ấy không có trong bản vẽ.`));
+      continue;
+    }
+
+    const { start, end } = axis.line;
+
+    if (!isUsable(start.x, start.y, end.x, end.y)) {
+      skipped.push(skip(axis.id, 'trục định vị', 'Toạ độ hai đầu trục không phải một số đo được.'));
+      continue;
+    }
+
+    const node = gridNodeOf(axis, levelNodeId);
+
+    nodes[node.id] = node;
+    adopt(levelNodeId, node.id);
   }
 
   for (const dimension of graph.dimensions) {
@@ -619,6 +691,8 @@ export const toPascalScene = (graph: SpatialGraph): PascalSceneResult => {
     children: [BUILDING_NODE_ID],
     polygon: sitePolygonOf(nodes),
   };
+
+  withReviewField(nodes);
 
   return { scene: { nodes, rootNodeIds: [SITE_NODE_ID] }, skipped };
 };

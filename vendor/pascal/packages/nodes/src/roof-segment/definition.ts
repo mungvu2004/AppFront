@@ -15,6 +15,7 @@ import {
 import { matchRoofSegmentMeasurementFeature, roofSegmentMeasurementFeatures } from './measurement'
 import { roofSegmentParametrics } from './parametrics'
 import { RoofSegmentNode } from './schema'
+import { vi } from '../i18n/vi'
 
 const SIDE_HANDLE_OFFSET = 0.3
 const HEIGHT_HANDLE_OFFSET = 0.3
@@ -379,7 +380,7 @@ export const roofSegmentDefinition: NodeDefinition<typeof RoofSegmentNode> = {
   },
 
   presentation: {
-    label: 'Roof Segment',
+    label: vi.roofSegment.catalogLabel,
     description: 'A single pitched plane of a parent roof.',
     icon: { kind: 'url', src: '/icons/roof.webp' },
     paletteSection: 'structure',

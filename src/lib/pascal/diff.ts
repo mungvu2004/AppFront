@@ -70,6 +70,7 @@ const DEPTH_OF_TYPE: Readonly<Record<PascalNodeType, number>> = {
   zone: 3,
   slab: 3,
   item: 3,
+  'structural-grid': 3,
   door: 4,
   window: 4,
 };

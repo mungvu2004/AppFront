@@ -23,15 +23,25 @@ import {
   type AnyNodeId,
   type BuildingNode,
   DEFAULT_LEVEL_HEIGHT,
+  getLevelElevations,
   getStoredLevelHeight,
   LevelNode,
   useScene,
 } from '@pascal-app/core'
-import { markPerfAction, useViewer } from '@pascal-app/viewer'
 import {
+  findLevelMisalignments,
+  isLevelLabelVisible,
+  markPerfAction,
+  useLevelExplode,
+  useViewer,
+} from '@pascal-app/viewer'
+import {
+  AlertTriangle,
+  Box as BoxIcon,
   ClipboardPaste,
   Copy,
   GripVertical,
+  Image as ImageIcon,
   MoreVertical,
   Plus,
   Trash2,
@@ -56,6 +66,8 @@ import { deleteLevelWithFallbackSelection } from '../../lib/level-selection'
 import { unitMemberLevels, leaveUnitFocus } from '../../lib/units'
 import { useLinearDisplay } from '../../lib/use-linear-display'
 import { cn } from '../../lib/utils'
+import { controlsAndPanels as vi } from '../../i18n/regions/controlsAndPanels'
+import { overlayLevels as viLevels } from '../../i18n/regions/overlayLevels'
 import { ActionButton } from './controls/action-button'
 import { SliderControl } from './controls/slider-control'
 import { LevelDuplicateDialog } from './level-duplicate-dialog'
@@ -130,6 +142,140 @@ function LevelInlineRename({
 
 // ── Level row with three-dot menu ───────────────────────────────────────────
 
+/**
+ * What a level already holds — AppFront F-15 W2-D (#96).
+ *
+ * Picking a level to trace over is a guess until the selector says whether that
+ * level has a source image, geometry, both or nothing; the overlay flow asks
+ * exactly that question before anything is drawn. Read from the scene rather
+ * than passed in, so every caller of the selector gets the flags.
+ */
+function LevelSourceBadges({ levelId }: { levelId: AnyNodeId }) {
+  const flags = useScene(
+    useShallow((state) => {
+      let hasScan = false
+      let hasGeometry = false
+      for (const node of Object.values(state.nodes) as AnyNode[]) {
+        if (node.parentId !== levelId) continue
+        if (node.type === 'scan' || node.type === 'guide') hasScan = true
+        else if (node.type === 'wall' || node.type === 'zone' || node.type === 'slab') {
+          hasGeometry = true
+        }
+        if (hasScan && hasGeometry) break
+      }
+      return { hasScan, hasGeometry }
+    }),
+  )
+
+  if (!(flags.hasScan || flags.hasGeometry)) {
+    return (
+      <span className="ml-1.5 shrink-0 text-[9px] text-muted-foreground/40" title={viLevels.emptyLevel}>
+        —
+      </span>
+    )
+  }
+
+  return (
+    <span className="ml-1.5 flex shrink-0 items-center gap-1 text-muted-foreground/50">
+      {flags.hasScan && (
+        <span aria-label={viLevels.hasScan} title={viLevels.hasScan}>
+          <ImageIcon className="h-3 w-3" />
+        </span>
+      )}
+      {flags.hasGeometry && (
+        <span aria-label={viLevels.hasGeometry} title={viLevels.hasGeometry}>
+          <BoxIcon className="h-3 w-3" />
+        </span>
+      )}
+    </span>
+  )
+}
+
+const viNumber = (value: number) =>
+  value.toLocaleString('vi-VN', { maximumFractionDigits: 2, minimumFractionDigits: 1 })
+
+/**
+ * Elevation + AppFront floor area under a level row (#99). The area comes from
+ * `metadata.appfront.areaM2`, written by AppFront's `toPascalScene`; Pascal
+ * scenes without it show elevation only. Hidden until levels are pulled far
+ * enough apart (#100) so the stacked list stays compact.
+ */
+function LevelFacts({ level }: { level: LevelNode }) {
+  const visible = useLevelLabelVisible()
+  const baseY = useScene((s) => getLevelElevations(s.nodes).get(level.id)?.baseY ?? 0)
+  if (!visible) return null
+  const area = (level.metadata as { appfront?: { areaM2?: unknown } } | undefined)?.appfront
+    ?.areaM2
+  return (
+    <div className="pb-1 pl-6 text-[10px] text-muted-foreground/60 tabular-nums">
+      {viLevels.elevation(viNumber(baseY))}
+      {typeof area === 'number' && ` · ${viLevels.area(viNumber(area))}`}
+    </div>
+  )
+}
+
+function useLevelLabelVisible() {
+  const levelMode = useViewer((s) => s.levelMode)
+  const amount = useLevelExplode((s) => s.amount)
+  return isLevelLabelVisible(levelMode, amount)
+}
+
+/** Continuous 0 → 1 level separation (#31/#98); 0 is stacked. */
+function LevelExplodeSlider() {
+  const levelMode = useViewer((s) => s.levelMode)
+  const setLevelMode = useViewer((s) => s.setLevelMode)
+  const amount = useLevelExplode((s) => s.amount)
+  const setAmount = useLevelExplode((s) => s.setAmount)
+  const value = levelMode === 'exploded' ? amount : 0
+  return (
+    <label className="mt-1 flex items-center gap-2 rounded-lg border border-border bg-background/90 px-2 py-1 text-[10px] text-muted-foreground shadow-2xl backdrop-blur-md">
+      <span className="shrink-0">{viLevels.explode}</span>
+      <input
+        aria-label={viLevels.explode}
+        className="w-24 accent-primary"
+        max={1}
+        min={0}
+        onChange={(e) => {
+          const next = Number(e.target.value)
+          setAmount(next)
+          setLevelMode(next > 0 ? 'exploded' : 'stacked')
+        }}
+        step={0.05}
+        title={viLevels.explodeHint}
+        type="range"
+        value={value}
+      />
+    </label>
+  )
+}
+
+/** Warning for consecutive levels whose walls do not line up (#101). */
+function LevelMisalignmentWarnings() {
+  const visible = useLevelLabelVisible()
+  const warnings = useScene(
+    useShallow((s) =>
+      findLevelMisalignments(s.nodes).map((m) => {
+        const name = (id: string) => {
+          const node = s.nodes[id as AnyNodeId]
+          return node?.type === 'level' ? getLevelDisplayName(node as LevelNode) : id
+        }
+        return viLevels.misaligned(name(m.lowerLevelId), name(m.upperLevelId), viNumber(m.offsetM))
+      }),
+    ),
+  )
+  if (!visible || warnings.length === 0) return null
+  return (
+    <ul className="mt-1 max-w-56 space-y-0.5 rounded-lg border border-amber-500/40 bg-background/90 px-2 py-1 text-[10px] text-amber-500 shadow-2xl backdrop-blur-md" role="status">
+      {warnings.map((text) => (
+        <li className="flex items-start gap-1" key={text}>
+          <AlertTriangle className="mt-px h-3 w-3 shrink-0" />
+          <span>{text}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 function LevelRow({
   level,
   isSelected,
@@ -178,9 +324,9 @@ function LevelRow({
         { label: '10 ft', height: 3.048 },
       ]
     : [
-        { label: '2.5 m', height: 2.5 },
-        { label: '3.0 m', height: 3.0 },
-        { label: '3.5 m', height: 3.5 },
+        { label: '2,5 m', height: 2.5 },
+        { label: '3,0 m', height: 3.0 },
+        { label: '3,5 m', height: 3.5 },
       ]
 
   return (
@@ -203,7 +349,7 @@ function LevelRow({
         >
           <button
             {...dragHandleProps}
-            aria-label={`Reorder ${getLevelDisplayName(level)}`}
+            aria-label={vi.floatingLevelSelector.reorderLevel(getLevelDisplayName(level))}
             className={cn(
               'ml-0.5 flex h-6 w-4 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground/35 opacity-0 transition-colors hover:bg-white/5 hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/50 group-hover/level:opacity-100',
               isDragging && 'cursor-grabbing opacity-100',
@@ -213,7 +359,7 @@ function LevelRow({
               dragHandleProps?.onClick?.(e)
             }}
             ref={dragHandleRef}
-            title="Drag to reorder"
+            title={vi.floatingLevelSelector.dragToReorder}
             type="button"
           >
             <GripVertical className="h-3.5 w-3.5" />
@@ -234,9 +380,10 @@ function LevelRow({
               <span
                 className="ml-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
                 style={{ backgroundColor: unitDotColor }}
-                title="Focused unit has zones here"
+                title={vi.floatingLevelSelector.focusedUnitHasZones}
               />
             )}
+            <LevelSourceBadges levelId={level.id} />
           </button>
 
           {/* Storey height badge — opens the height popover */}
@@ -245,7 +392,7 @@ function LevelRow({
               <button
                 className="mr-0.5 shrink-0 whitespace-nowrap rounded px-1 py-0.5 font-mono text-[10px] text-muted-foreground/50 tabular-nums transition-colors hover:bg-white/5 hover:text-foreground"
                 onClick={(e) => e.stopPropagation()}
-                title="Level height"
+                title={vi.floatingLevelSelector.levelHeight}
                 type="button"
               >
                 {storeyHeightLabel}
@@ -259,7 +406,7 @@ function LevelRow({
               sideOffset={8}
             >
               <SliderControl
-                label="Level height"
+                label={vi.floatingLevelSelector.levelHeight}
                 max={20}
                 min={1}
                 onChange={(v) => updateNode(level.id, { height: v })}
@@ -302,7 +449,7 @@ function LevelRow({
                 type="button"
               >
                 <Copy className="h-3 w-3" />
-                Duplicate level
+                {vi.floatingLevelSelector.duplicateLevel}
               </button>
               <button
                 className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-muted-foreground text-xs transition-colors hover:bg-white/10 hover:text-foreground"
@@ -313,7 +460,7 @@ function LevelRow({
                 type="button"
               >
                 <Copy className="h-3 w-3" />
-                Duplicate with options...
+                {vi.floatingLevelSelector.duplicateWithOptions}
               </button>
               {onPaste && (
                 <button
@@ -325,7 +472,7 @@ function LevelRow({
                   type="button"
                 >
                   <ClipboardPaste className="h-3 w-3" />
-                  Paste copied selection
+                  {vi.floatingLevelSelector.pasteCopiedSelection}
                 </button>
               )}
               <button
@@ -335,16 +482,21 @@ function LevelRow({
                   e.stopPropagation()
                   onRequestDelete()
                 }}
-                title={canDeleteLevel ? 'Delete level' : 'The ground level cannot be deleted'}
+                title={
+                  canDeleteLevel
+                    ? vi.floatingLevelSelector.deleteLevel
+                    : vi.floatingLevelSelector.groundLevelCannotDelete
+                }
                 type="button"
               >
                 <Trash2 className="h-3 w-3" />
-                Delete level
+                {vi.floatingLevelSelector.deleteLevel}
               </button>
             </PopoverContent>
           </Popover>
         </div>
       )}
+      {!isEditing && <LevelFacts level={level} />}
       <LevelDuplicateDialog
         level={level}
         onConfirm={(preset) => {
@@ -431,12 +583,12 @@ function UnitFocusChip() {
         className="h-2 w-2 shrink-0 rounded-full"
         style={{ backgroundColor: focusedUnit.color }}
       />
-      <span className="truncate">{focusedUnit.name || 'Unit'}</span>
+      <span className="truncate">{focusedUnit.name || vi.floatingLevelSelector.unit}</span>
       <button
-        aria-label="Exit unit focus"
+        aria-label={vi.floatingLevelSelector.exitUnitFocus}
         className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
         onClick={() => leaveUnitFocus()}
-        title="Exit unit focus"
+        title={vi.floatingLevelSelector.exitUnitFocus}
         type="button"
       >
         <X className="h-3 w-3" />
@@ -651,7 +803,7 @@ export function FloatingLevelSelector() {
               // read only from outside: nothing here depends on it.
               data-guide-target="level-add"
               onClick={handleAddAbove}
-              title="Add level above"
+              title={vi.floatingLevelSelector.addLevelAbove}
               type="button"
             >
               <Plus className="h-2.5 w-2.5" />
@@ -663,7 +815,7 @@ export function FloatingLevelSelector() {
             <button
               className={cn(addButtonClass, 'bottom-0 translate-y-1/2')}
               onClick={handleAddBelow}
-              title="Add level below"
+              title={vi.floatingLevelSelector.addLevelBelow}
               type="button"
             >
               <Plus className="h-2.5 w-2.5" />
@@ -720,7 +872,7 @@ export function FloatingLevelSelector() {
                         <button
                           className={cn(addButtonClass, 'bottom-0 translate-y-1/2')}
                           onClick={() => handleInsertBetween(sortedIndex - 1)}
-                          title="Insert level here"
+                          title={vi.floatingLevelSelector.insertLevelHere}
                           type="button"
                         >
                           <Plus className="h-2.5 w-2.5" />
@@ -733,6 +885,8 @@ export function FloatingLevelSelector() {
             </SortableContext>
           </DndContext>
         </div>
+        <LevelExplodeSlider />
+        <LevelMisalignmentWarnings />
         <UnitFocusChip />
       </div>
 
@@ -740,11 +894,11 @@ export function FloatingLevelSelector() {
       <Dialog onOpenChange={(open) => !open && setDeletingLevel(null)} open={!!deletingLevel}>
         <DialogContent showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>Delete level</DialogTitle>
+            <DialogTitle>{vi.floatingLevelSelector.deleteLevelDialogTitle}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete{' '}
-              <strong>{deletingLevel ? getLevelDisplayName(deletingLevel) : ''}</strong>? All
-              walls, floors, and objects on this level will be permanently removed.
+              {vi.floatingLevelSelector.deleteLevelConfirmBefore}
+              <strong>{deletingLevel ? getLevelDisplayName(deletingLevel) : ''}</strong>
+              {vi.floatingLevelSelector.deleteLevelConfirmAfter}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -753,14 +907,14 @@ export function FloatingLevelSelector() {
               onClick={() => setDeletingLevel(null)}
               type="button"
             >
-              Cancel
+              {vi.floatingLevelSelector.cancel}
             </button>
             <button
               className="rounded-full bg-red-600 px-4 py-2 text-sm text-white transition-colors hover:bg-red-700"
               onClick={handleConfirmDelete}
               type="button"
             >
-              Delete
+              {vi.floatingLevelSelector.delete}
             </button>
           </DialogFooter>
         </DialogContent>

@@ -15,12 +15,13 @@ import { ColorDot } from './../../../../../components/ui/primitives/color-dot'
 import { assignZoneToUnit, enterUnitFocus } from './../../../../../lib/units'
 import { InlineRenameInput } from './inline-rename-input'
 import { routeTreeSelectionToNode, TreeNodeWrapper } from './tree-node'
+import { primitivesAndSidebar as vi } from '../../../../../i18n/regions/primitivesAndSidebar'
 
 type UnitWarningCode = ReturnType<typeof unitWarnings>[number]['code']
 
 const WARNING_LABELS: Record<UnitWarningCode, string> = {
-  empty: 'No zones in this unit',
-  'non-adjacent-levels': 'Members sit on non-adjacent levels',
+  empty: vi.unitTreeNode.emptyUnit,
+  'non-adjacent-levels': vi.unitTreeNode.nonAdjacentLevels,
 }
 
 const ACTION_BUTTON_CLASS =
@@ -72,7 +73,7 @@ export const UnitZoneRow = memo(function UnitZoneRow({
               event.stopPropagation()
               onRemove(zoneId)
             }}
-            title="Remove from unit"
+            title={vi.unitTreeNode.removeFromUnit}
             type="button"
           >
             <X className="h-3 w-3" />
@@ -94,7 +95,7 @@ export const UnitZoneRow = memo(function UnitZoneRow({
       keepIconColor
       label={
         <span className="flex min-w-0 items-baseline gap-1.5">
-          <span className="truncate">{zone.name || 'Zone'}</span>
+          <span className="truncate">{zone.name || vi.unitTreeNode.zone}</span>
           {levelLabel && (
             <span className="shrink-0 text-muted-foreground text-xs">{levelLabel}</span>
           )}
@@ -164,7 +165,7 @@ export const UnitTreeNode = memo(function UnitTreeNode({
             event.stopPropagation()
             deleteNode(unitId)
           }}
-          title="Delete unit"
+          title={vi.unitTreeNode.deleteUnit}
           type="button"
         >
           <Trash2 className="h-3 w-3" />
@@ -186,7 +187,7 @@ export const UnitTreeNode = memo(function UnitTreeNode({
       label={
         <span className="flex min-w-0 items-center gap-1.5">
           <InlineRenameInput
-            defaultName="Unit"
+            defaultName={vi.unitTreeNode.unit}
             isEditing={isEditing}
             nodeId={nodeId}
             onStartEditing={() => setIsEditing(true)}
@@ -194,7 +195,7 @@ export const UnitTreeNode = memo(function UnitTreeNode({
           />
           {isFocused && (
             <span className="shrink-0 rounded-full bg-primary/15 px-1.5 text-[10px] text-primary leading-4">
-              Focused
+              {vi.unitTreeNode.focused}
             </span>
           )}
           {warningCodes.length > 0 && (

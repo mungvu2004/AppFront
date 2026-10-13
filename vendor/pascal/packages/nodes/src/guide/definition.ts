@@ -1,6 +1,7 @@
 import { GuideNode as GuideNodeSchema, type NodeDefinition } from '@pascal-app/core'
 import { guideParametrics } from './parametrics'
 import { GuideNode } from './schema'
+import { vi } from '../i18n/vi'
 
 /**
  * Guide — Stage A. Measurement reference annotations placed by the
@@ -47,7 +48,7 @@ export const guideDefinition: NodeDefinition<typeof GuideNode> = {
   },
 
   presentation: {
-    label: 'Guide',
+    label: vi.guide.catalogLabel,
     description: 'A measurement / reference annotation (linear, area, or arc).',
     icon: { kind: 'url', src: '/icons/blueprint.webp' },
     paletteSection: 'site',

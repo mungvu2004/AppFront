@@ -162,6 +162,14 @@ export declare const CabinetNode: z.ZodObject<{
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
+    }, z.core.$strip>>;
     position: z.ZodDefault<z.ZodTuple<[z.ZodNumber, z.ZodNumber, z.ZodNumber], null>>;
     rotation: z.ZodDefault<z.ZodNumber>;
     supportSlabId: z.ZodOptional<z.ZodString>;
@@ -401,6 +409,14 @@ export declare const CabinetModuleNode: z.ZodObject<{
             }>;
             fromIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    review: z.ZodOptional<z.ZodObject<{
+        reviewed: z.ZodOptional<z.ZodBoolean>;
+        confidence: z.ZodOptional<z.ZodNumber>;
+        source: z.ZodOptional<z.ZodEnum<{
+            ai: "ai";
+            human: "human";
+        }>>;
     }, z.core.$strip>>;
     position: z.ZodDefault<z.ZodTuple<[z.ZodNumber, z.ZodNumber, z.ZodNumber], null>>;
     rotation: z.ZodDefault<z.ZodNumber>;

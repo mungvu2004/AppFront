@@ -1,4 +1,4 @@
-import { Icon } from '@iconify/react'
+import { Icon } from '../../../lib/offline-icons'
 import type { ToolHint } from '@pascal-app/core'
 import { Fragment, useSyncExternalStore } from 'react'
 import {
@@ -19,6 +19,7 @@ import useEditor, { type GridSnapStep } from '../../../store/use-editor'
 import useFenceCurveDraft from '../../../store/use-fence-curve-draft'
 import { ShortcutToken } from '../primitives/shortcut-token'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../primitives/tooltip'
+import { vi } from '../../../i18n/vi'
 
 // One muted container holds every row — passive key hints and interactive chips
 // alike — so the HUD reads as a single panel, not a stack of floating pills. The
@@ -160,12 +161,6 @@ const SNAPPING_MODE_ICONS = {
   off: 'lucide:ban',
 } as const
 
-const SNAPPING_MODE_LABELS = {
-  grid: 'Grid',
-  lines: 'Lines',
-  angles: 'Angles',
-  off: 'Off',
-} as const
 
 const GRID_SNAP_STEPS: GridSnapStep[] = [0.5, 0.25, 0.1, 0.05]
 
@@ -187,28 +182,28 @@ function SnappingChips({ context }: { context: SnapContext }) {
   return (
     <>
       <ChipRow
-        ariaLabel={`Snapping: ${SNAPPING_MODE_LABELS[snappingMode]}`}
+        ariaLabel={vi.contextualHelp.snapping(vi.contextualHelp.snapModeLabel[snappingMode])}
         guideTarget="snap-mode"
         icon={SNAPPING_MODE_ICONS[snappingMode]}
-        label={`Snapping: ${SNAPPING_MODE_LABELS[snappingMode]}`}
+        label={vi.contextualHelp.snapping(vi.contextualHelp.snapModeLabel[snappingMode])}
         onClick={() => {
           setSnappingMode(context, cycleSnappingModeIn(context, snappingMode))
           sfxEmitter.emit('sfx:grid-snap')
         }}
         shortcut="Shift"
-        tooltip="Snapping mode — click or press Shift to cycle"
+        tooltip={vi.contextualHelp.snappingTooltip}
       />
       {gridActive ? (
         <ChipRow
-          ariaLabel={`Grid step: ${gridSnapStep.toFixed(2)} m`}
+          ariaLabel={vi.contextualHelp.gridStep(gridSnapStep)}
           guideTarget="snap-grid-step"
-          label={`Grid: ${gridSnapStep.toFixed(2)} m`}
+          label={vi.contextualHelp.gridStep(gridSnapStep)}
           onClick={() => {
             setGridSnapStep(nextGridSnapStep(gridSnapStep))
             sfxEmitter.emit('sfx:grid-snap')
           }}
           shortcut="Ctrl"
-          tooltip="Grid step — click or tap Ctrl to cycle"
+          tooltip={vi.contextualHelp.gridStepTooltip}
         />
       ) : null}
     </>

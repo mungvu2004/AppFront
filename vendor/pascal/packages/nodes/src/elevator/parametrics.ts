@@ -1,15 +1,16 @@
 import type { ElevatorNode, ParametricDescriptor } from '@pascal-app/core'
+import { vi } from '../i18n/vi'
 
 export const elevatorParametrics: ParametricDescriptor<ElevatorNode> = {
   groups: [
     {
-      label: 'Position',
+      label: vi.common.position,
       fields: [
         { key: 'position', kind: 'vec3' },
         {
           key: 'rotation',
           kind: 'number',
-          label: 'Rotation (rad)',
+          label: vi.common.rotationRad,
           min: -Math.PI,
           max: Math.PI,
           step: Math.PI / 36,
@@ -17,7 +18,7 @@ export const elevatorParametrics: ParametricDescriptor<ElevatorNode> = {
       ],
     },
     {
-      label: 'Cab',
+      label: vi.common.cab,
       fields: [
         { key: 'width', kind: 'number', unit: 'm', min: 0.8, max: 1000, step: 0.05 },
         { key: 'depth', kind: 'number', unit: 'm', min: 0.8, max: 1000, step: 0.05 },
@@ -25,12 +26,12 @@ export const elevatorParametrics: ParametricDescriptor<ElevatorNode> = {
       ],
     },
     {
-      label: 'Shaft',
+      label: vi.common.shaft,
       fields: [
         {
           key: 'shaftWallThickness',
           kind: 'number',
-          label: 'Wall thickness',
+          label: vi.common.wallThickness,
           unit: 'm',
           min: 0.04,
           max: 0.4,
@@ -45,7 +46,7 @@ export const elevatorParametrics: ParametricDescriptor<ElevatorNode> = {
       ],
     },
     {
-      label: 'Doors',
+      label: vi.common.doors,
       fields: [
         { key: 'doorWidth', kind: 'number', unit: 'm', min: 0.45, max: 1000, step: 0.05 },
         { key: 'doorHeight', kind: 'number', unit: 'm', min: 1.2, max: 1000, step: 0.05 },
@@ -57,27 +58,27 @@ export const elevatorParametrics: ParametricDescriptor<ElevatorNode> = {
         {
           key: 'doorPanelStyle',
           kind: 'enum',
-          label: 'Panel style',
+          label: vi.common.panelStyle,
           options: ['glass-frame', 'solid-panel', 'segmented-panel'],
         },
       ],
     },
     {
-      label: 'Levels',
+      label: vi.common.levels,
       fields: [
-        { key: 'fromLevelId', kind: 'ref', label: 'From level', refKind: 'level' },
-        { key: 'toLevelId', kind: 'ref', label: 'To level', refKind: 'level' },
-        { key: 'defaultLevelId', kind: 'ref', label: 'Default level', refKind: 'level' },
+        { key: 'fromLevelId', kind: 'ref', label: vi.common.fromLevel, refKind: 'level' },
+        { key: 'toLevelId', kind: 'ref', label: vi.common.toLevel, refKind: 'level' },
+        { key: 'defaultLevelId', kind: 'ref', label: vi.common.defaultLevel, refKind: 'level' },
       ],
     },
     {
-      label: 'Motion',
+      label: vi.common.motion,
       fields: [
         { key: 'speed', kind: 'number', unit: 'm/s', min: 0.5, max: 8, step: 0.1 },
         {
           key: 'doorDurationMs',
           kind: 'number',
-          label: 'Door time',
+          label: vi.common.doorTime,
           unit: 'ms',
           min: 300,
           max: 2200,
@@ -86,7 +87,7 @@ export const elevatorParametrics: ParametricDescriptor<ElevatorNode> = {
         {
           key: 'dwellMs',
           kind: 'number',
-          label: 'Dwell',
+          label: vi.common.dwell,
           unit: 'ms',
           min: 300,
           max: 5000,

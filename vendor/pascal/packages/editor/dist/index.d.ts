@@ -121,7 +121,7 @@ export { boundsInsidePolygon, buildingRecentreOffset, buildSitePlanDrawing, cast
 export { commitFreshPlacementSubtree, createFreshPlacementSubtree, } from './lib/fresh-planar-placement';
 export { exportSceneToGlb, type GlbExportOptions } from './lib/glb-export';
 export { type EditorGridEvent, type GridEventScreenProjection, getGridEventScreenProjection, } from './lib/grid-event-presentation';
-export { getHistoryCommandState, type HistoryCommandDelegate, type HistoryCommandResult, type HistoryCommandState, installHistoryCommandDelegate, runRedo, runUndo, subscribeHistoryCommandState, } from './lib/history';
+export { getHistoryCommandState, type HistoryCommandDelegate, type HistoryCommandResult, type HistoryCommandState, type HistoryJumpKind, type HistoryJumpListener, installHistoryCommandDelegate, runRedo, runUndo, subscribeHistoryCommandState, subscribeHistoryJumps, subscribeMeasurementDeletes, } from './lib/history';
 export { type EditorHostTreeChildren, type EditorHostTreeChildrenProps, editorHostTreeChildrenRegistry, registerEditorHostTreeChildren, } from './lib/host-tree-children';
 export { DRAFTING_SURFACE_EXTENSION_KEY, type DraftingSurfaceExtension, } from './lib/interaction/registered-drafting';
 export { boundaryReshapeScope, curveReshapeScope, endpointReshapeScope, holeEditScope, meshEditScope, movingNodeOf, scopeNodeId, } from './lib/interaction/scope';
@@ -192,4 +192,7 @@ export { type StairPreviewPoint, useStairBuildPreview, } from './store/use-stair
 export { useUploadStore } from './store/use-upload';
 export { useWallMoveGhosts, type WallMoveGhostBridge } from './store/use-wall-move-ghosts';
 export { default as useWallSnapIndicator, type WallSnapKind, type WallSnapPoint, } from './store/use-wall-snap-indicator';
+export { appFrontEditorPanels } from './components/ui/panels/appfront-panels';
+export { FurnitureLibraryPanel } from './components/ui/panels/furniture-library-panel';
+export { RoomAreaPanel } from './components/ui/panels/room-area-panel';
 //# sourceMappingURL=index.d.ts.map

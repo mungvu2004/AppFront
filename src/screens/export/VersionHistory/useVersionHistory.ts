@@ -27,7 +27,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { FloorVersionSummary } from '@/api/schemas/versions';
 import { flushAutosaves, useFloorLayerAutosave } from '@/hooks/useAutosave';
-import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { formatDuration } from '@/lib/format/datetime';
 import { MOTION_DURATIONS_MS } from '@/lib/motion/tokens';
 import { createUndoTicket, UNDO_WINDOW_MS, type UndoTicket } from '@/lib/mutations/undoTicket';
@@ -77,7 +76,7 @@ import {
   UNDO_RETRY_TOAST,
   writeErrorNotice,
 } from './versionHistoryModel';
-import { buildSceneFrame, buildVisualModel, convertScene } from './versionHistoryScene';
+import { buildVisualModel, convertScene, graphOfVersion } from './versionHistoryScene';
 
 /** Lượt N18 cùng lúc. */
 export const SNAPSHOT_CONCURRENCY = 2;
@@ -114,7 +113,6 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
   const readNow = options.now;
 
   const queryClient = useQueryClient();
-  const reducedMotion = useReducedMotion();
   const graph = useStore((state) => state.spatial);
   const currentRevision = useStore((state) => state.floorMeta[floorId]?.revision ?? null);
   // Màn không có engine nào khác: gắn bộ lưu lớp tầng để `flushAutosaves()` xả được ống (F-04x-1).
@@ -267,21 +265,28 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
 
   /* ---- Tab "Trực quan", vùng so sánh ----------------------------------- */
 
-  const scene = useMemo(() => convertScene(graph), [graph]);
-  const sceneFrame = useMemo(() => buildSceneFrame(scene.levels, reducedMotion), [scene.levels, reducedMotion]);
+  // Bản cũ có nội dung N18 thì dựng cảnh của CHÍNH nó; chưa có thì lùi về mô hình hiện tại.
+  const leftIndex = summaries.findIndex((item) => item.id === leftVersionId);
+  const leftRead = leftIndex < 0 ? undefined : snapshotData[leftIndex];
+  const leftSource = leftRead?.kind === 'snapshot' ? leftRead.source : undefined;
+  const sceneGraph = useMemo(
+    () => (leftSource === undefined ? graph : (graphOfVersion(graph, leftSource) ?? graph)),
+    [graph, leftSource],
+  );
+  const scene = useMemo(() => convertScene(sceneGraph), [sceneGraph]);
   const visual = useMemo(
     (): VisualDiffModel =>
       buildVisualModel({
         capabilities: gateway.capabilities,
-        graph,
+        graph: sceneGraph,
         scene,
-        sceneFrame,
+        isOldVersion: sceneGraph !== graph,
         diff,
         leftVersionLabel: builds.find((build) => build.row.id === leftVersionId)?.row.label ?? null,
         hoveredEntityId,
         isFetchingDiff: pairFetching,
       }),
-    [gateway.capabilities, graph, scene, sceneFrame, diff, builds, leftVersionId, hoveredEntityId, pairFetching],
+    [gateway.capabilities, graph, sceneGraph, scene, diff, builds, leftVersionId, hoveredEntityId, pairFetching],
   );
 
   const compare = useMemo(

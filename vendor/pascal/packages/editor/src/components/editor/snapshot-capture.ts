@@ -5,6 +5,7 @@ import type {
   ThumbnailGenerateEvent,
 } from '@pascal-app/core'
 import { MathUtils, type PerspectiveCamera } from 'three'
+import { editorAndViewer as vi } from '../../i18n/regions/editorAndViewer'
 
 export function isOverlaySnapshotSave(event: SnapshotSavedEvent | undefined, projectId: string) {
   return !event?.requestId && (!event?.projectId || event.projectId === projectId)
@@ -40,7 +41,7 @@ export function enqueueSnapshotCapture(
       if (event.requestId) {
         reportFailure({
           requestId: event.requestId,
-          error: 'The scene changed before capture. Try again.',
+          error: vi.snapshotCapture.sceneChangedBeforeCapture,
         })
       }
       return
@@ -123,7 +124,7 @@ export async function runSnapshotCapture(
 ) {
   if (busy.current) {
     if (requestId)
-      reportFailure({ requestId, error: 'Another snapshot is being captured. Try again.' })
+      reportFailure({ requestId, error: vi.snapshotCapture.anotherCaptureRunning })
     return
   }
 
@@ -134,7 +135,7 @@ export async function runSnapshotCapture(
     if (requestId) {
       reportFailure({
         requestId,
-        error: error instanceof Error ? error.message : 'Snapshot capture failed',
+        error: error instanceof Error ? error.message : vi.snapshotCapture.captureFailed,
       })
     } else {
       console.error('Failed to generate thumbnail:', error)

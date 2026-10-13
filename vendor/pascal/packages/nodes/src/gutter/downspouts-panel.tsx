@@ -14,6 +14,7 @@ import { useViewer } from '@pascal-app/viewer'
 import { useShallow } from 'zustand/react/shallow'
 import { computeEaveY } from './eave-snap'
 import { resolveGutterOutletById } from './outlet-lookup'
+import { vi } from '../i18n/vi'
 
 const DEFAULT_OUTLET_DIAMETER = 0.07
 
@@ -128,7 +129,7 @@ export default function DownspoutsPanel() {
   }
 
   return (
-    <PanelSection title="Downspouts">
+    <PanelSection title={vi.gutter.panel.downspouts}>
       <div className="flex flex-col gap-1">
         {downspouts.map((d, i) => (
           <div
@@ -140,10 +141,10 @@ export default function DownspoutsPanel() {
               onClick={() => handleSelectDownspout(d.id as AnyNodeId)}
               type="button"
             >
-              {d.name || `Downspout ${i + 1}`}
+              {d.name || vi.gutter.panel.downspoutN(i + 1)}
             </button>
             <button
-              aria-label="Remove downspout"
+              aria-label={vi.gutter.panel.remove}
               className="ml-2 text-muted-foreground text-xs transition-colors hover:text-red-400"
               onClick={() => handleRemove(d)}
               type="button"
@@ -153,7 +154,7 @@ export default function DownspoutsPanel() {
           </div>
         ))}
         <ActionGroup>
-          <ActionButton label="Add Downspout" onClick={handleAddDownspout} />
+          <ActionButton label={vi.gutter.panel.add} onClick={handleAddDownspout} />
         </ActionGroup>
       </div>
     </PanelSection>

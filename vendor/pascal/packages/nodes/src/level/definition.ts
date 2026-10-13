@@ -5,6 +5,7 @@ import {
 } from '@pascal-app/core'
 import { levelParametrics } from './parametrics'
 import { LevelNode } from './schema'
+import { vi } from '../i18n/vi'
 
 /**
  * Level — Stage A. Container for walls / slabs / ceilings / etc. on
@@ -57,7 +58,7 @@ export const levelDefinition: NodeDefinition<typeof LevelNode> = {
   },
 
   presentation: {
-    label: 'Level',
+    label: vi.level.catalogLabel,
     description: 'A single floor of a building, holding walls / slabs / ceilings / items.',
     icon: { kind: 'url', src: '/icons/level.webp' },
     paletteSection: 'site',

@@ -11,7 +11,7 @@ import {
   type ZoneNode,
 } from '@pascal-app/core'
 import { useViewer } from '@pascal-app/viewer'
-import { Icon } from '@iconify/react'
+import { Icon } from '../../../lib/offline-icons'
 import { Move, Trash2 } from 'lucide-react'
 import { type ComponentType, lazy, Suspense, useCallback } from 'react'
 import { resolveMoveActionNode } from '../../../lib/direct-manipulation'
@@ -19,10 +19,13 @@ import { commitParametricNodeFields } from '../../../lib/parametric-node-update'
 import { sfxEmitter } from '../../../lib/sfx-bus'
 import { collectZoneContentIds } from '../../../lib/zone-content'
 import useEditor from '../../../store/use-editor'
+import { controlsAndPanels as vi } from '../../../i18n/regions/controlsAndPanels'
 import { IconRefImage } from '../icon-ref'
 import { ActionButton, ActionGroup } from '../controls/action-button'
 import { PanelSection } from '../controls/panel-section'
 import { ParametricFieldControl } from './parametric-field-control'
+import { ReviewSection } from './review-section'
+import { SaveAsTemplateButton } from './save-as-template'
 import { InspectorFooterContext, PanelWrapper } from './panel-wrapper'
 
 /**
@@ -166,28 +169,34 @@ export function ParametricInspector({
           <CustomPanelSlot Component={TrailingSection} nodeId={selectedId} />
         </Suspense>
       )}
+      <ReviewSection nodeId={selectedId} onUpdate={handleUpdate} />
       {(canMove || canDelete || (parametrics.actions && parametrics.actions.length > 0)) && (
-        <PanelSection title="Actions">
+        <PanelSection title={vi.parametricInspector.actions}>
           <ActionGroup className={isZone ? 'flex-col' : parametrics.actions?.length ? 'grid grid-cols-2 gap-2' : undefined}>
             {canMove && (
-              <ActionButton icon={<Move className="h-4 w-4" />} label="Move" onClick={handleMove} />
+              <ActionButton
+                icon={<Move className="h-4 w-4" />}
+                label={vi.parametricInspector.move}
+                onClick={handleMove}
+              />
             )}
             {parametrics.actions?.map((action, i) => (
               <ParamActionButton action={action} key={`paramaction-${i}`} nodeId={selectedId} />
             ))}
+            <SaveAsTemplateButton nodeId={selectedId} />
             {canDelete &&
               (isZone ? (
                 <>
                   <ActionButton
                     className="w-full flex-none"
                     icon={<Trash2 className="h-4 w-4 text-red-400" />}
-                    label="Delete"
+                    label={vi.parametricInspector.delete}
                     onClick={() => handleDelete(false)}
                   />
                   <ActionButton
                     className="w-full flex-none"
                     icon={<Trash2 className="h-4 w-4 text-red-400" />}
-                    label="Delete with contents"
+                    label={vi.parametricInspector.deleteWithContents}
                     onClick={() => handleDelete(true)}
                   />
                 </>
@@ -195,7 +204,7 @@ export function ParametricInspector({
                 <ActionButton
                   className="border-red-500/40 text-red-200 hover:bg-red-500/15"
                   icon={<Trash2 className="h-4 w-4" />}
-                  label="Delete"
+                  label={vi.parametricInspector.delete}
                   onClick={() => handleDelete()}
                 />
               ))}
@@ -316,7 +325,17 @@ function FieldRenderer({ field, nodeId, onUpdate }: FieldRendererProps) {
     const n = s.nodes[nodeId]
     return n ? visibleIf(n as AnyNode) : false
   })
+  // Link fields resolve their href from the whole node; a string keeps the
+  // subscription cheap.
+  const href = useScene((s) => {
+    const n = s.nodes[nodeId]
+    return field.kind === 'link' && n ? field.href(n as AnyNode) : null
+  })
   if (!visible) return null
+
+  if (field.kind === 'link') {
+    return <ParametricFieldControl field={field} onChange={onUpdate} value={href} />
+  }
 
   if (field.kind === 'custom') {
     return <CustomFieldRenderer Comp={field.component} nodeId={nodeId} onUpdate={onUpdate} />

@@ -8,6 +8,7 @@ import { spawnDefinition } from '../definition'
 import { buildSpawnFloorplan } from '../floorplan'
 import { SpawnPreview } from '../renderer'
 import { SpawnNode } from '../schema'
+import { vi } from '../../i18n/vi'
 
 /**
  * Structural parity for the spawn registry definition.
@@ -42,7 +43,7 @@ describe('spawn definition', () => {
   })
 
   test('presentation declares a url palette icon', () => {
-    expect(spawnDefinition.presentation?.label).toBe('Spawn Point')
+    expect(spawnDefinition.presentation?.label).toBe(vi.spawn.catalogLabel)
     expect(spawnDefinition.presentation?.icon.kind).toBe('url')
     expect(spawnDefinition.presentation?.paletteSection).toBe('structure')
   })

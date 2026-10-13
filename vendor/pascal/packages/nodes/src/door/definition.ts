@@ -28,6 +28,7 @@ import { doorPaint } from './paint'
 import { doorParametrics } from './parametrics'
 import { DoorNode } from './schema'
 import { doorSlots } from './slots'
+import { vi } from '../i18n/vi'
 
 const SIDE_HANDLE_OFFSET = 0.24
 const HEIGHT_HANDLE_OFFSET = 0.24
@@ -308,14 +309,14 @@ export const doorDefinition: NodeDefinition<typeof DoorNode> = {
   },
 
   toolHints: [
-    { key: 'Left click', label: 'Place door on wall' },
-    { key: 'R', label: 'Flip side' },
-    { key: 'Alt', label: 'Force place' },
-    { key: 'Esc', label: 'Cancel' },
+    { key: 'Left click', label: vi.door.shortcuts.place },
+    { key: 'R', label: vi.door.shortcuts.flipSide },
+    { key: 'Alt', label: vi.door.shortcuts.forcePlace },
+    { key: 'Esc', label: vi.door.shortcuts.cancel },
   ],
 
   presentation: {
-    label: 'Door',
+    label: vi.door.catalogLabel,
     description: 'A door cut into a wall. Animated open/close state.',
     icon: { kind: 'url', src: '/icons/door.webp' },
     paletteSection: 'structure',

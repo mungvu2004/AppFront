@@ -331,7 +331,7 @@ const PASCAL_BUDGETS_KIB = {
 /** Ba thư mục hợp thành vách ngăn, sau khi `vite build` chép `public/` vào `dist/`. */
 const PASCAL_DIRS = {
   code: [join('dist', 'assets', 'pascal')],
-  assets: [join('dist', 'pascal'), join('dist', 'basis')],
+  assets: [join('dist', 'pascal'), join('dist', 'basis'), join('dist', 'icons')],
 };
 
 /**

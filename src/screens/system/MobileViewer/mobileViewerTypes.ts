@@ -11,7 +11,7 @@
  *
  * | Mảnh | Chủ | Đọc gì ở đây |
  * |---|---|---|
- * | `mobileViewerScene.ts` + `mobileViewerGestures.ts` | T5 | mục 4 |
+ * | `mobileViewerPascal.ts` | S15 | mục 4 |
  * | `useMobileViewer.ts` + `mobileViewerGateway.ts`    | T6 | mục 3, 5 |
  * | `MobileViewer.tsx` + thanh dưới + tấm thông tin    | T7 | mục 2, 6 |
  * | test + story + `mobileViewerScenarios.ts`          | T8 | mục 2, 6 |
@@ -30,13 +30,7 @@
  * là cố ý, và bài kiểm của T8 khẳng định đúng điều đó.
  */
 
-import type { MeasurePoint } from '@/domain/measure/measure';
-import { createColoringMode, type PaintSubject } from '@/lib/coloring/modes';
-import { UNPAINTED_TOKEN, type ColorTokenName } from '@/lib/coloring/scales';
-import type { BuildFloorInput } from '@/lib/three/build/floor';
-import type { DetailLevel } from '@/lib/three/build/lod';
-import type { BuildPartKind } from '@/lib/three/build/scene';
-import type { EntityHit } from '@/lib/three/interaction/hitTest';
+import type { SpatialGraph } from '@/domain/spatial/types';
 
 /* -------------------------------------------------------------------------- */
 /* 1. Kích thước bố cục — đặc tả S-45.                                         */
@@ -208,118 +202,31 @@ export interface MobileViewerMeasurement {
 }
 
 /* -------------------------------------------------------------------------- */
-/* 4. Module cảnh — T5 sở hữu.                                                 */
+/* 4. Module cảnh — mount Pascal `view` (F-15 S15).                            */
 /* -------------------------------------------------------------------------- */
 
 /**
- * Cử chỉ mà bộ nhận chạm dịch ra.
- *
- * **Vì sao mục này tồn tại.** Đặc tả gốc nói ba cử chỉ "tất cả do R-06, không tự
- * viết xử lý chạm". Khảo sát đã đo: `src/lib/three/camera` **không gắn một
- * listener nào** — không `pointerdown`, không `touchstart`, không `wheel`. Người
- * gọi duy nhất trên máy tính (`useViewerShell.ts:735-788`) tự nghe sự kiện rồi
- * gọi vào camera, và nó chỉ đọc **một** con trỏ cộng `wheel`.
- *
- * Nhưng **toán camera thì có thật và vẫn hoàn toàn là của R-06** — đừng viết lại:
- *
- * | Cử chỉ | Gọi thẳng vào | Ở đâu |
- * |---|---|---|
- * | một ngón quay   | `OrbitCameraMode.rotate(deltaXPx, deltaYPx)`              | `modes.ts:504` |
- * | hai ngón kéo    | `OrbitCameraMode.pan(deltaXPx, deltaYPx, viewportHeightPx)` | `modes.ts:520` |
- * | hai ngón thu phóng | `OrbitCameraMode.dolly(notches)`                       | `modes.ts:534` |
- *
- * (Chế độ trực giao dùng `FlatCameraMode.pan`/`.zoom`.) Ba hàm này nhận **số
- * pixel thô** và tự lo giảm chấn, giới hạn, quy đổi — `rotatePixelsPerTurn` 900,
- * `zoomFactorPerNotch` 1,12, `minDistanceM` 1,2 đều nằm trong `CAMERA_SETTINGS`.
- *
- * Vậy phần MỚI của màn này hẹp đúng một việc: **đọc nhiều ngón cùng lúc rồi quy
- * ra ba lời gọi trên**. Đó là `mobileViewerGestures.ts`, và nó KHÔNG được chứa
- * một phép toán camera nào — không ma trận, không góc, không khoảng cách thế
- * giới. Thấy mình sắp viết lượng giác là đi sai đường: quay lại gọi R-06.
- *
- * `pinch` quy ra `notches` theo tỉ lệ khoảng cách hai ngón (liên tục, không giật
- * cấp) — chi tiết ở ghi chú khảo sát `three-mobile-contract.md` mục (g).
- */
-export type MobileViewerGesture =
-  | { readonly kind: 'orbit'; readonly deltaXPx: number; readonly deltaYPx: number }
-  | { readonly kind: 'zoom'; readonly scale: number }
-  | { readonly kind: 'pan'; readonly deltaXPx: number; readonly deltaYPx: number }
-  | { readonly kind: 'tap'; readonly xPx: number; readonly yPx: number };
-
-/**
- * Token màu DUY NHẤT của cả mô hình trên di động — chế độ `default` của P-06.
- *
- * Màn này không có bộ chọn chế độ tô: một người đứng ở công trường mở nó ra để
- * xem hình khối, không để đọc một dải quantile. Nên `tokenOfPartKind` mặc định
- * trả về đúng hằng này cho MỌI loại bộ phận, và nó sống ở hợp đồng để cảnh và
- * hook đọc CÙNG một nguồn thay vì mỗi bên tự dựng lại một bản (R-71).
- */
-export const MOBILE_VIEWER_MODEL_TOKEN: ColorTokenName =
-  createColoringMode('default', { subjects: [] as readonly PaintSubject[] }).bands[0]?.token ??
-  UNPAINTED_TOKEN;
-
-/**
- * Tuỳ chọn lắp cảnh di động.
- *
- * > **Sửa của lớp gộp — `levels` là trường mà bản đầu của hợp đồng này bỏ sót.**
- * > Bản đầu chỉ khai `floorIds: readonly string[]`, tức MÃ tầng. T5 dựng cảnh
- * > rồi báo lại: mọi đường dựng hình trong `src/lib/three/build` nhận
- * > `BuildFloorInput`, và với riêng mã tầng thì **không dựng được một tam giác
- * > nào** — cảnh lắp xong, mọi cổng xanh, và người dùng nhìn vào một mô hình
- * > RỖNG. T5 đã bù bằng một trường TUỲ CHỌN trên `MobileViewerSceneMountOptions`
- * > để ba mảnh song song còn lại không phải sửa giữa chừng; lớp gộp kéo nó về
- * > đây và bỏ dấu `?`, vì một trường mà thiếu nó thì màn hình trống rỗng không
- * > phải là một trường tuỳ chọn. Bài kiểm canh đúng chỗ này là
- * > `MobileViewer.container.test.tsx` — nó đòi `levels` khác rỗng, chứ không
- * > dừng ở "typecheck xanh".
+ * Tuỳ chọn lắp cảnh di động. Cử chỉ camera, chọn và đo đều do Pascal lo
+ * (`cameraControls`, `onPick`, `measure`); màn chỉ đưa đồ thị vào và nhận kết quả.
  */
 export interface MobileViewerSceneOptions {
-  /**
-   * Các tầng cần dựng, theo thứ tự từ dưới lên.
-   *
-   * Vẫn là thứ quyết định **thứ tự và tập tầng**; {@link levels} chỉ cấp hình
-   * cho chúng. Một mã tầng không có hình tương ứng thì không có gì để vẽ — không
-   * ném lỗi, không dựng một tầng rỗng giả vờ.
-   */
-  readonly floorIds: readonly string[];
-  /**
-   * Hình của từng tầng, tra theo `level.id`. **Bắt buộc** — xem docblock trên.
-   *
-   * Người gọi dựng nó bằng `toBuildFloorInput(spatial, levelId)` của
-   * `src/domain/spatial`, đúng cách `useViewer3D.ts:401-424` dựng cho máy tính.
-   */
-  readonly levels: readonly BuildFloorInput[];
-  /**
-   * Token màu của một loại bộ phận.
-   *
-   * Vắng mặt thì cả mô hình dùng {@link MOBILE_VIEWER_MODEL_TOKEN}. Trường này
-   * tuỳ chọn còn `levels` thì không, và khác biệt ấy có lý do: thiếu `levels` là
-   * một mô hình rỗng, còn thiếu `tokenOfPartKind` là một mô hình một màu — đúng
-   * thứ màn chỉ đọc này muốn.
-   */
-  readonly tokenOfPartKind?: ((kind: BuildPartKind) => ColorTokenName) | undefined;
-  /**
-   * Mức chi tiết dựng ĐẦU TIÊN. Đặc tả bắt "mức gọn trước rồi mới nâng dần",
-   * nên giá trị mở màn là `'block'`, không phải `'full'`.
-   */
-  readonly initialDetail: DetailLevel;
-  /** Chạm trúng một đối tượng. `null` khi chạm vào chỗ trống. */
-  readonly onPick: (hit: EntityHit | null) => void;
-  /** R-04 vừa hạ mức chi tiết — hook hiện điều đó ra cho người dùng biết. */
-  readonly onDetailChange: (detail: DetailLevel) => void;
-  /** Số khung hình mỗi giây, báo đều để hook quyết định trạng thái. */
-  readonly onFrameRate: (fps: number) => void;
+  /** Đồ thị cần dựng. */
+  readonly graph: SpatialGraph;
+  /** Công cụ đo đang mở: chạm hai điểm cho một số đo, `onPick` im lặng. */
+  readonly measure: boolean;
+  /** Chạm trúng một đối tượng (mã node Pascal), hoặc `null` khi chạm khoảng trống. */
+  readonly onPick: (nodeId: string | null) => void;
+  /** Một phép đo hai điểm xong, khoảng cách tính bằng mét. */
+  readonly onMeasure: (distanceM: number) => void;
+  /** Cảnh đã dựng xong khung đầu tiên. */
+  readonly onReady: () => void;
+  /** Máy không dựng được cảnh — hook đổi sang trạng thái `error`. */
+  readonly onFailure: (reason: 'webglUnavailable' | 'deviceTooWeak') => void;
 }
 
 /** Tay cầm cảnh đã lắp. */
 export interface MobileViewerSceneHandle {
-  /** Đổi tầng đang hiện. */
-  setActiveFloor: (floorId: string | null) => void;
-  /** Mức chi tiết đang dùng thật, sau mọi lần R-04 hạ. */
-  currentDetail: () => DetailLevel;
-  /** Điểm đo trên bề mặt, cho M-15. */
-  pickMeasurePoint: (xPx: number, yPx: number) => MeasurePoint | null;
-  /** R-05: trả lại mọi tài nguyên GPU. Gọi đúng một lần. */
+  /** Trả lại mọi tài nguyên. Gọi đúng một lần. */
   dispose: () => void;
 }
 
@@ -347,7 +254,7 @@ export interface MobileViewerProps {
   readonly onShare: (() => void) | null;
 
   /* Khung 3D. Container cấp, không phải hook — story và test bỏ trống. */
-  readonly canvasRef?: ((element: HTMLCanvasElement | null) => void) | undefined;
+  readonly canvasRef?: ((element: HTMLDivElement | null) => void) | undefined;
 
   /* Thanh dưới. */
   readonly isCompact: boolean;

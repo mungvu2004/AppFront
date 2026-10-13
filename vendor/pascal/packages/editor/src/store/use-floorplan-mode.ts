@@ -2,6 +2,7 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { editorAndViewer as vi } from '../i18n/regions/editorAndViewer'
 import {
   DEFAULT_FLOORPLAN_MODE,
   type FloorplanMode,
@@ -52,8 +53,7 @@ const useFloorplanMode = create<FloorplanModeState>()(
               ? {
                   id: ++nextNoticeId,
                   kind: 'info',
-                  message:
-                    'Default mode hides Expert annotations. Your saved work was not deleted.',
+                  message: vi.floorplanModeCoordinator.defaultHidesExpertAnnotations,
                 }
               : state.notice,
           }
@@ -71,7 +71,7 @@ const useFloorplanMode = create<FloorplanModeState>()(
           notice: {
             id: ++nextNoticeId,
             kind: 'switch-to-expert',
-            message: `${toolLabel} is available in Expert mode.`,
+            message: vi.floorplanModeCoordinator.availableInExpertMode(toolLabel),
           },
         }),
       showNotice: (message) =>

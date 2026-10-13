@@ -22,10 +22,10 @@
  *     R-68 cấm chạm `src/domain` và R-69 cấm tự chế. Thêm nữa, **không có đường nào dựng hai
  *     mô hình 3D chồng nhau**: `OverlayComparison` chồng ẢNH/lớp 2D, không chồng hai `Scene`.
  *     → **Quyết định đã duyệt:** tab "Trực quan" dựng mô hình **HIỆN TẠI** qua
- *     `mountViewerScene`, truyền các id đã đổi vào `selectedEntityIds`, và trỏ vào hàng diff
- *     thì đặt `hoveredEntityId`. Kèm **một câu caption nói thẳng** rằng đang hiện bản hiện
- *     tại chứ không phải bản cũ. Đây là tô màu khối (đổi vật liệu), **không phải viền mảnh** —
- *     `viewer3dScene.ts:618-634` đổi `object.material`, không có API viền.
+ *     khung xem Pascal (F-15 W2-E), tô sáng các id đã đổi bằng `externalSelectedIds` của
+ *     viewer, và trỏ vào hàng diff thì thêm id ấy vào nhóm tô sáng. Kèm **một câu caption nói thẳng** rằng đang hiện bản hiện
+ *     tại chứ không phải bản cũ. Store Pascal là một singleton cho cả gói nhúng nên cũng không dựng được hai cảnh
+ *     cạnh nhau.
  *
  *  2. **P-03 "gộp theo ngày và theo người" — NOT FOUND.** Không có `groupBy`/`groupByDay`
  *     trong `src/lib` hay `src/domain`. Gộp theo **ngày** vẫn làm được vì nó chỉ gọi
@@ -64,10 +64,10 @@
 import type { ApiClient, SpatialLayer } from '@/api/client';
 import type { FloorVersionSummary } from '@/api/schemas/versions';
 import type { Dimension, Level } from '@/domain/spatial/types';
+import type { PascalScene } from '@/lib/pascal/types';
+import type { VersionSnapshotSource } from './versionSnapshotAdapter';
 import type { UndoTicket } from '@/lib/mutations/undoTicket';
 import type { SevenState } from '@/lib/testing/sevenStateScenarios';
-import type { BuildFloorInput } from '@/lib/three/build/floor';
-import type { ViewerSceneFrame } from '@/screens/viewer/ViewerShell/viewerShellTypes';
 import type { EntityKind, VersionDiff, VersionSnapshot } from '@/lib/versioning/diff';
 import type { VersionEntry, VersionHistoryEntry, VersionMetadata } from '@/lib/versioning/restore';
 
@@ -212,29 +212,16 @@ export interface VisualDiffModel {
    */
   readonly caption: string;
   /**
-   * Hình học để dựng cảnh, do hook nấu sẵn.
+   * Cảnh Pascal để dựng, do hook nấu sẵn.
    *
-   * View thuần **không được** tự nấu: `toBuildFloorInput` sống ở `@/domain`, mà
-   * `local/no-data-layer-in-view` chặn import chạy trong `.tsx`. Hook thì được — nó đọc
-   * `graph: NormalizedSpatial` từ store rồi gọi `toBuildFloorInput`, đúng khuôn đang chạy ở
-   * `useViewer3D.ts:64,229,402`. Rỗng ⇒ chưa có gì để dựng.
+   * View thuần **không được** tự nấu: `toPascalScene` sống ở `@/lib/pascal` còn đồ thị ở
+   * `@/domain`, mà `local/no-data-layer-in-view` chặn import chạy trong `.tsx`. `null` ⇒ chưa
+   * có gì để dựng; view hiện `caption`/`unavailableReason` thay vì canvas.
    */
-  readonly sceneLevels: readonly BuildFloorInput[];
-  /**
-   * Khung cảnh đầy đủ (camera, tầng đang hiện, mặt cắt…), do hook nấu sẵn vì cùng lý do.
-   *
-   * View mount bằng khung này, ghi đè đúng hai trường của mình:
-   * `{ ...sceneFrame, selectedEntityIds: changedEntityIds, hoveredEntityId }`.
-   * `null` ⇒ chưa dựng được; view hiện `caption`/`unavailableReason` thay vì canvas.
-   */
-  readonly sceneFrame: ViewerSceneFrame | null;
-  /** Đi vào `ViewerSceneFrame.selectedEntityIds`. */
+  readonly scene: PascalScene | null;
+  /** Mã đối tượng AppFront đã đổi — view đổi thành mã node Pascal rồi tô sáng. */
   readonly changedEntityIds: readonly string[];
-  /**
-   * Hàng diff đang được trỏ → `ViewerSceneFrame.hoveredEntityId`.
-   * Lưu ý: cảnh không có API đặt riêng một trường; đổi nó phải dựng lại CẢ khung rồi gọi
-   * `handle.update(frame)` (`viewer3dScene.ts:618-634`).
-   */
+  /** Hàng diff đang được trỏ; tô sáng cùng nhóm với `changedEntityIds`. */
   readonly hoveredEntityId: string | null;
 }
 
@@ -378,11 +365,11 @@ export interface VersionHistoryToast {
  */
 export interface VersionHistoryCapabilities {
   /**
-   * Dựng được cảnh 3D của mô hình HIỆN TẠI (qua `mountViewerScene`). Tên trường nói đúng
+   * Dựng được cảnh 3D của mô hình HIỆN TẠI (qua khung xem Pascal). Tên trường nói đúng
    * thứ làm được: **không** có khả năng dựng lại một phiên bản CŨ — xem mục 1 đầu file.
    */
   readonly canShowCurrentModel3d: boolean;
-  /** `ViewerSceneFrame.selectedEntityIds`/`hoveredEntityId` có thật ⇒ tô sáng được. */
+  /** `externalSelectedIds` của viewer Pascal có thật ⇒ tô sáng được. */
   readonly canHighlightEntity: boolean;
   readonly canTagVersion: boolean;
   /** NOT FOUND ở tầng logic ⇒ luôn `false` trong bản này; affordance rời khỏi DOM. */
@@ -412,7 +399,12 @@ export interface VersionPage {
 
 /** N18: nội dung, hoặc "không còn nội dung" (`VERSION_SNAPSHOT_PURGED`/`VERSION_FLOOR_MISMATCH`). */
 export type VersionSnapshotRead =
-  | { readonly kind: 'snapshot'; readonly snapshot: VersionSnapshot }
+  | {
+      readonly kind: 'snapshot';
+      readonly snapshot: VersionSnapshot;
+      /** Lớp + kích thước thô của bản ấy — tab "Trực quan" dựng cảnh bản CŨ từ đây. */
+      readonly source?: VersionSnapshotSource;
+    }
   | { readonly kind: 'purged' };
 
 /** N16 rút gọn: lớp, kích thước và `revision` đi cùng nhau. */

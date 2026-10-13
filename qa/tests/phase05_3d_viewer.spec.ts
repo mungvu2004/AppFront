@@ -652,7 +652,8 @@ test.describe('SCR-23 Viewer 3D', () => {
 
 /* ---- SCR-24 Exploded View ------------------------------------------------------------------ */
 
-test.describe('SCR-24 Exploded View', () => {
+// F-15 W2-C2: màn ExplodedView cũ đã xoá, /3d/exploded chuyển sang /3d?view=exploded của Pascal — tách tầng Pascal kiểm ở e2e/v9/exploded.spec.ts
+test.describe.skip('SCR-24 Exploded View', () => {
   test('SCR-24 "Tách hết", "Độ tách", "Ẩn tầng {seeded floor}"', async () => {
     await page.goto(ROUTES.project.exploded(projectId));
     await dismissTour(page);

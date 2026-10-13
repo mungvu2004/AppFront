@@ -21,11 +21,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import type { SpatialGraph } from '@/domain/spatial/types';
 import type * as ToPascalModule from '@/lib/pascal/toPascal';
-import {
-  __resetFeatureFlagsForTests,
-  setFeatureFlagOverride,
-} from '@/lib/telemetry/flags';
-
 import { usePascalViewer, type UsePascalViewerOptions, type UsePascalViewerResult } from './usePascalViewer';
 
 /**
@@ -196,33 +191,18 @@ const press = (key: string): void => {
 };
 
 beforeEach(() => {
-  __resetFeatureFlagsForTests();
-  setFeatureFlagOverride('scene.pascal-viewer', true);
   adapter.calls = 0;
   adapter.failNext = 0;
 });
 
 afterEach(() => {
-  __resetFeatureFlagsForTests();
   delete window.__zod_globalConfig;
   vi.unstubAllEnvs();
 });
 
 describe('máy trạng thái', () => {
-  it('cờ tắt thì "forbidden", và KHÔNG nạp gói', () => {
-    setFeatureFlagOverride('scene.pascal-viewer', false);
-    const bench = harness();
-    const loadMount = vi.fn(bench.loadMount);
-
-    const probe = mountHook({ graph: GRAPH, loadMount });
-
-    expect(probe.state).toBe('forbidden');
-    expect(loadMount).not.toHaveBeenCalled();
-  });
-
-  it('cờ tắt thì KHÔNG chạy cả bộ đổi dữ liệu — không ai xem cảnh ấy (B-V10-03)', async () => {
-    setFeatureFlagOverride('scene.pascal-viewer', false);
-    mountHook({ graph: GRAPH, loadMount: harness().loadMount });
+  it('bản vẽ rỗng thì KHÔNG chạy bộ đổi dữ liệu — không có gì để dựng', async () => {
+    mountHook({ graph: EMPTY_GRAPH, loadMount: harness().loadMount });
 
     // Xem `ADAPTER_SETTLE_MS`: không có mốc dương cho "không làm gì".
     await import('@/lib/pascal/toPascal');
@@ -364,9 +344,9 @@ describe('máy trạng thái', () => {
       expect(probe.state).toBe('partial');
     }, { timeout: ASYNC_TIMEOUT_MS });
 
-    // Bộ mẫu chuẩn có 4 trục và 34 kích thước không sang Pascal được (A14).
+    // Bộ mẫu chuẩn có 34 kích thước không sang Pascal được (A14); trục nay là `structural-grid` (S9).
     const kinds = probe.viewModel.skipped.map((item) => item.kind);
-    expect(kinds).toContain('trục định vị');
+    expect(kinds).toContain('kích thước');
     expect(probe.viewModel.summary).toMatchObject({ wallLabel: '48' });
   });
 });
@@ -492,5 +472,116 @@ describe('dọn dẹp', () => {
     await vi.waitFor(() => {
       expect(bench.dispose).toHaveBeenCalled();
     }, { timeout: ASYNC_TIMEOUT_MS });
+  });
+});
+
+describe('tách tầng qua `?view=exploded` (F-15 W2-C2)', () => {
+  it('truyền `explodeLevels` xuống hợp đồng mount', async () => {
+    const seen: Array<Record<string, unknown>> = [];
+    const loadMount = (() =>
+      Promise.resolve({
+        mount: (_element: HTMLElement, options: Record<string, unknown>) => {
+          seen.push(options);
+          return { dispose: vi.fn() };
+        },
+      })) as unknown as () => Promise<never>;
+
+    mountHook({ graph: GRAPH, loadMount, explodeLevels: true });
+
+    await vi.waitFor(() => {
+      expect(seen).toHaveLength(1);
+    }, { timeout: ASYNC_TIMEOUT_MS });
+    expect(seen[0]?.['explodeLevels']).toBe(true);
+  });
+});
+
+describe('/3d?tool=measure', () => {
+  it('chuyển công cụ bật sẵn xuống khung Pascal, và không chuyển khi không có', async () => {
+    const seen: Array<Record<string, unknown>> = [];
+    const loadMount = (() =>
+      Promise.resolve({
+        mount: (_element: HTMLElement, options: Record<string, unknown>) => {
+          seen.push(options);
+          return { dispose: vi.fn() };
+        },
+      })) as unknown as () => Promise<never>;
+
+    mountHook({ graph: GRAPH, mode: 'edit', initialTool: 'measure', loadMount });
+    mountHook({ graph: GRAPH, mode: 'edit', loadMount });
+
+    await vi.waitFor(() => {
+      expect(seen).toHaveLength(2);
+    }, { timeout: ASYNC_TIMEOUT_MS });
+    expect(seen.map((options) => options['initialTool'])).toEqual(
+      expect.arrayContaining(['measure', undefined]),
+    );
+    expect(seen.filter((options) => 'initialTool' in options)).toHaveLength(1);
+  });
+});
+
+describe('lượt lưu của editor KHÔNG dựng lại editor (F-15 R3)', () => {
+  /** Gói giả đếm mount/setScene/dispose, giữ `onSceneCommit` để đóng vai editor. */
+  const counting = () => {
+    const counts = { mount: 0, setScene: 0, dispose: 0 };
+    let commit: ((scene: unknown) => Promise<void>) | undefined;
+    const loadMount = (() =>
+      Promise.resolve({
+        mount: (_element: HTMLElement, options: Record<string, unknown>) => {
+          counts.mount += 1;
+          commit = options['onSceneCommit'] as (scene: unknown) => Promise<void>;
+          return {
+            dispose: () => { counts.dispose += 1; },
+            setScene: () => { counts.setScene += 1; },
+          };
+        },
+      })) as unknown as () => Promise<never>;
+
+    return { counts, loadMount, commit: (scene: unknown) => commit?.(scene) ?? Promise.resolve() };
+  };
+
+  const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, ADAPTER_SETTLE_MS)));
+
+  it('lưu từ Pascal → mount đúng 1 lần, không nạp ngược; đổi từ ngoài → setScene; đổi dự án → mount lại', async () => {
+    const bench = counting();
+    let rerenderWith: (graph: SpatialGraph, key: string) => void = () => undefined;
+    const onSceneCommit = async () => {
+      // `commit` đổi kho NGAY trong lời gọi — bản vẽ mới tới trước khi lời gọi trả về.
+      rerenderWith({ ...GRAPH, walls: GRAPH.walls.slice(1) }, 'p1');
+      return true;
+    };
+    const ui = (graph: SpatialGraph, key: string) => (
+      <Probe graph={graph} mode="edit" mountKey={key} loadMount={bench.loadMount} onSceneCommit={onSceneCommit} onResult={() => undefined} />
+    );
+    const view = render(ui(GRAPH, 'p1'));
+    rerenderWith = (graph, key) => view.rerender(ui(graph, key));
+
+    await vi.waitFor(() => { expect(bench.counts.mount).toBe(1); }, { timeout: ASYNC_TIMEOUT_MS });
+
+    await act(() => bench.commit({}));
+    await settle();
+    expect(bench.counts).toEqual({ mount: 1, setScene: 0, dispose: 0 });
+
+    rerenderWith({ ...GRAPH, walls: GRAPH.walls.slice(2) }, 'p1');
+    await vi.waitFor(() => { expect(bench.counts.setScene).toBe(1); }, { timeout: ASYNC_TIMEOUT_MS });
+    expect(bench.counts.mount).toBe(1);
+
+    rerenderWith(GRAPH, 'p2');
+    await vi.waitFor(() => { expect(bench.counts.mount).toBe(2); }, { timeout: ASYNC_TIMEOUT_MS });
+    expect(bench.counts.dispose).toBe(1);
+  });
+
+  it('lượt lưu bị từ chối KHÔNG nuốt thay đổi ngoài kế tiếp', async () => {
+    const bench = counting();
+    const ui = (graph: SpatialGraph) => (
+      <Probe graph={graph} mode="edit" loadMount={bench.loadMount} onSceneCommit={async () => false} onResult={() => undefined} />
+    );
+    const view = render(ui(GRAPH));
+
+    await vi.waitFor(() => { expect(bench.counts.mount).toBe(1); }, { timeout: ASYNC_TIMEOUT_MS });
+    await act(() => bench.commit({}));
+
+    view.rerender(ui({ ...GRAPH, walls: GRAPH.walls.slice(1) }));
+    await vi.waitFor(() => { expect(bench.counts.setScene).toBe(1); }, { timeout: ASYNC_TIMEOUT_MS });
+    expect(bench.counts.mount).toBe(1);
   });
 });

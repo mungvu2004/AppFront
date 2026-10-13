@@ -15,13 +15,11 @@
  * Mọi kiểu và hằng số chung sống ở `mobileViewerTypes.ts` — nguồn duy nhất, khai
  * đúng một lần ở đó và nhập bằng `import type` ở khắp nơi.
  *
- * ## Ba thứ CỐ Ý không xuất ở đây, và lý do là một con số
+ * ## Hai thứ CỐ Ý không xuất ở đây, và lý do là một con số
  *
- * `mountMobileViewerScene`, `attachMobileViewerGestures` và
- * `ConnectedMobileViewer` đều kéo theo `three` (bộ nhận cử chỉ qua
- * `CLICK_SLOP_PX` của `lib/three/interaction/raycast`). File này là thứ
- * `router.tsx` nhập, nên một lời xuất GIÁ TRỊ nào trong ba cái đó sẽ lôi ~137
- * KiB gzip vào **bao đóng nhập tĩnh** của chunk màn và làm vỡ ngân sách
+ * `mountMobileViewerPascal` và `ConnectedMobileViewer` đều kéo theo cửa nạp gói
+ * Pascal. File này là thứ `router.tsx` nhập, nên một lời xuất GIÁ TRỊ nào trong
+ * hai cái đó sẽ lôi cả nhánh ấy vào **bao đóng nhập tĩnh** của chunk màn và làm vỡ ngân sách
  * `routeChunk` 280 KiB — đúng thứ `MobileViewer.connected.tsx` được tách ra để
  * tránh. Ai cần chúng thì nhập thẳng module, và đọc docblock ở đó trước.
  *
@@ -39,7 +37,6 @@ export type { ConnectedMobileViewerProps } from './MobileViewer.connected';
 export { MobileViewer } from './MobileViewer';
 export { useMobileViewer } from './useMobileViewer';
 export type { MountMobileViewerScene, UseMobileViewerOptions } from './useMobileViewer';
-export type { MobileViewerSceneMountOptions } from './mobileViewerScene';
 export {
   createMobileViewerGateway,
   floorsOf,
@@ -52,7 +49,6 @@ export {
   MOBILE_VIEWER_BOTTOM_BAR_PX,
   MOBILE_VIEWER_COMPACT_WIDTH_PX,
   MOBILE_VIEWER_MIN_HIT_TARGET_PX,
-  MOBILE_VIEWER_MODEL_TOKEN,
   MOBILE_VIEWER_SHEET_FULL_RATIO,
   MOBILE_VIEWER_SHEET_MID_RATIO,
   MOBILE_VIEWER_SHEET_PEEK_PX,
@@ -62,7 +58,6 @@ export {
 } from './mobileViewerTypes';
 export type {
   MobileViewerFloor,
-  MobileViewerGesture,
   MobileViewerInfoRow,
   MobileViewerMeasurement,
   MobileViewerModel,

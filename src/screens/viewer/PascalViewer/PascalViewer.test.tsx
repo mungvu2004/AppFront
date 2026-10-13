@@ -57,6 +57,7 @@ const viewModelFor = (state: PascalViewerState): PascalViewerViewModel => ({
   summary: state === 'success' || state === 'partial' ? SUMMARY : null,
   skipped: state === 'partial' ? SKIPPED : [],
   errorCode: state === 'error' ? 'PASCAL-01' : null,
+  saveLabel: null,
 });
 
 const renderState = (state: PascalViewerState) =>

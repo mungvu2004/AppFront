@@ -42,6 +42,7 @@ import { Html } from '@react-three/drei'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { LevelOffsetGroup } from '../shared/level-offset-group'
 import { resolveWallOpeningCeiling } from '../shared/wall-opening-ceiling'
+import { rescaleWallOpenings } from './opening-rescale'
 
 /**
  * Wall endpoint move tool (kind-owned).
@@ -550,6 +551,8 @@ export const MoveWallEndpointTool: React.FC<{ target: MovingWallEndpoint }> = ({
             ignoreWallIds: [nodeId, ...linkedUpdates.map((u) => String(u.id))],
           })
           const finalPoint = resolved ?? movingPoint
+          // Store still holds the pre-drag walls (only overrides moved).
+          const nodesBeforeCommit = useScene.getState().nodes
           useScene.getState().updateNodes([
             {
               id: nodeId as AnyNodeId,
@@ -573,6 +576,16 @@ export const MoveWallEndpointTool: React.FC<{ target: MovingWallEndpoint }> = ({
               const wall = committedNodes[id]
               return wall?.type === 'wall'
                 ? [{ id, data: resolveMovedWallSupportSlabPatch(wall, committedNodes) }]
+                : []
+            }),
+          )
+          // Doors/windows keep their fraction along each resized wall (#6).
+          useScene.getState().updateNodes(
+            affectedIds.flatMap((id) => {
+              const before = nodesBeforeCommit[id]
+              const after = committedNodes[id]
+              return before?.type === 'wall' && after?.type === 'wall'
+                ? rescaleWallOpenings(after, before, after, committedNodes)
                 : []
             }),
           )

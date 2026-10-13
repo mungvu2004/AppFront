@@ -1,6 +1,6 @@
 import type { MeasurementPoint } from '@pascal-app/core';
 export type LinearUnit = 'metric' | 'imperial';
-export type MetricNotation = 'meters' | 'millimeters';
+export type MetricNotation = 'meters' | 'centimeters' | 'millimeters';
 export declare const MEASUREMENT_ACTIVE_COLOR = "#6366f1";
 export declare const MEASUREMENT_DANGLING_COLOR = "#dc2626";
 export declare const MEASUREMENT_FLOORPLAN_COLOR = "#4f46e5";

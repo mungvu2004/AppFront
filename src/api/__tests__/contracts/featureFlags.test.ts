@@ -18,14 +18,13 @@ import { FeatureFlagsSchema } from '../../schemas/featureFlags';
 const allFlags = {
   'export.pdf-vector': false,
   'qc.live-collaboration': false,
-  'scene.pascal-viewer': false,
   'rules.parallel-run': true,
   'scene.instanced-walls': true,
   'scene.soft-shadows': false,
 } as const;
 
 describe('FeatureFlagsSchema', () => {
-  it('nhận bảng đầy đủ sáu cờ', () => {
+  it('nhận bảng đầy đủ năm cờ', () => {
     expect(FeatureFlagsSchema.parse(allFlags)).toStrictEqual({ ...allFlags });
   });
 
@@ -37,8 +36,8 @@ describe('FeatureFlagsSchema', () => {
     expect(FeatureFlagsSchema.parse({ [key]: true })).toStrictEqual({ [key]: true });
   });
 
-  it('khai đúng sáu khoá mà lib/telemetry/flags.ts liệt kê', () => {
-    expect(FEATURE_FLAG_KEYS).toHaveLength(6);
+  it('khai đúng năm khoá mà lib/telemetry/flags.ts liệt kê', () => {
+    expect(FEATURE_FLAG_KEYS).toHaveLength(5);
     expect(FeatureFlagsSchema.parse(allFlags)).toStrictEqual(
       Object.fromEntries(FEATURE_FLAG_KEYS.map((key) => [key, allFlags[key]])),
     );

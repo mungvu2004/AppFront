@@ -37,6 +37,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
     terrain?: {
         type: "heightfield";
         origin: [number, number];
@@ -153,6 +158,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
 } | {
     object: "node";
     position: [number, number, number];
@@ -197,6 +207,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
     slots?: Record<string, string> | undefined;
     material?: {
@@ -249,6 +264,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
 } | {
     object: "node";
     id: `level_${string}`;
@@ -277,6 +297,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
     height?: number | undefined;
 } | {
@@ -368,6 +393,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
     slots?: Record<string, string> | undefined;
     hostSlabId?: `slab_${string}` | undefined;
@@ -479,6 +509,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
     supportSlabId?: string | undefined;
     slots?: Record<string, string> | undefined;
     material?: {
@@ -559,6 +594,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
 } | {
     object: "node";
     position: [number, number, number];
@@ -605,6 +645,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
     supportSlabId?: string | undefined;
 } | {
     object: "node";
@@ -637,6 +682,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
 } | {
     object: "node";
     id: `wall_${string}`;
@@ -667,6 +717,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
     supportSlabId?: string | undefined;
     slots?: Record<string, string> | undefined;
@@ -866,6 +921,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
     path?: [number, number][] | undefined;
     supportSlabId?: string | undefined;
     slots?: Record<string, string> | undefined;
@@ -946,6 +1006,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
     supportSlabId?: string | undefined;
     slots?: Record<string, string> | undefined;
@@ -1108,6 +1173,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
     supportSlabId?: string | undefined;
     slots?: Record<string, string> | undefined;
@@ -1301,6 +1371,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
     side?: "front" | "back" | undefined;
     supportSlabId?: string | undefined;
     slots?: Record<string, string> | undefined;
@@ -1431,6 +1506,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
     side?: "front" | "back" | undefined;
     supportSlabId?: string | undefined;
     wallId?: string | undefined;
@@ -1468,6 +1548,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
 } | {
     object: "node";
@@ -1508,6 +1593,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
 } | {
     object: "node";
     id: `slab_${string}`;
@@ -1544,6 +1634,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
     slots?: Record<string, string> | undefined;
     material?: {
@@ -1600,6 +1695,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
     slots?: Record<string, string> | undefined;
     material?: {
@@ -1659,6 +1759,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
     slots?: Record<string, string> | undefined;
     material?: {
@@ -1834,6 +1939,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
     material?: {
         id?: string | undefined;
         preset?: "custom" | "white" | "brick" | "concrete" | "wood" | "glass" | "metal" | "plaster" | "tile" | "marble" | undefined;
@@ -1968,6 +2078,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
     supportSlabId?: string | undefined;
     slots?: Record<string, string> | undefined;
     material?: {
@@ -2033,6 +2148,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
     supportSlabId?: string | undefined;
     slots?: Record<string, string> | undefined;
@@ -2150,6 +2270,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
     material?: {
         id?: string | undefined;
         preset?: "custom" | "white" | "brick" | "concrete" | "wood" | "glass" | "metal" | "plaster" | "tile" | "marble" | undefined;
@@ -2206,6 +2331,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
 } | {
     object: "node";
     position: [number, number, number];
@@ -2244,6 +2374,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
 } | {
     object: "node";
@@ -2352,6 +2487,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
 } | {
     object: "node";
     position: [number, number, number];
@@ -2379,6 +2519,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
     supportSlabId?: string | undefined;
 } | {
@@ -2433,6 +2578,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
     side?: "front" | "back" | undefined;
     slots?: Record<string, string> | undefined;
@@ -2533,6 +2683,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
     side?: "front" | "back" | undefined;
     slots?: Record<string, string> | undefined;
     material?: {
@@ -2603,6 +2758,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
     slots?: Record<string, string> | undefined;
     material?: {
         id?: string | undefined;
@@ -2654,6 +2814,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
     material?: {
         id?: string | undefined;
@@ -2710,6 +2875,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
     slots?: Record<string, string> | undefined;
     material?: {
         id?: string | undefined;
@@ -2762,6 +2932,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
     slots?: Record<string, string> | undefined;
     material?: {
@@ -2816,6 +2991,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
     slots?: Record<string, string> | undefined;
     material?: {
@@ -2878,6 +3058,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
     slots?: Record<string, string> | undefined;
     material?: {
@@ -2965,6 +3150,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
     material?: {
         id?: string | undefined;
         preset?: "custom" | "white" | "brick" | "concrete" | "wood" | "glass" | "metal" | "plaster" | "tile" | "marble" | undefined;
@@ -3040,6 +3230,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
     material?: {
         id?: string | undefined;
@@ -3126,6 +3321,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
     material?: {
         id?: string | undefined;
@@ -3215,6 +3415,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
     material?: {
         id?: string | undefined;
@@ -3323,6 +3528,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
     slots?: Record<string, string> | undefined;
     material?: {
         id?: string | undefined;
@@ -3380,6 +3590,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
     slots?: Record<string, string> | undefined;
     autoHangers?: boolean | undefined;
@@ -3442,6 +3657,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
     slots?: Record<string, string> | undefined;
     inletShape?: "round" | "rect" | "oval" | undefined;
     outletShape?: "round" | "rect" | "oval" | undefined;
@@ -3480,6 +3700,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
     supportSlabId?: string | undefined;
 } | {
@@ -3522,6 +3747,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
     supportSlabId?: string | undefined;
 } | {
     object: "node";
@@ -3553,6 +3783,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
 } | {
     object: "node";
     id: `liquid-line_${string}`;
@@ -3580,6 +3815,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
 } | {
     object: "node";
@@ -3610,6 +3850,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
     autoHangers?: boolean | undefined;
     hangerOverrides?: Record<string, {
@@ -3662,6 +3907,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             fromIds: string[];
         } | undefined;
     } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
+    } | undefined;
 } | {
     object: "node";
     position: [number, number, number];
@@ -3692,6 +3942,11 @@ export declare function getNodesWithLiveStairOpeningInputs(nodes: Record<string,
             op: "import" | "split" | "merge" | "duplicate" | "convert" | "promote" | "make-independent" | "attach";
             fromIds: string[];
         } | undefined;
+    } | undefined;
+    review?: {
+        reviewed?: boolean | undefined;
+        confidence?: number | undefined;
+        source?: "ai" | "human" | undefined;
     } | undefined;
 }>;
 export declare function createSurfaceOpeningPreviewController(): {

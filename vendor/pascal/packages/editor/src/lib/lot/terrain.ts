@@ -20,6 +20,7 @@ import {
   type TerrainData,
   type TerrainField,
 } from '@pascal-app/core'
+import { libStrings as vi } from '../../i18n/regions/libStrings'
 import { getParcelProvider, NO_PARCEL_SERVICE, type ParcelProvider } from './parcel-provider'
 
 export type Pt = readonly [number, number]
@@ -197,7 +198,7 @@ export async function sampleLotTerrain(
   originLngLat: readonly [number, number],
   options: SampleOptions = {},
 ): Promise<TerrainSampleResult> {
-  if (ring.length < 3) return { ok: false, reason: 'no lot ring' }
+  if (ring.length < 3) return { ok: false, reason: vi.lotTerrain.noLotRing }
   const provider = options.provider ?? getParcelProvider()
   if (!provider) return { ok: false, reason: NO_PARCEL_SERVICE }
   const grid = gridOver(ring, options.n ?? DEFAULT_GRID_N)
@@ -209,17 +210,23 @@ export async function sampleLotTerrain(
       deadlineMs: options.deadlineMs ?? 12000,
     })) as ElevationResponse
   } catch (error) {
-    return { ok: false, reason: error instanceof Error ? error.message : 'elevation lookup failed' }
+    return {
+      ok: false,
+      reason: error instanceof Error ? error.message : vi.lotTerrain.elevationLookupFailed,
+    }
   }
   if (!body.ok || !Array.isArray(body.results))
-    return { ok: false, reason: body.error ?? 'no elevations' }
+    return { ok: false, reason: body.error ?? vi.lotTerrain.noElevations }
   const elevFt: (number | null)[] = grid.points.map((_, i) => {
     const e = body.results?.[i]?.elevation
     return typeof e === 'number' && Number.isFinite(e) ? e : null
   })
   const valid = elevFt.filter((e): e is number => e !== null)
   if (valid.length < 4)
-    return { ok: false, reason: `too few elevations (${valid.length} of ${elevFt.length})` }
+    return {
+      ok: false,
+      reason: vi.lotTerrain.tooFewElevations(valid.length, elevFt.length),
+    }
   const mean = valid.reduce((s, v) => s + v, 0) / valid.length
   const datumAt = options.datumAt ?? centroidOf(ring)
   const datumFt = coarseHeightAt(grid, elevFt, datumAt[0], datumAt[1], mean)
@@ -256,11 +263,13 @@ export function describeTerrainSample(
   failure: string,
 ): string {
   if (summary) {
-    if (summary.flat) return `ground flat within ${Math.round(summary.reliefFt * 12)}" (USGS)`
-    const holes = summary.holes > 0 ? `, ${summary.holes} unread` : ''
-    return `terrain: ${summary.reliefFt.toFixed(1)}' of fall across the lot (USGS, ${summary.sampled} pts${holes})`
+    if (summary.flat) return vi.lotTerrain.groundFlatWithin(Math.round(summary.reliefFt * 12))
+    return vi.lotTerrain.reliefAcrossLot(
+      summary.reliefFt.toFixed(1).replace('.', ','),
+      summary.sampled,
+      summary.holes,
+    )
   }
-  if (failure && failure !== 'skipped')
-    return `terrain read failed (${failure}) — the ground is flat until it is read`
+  if (failure && failure !== 'skipped') return vi.lotTerrain.terrainReadFailed(failure)
   return ''
 }

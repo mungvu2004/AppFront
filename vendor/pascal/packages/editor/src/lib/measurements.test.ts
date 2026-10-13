@@ -69,7 +69,12 @@ describe('angle arc presentation', () => {
 describe('linear measurements', () => {
   test('formats metric measurements in meters', () => {
     expect(formatLinearMeasurement(3, 'metric')).toBe('3m')
-    expect(formatLinearMeasurement(3.456, 'metric')).toBe('3.46m')
+    expect(formatLinearMeasurement(3.456, 'metric')).toBe('3,46m')
+  })
+
+  test('formats metric measurements in centimeters with a decimal comma', () => {
+    expect(formatLinearMeasurement(3.4567, 'metric', 'centimeters')).toBe('345,7cm')
+    expect(formatLinearMeasurement(-0.2, 'metric', 'centimeters')).toBe('-20cm')
   })
 
   test('formats metric measurements in whole millimeters', () => {
@@ -107,7 +112,7 @@ describe('linear measurements', () => {
 
   test('formats negative measurements with a sign', () => {
     expect(formatLinearMeasurement(-0.1524, 'imperial')).toBe(`-0'6"`)
-    expect(formatLinearMeasurement(-0.1524, 'metric')).toBe('-0.15m')
+    expect(formatLinearMeasurement(-0.1524, 'metric')).toBe('-0,15m')
   })
 
   test('converts between meters and the active linear unit', () => {
@@ -155,9 +160,9 @@ describe('area measurements', () => {
   })
 
   test('formats an area label with value and unit', () => {
-    expect(formatAreaLabel(12.34, 'metric')).toBe('12.3m²')
-    expect(formatAreaLabel(1, 'imperial')).toBe('10.8ft²')
-    expect(formatAreaLabel(12.34, 'metric', 2)).toBe('12.34m²')
+    expect(formatAreaLabel(12.34, 'metric')).toBe('12,3 m²')
+    expect(formatAreaLabel(1, 'imperial')).toBe('10,8 ft²')
+    expect(formatAreaLabel(12.34, 'metric', 2)).toBe('12,34 m²')
   })
 
   test('returns a placeholder for non-finite areas', () => {
@@ -179,9 +184,9 @@ describe('volume measurements', () => {
   })
 
   test('formats a volume label with value and unit', () => {
-    expect(formatVolumeLabel(12.34, 'metric')).toBe('12.3m³')
-    expect(formatVolumeLabel(1, 'imperial')).toBe('35.3ft³')
-    expect(formatVolumeLabel(12.34, 'metric', 2)).toBe('12.34m³')
+    expect(formatVolumeLabel(12.34, 'metric')).toBe('12,3 m³')
+    expect(formatVolumeLabel(1, 'imperial')).toBe('35,3 ft³')
+    expect(formatVolumeLabel(12.34, 'metric', 2)).toBe('12,34 m³')
   })
 
   test('returns a placeholder for non-finite volumes', () => {

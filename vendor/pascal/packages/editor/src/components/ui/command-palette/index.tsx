@@ -11,6 +11,7 @@ import { create } from 'zustand'
 import { useShallow } from 'zustand/shallow'
 import { Dialog, DialogContent, DialogTitle } from './../../../components/ui/primitives/dialog'
 import { getLevelDisplayName } from '@pascal-app/core'
+import { foldedCommandFilter } from '../../../lib/fold-search'
 import { useCommandRegistry } from '../../../store/use-command-registry'
 import { usePaletteViewRegistry } from '../../../store/use-palette-view-registry'
 
@@ -227,10 +228,11 @@ export function CommandPalette({ emptyAction }: { emptyAction?: CommandPaletteEm
     return () => document.removeEventListener('fullscreenchange', handler)
   }, [])
 
-  // Cmd/Ctrl+K global shortcut
+  // Cmd/Ctrl+K global shortcut; Ctrl+F too — AppFront's find key (#42) lands
+  // in the same accent-insensitive search instead of the browser's find bar.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'f')) {
         e.preventDefault()
         setOpen(true)
       }
@@ -300,6 +302,11 @@ export function CommandPalette({ emptyAction }: { emptyAction?: CommandPaletteEm
         {!modeView && (
           <Command
             className="**:[[cmdk-group-heading]]:px-2.5 **:[[cmdk-group-heading]]:pt-3 **:[[cmdk-group-heading]]:pb-1 **:[[cmdk-group-heading]]:font-semibold **:[[cmdk-group-heading]]:text-[10px] **:[[cmdk-group-heading]]:text-muted-foreground **:[[cmdk-group-heading]]:uppercase **:[[cmdk-group-heading]]:tracking-wider"
+            /* Accent-insensitive match: Vietnamese labels are the only
+               labels this palette has, and cmdk's default scorer compares
+               the raw strings — so "hoan tac" finds nothing while "Hoàn
+               tác" sits right there in the list. */
+            filter={foldedCommandFilter}
             onKeyDown={(e) => {
               if (e.key === 'Backspace' && !inputValue && pages.length > 0) {
                 e.preventDefault()

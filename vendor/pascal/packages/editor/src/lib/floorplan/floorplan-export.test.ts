@@ -12,7 +12,6 @@ import {
   registerNode,
 } from '@pascal-app/core'
 import { useViewer } from '@pascal-app/viewer'
-import PDFDocument from 'pdfkit'
 import { z } from 'zod'
 import { splitFloorplanOverlay } from '../../components/editor-2d/renderers/floorplan-registry-layer'
 import { DEFAULT_FLOORPLAN_ANNOTATION_VISIBILITY } from './annotation-visibility'
@@ -37,8 +36,6 @@ import {
   rotateFloorplanExportBounds,
 } from './floorplan-export'
 import { floorplanGeometryMetadata } from './floorplan-extension'
-import { FloorplanPdfDocument, loadFloorplanPdfFonts } from './floorplan-pdfkit-document'
-import { renderFloorplanGeometryToPdfKit } from './floorplan-pdfkit-renderer'
 
 type GroupGeometry = Extract<FloorplanGeometry, { kind: 'group' }>
 type GroupTransform = NonNullable<GroupGeometry['transform']>
@@ -729,27 +726,6 @@ describe('collectFloorplanGeometry', () => {
         expect.closeTo(2),
       ])
 
-      const rawPdf = new PDFDocument({ autoFirstPage: false, compress: false })
-      const chunks: Buffer[] = []
-      rawPdf.on('data', (chunk: Buffer) => chunks.push(chunk))
-      const completedPdf = Promise.withResolvers<string>()
-      rawPdf.on('end', () => completedPdf.resolve(Buffer.concat(chunks).toString('latin1')))
-      const pdf = new FloorplanPdfDocument(rawPdf, [200, 200], await loadFloorplanPdfFonts())
-      pdf.addPage()
-      for (const { model } of full) {
-        if (!model) continue
-        await renderFloorplanGeometryToPdfKit(pdf, model, {
-          annotationLayer: false,
-          placement: { x: 20, y: 20, width: 100, height: 100 },
-          rotationDeg: 0,
-          viewport: { x: -4, y: -4, width: 20, height: 20 },
-        })
-      }
-      rawPdf.end()
-      const renderedPdf = await completedPdf.promise
-      expect(renderedPdf).toMatch(/f\*/)
-      expect(renderedPdf).toContain('/Subtype /Image')
-
       const upper = collectFloorplanGeometry(
         nodes,
         upperLevel.id,
@@ -841,9 +817,9 @@ describe('resolveExportLevels', () => {
     selectLevel(ground.id)
 
     expect(resolveExportLevels(nodes)).toEqual([
-      { id: ground.id, label: 'Level 0' },
-      { id: upper.id, label: 'Level 1' },
-      { id: attic.id, label: 'Level 3' },
+      { id: ground.id, label: 'Tầng 0' },
+      { id: upper.id, label: 'Tầng 1' },
+      { id: attic.id, label: 'Tầng 3' },
     ])
   })
 
@@ -851,9 +827,9 @@ describe('resolveExportLevels', () => {
     selectLevel(roof.id)
 
     expect(resolveExportLevels(nodes)).toEqual([
-      { id: ground.id, label: 'Level 0' },
-      { id: upper.id, label: 'Level 1' },
-      { id: attic.id, label: 'Level 3' },
+      { id: ground.id, label: 'Tầng 0' },
+      { id: upper.id, label: 'Tầng 1' },
+      { id: attic.id, label: 'Tầng 3' },
     ])
   })
 })

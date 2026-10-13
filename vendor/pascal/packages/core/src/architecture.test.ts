@@ -48,5 +48,7 @@ describe('architecture', () => {
     expect(offenders).toEqual([])
     // Guard against the walk passing vacuously.
     expect(files.length).toBeGreaterThan(100)
-  })
+    // Walks and reads every core source file; under a full `test:pascal` run the
+    // disk is shared with three other packages, so the 5 s default is not enough.
+  }, 30_000)
 })

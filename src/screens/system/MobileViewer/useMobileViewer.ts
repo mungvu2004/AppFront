@@ -35,40 +35,19 @@
  *
  * ## Cảnh 3D đi vào bằng cách TIÊM, không bằng `import`
  *
- * `mobileViewerScene.ts` là của một người khác trong cùng lượt dựng màn, và một
- * hook không thể `import` thứ chưa có mặt. Nên `mountScene` là một tham số BẮT
- * BUỘC: thiếu nó là lỗi biên dịch chứ không phải một màn im lặng không có hình.
- * Cùng lý do với `notifications` — A8 đòi mọi thay đổi có toast hoàn tác, và
- * `MobileViewerProps` không có chỗ nào cho toast, nên nơi nhận toast phải do
- * người gọi cấp. Thứ THIẾU không hiện ra trong diff, nên nó đóng bằng cấu trúc.
- *
- * ## Hình của tầng đi xuống cảnh, không chỉ mã tầng
- *
- * `MobileViewerSceneOptions` bản đầu chỉ có `floorIds` — mã tầng — và với riêng
- * mã tầng thì `mobileViewerScene.ts` không dựng được một tam giác nào. Hợp đồng
- * đã sửa (mục 4: `levels` là trường **bắt buộc**), và hook là nơi dựng mảng ấy:
- * `toBuildFloorInput(spatial, levelId)` cho từng tầng của `data.storeys`, đúng
- * phép chuyển mà `useViewer3D.ts:401-424` dùng trên máy tính. Một đồ thị không
- * chuyển được thành trạng thái `error`, không thành một mô hình rỗng im lặng.
- *
- * ## Một chỗ hợp đồng chưa phủ, và cách bắc qua
- *
- * `MobileViewerSceneOptions.onPick` đưa lên một `EntityHit` mà KHÔNG kèm toạ độ
- * pixel, còn `MobileViewerSceneHandle.pickMeasurePoint` lại nhận pixel. Nên hook
- * tự ghi lại điểm chạm cuối bằng MỘT listener `pointerdown` thụ động trên chính
- * canvas nó được trao — đúng việc mà `useViewerShell.ts:735-788` làm trên máy
- * tính. Listener này không `preventDefault`, không `stopPropagation`, không đọc
- * nhiều ngón và không chứa một phép toán camera nào: bộ nhận cử chỉ của
- * `mobileViewerGestures.ts` vẫn là chủ duy nhất của ba cử chỉ R-06.
+ * `mountScene` là tham số BẮT BUỘC (thiếu là lỗi biên dịch, không phải màn im
+ * lặng không có hình); bản thật là `mountMobileViewerPascal` — Pascal `view`
+ * với camera chạm, chọn và đo hai điểm do Pascal lo (F-15 S15). Cùng lý do với
+ * `notifications`: A8 đòi toast hoàn tác, nơi nhận phải do người gọi cấp.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useMutation, useQuery } from '@tanstack/react-query';
 
-import { measureDistance, type MeasurePoint } from '@/domain/measure/measure';
-import type { NormalizedSpatial } from '@/domain/spatial/normalize';
-import { hasBuildableParts, toBuildFloorInput } from '@/domain/spatial/toBuildFloorInput';
+import { denormalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
+import { readKindFromId } from '@/domain/spatial/ids';
+import { bodyOfPascalId } from '@/lib/pascal/ids';
 import { can } from '@/lib/auth/permissions';
 import {
   createShareLink,
@@ -77,16 +56,10 @@ import {
   type ShareLink,
   type ShareLinkGateway,
 } from '@/lib/export/shareLink';
-import type { ColorTokenName } from '@/lib/coloring/scales';
 import { createUuid } from '@/lib/http/ids';
-import type { BuildFloorInput } from '@/lib/three/build/floor';
 import { createUndoTicket } from '@/lib/mutations/undoTicket';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import type { NetworkMonitorStatus } from '@/lib/offline/networkMonitor';
-import { DETAIL_LEVELS, type DetailLevel } from '@/lib/three/build/lod';
-import type { EntityHit } from '@/lib/three/interaction/hitTest';
-import { SCENE_BUDGET } from '@/lib/three/perf/budget';
-import { DEGRADE_WINDOW_MS } from '@/lib/three/perf/monitor';
 import { ROUTES } from '@/routes/paths';
 import { useStore } from '@/store';
 import { useShareLinkGateway } from '@/hooks/useShareLinkGateway';
@@ -98,18 +71,17 @@ import {
   desktopLinkMailtoHref,
   floorsOf,
   isNetworkDegraded,
+  measurementOfDistance,
   selectionOf,
-  toMobileMeasurement,
+  type MobilePick,
   type MobileViewerGateway,
 } from './mobileViewerGateway';
 import { projectDetailQueryOptions } from './mobileViewerQueries';
 import {
   MOBILE_VIEWER_COMPACT_WIDTH_PX,
-  MOBILE_VIEWER_MODEL_TOKEN,
   type MobilePartialReason,
   type MobileViewerMeasurement,
   type MobileViewerModel,
-  type MobileViewerSceneHandle,
   type MobileViewerSceneMount,
   type MobileViewerSceneOptions,
   type MobileViewerSelection,
@@ -122,20 +94,6 @@ import {
 /* -------------------------------------------------------------------------- */
 
 /** Nhãn mức chi tiết trong lúc còn đang nâng dần lên. `full` là "hết chuyện để nói". */
-const RISING_DETAIL_LABELS: Readonly<Record<DetailLevel, string | null>> = Object.freeze({
-  block: 'Đang tải mức gọn',
-  reduced: 'Đang tải mức vừa',
-  full: null,
-});
-
-/** Nhãn mức chi tiết sau khi R-04 vừa HẠ xuống vì máy không theo kịp. */
-const DEGRADED_DETAIL_LABELS: Readonly<Record<DetailLevel, string | null>> = Object.freeze({
-  block: 'Đã hạ xuống mức gọn để hình chạy mượt',
-  reduced: 'Đã hạ xuống mức vừa để hình chạy mượt',
-  full: null,
-});
-
-/** Tên hiện trên thanh trên khi đồ thị và máy chủ đều chưa cho biết tên nào. */
 const UNNAMED_PROJECT = 'Dự án chưa có tên';
 
 /** Loại của mọi toast màn này phát ra — `NotificationBus` gộp theo trường này. */
@@ -154,17 +112,14 @@ const SHARE_UNDO_LABEL = 'Thu hồi liên kết vừa tạo';
 /* Tham số và những kiểu riêng của hook.                                       */
 /* -------------------------------------------------------------------------- */
 
-/** Không tầng nào dựng được — một hằng đông cứng, để mọi lượt trả về cùng một mảng. */
-const EMPTY_LEVELS: readonly BuildFloorInput[] = Object.freeze([]);
-
-/** Chữ ký lắp cảnh của `mobileViewerScene.ts`, tiêm vào chứ không `import`. */
+/** Chữ ký lắp cảnh của `mobileViewerPascal.ts`, tiêm vào chứ không `import`. */
 export type MountMobileViewerScene = (
-  canvas: HTMLCanvasElement,
+  element: HTMLElement,
   options: MobileViewerSceneOptions,
 ) => MobileViewerSceneMount;
 
 /** Vì sao cảnh không dựng được — cả ba đều dẫn tới trạng thái `error`. */
-type SceneFailure = 'webglUnavailable' | 'deviceTooWeak' | 'frameRateTooLow';
+type SceneFailure = 'webglUnavailable' | 'deviceTooWeak';
 
 /** Hai kiểu chia sẻ, cùng một lượt tạo liên kết. */
 type ShareIntent = 'copy' | 'mail';
@@ -178,8 +133,8 @@ interface ShareOutcome {
 export interface UseMobileViewerOptions {
   readonly projectId: string;
   /** Canvas do container cấp; `null` khi cây chưa gắn xong. */
-  readonly canvas: HTMLCanvasElement | null;
-  /** `mountMobileViewerScene` của `mobileViewerScene.ts`. */
+  readonly canvas: HTMLDivElement | null;
+  /** `mountMobileViewerPascal` của `mobileViewerPascal.ts`. */
   readonly mountScene: MountMobileViewerScene;
   /** Nơi nhận toast hoàn tác của A8. */
   readonly notifications: Pick<NotificationBus, 'publish'>;
@@ -198,17 +153,6 @@ export interface UseMobileViewerOptions {
 /* -------------------------------------------------------------------------- */
 /* Phép đọc thuần.                                                             */
 /* -------------------------------------------------------------------------- */
-
-/**
- * `next` có thô hơn `previous` không.
- *
- * `DETAIL_LEVELS` xếp từ mịn tới thô (`full` → `reduced` → `block`), nên "thô
- * hơn" là "đứng sau trong danh sách ấy". Không có bảng thứ hạng nào viết tay ở
- * đây: thứ tự là của `src/lib/three/build/lod`.
- */
-function isCoarser(next: DetailLevel, previous: DetailLevel): boolean {
-  return DETAIL_LEVELS.indexOf(next) > DETAIL_LEVELS.indexOf(previous);
-}
 
 /**
  * Truy vấn phương tiện cho bề ngang gọn.
@@ -275,57 +219,14 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
   const floors = useMemo(() => floorsOf(spatial, data.storeys), [spatial, data.storeys]);
   const floorIds = useMemo(() => floors.map((floor) => floor.id), [floors]);
 
-  /**
-   * Đồ thị → đầu vào của R-01, cùng phép chuyển mà `useViewer3D.ts:401-424` dùng.
-   *
-   * **Vì sao đoạn này tồn tại.** `floorIds` là MÃ tầng, và với riêng mã tầng thì
-   * `mobileViewerScene.ts` không dựng được một tam giác nào — cảnh lắp xong,
-   * mọi cổng xanh, người dùng nhìn vào một mô hình rỗng. Hợp đồng nay khai
-   * `levels` là trường bắt buộc (mục 4), nên chỗ dựng nó là ở đây, cạnh nơi dải
-   * tầng được đọc ra, chứ không phải một `useEffect` thứ hai.
-   *
-   * `toBuildFloorInput` ném khi đồ thị hỏng chỉ mục hoặc mang số đo không hữu
-   * hạn. Đó là một mô hình không dựng được, không phải một sự cố kỹ thuật để
-   * hiện mã lỗi: nó thành trạng thái `error`, và `error` của màn này mời người
-   * dùng sang bản 2D — lối thoát đúng cho cả hai lý do.
-   */
-  const conversion = useMemo((): { levels: readonly BuildFloorInput[]; failed: boolean } => {
-    if (spatial === null) {
-      return { levels: EMPTY_LEVELS, failed: false };
-    }
-
-    try {
-      const built: BuildFloorInput[] = [];
-
-      for (const storey of data.storeys) {
-        const input = toBuildFloorInput(spatial, storey.id);
-
-        if (input !== null) {
-          built.push(input);
-        }
-      }
-
-      return { levels: built, failed: false };
-    } catch {
-      return { levels: EMPTY_LEVELS, failed: true };
-    }
-  }, [spatial, data.storeys]);
-
-  const levels = conversion.levels;
-
-  // Tầng có tên mà không có tường lẫn phòng (mock `project-1`) chưa phải mô hình:
-  // dựng cảnh lên nó chỉ cho một khung trống mà không cổng nào bắt được. Cùng vị
-  // ngữ mà /3d dùng cho `empty` (B-V1-11).
-  const hasGeometry = useMemo(() => levels.some(hasBuildableParts), [levels]);
-
-  /**
-   * Một token cho cả mô hình — màn chỉ đọc này không có bộ chọn chế độ tô.
-   *
-   * Trị số đến từ {@link MOBILE_VIEWER_MODEL_TOKEN} của hợp đồng, cùng hằng mà
-   * cảnh dùng làm mặc định; hook truyền nó tường minh để cái seam này nhìn thấy
-   * được ở một chỗ, thay vì đúng nhờ hai bên tình cờ mặc định giống nhau.
-   */
-  const tokenOfPartKind = useCallback((): ColorTokenName => MOBILE_VIEWER_MODEL_TOKEN, []);
+  // Đồ thị cho Pascal; tầng có tên mà không có tường lẫn phòng chưa phải mô hình (B-V1-11).
+  const graph = useMemo(() => (spatial === null ? null : denormalizeSpatial(spatial)), [spatial]);
+  const hasGeometry =
+    graph !== null &&
+    (graph.walls.length > 0 ||
+      graph.rooms.length > 0 ||
+      graph.openings.length > 0 ||
+      graph.furniture.length > 0);
 
   const [activeFloorId, setActiveFloorId] = useState<string | null>(null);
 
@@ -396,161 +297,56 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
 
   /* ---- Cảnh 3D ----------------------------------------------------------- */
 
-  const handleRef = useRef<MobileViewerSceneHandle | null>(null);
   const [isSceneMounted, setIsSceneMounted] = useState(false);
   const [sceneFailure, setSceneFailure] = useState<SceneFailure | null>(null);
 
-  const [detail, setDetail] = useState<DetailLevel>('block');
-  const [isDegraded, setIsDegraded] = useState(false);
-  const detailRef = useRef<DetailLevel>('block');
-  const lowFrameSinceRef = useRef<number | null>(null);
-
   const [selection, setSelection] = useState<MobileViewerSelection | null>(null);
   const [measurements, setMeasurements] = useState<readonly MobileViewerMeasurement[]>([]);
-  const pendingMeasureRef = useRef<MeasurePoint | null>(null);
-  const lastTapRef = useRef<{ readonly xPx: number; readonly yPx: number } | null>(null);
 
   const [activeTool, setActiveTool] = useState<MobileViewerToolId | null>(null);
+  const isMeasuring = activeTool === 'measure';
 
   /**
-   * R-04 vừa đổi mức chi tiết.
-   *
-   * Hạ xuống là tin cần nói ra ("đã hạ xuống mức gọn"), nâng lên thì không —
-   * mở màn ở `block` rồi lên `full` là đường đi bình thường của "mức gọn trước,
-   * rồi nâng dần", không phải một sự cố để báo.
-   */
-  const handleDetailChange = useCallback((next: DetailLevel): void => {
-    setIsDegraded(isCoarser(next, detailRef.current));
-    detailRef.current = next;
-    setDetail(next);
-  }, []);
-
-  /**
-   * fps mới nhất từ cảnh.
-   *
-   * Ngưỡng đọc từ `SCENE_BUDGET.minFrameRate.mobile` và cửa sổ chờ từ
-   * `DEGRADE_WINDOW_MS` — hai hằng của `src/lib/three/perf`, không phải hai con
-   * số gõ tay (R-71). Thứ tự phản ứng đúng như đặc tả cấm bỏ qua: hạ mức chi
-   * tiết TRƯỚC, và chỉ khi đã ở mức gọn nhất mà vẫn không kịp trong suốt cả cửa
-   * sổ thì mới nhận là máy không dựng nổi và mời sang bản 2D.
-   */
-  const handleFrameRate = useCallback((fps: number): void => {
-    if (fps >= SCENE_BUDGET.minFrameRate.mobile) {
-      lowFrameSinceRef.current = null;
-
-      return;
-    }
-
-    const timestamp = nowRef.current();
-
-    if (lowFrameSinceRef.current === null) {
-      lowFrameSinceRef.current = timestamp;
-
-      return;
-    }
-
-    if (timestamp - lowFrameSinceRef.current < DEGRADE_WINDOW_MS) {
-      return;
-    }
-
-    if (detailRef.current !== 'block') {
-      return;
-    }
-
-    setSceneFailure('frameRateTooLow');
-  }, []);
-
-  /**
-   * Chạm trúng một đối tượng.
-   *
-   * Công cụ đo đang mở thì cú chạm là một điểm đo, không phải một lượt chọn:
-   * hai điểm liên tiếp thành một phép `measureDistance` của `src/domain/measure`.
-   * Ngoài lúc ấy, cú chạm mở tấm thông tin CHỈ ĐỌC.
+   * Chạm trúng một node Pascal. Mã node mang nguyên mã AppFront trong thân
+   * (`wall_W-…`); node do Pascal tự đẻ hoặc không thuộc đồ thị thì không mở gì.
    */
   const handleScenePick = useCallback(
-    (hit: EntityHit | null): void => {
-      if (activeTool !== 'measure') {
-        setSelection(selectionOf(hit, spatial, canEditOnDesktop));
+    (nodeId: string | null): void => {
+      const entityId = nodeId === null ? null : bodyOfPascalId(nodeId);
+      const kind = entityId === null || spatial?.byId[entityId] === undefined ? null : readKindFromId(entityId);
+      const pick: MobilePick | null =
+        entityId === null || kind === null || kind === 'level' ? null : { entityId, kind };
 
-        return;
-      }
-
-      const tap = lastTapRef.current;
-      const point = tap === null ? null : (handleRef.current?.pickMeasurePoint(tap.xPx, tap.yPx) ?? null);
-
-      if (point === null) {
-        return;
-      }
-
-      const pending = pendingMeasureRef.current;
-
-      if (pending === null) {
-        pendingMeasureRef.current = point;
-
-        return;
-      }
-
-      pendingMeasureRef.current = null;
-
-      const measurement = measureDistance(pending, point);
-
-      setMeasurements((current) => [...current, toMobileMeasurement(measurement, createUuid())]);
+      setSelection(selectionOf(pick, spatial, canEditOnDesktop));
     },
-    [activeTool, canEditOnDesktop, spatial],
+    [canEditOnDesktop, spatial],
   );
 
-  // Ba lời gọi ngược của cảnh đi qua một ô nhớ, để việc chúng đổi theo mỗi lượt
-  // vẽ KHÔNG kéo theo một lượt dọn cảnh và dựng lại từ đầu.
-  const sceneCallbacksRef = useRef({
-    onPick: handleScenePick,
-    onDetailChange: handleDetailChange,
-    onFrameRate: handleFrameRate,
-  });
+  const handleMeasure = useCallback((distanceM: number): void => {
+    setMeasurements((current) => [...current, measurementOfDistance(distanceM, createUuid())]);
+  }, []);
+
+  // Các lời gọi ngược đi qua một ô nhớ để việc chúng đổi theo mỗi lượt vẽ KHÔNG
+  // kéo theo một lượt dọn cảnh và dựng lại từ đầu.
+  const sceneCallbacksRef = useRef({ onPick: handleScenePick, onMeasure: handleMeasure });
 
   useEffect(() => {
-    sceneCallbacksRef.current = {
-      onPick: handleScenePick,
-      onDetailChange: handleDetailChange,
-      onFrameRate: handleFrameRate,
-    };
-  }, [handleScenePick, handleDetailChange, handleFrameRate]);
-
-  // Toạ độ cú chạm cuối, tính theo góc trên trái của canvas — thứ
-  // `pickMeasurePoint` nhận. Listener thụ động: nó chỉ ĐỌC, nên bộ nhận cử chỉ
-  // của T5 vẫn thấy nguyên vẹn mọi sự kiện.
-  useEffect(() => {
-    if (canvas === null) {
-      return undefined;
-    }
-
-    const record = (event: PointerEvent): void => {
-      const box = canvas.getBoundingClientRect();
-
-      lastTapRef.current = { xPx: event.clientX - box.left, yPx: event.clientY - box.top };
-    };
-
-    canvas.addEventListener('pointerdown', record, { passive: true });
-
-    return () => canvas.removeEventListener('pointerdown', record);
-  }, [canvas]);
+    sceneCallbacksRef.current = { onPick: handleScenePick, onMeasure: handleMeasure };
+  }, [handleScenePick, handleMeasure]);
 
   useEffect(() => {
-    if (canvas === null || floorIds.length === 0 || !hasGeometry) {
+    if (canvas === null || graph === null || !hasGeometry) {
       return undefined;
     }
 
     const mount = mountScene(canvas, {
-      floorIds,
-      // Hình THẬT của từng tầng. Thiếu mảng này thì cảnh lắp xong mà không có gì
-      // để vẽ, và không một cổng nào bắt được điều đó.
-      levels,
-      tokenOfPartKind,
-      // "Mức gọn trước, rồi nâng dần" — R-04. Mở màn ở `full` trên một máy ở
-      // công trường là cách chắc chắn nhất để khung hình đầu tiên đến muộn.
-      initialDetail: 'block',
-      onPick: (hit) => sceneCallbacksRef.current.onPick(hit),
-      onDetailChange: (next) => sceneCallbacksRef.current.onDetailChange(next),
-      onFrameRate: (fps) => sceneCallbacksRef.current.onFrameRate(fps),
+      graph,
+      // Pascal đọc `measure` lúc dựng, nên bật/tắt công cụ đo dựng lại cảnh.
+      measure: isMeasuring,
+      onPick: (nodeId) => sceneCallbacksRef.current.onPick(nodeId),
+      onMeasure: (distanceM) => sceneCallbacksRef.current.onMeasure(distanceM),
+      onReady: () => setIsSceneMounted(true),
+      onFailure: setSceneFailure,
     });
 
     if (!mount.ok) {
@@ -559,21 +355,13 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
       return undefined;
     }
 
-    handleRef.current = mount.handle;
     setSceneFailure(null);
-    setIsSceneMounted(true);
 
     return () => {
-      // R-05: mọi tài nguyên GPU trả lại đúng một lần.
       mount.handle.dispose();
-      handleRef.current = null;
       setIsSceneMounted(false);
     };
-  }, [canvas, floorIds, hasGeometry, levels, tokenOfPartKind, mountScene]);
-
-  useEffect(() => {
-    handleRef.current?.setActiveFloor(activeFloorId);
-  }, [activeFloorId, isSceneMounted]);
+  }, [canvas, graph, hasGeometry, isMeasuring, mountScene]);
 
   /* ---- Chia sẻ — X-04, và toast hoàn tác của A8 -------------------------- */
 
@@ -685,7 +473,7 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
     if (isForbidden) {
       return 'forbidden';
     }
-    if (sceneFailure !== null || conversion.failed || projectQuery.isError) {
+    if (sceneFailure !== null || projectQuery.isError) {
       return 'error';
     }
     if (
@@ -709,7 +497,6 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
   }, [
     isForbidden,
     sceneFailure,
-    conversion.failed,
     projectQuery.isError,
     projectQuery.isLoading,
     spatialLoading,
@@ -719,13 +506,6 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
     partialReason,
     isCompact,
   ]);
-
-  /* ---- Nhãn mức chi tiết -------------------------------------------------- */
-
-  const detailLabel = useMemo(
-    () => (isDegraded ? DEGRADED_DETAIL_LABELS[detail] : RISING_DETAIL_LABELS[detail]),
-    [detail, isDegraded],
-  );
 
   return {
     state,
@@ -741,7 +521,7 @@ export function useMobileViewer(options: UseMobileViewerOptions): MobileViewerMo
     onDismissSelection,
     onSendDesktopLink: canShareLinks ? onSendDesktopLink : null,
     measurements,
-    detailLabel,
+    detailLabel: null,
     partialReason: state === 'partial' ? partialReason : null,
     // Bản 2D của cùng dự án là danh sách tầng — lối thoát luôn hợp lệ, kể cả
     // khi đồ thị chưa có tầng nào để đặt tên vào đường dẫn.
