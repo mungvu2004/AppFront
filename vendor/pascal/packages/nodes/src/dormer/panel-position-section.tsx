@@ -11,6 +11,7 @@ import {
 import { PanelSection, SliderControl } from '@pascal-app/editor'
 import { useMemo } from 'react'
 import { Vector3 } from 'three'
+import { vi } from '../i18n/vi'
 
 /**
  * Position section: X, Z (world-space) and Rotation (world-space)
@@ -165,7 +166,7 @@ export function DormerPositionSection({
   }
 
   return (
-    <PanelSection title="Position">
+    <PanelSection title={vi.common.position}>
       <SliderControl
         label="X"
         max={Math.round(worldMaxX * 10) / 10}
@@ -199,7 +200,7 @@ export function DormerPositionSection({
         value={worldZ_now}
       />
       <SliderControl
-        label="Rotation"
+        label={vi.common.rotation}
         max={180}
         min={-180}
         onChange={(degrees) => {
