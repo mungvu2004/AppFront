@@ -33,6 +33,7 @@ import type { PascalScene } from '@/lib/pascal/types';
 import { PascalFrame } from './PascalFrame';
 import type {
   PascalCommitVerdict,
+  PascalHistoryJump,
   PascalMountMode,
   PascalSaveStatus,
   PascalSceneCommit,
@@ -76,6 +77,8 @@ export interface PascalMountOptions {
   readonly validateCommit?: (scene: PascalScene) => PascalCommitVerdict;
   /** Lý do một lượt sửa bị chặn. Màn hình dựng toast tiếng Việt từ đây. */
   readonly onCommitRejected?: (message: string) => void;
+  /** Người dùng vừa hoàn tác/làm lại — xem `PascalFrameProps.onHistoryJump` (A8). */
+  readonly onHistoryJump?: (kind: PascalHistoryJump) => void;
 }
 
 /**
@@ -111,6 +114,7 @@ export function mount(element: HTMLElement, options: PascalMountOptions): Pascal
           onFatal={options.onFatal}
           onSceneLoaded={options.onSceneLoaded}
           onRendererUnavailable={options.onRendererUnavailable}
+          onHistoryJump={options.onHistoryJump}
         />
       </StrictMode>,
     );
