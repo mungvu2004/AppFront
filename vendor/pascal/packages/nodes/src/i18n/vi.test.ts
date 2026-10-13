@@ -1,7 +1,28 @@
 import { describe, expect, test } from 'bun:test'
 import { vi } from './vi'
 
-const SHORT_ALLOWED = new Set(['X', 'Y', 'Z', '2D', '3D', 'Xoay'])
+// Từ tiếng Việt vốn không dấu (Khung, Xoay, Ngang…) và viết tắt (APN): đúng, không phải tiếng Anh sót.
+const SHORT_ALLOWED = new Set([
+  'X',
+  'Y',
+  'Z',
+  '2D',
+  '3D',
+  'APN',
+  'Chung',
+  'Cong',
+  'Ga-ra',
+  'Khay',
+  'Khung',
+  'Lan can',
+  'Ngang',
+  'Sau',
+  'Thanh ngang',
+  'Treo tranh',
+  'Trong',
+  'Xong',
+  'Xoay',
+])
 const VIETNAMESE_CHARS = /[àáâãèéêìíòóôõùúăđĩũơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/i
 
 function isCapitalized(value: string): boolean {

@@ -9,6 +9,8 @@ describe('creatable measurement kinds', () => {
   test('keeps the supported creation kinds', () => {
     expect(CREATABLE_MEASUREMENT_KINDS).toEqual([
       'distance',
+      'perpendicular',
+      'height',
       'angle',
       'area',
       'perimeter',

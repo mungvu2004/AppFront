@@ -85,6 +85,13 @@ const FRAGMENT_OR_LOANWORD_EXEMPT = new Set([
   "(chỉ trong phiên này). Chạm chọn thường sẽ chọn lại toàn bộ thành viên. Không được lưu vào dự án.",
   "đang chạy trong một Blender đang mở.",
   "đóng băng góc camera này thành ảnh tham chiếu dùng lại được cho ảnh render & video.",
+  // (3) Kết quả của khuôn chỉ ghép dữ liệu (tên/số) với tham số thử (1, "x", 2) của walk():
+  // chữ đầu và dấu là của dữ liệu thật lúc chạy, không phải của khuôn.
+  "1 (x)",
+  "1 x → 2",
+  "1 m²",
+  "x lệch trục so với 1 2 m",
+  "«1» chồng lên «x»",
 ]);
 
 const failures: string[] = [];

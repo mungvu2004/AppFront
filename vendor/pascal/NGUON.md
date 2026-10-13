@@ -256,3 +256,8 @@ Sửa thêm thì thêm một dòng ở đây — đừng để người sau ph�
 | `vendor/pascal/packages/editor/src/components/ui/panels/wall-vertex-{table.ts,table.test.ts,panel.tsx}`, editor/src/i18n/regions/wallMeasure.ts | S12 thêm/xoá đỉnh = tách/gộp tường | S12 |
 | `vendor/pascal/packages/editor/src/components/ui/helpers/contextual-helper-panel.tsx` | ô gợi ý phím đặt giữa-đáy (bottom-24 left-1/2) thay vì giữa-phải, để không chồng lên inspector | S14 |
 | `vendor/pascal/packages/editor/src/lib/contextual-help.ts`, helper-manager.tsx, i18n/regions/contextualHelp.ts (mới), i18n/vi.ts, lib/contextual-help.test.ts | dịch nhãn gợi ý chọn đối tượng sang tiếng Việt qua bảng vi | S14 |
+| `vendor/pascal/packages/core/src/contracts/reference-inventory.ts` | phân loại khoá metadata `appfront.areaM2` (diện tích tầng do toPascalScene ghi, là số không phải id) vào METADATA_NON_REFERENCES | M2 |
+| `vendor/pascal/packages/core/src/procedural-items/library-colors.test.ts` | đổi nhãn mong đợi sang nhãn tiếng Việt của thư viện màu (catalog đã Việt hoá có chủ đích) | M2 |
+| `vendor/pascal/packages/editor/src/lib/measurement-kind.test.ts` | thêm hai kiểu đo `perpendicular` và `height` do S11 bổ sung có chủ đích | M2 |
+| `vendor/pascal/packages/editor/src/i18n/vi.test.ts` | miễn năm kết quả của khuôn chỉ ghép dữ liệu với tham số thử (chữ đầu/dấu thuộc dữ liệu thật) | M2 |
+| `vendor/pascal/packages/nodes/src/i18n/vi.test.ts` | thêm vào danh sách cho phép các từ tiếng Việt vốn không dấu (Khung, Ga-ra, Lan can, Xong…) và viết tắt APN | M2 |
