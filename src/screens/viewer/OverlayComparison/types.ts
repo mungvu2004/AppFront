@@ -75,6 +75,8 @@
  * điều phối viên trước.
  */
 
+import type { ReactNode } from 'react';
+
 import type { LevelId } from '@/domain/spatial/types';
 import type { ViewportState } from '@/hooks/useCanvasViewport';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
@@ -326,6 +328,8 @@ export interface ConfirmationViewModel {
   readonly isConfirmed: boolean;
   /** Bấm được không — sai khi không có quyền, khi chưa đo được, hoặc khi đang tải. */
   readonly canConfirm: boolean;
+  /** Vì sao nút đang tắt, một dòng dưới nút (BUG-599). `null` khi bấm được hoặc đã xác nhận. */
+  readonly disabledReason: string | null;
   /**
    * Câu điềm đạm hiện sau khi xác nhận, và `'verified'` là chỗ DUY NHẤT trong màn
    * mã trạng thái đó được phép xuất hiện. `null` khi chưa xác nhận.
@@ -446,6 +450,15 @@ export interface OverlayComparisonViewModel {
 
   /** Khoá căn — chặn mọi thao tác đổi căn chỉnh. */
   readonly isAlignmentLocked: boolean;
+  /**
+   * Công tắc "Khoá căn" có tác dụng không: chỉ khi cổng đặt được ảnh vào mô hình
+   * (`imageToModelTransform`). `false` thì thanh công cụ ẩn nó — không điều khiển chết (BUG-599).
+   */
+  readonly canLockAlignment: boolean;
+  /** Lỗi ĐỌC (mạng, N16, ảnh quét) — có nút "Thử lại" (BUG-588, BUG-608). */
+  readonly canRetry: boolean;
+  /** Mức thu phóng theo phần trăm cho `ZoomCluster` — số nguyên, hook làm tròn (A15). */
+  readonly zoomPercent: number;
 
   readonly layers: Readonly<Record<OverlayLayerId, OverlayLayerViewModel>>;
   /**
@@ -516,6 +529,12 @@ export interface OverlayComparisonActions {
   readonly selectRegion: (id: string | null) => void;
   /** Kéo/thu phóng. Một lượt gọi đổi viewport của MỌI khung cùng lúc. */
   readonly setViewport: (viewport: ViewportState) => void;
+  /** Phóng theo hệ số, neo tại điểm `(x, y)` của khung (pixel CSS) — nút +/− (BUG-599). */
+  readonly zoomBy: (factor: number, anchorX: number, anchorY: number) => void;
+  /** Về toàn cảnh, giữ nguyên kiểu đối chiếu, độ mờ, dung sai — nút "Vừa khung" và phím F. */
+  readonly fitView: () => void;
+  /** Đọc lại sau lỗi đọc (BUG-588, BUG-608). */
+  readonly retry: () => void;
   /** Hành động rõ ràng của con người. Không có đường nào khác đặt được `isConfirmed`. */
   readonly confirmMatch: () => void;
 }
@@ -539,6 +558,8 @@ export interface OverlayComparisonToolbarProps {
   readonly scanOpacityPercent: number;
   readonly scanOpacityText: string;
   readonly isAlignmentLocked: boolean;
+  /** Vắng/`false` thì không vẽ công tắc "Khoá căn" (BUG-599). */
+  readonly canLockAlignment?: boolean;
   /** Thanh xếp hai hàng ở trạng thái `collapsed`. */
   readonly isStacked: boolean;
   readonly canEdit: boolean;
@@ -559,6 +580,8 @@ export interface OverlayComparisonPanelProps {
   readonly onSetToleranceMm: (millimetres: number) => void;
   readonly onSelectRegion: (id: string | null) => void;
   readonly onConfirmMatch: () => void;
+  /** Khối câu trạng thái đặt ở ĐẦU panel, không nổi giữa canvas (BUG-331, AES-13). */
+  readonly notice?: ReactNode;
 }
 
 /** Props của canvas đối chiếu, rộng toàn vùng còn lại. */

@@ -1313,7 +1313,7 @@ test.describe('SCR-14 Scale Calibration', () => {
 test.describe('SCR-22 Overlay Comparison', () => {
   useOwnDrawingFloor('m04-overlay');
 
-  test('SCR-22 swipe: "Kiểu đối chiếu" → "Trượt"; divider slider + arrows; "Độ mờ ảnh nguồn" → divider moves, "Chưa đo được vùng lệch nào."', async () => {
+  test('SCR-22 swipe: "Kiểu đối chiếu" → "Trượt"; divider slider + arrows; "Độ mờ ảnh nguồn" → divider moves, "Chưa có số đo — …" (BUG-331)', async () => {
     await page.goto(ROUTES.project.overlay(projectId, floorId));
     await dismissTour(page);
     await expect(page.getByRole('region', { name: 'Màn đối chiếu bản vẽ', exact: true })).toBeVisible();
@@ -1351,7 +1351,7 @@ test.describe('SCR-22 Overlay Comparison', () => {
     await page.keyboard.press(Number(opacityStart) > 0 ? 'ArrowLeft' : 'ArrowRight');
     await expect(opacity).not.toHaveAttribute('aria-valuenow', opacityStart);
 
-    await expect(page.getByText('Chưa đo được vùng lệch nào.', { exact: true })).toBeVisible();
+    await expect(page.getByText('Chưa có số đo — cần căn ảnh quét vào mô hình trước.', { exact: true })).toBeVisible();
     await captureEvidence(page, '22_overlay_swipe.png');
   });
 });

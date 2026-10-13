@@ -383,7 +383,7 @@ const eventMatches = (parsed: ParsedCombo, event: ShortcutKeyEvent): boolean => 
 /** Elements whose lone Enter/Space is their own activation (button click, link follow). */
 const ACTIVATABLE_TAGS: ReadonlySet<string> = new Set(['BUTTON', 'A', 'SUMMARY']);
 const ACTIVATABLE_ROLES: ReadonlySet<string> = new Set([
-  'button', 'link', 'radio', 'checkbox', 'switch', 'tab', 'menuitem', 'menuitemradio', 'menuitemcheckbox', 'option',
+  'button', 'link', 'radio', 'checkbox', 'switch', 'tab', 'menuitem', 'menuitemradio', 'menuitemcheckbox',
 ]);
 
 /**

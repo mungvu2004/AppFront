@@ -202,6 +202,7 @@ describe('OverlayComparison — xác nhận là hành động của người (A5
         buttonLabel: success.confirmation.buttonLabel,
         canConfirm: true,
         confirmedNotice: null,
+        disabledReason: null,
         isConfirmed: false,
       },
     };
@@ -231,5 +232,30 @@ describe('OverlayComparison — xác nhận là hành động của người (A5
 
     expect(confirmMatch).toHaveBeenCalledTimes(1);
     expect(confirmMatch).toHaveBeenCalledWith();
+  });
+});
+
+describe('OverlayComparison — QA-04c SCR-22 (BUG-331, 599, 608)', () => {
+  it('lỗi đọc có "Thử lại"; câu trạng thái nằm ở đầu panel, không nổi giữa canvas', () => {
+    const base = scenarioFor('error');
+    const retry = vi.fn();
+    renderWithProviders(
+      <OverlayComparison actions={{ ...base.actions, retry }} model={{ ...base.model, canRetry: true }} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(retry).toHaveBeenCalledOnce();
+
+    const notice = screen.getByRole('group', { name: 'Trạng thái của màn đối chiếu bản vẽ' });
+    expect(screen.getByRole('region', { name: 'Kết quả đối chiếu bản vẽ và mô hình' })).toContainElement(notice);
+  });
+
+  it('nút "Vừa khung nhìn" về toàn cảnh mà không tải lại trang (BUG-599)', () => {
+    const base = scenarioFor('partial');
+    const fitView = vi.fn();
+    renderWithProviders(<OverlayComparison actions={{ ...base.actions, fitView }} model={base.model} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Vừa khung nhìn' }));
+    expect(fitView).toHaveBeenCalledOnce();
   });
 });
