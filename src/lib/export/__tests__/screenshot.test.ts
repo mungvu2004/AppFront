@@ -34,6 +34,7 @@ import {
   CAPTURE_LAYOUT,
   CAPTURE_WIDTH_PX,
   captureFontOf,
+  captureCanvas,
   captureViewport,
   chooseScaleBar,
   composeCapture,
@@ -54,6 +55,7 @@ import {
   type CaptureInfoInput,
   type CaptureRendererLike,
   type CaptureTargetLike,
+  type CaptureCanvasInput,
   type CaptureViewportInput,
 } from '../screenshot';
 import {
@@ -265,6 +267,7 @@ type DrawCall =
   | { readonly kind: 'clearRect'; readonly args: readonly number[] }
   | { readonly kind: 'fillRect'; readonly args: readonly number[]; readonly fill: string }
   | { readonly kind: 'fillText'; readonly text: string; readonly x: number; readonly y: number; readonly fill: string; readonly font: string }
+  | { readonly kind: 'drawImage'; readonly args: readonly number[] }
   | { readonly kind: 'putImageData'; readonly x: number; readonly y: number; readonly image: CaptureImageDataLike };
 
 /** A 2D context that paints nothing and records everything. */
@@ -289,6 +292,10 @@ class FakeContext implements CaptureContext2DLike {
 
   createImageData(width: number, height: number): CaptureImageDataLike {
     return { data: new Uint8ClampedArray(width * height * 4) };
+  }
+
+  drawImage(_image: CanvasImageSource, dx: number, dy: number, dw: number, dh: number): void {
+    this.calls.push({ kind: 'drawImage', args: [dx, dy, dw, dh] });
   }
 
   putImageData(image: CaptureImageDataLike, dx: number, dy: number): void {
@@ -512,6 +519,30 @@ describe('captureViewport frees what it takes', () => {
 /* -------------------------------------------------------------------------- */
 /* The picture that comes out.                                                 */
 /* -------------------------------------------------------------------------- */
+
+describe('captureCanvas', () => {
+  it('copies the Pascal canvas into the frame and renders nothing', async () => {
+    const { input, host, canvases, renderer } = captureHarness();
+    const result = await captureCanvas(
+      { ...input, renderer: undefined, scene: undefined, camera: undefined, canvas: {} as CanvasImageSource } as CaptureCanvasInput,
+      host,
+    );
+
+    const draw = canvases[0]?.context.calls.find((call) => call.kind === 'drawImage');
+    expect(draw).toEqual({
+      kind: 'drawImage',
+      args: [
+        result.composition.frame.xPx,
+        result.composition.frame.yPx,
+        result.composition.frame.widthPx,
+        result.composition.frame.heightPx,
+      ],
+    });
+    expect(renderer.state().target).toBeNull();
+    expect(result.blob.type).toBe(SCREENSHOT_MIME_TYPE);
+    expect(result.widthPx).toBe(CAPTURE_WIDTH_PX);
+  });
+});
 
 describe('captureViewport output', () => {
   it('returns a PNG named after the project, the storey and the moment', async () => {

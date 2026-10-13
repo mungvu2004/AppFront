@@ -37,12 +37,16 @@ import type {
   PascalSaveStatus,
   PascalSceneCommit,
 } from './pascalMountTypes';
-import { clearPascalScene, type PascalSceneCensus } from './pascalScene';
+import { clearPascalScene, frameEntityInPascal, highlightPascalNodes, type PascalSceneCensus } from './pascalScene';
 
 /** Cái người gọi cầm về, đủ để sống trọn vòng đời mà không chạm vào Pascal. */
 export interface PascalMountHandle {
   /** Nạp một cảnh khác vào cùng khung đang chạy. */
   readonly setScene: (scene: PascalScene) => void;
+  /** Khuôn camera vào một đối tượng theo mã AppFront; `false` khi không có node nào mang mã ấy. */
+  readonly frameEntity: (entityId: string) => boolean;
+  /** Tô sáng các node theo mã Pascal; mảng rỗng là bỏ tô sáng. */
+  readonly setHighlight: (nodeIds: readonly string[]) => void;
   /** Gỡ gốc React thứ hai và trả store về rỗng. Gọi được nhiều lần. */
   readonly dispose: () => void;
 }
@@ -121,6 +125,10 @@ export function mount(element: HTMLElement, options: PascalMountOptions): Pascal
   return {
     setScene: (scene) => {
       if (!disposed) render(scene);
+    },
+    frameEntity: (entityId) => !disposed && frameEntityInPascal(entityId),
+    setHighlight: (nodeIds) => {
+      if (!disposed) highlightPascalNodes(nodeIds);
     },
     dispose: () => {
       if (disposed) return;

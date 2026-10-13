@@ -8,7 +8,7 @@
  * | Phân loại xung đột | `resolveConflict` (`@/lib/versioning/conflict`) |
  * | Câu cho hai phía xung đột | `CollaborationGateway.toConflictVm` |
  * | Ngưỡng "đồng bộ chậm" | `CACHE_POLICY.branches.spatialDraft` (`@/lib/query/cachePolicy`) |
- * | Khuôn camera vào một ghim | `frameObjects` (`@/lib/three/camera/frameObjects`, R-07) |
+ * | Khuôn camera vào một ghim | `scene.frameEntity` — khuôn camera Pascal (`components/pascal`, R-07) |
  * | Bạn là ai | `getSession` / `subscribeToSession` (`@/lib/auth`) |
  * | Tầng đang xem, đang chọn gì | `useStore` |
  *
@@ -53,7 +53,6 @@
  */
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import type { Object3D } from 'three';
 
 import { getSession, subscribeToSession } from '@/lib/auth';
 import type { SessionSnapshot } from '@/lib/auth';
@@ -62,9 +61,6 @@ import { formatNumber } from '@/lib/format/number';
 import type { NetworkMonitor, NetworkMonitorStatus } from '@/lib/offline/networkMonitor';
 import { createNetworkMonitor } from '@/lib/offline/networkMonitor';
 import { CACHE_POLICY } from '@/lib/query/cachePolicy';
-import type { FrameOptions } from '@/lib/three/camera/frameObjects';
-import { frameObjects } from '@/lib/three/camera/frameObjects';
-import type { Viewpoint } from '@/lib/three/camera/modes';
 import { resolveConflict } from '@/lib/versioning/conflict';
 import type { ResolveConflictInput } from '@/lib/versioning/conflict';
 import type {
@@ -198,21 +194,15 @@ export function deriveSyncState(input: SyncStateInput): CollaborationSyncState {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Thứ hook cần để khuôn camera vào một ghim bình luận (R-07).
+ * Thứ hook cần để khuôn camera vào một ghim bình luận (R-07): đúng một hàm.
  *
- * Ba trường, không hơn, và không trường nào là camera của riêng lớp phủ:
- * `frameObjects` đọc hộp bao của **lưới đã dựng** (`boundsOfIds` là hàm duy
- * nhất đi bộ trên một `Object3D`), còn góc nhìn và tỷ lệ khung hình thì thuộc
- * về camera đang chạy của nơi ráp. Lớp phủ tự bịa một góc nhìn sẽ giật camera
- * của người dùng sang một hướng họ không chọn.
+ * Camera là của khung Pascal đang chạy (`PascalMountHandle.frameEntity`); lớp phủ không
+ * dựng camera, không đọc cây lưới, không nhập three — tự bịa một góc nhìn sẽ giật camera
+ * của người dùng sang hướng họ không chọn.
  */
 export interface CollaborationSceneTarget {
-  /** Gốc cây lưới đã dựng. */
-  readonly root: Object3D;
-  /** Góc nhìn, tỷ lệ khung hình và lề của camera ĐANG chạy. */
-  readonly frameOptions: FrameOptions;
-  /** Đưa camera tới điểm nhìn đã tính. */
-  readonly goTo: (viewpoint: Viewpoint) => void;
+  /** Khuôn camera vào đối tượng mang mã ấy; `false` khi không có đối tượng nào. */
+  readonly frameEntity: (objectId: string) => boolean;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -605,8 +595,7 @@ export function useCollaborationLayer(
   /*
    * Khuôn camera vào ghim bình luận (R-07).
    *
-   * `frameObjects` đọc hộp bao của lưới đã dựng và trả `null` khi không vật nào
-   * mang mã ấy — một ghim trỏ vào đối tượng đã bị xoá thì để camera yên còn hơn
+   * `frameEntity` trả `false` khi không vật nào mang mã ấy — một ghim trỏ vào đối tượng đã bị xoá thì để camera yên còn hơn
    * bay tới một hộp rỗng.
    */
   const onFrameComment = useCallback(
@@ -620,12 +609,7 @@ export function useCollaborationLayer(
         return;
       }
 
-      const viewpoint = frameObjects(scene.root, [pin.objectId], scene.frameOptions);
-      if (viewpoint === null) {
-        return;
-      }
-
-      scene.goTo(viewpoint);
+      scene.frameEntity(pin.objectId);
     },
     [scene, comments],
   );

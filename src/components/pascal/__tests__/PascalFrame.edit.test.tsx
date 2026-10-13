@@ -19,6 +19,7 @@ import { toPascalScene } from '@/lib/pascal/toPascal';
 const editorProps = vi.hoisted(() => ({ current: null as Record<string, unknown> | null }));
 
 vi.mock('@pascal-app/editor', () => ({
+  appFrontEditorPanels: [],
   Editor: (props: Record<string, unknown>) => {
     editorProps.current = props;
     return null;
