@@ -181,13 +181,14 @@ describe('B-V12-05 — xuất xong thì tệp tải về máy, đúng lời màn
 });
 
 describe('[BUG-467] tuỳ chọn ảnh: nhãn nào cũng có giá trị', () => {
-  it('chưa có tầng đang mở thì "Góc nhìn hiện tại" là "—", không để trống', () => {
+  it('chưa có tầng nào thì "Góc nhìn hiện tại" là "—", không để trống', () => {
     const gateway = createExportPanelGateway({ deliver: vi.fn() });
     const queryClient = createTestQueryClient();
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     );
 
+    useStore.getState().setFloors([]); // không có tầng nào thì mới còn "—" (30-C-026)
     expect(useStore.getState().activeFloorId).toBeNull();
     const { result } = renderHook(() => useExportPanel({ projectId: PROJECT_ID, gateway }), { wrapper });
 

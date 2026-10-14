@@ -194,6 +194,9 @@ const EMPTY_SNAPSHOT: ExportRunSnapshot = Object.freeze({
   files: Object.freeze([]),
 });
 
+/** Khoang chan nhap lai sau khi mot luot xuat ket thuc (ms). */
+const EXPORT_RELOCK_MS = 250;
+
 const EMPTY_FLOORS: readonly Level[] = Object.freeze([]);
 
 /* -------------------------------------------------------------------------- */
@@ -399,6 +402,10 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
   /* ---------------------------------------------------------------------- */
 
   const startedAtRef = useRef<number>(0);
+  // Khoa dong bo chong nhap doi (30-C-029): dat ngay khi bam, khong cho state React;
+  // mo lai sau khi luot xuat ket thuc cong mot khoang ngan, vi .json xong tuc thi
+  // nen lan nhap thu hai co the den sau khi luot dau da xong.
+  const exportLockRef = useRef(false);
 
   const exportMutation = useMutation<ExportedFile, Error, ExportFormatId>({
     mutationFn: async (formatId) => {
@@ -446,6 +453,12 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
       return Promise.reject(new Error(`Không xuất được định dạng ${formatId}.`));
     },
 
+    onSettled: () => {
+      setTimeout(() => {
+        exportLockRef.current = false;
+      }, EXPORT_RELOCK_MS);
+    },
+
     onSuccess: (file, formatId) => {
       // Lời màn đã hứa (`DESTINATION_CAPTION`): xuất xong là tệp về thư mục tải xuống.
       // Nút ở hàng là "tải lại" — lượt tải đầu là việc của đây (B-V12-05).
@@ -474,7 +487,15 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
 
   // "Góc nhìn hiện tại:" theo tầng đang mở, tên người đọc được (30-C-026); đọc mỗi lượt
   // vì store nạp sau lần dựng đầu.
-  const activeFloorName = floors.find((level) => level.id === activeFloorId)?.name ?? MISSING_VALUE;
+  // Chua co tang dang chon (mo /export truc tiep) thi roi ve tang dau theo `order`.
+  const activeFloorName =
+    (
+      floors.find((level) => level.id === activeFloorId) ??
+      floors.reduce<(typeof floors)[number] | undefined>(
+        (first, level) => (first === undefined || level.order < first.order ? level : first),
+        undefined,
+      )
+    )?.name ?? MISSING_VALUE;
   const optionsViewLive = useMemo<ExportOptionsView>(
     () => ({ ...optionsView, image: { ...optionsView.image, viewId: activeFloorName } }),
     [optionsView, activeFloorName],
@@ -685,7 +706,7 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     // còn Spatial JSON lấy cả đồ thị nên nó không phụ thuộc lựa chọn tầng.
     // View không dựng hành động xuất trong cả ba cảnh; đây là lớp chặn thứ
     // hai, không phải nơi báo lỗi.
-    if (!canExport || !canExportSelected || exportMutation.isPending || spatialLoading) {
+    if (exportLockRef.current || !canExport || !canExportSelected || exportMutation.isPending || spatialLoading) {
       return;
     }
 
@@ -693,6 +714,7 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
       return;
     }
 
+    exportLockRef.current = true;
     exportMutation.mutate(selectedFormatId);
   }, [canExport, canExportSelected, exportMutation, selectedFormatId, selectedLevels.length, spatialLoading]);
 
