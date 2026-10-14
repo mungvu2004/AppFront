@@ -186,6 +186,7 @@ export function rawPost413(path: string, contentLength: number): Promise<{ statu
         res.on('error', reject);
       },
     );
+    req.setTimeout(10_000, () => req.destroy(new Error('no 413 within 10 s')));
     req.on('error', reject);
     req.flushHeaders();
   });
