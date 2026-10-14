@@ -1049,9 +1049,10 @@ test.describe('SCR-29 Rule Settings · edge (real stack)', () => {
           await openSettings(view.page, id);
           await expect.soft(view.page.getByText(RS.readOnly, { exact: true })).toBeVisible();
           await expect.soft(view.page.getByRole('switch', { disabled: false })).toHaveCount(0);
-          const fields = await view.page.getByRole('textbox').count();
-          expect.soft(fields, 'the screen has number fields').toBeGreaterThan(0);
-          await expect.soft(view.page.locator('input[readonly]')).toHaveCount(fields);
+          // Input.tsx:73-78 — isReadOnly draws the value as plain text: no <input> at all, so no textbox may exist while the labels and values still show.
+          await expect.soft(groupCard(view.page, RS.generalNav), 'the number values still show').toContainText(RS.generalField);
+          await expect.soft(view.page.getByRole('textbox'), 'no editable number field').toHaveCount(0);
+          await expect.soft(view.page.locator('input:not([readonly]):not([disabled])'), 'no editable <input>').toHaveCount(0);
           await shot(view.page, '29-D-003', 'viewer_read_only');
         });
       } finally {

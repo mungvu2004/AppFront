@@ -476,7 +476,7 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
       });
 
       await test.step('[30-G-008] ⚑ telemetry beacon of the .glb export', async () => {
-        // UEP:254: the gateway is built without a telemetry sender, so `track` is a no-op today. S5-confirm: VITE_TELEMETRY_ENABLED on.
+        // UEP:254: the gateway is built without a telemetry sender, so `track` is a no-op today. S5-confirm resolved: not an env gap — createExportPanelGateway() is called without `telemetry`, so no beacon whatever VITE_TELEMETRY_ENABLED is.
         await expect.configure({ soft: true }).poll(() => beacons().filter((e) => e.name === 'export.file').length, { message: 'an export.file event reaches /api/telemetry', timeout: 15_000 }).toBeGreaterThanOrEqual(1);
         const events = beacons().filter((e) => e.name === 'export.file');
         expect.soft(events.length, 'one beacon for the .glb export').toBe(1);
@@ -1096,7 +1096,7 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
         const links = preflightRegion(page).getByRole('link');
         const total = await links.count();
         expect.soft(total, 'the unapproved seed offers "Sửa" links').toBeGreaterThan(0);
-        await expect.soft(preflightRegion(page).getByRole('link', { name: /^Sửa: Còn/u })).toHaveCount(total);
+        await expect.soft(preflightRegion(page).getByRole('link', { name: /^Sửa\s*:\s*Còn/u })).toHaveCount(total);
         await shot(page, '30-E-010', 'fix_link_names');
         await attachJson('E06_30-E-010_fix_links.json', { links: total });
       });
