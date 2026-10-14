@@ -590,7 +590,8 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
       return 'partial';
     }
 
-    return summary.violations > 0 ? 'ready' : 'done';
+    // 28-B-005: cảnh báo/gợi ý cũng là mục cần liệt kê — `done` chỉ khi không còn mục nào.
+    return summary.violations + summary.warnings > 0 ? 'ready' : 'done';
   }, [
     capabilities.canEdit,
     configQuery.isLoadingError,

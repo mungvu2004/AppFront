@@ -1020,6 +1020,22 @@ const ruleCodesOf = (groups: readonly { readonly ruleCode: RuleCode }[]): RuleCo
   groups.map((group) => group.ruleCode);
 
 describe('F-10 — useRuleReport đọc cấu hình N21', () => {
+  it('28-B-005: 0 luật critical nhưng còn cảnh báo → không phải `done`, nhóm cảnh báo vẫn liệt kê', async () => {
+    const sample = runRules(normalizeSpatial(createSampleBuilding()), { registry: createDefaultRuleRegistry() });
+    const criticalCodes = [...new Set(sample.violations.filter((v) => v.severity === 'critical').map((v) => v.ruleCode))];
+    const overrides = Object.fromEntries(criticalCodes.map((code) => [code, { enabled: false }]));
+    const { result } = setupReport({ read: async () => configRead(1, overrides) });
+
+    await waitFor(() => {
+      expect(result.current.summary.evaluated).toBeGreaterThan(0);
+    });
+
+    expect(result.current.summary.violations).toBe(0);
+    expect(result.current.summary.warnings).toBeGreaterThan(0);
+    expect(result.current.status).toBe('ready');
+    expect(result.current.groups.length).toBeGreaterThan(0);
+  });
+
   it('N21 tắt một luật → luật đó vắng khỏi kết quả', async () => {
     const { result } = setupReport({ read: async () => configRead(1, { [NOISY_RULE_CODE]: { enabled: false } }) });
 
