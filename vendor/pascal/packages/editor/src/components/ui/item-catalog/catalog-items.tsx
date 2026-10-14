@@ -12,7 +12,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'cactus',
     category: 'furniture',
-    name: 'Cactus',
+    name: 'Xương rồng',
     tags: [
       'cactus',
       'rack',
@@ -38,7 +38,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'tv-stand',
     category: 'furniture',
-    name: 'TV Stand',
+    name: 'Kệ tivi',
     tags: ['floor', 'storage'],
     thumbnail: '/items/tv-stand/thumbnail.webp',
     src: '/items/tv-stand/model.glb',
@@ -51,7 +51,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'single-bed',
     category: 'furniture',
-    name: 'Single Bed',
+    name: 'Giường đơn',
     tags: ['floor', 'bedroom'],
     thumbnail: '/items/single-bed/thumbnail.webp',
     src: '/items/single-bed/model.glb',
@@ -63,7 +63,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'livingroom-chair',
     category: 'furniture',
-    name: 'Livingroom Chair',
+    name: 'Ghế phòng khách',
     tags: [
       'chair',
       'armchair',
@@ -88,7 +88,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'small-indoor-plant',
     category: 'furniture',
-    name: 'Small Plant',
+    name: 'Chậu cây nhỏ',
     tags: ['countertop', 'decor', 'vegetation'],
     thumbnail: '/items/small-indoor-plant/thumbnail.webp',
     src: '/items/small-indoor-plant/model.glb',
@@ -100,7 +100,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'column',
     category: 'furniture',
-    name: 'Column',
+    name: 'Cột trang trí',
     tags: [
       'column',
       'pillar',
@@ -128,7 +128,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'barbell',
     category: 'furniture',
-    name: 'Barbell',
+    name: 'Tạ đòn',
     tags: [
       'barbell',
       'weight',
@@ -155,7 +155,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'toy',
     category: 'furniture',
-    name: 'Toy',
+    name: 'Đồ chơi',
     tags: ['floor', 'kids', 'decor'],
     thumbnail: '/items/toy/thumbnail.webp',
     src: '/items/toy/model.glb',
@@ -167,7 +167,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'barbell-stand',
     category: 'furniture',
-    name: 'Barbell Stand',
+    name: 'Giá tạ',
     tags: [
       'rack',
       'stand',
@@ -194,7 +194,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'books',
     category: 'furniture',
-    name: 'Books',
+    name: 'Sách',
     tags: [
       'books',
       'novels',
@@ -222,8 +222,8 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'stool',
     category: 'furniture',
-    name: 'Stool',
-    tags: ['floor', 'seating'],
+    name: 'Ghế đẩu',
+    tags: ['floor', 'seating', 'stool'],
     thumbnail: '/items/stool/thumbnail.webp',
     src: '/items/stool/model.glb',
     dimensions: [0.52, 1.16, 0.55],
@@ -234,7 +234,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'pool-table',
     category: 'furniture',
-    name: 'Pool table',
+    name: 'Bàn bi-a',
     tags: [
       'pool',
       'billiards',
@@ -262,7 +262,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'bookshelf',
     category: 'furniture',
-    name: 'Bookshelf',
+    name: 'Giá sách',
     tags: [
       'bookshelf',
       'bookcase',
@@ -290,7 +290,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'coat-rack',
     category: 'furniture',
-    name: 'Coat Rack',
+    name: 'Cây treo áo',
     tags: [
       'coatrack',
       'rack',
@@ -317,7 +317,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'car-toy',
     category: 'furniture',
-    name: 'Car Toy',
+    name: 'Ô tô đồ chơi',
     tags: [
       'car',
       'toy',
@@ -345,7 +345,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'bedside-table',
     category: 'furniture',
-    name: 'Bedside Table',
+    name: 'Tủ đầu giường',
     tags: [
       'nightstand',
       'table',
@@ -372,7 +372,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
     id: 'cabinet',
     tool: 'cabinet',
     category: 'furniture',
-    name: 'Modular Cabinet',
+    name: 'Tủ mô-đun',
     tags: [
       'cabinet',
       'cupboard',
@@ -398,8 +398,8 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'sofa',
     category: 'furniture',
-    name: 'Sofa',
-    tags: ['floor', 'seating'],
+    name: 'Ghế sofa',
+    tags: ['floor', 'seating', 'sofa'],
     thumbnail: '/items/sofa/thumbnail.webp',
     src: '/items/sofa/model.glb',
     dimensions: [2.06, 0.74, 1.01],
@@ -410,7 +410,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'bunkbed',
     category: 'furniture',
-    name: 'Bunkbed',
+    name: 'Giường tầng',
     tags: [
       'bunkbed',
       'bed',
@@ -437,7 +437,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'office-table',
     category: 'furniture',
-    name: 'Office Table',
+    name: 'Bàn làm việc',
     tags: [
       'desk',
       'table',
@@ -464,7 +464,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'dining-table',
     category: 'furniture',
-    name: 'Dining Table',
+    name: 'Bàn ăn',
     tags: [
       'table',
       'dining',
@@ -490,7 +490,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'guitar',
     category: 'furniture',
-    name: 'Guitar',
+    name: 'Đàn guitar',
     tags: [
       'guitar',
       'instrument',
@@ -515,7 +515,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'trash-bin',
     category: 'furniture',
-    name: 'Trash Bin',
+    name: 'Thùng rác',
     tags: ['floor'],
     thumbnail: '/items/trash-bin/thumbnail.webp',
     src: '/items/trash-bin/model.glb',
@@ -527,7 +527,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'recessed-light',
     category: 'furniture',
-    name: 'Recessed Light',
+    name: 'Đèn âm trần',
     tags: [
       'recessed',
       'downlight',
@@ -571,7 +571,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'shelf',
     category: 'furniture',
-    name: 'Shelf',
+    name: 'Kệ',
     tags: [
       'shelf',
       'shelving',
@@ -599,7 +599,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'table-lamp',
     category: 'furniture',
-    name: 'Table Lamp',
+    name: 'Đèn bàn',
     tags: ['countertop', 'lighting'],
     thumbnail: '/items/table-lamp/thumbnail.webp',
     src: '/items/table-lamp/model.glb',
@@ -611,7 +611,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'ceiling-lamp',
     category: 'furniture',
-    name: 'Ceiling Lamp',
+    name: 'Đèn trần',
     tags: [
       'lamp',
       'light',
@@ -654,7 +654,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'closet',
     category: 'furniture',
-    name: 'Closet',
+    name: 'Tủ quần áo',
     tags: [
       'closet',
       'wardrobe',
@@ -681,7 +681,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'coffee-table',
     category: 'furniture',
-    name: 'Coffee Table',
+    name: 'Bàn trà',
     tags: [
       'table',
       'cocktail',
@@ -708,7 +708,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'dining-chair',
     category: 'furniture',
-    name: 'Dining Chair',
+    name: 'Ghế ăn',
     tags: [
       'chair',
       'seating',
@@ -733,7 +733,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'dresser',
     category: 'furniture',
-    name: 'Dresser',
+    name: 'Tủ ngăn kéo',
     tags: [
       'dresser',
       'chest',
@@ -759,7 +759,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'indoor-plant',
     category: 'furniture',
-    name: 'Indoor Plant',
+    name: 'Cây trong nhà',
     tags: [
       'plant',
       'greenery',
@@ -786,7 +786,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'ironing-board',
     category: 'furniture',
-    name: 'Ironing Board',
+    name: 'Cầu là',
     tags: [
       'ironing',
       'board',
@@ -797,7 +797,6 @@ export const CATALOG_ITEMS: CatalogItem[] = [
       'pressing',
       'collapsible',
       'stand',
-      'table',
       'organization',
       'industrial',
     ],
@@ -811,7 +810,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'double-bed',
     category: 'furniture',
-    name: 'Double Bed',
+    name: 'Giường đôi',
     tags: [
       'bed',
       'bedstead',
@@ -837,7 +836,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'floor-lamp',
     category: 'furniture',
-    name: 'Floor Lamp',
+    name: 'Đèn cây',
     tags: [
       'lamp',
       'luminaire',
@@ -880,7 +879,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'easel',
     category: 'furniture',
-    name: 'Easel',
+    name: 'Giá vẽ',
     tags: [
       'easel',
       'stand',
@@ -907,7 +906,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'lounge-chair',
     category: 'furniture',
-    name: 'Lounge Chair',
+    name: 'Ghế thư giãn',
     tags: [
       'chair',
       'armchair',
@@ -933,14 +932,13 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'office-chair',
     category: 'furniture',
-    name: 'Office Chair',
+    name: 'Ghế văn phòng',
     tags: [
       'chair',
       'seating',
       'ergonomic',
       'swivel',
       'office',
-      'desk',
       'mesh',
       'leather',
       'modern',
@@ -959,7 +957,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'piano',
     category: 'furniture',
-    name: 'Piano',
+    name: 'Đàn piano',
     tags: [
       'piano',
       'instrument',
@@ -987,7 +985,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'picture',
     category: 'furniture',
-    name: 'Picture',
+    name: 'Tranh treo',
     tags: [
       'picture',
       'frame',
@@ -1016,7 +1014,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'rectangular-carpet',
     category: 'furniture',
-    name: 'Rectangular Carpet',
+    name: 'Thảm chữ nhật',
     tags: [
       'carpet',
       'rug',
@@ -1042,7 +1040,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'round-mirror',
     category: 'furniture',
-    name: 'Rounded Mirror',
+    name: 'Gương tròn',
     tags: [
       'mirror',
       'glass',
@@ -1070,7 +1068,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'round-carpet',
     category: 'furniture',
-    name: 'Round Carpet',
+    name: 'Thảm tròn',
     tags: [
       'carpet',
       'rug',
@@ -1098,7 +1096,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'threadmill',
     category: 'furniture',
-    name: 'Threadmill',
+    name: 'Máy chạy bộ',
     tags: ['floor', 'fitness'],
     thumbnail: '/items/threadmill/thumbnail.webp',
     src: '/items/threadmill/model.glb',
@@ -1110,7 +1108,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'sprinkler',
     category: 'appliance',
-    name: 'Sprinkler',
+    name: 'Đầu phun chữa cháy',
     tags: ['ceiling', 'safety'],
     thumbnail: '/items/sprinkler/thumbnail.webp',
     src: '/items/sprinkler/model.glb',
@@ -1123,7 +1121,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'exit-sign',
     category: 'appliance',
-    name: 'Exit Sign',
+    name: 'Biển lối thoát',
     tags: [
       'sign',
       'signage',
@@ -1151,7 +1149,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'sewing-machine',
     category: 'appliance',
-    name: 'Sewing Machine',
+    name: 'Máy may',
     tags: [
       'sewing',
       'machine',
@@ -1178,7 +1176,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'television',
     category: 'appliance',
-    name: 'Television',
+    name: 'Tivi',
     tags: ['floor', 'electronics'],
     thumbnail: '/items/television/thumbnail.webp',
     src: '/items/television/model.glb',
@@ -1190,7 +1188,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'ac-block',
     category: 'appliance',
-    name: 'AC block',
+    name: 'Cục nóng điều hoà',
     tags: [
       'conditioner',
       'cooler',
@@ -1218,7 +1216,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'stereo-speaker',
     category: 'appliance',
-    name: 'Stereo Speaker',
+    name: 'Loa',
     tags: ['floor', 'electronics'],
     thumbnail: '/items/stereo-speaker/thumbnail.webp',
     src: '/items/stereo-speaker/model.glb',
@@ -1230,7 +1228,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'thermostat',
     category: 'appliance',
-    name: 'Thermostat',
+    name: 'Bộ điều nhiệt',
     tags: ['wall', 'climate', 'electrical'],
     thumbnail: '/items/thermostat/thumbnail.webp',
     src: '/items/thermostat/model.glb',
@@ -1243,7 +1241,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'toaster',
     category: 'appliance',
-    name: 'Toaster',
+    name: 'Máy nướng bánh mì',
     tags: ['countertop', 'electronics'],
     thumbnail: '/items/toaster/thumbnail.webp',
     src: '/items/toaster/model.glb',
@@ -1255,7 +1253,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'kettle',
     category: 'appliance',
-    name: 'Kettle',
+    name: 'Ấm đun nước',
     tags: [
       'kettle',
       'teapot',
@@ -1282,7 +1280,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'hydrant',
     category: 'appliance',
-    name: 'Hydrant',
+    name: 'Trụ cứu hoả',
     tags: [
       'hydrant',
       'faucet',
@@ -1310,7 +1308,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'fire-detector',
     category: 'appliance',
-    name: 'Fire Detector',
+    name: 'Đầu báo cháy',
     tags: [
       'detector',
       'alarm',
@@ -1339,7 +1337,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'smoke-detector',
     category: 'appliance',
-    name: 'Smoke Detector',
+    name: 'Đầu báo khói',
     tags: ['ceiling', 'safety'],
     thumbnail: '/items/smoke-detector/thumbnail.webp',
     src: '/items/smoke-detector/model.glb',
@@ -1352,7 +1350,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'coffee-machine',
     category: 'appliance',
-    name: 'Coffee Machine',
+    name: 'Máy pha cà phê',
     tags: [
       'coffee',
       'machine',
@@ -1379,7 +1377,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'ceiling-fan',
     category: 'appliance',
-    name: 'Ceiling fan',
+    name: 'Quạt trần',
     tags: [
       'fan',
       'ventilator',
@@ -1411,7 +1409,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'iron',
     category: 'appliance',
-    name: 'Iron',
+    name: 'Bàn là',
     tags: [
       'iron',
       'steamer',
@@ -1438,7 +1436,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'air-conditioning',
     category: 'appliance',
-    name: 'Air Conditioning',
+    name: 'Điều hoà',
     tags: [
       'conditioner',
       'cooling',
@@ -1466,7 +1464,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'computer',
     category: 'appliance',
-    name: 'Computer',
+    name: 'Máy tính',
     tags: [
       'computer',
       'desktop',
@@ -1493,7 +1491,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'alarm-keypad',
     category: 'appliance',
-    name: 'Alarm Keypad',
+    name: 'Bộ phím báo động',
     tags: [
       'alarm',
       'keypad',
@@ -1522,7 +1520,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'ev-wall-charger',
     category: 'appliance',
-    name: 'Ev-wall-charger',
+    name: 'Sạc xe điện treo tường',
     tags: [
       'charger',
       'station',
@@ -1551,7 +1549,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'electric-panel',
     category: 'appliance',
-    name: 'Electric Panel',
+    name: 'Tủ điện',
     tags: [
       'breaker',
       'box',
@@ -1579,7 +1577,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'bathroom-sink',
     category: 'bathroom',
-    name: 'Bathroom Sink',
+    name: 'Bồn rửa mặt',
     tags: [
       'sink',
       'basin',
@@ -1606,7 +1604,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'shower-angle',
     category: 'bathroom',
-    name: 'Angle Shower',
+    name: 'Buồng tắm góc',
     tags: [
       'shower',
       'enclosure',
@@ -1633,7 +1631,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'toilet-paper',
     category: 'bathroom',
-    name: 'Toilet Paper',
+    name: 'Giấy vệ sinh',
     tags: ['wall', 'decor'],
     thumbnail: '/items/toilet-paper/thumbnail.webp',
     src: '/items/toilet-paper/model.glb',
@@ -1646,7 +1644,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'washing-machine',
     category: 'bathroom',
-    name: 'Washing Machine',
+    name: 'Máy giặt',
     tags: ['floor', 'large', 'electronics'],
     thumbnail: '/items/washing-machine/thumbnail.webp',
     src: '/items/washing-machine/model.glb',
@@ -1658,7 +1656,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'shower-rug',
     category: 'bathroom',
-    name: 'Shower Rug',
+    name: 'Thảm nhà tắm',
     tags: [
       'rug',
       'mat',
@@ -1687,7 +1685,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'bathtub',
     category: 'bathroom',
-    name: 'Bathtub',
+    name: 'Bồn tắm',
     tags: [
       'bathtub',
       'tub',
@@ -1712,7 +1710,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'laundry-bag',
     category: 'bathroom',
-    name: 'Laundry Bag',
+    name: 'Túi đồ giặt',
     tags: [
       'laundry',
       'bag',
@@ -1738,7 +1736,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'shower-square',
     category: 'bathroom',
-    name: 'Squared Shower',
+    name: 'Buồng tắm vuông',
     tags: ['floor', 'large'],
     thumbnail: '/items/shower-square/thumbnail.webp',
     src: '/items/shower-square/model.glb',
@@ -1750,7 +1748,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'drying-rack',
     category: 'bathroom',
-    name: 'Drying Rack',
+    name: 'Giá phơi đồ',
     tags: [
       'dryer',
       'rack',
@@ -1775,7 +1773,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'toilet',
     category: 'bathroom',
-    name: 'Toilet',
+    name: 'Bồn cầu',
     tags: ['floor', 'large'],
     thumbnail: '/items/toilet/thumbnail.webp',
     src: '/items/toilet/model.glb',
@@ -1787,7 +1785,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'microwave',
     category: 'kitchen',
-    name: 'Microwave',
+    name: 'Lò vi sóng',
     tags: [
       'microwave',
       'oven',
@@ -1815,7 +1813,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'cutting-board',
     category: 'kitchen',
-    name: 'Cutting Board',
+    name: 'Thớt',
     tags: [
       'board',
       'wood',
@@ -1841,7 +1839,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'kitchen-utensils',
     category: 'kitchen',
-    name: 'Kitchen Utensils',
+    name: 'Dụng cụ bếp',
     tags: [
       'utensils',
       'tools',
@@ -1869,7 +1867,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'kitchen-counter',
     category: 'kitchen',
-    name: 'Kitchen Counter',
+    name: 'Quầy bếp',
     tags: [
       'counter',
       'countertop',
@@ -1897,7 +1895,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'hood',
     category: 'kitchen',
-    name: 'Hood',
+    name: 'Máy hút mùi',
     tags: [
       'hood',
       'vent',
@@ -1925,7 +1923,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'kitchen-cabinet',
     category: 'kitchen',
-    name: 'Kitchen Cabinet',
+    name: 'Tủ bếp',
     tags: [
       'cabinet',
       'cupboard',
@@ -1951,7 +1949,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'kitchen',
     category: 'kitchen',
-    name: 'Kitchen',
+    name: 'Bộ bếp',
     tags: [
       'kitchen',
       'cabinetry',
@@ -1978,7 +1976,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'frying-pan',
     category: 'kitchen',
-    name: 'Frying Pan',
+    name: 'Chảo',
     tags: [
       'frying',
       'pan',
@@ -2005,7 +2003,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'fruits',
     category: 'kitchen',
-    name: 'Fruits',
+    name: 'Trái cây',
     tags: [
       'fruit',
       'produce',
@@ -2032,7 +2030,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'fridge',
     category: 'kitchen',
-    name: 'Fridge',
+    name: 'Tủ lạnh',
     tags: [
       'fridge',
       'refrigerator',
@@ -2059,7 +2057,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'kitchen-shelf',
     category: 'kitchen',
-    name: 'Kitchen Shelf',
+    name: 'Kệ bếp',
     tags: [
       'shelf',
       'shelving',
@@ -2087,7 +2085,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'wine-bottle',
     category: 'kitchen',
-    name: 'Wine Bottle',
+    name: 'Chai rượu',
     tags: ['countertop', 'decor'],
     thumbnail: '/items/wine-bottle/thumbnail.webp',
     src: '/items/wine-bottle/model.glb',
@@ -2099,7 +2097,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'stove',
     category: 'kitchen',
-    name: 'Stove',
+    name: 'Bếp nấu',
     tags: ['floor', 'large'],
     thumbnail: '/items/stove/thumbnail.webp',
     src: '/items/stove/model.glb',
@@ -2111,7 +2109,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'ball',
     category: 'outdoor',
-    name: 'Ball',
+    name: 'Quả cầu trang trí',
     tags: [
       'ball',
       'sphere',
@@ -2139,7 +2137,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'bush',
     category: 'outdoor',
-    name: 'Bush',
+    name: 'Bụi cây',
     tags: [
       'bush',
       'shrub',
@@ -2167,7 +2165,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'basket-hoop',
     category: 'outdoor',
-    name: 'Basket Hoop',
+    name: 'Cột bóng rổ',
     tags: [
       'hoop',
       'basketball',
@@ -2195,7 +2193,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'parking-spot',
     category: 'outdoor',
-    name: 'Parking Spot',
+    name: 'Chỗ đỗ xe',
     tags: [
       'parking',
       'space',
@@ -2221,7 +2219,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'palm',
     category: 'outdoor',
-    name: 'Palm',
+    name: 'Cây cọ',
     tags: [
       'palm',
       'tree',
@@ -2248,7 +2246,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'sunbed',
     category: 'outdoor',
-    name: 'Sunbed',
+    name: 'Ghế tắm nắng',
     tags: ['leisure', 'seating', 'floor'],
     thumbnail: '/items/sunbed/thumbnail.webp',
     src: '/items/sunbed/model.glb',
@@ -2260,7 +2258,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'fir-tree',
     category: 'outdoor',
-    name: 'Fir',
+    name: 'Cây thông',
     tags: [
       'fir',
       'tree',
@@ -2287,7 +2285,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'tree',
     category: 'outdoor',
-    name: 'Tree',
+    name: 'Cây',
     tags: ['vegetation'],
     thumbnail: '/items/tree/thumbnail.webp',
     src: '/items/tree/model.glb',
@@ -2299,7 +2297,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'skate',
     category: 'outdoor',
-    name: 'Skate',
+    name: 'Ván trượt',
     tags: ['leisure', 'kids', 'floor'],
     thumbnail: '/items/skate/thumbnail.webp',
     src: '/items/skate/model.glb',
@@ -2311,7 +2309,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'outdoor-playhouse',
     category: 'outdoor',
-    name: 'Outdoor Playhouse',
+    name: 'Nhà chơi ngoài trời',
     tags: [
       'playhouse',
       'cottage',
@@ -2339,7 +2337,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'patio-umbrella',
     category: 'outdoor',
-    name: 'Patio Umbrella',
+    name: 'Ô che nắng',
     tags: [
       'umbrella',
       'parasol',
@@ -2367,7 +2365,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'pillar',
     category: 'outdoor',
-    name: 'Pillar',
+    name: 'Trụ cột',
     tags: [
       'pillar',
       'column',
@@ -2392,7 +2390,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: 'scooter',
     category: 'outdoor',
-    name: 'Scooter',
+    name: 'Xe trượt scooter',
     tags: [
       'scooter',
       'kickscooter',
