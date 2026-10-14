@@ -189,6 +189,7 @@ import type { Command } from '@/lib/commands/types';
 import { fitText } from '@/lib/export/fitText';
 import { formatArea, formatLength } from '@/lib/format/measure';
 import { formatNumber } from '@/lib/format/number';
+import { lowerFirst } from '@/lib/format/sentence';
 import { describeConfidence } from '@/lib/format/semantic';
 import { boxAround } from '@/lib/input/dragDrop';
 import { createUndoTicket, UNDO_WINDOW_MS, type UndoTicket } from '@/lib/mutations/undoTicket';
@@ -682,13 +683,18 @@ export function detectRoomsOfLevel(
  * `gapMm`/`position` chuyền tay từ `WeldedGap` của `buildWallGraph` (mà
  * `detectRooms` trả lại nguyên trong `.graph`), không tính lại (R-61).
  */
-export function gapsOf(detected: DetectRoomsResult | null): readonly RoomLabelGapViewModel[] {
+export function gapsOf(
+  detected: DetectRoomsResult | null,
+  wallCodes: ReadonlyMap<string, string> = new Map(),
+): readonly RoomLabelGapViewModel[] {
   if (detected === null) {
     return [];
   }
 
   return detected.graph.weldedGaps.map((gap) => ({
     wallIds: [...gap.wallIds].sort(),
+    /* Mã hiển thị như SCR-16 (#W-001), không phải id thô (BUG-626). */
+    wallCodeLabels: [...gap.wallIds].sort().map((wallId) => `#${wallCodes.get(wallId) ?? wallId}`),
     gapText: formatLength(gap.gapMm),
     positionMm: gap.position,
   }));
@@ -843,6 +849,12 @@ export function runRoomRules(graph: NormalizedSpatial): readonly Violation[] {
  * quyết: lọc bằng `entityId === room.id` ngay tại đây — một phép lọc mảng, tức
  * là GHÉP LẠI chứ không phải một công thức mới, nên không phạm R-61.
  */
+const NOTICE_FAILED_PREFIX = 'Chưa đạt: ';
+
+/** Tên luật viết thường chữ đầu sau tiền tố; mã luật (chữ hoa) giữ nguyên (A6). */
+const lowerFirstOrCode = (name: string | undefined, code: string): string =>
+  name === undefined ? code : lowerFirst(name);
+
 export function noticesOfRoom(
   violations: readonly Violation[],
   roomId: RoomId,
@@ -852,7 +864,8 @@ export function noticesOfRoom(
     .filter((violation) => violation.entityId === roomId)
     .map((violation) => ({
       ruleCode: violation.ruleCode,
-      ruleName: defaultRuleRegistry().get(violation.ruleCode)?.name ?? violation.ruleCode,
+      /* Tên luật là câu khẳng định ("Phòng đủ diện tích…") còn thẻ báo vi phạm: nói rõ là CHƯA đạt (BUG-625). */
+      ruleName: `${NOTICE_FAILED_PREFIX}${lowerFirstOrCode(defaultRuleRegistry().get(violation.ruleCode)?.name, violation.ruleCode)}`,
       severity: violation.severity,
       message: violation.message,
       suggestion: violation.suggestion,

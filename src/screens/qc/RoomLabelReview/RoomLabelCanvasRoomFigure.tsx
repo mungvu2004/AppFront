@@ -18,6 +18,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { applyEmphasis } from '@/lib/coloring/legend';
+import { fitText } from '@/lib/export/fitText';
 import { MOTION_EASINGS, cssDurationMs } from '@/lib/motion';
 
 import {
@@ -59,9 +60,12 @@ export interface RoomLabelCanvasRoomFigureProps {
 function RoomLabelText({
   room,
   anchor,
+  maxWidthPx,
 }: {
   readonly room: RoomLabelViewModel;
   readonly anchor: { readonly x: number; readonly y: number };
+  /** Bề rộng phòng ở tỷ lệ HIỂN THỊ — `labelFits` đo ở tỷ lệ bản vẽ, khác tỷ lệ vừa khung (BUG-393, BUG-623). */
+  readonly maxWidthPx: number;
 }) {
   const textToken = cssVar(ROOM_LABEL_TEXT_TOKEN);
 
@@ -94,7 +98,11 @@ function RoomLabelText({
     transitionTimingFunction: MOTION_EASINGS.enter.css,
   };
 
-  if (!room.labelFits) {
+  /* BUG-623: tên dài cắt bằng dấu "…" theo bề rộng phòng đang vẽ, tên đầy đủ ở `<title>`. */
+  const nameText = room.hasName ? room.name : ROOM_LABEL_CANVAS_COPY.unnamedPlaceholder;
+  const fittedName = fitText(nameText, ROOM_LABEL_NAME_FONT_PX, maxWidthPx);
+
+  if (!room.labelFits || fittedName === '') {
     return (
       <text
         className="motion-reduce:transition-none"
@@ -121,7 +129,8 @@ function RoomLabelText({
         x={anchor.x}
         y={anchor.y - ROOM_LABEL_LINE_OFFSET_PX}
       >
-        {room.hasName ? room.name : ROOM_LABEL_CANVAS_COPY.unnamedPlaceholder}
+        {fittedName === nameText ? null : <title>{nameText}</title>}
+        {fittedName}
       </text>
       <text
         fill={textToken}
@@ -177,7 +186,7 @@ export function RoomLabelCanvasRoomFigure({
         />
       </g>
 
-      <RoomLabelText anchor={anchor} room={room} />
+      <RoomLabelText anchor={anchor} maxWidthPx={bounds.width} room={room} />
     </g>
   );
 }

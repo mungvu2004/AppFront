@@ -526,7 +526,8 @@ export function useRoomLabelReview(
   /* ---------------------------------------------------------------------- */
 
   const detected = useMemo(() => detectRoomsOfLevel(walls, level), [level, walls]);
-  const gaps = useMemo(() => gapsOf(detected), [detected]);
+  const wallCodes = useMemo(() => displayCodesOf(walls.map((wall) => wall.id)), [walls]);
+  const gaps = useMemo(() => gapsOf(detected, wallCodes), [detected, wallCodes]);
 
   /* ---------------------------------------------------------------------- */
   /* Dòng phòng và tóm tắt.                                                  */
@@ -799,6 +800,8 @@ export function useRoomLabelReview(
   /* Chuẩn hoá tên — XEM TRƯỚC rồi mới áp (CẤM TUYỆT ĐỐI).                    */
   /* ---------------------------------------------------------------------- */
 
+  const hasNamesToNormalize = useMemo(() => buildNormalizePreview(rooms, roomCodes).changedCount > 0, [roomCodes, rooms]);
+
   const onOpenNormalizePreview = useCallback(() => {
     /* Dựng BẢNG, không phát lệnh: không một tên nào đổi ở bước này. */
     setNormalizePreview(buildNormalizePreview(rooms, roomCodes));
@@ -926,6 +929,7 @@ export function useRoomLabelReview(
     hoveredRoomId: (hoveredId as RoomId | null) ?? null,
     showOnlyUnnamed,
     normalizePreview,
+    hasNamesToNormalize,
     backgroundImageUrl,
     backgroundImageAlt: background?.imageAlt ?? '',
     millimetresPerPixel: level?.scaleMillimetresPerPixel ?? UNCALIBRATED_SCALE,

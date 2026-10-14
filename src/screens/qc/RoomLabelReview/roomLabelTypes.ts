@@ -308,6 +308,8 @@ export interface RoomLabelViewModel {
 export interface RoomLabelGapViewModel {
   /** Các tường có đầu bị hàn/kéo lại để đóng vòng hở — đã sắp xếp. */
   readonly wallIds: readonly WallId[];
+  /** Mã hiển thị của từng tường trong `wallIds`, cùng thứ tự, ví dụ `"#W-001"` (BUG-626). */
+  readonly wallCodeLabels: readonly string[];
   /** Khe hở đã định dạng, ví dụ `"62 mm"` (`WeldedGap.gapMm` qua `formatLength`). */
   readonly gapText: string;
   /** Vị trí khe hở trên bản vẽ — cùng nhãn `PointMm` với nguồn `WeldedGap.position`. */
@@ -394,6 +396,8 @@ export interface RoomLabelLeftPanelProps {
   readonly onToggleUnnamedFilter: () => void;
   /** Mở bảng xem trước "Chuẩn hoá tên" — áp/huỷ nằm ở {@link RoomLabelNormalizePreviewProps}. */
   readonly onOpenNormalizePreview: () => void;
+  /** Xem {@link RoomLabelReviewProps.hasNamesToNormalize}. */
+  readonly hasNamesToNormalize?: boolean;
   /** Chạy lại `buildWallGraph` để tìm vòng hở mới nhất. */
   readonly onCheckWallGaps: () => void;
   /** "đi sang lớp tường" — hook tự ghép `ROUTES.project.walls(projectId, floorId)`, view không biết đường dẫn (R-65). */
@@ -520,6 +524,8 @@ export interface RoomLabelReviewProps {
   readonly showOnlyUnnamed: boolean;
   /** `null` khi bảng "Chuẩn hoá tên" chưa mở. */
   readonly normalizePreview: RoomLabelNormalizePreview | null;
+  /** `false` khi không tên nào cần chuẩn hoá: nút tắt kèm lý do, không mở hộp thoại rỗng (BUG-641). Vắng = `true`. */
+  readonly hasNamesToNormalize?: boolean;
   readonly backgroundImageUrl: string | null;
   readonly backgroundImageAlt: string;
   readonly millimetresPerPixel: MillimetresPerPixel;

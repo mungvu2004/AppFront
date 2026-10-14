@@ -97,6 +97,7 @@ const NAVIGATE_WALLS_LABEL = 'Sang lớp tường';
 /* Duyệt một phòng chưa tên không đổi được trạng thái của nó — nói ra, không im lặng (BUG-602). */
 const APPROVE_NEEDS_NAME = 'Đặt tên phòng trước khi duyệt.';
 const APPROVE_HINT_ID = 'room-label-approve-hint';
+const VIEWER_BADGE_LABEL = 'Chỉ xem';
 
 export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorViewProps) {
   const { room, isViewerRole, onRename, onChangeUsage, onMerge, onSplit, onApprove } = inspector;
@@ -155,8 +156,11 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
 
           <div className="mt-auto flex flex-col gap-2 pt-2">
             {isViewerRole ? (
+              /* Câu đầy đủ đã ở băng cảnh báo đầu cột trái — ở đây chỉ một nhãn, không lặp đoạn văn (BUG-636). */
               extras.viewerRoleNotice !== null && (
-                <p className="text-[13px] text-text-secondary">{extras.viewerRoleNotice}</p>
+                <Badge className="self-start" variant="neutral">
+                  {VIEWER_BADGE_LABEL}
+                </Badge>
               )
             ) : (
               <>

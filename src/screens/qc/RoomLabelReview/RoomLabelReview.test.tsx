@@ -58,6 +58,7 @@ import { readFileSync } from 'node:fs';
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Room, RoomId } from '@/domain/spatial/types';
 import {
   CONTRAST_MINIMUM_BODY,
@@ -90,6 +91,8 @@ import { BACK_TO_FLOORS_LABEL, FLOOR_MISSING_TITLE, RETRY_READ_LABEL } from '../
 import { RoomLabelReviewContainer } from './RoomLabelReview.container';
 import { ProvisionalScale, scenarioArgsFor } from './RoomLabelReview.stories';
 import {
+  ROOM_LABEL_FIXTURE_BUILDING,
+  ROOM_LABEL_FIXTURE_LEVEL,
   ROOM_LABEL_FIXTURE_ROOMS,
   ROOM_LABEL_FIXTURE_ROOM_R005,
   ROOM_LABEL_FIXTURE_TOTAL,
@@ -728,7 +731,8 @@ describe('[BUG-408] thẻ nhắc công năng đặt tên luật tiếng Việt, 
 
     const notices = await screen.findByRole('region', { name: 'Nhắc công năng' });
 
-    expect(notices).toHaveTextContent('Đường bao phòng kín bằng tường');
+    /* BUG-625: tên luật là câu khẳng định, thẻ báo vi phạm — tiêu đề nói "Chưa đạt". */
+    expect(notices).toHaveTextContent('Chưa đạt: đường bao phòng kín bằng tường');
     expect(notices).not.toHaveTextContent(/ROOM-[A-Z-]+/u);
     /* BUG-325: link "Xem luật không gian" 119×20 → vùng chạm ≥ 24 px. */
     expect(within(notices).getAllByRole('link', { name: 'Xem luật không gian' })[0]).toHaveClass('min-h-6');
@@ -736,6 +740,57 @@ describe('[BUG-408] thẻ nhắc công năng đặt tên luật tiếng Việt, 
 });
 
 describe('P04 cụm C — thanh tra phòng chỉ mời việc làm được (SCR-20)', () => {
+  it('[BUG-641] không tên nào cần chuẩn hoá: "Chuẩn hoá tên" tắt và nói vì sao', async () => {
+    const args = scenarioArgsFor('success');
+    /* "Phòng ngủ N" đã đúng kiểu câu và có số thứ tự: `canonicalRoomName` không đổi tên nào. */
+    const graph = normalizeSpatial({
+      building: ROOM_LABEL_FIXTURE_BUILDING,
+      levels: [ROOM_LABEL_FIXTURE_LEVEL],
+      walls: [],
+      openings: [],
+      furniture: [],
+      rooms: ROOM_LABEL_FIXTURE_ROOMS.map((room, index) => ({ ...room, name: `Phòng ngủ ${String(index + 1)}` })),
+      axes: [],
+      dimensions: [],
+      notes: [],
+    });
+
+    renderWithProviders(<RoomLabelReviewContainer {...args} gateway={createMockRoomLabelReviewGateway({ graph })} />);
+    const button = await screen.findByRole('button', { name: NORMALIZE_BUTTON_LABEL });
+
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleDescription('Mọi tên phòng đã đúng kiểu câu, chưa có gì để chuẩn hoá.');
+  });
+
+  it('[BUG-624] diện tích trong hàng co lại được, chữ đầy đủ ở title — tên phòng không còn một ký tự', async () => {
+    await renderSettled('partial');
+    const [firstRow] = screen.getAllByRole('option');
+    const area = firstRow?.lastElementChild?.previousElementSibling;
+
+    expect(area).toHaveAttribute('title', area?.textContent ?? '');
+    expect(area).not.toHaveClass('shrink-0');
+  });
+
+  it('[BUG-636] vai người xem: câu "chỉ xem" hiện MỘT lần, thanh tra phòng chỉ mang nhãn', async () => {
+    await renderSettled('forbidden');
+    const [firstRoom] = screen.getAllByRole('option');
+
+    if (firstRoom !== undefined) {
+      fireEvent.click(firstRoom);
+    }
+
+    expect(await screen.findByText('Chỉ xem')).toBeInTheDocument();
+    expect(screen.getAllByText(/Nhờ người quản trị dự án đổi vai/u)).toHaveLength(1);
+  });
+
+  it('[BUG-626] vòng tường hở kê mã tường hiển thị, id thô chỉ ở title', async () => {
+    await renderSettled('partial');
+    const codes = screen.getAllByText(/^#W-\d{3}$/u);
+
+    expect(codes.length).toBeGreaterThan(0);
+    expect(codes[0]).toHaveAttribute('title');
+  });
+
   it('[BUG-602] phòng chưa tên: "Duyệt phòng này" tắt và nói vì sao', async () => {
     await renderSettled('partial');
 

@@ -697,6 +697,8 @@ describe('vòng tường hở', () => {
     expect(gaps.length).toBeGreaterThan(0);
     expect(gaps[0]?.gapText).toBe(formatLength(millimetres(ROOM_LABEL_SCENARIO_GAP_MM)));
     expect(gaps[0]?.wallIds.length).toBeGreaterThan(0);
+    /* BUG-626: mã hiển thị như SCR-16, không phải id thô. */
+    expect(gaps[0]?.wallCodeLabels[0]).toMatch(/^#W-\d{3}$/u);
   });
 
   it('trạng thái rỗng nói ra hai bước đi tiếp', async () => {
