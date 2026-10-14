@@ -52,10 +52,10 @@ export async function inviteFreshUser(admin: APIRequestContext, role: PoolRole, 
   }
 }
 
-/** `DELETE /api/users/:id` `{userId, confirmEmail}` (BE users/schemas.py): 200 or 404 (already gone) are fine, else throws. */
-export async function disposeFreshUser(admin: APIRequestContext, user: PoolUser): Promise<void> {
+/** `DELETE /api/users/:id` `{userId, confirmEmail}` (BE users/schemas.py): 200, or 404 only when `deletedInFlow`. */
+export async function disposeFreshUser(admin: APIRequestContext, user: PoolUser, deletedInFlow = false): Promise<void> {
   const res = await admin.delete(`/api/users/${user.id}`, { data: { userId: user.id, confirmEmail: user.email } });
-  expect([200, 404], `cleanup: DELETE /api/users/${user.id} → ${String(res.status())}`).toContain(res.status());
+  expect(res.status(), `cleanup: DELETE /api/users/${user.id}`).toBe(deletedInFlow ? 404 : 200); // 404 only when the flow deleted it
 }
 
 /** New browser context holding a NEW session of `user` (one `POST /api/auth/login`; same call as `signInPoolUser`). */
@@ -85,4 +85,30 @@ export function recordWrites(page: Page): { list: () => string[]; stop: () => vo
   };
   page.on('request', onRequest);
   return { list: () => [...seen], stop: () => page.off('request', onRequest) };
+}
+
+/** Replays the refresh cookie of `context` through a NEW api context (empty jar + manual Cookie header; policy 12). */
+export async function refreshWithCookieOf(context: BrowserContext): Promise<{ status: number; code: unknown }> {
+  const cookie = (await context.cookies()).map((c) => `${c.name}=${c.value}`).join('; ');
+  const api = await newApiContext({ Cookie: cookie });
+  try {
+    const res = await api.post('/api/auth/refresh');
+    const body = (await res.json().catch(() => ({}))) as { code?: unknown };
+    return { status: res.status(), code: body.code };
+  } finally {
+    await api.dispose();
+  }
+}
+
+/** Runs every cleanup even when one throws (no leaked user/context), then rethrows the first error (policy 10). */
+export async function runCleanups(cleanups: readonly (() => Promise<unknown>)[]): Promise<void> {
+  const errors: unknown[] = [];
+  for (const cleanup of cleanups) {
+    try {
+      await cleanup();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  if (errors.length > 0) throw errors[0];
 }
