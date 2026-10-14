@@ -185,7 +185,7 @@ test('SCR-10 · SCR-11 · FL-9U-02 · viewer · viewer doc: tai len + kiem tra c
     });
 
     await test.step('[9U-D-030] viewer: quality page has no action footer', async () => {
-      const qualityRead = page.waitForResponse((r) => r.request().method() === 'GET' && //quality$/u.test(new URL(r.url()).pathname));
+      const qualityRead = page.waitForResponse((r) => r.request().method() === 'GET' && /\/quality$/u.test(new URL(r.url()).pathname));
       await page.goto(ROUTES.project.quality(projectId!));
       expect((await qualityRead).status()).toBe(200);
       await expect.soft(page.getByRole('button', { name: 'Tiếp tục xử lý', exact: true })).toHaveCount(0); // UIQ:145-147
