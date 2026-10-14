@@ -901,11 +901,14 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
 
       await test.step('[16-A-040] Two canvas clicks draw a new 110 mm wall; the tool stays active', async () => {
         const [a, b] = [await gapPoint(page, code(0), code(1), 0.25), await gapPoint(page, code(0), code(1), 0.75)];
-        const put = totalIs(4);
+        // First PUT after the two clicks, whatever its body: a body-count filter hid a rejected save as a 15 s timeout.
+        const put = waitForLayerPut(page, onFloor.projectId, onFloor.floorId);
         await clickAt(page, a);
         await clickAt(page, b);
         const sent = await put;
+        await attachJson('E04_16-A-040_put-answer.json', { status: sent.response.status(), answer: sent.json, walls: sentWalls(sent).length });
         expect.soft(sent.response.status()).toBe(200);
+        expect.soft(sentWalls(sent), 'walls in the PUT').toHaveLength(4);
         await expect.soft(wallRows(page)).toHaveCount(4);
         const added = sentWalls(sent).filter((wall) => !seeded.ids.includes(String(wall.id)));
         expect.soft(added, 'one new wall in the PUT').toHaveLength(1);

@@ -192,6 +192,9 @@ export async function memberFlow(
   const user = await poolUser(env.main, role, slot);
   for (const id of projectIds) await addProjectMember(env.owner, id, user.email);
   const flow = await openFlow(browser, user);
+  // openFlow's dialog listener only records: a listener that never answers leaves the beforeunload dialog open and the next
+  // page.goto hangs (FL-R-07 after the axis edit). Accept it; the text stays recorded in flow.dialogs.
+  flow.page.on('dialog', (dialog) => void dialog.accept());
   return { flow, user };
 }
 

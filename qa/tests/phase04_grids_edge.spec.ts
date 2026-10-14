@@ -70,6 +70,7 @@ const AUTO_ALIGN = 'Căn chỉnh tự động'; // AFL:62
 const APPROVED = 'Đã duyệt'; // AFL:64
 const ROOT_FLOOR = 'Tầng gốc'; // AFL:63
 const VIEW_ON_DRAWING = 'Xem trên bản vẽ'; // UAG:AXIS_GRID_TEXT.warningActionLabel
+const UNSAVED_NOTICE = 'Trục chỉ giữ trong phiên này — tải lại trang sẽ mất các thay đổi.'; // useAxisGridManager.ts:176 AXIS_GRID_TEXT.unsavedNotice (BUG-578)
 const TOASTS = 'Thông báo'; // Toast.tsx viewport
 const UNDO = 'Hoàn tác';
 const ORIGIN_NOT_PERSISTED =
@@ -452,8 +453,7 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
       await test.step('[19-A-028] ⚑ reload after an edit: the edit is gone and the screen says edits are not saved', async () => {
         await addButton(page, 'v').click();
         await expect(page.getByRole('option')).toHaveCount(5);
-        const hint = await page.getByText(/chưa được lưu|không được lưu|mất sau khi tải lại|chỉ lưu trong phiên/iu).count();
-        expect.soft(hint, 'an on-screen hint that axis edits are not saved').toBeGreaterThan(0); // C3 expectation
+        await expect.soft(page.getByText(UNSAVED_NOTICE, { exact: true }), 'a fixed on-screen notice that axis edits are not saved').toBeVisible(); // BUG-578, AxisGridManager.tsx:233-238
         await page.reload();
         await expect(group(page, H_GROUP)).toBeVisible();
         expect.soft([...(await optionNames(group(page, H_GROUP))), ...(await optionNames(group(page, V_GROUP)))]).toEqual(firstNames); // AGC:47-54

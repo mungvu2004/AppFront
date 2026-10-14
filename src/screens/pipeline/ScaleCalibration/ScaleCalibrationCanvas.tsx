@@ -205,13 +205,28 @@ export function ScaleCalibrationCanvas({
         return;
       }
 
+      // Con trỏ đã được "bắt" nên trình duyệt không bắn pointerleave: tự phát hiện con trỏ ra khỏi khung ảnh và huỷ đoạn (14-A-014).
+      const bounds = contentRef.current?.getBoundingClientRect();
+
+      if (
+        bounds !== undefined &&
+        bounds.width > 0 &&
+        (event.clientX < bounds.left ||
+          event.clientX > bounds.right ||
+          event.clientY < bounds.top ||
+          event.clientY > bounds.bottom)
+      ) {
+        onCancelDrag();
+        return;
+      }
+
       const point = ratioAt(event.clientX, event.clientY);
 
       if (point !== null) {
         onMoveDrag(point, { isAxisLocked: event.shiftKey });
       }
     },
-    [canvas.isInteractive, canvas.referenceLine, isPanning, onMoveCursor, onMoveDrag, onPan, ratioAt],
+    [canvas.isInteractive, canvas.referenceLine, isPanning, onCancelDrag, onMoveCursor, onMoveDrag, onPan, ratioAt],
   );
 
   const handlePointerUp = useCallback(

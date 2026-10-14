@@ -40,7 +40,7 @@
  * hàng cùng lúc (BUG-603).
  */
 
-import { useRef, type CSSProperties, type KeyboardEvent } from 'react';
+import { useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -209,6 +209,9 @@ export function DimensionValueField({
 }: DimensionValueFieldProps) {
   /* Có chữ gõ dở trong ô (kể cả chưa qua 800 ms để thành bản nháp) — Esc có việc để bỏ. */
   const isEditingRef = useRef(false);
+  /* Ô để trống chốt `undefined` vào ref của `NumericField` dù hàng bỏ qua nó (18-C-011): Esc sau đó trả ô trống.
+     Dựng lại ô (khoá mới) đưa nó về giá trị đã chốt của hàng. */
+  const [fieldKey, setFieldKey] = useState(0);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     /* Mũi tên của `NumericField` đổi số mà không phát `input`. */
@@ -254,11 +257,13 @@ export function DimensionValueField({
     >
       <NumericField
         aria-label={`${DIMENSION_OCR_TEXT.row.inputAriaLabelPrefix}${row.codeLabel}`}
-        autoFocus={hasAutoFocus}
+        autoFocus={hasAutoFocus && fieldKey === 0}
         className="text-right font-mono text-[16px] leading-[24px]"
         disabled={isViewerRole}
+        key={fieldKey}
         onChange={(next) => {
           if (next === undefined) {
+            setFieldKey((key) => key + 1);
             return;
           }
 

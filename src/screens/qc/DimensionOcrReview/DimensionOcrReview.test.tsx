@@ -796,6 +796,31 @@ describe('QA-04c SCR-18 trên màn đã ráp', () => {
     expect(row.getAttribute('aria-selected')).toBe('true');
   });
 
+  it('[18-C-011] xoá trống rồi gõ chữ: Esc trả về giá trị đã chốt, không về ô trống', async () => {
+    const user = userEvent.setup({ delay: null });
+
+    renderState('partial');
+    await screen.findByRole('group', { name: LIST_LABEL });
+
+    const displayId = unreviewedDisplayId(0);
+    const row = rowOf(dimensionEntityIdOf(displayId)) as HTMLElement;
+
+    fireEvent.click(row);
+    const fieldOf = (): HTMLInputElement =>
+      within(row).getByLabelText(`${DIMENSION_OCR_TEXT.row.inputAriaLabelPrefix}#${displayId}`) as HTMLInputElement;
+    const committed = fieldOf().value;
+
+    await user.clear(fieldOf());
+    await user.tab();
+    await user.click(fieldOf());
+    await user.keyboard('abc');
+    await user.tab();
+    await user.click(fieldOf());
+    await user.keyboard('{Escape}');
+
+    expect(fieldOf().value).toBe(committed);
+  });
+
   it('[BUG-610/612] hàng có nút duyệt thật, nhãn trạng thái bằng chữ, câu "Gắn với" không mono', async () => {
     renderState('partial');
     await screen.findByRole('group', { name: LIST_LABEL });

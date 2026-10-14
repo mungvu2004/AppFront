@@ -962,6 +962,44 @@ describe('ScaleCalibration — QA-04c SCR-14', () => {
     mounted.unmount();
   });
 
+  it('con trỏ (đã bị bắt) ra khỏi khung giữa lúc kéo thì đoạn bị huỷ (14-A-014)', async () => {
+    measureFrame();
+    const harness = await makeHarness();
+    const mounted = mountScreen(harness.gateway);
+    await settle(mounted);
+    const frame = screen.getByRole('group', { name: CANVAS_ARIA_LABEL });
+
+    fireEvent.pointerDown(frame, { button: 0, clientX: 160, clientY: 320, pointerId: 1 });
+    fireEvent.pointerMove(frame, { clientX: 400, clientY: 320, pointerId: 1 });
+    expect(handle('Cuối')).toBeInTheDocument();
+    fireEvent.pointerMove(frame, { clientX: CANVAS_FRAME_PX + 60, clientY: 320, pointerId: 1 });
+
+    expect(screen.queryByRole('button', { name: /^Cuối đoạn tham chiếu/u })).toBeNull();
+
+    mounted.unmount();
+  });
+
+  it('nhích mũi tên qua mép ảnh thì đầu đoạn bị chặn trong khung (14-C-023)', async () => {
+    measureFrame();
+    const harness = await makeHarness();
+    const mounted = mountScreen(harness.gateway);
+    await settle(mounted);
+    await act(async () => {
+      mounted.actions().onStartDrag({ x: 0.5, y: 0.5 });
+    });
+    await act(async () => {
+      mounted.actions().onEndDrag({ x: 1, y: 0.5 });
+    });
+    await act(async () => {
+      mounted.actions().onNudgeEndpoint('end', 'right', 'fine');
+      mounted.actions().onNudgeEndpoint('end', 'right', 'fine');
+    });
+
+    expect(parseFloat(handle('Cuối').style.left)).toBeLessThanOrEqual(100);
+
+    mounted.unmount();
+  });
+
   it('thu gọn bảng thì cột co lại, chỉ còn nút "Bung bảng" (BUG-609)', () => {
     const scenario = scenarioFor('collapsed');
     renderWithProviders(<ScaleCalibration {...scenario} />);
