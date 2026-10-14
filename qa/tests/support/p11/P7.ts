@@ -3,10 +3,12 @@
  *   PS  src/screens/project/ProjectSettings/ProjectSettings.tsx   UPS …/useProjectSettings.ts   NF src/screens/system/NotFound/
  *   NFT …/useNotFound.ts (NOT_FOUND_TEXT)   NFS …/notFoundScenarios.ts   PD src/screens/dashboard/ProjectDashboard/
  */
-import { expect, type APIRequestContext, type Browser, type BrowserContext, type Locator, type Page, type Request } from '@playwright/test';
+import { expect, type APIRequestContext, type Browser, type BrowserContext, type Page, type Request } from '@playwright/test';
 
 import { readBaseUrl } from '../../../../e2e/fullstack/env';
-import { addProjectMember, createProject, deleteSeededProject, poolUser, signInPoolUser, type PoolRole, type PoolUser, type SeededProject } from '../phase03Seed';
+import { createPipelineProject } from '../drawingSeed';
+import { writeLayer, qcLayer } from '../layerSeed';
+import { addProjectMember, envDrawingPng, createProject, deleteSeededProject, poolUser, signInPoolUser, type PoolRole, type PoolUser, type SeededProject } from '../phase03Seed';
 import { signedInApi } from '../api';
 import { readAdminCredentials } from '../auth';
 import { esc } from '../p03/P10';
@@ -39,6 +41,8 @@ export interface PoolMemberRun {
   readonly api: APIRequestContext;
   readonly user: PoolUser;
   readonly project: SeededProject;
+  /** First floor id of a `'pipeline'` seed (two versions after the CP-6 layer write); '' otherwise. */
+  readonly floorId: string;
   readonly context: BrowserContext;
   readonly page: Page;
   /** Every non-GET request the page sent (method, path), in order. */
@@ -54,7 +58,7 @@ export async function withPoolMember(
   role: PoolRole,
   slot: string,
   slug: string,
-  floors: number,
+  floors: number | 'pipeline',
   body: (run: PoolMemberRun) => Promise<void>,
 ): Promise<void> {
   const admin = readAdminCredentials();
@@ -63,8 +67,19 @@ export async function withPoolMember(
   let projectId: string | undefined;
   try {
     const user = await poolUser(api, role, slot);
-    const project = await createProject(api, slug, floors);
-    projectId = project.projectId;
+    let floorId = '';
+    let project: SeededProject;
+    if (floors === 'pipeline') {
+      // versions come only from the pipeline run (BE pipeline_persist/service.py:184,193) + a restore; the run also notifies the uploader (ai_completed)
+      const seeded = await createPipelineProject(api, slug, envDrawingPng());
+      projectId = seeded.projectId;
+      floorId = seeded.floorId;
+      await writeLayer({ request: api, headers: {} }, seeded.projectId, seeded.floorId, qcLayer);
+      project = { projectId: seeded.projectId, name: '', floors: [] };
+    } else {
+      project = await createProject(api, slug, floors);
+      projectId = project.projectId;
+    }
     await addProjectMember(api, projectId, user.email);
     context = await browser.newContext({ baseURL: readBaseUrl(), viewport: DESKTOP });
     await signInPoolUser(context, user);
@@ -74,11 +89,12 @@ export async function withPoolMember(
       const url = new URL(request.url());
       if (url.pathname.startsWith('/api/') && request.method() !== 'GET') writes.push({ method: request.method(), path: url.pathname });
     });
-    await body({ api, user, project, context, page, writes });
+    await body({ api, user, project, floorId, context, page, writes });
   } finally {
     if (context !== undefined) await context.close().catch(() => undefined);
-    if (projectId !== undefined) await deleteSeededProject(api, projectId);
+    const cleanup = projectId === undefined ? null : await deleteSeededProject(api, projectId);
     await api.dispose();
+    expect(cleanup, 'cleanup: own project deleted').toBeNull();
   }
 }
 
@@ -101,12 +117,13 @@ export async function getStatus(api: APIRequestContext, path: string): Promise<{
   return { status: res.status(), code: typeof body?.code === 'string' ? body.code : null };
 }
 
-/** Heading with the exact title of either not-found surface (NotFound page h2 or the project gate). */
-export const missingHeading = (page: Page): Locator =>
-  page.getByRole('heading', { name: new RegExp(`^(${P7_TEXT.notFoundTitle}|${P7_TEXT.gateTitle})$`, 'u') });
-
-export async function expectMissingState(page: Page, label: string): Promise<void> {
-  await expect.soft(missingHeading(page), `${label}: not-found heading`).toBeVisible();
-  await expect.soft(page.getByRole('button', { name: P7_TEXT.backToProjects, exact: true }).or(page.getByRole('link', { name: P7_TEXT.backToProjects, exact: true })), `${label}: exit`).toBeVisible();
+/**
+ * Not-found surface of `kind`: 'gate' = project route (ProjectSpatialGate PROJECT_NOT_FOUND_TITLE, exit button
+ * BACK_TO_PROJECTS_LABEL as a Button, gate:57); 'page' = unknown path (NotFound h2 TITLE_BY_REASON.missing, NF:98,89,91).
+ */
+export async function expectMissingState(page: Page, label: string, kind: 'gate' | 'page'): Promise<void> {
+  const title = kind === 'gate' ? P7_TEXT.gateTitle : P7_TEXT.notFoundTitle;
+  await expect.soft(page.getByText(title, { exact: true }), `${label}: not-found title`).toBeVisible();
+  await expect.soft(page.getByRole('button', { name: P7_TEXT.backToProjects, exact: true }), `${label}: exit`).toBeVisible();
   expect.soft(new URL(page.url()).pathname, `${label}: not /khong-co-quyen`).not.toBe(P7_TEXT.forbiddenPath);
 }

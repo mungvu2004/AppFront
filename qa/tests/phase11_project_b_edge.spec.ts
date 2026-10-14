@@ -10,7 +10,8 @@ import { ROUTES, UNKNOWN_PATH } from '../../e2e/fixtures/routes';
 import { signedInApi } from './support/api';
 import { readAdminCredentials } from './support/auth';
 import { captureEvidence } from './support/evidence';
-import { createProject, deleteSeededProject, removeProjectMember } from './support/phase03Seed';
+import { createPipelineProject } from './support/drawingSeed';
+import { createProject, deleteSeededProject, envDrawingPng, removeProjectMember } from './support/phase03Seed';
 import { p11Slot } from './support/p11/common';
 import { unknownProjectId, withAdminProject } from './support/p03/P10';
 import { P7_TEXT, deleteAs, expectMissingState, getStatus, projectPath, projectRe, withPoolMember } from './support/p11/P7';
@@ -87,7 +88,7 @@ test.describe('phase 11 · project edge B', () => {
 
   test('SCR-08/32/29 · FL-11P-05 · viewer · vai viewer chỉ đọc', async ({ browser }) => {
     test.setTimeout(120_000);
-    await withPoolMember(browser, 'viewer', SLOT, 'p11-project-viewer', 2, async ({ api, user, project, page, writes }) => {
+    await withPoolMember(browser, 'viewer', SLOT, 'p11-project-viewer', 'pipeline', async ({ api, user, project, floorId, page, writes }) => {
       const id = project.projectId;
 
       await test.step('[11P-B-009] viewer: read-only settings, no danger tab, no "Gỡ"', async () => {
@@ -100,11 +101,12 @@ test.describe('phase 11 · project edge B', () => {
       });
 
       await test.step('[11P-D-008] viewer history: no restore/label buttons, reason sentence', async () => {
-        // UNKNOWN — NEED VERIFICATION: the sentence (VHM:493-494) shows only when the floor has versions; the project is seeded
-        // with floors but no layer versions (layerSeed not wired in this pack), so the soft assert may see the empty state.
-        await page.goto(ROUTES.project.versions(id));
-        await expect.soft(page.getByText(P7_TEXT.viewerHistoryReason, { exact: true })).toBeVisible();
-        await expect.soft(page.getByRole('button', { name: /Phục hồi|Khôi phục|Gắn nhãn/u })).toHaveCount(0);
+        // seed: pipeline run completed = 2 versions (BE pipeline_persist/service.py:184,193) + CP-6 layer write (withPoolMember 'pipeline')
+        await page.goto(`${ROUTES.project.versions(id)}?floorId=${floorId}`);
+        await expect(page.getByRole('button', { name: /^Chọn phiên bản .* để so sánh$/u }).first()).toBeVisible(); // VersionList.tsx:84
+        await expect(page.getByText(P7_TEXT.viewerHistoryReason, { exact: true })).toBeVisible(); // VHM:493-494
+        await expect.soft(page.getByRole('button', { name: 'Phục hồi phiên bản này', exact: true })).toHaveCount(0); // VersionHistory.tsx:189
+        await expect.soft(page.getByRole('button', { name: /Gắn nhãn/u })).toHaveCount(0);
         await captureEvidence(page, ev('11P-D-008', 'v_viewer'));
       });
 
@@ -127,9 +129,8 @@ test.describe('phase 11 · project edge B', () => {
       await test.step('[11P-D-009] viewer: no "Khôi phục mặc định", 0 PUT', async () => {
         const mark = writes.length;
         await page.goto(ROUTES.project.ruleSettings(id));
-        await expect(
-          page.getByText('Cài đặt bộ luật không gian', { exact: true }).or(page.getByText('Không có quyền xem cài đặt bộ luật', { exact: true })),
-        ).toBeVisible(); // RuleSettings.tsx:267 / :301
+        // GET rule-config is open to every member (BE rules/router.py:3,23), so the viewer sees the screen, not the denied alert
+        await expect(page.getByText('Cài đặt bộ luật không gian', { exact: true })).toBeVisible(); // RuleSettings.tsx:267
         await expect.soft(page.getByRole('button', { name: P7_TEXT.restoreDefaults, exact: true })).toHaveCount(0); // RS:257 canEditRules
         expect.soft(writes.slice(mark).filter((w) => w.method === 'PUT')).toEqual([]);
         await captureEvidence(page, ev('11P-D-009', 'r_roles'));
@@ -149,9 +150,9 @@ test.describe('phase 11 · project edge B', () => {
       const keep = await createProject(keepApi, 'p11-project-gone-keep', 1);
       try {
         const floorGone = await api.delete(`/api/floors/${floorId}`); // BE floors/router.py:38
-        expect(floorGone.status(), 'setup: DELETE floor').toBeLessThan(300);
+        expect(floorGone.status(), 'setup: DELETE floor').toBe(200); // oracle: floors/router.py:38 returns FloorOut
         const projGone = await api.delete(projectPath(id)); // PR:80, own project
-        expect(projGone.status(), 'setup: DELETE project').toBeLessThan(300);
+        expect(projGone.status(), 'setup: DELETE project').toBe(200); // oracle: projects/router.py:79 returns ProjectOut
 
         await test.step('[11P-B-008] deleted project settings: error state, "Về danh sách dự án" (no "Thử lại"), goes to "/"', async () => {
           await page.goto(ROUTES.project.settings(id));
@@ -165,23 +166,23 @@ test.describe('phase 11 · project edge B', () => {
 
         await test.step('[11P-A-037] deleted project /3d: not found + exit, no project name', async () => {
           await page.goto(ROUTES.project.viewer(id)); // NF:98/103
-          await expectMissingState(page, '3d');
+          await expectMissingState(page, '3d', 'gate');
           await expect.soft(page.getByText(project.name)).toHaveCount(0);
           await captureEvidence(page, ev('11P-A-037', 'n_3d'));
         });
 
         await test.step('[11P-A-038] deleted floor URL: not found, no crash', async () => {
           await page.goto(ROUTES.project.scale(id, floorId));
-          await expectMissingState(page, 'floor');
+          await expectMissingState(page, 'floor', 'gate');
           await captureEvidence(page, ev('11P-A-038', 'n_floor'));
         });
 
         await test.step('[11P-A-039] deleted project /versions and /rules/settings: not found, no empty form', async () => {
           await page.goto(ROUTES.project.versions(id));
-          await expectMissingState(page, 'versions');
+          await expectMissingState(page, 'versions', 'gate');
           await captureEvidence(page, ev('11P-A-039', 'n_versions'));
           await page.goto(ROUTES.project.ruleSettings(id));
-          await expectMissingState(page, 'rules/settings');
+          await expectMissingState(page, 'rules/settings', 'gate');
           await expect.soft(page.getByRole('button', { name: P7_TEXT.restoreDefaults, exact: true })).toHaveCount(0);
         });
 
@@ -201,12 +202,19 @@ test.describe('phase 11 · project edge B', () => {
         });
 
         await test.step('[11P-A-042] stale notification target (deleted project): not found, no crash', async () => {
-          // UNKNOWN — NEED VERIFICATION: no helper seeds a notification; this opens the centre and then the project route
-          // a notification would point at (route item -> project route).
-          await page.goto(ROUTES.notifications);
-          await expect(page).toHaveURL(/\/thong-bao$/u);
-          await page.goto(ROUTES.project.viewer(id));
-          await expectMissingState(page, 'notification target');
+          // notification = a completed pipeline run (ai_completed, BE pipeline_persist/service.py:169-173) of a project that is then deleted
+          const notif = await createPipelineProject(keepApi, 'p11-project-gone-notif', envDrawingPng());
+          try {
+            const gone = await keepApi.delete(projectPath(notif.projectId));
+            expect(gone.status(), 'setup: DELETE notification project').toBe(200);
+            await page.goto(ROUTES.notifications);
+            await expect(page).toHaveURL(/\/thong-bao$/u);
+            await page.getByRole('button').filter({ hasText: 'Hệ thống AI đã xử lý xong bản vẽ' }).first().click(); // NotificationRow.tsx:109
+            await expectMissingState(page, 'notification target', 'gate');
+          } finally {
+            const notifCleanup = await deleteSeededProject(keepApi, notif.projectId);
+            expect(notifCleanup, 'cleanup: notification project').toBeNull();
+          }
           await captureEvidence(page, ev('11P-A-042', 'n_notif'));
         });
 
@@ -228,8 +236,9 @@ test.describe('phase 11 · project edge B', () => {
           expect.soft(unknown.code).toBe(gone.code);
         });
       } finally {
-        await deleteSeededProject(keepApi, keep.projectId);
+        const keepCleanup = await deleteSeededProject(keepApi, keep.projectId);
         await keepApi.dispose();
+        expect(keepCleanup, 'cleanup: keep project').toBeNull();
       }
     });
   });
