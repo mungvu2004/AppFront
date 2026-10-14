@@ -90,13 +90,24 @@ export const nextPatch = (page: Page, statuses: readonly number[] = [200]): Prom
 /** Request body of an answered call. */
 export const bodyOf = (result: ApiResult): unknown => result.response.request().postDataJSON() as unknown;
 
-/** Stops the page clock where it is (a pause in the future of at most 2 s: pending timers inside run first). */
+const frozen = new WeakSet<Page>();
+
+/**
+ * Stops the page clock (pause up to 2 s ahead: timers inside run first). Idempotent. Never take evidence or navigate
+ * while frozen: rAF / setTimeout(0) are fake, so `captureEvidence` hangs and a loaded page stays on its skeleton.
+ */
 export async function freeze(page: Page): Promise<void> {
+  if (frozen.has(page)) return;
   await page.clock.pauseAt(await page.evaluate(() => Date.now() + 2_000));
+  frozen.add(page);
 }
 
-/** Lets the page clock flow again. */
-export const thaw = (page: Page): Promise<void> => page.clock.resume();
+/** Lets the page clock flow again. Idempotent. */
+export async function thaw(page: Page): Promise<void> {
+  if (!frozen.has(page)) return;
+  frozen.delete(page);
+  await page.clock.resume();
+}
 
 /** Live region of the app announcer: polite (`role=status`) or assertive (`role=alert`), ANN:55-58. */
 export const announcerRegion = (page: Page, urgency: 'polite' | 'assertive') => page.locator(`[data-announcer="${urgency}"]`);
