@@ -271,8 +271,11 @@ export function MeasurementTool(props: MeasurementToolProps) {
           </div>
         )}
 
+        {/* `relative z-10`: ở 375 khung nhìn cao ~490 px, cột dưới bản đồ nhỏ không vừa
+            nên thanh lỗi chạm dải đáy; nút "Thử lại" phải nằm TRÊN cụm thu phóng và chú
+            giải của vỏ chứ không bị chúng đè (BUG-474 hồi quy, 25-F-011). */}
         {state === 'error' && props.errorMessage !== null && (
-          <div className="pointer-events-auto w-full">
+          <div className="pointer-events-auto relative z-10 w-full">
             <InlineAlert
               action={{ label: 'Thử lại', onClick: props.onRetry }}
               level="violation"
