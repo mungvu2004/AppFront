@@ -27,9 +27,10 @@ test('SCR-33 · FL-M-33P-01 · open /tai-khoan, "Chức danh" autosave + revert,
   const page = await context.newPage();
   let original = '';
   let serverHolds = false; // true while the server may hold the edited title (guards the `finally` revert)
-  const writes = recordWrites(page);
+  let writes: ReturnType<typeof recordWrites> | undefined;
   try {
     await signInAdmin(page);
+    writes = recordWrites(page);
 
     await test.step('[33P-A-001] open /tai-khoan', async () => {
       const reads = countMeReads(page);
@@ -53,12 +54,12 @@ test('SCR-33 · FL-M-33P-01 · open /tai-khoan, "Chức danh" autosave + revert,
       await jobTitle.fill(edited);
       await patch;
       await expect(saveIndicator(page)).toHaveText(IND.saved);
-      expect(writes.list(), 'one PATCH so far').toEqual(['PATCH /api/me']);
+      expect(writes?.list() ?? [], 'one PATCH so far').toEqual(['PATCH /api/me']);
       await captureEvidence(page, '33_account_autosave.png');
     });
 
     await test.step('[33P-G-003] body of that PATCH', async () => {
-      expect.soft(writes.bodies('/api/me')[0], 'PATCH /api/me body').toEqual({ jobTitle: edited });
+      expect.soft(writes?.bodies('/api/me')[0], 'PATCH /api/me body').toEqual({ jobTitle: edited });
     });
 
     await test.step('[33P-A-012] revert the field', async () => {
@@ -66,8 +67,8 @@ test('SCR-33 · FL-M-33P-01 · open /tai-khoan, "Chức danh" autosave + revert,
       await jobTitle.fill(original);
       await revert;
       serverHolds = false;
-      expect.soft(writes.bodies('/api/me')[1], 'revert body').toEqual({ jobTitle: original });
-      expect.soft(writes.list(), 'two PATCH in total').toEqual(['PATCH /api/me', 'PATCH /api/me']);
+      expect.soft(writes?.bodies('/api/me')[1], 'revert body').toEqual({ jobTitle: original });
+      expect.soft(writes?.list() ?? [], 'two PATCH in total').toEqual(['PATCH /api/me', 'PATCH /api/me']);
       await expect.soft(jobTitle).toHaveValue(original);
     });
 
@@ -83,7 +84,7 @@ test('SCR-33 · FL-M-33P-01 · open /tai-khoan, "Chức danh" autosave + revert,
       await captureEvidence(page, '33_account_hidden_sections.png', { fullPage: true });
     });
   } finally {
-    writes.stop();
+    writes?.stop();
     if (serverHolds) {
       try {
         const res = await (await meApi(context)).patch({ jobTitle: original });
