@@ -97,6 +97,7 @@ import {
 } from '@/lib/tools/toolMachine';
 import type { MeasurementRecord } from '@/types/measurement';
 import type { ProjectRole } from '@/types/project';
+import { ROUTES } from '@/routes/paths';
 import { useStore } from '@/store';
 // Nhập THẲNG module thay vì qua cửa nhập của ViewerShell — xem ghi chú cùng
 // lý do trong `useMeasurementToolScene.ts`.
@@ -288,6 +289,8 @@ export interface UseMeasurementToolOptions {
   readonly notifications?: NotificationBus;
   /** Tầng đang soát, để lọc mồi bắt điểm. Vắng mặt thì lấy mồi của cả mô hình. */
   readonly levelId?: string | null;
+  /** Điều hướng của router; có mặt thì breadcrumb bấm được (route không có AppShell, 25-A-003). */
+  readonly onNavigate?: (to: string) => void;
 }
 
 /**
@@ -1034,8 +1037,28 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
 
   const viewerState = viewerStateOf(state, shell.state, mountedScene.building);
 
+  const { onNavigate } = options;
+  const projectCrumb = shell.breadcrumbs[0];
+  const breadcrumbs = useMemo(
+    () => [
+      {
+        id: 'project',
+        label: projectCrumb?.label ?? 'Dự án',
+        onClick: onNavigate && ((): void => onNavigate(ROUTES.dashboard)),
+      },
+      {
+        id: 'viewer',
+        label: 'Mô hình 3D',
+        onClick: onNavigate && ((): void => onNavigate(ROUTES.project.viewer(projectId))),
+      },
+      { id: 'measure', label: 'Công cụ đo' },
+    ],
+    [projectCrumb?.label, onNavigate, projectId],
+  );
+
   return {
     ...shell,
+    breadcrumbs,
     state: viewerState,
     // Vỏ chỉ biết lượt nạp của nó; cảnh của màn đo dựng riêng, nên câu "đã dựng
     // xong" của vỏ phải nhường khi khung nhìn còn đang dựng (NO-388) hay đã dựng

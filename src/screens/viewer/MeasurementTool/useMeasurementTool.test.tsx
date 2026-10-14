@@ -13,7 +13,7 @@
  *    thứ hai, nên `findOverlaps()` không còn kể tên nó nữa.
  */
 
-import { act, createEvent, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, createEvent, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { Group, Object3D, PerspectiveCamera, Vector3 } from 'three';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -817,5 +817,26 @@ describe('useMeasurementTool — chế độ hai điểm dừng ở hai điểm 
     expect(discs()).toBe(two);
     expect(screen.queryByText(/Chọn thêm điểm/u)).toBeNull();
     expect(screen.getByText(/Nhấn Enter để ghim phép đo, hoặc nhấn Esc để bỏ\./u)).toBeInTheDocument();
+  });
+});
+
+describe('useMeasurementTool — breadcrumb là lối ra của màn (25-A-003)', () => {
+  it('mắt xích dự án và "Mô hình 3D" bấm được, mắt xích cuối là tên màn', async () => {
+    const onNavigate = vi.fn();
+
+    renderHook({ mountScene: sceneSpy().mount, onNavigate });
+
+    const crumbs = within(screen.getByRole('navigation', { name: 'Đường dẫn màn hình' }));
+
+    await waitFor(() => {
+      expect(crumbs.getAllByRole('button')).toHaveLength(2);
+    });
+    expect(crumbs.getByText('Công cụ đo')).toHaveAttribute('aria-current', 'page');
+
+    const [project, viewer] = crumbs.getAllByRole('button');
+
+    fireEvent.click(project as HTMLElement);
+    fireEvent.click(viewer as HTMLElement);
+    expect(onNavigate.mock.calls).toEqual([['/'], ['/projects/P-1/3d']]);
   });
 });
