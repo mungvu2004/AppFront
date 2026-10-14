@@ -179,6 +179,8 @@ export interface Answer {
   readonly body?: unknown;
   /** Resolves when the route may answer (a held response). */
   readonly hold?: Promise<unknown>;
+  /** Raw response text (for values `JSON.stringify` cannot write, e.g. `1e999` -> Infinity after the client's parse). */
+  readonly raw?: string;
   /** Network failure instead of an answer. */
   readonly abort?: boolean;
 }
@@ -297,7 +299,7 @@ export async function installVersionMocks(page: Page, projectId: string, levelId
       await route.abort('failed');
       return;
     }
-    await route.fulfill({ status: answer.status ?? 200, contentType: 'application/json', body: JSON.stringify(answer.body ?? {}) });
+    await route.fulfill({ status: answer.status ?? 200, contentType: 'application/json', body: answer.raw ?? JSON.stringify(answer.body ?? {}) });
   });
   return mock;
 }

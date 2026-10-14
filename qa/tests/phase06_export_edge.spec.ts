@@ -737,6 +737,8 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
         await selectFormat(page, '.json');
         // A valid fix may also hide the scope block for .json (catalog C3:107): then there is nothing to uncheck.
         const scopeShown = (await scopeBox(page, 'Tầng 2').count()) > 0;
+        // Both branches are correct; the annotation says which one ran (F3 hides the block for .json: ExportPanelOptions).
+        test.info().annotations.push({ type: '30-C-015', description: scopeShown ? 'branch: scope block shown, only the ticked floor exported' : 'branch: scope block hidden for .json' });
         if (scopeShown) {
           await setBox(scopeBox(page, 'Tầng 2'), false);
           const download = await downloadVia(page, () => exportButton(page).click());
@@ -749,9 +751,12 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
       });
 
       await test.step('[30-C-016] .json with no floor is still deliverable', async () => {
-        await setBox(scopeBox(page, 'Tầng 1'), false);
+        // Hidden-scope branch (see 30-C-015): there is no floor to untick, the whole graph is exported and the button stays enabled.
+        if ((await scopeBox(page, 'Tầng 1').count()) > 0) {
+          await setBox(scopeBox(page, 'Tầng 1'), false);
+          await expect.soft(preflightRow(page, EP.noFloor)).toBeVisible();
+        }
         await expect.soft(exportButton(page)).toBeVisible(); // EPV:86-106 canDeliverFormat: JSON needs no floor
-        await expect.soft(preflightRow(page, EP.noFloor)).toBeVisible();
         await shot(page, '30-C-016', 'json_no_floor');
       });
     });
@@ -821,9 +826,8 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
       await test.step('[30-B-006] ⚑ nothing else, coherent copy', async () => {
         await expect.soft(formatGroup(page)).toHaveCount(0);
         await expect.soft(exportButton(page)).toHaveCount(0);
-        await expect.soft(page.getByRole('link', { name: 'Đi duyệt tầng', exact: true })).toHaveCount(0);
-        // EPV:219-242 / EPG:311-319: the heading says nothing is approved, the text says no floor is selected — for a project with no
-        // floors at all. A coherent empty state tells the user what to do next (add a floor / upload a drawing).
+        await expect.soft(page.getByRole('link', { name: 'Đi duyệt tầng', exact: true })).toHaveCount(0); // F3: the dead link is gone
+        // EP:233-241: title "Chưa có gì để xuất" + "Dự án chưa có tầng nào. Tải bản vẽ lên hoặc thêm một tầng…" — says what to do next.
         const text = await emptyHeading.locator('xpath=..').innerText();
         expect.soft(text, 'the text tells what to do next').toMatch(/\b(thêm|tải lên|tạo)\b/iu);
         await shot(page, '30-B-006', 'empty_copy');

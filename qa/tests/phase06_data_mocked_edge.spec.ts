@@ -94,10 +94,10 @@ test.describe('E06d SCR-31 Spatial JSON Viewer [mocked response]', () => {
       });
 
       await test.step('[31-A-024] ⚑ A row of the issue strip is clickable and selects the entity node', async () => {
-        // SJV:184-187, USJ:244 — the <li> has no handler today though the hook comment promises it
+        // F7 onSelectIssue: the row is a button that selects the entity node
         const first = issueRows.first();
         const wallId = (await first.locator('code').innerText()).trim();
-        await first.click();
+        await first.getByRole('button').click(); // F7: the row is a <button> inside the <li>
         const selected = treeOf(page).getByRole('treeitem', { selected: true });
         await softly(selected, 'a tree node is selected by the click').toHaveCount(1);
         await tabOf(page, 'Xem trước').click();
