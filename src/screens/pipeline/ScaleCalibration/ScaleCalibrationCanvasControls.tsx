@@ -41,7 +41,8 @@ interface ReferenceHandleProps {
   readonly endpoint: ReferenceLineEndpoint;
   readonly point: ImageRatioPoint;
   readonly zoom: number;
-  readonly onGrab: (endpoint: ReferenceLineEndpoint) => void;
+  /** Nhấn tay cầm — kèm toạ độ con trỏ, để đầu đoạn đi theo quãng con trỏ đi chứ không nhảy tới nó (G51b). */
+  readonly onGrab: (endpoint: ReferenceLineEndpoint, clientX: number, clientY: number) => void;
   readonly onNudge: CanvasActions['onNudgeEndpoint'];
 }
 
@@ -70,7 +71,7 @@ export function ReferenceHandle({ endpoint, onGrab, onNudge, point, zoom }: Refe
 
         event.stopPropagation();
         event.currentTarget.setPointerCapture(event.pointerId);
-        onGrab(endpoint);
+        onGrab(endpoint, event.clientX, event.clientY);
       }}
       style={{
         left: `${point.x * 100}%`,

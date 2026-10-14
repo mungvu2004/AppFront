@@ -984,3 +984,33 @@ describe('ScaleCalibration — màn sập có biểu tượng (BUG-338)', () => 
     expect(container.querySelector('.rounded-full.bg-state-violation-tint')).toBeNull();
   });
 });
+
+describe('[G51a] nhãn đo trực tiếp cần cỡ khung ảnh', () => {
+  it('khung ảnh gắn SAU skeleton vẫn được đo — ResizeObserver theo dõi nó', () => {
+    const observed: Element[] = [];
+    Object.defineProperty(globalThis, 'ResizeObserver', {
+      configurable: true,
+      writable: true,
+      value: class {
+        observe(target: Element): void {
+          observed.push(target);
+        }
+        unobserve(): void {
+          /* không cần */
+        }
+        disconnect(): void {
+          /* không cần */
+        }
+      },
+    });
+    const scenario = scenarioFor('success');
+    const loading = { ...scenario.model, canvas: { ...scenario.model.canvas, isImageLoading: true } };
+    const { rerender } = renderWithProviders(<ScaleCalibration actions={scenario.actions} model={loading} />);
+    const before = observed.length;
+
+    rerender(<ScaleCalibration actions={scenario.actions} model={scenario.model} />);
+
+    expect(observed.length).toBeGreaterThan(before);
+    expect(observed.some((target) => target.className.includes('origin-top-left'))).toBe(true);
+  });
+});

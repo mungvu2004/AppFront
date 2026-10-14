@@ -1340,7 +1340,8 @@ describe('useScaleCalibration — QA-04c SCR-14 (BUG-587, 596, 601, 607)', () =>
     const moved: ImageRatioPoint = { x: 0.05, y: 0.05 };
 
     await act(async () => {
-      mounted.result.current.actions.onStartDrag(moved, 'start');
+      // Nhấn ĐÚNG tâm tay cầm đầu đoạn, rồi kéo tới `moved`.
+      mounted.result.current.actions.onStartDrag(before?.start ?? moved, 'start');
     });
     await act(async () => {
       mounted.result.current.actions.onMoveDrag(moved, { isAxisLocked: false });
@@ -1446,5 +1447,74 @@ describe('[G45] người ngoài dự án mở thẳng SCR-14', () => {
     });
 
     expect(mounted.result.current.model.readFailure?.title).toBe(PROJECT_NOT_FOUND_TITLE);
+  });
+});
+
+describe('[G51b] bấm tay cầm rồi thả tại chỗ không dời đầu đoạn', () => {
+  it('nhấn lệch tâm tay cầm 24 px rồi thả, không kéo: đầu đoạn đứng yên', async () => {
+    const harness = await makeHarness();
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    await dragReferenceLine(mounted);
+
+    const before = mounted.result.current.model.canvas.referenceLine;
+    const pressed: ImageRatioPoint = { x: (before?.end.x ?? 0) + 0.004, y: (before?.end.y ?? 0) + 0.004 };
+
+    await act(async () => {
+      mounted.result.current.actions.onStartDrag(pressed, 'end');
+    });
+    await act(async () => {
+      mounted.result.current.actions.onEndDrag(pressed);
+    });
+
+    expect(mounted.result.current.model.canvas.referenceLine?.end).toEqual(before?.end);
+    expect(mounted.result.current.model.panel.computation.denominatorLabel).toBe('400 px');
+  });
+});
+
+describe('[G52 14-C-016] chưa có chuỗi kích thước nào', () => {
+  it('gõ chiều dài trước khi kéo đoạn thì vế tử đã là số vừa gõ', async () => {
+    const harness = await makeHarness();
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+
+    await act(async () => {
+      mounted.result.current.actions.onChangeRealLength('5000');
+    });
+
+    expect(mounted.result.current.model.panel.computation.numeratorLabel).toBe('5.000 mm');
+  });
+});
+
+describe('[G52 14-C-026] bản vẽ không vuông trong khung vuông', () => {
+  it('cùng 0,6 khung theo ngang và theo dọc là cùng một số pixel ảnh (ảnh object-contain)', async () => {
+    const harness = await makeHarness();
+    const base = harness.gateway;
+    const gateway: ScaleCalibrationGateway = {
+      ...base,
+      readFloorDrawing: async (input) => {
+        const read = await base.readFloorDrawing(input);
+
+        return read.ok ? { ok: true, data: { ...read.data, widthPx: pixels(1600), heightPx: pixels(1200) } } : read;
+      },
+    };
+    const mounted = mountHook(gateway);
+    await settle(mounted);
+
+    const lengthOf = async (end: ImageRatioPoint): Promise<string> => {
+      await act(async () => {
+        mounted.result.current.actions.onStartDrag({ x: 0.2, y: 0.2 });
+      });
+      await act(async () => {
+        mounted.result.current.actions.onEndDrag(end);
+      });
+
+      return mounted.result.current.model.panel.computation.denominatorLabel;
+    };
+
+    const across = await lengthOf({ x: 0.8, y: 0.2 });
+    const up = await lengthOf({ x: 0.2, y: 0.8 });
+
+    expect(up).toBe(across);
   });
 });

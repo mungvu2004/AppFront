@@ -135,7 +135,8 @@ export function ScaleCalibrationCanvas({
     observer.observe(content);
 
     return () => observer.disconnect();
-  }, []);
+    // Khung ảnh chỉ gắn khi skeleton đi: đo lại lúc ấy, không thì cỡ mãi 0 và nhãn đo trực tiếp không hiện (G51a).
+  }, [canvas.isImageLoading]);
 
   useEffect(() => {
     if (canvas.selectedRowId !== null) {
@@ -252,10 +253,10 @@ export function ScaleCalibrationCanvas({
   );
 
   const handleGrabEndpoint = useCallback(
-    (endpoint: ReferenceLineEndpoint) => {
-      onStartDrag(FRAME_CENTRE, endpoint);
+    (endpoint: ReferenceLineEndpoint, clientX: number, clientY: number) => {
+      onStartDrag(ratioAt(clientX, clientY) ?? canvas.referenceLine?.[endpoint] ?? FRAME_CENTRE, endpoint);
     },
-    [onStartDrag],
+    [canvas.referenceLine, onStartDrag, ratioAt],
   );
 
   /** Đường bàn phím (BUG-607): Enter trên khung khi chưa có đoạn → đoạn ở tâm, mũi tên dời đầu cuối. */
