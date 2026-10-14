@@ -103,7 +103,7 @@ for (const layer of LAYERS) {
     continue;
   }
   mkdirSync(dir, { recursive: true });
-  const args = ['playwright', 'test', ...files, ...(WATCH ? ['--headed'] : []), ...(GREP ? ['--grep', GREP] : []), '--workers', String(layer === 'main' ? 1 : WORKERS), '--retries', String(RETRIES)];
+  const args = ['playwright', 'test', ...files, ...(WATCH ? ['--headed'] : []), ...(GREP ? ['--grep', JSON.stringify(GREP)] : []) /* quoted: shell:true is cmd.exe on Windows, a bare `|` splits the command (QA-05c) */, '--workers', String(layer === 'main' ? 1 : WORKERS), '--retries', String(RETRIES)];
   const t0 = Date.now();
   const log = createWriteStream(join(dir, 'run.log'));
   const code = await new Promise((done) => {
