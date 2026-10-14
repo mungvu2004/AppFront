@@ -560,10 +560,10 @@ describe('ScaleCalibration — bảy trạng thái (A11, R-63)', () => {
     }
   });
 
-  it('tỉ lệ tạm: dải chú ý trên canvas, không thêm trạng thái', () => {
+  it('tỷ lệ tạm: dải chú ý trên canvas, không thêm trạng thái', () => {
     renderWithProviders(<ScaleCalibration {...provisionalScaleScenario()} />);
 
-    expect(screen.getByText('Tỉ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỉ lệ.')).toBeInTheDocument();
+    expect(screen.getByText('Tỷ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỷ lệ.')).toBeInTheDocument();
   });
 
   it('hỏi trước khi áp mọi tầng: hộp thoại A9 có câu, nút đồng ý và huỷ gọi đúng hành động', () => {
@@ -575,7 +575,7 @@ describe('ScaleCalibration — bảy trạng thái (A11, R-63)', () => {
       <ScaleCalibration {...base} actions={{ ...base.actions, onCancelAllFloors, onConfirmAllFloors }} />,
     );
 
-    expect(screen.getByRole('dialog', { name: 'Áp tỉ lệ này cho 3 tầng có bản vẽ?' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Áp tỷ lệ này cho 3 tầng có bản vẽ?' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
     expect(onCancelAllFloors).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole('button', { name: 'Áp cho mọi tầng' }));
@@ -849,5 +849,186 @@ describe('ScaleCalibration — cảnh báo tường ba mét [NGHIEM-3]', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
     mounted.unmount();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* QA-04c — SCR-14 (BUG-587, 596, 598, 607, 609, 338).                         */
+/* -------------------------------------------------------------------------- */
+
+describe('ScaleCalibration — QA-04c SCR-14', () => {
+  /** Khung 800 px đo được, và `setPointerCapture` mà jsdom không có. */
+  function measureFrame(): void {
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+      bottom: CANVAS_FRAME_PX,
+      height: CANVAS_FRAME_PX,
+      left: 0,
+      right: CANVAS_FRAME_PX,
+      toJSON: () => ({}),
+      top: 0,
+      width: CANVAS_FRAME_PX,
+      x: 0,
+      y: 0,
+    } as DOMRect);
+    Object.defineProperty(Element.prototype, 'setPointerCapture', { configurable: true, value: vi.fn() });
+  }
+
+  const handle = (name: 'Đầu' | 'Cuối'): HTMLElement =>
+    screen.getByRole('button', { name: new RegExp(`^${name} đoạn tham chiếu`, 'u') });
+
+  it('nhấn tay cầm kéo đúng đầu đó, mũi tên trên tay cầm nhích đúng đầu đó (BUG-587)', async () => {
+    measureFrame();
+    const harness = await makeHarness();
+    const mounted = mountScreen(harness.gateway);
+    await settle(mounted);
+    await act(async () => {
+      mounted.actions().onStartDrag({ x: 0, y: 0 });
+    });
+    await act(async () => {
+      mounted.actions().onEndDrag({ x: 0.5, y: 0 });
+    });
+
+    const frame = screen.getByRole('group', { name: CANVAS_ARIA_LABEL });
+    const endLeft = handle('Cuối').style.left;
+
+    fireEvent.pointerDown(handle('Đầu'), { button: 0, clientX: 0, clientY: 0, pointerId: 1 });
+    fireEvent.pointerMove(frame, { clientX: 80, clientY: 0, pointerId: 1 });
+    fireEvent.pointerUp(frame, { clientX: 80, clientY: 0, pointerId: 1 });
+
+    expect(handle('Cuối').style.left).toBe(endLeft);
+    expect(handle('Đầu').style.left).toBe('10%');
+
+    const startLeft = handle('Đầu').style.left;
+    fireEvent.keyDown(handle('Đầu'), { key: 'ArrowRight' });
+    expect(handle('Đầu').style.left).not.toBe(startLeft);
+    expect(handle('Cuối').style.left).toBe(endLeft);
+
+    mounted.unmount();
+  });
+
+  it('cụm thu phóng lái khung nhìn và không vẽ đoạn mới (BUG-596)', async () => {
+    measureFrame();
+    const harness = await makeHarness();
+    const mounted = mountScreen(harness.gateway);
+    await settle(mounted);
+
+    const zoomIn = screen.getByRole('button', { name: 'Phóng to' });
+    fireEvent.pointerDown(zoomIn, { button: 0, clientX: 700, clientY: 700, pointerId: 1 });
+    fireEvent.click(zoomIn);
+
+    expect(viewportTransform()).toContain('scale(1.25)');
+    expect(screen.queryByRole('button', { name: /^Đầu đoạn tham chiếu/u })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Vừa khung nhìn' }));
+    expect(viewportTransform()).toBe('translate(0px, 0px) scale(1)');
+
+    mounted.unmount();
+  });
+
+  it('Enter trên canvas đặt đoạn ở tâm và nói đoạn còn quá ngắn (BUG-607)', async () => {
+    const harness = await makeHarness();
+    const mounted = mountScreen(harness.gateway);
+    await settle(mounted);
+
+    fireEvent.keyDown(screen.getByRole('group', { name: CANVAS_ARIA_LABEL }), { key: 'Enter' });
+
+    expect(handle('Đầu')).toBeInTheDocument();
+    expect(screen.getByText(/^Đoạn quá ngắn/u)).toBeInTheDocument();
+
+    mounted.unmount();
+  });
+
+  it('thu gọn bảng thì cột co lại, chỉ còn nút "Bung bảng" (BUG-609)', () => {
+    const scenario = scenarioFor('collapsed');
+    renderWithProviders(<ScaleCalibration {...scenario} />);
+
+    const panel = screen.getByLabelText('Bảng hiệu chỉnh tỷ lệ');
+    expect(panel.className).toContain('lg:w-12');
+    expect(panel.className).not.toContain('lg:w-[344px]');
+    expect(screen.getByRole('button', { name: 'Bung bảng' })).toBeInTheDocument();
+  });
+
+  it('xung đột lưu hiện dải có "Tải lại" (BUG-598)', () => {
+    const scenario = scenarioFor('partial');
+    const onReload = vi.fn();
+    renderWithProviders(
+      <ScaleCalibration
+        {...scenario}
+        model={{
+          ...scenario.model,
+          saveBlock: { confirm: null, kind: 'reload', message: 'Tầng này vừa được sửa ở nơi khác.', onReload },
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tải lại' }));
+    expect(onReload).toHaveBeenCalledOnce();
+  });
+});
+
+describe('ScaleCalibration — màn sập có biểu tượng (BUG-338)', () => {
+  it('khung dự phòng vẽ biểu tượng thật, không phải vòng tròn trống', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { ScaleCalibrationContainer } = await import('./ScaleCalibration.container');
+    const broken = new Proxy({} as ScaleCalibrationGateway, {
+      get: () => {
+        throw new Error('cổng hỏng');
+      },
+    });
+
+    const { container } = renderWithProviders(
+      <ScaleCalibrationContainer floorId={FLOOR_ID} gateway={broken} projectId={PROJECT_ID} />,
+    );
+
+    expect(container.querySelector('svg')).not.toBeNull();
+    expect(container.querySelector('.rounded-full.bg-state-violation-tint')).toBeNull();
+  });
+});
+
+describe('[G51a] nhãn đo trực tiếp cần cỡ khung ảnh', () => {
+  it('khung ảnh gắn SAU skeleton vẫn được đo — ResizeObserver theo dõi nó', () => {
+    const observed: Element[] = [];
+    Object.defineProperty(globalThis, 'ResizeObserver', {
+      configurable: true,
+      writable: true,
+      value: class {
+        observe(target: Element): void {
+          observed.push(target);
+        }
+        unobserve(): void {
+          /* không cần */
+        }
+        disconnect(): void {
+          /* không cần */
+        }
+      },
+    });
+    const scenario = scenarioFor('success');
+    const loading = { ...scenario.model, canvas: { ...scenario.model.canvas, isImageLoading: true } };
+    const { rerender } = renderWithProviders(<ScaleCalibration actions={scenario.actions} model={loading} />);
+    const before = observed.length;
+
+    rerender(<ScaleCalibration actions={scenario.actions} model={scenario.model} />);
+
+    expect(observed.length).toBeGreaterThan(before);
+    expect(observed.some((target) => target.className.includes('origin-top-left'))).toBe(true);
+  });
+});
+
+describe('[G57] hộp thoại "áp mọi tầng" đóng thì tiêu điểm về "Áp dụng tỷ lệ"', () => {
+  it('nút áp bị khoá lúc đọc mọi tầng (tiêu điểm rơi về body) vẫn được trả tiêu điểm khi Esc', async () => {
+    const scenario = scenarioFor('success');
+    const confirm = { title: 'Áp tỷ lệ cho 2 tầng?', message: 'Câu hỏi.', confirmLabel: 'Áp dụng', cancelLabel: 'Huỷ' };
+    const { rerender } = renderWithProviders(
+      <ScaleCalibration actions={scenario.actions} model={{ ...scenario.model, allFloorsConfirm: confirm }} />,
+    );
+    await act(async () => {
+      await clock.advance(20);
+    });
+    (document.activeElement as HTMLElement | null)?.blur();
+
+    rerender(<ScaleCalibration actions={scenario.actions} model={scenario.model} />);
+
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Áp dụng tỷ lệ' }));
   });
 });

@@ -51,19 +51,20 @@ import type { WallId } from '@/domain/spatial/types';
 import type { ThicknessApplyBarProps, ThicknessSegmentRow } from './thicknessTypes';
 
 const TOLERANCE_LABEL = 'Dung sai';
-const REAPPLY_FILTER_LABEL = 'Áp dụng lại bộ lọc';
+/* Tên nói việc nó làm, và nó mở cùng bảng xem trước như "Xem trước" (BUG-593). */
+const REAPPLY_FILTER_LABEL = 'Áp lại cho mọi tường lệch nhóm';
 const UNDO_LABEL = 'Hoàn tác';
 const OPEN_PREVIEW_LABEL = 'Xem trước';
 const CANCEL_LABEL = 'Huỷ';
 const APPLY_LABEL = 'Áp dụng';
 const VIEW_LABEL = 'Xem';
 const HIDE_LABEL = 'Ẩn';
-const EXCLUDE_AND_REAPPLY_LABEL = 'Loại tường đã duyệt ra rồi áp lại';
-const APPLY_TO_ALL_LABEL = 'Vẫn áp dụng cho tất cả';
-const REAPPLY_WARNING_TITLE = 'Áp dụng lại bộ lọc sẽ đổi tường đã duyệt';
+const EXCLUDE_AND_REAPPLY_LABEL = 'Loại tường đã duyệt ra rồi xem trước';
+const APPLY_TO_ALL_LABEL = 'Xem trước cho tất cả';
+const REAPPLY_WARNING_TITLE = 'Áp lại cho mọi tường lệch nhóm sẽ đổi tường đã duyệt';
 
 const reapplyWarningMessage = (affectedReviewedCount: number): string =>
-  `${affectedReviewedCount} tường đã duyệt sẽ bị đổi. Đề nghị loại các tường này khỏi lượt áp dụng lại.`;
+  `${affectedReviewedCount} tường đã duyệt sẽ bị đổi. Đề nghị loại các tường này khỏi lượt áp lại.`;
 
 const unchangedHeading = (count: number): string => `${count} tường không đổi được:`;
 
@@ -143,16 +144,17 @@ export function ThicknessApplyBar({
             message={reapplyWarningMessage(reapplyWarning.affectedReviewedCount)}
             title={REAPPLY_WARNING_TITLE}
           />
+          {/* `min-h-6`: nút chữ đạt vùng chạm 24 px (BUG-325). */}
           <div className="flex items-center gap-3 pl-3">
             <button
-              className="rounded text-[13px] text-text-secondary underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+              className="inline-flex min-h-6 items-center rounded text-[13px] text-text-secondary underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
               onClick={() => onReapplyFilter(false)}
               type="button"
             >
               {APPLY_TO_ALL_LABEL}
             </button>
             <button
-              className="rounded text-[13px] text-text-secondary underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+              className="inline-flex min-h-6 items-center rounded text-[13px] text-text-secondary underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
               onClick={onDismissReapplyWarning}
               type="button"
             >
@@ -182,7 +184,7 @@ export function ThicknessApplyBar({
                         <span className="font-mono text-[13px] text-text-secondary">{wall.measuredLabel}</span>
                         <button
                           aria-expanded={isExpanded}
-                          className="ml-auto rounded text-[13px] text-accent underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                          className="ml-auto inline-flex min-h-6 items-center rounded text-[13px] text-accent underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
                           onClick={() => toggleExpanded(wall.wallId)}
                           type="button"
                         >
@@ -201,7 +203,13 @@ export function ThicknessApplyBar({
             <Button onClick={cancelPreview} size="sm" variant="ghost">
               {CANCEL_LABEL}
             </Button>
-            <Button onClick={onApplyPreview} size="sm" variant="primary">
+            {/* Không đoạn nào đổi (mọi đoạn bị dung sai chặn): "Áp dụng" tắt, câu phía trên nói lý do (BUG-637). */}
+            <Button
+              disabled={preview.totalWalls === preview.unchangedWalls.length}
+              onClick={onApplyPreview}
+              size="sm"
+              variant="primary"
+            >
               {APPLY_LABEL}
             </Button>
           </div>

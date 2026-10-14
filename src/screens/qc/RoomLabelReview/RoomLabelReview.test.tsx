@@ -58,6 +58,7 @@ import { readFileSync } from 'node:fs';
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Room, RoomId } from '@/domain/spatial/types';
 import {
   CONTRAST_MINIMUM_BODY,
@@ -90,6 +91,8 @@ import { BACK_TO_FLOORS_LABEL, FLOOR_MISSING_TITLE, RETRY_READ_LABEL } from '../
 import { RoomLabelReviewContainer } from './RoomLabelReview.container';
 import { ProvisionalScale, scenarioArgsFor } from './RoomLabelReview.stories';
 import {
+  ROOM_LABEL_FIXTURE_BUILDING,
+  ROOM_LABEL_FIXTURE_LEVEL,
   ROOM_LABEL_FIXTURE_ROOMS,
   ROOM_LABEL_FIXTURE_ROOM_R005,
   ROOM_LABEL_FIXTURE_TOTAL,
@@ -531,25 +534,25 @@ describe('dải lưu lớp (F-04x-1)', () => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* Dải tỉ lệ tạm (F-04x-2 [8].7).                                              */
+/* Dải tỷ lệ tạm (F-04x-2 [8].7).                                              */
 /* -------------------------------------------------------------------------- */
 
-describe('dải tỉ lệ tạm (F-04x-2)', () => {
+describe('dải tỷ lệ tạm (F-04x-2)', () => {
   const NOTICE = provisionalScaleNoticeOf('unresolved')?.message ?? '';
 
-  it('tầng unresolved: dải chú ý + "Hiệu chỉnh tỉ lệ", tổng diện tích là PROVISIONAL_MEASURE_TEXT', async () => {
+  it('tầng unresolved: dải chú ý + "Hiệu chỉnh tỷ lệ", tổng diện tích là PROVISIONAL_MEASURE_TEXT', async () => {
     renderWithProviders(<RoomLabelReviewContainer {...scenarioArgsFor('partial')} {...ProvisionalScale.args} />);
 
     expect(await screen.findByText(NOTICE)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Hiệu chỉnh tỉ lệ' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Hiệu chỉnh tỷ lệ' })).toBeInTheDocument();
     expect(screen.getAllByText(PROVISIONAL_MEASURE_TEXT).length).toBeGreaterThan(0);
   });
 
-  it('tầng có tỉ lệ thật: không dải, không chữ tỉ lệ tạm', async () => {
+  it('tầng có tỉ lệ thật: không dải, không chữ tỷ lệ tạm', async () => {
     await renderSettled('partial');
 
     expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Hiệu chỉnh tỉ lệ' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Hiệu chỉnh tỷ lệ' })).not.toBeInTheDocument();
     expect(screen.queryByText(PROVISIONAL_MEASURE_TEXT)).not.toBeInTheDocument();
   });
 });
@@ -728,9 +731,91 @@ describe('[BUG-408] thẻ nhắc công năng đặt tên luật tiếng Việt, 
 
     const notices = await screen.findByRole('region', { name: 'Nhắc công năng' });
 
-    expect(notices).toHaveTextContent('Đường bao phòng kín bằng tường');
+    /* BUG-625: tên luật là câu khẳng định, thẻ báo vi phạm — tiêu đề nói "Chưa đạt". */
+    expect(notices).toHaveTextContent('Chưa đạt: đường bao phòng kín bằng tường');
     expect(notices).not.toHaveTextContent(/ROOM-[A-Z-]+/u);
     /* BUG-325: link "Xem luật không gian" 119×20 → vùng chạm ≥ 24 px. */
     expect(within(notices).getAllByRole('link', { name: 'Xem luật không gian' })[0]).toHaveClass('min-h-6');
+  });
+});
+
+describe('P04 cụm C — thanh tra phòng chỉ mời việc làm được (SCR-20)', () => {
+  it('[BUG-641] không tên nào cần chuẩn hoá: "Chuẩn hoá tên" tắt và nói vì sao', async () => {
+    const args = scenarioArgsFor('success');
+    /* "Phòng ngủ N" đã đúng kiểu câu và có số thứ tự: `canonicalRoomName` không đổi tên nào. */
+    const graph = normalizeSpatial({
+      building: ROOM_LABEL_FIXTURE_BUILDING,
+      levels: [ROOM_LABEL_FIXTURE_LEVEL],
+      walls: [],
+      openings: [],
+      furniture: [],
+      rooms: ROOM_LABEL_FIXTURE_ROOMS.map((room, index) => ({ ...room, name: `Phòng ngủ ${String(index + 1)}` })),
+      axes: [],
+      dimensions: [],
+      notes: [],
+    });
+
+    renderWithProviders(<RoomLabelReviewContainer {...args} gateway={createMockRoomLabelReviewGateway({ graph })} />);
+    const button = await screen.findByRole('button', { name: NORMALIZE_BUTTON_LABEL });
+
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleDescription('Mọi tên phòng đã đúng kiểu câu, chưa có gì để chuẩn hoá.');
+  });
+
+  it('[BUG-624] diện tích trong hàng co lại được, chữ đầy đủ ở title — tên phòng không còn một ký tự', async () => {
+    await renderSettled('partial');
+    const [firstRow] = screen.getAllByRole('option');
+    const area = firstRow?.lastElementChild?.previousElementSibling;
+
+    expect(area).toHaveAttribute('title', area?.textContent ?? '');
+    expect(area).not.toHaveClass('shrink-0');
+  });
+
+  it('[BUG-636] vai người xem: câu "chỉ xem" hiện MỘT lần, thanh tra phòng chỉ mang nhãn', async () => {
+    await renderSettled('forbidden');
+    const [firstRoom] = screen.getAllByRole('option');
+
+    if (firstRoom !== undefined) {
+      fireEvent.click(firstRoom);
+    }
+
+    expect(await screen.findByText('Chỉ xem')).toBeInTheDocument();
+    expect(screen.getAllByText(/Nhờ người quản trị dự án đổi vai/u)).toHaveLength(1);
+  });
+
+  it('[BUG-626] vòng tường hở kê mã tường hiển thị, id thô chỉ ở title', async () => {
+    await renderSettled('partial');
+    const codes = screen.getAllByText(/^#W-\d{3}$/u);
+
+    expect(codes.length).toBeGreaterThan(0);
+    expect(codes[0]).toHaveAttribute('title');
+  });
+
+  it('[BUG-602] phòng chưa tên: "Duyệt phòng này" tắt và nói vì sao', async () => {
+    await renderSettled('partial');
+
+    fireEvent.click(screen.getAllByRole('option', { name: /Cần chú ý$/u })[0] as HTMLElement);
+
+    const approve = await screen.findByRole('button', { name: 'Duyệt phòng này' });
+
+    expect(approve).toBeDisabled();
+    expect(approve).toHaveAccessibleDescription('Đặt tên phòng trước khi duyệt.');
+  });
+
+  it('[BUG-586/605] câu tách phòng chỉ đúng đường, và nút "Sang lớp tường" đi tới đó', async () => {
+    const onNavigate = vi.fn();
+    const rendered = renderWithProviders(
+      <RoomLabelReviewContainer {...scenarioArgsFor('partial')} onNavigate={onNavigate} />,
+    );
+
+    await waitFor(() => {
+      expect(rendered.container.querySelectorAll('polygon').length).toBeGreaterThan(0);
+    });
+    fireEvent.click(screen.getAllByRole('option')[0] as HTMLElement);
+
+    expect(screen.queryByText(/Bấm lên ranh phòng/u)).toBeNull();
+    fireEvent.click(await screen.findByRole('button', { name: 'Sang lớp tường' }));
+
+    expect(onNavigate).toHaveBeenCalledWith(expect.stringContaining('/walls'));
   });
 });

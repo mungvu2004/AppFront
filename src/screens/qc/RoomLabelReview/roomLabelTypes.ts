@@ -308,6 +308,8 @@ export interface RoomLabelViewModel {
 export interface RoomLabelGapViewModel {
   /** Các tường có đầu bị hàn/kéo lại để đóng vòng hở — đã sắp xếp. */
   readonly wallIds: readonly WallId[];
+  /** Mã hiển thị của từng tường trong `wallIds`, cùng thứ tự, ví dụ `"#W-001"` (BUG-626). */
+  readonly wallCodeLabels: readonly string[];
   /** Khe hở đã định dạng, ví dụ `"62 mm"` (`WeldedGap.gapMm` qua `formatLength`). */
   readonly gapText: string;
   /** Vị trí khe hở trên bản vẽ — cùng nhãn `PointMm` với nguồn `WeldedGap.position`. */
@@ -373,6 +375,8 @@ export interface RoomLabelCanvasProps {
   readonly backgroundImageUrl: string | null;
   /** Mô tả ảnh nền cho trình đọc màn hình (R-72). */
   readonly backgroundImageAlt: string;
+  /** Cỡ thật của bản vẽ (mm) — ảnh nền đặt theo cỡ này, không bị kéo giãn theo hộp bao các phòng (G49). Vắng/`null` = lấp đầy như trước. */
+  readonly backgroundImageSizeMm?: { readonly widthMm: number; readonly heightMm: number } | null | undefined;
   /** `false` ở trạng thái `forbidden`: xem/phóng to được, chọn thì không. */
   readonly isInteractive: boolean;
   /** Xem `RoomLabelReviewProps.isFloorWithoutRooms` — canvas không tự suy từ `rooms` rỗng. */
@@ -394,6 +398,8 @@ export interface RoomLabelLeftPanelProps {
   readonly onToggleUnnamedFilter: () => void;
   /** Mở bảng xem trước "Chuẩn hoá tên" — áp/huỷ nằm ở {@link RoomLabelNormalizePreviewProps}. */
   readonly onOpenNormalizePreview: () => void;
+  /** Xem {@link RoomLabelReviewProps.hasNamesToNormalize}. */
+  readonly hasNamesToNormalize?: boolean;
   /** Chạy lại `buildWallGraph` để tìm vòng hở mới nhất. */
   readonly onCheckWallGaps: () => void;
   /** "đi sang lớp tường" — hook tự ghép `ROUTES.project.walls(projectId, floorId)`, view không biết đường dẫn (R-65). */
@@ -520,8 +526,12 @@ export interface RoomLabelReviewProps {
   readonly showOnlyUnnamed: boolean;
   /** `null` khi bảng "Chuẩn hoá tên" chưa mở. */
   readonly normalizePreview: RoomLabelNormalizePreview | null;
+  /** `false` khi không tên nào cần chuẩn hoá: nút tắt kèm lý do, không mở hộp thoại rỗng (BUG-641). Vắng = `true`. */
+  readonly hasNamesToNormalize?: boolean;
   readonly backgroundImageUrl: string | null;
   readonly backgroundImageAlt: string;
+  /** Cỡ thật của bản vẽ (mm) — ảnh nền đặt theo cỡ này, không bị kéo giãn theo hộp bao các phòng (G49). Vắng/`null` = lấp đầy như trước. */
+  readonly backgroundImageSizeMm?: { readonly widthMm: number; readonly heightMm: number } | null | undefined;
   readonly millimetresPerPixel: MillimetresPerPixel;
   /** Dưới 1.024px panel phải thành tấm trượt đáy — cùng mốc các màn QC anh em. */
   readonly isCompact: boolean;
@@ -588,6 +598,8 @@ export interface RoomLabelReviewProps {
   readonly onToggleCollapsed: () => void;
   /** Khối lưu lớp của tầng — dải "Tải lại" / "Không lưu được" (F-04x-1). */
   readonly saveBlock?: FloorLayerSaveBlock | null | undefined;
+  /** Câu trạng thái tự lưu cho người nhìn thấy ("Đang lưu…", "Đã lưu lúc 14:32"). */
+  readonly saveStatus?: string | null | undefined;
   /** Dải tỉ lệ tạm (F-04x-2); `null` khi tầng đã có tỉ lệ thật. */
   readonly provisionalScaleNotice?: ProvisionalScaleNotice | null | undefined;
   /** Đọc lớp hỏng khi chưa có tài liệu → cả màn là một trạng thái lỗi (BUG-326). */

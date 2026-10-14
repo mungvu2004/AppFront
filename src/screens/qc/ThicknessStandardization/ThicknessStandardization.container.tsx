@@ -49,6 +49,7 @@
  * endpoint để lấp chỗ đó.
  */
 
+import { AlertCircle } from 'lucide-react';
 import { useCallback } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -114,7 +115,7 @@ function ThicknessStandardizationCrashFallback({ report, retry }: ScreenErrorFal
     <div className="absolute inset-0 flex items-center justify-center bg-bg-app">
       <EmptyState
         description={report.description.description}
-        icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-state-violation-tint" />}
+        icon={<AlertCircle />}
         title={report.description.title}
         {...(report.retryable
           ? { action: { label: report.description.primaryButtonLabel, onClick: retry } }

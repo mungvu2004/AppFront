@@ -414,3 +414,47 @@ export function createHistoryStack(options: CreateHistoryStackOptions = {}): His
     },
   };
 }
+
+/* -------------------------------------------------------------------------- */
+/* A toast's "Hoàn tác" takes back ITS step, never another one (BUG-579).      */
+/* -------------------------------------------------------------------------- */
+
+/** The entry a command just pushed — what an undo toast for that command stands for. */
+export function newestEntryId(history: Pick<HistoryStack, 'undoSteps'>): UndoEntryId | null {
+  const steps = history.undoSteps();
+  const top = steps[steps.length - 1];
+
+  return top?.entryIds[top.entryIds.length - 1] ?? null;
+}
+
+/**
+ * Runs `undo` only while `entryId` is still the newest entry on the stack, and
+ * otherwise returns the sentence saying why nothing happened.
+ *
+ * A toast's "Hoàn tác" used to pop whatever sat on top: delete wall A, approve
+ * wall B within the eight seconds, press the toast — B's approval came back and
+ * A stayed deleted, with nothing on screen to say so. Undoing A out of order is
+ * not offered: a later step may build on it, and Ctrl+Z still walks back in order.
+ */
+export function undoIfNewest(
+  history: Pick<HistoryStack, 'undoSteps'>,
+  entryId: UndoEntryId | null,
+  undo: () => void,
+): string | null {
+  const steps = history.undoSteps();
+  const index = entryId === null ? -1 : steps.findIndex((step) => step.entryIds.includes(entryId));
+
+  if (index === -1) {
+    return 'Thay đổi này không còn trong lịch sử hoàn tác.';
+  }
+
+  if (newestEntryId(history) !== entryId) {
+    const newer = Math.max(1, steps.length - 1 - index);
+
+    return `Chưa hoàn tác: đã có ${newer} thay đổi sau thay đổi này. Dùng Ctrl+Z để hoàn tác lần lượt.`;
+  }
+
+  undo();
+
+  return null;
+}

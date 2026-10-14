@@ -27,8 +27,8 @@
  *    mối nối được dựng lại từ đầu.
  * 5. **Áp dụng lại bộ lọc không bao giờ ghi đè im lặng tường đã duyệt.** Lượt
  *    bấm đầu tiên chỉ dựng {@link ReapplyFilterWarning} mang ĐÚNG số tường đã
- *    duyệt sẽ bị đổi; chỉ lượt bấm sau đó mới ghi, và người dùng chọn được
- *    "loại chúng ra".
+ *    duyệt sẽ bị đổi; lượt bấm sau đó mở bảng xem trước (người dùng chọn được
+ *    "loại chúng ra"), và chỉ "Áp dụng" trong bảng mới ghi (BUG-593).
  * 6. **Trạng thái máy chủ đi qua `@tanstack/react-query`** (R-64): không một
  *    `useState` nào giữ cờ đang tải hay cờ hỏng.
  *
@@ -56,9 +56,10 @@ import { useFloorLayer } from '@/hooks/useFloorLayer';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useShortcut } from '@/hooks/useShortcut';
+import { ROUTES } from '@/routes/paths';
 import { can } from '@/lib/auth/permissions';
 import type { Command } from '@/lib/commands/types';
-import type { HistoryStack } from '@/lib/commands/history';
+import { newestEntryId, undoIfNewest, type HistoryStack } from '@/lib/commands/history';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { durationMs } from '@/lib/motion';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
@@ -125,11 +126,15 @@ import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 export const THICKNESS_SCREEN_TEXT = {
   emptyNotice:
     'Mọi đoạn tường đã ở đúng nhóm chuẩn, không còn gì để áp. Kéo một ngưỡng trên biểu đồ hoặc nới ô dung sai nếu bạn muốn gom thêm đoạn vào một nhóm khác.',
+  /* BUG-619: còn đoạn lệch quá dung sai thì "mọi đoạn đã đúng nhóm" là câu sai về dữ liệu. */
+  outOfToleranceNotice: (count: number): string =>
+    `${count} đoạn tường lệch quá dung sai, chưa thuộc nhóm chuẩn nào nên chưa có gì để áp. Nới ô dung sai hoặc gán nhóm tay cho từng đoạn ở bảng chi tiết.`,
   emptyNoMeasurementNotice:
     'Chưa có số đo độ dày nào cho công trình này. Sang lớp tường để dò lại các đoạn tường, rồi quay lại đây để chuẩn hoá độ dày.',
   viewerRoleNotice:
     'Bạn đang xem với vai người xem: áp chuẩn hoá, gán nhóm và sửa dung sai đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa độ dày tường.',
-  escapeShortcut: 'Đóng bảng xem trước hoặc cảnh báo áp dụng lại bộ lọc.',
+  escapeShortcut: 'Đóng bảng xem trước hoặc cảnh báo áp lại cho mọi tường lệch nhóm.',
+  undoShortcut: 'Hoàn tác lượt chuẩn hoá độ dày gần nhất.',
 } as const;
 
 /* -------------------------------------------------------------------------- */
@@ -202,7 +207,14 @@ export type UseThicknessStandardizationResult = ThicknessStandardizationProps &
 
 const NO_WALL_IDS: readonly WallId[] = [];
 const NO_MEASUREMENTS: ReadonlySet<number> = new Set<number>();
-const NO_OVERRIDES: ReadonlyMap<WallId, ThicknessGroup> = new Map<WallId, ThicknessGroup>();
+/** Toast "Hoàn tác" bị từ chối vì đã có bước mới hơn (BUG-579). */
+const THICKNESS_UNDO_REFUSED_TYPE = 'thicknessStandardization.undoRefused';
+
+/** Bảng xem trước đang mở cùng đúng các hàng nó sẽ áp (BUG-593). */
+interface PreviewPlan {
+  readonly preview: ApplyPreview;
+  readonly rows: readonly ThicknessSegmentRow[];
+}
 
 /* -------------------------------------------------------------------------- */
 /* Phép ghép thuần — kiểm được mà không cần dựng hook.                          */
@@ -211,9 +223,10 @@ const NO_OVERRIDES: ReadonlyMap<WallId, ThicknessGroup> = new Map<WallId, Thickn
 /**
  * Bảy trạng thái của A11, theo đúng thứ tự ưu tiên hai màn QC anh em đã chốt.
  *
- * Vai trò đi trước vì trạng thái 6 vô hiệu MỌI hàm sửa: một người xem nhìn màn
- * thu gọn vẫn là một người xem. `error` đi trước `loading` vì một lượt đọc đã
- * hỏng thì không còn "đang tải" nữa.
+ * Vai trò đi SAU thu gọn/hỏng/tải/rỗng: hàm sửa đã tắt ở hook (`canEdit`), còn
+ * trạng thái phải nói đúng điều màn đang vẽ — người xem lúc đang tải thấy khung
+ * xương, không thấy "chưa có đoạn nào" (BUG-601). `error` đi trước `loading` vì
+ * một lượt đọc đã hỏng thì không còn "đang tải" nữa.
  *
  * `empty` và `success` tả CÙNG một sự thật dữ liệu — không còn đoạn nào áp được
  * — và chỉ khác nhau ở chỗ lượt áp vừa chạy hay chưa, đúng như
@@ -229,10 +242,7 @@ export function deriveThicknessScreenState(input: {
   readonly applicableCount: number;
   readonly hasApplied: boolean;
 }): ThicknessScreenState {
-  if (input.isViewerRole) {
-    return 'forbidden';
-  }
-
+  /* Vai trò KHÔNG đứng trước thu gọn/hỏng/tải/rỗng (BUG-601): người xem lúc đang tải vẫn phải thấy khung xương. */
   if (input.isCollapsed) {
     return 'collapsed';
   }
@@ -247,6 +257,10 @@ export function deriveThicknessScreenState(input: {
 
   if (input.segmentCount === 0) {
     return 'empty';
+  }
+
+  if (input.isViewerRole) {
+    return 'forbidden';
   }
 
   if (input.applicableCount === 0) {
@@ -330,10 +344,10 @@ export function useThicknessStandardization(
   const [toleranceMm, setToleranceMm] = useState(DEFAULT_TOLERANCE_MM);
   const [acceptedMeasurements, setAcceptedMeasurements] =
     useState<ReadonlySet<number>>(NO_MEASUREMENTS);
-  const [groupOverrides, setGroupOverrides] =
-    useState<ReadonlyMap<WallId, ThicknessGroup>>(NO_OVERRIDES);
   const [sortKey, setSortKey] = useState<ThicknessSortKey>(DEFAULT_THICKNESS_SORT_KEY);
-  const [preview, setPreview] = useState<ApplyPreview | null>(null);
+  /* Bảng xem trước giữ ĐÚNG các hàng nó kê: "Áp dụng" ghi đúng thứ vừa xem (BUG-593). */
+  const [previewPlan, setPreviewPlan] = useState<PreviewPlan | null>(null);
+  const preview = previewPlan?.preview ?? null;
   const [reapplyWarning, setReapplyWarning] = useState<ReapplyFilterWarning | null>(null);
   const [hoveredGroup, setHoveredGroup] = useState<ThicknessGroup | null>(null);
   const [hoveredBinIndex, setHoveredBinIndex] = useState<number | null>(null);
@@ -404,10 +418,9 @@ export function useThicknessStandardization(
         thresholds,
         toleranceMm,
         levels: levelIndex,
-        groupOverrides,
         codes: wallCodes,
       }),
-    [groupOverrides, levelIndex, thresholds, toleranceMm, wallCodes, walls],
+    [levelIndex, thresholds, toleranceMm, wallCodes, walls],
   );
 
   const segmentRows = useMemo(() => sortSegmentRows(allRows, sortKey), [allRows, sortKey]);
@@ -599,7 +612,9 @@ export function useThicknessStandardization(
 
   const onUndo = useCallback(() => {
     applyUndo();
-  }, [applyUndo]);
+    // G63: the bar's own "Hoàn tác" took the step back — its toast would sit over the bar.
+    notifications.withdraw(THICKNESS_NOTIFICATION_TYPE);
+  }, [applyUndo, notifications]);
 
   /**
    * Chạy CẢ LÔ như một lượt, rồi MỜI HOÀN TÁC (A8).
@@ -627,11 +642,17 @@ export function useThicknessStandardization(
       setHasApplied(true);
       flashWalls(commands.flatMap((command) => command.scope.entityIds as readonly WallId[]));
 
+      /* BUG-579: vé giữ đúng bước của lượt áp này, không "bước trên cùng" lúc bấm. */
+      const entryId = newestEntryId(dispatchBundle.history);
       const ticket = createThicknessUndoTicket({
         description: label,
         now: gateway.now,
         undo: () => {
-          applyUndo();
+          const refused = undoIfNewest(dispatchBundle.history, entryId, applyUndo);
+
+          if (refused !== null) {
+            notifications.publish({ type: THICKNESS_UNDO_REFUSED_TYPE, title: refused, description: '' });
+          }
         },
       });
 
@@ -689,59 +710,19 @@ export function useThicknessStandardization(
     });
   }, []);
 
-  const onChangeNormalizedGroup = useCallback((wallId: WallId, group: ThicknessGroup) => {
-    setGroupOverrides((previous) => new Map(previous).set(wallId, group));
-  }, []);
-
   /* ---------------------------------------------------------------------- */
-  /* Xem trước rồi mới áp (CẤM TUYỆT ĐỐI).                                   */
+  /* Gán nhóm thẳng — MỘT lượt chạy, một toast hoàn tác, như SCR-16.          */
   /* ---------------------------------------------------------------------- */
 
-  const acceptedRows = useMemo(
-    () => allRows.filter((row) => acceptedMeasurements.has(row.measuredMm)),
-    [acceptedMeasurements, allRows],
-  );
-
-  const onOpenPreview = useCallback(() => {
-    /* Dựng BẢNG, không phát lệnh: không một độ dày nào đổi ở bước này. */
-    setPreview(buildApplyPreview(acceptedRows, toleranceMm));
-  }, [acceptedRows, toleranceMm]);
-
-  const onCancelPreview = useCallback(() => {
-    setPreview(null);
-  }, []);
-
-  const onApplyPreview = useCallback(() => {
-    if (preview === null) {
-      return;
-    }
-
-    setPreview(null);
-
-    const current = useStore.getState().spatial;
-
-    if (current === null) {
-      return;
-    }
-
-    void runBatch(
-      buildStandardizeThicknessCommands(allRows, {
-        graph: current,
-        actorId: gateway.actorId,
-        acceptedMeasurements,
-      }),
-    );
-  }, [acceptedMeasurements, allRows, gateway, preview, runBatch]);
-
-  const onApplySelectedGroup = useCallback(
-    (group: ThicknessGroup) => {
+  const assignGroup = useCallback(
+    (wallIds: readonly WallId[], group: ThicknessGroup) => {
       const current = useStore.getState().spatial;
 
-      if (current === null || selectedWallIds.length === 0) {
+      if (current === null || wallIds.length === 0) {
         return;
       }
 
-      const chosen = new Set(selectedWallIds);
+      const chosen = new Set(wallIds);
 
       void runBatch(
         buildAssignGroupCommands(
@@ -751,8 +732,65 @@ export function useThicknessStandardization(
         ),
       );
     },
-    [allRows, gateway, runBatch, selectedWallIds],
+    [allRows, gateway, runBatch],
   );
+
+  /* BUG-585: đổi nhóm trên một hàng là ghi thật (một bước hoàn tác), không phải một ghi đè cục bộ không ai lưu. */
+  const onChangeNormalizedGroup = useCallback(
+    (wallId: WallId, group: ThicknessGroup) => {
+      assignGroup([wallId], group);
+    },
+    [assignGroup],
+  );
+
+  const onApplySelectedGroup = useCallback(
+    (group: ThicknessGroup) => {
+      assignGroup(selectedWallIds, group);
+    },
+    [assignGroup, selectedWallIds],
+  );
+
+  /* ---------------------------------------------------------------------- */
+  /* Xem trước rồi mới áp (CẤM TUYỆT ĐỐI).                                   */
+  /* ---------------------------------------------------------------------- */
+
+  /* Dựng BẢNG, không phát lệnh: không một độ dày nào đổi ở bước này. */
+  const openPreviewOf = useCallback(
+    (rows: readonly ThicknessSegmentRow[]) => {
+      setPreviewPlan({ preview: buildApplyPreview(rows, toleranceMm), rows });
+    },
+    [toleranceMm],
+  );
+
+  const onOpenPreview = useCallback(() => {
+    openPreviewOf(allRows.filter((row) => acceptedMeasurements.has(row.measuredMm)));
+  }, [acceptedMeasurements, allRows, openPreviewOf]);
+
+  const onCancelPreview = useCallback(() => {
+    setPreviewPlan(null);
+  }, []);
+
+  const onApplyPreview = useCallback(() => {
+    if (previewPlan === null) {
+      return;
+    }
+
+    setPreviewPlan(null);
+
+    const current = useStore.getState().spatial;
+
+    if (current === null) {
+      return;
+    }
+
+    void runBatch(
+      buildStandardizeThicknessCommands(previewPlan.rows, {
+        graph: current,
+        actorId: gateway.actorId,
+        acceptedMeasurements: new Set(previewPlan.rows.map((row) => row.measuredMm)),
+      }),
+    );
+  }, [gateway, previewPlan, runBatch]);
 
   /* ---------------------------------------------------------------------- */
   /* Áp dụng lại bộ lọc — không bao giờ ghi đè im lặng tường đã duyệt.        */
@@ -760,9 +798,9 @@ export function useThicknessStandardization(
 
   /**
    * Lượt bấm ĐẦU TIÊN chỉ dựng cảnh báo mang đúng số tường đã duyệt sẽ bị đổi;
-   * nó không ghi một chữ nào. Lượt bấm sau đó mới chạy, và người duyệt chọn
-   * được "loại chúng ra" (`excludeReviewed`) ngay trong cảnh báo. Gọi thẳng với
-   * `excludeReviewed` bật thì chạy ngay — không có gì đã duyệt để cảnh báo.
+   * nó không ghi một chữ nào. Lượt bấm sau đó mở BẢNG XEM TRƯỚC như mọi đường
+   * áp khác (BUG-593) — "loại chúng ra" (`excludeReviewed`) bỏ tường đã duyệt
+   * khỏi bảng đó. Chỉ "Áp dụng" trong bảng mới ghi.
    */
   const onReapplyFilter = useCallback(
     (excludeReviewed: boolean) => {
@@ -784,25 +822,9 @@ export function useThicknessStandardization(
       }
 
       setReapplyWarning(null);
-
-      const current = useStore.getState().spatial;
-
-      if (current === null) {
-        return;
-      }
-
-      void runBatch(
-        buildStandardizeThicknessCommands(targets, {
-          graph: current,
-          actorId: gateway.actorId,
-          acceptedMeasurements: new Set(targets.map((row) => row.measuredMm)),
-          ...(excludeReviewed
-            ? { excludedWallIds: new Set(reviewedTargets.map((row) => row.wallId)) }
-            : {}),
-        }),
-      );
+      openPreviewOf(excludeReviewed ? targets.filter((row) => !row.reviewed) : targets);
     },
-    [allRows, canEdit, gateway, reapplyWarning, runBatch],
+    [allRows, canEdit, openPreviewOf, reapplyWarning],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -812,6 +834,12 @@ export function useThicknessStandardization(
   const shortcutOptions = useMemo(
     () => (options.shortcutRegistry === undefined ? {} : { registry: options.shortcutRegistry }),
     [options.shortcutRegistry],
+  );
+
+  const { onNavigate } = options;
+  const onNavigateToWalls = useMemo(
+    () => (onNavigate === undefined ? undefined : () => onNavigate(ROUTES.project.walls(projectId, floorId))),
+    [floorId, onNavigate, projectId],
   );
 
   const hasTopLayer = preview !== null || reapplyWarning !== null;
@@ -836,7 +864,7 @@ export function useThicknessStandardization(
       description: THICKNESS_SCREEN_TEXT.escapeShortcut,
       onTrigger: () => {
         if (preview !== null) {
-          setPreview(null);
+          setPreviewPlan(null);
 
           return;
         }
@@ -845,6 +873,18 @@ export function useThicknessStandardization(
       },
     },
     { ...shortcutOptions, enabled: hasTopLayer },
+  );
+
+  /* BUG-582: Mod+Z đi vào ngăn xếp của chính màn — cùng việc với nút "Hoàn tác" — không rơi xuống undo toàn cục. */
+  useShortcut(
+    {
+      id: 'thicknessStandardization.undo',
+      combo: 'Mod+Z',
+      scope: 'canvas',
+      description: THICKNESS_SCREEN_TEXT.undoShortcut,
+      onTrigger: onUndo,
+    },
+    { ...shortcutOptions, enabled: canEdit },
   );
 
   /* ---------------------------------------------------------------------- */
@@ -871,7 +911,9 @@ export function useThicknessStandardization(
     state === 'empty'
       ? allRows.length === 0
         ? THICKNESS_SCREEN_TEXT.emptyNoMeasurementNotice
-        : THICKNESS_SCREEN_TEXT.emptyNotice
+        : summary.exceedingToleranceCount > 0
+          ? THICKNESS_SCREEN_TEXT.outOfToleranceNotice(summary.exceedingToleranceCount)
+          : THICKNESS_SCREEN_TEXT.emptyNotice
       : state === 'success' && isAllStandard
         ? THICKNESS_SCREEN_TEXT.emptyNotice
         : null;
@@ -920,6 +962,7 @@ export function useThicknessStandardization(
     isViewerRole,
     viewerRoleNotice: isViewerRole ? THICKNESS_SCREEN_TEXT.viewerRoleNotice : null,
     emptyNotice,
+    onNavigateToWalls,
     errorMessage,
 
     selectedWallIds,

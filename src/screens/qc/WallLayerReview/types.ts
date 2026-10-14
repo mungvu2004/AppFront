@@ -345,6 +345,8 @@ export interface WallLayerViewProps {
   readonly filters: WallLayerFilters;
   /** Luôn bằng {@link WALL_THICKNESS_CHOICES} — cấp qua props để view không import hằng số của tầng khác (R-60). */
   readonly thicknessChoices: readonly WallThicknessChoice[];
+  /** Tăng mỗi lần menu "Đổi độ dày" được chọn — thanh tra đưa focus vào ba lựa chọn (BUG-604). */
+  readonly thicknessFocusRequest: number;
   readonly selectedWallId: WallId | null;
   readonly hoveredWallId: WallId | null;
   /** `null` khi chưa chọn tường nào. */
@@ -364,6 +366,8 @@ export interface WallLayerViewProps {
   /* -- Hành động trên một dòng ---------------------------------------------- */
   readonly onApprove: (wallId: WallId) => void;
   readonly onSkip: (wallId: WallId) => void;
+  /** Shift+F10 / phím ContextMenu trên một hàng: mở menu của tường đó (G74 16-E-010, A12). */
+  readonly onOpenRowMenu?: (wallId: WallId) => void;
   /** `thicknessMm` luôn là một phần tử của {@link WALL_THICKNESS_CHOICES} — CẤM TUYỆT ĐỐI "không bao giờ là ô nhập số tự do" ép ngay ở kiểu. */
   readonly onChangeThickness: (wallId: WallId, thicknessMm: WallThicknessChoice) => void;
   /** Xoá dùng vé hoàn tác (A8, CẤM TUYỆT ĐỐI "không hộp thoại"); toast Hoàn tác do hook dựng. */

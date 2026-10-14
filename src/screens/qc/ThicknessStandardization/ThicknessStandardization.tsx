@@ -1,7 +1,7 @@
 /**
  * Màn S-18 "Chuẩn hoá độ dày tường" (`ThicknessStandardization`) — VIEW THUẦN.
  *
- * Bố cục đúng đặc tả, một cột dọc rộng tối đa {@link CONTENT_MAX_WIDTH_CLASS}:
+ * Bố cục đúng đặc tả, một cột dọc rộng hết khung, lề 8 px như các màn QC anh em (BUG-413):
  *
  * ```
  * ┌ đầu màn: breadcrumb · tiêu đề · mô tả ─────────────────────────────┐
@@ -59,6 +59,7 @@
  */
 
 import type { ReactNode } from 'react';
+import { Layers } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -112,12 +113,11 @@ const HISTOGRAM_SECTION_LABEL = 'Phân bố độ dày đo được';
 const TABLES_SECTION_LABEL = 'Bảng nhóm và bảng chi tiết từng đoạn';
 const ERROR_TITLE = 'Không đọc được lớp số đo độ dày';
 const FORBIDDEN_TITLE = 'Không có quyền sửa độ dày tường';
+const NAVIGATE_WALLS_LABEL = 'Sang lớp tường';
 const EMPTY_TITLE = 'Chưa có đoạn tường nào để chuẩn hoá';
 const COLLAPSE_PREVIEW_LABEL = 'Thu gọn khung xem trước';
-const EXPAND_PREVIEW_LABEL = 'Khung xem trước đang thu gọn';
-
-/** Trần bề rộng nội dung của đặc tả — một chỗ viết duy nhất (R-71). */
-const CONTENT_MAX_WIDTH_CLASS = 'max-w-[1280px]';
+/* Nhãn nói việc nút làm, không tả trạng thái (BUG-637). */
+const EXPAND_PREVIEW_LABEL = 'Mở khung xem trước';
 
 /** Sáu dòng khung xương của cột trái lúc đang tải — đúng khuôn `RoomLabelReview`. */
 const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
@@ -141,6 +141,7 @@ const LINK_CLASS_NAME = cn(
 function ThicknessTablesColumn(props: ThicknessStandardizationViewProps & { readonly previewColumn: ReactNode }) {
   const {
     emptyNotice,
+    onNavigateToWalls,
     flashingWallIds,
     groupRows,
     hoveredGroup,
@@ -159,6 +160,7 @@ function ThicknessTablesColumn(props: ThicknessStandardizationViewProps & { read
     sortKey,
     state,
     previewColumn,
+    isViewerRole,
   } = props;
 
   if (state === 'loading') {
@@ -180,8 +182,11 @@ function ThicknessTablesColumn(props: ThicknessStandardizationViewProps & { read
       <div className="flex flex-col gap-4 lg:flex-row">
         <div className="flex min-w-0 flex-1 flex-col">
           <EmptyState
+            {...(onNavigateToWalls === undefined
+              ? {}
+              : { action: { label: NAVIGATE_WALLS_LABEL, onClick: onNavigateToWalls, variant: 'secondary' as const } })}
             description={emptyNotice ?? SCREEN_DESCRIPTION}
-            icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-bg-sunken" />}
+            icon={<Layers />}
             title={EMPTY_TITLE}
           />
         </div>
@@ -202,6 +207,7 @@ function ThicknessTablesColumn(props: ThicknessStandardizationViewProps & { read
         <div className="min-w-0 flex-1">
           <ThicknessGroupTable
             hoveredGroup={hoveredGroup}
+            isReadOnly={isViewerRole}
             onHoverGroup={onHoverGroup}
             onToggleAccepted={onToggleAccepted}
             rows={groupRows}
@@ -213,6 +219,7 @@ function ThicknessTablesColumn(props: ThicknessStandardizationViewProps & { read
       <ThicknessSegmentTable
         flashingWallIds={flashingWallIds}
         hoveredWallId={hoveredWallId}
+        isReadOnly={isViewerRole}
         onApplySelectedGroup={onApplySelectedGroup}
         onChangeNormalizedGroup={onChangeNormalizedGroup}
         onChangeSortKey={onChangeSortKey}
@@ -234,6 +241,8 @@ function ThicknessTablesColumn(props: ThicknessStandardizationViewProps & { read
 
 function ThicknessPreviewColumn(props: ThicknessStandardizationViewProps) {
   const {
+    bins,
+    hoveredBinIndex,
     hoveredGroup,
     hoveredWallId,
     isCollapsed,
@@ -258,6 +267,7 @@ function ThicknessPreviewColumn(props: ThicknessStandardizationViewProps) {
     // bảng; dưới 768 rộng hết thẻ, canvas tự co (BUG-332).
     <div className="flex w-full shrink-0 flex-col gap-1.5 md:w-[320px]">
       <ThicknessPreviewCanvas
+        hoveredBinWallIds={hoveredBinIndex === null ? undefined : bins[hoveredBinIndex]?.wallIds}
         hoveredGroup={hoveredGroup}
         hoveredWallId={hoveredWallId}
         isCollapsed={false}
@@ -318,8 +328,8 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
       className="h-full min-h-0 w-full overflow-y-auto bg-bg-app"
       role="region"
     >
-      <div className={cn('mx-auto flex w-full flex-col gap-4 p-4', CONTENT_MAX_WIDTH_CLASS)}>
-        <header className="shrink-0">
+      <div className="flex w-full flex-col gap-4 p-2">
+        <header className="shrink-0 px-2 pt-1">
           <p className="text-[12px] text-text-muted">{SCREEN_BREADCRUMB}</p>
           <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
           <p className="text-[13px] text-text-secondary">{SCREEN_DESCRIPTION}</p>

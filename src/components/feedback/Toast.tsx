@@ -13,6 +13,8 @@ import { useUndoableToast } from '../../hooks/useUndoableToast';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface ToastMessage {
+  /** Optional extra button, e.g. navigating to where a refusal can be fixed (BUG-605). */
+  action?: { label: string; onClick: () => void };
   id: string;
   message: string;
   onUndo?: () => void;
@@ -165,6 +167,16 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
             <span className={cn('absolute left-0 top-2 h-1.5 w-1.5 rounded-full', dotColor)} aria-hidden="true" />
             {toast.message}
           </span>
+          {toast.action && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toast.action.onClick}
+              className="text-accent hover:text-accent-hover shrink-0"
+            >
+              {toast.action.label}
+            </Button>
+          )}
           {toast.onUndo && (
             <Button
               variant="ghost"

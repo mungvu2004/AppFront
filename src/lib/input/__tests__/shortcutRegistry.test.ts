@@ -290,6 +290,49 @@ describe('typing guard', () => {
   });
 });
 
+describe('the focused control keeps its own keys (BUG-597)', () => {
+  const canvasBinding = (registry: ShortcutRegistry, combo: string) => {
+    const onTrigger = vi.fn();
+    registry.register({ id: `canvas.${combo}`, combo, scope: 'canvas', onTrigger });
+    return onTrigger;
+  };
+
+  it.each([
+    ['Enter', { tagName: 'BUTTON' }],
+    [' ', { tagName: 'A' }],
+    ['Enter', { tagName: 'DIV', getAttribute: (name: string) => (name === 'role' ? 'radio' : null) }],
+  ])('leaves a lone %j to the focused control', (key, target) => {
+    const registry = devRegistry();
+    const onTrigger = canvasBinding(registry, key === ' ' ? 'Space' : key);
+    const event = keyEvent(key);
+
+    expect(registry.handleKeyDown(event, target)).toBe(false);
+    expect(onTrigger).not.toHaveBeenCalled();
+    expect(event.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it('skips a key the focused widget already handled', () => {
+    const registry = devRegistry();
+    const onTrigger = canvasBinding(registry, 'ArrowLeft');
+
+    expect(registry.handleKeyDown({ ...keyEvent('ArrowLeft'), defaultPrevented: true }, { tagName: 'BUTTON' })).toBe(
+      false,
+    );
+    expect(onTrigger).not.toHaveBeenCalled();
+  });
+
+  it('still fires Enter on a non-control focus, and arrows on a plain button', () => {
+    const registry = devRegistry();
+    const onEnter = canvasBinding(registry, 'Enter');
+    const onArrow = canvasBinding(registry, 'ArrowLeft');
+
+    expect(registry.handleKeyDown(keyEvent('Enter'), { tagName: 'DIV' })).toBe(true);
+    expect(registry.handleKeyDown(keyEvent('ArrowLeft'), { tagName: 'BUTTON' })).toBe(true);
+    expect(onEnter).toHaveBeenCalledTimes(1);
+    expect(onArrow).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('ctrl and cmd', () => {
   it('matches a Ctrl combo when the Cmd key is held instead', () => {
     const registry = devRegistry();

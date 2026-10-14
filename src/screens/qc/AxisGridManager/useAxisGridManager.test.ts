@@ -22,9 +22,11 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { alignFloors, type FloorAlignmentReport } from '@/domain/axes/alignFloors';
-import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { createSampleBuilding, sampleLevelId, sampleWallId } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { applyPatch } from '@/domain/spatial/applyPatch';
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { LevelId } from '@/domain/spatial/types';
+import { pixels } from '@/domain/units/scale';
 import { millimetres, type Millimetres } from '@/domain/units/types';
 import type { Announcer } from '@/lib/input/announcer';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
@@ -36,6 +38,7 @@ import { useStore } from '@/store';
 
 import {
   AXIS_GRID_FIXTURE_FLOOR1,
+  AXIS_GRID_FIXTURE_FLOOR2,
   AXIS_GRID_FIXTURE_FLOOR3,
   AXIS_GRID_FIXTURE_SCALE,
   AXIS_GRID_FIXTURE_SPACING_VIOLATION_EXAMPLE,
@@ -482,6 +485,7 @@ describe('bảy trạng thái màn (A11 / R-63)', () => {
   it('[BUG-320] thêm trục khi mới có bản xem trước dò từ tường: giữ cả lưới dò được, thêm đúng một hàng', async () => {
     const building = createSampleBuilding();
     const mounted = await mountSettled({
+      floorId: sampleLevelId(0),
       gateway: createMockAxisGridManagerGateway({ graph: normalizeSpatial({ ...building, axes: [] }) }),
     });
     const rowCount = (): number =>
@@ -628,5 +632,142 @@ describe('định dạng số ở view-model, không ở view (A15)', () => {
 
     expect(ghosts.filter((ghost) => ghost.isHighlighted)).toHaveLength(1);
     expect(ghosts.find((ghost) => ghost.isHighlighted)?.levelId).toBe(other?.levelId);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* QA-04c — SCR-19 nói thật, không điều khiển chết (BUG-578/594/601).          */
+/* -------------------------------------------------------------------------- */
+
+describe('QA-04c SCR-19', () => {
+  /**
+   * Tầng chưa có trục lưu — danh sách là bản xem trước dò từ tường (như BUG-320).
+   * Thêm hai đoạn tường thẳng hàng ở y = 3000 để bản xem trước có HAI trục ngang.
+   */
+  const previewGateway = (): AxisGridManagerGateway => {
+    const building = createSampleBuilding();
+    const firstLevel = building.levels[0]?.id;
+    const extra = building.walls
+      .filter((wall) => wall.levelId === firstLevel)
+      .slice(0, 2)
+      .map((wall, index) => ({
+        ...wall,
+        id: sampleWallId(90 + index),
+        openingIds: [],
+        centreline: {
+          start: { ...wall.centreline.start, y: 3000 },
+          end: { ...wall.centreline.end, y: 3000 },
+        },
+      }));
+
+    return createMockAxisGridManagerGateway({
+      graph: normalizeSpatial({ ...building, axes: [], walls: [...building.walls, ...extra] }),
+    });
+  };
+  const rowsOf = (mounted: Mounted) => mounted.result.current.viewModel.groups.flatMap((group) => group.rows);
+  const leave = (): boolean => {
+    const event = new Event('beforeunload', { cancelable: true });
+
+    window.dispatchEvent(event);
+
+    return event.defaultPrevented;
+  };
+
+  it('[BUG-578] câu "chỉ giữ trong phiên" luôn có; sửa xong thì hỏi trước khi rời trang', async () => {
+    const mounted = await mountSettled();
+
+    expect(mounted.result.current.unsavedNotice).toBe(AXIS_GRID_TEXT.unsavedNotice);
+    expect(leave()).toBe(false);
+
+    await act(async () => {
+      mounted.result.current.onAxisAdd('vertical');
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(mounted.result.current.historyStepCount()).toBe(1);
+    });
+
+    expect(leave()).toBe(true);
+    mounted.unmount();
+  });
+
+  it('[BUG-578] vai người xem không sửa gì: không câu "chỉ giữ trong phiên"', async () => {
+    const mounted = await mountSettled({ roles: ['viewer'] });
+
+    expect(mounted.result.current.unsavedNotice).toBeNull();
+  });
+
+  it('[BUG-594] xoá một trục của bản xem trước: có tác dụng ngay, một bước hoàn tác', async () => {
+    const mounted = await mountSettled({ floorId: sampleLevelId(0), gateway: previewGateway() });
+    const before = rowsOf(mounted);
+    const target = before[0];
+
+    expect(target).toBeDefined();
+
+    await act(async () => {
+      mounted.result.current.onAxisRemove(target?.id ?? '');
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(rowsOf(mounted)).toHaveLength(before.length - 1);
+    });
+    expect(mounted.result.current.historyStepCount()).toBe(1);
+  });
+
+  it('[BUG-594] kéo một trục của bản xem trước: có tác dụng ngay, một bước hoàn tác', async () => {
+    const mounted = await mountSettled({ floorId: sampleLevelId(0), gateway: previewGateway() });
+    const target = rowsOf(mounted)[0];
+    const axis = mounted.result.current.viewModel.canvas.axes.find((item) => item.id === target?.id);
+
+    expect(axis).toBeDefined();
+
+    await act(async () => {
+      mounted.result.current.onAxisDrag(target?.id ?? '', pixels((axis?.startPx.y ?? 0) + 7));
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mounted.result.current.historyStepCount()).toBe(1);
+    });
+    expect(levelsOf(storeGraph()).some((level) => axesOfLevel(storeGraph(), level.id).length > 0)).toBe(true);
+  });
+
+  it('[BUG-594][BUG-601] "Căn chỉnh tự động" bị khoá kèm lý do khi không làm được gì', async () => {
+    const viewer = await mountSettled({ roles: ['viewer'] });
+
+    expect(viewer.result.current.autoAlignBlockedReason).toBe(AXIS_GRID_TEXT.autoAlignViewer);
+    viewer.unmount();
+
+    const mounted = await mountSettled();
+
+    expect(mounted.result.current.autoAlignBlockedReason).toBeNull();
+
+    await act(async () => {
+      mounted.result.current.onAutoAlign();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mounted.result.current.autoAlignBlockedReason).toBe(AXIS_GRID_TEXT.autoAlignNothing);
+    });
+  });
+});
+
+describe('[G22] SCR-19 vào bằng SPA tới tầng kho chưa giữ', () => {
+  it('kho thiếu tầng 2 thì đọc N16 tầng 2 và hiện trục của nó, không "Chưa có trục nào"', async () => {
+    const full = createAxisGridSampleGraph();
+    const floor2 = AXIS_GRID_FIXTURE_FLOOR2.levelId;
+    const withoutFloor2 = applyPatch(full, [{ id: floor2, kind: 'level', op: 'remove' }]);
+    useStore.getState().setSpatial(withoutFloor2, null, { floorRevisions: {}, projectId: PROJECT_ID });
+    const base = createMockAxisGridManagerGateway({ graph: full });
+    const readLayer = vi.fn(base.readLayer);
+    const mounted = mountHook({ floorId: String(floor2), gateway: { ...base, readLayer }, levelId: floor2 });
+
+    await waitFor(() => {
+      expect(mounted.result.current.viewModel.groups.some((group) => group.rows.length > 0)).toBe(true);
+    });
+    expect(readLayer).toHaveBeenCalledWith(expect.objectContaining({ floorId: String(floor2) }));
+    mounted.unmount();
   });
 });

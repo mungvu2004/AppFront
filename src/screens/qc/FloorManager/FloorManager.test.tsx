@@ -793,3 +793,17 @@ describe('người xem ở dự án rỗng (BUG-522)', () => {
     expect(screen.queryByRole('button', { name: ADD_FLOOR_LABEL })).not.toBeInTheDocument();
   });
 });
+
+describe('[SCR-22] lối vào Đối chiếu lớp phủ', () => {
+  it('dòng tầng có bản vẽ hiện nút "Đối chiếu lớp phủ" và bắn mã tầng', () => {
+    const onOpenOverlay = vi.fn();
+
+    renderWithProviders(<FloorManager {...scenarioArgsFor('success')} onOpenOverlay={onOpenOverlay} />);
+
+    const [first] = screen.getAllByRole('button', { name: /^Đối chiếu lớp phủ/ });
+
+    expect(first).toBeDefined();
+    fireEvent.click(first!);
+    expect(onOpenOverlay).toHaveBeenCalledTimes(1);
+  });
+});

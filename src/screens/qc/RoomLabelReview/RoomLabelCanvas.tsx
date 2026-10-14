@@ -62,6 +62,8 @@ import {
   type RoomLabelBoundsPx,
   type RoomLabelRoomId,
 } from './roomLabelCanvasGeometry';
+import { cn } from '@/lib/utils';
+
 import type { RoomLabelCanvasProps } from './roomLabelTypes';
 
 const FORBIDDEN_DESCRIPTION_ID = 'room-label-canvas-forbidden';
@@ -76,6 +78,7 @@ export function RoomLabelCanvas({
   millimetresPerPixel: drawingMillimetresPerPixel,
   backgroundImageUrl,
   backgroundImageAlt,
+  backgroundImageSizeMm,
   isInteractive,
   showEmptyNotice,
   onSelect,
@@ -191,10 +194,24 @@ export function RoomLabelCanvas({
           ) : (
             <img
               alt={backgroundImageAlt}
-              className="pointer-events-none absolute inset-0 block h-full w-full select-none"
+              className={cn(
+                'pointer-events-none absolute block select-none',
+                backgroundImageSizeMm == null && 'inset-0 h-full w-full',
+              )}
               draggable={false}
               src={backgroundImageUrl}
-              style={{ opacity: BACKGROUND_IMAGE_OPACITY }}
+              style={{
+                opacity: BACKGROUND_IMAGE_OPACITY,
+                ...(backgroundImageSizeMm == null
+                  ? {}
+                  : {
+                      left: -contentBounds.x,
+                      top: -contentBounds.y,
+                      width: backgroundImageSizeMm.widthMm / millimetresPerPixel,
+                      height: backgroundImageSizeMm.heightMm / millimetresPerPixel,
+                      maxWidth: 'none',
+                    }),
+              }}
             />
           )}
 

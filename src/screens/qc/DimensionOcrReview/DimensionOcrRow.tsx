@@ -32,11 +32,18 @@
  * View KHÔNG tự đăng ký phím trên `window` hay `document` — việc đó của
  * `shortcutRegistry` ở hook T5. Ở đây chỉ có trình xử lý gắn trên chính phần tử
  * đang giữ tiêu điểm, đúng khuôn `ObjectLayerList.tsx:74-80`: Enter/Space trên
- * hàng để chọn, Enter trong ô nhập để lưu và đi tiếp, Esc để bỏ sửa.
+ * hàng để chọn, Enter trong ô nhập để duyệt và đi tiếp, Esc để bỏ sửa.
+ *
+ * Enter trên một hàng CHƯA chọn chỉ chọn nó và dừng sự kiện ở đó; Enter trên
+ * hàng ĐANG chọn để sự kiện đi tiếp tới phím Enter của sổ phím — duyệt (BUG-583).
+ * Esc trong ô đang gõ chỉ bỏ sửa: sự kiện dừng ở ô, nên sổ phím không bỏ chọn
+ * hàng cùng lúc (BUG-603).
  */
 
-import type { CSSProperties, KeyboardEvent } from 'react';
+import { useRef, type CSSProperties, type KeyboardEvent } from 'react';
 
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { ConfidenceMeter } from '@/components/ui/ConfidenceMeter';
 import { NumericField } from '@/components/ui/NumericField';
 import { cn } from '@/lib/utils';
@@ -67,17 +74,10 @@ export interface DimensionOcrRowViewProps extends DimensionOcrRowProps {
 /* Ba màu trạng thái của A4 — không có màu thứ tư.                             */
 /* -------------------------------------------------------------------------- */
 
-/**
+/*
  * `verified` CHỈ tới nơi khi người duyệt đã đánh dấu (A5) — hợp đồng của T3 nói
- * rõ điều đó, nên bảng này không phải đoán lại.
+ * rõ điều đó, nên bảng viền và `Badge` (cùng bốn khoá) không phải đoán lại.
  */
-const STATUS_DOT_TOKEN = {
-  verified: 'bg-state-verified',
-  attention: 'bg-state-attention',
-  violation: 'bg-state-violation',
-  neutral: 'bg-text-muted',
-} as const;
-
 const STATUS_BORDER_TOKEN = {
   verified: 'border-state-verified',
   attention: 'border-state-attention',
@@ -108,8 +108,9 @@ interface DimensionOcrCropProps {
  * nơi đã là khung cắt, `displayWidthPx`/`displayHeightPx` tới nơi đã là kích
  * thước ô hiển thị.
  *
- * Bề rộng ô thu về `displayHeightPx` (ô vuông) dưới 1024px và bung ra
- * `displayWidthPx` từ `lg:` trở lên. Hai con số đó lấy từ view model chứ không
+ * Bề rộng ô thu về `displayHeightPx` (ô vuông) dưới 1280px và bung ra
+ * `displayWidthPx` từ `xl:` trở lên — ở 1024 panel chỉ 400 px, ô rộng đẩy ô số ra
+ * ngoài (G01). Hai con số đó lấy từ view model chứ không
  * viết thô (R-71), và đi vào CSS qua biến để lớp Tailwind bắt được điểm ngắt —
  * một `style` thẳng không có media query.
  */
@@ -119,7 +120,7 @@ export function DimensionOcrCrop({ crop, isMagnified = false }: DimensionOcrCrop
       aria-label={crop.alt}
       className={cn(
         'shrink-0 overflow-hidden rounded-[8px] border border-border-default bg-bg-sunken',
-        'h-[var(--dim-crop-h)] w-[var(--dim-crop-h)] lg:w-[var(--dim-crop-w)]',
+        'h-[var(--dim-crop-h)] w-[var(--dim-crop-h)] xl:w-[var(--dim-crop-w)]',
       )}
       role="img"
       style={
@@ -206,7 +207,15 @@ export function DimensionValueField({
   onCancelEdit,
   hasAutoFocus = false,
 }: DimensionValueFieldProps) {
+  /* Có chữ gõ dở trong ô (kể cả chưa qua 800 ms để thành bản nháp) — Esc có việc để bỏ. */
+  const isEditingRef = useRef(false);
+
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
+    /* Mũi tên của `NumericField` đổi số mà không phát `input`. */
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      isEditingRef.current = true;
+    }
+
     if (event.key === 'Enter') {
       /*
         Đúng hai lần gõ phím cho một chuỗi: số, rồi Enter. `NumericField` chốt
@@ -221,17 +230,28 @@ export function DimensionValueField({
         event.target.blur();
       }
 
+      isEditingRef.current = false;
       onCommit();
       return;
     }
 
-    if (event.key === 'Escape') {
+    if (event.key === 'Escape' && isEditingRef.current) {
+      /* Một phím, một việc (BUG-603): bỏ sửa, KHÔNG để sổ phím bỏ chọn hàng cùng lúc. */
+      event.stopPropagation();
+      isEditingRef.current = false;
       onCancelEdit();
     }
+    /* Không gõ dở: Esc đi tiếp tới sổ phím — nó bỏ bản nháp nếu có, không thì đóng lớp trên cùng (A12). */
   };
 
   return (
-    <div className="flex items-center gap-3" onKeyDown={handleKeyDown}>
+    <div
+      className="flex flex-wrap items-center gap-3"
+      onInput={() => {
+        isEditingRef.current = true;
+      }}
+      onKeyDown={handleKeyDown}
+    >
       <NumericField
         aria-label={`${DIMENSION_OCR_TEXT.row.inputAriaLabelPrefix}${row.codeLabel}`}
         autoFocus={hasAutoFocus}
@@ -280,8 +300,20 @@ export function DimensionOcrRow({
       data-dimension-id={row.id}
       onClick={() => onSelect(row.id)}
       onKeyDown={(event) => {
+        /* Chỉ phím gõ trên CHÍNH hàng — phím trong ô nhập do ô tự lo. */
+        if (event.target !== event.currentTarget) {
+          return;
+        }
+
+        /* Hàng đang chọn: Enter đi tiếp tới phím "duyệt" của sổ phím (BUG-583). */
+        if (event.key === 'Enter' && isSelected) {
+          return;
+        }
+
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
+          /* Hàng chưa chọn: Enter chỉ CHỌN — không để sổ phím duyệt luôn hàng cũ. */
+          event.stopPropagation();
           onSelect(row.id);
         }
       }}
@@ -296,10 +328,12 @@ export function DimensionOcrRow({
           <span className="font-mono text-[16px] leading-[24px] text-text-primary">
             {row.codeLabel}
           </span>
-          <span
-            aria-hidden="true"
-            className={cn('h-1.5 w-1.5 shrink-0 rounded-full', STATUS_DOT_TOKEN[row.statusCode])}
-          />
+          {/* BUG-610: trạng thái bằng chữ, không chấm trơn không nhãn. */}
+          <Badge variant={row.statusCode}>
+            {row.isReviewed
+              ? DIMENSION_OCR_TEXT.row.statusReviewedLabel
+              : DIMENSION_OCR_TEXT.row.statusUnreviewedLabel}
+          </Badge>
         </div>
 
         <DimensionValueField
@@ -312,7 +346,8 @@ export function DimensionOcrRow({
 
         {/* Caption liên kết suy ra — "Gắn với #W-014". `null` khi không suy ra được. */}
         {row.hostWallLabel === null ? null : (
-          <span className="font-mono text-[12px] text-text-muted">{row.hostWallLabel}</span>
+          /* BUG-612: câu dùng chữ thường, mono chỉ cho số và mã. */
+          <span className="text-[12px] text-text-secondary">{row.hostWallLabel}</span>
         )}
 
         <DimensionOcrOutlierNotice message={outlierMessage} />
@@ -323,22 +358,21 @@ export function DimensionOcrRow({
           hoặc khi vai chỉ được xem.
         */}
         {isViewerRole || row.isReviewed ? null : (
-          <button
+          /* BUG-610: cùng `Button` duyệt của SCR-16/17/20 — chính khi hàng đang chọn, phụ khi không. */
+          <Button
             aria-label={`${DIMENSION_OCR_TEXT.row.approveButtonAriaLabelPrefix}${row.codeLabel}`}
-            className={cn(
-              'self-start rounded-[6px] px-1.5 py-0.5 text-[13px] text-accent',
-              'transition-colors duration-120 hover:bg-accent-wash',
-              'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-            )}
+            className="self-end"
             onClick={(event) => {
               /* Bấm hành động KHÔNG kéo theo một lượt chọn hàng ngoài ý muốn. */
               event.stopPropagation();
               onApprove(row.id);
             }}
+            size="sm"
             type="button"
+            variant={isSelected ? 'primary' : 'secondary'}
           >
             {DIMENSION_OCR_TEXT.row.approveLabel}
-          </button>
+          </Button>
         )}
       </div>
     </div>

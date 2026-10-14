@@ -11,4 +11,16 @@ describe('EmptyState', () => {
 
     expect(screen.getByText('Các bước xử lý sẽ hiện ở đây.')).toHaveClass('text-balance');
   });
+
+  it('icon là thẻ DOM trần thì vẽ biểu tượng thay vì đĩa trống (BUG-338)', () => {
+    const { container } = render(<EmptyState icon={<div />} title="T" description="D" />);
+
+    expect(container.querySelector('svg')).not.toBeNull();
+  });
+
+  it('tiêu đề cũng text-balance: "nào" không đứng riêng một dòng (BUG-338)', () => {
+    render(<EmptyState icon={null} title="Chưa nhận ra đối tượng nào" description="Mô tả." />);
+
+    expect(screen.getByRole('heading', { name: 'Chưa nhận ra đối tượng nào' })).toHaveClass('text-balance');
+  });
 });

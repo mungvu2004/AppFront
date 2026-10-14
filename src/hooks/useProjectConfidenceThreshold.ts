@@ -36,6 +36,8 @@ export const projectConfidenceThresholdKey = (projectId: string) =>
 export function useProjectConfidenceThreshold(
   projectId: string,
   read: ReadConfidenceThreshold | undefined,
+  /** Ngưỡng khi chưa/không đọc được — màn có ngưỡng đặc tả riêng (SCR-17: 0,75) truyền nó. */
+  fallback: number = CONFIDENCE_SUGGESTED_THRESHOLD,
 ): number {
   const query = useQuery({
     queryKey: projectConfidenceThresholdKey(projectId),
@@ -43,5 +45,5 @@ export function useProjectConfidenceThreshold(
     enabled: read !== undefined,
   });
 
-  return query.data ?? CONFIDENCE_SUGGESTED_THRESHOLD;
+  return query.data ?? fallback;
 }

@@ -29,6 +29,7 @@
 
 import { useEffect, useRef } from 'react';
 
+import { Button } from '@/components/ui/Button';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { cn } from '@/lib/utils';
 
@@ -66,6 +67,9 @@ const FILTER_LABELS: Readonly<Record<DimensionFilterId, string>> = {
   lowConfidence: DIMENSION_OCR_TEXT.filter.lowConfidenceLabel,
   unreviewed: DIMENSION_OCR_TEXT.filter.unreviewedLabel,
 };
+
+const FILTER_EMPTY_MESSAGE = 'Không còn kích thước nào trong bộ lọc này.';
+const SHOW_ALL_LABEL = 'Xem tất cả';
 
 const FILTER_OPTIONS = DIMENSION_FILTER_IDS.map((id) => ({
   label: FILTER_LABELS[id],
@@ -152,6 +156,16 @@ export function DimensionOcrList({
             value={activeFilter}
           />
         </div>
+
+        {rows.length === 0 && activeFilter !== 'all' ? (
+          /* Bộ lọc không còn hàng nào: nói ra và cho lối về "Tất cả", không để danh sách trắng (BUG-629). */
+          <div className="flex flex-col items-start gap-2 p-3">
+            <p className="text-[13px] text-text-secondary">{FILTER_EMPTY_MESSAGE}</p>
+            <Button onClick={() => onFilterChange('all')} size="sm" variant="secondary">
+              {SHOW_ALL_LABEL}
+            </Button>
+          </div>
+        ) : null}
 
         <div className="flex flex-col gap-2 p-3" role="listbox">
           {rows.map((row) => (

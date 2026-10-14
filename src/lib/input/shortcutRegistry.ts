@@ -225,7 +225,7 @@ export interface ShortcutKeyEvent {
   readonly shiftKey?: boolean;
   /** True while a key auto-repeats; a repeat is not a second press. */
   readonly repeat?: boolean;
-  /** An earlier listener (a dialog, an embedded editor) already handled it. */
+  /** An earlier listener (a dialog, an embedded editor, a radio group's arrows) already handled it. */
   readonly defaultPrevented?: boolean;
   preventDefault?(): void;
 }
@@ -344,22 +344,6 @@ const MODIFIER_KEY_CODES: ReadonlySet<ShortcutCode> = new Set([
   'OS',
 ]);
 
-/** Elements whose own activation key is a lone Enter or Space (A12, QA-05c 25-E-011). */
-const ACTIVATABLE_TAGS: ReadonlySet<string> = new Set(['BUTTON', 'A', 'SUMMARY']);
-
-/** A lone Enter/Space on a focused button or link is that control's click, never a binding's. */
-const isOwnActivation = (
-  code: ShortcutCode,
-  event: ShortcutKeyEvent,
-  target: ShortcutTarget | null,
-): boolean =>
-  (code === 'ENTER' || code === 'SPACE') &&
-  event.ctrlKey !== true &&
-  event.metaKey !== true &&
-  event.altKey !== true &&
-  target !== null &&
-  ACTIVATABLE_TAGS.has(target.tagName.toUpperCase());
-
 /**
  * Whether Shift may be ignored when matching this combo.
  *
@@ -394,6 +378,30 @@ const eventMatches = (parsed: ParsedCombo, event: ShortcutKeyEvent): boolean => 
   }
 
   return true;
+};
+
+/** Elements whose lone Enter/Space is their own activation (button click, link follow). */
+const ACTIVATABLE_TAGS: ReadonlySet<string> = new Set(['BUTTON', 'A', 'SUMMARY']);
+const ACTIVATABLE_ROLES: ReadonlySet<string> = new Set([
+  'button', 'link', 'radio', 'checkbox', 'switch', 'tab', 'menuitem', 'menuitemradio', 'menuitemcheckbox',
+]);
+
+/**
+ * Does the focused control own this key? A lone Enter/Space activates a focused
+ * button, link or radio — a canvas "confirm" on Enter must not swallow it (BUG-597).
+ */
+const isControlActivation = (event: ShortcutKeyEvent, code: ShortcutCode, target: ShortcutTarget | null): boolean => {
+  if ((code !== 'ENTER' && code !== 'SPACE') || target === null) {
+    return false;
+  }
+
+  if (event.ctrlKey === true || event.metaKey === true || event.altKey === true) {
+    return false;
+  }
+
+  const role = target.getAttribute?.('role') ?? null;
+
+  return ACTIVATABLE_TAGS.has(target.tagName.toUpperCase()) || (role !== null && ACTIVATABLE_ROLES.has(role));
 };
 
 /** The focused element as `isTextEntryTarget` wants it, or null. */
@@ -532,7 +540,7 @@ export function createShortcutRegistry(
     // (A12, QA-05c E1-B12 / E1-B13).
     if (
       MODIFIER_KEY_CODES.has(code) ||
-      isOwnActivation(code, event, target) ||
+      isControlActivation(event, code, target) ||
       event.defaultPrevented === true
     ) {
       return false;

@@ -103,7 +103,7 @@ const WALL = {
   onlyNonStandard: 'Chỉ hiện độ dày không chuẩn', // WLP:79
   continue: 'Sang lớp cửa và nội thất', // WLP:95
   rail: 'Công cụ lớp tường', // WTR:77
-  merge: 'nối đoạn', // WTR:75
+  merge: 'Nối đoạn', // WTR:75
   reviewed: 'Đã duyệt', // WL:72
   conflict: 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.', // SLS:83
   reload: 'Tải lại', // FSB:37
@@ -149,8 +149,8 @@ const DIM = {
 const AXIS = {
   screen: 'Quản lý trục và gốc toạ độ', // AV:92
   emptyTitle: 'Chưa có trục nào', // AV:96
-  emptyNotice: 'Bạn có thể vẽ trục thủ công từ bản vẽ, hoặc cho hệ thống suy ra trục từ hình học tường bao.', // UA:159-160
-  derive: 'Suy ra từ tường bao', // AV:97
+  emptyNotice: 'Chưa dò được trục nào từ tường bao của tầng này. Thêm trục bằng tay để bắt đầu.', // UA emptyNotice (BUG-594)
+  addHorizontal: 'Thêm trục ngang', // AV EMPTY_ACTION_LABEL (BUG-594: replaces the dead "Suy ra từ tường bao")
   addVertical: 'Thêm trục dọc', // UA:156
   ghost: 'Hiện bóng ma tầng dưới', // ALP:61
   rowPattern: /^Trục (.+?), cách trục kế là /u, // ALP:81
@@ -1028,7 +1028,7 @@ test.describe('E04 SCR-18 / SCR-19 dimension OCR and axes', () => {
     });
   });
 
-  test('E04 · SCR-19 no wall → "Chưa có trục nào"; "Suy ra từ tường bao" has nothing to derive (still empty, no write)', async ({ browser }) => {
+  test('E04 · SCR-19 no wall → "Chưa có trục nào"; empty-state "Thêm trục ngang" adds an axis in memory (no write)', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page, api } = admin;
       const project = await createProject(admin, 'axes-empty');
@@ -1037,10 +1037,10 @@ test.describe('E04 SCR-18 / SCR-19 dimension OCR and axes', () => {
       await expect(page.getByText(AXIS.emptyTitle, { exact: true })).toBeVisible(); // AV:140-149
       await expect(page.getByText(AXIS.emptyNotice, { exact: true })).toBeVisible(); // UA:159-160
       const mark = api.length;
-      await page.getByRole('button', { name: AXIS.derive, exact: true }).click(); // UA:916-925: preview empty → return
+      await page.getByRole('button', { name: AXIS.addHorizontal, exact: true }).click(); // UA onAxisAdd('horizontal')
       await quiet(page);
-      await expect(page.getByText(AXIS.emptyTitle, { exact: true })).toBeVisible();
-      expect(writesSince(api, mark), '"Suy ra từ tường bao" on an empty floor writes nothing').toEqual([]);
+      await expect(page.getByText(AXIS.emptyTitle, { exact: true })).toHaveCount(0);
+      expect(writesSince(api, mark), '"Thêm trục ngang" stays in memory (axes have no PUT)').toEqual([]);
       await captureEvidence(page, 'E04_axes_empty_derive.png');
     });
   });
@@ -1489,7 +1489,7 @@ test.describe('E04 SCR-22 overlay comparison', () => {
     });
   });
 
-  test('E04 · SCR-22 viewport 1024 (< 1280) → "Cạnh nhau" disabled with its reason; "Khoá căn" toggles', async ({ browser }) => {
+  test('E04 · SCR-22 viewport 1024 (< 1280) → "Cạnh nhau" disabled with its reason; "Khoá căn" hidden (BUG-599)', async ({ browser }) => {
     await withAdmin(
       browser,
       async (admin) => {
@@ -1501,13 +1501,8 @@ test.describe('E04 SCR-22 overlay comparison', () => {
         // UV:165,362 narrow → collapsed; UV:830-833 disabledCompareModes.sideBySide; VT:64-65,79-81.
         await expect(modes.getByRole('radio', { name: OVERLAY.sideBySide, exact: true })).toBeDisabled();
         await expect(page.getByText(`${OVERLAY.sideBySide} — ${OVERLAY.sideBySideDisabled}`, { exact: true })).toBeVisible();
-        const mark = api.length;
-        const lock = page.getByRole('switch', { name: OVERLAY.lock, exact: true }); // VT:164-170
-        const was = await lock.getAttribute('aria-checked');
-        await lock.click();
-        await expect(lock).not.toHaveAttribute('aria-checked', was ?? '');
-        await quiet(page);
-        expect(writesSince(api, mark), '"Khoá căn" writes nothing').toEqual([]);
+        // BUG-599: no `imageToModelTransform` yet, so the dead "Khoá căn" switch is not drawn at all.
+        await expect(page.getByRole('switch', { name: OVERLAY.lock, exact: true })).toHaveCount(0);
         await captureEvidence(page, 'E04_overlay_narrow.png');
       },
       { viewport: NARROW },

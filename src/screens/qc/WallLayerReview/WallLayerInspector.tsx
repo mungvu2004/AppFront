@@ -19,7 +19,7 @@
  */
 
 import { ChevronDown } from 'lucide-react';
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 import { wallStrokeToken } from '@/components/canvas/materialMap';
 import { AnimatePresence, motion } from '@/components/motion';
@@ -83,8 +83,11 @@ export function WallLayerInspector({ panel }: WallLayerInspectorProps) {
   const [isAdvancedOpen, setAdvancedOpen] = useState(false);
   const advancedId = useId();
 
+  const thicknessRef = useRef<HTMLDivElement | null>(null);
+
   const {
     inspector,
+    thicknessFocusRequest,
     thicknessChoices,
     isViewerRole,
     viewerRoleNotice,
@@ -96,6 +99,20 @@ export function WallLayerInspector({ panel }: WallLayerInspectorProps) {
 
   const isSelectedReviewed = inspector !== null && (rows.find((row) => row.id === inspector.id)?.isReviewed ?? false);
 
+  /* Menu "Đổi độ dày" (BUG-604): focus vào lựa chọn đang bật để phím mũi tên đổi được ngay. */
+  useEffect(() => {
+    if (thicknessFocusRequest === 0) {
+      return;
+    }
+
+    const group = thicknessRef.current;
+    const target =
+      group?.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]') ??
+      group?.querySelector<HTMLElement>('[role="radio"]');
+
+    target?.focus();
+  }, [thicknessFocusRequest]);
+
   return (
     <div className="order-2 flex w-full shrink-0 flex-col overflow-hidden rounded-[12px] bg-bg-surface shadow-panel xl:order-none xl:h-full xl:w-[344px]">
       <div className="flex h-14 shrink-0 items-center px-5">
@@ -103,12 +120,13 @@ export function WallLayerInspector({ panel }: WallLayerInspectorProps) {
       </div>
 
       {inspector === null ? (
-        <p className="px-5 text-[13px] text-text-secondary">{EMPTY_MESSAGE}</p>
+        /* Đệm dưới bằng đệm ngang: câu không sát đáy thẻ (BUG-329). */
+        <p className="px-5 pb-5 text-[13px] text-text-secondary">{EMPTY_MESSAGE}</p>
       ) : (
         <div className="flex flex-1 flex-col overflow-y-auto pb-5">
           <p className="px-5 pb-4 font-mono text-[16px] text-text-primary">{inspector.codeLabel}</p>
 
-          <div className="px-5 pb-4">
+          <div className="px-5 pb-4" ref={thicknessRef}>
             {isViewerRole ? (
               <ReadOnlyThickness choices={thicknessChoices} value={inspector.thicknessMm} />
             ) : (

@@ -59,6 +59,7 @@ import { createScale, pixels, type Scale } from '@/domain/units/scale';
 import { millimetres } from '@/domain/units/types';
 import { useCanvasViewport, type ViewportState } from '@/hooks/useCanvasViewport';
 import { useCountUp } from '@/hooks/useCountUp';
+import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
 import { readWireError } from '@/lib/errors/wireError';
 import { formatLength } from '@/lib/format/measure';
@@ -77,6 +78,7 @@ import {
   type OverlayScanSnapshot,
   type OverlayToleranceEvaluation,
 } from './overlayComparisonGateway';
+import { floorLayerReadFailureOf } from '../../qc/shared/floorLayerReadFailure';
 import type {
   CompareModeId,
   ConfirmationViewModel,
@@ -101,6 +103,11 @@ import { OVERLAY_MISSING_CAPABILITIES } from './types';
 /* Bản sao khai báo nằm ở vi.hook.fragment.json (mục F của phần chung).         */
 /* -------------------------------------------------------------------------- */
 
+/** Bước thu phóng của "=" / "-" — cùng bước nút +/− của cụm thu phóng. */
+const KEY_ZOOM_STEP = 1.25;
+/** Một lần bấm mũi tên dời khung bao nhiêu pixel màn. */
+const KEY_PAN_STEP_PX = 40;
+
 const COPY = {
   confirmButton: 'Xác nhận mô hình khớp bản vẽ',
   confirmedWithinTolerance:
@@ -111,6 +118,13 @@ const COPY = {
   errorFrameNotice: 'Không tìm được khung bản vẽ nên chưa căn được ảnh quét vào mô hình.',
   errorReadNotice: 'Không đọc được ảnh bản vẽ gốc của tầng này.',
   errorScaleNotice: 'Không căn được vì hai tầng đang dùng tỷ lệ khác nhau.',
+  errorLayerNotice: 'Không đọc được mô hình của tầng này nên chưa có gì để đối chiếu.',
+  confirmNeedsEdit: 'Chỉ người có quyền sửa mới xác nhận được.',
+  confirmNeedsMeasurement: 'Cần đo được vùng lệch trước khi xác nhận.',
+  shortcutFitView: 'Vừa khung',
+  shortcutZoomIn: 'Phóng to khung đối chiếu',
+  shortcutZoomOut: 'Thu nhỏ khung đối chiếu',
+  shortcutPan: 'Dời khung đối chiếu',
   forbiddenNotice: 'Bạn chỉ được xem; việc đổi căn chỉnh dành cho người có quyền sửa.',
   layerDeviation: 'vùng lệch',
   layerGeometry: 'Hình học sinh ra',
@@ -119,7 +133,7 @@ const COPY = {
   noDrawingNotice: 'Tầng này chưa có bản vẽ nào nên chưa có gì để đối chiếu. Tải bản vẽ lên rồi quay lại đây.',
   metricMax: 'Sai số lớn nhất',
   metricMean: 'Sai số trung bình',
-  metricOverTolerance: 'số vùng vượt ngưỡng',
+  metricOverTolerance: 'Số vùng vượt ngưỡng',
   noFloorNotice: 'Dự án này chưa có tầng nào để đối chiếu.',
   sideBySideDisabled: 'Khung quá hẹp để đặt hai khung nhìn cạnh nhau; hãy dùng trượt.',
   toleranceLabel: 'Dung sai',
@@ -175,6 +189,9 @@ const EMPTY_IDS: readonly string[] = Object.freeze([]);
 const EMPTY_ROWS: readonly DeviationRowViewModel[] = Object.freeze([]);
 const EMPTY_MARKS: readonly DeviationMarkViewModel[] = Object.freeze([]);
 const EMPTY_FLOORS: readonly Level[] = Object.freeze([]);
+
+/** Một mục của danh sách tầng: tầng của kho, của #12, hay của đồ thị N16. */
+type FloorEntry = Pick<Level, 'id' | 'name'> & Partial<Pick<Level, 'scaleMillimetresPerPixel'>>;
 
 /** Tầng của đồ thị, theo thứ tự đồ thị giữ — nguồn danh sách khi kho chưa có `floors`. */
 function levelsOf(spatial: NormalizedSpatial | null): readonly Level[] {
@@ -304,6 +321,8 @@ export interface UseOverlayComparisonOptions {
   readonly forceCollapsed?: boolean;
   /** Cổng dữ liệu. Có mặc định thật bên trong; test và story cắm bản giả vào. */
   readonly gateway?: OverlayComparisonGateway;
+  /** Đổi tầng = đổi URL: URL là nguồn sự thật của tầng đang xem (BUG-600). */
+  readonly onNavigate?: (path: string) => void;
 }
 
 /**
@@ -396,15 +415,55 @@ export function useOverlayComparison(
     [floorId, loadedLevelId],
   );
 
-  const floors = useMemo(
-    () => (storeFloors.length > 0 ? storeFloors : levelsOf(spatial)),
-    [storeFloors, spatial],
-  );
+  /* Mở thẳng link: kho chưa có tầng, đồ thị N16 chỉ có MỘT tầng — đọc đủ danh sách từ #12 (BUG-600). */
+  const floorListQuery = useQuery({
+    queryKey: queryKeys.floor.list(projectId),
+    queryFn: async () => {
+      const result = await gateway.readFloorList({ projectId });
+
+      if (!result.ok) {
+        throw result.error;
+      }
+
+      return result.data;
+    },
+    enabled: storeFloors.length === 0,
+  });
+
+  const floors = useMemo<readonly FloorEntry[]>(() => {
+    if (storeFloors.length > 0) {
+      return storeFloors;
+    }
+
+    const listed = floorListQuery.data ?? [];
+
+    // Một danh sách không biết tầng của route thì không phải của route này: giữ đồ thị N16.
+    if (!listed.some((floor) => floor.id === floorId)) {
+      return levelsOf(spatial);
+    }
+
+    // Tầng của route mang mã `Level` N16 vừa đọc (bộ mẫu: `L1` ≠ mã `Level`), để hình học và ảnh khớp.
+    return [...listed]
+      .sort((first, second) => first.order - second.order)
+      .map((floor) => ({
+        id: (floor.id === floorId && loadedLevelId !== undefined ? loadedLevelId : floor.id) as LevelId,
+        name: floor.name,
+      }));
+  }, [floorId, floorListQuery.data, loadedLevelId, spatial, storeFloors]);
   const roles = options.roles ?? (storeRoles.length === 0 ? EMPTY_ROLES : storeRoles);
+
+  /*
+   * URL là nguồn sự thật (BUG-600): tầng vừa chọn trong ô (khi chưa ai lái URL theo, như story),
+   * rồi tầng của route, rồi tầng của kho. Back/Forward đổi route nên lựa chọn cũ hết hiệu lực.
+   */
+  const [picked, setPicked] = useState<{ readonly route: string; readonly levelId: LevelId } | null>(null);
   const activeFloorId: LevelId | null =
-    floors.some((floor) => floor.id === storeActiveFloorId) && storeActiveFloorId !== null
-      ? storeActiveFloorId
-      : (floors.find((floor) => floor.id === floorId)?.id ?? floors[0]?.id ?? null);
+    (
+      (picked?.route === floorId ? floors.find((floor) => floor.id === picked.levelId) : undefined) ??
+      floors.find((floor) => floor.id === floorId || scanFloorIdOf(floor.id) === floorId) ??
+      floors.find((floor) => floor.id === storeActiveFloorId) ??
+      floors[0]
+    )?.id ?? null;
 
   const canEdit = can('edit', 'layer', { roles });
   const role = ROLE_PRECEDENCE.find((candidate) => roles.includes(candidate)) ?? null;
@@ -468,6 +527,8 @@ export function useOverlayComparison(
    * phát giá trị xuống hai khung thì chúng đi cùng nhau theo cấu trúc.
    */
   const { viewport, pan, zoomTo } = useCanvasViewport();
+  const onNavigateRef = useRef(options.onNavigate);
+  onNavigateRef.current = options.onNavigate;
   const viewportRef = useRef(viewport);
   viewportRef.current = viewport;
 
@@ -585,13 +646,39 @@ export function useOverlayComparison(
 
   const isFrameMissing = activeScan !== null && !activeScan.isFrameFound;
   const hasReadFailed = query.isError;
+  /*
+   * Đang đọc / đọc hỏng tầng N16 là loading / error, KHÔNG phải "chưa có tầng nào" (BUG-588):
+   * trước đây `activeFloorId` còn `null` nên lượt đọc ảnh tắt và màn rơi thẳng vào `empty`.
+   */
+  const isLayerLoading = storeSpatial === null && layerQuery.isLoading;
+  const isListLoading = floors.length === 0 && storeFloors.length === 0 && floorListQuery.isLoading;
+  const hasLayerReadFailed = storeSpatial === null && layerQuery.isError;
+  /* N16 404 (người ngoài dự án, tầng đã xoá): cả màn là một lối ra, không câu lỗi đọc chung (G45). */
+  const refetchLayer = layerQuery.refetch;
+  const readFailure = useMemo(
+    () =>
+      hasLayerReadFailed && readWireError(layerQuery.error)?.status === 404
+        ? floorLayerReadFailureOf(
+            {
+              data: undefined,
+              error: layerQuery.error,
+              refetch: () => {
+                void refetchLayer();
+              },
+            },
+            projectId,
+            (path) => onNavigateRef.current?.(path),
+          )
+        : null,
+    [hasLayerReadFailed, layerQuery.error, projectId, refetchLayer],
+  );
 
   const state = useMemo<OverlayComparisonState>(() => {
-    if (query.isLoading) {
+    if (query.isLoading || isLayerLoading || isListLoading) {
       return 'loading';
     }
 
-    if (hasReadFailed || isFrameMissing || hasScaleConflict) {
+    if (hasReadFailed || hasLayerReadFailed || isFrameMissing || hasScaleConflict) {
       return 'error';
     }
 
@@ -617,10 +704,13 @@ export function useOverlayComparison(
     activeHasScan,
     canEdit,
     evaluation,
+    hasLayerReadFailed,
     hasReadFailed,
     hasScaleConflict,
     isCollapsed,
     isFrameMissing,
+    isLayerLoading,
+    isListLoading,
     query.isLoading,
   ]);
 
@@ -769,6 +859,10 @@ export function useOverlayComparison(
         return COPY.errorScaleNotice;
       }
 
+      if (hasLayerReadFailed) {
+        return COPY.errorLayerNotice;
+      }
+
       return isFrameMissing ? COPY.errorFrameNotice : COPY.errorReadNotice;
     }
 
@@ -810,6 +904,7 @@ export function useOverlayComparison(
     floorOptions.length,
     floorsWithScan,
     floorsWithoutGeometry,
+    hasLayerReadFailed,
     hasScaleConflict,
     isFrameMissing,
     measured,
@@ -906,10 +1001,21 @@ export function useOverlayComparison(
       !query.isLoading &&
       measured !== null;
 
+    // Nút tắt thì nói vì sao (BUG-599). Đang tải/đang gửi/đã xác nhận: không có gì để giải thích.
+    const disabledReason =
+      canConfirm || isConfirmed || confirmMutation.isPending || query.isLoading
+        ? null
+        : !canEdit
+          ? COPY.confirmNeedsEdit
+          : measured === null
+            ? COPY.confirmNeedsMeasurement
+            : null;
+
     return {
       buttonLabel: COPY.confirmButton,
       isConfirmed,
       canConfirm,
+      disabledReason,
       confirmedNotice: isConfirmed
         ? {
             text:
@@ -938,10 +1044,16 @@ export function useOverlayComparison(
   /* Hành động.                                                              */
   /* ---------------------------------------------------------------------- */
 
-  const selectFloor = useCallback((levelId: LevelId): void => {
-    useStore.getState().setActiveFloor(levelId);
-    setSelectedRegionId(null);
-  }, []);
+  /** Đổi tầng = đổi URL sang `/floors/{id}/overlay` (BUG-600); kho đi theo cho các màn khác. */
+  const selectFloor = useCallback(
+    (levelId: LevelId): void => {
+      setPicked({ route: floorId, levelId });
+      useStore.getState().setActiveFloor(levelId);
+      setSelectedRegionId(null);
+      onNavigateRef.current?.(ROUTES.project.overlay(projectId, scanFloorIdOf(levelId)));
+    },
+    [floorId, projectId, scanFloorIdOf],
+  );
 
   const setCompareMode = useCallback((mode: CompareModeId): void => {
     setRequestedCompareMode(mode);
@@ -984,6 +1096,92 @@ export function useOverlayComparison(
     [pan, zoomTo],
   );
 
+  const zoomBy = useCallback(
+    (factor: number, anchorX: number, anchorY: number): void => {
+      zoomTo(viewportRef.current.zoom * factor, anchorX, anchorY);
+    },
+    [zoomTo],
+  );
+
+  /** Về toàn cảnh mà không tải lại trang — kiểu đối chiếu, độ mờ, dung sai giữ nguyên (BUG-599). */
+  const fitView = useCallback((): void => {
+    setViewport({ x: 0, y: 0, zoom: 1 });
+  }, [setViewport]);
+
+  useShortcut({
+    id: 'overlayComparison.fitView',
+    combo: 'F',
+    scope: 'canvas',
+    description: COPY.shortcutFitView,
+    onTrigger: fitView,
+  });
+
+  /* A12 (G36 22-E-016): thu phóng và dời khung bằng phím, không chỉ con lăn và chuột giữa. */
+  const zoomByKey = useCallback(
+    (factor: number): void => {
+      zoomTo(viewportRef.current.zoom * factor);
+    },
+    [zoomTo],
+  );
+  useShortcut({
+    id: 'overlayComparison.zoomIn',
+    combo: '=',
+    scope: 'canvas',
+    allowRepeat: true,
+    description: COPY.shortcutZoomIn,
+    onTrigger: () => zoomByKey(KEY_ZOOM_STEP),
+  });
+  useShortcut({
+    id: 'overlayComparison.zoomOut',
+    combo: '-',
+    scope: 'canvas',
+    allowRepeat: true,
+    description: COPY.shortcutZoomOut,
+    onTrigger: () => zoomByKey(1 / KEY_ZOOM_STEP),
+  });
+  useShortcut({
+    id: 'overlayComparison.panArrowLeft',
+    combo: 'ArrowLeft',
+    scope: 'canvas',
+    allowRepeat: true,
+    description: COPY.shortcutPan,
+    onTrigger: () => pan(KEY_PAN_STEP_PX, 0),
+  });
+  useShortcut({
+    id: 'overlayComparison.panArrowRight',
+    combo: 'ArrowRight',
+    scope: 'canvas',
+    allowRepeat: true,
+    description: COPY.shortcutPan,
+    onTrigger: () => pan(-KEY_PAN_STEP_PX, 0),
+  });
+  useShortcut({
+    id: 'overlayComparison.panArrowUp',
+    combo: 'ArrowUp',
+    scope: 'canvas',
+    allowRepeat: true,
+    description: COPY.shortcutPan,
+    onTrigger: () => pan(0, KEY_PAN_STEP_PX),
+  });
+  useShortcut({
+    id: 'overlayComparison.panArrowDown',
+    combo: 'ArrowDown',
+    scope: 'canvas',
+    allowRepeat: true,
+    description: COPY.shortcutPan,
+    onTrigger: () => pan(0, -KEY_PAN_STEP_PX),
+  });
+
+  const retry = useCallback((): void => {
+    if (layerQuery.isError) {
+      void layerQuery.refetch();
+    }
+
+    if (query.isError) {
+      void query.refetch();
+    }
+  }, [layerQuery, query]);
+
   const confirmMatch = useCallback((): void => {
     confirmMutation.mutate();
   }, [confirmMutation]);
@@ -998,10 +1196,16 @@ export function useOverlayComparison(
       setToleranceMm,
       selectRegion,
       setViewport,
+      zoomBy,
+      fitView,
+      retry,
       confirmMatch,
     }),
     [
       confirmMatch,
+      fitView,
+      retry,
+      zoomBy,
       selectFloor,
       selectRegion,
       setCompareMode,
@@ -1035,6 +1239,10 @@ export function useOverlayComparison(
       }),
       swipePosition,
       isAlignmentLocked: isLockedByUser || !canEdit,
+      canLockAlignment: gateway.supports.imageToModelTransform,
+      canRetry: state === 'error' && (hasReadFailed || hasLayerReadFailed),
+      readFailure,
+      zoomPercent: Math.round(viewport.zoom * FULL_PERCENT),
       layers,
       geometry,
       marks,
@@ -1056,8 +1264,12 @@ export function useOverlayComparison(
       confirmation,
       disabledCompareModes,
       floorOptions,
+      gateway,
       geometry,
+      hasLayerReadFailed,
+      hasReadFailed,
       isLockedByUser,
+      readFailure,
       layers,
       marks,
       measurement,

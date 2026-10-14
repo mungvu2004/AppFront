@@ -9,7 +9,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { createSampleBuilding, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { createShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createTestQueryClient } from '@/lib/testing/render';
@@ -56,7 +56,7 @@ describe('màn kích thước với mã bộ mẫu A14', () => {
       () =>
         useDimensionOcrReview({
           projectId: 'project-1',
-          floorId: 'floor-1',
+          floorId: sampleLevelId(0),
           roles: ['engineer'],
           gateway: createMockDimensionOcrReviewGateway({ graph }),
           registry: createShortcutRegistry(),

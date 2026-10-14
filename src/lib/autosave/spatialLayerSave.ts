@@ -53,12 +53,22 @@ export function spatialLayerOf(graph: NormalizedSpatial, floorId: LevelId): Spat
   return { furniture, openings, rooms, walls };
 }
 
+/** Bốn loại thực thể `spatialLayerOf` gửi đi; trục, kích thước, ghi chú không vào thân PUT. */
+const LAYER_KINDS = ['wall', 'opening', 'room', 'furniture'] as const;
+
+const layerIdsOn = (graph: NormalizedSpatial, levelId: LevelId): readonly string[] =>
+  idsOnLevel(graph, levelId).filter((id) => {
+    const entity = graph.byId[id];
+
+    return entity !== undefined && LAYER_KINDS.some((kind) => isEntityOfKind(kind, entity));
+  });
+
 /**
- * Các tầng của `next` có thực thể hoặc mảng `byLevel` khác tham chiếu với `previous` —
- * đích lưu là mọi tầng có thứ bị đổi, không phải tầng đang xem (B-V8-41). So tham
- * chiếu là đủ: `applyPatch` chỉ chép mảng `byLevel` và thực thể bị chạm.
- * Chỉ duyệt tầng còn trong `next`.
- * ponytail: trục và kích thước cũng nằm trong `byLevel`; đổi chúng sinh một PUT thừa, vô hại.
+ * Các tầng của `next` mà LỚP gửi đi (bốn danh sách của `spatialLayerOf`) khác `previous` —
+ * đích lưu là mọi tầng có thứ bị đổi, không phải tầng đang xem (B-V8-41). So tham chiếu
+ * thực thể là đủ: `applyPatch` chỉ chép thực thể bị chạm. Trục và kích thước nằm trong
+ * `byLevel` nhưng chỉ sống trong phiên, nên đổi chúng không làm tầng bẩn (G14/G22: PUT ngầm
+ * sau khi vào SCR-18/19 bằng SPA). Chỉ duyệt tầng còn trong `next`.
  */
 export function changedLevelIds(previous: NormalizedSpatial, next: NormalizedSpatial): LevelId[] {
   return next.byKind.level.filter((levelId): levelId is LevelId => {
@@ -66,9 +76,14 @@ export function changedLevelIds(previous: NormalizedSpatial, next: NormalizedSpa
       return false;
     }
 
-    const ids = idsOnLevel(next, levelId);
+    if (idsOnLevel(previous, levelId) === idsOnLevel(next, levelId)) {
+      return layerIdsOn(next, levelId).some((id) => previous.byId[id] !== next.byId[id]);
+    }
 
-    return idsOnLevel(previous, levelId) !== ids || ids.some((id) => previous.byId[id] !== next.byId[id]);
+    const before = layerIdsOn(previous, levelId);
+    const after = layerIdsOn(next, levelId);
+
+    return before.length !== after.length || after.some((id, index) => before[index] !== id || previous.byId[id] !== next.byId[id]);
   });
 }
 
@@ -87,7 +102,7 @@ export const LAYER_SAVE_MESSAGES = {
   integrity: (count: number): string => `Tầng này có ${count} chỗ hỏng liên kết hình học nên chưa lưu được.`,
   reload: 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.',
   unnamedRoom: 'Có phòng chưa đặt tên nên chưa lưu được tầng này. Đặt tên cho phòng đó rồi lưu lại.',
-  scaleRedirtied: 'Tỉ lệ tầng này vừa đổi trong lúc bạn sửa. Tải lại để sửa trên số đo mới.',
+  scaleRedirtied: 'Tỷ lệ tầng này vừa đổi trong lúc bạn sửa. Tải lại để sửa trên số đo mới.',
   unknown: 'Không lưu được thay đổi của tầng này.',
 } as const;
 

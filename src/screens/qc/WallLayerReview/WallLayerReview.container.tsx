@@ -211,6 +211,7 @@ function WiredWallLayerReview(props: WallLayerReviewContainerProps) {
   );
 
   return (
+    <>
     <WallLayerReview
       canvas={canvas}
       canvasSlot={<WallLayerCanvas {...canvas} />}
@@ -224,6 +225,12 @@ function WiredWallLayerReview(props: WallLayerReviewContainerProps) {
       statusBar={statusBar}
       toolRail={toolRail}
     />
+    {/* Màn lỗi đọc không có ray công cụ hay canvas để dạy: không mở hướng dẫn đè lên nó (BUG-622). */}
+    {readFailure === null && (
+      /* Chip "Xem hướng dẫn" đứng TRÊN thanh trạng thái (64 px), không vắt qua viền của nó (BUG-397). */
+      <EditorTourContainer chipAnchorClassName={TOUR_CHIP_ANCHOR} hostId="wall-layer-review" />
+    )}
+    </>
   );
 }
 
@@ -238,8 +245,6 @@ export function WallLayerReviewContainer(props: WallLayerReviewContainerProps) {
       screenId={WALL_LAYER_REVIEW_SCREEN_ID}
     >
       <WiredWallLayerReview {...props} />
-      {/* Chip "Xem hướng dẫn" đứng TRÊN thanh trạng thái (64 px), không vắt qua viền của nó (BUG-397). */}
-      <EditorTourContainer chipAnchorClassName={TOUR_CHIP_ANCHOR} hostId="wall-layer-review" />
     </ScreenErrorBoundary>
   );
 }

@@ -3,12 +3,14 @@ import { motion } from '../motion';
 import { cn } from '../../lib/utils';
 import { durationSeconds } from '../../lib/motion';
 
-export interface CheckboxProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange'> {
+export interface CheckboxProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'size'> {
   checked?: boolean;
   indeterminate?: boolean;
   onChange?: (checked: boolean) => void;
   label?: string;
   error?: boolean;
+  /** `sm` = nhãn 13 px, ngang nav/cây lớp của panel bên (BUG-614). Mặc định `md` 15 px. */
+  size?: 'sm' | 'md';
 }
 
 export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Checkbox(
@@ -21,6 +23,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
     label,
     id,
     error,
+    size = 'md',
     className = '',
     ...props
   },
@@ -28,6 +31,17 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
 ) {
   const defaultId = React.useId();
   const internalId = id || defaultId;
+
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
+  const setRefs = (node: HTMLInputElement | null) => {
+    inputRef.current = node;
+    if (typeof ref === 'function') ref(node);
+    else if (ref) ref.current = node;
+  };
+  // G64: `indeterminate` chỉ có qua thuộc tính DOM, không có attribute HTML.
+  React.useEffect(() => {
+    if (inputRef.current) inputRef.current.indeterminate = indeterminate;
+  }, [indeterminate]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === ' ' && !disabled && !readOnly) {
@@ -47,7 +61,8 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
     >
       <div className="relative flex items-center justify-center">
         <input
-          ref={ref}
+          ref={setRefs}
+          aria-checked={indeterminate ? 'mixed' : undefined}
           id={internalId}
           type="checkbox"
           className="peer sr-only"
@@ -96,7 +111,13 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
       </div>
       
       {label && (
-        <span className={cn('ml-2 text-[15px] leading-[24px] select-none', disabled ? 'text-text-muted' : 'text-text-primary')}>
+        <span
+          className={cn(
+            'ml-2 select-none',
+            size === 'sm' ? 'text-[13px] leading-[20px]' : 'text-[15px] leading-[24px]',
+            disabled ? 'text-text-muted' : 'text-text-primary'
+          )}
+        >
           {label}
         </span>
       )}

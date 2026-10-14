@@ -65,3 +65,17 @@ describe('SegmentedControl', () => {
     expect(onChange).toHaveBeenCalledWith('2d');
   });
 });
+
+describe('SegmentedControl thumb (BUG-410)', () => {
+  it('is drawn inside the active segment by CSS, never by a measured layout projection', () => {
+    const { rerender } = render(<SegmentedControl options={options} value="2d" aria-label="Thumb" />);
+    rerender(<SegmentedControl options={options} value="3d" aria-label="Thumb" />);
+
+    const active = screen.getByRole('radio', { name: '3D' });
+    const thumb = active.querySelector('[data-segment-thumb]');
+
+    expect(thumb).not.toBeNull();
+    expect(thumb?.getAttribute('style') ?? '').toBe('');
+    expect(screen.getByRole('radio', { name: '2D' }).querySelector('[data-segment-thumb]')).toBeNull();
+  });
+});

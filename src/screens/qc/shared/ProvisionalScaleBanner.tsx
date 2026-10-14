@@ -1,6 +1,6 @@
 /**
- * Dải tỉ lệ tạm (F-04x-2) — dùng chung cho bốn màn QC. View thuần: câu và lối
- * ra đến từ `useProvisionalScaleNotice`. Canvas vẫn vẽ bằng tỉ lệ tạm.
+ * Dải tỷ lệ tạm (F-04x-2) — dùng chung cho bốn màn QC. View thuần: câu và lối
+ * ra đến từ `useProvisionalScaleNotice`. Canvas vẫn vẽ bằng tỷ lệ tạm.
  */
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -18,7 +18,7 @@ export function ProvisionalScaleBanner({ notice }: ProvisionalScaleBannerProps) 
 
   return (
     <InlineAlert
-      action={{ label: 'Hiệu chỉnh tỉ lệ', onClick: notice.onCalibrate }}
+      action={{ label: 'Hiệu chỉnh tỷ lệ', onClick: notice.onCalibrate }}
       level="attention"
       message={notice.message}
     />

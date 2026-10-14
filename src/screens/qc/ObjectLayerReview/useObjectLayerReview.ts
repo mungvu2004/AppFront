@@ -54,7 +54,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { displayCodesOf } from '@/domain/spatial/ids';
+import { displayCodesOf, keepDisplayCodes, sortByDisplayCode } from '@/domain/spatial/ids';
 import type { EntityId, Level, SwingDirection, WallId } from '@/domain/spatial/types';
 import type { RelativePosition } from '@/domain/openings/types';
 import type { Wall as SolidWall } from '@/domain/walls/types';
@@ -62,9 +62,11 @@ import { useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { isFloorNotFound, useFloorLayer } from '@/hooks/useFloorLayer';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import { appNotificationBus } from '@/hooks/useNotifications';
+import { useProjectConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
+import { newestEntryId, undoIfNewest } from '@/lib/commands/history';
 import type { Command } from '@/lib/commands/types';
 import type { CommandContext } from '@/lib/commands/business/shared';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
@@ -106,6 +108,7 @@ import {
   dataLayerTokens,
   graphWallsOf,
   isLowConfidenceObject,
+  OBJECT_LAYER_CONFIDENCE_THRESHOLD,
   layerTreeTotalLabel,
   levelOfGraph,
   lowConfidenceNotice,
@@ -191,6 +194,10 @@ export interface UseObjectLayerReviewOptions {
 
 /** Loại thông báo của một lượt xoá — viết đúng một chỗ (R-71). */
 const DELETE_NOTIFICATION_TYPE = 'objectLayerReview.deleteObject';
+/** Toast "Hoàn tác" bị từ chối vì đã có bước mới hơn (BUG-579). */
+const UNDO_REFUSED_NOTIFICATION_TYPE = 'objectLayerReview.undoRefused';
+/** Lệnh sửa bị từ chối — câu lý do thay cho im lặng (BUG-590). */
+const REFUSED_NOTIFICATION_TYPE = 'objectLayerReview.refused';
 
 /** Loại thông báo của một lượt gắn vào tường gần nhất — viết đúng một chỗ (R-71). */
 const ATTACH_NOTIFICATION_TYPE = 'objectLayerReview.attachToNearestWall';
@@ -208,6 +215,8 @@ const NO_GROUPS_COLLAPSED: ObjectLayerVisibility = { door: false, window: false,
 const NO_SUBTYPE_FILTERS: ReadonlySet<ObjectSubtype> = new Set<ObjectSubtype>();
 
 const NO_OBJECTS: readonly ReviewObject[] = [];
+/** Không bảng mã: đối tượng xếp theo chính mã hiển thị của nó (`id`). */
+const NO_CODES: ReadonlyMap<string, string> = new Map();
 const NO_SELECTION_IDS: readonly EntityId[] = [];
 
 /* -------------------------------------------------------------------------- */
@@ -265,6 +274,7 @@ export function applyObjectFilters(
     readonly subtypes: ReadonlySet<ObjectSubtype>;
     readonly lowConfidenceOnly: boolean;
   },
+  threshold: number = OBJECT_LAYER_CONFIDENCE_THRESHOLD,
 ): readonly ReviewObject[] {
   return objects.filter((object) => {
     if (!filters.layerVisibility[object.layer]) {
@@ -275,7 +285,7 @@ export function applyObjectFilters(
       return false;
     }
 
-    return !(filters.lowConfidenceOnly && (object.reviewed || !isLowConfidenceObject(object.confidence)));
+    return !(filters.lowConfidenceOnly && (object.reviewed || !isLowConfidenceObject(object.confidence, threshold)));
   });
 }
 
@@ -442,14 +452,51 @@ export function useObjectLayerReview(
   const hasError = floorLayer.error !== null;
   const isLoading = floorLayer.isPending || graph === null;
 
-  const objects = useMemo<readonly ReviewObject[]>(
-    () => (hasError ? NO_OBJECTS : objectsOf(graph, level, gateway.seed)),
-    [gateway, graph, hasError, level],
-  );
+  /*
+   * Mã hiển thị GIỮ NGUYÊN trong phiên (BUG-592): mã đánh theo thứ tự làm mọi mã sau một đối
+   * tượng vừa xoá lùi một. Danh sách đi theo mã, không theo thứ tự đồ thị.
+   */
+  const shownCodesRef = useRef<{ readonly levelId: string | null; codes: ReadonlyMap<string, string> }>({
+    levelId: null,
+    codes: new Map(),
+  });
+  const objects = useMemo<readonly ReviewObject[]>(() => {
+    if (hasError) {
+      return NO_OBJECTS;
+    }
+
+    const found = objectsOf(graph, level, gateway.seed);
+    const levelId = level?.id ?? null;
+    const shown = shownCodesRef.current;
+    const codes = keepDisplayCodes(
+      shown.levelId === levelId ? shown.codes : new Map<string, string>(),
+      new Map(found.map((object) => [object.entityId, object.id] as const)),
+    );
+
+    shownCodesRef.current = { levelId, codes };
+
+    const kept = found.map((object) => {
+      const code = codes.get(object.entityId) ?? object.id;
+
+      return code === object.id ? object : { ...object, id: code };
+    });
+
+    return sortByDisplayCode(kept, NO_CODES);
+  }, [gateway, graph, hasError, level]);
 
   const counts = useMemo(() => countsOf(objects), [objects]);
+  const availableSubtypes = useMemo(() => new Set(objects.map((object) => object.subtype)), [objects]);
   const reviewCounter = useMemo(() => reviewCounterOf(objects), [objects]);
-  const lowConfidenceObjects = useMemo(() => lowConfidenceObjectsOf(objects), [objects]);
+  /* Ngưỡng của dự án, 0,75 của đặc tả khi chưa đọc được (G32 17-C-009). */
+  const confidenceThreshold = useProjectConfidenceThreshold(
+    projectId,
+    gateway.readConfidenceThreshold,
+    OBJECT_LAYER_CONFIDENCE_THRESHOLD,
+  );
+  const lowConfidenceObjects = useMemo(
+    () => lowConfidenceObjectsOf(objects, confidenceThreshold),
+    [confidenceThreshold, objects],
+  );
   const lowConfidenceOnly = lowConfidenceChoice ?? lowConfidenceObjects.length > 0;
 
   const solidWalls = useMemo(() => solidWallsOf(graph, level), [graph, level]);
@@ -653,6 +700,16 @@ export function useObjectLayerReview(
     [floorId, projectId, queryClient],
   );
 
+  const notifications = options.notifications ?? appNotificationBus;
+
+  /** Lệnh bị từ chối thì nói ra, không im lặng (BUG-590). */
+  const refuse = useCallback(
+    (title: string) => {
+      notifications.publish({ type: REFUSED_NOTIFICATION_TYPE, title, description: '' });
+    },
+    [notifications],
+  );
+
   /** Một lệnh đơn, gộp được theo D-06 khi hai lượt liền nhau dưới 400 ms. */
   const runSingle = useCallback(
     async (
@@ -663,13 +720,13 @@ export function useObjectLayerReview(
       const current = useStore.getState().spatial;
 
       if (!canEdit || current === null) {
-        return;
+        return false;
       }
 
       const command = build(commandContextOf(current, gateway.actorId));
 
       if (command === null) {
-        return;
+        return false;
       }
 
       const result = await runObjectCommand(command, dispatchBundle);
@@ -677,6 +734,8 @@ export function useObjectLayerReview(
       if (result.ok) {
         invalidate(layer);
       }
+
+      return result.ok;
     },
     [canEdit, dispatchBundle, gateway, invalidate],
   );
@@ -719,7 +778,18 @@ export function useObjectLayerReview(
     (objectId: string, subtype: ObjectSubtype) => {
       const object = objectById(objectId);
 
-      if (object === null || isOrphanObject(object)) {
+      if (object === null || object.subtype === subtype) {
+        return;
+      }
+
+      /* Đồ đạc và lỗ mở là hai loại thực thể; không lệnh nào đổi qua lại (BUG-590). */
+      if (OBJECT_SUBTYPE_LAYER[object.subtype] === 'furniture' || OBJECT_SUBTYPE_LAYER[subtype] === 'furniture') {
+        refuse(OBJECT_LAYER_TEXT.subtypeRefused);
+        return;
+      }
+
+      if (isOrphanObject(object)) {
+        refuse(OBJECT_LAYER_TEXT.subtypeNeedsWall);
         return;
       }
 
@@ -743,7 +813,7 @@ export function useObjectLayerReview(
         return built.ok ? built.data : null;
       });
     },
-    [objectById, runBlock, wallOfObject],
+    [objectById, refuse, runBlock, wallOfObject],
   );
 
   const onChangeSwing = useCallback(
@@ -863,8 +933,6 @@ export function useObjectLayerReview(
   /* Xoá (A8) — tức thì, không hộp thoại, kèm vé hoàn tác 8000 ms.            */
   /* ---------------------------------------------------------------------- */
 
-  const notifications = options.notifications ?? appNotificationBus;
-
   const onDelete = useCallback(
     (objectId: string) => {
       const object = objectById(objectId);
@@ -881,11 +949,23 @@ export function useObjectLayerReview(
             : buildDeleteOpeningCommand({ openingId: entityId as never }, context);
 
         return built.ok ? built.data : null;
-      }).then(() => {
+      }).then((deleted) => {
+        if (!deleted) {
+          return;
+        }
+
+        /* BUG-579: vé giữ đúng bước của lượt xoá này, không "bước trên cùng" lúc bấm. */
+        const entryId = newestEntryId(dispatchBundle.history);
         const ticket = createObjectUndoTicket({
           displayId: object.id,
           now: gateway.now,
-          undo: applyUndo,
+          undo: () => {
+            const refused = undoIfNewest(dispatchBundle.history, entryId, applyUndo);
+
+            if (refused !== null) {
+              notifications.publish({ type: UNDO_REFUSED_NOTIFICATION_TYPE, title: refused, description: '' });
+            }
+          },
         });
 
         /*
@@ -900,7 +980,7 @@ export function useObjectLayerReview(
         });
       });
     },
-    [applyUndo, gateway, notifications, objectById, runSingle],
+    [applyUndo, dispatchBundle, gateway, notifications, objectById, runSingle],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -1047,11 +1127,11 @@ export function useObjectLayerReview(
 
   const onSelectHostWall = useCallback(
     (wallId: WallId) => {
-      if (selectionContext === null) {
-        return;
-      }
-
-      pushSelection(selectSingle(selectedIds, wallId, selectionContext));
+      /*
+       * BUG-591: GIỮ đối tượng đang chọn trong thanh tra và tô tường chủ — bản cũ chọn tường,
+       * thanh tra về "Chọn một đối tượng…" và màn này không vẽ tường đang chọn nên không thấy gì.
+       */
+      setFlownWallId(wallId);
 
       const outline = wallOutlines.find((shape) => shape.id === wallId);
       const bounds = outline === undefined ? null : wallBoundsPx(outline.outline, level);
@@ -1066,30 +1146,19 @@ export function useObjectLayerReview(
           frameSizePx.width,
           frameSizePx.height,
         );
-        setFlownWallId(wallId);
       }
     },
-    [
-      fitView,
-      flyToBounds,
-      frameSizePx,
-      level,
-      pushSelection,
-      selectedIds,
-      selectionContext,
-      wallOutlines,
-    ],
+    [fitView, flyToBounds, frameSizePx, level, wallOutlines],
   );
 
   /*
    * Màn không có nút vừa khung: bỏ chọn tường vừa bay tới (chọn thứ khác, Esc) thì trả khung nhìn
    * về vừa khung — không thì kẹt ở mức phóng ấy tới khi đổi tầng (review-1 #2, A12).
    */
-  useEffect(() => {
-    if (flownWallId === null || selectedIds.includes(flownWallId)) {
-      return;
-    }
+  const flownFromObjectRef = useRef<string | null>(null);
 
+  /** Bỏ tô tường chủ và trả khung nhìn về vừa khung. */
+  const endFlight = useCallback(() => {
     setFlownWallId(null);
 
     if (frameSizePx !== null) {
@@ -1097,7 +1166,21 @@ export function useObjectLayerReview(
 
       flyToBounds(frame, frameSizePx.width, frameSizePx.height, { padding: 0 });
     }
-  }, [flownWallId, flyToBounds, frameSizePx, selectedIds]);
+  }, [flyToBounds, frameSizePx]);
+
+  useEffect(() => {
+    if (flownWallId === null) {
+      flownFromObjectRef.current = selectedObjectId;
+      return;
+    }
+
+    if (selectedObjectId === flownFromObjectRef.current) {
+      return;
+    }
+
+    flownFromObjectRef.current = selectedObjectId;
+    endFlight();
+  }, [endFlight, flownWallId, selectedObjectId]);
 
   /* ---------------------------------------------------------------------- */
   /* Lớp con, chip lọc, nhóm gấp.                                            */
@@ -1256,9 +1339,42 @@ export function useObjectLayerReview(
       combo: 'Escape',
       scope: 'canvas',
       description: 'Đóng thanh tra đối tượng',
-      onTrigger: () => onSelect(null),
+      onTrigger: () => {
+        onSelect(null);
+
+        /* Bay tới tường chủ mà chưa chọn đối tượng nào: bỏ chọn không đổi gì, nên tự kết thúc lượt bay. */
+        if (flownWallId !== null) {
+          endFlight();
+        }
+      },
     },
     { ...shortcutOptions, enabled: selectedObjectId !== null || flownWallId !== null },
+  );
+  /* BUG-589: xoá bằng phím như màn tường (Backspace), cộng Delete — không chỉ chuột phải. */
+  const deleteSelected = (): void => {
+    if (selectedObjectIdRef.current !== null) {
+      onDelete(selectedObjectIdRef.current);
+    }
+  };
+  useShortcut(
+    {
+      id: 'objectLayerReview.delete',
+      combo: 'Delete',
+      scope: 'canvas',
+      description: OBJECT_LAYER_TEXT.shortcutDelete,
+      onTrigger: deleteSelected,
+    },
+    { ...shortcutOptions, enabled: canEdit && selectedObjectId !== null },
+  );
+  useShortcut(
+    {
+      id: 'objectLayerReview.deleteBackspace',
+      combo: 'Backspace',
+      scope: 'canvas',
+      description: OBJECT_LAYER_TEXT.shortcutDelete,
+      onTrigger: deleteSelected,
+    },
+    { ...shortcutOptions, enabled: canEdit && selectedObjectId !== null },
   );
 
   /* ---------------------------------------------------------------------- */
@@ -1271,8 +1387,8 @@ export function useObjectLayerReview(
         layerVisibility,
         subtypes: subtypeFilters,
         lowConfidenceOnly,
-      }),
-    [layerVisibility, lowConfidenceOnly, objects, subtypeFilters],
+      }, confidenceThreshold),
+    [confidenceThreshold, layerVisibility, lowConfidenceOnly, objects, subtypeFilters],
   );
 
   /* Nhãn tường chủ tính trên mã tường của cả tầng, cùng nguồn với màn tường. */
@@ -1282,8 +1398,8 @@ export function useObjectLayerReview(
   );
 
   const rows = useMemo(
-    () => visibleObjects.map((object) => toObjectRow(object, wallCodes)),
-    [visibleObjects, wallCodes],
+    () => visibleObjects.map((object) => toObjectRow(object, wallCodes, confidenceThreshold)),
+    [confidenceThreshold, visibleObjects, wallCodes],
   );
 
   const inspector = useMemo(() => {
@@ -1462,6 +1578,8 @@ export function useObjectLayerReview(
     activeLayer,
     activeSubtype,
     isLowConfidenceOnly: lowConfidenceOnly,
+    availableSubtypes,
+    highlightedWallId: flownWallId,
     onSelectLayer,
     onSelectSubtypeSlot,
     onToggleSelect,
