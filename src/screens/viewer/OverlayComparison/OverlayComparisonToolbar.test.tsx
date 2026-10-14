@@ -159,11 +159,8 @@ describe('OverlayComparisonToolbar', () => {
       expect(compareModeButton(label)).toBeDisabled();
     }
 
-    /* "Nói ra được vì sao": lý do là văn bản trong cây, không phải một ô xám
-       không giải thích gì. */
-    expect(
-      screen.getByText('Bạn không có quyền sửa, các điều khiển đang tắt.'),
-    ).toBeInTheDocument();
+    /* BUG-636: lý do nằm ở băng cảnh báo của màn (OverlayComparison.test), thanh công cụ không lặp câu. */
+    expect(screen.queryByText('Bạn không có quyền sửa, các điều khiển đang tắt.')).toBeNull();
 
     expectVietnamese(container);
   });

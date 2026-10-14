@@ -162,7 +162,13 @@ export function OverlayComparison({ actions, model }: OverlayComparisonProps) {
       className="relative flex h-screen min-h-0 w-full flex-col bg-bg-app lg:flex-row"
       role="region"
     >
-      <section aria-label={CANVAS_REGION_ARIA_LABEL} className="relative min-h-0 min-w-0 flex-1" ref={canvasRef}>
+      {/* Dưới 1024 thanh công cụ nằm TRÊN canvas (trong luồng), không đè ~45% khung vẽ ở 375 (BUG-634). */}
+      <section
+        aria-label={CANVAS_REGION_ARIA_LABEL}
+        className="relative flex min-h-0 min-w-0 flex-1 flex-col lg:block"
+        ref={canvasRef}
+      >
+        <div className="relative min-h-0 flex-1 lg:h-full">
         <OverlayComparisonCanvas
           compareMode={model.compareMode}
           geometry={model.geometry}
@@ -177,6 +183,7 @@ export function OverlayComparison({ actions, model }: OverlayComparisonProps) {
           swipePosition={model.swipePosition}
           viewport={model.viewport}
         />
+        </div>
 
         {/*
           `pointer-events-none` trên lớp bọc, `pointer-events-auto` trên từng
@@ -185,7 +192,7 @@ export function OverlayComparison({ actions, model }: OverlayComparisonProps) {
           hai bên rìa canvas — kéo khung nhìn, chọn vùng lệch — sẽ bị nó chặn dù
           không có gì để bấm ở đó.
         */}
-        <div className="pointer-events-none absolute inset-x-0 top-3 z-10 flex flex-col items-center gap-2 px-3">
+        <div className="pointer-events-none z-10 order-first flex flex-col items-center gap-2 px-3 py-2 lg:absolute lg:inset-x-0 lg:top-3 lg:order-none lg:py-0">
           <div className="pointer-events-auto max-w-full">
             <OverlayComparisonToolbar
               activeFloorId={model.activeFloorId}

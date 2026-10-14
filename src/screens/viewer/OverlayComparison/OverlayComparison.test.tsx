@@ -116,6 +116,23 @@ describe('OverlayComparison — bảy trạng thái (A11, R-63)', () => {
     expect(rendered).toBe(7);
   });
 
+  it('[BUG-636] vai người xem: đúng MỘT câu nói vì sao chỉ được xem', () => {
+    renderWithProviders(<OverlayComparison {...scenarioFor('forbidden')} />);
+
+    expect(screen.getAllByText(/chỉ được xem|không có quyền sửa/u)).toHaveLength(1);
+  });
+
+  it('[BUG-634] dưới 1024 thanh công cụ nằm trong luồng phía trên canvas, chỉ nổi trên canvas từ lg', () => {
+    renderWithProviders(<OverlayComparison {...scenarioFor('success')} />);
+
+    const slot = screen.getByRole('toolbar', { name: 'Thanh công cụ đối chiếu bản vẽ' }).parentElement?.parentElement;
+    const classes = slot?.className.split(' ') ?? [];
+
+    expect(classes).not.toContain('absolute');
+    expect(classes).toContain('lg:absolute');
+    expect(classes).toContain('order-first');
+  });
+
   it('trạng thái lỗi mở lối sang màn hiệu chỉnh tỷ lệ bằng một liên kết thật (R-65)', () => {
     const scenario = scenarioFor('error');
 

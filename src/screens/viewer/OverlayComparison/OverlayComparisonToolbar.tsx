@@ -59,7 +59,6 @@ const FLOOR_NO_SCAN_SUFFIX = 'Không có ảnh bản vẽ gốc';
 const COMPARE_MODE_ARIA_LABEL = 'Kiểu đối chiếu';
 const SCAN_OPACITY_ARIA_LABEL = 'Độ mờ ảnh nguồn';
 const ALIGNMENT_LOCK_LABEL = 'Khoá căn';
-const READ_ONLY_NOTICE = 'Bạn không có quyền sửa, các điều khiển đang tắt.';
 
 /**
  * Viên thuốc chứa bốn cụm — dùng chung cho cả hai cách xếp (một hàng/hai hàng).
@@ -241,7 +240,7 @@ export function OverlayComparisonToolbar({
         )}
       </div>
 
-      {!canEdit && <p className="text-[12px] leading-[16px] text-text-muted">{READ_ONLY_NOTICE}</p>}
+      {/* Vai người xem: lý do đã ở băng cảnh báo của màn — thanh công cụ không lặp câu thứ hai (BUG-636). */}
     </div>
   );
 }
