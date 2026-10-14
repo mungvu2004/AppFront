@@ -167,7 +167,7 @@ test('SCR-40 · FL-10D-08 · anon · states: kiểm nhanh, Esc, thu gọn', asyn
     await captureEvidence(page, SHOT('10D-C-310', 'check_selected_real'));
   });
 
-  await test.step('[10D-C-312] bấm khi đang chạy bị bỏ qua; chạy lại mở bảng', async () => {
+  await test.step('[10D-C-312] đang chạy: nút disabled; chạy lại mở bảng', async () => {
     await page.getByRole('button', { name: 'Đóng bảng kết quả' }).click();
     await expect.soft(checkPanelHeading(page)).toBeHidden();
     await run.click();
