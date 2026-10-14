@@ -236,6 +236,11 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
         // VCH:57-66 / UVS:1070-1076: crumbs carry no onClick -> a plain <span>: red while the bug is there.
         const back = crumbOf(page).getByRole('button', { name: projectName, exact: true }).or(crumbOf(page).getByRole('link', { name: projectName, exact: true }));
         await expect.soft(back, 'project crumb is a button / link').toHaveCount(1);
+        if ((await back.count()) === 1) {
+          await back.click();
+          await expect.soft(page, 'clicking the crumb leaves the measure route').not.toHaveURL(/\/3d\/measure/u);
+          await openMeasure(page, projectId); // back on the screen for the next steps
+        }
         await shot(page, '25-A-003', 'crumb_leads_back');
       });
 
@@ -337,7 +342,7 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
         await expect.soft(page.getByRole('button', { name: 'Hiện tầng 2', exact: true })).toHaveAttribute('aria-pressed', 'false');
         await canvasChanged(page, before, 'hide storey 2');
         await shot(page, '25-A-018', 'storey_hidden');
-        await page.getByRole('button', { name: 'Hiện tầng 2', exact: true }).click(); // local only: put it back
+        await eye(page, 'tầng 2').click(); // local only: put it back (whatever the label is now)
       });
 
       await test.step('[25-A-019] ⚑ slider "Độ tách" -> 0,8: value changes AND the canvas changes (storeys apart)', async () => {
@@ -709,14 +714,10 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
         await shot(page, '25-A-028', 'pill_fixed');
       });
 
-      await test.step('[25-B-006] complete draft: "Chuỗi đo chưa đóng. …" hint', async () => {
-        await expect.soft(page.getByText(MT.partialHint, { exact: true })).toBeVisible();
-        await shot(page, '25-B-006', 'partial_hint');
-      });
-
       await test.step('[25-C-023] ⚑ in a two-point mode the hint says pin / Esc, not "Chọn thêm điểm"', async () => {
         // MTV:86 + UMT:945-947: every mode shows the same chain hint (red while the bug is there).
         await expect.soft(page.getByText(/Chọn thêm điểm/u)).toHaveCount(0);
+        await expect.soft(overlay(page).locator('p').filter({ hasText: /ghim|Enter|Esc/u }), 'the hint tells to pin / Esc').not.toHaveCount(0);
         await shot(page, '25-C-023', 'hint_two_points');
       });
 
@@ -768,6 +769,8 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
       let vertex: Point = [0, 0];
       let sent: Sent | undefined;
       let mark = 0;
+      let markEnter = 0;
+      let markDouble = 0;
       const posts = (from: number): number => calls(api, 'POST', measurementsRe(projectId), from).length;
       const draft = (): Promise<void> => makeDraft(page, [mid, vertex]);
       const measureOn = (): Promise<void> => expect(railTool(page, MT.railMeasure)).toHaveAttribute('aria-pressed', 'true');
@@ -787,6 +790,7 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
 
       await test.step('[25-A-030] key Enter pins: one POST #17 201 (first point = a wall midpoint)', async () => {
         mark = api.length;
+        markEnter = mark;
         const refetch = waitForApi(page, 'GET', measurementsRe(projectId), [200]);
         const posted = nextSent(page, 'POST', measurementsRe(projectId), [201]);
         await pressOnCanvas(page, 'Enter');
@@ -813,6 +817,7 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
       await test.step('[25-A-031] double-click on the pin button sends exactly one POST (NO-384)', async () => {
         await draft();
         mark = api.length;
+        markDouble = mark;
         const posted = nextSent(page, 'POST', measurementsRe(projectId), [201]);
         const refetch = waitForApi(page, 'GET', measurementsRe(projectId), [200]);
         await pinButton(page).dblclick();
@@ -834,6 +839,9 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
           await hold.release();
           await posted;
           await expect.soft(pinButton(page)).toHaveCount(0);
+          // Late "exactly one" checks of 25-A-030 / 25-G-008 / 25-A-031: a later real response (this POST) is now in the log.
+          expect.soft(posts(markEnter), 'POSTs since the Enter pin: Enter, double-click, held').toBe(3);
+          expect.soft(posts(markDouble), 'POSTs since the double-click: double-click, held').toBe(2);
         } finally {
           await hold.release();
         }
@@ -957,6 +965,7 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
         await pickCorner(0);
         await pickCorner(1);
         await hoverOffModel(page);
+        await softly.poll(() => chipText(page)).toBe(MT.chipSnapNone);
         expect.soft((await pillTexts(page)).filter((text) => text.includes('²')), 'no area pill yet (needs 3 points)').toEqual([]);
         await expect.soft(page.getByText(MT.partialHint, { exact: true })).toHaveCount(0);
         await shot(page, '25-C-019', 'area_two_points');
@@ -966,6 +975,12 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
         await pickCorner(2);
         await expect.soft(pillWith(page, '24,00 m²')).toBeVisible();
         await shot(page, '25-C-020', 'area_24');
+      });
+
+      await test.step('[25-B-006] complete draft (area mode, 3 picks): "Chuỗi đo chưa đóng. …" hint', async () => {
+        // Moved here from FL-25-05: in a two-point mode that sentence is what 25-C-023 calls the bug (MTV:86, UMT:945-947).
+        await expect.soft(page.getByText(MT.partialHint, { exact: true })).toBeVisible();
+        await shot(page, '25-B-006', 'partial_hint');
       });
 
       await test.step('[25-C-021] fourth pick (0,6000): "48,00 m²"; pin -> body with 4 points', async () => {
@@ -1363,8 +1378,10 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
       await test.step('[25-C-036] undo meets a re-taken id: POST 409 -> GET -> POST "MS-0006" 201, row "Phép đo 6"', async () => {
         const name = seedName('MS-0003');
         const deleted = nextSent(page, 'DELETE', measurementRe(projectId), [204]);
+        const afterDelete = waitForApi(page, 'GET', measurementsRe(projectId), [200]);
         await page.getByRole('button', { name: `Xoá ${name}`, exact: true }).click();
         await deleted;
+        await afterDelete; // the invalidation GET #16 of the delete is in the log before the mark
         expect(await postMeasurement(admin, projectId, other('MS-0003', `${seedName('MS-0003')}-x`)), '+X POST MS-0003').toBe(201);
         const mark = api.length;
         const restored = nextSent(page, 'POST', measurementsRe(projectId), [201]);
@@ -1516,6 +1533,7 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
       });
 
       await test.step('[25-E-015] ⚑ a keyboard user can highlight a row and press Delete', async () => {
+        await pointerAway(page); // E-012 clicked the eye: the mouse left on the row would keep the row highlighted
         const mark = api.length;
         await eye(page, name).focus();
         await page.keyboard.press('Delete');
@@ -1598,6 +1616,7 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
         await rowOf(page, name).hover();
         await page.keyboard.press('Delete');
         await nextFrames(page);
+        await openMeasure(page, projectId); // a real response (GET #16 200) after the attempts
         expect.soft(writesSince(api, mark), 'no POST / DELETE').toEqual([]);
         await shot(page, '25-D-008', 'viewer_no_writes');
       });
@@ -1635,7 +1654,7 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
           await shot(page, '25-D-002', 'engineer_writes');
         });
 
-        await test.step('[25-C-032] role lost while open: pin -> POST 403, toast "Bạn không có quyền ghim phép đo trong dự án này"', async () => {
+        await test.step('[25-C-032] role lost while open (changed at the first token refresh): pin -> POST 403, toast "Bạn không có quyền ghim phép đo trong dự án này"', async () => {
           if (engineer === undefined) throw new Error('engineer not prepared');
           expect(await setRole(admin, engineer, 'viewer'), '#41 demote').toBe(200);
           await makeDraft(page, pixels);
@@ -1646,6 +1665,13 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
         });
 
         await test.step('[25-C-033] "Xoá {name}" after the demotion: DELETE 403, toast "Bạn không có quyền xoá phép đo trong dự án này"', async () => {
+          // The role changes at the FIRST token refresh (401 SESSION_REVOKED -> refresh -> roles ['viewer'], refresh.ts:493), so after
+          // C-032 the shell is already read-only and "Xoá" is gone. Restore the role, reload, demote again, then delete.
+          if (engineer === undefined) throw new Error('engineer not prepared');
+          expect(await setRole(admin, engineer, 'engineer'), '#41 restore').toBe(200);
+          await openMeasure(page, projectId);
+          await expect(page.getByRole('button', { name: `Xoá ${name}`, exact: true })).toBeVisible();
+          expect(await setRole(admin, engineer, 'viewer'), '#41 demote again').toBe(200);
           const deleted = nextSent(page, 'DELETE', measurementRe(projectId), [403]);
           await page.getByRole('button', { name: `Xoá ${name}`, exact: true }).click();
           expect.soft((await deleted).status).toBe(403);
