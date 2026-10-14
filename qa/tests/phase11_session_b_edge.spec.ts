@@ -9,10 +9,10 @@ import { randomUUID } from 'node:crypto';
 
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 
-import { apiBaseUrl, signedInApi } from './support/api';
+import { signedInApi } from './support/api';
 import { captureEvidence } from './support/evidence';
 import { DESKTOP, p11Slot } from './support/p11/common';
-import { adminApi, disposeFreshUser, inviteFreshUser, recordWrites, signInAdminFresh, signInFresh } from './support/p11/P11';
+import { adminApi, disposeFreshUser, inviteFreshUser, recordWrites, refreshWithCookieOf, runCleanups, signInAdminFresh, signInFresh } from './support/p11/P11';
 import { poolUser, signInPoolUser, type PoolUser } from './support/phase03Seed';
 
 test.use({ viewport: DESKTOP });
@@ -22,7 +22,6 @@ const FORBIDDEN =
 const SELF_BLOCKED = 'Bạn không thể tự vô hiệu hoá tài khoản của mình'; // UMH:138
 const SESSION_ENDED = 'Phiên đăng nhập đã kết thúc. Hãy đăng nhập lại.'; // vi.json auth.notices.sessionEnded:200
 const PW_CHANGED = 'Đã đổi mật khẩu. Các phiên đăng nhập khác đã bị đăng xuất.'; // UAA:86
-const ORIGIN = (): Record<string, string> => ({ Origin: apiBaseUrl() });
 
 /** Opens `/admin/users`, filters by `email` ("Tìm người dùng", toolbar) and returns the row of that user. */
 async function userRow(page: Page, email: string) {
@@ -106,9 +105,9 @@ test.describe('phase 11 · session-b edge', () => {
       });
 
       await test.step('[11U-A-114] phiên đang mở của người đã xoá chết', async () => {
-        expect.soft((await ctx4.request.get('/api/me')).status()).toBe(401);
-        expect.soft((await ctx4.request.post('/api/auth/refresh', { headers: ORIGIN() })).status()).toBe(401); // US:452-455
-        await page4.reload();
+        // oracle: sessions.py:449-453 (/api/me without Bearer is always 401, routing.py:130-133: not evidence)
+        expect.soft(await refreshWithCookieOf(ctx4)).toEqual({ status: 401, code: 'SESSION_REVOKED' });
+        await page4.goto('/');
         await expect.soft(page4).toHaveURL(/\/login/u);
         await shot(page4, '11U-A-114', 'deleted_session_login');
       });
@@ -128,9 +127,7 @@ test.describe('phase 11 · session-b edge', () => {
       });
       writes.stop();
     } finally {
-      await closeAll(contexts);
-      await disposeFreshUser(admin, fu4);
-      await admin.dispose();
+      await runCleanups([() => closeAll(contexts), () => disposeFreshUser(admin, fu4, true), () => admin.dispose()]);
     }
   });
 
@@ -179,17 +176,16 @@ test.describe('phase 11 · session-b edge', () => {
         expect((await changed).status()).toBe(204);
         currentPassword = next;
         await expect.soft(page.getByText(PW_CHANGED, { exact: true })).toBeVisible(); // UAA:86
-        expect.soft((await ctx5b.request.get('/api/me')).status()).toBe(401);
-        expect.soft((await ctx5b.request.post('/api/auth/refresh', { headers: ORIGIN() })).status()).toBe(401); // US:211-217
+        // oracle: sessions.py:449-453, users/service.py:211-217 (revoke_sessions except current)
+        expect.soft(await refreshWithCookieOf(ctx5b)).toEqual({ status: 401, code: 'SESSION_REVOKED' });
         await shot(page, '11U-A-207', 'password_changed');
       });
 
       await test.step('[11U-A-208] ngữ cảnh thứ hai về /login, ngữ cảnh đổi còn phiên', async () => {
-        await page5b.reload();
+        await page5b.goto('/'); // same oracle as P10 (phase11_session_edge)
         await expect.soft(page5b).toHaveURL(/\/login/u);
-        // UNKNOWN — NEED VERIFICATION: that a reload (not a later API call) shows the session-ended notice.
         await expect.soft(page5b.getByText(SESSION_ENDED, { exact: true })).toBeVisible();
-        expect.soft((await ctx5.request.post('/api/auth/refresh', { headers: ORIGIN() })).status()).toBe(200);
+        expect.soft((await refreshWithCookieOf(ctx5)).status).toBe(200); // live control session
         await shot(page5b, '11U-A-208', 'revoked_session_login');
       });
 
@@ -203,16 +199,15 @@ test.describe('phase 11 · session-b edge', () => {
         try {
           const res = await own.delete(`/api/users/${fa.id}`, { data: { userId: fa.id, confirmEmail: fa.email } });
           expect(res.status()).toBe(422); // US:148-156 forbid_self (>= 2 admins)
-          expect(await res.text()).toContain('USER_SELF_MODIFICATION');
+          // oracle: users/errors.py:5; 422 needs >= 2 active admins (shared phase admin + fa)
+          expect(((await res.json()) as { code?: unknown }).code).toBe('USER_SELF_MODIFICATION');
         } finally {
           await own.dispose();
         }
         expect((await admin.get(`/api/users/${fa.id}/memberships`)).status()).toBe(200);
       });
     } finally {
-      await closeAll(contexts);
-      await disposeFreshUser(admin, fa);
-      await admin.dispose();
+      await runCleanups([() => closeAll(contexts), () => disposeFreshUser(admin, fa), () => admin.dispose()]);
     }
   });
 
@@ -239,8 +234,7 @@ test.describe('phase 11 · session-b edge', () => {
         await shot(page, '11U-D-312', 'engineer_access_denied');
       });
     } finally {
-      await context.close();
-      await admin.dispose();
+      await runCleanups([() => context.close(), () => admin.dispose()]);
     }
   });
 
@@ -260,8 +254,7 @@ test.describe('phase 11 · session-b edge', () => {
         await shot(page, '11U-D-152', 'viewer_forbidden');
       });
     } finally {
-      await context.close();
-      await admin.dispose();
+      await runCleanups([() => context.close(), () => admin.dispose()]);
     }
   });
 });
