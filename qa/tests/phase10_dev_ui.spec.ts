@@ -14,12 +14,19 @@ function expectNoHScroll(metrics: readonly { viewport: string; horizontalOverflo
   for (const m of metrics) expect.soft(m.horizontalOverflowPx, `h-scroll at ${m.viewport}`).toBeLessThanOrEqual(0);
 }
 
+/** The /demo shell is overflow-hidden (App.tsx:67): look inside the right frame for a descendant wider than its box. */
+const INNER_OVERFLOW = (): string[] =>
+  Array.from(document.querySelectorAll('div.flex-1.relative.overflow-hidden *'))
+    .filter((c) => c.scrollWidth > c.clientWidth + 1 && getComputedStyle(c).overflowX !== 'hidden')
+    .map((c) => `${c.tagName.toLowerCase()}.${String(c.className).slice(0, 40)} ${c.scrollWidth}>${c.clientWidth}`);
+
 /** `open` for a /demo screen: the shell, then the left-bar button `label` (App.tsx:78) when given, then its marker. */
-function demoScreen(label: string, marker: (p: Page) => ReturnType<Page['getByText']>): (p: Page) => Promise<void> {
+function demoScreen(label: string, marker: (p: Page) => ReturnType<Page['getByText']>, inner: string[]): (p: Page) => Promise<void> {
   return async (p) => {
     await openDemo(p);
     if (label !== '') await p.getByRole('button', { name: label, exact: true }).click();
     await expect(marker(p)).toBeVisible();
+    inner.push(...(await p.evaluate(INNER_OVERFLOW)));
   };
 }
 
@@ -27,18 +34,24 @@ test('SCR-40 · FL-10D-09 · anon · UI /demo và /design-system 4 khổ', async
   test.setTimeout(240_000);
 
   await test.step('[10D-F-101] /demo mặc định 4 khổ', async () => {
-    const m = await verifyUi(page, 'D10_10D-F-101_demo', demoScreen('', (p) => p.getByText('Foundation Components Demo', { exact: true })), DESKTOP_VIEWPORTS);
+    const inner: string[] = [];
+    const m = await verifyUi(page, 'D10_10D-F-101_demo', demoScreen('', (p) => p.getByText('Foundation Components Demo', { exact: true }), inner), DESKTOP_VIEWPORTS);
     expectNoHScroll(m);
+    expect.soft(inner, 'overflow inside the right frame').toEqual([]);
   });
 
   await test.step('[10D-F-102] MotionDemo 8 mục 4 khổ', async () => {
-    const m = await verifyUi(page, 'D10_10D-F-102_motion', demoScreen('Motion & Transitions', (p) => p.getByRole('heading', { name: 'Chuyển cảnh và nhịp', exact: true })), DESKTOP_VIEWPORTS); // MotionDemo:75
+    const inner: string[] = [];
+    const m = await verifyUi(page, 'D10_10D-F-102_motion', demoScreen('Motion & Transitions', (p) => p.getByRole('heading', { name: 'Chuyển cảnh và nhịp', exact: true }), inner), DESKTOP_VIEWPORTS); // MotionDemo:75
     expectNoHScroll(m);
+    expect.soft(inner, 'overflow inside the right frame').toEqual([]);
   });
 
   await test.step('[10D-F-103] State Gallery (QA) 4 khổ', async () => {
-    const m = await verifyUi(page, 'D10_10D-F-103_state_gallery', demoScreen('State Gallery (QA)', (p) => p.getByRole('heading', { name: 'State Gallery (QA)', exact: true, level: 1 })), DESKTOP_VIEWPORTS); // StateGallery.tsx:42
+    const inner: string[] = [];
+    const m = await verifyUi(page, 'D10_10D-F-103_state_gallery', demoScreen('State Gallery (QA)', (p) => p.getByRole('heading', { name: 'State Gallery (QA)', exact: true, level: 1 }), inner), DESKTOP_VIEWPORTS); // StateGallery.tsx:42
     expectNoHScroll(m);
+    expect.soft(inner, 'overflow inside the right frame').toEqual([]);
   });
 
   await test.step('[10D-F-201] /design-system 4 khổ', async () => {
