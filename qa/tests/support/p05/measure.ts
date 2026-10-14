@@ -591,7 +591,7 @@ export interface HoverOptions {
 export async function hoverUntilSnap(page: Page, label: typeof MT.vertex | typeof MT.midpoint, options: HoverOptions = {}): Promise<Point> {
   const bounds = await modelBounds(page);
   const targets = options.near ?? targetPixels(bounds, label === MT.vertex ? SEED_VERTICES : SEED_MIDPOINTS);
-  const minDist = options.minDistPx ?? 24;
+  const minDist = options.minDistPx ?? 60; // two picks must be clearly apart (>= 60 px), else the 2nd lands on the 1st
   const apart = (p: Point): boolean => (options.avoid ?? []).every((q) => Math.hypot(p[0] - q[0], p[1] - q[1]) >= minDist);
   const step = Math.max(2, pxPerMm(bounds) * 50);
   let first = true;
@@ -632,6 +632,7 @@ export async function clickAt(page: Page, [x, y]: Point): Promise<void> {
 /** Hover until `label`, click there, return the pixel. */
 export async function pickSnap(page: Page, label: typeof MT.vertex | typeof MT.midpoint, options: HoverOptions = {}): Promise<Point> {
   const point = await hoverUntilSnap(page, label, options);
+  await expect(snapChip(page), "snap chip still names the target right before the click").toHaveText(label);
   await clickAt(page, point);
   return point;
 }

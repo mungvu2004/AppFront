@@ -649,6 +649,8 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
       });
 
       await test.step('[25-A-025] hover off-model: "Chưa bắt vào đâu"; hover a wall end: "Đỉnh"', async () => {
+        await page.getByRole('group', { name: MT.zoomGroup, exact: true }).getByRole('button', { name: 'Thu nhỏ', exact: true }).click(); // the model fills the frame: leave room for far pixels (25-A-027)
+        await settledCanvas(page);
         basePills = await pills(page).count();
         await hoverOffModel(page);
         await softly.poll(() => chipText(page)).toBe(MT.chipSnapNone);
@@ -658,21 +660,23 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
       });
 
       await test.step('[25-E-008] the chip is a status that holds the label', async () => {
+        await hoverNear(page, MT.vertex, first); // the chip is re-read on a fresh hover: the screenshot of 25-A-025 moved the pointer
         await expect.soft(snapChip(page)).toHaveCount(1);
         await expect.soft(snapChip(page)).toHaveText('Đỉnh'); // MSC:56 role="status"
         await shot(page, '25-E-008', 'chip_status');
       });
 
-      await test.step('[25-A-026] click the vertex: "Ghim phép đo (phím Enter)" appears', async () => {
+      await test.step('[25-A-026] click the vertex: one point is drawn and the pin button stays hidden (BUG-651)', async () => {
         await clickAt(page, first);
-        await expect.soft(pinButton(page)).toBeVisible();
+        await expect.soft(pinButton(page), 'no pin with one point').toHaveCount(0);
+        await expect.soft(dropButton(page)).toBeVisible();
         await shot(page, '25-A-026', 'first_point');
       });
 
       await test.step('[25-B-005] one point: no "Chuỗi đo chưa đóng…", viewport not busy, buttons reachable', async () => {
         await expect.soft(page.getByText(MT.partialHint, { exact: true })).toHaveCount(0);
         await expect.soft(viewport(page)).toHaveAttribute('aria-busy', 'false');
-        for (const button of [pinButton(page), dropButton(page), toggleButton(page)]) await expect.soft(button).toBeVisible();
+        for (const button of [dropButton(page), toggleButton(page)]) await expect.soft(button).toBeVisible();
         await shot(page, '25-B-005', 'measuring_state');
       });
 
@@ -1503,7 +1507,10 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
         await openMeasure(page, projectId);
         await topView(page);
         await startMeasuring(page);
-        await pickSnap(page, MT.vertex);
+        const discBase = await discCount(page);
+        const a = await pickSnap(page, MT.vertex);
+        await pickSnap(page, MT.vertex, { avoid: [a] });
+        await expectPicks(page, discBase, 2); // the pin shows only with 2 points (BUG-651)
         await expect.soft(pinButton(page)).toBeVisible();
         for (const [button, key] of [[pinButton(page), 'Enter'], [dropButton(page), 'Esc'], [toggleButton(page), 'M']] as const) {
           await expect.soft(kbdOf(button)).toHaveText(key);
@@ -1564,7 +1571,7 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
       return openPoolPage(b, viewer);
     };
     await withMeasureProject(browser, { slug: 'm25-15', records: R1, open }, async ({ page, api, projectId }) => {
-      const caption = 'Bạn chỉ có quyền xem dự án này, nên chưa ghim được phép đo. vẫn đo và đọc số bình thường.'; // UMT:201-202
+      const caption = 'Bạn chỉ có quyền xem dự án này, nên chưa ghim được phép đo. Vẫn đo và đọc số bình thường.'; // UMT:201-202 (FD d1a2908d: capital V)
       const name = seedName('MS-0003');
       let mark = 0;
 
@@ -1583,7 +1590,7 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
       });
 
       await test.step('[25-D-005] ⚑ the second sentence starts with a capital ("Vẫn đo") and the notice is said once', async () => {
-        // UMT:202 writes "vẫn" in lower case and three places say the same idea (overlay, list, inspector): red.
+        // Capital fixed by FD d1a2908d; the same idea is still said in several places (overlay, list, inspector): red while it is.
         await expect.soft(page.getByText(/nên chưa ghim được phép đo\. Vẫn đo/u)).not.toHaveCount(0);
         await expect.soft(page.getByText(/Bạn chỉ có quyền xem dự án này/u), 'said once').toHaveCount(1);
         await shot(page, '25-D-005', 'viewer_copy');
