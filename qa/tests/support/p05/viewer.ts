@@ -47,7 +47,8 @@ export const SAVE_WINDOW_MS = 1_800;
 
 export const PV = {
   title: 'Mô hình 3D', // PVT PASCAL_VIEWER_TITLE
-  leave: 'Về màn xem 3D', // PVT PASCAL_LEAVE_LABEL
+  leave: 'Về quản lý tầng', // PVT:153 PASCAL_LEAVE_LABEL (FA round 2, BUG-487) → ROUTES.project.floors (PVC:413)
+  oldLeave: 'Về màn xem 3D', // pre-F-15 label; must not come back (23-A-003)
   reprocess: 'Xử lý lại bản vẽ', // PVT PASCAL_REPROCESS_LABEL
   loading: 'Đang nạp khung dựng hình…', // PVT:118
   emptyCaption: 'Bản vẽ chưa có đối tượng nào để dựng.', // PVT:119
@@ -113,6 +114,8 @@ export const PASCAL = {
   englishChrome: ['Select', 'Zone', 'Delete', 'Orbit Left', 'Orbit Right', 'Top View', 'Site', 'Settings', 'Expand panel', 'Collapse panel'],
   /** panel-wrapper.tsx:369 inspector extension buttons `Open <title>` / `Close <title>`. */
   englishChromePattern: /^(Open|Close) /u,
+  /** level-mode-action.tsx:23-28 `aria-label="Chế độ tầng: <Xếp tầng|Tách tầng>"` + `aria-pressed` (editorAndViewer.ts:127-128,161). */
+  levelMode: (mode: 'Xếp tầng' | 'Tách tầng'): string => `Chế độ tầng: ${mode}`,
 } as const;
 
 export const PRESENCE = {
@@ -400,6 +403,12 @@ export async function levelModeOf(page: Page): Promise<string | null> {
  * rail button inside `.pascal-root` is hovered until the tooltip text shows, then clicked (flows-C1 "Edit vehicle").
  */
 export async function openPascalPanel(page: Page, label: string): Promise<void> {
+  // FA round 2: rail buttons carry `aria-label` = panel label (icon-rail.tsx:61,104,136); the hover path stays as fallback.
+  const named = pascalRoot(page).getByRole('button', { name: label, exact: true });
+  if ((await named.count()) > 0) {
+    await named.first().click();
+    return;
+  }
   const rail = pascalRoot(page).locator('button.h-9.w-9');
   const tooltip = page.getByRole('tooltip').filter({ hasText: new RegExp(`^${label}$`, 'u') });
   const count = await rail.count();
