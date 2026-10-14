@@ -1,7 +1,7 @@
 'use client'
 
 import { useScene } from '@pascal-app/core'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { furnitureLibrary as vi } from '../../../i18n/regions/furnitureLibrary'
 import { cn } from '../../../lib/utils'
 import useEditor from '../../../store/use-editor'
@@ -37,11 +37,14 @@ export function DetectedFurnitureStrip({ readOnly }: { readOnly: boolean }) {
   const groups = useMemo(() => groupDetectedItems(nodes), [nodes])
   const [plan, setPlan] = useState<ReplacePlan | null>(null)
   const [dropTarget, setDropTarget] = useState<string | null>(null)
+  // No Radix trigger here, so the dialog cannot return focus by itself (23F-E-005).
+  const returnFocus = useRef<HTMLElement | null>(null)
 
   if (groups.length === 0 || readOnly) return null
 
   const handleDrop = (group: DetectedGroup, event: React.DragEvent) => {
     setDropTarget(null)
+    returnFocus.current = event.currentTarget.querySelector('button')
     const id = event.dataTransfer.getData(CATALOG_DRAG_TYPE)
     const item = CATALOG_ITEMS.find((candidate) => candidate.id === id)
     if (item) setPlan(planReplaceAll(group, item))
@@ -74,7 +77,10 @@ export function DetectedFurnitureStrip({ readOnly }: { readOnly: boolean }) {
             <button
               className="shrink-0 rounded-md px-2 py-1 text-xs hover:bg-accent disabled:opacity-50"
               disabled={!selectedItem}
-              onClick={() => selectedItem && setPlan(planReplaceAll(group, selectedItem))}
+              onClick={(event) => {
+                returnFocus.current = event.currentTarget
+                if (selectedItem) setPlan(planReplaceAll(group, selectedItem))
+              }}
               title={selectedItem ? undefined : vi.replaceAllNeedsItem}
               type="button"
             >
@@ -85,7 +91,14 @@ export function DetectedFurnitureStrip({ readOnly }: { readOnly: boolean }) {
       </ul>
 
       <Dialog onOpenChange={(open) => !open && setPlan(null)} open={plan !== null}>
-        <DialogContent className="sm:max-w-md" showCloseButton={false}>
+        <DialogContent
+          className="sm:max-w-md"
+          onCloseAutoFocus={(event) => {
+            event.preventDefault()
+            returnFocus.current?.focus()
+          }}
+          showCloseButton={false}
+        >
           <DialogHeader>
             <DialogTitle>
               {plan && vi.previewTitle(plan.group.name, plan.rows.length)}
