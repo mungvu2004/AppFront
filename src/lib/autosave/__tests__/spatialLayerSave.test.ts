@@ -7,6 +7,8 @@ import type { HttpError } from '@/lib/http';
 
 import {
   SAMPLE_BUILDING,
+  sampleAxisId,
+  sampleDimensionId,
   sampleFurnitureId,
   sampleLevelId,
   sampleWindowId,
@@ -69,12 +71,33 @@ describe('changedLevelIds — B-V8-41: đích lưu là mọi tầng có thứ b�
     expect([...changedLevelIds(base, next)].sort()).toEqual([furniture.levelId, target].sort());
   });
 
-  it('thêm rồi xoá một đồ đạc thì vẫn ra tầng ấy — mảng byLevel đã đổi tham chiếu', () => {
+  it('thêm một đồ đạc thì ra tầng ấy; thêm rồi xoá thì không — lớp gửi đi y như cũ', () => {
     const extra: Furniture = { ...furniture, id: sampleFurnitureId(99) };
     const added = applyPatch(base, [{ entity: extra, kind: 'furniture', op: 'add' }]);
     const removed = applyPatch(added, [{ id: extra.id, kind: 'furniture', op: 'remove' }]);
 
-    expect(changedLevelIds(base, removed)).toEqual([furniture.levelId]);
+    expect(changedLevelIds(base, added)).toEqual([furniture.levelId]);
+    expect(changedLevelIds(base, removed)).toEqual([]);
+  });
+
+  it('G14/G22: đổi trục hay kích thước thì không tầng nào — thân PUT không mang chúng', () => {
+    const axisId = sampleAxisId(0);
+    const dimensionId = sampleDimensionId(0);
+    const axis = readEntity(base, 'axis', axisId);
+    const dimension = readEntity(base, 'dimension', dimensionId);
+
+    if (axis === null || dimension === null) {
+      throw new Error('bộ mẫu thiếu trục 0 hoặc kích thước 0');
+    }
+
+    const moved = applyPatch(base, [
+      { changes: { label: 'Z' }, id: axisId, kind: 'axis', op: 'update' },
+      { changes: { overrideValueMm: 1234 }, id: dimensionId, kind: 'dimension', op: 'update' },
+    ]);
+    const added = applyPatch(base, [{ entity: { ...axis, id: sampleAxisId(99) }, kind: 'axis', op: 'add' }]);
+
+    expect(changedLevelIds(base, moved)).toEqual([]);
+    expect(changedLevelIds(base, added)).toEqual([]);
   });
 
   it('tầng đã bị xoá khỏi đồ thị mới thì không ra', () => {

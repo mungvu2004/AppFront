@@ -350,7 +350,7 @@ describe('[BUG-326] đọc lớp hỏng thay cả màn bằng một trạng thá
     renderWithProviders(
       <AxisGridManagerContainer
         floorId={String(AXIS_GRID_FIXTURE_FLOOR1.levelId)}
-        gateway={{ ...createMockAxisGridManagerGateway(), readAxisLayer: () => Promise.reject(FLOOR_GONE) }}
+        gateway={{ ...createMockAxisGridManagerGateway(), readLayer: () => Promise.reject(FLOOR_GONE) }}
         onNavigate={onNavigate}
         projectId="project-axis-grid"
         roles={['engineer']}

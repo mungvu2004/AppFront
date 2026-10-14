@@ -24,8 +24,8 @@
  *
  * ## Trạng thái máy chủ (R-64)
  *
- * Không `useState` nào giữ cờ đang-tải hay cờ hỏng. Lớp trục đi qua `useQuery`
- * dưới khoá `queryKeys.space.byFloor` — đúng khoá mà `invalidationMap.changeAxis`
+ * Không `useState` nào giữ cờ đang-tải hay cờ hỏng. N16 đi qua `useFloorLayer` (G22);
+ * lượt ghi trục dọn khoá `space.byFloor` qua `invalidationMap.changeAxis`
  * dọn sau mỗi lượt ghi — và mọi lượt ghi gọi
  * `applyInvalidation(queryClient, 'changeAxis', …)`, không `invalidateQueries`
  * trần. `useState` ở đây chỉ giữ trạng thái của riêng giao diện: trục đang chọn,
@@ -56,7 +56,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { alignFloors, type FloorAlignmentReport, type FloorIssue } from '@/domain/axes/alignFloors';
 import { axisLine, type DetectedAxis } from '@/domain/axes/detect';
@@ -85,7 +85,7 @@ import { formatLength } from '@/lib/format/measure';
 import { formatNumber, MISSING_VALUE } from '@/lib/format/number';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { applyInvalidation } from '@/lib/query/invalidation';
-import { queryKeys } from '@/lib/query/queryKeys';
+import { useFloorLayer } from '@/hooks/useFloorLayer';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import { useShortcut } from '@/hooks/useShortcut';
 import { useStore } from '@/store';
@@ -429,34 +429,34 @@ export function useAxisGridManager(
   /* Lượt đọc máy chủ (R-64).                                                 */
   /* ---------------------------------------------------------------------- */
 
-  const axisLayerQuery = useQuery({
-    queryKey: queryKeys.space.byFloor(floorId),
-    queryFn: ({ signal }) => gateway.readAxisLayer({ floorId, projectId, signal }),
-  });
+  /*
+   * N16 của tầng URL — `useFloorLayer` quyết định nó vào kho thế nào (G22): kho giữ
+   * tầng khác (vào bằng SPA) thì tầng này được đọc và thêm vào, không "Chưa có trục nào".
+   */
+  const floorLayer = useFloorLayer({ floorId, projectId, read: gateway.readLayer });
 
-  const storeGraph = useStore((state) => state.spatial);
+  const graph = useStore((state) => state.spatial);
   const setSpatial = useStore((state) => state.setSpatial);
 
-  const loaded = axisLayerQuery.data ?? null;
-
-  /* Nạp đồ thị của tầng vào kho một lần, nếu kho còn trống. */
+  /* Cổng giả (story, test) cắm đồ thị bộ mẫu vào kho còn trống, revision 0 khớp N16 giả. */
   useEffect(() => {
-    if (storeGraph === null && loaded !== null) {
-      setSpatial(loaded, null, { floorRevisions: {}, projectId });
+    if (graph !== null) {
+      return;
     }
-  }, [loaded, projectId, setSpatial, storeGraph]);
 
-  /*
-   * Đọc kho trước, lượt tải sau: giữa lúc `useEffect` trên chưa chạy, view vẫn
-   * có dữ liệu để vẽ — đúng cái màn trắng mà A11 tồn tại để chặn.
-   */
-  const graph = storeGraph ?? loaded;
+    const seed = gateway.graph.read();
+
+    if (seed !== null) {
+      setSpatial(seed, null, { floorRevisions: { [floorId]: 0 }, projectId });
+    }
+  }, [floorId, gateway, graph, projectId, setSpatial]);
+
   const level = useMemo(() => levelOf(graph, options.levelId), [graph, options.levelId]);
   const levelId = level?.id ?? null;
 
-  const hasError = axisLayerQuery.isError;
-  const readFailure = useFloorLayerReadFailure(axisLayerQuery, projectId, options.onNavigate);
-  const isLoading = axisLayerQuery.isPending || graph === null;
+  const hasError = floorLayer.error !== null;
+  const readFailure = useFloorLayerReadFailure(floorLayer, projectId, options.onNavigate);
+  const isLoading = floorLayer.isPending || graph === null;
 
   /* ---------------------------------------------------------------------- */
   /* Trục — kho trước, dò tự động sau. Màn KHÔNG tự sinh trục.                */
@@ -985,11 +985,12 @@ export function useAxisGridManager(
    * rỗng chỉ có khi lượt dò từ tường KHÔNG ra trục nào, nên nút ấy không bao giờ
    * suy ra được gì. Trạng thái rỗng nay mời "Thêm trục ngang" (`onAxisAdd`).
    */
+  const refetchLayer = floorLayer.refetch;
   const onRetry = useCallback(() => {
     if (hasError) {
-      void axisLayerQuery.refetch();
+      refetchLayer();
     }
-  }, [axisLayerQuery, hasError]);
+  }, [refetchLayer, hasError]);
 
   /* ---------------------------------------------------------------------- */
   /* Phím tắt (A12) — không một `addEventListener` nào (R-72).                */
@@ -1220,8 +1221,8 @@ export function useAxisGridManager(
       return null;
     }
 
-    return describeError(toAppError(axisLayerQuery.error)).description;
-  }, [axisLayerQuery.error, hasError]);
+    return describeError(toAppError(floorLayer.error)).description;
+  }, [floorLayer.error, hasError]);
 
   const viewModel = useMemo<AxisGridViewModel>(
     () => ({

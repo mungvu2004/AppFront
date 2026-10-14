@@ -318,21 +318,21 @@ describe('[NGHIEM-1] bảy trạng thái của A11', () => {
     const args = scenarioArgsFor('error');
     const base = args.gateway;
     if (base === undefined) throw new Error('kịch bản lỗi phải mang cổng giả');
-    const readDimensionLayer = vi.fn(base.readDimensionLayer);
+    const readLayer = vi.fn(base.readLayer);
 
     renderWithProviders(
       <MemoryRouter>
-        <DimensionOcrReviewContainer {...args} gateway={{ ...base, readDimensionLayer }} />
+        <DimensionOcrReviewContainer {...args} gateway={{ ...base, readLayer }} />
       </MemoryRouter>,
     );
 
     const retry = await screen.findByRole('button', { name: DIMENSION_OCR_TEXT.states.error.actionLabel });
-    const callsBefore = readDimensionLayer.mock.calls.length;
+    const callsBefore = readLayer.mock.calls.length;
 
     fireEvent.click(retry);
 
     await waitFor(() => {
-      expect(readDimensionLayer.mock.calls.length).toBeGreaterThan(callsBefore);
+      expect(readLayer.mock.calls.length).toBeGreaterThan(callsBefore);
     });
   });
 

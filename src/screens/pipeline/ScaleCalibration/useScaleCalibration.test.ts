@@ -42,6 +42,7 @@ import { RETRY_SCHEDULE_MS } from '@/lib/autosave/retrySchedule';
 // Nạp tĩnh các module còn lại mà ống lưu theo tầng `import()` lười (`useAutosave.ts`; `spatialLayerSave`
 // đã nhập ở trên), để `settleAsync` chỉ cần chờ chúng một lần.
 import '@/lib/query/invalidation';
+import { queryKeys } from '@/lib/query/queryKeys';
 import '@/api/appClient';
 import { formatLength } from '@/lib/format/measure';
 import { formatNumber } from '@/lib/format/number';
@@ -321,6 +322,7 @@ async function makeHarness(options: HarnessOptions = {}): Promise<Harness> {
 interface MountOptions {
   readonly roles?: readonly ProjectRole[];
   readonly forceCollapsed?: boolean;
+  readonly queryClient?: ReturnType<typeof createTestQueryClient>;
 }
 
 interface Mounted {
@@ -329,7 +331,7 @@ interface Mounted {
 }
 
 function mountHook(gateway: ScaleCalibrationGateway, options: MountOptions = {}): Mounted {
-  const queryClient = createTestQueryClient();
+  const queryClient = options.queryClient ?? createTestQueryClient();
   const wrapper = ({ children }: { children: ReactNode }): ReactNode =>
     createElement(QueryClientProvider, { client: queryClient }, children);
 
@@ -446,6 +448,22 @@ function imageWidthPxOf(mounted: Mounted): number {
 /* -------------------------------------------------------------------------- */
 
 describe('useScaleCalibration — tỷ lệ do M-02 tính', () => {
+  it('G25: ảnh nền của màn QC (hình khác) trong đệm không làm canvas trắng khi vào bằng SPA', async () => {
+    const harness = await makeHarness();
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(queryKeys.drawing.byFloor(FLOOR_ID), {
+      imageUrl: 'qc-background.png',
+      imageAlt: 'Bản vẽ gốc',
+      widthMm: 1000,
+      heightMm: 1000,
+    });
+    const mounted = mountHook(harness.gateway, { queryClient });
+    await settle(mounted);
+
+    expect(mounted.result.current.model.canvas.imageUrl).not.toBeNull();
+    expect(mounted.result.current.model.canvas.imageUrl).not.toBe('qc-background.png');
+  });
+
   it('kéo đoạn 400 px rồi nhập 4800 mm cho ra 12 mm/px, và hiện đủ phép tính', async () => {
     const harness = await makeHarness();
     const mounted = mountHook(harness.gateway);

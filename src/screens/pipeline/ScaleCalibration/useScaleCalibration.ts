@@ -568,6 +568,9 @@ export function __resetScaleRatioMarks(): void {
 /* Hook.                                                                        */
 /* -------------------------------------------------------------------------- */
 
+/** Hậu tố khoá đệm bản ghi hiệu chỉnh — xem ghi chú ở `useQuery` của hook. */
+const SCALE_CALIBRATION_QUERY_SCOPE = 'scaleCalibration';
+
 /** `(options) => UseScaleCalibrationResult` cho `ScaleCalibration.container.tsx`. */
 export function useScaleCalibration(
   options: UseScaleCalibrationHookOptions,
@@ -583,8 +586,13 @@ export function useScaleCalibration(
   /* Trạng thái máy chủ (R-64) — một khoá đệm cho bản vẽ của tầng.           */
   /* ---------------------------------------------------------------------- */
 
+  /*
+   * Hậu tố riêng (G25): các màn QC giữ ẢNH NỀN dưới đúng `drawing.byFloor(floorId)`
+   * với hình khác; vào bằng SPA trong `staleTime` thì màn này đọc nhầm hình ấy và canvas
+   * trắng. Nối hậu tố như `CAD_INSPECTION_QUERY_SCOPE` — vẫn mất hiệu lực theo tiền tố.
+   */
   const query = useQuery({
-    queryKey: queryKeys.drawing.byFloor(floorId),
+    queryKey: [...queryKeys.drawing.byFloor(floorId), SCALE_CALIBRATION_QUERY_SCOPE],
     queryFn: async (): Promise<ScaleCalibrationRecord> => {
       const drawing = await gateway.readFloorDrawing({ floorId, projectId });
 

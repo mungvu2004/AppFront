@@ -53,6 +53,7 @@ import { Button } from '@/components/ui/Button';
 import { getButtonStyles } from '@/components/ui/buttonVariants';
 import { cn } from '@/lib/utils';
 
+import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { DIMENSION_OCR_TEXT } from './dimensionOcrText';
 import { DimensionOcrCanvas } from './DimensionOcrCanvas';
 import { DimensionOcrCompareBar } from './DimensionOcrCompareBar';
@@ -217,6 +218,14 @@ export function DimensionOcrReview({
   scaleCalibrationHref,
   ...model
 }: DimensionOcrReviewViewProps) {
+  if (model.readFailure != null) {
+    return (
+      <div aria-label={SCREEN_ARIA_LABEL} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+        <FloorLayerReadFailureScreen failure={model.readFailure} />
+      </div>
+    );
+  }
+
   /*
     Chế độ duyệt bàn phím thu CẢ MÀN về một ảnh cắt và một ô nhập — đường nhanh
     nhất của màn, và đặc tả đòi nó không còn thứ gì khác trên màn hình để nhìn.

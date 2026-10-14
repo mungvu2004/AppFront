@@ -48,9 +48,9 @@
  * không phải giả lập một router; và view không biết `react-router-dom` tồn tại.
  */
 
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { AlertCircle } from 'lucide-react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -94,6 +94,8 @@ export interface DimensionOcrReviewContainerProps {
   readonly forceCollapsed?: boolean;
   /** Bus thông báo riêng — hai lượt kiểm không thấy toast của nhau. */
   readonly notifications?: NotificationBus;
+  /** Lối ra của màn "không mở được tầng này" (G09). */
+  readonly onNavigate?: (path: string) => void;
 }
 
 /** Cùng khuôn `ScreenCrashFallback` của `src/App.tsx` — R-62. */
@@ -128,6 +130,7 @@ function WiredDimensionOcrReview(props: DimensionOcrReviewContainerProps) {
     ...(props.registry !== undefined ? { registry: props.registry } : {}),
     ...(props.forceCollapsed !== undefined ? { forceCollapsed: props.forceCollapsed } : {}),
     ...(props.notifications !== undefined ? { notifications: props.notifications } : {}),
+    ...(props.onNavigate !== undefined ? { onNavigate: props.onNavigate } : {}),
   });
 
   const scaleCalibrationHref = useMemo(
@@ -158,6 +161,13 @@ export function DimensionOcrReviewRoute() {
   const { floorId, projectId: id } = useParams<{ floorId: string; projectId: string }>();
   const session = useSession();
   const roles = useMemo(() => session.roles, [session.roles]);
+  const navigate = useNavigate();
+  const onNavigate = useCallback(
+    (path: string) => {
+      navigate(path);
+    },
+    [navigate],
+  );
 
   if (id === undefined || id.length === 0 || floorId === undefined || floorId.length === 0) {
     return (
@@ -171,5 +181,5 @@ export function DimensionOcrReviewRoute() {
     );
   }
 
-  return <DimensionOcrReviewContainer floorId={floorId} projectId={id} roles={roles} />;
+  return <DimensionOcrReviewContainer floorId={floorId} onNavigate={onNavigate} projectId={id} roles={roles} />;
 }
