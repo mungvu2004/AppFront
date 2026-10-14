@@ -46,6 +46,7 @@ import {
   rowLabel,
   modelMapper,
   discCount,
+  settledDiscCount,
   seedMeasurements,
   seedProject,
   seedR1,
@@ -311,7 +312,7 @@ test.describe('SCR-25 measure — mocked responses', () => {
         expect.soft(hit, 'a hover near (2000,3000) reads "Giao trục"').not.toBeNull(); // MTG:248-269
         await captureEvidence(page, 'E05m_25-C-016_axis_snap.png');
         if (hit !== null) {
-          const before = await discCount(page);
+          const before = await settledDiscCount(page);
           await page.mouse.click(hit[0], hit[1]);
           await expect.poll(() => discCount(page), { message: 'first point picked' }).toBe(before + 1);
           // second point: a far outer corner of the model
