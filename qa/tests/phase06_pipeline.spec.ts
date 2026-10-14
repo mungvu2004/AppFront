@@ -374,10 +374,9 @@ test('SCR-31 · FL-M-31-01 · data viewer on the shared pipeline project', async
   });
 
   await test.step('[31-A-009] search shows "i / n" and flashes the matching rows', async () => {
-    const term = (await items().first().locator('code').first().innerText()).trim();
-    expect(term.length, 'first tree key').toBeGreaterThan(0);
-    await search().fill(term);
-    await expect.soft(matchLabel()).toHaveText(/^1 \/ [1-9][\d.]*$/u);
+    // A repeated key (wall thicknessMm, ~10 rows): the first hit is auto-selected (bg-bg-selected), hits 2..n carry bg-bg-flash.
+    await search().fill('thicknessMm');
+    await expect.soft(matchLabel()).toHaveText(/^1 \/ (?:[2-9]|[1-9][\d.]+)$/u);
     await expect.soft(tree().locator('[role="treeitem"][class*="bg-bg-flash"]').first()).toBeVisible();
     await shot('E06d', '31-A-009', 'search_flash');
   });
@@ -586,7 +585,10 @@ test('SCR-32 · FL-M-32-02 · tabs JSON / Trực quan, visual unavailable copy, 
 
   await test.step('[32-A-008] unticking one version drops to the "no pair" sentence', async () => {
     await diffTabs().getByRole('tab', { name: 'Thay đổi', exact: true }).click();
-    await page.getByRole('checkbox', { name: VH.checkbox('v1'), exact: true }).uncheck();
+    // The input is sr-only under the drawn box; click its label like a user would (Checkbox.tsx wraps it in <label for>).
+    const v1Box = page.getByRole('checkbox', { name: VH.checkbox('v1'), exact: true });
+    await versionList().locator('label').filter({ has: v1Box }).click();
+    await expect.soft(v1Box).not.toBeChecked();
     await expect.soft(page.getByText(VH.noPair, { exact: true })).toBeVisible();
     await expect.soft(versionList().getByRole('checkbox', { checked: true })).toHaveCount(1);
     await expect.soft(page.getByRole('combobox', { name: 'Phiên bản gốc', exact: true })).toHaveCount(0);
@@ -762,11 +764,12 @@ test('SCR-32 · FL-M-32-04 · restore the AI version (LAST test of the file)', a
     await rightList.getByRole('option', { name: /^v2 ·/u }).click();
     await expect(rightList).toHaveCount(0);
     const leftList = await openSelect(left);
-    await leftList.getByRole('option', { name: /^v4 ·/u }).click();
+    await leftList.getByRole('option', { name: /^v3 ·/u }).click();
     await expect(leftList).toHaveCount(0);
-    // S5-confirm: the displayed pair is ordered (orderPair) once left (v4) is newer than right (v2)
+    // S5-confirm: the displayed pair is ordered (orderPair) once left (v3) is newer than right (v2). v4 == v2 after the restore
+    // (empty diff), so v3 is the newer version that still differs from v2.
     await expect.soft(left).toContainText(/^v2 ·/u);
-    await expect.soft(right).toContainText(/^v4 ·/u);
+    await expect.soft(right).toContainText(/^v3 ·/u);
     await expect.soft(versionList().getByRole('checkbox', { checked: true })).toHaveCount(2);
     await expect.soft(compare.getByRole('status').filter({ hasText: /^Thêm [\d.]+, xoá [\d.]+, thay đổi [\d.]+$/u })).toHaveCount(1);
     await shot('E06v', '32-A-011', 'left_select');
