@@ -44,6 +44,7 @@ import {
   adminRequest,
   allHeaders,
   confirmButton,
+  createCleanProject,
   createRuleProject,
   expandAll,
   expandRule,
@@ -697,13 +698,6 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         await shot(page, '28-B-004', 'ready_no_critical');
       });
 
-      await test.step('[28-A-022] no "done" panel while warnings exist', async () => {
-        await expect.soft(page.getByText('Không phát hiện vi phạm nào.', { exact: true })).toHaveCount(0);
-        await expect.soft(page.getByText(/^\d[\d.]* luật đã chạy trên bản vẽ này và không luật nào bắt được lỗi\.$/u)).toHaveCount(0);
-        await expect.soft(page.getByText('Lượt chạy này không có vi phạm', { exact: true })).toHaveCount(0);
-        await shot(page, '28-A-022', 'no_done_panel');
-      });
-
       await test.step('[28-B-005] ⚑ warnings stay reachable', async () => {
         expect.soft(await settledInt(summaryValue(page, 'Cảnh báo')), 'Cảnh báo').toBeGreaterThan(0);
         await expect.soft(groupHeaders(page).first(), 'a warning/suggestion group is listed').toBeVisible();
@@ -711,17 +705,46 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         await shot(page, '28-B-005', 'warnings_reachable');
       });
 
-      const mark = api.length;
-      await test.step('[28-A-023] no "Sang bước xuất bản" shortcut outside the done panel', async () => {
-        await expect.soft(page.getByRole('button', { name: 'Sang bước xuất bản', exact: true })).toHaveCount(0);
-        await shot(page, '28-A-023', 'no_shortcut');
+    });
+  });
+
+  test('SCR-28 · FL-28-17 · zero-finding run: done panel', async ({ browser }) => {
+    await withAdmin(browser, async (admin) => {
+      const { page, api } = admin;
+      const project = await createCleanProject(admin, 'rules-clean'); // R0
+      await openRules(page, project.id);
+      const donePanel = page.getByText('Không phát hiện vi phạm nào.', { exact: true });
+      const shortcut = page.getByRole('button', { name: 'Sang bước xuất bản', exact: true });
+
+      await test.step('[28-B-018] zero findings -> the done panel replaces the groups', async () => {
+        await expect(donePanel).toBeVisible();
+        expect.soft(await settledInt(summaryValue(page, 'Nghiêm trọng')), 'Nghiêm trọng').toBe(0);
+        expect.soft(await settledInt(summaryValue(page, 'Cảnh báo')), 'Cảnh báo').toBe(0);
+        await expect.soft(groupHeaders(page)).toHaveCount(0);
+        await shot(page, '28-B-018', 'done_panel');
       });
 
-      await test.step('[28-A-024] "Xác nhận đã xử lý" goes to export without writes', async () => {
+      await test.step('[28-A-022] done panel copy', async () => {
+        await expect.soft(page.getByText(/^\d[\d.]* luật đã chạy trên bản vẽ này và không luật nào bắt được lỗi\.$/u)).toBeVisible();
+        await expect.soft(page.getByText('Lượt chạy này không có vi phạm', { exact: true })).toBeVisible();
+        await shot(page, '28-A-022', 'done_panel_copy');
+      });
+
+      await test.step('[28-A-024] footer "Xác nhận đã xử lý" with 0 findings goes to export without writes', async () => {
+        const mark = api.length;
+        await expect(confirmButton(page)).toBeEnabled();
         await confirmButton(page).click();
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.export(project.id));
         expect.soft(writesSince(api, mark), 'POST/PUT/DELETE').toEqual([]);
         await shot(page, '28-A-024', 'confirm_export');
+      });
+
+      await test.step('[28-A-023] "Sang bước xuất bản" goes to export', async () => {
+        await openRules(page, project.id);
+        await expect(shortcut).toBeVisible();
+        await shortcut.click();
+        await expect.poll(() => pathOf(page)).toBe(ROUTES.project.export(project.id));
+        await shot(page, '28-A-023', 'shortcut_export');
       });
     });
   });
