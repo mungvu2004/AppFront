@@ -10,7 +10,7 @@
  *   FL-32-17 PV  `createPipelineProject` (v1 "before" + v2 "after", v2 "Hiện tại") + a pool viewer member (slot p06-vmock)
  *   FL-32-18 PU  PV + one `writeLayer` (v2 restorable); every state re-writes the layer first so no row is "Hiện tại"
  *   FL-32-19 V1F65  one empty floor with a 65-character name, 80-character project name (no pipeline, no versions)
- *   FL-32-20 PM  PU + 56 restores (`seedVersionLadder`): 58 versions, 50 with content, page 1 = 50 rows
+ *   FL-32-20 PM  PU + alternating restores (`seedVersionLadder`, P6's versions.ts): 58 versions, 50 with content, page 1 = 50 rows
  * Mocked responses (3 states, FL-32-19 only): N17 500 / 403 / held, answered by `page.route` on the real project.
  *
  * ## Request budget per full run
@@ -18,7 +18,7 @@
  *   admin storage state (`ensureAdminSession`, one refresh each) = ≈ 10.
  * - `drawings_init` (60 / 600 s per user): 3 (PV, PU, PM) — a failed flow re-runs its `beforeAll` (+1 each).
  * - Writes: 4 `POST /api/projects`, 3 uploads (#5/#6/#7), 3 #35 layer PUTs + one per state/viewport in FL-32-18 (≈ 20),
- *   ≈ 56 N19 restores (PM), 1 N20 label (FL-32-17), the restore/label clicks of FL-32-18 (≈ 8), 4 `DELETE /api/projects/:id`.
+ *   ≈ 56 N19 restores (PM; the first adds 2 versions, the rest 1 each), 1 N20 label (FL-32-17), the restore/label clicks of FL-32-18 (≈ 8), 4 `DELETE /api/projects/:id`.
  */
 import { readFileSync } from 'node:fs';
 
@@ -29,7 +29,8 @@ import { ensureAdminSession, readAdminCredentials } from './support/auth';
 import { createPipelineProject, deleteSeededProject, type SeededDrawing } from './support/drawingSeed';
 import { PIPELINE_TIMEOUT_MS, readBaseUrl } from '../../e2e/fullstack/env';
 import { qcLayer, writeLayer, type LayerApi } from './support/layerSeed';
-import { LONG_FLOOR_NAME, createLongNameProject, drawingPathOrSkip, labelVia, listVersions, seedVersionLadder } from './support/p06/P7';
+import { LONG_FLOOR_NAME, createLongNameProject, drawingPathOrSkip, labelVia, listVersions } from './support/p06/P7';
+import { seedVersionLadder } from './support/p06/versions';
 import { addProjectMember, poolUser, signInPoolUser } from './support/phase03Seed';
 import { ADMIN_STORAGE_STATE_FILE } from './support/state';
 import { UI_VIEWPORTS, verifyUi } from './support/ui-verify';
@@ -441,7 +442,7 @@ test.describe('U06v SCR-32 version history — PM (QA-06b P7)', () => {
     seed = await createPipelineProject(admin, 'versions-ui20', readFileSync(png));
     const api: LayerApi = { request: admin, headers: {} };
     await writeLayer(api, seed.projectId, seed.floorId, qcLayer);
-    await seedVersionLadder(api, seed.projectId, seed.floorId, 58); // 58 versions: v58..v9 with content, v8..v1 without
+    await seedVersionLadder(admin, seed.projectId, seed.floorId, 58); // 58 versions: v58..v9 with content, v8..v1 without
   });
 
   test.afterAll(async () => {

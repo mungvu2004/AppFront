@@ -312,7 +312,6 @@ test.describe('E06 SCR-32 version history — mocked-response flows (QA-06b P7)'
         });
         const baseSnapshot = mock.snapshot;
         const v1 = versionIdOf(1);
-        const v2 = versionIdOf(2);
         const three = history(3);
         mock.setHistory(three);
 
@@ -346,14 +345,20 @@ test.describe('E06 SCR-32 version history — mocked-response flows (QA-06b P7)'
         });
 
         await test.step('[32-B-022] "Trực quan" while the pair is fetching: canvas skeleton "Đang dựng mô hình"', async () => {
+          // Only the 10 newest are read on load, so v1 is unread; picking it as "Phiên bản gốc" puts an in-flight N18 into the pair.
+          mock.setHistory(history(12));
           const gate = deferred();
-          mock.snapshot = (id, call) => (id === v2 ? { ...baseSnapshot(id, call), hold: gate.promise } : baseSnapshot(id, call)); // v2 = left of the default pair
+          mock.snapshot = (id, call) => (id === v1 ? { ...baseSnapshot(id, call), hold: gate.promise } : baseSnapshot(id, call));
           await openVersionsPage(page, projectId);
+          await expect(diffTab(page, 'Thay đổi')).toBeVisible();
+          await page.getByRole('combobox', { name: VH.leftSelect, exact: true }).click();
+          await page.getByRole('option', { name: /^v1 · /u }).click();
           await diffTab(page, 'Trực quan').click();
           await expect.soft(page.getByRole('status', { name: VH.buildingLabel })).toBeVisible(); // VV:146-163, 171-175
           await captureEvidence(page, 'E06v_32-B-022_canvas-skeleton.png');
           gate.release();
           await expect.soft(page.getByRole('status', { name: VH.buildingLabel })).toHaveCount(0);
+          mock.setHistory(three);
           reset();
         });
 
@@ -507,7 +512,9 @@ test.describe('E06 SCR-32 version history — mocked-response flows (QA-06b P7)'
           // TIMEOUT: the request never answers; the 15 s request timer (lib/http/timeout.ts REQUEST_TIMEOUT_MS) is fast-forwarded.
           // S5-confirm: page.clock.fastForward fires the HTTP client's abort timer the way a real 15 s wait would.
           mock.restore = () => ({ ...ok({}), hold: new Promise<void>(() => undefined) });
+          const sent = mock.calls.length;
           await confirmRestore(page);
+          await expect.poll(() => mock.count('restore', sent)).toBe(1); // the request (and its 15 s timer) exists before the clock moves
           await page.clock.fastForward(20_000);
           await expect.soft(banner(page, VH.restoreErrorTitle)).toBeVisible({ timeout: 30_000 });
           await expect.soft(page.getByText(unknown)).toBeVisible();
@@ -594,9 +601,10 @@ test.describe('E06 SCR-32 version history — mocked-response flows (QA-06b P7)'
 
         await test.step('[32-B-032] undo after the window: banner "Đã hết thời gian hoàn tác" with "Tải lại"', async () => {
           await restoreThenArmUndo();
-          await toast(page, /^Đã phục hồi phiên bản/u).hover(); // Toast.tsx:131-132 hover pauses the toast's own 8 s
-          // S5-confirm: the ticket (UNDO_WINDOW_MS 8 s, createUndoTicket) reads the faked clock; the hovered toast stays up.
-          await page.clock.fastForward(9_000);
+          // No hover: a held toast also holds the undo ticket's clock (Toast.tsx:80-89, undoTicket.ts:43-96).
+          // S5-confirm: setSystemTime moves only Date (no timers/rAF run), so the toast is still up and the ticket reads as expired.
+          const now = await page.evaluate(() => Date.now());
+          await page.clock.setSystemTime(now + 9_000);
           await undoButton().click();
           await expectNotice(VH.undoExpiredTitle, VH.undoExpiredMessage); // VHG:99-104, UVH:363-368
           await expect.soft(banner(page, VH.undoExpiredTitle).getByRole('button', { name: VH.conflictDismiss, exact: true })).toBeVisible();
@@ -634,6 +642,7 @@ test.describe('E06 SCR-32 version history — mocked-response flows (QA-06b P7)'
           await expectNotice(VH.undoErrorTitle, 'Máy chủ chưa nhận lượt hoàn tác. Thử lại sau ít phút.'); // VHM:413, 423
           const retryToast = toast(page, VH.undoRetryToast); // UVH:396-403
           await expect.soft(retryToast).toBeVisible();
+          await retryToast.hover(); // holds the ticket's 8 s window (undoTicket.ts) while the evidence is taken
           await captureEvidence(page, 'E06v_32-C-040_undo-retry-toast.png');
           const mark = mock.calls.length;
           await retryToast.getByRole('button', { name: VH.undo, exact: true }).click();
