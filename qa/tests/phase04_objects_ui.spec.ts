@@ -231,7 +231,8 @@ test('SCR-17 · FL-17-U2 [mocked response] viewer, loading, narrow layout, canva
         n16.set({ hold });
         await p.goto(ROUTES.project.objects(pid, fid), { waitUntil: 'commit' });
         await expect(screen(p)).toBeVisible();
-        await expect(p.locator('div.flex.items-center.gap-4.p-3:has(> .animate-pulse)')).toHaveCount(4);
+        // 4 rows for the counter card (BUG-618, ObjectLayerReview.tsx:286-290) + 4 rows for the list (ObjectLayerReview.tsx:89-95)
+        await expect(p.locator('div.flex.items-center.gap-4.p-3:has(> .animate-pulse)')).toHaveCount(8);
       });
       n16.set('pass');
       for (const hold of holds) hold.resolve();

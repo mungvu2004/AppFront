@@ -3,15 +3,15 @@
  * Catalog expectation (BUG-LOG-P04.md BUG-329 "Mong doi"): the card has bottom padding equal to the top padding, so the
  * last line ("... de xem chi tiet.") does not touch the card edge.
  * Run: VITE_USE_MOCK_API=true pnpm exec vite --host 127.0.0.1 --port $E2E_PORT, then
- *   E2E_PORT=<port> pnpm exec playwright test -c qa/playwright.config.ts tests/phase04_rooms_vite_ui.spec.ts
+ *   E2E_PORT=<port> pnpm exec playwright test -c playwright.config.ts e2e/qa04/rooms.vite.spec.ts
  * Request budget: 0 uploads, 0 logins (mock API, no session).
  */
 import { expect, test } from '@playwright/test';
 
-import { ROUTES } from '../../e2e/fixtures/routes';
-import { PROJECT_ID } from '../../e2e/v9/v9';
-import { MOCK_BASE_URL } from './support/auth';
-import { captureEvidence } from './support/evidence';
+import { ROUTES } from '../fixtures/routes';
+import { PROJECT_ID } from '../v9/v9';
+import { MOCK_BASE_URL } from '../../qa/tests/support/auth';
+import { captureEvidence } from '../../qa/tests/support/evidence';
 
 const VIEWPORTS = [
   { width: 1440, height: 900 },

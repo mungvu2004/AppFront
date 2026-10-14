@@ -7,7 +7,7 @@
  *
  * Data:
  *   - FL-22-U1: D1 (env drawing, run finished, frame missing) + Q (one floor without a drawing, 65-char name) + QX:overlay-scales
- *     (two floors at 5 / 8 mm/px, entered from /3d), all owned by the pool admin of slot `p04-overlay`.
+ *     (two DRAWN floors at 5 / 8 mm/px via seedScaleConflict, direct URL), all owned by the pool admin of slot `p04-overlay`.
  *   - FL-22-U2 `[mocked response]`: DF (framed drawing + QC layer) + DM (two floors with 65-char names, one drawn) + the shared
  *     pool viewer as a member. #30 is held / answered 500 by route mocks only in the two rows marked `[mock]`.
  * Source: OC src/screens/viewer/OverlayComparison/OverlayComparison.tsx · OCT …Toolbar.tsx · OCP …Panel.tsx · OCV …Canvas.tsx ·
@@ -15,7 +15,7 @@
  *
  * ## Request budget per full run
  * - Logins: 2 API (main admin lookup + pool admin) per flow + 1 browser session per flow (+1 viewer in U2) = ~7.
- * - Uploads (pool admin `drawings_init`): U1 1 (D1) · U2 2 (DF, DM) = 3. `POST /api/projects` 5 (+5 DELETE), `PUT …/spatial/layer` 5.
+ * - Uploads (pool admin `drawings_init`): U1 3 (D1 + 2 for the scale conflict) · U2 2 (DF, DM) = 5. `POST /api/projects` 5 (+5 DELETE), `PUT …/spatial/layer` 5.
  * - `POST /api/auth/refresh`: ~1 per page load (4 widths × ~12 states + /3d hops ≈ 70).
  */
 import { expect, test, type Page } from '@playwright/test';
@@ -42,7 +42,7 @@ import {
   seedD1,
   seedDF,
   seedDM,
-  seedOverlayScales,
+  seedScaleConflict,
   toolbar,
 } from './support/p04/P7';
 
@@ -66,8 +66,11 @@ test.describe('U04 UI verify — SCR-22 overlay flows (QA-04c P7)', () => {
       projects.push(d1.projectId);
       const q = await createProject(owner.api, '22-f003', [LONG_FLOOR_A]);
       projects.push(q.projectId);
-      const scales = await seedOverlayScales(owner.api, '22-u1-scales');
+      // Two drawn floors at 5 / 8 mm/px: a floor without a scan no longer counts (R27, useOverlayComparison.ts:621-631).
+      const scales = await seedScaleConflict(owner.api, '22-u1-scales');
       projects.push(scales.projectId);
+      const scaleFloor = scales.floors[0];
+      if (scaleFloor === undefined) throw new Error('setup: the scale-conflict project has no floor');
       const qFloor = q.floors[0];
       if (qFloor === undefined) throw new Error('setup: the Q project has no floor');
       flow = await openFlow(browser, owner.user);
@@ -191,7 +194,7 @@ test.describe('U04 UI verify — SCR-22 overlay flows (QA-04c P7)', () => {
 
       await test.step('[22-F-009] scale-conflict error + link at four widths (direct URL)', async () => {
         await shown(page, '22-F-009', 'scale-conflict', async (p) => {
-          await openOverlay(p, scales.projectId, scales.layered.id);
+          await openOverlay(p, scales.projectId, scaleFloor.id);
           await expect(alertWith(p, OV.scaleConflict)).toBeVisible();
           await expect(p.getByRole('link', { name: OV.toScale, exact: true })).toBeVisible();
         });

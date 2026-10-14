@@ -178,6 +178,9 @@ test.describe('U04 UI verify — SCR-14 scale calibration (QA-04c P6)', () => {
         await page.mouse.move(frame.x + frame.width * 0.5, frame.y + frame.height * 0.5);
         for (let i = 0; i < 4; i += 1) await page.mouse.wheel(0, -300);
         await expect.poll(async () => (await viewOf(page)).zoom).toBeGreaterThan(1.3);
+        // The zoom is a CSS transition on the content layer (ScaleCalibrationCanvas.tsx:337) while the handle's counter-scale is
+        // not: measure only after the transition has finished, not mid-flight.
+        await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))));
         const zoomed = await sizeOf();
         await attachJson('U04_14-E-012_handle-size.json', { base, zoomed, zoom: (await viewOf(page)).zoom });
         expect.soft(Math.abs(zoomed.w - base.w), 'handle width does not scale with the zoom').toBeLessThanOrEqual(1); // SCV:111-116

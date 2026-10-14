@@ -3,14 +3,15 @@
  * Catalog expectation (BUG-LOG-P04.md BUG-331 "Mong doi"): the frame takes the remaining height (not ~290 px with
  * ~70% of the page empty), no stat tile shows a bare dash and no label carries a leading dash ("— so vung vuot nguong").
  * Run: VITE_USE_MOCK_API=true pnpm exec vite --host 127.0.0.1 --port $E2E_PORT, then
- *   E2E_PORT=<port> pnpm exec playwright test -c qa/playwright.config.ts tests/phase04_overlay_vite_ui.spec.ts
+ *   E2E_PORT=<port> pnpm exec playwright test -c playwright.config.ts e2e/qa04/overlay.vite.spec.ts
+ * Lives in e2e/ (root config) because run-full runs qa/tests on the real stack, where there is no Vite on 5173.
  * Request budget: 0 uploads, 0 logins (mock API, no session).
  */
 import { expect, test } from '@playwright/test';
 
-import { OVERLAY_PATH } from '../../e2e/v9/v9';
-import { MOCK_BASE_URL } from './support/auth';
-import { captureEvidence } from './support/evidence';
+import { MOCK_BASE_URL } from '../../qa/tests/support/auth';
+import { captureEvidence } from '../../qa/tests/support/evidence';
+import { OVERLAY_PATH } from '../v9/v9';
 
 const VIEWPORT = { width: 1440, height: 900 } as const;
 /** The bug left the frame ~290 px tall in a 900 px page; the fix makes the screen as tall as the viewport. */

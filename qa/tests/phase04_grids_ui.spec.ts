@@ -217,7 +217,9 @@ test.describe('E04 SCR-19 axes — UI verify (QA-04c P4)', () => {
             held = await holdFirst(p, layerRead);
             await p.goto(ROUTES.project.grids(built.project.projectId, built.floorIds[0] as string));
             await held.seen;
-            await expect(p.locator('div.flex.items-center.gap-4.p-3.w-full:has(> .animate-pulse)')).toHaveCount(6); // AGV:166-174
+            const skeletonRow = 'div.flex.items-center.gap-4.p-3.w-full:has(> .animate-pulse)';
+            await expect(p.locator(`div.w-\\[280px\\] > ${skeletonRow}`)).toHaveCount(6); // AGV:166-174 (left list column only)
+            await expect(p.locator(`div[aria-hidden="true"].w-\\[344px\\] ${skeletonRow}`)).toHaveCount(6); // AGV:281-290 right panel, 2 cards x 3 (BUG-618)
           });
         } finally {
           await held?.release();

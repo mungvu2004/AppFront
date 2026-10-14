@@ -250,6 +250,12 @@ describe('[NGHIEM-2] tổng số đối tượng trên màn đã ráp', () => {
     expect(screen.queryByText(/0\/0/u)).toBeNull();
     expect(screen.queryByText(/^Tổng 0/u)).toBeNull();
   });
+
+  it('[17-F-015] đang tải: bốn dòng khung xương cho bộ đếm cộng bốn dòng cho danh sách', () => {
+    const { container } = renderState('loading');
+
+    expect(container.querySelectorAll('div.flex.items-center.gap-4.p-3:has(> .animate-pulse)')).toHaveLength(8);
+  });
 });
 
 /* -------------------------------------------------------------------------- */

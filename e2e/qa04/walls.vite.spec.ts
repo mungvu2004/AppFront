@@ -3,17 +3,17 @@
  * Catalog expectation (BUG-LOG-P04.md "Mong doi"): BUG-396 every row shows its whole trailing badge and stays inside the
  * panel (no horizontal scroll in the list); BUG-395 the list is tall enough to review many rows (not squeezed to ~3).
  * Run: VITE_USE_MOCK_API=true pnpm exec vite --host 127.0.0.1 --port $E2E_PORT, then
- *   E2E_PORT=<port> pnpm exec playwright test -c qa/playwright.config.ts tests/phase04_walls_vite_ui.spec.ts
+ *   E2E_PORT=<port> pnpm exec playwright test -c playwright.config.ts e2e/qa04/walls.vite.spec.ts
  * Request budget: 0 uploads, 0 logins (mock API, no session).
  */
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
-import { ROUTES } from '../../e2e/fixtures/routes';
-import { dismissTour } from '../../e2e/fixtures/tour';
-import { QC_FLOOR, QC_PROJECT, seedQc } from '../../e2e/v6/seedQc';
-import { MOCK_BASE_URL } from './support/auth';
-import { captureEvidence } from './support/evidence';
-import { WALL } from './support/p04/P1';
+import { ROUTES } from '../fixtures/routes';
+import { dismissTour } from '../fixtures/tour';
+import { QC_FLOOR, QC_PROJECT, seedQc } from '../v6/seedQc';
+import { MOCK_BASE_URL } from '../../qa/tests/support/auth';
+import { captureEvidence } from '../../qa/tests/support/evidence';
+import { WALL } from '../../qa/tests/support/p04/P1';
 
 test.use({ baseURL: MOCK_BASE_URL });
 

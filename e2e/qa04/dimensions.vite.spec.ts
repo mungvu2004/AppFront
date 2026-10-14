@@ -2,18 +2,19 @@
  * Phase 4 - SCR-18 "Doc kich thuoc OCR", Playwright on Vite (mock API): BUG-610 (QA-04c AES-06).
  * Catalog expectation (BUG-LOG-P04.md BUG-610 "Mong doi"): the review action is a real Button (not 13 px accent text)
  * and the row status is a Badge with words, not an unlabeled dot.
+ * Lives in e2e/ (root playwright.config.ts) because run-full runs qa/tests on the real stack, which has no Vite.
  * Run: VITE_USE_MOCK_API=true pnpm exec vite --host 127.0.0.1 --port $E2E_PORT, then
- *   E2E_PORT=<port> pnpm exec playwright test -c qa/playwright.config.ts tests/phase04_dimensions_vite_ui.spec.ts
+ *   E2E_PORT=<port> pnpm exec playwright test -c playwright.config.ts e2e/qa04/dimensions.vite.spec.ts
  * Request budget: 0 uploads, 0 logins (mock API, no session).
  */
 import { expect, test } from '@playwright/test';
 
-import { ROUTES } from '../../e2e/fixtures/routes';
-import { QC_PROJECT } from '../../e2e/v6/seedQc';
+import { MOCK_BASE_URL } from '../../qa/tests/support/auth';
+import { captureEvidence } from '../../qa/tests/support/evidence';
+import { DIM } from '../../qa/tests/support/p04/P3';
 import { DIMENSION_OCR_TEXT } from '../../src/screens/qc/DimensionOcrReview/dimensionOcrText';
-import { MOCK_BASE_URL } from './support/auth';
-import { captureEvidence } from './support/evidence';
-import { DIM } from './support/p04/P3';
+import { ROUTES } from '../fixtures/routes';
+import { QC_PROJECT } from '../v6/seedQc';
 
 /** Floor 2 of the A14 sample: 9 dimensions on the real mock load path (e2e/v6/dimension-ocr-review.spec.ts:18). */
 const A14_FLOOR = 'L-LEVEL000001';

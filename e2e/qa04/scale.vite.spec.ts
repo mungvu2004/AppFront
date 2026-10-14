@@ -2,16 +2,16 @@
  * Phase 4 - SCR-14 "Hieu chinh ty le", Playwright on Vite (mock API): BUG-609 (collapsed panel frees the column) and
  * BUG-410 (scope switch thumb sits inside the active option). Catalog expectation: BUG-LOG-P04.md BUG-609 / BUG-410 "Mong doi".
  * Run: VITE_USE_MOCK_API=true pnpm exec vite --host 127.0.0.1 --port $E2E_PORT, then
- *   E2E_PORT=<port> pnpm exec playwright test -c qa/playwright.config.ts tests/phase04_scale_vite_ui.spec.ts
+ *   E2E_PORT=<port> pnpm exec playwright test -c playwright.config.ts e2e/qa04/scale.vite.spec.ts
  * Request budget: 0 uploads, 0 logins (mock API, no session).
  */
 import { expect, test } from '@playwright/test';
 
-import { ROUTES } from '../../e2e/fixtures/routes';
-import { PROJECT_ID } from '../../e2e/v4v5/files';
-import { MOCK_BASE_URL } from './support/auth';
-import { captureEvidence } from './support/evidence';
-import { SCALE, btn, canvasOf, panelOf } from './support/p04/P6';
+import { ROUTES } from '../fixtures/routes';
+import { PROJECT_ID } from '../v4v5/files';
+import { MOCK_BASE_URL } from '../../qa/tests/support/auth';
+import { captureEvidence } from '../../qa/tests/support/evidence';
+import { SCALE, btn, canvasOf, panelOf } from '../../qa/tests/support/p04/P6';
 
 const MOCK_FLOOR = 'L2'; // e2e/v4v5/scale.spec.ts:openScale
 /** Collapsed column is 48 px (lg:w-12); a leftover 344 px column is the bug. */

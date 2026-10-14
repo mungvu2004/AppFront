@@ -233,6 +233,27 @@ export async function seedOverlayScales(api: APIRequestContext, slug = '22-scale
   }
 }
 
+/**
+ * Scale conflict that survives R27 (useOverlayComparison.ts:621-631: only floors WITH a scan count): two floors, each with a
+ * framed drawing, one at 5 and one at 8 mm/px. `seedOverlayScales` has no drawings, so it no longer conflicts (edge 22-B-006).
+ */
+export async function seedScaleConflict(api: APIRequestContext, slug = '22-conflict'): Promise<QualityProject> {
+  const project = await seedQualityProject(api, slug, [
+    { name: 'Tầng 1', png: framedPng() },
+    { name: 'Tầng 2', png: framedPng() },
+  ]);
+  try {
+    const [a, b] = project.floors;
+    if (a === undefined || b === undefined) throw new Error('setup: fewer than 2 floors');
+    await putScale(api, project.projectId, a.id, 5);
+    await putScale(api, project.projectId, b.id, 8);
+    return project;
+  } catch (error) {
+    await api.delete(`/api/projects/${project.projectId}`).catch(() => undefined);
+    throw error;
+  }
+}
+
 export { TEST_DATA_PREFIX };
 
 /** 6000 × 4500 white gray PNG (27 MP < the 40 MP pipeline cap, a few dozen KB): a run that stays busy for seconds (22-B-008). */

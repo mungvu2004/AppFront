@@ -1,14 +1,16 @@
 /**
  * Phase 4 — SCR-21 thickness, layout on Vite with the mock API (no stack): BUG-405 (detail table clipped at 1440/1024/768),
  * BUG-406 (x-axis labels glued at 1024/768), BUG-611 (summary numbers carry the "approved" green). Seed: `seedQcb` (48 walls).
+ * Run: VITE_USE_MOCK_API=true pnpm exec vite --host 127.0.0.1 --port $E2E_PORT, then
+ *   E2E_PORT=<port> pnpm exec playwright test -c playwright.config.ts e2e/qa04/thickness.vite.spec.ts
  * Request budget: 0 API calls (mock). Viewports 1920/1440/1024/768 only.
  */
 import { expect, test, type Page } from '@playwright/test';
 
-import { ROUTES } from '../../e2e/fixtures/routes';
-import { QCB_FLOOR, QCB_PROJECT, seedQcb } from '../../e2e/v7/seedQcb';
-import { MOCK_BASE_URL } from './support/auth';
-import { captureEvidence } from './support/evidence';
+import { ROUTES } from '../fixtures/routes';
+import { QCB_FLOOR, QCB_PROJECT, seedQcb } from '../v7/seedQcb';
+import { MOCK_BASE_URL } from '../../qa/tests/support/auth';
+import { captureEvidence } from '../../qa/tests/support/evidence';
 
 test.use({ baseURL: MOCK_BASE_URL });
 

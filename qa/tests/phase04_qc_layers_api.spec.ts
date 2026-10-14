@@ -115,6 +115,20 @@ function wallOf(levelId: string, o: WallOpts = {}): Json {
   };
 }
 
+/** `Dimension` wire (BE spatial_write/tests/_helpers.py:236-250); id `M-<base36 UPPER>`. Same id twice = duplicate. */
+const DIM_ID = `M-${randomUUID().replace(/-/gu, '').toUpperCase().slice(0, 20)}`;
+function dimOf(levelId: string, o: Review = {}): Json {
+  return {
+    id: DIM_ID,
+    levelId,
+    kind: 'linear',
+    referenceIds: [],
+    line: { start: { x: 0, y: 0 }, end: { x: 1000, y: 0 } },
+    valueMm: 1000,
+    ...meta(o),
+  };
+}
+
 function openingOf(wallId: string, o: Review & { id?: string; offset?: number; width?: number } = {}): Json {
   return {
     id: o.id ?? sid('D'),
@@ -994,7 +1008,9 @@ test.describe('A04 phase-4 backend (spatial layer read/write, floor meta, graph,
       ];
       cases.push(
         ['base_ahead', writeBody(5, { layer: okLayer }), 'baseVersion'],
-        ['body_dimensions', writeBody(0, { layer: okLayer, dimensions: [] }), 'body.dimensions'],
+        // QD-001 (decisions.md:5-14) + HOP-DONG-MOI Bản 11 §4 #35 (line 384): `dimensions?` is accepted now; its own rules are tested here.
+        ['dim_duplicate_id', writeBody(0, { dimensions: [dimOf(fid), dimOf(fid)] }), 'body.dimensions.1.id'],
+        ['dim_ai_reviewed', writeBody(0, { dimensions: [dimOf(fid, { source: 'ai', reviewed: true })] }), 'body.dimensions.0.reviewed'],
         ['body_axes', writeBody(0, { layer: okLayer, axes: [] }), 'body.axes'],
       );
       const answered = new Map<string, { sent: Sent; field: string }>();
@@ -1065,8 +1081,11 @@ test.describe('A04 phase-4 backend (spatial layer read/write, floor meta, graph,
       await test.step('[BE4-G-062] unknown key in the envelope / body / entity → 422 at that key (extra=forbid)', async () => {
         expect422(['top_extra', 'body_extra', 'wall_extra']);
       });
-      await test.step('[BE4-G-063] body.dimensions / body.axes are refused (why SCR-18 / SCR-19 cannot save) → 422 field body.dimensions / body.axes', async () => {
-        expect422(['body_dimensions', 'body_axes']);
+      await test.step('[BE4-G-063] body.axes is still refused (SCR-19 cannot save); body.dimensions is accepted (QD-001) but a duplicate id → 422 VALIDATION body.dimensions.1.id and source ai + reviewed true → 422 REVIEW_BY_AI_FORBIDDEN body.dimensions.0.reviewed', async () => {
+        expect422(['body_axes', 'dim_duplicate_id']);
+        const ai = answered.get('dim_ai_reviewed');
+        if (ai === undefined) throw new Error('no answer recorded for dim_ai_reviewed');
+        expectError(ai.sent, 422, 'REVIEW_BY_AI_FORBIDDEN', { field: ai.field });
       });
       await test.step('[BE4-G-064] layer missing a list (furniture) → 422 field body.layer.furniture', async () => {
         expect422(['layer_list_missing']);

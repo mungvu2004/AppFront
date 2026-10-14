@@ -69,6 +69,11 @@ test.describe('E04 SCR-21 thickness — UI verify (QA-04c P4)', () => {
     try {
       admin = await openFlow(browser, readAdminCredentials(), { reducedMotion: true });
       const { page } = admin;
+      // openFlow's own dialog listener only records, so Playwright never answers it: an apply leaves an autosave pending, the
+      // next `goto('about:blank')` of verifyUi opens `beforeunload` and hangs 30 s (run p04-r1 phase04-ui :62). Leave the page.
+      page.on('dialog', (dialog) => {
+        void dialog.accept();
+      });
       const layerRead = (u: URL, method: string): boolean => method === 'GET' && /\/spatial\/layer$/u.test(u.pathname);
 
       await test.step('[21-F-001] ⚑ histogram + groups: no clipped columns (BUG-394 / 405 / 406)', async () => {
