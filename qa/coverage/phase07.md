@@ -1,7 +1,7 @@
-<!-- qa-sources fe=82e18a88 -->
+<!-- qa-sources fe=ccd645a5 -->
 # Phase 07 — Account: FE coverage inventory
 
-Screen SCR-33 Account Settings (`/tai-khoan`, `src/routes/router.tsx:60,390`). Source `F:/App/AppFront` @ 82e18a88.
+Screen SCR-33 Account Settings (`/tai-khoan`, `src/routes/router.tsx:60,390`). Source `F:/App/AppFront` @ ccd645a5 (re-inventoried from 82e18a88; see "Delta since 82e18a88").
 Backend rules (N11 `GET /me`, N12 `PATCH /me` field rules and 422 codes, N13 `POST /me/password` 422/429/session
 revocation, N14 `PUT /me/avatar` codes and 429) live in `coverage/phase07-be.md` (API spec), not here.
 
@@ -9,7 +9,7 @@ Test keys:
 - **M** `tests/phase07_account.spec.ts` (serial, admin) — title quoted by key words.
 - **E** `tests/phase07_account_edge.spec.ts` (non-serial, own context per test, one `engineer` invitee per worker) — `E07 · …` titles.
 - **E02** `tests/phase02_dashboard_edge.spec.ts` (entry from the notification drawer gear).
-- **UI** dedicated UI-verify spec `phase07_*_ui.spec.ts` (owner: qa-verify-ui step; not present yet, not counted here).
+- **UI** dedicated UI-verify spec `tests/phase07_account_ui.spec.ts` (owner: qa-verify-ui step) — `U07 · …` titles, each state at 1440/1024/768/375.
 
 Path short names (under `src/screens/account/AccountSettings/`): `AS` AccountSettings.tsx, `ASC` AccountSettings.container.tsx,
 `UAS` useAccountSettings.ts, `ASG` accountSettingsGateway.ts, `PS` ProfileSection.tsx, `ARD` AvatarReplaceDialog.tsx,
@@ -139,11 +139,24 @@ Others: `CA` src/lib/autosave/createAutosave.ts, `I18N` src/i18n/vi.json, `TST` 
 |---|---|---|---|---|---|
 | 81 | Section | "Phiên đăng nhập" absent | `AS:161-170`, `AAG:142` | M row 5, E "non-admin …" | covered (n/a-by-design asserted) |
 | 82 | Section | "Vùng nguy hiểm" / "Xoá tài khoản" absent | `AS:172-182`, `AAG:142` | M row 5, E "non-admin …" | covered (n/a-by-design asserted) |
-| 83 | Layout | Four viewports (1440/1024/768/375) layout metrics | whole screen | UI (not present) | gap (owner: qa-verify-ui) |
+| 83 | Layout | Four viewports (1440/1024/768/375) layout metrics | whole screen | UI "U07 · SCR-33 account settings, default (loaded)" + 9 more U07 states | covered (owner: qa-verify-ui) |
+
+## Delta since 82e18a88
+
+`git diff 82e18a88 ccd645a5` touches 105 FE files; none under `src/screens/account/`, `src/api/`, `src/routes/`, `src/hooks/`,
+`src/lib/autosave/`, `src/lib/format/`, `src/lib/http/`, `src/components/ui/`, `src/components/overlay/`, `Toast.tsx` or
+`ScreenErrorBoundary.tsx` — every file:line above is unchanged.
+- `src/i18n/vi.json`: hunks at lines 1626, 2057, 2091, 2114, 2880, 2906 only, inside `objectLayerReview`, `roomLabelReview`
+  and the overlay-comparison keys (new keys + one changed `normalize.tableCaption`). The runtime `autosave` block the save
+  indicator reads (`I18N:66-73`, rows 9-14) is untouched; AccountSettings writes its own strings inline
+  (`index.ts:29-32`, `UAA:74-76`). → no new FE row, no new gap.
+- `src/lib/mutations/notificationBus.ts`: adds `withdraw(type)` (BUG-463, RuleSettings); `publish`/grouping unchanged and
+  the account screen never calls `withdraw` (grep). Row 17 unchanged.
+- Edge spec unchanged (27 tests); typecheck and `--list` pass at ccd645a5.
 
 ## Summary
 
-- FE rows: 83 — covered 66 (incl. 2 "absent as designed" rows asserted, 2 rows covered by an app failure), gap 15,
+- FE rows: 83 — covered 67 (incl. 2 "absent as designed" rows asserted, 2 rows covered by an app failure), gap 14,
   n/a-by-design 2, UNKNOWN 0.
 - Edge spec: 27 tests, 1 `[mocked response]` (3.7 % < 35 %): `GET /api/me` 500 — `unpairable: 5xx is not producible on
   the shared stack` (row for `coverage/phase07-be.md`). One more test only holds the real `GET /api/me` response.
@@ -152,4 +165,5 @@ Others: `CA` src/lib/autosave/createAutosave.ts, `I18N` src/i18n/vi.json, `TST` 
   "Đổi thư điện tử" button already sits outside the card (evidence `E07_jobtitle_121_rejected.png`).
 - Gap priority: (1) luồng chính — none open; (2) lỗi — #78/#47 429 locks, #79/#15 5xx paths, #46 avatar BE codes UI copy,
   #7 crash fallback; (3) biên — #27 max-wait, #17 toast grouping/expiry, #48 avatar picker by keyboard;
-  (4) hiển thị — #14 transient indicator labels, #32 row flash, #38 uploading status, #66 key caps, #83 UI-verify spec.
+  (4) hiển thị — #14 transient indicator labels, #32 row flash, #38 uploading status, #66 key caps. No gap is caused by the FE changes since
+  82e18a88, so no edge test was added in this pass.

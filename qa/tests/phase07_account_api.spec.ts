@@ -7,13 +7,17 @@
  *   PUT   /api/me/avatar   (N14)  BE me/router.py:247-273, avatar.py:137-237, schemas.py:101-105
  *   POST  /api/auth/refresh (W16) BE auth/router.py:236-282 — here only what phase 7 adds: `user.name` follows N12
  *         (auth/sessions.py:314,339) and the refresh of a soft-deleted owner (phase01-be.md: "not covered").
+ *   POST  /api/me/password (N13) BE me/router.py:146-244, schemas.py:94-98 — sent by the edge spec's password tests
+ *         (`phase07_account_edge.spec.ts`); here: body rules, 422 CURRENT_PASSWORD_INCORRECT, the me_password 429, and
+ *         the success side effects (other sessions revoked, this one kept, old password refused, new one signs in).
+ *   POST  /api/auth/login  (W1)  BE auth/router.py:160-192 — only as the N13 probe (old 401 INVALID_CREDENTIALS / new 204).
  * `BE:` = `F:/App/AppBack` (qa.config backendSourceRoot, HEAD 2ee030c5 = origin/main), paths under `apps/api/`.
  * Every 200 body is also parsed with the FE zod `MeSchema` (strict) — FE <-> BE contract.
  * Inventory + mock-pairing table: `qa/coverage/phase07-be.md`.
  *
  * ## Non-serial, own data
  * Every test uses its OWN user. The users are REAL viewers: ONE `POST /api/users/invitations` per worker invites the
- * five run-unique `qa-<runId>-<slot>-…@example.test` addresses (lazy `batch()`, so the invitation budget stays 1); each
+ * seven run-unique `qa-<runId>-<slot>-…@example.test` addresses (lazy `batch()`, so the invitation budget stays 1); each
  * test then reads ITS invitation token from Mailpit, accepts it (fullName `qa-<runId>-<slot>`) and refreshes once for
  * a Bearer token. Each test soft-deletes its own user (`DELETE /api/users/{id}`) and its mail in `finally`; `afterAll`
  * deletes the slots no test claimed (a `--grep` subset). The admin account is only used to invite and delete test
@@ -24,21 +28,27 @@
  *   after a failed test) + ui `phase07_account_ui.spec.ts` 1 (its header, "long data" viewer) + main 0 = phase 7: 2.
  *   Phases 1-6 spend 28 (phase06 header) → Phases 1-7 in one hour = 30 ≤ 30: AT the cap — a worker restart or a re-run
  *   inside the same hour gets 429 on the invitation; then wait for the 3600 s window.
- * - `recovery_ip` 10 / 900 s per IP (BE auth_recovery/settings.py:24; override 60): THIS file 5 invitation accepts
- *   (one per test that claims a user) + ui 1 = 6 ≤ 10 even without the override.
+ * - `recovery_ip` 10 / 900 s per IP (BE auth_recovery/settings.py:24; override 60 in `qa-limits.override.yml`): THIS
+ *   file 7 invitation accepts (one per test that claims a user) + ui 1 + edge ≤ 6 (1 per worker) = ≤ 14 ≤ 60. Without
+ *   the override the phase total would pass the BE default 10 — the edge spec already depends on the override.
  * - `POST /api/auth/login` per IP 30 / 60 s (BE auth/settings.py:36; override 120): THIS file 1 (admin `signedInApi`
- *   in `batch()`, +1 per worker restart), 0 failed. Phase-7 UI: main `phase07_account.spec.ts` 1 (`signInAdmin`),
- *   ui 1 (`signedInApi`, +1 per dead stored session). Layers run sequentially → ≤ 3 (4) per run.
- * - `POST /api/auth/refresh`: 5 setup refreshes (one per claimed user) + "profile" 1 + "deleted" 1 (its 401 adds 1 to
- *   that dead session's own fail bucket, 20 / 60 s per (sid, token), auth/settings.py:43) — total 300 / 60 s per sid.
+ *   in `batch()`, +1 per worker restart) + "password rules" 1 + "password change" 3 = 5, of which 1 failed (the old
+ *   password, on the test user's own (email, IP) bucket: 5 attempts / 900 s since the last success, login_guard.py:36-48
+ *   — attempts there: success, fail, success). Phase-7 UI: main 1, ui 1, edge ≤ 28 spread over minutes. Layers run
+ *   sequentially; the busiest 60 s stays far below 120 (and below 30).
+ * - `POST /api/auth/refresh`: 7 setup refreshes (one per claimed user) + "profile" 1 + "deleted" 1 + "password change"
+ *   3 (second session 1, kept session 1, revoked session 1) — each 401 adds 1 to that session's own fail bucket,
+ *   20 / 60 s per (sid, token), auth/settings.py:43; total 300 / 60 s per sid.
  * - `me_avatar` 10 / 900 s per USER (BE me/router.py:47-48,247-249, `key_user`, counted before body validation —
  *   core/ratelimit.py:105-140): "avatar" 5 on its own user; "avatar body rules" 11 on its own user — the 11th is the
  *   designed 429; "deleted" 1. Users are fresh each run, so no window is shared with any other test or phase.
- * - `me_password` 5 / 900 s per user (me/router.py:45-46): 0 (N13 is not on the phase-7 plan).
+ * - `me_password` 5 / 900 s per USER (me/router.py:45-46,146-153,225, counted before body validation like me_avatar):
+ *   "password rules" 5 rejected + the designed 6th → 429 on its own user; "password change" 2 on its own user.
+ *   Edge spec 2 on ITS user. Users are fresh each run: no window shared.
  * - No rate limit on N11 / N12 (me/router.py:109,137: no `dependencies`).
  * - Idempotency rows: "avatar" leaves 2 (24 h TTL, core/idempotency.py:49). Avatar objects: 2 in MinIO, removed by the
  *   `purge_avatars` beat once the owner is soft-deleted (me/jobs.py:7-11).
- * - Mailpit: 5 invitation mails, deleted in `finally` / `afterAll`.
+ * - Mailpit: 7 invitation mails, deleted in `finally` / `afterAll`.
  */
 import { randomUUID } from 'node:crypto';
 import { deflateSync } from 'node:zlib';
@@ -255,7 +265,7 @@ function pngHeaderSafe(bytes: Buffer): Json {
 
 /* ------------------------------------------------------------------ users: one invitation batch per worker */
 
-const SLOTS = ['profile', 'rules', 'avatar', 'avatarrules', 'deleted'] as const;
+const SLOTS = ['profile', 'rules', 'avatar', 'avatarrules', 'deleted', 'pwrules', 'pwchange'] as const;
 type Slot = (typeof SLOTS)[number];
 
 interface Batch {
@@ -267,7 +277,7 @@ interface Batch {
 
 let batchPromise: Promise<Batch> | undefined;
 
-/** Admin signs in once and invites all five slots in ONE request (BE users/router.py:55-62, 201 AdminUserOut[]). */
+/** Admin signs in once and invites all seven slots in ONE request (BE users/router.py:55-62, 201 AdminUserOut[]). */
 function batch(): Promise<Batch> {
   batchPromise ??= (async () => {
     const { email, password } = readAdminCredentials();
@@ -276,7 +286,7 @@ function batch(): Promise<Batch> {
     const since = new Date(Date.now() - 5_000);
     const body = { emails, role: 'viewer' };
     const sent = await call(admin, 'setup_invite_batch', 'POST', '/api/users/invitations', body, [
-      'setup: admin invites the five run-unique @example.test viewers in one request → 201, one pending row each',
+      'setup: admin invites the seven run-unique @example.test viewers in one request → 201, one pending row each',
     ]);
     expect(sent.res.status()).toBe(201);
     const rows = (Array.isArray(sent.body) ? sent.body : []).map(asJson);
@@ -300,6 +310,8 @@ interface Member {
   readonly api: APIRequestContext;
   /** Latest refresh cookie value (secret: never written). */
   cookie: string;
+  /** The password set at accept time (secret: only sent in bodies `captureExchange` redacts). */
+  readonly password: string;
 }
 
 /** The test's own user: real mailed token → accept (204 + refresh cookie) → refresh (W16 access token). */
@@ -317,9 +329,10 @@ async function claim(slot: Slot, cleanup: Cleanup): Promise<Member> {
   if (!token) throw new Error('invitation link has no #token');
 
   const fullName = `${PREFIX}${slot}`;
+  const password = `Qa-${randomUUID()}`;
   const anon = await newApiContext();
   try {
-    const accept = await call(anon, `${slot}_setup_accept`, 'POST', '/api/auth/invitations/accept', { token, fullName, password: `Qa-${randomUUID()}` }, [
+    const accept = await call(anon, `${slot}_setup_accept`, 'POST', '/api/auth/invitations/accept', { token, fullName, password }, [
       'setup: invitee accepts with the real mailed token → 204 + refresh cookie (auth_recovery/router.py)',
     ]);
     expect(accept.res.status()).toBe(204);
@@ -332,7 +345,7 @@ async function claim(slot: Slot, cleanup: Cleanup): Promise<Member> {
     const base = apiBaseUrl();
     const api = await request.newContext({ baseURL: base, extraHTTPHeaders: { Origin: base, Authorization: `Bearer ${bearer}` } });
     cleanup.add(() => api.dispose());
-    return { id: user.id, email: user.email, fullName, api, cookie: setCookieValue(refreshed.res, REFRESH) };
+    return { id: user.id, email: user.email, fullName, api, cookie: setCookieValue(refreshed.res, REFRESH), password };
   } finally {
     await anon.dispose();
   }
@@ -656,6 +669,133 @@ test.describe('A07 phase-7 backend (/api/me N11 / N12 / N14, refresh W16)', () =
       } finally {
         await anon.dispose();
       }
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A07 · N13 password body rules: anonymous 401; 422 VALIDATION per field, 422 CURRENT_PASSWORD_INCORRECT, then the 6th POST → 429 RATE_LIMITED; the old password still signs in', async () => {
+    const cleanup = new Cleanup();
+    try {
+      const m = await claim('pwrules', cleanup);
+      const fresh = `Qa-${randomUUID()}`; // a valid new password (≥ 8, passwords.py:34)
+
+      // Protected router: Bearer read before the rate limit and the body (core/routing.py:129-135) → no me_password count.
+      const anon = await newApiContext();
+      cleanup.add(() => anon.dispose());
+      const anonymous = await call(anon, 'pwrules_anonymous', 'POST', '/api/me/password', { currentPassword: m.password, newPassword: fresh }, [
+        'no Authorization → 401 UNAUTHENTICATED (routing.py:131-133), before me_password',
+      ]);
+      expectError(anonymous, 401, 'UNAUTHENTICATED');
+
+      // 5 rejected POSTs on THIS user's me_password bucket (me/router.py:45-46,146-153,225; counted before the body
+      // check, core/ratelimit.py:105-140). Field = first Pydantic loc, camelCase (core/errors.py:136-157).
+      const cases: readonly (readonly [string, Json, string, string, string])[] = [
+        ['missing_new', { currentPassword: m.password }, 'VALIDATION', 'newPassword', 'newPassword required (schemas.py:98)'],
+        ['new_7_chars', { currentPassword: m.password, newPassword: 'Abc1234' }, 'VALIDATION', 'newPassword', 'min_length 8 (schemas.py:98, passwords.py:34)'],
+        ['current_empty', { currentPassword: '', newPassword: fresh }, 'VALIDATION', 'currentPassword', 'min_length 1 (schemas.py:97)'],
+        ['extra_key', { currentPassword: m.password, newPassword: fresh, email: m.email }, 'VALIDATION', 'email', 'extra="forbid" (core/wire.py:46,115-118)'],
+        ['wrong_current', { currentPassword: `Wrong-${randomUUID()}`, newPassword: fresh }, 'CURRENT_PASSWORD_INCORRECT', 'currentPassword', 'verify fails → 422, never 401 (router.py:227-234, K30)'],
+      ];
+      for (const [slug, body, code, field, why] of cases) {
+        const sent = await call(m.api, `pwrules_${slug}`, 'POST', '/api/me/password', body, [`422 ${code} field "${field}": ${why}`]);
+        expectError(sent, 422, code, field);
+      }
+
+      // 6th in the 900 s window, a VALID body (right current password) → 429 before the handler (ratelimit.py:138-140).
+      const limited = await call(m.api, 'pwrules_6th_rate_limited', 'POST', '/api/me/password', { currentPassword: m.password, newPassword: fresh }, [
+        '429 RATE_LIMITED on the 6th POST within 900 s (rejected bodies count, me/router.py:45-46), Retry-After 1..10 (ratelimit.py:92-94)',
+      ]);
+      expectError(limited, 429, 'RATE_LIMITED');
+      const retryAfter = Number(limited.res.headers()['retry-after']);
+      expect(retryAfter).toBeGreaterThanOrEqual(1);
+      expect(retryAfter).toBeLessThanOrEqual(10);
+
+      // Nothing changed: the accept-time password still signs in (auth/router.py:160-192 → 204), the session still reads /me.
+      const login = await call(anon, 'pwrules_old_password_still_valid', 'POST', '/api/auth/login', { email: m.email, password: m.password, rememberMe: false }, [
+        '204: the original password still signs in — no rejected / limited POST changed it',
+      ]);
+      expect(login.res.status()).toBe(204);
+      const me = await call(m.api, 'pwrules_get_after', 'GET', '/api/me', undefined, ['200: the calling session was not revoked by any rejected POST']);
+      expectMe(me, { email: m.email, fullName: m.fullName, language: 'vi' });
+    } finally {
+      await cleanup.run();
+    }
+  });
+
+  test('A07 · N13 password change: 204 empty; this session kept (GET + refresh), the other session revoked (refresh + Bearer → 401 SESSION_REVOKED); old password 401 INVALID_CREDENTIALS, new one (NFD sent, NFC typed) 204; old current now 422', async () => {
+    const cleanup = new Cleanup();
+    try {
+      const m = await claim('pwchange', cleanup);
+
+      // A second session S2 of the same user (auth/router.py:160-192 login → refresh → Bearer).
+      const other = await newApiContext();
+      cleanup.add(() => other.dispose());
+      const login2 = await call(other, 'pwchange_login_second_session', 'POST', '/api/auth/login', { email: m.email, password: m.password, rememberMe: false }, [
+        'setup: 204, a second session for the same user',
+      ]);
+      expect(login2.res.status()).toBe(204);
+      const refresh2 = await call(other, 'pwchange_refresh_second_session', 'POST', '/api/auth/refresh', undefined, ['setup: 200 W16 for the second session']);
+      expect(refresh2.res.status()).toBe(200);
+      const base = apiBaseUrl();
+      const api2 = await request.newContext({ baseURL: base, extraHTTPHeaders: { Origin: base, Authorization: `Bearer ${String(asJson(refresh2.body).accessToken)}` } });
+      cleanup.add(() => api2.dispose());
+      expectMe(await call(api2, 'pwchange_second_get_before', 'GET', '/api/me', undefined, ['200: the second session is alive before the change']), {
+        email: m.email,
+        fullName: m.fullName,
+        language: 'vi',
+      });
+
+      // New password sent in NFD; the BE hashes nfc(password) (passwords.py:120-129, C16).
+      const nfd = `Qa-${randomUUID()}-Nguyễn`;
+      const nfc = nfd.normalize('NFC');
+      expect(nfc).not.toBe(nfd);
+      const changed = await call(m.api, 'pwchange_change', 'POST', '/api/me/password', { currentPassword: m.password, newPassword: nfd }, [
+        '204 with an empty body (router.py:219-244)',
+      ]);
+      expect(changed.res.status()).toBe(204);
+      expect(changed.text).toBe('');
+
+      // This session survives: revoke_sessions(except_sid=this sid) (router.py:217; sessions.py:266-282).
+      expectMe(await call(m.api, 'pwchange_this_get_after', 'GET', '/api/me', undefined, ['200: the calling session is kept (except_sid)']), {
+        email: m.email,
+        fullName: m.fullName,
+        language: 'vi',
+      });
+      const keep = await newApiContext();
+      cleanup.add(() => keep.dispose());
+      const kept = await call(keep, 'pwchange_this_refresh_after', 'POST', '/api/auth/refresh', undefined, ['200: the calling session still refreshes'], {
+        headers: { Cookie: `${REFRESH}=${m.cookie}` },
+      });
+      expect(kept.res.status()).toBe(200);
+
+      // The other session is revoked: its refresh (sessions.py:449-452 not alive) and its live Bearer (verifier, cache
+      // dropped after commit, sessions.py:159-163,604-621; principal cache ≤ 5 s → polled) → 401 SESSION_REVOKED.
+      const revoked = await call(other, 'pwchange_second_refresh_after', 'POST', '/api/auth/refresh', undefined, [
+        '401 SESSION_REVOKED: the other session was revoked with reason password_change (router.py:217)',
+      ]);
+      expectError(revoked, 401, 'SESSION_REVOKED');
+      await expect.poll(async () => (await api2.get('/api/me')).status(), { timeout: 10_000, intervals: [500] }).toBe(401);
+      const bearer2 = await call(api2, 'pwchange_second_get_after', 'GET', '/api/me', undefined, ["401 SESSION_REVOKED: the other session's access token is refused"]);
+      expectError(bearer2, 401, 'SESSION_REVOKED');
+
+      // Old password refused, new one (typed in NFC) accepted.
+      const probe = await newApiContext();
+      cleanup.add(() => probe.dispose());
+      const oldLogin = await call(probe, 'pwchange_login_old_password', 'POST', '/api/auth/login', { email: m.email, password: m.password, rememberMe: false }, [
+        '401 INVALID_CREDENTIALS: the old password no longer matches (auth/router.py:174-177)',
+      ]);
+      expectError(oldLogin, 401, 'INVALID_CREDENTIALS');
+      const newLogin = await call(probe, 'pwchange_login_new_password_nfc', 'POST', '/api/auth/login', { email: m.email, password: nfc, rememberMe: false }, [
+        '204: the new password, typed in NFC, signs in (nfc before hash and verify, passwords.py:120-129)',
+      ]);
+      expect(newLogin.res.status()).toBe(204);
+
+      // The old password is no longer the current one (router.py:227-234).
+      const stale = await call(m.api, 'pwchange_old_current_rejected', 'POST', '/api/me/password', { currentPassword: m.password, newPassword: `Qa-${randomUUID()}` }, [
+        '422 CURRENT_PASSWORD_INCORRECT field "currentPassword": the old password is no longer current',
+      ]);
+      expectError(stale, 422, 'CURRENT_PASSWORD_INCORRECT', 'currentPassword');
     } finally {
       await cleanup.run();
     }

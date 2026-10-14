@@ -1,16 +1,18 @@
-<!-- qa-sources be=origin/main (0 commits behind) -->
-# Phase 07 — Backend coverage (account: /api/me N11 / N12 / N14, session refresh W16)
+<!-- qa-sources be=2ee030c5 -->
+# Phase 07 — Backend coverage (account: /api/me N11 / N12 / N13 / N14, session refresh W16, login probe W1)
 
-Source read: `F:/App/AppBack` (qa.config `backendSourceRoot`), HEAD `2ee030c5` = `origin/main` (0 commits behind, fetched
-2026-10-12) = `versionCheck.apiBuiltCommit`. Every `file:line` is under `apps/api/` unless it starts with `packages/`.
-API spec: `qa/tests/phase07_account_api.spec.ts` — **6 tests** (`--list`), evidence prefix `A07_` (72 JSON exchanges).
-Author run `run-01-author` (`node tools/run-phase.mjs --phase 07 --run-id run-01-author --layers api --no-watch
---grep "A07 ·"`): **5 passed / 1 failed** (the failure is an APP bug, see "Findings"), evidence ok,
-`F:/App/qa-results/run-01-author/phase07-api/results.json`. Signed avatar URLs are written with the query (signature)
-cut (`redactedView` in the spec).
-UI specs of the phase: main `phase07_account.spec.ts`, ui `phase07_account_ui.spec.ts`; no edge spec yet.
-Endpoints called by SCR-33 (FE `src/api/endpoints.ts:10` ME_ROOT, client `src/api/client.ts:1090-1102`, decoded with
-FE `src/api/schemas/me.ts:35-52` `MeSchema.strict()`; the FE `http` client adds `Idempotency-Key` to every PUT,
+Source read: `F:/App/AppBack` (qa.config `backendSourceRoot`), HEAD `2ee030c5` = `versionCheck.apiBuiltCommit` (no diff
+in apps/packages/deploy vs the built image). Every `file:line` is under `apps/api/` unless it starts with `packages/`.
+Re-inventory 2026-10-12 (run-31): the previous stamp was not a sha; the edge spec `phase07_account_edge.spec.ts` now
+exists and sends `POST /api/me/password` (N13) and `POST /api/auth/login`, so N13 moved into scope.
+API spec: `qa/tests/phase07_account_api.spec.ts` — **8 tests** (`--list`), evidence prefix `A07_`.
+Author run `run-31-author` (`node tools/run-phase.mjs --phase 07 --run-id run-31-author --layers api --no-watch
+--grep "A07 · N13 password"`; the non-ASCII grep did not reach Playwright, so all 8 tests ran): **7 passed / 1 failed**
+(the failure is the known APP bug, see "Findings"), evidence ok, `F:/App/qa-results/run-31-author/phase07-api/results.json`.
+New in this pass: "pwrules" and "pwchange" (both passed). Signed avatar URLs are written with the query (signature) cut.
+UI specs of the phase: main `phase07_account.spec.ts`, ui `phase07_account_ui.spec.ts`, edge `phase07_account_edge.spec.ts`.
+Endpoints called by SCR-33 (FE `src/api/endpoints.ts:137-139` avatar / password / ME_ROOT, client `src/api/client.ts`,
+decoded with FE `src/api/schemas/me.ts` `MeSchema.strict()`; the FE `http` client adds `Idempotency-Key` to every PUT,
 `src/lib/http/client.ts:400-405`):
 
 | # | Method + path | BE handler |
@@ -19,11 +21,13 @@ FE `src/api/schemas/me.ts:35-52` `MeSchema.strict()`; the FE `http` client adds 
 | N12 | `PATCH /api/me` | me/router.py:115-143, me/schemas.py:32-91 |
 | N14 | `PUT /api/me/avatar` | me/router.py:247-273, me/avatar.py:137-237, me/schemas.py:101-105 |
 | W16 | `POST /api/auth/refresh` (session upkeep of every screen) | auth/router.py:236-282, auth/sessions.py:440-470 |
-| (N13) | `POST /api/me/password` | me/router.py:146-244 — on the screen but NOT on the phase-7 plan (UI only shows client-side validation, `phase07_account_ui.spec.ts`); out of scope here |
+| N13 | `POST /api/me/password` | me/router.py:146-153 (limit), :168-244, me/schemas.py:94-98 — sent by the edge spec (wrong current, success) |
+| W1 | `POST /api/auth/login` (probe only: old / new password after N13; the edge spec signs the invitee in with it) | auth/router.py:160-192; full inventory `coverage/phase01-be.md` |
+| setup | `POST /api/users/invitations`, `POST /api/auth/invitations/accept`, `DELETE /api/users/{id}` | test-user setup / cleanup only; inventoried in phase 1 / phase 6 coverage |
 
 Status words: **pass** (asserted by a test that passed in `run-01-author`) · **FAIL** (asserted, the real BE broke it)
 · **covered** (another spec / the BE pytest asserts it) · **not covered** (reason given) · **unpairable**.
-Test names shortened: "anon", "profile", "rules", "avatar", "avatar-rules", "deleted" (all `A07 · …`).
+Test names shortened: "anon", "profile", "rules", "avatar", "avatar-rules", "deleted", "pwrules", "pwchange" (all `A07 · …`).
 
 ## Shared rules (N11 / N12 / N14)
 
@@ -90,28 +94,63 @@ Test names shortened: "anon", "profile", "rules", "avatar", "avatar-rules", "del
 | Storage down → 503, `avatar_key` unchanged | router.py:271 | BE pytest replace_avatar_route:195 | unpairable (infra outage) / covered by pytest |
 | Owner deleted between verify and write → 401 `SESSION_REVOKED` (object orphaned, purged later) | router.py:252-261 | deleted (valid body → 401) | pass |
 
+## POST /api/me/password (N13) — me/router.py:146-153,168-244, schemas.py:94-98
+
+| Rule / branch | BE source | Covering test (api / ui) | Status |
+|---|---|---|---|
+| Protected: no Bearer → 401 `UNAUTHENTICATED` before the rate limit and the body | core/routing.py:129-135 | pwrules (anonymous) | pass |
+| Body `{currentPassword: str ≥ 1, newPassword: str ≥ 8}` strict; missing `newPassword` → 422 `VALIDATION field:"newPassword"` | schemas.py:94-98; auth/passwords.py:34 | pwrules ("missing_new") ; BE pytest test_change_password.py:66 (C02) | pass |
+| `newPassword` 7 chars → 422 `VALIDATION field:"newPassword"` | schemas.py:98 | pwrules ("new_7_chars") ; edge "password checks on the spot" (FE blocks it before any request) | pass |
+| `currentPassword` `""` → 422 `VALIDATION field:"currentPassword"` | schemas.py:97 | pwrules ("current_empty") ; BE pytest :66 (C02) | pass |
+| Unknown key → 422 `VALIDATION field` = that key | core/wire.py:46,115-118 | pwrules ("extra_key", `email`) ; BE pytest :77 (C03) | pass |
+| No max length, no "new ≠ current" rule, no strength rule on the BE (strength meter is FE-only) | schemas.py:94-98 | — | covered (source read; FE rules in `phase07.md`) |
+| Wrong current password → 422 `CURRENT_PASSWORD_INCORRECT field:"currentPassword"`, never 401 (K30) | router.py:43,231-234 | pwrules ("wrong_current"), pwchange (old current after the change) ; edge "wrong current password, double-clicked" (real 422) ; BE pytest :98 | pass |
+| Success → 204, empty body | router.py:219-244 | pwchange ; edge "password change succeeds" (:1196) ; BE pytest :48 (C01) | pass |
+| New password hashed as `nfc(password)`: sent NFD, typed NFC at login → 204 | auth/passwords.py:120-129 | pwchange | pass |
+| Old password then refused at login → 401 `INVALID_CREDENTIALS`; new one → 204 | auth/router.py:166-192; packages/core/error_codes.py:19 | pwchange ; edge success (new password 204) ; BE pytest :110 | pass |
+| OTHER sessions revoked (`revoke_sessions(..., except_sid)`, reason `password_change`): their refresh → 401 `SESSION_REVOKED`, their live Bearer → 401 `SESSION_REVOKED` (principal cache dropped after commit) | router.py:217; auth/sessions.py:159-163,266-282,449-452,604-621 | pwchange (second session: refresh + GET /me) ; BE pytest :48 (DB row) | pass |
+| The calling session is kept: GET /me 200, its refresh 200 | router.py:215-217 | pwchange ; edge success (reload keeps the session) | pass |
+| Calling session revoked in DB mid-request → 401 `SESSION_REVOKED` | router.py:196-205,215-216 | BE pytest :123 | covered (race, not producible safely) |
+| Concurrent password reset (N9) between read and swap → 422, password unchanged (compare-and-set) | router.py:183-193,212-213 | BE pytest :146 | covered (race) |
+| Pending `password_reset` tokens revoked | router.py:214 | BE pytest :191 | covered (needs a reset mail on the same user: recovery budget) |
+| Owner soft-deleted → 401 `SESSION_REVOKED` | router.py:168-180,231 | BE pytest :179 ; API "deleted" proves the verifier path for N11/N12/N14 | covered |
+| Rate limit `me_password` 5 / 900 s per user, Redis "safe", fail-closed; counted BEFORE body validation; 6th → 429 `RATE_LIMITED` + `Retry-After` 1..10 | router.py:45-46,146-153,225; core/ratelimit.py:86-94,105-140 | pwrules (5 rejected → the 6th, a valid body, 429, Retry-After 10; the old password still signs in, the session is not revoked) ; BE pytest :86 (C11) | pass |
+| Safe Redis down → 503 | core/ratelimit.py (on_error closed) | BE pytest :209 | unpairable (infra outage) / covered by pytest |
+| Password hash executor busy > 2 s → 503 `DEPENDENCY_UNAVAILABLE` | auth/passwords.py:37-38 | — | unpairable (needs a saturated hash executor) |
+| No mail sent by N13 | router.py:15-41 (no mail import) | — | covered (source read) |
+
+## POST /api/auth/login (W1) — phase-7 part only (full inventory: `coverage/phase01-be.md`)
+
+| Rule / branch | BE source | Covering test (api / ui) | Status |
+|---|---|---|---|
+| Correct password → 204 + refresh cookie (new session) | auth/router.py:160-192 | pwrules (old password still valid), pwchange (second session, new password) ; edge (every test signs the invitee in) | pass |
+| Wrong password → 401 `INVALID_CREDENTIALS`; counts on the (email, IP) attempt bucket (5 / 900 s since the last success) and the email soft bucket | auth/router.py:173-177; login_guard.py:41-53,122-126 | pwchange (old password after N13: 1 attempt on the test user's own bucket) | pass |
+| Origin, lockout 429, `auth_login_ip`, pending / disabled, rehash | auth/router.py:121-192 | `phase01_auth_api.spec.ts` | covered |
+
 ## POST /api/auth/refresh (W16) — phase-7 part only (full inventory: `coverage/phase01-be.md` "POST /api/auth/refresh")
 
 | Rule / branch | BE source | Covering test (api / ui) | Status |
 |---|---|---|---|
 | `user.name` is read from `users` at refresh time → reflects a PATCH of `fullName` | auth/sessions.py:314,339; auth/router.py:277-282 | profile | pass |
 | Owner soft-deleted → sessions revoked by the delete → 401 `SESSION_REVOKED` (phase01-be.md listed it "not covered") | users/service.py:451-455; auth/sessions.py:451-452,462-464 | deleted | pass |
+| Session revoked by N13 (another session of the same user) → 401 `SESSION_REVOKED`; the calling session still refreshes | auth/sessions.py:449-452 | pwchange | pass |
 | Origin, cookie shape, rotation / grace / reuse, fail bucket, W16 shape, idle/absolute expiry | auth/router.py:206-282 | `phase01_auth_api.spec.ts` | covered |
 
 ## Mock-pairing table
 
-Every `[mocked response]` test in the phase's UI specs (`phase07_account.spec.ts`, `phase07_account_ui.spec.ts`; no
-`phase07_*_edge.spec.ts` yet) — grep `mocked response` / `page.route` on 2026-10-12:
+Every `[mocked response]` test in the phase's UI specs (`phase07_account.spec.ts`, `phase07_account_ui.spec.ts`,
+`phase07_account_edge.spec.ts`) — grep `mocked response` / `page.route` on 2026-10-12: main 0, ui 0, edge 1 mocked
+(+1 "[held real response]", which delays the backend's own body and fakes nothing).
 
 | UI test | Endpoint + faked response | Pairing |
 |---|---|---|
-| — | none: both phase-7 UI specs run on the real stack only (0 `page.route`, 0 `[mocked response]` titles) | nothing to pair |
+| edge `E07 · SCR-33 [mocked response] GET /api/me 500 → "Không tải được cài đặt tài khoản" …` (phase07_account_edge.spec.ts:530) | `GET /api/me` → 500 | unpairable: a 5xx on N11 is not producible safely on the shared stack (needs the DB / storage down); the real 401 / 200 shapes of N11 are proven by "anon", "profile", "deleted" |
+| edge `E07 · SCR-33 loading state [held real response] …` (:499) | `GET /api/me` held, real body served | not a mock (real response) — nothing to pair |
 
-Ready pairings for a future edge spec (real BE answers proven by this file): N14 422 `VALIDATION`(mimeType /
-contentBase64), `IMAGE_TOO_LARGE`, `FILE_TYPE_MISMATCH`, `AVATAR_TYPE_UNSUPPORTED`, `AVATAR_DIMENSIONS_EXCEEDED`,
-`FILE_CORRUPT`, 429 `RATE_LIMITED` + Retry-After → "avatar-rules"; N11/N12/N14 401 `SESSION_REVOKED` → "deleted";
-N12 422 per field → "rules". Unpairable: N14 503 `DEPENDENCY_UNAVAILABLE` / storage 503, any 5xx or network loss on
-N11/N12/N14.
+Real-BE answers the edge spec relies on without mocks, proven here: N12 422 per field → "rules"; N14 422
+`FILE_TYPE_MISMATCH` → "avatar-rules"; N13 422 `CURRENT_PASSWORD_INCORRECT` → "pwrules", "pwchange"; N13 204 + other
+sessions revoked + new password signs in → "pwchange". Unpairable: N14 503 `DEPENDENCY_UNAVAILABLE` / storage 503, N13
+503 (safe Redis / hash executor), any 5xx or network loss on N11/N12/N13/N14.
 
 ## Findings (author run)
 
@@ -119,13 +158,16 @@ N11/N12/N14.
    strips (me/schemas.py:67-76); U+0000 is not whitespace, so it reaches the TEXT column, which Postgres cannot store
    → unhandled DB error → 500 (core/errors.py:195-202). Expected: a W7 4xx (`VALIDATION field:"phone"`), as fullName /
    jobTitle reject Cc via `clean_text`. Evidence `F:/App/qa-results/run-01-author/evidence/A07_rules_phone_nul.json`
-   (requestId `3f1fa6889643c2c18a89e2995b7b6a79`). Left failing in the spec.
+   (requestId `3f1fa6889643c2c18a89e2995b7b6a79`); reproduced in `run-31-author`
+   (`F:/App/qa-results/run-31-author/evidence/A07_rules_phone_nul.json`, requestId `3d8b81bcf6d4c9baa18802d072195429`).
+   Left failing in the spec.
 2. Observation (not failing): phone accepts other control chars (U+0007 stored and returned as sent), while fullName /
    jobTitle reject them — evidence `A07_rules_phone_control_char.json`. Same root as 1 (no `clean_text` on phone).
 
 ## Not covered (with reason)
 
-- N13 change password: not on the phase-7 plan (screen-only validation in the ui spec).
+- N13 races (session revoked mid-request, concurrent N9 reset), reset-token revocation, 503 paths → BE pytest
+  `apps/api/me/tests/test_change_password.py` (:123, :146, :191, :209).
 - N12 idempotency replay with a key: the FE never sends one on PATCH; generic rules in phase 2.
 - N14 JPEG success path / EXIF / ICC / 16-bit: no JPEG encoder without a new dependency → BE pytest.
 - N14 503 paths (semaphore, storage): infra states → BE pytest.
@@ -133,11 +175,12 @@ N11/N12/N14.
 
 ## Budget (this file, per run) — details in the spec header
 
-| Bucket | Limit | This file | Phase-7 UI | Note |
+| Bucket | Limit | This file | Phase-7 UI (main / ui / edge) | Note |
 |---|---|---|---|---|
-| `users_invite` per admin | 30 / 3600 s | 1 (one batch of 5) | ui 1 | Phases 1-7 in one hour = 30: at the cap |
-| `recovery_ip` per IP | 10 / 900 s (override 60) | 5 accepts | ui 1 | 6 ≤ 10 |
-| `auth_login_ip` per IP | 30 / 60 s (override 120) | 1 (admin) | main 1, ui 1 | 0 failed logins |
-| `me_avatar` per user | 10 / 900 s | 5 + 11 (designed 429) + 1 | 0 | each on its own fresh user |
-| `me_password` per user | 5 / 900 s | 0 | 0 | — |
-| refresh fail bucket per (sid, token) | 20 / 60 s | 1 (deleted user's own sid) | 0 | — |
+| `users_invite` per admin | 30 / 3600 s | 1 (one batch of 7) | 0 / 1 / 1 per worker | Phases 1-7 in one hour at the cap (phase06 header); a re-run inside the hour gets 429 |
+| `recovery_ip` per IP | 10 / 900 s (override 60) | 7 accepts | 0 / 1 / ≤ 6 | ≤ 14 ≤ 60; the BE default 10 would be exceeded by the phase total — needs `qa-limits.override.yml` (loaded by chuoi.sh) |
+| `auth_login_ip` per IP | 30 / 60 s (override 120) | 5 (admin 1, pwrules 1, pwchange 3) | 1 / 1 / ≤ 28 spread over minutes | 1 failed login, on the test user's own (email, IP) bucket |
+| login (email, IP) attempts | 5 / 900 s since the last success | pwchange: success, fail, success | edge: own user, 0 failed | — |
+| `me_avatar` per user | 10 / 900 s | 5 + 11 (designed 429) + 1 | edge 2 on its user | each on its own fresh user |
+| `me_password` per user | 5 / 900 s | pwrules 5 + designed 6th (429); pwchange 2 | edge 2 on its user | each on its own fresh user |
+| refresh fail bucket per (sid, token) | 20 / 60 s | deleted 1, pwchange 1 (each its own dead sid) | 0 | — |
