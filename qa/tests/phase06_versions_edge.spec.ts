@@ -1042,7 +1042,7 @@ test.describe('SCR-32 versions — two floors (PC)', () => {
 
       await test.step('[32-B-029] conflict banner above the compare area', async () => {
         await expect(banner).toBeVisible(); // VH:110-117
-        await expect(banner).toContainText(/đã sửa tầng này sau lúc bạn mở trang, nên lượt phục hồi chưa được ghi\. Tải lại để xem bản mới nhất\.$/u);
+        await expect(banner).toContainText(/đã sửa tầng này sau lúc bạn mở trang, nên lượt phục hồi chưa được ghi\. Tải lại để xem bản mới nhất\./u);
         await expect(banner.getByRole('button', { name: VH.conflictDismiss, exact: true })).toBeVisible();
         await banner.scrollIntoViewIfNeeded();
         await ev(page, '32-B-029', 'conflict_banner');

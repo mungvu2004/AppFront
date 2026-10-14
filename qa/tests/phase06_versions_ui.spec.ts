@@ -325,7 +325,7 @@ test.describe('U06v SCR-32 version history — PU (QA-06b P7)', () => {
           if (isWide(p)) {
             const current = versionList(p).getByText(VH.current, { exact: true });
             await expect(current).toBeVisible(); // VL:318-342
-            const row = versionList(p).getByRole('listitem').filter({ has: current });
+            const row = versionList(p).getByRole('listitem').filter({ has: p.getByText(VH.current, { exact: true }) }); // `has` is matched inside the row: a locator chained from the list never matches
             const [rowBox, badge] = [await boxOf(row), await boxOf(current)];
             expect.soft(badge.x + badge.width, 'badge inside its row').toBeLessThanOrEqual(rowBox.x + rowBox.width + 1);
             const time = await boxOf(row.locator('span[title]'));
