@@ -667,3 +667,38 @@ export async function outsideFrame(
   }
   return problems;
 }
+
+/**
+ * run-052 (23R-F-006/007): the zone name pins of the 3D scene are drei `<Html>` overlays (`nodes/src/zone/renderer.tsx:237-244`,
+ * div `#<zoneId>-label`, its button portalled in by `zone-label-editor-system.tsx:228`). They follow the camera, so pins of rooms
+ * off camera sit outside the viewport, where the canvas box's `overflow-hidden` clips them: invisible, not panel controls.
+ * `verifyUi`'s offscreen probe reads raw boxes, so while a state is measured the pins lying outside the canvas box are hidden
+ * (`visibility`, re-checked every frame, restored when back inside). Panel controls are untouched and still measured.
+ * ponytail: pins inside the box but under the sidebar stay as they are (they are not offscreen).
+ */
+export async function hideClippedSceneLabels(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const flag = window as unknown as { qaClipSceneLabels?: boolean };
+    if (flag.qaClipSceneLabels === true) return;
+    flag.qaClipSceneLabels = true;
+    const tick = (): void => {
+      const frame = document.querySelector('[data-testid="pascal-canvas"]');
+      const box = frame?.getBoundingClientRect();
+      if (frame !== null && frame !== undefined && box !== undefined) {
+        for (const pin of frame.querySelectorAll<HTMLElement>('[id$="-label"]')) {
+          const r = pin.getBoundingClientRect();
+          const inside = r.left >= box.left - 1 && r.right <= box.right + 1 && r.top >= box.top - 1 && r.bottom <= box.bottom + 1;
+          if (!inside && pin.dataset.qaClipped === undefined) {
+            pin.dataset.qaClipped = pin.style.visibility;
+            pin.style.visibility = 'hidden';
+          } else if (inside && pin.dataset.qaClipped !== undefined) {
+            pin.style.visibility = pin.dataset.qaClipped;
+            delete pin.dataset.qaClipped;
+          }
+        }
+      }
+      requestAnimationFrame(tick);
+    };
+    tick();
+  });
+}

@@ -30,6 +30,7 @@ import {
   detectedStrip,
   expand,
   fullPage,
+  hideClippedSceneLabels,
   itemCount,
   openAdminSession,
   openMemberSession,
@@ -78,6 +79,9 @@ async function verifyState(
   const metrics = await verifyUi(page, name, async (p) => {
     const extra: string[] = [];
     const targets = await open(p, extra);
+    // Clipped 3D zone pins are not panel controls (run-052 23R-F-006/007): keep them out of the offscreen probe.
+    await hideClippedSceneLabels(p);
+    await p.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
     const width = String(p.viewportSize()?.width ?? 0);
     outside.push(...[...(await outsideFrame(p, targets, against)), ...extra].map((problem) => `${width}: ${problem}`));
   });
