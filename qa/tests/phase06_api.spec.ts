@@ -701,8 +701,8 @@ test.describe('SCR-B06 phase-6 backend (rule-config N21 / N22, versions N17-N20 
       await test.step('[B06-G-210] control / format characters -> 422 label', async () => {
         const claim = '422 VALIDATION field label: Cc / Cf refused (service.py:57,309)';
         await rejected('B06-G-210_bell_cc', 'Bản\u0007', claim);
-        await rejected('B06-G-210_rlo_cf', 'Bản202E', claim);
-        await rejected('B06-G-210_lrm_cf', 'Bản200E', claim);
+        await rejected('B06-G-210_rlo_cf', 'Bản\u202E', claim);
+        await rejected('B06-G-210_lrm_cf', 'Bản\u200E', claim);
       });
       await test.step('[B06-G-213] versionId in body differs from path -> PATH_BODY_MISMATCH', async () => {
         const sent = await patch('B06-G-213_mismatch', { label: 'x', versionId: String(start.items[1]?.id) }, '422 PATH_BODY_MISMATCH field versionId (W21)');
