@@ -627,7 +627,7 @@ test.describe('E06d SCR-31 Spatial JSON Viewer', () => {
       });
 
       await test.step('[31-A-023] ⚑ A "Tải xuống .json" action exists in the footer and downloads the graph', async () => {
-        // SJV:244-253, USJ:268 — canDownload is false today (SJC:229 passes no onDownload)
+        // F5: canDownload = canView && graph !== null, so the button is shown whenever the graph is loaded (default Blob download)
         const button = page.getByRole('button', { name: SJ.download, exact: true });
         await softly(button).toBeVisible();
         if ((await button.count()) > 0) {
@@ -641,7 +641,7 @@ test.describe('E06d SCR-31 Spatial JSON Viewer', () => {
       });
 
       await test.step('[31-B-019] ⚑ Copy has no Spatial-JSON jargon (BUG-453): the validity line reads without internal terms', async () => {
-        // SJM:269 — "Hợp lệ theo hợp đồng Spatial JSON — 0 lỗi."
+        // SJM:286 — "Hợp lệ — 0 lỗi."
         const text = (await validityLine(page).innerText()).trim();
         softly(text, 'validity line').not.toMatch(/Spatial JSON|hợp đồng/u);
         await ev(page, '31-B-019', 'validity_wording');

@@ -354,11 +354,38 @@ test.describe('E06 SCR-32 version history — mocked-response flows (QA-06b P7)'
           await page.getByRole('combobox', { name: VH.leftSelect, exact: true }).click();
           await page.getByRole('option', { name: /^v1 · /u }).click();
           await diffTab(page, 'Trực quan').click();
+          // F-T3: the skeleton needs a diff AND a pair member still fetching (VV:147, `isBuilding = isAvailable && pairFetching`);
+          // with the left snapshot unread the compare area shows the loading sentence instead (versionHistoryCompare.ts:57).
+          test.info().annotations.push({ type: '32-B-022', description: 'app/catalog gap: skeleton unreachable while the first snapshot of the pair loads' });
           await expect.soft(page.getByRole('status', { name: VH.buildingLabel })).toBeVisible(); // VV:146-163, 171-175
           await captureEvidence(page, 'E06v_32-B-022_canvas-skeleton.png');
           gate.release();
           await expect.soft(page.getByRole('status', { name: VH.buildingLabel })).toHaveCount(0);
           mock.setHistory(three);
+          reset();
+        });
+
+        // The real-seed pipeline file cannot reach the unavailable state (the BE never stores a non-finite graph), so it is mocked here.
+        // These two steps replace the same ids in phase06_pipeline.spec.ts (T4a removes those).
+        await test.step('[32-B-018] visual tab: a left version whose scene cannot be built -> "Chưa xem trực quan được"', async () => {
+          mock.setHistory(three);
+          // S5-confirm: `1e999` parses to Infinity in the page, so toPascalScene throws and convertScene reports `failed` (versionHistoryScene.ts:67-77).
+          mock.snapshot = (id, call) =>
+            id === v1 ? { raw: JSON.stringify(baseSnapshot(id, call).body).replace('"thicknessMm":220', '"thicknessMm":1e999') } : baseSnapshot(id, call);
+          await openVersionsPage(page, projectId);
+          await expect(diffTab(page, 'Thay đổi')).toBeVisible();
+          await page.getByRole('combobox', { name: VH.leftSelect, exact: true }).click();
+          await page.getByRole('option', { name: /^v1 · /u }).click();
+          await diffTab(page, 'Trực quan').click();
+          await expect.soft(page.getByText('Chưa xem trực quan được', { exact: true })).toBeVisible(); // VV:30
+          await captureEvidence(page, 'E06v_32-B-018_visual-unavailable.png');
+        });
+
+        await test.step('[32-B-019] ⚑ the unavailable copy names the older version, not "the current model"', async () => {
+          await expect.soft(page.getByText(/^Phiên bản v1 chưa dựng được thành cảnh/u)).toBeVisible(); // versionHistoryScene.ts:114
+          await expect.soft(page.getByText(/Mô hình hiện tại/u)).toHaveCount(0);
+          await captureEvidence(page, 'E06v_32-B-019_unavailable-names-version.png');
+          mock.snapshot = baseSnapshot;
           reset();
         });
 
@@ -607,6 +634,7 @@ test.describe('E06 SCR-32 version history — mocked-response flows (QA-06b P7)'
           await page.clock.setSystemTime(now + 9_000);
           await undoButton().click();
           await expectNotice(VH.undoExpiredTitle, VH.undoExpiredMessage); // VHG:99-104, UVH:363-368
+          await page.clock.resume(); // setSystemTime leaves the installed clock frozen: later toasts must animate again or clicks are "not stable" (32-C-037)
           await expect.soft(banner(page, VH.undoExpiredTitle).getByRole('button', { name: VH.conflictDismiss, exact: true })).toBeVisible();
           await captureEvidence(page, 'E06v_32-B-032_undo-expired.png');
         });

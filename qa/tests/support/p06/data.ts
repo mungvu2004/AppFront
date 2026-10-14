@@ -59,15 +59,15 @@ export const SJ = {
   noMatch: 'Không tìm thấy kết quả', // USJ:88 NO_MATCH_LABEL
   viewMode: 'Cách hiện cấu trúc', // SJV:149
   copy: 'Sao chép nhánh đang chọn', // SJV:157
-  download: 'Tải xuống .json', // SJV:241 (only with onDownload, SJV:234; the route passes none, SJC:229)
+  download: 'Tải xuống .json', // SJV:241 (F5: shown whenever the graph is loaded)
   tabs: 'Cách xem nội dung', // SJD:136
   structure: 'Cấu trúc dự án', // SJV:202
   content: 'Nội dung dữ liệu không gian', // SJD:135
   emptyTitle: 'Chưa có dữ liệu không gian', // SJV:48
   emptyDescription:
     'Bản vẽ này chưa được xử lý xong, nên chưa có tường, phòng hay đối tượng nào để xem. Xử lý bản vẽ của tầng rồi quay lại đây.', // SJV:49-50
-  valid: 'Hợp lệ theo hợp đồng Spatial JSON — 0 lỗi.', // SJM:269
-  validity: /^(Hợp lệ theo hợp đồng Spatial JSON — 0 lỗi\.|\d[\d.]* lỗi nghiêm trọng · \d[\d.]* cảnh báo\.)$/u, // SJM:268-270
+  valid: 'Hợp lệ — 0 lỗi.', // SJM:286
+  validity: /^(Hợp lệ — 0 lỗi\.|\d[\d.]* lỗi nghiêm trọng · \d[\d.]* cảnh báo\.)$/u, // SJM:268-270
   noSelection: 'Chọn một nút ở cây bên trái để xem chi tiết của nó.', // SJD:80
   entityCode: 'Mã đối tượng', // SJD:110
   elementCount: 'Số phần tử', // SJD:102
