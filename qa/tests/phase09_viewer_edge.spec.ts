@@ -202,9 +202,11 @@ test.describe('phase 09 viewer edge', () => {
     const { projectId } = mainProject();
     const viewer = await roleUser(admin, 'viewer', 'viewer');
     const undo = await asMember(admin, projectId, viewer);
-    const measurement = await seedMeasurement(admin, projectId);
+    let measurement: Awaited<ReturnType<typeof seedMeasurement>> | undefined;
     const context = await browser.newContext({ viewport: DESKTOP });
     try {
+      measurement = await seedMeasurement(admin, projectId);
+      const seeded = measurement;
       await signInRole(context, viewer);
       const page = await context.newPage();
       const rec = recordWrites(page);
@@ -242,7 +244,7 @@ test.describe('phase 09 viewer edge', () => {
         await captureEvidence(page, 'E09_9V-B-033_enter-no-post.png');
       });
       await test.step('[9V-B-034] viewer: danh sách phép đo không có nút Xoá', async () => {
-        await expect.soft(page.getByText(measurement.name).first()).toBeVisible(); // list may be collapsed — UNKNOWN — NEED VERIFICATION
+        await expect(page.getByText(seeded.name).first()).toBeVisible(); // anchor; list may be collapsed — UNKNOWN — NEED VERIFICATION
         await expect.soft(page.getByRole('button', { name: /^Xoá / })).toHaveCount(0); // MeasurementList.tsx:154
         await captureEvidence(page, 'E09_9V-B-034_no-delete.png');
       });
@@ -250,16 +252,22 @@ test.describe('phase 09 viewer edge', () => {
         await expect.soft(pinBlocked).toBeVisible(); // useMeasurementTool.ts:266 — the caption appears once roles arrived
         await captureEvidence(page, 'E09_9V-B-036_roles-known.png');
       });
-      await test.step('[9V-C-030] ⚑ viewer: Rule Report không có cổng vai FE', async () => {
+      await test.step('[9V-C-030] ⚑ viewer: không thấy/không dùng được Chạy kiểm tra lại', async () => {
         await gotoAs(page, ROUTES.project.rules(projectId), RULES_HEADING);
-        await expect.soft(page.getByRole('button', { name: RULES_RERUN })).toBeVisible(); // useRuleReport.ts:367
-        await expect.soft(page.getByRole('button', { name: RULES_CONFIRM })).toBeVisible();
-        await captureEvidence(page, 'E09_9V-C-030_rules-ungated.png');
+        // correct behaviour: a viewer has neither control (useRuleReport.ts:367 has no role gate today => red while the bug lives)
+        await expect.soft(page.getByRole('button', { name: RULES_RERUN })).toHaveCount(0);
+        await expect.soft(page.getByRole('button', { name: RULES_CONFIRM })).toHaveCount(0);
+        await captureEvidence(page, 'E09_9V-C-030_rules-gated.png');
       });
       await test.step('[9V-C-031] ⚑ viewer bấm "Chạy kiểm tra lại": không request ghi', async () => {
+        const rerun = page.getByRole('button', { name: RULES_RERUN });
+        await expect.soft(rerun).toHaveCount(0);
         const mark = rec.writes.length;
-        await page.getByRole('button', { name: RULES_RERUN }).click();
-        await page.waitForLoadState('networkidle');
+        if ((await rerun.count()) > 0) {
+          // fallback only while the bug lives: still must not write
+          await rerun.click();
+          await page.waitForLoadState('networkidle');
+        }
         test.info().annotations.push({ type: 'writes', description: JSON.stringify(writesAfter(rec.writes, mark)) });
         expect.soft(writesAfter(rec.writes, mark)).toEqual([]);
         await captureEvidence(page, 'E09_9V-C-031_rerun-writes.png');
@@ -271,25 +279,20 @@ test.describe('phase 09 viewer edge', () => {
       await test.step('[9V-C-033] viewer: ViolationDetail mở được, điều hướng chỉ đọc', async () => {
         // UNKNOWN — NEED VERIFICATION: row selector (RuleReportGroups.tsx RowMessage button inside a list item with a <code>).
         const row = page.locator('li').filter({ has: page.locator('code') }).getByRole('button').first();
-        await expect.soft(row).toBeVisible();
+        await expect(row, 'violation row selector').toBeVisible();
         await row.click();
         await expect.soft(page.getByRole('button', { name: /^Vi phạm (trước|sau)$/u }).first()).toBeVisible(); // ViolationDetail.tsx:158-166
         await captureEvidence(page, 'E09_9V-C-033_violation-detail.png');
       });
-      await test.step('[9V-C-050] viewer: "Xác nhận đã xử lý" focus được bằng Tab', async () => {
+      await test.step('[9V-C-050] viewer: không có "Xác nhận đã xử lý" để focus', async () => {
         const confirm = page.getByRole('button', { name: RULES_CONFIRM });
-        await page.locator('body').click({ position: { x: 1, y: 1 } });
-        let reached = false;
-        for (let i = 0; i < 60 && !reached; i += 1) {
-          await page.keyboard.press('Tab');
-          reached = await confirm.evaluate((el) => el === document.activeElement).catch(() => false);
-        }
-        expect.soft(reached, 'Tab never reached the confirm button').toBe(true);
+        // a viewer cannot reach the confirm control at all (⚑ correct behaviour)
+        await expect.soft(confirm).toHaveCount(0);
         await captureEvidence(page, 'E09_9V-C-050_confirm-focus.png');
       });
     } finally {
       await context.close();
-      await measurement.remove();
+      if (measurement !== undefined) await measurement.remove();
       await undo();
     }
   });
