@@ -127,14 +127,15 @@ test.describe('SCR-35 Training Jobs · mocked edge (second half)', () => {
     const logsOf = (job: WireJob) => mock.gets('logs', job.id);
 
     await test.step('[35T-B-020] metrics [] -> "Chưa có số đo." + column headers', async () => {
+      const metricsBefore = metricsOf(wall).length;
       await pick(wall, WALL, 3);
+      await expect.poll(() => metricsOf(wall).length).toBeGreaterThan(metricsBefore);
       await expect(section(page, 'Số đo').getByText('Chưa có số đo.')).toBeVisible();
-      for (const name of ['Bước', 'Vòng', 'Tập', 'Loss', 'IoU', 'Lúc']) await expect.soft(section(page, 'Số đo').getByRole('columnheader', { name, exact: true })).toBeVisible();
+      for (const name of ['Bước', 'Vòng', 'Tập', 'Loss', 'IoU', 'Lúc']) await expect(section(page, 'Số đo').getByRole('columnheader', { name, exact: true })).toBeVisible();
       await captureEvidence(page, '35T-B-020_metrics_empty');
       await pick(opening, OPENING, 2);
-      await expect.soft(section(page, 'Số đo').getByRole('columnheader', { name: 'mAP50', exact: true })).toBeVisible();
+      await expect(section(page, 'Số đo').getByRole('columnheader', { name: 'mAP50', exact: true })).toBeVisible();
       await pick(wall, WALL, 3);
-      await expect.poll(() => metricsOf(wall).length).toBeGreaterThan(0);
     });
 
     await test.step('[35T-B-021] 3 points -> "Mới nhất: vòng 3, …"; Loss 4 decimals, score 3', async () => {
@@ -176,7 +177,7 @@ test.describe('SCR-35 Training Jobs · mocked edge (second half)', () => {
       logs.items.push(...logLines(40, 4));
       await tick(page, 5_000);
       await expect.poll(height).toBeGreaterThan(400);
-      await softly.poll(async () => (await height()) - (await top()) - 320, { message: 'at the bottom: scrollTop follows' }).toBeLessThan(10);
+      await softly.poll(() => box.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight), { message: 'at the bottom: scrollTop follows' }).toBeLessThanOrEqual(8); // BOTTOM_SLACK_PX TJD:41
       await box.evaluate((el) => {
         el.scrollTop = 0;
       });
@@ -207,9 +208,10 @@ test.describe('SCR-35 Training Jobs · mocked edge (second half)', () => {
     await test.step('[35T-B-025] stream 404 stops asking; 500 retries next beat', async () => {
       const count = (job: WireJob, kind: 'metrics' | 'logs') => mock.gets(kind, job.id).length;
       mock.metrics = () => wireError(404, 'NOT_FOUND', { resource: 'trainingJob' });
+      const before404 = count(wall, 'metrics');
       await pick(opening, OPENING, 2);
       await pick(wall, WALL, 3);
-      await expect.poll(() => count(wall, 'metrics')).toBeGreaterThan(0);
+      await expect.poll(() => count(wall, 'metrics')).toBeGreaterThan(before404); // the 404 request itself has arrived
       const stopped = count(wall, 'metrics');
       const logsBefore = count(wall, 'logs');
       await tick(page, 10_000);
@@ -225,7 +227,7 @@ test.describe('SCR-35 Training Jobs · mocked edge (second half)', () => {
       await softly.poll(() => count(wall, 'metrics'), { message: '500: asks again next beat' }).toBeGreaterThan(first500);
     });
 
-    await test.step('[35T-E-014] a11y: sections "Số đo"/"Nhật ký", 320 px keyboard scroll areas', async () => {
+    await test.step('[35T-E-014] a11y: regions "Số đo"/"Nhật ký", 320 px scroll areas (no tabIndex: click then PageDown)', async () => {
       mock.metrics = metrics.responder;
       await expect(section(page, 'Số đo')).toBeVisible();
       await expect(section(page, 'Nhật ký')).toBeVisible();
@@ -348,8 +350,9 @@ test.describe('SCR-35 Training Jobs · mocked edge (second half)', () => {
       await confirm.click();
       await expect.soft(cancelDialog(page).getByText(T.write)).toBeVisible();
       await expect(cancelDialog(page)).toBeVisible();
-      mock.cancel = () => wireError(503, 'DEPENDENCY_UNAVAILABLE');
+      mock.cancel = () => wireError(503, 'DEPENDENCY_UNAVAILABLE'); // 503 is retried by the http client (about 4-5 s): POST count is not asserted
       await confirm.click();
+      await expect(confirm).toBeEnabled({ timeout: 20_000 });
       await expect.soft(cancelDialog(page).getByText(T.busy)).toBeVisible();
       await expect(cancelDialog(page)).toBeVisible();
     });
@@ -406,10 +409,10 @@ test.describe('SCR-35 Training Jobs · mocked edge (second half)', () => {
       await submit.click();
       await expect(createDialog(page)).toBeHidden();
       expect(mock.posts('create')).toHaveLength(1);
-      await expect.soft(page.getByRole('tab', { name: TAB_JOBS })).toHaveAttribute('aria-selected', 'true');
-      await expect.soft(rowBtn(page, WALL, 0, 50)).toHaveAttribute('aria-pressed', 'true');
-      await expect.soft(toast(page, 'Đã xếp hàng lượt huấn luyện')).toBeVisible();
-      await expect.soft(toast(page, 'Lượt mới chạy khi máy huấn luyện rảnh.')).toBeVisible();
+      await expect(page.getByRole('tab', { name: TAB_JOBS })).toHaveAttribute('aria-selected', 'true');
+      await expect(rowBtn(page, WALL, 0, 50)).toHaveAttribute('aria-pressed', 'true');
+      await expect(toast(page, 'Đã xếp hàng lượt huấn luyện')).toBeVisible();
+      await expect(toast(page, 'Lượt mới chạy khi máy huấn luyện rảnh.')).toBeVisible();
       await captureEvidence(page, '35T-A-019_created');
     });
 
@@ -435,7 +438,8 @@ test.describe('SCR-35 Training Jobs · mocked edge (second half)', () => {
       const second = await openForm();
       await second.epochs.fill('0');
       await second.epochs.press('Enter');
-      await expect.soft(createDialog(page).getByText(T.epochs).first()).toBeVisible(); // the mark: the invalid state is on screen
+      await expect(createDialog(page).getByRole('button', { name: SUBMIT, exact: true })).toBeDisabled(); // the mark: invalid state
+      await expect.soft(createDialog(page).getByText(T.epochs).first()).toBeVisible();
       await expect(createDialog(page)).toBeVisible();
       expect.soft(mock.posts('create')).toHaveLength(before + 1);
       await second.epochs.fill('50');
@@ -461,26 +465,33 @@ test.describe('SCR-35 Training Jobs · mocked edge (second half)', () => {
       await softly.poll(() => mock.gets('jobs').length, { message: 'list re-read after a lost response' }).toBeGreaterThan(listBefore);
       mock.create = () => 'abort';
       await submit.click();
+      await expect(submit).toBeEnabled({ timeout: 20_000 }); // abort is retried 3x by the http client (same key): wait for the end
       await expect.soft(createDialog(page).getByText(T.busy)).toBeVisible();
       await captureEvidence(page, '35T-C-011_create_errors');
     });
 
     await test.step('[35T-C-012] same body after abort -> same key; changed epochs -> another key', async () => {
       const submit = createDialog(page).getByRole('button', { name: SUBMIT, exact: true });
-      mock.create = () => 'abort';
+      mock.create = () => 'abort'; // the http client retries an aborted POST (same key) up to 3 times: compare keys, never counts
+      const keysSince = (n: number): (string | undefined)[] => mock.posts('create').slice(n).map((c) => c.headers['idempotency-key']);
       const n0 = mock.posts('create').length;
       await submit.click();
-      await expect.poll(() => mock.posts('create').length).toBeGreaterThan(n0);
-      const k1 = lastKey(mock, 'create');
+      await expect(submit).toBeEnabled({ timeout: 20_000 });
+      const first = keysSince(n0);
+      expect(first.length).toBeGreaterThan(0);
       const n1 = mock.posts('create').length;
       await submit.click();
-      await expect.poll(() => mock.posts('create').length).toBeGreaterThan(n1);
-      expect.soft(lastKey(mock, 'create'), 'resend of the same body keeps the key').toBe(k1);
+      await expect(submit).toBeEnabled({ timeout: 20_000 });
+      const second = keysSince(n1);
+      expect.soft(second.length).toBeGreaterThan(0);
+      expect.soft(new Set([...first, ...second]).size, 'resend of the same body keeps one key').toBe(1);
       await createDialog(page).getByLabel('Số vòng', { exact: true }).fill('51');
       const n2 = mock.posts('create').length;
       await submit.click();
-      await expect.poll(() => mock.posts('create').length).toBeGreaterThan(n2);
-      expect.soft(lastKey(mock, 'create'), 'another body gets another key').not.toBe(k1);
+      await expect(submit).toBeEnabled({ timeout: 20_000 });
+      const third = keysSince(n2);
+      expect.soft(third.length).toBeGreaterThan(0);
+      expect.soft(third.every((k) => k !== undefined && k !== first[0]), 'another body gets another key').toBe(true);
       expect.soft((mock.posts('create').at(-1)?.body as { epochs: number }).epochs).toBe(51);
     });
 
@@ -515,7 +526,7 @@ test.describe('SCR-35 Training Jobs · mocked edge (second half)', () => {
       const before = mock.gets('versions').length;
       await fail(wireError(422, 'DATASET_VERSION_NOT_READY'));
       await expect(dialog.getByText(T.versionNotReady)).toBeVisible();
-      await softly.poll(() => mock.gets('versions').length, { message: 'versions re-read' }).toBeGreaterThan(before);
+      await expect.poll(() => mock.gets('versions').length, { message: 'versions re-read' }).toBeGreaterThan(before);
       await captureEvidence(page, '35T-C-005_version_not_ready');
     });
 
