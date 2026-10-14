@@ -138,9 +138,8 @@ test('SCR-40e-2 · FL-10E-06 · anon · ListReviewDemo: chọn, duyệt, xoá, h
     await rowCheck(page, 'W-030').check();
     await page.getByRole('button', { name: 'Xoá' }).click();
     await expect(bodyRows(page)).toHaveCount(47);
-    await undo.click();
-    await expect(bodyRows(page)).toHaveCount(48);
-    // lần 2: toast đã rời nên không còn nút; backup null (useListReview.ts:131) → không hồi thêm
+    // bấm đúp thật: lần 2 rơi vào lúc toast đang exit (nút còn trong DOM); backup null (useListReview.ts:131) → không hồi thêm
+    await undo.dblclick();
     await expect.soft(undo).toHaveCount(0);
     await expect.soft(bodyRows(page)).toHaveCount(48);
     await expect.soft(rowOf(page, 'W-030')).toHaveCount(1);
