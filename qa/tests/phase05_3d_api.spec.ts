@@ -21,7 +21,8 @@ import { expect, test } from '@playwright/test';
 import { ProjectSchema } from '../../src/api/schemas/index';
 import { SpatialGraphDocumentSchema } from '../../src/api/schemas/spatialGraph';
 import { propertyTemplateDraftOf } from '../../src/lib/pascal/template';
-import { newApiContext } from './support/api';
+import { newApiContext, signedInApi } from './support/api';
+import { poolUser } from './support/phase03Seed';
 import {
   Cleanup, MISSING_PROJECT, DEMOTE_SLOT, adminApi, asJson, call, deletedProjectId, expectError, expectZod, graphPath,
   instant, itemsOf, layerOf, layerPath, measurementsPath, memberApi, mintedEntities, moveWall, note, objs, projectDoc,
@@ -141,11 +142,14 @@ test.describe(API, () => {
       if (!t1 || !t2) throw new Error('seed Q2L: two floors expected');
       const p = t1.projectId;
       const w2 = await memberApi(admin, cleanup, 'engineer', p);
+      // The pooled demote user may be stuck at viewer from an aborted run: set engineer before it signs in.
+      const demUser = await poolUser(admin, 'engineer', DEMOTE_SLOT);
+      const reset = await admin.patch(`/api/users/${demUser.id}/role`, { data: { userId: demUser.id, role: 'engineer' } });
+      expect(reset.status(), 'setup: demote slot back to engineer').toBe(200);
       const dem = await memberApi(admin, cleanup, 'engineer', p, DEMOTE_SLOT);
       // State before step 1 (steps 8 and 9 compare against it).
       const updatedBefore = (await projectDoc(admin, 'B05-G-163_project_before', p)).updatedAt;
       const versionsBefore = itemsOf((await call(admin, 'B05-G-162_versions_before', 'GET', versionsPath(p, t1.floorId), undefined, ['N17 before the first #35'])).body, 'N17').length;
-      const notesBefore = itemsOf((await call(w2.api, 'B05-G-162_notifications_before', 'GET', '/api/notifications', undefined, ['notifications of E before'])).body, 'notifications').length;
       let rev = revisionIn(await readGraphDoc(admin, 'B05-G-040_n15_base', p), t1.floorId);
       let conflict: Json = {};
 
@@ -181,18 +185,17 @@ test.describe(API, () => {
         // FE C2 rule: an edit clears `reviewed`. First mark wall 1 human + reviewed (allowed: source human).
         let doc = await readLayerDoc(admin, 'B05-G-042_n16', p, t1.floorId);
         let layer = layerOf(doc);
-        const wall = layer.walls[1];
-        if (!wall) throw new Error('wall 1 missing');
-        Object.assign(wall, { reviewed: true, source: 'human' });
-        const marked = await putLayer(admin, 'B05-G-042_put_reviewed', p, t1.floorId, rev, layer, ['200: a human item may be reviewed']);
+        for (const item of [...layer.walls, ...layer.openings, ...layer.rooms, ...layer.furniture]) Object.assign(item, { reviewed: true, source: 'human' });
+        const marked = await putLayer(admin, 'B05-G-042_put_reviewed', p, t1.floorId, rev, layer, ['200: human items may be reviewed']);
         expect(marked.res.status()).toBe(200);
-        rev += 1;
+        rev = Number(asJson(marked.body).revision);
         doc = await readLayerDoc(admin, 'B05-G-042_n16_reviewed', p, t1.floorId);
+        expect.soft(asJson(doc.level).reviewed, 'level reviewed once every item is').toBe(true);
         layer = moveWall(layerOf(doc), 1, 50);
         Object.assign(layer.walls[1] ?? {}, { reviewed: false });
         const edited = await putLayer(admin, 'B05-G-042_put_edit', p, t1.floorId, rev, layer, ['200: edited geometry, reviewed:false']);
         expect.soft(edited.res.status()).toBe(200);
-        rev += 1;
+        rev = Number(asJson(edited.body).revision);
         const after = await readLayerDoc(admin, 'B05-G-042_n16_after', p, t1.floorId);
         expect.soft(layerOf(after).walls[1]?.reviewed, 'item reviewed').toBe(false);
         expect.soft(asJson(after.level).reviewed, 'level reviewed').toBe(false);
@@ -225,10 +228,11 @@ test.describe(API, () => {
         const doc = await readLayerDoc(admin, 'B05-G-060_n16', p, t1.floorId);
         expect.soft(doc.revision).toBe(conflict.currentVersion);
         expect.soft(layerOf(doc).walls[0]?.thicknessMm, 'E\'s thickness').toBe(250);
-        const sent = await putLayer(admin, 'B05-G-060_put', p, t1.floorId, Number(doc.revision), layerOf(doc), ['200 revision + 1 on the reloaded base']);
+        // An unchanged layer is a 200 that keeps the revision (writer.py:340-341), so change one detail.
+        const sent = await putLayer(admin, 'B05-G-060_put', p, t1.floorId, Number(doc.revision), moveWall(layerOf(doc), 0, 10), ['200 revision + 1 on the reloaded base']);
         expect.soft(sent.res.status()).toBe(200);
         expect.soft(asJson(sent.body).revision).toBe(Number(doc.revision) + 1);
-        rev = Number(doc.revision) + 1;
+        rev = Number(asJson(sent.body).revision);
       });
 
       await test.step('[B05-G-052] ⚑5 wall moved to the other storey: Tầng 2 PUT → 422 LAYER_INTEGRITY_BROKEN {count: 1}; release on Tầng 1 → 200; Tầng 2 again → 200', async () => {
@@ -246,7 +250,7 @@ test.describe(API, () => {
         l1.walls = l1.walls.filter((w) => w.id !== taken.id);
         const release = await putLayer(admin, 'B05-G-052_t1_release', p, t1.floorId, rev, l1, ['200: the source floor lets the id go']);
         expect.soft(release.res.status()).toBe(200);
-        rev += 1;
+        rev = Number(asJson(release.body).revision);
         const second = await putLayer(admin, 'B05-G-052_t2_ok', p, t2.floorId, Number(d2.revision), l2, ['200: the same Tầng 2 body after the release']);
         expect.soft(second.res.status()).toBe(200);
       });
@@ -255,8 +259,9 @@ test.describe(API, () => {
         // WR:502-530 (no on_after_commit).
         const versions = itemsOf((await call(admin, 'B05-G-162_versions_after', 'GET', versionsPath(p, t1.floorId), undefined, ['N17 count unchanged'])).body, 'N17');
         expect.soft(versions.length).toBe(versionsBefore);
-        const notes = itemsOf((await call(w2.api, 'B05-G-162_notifications_after', 'GET', '/api/notifications', undefined, ['E has no new notification'])).body, 'notifications');
-        expect.soft(notes.length).toBe(notesBefore);
+        const notes = itemsOf((await call(w2.api, 'B05-G-162_notifications_after', 'GET', '/api/notifications', undefined, ['E has no notification about this project from a write'])).body, 'notifications');
+        // projectInvite is the add-member notice (other flows share this pool user); only write-made ones count.
+        expect.soft(notes.filter((n) => n.projectId === p && n.kind !== 'projectInvite')).toEqual([]);
       });
 
       await test.step('[B05-G-163] updatedAt advanced; N15 floorRevisions Tầng 1 = the last 200\'s revision', async () => {
@@ -274,19 +279,23 @@ test.describe(API, () => {
 
       await test.step('[B05-G-008] engineer demoted to viewer by #41 → next #35 is 403 FORBIDDEN within 5 s', async () => {
         // AUS:21,35; auth/sessions.py:608-618 (principal cache <= AUTH_PRINCIPAL_CACHE_TTL_S = 5 s).
-        const writeOnce = async (ev: string): Promise<number> => {
-          const doc = await readLayerDoc(dem.api, `${ev}_n16`, p, t1.floorId);
-          return (await putLayer(dem.api, ev, p, t1.floorId, Number(doc.revision), layerOf(doc), ['#35 as the demoted member'])).res.status();
-        };
-        expect(await writeOnce('B05-G-008_engineer_put'), 'engineer member may write').toBe(200);
+        // #41 bumps token_version and clears the principal cache: the old Bearer is revoked (401), a new session sees viewer (403).
+        const doc = await readLayerDoc(dem.api, 'B05-G-008_n16', p, t1.floorId);
+        const before = await putLayer(dem.api, 'B05-G-008_engineer_put', p, t1.floorId, Number(doc.revision), moveWall(layerOf(doc), 2, 10), ['200: engineer member may write']);
+        expect(before.res.status(), 'engineer member may write').toBe(200);
         cleanup.add(async () => {
-          await admin.patch(`/api/users/${dem.user.id}/role`, { data: { userId: dem.user.id, role: 'engineer' } });
+          const back = await admin.patch(`/api/users/${dem.user.id}/role`, { data: { userId: dem.user.id, role: 'engineer' } });
+          if (back.status() !== 200) throw new Error(`restore role -> ${String(back.status())}`);
         });
-        const role = await call(admin, 'B05-G-008_demote', 'PATCH', `/api/users/${dem.user.id}/role`, { userId: dem.user.id, role: 'viewer' }, ['setup: #41 engineer → viewer']);
+        const role = await call(admin, 'B05-G-008_demote', 'PATCH', `/api/users/${dem.user.id}/role`, { userId: dem.user.id, role: 'viewer' }, ['setup: #41 engineer -> viewer']);
         expect(role.res.status()).toBe(200);
-        await expect
-          .poll(() => writeOnce('B05-G-008_viewer_put'), { message: '#35 after the demotion', timeout: 8_000 })
-          .toBe(403);
+        const stale = await putLayer(dem.api, 'B05-G-008_old_token_put', p, t1.floorId, Number(asJson(before.body).revision), layerOf(doc), ['401 SESSION_REVOKED: the old Bearer died with the role change (sessions.py:575-578)']);
+        expectError(stale, 401, 'SESSION_REVOKED');
+        const fresh = await signedInApi(dem.user.email, dem.user.password);
+        cleanup.add(() => fresh.dispose());
+        const after = await readLayerDoc(fresh, 'B05-G-008_fresh_n16', p, t1.floorId);
+        const denied = await putLayer(fresh, 'B05-G-008_viewer_put', p, t1.floorId, Number(after.revision), moveWall(layerOf(after), 2, 10), ['403 FORBIDDEN: the new session is a viewer']);
+        expectError(denied, 403, 'FORBIDDEN');
         note('B05-G-008: FE copy "Bạn không còn quyền sửa tầng này." is asserted by the UI layer.');
       });
     } finally {
@@ -456,7 +465,7 @@ test.describe(API, () => {
 
       await test.step('[B05-G-147] .ktx2 headers: CSP + nosniff, no Cache-Control, ETag + Last-Modified', async () => {
         // Pins today's revalidation policy (NG:63-66).
-        const h = (await web.get(ktx)).headers();
+        const h = (await call(web, 'B05-G-147_ktx2_headers', 'GET', ktx, undefined, ['CSP + nosniff, no Cache-Control, ETag + Last-Modified'])).res.headers();
         expect.soft(head(h, 'content-security-policy')).toBeTruthy();
         expect.soft(head(h, 'x-content-type-options')).toBe('nosniff');
         expect.soft(head(h, 'cache-control')).toBeUndefined();
@@ -481,6 +490,7 @@ test.describe(API, () => {
         const origins = [...new Set([...source.matchAll(/\b(?:src|thumbnail):\s*'(https?:\/\/[^/']+)/gu)].map((m) => m[1] ?? ''))];
         const directive = (name: string): string => new RegExp(`${name}\\s([^;]*)`, 'u').exec(csp)?.[1] ?? '';
         await call(web, 'B05-G-149_csp_again', 'GET', '/projects/x/3d', undefined, [`catalog origins: ${origins.join(', ') || 'none'}`]);
+        expect(origins.length, 'catalog origins found').toBeGreaterThan(0);
         for (const origin of origins) {
           expect.soft(directive('connect-src'), `connect-src allows ${origin}`).toContain(origin);
           expect.soft(directive('img-src'), `img-src allows ${origin}`).toContain(origin);
