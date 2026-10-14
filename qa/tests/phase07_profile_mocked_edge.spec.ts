@@ -193,7 +193,7 @@ test('SCR-33 · FL-33P-11 · [mocked response] N12 answers → chip, retry sched
       await edit('g009');
       await expect.poll(() => patch.hits()).toBe(1);
       await expect(saveIndicator(page)).toHaveText(IND.failed); // UAS:304-309
-      await expect.soft(page.getByRole('alert')).toHaveCount(0);
+      await expect.soft(block(page, 'account-profile').getByRole('alert'), 'no field error (the announcer region is outside the block)').toHaveCount(0);
       await noRetry(); // CA:192
       await captureEvidence(page, ev('33P-G-009', 'language-422'));
     });
