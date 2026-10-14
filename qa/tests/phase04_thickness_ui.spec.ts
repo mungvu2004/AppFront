@@ -131,8 +131,14 @@ test.describe('E04 SCR-21 thickness — UI verify (QA-04c P4)', () => {
             await openFloor(p, built, 0);
             await tick(acceptBox(p, 200));
             await button(p, 'Xem trước').click();
+            // The apply's autosave must land before the next width reseeds, or that reseed gets 409 (run p04-rr 18:32Z).
+            const saved = p.waitForResponse(
+              (r) => r.request().method() === 'PUT' && /\/spatial\/layer$/u.test(new URL(r.url()).pathname),
+              { timeout: 15_000 },
+            );
             await button(p, 'Áp dụng').click();
             await expect(toasts(p).getByText('Chuẩn hoá độ dày 3 tường.', { exact: true })).toBeVisible();
+            expect((await saved).status(), 'the apply is saved').toBe(200);
           },
           UI_VIEWPORTS,
           { fullPage: false },
