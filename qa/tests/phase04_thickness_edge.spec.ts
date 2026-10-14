@@ -800,6 +800,10 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
       await test.step('[21-C-010] BUG-579: the OLDER toast "Hoàn tác" after a later apply is REFUSED with the Ctrl+Z notice, no PUT', async () => {
         // two applies through the row picker: wall 1 -> 110, then wall 2 -> 110; then the FIRST toast's "Hoàn tác".
         // BUG-579 (history.ts:477-498 undoIfNewest; useThicknessStandardization.ts:659-667): an out-of-order undo is not offered.
+        // Two applies inside the notification bus's 5 s group window collapse into ONE toast (notificationBus.ts publish; vitest
+        // useThicknessStandardization.test.ts [21-C-010]) - there is no "older toast" to press. Jump the clock past the window
+        // between the applies (A's 8 s undo ticket stays alive) so each apply keeps its own toast.
+        await page.clock.install();
         await page.reload();
         await expect(segRows(page)).toHaveCount(2);
         const ids = reviewedWalls;
@@ -813,8 +817,10 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
           await expect(toastText(page, 'Chuẩn hoá độ dày 1 tường.').first()).toBeVisible();
         };
         await pick(ids[0] as string);
+        await page.clock.fastForward(5_050);
         await pick(ids[1] as string);
         const undoButtons = toasts(page).getByRole('button', { name: UNDO, exact: true });
+        await expect(undoButtons, 'two applies past the group window = two toasts').toHaveCount(2);
         const count = await undoButtons.count();
         await attachJson('E04_21-C-010_toasts.json', { undoButtons: count });
         const from = flow.sent.length;

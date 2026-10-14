@@ -457,8 +457,10 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         const gate = new Promise<void>((resolve) => {
           release = resolve;
         });
+        // page.route tests a RegExp against the FULL url (http://host/api/...) but layerRe is anchored on the path: match the pathname.
         const re = layerRe(seed.projectId, emptyFloor.floorId);
-        await page.route(re, async (route) => {
+        const isLayerUrl = (url: URL): boolean => re.test(url.pathname);
+        await page.route(isLayerUrl, async (route) => {
           if (route.request().method() === 'GET') await gate;
           await route.continue();
         });
@@ -469,7 +471,7 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
           await captureEvidence(page, ev('16-D-008', 'viewer_loading_skeleton'));
         } finally {
           release();
-          await page.unroute(re);
+          await page.unroute(isLayerUrl);
         }
         await expect(page.getByRole('status', { name: WALL.list, exact: true })).toHaveCount(0);
         await dismissTour(page, { waitMs: 0 });
@@ -1078,7 +1080,8 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         // 22-D-004 also keeps "Kiểu đối chiếu" usable for a viewer (view-only); 22-C-004's "controls stay disabled" is the edit
         // controls (lock, tolerance: OverlayComparison.tsx:117, OverlayComparisonToolbar.tsx:222). R1 p04-r1 PNG: 3 radios enabled.
         await expect.soft(page.getByRole('radiogroup', { name: OVERLAY.modes, exact: true }).getByRole('radio').and(page.locator(':enabled'))).toHaveCount(3);
-        await expect.soft(page.getByRole('slider', { name: OVERLAY.opacity, exact: true })).toHaveAttribute('tabindex', '-1'); // Slider.tsx:144
+        // Opacity is a view control too (catalog-C4.md:328 22-D-004 "expected view controls stay usable"; OverlayComparisonToolbar.test.tsx:148): tabindex 0, not -1.
+        await expect.soft(page.getByRole('slider', { name: OVERLAY.opacity, exact: true })).toHaveAttribute('tabindex', '0'); // Slider.tsx:144
         await captureEvidence(page, ev('22-C-004', 'viewer_overlay_error_outranks_forbidden'));
       });
 

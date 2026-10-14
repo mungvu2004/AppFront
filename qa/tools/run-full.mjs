@@ -57,8 +57,8 @@ if (!flag('no-build')) {
   const builtBe = existsSync(STAMP) ? readFileSync(STAMP, 'utf8').trim() : '';
   const label = out(`docker inspect ${cfg.versionCheck.webImage} --format "{{index .Config.Labels \\"${cfg.versionCheck.webRevisionLabel}\\"}}"`);
   const head = out('git rev-parse --short HEAD', REPO);
-  // Same app tree as HEAD outside qa/ → the image is current even if its label is an older commit.
-  const webOk = label !== '' && sh(`git diff --quiet ${label} HEAD -- . ":(exclude)qa"`, REPO).status === 0;
+  // Same app tree as HEAD outside qa/, e2e/ and unit tests → the image is current even if its label is an older commit.
+  const webOk = label !== '' && sh(`git diff --quiet ${label} HEAD -- . ":(exclude)qa" ":(exclude)e2e" ":(glob,exclude)**/*.test.ts" ":(glob,exclude)**/*.test.tsx" ":(glob,exclude)**/__tests__/**"`, REPO).status === 0;
   // Only image inputs count: a docs/DEBT-only commit on main does not need a rebuild.
   const beOk = builtBe !== '' && sh(`git diff --quiet ${builtBe} origin/main -- apps packages deploy pyproject.toml uv.lock`, BE_SRC).status === 0;
   say(`web image ${label || '?'} (HEAD ${head}) ${webOk ? 'current' : 'STALE'}; api/worker ${builtBe || '?'} vs ${beMain} ${beOk ? 'current' : 'STALE'}`);

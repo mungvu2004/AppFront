@@ -38,7 +38,9 @@ import { waitForApi } from '../../e2e/fullstack/apiWatch';
 import { PIPELINE_TIMEOUT_MS } from '../../e2e/fullstack/env';
 import { signedInApi } from './support/api';
 import { attachJson } from './support/evidence';
+import { writeLayer, qcLayer } from './support/layerSeed';
 import { markShell, shellKept, spaGo } from './support/p03/P11';
+import { framedPng } from './support/p03/P12';
 import {
   addProjectMember,
   createDrawingProject,
@@ -64,6 +66,7 @@ import {
   counter,
   ev,
   inspector,
+  layerApiOf,
   layerPath,
   layerRe,
   openWalls,
@@ -764,13 +767,16 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
     let projectId: string | undefined;
     try {
       // DM: two floors, the drawing on floor 1 only (floor 2: no scan, no geometry).
-      const dm = await createDrawingProject(owner, 'e04-x-04', envDrawingPng(), ['Tầng 1', 'Tầng 2']);
+      // A framed drawing: the env drawing has no frame, so floor 1 would be the frame-missing `error` (UOC:589-614) and no partial notice can show.
+      const dm = await createDrawingProject(owner, 'e04-x-04', framedPng(), ['Tầng 1', 'Tầng 2']);
       projectId = dm.projectId;
       const outcome = await waitForRunOutcome(owner, dm.projectId, dm.uploadId);
       expect(outcome.status, 'fake-ML run of floor 1').toBe('completed');
       const floors = (await owner.get(`/api/projects/${dm.projectId}`).then((res) => res.json())) as { floors: { id: string; name: string; order: number }[] };
       const sorted = [...floors.floors].sort((a, b) => a.order - b.order);
       const [f1, f2] = [sorted[0]!, sorted[1]!];
+      // The fake ML finds no walls in the crafted page: give floor 1 geometry so only floor 2 is "chưa dựng hình học" (as P7 seedDF).
+      await writeLayer(layerApiOf(owner), dm.projectId, f1.id, qcLayer);
       run = await openWallsRun(browser, { who: pool, clock: false });
       const { page } = run;
       const overlayOf = (floorId: string): string => ROUTES.project.overlay(dm.projectId, floorId);

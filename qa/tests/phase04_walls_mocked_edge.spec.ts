@@ -196,6 +196,10 @@ test.describe('E04 SCR-16 walls — mocked-response flows (QA-04c P1)', () => {
         // spaGo returns once pushState moved the URL, not once the router committed the hop (react-router keeps its own location):
         // a second hop at once cancels the pending one and SCR-16 never unmounts, so nothing refetches. Wait for the unmount.
         await expect(wallRows(page)).toHaveCount(0);
+        // The screens SCR-16 hops through may read/refresh layer.byFloor themselves (ProcessingScreen does), which restarts the 30 s
+        // staleTime: age the cache again on the page we hop from, so the remount of SCR-16 is stale whatever the hop touched.
+        // useFloorLayer.test.ts 'QA p04 FL-16-M1' proves the app refetches on remount once stale.
+        await page.clock.runFor(31_000);
         const reads0 = m.reads; // tells a missing refetch (app/cache) from a missing error surface
         await spaGo(page, ROUTES.project.walls(q1.projectId, floor.id));
         await expect.poll(() => m.reads - reads0, { message: 'N16 is refetched after the SPA hop back', timeout: 15_000 }).toBeGreaterThanOrEqual(1);
