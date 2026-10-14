@@ -13,7 +13,7 @@
  * Pool users (real invited viewer / engineer, slots `p06-api-viewer`, `p06-api-engineer`) are shared, released by the coordinator.
  *
  * Request budget per run (BE defaults; QA stack `qa-limits.override.yml` raises the login limit):
- * - `POST /api/auth/login` per IP 30 / 60 s (override 120): admin 1 per flow = 10 (FL-01 anonymous: 0) + pool logins 4
+ * - `POST /api/auth/login` per IP 30 / 60 s (override 120): admin 1 per flow = 9 (FL-01 anonymous: 0) + pool logins 4
  *   (FL-05 viewer + non-member engineer, FL-10 viewer + engineer) = 13, 0 failed.
  * - `drawings_init` 60 / 600 s per user: 5 (FL-06..FL-10 each seed one pipeline project; +1 per restarted worker).
  * - `members_add` 60 / 3600 s per actor: 3 (FL-05 viewer, FL-10 viewer + engineer).
@@ -98,8 +98,8 @@ async function seedPipeline(admin: Awaited<ReturnType<typeof adminApi>>, cleanup
 }
 
 /** Real pool member of `pid` (viewer | engineer): setup add + 1 login. */
-async function memberApi(admin: Awaited<ReturnType<typeof adminApi>>, cleanup: Cleanup, pid: string, role: 'viewer' | 'engineer', add = true): Promise<{ user: PoolUser; api: Awaited<ReturnType<typeof signedInApi>> }> {
-  const user = await poolUser(admin, role, `p06-api-${role}`);
+async function memberApi(admin: Awaited<ReturnType<typeof adminApi>>, cleanup: Cleanup, pid: string, role: 'viewer' | 'engineer', tag: 'g05' | 'g10', add = true): Promise<{ user: PoolUser; api: Awaited<ReturnType<typeof signedInApi>> }> {
+  const user = await poolUser(admin, role, `p06-api-${role}-${tag}`);
   if (add) await addProjectMember(admin, pid, user.email);
   const api = await signedInApi(user.email, user.password);
   cleanup.add(() => api.dispose());
@@ -279,7 +279,7 @@ test.describe('SCR-B06 phase-6 backend (rule-config N21 / N22, versions N17-N20 
         expectError(await put('B06-G-043_array', { baseVersion: 0, body: { overrides: [] } }, '422 field body.overrides: not a map'), 422, 'VALIDATION', { field: 'body.overrides' });
       });
       await test.step('[B06-G-064] body over 1 MiB -> 413 PAYLOAD_TOO_LARGE', async () => {
-        // S5-confirm: the web proxy lets a 1.0 MiB body through to the API (otherwise nginx answers 413 without the W7 body)
+       
         const sent = await put('B06-G-064_over_1mib', bigBody(ok()), '413 PAYLOAD_TOO_LARGE before the handler (core/middleware.py:217-236; routing.py:46)');
         expectError(sent, 413, 'PAYLOAD_TOO_LARGE');
       });
@@ -342,7 +342,7 @@ test.describe('SCR-B06 phase-6 backend (rule-config N21 / N22, versions N17-N20 
       });
       await test.step('[B06-G-057] range bounds are inclusive', async () => {
         const share05 = await put('B06-G-057_share_05', ok({ 'WALL-UNSUPPORTED': { thresholds: { 'wallSupport.minSupportShare': 0.5 } } }, 0), '200 revision 1: minSupportShare 0.5 (service.py:79)');
-        expect(share05.res.status()).toBe(200);
+        expect.soft(share05.res.status()).toBe(200);
         const share1 = await put('B06-G-057_share_1', ok({ 'WALL-UNSUPPORTED': { thresholds: { 'wallSupport.minSupportShare': 1 } } }, 1), '200 revision 2: minSupportShare 1 (upper bound, integer accepted)');
         expect.soft(share1.res.status()).toBe(200);
         const bounds = { 'WALL-THICKNESS': { thresholds: { 'wall.minThicknessMm': 30, 'wall.maxThicknessMm': 1000 } }, 'ESCAPE-DISTANCE': { thresholds: { 'escape.maxDistanceMm': 100000 } } };
@@ -362,8 +362,8 @@ test.describe('SCR-B06 phase-6 backend (rule-config N21 / N22, versions N17-N20 
       const admin = await adminApi(cleanup);
       const pid = (await createProject(admin, 'b06-rules', 0)).projectId;
       deleteOnCleanup(cleanup, admin, pid);
-      const viewer = (await memberApi(admin, cleanup, pid, 'viewer')).api;
-      const outsider = (await memberApi(admin, cleanup, pid, 'engineer', false)).api;
+      const viewer = (await memberApi(admin, cleanup, pid, 'viewer', 'g05')).api;
+      const outsider = (await memberApi(admin, cleanup, pid, 'engineer', 'g05', false)).api;
 
       await test.step('[B06-G-004] viewer member reads', async () => {
         const sent = await call(viewer, 'B06-G-004_viewer_read', 'GET', ruleConfigPath(pid), undefined, ['200: any member reads (require_project() without a key, rules/router.py:23)']);
@@ -419,6 +419,7 @@ test.describe('SCR-B06 phase-6 backend (rule-config N21 / N22, versions N17-N20 
         const page1 = await versions(admin, 'B06-G-086_page1', pid, f1, '200 limit 1 -> [v2] + string nextCursor (service.py:157-163)', '&limit=1');
         expect.soft(page1.items.map((v) => v.id)).toEqual([v2id]);
         expect.soft(typeof page1.body.nextCursor).toBe('string');
+        expect(typeof page1.body.nextCursor, 'page 1 carries a nextCursor').toBe('string');
         cursor = String(page1.body.nextCursor);
         const page2 = await versions(admin, 'B06-G-086_page2', pid, f1, '200 page 2 = [v1] without nextCursor', `&limit=1&cursor=${encodeURIComponent(cursor)}`);
         expect.soft(page2.items.map((v) => v.id)).toEqual([v1id]);
@@ -491,7 +492,7 @@ test.describe('SCR-B06 phase-6 backend (rule-config N21 / N22, versions N17-N20 
       await test.step('[B06-G-131] snapshot of the AI version', async () => {
         const doc = await layerDoc(admin, 'B06-G-131_layer', pid, f1, '200 N16 at the same revision');
         const sent = await call(admin, 'B06-G-131_snapshot_v2', 'GET', snapshotPath(pid, v2id, f1), undefined, ['200 {versionId, layer, dimensions}; layer + dimensions equal N16 at the same revision; walls non-empty (service.py:166-176)']);
-        expect(sent.res.status()).toBe(200);
+        expect.soft(sent.res.status()).toBe(200);
         const snap = expectKeys(sent.body, SNAPSHOT_KEYS);
         expectZod(FloorVersionSnapshotSchema, sent.body, 'N18 v2');
         expect.soft(snap.versionId).toBe(v2id);
@@ -500,9 +501,9 @@ test.describe('SCR-B06 phase-6 backend (rule-config N21 / N22, versions N17-N20 
         expect.soft(asArray(asJson(snap.layer).walls, 'walls').length, 'the AI layer has walls').toBeGreaterThan(0);
       });
       await test.step('[B06-G-133] snapshot of the pipeline "before" version has no walls', async () => {
-        // S5-confirm: the "before" layer of a fresh floor is empty (walls: [])
+        // pipeline_persist/service.py:182-190: the "before" is captured before the AI write -> walls []
         const sent = await call(admin, 'B06-G-133_snapshot_v1', 'GET', snapshotPath(pid, v1id, f1), undefined, ['200: v1 = the floor before the AI write, layer.walls []']);
-        expect(sent.res.status()).toBe(200);
+        expect.soft(sent.res.status()).toBe(200);
         expectZod(FloorVersionSnapshotSchema, sent.body, 'N18 v1');
         expect.soft(asArray(asJson(asJson(sent.body).layer).walls, 'walls')).toEqual([]);
       });
@@ -628,7 +629,7 @@ test.describe('SCR-B06 phase-6 backend (rule-config N21 / N22, versions N17-N20 
       });
       await test.step('[B06-G-171] restore v1 (before the AI write) -> sequence 5, empty layer', async () => {
         const sent = await post('B06-G-171_restore_v1', v1id, good(r2 + 1), '201 sequence 5, floorRevision r2 + 2, note v1; the "before" is not duplicated (snapshots.py:242-244)');
-        expect(sent.res.status()).toBe(201);
+        expect.soft(sent.res.status()).toBe(201);
         expect.soft(asJson(sent.body)).toMatchObject({ sequence: 5, floorRevision: r2 + 2, note: afterNote(1) });
         const doc = await layerDoc(admin, 'B06-G-171_layer', pid, f1, '200 N16: revision r2 + 2, no walls');
         expect.soft(doc.revision).toBe(r2 + 2);
@@ -761,8 +762,8 @@ test.describe('SCR-B06 phase-6 backend (rule-config N21 / N22, versions N17-N20 
       const v2id = String(v2.id);
       const v1id = String(v1.id);
       const r1 = Number(v2.floorRevision);
-      const viewer = (await memberApi(admin, cleanup, pid, 'viewer')).api;
-      const engineer = await memberApi(admin, cleanup, pid, 'engineer');
+      const viewer = (await memberApi(admin, cleanup, pid, 'viewer', 'g10')).api;
+      const engineer = await memberApi(admin, cleanup, pid, 'engineer', 'g10');
 
       await test.step('[B06-G-097] viewer member lists', async () => {
         const sent = await call(viewer, 'B06-G-097_viewer_list', 'GET', listPath(pid, f1), undefined, ['200: any member reads (versions/router.py:33)']);
@@ -798,7 +799,7 @@ test.describe('SCR-B06 phase-6 backend (rule-config N21 / N22, versions N17-N20 
         const sent = await call(engineer.api, 'B06-G-181_engineer_restore', 'POST', restorePath(pid, v1id), { baseVersion: r1, body: { floorId: f1 } }, [
           '201: engineer restores v1; the "after" version is created by the engineer, floorRevision r1 + 1 (service.py:230,288-297)',
         ]);
-        expect(sent.res.status()).toBe(201);
+        expect.soft(sent.res.status()).toBe(201);
         expectZod(FloorVersionSummarySchema, sent.body, 'engineer N19');
         expect.soft(asJson(sent.body)).toMatchObject({ creatorId: engineer.user.id, note: afterNote(1), floorRevision: r1 + 1 });
       });
