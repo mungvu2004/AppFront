@@ -10,6 +10,7 @@ import { waitForApiWhere } from '../../../../e2e/fullstack/apiWatch';
 import { readBaseUrl } from '../../../../e2e/fullstack/env';
 import { signInPoolUser, type PoolUser } from '../phase03Seed';
 import { DESKTOP, ROUTES } from './admin';
+import { pickOption, type Json } from './users';
 
 export const USERS = '/api/users';
 export const INVITATIONS = '/api/users/invitations';
@@ -58,7 +59,7 @@ export const T = {
 export const ROLE = { admin: 'Quản trị', engineer: 'Kỹ sư', viewer: 'Người xem' } as const;
 export const STATUS = { active: 'Đang hoạt động', pending: 'Chờ chấp nhận', disabled: 'Đã vô hiệu hoá' } as const;
 
-export type Json = Record<string, unknown>;
+export { type Json };
 export const asList = (v: unknown): Json[] => (Array.isArray(v) ? (v as Json[]) : []);
 export const str = (r: Json | undefined, k: string): string => (typeof r?.[k] === 'string' ? (r[k] as string) : '');
 
@@ -69,10 +70,7 @@ export const inviteSubmit = (page: Page): Locator => page.getByRole('button', { 
 export const openInviteButton = (page: Page): Locator => page.getByRole('button', { name: T.invite, exact: true });
 export const detailAside = (page: Page): Locator => page.locator(`aside[aria-label="${T.detail}"]`);
 
-export async function pickOption(page: Page, combobox: Locator, option: string): Promise<void> {
-  await combobox.click();
-  await page.getByRole('option', { name: option, exact: true }).click();
-}
+export { pickOption };
 
 /** Own slot, fixed; a suffix only on retry (brief policy). */
 export const slot = (base: string, retry: number): string => `${base}${retry ? `-r${String(retry)}` : ''}`;

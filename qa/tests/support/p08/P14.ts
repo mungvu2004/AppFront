@@ -11,17 +11,13 @@ import type { APIRequestContext, APIResponse } from '@playwright/test';
 
 import { apiBaseUrl, captureExchange } from '../api';
 import { recordActiveVersions, restoreActiveVersions } from './admin';
+import { ML, NO_DATASET, NO_MODEL_VERSION, OPENING, FAMILIES, type Json } from './mlApi';
 
-export const ML = '/api/admin/ml';
+export { ML, NO_DATASET, NO_MODEL_VERSION, OPENING, FAMILIES, type Json };
+
 export const WALL = 'wallSegmentation';
-export const OPENING = 'openingAndFurnitureDetection';
 export const DIMENSION = 'dimensionReading';
-export const FAMILIES = [WALL, OPENING, DIMENSION] as const; // packages/ml_contracts/families.py:19-23
-const ULID0 = '0'.repeat(26);
-export const NO_MODEL_VERSION = `mdl_${ULID0}`;
-export const NO_DATASET = `dst_${ULID0}`;
 
-export type Json = Record<string, unknown>;
 export const asJson = (v: unknown): Json => {
   expect(v !== null && typeof v === 'object' && !Array.isArray(v), 'JSON object expected').toBe(true);
   return v as Json;

@@ -1,6 +1,6 @@
 /**
  * QA-08 P15 helpers (FL-B08M-11..17, `phase08_ml_c_api.spec.ts`): ML admin API, datasets create/build + training jobs read/create/cancel.
- * Owned by P15 only. `// dup-of:` marks helpers another API pack also writes (coordinator merges in S4).
+ * Owned by P15 only. Shared constants live in mlApi.ts.
  * SAFETY: nothing here may start a training run or a dataset build. `guardCreate` / `guardCancel` throw BEFORE sending any request
  * that could pass validation (a job is never created) or cancel a queued/running job.
  */
@@ -8,28 +8,20 @@ import { expect, test, type APIRequestContext, type APIResponse } from '@playwri
 
 import { captureExchange } from './../api';
 import { RUN_ID, TEST_DATA_PREFIX } from './../evidence';
+import { ML, NO_JOB, NO_DATASET, NO_DATASET_VERSION, OPENING, asJson, type Json } from './mlApi';
 
-export const ML = '/api/admin/ml';
+export { ML, NO_JOB, NO_DATASET, NO_DATASET_VERSION, OPENING, asJson, type Json };
+
 const ULID0 = '0'.repeat(26);
-export const NO_JOB = `job_${ULID0}`;
-export const NO_DATASET = `dst_${ULID0}`;
-export const NO_DATASET_VERSION = `dsv_${ULID0}`;
 export const NO_PROJECT = `prj_${ULID0}`;
-export const OPENING = 'openingAndFurnitureDetection';
 export const WALLS = 'wallSegmentation';
 
-export type Json = Record<string, unknown>;
 export interface Sent {
   readonly res: APIResponse;
   readonly text: string;
   readonly body: unknown;
 }
 
-// dup-of: mlApi.asJson / P9.asJson
-export const asJson = (value: unknown): Json => {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error(`expected a JSON object, got ${JSON.stringify(value)}`);
-  return value as Json;
-};
 const tryJson = (text: string): unknown => {
   try {
     return JSON.parse(text);

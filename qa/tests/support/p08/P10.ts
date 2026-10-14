@@ -3,8 +3,9 @@
  * Exports: USERS_RE, USER_ID_RE, json, deferred, wireError, realUsers, requestLog.
  */
 import { expect, type APIRequestContext, type Page, type Request, type Route } from '@playwright/test';
+import type { Json } from './users';
 
-export type Json = Record<string, unknown>;
+export { type Json };
 
 /** `GET/POST /api/users` (list + invitations are NOT matched: path ends right after `users`). EP:325 */
 export const USERS_RE = /\/api\/users(\?.*)?$/u;

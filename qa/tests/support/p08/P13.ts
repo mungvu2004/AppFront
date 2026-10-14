@@ -1,26 +1,15 @@
 /**
  * QA-08 P13 helpers for `phase08_ml_api.spec.ts` (FL-B08M-01..05, read + refuse only, nothing written).
- * // dup-of: mlApi.ts expectError, ML, NO_JOB, NO_DATASET, NO_DATASET_VERSION, NO_MODEL_VERSION, FAMILIES (flows-C6 helper list)
- * // dup-of: mlApi.ts statusesOf (not needed here)
  */
 import { expect, type APIRequestContext, type APIResponse } from '@playwright/test';
 
 import { captureExchange } from '../api';
+import { ML, NO_DATASET, NO_JOB, NO_MODEL_VERSION, OPENING, FAMILIES, asJson, type Json } from './mlApi';
 
-export const ML = '/api/admin/ml';
-const ULID0 = '0'.repeat(26); // Crockford ULID body that no row carries (packages/core/ids.py:35)
-export const NO_JOB = `job_${ULID0}`;
-export const NO_DATASET = `dst_${ULID0}`;
-export const NO_MODEL_VERSION = `mdl_${ULID0}`;
-export const OPENING = 'openingAndFurnitureDetection';
-export const FAMILIES = ['wallSegmentation', OPENING, 'dimensionReading'] as const; // families.py:19-23 (order)
+export { ML, NO_DATASET, NO_JOB, NO_MODEL_VERSION, OPENING, FAMILIES, asJson, type Json };
 
-export type Json = Record<string, unknown>;
 
-export const asJson = (value: unknown): Json => {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error(`expected a JSON object, got ${JSON.stringify(value)}`);
-  return value as Json;
-};
+
 export const itemsOf = (value: unknown): Json[] => {
   const items = asJson(value).items;
   if (!Array.isArray(items)) throw new Error(`expected items[], got ${JSON.stringify(value)?.slice(0, 200)}`);

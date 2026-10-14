@@ -2,7 +2,6 @@
  * P9 helpers (phase08_users_edge.spec.ts, SCR-37 read side). Sources: src/screens/admin/UserManagement/* (UM UserManagement.tsx,
  * UMB/UMT UserManagementTable.tsx / UserManagementToolbar.tsx, UMD UserManagementDetail.tsx, UUM useUserManagement.ts,
  * UMG userManagementGateway.ts).
- * // dup-of: users.ts inviteUser / removeUser / recordGets / usersList / foldForSearch (flows-C4 helper list)
  */
 import { expect } from '@playwright/test';
 import type { APIRequestContext, Locator, Page, Request } from '@playwright/test';
@@ -10,8 +9,9 @@ import type { APIRequestContext, Locator, Page, Request } from '@playwright/test
 import { signedInApi } from '../api';
 import { poolUser, type PoolUser } from '../phase03Seed';
 import { adminApi } from './admin';
+import { pickOption, type Json } from './users';
 
-export type Json = Record<string, unknown>;
+export { type Json };
 export const asRecord = (value: unknown, what: string): Json => {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error(`${what}: not a JSON object`);
   return value as Json;
@@ -176,7 +176,4 @@ export const summary = (page: Page): Locator => page.locator('dl').filter({ hasT
 export const figure = (scope: Locator, caption: string): Locator =>
   scope.locator('div').filter({ has: scope.page().locator('dt', { hasText: new RegExp(`^\\s*${caption}\\s*$`, 'u') }) }).locator('dd');
 
-export async function pickOption(page: Page, combobox: Locator, option: string): Promise<void> {
-  await combobox.click();
-  await page.getByRole('option', { name: option, exact: true }).click();
-}
+export { pickOption };

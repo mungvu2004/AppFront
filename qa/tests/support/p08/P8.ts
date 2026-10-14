@@ -13,14 +13,9 @@ import { readBaseUrl } from '../../../../e2e/fullstack/env';
 import { apiBaseUrl } from '../api';
 import { readAdminCredentials } from '../auth';
 import { captureEvidence } from '../evidence';
+import { FAMILY_LABEL, type FamilyId } from './registry';
 
-export type FamilyId = 'wallSegmentation' | 'openingAndFurnitureDetection' | 'dimensionReading';
-// dup-of: flows-C3 FAMILY_LABEL (registry.ts)
-export const FAMILY_LABEL: Readonly<Record<FamilyId, string>> = {
-  wallSegmentation: 'Tách lớp tường', // useModelRegistry.ts:71-75
-  openingAndFurnitureDetection: 'Nhận diện cửa và đồ đạc',
-  dimensionReading: 'Đọc kích thước',
-};
+export { FAMILY_LABEL, type FamilyId };
 
 export interface Json {
   readonly [key: string]: unknown;

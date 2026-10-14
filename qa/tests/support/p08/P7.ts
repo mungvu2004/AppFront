@@ -9,6 +9,7 @@ import { ROUTES as APP_ROUTES, pathOf } from '../../../../e2e/fixtures/routes';
 import { waitForApiWhere, type ApiResult } from '../../../../e2e/fullstack/apiWatch';
 import { readBaseUrl } from '../../../../e2e/fullstack/env';
 import { signInAdmin } from '../auth';
+import { FAMILY_LABEL, type FamilyId } from './registry';
 
 export const REGISTRY_PATH = APP_ROUTES.adminTrainingModels;
 export const FAMILIES = '/api/admin/ml/model-families';
@@ -17,13 +18,8 @@ export const ACTIVE_PUT = /^\/api\/admin\/ml\/model-families\/[^/]+\/active$/u;
 
 export type Json = Record<string, unknown>;
 export const FAMILY_ORDER = ['wallSegmentation', 'openingAndFurnitureDetection', 'dimensionReading'] as const;
-export type Family = (typeof FAMILY_ORDER)[number];
-// dup-of: flows-C3 FAMILY_LABEL (registry.ts); UMR:62-66, UTJ:109-113
-export const FAMILY_LABEL: Readonly<Record<Family, string>> = {
-  wallSegmentation: 'Tách lớp tường',
-  openingAndFurnitureDetection: 'Nhận diện cửa và đồ đạc',
-  dimensionReading: 'Đọc kích thước',
-};
+export type Family = FamilyId;
+export { FAMILY_LABEL };
 export const FAMILY_NAME: Readonly<Record<Family, string>> = {
   wallSegmentation: 'tách lớp tường',
   openingAndFurnitureDetection: 'nhận diện cửa và đồ đạc',
