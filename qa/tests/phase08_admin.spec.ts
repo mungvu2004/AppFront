@@ -6,8 +6,8 @@
  * Global state: only FL-M-36R-01 activates a version (family openingAndFurnitureDetection); it records BEFORE and restores in `finally`.
  * Never clicked: "Bắt đầu huấn luyện", "Quay về đường cổ điển", "Gửi lời mời".
  *
- * Request budget: 1 admin login (beforeAll) + 2 adminApi logins (36R, 37U) + 0-1 invitation from the admin seed the first time
- * the shared engineer p08-eng is seeded (none afterwards).
+ * Request budget: 1 admin login + 1 adminApi login (beforeAll) + 2 adminApi logins (36R, 37U); 0-6 invitations from the admin
+ * seed the first time the 6 SHARED_SLOTS are filled (none afterwards).
  */
 import { expect, test, type BrowserContext, type Locator, type Page } from '@playwright/test';
 
@@ -52,6 +52,12 @@ const itemsOf = (json: unknown, what: string): unknown[] => {
   if (!Array.isArray(items)) throw new Error(`${what}: body has no "items" array`);
   return items;
 };
+/** Pool users read by several files (read-only) or acting as invite admins; filled once here (QA-08 packs.md S2). */
+const SHARED_SLOTS = [
+  ['engineer', 'p08-eng'], ['viewer', 'p08-view'],
+  ['admin', 'p08-37U-adm'], ['admin', 'p08-37W-adm'], ['admin', 'p08-B08U-adm1'], ['admin', 'p08-B08U-adm2'],
+] as const;
+
 const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 
 let context: BrowserContext;
@@ -61,6 +67,14 @@ test.beforeAll(async ({ browser }) => {
   context = await browser.newContext({ baseURL: readBaseUrl(), viewport: VIEWPORT });
   page = await context.newPage();
   await signInAdmin(page);
+  // Warm the pool slots that several phase 08 files share (S2 decisions 1-2): the main layer runs alone with 1 worker
+  // before ui/api/edge (tools/run-phase.mjs), so their first fill (one invitation each) never races across 4 workers.
+  const seed = await adminApi();
+  try {
+    for (const [role, slot] of SHARED_SLOTS) await poolUser(seed, role, slot);
+  } finally {
+    await seed.dispose();
+  }
   // Trace starts AFTER sign-in: a trace records `fill` values (admin password), same rule as chain.fullstack.ts.
   await context.tracing.start({ screenshots: true, snapshots: true });
 });
