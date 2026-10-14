@@ -485,16 +485,19 @@ test.describe(API, () => {
         expect.soft(csp).toContain("img-src 'self' data: blob:");
       });
 
-      await test.step('[B05-G-149] ⚑2 every origin of the Pascal furniture catalog is allowed by connect-src and img-src', async () => {
-        // vendor catalog-items.tsx: src / thumbnail on a remote host; the CSP must allow it (or the assets be self-hosted).
+      await test.step('[B05-G-149] the Pascal furniture catalog is self-hosted: no external origin in src / thumbnail, CSP not widened, a catalog asset is served locally', async () => {
+        // vendor catalog-items.tsx (F-15 fix ee93939c): src / thumbnail are /items/<dir>/..., served at /pascal/items/.
         const source = readFileSync(new URL('../../vendor/pascal/packages/editor/src/components/ui/item-catalog/catalog-items.tsx', import.meta.url), 'utf8');
-        const origins = [...new Set([...source.matchAll(/\b(?:src|thumbnail):\s*'(https?:\/\/[^/']+)/gu)].map((m) => m[1] ?? ''))];
-        const directive = (name: string): string => new RegExp(`${name}\\s([^;]*)`, 'u').exec(csp)?.[1] ?? '';
-        await call(web, 'B05-G-149_csp_again', 'GET', '/projects/x/3d', undefined, [`catalog origins: ${origins.join(', ') || 'none'}`]);
-        expect(origins.length, 'catalog origins found').toBeGreaterThan(0);
-        for (const origin of origins) {
-          expect.soft(directive('connect-src'), `connect-src allows ${origin}`).toContain(origin);
-          expect.soft(directive('img-src'), `img-src allows ${origin}`).toContain(origin);
+        const external = [...new Set([...source.matchAll(/\b(?:src|thumbnail):\s*\x27(https?:\/\/[^/\x27]+)/gu)].map((m) => m[1] ?? ''))];
+        expect.soft(external, 'external origins used by the catalog').toEqual([]);
+        const local = /\b(?:src|thumbnail):\s*\x27(\/items\/[^\x27]+)\x27/u.exec(source)?.[1];
+        expect(local, 'catalog has a local /items/ asset').toBeDefined();
+        const sent = await call(web, 'B05-G-149_local_asset', 'GET', `/pascal${local ?? ''}`, undefined, ['200 non-HTML: the catalog asset is served by the web image']);
+        expect.soft(sent.res.status()).toBe(200);
+        expect.soft(head(sent.res.headers(), 'content-type') ?? '').not.toContain('text/html');
+        for (const name of ['connect-src', 'img-src']) {
+          const directive = new RegExp(`${name}\\s([^;]*)`, 'u').exec(csp)?.[1] ?? '';
+          expect.soft(directive.split(/\s+/u).filter((t) => /^https?:/u.test(t) && !/localhost|127\.0\.0\.1/u.test(t)), `${name} has no external origin`).toEqual([]);
         }
       });
 
