@@ -207,12 +207,16 @@ test.describe('P08 SCR-34 library mocked edge', () => {
       await captureEvidence(page, 'E08_34L-E-011_labels.png');
     });
     await test.step('[34L-G-009] Retry-preview click refetches list and detail', async () => {
+      // UML:567 invalidates the detail key; react-query refetches only an ACTIVE query, so the preview-less detail must be open.
+      await row('QA preview-less model').getByRole('button', { name: 'QA preview-less model', exact: true }).click();
+      await expect(page.locator('aside[aria-label="Chi tiết model"]')).toBeVisible();
       const l0 = listGets;
       const d0 = detailGets;
       await retryBtn.click();
       await expect.poll(() => listGets - l0, { message: 'GET /api/library again' }).toBeGreaterThanOrEqual(1);
       await expect.poll(() => detailGets - d0, { message: 'GET /api/library/:id' }).toBeGreaterThanOrEqual(1); // UML:564-569
       await captureEvidence(page, 'E08_34L-G-009_retry_refetch.png');
+      await page.keyboard.press('Escape');
     });
     await test.step('[34L-G-010] Item without preview_url decodes to a placeholder row', async () => {
       await expect.soft(row('QA preview-less model')).toBeVisible();
@@ -234,6 +238,10 @@ test.describe('P08 SCR-34 library mocked edge', () => {
     const retry = aside.getByRole('button', { name: 'Thử lại', exact: true });
     const GLB = /\.(glb|gltf)(\?.*)?$/u;
     const detail = async (mode: 'hold' | '404' | '500', gate: Promise<void> = Promise.resolve()): Promise<void> => {
+      // library keys are 'static' (staleTime 5 min, cachePolicy.ts + libraryQueries.ts:23): GET :id of `first` is cached
+      // since B-025, so reload for a fresh QueryClient or the mock below is never reached.
+      await page.goto(ROUTES.library);
+      await expect(first).toBeVisible();
       await page.route(DETAIL_RE, async (route) => {
         if (route.request().method() !== 'GET' || LIST.test(route.request().url())) return route.fallback();
         if (mode === 'hold') {

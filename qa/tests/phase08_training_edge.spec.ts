@@ -97,9 +97,12 @@ test.describe('SCR-35 training edge (real)', () => {
       await family.getByRole('radio', { name: FAMILY.opening, exact: true }).click();
       expect.soft((await filtered).status()).toBe(200);
       await captureEvidence(page, 'E08_35T-A-005_header_filters.png', { caption: 'family = opening' });
-      const all = jobsRead(page);
-      await family.getByRole('radio', { name: 'Tất cả', exact: true }).click();
-      expect.soft((await all).status()).toBe(200);
+      // No wait on a GET for "Tất cả": that key was read by G-001 seconds ago and adminMl staleTime is 30 s
+      // (cachePolicy.ts:36,115; UTJ:420), so react-query answers from cache and no request is sent.
+      const allRadio = family.getByRole('radio', { name: 'Tất cả', exact: true });
+      await allRadio.click();
+      await expect.soft(allRadio).toHaveAttribute('aria-checked', 'true');
+      await expect.soft(page.locator('tbody tr').first().or(page.getByText('Chưa có lượt huấn luyện', { exact: true }))).toBeVisible();
     });
 
     await test.step('[35T-C-016] URL vẫn /admin/training/jobs, không ?family', async () => {
@@ -198,6 +201,9 @@ test.describe('SCR-35 training edge (real)', () => {
       await captureEvidence(page, 'E08_35T-B-014_datasets.png', { caption: 'no job detail aside' });
     });
 
+    // The walls read happens HERE (default datasetFamily, UTJ:397,544-548); G-002 re-selects walls within 30 s
+    // (adminMl staleTime, cachePolicy.ts:36,115) and react-query answers from cache, so G-002 checks this response.
+    const wallsRead = datasetsRead(page, 'wallSegmentation');
     await test.step('[35T-A-010] tab "Bộ dữ liệu": ghi chú chỉ xem', async () => {
       await datasets.click();
       await expect.soft(page.getByText(T.dsNote, { exact: true })).toBeVisible();
@@ -217,9 +223,8 @@ test.describe('SCR-35 training edge (real)', () => {
     });
 
     await test.step('[35T-G-002] wire datasets?family= 200', async () => {
-      const read = datasetsRead(page, 'wallSegmentation');
       await group.getByRole('radio', { name: FAMILY.walls, exact: true }).click();
-      const res = await read;
+      const res = await wallsRead;
       expect.soft(res.status()).toBe(200);
       expect.soft(new URL(res.url()).searchParams.get('family')).toBe('wallSegmentation');
       await captureEvidence(page, 'E08_35T-G-002_datasets.png', { caption: 'GET datasets?family=wallSegmentation 200' });

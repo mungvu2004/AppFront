@@ -195,6 +195,8 @@ test('SCR-34 · FL-34L-02 · sort every column, header keyboard, reload resets',
 
 test('SCR-34 · FL-34L-03 · view modes, grid keyboard, no writes', async ({ page }) => {
   const { rec, items } = await openAdmin(page);
+  // rec also saw the UI sign-in (POST /api/auth/login, support/auth.ts:43-47): G-003 only counts what this flow sends.
+  const fromOpen = rec.list().length;
   expect(items.length, 'environment: library has models').toBeGreaterThan(0);
   const x = pick(items);
   const part = x.name.slice(0, Math.min(3, x.name.length));
@@ -245,7 +247,7 @@ test('SCR-34 · FL-34L-03 · view modes, grid keyboard, no writes', async ({ pag
   });
   await test.step('[34L-G-003] no non-GET request', async () => {
     await page.keyboard.press('Escape');
-    expect.soft(rec.list().filter((r) => r.method !== 'GET'), 'non-GET requests').toEqual([]);
+    expect.soft(rec.list().slice(fromOpen).filter((r) => r.method !== 'GET'), 'non-GET requests').toEqual([]);
     await ev(page, '34L-G-003', 'no_writes');
   });
 });
@@ -390,7 +392,8 @@ test('SCR-34 · FL-34L-06 · below 1024 px: card list, no-match, detail from a c
   const { items } = await openAdmin(page);
   expect(items.length, 'environment: library has models').toBeGreaterThan(0);
   const x = pick(items);
-  const cardNames = async () => (await page.locator('main ul > li button').allInnerTexts()).map((t) => t.trim());
+  // icon-only "Thử tải lại ảnh xem trước…" (MLB:66-76) has no text: drop it so only name buttons are compared.
+  const cardNames = async () => (await page.locator('main ul > li button').allInnerTexts()).map((t) => t.trim()).filter(Boolean);
   await test.step('[34L-A-013] reload resets to defaults', async () => {
     await searchBox(page).fill(x.name.slice(0, 2));
     await selectCategory(page, x.group);
