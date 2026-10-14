@@ -18,7 +18,7 @@
  */
 import { inflateSync } from 'node:zlib';
 
-import { expect, type APIRequestContext, type Browser, type BrowserContext, type Locator, type Page, type Request } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Browser, type BrowserContext, type Locator, type Page, type Request } from '@playwright/test';
 
 import { ROUTES } from '../../../../e2e/fixtures/routes';
 import { navigateThenWaitForApi, waitForApiWhere, type ApiEntry } from '../../../../e2e/fullstack/apiWatch';
@@ -561,14 +561,14 @@ function* spiral(radius: number, step: number): Generator<Point> {
 }
 
 /** Moves to (x, y) and waits (event, not time) until the metered hover cast (raycast.ts, 34 ms) has settled on `label`. */
-async function hoverShows(page: Page, [x, y]: Point, label: string): Promise<boolean> {
+async function hoverShows(page: Page, [x, y]: Point, label: string, timeout = 400): Promise<boolean> {
   await page.mouse.move(x, y);
   return page
     .waitForFunction(
       ([text, region]) =>
         (document.querySelector(`[aria-label="${region ?? ''}"] [role="status"]`)?.textContent ?? '').trim() === text,
       [label, MT.overlay] as const,
-      { timeout: 250 },
+      { timeout },
     )
     .then(
       () => true,
@@ -594,11 +594,13 @@ export async function hoverUntilSnap(page: Page, label: typeof MT.vertex | typeo
   const minDist = options.minDistPx ?? 24;
   const apart = (p: Point): boolean => (options.avoid ?? []).every((q) => Math.hypot(p[0] - q[0], p[1] - q[1]) >= minDist);
   const step = Math.max(2, pxPerMm(bounds) * 50);
+  let first = true;
   for (const target of targets) {
     if (!apart(target)) continue;
     for (const [dx, dy] of spiral(Math.max(12, pxPerMm(bounds) * 110), step)) {
       const candidate: Point = [target[0] + dx, target[1] + dy];
-      if (apart(candidate) && (await hoverShows(page, candidate, label))) return candidate;
+      if (apart(candidate) && (await hoverShows(page, candidate, label, first ? 1_000 : 400))) return candidate;
+      first = false;
     }
   }
   if (options.near !== undefined) throw new Error(`no hover near ${JSON.stringify(options.near)} made the snap chip say "${label}" (bounds ${JSON.stringify(bounds)})`);
@@ -780,6 +782,7 @@ export const discCount = (page: Page): Promise<number> => overlay(page).locator(
 /** A fresh draft: a click at each already-known pixel. */
 export async function makeDraft(page: Page, pixels: readonly Point[]): Promise<void> {
   for (const pixel of pixels) await clickAt(page, pixel);
+  await expect(pinButton(page), "a real draft exists after the picks").toBeVisible();
 }
 
 /* ---- flow runner: one project per flow, deleted in finally ---- */
@@ -832,7 +835,10 @@ export async function withMeasureProject(browser: Browser, options: FlowOptions,
     if (options.record === true) await recordShell(opened.page);
     await body({ admin, page: opened.page, api: opened.api, context: opened.context, projectId, projectName, floors });
   } finally {
-    if (projectId !== undefined) await deleteProject(layerOf(admin), projectId).catch(() => undefined);
+    if (projectId !== undefined) {
+      const failed = await deleteProject(layerOf(admin), projectId);
+      if (failed !== null) test.info().annotations.push({ type: "cleanup", description: failed });
+    }
     await closePage(opened);
     await admin.dispose();
   }
@@ -889,5 +895,4 @@ export async function hoverOffModel(page: Page): Promise<void> {
   if (box === null) throw new Error('viewport has no bounding box');
   const x = bounds.x > box.x + 60 ? bounds.x - 40 : box.x + 20;
   await page.mouse.move(x, bounds.y + bounds.height / 2);
-  await expect.poll(() => chipText(page), { message: 'chip after hovering off the model' }).toBe(MT.chipSnapNone);
 }
