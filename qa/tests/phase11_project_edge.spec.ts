@@ -75,8 +75,8 @@ test.describe('Phase 11 P6 project edge', () => {
         await expect(dialog).toBeHidden();
         for (const floor of project.floors) {
           const entry = deleted.find((d) => d.id === floor.id);
-          expect.soft(entry?.status ?? 0, `DELETE /api/floors/${floor.id}`).toBeLessThan(300);
-          expect.soft(entry?.status ?? 0).toBeGreaterThanOrEqual(200);
+          expect.soft(entry?.status ?? 0, `DELETE /api/floors/${floor.id}`).toBe(200); // oracle: apps/api/floors/router.py:38, projects/router.py:80 (200 + body)
+          // UNKNOWN (settled): project-scoped GET path /api/projects/:id/floors/:fid
           const gone = await api.get(`/api/projects/${project.projectId}/floors/${floor.id}`);
           expect.soft(gone.status(), `GET floor ${floor.id} after delete`).toBe(404);
         }
@@ -189,8 +189,7 @@ test.describe('Phase 11 P6 project edge', () => {
           const projectDeletes = deletesOf(writes, /^\/api\/projects\/[^/]+$/u);
           expect.soft(projectDeletes.map((e) => e.path)).toEqual([`/api/projects/${id}`]);
           expect.soft(projectDeletes[0]?.body ?? null).toBeNull();
-          expect.soft(deleteStatus).toBeGreaterThanOrEqual(200);
-          expect.soft(deleteStatus).toBeLessThan(300);
+          expect.soft(deleteStatus).toBe(200); // oracle: apps/api/floors/router.py:38, projects/router.py:80 (200 + body)
           expect.soft(deletesOf(writes, /^\/api\/floors\//u)).toHaveLength(0);
           await captureEvidence(page, E('11P-C-005', 'delete_request'));
         });
@@ -209,7 +208,7 @@ test.describe('Phase 11 P6 project edge', () => {
         });
 
         await test.step('[11P-G-001] DELETE admin 2xx; xoá lần 2 → 404', async () => {
-          expect.soft(deleteStatus).toBeLessThan(300);
+          expect.soft(deleteStatus).toBe(200); // oracle: apps/api/floors/router.py:38, projects/router.py:80 (200 + body)
           const again = await api.delete(`/api/projects/${id}`);
           expect.soft(again.status()).toBe(404);
           expect.soft(((await again.json()) as { code?: string }).code).toBe('NOT_FOUND');
@@ -224,7 +223,7 @@ test.describe('Phase 11 P6 project edge', () => {
           }
         });
       } finally {
-        await deleteSeededProject(api, keep.projectId);
+        expect(await deleteSeededProject(api, keep.projectId), 'cleanup keep').toBeNull();
       }
     });
   });
@@ -246,7 +245,7 @@ test.describe('Phase 11 P6 project edge', () => {
           const removed = page.waitForResponse((r) => isDeleteProject(project.projectId)(r));
           await confirmButton(dialog).click(); // PD:311
           const response = await removed;
-          expect.soft(response.status()).toBeLessThan(300);
+          expect.soft(response.status()).toBe(200); // oracle: apps/api/floors/router.py:38, projects/router.py:80 (200 + body)
           await expect(dialog).toBeHidden();
           await expect(dashProjectCard(page, project.name)).toHaveCount(0);
           const sent = deletesOf(writes, /^\/api\/projects\/[^/]+$/u);
@@ -260,7 +259,7 @@ test.describe('Phase 11 P6 project edge', () => {
           await expect(dashProjectCard(page, second.name)).toBeVisible();
           const dialog = await openCardDelete(page, second.name);
           const elsewhere = await api.delete(`/api/projects/${second.projectId}`);
-          expect(elsewhere.status()).toBeLessThan(300);
+          expect(elsewhere.status()).toBe(200); // oracle: apps/api/floors/router.py:38, projects/router.py:80 (200 + body)
           const removed = page.waitForResponse((r) => isDeleteProject(second.projectId)(r));
           await confirmButton(dialog).click();
           expect.soft((await removed).status()).toBe(404);
@@ -287,7 +286,7 @@ test.describe('Phase 11 P6 project edge', () => {
           await captureEvidence(page, E('11P-A-019', 'created_toast'));
           const removed = page.waitForResponse((r) => isDeleteProject(id)(r));
           await toast.getByRole('button', { name: DASH.undo, exact: true }).click(); // PDC:25
-          expect.soft((await removed).status()).toBeLessThan(300);
+          expect.soft((await removed).status()).toBe(200); // oracle: apps/api/floors/router.py:38, projects/router.py:80 (200 + body)
           await page.mouse.move(0, 0);
           await expect.soft(dashProjectCard(page, name)).toHaveCount(0);
           expect.soft(deletesOf(writes, /^\/api\/projects\/[^/]+$/u).filter((e) => e.path === `/api/projects/${id}`)).toHaveLength(1);
@@ -295,7 +294,7 @@ test.describe('Phase 11 P6 project edge', () => {
         });
 
         await test.step('[11P-A-020] "Hoàn tác" hết hạn sau 8 s: không còn nút, không DELETE', async () => {
-          await page.clock.install(); // before the reload: undoTicket.ts:132-138 runs on a JS setTimeout
+          await page.clock.install(); // install BEFORE the reload (new page load);: undoTicket.ts:132-138 runs on a JS setTimeout
           await page.reload();
           await expect(page.getByRole('heading', { name: DASH.heading, level: 1 })).toBeVisible();
           const name = `${TEST_DATA_PREFIX}p11-project-late-${Date.now().toString(36)}`;
@@ -312,8 +311,8 @@ test.describe('Phase 11 P6 project edge', () => {
           await captureEvidence(page, E('11P-A-020', 'after_expiry'));
         });
       } finally {
-        await deleteSeededProject(api, second.projectId);
-        for (const id of extra) await deleteSeededProject(api, id);
+        expect(await deleteSeededProject(api, second.projectId), 'cleanup dash2').toBeNull();
+        for (const id of extra) expect(await deleteSeededProject(api, id), 'cleanup created').toBeNull();
       }
     });
   });
