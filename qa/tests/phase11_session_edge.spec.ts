@@ -7,10 +7,13 @@
  * TOAST src/components/feedback/Toast.tsx, VI src/i18n/vi.json (auth.errors.accountDisabled, auth.notices.sessionEnded).
  */
 import { expect, test } from '@playwright/test';
-import type { Page } from '@playwright/test';
+import type { APIRequestContext, BrowserContext, Page } from '@playwright/test';
+import type { PoolUser } from './support/phase03Seed';
+import type { AdminFlow } from './support/p11/P10';
 
 import { EMAIL_LABEL, PASSWORD_LABEL, SIGN_IN_LABEL } from '../../e2e/fixtures/session';
 import { DASHBOARD_TITLE } from './support/auth';
+import { apiBaseUrl } from './support/api';
 import { captureEvidence } from './support/evidence';
 import { DESKTOP } from './support/p11/common';
 import {
@@ -18,6 +21,7 @@ import {
   disposeFreshUser,
   inviteFreshUser,
   openAdminFlow,
+  runCleanups,
   signInFresh,
   toastWith,
   userRow,
@@ -51,21 +55,25 @@ const userResponse = (page: Page, id: string, verb: 'disable' | 'enable') =>
 
 test('SCR-37 · FL-11U-01 · admin · vô hiệu / hoàn tác / bật lại', async ({ browser }) => {
   test.setTimeout(240_000);
-  const api = await adminApi();
-  const fu1 = await inviteFreshUser(api, 'engineer', 'dis');
-  const flow = await openAdminFlow(browser, DESKTOP);
-  const { page, writes } = flow;
+  let api: APIRequestContext | undefined;
+  let fu1: PoolUser | undefined;
+  let flow: AdminFlow | undefined;
   try {
-    const row = userRow(page, fu1.email);
+    api = await adminApi();
+    fu1 = await inviteFreshUser(api, 'engineer', 'dis');
+    flow = await openAdminFlow(browser, DESKTOP);
+    const { page, writes } = flow;
+    const user = fu1;
+    const row = userRow(page, user.email);
     await test.step('[11U-A-101] bảng có hàng fu1 với Vô hiệu hoá và Xoá', async () => {
-      await openUsers(page, fu1.email);
+      await openUsers(page, user.email);
       await expect(row).toBeVisible(); // UMT:45,157
       await expect(row.getByRole('button', { name: 'Vô hiệu hoá', exact: true })).toBeVisible();
       await expect(row.getByRole('button', { name: 'Xoá', exact: true })).toBeVisible();
       await captureEvidence(page, 'E11_11U-A-101_users.png');
     });
     await test.step('[11U-A-102] bấm Vô hiệu hoá: hàng Đã vô hiệu hoá, nút Bật lại', async () => {
-      const done = userResponse(page, fu1.id, 'disable');
+      const done = userResponse(page, user.id, 'disable');
       await row.getByRole('button', { name: 'Vô hiệu hoá', exact: true }).click();
       expect((await done).status()).toBe(200);
       await expect.soft(row.getByText('Đã vô hiệu hoá', { exact: true })).toBeVisible(); // UMG:138
@@ -75,18 +83,18 @@ test('SCR-37 · FL-11U-01 · admin · vô hiệu / hoàn tác / bật lại', as
     await test.step('[11U-A-103] toast Đã vô hiệu hoá tài khoản + tên + Hoàn tác', async () => {
       const toast = toastWith(page, 'Đã vô hiệu hoá tài khoản'); // UMH:157,849-853
       await expect.soft(toast).toBeVisible();
-      await expect.soft(toast).toContainText(fu1.name);
+      await expect.soft(toast).toContainText(user.name);
       await expect.soft(toast.getByRole('button', { name: 'Hoàn tác', exact: true })).toBeVisible();
       await captureEvidence(page, 'E11_11U-A-103_toast.png');
     });
     await test.step('[11U-G-185] POST disable mang Idempotency-Key', async () => {
-      const sent = writes.filter((w) => w.method === 'POST' && w.path === `/api/users/${fu1.id}/disable`);
+      const sent = writes.filter((w) => w.method === 'POST' && w.path === `/api/users/${user.id}/disable`);
       expect.soft(sent).toHaveLength(1);
       expect.soft(sent[0]?.headers['idempotency-key'] ?? '').not.toBe('');
       await captureEvidence(page, 'E11_11U-G-185_idempotency.png');
     });
     await test.step('[11U-A-104] Hoàn tác trong hạn: POST enable, hàng về Vô hiệu hoá, không toast thứ hai', async () => {
-      const done = userResponse(page, fu1.id, 'enable');
+      const done = userResponse(page, user.id, 'enable');
       await toastWith(page, 'Đã vô hiệu hoá tài khoản').getByRole('button', { name: 'Hoàn tác', exact: true }).click();
       expect((await done).status()).toBe(200);
       await expect.soft(row.getByRole('button', { name: 'Vô hiệu hoá', exact: true })).toBeVisible();
@@ -94,7 +102,7 @@ test('SCR-37 · FL-11U-01 · admin · vô hiệu / hoàn tác / bật lại', as
       await captureEvidence(page, 'E11_11U-A-104_undone.png');
     });
     await test.step('[11U-B-124] hàng đã vô hiệu: chỉ Bật lại, Xoá còn', async () => {
-      const again = userResponse(page, fu1.id, 'disable'); // precondition, not the checked behaviour
+      const again = userResponse(page, user.id, 'disable'); // precondition, not the checked behaviour
       await row.getByRole('button', { name: 'Vô hiệu hoá', exact: true }).click();
       expect((await again).status()).toBe(200);
       await expect.soft(row.getByRole('button', { name: 'Bật lại', exact: true })).toBeVisible();
@@ -103,7 +111,7 @@ test('SCR-37 · FL-11U-01 · admin · vô hiệu / hoàn tác / bật lại', as
       await captureEvidence(page, 'E11_11U-B-124_disabledrow.png');
     });
     await test.step('[11U-A-105] bấm Bật lại: toast Đã bật lại tài khoản, hàng Vô hiệu hoá', async () => {
-      const done = userResponse(page, fu1.id, 'enable');
+      const done = userResponse(page, user.id, 'enable');
       await row.getByRole('button', { name: 'Bật lại', exact: true }).click();
       expect((await done).status()).toBe(200);
       await expect.soft(toastWith(page, 'Đã bật lại tài khoản')).toBeVisible(); // UMH:158
@@ -117,38 +125,49 @@ test('SCR-37 · FL-11U-01 · admin · vô hiệu / hoàn tác / bật lại', as
       await captureEvidence(page, 'E11_11U-E-165_status.png');
     });
   } finally {
-    await flow.context.close();
-    await disposeFreshUser(api, fu1);
-    await api.dispose();
+    const [a, f, u] = [api, flow, fu1];
+    await runCleanups([
+      async () => f?.context.close(),
+      async () => (a && u ? disposeFreshUser(a, u) : undefined),
+      async () => a?.dispose(),
+    ]);
   }
 });
 
 test('SCR-37/SCR-01 · FL-11U-02 · admin + user bị vô hiệu · phiên và đăng nhập sau vô hiệu', async ({ browser }) => {
   test.setTimeout(180_000);
-  const api = await adminApi();
-  const fu2 = await inviteFreshUser(api, 'engineer', 'kick');
-  const flow = await openAdminFlow(browser, DESKTOP);
-  const ctx2 = await browser.newContext({ viewport: DESKTOP });
-  const { page } = flow;
+  let api: APIRequestContext | undefined;
+  let fu2: PoolUser | undefined;
+  let flow: AdminFlow | undefined;
+  let ctx2: BrowserContext | undefined;
   try {
-    await signInFresh(ctx2, fu2);
-    const tab2 = await ctx2.newPage();
+    api = await adminApi();
+    fu2 = await inviteFreshUser(api, 'engineer', 'kick');
+    flow = await openAdminFlow(browser, DESKTOP);
+    ctx2 = await browser.newContext({ viewport: DESKTOP });
+    const { page } = flow;
+    const user = fu2;
+    const c2 = ctx2;
+    await signInFresh(c2, user);
+    const tab2 = await c2.newPage();
     await tab2.goto('/');
     await expect(tab2.getByRole('heading', { level: 1, name: DASHBOARD_TITLE, exact: true })).toBeVisible();
-    await openUsers(page, fu2.email);
-    const row = userRow(page, fu2.email);
+    await openUsers(page, user.email);
+    const row = userRow(page, user.email);
     const signInForm = async (): Promise<void> => {
-      await tab2.getByLabel(EMAIL_LABEL, { exact: true }).fill(fu2.email);
-      await tab2.getByLabel(PASSWORD_LABEL, { exact: true }).fill(fu2.password);
+      await tab2.getByLabel(EMAIL_LABEL, { exact: true }).fill(user.email);
+      await tab2.getByLabel(PASSWORD_LABEL, { exact: true }).fill(user.password);
       await tab2.getByRole('button', { name: SIGN_IN_LABEL, exact: true }).click();
     };
     await test.step('[11U-A-107] admin vô hiệu: /api/me của fu2 401, tab về /login có thông báo phiên kết thúc', async () => {
-      const done = userResponse(page, fu2.id, 'disable');
+      const done = userResponse(page, user.id, 'disable');
       await row.getByRole('button', { name: 'Vô hiệu hoá', exact: true }).click();
       expect((await done).status()).toBe(200);
       await expect(row.getByRole('button', { name: 'Bật lại', exact: true })).toBeVisible();
-      const me = await ctx2.request.get('/api/me'); // US:305-308 revoke_sessions + bump_token_version
-      expect(me.status()).toBe(401);
+      // /api/me with cookies only is always 401 (core/routing.py:130-133): the proof is a refresh with the dead session cookie.
+      const refresh = await c2.request.post('/api/auth/refresh', { headers: { Origin: apiBaseUrl() } });
+      expect(refresh.status()).toBe(401); // oracle: auth/sessions.py:452-453
+      expect(((await refresh.json()) as { code?: string }).code).toBe('SESSION_REVOKED');
       await tab2.goto('/'); // next navigation of the dead session
       await expect(tab2).toHaveURL(/\/login/u); // SB:293-306
       await expect(tab2.getByText(SESSION_ENDED, { exact: true })).toBeVisible();
@@ -159,13 +178,15 @@ test('SCR-37/SCR-01 · FL-11U-02 · admin + user bị vô hiệu · phiên và �
         (res) => res.request().method() === 'POST' && new URL(res.url()).pathname === '/api/auth/login',
       );
       await signInForm();
-      expect.soft((await login).status()).toBeGreaterThanOrEqual(400); // AR:178-179 ACCOUNT_DISABLED (exact status UNKNOWN - NEED VERIFICATION)
+      const refused = await login; // oracle: auth/router.py:178-179, packages/core/error_codes.py:21
+      expect.soft(refused.status()).toBe(403);
+      expect.soft(((await refused.json()) as { code?: string }).code).toBe('ACCOUNT_DISABLED');
       await expect.soft(tab2.getByText(DISABLED_TITLE, { exact: true })).toBeVisible();
       await expect.soft(tab2.getByText(DISABLED_DESC, { exact: true })).toBeVisible();
       await captureEvidence(tab2, 'E11_11U-A-106_loginrefused.png');
     });
     await test.step('[11U-A-108] admin Bật lại: fu2 đăng nhập lại, vào Dự án của tôi', async () => {
-      const done = userResponse(page, fu2.id, 'enable');
+      const done = userResponse(page, user.id, 'enable');
       await row.getByRole('button', { name: 'Bật lại', exact: true }).click();
       expect((await done).status()).toBe(200);
       await signInForm();
@@ -173,24 +194,34 @@ test('SCR-37/SCR-01 · FL-11U-02 · admin + user bị vô hiệu · phiên và �
       await captureEvidence(tab2, 'E11_11U-A-108_backin.png');
     });
   } finally {
-    await ctx2.close();
-    await flow.context.close();
-    await disposeFreshUser(api, fu2);
-    await api.dispose();
+    const [a, f, u, c] = [api, flow, fu2, ctx2];
+    await runCleanups([
+      async () => c?.close(),
+      async () => f?.context.close(),
+      async () => (a && u ? disposeFreshUser(a, u) : undefined),
+      async () => a?.dispose(),
+    ]);
   }
 });
 
 test('SCR-37 · FL-11U-03 · admin · cổng hộp xoá hẳn, mọi đường huỷ', async ({ browser }) => {
   test.setTimeout(280_000);
-  const api = await adminApi();
-  const fu3 = await inviteFreshUser(api, 'engineer', 'rm');
-  const fu3b = await inviteFreshUser(api, 'engineer', 'rmb');
-  const flow = await openAdminFlow(browser, DESKTOP);
-  const { page, writes } = flow;
-  const deletes = (): number => writes.filter((w) => w.method === 'DELETE').length;
+  let api: APIRequestContext | undefined;
+  let u3: PoolUser | undefined;
+  let u3b: PoolUser | undefined;
+  let flow: AdminFlow | undefined;
   try {
+    api = await adminApi();
+    u3 = await inviteFreshUser(api, 'engineer', 'rm');
+    u3b = await inviteFreshUser(api, 'engineer', 'rmb');
+    flow = await openAdminFlow(browser, DESKTOP);
+    const { page, writes } = flow;
+    const [fu3, fu3b] = [u3, u3b];
+    const deletes = (): number => writes.filter((w) => w.method === 'DELETE').length;
     const row3 = userRow(page, fu3.email);
-    const dialog = page.getByRole('dialog', { name: `Xoá hẳn ${fu3.name}?`, exact: true }); // UMD:254
+    const dlgName = { name: `Xoá hẳn ${fu3.name}?`, exact: true }; // UMD:254
+    // dialog today; alertdialog once E-164 is fixed - the other steps must not turn red with it.
+    const dialog = page.getByRole('dialog', dlgName).or(page.getByRole('alertdialog', dlgName));
     const typed = page.getByLabel('Địa chỉ thư', { exact: true });
     const confirm = page.getByRole('button', { name: CONFIRM, exact: true });
     const openRemove = async (): Promise<void> => {
@@ -281,9 +312,12 @@ test('SCR-37 · FL-11U-03 · admin · cổng hộp xoá hẳn, mọi đường h
       await captureEvidence(page, 'E11_11U-E-164_alertdialog.png');
     });
   } finally {
-    await flow.context.close();
-    await disposeFreshUser(api, fu3);
-    await disposeFreshUser(api, fu3b);
-    await api.dispose();
+    const [a, f, x, y] = [api, flow, u3, u3b];
+    await runCleanups([
+      async () => f?.context.close(),
+      async () => (a && x ? disposeFreshUser(a, x) : undefined),
+      async () => (a && y ? disposeFreshUser(a, y) : undefined),
+      async () => a?.dispose(),
+    ]);
   }
 });
