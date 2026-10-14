@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import type { AnyNode } from '@pascal-app/core'
+import { roomArea as vi } from '../../i18n/regions/roomArea'
 import { closedRoomCount, roomAreaRows, roomAreaTable, roomAreaTableToText } from './room-area'
 
 function fixture(): Record<string, AnyNode> {
@@ -329,5 +330,14 @@ describe('closedRoomCount', () => {
 
   test('a level with no walls counts nothing', () => {
     expect(closedRoomCount(frame(true), ['level_other'])).toBe(0)
+  })
+})
+
+describe('gap check hint', () => {
+  // AppFront 23R-B-004: detection does not create zones, so reopening the panel
+  // shows no new row — the hint must not promise one.
+  test('says what was found and how to get an area row, without promising rows', () => {
+    expect(vi.gapsClosed(1)).toBe('Tìm thấy 1 vòng tường kín — vẽ vùng ở mục Vùng để có hàng diện tích')
+    expect(vi.gapsClosed(1)).not.toContain('mở lại bảng')
   })
 })
