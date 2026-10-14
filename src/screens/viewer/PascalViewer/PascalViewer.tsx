@@ -80,8 +80,16 @@ function Skeleton() {
  * Cột bảng phụ: hàng tab trên, bảng đang mở dưới (#45).
  *
  * Loại trừ nhau là **cấu tạo**, không phải quy ước: `activePanel` là một giá
- * trị, nên hai bảng cùng mở không biểu diễn được. Bề ngang 344 px cố định;
- * chỉ cột trượt vào trượt ra có hoạt cảnh, và `motion-reduce` tắt nó (#33).
+ * trị, nên hai bảng cùng mở không biểu diễn được. Từ `lg` bảng là cột 344 px
+ * cạnh khung dựng; chỉ cột trượt vào trượt ra có hoạt cảnh, và `motion-reduce`
+ * tắt nó (#33).
+ *
+ * Dưới `lg` (1024, cùng ngưỡng vỏ `sheet` của `HistoryPanel`) hàng tab nằm TRÊN
+ * khung dựng và chính vùng bảng là tấm trượt đáy cố định, rộng hết màn: cột 344 px
+ * cộng hàng tab không vừa 375/768 (trang cuộn ngang, khung dựng bị bóp còn
+ * ~128 px), còn tấm trượt đặt TRONG cột 344 để lại một hộp rỗng (23-F-007,
+ * 23H-F-002). Vùng là cột flex để bảng con (`min-h-0`) co vừa `max-h` và tự cuộn
+ * bên trong, thay vì tràn khỏi đáy màn.
  */
 function SidePanelColumn({
   panels,
@@ -95,10 +103,10 @@ function SidePanelColumn({
   const open = panels.find((panel) => panel.id === activePanel) ?? null;
 
   return (
-    <div className="flex min-h-0 gap-2">
+    <div className="flex min-h-0 gap-2 max-lg:order-first">
       <div
         aria-label={PASCAL_SIDE_PANEL_RAIL_LABEL}
-        className="flex flex-col gap-1"
+        className="flex flex-wrap gap-1 lg:flex-col lg:flex-nowrap"
         role="group"
       >
         {panels.map((panel) => {
@@ -120,7 +128,12 @@ function SidePanelColumn({
       {open !== null && (
         <div
           aria-label={open.label}
-          className="min-h-0 w-[344px] shrink-0 overflow-y-auto rounded-md border border-border-default bg-bg-surface transition-[width] duration-standard motion-reduce:transition-none"
+          className={
+            'fixed inset-x-0 bottom-0 z-10 flex max-h-[70vh] w-full flex-col overflow-y-auto rounded-t-[16px] ' +
+            'border-t border-border-default bg-bg-surface shadow-overlay ' +
+            'lg:static lg:z-auto lg:max-h-none lg:min-h-0 lg:w-[344px] lg:shrink-0 lg:rounded-md ' +
+            'lg:border lg:shadow-none transition-[width] duration-standard motion-reduce:transition-none'
+          }
           role="region"
         >
           {open.render()}
@@ -249,7 +262,7 @@ export function PascalViewer({
   return (
     <Frame caption={caption} onLeave={onLeave} showCaption>
       <div className="flex h-full min-h-0 flex-col gap-3">
-        <div className="flex min-h-0 flex-1 gap-3">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
           <div className="relative min-h-[12rem] min-w-0 flex-1">
             {/* `contain:layout`: hộp `fixed` của Pascal neo vào khung này; `container-type:size`: `cqh`/`cqw` trong vendor đo khung chứ không đo viewport. */}
             <div

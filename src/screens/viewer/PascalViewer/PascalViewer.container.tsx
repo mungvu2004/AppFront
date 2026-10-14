@@ -285,7 +285,9 @@ function PascalViewerBody({
         label: PASCAL_SIDE_PANEL_LABELS.history,
         render: () => (
           <Suspense fallback={<p className="p-3 text-sm text-text-muted">Đang mở bảng…</p>}>
-            <LazyHistoryPanel />
+            {/* Vỏ `panel` cố định: vùng bảng của `PascalViewer` tự làm tấm trượt dưới
+                `lg`, nên vỏ `sheet` riêng của bảng sẽ thoát khỏi vùng ấy (23H-F-002). */}
+            <LazyHistoryPanel layout="panel" />
           </Suspense>
         ),
       },

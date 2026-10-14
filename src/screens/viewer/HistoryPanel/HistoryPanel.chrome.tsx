@@ -86,10 +86,12 @@ const SKELETON_ROW_COUNT = 6;
  *
  * Bốn lớp bắt buộc chung của mọi panel 344 trong repo — `w-[344px]`, cột flex
  * cao hết khung, `overflow-hidden rounded-xl`, `bg-bg-surface` — chép đúng
- * `RoomAreaPanel.chrome.tsx:116-117` và `PropertyInspector.tsx:84-86`.
+ * `RoomAreaPanel.chrome.tsx:116-117` và `PropertyInspector.tsx:84-86`. Dưới `lg`
+ * panel rộng hết chỗ chứa nó — màn chủ (`PascalViewer`) đặt nó trong tấm trượt
+ * rộng hết màn, và 344 px cố định trong đó để hở một dải trống bên phải.
  */
 export const PANEL_CLASS =
-  'flex h-full min-h-0 w-[344px] flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel';
+  'flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel lg:w-[344px]';
 
 /**
  * Tấm trượt đáy dưới 1024px.
