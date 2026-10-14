@@ -94,6 +94,7 @@ export const EP = {
   forbiddenTitle: 'Không có quyền xuất bản vẽ', // EPV:211
   forbiddenCaption: 'Chỉ quản trị viên và kỹ sư của dự án xuất được mô hình; bạn đang xem ở quyền chỉ đọc.', // EPG:260-261
   emptyTitle: 'Chưa có gì để xuất', // EP:235
+  emptyCaption: 'Dự án chưa có tầng nào. Tải bản vẽ lên hoặc thêm một tầng rồi quay lại đây để xuất.', // EP:236-238
   notFoundTitle: 'Không tìm thấy dự án này', // PSG:34
   backToProjects: 'Về danh sách dự án', // PSG:40
   loginHint: 'Hãy đăng nhập để tiếp tục.', // phase01 login redirect copy (catalog 30-D-006)
