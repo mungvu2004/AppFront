@@ -212,8 +212,12 @@ export const themeRadio = (page: Page, choice: ThemeChoice): Locator => themeGro
 export const toggle = (page: Page, name: string): Locator => page.getByRole('switch', { name, exact: true });
 export const pwField = (page: Page, label: string): Locator => page.getByLabel(label, { exact: true });
 export const pwSubmit = (page: Page): Locator => page.getByRole('button', { name: PW.submit, exact: true });
-/** FieldRow.tsx:62-70: the row div carrying `min-h-*` around a control. */
-export const rowOf = (control: Locator): Locator => control.locator('xpath=ancestor::div[contains(@class,"items-start")][1]');
+/**
+ * The FieldRow root around a control (FieldRow.tsx:62-70 `flex items-start min-h-[36px] py-2`). `items-start` alone would
+ * stop at the Toggle wrapper (`flex items-start gap-3`, Toggle.tsx:140), so `py-2` is demanded too.
+ */
+export const rowOf = (control: Locator): Locator =>
+  control.locator('xpath=ancestor::div[contains(@class,"items-start") and contains(@class,"py-2")][1]');
 
 /* ---------------------------------------------------------------- theme helpers */
 

@@ -11,7 +11,7 @@ import { ROUTES } from '../../../../e2e/fixtures/routes';
 import { readBaseUrl } from '../../../../e2e/fullstack/env';
 import { signedInApi } from '../api';
 import { readAdminCredentials } from '../auth';
-import { DESKTOP, IND, accountUser, box, heading, recordWrites, saveIndicator, signInAccount } from './account';
+import { DESKTOP, IND, accountUser, box, heading, recordWrites, rowOf, saveIndicator, signInAccount } from './account';
 
 /** The one pool user of the pack (flows-C2 seed P1): an engineer that never writes to the server. */
 export const PREFS_SLOT = 'p07-prefs-1';
@@ -28,12 +28,8 @@ type PrefsWindow = Window & {
 export const densityGroup = (page: Page): Locator => page.getByRole('radiogroup', { name: 'Mật độ hiển thị', exact: true });
 export const densityRadio = (page: Page, label: 'Gọn' | 'Thoải mái'): Locator => densityGroup(page).getByRole('radio', { name: label, exact: true });
 
-/**
- * The FieldRow root around a control (FR:62-70 `flex items-start min-h-[36px] py-2`). `account.ts#rowOf` stops at the
- * Toggle wrapper (`flex items-start gap-3`, TG:140), so this one also demands `py-2`.
- */
-export const prefRow = (control: Locator): Locator =>
-  control.locator('xpath=ancestor::div[contains(@class,"items-start") and contains(@class,"py-2")][1]');
+/** The FieldRow root around a control (same as `account.ts#rowOf`). */
+export const prefRow = rowOf;
 
 /** Records every change of the save chip text (header `role=status`, AS:110) from now on, inside the page. */
 async function watchChip(page: Page): Promise<void> {
