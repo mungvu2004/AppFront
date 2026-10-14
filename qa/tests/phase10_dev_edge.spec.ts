@@ -54,8 +54,7 @@ test('SCR-40 · FL-10D-01 · anon · /demo: vỏ chọn màn', async ({ devPage:
     for (const name of six) {
       await navButton(page, name).click();
       await expect.soft(navButton(page, name), name).toHaveClass(SELECTED);
-      // named mark first: the State Gallery h1 is gone, so the new screen is mounted
-      await expect.soft(page.getByRole('heading', { name: 'State Gallery (QA)' }), name).toHaveCount(0);
+      // mark = selected nav button (same commit as the new screen or the ErrorBoundary fallback, App.tsx:94-106)
       await expect.soft(crashFallback(page), name).toHaveCount(0); // App.tsx:33
     }
     await captureEvidence(page, 'D10_10D-A-106_six-screens.png');

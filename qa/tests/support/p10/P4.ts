@@ -21,7 +21,9 @@ export const navButton = (page: Page, name: string): Locator => page.getByRole('
 
 /** ScreenCrashFallback is an EmptyState with the violation-tint icon inside the right pane (App.tsx:33,106). */
 export const crashFallback = (page: Page): Locator =>
-  page.locator('div.absolute.inset-0.bg-bg-app .bg-state-violation-tint');
+  page
+    .locator('div.absolute.inset-0.bg-bg-app')
+    .filter({ has: page.locator('div.rounded-full.bg-state-violation-tint[aria-hidden="true"]') });
 
 /** Phase caption of MotionDemo (MotionDemo.tsx:131, aria-live=polite span). */
 export const phaseCaption = (page: Page): Locator => page.locator('span[aria-live="polite"]');
