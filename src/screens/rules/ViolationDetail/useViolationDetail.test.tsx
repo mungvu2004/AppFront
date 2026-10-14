@@ -38,6 +38,7 @@ function Wired({ seed }: { readonly seed: ViolationDetailGatewaySeed }) {
     initialIndex: 0,
     onClose: () => undefined,
     projectId: PROJECT,
+    canEdit: true,
     seed,
     violations: [VIOLATION as NonNullable<typeof VIOLATION>],
   });
@@ -132,6 +133,7 @@ function WiredPair({ seed }: { readonly seed: ViolationDetailGatewaySeed }) {
     initialIndex: 0,
     onClose: () => undefined,
     projectId: PROJECT,
+    canEdit: true,
     seed,
     violations: [VIOLATION as NonNullable<typeof VIOLATION>, SECOND as NonNullable<typeof SECOND>],
   });

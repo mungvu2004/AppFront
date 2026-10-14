@@ -4,7 +4,7 @@
  * giãn hết chiều cao thay vì cuộn trong cột. Màn có chân dính / cột cuộn riêng tự dựng khung
  * `h-dvh` (khuôn BUG-373/BUG-520). jsdom không tính bố cục: đây chỉ kiểm cấu trúc lớp, ảnh thật ở run-062.
  */
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, render, waitFor } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -50,5 +50,21 @@ describe('khung chiều cao của màn có chân dính / cột cuộn riêng', (
     const nav = document.querySelector('nav[aria-label="Danh sách phiên bản"]');
     expect(nav).toHaveClass('min-h-0', 'flex-1', 'overflow-y-auto');
     expect(nav).not.toHaveClass('h-full');
+  });
+});
+
+describe('QA-06b F10 #2 — chân dính của VersionHistory mang data-sticky-footer (Toast nâng lên)', () => {
+  it('thanh phục hồi có thuộc tính', async () => {
+    const { container } = renderWithProviders(
+      <MemoryRouter initialEntries={[ROUTES.project.versions('project-1')]}>
+        <Routes>
+          <Route path={ROUTE_PATTERNS.projectVersions} element={<VersionHistoryRoute />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector('[data-sticky-footer]')).not.toBeNull();
+    });
   });
 });

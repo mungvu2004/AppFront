@@ -364,7 +364,7 @@ const skippedGroupsOf = (
  * `const props = useRuleReport({ projectId }); return <RuleReport {...props} />;`
  */
 export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProps {
-  const { projectId, canEdit = true, isCompact = false } = options;
+  const { projectId, canEdit = false, isCompact = false } = options;
 
   const navigate = useNavigate();
   const gateway: RuleReportGateway = useMemo(() => createRuleReportGateway(), []);
@@ -576,9 +576,7 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
   }, [graph, levelNames, projectId, registry, run]);
 
   const status = useMemo<RuleReportStatus>(() => {
-    if (!capabilities.canEdit) {
-      return 'forbidden';
-    }
+    // Người xem đi qua đủ các bậc như người sửa; quyền chỉ khoá hành động (`capabilities.canEdit`).
 
     if (query.isError || configQuery.isLoadingError) {
       return 'error';
@@ -599,7 +597,6 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
     // 28-B-005: cảnh báo/gợi ý cũng là mục cần liệt kê — `done` chỉ khi không còn mục nào.
     return summary.violations + summary.warnings > 0 ? 'ready' : 'done';
   }, [
-    capabilities.canEdit,
     configQuery.isLoadingError,
     configQuery.isPending,
     graph,

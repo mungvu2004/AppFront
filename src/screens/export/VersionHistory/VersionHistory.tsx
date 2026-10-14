@@ -165,7 +165,7 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
 
       {/* Chân màn cố định dưới khung chiều cao (vùng so sánh tự cuộn, F1); thanh phục hồi luôn trong khung.
           Dưới `lg` ghi chú nằm trên nút (xếp chồng), nhóm nút xuống dòng thay vì đẩy trang cuộn ngang (BUG-437). */}
-      <div ref={footerRef} tabIndex={-1} className="sticky bottom-0 flex flex-col gap-3 border-t border-border-default bg-bg-app pt-3 lg:flex-row lg:items-center">
+      <div ref={footerRef} tabIndex={-1} data-sticky-footer="" className="sticky bottom-0 flex flex-col gap-3 border-t border-border-default bg-bg-app pt-3 lg:flex-row lg:items-center">
         <div className="flex flex-1 flex-col gap-1">
           <p className="text-[13px] text-text-secondary">{model.restoreCaption}</p>
           {model.canRestore && reviewedVersionId === null && (
