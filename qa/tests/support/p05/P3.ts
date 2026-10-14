@@ -522,14 +522,15 @@ export const tooltip = (page: Page): Locator => page.getByRole('tooltip');
 const RAIL_ORDER: readonly string[] = ['Diện tích phòng', 'Thư viện đồ đạc'];
 
 /**
- * The icon-rail button whose tooltip reads `label`. The extra-panel buttons have no accessible name (IR:58-79, ⚑ 23R-E-001),
- * so the button is taken by its fixed position after "Site" (APN:24-49), hovered once, and its tooltip (Radix, delay 0 —
- * tooltip.tsx:10) must read the label.
+ * The icon-rail button whose tooltip reads `label`: by its accessible name (FA round 2: `aria-label` = panel label, IR:61),
+ * falling back to its fixed position after "Site" (APN:24-49) where the name is missing (⚑ 23R-E-001). Hovered once; its
+ * tooltip (Radix, delay 0 — tooltip.tsx:10) must read the label.
  */
 export async function railButton(page: Page, label: string): Promise<Locator> {
   const index = RAIL_ORDER.indexOf(label);
   if (index < 0) throw new Error(`Pascal icon rail: "${label}" is not an AppFront panel`);
-  const button = siteButton(page).locator('xpath=following-sibling::button').nth(index);
+  const named = pascalRoot(page).getByRole('button', { name: label, exact: true });
+  const button = (await named.count()) === 1 ? named : siteButton(page).locator('xpath=following-sibling::button').nth(index);
   await button.hover();
   await expect(tooltip(page).filter({ hasText: label }).first(), `rail button #${String(index + 1)} after "Site" is "${label}"`).toBeAttached({
     timeout: 5_000,

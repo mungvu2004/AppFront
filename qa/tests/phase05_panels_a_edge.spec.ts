@@ -283,7 +283,8 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
         expect.soft(lines[0]).toBe('Số phòng\tTên phòng\tCông năng\tDiện tích');
         expect.soft(lines[1]).toBe('Tầng 1');
         // Equal areas keep scene order, which the plan does not pin: compare the two room lines as a set.
-        expect.soft(lines.slice(2, 4).sort()).toEqual(['—\tBếp\t—\t16 m²', '—\tPHONG NGU 2\t—\t16 m²'].sort());
+        // FF round 2: toPascal writes `occupancy` = describeUsage(room.usage) (toPascal.ts:343, classify.ts:117-126).
+        expect.soft(lines.slice(2, 4).sort()).toEqual(['—\tBếp\tBếp\t16 m²', '—\tPHONG NGU 2\tPhòng ngủ\t16 m²'].sort());
         expect.soft(lines[4]).toBe('Tổng phụ\t\t\t32 m²');
         expect.soft(lines[5]).toBe('Tổng diện tích\t\t\t32 m²');
         await shot(page, '23R-A-040', 'copied', `clipboard: ${lines.join(' ⏎ ').replace(/\t/gu, '⇥')}`);
@@ -294,9 +295,10 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
         await shot(page, '23R-E-004', 'copied-status');
       });
 
-      await test.step('[23R-B-012] one occupancy band, title "Chưa đặt công năng · 100%" (RAM:217-242)', async () => {
-        await expect.soft(panel.locator('[title$="%"]')).toHaveCount(1);
-        await expect.soft(panel.locator(`[title="${RA.noOccupancy} · 100%"]`)).toHaveCount(1);
+      await test.step('[23R-B-012] occupancy bands: "Bếp · 50%" and "Phòng ngủ · 50%" (RAM:217-242; occupancy written since FF round 2)', async () => {
+        await expect.soft(panel.locator('[title$="%"]')).toHaveCount(2);
+        await expect.soft(panel.locator('[title="Bếp · 50%"]')).toHaveCount(1);
+        await expect.soft(panel.locator('[title="Phòng ngủ · 50%"]')).toHaveCount(1);
         await shot(page, '23R-B-012', 'band');
       });
 
@@ -519,10 +521,12 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
         await shot(page, '23R-A-044', 'groups-subtotals');
       });
 
-      await test.step('[23R-A-045] empty cells: "Số phòng" "—", "Công năng" "Chưa đặt công năng" (RAF:148-150)', async () => {
+      await test.step('[23R-A-045] cells: "Số phòng" "—" (no room number), "Công năng" "Phòng khách" (occupancy written since FF round 2; RAF:148-150)', async () => {
         const cells = fullRoomRows(dialog).first().locator('td');
         await expect.soft(cells.nth(0)).toHaveText('—');
-        await expect.soft(cells.nth(2)).toHaveText(RA.noOccupancy);
+        // First row of the default area sort = "Phòng khách" (livingRoom → describeUsage "Phòng khách").
+        await expect.soft(cells.nth(1)).toHaveText('Phòng khách');
+        await expect.soft(cells.nth(2)).toHaveText('Phòng khách');
         await shot(page, '23R-A-045', 'empty-cells');
       });
 
