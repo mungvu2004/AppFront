@@ -13,7 +13,7 @@
  *
  * ## Real-backend budget per run of this file
  * - `POST /api/auth/login`: 7 (one admin per flow) + 7 refresh (support/api.ts); limit 120 / 60 s on the QA stack.
- * - Dataset rows (no delete API, S2 #5): FL-B08M-11 creates 2 (C-001 80-char name, C-007 trimmed), FL-B08M-12 creates 1 (the build target) = 3 / run (+3 per retry);
+ * - Dataset rows (no delete API, S2 #5): FL-B08M-11 creates 2 (C-001 80-char name, C-007 trimmed), FL-B08M-12 creates 1 (the build target) = 3 / run (unique name suffix per call: a retry adds 3 more; S2 #5 cap 4 holds for retries: 0);
  *   names `${TEST_DATA_PREFIX}b08m-${RUN_ID}-<n>`; coordinator removes them with `qa/tools/cleanup.mjs`.
  * - Training jobs created: 0. Job cancels that take effect: 0. Idempotency-Key: never sent.
  * - Environment premises (listed jobs, a job with metrics / logs, a terminal job) are asserted with `expect.soft(..., 'environment: ...')`, never skipped (S2 #3).
@@ -37,6 +37,7 @@ import {
   datasetName,
   expectError,
   expectOk,
+  guardBuild,
   guardCancel,
   guardCreate,
   itemsOf,
@@ -50,6 +51,7 @@ const JOBS = `${ML}/training-jobs`;
 const DATASETS = `${ML}/datasets`;
 const STATUSES = ['queued', 'running', 'cancelling', 'cancelled', 'succeeded', 'failed'] as const;
 const NAME_MAX = 80; // BE admin_ml_datasets/schemas.py CleanName
+const METRIC_SPLITS = 2; // BE METRIC_SPLITS (train, validation): _whole_steps may add splits - 1 rows past limit (service.py:269-280)
 const ENV_JOB = 'environment: at least one training job is listed';
 const bare = (id: string): string => id.slice(1, -1); // '[B08M-G-170]' -> 'B08M-G-170' (literal bracketed ids keep coverage-gate greps working)
 
@@ -81,8 +83,8 @@ async function streamSteps(admin: APIRequestContext, id: string, kind: 'metrics'
     const keys = (Array.isArray(body.items) ? (body.items as Json[]) : []).map((r) => Number(r[key]));
     expect.soft(keys, `${key} ascending`).toEqual([...keys].sort((a, b) => a - b));
     expect.soft(keys.every((k) => k > -1), `${key} > since`).toBe(true);
-    if (body.nextCursor !== undefined) expect.soft(body.nextCursor, 'nextCursor = decimal string of the last key').toBe(String(keys.at(-1)));
-    else expect.soft(keys.length, 'no nextCursor only when the page is not full (past the window)').toBeLessThan(200);
+    if (body.nextCursor !== undefined) expect.soft(body.nextCursor, 'nextCursor = decimal string of the last key').toBe(keys.length ? String(keys.at(-1)) : '-1');
+    else expect.soft(keys.length, 'no nextCursor only past the window').toBeLessThanOrEqual(200 + (kind === 'metrics' ? METRIC_SPLITS - 1 : 0));
   });
   await test.step(`${rowB} ${kind} since=<cursor>: only ${key} > since (exclusive)`, async () => {
     const first = asJson(await (await admin.get(`${JOBS}/${id}/${kind}?since=-1&limit=2`)).json());
@@ -144,18 +146,18 @@ test.describe('A08 phase-8 backend ML admin C (datasets write, training jobs N29
         expect.soft(String(body.id), 'dst_ id').toMatch(/^dst_/u);
       });
       await test.step('[B08M-C-002] name of 81 chars -> 422 field name', async () => {
-        await rejected('B08M-C-002', 'name_81', { ...valid, name: 'y'.repeat(NAME_MAX + 1) }, 'name', 'over NAME_MAX');
+        await rejected('B08M-C-002', 'name_81', { ...valid, name: valid.name.padEnd(NAME_MAX + 1, 'y') }, 'name', 'over NAME_MAX');
       });
       await test.step('[B08M-C-003] name "" and "   " -> 422 field name', async () => {
         await rejected('B08M-C-003', 'name_empty', { ...valid, name: '' }, 'name', 'empty');
         await rejected('B08M-C-003', 'name_blank', { ...valid, name: '   ' }, 'name', 'strip then min 1');
       });
       await test.step('[B08M-C-004] name with U+0000 / U+0007 -> 422 field name', async () => {
-        await rejected('B08M-C-004', 'name_nul', { ...valid, name: 'a\u0000b' }, 'name', 'clean_text rejects Cc');
-        await rejected('B08M-C-004', 'name_bel', { ...valid, name: 'a\u0007b' }, 'name', 'clean_text rejects Cc');
+        await rejected('B08M-C-004', 'name_nul', { ...valid, name: `${valid.name}\u0000` }, 'name', 'clean_text rejects Cc');
+        await rejected('B08M-C-004', 'name_bel', { ...valid, name: `${valid.name}\u0007` }, 'name', 'clean_text rejects Cc');
       });
       await test.step('[B08M-C-005] name with U+202E (bidi override) -> 422 field name', async () => {
-        await rejected('B08M-C-005', 'name_bidi', { ...valid, name: 'a‮b' }, 'name', 'bidi override');
+        await rejected('B08M-C-005', 'name_bidi', { ...valid, name: `${valid.name}\u202E` }, 'name', 'bidi override');
       });
       await test.step('[B08M-C-006] name a number 7 / null / missing -> 422 field name', async () => {
         await rejected('B08M-C-006', 'name_number', { ...valid, name: 7 }, 'name', 'not a string');
@@ -186,15 +188,18 @@ test.describe('A08 phase-8 backend ML admin C (datasets write, training jobs N29
     await withAdmin(async (admin) => {
       const created = await call(admin, 'B08M-G-130_setup_dataset', 'POST', DATASETS, { name: datasetName(3), family: OPENING }, ['setup: the dataset the refusals target']);
       const dataset = String(expectOk(created, 201, 'setup: create the build target', true).id);
-      const build = (name: string, id: string, body: Json, why: string) => call(admin, name, 'POST', `${DATASETS}/${id}/versions`, body, [why]);
+      const build = (name: string, id: string, body: Json, why: string) => {
+        guardBuild(body);
+        return call(admin, name, 'POST', `${DATASETS}/${id}/versions`, body, [why]);
+      };
       const versionsOf = async (): Promise<Json[]> => itemsOf(await (await admin.get(`${DATASETS}/${dataset}/versions`)).json(), 'dataset versions');
 
       await test.step('[B08M-G-130] unknown dataset id dst_0000..., body {} -> 404 dataset', async () => {
-        const sent = await build('B08M-G-130_unknown_dataset', NO_DATASET, {}, '404 NOT_FOUND dataset: the dataset is read before projectIds');
+        const sent = await build('B08M-G-130_unknown_dataset', NO_DATASET, { projectIds: [NO_PROJECT] }, '404 NOT_FOUND dataset: the dataset is read before projectIds');
         expectError(sent, 404, 'NOT_FOUND', { resource: 'dataset', hard: true });
       });
       await test.step('[B08M-G-131] id garbage -> 404 dataset, not 422', async () => {
-        expectError(await build('B08M-G-131_garbage_id', 'garbage', {}, '404 NOT_FOUND dataset, never 422'), 404, 'NOT_FOUND', { resource: 'dataset' });
+        expectError(await build('B08M-G-131_garbage_id', 'garbage', { projectIds: [NO_PROJECT] }, '404 NOT_FOUND dataset, never 422'), 404, 'NOT_FOUND', { resource: 'dataset' });
       });
       await test.step('[B08M-G-132] projectIds [] -> 422 field projectIds, no version row', async () => {
         expectError(await build('B08M-G-132_empty', dataset, { projectIds: [] }, '422 VALIDATION field projectIds (min 1)'), 422, 'VALIDATION', { field: 'projectIds' });
@@ -309,10 +314,11 @@ test.describe('A08 phase-8 backend ML admin C (datasets write, training jobs N29
         }
       });
       await test.step('[B08M-G-162] GET job of a listed row -> 200 body equals its list row', async () => {
-        expect.soft(items[0], ENV_JOB).toBeDefined();
-        if (items[0] === undefined) return;
-        const sent = await call(admin, 'B08M-G-162_job', 'GET', `${JOBS}/${String(items[0].id)}`, undefined, ['200 body deep-equals its list row']);
-        expect.soft(expectOk(sent, 200, 'job read'), 'equals the list row').toEqual(items[0]);
+        const row = items.find((j) => (TERMINAL as readonly string[]).includes(String(j.status)));
+        expect.soft(row, `${ENV_JOB} (a terminal one: queued/running rows change between list and read)`).toBeDefined();
+        if (row === undefined) return;
+        const sent = await call(admin, 'B08M-G-162_job', 'GET', `${JOBS}/${String(row.id)}`, undefined, ['200 body deep-equals its list row']);
+        expect.soft(expectOk(sent, 200, 'job read'), 'equals the list row').toEqual(row);
       });
       await streamBounds(admin, 'metrics', stream?.id, { unknown: '[B08M-G-170]', below: '[B08M-G-171]', limit: '[B08M-G-172]', huge: '[B08M-G-173]', abc: '[B08M-G-174]' });
       if (stream === undefined) {
@@ -391,6 +397,7 @@ test.describe('A08 phase-8 backend ML admin C (datasets write, training jobs N29
       const datasets = itemsOf((await call(admin, 'B08M-G-208_datasets', 'GET', `${DATASETS}?limit=200`, undefined, ['setup: datasets for the 422 branches'])).body, 'datasets');
       const versions: { dataset: Json; version: Json }[] = [];
       for (const dataset of datasets) {
+        if (versions.some((v) => v.version.status === 'ready') && versions.some((v) => v.version.status === 'building' || v.version.status === 'failed')) break;
         const res = await admin.get(`${DATASETS}/${String(dataset.id)}/versions?limit=200`);
         if (res.status() === 200) for (const version of itemsOf(await res.json(), 'dataset versions')) versions.push({ dataset, version });
       }
@@ -445,12 +452,17 @@ test.describe('A08 phase-8 backend ML admin C (datasets write, training jobs N29
         expect.soft(await reread(String(job.id)), 'job row unchanged on re-read').toEqual(job);
       });
       await test.step('[B08M-G-223] cancel a listed cancelling/cancelled job -> 200 same row, no effect', async () => {
-        const job = items.find((j) => j.status === 'cancelling' || j.status === 'cancelled');
+        const job = items.find((j) => j.status === 'cancelled') ?? items.find((j) => j.status === 'cancelling');
         expect.soft(job, 'environment: a cancelling or cancelled training job is listed').toBeDefined();
         if (job === undefined) return;
         const sent = await cancel('B08M-G-223_noop', String(job.id), {}, `200 the same ${String(job.status)} row, no effect`);
-        expect.soft(expectOk(sent, 200, 'cancel of a cancel-state job'), 'same row').toEqual(job);
-        expect.soft(await reread(String(job.id)), 'job row unchanged on re-read').toEqual(job);
+        const after = expectOk(sent, 200, 'cancel of a cancel-state job');
+        if (job.status === 'cancelled') {
+          expect.soft(after, 'same row').toEqual(job);
+          expect.soft(await reread(String(job.id)), 'job row unchanged on re-read').toEqual(job);
+        } else {
+          expect.soft([after.id, ['cancelling', 'cancelled'].includes(String(after.status))], 'same job, still cancelling or already cancelled').toEqual([job.id, true]);
+        }
       });
     });
   });
