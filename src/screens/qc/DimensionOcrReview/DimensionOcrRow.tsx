@@ -108,8 +108,9 @@ interface DimensionOcrCropProps {
  * nơi đã là khung cắt, `displayWidthPx`/`displayHeightPx` tới nơi đã là kích
  * thước ô hiển thị.
  *
- * Bề rộng ô thu về `displayHeightPx` (ô vuông) dưới 1024px và bung ra
- * `displayWidthPx` từ `lg:` trở lên. Hai con số đó lấy từ view model chứ không
+ * Bề rộng ô thu về `displayHeightPx` (ô vuông) dưới 1280px và bung ra
+ * `displayWidthPx` từ `xl:` trở lên — ở 1024 panel chỉ 400 px, ô rộng đẩy ô số ra
+ * ngoài (G01). Hai con số đó lấy từ view model chứ không
  * viết thô (R-71), và đi vào CSS qua biến để lớp Tailwind bắt được điểm ngắt —
  * một `style` thẳng không có media query.
  */
@@ -119,7 +120,7 @@ export function DimensionOcrCrop({ crop, isMagnified = false }: DimensionOcrCrop
       aria-label={crop.alt}
       className={cn(
         'shrink-0 overflow-hidden rounded-[8px] border border-border-default bg-bg-sunken',
-        'h-[var(--dim-crop-h)] w-[var(--dim-crop-h)] lg:w-[var(--dim-crop-w)]',
+        'h-[var(--dim-crop-h)] w-[var(--dim-crop-h)] xl:w-[var(--dim-crop-w)]',
       )}
       role="img"
       style={
@@ -245,7 +246,7 @@ export function DimensionValueField({
 
   return (
     <div
-      className="flex items-center gap-3"
+      className="flex flex-wrap items-center gap-3"
       onInput={() => {
         isEditingRef.current = true;
       }}

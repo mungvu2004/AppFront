@@ -77,6 +77,7 @@ import type { Dimension, Level } from '@/domain/spatial/types';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import { useCountUp } from '@/hooks/useCountUp';
 import { useFloorLayer } from '@/hooks/useFloorLayer';
+import { useZoomCluster } from '@/hooks/useZoomCluster';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import { useProjectConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
 import { useShortcut } from '@/hooks/useShortcut';
@@ -102,6 +103,7 @@ import {
   dimensionsOf,
   wallsOfGraph,
   drawingSizePxOf,
+  type DimensionDrawingSizePx,
   formatDeviation,
   hostWallOf,
   implausibleDimensionIds,
@@ -126,6 +128,7 @@ import { DIMENSION_OCR_TEXT } from './dimensionOcrText';
 import { useFloorLayerReadFailure, type FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useLeaveWarning } from '../shared/useLeaveWarning';
 import type {
+  DimensionCanvasZoom,
   DimensionCompareViewModel,
   DimensionFilterId,
   DimensionOcrModel,
@@ -207,6 +210,10 @@ export interface DimensionOcrReviewModel extends DimensionOcrModel {
   readonly keyboardReview: DimensionOcrKeyboardReviewModel;
   /** Lượt đọc N16 hỏng khi chưa có tài liệu — cả màn thay bằng một lối ra (G09, BUG-326). */
   readonly readFailure: FloorLayerReadFailure | null;
+  /** Khổ bản vẽ (px) — `viewBox` của lớp chuỗi (G13). */
+  readonly drawingSizePx: DimensionDrawingSizePx | null;
+  /** Cụm thu phóng nối vào lớp bản vẽ (G07). */
+  readonly canvasZoom: DimensionCanvasZoom;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -217,6 +224,8 @@ export interface DimensionOcrReviewModel extends DimensionOcrModel {
 const EDIT_NOTIFICATION_TYPE = 'dimensionOcrReview.editDimension';
 
 const NO_DIMENSIONS: readonly Dimension[] = [];
+/** Mức thu phóng phần trăm ứng với `scale(1)`. */
+const FULL_ZOOM_PERCENT = 100;
 const NO_OVERRIDES: ReadonlyMap<string, number> = new Map<string, number>();
 
 /** Số người duyệt đang gõ dở, chưa thành lệnh. */
@@ -668,6 +677,19 @@ export function useDimensionOcrReview(
     [background, level],
   );
 
+  /* G07: cụm thu phóng có chủ — mức sống ở đây, khung bản vẽ áp `scale`. */
+  const zoomCluster = useZoomCluster();
+  const canvasZoom = useMemo<DimensionCanvasZoom>(
+    () => ({
+      percent: zoomCluster.zoomLevel,
+      scale: zoomCluster.zoomLevel / FULL_ZOOM_PERCENT,
+      onZoomIn: zoomCluster.zoomIn,
+      onZoomOut: zoomCluster.zoomOut,
+      onReset: zoomCluster.resetZoom,
+    }),
+    [zoomCluster.resetZoom, zoomCluster.zoomIn, zoomCluster.zoomLevel, zoomCluster.zoomOut],
+  );
+
   const onSelect = useCallback(
     (dimensionId: string | null) => {
       /* BUG-603: bấm lại vào chính hàng (hay ô) đang sửa giữ nguyên bản nháp; chỉ đổi hàng mới bỏ nó. */
@@ -993,5 +1015,7 @@ export function useDimensionOcrReview(
 
     keyboardReview,
     readFailure,
+    drawingSizePx: drawingSize,
+    canvasZoom,
   };
 }

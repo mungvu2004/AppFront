@@ -837,3 +837,36 @@ describe('QA-04c SCR-18 trên màn đã ráp', () => {
     );
   });
 });
+
+describe('[G01] hàng kích thước vừa panel 400 px ở 1024', () => {
+  it('ảnh cắt chỉ bung rộng từ xl, ô số và thước tin cậy được xuống dòng', async () => {
+    renderState('partial');
+
+    await screen.findAllByRole('option');
+    const crop = screen.getAllByRole('img').find((node) => node.className.includes('--dim-crop-h'));
+    const input = screen.getAllByRole('textbox')[0];
+
+    expect(crop?.className).toContain('xl:w-[var(--dim-crop-w)]');
+    expect(crop?.className).not.toContain('lg:w-[var(--dim-crop-w)]');
+    expect(input?.closest('.gap-3')?.className).toContain('flex-wrap');
+  });
+});
+
+describe('[G07/G13] khung bản vẽ SCR-18', () => {
+  it('svg có viewBox theo khổ bản vẽ, và "Phóng to" phóng cả lớp bản vẽ', async () => {
+    renderState('partial');
+    await screen.findAllByRole('option');
+
+    const svg = screen
+      .getAllByLabelText(DIMENSION_OCR_TEXT.screen.canvasAriaLabel)
+      .find((node) => node.tagName.toLowerCase() === 'svg');
+    const layer = svg?.parentElement;
+
+    expect(svg?.getAttribute('viewBox')).toMatch(/^0 0 \d/u);
+    expect(layer?.style.transform ?? '').toBe('scale(1)');
+
+    fireEvent.click(screen.getByRole('button', { name: /phóng to/iu }));
+
+    expect(layer?.style.transform).toBe('scale(1.1)');
+  });
+});
