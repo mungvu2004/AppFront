@@ -133,6 +133,7 @@ function buildProps(overrides: Partial<MeasurementToolProps> = {}): MeasurementT
     snap: { kind: null, label: 'chưa bắt điểm nào' },
     draft: null,
     draftComplete: true,
+    noModel: false,
     measurements: [],
     countLabel: '0 phép đo',
     highlightedId: null,
@@ -455,6 +456,7 @@ describe('MeasurementTool — bốn hành động PHẢI có đường chuột, 
         onHighlight={props.onHighlight}
         onToggleCollapsed={props.onToggleCollapsed}
         onToggleVisibility={props.onToggleVisibility}
+        noModel={props.noModel}
         onUnitChange={props.onUnitChange}
         unit={props.unit}
       />,

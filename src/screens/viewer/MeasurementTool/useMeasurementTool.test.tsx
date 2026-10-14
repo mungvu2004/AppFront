@@ -27,6 +27,7 @@ import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import {
   createViewerShellFixtureGateway,
   ViewerShell,
+  VIEWER_EMPTY_SPATIAL,
   VIEWER_FIXTURE_SPATIAL,
 } from '@/screens/viewer/ViewerShell';
 
@@ -862,5 +863,14 @@ describe('useMeasurementTool — bàn phím làm nổi hàng và xoá bằng Del
 
       expect(methods.filter((method) => method === 'DELETE')).toHaveLength(1);
     });
+  });
+});
+
+describe('useMeasurementTool — dự án 0 tầng không mời đo (25-B-017)', () => {
+  it('nói chưa có mô hình, không còn câu "Nhấn M rồi chọn hai điểm"', async () => {
+    renderHook({ mountScene: sceneSpy().mount, spatial: VIEWER_EMPTY_SPATIAL });
+
+    expect(await screen.findByText(/Chưa có mô hình để đo/u)).toBeInTheDocument();
+    expect(screen.queryByText(/Nhấn M rồi chọn hai điểm/u)).toBeNull();
   });
 });

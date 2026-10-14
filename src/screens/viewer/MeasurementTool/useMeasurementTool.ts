@@ -795,6 +795,8 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
 
   /** Cờ của MỌI thao tác ghi (ghim, xoá — B-V9-41), không riêng ghim. */
   const canPin = shell.state !== 'forbidden';
+  /** Đã nạp xong mà không có tầng nào: không có mô hình để mời đo (25-B-017). */
+  const noModel = shell.state !== 'loading' && shell.storeys.length === 0;
 
   /* Điểm của bản nháp chỉ bị bỏ khi `saveMeasurement` xong: hỏng thì chúng còn
      nguyên đó, cùng một câu lỗi, và người dùng ghim lại được. */
@@ -988,6 +990,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
       snap: cursor.snap,
       draft,
       draftComplete: draftRow !== null,
+      noModel,
       measurements: rows,
       countLabel: measurementCountLabel(rows.length),
       highlightedId,
@@ -1015,6 +1018,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
       cursor.snap,
       draft,
       draftRow,
+      noModel,
       rows,
       highlightedId,
       onToggleVisibility,
@@ -1079,6 +1083,7 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
       unit: toolProps.unit,
       onUnitChange: toolProps.onUnitChange,
       canPin: toolProps.canPin,
+      noModel: toolProps.noModel,
       collapsed: toolProps.collapsed,
       onToggleCollapsed: toolProps.onToggleCollapsed,
     }),

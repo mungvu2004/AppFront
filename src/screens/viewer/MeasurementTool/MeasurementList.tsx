@@ -59,6 +59,8 @@ const FOCUS_RING_CLASS =
 
 const SECTION_TITLE = 'Phép đo';
 const EMPTY_HINT = 'Chưa có phép đo nào. Nhấn M rồi chọn hai điểm trên mô hình.';
+/** Không có mô hình thì không mời đo; lớp phủ đã nói vì sao (25-B-017). */
+const NO_MODEL_HINT = 'Chưa có phép đo nào.';
 const UNIT_SELECT_LABEL = 'Đơn vị';
 const COLLAPSE_BUTTON_LABEL = `Thu gọn mục ${SECTION_TITLE}`;
 const STALE_BADGE_TEXT = 'Cần chú ý';
@@ -75,6 +77,7 @@ export interface MeasurementListProps
     | 'unit'
     | 'onUnitChange'
     | 'canPin'
+    | 'noModel'
     | 'collapsed'
     | 'onToggleCollapsed'
   > {}
@@ -182,6 +185,7 @@ export function MeasurementList({
   unit,
   onUnitChange,
   canPin,
+  noModel,
   collapsed,
   onToggleCollapsed,
 }: MeasurementListProps) {
@@ -235,7 +239,7 @@ export function MeasurementList({
       </div>
 
       {measurements.length === 0 ? (
-        <p className="px-2 text-[13px] text-text-secondary">{EMPTY_HINT}</p>
+        <p className="px-2 text-[13px] text-text-secondary">{noModel ? NO_MODEL_HINT : EMPTY_HINT}</p>
       ) : (
         <ul className="flex flex-col">
           {measurements.map((measurement) => (

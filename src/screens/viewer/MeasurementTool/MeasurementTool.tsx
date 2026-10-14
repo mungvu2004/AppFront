@@ -82,6 +82,9 @@ const MODE_OPTIONS: SegmentedControlOption<MeasureMode>[] = MEASURE_MODES.map((m
 /** Lời mời của trạng thái rỗng — nguyên văn bảng bảy trạng thái của hợp đồng. */
 const EMPTY_INVITATION = 'Chưa có phép đo nào. Nhấn M rồi chọn hai điểm trên mô hình.';
 
+/** Thay lời mời đo khi dự án chưa có tầng nào — không có mô hình để chấm điểm. */
+const NO_MODEL_MESSAGE = 'Chưa có mô hình để đo: dự án chưa có tầng nào được dựng.';
+
 /** Câu nhắc của trạng thái một phần: chuỗi đo còn dở (chỉ diện tích mặt sàn nhận thêm điểm). */
 const PARTIAL_HINT = 'Chuỗi đo chưa đóng. Chọn thêm điểm để đóng chuỗi, hoặc nhấn Esc để bỏ.';
 
@@ -234,7 +237,7 @@ export function MeasurementTool(props: MeasurementToolProps) {
               'rounded-2xl',
             )}
           >
-            {EMPTY_INVITATION}
+            {props.noModel ? NO_MODEL_MESSAGE : EMPTY_INVITATION}
           </p>
         )}
 
