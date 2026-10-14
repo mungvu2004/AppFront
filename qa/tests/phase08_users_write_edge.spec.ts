@@ -358,7 +358,7 @@ test.describe('E08 SCR-37 users write (edge)', () => {
       const invited = await inviteApi(x.e.api, e5, 'viewer'); // 1 invite (UI invite covered by FL-37W-02)
       id5 = str(invited, 'id');
       const expiresAt = Date.parse(str(invited, 'inviteExpiresAt')) || Date.now() + 8 * 86_400_000;
-      await page.clock.setFixedTime(new Date(expiresAt + 60_000)); // UNKNOWN — NEED VERIFICATION: Date-only clock moves UUM nowMs
+      await page.clock.setFixedTime(new Date(expiresAt + 60_000)); // verified: nowMs = gateway.now = Date.now (userManagementGateway.ts:458, useUserManagement.ts:471,573), so a fixed Date is enough
       await openUsers(page);
       await search(page, e5);
       const row = userRow(page, e5);
@@ -452,12 +452,15 @@ test.describe('E08 SCR-37 users write (edge)', () => {
       });
       await test.step('[37W-E-009] Hoan tac toi duoc bang Tab', async () => {
         const undo = page.getByRole('status').getByRole('button', { name: T.undo });
+        // Toast.tsx:80-90 hover/focus holds the undo window (holdUndoWindows, undoTicket.ts:57; window UNDO_WINDOW_MS 8000, undoTicket.ts:18),
+        // so the Tab count below does not race the 8 s timer.
+        await toast(page, T.roleChanged).hover();
         let reached = false;
         for (let i = 0; i < 40 && !reached; i += 1) {
           await page.keyboard.press('Tab');
           reached = await undo.evaluate((el) => el === document.activeElement).catch(() => false);
         }
-        expect.soft(reached, 'undo reachable by Tab within the 8 s window').toBe(true);
+        expect.soft(reached, 'undo reachable by Tab (window held while hovered)').toBe(true);
         await ev(page, '37W-E-009');
       });
       await test.step('[37W-A-009] bam Hoan tac', async () => {
@@ -681,7 +684,8 @@ test.describe('E08 SCR-37 users write (edge)', () => {
         await search(page, x.e.adm.email);
         await expect(own).toBeVisible();
         await expect.soft(own.getByRole('button', { name: T.remove, exact: true }), 'N1: own row must not offer "Xoá"').toHaveCount(0);
-        await expect.soft(own).toContainText(T.selfDeleteText);
+        // useUserManagement.ts:337 only blocks the last admin: no self-delete copy exists, so correct = no "Xoá" and a visible reason text in the actions cell
+        await expect.soft(own.getByRole('cell').last(), 'N1: own actions cell states why it cannot be deleted').toContainText(/xoá/iu);
         await ev(page, '37W-C-013');
       });
       await test.step('[37W-C-014] panel hang minh', async () => {

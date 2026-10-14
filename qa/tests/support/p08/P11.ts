@@ -42,7 +42,6 @@ export const T = {
   detail: 'Chi tiết người dùng', // UMD:370
   forbidden: 'Vai của bạn chưa quản lý được người dùng nên danh sách tài khoản không hiện; bảng dưới đây cho biết mỗi vai làm được những việc gì', // UUM:140
   membershipBlocked: 'Vai trong từng dự án theo vai của hệ thống; hệ thống chưa có đường đổi riêng cho một dự án', // UMG:350
-  selfDeleteText: /tự xoá/iu, // UNKNOWN — NEED VERIFICATION: no self-delete copy exists in UUM (N1); soft check only
   invitedTitle: 'Đã gửi lời mời',
   inviteFailedTitle: 'Không gửi được lời mời',
   resentTitle: 'Đã gửi lại lời mời',
