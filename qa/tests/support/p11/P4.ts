@@ -44,8 +44,9 @@ export async function withSlotMember(
     await body({ session, project, api, layerApi: { request: api, headers: {} } });
   } finally {
     await closeSession(session);
-    if (projectId !== undefined) await deleteSeededProject(api, projectId);
+    const cleanup = projectId === undefined ? null : await deleteSeededProject(api, projectId);
     await api.dispose();
+    expect(cleanup, 'cleanup').toBeNull();
   }
 }
 

@@ -98,17 +98,25 @@ test.describe('P4 floors D edge', () => {
         expect.soft(layerWrites(log, mark)).toBe(0);
         await captureEvidence(page, 'E11_11F-A-306_floors.png');
       });
+      const previewCount = async (): Promise<number> => {
+        // preview.sentence "${n} tường → ${g} nhóm chuẩn." (thicknessStandardizationGateway.ts:786; ThicknessApplyBar.tsx:168)
+        const sentence = zone.getByText(/^\d+ tường → \d+ nhóm chuẩn\./u);
+        await expect(sentence).toBeVisible();
+        return Number(/^(\d+) /u.exec((await sentence.textContent()) ?? '')?.[1]);
+      };
+      let withoutReviewed = 0;
       await test.step('[11F-A-307] "Loại tường đã duyệt ra rồi xem trước" -> preview without the reviewed wall', async () => {
         await zone.getByRole('button', { name: THICK.reapply, exact: true }).click();
-        await zone.getByRole('button', { name: THICK.exclude, exact: true }).click();
-        await expect.soft(applyBtn).toBeVisible();
+        await zone.getByRole('button', { name: THICK.exclude, exact: true }).click(); // onReapplyFilter(true) TAB:142
+        withoutReviewed = await previewCount();
+        expect.soft(withoutReviewed, 'two unreviewed 200 mm walls (the reviewed one excluded)').toBe(2);
         await captureEvidence(page, 'E11_11F-A-307_floors.png');
         await zone.getByRole('button', { name: THICK.cancel, exact: true }).click();
       });
       await test.step('[11F-A-308] "Xem trước cho tất cả" -> preview includes the reviewed wall', async () => {
         await zone.getByRole('button', { name: THICK.reapply, exact: true }).click();
-        await zone.getByRole('button', { name: THICK.applyAll, exact: true }).click();
-        await expect.soft(applyBtn).toBeVisible();
+        await zone.getByRole('button', { name: THICK.applyAll, exact: true }).click(); // onReapplyFilter(false) TAB:151
+        expect.soft(await previewCount(), 'one more wall than 307: the reviewed one').toBe(withoutReviewed + 1);
         await captureEvidence(page, 'E11_11F-A-308_floors.png');
       });
       await test.step('[11F-A-309] "Áp dụng" -> one batch, toast with "Hoàn tác"', async () => {
@@ -137,12 +145,19 @@ test.describe('P4 floors D edge', () => {
         await captureEvidence(page, 'E11_11F-A-311_floors.png');
       });
       await test.step('[11F-A-312] undo after a newer step is refused, nothing changes', async () => {
-        // UNKNOWN - NEED VERIFICATION: refusal toast text (`thicknessStandardization.undoRefused`) and how to add a newer step
-        // (here a second apply). Asserts only that the apply toast appears; refusal itself is not asserted.
         await zone.getByRole('checkbox', { name: THICK.accept }).first().check();
         await previewBtn.click();
-        await applyBtn.click();
-        await expect.soft(toasts(page).getByText(THICK.applied).first()).toBeVisible();
+        await applyBtn.click(); // apply 1
+        await expect(toasts(page).getByText(THICK.applied)).toHaveCount(1);
+        await zone.getByRole('button', { name: THICK.reapply, exact: true }).click();
+        await zone.getByRole('button', { name: THICK.applyAll, exact: true }).click();
+        await zone.getByRole('button', { name: THICK.apply, exact: true }).click(); // apply 2 (the reviewed wall)
+        await expect(toasts(page).getByText(THICK.applied)).toHaveCount(2);
+        const mark = log.length;
+        await toasts(page).getByRole('button', { name: THICK.undo, exact: true }).first().click(); // ticket of apply 1
+        // history.ts:451-454, emitted at useThicknessStandardization.ts:650-654
+        await expect(toasts(page).getByText('Chưa hoàn tác: đã có 1 thay đổi sau thay đổi này. Dùng Ctrl+Z để hoàn tác lần lượt.')).toBeVisible();
+        expect(layerWrites(log, mark), 'no layer write after the refusal').toBe(0);
         await captureEvidence(page, 'E11_11F-A-312_floors.png');
       });
       await test.step('[11F-B-301] reload keeps the new thickness (server)', async () => {
@@ -167,7 +182,7 @@ test.describe('P4 floors D edge', () => {
       await writeLayer(layerApi, project.projectId, floor.id, qcLayer);
       const n = (tag: string): string => `${TEST_DATA_PREFIX}p4-${tag}`;
       const names = { a: n('a'), b: n('b'), c: n('c'), d: n('d') };
-      await seedMeasurement(api, project.projectId, names.a);
+      const idA = await seedMeasurement(api, project.projectId, names.a);
       const idB = await seedMeasurement(api, project.projectId, names.b);
       const idC = await seedMeasurement(api, project.projectId, names.c);
       await seedMeasurement(api, project.projectId, names.d);
@@ -206,23 +221,30 @@ test.describe('P4 floors D edge', () => {
         await captureEvidence(page, 'E11_11F-A-403_floors.png');
       });
       await test.step('[11F-A-404] "Hoàn tác" -> POST same id, row back', async () => {
+        // newest ticket = last deleted row (b); BE creates -> 201 (measurements/router.py:30-38)
         const post = page.waitForResponse((res) => res.request().method() === 'POST' && measurementsRe(project.projectId).test(new URL(res.url()).pathname));
         await page.getByRole('button', { name: MT.undo, exact: true }).first().click();
         const res = await post;
-        expect.soft([200, 201]).toContain(res.status());
-        await expect.soft(row(names.a).or(row(names.b)).first()).toBeVisible();
+        expect.soft(res.status()).toBe(201);
+        expect.soft((res.request().postDataJSON() as { id: string }).id).toBe(idB);
+        await expect.soft(row(names.b)).toBeVisible();
         await captureEvidence(page, 'E11_11F-A-404_floors.png');
       });
       await test.step('[11F-A-405] undo while the id is taken (409) -> renumbered, second POST', async () => {
-        // UNKNOWN - NEED VERIFICATION: which deleted row the remaining undo restores; the id of b is taken here (b is the one
-        // deleted last), so a 409 then a second POST is expected whichever row is left only if the left row is b.
         const taken = await api.post(`/api/projects/${project.projectId}/measurements`, {
-          data: { id: idB, name: n('taken'), mode: 'pointToPoint', points: [{ x: 0, y: 0 }, { x: 1000, y: 0 }], rawValueMm: 1000 },
+          data: { id: idA, name: n('taken'), mode: 'pointToPoint', points: [{ x: 0, y: 0 }, { x: 1000, y: 0 }], rawValueMm: 1000 },
         });
-        expect.soft([201, 409]).toContain(taken.status());
-        const posts = postsOf();
-        await page.getByRole('button', { name: MT.undo, exact: true }).first().click();
-        await expect.poll(postsOf).toBeGreaterThan(posts);
+        expect(taken.status()).toBe(201);
+        const posts: number[] = [];
+        page.on('response', (res) => {
+          if (res.request().method() === 'POST' && measurementsRe(project.projectId).test(new URL(res.url()).pathname)) posts.push(res.status());
+        });
+        await page.getByRole('button', { name: MT.undo, exact: true }).first().click(); // MUT:184-195
+        await expect.poll(() => posts.length).toBe(2);
+        expect(posts).toEqual([409, 201]);
+        await expect.soft(row(names.a)).toBeVisible();
+        const list = (await (await api.get(`/api/projects/${project.projectId}/measurements`)).json()) as { id: string; name: string }[];
+        expect.soft(list.find((r) => r.name === names.a)?.id, 'renumbered id differs from the taken one').not.toBe(idA);
         await captureEvidence(page, 'E11_11F-A-405_floors.png');
       });
       await test.step('[11F-A-406] double click on the trash -> exactly one DELETE', async () => {
