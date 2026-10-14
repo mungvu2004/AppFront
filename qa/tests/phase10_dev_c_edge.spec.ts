@@ -130,9 +130,13 @@ test('SCR-40e-3 · FL-10E-09 · anon · ShellDemo: hộp phím tắt, palette, b
     });
     await test.step('[10E-C-015] [ khi hộp mở', async () => {
       await page.keyboard.press('[');
-      await expect.soft(btn(BTN.collapseLeft)).toBeVisible();
       await page.keyboard.press(']');
-      await expect.soft(btn(BTN.collapseRight)).toBeVisible();
+      await expect(help).toBeVisible(); // positive mark after the keys: dialog still open
+      // collapsing writes 'true' (A-028), so null proves neither key reached the panels
+      expect.soft(await page.evaluate((k) => localStorage.getItem(k), LEFT_KEY)).toBeNull();
+      expect.soft(await page.evaluate((k) => localStorage.getItem(k), RIGHT_KEY)).toBeNull();
+      await expect.soft(panelWrapper(page, 'Architecture')).toHaveAttribute('aria-hidden', 'false');
+      await expect.soft(panelWrapper(page, 'Properties')).toHaveAttribute('aria-hidden', 'false');
       await shot('10E-C-015', 'help_brackets_ignored');
     });
     await test.step('[10E-A-035] Esc và nút Đóng, focus trả về', async () => {
