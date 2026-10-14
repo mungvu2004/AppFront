@@ -849,9 +849,9 @@ test.describe('A05 phase-5 backend (measurements #16 / #17 / #18)', () => {
 
       await test.step('[25-G-019] key length bounds on #17: 128 chars → 201, 129 chars → 422 field idempotencyKey', async () => {
         // packages/db/models/idempotency.py:35 (^[A-Za-z0-9_-]{8,128}$).
-        const longest = await post(admin, 'idem_g19_128_201', pid, rec('MS-0003'), ['201: a 128-character key is accepted'], { 'Idempotency-Key': 'k'.repeat(128) });
+        const longest = await post(admin, 'idem_g19_128_201', pid, rec('MS-0003'), ['201: a 128-character key is accepted'], { 'Idempotency-Key': `qa-${randomUUID()}`.padEnd(128, 'k') });
         expect.soft(longest.res.status()).toBe(201);
-        const tooLong = await post(admin, 'idem_g19_129_422', pid, rec('MS-0004'), ['422 VALIDATION field idempotencyKey: 129 characters'], { 'Idempotency-Key': 'k'.repeat(129) });
+        const tooLong = await post(admin, 'idem_g19_129_422', pid, rec('MS-0004'), ['422 VALIDATION field idempotencyKey: 129 characters'], { 'Idempotency-Key': `qa-${randomUUID()}`.padEnd(129, 'k') });
         expectError(tooLong, 422, 'VALIDATION', { field: 'idempotencyKey' });
         expect.soft((await list(admin, 'idem_g19_list', pid, '200: only MS-0003')).map((r) => r.id)).toEqual(['MS-0003']);
       });
