@@ -254,6 +254,21 @@ export function toRawText(value: unknown): string {
   return JSON.stringify(value, null, RAW_INDENT) ?? '';
 }
 
+/** Giá trị tại đường dẫn của một hàng (`walls[3].id`); `undefined` nếu đường dẫn không dẫn tới đâu. */
+export function valueAtPath(root: unknown, path: string): unknown {
+  let cursor: unknown = root;
+
+  for (const token of path.match(/[^.[\]]+/gu) ?? []) {
+    if (typeof cursor !== 'object' || cursor === null) {
+      return undefined;
+    }
+
+    cursor = (cursor as Record<string, unknown>)[token];
+  }
+
+  return cursor;
+}
+
 /** Số byte UTF-8 của chữ thô — cỡ tệp thật, không phải số ký tự. */
 export function byteLengthOf(text: string): number {
   return new TextEncoder().encode(text).length;

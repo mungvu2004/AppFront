@@ -65,7 +65,7 @@ function RawJson({ rawText }: { readonly rawText: string }) {
 
       {hiddenCount > 0 ? (
         <p className="mt-5 text-[13px] leading-[18px] text-text-muted">
-          Còn {formatNumber(hiddenCount)} dòng nữa. Thu gọn bớt nhánh ở cây bên trái để xem phần bạn cần.
+          Còn {formatNumber(hiddenCount)} dòng nữa. Bấm Tải xuống .json để lấy toàn bộ.
         </p>
       ) : null}
     </div>
