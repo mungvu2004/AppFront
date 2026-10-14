@@ -3,15 +3,15 @@
  * the shared admin session is never used (each admin view signs in again in its own context).
  */
 import { expect, test } from '@playwright/test';
-import type { Page } from '@playwright/test';
+import type { BrowserContext, Page } from '@playwright/test';
 
 import { ROUTES, loginUrl } from '../../e2e/fixtures/routes';
 import { readAdminCredentials } from './support/auth';
 import { signedInApi } from './support/api';
-import { poolUser, signInPoolUser } from './support/phase03Seed';
-import { unknownProjectId } from './support/p03/P10';
-import { DESKTOP_VIEWPORTS, p11Slot } from './support/p11/common';
-import { adminPage, disposeFreshUser, inviteFreshUser, signedInPage, userRow } from './support/p11/P13';
+import { poolUser, signInPoolUser, type PoolUser } from './support/phase03Seed';
+import { pathOf, unknownProjectId } from './support/p03/P10';
+import { DESKTOP, DESKTOP_VIEWPORTS, p11Slot } from './support/p11/common';
+import { adminPage, cleanAll, disposeFreshUser, inviteFreshUser, signedInPage, userRow } from './support/p11/P13';
 import { verifyUi } from './support/ui-verify';
 
 const SIGN_IN_REQUIRED = 'Hãy đăng nhập để tiếp tục.';
@@ -30,16 +30,19 @@ test.describe('SCR-37/38/01 UI', () => {
     test.setTimeout(240_000);
     const creds = readAdminCredentials();
     const admin = await signedInApi(creds.email, creds.password);
-    const fu = await inviteFreshUser(admin, 'engineer', 'ui1');
-    const fu2 = await inviteFreshUser(admin, 'engineer', 'ui1b');
-    const view = await adminPage(browser);
+    let fuRef: PoolUser | null = null;
+    let fu2Ref: PoolUser | null = null;
+    let view: Awaited<ReturnType<typeof adminPage>> | null = null;
     try {
+      const fu = (fuRef = await inviteFreshUser(admin, 'engineer', 'ui1'));
+      const fu2 = (fu2Ref = await inviteFreshUser(admin, 'engineer', 'ui1b'));
+      const shown = (view = await adminPage(browser));
       const off = await admin.post(`/api/users/${fu2.id}/disable`, { data: {} });
       expect(off.status(), 'setup: disable fu2').toBe(200);
 
       await test.step('[11U-F-173] bảng: hàng thường và hàng đã vô hiệu ở 4 khổ', async () => {
         // UserManagementTable.tsx:139-163 RowActions
-        await verifyUi(view.page, 'U11_11U-F-173_users-table', async (p) => {
+        await verifyUi(shown.page, 'U11_11U-F-173_users-table', async (p) => {
           await p.goto(ROUTES.adminUsers);
           await p.getByLabel('Tìm người dùng').fill('p11-session-ui1');
           await expect(userRow(p, fu.email)).toBeVisible();
@@ -53,7 +56,7 @@ test.describe('SCR-37/38/01 UI', () => {
 
       await test.step('[11U-F-174] panel chi tiết có mục Xoá người dùng ở 4 khổ', async () => {
         // UserManagementDetail.tsx:231 aria-label "Xoá người dùng"
-        await verifyUi(view.page, 'U11_11U-F-174_detail-panel', async (p) => {
+        await verifyUi(shown.page, 'U11_11U-F-174_detail-panel', async (p) => {
           await openUsers(p, fu.email);
           const row = userRow(p, fu.email);
           // table: the name cell is a button as well (card list: `onSelectUser` button holds name + email)
@@ -63,7 +66,7 @@ test.describe('SCR-37/38/01 UI', () => {
       });
 
       await test.step('[11U-F-171] hộp Xoá hẳn, ô trống, nút khoá ở 4 khổ', async () => {
-        await verifyUi(view.page, 'U11_11U-F-171_remove-empty', async (p) => {
+        await verifyUi(shown.page, 'U11_11U-F-171_remove-empty', async (p) => {
           await openUsers(p, fu.email);
           await userRow(p, fu.email).getByRole('button', { name: 'Xoá', exact: true }).click();
           const dialog = p.getByRole('dialog');
@@ -73,7 +76,7 @@ test.describe('SCR-37/38/01 UI', () => {
       });
 
       await test.step('[11U-F-172] hộp Xoá hẳn, email khớp, nút bật ở 4 khổ', async () => {
-        await verifyUi(view.page, 'U11_11U-F-172_remove-typed', async (p) => {
+        await verifyUi(shown.page, 'U11_11U-F-172_remove-typed', async (p) => {
           await openUsers(p, fu.email);
           await userRow(p, fu.email).getByRole('button', { name: 'Xoá', exact: true }).click();
           const dialog = p.getByRole('dialog');
@@ -83,10 +86,12 @@ test.describe('SCR-37/38/01 UI', () => {
         }, DESKTOP_VIEWPORTS, { fullPage: false });
       });
     } finally {
-      await view.context.close();
-      await disposeFreshUser(admin, fu);
-      await disposeFreshUser(admin, fu2);
-      await admin.dispose();
+      await cleanAll([
+        async () => { if (view !== null) await view.context.close(); },
+        async () => { if (fuRef !== null) await disposeFreshUser(admin, fuRef); },
+        async () => { if (fu2Ref !== null) await disposeFreshUser(admin, fu2Ref); },
+        () => admin.dispose(),
+      ]);
     }
   });
 
@@ -94,20 +99,24 @@ test.describe('SCR-37/38/01 UI', () => {
     test.setTimeout(120_000);
     const creds = readAdminCredentials();
     const admin = await signedInApi(creds.email, creds.password);
-    const fa = await inviteFreshUser(admin, 'admin', 'ui2');
-    const view = await signedInPage(browser, fa);
+    let faRef: PoolUser | null = null;
+    let view: Awaited<ReturnType<typeof signedInPage>> | null = null;
     try {
+      const fa = (faRef = await inviteFreshUser(admin, 'admin', 'ui2'));
+      const shown = (view = await signedInPage(browser, fa));
       await test.step('[11U-F-175] câu chặn tự vô hiệu xuống dòng ở 4 khổ', async () => {
         // useUserManagement.ts:138 selfDisableBlocked
-        await verifyUi(view.page, 'U11_11U-F-175_self-block', async (p) => {
+        await verifyUi(shown.page, 'U11_11U-F-175_self-block', async (p) => {
           await openUsers(p, fa.email);
           await expect(userRow(p, fa.email).getByText(SELF_BLOCK)).toBeVisible();
         }, DESKTOP_VIEWPORTS);
       });
     } finally {
-      await view.context.close();
-      await disposeFreshUser(admin, fa);
-      await admin.dispose();
+      await cleanAll([
+        async () => { if (view !== null) await view.context.close(); },
+        async () => { if (faRef !== null) await disposeFreshUser(admin, faRef); },
+        () => admin.dispose(),
+      ]);
     }
   });
 
@@ -115,8 +124,9 @@ test.describe('SCR-37/38/01 UI', () => {
     test.setTimeout(120_000);
     const creds = readAdminCredentials();
     const admin = await signedInApi(creds.email, creds.password);
-    const context = await browser.newContext();
+    let ctx: BrowserContext | null = null;
     try {
+      const context = (ctx = await browser.newContext({ viewport: DESKTOP }));
       const pu = await poolUser(admin, 'engineer', p11Slot('session-ui'));
       await signInPoolUser(context, pu);
       const page = await context.newPage();
@@ -127,8 +137,10 @@ test.describe('SCR-37/38/01 UI', () => {
         }, DESKTOP_VIEWPORTS);
       });
     } finally {
-      await context.close();
-      await admin.dispose();
+      await cleanAll([
+        async () => { if (ctx !== null) await ctx.close(); },
+        () => admin.dispose(),
+      ]);
     }
   });
 
@@ -136,15 +148,18 @@ test.describe('SCR-37/38/01 UI', () => {
     test.setTimeout(300_000);
     const creds = readAdminCredentials();
     const admin = await signedInApi(creds.email, creds.password);
-    const fu = await inviteFreshUser(admin, 'engineer', 'ui4');
-    const anon = await browser.newContext();
-    const sessionCtx = await browser.newContext();
+    let fuRef: PoolUser | null = null;
+    let anon: BrowserContext | null = null;
+    let sessionCtx: BrowserContext | null = null;
     try {
+      const fu = (fuRef = await inviteFreshUser(admin, 'engineer', 'ui4'));
+      const anonCtx = (anon = await browser.newContext({ viewport: DESKTOP }));
+      const sessCtx = (sessionCtx = await browser.newContext({ viewport: DESKTOP }));
       const pu = await poolUser(admin, 'engineer', p11Slot('session-ui'));
       const off = await admin.post(`/api/users/${fu.id}/disable`, { data: {} });
       expect(off.status(), 'setup: disable fu').toBe(200);
-      const anonPage = await anon.newPage();
-      const puPage = await sessionCtx.newPage();
+      const anonPage = await anonCtx.newPage();
+      const puPage = await sessCtx.newPage();
 
       await test.step('[11U-F-411] /login với "Hãy đăng nhập để tiếp tục." ở 4 khổ', async () => {
         const target = ROUTES.project.viewer(unknownProjectId());
@@ -157,16 +172,18 @@ test.describe('SCR-37/38/01 UI', () => {
 
       await test.step('[11U-F-412] /login với "Phiên đăng nhập đã kết thúc." ở 4 khổ', async () => {
         await verifyUi(puPage, 'U11_11U-F-412_session-ended', async (p) => {
-          await signInPoolUser(sessionCtx, pu);
+          await signInPoolUser(sessCtx, pu);
           await p.goto(ROUTES.dashboard);
-          await expect(p).toHaveURL(new RegExp(`${ROUTES.dashboard}$`, 'u'));
+          await expect.poll(() => pathOf(p)).toBe(ROUTES.dashboard);
           // another tab of the same context signs out (AccessDenied "Đăng nhập bằng tài khoản khác")
-          const other = await sessionCtx.newPage();
+          const other = await sessCtx.newPage();
           await other.goto(ROUTES.accessDenied);
           await other.getByRole('button', { name: 'Đăng nhập bằng tài khoản khác', exact: true }).click();
           await expect(other).toHaveURL(/\/login/u);
           await other.close();
-          await expect(p.getByText(SESSION_ENDED)).toBeVisible();
+          // the protected tab follows the sign-out made in the other tab
+          await expect(p).toHaveURL(/\/login/u);
+          await expect(p.getByText(SESSION_ENDED, { exact: true })).toBeVisible();
         }, DESKTOP_VIEWPORTS);
       });
 
@@ -180,10 +197,12 @@ test.describe('SCR-37/38/01 UI', () => {
         }, DESKTOP_VIEWPORTS);
       });
     } finally {
-      await anon.close();
-      await sessionCtx.close();
-      await disposeFreshUser(admin, fu);
-      await admin.dispose();
+      await cleanAll([
+        async () => { if (anon !== null) await anon.close(); },
+        async () => { if (sessionCtx !== null) await sessionCtx.close(); },
+        async () => { if (fuRef !== null) await disposeFreshUser(admin, fuRef); },
+        () => admin.dispose(),
+      ]);
     }
   });
 });

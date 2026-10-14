@@ -50,9 +50,23 @@ export async function inviteEmail(admin: APIRequestContext, role: PoolRole, emai
 }
 
 /** `DELETE /api/users/:id {userId, confirmEmail}` in `finally`: 200 and 404 (already deleted by the flow) are fine. */
-export async function disposeFreshUser(admin: APIRequestContext, user: PoolUser): Promise<void> {
+export async function disposeFreshUser(admin: APIRequestContext, user: PoolUser, options: { deletedInFlow?: boolean } = {}): Promise<void> {
   const res = await admin.delete(`/api/users/${user.id}`, { data: { userId: user.id, confirmEmail: user.email } });
-  expect([200, 404], `cleanup: DELETE /api/users/${user.id}`).toContain(res.status());
+  // 404 is valid only when the flow itself deleted the user
+  expect(res.status(), `cleanup: DELETE /api/users/${user.id}`).toBe(options.deletedInFlow === true ? 404 : 200);
+}
+
+/** Runs EVERY cleanup (each wrapped on its own), then rethrows the first error: nothing leaks, nothing is swallowed. */
+export async function cleanAll(cleanups: readonly (() => Promise<unknown>)[]): Promise<void> {
+  const errors: unknown[] = [];
+  for (const cleanup of cleanups) {
+    try {
+      await cleanup();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  if (errors.length > 0) throw errors[0];
 }
 
 /** New context + page signed in as `user` (one `POST /api/auth/login` through the context cookie jar). */

@@ -3,13 +3,13 @@
  * `finally`) and the pool slot `p11-session-api` are touched; every login here is a NEW session (own cookie jar).
  */
 import { expect, test } from '@playwright/test';
-import type { APIRequestContext } from '@playwright/test';
+import type { APIRequestContext, APIResponse } from '@playwright/test';
 
 import { captureExchange, newApiContext, signedInApi } from './support/api';
 import { readAdminCredentials } from './support/auth';
-import { poolUser } from './support/phase03Seed';
+import { poolUser, type PoolUser } from './support/phase03Seed';
 import { p11Slot } from './support/p11/common';
-import { cookieHeader, disposeFreshUser, inviteEmail, inviteFreshUser } from './support/p11/P13';
+import { cleanAll, cookieHeader, disposeFreshUser, inviteEmail, inviteFreshUser } from './support/p11/P13';
 
 const EVIL_ORIGIN = 'https://evil.example.test';
 /** A `Set-Cookie` that deletes the cookie (Max-Age=0 or an Expires in 1970). */
@@ -29,137 +29,161 @@ test.describe('users + session API', () => {
   test('api · FL-11U-A1 · admin · vô hiệu / bật lại / xoá trên user riêng', async () => {
     test.setTimeout(120_000);
     const admin = await adminApi();
-    const fu = await inviteFreshUser(admin, 'engineer', 'api1');
-    const reinvited: { user: Awaited<ReturnType<typeof inviteFreshUser>> | null } = { user: null };
+    let fu: PoolUser | null = null;
+    let reinvited: PoolUser | null = null;
+    let deletedFu = false;
     try {
+      fu = await inviteFreshUser(admin, 'engineer', 'api1');
+      const user = fu;
       await test.step('[11U-G-181] POST disable {} → 200 status=disabled', async () => {
-        const res = await admin.post(`/api/users/${fu.id}/disable`, { data: {} });
+        const res = await admin.post(`/api/users/${user.id}/disable`, { data: {} });
         expect(res.status()).toBe(200);
         const body = (await captureExchange('A11_11U-G-181_disable.json', { method: 'POST', path: '/api/users/{id}/disable', body: {} }, res, ['200', 'status=disabled'])) as { status?: string };
         expect(body.status).toBe('disabled');
       });
 
       await test.step('[11U-G-182] disable lần 2 → 200, hoạt động không thêm dòng', async () => {
-        const before = (await (await admin.get(`/api/users/${fu.id}/activity`)).json()) as unknown[];
-        const res = await admin.post(`/api/users/${fu.id}/disable`, { data: {} });
+        const before = (await (await admin.get(`/api/users/${user.id}/activity`)).json()) as unknown[];
+        const res = await admin.post(`/api/users/${user.id}/disable`, { data: {} });
         expect(res.status()).toBe(200);
-        const after = await admin.get(`/api/users/${fu.id}/activity`);
+        const after = await admin.get(`/api/users/${user.id}/activity`);
         expect(after.status()).toBe(200);
         expect(((await after.json()) as unknown[]).length).toBe(before.length);
         await captureExchange('A11_11U-G-182_disable-twice.json', { method: 'POST', path: '/api/users/{id}/disable', body: {} }, res, ['200', `activity rows unchanged (${String(before.length)})`]);
       });
 
       await test.step('[11U-G-183] POST enable → 200 status=active', async () => {
-        const res = await admin.post(`/api/users/${fu.id}/enable`, { data: {} });
+        const res = await admin.post(`/api/users/${user.id}/enable`, { data: {} });
         expect(res.status()).toBe(200);
         const body = (await captureExchange('A11_11U-G-183_enable.json', { method: 'POST', path: '/api/users/{id}/enable', body: {} }, res, ['200', 'status=active'])) as { status?: string };
         expect(body.status).toBe('active');
       });
 
       await test.step('[11U-G-184] DELETE {userId, confirmEmail} → 200 trả AdminUser', async () => {
-        const res = await admin.delete(`/api/users/${fu.id}`, { data: { userId: fu.id, confirmEmail: fu.email } });
+        const res = await admin.delete(`/api/users/${user.id}`, { data: { userId: user.id, confirmEmail: user.email } });
         expect(res.status()).toBe(200);
-        const body = (await captureExchange('A11_11U-G-184_delete.json', { method: 'DELETE', path: '/api/users/{id}', body: { userId: fu.id, confirmEmail: fu.email } }, res, ['200', 'AdminUser of the user before deletion'])) as { id?: string; email?: string };
-        expect(body.id).toBe(fu.id);
-        expect(body.email).toBe(fu.email);
+        deletedFu = true;
+        const body = (await captureExchange('A11_11U-G-184_delete.json', { method: 'DELETE', path: '/api/users/{id}', body: { userId: user.id, confirmEmail: user.email } }, res, ['200', 'AdminUser of the user before deletion'])) as { id?: string; email?: string };
+        expect(body.id).toBe(user.id);
+        expect(body.email).toBe(user.email);
       });
 
       await test.step('[11U-A-116] DELETE lần 2 → 404 NOT_FOUND', async () => {
-        const res = await admin.delete(`/api/users/${fu.id}`, { data: { userId: fu.id, confirmEmail: fu.email } });
+        const res = await admin.delete(`/api/users/${user.id}`, { data: { userId: user.id, confirmEmail: user.email } });
         expect(res.status()).toBe(404);
         expect(await codeOf(res)).toBe('NOT_FOUND');
-        await captureExchange('A11_11U-A-116_delete-twice.json', { method: 'DELETE', path: '/api/users/{id}', body: { userId: fu.id, confirmEmail: fu.email } }, res, ['404', 'code=NOT_FOUND']);
-        const gone = await admin.get(`/api/users/${fu.id}/memberships`);
+        await captureExchange('A11_11U-A-116_delete-twice.json', { method: 'DELETE', path: '/api/users/{id}', body: { userId: user.id, confirmEmail: user.email } }, res, ['404', 'code=NOT_FOUND']);
+        const gone = await admin.get(`/api/users/${user.id}/memberships`);
         expect(gone.status(), 'deleted user: GET memberships').toBe(404);
       });
 
       await test.step('[11U-A-117] mời lại đúng email → 201', async () => {
         // BE users/router.py:55 — the email is released after a delete (deleted_at out of the email key)
-        reinvited.user = await inviteEmail(admin, 'engineer', fu.email, fu.name);
-        const again = await admin.get(`/api/users/${reinvited.user.id}/memberships`);
+        reinvited = await inviteEmail(admin, 'engineer', user.email, user.name);
+        const again = await admin.get(`/api/users/${reinvited.id}/memberships`);
         expect(again.status(), 'new user with the released email exists').toBe(200);
-        expect(reinvited.user.id).not.toBe(fu.id);
+        expect(reinvited.id).not.toBe(user.id);
       });
     } finally {
-      await disposeFreshUser(admin, fu);
-      if (reinvited.user !== null) await disposeFreshUser(admin, reinvited.user);
-      await admin.dispose();
+      await cleanAll([
+        async () => { if (fu !== null) await disposeFreshUser(admin, fu, { deletedInFlow: deletedFu }); },
+        async () => { if (reinvited !== null) await disposeFreshUser(admin, reinvited); },
+        () => admin.dispose(),
+      ]);
     }
   });
 
   test('api · FL-11U-A2 · engineer + ẩn danh · bị cấm', async () => {
     test.setTimeout(120_000);
     const admin = await adminApi();
-    const fu = await inviteFreshUser(admin, 'engineer', 'api2');
+    let fu: PoolUser | null = null;
     let engineerApi: APIRequestContext | null = null;
-    const anon = await newApiContext();
+    let anon: APIRequestContext | null = null;
     try {
+      fu = await inviteFreshUser(admin, 'engineer', 'api2');
+      const user = fu;
+      anon = await newApiContext();
+      const anonApi = anon;
       const pu = await poolUser(admin, 'engineer', p11Slot('session-api'));
       engineerApi = await signedInApi(pu.email, pu.password);
-      const delBody = { userId: fu.id, confirmEmail: fu.email };
+      const delBody = { userId: user.id, confirmEmail: user.email };
 
       await test.step('[11U-D-153] engineer disable + DELETE → 403, user còn', async () => {
         // users/router.py:45 require_permission("user.manage")
-        const off = await engineerApi!.post(`/api/users/${fu.id}/disable`, { data: {} });
+        const off = await engineerApi!.post(`/api/users/${user.id}/disable`, { data: {} });
         expect(off.status()).toBe(403);
         expect(await codeOf(off)).toBe('FORBIDDEN');
-        const del = await engineerApi!.delete(`/api/users/${fu.id}`, { data: delBody });
+        const del = await engineerApi!.delete(`/api/users/${user.id}`, { data: delBody });
         expect(del.status()).toBe(403);
         expect(await codeOf(del)).toBe('FORBIDDEN');
         await captureExchange('A11_11U-D-153_engineer-forbidden.json', { method: 'DELETE', path: '/api/users/{id}', body: delBody }, del, ['403 FORBIDDEN on disable and DELETE']);
-        const still = await admin.get(`/api/users/${fu.id}/memberships`);
+        const still = await admin.get(`/api/users/${user.id}/memberships`);
         expect(still.status(), 'user untouched').toBe(200);
       });
 
       await test.step('[11U-D-154] ẩn danh disable + DELETE → 401', async () => {
-        const off = await anon.post(`/api/users/${fu.id}/disable`, { data: {} });
+        const off = await anonApi.post(`/api/users/${user.id}/disable`, { data: {} });
         expect(off.status()).toBe(401);
         expect(await codeOf(off)).toBe('UNAUTHENTICATED');
-        const del = await anon.delete(`/api/users/${fu.id}`, { data: delBody });
+        const del = await anonApi.delete(`/api/users/${user.id}`, { data: delBody });
         expect(del.status()).toBe(401);
         expect(await codeOf(del)).toBe('UNAUTHENTICATED');
         await captureExchange('A11_11U-D-154_anonymous.json', { method: 'DELETE', path: '/api/users/{id}', body: delBody }, del, ['401 UNAUTHENTICATED on disable and DELETE']);
-        const still = await admin.get(`/api/users/${fu.id}/memberships`);
+        const still = await admin.get(`/api/users/${user.id}/memberships`);
         expect(still.status(), 'user untouched').toBe(200);
       });
     } finally {
-      await anon.dispose();
-      if (engineerApi !== null) await engineerApi.dispose();
-      await disposeFreshUser(admin, fu);
-      await admin.dispose();
+      await cleanAll([
+        async () => { if (anon !== null) await anon.dispose(); },
+        async () => { if (engineerApi !== null) await engineerApi.dispose(); },
+        async () => { if (fu !== null) await disposeFreshUser(admin, fu); },
+        () => admin.dispose(),
+      ]);
     }
   });
 
   test('api · FL-11U-A3 · engineer · logout và refresh', async () => {
     test.setTimeout(120_000);
     const admin = await adminApi();
-    const pu = await poolUser(admin, 'engineer', p11Slot('session-api'));
-    // three NEW sessions (own cookie jars); the pool user is never disabled or password-changed
-    const s1 = await signedInApi(pu.email, pu.password);
-    const s2 = await signedInApi(pu.email, pu.password);
-    const s3 = await signedInApi(pu.email, pu.password);
-    const replayer = await newApiContext();
+    const sessions: APIRequestContext[] = [];
+    const replayers: APIRequestContext[] = [];
+    /** Every replay of an old cookie gets its own empty-jar context (policy 12) and the cookie goes in by hand. */
+    const replay = async (path: string, cookie: string): Promise<APIResponse> => {
+      const ctx = await newApiContext();
+      replayers.push(ctx);
+      return ctx.post(path, { headers: { Cookie: cookie } });
+    };
     try {
+      const pu = await poolUser(admin, 'engineer', p11Slot('session-api'));
+      // three NEW sessions (own cookie jars); the pool user is never disabled or password-changed
+      const s1 = await signedInApi(pu.email, pu.password);
+      sessions.push(s1);
+      const s2 = await signedInApi(pu.email, pu.password);
+      sessions.push(s2);
+      const s3 = await signedInApi(pu.email, pu.password);
+      sessions.push(s3);
       const s1Cookies = await cookieHeader(s1);
+      const s2Cookies = await cookieHeader(s2);
       const s3Cookies = await cookieHeader(s3);
-      let logout1: Awaited<ReturnType<APIRequestContext['post']>> | null = null;
+      let logout1: APIResponse | null = null;
 
-      await test.step('[11U-G-342] ⚑ logout với Origin lạ: không được xoá cookie mà không thu hồi phiên', async () => {
-        // BE auth/router.py:288-293: require_origin error → clear_auth_cookies without revoke_by_cookie (bug while open)
+      await test.step('[11U-G-342] ⚑ logout với Origin lạ: 403 ORIGIN_MISMATCH và không xoá cookie khi chưa thu hồi', async () => {
+        // oracle: core/origin.py:53-56 (403 ORIGIN_MISMATCH); auth/router.py:288-293 clears cookies WITHOUT revoke_by_cookie (bug while open)
         const res = await s3.post('/api/auth/logout', { headers: { Origin: EVIL_ORIGIN } });
         expect(res.status()).toBe(403);
+        expect(await codeOf(res)).toBe('ORIGIN_MISMATCH');
         const clears = setCookies(res).some((cookie) => CLEARS_COOKIE.test(cookie));
-        const replay = await replayer.post('/api/auth/refresh', { headers: { Cookie: s3Cookies } });
-        await captureExchange('A11_11U-G-342_logout-evil-origin.json', { method: 'POST', path: '/api/auth/logout' }, res, ['403', `cookie cleared by response: ${String(clears)}`, `refresh with old cookie afterwards: ${String(replay.status())}`]);
-        // right behaviour: either the cookie is kept (403 only) or, if it was cleared, the session was really revoked (401)
-        expect(!clears || replay.status() === 401, `cleared=${String(clears)} but old refresh cookie still answers ${String(replay.status())}`).toBe(true);
+        const after = await replay('/api/auth/refresh', s3Cookies);
+        await captureExchange('A11_11U-G-342_logout-evil-origin.json', { method: 'POST', path: '/api/auth/logout' }, res, ['403 ORIGIN_MISMATCH', `cookie cleared by response: ${String(clears)}`, `refresh with old cookie afterwards: ${String(after.status())} (today 200)`]);
+        expect(clears, 'không xoá cookie khi phiên chưa thu hồi').toBe(false);
       });
 
-      await test.step('[11U-A-309] S1 logout; S2 GET /api/me vẫn 200', async () => {
+      await test.step('[11U-A-309] S1 logout; phiên S2 vẫn refresh được', async () => {
         logout1 = await s1.post('/api/auth/logout');
-        const me = await s2.get('/api/me');
-        expect(me.status()).toBe(200);
-        await captureExchange('A11_11U-A-309_other-session-alive.json', { method: 'GET', path: '/api/me' }, me, ['200 for the second session after the first logged out']);
+        // /api/me with cookie only is always 401 (core/routing.py:130-133): the evidence is a refresh of the other session
+        const alive = await replay('/api/auth/refresh', s2Cookies);
+        expect(alive.status()).toBe(200);
+        await captureExchange('A11_11U-A-309_other-session-alive.json', { method: 'POST', path: '/api/auth/refresh' }, alive, ['200 for the second session after the first logged out']);
       });
 
       await test.step('[11U-G-341] logout S1 → 204 và Set-Cookie xoá cả hai cookie', async () => {
@@ -170,45 +194,50 @@ test.describe('users + session API', () => {
         await captureExchange('A11_11U-G-341_logout-cookies.json', { method: 'POST', path: '/api/auth/logout' }, logout1!, ['204', 'both cookies expired']);
       });
 
-      await test.step('[11U-A-308] refresh với cookie cũ của S1 → 401', async () => {
-        const res = await replayer.post('/api/auth/refresh', { headers: { Cookie: s1Cookies } });
+      await test.step('[11U-A-308] refresh với cookie cũ của S1 → 401 SESSION_REVOKED', async () => {
+        // oracle: auth/sessions.py:449-453 (row kept, revoked_at set → RefreshDenied SESSION_REVOKED)
+        const res = await replay('/api/auth/refresh', s1Cookies);
         expect(res.status()).toBe(401);
-        expect(await codeOf(res)).toBe('UNAUTHENTICATED');
-        await captureExchange('A11_11U-A-308_old-refresh.json', { method: 'POST', path: '/api/auth/refresh' }, res, ['401 UNAUTHENTICATED']);
+        expect(await codeOf(res)).toBe('SESSION_REVOKED');
+        await captureExchange('A11_11U-A-308_old-refresh.json', { method: 'POST', path: '/api/auth/refresh' }, res, ['401 SESSION_REVOKED']);
       });
 
       await test.step('[11U-A-310] logout lặp với cookie đã thu hồi → 204', async () => {
-        const res = await replayer.post('/api/auth/logout', { headers: { Cookie: s1Cookies } });
+        const res = await replay('/api/auth/logout', s1Cookies);
         expect(res.status()).toBe(204);
         await captureExchange('A11_11U-A-310_logout-twice.json', { method: 'POST', path: '/api/auth/logout' }, res, ['204 idempotent']);
       });
     } finally {
-      await replayer.dispose();
-      await s1.dispose();
-      await s2.dispose();
-      await s3.dispose();
-      await admin.dispose();
+      await cleanAll([...replayers, ...sessions, admin].map((ctx) => () => ctx.dispose()));
     }
   });
 
   test('api · FL-11U-A4 · user thường · DELETE /api/me và GET /api/me/sessions chưa có', async () => {
     test.setTimeout(90_000);
     const admin = await adminApi();
-    const fu = await inviteFreshUser(admin, 'engineer', 'api4');
-    const fuApi = await signedInApi(fu.email, fu.password);
+    let fu: PoolUser | null = null;
+    let fuApi: APIRequestContext | null = null;
     try {
-      await test.step('[11U-G-211] DELETE /api/me và GET /api/me/sessions → 404 hoặc 405', async () => {
+      fu = await inviteFreshUser(admin, 'engineer', 'api4');
+      const api = await signedInApi(fu.email, fu.password);
+      fuApi = api;
+      await test.step('[11U-G-211] DELETE /api/me → 405, GET /api/me/sessions → 404', async () => {
         // MR (users/me router) only has GET/PATCH /me and PUT /me/avatar
-        const del = await fuApi.delete('/api/me');
-        const sessions = await fuApi.get('/api/me/sessions');
-        expect([404, 405]).toContain(del.status());
-        expect([404, 405]).toContain(sessions.status());
-        await captureExchange('A11_11U-G-211_me-sessions.json', { method: 'GET', path: '/api/me/sessions' }, sessions, ['404 or 405', 'DELETE /api/me is 404 or 405 as well']);
+        const del = await api.delete('/api/me');
+        const sessions = await api.get('/api/me/sessions');
+        // oracle: me/router.py:109,137 (no DELETE on /me → 405); core/errors.py:54-57 maps 404 and 405 to NOT_FOUND
+        expect(del.status()).toBe(405);
+        expect(await codeOf(del)).toBe('NOT_FOUND');
+        expect(sessions.status()).toBe(404);
+        expect(await codeOf(sessions)).toBe('NOT_FOUND');
+        await captureExchange('A11_11U-G-211_me-sessions.json', { method: 'GET', path: '/api/me/sessions' }, sessions, ['404 NOT_FOUND', 'DELETE /api/me is 405 NOT_FOUND']);
       });
     } finally {
-      await fuApi.dispose();
-      await disposeFreshUser(admin, fu);
-      await admin.dispose();
+      await cleanAll([
+        async () => { if (fuApi !== null) await fuApi.dispose(); },
+        async () => { if (fu !== null) await disposeFreshUser(admin, fu); },
+        () => admin.dispose(),
+      ]);
     }
   });
 });
