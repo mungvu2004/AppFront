@@ -210,7 +210,9 @@ test.describe('E04 SCR-16 walls — mocked-response flows (QA-04c P1)', () => {
         await spaGo(page, ROUTES.project.pipeline(q1.projectId));
         // spaGo returns once pushState moved the URL, not once the router committed the hop (react-router keeps its own location):
         // a second hop at once cancels the pending one and SCR-16 never unmounts, so nothing refetches. Wait for the unmount.
-        await expect(wallRows(page)).toHaveCount(0);
+        // getByRole skips display:none and React Suspense HIDES (does not unmount) a mounted screen while the next lazy route loads,
+        // so wallRows == 0 can be a hidden, still-mounted SCR-16 that never refetches on the way back: wait on the DOM node itself.
+        await expect(page.locator(`[aria-label="${WALL.list}"]`), 'SCR-16 is unmounted, not just hidden by Suspense').toHaveCount(0);
         // The screens SCR-16 hops through may read/refresh layer.byFloor themselves (ProcessingScreen does), which restarts the 30 s
         // staleTime: age the cache again on the page we hop from, so the remount of SCR-16 is stale whatever the hop touched.
         // useFloorLayer.test.ts 'QA p04 FL-16-M1' proves the app refetches on remount once stale.

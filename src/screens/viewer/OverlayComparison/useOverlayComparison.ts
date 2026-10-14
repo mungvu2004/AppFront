@@ -480,7 +480,9 @@ export function useOverlayComparison(
   /* ---------------------------------------------------------------------- */
 
   const query = useQuery({
-    queryKey: queryKeys.quality.assessment(activeFloorId ?? ''),
+    // Khoá riêng: SCR-11 ghi một ImageQualityAssessment vào `assessment(floorId)`, hình dạng khác `{scans, regions}` (X4-A-024).
+    // Vẫn nằm dưới tiền tố `assessment(floorId)`, nên làm mất hiệu lực theo tiền tố vẫn tới được.
+    queryKey: [...queryKeys.quality.assessment(activeFloorId ?? ''), 'overlay'] as const,
     queryFn: async (): Promise<OverlayComparisonRecord> => {
       const readFloorId = activeFloorId === null ? floorId : scanFloorIdOf(activeFloorId);
       const scans = await gateway.readFloorScans({ floorId: readFloorId, projectId });

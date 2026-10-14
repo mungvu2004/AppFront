@@ -46,6 +46,7 @@ import { millimetresPerPixel } from '@/domain/units/scale';
 import { MISSING_VALUE } from '@/lib/format/number';
 import type { HttpError } from '@/lib/http/types';
 import { MOTION_DURATIONS_MS } from '@/lib/motion/tokens';
+import { queryKeys } from '@/lib/query/queryKeys';
 import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
@@ -294,6 +295,8 @@ interface MountOptions {
   readonly roles?: readonly ProjectRole[];
   readonly forceCollapsed?: boolean;
   readonly onNavigate?: (path: string) => void;
+  /** Điền đệm trước khi hook dựng — như một màn khác đã ghi vào đệm dùng chung. */
+  readonly seedCache?: (queryClient: ReturnType<typeof createTestQueryClient>) => void;
 }
 
 interface Mounted {
@@ -305,6 +308,7 @@ interface Mounted {
 
 function mountHook(gateway: OverlayComparisonGateway, options: MountOptions = {}): Mounted {
   const queryClient = createTestQueryClient();
+  options.seedCache?.(queryClient);
   const wrapper = ({ children }: { children: ReactNode }): ReactNode =>
     createElement(QueryClientProvider, { client: queryClient }, children);
 
@@ -505,6 +509,22 @@ describe('useOverlayComparison — bảy trạng thái', () => {
     expect(mounted.result.current.model.metrics).toEqual(UNMEASURED_METRICS);
 
     await settle(mounted);
+  });
+
+  it('[X4-A-024] đệm đo chất lượng do SCR-11 ghi (khác hình dạng) không làm tầng có bản vẽ thành empty', async () => {
+    const mounted = await mountMeasured({
+      seedCache: (queryClient) => {
+        // Hình dạng SCR-11 (InputQualityGate) ghi: một ImageQualityAssessment, không có `scans`.
+        queryClient.setQueryData(queryKeys.quality.assessment(FLOOR_WITH_SCAN), {
+          floorId: FLOOR_WITH_SCAN,
+          floors: [],
+        });
+      },
+    });
+    const model = mounted.result.current.model;
+
+    expect(model.state).not.toBe('empty');
+    expect(model.scanUrl).not.toBeNull();
   });
 
   it('tầng không có ảnh gốc là empty, và ba con số là gạch ngang', async () => {
