@@ -68,7 +68,7 @@ export const RA = {
   emptyTitle: 'Chưa có phòng nào đo được',
   emptyBody: 'Phòng chỉ hiện ở đây khi đường bao tường đã kín.',
   detectSpaces: 'Kiểm tra khe hở tường',
-  gapsClosed: (rooms: number): string => `Tìm thấy ${String(rooms)} vùng kín — mở lại bảng để xem`,
+  gapsClosed: (rooms: number): string => `Tìm thấy ${String(rooms)} vòng tường kín — vẽ vùng ở mục Vùng để có hàng diện tích`,
   gapsOpen: 'Chưa có vùng nào kín — còn khe hở giữa các tường',
   renameLabel: (name: string): string => `Đổi tên phòng ${name}`,
   renamed: (name: string): string => `Đã đổi tên thành "${name}"`,

@@ -993,7 +993,7 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
         await shot(page, '23R-B-001', 'empty');
       });
 
-      await test.step('[23R-B-002] "Kiểm tra khe hở tường" on every floor → "Tìm thấy 1 vùng kín — mở lại bảng để xem" (RAP:177-189)', async () => {
+      await test.step('[23R-B-002] "Kiểm tra khe hở tường" on every floor → "Tìm thấy 1 vòng tường kín — vẽ vùng ở mục Vùng để có hàng diện tích" (RAP:177-189, RAV:55-56)', async () => {
         await detect().click();
         await expect.soft(panel.getByText(RA.gapsClosed(1), { exact: true })).toBeVisible();
         await shot(page, '23R-B-002', 'gaps-closed');
@@ -1006,13 +1006,14 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
         await shot(page, '23R-B-003', 'gaps-open');
       });
 
-      await test.step('[23R-B-004] ⚑ follow the hint: "Mọi tầng", close and reopen the panel → at least 1 room row', async () => {
+      await test.step('[23R-B-004] the hint no longer promises rows: "Mọi tầng", close and reopen the panel → still empty (detection makes no zone)', async () => {
+        // FA round 2 (RAV:53-56): detection never creates zones, so the copy points to drawing a zone; reopening keeps the empty state.
         await combo(panel, RA.levelFilter).selectOption({ label: RA.allLevels });
         await siteButton(page).click();
         await expect(panelOf(page, RA.title)).toHaveCount(0);
         panel = await openRailPanel(page, RA.title);
-        await expect.soft(panel.getByText(RA.emptyTitle, { exact: true })).toHaveCount(0);
-        await softly.poll(async () => (await roomNames(panel)).length).toBeGreaterThan(0);
+        await expect.soft(panel.getByText(RA.emptyTitle, { exact: true })).toBeVisible();
+        expect.soft(await roomNames(panel), 'room rows after reopening').toEqual([]);
         await shot(page, '23R-B-004', 'reopened');
       });
     } finally {
