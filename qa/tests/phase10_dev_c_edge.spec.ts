@@ -69,7 +69,7 @@ test('SCR-40e-3 · FL-10E-08 · anon · ShellDemo: panel, công cụ, landmark',
     });
     await test.step('[10E-A-032] phím V/W/M/D', async () => {
       for (const t of [TOOLS[1], TOOLS[2], TOOLS[3], TOOLS[0]]) {
-        await page.keyboard.press(t.key); // canvas scope, useKeyboardMap.ts:50-72
+        await page.keyboard.press(t.key); // canvas scope, useKeyboardMap.ts:50-72; normaliseKey uppercases event.key (src/lib/tools/shortcuts.ts:49-54) so lowercase 'v' matches 'V'
         await expect.soft(btn(t.name), t.name).toHaveAttribute('aria-pressed', 'true');
       }
       await shot('10E-A-032', 'tools_keys');
@@ -180,9 +180,15 @@ test('SCR-40e-3 · FL-10E-09 · anon · ShellDemo: hộp phím tắt, palette, b
       await expect.soft(list.getByRole('option')).toHaveCount(5);
       for (const f of ['Tầng hầm', 'Tầng 01', 'Tầng 02', 'Tầng 03', 'Tầng mái']) await expect.soft(list.getByRole('option', { name: f })).toBeVisible();
       await shot('10E-A-038', 'breadcrumb_open');
+      // ⚑ Esc handler chỉ gắn trên <ul> (src/components/shell/Breadcrumb.tsx:100); focus stays on the trigger like a real user
+      await page.keyboard.press('Escape');
+      await expect.soft(list).toBeHidden();
     });
     await test.step('[10E-A-039] chọn Tầng 02', async () => {
       const list = page.getByRole('listbox', { name: 'Chọn tầng', exact: true });
+      await openShell(page); // fresh state: 038 may leave the list open or closed depending on the Esc flag
+      await crumbBtn.click();
+      await expect(list).toBeVisible();
       await list.getByRole('option', { name: 'Tầng 02' }).click();
       await expect.soft(list).toHaveCount(0);
       await expect.soft(crumbBtn).toBeVisible(); // onClick is empty (AppShell.tsx:132): crumb unchanged
