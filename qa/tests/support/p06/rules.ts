@@ -180,6 +180,8 @@ export interface RuleLayerOpts {
   readonly shortWall?: boolean;
   /** false = leave out the two 50 mm walls: `resolveWallShapes` throws on thickness outside 60-600 (domain/walls/joints.ts:20), which blanks the sheet's 2D figure. */
   readonly thinWalls?: boolean;
+  /** true = R0: also a 900 mm first door, kitchen 12 m2, no clashing tables (nothing from the R1 list is left to fire). */
+  readonly clean?: boolean;
 }
 
 /**
@@ -191,7 +193,7 @@ export interface RuleLayerOpts {
  * (e) three tables whose boxes cross the partition wall y = 2000 → FURNITURE-CLASH suggestion ×3 (delete action resolves).
  * S5-confirm: which extra rules (WALL-DANGLING-END, ROOM-NO-DOOR…) also fire is pinned by one real run; the flows use formulas.
  */
-export function ruleLayer(levelId: string, { shortWall = true, thinWalls = true }: RuleLayerOpts = {}): Json {
+export function ruleLayer(levelId: string, { shortWall = true, thinWalls = true, clean = false }: RuleLayerOpts = {}): Json {
   const base = qcLayer(levelId) as { walls: Json[]; openings: Json[]; rooms: Json[]; furniture: Json[] };
   const wall = (from: readonly [number, number], to: readonly [number, number], extra: Json = {}): Json => ({
     ...ai(),
@@ -222,10 +224,10 @@ export function ruleLayer(levelId: string, { shortWall = true, thinWalls = true 
       : []),
     ...(shortWall ? [wall([0, 7000], [80, 7000], { confidence: 0.5 })] : []),
   ];
-  const openings = [...base.openings.map((opening, index) => (index === 0 ? { ...opening, widthMm: 600 } : opening)), secondDoor];
+  const openings = [...base.openings.map((opening, index) => (index === 0 && !clean ? { ...opening, widthMm: 600 } : opening)), secondDoor];
   const rooms = base.rooms.map((room, index): Json =>
     index === 0
-      ? { ...room, name: 'Phòng 1', areaM2: 3, wallIds: [idOf(spanned, 0), idOf(spanned, 1), idOf(spanned, 4), idOf(spanned, 8)] }
+      ? { ...room, name: 'Phòng 1', areaM2: clean ? 12 : 3, wallIds: [idOf(spanned, 0), idOf(spanned, 1), idOf(spanned, 4), idOf(spanned, 8)] }
       : { ...room, wallIds: [idOf(spanned, 2), idOf(spanned, 3), idOf(spanned, 5), idOf(spanned, 9)] },
   );
   const kitchenId = rooms[0]?.id;
@@ -239,7 +241,7 @@ export function ruleLayer(levelId: string, { shortWall = true, thinWalls = true 
     roomId: kitchenId,
     rotationDeg: 0,
   });
-  return { walls, openings, rooms, furniture: [...base.furniture, table(2000), table(4000), table(6000)] };
+  return { walls, openings, rooms, furniture: clean ? base.furniture : [...base.furniture, table(2000), table(4000), table(6000)] };
 }
 
 export interface RuleFloorSpec {
@@ -255,6 +257,8 @@ export interface RuleProjectOpts {
   readonly shortWall?: boolean;
   /** false = no 50 mm walls (see {@link RuleLayerOpts}). */
   readonly thinWalls?: boolean;
+  /** R0, see {@link RuleLayerOpts.clean}. */
+  readonly clean?: boolean;
 }
 
 /** Run-unique project + rules layer; the id is queued in `admin.cleanup`. S5-confirm: BE accepts two floors of equal elevation. */
@@ -285,7 +289,7 @@ export async function createRuleProject(admin: Admin, slug: string, opts: RulePr
     return { id: row.id, name: floor.name };
   });
   for (const floor of refs.slice(0, layered)) {
-    await writeLayer(admin.fx, id, floor.id, (levelId) => ruleLayer(levelId, { ...(opts.shortWall === undefined ? {} : { shortWall: opts.shortWall }), ...(opts.thinWalls === undefined ? {} : { thinWalls: opts.thinWalls }) }));
+    await writeLayer(admin.fx, id, floor.id, (levelId) => ruleLayer(levelId, { ...(opts.shortWall === undefined ? {} : { shortWall: opts.shortWall }), ...(opts.thinWalls === undefined ? {} : { thinWalls: opts.thinWalls }), ...(opts.clean === undefined ? {} : { clean: opts.clean }) }));
   }
   return { id, name, floors: refs };
 }
@@ -310,6 +314,18 @@ export async function putRuleConfig(admin: Admin, projectId: string, overrides: 
     data: { baseVersion: revision, body: { overrides } },
   });
   return res.status();
+}
+
+/**
+ * R0 "clean run": the clean layer plus N22 switching off the rules whose verdict depends on fit-out/egress geometry the seed does not model
+ * (no window, escape distance, corridor width, door path, fixtures, furniture-room fit, room-without-door) - real data, real N15 run.
+ */
+export async function createCleanProject(admin: Admin, slug: string): Promise<RuleProject> {
+  const project = await createRuleProject(admin, slug, { shortWall: false, thinWalls: false, clean: true });
+  const off = ['ROOM-NO-WINDOW', 'ESCAPE-DISTANCE', 'CORRIDOR-WIDTH', 'DOOR-BLOCKS-PATH', 'FIXTURE-OFF-WALL', 'ROOM-FURNITURE-MISMATCH', 'ROOM-NO-DOOR', 'WINDOW-ON-INNER-WALL'];
+  const status = await putRuleConfig(admin, project.id, Object.fromEntries(off.map((code) => [code, { enabled: false }])));
+  expect(status, 'setup: PUT rule-config (R0)').toBeLessThan(300);
+  return project;
 }
 
 /** Overrides that disable every rule except `keep`. */
