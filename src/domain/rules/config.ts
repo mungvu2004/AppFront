@@ -71,6 +71,7 @@ import {
   MIN_CLASH_MM,
   MIN_CLEAR_PASSAGE_MM,
   OPENING_ON_OUTLINE_TOLERANCE_MM,
+  SUPERSEDED_BUILT_IN_CODES,
   USAGE_REQUIREMENTS,
 } from './function';
 import { WALL_HUGGING_TOLERANCE_MM } from './fitout';
@@ -268,17 +269,26 @@ export const EMPTY_RULE_CONFIG: RuleConfig = Object.freeze({
  * typing rather than only by pressing restore. A key this build does not know
  * is a change by that reading, which is right: it survives round-tripping
  * through a saved project rather than being silently swallowed. `enabled` and
- * `severity` are counted whenever they are present at all: telling default from
- * non-default for those needs the rule book, and a config is data that has to
- * be readable without one. The setters keep this honest by pruning as they
- * write.
+ * `severity` are compared with the shipped value (from `ALL_RULES`) the same way.
  */
-function isEmptyOverride(override: RuleOverride | undefined): boolean {
+function isEmptyOverride(override: RuleOverride | undefined, code?: RuleCode): boolean {
   if (override === undefined) {
     return true;
   }
 
-  if (override.enabled !== undefined || override.severity !== undefined) {
+  // `enabled` / `severity` equal to the shipped value are not a change (toggle
+  // off then on, or move severity and back). An entry with no rule behind it
+  // (the shared-threshold one) has no shipped value, so any value counts.
+  const rule = ALL_RULES.find((r) => r.code === code);
+
+  if (
+    override.enabled !== undefined &&
+    (rule === undefined || override.enabled !== !SUPERSEDED_BUILT_IN_CODES.includes(rule.code))
+  ) {
+    return false;
+  }
+
+  if (override.severity !== undefined && override.severity !== rule?.severity) {
     return false;
   }
 
@@ -289,7 +299,7 @@ function isEmptyOverride(override: RuleOverride | undefined): boolean {
 
 /** Is the rule book still exactly as it ships? */
 export function isDefaultConfig(config: RuleConfig): boolean {
-  return Object.values(config.overrides).every(isEmptyOverride);
+  return Object.entries(config.overrides).every(([code, o]) => isEmptyOverride(o, code));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -343,7 +353,7 @@ export function resolveRules(registry: RuleRegistry, config: RuleConfig): readon
       enabled: override?.enabled ?? registry.isEnabled(rule.code),
       severity: override?.severity ?? rule.severity,
       thresholds,
-      isDefault: isEmptyOverride(override),
+      isDefault: isEmptyOverride(override, rule.code),
     };
   });
 }
@@ -373,7 +383,7 @@ export function resolveThresholds(
 function withOverride(config: RuleConfig, code: RuleCode, next: RuleOverride): RuleConfig {
   const overrides: Record<RuleCode, RuleOverride> = { ...config.overrides };
 
-  if (isEmptyOverride(next)) {
+  if (isEmptyOverride(next, code)) {
     // Prune rather than store an empty entry, so `isDefaultConfig` stays a
     // lookup and two configs meaning the same thing look the same.
     delete overrides[code];
@@ -461,13 +471,15 @@ export function setGroupEnabled(
   const overrides: Record<RuleCode, RuleOverride> = { ...config.overrides };
 
   for (const rule of ALL_RULES) {
-    if (rule.group !== group) {
+    // A superseded built-in stays as it is: switching its group on must not
+    // run it alongside the rule that replaced it.
+    if (rule.group !== group || SUPERSEDED_BUILT_IN_CODES.includes(rule.code)) {
       continue;
     }
 
     const next: RuleOverride = { ...overrides[rule.code], enabled };
 
-    if (isEmptyOverride(next)) {
+    if (isEmptyOverride(next, rule.code)) {
       delete overrides[rule.code];
     } else {
       overrides[rule.code] = next;

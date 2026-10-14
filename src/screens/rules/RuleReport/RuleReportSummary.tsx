@@ -81,7 +81,7 @@ export function RuleReportSummaryStrip({ summary }: RuleReportSummaryStripProps)
       <SummaryStat value={summary.evaluated} label="Tổng số kiểm tra" />
       <SummaryStat value={summary.passed} label="Đạt" />
       <SummaryStat value={summary.warnings} label="Cảnh báo" />
-      <SummaryStat value={summary.violations} label="Vi phạm" />
+      <SummaryStat value={summary.violations} label="Nghiêm trọng" />
     </dl>
   );
 }

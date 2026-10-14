@@ -56,7 +56,7 @@ import {
   USAGE_REQUIREMENTS,
 } from '../function';
 import { WALL_HUGGING_TOLERANCE_MM } from '../fitout';
-import { createDefaultRuleRegistry } from '../defaults';
+import { ALL_RULES, createDefaultRuleRegistry } from '../defaults';
 import { runRules } from '../runner';
 import {
   DEFAULT_RULE_THRESHOLDS,
@@ -448,11 +448,29 @@ describe('isDefaultConfig', () => {
     expect(isDefaultConfig(setRuleEnabled(EMPTY_RULE_CONFIG, 'DOOR-WIDTH', false))).toBe(false);
   });
 
-  it('is false once a rule is switched on again, because that is still a decision', () => {
-    // The registry, not the config, is the reference for "as shipped", and a
-    // config is data that has to be readable without one — so an `enabled`
-    // field counts as a change whichever way it points.
-    expect(isDefaultConfig(setRuleEnabled(EMPTY_RULE_CONFIG, 'DOOR-WIDTH', true))).toBe(false);
+  it('is true once a rule is switched off and on again (29-C-013)', () => {
+    const off = setRuleEnabled(EMPTY_RULE_CONFIG, 'DOOR-WIDTH', false);
+    const back = setRuleEnabled(off, 'DOOR-WIDTH', true);
+
+    expect(isDefaultConfig(back)).toBe(true);
+    expect(back.overrides['DOOR-WIDTH']).toBeUndefined();
+  });
+
+  it('is true once a severity is moved and moved back (29-C-014)', () => {
+    const moved = setRuleSeverity(EMPTY_RULE_CONFIG, 'DOOR-WIDTH', 'critical');
+    const sev = ALL_RULES.find((r) => r.code === 'DOOR-WIDTH')!.severity;
+
+    expect(isDefaultConfig(setRuleSeverity(moved, 'DOOR-WIDTH', sev))).toBe(true);
+  });
+
+  it('does not enable the superseded built-ins when a group is switched back on (29-C-015)', () => {
+    for (const group of ['circulation', 'area'] as const) {
+      const on = setGroupEnabled(setGroupEnabled(EMPTY_RULE_CONFIG, group, false), group, true);
+
+      expect(on.overrides['ROOM-HAS-DOOR']).toBeUndefined();
+      expect(on.overrides['ROOM-MIN-AREA']).toBeUndefined();
+      expect(isDefaultConfig(on)).toBe(true);
+    }
   });
 
   it('is false once a severity is moved', () => {
@@ -597,8 +615,8 @@ describe('the setters', () => {
     const off = setGroupEnabled(EMPTY_RULE_CONFIG, 'annotation', false);
     const on = setGroupEnabled(off, 'annotation', true);
 
-    expect(on.overrides['ROOM-UNNAMED']).toEqual({ enabled: true });
-    expect(isDefaultConfig(on)).toBe(false);
+    expect(on.overrides['ROOM-UNNAMED']).toBeUndefined();
+    expect(isDefaultConfig(on)).toBe(true);
     expect(isDefaultConfig(resetConfig())).toBe(true);
   });
 
