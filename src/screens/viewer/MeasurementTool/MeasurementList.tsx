@@ -175,28 +175,31 @@ export function MeasurementList({
   collapsed,
   onToggleCollapsed,
 }: MeasurementListProps) {
+  // `px-3` + `px-2` của hàng = 20 px, đúng lề chữ "Thuộc tính" của panel (BUG-377).
   if (collapsed) {
     return (
-      <button
-        aria-label={`Mở mục ${SECTION_TITLE}, ${countLabel}`}
-        className={cn(
-          'flex h-9 w-full items-center justify-between gap-2 rounded-md px-2',
-          'text-[13px] text-text-primary hover:bg-bg-hover',
-          FOCUS_RING_CLASS,
-        )}
-        onClick={onToggleCollapsed}
-        type="button"
-      >
-        <span>{SECTION_TITLE}</span>
-        <Badge noDot variant="neutral">
-          {countLabel}
-        </Badge>
-      </button>
+      <div className="px-3">
+        <button
+          aria-label={`Mở mục ${SECTION_TITLE}, ${countLabel}`}
+          className={cn(
+            'flex h-9 w-full items-center justify-between gap-2 rounded-md px-2',
+            'text-[13px] text-text-primary hover:bg-bg-hover',
+            FOCUS_RING_CLASS,
+          )}
+          onClick={onToggleCollapsed}
+          type="button"
+        >
+          <span>{SECTION_TITLE}</span>
+          <Badge noDot variant="neutral">
+            {countLabel}
+          </Badge>
+        </button>
+      </div>
     );
   }
 
   return (
-    <section aria-label={SECTION_TITLE} className="flex flex-col gap-2">
+    <section aria-label={SECTION_TITLE} className="flex flex-col gap-2 px-3">
       <header className="flex items-center justify-between gap-2 px-2">
         <div className="flex min-w-0 items-baseline gap-2">
           <h3 className="text-[13px] font-medium text-text-primary">{SECTION_TITLE}</h3>

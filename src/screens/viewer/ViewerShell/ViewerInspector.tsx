@@ -58,7 +58,9 @@ export function ViewerInspector({
         'bg-bg-surface shadow-panel',
       )}
     >
-      <h2 className="flex h-14 shrink-0 items-center px-5 text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
+      {/* `mx-5`, không `px-5`: hộp của tiêu đề bắt đầu đúng ở chữ, để mục của khe
+          `inspectorSections` canh được theo nó (BUG-377). */}
+      <h2 className="mx-5 flex h-14 shrink-0 items-center text-[11px] font-semibold uppercase tracking-wider text-text-secondary">
         Thuộc tính
       </h2>
 
