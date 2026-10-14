@@ -63,10 +63,13 @@ test.describe('E05 SCR-23 Diện tích phòng — mocked-response flow (QA-05c P
       });
 
       await test.step('[23R-G-008] PUT 500, "Ăn" → "Ăn M": toast again; route removed, "Kho" → "Kho M": real PUT 200, "Đã lưu lúc"', async () => {
+        // The G-007 toast lives ~8 s (Toast.tsx:99-110) and PVC:222-230 publishes only on a change to 'failed': wait it out,
+        // so the toast asserted below is a new one.
+        await expect(failedToast).toHaveCount(0, { timeout: FAILED_TOAST_TIMEOUT_MS });
         await page.unroute(LAYER_URL);
         await page.route(LAYER_URL, (route: Route) =>
           route.request().method() === 'PUT'
-            ? route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ code: 'INTERNAL', message: 'mocked' }) })
+            ? route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ code: 'INTERNAL', message: 'mocked', requestId: 'qa-p3-mock' }) })
             : route.continue(),
         );
         const faked = page.waitForResponse((res) => res.request().method() === 'PUT' && LAYER_URL(new URL(res.url())) && res.status() === 500, {
@@ -75,6 +78,7 @@ test.describe('E05 SCR-23 Diện tích phòng — mocked-response flow (QA-05c P
         await renameRoom(panel, 'Ăn', 'Ăn M');
         await faked;
         await expect.soft(failedToast.first()).toBeVisible({ timeout: FAILED_TOAST_TIMEOUT_MS });
+        await expect.soft(saveLine(page)).not.toHaveText(SAVED_AT);
         await page.unroute(LAYER_URL);
         const real = nextLayerPut(page, undefined, FAILED_TOAST_TIMEOUT_MS);
         await renameRoom(panel, 'Kho', 'Kho M');

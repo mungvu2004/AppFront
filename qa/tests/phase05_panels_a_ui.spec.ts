@@ -53,8 +53,8 @@ import {
 } from './support/p05/P3';
 
 const VIEWER_SLOT = 'p05-panels-a';
-/** Per load: Pascal build (≤ 60 s, typically 5–15 s) + the "maybe" tour wait (6 s). */
-const LOAD_ESTIMATE_MS = 20_000;
+/** Per load: Pascal build (≤ 60 s, typically 5–15 s); `/3d` has no tour to wait for. */
+const LOAD_ESTIMATE_MS = 15_000;
 const timeoutFor = (loads: number): number => Math.max(120_000, 2 * loads * LOAD_ESTIMATE_MS);
 
 type Targets = Readonly<Record<string, Locator>>;

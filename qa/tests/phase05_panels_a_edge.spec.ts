@@ -23,7 +23,6 @@
  */
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
-import { AUTOSAVE_TIMEOUT_MS } from '../../e2e/fullstack/env';
 import { captureEvidence } from './support/evidence';
 import {
   FL,
@@ -301,9 +300,8 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
       await test.step('[23R-A-014] ⚑ "Nhóm theo" = "Công năng" splits by room usage: ≥ 2 groups, not only "Chưa đặt công năng"', async () => {
         await combo(panel, RA.groupBy).selectOption({ label: RA.groupByOccupancy });
         await expect.soft(combo(panel, RA.groupBy)).toHaveValue('occupancy');
-        const labels = await groupLabels(panel);
-        expect.soft(labels.length, `groups: ${labels.join(', ')}`).toBeGreaterThanOrEqual(2);
-        expect.soft(labels).not.toEqual([RA.noOccupancy]);
+        await softly.poll(async () => (await groupLabels(panel)).length, { message: 'occupancy groups' }).toBeGreaterThanOrEqual(2);
+        await softly.poll(() => groupLabels(panel)).not.toEqual([RA.noOccupancy]);
         await shot(page, '23R-A-014', 'group-occupancy');
       });
     } finally {
@@ -671,6 +669,9 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
       await test.step('[23R-C-007] exactly one PUT for one rename: after the first answer and "Đã lưu lúc", still 1 PUT', async () => {
         await firstPut;
         await expect.soft(saveLine(page)).toHaveText(SAVED_AT);
+        // An absence check needs the rename timer (800 ms, RAP:147-149) + autosave debounce (800 ms) to elapse after the answer.
+        await page.waitForTimeout(1_700); // fixed-wait-ok: 800 ms timer + 800 ms debounce window, no event marks "no second PUT"
+        await layerIdle(log);
         expect.soft(layerPuts(log).map((e) => e.path)).toHaveLength(1);
         await shot(page, '23R-C-007', 'one-put', `#35 PUTs so far: ${String(layerPuts(log).length)}`);
       });
@@ -895,9 +896,14 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
         const point = await canvasFloorPoint(page, furniture);
         await page.mouse.move(point.x - 20, point.y);
         await page.mouse.move(point.x, point.y);
+        const put = nextLayerPut(page).then(
+          (res) => res.status(),
+          () => null,
+        );
         await page.mouse.click(point.x, point.y);
-        await softly.poll(() => layerPuts(log).slice(mark).length, { timeout: AUTOSAVE_TIMEOUT_MS }).toBe(1);
-        expect.soft(layerPuts(log).slice(mark)[0]?.status).toBe(200);
+        expect.soft(await put, 'PUT …/spatial/layer after the placement (null = none within the autosave timeout)').toBe(200);
+        await layerIdle(log);
+        expect.soft(layerPuts(log).slice(mark), 'PUTs after the placement').toHaveLength(1);
         await expect.soft(saveLine(page)).toHaveText(SAVED_AT);
         await shot(page, '23F-G-004', 'place-item', `PUTs after the placement: ${String(layerPuts(log).length - mark)}`);
       });
@@ -1080,9 +1086,8 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
     try {
       s = await openAdminSession(browser);
       const seeded = await seedFX(s, 'p3-rf02');
-      e = await openMemberSession(browser, s, seeded.projectId, 'engineer', DEMOTE_SLOT);
-      // A run that died mid-flow may have left this slot demoted: start from the engineer role.
-      expect(await setRole(s.admin, e.user, 'engineer'), 'setup: #41 engineer').toBe(200);
+      // A run that died mid-flow may have left this slot demoted: back to engineer before the login.
+      e = await openMemberSession(browser, s, seeded.projectId, 'engineer', DEMOTE_SLOT, { resetRole: true });
       const { page } = e;
       await openPascal(page, seeded.projectId);
       let panel = await openRailPanel(page, RA.title);
@@ -1311,6 +1316,7 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
 
       await test.step('[23F-A-016] ⚑ "bàn" → tables, not "Parking Spot" / "Scooter" (tag "urban" contains "ban")', async () => {
         await search.fill('bàn');
+        await softly.poll(() => countOf(panel), { message: 'grid re-filtered for "bàn"' }).not.toBe(111);
         const names = await tileNames(panel);
         expect.soft(names).not.toContain('Parking Spot');
         expect.soft(names).not.toContain('Scooter');
@@ -1386,6 +1392,7 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
       const strip = detectedStrip(panel);
       const chairs = detectedRow(panel, 'ghế (3)');
       const dialog = page.getByRole('dialog', { name: FL.previewTitle('ghế', 3), exact: true });
+      let applyPut: Promise<number | null> = Promise.resolve(null);
 
       await test.step('[23F-A-021] strip "Đã phát hiện", its hint, row "bàn (1)" (DFS:154-186)', async () => {
         await expect(strip).toBeVisible();
@@ -1470,6 +1477,10 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
       await test.step('[23F-A-027] reopen, "Thay thế tất cả" in the dialog: dialog gone, no "ghế (3)" row (DFS:211-219)', async () => {
         await replaceButton(chairs).click();
         await expect(dialog).toBeVisible();
+        applyPut = nextLayerPut(page).then(
+          (res) => res.status(),
+          () => null,
+        );
         await dialog.getByRole('button', { name: FL.replaceAll, exact: true }).click();
         await expect.soft(dialog).toHaveCount(0);
         await expect.soft(chairs).toHaveCount(0);
@@ -1477,8 +1488,9 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
       });
 
       await test.step('[23F-G-003] ⚑ the batch is saved: 1 PUT …/spatial/layer 200, "Đã lưu lúc HH:MM", no "Chưa lưu được thay đổi" toast', async () => {
-        await softly.poll(() => layerPuts(log).length, { timeout: AUTOSAVE_TIMEOUT_MS }).toBe(1);
-        expect.soft(layerPuts(log)[0]?.status).toBe(200);
+        expect.soft(await applyPut, 'PUT …/spatial/layer after "Thay thế tất cả" (null = none within the autosave timeout)').toBe(200);
+        await layerIdle(log);
+        expect.soft(layerPuts(log), '#35 PUTs of the flow').toHaveLength(1);
         await expect.soft(saveLine(page)).toHaveText(SAVED_AT);
         await expect.soft(toast(page, PV.saveFailed)).toHaveCount(0);
         await shot(page, '23F-G-003', 'saved', `#35 PUTs: ${String(layerPuts(log).length)}`);
