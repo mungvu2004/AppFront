@@ -2,19 +2,22 @@
  * QA-06b F6 — bug báo cáo luật tìm ra ở run-061 (mỗi bài đỏ trên mã cũ trước khi sửa).
  */
 
-import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, renderHook, screen, waitFor } from '@testing-library/react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import type { ReactNode } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import type * as AppClientModule from '@/api/appClient';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
-import { VIOLATED_BUILDING_SCENARIO } from '@/lib/testing/fixtures';
-import { renderWithProviders } from '@/lib/testing/render';
+import { CLEAN_BUILDING_SCENARIO, VIOLATED_BUILDING_SCENARIO } from '@/lib/testing/fixtures';
+import { createTestQueryClient, renderWithProviders } from '@/lib/testing/render';
 import { ROUTES } from '@/routes/paths';
 import { useStore } from '@/store';
 
 import { RulesRoute } from './RuleReport.container';
 import { sheetFloorId } from './sheetFloorId';
+import { useRuleReport } from './useRuleReport';
 import { RuleReportFilterBar } from './RuleReportSummary';
 import type { RuleReportGroup, RuleReportRow } from './types';
 
@@ -131,5 +134,44 @@ describe('28V-E-008 — đóng tấm trả tiêu điểm về hàng đã mở n�
       expect(screen.queryByRole('complementary', { name: 'Chi tiết vi phạm' })).toBeNull();
     });
     expect(document.activeElement?.hasAttribute('data-row-key')).toBe(true);
+  });
+});
+
+describe('QA-06b F13 — "Đã xử lý" tích luỹ qua nhiều lượt chạy (28-A-037/038, 28V-G-002)', () => {
+  it('một lần sửa gây hai lượt chạy liên tiếp: hàng vừa sửa vẫn nằm ở nhóm đã xử lý', async () => {
+    const queryClient = createTestQueryClient();
+    const wrapper = ({ children }: { readonly children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>{children}</MemoryRouter>
+      </QueryClientProvider>
+    );
+    act(() => {
+      useStore.getState().setSpatial(normalizeSpatial(VIOLATED_BUILDING_SCENARIO.graph), 'f13-v1');
+    });
+    const { result } = renderHook(() => useRuleReport({ projectId: 'P-F13' }), { wrapper });
+    const resolvedCount = () => result.current.groups.reduce((n, g) => n + g.resolvedCount, 0);
+    await waitFor(() => {
+      expect(result.current.groups.length).toBeGreaterThan(0);
+    });
+    expect(resolvedCount()).toBe(0);
+
+    // Lượt 1: hàng biến mất (đã sửa).
+    act(() => {
+      useStore.getState().setSpatial(normalizeSpatial(CLEAN_BUILDING_SCENARIO.graph), 'f13-v2');
+    });
+    await waitFor(() => {
+      expect(resolvedCount()).toBeGreaterThan(0);
+    });
+    const afterFirst = resolvedCount();
+
+    // Lượt 2: cùng dữ liệu, chỉ khoá đổi (refetch sau rerunRules) — không được xoá hàng đã xử lý.
+    act(() => {
+      useStore.getState().setSpatial(normalizeSpatial(CLEAN_BUILDING_SCENARIO.graph), 'f13-v3');
+    });
+    await waitFor(() => {
+      expect(result.current.status).toBe('ready');
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(resolvedCount()).toBe(afterFirst);
   });
 });
