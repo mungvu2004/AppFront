@@ -178,6 +178,8 @@ const ai = (confidence = 0.9): Json => ({ confidence, reviewed: false, source: '
 export interface RuleLayerOpts {
   /** false = R3: no isolated 80 mm wall, so no critical rule fires. */
   readonly shortWall?: boolean;
+  /** false = leave out the two 50 mm walls: `resolveWallShapes` throws on thickness outside 60-600 (domain/walls/joints.ts:20), which blanks the sheet's 2D figure. */
+  readonly thinWalls?: boolean;
 }
 
 /**
@@ -189,7 +191,7 @@ export interface RuleLayerOpts {
  * (e) three tables whose boxes cross the partition wall y = 2000 → FURNITURE-CLASH suggestion ×3 (delete action resolves).
  * S5-confirm: which extra rules (WALL-DANGLING-END, ROOM-NO-DOOR…) also fire is pinned by one real run; the flows use formulas.
  */
-export function ruleLayer(levelId: string, { shortWall = true }: RuleLayerOpts = {}): Json {
+export function ruleLayer(levelId: string, { shortWall = true, thinWalls = true }: RuleLayerOpts = {}): Json {
   const base = qcLayer(levelId) as { walls: Json[]; openings: Json[]; rooms: Json[]; furniture: Json[] };
   const wall = (from: readonly [number, number], to: readonly [number, number], extra: Json = {}): Json => ({
     ...ai(),
@@ -215,8 +217,9 @@ export function ruleLayer(levelId: string, { shortWall = true }: RuleLayerOpts =
   };
   const walls = [
     ...spanned.map((item, index) => (index === 5 ? { ...item, openingIds: [secondDoor.id] } : item)),
-    wall([0, 5000], [8000, 5000], { thicknessMm: 50 }),
-    wall([0, 5500], [8000, 5500], { thicknessMm: 50 }),
+    ...(thinWalls
+      ? [wall([0, 5000], [8000, 5000], { thicknessMm: 50 }), wall([0, 5500], [8000, 5500], { thicknessMm: 50 })]
+      : []),
     ...(shortWall ? [wall([0, 7000], [80, 7000], { confidence: 0.5 })] : []),
   ];
   const openings = [...base.openings.map((opening, index) => (index === 0 ? { ...opening, widthMm: 600 } : opening)), secondDoor];
@@ -250,6 +253,8 @@ export interface RuleProjectOpts {
   /** How many leading floors get the rules layer (default 1, 0 when there is no floor). */
   readonly layered?: number;
   readonly shortWall?: boolean;
+  /** false = no 50 mm walls (see {@link RuleLayerOpts}). */
+  readonly thinWalls?: boolean;
 }
 
 /** Run-unique project + rules layer; the id is queued in `admin.cleanup`. S5-confirm: BE accepts two floors of equal elevation. */
@@ -280,7 +285,7 @@ export async function createRuleProject(admin: Admin, slug: string, opts: RulePr
     return { id: row.id, name: floor.name };
   });
   for (const floor of refs.slice(0, layered)) {
-    await writeLayer(admin.fx, id, floor.id, (levelId) => ruleLayer(levelId, opts.shortWall === undefined ? {} : { shortWall: opts.shortWall }));
+    await writeLayer(admin.fx, id, floor.id, (levelId) => ruleLayer(levelId, { ...(opts.shortWall === undefined ? {} : { shortWall: opts.shortWall }), ...(opts.thinWalls === undefined ? {} : { thinWalls: opts.thinWalls }) }));
   }
   return { id, name, floors: refs };
 }
