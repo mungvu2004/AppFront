@@ -36,6 +36,8 @@ import {
   fieldError,
   heading,
   holdResponse,
+  IND,
+  saveIndicator,
   openAccount,
   recordWrites,
 } from './support/p07/account';
@@ -180,6 +182,7 @@ test('SCR-33 · FL-33P-08 · avatar: set, cancel, keyboard, replace, JPEG, persi
 
     await test.step('[33P-C-020] 800 ms + 200 later (clock) no PATCH went out', async () => {
       await page.clock.runFor(DEBOUNCE_JUMP_MS);
+      await expect.soft(saveIndicator(page), 'positive marker: the chip never left idle').toHaveText(IND.idle); // no dirty/saving
       expect.soft(patches(), 'an avatar change is not an autosave').toEqual([]);
       await captureEvidence(page, ev('33P-C-020', 'no-patch'));
     });
@@ -326,13 +329,13 @@ test('SCR-33 · FL-33P-09 · avatar rejects (local and server) and rate limit', 
       await captureEvidence(page, ev('33P-G-025', 'rate-limited'));
     });
 
-    await test.step('[33P-B-032] locked: the input is disabled, Playwright refuses a new file, no dialog', async () => {
+    await test.step('[33P-B-032] locked: the input is disabled; a file forced into it opens no dialog and sends no second PUT', async () => {
       await expect.soft(avatarInput(page)).toBeDisabled();
-      const refused = await avatarInput(page)
-        .setInputFiles(tinyPng('p3-locked.png'), { timeout: 2_000 })
-        .then(() => false, () => true);
-      expect.soft(refused, 'setInputFiles on a disabled input is refused').toBe(true);
+      const putsBefore = puts();
+      await avatarInput(page).setInputFiles(tinyPng('p3-locked.png')); // Playwright does not check `disabled`; the FE guard (UAP:~519) must hold
+      await expect.soft(fieldError(page, AVATAR_MSG.rateLimited), 'positive marker: the lock alert is still shown').toBeVisible();
       await expect.soft(dialog).toHaveCount(0);
+      expect.soft(puts(), 'no second PUT').toBe(putsBefore);
       await captureEvidence(page, ev('33P-B-032', 'locked'));
     });
 
