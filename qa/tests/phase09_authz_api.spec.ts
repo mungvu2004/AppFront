@@ -179,11 +179,11 @@ test('API · FL-B09-04 · ẩn danh · ma trận quyền BE', async () => {
     await test.step('[B09-drw-010] drawings_read_progress GET anonymous -> 401', async () => {
       await expectDenied(ctx, 'GET', `/api/projects/${FAKE.pid}/drawings/uploads/${FAKE.upl}/progress`, { status: 401, code: 'UNAUTHENTICATED' }, { id: 'B09-drw-010', slug: 'drawings-read-progress' });
     });
-    await test.step('[B09-str-001] streams_open_progress GET anonymous -> 401', async () => { // order: reject_foreign_origin (Origin matches) then authenticate_stream: no stream cookie -> 401
-      await expectDenied(ctx, 'GET', `/api/projects/${FAKE.pid}/uploads/${FAKE.upl}/progress`, { status: 401, code: 'UNAUTHENTICATED' }, { id: 'B09-str-001', slug: 'streams-open-progress' });
+    await test.step('[B09-str-001] streams_open_progress GET anonymous -> 401', async () => { // order: public_router prefix /streams (streams/router.py:99); reject_foreign_origin (Origin matches) then authenticate_stream: no stream cookie -> 401
+      await expectDenied(ctx, 'GET', `/api/streams/projects/${FAKE.pid}/uploads/${FAKE.upl}/progress`, { status: 401, code: 'UNAUTHENTICATED' }, { id: 'B09-str-001', slug: 'streams-open-progress' });
     });
-    await test.step('[B09-str-004] streams_open_notifications GET anonymous -> 401', async () => { // order: reject_foreign_origin (Origin matches) then authenticate_stream: no stream cookie -> 401
-      await expectDenied(ctx, 'GET', `/api/notifications`, { status: 401, code: 'UNAUTHENTICATED' }, { id: 'B09-str-004', slug: 'streams-open-notifications' });
+    await test.step('[B09-str-004] streams_open_notifications GET anonymous -> 401', async () => { // order: public_router prefix /streams (streams/router.py:99); reject_foreign_origin (Origin matches) then authenticate_stream: no stream cookie -> 401
+      await expectDenied(ctx, 'GET', `/api/streams/notifications`, { status: 401, code: 'UNAUTHENTICATED' }, { id: 'B09-str-004', slug: 'streams-open-notifications' });
     });
     await test.step('[B09-qlt-001] quality_read_assessment GET anonymous -> 401', async () => {
       await expectDenied(ctx, 'GET', `/api/projects/${FAKE.pid}/floors/${FAKE.fid}/quality`, { status: 401, code: 'UNAUTHENTICATED' }, { id: 'B09-qlt-001', slug: 'quality-read-assessment' });
