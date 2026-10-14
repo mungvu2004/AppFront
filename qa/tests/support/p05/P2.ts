@@ -85,7 +85,8 @@ export const SAVED_AT = /^Đã lưu lúc \d{1,2}:\d{2}$/u;
 export const RENDERED = /^(Đã dựng xong toàn bộ bản vẽ\.|Đã dựng xong, nhưng một số đối tượng chưa chuyển sang được\.)$/u;
 
 export const H = {
-  section: 'Lịch sử chỉnh sửa', // HPCH:49
+  /** Only the bottom sheet (< lg) names the panel section (HistoryPanel.tsx:97 `isSheet ? SHEET_REGION_LABEL : undefined`). */
+  sheet: 'Tấm trượt lịch sử chỉnh sửa', // HPCH:49
   timeline: 'Dòng thời gian các bước đã làm', // HPCH:51
   chipsGroup: 'Lọc theo loại việc', // HPCH:52
   actorSelect: 'Lọc theo người thực hiện', // HPCH:53
@@ -256,15 +257,19 @@ export async function holdRoute(page: Page, url: string | RegExp, filter: (reque
     release = resolve;
   });
   const hits: string[] = [];
+  const pending = new Set<Promise<void>>();
   const handler = async (route: Route): Promise<void> => {
     if (!filter(route.request())) {
       await route.fallback();
       return;
     }
     hits.push(route.request().url());
-    await gate;
-    // The page may have navigated away while the request was held.
-    await route.fallback().catch(() => undefined);
+    // `continue` (straight to the network), not `fallback`: a fallback still pending when the handler is unrouted is
+    // dropped and the request hangs (run-052 23H-B-001: the panel chunk never arrived after dispose).
+    const done = gate.then(() => route.continue()).catch(() => undefined); // page may have navigated away meanwhile
+    pending.add(done);
+    await done;
+    pending.delete(done);
   };
   await page.route(url, handler);
   return {
@@ -272,6 +277,8 @@ export async function holdRoute(page: Page, url: string | RegExp, filter: (reque
     release: () => release(),
     dispose: async () => {
       release();
+      // Every held request has gone on before the handler goes away.
+      await Promise.all([...pending]);
       await page.unroute(url, handler);
     },
   };

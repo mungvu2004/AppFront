@@ -81,7 +81,7 @@ test('SCR-23 · FL-23H-05 · [mocked response] Pascal đang nạp / lỗi và ch
       await captureEvidence(page, 'E05_23H-B-014_panel-while-loading.png', { caption: 'pascal-mount.js held; tab clicked during loading' });
     });
 
-    await test.step('[23H-B-001] slow panel chunk → "Đang mở bảng…" in the region, then section "Lịch sử chỉnh sửa"', async () => {
+    await test.step('[23H-B-001] slow panel chunk → "Đang mở bảng…" in the region, then the panel body (history-panel)', async () => {
       await expect.soft(historyRegion(page).getByText(T.panelFallback, { exact: true }), 'PVC:287 Suspense fallback').toBeVisible();
       await captureEvidence(page, 'E05_23H-B-001_panel-fallback.png', { caption: `${String(chunks?.hits.length ?? 0)} app chunk(s) held` });
       await chunks?.dispose();
