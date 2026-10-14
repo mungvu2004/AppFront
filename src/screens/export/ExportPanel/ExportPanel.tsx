@@ -54,6 +54,7 @@
  */
 
 import { FolderOpen, Lock, Share2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Button } from '@/components/ui/Button';
@@ -61,7 +62,7 @@ import { Table } from '@/components/ui/Table';
 import { cn } from '@/lib/utils';
 
 import { ExportPanelFooter } from './ExportPanelFooter';
-import { ExportPanelFormats, FOCUS_RING, SkeletonText } from './ExportPanelFormats';
+import { ExportPanelFormats, SkeletonText } from './ExportPanelFormats';
 import { ExportPanelOptions } from './ExportPanelOptions';
 import { ExportPanelPreflight } from './ExportPanelPreflight';
 import type {
@@ -70,12 +71,7 @@ import type {
   ExportFloorChoice,
   ExportFormatId,
   ExportPanelProps,
-  PreflightRow,
 } from './types';
-
-function findPreflightRow(rows: readonly PreflightRow[], id: PreflightRow['id']): PreflightRow | null {
-  return rows.find((row) => row.id === id) ?? null;
-}
 
 /**
  * Định dạng này có sinh ra được một tệp thật không.
@@ -158,6 +154,7 @@ function ExportPanelHistory({ files, isLoading, canPersistHistory, onDownload }:
                 <Button
                   variant="ghost"
                   size="sm"
+                  aria-label={`Tải lại ${file.fileName}`}
                   onClick={() => {
                     onDownload(file.id);
                   }}
@@ -202,6 +199,19 @@ export function ExportPanel(props: ExportPanelProps) {
   } = props;
 
   const isLoading = status === 'loading';
+
+  // Xuất xong thì đọc to tên tệp mới (30-E-012); lần mount đầu không đọc lịch sử cũ.
+  const [announcement, setAnnouncement] = useState('');
+  const lastFileId = useRef(exportedFiles[0]?.id);
+  useEffect(() => {
+    const newest = exportedFiles[0];
+
+    if (newest !== undefined && newest.id !== lastFileId.current) {
+      setAnnouncement(`Đã xuất ${newest.fileName}`);
+    }
+
+    lastFileId.current = newest?.id;
+  }, [exportedFiles]);
   const selectedFormat = formats.find((format) => format.isSelected) ?? formats[0] ?? null;
   const canExportSelected =
     selectedFormat !== null && canDeliverFormat(selectedFormat.id, capabilities, floors);
@@ -219,32 +229,22 @@ export function ExportPanel(props: ExportPanelProps) {
   }
 
   if (status === 'empty') {
-    const approvalRow = findPreflightRow(preflight, 'approval');
-
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 bg-bg-app p-8 text-center">
         <FolderOpen aria-hidden="true" size={32} strokeWidth={1.5} className="text-text-muted" />
-        <h2 className="text-base font-semibold text-text-primary">Chưa có gì được duyệt để xuất</h2>
+        <h2 className="text-base font-semibold text-text-primary">Chưa có gì để xuất</h2>
         <p className="max-w-sm text-sm text-text-secondary">
-          {approvalRow?.label ?? 'Duyệt ít nhất một tầng trước khi xuất bản vẽ.'}
+          Dự án chưa có tầng nào. Tải bản vẽ lên hoặc thêm một tầng rồi quay lại đây để xuất.
         </p>
-        {approvalRow !== null && approvalRow.fixHref !== null && (
-          <a
-            href={approvalRow.fixHref}
-            onClick={() => {
-              onFollowFix('approval');
-            }}
-            className={cn('text-sm font-medium text-accent no-underline hover:underline', FOCUS_RING)}
-          >
-            Đi duyệt tầng
-          </a>
-        )}
       </div>
     );
   }
 
   return (
     <div className="flex h-full flex-col overflow-y-auto bg-bg-app">
+      <div role="status" aria-live="polite" className="sr-only">
+        {announcement}
+      </div>
       <div className="flex flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
         <header className="flex items-center justify-between gap-4">
           <h2 className="text-base font-semibold text-text-primary">Xuất bản vẽ</h2>
@@ -306,6 +306,7 @@ export function ExportPanel(props: ExportPanelProps) {
         progress={progress}
         canExportSelected={canExportSelected}
         destinationCaption={destinationCaption}
+        isLoading={isLoading}
         onExport={onExport}
         onCancel={onCancel}
       />
