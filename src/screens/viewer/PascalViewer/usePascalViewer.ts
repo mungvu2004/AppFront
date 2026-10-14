@@ -105,6 +105,7 @@ export interface MountModule {
     readonly setScene?: (scene: PascalScene) => void;
     readonly setHighlight?: (nodeIds: readonly string[]) => void;
     readonly frameEntity?: (entityId: string) => boolean;
+    readonly deleteNodes?: (nodeIds: readonly string[]) => void;
   };
 }
 
@@ -152,6 +153,8 @@ export interface UsePascalViewerResult {
   readonly canvasRef: React.RefObject<HTMLDivElement | null>;
   /** Đích khuôn camera cho lớp phủ cộng tác — `false` khi khung chưa dựng. */
   readonly sceneTarget: { readonly frameEntity: (entityId: string) => boolean };
+  /** Cho editor xoá node theo mã Pascal — lượt xoá hàng loạt người dùng vừa xác nhận. */
+  readonly deleteNodes: (nodeIds: readonly string[]) => void;
   /** Cảnh đã đẩy sang Pascal — mốc "trước" cho `usePascalEdits`; `null` khi chưa dựng xong. */
   readonly loadedScene: PascalScene | null;
   readonly onRetry: () => void;
@@ -287,6 +290,7 @@ export function usePascalViewer({
     () => ({ frameEntity: (entityId: string) => mountedRef.current?.frameEntity?.(entityId) ?? false }),
     [],
   );
+  const deleteNodes = useCallback((nodeIds: readonly string[]) => mountedRef.current?.deleteNodes?.(nodeIds), []);
 
   const [ready, setReady] = useState(false);
   const [failure, setFailure] = useState<PascalViewerErrorCode | null>(null);
@@ -600,6 +604,7 @@ export function usePascalViewer({
     },
     canvasRef,
     sceneTarget,
+    deleteNodes,
     loadedScene: pascalScene,
     onRetry,
     onExpand,

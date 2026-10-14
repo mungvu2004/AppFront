@@ -54,7 +54,7 @@ import {
   type PascalSidePanel,
   type PascalSidePanelId,
 } from './pascalViewerTypes';
-import { usePascalEdits } from './usePascalEdits';
+import { usePascalEdits, type PascalMassDeleteRequest } from './usePascalEdits';
 import { usePascalViewer, type UsePascalViewerOptions } from './usePascalViewer';
 
 /*
@@ -72,6 +72,12 @@ const LazyHistoryPanel = lazy(() =>
 /* Hộp thoại A9 của 409 khi còn sửa chưa lưu — cùng hộp màn QC, nạp lười như ở đó
    (`Modal` chỉ cần khi có xung đột, không phải mỗi lượt mở `/3d`). */
 const LazyFloorLayerSaveConfirm = lazy(() => import('@/screens/qc/WallLayerReview/FloorLayerSaveConfirm'));
+
+/* Hộp xác nhận xoá hàng loạt (A9, 23-A-026) — nạp lười cùng lý do trên. */
+const LazyModal = lazy(() => import('@/components/overlay/Modal').then((module) => ({ default: module.Modal })));
+
+/** Tiêu đề hộp xác nhận xoá hàng loạt; lý do của cổng đi vào thân hộp. */
+export const PASCAL_MASS_DELETE_TITLE = 'Xoá nhiều đối tượng khỏi tầng?';
 
 /** Loại thông báo của một lượt sửa bị chặn — toast gom theo loại. */
 export const PASCAL_REJECTED_NOTIFICATION_TYPE = 'pascal.edit.rejected';
@@ -237,11 +243,14 @@ function PascalViewerBody({
      dựng nó trong một hiệu ứng, nên nó về qua state sau một nhịp —
      `usePascalEdits` chịu được `null` và chỉ bỏ qua lượt ghi đến trước mốc ấy. */
   const [loadedScene, setLoadedScene] = useState<PascalScene | null>(null);
-  const { onSceneCommit, validateCommit } = usePascalEdits({
+  /* Lượt xoá hàng loạt cổng vừa chặn (editor đã trả đối tượng về) — chờ người dùng xác nhận. */
+  const [massDelete, setMassDelete] = useState<PascalMassDeleteRequest | null>(null);
+  const { onSceneCommit, validateCommit, confirmMassDelete } = usePascalEdits({
     spatial,
     loadedScene,
     readOnly: isReadOnly,
     onRejected,
+    onMassDelete: setMassDelete,
   });
 
   /* #25 "Lưu làm khuôn mẫu": cùng lời gọi `propertyTemplates.create` màn cũ dùng.
@@ -259,7 +268,7 @@ function PascalViewerBody({
     });
   }, []);
 
-  const { viewModel, canvasRef, sceneTarget, loadedScene: viewerScene, onRetry, onExpand } = usePascalViewer({
+  const { viewModel, canvasRef, sceneTarget, deleteNodes, loadedScene: viewerScene, onRetry, onExpand } = usePascalViewer({
     graph,
     mode: 'edit',
     readOnly: isReadOnly,
@@ -345,6 +354,27 @@ function PascalViewerBody({
       {saveConfirm !== null && (
         <Suspense fallback={null}>
           <LazyFloorLayerSaveConfirm confirm={saveConfirm} />
+        </Suspense>
+      )}
+      {massDelete !== null && (
+        <Suspense fallback={null}>
+          <LazyModal
+            isOpen
+            onClose={() => setMassDelete(null)}
+            primaryAction={{
+              label: 'Xoá',
+              onClick: () => {
+                setMassDelete(null);
+                confirmMassDelete(massDelete.nodeIds);
+                deleteNodes(massDelete.nodeIds);
+              },
+            }}
+            secondaryAction={{ label: 'Huỷ', onClick: () => setMassDelete(null) }}
+            title={PASCAL_MASS_DELETE_TITLE}
+          >
+            <p>{massDelete.reason}</p>
+            <p className="mt-2">Bấm "Xoá" để xoá thật; hoàn tác được bằng Ctrl+Z.</p>
+          </LazyModal>
         </Suspense>
       )}
     </>
