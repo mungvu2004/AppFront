@@ -4,7 +4,7 @@
  * DatasetSchema :262, DatasetVersionSchema :295); routes copy src/api/endpoints.ts:65-78. `// dup-of:` names the flows-C2 helper
  * that package P5 writes in parallel (the coordinator merges at S4).
  *
- * Every GET that has no answer is a 404 `trainingJob`; every POST without a responder is aborted AND recorded in `unexpected`
+ * A GET of an unknown job id is a 404 `trainingJob`; any other request that matches no known route is aborted and recorded in `unexpected`; every POST without a responder is aborted AND recorded in `unexpected`
  * (a spec asserts `unexpected` is empty at the end): no real POST can leave the page.
  */
 import type { Page } from '@playwright/test';
