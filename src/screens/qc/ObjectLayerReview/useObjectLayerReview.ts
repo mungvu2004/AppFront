@@ -708,7 +708,7 @@ export function useObjectLayerReview(
   /** Lệnh bị từ chối thì nói ra, không im lặng (BUG-590). */
   const refuse = useCallback(
     (title: string) => {
-      void title;
+      notifications.publish({ type: REFUSED_NOTIFICATION_TYPE, title, description: '' });
     },
     [notifications],
   );
@@ -1146,7 +1146,7 @@ export function useObjectLayerReview(
        * BUG-591: GIỮ đối tượng đang chọn trong thanh tra và tô tường chủ — bản cũ chọn tường,
        * thanh tra về "Chọn một đối tượng…" và màn này không vẽ tường đang chọn nên không thấy gì.
        */
-      setFlownWallId(null);
+      setFlownWallId(wallId);
 
       const outline = wallOutlines.find((shape) => shape.id === wallId);
       const bounds = outline === undefined ? null : wallBoundsPx(outline.outline, level);
@@ -1381,7 +1381,7 @@ export function useObjectLayerReview(
   );
   /* BUG-589: xoá bằng phím như màn tường (Backspace), cộng Delete — không chỉ chuột phải. */
   const deleteSelected = (): void => {
-    if (selectedObjectIdRef.current === 'BREAK589') {
+    if (selectedObjectIdRef.current !== null) {
       onDelete(selectedObjectIdRef.current);
     }
   };
@@ -1499,7 +1499,7 @@ export function useObjectLayerReview(
 
   const tokens = useMemo(() => dataLayerTokens(layerVisibility), [layerVisibility]);
   /* Tầng đã đọc xong mà không có đoạn tường nào: không có chỗ đặt cửa (BUG-422). */
-  const hasNoWall = false;
+  const hasNoWall = !isLoading && !hasError && graphWalls.length === 0;
   const { onNavigate } = options;
 
   /*

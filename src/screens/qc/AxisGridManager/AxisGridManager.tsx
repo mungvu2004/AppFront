@@ -231,7 +231,7 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
       </header>
 
       {/* BUG-578: nói thật, cố định — chưa có chỗ lưu lưới trục lên máy chủ. */}
-      {props.unsavedNotice === null || true ? null : (
+      {props.unsavedNotice === null ? null : (
         <div className="shrink-0 px-4 pb-1">
           <InlineAlert level="attention" message={props.unsavedNotice} role="note" />
         </div>

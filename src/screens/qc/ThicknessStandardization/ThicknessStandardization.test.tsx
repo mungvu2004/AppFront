@@ -488,6 +488,10 @@ describe('[NGHIEM-3] kéo ngưỡng qua lại năm lần không ghi gì', () => 
 
     const graphBefore = useStore.getState().spatial;
     const thicknessBefore = THICKNESS_FIXTURE_WALLS.map((wall) => thicknessInStore(wall.id));
+    /* Đợi lượt đếm lên đầu tiên dừng (số đầu = tổng đoạn) rồi mới lấy mốc "trước". */
+    await waitFor(() => {
+      expect(summaryLines(container)[0]).toMatch(new RegExp(`^${String(THICKNESS_FIXTURE_WALLS.length)}\\b`));
+    });
     const summaryBefore = summaryLines(container);
     const rowsBefore = within(container).getAllByRole('row').length;
 
@@ -510,6 +514,11 @@ describe('[NGHIEM-3] kéo ngưỡng qua lại năm lần không ghi gì', () => 
     const after = within(container)
       .getByRole('slider', { name: HIGH_THRESHOLD_LABEL })
       .getAttribute('aria-valuenow');
+    /* Số trong ô chạy đếm lên (BUG-340: một con số trong câu trạng thái) — đợi nó dừng, không đọc giữa chừng. */
+    await waitFor(() => {
+      expect(summaryLines(container)).not.toEqual(summaryBefore);
+    });
+
     const summaryAfter = summaryLines(container);
 
     console.log(

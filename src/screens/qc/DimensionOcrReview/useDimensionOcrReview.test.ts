@@ -31,7 +31,6 @@ import { sampleDimensionId, sampleLevelId } from '@/domain/spatial/__fixtures__/
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Dimension, Level } from '@/domain/spatial/types';
 import { spatialLayerOf } from '@/lib/autosave/spatialLayerSave';
-import { getAppAnnouncer } from '@/lib/input/announcer';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { createTestQueryClient } from '@/lib/testing/render';
@@ -76,7 +75,6 @@ import {
   DIMENSION_OCR_REVIEW_SCENARIOS,
   dimensionOcrScenarioFor,
 } from './dimensionOcrReviewScenarios';
-import { DIMENSION_OCR_TEXT } from './dimensionOcrText';
 import {
   applyDimensionFilters,
   deriveScreenState,

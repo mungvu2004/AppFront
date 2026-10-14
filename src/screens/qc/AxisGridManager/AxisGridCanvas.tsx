@@ -277,7 +277,7 @@ export function AxisGridCanvas({ canvas, isInteractive, onAxisDrag, onAxisSelect
         }
       }
 
-      setDragCoordinatePx(coordinate); if (draggingAxisId !== null) onAxisDrag(draggingAxisId, coordinate);
+      setDragCoordinatePx(coordinate);
     },
     [draggingAxisId, readPointer, visibleAxes],
   );

@@ -35,7 +35,7 @@
 
 import { readdirSync } from 'node:fs';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { useEffect, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 
@@ -902,6 +902,30 @@ describe('ScaleCalibration — QA-04c SCR-14', () => {
     fireEvent.keyDown(handle('Đầu'), { key: 'ArrowRight' });
     expect(handle('Đầu').style.left).not.toBe(startLeft);
     expect(handle('Cuối').style.left).toBe(endLeft);
+
+    mounted.unmount();
+  });
+
+  it('Enter trên nút không bị phím tắt nuốt, mũi tên trên radio không nhích đầu đoạn (BUG-597)', async () => {
+    measureFrame();
+    const harness = await makeHarness();
+    const mounted = mountScreen(harness.gateway);
+    await settle(mounted);
+    await act(async () => {
+      mounted.actions().onStartDrag({ x: 0.2, y: 0.2 });
+    });
+    await act(async () => {
+      mounted.actions().onEndDrag({ x: 0.6, y: 0.2 });
+    });
+    const endLeft = handle('Cuối').style.left;
+    const group = screen.getByRole('radiogroup', { name: 'Phạm vi áp tỷ lệ' });
+    const radio = within(group).getAllByRole('radio')[0] as HTMLElement;
+
+    fireEvent.keyDown(radio, { key: 'ArrowRight' });
+    expect(handle('Cuối').style.left).toBe(endLeft);
+
+    const notPrevented = fireEvent.keyDown(screen.getByRole('button', { name: 'Áp dụng tỷ lệ' }), { key: 'Enter' });
+    expect(notPrevented).toBe(true);
 
     mounted.unmount();
   });

@@ -130,7 +130,7 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
         BUG-584: còn bộ lọc bật thì nút tắt nó còn — duyệt hết mục dưới ngưỡng làm câu báo biến
         mất, và bản cũ ẩn luôn nút, để lại danh sách rỗng không lối ra.
       */}
-      {model.partialNotice === null ? null : (
+      {model.partialNotice === null && !model.isLowConfidenceOnly ? null : (
         <div className="flex flex-col gap-1 px-2">
           {model.partialNotice === null ? null : (
             <p className="text-[12px] text-state-attention-text">{model.partialNotice}</p>

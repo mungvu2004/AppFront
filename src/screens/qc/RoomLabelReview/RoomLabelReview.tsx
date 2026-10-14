@@ -153,6 +153,9 @@ function RoomLabelLeftColumn(props: RoomLabelReviewViewProps) {
   if (emptyNotice !== null && !showOnlyUnnamed) {
     return (
       <div className={LEFT_COLUMN_CLASS_NAME}>
+        {viewerRoleNotice === null ? null : (
+          <InlineAlert level="attention" message={viewerRoleNotice} title={FORBIDDEN_TITLE} />
+        )}
         <EmptyState
           action={{ label: EMPTY_ACTION_LABEL, onClick: onCheckWallGaps }}
           description={emptyNotice}

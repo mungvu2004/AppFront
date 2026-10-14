@@ -120,7 +120,7 @@ export function AxisGridFloorAlignList({
 }: AxisGridFloorAlignListProps) {
   const isUnavailable = unavailableNotice !== null;
   /* Tầng chưa có trục đã có câu riêng; không chép thêm câu khoá thứ hai. */
-  const shownBlockedReason = null;
+  const shownBlockedReason = isUnavailable ? null : blockedReason;
   const isFullyAligned =
     !isUnavailable &&
     warningBanner === null &&

@@ -20,7 +20,7 @@ export function QcScreenFrame({ label, children, scroll = false }: QcScreenFrame
   return (
     <div
       aria-label={label}
-      className={cn('flex h-full min-h-0 w-full flex-col bg-bg-app', scroll && 'overflow-y-auto')}
+      className={cn('flex h-screen min-h-0 w-full flex-col bg-bg-app', scroll && 'overflow-y-auto')}
       role="region"
     >
       {children}
@@ -39,7 +39,7 @@ export function QcCanvasFrame({ label, children, className }: QcCanvasFrameProps
   return (
     <section
       aria-label={label}
-      className={cn('min-h-0 min-w-0 overflow-hidden rounded-[16px] bg-bg-app', className)}
+      className={cn('min-h-0 min-w-0 overflow-hidden rounded-[16px] bg-bg-sunken', className)}
     >
       {children}
     </section>
