@@ -30,7 +30,6 @@ import {
   openWalls,
   openWallsRun,
   secondWriter,
-  thickenFirst,
   uiName,
   wallRows,
   type WallsRun,
@@ -75,7 +74,10 @@ test.describe('E04 journeys — UI verification flow (QA-04c P1)', () => {
           await dismissTour(p, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
           await wallRows(p).nth(opens).click();
           opens += 1;
-          await secondWriter(owner!, onFloor.projectId, onFloor.floorId, thickenFirst);
+          // a distinct thickness per width: an identical write is a no-op (applied=false, no revision bump, so no 409)
+          await secondWriter(owner!, onFloor.projectId, onFloor.floorId, (walls) =>
+            walls.map((w, i) => (i === 0 ? { ...w, thicknessMm: 300 + 10 * opens } : w)),
+          );
           const conflict = waitForApi(p, 'PUT', layerRe(onFloor.projectId, onFloor.floorId), [409]);
           await approveButton(p).click();
           await conflict;

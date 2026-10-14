@@ -321,9 +321,10 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         await expect.soft(toasts(page).getByRole('button', { name: UNDO, exact: true })).toHaveCount(1);
       });
 
-      await test.step('[21-A-012] the apply bar "Hoàn tác" reverts the whole apply in one PUT', async () => {
+      await test.step('[21-A-012] "Hoàn tác" reverts the whole apply in one PUT', async () => {
         const put = waitForPut(page, built.project.projectId, floorId, (walls) => ids.slice(0, 5).every((id) => thicknessOf(walls, id) === 200));
-        await button(page, UNDO).click(); // TAB:127-129; UT:583-602
+        // the toast (fixed bottom-right, 30 s window) covers the bar button at 1440x900, so the toast's own "Hoàn tác" is clicked
+        await toasts(page).getByRole('button', { name: UNDO, exact: true }).click(); // UT:583-602
         sent.push((await put).response.status());
         await expect.poll(async () => (await column(page, 2)).filter((text) => /^200,0/u.test(text)).length).toBe(5);
         await ev(page, '21-A-012', 'bar-undo');
@@ -656,8 +657,13 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         const target = bars.nth(8); // the bin of 200 mm (index (200 - 160) / 5)
         const parent = target.locator('xpath=..');
         await parent.hover();
-        const opacities = await bars.evaluateAll((nodes) => nodes.map((node) => Number(getComputedStyle(node).opacity)));
-        expect.soft(opacities.filter((opacity) => Math.abs(opacity - 0.45) < 0.01).length, 'every other bar dims').toBeGreaterThan(40); // TH:345-371
+        // the bars animate (transition-opacity), so the dimmed count is polled
+        await expect
+          .poll(
+            async () => (await bars.evaluateAll((nodes) => nodes.map((node) => Number(getComputedStyle(node).opacity)))).filter((o) => Math.abs(o - 0.45) < 0.01).length,
+            { message: 'every other bar dims' },
+          )
+          .toBeGreaterThan(40); // TH:345-371
         const after = await polygons(page).evaluateAll((nodes) => nodes.map((node) => node.getAttribute('fill-opacity')));
         await attachJson('E04_21-A-039_canvas.json', { before, after });
         expect.soft(after, 'the canvas shows which walls are in the bin (bin.wallIds)').not.toEqual(before);
@@ -1164,7 +1170,7 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
 
       await test.step('[21-B-011] 409: a write elsewhere, then an apply here shows the reload banner (shared FSB copy)', async () => {
         await seedWalls(adminApi, project, floorA, [{ from: [0, 0], to: [4_000, 0], thicknessMm: 200 }, { from: [0, 1_500], to: [4_000, 1_500], thicknessMm: 200 }]);
-        await page.getByRole('button', { name: UNDO, exact: true }).first().click().catch(() => undefined);
+        await toasts(page).getByRole('button', { name: UNDO, exact: true }).first().click();
         await expect(region(page).getByText(CONFLICT, { exact: true })).toBeVisible({ timeout: 15_000 }); // FSB:37, SLS:83
         await expect.soft(region(page).getByRole('button', { name: RELOAD, exact: true })).toBeVisible();
         await ev(page, '21-B-011', 'conflict-banner');

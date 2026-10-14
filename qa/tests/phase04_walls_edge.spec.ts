@@ -603,6 +603,7 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         expect.soft(sentWalls(sent).find((wall) => wall.id === idOf(wallA))?.thicknessMm, 'the PUT carries the last edit').toBe(110);
         await page.clock.runFor(900);
         await tick(page);
+        await page.clock.resume(); // evidence waits for a real rAF; the paused clock would hang it
         await ev(page, '16-C-010', 'debounce-max-wait');
       });
 
@@ -742,7 +743,7 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         for (let i = 0; i < 80 && !reached; i += 1) {
           await page.keyboard.press('Tab');
           reached = await page.evaluate(
-            () => document.activeElement?.textContent?.trim() === 'Hoàn tác' && document.activeElement.closest('[aria-label="Thông báo"]') !== null,
+            () => document.activeElement?.textContent?.includes('Hoàn tác') === true && document.activeElement.closest('[aria-label="Thông báo"]') !== null,
           );
         }
         expect.soft(reached, 'Tab reaches the toast "Hoàn tác"').toBe(true);
@@ -1263,6 +1264,11 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         { ...stackOfWalls(8)[7]!, confidence: 0.95 },
       ]);
       projectId = seeded.project.projectId;
+      // The backend default threshold is 0.75, so wall 2 (0.70) would be low: pin the documented 0.70 first.
+      const pinned = await api.put(`/api/projects/${seeded.project.projectId}/settings`, {
+        data: { buildingType: 'residential', lengthUnit: 'mm', snapToleranceMm: 50, confidenceThreshold: 0.7, defaultScaleMmPerPx: 1 },
+      });
+      expect(pinned.status(), `setup: PUT settings ${(await pinned.text()).slice(0, 200)}`).toBe(200);
       const floor = floorOf(seeded.project);
       const code = (n: number): string => seeded.codes.get(seeded.ids[n] as string) as string;
       const codesIn = async (page: Page): Promise<string[]> => (await rowLabels(page)).map(codeOfLabel);
@@ -1629,7 +1635,9 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         const card = page.getByRole('listitem', { name: projectName, exact: true });
         await expect(card).toBeVisible();
         await card.click();
-        await expect.poll(() => pathOf(page)).toBe(ROUTES.project.walls(q3.projectId, first.id));
+        // The seeded project is backend status 'processing': the card routes to the pipeline (useProjectDashboard.ts:254-262).
+        await expect.poll(() => pathOf(page)).toBe(ROUTES.project.pipeline(q3.projectId));
+        await page.goto(ROUTES.project.walls(q3.projectId, first.id));
         await expect(reviewRegion(page)).toBeVisible();
         await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
         await ev(page, '16-A-003', 'dashboard-card-entry');
@@ -1787,9 +1795,9 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await ev(page, '16-B-002', 'empty-floor');
       });
 
-      await test.step('[16-B-013] A floor without a drawing and without walls: canvas placeholder + region "Chưa có ảnh nền để xem"', async () => {
+      await test.step('[16-B-013] A floor without a drawing and without walls: canvas placeholder + region "Bản vẽ gốc của Tầng trống…"', async () => {
         await expect.soft(canvasFrame(page).getByRole('img', { name: 'Chưa có ảnh bản vẽ của tầng này', exact: true })).toBeVisible();
-        await expect.soft(page.getByRole('region', { name: 'Chưa có ảnh nền để xem', exact: true })).toBeVisible();
+        await expect.soft(page.getByRole('region', { name: /^Bản vẽ gốc của Tầng trống/u })).toBeVisible();
         await ev(page, '16-B-013', 'no-drawing-placeholder');
       });
 

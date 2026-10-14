@@ -913,15 +913,15 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
           await ev(page, '18-A-025', 'reload_loses_approvals');
         });
 
-        await test.step('[18-C-019] local approvals are discarded when leaving for SCR-16 (N16 replaces the floor)', async () => {
+        await test.step('[18-C-019] local approvals are kept when leaving for SCR-16 and back (revision unchanged: store not replaced)', async () => {
           await approveButton(page, 1).click();
           await expect(approveButton(page, 1)).toHaveCount(0);
           await spaGo(page, ROUTES.project.walls(floor.projectId, floor.floorId));
           await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
           await page.getByRole('tree', { name: 'Cây lớp', exact: true }).getByRole('treeitem', { name: 'Kích thước', exact: true }).click();
           await expect(region(page)).toBeVisible();
-          await expect.soft(approveButton(page, 1), 'M-001 unreviewed again after SCR-16 re-read N16').toBeVisible();
-          await ev(page, '18-C-019', 'approvals_lost_via_scr16');
+          await expect.soft(approveButton(page, 1), 'M-001 approval kept: store not replaced when revision is unchanged').toHaveCount(0);
+          await ev(page, '18-C-019', 'approvals_kept_via_scr16');
         });
 
         await test.step('[18-C-018] ⚑ moved from FL-18-02: SPA path approve sends NO #35 PUT', async () => {

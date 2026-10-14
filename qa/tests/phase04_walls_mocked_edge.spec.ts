@@ -52,7 +52,9 @@ import {
   type Json,
   type WallsRun,
 } from './support/p04/P1';
+import { ROUTES } from '../../e2e/fixtures/routes';
 import { attachJson } from './support/evidence';
+import { spaGo } from './support/p03/P11';
 import { deleteSeededProject } from './support/phase03Seed';
 
 const UNKNOWN = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại sau ít phút.'; // vi.json errors.unknown.description
@@ -184,9 +186,12 @@ test.describe('E04 SCR-16 walls — mocked-response flows (QA-04c P1)', () => {
       await test.step('[16-B-011] N16 refetch fails after data: violation alert in the left panel, list emptied, canvas keeps the walls', async () => {
         await openWalls(page, q1.projectId, floor.id);
         await expect(wallRows(page)).toHaveCount(q1.walls.length);
-        m.layerRead = '500'; // the refetch an edit triggers (applyInvalidation 'editWall') now fails
-        await selectRow(page, q1.codes.get(String(q1.walls[0]?.id)) as string);
-        await approveButton(page).click();
+        // An edit does not invalidate layer.byFloor (invalidation.ts editWall), so force the refetch: past the 30 s staleTime,
+        // leave SCR-16 (SPA, cache kept) and come back; the remount refetches while the read answers 500.
+        m.layerRead = '500';
+        await page.clock.runFor(31_000);
+        await spaGo(page, ROUTES.project.pipeline(q1.projectId));
+        await spaGo(page, ROUTES.project.walls(q1.projectId, floor.id));
         const panel = page.locator('div').filter({ has: page.getByRole('listbox', { name: WALL.list }) }).first();
         await expect.soft(page.getByText(UNKNOWN, { exact: true }).first()).toBeVisible({ timeout: 30_000 });
         await expect.soft(wallRows(page), 'rows = [] while the error shows').toHaveCount(0);
@@ -235,7 +240,7 @@ test.describe('E04 SCR-16 walls — mocked-response flows (QA-04c P1)', () => {
       const q1 = await seedQc(api, 'e04-16-m2');
       projectId = q1.projectId;
       const floor = q1.floors[0]!;
-      run = await openWallsRun(browser);
+      run = await openWallsRun(browser, { acceptDialogs: true });
       const { page } = run;
       const mock = mockWalls(page, q1.projectId, floor.id);
       await mock.install();

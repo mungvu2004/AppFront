@@ -223,12 +223,13 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
 
       await test.step('[X4-A-013] Clicking the dark backdrop skips the tour; the clicked control is not activated', async () => {
         await resetTour(page, d1.projectId, d1.floorId);
-        const target = await page.getByText(WALL.onlyUnreviewed, { exact: true }).boundingBox();
-        if (target === null) throw new Error('filter label has no box');
-        await page.mouse.click(target.x + target.width / 2, target.y + target.height / 2);
+        // A point on the backdrop outside the card and the cutout: the zoom "Phóng to" button, right of the canvas.
+        const zoomIn = await page.getByRole('button', { name: 'Phóng to', exact: true }).boundingBox();
+        if (zoomIn === null) throw new Error('zoom-in button has no box');
+        await page.mouse.click(zoomIn.x + zoomIn.width / 2, zoomIn.y + zoomIn.height / 2);
         await expect.soft(tourCard(page)).toHaveCount(0);
         await expect.soft(tourChip(page)).toBeVisible();
-        await expect.soft(checkbox(page, WALL.onlyUnreviewed), 'the control under the backdrop was not activated').not.toBeChecked();
+        await expect.soft(page.getByRole('button', { name: /^Mức thu phóng 100%/u }), 'the control under the backdrop was not activated').toBeVisible();
         await ev(page, 'X4-A-013', 'backdrop-skips-tour');
       });
 
@@ -303,12 +304,12 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         await ev(page, 'X4-A-017', 'no-tour-elsewhere');
       });
 
-      await test.step('[X4-A-016] Tour flags are per host: finishing on SCR-16 still shows the tour on /3d and on export', async () => {
+      await test.step('[X4-A-016] Tour flags are per host: finishing on SCR-16 shows no tour on /3d (Pascal viewer, no tour host) but still on export', async () => {
         await resetTour(page, d1.projectId, d1.floorId);
         await tourSkip(page).click(); // the SCR-16 host is now finished
         await page.goto(ROUTES.project.viewer(d1.projectId));
         const on3d = await dismissTour(page, { waitMs: 20_000 });
-        expect.soft(on3d, 'the tour shows on /3d').toBe(true);
+        expect.soft(on3d, 'no tour on /3d').toBe(false);
         await page.goto(ROUTES.project.export(d1.projectId));
         const onExport = await dismissTour(page, { waitMs: 20_000 });
         expect.soft(onExport, 'the tour shows on export').toBe(true);
@@ -567,7 +568,8 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         await approveButton(page).click();
         await approved;
         wallsBefore = await readWalls(owner, d1.projectId, d1.floorId);
-        await on(screens.scale);
+        // Full load: the SPA entry shows a blank SCR-14 canvas (open app bug); no SPA state is needed for this apply.
+        await page.goto(screens.scale);
         await drawReference(page, 5_000);
         const applied = waitForLayerPut(page, onFloor.projectId, onFloor.floorId, (body) => typeof body.scaleMillimetresPerPixel === 'number');
         await applyScale(page).click();

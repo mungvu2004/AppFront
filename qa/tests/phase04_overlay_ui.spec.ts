@@ -33,11 +33,9 @@ import {
   divider,
   floorSelect,
   holdAll,
-  hopToOverlay,
   modeRadio,
   noticeRegion,
   openOverlay,
-  openViewer,
   ownerApi,
   panel,
   screenRegion,
@@ -189,10 +187,9 @@ test.describe('U04 UI verify — SCR-22 overlay flows (QA-04c P7)', () => {
         });
       });
 
-      await test.step('[22-F-009] scale-conflict error + link at four widths (entered from /3d)', async () => {
+      await test.step('[22-F-009] scale-conflict error + link at four widths (direct URL)', async () => {
         await shown(page, '22-F-009', 'scale-conflict', async (p) => {
-          await openViewer(p, scales.projectId);
-          await hopToOverlay(p);
+          await openOverlay(p, scales.projectId, scales.layered.id);
           await expect(alertWith(p, OV.scaleConflict)).toBeVisible();
           await expect(p.getByRole('link', { name: OV.toScale, exact: true })).toBeVisible();
         });
@@ -272,8 +269,7 @@ test.describe('U04 UI verify — SCR-22 overlay flows (QA-04c P7)', () => {
       await test.step('[22-F-010] ⚑ "Chọn tầng" open with 65-char names and the "— Không có ảnh bản vẽ gốc" suffix (BUG-414): every option is fully readable', async () => {
         const clipped: string[] = [];
         await shown(page, '22-F-010', 'floor-select-long', async (p) => {
-          await openViewer(p, dm.projectId);
-          await hopToOverlay(p);
+          await openOverlay(p, dm.projectId, dm.floors[0]!.id);
           await floorSelect(p).click();
           const options = p.getByRole('option');
           await expect(options).toHaveCount(2);

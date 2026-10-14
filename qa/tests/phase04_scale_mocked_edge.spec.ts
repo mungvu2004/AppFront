@@ -239,7 +239,7 @@ test.describe('E04 SCR-14 scale calibration — mocked responses (QA-04c P6)', (
         await evidence(page, '14-G-012', 'graph-5xx');
       });
 
-      await step('14-G-018', 'PUT 500 / network → the failure notice and no automatic retry for a scale-only body', async () => {
+      await step('14-G-018', 'PUT 500 / network → the failure notice and no saver retry; the HTTP client retries a network failure 3 times', async () => {
         await page.unrouteAll({ behavior: 'ignoreErrors' });
         const puts: string[] = [];
         let mode: 'http' | 'abort' = 'http';
@@ -259,7 +259,9 @@ test.describe('E04 SCR-14 scale calibration — mocked responses (QA-04c P6)', (
         await applyBtn(page).click();
         await expect.soft(panelOf(page).getByText(new RegExp(`^${SCALE.failed} ${ERR.network.replace(/\./gu, '\\.')}`, 'u'))).toBeVisible();
         await flush(page);
-        expect.soft(puts, 'the network failure is not retried either').toEqual(['http', 'abort']);
+        await expect
+          .poll(() => puts, { message: 'one attempt + 3 transport retries (lib/http/retry.ts RETRY_DELAYS_MS)', timeout: 15_000 })
+          .toEqual(['http', 'abort', 'abort', 'abort', 'abort']);
       });
     } finally {
       await closeSession(s);

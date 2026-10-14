@@ -110,7 +110,7 @@ test('SCR-17 · FL-17-M1 [mocked response] read failures, refetch error, backgro
       n16.set(serverError);
       n16At500 = n16.hits();
       await page.goto(url);
-      await expect(failureScreen).toBeVisible({ timeout: 30_000 }); // the HTTP ladder (300 + 900 + 2 700 ms) runs first
+      await expect(failureScreen).toBeVisible({ timeout: 15_000 }); // a 500 is not auto-retried (retry.ts RETRYABLE_STATUSES = 429/502/503/504)
       await expect.soft(failureScreen.getByRole('heading', { name: 'Có trục trặc', exact: true })).toBeVisible();
       await expect.soft(failureScreen.getByText(UNKNOWN_DESCRIPTION, { exact: true })).toBeVisible();
       await expect.soft(failureScreen.getByRole('button', { name: 'Thử lại', exact: true })).toBeVisible();
@@ -118,8 +118,8 @@ test('SCR-17 · FL-17-M1 [mocked response] read failures, refetch error, backgro
     });
 
     await test.step('[17-G-006] N16 500 → retry screen', async () => {
-      // src/lib/http/retry.ts:5 RETRY_DELAYS_MS = [300, 900, 2700]: the 500 is asked again before the failure screen.
-      expect.soft(n16.hits() - n16At500, 'N16 asked more than once (the client ladder) and answered 500').toBeGreaterThan(1);
+      // 500 is not auto-retried (src/lib/http/retry.ts RETRYABLE_STATUSES = 429/502/503/504); the failure screen offers Thử lại.
+      expect.soft(n16.hits() - n16At500, 'N16 asked exactly once and answered 500').toBe(1);
       await expect.soft(screen(page), 'the screen is never blank').toBeVisible();
       await expect.soft(page.getByRole('listbox')).toHaveCount(0);
       await ev(page, '17-G-006', 'retry_screen');

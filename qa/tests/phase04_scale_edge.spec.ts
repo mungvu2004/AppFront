@@ -508,6 +508,7 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
       await step('14-A-016', 'arrows nudge the line END 1 image px; Shift+arrow 10 px; the ratio recomputes', async () => {
         await clearLine(page);
         await drawStandard(page);
+        await lengthField(page).blur(); // arrows are ignored while a text field has focus (shortcutRegistry.ts:504-508)
         const base = await pixelsOf(page);
         await page.keyboard.press('ArrowRight');
         await expect.poll(() => pixelsOf(page)).toBeCloseTo(base + 1, 1);
@@ -527,6 +528,7 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
       await step('14-C-022', 'ArrowRight ×3 then Shift+ArrowRight → end +13 image px; r recomputed', async () => {
         await clearLine(page);
         await drawStandard(page);
+        await lengthField(page).blur(); // arrows are ignored while a text field has focus (shortcutRegistry.ts:504-508)
         const base = await pixelsOf(page);
         const r1 = numberOf((await computation(page)).result);
         for (let i = 0; i < 3; i += 1) await page.keyboard.press('ArrowRight');
@@ -1128,17 +1130,17 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await evidence(page, '14-B-017', 'stale-409');
       });
 
-      await step('14-G-014', 'PUT 409 VERSION_CONFLICT → failure notice (14-B-017), floor blocked (14-B-023)', async () => {
+      await step('14-G-014', 'PUT 409 VERSION_CONFLICT → failure notice (14-B-017), the next apply is sent again (14-B-023)', async () => {
         await expect.poll(() => lastPut()?.status).toBe(409);
         expect.soft(lastPut()?.code).toBe('VERSION_CONFLICT'); // USC:1140-1144
         await evidence(page, '14-G-014', 'version-conflict');
       });
 
-      await step('14-B-023', 'after one 409 the floor stays blocked: the next "Áp dụng tỷ lệ" sends no PUT and repeats the failure; a "Tải lại" way out exists ⚑', async () => {
+      await step('14-B-023', 'after one scale-only 409 the floor is not blocked: the next "Áp dụng tỷ lệ" sends 1 PUT; a "Tải lại" way out exists ⚑', async () => {
         const mark = sent.length;
         await applyDisabled(page).click();
         await flush(page);
-        expect.soft(putsSince(sent, mark, d1.projectId, d1.floorId), '0 PUT on retry').toHaveLength(0);
+        expect.soft(putsSince(sent, mark, d1.projectId, d1.floorId), '1 PUT on retry: a scale-only 409 does not block the floor (spatialLayerSave.ts:250-255)').toHaveLength(1);
         await expect.soft(panelOf(page).getByText(failure('')), 'the failure is repeated').toBeVisible();
         await expect.soft(page.getByRole('button', { name: /^Tải lại( trang| tầng| phiên bản)?$/u }), 'a way out of the blocked floor').toBeVisible();
         await evidence(page, '14-B-023', 'blocked-floor');
@@ -1317,18 +1319,17 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await evidence(page, '14-B-020', 'partial-report');
       });
 
-      await step('14-B-021', 'all floors: a floor blocked by an earlier save conflict is not sent', async () => {
+      await step('14-B-021', 'all floors: after a scale-only 409 the floor is re-read and saved again (not blocked)', async () => {
         const mark = sent.length;
         await lengthField(page).fill('4600');
         await applyDisabled(page).click();
         await expect(dialogFor(2)).toBeVisible();
         await confirmAll().click();
-        await expect(panelOf(page).getByText(/Chưa gửi vì tầng đang bị khoá lưu: Tầng 2\./u)).toBeVisible();
-        // The whole report (USC:221-233, one sentence per non-empty group joined by a space): floor 1 saved again, 3 / 4 skipped.
+        // The whole report (USC:221-233): floor 2 is re-read at the dialog and saved (a scale-only 409 never blocks), 3 / 4 skipped.
         await expect
-          .soft(panelOf(page).getByText('Đã áp tỉ lệ cho 1 tầng. Chưa gửi vì tầng đang bị khoá lưu: Tầng 2. Bỏ qua vì chưa có bản vẽ: Tầng 3, Tầng 4.', { exact: true }))
+          .soft(panelOf(page).getByText('Đã áp tỉ lệ cho 2 tầng. Bỏ qua vì chưa có bản vẽ: Tầng 3, Tầng 4.', { exact: true }))
           .toBeVisible();
-        expect.soft(putsA(mark).filter((r) => r.path.includes(a1.id)), 'no PUT for the blocked floor').toHaveLength(0);
+        expect.soft(putsA(mark), '2 PUTs: both drawn floors are sent').toHaveLength(2);
         await evidence(page, '14-B-021', 'blocked-floor-report');
       });
     } finally {

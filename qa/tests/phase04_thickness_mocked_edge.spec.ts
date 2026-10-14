@@ -20,6 +20,7 @@ import { readAdminCredentials } from './support/auth';
 import { attachJson, captureEvidence } from './support/evidence';
 import { deleteSeededProject } from './support/phase03Seed';
 import { closeFlow, openFlow, type Flow } from './support/p03/P5';
+import { spaGo } from './support/p03/P11';
 import { errorBody, holdFirst } from './support/p03/P4';
 import { reseed, thkMix } from './support/p04/P4';
 
@@ -83,11 +84,12 @@ test.describe('E04 SCR-21 thickness — mocked-response flow (QA-04c P4)', () =>
       await test.step('[21-B-007] a refetch that fails after data: the violation alert "Không đọc được lớp số đo độ dày", the tables stay', async () => {
         const stop = await answer('GET', (route) => route.fulfill({ status: 500, contentType: 'application/json', body: errorBody('INTERNAL') }));
         try {
-          // An apply writes (real PUT) and invalidates the layer query: the refetch is the failing read.
-          await acceptBox(page).focus();
-          await page.keyboard.press('Space');
-          await button(page, 'Xem trước').click();
-          await button(page, 'Áp dụng').click();
+          // An apply does not invalidate the layer query, so the refetch is forced: past the 30 s staleTime, leave the screen
+          // (SPA, keeps the query cache) and come back; the remount refetches and the read answers 500.
+          await page.clock.install();
+          await page.clock.runFor(31_000);
+          await spaGo(page, ROUTES.project.pipeline(built.project.projectId));
+          await spaGo(page, url);
           const alert = region(page).getByText('Không đọc được lớp số đo độ dày', { exact: true }); // TV:113,332-334, UT:854
           await expect(alert).toBeVisible({ timeout: RETRY_LADDER_MS });
           await expect.soft(region(page).getByText('Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại sau ít phút.', { exact: true })).toBeVisible();
@@ -96,7 +98,6 @@ test.describe('E04 SCR-21 thickness — mocked-response flow (QA-04c P4)', () =>
           await captureEvidence(page, 'E04_21-B-007_refetch-error.png');
         } finally {
           await stop();
-          await reseed(adminApi, built, 0); // the apply above changed the floor: the later steps need the 200 mm walls back
         }
       });
 

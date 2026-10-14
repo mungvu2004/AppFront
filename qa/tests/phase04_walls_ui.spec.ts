@@ -42,7 +42,6 @@ import {
   seedQc,
   selectRow,
   statusBar,
-  thickenFirst,
   toasts,
   toggleCheckbox,
   uiName,
@@ -251,6 +250,7 @@ test.describe('E04 SCR-16 walls — UI verification flows (QA-04c P1)', () => {
         });
       });
 
+      let writes = 0; // a distinct thickness per width: an identical write is a no-op (applied=false, no 409)
       await test.step('[16-F-011] 409 reload banner + the A9 dialog "Bỏ thay đổi chưa lưu của tầng này?" at four widths', async () => {
         await verifyUi(
           page,
@@ -258,7 +258,10 @@ test.describe('E04 SCR-16 walls — UI verification flows (QA-04c P1)', () => {
           async (p) => {
             await reopen(p, q1.projectId, floor.id);
             await selectRow(p, code(1));
-            await secondWriter(api, q1.projectId, floor.id, thickenFirst);
+            writes += 1;
+            await secondWriter(api, q1.projectId, floor.id, (walls) =>
+              walls.map((w, i) => (i === 0 ? { ...w, thicknessMm: 300 + 10 * writes } : w)),
+            );
             const conflict = waitForApi(p, 'PUT', layerRe(q1.projectId, floor.id), [409]);
             await approveButton(p).click();
             await conflict;

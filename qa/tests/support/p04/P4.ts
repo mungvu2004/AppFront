@@ -357,6 +357,17 @@ export async function dragAxis(page: Page, label: string, direction: 'vertical' 
     // one frame so React re-fits the viewBox before the next reading
     await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   }
+  // wait until the viewBox stops changing (2 equal frames), then re-issue the last move so the snap sees the settled matrix
+  let box = '';
+  for (let stable = 0, guard = 0; stable < 2 && guard < 60; guard += 1) {
+    const now = await canvasSvg(page).evaluate(
+      (svg) => new Promise<string>((resolve) => requestAnimationFrame(() => resolve(svg.getAttribute('viewBox') ?? ''))),
+    );
+    stable = now === box ? stable + 1 : 0;
+    box = now;
+  }
+  const final = await canvasPoint(page, direction === 'vertical' ? toMm + overshootMm : 0, direction === 'horizontal' ? toMm + overshootMm : 0);
+  await page.mouse.move(direction === 'vertical' ? final.x : grip.x, direction === 'horizontal' ? final.y : grip.y, { steps: 2 });
   await page.mouse.up();
 }
 
