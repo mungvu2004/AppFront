@@ -145,21 +145,14 @@ describe('OverlayComparisonToolbar', () => {
     expect(inline.className).not.toContain('flex-col');
   });
 
-  it('canEdit === false tắt MỌI điều khiển, và nói ra được vì sao', () => {
+  it('canEdit === false chỉ tắt "Khoá căn"; chọn tầng/độ mờ là trạng thái xem, vẫn dùng được', () => {
     const { container } = renderWithProviders(
       <OverlayComparisonToolbar {...toolbarPropsOf('forbidden')} canLockAlignment />,
     );
 
-    /* Bốn cụm điều khiển của thanh, kiểm từng cái một: một cụm quên `disabled`
-       là một đường người chỉ-được-xem vẫn đổi được căn chỉnh. */
-    expect(screen.getByLabelText('Chọn tầng')).toBeDisabled();
-    expect(scanOpacitySlider()).toHaveAttribute('tabindex', '-1');
+    expect(screen.getByLabelText('Chọn tầng')).not.toBeDisabled();
+    expect(scanOpacitySlider()).toHaveAttribute('tabindex', '0');
     expect(screen.getByLabelText('Khoá căn')).toBeDisabled();
-    for (const label of Object.values(COMPARE_MODE_LABELS)) {
-      expect(compareModeButton(label)).toBeDisabled();
-    }
-
-    /* BUG-636: lý do nằm ở băng cảnh báo của màn (OverlayComparison.test), thanh công cụ không lặp câu. */
     expect(screen.queryByText('Bạn không có quyền sửa, các điều khiển đang tắt.')).toBeNull();
 
     expectVietnamese(container);

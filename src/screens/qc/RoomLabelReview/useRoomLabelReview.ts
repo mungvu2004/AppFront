@@ -603,7 +603,10 @@ export function useRoomLabelReview(
     ...(gateway.apiClient === undefined ? {} : { apiClient: gateway.apiClient }),
   });
 
-  useSaveIndicator(autosave);
+  const indicator = useSaveIndicator(autosave);
+  // G46: chữ trạng thái lưu cho người nhìn thấy (trước đây chỉ có aria-live). Chưa lưu lần nào thì không có chữ.
+  const saveStatus =
+    indicator.state === 'saved' && autosave.getLastSavedAt() === undefined ? null : indicator.label;
 
   /* ---------------------------------------------------------------------- */
   /* Đường ghi — `dispatch` chạy qua `commit`, hoàn tác 100 bước của S-06.    */
@@ -667,6 +670,12 @@ export function useRoomLabelReview(
    * tám giây do chính vé mang (`UNDO_WINDOW_MS`), nên không một thời lượng nào
    * phải truyền ở đây (R-71).
    */
+  const navigate = options.onNavigate;
+
+  const onNavigateToWalls = useCallback(() => {
+    navigate?.(ROUTES.project.walls(projectId, floorId));
+  }, [floorId, navigate, projectId]);
+
   const run = useCallback(
     async (build: (context: CommandContext) => CommandResult | null): Promise<Command | null> => {
       const current = useStore.getState().spatial;
@@ -689,6 +698,10 @@ export function useRoomLabelReview(
           type: `${built.error.type}.refused`,
           title,
           description: rest.join(' '),
+          // BUG-605: a refusal that says "Sang lớp tường" carries the way there.
+          ...(title.includes('Sang lớp tường')
+            ? { action: { label: 'Sang lớp tường', onClick: onNavigateToWalls } }
+            : {}),
         });
 
         return null;
@@ -732,7 +745,7 @@ export function useRoomLabelReview(
 
       return command;
     },
-    [applyUndo, canEdit, dispatchBundle, gateway, invalidate, notifications],
+    [applyUndo, canEdit, dispatchBundle, gateway, invalidate, notifications, onNavigateToWalls],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -868,12 +881,6 @@ export function useRoomLabelReview(
     },
   );
 
-  const navigate = options.onNavigate;
-
-  const onNavigateToWalls = useCallback(() => {
-    navigate?.(ROUTES.project.walls(projectId, floorId));
-  }, [floorId, navigate, projectId]);
-
   /* ---------------------------------------------------------------------- */
   /* Bảy trạng thái và ba câu đi kèm.                                        */
   /* ---------------------------------------------------------------------- */
@@ -894,8 +901,12 @@ export function useRoomLabelReview(
    * hai câu — và cả hai câu nói ra bước đi tiếp.
    */
   const emptyFiltered = showOnlyUnnamed && allRows.length > 0;
+  /* G41: vai Người xem ra `forbidden` trước `empty` — tầng không có phòng vẫn phải nghe câu rỗng. */
+  const isEmptyView =
+    state === 'empty' ||
+    (state === 'forbidden' && errorMessage === null && !floorLayer.isPending && visibleRows.length === 0);
   const emptyNotice =
-    state === 'empty'
+    isEmptyView
       ? emptyFiltered
         ? ROOM_LABEL_SCREEN_TEXT.emptyFilteredNotice
         : ROOM_LABEL_SCREEN_TEXT.emptyNotice
@@ -932,6 +943,10 @@ export function useRoomLabelReview(
     hasNamesToNormalize,
     backgroundImageUrl,
     backgroundImageAlt: background?.imageAlt ?? '',
+    backgroundImageSizeMm:
+      background?.widthMm != null && background.heightMm != null && background.widthMm > 0 && background.heightMm > 0
+        ? { widthMm: background.widthMm, heightMm: background.heightMm }
+        : null,
     millimetresPerPixel: level?.scaleMillimetresPerPixel ?? UNCALIBRATED_SCALE,
     isCompact,
     isCollapsed,
@@ -963,6 +978,7 @@ export function useRoomLabelReview(
     onUndo,
     onToggleCollapsed,
     saveBlock,
+    saveStatus,
     provisionalScaleNotice,
     readFailure,
   };

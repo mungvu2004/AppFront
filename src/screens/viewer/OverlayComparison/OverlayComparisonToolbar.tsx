@@ -76,17 +76,15 @@ function floorOptionsOf(floors: OverlayComparisonToolbarProps['floors']): Select
 interface FloorSelectProps {
   readonly floors: OverlayComparisonToolbarProps['floors'];
   readonly activeFloorId: OverlayComparisonToolbarProps['activeFloorId'];
-  readonly canEdit: boolean;
   readonly onSelectFloor: OverlayComparisonToolbarProps['onSelectFloor'];
 }
 
-function FloorSelect({ floors, activeFloorId, canEdit, onSelectFloor }: FloorSelectProps) {
+function FloorSelect({ floors, activeFloorId, onSelectFloor }: FloorSelectProps) {
   const options = floorOptionsOf(floors);
 
   return (
     <Select.Root
       className="w-[264px] max-w-full shrink-0"
-      disabled={!canEdit}
       onChange={(value) => onSelectFloor(value as LevelId)}
       options={options}
       value={activeFloorId ?? undefined}
@@ -111,14 +109,12 @@ function FloorSelect({ floors, activeFloorId, canEdit, onSelectFloor }: FloorSel
 interface CompareModeClusterProps {
   readonly compareMode: CompareModeId;
   readonly disabledCompareModes: OverlayComparisonToolbarProps['disabledCompareModes'];
-  readonly canEdit: boolean;
   readonly onSetCompareMode: OverlayComparisonToolbarProps['onSetCompareMode'];
 }
 
 function CompareModeCluster({
   compareMode,
   disabledCompareModes,
-  canEdit,
   onSetCompareMode,
 }: CompareModeClusterProps) {
   const options: SegmentedControlOption<CompareModeId>[] = COMPARE_MODE_IDS.map((mode) => ({
@@ -133,7 +129,6 @@ function CompareModeCluster({
     <div className="flex flex-col gap-1">
       <SegmentedControl
         aria-label={COMPARE_MODE_ARIA_LABEL}
-        disabled={!canEdit}
         onChange={onSetCompareMode}
         options={options}
         value={compareMode}
@@ -150,21 +145,18 @@ function CompareModeCluster({
 interface ScanOpacityClusterProps {
   readonly scanOpacityPercent: number;
   readonly scanOpacityText: string;
-  readonly canEdit: boolean;
   readonly onSetScanOpacity: OverlayComparisonToolbarProps['onSetScanOpacity'];
 }
 
 function ScanOpacityCluster({
   scanOpacityPercent,
   scanOpacityText,
-  canEdit,
   onSetScanOpacity,
 }: ScanOpacityClusterProps) {
   return (
     <div className="flex w-[176px] shrink-0 items-center gap-2">
       <Slider
         aria-label={SCAN_OPACITY_ARIA_LABEL}
-        disabled={!canEdit}
         max={100}
         min={0}
         onChange={onSetScanOpacity}
@@ -206,12 +198,10 @@ export function OverlayComparisonToolbar({
       <div className={CLUSTER_ROW_CLASS}>
         <FloorSelect
           activeFloorId={activeFloorId}
-          canEdit={canEdit}
           floors={floors}
           onSelectFloor={onSelectFloor}
         />
         <CompareModeCluster
-          canEdit={canEdit}
           compareMode={compareMode}
           disabledCompareModes={disabledCompareModes}
           onSetCompareMode={onSetCompareMode}
@@ -220,7 +210,6 @@ export function OverlayComparisonToolbar({
 
       <div className={CLUSTER_ROW_CLASS}>
         <ScanOpacityCluster
-          canEdit={canEdit}
           onSetScanOpacity={onSetScanOpacity}
           scanOpacityPercent={scanOpacityPercent}
           scanOpacityText={scanOpacityText}

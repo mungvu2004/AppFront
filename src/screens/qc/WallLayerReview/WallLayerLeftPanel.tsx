@@ -278,7 +278,7 @@ export function WallLayerLeftPanel({
     /* Dưới 1280 panel cao theo nội dung và vùng ngoài cuộn — không nén danh sách còn ~3 hàng (BUG-395). */
     <div className="order-1 flex w-full shrink-0 flex-col rounded-[12px] bg-bg-surface shadow-panel xl:order-none xl:h-full xl:w-[280px] xl:overflow-hidden">
       <div className="flex shrink-0 flex-col gap-4 px-5 pb-3 pt-4">
-        <div aria-label={reviewProgressLabel} className="flex flex-col gap-1.5">
+        <div aria-label={reviewProgressLabel} className="flex flex-col gap-1.5" role="img">
           <p className="text-[13px] text-text-primary">
             <span
               aria-hidden="true"

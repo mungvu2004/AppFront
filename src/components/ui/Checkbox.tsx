@@ -32,6 +32,17 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
   const defaultId = React.useId();
   const internalId = id || defaultId;
 
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
+  const setRefs = (node: HTMLInputElement | null) => {
+    inputRef.current = node;
+    if (typeof ref === 'function') ref(node);
+    else if (ref) ref.current = node;
+  };
+  // G64: `indeterminate` chỉ có qua thuộc tính DOM, không có attribute HTML.
+  React.useEffect(() => {
+    if (inputRef.current) inputRef.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === ' ' && !disabled && !readOnly) {
       e.preventDefault();
@@ -50,7 +61,8 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
     >
       <div className="relative flex items-center justify-center">
         <input
-          ref={ref}
+          ref={setRefs}
+          aria-checked={indeterminate ? 'mixed' : undefined}
           id={internalId}
           type="checkbox"
           className="peer sr-only"

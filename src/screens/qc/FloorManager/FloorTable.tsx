@@ -65,6 +65,7 @@ export interface FloorTableProps
     | 'onRemoveFloor'
     | 'onToggleAutoElevation'
     | 'onUploadDrawing'
+    | 'onOpenOverlay'
     | 'onRetry'
     | 'isProjectMissing'
     | 'onBackToProjects'
@@ -108,6 +109,7 @@ export function FloorTable({
   onRemoveFloor,
   onToggleAutoElevation,
   onUploadDrawing,
+  onOpenOverlay,
   onRetry,
   isProjectMissing,
   onBackToProjects,
@@ -296,6 +298,7 @@ export function FloorTable({
                   onReorderFloors={onReorderFloors}
                   onSelectFloor={onSelectFloor}
                   onSetCopyFurniture={setCopyFurniture}
+                  onOpenOverlay={onOpenOverlay}
                   onUploadDrawing={onUploadDrawing}
                   row={row}
                   rows={rows}

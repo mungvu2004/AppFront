@@ -83,6 +83,7 @@ import { useProjectConfidenceThreshold } from '@/hooks/useProjectConfidenceThres
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
 import { readWireError } from '@/lib/errors/wireError';
+import { newestEntryId, undoIfNewest } from '@/lib/commands/history';
 import type { Command } from '@/lib/commands/types';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
@@ -222,6 +223,7 @@ export interface DimensionOcrReviewModel extends DimensionOcrModel {
 
 /** Loại thông báo của một lượt sửa — viết đúng một chỗ (R-71). */
 const EDIT_NOTIFICATION_TYPE = 'dimensionOcrReview.editDimension';
+const DIMENSION_UNDO_REFUSED_TYPE = 'dimensionOcrReview.undoRefused';
 
 const NO_DIMENSIONS: readonly Dimension[] = [];
 /** Mức thu phóng phần trăm ứng với `scale(1)`. */
@@ -586,6 +588,8 @@ export function useDimensionOcrReview(
        * KHÔNG bọc `Toast.Provider` ở đây — bus là một, và bọc thêm một lớp nữa
        * sẽ cho hai toast cho cùng một lượt sửa.
        */
+      // BUG-579: the toast takes back ITS step only, as SCR-16/17/21 do.
+      const entryId = newestEntryId(dispatchBundle.history);
       notifications.publish({
         type: EDIT_NOTIFICATION_TYPE,
         title: label,
@@ -593,7 +597,13 @@ export function useDimensionOcrReview(
         undoTicket: createDimensionUndoTicket({
           description: label,
           now: gateway.now,
-          undo: applyUndo,
+          undo: () => {
+            const refused = undoIfNewest(dispatchBundle.history, entryId, applyUndo);
+
+            if (refused !== null) {
+              notifications.publish({ type: DIMENSION_UNDO_REFUSED_TYPE, title: refused, description: '' });
+            }
+          },
         }),
       });
     },

@@ -405,6 +405,8 @@ export interface FloorManagerViewProps {
   readonly onToggleAutoElevation: () => void;
   /** Liên kết "tải lên" trong dòng chưa có bản vẽ (trạng thái Một phần). */
   readonly onUploadDrawing: (floorId: string) => void;
+  /** Lối vào màn Đối chiếu lớp phủ (SCR-22) của một tầng; vắng thì không vẽ nút. */
+  readonly onOpenOverlay?: ((floorId: string) => void) | undefined;
   readonly onToggleCollapsed: () => void;
   readonly onRetry: () => void;
   /** Lối về danh sách dự án: nút khi {@link FloorManagerViewProps.isProjectMissing} và cấp "Dự án" của breadcrumb; vắng thì không vẽ nút, cấp ấy là chữ trơn. */
