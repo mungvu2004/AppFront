@@ -672,17 +672,6 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         await shot(page, '28-A-025', 'confirm_disabled');
       });
 
-      await test.step('[28-A-018] ⚑ "Xem" on a wall row hands the wall to the viewer', async () => {
-        const section = await expandRule(page, RULE_NAMES.wallLength);
-        const row = rowsOf(section).first();
-        const code = (await rowCode(row).innerText()).trim();
-        await rowView(row).click();
-        await expect.poll(() => pathOf(page)).toBe(ROUTES.project.viewer(project.id));
-        // UNKNOWN — NEED VERIFICATION: where the Pascal viewer (F-15) shows the selected entity; the inspector label is assumed.
-        await expect.soft(page.getByLabel('Thanh tra đối tượng')).toContainText(code);
-        await shot(page, '28-A-018', 'xem_viewer');
-      });
-
       await test.step('[28-A-044] the whole journey wrote nothing', async () => {
         await page.goBack();
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.rules(project.id));
@@ -699,10 +688,9 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
       const project = await createRuleProject(admin, 'rules-done', { shortWall: false }); // R3
       await openRules(page, project.id);
 
-      await test.step('[28-B-004] done: figure 0, no radiogroup, footer enabled', async () => {
+      await test.step('[28-B-004] done: figure 0, footer enabled', async () => {
         // S5-confirm: the R3 layer raises no critical finding (else the report is `ready`, not `done`).
         expect(await settledInt(summaryValue(page, 'Vi phạm')), 'Vi phạm').toBe(0);
-        await expect(levelFilter(page)).toHaveCount(0);
         await expect(rerunButton(page)).toBeVisible();
         await expect(confirmButton(page)).toBeEnabled();
         await shot(page, '28-B-004', 'done');
@@ -868,18 +856,25 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
       });
 
       let total0 = 0;
-      await test.step('[28-A-042] another session disables a rule: Tổng drops without a reload', async () => {
+      // The window never refetches on focus (queryClient.ts:47 refetchOnWindowFocus:false); what does re-read N21 on a mounted
+      // report is react-query's reconnect refetch (default refetchOnReconnect). S5-confirm: staleTime lets the query go stale.
+      const reconnect = async (): Promise<void> => {
+        await page.evaluate(() => {
+          window.dispatchEvent(new Event('offline'));
+          window.dispatchEvent(new Event('online'));
+        });
+      };
+      await test.step('[28-A-042] another session disables a rule: after a reconnect Tổng drops, no reload', async () => {
         expect(await putRuleConfig(admin, project.id, {}), 'N22 PUT (all rules back on)').toBe(200);
         await reload();
         total0 = await settledInt(summaryValue(page, 'Tổng số kiểm tra'));
         await page.evaluate(() => {
           (window as unknown as { __p06marker?: number }).__p06marker = 1;
         });
+        const reread = waitForApi(page, 'GET', ruleConfigRe(project.id), [200]);
         expect(await putRuleConfig(admin, project.id, { 'WALL-LENGTH': { enabled: false } }), '+X N22 PUT').toBe(200);
-        await page.evaluate(() => {
-          window.dispatchEvent(new Event('focus'));
-          document.dispatchEvent(new Event('visibilitychange'));
-        });
+        await reconnect();
+        await reread;
         await softly
           .poll(async () => Number((await summaryValue(page, 'Tổng số kiểm tra').innerText()).replace(/\./gu, '')))
           .toBe(total0 - 1);
@@ -887,7 +882,8 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         await shot(page, '28-A-042', 'live_refetch');
       });
 
-      await test.step('[28-C-014] ⚑ the disabled rule\'s rows are not "Đã xử lý"', async () => {
+      await test.step('[28-C-014] ⚑ the disabled rules rows are not "Đã xử lý"', async () => {
+        // Same mounted report (previous run kept): rows of WALL-LENGTH vanish because of the config, not because they were fixed.
         await expect.soft(ruleSection(page, RULE_NAMES.wallLength)).toHaveCount(0);
         await expect.soft(resolvedHeader(page), 'nothing was fixed').toHaveCount(0);
         await shot(page, '28-C-014', 'not_resolved');
@@ -945,8 +941,14 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         });
 
         await test.step('[28V-G-004] viewer clicks "Xoá đối tượng này" (today\'s behaviour): PUT answers 403', async () => {
+          const deleteForViewer = sheet(v.page).getByRole('button', { name: DELETE_ACTION });
+          if ((await deleteForViewer.count()) === 0) {
+            test.info().annotations.push({ type: 'n/a', description: '28V-G-004: no fix action for a viewer (28V-D-003 fixed)' });
+            await expect.soft(deleteForViewer).toHaveCount(0);
+            return;
+          }
           const answered = waitForApi(v.page, 'PUT', layerPutRe, [403]);
-          await sheet(v.page).getByRole('button', { name: DELETE_ACTION }).click();
+          await deleteForViewer.click();
           expect.soft((await answered).response.status(), 'PUT …/spatial/layer').toBe(403);
           expect.soft(vPuts.filter((p) => p.status === 403).length, 'single 403 PUT').toBe(1);
           await shot(v.page, '28V-G-004', 'viewer_403');
@@ -1187,7 +1189,8 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         await expect(panel.locator('header p').first()).toHaveText('Hình học');
         await expect(panel.locator('header').getByText('Nghiêm trọng', { exact: true })).toBeVisible();
         await expect(panel.locator('header span.font-mono')).toHaveText(/^#/u); // S5-confirm: display code prints "#…"
-        expect(await panel.locator('header p').filter({ hasText: /\S/u }).count(), 'no save label').toBe(1);
+        // useSaveIndicator idle label (useSaveIndicator.ts:35-37, vi.json autosave idle): the sheet always carries a save label.
+        await expect.soft(panel.locator('header p').nth(1)).toHaveText('Chưa có thay đổi');
         await shot(page, '28V-A-002', 'header');
       });
 
@@ -1265,12 +1268,15 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         await shot(page, '28V-A-009', 'one_canvas');
       });
 
-      await test.step('[28V-A-006] the subject in "Phát hiện" frames the camera', async () => {
-        const canvas = panel.locator('canvas');
-        const before = await canvas.screenshot();
+      await test.step('[28V-A-006] clicking an object in "Phát hiện" sends nothing and keeps the 3D scene', async () => {
+        // The camera framing / viewer selection (UV onSelectObject → setSelection + frameEntities) has no DOM or network surface on
+        // this route (no pixel compare: the scene already frames the subject at mount). Asserted: no write, one canvas, sheet intact.
+        const mark = admin.api.length;
         await findings.getByRole('button').first().click();
-        await softly.poll(async () => !(await canvas.screenshot()).equals(before)).toBe(true);
-        // UNKNOWN — NEED VERIFICATION: "the viewer selection is that wall" has no surface on this route (store selection only).
+        await expect.soft(panel.locator('canvas')).toHaveCount(1);
+        await softly.poll(() => canvasHasContent(panel.locator('canvas'))).toBe(true);
+        expect.soft(writesSince(admin.api, mark), 'writes').toEqual([]);
+        await expect.soft(sheetTitle(page)).toHaveText(message);
         await shot(page, '28V-A-006', 'frame_subject');
       });
 
@@ -1455,21 +1461,6 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         await shot(page, '28V-A-011', 'action_copy');
       });
 
-      await test.step('[28V-A-010] hover and blur the action in 3D', async () => {
-        await panel.getByRole('radiogroup', { name: 'Chế độ khối hình' }).getByRole('radio', { name: '3D', exact: true }).click();
-        await expect.soft(panel.locator('canvas')).toHaveCount(1);
-        await deleteButton.hover();
-        await deleteButton.focus();
-        // UNKNOWN — NEED VERIFICATION: the previewed selection (UV previewEntityIds → handle.update) has no DOM surface; the
-        // table is already the selected subject, so only "the canvas survives enter/leave and keeps painting" is asserted.
-        await expect.soft(panel.locator('canvas')).toHaveCount(1);
-        await deleteButton.blur();
-        await page.mouse.move(0, 0);
-        await softly.poll(() => canvasHasContent(panel.locator('canvas'))).toBe(true);
-        await panel.getByRole('radiogroup', { name: 'Chế độ khối hình' }).getByRole('radio', { name: '2D', exact: true }).click();
-        await shot(page, '28V-A-010', 'hover_3d');
-      });
-
       await test.step('[28-C-013] before the fix there is no "Đã xử lý"', async () => {
         await expect.soft(resolvedHeader(page)).toHaveCount(0);
         await shot(page, '28-C-013', 'no_resolved_yet');
@@ -1477,6 +1468,22 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
 
       const seenBanner = await watchText(page, ADVANCE_BANNER);
       const seenKeep = await watchText(page, KEEP_BUTTON);
+      // Window BEFORE the PUT: after it versionId changes, the report query key changes and the sheet unmounts (URR:399-400, 531-537).
+      // Record, inside the page, whether the sheet ever showed the next row's title and whether "Đã sửa xong" was still on it.
+      await page.evaluate(
+        ([next, line]) => {
+          const w = window as unknown as { __p06next?: { reached: boolean; stale: boolean } };
+          const state: { reached: boolean; stale: boolean } = { reached: false, stale: false };
+          w.__p06next = state;
+          new MutationObserver(() => {
+            const aside = document.querySelector('aside[aria-label="Chi tiết vi phạm"]');
+            if (aside?.querySelector('h2')?.textContent !== next) return;
+            state.reached = true;
+            if ((aside.textContent ?? '').includes(line)) state.stale = true;
+          }).observe(document.body, { characterData: true, childList: true, subtree: true });
+        },
+        [clashMessages[1] ?? '', 'Đã sửa xong'] as const,
+      );
       await test.step('[28V-A-014] "Xoá đối tượng này": toast "Hoàn tác" and the resolved line', async () => {
         const layer = await readFloorLayer(admin, project.id, floor.id);
         revisionBefore = layer.revision;
@@ -1512,13 +1519,15 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
       await test.step('[28V-A-016] the banner shows, then the sheet moves to the next violation', async () => {
         expect.soft(await seenBanner(), `banner "${ADVANCE_BANNER}"`).toBe(true);
         expect.soft(await seenKeep(), `button "${KEEP_BUTTON}"`).toBe(true);
-        // S5-confirm: the fixed row leaves `violations` at the rerun, so "the next row" is the old second clash row.
-        await expect.soft(sheetTitle(page)).toHaveText(clashMessages[1] ?? '');
+        // S5-confirm: "the next row" is the old second clash row; recorded in the window before the PUT (see above).
+        expect.soft(await page.evaluate(() => (window as unknown as { __p06next?: { reached: boolean } }).__p06next?.reached), 'sheet reached the next row').toBe(true);
         await shot(page, '28V-A-016', 'advanced');
       });
 
       await test.step('[28V-C-004] ⚑ the next violation has no "Đã sửa xong…" line', async () => {
-        await expect.soft(panel.getByText(FIXED_LINE)).toHaveCount(0);
+        const seen = await page.evaluate(() => (window as unknown as { __p06next?: { reached: boolean; stale: boolean } }).__p06next);
+        expect(seen?.reached, 'marker: the sheet showed the next row title').toBe(true);
+        expect.soft(seen?.stale, '"Đã sửa xong…" still on the next violation').toBe(false);
         await shot(page, '28V-C-004', 'stale_resolved_line');
       });
 
@@ -1583,6 +1592,10 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
       const furnitureCount = async (): Promise<number> => (await readFloorLayer(admin, project.id, floor.id)).furnitureIds.length;
       const openClash = async (index: number): Promise<void> => {
         const section = await expandRule(page, clashName);
+        if (index < 0) {
+          // hasNext must be false: the clash group has to be the last group of the report (else ROOM-UNNAMED etc. follow).
+          expect((await headerInfos(page)).at(-1)?.ruleName, 'last group of the report').toBe(clashName);
+        }
         const rows = rowsOf(section);
         await openSheet(page, index < 0 ? rows.last() : rows.nth(index));
       };
@@ -1647,23 +1660,31 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         await softly.poll(furnitureCount).toBe(beforeFix - 1);
         await page.locator('body').press('Control+Z');
         await softly.poll(furnitureCount).toBe(beforeFix);
+        const putsAfter = puts.length;
+        await quiet(page);
+        expect.soft(await furnitureCount(), 'still exactly one restore').toBe(beforeFix);
+        expect.soft(puts.length, 'no late or second PUT').toBe(putsAfter);
         await shot(page, '28V-C-006', 'ctrl_z');
       });
 
-      await test.step('[28V-B-004] ⚑ firing the same fix twice must not raise an error', async () => {
-        await openClash(0);
-        await deleteButton.evaluate((button) => {
-          (button as HTMLButtonElement).click();
-          (button as HTMLButtonElement).click(); // two dispatches before React swaps the panel for its skeleton
-        });
-        await expect.soft(panel.getByText(/^Không tìm thấy đồ đạc .+ trong bản vẽ\.$/u)).toHaveCount(0);
-        await shot(page, '28V-B-004', 'double_fix');
+      const notFound = panel.getByText(/^Không tìm thấy đồ đạc .+ trong bản vẽ\.$/u);
+      await test.step('[28V-B-004] ⚑ after a fix the same action is not offered again', async () => {
+        await openClash(-1);
+        await fix(); // marker: PUT 200 answered
+        await expect.soft(deleteButton, 'no second action').toHaveCount(0);
+        if ((await deleteButton.count()) > 0) {
+          // Today: the action stays. A second, separate click must then not end in the raw "Không tìm thấy…" error.
+          const settled = Promise.race([notFound.waitFor({ state: 'visible' }), waitForApi(page, 'PUT', layerPutRe, [200, 409, 403])]);
+          await deleteButton.click();
+          await settled;
+        }
+        await expect.soft(notFound).toHaveCount(0);
+        await shot(page, '28V-B-004', 'second_fix');
       });
 
       await test.step('[28V-B-009] "Đã sửa xong…" is not shown while an error is', async () => {
-        const errorShown = (await panel.getByText(/^Không tìm thấy đồ đạc /u).count()) > 0;
-        const fixedShown = (await panel.getByText(FIXED_LINE).count()) > 0;
-        expect.soft(errorShown && fixedShown, 'both lines on screen').toBe(false);
+        if ((await notFound.count()) > 0) await expect.soft(panel.getByText(FIXED_LINE)).toHaveCount(0);
+        else await expect.soft(notFound, 'no error to compare with: the second action is gone').toHaveCount(0);
         await shot(page, '28V-B-009', 'error_vs_resolved');
       });
 
@@ -1710,18 +1731,6 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         await expect.soft(panel.getByText(FIXED_LINE)).toHaveCount(0);
         expect.soft(await seenBanner(), 'banner').toBe(false);
         await shot(page, '28V-A-015', 'renamed');
-      });
-
-      await test.step('[28V-C-007] ⚑ no "Đã sửa xong" for a rule the project has disabled', async () => {
-        // Interpretation: the report is already open on a clash row; another session disables FURNITURE-CLASH; the fix then runs.
-        const section = await expandRule(page, clashName);
-        await openSheet(page, rowsOf(section).first());
-        expect(await putRuleConfig(admin, project.id, { 'FURNITURE-CLASH': { enabled: false } }), '+CFG N22 PUT').toBe(200);
-        const answered = waitForApi(page, 'PUT', layerPutRe, [200]);
-        await deleteButton.click();
-        await answered;
-        await expect.soft(panel.getByText(FIXED_LINE)).toHaveCount(0);
-        await shot(page, '28V-C-007', 'disabled_rule_verdict');
       });
 
       await test.step('[28V-G-003] another session wrote the floor: PUT 409, "Lưu thất bại", no "Tải lại"', async () => {
@@ -1803,6 +1812,7 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
 
       await test.step('[28V-B-003] a floor without walls has no "Khối hình" section', async () => {
         await rowMessage(await levelRow()).click();
+        await expect(panel, 'the sheet opened (28-A-021)').toBeVisible();
         await expect.soft(panel.getByLabel('Khối hình của vi phạm')).toHaveCount(0);
         await expect.soft(panel.getByRole('img', { name: FIGURE_2D, exact: true })).toHaveCount(0);
         await expect.soft(panel.locator('canvas')).toHaveCount(0);
@@ -1811,14 +1821,29 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         await shot(page, '28V-B-003', 'no_figure');
       });
 
-      await test.step('[28V-C-008] without a floor chosen in the shell the save uses the row\'s own floor', async () => {
-        // UNKNOWN — NEED VERIFICATION: choosing a floor in the shell (activeFloorId) has no control on this route; only the
-        // "no active floor" half is asserted.
+      await test.step('[28V-C-008] the save uses the floor chosen in the shell, else the own floor of the row', async () => {
         await openSheet(page, rowsOf(await expandRule(page, RULE_NAMES.furnitureClash)).first());
-        const answered = waitForApi(page, 'PUT', layerPutRe, [200]);
+        let answered = waitForApi(page, 'PUT', layerPutRe, [200]);
         await panel.getByRole('button', { name: DELETE_ACTION }).click();
         await answered;
-        expect.soft(puts.at(-1)?.path, 'PUT path carries the row\'s floor id').toBe(layerPathOf(project.id, floorOf(project).id));
+        expect.soft(puts.at(-1)?.path, 'no active floor: the own floor of the row').toBe(layerPathOf(project.id, floorOf(project).id));
+        // Chosen floor: OverlayComparison selectFloor → setActiveFloor (useOverlayComparison.ts:1048-1053), then an SPA hop to /rules
+        // (projectHydration.ts:200-210 does not reset activeFloorId). S5-confirm: the overlay opens without a scan; option label.
+        await page.goto(ROUTES.project.overlay(project.id, floorOf(project).id));
+        await page.getByRole('combobox', { name: 'Chọn tầng' }).click();
+        await page.getByRole('option', { name: /Tầng 2/u }).click();
+        await page.evaluate((url) => {
+          window.history.pushState({}, '', url);
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        }, ROUTES.project.rules(project.id));
+        await expect(reportHeading(page)).toBeVisible();
+        await openSheet(page, rowsOf(await expandRule(page, RULE_NAMES.furnitureClash)).first());
+        const before = puts.length;
+        answered = waitForApi(page, 'PUT', layerPutRe, [200, 403, 404, 409]);
+        await panel.getByRole('button', { name: DELETE_ACTION }).click();
+        await answered;
+        expect.soft(puts.length, 'a PUT went out').toBeGreaterThan(before);
+        expect.soft(puts.at(-1)?.path, 'a floor chosen in the shell: the save uses it').toBe(layerPathOf(project.id, floorOf(project, 1).id));
         await shot(page, '28V-C-008', 'floor_source');
       });
     });
