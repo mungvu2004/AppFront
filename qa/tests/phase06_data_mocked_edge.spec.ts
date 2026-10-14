@@ -69,7 +69,7 @@ test.describe('E06d SCR-31 Spatial JSON Viewer [mocked response]', () => {
         await softly(validityLine(page)).toHaveCount(0);
         await softly(issueRows).toHaveCount(0);
         await softly(treeOf(page)).toHaveCount(0);
-        softly(mock.n15Calls(), 'N15 reads held at the route').toBeGreaterThanOrEqual(1);
+        await softly.poll(() => mock.n15Calls(), { message: 'N15 reads held at the route' }).toBeGreaterThanOrEqual(1);
         await ev(page, '31-B-001', 'loading_skeleton');
       });
 
@@ -109,7 +109,7 @@ test.describe('E06d SCR-31 Spatial JSON Viewer [mocked response]', () => {
         // SJM:217-235, USJ:149-150 — notes are in neither the counts label nor entityCount today
         mock.setN15('notes');
         await navigateThenWaitForApi(page, () => page.reload({ waitUntil: 'commit' }), 'GET', spatialRe(project.id), [200]);
-        await expect(page.getByText(SJ.emptyTitle, { exact: true }).or(treeOf(page))).toBeVisible();
+        await softly(page.getByText(SJ.emptyTitle, { exact: true }).or(treeOf(page))).toBeVisible();
         await softly(page.getByText(SJ.emptyTitle, { exact: true }), 'notes-only graph shown as empty').toHaveCount(0);
         await softly(page.getByText(/ghi chú/u), 'counts label mentions notes').toBeVisible();
         await ev(page, '31-C-008', 'notes_only');

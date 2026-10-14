@@ -35,6 +35,7 @@ const SHARE = {
   exportButton: 'Xuất', // EPT:69
   formats: 'Định dạng xuất', // EPF:144
   versionsList: 'Danh sách phiên bản', // VHL:137
+  forbidden: 'Không có quyền xuất bản vẽ', // EPV:207-215 (viewer: model.export false)
 } as const;
 
 const versionsRe = (projectId: string): RegExp => new RegExp(`^/api/projects/${projectId}/versions$`, 'u');
@@ -117,9 +118,13 @@ test.describe('E06d SCR-30S ShareDialog (flag off)', () => {
 
         const member = await openPoolFlow(browser, viewer);
         try {
-          await openExport(member.page, project.id);
+          // A viewer has no export right: /export shows the forbidden state, not the format group (ExportPanel.container.tsx:14-16,
+          // ExportPanel.tsx:207-215), so the settle point is N15 200 + that heading.
+          await navigateThenWaitForApi(member.page, () => member.page.goto(ROUTES.project.export(project.id), { waitUntil: 'commit' }), 'GET', spatialRe(project.id), [200]);
+          await expect(member.page.getByRole('heading', { name: SHARE.forbidden, exact: true })).toBeVisible();
           await test.step('[30S-D-001] viewer member on /export: no "Chia sẻ" button either (flag is global, not role-based)', async () => {
             // UEP:719
+            await expect(member.page.getByRole('radiogroup', { name: SHARE.formats, exact: true })).toHaveCount(0);
             await expect(member.page.getByRole('button', { name: SHARE.button, exact: true })).toHaveCount(0);
             expect.soft(shareLinkCalls(member.api), 'share-links calls as the viewer').toEqual([]);
             await captureEvidence(member.page, 'E06d_30S-D-001_viewer_export_no_share_button');
