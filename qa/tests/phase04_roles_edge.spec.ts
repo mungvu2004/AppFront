@@ -1075,7 +1075,9 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         await expect.soft(alertWith(page, OVERLAY.frameMissing)).toBeVisible();
         // 22-D-004 (catalog-C4.md:328, OCT:90,137): "Chọn tầng" is a view-only action and stays usable for a viewer, also here.
         await expect.soft(page.getByRole('combobox', { name: OVERLAY.floor })).toBeEnabled();
-        await expect.soft(page.getByRole('radiogroup', { name: OVERLAY.modes, exact: true }).getByRole('radio').and(page.locator(':enabled'))).toHaveCount(0);
+        // 22-D-004 also keeps "Kiểu đối chiếu" usable for a viewer (view-only); 22-C-004's "controls stay disabled" is the edit
+        // controls (lock, tolerance: OverlayComparison.tsx:117, OverlayComparisonToolbar.tsx:222). R1 p04-r1 PNG: 3 radios enabled.
+        await expect.soft(page.getByRole('radiogroup', { name: OVERLAY.modes, exact: true }).getByRole('radio').and(page.locator(':enabled'))).toHaveCount(3);
         await expect.soft(page.getByRole('slider', { name: OVERLAY.opacity, exact: true })).toHaveAttribute('tabindex', '-1'); // Slider.tsx:144
         await captureEvidence(page, ev('22-C-004', 'viewer_overlay_error_outranks_forbidden'));
       });

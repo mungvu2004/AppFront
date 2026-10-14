@@ -1905,7 +1905,11 @@ export function useWallLayerReview(
     isCollapsed,
     isViewerRole,
     viewerRoleNotice: isViewerRole ? WALL_LAYER_TEXT.viewerRoleNotice : null,
-    emptyNotice: state === 'empty' ? WALL_LAYER_TEXT.emptyNotice : null,
+    /* Vai Người xem giữ `forbidden` nhưng danh sách vẫn phải biết "rỗng thật" (16-D-008). */
+    emptyNotice:
+      state === 'empty' || (isViewerRole && !isLoading && !hasError && counter.total === 0)
+        ? WALL_LAYER_TEXT.emptyNotice
+        : null,
     errorMessage,
     onApprove,
     onSkip,

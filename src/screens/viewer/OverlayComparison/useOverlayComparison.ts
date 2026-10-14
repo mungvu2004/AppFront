@@ -457,6 +457,10 @@ export function useOverlayComparison(
    * rồi tầng của route, rồi tầng của kho. Back/Forward đổi route nên lựa chọn cũ hết hiệu lực.
    */
   const [picked, setPicked] = useState<{ readonly route: string; readonly levelId: LevelId } | null>(null);
+  // Route đổi (kể cả Back/Forward) thì lựa chọn cũ hết hạn, nếu không Back về route cũ sẽ khớp lại `picked.route`.
+  useEffect(() => {
+    setPicked(null);
+  }, [floorId]);
   const activeFloorId: LevelId | null =
     (
       (picked?.route === floorId ? floors.find((floor) => floor.id === picked.levelId) : undefined) ??

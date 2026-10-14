@@ -834,3 +834,21 @@ describe('[20-D-006] Người xem trên tầng không có phòng', () => {
     expect(screen.queryByText(/Tắt bộ lọc "Chưa đặt tên"/u)).not.toBeInTheDocument();
   });
 });
+
+describe('[20-D-007] tầng rỗng vì vòng hở vẫn có lối "Xem tại lớp tường"', () => {
+  it('kịch bản rỗng (vòng hở 62 mm): vùng "Vòng tường hở" có nút sang lớp tường, và chỉ MỘT nút "Kiểm tra lại vòng hở"', async () => {
+    renderState('empty');
+
+    const gapsSection = () => within(screen.getByRole('region', { name: 'Vòng tường hở' }));
+    await waitFor(() => expect(gapsSection().getByRole('button', { name: 'Xem tại lớp tường' })).toBeInTheDocument());
+    expect(screen.getAllByRole('button', { name: 'Kiểm tra lại vòng hở' })).toHaveLength(1);
+  });
+
+  it('vai Người xem trên cùng tầng: cũng có nút sang lớp tường', async () => {
+    const viewerRoles = scenarioArgsFor('forbidden').roles ?? [];
+    renderWithProviders(<RoomLabelReviewContainer {...scenarioArgsFor('empty')} roles={viewerRoles} />);
+
+    const gapsSection = () => within(screen.getByRole('region', { name: 'Vòng tường hở' }));
+    await waitFor(() => expect(gapsSection().getByRole('button', { name: 'Xem tại lớp tường' })).toBeInTheDocument());
+  });
+});

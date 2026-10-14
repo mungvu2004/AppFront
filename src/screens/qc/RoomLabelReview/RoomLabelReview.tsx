@@ -65,7 +65,7 @@ import { QcScreenFrame } from '../shared/QcScreenFrame';
 
 import { RoomLabelCanvas } from './RoomLabelCanvas';
 import { RoomLabelInspector } from './RoomLabelInspector';
-import { RoomLabelLeftPanel } from './RoomLabelLeftPanel';
+import { RoomLabelGapsSection, RoomLabelLeftPanel } from './RoomLabelLeftPanel';
 import { RoomLabelNormalizePreview } from './RoomLabelNormalizePreview';
 import type { RoomLabelReviewProps } from './roomLabelTypes';
 
@@ -161,6 +161,12 @@ function RoomLabelLeftColumn(props: RoomLabelReviewViewProps) {
           description={emptyNotice}
           icon={<LayoutGrid />}
           title={EMPTY_TITLE}
+        />
+        {/* 20-D-007: rỗng vì vòng hở thì phải còn lối "Xem tại lớp tường". */}
+        <RoomLabelGapsSection
+          gaps={gaps}
+          onNavigateToWalls={onNavigateToWalls}
+          unclosedRoomCount={summary.unclosedRoomCount}
         />
       </div>
     );

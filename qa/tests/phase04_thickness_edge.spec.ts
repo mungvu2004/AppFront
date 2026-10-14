@@ -797,8 +797,9 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         expect.soft(putsTo(flow, reviewedFloor, from)).toBe(0);
       });
 
-      await test.step('[21-C-010] ⚑ the toast "Hoàn tác" of an apply reverts ITS apply, even after a later apply', async () => {
+      await test.step('[21-C-010] BUG-579: the OLDER toast "Hoàn tác" after a later apply is REFUSED with the Ctrl+Z notice, no PUT', async () => {
         // two applies through the row picker: wall 1 -> 110, then wall 2 -> 110; then the FIRST toast's "Hoàn tác".
+        // BUG-579 (history.ts:477-498 undoIfNewest; useThicknessStandardization.ts:659-667): an out-of-order undo is not offered.
         await page.reload();
         await expect(segRows(page)).toHaveCount(2);
         const ids = reviewedWalls;
@@ -816,11 +817,11 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         const undoButtons = toasts(page).getByRole('button', { name: UNDO, exact: true });
         const count = await undoButtons.count();
         await attachJson('E04_21-C-010_toasts.json', { undoButtons: count });
-        const put = waitForPut(page, project, reviewedFloor);
+        const from = flow.sent.length;
         await undoButtons.last().click(); // the older toast
-        const walls = wallsOfPut(await put);
-        expect.soft(thicknessOf(walls, ids[0] as string), 'its own apply (wall 1) is reverted to 220').toBe(220); // UT:630-636
-        expect.soft(thicknessOf(walls, ids[1] as string), 'the later apply (wall 2) stays at 110').toBe(110);
+        // history.ts:492 sentence (hard-coded there, not in vi.json)
+        await expect.soft(toastText(page, /^Chưa hoàn tác: đã có \d+ thay đổi sau thay đổi này\. Dùng Ctrl\+Z để hoàn tác lần lượt\.$/u)).toBeVisible();
+        expect.soft(putsTo(flow, reviewedFloor, from), 'the refused undo sends no PUT').toBe(0);
         await ev(page, '21-C-010', 'toast-undo-order');
       });
     });

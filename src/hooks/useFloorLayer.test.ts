@@ -281,6 +281,28 @@ describe('useFloorLayer — N16 một tầng vào kho theo revision', () => {
     expect(result.current.errorMessage?.length).toBeGreaterThan(0);
   });
 
+  it('QA p04 FL-16-M1: quay lại màn sau staleTime, lượt đọc lại hỏng → error lên, dữ liệu cũ giữ', async () => {
+    const queryClient = createTestQueryClient();
+    const wrapper = ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client: queryClient }, children);
+    const first = renderHook(() => useFloorLayer({ floorId: FLOOR, projectId: PROJECT, read: () => Promise.resolve(documentOf(FLOOR, 4)) }), { wrapper });
+
+    await waitFor(() => expect(first.result.current.data).toBeDefined());
+    first.unmount();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(Date.now() + 31_000);
+      const read = vi.fn(() => Promise.reject(new Error('boom')));
+      const again = renderHook(() => useFloorLayer({ floorId: FLOOR, projectId: PROJECT, read }), { wrapper });
+
+      await waitFor(() => expect(again.result.current.error).not.toBeNull());
+      expect(read).toHaveBeenCalledTimes(1);
+      expect(again.result.current.errorMessage?.length).toBeGreaterThan(0);
+      expect(again.result.current.data).toBeDefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('nạp và thay tầng không sinh PUT (saver thật)', async () => {
     setAuthenticatedSession({ accessToken: 't', expiresAt: Date.now() + 3_600_000, roles: [], user: { id: 'u' } });
     seedStore(SAMPLE, allAt(2));

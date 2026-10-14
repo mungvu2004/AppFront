@@ -825,6 +825,11 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
       });
 
       await test.step('[22-B-011] The partial notice for a floor without geometry: "Còn 1 tầng chưa dựng hình học."', async () => {
+        // QD-003 (docs/decisions.md:27-36): a floor without a scan is 'empty' (useOverlayComparison.ts:690-696), so the partial
+        // notices are checked on 'Tầng 1' (has a scan): Back to floor 1 here, Forward to floor 2 after 22-B-012 (X4-A-032 needs it).
+        await page.goBack();
+        await expect.poll(() => pathOf(page)).toBe(overlayOf(f1.id));
+        await expect(page.getByLabel('Màn đối chiếu bản vẽ', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
         await expect.soft(page.getByText('Còn 1 tầng chưa dựng hình học.', { exact: true })).toBeVisible();
         await ev(page, '22-B-011', 'partial-no-geometry');
       });
@@ -832,6 +837,8 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
       await test.step('[22-B-012] The partial notice when not every floor has a scan: "Chỉ 1 trong 2 tầng có ảnh gốc để đối chiếu."', async () => {
         await expect.soft(page.getByText('Chỉ 1 trong 2 tầng có ảnh gốc để đối chiếu.', { exact: true })).toBeVisible();
         await ev(page, '22-B-012', 'partial-no-scan');
+        await page.goForward();
+        await expect.poll(() => pathOf(page)).toBe(overlayOf(f2.id));
       });
 
       await test.step('[X4-A-032] ⚑ "Chọn tầng" changes the active floor → the URL follows (BUG-600, useOverlayComparison.ts:1056-1062 pushes the overlay route); Back returns to floor 1', async () => {
