@@ -54,12 +54,12 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
     <label
       htmlFor={internalId}
       className={cn(
-        'group/checkbox flex items-center min-h-[32px] cursor-pointer outline-none',
+        'group/checkbox flex min-w-0 items-center min-h-[32px] cursor-pointer outline-none',
         disabled && 'opacity-50 cursor-not-allowed',
         className
       )}
     >
-      <div className="relative flex items-center justify-center">
+      <div className="relative flex shrink-0 items-center justify-center">
         <input
           ref={setRefs}
           aria-checked={indeterminate ? 'mixed' : undefined}
@@ -113,7 +113,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
       {label && (
         <span
           className={cn(
-            'ml-2 select-none',
+            'ml-2 min-w-0 select-none',
             size === 'sm' ? 'text-[13px] leading-[20px]' : 'text-[15px] leading-[24px]',
             disabled ? 'text-text-muted' : 'text-text-primary'
           )}
