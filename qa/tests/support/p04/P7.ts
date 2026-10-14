@@ -235,25 +235,6 @@ export async function seedOverlayScales(api: APIRequestContext, slug = '22-scale
 
 export { TEST_DATA_PREFIX };
 
-/* ---- /3d ↔ overlay (SPA hop, V3C:262-268) ------------------------------------------------------ */
-
-/** Opens `/projects/:id/3d`, drops the tour and waits for the sibling-screen links. */
-export async function openViewer(page: Page, projectId: string): Promise<void> {
-  await page.goto(ROUTES.project.viewer(projectId));
-  await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
-  await expect(siblingLink(page)).toBeVisible({ timeout: 30_000 });
-}
-
-const siblingLink = (page: Page): Locator =>
-  page.getByRole('navigation', { name: 'Màn 3D khác', exact: true }).getByRole('button', { name: 'Đối chiếu bản vẽ', exact: true });
-
-/** "Đối chiếu bản vẽ" on /3d: a client-side route change that keeps the store (floors + graph). */
-export async function hopToOverlay(page: Page): Promise<void> {
-  await dismissTour(page);
-  await siblingLink(page).click();
-  await expect(screenRegion(page)).toBeVisible();
-}
-
 /** 6000 × 4500 white gray PNG (27 MP < the 40 MP pipeline cap, a few dozen KB): a run that stays busy for seconds (22-B-008). */
 export const bigWhitePng = (): Buffer => craftPng(6_000, 4_500, 0, () => Buffer.alloc(6_000, 255));
 

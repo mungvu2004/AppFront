@@ -34,7 +34,7 @@ import { createDrawingProject, deleteSeededProject } from './support/phase03Seed
 import { typeHeight } from './support/numeric-field';
 import { closeFlow, openFlow, type Flow } from './support/p03/P5';
 import { bogusFloorId } from './support/p03/P10';
-import { markShell, shellKept, uploadViaTray } from './support/p03/P11';
+import { markShell, shellKept, spaGo, uploadViaTray } from './support/p03/P11';
 import { framedPng } from './support/p03/P12';
 import {
   OV,
@@ -48,9 +48,7 @@ import {
   modeRadio,
   noticeText,
   noticeRegion,
-  hopToOverlay,
   openOverlay,
-  openViewer,
   opacitySlider,
   overlayLayers,
   ownerApi,
@@ -709,10 +707,6 @@ test.describe('SCR-22 overlay — geometry and scale conflict', () => {
       flow = await openFlow(browser, owner.user);
       const { page } = flow;
       const { projectId, layered, oneWall } = project;
-      const toViewerAndOverlay = async (): Promise<void> => {
-        await openViewer(page, projectId);
-        await hopToOverlay(page);
-      };
 
       await openOverlay(page, projectId, layered.id);
 
@@ -742,8 +736,8 @@ test.describe('SCR-22 overlay — geometry and scale conflict', () => {
         await ev(page, '22-A-028', 'geometry_one_wall');
       });
 
-      await test.step('[22-B-005] scale conflict (store floors at 5 and 8 mm/px, entered from /3d): error + link to the active floor\'s scale', async () => {
-        await toViewerAndOverlay();
+      await test.step('[22-B-005] scale conflict (store floors at 5 and 8 mm/px, direct URL): error + link to the active floor\'s scale', async () => {
+        await openOverlay(page, projectId, layered.id);
         await expect.soft(alertWith(page, OV.scaleConflict)).toBeVisible();
         const link = page.getByRole('link', { name: OV.toScale, exact: true });
         await expect.soft(link).toBeVisible();
@@ -763,17 +757,19 @@ test.describe('SCR-22 overlay — geometry and scale conflict', () => {
         await page.keyboard.press('Escape');
       });
 
-      await test.step('[22-G-008] N16 is read only when the store is empty; none when the store already holds the graph (from /3d)', async () => {
+      await test.step('[22-G-008] N16 is read only when the store is empty; none when the store already holds the graph (SPA hop from SCR-16)', async () => {
         const n16 = (from: number) => flow!.log.slice(from).filter((e) => e.method === 'GET' && /\/spatial\/layer$/u.test(e.path));
         const deepLink = flow!.log.length;
         await openOverlay(page, projectId, oneWall.id);
         await expect.poll(() => n16(deepLink).length, { message: 'a deep link reads N16 of the route floor' }).toBeGreaterThanOrEqual(1);
-        await openViewer(page, projectId);
+        // /3d is the Pascal viewer (no sibling nav, no spatial store): the store gets the graph on SCR-16, then a client-side hop.
+        await page.goto(ROUTES.project.walls(projectId, oneWall.id));
+        await expect.poll(() => n16(deepLink).length, { message: 'SCR-16 reads N16' }).toBeGreaterThanOrEqual(2);
         const afterViewer = flow!.log.length;
-        await hopToOverlay(page);
+        await spaGo(page, ROUTES.project.overlay(projectId, oneWall.id));
         await expect(toolbar(page)).toBeVisible();
         await quiet(page);
-        expect.soft(n16(afterViewer).map((e) => e.path), 'no N16 GET for the SPA hop from /3d').toEqual([]);
+        expect.soft(n16(afterViewer).map((e) => e.path), 'no N16 GET for the SPA hop from SCR-16').toEqual([]);
       });
     } finally {
       if (flow !== undefined) await closeFlow(flow);
