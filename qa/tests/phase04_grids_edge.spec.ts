@@ -418,9 +418,11 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
 
       await test.step('[19-A-011] the delete toast closes itself after the undo window (8 s)', async () => {
         // a toast raised while another is still up is merged into it: start from none, then delete
-        await expect(toasts(page).getByRole('button', { name: UNDO, exact: true })).toHaveCount(0, { timeout: 15_000 });
-        await removeButton(page, 'A').click(); // a fresh toast: its window starts now
         const toast = toasts(page).getByText('Đã xoá trục A.', { exact: true });
+        // the earlier toast must be gone as text too, not only its button
+        await expect(toast).toHaveCount(0, { timeout: 15_000 });
+        await expect(toasts(page).getByRole('button', { name: UNDO, exact: true })).toHaveCount(0);
+        await removeButton(page, 'A').click(); // a fresh toast: its window starts now
         await expect.soft(toast).toBeVisible();
         // fixed-wait-ok: UNDO_WINDOW_MS = 8000 (undoTicket.ts:18) is real time; a polled expect, not a sleep.
         await expect.soft(toast).toBeHidden({ timeout: 15_000 });

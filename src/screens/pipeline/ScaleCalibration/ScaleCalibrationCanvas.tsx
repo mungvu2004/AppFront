@@ -68,6 +68,8 @@ const FORBIDDEN_DESCRIPTION_ID = 'scale-calibration-canvas-forbidden';
 const WHEEL_ZOOM_STEP = 1.1;
 /** Nút giữa chuột (button === 1), dùng để kéo nền thay vì vẽ. */
 const MIDDLE_MOUSE_BUTTON = 1;
+/** Sai số làm tròn toạ độ con trỏ so với mép khung: kéo đúng mép ảnh không được tính là "ra khỏi khung" (14-C-023). */
+const EDGE_TOLERANCE_PX = 1;
 
 /** Tâm khung ảnh — chỗ Enter trên canvas đặt đoạn mới khi không có chuột (BUG-607). */
 const FRAME_CENTRE: ImageRatioPoint = { x: 0.5, y: 0.5 };
@@ -211,10 +213,10 @@ export function ScaleCalibrationCanvas({
       if (
         bounds !== undefined &&
         bounds.width > 0 &&
-        (event.clientX < bounds.left ||
-          event.clientX > bounds.right ||
-          event.clientY < bounds.top ||
-          event.clientY > bounds.bottom)
+        (event.clientX < bounds.left - EDGE_TOLERANCE_PX ||
+          event.clientX > bounds.right + EDGE_TOLERANCE_PX ||
+          event.clientY < bounds.top - EDGE_TOLERANCE_PX ||
+          event.clientY > bounds.bottom + EDGE_TOLERANCE_PX)
       ) {
         onCancelDrag();
         return;

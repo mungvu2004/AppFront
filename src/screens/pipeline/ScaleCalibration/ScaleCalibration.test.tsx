@@ -979,6 +979,21 @@ describe('ScaleCalibration — QA-04c SCR-14', () => {
     mounted.unmount();
   });
 
+  it('kéo tới đúng mép ảnh (lệch dưới 1px do làm tròn) thì đoạn không bị huỷ (14-C-023)', async () => {
+    measureFrame();
+    const harness = await makeHarness();
+    const mounted = mountScreen(harness.gateway);
+    await settle(mounted);
+    const frame = screen.getByRole('group', { name: CANVAS_ARIA_LABEL });
+
+    fireEvent.pointerDown(frame, { button: 0, clientX: 400, clientY: 400, pointerId: 1 });
+    fireEvent.pointerMove(frame, { clientX: CANVAS_FRAME_PX + 0.4, clientY: 400, pointerId: 1 });
+
+    expect(handle('Cuối')).toBeInTheDocument();
+
+    mounted.unmount();
+  });
+
   it('nhích mũi tên qua mép ảnh thì đầu đoạn bị chặn trong khung (14-C-023)', async () => {
     measureFrame();
     const harness = await makeHarness();

@@ -18,7 +18,7 @@
 
 import { createElement, type ReactNode } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
+import { act, cleanup, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { alignFloors, type FloorAlignmentReport } from '@/domain/axes/alignFloors';
@@ -30,6 +30,7 @@ import { pixels } from '@/domain/units/scale';
 import { millimetres, type Millimetres } from '@/domain/units/types';
 import type { Announcer } from '@/lib/input/announcer';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
+import { NotificationHost } from '@/components/feedback/NotificationHost';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
@@ -778,6 +779,40 @@ describe('QA-04c SCR-19', () => {
     });
     expect(notifications.list()[0]?.undoTicket?.getStatus()).toBe('active');
     expect(notifications.list()[0]?.title).toMatch(/^Đã xoá trục /u);
+  });
+
+  it('[19-A-011] xoá lần hai sau khi toast đầu đã đóng (8 s): lại hiện một toast mới có vé hoàn tác', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['Date', 'setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame', 'performance'] });
+    const notifications = createNotificationBus();
+    render(createElement(NotificationHost, { bus: notifications }));
+    const mounted = await mountSettled({ notifications });
+    const remove = async (): Promise<void> => {
+      const target = rowsOf(mounted)[0];
+
+      expect(target).toBeDefined();
+      await act(async () => {
+        mounted.result.current.onAxisRemove(target?.id ?? '');
+        await Promise.resolve();
+      });
+    };
+
+    await remove();
+    await waitFor(() => {
+      expect(notifications.list()).toHaveLength(1);
+    });
+    expect(screen.getByText(/^Đã xoá trục /u)).toBeTruthy();
+    await act(async () => {
+      vi.advanceTimersByTime(9000); // UNDO_WINDOW_MS = 8000
+      await Promise.resolve();
+    });
+    expect(notifications.list()).toHaveLength(0);
+
+    await remove();
+    await waitFor(() => {
+      expect(notifications.list()).toHaveLength(1);
+    });
+    expect(notifications.list()[0]?.undoTicket?.getStatus()).toBe('active');
+    expect(screen.getByText(/^Đã xoá trục /u)).toBeTruthy();
   });
 
   it('[BUG-594] kéo một trục của bản xem trước: có tác dụng ngay, một bước hoàn tác', async () => {

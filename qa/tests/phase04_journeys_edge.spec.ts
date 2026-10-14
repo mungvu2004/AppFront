@@ -632,17 +632,23 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
           window.setTimeout = ((fn: TimerHandler, ms?: number, ...rest: unknown[]) =>
             ms === 800 || ms === 5_000 ? 0 : real(fn, ms, ...rest)) as typeof window.setTimeout;
         });
-        await page.keyboard.press('3');
-        await on(screens.scale);
-        await drawReference(page, 4_000);
-        const mark = run!.puts.length;
-        const both = waitForLayerPut(page, onFloor.projectId, onFloor.floorId, (body) => typeof body.scaleMillimetresPerPixel === 'number');
-        await applyScale(page).click();
-        const sent = await both;
-        await page.evaluate(() => {
-          const w = window as unknown as { __realSetTimeout: typeof window.setTimeout };
-          window.setTimeout = w.__realSetTimeout;
-        });
+        // Restore on EVERY path: a failure here must not leak the hijack into the 409 / cache-collision steps that follow.
+        let mark = run!.puts.length;
+        let sent: Awaited<ReturnType<typeof waitForLayerPut>>;
+        try {
+          await page.keyboard.press('3');
+          await on(screens.scale);
+          await drawReference(page, 4_000);
+          mark = run!.puts.length;
+          const both = waitForLayerPut(page, onFloor.projectId, onFloor.floorId, (body) => typeof body.scaleMillimetresPerPixel === 'number');
+          await applyScale(page).click();
+          sent = await both;
+        } finally {
+          await page.evaluate(() => {
+            const w = window as unknown as { __realSetTimeout?: typeof window.setTimeout };
+            if (w.__realSetTimeout !== undefined) window.setTimeout = w.__realSetTimeout;
+          });
+        }
         expect(sent.response.status()).toBe(200);
         const bodyKeys = Object.keys(asRecord(asRecord(sent.response.request().postDataJSON(), '#35').body, '#35.body'));
         await quiet(page);
@@ -678,7 +684,10 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         await expect.poll(() => pathOf(page)).toBe(screens.scale);
         // C4 suspected: SCR-18 stores { imageUrl, imageAlt, widthMm, heightMm } under the key SCR-14 reads a different record from.
         await expect.soft(canvas, 'SCR-14 still has its drawing').toBeVisible({ timeout: 15_000 });
-        await expect.soft(page.getByRole('region', { name: 'Trạng thái của màn hiệu chỉnh tỷ lệ', exact: true }).getByRole('alert')).toHaveCount(0);
+        // The env drawing has no frame: SCR-14 shows the "may be warped" alert by design until a scale is applied (useScaleCalibration.ts:1699-1703,
+        // BUG-567), so "no alert at all" was a wrong check. The collision symptom is the "no drawing" notice (scaleCalibration.state.noDrawingTitle, vi.json:1184).
+        const noDrawingAlert = page.getByRole('region', { name: 'Trạng thái của màn hiệu chỉnh tỷ lệ', exact: true }).getByRole('alert').filter({ hasText: 'Tầng này chưa có bản vẽ' });
+        await expect.soft(noDrawingAlert, 'SCR-14 shows no "no drawing" notice').toHaveCount(0);
         await ev(page, 'X4-A-023', 'drawing-cache-shape');
       });
 
@@ -695,24 +704,26 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         await ev(page, 'X4-A-024', 'quality-cache-shape');
       });
 
-      await test.step('[X4-A-025] A 409 on SCR-14 blocks the floor in the shared saver: SCR-16 (SPA) shows the save block with "Tải lại"; the reload clears it', async () => {
+      await test.step('[X4-A-025] A scale-only 409 on SCR-14 shows its own "Tải lại" banner (BUG-598), does not lock SCR-16; the reload clears it', async () => {
+        // Changed from the catalog row (SCR-14 has no "Tải lại", SCR-16 shows the shared-saver block): BUG-598 fix, source
+        // useScaleCalibration.ts:689-690 ("409 của thân CHỈ tỷ lệ không khoá lớp ... màn tự dựng dải Tải lại") + vitest ScaleCalibration.test.tsx:1013.
         await on(screens.scale);
         await drawReference(page, 3_000);
         await secondWriter(owner, d1.projectId, d1.floorId, thickenFirst); // W2
         const conflict = waitForApi(page, 'PUT', layerRe(d1.projectId, d1.floorId), [409]);
         await applyScale(page).click();
         await conflict;
-        await expect.soft(page.getByRole('button', { name: WALL.reload, exact: true }), 'SCR-14 itself has no "Tải lại"').toHaveCount(0);
+        const scaleBanner = page.getByRole('alert').filter({ hasText: 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất rồi áp lại tỷ lệ.' }); // useScaleCalibration.ts:222
+        const scaleReload = scaleBanner.getByRole('button', { name: WALL.reload, exact: true });
+        await expect.soft(scaleBanner, 'SCR-14 shows the conflict banner').toBeVisible();
+        await expect.soft(scaleReload, 'SCR-14 banner has "Tải lại"').toBeVisible();
+        await ev(page, 'X4-A-025', 'scale-409-banner-on-scr14');
+        await scaleReload.click();
+        await expect.soft(scaleBanner, 'the reload clears the SCR-14 banner').toHaveCount(0);
+        // A scale-only body does not lock the layer in the shared saver: SCR-16 (SPA) shows no save block.
         await on(screens.walls);
-        const banner = page.getByRole('alert').filter({ hasText: WALL.conflict });
-        await expect.soft(banner).toBeVisible();
-        await expect.soft(banner.getByRole('button', { name: WALL.reload, exact: true })).toBeVisible();
-        await ev(page, 'X4-A-025', 'scale-409-blocks-walls');
-        await banner.getByRole('button', { name: WALL.reload, exact: true }).click();
-        const dialog = page.getByRole('dialog', { name: WALL.confirmTitle, exact: true });
-        await expect(dialog).toBeVisible();
-        await dialog.getByRole('button', { name: WALL.confirmReload, exact: true }).click();
-        await expect.soft(banner).toHaveCount(0);
+        await expect(wallRows(page).first()).toBeVisible({ timeout: 30_000 });
+        await expect.soft(page.getByRole('alert').filter({ hasText: WALL.conflict }), 'SCR-16 is not blocked by a scale-only 409').toHaveCount(0);
       });
 
       await test.step('[X4-A-030] SCR-12 summary → SCR-14 → apply → Back: the summary is still finished, no new upload', async () => {
@@ -836,12 +847,13 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         await page.goBack();
         await expect.poll(() => pathOf(page)).toBe(overlayOf(f1.id));
         await expect(page.getByLabel('Màn đối chiếu bản vẽ', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
-        await expect.soft(page.getByText('Còn 1 tầng chưa dựng hình học.', { exact: true })).toBeVisible();
+        // The partial sentences are joined into ONE notice paragraph (useOverlayComparison.ts:898-912 sentences.join(' ')): match the sentence inside it, not the whole element.
+        await expect.soft(page.getByText('Còn 1 tầng chưa dựng hình học.').first()).toBeVisible();
         await ev(page, '22-B-011', 'partial-no-geometry');
       });
 
       await test.step('[22-B-012] The partial notice when not every floor has a scan: "Chỉ 1 trong 2 tầng có ảnh gốc để đối chiếu."', async () => {
-        await expect.soft(page.getByText('Chỉ 1 trong 2 tầng có ảnh gốc để đối chiếu.', { exact: true })).toBeVisible();
+        await expect.soft(page.getByText('Chỉ 1 trong 2 tầng có ảnh gốc để đối chiếu.').first()).toBeVisible();
         await ev(page, '22-B-012', 'partial-no-scan');
         await page.goForward();
         await expect.poll(() => pathOf(page)).toBe(overlayOf(f2.id));

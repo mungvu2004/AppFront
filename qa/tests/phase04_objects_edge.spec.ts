@@ -1316,11 +1316,12 @@ test('SCR-17 · FL-17-07 rail keys, groups, listbox semantics, panel collapse', 
     });
 
     await test.step('(extra, candidate bug) a focused swing RADIO is an <input>: the shortcut registry treats it as a text field (shortcuts.ts:199-209), so Mod+Z must still undo there', async () => {
-      await quiet(page); // let the undo PUT of the step above land first
+      await quiet(page);
       await optionOf(page, '#F-001').click();
       let mark = s.puts.length;
-      await approveButton(page).click();
-      await nextPut(s, mark, (record) => putList(record, 'furniture').some((o) => o.reviewed === true));
+      // The step above proved Mod+Z did NOT undo (17-E-017, guard useObjectLayerReview.ts:1362-1370): #F-001 is still the last
+      // reviewed edit, so its approve button is disabled and there is nothing to approve again.
+      await expect(approveButton(page)).toBeDisabled();
       await optionOf(page, '#D-001').click();
       await swingRadio(page, 'Mở trái').focus();
       mark = s.puts.length;

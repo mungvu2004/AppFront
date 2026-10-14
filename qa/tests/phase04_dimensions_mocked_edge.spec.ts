@@ -888,7 +888,10 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
           await expect(polite).toHaveCount(1);
           const box = await polite.boundingBox();
           expect.soft(box !== null && box.width <= 1 && box.height <= 1, `announcer is visually hidden (1 px), box ${JSON.stringify(box)}`).toBe(true);
-          await expect.soft(region(page).getByText(/Đã lưu/u)).toHaveCount(0);
+          // Expectation changed: BUG-577 fix (BUG-LOG-P04.md:78, DimensionOcrReview.test.tsx:705 "[BUG-577]") - the screen now shows the
+          // real save state in one status line (data-testid dimension-ocr-save-status, DimensionOcrReview.tsx:112-119) beside the announcer.
+          await expect.soft(page.getByTestId('dimension-ocr-save-status')).toHaveText(/^Đã lưu lúc \d{2}:\d{2}$/u); // vi.json:4 saved_at
+          await expect.soft(region(page).getByText(/Đã lưu/u)).toHaveCount(1);
           await ev(page, '18-E-015', 'announcer_only');
         });
 
@@ -923,8 +926,10 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
         await test.step('[18-A-027] Ctrl+S after an approve → engine flushed to the server with the #35 PUT (QD-001)', async () => {
           await approveButton(page, 4).click();
           await progress(page).click();
+          // Mechanics: Ctrl+S flushes at once (no 800 ms debounce), so the PUT can leave before a listener armed after the key press.
+          const flushed = writeWithin(page);
           await page.keyboard.press('Control+s');
-          expect.soft(await writeWithin(page), 'Ctrl+S flushes the approve through #35').toBe(layerPut);
+          expect.soft(await flushed, 'Ctrl+S flushes the approve through #35').toBe(layerPut);
           await ev(page, '18-A-027', 'ctrl_s_put');
         });
 
@@ -1136,7 +1141,7 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
 
         view = await openFlow(browser, viewer);
         const viewPage = view.page;
-        const viewDims = await routeDims(viewPage, { [floor.floorId]: { rows: null } });
+        const viewDims = await routeDims(viewPage, { [floor.floorId]: { rows: [] } }); // mechanics: QD-001 - the engineer's approve (18-D-002) now persists rows on the real floor, so pass-through is no longer empty
         const viewAnswer = viewDims.floors[floor.floorId]!;
 
         await test.step('[18-D-008] viewer on an empty floor → empty state + link (link allowed)', async () => {

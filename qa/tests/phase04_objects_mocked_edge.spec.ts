@@ -219,7 +219,8 @@ test('SCR-17 · FL-17-M1 [mocked response] read failures, refetch error, backgro
         viewerN16.set({ hold });
         await guest.page.goto(url, { waitUntil: 'commit' });
         await expect(screen(guest.page)).toBeVisible();
-        const rows = guest.page.locator('div.flex.items-center.gap-4.p-3:has(> .animate-pulse)');
+        // left list = 4 rows; the counter card adds 4 more inside an aria-hidden block (rowSel above, BUG-618) -> exclude them
+        const rows = guest.page.locator(`${rowSel}:not([aria-hidden="true"] *)`);
         await expect.soft(rows, 'skeleton rows while N16 loads (OV:84 gates them on state "loading", UO:233-247 returns "forbidden" first)').toHaveCount(4, { timeout: 3_000 });
         await expect.soft(guest.page.getByText(OBJ.emptyGroup, { exact: true }), 'no empty-group text while loading').toHaveCount(0, { timeout: 3_000 });
         await ev(guest.page, '17-D-010', 'viewer_loading');

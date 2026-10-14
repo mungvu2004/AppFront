@@ -26,6 +26,7 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { __resetMockLayerState, createMockApiClient, simulateRemoteLayerEdit } from '@/api/__mocks__/client';
+import { FloorLayerWriteSchema } from '@/api/schemas/spatialLayer';
 import { sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Level, Point, Wall, WallId } from '@/domain/spatial/types';
@@ -1009,6 +1010,41 @@ describe('công cụ đã nối dây', () => {
 
     /* Cử chỉ đã chốt xong, máy công cụ về `ready` chứ không kẹt ở `confirming`. */
     expect(mounted.result.current.canvas.measurement).toBeNull();
+
+    mounted.unmount();
+  });
+
+  /* [16-A-040] Hai cú bấm (toạ độ mm LẺ, như chuột thật) vẽ một tường dày 110 mm và ĐẨY đúng một PUT hợp lệ (QA p04 rr3). */
+  it('[16-A-040] vẽ tường: hai điểm → một PUT chứa tường mới dày 110 mm, công cụ vẽ vẫn bật', async () => {
+    const apiClient = createMockApiClient();
+    const writeLayer = vi.spyOn(apiClient.spatial, 'writeLayer');
+    const gateway = createMockWallLayerReviewGateway({ apiClient, graph: FIXTURE_GRAPH });
+    const mounted = await mountSettled({ gateway });
+    const before = wallCount();
+
+    await pressKey(mounted.registry, shortcutForTool('drawWall'));
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 20000.4, y: 20000.6 }));
+      await Promise.resolve();
+    });
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 22400.7, y: 20000.3 }));
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(wallCount()).toBe(before + 1);
+    });
+    await act(async () => {
+      await flushAutosaves();
+    });
+
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+    const sent = writeLayer.mock.calls[0]?.[0] as unknown as { body: { layer: { walls: { id: string; thicknessMm: number }[] } } };
+    const parsed = FloorLayerWriteSchema.safeParse({ baseVersion: (sent as unknown as { baseVersion: number }).baseVersion, body: sent.body });
+    expect(parsed.success ? [] : parsed.error.issues, 'PUT body passes the write schema').toEqual([]);
+    expect(sent.body.layer.walls).toHaveLength(before + 1);
+    expect(sent.body.layer.walls.filter((w) => w.thicknessMm === 110).length).toBeGreaterThanOrEqual(1);
+    expect(mounted.result.current.toolRail.activeTool).toBe('drawWall');
 
     mounted.unmount();
   });

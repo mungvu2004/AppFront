@@ -1237,10 +1237,10 @@ export function useWallLayerReview(
         setCommittedMeasurement(null);
       }
 
-      sendToolInput({
-        kind: 'point',
-        at: toMillimetrePoint({ x: at.xPx, y: at.yPx }, scaleOfLevel(currentLevel)),
-      });
+      const exact = toMillimetrePoint({ x: at.xPx, y: at.yPx }, scaleOfLevel(currentLevel));
+
+      /* Hợp đồng ghi (`WallSchema`): toạ độ là số nguyên mm — chuột thật cho số lẻ, PUT sẽ bị chặn (QA p04 FL-16-05). */
+      sendToolInput({ kind: 'point', at: { x: Math.round(exact.x), y: Math.round(exact.y) } as typeof exact });
     },
     [sendToolInput],
   );

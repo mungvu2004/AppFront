@@ -862,6 +862,19 @@ describe('QA-04c SCR-18 trên màn đã ráp', () => {
       'min-h-11',
     );
   });
+
+  it('[18-D-008] người xem trên tầng rỗng vẫn thấy câu rỗng và liên kết sang hiệu chỉnh tỷ lệ', async () => {
+    emptyStore();
+
+    renderWithProviders(
+      <MemoryRouter>
+        <DimensionOcrReviewContainer {...scenarioArgsFor('empty')} roles={['viewer']} />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText(DIMENSION_OCR_TEXT.states.empty.title)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: DIMENSION_OCR_TEXT.states.empty.actionLabel })).toHaveAttribute('href');
+  });
 });
 
 describe('[G01] hàng kích thước vừa panel 400 px ở 1024', () => {

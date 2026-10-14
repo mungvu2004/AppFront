@@ -60,6 +60,21 @@ import { deleteSeededProject } from './support/phase03Seed';
 /** Alerts of the screen itself: the app announcer keeps a hidden `role="alert"` region once it announced (announcer.ts:55). */
 const screenAlerts = (page: Page): Locator => page.getByRole('alert').and(page.locator(':not([data-announcer])'));
 const UNKNOWN = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại sau ít phút.'; // vi.json errors.unknown.description
+const PENDING = 'Có thay đổi chờ đồng bộ'; // vi.json:68 autosave.dirty
+const FAILED = 'Lưu thất bại. Hệ thống sẽ thử lưu lại ở lần chỉnh sửa tới.';
+
+/**
+ * Under the paused clock: advance 100 ms at a time until the status bar shows `text` (an autosave attempt, with the
+ * transport's own 3 retries, ends within ~4.5 s of virtual time). Stops on the first hit, so the moment it returns is
+ * the end of the attempt to within 100 ms; the caller's `toContainText` reports a miss.
+ */
+async function drainTo(page: Page, text: string): Promise<void> {
+  for (let step = 0; step < 90; step += 1) {
+    await page.clock.runFor(100);
+    await tick(page);
+    if ((await statusBar(page).innerText()).includes(text)) return;
+  }
+}
 const NETWORK = 'Không liên lạc được với máy chủ. Kiểm tra mạng rồi thử lại.'; // vi.json errors.network (FLRF:73-75)
 
 /** One answer for a mocked call: JSON error envelope `{ code, message, requestId, ...extra }` (what readWireError reads). */
@@ -332,24 +347,30 @@ test.describe('E04 SCR-16 walls — mocked-response flows (QA-04c P1)', () => {
 
       await test.step('[16-G-012] 503 DEPENDENCY_UNAVAILABLE: the front end retries', async () => {
         await fresh(6);
-        const writes0 = m.writes; // counter is cumulative over earlier steps
+        const mark = run!.puts.length;
         await freezeClock(page);
+        // Every PUT answers 503 until the attempt is over: the HTTP client itself re-sends a PUT (idempotency key,
+        // client.ts:405) three times at 300/900/2700 ms (retry.ts:5) INSIDE one autosave attempt, so a one-shot 503 is
+        // healed by the transport and the label never reaches the pending text (the S4 failure: "Đang lưu…").
         m.write = { status: 503, code: 'DEPENDENCY_UNAVAILABLE' };
-        m.writeOnce = true;
         await page.keyboard.press('3');
         await page.clock.runFor(900);
-        await expect.poll(() => m.writes - writes0, { message: 'first PUT answered 503' }).toBe(1);
-        await expect.soft(statusBar(page)).toContainText('Có thay đổi chờ đồng bộ');
-        // A screenshot hangs while page.clock is paused (qa-flow-author trap): let time run in real time, shoot while the
-        // first rung (5 s, RS:1) is still pending, then wait for the retry itself.
-        const second = waitForLayerPut(page, q1.projectId, floor.id);
-        const resumedAt = Date.now();
-        await page.clock.resume();
-        await ev(page, '16-G-012', 'put-503-pending');
-        expect.soft((await second).response.status(), 'the retry reaches the real server').toBe(200);
-        expect.soft(Date.now() - resumedAt, 'the retry waits for the first rung (5 s)').toBeGreaterThan(3_000);
-        m.writeOnce = false;
+        await expect.poll(() => putsSince(run!, mark).length, { message: 'first PUT answered 503' }).toBeGreaterThanOrEqual(1);
+        await drainTo(page, PENDING);
+        await expect.soft(statusBar(page)).toContainText(PENDING);
+        const failed = putsSince(run!, mark).length;
+        expect.soft(failed, 'one attempt = the PUT + 3 transport retries').toBe(4);
         m.write = 'real';
+        const second = waitForLayerPut(page, q1.projectId, floor.id);
+        // First rung of the autosave ladder (RS:1 = 5 s, createAutosave.test.ts:154): not before, then sent.
+        await page.clock.runFor(4_800);
+        await tick(page);
+        expect.soft(putsSince(run!, mark).length, 'no PUT before the first rung (5 s)').toBe(failed);
+        await page.clock.runFor(400);
+        expect.soft((await second).response.status(), 'the retry at 5 s reaches the real server').toBe(200);
+        // A screenshot hangs while page.clock is paused (qa-flow-author trap): resume first, then shoot.
+        await page.clock.resume();
+        await ev(page, '16-G-012', 'put-503-retried');
       });
 
       await test.step('[16-C-008] A wall the geometry cannot resolve (thickness outside 60–600): no shapes, the list still lists every wall', async () => {
@@ -377,26 +398,33 @@ test.describe('E04 SCR-16 walls — mocked-response flows (QA-04c P1)', () => {
           const mark = run!.puts.length;
           await page.keyboard.press(pass.key);
           await page.clock.runFor(900);
-          await expect.poll(() => putsSince(run!, mark).length, { message: `${pass.name} attempt 1` }).toBe(1);
-          await expect.soft(statusBar(page)).toContainText('Có thay đổi chờ đồng bộ');
+          await expect.poll(() => putsSince(run!, mark).length, { message: `${pass.name} attempt 1` }).toBeGreaterThanOrEqual(1);
+          // One autosave attempt = the PUT + 3 transport retries (retry.ts:5, client.ts:405); the ladder spaces ATTEMPTS.
+          await drainTo(page, PENDING);
+          await expect.soft(statusBar(page)).toContainText(PENDING);
+          const perAttempt: number[] = [putsSince(run!, mark).length];
           // RS:1 RETRY_SCHEDULE_MS = [5_000, 15_000, 45_000]
           for (const [rung, wait, label] of [[2, 5_000, 'attempt 2'], [3, 15_000, 'attempt 3'], [4, 45_000, 'attempt 4']] as const) {
-            await page.clock.runFor(wait - 100);
+            const before = putsSince(run!, mark).length;
+            await page.clock.runFor(wait - 200); // at most wait - 100 ms after the attempt ended
             await tick(page);
-            expect.soft(putsSince(run!, mark).length, `${pass.name} ${label} not before ${String(wait)} ms`).toBe(rung - 1);
-            await page.clock.runFor(200);
-            await expect.poll(() => putsSince(run!, mark).length, { message: `${pass.name} ${label}` }).toBe(rung);
-            if (rung < 4) await expect.soft(statusBar(page)).toContainText('Có thay đổi chờ đồng bộ');
+            expect.soft(putsSince(run!, mark).length, `${pass.name} ${label} not before ${String(wait)} ms`).toBe(before);
+            await page.clock.runFor(400);
+            await expect.poll(() => putsSince(run!, mark).length, { message: `${pass.name} ${label} sent after ${String(wait)} ms` }).toBeGreaterThan(before);
+            await drainTo(page, rung < 4 ? PENDING : FAILED);
+            perAttempt.push(putsSince(run!, mark).length - before);
+            if (rung < 4) await expect.soft(statusBar(page)).toContainText(PENDING);
           }
-          await expect.soft(statusBar(page)).toContainText('Lưu thất bại. Hệ thống sẽ thử lưu lại ở lần chỉnh sửa tới.');
+          await expect.soft(statusBar(page)).toContainText(FAILED);
           const sent = putsSince(run!, mark);
           const bodies = sent.map((put) => JSON.stringify({ base: put.baseVersion, walls: put.walls }));
-          ladder.push({ pass: pass.name, attempts: sent.length, identicalBodies: new Set(bodies).size === 1 });
+          ladder.push({ pass: pass.name, attempts: perAttempt, identicalBodies: new Set(bodies).size === 1 });
+          expect.soft(perAttempt, `${pass.name}: 4 attempts, each the PUT + 3 transport retries`).toEqual([4, 4, 4, 4]);
           expect.soft(new Set(bodies).size, `${pass.name}: the same body is resent each time`).toBe(1);
         }
         await attachJson('E04_16-B-028_retry-ladder.json', { passes: ladder });
+        await page.clock.resume(); // a screenshot hangs while page.clock is paused (qa-flow-author trap)
         await ev(page, '16-B-028', 'retry-ladder-failed');
-        await page.clock.resume();
         m.write = 'real';
         await quiet(page);
       });
