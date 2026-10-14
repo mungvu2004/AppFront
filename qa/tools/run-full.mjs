@@ -11,7 +11,8 @@
 //   node F:/App/qa-results/tools/stack-lock.mjs node tools/run-full.mjs --phase 04 --run-id run-50 [--workers 4]
 //        [--layers main,ui,api,edge] [--grep re] [--no-prev] [--no-build] [--history 6] [--watch] [--retries 1] [--check]
 //        [--dry-run]  (run-phase only prints the --grep it received; tools/check-grep-passthrough.mjs uses it)
-// Exit code = run-phase's. Never prunes images/volumes.
+//        [--allow-empty]  (a selected layer that ran 0 tests is EMPTY = red; this lets it pass while another layer ran)
+// Exit code = run-phase's (non-zero when a selected layer ran 0 tests, tools/check-zero-tests.mjs). Never prunes images/volumes.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -20,6 +21,8 @@ import { fileURLToPath } from 'node:url';
 const SUITE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const REPO = resolve(SUITE, '..');
 const cfg = JSON.parse(readFileSync(join(SUITE, 'qa.config.json'), 'utf8'));
+// QA_RESULTS_DIR: results root override (self-checks write to a temp dir, never into qa-results).
+if (process.env.QA_RESULTS_DIR) cfg.resultsDir = process.env.QA_RESULTS_DIR;
 const argv = process.argv.slice(2);
 const flag = (n) => argv.includes(`--${n}`);
 const opt = (n, d) => (argv.includes(`--${n}`) ? argv[argv.indexOf(`--${n}`) + 1] : d);
@@ -146,7 +149,7 @@ if (!existsSync(STATE) && Number(NN) > 2 && opt('layers', 'main').split(',').inc
 /* 3. run */
 const prev = String(Number(NN) - 1).padStart(2, '0');
 const layers = opt('layers', 'main,ui,api,edge');
-const extra = [...(opt('grep', '') ? ['--grep', opt('grep', '')] : []), ...(opt('repeat', '') ? ['--repeat', opt('repeat', '')] : []), '--layers', layers, ...(flag('dry-run') ? ['--dry-run'] : [])];
+const extra = [...(opt('grep', '') ? ['--grep', opt('grep', '')] : []), ...(opt('repeat', '') ? ['--repeat', opt('repeat', '')] : []), '--layers', layers, ...['dry-run', 'allow-empty'].filter(flag).map((f) => `--${f}`)];
 if (!flag('no-prev') && layers.split(',').includes('main') && Number(NN) > 1) {
   // Replay the WHOLE chain 01..NN-1: phase 02 creates a fresh .state project. Replaying only NN-1 reused the project of an
   // earlier run, so every replay piled up floors/drawings and the fixed counts of NN-1 main went red (phase 04 RF 2026-10-15).
@@ -195,6 +198,7 @@ const now = statuses(RUN_ID);
 const past = runs.filter((r) => r !== RUN_ID).map((r) => statuses(r));
 const red = [...now].filter(([, s]) => s === 'failed' || s === 'timedOut' || s === 'flaky');
 say(`${red.filter(([, s]) => s !== 'flaky').length} failing, ${red.filter(([, s]) => s === 'flaky').length} flaky test(s) in ${RUN_ID}`);
+if (code !== 0 && red.length === 0) say(`exit ${code} with 0 failing: a layer is EMPTY (ran 0 tests: wrong --grep/--layers) or ERROR, see layers.json`);
 // Triage input: one group per error signature (numbers, ids, quoted values stripped), so one agent takes a group, not a test.
 const signature = (e) => e.replace(/"[^"]*"|'[^']*'|`[^`]*`/gu, '…').replace(/\d+/gu, 'N').slice(0, 160);
 const groups = {};

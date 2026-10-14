@@ -4,6 +4,7 @@
 //                   [--grep "SCR-01|SCR-02"] [--no-watch] [--no-typecheck] [--workers N] [--retries N]
 // --workers N: Playwright workers for the ui/api/edge layers (files run in parallel, tests inside a file stay in
 // order); main is a serial chain and always gets 1. Default 1. Only for phases whose files are independent.
+// A selected layer that ran 0 tests is EMPTY and fails the run; --allow-empty lets EMPTY layers pass while another ran.
 // Default (config.defaults.watch): headed + config.defaults.slowMoMs, so the run can be watched; --no-watch = headless, slowMo 0.
 // Results: <resultsDir>/<runId>/<tag>[-api|-edge]/ (results.json, run.log, report/, artifacts/) and a
 // machine summary <resultsDir>/<runId>/<tag>/layers.json (also the last stdout line, prefixed LAYERS_JSON=).
@@ -16,6 +17,8 @@ import { fileURLToPath } from 'node:url';
 
 const SUITE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const cfg = JSON.parse(readFileSync(join(SUITE, 'qa.config.json'), 'utf8'));
+// QA_RESULTS_DIR: results root override (self-checks write to a temp dir, never into qa-results).
+if (process.env.QA_RESULTS_DIR) cfg.resultsDir = process.env.QA_RESULTS_DIR;
 
 const argv = process.argv.slice(2);
 const flag = (n) => argv.includes(`--${n}`);
@@ -108,7 +111,8 @@ for (const layer of LAYERS) {
   const tag = layer === 'main' ? TAG : `${TAG}-${layer}`;
   const dir = join(fill(cfg.resultsDir), RUN_ID, tag);
   if (files.length === 0) {
-    out.layers.push({ layer, tag, specs: [], status: 'NO_SPEC' });
+    // A layer named in --layers that has no spec file is a typo'd selection, not a pass.
+    out.layers.push({ layer, tag, specs: [], status: argv.includes('--layers') ? 'EMPTY' : 'NO_SPEC' });
     continue;
   }
   mkdirSync(dir, { recursive: true });
@@ -134,7 +138,8 @@ for (const layer of LAYERS) {
   const missing = executed.filter((t) => t.evidence.length === 0 && !(t.status !== 'passed' && t.failureShots.length)).map((t) => t.title);
   out.layers.push({
     ...row,
-    status: count('failed', 'timedOut', 'interrupted') ? 'FAIL' : 'PASS',
+    // EMPTY = the layer ran 0 tests (--grep matched nothing, all skipped): phase 04 RR #1 read that as "0 failing".
+    status: count('failed', 'timedOut', 'interrupted') ? 'FAIL' : executed.length === 0 ? 'EMPTY' : 'PASS',
     total: tests.length,
     passed: count('passed'),
     failed: count('failed', 'timedOut', 'interrupted'),
@@ -153,6 +158,9 @@ out.uiTotal = ui.reduce((n, l) => n + l.total, 0);
 out.mocked = ui.reduce((n, l) => n + l.mocked, 0);
 out.mockShare = out.uiTotal ? +(out.mocked / out.uiTotal).toFixed(3) : 0;
 out.mockShareOver = out.mockShare > (cfg.rules?.maxMockedShare ?? 1);
-const bad = out.layers.some((l) => ['FAIL', 'ERROR'].includes(l.status));
+// --allow-empty (rerun-args --area: the area regex spans all layers): EMPTY layers pass while some layer ran tests.
+const ran = out.layers.some((l) => (l.passed ?? 0) + (l.failed ?? 0) > 0);
+const badStatus = ['FAIL', 'ERROR', ...(flag('allow-empty') && ran ? [] : ['EMPTY'])];
+const bad = out.layers.some((l) => badStatus.includes(l.status));
 for (const l of out.layers) console.log(`${l.layer.padEnd(4)} ${l.status} ${l.passed ?? 0}/${l.total ?? 0} in ${l.durationSec ?? 0}s, evidence ${l.evidenceOk === false ? `MISSING ${l.missingEvidence.length}` : 'ok'}`);
 finish(bad ? 1 : 0);
