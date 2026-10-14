@@ -66,6 +66,8 @@ import {
   spaNavigate,
 } from './support/p07/P6';
 
+/** I18N autosave.dirty (src/i18n/vi.json:68): the chip while a change waits for the debounce. */
+const CHIP_DIRTY = 'Có thay đổi chờ đồng bộ';
 const MAIL_EVENT = 'Tổng hợp mỗi sáng';
 const INVITE_EVENT = 'Được mời vào dự án';
 const MENTION_EVENT = 'Bình luận nhắc đến tôi';
@@ -130,8 +132,12 @@ test.describe('E07 SCR-33 preferences B', () => {
       });
 
       await test.step('[33R-C-001] "Theo hệ thống" under an OS dark scheme is not remembered: the reload shows "Tối"', async () => {
+        // start from a stored LIGHT value so the final "dark" can only come from the click on "Theo hệ thống"
+        await themeRadio(page, 'light').click();
+        await expect.poll(() => readStoredTheme(page)).toBe('light');
         await page.emulateMedia({ colorScheme: 'dark' });
         await themeRadio(page, 'system').click();
+        await expect.poll(() => readStoredTheme(page)).toBe('dark'); // UAP:479-488: the resolved value is what is stored
         await page.reload();
         await expect(box(page, 'Chức danh')).toBeVisible();
         // UAP:37-45,384: the store only keeps the resolved light/dark value
@@ -205,12 +211,20 @@ test.describe('E07 SCR-33 preferences B', () => {
         });
 
         await test.step('[33R-G-003] mixed save: one PATCH /api/me whose body only has jobTitle', async () => {
-          // Profile edit LAST: whatever the pace of the earlier actions, the debounce that fires carries all three changes.
+          // Fake clock paused: the 800 ms debounce (createAutosave.ts:231-248) cannot fire between the three changes,
+          // however slow slowMo makes the actions, so they are provably ONE window.
+          await page.clock.install();
+          await page.clock.pauseAt(new Date(Date.now() + 2_000));
           await clickCell(page, INVITE_EVENT, 'inApp');
           await themeRadio(page, 'dark').click();
-          const patched = waitForApi(page, 'PATCH', ME_RE, [200]);
           await box(page, 'Chức danh').fill(`${snapshot.jobTitle}-e2e`);
+          await expect.soft(saveIndicator(page)).toHaveText(CHIP_DIRTY); // still pending: no earlier local-only save happened
+          await expect.soft(undoToast(page)).toHaveCount(0);
+          expect.soft(writes.list()).toEqual([]);
+          const patched = waitForApi(page, 'PATCH', ME_RE, [200]);
+          await page.clock.runFor(1_000); // the one debounce fires
           await patched;
+          await page.clock.resume();
           await expect.soft(saveIndicator(page)).toHaveText(IND.saved); // deadline marker: the save finished
           expect.soft(writes.list()).toEqual(['PATCH /api/me']);
           const bodies = writes.bodies('/api/me');
@@ -324,8 +338,8 @@ test.describe('E07 SCR-33 preferences B', () => {
           await s.search.pressSequentially('+');
           await expect.soft(s.status).toHaveText(SHORTCUTS.filtered(4, TOTAL));
           await expect.soft(s.search).toBeFocused();
-          await s.search.pressSequentially('S');
-          await expect.soft(s.search).toHaveValue('Ctrl+S');
+          await s.search.pressSequentially('F'); // "ctrl+s" would also match Ctrl+Shift+Z; "ctrl+f" matches one row
+          await expect.soft(s.search).toHaveValue('Ctrl+F');
           await expect.soft(s.status).toHaveText(SHORTCUTS.filtered(1, TOTAL));
           await expect.soft(s.search).toBeFocused();
           await captureEvidence(page, 'E07_33R-E-011_status_live.png');
@@ -362,6 +376,8 @@ test.describe('E07 SCR-33 preferences B', () => {
         await test.step('[33R-C-005] ⚑ "mod" matches nothing: no cell shows the internal "Mod" spelling', async () => {
           await s.search.fill('mod');
           // today red: UAT:374 also searches `row.combo` ("Mod+Z"…) so 4 rows stay
+          await expectFiltered(page, [], TOTAL);
+          await s.search.fill('escape'); // the internal `ESCAPE` spelling (UAT:237,374) must not match either
           await expectFiltered(page, [], TOTAL);
           await captureEvidence(page, 'E07_33R-C-005_search_hidden_mod.png');
         });
