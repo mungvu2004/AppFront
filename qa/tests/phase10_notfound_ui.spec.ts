@@ -40,7 +40,9 @@ test('SCR-39 · FL-10N-05 · admin · bố cục success 4 khổ (DP3)', async (
         // NotFound.tsx: PlanFragment only when !isCompact (NARROW_QUERY < 1024).
         await expect.soft(page.getByRole('main').locator('svg[aria-hidden="true"]')).toHaveCount(vp.width >= 1024 ? 1 : 0);
         const column = await page.locator('div.nf-notfound-enter, div.nf-notfound-fade').first().boundingBox();
-        expect.soft(column?.width, `content column at ${String(vp.width)}`).toBe(560); // CONTENT_COLUMN_PX
+        // CONTENT_COLUMN_PX = 560; a flex child may shrink below it in a narrow main (768).
+        if (vp.width >= 1024) expect.soft(column?.width, `content column at ${String(vp.width)}`).toBe(560);
+        else expect.soft(column?.width, `content column at ${String(vp.width)}`).toBeLessThanOrEqual(560);
       }
     });
   } finally {

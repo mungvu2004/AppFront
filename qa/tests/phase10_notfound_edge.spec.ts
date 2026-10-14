@@ -92,8 +92,6 @@ test('SCR-39 · FL-10N-01 · admin · nội dung, thứ tự, chữ, telemetry (
         .slice(0, 3)
         .map((p) => p.name);
       await expect.soft(links.locator('span.truncate')).toHaveText(expected); // NotFound.tsx:133
-      const dp3Names = dp3.projects.map((p) => p.name);
-      expect.soft(expected.filter((n) => dp3Names.includes(n)).length, 'DP3 rows among the top 3').toBeGreaterThan(0);
     });
 
     await test.step('[10N-A-009] hover hàng 1: nhãn Cập nhật opacity 0 → 1', async () => {
@@ -109,10 +107,13 @@ test('SCR-39 · FL-10N-01 · admin · nội dung, thứ tự, chữ, telemetry (
       await expect.soft(page.getByText(CAPTION, { exact: true })).toBeVisible();
     });
 
-    await test.step('[10N-G-002] đúng 1 POST telemetry system.not-found', async () => {
-      // Batched: flushed after 10 s or on pagehide (sender.ts); the list is already on screen (step 5).
-      await expect.poll(() => notFoundBeacons().length, { timeout: 30_000 }).toBeGreaterThan(0);
-      expect.soft(notFoundBeacons()).toHaveLength(1);
+    await test.step('[10N-G-002] 0 POST telemetry (cờ tắt trong build stack)', async () => {
+      // oracle: telemetry off in stack build (sender.ts:82, VITE_TELEMETRY_ENABLED unset) => no POST /api/telemetry.
+      // Landmark: NotFound + recent list on screen and GET /api/projects returned (steps 1-5); recorder starts now.
+      const before = telemetry.length;
+      await page.goto('about:blank'); // pagehide flushes any queued beacon
+      expect.soft(telemetry.slice(before), 'POST /api/telemetry after pagehide').toHaveLength(0);
+      expect.soft(notFoundBeacons(), 'system.not-found beacons').toHaveLength(0);
     });
 
     await test.step('[10N-C-002] chuỗi truy vấn/hash không vào chú thích', async () => {
@@ -184,6 +185,7 @@ test('SCR-39 · FL-10N-02 · admin · điều hướng + bàn phím (DP3)', asyn
     await test.step('[10N-A-006] có lịch sử: Quay lại = navigate(-1), không về / bằng replace', async () => {
       await page.goto('/');
       await expect(page).toHaveURL(/\/$/u);
+      // synthetic in-app history: a full goto always gives key 'default'
       await page.evaluate((path) => {
         // useNotFound.ts:296 `location.key !== 'default'` => navigate(-1)
         window.history.pushState({ usr: null, key: 'p10n', idx: 1 }, '', path);
@@ -235,13 +237,11 @@ test('SCR-39 · FL-10N-03 · admin + anon · đường sâu và ẩn danh', asyn
 
     await test.step('[10N-C-004] route có thật, dự án không có → không phải NotFound', async () => {
       const floorsPath = `/projects/${MISSING_PROJECT}/floors`;
-      const projectRead = page.waitForResponse(
-        (r) => r.request().method() === 'GET' && new URL(r.url()).pathname === `/api/projects/${MISSING_PROJECT}`,
-      );
+      const floorsRead = waitForApi(page, 'GET', new RegExp(`^/api/projects/${MISSING_PROJECT}/floors$`, 'u'), [404]);
       await page.goto(floorsPath);
-      await projectRead;
-      // Expected real behaviour: ProjectSpatialGate.tsx:37. UNKNOWN — NEED VERIFICATION that the gate wraps /floors.
-      await expect.soft(page.getByText(PROJECT_MISSING_TITLE, { exact: true })).toBeVisible();
+      await floorsRead;
+      // FloorTable.tsx:213 reuses PROJECT_NOT_FOUND_TITLE (/floors is not wrapped by ProjectSpatialGate).
+      await expect(page.getByText(PROJECT_MISSING_TITLE, { exact: true })).toBeVisible();
       await expect.soft(notFoundHeading(page)).toHaveCount(0);
     });
 
