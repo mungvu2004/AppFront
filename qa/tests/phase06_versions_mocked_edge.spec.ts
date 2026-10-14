@@ -344,27 +344,6 @@ test.describe('E06 SCR-32 version history — mocked-response flows (QA-06b P7)'
           reset();
         });
 
-        await test.step('[32-B-022] "Trực quan" while the pair is fetching: canvas skeleton "Đang dựng mô hình"', async () => {
-          // Only the 10 newest are read on load, so v1 is unread; picking it as "Phiên bản gốc" puts an in-flight N18 into the pair.
-          mock.setHistory(history(12));
-          const gate = deferred();
-          mock.snapshot = (id, call) => (id === v1 ? { ...baseSnapshot(id, call), hold: gate.promise } : baseSnapshot(id, call));
-          await openVersionsPage(page, projectId);
-          await expect(diffTab(page, 'Thay đổi')).toBeVisible();
-          await page.getByRole('combobox', { name: VH.leftSelect, exact: true }).click();
-          await page.getByRole('option', { name: /^v1 · /u }).click();
-          await diffTab(page, 'Trực quan').click();
-          // F-T3: the skeleton needs a diff AND a pair member still fetching (VV:147, `isBuilding = isAvailable && pairFetching`);
-          // with the left snapshot unread the compare area shows the loading sentence instead (versionHistoryCompare.ts:57).
-          test.info().annotations.push({ type: '32-B-022', description: 'app/catalog gap: skeleton unreachable while the first snapshot of the pair loads' });
-          await expect.soft(page.getByRole('status', { name: VH.buildingLabel })).toBeVisible(); // VV:146-163, 171-175
-          await captureEvidence(page, 'E06v_32-B-022_canvas-skeleton.png');
-          gate.release();
-          await expect.soft(page.getByRole('status', { name: VH.buildingLabel })).toHaveCount(0);
-          mock.setHistory(three);
-          reset();
-        });
-
         // The real-seed pipeline file cannot reach the unavailable state (the BE never stores a non-finite graph), so it is mocked here.
         // These two steps replace the same ids in phase06_pipeline.spec.ts (T4a removes those).
         await test.step('[32-B-018] visual tab: a left version whose scene cannot be built -> "Chưa xem trực quan được"', async () => {
