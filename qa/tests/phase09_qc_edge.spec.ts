@@ -8,7 +8,7 @@ import type { Page } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { captureEvidence } from './support/evidence';
-import { createQcProject, deleteProject, layerPathOf } from './support/layerSeed';
+import { createQcProject, deleteProject, layerPathOf, type SeededFloor } from './support/layerSeed';
 import { layerApiFrom, openScreen, pressAll, seedQcForViewer, settle } from './support/p09/P5';
 import { adminApi, apiAs, asMember, DESKTOP, gotoAs, mainProject, recordWrites, roleUser, signInRole } from './support/p09/roles';
 
@@ -16,7 +16,7 @@ test.use({ viewport: DESKTOP });
 
 const SLOT = 'qc';
 const shot = async (page: Page, id: string, slug: string): Promise<void> => {
-  await captureEvidence(page, `E09_${id}_${slug}`);
+  await captureEvidence(page, `E09_${id}_${slug}.png`);
 };
 const WRITE_KEYS = ['Enter', 'Delete', 'Backspace', 'm', 'r', 'ArrowRight', 'Control+z'] as const;
 
@@ -45,6 +45,8 @@ const ROOM_VIEW_ONLY =
 const ROOM_CANVAS_DESC = 'Bản vẽ vẫn xem được, nhưng không chọn được phòng nào ở đây. Nhờ người có quyền sửa dự án duyệt giúp.';
 // SCR-21
 const THICKNESS_TITLE = 'Không có quyền sửa độ dày tường';
+const THICKNESS_VIEW_ONLY =
+  'Bạn đang xem với vai người xem: áp chuẩn hoá, gán nhóm và sửa dung sai đều tắt. Nhờ người quản trị dự án đổi vai nếu bạn cần sửa độ dày tường.';
 
 test.describe('SCR-16..21 viewer read-only QC screens', () => {
   test('SCR-16 · FL-9Q-01 · viewer · lớp tường chỉ-xem', async ({ context, page }) => {
@@ -131,11 +133,13 @@ test.describe('SCR-16..21 viewer read-only QC screens', () => {
     const fx = await seedQcForViewer(admin, viewer, 'p09-objects');
     // QV2: second floor of its own project has no layer (empty state)
     const api = layerApiFrom(admin);
-    const [, emptyFloor] = await createQcProject(api, 'p09-objects-empty', ['Tầng 1', 'Tầng trống']);
+    let emptyFloor: SeededFloor | undefined;
     let undo: (() => Promise<void>) | null = null;
     try {
-      if (emptyFloor === undefined) throw new Error('setup: no empty floor');
-      undo = await asMember(admin, emptyFloor.projectId, viewer);
+      [, emptyFloor] = await createQcProject(api, 'p09-objects-empty', ['Tầng 1', 'Tầng trống']);
+      const empty = emptyFloor;
+      if (empty === undefined) throw new Error('setup: no empty floor');
+      undo = await asMember(admin, empty.projectId, viewer);
       await signInRole(context, viewer);
       const rec = recordWrites(page);
       const region = page.getByRole('region', { name: OBJECTS_REGION, exact: true });
@@ -150,7 +154,7 @@ test.describe('SCR-16..21 viewer read-only QC screens', () => {
       });
       await test.step('[9Q-B-002] câu chỉ-xem của lớp đối tượng', async () => {
         await options.first().click();
-        // UNKNOWN — NEED VERIFICATION: where OBJECT_LAYER_TEXT.forbidden renders; if absent it is a UX bug
+        // viewerRoleNotice = OBJECT_LAYER_TEXT.forbidden (useObjectLayerReview.ts:1515)
         await expect.soft(page.getByText(OBJECT_VIEW_ONLY, { exact: true }).first()).toBeVisible();
         await shot(page, '9Q-B-002', 'view_only_sentence');
       });
@@ -167,7 +171,7 @@ test.describe('SCR-16..21 viewer read-only QC screens', () => {
         await shot(page, '9Q-B-004', 'inspector_read_only');
       });
       await test.step('[9Q-B-005] trạng thái rỗng không có Thêm thủ công', async () => {
-        await page.goto(ROUTES.project.objects(emptyFloor.projectId, emptyFloor.floorId));
+        await page.goto(ROUTES.project.objects(empty.projectId, empty.floorId));
         await expect(region).toBeVisible({ timeout: 15_000 });
         await expect(page.getByText('Chưa nhận ra đối tượng nào', { exact: true })).toBeVisible();
         await expect.soft(page.getByRole('button', { name: 'Thêm thủ công' })).toHaveCount(0); // ObjectLayerReview.tsx:98-108
@@ -326,10 +330,10 @@ test.describe('SCR-16..21 viewer read-only QC screens', () => {
     try {
       await signInRole(context, viewer);
       const rec = recordWrites(page);
+      const layerRes = page.waitForResponse((r) => r.request().method() === 'GET' && r.url().includes('/spatial/layer'));
       await test.step('[9Q-F-001] tiêu đề + câu viewerRoleNotice', async () => {
         await gotoAs(page, ROUTES.project.thickness(fx.floor.projectId, fx.floor.floorId), THICKNESS_TITLE); // ThicknessStandardization.tsx:115,347
-        // viewerRoleNotice literal (useThicknessStandardization.ts:134): UNKNOWN — NEED VERIFICATION; asserted as a read-only alert
-        await expect(page.getByRole('heading', { name: THICKNESS_TITLE, exact: true })).toBeVisible();
+        await expect(page.getByText(THICKNESS_VIEW_ONLY, { exact: true })).toBeVisible(); // useThicknessStandardization.ts:134-135
         await shot(page, '9Q-F-001', 'view_only_alert');
       });
       await test.step('[9Q-F-002] thanh áp dụng không được dựng', async () => {
@@ -338,11 +342,14 @@ test.describe('SCR-16..21 viewer read-only QC screens', () => {
         await shot(page, '9Q-F-002', 'no_apply_bar');
       });
       await test.step('[9Q-F-003] bảng nhóm không cột chấp nhận, bảng đoạn không ô chọn', async () => {
+        expect((await layerRes).status()).toBe(200); // data loaded before asserting absence
+        await settle(page);
         await expect.soft(page.getByRole('checkbox', { name: /^Đồng ý chuẩn hoá \d+ tường /u })).toHaveCount(0); // ThicknessGroupTable.tsx:60,79
         await expect.soft(page.getByRole('checkbox')).toHaveCount(0); // ThicknessSegmentTable.tsx:192
         await shot(page, '9Q-F-003', 'no_accept_selects');
       });
       await test.step('[9Q-F-004] phím tắt tắt, không PUT', async () => {
+        await page.getByRole('row').nth(1).click();
         await pressAll(page, WRITE_KEYS);
         await settle(page);
         expect(rec.writes).toEqual([]); // useThicknessStandardization.ts:887
