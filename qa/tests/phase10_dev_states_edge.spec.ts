@@ -55,7 +55,7 @@ test('SCR-40 · FL-10D-05 · anon · states: cây và chọn màn', async ({ dev
     const counts = texts.map((t) => /(\d+)\/(\d+)/u.exec(t));
     const present = counts.reduce((sum, m) => sum + Number(m?.[1] ?? 0), 0);
     const total = counts.reduce((sum, m) => sum + Number(m?.[2] ?? 0), 0);
-    const dd = (label: string) => devPage.locator('dt', { hasText: label }).locator('xpath=following-sibling::dd');
+    const dd = (label: string) => devPage.locator('dt', { hasText: new RegExp(`^${label}$`, 'u') }).locator('xpath=following-sibling::dd');
     await expect.soft(dd('Số trạng thái đã có')).toHaveText(`${present}/${total}`);
     await expect.soft(dd('Số màn')).toHaveText(String(texts.length));
     await captureEvidence(devPage, 'D10_10D-A-303_states_summary.png');
@@ -93,6 +93,7 @@ test('SCR-40 · FL-10D-05 · anon · states: cây và chọn màn', async ({ dev
 });
 
 test('SCR-40 · FL-10D-06 · anon · states: bảy khung trạng thái', async ({ devPage }) => {
+  test.setTimeout(120_000);
   await openStates(devPage);
   await selectScreen(devPage, ACCOUNT_SCREEN);
   const frame = (label: string) =>

@@ -65,7 +65,8 @@ export async function runQuickCheckAndWait(page: Page): Promise<void> {
 export async function freezeQuickCheckTimer(page: Page): Promise<void> {
   await page.evaluate(() => {
     const original = window.setTimeout.bind(window);
+    let armed = true;
     window.setTimeout = ((fn: TimerHandler, ms?: number, ...args: unknown[]) =>
-      ms === 260 ? 0 : original(fn, ms, ...args)) as typeof window.setTimeout;
+      ms === 260 && armed ? ((armed = false), 0) : original(fn, ms, ...args)) as typeof window.setTimeout;
   });
 }
