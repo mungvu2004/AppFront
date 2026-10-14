@@ -161,7 +161,7 @@ test.describe('SCR-09/10/11/21/25 floors — UI verify (QA-11 P5)', () => {
           );
         });
       } finally {
-        await deleteSeededProject(ctx.admin, quality.projectId);
+        expect(await deleteSeededProject(ctx.admin, quality.projectId), 'cleanup').toBeNull();
       }
     });
   });
@@ -219,12 +219,17 @@ test.describe('SCR-09/10/11/21/25 floors — UI verify (QA-11 P5)', () => {
           'U11_11F-F-301_floors',
           async (p) => {
             const region = await openThickness(p);
-            await p.getByRole('checkbox', { name: THICK_ACCEPT }).first().focus();
-            await p.keyboard.press('Space'); // sr-only checkbox: keyboard, as phase04 pressSpaceOn
+            const boxes = p.getByRole('checkbox', { name: THICK_ACCEPT });
+            await expect(boxes.first()).toBeVisible();
+            for (let i = 0; i < (await boxes.count()); i += 1) {
+              await boxes.nth(i).focus();
+              await p.keyboard.press('Space'); // sr-only checkbox: keyboard, as phase04 pressSpaceOn; every group accepted so the 150 mm wall is a row
+            }
             await btn(region, THICK_PREVIEW).click();
             await expect(region.getByText(/nhóm chuẩn\./u)).toBeVisible();
-            // UNKNOWN — NEED VERIFICATION: that the 150 mm wall lands in the "không đổi được" list (TAB:~178, shown when unchangedWalls > 0)
-            await expect.soft(region.getByText(/tường không đổi được:$/u)).toBeVisible();
+            // TAB: list shown when unchangedWalls > 0 = rows of accepted groups with exceedsTolerance (gateway:811); the 150 mm wall is 70 mm off 220 (> 30 mm)
+            await expect(region.getByText(/^\d+ tường không đổi được:$/u)).toBeVisible();
+            await expect(region.getByText(/^150,0\s*mm$/u), 'row of the 150 mm wall in the list').toBeVisible();
           },
           DESKTOP_VIEWPORTS,
         );
@@ -267,7 +272,7 @@ test.describe('SCR-09/10/11/21/25 floors — UI verify (QA-11 P5)', () => {
             DESKTOP_VIEWPORTS,
           );
         } finally {
-          await deleteSeededProject(ctx.admin, projectId);
+          expect(await deleteSeededProject(ctx.admin, projectId), 'cleanup').toBeNull();
         }
       });
     });

@@ -49,8 +49,10 @@ export async function withEngineer(browser: Browser, fileSlug: string, body: (ct
     });
   } finally {
     for (const s of sessions) await s.context.close();
-    for (const id of projects) await deleteSeededProject(admin, id);
+    const failures: (string | null)[] = [];
+    for (const id of projects) failures.push(await deleteSeededProject(admin, id));
     await admin.dispose();
+    expect(failures.filter((f) => f !== null), 'cleanup').toEqual([]);
   }
 }
 

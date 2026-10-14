@@ -278,8 +278,8 @@ test.describe('SCR-10/11/25 floors — mocked edge (QA-11 P5)', () => {
           }
         });
       } finally {
-        await deleteSeededProject(ctx.admin, quality.projectId);
-        if (measureId !== '') await deleteSeededProject(ctx.admin, measureId);
+        expect(await deleteSeededProject(ctx.admin, quality.projectId), 'cleanup').toBeNull();
+        if (measureId !== '') expect(await deleteSeededProject(ctx.admin, measureId), 'cleanup').toBeNull();
       }
     });
   });
