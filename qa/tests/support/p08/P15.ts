@@ -39,8 +39,8 @@ export const note = (description: string): void => {
   test.info().annotations.push({ type: 'note', description });
 };
 
-/** Run-unique dataset name `${TEST_DATA_PREFIX}b08m-${RUN_ID}-<n>` (+ `-r<retry>` on a retry); n <= 4 per run (S2 #5). */
-export const datasetName = (n: number): string => `${TEST_DATA_PREFIX}b08m-${RUN_ID}-${n}${test.info().retry ? `-r${test.info().retry}` : ''}`;
+/** Dataset name `${TEST_DATA_PREFIX}b08m-${RUN_ID}-<time36>-<n>` (S4: unique suffix per call). */
+export const datasetName = (n: number): string => `${TEST_DATA_PREFIX}b08m-${RUN_ID}-${Date.now().toString(36)}-${n}`; // unique per call: no delete API, a rerun/retry must not 409
 
 const ULID_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 /** `count` distinct well-formed `prj_<ULID>` ids that no row carries (all start with 0). */
@@ -104,9 +104,16 @@ export function wireValid(body: Json): boolean {
  * (a version verified by the caller to be not ready / of another family, so the BE refuses it before the insert).
  */
 export function guardCreate(body: Json, refusable: ReadonlySet<string> = new Set()): void {
-  if (wireValid(body) && body.datasetVersionId !== NO_DATASET_VERSION && !refusable.has(String(body.datasetVersionId))) {
+  // S4: decided by the dataset version id alone (the BE wire is lax: epochs true / "3" / 1.0 would be accepted).
+  const dsv = body.datasetVersionId;
+  if (typeof dsv === 'string' && DSV.test(dsv) && dsv !== NO_DATASET_VERSION && !refusable.has(dsv)) {
     throw new Error(`guard: refusing to send a job-create body that could create a training job: ${JSON.stringify(body)}`);
   }
+}
+
+/** Guard: a build body without projectIds means "all projects" and would start a build on a real dataset. */
+export function guardBuild(body: Json): void {
+  if (!Array.isArray(body.projectIds)) throw new Error(`guard: refusing a dataset build body without projectIds: ${JSON.stringify(body)}`);
 }
 
 const JOB_ID = /^job_[0-9A-HJKMNP-TV-Z]{26}$/u;
