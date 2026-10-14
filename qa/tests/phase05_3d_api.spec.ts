@@ -84,8 +84,8 @@ test.describe(API, () => {
       });
 
       await test.step('[B05-G-021] N15 floorRevisions equal N16 revision per floor, = 1 after the seed write', async () => {
-        for (const floor of [t1, t2]) {
-          const doc = await readLayerDoc(admin, `B05-G-021_n16_${floor.floorName.replace(/\s/gu, '')}`, p, floor.floorId);
+        for (const [i, floor] of [t1, t2].entries()) {
+          const doc = await readLayerDoc(admin, `B05-G-021_n16_t${String(i + 1)}`, p, floor.floorId);
           expect.soft(revisionIn(n15Admin, floor.floorId), `${floor.floorName} N15 revision`).toBe(doc.revision);
           expect.soft(doc.revision, `${floor.floorName} seed revision`).toBe(1);
         }
@@ -451,7 +451,8 @@ test.describe(API, () => {
         expect.soft(head(found.res.headers(), 'content-type')).toContain('application/wasm');
         const missing = await call(web, 'B05-G-145_missing', 'GET', '/basis/qa-missing.wasm', undefined, ['404, not the SPA index.html']);
         expect.soft(missing.res.status(), 'missing basis file').toBe(404);
-        expect.soft(head(missing.res.headers(), 'content-type') ?? '').not.toContain('text/html');
+        // nginx's own 404 page is text/html; what must not come back is the SPA index (location / try_files fallback).
+        expect.soft(String(missing.body), 'not the SPA index.html').not.toContain('id="root"');
       });
 
       const ktx = '/pascal/material/concrete/concrete_plate/concrete_plate_basecolor_512.ktx2';
@@ -463,12 +464,12 @@ test.describe(API, () => {
         expect.soft(missing.res.status(), 'missing material').toBe(404);
       });
 
-      await test.step('[B05-G-147] .ktx2 headers: CSP + nosniff, no Cache-Control, ETag + Last-Modified', async () => {
-        // Pins today's revalidation policy (NG:63-66).
-        const h = (await call(web, 'B05-G-147_ktx2_headers', 'GET', ktx, undefined, ['CSP + nosniff, no Cache-Control, ETag + Last-Modified'])).res.headers();
+      await test.step('[B05-G-147] .ktx2 headers: CSP + nosniff, Cache-Control public max-age=86400, ETag + Last-Modified', async () => {
+        // /pascal/ is a bounded cache, not immutable (app_locations.conf:94-98).
+        const h = (await call(web, 'B05-G-147_ktx2_headers', 'GET', ktx, undefined, ['CSP + nosniff, Cache-Control public max-age=86400, ETag + Last-Modified'])).res.headers();
         expect.soft(head(h, 'content-security-policy')).toBeTruthy();
         expect.soft(head(h, 'x-content-type-options')).toBe('nosniff');
-        expect.soft(head(h, 'cache-control')).toBeUndefined();
+        expect.soft(head(h, 'cache-control')).toBe('public, max-age=86400'); // app_locations.conf location /pascal/
         expect.soft(head(h, 'etag')).toBeTruthy();
         expect.soft(head(h, 'last-modified')).toBeTruthy();
       });
