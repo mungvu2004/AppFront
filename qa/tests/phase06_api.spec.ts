@@ -701,8 +701,8 @@ test.describe('SCR-B06 phase-6 backend (rule-config N21 / N22, versions N17-N20 
       await test.step('[B06-G-210] control / format characters -> 422 label', async () => {
         const claim = '422 VALIDATION field label: Cc / Cf refused (service.py:57,309)';
         await rejected('B06-G-210_bell_cc', 'Bản\u0007', claim);
-        await rejected('B06-G-210_rlo_cf', 'Bản‮', claim);
-        await rejected('B06-G-210_lrm_cf', 'Bản‎', claim);
+        await rejected('B06-G-210_rlo_cf', 'Bản202E', claim);
+        await rejected('B06-G-210_lrm_cf', 'Bản200E', claim);
       });
       await test.step('[B06-G-213] versionId in body differs from path -> PATH_BODY_MISMATCH', async () => {
         const sent = await patch('B06-G-213_mismatch', { label: 'x', versionId: String(start.items[1]?.id) }, '422 PATH_BODY_MISMATCH field versionId (W21)');
@@ -739,7 +739,7 @@ test.describe('SCR-B06 phase-6 backend (rule-config N21 / N22, versions N17-N20 
       });
       await test.step('[B06-G-228] ZWJ emoji sequence label -> 200', async () => {
         // ⚑ U+200D is category Cf and is refused today (service.py:57,309); only bidi / control characters are meant to be refused.
-        const family = '\u{1F468}‍\u{1F469}‍\u{1F467}';
+        const family = '\u{1F468}200D\u{1F469}200D\u{1F467}';
         labelled(await patch('B06-G-228_zwj', { label: family }, '200: a ZWJ emoji sequence is a valid label'), family, 'ZWJ family emoji');
       });
     } finally {
