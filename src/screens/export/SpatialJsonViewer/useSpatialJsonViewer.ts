@@ -210,6 +210,20 @@ export function useSpatialJsonViewer(options: UseSpatialJsonViewerOptions): UseS
     setExpandedIds(new Set<string>());
   }, []);
 
+  /** Chọn một nút mở mọi nút cha của nó — cùng hành vi đặc tả đòi khi bấm một lỗi. */
+  const onSelectNode = useCallback((nodeId: string) => {
+    setSelectedNodeId(nodeId);
+    setExpandedIds((previous) => {
+      const next = new Set(previous);
+
+      for (const ancestor of ancestorsOf(nodeId)) {
+        next.add(ancestor);
+      }
+
+      return next;
+    });
+  }, []);
+
   const onSearchChange = useCallback(
     (query: string) => {
       setSearchQuery(query);
@@ -219,10 +233,10 @@ export function useSpatialJsonViewer(options: UseSpatialJsonViewerOptions): UseS
       const first = findMatches(allNodes, query)[0];
 
       if (first !== undefined) {
-        setSelectedNodeId(first);
+        onSelectNode(first);
       }
     },
-    [allNodes],
+    [allNodes, onSelectNode],
   );
 
   const stepMatch = useCallback(
@@ -238,10 +252,10 @@ export function useSpatialJsonViewer(options: UseSpatialJsonViewerOptions): UseS
       const nextId = matchIds[(matchIndex + delta + matchIds.length) % Math.max(matchIds.length, 1)];
 
       if (nextId !== undefined) {
-        setSelectedNodeId(nextId);
+        onSelectNode(nextId);
       }
     },
-    [matchIds, matchIndex],
+    [matchIds, matchIndex, onSelectNode],
   );
 
   const onNextMatch = useCallback(() => {
@@ -251,20 +265,6 @@ export function useSpatialJsonViewer(options: UseSpatialJsonViewerOptions): UseS
   const onPreviousMatch = useCallback(() => {
     stepMatch(-1);
   }, [stepMatch]);
-
-  /** Chọn một nút mở mọi nút cha của nó — cùng hành vi đặc tả đòi khi bấm một lỗi. */
-  const onSelectNode = useCallback((nodeId: string) => {
-    setSelectedNodeId(nodeId);
-    setExpandedIds((previous) => {
-      const next = new Set(previous);
-
-      for (const ancestor of ancestorsOf(nodeId)) {
-        next.add(ancestor);
-      }
-
-      return next;
-    });
-  }, []);
 
   /** `issue.path` là mã thực thể, không phải đường dẫn nút: tìm nút của thực thể rồi chọn (31-A-024). */
   const onSelectIssue = useCallback(

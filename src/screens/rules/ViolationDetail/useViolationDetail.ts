@@ -82,7 +82,7 @@ import { MOTION_DURATIONS_MS } from '@/lib/motion/tokens';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { appNotificationBus } from '@/hooks/useNotifications';
-import { ruleSettingsQueryKey, type LoadedRuleConfig } from '@/screens/rules/RuleSettings';
+import { ruleSettingsQueryKey, type LoadedRuleConfig } from '@/screens/rules/RuleSettings/ruleSettingsGateway';
 import { ruleRegistryFor } from '@/store/selectors';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { getAppAnnouncer } from '@/lib/input/announcer';
@@ -585,7 +585,7 @@ export function useViolationDetail(
     projectId,
     floorId,
     onClose,
-    canEdit = true,
+    canEdit = false,
     isCompact = false,
     seed,
     notifications = appNotificationBus,

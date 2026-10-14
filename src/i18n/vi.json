@@ -3010,13 +3010,13 @@
       "evaluated": "Tổng số kiểm tra",
       "passed": "Đạt",
       "warnings": "Cảnh báo",
-      "violations": "Vi phạm"
+      "violations": "Nghiêm trọng"
     },
     "filters": {
       "segmentedAriaLabel": "Lọc theo mức độ",
       "segmented": {
         "all": "Tất cả",
-        "violation": "Vi phạm",
+        "violation": "Nghiêm trọng",
         "warning": "Cảnh báo",
         "passed": "Đạt"
       },
@@ -3183,7 +3183,6 @@
       "versionConflict": "Bộ luật vừa được đổi ở nơi khác nên thay đổi của bạn chưa được lưu. Tải lại để xem bản mới nhất."
     },
     "loadFailure": "Không tải được cài đặt bộ luật của dự án này.",
-    "loadingMore": "Đang tải thêm dữ liệu bộ luật…",
     "missingParams": {
       "title": "Thiếu mã dự án",
       "description": "Đường dẫn không mang mã dự án, nên chưa mở được cài đặt bộ luật. Quay lại danh sách dự án rồi chọn lại dự án cần chỉnh."
@@ -4119,9 +4118,9 @@
     "forbiddenTitle": "Không có quyền xem dữ liệu",
     "forbiddenMessage": "Bạn không có quyền xem dữ liệu không gian của dự án này. Hãy hỏi quản trị viên dự án để được cấp quyền xem.",
     "refreshing": "Đang làm mới dữ liệu của bản vẽ này. Phần đang hiện vẫn đúng với lượt tải trước.",
-    "validityOk": "Hợp lệ theo hợp đồng Spatial JSON — 0 lỗi.",
+    "validityOk": "Hợp lệ — 0 lỗi.",
     "validityBroken": "{{critical}} lỗi nghiêm trọng · {{warning}} cảnh báo.",
-    "rawTruncated": "Còn {{count}} dòng nữa. Thu gọn bớt nhánh ở cây bên trái để xem phần bạn cần.",
+    "rawTruncated": "Còn {{count}} dòng nữa. Bấm Tải xuống .json để lấy toàn bộ.",
     "previewEmpty": "Chọn một nút ở cây bên trái để xem chi tiết của nó.",
     "previewValue": "Giá trị",
     "previewChildCount": "Số phần tử",

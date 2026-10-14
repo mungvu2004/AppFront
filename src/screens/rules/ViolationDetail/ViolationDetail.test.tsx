@@ -771,6 +771,7 @@ function WiredForFixLoop(props: {
     violations: props.violations,
     initialIndex: 0,
     projectId: FIX_LOOP_PROJECT_ID,
+    canEdit: true,
     floorId: props.floorId,
     onClose: () => undefined,
   });

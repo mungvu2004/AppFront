@@ -1167,3 +1167,49 @@ describe('F-10 — useRuleReport đọc cấu hình N21', () => {
     expect(result.current.status).toBe('loading');
   });
 });
+
+describe('QA-06b F10 #1 — viewer đi qua đủ trạng thái, chỉ khoá hành động', () => {
+  it('viewer + N21 đang chờ → `loading` (không phải `forbidden`)', () => {
+    const { result } = setupReport({ read: () => new Promise<RuleConfigReadResult>(() => undefined), canEdit: false });
+
+    expect(result.current.status).toBe('loading');
+    expect(result.current.capabilities.canEdit).toBe(false);
+  });
+
+  it('viewer + N21 lỗi → `error` (lỗi không bị nuốt)', async () => {
+    const error: HttpError = { kind: 'http', status: 503, code: 'DEPENDENCY_UNAVAILABLE', raw: {}, requestId: 'req-f10v', retryable: true };
+    const { result } = setupReport({ read: async () => ({ ok: false, error }), canEdit: false });
+
+    await waitFor(() => {
+      expect(result.current.status).toBe('error');
+    });
+  });
+
+  it('viewer + chưa có mô hình → `empty`', async () => {
+    const { result } = setupReport({ read: async () => configRead(1), canEdit: false });
+
+    act(() => {
+      useStore.getState().setSpatial(null, null);
+    });
+
+    await waitFor(() => {
+      expect(result.current.status).toBe('empty');
+    });
+  });
+
+  it('viewer + có vi phạm → `ready`, capabilities.canEdit vẫn false', async () => {
+    const { result } = setupReport({ read: async () => configRead(1), canEdit: false });
+
+    await waitFor(() => {
+      expect(result.current.status).toBe('ready');
+    });
+    expect(result.current.summary.violations).toBeGreaterThan(0);
+    expect(result.current.capabilities.canEdit).toBe(false);
+  });
+
+  it('không truyền canEdit → mặc định an toàn: không quyền sửa (#6)', () => {
+    const { result } = setupReport({ read: () => new Promise<RuleConfigReadResult>(() => undefined) });
+
+    expect(result.current.capabilities.canEdit).toBe(false);
+  });
+});
