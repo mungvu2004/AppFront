@@ -75,8 +75,8 @@ export const SJ = {
   entityNote:
     'Việc tô sáng đối tượng này trong mô hình ba chiều nằm ở trình xem 3D. Màn dữ liệu chỉ đọc, nên nó không dựng thêm một cảnh ba chiều nữa.', // SJD:118-123
   cut: (hidden: number): string =>
-    `Còn ${formatNumber(hidden)} dòng nữa. Thu gọn bớt nhánh ở cây bên trái để xem phần bạn cần.`, // SJD:66-70
-  emptyCounts: '1 tầng · 0 tường · 0 ô mở · 0 phòng · 0 đồ đạc · 0 trục · 0 kích thước', // SJM:238-250 for a floor without a layer
+    `Còn ${formatNumber(hidden)} dòng nữa. Bấm Tải xuống .json để lấy toàn bộ.`, // SpatialJsonDetail.tsx RawJson + vi.json spatialJsonViewer.rawTruncated
+  emptyCounts: '1 tầng · 0 tường · 0 ô mở · 0 phòng · 0 đồ đạc · 0 trục · 0 kích thước · 0 ghi chú', // SJM:238-250 for a floor without a layer
   room: 'PHONG NGU 2', // layerSeed.qcLayer room name
   refreshFailed: 'Không tải lại được mô hình.', // PSG:99
   retry: 'Thử lại', // PSG:100
@@ -431,6 +431,7 @@ export function countsLabelOf(graph: Json): string {
     `${formatNumber(length('furniture'))} đồ đạc`,
     `${formatNumber(length('axes'))} trục`,
     `${formatNumber(length('dimensions'))} kích thước`,
+    `${formatNumber(length('notes'))} ghi chú`,
   ].join(' · ');
 }
 

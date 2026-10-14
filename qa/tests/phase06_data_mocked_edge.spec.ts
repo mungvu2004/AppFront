@@ -149,9 +149,10 @@ test.describe('E06d SCR-31 Spatial JSON Viewer [mocked response]', () => {
       await openData(page, project.id); // a fresh document: waits for the N15 200 and the tree
       mock.setN15('fail500');
       const versionsPath = ROUTES.project.versions(project.id);
+      // armed BEFORE leaving: the versions screen shares the N15 query (staleTime 0) and may take the 500 itself
+      const failedRefetch = waitForApi(page, 'GET', spatialRe(project.id), [500]);
       await spaNavigate(page, versionsPath);
       await expect.poll(() => new URL(page.url()).pathname).toBe(versionsPath);
-      const failedRefetch = waitForApi(page, 'GET', spatialRe(project.id), [500]);
       await spaNavigate(page, ROUTES.project.data(project.id)); // S5-confirm: remounting the gate refetches N15 (staleTime 0, UPS:98-102)
       await failedRefetch;
       const refreshAlert = page.getByText(SJ.refreshFailed, { exact: true });
