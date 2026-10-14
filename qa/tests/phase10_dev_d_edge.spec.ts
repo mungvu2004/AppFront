@@ -44,14 +44,14 @@ test('SCR-40e-5 · FL-10E-12 · anon · FeedbackDemo: toast', async ({ devPage: 
     await captureEvidence(page, 'E10_10E-C-023_feedback_double_undo.png');
   });
 
-  await test.step('[10E-C-024] ⚑ double-click Hoàn tác undoes only once', async () => { // Toast.tsx onUndoClick does not guard isExiting
+  await test.step('[10E-C-025] ⚑ double-click Hoàn tác undoes only once', async () => { // Toast.tsx onUndoClick does not guard isExiting
     await openFeedback(page);
     await page.getByRole('button', { name: 'Test Undo Toast', exact: true }).click();
     const toast = toasts(page, 'Đã xoá 1 đối tượng.');
     await expect(toast).toBeVisible();
     await toast.getByRole('button', { name: 'Hoàn tác' }).dblclick();
     await expect.soft(toasts(page, 'Đã hoàn tác thao tác.')).toHaveCount(1);
-    await captureEvidence(page, 'E10_10E-C-024_feedback_double_click_undo.png');
+    await captureEvidence(page, 'E10_10E-C-025_feedback_double_click_undo.png');
   });
 
   await test.step('[10E-A-058] Test Warning Toast', async () => { // FD:60
