@@ -11,8 +11,9 @@
  * viewer in `finally`), `p08-B08U-4` admin (self-guard actor). Throw-away invitees `testEmail(...)` are deleted in `finally`.
  *
  * ## Real-backend budget per run of this file (counted `users_invite`, 30 / 3600 s per admin, adm1 only)
- * FL-02: 1 invite. FL-03: 6 refused validation calls + 51-email call + 1 invite (inv1/inv2 in one call) + dedupe 1 + re-invite 1 +
- * taken 1 = 11 worst case (refused 403 / auth failures do not count). FL-01 / FL-04: 0. Total <= 12 per run.
+ * FL-02: 1. FL-03 by adm1: C-012, C-018, C-011, C-013, C-014, G-050, G-046, C-016, G-048, G-049 = 10 (the limiter runs before body/identity
+ * checks, so refused 422 calls count too; 403 / 401 do not). FL-01 / FL-04: 0. Total adm1 = 11 <= 12 per run.
+ * The resend steps G-062 / G-063 / G-064 (+ G-021 log) are done by adm2 (`p08-B08U-adm2`, shared bucket with `_users_b_api`: +3 there).
  * First fill of a pool slot = 1 invite from the seed admin (p08-eng, p08-view, p08-B08U-2/3/4, adm1) — first run only.
  * `POST /api/auth/login` (120 / 60 s per IP): <= 14 logins. `recovery_ip` accepts: 2 (FL-03 invitees G-047/G-048 old link) + 1 (FL-02) = <= 3.
  * The 429 of the invite limiter is owned by pytest (does not burn the bucket here).
@@ -56,6 +57,7 @@ test.describe('A08 phase-8 backend (/api/users N38-N46, part 1)', () => {
       cleanup.add(() => anon.dispose());
       const id = target.user.id;
       const adm = await pooled(cleanup, 'admin', ADM1);
+      cleanup.add(() => adm.api.post(`/api/users/${id}/enable`, { data: {} }));
       const before = JSON.stringify((await listUsers(adm.api)).users.find((u) => u.id === id));
       const routes = [
         { n: '38', method: 'GET', path: '/api/users' },
@@ -153,13 +155,13 @@ test.describe('A08 phase-8 backend (/api/users N38-N46, part 1)', () => {
         list = { total: Number(body.total), users: body.users as Json[] };
         expect(Array.isArray(list.users) && typeof body.total === 'number').toBe(true);
         for (const u of list.users) {
-          for (const k of ['id', 'email', 'name', 'role', 'status', 'projectCount']) expect.soft(u, `user has ${k}`).toHaveProperty(k);
-          expect.soft(Object.keys(u), 'lastActiveAt key present (null if never active)').toContain('lastActiveAt');
+          for (const k of ['id', 'email', 'name', 'role', 'status', 'projectCount']) expect(u, `user has ${k}`).toHaveProperty(k);
+          expect(Object.keys(u), 'lastActiveAt key present (null if never active)').toContain('lastActiveAt');
         }
       });
 
       await test.step('[B08U-G-002] #38 order created_at ASC and total >= users.length', async () => {
-        expect.soft(list.total).toBeGreaterThanOrEqual(list.users.length);
+        if (list.users.length < 1000) expect.soft(list.total, 'total = listed rows below the cap').toBe(list.users.length);
         // order by created_at ASC, id ASC: the invitee just created is after the pool viewer created earlier
         const ids = list.users.map((u) => u.id);
         expect.soft(ids.indexOf(invitee.id), 'invitee is listed after the older pool viewer').toBeGreaterThan(ids.indexOf(viewer.user.id));
@@ -228,6 +230,7 @@ test.describe('A08 phase-8 backend (/api/users N38-N46, part 1)', () => {
     try {
       const adm = await pooled(cleanup, 'admin', ADM1);
       const viewer = await pooled(cleanup, 'viewer', 'p08-B08U-2');
+      const adm2 = await pooled(cleanup, 'admin', 'p08-B08U-adm2');
       const inv1 = testEmail('b08u-inv1');
       const inv2 = testEmail('b08u-inv2');
       const dup = testEmail('b08u-dup');
@@ -237,6 +240,7 @@ test.describe('A08 phase-8 backend (/api/users N38-N46, part 1)', () => {
       let oldToken1 = '';
       let token2 = '';
       let resendId = '';
+      let upper = '';
 
       await test.step('[B08U-C-012] invite emails [] → 422 field emails', async () => {
         const sent = await invite('B08U-C-012_empty_emails', { emails: [], role: 'viewer' }, ['422 VALIDATION field "emails" (min_length 1)']);
@@ -267,6 +271,7 @@ test.describe('A08 phase-8 backend (/api/users N38-N46, part 1)', () => {
       await test.step('[B08U-G-050] 51 emails → 422 field emails, none created', async () => {
         const emails = Array.from({ length: 51 }, (_, i) => `${testEmail('b08u-cap')}`.replace('@', `-${String(i)}@`));
         const sent = await invite('B08U-G-050_cap_51', { emails, role: 'viewer' }, ['422 VALIDATION field "emails", cap 50 counted before dedupe']);
+        if (sent.status === 201) for (const r of sent.body as Json[]) deleteLater(cleanup, adm.api, String(r.id), String(r.email));
         expectError(sent, 422, 'VALIDATION', { field: 'emails' });
         const list = await listUsers(adm.api);
         expect.soft(list.users.filter((u) => emails.includes(String(u.email))), 'none created').toHaveLength(0);
@@ -289,7 +294,7 @@ test.describe('A08 phase-8 backend (/api/users N38-N46, part 1)', () => {
       await test.step('[B08U-G-047] mail after commit: Mailpit subject per email, working token', async () => {
         for (const email of [inv1, inv2]) {
           const mail = await waitForMail(email, since, 30_000, INVITE_SUBJECT);
-          cleanup.add(() => deleteMails([mail.id]));
+          await deleteMails([mail.id]); // old mails must not answer the later "new mail" waits (G-048 / G-062)
           expect.soft(mail.subject).toContain(INVITE_SUBJECT);
           const token = tokenFromLink(linkFrom(mail, '/login/invitation'));
           expect.soft(token, `${email} link carries a token`).not.toBe('');
@@ -299,12 +304,12 @@ test.describe('A08 phase-8 backend (/api/users N38-N46, part 1)', () => {
       });
 
       await test.step('[B08U-C-016] invite dedupes by normalised email: one row, first spelling', async () => {
-        const upper = dup.replace('b08u-dup', 'B08U-DUP');
+        upper = dup.replace('b08u-dup', 'B08U-DUP');
         const sent = await invite('B08U-C-016_dedupe', { emails: [upper, dup], role: 'viewer' }, ['201 one row, first spelling']);
         expect(sent.status).toBe(201);
         const rows = sent.body as Json[];
         expect.soft(rows).toHaveLength(1);
-        expect.soft(String(rows[0]?.email).toLowerCase()).toBe(dup.toLowerCase());
+        expect.soft(rows[0]?.email, 'first spelling kept').toBe(upper);
         if (rows[0]) deleteLater(cleanup, adm.api, String(rows[0].id), String(rows[0].email));
       });
 
@@ -322,6 +327,7 @@ test.describe('A08 phase-8 backend (/api/users N38-N46, part 1)', () => {
       await test.step('[B08U-G-049] taken email → 422 USER_EMAIL_TAKEN, whole batch rolled back', async () => {
         const other = testEmail('b08u-rollback');
         const sent = await invite('B08U-G-049_taken', { emails: [other, viewer.user.email], role: 'viewer' }, ['422 USER_EMAIL_TAKEN field "emails"; other email not created']);
+        if (sent.status === 201) for (const r of sent.body as Json[]) deleteLater(cleanup, adm.api, String(r.id), String(r.email));
         expectError(sent, 422, 'USER_EMAIL_TAKEN', { field: 'emails' });
         const list = await listUsers(adm.api);
         expect.soft(list.users.find((u) => u.email === other), 'rolled back').toBeUndefined();
@@ -330,7 +336,7 @@ test.describe('A08 phase-8 backend (/api/users N38-N46, part 1)', () => {
       await test.step('[B08U-G-062] #45 resend 200: new mail, old link no longer accepted', async () => {
         resendId = ids[inv2] ?? '';
         const later = new Date(Date.now() - 5_000);
-        const sent = await call(adm.api, 'B08U-G-062_resend', 'POST', `/api/users/invitations/${resendId}/resend`, {}, ['200 AdminUser, new mail, old link dead']);
+        const sent = await call(adm2.api, 'B08U-G-062_resend', 'POST', `/api/users/invitations/${resendId}/resend`, {}, ['200 AdminUser, new mail, old link dead']);
         expect(sent.status).toBe(200);
         expect.soft(asJson(sent.body).status).toBe('pending');
         const fresh = await tokenFor(cleanup, inv2, later);
@@ -340,17 +346,17 @@ test.describe('A08 phase-8 backend (/api/users N38-N46, part 1)', () => {
       });
 
       await test.step('[B08U-G-063] #45 resend on an active user → 422 USER_NOT_PENDING', async () => {
-        const sent = await call(adm.api, 'B08U-G-063_resend_active', 'POST', `/api/users/invitations/${viewer.user.id}/resend`, {}, ['422 USER_NOT_PENDING']);
+        const sent = await call(adm2.api, 'B08U-G-063_resend_active', 'POST', `/api/users/invitations/${viewer.user.id}/resend`, {}, ['422 USER_NOT_PENDING']);
         expectError(sent, 422, 'USER_NOT_PENDING');
       });
 
       await test.step('[B08U-G-064] #45 resend unknown user → 404 resource user', async () => {
-        const sent = await call(adm.api, 'B08U-G-064_resend_unknown', 'POST', `/api/users/invitations/${randomUUID()}/resend`, {}, ['404 NOT_FOUND resource "user"']);
+        const sent = await call(adm2.api, 'B08U-G-064_resend_unknown', 'POST', `/api/users/invitations/${randomUUID()}/resend`, {}, ['404 NOT_FOUND resource "user"']);
         expectError(sent, 404, 'NOT_FOUND', { resource: 'user' });
       });
 
       await test.step('[B08U-G-021] #40 resend logged: user.invite_resend row for the target', async () => {
-        const rows = await activityOf(adm.api, adm.user.id);
+        const rows = await activityOf(adm2.api, adm2.user.id);
         expect.soft(countKind(rows, 'user.invite_resend', resendId), 'user.invite_resend row').toBeGreaterThanOrEqual(1);
       });
     } finally {
@@ -370,6 +376,8 @@ test.describe('A08 phase-8 backend (/api/users N38-N46, part 1)', () => {
       const patch = (name: string, body: unknown, why: string[], raw?: string) => call(adm.api, name, 'PATCH', path, body, why, raw === undefined ? {} : { raw });
       // restore: admin adm1 puts both pool users back (viewer / admin) whatever happened
       cleanup.add(() => adm.api.patch(path, { data: { role: 'viewer', userId: tid } }));
+      await adm.api.patch(path, { data: { role: 'viewer', userId: tid } }); // setup: a killed earlier run may leave another role
+      const roleChanges = countKind(await activityOf(adm.api, adm.user.id), 'user.role_change', tid);
       cleanup.add(() => adm.api.patch(`/api/users/${self.user.id}/role`, { data: { role: 'admin', userId: self.user.id } }));
 
       await test.step('[B08U-D-010] non-seed admin p08-B08U-4 → GET /api/users 200', async () => {
@@ -432,7 +440,7 @@ test.describe('A08 phase-8 backend (/api/users N38-N46, part 1)', () => {
         expectError(await patch('B08U-C-025_mismatch', { role: 'viewer', userId: randomUUID() }, ['422 PATH_BODY_MISMATCH']), 422, 'PATH_BODY_MISMATCH');
         const ghost = randomUUID();
         const sent = await call(adm.api, 'B08U-C-025_unknown_id', 'PATCH', `/api/users/${ghost}/role`, { role: 'viewer', userId: ghost }, ['404 NOT_FOUND']);
-        expectError(sent, 404, 'NOT_FOUND');
+        expectError(sent, 404, 'NOT_FOUND', { resource: 'user' });
       });
 
       await test.step('[B08U-G-028] #41 malformed JSON → 400 MALFORMED_JSON through the real proxy', async () => {
@@ -441,9 +449,10 @@ test.describe('A08 phase-8 backend (/api/users N38-N46, part 1)', () => {
       });
 
       await test.step('[B08U-G-019] #40 role change logged: user.role_change, objectCode = target id, label = email', async () => {
-        const row = (await activityOf(adm.api, adm.user.id)).find((r) => r.kind === 'user.role_change' && r.objectCode === tid);
-        expect.soft(row, 'user.role_change row').toBeDefined();
-        expect.soft(row?.objectLabel).toBe(target.user.email);
+        const rows = await activityOf(adm.api, adm.user.id);
+        // this run wrote exactly 3: G-023, D-009 promote, D-009 restore (counted after the setup PATCH)
+        expect.soft(countKind(rows, 'user.role_change', tid), 'three new user.role_change rows').toBe(roleChanges + 3);
+        expect.soft(rows.find((r) => r.kind === 'user.role_change' && r.objectCode === tid)?.objectLabel).toBe(target.user.email);
       });
     } finally {
       await cleanup.run();

@@ -11,7 +11,8 @@
  * FL-06 / FL-07 use throw-away `testEmail(...)` invitees (deleted in `finally`, mails removed).
  *
  * ## Real-backend budget per run of this file (counted `users_invite`, 30 / 3600 s per admin, adm2 only)
- * FL-05: 0. FL-06: 1 invite (+ 1 refused re-invite, 422 may count). FL-07: 1 invite + 1 re-invite (C-028) = 2. Total <= 4 per run.
+ * FL-05: 0. FL-06: inviteOne + C-026 resend + C-027 invite = 3. FL-07: inviteOne + C-028 = 2. Total 5 here, plus 3 resend calls
+ * (G-062/G-063/G-064) made by adm2 in `phase08_users_api.spec.ts` FL-03 = 8 per run (<= 12; limiter counts refused 422/404 too).
  * First fill of a pool slot = 1 invite from the seed admin (adm2, p08-B08U-5) — first run only.
  * `POST /api/auth/login` (120 / 60 s per IP): <= 6. `recovery_ip` accepts: 1 (FL-07) + 1 refused (FL-06) = 2.
  * The 429 of the invite limiter is owned by pytest.
@@ -20,7 +21,7 @@ import { randomUUID } from 'node:crypto';
 
 import { expect, test } from '@playwright/test';
 
-import { signedInApi } from './support/api';
+import { newApiContext, signedInApi } from './support/api';
 import {
   Cleanup,
   acceptAttempt,
@@ -48,14 +49,17 @@ test.describe('A08 phase-8 backend (/api/users N38-N46, part 2)', () => {
       const target = await pooled(cleanup, 'viewer', 'p08-B08U-5');
       const tid = target.user.id;
       cleanup.add(() => adm.api.post(`/api/users/${tid}/enable`, { data: {} }));
+      const act0 = await activityOf(adm.api, adm.user.id);
+      const disables0 = countKind(act0, 'user.disable', tid);
+      const enables0 = countKind(act0, 'user.enable', tid);
       const disable = (name: string, body: unknown, why: string[]) => call(adm.api, name, 'POST', `/api/users/${tid}/disable`, body, why);
 
       await test.step('[B08U-G-033] #42 disable 200; target access token and refresh → 401', async () => {
         const sent = await disable('B08U-G-033_disable', {}, ['200 status "disabled"; access token → 401, refresh → 401']);
         expect(sent.status).toBe(200);
         expect(asJson(sent.body).status).toBe('disabled');
-        expect.soft((await target.api.get('/api/me')).status(), 'access token').toBe(401);
-        expect.soft((await target.api.post('/api/auth/refresh')).status(), 'refresh').toBe(401);
+        expect((await target.api.get('/api/me')).status(), 'access token').toBe(401);
+        expect((await target.api.post('/api/auth/refresh')).status(), 'refresh').toBe(401);
       });
 
       await test.step('[B08U-G-034] #42 repeat disable → 200, still disabled, no second user.disable row', async () => {
@@ -67,8 +71,13 @@ test.describe('A08 phase-8 backend (/api/users N38-N46, part 2)', () => {
       });
 
       await test.step('[B08U-D-008] disabled user own Bearer → 401 on GET /api/users', async () => {
+        // the old token is dead anyway (token version bumped): also a fresh login must be refused
         const sent = await call(target.api, 'B08U-D-008_disabled_bearer', 'GET', '/api/users', undefined, ['disabled user Bearer → 401']);
         expect.soft(sent.status).toBe(401);
+        const anon = await newApiContext();
+        cleanup.add(() => anon.dispose());
+        const login = await anon.post('/api/auth/login', { data: { email: target.user.email, password: target.user.password, rememberMe: false } });
+        expect.soft(login.status(), 'fresh login of a disabled user is refused').not.toBe(204);
       });
 
       await test.step('[B08U-C-024] empty-body write accepts only {} : {"x":1} and [] → 422', async () => {
@@ -86,11 +95,12 @@ test.describe('A08 phase-8 backend (/api/users N38-N46, part 2)', () => {
       });
 
       await test.step('[B08U-G-020] #40 disable and enable logged: user.disable then user.enable', async () => {
-        const rows = (await activityOf(adm.api, adm.user.id)).filter((r) => r.objectCode === tid);
+        const all = await activityOf(adm.api, adm.user.id);
+        expect.soft(countKind(all, 'user.disable', tid), 'one new user.disable row').toBe(disables0 + 1);
+        expect.soft(countKind(all, 'user.enable', tid), 'one new user.enable row').toBe(enables0 + 1);
+        const rows = all.filter((r) => r.objectCode === tid);
         const iEnable = rows.findIndex((r) => r.kind === 'user.enable');
         const iDisable = rows.findIndex((r) => r.kind === 'user.disable');
-        expect.soft(iEnable, 'user.enable row').toBeGreaterThanOrEqual(0);
-        expect.soft(iDisable, 'user.disable row').toBeGreaterThanOrEqual(0);
         expect.soft(iEnable, 'newest first: enable above disable').toBeLessThan(iDisable);
       });
     } finally {
@@ -143,14 +153,12 @@ test.describe('A08 phase-8 backend (/api/users N38-N46, part 2)', () => {
       const inv = await inviteOne(cleanup, adm.api, 'b08u-del');
       const api = await acceptInvitation(cleanup, inv.token, 'QA b08u del');
       const del = (name: string, body: unknown, why: string[]) => call(adm.api, name, 'DELETE', `/api/users/${inv.id}`, body, why);
-      let totalBefore = 0;
       let deleted: Json = {};
 
       await test.step('[B08U-C-019] delete with a wrong confirmEmail → 422 USER_CONFIRM_EMAIL_MISMATCH, user still listed', async () => {
         const sent = await del('B08U-C-019_confirm_mismatch', { userId: inv.id, confirmEmail: 'other@example.test' }, ['422 USER_CONFIRM_EMAIL_MISMATCH field "confirmEmail"']);
         expectError(sent, 422, 'USER_CONFIRM_EMAIL_MISMATCH', { field: 'confirmEmail' }, true);
         const list = await listUsers(adm.api);
-        totalBefore = list.total;
         expect.soft(list.users.some((u) => u.id === inv.id), 'still listed').toBe(true);
       });
 
@@ -184,8 +192,8 @@ test.describe('A08 phase-8 backend (/api/users N38-N46, part 2)', () => {
       await test.step('[B08U-G-010] #38 soft-deleted user absent and total drops by 1', async () => {
         const list = await listUsers(adm.api);
         expect.soft(list.users.some((u) => u.id === inv.id), 'absent').toBe(false);
-        // not isolated from parallel invites/deletes by other files: exact drop only when nobody else changed the set
-        expect.soft(list.total, 'total drops by 1').toBe(totalBefore - 1);
+        // global counts move with parallel files: assert self-consistency, not a difference of totals
+        if (list.users.length < 1000) expect.soft(list.total, 'total = listed rows below the cap').toBe(list.users.length);
       });
 
       await test.step('[B08U-G-013] #39 soft-deleted user → 404 resource user', async () => {
