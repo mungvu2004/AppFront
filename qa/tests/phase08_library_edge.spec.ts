@@ -179,9 +179,14 @@ test('SCR-34 · FL-34L-02 · sort every column, header keyboard, reload resets',
     await ev(page, '34L-C-015', 'aria_sort');
   });
   await test.step('[34L-E-005] ⚑ headers operable with keyboard', async () => {
-    const focusable = await nameHead.evaluate((el) => (el as HTMLElement).tabIndex >= 0 || el.querySelector('button,[tabindex]') !== null);
-    expect.soft(focusable, 'sortable header is keyboard focusable (TBL:166-176)').toBe(true);
-    await nameHead.focus();
+    // Real keyboard path: from the search box, Tab until focus is inside the Tên header (max 30), then Enter.
+    await searchBox(page).focus();
+    let inHeader = false;
+    for (let i = 0; i < 30 && !inHeader; i += 1) {
+      await page.keyboard.press('Tab');
+      inHeader = await nameHead.evaluate((el) => el.contains(document.activeElement));
+    }
+    expect.soft(inHeader, 'Tab reaches a control inside the Tên header (TBL:166-176)').toBe(true);
     await page.keyboard.press('Enter');
     await expect.soft(nameHead).toHaveAttribute('aria-sort', 'ascending');
     await ev(page, '34L-E-005', 'keyboard');
@@ -318,7 +323,9 @@ test('SCR-34 · FL-34L-04 · detail panel: content, close paths, focus, filter i
   await searchBox(page).fill('');
   await test.step('[34L-E-007] ⚑ closing returns focus to opener', async () => {
     await aside.getByRole('button', { name: TEXT.close }).click();
-    await nameBtn(page, y.name).click();
+    await nameBtn(page, y.name).focus();
+    await page.keyboard.press('Enter');
+    await expect(aside).toBeVisible();
     await aside.getByRole('button', { name: TEXT.close }).click();
     await expect.soft(nameBtn(page, y.name), 'opener has focus after close').toBeFocused();
     await ev(page, '34L-E-007', 'focus');
