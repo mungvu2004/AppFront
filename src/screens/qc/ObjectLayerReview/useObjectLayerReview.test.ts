@@ -237,6 +237,14 @@ const entityInStore = (displayId: string, layer: 'door' | 'window' | 'furniture'
 /* -------------------------------------------------------------------------- */
 
 describe('phép ghép thuần của màn Lớp đối tượng', () => {
+  it('[17-D-010] Người xem đang tải thấy khung chờ, xong mới thấy "forbidden"', () => {
+    const counter = objectLayerScenarioFor('success').reviewCounter;
+    const base = { isViewerRole: true, isCollapsed: false, hasError: false, hasFurnitureAttention: false, counter };
+
+    expect(deriveScreenState({ ...base, isLoading: true })).toBe('loading');
+    expect(deriveScreenState({ ...base, isLoading: false })).toBe('forbidden');
+  });
+
   it('bảy trạng thái dẫn xuất đúng, đủ và không thừa nhánh nào', () => {
     const derived = OBJECT_LAYER_REVIEW_SCENARIOS.map((scenario) =>
       deriveScreenState({
@@ -1470,6 +1478,18 @@ describe('đợt sửa P04 — SCR-17', () => {
     renderView(mounted.result.current);
     expect(screen.getByRole('button', { name: 'Nội thất khác' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Sofa' })).toBeEnabled();
+
+    mounted.unmount();
+  });
+
+  it('[17-C-021] [BUG-590] đổi loại bị luật M-08 mức critical chặn thì nêu lý do của M-08', async () => {
+    const bus: NotificationBus = createNotificationBus();
+    const mounted = await mountSettled({ notifications: bus });
+
+    await run(() => mounted.result.current.onChangeSubtype('D-004', 'window'));
+    await waitFor(() => {
+      expect(bus.list().some((item) => /cao hơn tường/u.test(item.title))).toBe(true);
+    });
 
     mounted.unmount();
   });

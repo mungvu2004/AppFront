@@ -196,7 +196,9 @@ test.describe('E04 SCR-16 walls — mocked-response flows (QA-04c P1)', () => {
         // spaGo returns once pushState moved the URL, not once the router committed the hop (react-router keeps its own location):
         // a second hop at once cancels the pending one and SCR-16 never unmounts, so nothing refetches. Wait for the unmount.
         await expect(wallRows(page)).toHaveCount(0);
+        const reads0 = m.reads; // tells a missing refetch (app/cache) from a missing error surface
         await spaGo(page, ROUTES.project.walls(q1.projectId, floor.id));
+        await expect.poll(() => m.reads - reads0, { message: 'N16 is refetched after the SPA hop back', timeout: 15_000 }).toBeGreaterThanOrEqual(1);
         const panel = page.locator('div').filter({ has: page.getByRole('listbox', { name: WALL.list }) }).first();
         await expect.soft(page.getByText(UNKNOWN, { exact: true }).first()).toBeVisible({ timeout: 30_000 });
         await expect.soft(wallRows(page), 'rows = [] while the error shows').toHaveCount(0);
@@ -326,12 +328,13 @@ test.describe('E04 SCR-16 walls — mocked-response flows (QA-04c P1)', () => {
 
       await test.step('[16-G-012] 503 DEPENDENCY_UNAVAILABLE: the front end retries', async () => {
         await fresh(6);
+        const writes0 = m.writes; // counter is cumulative over earlier steps
         await freezeClock(page);
         m.write = { status: 503, code: 'DEPENDENCY_UNAVAILABLE' };
         m.writeOnce = true;
         await page.keyboard.press('3');
         await page.clock.runFor(900);
-        await expect.poll(() => m.writes, { message: 'first PUT answered 503' }).toBe(1);
+        await expect.poll(() => m.writes - writes0, { message: 'first PUT answered 503' }).toBe(1);
         await expect.soft(statusBar(page)).toContainText('Có thay đổi chờ đồng bộ');
         await ev(page, '16-G-012', 'put-503-pending');
         const second = waitForLayerPut(page, q1.projectId, floor.id);

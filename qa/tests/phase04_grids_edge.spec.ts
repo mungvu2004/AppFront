@@ -392,6 +392,8 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
       });
 
       await test.step('[19-A-006] after the first add the whole preview is stored: "Xoá trục A" deletes and toasts', async () => {
+        // same-type toasts within 5 s merge (notificationBus.ts:8,150-170): start from none so the text is this delete's alone
+        await expect(toasts(page).getByRole('button', { name: UNDO, exact: true })).toHaveCount(0, { timeout: 15_000 });
         await removeButton(page, 'A').click();
         await expect.soft(rows(page, H_GROUP)).toHaveCount(1); // UAG:682-697,777-807
         const toast = toasts(page).getByText('Đã xoá trục A.', { exact: true });
@@ -531,6 +533,9 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
         await expect.soft(spacingNotice(page)).toHaveCount(0);
         await addButton(page, 'v').click(); // pitch of the last two = 100 -> axis 4 at 9 200 (100 from axis 3: accepted)
         await expect(rows(page, V_GROUP)).toHaveCount(4);
+        // a 4 mm aim from axis 4's own spot (9 200) is under the 2 px drag threshold (AxisGridCanvas.tsx:186): move it away first
+        await dragAxis(page, '4', 'vertical', 13_000, 60);
+        await expect.poll(vSpacings, { message: 'axis 4 now sits at 13 000' }).toEqual(['8.000 mm', '100 mm', '3.900 mm', '—']);
         await dragAxis(page, '4', 'vertical', 9_199, 4); // vertex (9 199, 500): 99 from axis 3 (9 100)
         await expect.soft(spacingNotice(page)).toBeVisible();
         await expect.soft(spacingNotice(page)).toContainText('khoảng cách hiện tại: 99 mm');
@@ -538,7 +543,7 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
       });
 
       await test.step('[19-B-010] the next valid move clears the notice', async () => {
-        await dragAxis(page, '4', 'vertical', 13_000, 60);
+        await dragAxis(page, '4', 'vertical', 18_000, -60); // axis 4 stayed on 13 000 when blocked; 17 940 -> vertex (18 000, 500)
         await expect.soft(spacingNotice(page)).toHaveCount(0); // UAG:605-607
         await ev(page, '19-B-010', 'notice-cleared');
       });

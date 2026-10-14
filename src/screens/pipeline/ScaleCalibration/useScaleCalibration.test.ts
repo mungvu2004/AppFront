@@ -53,6 +53,8 @@ import { createTestQueryClient } from '@/lib/testing/render';
 import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
 import { expectSentenceCaseStrings } from '@/lib/testing/expectSentenceCase';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
+import { appNotificationBus } from '@/hooks/useNotifications';
+import type { Notification } from '@/lib/mutations/notificationBus';
 import { useStore } from '@/store';
 import { commit } from '@/store/commit';
 import type { ProjectRole } from '@/types/project';
@@ -1555,5 +1557,34 @@ describe('[G52 14-C-026] bản vẽ không vuông trong khung vuông', () => {
     const up = await lengthOf({ x: 0.2, y: 0.8 });
 
     expect(up).toBe(across);
+  });
+});
+
+describe('[14-A-026] toast "Hoàn tác" sau khi áp tỉ lệ (A8) đi qua bus thông báo của phiên', () => {
+  it('áp xong thì bus có thông báo "Áp dụng tỷ lệ" mang vé hoàn tác; bấm vé thì tỉ lệ cũ quay lại', async () => {
+    const harness = await makeHarness();
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    await typeReference(mounted);
+    const before = storedRatio();
+    // Capture on publish: the fake clock inside `settleAsync` may run the 8 s window out before we look.
+    let toast: Notification | undefined;
+    const unsubscribe = appNotificationBus.subscribe((all) => {
+      toast = all.find((n) => n.title === 'Áp dụng tỷ lệ') ?? toast;
+    });
+
+    await act(async () => {
+      mounted.result.current.actions.onApply();
+    });
+    await settleAsync();
+    unsubscribe();
+
+    expect(toast?.undoTicket).toBeDefined();
+    expect(storedRatio()).toBeCloseTo(REFERENCE_SCALE.millimetresPerPixel, 6);
+
+    await act(async () => {
+      toast?.undoTicket?.undo();
+    });
+    expect(storedRatio()).toBe(before);
   });
 });

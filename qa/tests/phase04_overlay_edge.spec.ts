@@ -59,6 +59,7 @@ import {
   seedDF,
   seedNoDrawing,
   seedOverlayScales,
+  seedScaleConflict,
   toleranceField,
   toolbar,
   type Owner,
@@ -678,10 +679,11 @@ test.describe('SCR-22 overlay — framed floor DF', () => {
 
 test.describe('SCR-22 overlay — geometry and scale conflict', () => {
   test('SCR-22 · FL-22-04 · geometry from the layer, scale conflict across floors, deep-link floor list', async ({ browser }) => {
-    test.setTimeout(150_000);
+    test.setTimeout(240_000);
     const owner = await ownerApi();
     let flow: Flow | undefined;
     let project: Awaited<ReturnType<typeof seedOverlayScales>> | undefined;
+    let conflict: Awaited<ReturnType<typeof seedScaleConflict>> | undefined;
     try {
       project = await seedOverlayScales(owner.api, '22-scales');
       flow = await openFlow(browser, owner.user);
@@ -717,16 +719,22 @@ test.describe('SCR-22 overlay — geometry and scale conflict', () => {
       });
 
       await test.step('[22-B-005] scale conflict (store floors at 5 and 8 mm/px, direct URL): error + link to the active floor\'s scale', async () => {
-        await openOverlay(page, projectId, layered.id);
+        // R27 (useOverlayComparison.ts:621-631): only floors WITH a drawing count, so the conflict needs two drawn floors.
+        conflict = await seedScaleConflict(owner.api, '22-conflict');
+        const conflictFloor = conflict.floors[0];
+        if (conflictFloor === undefined) throw new Error('setup: the scale-conflict project has no floor');
+        await openOverlay(page, conflict.projectId, conflictFloor.id);
         await expect.soft(alertWith(page, OV.scaleConflict)).toBeVisible();
         const link = page.getByRole('link', { name: OV.toScale, exact: true });
         await expect.soft(link).toBeVisible();
         const href = (await link.getAttribute('href')) ?? '';
-        expect.soft(href, 'the link goes to the active floor\'s scale route').toMatch(new RegExp(`^/projects/${projectId}/floors/[^/]+/scale$`, 'u'));
+        expect.soft(href, 'the link goes to the active floor\'s scale route').toMatch(new RegExp(`^/projects/${conflict.projectId}/floors/[^/]+/scale$`, 'u'));
         await ev(page, '22-B-005', 'scale_conflict');
       });
 
       await test.step('[22-B-006] ⚑ the conflict counts only the floors being compared (no drawing → nothing to compare → no conflict)', async () => {
+        await openOverlay(page, projectId, layered.id);
+        await expect(alertWith(page, OV.noDrawing), 'milestone: the no-drawing state is drawn').toBeVisible();
         await expect.soft(alertWith(page, OV.scaleConflict), 'neither floor has a drawing, so there is nothing to align').toHaveCount(0);
       });
 
@@ -756,6 +764,7 @@ test.describe('SCR-22 overlay — geometry and scale conflict', () => {
     } finally {
       if (flow !== undefined) await closeFlow(flow);
       if (project !== undefined) await deleteSeededProject(owner.api, project.projectId);
+      if (conflict !== undefined) await deleteSeededProject(owner.api, conflict.projectId);
       await owner.dispose();
     }
   });

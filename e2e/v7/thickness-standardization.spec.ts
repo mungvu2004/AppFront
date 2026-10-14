@@ -13,8 +13,8 @@ import { QCB_FLOOR, QCB_PROJECT, seedQcb } from './seedQcb';
  *   A14 `L-LEVEL000001` cho 12 tường 220 mm, tầng khác cho lớp rỗng. Ca mồi của
  *   `plan.md` 6.1 đỏ đúng thiết kế ngày ấy, nên nó thành bài khẳng định đường thật.
  * - **bơm bộ mẫu** — bộ riêng của màn: các ca chuẩn hoá cần những tường LỆCH chuẩn, mà
- *   tầng A14 không có. Màn đếm CẢ đồ thị trong kho: URL `L-000001TFL1` ra 48 đoạn, tức
- *   đủ ba tầng của bộ mẫu (mỗi tầng 16, `thicknessFixture.ts`) — đo.
+ *   tầng A14 không có. Màn đếm CẢ đồ thị trong kho: URL `L-000001TFL1` ra 16 đoạn: lớp
+ *   theo tầng từ F-04x (5acd859f, de24e523), mỗi tầng 16 (`thicknessFixture.ts`) — đo.
  *
  * Đơn vị (35 bài) đã phủ: một lượt áp = một bước hoàn tác, kéo ngưỡng không ghi
  * lịch sử, cảnh báo áp lại. Ở đây chỉ đi những gì trình duyệt thật mới chứng minh.
@@ -52,7 +52,8 @@ async function open(page: Page, floorId: string = QCB_FLOOR.thickness): Promise<
 async function openSeeded(page: Page): Promise<void> {
   await open(page);
   await seedQcb(page, 'thickness');
-  await expect(stat(page, 'Tổng số đoạn tường')).toHaveText(/^48\s+Tổng số đoạn tường$/u);
+  /* 16 đoạn/tầng: lớp theo tầng từ F-04x (5acd859f, de24e523); trước đó màn đếm cả 48 của ba tầng. */
+  await expect(stat(page, 'Tổng số đoạn tường')).toHaveText(/^16\s+Tổng số đoạn tường$/u);
 }
 
 test('đường nạp thật: mở thẳng ở một tầng có lớp thì thẻ đếm đọc tường từ máy chủ (V7-THICK-01, B-V6-01)', async ({
@@ -87,10 +88,10 @@ test('bơm bộ mẫu: bốn thẻ đếm đúng bộ mẫu, số thập phân d
   await openSeeded(page);
 
   await expect(stat(page, 'Đã ở đúng nhóm chuẩn')).toHaveText(/^3\s+Đã ở đúng nhóm chuẩn$/u);
-  await expect(stat(page, 'Lệch quá dung sai')).toHaveText(/^6\s+Lệch quá dung sai$/u);
-  await expect(stat(page, 'Cột bê tông cốt thép')).toHaveText(/^3\s+Cột bê tông cốt thép$/u);
+  await expect(stat(page, 'Lệch quá dung sai')).toHaveText(/^2\s+Lệch quá dung sai$/u);
+  await expect(stat(page, 'Cột bê tông cốt thép')).toHaveText(/^1\s+Cột bê tông cốt thép$/u);
   await expect(
-    page.getByRole('checkbox', { name: 'Đồng ý chuẩn hoá 30 tường 195 mm về 220 mm' }),
+    page.getByRole('checkbox', { name: 'Đồng ý chuẩn hoá 10 tường 195 mm về 220 mm' }),
   ).not.toBeChecked();
 
   /* A15: không một số thập phân nào dùng dấu chấm trên cả màn. Phân nhóm nghìn
@@ -112,7 +113,8 @@ test('bơm bộ mẫu: Esc đóng đúng lớp xem trước và không rời mà
 
   await expect(page.getByRole('button', { name: 'Áp dụng', exact: true })).toHaveCount(0);
   expect(page.url()).toBe(url);
-  await expect(stat(page, 'Tổng số đoạn tường')).toHaveText(/^48\s+Tổng số đoạn tường$/u);
+  /* 16 đoạn/tầng: xem comment ở openSeeded (5acd859f, de24e523). */
+  await expect(stat(page, 'Tổng số đoạn tường')).toHaveText(/^16\s+Tổng số đoạn tường$/u);
 });
 
 /*
@@ -122,12 +124,12 @@ test('bơm bộ mẫu: Esc đóng đúng lớp xem trước và không rời mà
  * bài đi đường phím (A12), vì `getByRole('checkbox').click()` trúng khối đè chứ không
  * trúng ô.
  */
-test('bơm bộ mẫu: tích đồng ý bằng phím, xem trước, áp — 30 tường về 220 mm, toast hoàn tác trả nguyên trạng (V7-THICK-05, A8)', async ({
+test('bơm bộ mẫu: tích đồng ý bằng phím, xem trước, áp — 10 tường về 220 mm, toast hoàn tác trả nguyên trạng (V7-THICK-05, A8)', async ({
   page,
 }) => {
   await openSeeded(page);
 
-  const accept = page.getByRole('checkbox', { name: 'Đồng ý chuẩn hoá 30 tường 195 mm về 220 mm' });
+  const accept = page.getByRole('checkbox', { name: 'Đồng ý chuẩn hoá 10 tường 195 mm về 220 mm' });
   await accept.focus();
   await page.keyboard.press('Space');
   await expect(accept).toBeChecked();
@@ -136,13 +138,13 @@ test('bơm bộ mẫu: tích đồng ý bằng phím, xem trước, áp — 30 t
   /* `exact`: "Áp dụng lại bộ lọc" đứng trước trong cây và cũng khớp. */
   await page.getByRole('button', { name: 'Áp dụng', exact: true }).click();
 
-  await expect(toast(page)).toContainText('Chuẩn hoá độ dày 30 tường.');
-  await expect(stat(page, 'Đã ở đúng nhóm chuẩn')).toHaveText(/^33\s+Đã ở đúng nhóm chuẩn$/u);
+  await expect(toast(page)).toContainText('Chuẩn hoá độ dày 10 tường.');
+  await expect(stat(page, 'Đã ở đúng nhóm chuẩn')).toHaveText(/^13\s+Đã ở đúng nhóm chuẩn$/u);
 
   await toast(page).getByRole('button', { name: 'Hoàn tác' }).click();
 
   await expect(stat(page, 'Đã ở đúng nhóm chuẩn')).toHaveText(/^3\s+Đã ở đúng nhóm chuẩn$/u);
   await expect(
-    page.getByRole('checkbox', { name: 'Đồng ý chuẩn hoá 30 tường 195 mm về 220 mm' }),
+    page.getByRole('checkbox', { name: 'Đồng ý chuẩn hoá 10 tường 195 mm về 220 mm' }),
   ).toBeVisible();
 });

@@ -292,11 +292,12 @@ describe('[NGHIEM-3] thu gọn và không có quyền', () => {
     expect(screen.getByLabelText(LEGEND_LABEL)).toBeInTheDocument();
   });
 
-  it('trạng thái không có quyền: xem được, chỉ mất nút sửa — KHÔNG khoá mờ cả màn', () => {
+  it('trạng thái không có quyền: xem được, chỉ mất nút sửa — KHÔNG khoá mờ cả màn', async () => {
     renderState('forbidden');
 
+    /* Người xem đang tải thấy khung chờ trước (17-D-010); cây lớp có khi dữ liệu tới. */
+    expect(await screen.findByRole('tree', { name: LAYER_TREE_LABEL })).toBeInTheDocument();
     expect(screen.getByRole('status', { name: STATUS_BAR_LABEL })).toBeInTheDocument();
-    expect(screen.getByRole('tree', { name: LAYER_TREE_LABEL })).toBeInTheDocument();
     expect(screen.getByLabelText(LEGEND_LABEL)).toBeInTheDocument();
   });
 

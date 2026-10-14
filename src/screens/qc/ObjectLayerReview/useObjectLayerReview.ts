@@ -242,7 +242,8 @@ export function deriveScreenState(input: {
   readonly hasFurnitureAttention: boolean;
   readonly counter: ObjectReviewCounter;
 }): ObjectLayerScreenState {
-  if (input.isViewerRole) {
+  /* Người xem đang tải vẫn thấy khung chờ, không phải nhóm rỗng giả (17-D-010). */
+  if (input.isViewerRole && !input.isLoading) {
     return 'forbidden';
   }
 
@@ -818,6 +819,11 @@ export function useObjectLayerReview(
           actorId: context.actorId,
         });
 
+        /* Luật M-08 mức critical chặn lệnh thì nói lý do, không im lặng (BUG-590, 17-C-021). */
+        if (!built.ok) {
+          refuse(built.error.reasons.join(' '));
+        }
+
         return built.ok ? built.data : null;
       });
     },
@@ -1350,7 +1356,16 @@ export function useObjectLayerReview(
       combo: 'Mod+Z',
       scope: 'canvas',
       description: OBJECT_LAYER_TEXT.shortcutUndo,
-      onTrigger: onUndo,
+      onTrigger: () => {
+        /* Danh sách loại đang mở thì phím thuộc về nó, không hoàn tác ngầm bên dưới (17-E-017). */
+        const focused = document.activeElement;
+
+        if (focused?.closest('[role="listbox"]') || focused?.getAttribute('aria-expanded') === 'true') {
+          return;
+        }
+
+        onUndo();
+      },
     },
     { ...shortcutOptions, enabled: canEdit },
   );

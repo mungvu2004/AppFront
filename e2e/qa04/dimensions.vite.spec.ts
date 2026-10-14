@@ -39,8 +39,16 @@ test('SCR-18 · FL-18-V1 [mocked response] BUG-610 duyet la Button that, trang t
     await expect(approve).toBeVisible();
     const box = await approve.boundingBox();
     expect.soft(box?.height ?? 0).toBeGreaterThanOrEqual(MIN_BUTTON_HEIGHT_PX);
-    const background = await approve.evaluate((el) => getComputedStyle(el).backgroundColor);
-    expect.soft(background).not.toBe('rgba(0, 0, 0, 0)');
+    // A Button paints a background; bare text does not. Compared against a probe so no colour literal ships (noRawColor).
+    const transparentBackground = await approve.evaluate((el) => {
+      const probe = document.createElement('div');
+      probe.style.backgroundColor = 'transparent';
+      document.body.append(probe);
+      const none = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return getComputedStyle(el).backgroundColor === none;
+    });
+    expect.soft(transparentBackground).toBe(false);
     await captureEvidence(page, 'U04_dims_row_button_1440.png');
   });
 });

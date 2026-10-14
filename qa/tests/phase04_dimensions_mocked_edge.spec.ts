@@ -450,13 +450,19 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
         await ev(page, '18-C-009', 'arrow_steps');
       });
 
-      await test.step('[18-C-011] field cleared or letters typed → ignored, old value shown again on blur', async () => {
+      await test.step('[18-C-011] field cleared → old value back on blur; letters typed → refused with a message, never committed', async () => {
         await field(page, 4).fill('');
         await field(page, 4).press('Tab');
         await expect.soft(field(page, 4)).toHaveValue(fieldText(2_910));
         await field(page, 4).fill('abc');
         await field(page, 4).press('Tab');
-        await expect.soft(field(page, 4)).toHaveValue(fieldText(2_910));
+        // Expectation changed: NumericField keeps refused text beside its message (NumericField.test.tsx:57 G61 "Nhập một số.",
+        // :69 BUG-198; useNumericField.ts:72) instead of reverting. The old value is still the committed one: Esc restores it.
+        await expect.soft(field(page, 4)).toHaveAttribute('aria-invalid', 'true');
+        await expect.soft(page.getByText('Nhập một số.', { exact: true })).toBeVisible(); // useNumericField.ts:72
+        await field(page, 4).focus();
+        await field(page, 4).press('Escape');
+        await expect.soft(field(page, 4), 'the letters were never committed: Esc shows the old value').toHaveValue(fieldText(2_910));
         await ev(page, '18-C-011', 'invalid_input_ignored');
       });
 
@@ -675,11 +681,14 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
       const kbCode = async (): Promise<string> =>
         ((await kbField().getAttribute('aria-label')) ?? '').replace('Giá trị kích thước ', '');
 
-      await test.step('[18-C-029] ⚑ `R` in the auto-focused field must leave keyboard mode (legend says so)', async () => {
+      await test.step('[18-C-029] `R` in the auto-focused field is swallowed; the legend promises Esc, not R (BUG-583)', async () => {
         await kbField().focus();
         await page.keyboard.press('r');
-        // ⚑ BUG-334 partly fixed: the legend says R = "Tắt chế độ duyệt bàn phím" (DK:59-64) but SR:507 skips text fields.
-        await expect.soft(keyboardSection(page), '⚑ R leaves keyboard mode').toHaveCount(0);
+        // Expectation changed: BUG-583 (BUG-LOG-P04.md:84, fixed 5f5cb479) swapped the legend's R for Esc because the field
+        // swallows R (DK:57-66, DT:94 keyEscKeyboardModeDescription). The mode must stay on and the legend must not promise R.
+        await expect.soft(keyboardSection(page), 'R typed in the field does not leave keyboard mode').toHaveCount(1);
+        await expect.soft(keyboardSection(page).getByText('Bỏ sửa, bấm lần nữa để tắt chế độ', { exact: true }), 'legend row: Esc leaves the mode').toBeVisible(); // DT:94
+        await expect.soft(keyboardSection(page).getByText('Bật hoặc tắt chế độ duyệt bàn phím', { exact: true }), 'legend has no R row').toHaveCount(0); // DT:100
         await ev(page, '18-C-029', 'r_in_field', `row in keyboard mode: ${await kbCode().catch(() => '—')}`);
         if ((await keyboardSection(page).count()) === 0) {
           await selectRow(page, 2);
@@ -843,7 +852,7 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
     });
   });
 
-  test('SCR-18 · FL-18-M6 · [mocked response] F-08: no request, reload loses approvals, flush, leave, floor change', async ({ browser }) => {
+  test('SCR-18 · FL-18-M6 · [mocked response] QD-001: approve saves through #35, reload reads N16, flush, leave, floor change', async ({ browser }) => {
     test.setTimeout(300_000);
     await withSeed(
       browser,
@@ -859,15 +868,18 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
         });
         const announced = await recordAnnouncements(page);
         let open = 0;
+        // Expectations changed in this flow: QD-001 (AppBack/docs/decisions.md:5-14, HOP-DONG-MOI Ban 11) - the floor-layer PUT #35
+        // saves dimensions, so an approve / edit sends that one write (F-08 "no request" and BUG-577 are the old behaviour).
+        const layerPut = `PUT /api/projects/${floor.projectId}/floors/${floor.floorId}/spatial/layer`;
 
-        await test.step('[18-B-018] after an approve nothing is sent and the announcer says no "Đã lưu lúc HH:mm" (F-08, 5fcaf502)', async () => {
+        await test.step('[18-B-018] after an approve one #35 PUT is sent and the announcer says "Đã lưu lúc HH:mm" (QD-001)', async () => {
           await openDims(page, floor.projectId, floor.floorId, dimsPath(floor));
           open = flow.sent.length;
           await approveButton(page, 1).click();
-          await expect(approveButton(page, 1)).toBeVisible();
-          expect.soft((await announced()).some((text) => /^Đã lưu lúc \d{2}:\d{2}$/u.test(text)), 'no "Đã lưu" announcement when nothing was saved').toBe(false);
-          expect.soft(writesSince(flow, open), 'F-08: no write').toEqual([]);
-          await ev(page, '18-B-018', 'saved_without_request', `announced: ${(await announced()).join(' | ')}`);
+          await expect(approveButton(page, 1)).toHaveCount(0);
+          await expect.poll(async () => (await announced()).some((text) => /^Đã lưu lúc \d{2}:\d{2}$/u.test(text)), { message: '"Đã lưu lúc HH:mm" announced after the PUT' }).toBe(true);
+          expect.soft(writesSince(flow, open), 'one #35 PUT, nothing else').toEqual([layerPut]);
+          await ev(page, '18-B-018', 'saved_with_put', `announced: ${(await announced()).join(' | ')}`);
         });
 
         await test.step('[18-E-015] save state reaches screen readers only through the announcer — nothing visible', async () => {
@@ -880,7 +892,7 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
           await ev(page, '18-E-015', 'announcer_only');
         });
 
-        await test.step('[18-C-017] F-08, fresh page: approve / edit / keyboard approve send no PUT/PATCH/POST', async () => {
+        await test.step('[18-C-017] QD-001, fresh page: approve / edit / keyboard approve save only through #35 PUT (no PATCH/POST)', async () => {
           await selectRow(page, 2);
           await field(page, 2).fill('2456');
           await expect(compareBar(page)).toHaveText(/2\.456 mm/u);
@@ -889,14 +901,18 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
           await page.getByRole('button', { name: DIM.keyboardOn, exact: true }).click();
           await field(page, 3).press('Enter');
           await page.getByRole('button', { name: DIM.keyboardOff, exact: true }).click();
-          expect.soft(await writeWithin(page), 'no write within the autosave window').toBeNull();
-          expect.soft(writesSince(flow, open)).toEqual([]);
-          await ev(page, '18-C-017', 'no_write_fresh');
+          expect.soft(await writeWithin(page), 'the autosave window ends in a #35 PUT').toBe(layerPut);
+          const writes = writesSince(flow, open);
+          expect.soft(writes.length, 'at least one write').toBeGreaterThan(0);
+          expect.soft(writes.filter((w) => w !== layerPut), 'no write other than #35').toEqual([]);
+          await ev(page, '18-C-017', 'put_only_fresh', `writes: ${JSON.stringify(writes)}`);
         });
 
-        await test.step('[18-G-009] no PUT/PATCH/POST for any SCR-18 action on a fresh load (F-08)', async () => {
-          expect.soft(writesSince(flow, 0), 'every write the page sent in this flow').toEqual([]);
-          await ev(page, '18-G-009', 'no_write_total', `writes: ${JSON.stringify(writesSince(flow, 0))}`);
+        await test.step('[18-G-009] every write of SCR-18 on a fresh load is the #35 PUT (QD-001)', async () => {
+          const all = writesSince(flow, 0);
+          expect.soft(all.length, 'at least one write').toBeGreaterThan(0);
+          expect.soft(all.filter((w) => w !== layerPut), 'every write the page sent in this flow other than #35').toEqual([]);
+          await ev(page, '18-G-009', 'put_only_total', `writes: ${JSON.stringify(all)}`);
         });
 
         await test.step('[18-G-010] approve → invalidation re-reads the store graph, no GET N16 either', async () => {
@@ -904,15 +920,15 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
           await ev(page, '18-G-010', 'no_n16_after_approve', `N16 hits: ${JSON.stringify(dims.hits)}`);
         });
 
-        await test.step('[18-A-027] Ctrl+S after an approve → engine flushed, still no request', async () => {
+        await test.step('[18-A-027] Ctrl+S after an approve → engine flushed to the server with the #35 PUT (QD-001)', async () => {
           await approveButton(page, 4).click();
           await progress(page).click();
           await page.keyboard.press('Control+s');
-          expect.soft(await writeWithin(page), 'Ctrl+S flushes nothing to the server').toBeNull();
-          await ev(page, '18-A-027', 'ctrl_s_no_request');
+          expect.soft(await writeWithin(page), 'Ctrl+S flushes the approve through #35').toBe(layerPut);
+          await ev(page, '18-A-027', 'ctrl_s_put');
         });
 
-        await test.step('[18-A-025] reload after approvals → every approval gone (F-08)', async () => {
+        await test.step('[18-A-025] reload → the list is exactly what N16 answers (QD-001: the mock answers unreviewed rows; read-back of saved approvals is on the stack, phase04_dimensions_edge)', async () => {
           await page.reload();
           await expect(options(page)).toHaveCount(4);
           await expect.soft(progress(page)).toHaveText(progressText(0, 4));
@@ -931,12 +947,13 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
           await ev(page, '18-C-019', 'approvals_kept_via_scr16');
         });
 
-        await test.step('[18-C-018] ⚑ moved from FL-18-02: SPA path approve sends NO #35 PUT', async () => {
+        await test.step('[18-C-018] moved from FL-18-02: SPA path approve sends the #35 PUT (QD-001)', async () => {
           const pending = writeWithin(page, 3_000);
           await approveButton(page, 2).click();
-          // ⚑ C2 suspected F-08 break: UAS:395-422 saver of SCR-16 still subscribed, SLS:51-67 marks the floor dirty.
-          expect.soft(await pending, '⚑ no PUT …/spatial/layer after an SPA approve').toBeNull();
-          await ev(page, '18-C-018', 'spa_approve_no_put');
+          // Expectation changed: QD-001 (AppBack/docs/decisions.md:5-14) - the saver subscribed after the SCR-16 visit
+          // (UAS:395-422, SLS:51-67) now carries the approve; "no PUT" was the F-08 / BUG-577 behaviour.
+          expect.soft(await pending, 'PUT …/spatial/layer after an SPA approve').toBe(layerPut);
+          await ev(page, '18-C-018', 'spa_approve_put');
         });
 
         await test.step('[18-C-027] undo only on the toast: no Mod+Z binding, no "Hoàn tác" on the screen', async () => {
@@ -1098,7 +1115,7 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
           await ev(page, '18-D-001', 'admin_controls');
         });
 
-        await test.step('[18-D-002] engineer member: same controls, still no request', async () => {
+        await test.step('[18-D-002] engineer member: same controls, approve saves through #35 (QD-001)', async () => {
           eng = await openFlow(browser, engineer);
           const { page } = eng;
           await routeDims(page, { [floor.floorId]: { ...onFloor } });
@@ -1109,8 +1126,11 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
           const mark = eng.sent.length;
           await approveButton(page, 1).click();
           await expect.soft(approveButton(page, 1)).toHaveCount(0);
-          expect.soft(await writeWithin(page)).toBeNull();
-          expect.soft(writesSince(eng, mark)).toEqual([]);
+          // Expectation changed: QD-001 (AppBack/docs/decisions.md:5-14, HOP-DONG-MOI Ban 11) - the floor-layer PUT #35 now
+          // saves the approval, so an engineer's approve sends exactly that one write (it used to send none, BUG-577).
+          const layerPut = `PUT /api/projects/${floor.projectId}/floors/${floor.floorId}/spatial/layer`;
+          expect.soft(await writeWithin(page)).toBe(layerPut);
+          expect.soft(writesSince(eng, mark)).toEqual([layerPut]);
           await ev(page, '18-D-002', 'engineer_controls');
         });
 

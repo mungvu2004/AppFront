@@ -470,7 +470,13 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         answers.overlay = await read(ROUTES.project.overlay(q2.projectId, missing), page.getByRole('region', { name: 'Màn đối chiếu bản vẽ', exact: true }));
         await attachJson('E04_X4-A-036_unknown-floor.json', answers);
         expect.soft(answers.walls).toContain('Tầng này không còn tồn tại.');
-        expect.soft(new Set(Object.values(answers)).size, 'three distinct answers').toBe(3);
+        // Expectation changed (BUG-326, floorLayerReadFailure.ts:1-3): every QC/overlay screen now shows the SAME shared
+        // "Không mở được tầng này" screen for a missing floor, not three different answers.
+        for (const [name, text] of Object.entries(answers)) {
+          expect.soft(text, `${name} says the floor no longer exists`).toContain('Tầng này không còn tồn tại.');
+        }
+        expect.soft(answers.scale, 'scale shows the shared way out').toContain('Về quản lý tầng');
+        expect.soft(answers.overlay, 'overlay shows the shared way out').toContain('Về quản lý tầng');
         await ev(page, 'X4-A-036', 'unknown-floor-three-answers');
       });
     } finally {
@@ -622,9 +628,11 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         // The paused clock also freezes React's Suspense reveal throttle and react-query's zero-delay notify, so the lazy
         // SCR-14 stays on "Đang tải màn hình" (run-042 PNG). Tick 50 ms at a time (15 x 50 < the 800 ms debounce) until it paints.
         const scaleCanvas = page.getByRole('group', { name: 'Bản vẽ đã nắn, kéo để vẽ đường tham chiếu', exact: true });
-        for (let tick = 0; tick < 15 && !(await scaleCanvas.isVisible()); tick += 1) {
+        // The canvas paints before the side panel's method radios (run-r1 PNG: panel still skeleton), so tick until the radios exist.
+        const methodGroup = page.getByRole('radiogroup', { name: 'Chọn cách xác định tỷ lệ', exact: true });
+        for (let tick = 0; tick < 15 && !((await scaleCanvas.isVisible()) && (await methodGroup.isVisible())); tick += 1) {
           await page.clock.runFor(50);
-          await scaleCanvas.waitFor({ state: 'visible', timeout: 400 }).catch(() => undefined); // real time for the N15 read
+          await methodGroup.waitFor({ state: 'visible', timeout: 400 }).catch(() => undefined); // real time for the N15 read
         }
         await drawReference(page, 4_000);
         const mark = run!.puts.length;

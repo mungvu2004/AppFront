@@ -761,6 +761,25 @@ describe('QA-04c SCR-19', () => {
     expect(mounted.result.current.historyStepCount()).toBe(1);
   });
 
+  it('[19-A-006] xoá một trục đã lưu: toast "Đã xoá trục X." có vé hoàn tác còn hiệu lực', async () => {
+    const notifications = createNotificationBus();
+    const mounted = await mountSettled({ notifications });
+    const target = rowsOf(mounted)[0];
+
+    expect(target).toBeDefined();
+
+    await act(async () => {
+      mounted.result.current.onAxisRemove(target?.id ?? '');
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(notifications.list()).toHaveLength(1);
+    });
+    expect(notifications.list()[0]?.undoTicket?.getStatus()).toBe('active');
+    expect(notifications.list()[0]?.title).toMatch(/^Đã xoá trục /u);
+  });
+
   it('[BUG-594] kéo một trục của bản xem trước: có tác dụng ngay, một bước hoàn tác', async () => {
     const mounted = await mountSettled({ floorId: sampleLevelId(0), gateway: previewGateway() });
     const target = rowsOf(mounted)[0];

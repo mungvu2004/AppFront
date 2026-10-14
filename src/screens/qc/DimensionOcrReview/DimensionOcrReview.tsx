@@ -213,6 +213,7 @@ function DimensionOcrPanelBody({ model, scaleCalibrationHref }: DimensionOcrPane
       onFilterChange={model.onFilterChange}
       onSelect={model.onSelect}
       outlierNotice={outlierNoticeOf(model)}
+      presetNotice={model.presetNotice ?? null}
       reviewCounter={model.reviewCounter}
       reviewProgressLabel={model.reviewProgressLabel}
       rows={model.rows}

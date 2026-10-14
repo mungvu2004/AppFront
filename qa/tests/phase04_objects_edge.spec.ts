@@ -493,14 +493,15 @@ test('SCR-17 · FL-17-02 swing and kind changes, silent refusals', async ({ brow
       if ((await typeBox(page).getAttribute('aria-expanded')) === 'true') await page.keyboard.press('Escape');
     });
 
-    await test.step('[17-E-009] combobox "Loại đối tượng" opens a listbox of 9 options with icons; keyboard choose', async () => {
+    await test.step('[17-E-009] combobox "Loại đối tượng" opens a listbox of 3 opening options with icons (BUG-590); keyboard choose', async () => {
       await page.mouse.move(8, 8); // a resting pointer over an item would take the highlight (Select.Item onMouseEnter)
       await typeBox(page).focus();
       await page.keyboard.press('Enter');
       const listbox = page.locator(`[id="${(await typeBox(page).getAttribute('aria-controls')) ?? ''}"]`);
-      await expect.soft(listbox.getByRole('option')).toHaveCount(9);
+      // BUG-590 (ObjectLayerInspector.tsx:166-167 OPENING_SUBTYPES): the select lists opening kinds only (single door / double door / window) = 3, not 9.
+      await expect.soft(listbox.getByRole('option')).toHaveCount(3);
       const withIcons = await listbox.getByRole('option').evaluateAll((nodes) => nodes.filter((node) => node.querySelector('svg') !== null).length);
-      expect.soft(withIcons, 'every option has an icon').toBe(9);
+      expect.soft(withIcons, 'every option has an icon').toBe(3);
       await ev(page, '17-E-009', 'type_listbox');
       const lowDoorId = String(at(arrayOf(asRecord((await readLayer(s.api, pid, fid)).layer, 'layer').openings, 'openings').filter((o) => o.heightMm === 1_800), 0, 'low-wall door').id);
       const mark = s.puts.length;

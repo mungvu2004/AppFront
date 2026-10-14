@@ -256,6 +256,8 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
       });
 
       await test.step('[21-A-006] "Xem trước" opens the preview line with "Huỷ" / "Áp dụng"', async () => {
+        // 21-A-010 left the preview open and the bar hides "Xem trước" while it is open (TAB:131): close it first.
+        await button(page, CANCEL).click();
         await tick(acceptBox(page, 200));
         await expect(acceptBox(page, 200)).toBeChecked(); // TGT:42-44
         await button(page, PREVIEW_BTN).click();
@@ -859,7 +861,8 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
       await test.step('[21-E-005] row group combobox "Độ dày chuẩn hoá của đoạn #…" opens a listbox with 110 / 220 / 330 / Cột BTCT (Select, not radios)', async () => {
         const group = radios(1);
         await group.click(); // ThicknessSegmentTable.tsx:231-251; components/ui/Select.tsx:136,231,283
-        await expect.soft(page.getByRole('listbox').getByRole('option')).toHaveText(['110 mm', '220 mm', '330 mm', 'Cột BTCT']);
+        // BUG-593 (ThicknessSegmentTable.tsx:123-125 GROUP_OPTIONS): "Cột BTCT" has no apply command, so the row picker no longer offers it.
+        await expect.soft(page.getByRole('listbox').getByRole('option')).toHaveText(['110 mm', '220 mm', '330 mm']);
         await page.keyboard.press('Escape');
         await expect.soft(page.getByRole('listbox')).toHaveCount(0);
       });

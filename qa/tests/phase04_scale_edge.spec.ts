@@ -222,18 +222,30 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await evidence(page, '14-A-009', 'second-line');
       });
 
-      await step('14-A-010', 'pointer-down on an existing handle starts a NEW zero-length line instead of moving that end', async () => {
+      // BUG-587 (BUG-LOG-P04.md:757, fixed in ScaleCalibrationCanvasControls.tsx ReferenceHandle / useScaleCalibration.ts:989):
+      // pointer-down on a handle drags THAT end, the other end stays, the line is not restarted (SCV:71-74, 107-119).
+      await step('14-A-010', 'pointer-down on an existing handle drags that end; the other end stays and the line is not restarted (BUG-587)', async () => {
         await lengthField(page).fill('5000');
         await expect.soft(applyDisabled(page)).toBeEnabled();
+        const s0 = await handleAt(handleStart(page));
+        const e0 = await handleAt(handleEnd(page));
+        const before = await pixelsOf(page);
         const box = await handleStart(page).boundingBox();
         if (box === null) throw new Error('start handle has no box');
         await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
         await page.mouse.down();
+        await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2, { steps: 4 });
         await page.mouse.up();
         await flush(page);
-        expect.soft(await pixelsOf(page), 'new line has (about) zero length').toBeLessThanOrEqual(3);
-        await expect.soft(applyDisabled(page)).toBeDisabled();
-        await evidence(page, '14-A-010', 'handle-restarts-line');
+        const s1 = await handleAt(handleStart(page));
+        const e1 = await handleAt(handleEnd(page));
+        expect.soft(s1.x, 'the grabbed start end followed the pointer').toBeGreaterThan(s0.x);
+        expect.soft(e1.x, 'the other end did not move').toBeCloseTo(e0.x, 5);
+        expect.soft(e1.y, 'the other end did not move').toBeCloseTo(e0.y, 5);
+        expect.soft(await pixelsOf(page), 'the line was edited, not restarted at zero length').toBeGreaterThan(3);
+        expect.soft(await pixelsOf(page), 'the line changed length').not.toBeCloseTo(before, 0);
+        await expect.soft(applyDisabled(page)).toBeEnabled();
+        await evidence(page, '14-A-010', 'handle-drags-end');
       });
 
       await step('14-A-013', 'Esc during a pointer drag cancels the line; Esc after release does nothing', async () => {
@@ -515,7 +527,7 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await expect.poll(() => pixelsOf(page)).toBeCloseTo(base, 1);
         const y0 = (await handleAt(handleEnd(page))).y;
         await page.keyboard.press('ArrowDown');
-        await expect.poll(async () => (await handleAt(handleEnd(page))).y).toBeCloseTo(y0 + 1 / h, 4);
+        await expect.poll(async () => (await handleAt(handleEnd(page))).y).toBeCloseTo(y0 + 1 / Math.max(w, h), 4); // handle ratio is of the square frame: 1 image px = 1/long side (same as line 311)
         await page.keyboard.press('ArrowUp');
         await evidence(page, '14-A-016', 'nudge');
       });
@@ -1416,9 +1428,12 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
 
       await step('14-B-009', 'error: the floorId in the URL is not a floor of this project → "…đường dẫn chưa đúng. Mã lỗi: NOT_FOUND"', async () => {
         await page.goto(ROUTES.project.scale(df.projectId, q2[0]!.floorId));
-        await expect(noticeOf(page)).toBeVisible({ timeout: 45_000 });
-        await expect.soft(noticeOf(page)).toContainText(ERR.notFound);
-        await expect.soft(noticeOf(page)).toContainText('Mã lỗi: NOT_FOUND');
+        // BUG-326 (BUG-LOG-P04.md:199, fixed): a 404 floor swaps the whole screen for the shared one-exit screen
+        // (floorLayerReadFailure.ts:21-25, ScaleCalibration.tsx:188-191; same as phase04_objects_edge.spec.ts 17-B-008) - no machine code by design.
+        await expect(page.getByText('Không mở được tầng này', { exact: true })).toBeVisible({ timeout: 45_000 }); // floorLayerReadFailure.ts:21
+        await expect.soft(page.getByText('Tầng này không còn tồn tại. Mở Quản lý tầng để chọn một tầng khác.', { exact: true })).toBeVisible(); // :23
+        await expect.soft(btn(page, 'Về quản lý tầng')).toBeVisible(); // :24
+        await expect.soft(page.getByText(/Mã lỗi: NOT_FOUND/u)).toHaveCount(0);
         await evidence(page, '14-B-009', 'foreign-floor');
       });
 

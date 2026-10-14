@@ -112,6 +112,7 @@ import {
   implausibleValueHint,
   levelOfGraph,
   lowConfidenceDimensionsOf,
+  lowConfidenceNotice,
   millimetresPerPixelOf,
   readValueOf,
   reviewCounterOf,
@@ -209,6 +210,8 @@ export interface DimensionOcrReviewModel extends DimensionOcrModel {
   readonly saveState: 'saved' | 'dirty' | 'saving' | 'failed' | 'offline' | null;
   /** Khối lưu (409 → "Tải lại", 403, 422…) — cùng dải với bốn màn QC khác. */
   readonly saveBlock: FloorLayerSaveBlock | null;
+  /** Câu "N mục dưới ngưỡng tin cậy, đã lọc sẵn" khi bộ lọc mặc định là "cần xem" (18-B-011). */
+  readonly presetNotice?: string | null;
   readonly rows: readonly DimensionOcrRowModel[];
   readonly compare: DimensionOcrCompareModel | null;
   readonly keyboardReview: DimensionOcrKeyboardReviewModel;
@@ -1002,6 +1005,10 @@ export function useDimensionOcrReview(
     saveLabel: canEdit ? saveIndicator.label : null,
     saveState: canEdit ? saveIndicator.state : null,
     saveBlock,
+    presetNotice:
+      filterChoice === null && activeFilter === 'lowConfidence'
+        ? lowConfidenceNotice(lowConfidenceDimensions.length)
+        : null,
     rows,
     chains,
     reviewCounter,

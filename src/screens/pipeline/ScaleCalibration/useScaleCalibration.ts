@@ -100,6 +100,8 @@ import {
   type Millimetres,
 } from '@/domain/units/types';
 import { useAutosave, useFloorLayerAutosave } from '@/hooks/useAutosave';
+import { appNotificationBus } from '@/hooks/useNotifications';
+import { createUndoTicket } from '@/lib/mutations/undoTicket';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import { useFloorLayer } from '@/hooks/useFloorLayer';
 import { useFloorLayerReadFailure } from '../../qc/shared/floorLayerReadFailure';
@@ -1264,7 +1266,16 @@ export function useScaleCalibration(
     }
 
     if (patches.length > 0) {
-      commit(patches, COPY.applyCommitLabel);
+      const { undo } = commit(patches, COPY.applyCommitLabel);
+
+      // A8: the toast "Hoàn tác" of the real route tree is `NotificationHost` (main.tsx), which draws the session
+      // bus only; `Toast.Provider`'s `useUndoableToast` bridge is not mounted there (14-A-026), so publish it here.
+      appNotificationBus.publish({
+        type: 'scale-applied',
+        title: COPY.applyCommitLabel,
+        description: '',
+        undoTicket: createUndoTicket({ description: COPY.applyCommitLabel, undo }),
+      });
     }
   }, []);
 

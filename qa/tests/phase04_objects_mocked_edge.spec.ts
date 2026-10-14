@@ -94,7 +94,7 @@ test('SCR-17 · FL-17-M1 [mocked response] read failures, refetch error, backgro
     const failureScreen = page.getByRole('alert').filter({ has: page.getByRole('button', { name: 'Thử lại', exact: true }) });
     let n16At500 = 0; // N16 hits before the 500 load of [17-B-010] (hits() counts every GET since the mock was installed)
 
-    await test.step('[17-B-001] Loading: 4 skeleton rows in the left panel; counter "0/0 đối tượng đã duyệt"; canvas already says "Chưa có đối tượng nào để vẽ trên mặt bằng."', async () => {
+    await test.step('[17-B-001] Loading: 4 skeleton rows in the left panel; status bar "Đang đọc lớp đối tượng…" (no fake 0/0); canvas does not say "nothing to draw" yet (BUG-618)', async () => {
       const hold = deferred();
       n16.set({ hold });
       await page.goto(url, { waitUntil: 'commit' });
@@ -104,7 +104,8 @@ test('SCR-17 · FL-17-M1 [mocked response] read failures, refetch error, backgro
       // BUG-618: no fake "0/0" while loading; status bar shows LOADING_PROGRESS_LABEL (ObjectLayerReview.tsx:75,348).
       await expect.soft(statusBar(page)).toContainText('Đang đọc lớp đối tượng…');
       await expect.soft(page.getByText('0/0 đối tượng đã duyệt')).toHaveCount(0);
-      await expect.soft(page.getByText(OBJ.nothingToDraw, { exact: true })).toBeVisible();
+      // BUG-618 (ObjectLayerCanvas.tsx:392, ObjectLayerReview.test.tsx:246): no "nothing to draw" while loading.
+      await expect.soft(page.getByText(OBJ.nothingToDraw, { exact: true })).toHaveCount(0);
       await ev(page, '17-B-001', 'loading_skeleton');
       n16.set('pass');
       hold.resolve();

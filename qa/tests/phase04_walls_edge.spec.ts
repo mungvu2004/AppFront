@@ -1372,7 +1372,7 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await toggleCheckbox(page, WALL.onlyLow);
         await expectRows(page, [0, 1, 2, 5, 6], 'rows below 0.90');
         await expect.soft(wallOption(page, code(6)), 'a 0.80 wall counts as low').toHaveCount(1);
-        await ev(page, '16-A-058', 'project-threshold-0.90');
+        await ev(page, '16-A-058', 'project-threshold-090');
       });
     } finally {
       await closeWallsRun(run);
@@ -1562,7 +1562,7 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await wallOption(page, target).hover();
         await expect.soft(canvasSvg(page).locator(`g[aria-label="${target}"] polygon.opacity-100`), 'outline on hover of the row').toHaveCount(1);
         await ev(page, '16-A-015', 'hover-row');
-        await wallPolygon(page, target).hover();
+        await wallShape(page, target).hover(); // the <g>: its own outline polygon overlays a thin wall, a polygon target would be "intercepted"
         await expect.soft(wallOption(page, target)).toHaveClass(/bg-bg-hover/u);
       });
 
@@ -1714,9 +1714,9 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await page.goto('about:blank', { timeout: 5_000 }).catch(() => undefined);
         expect.soft(prompts[0], 'beforeunload prompt').toBe('beforeunload');
         expect.soft(prompts.every((type) => type === 'beforeunload'), 'only beforeunload prompts').toBe(true);
+        await page.clock.resume(); // a paused clock hangs page.screenshot (qa-flow-author trap); the prompts are already recorded
         await ev(page, '16-A-078', 'leave-guard');
         page.off('dialog', stay);
-        await page.clock.resume();
         await quiet(page);
       });
 
