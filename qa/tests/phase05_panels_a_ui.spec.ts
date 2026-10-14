@@ -288,7 +288,7 @@ test.describe('U05 SCR-23 side panels A — UI verify (QA-05c P3)', () => {
         return panel;
       };
       const pickChair = async (panel: Locator): Promise<void> => {
-        await tile(panel, 'Dining Chair').click();
+        await tile(panel, 'Ghế ăn').click();
         await expect(replaceButton(detectedRow(panel, 'ghế (3)'))).toBeEnabled();
       };
 
@@ -305,7 +305,7 @@ test.describe('U05 SCR-23 side panels A — UI verify (QA-05c P3)', () => {
         const check = await verifyState(page, 'U05_23F-F-002_strip-picked', async (p) => {
           const panel = await openLibrary(p);
           await pickChair(panel);
-          return { strip: detectedStrip(panel), picked: tile(panel, 'Dining Chair') };
+          return { strip: detectedStrip(panel), picked: tile(panel, 'Ghế ăn') };
         });
         expect.soft(check.outside).toEqual([]);
       });

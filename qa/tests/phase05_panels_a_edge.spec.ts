@@ -893,11 +893,11 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
         await shot(page, '23R-E-010', 'focus-back');
       });
 
-      await test.step('[23F-G-004] ⚑ "Thư viện đồ đạc": tile "Dining table", click the canvas floor → 1 PUT …/spatial/layer 200, "Đã lưu lúc"', async () => {
+      await test.step('[23F-G-004] ⚑ "Thư viện đồ đạc": tile "Bàn ăn", click the canvas floor → 1 PUT …/spatial/layer 200, "Đã lưu lúc"', async () => {
         await layerIdle(log);
         const mark = layerPuts(log).length;
         const furniture = await openRailPanel(page, FL.title);
-        await tile(furniture, 'Dining table').click();
+        await tile(furniture, 'Bàn ăn').click();
         const point = await canvasFloorPoint(page, furniture);
         await page.mouse.move(point.x - 20, point.y);
         await page.mouse.move(point.x, point.y);
@@ -1113,11 +1113,11 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
         await shot(page, '23F-D-001', 'engineer-library');
       });
 
-      await test.step('[23F-A-029] drag "Dining Chair" over "ghế (3)" → row `border-primary`; drop → dialog "Thay thế tất cả 3 ghế?" (then "Huỷ")', async () => {
+      await test.step('[23F-A-029] drag "Ghế ăn" over "ghế (3)" → row `border-primary`; drop → dialog "Thay thế tất cả 3 ghế?" (then "Huỷ")', async () => {
         const furniture = panelOf(page, FL.title);
         await chip(furniture, 'Ghế').click();
         const row = detectedRow(furniture, 'ghế (3)');
-        await tile(furniture, 'Dining Chair').hover();
+        await tile(furniture, 'Ghế ăn').hover();
         await page.mouse.down();
         const box = await row.boundingBox();
         if (box === null) throw new Error('"ghế (3)" row has no box');
@@ -1126,7 +1126,7 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
         await page.mouse.up();
         const dialog = page.getByRole('dialog', { name: FL.previewTitle('ghế', 3), exact: true });
         await expect.soft(dialog).toBeVisible();
-        await expect.soft(dialog.getByRole('listitem').first()).toHaveText(FL.previewRow('ghế', 1, 'Dining Chair'));
+        await expect.soft(dialog.getByRole('listitem').first()).toHaveText(FL.previewRow('ghế', 1, 'Ghế ăn'));
         await shot(page, '23F-A-029', 'drop-preview');
         if ((await dialog.count()) > 0) await dialog.getByRole('button', { name: FL.cancel, exact: true }).click();
         await expect.soft(previewDialog(page)).toHaveCount(0);
@@ -1231,12 +1231,12 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
         await shot(page, '23F-E-003', 'chip-toggle');
       });
 
-      await test.step('[23F-A-003] "Bàn" → "7 mẫu"', async () => {
-        await pick('Bàn', 7);
+      await test.step('[23F-A-003] "Bàn" → "5 mẫu"', async () => {
+        await pick('Bàn', 5);
         await shot(page, '23F-A-003', 'chip-ban');
       });
-      await test.step('[23F-A-004] "Ghế" → "4 mẫu"', async () => {
-        await pick('Ghế', 4);
+      await test.step('[23F-A-004] "Ghế" → "5 mẫu"', async () => {
+        await pick('Ghế', 5);
         await shot(page, '23F-A-004', 'chip-ghe');
       });
       await test.step('[23F-A-005] "Giường" → "2 mẫu"', async () => {
@@ -1293,9 +1293,9 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
         await expect.soft(itemCount(panel), `"${text}"`).toHaveText(FL.count(count));
       };
 
-      await test.step('[23F-A-012] with "Tất cả" chosen, the empty chips "Ghế sofa", "Của tôi" are dimmed (`opacity-50`, FLP:38, 72)', async () => {
+      await test.step('[23F-A-012] with "Tất cả" chosen, only the empty chip "Của tôi" is dimmed (`opacity-50`, FLP:38, 72; "Ghế sofa" has 1 since FB)', async () => {
         await expect(chip(panel, 'Tất cả')).toHaveAttribute('aria-pressed', 'true');
-        await expect(chip(panel, 'Ghế sofa')).toHaveClass(classToken('opacity-50'));
+        await expect(chip(panel, 'Ghế sofa')).not.toHaveClass(classToken('opacity-50'));
         await expect(chip(panel, 'Của tôi')).toHaveClass(classToken('opacity-50'));
         await shot(page, '23F-A-012', 'dimmed-chips');
       });
@@ -1311,8 +1311,8 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
         await shot(page, '23F-A-013', 'search-chair');
       });
 
-      await test.step('[23F-A-014] case-insensitive "TABLE" → "8 mẫu"', async () => {
-        await find('TABLE', 8);
+      await test.step('[23F-A-014] case-insensitive "TABLE" → "6 mẫu"', async () => {
+        await find('TABLE', 6);
         await shot(page, '23F-A-014', 'search-table');
       });
 
@@ -1324,13 +1324,14 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
         await shot(page, '23F-A-015', 'search-ghe');
       });
 
-      await test.step('[23F-A-016] ⚑ "bàn" → tables, not "Parking Spot" / "Scooter" (tag "urban" contains "ban")', async () => {
+      await test.step('[23F-A-016] ⚑ "bàn" → tables, not "Chỗ đỗ xe" / "Xe trượt scooter" (tag "urban" contains "ban")', async () => {
         await search.fill('bàn');
         await softly.poll(() => countOf(panel), { message: 'grid re-filtered for "bàn"' }).not.toBe(101);
         const names = await tileNames(panel);
-        expect.soft(names).not.toContain('Parking Spot');
-        expect.soft(names).not.toContain('Scooter');
-        expect.soft(names.some((name) => /table|desk/iu.test(name)), `tiles: ${names.join(', ')}`).toBe(true);
+        // Catalog names are Vietnamese since FB round 2 ("Parking Spot" = "Chỗ đỗ xe", "Scooter" = "Xe trượt scooter").
+        expect.soft(names).not.toContain('Chỗ đỗ xe');
+        expect.soft(names).not.toContain('Xe trượt scooter');
+        expect.soft(names.some((name) => /(^|\s)bàn(\s|$)/iu.test(name)), `tiles: ${names.join(', ')}`).toBe(true);
         await shot(page, '23F-A-016', 'search-ban');
       });
 
@@ -1340,23 +1341,22 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
         await shot(page, '23F-A-017', 'search-zzz');
       });
 
-      await test.step('[23F-A-018] "chair" + chip "Bàn" → "1 mẫu" ("Office Chair" carries tag `desk`; combined filter, CF:89-96)', async () => {
+      await test.step('[23F-A-018] "chair" + chip "Bàn" → "0 mẫu" (combined filter, CF:89-96)', async () => {
         await search.fill('chair');
         await chip(panel, 'Bàn').click();
-        await expect.soft(itemCount(panel)).toHaveText(FL.count(1));
+        await expect.soft(itemCount(panel)).toHaveText(FL.count(0));
         await shot(page, '23F-A-018', 'chair-and-ban');
       });
 
-      await test.step('[23F-C-003] "chair" with "Tất cả": "Ghế" and "Bàn" ("Office Chair", tag `desk`) not dimmed, "Giường" dimmed (CF:99-108)', async () => {
+      await test.step('[23F-C-003] "chair" with "Tất cả": "Ghế" not dimmed, "Bàn" dimmed (CF:99-108)', async () => {
         await chip(panel, 'Tất cả').click();
         await expect.soft(chip(panel, 'Ghế')).not.toHaveClass(classToken('opacity-50'));
-        await expect.soft(chip(panel, 'Bàn')).not.toHaveClass(classToken('opacity-50'));
-        await expect.soft(chip(panel, 'Giường')).toHaveClass(classToken('opacity-50'));
+        await expect.soft(chip(panel, 'Bàn')).toHaveClass(classToken('opacity-50'));
         await shot(page, '23F-C-003', 'dim-by-search');
       });
 
-      await test.step('[23F-C-001] "đ" folds to "d" → "88 mẫu" (CF:62-69)', async () => {
-        await find('đ', 88);
+      await test.step('[23F-C-001] "đ" → "27 mẫu" (typed with a mark: matches the mark) (CF:62-69)', async () => {
+        await find('đ', 27);
         await shot(page, '23F-C-001', 'search-d');
       });
 
@@ -1373,6 +1373,7 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
       await test.step('[23F-A-031] ⚑ tile names are Vietnamese: the first tile is not "Cactus" / "TV Stand" (IC:102-104)', async () => {
         const first = (await tileNames(panel))[0];
         expect.soft(['Cactus', 'TV Stand'], `first tile "${String(first)}"`).not.toContain(first);
+        expect.soft(first ?? '', 'first tile carries Vietnamese letters').toMatch(/[À-ỹ]/u);
         await shot(page, '23F-A-031', 'tile-names');
       });
 
@@ -1428,26 +1429,26 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
         await shot(page, '23F-A-023', 'replace-disabled');
       });
 
-      await test.step('[23F-A-020] chip "Ghế", click "Dining Chair" → tile `ring-2`; "Thay thế tất cả" enabled (IC:63-84)', async () => {
+      await test.step('[23F-A-020] chip "Ghế", click "Ghế ăn" → tile `ring-2`; "Thay thế tất cả" enabled (IC:63-84)', async () => {
         await chip(panel, 'Ghế').click();
-        await tile(panel, 'Dining Chair').click();
-        await expect.soft(tile(panel, 'Dining Chair')).toHaveClass(classToken('ring-2'));
+        await tile(panel, 'Ghế ăn').click();
+        await expect.soft(tile(panel, 'Ghế ăn')).toHaveClass(classToken('ring-2'));
         await expect.soft(replaceButton(chairs)).toBeEnabled();
         await shot(page, '23F-A-020', 'tile-picked');
       });
 
-      await test.step('[23F-E-004] the tile is a button named "Dining Chair" (IC:66-104)', async () => {
-        await expect.soft(panel.getByRole('button', { name: 'Dining Chair' })).toHaveCount(1);
+      await test.step('[23F-E-004] the tile is a button named "Ghế ăn" (IC:66-104)', async () => {
+        await expect.soft(panel.getByRole('button', { name: /^Ghế ăn( Ghế ăn)?$/u })).toHaveCount(1);
         await shot(page, '23F-E-004', 'tile-name');
       });
 
-      await test.step('[23F-A-024] "Thay thế tất cả" on "ghế (3)" → dialog "Thay thế tất cả 3 ghế?", body, "ghế 1 → Dining Chair" … "ghế 3 → …"', async () => {
+      await test.step('[23F-A-024] "Thay thế tất cả" on "ghế (3)" → dialog "Thay thế tất cả 3 ghế?", body, "ghế 1 → Ghế ăn" … "ghế 3 → …"', async () => {
         await replaceButton(chairs).click();
         await expect.soft(dialog).toBeVisible();
         await expect.soft(dialog.getByText(FL.previewBody, { exact: true })).toBeVisible();
         await expect
           .soft(dialog.getByRole('list', { name: FL.previewList }).getByRole('listitem'))
-          .toHaveText([1, 2, 3].map((n) => FL.previewRow('ghế', n, 'Dining Chair')));
+          .toHaveText([1, 2, 3].map((n) => FL.previewRow('ghế', n, 'Ghế ăn')));
         await shot(page, '23F-A-024', 'preview');
       });
 
