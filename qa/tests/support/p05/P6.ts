@@ -464,7 +464,7 @@ export async function settledShot(page: Page): Promise<Buffer> {
     if ((await canvasDiff(previous, next)) < 0.05) return next;
     previous = next;
   }
-  return previous;
+  throw new Error('settledShot: the canvas did not stop changing within 12 frames');
 }
 
 /** Mean RGB and standard deviation (of luminance) of a rectangle of a PNG. */
@@ -496,6 +496,8 @@ export const webglOff = `(() => {
     if (type === 'webgl' || type === 'webgl2' || type === 'experimental-webgl') return null;
     return original.call(this, type, ...rest);
   };
+  // Pascal tries WebGPU first (renderer-capability.ts:96-101): a weak device has no navigator.gpu either.
+  Object.defineProperty(Navigator.prototype, 'gpu', { get: () => undefined, configurable: true });
 })();`;
 
 export interface Hold {
@@ -559,7 +561,7 @@ export async function failRoute(page: Page, method: string, pathTest: (path: str
         return;
       }
       hits += 1;
-      await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify({ error: { code: 'INTERNAL', message: 'qa mocked response' } }) });
+      await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify({ code: 'INTERNAL', requestId: 'qa-mock' }) });
     },
   );
   return { hits: () => hits };
@@ -617,3 +619,15 @@ export const annotate = (description: string): void => {
 };
 
 export const uniq = (): string => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+
+/** Soft check (+ note) that the point at fraction (fx, fy) of the canvas host hits the host or one of its children, not an overlay. */
+export async function hitsCanvas(page: Page, fx: number, fy: number): Promise<boolean> {
+  const box = await hostBox(page);
+  return host(page).evaluate(
+    (el, point) => {
+      const hit = document.elementFromPoint(point.x, point.y);
+      return hit !== null && el.contains(hit);
+    },
+    { x: box.x + box.width * fx, y: box.y + box.height * fy },
+  );
+}

@@ -65,7 +65,7 @@ async function expectNavAtBottom(page: Page): Promise<void> {
 
 test.describe('U05 SCR-27 mobile viewer — UI verification (QA-05c P6)', () => {
   test('SCR-27 · FL-27-15 · model states', async ({ browser }) => {
-    test.setTimeout(240_000); // 7 states × 4 widths × (load + Pascal build)
+    test.setTimeout(420_000); // 28 Pascal builds (7 states × 4 widths) + slowMo; run the UI layer with E2E_SLOWMO_MS=0
     let flow: MobileFlow | undefined;
     try {
       flow = await uiFlow(browser);
@@ -164,7 +164,7 @@ test.describe('U05 SCR-27 mobile viewer — UI verification (QA-05c P6)', () => 
         const bar = await nav(page).boundingBox();
         const content = (handle?.height ?? 0) + (copy?.height ?? 0) + 24; // + the `pb-6` of the body (MVI:245)
         expect.soft(box?.height ?? Infinity, `sheet height (px) vs header + content ${String(Math.round(content))}`).toBeLessThanOrEqual(content + 8);
-        expect.soft((bar?.y ?? 0) + (bar?.height ?? 0), 'tool bar bottom (px) above the sheet top').toBeLessThanOrEqual((box?.y ?? 0) + 1);
+        expect.soft((box?.y ?? 0) + (box?.height ?? 0), 'sheet bottom (px) at or above the tool bar top: the sheet sits over the model, not over the bar').toBeLessThanOrEqual((bar?.y ?? 0) + 1);
       });
 
       await test.step('[27-F-008] Sheet expanded (90 %)', async () => {

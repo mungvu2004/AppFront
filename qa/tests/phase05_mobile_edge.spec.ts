@@ -43,6 +43,7 @@ import {
   findKey,
   floorRows,
   group,
+  hitsCanvas,
   holdRoute,
   host,
   loadingSeen,
@@ -76,6 +77,7 @@ import {
   type MobileFlow,
 } from './support/p05/P6';
 
+const softly = expect.configure({ soft: true });
 const shot = (page: Page, id: string, slug: string): Promise<string> => captureEvidence(page, `E05_${id}_${slug}.png`);
 /** NBSP-safe text (FMT:95-139 may join the unit with U+00A0). */
 const clean = (text: string | null): string => (text ?? '').replace(/ /gu, ' ').trim();
@@ -132,7 +134,7 @@ test.describe('E05 SCR-27 mobile viewer — edge flows (QA-05c P6)', () => {
       });
 
       await test.step('[27-G-002] N21 rule config read once', async () => {
-        await expect.poll(() => net.count('GET', ruleConfigRe(q2.id)), { message: 'GET …/rule-config after hydration' }).toBe(1); // UPS:68-85, 165-168
+        await softly.poll(() => net.count('GET', ruleConfigRe(q2.id)), { message: 'GET …/rule-config after hydration' }).toBe(1); // UPS:68-85, 165-168
         await shot(page, '27-G-002', 'rule_config_once');
       });
 
@@ -161,11 +163,11 @@ test.describe('E05 SCR-27 mobile viewer — edge flows (QA-05c P6)', () => {
 
       await test.step('[27-B-007] Offline then online: weak-network note comes and goes', async () => {
         await context.setOffline(true);
-        await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(false);
+        await softly.poll(() => page.evaluate(() => navigator.onLine)).toBe(false);
         await expect.soft(note(page, MV.weakNetwork)).toBeVisible(); // UMV:266-283, NM:131-160
         await shot(page, '27-B-007', 'weak_network_note');
         await context.setOffline(false);
-        await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(true);
+        await softly.poll(() => page.evaluate(() => navigator.onLine)).toBe(true);
         // A ping that failed while offline keeps `pingOnline=false` until the next 20 s tick (NM:40), so allow one tick.
         await expect.soft(note(page, MV.weakNetwork)).toHaveCount(0, { timeout: 30_000 });
       });
@@ -223,6 +225,11 @@ test.describe('E05 SCR-27 mobile viewer — edge flows (QA-05c P6)', () => {
         const diff = await canvasDiff(before, await settledShot(page));
         annotate(`27-A-007 canvas diff Tầng 1 → Tầng trống: ${diff.toFixed(3)} %`);
         expect.soft(diff, 'percent of canvas pixels that changed with the floor').toBeGreaterThanOrEqual(1);
+        // Control: re-select "Tầng 1" - the same floor must look like the baseline, else the diff above is post-FX drift, not the floor.
+        await floorRows(page).filter({ hasText: 'Tầng 1' }).click();
+        await expect.soft(floorRows(page).filter({ hasText: 'Tầng 1' })).toHaveAttribute('aria-pressed', 'true');
+        const again = await canvasDiff(before, await settledShot(page));
+        expect.soft(again, 'control: percent changed when "Tầng 1" is chosen again').toBeLessThan(1);
         await shot(page, '27-A-007', 'model_follows_floor');
       });
 
@@ -290,6 +297,9 @@ test.describe('E05 SCR-27 mobile viewer — edge flows (QA-05c P6)', () => {
         await openMobile(page, q1.id);
         await watchLoading(page);
         base = { project: net.count('GET', projectRe(q1.id)), spatial: net.count('GET', spatialRe(q1.id)) };
+        const reaches = await hitsCanvas(page, 0.5, 0.45);
+        annotate(`27-A-040 elementFromPoint at the canvas centre is inside the host: ${String(reaches)} (false = <main> MVV:236 swallows touches)`);
+        expect.soft(reaches, 'a touch at the canvas centre reaches the canvas host, not the <main> overlay').toBe(true);
         const before = await settledShot(page);
         await dragCanvas(page, 120, 0); // MVP:42 cameraControls
         await expect
@@ -415,39 +425,39 @@ test.describe('E05 SCR-27 mobile viewer — edge flows (QA-05c P6)', () => {
       });
 
       await test.step('[27-A-026] Opens at the middle snap', async () => {
-        await expect.poll(() => sheetHeight(page)).toBe(SHEET_PX.mid); // MVI:96-106,130, MVT:93 round(812·0.45)
+        await softly.poll(() => sheetHeight(page)).toBe(SHEET_PX.mid); // MVI:96-106,130, MVT:93 round(812·0.45)
         await shot(page, '27-A-026', 'middle_snap');
       });
 
       await test.step('[27-A-027] Expand then shrink: 731 px then 365 px, label flips', async () => {
         await expand().click(); // MVI:227-235, MVT:96
         await expect.soft(shrink()).toBeVisible();
-        await expect.poll(() => sheetHeight(page)).toBe(SHEET_PX.full);
+        await softly.poll(() => sheetHeight(page)).toBe(SHEET_PX.full);
         await shot(page, '27-A-027', 'expanded');
         await shrink().click();
         await expect.soft(expand()).toBeVisible();
-        await expect.poll(() => sheetHeight(page)).toBe(SHEET_PX.mid);
+        await softly.poll(() => sheetHeight(page)).toBe(SHEET_PX.mid);
       });
 
       await test.step('[27-A-029] Drag up 80 px → full; again → still full', async () => {
         await dragHandle(page, -80); // MVI:193-195 Δy < −60
-        await expect.poll(() => sheetHeight(page)).toBe(SHEET_PX.full);
+        await softly.poll(() => sheetHeight(page)).toBe(SHEET_PX.full);
         await dragHandle(page, -80);
-        await expect.poll(() => sheetHeight(page)).toBe(SHEET_PX.full);
+        await softly.poll(() => sheetHeight(page)).toBe(SHEET_PX.full);
         await shot(page, '27-A-029', 'drag_up_full');
       });
 
       await test.step('[27-A-030] From middle, a slow −40 px drag over 1 s snaps back', async () => {
         await shrink().click();
-        await expect.poll(() => sheetHeight(page)).toBe(SHEET_PX.mid);
+        await softly.poll(() => sheetHeight(page)).toBe(SHEET_PX.mid);
         await dragHandle(page, -40, 1_000); // MVI:154-157, 183, 193: |Δ| under both thresholds, |v| < 600 px/s
-        await expect.poll(() => sheetHeight(page)).toBe(SHEET_PX.mid);
+        await softly.poll(() => sheetHeight(page)).toBe(SHEET_PX.mid);
         await shot(page, '27-A-030', 'slow_drag_snaps_back');
       });
 
       await test.step('[27-A-028] Drag down 140 px → peek 88 px; again → closed, "Thông tin" unpressed', async () => {
         await dragHandle(page, 140); // MVI:183-191 Δy > 100
-        await expect.poll(() => sheetHeight(page)).toBe(SHEET_PX.peek);
+        await softly.poll(() => sheetHeight(page)).toBe(SHEET_PX.peek);
         await shot(page, '27-A-028', 'peek');
         await dragHandle(page, 140); // at peek → onDismiss (MVV:179-185)
         await expect.soft(sheet(page)).toHaveCount(0);
@@ -457,11 +467,11 @@ test.describe('E05 SCR-27 mobile viewer — edge flows (QA-05c P6)', () => {
       await test.step('[27-A-032] Open, expand, close, reopen → 365 px again', async () => {
         await tool(page, MV.info).click();
         await expand().click();
-        await expect.poll(() => sheetHeight(page)).toBe(SHEET_PX.full);
+        await softly.poll(() => sheetHeight(page)).toBe(SHEET_PX.full);
         await closeButton().click();
         await expect(sheet(page)).toHaveCount(0);
         await tool(page, MV.info).click(); // MVI:136-145 snap resets on close
-        await expect.poll(() => sheetHeight(page)).toBe(SHEET_PX.mid);
+        await softly.poll(() => sheetHeight(page)).toBe(SHEET_PX.mid);
         await shot(page, '27-A-032', 'reopen_middle');
       });
 
@@ -601,6 +611,9 @@ test.describe('E05 SCR-27 mobile viewer — edge flows (QA-05c P6)', () => {
 
       await test.step('[27-A-022] H: tap the room: heading, badge, area only', async () => {
         await openMobile(page, room.id);
+        const reaches = await hitsCanvas(page, 0.5, 0.5);
+        annotate(`27-A-022 elementFromPoint at the canvas centre is inside the host: ${String(reaches)}`);
+        expect.soft(reaches, 'a tap at the canvas centre reaches the canvas host, not the <main> overlay').toBe(true);
         await tapCanvas(page, 0.5, 0.5);
         await expect(sheet(page).getByRole('heading', { name: 'Phòng QA', exact: true })).toBeVisible(); // MVG:216, TVM:426
         await expect(sheet(page).getByText('Phòng', { exact: true })).toBeVisible();
@@ -639,6 +652,12 @@ test.describe('E05 SCR-27 mobile viewer — edge flows (QA-05c P6)', () => {
         await dragHandle(page, -80);
         await sheet(page).getByRole('button', { name: MV.closeSheet, exact: true }).click();
         await dragCanvas(page, 60, 40);
+        // Mark: a real read answered after the last gesture (the network monitor's HEAD / or a GET), so "no write" is not vacuous.
+        const readsBefore = net.rows.filter((row) => row.method === 'GET' || row.method === 'HEAD').length;
+        await page.reload();
+        await expect(region(page)).toBeVisible();
+        await waitBuilt(page);
+        expect(net.rows.filter((row) => row.method === 'GET' || row.method === 'HEAD').length, 'reads answered after the gestures').toBeGreaterThan(readsBefore);
         expect.soft(net.writes(), 'requests other than GET/HEAD (minus refresh, telemetry)').toEqual([]); // UMV:368-427 unreachable
         await shot(page, '27-G-006', 'read_only_wire');
       });
@@ -674,7 +693,7 @@ test.describe('E05 SCR-27 mobile viewer — edge flows (QA-05c P6)', () => {
 
       await test.step('[27-B-009] Missing rooms beats weak network', async () => {
         await context.setOffline(true);
-        await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(false);
+        await softly.poll(() => page.evaluate(() => navigator.onLine)).toBe(false);
         await afterFrames(page);
         await expect.soft(note(page, MV.partialRooms)).toBeVisible(); // UMV:464-470 rooms first
         await expect.soft(page.getByText(MV.weakNetwork, { exact: true })).toHaveCount(0);
@@ -683,11 +702,11 @@ test.describe('E05 SCR-27 mobile viewer — edge flows (QA-05c P6)', () => {
 
       await test.step('[27-G-004] The monitor pings HEAD / at mount and stops after leaving', async () => {
         await context.setOffline(false);
-        await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(true);
+        await softly.poll(() => page.evaluate(() => navigator.onLine)).toBe(true);
         expect.soft(headAtMount, 'HEAD / requests seen at mount').toBe(1); // NM:40, 54-66, 131-160
         await spaNavigate(page, '/');
         await expect(page.getByRole('heading', { name: MV.dashboardTitle })).toBeVisible();
-        await expect.poll(() => net.count('GET', /^\/api\/projects$/u, 200), { message: 'the dashboard list GET answered' }).toBeGreaterThanOrEqual(1);
+        await softly.poll(() => net.count('GET', /^\/api\/projects$/u, 200), { message: 'the dashboard list GET answered' }).toBeGreaterThanOrEqual(1);
         const leftAt = net.count('HEAD', /^\/$/u);
         await afterFrames(page);
         expect.soft(net.count('HEAD', /^\/$/u) - leftAt, 'HEAD / after leaving').toBe(0); // UMV:268-283 monitor.stop()
@@ -741,7 +760,7 @@ test.describe('E05 SCR-27 mobile viewer — edge flows (QA-05c P6)', () => {
 
       await test.step('[27-C-001] Offline on the empty project: still the empty state', async () => {
         await context.setOffline(true);
-        await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(false);
+        await softly.poll(() => page.evaluate(() => navigator.onLine)).toBe(false);
         await afterFrames(page);
         await expect.soft(page.getByRole('heading', { name: MV.emptyTitle, exact: true })).toBeVisible(); // UMV:472-508 empty > partial
         await expect.soft(page.getByText(MV.weakNetwork, { exact: true })).toHaveCount(0);
@@ -769,7 +788,7 @@ test.describe('E05 SCR-27 mobile viewer — edge flows (QA-05c P6)', () => {
         const before = { project: net.count('GET', projectRe(empty.id)), spatial: net.count('GET', spatialRe(empty.id)) };
         await page.evaluate(() => window.history.back());
         await expect(page.getByRole('heading', { name: MV.emptyTitle, exact: true })).toBeVisible({ timeout: SCENE_TIMEOUT_MS });
-        await expect.poll(() => net.count('GET', spatialRe(empty.id)) - before.spatial).toBe(1); // UPS:121 staleTime 0
+        await softly.poll(() => net.count('GET', spatialRe(empty.id)) - before.spatial).toBe(1); // UPS:121 staleTime 0
         expect.soft(net.count('GET', projectRe(empty.id)) - before.project, 'new GET /api/projects/<E0L>').toBe(0); // MVQ:20-30
         await shot(page, '27-G-009', 'back_uses_cache');
       });
@@ -873,7 +892,7 @@ test.describe('E05 SCR-27 mobile viewer — edge flows (QA-05c P6)', () => {
 
       await test.step('[27-B-015] "Về danh sách dự án" goes to the dashboard', async () => {
         await alert.getByRole('button', { name: MV.backToProjects, exact: true }).click(); // PSG:57
-        await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+        await softly.poll(() => new URL(page.url()).pathname).toBe('/');
         await shot(page, '27-B-015', 'back_to_dashboard');
       });
 
