@@ -1218,7 +1218,7 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         await shot(page, '28V-A-005', 'object_line');
       });
 
-      await test.step('[28V-C-001] causes: low confidence first, absent on a 0.9 wall', async () => {
+      await test.step('[28V-C-001] causes: low confidence first (the 0.9-wall half is the next-to-last step of this flow)', async () => {
         const causes = panel.locator('ol > li');
         await expect.soft(causes).toHaveCount(3);
         await expect.soft(causes.nth(0)).toHaveText(CAUSE_LOW_CONFIDENCE);
@@ -1306,7 +1306,7 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         await shot(page, '28V-E-006', 'img_labels');
       });
 
-      await test.step('[28V-C-001] causes: absent on a 0.9 wall (second project with the thin walls; the first one keeps the figure)', async () => {
+      await test.step('28V-C-001 (second half) causes: absent on a 0.9 wall (second project with the thin walls; the first one keeps the figure)', async () => {
         const thin = await createRuleProject(admin, 'rules-sheet-thin');
         await openRules(page, thin.id);
         await rowMessage(rowsOf(await expandRule(page, RULE_NAMES.wallThickness)).first()).click(); // wall of confidence 0.9
