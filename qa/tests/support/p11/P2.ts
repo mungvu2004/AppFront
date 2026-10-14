@@ -55,7 +55,7 @@ export async function flow(body: (f: Flow) => Promise<void>): Promise<void> {
   } finally {
     for (const cleanup of cleanups) await cleanup();
     for (const s of sessions) await s.context.close().catch(() => undefined);
-    for (const id of projects) if (ownerApi !== undefined) await deleteSeededProject(ownerApi, id);
+    for (const id of projects) if (ownerApi !== undefined) expect(await deleteSeededProject(ownerApi, id), 'cleanup project').toBeNull();
     await ownerApi?.dispose();
     await admin.dispose();
   }
