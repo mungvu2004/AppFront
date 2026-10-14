@@ -558,6 +558,8 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
 
       await step('14-C-025', 'with a working ratio (provisional on the real default) the end snaps to the 50 mm grid → px = a multiple of 50/r', async () => {
         await clearLine(page);
+        // A typed length makes the line's own proposed ratio the working ratio (USC:815), so the grid would be in that ratio's mm: empty the field so the working ratio is the provisional one (r0).
+        await lengthField(page).fill('');
         await dragLine(page, [0.2, 0.5], [0.7213, 0.4347]);
         const end = await handleAt(handleEnd(page));
         const mm = [end.x * w * r0, end.y * h * r0];
@@ -602,6 +604,9 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await expect.poll(async () => (await viewOf(page)).zoom).toBeGreaterThan(1);
         const after = await point();
         expect.soft(Math.abs(after.x - before.x) + Math.abs(after.y - before.y), 'the image point under the pointer stays put').toBeLessThan(0.03);
+        // One wheel tick (x1.1) leaves only ~10 % of pan room and the pan is clamped to it: zoom in further so a 60 x 40 px drag has room.
+        for (let i = 0; i < 6; i += 1) await page.mouse.wheel(0, -300);
+        await expect.poll(async () => (await viewOf(page)).zoom).toBeGreaterThan(1.6);
         const v0 = await viewOf(page);
         await page.mouse.down({ button: 'middle' });
         await page.mouse.move(px + 60, py + 40, { steps: 5 });
@@ -952,8 +957,15 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await applyDisabled(page).click();
         await expect.poll(() => putOf().length).toBe(3);
         await page.mouse.move(2, 2); // off the toast
+        // The shortcut registry ignores Mod+Z while a text field has focus (shortcutRegistry.ts isTyping); the real-length input kept focus from the earlier steps. A user clicks away first: leave the field, then press.
+        const focusedBefore = await page.evaluate(() => {
+          const el = document.activeElement as HTMLElement | null;
+          const tag = el === null ? 'none' : `${el.tagName}${el.getAttribute('type') === null ? '' : `[${el.getAttribute('type') ?? ''}]`}`;
+          el?.blur();
+          return tag;
+        });
         await page.keyboard.press(undoKey);
-        await expect.poll(() => putOf().length, 'Ctrl+Z PUT').toBe(4);
+        await expect.poll(() => putOf().length, `Ctrl+Z PUT (focus was ${focusedBefore})`).toBe(4);
         expect.soft(putRatio(putOf()[3])).toBeCloseTo(r0, 5);
         await applyDisabled(page).click();
         await expect.poll(() => putOf().length).toBe(5);

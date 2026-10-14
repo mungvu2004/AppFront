@@ -232,6 +232,33 @@ describe('typing guard', () => {
     },
   );
 
+  it.each([['radio'], ['checkbox'], ['button']])(
+    'Mod+Z still undoes while an <input type=%s> has the focus (17-E-017)',
+    (type) => {
+      const registry = devRegistry();
+      const handlers = globalHandlers();
+
+      registerGlobalShortcuts(registry, handlers);
+
+      const target = { tagName: 'INPUT', getAttribute: (name: string) => (name === 'type' ? type : null) };
+
+      expect(registry.handleKeyDown(keyEvent('z', { ctrlKey: true }), target)).toBe(true);
+      expect(handlers.undo).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('an <input type=text> still counts as a text field for Mod+Z', () => {
+    const registry = devRegistry();
+    const handlers = globalHandlers();
+
+    registerGlobalShortcuts(registry, handlers);
+
+    const target = { tagName: 'INPUT', getAttribute: (name: string) => (name === 'type' ? 'text' : null) };
+
+    expect(registry.handleKeyDown(keyEvent('z', { ctrlKey: true }), target)).toBe(false);
+    expect(handlers.undo).not.toHaveBeenCalled();
+  });
+
   it('fires nothing inside editable content', () => {
     const registry = devRegistry();
     const activateWallTool = vi.fn();

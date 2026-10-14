@@ -11,12 +11,14 @@
  * 2px của chính đoạn thẳng dùng `vector-effect="non-scaling-stroke"` cho cùng lý do.
  */
 
-import type { SyntheticEvent } from 'react';
+import type { CSSProperties, SyntheticEvent } from 'react';
 
 import { MiniMap } from '@/components/canvas/MiniMap';
 import { ZoomCluster } from '@/components/canvas/ZoomCluster';
+import { cn } from '@/lib/utils';
 
 import type {
+  DimensionStringRow,
   ImageRatioPoint,
   NudgeDirection,
   ReferenceLineEndpoint,
@@ -25,6 +27,59 @@ import type {
 } from './types';
 
 type CanvasActions = ScaleCalibrationCanvasProps['actions'];
+
+const ROW_ARIA_LABEL_PREFIX = 'Chuỗi kích thước ';
+
+function rowRectStyle(row: DimensionStringRow): CSSProperties {
+  const { min, max } = row.boundingBox;
+  return {
+    left: `${min.x * 100}%`,
+    top: `${min.y * 100}%`,
+    width: `${(max.x - min.x) * 100}%`,
+    height: `${(max.y - min.y) * 100}%`,
+  };
+}
+
+interface DimensionRowBoxProps {
+  readonly row: DimensionStringRow;
+  readonly onHover: CanvasActions['onHoverDimensionRow'];
+  readonly onSelect: CanvasActions['onSelectDimensionRow'];
+}
+
+/** Khung một chuỗi kích thước OCR trên ảnh: bấm để chọn, rê/tiêu điểm để tô sáng hàng tương ứng. */
+export function DimensionRowBox({ row, onHover, onSelect }: DimensionRowBoxProps) {
+  return (
+    <button
+      aria-label={`${ROW_ARIA_LABEL_PREFIX}${row.valueLabel}`}
+      className={cn(
+        'absolute flex items-center justify-center rounded-[4px] border-2 bg-transparent p-0',
+        row.isLowConfidence ? 'border-state-attention' : 'border-accent',
+      )}
+      onBlur={() => onHover(null)}
+      onClick={() => onSelect(row.id)}
+      onMouseEnter={() => onHover(row.id)}
+      onMouseLeave={() => onHover(null)}
+      onFocus={() => onHover(row.id)}
+      style={{
+        ...rowRectStyle(row),
+        backgroundImage: row.isLowConfidence
+          ? 'repeating-linear-gradient(45deg, var(--state-attention) 0 1px, transparent 1px 6px)'
+          : undefined,
+      }}
+      title={row.pixelLengthLabel}
+      type="button"
+    >
+      <span
+        className={cn(
+          'pointer-events-none whitespace-nowrap font-mono text-[11px]',
+          row.isLowConfidence ? 'text-state-attention' : 'text-accent',
+        )}
+      >
+        {row.valueLabel}
+      </span>
+    </button>
+  );
+}
 
 const HANDLE_ARIA_LABEL: Readonly<Record<ReferenceLineEndpoint, string>> = {
   start: 'Đầu đoạn tham chiếu, dùng phím mũi tên để nhích',

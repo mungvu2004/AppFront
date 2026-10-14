@@ -815,6 +815,76 @@ describe('QA-04c SCR-19', () => {
     expect(screen.getByText(/^Đã xoá trục /u)).toBeTruthy();
   });
 
+  it('[19-A-011] xoá, Mod+Z, xoá lại trong 5 s rồi đợi toast gộp hết: lần xoá kế vẫn hiện toast mới', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['Date', 'setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame', 'performance'] });
+    const notifications = createNotificationBus();
+    render(createElement(NotificationHost, { bus: notifications }));
+    const mounted = await mountSettled({ notifications });
+    const remove = async (): Promise<void> => {
+      const target = rowsOf(mounted)[0];
+
+      expect(target).toBeDefined();
+      await act(async () => {
+        mounted.result.current.onAxisRemove(target?.id ?? '');
+        await Promise.resolve();
+      });
+    };
+    const advance = async (ms: number): Promise<void> => {
+      await act(async () => {
+        vi.advanceTimersByTime(ms);
+        await Promise.resolve();
+      });
+    };
+
+    await remove();
+    await advance(3000);
+    await act(async () => {
+      mounted.result.current.onUndo();
+      await Promise.resolve();
+    });
+    await remove(); // inside the 5 s group window of the first toast
+    await waitFor(() => {
+      expect(notifications.list()).toHaveLength(1);
+    });
+    await advance(9000);
+    expect(notifications.list()).toHaveLength(0);
+
+    await remove();
+    await waitFor(() => {
+      expect(notifications.list()).toHaveLength(1);
+    });
+    expect(screen.getByText(/^Đã xoá trục /u)).toBeTruthy();
+  });
+
+  it('[19-A-011] xoá hết các trục của một nhóm, mỗi lần cách 9 s: lần nào cũng hiện toast, kể cả trục cuối', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['Date', 'setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame', 'performance'] });
+    const notifications = createNotificationBus();
+    render(createElement(NotificationHost, { bus: notifications }));
+    const mounted = await mountSettled({ notifications });
+    const firstGroupRows = () => mounted.result.current.viewModel.groups.find((group) => group.rows.length > 0)?.rows ?? [];
+    const guard = firstGroupRows().length;
+
+    expect(guard).toBeGreaterThan(0);
+
+    for (let step = 0; step < guard; step += 1) {
+      const target = firstGroupRows()[0];
+
+      await act(async () => {
+        mounted.result.current.onAxisRemove(target?.id ?? '');
+        await Promise.resolve();
+      });
+      await waitFor(() => {
+        expect(notifications.list()).toHaveLength(1);
+      });
+      expect(screen.getByText(/^Đã xoá trục /u)).toBeTruthy();
+      await act(async () => {
+        vi.advanceTimersByTime(9000);
+        await Promise.resolve();
+      });
+      expect(notifications.list()).toHaveLength(0);
+    }
+  });
+
   it('[BUG-594] kéo một trục của bản xem trước: có tác dụng ngay, một bước hoàn tác', async () => {
     const mounted = await mountSettled({ floorId: sampleLevelId(0), gateway: previewGateway() });
     const target = rowsOf(mounted)[0];

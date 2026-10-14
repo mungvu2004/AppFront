@@ -110,6 +110,16 @@ import {
 
 /* ---------------------------------------------------------------- shared small helpers */
 
+/**
+ * Click a wall's polygon a quarter of the way down, off its centre. With "Hiện tim tường" on, the centreline `<line>`
+ * sits exactly at the polygon's centre and Playwright refuses to click through it ("<line> intercepts pointer events",
+ * run rr5 FL-16-05 [16-A-042]); a real click on the line reaches the wall (WallLayerShapeFigure.test.tsx [16-A-042]).
+ */
+async function clickWallOffCentre(page: Page, code: string, options: { button?: 'right' } = {}): Promise<void> {
+  const box = await polygonBox(page, code);
+  await wallPolygon(page, code).click({ position: { x: box.width / 2, y: box.height / 4 }, ...options });
+}
+
 /** The wall of a Q1 layer that runs (0,0) → (4000,0): a 220 mm load-bearing wall with known length and points. */
 function wallAt(walls: readonly Json[], x0: number, y0: number, x1: number, y1: number): Json {
   const found = walls.find((wall) => {
@@ -961,7 +971,7 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await tool(/^Tách đoạn/u).click();
         await expect(tool(/^Tách đoạn/u)).toHaveAttribute('aria-pressed', 'true');
         splitPut = totalIs(5);
-        await wallPolygon(page, code(0)).click();
+        await clickWallOffCentre(page, code(0));
         const sent = await splitPut;
         expect.soft(sent.response.status()).toBe(200);
         await expect.soft(wallRows(page)).toHaveCount(5);
@@ -981,7 +991,7 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
       });
 
       await test.step('[16-A-043] Context menu "Tách đoạn", then one click on the wall splits at the click point', async () => {
-        await wallPolygon(page, code(1)).click({ button: 'right' });
+        await clickWallOffCentre(page, code(1), { button: 'right' });
         const menu = page.getByRole('menu', { name: 'Tuỳ chọn', exact: true });
         await expect(menu).toBeVisible();
         await menu.getByRole('menuitem', { name: 'Tách đoạn', exact: true }).click();

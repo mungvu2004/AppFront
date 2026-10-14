@@ -404,6 +404,20 @@ const isControlActivation = (event: ShortcutKeyEvent, code: ShortcutCode, target
   return ACTIVATABLE_TAGS.has(target.tagName.toUpperCase()) || (role !== null && ACTIVATABLE_ROLES.has(role));
 };
 
+/** `<input>` types that take no typed text: a chord (Mod+Z) over them belongs to the app, not the field (17-E-017). */
+const NON_TEXT_INPUT_TYPES: ReadonlySet<string> = new Set(['radio', 'checkbox', 'button', 'submit', 'reset', 'range', 'image']);
+
+/** Typing, but a Mod chord over a non-text `<input>` (radio, checkbox...) is not typing: there is no field undo to protect. */
+const isTyping = (event: ShortcutKeyEvent, target: ShortcutTarget | null): boolean => {
+  if (!isTextEntryTarget(target)) {
+    return false;
+  }
+
+  const type = target?.tagName.toUpperCase() === 'INPUT' ? target.getAttribute?.('type')?.toLowerCase() : undefined;
+
+  return !((event.ctrlKey === true || event.metaKey === true) && type !== undefined && NON_TEXT_INPUT_TYPES.has(type));
+};
+
 /** The focused element as `isTextEntryTarget` wants it, or null. */
 const targetOf = (event: KeyboardEvent): ShortcutTarget | null => {
   const candidate = event.target as { tagName?: unknown } | null | undefined;
@@ -529,7 +543,7 @@ export function createShortcutRegistry(
     // Typing disables every binding — except Escape, which must reach the
     // global close-top-layer handler from inside a text field exactly as it
     // falls through a modal dialog's own key-swallowing (invariant A12).
-    if (isTextEntryTarget(target) && code !== 'ESCAPE') {
+    if (isTyping(event, target) && code !== 'ESCAPE') {
       return false;
     }
 
@@ -549,7 +563,7 @@ export function createShortcutRegistry(
     // Esc in a text field cancels the field (and may close the layer above via
     // global); it never reaches the canvas, whose Esc drops a tool or collapses
     // a view the user is not looking at (23-E-008).
-    const fromTextField = isTextEntryTarget(target);
+    const fromTextField = isTyping(event, target);
 
     for (const scope of SCOPE_PRIORITY) {
       if (!scopeIsActive(scope) || (fromTextField && scope === 'canvas')) {

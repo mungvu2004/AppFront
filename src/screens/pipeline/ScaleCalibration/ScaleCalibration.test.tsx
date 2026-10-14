@@ -906,6 +906,31 @@ describe('ScaleCalibration — QA-04c SCR-14', () => {
     mounted.unmount();
   });
 
+  it('[14-E-013] con lăn trên khung đăng ký trình nghe wheel không-passive để preventDefault có hiệu lực (SCV:270-277)', async () => {
+    measureFrame();
+    const harness = await makeHarness();
+    const wheelOptions: unknown[] = [];
+    const realAdd = HTMLDivElement.prototype.addEventListener;
+    const addSpy = vi.spyOn(HTMLDivElement.prototype, 'addEventListener').mockImplementation(function (
+      this: EventTarget,
+      type: string,
+      listener: EventListenerOrEventListenerObject,
+      options?: boolean | AddEventListenerOptions,
+    ) {
+      if (type === 'wheel' && (this as Element).getAttribute?.('aria-label') === CANVAS_ARIA_LABEL) {
+        wheelOptions.push(options);
+      }
+      realAdd.call(this, type, listener, options);
+    });
+    const mounted = mountScreen(harness.gateway);
+    await settle(mounted);
+    addSpy.mockRestore();
+
+    expect(wheelOptions).toContainEqual(expect.objectContaining({ passive: false }));
+
+    mounted.unmount();
+  });
+
   it('Enter trên nút không bị phím tắt nuốt, mũi tên trên radio không nhích đầu đoạn (BUG-597)', async () => {
     measureFrame();
     const harness = await makeHarness();

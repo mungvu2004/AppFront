@@ -422,7 +422,17 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
         // the earlier toast must be gone as text too, not only its button
         await expect(toast).toHaveCount(0, { timeout: 15_000 });
         await expect(toasts(page).getByRole('button', { name: UNDO, exact: true })).toHaveCount(0);
+        const rowsBefore = await total();
         await removeButton(page, 'A').click(); // a fresh toast: its window starts now
+        // Diagnostic for the next run (rr5: no toast although the row went): what IS on screen right after the click.
+        await expect.soft(page.getByText('Đã xoá trục A.', { exact: true }).first(), 'the text is somewhere (toast or announcer)').toBeVisible({ timeout: 3000 });
+        await attachJson('E04_19-A-011_after-click.json', {
+          rowsBefore,
+          rowsAfter: await total(),
+          toastRegion: await toasts(page).innerText(),
+          alerts: await page.getByRole('alert').allInnerTexts(),
+          statuses: await page.getByRole('status').allInnerTexts(),
+        });
         await expect.soft(toast).toBeVisible();
         // fixed-wait-ok: UNDO_WINDOW_MS = 8000 (undoTicket.ts:18) is real time; a polled expect, not a sleep.
         await expect.soft(toast).toBeHidden({ timeout: 15_000 });
