@@ -110,7 +110,7 @@ const FORBIDDEN_MESSAGE = 'Bạn không còn quyền sửa tầng này.'; // spa
 const GATE_TITLE = 'Không tìm thấy dự án này'; // PSG
 const GATE_DESCRIPTION = 'Dự án có thể đã bị xoá, đường dẫn chưa đúng, hoặc bạn chưa được thêm vào dự án.'; // PSG
 const GATE_BACK = 'Về danh sách dự án'; // PSG
-const WALLS_IN_RULE_LAYER = (ruleLayer('L-count') as { walls: unknown[] }).walls.length;
+const WALLS_IN_RULE_LAYER = (ruleLayer('L-count', { thinWalls: false }) as { walls: unknown[] }).walls.length;
 
 /* ---------------------------------------------------------------- spec-local helpers */
 
@@ -1174,7 +1174,7 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
   test('SCR-28 · FL-28V-01 · Sheet anatomy on a wall violation', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
-      const project = await createRuleProject(admin, 'rules-sheet');
+      const project = await createRuleProject(admin, 'rules-sheet', { thinWalls: false }); // no 50 mm walls: they blank the 2D figure (RangeError in resolveWallShapes)
       await openRules(page, project.id);
       const row = rowsOf(await expandRule(page, RULE_NAMES.wallLength)).first();
       const message = (await rowMessage(row).innerText()).trim();
@@ -1222,11 +1222,6 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         await expect.soft(causes.nth(1)).toHaveText(CAUSE_GEOMETRY);
         await expect.soft(causes.nth(2)).toHaveText(CAUSE_WALL);
         await shot(page, '28V-C-001', 'causes');
-        await rowMessage(rowsOf(await expandRule(page, RULE_NAMES.wallThickness)).first()).click(); // wall of confidence 0.9
-        await expect.soft(causes).toHaveCount(2);
-        await expect.soft(causes.first()).not.toHaveText(CAUSE_LOW_CONFIDENCE);
-        await rowMessage(row).click();
-        await expect(sheetTitle(page)).toHaveText(message);
       });
 
       await test.step('[28V-A-013] no fix options', async () => {
@@ -1307,13 +1302,23 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         await expect.soft(figure).toBeVisible();
         await shot(page, '28V-E-006', 'img_labels');
       });
+
+      await test.step('[28V-C-001] causes: absent on a 0.9 wall (second project with the thin walls; the first one keeps the figure)', async () => {
+        const thin = await createRuleProject(admin, 'rules-sheet-thin');
+        await openRules(page, thin.id);
+        await rowMessage(rowsOf(await expandRule(page, RULE_NAMES.wallThickness)).first()).click(); // wall of confidence 0.9
+        const causes = panel.locator('ol > li');
+        await expect.soft(causes).toHaveCount(2);
+        await expect.soft(causes.first()).not.toHaveText(CAUSE_LOW_CONFIDENCE);
+        await shot(page, '28V-C-001', 'causes_0_9_wall');
+      });
     });
   });
 
   test('SCR-28 · FL-28V-02 · Navigation and keys inside the sheet', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
-      const project = await createRuleProject(admin, 'rules-nav');
+      const project = await createRuleProject(admin, 'rules-nav', { thinWalls: false });
       await openRules(page, project.id);
       const messages = await allMessages(page);
       const panel = sheet(page);
@@ -1423,7 +1428,7 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
   test('SCR-28 · FL-28V-03 · Quick fix: delete a clashing table, report moves it to "Đã xử lý"', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
-      const project = await createRuleProject(admin, 'rules-fix');
+      const project = await createRuleProject(admin, 'rules-fix', { thinWalls: false });
       const floor = floorOf(project);
       const puts = trackLayerPuts(page);
       await openRules(page, project.id);
@@ -1579,7 +1584,7 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
   test('SCR-28 · FL-28V-04 · Undo, double fix and the 8 s window', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
-      const project = await createRuleProject(admin, 'rules-undo');
+      const project = await createRuleProject(admin, 'rules-undo', { thinWalls: false });
       const floor = floorOf(project);
       const puts = trackLayerPuts(page);
       await page.clock.install(); // time keeps flowing; only the 8 s toast window is jumped (fastForward)
@@ -1699,7 +1704,7 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
   test('SCR-28 · FL-28V-05 · Rename a room (not resolved) and save conflict', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
-      const project = await createRuleProject(admin, 'rules-rename');
+      const project = await createRuleProject(admin, 'rules-rename', { thinWalls: false });
       const floor = floorOf(project);
       const puts = trackLayerPuts(page);
       await openRules(page, project.id);
@@ -1707,7 +1712,7 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
       const clashName = RULE_NAMES.furnitureClash;
       const deleteButton = panel.getByRole('button', { name: DELETE_ACTION });
       const writeElsewhere = async (): Promise<void> => {
-        await writeLayer(admin.fx, project.id, floor.id, (levelId) => ruleLayer(levelId)); // +X: another session replaces the layer
+        await writeLayer(admin.fx, project.id, floor.id, (levelId) => ruleLayer(levelId, { thinWalls: false })); // +X: another session replaces the layer
       };
 
       await test.step('[28V-A-012] ⚑ rename action copy', async () => {

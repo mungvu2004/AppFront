@@ -117,7 +117,7 @@ export async function expandGroup(page: Page, ruleName?: string): Promise<Locato
   await expect(expander).toBeVisible();
   if ((await expander.getAttribute('aria-expanded')) !== 'true') await expander.click();
   await expect(expander).toHaveAttribute('aria-expanded', 'true');
-  return page.locator('section').filter({ has: expander });
+  return expander.locator('xpath=ancestor::section[1]');
 }
 
 /** A row of `section` that has a floor (the sheet needs one: RuleReport.container `activeFloorId ?? row.levelId`). */

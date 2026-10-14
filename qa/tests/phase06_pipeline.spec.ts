@@ -200,7 +200,7 @@ test('SCR-29 · FL-M-29-01 · admin mở cài đặt trên dự án pipeline, t�
   });
 
   await test.step('[29-B-004] impact per rule equals the report item count', async () => {
-    await expect(page.getByText(/^Đang ảnh hưởng [d.]+ đối tượng$/u)).toHaveCount(25); // N15 applied: every row has its count
+    await expect(page.getByText(/^Đang ảnh hưởng [\d.]+ đối tượng$/u)).toHaveCount(25); // N15 applied: every row has its count
     const impacts = await page.evaluate(() =>
       [...document.querySelectorAll('p')]
         .map((p) => ({ match: /^Đang ảnh hưởng ([\d.]+) đối tượng$/u.exec(p.textContent?.trim() ?? ''), p }))
@@ -584,18 +584,20 @@ test('SCR-32 · FL-M-32-02 · tabs JSON / Trực quan, visual unavailable copy, 
     await shot('E06v', '32-C-018', 'json_lines');
   });
 
-  await test.step('[32-B-018] visual tab: unavailable state for the empty "before" scene', async () => {
+  await test.step('[32-B-018] visual tab: the old version v1 is drawn (the unavailable state needs a scene that cannot be built)', async () => {
+    // Real seed: v1 (empty layer) still builds a scene (versionHistoryScene.ts convertScene); "Chưa xem trực quan được" /
+    // "Không dựng được mô hình cho cặp phiên bản đang chọn." (VersionVisualDiff.tsx:30-31) only appear for a non-finite graph,
+    // which the BE never stores -> that state is covered in the mocked versions file, not here.
     await diffTabs().getByRole('tab', { name: 'Trực quan', exact: true }).click();
     const panel = page.getByRole('tabpanel', { name: 'Trực quan', exact: true });
-    await expect.soft(panel.getByText('Chưa xem trực quan được', { exact: true })).toBeVisible();
-    await expect.soft(panel).toContainText('chưa dựng được thành cảnh, nên tab này để trống'); // S5-confirm: exact reason copy
+    await expect.soft(panel.getByText(/^Đây là phiên bản v1; [\d.]+ đối tượng đã đổi đang được tô sáng$/u)).toBeVisible();
+    await expect.soft(panel.getByText('Chưa xem trực quan được', { exact: true })).toHaveCount(0);
     await shot('E06v', '32-B-018', 'visual_unavailable');
   });
 
   await test.step('[32-B-019] ⚑ the copy names the older version, not "the current model"', async () => {
     const panel = page.getByRole('tabpanel', { name: 'Trực quan', exact: true });
-    await expect(panel.getByText('Chưa xem trực quan được', { exact: true }), 'the unavailable state is on screen').toBeVisible();
-    await expect.soft(panel, 'the failed scene is the left version v1').toContainText('v1');
+    await expect.soft(panel, 'the caption names the left version v1').toContainText('Đây là phiên bản v1');
     await expect.soft(panel.getByText(/Mô hình hiện tại/u), 'must not blame "Mô hình hiện tại"').toHaveCount(0);
     await shot('E06v', '32-B-019', 'visual_copy_names_old_version');
   });

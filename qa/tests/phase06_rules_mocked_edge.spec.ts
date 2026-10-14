@@ -57,7 +57,7 @@ const created: string[] = [];
 test.beforeAll(async () => {
   const { email, password } = readAdminCredentials();
   fixtureApi = await signedInApi(email, password);
-  projectId = (await createRuleProjectFor({ request: fixtureApi, headers: {} }, 'rules-mocked', {}, created)).projectId;
+  projectId = (await createRuleProjectFor({ request: fixtureApi, headers: {} }, 'rules-mocked', { thinWalls: false }, created)).projectId;
 });
 
 test.afterAll(async () => {
@@ -264,9 +264,20 @@ test('SCR-28 · FL-28-M2 · [mocked response] Model read and save failures', asy
         await route.fulfill({ status: 422, contentType: 'application/json', body: JSON.stringify([{ path: ['rooms', 0, 'name'], message: 'String should have at least 1 character' }]) });
       });
       const sheet = await openRuleSheet(page, projectId, RULE_NAME.furnitureClash);
+      // The alert is announced through the shared announcer (useViolationDetail.ts:757) and is replaced soon after: watch the
+      // DOM from before the click instead of asserting a count once the PUT has answered.
+      await page.evaluate((needle) => {
+        const w = window as unknown as { __qaAlertSeen?: boolean };
+        w.__qaAlertSeen = false;
+        const scan = (): void => {
+          if ([...document.querySelectorAll('[role="alert"]')].some((el) => (el.textContent ?? '').includes(needle))) w.__qaAlertSeen = true;
+        };
+        new MutationObserver(scan).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true });
+        scan();
+      }, RR.unnamedRoom);
       await sheet.getByRole('button', { name: RR.deleteAction, exact: true }).click();
       await expect.poll(() => puts, { message: 'the autosave PUT reached the mock' }).toBeGreaterThanOrEqual(1);
-      await expect.soft(page.getByRole('alert').filter({ hasText: RR.unnamedRoom })).toHaveCount(1);
+      await expect.poll(() => page.evaluate(() => (window as unknown as { __qaAlertSeen?: boolean }).__qaAlertSeen), { message: 'the unnamed-room alert was announced' }).toBe(true);
       await captureEvidence(page, 'E06r_28V-G-005_unnamed_room.png');
     });
 
