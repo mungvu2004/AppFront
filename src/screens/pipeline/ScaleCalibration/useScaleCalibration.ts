@@ -111,7 +111,12 @@ import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
 import { describeError, toAppError } from '@/lib/errors';
 import { readWireError } from '@/lib/errors/wireError';
-import { formatArea, formatDrawingScaleRatio, formatLength, formatScaleDensity } from '@/lib/format/measure';
+import {
+  formatArea,
+  formatDrawingScaleRatio as formatDrawingScaleRatioBase,
+  formatLength,
+  formatScaleDensity as formatScaleDensityBase,
+} from '@/lib/format/measure';
 import { formatNumber, formatPercent, MISSING_VALUE } from '@/lib/format/number';
 import { formatCombo, keyCapLabels, parseCombo } from '@/lib/input/shortcutRegistry';
 import { MODIFIER_SHORTCUTS } from '@/lib/tools/shortcuts';
@@ -254,6 +259,16 @@ function levelIn(spatial: NormalizedSpatial | null, levelId: string): Level | nu
 
 /** Câu người đọc của một lượt PUT hỏng. */
 const failureText = (error: unknown): string => `${COPY.applyFailed} ${describeError(toAppError(error)).description}`;
+
+/** Tỷ lệ dưới 1 mm/px vẫn phải đọc được (0,1 mm trên 400 px = 0,00025), không làm tròn về "0 mm/px" (14-C-019). */
+const formatScaleDensity = (value: number): string =>
+  formatScaleDensityBase(value, value > 0 && value < 1 ? { maxFractionDigits: 6 } : {});
+
+/** "1:0" là vô nghĩa: tỷ lệ nguyên đồ làm tròn về 0 thì coi như chưa có (14-C-019). */
+const formatDrawingScaleRatio = (value: number, shortEdgePx: number): string => {
+  const label = formatDrawingScaleRatioBase(value, shortEdgePx);
+  return label === '1:0' ? MISSING_VALUE : label;
+};
 
 /** Ví dụ `"1 pixel = 12 mm · bản vẽ ở tỷ lệ khoảng 1:100"`. */
 const derivedLine = (millimetresLabel: string, ratioLabel: string): string =>

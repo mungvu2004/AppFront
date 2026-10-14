@@ -665,7 +665,9 @@ test('SCR-17 · FL-17-03 inspector by kind, position slider, host-wall jump, fur
 
     await test.step('[17-C-017] ⚑ Furniture "Loại đối tượng" → feedback or a disabled control, not a silent no-op', async () => {
       const trigger = typeBox(page);
-      const disabled = await trigger.isDisabled();
+      await expect.soft(inspector(page).getByText(OBJ.furnitureFree, { exact: true })).toBeVisible(); // milestone: the furniture inspector is open
+      // BUG-590 fix (ObjectLayerInspector.tsx:246,258): furniture shows its kind as read-only text, no combobox - nothing to refuse.
+      const disabled = (await trigger.count()) === 0 || (await trigger.isDisabled());
       const mark = log.length;
       if (!disabled) {
         const listbox = await openSelect(page, trigger);
@@ -1248,7 +1250,10 @@ test('SCR-17 · FL-17-07 rail keys, groups, listbox semantics, panel collapse', 
     await test.step('[17-C-024] ⚑ The D/W/F choice sticks after selecting another object: the rail slots must follow the selected object', async () => {
       await page.keyboard.press('w');
       await optionOf(page, '#F-001').click();
-      await expect.soft(railButton(page, 'Đổi thành giường (phím 1)'), 'furniture selected → the furniture slots').toBeVisible({ timeout: 2_000 });
+      // Source: BUG-590 fix, ObjectLayerToolRail.tsx:109-111 - furniture cannot change kind, so the rail follows the selection and shows
+      // no slots (the previous window slots must not stick).
+      const slots = page.getByRole('toolbar', { name: OBJ.rail, exact: true }).getByRole('button', { name: /^Đổi thành /u });
+      await expect.soft(slots, 'furniture selected → no stale window slots, no dead furniture slots').toHaveCount(0, { timeout: 2_000 });
       await ev(page, '17-C-024', 'rail_slots_stick');
     });
 
@@ -1257,7 +1262,8 @@ test('SCR-17 · FL-17-07 rail keys, groups, listbox semantics, panel collapse', 
       await railButton(page, 'Chọn nhóm nội thất (phím F)').click();
       const slots = page.getByRole('toolbar', { name: OBJ.rail, exact: true }).getByRole('button', { name: /^Đổi thành /u });
       const names = await slots.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label')));
-      expect.soft(names, 'furniture slots').toEqual(['Đổi thành giường (phím 1)', 'Đổi thành sofa (phím 2)', 'Đổi thành bàn ăn (phím 3)']);
+      // Title: "act on the table or be absent". BUG-590 chose absent (ObjectLayerToolRail.tsx:109-111); if shown, all three must act (below).
+      expect.soft(names.length === 0 || names.join('|') === 'Đổi thành giường (phím 1)|Đổi thành sofa (phím 2)|Đổi thành bàn ăn (phím 3)', 'furniture slots absent or all three').toBe(true);
       const mark = log.length;
       const before = await inspector(page).innerText();
       if (names.length > 0) await slots.first().click();

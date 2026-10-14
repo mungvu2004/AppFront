@@ -61,6 +61,7 @@ import { cn } from '@/lib/utils';
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
+import { QcScreenFrame } from '../shared/QcScreenFrame';
 
 import { RoomLabelCanvas } from './RoomLabelCanvas';
 import { RoomLabelInspector } from './RoomLabelInspector';
@@ -251,20 +252,14 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
 
   if (props.readFailure != null) {
     return (
-      <div aria-label={SCREEN_TITLE} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+      <QcScreenFrame label={SCREEN_TITLE}>
         <FloorLayerReadFailureScreen failure={props.readFailure} />
-      </div>
+      </QcScreenFrame>
     );
   }
 
   return (
-    <div
-      aria-label={SCREEN_TITLE}
-      // Cao bằng khung nhìn như SCR-16/17 (BUG-324/329): route nằm trong `ScreenMain` (display: contents)
-      // nên `h-full` không có chiều cao, và thanh tra kéo trang dài theo nội dung thay vì tự cuộn.
-      className="flex h-screen min-h-0 w-full flex-col bg-bg-app"
-      role="region"
-    >
+    <QcScreenFrame label={SCREEN_TITLE}>
       <header className="shrink-0 px-4 pb-1 pt-3">
         <p className="text-[12px] text-text-muted">{SCREEN_BREADCRUMB}</p>
         <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
@@ -358,6 +353,6 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
         onCancel={onCancelNormalize}
         preview={normalizePreview}
       />
-    </div>
+    </QcScreenFrame>
   );
 }

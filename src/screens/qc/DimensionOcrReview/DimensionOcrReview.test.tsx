@@ -697,12 +697,13 @@ function unreviewedDisplayId(index: number): string {
 }
 
 describe('QA-04c SCR-18 trên màn đã ráp', () => {
-  it('[BUG-577] câu "chưa lưu lên máy chủ" hiện cố định trên màn', async () => {
+  it('[BUG-577] màn hiện trạng thái lưu thật, không còn câu "chưa lưu" cố định', async () => {
     renderState('partial');
 
     await screen.findByRole('group', { name: LIST_LABEL });
 
-    expect(screen.getByText(DIMENSION_OCR_TEXT.screen.unsavedNotice)).toBeInTheDocument();
+    expect(screen.getByTestId('dimension-ocr-save-status')).toBeInTheDocument();
+    expect(screen.queryByText(/chưa lưu lên máy chủ/u)).not.toBeInTheDocument();
   });
 
   it('[BUG-583a] Enter trên một hàng khác chỉ CHỌN nó; Enter lần hai mới duyệt', async () => {

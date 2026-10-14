@@ -1,6 +1,6 @@
 /**
  * Phase 4 — SCR-20 "Duyệt tên phòng", dedicated UI-verification case (skill `qa-verify-ui`): ONE flow, `FL-20-U1`, with one
- * step per catalog row of the F block (+ `20-E-016` focus rings). Every step is one screen state at 1440 / 1024 / 768 / 375
+ * step per catalog row of the F block (+ `20-E-016` focus rings). Every step is one screen state at 1920 / 1440 / 1024 / 768
  * (`support/ui-verify.ts` `verifyUi`: it re-opens the state per width, measures horizontal scroll, controls pushed off-screen,
  * broken images, clipped text, overlaps and small targets, shoots `U04_<row id>_<slug>_<width>.png` and writes
  * `U04_<row id>_<slug>.json` for the qa-review-ui reviewer). Pair: A4 reads (FL-A4-02) and versioning (FL-A4-04).
@@ -47,7 +47,7 @@ import {
   type Session,
 } from './support/p04/P5';
 import { addProjectMember, createProject, deleteSeededProject, poolUser } from './support/phase03Seed';
-import { UI_VIEWPORTS, verifyUi } from './support/ui-verify';
+import { verifyUi } from './support/ui-verify';
 
 let admin: APIRequestContext;
 let layerApi: LayerApi;
@@ -64,6 +64,13 @@ test.afterAll(async () => {
 
 /** BUG-347: an action in `open` that cannot happen (control off-screen) fails fast; navigation keeps its own timeout. */
 const OPEN_ACTION_TIMEOUT_MS = 10_000;
+/** Web is desktop + tablet only (memory desktop-tablet-only): no 375 and no 2560. */
+const DESKTOP_TABLET = [
+  { width: 1920, height: 1080 },
+  { width: 1440, height: 900 },
+  { width: 1024, height: 768 },
+  { width: 768, height: 1024 },
+] as const;
 
 test('SCR-20 · FL-20-U1 · [mocked response] room states incl. viewer, 409 banner, inline read error', async ({ browser }) => {
   test.setTimeout(900_000);
@@ -104,7 +111,7 @@ test('SCR-20 · FL-20-U1 · [mocked response] room states incl. viewer, 409 bann
       codesOf(Object.values(seed.rooms)).get(seed.rooms[key] as string) as string;
     /** One state at four widths; `page` writes nothing here except in the 409 state. */
     const state = (id: string, slug: string, who: Page, open: (p: Page) => Promise<void>): Promise<unknown> =>
-      verifyUi(who, `U04_${id}_${slug}`, open, UI_VIEWPORTS, {});
+      verifyUi(who, `U04_${id}_${slug}`, open, DESKTOP_TABLET, {});
 
     await test.step('[20-F-001] room selected → inspector "Phòng"', async () => {
       await state('20-F-001', 'room-selected', page, async (p) => {

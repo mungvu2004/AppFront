@@ -264,6 +264,8 @@ test.describe('SCR-22 overlay — mocked-response flow (QA-04c P7)', () => {
 
       await test.step('[22-G-009] ⚑ [mock] GET N16 500 / abort → a read error, and no #30 call without a floor list', async () => {
         await onGet(page, LAYER, (route) => wire(route, 500, { code: 'INTERNAL' }));
+        // Leave the previous step's overlay first: its late #30 retries must not be counted against this N16-500 load.
+        await page.goto('about:blank');
         const q0 = qualityGets();
         const l0 = layerGets();
         await page.goto(ROUTES.project.overlay(projectId, floorId));

@@ -826,25 +826,26 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         await ev(page, '22-B-012', 'partial-no-scan');
       });
 
-      await test.step('[X4-A-032] ⚑ "Chọn tầng" changes the store active floor → Back to /3d shows that floor; the overlay URL never changed', async () => {
+      await test.step('[X4-A-032] ⚑ "Chọn tầng" changes the active floor → the URL follows (BUG-600, useOverlayComparison.ts:1056-1062 pushes the overlay route); Back returns to floor 1', async () => {
         const overlayUrl = pathOf(page);
-        expect.soft(overlayUrl, 'the URL still names floor 1 while the select shows floor 2').toBe(overlayOf(f1.id));
-        await page.goBack();
-        await expect.poll(() => pathOf(page)).toBe(ROUTES.project.viewer(dm.projectId));
-        await attachJson('E04_X4-A-032_active-floor.json', { overlayUrl, selectedFloor: f2.name });
-        // UOC:941-944: setActiveFloor without touching the URL: "Chọn tầng" and the URL disagree.
+        // Source: BUG-600 — "Chọn tầng" and the URL agree after a pick (was: URL stayed on floor 1, UOC:941-944).
         expect.soft(overlayUrl, '"Chọn tầng" and the URL agree').toBe(overlayOf(f2.id));
+        await page.goBack();
+        await expect.poll(() => pathOf(page)).toBe(overlayOf(f1.id));
+        await expect(page.getByLabel('Màn đối chiếu bản vẽ', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
+        await attachJson('E04_X4-A-032_active-floor.json', { overlayUrl, selectedFloor: f2.name, afterBack: pathOf(page) });
+        expect.soft((await picker().innerText()).trim(), 'after Back the select follows the URL floor').toContain('Tầng 1');
         await ev(page, 'X4-A-032', 'active-floor-vs-url');
       });
 
-      await test.step('[X4-A-033] ⚑ The store active floor beats the URL floor: SPA Back / Forward to the overlay URL of floor 1 while the store holds floor 2', async () => {
+      await test.step('[X4-A-033] ⚑ The URL floor wins on SPA Back / Forward: Forward to the overlay URL of floor 2, the select shows floor 2', async () => {
         await page.goForward();
-        await expect.poll(() => pathOf(page)).toBe(overlayOf(f1.id));
+        await expect.poll(() => pathOf(page)).toBe(overlayOf(f2.id));
         await expect(page.getByLabel('Màn đối chiếu bản vẽ', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
         const shown = (await picker().innerText()).trim();
         await attachJson('E04_X4-A-033_forward.json', { url: pathOf(page), picker: shown });
-        // The URL names floor 1; the screen must follow it.
-        expect.soft(shown, 'the select follows the URL floor').toContain('Tầng 1');
+        // The URL names floor 2; the screen must follow it.
+        expect.soft(shown, 'the select follows the URL floor').toContain('Tầng 2');
         await ev(page, 'X4-A-033', 'store-beats-url');
       });
     } finally {

@@ -210,6 +210,23 @@ async function renderMain(options: { readonly notifications?: NotificationBus } 
 
   await screen.findAllByRole('table');
 
+  /*
+   * Hai đường nạp đồ thị đua nhau vào kho (effect gieo bộ mẫu và N16 của
+   * `useFloorLayer`); bảng hiện ra ngay khi đường đầu xong. Chờ kho đứng yên
+   * qua vài nhịp để mọi bài đọc số liệu trên đồ thị đã ổn định, không theo
+   * thứ tự chạy của cả bộ.
+   */
+  let settledRef = useStore.getState().spatial;
+  let calmTicks = 0;
+
+  await waitFor(() => {
+    const current = useStore.getState().spatial;
+
+    calmTicks = current === settledRef ? calmTicks + 1 : 0;
+    settledRef = current;
+    expect(calmTicks).toBeGreaterThanOrEqual(5);
+  });
+
   return { container: rendered.container, history, unmount: rendered.unmount } satisfies Rendered;
 }
 
@@ -524,6 +541,31 @@ describe('[NGHIEM-3] kéo ngưỡng qua lại năm lần không ghi gì', () => 
     fireEvent.keyDown(slider, { key: 'ArrowRight' });
 
     expect(history.undoSteps()).toHaveLength(0);
+  }, HEAVY_TEST_TIMEOUT_MS);
+
+  it('[BUG-606] Home trên ngưỡng cao bị kẹp bởi ngưỡng kề, trục không trôi', async () => {
+    const { container } = await renderMain();
+    const valueOf = (name: string): number =>
+      Number(within(container).getByRole('slider', { name }).getAttribute('aria-valuenow'));
+    const midName = `Ngưỡng giữa ${lowerFirst(THICKNESS_GROUP_LABELS[220])} và ${lowerFirst(THICKNESS_GROUP_LABELS[330])}`;
+    const minBefore = within(container).getByRole('slider', { name: LOW_THRESHOLD_LABEL }).getAttribute('aria-valuemin');
+
+    fireEvent.keyDown(within(container).getByRole('slider', { name: HIGH_THRESHOLD_LABEL }), { key: 'Home' });
+
+    expect(valueOf(HIGH_THRESHOLD_LABEL)).toBeGreaterThan(valueOf(midName));
+    expect(within(container).getByRole('slider', { name: LOW_THRESHOLD_LABEL }).getAttribute('aria-valuemin')).toBe(minBefore);
+  }, HEAVY_TEST_TIMEOUT_MS);
+
+  it('[BUG-606] rê một cột biểu đồ làm tường của cột đó sáng hơn các tường khác', async () => {
+    const { container } = await renderMain();
+    const opacities = (): Set<string | null> =>
+      new Set([...container.querySelectorAll('aside svg polygon')].map((p) => p.getAttribute('fill-opacity')));
+
+    expect(opacities().size).toBe(1);
+
+    fireEvent.pointerEnter(container.querySelector('section[aria-label] div.items-end') as Element);
+
+    expect(opacities().size).toBeGreaterThan(1);
   }, HEAVY_TEST_TIMEOUT_MS);
 });
 

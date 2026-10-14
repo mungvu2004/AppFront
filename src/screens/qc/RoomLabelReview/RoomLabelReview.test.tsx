@@ -819,3 +819,19 @@ describe('P04 cụm C — thanh tra phòng chỉ mời việc làm được (SCR
     expect(onNavigate).toHaveBeenCalledWith(expect.stringContaining('/walls'));
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* FL-R-03 / 20-D-006: vai Người xem trên tầng không phòng vẫn thấy dải quyền.   */
+/* -------------------------------------------------------------------------- */
+
+describe('[20-D-006] Người xem trên tầng không có phòng', () => {
+  it('thấy câu rỗng VÀ dải "Không có quyền sửa lớp phòng", không có câu bộ lọc', async () => {
+    renderWithProviders(
+      <RoomLabelReviewContainer {...scenarioArgsFor('empty')} roles={scenarioArgsFor('forbidden').roles} />,
+    );
+
+    expect(await screen.findByText(/^Chưa dò ra phòng nào ở tầng này/u)).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Không có quyền sửa lớp phòng');
+    expect(screen.queryByText(/Tắt bộ lọc "Chưa đặt tên"/u)).not.toBeInTheDocument();
+  });
+});

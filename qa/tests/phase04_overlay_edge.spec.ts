@@ -730,10 +730,12 @@ test.describe('SCR-22 overlay — geometry and scale conflict', () => {
         await expect.soft(alertWith(page, OV.scaleConflict), 'neither floor has a drawing, so there is nothing to align').toHaveCount(0);
       });
 
-      await test.step('[22-A-018] a deep link lists only the route floor', async () => {
+      await test.step('[22-A-018] a deep link lists every floor of the project, read from #12 (BUG-600 expectation; useOverlayComparison.ts:421)', async () => {
         await openOverlay(page, projectId, layered.id);
         await floorSelect(page).click();
-        await expect.soft(page.getByRole('option')).toHaveCount(1);
+        await expect.soft(page.getByRole('option')).toHaveCount(2); // seedOverlayScales: two floors
+        await expect.soft(page.getByRole('option', { name: layered.name })).toBeVisible();
+        await expect.soft(page.getByRole('option', { name: oneWall.name })).toBeVisible();
         await page.keyboard.press('Escape');
       });
 

@@ -4,9 +4,9 @@ import {
   type FloorLayerWriteBody,
   type FloorLayerWriteResult,
 } from '@/api/schemas/spatialLayer';
-import { isIdOfKind } from '@/domain/spatial/ids';
+import { isIdOfKind, type EntityKind } from '@/domain/spatial/ids';
 import { idsOnLevel, isEntityOfKind, type NormalizedSpatial } from '@/domain/spatial/normalize';
-import type { Furniture, LevelId, Opening, Room, Wall } from '@/domain/spatial/types';
+import type { Dimension, Furniture, LevelId, Opening, Room, Wall } from '@/domain/spatial/types';
 import { isTransientWireError, readWireError } from '@/lib/errors/wireError';
 import type { HttpError } from '@/lib/http/types';
 import { runExclusive } from '@/lib/mutations/entityQueue';
@@ -48,38 +48,71 @@ export function spatialLayerOf(graph: NormalizedSpatial, floorId: LevelId): Spat
   return { furniture, openings, rooms, walls };
 }
 
-/** Bốn loại thực thể `spatialLayerOf` gửi đi; trục, kích thước, ghi chú không vào thân PUT. */
-const LAYER_KINDS = ['wall', 'opening', 'room', 'furniture'] as const;
+/** Kích thước của MỘT tầng — thân PUT mang chúng (`body.dimensions`) khi chúng đổi, không nằm trong `SpatialLayer`. */
+export function dimensionsOf(graph: NormalizedSpatial, floorId: LevelId): Dimension[] {
+  const dimensions: Dimension[] = [];
 
-const layerIdsOn = (graph: NormalizedSpatial, levelId: LevelId): readonly string[] =>
+  for (const id of idsOnLevel(graph, floorId)) {
+    const entity = graph.byId[id];
+
+    if (entity !== undefined && isEntityOfKind('dimension', entity)) {
+      dimensions.push(entity);
+    }
+  }
+
+  return dimensions;
+}
+
+/** Bốn loại thực thể `spatialLayerOf` gửi đi; trục, ghi chú không vào thân PUT. */
+const LAYER_KINDS: readonly EntityKind[] = ['wall', 'opening', 'room', 'furniture'];
+const DIMENSION_KINDS: readonly EntityKind[] = ['dimension'];
+
+const idsOfKindsOn = (
+  graph: NormalizedSpatial,
+  levelId: LevelId,
+  kinds: readonly EntityKind[],
+): readonly string[] =>
   idsOnLevel(graph, levelId).filter((id) => {
     const entity = graph.byId[id];
 
-    return entity !== undefined && LAYER_KINDS.some((kind) => isEntityOfKind(kind, entity));
+    return entity !== undefined && kinds.some((kind) => isEntityOfKind(kind, entity));
   });
 
-/**
- * Các tầng của `next` mà LỚP gửi đi (bốn danh sách của `spatialLayerOf`) khác `previous` —
- * đích lưu là mọi tầng có thứ bị đổi, không phải tầng đang xem (B-V8-41). So tham chiếu
- * thực thể là đủ: `applyPatch` chỉ chép thực thể bị chạm. Trục và kích thước nằm trong
- * `byLevel` nhưng chỉ sống trong phiên, nên đổi chúng không làm tầng bẩn (G14/G22: PUT ngầm
- * sau khi vào SCR-18/19 bằng SPA). Chỉ duyệt tầng còn trong `next`.
- */
-export function changedLevelIds(previous: NormalizedSpatial, next: NormalizedSpatial): LevelId[] {
+function changedFloors(
+  previous: NormalizedSpatial,
+  next: NormalizedSpatial,
+  kinds: readonly EntityKind[],
+): LevelId[] {
   return next.byKind.level.filter((levelId): levelId is LevelId => {
     if (!isIdOfKind('level', levelId)) {
       return false;
     }
 
     if (idsOnLevel(previous, levelId) === idsOnLevel(next, levelId)) {
-      return layerIdsOn(next, levelId).some((id) => previous.byId[id] !== next.byId[id]);
+      return idsOfKindsOn(next, levelId, kinds).some((id) => previous.byId[id] !== next.byId[id]);
     }
 
-    const before = layerIdsOn(previous, levelId);
-    const after = layerIdsOn(next, levelId);
+    const before = idsOfKindsOn(previous, levelId, kinds);
+    const after = idsOfKindsOn(next, levelId, kinds);
 
     return before.length !== after.length || after.some((id, index) => before[index] !== id || previous.byId[id] !== next.byId[id]);
   });
+}
+
+/**
+ * Các tầng của `next` mà thứ gửi đi (bốn danh sách của `spatialLayerOf` + kích thước) khác
+ * `previous` — đích lưu là mọi tầng có thứ bị đổi, không phải tầng đang xem (B-V8-41). So tham
+ * chiếu thực thể là đủ: `applyPatch` chỉ chép thực thể bị chạm. Trục nằm trong `byLevel` nhưng
+ * chỉ sống trong phiên, nên đổi chúng không làm tầng bẩn (G14/G22: PUT ngầm sau khi vào
+ * SCR-18/19 bằng SPA). Chỉ duyệt tầng còn trong `next`.
+ */
+export function changedLevelIds(previous: NormalizedSpatial, next: NormalizedSpatial): LevelId[] {
+  return changedFloors(previous, next, [...LAYER_KINDS, ...DIMENSION_KINDS]);
+}
+
+/** Tập con của {@link changedLevelIds} mà KÍCH THƯỚC đổi — những tầng thân PUT phải mang `dimensions`. */
+export function changedDimensionLevelIds(previous: NormalizedSpatial, next: NormalizedSpatial): LevelId[] {
+  return changedFloors(previous, next, DIMENSION_KINDS);
 }
 
 /** Ba ngả của một lượt lưu lớp hỏng (prompt F-04x-1 khối [2]). */
@@ -147,13 +180,16 @@ export interface FloorLayerSaverPorts {
   writeLayer: SpatialApi['writeLayer'];
   readLayer(floorId: string): SpatialLayer | null;
   readRevision(floorId: string): number | null;
+  /** Kích thước hiện có của tầng; vắng → thân PUT không bao giờ mang `dimensions`. */
+  readDimensions?(floorId: string): readonly Dimension[] | null;
   /** `scaleSent` chỉ có mặt (luôn `true`) khi thân mang tỉ lệ — kho gỡ `scaleStatus` của tầng. */
   onSaved(floorId: string, result: FloorLayerWriteResult, info: { redirtied: boolean; scaleSent?: true }): void;
   queue?: typeof runExclusive;
 }
 
 export interface FloorLayerSaver {
-  markDirty(floorIds: readonly string[]): void;
+  /** `dimensionFloorIds` ⊆ `floorIds`: tầng mà KÍCH THƯỚC đổi — lượt PUT của nó mang `dimensions`. */
+  markDirty(floorIds: readonly string[], dimensionFloorIds?: readonly string[]): void;
   hasDirty(): boolean;
   flush(): Promise<void>;
   /**
@@ -190,6 +226,7 @@ interface FloorFailure {
 export function createFloorLayerSaver(projectId: string, ports: FloorLayerSaverPorts): FloorLayerSaver {
   const queue = ports.queue ?? runExclusive;
   const dirty = new Set<string>();
+  const dimensionsDirty = new Set<string>();
   const held = new Map<string, LayerWrite>();
   const inFlight = new Map<string, Promise<FloorFailure | undefined>>();
   const blocks = new Map<string, LayerSaveBlock>();
@@ -263,6 +300,10 @@ export function createFloorLayerSaver(projectId: string, ports: FloorLayerSaverP
         held.set(floorId, write);
       } else if (write.body.layer) {
         dirty.add(floorId);
+
+        if (write.body.dimensions) {
+          dimensionsDirty.add(floorId);
+        }
       }
     } else if (!scaleSent || write.body.layer) {
       // Thân chỉ tỉ lệ hỏng không khoá lớp: lỗi về tay màn đã bấm áp.
@@ -277,6 +318,7 @@ export function createFloorLayerSaver(projectId: string, ports: FloorLayerSaverP
     floorId: string,
     first: LayerWrite | undefined,
     layer: SpatialLayer | null,
+    dimensions: readonly Dimension[] | null,
   ): Promise<FloorFailure | undefined> => {
     if (first) {
       const failure = await send(floorId, first, layer !== null);
@@ -285,6 +327,10 @@ export function createFloorLayerSaver(projectId: string, ports: FloorLayerSaverP
         // Thân mới chưa gửi: lượt sau chụp lại từ kho. Khối thì chờ `markDirty`/`discardFloor`.
         if (failure.kind === 'temporary' && layer) {
           dirty.add(floorId);
+
+          if (dimensions) {
+            dimensionsDirty.add(floorId);
+          }
         }
 
         return failure;
@@ -295,7 +341,11 @@ export function createFloorLayerSaver(projectId: string, ports: FloorLayerSaverP
       return undefined;
     }
 
-    return send(floorId, { baseVersion: layerBase(floorId), body: { layer } }, false);
+    return send(
+      floorId,
+      { baseVersion: layerBase(floorId), body: dimensions ? { dimensions: [...dimensions], layer } : { layer } },
+      false,
+    );
   };
 
   /** Chụp ĐỒNG BỘ bản giữ và lớp của tầng; không có gì để gửi thì trả `undefined`. */
@@ -310,11 +360,14 @@ export function createFloorLayerSaver(projectId: string, ports: FloorLayerSaverP
 
     held.delete(floorId);
 
+    const dimensions = layer && dimensionsDirty.has(floorId) ? (ports.readDimensions?.(floorId) ?? null) : null;
+
     if (layer) {
       dirty.delete(floorId);
+      dimensionsDirty.delete(floorId);
     }
 
-    return track(floorId, () => run(floorId, first, layer));
+    return track(floorId, () => run(floorId, first, layer, dimensions));
   };
 
   /** Chạy `task` dưới khoá tầng, tính nó vào "đang gửi" tới khi xong. */
@@ -341,17 +394,21 @@ export function createFloorLayerSaver(projectId: string, ports: FloorLayerSaverP
     }
 
     const pending = held.get(floorId);
-    const layer = (sendable(floorId) ? ports.readLayer(floorId) : null) ?? pending?.body.layer;
+    const fresh = sendable(floorId) ? ports.readLayer(floorId) : null;
+    const layer = fresh ?? pending?.body.layer;
+    const freshDimensions = fresh && dimensionsDirty.has(floorId) ? (ports.readDimensions?.(floorId) ?? null) : null;
+    const dimensions = freshDimensions ?? pending?.body.dimensions;
 
     held.delete(floorId);
 
     if (layer) {
       dirty.delete(floorId);
+      dimensionsDirty.delete(floorId);
 
       // Bản giữ mang base của lần chụp; lượt hỏng tạm không đổi revision nên hai số bằng nhau.
       return send(
         floorId,
-        { baseVersion: pending?.baseVersion ?? layerBase(floorId), body: { layer, scaleMillimetresPerPixel: ratio } },
+        { baseVersion: pending?.baseVersion ?? layerBase(floorId), body: { ...(dimensions ? { dimensions: [...dimensions] } : {}), layer, scaleMillimetresPerPixel: ratio } },
         false,
       );
     }
@@ -367,6 +424,7 @@ export function createFloorLayerSaver(projectId: string, ports: FloorLayerSaverP
     blockedFloorIds: () => [...blocks.keys()],
     discardFloor(floorId) {
       dirty.delete(floorId);
+      dimensionsDirty.delete(floorId);
       held.delete(floorId);
       blocks.delete(floorId);
       blockErrors.delete(floorId);
@@ -417,8 +475,9 @@ export function createFloorLayerSaver(projectId: string, ports: FloorLayerSaverP
       }
     },
     hasDirty: () => held.size > 0 || inFlight.size > 0 || [...dirty].some(sendable),
-    markDirty(floorIds) {
+    markDirty(floorIds, dimensionFloorIds = []) {
       floorIds.forEach((floorId) => dirty.add(floorId));
+      dimensionFloorIds.forEach((floorId) => dimensionsDirty.add(floorId));
       notify();
     },
     subscribe(listener) {

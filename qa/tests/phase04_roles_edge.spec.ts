@@ -1073,7 +1073,8 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
 
       await test.step('[22-C-004] state order loading → error → empty → forbidden: the viewer sees the error alert and the controls stay disabled', async () => {
         await expect.soft(alertWith(page, OVERLAY.frameMissing)).toBeVisible();
-        await expect.soft(page.getByRole('combobox', { name: OVERLAY.floor })).toBeDisabled();
+        // 22-D-004 (catalog-C4.md:328, OCT:90,137): "Chọn tầng" is a view-only action and stays usable for a viewer, also here.
+        await expect.soft(page.getByRole('combobox', { name: OVERLAY.floor })).toBeEnabled();
         await expect.soft(page.getByRole('radiogroup', { name: OVERLAY.modes, exact: true }).getByRole('radio').and(page.locator(':enabled'))).toHaveCount(0);
         await expect.soft(page.getByRole('slider', { name: OVERLAY.opacity, exact: true })).toHaveAttribute('tabindex', '-1'); // Slider.tsx:144
         await captureEvidence(page, ev('22-C-004', 'viewer_overlay_error_outranks_forbidden'));

@@ -1017,6 +1017,8 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await drawStandard(page);
         await btn(noticeOf(page), SCALE.backToPreprocessing).click();
         await softExpect.poll(() => pathOf(page)).toBe(ROUTES.project.quality(d1.projectId));
+        // BUG-343: the URL changes before the gate is drawn; shoot only once its breadcrumb is on screen.
+        await expect(page.getByText('Kiểm tra chất lượng đầu vào', { exact: true }).first()).toBeVisible({ timeout: 45_000 }); // vi.json:717
         await evidence(page, '14-A-031', 'back-to-quality');
       });
 

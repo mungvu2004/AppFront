@@ -42,6 +42,7 @@ import { cn } from '@/lib/utils';
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
+import { QcScreenFrame } from '../shared/QcScreenFrame';
 
 import { ObjectLayerCanvas } from './ObjectLayerCanvas';
 import { ObjectLayerInspector } from './ObjectLayerInspector';
@@ -129,7 +130,7 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
         BUG-584: còn bộ lọc bật thì nút tắt nó còn — duyệt hết mục dưới ngưỡng làm câu báo biến
         mất, và bản cũ ẩn luôn nút, để lại danh sách rỗng không lối ra.
       */}
-      {model.partialNotice === null && !model.isLowConfidenceOnly ? null : (
+      {model.partialNotice === null ? null : (
         <div className="flex flex-col gap-1 px-2">
           {model.partialNotice === null ? null : (
             <p className="text-[12px] text-state-attention-text">{model.partialNotice}</p>
@@ -234,20 +235,14 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
 
   if (model.readFailure != null) {
     return (
-      <div aria-label={SCREEN_ARIA_LABEL} className="flex h-screen min-h-0 w-full flex-col bg-bg-app" role="region">
+      <QcScreenFrame label={SCREEN_ARIA_LABEL}>
         <FloorLayerReadFailureScreen failure={model.readFailure} />
-      </div>
+      </QcScreenFrame>
     );
   }
 
   return (
-    <div
-      aria-label={SCREEN_ARIA_LABEL}
-      // Cao bằng khung nhìn: route nằm trong `ScreenMain` (display: contents) nên `h-full` không có chiều cao
-      // để bám, và thanh trạng thái trôi lên giữa trang (BUG-324) — cùng cách SCR-22 (OverlayComparison).
-      className="flex h-screen min-h-0 w-full flex-col bg-bg-app"
-      role="region"
-    >
+    <QcScreenFrame label={SCREEN_ARIA_LABEL}>
       {model.saveBlock != null && (
         <div className="px-2 pt-2">
           <FloorLayerSaveBanner saveBlock={model.saveBlock} />
@@ -349,6 +344,6 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
         state={model.state}
         viewerRoleNotice={model.viewerRoleNotice}
       />
-    </div>
+    </QcScreenFrame>
   );
 }

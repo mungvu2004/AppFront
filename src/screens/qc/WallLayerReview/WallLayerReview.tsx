@@ -56,6 +56,7 @@ import { FloorLayerSaveBanner } from './FloorLayerSaveBanner';
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
+import { QcScreenFrame } from '../shared/QcScreenFrame';
 import type { ProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 import { WallLayerInspector } from './WallLayerInspector';
 import {
@@ -126,9 +127,9 @@ export function WallLayerReview({
 
   if (readFailure != null) {
     return (
-      <div aria-label={SCREEN_ARIA_LABEL} className="flex h-screen min-h-0 w-full flex-col bg-bg-app" role="region">
+      <QcScreenFrame label={SCREEN_ARIA_LABEL}>
         <FloorLayerReadFailureScreen failure={readFailure} />
-      </div>
+      </QcScreenFrame>
     );
   }
 
@@ -137,7 +138,7 @@ export function WallLayerReview({
    * không có chiều cao nào để bám, và thanh trạng thái trôi lên giữa trang — cùng cách SCR-22.
    */
   return (
-    <div aria-label={SCREEN_ARIA_LABEL} className="flex h-screen min-h-0 w-full flex-col bg-bg-app" role="region">
+    <QcScreenFrame label={SCREEN_ARIA_LABEL}>
       {saveBlock != null && (
         <div className="px-2 pt-2">
           <FloorLayerSaveBanner saveBlock={saveBlock} />
@@ -181,6 +182,6 @@ export function WallLayerReview({
       </div>
 
       <WallLayerStatusBar {...statusBar} />
-    </div>
+    </QcScreenFrame>
   );
 }

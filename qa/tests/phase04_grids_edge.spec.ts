@@ -347,6 +347,10 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
           await button.click();
           expect.soft(await total(), 'a visible "Xoá trục A" must delete the row').toBe(3);
           expect.soft((await announced()).length, 'and say so').toBeGreaterThan(before);
+          // The first edit stores the whole preview (useAxisGridManager.ts:477,660-690); one Mod+Z returns the preview, the rest of the flow starts from it.
+          await page.locator('body').click({ position: { x: 4, y: 4 } });
+          await page.keyboard.press('Control+Z');
+          await expect.poll(total, { message: 'Mod+Z returns the preview after the first edit' }).toBe(4);
         }
         await ev(page, '19-A-014', 'preview-delete-noop');
       });
@@ -360,7 +364,17 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
         await page.mouse.up();
         const after = await axisGrip(page, '2');
         expect.soft(Math.abs(after.x - grip.x) < 1 || Math.abs(after.x - (grip.x - 60)) < 8, 'the axis either stays or follows the pointer').toBe(true);
-        expect.soft(await spacings(page, V_GROUP), 'a preview axis must not move silently').toEqual(['8.000 mm', '—']);
+        // Expectation changed: a dragged preview axis now acts (useAxisGridManager.ts:477,660-690,816) and the spacing follows it;
+        // if it stayed, the spacing must be untouched. One Mod+Z returns the preview for the next steps.
+        const spacingNow = await spacings(page, V_GROUP);
+        if (Math.abs(after.x - grip.x) >= 1) {
+          expect.soft(spacingNow[0], 'a followed preview axis changes the spacing').not.toBe('8.000 mm');
+          await page.locator('body').click({ position: { x: 4, y: 4 } });
+          await page.keyboard.press('Control+Z');
+          await expect.poll(() => spacings(page, V_GROUP), { message: 'one Mod+Z returns the preview' }).toEqual(['8.000 mm', '—']);
+        } else {
+          expect.soft(spacingNow, 'a preview axis that stays must not move silently').toEqual(['8.000 mm', '—']);
+        }
         await attachJson('E04_19-A-019_drag.json', { before, grip, after });
       });
 
@@ -902,14 +916,12 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
         await softly.poll(axisOneX, { message: 'undo puts F2 axes back where they were' }).toBeCloseTo(xBeforeAlign, 3);
       });
 
-      await test.step('[19-A-038] ⚑ "Căn chỉnh tự động" with nothing to move is silent (expected: feedback)', async () => {
+      await test.step('[19-A-038] "Căn chỉnh tự động" with nothing to move is locked with a reason (BUG-594/601)', async () => {
         await storeBoth(identical); // identical floors: nothing to move
-        const spoken = (await announced()).length;
-        const shown = await toasts(page).getByRole('status').count();
-        await page.getByRole('button', { name: AUTO_ALIGN, exact: true }).click();
-        // Any new toast (Toast.tsx:142 role=status): the copy of the expected feedback is not in the source, so it is not guessed.
-        await expect.soft(toasts(page).getByRole('status'), 'a click that moves nothing must say so').toHaveCount(shown + 1); // AGG:827-834,872-874; UAG:899-901
-        await softly.poll(async () => (await announced()).length, { message: 'and announce it' }).toBeGreaterThan(spoken);
+        // Expectation changed (BUG-594/BUG-601, useAxisGridManager.ts:1203-1212, test useAxisGridManager.test.ts:782-800): with nothing to move the button
+        // is locked and the panel says why, so there is no silent click any more.
+        await expect.soft(page.getByRole('button', { name: AUTO_ALIGN, exact: true }), 'nothing to move: the button is locked').toBeDisabled();
+        await expect.soft(page.getByText('Các tầng đã khớp nhau, không còn gì để căn.', { exact: true }), 'and says why').toBeVisible(); // useAxisGridManager.ts:180
         await ev(page, '19-A-038', 'auto-align-nothing');
       });
 

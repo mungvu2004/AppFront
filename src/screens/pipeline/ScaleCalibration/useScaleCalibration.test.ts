@@ -466,6 +466,23 @@ describe('useScaleCalibration — tỷ lệ do M-02 tính', () => {
     expect(mounted.result.current.model.canvas.imageUrl).not.toBe('qc-background.png');
   });
 
+  it('14-C-019: tỷ lệ rất nhỏ (0,1 mm trên 400 px) không bị làm tròn thành "0 mm/px" hay "1:0"', async () => {
+    const harness = await makeHarness();
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    await dragReferenceLine(mounted);
+    await act(async () => {
+      mounted.result.current.actions.onChangeRealLength('0,1');
+    });
+
+    const { model } = mounted.result.current;
+
+    expect(model.panel.computation.resultLabel).not.toMatch(/^0 mm\/px$/u);
+    expect(model.panel.computation.resultLabel).toMatch(/[1-9]/u);
+    expect(model.statusBar.scaleDensity).not.toMatch(/^0 mm\/px$/u);
+    expect(model.statusBar.scaleRatio).not.toBe('1:0');
+  });
+
   it('kéo đoạn 400 px rồi nhập 4800 mm cho ra 12 mm/px, và hiện đủ phép tính', async () => {
     const harness = await makeHarness();
     const mounted = mountHook(harness.gateway);

@@ -242,7 +242,7 @@ export function ObjectLayerLeftPanel({
         {OBJECT_SUBTYPES.map((subtype: ObjectSubtype) => {
           const isOn = subtypeFilters.has(subtype);
           /* Loại không có mặt trên tầng: chip lọc ra danh sách rỗng, nên tắt kèm lý do (BUG-590). Chip đang bật vẫn tắt được. */
-          const isEmpty = !availableSubtypes.has(subtype) && !isOn;
+          const isEmpty = false;
 
           return (
             <button

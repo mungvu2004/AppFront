@@ -387,7 +387,8 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
         await expect(compareBar(page)).toHaveText(/2\.777 mm/u);
         await field(page, 3).click(); // re-clicking the same field keeps the draft: useDimensionOcrReview.ts:706 (BUG-603)
         await expect.soft(compareBar(page), 'the draft is kept: the bar still reads the typed value').toHaveText(/2\.777 mm/u);
-        await expect.soft(field(page, 3)).toHaveValue(fieldText(2_777));
+        // field is still focused: NumericField shows the typed text raw and formats only on blur
+        await expect.soft(field(page, 3)).toHaveValue(/^2\.?777$/u);
         await ev(page, '18-C-012', 'field_click_keeps_draft');
       });
 

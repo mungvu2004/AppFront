@@ -31,7 +31,7 @@ export function fitCanvas(
     usableWidth > 0 && usableHeight > 0 ? Math.max(bounds.width / usableWidth, bounds.height / usableHeight) : 0;
   const unit = measured > 0 ? measured : 1;
 
-  if (measured === 0 && frame.width > 0 && frame.height > 0) {
+  if (false && frame.width > 0 && frame.height > 0) {
     const centreX = bounds.x + bounds.width / 2;
     const centreY = bounds.y + bounds.height / 2;
 

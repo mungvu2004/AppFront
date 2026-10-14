@@ -19,6 +19,7 @@ import { isTransientWireError } from '@/lib/errors/wireError';
 import { runExclusive } from '@/lib/mutations/entityQueue';
 
 import {
+  changedDimensionLevelIds,
   changedLevelIds,
   classifyLayerSaveError,
   createFloorLayerSaver,
@@ -80,7 +81,7 @@ describe('changedLevelIds — B-V8-41: đích lưu là mọi tầng có thứ b�
     expect(changedLevelIds(base, removed)).toEqual([]);
   });
 
-  it('G14/G22: đổi trục hay kích thước thì không tầng nào — thân PUT không mang chúng', () => {
+  it('G14/G22: đổi trục thì không tầng nào; đổi kích thước thì có (BUG-577: thân PUT mang dimensions)', () => {
     const axisId = sampleAxisId(0);
     const dimensionId = sampleDimensionId(0);
     const axis = readEntity(base, 'axis', axisId);
@@ -90,14 +91,17 @@ describe('changedLevelIds — B-V8-41: đích lưu là mọi tầng có thứ b�
       throw new Error('bộ mẫu thiếu trục 0 hoặc kích thước 0');
     }
 
-    const moved = applyPatch(base, [
-      { changes: { label: 'Z' }, id: axisId, kind: 'axis', op: 'update' },
+    const moved = applyPatch(base, [{ changes: { label: 'Z' }, id: axisId, kind: 'axis', op: 'update' }]);
+    const resized = applyPatch(base, [
       { changes: { overrideValueMm: 1234 }, id: dimensionId, kind: 'dimension', op: 'update' },
     ]);
     const added = applyPatch(base, [{ entity: { ...axis, id: sampleAxisId(99) }, kind: 'axis', op: 'add' }]);
 
     expect(changedLevelIds(base, moved)).toEqual([]);
     expect(changedLevelIds(base, added)).toEqual([]);
+    expect(changedLevelIds(base, resized)).toEqual([dimension.levelId]);
+    expect(changedDimensionLevelIds(base, resized)).toEqual([dimension.levelId]);
+    expect(changedDimensionLevelIds(base, moved)).toEqual([]);
   });
 
   it('tầng đã bị xoá khỏi đồ thị mới thì không ra', () => {
@@ -823,5 +827,36 @@ describe('classifyLayerSaveError', () => {
     [{ kind: 'network', raw: undefined, requestId: 'r', retryable: true }, 'temporary'],
   ] as const)('%# → %s', (error, expected) => {
     expect(classifyLayerSaveError(error)).toBe(expected);
+  });
+});
+
+describe('createFloorLayerSaver — dimensions trong thân PUT (BUG-577)', () => {
+  it('tầng có kích thước đổi → thân mang dimensions; tầng chỉ đổi lớp → không mang', async () => {
+    const dimension = readEntity(normalizeSpatial(SAMPLE_BUILDING), 'dimension', sampleDimensionId(0));
+
+    if (dimension === null) {
+      throw new Error('bộ mẫu thiếu kích thước 0');
+    }
+
+    const writeLayer = vi.fn<SpatialApi['writeLayer']>().mockResolvedValue(savedAt(4));
+    const saver = createFloorLayerSaver(PROJECT, {
+      onSaved: vi.fn(),
+      readDimensions: () => [dimension],
+      readLayer: () => wireLayer(4800),
+      readRevision: () => 3,
+      writeLayer,
+    });
+
+    saver.markDirty([FLOOR_A], [FLOOR_A]);
+    saver.markDirty([FLOOR_B]);
+    await saver.flush();
+
+    const bodies = Object.fromEntries(
+      writeLayer.mock.calls.map(([input]) => [input.floorId, input.body as { dimensions?: unknown }]),
+    );
+
+    expect(bodies[FLOOR_A]?.dimensions).toEqual([dimension]);
+    expect(bodies[FLOOR_B]).not.toHaveProperty('dimensions');
+    expect(FloorLayerWriteSchema.safeParse({ baseVersion: 3, body: bodies[FLOOR_A] }).success).toBe(true);
   });
 });
