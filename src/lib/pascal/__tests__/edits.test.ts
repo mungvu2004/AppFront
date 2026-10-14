@@ -9,6 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { WallSchema } from '@/api/schemas/spatial';
 import {
   createSampleBuilding,
   sampleLevelId,
@@ -185,7 +186,9 @@ describe('createPascalEditCommand', () => {
 
     expect(change?.before?.reviewed).toBe(false);
     expect(change?.after?.reviewed).toBe(true);
-    expect(change?.after?.source).toBe('ai');
+    // catalog-C6 ⚑3: `{ source: 'ai', reviewed: true }` bị `humanOnlyReview` chặn, tầng kẹt.
+    expect(change?.after?.source).toBe('human');
+    expect(WallSchema.safeParse(change?.after).success).toBe(true);
   });
 
   it('A5 — Pascal sửa `reviewed` trong siêu dữ liệu thì lệnh KHÔNG mang dấu ấy về', () => {
