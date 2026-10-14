@@ -201,6 +201,9 @@ test.describe('SCR-25 measure — UI verify', () => {
           await p.getByRole('button', { name: MT.collapse, exact: true }).click();
           const chip = p.getByRole('button', { name: /phép đo — mở lại danh sách phép đo$/u });
           await expect(chip).toBeVisible();
+          // The collapsed panel is `invisible` only at the END of its transition (ViewerShell.tsx:229-232): measure after that; if it
+          // stays visible the step goes red (BUG-624, Low).
+          await expect.soft(p.getByRole('button', { name: /^Mở mục Phép đo/u }), 'collapsed list button hidden').toBeHidden({ timeout: 5_000 });
           rows.push({ width: widthOf(p), rail: await boxOf(toolRail(p)), scale: await boxOf(elevationScale(p)), chipInside: withinWidth(p, await boxOf(chip)) });
         });
         for (const row of rows) {
