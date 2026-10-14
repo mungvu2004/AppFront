@@ -31,7 +31,7 @@
  * building — the view still knows nothing it was not handed.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Select } from '@/components/ui/Select';
@@ -101,8 +101,8 @@ interface LevelOption {
 function levelOptionsOf(
   groups: readonly RuleReportGroup[],
   resolvedRows: readonly RuleReportRow[],
+  seen: Map<string, string>,
 ): readonly LevelOption[] {
-  const seen = new Map<string, string>();
 
   const remember = (row: RuleReportRow): void => {
     if (row.levelId !== null && row.levelLabel !== null && !seen.has(row.levelId)) {
@@ -146,8 +146,11 @@ export function RuleReportFilterBar({
   resolvedRows,
   onFilterChange,
 }: RuleReportFilterBarProps) {
+  // 28-C-012: các tầng đã thấy được nhớ lại, để bộ lọc khác làm rỗng danh sách
+  // không làm ô "Tầng" mất tầng đã chọn (hay các tầng còn lại).
+  const seenLevels = useRef(new Map<string, string>());
   const levelOptions = useMemo(
-    () => levelOptionsOf(groups, resolvedRows),
+    () => levelOptionsOf(groups, resolvedRows, seenLevels.current),
     [groups, resolvedRows],
   );
 

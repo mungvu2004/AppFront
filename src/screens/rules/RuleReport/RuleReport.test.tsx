@@ -1102,6 +1102,22 @@ describe('F-10 — useRuleReport đọc cấu hình N21', () => {
     expect(ruleCodesOf(result.current.groups)).not.toContain(NOISY_RULE_CODE);
   });
 
+  it('versionId đổi sau một lượt sửa → khoá query đổi nhưng nhóm không biến mất giữa chừng', async () => {
+    const { result } = setupReport({ read: async () => configRead(1) });
+
+    await waitFor(() => {
+      expect(openCountOf(result.current.groups, NOISY_RULE_CODE)).toBeGreaterThan(0);
+    });
+    const before = result.current.groups.length;
+
+    act(() => {
+      useStore.getState().setVersionId('v-sau-khi-luu');
+    });
+
+    expect(result.current.groups.length).toBe(before);
+    expect(result.current.status).not.toBe('loading');
+  });
+
   it('canEdit: false không tắt truy vấn', async () => {
     const { result, read } = setupReport({ read: async () => configRead(1), canEdit: false });
 
