@@ -116,7 +116,7 @@ export async function withVersionsProject(
     await body({ flow, api, projectId, floorId: seeded.floorId, floorName: seeded.floorName });
   } finally {
     if (flow !== undefined) await closeFlow(flow);
-    if (projectId !== undefined) await deleteSeededProject(api, projectId);
+    if (projectId !== undefined) expect(await deleteSeededProject(api, projectId), 'cleanup: project deleted').toBeNull();
     await api.dispose();
   }
 }
