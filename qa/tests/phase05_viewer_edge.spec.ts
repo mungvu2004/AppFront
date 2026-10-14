@@ -192,8 +192,8 @@ test.describe('SCR-23 Pascal viewer — real flows', () => {
         await captureEvidence(page, 'E05_23-B-004_summary.png');
       });
 
-      await test.step('[23-A-003] no "Về màn xem 3D" button (route passes no onLeave)', async () => {
-        await expect.soft(button(page, PV.leave)).toHaveCount(0); // PVC:396-404
+      await test.step('[23-A-003] no "Về màn xem 3D" button', async () => {
+        await expect.soft(button(page, PV.oldLeave)).toHaveCount(0); // the only exit is PASCAL_LEAVE_LABEL (PVT:153)
         await captureEvidence(page, 'E05_23-A-003_no-leave-button.png');
       });
 
@@ -207,12 +207,12 @@ test.describe('SCR-23 Pascal viewer — real flows', () => {
       });
 
       await test.step('[23-A-004] ⚑ a way back to the project / dashboard exists (BUG-487)', async () => {
-        // PVT:151-155 "để rỗng/lỗi/cờ tắt không thành ngõ cụt"; source has no onLeave, no breadcrumb (PVC:396-404).
-        // Frame header only (outside `.pascal-root`): Pascal's Settings panel has "Sao chép ID dự án" / "Quay lại", not a way out.
-        const appFront = frame(page).locator(':scope > div').first();
-        const out = appFront.getByRole('link', { name: /dự án|trang chủ|quay lại/iu }).or(appFront.getByRole('button', { name: /dự án|quay lại|về /iu }));
-        await expect.soft(out.first(), 'a link/button out of /3d in the frame header').toBeVisible();
-        await captureEvidence(page, 'E05_23-A-004_no-way-out.png');
+        // PVT:151-155 "để rỗng/lỗi/cờ tắt không thành ngõ cụt"; FA round 2: PV:55-59 header button PASCAL_LEAVE_LABEL
+        // "Về quản lý tầng" → ROUTES.project.floors (PVC:413). Frame header only (outside `.pascal-root`).
+        const header = frame(page).locator(':scope > div').first();
+        await expect.soft(button(header, PV.leave), 'a way out of /3d in the frame header').toBeVisible();
+        await expect.soft(button(header, PV.leave)).toBeEnabled();
+        await captureEvidence(page, 'E05_23-A-004_way-out.png');
       });
 
       await test.step('[23-G-003] N21 rule-config fetched exactly once after hydration', async () => {
@@ -1141,16 +1141,22 @@ test.describe('SCR-24 exploded redirect — real flows', () => {
         const toStacked = await pixelDiffRatio(stacked, now);
         const explodedGap = await pixelDiffRatio(stacked, exploded);
         expect.soft(toStacked, `closer to stacked than the exploded shot is (${(explodedGap * 100).toFixed(1)} %)`).toBeLessThan(explodedGap);
-        await captureEvidence(page, 'E05_24-A-006_stays-exploded.png');
+        await captureEvidence(page, 'E05_24-A-006_stacked-again.png');
       });
 
       await test.step('[24-A-013] ⚑ a visible level-mode control returns to stacked', async () => {
-        // No copy in source (v1 chrome has none; slider "Tách tầng" only in v2 VE:1689) — expected a control named for it.
-        const control = pascalRoot(page)
-          .getByRole('button', { name: /tách tầng|xếp chồng|chế độ tầng/iu })
-          .or(pascalRoot(page).getByRole('slider', { name: /tách tầng/iu }));
-        await expect.soft(control.first()).toBeVisible();
-        await captureEvidence(page, 'E05_24-A-013_no-level-control.png');
+        // FA round 2: level-mode-action.tsx:20-38 "Chế độ tầng: Xếp tầng|Tách tầng" with aria-pressed (editors only).
+        const stackedBtn = button(pascalRoot(page), PASCAL.levelMode('Xếp tầng'));
+        const explodedBtn = button(pascalRoot(page), PASCAL.levelMode('Tách tầng'));
+        await expect.soft(stackedBtn.or(explodedBtn).first(), 'a visible level-mode control').toBeVisible();
+        if ((await explodedBtn.count()) === 0) {
+          await stackedBtn.first().click(); // stacked → exploded
+          await expect.soft(explodedBtn).toHaveAttribute('aria-pressed', 'true');
+        }
+        await explodedBtn.first().click(); // exploded → back to stacked
+        await expect.soft(stackedBtn).toHaveAttribute('aria-pressed', 'false');
+        expect.soft(await levelModeOf(page)).toBe('stacked');
+        await captureEvidence(page, 'E05_24-A-013_level-control.png');
       });
 
       await test.step('[24-A-003] ⚑ /3d/exploded?tool=measure#x keeps query and hash', async () => {
@@ -1160,7 +1166,7 @@ test.describe('SCR-24 exploded redirect — real flows', () => {
           return { path: url.pathname, hash: url.hash, query: [...url.searchParams.entries()].map(([k, val]) => `${k}=${val}`).sort() };
         };
         await softly.poll(parts).toEqual({ path: viewer, hash: '#x', query: ['tool=measure', 'view=exploded'] });
-        await captureEvidence(page, 'E05_24-A-003_query-hash-dropped.png');
+        await captureEvidence(page, 'E05_24-A-003_query-hash.png');
       });
     });
   });
