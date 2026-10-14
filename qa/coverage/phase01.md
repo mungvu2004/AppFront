@@ -167,11 +167,11 @@ must not edit or run those specs). Rows below = what Phase 01 touches + the plan
 | 98 | Gate | Anonymous `/projects/:id/settings` (SCR-08), `/upload` (SCR-10), `/quality` (SCR-11), `/admin/users` (SCR-37), `/khong-co-quyen` (SCR-38), unknown path (SCR-39), `/demo` (SCR-40, prod) → login + notice | `PA:203-230`, `SB:288-301, 326-332` | E·new "anonymous on the routes of SCR-08/10/11/37/38/39/40" | covered |
 | 99 | Gate | Anonymous `/projects/x/floors` (SCR-09) | same | M "anonymous /projects/x/floors redirects" | covered |
 | 100 | SCR-41 | `?` / Esc on /login (UndoShortcuts wraps public routes too) | `RT:301-333` | E·new "SCR-02 × SCR-41…" | covered |
-| 101 | SCR-41 | `?` opens GlobalShortcutHelp on NotFound, Esc closes | `RT:301-333` | `phase10_system_routes` "SCR-41 ? opens GlobalShortcutHelp" | covered (phase 10) |
+| 101 | SCR-41 | `?` opens GlobalShortcutHelp on NotFound, Esc closes | `RT:301-333` | `phase10_shortcuts_edge` FL-10K-01 | covered (phase 10) |
 | 102 | SCR-38 | "Đăng nhập bằng tài khoản khác" → POST logout → `/login` (state.from); "Về danh sách dự án" → `/` | `src/screens/system/AccessDenied/*` | `phase11_teardown` "SCR-38 …" ×2 | covered (phase 11) |
 | 103 | SCR-37 | Invite user (sends mail) → token consumed by SCR-03 | `src/screens/admin/UserManagement/*` | `phase08_admin` "Mời người dùng (opt-in)"; SCR-03 side via API invitation in E Mailpit test | covered (phase 08 opt-in) / E (API) |
-| 104 | SCR-39 | NotFound page (signed in) | `src/screens/system/NotFound/*` | `phase10_system_routes` "SCR-39 /khong-ton-tai…" | covered (phase 10) |
-| 105 | SCR-40 | Dev routes render on the mock dev server; NotFound on the prod build when signed in | `PA:221-230` | `phase10_system_routes` SCR-40 ×4 | covered (phase 10) |
+| 104 | SCR-39 | NotFound page (signed in) | `src/screens/system/NotFound/*` | `phase10_notfound_edge` FL-10N-01..03 | covered (phase 10) |
+| 105 | SCR-40 | Dev routes render on the mock dev server; NotFound on the prod build when signed in | `PA:221-230` | `phase10_dev_*` (devTest) + `phase10_dev_e_edge` FL-10E-19 | covered (phase 10) |
 | 106 | SCR-08…11 | Plan rows (settings tabs/notes/address/units; floors add/rename/reorder/height/elevation/hide; upload/blocked/reject; quality report/corners/straighten/continue) | plan §4 Phase 3, 11 | `phase03_pipeline`, `phase09_roles_matrix`, `phase11_teardown` | covered (owning phases) |
 | 107 | SCR-08…11, 37…41 | Every other element/state of these screens | their source dirs | — | UNKNOWN — NEED VERIFICATION in their own phase inventories (out of Phase 01 scope) |
 
