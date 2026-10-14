@@ -224,7 +224,9 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
   return (
     <div
       aria-label={SCREEN_TITLE}
-      className="flex h-full min-h-0 w-full flex-col bg-bg-app"
+      // Cao bằng khung nhìn: route nằm trong `ScreenMain` (display: contents) nên `h-full` không có chiều cao
+      // để bám, panel trục không bao giờ cuộn và cả trang dài ra (G20) — cùng cách SCR-16/17.
+      className="flex h-screen min-h-0 w-full flex-col bg-bg-app"
       role="region"
     >
       <header className="shrink-0 px-4 pb-1 pt-3">
