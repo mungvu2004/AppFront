@@ -113,6 +113,12 @@ export const DEBOUNCE_WINDOW_MS = 1_800;
 export const ERROR_PAINT_TIMEOUT_MS = 30_000;
 /** Autosave PUT round trip (e2e/fullstack/env.ts AUTOSAVE_TIMEOUT_MS) plus the 503 ladder 300 + 900 + 2 700 ms. */
 export const SAVE_TIMEOUT_MS = 30_000;
+/**
+ * A TEMPORARY save failure (503 / network) reaches "failed" only after the autosave retries 5 + 15 + 45 s
+ * (src/lib/autosave/retrySchedule.ts:1, createAutosave.ts:193-204), each attempt also running the HTTP ladder
+ * 300 + 900 + 2 700 ms (src/lib/http/retry.ts:5), plus the 800 ms debounce: ≈ 82 s → 120 s (run-051b E1-T10).
+ */
+export const SAVE_FAILED_TIMEOUT_MS = 120_000;
 
 /* ---------------------------------------------------------------- locators */
 
@@ -136,6 +142,15 @@ export const chip = (page: Page, label: string): Locator =>
   page.getByRole('group', { name: H.chipsGroup, exact: true }).getByRole('button', { name: label, exact: true });
 export const actorCombo = (page: Page): Locator => page.getByRole('combobox', { name: H.actorSelect, exact: true });
 export const pascalRoot = (page: Page): Locator => page.locator('.pascal-root');
+/** A toast is ONE line "title — description" (src/components/feedback/NotificationHost.tsx:21-24 JOINER): match by its title. */
+export const toast = (page: Page, title: string): Locator =>
+  page.getByText(new RegExp(`^${escapeRegExp(title)}( — |$)`, 'u'));
+const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/gu, (c) => `\\${c}`);
+/**
+ * Pascal opens its inspector collapsed to the header (vendor panel-wrapper.tsx:149-153); the chevron is named
+ * "Expand panel" (panel-wrapper.tsx:392, still English — 23-E-013) — or a Vietnamese name once that is fixed.
+ */
+export const inspectorExpand = (page: Page): Locator => pascalRoot(page).getByRole('button', { name: /^(Expand panel|Mở rộng)/u });
 
 /* ---------------------------------------------------------------- sessions and seeds */
 
