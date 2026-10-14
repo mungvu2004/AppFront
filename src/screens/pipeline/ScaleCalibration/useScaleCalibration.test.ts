@@ -28,6 +28,8 @@ import type { LevelId } from '@/domain/spatial/types';
 import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
 import { spatialLayerOf } from '@/lib/autosave/spatialLayerSave';
 import type { HttpError } from '@/lib/http/types';
+import { readWireError } from '@/lib/errors/wireError';
+import { PROJECT_NOT_FOUND_TITLE } from '@/components/feedback/ProjectSpatialGate';
 import {
   createScale,
   millimetresPerPixel,
@@ -1397,5 +1399,52 @@ describe('useScaleCalibration — QA-04c SCR-14 (BUG-587, 596, 601, 607)', () =>
     expect(mounted.result.current.model.state).toBe('error');
     expect(mounted.result.current.model.canvas.isInteractive).toBe(false);
     expect(mounted.result.current.model.panel.areActionsHidden).toBe(true);
+  });
+});
+
+describe('[G02] tầng chưa có bản vẽ trong dự án đã có bản vẽ ở tầng khác', () => {
+  it('lượt đánh giá không có tầng này thì đọc ra 404 `upload` — màn "Tầng này chưa có bản vẽ", không UNKNOWN', async () => {
+    const client = createMockApiClient();
+    const assess = await client.quality.assess({ floorId: FLOOR_ID, projectId: PROJECT_ID });
+
+    if (!assess.ok) {
+      throw new Error('bộ mẫu không đánh giá được tầng.');
+    }
+
+    vi.spyOn(client.quality, 'assess').mockResolvedValue({
+      ok: true,
+      data: { ...assess.data, floors: assess.data.floors.filter((floor) => floor.floorId !== 'L-BARE') },
+    });
+
+    const read = await createScaleCalibrationGateway(client).readFloorDrawing({ floorId: 'L-BARE', projectId: PROJECT_ID });
+
+    expect(read.ok).toBe(false);
+    expect(read.ok ? null : readWireError(read.error)).toEqual(expect.objectContaining({ status: 404, resource: 'upload' }));
+  });
+});
+
+describe('[G45] người ngoài dự án mở thẳng SCR-14', () => {
+  it('404 dự án: màn "Không tìm thấy dự án này" có lối về danh sách, không "Mã lỗi: NOT_FOUND"', async () => {
+    const harness = await makeHarness();
+    const notFound: HttpError = {
+      code: 'NOT_FOUND',
+      kind: 'http',
+      raw: { code: 'NOT_FOUND', resource: 'project' },
+      requestId: 'r',
+      retryable: false,
+      status: 404,
+    };
+    const mounted = mountHook({
+      ...harness.gateway,
+      readFloorDrawing: async () => ({ ok: false, error: notFound }),
+      readLayer: () => Promise.reject(notFound),
+    });
+    await settle(mounted);
+
+    await act(async () => {
+      await clock.advance(1);
+    });
+
+    expect(mounted.result.current.model.readFailure?.title).toBe(PROJECT_NOT_FOUND_TITLE);
   });
 });

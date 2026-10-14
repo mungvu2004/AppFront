@@ -78,6 +78,7 @@ import {
   type OverlayScanSnapshot,
   type OverlayToleranceEvaluation,
 } from './overlayComparisonGateway';
+import { floorLayerReadFailureOf } from '../../qc/shared/floorLayerReadFailure';
 import type {
   CompareModeId,
   ConfirmationViewModel,
@@ -644,6 +645,25 @@ export function useOverlayComparison(
   const isLayerLoading = storeSpatial === null && layerQuery.isLoading;
   const isListLoading = floors.length === 0 && storeFloors.length === 0 && floorListQuery.isLoading;
   const hasLayerReadFailed = storeSpatial === null && layerQuery.isError;
+  /* N16 404 (người ngoài dự án, tầng đã xoá): cả màn là một lối ra, không câu lỗi đọc chung (G45). */
+  const refetchLayer = layerQuery.refetch;
+  const readFailure = useMemo(
+    () =>
+      hasLayerReadFailed && readWireError(layerQuery.error)?.status === 404
+        ? floorLayerReadFailureOf(
+            {
+              data: undefined,
+              error: layerQuery.error,
+              refetch: () => {
+                void refetchLayer();
+              },
+            },
+            projectId,
+            (path) => onNavigateRef.current?.(path),
+          )
+        : null,
+    [hasLayerReadFailed, layerQuery.error, projectId, refetchLayer],
+  );
 
   const state = useMemo<OverlayComparisonState>(() => {
     if (query.isLoading || isLayerLoading || isListLoading) {
@@ -1157,6 +1177,7 @@ export function useOverlayComparison(
       isAlignmentLocked: isLockedByUser || !canEdit,
       canLockAlignment: gateway.supports.imageToModelTransform,
       canRetry: state === 'error' && (hasReadFailed || hasLayerReadFailed),
+      readFailure,
       zoomPercent: Math.round(viewport.zoom * FULL_PERCENT),
       layers,
       geometry,
@@ -1184,6 +1205,7 @@ export function useOverlayComparison(
       hasLayerReadFailed,
       hasReadFailed,
       isLockedByUser,
+      readFailure,
       layers,
       marks,
       measurement,

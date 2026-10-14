@@ -101,6 +101,7 @@ import {
 } from '@/domain/units/types';
 import { useAutosave, useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { useFloorLayer } from '@/hooks/useFloorLayer';
+import { useFloorLayerReadFailure } from '../../qc/shared/floorLayerReadFailure';
 import { useProjectConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import { useCountUp } from '@/hooks/useCountUp';
@@ -1613,6 +1614,10 @@ export function useScaleCalibration(
     rows.length,
   ]);
 
+  /* 404 dự án/tầng (người ngoài dự án, tầng đã xoá): cả màn là một lối ra, không "Mã lỗi: NOT_FOUND" (G45). */
+  const floorLayerFailure = useFloorLayerReadFailure(floorLayer, projectId, navigate);
+  const readFailure = readWireError(floorLayer.error)?.status === 404 ? floorLayerFailure : null;
+
   const errorDescription = useMemo(() => {
     if (state !== 'error') {
       return null;
@@ -1874,6 +1879,7 @@ export function useScaleCalibration(
       successNotice: state === 'success' ? COPY.successNotice : null,
       ...(provisionalNotice !== null ? { provisionalScaleNotice: provisionalNotice.message } : {}),
       saveBlock,
+      readFailure,
       ...(allFloors !== null
         ? {
             allFloorsConfirm: {
@@ -1892,6 +1898,7 @@ export function useScaleCalibration(
     canEdit,
     canvasSize,
     saveBlock,
+    readFailure,
     isApplying,
     provisionalNotice,
     aiInference,

@@ -59,6 +59,7 @@ import { Modal } from '@/components/overlay/Modal';
 import { StatusBar } from '@/components/shell/StatusBar';
 import { Button } from '@/components/ui/Button';
 
+import { FloorLayerReadFailureScreen } from '../../qc/shared/FloorLayerReadFailureScreen';
 import { FloorLayerSaveBanner } from '../../qc/WallLayerReview/FloorLayerSaveBanner';
 
 import { ScaleCalibrationCanvas } from './ScaleCalibrationCanvas';
@@ -180,6 +181,14 @@ export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
   const noticeMessage = messageFor(model);
   const noticeLevel = NOTICE_LEVELS[model.state];
   const isError = model.state === 'error';
+
+  if (model.readFailure != null) {
+    return (
+      <div aria-label={SCREEN_ARIA_LABEL} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+        <FloorLayerReadFailureScreen failure={model.readFailure} />
+      </div>
+    );
+  }
 
   return (
     <div
