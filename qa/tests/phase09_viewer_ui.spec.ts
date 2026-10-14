@@ -1,12 +1,12 @@
 /** Phase 09 viewer-shell UI (P11): FL-9V-U1 viewer read-only states at four widths. */
-import { test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { openAt, uiState, withRoleUi } from './support/p09/P11';
 
 test('SCR-25..32 · FL-9V-U1 · viewer · verifyUi 4 khổ trạng thái chỉ đọc', async ({ browser }) => {
   test.setTimeout(480_000);
-  await withRoleUi(browser, 'viewer', 'viewer', true, async ({ page, projectId }) => {
+  await withRoleUi(browser, 'viewer', 'ui-viewer', true, async ({ page, projectId }) => {
     const P = ROUTES.project;
     await test.step('[9V-A-060] viewer viewer_inspector 4 kho', async () => {
       await uiState(page, '9V-A-060', 'viewer_inspector', openAt(P.viewer(projectId), (p) => p.getByText('Bạn đang xem ở vai người xem nên không sửa được mô hình.')), true);
@@ -29,10 +29,13 @@ test('SCR-25..32 · FL-9V-U1 · viewer · verifyUi 4 khổ trạng thái chỉ �
     await test.step('[9V-G-060] viewer versions_readonly 4 kho', async () => {
       await uiState(page, '9V-G-060', 'versions_readonly', openAt(P.versions(projectId), (p) => p.getByText(/Vai trò của bạn trên dự án này chỉ đọc được lịch sử/u)));
     });
-    await test.step('[9V-H-060] viewer share_blocked 4 kho', async () => {
-      // ShareDialog opens from the 'Chia sẻ' button of ExportPanel.tsx:249-251, rendered only after the forbidden early return
-      // (:208-215); for a viewer the opener is absent (asserted in openAt), so there is no dialog to open.
-      await uiState(page, '9V-H-060', 'share_blocked', openAt(P.export(projectId), (p) => p.getByRole('heading', { name: 'Không có quyền xuất bản vẽ' }), ['Chia sẻ']));
+    await test.step('[9V-H-060] viewer share dialog blocked 4 kho', async () => {
+      // feature off: shareLink.ts:354 (SHARE_LINKS_SUPPORTED=false); the forbidden branch returns early (ExportPanel.tsx:207-215),
+      // so a four-width shot would duplicate 9V-E-060. N/A for the shot; the opener must still be absent.
+      test.info().annotations.push({ type: 'n/a', description: '9V-H-060: share feature off, same screen as 9V-E-060' });
+      await page.goto(P.export(projectId));
+      await expect(page.getByRole('heading', { name: 'Không có quyền xuất bản vẽ' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Chia sẻ', exact: true })).toHaveCount(0);
     });
   });
 });

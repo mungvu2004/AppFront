@@ -6,11 +6,11 @@ import { openAt, uiState, withRoleUi } from './support/p09/P11';
 
 test('SCR-16..21 · FL-9Q-10 · viewer · 4 khổ trạng thái chỉ-xem', async ({ browser }) => {
   test.setTimeout(420_000);
-  await withRoleUi(browser, 'viewer', 'qc', true, async ({ page, projectId, floorId }) => {
+  await withRoleUi(browser, 'viewer', 'ui-qc', true, async ({ page, projectId, floorId }) => {
     const P = ROUTES.project;
     await test.step('[9Q-A-013] viewer walls_readonly 4 kho', async () => {
-      // UNKNOWN — NEED VERIFICATION: the wall sentence may show only once a segment is selected (9Q-A-001).
-      await uiState(page, '9Q-A-013', 'walls_readonly', openAt(P.walls(projectId, floorId), (p) => p.getByText(/Bạn đang xem với vai người xem, nên không duyệt hay sửa được đoạn tường nào/u)), true);
+      // the viewer sentence only shows once a segment is selected (WallLayerInspector.tsx:122,213); anchor on the panel heading.
+      await uiState(page, '9Q-A-013', 'walls_readonly', openAt(P.walls(projectId, floorId), (p) => p.getByRole('heading', { name: 'Đoạn tường' })), true);
     });
     await test.step('[9Q-B-011] viewer objects_readonly 4 kho', async () => {
       await uiState(page, '9Q-B-011', 'objects_readonly', openAt(P.objects(projectId, floorId), (p) => p.getByRole('region', { name: 'Lớp đối tượng' })));
