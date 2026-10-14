@@ -259,13 +259,14 @@ async function openOpeningFamily(): Promise<{ readonly family: FamilyWire; reado
 test('SCR-36 · FL-M-36R-01 · Record, activate candidate, undo, mandatory restore', async () => {
   test.setTimeout(240_000);
   const api = await adminApi();
-  const snapshot = await recordActiveVersions(api); // BEFORE anything else (R2)
+  const snapshot: Record<string, string | null> = { ...(await recordActiveVersions(api, [OPENING_FAMILY])) }; // BEFORE anything else (R2)
   let switched = false;
   try {
     // R2 resume of a crashed run: restore the recorded version first.
     const previous = readState().registry;
     if (previous.pendingRestore && previous.family === OPENING_FAMILY && previous.originalActiveVersionId !== null) {
       await restoreActiveVersions(api, { ...snapshot, [OPENING_FAMILY]: previous.originalActiveVersionId });
+      snapshot[OPENING_FAMILY] = previous.originalActiveVersionId; // the dirty value read above must not be restored in finally
     }
     const { family, versions } = await openOpeningFamily();
     const recordedId = family.activeVersionId ?? null;
@@ -361,7 +362,7 @@ test('SCR-36 · FL-M-36R-01 · Record, activate candidate, undo, mandatory resto
   await test.step('[36R-A-015] restore verified: GET model-families activeVersionId equals the recorded id', async () => {
     const check = await adminApi();
     try {
-      const after = await recordActiveVersions(check);
+      const after = await recordActiveVersions(check, [OPENING_FAMILY]);
       expect(after[OPENING_FAMILY], 'active version after restore').toBe(snapshot[OPENING_FAMILY]);
     } finally {
       await check.dispose();

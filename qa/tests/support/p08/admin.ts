@@ -16,7 +16,7 @@
  *   closeTopLayer(page)                              Esc (A12 closes the top layer)
  *   openAdmin(page, screen): Promise<unknown>        goto + wait for the main read 200, returns its parsed body
  *   adminApi(): Promise<APIRequestContext>           signed-in admin client (E2E_ADMIN_EMAIL/PASSWORD); caller disposes
- *   recordActiveVersions(api): Promise<ActiveSnapshot>
+ *   recordActiveVersions(api, families): Promise<ActiveSnapshot>  (only those families)
  *   restoreActiveVersions(api, snapshot)             PUT each changed family back; call in `finally`
  *   holdResponse(page, urlGlob, method)              { seen, release() } holds the REAL response
  *   adminUser(admin, slot, role = 'engineer')        pool user (own slot)
@@ -24,7 +24,7 @@
  *
  * Usage:
  *   const api = await adminApi();
- *   const snap = await recordActiveVersions(api);
+ *   const snap = await recordActiveVersions(api, [family]);
  *   try { const body = await openAdmin(page, 'registry'); ... } finally { await restoreActiveVersions(api, snap); await api.dispose(); }
  * Phase 08 is desktop/tablet only; there is no phone viewport.
  */
@@ -153,9 +153,15 @@ async function readFamilies(api: APIRequestContext): Promise<FamilyWire[]> {
   return ((await res.json()) as { items: FamilyWire[] }).items; // BE ModelFamilyPage, MC listFamilies
 }
 
-/** family -> activeVersionId (null = classic path). Call BEFORE any activation. */
-export async function recordActiveVersions(api: APIRequestContext): Promise<ActiveSnapshot> {
-  return Object.fromEntries((await readFamilies(api)).map((f) => [f.family, f.activeVersionId ?? null]));
+/**
+ * family -> activeVersionId (null = classic path) for the given families ONLY. Call BEFORE any activation. Scoped on purpose:
+ * main FL-M-36R-01 (opening) and FL-B08M-07 (wall) run in parallel workers; a whole-registry snapshot would let one flow's
+ * `finally` undo the other's live activation (QA-08 review R1).
+ */
+export async function recordActiveVersions(api: APIRequestContext, families: readonly string[]): Promise<ActiveSnapshot> {
+  return Object.fromEntries(
+    (await readFamilies(api)).filter((f) => families.includes(f.family)).map((f) => [f.family, f.activeVersionId ?? null]),
+  );
 }
 
 /**

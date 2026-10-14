@@ -6,7 +6,7 @@
  * GET/POST /api/admin/ml/datasets, GET /api/admin/ml/datasets/{id}/versions. `BE:` = AppBack main `apps/api/`.
  *
  * ## Global state
- * - FL-B08M-07 is the ONLY real activation (family `wallSegmentation`): `withWallRestore` records every family's active version and
+ * - FL-B08M-07 is the ONLY real activation (family `wallSegmentation`): `withWallRestore` records the wall family's active version and
  *   puts it back in `finally`; the flow's own hard step G-064 restores first. Revision grows by 2 (not restorable).
  *   Never run in parallel with UI SCR-36 on the wall family.
  * - FL-B08M-08 stores nothing (every upload is refused); compared against the model-versions id list.

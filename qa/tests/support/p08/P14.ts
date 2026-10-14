@@ -108,11 +108,11 @@ export const activeBody = (baseVersion: number, versionId: string | null): Json 
 export const activePath = (family: string): string => `${ML}/model-families/${family}/active`;
 
 /**
- * The single real activation of this file (wall family, FL-B08M-07): records every family's active version first and
+ * The single real activation of this file (wall family, FL-B08M-07): records the wall family's active version first and
  * puts it back in `finally` (a no-op when the flow's own restore step already did). Revision keeps growing: not restorable.
  */
 export async function withWallRestore<T>(api: APIRequestContext, fn: (wall: FamilyRow) => Promise<T>): Promise<T> {
-  const snapshot = await recordActiveVersions(api);
+  const snapshot = await recordActiveVersions(api, [WALL]);
   try {
     return await fn(familyRow(await readFamilies(api), WALL));
   } finally {
