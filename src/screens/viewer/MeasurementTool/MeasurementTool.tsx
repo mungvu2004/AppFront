@@ -50,7 +50,7 @@
  * {@link KeyAction}. Hai đường chung một hàm, nên chúng không thể lệch nhau về
  * sau. `Delete` đã có đường chuột sẵn ở mục "Phép đo" của panel phải.
  *
- * Nút ghim chỉ hiện khi có gì để ghim (`draft` khác `null`), và vô hiệu khi
+ * Nút ghim chỉ hiện khi có gì để ghim (`draftComplete`: đủ điểm), và vô hiệu khi
  * `canPin` là `false` — lúc ấy `pinBlockedCaption` ngay bên dưới nói ra vì sao,
  * vì một nút mờ đi mà không giải thích là một nút bắt người dùng đoán.
  */
@@ -81,6 +81,9 @@ const MODE_OPTIONS: SegmentedControlOption<MeasureMode>[] = MEASURE_MODES.map((m
 
 /** Lời mời của trạng thái rỗng — nguyên văn bảng bảy trạng thái của hợp đồng. */
 const EMPTY_INVITATION = 'Chưa có phép đo nào. Nhấn M rồi chọn hai điểm trên mô hình.';
+
+/** Thay lời mời đo khi dự án chưa có tầng nào — không có mô hình để chấm điểm. */
+const NO_MODEL_MESSAGE = 'Chưa có mô hình để đo: dự án chưa có tầng nào được dựng.';
 
 /** Câu nhắc của trạng thái một phần: chuỗi đo còn dở (chỉ diện tích mặt sàn nhận thêm điểm). */
 const PARTIAL_HINT = 'Chuỗi đo chưa đóng. Chọn thêm điểm để đóng chuỗi, hoặc nhấn Esc để bỏ.';
@@ -195,7 +198,7 @@ export function MeasurementTool(props: MeasurementToolProps) {
               FLOATING_SURFACE,
             )}
           >
-            {props.draft !== null && (
+            {props.draft !== null && props.draftComplete && (
               <KeyAction
                 disabled={!props.canPin}
                 hint="Enter"
@@ -234,7 +237,7 @@ export function MeasurementTool(props: MeasurementToolProps) {
               'rounded-2xl',
             )}
           >
-            {EMPTY_INVITATION}
+            {props.noModel ? NO_MODEL_MESSAGE : EMPTY_INVITATION}
           </p>
         )}
 

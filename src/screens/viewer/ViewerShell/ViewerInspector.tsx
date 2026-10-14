@@ -54,7 +54,9 @@ export function ViewerInspector({
     <aside
       aria-label="Thanh tra đối tượng"
       className={cn(
-        'flex w-full shrink-0 flex-col overflow-hidden rounded-[12px] lg:w-[344px]',
+        /* `min-h-0 flex-1`: từ `lg` panel cao đúng bằng dòng ba cột, để vùng cuộn
+           bên trong có chiều cao thật — thiếu nó 100 phép đo bị cắt ở hàng 10 (25-B-023). */
+        'flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[12px] lg:w-[344px]',
         'bg-bg-surface shadow-panel',
       )}
     >
@@ -64,7 +66,14 @@ export function ViewerInspector({
         Thuộc tính
       </h2>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+      {/* Có mục của khe thì phần thuộc tính chỉ cao bằng nội dung và mục của khe nhận
+          phần còn lại, tự cuộn; không có thì phần thuộc tính lấp đầy như cũ. */}
+      <div
+        className={cn(
+          'min-h-0 overflow-y-auto px-5 pb-5',
+          inspectorSections === undefined ? 'flex-1' : 'shrink-0',
+        )}
+      >
         {errorMessage !== null && (
           <InlineAlert
             action={{ label: 'Thử lại', onClick: onRetry }}
@@ -118,7 +127,9 @@ export function ViewerInspector({
         )}
       </div>
 
-      {inspectorSections}
+      {inspectorSections !== undefined && (
+        <div className="min-h-0 flex-1 overflow-y-auto">{inspectorSections}</div>
+      )}
     </aside>
   );
 }

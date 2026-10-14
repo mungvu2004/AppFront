@@ -27,6 +27,7 @@ import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import {
   createViewerShellFixtureGateway,
   ViewerShell,
+  VIEWER_EMPTY_SPATIAL,
   VIEWER_FIXTURE_SPATIAL,
 } from '@/screens/viewer/ViewerShell';
 
@@ -573,7 +574,7 @@ function viewportSkeleton(): Element | null {
 }
 
 describe('useMeasurementTool — giữa hai lần chấm, khung nhìn không có lớp chặn chuột (NO-382)', () => {
-  it('chấm một điểm: khung nhìn không skeleton, nút ghim còn bấm được', async () => {
+  it('chấm một điểm: khung nhìn không skeleton, nút ghim chưa hiện (25-C-050)', async () => {
     renderHook({ mountScene: sceneSpy().mount, pick: pickAtPointer });
 
     await waitFor(() => {
@@ -588,7 +589,9 @@ describe('useMeasurementTool — giữa hai lần chấm, khung nhìn không có
     fireEvent(viewport, down);
     fireEvent.pointerUp(viewport);
 
-    expect(screen.getByRole('button', { name: /ghim/iu })).toBeEnabled();
+    // Một điểm chưa ghim được: nút ghim chưa hiện (25-C-050), nút Esc vẫn bấm được.
+    expect(screen.queryByRole('button', { name: /ghim/iu })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Bỏ phần đo dở (phím Esc)' })).toBeEnabled();
     expect(viewportSkeleton()).toBeNull();
     expect(screen.getByLabelText('Khung nhìn mô hình')).toHaveAttribute('aria-busy', 'false');
   });
@@ -838,5 +841,36 @@ describe('useMeasurementTool — breadcrumb là lối ra của màn (25-A-003)',
     fireEvent.click(project as HTMLElement);
     fireEvent.click(viewer as HTMLElement);
     expect(onNavigate.mock.calls).toEqual([['/'], ['/projects/P-1/3d']]);
+  });
+});
+
+describe('useMeasurementTool — bàn phím làm nổi hàng và xoá bằng Delete (25-E-015)', () => {
+  it('Tab tới "Ẩn Phép đo 1" rồi Delete gửi đúng một DELETE', async () => {
+    const registry = createShortcutRegistry({ isDev: false });
+    stubServer([]);
+
+    renderRealGateway({ registry });
+
+    const eye = await screen.findByRole('button', { name: /Ẩn Phép đo 1/iu });
+
+    act(() => {
+      eye.focus();
+    });
+    fireEvent.keyDown(eye, { key: 'Delete' });
+
+    await waitFor(() => {
+      const methods = vi.mocked(fetch).mock.calls.map(([, init]) => init?.method ?? 'GET');
+
+      expect(methods.filter((method) => method === 'DELETE')).toHaveLength(1);
+    });
+  });
+});
+
+describe('useMeasurementTool — dự án 0 tầng không mời đo (25-B-017)', () => {
+  it('nói chưa có mô hình, không còn câu "Nhấn M rồi chọn hai điểm"', async () => {
+    renderHook({ mountScene: sceneSpy().mount, spatial: VIEWER_EMPTY_SPATIAL });
+
+    expect(await screen.findByText(/Chưa có mô hình để đo/u)).toBeInTheDocument();
+    expect(screen.queryByText(/Nhấn M rồi chọn hai điểm/u)).toBeNull();
   });
 });

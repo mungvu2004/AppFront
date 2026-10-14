@@ -3,6 +3,7 @@ import {
   acceptsKeyboardPan,
   clearKeyboardPanKeys,
   hasKeyboardPanInput,
+  isActivatableKeyboardTarget,
   isKeyboardPanKey,
   type KeyboardPanState,
   keyboardPanDirection,
@@ -59,4 +60,15 @@ test('speed scales with the visible width within fixed bounds', () => {
   expect(keyboardPanSpeed(0)).toBe(2)
   expect(keyboardPanSpeed(20)).toBeCloseTo(13)
   expect(keyboardPanSpeed(1000)).toBe(55)
+})
+
+// AppFront (QA-05c E1-B17): Space on a focused button is the button's click.
+test('a focused button or chip keeps its Space; the canvas and plain elements do not', () => {
+  const element = (closestHit: boolean) =>
+    Object.assign(Object.create((globalThis as unknown as { HTMLElement: { prototype: object } }).HTMLElement.prototype), {
+      closest: () => (closestHit ? {} : null),
+    }) as EventTarget
+  expect(isActivatableKeyboardTarget(element(true))).toBe(true)
+  expect(isActivatableKeyboardTarget(element(false))).toBe(false)
+  expect(isActivatableKeyboardTarget(null)).toBe(false)
 })

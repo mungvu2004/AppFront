@@ -244,6 +244,10 @@ export interface MeasurementToolProps {
 
   /* Phần đang đo. `null` khi chưa đặt điểm nào. */
   readonly draft: DraftMeasurement | null;
+  /* Bản nháp đủ điểm để ghim. Nút ghim chỉ hiện khi đúng (25-C-050). */
+  readonly draftComplete: boolean;
+  /* Dự án chưa có tầng nào: không có gì để đo, nên không mời đo (25-B-017). */
+  readonly noModel: boolean;
 
   /* Danh sách đã ghim, ở panel phải. */
   readonly measurements: readonly PinnedMeasurement[];

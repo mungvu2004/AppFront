@@ -259,6 +259,23 @@ describe('typing guard', () => {
     expect(handlers.closeTopLayer).toHaveBeenCalledTimes(1);
   });
 
+  it('Escape from a text field skips the canvas scope but still reaches global (23-E-008)', () => {
+    const registry = devRegistry();
+    const handlers = globalHandlers();
+    const collapse = vi.fn();
+
+    registerGlobalShortcuts(registry, handlers);
+    registry.register({ id: 'canvas.collapse', combo: 'Escape', scope: 'canvas', onTrigger: collapse });
+
+    expect(registry.handleKeyDown(keyEvent('Escape'), { tagName: 'INPUT' })).toBe(true);
+    expect(collapse).not.toHaveBeenCalled();
+    expect(handlers.closeTopLayer).toHaveBeenCalledTimes(1);
+
+    // Outside a text field the canvas still answers first.
+    registry.handleKeyDown(keyEvent('Escape'), null);
+    expect(collapse).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps every other key blocked while typing, Escape included in the check', () => {
     const registry = devRegistry();
     const handlers = globalHandlers();
@@ -448,6 +465,23 @@ describe('preventDefault', () => {
     expect(registry.handleKeyDown(keyEvent('Enter'), { tagName: 'MAIN' })).toBe(true);
     expect(registry.handleKeyDown(keyEvent('Enter'), null)).toBe(true);
     expect(pin).toHaveBeenCalledTimes(2);
+  });
+
+  it('offers nothing an earlier listener already handled (E1-B12, E1-B13)', () => {
+    const registry = devRegistry();
+    const handlers = globalHandlers();
+    const collapse = vi.fn();
+
+    registerGlobalShortcuts(registry, handlers);
+    registry.register({ id: 'canvas.collapse', combo: 'Escape', scope: 'canvas', onTrigger: collapse });
+
+    const handled = { defaultPrevented: true };
+
+    expect(registry.handleKeyDown({ ...keyEvent('Escape'), ...handled }, null)).toBe(false);
+    expect(registry.handleKeyDown({ ...keyEvent('z', { ctrlKey: true }), ...handled }, null)).toBe(false);
+    expect(collapse).not.toHaveBeenCalled();
+    expect(handlers.undo).not.toHaveBeenCalled();
+    expect(handlers.closeTopLayer).not.toHaveBeenCalled();
   });
 
   it('lets a binding opt out of preventing the default', () => {
