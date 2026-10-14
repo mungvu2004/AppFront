@@ -39,9 +39,10 @@ import {
   regionStats,
   seedLayer,
   seedQc,
+  settledShot,
   sheet,
   spatialRe,
-  tapCanvas,
+  tapModel,
   toggleMeasure,
   tool,
   uniq,
@@ -86,7 +87,7 @@ test.describe('U05 SCR-27 mobile viewer — UI verification (QA-05c P6)', () => 
         // The page is at 375×812 now. The canvas fills the region; header (48) and bar (56) are over it, so read the middle band.
         const size = page.viewportSize() ?? { width: 375, height: 812 };
         const band = { top: Math.round(size.height * 0.2), height: Math.round(size.height * 0.45) };
-        const png = await page.screenshot({ clip: { x: 0, y: band.top, width: size.width, height: band.height }, animations: 'disabled' });
+        const png = await settledShot(page); // waits until the camera has stopped flying (B5): same 20 %-65 % band
         const left = await regionStats(png, { left: 0, top: 0, width: 8, height: band.height });
         const right = await regionStats(png, { left: size.width - 8, top: 0, width: 8, height: band.height });
         const centre = await regionStats(png, { left: Math.round(size.width * 0.3), top: Math.round(band.height * 0.25), width: Math.round(size.width * 0.4), height: Math.round(band.height * 0.5) });
@@ -137,10 +138,12 @@ test.describe('U05 SCR-27 mobile viewer — UI verification (QA-05c P6)', () => 
         await verifyUi(page, 'U05_27-F-004_measure_rows', async (p) => {
           await open(p);
           await toggleMeasure(p, true);
-          await tapCanvas(p, 0.35, 0.5);
-          await tapCanvas(p, 0.65, 0.5);
-          await tapCanvas(p, 0.4, 0.6);
-          await tapCanvas(p, 0.6, 0.4);
+          // Points come from the model's pixels (settled frame), a pair at a time; each pair must add its row.
+          await tapModel(p, 0.25, 0.5);
+          await tapModel(p, 0.75, 0.5);
+          await expect(measureRows(p)).toHaveCount(1);
+          await tapModel(p, 0.3, 0.65);
+          await tapModel(p, 0.7, 0.35);
           await expect(measureRows(p)).toHaveCount(2);
         });
       });
@@ -219,7 +222,7 @@ test.describe('U05 SCR-27 mobile viewer — UI verification (QA-05c P6)', () => 
           'U05_27-F-007_wall_sheet_invite',
           async (p) => {
             await openMobile(p, wall.id, false);
-            await tapCanvas(p, 0.5, 0.5);
+            await tapModel(p, 0.5, 0.5);
             await expect(sheet(p).getByRole('heading', { name: /^Tường W-/u })).toBeVisible();
             await expect(sheet(p).getByText('Sửa trên máy tính để chính xác hơn', { exact: true })).toBeVisible(); // MVI:253-282
           },
