@@ -94,11 +94,19 @@ export const versionRow = (page: Page, label: string): Locator =>
   page.getByRole('row').filter({ has: page.getByRole('button', { name: label, exact: true }) }).first(); // MRV:29-40
 export const detailAside = (page: Page): Locator => page.getByRole('complementary', { name: REG.detailPanel, exact: true });
 
-/** Click `family` on the picker and return its first versions page. */
+/**
+ * Click `family` and return its first versions page (oracle = own GET). Waits on UI state, never on a GET: react-query keeps a
+ * family loaded within 30 s (staleTime), so re-selecting fires no request (fix-s4).
+ */
 export async function selectFamily(page: Page, family: Family): Promise<Json[]> {
-  const read = readOf(page, VERSIONS, byFamily(family));
   await radio(page, family).click();
-  return itemsOf((await read).json, `GET model-versions (${family})`);
+  await expect(radio(page, family)).toHaveAttribute('aria-checked', 'true');
+  const res = await page.request.get(VERSIONS, { params: { family } });
+  expect(res.status(), `GET model-versions (${family})`).toBe(200);
+  const items = itemsOf(await res.json(), `GET model-versions (${family})`);
+  if (items.length > 0) await expect(page.locator('tbody tr')).toHaveCount(items.length);
+  else await expect(page.getByText('Chưa có phiên bản', { exact: true })).toBeVisible(); // UMR:125
+  return items;
 }
 
 export interface RegistryOpen {
@@ -107,17 +115,27 @@ export interface RegistryOpen {
   readonly families: Json[];
   readonly walls: Json[];
   readonly reads: { readonly families: ApiResult; readonly versions: ApiResult };
+  /** UI requests GET model-versions/<id> since before sign-in. */
+  readonly detailReads: () => string[];
 }
 
 /** Fresh context, admin UI sign-in (1 login) landing on the registry; arrival reads captured. Caller closes `context`. */
 export async function openRegistry(browser: Browser): Promise<RegistryOpen> {
   const context = await browser.newContext({ baseURL: readBaseUrl(), viewport: { width: 1440, height: 900 } });
   const page = await context.newPage();
+  const rec = recordRequests(page, (u) => u.pathname.startsWith(`${VERSIONS}/`));
   const families = readOf(page, FAMILIES);
   const walls = readOf(page, VERSIONS, byFamily('wallSegmentation'));
   await signInAdmin(page, REGISTRY_PATH);
-  const [f, v] = [await families, await walls];
-  return { context, page, families: itemsOf(f.json, 'GET model-families'), walls: itemsOf(v.json, 'GET model-versions'), reads: { families: f, versions: v } };
+  const [f, v] = await Promise.all([families, walls]);
+  return {
+    context,
+    page,
+    families: itemsOf(f.json, 'GET model-families'),
+    walls: itemsOf(v.json, 'GET model-versions'),
+    reads: { families: f, versions: v },
+    detailReads: rec.list,
+  };
 }
 
 /** CP-8 candidate: first completed onnx version of the opening family that is not active. `null` when missing. */
@@ -128,7 +146,12 @@ export async function pickCandidate(api: APIRequestContext): Promise<{ id: strin
   const ver = await api.get(VERSIONS, { params: { family: 'openingAndFurnitureDetection' } });
   expect(ver.status(), 'GET model-versions').toBe(200);
   const activeVersionId = typeof record?.activeVersionId === 'string' ? record.activeVersionId : null;
-  const hit = itemsOf(await ver.json(), 'versions').find((v) => v.evaluationStatus === 'completed' && v.weightsFormat === 'onnx' && v.id !== activeVersionId);
+  const all = itemsOf(await ver.json(), 'versions');
+  // not the first candidate: main FL-M-36R-01 activates the first one for real (fix-s4); unique label so the row is unambiguous
+  const hits = all.filter(
+    (v) => v.evaluationStatus === 'completed' && v.weightsFormat === 'onnx' && v.id !== activeVersionId && all.filter((o) => o.label === v.label).length === 1,
+  );
+  const hit = hits[hits.length - 1];
   return hit === undefined ? null : { id: str(hit, 'id'), label: str(hit, 'label'), activeVersionId, revision: Number(record?.revision ?? 0) };
 }
 
