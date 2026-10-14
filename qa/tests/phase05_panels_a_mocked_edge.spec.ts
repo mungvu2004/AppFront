@@ -37,13 +37,16 @@ import {
 
 /** Matches #35 by path only (no query on that route). */
 const LAYER_URL = (url: URL): boolean => url.pathname.endsWith('/spatial/layer');
-/** A failed save can go through the saver's retry before the indicator turns 'failed' (useAutosave). */
-const FAILED_TOAST_TIMEOUT_MS = 30_000;
+/**
+ * A transient failure (network loss, 5xx) is retried at 5 / 15 / 45 s (retrySchedule.ts:1, createAutosave.ts:193-204) before
+ * the indicator turns 'failed' and the toast shows: ~65 s + debounce (run-051b E1-T10).
+ */
+const FAILED_TOAST_TIMEOUT_MS = 100_000;
 
 test.describe('E05 SCR-23 Diện tích phòng — mocked-response flow (QA-05c P3)', () => {
   test('SCR-23 · FL-23R-M1 · [mocked response] đổi tên khi PUT đứt mạng / 500 — cặp thật FL-23R-06 bước 4 (23R-G-001)', async ({ browser }) => {
     // Paired with the real PUT 200 of `[23R-G-001]` in phase05_panels_a_edge.spec.ts (same rename → autosave → #35 path).
-    test.setTimeout(120_000);
+    test.setTimeout(420_000);
     let s: AdminSession | undefined;
     try {
       s = await openAdminSession(browser);
