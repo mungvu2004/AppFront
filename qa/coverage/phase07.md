@@ -112,20 +112,20 @@ Deferred: `33S-A-026` (change-email click in the password flow) duplicates `33P-
 | 33P-E-010 | `phase07_avatar_edge.spec.ts` | FL-33P-08 | ui |
 | 33P-E-011 | `phase07_profile_b_edge.spec.ts` | FL-33P-06 | ui |
 | 33P-E-012 | `phase07_profile_mocked_edge.spec.ts` | FL-33P-10 | ui |
-| 33P-F-001 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33P-U1 | ui |
-| 33P-F-002 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33P-U1 | ui |
-| 33P-F-003 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33P-U3 | ui |
-| 33P-F-004 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33P-U2 | ui |
-| 33P-F-005 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33P-U2 | ui |
-| 33P-F-006 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33P-U2 | ui |
-| 33P-F-007 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33P-U2 | ui |
-| 33P-F-008 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33P-U2 | ui |
-| 33P-F-009 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33P-U1 | ui |
-| 33P-F-010 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33P-U1 | ui |
-| 33P-F-011 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33P-U3 | ui |
-| 33P-F-012 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33P-U3 | ui |
-| 33P-F-013 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33P-U1 | ui |
-| 33P-F-014 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33P-U1 | ui |
+| 33P-F-001 | `phase07_*_ui.spec.ts` | FL-33P-U1 | ui |
+| 33P-F-002 | `phase07_*_ui.spec.ts` | FL-33P-U1 | ui |
+| 33P-F-003 | `phase07_*_ui.spec.ts` | FL-33P-U3 | ui |
+| 33P-F-004 | `phase07_*_ui.spec.ts` | FL-33P-U2 | ui |
+| 33P-F-005 | `phase07_*_ui.spec.ts` | FL-33P-U2 | ui |
+| 33P-F-006 | `phase07_*_ui.spec.ts` | FL-33P-U2 | ui |
+| 33P-F-007 | `phase07_*_ui.spec.ts` | FL-33P-U2 | ui |
+| 33P-F-008 | `phase07_*_ui.spec.ts` | FL-33P-U2 | ui |
+| 33P-F-009 | `phase07_*_ui.spec.ts` | FL-33P-U1 | ui |
+| 33P-F-010 | `phase07_*_ui.spec.ts` | FL-33P-U1 | ui |
+| 33P-F-011 | `phase07_*_ui.spec.ts` | FL-33P-U3 | ui |
+| 33P-F-012 | `phase07_*_ui.spec.ts` | FL-33P-U3 | ui |
+| 33P-F-013 | `phase07_*_ui.spec.ts` | FL-33P-U1 | ui |
+| 33P-F-014 | `phase07_*_ui.spec.ts` | FL-33P-U1 | ui |
 | 33P-G-001 | `phase07_profile_edge.spec.ts` | FL-33P-01 | ui |
 | 33P-G-002 | `phase07_profile_edge.spec.ts` | FL-33P-01 | ui |
 | 33P-G-003 | `phase07_account.spec.ts` | FL-M-33P-01 | ui |
@@ -201,7 +201,7 @@ Deferred: `33S-A-026` (change-email click in the password flow) duplicates `33P-
 | 33R-C-010 | `phase07_prefs_edge.spec.ts` | FL-33R-03 | ui |
 | 33R-D-001 | `phase07_prefs_b_edge.spec.ts` | FL-33R-07 | ui |
 | 33R-D-002 | `phase07_prefs_b_edge.spec.ts` | FL-33R-06 | ui |
-| 33R-D-003 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33R-09 | ui |
+| 33R-D-003 | `phase07_*_ui.spec.ts` | FL-33R-09 | ui |
 | 33R-E-001 | `phase07_prefs_edge.spec.ts` | FL-33R-02 | ui |
 | 33R-E-002 | `phase07_prefs_edge.spec.ts` | FL-33R-02 | ui |
 | 33R-E-003 | `phase07_prefs_edge.spec.ts` | FL-33R-02 | ui |
@@ -214,15 +214,15 @@ Deferred: `33S-A-026` (change-email click in the password flow) duplicates `33P-
 | 33R-E-010 | `phase07_prefs_edge.spec.ts` | FL-33R-02 | ui |
 | 33R-E-011 | `phase07_prefs_b_edge.spec.ts` | FL-33R-08 | ui |
 | 33R-E-012 | `phase07_prefs_edge.spec.ts` | FL-33R-02 | ui |
-| 33R-F-001 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33R-09 | ui |
-| 33R-F-002 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33R-09 | ui |
-| 33R-F-003 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33R-09 | ui |
-| 33R-F-004 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33R-09 | ui |
-| 33R-F-005 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33R-10 | ui |
-| 33R-F-006 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33R-10 | ui |
-| 33R-F-007 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33R-10 | ui |
-| 33R-F-008 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33R-10 | ui |
-| 33R-F-009 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33R-10 | ui |
+| 33R-F-001 | `phase07_*_ui.spec.ts` | FL-33R-09 | ui |
+| 33R-F-002 | `phase07_*_ui.spec.ts` | FL-33R-09 | ui |
+| 33R-F-003 | `phase07_*_ui.spec.ts` | FL-33R-09 | ui |
+| 33R-F-004 | `phase07_*_ui.spec.ts` | FL-33R-09 | ui |
+| 33R-F-005 | `phase07_*_ui.spec.ts` | FL-33R-10 | ui |
+| 33R-F-006 | `phase07_*_ui.spec.ts` | FL-33R-10 | ui |
+| 33R-F-007 | `phase07_*_ui.spec.ts` | FL-33R-10 | ui |
+| 33R-F-008 | `phase07_*_ui.spec.ts` | FL-33R-10 | ui |
+| 33R-F-009 | `phase07_*_ui.spec.ts` | FL-33R-10 | ui |
 | 33R-G-001 | `phase07_prefs_edge.spec.ts` | FL-33R-03 | ui |
 | 33R-G-002 | `phase07_prefs_b_edge.spec.ts` | FL-33R-06 | ui |
 | 33R-G-003 | `phase07_prefs_b_edge.spec.ts` | FL-33R-06 | ui |
@@ -292,15 +292,15 @@ Deferred: `33S-A-026` (change-email click in the password flow) duplicates `33P-
 | 33S-E-007 | `phase07_security_edge.spec.ts` | FL-33S-03 | ui |
 | 33S-E-008 | `phase07_security_edge.spec.ts` | FL-33S-02 | ui |
 | 33S-E-009 | `phase07_security_edge.spec.ts` | FL-33S-02 | ui |
-| 33S-F-001 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33S-09 | ui |
-| 33S-F-002 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33S-09 | ui |
-| 33S-F-003 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33S-09 | ui |
-| 33S-F-004 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33S-10 | ui |
-| 33S-F-005 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33S-10 | ui |
-| 33S-F-006 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33S-10 | ui |
-| 33S-F-007 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33S-10 | ui |
-| 33S-F-008 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33S-10 | ui |
-| 33S-F-009 | `phase07_*_ui.spec.ts` (P4, pending merge) | FL-33S-09 | ui |
+| 33S-F-001 | `phase07_*_ui.spec.ts` | FL-33S-09 | ui |
+| 33S-F-002 | `phase07_*_ui.spec.ts` | FL-33S-09 | ui |
+| 33S-F-003 | `phase07_*_ui.spec.ts` | FL-33S-09 | ui |
+| 33S-F-004 | `phase07_*_ui.spec.ts` | FL-33S-10 | ui |
+| 33S-F-005 | `phase07_*_ui.spec.ts` | FL-33S-10 | ui |
+| 33S-F-006 | `phase07_*_ui.spec.ts` | FL-33S-10 | ui |
+| 33S-F-007 | `phase07_*_ui.spec.ts` | FL-33S-10 | ui |
+| 33S-F-008 | `phase07_*_ui.spec.ts` | FL-33S-10 | ui |
+| 33S-F-009 | `phase07_*_ui.spec.ts` | FL-33S-09 | ui |
 | 33S-G-001 | `phase07_security_edge.spec.ts` | FL-33S-03 | ui |
 | 33S-G-002 | `phase07_security_edge.spec.ts` | FL-33S-03 | ui |
 | 33S-G-003 | `phase07_security_edge.spec.ts` | FL-33S-03 | ui |

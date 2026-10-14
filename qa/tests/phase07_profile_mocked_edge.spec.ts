@@ -12,7 +12,7 @@
  *   FL-33P-11 steps 4-6 end on the REAL `PATCH /api/me` 200 (`route.continue`); paired with the real 422 of FL-33P-05 and FL-33P-03.
  *   FL-33P-12 is paired with the real `PUT /api/me/avatar` of FL-33P-08 / FL-33P-09 (same screen, same dialog).
  *
- * User: the shared read-mostly engineer `p07-profile-2` (flow 11 edits "Chức danh" and restores the profile in `finally`).
+ * User: its own engineer `p07-profile-2m` (not shared with phase07_profile_edge, which runs in parallel) (flow 11 edits "Chức danh" and restores the profile in `finally`).
  * Request budget (BE limits): `POST /api/auth/login` 120 / 60 s per IP: 1 admin API + 3 flow sessions = 4; `PATCH /api/me`
  * has no rate limit (real PATCHes: 3, the rest are answered by the mock); `PUT /api/me/avatar` 0 real (all mocked);
  * `POST /api/auth/refresh` ~1 per page load.
@@ -68,7 +68,7 @@ const retryButton = (page: Page) => page.getByRole('button', { name: RETRY, exac
 
 test('SCR-33 · FL-33P-10 · [mocked response] N11 failures → banner, "Thử lại" (pairs with FL-33P-02 loaded state and the success step 5 below)', async ({ browser }) => {
   test.setTimeout(180_000);
-  const s = await openP3Session(browser, 'p07-profile-2');
+  const s = await openP3Session(browser, 'p07-profile-2m');
   const { page } = s;
   let mode: 'fail500' | 'abort' | 'unknownKey' = 'fail500';
   let gets = 0;
@@ -158,7 +158,7 @@ test('SCR-33 · FL-33P-10 · [mocked response] N11 failures → banner, "Thử l
 
 test('SCR-33 · FL-33P-11 · [mocked response] N12 answers → chip, retry schedule (pairs with the real 422 in FL-33P-05 and the real PATCH of FL-33P-03)', async ({ browser }) => {
   test.setTimeout(240_000);
-  const s = await openP3Session(browser, 'p07-profile-2');
+  const s = await openP3Session(browser, 'p07-profile-2m');
   const { page } = s;
   const snapshot = await snapshotProfile(s.context);
   let stopRoute: () => Promise<void> = () => Promise.resolve();
@@ -269,7 +269,7 @@ test('SCR-33 · FL-33P-11 · [mocked response] N12 answers → chip, retry sched
 
 test('SCR-33 · FL-33P-12 · [mocked response] N14 answers and a FileReader fault (pairs with the real PUT of FL-33P-08)', async ({ browser }) => {
   test.setTimeout(120_000);
-  const s = await openP3Session(browser, 'p07-profile-2');
+  const s = await openP3Session(browser, 'p07-profile-2m');
   const { page } = s;
   let stopRoute: () => Promise<void> = () => Promise.resolve();
   try {

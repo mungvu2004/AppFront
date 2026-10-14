@@ -88,7 +88,7 @@ async function frame(page: Page): Promise<{ readonly vw: number; readonly vh: nu
 test('SCR-33 · FL-33P-U1 · page states: default, loading, e-mail reason, language list, save success, offline', async ({ browser }) => {
   test.setTimeout(Math.max(120_000, 2 * 100_000));
   const admin = await adminApi();
-  const viewer = await poolUser(admin, 'viewer', 'p07-profile-1'); // PV
+  const viewer = await poolUser(admin, 'viewer', 'p07-profile-ui-v'); // PV (own slot: FL-33P-01 edits p07-profile-1 in parallel)
   const editor = await poolUser(admin, 'engineer', 'p07-profile-ui'); // U-ui
   await admin.dispose();
   const ro = await openUserSession(browser, viewer);
@@ -240,7 +240,7 @@ test('SCR-33 · FL-33P-U1 · page states: default, loading, e-mail reason, langu
 test('SCR-33 · FL-33P-U2 · avatar states', async ({ browser }) => {
   test.setTimeout(Math.max(120_000, 2 * 90_000));
   const admin = await adminApi();
-  const user = await poolUser(admin, 'engineer', `p07-profile-uiav-${RUN}`); // FA: no avatar yet
+  const user = await poolUser(admin, 'engineer', `p07-profile-uiav-${RUN}-r${test.info().retry}`); // FA: no avatar yet; retry needs a fresh user (avatar and bucket stay)
   await admin.dispose();
   const { context, page } = await openUserSession(browser, user);
   const api = await signedInApi(user.email, user.password);
