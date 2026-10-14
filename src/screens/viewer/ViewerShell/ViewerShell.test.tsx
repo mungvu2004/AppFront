@@ -467,6 +467,9 @@ describe('[VS-8] panel phải trượt vào', () => {
     expect(wrapper).toHaveAttribute('aria-hidden', 'true');
     expect(wrapper.style.width).toBe('0px');
     expect(wrapper.className).toContain('opacity-0');
+    // `aria-hidden` không gỡ tiêu điểm: nút bên trong (ví dụ "Mở mục Phép đo, …")
+    // vẫn Tab tới được ở ngoài khung nhìn. `visibility: hidden` gỡ cả hai (25-F-006).
+    expect(wrapper.className.split(' ')).toContain('invisible');
 
     console.log(
       `[VIEWER-SHELL][VS-8] thu gọn → width=${wrapper.style.width}, aria-hidden=${wrapper.getAttribute('aria-hidden') ?? ''}`,
@@ -485,6 +488,7 @@ describe('[VS-8] panel phải trượt vào', () => {
     expect(wrapper.style.width).toBe(`${String(VIEWER_LAYOUT.inspectorPx)}px`);
     expect(wrapper.className).toContain('duration-standard');
     expect(wrapper.className).not.toContain('transition-none');
+    expect(wrapper.className.split(' ')).not.toContain('invisible');
 
     console.log(
       `[VIEWER-SHELL][VS-8] mở → width=${wrapper.style.width}, class="${wrapper.className}"`,

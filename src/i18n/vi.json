@@ -2948,6 +2948,7 @@
     "modeSegmentedLabel": "Chọn chế độ đo",
     "empty": "Chưa có phép đo nào. Nhấn M rồi chọn hai điểm trên mô hình.",
     "partialHint": "Chuỗi đo chưa đóng. Chọn thêm điểm để đóng chuỗi, hoặc nhấn Esc để bỏ.",
+    "pinHint": "Đã đủ hai điểm. Nhấn Enter để ghim phép đo, hoặc nhấn Esc để bỏ.",
     "row": {
       "hide": "Ẩn {{name}}",
       "show": "Hiện {{name}}",

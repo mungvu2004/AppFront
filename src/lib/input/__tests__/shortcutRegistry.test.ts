@@ -430,6 +430,26 @@ describe('preventDefault', () => {
     }
   });
 
+  it('leaves a lone Enter / Space to a focused button or link over a canvas binding (25-E-011)', () => {
+    const registry = devRegistry();
+    const pin = vi.fn();
+
+    registry.register({ id: 'canvas.pin', combo: 'Enter', scope: 'canvas', onTrigger: pin });
+
+    for (const tagName of ['BUTTON', 'a', 'SUMMARY']) {
+      const event = keyEvent('Enter');
+
+      expect(registry.handleKeyDown(event, { tagName })).toBe(false);
+      expect(event.preventDefault).not.toHaveBeenCalled();
+    }
+    expect(pin).not.toHaveBeenCalled();
+
+    // Nothing focused (or the viewport) still pins.
+    expect(registry.handleKeyDown(keyEvent('Enter'), { tagName: 'MAIN' })).toBe(true);
+    expect(registry.handleKeyDown(keyEvent('Enter'), null)).toBe(true);
+    expect(pin).toHaveBeenCalledTimes(2);
+  });
+
   it('lets a binding opt out of preventing the default', () => {
     const registry = devRegistry();
     const handlers = globalHandlers();

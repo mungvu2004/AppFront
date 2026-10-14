@@ -82,8 +82,11 @@ const MODE_OPTIONS: SegmentedControlOption<MeasureMode>[] = MEASURE_MODES.map((m
 /** Lời mời của trạng thái rỗng — nguyên văn bảng bảy trạng thái của hợp đồng. */
 const EMPTY_INVITATION = 'Chưa có phép đo nào. Nhấn M rồi chọn hai điểm trên mô hình.';
 
-/** Câu nhắc của trạng thái một phần: chuỗi đo còn dở. */
+/** Câu nhắc của trạng thái một phần: chuỗi đo còn dở (chỉ diện tích mặt sàn nhận thêm điểm). */
 const PARTIAL_HINT = 'Chuỗi đo chưa đóng. Chọn thêm điểm để đóng chuỗi, hoặc nhấn Esc để bỏ.';
+
+/** Chế độ hai điểm đã đủ điểm: không còn điểm nào để chọn, chỉ còn ghim hoặc bỏ (25-C-023). */
+const PIN_HINT = 'Đã đủ hai điểm. Nhấn Enter để ghim phép đo, hoặc nhấn Esc để bỏ.';
 
 /** Dải góc trên phải của vỏ: bản đồ nhỏ 160 (`MiniMap.tsx`) + lề `right-2` 8 + khe 8. */
 const CORNER_COLUMN_PX = 160 + 16;
@@ -258,7 +261,7 @@ export function MeasurementTool(props: MeasurementToolProps) {
               FLOATING_SURFACE,
             )}
           >
-            {PARTIAL_HINT}
+            {props.mode === 'floorArea' ? PARTIAL_HINT : PIN_HINT}
           </p>
         )}
 
@@ -268,8 +271,11 @@ export function MeasurementTool(props: MeasurementToolProps) {
           </div>
         )}
 
+        {/* `relative z-10`: ở 375 khung nhìn cao ~490 px, cột dưới bản đồ nhỏ không vừa
+            nên thanh lỗi chạm dải đáy; nút "Thử lại" phải nằm TRÊN cụm thu phóng và chú
+            giải của vỏ chứ không bị chúng đè (BUG-474 hồi quy, 25-F-011). */}
         {state === 'error' && props.errorMessage !== null && (
-          <div className="pointer-events-auto w-full">
+          <div className="pointer-events-auto relative z-10 w-full">
             <InlineAlert
               action={{ label: 'Thử lại', onClick: props.onRetry }}
               level="violation"

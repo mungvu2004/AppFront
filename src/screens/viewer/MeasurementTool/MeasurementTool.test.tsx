@@ -455,7 +455,6 @@ describe('MeasurementTool — bốn hành động PHẢI có đường chuột, 
         onToggleCollapsed={props.onToggleCollapsed}
         onToggleVisibility={props.onToggleVisibility}
         onUnitChange={props.onUnitChange}
-        pinBlockedCaption={props.pinBlockedCaption}
         unit={props.unit}
       />,
     );
