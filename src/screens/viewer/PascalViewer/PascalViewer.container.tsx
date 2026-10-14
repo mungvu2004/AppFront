@@ -395,11 +395,11 @@ export function PascalViewerRoute() {
   return (
     <div className="h-screen">
       <ProjectSpatialGate projectId={projectId}>
-        {/* Không còn `onLeave`: màn này LÀ `/3d` sau F-15, nên "về màn xem 3D"
-            sẽ trỏ về chính nó. Lối đi tiếp của trạng thái rỗng thì vẫn thật. */}
+        {/* Lối ra về quản lý tầng của dự án, để `/3d` không là ngõ cụt (BUG-487). */}
         <PascalViewerContainer
           graph={graph}
           projectId={projectId}
+          onLeave={projectId === undefined ? undefined : () => navigate(ROUTES.project.floors(projectId))}
           onReprocess={
             projectId === undefined ? undefined : () => navigate(ROUTES.project.pipeline(projectId))
           }

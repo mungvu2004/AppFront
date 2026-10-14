@@ -149,8 +149,8 @@ export const saveLabelOf = (status: PascalSaveStatus | null, savedAt: number | n
 /** Tiêu đề màn. Một chuỗi, để không chỗ nào tự chế ra bản khác. */
 export const PASCAL_VIEWER_TITLE = 'Mô hình 3D';
 
-/** Nút lối ra ở đầu màn, về `/3d`. */
-export const PASCAL_LEAVE_LABEL = 'Về màn xem 3D';
+/** Nút lối ra ở đầu màn, về quản lý tầng của dự án (BUG-487). */
+export const PASCAL_LEAVE_LABEL = 'Về quản lý tầng';
 
 /** Hành động của trạng thái rỗng, sang màn xử lý bản vẽ. */
 export const PASCAL_REPROCESS_LABEL = 'Xử lý lại bản vẽ';

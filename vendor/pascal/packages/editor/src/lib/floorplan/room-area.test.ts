@@ -213,6 +213,20 @@ describe('roomAreaTable', () => {
     expect(roomAreaTable(fixture(), { levelIds: [] }).total).toBe(48)
   })
 
+  // AppFront 23R-B-007: a clean level must not report another level's broken room.
+  test('the level filter also filters the unmeasurable-room issues', () => {
+    expect(roomAreaTable(fixture(), { levelIds: ['level_2'] }).issues).toEqual([])
+    expect(roomAreaTable(fixture(), { levelIds: ['level_1'] }).issues).toHaveLength(1)
+  })
+
+  // AppFront 23R-C-004: "Tầng 2" before "Tầng 10" — floor order, not string order.
+  test('level groups follow the floor order, not the label order', () => {
+    const nodes = fixture()
+    nodes.level_1 = { ...(nodes.level_1 as object), name: 'Tầng 2', level: 1 } as unknown as AnyNode
+    nodes.level_2 = { ...(nodes.level_2 as object), name: 'Tầng 10', level: 9 } as unknown as AnyNode
+    expect(roomAreaTable(nodes).groups.map((group) => group.label)).toEqual(['Tầng 2', 'Tầng 10'])
+  })
+
   test('the collapsed mode keeps the N largest rooms of the whole table', () => {
     const table = roomAreaTable(fixture(), { limit: 2 })
     const ids = table.groups.flatMap((group) => group.rows.map((row) => row.id))
