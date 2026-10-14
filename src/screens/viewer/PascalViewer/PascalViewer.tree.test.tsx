@@ -42,7 +42,10 @@ import { PASCAL_LEAVE_LABEL } from './pascalViewerTypes';
 
 /** Lời trạng thái của màn; lớp cộng tác (S5) có `status` riêng, đứng sau trong DOM. */
 const screenStatus = (): HTMLElement => {
-  const [first] = screen.getAllByRole('status');
+  // Bỏ qua chú thích của thanh hiện diện ở khe đầu màn (23R-F-002): nó đứng trước dòng trạng thái.
+  const first = screen
+    .getAllByRole('status')
+    .find((el) => el.closest('[data-testid="pascal-header-slot"]') === null);
   if (first === undefined) throw new Error('Màn không có vùng trạng thái.');
   return first;
 };

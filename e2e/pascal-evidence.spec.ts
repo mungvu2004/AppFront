@@ -107,7 +107,8 @@ test('đăng nhập → /3d dựng Pascal → sửa tường → "Đã lưu" →
 });
 
 const SUCCESS_CAPTION = 'Đã dựng xong toàn bộ bản vẽ.';
-const caption = (page: Page) => page.getByRole('status').first();
+// `p`: chú thích hiện diện (`div role=status`) giờ ở khe đầu màn, đứng trước (23R-F-002).
+const caption = (page: Page) => page.locator('p[role="status"]').first();
 /** `Đang lưu` chứ không `Đang`: lớp cộng tác (S5) cũng là một `status`, đọc "Đang làm việc riêng…". */
 const saveStatus = (page: Page) =>
   page.getByRole('status').filter({ hasText: /^(Đã lưu|Đang lưu|Chưa|Tạm)/u }).first();

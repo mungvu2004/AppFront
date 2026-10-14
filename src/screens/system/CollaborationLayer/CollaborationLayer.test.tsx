@@ -350,3 +350,38 @@ describe('ghim bình luận — rê chuột không làm nền trong suốt (QA-0
     expect(pin).not.toHaveClass('hover:bg-bg-hover');
   });
 });
+
+describe('thanh hiện diện vào khe đầu màn — không đè nút Pascal (23R-F-002, BUG-623)', () => {
+  it('có `presenceContainer` thì chip nằm trong khe, không còn `absolute right-4 top-4`', () => {
+    const slot = document.createElement('div');
+    document.body.appendChild(slot);
+    const { container } = render(
+      <CollaborationLayer {...baseProps({ collaborators: [SELF, MAI] })} presenceContainer={slot} />,
+    );
+
+    const chip = screen.getByRole('button', { name: 'Ai đang xem' });
+    expect(slot).toContainElement(chip);
+    expect(container).not.toContainElement(chip);
+    const bar = chip.parentElement;
+    expect(bar).not.toHaveClass('absolute');
+    expect(bar).not.toHaveClass('right-4');
+    expect(bar).not.toHaveClass('top-4');
+
+    fireEvent.click(chip);
+    expect(slot).toContainElement(screen.getByRole('list', { name: 'Những người đang xem' }));
+    slot.remove();
+  });
+
+  it('khe chưa gắn (`null`) thì chưa vẽ chip; vắng prop thì giữ góc mặc định của màn khác', () => {
+    const { unmount } = render(<CollaborationLayer {...baseProps()} presenceContainer={null} />);
+    expect(screen.queryByRole('button', { name: 'Ai đang xem' })).toBeNull();
+    unmount();
+
+    render(<CollaborationLayer {...baseProps()} />);
+    expect(screen.getByRole('button', { name: 'Ai đang xem' }).parentElement).toHaveClass(
+      'absolute',
+      'right-4',
+      'top-4',
+    );
+  });
+});
