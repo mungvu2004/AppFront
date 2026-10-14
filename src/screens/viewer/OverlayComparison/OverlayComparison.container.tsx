@@ -143,14 +143,17 @@ function OverlayGate({ children, projectId }: { readonly children: ReactNode; re
   // Cổng thay cả màn bằng 404 trần nên vùng "Màn đối chiếu bản vẽ" mất (R-09): khi cổng thay màn, đặt lại vùng quanh nó.
   // Hai lần useProjectSpatial dùng chung khoá truy vấn.
   const { status } = useProjectSpatial({ projectId });
-  const gate = <ProjectSpatialGate projectId={projectId}>{children}</ProjectSpatialGate>;
+  const swapped = status === 'notFound' || status === 'error';
 
-  return status === 'notFound' || status === 'error' ? (
-    <div aria-label="Màn đối chiếu bản vẽ" className="flex h-screen w-full" role="region">
-      {gate}
+  // Một cây cố định: đổi kiểu phần tử theo `status` gỡ-gắn lại cổng, mỗi lần gắn lại truy vấn lỗi
+  // refetch → `pending` → bỏ vùng → vòng lặp, màn kẹt ở "đang tải" (G13h).
+  return (
+    <div
+      {...(swapped ? { 'aria-label': 'Màn đối chiếu bản vẽ', role: 'region' } : {})}
+      className={swapped ? 'flex h-screen w-full' : 'contents'}
+    >
+      <ProjectSpatialGate projectId={projectId}>{children}</ProjectSpatialGate>
     </div>
-  ) : (
-    gate
   );
 }
 

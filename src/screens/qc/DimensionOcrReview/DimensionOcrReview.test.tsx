@@ -870,3 +870,20 @@ describe('[G07/G13] khung bản vẽ SCR-18', () => {
     expect(layer?.style.transform).toBe('scale(1.1)');
   });
 });
+
+describe('[G05/G08] tiêu đề trạng thái xong / không có quyền', () => {
+  it('vai chỉ xem thấy tiêu đề "Không có quyền duyệt kích thước" cùng mô tả', async () => {
+    renderState('forbidden');
+    await screen.findAllByRole('option');
+
+    expect(screen.getByText(DIMENSION_OCR_TEXT.states.forbidden.title)).toBeInTheDocument();
+    expect(screen.getAllByText(DIMENSION_OCR_TEXT.states.forbidden.description).length).toBeGreaterThan(0);
+  });
+
+  it('34/34 đã duyệt thì hiện tiêu đề "Tất cả kích thước đã duyệt"', async () => {
+    renderState('success');
+    await screen.findAllByRole('option');
+
+    expect(screen.getByText(DIMENSION_OCR_TEXT.states.done.title)).toBeInTheDocument();
+  });
+});

@@ -501,7 +501,8 @@ export function useOverlayComparison(
       };
     },
     // Tầng của route không có trong kho thì N16 không biết nó: không đọc ảnh (#30) của tầng khác thay nó (22-G-010).
-    enabled: activeFloorId !== null && !isRouteFloorUnknown,
+    // Kho chưa có đồ thị thì N16 là nguồn tầng: chưa đọc xong / hỏng thì không gọi #30 (22-G-009, BUG-588).
+    enabled: activeFloorId !== null && !isRouteFloorUnknown && (storeSpatial !== null || layerQuery.isSuccess),
   });
 
   const scans = query.data?.scans ?? EMPTY_SCANS;
@@ -621,14 +622,18 @@ export function useOverlayComparison(
   const hasScaleConflict = useMemo(() => {
     const ratios = new Set<number>();
 
+    // Chỉ tầng đã có bản vẽ mới có tỷ lệ để căn: tầng trống không tạo xung đột (R27).
     for (const floor of floors) {
-      if (floor.scaleMillimetresPerPixel !== undefined) {
+      if (
+        floor.scaleMillimetresPerPixel !== undefined &&
+        floorOptions.some((option) => option.levelId === floor.id && option.hasScan)
+      ) {
         ratios.add(floor.scaleMillimetresPerPixel);
       }
     }
 
     return ratios.size > 1;
-  }, [floors]);
+  }, [floorOptions, floors]);
 
   /* ---------------------------------------------------------------------- */
   /* Đo: một lời gọi cổng, không một phép tính nào ở đây (R-61).             */

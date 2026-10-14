@@ -161,7 +161,9 @@ test.describe('U04 UI verify — SCR-22 overlay flows (QA-04c P7)', () => {
 
       await test.step('[22-E-015] lowercase labels against A6: "vùng lệch", "số vùng vượt ngưỡng"', async () => {
         await openDefault(page);
-        await expect.soft(panel(page).getByRole('status')).toHaveText(`— ${OV.overToleranceLabel}`);
+        // BUG-331: unmeasured = one notice, no status stat (OverlayComparisonPanel.tsx:129-131).
+        await expect.soft(panel(page).getByRole('status')).toHaveCount(0);
+        await expect.soft(panel(page).getByText('Chưa có số đo — cần căn ảnh quét vào mô hình trước.', { exact: true })).toBeVisible();
         await expect.soft(page.locator('[data-overlay-layer="deviation"]')).toHaveAttribute('aria-label', OV.layerDeviation);
         const upper = await panel(page).getByText(/^[A-ZÀ-Ỵ]/u).count();
         note(`22-E-015: ${String(upper)} capitalised text node(s) in the panel; the deviation table headers need regions (n/a)`);
@@ -231,7 +233,10 @@ test.describe('U04 UI verify — SCR-22 overlay flows (QA-04c P7)', () => {
         await shown(viewerFlow!.page, '22-F-006', 'viewer-forbidden', async (p) => {
           await openOverlay(p, df.projectId, df.floorId);
           await expect(alertWith(p, OV.forbidden)).toBeVisible();
-          await expect(toolbar(p).getByText(OV.readOnly, { exact: true })).toBeVisible();
+          // BUG-636: one banner only, the toolbar repeats no second sentence (OverlayComparisonToolbar.tsx:226-228);
+          // BUG-599: no lock switch without an effective alignment (OverlayComparisonToolbar.tsx:~207).
+          await expect(toolbar(p).getByText(OV.readOnly, { exact: true })).toHaveCount(0);
+          await expect(toolbar(p).getByRole('switch', { name: OV.lock, exact: true })).toHaveCount(0);
         });
       });
 

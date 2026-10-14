@@ -296,6 +296,28 @@ describe('căn chỉnh tự động giữa các tầng', () => {
     expect(mounted.result.current.historyStepCount()).toBe(stepsBefore);
   });
 
+  it('[G12] căn tự động chỉ dời trục, không đụng tường (autosave sẽ PUT tường)', async () => {
+    const graph = createAxisGridSampleGraph({ floors: ALIGNABLE_FLOORS });
+    const mounted = await mountSettled({ gateway: createMockAxisGridManagerGateway({ graph }) });
+    const wallsOf = (): string => {
+      const current = storeGraph();
+
+      return JSON.stringify((current?.byKind.wall ?? []).map((id) => current?.byId[id]));
+    };
+    const wallsBefore = wallsOf();
+    const axesBefore = axisCoordinates(storeGraph());
+
+    await act(async () => {
+      mounted.result.current.onAutoAlign();
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(axisCoordinates(storeGraph())).not.toEqual(axesBefore);
+    });
+
+    expect(wallsOf()).toBe(wallsBefore);
+  });
+
   it('phát toast có vé hoàn tác sau khi căn tự động (A8)', async () => {
     const graph = createAxisGridSampleGraph({ floors: ALIGNABLE_FLOORS });
     const notifications = createNotificationBus();
@@ -386,6 +408,30 @@ describe('khoảng cách tối thiểu giữa hai trục', () => {
     });
 
     expect(mounted.result.current.spacingViolation).toBeNull();
+  });
+
+  it('[BUG-595/G10] sau nhiều lượt kéo, MỘT Ctrl+Z trả đúng vị trí trước lượt kéo cuối', async () => {
+    const mounted = await mountSettled();
+    const drag = async (mm: number): Promise<void> => {
+      await act(async () => {
+        mounted.result.current.onAxisDrag(
+          axisRowId('vertical', '2'),
+          AXIS_GRID_FIXTURE_SCALE.millimetresToPixels(millimetres(mm)),
+        );
+        await Promise.resolve();
+      });
+    };
+
+    await drag(150);
+    await drag(400);
+    const afterSecond = axisCoordinates(storeGraph());
+
+    await drag(650);
+    expect(axisCoordinates(storeGraph())).not.toEqual(afterSecond);
+
+    await pressKey(mounted.registry, 'z', { ctrlKey: true });
+
+    expect(axisCoordinates(storeGraph())).toEqual(afterSecond);
   });
 });
 

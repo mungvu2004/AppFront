@@ -89,7 +89,7 @@ export const ROOM = {
   approve: 'Duyệt phòng này', // RIN:85
   merge: 'Gộp phòng', // RIN:87
   split: 'Tách phòng', // RIN:88
-  splitHint: 'Bấm lên ranh phòng trên bản vẽ để chọn điểm cắt, rồi quay lại đây để tách phòng.', // RIN:89
+  splitHint: 'Muốn tách phòng, sang lớp tường vẽ một đoạn tường chia phòng rồi quay lại.', // RoomLabelInspector.tsx:98 SPLIT_MISSING_POINT
   mergeDialog: 'Gộp hai phòng', // RAD:25
   mergeSelect: 'Phòng sẽ gộp vào', // RAD:26
   mergePlaceholder: 'Chọn phòng', // RAD:27

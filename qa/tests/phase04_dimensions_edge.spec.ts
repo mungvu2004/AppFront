@@ -271,7 +271,9 @@ test.describe('E04 SCR-18 dimension OCR review — real flows (QA-04c P3)', () =
         await test.step('[18-G-003] N16 404 project / 404 floor → generic error', async () => {
           expect.soft(floor404.startsWith('404'), `404 floor read (${floor404})`).toBe(true);
           expect.soft(project404.startsWith('404'), `404 project read (${project404})`).toBe(true);
-          await expect.soft(errorAlert(page)).toContainText(DIM.errorDescription);
+          // R01c: a 404 now shows the not-found state (ProjectSpatialGate.tsx:36 / floorLayerReadFailure.ts:21), not the generic read-error alert; page is on the project 404.
+          await expect.soft(page.getByText(PROJECT_NOT_FOUND, { exact: true })).toBeVisible();
+          await expect.soft(errorAlert(page)).toHaveCount(0);
           await ev(page, '18-G-003', 'n16_404_generic', `floor: ${floor404} · project: ${project404}`);
         });
 

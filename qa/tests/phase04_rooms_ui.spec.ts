@@ -122,11 +122,11 @@ test('SCR-20 · FL-20-U1 · [mocked response] room states incl. viewer, 409 bann
       });
     });
 
-    await test.step('[20-F-015] "Chuẩn hoá tên" with nothing to change → the message and "Đóng"', async () => {
+    await test.step('[20-F-015] "Chuẩn hoá tên" with nothing to change → button disabled + inline note, no dialog (RoomLabelLeftPanel.tsx:57,152)', async () => {
       await state('20-F-015', 'normalize-nothing', page, async (p) => {
         await openRooms(p, pid, fBep.id);
-        await p.getByRole('button', { name: ROOM.normalize, exact: true }).click();
-        await expect(p.getByRole('dialog', { name: ROOM.normalizeDialog, exact: true }).getByText(ROOM.normalizeNothing, { exact: true })).toBeVisible();
+        await expect(p.getByRole('button', { name: ROOM.normalize, exact: true })).toBeDisabled();
+        await expect(p.getByText('Mọi tên phòng đã đúng kiểu câu, chưa có gì để chuẩn hoá.', { exact: true })).toBeVisible();
       });
     });
 

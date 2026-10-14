@@ -29,7 +29,7 @@
  * - `POST /api/auth/refresh`: ~1 per page load (≈ 40 loads).
  * - `drawings_init`: 1 (FL-16-11, pool admin `p04-walls`).
  */
-import { expect, test, type APIRequestContext, type BrowserContext, type Locator, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type BrowserContext, type Dialog, type Locator, type Page } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { TOUR_APPEAR_TIMEOUT_MS, dismissTour } from '../../e2e/fixtures/tour';
@@ -640,7 +640,12 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await selectRow(page, codeOf(partition)); // 200 mm: no radio checked before the first edit
         await freezeClock(page);
         const digits = ['1', '2', '3'] as const; // edit k sets digits[(k - 1) % 3]; the first edit is 110 mm
-        for (let k = 1; k <= 101; k += 1) await page.keyboard.press(digits[(k - 1) % 3] as string);
+        // mergeCommands.ts:48-66 folds same type/entity/actor edits < 400 ms apart into one undo step: space them 450 ms.
+        // The 5 s autosave max-wait may PUT mid-way; that does not touch the undo stack, so it is accepted.
+        for (let k = 1; k <= 101; k += 1) {
+          await page.keyboard.press(digits[(k - 1) % 3] as string);
+          await page.clock.runFor(450);
+        }
         for (let n = 1; n <= 100; n += 1) await page.keyboard.press('Control+z');
         expect.soft(await checkedThickness(page), 'after 100 undos the state is the first edit').toBe('110 mm');
         await page.keyboard.press('Control+z');
@@ -1102,7 +1107,7 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
       await test.step('[16-E-011] Merge button name when disabled', async () => {
         await wallPolygon(page, code(4)).click(); // a plain click replaces the selection
         await expect.soft(mergeDisabled()).toBeDisabled();
-        await expect.soft(mergeDisabled()).toHaveAccessibleName('nối đoạn — Chọn hai đoạn tường để gộp');
+        await expect.soft(mergeDisabled()).toHaveAccessibleName('Nối đoạn — Chọn hai đoạn tường để gộp'); // capitalised: WallLayerToolRail.tsx:78 MERGE_LABEL
         await ev(page, '16-E-011', 'merge-disabled-name');
       });
 
@@ -1302,7 +1307,8 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
 
       await test.step('[16-B-031] Row status: unreviewed non-standard → "Cần chú ý"; reviewed → "Đã duyệt"; else "Bình thường"', async () => {
         await expect.soft(wallOption(page, code(3))).toHaveAccessibleName(`${code(3)} — Cần chú ý`);
-        await expect.soft(wallOption(page, code(3)).getByText('Cần chú ý', { exact: true })).toBeVisible();
+        // The status is an icon with a title, not text (WallLayerList.tsx:208-212).
+        await expect.soft(wallOption(page, code(3)).locator('[title="Cần chú ý"]')).toHaveCount(1);
         await expect.soft(wallOption(page, code(4))).toHaveAccessibleName(`${code(4)} — Đã duyệt`);
         await expect.soft(wallOption(page, code(4)).locator('[title="Đã duyệt"]')).toHaveCount(1);
         await expect.soft(wallOption(page, code(7))).toHaveAccessibleName(`${code(7)} — Bình thường`);
@@ -1543,6 +1549,16 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await page.keyboard.press('f');
         const target = code(3);
         await page.keyboard.press('Escape');
+        // 300-wall virtualised list (WallLayerList.tsx:245): the row is rendered only while in the viewport, so scroll the list to the top first.
+        await page.getByRole('listbox', { name: WALL.list, exact: true }).evaluate((list) => {
+          for (let el: HTMLElement | null = list.parentElement; el !== null; el = el.parentElement) {
+            if (el.scrollHeight > el.clientHeight && /auto|scroll/u.test(getComputedStyle(el).overflowY)) {
+              el.scrollTop = 0;
+              break;
+            }
+          }
+        });
+        await expect(wallOption(page, target)).toBeVisible();
         await wallOption(page, target).hover();
         await expect.soft(canvasSvg(page).locator(`g[aria-label="${target}"] polygon.opacity-100`), 'outline on hover of the row').toHaveCount(1);
         await ev(page, '16-A-015', 'hover-row');
@@ -1688,14 +1704,18 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await freezeClock(page); // the 800 ms debounce cannot fire: the floor stays unsaved
         await selectRow(page, code0);
         const prompts: string[] = [];
-        page.once('dialog', (dialog) => {
+        // persistent handler: a second beforeunload (goto retry / reload inside ev) would otherwise freeze page.screenshot
+        const stay = (dialog: Dialog): void => {
           prompts.push(dialog.type());
-          void dialog.dismiss();
-        });
+          void dialog.dismiss().catch(() => undefined);
+        };
+        page.on('dialog', stay);
         await page.keyboard.press('3');
-        await page.goto('about:blank').catch(() => undefined);
-        expect.soft(prompts, 'beforeunload prompt').toEqual(['beforeunload']);
+        await page.goto('about:blank', { timeout: 5_000 }).catch(() => undefined);
+        expect.soft(prompts[0], 'beforeunload prompt').toBe('beforeunload');
+        expect.soft(prompts.every((type) => type === 'beforeunload'), 'only beforeunload prompts').toBe(true);
         await ev(page, '16-A-078', 'leave-guard');
+        page.off('dialog', stay);
         await page.clock.resume();
         await quiet(page);
       });

@@ -18,7 +18,7 @@
  * Request budget per full run: 2 logins (API + browser) per flow, 2 `POST /api/projects`, N16 GET ×(2..12), #35 PUT ×(≈ 14);
  * no upload. Mocks are installed per page and only on `**​/api/projects/**`.
  */
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type Locator, type Page, type Route } from '@playwright/test';
 
 import { waitForApi } from '../../e2e/fullstack/apiWatch';
 import {
@@ -57,6 +57,8 @@ import { attachJson } from './support/evidence';
 import { spaGo } from './support/p03/P11';
 import { deleteSeededProject } from './support/phase03Seed';
 
+/** Alerts of the screen itself: the app announcer keeps a hidden `role="alert"` region once it announced (announcer.ts:55). */
+const screenAlerts = (page: Page): Locator => page.getByRole('alert').and(page.locator(':not([data-announcer])'));
 const UNKNOWN = 'Hệ thống đã ghi nhận và sẽ kiểm tra. Hãy thử lại sau ít phút.'; // vi.json errors.unknown.description
 const NETWORK = 'Không liên lạc được với máy chủ. Kiểm tra mạng rồi thử lại.'; // vi.json errors.network (FLRF:73-75)
 
@@ -191,6 +193,9 @@ test.describe('E04 SCR-16 walls — mocked-response flows (QA-04c P1)', () => {
         m.layerRead = '500';
         await page.clock.runFor(31_000);
         await spaGo(page, ROUTES.project.pipeline(q1.projectId));
+        // spaGo returns once pushState moved the URL, not once the router committed the hop (react-router keeps its own location):
+        // a second hop at once cancels the pending one and SCR-16 never unmounts, so nothing refetches. Wait for the unmount.
+        await expect(wallRows(page)).toHaveCount(0);
         await spaGo(page, ROUTES.project.walls(q1.projectId, floor.id));
         const panel = page.locator('div').filter({ has: page.getByRole('listbox', { name: WALL.list }) }).first();
         await expect.soft(page.getByText(UNKNOWN, { exact: true }).first()).toBeVisible({ timeout: 30_000 });
@@ -205,7 +210,7 @@ test.describe('E04 SCR-16 walls — mocked-response flows (QA-04c P1)', () => {
         m.background = '500';
         await openWalls(page, q1.projectId, floor.id);
         await expect(wallRows(page)).toHaveCount(q1.walls.length);
-        await expect.soft(page.getByRole('alert')).toHaveCount(0);
+        await expect.soft(screenAlerts(page)).toHaveCount(0);
         await expect.soft(canvasFrame(page).locator('img')).toHaveCount(0);
         await selectRow(page, q1.codes.get(String(q1.walls[1]?.id)) as string);
         const put = waitForLayerPut(page, q1.projectId, floor.id);
@@ -220,7 +225,7 @@ test.describe('E04 SCR-16 walls — mocked-response flows (QA-04c P1)', () => {
         await openWalls(page, q1.projectId, floor.id);
         await toggleCheckbox(page, WALL.onlyLow);
         await expect(wallRows(page)).toHaveCount(1); // Q1 holds one wall below 0.70 (confidence 0.5)
-        await expect.soft(page.getByRole('alert')).toHaveCount(0);
+        await expect.soft(screenAlerts(page)).toHaveCount(0);
         await ev(page, '16-C-002', 'settings-failure-default-threshold');
         m.settings = 'real';
       });
@@ -313,7 +318,7 @@ test.describe('E04 SCR-16 walls — mocked-response flows (QA-04c P1)', () => {
         await page.keyboard.press('3');
         await refresh;
         expect((await saved).response.status()).toBe(200);
-        await expect.soft(page.getByRole('alert')).toHaveCount(0);
+        await expect.soft(screenAlerts(page)).toHaveCount(0);
         await ev(page, '16-G-013', 'put-401-refresh-retry');
         m.writeOnce = false;
         m.write = 'real';

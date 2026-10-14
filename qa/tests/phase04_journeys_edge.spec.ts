@@ -466,7 +466,7 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
           return ((await region.innerText()) ?? '').replace(/\s+/gu, ' ').trim();
         };
         answers.walls = await read(ROUTES.project.walls(q2.projectId, missing), page.getByRole('alert').filter({ hasText: 'Tầng này không còn tồn tại.' }));
-        answers.scale = await read(ROUTES.project.scale(q2.projectId, missing), page.getByRole('region', { name: 'Trạng thái của màn hiệu chỉnh tỷ lệ', exact: true }));
+        answers.scale = await read(ROUTES.project.scale(q2.projectId, missing), page.getByRole('region', { name: 'Màn hiệu chỉnh tỷ lệ', exact: true })); // unknown floor: the read-failure screen replaces the working screen inside this region (ScaleCalibration.tsx:186-192); the status region exists only on the working screen
         answers.overlay = await read(ROUTES.project.overlay(q2.projectId, missing), page.getByRole('region', { name: 'Màn đối chiếu bản vẽ', exact: true }));
         await attachJson('E04_X4-A-036_unknown-floor.json', answers);
         expect.soft(answers.walls).toContain('Tầng này không còn tồn tại.');
@@ -619,6 +619,13 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         await freezeClock(page); // the debounce cannot fire before the apply
         await page.keyboard.press('3');
         await on(screens.scale);
+        // The paused clock also freezes React's Suspense reveal throttle and react-query's zero-delay notify, so the lazy
+        // SCR-14 stays on "Đang tải màn hình" (run-042 PNG). Tick 50 ms at a time (15 x 50 < the 800 ms debounce) until it paints.
+        const scaleCanvas = page.getByRole('group', { name: 'Bản vẽ đã nắn, kéo để vẽ đường tham chiếu', exact: true });
+        for (let tick = 0; tick < 15 && !(await scaleCanvas.isVisible()); tick += 1) {
+          await page.clock.runFor(50);
+          await scaleCanvas.waitFor({ state: 'visible', timeout: 400 }).catch(() => undefined); // real time for the N15 read
+        }
         await drawReference(page, 4_000);
         const mark = run!.puts.length;
         const both = waitForLayerPut(page, onFloor.projectId, onFloor.floorId, (body) => typeof body.scaleMillimetresPerPixel === 'number');
@@ -799,13 +806,13 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         await page.keyboard.press('Escape');
       });
 
-      await test.step('[22-A-017] Picking another floor → setActiveFloor, a new GET #30 for it, the URL unchanged', async () => {
-        const url = page.url();
+      await test.step('[22-A-017] Picking another floor → setActiveFloor, a new GET #30 for it, the URL follows to the picked floor (BUG-600)', async () => {
         const quality = waitForApi(page, 'GET', new RegExp(`^/api/projects/${dm.projectId}/floors/${f2.id}/quality$`, 'u'), [200, 404]);
         await picker().click();
         await page.getByRole('option', { name: /^Tầng 2/u }).click();
         await quality;
-        expect.soft(page.url(), 'URL unchanged').toBe(url);
+        // App: useOverlayComparison.ts selectFloor navigates to ROUTES.project.overlay(projectId, floorId) (URL is the source of truth, BUG-600).
+        await expect.soft(page, 'URL follows the picked floor').toHaveURL(new RegExp(`/floors/${f2.id}/overlay`, 'u'));
         await ev(page, '22-A-017', 'picked-other-floor');
       });
 

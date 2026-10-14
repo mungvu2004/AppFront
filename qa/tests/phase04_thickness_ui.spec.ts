@@ -112,7 +112,7 @@ test.describe('E04 SCR-21 thickness — UI verify (QA-04c P4)', () => {
         await verifyUi(page, 'U04_21-F-009_preview-collapsed', async (p) => {
           await openFloor(p, built, 0);
           await button(p, 'Thu gọn khung xem trước').click();
-          await expect(button(p, 'Khung xem trước đang thu gọn')).toBeVisible();
+          await expect(button(p, 'Mở khung xem trước')).toBeVisible(); // ThicknessStandardization.tsx:120,259 EXPAND_PREVIEW_LABEL
         });
       });
 

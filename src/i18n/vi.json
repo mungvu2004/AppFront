@@ -2084,8 +2084,7 @@
       "approve": "Duyệt phòng này",
       "approvedBadge": "Đã duyệt",
       "merge": "Gộp phòng",
-      "split": "Tách phòng",
-      "splitMissingPoint": "Bấm lên ranh phòng trên bản vẽ để chọn điểm cắt, rồi quay lại đây để tách phòng."
+      "split": "Tách phòng"
     },
     "fields": {
       "area": "Diện tích",

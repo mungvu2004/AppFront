@@ -55,7 +55,7 @@ const PREVIEW_BTN = 'Xem trước'; // TAB:OPEN_PREVIEW_LABEL
 const APPLY = 'Áp dụng';
 const CANCEL = 'Huỷ';
 const UNDO = 'Hoàn tác';
-const REAPPLY = 'Áp dụng lại bộ lọc';
+const REAPPLY = 'Áp lại cho mọi tường lệch nhóm'; // ThicknessApplyBar.tsx:55 REAPPLY_FILTER_LABEL (BUG-593: opens the preview)
 const TOLERANCE = 'Dung sai';
 const EMPTY_TITLE = 'Chưa có đoạn tường nào để chuẩn hoá'; // TV:EMPTY_TITLE
 const NO_MEASUREMENT =
@@ -63,9 +63,9 @@ const NO_MEASUREMENT =
 const ALL_STANDARD =
   'Mọi đoạn tường đã ở đúng nhóm chuẩn, không còn gì để áp. Kéo một ngưỡng trên biểu đồ hoặc nới ô dung sai nếu bạn muốn gom thêm đoạn vào một nhóm khác.'; // UT:126-127
 const GROUP_EMPTY = 'Chưa có nhóm nào để chuẩn hoá.'; // TGT:EMPTY_MESSAGE
-const WARNING_TITLE = 'Áp dụng lại bộ lọc sẽ đổi tường đã duyệt'; // TAB:REAPPLY_WARNING_TITLE
-const EXCLUDE_AND_REAPPLY = 'Loại tường đã duyệt ra rồi áp lại'; // TAB:61
-const APPLY_TO_ALL = 'Vẫn áp dụng cho tất cả'; // TAB:62
+const WARNING_TITLE = 'Áp lại cho mọi tường lệch nhóm sẽ đổi tường đã duyệt'; // ThicknessApplyBar.tsx:64
+const EXCLUDE_AND_REAPPLY = 'Loại tường đã duyệt ra rồi xem trước'; // ThicknessApplyBar.tsx:62
+const APPLY_TO_ALL = 'Xem trước cho tất cả'; // ThicknessApplyBar.tsx:63
 const COLLAPSE = 'Thu gọn khung xem trước'; // TV:COLLAPSE_PREVIEW_LABEL
 const EXPANDED = 'Mở khung xem trước'; // ThicknessStandardization.tsx:120 EXPAND_PREVIEW_LABEL (BUG-637: names the action)
 const TOASTS = 'Thông báo';
@@ -248,8 +248,9 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         await button(page, PREVIEW_BTN).click(); // TAB:130-134,165-207
         await expect(previewLine(page, '0 tường → 0 nhóm chuẩn.')).toBeVisible();
         const from = flow.sent.length;
-        await button(page, APPLY).click(); // UT:615 empty batch -> return
-        await expect.soft(previewLine(page, '0 tường → 0 nhóm chuẩn.')).toHaveCount(0);
+        // ThicknessApplyBar.tsx:208: nothing changes (totalWalls === unchangedWalls.length) -> "Áp dụng" is disabled (BUG-637).
+        await expect.soft(button(page, APPLY)).toBeDisabled();
+        await expect.soft(previewLine(page, '0 tường → 0 nhóm chuẩn.')).toBeVisible();
         expect.soft(putsTo(flow, floorId, from)).toBe(0);
         await ev(page, '21-A-010', 'apply-nothing');
       });
@@ -480,10 +481,11 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         expect((await put).response.status()).toBe(200);
         await expect.soft(region(page).getByText(ALL_STANDARD, { exact: true })).toBeVisible(); // UT:252-253,869-877
         await expect.soft(stat(page, STAT_LABELS.exceeding)).toHaveText(`0 ${STAT_LABELS.exceeding}`);
-        const classes = await region(page).getByRole('group', { name: 'Tóm tắt chuẩn hoá độ dày tường' }).locator('span[aria-hidden="true"]').evaluateAll((nodes) => nodes.map((node) => node.className));
+        // ThicknessSummary.tsx:37-43: each stat is `p[role=status] > span.font-mono (the number) + span (label)`, no aria-hidden spans; pick by label.
+        const exceedingClass = (await stat(page, STAT_LABELS.exceeding).locator('span').first().getAttribute('class')) ?? '';
         // BUG-611 (ThicknessSummary.tsx:12,38): green means "a person approved it", so all four numbers stay text-text-primary.
-        expect.soft(classes[2], '"Lệch quá dung sai" = 0 stays in the neutral text colour').toContain('text-text-primary');
-        expect.soft(classes[2]).not.toContain('text-state-verified');
+        expect.soft(exceedingClass, '"Lệch quá dung sai" = 0 stays in the neutral text colour').toContain('text-text-primary');
+        expect.soft(exceedingClass).not.toContain('text-state-verified');
         await ev(page, '21-B-005', 'all-standard');
       });
 
@@ -571,7 +573,10 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         const max = await limit(0, 'max');
         const focused = await page.evaluate(() => Number(document.activeElement?.getAttribute('aria-valuenow')));
         await attachJson('E04_21-A-019_focus.json', { focused, max, values: [await value(0), await value(1), await value(2)] });
-        expect.soft(focused, 'focus stays on the line that was moved (it carries the dragged value)').toBe(max); // TG:382-410, TH:374-394
+        // withThresholdAt clamps at neighbour - one bin (thicknessStandardizationGateway.ts:404-406), so the line stops
+        // short of its neighbour instead of reaching the axis max; the dragged line is still slider 0 and holds focus.
+        expect.soft(focused, 'focus stays on the line that was moved (it carries the dragged value)').toBe(await value(0)); // TG:399-411, TH:374-394
+        expect.soft(await value(0), 'the dragged line never crosses its neighbour').toBeLessThan(await value(1));
       });
 
       await test.step('[21-A-020] ⚑ Home pressed repeatedly stops at a fixed axis minimum', async () => {
@@ -697,7 +702,8 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
       await test.step('[21-A-023] "Áp dụng lại bộ lọc" with no reviewed target applies every applicable wall at once (one PUT + toast)', async () => {
         await openThickness(page, built, 1);
         const put = waitForPut(page, project, plainFloor);
-        await button(page, REAPPLY).click(); // TAB:54,121-123; UT:767-806
+        await button(page, REAPPLY).click(); // ThicknessApplyBar.tsx:121-123; hook onReapplyFilter opens the preview (BUG-593)
+        await button(page, APPLY).click(); // only "Áp dụng" in the preview writes
         expect((await put).response.status()).toBe(200);
         await expect.soft(toastText(page, 'Chuẩn hoá độ dày 2 tường.')).toBeVisible();
         expect.soft(putsTo(flow, plainFloor)).toBe(1);
@@ -709,7 +715,7 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         const from = flow.sent.length;
         await button(page, REAPPLY).click();
         await expect(warning()).toBeVisible(); // TAB:63-66,138-145
-        await expect.soft(region(page).getByText('1 tường đã duyệt sẽ bị đổi. Đề nghị loại các tường này khỏi lượt áp dụng lại.', { exact: true })).toBeVisible();
+        await expect.soft(region(page).getByText('1 tường đã duyệt sẽ bị đổi. Đề nghị loại các tường này khỏi lượt áp lại.', { exact: true })).toBeVisible();
         expect.soft(putsTo(flow, reviewedFloor, from)).toBe(0);
         await ev(page, '21-A-024', 'reapply-warning');
       });
@@ -747,7 +753,8 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         await button(page, REAPPLY).click();
         await expect(warning()).toBeVisible();
         const put = waitForPut(page, project, reviewedFloor);
-        await region(page).getByRole('button', { name: EXCLUDE_AND_REAPPLY, exact: true }).click(); // TAB:61,141
+        await region(page).getByRole('button', { name: EXCLUDE_AND_REAPPLY, exact: true }).click(); // ThicknessApplyBar.tsx:142 -> preview without reviewed walls
+        await button(page, APPLY).click();
         const walls = wallsOfPut(await put);
         expect.soft(thicknessOf(walls, reviewedWalls[0] as string), 'the reviewed wall keeps 200 mm').toBe(200);
         expect.soft(thicknessOf(walls, reviewedWalls[1] as string), 'the unreviewed wall is 220 mm').toBe(220);
@@ -758,7 +765,8 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         await button(page, REAPPLY).click();
         await expect(warning()).toBeVisible();
         const put = waitForPut(page, project, reviewedFloor);
-        await region(page).getByRole('button', { name: APPLY_TO_ALL, exact: true }).click(); // TAB:62,147-153
+        await region(page).getByRole('button', { name: APPLY_TO_ALL, exact: true }).click(); // ThicknessApplyBar.tsx:147-153 -> preview with every wall
+        await button(page, APPLY).click();
         const walls = wallsOfPut(await put);
         expect.soft(thicknessOf(walls, reviewedWalls[0] as string), 'the reviewed wall is 220 mm now').toBe(220);
       });
@@ -834,14 +842,17 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
       const toolbar = (count: number): Locator => region(page).getByRole('toolbar', { name: `Thanh hành động: đã chọn ${String(count)} tường`, exact: true });
       const picker = (): Locator => region(page).getByRole('group', { name: PICKER, exact: true });
 
-      await test.step('[21-A-029] a row set to another group is a local override only: deviation, status and group table recompute', async () => {
+      await test.step('[21-A-029] a row set to another group is a real write (BUG-585): measured becomes the group value, deviation 0, status neutral', async () => {
         const from = flow.sent.length;
-        await pick(0, '330 mm'); // ThicknessSegmentTable.tsx:231-251; UT:692-694
+        const put = waitForPut(page, built.project.projectId, floorId);
+        await pick(0, '330 mm'); // ThicknessSegmentTable.tsx:231-251; useThicknessStandardization.ts:749-755 (assignGroup -> runBatch)
+        await put;
         await expect.soft(radios(0)).toHaveText('330 mm');
         const row = rowOfCode(page, wallCode(ids[0] as string, ids));
-        await expect.soft(row).toContainText('130,0 mm'); // |200 - 330|
-        await expect.soft(row).toContainText('Vi phạm');
-        expect.soft(putsTo(flow, floorId, from), 'an override is not a write').toBe(0);
+        await expect.soft(row).toContainText('330,0 mm'); // measuredLabel = the written 330 (thicknessStandardizationGateway.ts:533)
+        await expect.soft(row).toContainText('0,0 mm'); // deviation |330 - 330|
+        await expect.soft(row).toContainText('Trung tính');
+        expect.soft(putsTo(flow, floorId, from), 'one group change = one write').toBe(1);
         await ev(page, '21-A-029', 'row-override');
       });
 
@@ -1185,6 +1196,8 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         const statuses = flow.log.filter((entry) => entry.method === 'PUT' && LAYER_PATH.exec(entry.path)?.[1] === floorA).map((entry) => entry.status);
         expect.soft(statuses, 'last PUT of floor A').toContain(409); // SLS:93
         await region(page).getByRole('button', { name: RELOAD, exact: true }).click();
+        // The floor holds unsaved edits, so "Tải lại" asks first (useAutosave.ts onReload -> confirm A9): confirm the reload.
+        await page.getByRole('dialog').getByRole('button', { name: 'Tải lại và bỏ thay đổi', exact: true }).click();
         await expect.soft(region(page).getByText(CONFLICT, { exact: true })).toHaveCount(0);
         await ev(page, '21-G-004', 'after-reload');
       });

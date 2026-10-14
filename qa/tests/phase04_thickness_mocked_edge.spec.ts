@@ -89,6 +89,9 @@ test.describe('E04 SCR-21 thickness — mocked-response flow (QA-04c P4)', () =>
           await page.clock.install();
           await page.clock.runFor(31_000);
           await spaGo(page, ROUTES.project.pipeline(built.project.projectId));
+          // spaGo returns once pushState moved the URL, not once the router committed the hop: a second hop at once cancels
+          // the pending one, the screen never unmounts and nothing refetches. Wait for the unmount first.
+          await expect(region(page)).toHaveCount(0);
           await spaGo(page, url);
           const alert = region(page).getByText('Không đọc được lớp số đo độ dày', { exact: true }); // TV:113,332-334, UT:854
           await expect(alert).toBeVisible({ timeout: RETRY_LADDER_MS });

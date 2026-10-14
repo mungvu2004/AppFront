@@ -88,6 +88,8 @@ export function useNumericField({ value, onChange, min, max, unit, resetKey, fra
     if (!err && parsed !== lastCommittedRef.current) {
       lastCommittedRef.current = parsed;
       setOwnCommit(parsed);
+      // Re-format the box after the commit (2777 -> 2.777), also while it keeps focus.
+      setLocalValue(displayText(parsed));
       onChange?.(parsed);
       setFlash(true);
       // The same off-ladder 400 ms `useListReview` carried, for the same kind

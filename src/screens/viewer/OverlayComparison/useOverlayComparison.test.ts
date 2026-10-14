@@ -574,6 +574,21 @@ describe('useOverlayComparison — bảy trạng thái', () => {
     expect(model.scaleFixHref).toBe(ROUTES.project.scale(PROJECT_ID, FLOOR_WITH_SCAN));
   });
 
+  it('[G20] tỷ lệ khác nhau chỉ ở tầng chưa có bản vẽ thì không phải xung đột tỷ lệ', async () => {
+    const graph = createSampleBuilding();
+    const floors = graph.levels.map((level, index) => ({
+      ...level,
+      scaleMillimetresPerPixel: millimetresPerPixel(index < 2 ? 12 : 24 * index),
+    }));
+
+    seedStore(floors);
+
+    const mounted = await mountMeasured();
+
+    expect(mounted.result.current.model.state).not.toBe('error');
+    expect(mounted.result.current.model.scaleFixHref).toBeNull();
+  });
+
   it('chỉ một số tầng có ảnh là partial, và câu giải thích nói ra con số', async () => {
     const mounted = await mountMeasured();
     const model = mounted.result.current.model;
@@ -808,7 +823,8 @@ describe('useOverlayComparison — QA-04c SCR-22 (BUG-588, 599, 600, 608)', () =
     useStore.getState().setFloors([]);
     const base = await makeGateway();
     const readFloorLayer = vi.fn(() => Promise.reject(new Error('500')));
-    const mounted = mountHook(withOverlayCapabilities(base, { readFloorLayer }));
+    const readFloorScans = vi.fn(base.readFloorScans);
+    const mounted = mountHook(withOverlayCapabilities(base, { readFloorLayer, readFloorScans }));
     await settle(mounted);
     for (let turn = 0; turn < SETTLE_TURNS; turn += 1) {
       await act(async () => {
@@ -818,6 +834,7 @@ describe('useOverlayComparison — QA-04c SCR-22 (BUG-588, 599, 600, 608)', () =
 
     const model = mounted.result.current.model;
     expect(model.state).toBe('error');
+    expect(readFloorScans).not.toHaveBeenCalled(); // G21: N16 gave no floor → no #30
     expect(model.canRetry).toBe(true);
     expect(model.stateNotice).toBe('Không đọc được mô hình của tầng này nên chưa có gì để đối chiếu.');
 

@@ -101,7 +101,9 @@ test('SCR-17 · FL-17-M1 [mocked response] read failures, refetch error, backgro
       await expect(screen(page)).toBeVisible();
       await expect(skeletonRows).toHaveCount(4);
       await expect.soft(allSkeletonRows, 'list 4 + counter card 4').toHaveCount(8);
-      await expect.soft(page.getByLabel('0/0 đối tượng đã duyệt', { exact: true })).toBeVisible();
+      // BUG-618: no fake "0/0" while loading; status bar shows LOADING_PROGRESS_LABEL (ObjectLayerReview.tsx:75,348).
+      await expect.soft(statusBar(page)).toContainText('Đang đọc lớp đối tượng…');
+      await expect.soft(page.getByText('0/0 đối tượng đã duyệt')).toHaveCount(0);
       await expect.soft(page.getByText(OBJ.nothingToDraw, { exact: true })).toBeVisible();
       await ev(page, '17-B-001', 'loading_skeleton');
       n16.set('pass');

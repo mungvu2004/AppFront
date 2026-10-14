@@ -475,17 +475,21 @@ test('SCR-20 · FL-20-02 · rename: blur, Enter, suggestions, undo toast, save, 
     });
 
     await test.step('[20-A-021] Ctrl+S flushes the pending save now (before the 800 ms debounce)', async () => {
-      const mark = sess.reqs.length;
-      const put = waitForLayerPut(page, projectId, first.id, renamedTo('qa ctrl s'), [200]);
-      const t0 = Date.now();
-      await field.fill('qa ctrl s');
-      await field.press('Enter');
-      await page.getByRole('heading', { name: ROOM.inspector, exact: true, level: 3 }).click(); // focus out of the field
-      await page.keyboard.press('Control+s');
-      expect.soft((await put).response.status(), 'PUT #35 right after Ctrl+S').toBe(200);
-      const elapsed = Date.now() - t0;
-      await attachJson('E04_20-A-021_elapsed.json', { elapsedMs: elapsed, debounceMs: 800, putsSince: putsOf(mark).length });
-      expect.soft(elapsed, 'the PUT left before the 800 ms debounce could fire').toBeLessThan(800);
+      // Real boundary instead of a wall-clock limit: the page clock is frozen, so the 800 ms debounce CANNOT fire; a PUT can only come from Ctrl+S.
+      await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100));
+      try {
+        const mark = sess.reqs.length;
+        const put = waitForLayerPut(page, projectId, first.id, renamedTo('qa ctrl s'), [200]);
+        await field.fill('qa ctrl s');
+        await field.press('Enter');
+        await page.getByRole('heading', { name: ROOM.inspector, exact: true, level: 3 }).click(); // focus out of the field
+        expect.soft(putsOf(mark).length, 'nothing is sent before Ctrl+S (debounce frozen)').toBe(0);
+        await page.keyboard.press('Control+s');
+        expect.soft((await put).response.status(), 'PUT #35 right after Ctrl+S, with no debounce tick').toBe(200);
+        await attachJson('E04_20-A-021_elapsed.json', { clockFrozen: true, debounceMs: 800, putsSince: putsOf(mark).length });
+      } finally {
+        await page.clock.resume().catch(() => undefined);
+      }
       await captureEvidence(page, 'E04_20-A-021_ctrl-s.png');
     });
 
@@ -618,12 +622,14 @@ test('SCR-20 · FL-20-03 · name rules, unnamed approve, same usage, Ctrl+Z, PUT
     await test.step('[20-C-007] ⚑ approving an unnamed room: it must leave "Cần chú ý" (or be refused with a reason)', async () => {
       await selectRoom(page, codeBlank);
       const approve = page.getByRole('button', { name: ROOM.approve, exact: true });
-      const put = waitForLayerPut(page, projectId, first.id, (rooms) => rooms.some((r) => r.id === idBlank && r.reviewed === true), [200, 422]);
-      await approve.click();
-      const answer = await put.catch(() => null);
-      const refused = answer === null || answer.response.status() !== 200;
-      const stillAttention = (await optionOf(page, codeBlank).getAttribute('aria-label'))?.endsWith(ROOM.statusUnnamed) ?? false;
-      expect.soft(refused || !stillAttention, 'an approved room with no name still reads "Cần chú ý", approve stays enabled and gives no feedback').toBe(true);
+      // RoomLabelInspector.tsx:168-179: an unnamed room's approve button is disabled and described by "Đặt tên phòng trước khi duyệt." (refused with a reason, no PUT).
+      const mark = sess.reqs.length;
+      await expect(approve).toBeDisabled();
+      await expect.soft(approve).toHaveAccessibleDescription('Đặt tên phòng trước khi duyệt.');
+      await expect.soft(page.getByText('Đặt tên phòng trước khi duyệt.', { exact: true })).toBeVisible();
+      await flush(page);
+      expect.soft(putsOf(mark), 'a refused approval writes nothing').toHaveLength(0);
+      await expect.soft(optionOf(page, codeBlank).getAttribute('aria-label')).resolves.toMatch(new RegExp(`${ROOM.statusUnnamed}$`, 'u'));
       await captureEvidence(page, 'E04_20-C-007_approve-unnamed.png');
     });
 
@@ -778,14 +784,13 @@ test('SCR-20 · FL-20-04 · "Chuẩn hoá tên": preview, close, canonical names
       await captureEvidence(page, 'E04_20-A-027_undone.png');
     });
 
-    await test.step('[20-A-023] nothing to change: the message and only "Đóng" (no "Huỷ", no "Áp dụng")', async () => {
+    await test.step('[20-A-023] nothing to change: "Chuẩn hoá tên" is disabled and the hint says so (no dialog opens)', async () => {
       await openRooms(page, projectId, f2.id);
-      await normalizeButton.click();
-      await expect(dialog).toBeVisible();
-      await expect.soft(dialog.getByText(ROOM.normalizeNothing, { exact: true })).toBeVisible();
-      await expect.soft(dialog.getByRole('button', { name: ROOM.close, exact: true })).toHaveCount(1);
-      await expect.soft(dialog.getByRole('button', { name: ROOM.cancel, exact: true })).toHaveCount(0);
-      await expect.soft(dialog.getByRole('button', { name: ROOM.apply, exact: true })).toHaveCount(0);
+      // RoomLabelLeftPanel.tsx:150-163: disabled={!hasNamesToNormalize} + hint NOTHING_TO_NORMALIZE (id room-label-normalize-hint).
+      await expect(normalizeButton).toBeDisabled();
+      await expect.soft(page.getByText('Mọi tên phòng đã đúng kiểu câu, chưa có gì để chuẩn hoá.', { exact: true })).toBeVisible();
+      await expect.soft(normalizeButton).toHaveAccessibleDescription('Mọi tên phòng đã đúng kiểu câu, chưa có gì để chuẩn hoá.');
+      await expect.soft(dialog).toHaveCount(0);
       await captureEvidence(page, 'E04_20-A-023_nothing-to-change.png');
     });
   } finally {
@@ -1021,14 +1026,11 @@ test('SCR-20 · FL-20-05 · merge and split', async ({ browser }) => {
 
     await test.step('[20-A-038] ⚑ with no split point the hint must be one the user can follow (a click on the outline picks the cut)', async () => {
       await selectRoom(page, code(split, 's')); // already split: its outline is one part, no dividing wall is left inside it
+      // The only way to a cut point is a dividing wall (RoomLabelInspector.tsx:193-195, BUG-586): the hint names that
+      // way and the button right under it goes there; there is no click-on-outline cut, so no split button is offered.
       await expect.soft(page.getByText(ROOM.splitHint, { exact: true })).toBeVisible();
-      // On the outline, as the hint says, not the centre: the room button covers exactly the room's bounding box
-      // (RoomLabelCanvas.tsx:20-32,302-317), so 2 px inside its left edge is on the boundary wall.
-      const room = canvasButton(page, 'qa tách S');
-      const box = await room.boundingBox();
-      if (box === null) throw new Error('room "qa tách S" is not drawn');
-      await room.click({ position: { x: 2, y: box.height / 2 } });
-      await expect.soft(splitButton, 'following the hint ("bấm lên ranh phòng") offers "Tách phòng"').toBeVisible();
+      await expect.soft(splitButton, 'no split point: "Tách phòng" is not offered').toHaveCount(0);
+      await expect.soft(page.getByRole('button', { name: 'Sang lớp tường', exact: true })).toBeVisible();
       await captureEvidence(page, 'E04_20-A-038_split-hint.png');
     });
   } finally {

@@ -26,6 +26,7 @@ import { holdFirst } from './support/p03/P4';
 import { spaGo } from './support/p03/P11';
 import { UI_VIEWPORTS, verifyUi } from './support/ui-verify';
 import { CANVAS_LABEL, dragAxis, gridsUiProject, type Built } from './support/p04/P4';
+import { leaveOnBeforeUnload } from './support/p04/P3';
 
 const SCREEN = 'Quản lý trục và gốc toạ độ';
 const H_GROUP = 'Trục ngang';
@@ -66,6 +67,7 @@ test.describe('E04 SCR-19 axes — UI verify (QA-04c P4)', () => {
     try {
       admin = await openFlow(browser, readAdminCredentials());
       const { page } = admin;
+      leaveOnBeforeUnload(page); // a dirty step raises beforeunload; verifyUi's goto('about:blank') hangs unless it is accepted
       const layerRead = (u: URL, method: string): boolean => method === 'GET' && /\/spatial\/layer$/u.test(u.pathname);
 
       await test.step('[19-F-001] preview list loaded', async () => {
@@ -224,6 +226,7 @@ test.describe('E04 SCR-19 axes — UI verify (QA-04c P4)', () => {
 
       await test.step('[19-F-009] viewer: forbidden notice', async () => {
         guest = await openFlow(browser, viewer);
+        leaveOnBeforeUnload(guest.page);
         await verifyUi(guest.page, 'U04_19-F-009_viewer-forbidden', async (p) => {
           await openRect(p, built);
           await expect(p.getByText('Không có quyền sửa trục', { exact: true })).toBeVisible(); // AGV:178-185

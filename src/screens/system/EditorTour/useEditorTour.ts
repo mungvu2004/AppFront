@@ -705,7 +705,8 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
     },
     onReopen: (): void => {
       setHasSkipped(false);
-      setActiveStepId(null);
+      // Resume at the stopped step; only a completed run restarts from step 1.
+      if (phase === 'finished') setActiveStepId(null);
       setPhase('running');
     },
     onOpenSampleProject: (): void => {

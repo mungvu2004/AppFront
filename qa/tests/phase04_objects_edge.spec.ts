@@ -143,9 +143,8 @@ const putEntries = (session: Session) => session.log.filter((entry) => entry.met
 /** The opening `id` inside a recorded PUT. */
 const openingIn = (record: PutRecord, id: string): Record<string, unknown> | undefined => putList(record, 'openings').find((o) => o.id === id);
 
-/** Reasons the screen drops silently (OG:898-905): `NOT_AN_OPENING_SUBTYPE_REASON`, `SAME_SUBTYPE_REASON`. */
+/** Reason the screen drops silently (OG:902): `SAME_SUBTYPE_REASON`. */
 const SAME_SUBTYPE_REASON = 'Đối tượng đã ở đúng loại đó nên không có gì thay đổi.';
-const NOT_AN_OPENING_SUBTYPE_REASON = 'Chỉ lỗ mở mới đổi được loại';
 
 /** True while a reason / message for the user is on the page (toast, alert or status line) — never a fixed wait. */
 async function feedbackShown(page: Page, text: RegExp | string): Promise<boolean> {
@@ -485,14 +484,13 @@ test('SCR-17 · FL-17-02 swing and kind changes, silent refusals', async ({ brow
       if ((await typeBox(page).getAttribute('aria-expanded')) === 'true') await page.keyboard.press('Escape');
     });
 
-    await test.step('[17-C-018] ⚑ Door → a furniture subtype ("Giường") in the select → refused with the reason shown', async () => {
+    await test.step('[17-C-018] Door → a furniture subtype ("Giường") is not offered: the select lists openings only (R19)', async () => {
       const mark = log.length;
       const listbox = await openSelect(page, typeBox(page));
-      await listbox.getByRole('option', { name: 'Giường', exact: true }).click();
-      await quiet(page);
-      expect.soft(putCount(log, mark), 'no PUT for a furniture subtype').toBe(0);
-      expect.soft(await feedbackShown(page, NOT_AN_OPENING_SUBTYPE_REASON), 'OG:898-899 reason shown').toBe(true);
+      await expect.soft(listbox.getByRole('option', { name: 'Giường', exact: true })).toHaveCount(0);
+      expect.soft(putCount(log, mark), 'no PUT').toBe(0);
       await ev(page, '17-C-018', 'door_to_furniture');
+      if ((await typeBox(page).getAttribute('aria-expanded')) === 'true') await page.keyboard.press('Escape');
     });
 
     await test.step('[17-E-009] combobox "Loại đối tượng" opens a listbox of 9 options with icons; keyboard choose', async () => {
@@ -659,14 +657,9 @@ test('SCR-17 · FL-17-03 inspector by kind, position slider, host-wall jump, fur
     });
 
     await test.step('[17-C-016] ⚑ Furniture "Hướng mở" radio → feedback or a disabled control, not a silent refusal', async () => {
-      const radio = swingRadio(page, 'Mở trái');
-      const disabled = await radio.isDisabled();
-      const mark = log.length;
-      if (!disabled) await radio.click({ force: true, timeout: QUICK });
-      await quiet(page);
-      expect.soft(putCount(log, mark), 'no PUT for furniture swing').toBe(0);
-      const feedback = disabled ? true : await anyFeedback(page);
-      expect.soft(feedback, 'feedback or disabled control (UO:757-763 returns null silently)').toBe(true);
+      // The furniture inspector renders no swing radio at all (UO:757-763 returns null), so nothing can be refused silently.
+      await expect.soft(swingRadio(page, 'Mở trái')).toHaveCount(0);
+      await expect.soft(inspector(page).getByRole('radio')).toHaveCount(0);
       await ev(page, '17-C-016', 'furniture_swing_silent');
     });
 
@@ -1181,8 +1174,9 @@ test('SCR-17 · FL-17-06 layer eyes, tree toggles, chips, counts, filtered canva
     });
 
     await test.step('[17-B-028] Filters hide every object → canvas "Chưa có đối tượng nào để vẽ trên mặt bằng.", every group "Chưa có đối tượng nào trong nhóm này"', async () => {
-      await chip(page, 'Cửa đơn').click();
-      await chip(page, 'Giường').click();
+      // The seeded floor has no bed: chip "Giường" is disabled (ObjectLayerLeftPanel.tsx:245,259). Chip "Cửa đơn" is still on
+      // (17-C-003), so hiding the door layer leaves the filter matching nothing.
+      await eyeButton(page, 'cửa đi').click();
       await expect.soft(allOptions(page)).toHaveCount(0);
       await expect.soft(page.getByText(OBJ.nothingToDraw, { exact: true })).toBeVisible();
       await expect.soft(page.getByText(OBJ.emptyGroup, { exact: true })).toHaveCount(3);
@@ -1190,7 +1184,8 @@ test('SCR-17 · FL-17-06 layer eyes, tree toggles, chips, counts, filtered canva
     });
 
     await test.step('[17-C-022] ⚑ Real furniture kinds map to "Nội thất khác" except bed; chip "Bàn ăn" must match the real table', async () => {
-      await chip(page, 'Giường').click();
+      await eyeButton(page, 'cửa đi').click();
+      await chip(page, 'Cửa đơn').click();
       await chip(page, 'Bàn ăn').click();
       await expect.soft(optionOf(page, '#F-001'), 'the seeded table matches the "Bàn ăn" chip').toHaveCount(1, { timeout: 2_000 });
       await ev(page, '17-C-022', 'table_vs_dining_chip');
@@ -1487,6 +1482,11 @@ test('SCR-17 · FL-17-08 codes, row text, status, fixed 0,75 cut, filter trap, s
 
       await test.step('[17-C-010] Default filter ON only while an unreviewed < 0,75 object exists; approving the last one hides the notice + button and shows all rows', async () => {
         await openObjects(page, pid, fid);
+        // Project threshold 0,9: #D-002 (0,80) is also below the cut, so approve it first, then #S-001 last (17-C-011 undoes S-001).
+        await optionOf(page, '#D-002').click();
+        const markD = s.puts.length;
+        await approveButton(page).click();
+        await nextPut(s, markD);
         await optionOf(page, '#S-001').click();
         const mark = s.puts.length;
         await approveButton(page).click();

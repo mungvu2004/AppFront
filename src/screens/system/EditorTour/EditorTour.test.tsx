@@ -659,6 +659,18 @@ describe('Bỏ qua — Esc và bấm ra nền không hỏi lại, chip quay lạ
 
     expect(onReopen).toHaveBeenCalledTimes(1);
   });
+
+  it('chip "Xem hướng dẫn" mở lại đúng bước đã dừng, không về bước 1 (X4-A-015)', () => {
+    mountTour({ registry: createShortcutRegistry(), resolveAnchor: () => ({ top: 0, left: 0, width: 10, height: 10 }), hasModel: true });
+
+    expect(tourProps().steps.length).toBeGreaterThan(1);
+
+    act(() => tourProps().onJump(1));
+    expect(tourProps().activeIndex).toBe(1);
+    act(() => tourProps().onSkip());
+    act(() => tourProps().onReopen());
+    expect(tourProps().activeIndex).toBe(1);
+  });
 });
 
 /* -------------------------------------------------------------------------- */

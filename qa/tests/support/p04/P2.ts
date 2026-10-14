@@ -86,7 +86,7 @@ export const OBJ = {
   emptyGroup: 'Chưa có đối tượng nào trong nhóm này', // OL
   addRefused: 'Không thêm được đối tượng vào tường.', // OG:1264
   furnitureFree: 'Đứng tự do',
-  forbidden: 'Bạn không có quyền xem lớp đối tượng của dự án này', // OG:1255
+  forbidden: 'Bạn đang xem — không sửa được lớp này.', // OG:1266 (BUG-601)
 } as const;
 
 export const SAVE = {

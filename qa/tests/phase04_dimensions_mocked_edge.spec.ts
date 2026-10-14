@@ -664,8 +664,9 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
         await ev(page, '18-A-022', 'enter_next_crop');
       });
 
-      await test.step('[18-C-028] after Enter the field is blurred and not re-focused for the next row', async () => {
-        await expect.soft(field(page, 2), 'catalog: focus is not moved to the next row\'s field (DR:220-222)').not.toBeFocused();
+      await test.step('[18-C-028] after Enter focus moves to the next row\'s field', async () => {
+        // DimensionOcrKeyboardMode.tsx:147-150: `key={row.id}` remounts the field with `hasAutoFocus`.
+        await expect.soft(field(page, 2), 'next row\'s field is auto-focused').toBeFocused();
         await ev(page, '18-C-028', 'field_not_refocused');
       });
 
@@ -858,14 +859,13 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
         const announced = await recordAnnouncements(page);
         let open = 0;
 
-        await test.step('[18-B-018] after an approve the announcer says "Đã lưu lúc HH:mm" although nothing was sent', async () => {
+        await test.step('[18-B-018] after an approve nothing is sent and the announcer says no "Đã lưu lúc HH:mm" (F-08, 5fcaf502)', async () => {
           await openDims(page, floor.projectId, floor.floorId, dimsPath(floor));
           open = flow.sent.length;
           await approveButton(page, 1).click();
-          await expect
-            .poll(async () => (await announced()).some((text) => /^Đã lưu lúc \d{2}:\d{2}$/u.test(text)), { message: 'announcer said "Đã lưu lúc HH:mm"' })
-            .toBe(true);
-          expect.soft(writesSince(flow, open), 'F-08: no write behind "Đã lưu"').toEqual([]);
+          await expect(approveButton(page, 1)).toBeVisible();
+          expect.soft((await announced()).some((text) => /^Đã lưu lúc \d{2}:\d{2}$/u.test(text)), 'no "Đã lưu" announcement when nothing was saved').toBe(false);
+          expect.soft(writesSince(flow, open), 'F-08: no write').toEqual([]);
           await ev(page, '18-B-018', 'saved_without_request', `announced: ${(await announced()).join(' | ')}`);
         });
 

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { NumericField } from './NumericField';
 import { expectAccessible } from '../../lib/testing/expectAccessible';
@@ -149,5 +149,16 @@ describe('NumericField', () => {
     fireEvent.focus(field);
     fireEvent.keyDown(field, { key: 'ArrowUp' });
     expect(field).toHaveValue('5,0');
+  });
+
+  it('re-formats the typed text after the debounced commit while the field keeps focus (2777 -> 2.777)', async () => {
+    render(<NumericField value={100} unit="mm" aria-label="Kích thước" onChange={() => undefined} />);
+    const field = screen.getByRole('textbox', { name: 'Kích thước' });
+
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: '2777' } });
+    expect(field).toHaveValue('2777');
+
+    await waitFor(() => expect(field).toHaveValue('2.777'), { timeout: 2000 });
   });
 });

@@ -733,6 +733,19 @@ describe('bàn phím và vùng chọn', () => {
     mounted.unmount();
   });
 
+  it('nhóm chọn tay theo đối tượng vừa chọn: chọn đồ nội thất sau W thì nhóm là nội thất', async () => {
+    const mounted = await mountSettled();
+
+    await run(() => mounted.result.current.onSelect('D-004'));
+    await pressKey(mounted.registry, 'W');
+    expect(mounted.result.current.activeLayer).toBe('window');
+
+    await run(() => mounted.result.current.onSelect('F-002'));
+    expect(mounted.result.current.activeLayer).toBe('furniture');
+
+    mounted.unmount();
+  });
+
   it('1 / 2 đổi loại trong nhóm đang chọn', async () => {
     const mounted = await mountSettled();
 

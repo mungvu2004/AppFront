@@ -357,14 +357,14 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         await captureEvidence(page, ev('X4-D-001', 'viewer_wall_notice'));
       });
 
-      await test.step('[16-D-001] viewer: rail keeps only "chọn (phím V)", "đo (phím M)" and the collapse button', async () => {
+      await test.step('[16-D-001] viewer: rail keeps only "chọn (phím V)" and the collapse button; "đo" is an edit tool (BUG-601, WallLayerToolRail.tsx:75,130)', async () => {
         await expect.soft(rail.getByRole('button', { name: WALL.select, exact: true })).toBeVisible();
-        await expect.soft(rail.getByRole('button', { name: WALL.measure, exact: true })).toBeVisible();
+        await expect.soft(rail.getByRole('button', { name: WALL.measure, exact: true })).toHaveCount(0);
         await expect.soft(rail.getByRole('button', { name: WALL.collapse, exact: true })).toBeVisible();
         await expect.soft(rail.getByRole('button', { name: WALL.draw, exact: true })).toHaveCount(0);
         await expect.soft(rail.getByRole('button', { name: WALL.split, exact: true })).toHaveCount(0);
         await expect.soft(rail.getByRole('button', { name: /^nối đoạn/u })).toHaveCount(0);
-        await expect.soft(rail.getByRole('button'), 'exactly three rail buttons').toHaveCount(3);
+        await expect.soft(rail.getByRole('button'), 'exactly two rail buttons').toHaveCount(2);
         await captureEvidence(page, ev('16-D-001', 'viewer_rail'));
       });
 
@@ -425,14 +425,14 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         await captureEvidence(page, ev('16-D-005', 'viewer_list_jk'));
       });
 
-      await test.step('[16-D-006] ⚑ viewer: the "đo" tool shown on the rail measures (two canvas clicks → a measurement label)', async () => {
-        await rail.getByRole('button', { name: WALL.measure, exact: true }).click();
+      await test.step('[16-D-006] ⚑ viewer: the "đo" tool is not offered (BUG-601, WallLayerToolRail.tsx:75,130) and canvas clicks measure nothing', async () => {
+        await expect.soft(rail.getByRole('button', { name: WALL.measure, exact: true })).toHaveCount(0);
         const svg = canvasGroup.locator('svg[role="img"]').first();
         const pill = page.locator(MEASURE_PILL);
         const before = await pill.count();
         await svg.click({ position: { x: 120, y: 140 } });
         await svg.click({ position: { x: 360, y: 200 } });
-        await expect.soft(pill, 'a measurement label appears after the two clicks').not.toHaveCount(before);
+        await expect.soft(pill, 'no measurement label appears after the two clicks').toHaveCount(before);
         await captureEvidence(page, ev('16-D-006', 'viewer_measure_tool'));
       });
 
@@ -559,11 +559,10 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         await captureEvidence(page, ev('17-D-007', 'viewer_object_sr_text'));
       });
 
-      await test.step('[17-D-008] viewer: status bar "Hoàn tác" is shown but a no-op', async () => {
+      await test.step('[17-D-008] viewer: status bar has no "Hoàn tác" button (BUG-601; ObjectLayerStatusBar.tsx:73-74 renders null for viewer)', async () => {
         const mark = flow.sent.length;
         const undo = status.getByRole('button', { name: OBJ.undo, exact: true });
-        await expect.soft(undo).toBeVisible();
-        await undo.click();
+        await expect.soft(undo, 'viewer gets no dead undo button').toHaveCount(0);
         await expect.soft(doorOptions(page).first()).toHaveAttribute('aria-selected', 'true');
         await quiet(page);
         expect.soft(writesSince(flow, mark), '"Hoàn tác" writes nothing').toEqual([]);
@@ -683,7 +682,8 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         const second = options.nth(1);
         await second.click();
         await expect.soft(second).toHaveAttribute('aria-selected', 'true');
-        await expect.soft(roomInspector(page).getByText(ROOM.viewerNotice, { exact: true })).toBeVisible();
+        // BUG-636: the viewer notice is ONE top banner of the screen, not inside the inspector.
+        await expect.soft(page.getByText(ROOM.viewerNotice, { exact: true })).toBeVisible();
         await captureEvidence(page, ev('20-D-005', 'viewer_room_list_select'));
       });
 
@@ -986,9 +986,8 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         await expect.soft(modes.getByRole('radio', { name: OVERLAY.swipe, exact: true }), 'compare mode').toBeEnabled();
         // Slider.tsx:144 — a disabled slider only gets tabIndex -1 (no aria-disabled), so "usable" = not -1.
         await expect.soft(page.getByRole('slider', { name: OVERLAY.opacity, exact: true }), 'scan opacity').not.toHaveAttribute('tabindex', '-1');
-        const lock = page.getByRole('switch', { name: OVERLAY.lock, exact: true });
-        await expect.soft(lock).toBeDisabled();
-        await expect.soft(lock).toHaveAttribute('aria-checked', 'true');
+        // BUG-599: "Khoá căn" is not drawn at all while the image placement is unsupported (overlayComparisonGateway.ts:339).
+        await expect.soft(page.getByRole('switch', { name: OVERLAY.lock, exact: true })).toHaveCount(0);
         await captureEvidence(page, ev('22-D-004', 'viewer_overlay_view_controls'));
       });
 
@@ -1067,7 +1066,8 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         await expect(state).toBeVisible();
         await expect.soft(state.getByText(OVERLAY.frameMissing, { exact: true })).toBeVisible();
         await expect.soft(page.getByText(OVERLAY.forbidden, { exact: true })).toHaveCount(0);
-        await expect.soft(page.getByRole('switch', { name: OVERLAY.lock, exact: true })).toBeDisabled();
+        // BUG-599: no lock switch while the gateway cannot place the image (overlayComparisonGateway.ts:339, OverlayComparisonToolbar.tsx:~226).
+        await expect.soft(page.getByRole('switch', { name: OVERLAY.lock, exact: true })).toHaveCount(0);
         await captureEvidence(page, ev('22-D-007', 'viewer_overlay_frame_missing'));
       });
 
@@ -1147,7 +1147,8 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         await openOn(flow, ROUTES.project.scale(df.projectId, df.floorId), df.projectId, df.floorId, SCALE.screen);
         await expect.soft(page.getByRole('button', { name: SCALE.apply, exact: true })).toBeVisible();
         await openOn(flow, ROUTES.project.overlay(df.projectId, df.floorId), df.projectId, df.floorId, OVERLAY.screen);
-        await expect.soft(page.getByRole('switch', { name: OVERLAY.lock, exact: true })).toBeEnabled();
+        // BUG-599: the lock switch is drawn only when the image placement is supported (overlayComparisonGateway.ts:339 = false).
+        await expect.soft(page.getByRole('switch', { name: OVERLAY.lock, exact: true })).toHaveCount(0);
         await captureEvidence(page, ev('X4-D-008', 'engineer_journey_controls'));
       });
 
@@ -1233,7 +1234,8 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         await expect.soft(page.getByText(OVERLAY.forbidden, { exact: true })).toHaveCount(0);
         await expect.soft(page.getByText(OVERLAY.readOnlyLine, { exact: true })).toHaveCount(0);
         await expect.soft(page.getByRole('combobox', { name: OVERLAY.floor })).toBeEnabled();
-        await expect.soft(page.getByRole('switch', { name: OVERLAY.lock, exact: true })).toBeEnabled();
+        // BUG-599: no lock switch for anyone while the image placement is unsupported (overlayComparisonGateway.ts:339).
+        await expect.soft(page.getByRole('switch', { name: OVERLAY.lock, exact: true })).toHaveCount(0);
         await expect.soft(page.getByLabel(OVERLAY.tolerance, { exact: true })).toBeEnabled();
         await captureEvidence(page, ev('22-D-002', 'engineer_overlay_controls'));
       });

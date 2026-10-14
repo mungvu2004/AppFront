@@ -190,17 +190,11 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await evidence(page, '14-B-014', 'real-length-hint');
       });
 
-      await step('14-B-015', 'cross-checks: always 3 rows, every value "—" with its expected range', async () => {
+      await step('14-B-015', 'cross-checks: all three values missing -> one "not enough data" sentence instead of 3 rows (BUG-631)', async () => {
         const rows = page.getByRole('region', { name: SCALE.crossChecks, exact: true });
-        for (const [label, range] of [
-          ['Độ dày tường điển hình', 'khoảng hợp lý 60 mm – 400 mm'],
-          ['Bề rộng cửa đi điển hình', 'khoảng hợp lý từ 700 mm trở lên'],
-          ['Diện tích phòng lớn nhất', 'khoảng hợp lý từ 2,50 m² trở lên'],
-        ] as const) {
-          await expect.soft(rows.getByText(label, { exact: true })).toBeVisible();
-          await expect.soft(rows.getByText(range, { exact: true })).toBeVisible();
-        }
-        await expect.soft(rows.getByText('—', { exact: true })).toHaveCount(3);
+        // ScaleCalibrationPanel.tsx:227-229 swaps the three FieldRows for CROSS_CHECKS_UNAVAILABLE when every value is "—".
+        await expect.soft(rows.getByText(/^Chưa đủ dữ liệu để kiểm chứng tỷ lệ/u)).toBeVisible();
+        await expect.soft(rows.getByText('Độ dày tường điển hình', { exact: true })).toHaveCount(0);
         await evidence(page, '14-B-015', 'cross-checks');
       });
 
@@ -480,7 +474,7 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await expect.soft(panelOf(page).locator('span', { hasText: /^3$/u }).first()).toHaveClass(/bg-accent/u);
         await expect.soft(applyDisabled(page)).toBeDisabled();
         // ⚑ expected: the screen says why apply is off for a 0 px line (open since QA-03d).
-        await expect.soft(panelOf(page).getByRole('alert').or(panelOf(page).getByText(/đoạn.*(ngắn|dài hơn 0)|0 px|chưa kéo/iu).filter({ hasNotText: /^0 px$/u })), 'an explanation for the 0 px line').toBeVisible();
+        await expect.soft(panelOf(page).getByRole('alert').or(panelOf(page).getByText(/đoạn.*(ngắn|dài hơn 0)|0 px|chưa kéo/iu).filter({ hasNotText: /^0 px$/u })).first(), 'an explanation for the 0 px line (alert + text both render: .first() avoids strict mode)').toBeVisible();
         await evidence(page, '14-C-017', 'zero-pixel-line');
       });
 
@@ -1429,8 +1423,10 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
       await step('14-G-003', 'GET …/quality 404 `project` (unknown / non-member) → notFound + "Mã lỗi: NOT_FOUND"', async () => {
         const unknownProject = `${df.projectId.slice(0, -1)}${df.projectId.endsWith('0') ? '1' : '0'}`;
         await page.goto(ROUTES.project.scale(unknownProject, df.floorId));
-        await expect.soft(page.getByText(ERR.notFound, { exact: false }).first()).toBeVisible({ timeout: 45_000 }); // USC:1536-1537
-        await expect.soft(page.getByText(/Mã lỗi: NOT_FOUND/u).first()).toBeVisible();
+        // useScaleCalibration.ts:1703-1705 -> floorLayerReadFailure.ts:50-57 swaps the whole screen (copy: ProjectSpatialGate.tsx:37-40); no machine code by design (G45/BUG-337).
+        await expect.soft(page.getByText('Không tìm thấy dự án này', { exact: true })).toBeVisible({ timeout: 45_000 });
+        await expect.soft(page.getByRole('button', { name: 'Về danh sách dự án', exact: true })).toBeVisible();
+        await expect.soft(page.getByText(/Mã lỗi: NOT_FOUND/u)).toHaveCount(0);
         await evidence(page, '14-G-003', 'unknown-project');
       });
     } finally {

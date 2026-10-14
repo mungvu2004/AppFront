@@ -917,8 +917,8 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
         await expect.soft(page.getByText(APPROVED, { exact: true })).toBeVisible(); // AFL:55,118-130
         await expect.soft(warningBanner(page)).toHaveCount(0);
         const dot = floorRow(page, f2.name).locator('span[aria-hidden="true"]'); // [19-C-009] the "ok" variant
-        await expect.soft(dot).toHaveAttribute('title', 'Trong dung sai'); // AFL:57-61,99-103
-        await expect.soft(floorRow(page, f2.name)).toHaveAccessibleName(/, Trong dung sai$/u); // AFL:69-73
+        await expect.soft(dot).toHaveAttribute('title', 'Trong ngưỡng'); // AFL:57-61,99-103
+        await expect.soft(floorRow(page, f2.name)).toHaveAccessibleName(/, Trong ngưỡng$/u); // AFL:69-73
         await ev(page, '19-A-039', 'approved-badge');
         expect.soft(writesSince(flow, mark), 'on a floors-screen entry the saver is not watching: no PUT').toEqual([]);
       });

@@ -305,6 +305,13 @@ export function DimensionOcrReview({
               <DimensionOcrPanelBody model={model} scaleCalibrationHref={scaleCalibrationHref} />
             </div>
 
+            {model.state === 'success' ? (
+              <div className="border-t border-border-default px-3 py-2" role="status">
+                <p className="text-[13px] font-medium text-text-primary">{DIMENSION_OCR_TEXT.states.done.title}</p>
+                <p className="text-[12px] text-text-muted">{DIMENSION_OCR_TEXT.states.done.description}</p>
+              </div>
+            ) : null}
+
             {/*
               Dải đối chiếu dính đáy. Nó tự trả `null` khi chưa chọn chuỗi nào,
               nhưng nơi gọi vẫn phải cấp hai trường của QĐ-7 — nên nó chỉ được
@@ -321,9 +328,10 @@ export function DimensionOcrReview({
 
             {/* Cửa vào chế độ duyệt bàn phím — vai Người xem không có gì để duyệt. */}
             {model.isViewerRole ? (
-              <p className="border-t border-border-default px-3 py-2 text-[12px] text-text-muted">
-                {model.viewerRoleNotice}
-              </p>
+              <div className="border-t border-border-default px-3 py-2 text-[12px] text-text-muted">
+                <p className="font-medium text-text-secondary">{DIMENSION_OCR_TEXT.states.forbidden.title}</p>
+                <p>{model.viewerRoleNotice}</p>
+              </div>
             ) : !model.keyboardReview.isActive && (model.state === 'loading' || model.state === 'error') ? null : (
               /* Đang tải hay đọc lỗi: chưa có gì để duyệt, không mời "bật duyệt bàn phím" (BUG-630). Màn rỗng giữ nút (BUG-334). */
               <div className="border-t border-border-default px-3 py-2">

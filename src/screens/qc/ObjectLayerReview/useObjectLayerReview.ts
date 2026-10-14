@@ -348,7 +348,7 @@ export function useObjectLayerReview(
   const [collapsedGroups, setCollapsedGroups] = useState<ObjectLayerVisibility>(NO_GROUPS_COLLAPSED);
   const [ownCollapsed, setOwnCollapsed] = useState(false);
   const [hoveredObjectId, setHoveredObjectId] = useState<string | null>(null);
-  const [activeLayerOverride, setActiveLayerOverride] = useState<ObjectLayerId | null>(null);
+  const [activeLayerOverride, setActiveLayerOverride] = useState<{ layer: ObjectLayerId; forId: string | null } | null>(null);
   /**
    * Đối tượng đang được kéo dọc tường.
    *
@@ -1232,11 +1232,20 @@ export function useObjectLayerReview(
   /* ---------------------------------------------------------------------- */
 
   const selectedObject = selectedObjectId === null ? null : objectById(selectedObjectId);
-  const activeLayer = activeLayerOverride ?? selectedObject?.layer ?? null;
+  /* Nhóm chọn tay chỉ có hiệu lực với đối tượng đang chọn lúc bấm; đổi đối tượng là hết, không chờ effect. */
+  const activeLayer =
+    (activeLayerOverride !== null && activeLayerOverride.forId === selectedObjectId
+      ? activeLayerOverride.layer
+      : null) ??
+    selectedObject?.layer ??
+    null;
   const activeSubtype = selectedObject?.subtype ?? null;
 
+  const selectedObjectIdForLayerRef = useRef(selectedObjectId);
+  selectedObjectIdForLayerRef.current = selectedObjectId;
+
   const onSelectLayer = useCallback((layer: ObjectLayerId) => {
-    setActiveLayerOverride(layer);
+    setActiveLayerOverride({ layer, forId: selectedObjectIdForLayerRef.current });
   }, []);
 
   /* Chọn đối tượng khác thì nhóm loại theo đối tượng đó, không giữ nhóm chọn tay của đối tượng trước. */
