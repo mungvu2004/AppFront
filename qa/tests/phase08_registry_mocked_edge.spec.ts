@@ -9,8 +9,7 @@
  * Real pairs: FL-36R-11 -> FL-36R-01 (read states); FL-36R-12 -> FL-36R-01 (G-002); FL-36R-13/14 -> FL-M-36R-01 (A-011, A-013/A-014);
  * FL-36R-15 -> FL-36R-01/03.
  * Deviations from flows-C3: FL-36R-13: the "Tai lai" re-read check of [36R-C-013] runs inside [36R-B-025] (the notice text must
- * exist to be read, and "Tai lai" removes it). UNKNOWN - NEED VERIFICATION: [36R-B-015] refetch trigger (family switch away and
- * back relies on stale data being refetched on remount); [36R-B-023] "not spinning" is only asserted as disabled + enabled after release.
+ * exist to be read, and "Tai lai" removes it). [36R-B-015] triggers the refetch through a failed activation (invalidateQueries).
  *
  * ## Users / budget
  * Shared admin only, 1 `POST /api/auth/login` per flow (5). No invitations, no real write, no dataset.
@@ -104,8 +103,8 @@ test.describe('SCR-36 registry [mocked response]', () => {
           await expect.soft(page.getByText(text, { exact: true })).toBeVisible(LONG);
         };
         await retry(wireError(429), BUSY);
+        await retry(wireError(500), READ_FALLBACK); // old and new text always differ
         await retry({ abort: true }, BUSY);
-        await retry(wireError(500), READ_FALLBACK);
         await shot(page, '36R-C-018');
       });
       await test.step('[36R-A-021] "Thử lại" with real answers: alert gone, picker + table back', async () => {
@@ -125,10 +124,13 @@ test.describe('SCR-36 registry [mocked response]', () => {
         mock.real = false;
         await page.reload();
         await expect(rowOf(page, 'Bản tường 1')).toBeVisible();
+        // a failed activation invalidates versions(wall): the refetch is the certain trigger (cache is fresh for 30 s)
         mock.versions = (url) => (url.searchParams.get('family') === WALL ? wireError(500) : null);
-        await selectFamily(page, OPENING);
-        await expect(rowOf(page, 'Bản cửa A')).toBeVisible();
-        await selectFamily(page, WALL); // UNKNOWN - NEED VERIFICATION: remount refetch of the stale wall page
+        mock.put = () => wireError(500);
+        await rowOf(page, 'Bản tường 2').getByRole('button', { name: 'Kích hoạt', exact: true }).click();
+        await dialog(page).getByRole('button', { name: 'Kích hoạt', exact: true }).click();
+        await expect(dialog(page).getByText('Chưa kích hoạt được bản này. Thử lại sau.', { exact: true })).toBeVisible(LONG);
+        await dialog(page).getByRole('button', { name: 'Huỷ', exact: true }).click();
         await expect.soft(page.getByRole('button', { name: RETRY, exact: true })).toBeVisible(LONG);
         await expect.soft(rowOf(page, 'Bản tường 1')).toBeVisible();
         await shot(page, '36R-B-015');
@@ -208,9 +210,9 @@ test.describe('SCR-36 registry [mocked response]', () => {
             return i >= 0 && l.slice(i + 1).some((x) => /model-versions\?family=openingAndFurnitureDetection$/u.test(x));
           })
           .toBe(true);
-        await expect.soft(loadError).toHaveCount(0);
         await expect.soft(page.getByRole('row')).toHaveCount(4);
         await expect.soft(more).toBeVisible();
+        await expect.soft(loadError).toHaveCount(0);
         await shot(page, '36R-C-016');
       });
       await test.step('[36R-C-017] CURSOR_INVALID twice: load-more error shown', async () => {
@@ -269,11 +271,12 @@ test.describe('SCR-36 registry [mocked response]', () => {
         cardBefore = await activeCard(page).innerText();
         await confirm().click();
         await expect(confirm()).toBeDisabled();
+        await expect.soft(confirm().locator('svg.animate-spin')).toHaveCount(1);
         await expect(dialog(page).getByRole('button', { name: 'Huỷ', exact: true })).toBeEnabled();
         await shot(page, '36R-B-024');
       });
       await test.step('[36R-B-026] while pending: card and row badge unchanged', async () => {
-        await expect.soft(activeCard(page)).toHaveText(cardBefore);
+        await expect.soft(activeCard(page)).toHaveText(cardBefore, { useInnerText: true });
         await expect.soft(page.locator('tr', { hasText: 'Bản cửa A' })).toContainText('Đang dùng');
         await expect.soft(page.locator('tr', { hasText: 'Bản cửa B' })).not.toContainText('Đang dùng');
         await shot(page, '36R-B-026');
@@ -289,6 +292,7 @@ test.describe('SCR-36 registry [mocked response]', () => {
         await expect
           .soft(inDialog('Bản này chưa đánh giá xong nên chưa kích hoạt được. Bản gốc chỉ được đánh giá khi dịch vụ học máy đã chạy.'))
           .toBeVisible(LONG);
+        expect.soft(mock.puts, 'still exactly one PUT after the answer').toHaveLength(1);
         await expect.soft(dialog(page)).toBeVisible();
         await shot(page, '36R-C-006');
       });
@@ -333,7 +337,7 @@ test.describe('SCR-36 registry [mocked response]', () => {
       await test.step('[36R-B-025] conflict notice text; "Tải lại" re-reads families + versions, notice gone', async () => {
         const notice = page.getByText('Nhận diện cửa và đồ đạc vừa được đổi ở nơi khác. Tải lại để thấy bản đang dùng.', { exact: true });
         await expect.soft(notice).toBeVisible();
-        await shot(page, '36R-B-025');
+        await shot(page, '36R-B-025', 'conflict notice; the "Tải lại" re-read of C-013 follows');
         const mark = mock.log.length;
         await page.getByRole('button', { name: 'Tải lại', exact: true }).click();
         await seenSince(mock.log, mark, /model-families/u);
@@ -376,10 +380,13 @@ test.describe('SCR-36 registry [mocked response]', () => {
       });
       await test.step('[36R-B-023] hold GET model-versions/<activeId>: confirm disabled, enabled after release', async () => {
         const g = gate();
-        mock.version = (id) => (id === versionId(1) ? g.wait.then(() => ({ status: 200, body: mock.data.versions[WALL][0] })) : null);
+        // active id 9 is NOT in the list, so the confirm waits for N27 (isActiveWaiting)
+        mock.data.families[0] = wireFamily(WALL, 3, 9);
+        mock.version = (id) => (id === versionId(9) ? g.wait.then(() => ({ status: 200, body: wireVersion(9, WALL, 'Bản tường 9') })) : null);
         await fresh(s, 'Gốc');
         await activate('Gốc');
         await expect.soft(confirm()).toBeDisabled();
+        await expect.soft(confirm().locator('svg.animate-spin')).toHaveCount(0);
         await shot(page, '36R-B-023');
         g.open();
         await expect.soft(confirm()).toBeEnabled(LONG);
@@ -508,6 +515,7 @@ test.describe('SCR-36 registry [mocked response]', () => {
         mock.version = (id) => (id === versionId(2) ? wireError(404, undefined, 'modelVersion') : null);
         await fresh(s, 'Bản tường 2');
         await rowOf(page, 'Bản tường 2').getByRole('button', { name: 'Bản tường 2', exact: true }).click();
+        await expect.soft(detail(page)).toContainText('Bản tường 2'); // list fields still shown
         await expect.soft(detail(page)).toContainText('Không tìm thấy phiên bản này.');
         await shot(page, '36R-B-021');
         await s.realRead();
