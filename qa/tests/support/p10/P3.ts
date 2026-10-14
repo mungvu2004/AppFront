@@ -18,7 +18,11 @@ export async function nextFrame(page: Page): Promise<void> {
   await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
 }
 
-/** Focus a non-input element (a heading gets `tabindex=-1`) so a following `?` is not typed into a field. */
+/**
+ * Focus a non-input element so a following `?` is not typed into a field. A heading gets `tabindex=-1` (script-only
+ * focus, like a skip-link target): no focusable element is common to every screen here, and the registry only
+ * looks at the event target's tag (SR:409), not its tabindex.
+ */
 export async function focusAnchor(target: Locator): Promise<void> {
   await target.evaluate((el) => {
     if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1');

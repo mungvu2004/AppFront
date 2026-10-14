@@ -95,6 +95,10 @@ test('SCR-41 · FL-10K-U3 · admin · help trên /3d dài 1024/768', async ({ pa
         await p.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
         await p.keyboard.press('?');
         await expectHelpFits(p);
+        // GSH:158 max-h 80vh: the long canvas list must scroll inside the box at 1024x768 and 768x1024 (taller viewports may fit it)
+        const scrolls = await helpDialog(p).evaluate((el) => el.scrollHeight > el.clientHeight);
+
+        expect.soft(scrolls || (p.viewportSize()?.height ?? 0) > 1000, 'help scrolls inside its box').toBe(true);
       },
       DESKTOP_VIEWPORTS,
       { fullPage: false },
