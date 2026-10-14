@@ -7,11 +7,11 @@
  * một tường qua đúng cửa `onSceneCommit` mà editor gọi, và đòi một lời gọi ghi.
  */
 
-import { act, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { __resetMockLayerState, createMockApiClient } from '@/api/__mocks__/client';
+import { __resetMockLayerState, createMockApiClient, simulateRemoteLayerEdit } from '@/api/__mocks__/client';
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { __resetFloorLayerSavers } from '@/hooks/useAutosave';
@@ -143,5 +143,22 @@ describe('PascalViewer — lượt sửa đi qua bộ tự lưu tầng', () => {
 
     expect(publish).toHaveBeenCalledWith(expect.objectContaining({ title: PASCAL_SAVE_FAILED_TITLE }));
     expect(saveCaption()).toMatch(/^Lưu thất bại/);
+  });
+
+  it('23-B-029 — 409 → nút "Tải lại"; còn sửa chưa lưu thì bấm mở hộp thoại A9', async () => {
+    const apiClient = createMockApiClient();
+    const bench = renderScreen(apiClient);
+
+    for (const levelId of SPATIAL.byKind.level) simulateRemoteLayerEdit(levelId);
+    await editWall(bench);
+    await tick(800);
+    await tick();
+
+    expect(screen.getByText(/vừa được sửa ở nơi khác/u)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Tải lại' }));
+    await tick();
+    await tick();
+
+    expect(screen.getByText('Bỏ thay đổi chưa lưu của tầng này?')).toBeInTheDocument();
   });
 });

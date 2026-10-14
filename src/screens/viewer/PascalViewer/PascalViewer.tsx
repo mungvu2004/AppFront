@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/Button';
 import {
   PASCAL_LEAVE_LABEL,
   PASCAL_REPROCESS_LABEL,
+  PASCAL_SAVE_RELOAD_LABEL,
   PASCAL_SIDE_PANEL_RAIL_LABEL,
   PASCAL_VIEWER_TITLE,
   type PascalSidePanel,
@@ -154,6 +155,7 @@ export function PascalViewer({
   activePanel,
   onPanelChange,
   sceneOverlay,
+  onSaveReload,
 }: PascalViewerProps) {
   const { state, caption, summary, skipped, errorCode, saveLabel } = viewModel;
 
@@ -293,6 +295,12 @@ export function PascalViewer({
           <p aria-live="polite" className="text-sm text-text-muted" role="status">
             {saveLabel}
           </p>
+        )}
+        {/* Anh em của câu lưu, không nằm trong nó: câu giữ đúng chữ cho trình đọc màn hình. */}
+        {onSaveReload !== undefined && (
+          <Button className="self-start" onClick={onSaveReload} size="sm" variant="secondary">
+            {PASCAL_SAVE_RELOAD_LABEL}
+          </Button>
         )}
 
         {summary !== null && (

@@ -111,7 +111,15 @@ export interface PascalViewerProps {
   readonly onPanelChange?: ((panel: PascalSidePanelId | null) => void) | undefined;
   /** Lớp phủ DOM đè lên khung 3D (ghim cộng tác) — cùng ô `relative` với canvas. */
   readonly sceneOverlay?: React.ReactNode;
+  /**
+   * Tầng bị 409 (bản mới ở nơi khác): nút "Tải lại" cạnh câu lưu, như dải lưu
+   * của màn QC (23-B-029). Vắng thì không có nút.
+   */
+  readonly onSaveReload?: (() => void) | undefined;
 }
+
+/** Nhãn nút tải lại tầng khi lưu gặp bản mới hơn — cùng chữ `FloorLayerSaveBanner`. */
+export const PASCAL_SAVE_RELOAD_LABEL = 'Tải lại';
 
 /** Nhãn tiếng Việt cho từng trạng thái, viết thường kiểu câu (A6). */
 export const PASCAL_VIEWER_CAPTIONS: Readonly<Record<PascalViewerState, string>> = {

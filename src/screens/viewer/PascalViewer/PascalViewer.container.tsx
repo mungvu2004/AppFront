@@ -69,6 +69,10 @@ const LazyHistoryPanel = lazy(() =>
   })),
 );
 
+/* Hộp thoại A9 của 409 khi còn sửa chưa lưu — cùng hộp màn QC, nạp lười như ở đó
+   (`Modal` chỉ cần khi có xung đột, không phải mỗi lượt mở `/3d`). */
+const LazyFloorLayerSaveConfirm = lazy(() => import('@/screens/qc/WallLayerReview/FloorLayerSaveConfirm'));
+
 /** Loại thông báo của một lượt sửa bị chặn — toast gom theo loại. */
 export const PASCAL_REJECTED_NOTIFICATION_TYPE = 'pascal.edit.rejected';
 
@@ -321,19 +325,29 @@ function PascalViewerBody({
     onTrigger: () => setActivePanel((current) => (current === 'history' ? null : 'history')),
   });
 
+  const saveConfirm = floorSave.saveBlock?.confirm ?? null;
+
   return (
-    <PascalViewer
-      viewModel={{ ...viewModel, saveLabel }}
-      canvasRef={canvasRef}
-      onRetry={onRetry}
-      onExpand={onExpand}
-      onLeave={onLeave}
-      onReprocess={onReprocess}
-      panels={panels}
-      activePanel={activePanel}
-      onPanelChange={setActivePanel}
-      sceneOverlay={<CollaborationLayerContainer scene={sceneTarget} />}
-    />
+    <>
+      <PascalViewer
+        viewModel={{ ...viewModel, saveLabel }}
+        onSaveReload={floorSave.saveBlock?.onReload}
+        canvasRef={canvasRef}
+        onRetry={onRetry}
+        onExpand={onExpand}
+        onLeave={onLeave}
+        onReprocess={onReprocess}
+        panels={panels}
+        activePanel={activePanel}
+        onPanelChange={setActivePanel}
+        sceneOverlay={<CollaborationLayerContainer scene={sceneTarget} />}
+      />
+      {saveConfirm !== null && (
+        <Suspense fallback={null}>
+          <LazyFloorLayerSaveConfirm confirm={saveConfirm} />
+        </Suspense>
+      )}
+    </>
   );
 }
 
