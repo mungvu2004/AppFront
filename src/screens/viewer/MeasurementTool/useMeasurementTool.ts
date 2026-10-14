@@ -604,9 +604,9 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
 
   /* Con trỏ và cú chấm đọc trạng thái mới nhất qua ref: picker được dựng một
      lần cho mỗi lượt bắn tia và không được dựng lại theo từng lượt vẽ. */
-  const latest = useRef({ isMeasuring, snapPoint, project });
+  const latest = useRef({ isMeasuring, snapPoint, project, mode, pickCount: picks.length });
   useEffect(() => {
-    latest.current = { isMeasuring, snapPoint, project };
+    latest.current = { isMeasuring, snapPoint, project, mode, pickCount: picks.length };
   });
 
   const picker = useMemo(() => {
@@ -634,6 +634,13 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
         if (event.type === 'hover') {
           setCursor({ point: snapped.point, px: event.pointer, snap: snapped.snap });
 
+          return;
+        }
+
+        // Chế độ hai điểm đủ điểm thì cú chấm thêm bị bỏ: giá trị và bản ghim chỉ
+        // dùng hai điểm đầu, nên vẽ điểm thứ ba là nói dối (25-C-022).
+        const { mode: liveMode, pickCount } = latest.current;
+        if (liveMode !== 'floorArea' && pickCount >= REQUIRED_POINTS[liveMode]) {
           return;
         }
 

@@ -258,8 +258,8 @@ const pickAtPointer: NonNullable<UseMeasurementToolOptions['pick']> = (pointer) 
   point: new Vector3(pointer.x / 1000, 0, pointer.y / 1000),
 });
 
-/** Bật công cụ đo rồi chấm hai điểm — đủ để có bản nháp mang nút "ghim". */
-function measureTwoPoints(): void {
+/** Bật công cụ đo rồi chấm hai điểm (hoặc `xs`) — đủ để có bản nháp mang nút "ghim". */
+function measureTwoPoints(xs: readonly number[] = [1000, 3000]): void {
   fireEvent.click(screen.getByRole('button', { name: /\(M\)/u }));
 
   const viewport = screen.getByLabelText('Khung nhìn mô hình');
@@ -272,7 +272,7 @@ function measureTwoPoints(): void {
     fireEvent(viewport, event);
   };
 
-  [1000, 3000].forEach((x) => {
+  xs.forEach((x) => {
     press('pointerDown', x);
     press('pointerUp', x);
   });
@@ -781,5 +781,30 @@ describe('useMeasurementTool — cổng ném đồng bộ không kẹt chốt gh
 
     fireEvent.click(screen.getByRole('button', { name: /ghim/iu }));
     expect(calls).toBe(2);
+  });
+});
+
+describe('useMeasurementTool — chế độ hai điểm dừng ở hai điểm (25-C-022, 25-C-023)', () => {
+  it('cú chấm thứ ba không vẽ thêm đĩa nào, và câu nhắc nói ghim / Esc', () => {
+    const { container } = renderHook({
+      mountScene: sceneSpy().mount,
+      pick: pickAtPointer,
+      projectToScreen: (point) => ({ x: point.x, y: point.z }),
+    });
+    const discs = (): number => container.querySelectorAll('circle.fill-accent').length;
+
+    measureTwoPoints();
+    const two = discs();
+    expect(two).toBeGreaterThan(0);
+    const viewport = screen.getByLabelText('Khung nhìn mô hình');
+    const down = createEvent.pointerDown(viewport);
+    Object.defineProperty(down, 'clientX', { value: 5000 });
+    Object.defineProperty(down, 'clientY', { value: 0 });
+    fireEvent(viewport, down);
+    fireEvent.pointerUp(viewport);
+
+    expect(discs()).toBe(two);
+    expect(screen.queryByText(/Chọn thêm điểm/u)).toBeNull();
+    expect(screen.getByText(/Nhấn Enter để ghim phép đo, hoặc nhấn Esc để bỏ\./u)).toBeInTheDocument();
   });
 });
