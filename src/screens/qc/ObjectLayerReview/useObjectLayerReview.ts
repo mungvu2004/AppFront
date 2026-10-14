@@ -1360,7 +1360,12 @@ export function useObjectLayerReview(
         /* Danh sách loại đang mở thì phím thuộc về nó, không hoàn tác ngầm bên dưới (17-E-017). */
         const focused = document.activeElement;
 
-        if (focused?.closest('[role="listbox"]') || focused?.getAttribute('aria-expanded') === 'true') {
+        /* Nhóm danh sách đối tượng (`object-layer-group-*`) cũng là listbox nhưng không phải danh sách loại: ở đó Mod+Z vẫn hoàn tác. */
+        const typeListboxOpen =
+          focused?.closest('[role="listbox"]:not([id^="object-layer-group-"])') != null ||
+          (focused?.getAttribute('aria-haspopup') != null && focused.getAttribute('aria-expanded') === 'true');
+
+        if (typeListboxOpen) {
           return;
         }
 

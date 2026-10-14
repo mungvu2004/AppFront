@@ -63,7 +63,6 @@ import {
   type Json,
   counter,
   ev,
-  freezeClock,
   inspector,
   layerPath,
   layerRe,
@@ -622,26 +621,27 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
       await test.step('[X4-A-026] An unsaved SCR-16 edit (inside the 800 ms debounce), then SPA to SCR-14 and apply: ONE PUT with { layer, scaleMillimetresPerPixel }', async () => {
         const code = codeOfLabel((await rowLabels(page))[1] ?? '');
         await selectRow(page, code);
-        await freezeClock(page); // the debounce cannot fire before the apply
+        // A paused page.clock freezes Suspense/react-query/framer timers (SCR-14 never paints: RR + R1 reds). The page clock
+        // keeps running; only the autosave timers (createAutosave.ts:83-84: debounce 800 ms, max-wait 5000 ms) are swallowed.
+        await page.evaluate(() => {
+          const real = window.setTimeout.bind(window);
+          (window as unknown as { __realSetTimeout: typeof window.setTimeout }).__realSetTimeout = window.setTimeout;
+          window.setTimeout = ((fn: TimerHandler, ms?: number, ...rest: unknown[]) =>
+            ms === 800 || ms === 5_000 ? 0 : real(fn, ms, ...rest)) as typeof window.setTimeout;
+        });
         await page.keyboard.press('3');
         await on(screens.scale);
-        // The paused clock also freezes React's Suspense reveal throttle and react-query's zero-delay notify, so the lazy
-        // SCR-14 stays on "Đang tải màn hình" (run-042 PNG). Tick 50 ms at a time (15 x 50 < the 800 ms debounce) until it paints.
-        const scaleCanvas = page.getByRole('group', { name: 'Bản vẽ đã nắn, kéo để vẽ đường tham chiếu', exact: true });
-        // The canvas paints before the side panel's method radios (run-r1 PNG: panel still skeleton), so tick until the radios exist.
-        const methodGroup = page.getByRole('radiogroup', { name: 'Chọn cách xác định tỷ lệ', exact: true });
-        for (let tick = 0; tick < 15 && !((await scaleCanvas.isVisible()) && (await methodGroup.isVisible())); tick += 1) {
-          await page.clock.runFor(50);
-          await methodGroup.waitFor({ state: 'visible', timeout: 400 }).catch(() => undefined); // real time for the N15 read
-        }
         await drawReference(page, 4_000);
         const mark = run!.puts.length;
         const both = waitForLayerPut(page, onFloor.projectId, onFloor.floorId, (body) => typeof body.scaleMillimetresPerPixel === 'number');
         await applyScale(page).click();
         const sent = await both;
+        await page.evaluate(() => {
+          const w = window as unknown as { __realSetTimeout: typeof window.setTimeout };
+          window.setTimeout = w.__realSetTimeout;
+        });
         expect(sent.response.status()).toBe(200);
         const bodyKeys = Object.keys(asRecord(asRecord(sent.response.request().postDataJSON(), '#35').body, '#35.body'));
-        await page.clock.resume();
         await quiet(page);
         await attachJson('E04_X4-A-026_one-put.json', { bodyKeys, putsSinceApply: putsSince(run!, mark).length });
         expect.soft(bodyKeys.sort(), 'the PUT carries the layer and the scale').toEqual(['layer', 'scaleMillimetresPerPixel']);

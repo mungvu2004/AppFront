@@ -336,11 +336,14 @@ test.describe('E04 SCR-16 walls — mocked-response flows (QA-04c P1)', () => {
         await page.clock.runFor(900);
         await expect.poll(() => m.writes - writes0, { message: 'first PUT answered 503' }).toBe(1);
         await expect.soft(statusBar(page)).toContainText('Có thay đổi chờ đồng bộ');
-        await ev(page, '16-G-012', 'put-503-pending');
+        // A screenshot hangs while page.clock is paused (qa-flow-author trap): let time run in real time, shoot while the
+        // first rung (5 s, RS:1) is still pending, then wait for the retry itself.
         const second = waitForLayerPut(page, q1.projectId, floor.id);
-        await page.clock.runFor(5_100); // first rung of the ladder
-        expect.soft((await second).response.status(), 'the retry reaches the real server').toBe(200);
+        const resumedAt = Date.now();
         await page.clock.resume();
+        await ev(page, '16-G-012', 'put-503-pending');
+        expect.soft((await second).response.status(), 'the retry reaches the real server').toBe(200);
+        expect.soft(Date.now() - resumedAt, 'the retry waits for the first rung (5 s)').toBeGreaterThan(3_000);
         m.writeOnce = false;
         m.write = 'real';
       });

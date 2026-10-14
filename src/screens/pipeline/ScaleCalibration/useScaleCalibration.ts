@@ -1118,10 +1118,20 @@ export function useScaleCalibration(
           return session;
         }
 
-        const moved: PixelPoint = {
+        let moved: PixelPoint = {
           x: pixels(session[endpoint].x + acrossStep),
           y: pixels(session[endpoint].y + upStep),
         };
+        const currentFrame = frameRef.current;
+
+        // Nhích không được đẩy đầu đoạn ra ngoài ảnh (14-C-023): kẹp qua tỷ lệ 0..1 của khung.
+        if (currentFrame !== null) {
+          const ratio = toRatioPoint(currentFrame, moved);
+          moved = toPixelPoint(currentFrame, {
+            x: Math.min(1, Math.max(0, ratio.x)),
+            y: Math.min(1, Math.max(0, ratio.y)),
+          });
+        }
 
         return { ...session, [endpoint]: moved, isDragging: false };
       });

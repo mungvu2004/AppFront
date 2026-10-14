@@ -486,6 +486,55 @@ describe('[NGHIEM-1] D-06 gộp lệnh trong cửa sổ 400 ms', () => {
   });
 });
 
+describe('Mod+Z và danh sách (17-E-017 / 17-A-031)', () => {
+  const undoWithFocusIn = async (build: () => HTMLElement): Promise<number> => {
+    const mounted = await mountSettled();
+
+    await run(() => mounted.result.current.onChangeSubtype('S-003', 'singleDoor'));
+    await waitFor(() => {
+      expect(mounted.result.current.undoStepCount).toBe(1);
+    });
+
+    const holder = build();
+
+    document.body.append(holder);
+    (holder.querySelector('[tabindex]') as HTMLElement).focus();
+    await pressKey(mounted.registry, 'z', { ctrlKey: true });
+
+    const left = mounted.result.current.undoStepCount;
+
+    holder.remove();
+    mounted.unmount();
+
+    return left;
+  };
+  const listboxWith = (id: string | null): HTMLElement => {
+    const box = document.createElement('div');
+
+    box.setAttribute('role', 'listbox');
+
+    if (id !== null) {
+      box.id = id;
+    }
+
+    const option = document.createElement('div');
+
+    option.setAttribute('role', 'option');
+    option.tabIndex = 0;
+    box.append(option);
+
+    return box;
+  };
+
+  it('tiêu điểm trên một dòng của danh sách đối tượng: Mod+Z vẫn hoàn tác', async () => {
+    expect(await undoWithFocusIn(() => listboxWith('object-layer-group-door'))).toBe(0);
+  });
+
+  it('tiêu điểm trong danh sách loại đang mở: Mod+Z không hoàn tác', async () => {
+    expect(await undoWithFocusIn(() => listboxWith(null))).toBe(1);
+  });
+});
+
 /* -------------------------------------------------------------------------- */
 /* Ba lệnh còn thiếu (QĐ-3).                                                   */
 /* -------------------------------------------------------------------------- */

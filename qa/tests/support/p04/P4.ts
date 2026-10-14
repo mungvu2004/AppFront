@@ -145,7 +145,15 @@ async function build(
 export async function reseed(api: APIRequestContext, built: Built, index: number): Promise<string[]> {
   const specs = built.specs[index];
   if (specs === null || specs === undefined) return [];
-  return seedWalls(api, built.project.projectId, built.floorIds[index] as string, specs);
+  // The previous width's page may still flush an autosave while this runs; writeLayer re-reads the revision per call, so a
+  // 409 from that race is retried on a fresh read. Any other status (or a 3rd failure) still fails with the full text.
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await seedWalls(api, built.project.projectId, built.floorIds[index] as string, specs);
+    } catch (error) {
+      if (attempt >= 3 || !/Received: 409/u.test(String(error))) throw error;
+    }
+  }
 }
 
 /* ---------------------------------------------------------------- SCR-19 builders */
