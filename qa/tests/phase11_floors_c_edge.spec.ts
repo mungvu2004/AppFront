@@ -233,8 +233,11 @@ test.describe('SCR-09 floor manager — delete / undo (QA-11 P3)', () => {
 
         await test.step('[11F-B-205] stale URL of the deleted floor → not-found message, not stuck', async () => {
           await page.goto(ROUTES.project.objects(projectId, f2.id));
-          // UNKNOWN — NEED VERIFICATION: exact wording (SCR-39 NotFound or "không còn tồn tại" from floorLayerReadFailure.ts:22)
-          await expect(page.getByText(/không còn tồn tại|Không tìm thấy|không có quyền/iu).first()).toBeVisible();
+          // floorLayerReadFailure.ts:21-24 + hooks/useFloorLayer.ts:31
+          await expect(page.getByText('Không mở được tầng này', { exact: true })).toBeVisible();
+          await expect.soft(page.getByText('Tầng này không còn tồn tại. Mở Quản lý tầng để chọn một tầng khác.', { exact: true })).toBeVisible();
+          await expect.soft(page.getByRole('button', { name: 'Về quản lý tầng', exact: true })).toBeVisible();
+          await expect.soft(page).not.toHaveURL(/khong-co-quyen/u);
           await captureEvidence(page, 'E11_11F-B-205_floors.png');
         });
 
