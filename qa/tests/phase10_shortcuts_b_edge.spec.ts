@@ -183,7 +183,13 @@ test('SCR-41 · FL-10K-03 · admin · dashboard /: phím trong ô nhập, lặp 
 
     await test.step('[10K-C-003] holding ? (auto-repeat) opens the help once, never toggles it shut', async () => {
       await focusAnchor(dashboardHeading(page));
+      await page.keyboard.press('?'); // warm-up: load the lazy help chunk (RT:300-309) so the dialog's own '?' binding is live
+      await expect(dialog).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(dialog).toBeHidden();
+      await focusAnchor(dashboardHeading(page));
       await page.keyboard.down('?');
+      await expect(dialog).toBeVisible(); // first keydown opened it; the dialog's toggleClose '?' (GSH:129) is now registered
       await page.keyboard.down('?'); // second keydown has repeat=true, SR:563-568
       await page.keyboard.up('?');
       await expect.soft(dialog).toBeVisible();
