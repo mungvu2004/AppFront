@@ -250,6 +250,8 @@ export interface ObjectDragMeasurement {
  * chứ không mở một menu rỗng.
  */
 export interface ObjectLayerCanvasViewProps extends ObjectLayerCanvasProps {
+  /** Đang đọc lớp: không nói "chưa có đối tượng" và không đếm "0 đối tượng" khi dữ liệu chưa tới (BUG-618). */
+  readonly isLoading?: boolean;
   /** 21 đối tượng đã đặt chỗ sẵn, cùng thứ tự với `objects`. */
   readonly placements: readonly ObjectPlacementViewModel[];
   /** `null` khi không ai đang kéo Slider vị trí. Toạ độ là pixel KHUNG (BUG-403). */

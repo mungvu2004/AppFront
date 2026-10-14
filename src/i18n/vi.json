@@ -1801,7 +1801,7 @@
       "title": "Căn chỉnh giữa các tầng",
       "autoAlignButton": "Căn chỉnh tự động",
       "status": {
-        "withinTolerance": "Trong dung sai",
+        "withinTolerance": "Trong ngưỡng",
         "needsAttention": "Cần chú ý",
         "cannotAlign": "Không căn được"
       },

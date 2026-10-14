@@ -231,6 +231,25 @@ describe('[NGHIEM-2] tổng số đối tượng trên màn đã ráp', () => {
     expect(await screen.findByText('Chiều rộng')).toBeInTheDocument();
     expect(screen.queryByText('chiều rộng')).toBeNull();
   });
+
+  it('[BUG-640] hai số của "Vị trí trên tường" nói rõ đầu nào của tường', async () => {
+    renderState('success');
+
+    const list = await screen.findByRole('group', { name: LIST_LABEL });
+
+    fireEvent.click(within(list).getAllByRole('option')[0] as HTMLElement);
+
+    expect(await screen.findByText('Cách đầu tường')).toBeInTheDocument();
+    expect(screen.getByText('Cách cuối tường')).toBeInTheDocument();
+  });
+
+  it('[BUG-618] đang tải: không bộ đếm 0/0, không "Tổng 0", không "chưa có đối tượng nào để vẽ"', () => {
+    renderState('loading');
+
+    expect(screen.queryByText('Chưa có đối tượng nào để vẽ trên mặt bằng.')).toBeNull();
+    expect(screen.queryByText(/0\/0/u)).toBeNull();
+    expect(screen.queryByText(/^Tổng 0/u)).toBeNull();
+  });
 });
 
 /* -------------------------------------------------------------------------- */

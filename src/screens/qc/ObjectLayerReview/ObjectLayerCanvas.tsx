@@ -188,6 +188,7 @@ export function ObjectLayerCanvas({
   highlightedWallId,
   hoveredObjectId,
   isInteractive,
+  isLoading = false,
   layerVisibility,
   onAttachToNearestWall,
   onApprove,
@@ -392,7 +393,7 @@ export function ObjectLayerCanvas({
         )}
       </div>
 
-      {placements.length === 0 ? (
+      {placements.length === 0 && !isLoading ? (
         <p className="absolute inset-x-0 top-1/2 text-center text-[13px] text-text-muted">
           {OBJECT_CANVAS_TEXT.nothingToDraw}
         </p>
@@ -417,10 +418,12 @@ export function ObjectLayerCanvas({
             {OBJECT_LAYER_LABELS[layer]}
           </span>
         ))}
-        <span className="text-[12px] tabular-nums text-text-primary">
-          {placements.length}
-          <span className="text-text-secondary">{OBJECT_CANVAS_TEXT.objectCountSuffix}</span>
-        </span>
+        {isLoading ? null : (
+          <span className="text-[12px] tabular-nums text-text-primary">
+            {placements.length}
+            <span className="text-text-secondary">{OBJECT_CANVAS_TEXT.objectCountSuffix}</span>
+          </span>
+        )}
         <span className="sr-only" data-testid={OBJECT_CANVAS_COLOR_COUNT_TEST_ID}>
           {dataColors.length}
         </span>

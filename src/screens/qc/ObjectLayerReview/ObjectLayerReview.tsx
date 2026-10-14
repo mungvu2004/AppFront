@@ -71,6 +71,8 @@ const OPEN_WALL_LAYER_ACTION = 'Sang duyệt tường';
 const LOW_CONFIDENCE_FILTER = 'Chỉ hiện mục dưới ngưỡng';
 const LOW_CONFIDENCE_DONE = 'Đã duyệt hết mục dưới ngưỡng.';
 const SHOW_ALL = 'Hiện tất cả';
+/* Chưa có số đếm thật thì không in "0/0 đối tượng đã duyệt" (BUG-618). */
+const LOADING_PROGRESS_LABEL = 'Đang đọc lớp đối tượng…';
 
 /** Số dòng khung xương của panel trái lúc đang tải — một dòng cho mỗi nhóm, cộng một. */
 const SKELETON_ROWS = [0, 1, 2, 3];
@@ -202,6 +204,7 @@ function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewM
       highlightedWallId={model.highlightedWallId}
       hoveredObjectId={model.hoveredObjectId}
       isInteractive={!model.isViewerRole}
+      isLoading={model.state === 'loading'}
       layerVisibility={model.layerVisibility}
       millimetresPerPixel={model.millimetresPerPixel}
       objects={model.objects}
@@ -278,6 +281,14 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
           /* Dưới 1280 panel cao theo nội dung, vùng ngoài cuộn — không nén danh sách còn ~3 hàng (BUG-395). */
           <div className="order-1 flex w-full shrink-0 flex-col gap-2 xl:order-none xl:h-full xl:w-[280px] xl:overflow-y-auto">
             <div className="shrink-0">
+              {/* Đang tải: khung xương thay bộ đếm "0/0" và "Tổng 0" như thể dữ liệu thật (BUG-618). */}
+              {model.state === 'loading' ? (
+                <div aria-hidden="true" className="flex flex-col gap-2 rounded-[12px] bg-bg-surface px-5 py-4 shadow-panel">
+                  {SKELETON_ROWS.map((row) => (
+                    <Skeleton key={row} preset="table-row" />
+                  ))}
+                </div>
+              ) : (
               <ObjectLayerLeftPanel
                 counts={model.counts}
                 furnitureAttentionNotice={model.furnitureAttentionNotice}
@@ -289,6 +300,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
                 reviewProgressLabel={model.reviewProgressLabel}
                 subtypeFilters={model.subtypeFilters}
               />
+              )}
             </div>
 
             <div className="shrink-0 rounded-[12px] bg-bg-surface px-3 py-3 shadow-panel">
@@ -327,7 +339,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
         onToggleCollapsed={model.onToggleCollapsed}
         onUndo={model.onUndo}
         reviewCounter={model.reviewCounter}
-        reviewProgressLabel={model.reviewProgressLabel}
+        reviewProgressLabel={model.state === 'loading' ? LOADING_PROGRESS_LABEL : model.reviewProgressLabel}
         state={model.state}
         viewerRoleNotice={model.viewerRoleNotice}
       />

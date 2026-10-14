@@ -281,6 +281,17 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
               {EXPAND_PANEL_LABEL}
             </Button>
           </div>
+        ) : viewModel.state === 'loading' ? (
+          /* Đang tải: khung xương, không in "0 px / 0 mm" và danh sách tầng như dữ liệu thật (BUG-618). */
+          <div aria-hidden="true" className="flex w-[344px] shrink-0 flex-col gap-2 max-lg:w-full">
+            {[0, 1].map((card) => (
+              <div className="flex flex-col gap-2 rounded-[12px] bg-bg-surface p-5 shadow-panel" key={card}>
+                {SKELETON_ROWS.slice(0, 3).map((row) => (
+                  <Skeleton key={row} preset="table-row" />
+                ))}
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="flex h-full min-h-0 shrink-0 flex-col gap-2 overflow-y-auto max-lg:h-auto max-lg:overflow-visible">
             <AxisGridOriginPanel

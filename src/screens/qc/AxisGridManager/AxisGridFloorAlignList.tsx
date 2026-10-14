@@ -58,12 +58,12 @@ const ROOT_FLOOR_LABEL = 'Tầng gốc';
 const APPROVED_BADGE_LABEL = 'Đã duyệt';
 
 const STATUS_LABEL: Readonly<Record<FloorAlignStatus, string>> = {
-  ok: 'Trong dung sai',
+  ok: 'Trong ngưỡng',
   warning: 'Cần chú ý',
   unalignable: 'Không căn được',
 };
 
-/* "Trong dung sai" là trung tính: xanh "đã xác minh" chỉ dành cho việc người duyệt (A5). */
+/* "Trong ngưỡng" là trung tính: xanh "đã xác minh" chỉ dành cho việc người duyệt (A5). */
 const STATUS_BADGE_VARIANT: Readonly<Record<FloorAlignStatus, ViewStatusCode>> = {
   ok: 'neutral',
   warning: 'attention',

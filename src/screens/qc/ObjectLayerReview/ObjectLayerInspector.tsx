@@ -178,6 +178,8 @@ const HEIGHT_LABEL = 'Chiều cao';
 const SILL_HEIGHT_LABEL = 'Cao độ bệ cửa';
 const HOST_WALL_LABEL = 'Tường chứa nó';
 const POSITION_LABEL = 'Vị trí trên tường';
+const POSITION_START_CAPTION = 'Cách đầu tường';
+const POSITION_END_CAPTION = 'Cách cuối tường';
 const SWING_LABEL = 'Hướng mở';
 const CONFIDENCE_LABEL = 'Độ tin cậy';
 const UNATTACHED_BADGE = 'Chưa gắn vào tường nào';
@@ -335,6 +337,7 @@ function ObjectInspectorBody({
           inspector.distanceToStartLabel !== null &&
           inspector.distanceToEndLabel !== null && (
             <FieldRow label={POSITION_LABEL}>
+              <div className="flex flex-col gap-1">
               {isViewerRole ? (
                 <div className="flex h-9 items-center justify-between font-mono text-[13px] tabular-nums text-text-secondary">
                   <span>{inspector.distanceToStartLabel}</span>
@@ -353,6 +356,12 @@ function ObjectInspectorBody({
                   />
                 </div>
               )}
+              {/* Hai số ở hai đầu là khoảng cách tới ĐẦU nào của tường — nói ra, không để đoán (BUG-640). */}
+              <p className="flex justify-between text-[12px] text-text-muted">
+                <span>{POSITION_START_CAPTION}</span>
+                <span>{POSITION_END_CAPTION}</span>
+              </p>
+              </div>
             </FieldRow>
           )}
 

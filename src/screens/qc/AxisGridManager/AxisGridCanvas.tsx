@@ -21,7 +21,7 @@
  * màu "data" nào, chỉ accent/bg/border/text/danger/state/wall/canvas/scene) —
  * đúng lỗ hổng `--data-dimension` mà `DimensionOcrCanvas.tsx:46` từng gặp.
  * Điều phối viên đã chốt (`orca orchestration ask`, 01-09-2026), đúng khuôn đó:
- * {@link AXIS_DEFAULT_TOKEN} (`--border-default`) cho trục/nhãn mặc định,
+ * {@link AXIS_DEFAULT_TOKEN} (`--text-secondary`) cho trục/nhãn mặc định,
  * {@link AXIS_HIGHLIGHT_TOKEN} (`--accent`) CHỈ cho trục đang trỏ/chọn — nếu
  * MỌI trục đều `--accent` thì màu nhấn hết phân biệt được thứ gì tương tác
  * được (A2), đúng lý do A4 tồn tại để chặn màu thứ tư.
@@ -46,7 +46,8 @@ import type { AxisCanvasAxisViewModel, AxisCanvasViewModel } from './axisGridTyp
 /* Token màu — xem JSDoc đầu file.                                             */
 /* -------------------------------------------------------------------------- */
 
-const AXIS_DEFAULT_TOKEN = 'var(--border-default)';
+/* Nét trục là hình chính của màn: `--text-secondary` (≥ 4,5:1 trên nền), không `--border-default` ~1,2:1 (BUG-627). */
+const AXIS_DEFAULT_TOKEN = 'var(--text-secondary)';
 const AXIS_HIGHLIGHT_TOKEN = 'var(--accent)';
 const AXIS_BADGE_FILL_TOKEN = 'var(--bg-surface)';
 
