@@ -12,8 +12,8 @@
  * - Retry policy: fixed slots, `-r<retry>` suffix only on retry.
  *
  * ## Request budget (POST /api/users/invitations, 30/h/admin; this file's admin = p08-37W-adm)
- * Counted per run: FL-02 5 (e1, e2+e3 one call, e4 one call, e1 again, PU6 email) + FL-03 1 (e5) + FL-05 2 (r1, r2) = 8 invitations
- * (the held double-click sends 1). FL-01 and FL-06 send 0. Worst case with one retry of every test: 16 < 30. Seed-admin invites: only
+ * Counted per run: FL-02 5 (e1, e2+e3, e4, e1 again, PU6 email: a 422 still counts) + FL-03 3 (inviteApi, resend A-007, resend G-012 share the users_invite bucket) + FL-05 2 (r1, r2) = 10 invitations
+ * (the held double-click sends 1). FL-01 and FL-06 send 0. One retry of FL-02 makes 15; every test retried 20 < 30. Seed-admin invites: only
  * to fill empty pool slots (adm, 1, 2, 3, 5, eng, view) = 7 once.
  * Logins: 1 seed API + 1 adm API + 1 adm UI per test (+ 2 in FL-06 for PU7/PU8) = ~22 per run.
  */
@@ -213,13 +213,12 @@ test.describe('E08 SCR-37 users write (edge)', () => {
       const box = inviteBox(page);
       const role = page.getByRole('combobox', { name: 'Vai cho lời mời' });
       let successes = 0;
-      let doubleClickPosts = 0;
+      let postCount = 0;
       let loadingDuringHold = false;
       let optimisticName = '';
       let postBody: unknown;
-      let pendingBefore = 0;
+      const refreshes: number[] = [];
       await test.step('[37W-A-002] gui mot dia chi', async () => {
-        pendingBefore = await pendingCount(page);
         await openInviteButton(page).click();
         await box.fill(e1);
         const held = await holdResponse(page, `**${INVITATIONS}`, 'POST'); // real response, held ~ until released (B-001/B-002)
@@ -227,23 +226,26 @@ test.describe('E08 SCR-37 users write (edge)', () => {
         await inviteSubmit(page).dblclick({ force: true });
         await held.seen;
         loadingDuringHold = await inviteSubmit(page).isDisabled();
-        optimisticName = await userRow(page, e1).innerText();
-        doubleClickPosts = rec.writes().length;
+        optimisticName = (await userRow(page, e1).count()) ? await userRow(page, e1).innerText() : '';
+        const r0 = rec.listReads();
         const list = nextListRead(page);
         await held.release();
         const sent = await post;
         postBody = sent.response.request().postDataJSON();
-        await list;
+        const listed = await list;
+        refreshes.push(rec.listReads() - r0);
         successes += 1;
+        postCount = rec.writes().filter((w) => w === `POST ${INVITATIONS}`).length;
         expect(postBody).toEqual({ emails: [e1], role: 'viewer' });
         await expect(box).toHaveCount(0);
         await expect(toast(page, T.invitedTitle)).toContainText(e1);
         await expect(userRow(page, e1)).toContainText(STATUS.pending);
-        expect(await pendingCount(page)).toBe(pendingBefore + 1);
+        const listedUsers = asList((listed.json as { users?: unknown }).users);
+        expect.soft(await pendingCount(page), 'count of the refreshed list itself (other workers also invite)').toBe(listedUsers.filter((u) => u.status === 'pending').length);
         await ev(page, '37W-A-002');
       });
       await test.step('[37W-B-001] bam dup chi 1 POST', async () => {
-        expect.soft(doubleClickPosts, 'exactly one POST while the response was held').toBe(1);
+        expect.soft(postCount, 'exactly one POST /api/users/invitations after the double-click (counted after the refresh)').toBe(1);
         expect.soft(loadingDuringHold, 'submit is loading/disabled while sending').toBe(true);
         await ev(page, '37W-B-001');
       });
@@ -268,10 +270,12 @@ test.describe('E08 SCR-37 users write (edge)', () => {
         await pickOption(page, role, ROLE.engineer);
         await expect.soft(page.getByText(T.validChip(2), { exact: true })).toBeVisible();
         const post = nextResponse(page, 'POST', re(INVITATIONS), [201]);
+        const r0 = rec.listReads();
         const list = nextListRead(page);
         await inviteSubmit(page).click();
         expect((await post).response.request().postDataJSON()).toEqual({ emails: [e2, e3], role: 'engineer' });
         await list;
+        refreshes.push(rec.listReads() - r0);
         successes += 1;
         await expect.soft(userRow(page, e2)).toContainText(ROLE.engineer);
         await expect.soft(userRow(page, e3)).toContainText(STATUS.pending);
@@ -290,28 +294,33 @@ test.describe('E08 SCR-37 users write (edge)', () => {
       await test.step('[37W-C-005] bien the hoa', async () => {
         await expect.soft(page.getByText(T.validChip(1), { exact: true }), 'N4: one address differing only by case should count once').toBeVisible();
         const post = nextResponse(page, 'POST', re(INVITATIONS), [201]);
+        const r0 = rec.listReads();
         const list = nextListRead(page);
         await inviteSubmit(page).click();
         const sent = await post;
         expect.soft((sent.response.request().postDataJSON() as { role: string }).role, 'A-004: last chosen role').toBe('viewer');
         await list;
+        refreshes.push(rec.listReads() - r0);
         successes += 1;
         await expect.soft(userRow(page, e4)).toHaveCount(1);
         await expect.soft(toast(page, T.invitedTitle)).not.toContainText(upper);
         await ev(page, '37W-C-005');
       });
       await test.step('[37W-C-008] moi lai e1 dang pending', async () => {
-        const before = asList(((await (await x.e.api.get(USERS)).json()) as { users: unknown }).users).length;
+        const countOf = async (): Promise<number> =>
+          asList(((await (await x.e.api.get(USERS)).json()) as { users: unknown }).users).filter((u) => str(u, 'email').toLowerCase() === e1.toLowerCase()).length;
+        const before = await countOf();
         await openInviteButton(page).click();
         await box.fill(e1);
         const post = nextResponse(page, 'POST', re(INVITATIONS), [200, 201]);
+        const r0 = rec.listReads();
         const list = nextListRead(page);
         await inviteSubmit(page).click();
         await post;
         await list;
+        refreshes.push(rec.listReads() - r0);
         successes += 1;
-        const after = asList(((await (await x.e.api.get(USERS)).json()) as { users: unknown }).users).length;
-        expect.soft(after, 'total users unchanged').toBe(before);
+        expect.soft([before, await countOf()], 'e1 stays one row (1 -> 1)').toEqual([1, 1]);
         await expect.soft(userRow(page, e1)).toHaveCount(1);
         await ev(page, '37W-C-008');
       });
@@ -332,7 +341,7 @@ test.describe('E08 SCR-37 users write (edge)', () => {
         await ev(page, '37W-C-007');
       });
       await test.step('[37W-G-016] moi lan ghi thanh cong lam moi dung 1 lan', async () => {
-        expect.soft(rec.listReads(), '1 initial read + 1 per successful write').toBe(1 + successes);
+        expect.soft(refreshes, 'each successful write is followed by exactly one list read').toEqual(Array.from({ length: successes }, () => 1));
         await ev(page, '37W-G-016');
       });
       rec.stop();
@@ -354,11 +363,9 @@ test.describe('E08 SCR-37 users write (edge)', () => {
     const { context, page } = await sessionOf(browser, x.e.adm);
     let id5 = '';
     try {
-      await page.clock.install();
+      await page.clock.install({ time: new Date(Date.now() + 9 * 86_400_000) }); // clock keeps running from a moment past the 7-8 day expiry (toast timers keep ticking)
       const invited = await inviteApi(x.e.api, e5, 'viewer'); // 1 invite (UI invite covered by FL-37W-02)
       id5 = str(invited, 'id');
-      const expiresAt = Date.parse(str(invited, 'inviteExpiresAt')) || Date.now() + 8 * 86_400_000;
-      await page.clock.setFixedTime(new Date(expiresAt + 60_000)); // verified: nowMs = gateway.now = Date.now (userManagementGateway.ts:458, useUserManagement.ts:471,573), so a fixed Date is enough
       await openUsers(page);
       await search(page, e5);
       const row = userRow(page, e5);
@@ -653,12 +660,21 @@ test.describe('E08 SCR-37 users write (edge)', () => {
       rec.stop();
     } finally {
       await context.close();
-      for (const c of created) await deleteUser(x.e.api, c.id, c.email);
+      const failures: unknown[] = [];
+      const attempt = async (f: () => Promise<unknown>): Promise<void> => {
+        try {
+          await f();
+        } catch (error) {
+          failures.push(error);
+        }
+      };
       if (projectId) {
-        expect(await removeProjectMember(x.e.api, projectId, pu5.id), 'cleanup member').toBeNull();
-        await deleteSeededProject(x.e.api, projectId);
+        await attempt(async () => expect(await removeProjectMember(x.e.api, projectId, pu5.id), 'cleanup member').toBeNull());
+        await attempt(() => deleteSeededProject(x.e.api, projectId));
       }
+      for (const c of created) await attempt(() => deleteUser(x.e.api, c.id, c.email));
       await x.dispose();
+      if (failures.length > 0) throw new Error(`cleanup: ${failures.map(String).join(' | ')}`);
     }
   });
 
@@ -685,7 +701,7 @@ test.describe('E08 SCR-37 users write (edge)', () => {
         await expect(own).toBeVisible();
         await expect.soft(own.getByRole('button', { name: T.remove, exact: true }), 'N1: own row must not offer "Xoá"').toHaveCount(0);
         // useUserManagement.ts:337 only blocks the last admin: no self-delete copy exists, so correct = no "Xoá" and a visible reason text in the actions cell
-        await expect.soft(own.getByRole('cell').last(), 'N1: own actions cell states why it cannot be deleted').toContainText(/xoá/iu);
+        await expect.soft(own.getByRole('cell').last().getByText(/xoá/iu).and(page.locator(':not(button)')), 'N1: reason text (not the button) in own actions cell; UNKNOWN — NEED VERIFICATION: copy absent in source').toHaveCount(1);
         await ev(page, '37W-C-013');
       });
       await test.step('[37W-C-014] panel hang minh', async () => {
@@ -693,7 +709,7 @@ test.describe('E08 SCR-37 users write (edge)', () => {
         const aside = detailAside(page);
         await expect(aside).toBeVisible();
         const btn = aside.getByRole('region', { name: T.removeSection }).getByRole('button', { name: T.remove, exact: true });
-        await expect.poll(async () => (await btn.count()) === 0 || (await btn.isDisabled()), { message: 'N2: own panel has no usable "Xoá"' }).toBe(true);
+        expect.soft((await btn.count()) === 0 || (await btn.isDisabled()), 'N2: own panel has no usable "Xoá"').toBe(true);
         await ev(page, '37W-C-014');
       });
       const blocked = async (who: PoolUser, id: string): Promise<void> => {
