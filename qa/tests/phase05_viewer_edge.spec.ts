@@ -96,7 +96,6 @@ const softly = expect.configure({ soft: true });
 const budget = (estimateS: number): number => Math.max(120_000, 2 * estimateS * 1_000);
 
 const Q1_SUMMARY = { Tầng: '1', Tường: '10', 'Ô mở': '2', Phòng: '2' }; // layerSeed qcLayer: 10 walls, door + window, 2 rooms
-const DIRTY = 'Có thay đổi chờ đồng bộ'; // i18n/vi.json autosave.dirty (USI:59-60)
 const PANEL_REGION = (page: Page) => page.getByRole('region', { name: PV.history, exact: true });
 const collapsedHeading = (page: Page) => page.getByRole('heading', { name: PV.collapsedTitle, exact: true });
 /** NotificationHost.tsx:21-24,49-58 joins "title — description" into ONE string (E1-T9): match the title as a prefix. */
@@ -480,15 +479,18 @@ test.describe('SCR-23 Pascal viewer — real flows', () => {
       await test.step('[23-A-021] Ctrl+S flushes: PUT within 800 ms once dirty', async () => {
         await expect(saveLine(page)).toHaveText(SAVE.saved, { timeout: 15_000 });
         const before = puts.length;
-        await renameRoom(page, 'Bếp C', 'Bếp D');
-        await expect.soft(saveLine(page)).toHaveText(DIRTY, { timeout: 5_000 }); // the store holds the Pascal commit
+        const enterAt = await renameRoom(page, 'Bếp C', 'Bếp D');
         await blurAll(page);
+        // run-052: the "Có thay đổi chờ đồng bộ" moment is too short to wait for. Ctrl+S goes at a deadline from the Enter:
+        // after the Pascal debounce (1 000 ms, use-auto-save.ts:7) put the edit in the store, before the floor saver's own
+        // 800 ms timer sends it.
+        await settleUntil(page, enterAt, 1_100);
         const flushAt = Date.now();
         await page.keyboard.press('Control+s'); // RT:236-238 flushAutosaves
         const put = await nextPut(puts, before, 'PUT after Ctrl+S');
-        // The flushed PUT leaves after Ctrl+S and clearly before the unflushed autosave (Enter + 1,8 s) would.
         expect.soft(put.at, 'PUT sent after Ctrl+S').toBeGreaterThanOrEqual(flushAt);
-        expect.soft(put.at - flushAt, 'flush, not the 800 ms floor-saver timer').toBeLessThan(800);
+        // Sooner than the unflushed autosave (≥ 1 400 ms after Enter, the [23-A-019] bound measured in run-051b).
+        expect.soft(put.at - enterAt, 'flushed ahead of the autosave').toBeLessThan(1_400);
         await captureEvidence(page, 'E05_23-A-021_ctrl-s.png', { caption: `t(PUT) − t(Ctrl+S) = ${String(put.at - flushAt)} ms` });
       });
 
@@ -560,8 +562,14 @@ test.describe('SCR-23 Pascal viewer — real flows', () => {
 
       await test.step('[23-A-026] ⚑ mass delete asks for confirmation (dialog)', async () => {
         // GD:27-30 "màn hình bắt mã này rồi mở hộp thoại"; source relabels to PASCAL_UNKNOWN_NODE + toast (UPE:180).
-        await expect.soft(page.getByRole('alertdialog').or(page.getByRole('dialog')).first()).toBeVisible();
-        await captureEvidence(page, 'E05_23-A-026_no-confirm.png');
+        // PascalViewerOverlays.tsx:39,82-94 (fix FG): Modal "Xoá nhiều đối tượng khỏi tầng?" with "Xoá" / "Huỷ".
+        const dialog = page.getByRole('dialog', { name: 'Xoá nhiều đối tượng khỏi tầng?', exact: true })
+          .or(page.getByRole('alertdialog', { name: 'Xoá nhiều đối tượng khỏi tầng?', exact: true }));
+        await expect.soft(dialog.first()).toBeVisible();
+        await captureEvidence(page, 'E05_23-A-026_mass-delete-confirm.png');
+        // Close it before going on: an open modal blocks the next clicks (run-052, BUG-633).
+        if ((await dialog.count()) > 0) await button(dialog.first(), 'Huỷ').click();
+        await expect(dialog).toHaveCount(0);
       });
 
       await test.step('[23-A-024] the rejection undo is silent: no "Đã hoàn tác thay đổi gần nhất"', async () => {
@@ -629,6 +637,7 @@ test.describe('SCR-23 Pascal viewer — real flows', () => {
         // UNKNOWN — NEED VERIFICATION: the Site tree node text and the SliderControl input name "Chiều cao" (nodes/src/wall/panel.tsx:322).
         await openPascalPanel(page, 'Site');
         await pascalRoot(page).getByText('Tường chịu lực 7', { exact: true }).click();
+        await expandInspector(page);
         const height = pascalRoot(page).getByLabel('Chiều cao', { exact: true }).first();
         const before = puts.length;
         const at = Date.now();
@@ -649,6 +658,8 @@ test.describe('SCR-23 Pascal viewer — real flows', () => {
       const { page } = await f.open('admin');
       const puts = watchLayerPuts(page);
       await openPascal(page, `${ROUTES.project.viewer(q1.projectId)}?tool=measure`);
+      /** The measurement label is drawn in the WebGL canvas (no DOM node, run-052): compare canvas shots instead. */
+      const drawn = async (before: Buffer): Promise<number> => pixelDiffRatio(before, await canvasOnlyPng(page));
       const clickGround = async (): Promise<void> => {
         const box = await canvasBox(page).boundingBox();
         if (box === null) throw new Error('pascal-canvas has no box');
@@ -657,11 +668,14 @@ test.describe('SCR-23 Pascal viewer — real flows', () => {
         await page.keyboard.press('Enter'); // hint "Hoàn tất đo: Enter" — two points alone leave the measurement open (E1-T16)
       };
 
-      await test.step('[23-A-030] /3d?tool=measure arms the tool; two ground clicks draw a label — UNKNOWN — NEED VERIFICATION (label DOM)', async () => {
+      let blank = Buffer.alloc(0);
+      let measured = Buffer.alloc(0);
+      await test.step('[23-A-030] /3d?tool=measure arms the tool; two ground clicks draw a measurement', async () => {
         await expect(measureButton(page).first()).toHaveAttribute('aria-pressed', 'true'); // PVC:159-162, PF:191-201, MC:76
+        blank = await canvasOnlyPng(page);
         await clickGround();
-        // UNKNOWN — NEED VERIFICATION: the measurement label is a Pascal overlay; assumed text "<n>,<nn> m".
-        await expect.soft(pascalRoot(page).getByText(/^\d+(,\d+)?\s?m$/u).first()).toBeVisible();
+        await softly.poll(() => drawn(blank), { message: 'measurement line + label drawn on the canvas', timeout: 10_000 }).toBeGreaterThan(0.001);
+        measured = await canvasOnlyPng(page);
         await captureEvidence(page, 'E05_23-A-030_measure-tool.png');
       });
 
@@ -669,9 +683,13 @@ test.describe('SCR-23 Pascal viewer — real flows', () => {
         const before = puts.length;
         const at = Date.now();
         await page.keyboard.press('Delete'); // UK:734 deleteSelection; assumes the new measurement is selected
-        await expect.soft(toast(page, TOAST.measurementDeleted(1)).first()).toBeVisible(); // PVC:184-195
-        await page.getByRole('button', { name: TOAST.undoAction, exact: true }).first().click();
-        await expect.soft(pascalRoot(page).getByText(/^\d+(,\d+)?\s?m$/u).first()).toBeVisible();
+        const deletedToast = toast(page, TOAST.measurementDeleted(1)).first();
+        await expect.soft(deletedToast).toBeVisible(); // PVC:184-195
+        const undo = page.getByRole('button', { name: TOAST.undoAction, exact: true }).first();
+        if ((await undo.count()) > 0) await undo.click(); // only when the toast (and its undo) is there
+        // Back: the canvas returns to the measured shot (closer to it than to the blank one).
+        const gap = await pixelDiffRatio(blank, measured);
+        await softly.poll(async () => (await drawn(measured)) < gap, { timeout: 10_000 }).toBe(true);
         await settleUntil(page, at);
         expect.soft(puts.length - before, 'measurement nodes are ignored (FP:143)').toBe(0);
         await captureEvidence(page, 'E05_23-A-031_measure-delete-undo.png');
@@ -920,6 +938,7 @@ test.describe('SCR-23 Pascal viewer — real flows', () => {
         // PF:191-192 "Vai chỉ xem vẫn đo được". The viewer has no action menu (no "Đo: …" button), but the tool is armed:
         // its hint box shows (run-051b E1-T17, nodes/src/i18n/vi.ts:682-683).
         await openPascal(page, `${ROUTES.project.viewer(q1.projectId)}?tool=measure`);
+        const blankShot = await canvasOnlyPng(page);
         await expect.soft(pascalRoot(page).getByText(PASCAL.measureHintPlace).first()).toBeVisible();
         await expect.soft(pascalRoot(page).getByText(PASCAL.measureHintFinish).first()).toBeVisible();
         const box = await canvasBox(page).boundingBox();
@@ -927,8 +946,10 @@ test.describe('SCR-23 Pascal viewer — real flows', () => {
         await page.mouse.click(box.x + box.width * 0.35, box.y + box.height * 0.75);
         await page.mouse.click(box.x + box.width * 0.6, box.y + box.height * 0.75);
         await page.keyboard.press('Enter'); // ends the measurement (E1-T16)
-        // UNKNOWN — NEED VERIFICATION: measurement label DOM, same assumption as [23-A-030].
-        await expect.soft(pascalRoot(page).getByText(/^\d+(,\d+)?\s?m$/u).first(), 'label after two ground clicks').toBeVisible();
+        // Label drawn in the WebGL canvas (no DOM, run-052): canvas pixels change.
+        await softly
+          .poll(async () => pixelDiffRatio(blankShot, await canvasOnlyPng(page)), { message: 'measurement drawn', timeout: 10_000 })
+          .toBeGreaterThan(0.001);
         await captureEvidence(page, 'E05_23-D-007_viewer-measure.png');
       });
 
