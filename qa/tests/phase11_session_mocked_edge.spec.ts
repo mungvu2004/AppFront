@@ -3,24 +3,27 @@
  * `[mocked response]` in its title; the real counterparts are 11U-A-102 / 11U-A-111 / 11U-A-303.
  */
 import { expect, test } from '@playwright/test';
+import type { BrowserContext } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { signedInApi } from './support/api';
 import { readAdminCredentials } from './support/auth';
 import { captureEvidence } from './support/evidence';
-import { poolUser, signInPoolUser } from './support/phase03Seed';
-import { p11Slot } from './support/p11/common';
-import { adminPage, disposeFreshUser, inviteFreshUser, userRow } from './support/p11/P13';
+import { poolUser, signInPoolUser, type PoolUser } from './support/phase03Seed';
+import { DESKTOP, p11Slot } from './support/p11/common';
+import { adminPage, cleanAll, disposeFreshUser, inviteFreshUser, userRow } from './support/p11/P13';
 
 test.describe('SCR-37/38 [mocked response]', () => {
   test('SCR-37 · FL-11U-X1 · admin · [mocked response] lỗi khi vô hiệu / xoá', async ({ browser }) => {
     test.setTimeout(180_000);
     const creds = readAdminCredentials();
     const admin = await signedInApi(creds.email, creds.password);
-    const fu = await inviteFreshUser(admin, 'engineer', 'mock1');
-    const view = await adminPage(browser);
-    const page = view.page;
+    let fuRef: PoolUser | null = null;
+    let view: Awaited<ReturnType<typeof adminPage>> | null = null;
     try {
+      const fu = (fuRef = await inviteFreshUser(admin, 'engineer', 'mock1'));
+      const shown = (view = await adminPage(browser));
+      const page = shown.page;
       // one-shot 500s: `route.fulfill` once, then `route.fallback` (the real call) — removed with unroute at the end.
       let disableFailures = 1;
       let deleteFailures = 1;
@@ -54,8 +57,8 @@ test.describe('SCR-37/38 [mocked response]', () => {
       await test.step('[11U-B-121] DELETE trả 500 → toast "Không xoá được tài khoản", hàng còn', async () => {
         // useUserManagement.ts:163 removeFailedTitle
         await userRow(page, fu.email).getByRole('button', { name: 'Xoá', exact: true }).click();
-        const dialog = page.getByRole('dialog');
-        await expect(dialog.getByRole('heading', { name: `Xoá hẳn ${fu.name}?` })).toBeVisible();
+        const dialog = page.getByRole('dialog', { name: `Xoá hẳn ${fu.name}?`, exact: true });
+        await expect(dialog.getByRole('heading', { name: `Xoá hẳn ${fu.name}?`, exact: true })).toBeVisible();
         await dialog.getByLabel('Địa chỉ thư').fill(fu.email);
         const failed = page.waitForResponse((r) => r.request().method() === 'DELETE' && new URL(r.url()).pathname === `/api/users/${fu.id}`);
         await dialog.getByRole('button', { name: 'Xác nhận xoá vĩnh viễn' }).click();
@@ -69,9 +72,11 @@ test.describe('SCR-37/38 [mocked response]', () => {
         expect(memberships.status(), 'GET memberships after the mocked delete: user still exists').toBe(200);
       });
     } finally {
-      await view.context.close();
-      await disposeFreshUser(admin, fu);
-      await admin.dispose();
+      await cleanAll([
+        async () => { if (view !== null) await view.context.close(); },
+        async () => { if (fuRef !== null) await disposeFreshUser(admin, fuRef); },
+        () => admin.dispose(),
+      ]);
     }
   });
 
@@ -79,8 +84,9 @@ test.describe('SCR-37/38 [mocked response]', () => {
     test.setTimeout(120_000);
     const creds = readAdminCredentials();
     const admin = await signedInApi(creds.email, creds.password);
-    const context = await browser.newContext();
+    let ctx: BrowserContext | null = null;
     try {
+      const context = (ctx = await browser.newContext({ viewport: DESKTOP }));
       const pu = await poolUser(admin, 'engineer', p11Slot('session-mock'));
       await signInPoolUser(context, pu);
       const page = await context.newPage();
@@ -95,8 +101,10 @@ test.describe('SCR-37/38 [mocked response]', () => {
         await expect.poll(() => new URL(page.url()).pathname).toBe(ROUTES.login);
       });
     } finally {
-      await context.close();
-      await admin.dispose();
+      await cleanAll([
+        async () => { if (ctx !== null) await ctx.close(); },
+        () => admin.dispose(),
+      ]);
     }
   });
 });
