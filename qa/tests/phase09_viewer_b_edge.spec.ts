@@ -125,7 +125,7 @@ test.describe('Phase 09 viewer edge B', () => {
       await test.step('[9V-F-030] JSON viewer loads, no forbidden title', async () => {
         await page.goto(ROUTES.project.data(s.projectId));
         await expect(page.getByLabel(JSON_SEARCH)).toBeVisible({ timeout: 15_000 });
-        await expect(page.getByText(/"name": "Tầng/u).first()).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByText('"name": "Tầng').first()).toBeVisible({ timeout: 15_000 });
         await expect(page.getByText(JSON_FORBIDDEN, { exact: true })).toHaveCount(0);
         await captureEvidence(page, 'E09_9V-F-030_json_loaded');
       });
