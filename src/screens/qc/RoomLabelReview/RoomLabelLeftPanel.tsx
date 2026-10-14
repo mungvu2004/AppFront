@@ -89,6 +89,49 @@ function RoomLabelGapRow({ gap, onNavigateToWalls }: RoomLabelGapRowProps) {
   );
 }
 
+interface RoomLabelGapsSectionProps {
+  readonly gaps: readonly RoomLabelGapViewModel[];
+  readonly unclosedRoomCount: number;
+  readonly onNavigateToWalls: () => void;
+  /** Bỏ qua khi nút "Kiểm tra lại vòng hở" đã có chỗ khác trên cùng cột (màn rỗng: nút của EmptyState). */
+  readonly onCheckWallGaps?: () => void;
+}
+
+/** Khối "Vòng tường hở": dùng ở panel trái VÀ ở cột rỗng (20-D-007: tầng rỗng vì vòng hở vẫn cần lối sang lớp tường). */
+export function RoomLabelGapsSection({
+  gaps,
+  unclosedRoomCount,
+  onNavigateToWalls,
+  onCheckWallGaps,
+}: RoomLabelGapsSectionProps) {
+  return (
+    <section aria-label={GAPS_TITLE} className="flex flex-col gap-2">
+      <h3 className="text-[12px] font-semibold uppercase tracking-wide text-text-muted">{GAPS_TITLE}</h3>
+      {gaps.length === 0 ? (
+        <p className="text-[13px] text-text-secondary">
+          {unclosedRoomCount > 0 ? gapsEmptyWithUnclosedRooms(unclosedRoomCount) : GAPS_EMPTY_MESSAGE}
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {gaps.map((gap) => (
+            <RoomLabelGapRow gap={gap} key={gap.wallIds.join('-')} onNavigateToWalls={onNavigateToWalls} />
+          ))}
+        </ul>
+      )}
+      {/* Hành động phụ của khối vòng hở là nút chữ, không thêm một nút rộng khác kiểu (BUG-615). */}
+      {onCheckWallGaps === undefined ? null : (
+        <button
+          className="inline-flex min-h-6 w-fit items-center rounded-[4px] text-[13px] text-accent underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+          onClick={onCheckWallGaps}
+          type="button"
+        >
+          {CHECK_GAPS_LABEL}
+        </button>
+      )}
+    </section>
+  );
+}
+
 export function RoomLabelLeftPanel({ panel, list, emptyListNotice }: RoomLabelLeftPanelViewProps) {
   const { summary, gaps, showOnlyUnnamed, onToggleUnnamedFilter, onOpenNormalizePreview, hasNamesToNormalize = true } =
     panel;
@@ -121,28 +164,12 @@ export function RoomLabelLeftPanel({ panel, list, emptyListNotice }: RoomLabelLe
           <span className="font-mono tabular-nums">{summary.unnamedCount}</span>
         </button>
 
-        <section aria-label={GAPS_TITLE} className="flex flex-col gap-2">
-          <h3 className="text-[12px] font-semibold uppercase tracking-wide text-text-muted">{GAPS_TITLE}</h3>
-          {gaps.length === 0 ? (
-            <p className="text-[13px] text-text-secondary">
-              {summary.unclosedRoomCount > 0 ? gapsEmptyWithUnclosedRooms(summary.unclosedRoomCount) : GAPS_EMPTY_MESSAGE}
-            </p>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {gaps.map((gap) => (
-                <RoomLabelGapRow gap={gap} key={gap.wallIds.join('-')} onNavigateToWalls={panel.onNavigateToWalls} />
-              ))}
-            </ul>
-          )}
-          {/* Hành động phụ của khối vòng hở là nút chữ, không thêm một nút rộng khác kiểu (BUG-615). */}
-          <button
-            className="inline-flex min-h-6 w-fit items-center rounded-[4px] text-[13px] text-accent underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-            onClick={panel.onCheckWallGaps}
-            type="button"
-          >
-            {CHECK_GAPS_LABEL}
-          </button>
-        </section>
+        <RoomLabelGapsSection
+          gaps={gaps}
+          onCheckWallGaps={panel.onCheckWallGaps}
+          onNavigateToWalls={panel.onNavigateToWalls}
+          unclosedRoomCount={summary.unclosedRoomCount}
+        />
 
         {/* Vai Người xem: KHÔNG hộp thoại, chỉ ẩn nút thao tác hàng loạt. */}
         {!panel.isViewerRole && (

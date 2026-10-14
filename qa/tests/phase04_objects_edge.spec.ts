@@ -1186,11 +1186,14 @@ test('SCR-17 · FL-17-06 layer eyes, tree toggles, chips, counts, filtered canva
       await ev(page, '17-B-028', 'filters_hide_all');
     });
 
-    await test.step('[17-C-022] ⚑ Real furniture kinds map to "Nội thất khác" except bed; chip "Bàn ăn" must match the real table', async () => {
+    // QD-002 (F:/App/AppBack/docs/decisions.md:16-25, decision B): the gateway maps `table` -> "Nội thất khác" on purpose
+    // (objectLayerGateway.ts:372-387); chip "Bàn ăn" is disabled when the floor has no dining table (ObjectLayerLeftPanel.tsx:244-259).
+    await test.step('[17-C-022] Real furniture kinds map to "Nội thất khác" except bed; the seeded table matches chip "Nội thất khác", chip "Bàn ăn" is disabled (QD-002)', async () => {
       await eyeButton(page, 'cửa đi').click();
       await chip(page, 'Cửa đơn').click();
-      await chip(page, 'Bàn ăn').click();
-      await expect.soft(optionOf(page, '#F-001'), 'the seeded table matches the "Bàn ăn" chip').toHaveCount(1, { timeout: 2_000 });
+      await expect.soft(chip(page, 'Bàn ăn'), 'no dining table on the floor: chip disabled').toBeDisabled();
+      await chip(page, 'Nội thất khác').click();
+      await expect.soft(optionOf(page, '#F-001'), 'the seeded table matches the "Nội thất khác" chip').toHaveCount(1, { timeout: 2_000 });
       await ev(page, '17-C-022', 'table_vs_dining_chip');
     });
   });

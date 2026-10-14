@@ -1716,3 +1716,39 @@ describe('[G73b] Ctrl-bấm chọn hai tường', () => {
     mounted.unmount();
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* [16-D-008] Người xem trên tầng RỖNG: danh sách đọc rỗng/đang tải từ dữ liệu. */
+/* -------------------------------------------------------------------------- */
+
+describe('[16-D-008] vai Người xem trên tầng rỗng', () => {
+  const EMPTY_GRAPH = normalizeSpatial({
+    building: WALL_LAYER_FIXTURE_BUILDING,
+    levels: [FIXTURE_LEVEL],
+    walls: [],
+    openings: [],
+    furniture: [],
+    rooms: [],
+    axes: [],
+    dimensions: [],
+    notes: [],
+  });
+
+  it('đang tải: chưa có emptyNotice; tải xong: emptyNotice có, state vẫn forbidden', async () => {
+    const mounted = mountHook({
+      roles: ['viewer'],
+      gateway: createMockWallLayerReviewGateway({ graph: EMPTY_GRAPH }),
+    });
+
+    expect(mounted.result.current.panel.state).toBe('forbidden');
+    expect(mounted.result.current.panel.emptyNotice).toBeNull();
+
+    await waitFor(() => {
+      expect(mounted.result.current.panel.emptyNotice).not.toBeNull();
+    });
+
+    expect(mounted.result.current.panel.state).toBe('forbidden');
+    expect(mounted.result.current.panel.rows).toHaveLength(0);
+    mounted.unmount();
+  });
+});

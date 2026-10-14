@@ -299,6 +299,8 @@ interface MountOptions {
 interface Mounted {
   readonly result: { current: UseOverlayComparisonResult };
   readonly unmount: () => void;
+  /** Đổi route (Back/Forward) mà không dựng lại hook. */
+  readonly goToFloor: (floorId: LevelId) => void;
 }
 
 function mountHook(gateway: OverlayComparisonGateway, options: MountOptions = {}): Mounted {
@@ -307,10 +309,10 @@ function mountHook(gateway: OverlayComparisonGateway, options: MountOptions = {}
     createElement(QueryClientProvider, { client: queryClient }, children);
 
   const rendered = renderHook(
-    () =>
+    ({ floorId }: { floorId: LevelId }) =>
       useOverlayComparison({
         projectId: PROJECT_ID,
-        floorId: options.floorId ?? FLOOR_WITH_SCAN,
+        floorId,
         gateway,
         ...(options.roles !== undefined ? { roles: options.roles } : {}),
         ...(options.forceCollapsed !== undefined
@@ -318,10 +320,14 @@ function mountHook(gateway: OverlayComparisonGateway, options: MountOptions = {}
           : {}),
         ...(options.onNavigate !== undefined ? { onNavigate: options.onNavigate } : {}),
       }),
-    { wrapper },
+    { wrapper, initialProps: { floorId: options.floorId ?? FLOOR_WITH_SCAN } },
   );
 
-  return { result: rendered.result, unmount: rendered.unmount };
+  return {
+    result: rendered.result,
+    unmount: rendered.unmount,
+    goToFloor: (floorId) => rendered.rerender({ floorId }),
+  };
 }
 
 /** Chờ lượt đọc đầu tiên về. Đồng hồ là đồng hồ giả, nên phải tự đẩy thời gian. */
@@ -859,6 +865,20 @@ describe('useOverlayComparison — QA-04c SCR-22 (BUG-588, 599, 600, 608)', () =
       mounted.result.current.actions.selectFloor(FLOOR_WITHOUT_SCAN);
     });
     expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.overlay(PROJECT_ID, FLOOR_WITHOUT_SCAN));
+  });
+
+  it('chọn tầng rồi Back về URL cũ: tầng theo URL, không theo lựa chọn cũ (BUG-600, X4-A-032)', async () => {
+    const mounted = mountHook(await makeGateway({ regions: sampleRegions() }), { floorId: FLOOR_WARPED });
+    await settle(mounted);
+
+    act(() => {
+      mounted.result.current.actions.selectFloor(FLOOR_WITHOUT_SCAN);
+    });
+    expect(mounted.result.current.model.activeFloorId).toBe(FLOOR_WITHOUT_SCAN);
+
+    act(() => mounted.goToFloor(FLOOR_WITHOUT_SCAN)); // URL theo lựa chọn
+    act(() => mounted.goToFloor(FLOOR_WARPED)); // Back
+    expect(mounted.result.current.model.activeFloorId).toBe(FLOOR_WARPED);
   });
 
   it('về toàn cảnh không mất cài đặt; nút xác nhận tắt có lý do; "Khoá căn" ẩn khi chưa có tác dụng (BUG-599)', async () => {
