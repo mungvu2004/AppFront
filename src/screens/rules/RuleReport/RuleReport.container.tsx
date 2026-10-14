@@ -54,6 +54,8 @@ import {
 } from '@/components/feedback/ScreenErrorBoundary';
 import type { Violation } from '@/domain/rules/registry';
 import { useBreakpoint } from '@/hooks/useAppShell';
+import { useSession } from '@/hooks/useSession';
+import { can } from '@/lib/auth/permissions';
 import { useStore } from '@/store';
 
 import { ViolationDetailContainer } from '../ViolationDetail';
@@ -232,10 +234,16 @@ export function RuleReportContainer(props: RuleReportContainerProps) {
 export function RulesRoute() {
   const { projectId } = useParams<{ projectId: string }>();
   const isCompact = useBreakpoint('(width < 1024px)');
+  // 28-D-004 / 28V-D-003: quyền thật của dự án (vai theo dự án, dự phòng vai phiên) —
+  // thiếu nó `canEdit` mặc định true và người xem thấy nút sửa rồi ăn 403 khi lưu.
+  const session = useSession();
+  const storeRoles = useStore((state) => state.userRoles);
+  const roles = storeRoles.length > 0 ? storeRoles : session.roles;
+  const canEdit = can('edit', 'layer', { roles });
 
   return (
     <ProjectSpatialGate projectId={projectId}>
-      <RuleReportContainer isCompact={isCompact} />
+      <RuleReportContainer canEdit={canEdit} isCompact={isCompact} />
     </ProjectSpatialGate>
   );
 }

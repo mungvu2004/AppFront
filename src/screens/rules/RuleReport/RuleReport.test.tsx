@@ -1020,6 +1020,22 @@ const ruleCodesOf = (groups: readonly { readonly ruleCode: RuleCode }[]): RuleCo
   groups.map((group) => group.ruleCode);
 
 describe('F-10 — useRuleReport đọc cấu hình N21', () => {
+  it('28-B-005: 0 luật critical nhưng còn cảnh báo → không phải `done`, nhóm cảnh báo vẫn liệt kê', async () => {
+    const sample = runRules(normalizeSpatial(createSampleBuilding()), { registry: createDefaultRuleRegistry() });
+    const criticalCodes = [...new Set(sample.violations.filter((v) => v.severity === 'critical').map((v) => v.ruleCode))];
+    const overrides = Object.fromEntries(criticalCodes.map((code) => [code, { enabled: false }]));
+    const { result } = setupReport({ read: async () => configRead(1, overrides) });
+
+    await waitFor(() => {
+      expect(result.current.summary.evaluated).toBeGreaterThan(0);
+    });
+
+    expect(result.current.summary.violations).toBe(0);
+    expect(result.current.summary.warnings).toBeGreaterThan(0);
+    expect(result.current.status).toBe('ready');
+    expect(result.current.groups.length).toBeGreaterThan(0);
+  });
+
   it('N21 tắt một luật → luật đó vắng khỏi kết quả', async () => {
     const { result } = setupReport({ read: async () => configRead(1, { [NOISY_RULE_CODE]: { enabled: false } }) });
 
@@ -1063,6 +1079,27 @@ describe('F-10 — useRuleReport đọc cấu hình N21', () => {
     await waitFor(() => {
       expect(openCountOf(result.current.groups, NOISY_RULE_CODE)).toBe(0);
     });
+  });
+
+  it('28-C-014: luật bị tắt ở phiên khác không hiện dưới "Đã xử lý"', async () => {
+    const { result, queryClient } = setupReport({ read: async () => configRead(1) });
+
+    await waitFor(() => {
+      expect(openCountOf(result.current.groups, NOISY_RULE_CODE)).toBeGreaterThan(0);
+    });
+
+    act(() => {
+      queryClient.setQueryData(ruleSettingsQueryKey('P-F10'), {
+        revision: 2,
+        config: { overrides: { [NOISY_RULE_CODE]: { enabled: false } }, version: 0 },
+      });
+    });
+
+    await waitFor(() => {
+      expect(openCountOf(result.current.groups, NOISY_RULE_CODE)).toBe(0);
+    });
+    expect(result.current.resolvedRows.filter((row) => row.ruleCode === NOISY_RULE_CODE)).toHaveLength(0);
+    expect(ruleCodesOf(result.current.groups)).not.toContain(NOISY_RULE_CODE);
   });
 
   it('canEdit: false không tắt truy vấn', async () => {
