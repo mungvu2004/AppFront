@@ -62,7 +62,7 @@ const cube = (page: Page): Locator => page.getByRole('group', { name: 'Khối đ
 const minimap = (page: Page): Locator => page.getByRole('region', { name: 'Bản đồ thu nhỏ', exact: true });
 const zoomButtons = (page: Page): Locator => page.getByRole('group', { name: 'Cụm thu phóng', exact: true }).getByRole('button');
 const toolRail = (page: Page): Locator => page.getByRole('toolbar', { name: 'Công cụ khung nhìn', exact: true });
-const elevationScale = (page: Page): Locator => page.getByRole('group', { name: 'Cao độ tầng', exact: true });
+const elevationScale = (page: Page): Locator => page.getByRole('list', { name: 'Cao độ tầng', exact: true });
 const legend = (page: Page): Locator => page.getByRole('group', { name: 'Chú giải', exact: true });
 const invitation = (page: Page): Locator => viewportOf(page).getByText(MT.emptyHint, { exact: true });
 
