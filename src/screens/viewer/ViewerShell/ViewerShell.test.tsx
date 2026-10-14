@@ -1391,3 +1391,13 @@ describe('[E2-B1] camera đóng khung lại khi mô hình về sau lượt rende
     late.unmount();
   });
 });
+
+describe('[E2-B6] ray tầng có tên truy cập', () => {
+  it('listbox tầng mang tên "Tầng" (25-E-003)', () => {
+    const { unmount } = renderState('success');
+
+    expect(screen.getByRole('listbox', { name: 'Tầng' })).toBeInTheDocument();
+
+    unmount();
+  });
+});
