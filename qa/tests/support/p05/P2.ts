@@ -72,6 +72,7 @@ export const T = {
   saveFailedToast: 'Chưa lưu được thay đổi', // PVC:82
   roomPanel: 'Diện tích phòng', // RA:7
   renameLabel: (name: string): string => `Đổi tên phòng ${name}`, // RA:56
+  readOnlyRename: 'Vai chỉ xem không đổi được tên phòng', // RA:62 (RAP:407 title for a viewer)
   saveAsTemplate: 'Lưu làm khuôn mẫu', // editor/src/i18n/regions/controlsAndPanels.ts:243
   viewerInspectorNotice: 'Bạn đang ở vai người xem — không sửa được thuộc tính.', // controlsAndPanels.ts:238
   rosterToggle: 'Ai đang xem', // src/screens/system/CollaborationLayer/CollaborationLayer.tsx:83
@@ -452,6 +453,20 @@ export const roomRow = (page: Page, name: string): Locator => pascalRoot(page).g
 
 export async function openRoomPanel(page: Page, name = 'Bếp'): Promise<void> {
   await openPascalPanel(page, T.roomPanel, roomRow(page, name));
+}
+
+/**
+ * Same row for a VIEWER: the name button's title is `readOnlyRename` "Vai chỉ xem không đổi được tên phòng" for every row
+ * (RA:62, RAP:407), so it is found by that title and its own text `[<number> · ]<name>` (RAP:410-411).
+ */
+export const viewerRoomRow = (page: Page, name: string): Locator =>
+  pascalRoot(page)
+    .getByTitle(T.readOnlyRename, { exact: true })
+    .filter({ hasText: new RegExp(`(^|· )${escapeRegExp(name)}$`, 'u') })
+    .first();
+
+export async function openViewerRoomPanel(page: Page, name = 'Bếp'): Promise<void> {
+  await openPascalPanel(page, T.roomPanel, viewerRoomRow(page, name));
 }
 
 /** Rename a room in Pascal (double-click the name → input "Đổi tên phòng <from>", fill, Enter = blur commits; RAP:382-415). */
