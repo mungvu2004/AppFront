@@ -504,7 +504,7 @@ test.describe('E06d SCR-31 Spatial JSON Viewer', () => {
         await softly(first).toHaveAttribute('aria-selected', 'true');
         await softly(codes.nth(0)).toHaveText('0');
         await softly(codes.nth(1)).toHaveText('walls[0]');
-        await softly(previewTerm(page, SJ.value)).toBeVisible();
+        await softly(previewTerm(page, SJ.value), 'a container node has no scalar value row (valueText null)').toHaveCount(0);
         await softly(previewTerm(page, SJ.elementCount)).toBeVisible();
         await softly(previewValue(page, SJ.entityCode)).toHaveText(String(wall0.id));
         await softly(page.getByText(SJ.entityNote, { exact: true })).toBeVisible();
