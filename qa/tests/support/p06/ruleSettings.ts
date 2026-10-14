@@ -393,8 +393,9 @@ export const getsSince = (log: readonly ApiEntry[], mark: number, projectId: str
 
 /**
  * Sure marker for "no PUT since `mark`": one deliberate write (switch `ROOM-UNNAMED`, group "Ghi chú"), awaited; returns the PUT
- * bodies that were sent between `mark` and that write, i.e. the strays. Writes serialise through one autosave, so a stray
- * debounced PUT is always sent before this one. The deliberate write leaves `ROOM-UNNAMED` off: use it only where later steps
+ * bodies that were sent between `mark` and that write, i.e. the strays. A stray change made less than 800 ms before the
+ * deliberate click is MERGED into the deliberate PUT by the debounce (createAutosave.ts armTimers), not sent first: callers that
+ * need that case also read the deliberate body (`session.sent[last]`). The deliberate write leaves `ROOM-UNNAMED` off: use it only where later steps
  * do not depend on that rule.
  */
 export async function strayPuts(session: Session, projectId: string, mark: number): Promise<PutSent[]> {

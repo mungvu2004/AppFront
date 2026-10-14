@@ -118,6 +118,8 @@ async function contrastOf(locator: Locator): Promise<number> {
     }
     const fg = parse(getComputedStyle(el).color);
     if (fg === null) return Number.NaN;
+    // an ancestor's `opacity` (BUG-457: the dimmed row) fades the text too
+    for (let node: Element | null = el; node !== null; node = node.parentElement) fg[3] *= Number(getComputedStyle(node).opacity);
     const text: [number, number, number] = [
       fg[0] * fg[3] + base[0] * (1 - fg[3]),
       fg[1] * fg[3] + base[1] * (1 - fg[3]),
@@ -134,6 +136,7 @@ test.describe('SCR-29 Rule Settings · ui (4 khổ)', () => {
     test.skip(!process.env.E2E_DRAWING_PNG, 'Environment: E2E_DRAWING_PNG is not set (qa.config.json env.vars) — FL-29-U1 needs the pipeline project');
     await withAdmin(browser, async (c) => {
       const { page } = c;
+      // S5-confirm: the pipeline project opens `ready` with 23/25 rules on and nothing to save
       const seeded = await createPipelineProject(c.api, '29-ui-pipe', envDrawingPng());
       c.ids.push(seeded.projectId);
       const id = seeded.projectId;
@@ -233,7 +236,7 @@ test.describe('SCR-29 Rule Settings · ui (4 khổ)', () => {
       await test.step('[29-E-010] tương phản ghi chú thay thế ≥ 4,5:1 kể cả ở hàng tắt', async () => {
         const note = page.getByText(`Đã được thay thế bởi ${ROOM_NO_DOOR.name}`, { exact: true });
         const ratio = await contrastOf(note);
-        expect.soft(Number.isNaN(ratio), 'UNKNOWN — NEED VERIFICATION: a colour that is not rgb()/color(srgb) could not be read').toBe(false);
+        expect.soft(Number.isNaN(ratio), 'the colour could not be read').toBe(false);
         expect.soft(ratio, 'contrast of the note on its card').toBeGreaterThanOrEqual(4.5);
         await shot(page, '29-E-010', 'note_contrast', 'U06s');
       });
@@ -393,7 +396,7 @@ test.describe('SCR-29 Rule Settings · ui (4 khổ)', () => {
     await withAdmin(browser, async (c: Ctx) => {
       const { page } = c;
       const { projectId: id } = await ownProject(c, '29-ui-states');
-      const engineer = await poolUser(c.api, 'engineer', 'p06-settings1');
+      const engineer = await poolUser(c.api, 'engineer', 'p06-settings4');
       await addProjectMember(c.api, id, engineer.email);
       await writeElsewhere(c.api, id, { [WALL_LENGTH.code]: { enabled: false } }); // "+X": a non-default config exists before anybody opens the screen
       const eng = await openSession(browser, engineer);

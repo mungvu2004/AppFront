@@ -26,6 +26,7 @@ import { expect, test, type Route } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { waitForApi } from '../../e2e/fullstack/apiWatch';
+import { RETRY_DELAYS_MS } from '../../src/lib/http/retry';
 import { verifyUi } from './support/ui-verify';
 import {
   DESKTOP,
@@ -92,7 +93,7 @@ test.describe('SCR-29 Rule Settings · edge (mocked responses)', () => {
           await page.goto(ROUTES.project.ruleSettings(id), { waitUntil: 'commit' });
           await expect(heading(page)).toBeVisible();
           const panel = heading(page).locator('xpath=ancestor::div[contains(@class,"max-w-[960px]")][1]');
-          // Skeleton.tsx property-panel: one h-6 bar + four rows of two bars.
+          // S5-confirm: 9 pulsing blocks. Skeleton.tsx property-panel: one h-6 bar + four rows of two bars.
           await expect(panel.locator('.animate-pulse')).toHaveCount(9);
           await expect.soft(page.getByText(RS.enabledCount)).toHaveCount(0);
           await expect.soft(indicator(page)).toHaveCount(0);
@@ -251,7 +252,7 @@ test.describe('SCR-29 Rule Settings · edge (mocked responses)', () => {
           aborted.push(request.postData() ?? '');
           return route.abort('connectionreset');
         }
-        if (mode === 'e503' && served503 < 4) {
+        if (mode === 'e503' && served503 < RETRY_DELAYS_MS.length + 1) {
           // HTTP client ladder: 1 try + 3 retries (src/lib/http/retry.ts RETRY_DELAYS_MS); only after all four does the autosave retry.
           served503 += 1;
           return json(route, wire(503, 'DEPENDENCY_UNAVAILABLE'));
@@ -285,10 +286,11 @@ test.describe('SCR-29 Rule Settings · edge (mocked responses)', () => {
         mode = 'real';
         const sameAsHeld = (sent: { baseVersion: unknown; body: Record<string, unknown> }): boolean =>
           sent.baseVersion === held.baseVersion && JSON.stringify(sent.body) === JSON.stringify(held.body);
-        // The autosave is parked on its 5 s / 15 s / 45 s retry timer after the cut (AUT:notifyChange does not re-arm while it waits),
-        // so the next send carries this edit too and starts with the held body (RSW:264-280).
-        const resent = waitRulePut(page, id, sameAsHeld, [200], 90_000);
-        const fresh = waitRulePut(page, id, (sent) => !sameAsHeld(sent), [200], 90_000);
+        // After the cut the autosave is parked on a 5 s retry timer (the 500 above was permanent, so the retry attempt restarted at 0;
+        // AUT:notifyChange does not re-arm while it waits), so the next send carries this edit too and starts with the held body
+        // (RSW:264-280). 30 s is only the cap of the real-request wait.
+        const resent = waitRulePut(page, id, sameAsHeld, [200], 30_000);
+        const fresh = waitRulePut(page, id, (sent) => !sameAsHeld(sent), [200], 30_000);
         await ruleSwitch(page, WALL_OVERLAP.name).click();
         const [first, second] = [await resent, await fresh];
         expect.soft(putOf(first).baseVersion, 'the lost body is sent again as it was').toBe(held.baseVersion);
@@ -303,7 +305,7 @@ test.describe('SCR-29 Rule Settings · edge (mocked responses)', () => {
         served503 = 0;
         const ok = waitRulePut(page, id, undefined, [200], 60_000);
         await ruleSwitch(page, DOOR_WIDTH.name).click();
-        await expect.poll(() => served503, { timeout: 30_000 }).toBe(4);
+        await expect.poll(() => served503, { timeout: 30_000 }).toBe(RETRY_DELAYS_MS.length + 1);
         await expect(indicator(page)).toHaveText(RS.dirty);
         duringRetry = await page.getByRole('alert').count();
         await shot(page, '29-B-018', 'transient_dirty');

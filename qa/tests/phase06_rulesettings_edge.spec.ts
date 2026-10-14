@@ -54,6 +54,7 @@ import {
   getsSince,
   groupCard,
   groupSwitch,
+  groupSwitchName,
   heading,
   indicator,
   inOrder,
@@ -304,13 +305,32 @@ test.describe('SCR-29 Rule Settings · edge (real stack)', () => {
       });
 
       await test.step('[29-A-008] bật + Hoàn tác trong cửa sổ 800 ms → không PUT', async () => {
+        // same-kind toasts group for 5 s and one "Hoàn tác" undoes the whole group (notificationBus.ts:157-181): start from an empty region
+        await page.mouse.move(2, 2);
+        await expect(toastRegion(page).getByRole('status')).toHaveCount(0, { timeout: 20_000 });
         const mark = c.sent.length;
-        await sw.click();
-        await expect(indicator(page)).toHaveText(RS.dirty);
-        await toast(page, `Tắt luật ${WALL_THICKNESS.name}.`).first().getByRole('button', { name: RS.undo, exact: true }).click();
+        // click + undo inside ONE page task (< 100 ms), so the 800 ms debounce cannot elapse whatever the runner's pace (slowMo 0 or 400)
+        await sw.evaluate(async (el) => {
+          (el as HTMLElement).click();
+          const undoButton = (): HTMLElement | undefined =>
+            [...document.querySelectorAll<HTMLElement>('[aria-label="Thông báo"] button')].find((button) => /^Hoàn tác/u.test(button.textContent ?? ''));
+          const found =
+            undoButton() ??
+            (await new Promise<HTMLElement>((resolve) => {
+              const observer = new MutationObserver(() => {
+                const button = undoButton();
+                if (button !== undefined) {
+                  observer.disconnect();
+                  resolve(button);
+                }
+              });
+              observer.observe(document.body, { subtree: true, childList: true });
+            }));
+          found.click();
+        });
         await expect(sw).toHaveAttribute('aria-checked', 'true');
-        await expect(indicator(page)).not.toHaveText(RS.dirty);
-        await settled(page); // the autosave has run and found nothing to send; the label is "Chưa có thay đổi" or the last save time
+        // the autosave ran and found nothing to send; an earlier save in this session makes the resting label "Đã lưu lúc …" (useSaveIndicator.ts:69-70)
+        await expect(indicator(page)).toHaveText(RS.savedAt);
         expect.soft(c.sent.slice(mark), 'undo inside the debounce window sends nothing').toEqual([]);
         await shot(page, '29-A-008', 'undo_in_window');
       });
@@ -476,6 +496,9 @@ test.describe('SCR-29 Rule Settings · edge (real stack)', () => {
         await expect.soft(field).toHaveValue(MIN_THICKNESS.dflt);
         const strays = await strayPuts(c, id, mark);
         expect.soft(strays, 'an emptied field sends nothing').toEqual([]);
+        // the debounce merges a stray change into the deliberate PUT, so also look inside it: the emptied field left no threshold behind
+        const deliberate = c.sent[c.sent.length - 1];
+        expect.soft(deliberate === undefined ? 'no PUT' : thresholdOf(deliberate, WALL_THICKNESS.code, MIN_THICKNESS.key), 'the deliberate PUT carries no threshold').toBeUndefined();
         await shot(page, '29-C-008', 'empty_restored');
       });
     });
@@ -489,6 +512,7 @@ test.describe('SCR-29 Rule Settings · edge (real stack)', () => {
       await openSettings(page, id);
       const alert = (text: string): Locator => page.getByRole('alert').filter({ hasText: text });
       const areaSpec = RULE_THRESHOLD_SPECS.find((spec) => spec.key.startsWith('room.minArea.') && spec.defaultValue > 0);
+      // S5-confirm: the minimum-area spec with a default > 0 exists; wall.minThicknessMm default is 60 (MIN_THICKNESS.dflt)
       const lengthSpec = RULE_THRESHOLD_SPECS.find((spec) => spec.key === 'wall.minLengthMm');
       const angleSpec = RULE_THRESHOLD_SPECS.find((spec) => spec.key === 'general.parallelAngleDeg');
       if (areaSpec === undefined || lengthSpec === undefined || angleSpec === undefined) throw new Error('setup: threshold spec missing');
@@ -498,7 +522,7 @@ test.describe('SCR-29 Rule Settings · edge (real stack)', () => {
       await test.step('[29-C-004] tỉ lệ hiển thị %: 40 bị chặn "…không nhỏ hơn 50 %."; 95 gửi 0,95', async () => {
         const field = numberField(page, 'Phần tường chịu lực phải có điểm tựa ở tầng dưới');
         await typeNum(field, '40');
-        expect(await alert('Giá trị không nhỏ hơn 50 %.').count()).toBe(1);
+        await expect(alert('Giá trị không nhỏ hơn 50 %.')).toHaveCount(1);
         const pending = waitRulePut(page, id);
         await typeNum(field, '95');
         const sent = putOf(await pending);
@@ -640,23 +664,35 @@ test.describe('SCR-29 Rule Settings · edge (real stack)', () => {
         // CFG:456-478 setGroupEnabled switches every rule of the group on, the superseded ones included.
         await expect.soft(ruleSwitch(page, ROOM_HAS_DOOR.name)).toHaveAttribute('aria-checked', 'false');
         await expect.soft(ruleSwitch(page, ROOM_MIN_AREA.name)).toHaveAttribute('aria-checked', 'false');
-        expect.soft(c.sent[c.sent.length - 1]?.overrides, 'on→off→on everywhere is the default config').toEqual({});
+        // [29-C-013] owns "overrides is {}"; here only the superseded rules matter: none may be switched on by the group toggle
+        const last = c.sent[c.sent.length - 1];
+        for (const rule of [ROOM_HAS_DOOR, ROOM_MIN_AREA]) {
+          expect.soft(last === undefined ? 'no PUT' : overrideOf(last, rule.code)?.enabled, `${rule.code} is not forced on`).not.toBe(true);
+        }
         await shot(page, '29-C-015', 'superseded_stay_off');
       });
 
       await test.step('[29-A-012] tắt mọi nhóm: alert "Mọi luật đều đang tắt…"; "0/25 luật đang bật"', async () => {
-        for (const group of GROUPS) {
-          const sw = groupSwitch(page, group.label);
-          if ((await sw.getAttribute('aria-checked')) === 'true') await sw.click();
-          await expect(sw, group.label).toHaveAttribute('aria-checked', 'false');
-        }
+        // earlier toasts would join the 5 s group; start empty, then switch all five groups off inside ONE page task so the five toasts
+        // always fall in one group whatever the runner's pace (slowMo 0 or 400)
+        await page.mouse.move(2, 2);
+        await expect(toastRegion(page).getByRole('status')).toHaveCount(0, { timeout: 20_000 });
+        await page.evaluate((labels) => {
+          for (const label of labels) {
+            const sw = document.querySelector<HTMLElement>(`[role="switch"][aria-label="${label}"]`);
+            if (sw?.getAttribute('aria-checked') === 'true') sw.click();
+          }
+        }, GROUPS.map((group) => groupSwitchName(group.label)));
+        for (const group of GROUPS) await expect(groupSwitch(page, group.label), group.label).toHaveAttribute('aria-checked', 'false');
         await expect.soft(page.getByText(RS.disableAll, { exact: true })).toBeVisible();
         await expect.soft(page.getByText(RS.enabledCount)).toHaveText(`0/${String(TOTAL_RULES)} luật đang bật`);
-        await settled(page);
         await shot(page, '29-A-012', 'all_off');
       });
 
       await test.step('[29-A-030] ⚑ toast sau nhiều thay đổi không lặp ý ("Tắt nhóm cao độ tầng." + "Hoàn tác N thay đổi")', async () => {
+        // hard: without a toast the check below could only pass vacuously
+        const merged = toast(page, 'Tắt nhóm cao độ tầng.');
+        await expect(merged.first()).toBeVisible();
         const text = (await toastRegion(page).innerText()).replace(/\s+/gu, ' ');
         // BUG-462: one sentence for N changes, not the last sentence beside a count of the rest.
         expect.soft(/Tắt nhóm cao độ tầng\./u.test(text) && /Hoàn tác \d+ thay đổi/u.test(text), `toast region: ${text}`).toBe(false);
@@ -707,10 +743,15 @@ test.describe('SCR-29 Rule Settings · edge (real stack)', () => {
         const saved = waitRulePut(page, id);
         await typeNum(general, '12');
         await saved;
+        const count = async (): Promise<number> => Number(/(\d+) luật sẽ đổi/u.exec(await presetButton('Văn phòng').innerText())?.[1] ?? 'NaN');
+        await expect(presetButton('Văn phòng')).toContainText('luật sẽ đổi');
+        const labelBefore = await count();
         await presetButton('Văn phòng').click();
         await settled(page);
         // PRE:201-250 diffPreset walks rules only and the preset replaces the whole config, so the 12 is silently lost.
-        await expect.soft(general, 'the shared tolerance survives a preset').toHaveValue('12');
+        // Either fix is right: the value survives, or the "N luật sẽ đổi" label counted it (more than the 3 rule changes of the preset).
+        const kept = (await general.inputValue()) === '12';
+        expect.soft(kept || labelBefore > 3, `the shared tolerance ${kept ? 'survived' : 'was lost'}; the label said ${String(labelBefore)}`).toBe(true);
         await shot(page, '29-C-017', 'general_kept');
       });
 
@@ -727,6 +768,9 @@ test.describe('SCR-29 Rule Settings · edge (real stack)', () => {
         const applied = waitRulePut(page, id);
         await presetButton('Nhà xưởng').click();
         await applied;
+        // "Nhà xưởng" and the restore toasts are the same kind: within 5 s one "Hoàn tác" would undo both → start the restore as its own group
+        await page.mouse.move(2, 2);
+        await expect(toastRegion(page).getByRole('status')).toHaveCount(0, { timeout: 20_000 });
         const resetPut = waitRulePut(page, id);
         await restore.click();
         expect(putOf(await resetPut).overrides).toEqual({});
@@ -826,8 +870,11 @@ test.describe('SCR-29 Rule Settings · edge (real stack)', () => {
       });
 
       await test.step('[29-C-022] sửa mới rồi "Bỏ thay đổi và tải lại": GET 200; WALL-LENGTH tắt, mọi luật mình sửa về bật; alert mất', async () => {
+        // this edit still carries the old base → its 409 must land BEFORE the reload, or it would bring the conflict alert back after it
+        const late409 = waitRulePut(page, id, undefined, [409]);
         await ruleSwitch(page, WALL_OVERLAP.name).click(); // a fresh edit → a fresh undo toast, so [29-C-023] is not vacuous
         await expect(toast(page, `Tắt luật ${WALL_OVERLAP.name}.`).first()).toBeVisible();
+        await late409;
         await reloadButton.click();
         await expect(dialog).toBeVisible();
         const reread = waitForApi(page, 'GET', ruleConfigRe(id), [200]);
@@ -880,14 +927,15 @@ test.describe('SCR-29 Rule Settings · edge (real stack)', () => {
 
       await test.step('[29-A-029] sang dự án B (WALL-OVERLAP tắt): không nháy cấu hình A; "Chưa có thay đổi"', async () => {
         await writeElsewhere(c.api, b.projectId, { [WALL_OVERLAP.code]: { enabled: false } });
-        await page.evaluate((name) => {
+        await page.evaluate(([name, bId]) => {
           const w = window as unknown as { __qaFlash: string[] };
           w.__qaFlash = [];
           new MutationObserver(() => {
+            if (!location.pathname.includes(bId ?? '')) return; // only what is drawn once the route is B's counts
             const el = document.querySelector(`[role="switch"][aria-label="${name}"]`);
-            if (el?.getAttribute('aria-checked') === 'false') w.__qaFlash.push(name);
+            if (el?.getAttribute('aria-checked') === 'false') w.__qaFlash.push(name ?? '');
           }).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-checked'] });
-        }, ruleSwitchName(WALL_LENGTH.name));
+        }, [ruleSwitchName(WALL_LENGTH.name), b.projectId] as const);
         const reread = waitForApi(page, 'GET', ruleConfigRe(b.projectId), [200]);
         await spaNavigate(page, ROUTES.project.ruleSettings(b.projectId)); // in-app, no reload: the store still holds A's config
         await reread;
@@ -950,6 +998,7 @@ test.describe('SCR-29 Rule Settings · edge (real stack)', () => {
     test.setTimeout(180_000);
     await withApi(browser, async (c) => {
       const { projectId: id } = await ownProject(c, '29-10-readonly');
+      // S5-confirm: pool slots p06-settings1 (engineer, this flow) / 2 (viewer) / 3 (non-member, FL-29-09); FL-29-U3 uses p06-settings4
       const engineer = await poolUser(c.api, 'engineer', 'p06-settings1');
       const viewer = await poolUser(c.api, 'viewer', 'p06-settings2');
       await addProjectMember(c.api, id, engineer.email);
@@ -1072,6 +1121,9 @@ test.describe('SCR-29 Rule Settings · edge (real stack)', () => {
 
       await test.step('[29-E-008] toast bằng bàn phím: "Hoàn tác" focus được; giữ focus thì toast đứng; Enter hoàn tác', async () => {
         await clearRecorded(page);
+        // the E-003 toast and this one are the same kind: within 5 s they would be one group and Enter would undo both
+        await page.mouse.move(2, 2);
+        await expect(toastRegion(page).getByRole('status')).toHaveCount(0, { timeout: 20_000 });
         await unnamed.click(); // on again → fresh toast "Bật luật …."
         const t = toast(page, `Bật luật ${ROOM_UNNAMED.name}.`).first();
         await expect(t).toBeVisible();
@@ -1093,13 +1145,14 @@ test.describe('SCR-29 Rule Settings · edge (real stack)', () => {
 
       await test.step('[29-C-028] ⚑ "Nghiêm trọng" ở cài đặt so với bộ lọc /rules: thống nhất hoặc có chú thích đối ứng', async () => {
         await openRules(page, id);
-        const radios = page.getByRole('radiogroup', { name: 'Lọc theo mức độ', exact: true }).getByRole('radio');
-        const names = (await radios.allInnerTexts()).map((text) => text.trim());
-        // RRS:157: 'Tất cả' / 'Vi phạm' / 'Cảnh báo' / 'Đạt' — critical findings are filtered as "Vi phạm" while SCR-29 calls the level "Nghiêm trọng".
-        expect.soft(names.length, 'UNKNOWN — NEED VERIFICATION: the level filter was not drawn on a project with no layer').toBeGreaterThan(0);
+        // On a project with no layer SCR-28 is `done` and draws no level filter (RuleReport.tsx:271); the word for the violating bucket is
+        // the strip label "Vi phạm" (RuleReportSummary.tsx:84, = RuleReportLabels.tsx:97; that module is a .tsx and is not imported here).
+        const violation: string = 'Vi phạm';
+        await expect.soft(page.getByText(violation, { exact: true }).first(), 'SCR-28 shows the violation bucket word').toBeVisible();
         await openSettings(page, id);
-        const settingsNote = await page.getByText('Vi phạm', { exact: false }).count();
-        expect.soft(names.includes('Nghiêm trọng') || settingsNote > 0, `SCR-28 filter words: ${names.join(' / ')}; SCR-29 says "Nghiêm trọng"`).toBe(true);
+        // SCR-29 calls the top level "Nghiêm trọng" (RSR:280): the two screens must use one word, or SCR-29 must explain the correspondence.
+        const note = await page.getByRole('main').getByText(new RegExp(`(^|\s)${violation}(\s|$|[.,])`, 'u')).count();
+        expect.soft(violation === 'Nghiêm trọng' || note > 0, `SCR-28 says "${violation}", SCR-29 says "Nghiêm trọng" and has no note`).toBe(true);
         await shot(page, '29-C-028', 'severity_wording');
       });
 
