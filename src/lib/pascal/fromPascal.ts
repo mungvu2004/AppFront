@@ -249,7 +249,14 @@ const changeBetween = <K extends EntityKind>(
      `reviewed` sau phép so chứ không trong `withReviewOfPrevious`: so trước
      thì một bức tường đã duyệt mà không ai đụng tới cũng thành "đã đổi", và
      lượt nạp lại sinh ra một lệnh từ hư không. */
-  return asChange(changeForUpdate(kind, from, { ...settled, reviewed: false }));
+  /* 23R-C-006 — tên không phải hình học: cùng định nghĩa với
+     `NON_GEOMETRY_KEYS` của vendor (`core/src/schema/review.ts`). Lượt sửa chỉ
+     đổi `name` thì dấu xác minh sống sót, như panel Pascal vẫn hiển thị. */
+  const nameOnly = sameValue({ ...from, name: undefined }, { ...settled, name: undefined });
+
+  return asChange(
+    changeForUpdate(kind, from, nameOnly ? settled : { ...settled, reviewed: false }),
+  );
 };
 
 /** Câu mô tả cho nhật ký hoạt động: đếm theo việc, rồi đếm theo loại. */
