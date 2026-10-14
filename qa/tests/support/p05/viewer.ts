@@ -508,3 +508,61 @@ export async function pixelDiffRatio(a: Buffer, b: Buffer): Promise<number> {
   }
   return differ / (left.info.width * left.info.height);
 }
+
+/* ---------------------------------------------------------------- navigation / timing / keyboard */
+
+const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+/** A well-formed `prj_<ULID>` nobody owns (support/p03/P10.ts:128 shape) → gate 404. */
+export const unknownProjectId = (): string =>
+  `prj_01${Array.from({ length: 24 }, () => CROCKFORD[Math.floor(Math.random() * 32)] ?? '0').join('')}`;
+
+/** Client-side route change (pushState + popstate, what react-router listens to): no document load, bundle stays. */
+export async function spaGo(page: Page, path: string): Promise<void> {
+  await page.evaluate((target) => {
+    window.history.pushState({}, '', target);
+    window.dispatchEvent(new PopStateEvent('popstate', { state: {} }));
+  }, path);
+}
+
+/** Moves focus to the page body so window shortcuts are not "typing" (shortcutRegistry.ts:505). */
+export async function blurAll(page: Page): Promise<void> {
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+}
+
+/** Presses Tab until `target` holds focus (at most `max` presses); hard-fails otherwise. */
+export async function tabTo(page: Page, target: Locator, max = 40): Promise<void> {
+  for (let i = 0; i < max; i += 1) {
+    if (await target.evaluate((el) => el === document.activeElement)) return;
+    await page.keyboard.press('Tab');
+  }
+  await expect(target, `Tab reaches the control within ${String(max)} presses`).toBeFocused();
+}
+
+/**
+ * Waits until `since + windowMs`: the debounce deadline measured from the user action (flows-C1 "Request facts") — the
+ * only settled point after which "no PUT" can be claimed.
+ */
+export async function settleUntil(page: Page, since: number, windowMs = SAVE_WINDOW_MS + 700): Promise<void> {
+  const left = since + windowMs - Date.now();
+  if (left > 0) await page.waitForTimeout(left); // fixed-wait-ok: debounce deadline from the action, not a guess at speed
+}
+
+/**
+ * Records every text the frame caption shows from now on (MutationObserver in the page; reset by a document load).
+ * Returns a reader. Used for "passes through Đang nạp…" and "never returns to Đang nạp…".
+ */
+export async function traceCaption(page: Page): Promise<() => Promise<string[]>> {
+  const selector = `section[aria-label="${PV.title}"] > p[role=status]`;
+  await page.evaluate((sel) => {
+    const w = window as unknown as { __qaCaptions?: string[] };
+    const trail: string[] = [];
+    w.__qaCaptions = trail;
+    const record = (): void => {
+      const text = document.querySelector(sel)?.textContent ?? '';
+      if (trail[trail.length - 1] !== text) trail.push(text);
+    };
+    record();
+    new MutationObserver(record).observe(document.body, { subtree: true, childList: true, characterData: true });
+  }, selector);
+  return () => page.evaluate(() => [...((window as unknown as { __qaCaptions?: string[] }).__qaCaptions ?? [])]);
+}
