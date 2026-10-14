@@ -24,7 +24,7 @@ import { expect, request, test } from '@playwright/test';
 import type { APIRequestContext, Browser, BrowserContext, Locator, Page, Request, Response } from '@playwright/test';
 
 import { ROUTES } from '../../../../e2e/fixtures/routes';
-import { TOUR_APPEAR_TIMEOUT_MS, dismissTour } from '../../../../e2e/fixtures/tour';
+import { dismissTour } from '../../../../e2e/fixtures/tour';
 import { AUTOSAVE_TIMEOUT_MS, PASCAL_RENDER_TIMEOUT_MS, readBaseUrl } from '../../../../e2e/fullstack/env';
 import { ensureAdminSession } from '../auth';
 import { createQcProject, deleteProject, layerApiOf, layerPathOf, qcLayer, writeLayer, type LayerApi, type SeededFloor } from '../layerSeed';
@@ -234,6 +234,8 @@ export interface MemberSession extends Session {
 
 interface SessionOptions {
   readonly clipboard?: boolean;
+  /** #41 back to the slot's role BEFORE the login (a run that died mid-demotion left it changed). */
+  readonly resetRole?: boolean;
   readonly viewport?: { readonly width: number; readonly height: number };
 }
 
@@ -284,6 +286,7 @@ export async function openMemberSession(
 ): Promise<MemberSession> {
   const user = await poolUser(owner.admin, role, slot);
   await addProjectMember(owner.admin, projectId, user.email);
+  if (options.resetRole === true) expect(await setRole(owner.admin, user, role), `setup: #41 ${role}`).toBe(200);
   const context = await browser.newContext(contextOptions(options));
   try {
     await signInPoolUser(context, user);
@@ -468,42 +471,40 @@ export async function touchLayer(api: LayerApi, projectId: string, floorId: stri
 /* ---- screen ------------------------------------------------------------------------------------------------------- */
 
 // dup-of: viewer.ts openPascal
-/** `/projects/:p/3d` → Pascal caption "Đã dựng…" (PV:61) → the lazy editor tour dismissed with its own button. */
+/**
+ * `/projects/:p/3d` → Pascal caption "Đã dựng…" (PV:61). `/3d` mounts no editor tour (EditorTourContainer only on export,
+ * wall review and `/3d/measure` — review-mau-P123): one look, no wait (`waitMs` 0, as P2.ts:204).
+ */
 export async function openPascal(page: Page, projectId: string): Promise<void> {
   await page.goto(ROUTES.project.viewer(projectId));
   await expect(page.getByRole('region', { name: PV.frame, exact: true }).locator(':scope > p[role="status"]')).toHaveText(
     PASCAL_RENDERED_PATTERN,
     { timeout: PASCAL_RENDER_TIMEOUT_MS },
   );
-  await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
+  await dismissTour(page);
 }
 
 export const pascalRoot = (page: Page): Locator => page.locator('.pascal-root');
 export const siteButton = (page: Page): Locator => pascalRoot(page).getByRole('button', { name: SITE_LABEL, exact: true });
 export const tooltip = (page: Page): Locator => page.getByRole('tooltip');
 
+/** APN:24-49 order of AppFront's panels in the rail, right after "Site" (IR:97-125). */
+const RAIL_ORDER: readonly string[] = ['Diện tích phòng', 'Thư viện đồ đạc'];
+
 /**
  * The icon-rail button whose tooltip reads `label`. The extra-panel buttons have no accessible name (IR:58-79, ⚑ 23R-E-001),
- * so the rail is walked from "Site" on (IR:97-125: Site, then the APN panels, then Settings) by hovering each button until
- * the tooltip (Radix, delay 0 — tooltip.tsx:10) shows the label.
+ * so the button is taken by its fixed position after "Site" (APN:24-49), hovered once, and its tooltip (Radix, delay 0 —
+ * tooltip.tsx:10) must read the label.
  */
 export async function railButton(page: Page, label: string): Promise<Locator> {
-  const candidates = siteButton(page).locator('xpath=following-sibling::button');
-  const count = await candidates.count();
-  for (let index = 0; index < count; index += 1) {
-    const button = candidates.nth(index);
-    await button.hover();
-    const shown = await tooltip(page)
-      .filter({ hasText: label })
-      .first()
-      .waitFor({ state: 'attached', timeout: 2_000 })
-      .then(
-        () => true,
-        () => false,
-      );
-    if (shown) return button;
-  }
-  throw new Error(`Pascal icon rail: no button with tooltip "${label}"`);
+  const index = RAIL_ORDER.indexOf(label);
+  if (index < 0) throw new Error(`Pascal icon rail: "${label}" is not an AppFront panel`);
+  const button = siteButton(page).locator('xpath=following-sibling::button').nth(index);
+  await button.hover();
+  await expect(tooltip(page).filter({ hasText: label }).first(), `rail button #${String(index + 1)} after "Site" is "${label}"`).toBeAttached({
+    timeout: 5_000,
+  });
+  return button;
 }
 
 /** The panel whose h2 is `label` (RAP:201-203, FLP:41-43: root div > header > h2). */
@@ -608,7 +609,8 @@ export const selectedTileCount = (panel: Locator): Promise<number> =>
 
 /**
  * `name: <box>` problems of `targets` against the Pascal canvas box (the container the panels live in, PV:255-260) and the
- * viewport: a target must be shown and lie inside both (±1 px); `against: 'viewport'` (dialogs fixed to the viewport) checks the
+ * viewport: a target must be shown and lie inside both horizontally (±1 px) — x only: panels scroll vertically
+ * inside the box, so a row below the fold is not a defect. `against: 'viewport'` (dialogs fixed to the viewport) checks the
  * viewport only. Empty = all inside.
  */
 export async function outsideFrame(
