@@ -1697,3 +1697,23 @@ describe('đợt sửa P04 — SCR-16 (hook)', () => {
     mounted.unmount();
   });
 });
+
+describe('[G73b] Ctrl-bấm chọn hai tường', () => {
+  it('canvas nhận CẢ hai tường đang chọn để tô viền, không chỉ tường chính', async () => {
+    const mounted = await mountSettled();
+
+    await act(async () => {
+      mounted.result.current.canvas.onSelect(wallAt(0).id);
+      await Promise.resolve();
+    });
+    await act(async () => {
+      mounted.result.current.canvas.onToggleSelect(wallAt(1).id);
+      await Promise.resolve();
+    });
+
+    expect([...(mounted.result.current.canvas.selectedWallIds ?? [])].sort()).toEqual(
+      [wallAt(0).id, wallAt(1).id].sort(),
+    );
+    mounted.unmount();
+  });
+});

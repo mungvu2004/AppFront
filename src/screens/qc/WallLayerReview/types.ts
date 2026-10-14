@@ -366,6 +366,8 @@ export interface WallLayerViewProps {
   /* -- Hành động trên một dòng ---------------------------------------------- */
   readonly onApprove: (wallId: WallId) => void;
   readonly onSkip: (wallId: WallId) => void;
+  /** Shift+F10 / phím ContextMenu trên một hàng: mở menu của tường đó (G74 16-E-010, A12). */
+  readonly onOpenRowMenu?: (wallId: WallId) => void;
   /** `thicknessMm` luôn là một phần tử của {@link WALL_THICKNESS_CHOICES} — CẤM TUYỆT ĐỐI "không bao giờ là ô nhập số tự do" ép ngay ở kiểu. */
   readonly onChangeThickness: (wallId: WallId, thicknessMm: WallThicknessChoice) => void;
   /** Xoá dùng vé hoàn tác (A8, CẤM TUYỆT ĐỐI "không hộp thoại"); toast Hoàn tác do hook dựng. */

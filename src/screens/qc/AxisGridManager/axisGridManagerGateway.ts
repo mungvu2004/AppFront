@@ -63,6 +63,7 @@
 import { createAppApiClient } from '@/api/appClient';
 import type { ApiClient } from '@/api/client';
 import { readFloorLayerGraph } from '@/api/floorLayerGraph';
+import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
 import {
   axisLine,
   detectAxes,
@@ -125,6 +126,7 @@ import {
   AXIS_GRID_FIXTURE_FLOORS,
   AXIS_GRID_FIXTURE_SCALE,
 } from './axisGridFixture';
+import { mockFloorLayerDocument } from '../shared/mockFloorLayerDocument';
 import type { AxisGridDirection, AxisGridPixelRect, AxisSpacingViolation } from './axisGridTypes';
 
 /* -------------------------------------------------------------------------- */
@@ -1053,6 +1055,8 @@ export interface AxisGridManagerGateway {
   readonly supports: Readonly<Record<AxisGridCapability, boolean>>;
   /** Lớp trục của tầng. Lỗi ở đây là trạng thái `error` của A11. */
   readonly readAxisLayer: (input: ReadAxisLayerInput) => Promise<NormalizedSpatial | null>;
+  /** N16 thô của tầng URL — nguồn của `useFloorLayer` (G22: kho thiếu tầng thì vẫn đọc). */
+  readonly readLayer: (input: ReadAxisLayerInput) => Promise<FloorLayerDocument>;
   /** Đồ thị đang sửa — nơi `commit` vừa ghi vào. */
   readonly graph: AxisGridGraphPort;
   /** NOT FOUND — `persistAxisGrid`. Không bịa một lượt lưu; xem bản kê nợ ở đầu file. */
@@ -1112,6 +1116,17 @@ export function createAxisGridManagerGateway(
     },
 
     readAxisLayer: async (input) => graph.read() ?? readFloorLayerGraph(apiClient.spatial, input),
+    readLayer: async ({ floorId, projectId, signal }) => {
+      const result = await apiClient.spatial.readLayer(
+        signal === undefined ? { floorId, projectId } : { floorId, projectId, signal },
+      );
+
+      if (!result.ok) {
+        throw result.error;
+      }
+
+      return result.data;
+    },
 
     graph,
 
@@ -1279,6 +1294,14 @@ export function createMockAxisGridManagerGateway(
       }
 
       return Promise.resolve(graph);
+    },
+
+    readLayer: ({ floorId }) => {
+      if (seed.failReadAxisLayer === true) {
+        return Promise.reject(new Error('Không tải được lưới trục của tầng.'));
+      }
+
+      return mockFloorLayerDocument(graph, floorId);
     },
 
     graph: { read: () => useStore.getState().spatial ?? graph },

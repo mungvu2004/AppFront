@@ -22,7 +22,8 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { alignFloors, type FloorAlignmentReport } from '@/domain/axes/alignFloors';
-import { createSampleBuilding, sampleWallId } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { createSampleBuilding, sampleLevelId, sampleWallId } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { applyPatch } from '@/domain/spatial/applyPatch';
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { LevelId } from '@/domain/spatial/types';
 import { pixels } from '@/domain/units/scale';
@@ -37,6 +38,7 @@ import { useStore } from '@/store';
 
 import {
   AXIS_GRID_FIXTURE_FLOOR1,
+  AXIS_GRID_FIXTURE_FLOOR2,
   AXIS_GRID_FIXTURE_FLOOR3,
   AXIS_GRID_FIXTURE_SCALE,
   AXIS_GRID_FIXTURE_SPACING_VIOLATION_EXAMPLE,
@@ -483,6 +485,7 @@ describe('bảy trạng thái màn (A11 / R-63)', () => {
   it('[BUG-320] thêm trục khi mới có bản xem trước dò từ tường: giữ cả lưới dò được, thêm đúng một hàng', async () => {
     const building = createSampleBuilding();
     const mounted = await mountSettled({
+      floorId: sampleLevelId(0),
       gateway: createMockAxisGridManagerGateway({ graph: normalizeSpatial({ ...building, axes: [] }) }),
     });
     const rowCount = (): number =>
@@ -695,7 +698,7 @@ describe('QA-04c SCR-19', () => {
   });
 
   it('[BUG-594] xoá một trục của bản xem trước: có tác dụng ngay, một bước hoàn tác', async () => {
-    const mounted = await mountSettled({ gateway: previewGateway() });
+    const mounted = await mountSettled({ floorId: sampleLevelId(0), gateway: previewGateway() });
     const before = rowsOf(mounted);
     const target = before[0];
 
@@ -713,7 +716,7 @@ describe('QA-04c SCR-19', () => {
   });
 
   it('[BUG-594] kéo một trục của bản xem trước: có tác dụng ngay, một bước hoàn tác', async () => {
-    const mounted = await mountSettled({ gateway: previewGateway() });
+    const mounted = await mountSettled({ floorId: sampleLevelId(0), gateway: previewGateway() });
     const target = rowsOf(mounted)[0];
     const axis = mounted.result.current.viewModel.canvas.axes.find((item) => item.id === target?.id);
 
@@ -748,5 +751,23 @@ describe('QA-04c SCR-19', () => {
     await waitFor(() => {
       expect(mounted.result.current.autoAlignBlockedReason).toBe(AXIS_GRID_TEXT.autoAlignNothing);
     });
+  });
+});
+
+describe('[G22] SCR-19 vào bằng SPA tới tầng kho chưa giữ', () => {
+  it('kho thiếu tầng 2 thì đọc N16 tầng 2 và hiện trục của nó, không "Chưa có trục nào"', async () => {
+    const full = createAxisGridSampleGraph();
+    const floor2 = AXIS_GRID_FIXTURE_FLOOR2.levelId;
+    const withoutFloor2 = applyPatch(full, [{ id: floor2, kind: 'level', op: 'remove' }]);
+    useStore.getState().setSpatial(withoutFloor2, null, { floorRevisions: {}, projectId: PROJECT_ID });
+    const base = createMockAxisGridManagerGateway({ graph: full });
+    const readLayer = vi.fn(base.readLayer);
+    const mounted = mountHook({ floorId: String(floor2), gateway: { ...base, readLayer }, levelId: floor2 });
+
+    await waitFor(() => {
+      expect(mounted.result.current.viewModel.groups.some((group) => group.rows.length > 0)).toBe(true);
+    });
+    expect(readLayer).toHaveBeenCalledWith(expect.objectContaining({ floorId: String(floor2) }));
+    mounted.unmount();
   });
 });

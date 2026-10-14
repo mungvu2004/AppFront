@@ -922,6 +922,20 @@ export function useWallLayerReview(
     [gateway, onSelect, run, visibleWalls, wallById, wallCodes],
   );
 
+  /* G74: hàng danh sách xin mở menu bằng phím — chọn tường, canvas mở menu của nó. */
+  const [menuRequest, setMenuRequest] = useState<{ readonly wallId: WallId; readonly seq: number } | null>(null);
+  const onOpenRowMenu = useCallback(
+    (wallId: WallId) => {
+      if (isViewerRole) {
+        return;
+      }
+
+      onSelect(wallId);
+      setMenuRequest((previous) => ({ wallId, seq: (previous?.seq ?? 0) + 1 }));
+    },
+    [isViewerRole, onSelect],
+  );
+
   const onSkip = useCallback(
     (wallId: WallId) => {
       const nextId = nextUnreviewedWallId(visibleWalls, wallId);
@@ -1459,7 +1473,7 @@ export function useWallLayerReview(
   /* ---------------------------------------------------------------------- */
 
   const selectedWallIds = useMemo(
-    () => selectedIds.filter((id) => walls.some((wall) => wall.id === id)),
+    () => selectedIds.flatMap((id) => walls.find((wall) => wall.id === id)?.id ?? []),
     [selectedIds, walls],
   );
   const mergePair = selectedWallIds.length === 2 ? selectedWallIds : null;
@@ -1835,6 +1849,7 @@ export function useWallLayerReview(
     errorMessage,
     onApprove,
     onSkip,
+    onOpenRowMenu,
     onChangeThickness,
     onDelete,
     onSplit,
@@ -1876,6 +1891,8 @@ export function useWallLayerReview(
   const canvas: WallLayerCanvasViewProps = {
     shapes,
     selectedWallId,
+    selectedWallIds,
+    menuRequest,
     hoveredWallId: (hoveredId as WallId | null) ?? null,
     showCentrelines,
     millimetresPerPixel: level?.scaleMillimetresPerPixel ?? UNCALIBRATED_SCALE,

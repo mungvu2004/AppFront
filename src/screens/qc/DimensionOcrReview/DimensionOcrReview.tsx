@@ -40,7 +40,7 @@
  * Hai nửa xếp dọc (`flex-col lg:flex-row`), và ảnh cắt của mỗi hàng thu về ô
  * vuông `displayHeightPx` — 96 theo `DIMENSION_CROP_DISPLAY_HEIGHT_PX` của
  * `dimensionOcrTypes.ts`. Việc thu ấy do `DimensionOcrCrop` làm bằng cặp lớp
- * `w-[var(--dim-crop-h)] lg:w-[var(--dim-crop-w)]`; ở đây chỉ có điểm ngắt của
+ * `w-[var(--dim-crop-h)] xl:w-[var(--dim-crop-w)]`; ở đây chỉ có điểm ngắt của
  * khung, và không một con số nào viết thô ngoài bề rộng khung (R-71).
  */
 
@@ -53,6 +53,7 @@ import { Button } from '@/components/ui/Button';
 import { getButtonStyles } from '@/components/ui/buttonVariants';
 import { cn } from '@/lib/utils';
 
+import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { DIMENSION_OCR_TEXT } from './dimensionOcrText';
 import { DimensionOcrCanvas } from './DimensionOcrCanvas';
 import { DimensionOcrCompareBar } from './DimensionOcrCompareBar';
@@ -217,6 +218,14 @@ export function DimensionOcrReview({
   scaleCalibrationHref,
   ...model
 }: DimensionOcrReviewViewProps) {
+  if (model.readFailure != null) {
+    return (
+      <div aria-label={SCREEN_ARIA_LABEL} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+        <FloorLayerReadFailureScreen failure={model.readFailure} />
+      </div>
+    );
+  }
+
   /*
     Chế độ duyệt bàn phím thu CẢ MÀN về một ảnh cắt và một ô nhập — đường nhanh
     nhất của màn, và đặc tả đòi nó không còn thứ gì khác trên màn hình để nhìn.
@@ -267,10 +276,12 @@ export function DimensionOcrReview({
             backgroundImageAlt={model.backgroundImageAlt}
             backgroundImageUrl={model.backgroundImageUrl}
             chains={model.chains}
+            drawingSizePx={model.drawingSizePx}
             isInteractive={!model.isViewerRole}
             millimetresPerPixel={model.millimetresPerPixel}
             onSelect={model.onSelect}
             selectedDimensionId={model.selectedDimensionId}
+            zoom={model.canvasZoom}
           />
           {/* BUG-335: khung bản vẽ rỗng nói vì sao nó rỗng, như Duyệt đối tượng. */}
           {model.emptyNotice === null ? null : (

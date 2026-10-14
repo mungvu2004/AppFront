@@ -82,6 +82,8 @@ import type { ViewportState } from '@/hooks/useCanvasViewport';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 import type { ProjectRole } from '@/types/project';
 
+import type { FloorLayerReadFailure } from '../../qc/shared/floorLayerReadFailure';
+
 /* -------------------------------------------------------------------------- */
 /* Bảy trạng thái (A11).                                                       */
 /* -------------------------------------------------------------------------- */
@@ -457,6 +459,8 @@ export interface OverlayComparisonViewModel {
   readonly canLockAlignment: boolean;
   /** Lỗi ĐỌC (mạng, N16, ảnh quét) — có nút "Thử lại" (BUG-588, BUG-608). */
   readonly canRetry: boolean;
+  /** N16 404 (dự án/tầng không mở được) — cả màn thay bằng một lối ra (G45). */
+  readonly readFailure?: FloorLayerReadFailure | null;
   /** Mức thu phóng theo phần trăm cho `ZoomCluster` — số nguyên, hook làm tròn (A15). */
   readonly zoomPercent: number;
 

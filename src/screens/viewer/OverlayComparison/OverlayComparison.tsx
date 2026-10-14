@@ -70,6 +70,7 @@ import { ZoomCluster } from '@/components/canvas/ZoomCluster';
 import { InlineAlert, type InlineAlertLevel } from '@/components/feedback/InlineAlert';
 import { Button } from '@/components/ui/Button';
 
+import { FloorLayerReadFailureScreen } from '../../qc/shared/FloorLayerReadFailureScreen';
 import { OverlayComparisonCanvas } from './OverlayComparisonCanvas';
 import { OverlayComparisonPanel } from './OverlayComparisonPanel';
 import { OverlayComparisonToolbar } from './OverlayComparisonToolbar';
@@ -152,6 +153,14 @@ export function OverlayComparison({ actions, model }: OverlayComparisonProps) {
         )}
       </div>
     );
+
+  if (model.readFailure != null) {
+    return (
+      <div aria-label={SCREEN_ARIA_LABEL} className="flex h-screen min-h-0 w-full flex-col bg-bg-app" role="region">
+        <FloorLayerReadFailureScreen failure={model.readFailure} />
+      </div>
+    );
+  }
 
   return (
     <div

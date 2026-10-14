@@ -76,10 +76,13 @@ import { displayCodesOf } from '@/domain/spatial/ids';
 import type { Dimension, Level } from '@/domain/spatial/types';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import { useCountUp } from '@/hooks/useCountUp';
+import { useFloorLayer } from '@/hooks/useFloorLayer';
+import { useZoomCluster } from '@/hooks/useZoomCluster';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import { useProjectConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
+import { readWireError } from '@/lib/errors/wireError';
 import type { Command } from '@/lib/commands/types';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
@@ -100,6 +103,7 @@ import {
   dimensionsOf,
   wallsOfGraph,
   drawingSizePxOf,
+  type DimensionDrawingSizePx,
   formatDeviation,
   hostWallOf,
   implausibleDimensionIds,
@@ -121,8 +125,10 @@ import {
   type DimensionOcrReviewGateway,
 } from './dimensionOcrReviewGateway';
 import { DIMENSION_OCR_TEXT } from './dimensionOcrText';
+import { useFloorLayerReadFailure, type FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 import { useLeaveWarning } from '../shared/useLeaveWarning';
 import type {
+  DimensionCanvasZoom,
   DimensionCompareViewModel,
   DimensionFilterId,
   DimensionOcrModel,
@@ -147,6 +153,8 @@ export interface UseDimensionOcrReviewOptions {
   readonly forceCollapsed?: boolean;
   /** Bus thông báo — chỗ toast hoàn tác của A8 đi ra. */
   readonly notifications?: NotificationBus;
+  /** Lối ra của màn "không mở được tầng này" (G09). */
+  readonly onNavigate?: (path: string) => void;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -200,6 +208,12 @@ export interface DimensionOcrReviewModel extends DimensionOcrModel {
   readonly rows: readonly DimensionOcrRowModel[];
   readonly compare: DimensionOcrCompareModel | null;
   readonly keyboardReview: DimensionOcrKeyboardReviewModel;
+  /** Lượt đọc N16 hỏng khi chưa có tài liệu — cả màn thay bằng một lối ra (G09, BUG-326). */
+  readonly readFailure: FloorLayerReadFailure | null;
+  /** Khổ bản vẽ (px) — `viewBox` của lớp chuỗi (G13). */
+  readonly drawingSizePx: DimensionDrawingSizePx | null;
+  /** Cụm thu phóng nối vào lớp bản vẽ (G07). */
+  readonly canvasZoom: DimensionCanvasZoom;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -210,6 +224,8 @@ export interface DimensionOcrReviewModel extends DimensionOcrModel {
 const EDIT_NOTIFICATION_TYPE = 'dimensionOcrReview.editDimension';
 
 const NO_DIMENSIONS: readonly Dimension[] = [];
+/** Mức thu phóng phần trăm ứng với `scale(1)`. */
+const FULL_ZOOM_PERCENT = 100;
 const NO_OVERRIDES: ReadonlyMap<string, number> = new Map<string, number>();
 
 /** Số người duyệt đang gõ dở, chưa thành lệnh. */
@@ -388,10 +404,11 @@ export function useDimensionOcrReview(
     queryFn: ({ signal }) => gateway.readBackground({ floorId, projectId, signal }),
   });
 
-  const dimensionLayerQuery = useQuery({
-    queryKey: queryKeys.space.byFloor(floorId),
-    queryFn: ({ signal }) => gateway.readDimensionLayer({ floorId, projectId, signal }),
-  });
+  /* N16 của tầng URL — `useFloorLayer` quyết định nó vào kho thế nào (G08, như SCR-16/17). */
+  const floorLayer = useFloorLayer({ floorId, projectId, read: gateway.readLayer });
+  const failure = useFloorLayerReadFailure(floorLayer, projectId, options.onNavigate);
+  /* Chỉ 404 (tầng/dự án không còn) thay cả màn; lỗi khác giữ canvas + "Thử lại" (A11). */
+  const readFailure = readWireError(floorLayer.error)?.status === 404 ? failure : null;
 
   /*
    * Tiến độ OCR, khoá RIÊNG.
@@ -422,38 +439,33 @@ export function useDimensionOcrReview(
   const setSelection = useStore((state) => state.setSelection);
 
   /*
-   * Nạp đồ thị của tầng vào kho một lần, nếu kho còn trống. Cổng thật đọc kho nên
-   * `graph.read()` là `null` ở đây; nguồn khi ấy là lượt đọc N16 của
-   * `dimensionLayerQuery` (B-V6-01) — trước đó màn đợi một cái kho không ai nạp.
+   * Cổng giả (story, test) cắm đồ thị bộ mẫu vào kho còn trống, revision 0 khớp
+   * N16 giả. Cổng thật đọc kho nên `graph.read()` là `null` ở đây; kho khi ấy do
+   * `useFloorLayer` nạp từ N16.
    */
-  const loaded = dimensionLayerQuery.data ?? null;
-
   useEffect(() => {
     if (graph !== null) {
       return;
     }
 
-    const seed = gateway.graph.read() ?? loaded;
+    const seed = gateway.graph.read();
 
     if (seed !== null) {
-      setSpatial(seed, null, { floorRevisions: {}, projectId });
+      setSpatial(seed, null, { floorRevisions: { [floorId]: 0 }, projectId });
     }
-  }, [gateway, graph, loaded, projectId, setSpatial]);
+  }, [floorId, gateway, graph, projectId, setSpatial]);
 
   const level = useMemo<Level | null>(() => levelOfGraph(graph, floorId), [floorId, graph]);
-  const hasError = dimensionLayerQuery.isError;
+  const hasError = floorLayer.error !== null;
 
-  // Truy vấn duy nhất làm nên trạng thái lỗi — khuôn `useAxisGridManager` (B-V6-45).
-  const refetchDimensionLayer = dimensionLayerQuery.refetch;
-  const onRetry = useCallback(() => {
-    void refetchDimensionLayer();
-  }, [refetchDimensionLayer]);
-  const isLoading = dimensionLayerQuery.isPending || graph === null;
+  // Lượt đọc duy nhất làm nên trạng thái lỗi — khuôn `useAxisGridManager` (B-V6-45).
+  const onRetry = floorLayer.refetch;
+  const isLoading = floorLayer.isPending || graph === null;
   const hasPartialOcr = ocrProgressQuery.data?.isComplete === false;
 
   const dimensions = useMemo<readonly Dimension[]>(
-    () => (hasError ? NO_DIMENSIONS : dimensionsOf(graph)),
-    [graph, hasError],
+    () => (hasError ? NO_DIMENSIONS : dimensionsOf(graph, level)),
+    [graph, hasError, level],
   );
 
   /* Mã hiển thị tính trên cả tầng — hàng và khoá tra cứu luôn là mã thực thể. */
@@ -663,6 +675,19 @@ export function useDimensionOcrReview(
   const drawingSize = useMemo(
     () => drawingSizePxOf(background ?? null, level),
     [background, level],
+  );
+
+  /* G07: cụm thu phóng có chủ — mức sống ở đây, khung bản vẽ áp `scale`. */
+  const zoomCluster = useZoomCluster();
+  const canvasZoom = useMemo<DimensionCanvasZoom>(
+    () => ({
+      percent: zoomCluster.zoomLevel,
+      scale: zoomCluster.zoomLevel / FULL_ZOOM_PERCENT,
+      onZoomIn: zoomCluster.zoomIn,
+      onZoomOut: zoomCluster.zoomOut,
+      onReset: zoomCluster.resetZoom,
+    }),
+    [zoomCluster.resetZoom, zoomCluster.zoomIn, zoomCluster.zoomLevel, zoomCluster.zoomOut],
   );
 
   const onSelect = useCallback(
@@ -989,5 +1014,8 @@ export function useDimensionOcrReview(
     onRetry,
 
     keyboardReview,
+    readFailure,
+    drawingSizePx: drawingSize,
+    canvasZoom,
   };
 }

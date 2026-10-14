@@ -51,6 +51,8 @@
  * điều phối viên trước.
  */
 
+import type { RefObject } from 'react';
+
 import type {
   ManualCalibrationReason,
   MillimetresPerPixel,
@@ -62,6 +64,7 @@ import type {
 import type { SnapTargetKind } from '@/domain/units/snap';
 import type { Millimetres } from '@/domain/units/types';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
+import type { FloorLayerReadFailure } from '../../qc/shared/floorLayerReadFailure';
 import type { ViewportState } from '@/hooks/useCanvasViewport';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 import type { ProjectRole } from '@/types/project';
@@ -586,6 +589,8 @@ export interface ScaleCalibrationViewModel {
   readonly allFloorsConfirm?: ScaleAllFloorsConfirm;
   /** Dải xung đột/khoá lưu của bộ lưu lớp chung, có "Tải lại" (BUG-598). Vắng khi tầng lưu được. */
   readonly saveBlock?: FloorLayerSaveBlock | null;
+  /** Lượt đọc N16 404 (dự án/tầng không mở được) — cả màn thay bằng một lối ra (G45). */
+  readonly readFailure?: FloorLayerReadFailure | null;
 }
 
 /** Câu của hộp thoại hỏi trước khi áp tỷ lệ cho mọi tầng có bản vẽ (A9). */
@@ -730,6 +735,8 @@ export interface ScaleCalibrationCanvasProps {
 /** Props của `ScaleCalibrationPanel` — panel phải 344px, dưới 1024px xếp dưới bản vẽ. */
 export interface ScaleCalibrationPanelProps {
   readonly panel: ScalePanelViewModel;
+  /** Nút "Áp dụng tỷ lệ" — hộp thoại A9 trả tiêu điểm về đây khi đóng (G57). */
+  readonly applyButtonRef?: RefObject<HTMLButtonElement | null>;
   readonly state: ScaleCalibrationState;
   readonly isCollapsed: boolean;
   readonly prefersReducedMotion: boolean;

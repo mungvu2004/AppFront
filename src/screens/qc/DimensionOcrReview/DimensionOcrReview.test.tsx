@@ -318,21 +318,21 @@ describe('[NGHIEM-1] bảy trạng thái của A11', () => {
     const args = scenarioArgsFor('error');
     const base = args.gateway;
     if (base === undefined) throw new Error('kịch bản lỗi phải mang cổng giả');
-    const readDimensionLayer = vi.fn(base.readDimensionLayer);
+    const readLayer = vi.fn(base.readLayer);
 
     renderWithProviders(
       <MemoryRouter>
-        <DimensionOcrReviewContainer {...args} gateway={{ ...base, readDimensionLayer }} />
+        <DimensionOcrReviewContainer {...args} gateway={{ ...base, readLayer }} />
       </MemoryRouter>,
     );
 
     const retry = await screen.findByRole('button', { name: DIMENSION_OCR_TEXT.states.error.actionLabel });
-    const callsBefore = readDimensionLayer.mock.calls.length;
+    const callsBefore = readLayer.mock.calls.length;
 
     fireEvent.click(retry);
 
     await waitFor(() => {
-      expect(readDimensionLayer.mock.calls.length).toBeGreaterThan(callsBefore);
+      expect(readLayer.mock.calls.length).toBeGreaterThan(callsBefore);
     });
   });
 
@@ -835,5 +835,38 @@ describe('QA-04c SCR-18 trên màn đã ráp', () => {
     expect(screen.getByRole('link', { name: DIMENSION_OCR_TEXT.states.empty.actionLabel }).className).toContain(
       'min-h-11',
     );
+  });
+});
+
+describe('[G01] hàng kích thước vừa panel 400 px ở 1024', () => {
+  it('ảnh cắt chỉ bung rộng từ xl, ô số và thước tin cậy được xuống dòng', async () => {
+    renderState('partial');
+
+    await screen.findAllByRole('option');
+    const crop = screen.getAllByRole('img').find((node) => node.className.includes('--dim-crop-h'));
+    const input = screen.getAllByRole('textbox')[0];
+
+    expect(crop?.className).toContain('xl:w-[var(--dim-crop-w)]');
+    expect(crop?.className).not.toContain('lg:w-[var(--dim-crop-w)]');
+    expect(input?.closest('.gap-3')?.className).toContain('flex-wrap');
+  });
+});
+
+describe('[G07/G13] khung bản vẽ SCR-18', () => {
+  it('svg có viewBox theo khổ bản vẽ, và "Phóng to" phóng cả lớp bản vẽ', async () => {
+    renderState('partial');
+    await screen.findAllByRole('option');
+
+    const svg = screen
+      .getAllByLabelText(DIMENSION_OCR_TEXT.screen.canvasAriaLabel)
+      .find((node) => node.tagName.toLowerCase() === 'svg');
+    const layer = svg?.parentElement;
+
+    expect(svg?.getAttribute('viewBox')).toMatch(/^0 0 \d/u);
+    expect(layer?.style.transform ?? '').toBe('scale(1)');
+
+    fireEvent.click(screen.getByRole('button', { name: /phóng to/iu }));
+
+    expect(layer?.style.transform).toBe('scale(1.1)');
   });
 });

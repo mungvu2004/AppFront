@@ -59,6 +59,7 @@ import { Modal } from '@/components/overlay/Modal';
 import { StatusBar } from '@/components/shell/StatusBar';
 import { Button } from '@/components/ui/Button';
 
+import { FloorLayerReadFailureScreen } from '../../qc/shared/FloorLayerReadFailureScreen';
 import { FloorLayerSaveBanner } from '../../qc/WallLayerReview/FloorLayerSaveBanner';
 
 import { ScaleCalibrationCanvas } from './ScaleCalibrationCanvas';
@@ -135,6 +136,7 @@ function messageFor(model: ScaleCalibrationViewModel): string | null {
 export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
   const { onCanvasSizeChange } = actions;
   const canvasHostRef = useRef<HTMLDivElement | null>(null);
+  const applyButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     const host = canvasHostRef.current;
@@ -180,6 +182,14 @@ export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
   const noticeMessage = messageFor(model);
   const noticeLevel = NOTICE_LEVELS[model.state];
   const isError = model.state === 'error';
+
+  if (model.readFailure != null) {
+    return (
+      <div aria-label={SCREEN_ARIA_LABEL} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+        <FloorLayerReadFailureScreen failure={model.readFailure} />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -239,6 +249,7 @@ export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
 
         <ScaleCalibrationPanel
           actions={actions}
+          applyButtonRef={applyButtonRef}
           isCollapsed={model.isPanelCollapsed}
           panel={model.panel}
           prefersReducedMotion={model.prefersReducedMotion}
@@ -253,6 +264,7 @@ export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
           isOpen
           onClose={actions.onCancelAllFloors}
           primaryAction={{ label: model.allFloorsConfirm.confirmLabel, onClick: actions.onConfirmAllFloors }}
+          returnFocusRef={applyButtonRef}
           secondaryAction={{ label: model.allFloorsConfirm.cancelLabel, onClick: actions.onCancelAllFloors }}
           title={model.allFloorsConfirm.title}
         >

@@ -23,6 +23,12 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createMockApiClient } from '@/api/__mocks__/client';
+import { FLOOR_LAYER_BUILDING } from '@/api/floorLayerGraph';
+import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
+import { sampleDimensionId, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { normalizeSpatial } from '@/domain/spatial/normalize';
+import type { Dimension, Level } from '@/domain/spatial/types';
+import { spatialLayerOf } from '@/lib/autosave/spatialLayerSave';
 import { getAppAnnouncer } from '@/lib/input/announcer';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
@@ -30,6 +36,7 @@ import { createTestQueryClient } from '@/lib/testing/render';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
 import { resetSelectorCaches } from '@/store/selectors';
 import { useStore } from '@/store';
+import { FLOOR_MISSING_TITLE } from '../shared/floorLayerReadFailure';
 
 import {
   buildApproveDimensionCommand,
@@ -53,6 +60,7 @@ import {
   measuredLengthOf,
   readValueOf,
   reviewCounterOf,
+  type DimensionOcrReviewGateway,
 } from './dimensionOcrReviewGateway';
 import {
   DIMENSION_OCR_FIXTURE_DIMENSIONS,
@@ -610,7 +618,7 @@ describe('ba bộ lọc của danh sách', () => {
     await run(() => {
       mounted.result.current.onFilterChange('all');
     });
-    expect(mounted.result.current.rows).toHaveLength(DIMENSION_OCR_FIXTURE_TOTAL);
+    expect(mounted.result.current.reviewCounter.total).toBe(DIMENSION_OCR_FIXTURE_TOTAL);
 
     await run(() => {
       mounted.result.current.onFilterChange('unreviewed');
@@ -837,7 +845,7 @@ describe('chọn hàng, canvas và ảnh cắt', () => {
       mounted.result.current.onFilterChange('all');
     });
 
-    expect(mounted.result.current.rows).toHaveLength(DIMENSION_OCR_FIXTURE_TOTAL);
+    expect(mounted.result.current.reviewCounter.total).toBe(DIMENSION_OCR_FIXTURE_TOTAL);
 
     for (const row of mounted.result.current.rows) {
       expect(row.crop.sourcePx.width).toBeGreaterThan(0);
@@ -1013,6 +1021,78 @@ describe('QA-04c SCR-18', () => {
     await pressKey(mounted.registry, 'Escape');
     expect(mounted.result.current.isKeyboardReviewMode).toBe(false);
 
+    mounted.unmount();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* G08/G09/G14 — tầng của URL, không phải tầng kho đang giữ.                   */
+/* -------------------------------------------------------------------------- */
+
+describe('[G08/G09/G14] SCR-18 đọc tầng của URL', () => {
+  const FLOOR_B = sampleLevelId(3);
+  const levelB = { ...DIMENSION_OCR_SAMPLE_LEVEL, id: FLOOR_B, name: 'Tầng B', order: 1 };
+  const dimensionsB = DIMENSION_OCR_FIXTURE_DIMENSIONS.slice(0, 2).map((dimension, index) => ({
+    ...dimension,
+    id: sampleDimensionId(90 + index),
+    levelId: FLOOR_B,
+  }));
+  const graphOf = (levels: readonly Level[], dimensions: readonly Dimension[]) =>
+    normalizeSpatial({
+      axes: [],
+      building: FLOOR_LAYER_BUILDING,
+      dimensions: [...dimensions],
+      furniture: [],
+      levels: [...levels],
+      notes: [],
+      openings: [],
+      rooms: [],
+      walls: [],
+    });
+  const graphA = buildDimensionOcrGraph();
+  const documentA = (): FloorLayerDocument => ({
+    axes: [],
+    dimensions: [...DIMENSION_OCR_FIXTURE_DIMENSIONS],
+    layer: spatialLayerOf(graphA, FLOOR_ID),
+    level: DIMENSION_OCR_SAMPLE_LEVEL,
+    revision: 1,
+  });
+  const storeGateway = (readLayer: DimensionOcrReviewGateway['readLayer']): DimensionOcrReviewGateway => ({
+    ...createMockDimensionOcrReviewGateway({ graph: null }),
+    graph: { read: () => useStore.getState().spatial },
+    readLayer,
+  });
+
+  it('kho chỉ giữ tầng B thì vẫn đọc N16 tầng A của URL và chỉ hiện chuỗi của A', async () => {
+    useStore.getState().setSpatial(graphOf([levelB], dimensionsB), null, { floorRevisions: { [FLOOR_B]: 1 }, projectId: PROJECT_ID });
+    const readLayer = vi.fn(() => Promise.resolve(documentA()));
+    const mounted = mountHook({ gateway: storeGateway(readLayer) });
+
+    await waitFor(() => {
+      expect(mounted.result.current.reviewCounter.total).toBe(DIMENSION_OCR_FIXTURE_TOTAL);
+    });
+
+    expect(readLayer).toHaveBeenCalledWith(expect.objectContaining({ floorId: FLOOR_ID, projectId: PROJECT_ID }));
+    expect(mounted.result.current.rows.some((row) => dimensionsB.some((dimension) => dimension.id === row.id))).toBe(false);
+    mounted.unmount();
+  });
+
+  it('kho giữ hai tầng thì danh sách chỉ mang chuỗi của tầng URL', async () => {
+    const both = graphOf([DIMENSION_OCR_SAMPLE_LEVEL, levelB], [...DIMENSION_OCR_FIXTURE_DIMENSIONS, ...dimensionsB]);
+    useStore.getState().setSpatial(both, null, { floorRevisions: { [FLOOR_ID]: 1, [FLOOR_B]: 1 }, projectId: PROJECT_ID });
+    const mounted = await mountSettled({ gateway: storeGateway(() => Promise.resolve(documentA())) });
+
+    expect(mounted.result.current.reviewCounter.total).toBe(DIMENSION_OCR_FIXTURE_TOTAL);
+    mounted.unmount();
+  });
+
+  it('404 của tầng thì màn "không mở được tầng này" có lối về Quản lý tầng', async () => {
+    const notFound = { kind: 'notFound', raw: { resource: 'floor' }, requestId: 'r', retryable: false, status: 404 };
+    const mounted = mountHook({ gateway: storeGateway(() => Promise.reject(notFound)) });
+
+    await waitFor(() => {
+      expect(mounted.result.current.readFailure?.title).toBe(FLOOR_MISSING_TITLE);
+    });
     mounted.unmount();
   });
 });

@@ -37,6 +37,8 @@ import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createMockApiClient } from '@/api/__mocks__/client';
+import { PROJECT_NOT_FOUND_TITLE } from '@/components/feedback/ProjectSpatialGate';
+import { appShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createSampleBuilding, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Level, LevelId } from '@/domain/spatial/types';
@@ -860,5 +862,50 @@ describe('useOverlayComparison — QA-04c SCR-22 (BUG-588, 599, 600, 608)', () =
     expect(model.confirmation.canConfirm).toBe(false);
     expect(model.confirmation.disabledReason).toBe('Cần đo được vùng lệch trước khi xác nhận.');
     expect(model.canLockAlignment).toBe(false);
+  });
+});
+
+describe('[G45] người ngoài dự án mở thẳng SCR-22', () => {
+  it('N16 404 dự án: màn "Không tìm thấy dự án này", không câu lỗi đọc chung', async () => {
+    useStore.getState().setSpatial(null, null);
+    useStore.getState().setFloors([]);
+    const base = await makeGateway();
+    const notFound = { kind: 'http', raw: { resource: 'project' }, requestId: 'r', retryable: false, status: 404 };
+    const mounted = mountHook(withOverlayCapabilities(base, { readFloorLayer: () => Promise.reject(notFound) }));
+    await settle(mounted);
+    for (let turn = 0; turn < SETTLE_TURNS; turn += 1) {
+      await act(async () => {
+        await clock.advance(1000);
+      });
+    }
+
+    expect(mounted.result.current.model.readFailure?.title).toBe(PROJECT_NOT_FOUND_TITLE);
+  });
+});
+
+describe('[G36 22-E-016] khung đối chiếu đi được bằng bàn phím (A12)', () => {
+  it('"=" phóng to, "-" thu nhỏ, mũi tên dời khung nhìn', async () => {
+    const mounted = mountHook(await makeGateway());
+    await settle(mounted);
+    const press = async (key: string): Promise<void> => {
+      await act(async () => {
+        appShortcutRegistry.handleKeyDown({ key, ctrlKey: false }, null);
+        await Promise.resolve();
+      });
+    };
+    const start = mounted.result.current.model.viewport;
+
+    await press('=');
+    expect(mounted.result.current.model.viewport.zoom).toBeGreaterThan(start.zoom);
+
+    await press('-');
+    await press('-');
+    expect(mounted.result.current.model.viewport.zoom).toBeLessThan(start.zoom);
+
+    await press('ArrowLeft');
+    await press('ArrowDown');
+    const moved = mounted.result.current.model.viewport;
+    expect(moved.x).not.toBe(start.x);
+    expect(moved.y).not.toBe(start.y);
   });
 });

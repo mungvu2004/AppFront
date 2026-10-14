@@ -78,6 +78,7 @@ import {
   type OverlayScanSnapshot,
   type OverlayToleranceEvaluation,
 } from './overlayComparisonGateway';
+import { floorLayerReadFailureOf } from '../../qc/shared/floorLayerReadFailure';
 import type {
   CompareModeId,
   ConfirmationViewModel,
@@ -102,6 +103,11 @@ import { OVERLAY_MISSING_CAPABILITIES } from './types';
 /* Bản sao khai báo nằm ở vi.hook.fragment.json (mục F của phần chung).         */
 /* -------------------------------------------------------------------------- */
 
+/** Bước thu phóng của "=" / "-" — cùng bước nút +/− của cụm thu phóng. */
+const KEY_ZOOM_STEP = 1.25;
+/** Một lần bấm mũi tên dời khung bao nhiêu pixel màn. */
+const KEY_PAN_STEP_PX = 40;
+
 const COPY = {
   confirmButton: 'Xác nhận mô hình khớp bản vẽ',
   confirmedWithinTolerance:
@@ -116,6 +122,9 @@ const COPY = {
   confirmNeedsEdit: 'Chỉ người có quyền sửa mới xác nhận được.',
   confirmNeedsMeasurement: 'Cần đo được vùng lệch trước khi xác nhận.',
   shortcutFitView: 'Vừa khung',
+  shortcutZoomIn: 'Phóng to khung đối chiếu',
+  shortcutZoomOut: 'Thu nhỏ khung đối chiếu',
+  shortcutPan: 'Dời khung đối chiếu',
   forbiddenNotice: 'Bạn chỉ được xem; việc đổi căn chỉnh dành cho người có quyền sửa.',
   layerDeviation: 'vùng lệch',
   layerGeometry: 'Hình học sinh ra',
@@ -644,6 +653,25 @@ export function useOverlayComparison(
   const isLayerLoading = storeSpatial === null && layerQuery.isLoading;
   const isListLoading = floors.length === 0 && storeFloors.length === 0 && floorListQuery.isLoading;
   const hasLayerReadFailed = storeSpatial === null && layerQuery.isError;
+  /* N16 404 (người ngoài dự án, tầng đã xoá): cả màn là một lối ra, không câu lỗi đọc chung (G45). */
+  const refetchLayer = layerQuery.refetch;
+  const readFailure = useMemo(
+    () =>
+      hasLayerReadFailed && readWireError(layerQuery.error)?.status === 404
+        ? floorLayerReadFailureOf(
+            {
+              data: undefined,
+              error: layerQuery.error,
+              refetch: () => {
+                void refetchLayer();
+              },
+            },
+            projectId,
+            (path) => onNavigateRef.current?.(path),
+          )
+        : null,
+    [hasLayerReadFailed, layerQuery.error, projectId, refetchLayer],
+  );
 
   const state = useMemo<OverlayComparisonState>(() => {
     if (query.isLoading || isLayerLoading || isListLoading) {
@@ -1088,6 +1116,62 @@ export function useOverlayComparison(
     onTrigger: fitView,
   });
 
+  /* A12 (G36 22-E-016): thu phóng và dời khung bằng phím, không chỉ con lăn và chuột giữa. */
+  const zoomByKey = useCallback(
+    (factor: number): void => {
+      zoomTo(viewportRef.current.zoom * factor);
+    },
+    [zoomTo],
+  );
+  useShortcut({
+    id: 'overlayComparison.zoomIn',
+    combo: '=',
+    scope: 'canvas',
+    allowRepeat: true,
+    description: COPY.shortcutZoomIn,
+    onTrigger: () => zoomByKey(KEY_ZOOM_STEP),
+  });
+  useShortcut({
+    id: 'overlayComparison.zoomOut',
+    combo: '-',
+    scope: 'canvas',
+    allowRepeat: true,
+    description: COPY.shortcutZoomOut,
+    onTrigger: () => zoomByKey(1 / KEY_ZOOM_STEP),
+  });
+  useShortcut({
+    id: 'overlayComparison.panArrowLeft',
+    combo: 'ArrowLeft',
+    scope: 'canvas',
+    allowRepeat: true,
+    description: COPY.shortcutPan,
+    onTrigger: () => pan(KEY_PAN_STEP_PX, 0),
+  });
+  useShortcut({
+    id: 'overlayComparison.panArrowRight',
+    combo: 'ArrowRight',
+    scope: 'canvas',
+    allowRepeat: true,
+    description: COPY.shortcutPan,
+    onTrigger: () => pan(-KEY_PAN_STEP_PX, 0),
+  });
+  useShortcut({
+    id: 'overlayComparison.panArrowUp',
+    combo: 'ArrowUp',
+    scope: 'canvas',
+    allowRepeat: true,
+    description: COPY.shortcutPan,
+    onTrigger: () => pan(0, KEY_PAN_STEP_PX),
+  });
+  useShortcut({
+    id: 'overlayComparison.panArrowDown',
+    combo: 'ArrowDown',
+    scope: 'canvas',
+    allowRepeat: true,
+    description: COPY.shortcutPan,
+    onTrigger: () => pan(0, -KEY_PAN_STEP_PX),
+  });
+
   const retry = useCallback((): void => {
     if (layerQuery.isError) {
       void layerQuery.refetch();
@@ -1157,6 +1241,7 @@ export function useOverlayComparison(
       isAlignmentLocked: isLockedByUser || !canEdit,
       canLockAlignment: gateway.supports.imageToModelTransform,
       canRetry: state === 'error' && (hasReadFailed || hasLayerReadFailed),
+      readFailure,
       zoomPercent: Math.round(viewport.zoom * FULL_PERCENT),
       layers,
       geometry,
@@ -1184,6 +1269,7 @@ export function useOverlayComparison(
       hasLayerReadFailed,
       hasReadFailed,
       isLockedByUser,
+      readFailure,
       layers,
       marks,
       measurement,

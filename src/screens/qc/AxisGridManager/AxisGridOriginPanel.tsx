@@ -80,6 +80,8 @@ export function AxisGridOriginPanel({
   const offsetYPx = useCountUp(origin.offsetYPx);
   const offsetXMm = useCountUp(origin.offsetXMm, { format: { fractionDigits: MM_FRACTION_DIGITS } });
   const offsetYMm = useCountUp(origin.offsetYMm, { format: { fractionDigits: MM_FRACTION_DIGITS } });
+  /* Chưa có giao trục để neo thì chưa đo được gì: đọc "—" của hook, không số 0 của count-up (G20, BUG-330). */
+  const isUnmeasured = origin.anchorOptions.length === 0;
 
   return (
     <div className="flex w-[344px] shrink-0 flex-col gap-4 rounded-[12px] bg-bg-surface p-5 shadow-panel max-lg:w-full">
@@ -101,14 +103,14 @@ export function AxisGridOriginPanel({
           </div>
 
           <div className="flex flex-col">
-            <OffsetFieldRow label={OFFSET_X_PX_LABEL} suffix={PX_SUFFIX} text={offsetXPx.text} />
-            <OffsetFieldRow label={OFFSET_Y_PX_LABEL} suffix={PX_SUFFIX} text={offsetYPx.text} />
-            <OffsetFieldRow label={OFFSET_X_MM_LABEL} suffix={MM_SUFFIX} text={offsetXMm.text} />
+            <OffsetFieldRow label={OFFSET_X_PX_LABEL} suffix={PX_SUFFIX} text={isUnmeasured ? origin.offsetXPxText : offsetXPx.text} />
+            <OffsetFieldRow label={OFFSET_Y_PX_LABEL} suffix={PX_SUFFIX} text={isUnmeasured ? origin.offsetYPxText : offsetYPx.text} />
+            <OffsetFieldRow label={OFFSET_X_MM_LABEL} suffix={MM_SUFFIX} text={isUnmeasured ? origin.offsetXMmText : offsetXMm.text} />
             <OffsetFieldRow
               isLast
               label={OFFSET_Y_MM_LABEL}
               suffix={MM_SUFFIX}
-              text={offsetYMm.text}
+              text={isUnmeasured ? origin.offsetYMmText : offsetYMm.text}
             />
           </div>
         </>

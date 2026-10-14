@@ -107,6 +107,7 @@ interface WallLayerListRowProps {
   readonly onSelect: (wallId: WallRowViewModel['id']) => void;
   readonly onToggleSelect: (wallId: WallRowViewModel['id']) => void;
   readonly onHover: (wallId: WallRowViewModel['id'] | null) => void;
+  readonly onOpenMenu?: ((wallId: WallRowViewModel['id']) => void) | undefined;
   readonly style: CSSProperties;
 }
 
@@ -118,6 +119,7 @@ function WallLayerListRow({
   onSelect,
   onToggleSelect,
   onHover,
+  onOpenMenu,
   style,
 }: WallLayerListRowProps) {
   const showHatch = row.isLowConfidence && row.statusCode === 'attention';
@@ -158,6 +160,14 @@ function WallLayerListRow({
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           pick(event.ctrlKey || event.metaKey);
+
+          return;
+        }
+
+        /* Đường bàn phím tới menu chuột phải (G74 16-E-010, A12). */
+        if (onOpenMenu !== undefined && (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10'))) {
+          event.preventDefault();
+          onOpenMenu(row.id);
         }
       }}
       onMouseEnter={() => onHover(row.id)}
@@ -221,7 +231,7 @@ function WallLayerListRow({
 }
 
 export function WallLayerList({ panel, flashingWallId, onToggleSelect }: WallLayerListProps) {
-  const { rows, selectedWallId, hoveredWallId, onSelect, onHover, state, emptyNotice } = panel;
+  const { rows, selectedWallId, hoveredWallId, onSelect, onHover, onOpenRowMenu, state, emptyNotice } = panel;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const scrollParentRef = useRef<HTMLElement | null>(null);
 
@@ -310,6 +320,7 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect }: WallLay
             isSelected={row.id === selectedWallId}
             key={row.id}
             onHover={onHover}
+            onOpenMenu={onOpenRowMenu}
             onSelect={onSelect}
             onToggleSelect={onToggleSelect}
             row={row}

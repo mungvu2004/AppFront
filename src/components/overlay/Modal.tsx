@@ -34,9 +34,21 @@ export interface ModalRootProps {
   /** Chiều rộng: 480 (nhỏ) | 560 (vừa) | 720 (lớn) */
   width?: 480 | 560 | 720;
   titleId?: string;
+  /**
+   * Nơi trả tiêu điểm khi không có người mở để trả về — nút mở bị khoá lúc mở hộp thoại
+   * (tiêu điểm đã rơi về `body`) thì đóng hộp thoại vẫn về đúng nút ấy (G57).
+   */
+  returnFocusRef?: React.RefObject<HTMLElement | null>;
 }
 
-function ModalRoot({ isOpen, onClose, children, width = 480, titleId: externalTitleId }: ModalRootProps) {
+function ModalRoot({
+  isOpen,
+  onClose,
+  children,
+  width = 480,
+  titleId: externalTitleId,
+  returnFocusRef,
+}: ModalRootProps) {
   const prefersReducedMotion = useReducedMotion();
   const modalRef = useRef<HTMLDivElement>(null);
   const autoTitleId = React.useId();
@@ -61,7 +73,11 @@ function ModalRoot({ isOpen, onClose, children, width = 480, titleId: externalTi
     const container = modalRef.current;
     if (!container) return;
 
-    const trap = createFocusTrap(container, { onEscape: () => onCloseRef.current() });
+    const fallbackFocus = returnFocusRef?.current ?? undefined;
+    const trap = createFocusTrap(container, {
+      onEscape: () => onCloseRef.current(),
+      ...(fallbackFocus === undefined ? {} : { fallbackFocus }),
+    });
     // Delay để animation bắt đầu trước khi focus
     const raf = requestAnimationFrame(() => trap.activate());
 
@@ -69,7 +85,7 @@ function ModalRoot({ isOpen, onClose, children, width = 480, titleId: externalTi
       cancelAnimationFrame(raf);
       trap.release();
     };
-  }, [isOpen]);
+  }, [isOpen, returnFocusRef]);
 
   // Esc khi focus nằm ngoài modal (trường hợp hiếm) — qua trọng tài phím tắt.
   // Binding scope 'dialog' cũng là thứ làm tầng dialog thành modal: phím công
@@ -249,9 +265,10 @@ export const Modal = Object.assign(
     children,
     primaryAction,
     secondaryAction,
+    returnFocusRef,
   }: LegacyModalProps) {
     return (
-      <ModalRoot isOpen={isOpen} onClose={onClose} width={width}>
+      <ModalRoot isOpen={isOpen} onClose={onClose} width={width} {...(returnFocusRef ? { returnFocusRef } : {})}>
         <ModalHeader>{title}</ModalHeader>
         <ModalBody>{children}</ModalBody>
         {(primaryAction || secondaryAction) && (
@@ -300,6 +317,8 @@ export interface LegacyModalProps {
   children: React.ReactNode;
   primaryAction?: { label: string; onClick: () => void; disabled?: boolean; loading?: boolean };
   secondaryAction?: { label: string; onClick: () => void; disabled?: boolean };
+  /** Xem `ModalRootProps.returnFocusRef`. */
+  returnFocusRef?: React.RefObject<HTMLElement | null>;
 }
 
 export type { LegacyModalProps as ModalProps };

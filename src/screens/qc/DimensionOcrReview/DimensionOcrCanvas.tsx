@@ -181,8 +181,10 @@ export function DimensionOcrCanvas({
   backgroundImageAlt,
   backgroundImageUrl,
   chains,
+  drawingSizePx,
   isInteractive,
   onSelect,
+  zoom,
 }: DimensionOcrCanvasProps) {
   return (
     <div
@@ -191,7 +193,8 @@ export function DimensionOcrCanvas({
       className={CANVAS_FRAME_CLASSES}
       role="group"
     >
-      <div className="absolute inset-0">
+      {/* Ảnh và lớp chuỗi phóng CÙNG nhau (G07); viewBox theo khổ bản vẽ để chuỗi khớp ảnh (G13). */}
+      <div className="absolute inset-0 origin-center" style={{ transform: `scale(${zoom.scale})` }}>
         {backgroundImageUrl === null ? (
           <div aria-hidden="true" className="absolute inset-0 bg-bg-sunken" />
         ) : (
@@ -207,7 +210,9 @@ export function DimensionOcrCanvas({
         <svg
           aria-label={DIMENSION_OCR_TEXT.screen.canvasAriaLabel}
           className="absolute inset-0 h-full w-full"
+          preserveAspectRatio="none"
           role="img"
+          {...(drawingSizePx === null ? {} : { viewBox: `0 0 ${drawingSizePx.width} ${drawingSizePx.height}` })}
         >
           {chains.map((chain) => (
             <DimensionChainFigure
@@ -220,7 +225,13 @@ export function DimensionOcrCanvas({
         </svg>
       </div>
 
-      <ZoomCluster />
+      <ZoomCluster
+        onFitToScreen={zoom.onReset}
+        onResetZoom={zoom.onReset}
+        onZoomIn={zoom.onZoomIn}
+        onZoomOut={zoom.onZoomOut}
+        zoomLevel={zoom.percent}
+      />
 
       {isInteractive ? null : (
         <p className="sr-only" id={CANVAS_READ_ONLY_NOTICE_ID}>

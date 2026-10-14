@@ -83,6 +83,7 @@ function toAlertLevel(statusCode: ViewStatusCode): InlineAlertLevel {
 
 export function ScaleCalibrationPanel({
   actions,
+  applyButtonRef,
   isCollapsed,
   panel,
   state,
@@ -279,6 +280,7 @@ export function ScaleCalibrationPanel({
               fullWidth
               loading={panel.isApplying}
               onClick={actions.onApply}
+              ref={applyButtonRef}
               variant="primary"
             >
               {panel.isApplying ? APPLY_APPLYING : APPLY_PRIMARY}

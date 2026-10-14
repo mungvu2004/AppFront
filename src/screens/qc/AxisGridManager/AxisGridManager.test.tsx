@@ -55,6 +55,7 @@ import { useStore } from '@/store';
 import { BACK_TO_FLOORS_LABEL, FLOOR_MISSING_TITLE } from '../shared/floorLayerReadFailure';
 
 import { AxisGridCanvas } from './AxisGridCanvas';
+import { AxisGridOriginPanel } from './AxisGridOriginPanel';
 import { fitCanvas } from './axisGridCanvasFit';
 import { AxisGridManager } from './AxisGridManager';
 import { AxisGridManagerContainer } from './AxisGridManager.container';
@@ -350,7 +351,7 @@ describe('[BUG-326] đọc lớp hỏng thay cả màn bằng một trạng thá
     renderWithProviders(
       <AxisGridManagerContainer
         floorId={String(AXIS_GRID_FIXTURE_FLOOR1.levelId)}
-        gateway={{ ...createMockAxisGridManagerGateway(), readAxisLayer: () => Promise.reject(FLOOR_GONE) }}
+        gateway={{ ...createMockAxisGridManagerGateway(), readLayer: () => Promise.reject(FLOOR_GONE) }}
         onNavigate={onNavigate}
         projectId="project-axis-grid"
         roles={['engineer']}
@@ -527,6 +528,60 @@ describe('QA-04c SCR-19 trên màn', () => {
 
     expect(onAxisDrag).toHaveBeenCalledTimes(1);
     vi.unstubAllGlobals();
+  });
+
+  it('[G20] chưa có giao trục nào để neo: bốn độ lệch đọc "—", không "0 px / 0 mm" như đã đo', () => {
+    const origin = axisGridScenarioFor('success').origin;
+    const unmeasured = {
+      ...origin,
+      anchorOptions: [],
+      selectedAnchor: null,
+      offsetXPxText: '—',
+      offsetYPxText: '—',
+      offsetXMmText: '—',
+      offsetYMmText: '—',
+      offsetXPx: pixels(0),
+      offsetYPx: pixels(0),
+    };
+
+    renderWithProviders(<AxisGridOriginPanel onAnchorChange={() => undefined} origin={unmeasured} unavailableNotice={null} />);
+
+    expect(screen.queryAllByText('—')).toHaveLength(4);
+    expect(screen.queryAllByText('0')).toHaveLength(0);
+  });
+
+  it('[G20] màn cao bằng khung nhìn — danh sách 20 trục cuộn trong panel, không đẩy cả trang', () => {
+    renderState('success');
+
+    expect(screen.getByRole('region', { name: 'Quản lý trục và gốc toạ độ' })).toHaveClass('h-screen');
+  });
+
+  it('[G16] bấm một trục trên canvas giữ trục được chọn — click bị pointer capture đẩy về svg không bỏ chọn', () => {
+    const onAxisSelect = vi.fn();
+    const viewModel = axisGridScenarioFor('success');
+    const { container } = renderWithProviders(
+      <AxisGridCanvas
+        canvas={viewModel.canvas}
+        isInteractive
+        onAxisDrag={() => undefined}
+        onAxisSelect={onAxisSelect}
+        viewerRoleNotice={null}
+      />,
+    );
+    const svg = container.querySelector('svg') as SVGSVGElement;
+    const axis = viewModel.canvas.axes.find((item) => item.isVisible);
+    const figure = container.querySelector(`g[aria-label="${axis?.label ?? ''}"]`) as SVGGElement;
+
+    fireEvent.pointerDown(figure, { pointerId: 1 });
+    fireEvent.pointerUp(svg, { pointerId: 1 });
+    fireEvent.click(svg);
+
+    expect(onAxisSelect).toHaveBeenLastCalledWith(axis?.id);
+
+    fireEvent.pointerDown(svg, { pointerId: 2 });
+    fireEvent.click(svg);
+
+    expect(onAxisSelect).toHaveBeenLastCalledWith(null);
   });
 
   it('[BUG-613] bốn độ lệch gốc toạ độ: nhãn và giá trị cùng một dòng chữ (FieldRow isText)', () => {

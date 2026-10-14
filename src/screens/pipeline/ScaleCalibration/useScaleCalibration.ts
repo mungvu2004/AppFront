@@ -101,6 +101,7 @@ import {
 } from '@/domain/units/types';
 import { useAutosave, useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { useFloorLayer } from '@/hooks/useFloorLayer';
+import { useFloorLayerReadFailure } from '../../qc/shared/floorLayerReadFailure';
 import { useProjectConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import { useCountUp } from '@/hooks/useCountUp';
@@ -321,12 +322,21 @@ function frameScaleOf(edgePx: Pixels): Scale {
   return createScale({ pixelLength: edgePx, realLength: millimetres(ONE_IMAGE_FRAME) });
 }
 
-/** Hai cạnh ảnh, đã thành hai phép đổi. `null` khi tầng chưa được đo. */
+/**
+ * Ảnh trong khung vuông, đã thành MỘT phép đổi cho cả hai trục. `null` khi tầng chưa được đo.
+ *
+ * Ảnh vẽ `object-contain` trong khung `aspect-square`: cạnh dài phủ kín khung, cạnh ngắn
+ * nằm giữa với hai dải trống. Đổi riêng từng trục theo cạnh của nó (như trước) là kéo giãn
+ * ảnh không vuông: cùng 0,6 khung ra 960 px theo ngang mà 720 px theo dọc (G52 14-C-026).
+ */
 interface ImageFrame {
   readonly widthPx: Pixels;
   readonly heightPx: Pixels;
-  readonly acrossScale: Scale;
-  readonly upScale: Scale;
+  /** Khung ↔ pixel ảnh, theo cạnh dài — chung hai trục. */
+  readonly edgeScale: Scale;
+  /** Dải trống trước ảnh trên mỗi trục, pixel ảnh. */
+  readonly insetX: Pixels;
+  readonly insetY: Pixels;
 }
 
 function imageFrameOf(drawing: ScaleDrawingSnapshot | null): ImageFrame | null {
@@ -334,11 +344,14 @@ function imageFrameOf(drawing: ScaleDrawingSnapshot | null): ImageFrame | null {
     return null;
   }
 
+  const edge = pixels(Math.max(drawing.widthPx, drawing.heightPx));
+
   return {
     widthPx: drawing.widthPx,
     heightPx: drawing.heightPx,
-    acrossScale: frameScaleOf(drawing.widthPx),
-    upScale: frameScaleOf(drawing.heightPx),
+    edgeScale: frameScaleOf(edge),
+    insetX: pixels((edge - drawing.widthPx) / 2),
+    insetY: pixels((edge - drawing.heightPx) / 2),
   };
 }
 
@@ -351,16 +364,16 @@ interface PixelPoint {
 /** Tỷ lệ `0..1` của khung → pixel ảnh. Chỉ có phép nhân. */
 function toPixelPoint(frame: ImageFrame, point: ImageRatioPoint): PixelPoint {
   return {
-    x: frame.acrossScale.millimetresToPixels(millimetres(point.x)),
-    y: frame.upScale.millimetresToPixels(millimetres(point.y)),
+    x: pixels(frame.edgeScale.millimetresToPixels(millimetres(point.x)) - frame.insetX),
+    y: pixels(frame.edgeScale.millimetresToPixels(millimetres(point.y)) - frame.insetY),
   };
 }
 
 /** Pixel ảnh → tỷ lệ `0..1` của khung. Phép chia do M-02 làm. */
 function toRatioPoint(frame: ImageFrame, point: PixelPoint): ImageRatioPoint {
   return {
-    x: frame.acrossScale.pixelsToMillimetres(point.x),
-    y: frame.upScale.pixelsToMillimetres(point.y),
+    x: frame.edgeScale.pixelsToMillimetres(pixels(point.x + frame.insetX)),
+    y: frame.edgeScale.pixelsToMillimetres(pixels(point.y + frame.insetY)),
   };
 }
 
@@ -426,7 +439,20 @@ interface DragSession {
   readonly snappedEndpoint: ReferenceLineEndpoint | null;
   /** Đầu đang đi theo con trỏ — `end` khi vẽ mới, đầu của tay cầm khi kéo tay cầm (BUG-587). */
   readonly movingEndpoint: ReferenceLineEndpoint;
+  /**
+   * Lệch từ con trỏ tới tâm đầu đoạn lúc nhấn tay cầm (G51b): tay cầm 24 px, nên nhấn lệch
+   * tâm rồi thả mà dời đầu đoạn tới con trỏ là vẽ ra một đoạn vài px. Vẽ mới thì 0.
+   */
+  readonly grabOffset: PixelPoint;
 }
+
+const NO_GRAB_OFFSET: PixelPoint = { x: pixels(0), y: pixels(0) };
+
+/** Điểm con trỏ cộng lệch lúc nhấn tay cầm — đầu đoạn đi theo đúng quãng con trỏ đi. */
+const grabbed = (moving: PixelPoint, offset: PixelPoint): PixelPoint => ({
+  x: pixels(moving.x + offset.x),
+  y: pixels(moving.y + offset.y),
+});
 
 /** Đầu kia của một đoạn. */
 const otherEndpoint = (endpoint: ReferenceLineEndpoint): ReferenceLineEndpoint =>
@@ -568,6 +594,9 @@ export function __resetScaleRatioMarks(): void {
 /* Hook.                                                                        */
 /* -------------------------------------------------------------------------- */
 
+/** Hậu tố khoá đệm bản ghi hiệu chỉnh — xem ghi chú ở `useQuery` của hook. */
+const SCALE_CALIBRATION_QUERY_SCOPE = 'scaleCalibration';
+
 /** `(options) => UseScaleCalibrationResult` cho `ScaleCalibration.container.tsx`. */
 export function useScaleCalibration(
   options: UseScaleCalibrationHookOptions,
@@ -583,8 +612,13 @@ export function useScaleCalibration(
   /* Trạng thái máy chủ (R-64) — một khoá đệm cho bản vẽ của tầng.           */
   /* ---------------------------------------------------------------------- */
 
+  /*
+   * Hậu tố riêng (G25): các màn QC giữ ẢNH NỀN dưới đúng `drawing.byFloor(floorId)`
+   * với hình khác; vào bằng SPA trong `staleTime` thì màn này đọc nhầm hình ấy và canvas
+   * trắng. Nối hậu tố như `CAD_INSPECTION_QUERY_SCOPE` — vẫn mất hiệu lực theo tiền tố.
+   */
   const query = useQuery({
-    queryKey: queryKeys.drawing.byFloor(floorId),
+    queryKey: [...queryKeys.drawing.byFloor(floorId), SCALE_CALIBRATION_QUERY_SCOPE],
     queryFn: async (): Promise<ScaleCalibrationRecord> => {
       const drawing = await gateway.readFloorDrawing({ floorId, projectId });
 
@@ -721,10 +755,12 @@ export function useScaleCalibration(
    * Hai vế đang xét: hàng đã chọn thắng, vì chọn một chuỗi kích thước là một
    * câu trả lời dứt khoát; đoạn vẽ tay chỉ nói lên điều gì khi đã có chiều dài.
    */
+  /* Không có chuỗi kích thước thì chỉ còn đoạn tham chiếu — cùng luật `effectiveMethod` của panel (G52 14-C-016). */
+  const computedMethod: ScaleCalibrationMethod = rawRows.length === 0 ? 'referenceLine' : method;
   const numerator: Millimetres | null =
-    method === 'dimensionString' ? (selectedRow?.realLength ?? null) : typedLength;
+    computedMethod === 'dimensionString' ? (selectedRow?.realLength ?? null) : typedLength;
   const denominator: Pixels | null =
-    method === 'dimensionString' ? (selectedRow?.pixelLength ?? null) : draftPixelLength;
+    computedMethod === 'dimensionString' ? (selectedRow?.pixelLength ?? null) : draftPixelLength;
 
   /** Tỷ lệ đang đề nghị — do M-02 tính, không do màn chia. */
   const proposedScale = useMemo<Scale | null>(() => {
@@ -916,9 +952,18 @@ export function useScaleCalibration(
 
     // Nhấn lên tay cầm: kéo đúng đầu đó, đầu kia đứng yên — không vẽ lại cả đoạn (BUG-587).
     if (endpoint !== undefined) {
+      const pressed = toPixelPoint(currentFrame, point);
+
       setNudgeTarget(endpoint);
       setDrag((session) =>
-        session === null ? session : { ...session, isDragging: true, movingEndpoint: endpoint },
+        session === null
+          ? session
+          : {
+              ...session,
+              isDragging: true,
+              movingEndpoint: endpoint,
+              grabOffset: { x: pixels(session[endpoint].x - pressed.x), y: pixels(session[endpoint].y - pressed.y) },
+            },
       );
       return;
     }
@@ -933,6 +978,7 @@ export function useScaleCalibration(
       snappedKind: null,
       snappedEndpoint: null,
       movingEndpoint: 'end',
+      grabOffset: NO_GRAB_OFFSET,
     });
   }, []);
 
@@ -952,7 +998,11 @@ export function useScaleCalibration(
         }
 
         const endpoint = session.movingEndpoint;
-        const resolved = resolveEndpoint(session[otherEndpoint(endpoint)], moving, modifiers.isAxisLocked);
+        const resolved = resolveEndpoint(
+          session[otherEndpoint(endpoint)],
+          grabbed(moving, session.grabOffset),
+          modifiers.isAxisLocked,
+        );
 
         return {
           ...session,
@@ -983,7 +1033,11 @@ export function useScaleCalibration(
         }
 
         const endpoint = session.movingEndpoint;
-        const resolved = resolveEndpoint(session[otherEndpoint(endpoint)], moving, session.isAxisLocked);
+        const resolved = resolveEndpoint(
+          session[otherEndpoint(endpoint)],
+          grabbed(moving, session.grabOffset),
+          session.isAxisLocked,
+        );
 
         return {
           ...session,
@@ -1605,6 +1659,10 @@ export function useScaleCalibration(
     rows.length,
   ]);
 
+  /* 404 dự án/tầng (người ngoài dự án, tầng đã xoá): cả màn là một lối ra, không "Mã lỗi: NOT_FOUND" (G45). */
+  const floorLayerFailure = useFloorLayerReadFailure(floorLayer, projectId, navigate);
+  const readFailure = readWireError(floorLayer.error)?.status === 404 ? floorLayerFailure : null;
+
   const errorDescription = useMemo(() => {
     if (state !== 'error') {
       return null;
@@ -1866,6 +1924,7 @@ export function useScaleCalibration(
       successNotice: state === 'success' ? COPY.successNotice : null,
       ...(provisionalNotice !== null ? { provisionalScaleNotice: provisionalNotice.message } : {}),
       saveBlock,
+      readFailure,
       ...(allFloors !== null
         ? {
             allFloorsConfirm: {
@@ -1884,6 +1943,7 @@ export function useScaleCalibration(
     canEdit,
     canvasSize,
     saveBlock,
+    readFailure,
     isApplying,
     provisionalNotice,
     aiInference,

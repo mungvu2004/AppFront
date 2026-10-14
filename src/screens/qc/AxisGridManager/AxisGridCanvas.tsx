@@ -187,6 +187,8 @@ export function AxisGridCanvas({ canvas, isInteractive, onAxisDrag, onAxisSelect
   const [dragCoordinatePx, setDragCoordinatePx] = useState<number | null>(null);
   const [frame, setFrame] = useState({ width: 0, height: 0 });
   const svgRef = useRef<SVGSVGElement | null>(null);
+  /* Lượt bấm bắt đầu trên một trục: pointer capture đẩy `click` sau đó về svg (G16). */
+  const axisPressRef = useRef(false);
   const visibleAxes = canvas.axes.filter((axis) => axis.isVisible);
 
   useEffect(() => {
@@ -230,6 +232,7 @@ export function AxisGridCanvas({ canvas, isInteractive, onAxisDrag, onAxisSelect
   const handlePointerDownAxis = useCallback(
     (event: ReactPointerEvent<SVGGElement>, axisId: string) => {
       onAxisSelect(axisId);
+      axisPressRef.current = true;
       setDraggingAxisId(axisId);
       event.currentTarget.ownerSVGElement?.setPointerCapture?.(event.pointerId);
     },
@@ -270,6 +273,12 @@ export function AxisGridCanvas({ canvas, isInteractive, onAxisDrag, onAxisSelect
   }, [dragCoordinatePx, draggingAxisId, onAxisDrag]);
 
   const handleBackgroundClick = useCallback(() => {
+    if (axisPressRef.current) {
+      axisPressRef.current = false;
+
+      return;
+    }
+
     if (isInteractive) {
       onAxisSelect(null);
     }
@@ -288,6 +297,9 @@ export function AxisGridCanvas({ canvas, isInteractive, onAxisDrag, onAxisSelect
         aria-label={CANVAS_ARIA_LABEL}
         className="absolute inset-0 h-full w-full"
         onClick={handleBackgroundClick}
+        onPointerDown={() => {
+          axisPressRef.current = false;
+        }}
         onPointerMove={handleSvgPointerMove}
         onPointerUp={handleSvgPointerUp}
         ref={svgRef}

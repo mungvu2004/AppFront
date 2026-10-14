@@ -62,6 +62,7 @@ import { useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { isFloorNotFound, useFloorLayer } from '@/hooks/useFloorLayer';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import { appNotificationBus } from '@/hooks/useNotifications';
+import { useProjectConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
@@ -107,6 +108,7 @@ import {
   dataLayerTokens,
   graphWallsOf,
   isLowConfidenceObject,
+  OBJECT_LAYER_CONFIDENCE_THRESHOLD,
   layerTreeTotalLabel,
   levelOfGraph,
   lowConfidenceNotice,
@@ -272,6 +274,7 @@ export function applyObjectFilters(
     readonly subtypes: ReadonlySet<ObjectSubtype>;
     readonly lowConfidenceOnly: boolean;
   },
+  threshold: number = OBJECT_LAYER_CONFIDENCE_THRESHOLD,
 ): readonly ReviewObject[] {
   return objects.filter((object) => {
     if (!filters.layerVisibility[object.layer]) {
@@ -282,7 +285,7 @@ export function applyObjectFilters(
       return false;
     }
 
-    return !(filters.lowConfidenceOnly && (object.reviewed || !isLowConfidenceObject(object.confidence)));
+    return !(filters.lowConfidenceOnly && (object.reviewed || !isLowConfidenceObject(object.confidence, threshold)));
   });
 }
 
@@ -484,7 +487,16 @@ export function useObjectLayerReview(
   const counts = useMemo(() => countsOf(objects), [objects]);
   const availableSubtypes = useMemo(() => new Set(objects.map((object) => object.subtype)), [objects]);
   const reviewCounter = useMemo(() => reviewCounterOf(objects), [objects]);
-  const lowConfidenceObjects = useMemo(() => lowConfidenceObjectsOf(objects), [objects]);
+  /* Ngưỡng của dự án, 0,75 của đặc tả khi chưa đọc được (G32 17-C-009). */
+  const confidenceThreshold = useProjectConfidenceThreshold(
+    projectId,
+    gateway.readConfidenceThreshold,
+    OBJECT_LAYER_CONFIDENCE_THRESHOLD,
+  );
+  const lowConfidenceObjects = useMemo(
+    () => lowConfidenceObjectsOf(objects, confidenceThreshold),
+    [confidenceThreshold, objects],
+  );
   const lowConfidenceOnly = lowConfidenceChoice ?? lowConfidenceObjects.length > 0;
 
   const solidWalls = useMemo(() => solidWallsOf(graph, level), [graph, level]);
@@ -1375,8 +1387,8 @@ export function useObjectLayerReview(
         layerVisibility,
         subtypes: subtypeFilters,
         lowConfidenceOnly,
-      }),
-    [layerVisibility, lowConfidenceOnly, objects, subtypeFilters],
+      }, confidenceThreshold),
+    [confidenceThreshold, layerVisibility, lowConfidenceOnly, objects, subtypeFilters],
   );
 
   /* Nhãn tường chủ tính trên mã tường của cả tầng, cùng nguồn với màn tường. */
@@ -1386,8 +1398,8 @@ export function useObjectLayerReview(
   );
 
   const rows = useMemo(
-    () => visibleObjects.map((object) => toObjectRow(object, wallCodes)),
-    [visibleObjects, wallCodes],
+    () => visibleObjects.map((object) => toObjectRow(object, wallCodes, confidenceThreshold)),
+    [confidenceThreshold, visibleObjects, wallCodes],
   );
 
   const inspector = useMemo(() => {
