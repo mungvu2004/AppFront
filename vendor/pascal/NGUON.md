@@ -33,6 +33,7 @@ cản việc sửa, đổi tên hay bán lại.
 | `packages/typescript-config` | 4 KB | Bốn gói trên kế thừa cấu hình này |
 | `assets/material` | 18 MB | Texture `.ktx2`. **Đã đo:** một cảnh AppFront vẽ ra thì viewer đi xin 4 tệp trong số này từ CDN của Pascal — tự host ở đây là để cắt đường gọi ra ngoài đó |
 | `assets/hdri` · `assets/fonts` · `assets/icons` | 1,4 MB · 208 KB · 2,4 MB | Môi trường chiếu sáng, phông chữ, icon giao diện soạn thảo |
+| `assets/items` | 2 010 KiB (200 tệp) | `model.glb` + `thumbnail.webp` của 100 thư mục (101 mẫu; `cabinet` và `kitchen-cabinet` dùng chung) thư viện đồ đạc, từ `apps/editor/public/items` — catalog gốc trỏ supabase.co, CSP chặn (QA-05c B4) |
 
 Phần `dist/`, `node_modules/`, `.turbo/` và `tsconfig.tsbuildinfo` **không** chép — chúng là kết
 quả dựng, dựng lại được.
@@ -41,7 +42,7 @@ quả dựng, dựng lại được.
 
 | Bỏ | Cỡ | Vì sao |
 |---|---|---|
-| `apps/editor/public/items` | 4,5 MB | Thư viện đồ đạc `.glb` của Pascal. Đo được: cảnh AppFront **không gọi tệp nào** trong đó — đồ đạc của AppFront hiện là chỗ giữ chỗ `asset://appfront/<loại>`. Cần thì lấy lại từ `F:/pascal-editor` |
+| `apps/editor/public/items` (phần thừa) | 2,5 MB | 44 thư mục không mẫu catalog nào dùng. 100 thư mục (101 mẫu) catalog dùng ĐÃ chép về `assets/items` (QA-05c B4, xem dưới) |
 | `apps/editor/public/audios` | 824 KB | Âm thanh giao diện soạn thảo |
 | `apps/editor/public/demos` | 44 KB | Cảnh mẫu của Pascal |
 | `apps/*`, `packages/{cli,mcp,ifc-converter,ui,eslint-config}` | — | App Next.js, CLI, máy chủ MCP, bộ đổi IFC — không nằm trong phạm vi nhúng |
@@ -263,3 +264,4 @@ Sửa thêm thì thêm một dòng ở đây — đừng để người sau ph�
 | `vendor/pascal/packages/nodes/src/i18n/vi.test.ts` | thêm vào danh sách cho phép các từ tiếng Việt vốn không dấu (Khung, Ga-ra, Lan can, Xong…) và viết tắt APN | M2 |
 | `packages/core/src/architecture.test.ts` | Hạn 30 s cho bài quét toàn bộ nguồn `core` — hết 5 s mặc định khi `test:pascal` chạy 4 gói cùng lúc (qua khi chạy riêng 158 ms) | M2 |
 | `packages/editor/src/i18n/vi.test.ts` | Thêm "Xoay" (chữ đầu hoa) vào danh sách từ hợp lệ không dấu — nhãn `contextualHelp.cameraAction.Rotate` | M2 |
+| `vendor/pascal/packages/editor/src/components/ui/item-catalog/catalog-items.tsx` | QA-05c B4: `src`/`thumbnail` trỏ `/items/<mẫu>/…` tự host (`assets/items`) thay cho supabase.co; bỏ `floorPlanUrl` (ảnh mặt bằng chỉ có trên supabase); bỏ 10 mẫu không có tệp local (dining-table-mo9ms5yh, my-leather-couch-modp80ha, ikea-kallax-1x4-moa2y49n, herman-miller-aeron-mo8x36k9, standing-desk-mo8wgz95, power-outlet-moa09g0o, wooden-kitchen-bar-moa2hhh4, 1967-chevrolet-camaro-moa24wsf, dishwasher-movn72ls, fireplace-movn1fnn) — 111 → 101 mẫu | QA-05c |

@@ -38,6 +38,20 @@ describe('spatialLayerOf', () => {
     expect(layer.openings.every((opening) => onFloor.some((wall) => wall.id === opening.wallId))).toBe(true);
     expect(layer.walls.length + layer.openings.length).toBeGreaterThan(0);
   });
+
+  it('23F-G-003/004: đồ đạc mang `model` (thay mẫu/đặt mẫu Pascal) vẫn ra thân PUT hợp lệ — #35 không có `model`', () => {
+    const furnitureId = sampleFurnitureId(0);
+    const model = { id: 'dining-chair', src: '/items/dining-chair/model.glb' };
+    const swapped = applyPatch(normalizeSpatial(SAMPLE_BUILDING), [
+      { changes: { model }, id: furnitureId, kind: 'furniture', op: 'update' },
+    ]);
+    const floor = readEntity(swapped, 'furniture', furnitureId)?.levelId ?? sampleLevelId(1);
+    const layer = spatialLayerOf(swapped, floor);
+
+    expect(readEntity(swapped, 'furniture', furnitureId)?.model).toEqual(model);
+    expect(layer.furniture.some((item) => 'model' in item)).toBe(false);
+    expect(FloorLayerWriteSchema.safeParse({ baseVersion: 1, body: { layer } }).success).toBe(true);
+  });
 });
 
 describe('changedLevelIds — B-V8-41: đích lưu là mọi tầng có thứ bị đổi', () => {
