@@ -14,6 +14,9 @@ import { ROUTES } from '@/routes/paths';
 import { useStore } from '@/store';
 
 import { RulesRoute } from './RuleReport.container';
+import { sheetFloorId } from './sheetFloorId';
+import { RuleReportFilterBar } from './RuleReportSummary';
+import type { RuleReportGroup, RuleReportRow } from './types';
 
 vi.mock('@/api/appClient', async (importOriginal) => {
   const actual = await importOriginal<typeof AppClientModule>();
@@ -78,5 +81,55 @@ describe('28-D-004 / 28V-D-003 — route lấy quyền thật của người xem
     await openFirstViolation(container);
 
     expect(screen.getByRole('button', { name: 'Xác nhận đã xử lý' })).toBeInTheDocument();
+  });
+});
+
+describe('28-C-012 — Select "Tầng" không phụ thuộc bộ lọc khác', () => {
+  const row = (levelId: string, levelLabel: string): RuleReportRow =>
+    ({
+      key: `R:${levelId}`, ruleCode: 'LEVEL-ELEVATION', severity: 'critical', message: 'm', suggestion: 's',
+      entityId: levelId, entityCode: '#1', levelId, levelLabel, resolved: false,
+    }) as unknown as RuleReportRow;
+  const group = (rows: RuleReportRow[]): RuleReportGroup =>
+    ({ ruleCode: 'LEVEL-ELEVATION', ruleName: 'n', group: 'structure', severity: 'critical', rows, openCount: rows.length, resolvedCount: 0 }) as unknown as RuleReportGroup;
+
+  it('chọn "Tầng 2" rồi bộ lọc khác làm nhóm rỗng: ô vẫn hiện "Tầng 2" và vẫn liệt kê nó', () => {
+    const noop = vi.fn();
+    const filters = { level: 'all', group: 'all', levelId: 'L-2' } as const;
+    const { rerender } = renderWithProviders(
+      <RuleReportFilterBar filters={{ ...filters, levelId: 'all' }} groups={[group([row('L-1', 'Tầng 1'), row('L-2', 'Tầng 2')])]} resolvedRows={[]} onFilterChange={noop} />,
+    );
+    rerender(<RuleReportFilterBar filters={filters} groups={[]} resolvedRows={[]} onFilterChange={noop} />);
+
+    const trigger = screen.getByRole('combobox', { name: 'Tầng' });
+    expect(trigger).toHaveTextContent('Tầng 2');
+    fireEvent.click(trigger);
+    expect(screen.getByRole('option', { name: 'Tầng 1' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Tầng 2' })).toBeInTheDocument();
+  });
+});
+
+describe('28-A-021 — hàng không tầng và không tầng đang mở vẫn mở được tấm trượt', () => {
+  it('dự phòng cuối: tầng đầu tiên của mô hình; không có tầng nào thì mới null', () => {
+    const graph = normalizeSpatial(VIOLATED_BUILDING_SCENARIO.graph);
+
+    expect(sheetFloorId(null, null, graph)).toBe(graph.byKind.level[0]);
+    expect(sheetFloorId('L-X', null, graph)).toBe('L-X');
+    expect(sheetFloorId(null, 'L-Y', graph)).toBe('L-Y');
+    expect(sheetFloorId(null, null, null)).toBeNull();
+  });
+});
+
+describe('28V-E-008 — đóng tấm trả tiêu điểm về hàng đã mở nó', () => {
+  it('Esc đóng tấm → nút mô tả của hàng đó giữ tiêu điểm', async () => {
+    const { container } = renderRoute(['engineer']);
+
+    await openFirstViolation(container);
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('complementary', { name: 'Chi tiết vi phạm' })).toBeNull();
+    });
+    expect(document.activeElement?.hasAttribute('data-row-key')).toBe(true);
   });
 });

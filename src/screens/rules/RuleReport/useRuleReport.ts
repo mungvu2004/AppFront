@@ -47,7 +47,7 @@
  */
 
 import { lowerFirst } from '@/lib/format/sentence';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -409,6 +409,9 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
 
       return runReport(graph, registry, ruleConfig);
     },
+    // Sau một lượt sửa `versionId` đổi → khoá đổi; giữ kết quả cũ trong lúc chạy lại để tấm
+    // trượt không unmount và nhóm "Đã xử lý" không biến mất giữa chừng.
+    placeholderData: keepPreviousData,
     // Khoảng chờ giữa hai lần thử lại, lấy từ thang chuyển động (R-71).
     retryDelay: MOTION_DURATIONS_MS.standard,
   });

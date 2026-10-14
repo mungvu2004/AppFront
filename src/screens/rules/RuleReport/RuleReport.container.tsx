@@ -42,7 +42,7 @@
  * tệ hơn không mở tấm trượt nào".
  */
 
-import { useMemo, useState, type MouseEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -61,6 +61,7 @@ import { useStore } from '@/store';
 import { ViolationDetailContainer } from '../ViolationDetail';
 
 import { RuleReport } from './RuleReport';
+import { sheetFloorId } from './sheetFloorId';
 import type { RuleReportRow } from './types';
 import { useRuleReport } from './useRuleReport';
 
@@ -131,7 +132,11 @@ function toViolation(row: RuleReportRow): Violation {
 function WiredRuleReport(props: WiredRuleReportProps) {
   const [openRowKey, setOpenRowKey] = useState<string | null>(null);
   const activeFloorId = useStore((state) => state.activeFloorId);
+  const graph = useStore((state) => state.spatial);
   const navigate = useNavigate();
+  const rootRef = useRef<HTMLDivElement>(null);
+  // 28V-E-008: hàng đã mở tấm — đóng tấm thì tiêu điểm về nút của hàng đó.
+  const returnFocusKey = useRef<string | null>(null);
 
   const viewProps = useRuleReport({
     projectId: props.projectId,
@@ -145,7 +150,17 @@ function WiredRuleReport(props: WiredRuleReportProps) {
   );
   const openIndex = openRowKey === null ? -1 : allRows.findIndex((row) => row.key === openRowKey);
   const openRow = openIndex === -1 ? null : (allRows[openIndex] ?? null);
-  const floorId = openRow === null ? null : (activeFloorId ?? openRow.levelId);
+  const floorId = openRow === null ? null : sheetFloorId(activeFloorId, openRow.levelId, graph);
+
+  useEffect(() => {
+    const key = returnFocusKey.current;
+    if (openRowKey !== null || key === null) return;
+    returnFocusKey.current = null;
+    const buttons = rootRef.current?.querySelectorAll<HTMLElement>('[data-row-key]') ?? [];
+    for (const button of buttons) {
+      if (button.dataset['rowKey'] === key) button.focus();
+    }
+  }, [openRowKey]);
 
   /**
    * View vẽ liên kết trong ứng dụng bằng `<a href>` thường (story dựng nó ngoài router).
@@ -168,11 +183,12 @@ function WiredRuleReport(props: WiredRuleReportProps) {
   // không cắt thì suốt lượt trượt trang có thêm 285–405 px cuộn ngang và nút
   // trước/sau/đóng nằm ngoài màn (BUG-434). Báo cáo tự cuộn bên trong `h-full`.
   return (
-    <div className="relative h-full overflow-hidden" onClickCapture={onClickCapture}>
+    <div ref={rootRef} className="relative h-full overflow-hidden" onClickCapture={onClickCapture}>
       <RuleReport
         {...viewProps}
         onSelectRow={(rowKey) => {
           viewProps.onSelectRow(rowKey);
+          returnFocusKey.current = rowKey;
           setOpenRowKey(rowKey);
         }}
       />
