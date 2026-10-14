@@ -156,6 +156,18 @@ export const cancelActiveTool = () => {
  * false for an idle press (select tool, nothing in flight), which the host
  * page may use for its own layer. (AppFront, QA-05c E1-B12)
  */
+/**
+ * AppFront #23 (A12): `?` opens the shortcuts table from anywhere. The key is
+ * NOT claimed (no `preventDefault`): the v1 layout AppFront mounts has no
+ * `KeyboardShortcutsDialogHost`, so the host registry's own `?` must still run
+ * and open its "Phim tat" dialog (QA-05c 23-E-009).
+ */
+export const openShortcutsFromKey = (e: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey'>): boolean => {
+  if (e.key !== '?' || e.metaKey || e.ctrlKey || e.altKey) return false
+  useShortcutsDialog.getState().setOpen(true)
+  return true
+}
+
 export const cancelEscape = (): boolean => {
   // An in-flight reference-scale measurement swallows Escape whole:
   // cancel the flow but keep the reference selected and its panel open.
@@ -415,12 +427,7 @@ export const useKeyboard = ({
         }
       }
 
-      // AppFront #23 (A12): `?` opens the shortcuts table from anywhere.
-      if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        e.preventDefault()
-        useShortcutsDialog.getState().setOpen(true)
-        return
-      }
+      if (openShortcutsFromKey(e)) return
 
       if (e.key === 'Escape') {
         // AppFront (QA-05c E1-B12): claim Esc only when it closed something, so

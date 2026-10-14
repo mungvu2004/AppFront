@@ -12,6 +12,7 @@ import {
   PipeSegmentNode,
   useScene,
 } from '@pascal-app/core'
+import { useShortcutsDialog } from '../components/ui/sidebar/panels/settings-panel/keyboard-shortcuts-dialog'
 import { runRedo, runUndo } from '../lib/history'
 import { meshEditScope } from '../lib/interaction/scope'
 import useEditor from '../store/use-editor'
@@ -24,6 +25,7 @@ import {
   isToolOwnedCanopyForm,
   isToolOwnedRotation,
   markToolCancelConsumed,
+  openShortcutsFromKey,
   runHistoryShortcut,
 } from './use-keyboard'
 
@@ -263,5 +265,20 @@ describe('Escape claims the key only when it closed something', () => {
   test('an idle select tool leaves the press to the host', () => {
     useEditor.getState().armToolMode({ mode: 'select' })
     expect(cancelEscape()).toBe(false)
+  })
+})
+
+describe('? opens the shortcuts table without claiming the key (23-E-009)', () => {
+  test('opens the vendor dialog and leaves the event unprevented for the host registry', () => {
+    let prevented = false
+    const event = { key: '?', metaKey: false, ctrlKey: false, altKey: false, preventDefault: () => { prevented = true } }
+    useShortcutsDialog.getState().setOpen(false)
+    expect(openShortcutsFromKey(event)).toBe(true)
+    expect(prevented).toBe(false)
+    expect(useShortcutsDialog.getState().open).toBe(true)
+  })
+
+  test('ignores ? with Ctrl', () => {
+    expect(openShortcutsFromKey({ key: '?', ctrlKey: true, metaKey: false, altKey: false })).toBe(false)
   })
 })
