@@ -18,12 +18,13 @@
  */
 import { inflateSync } from 'node:zlib';
 
-import { expect, type APIRequestContext, type Locator, type Page, type Request } from '@playwright/test';
+import { expect, type APIRequestContext, type Browser, type BrowserContext, type Locator, type Page, type Request } from '@playwright/test';
 
 import { ROUTES } from '../../../../e2e/fixtures/routes';
-import { navigateThenWaitForApi, waitForApiWhere } from '../../../../e2e/fullstack/apiWatch';
+import { navigateThenWaitForApi, waitForApiWhere, type ApiEntry } from '../../../../e2e/fullstack/apiWatch';
 import { TEST_DATA_PREFIX } from '../evidence';
-import type { LayerApi } from '../layerSeed';
+import { createQcProject, deleteProject, type LayerApi, type SeededFloor } from '../layerSeed';
+import { DESKTOP, adminApi, closePage, openAdminPage, type OpenPage } from '../p03/P4';
 
 export { adminApi, closePage, openAdminPage, openPoolPage, DESKTOP, type OpenPage } from '../p03/P4';
 
@@ -686,4 +687,152 @@ export function distanceOf(points: readonly { x: number; y: number; z: number | 
   const [a, b] = points;
   if (a === undefined || b === undefined) throw new Error('need two points');
   return round6(Math.hypot(b.x - a.x, b.y - a.y, (b.z ?? 0) - (a.z ?? 0)));
+}
+
+/* ---- shell recorders and small screen helpers ---- */
+
+interface ShellLog {
+  readonly busy: string[];
+  readonly live: string[];
+}
+
+/**
+ * Records every `aria-busy` value of the viewport and every text of the status bar live region from document start
+ * (init script + MutationObserver), so "busy true -> false" and "building -> ready" can be asserted although they last
+ * a few frames. Call BEFORE the first `goto`; the log restarts on every document load.
+ */
+export async function recordShell(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const store = { busy: [] as string[], live: [] as string[] };
+    (window as unknown as { __qaShell: typeof store }).__qaShell = store;
+    const sample = (): void => {
+      const busy = document.querySelector('main[aria-label="Khung nhìn mô hình"]')?.getAttribute('aria-busy');
+      if (busy !== null && busy !== undefined && store.busy[store.busy.length - 1] !== busy) store.busy.push(busy);
+      const live = document.querySelector('footer[aria-label="Thanh trạng thái"] [aria-live="polite"]')?.textContent?.trim();
+      if (live !== undefined && live !== '' && store.live[store.live.length - 1] !== live) store.live.push(live);
+    };
+    new MutationObserver(sample).observe(document, { subtree: true, childList: true, attributes: true, characterData: true });
+  });
+}
+
+export const shellLog = (page: Page): Promise<ShellLog> =>
+  page.evaluate(() => (window as unknown as { __qaShell?: ShellLog }).__qaShell ?? { busy: [], live: [] });
+
+/** Entries of an `ApiEntry` log (watchApi) matching method + path. */
+export const calls = (
+  log: readonly ApiEntry[],
+  method: string,
+  pattern: RegExp,
+  from = 0,
+): ApiEntry[] => log.slice(from).filter((entry) => entry.method === method && pattern.test(entry.path));
+
+/** Select "Góc nhìn sẵn" -> `label`; resolves when the trigger shows it. */
+export async function choosePreset(page: Page, label: string): Promise<void> {
+  const select = page.getByRole('combobox', { name: MT.preset, exact: true });
+  await select.click();
+  await page.getByRole('option', { name: label, exact: true }).click();
+  await expect(select).toHaveText(label);
+}
+
+/** Select "Đơn vị" -> mm / cm / m. */
+export async function chooseUnit(page: Page, label: 'mm' | 'cm' | 'm'): Promise<void> {
+  await unitSelect(page).click();
+  await page.getByRole('option', { name: label, exact: true }).click();
+  await expect(unitSelect(page)).toHaveText(label);
+}
+
+/** Storey chip (`role=option`, name "Tầng 1, cao độ 0,00 m": VSR:70-89). */
+export const storeyChip = (page: Page, nameStart: string): Locator =>
+  page.getByRole('option', { name: new RegExp(`^${escapeRegExp(nameStart)}, cao độ `, 'u') });
+
+/** Rows of the list as `{ name, value }` in DOM order (name from the eye button, value from the mono span, MTL:119-123). */
+export async function rowTexts(page: Page): Promise<{ name: string; value: string }[]> {
+  return list(page)
+    .getByRole('listitem')
+    .evaluateAll((items) =>
+      items.map((item) => ({
+        name: (item.querySelector('button[aria-label^="Ẩn "], button[aria-label^="Hiện "]')?.getAttribute('aria-label') ?? '').replace(/^(Ẩn|Hiện) /u, ''),
+        value: (item.querySelector('span.font-mono')?.textContent ?? '').trim(),
+      })),
+    );
+}
+
+/** Presses Tab (at most `max` times) until `target` owns the focus; throws when it never does. */
+export async function tabTo(page: Page, target: Locator, max = 80): Promise<void> {
+  for (let i = 0; i < max; i += 1) {
+    await page.keyboard.press('Tab');
+    if (await target.evaluate((el) => el === document.activeElement).catch(() => false)) return;
+  }
+  throw new Error(`Tab never reached the target within ${String(max)} presses`);
+}
+
+/** The focused element draws a ring (`focus-visible:ring-2` = a box-shadow); call right after a keyboard focus. */
+export const hasFocusRing = (target: Locator): Promise<boolean> =>
+  target.evaluate((el) => {
+    const shadow = getComputedStyle(el).boxShadow;
+    return shadow !== 'none' && shadow !== '';
+  });
+
+/** Number of endpoint discs drawn in the overlay svg (pinned shapes + the draft; MTO:218-231). */
+export const discCount = (page: Page): Promise<number> => overlay(page).locator('svg circle.fill-accent').count();
+
+/** A fresh draft: a click at each already-known pixel. */
+export async function makeDraft(page: Page, pixels: readonly Point[]): Promise<void> {
+  for (const pixel of pixels) await clickAt(page, pixel);
+}
+
+/* ---- flow runner: one project per flow, deleted in finally ---- */
+
+export interface FlowOptions {
+  /** Short slug in the project name: `qa-<runId>-<slug>-<uniq>`. */
+  readonly slug: string;
+  readonly floors?: readonly string[];
+  /** How many of `floors` get the qcLayer (default 1). */
+  readonly layered?: number;
+  readonly records?: readonly MeasureRecord[];
+  /** RL: fill the 20 000-point budget. */
+  readonly fill?: boolean;
+  readonly viewport?: { readonly width: number; readonly height: number };
+  /** Another user's page (pool viewer / engineer); default is a fresh admin session. */
+  readonly open?: (browser: Browser, admin: APIRequestContext, projectId: string) => Promise<OpenPage>;
+  /** Records the shell (busy / live) from document start. */
+  readonly record?: boolean;
+}
+
+export interface FlowCtx {
+  readonly admin: APIRequestContext;
+  readonly page: Page;
+  readonly api: ApiEntry[];
+  readonly context: BrowserContext;
+  readonly projectId: string;
+  readonly projectName: string;
+  readonly floors: readonly SeededFloor[];
+}
+
+/**
+ * Admin API + qcLayer project (+ records) + the page of the flow; always deletes the project and closes everything.
+ * `body` opens the screen itself (its first step is the "open" step of the plan).
+ */
+export async function withMeasureProject(browser: Browser, options: FlowOptions, body: (ctx: FlowCtx) => Promise<void>): Promise<void> {
+  const admin = await adminApi();
+  let opened: OpenPage | undefined;
+  let projectId: string | undefined;
+  try {
+    const floors = await createQcProject(layerOf(admin), options.slug, options.floors ?? ['Tầng 1'], options.layered ?? 1);
+    const first = floors[0];
+    if (first === undefined) throw new Error('setup: no floor');
+    projectId = first.projectId;
+    if (options.records !== undefined) await seedMeasurements(admin, projectId, options.records);
+    if (options.fill === true) await fillPointBudget(admin, projectId);
+    const read = await admin.get(`/api/projects/${projectId}`);
+    expect(read.status(), 'setup: GET /api/projects/:id').toBe(200);
+    const projectName = String(asRecord(await read.json(), 'GET project').name);
+    opened = options.open !== undefined ? await options.open(browser, admin, projectId) : await openAdminPage(browser, options.viewport ?? DESKTOP);
+    if (options.record === true) await recordShell(opened.page);
+    await body({ admin, page: opened.page, api: opened.api, context: opened.context, projectId, projectName, floors });
+  } finally {
+    if (projectId !== undefined) await deleteProject(layerOf(admin), projectId).catch(() => undefined);
+    await closePage(opened);
+    await admin.dispose();
+  }
 }
