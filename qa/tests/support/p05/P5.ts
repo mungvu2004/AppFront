@@ -436,16 +436,30 @@ export async function makeDraft(page: Page, { complete }: { readonly complete: b
   const pixelOf = ([wx, wy]: Point): Point => (swap ? [cx + (wy - 3_000) * scale, cy + (wx - 4_000) * scale] : [cx + (wx - 4_000) * scale, cy + (wy - 3_000) * scale]);
   const radius = Math.max(12, scale * 110);
   const step = Math.max(2, scale * 50);
-  const pick = async (corner: Point, wantDiscs: number): Promise<Point> => {
-    const hit = await hoverUntilSnap(page, 'Đỉnh', [pixelOf(corner)], radius, step);
-    if (hit === null) throw new Error(`no hover near the corner ${JSON.stringify(corner)} made the snap chip say "Đỉnh"`);
-    await page.mouse.click(hit[0], hit[1]);
-    await expect.poll(() => discCount(page), { message: `${String(wantDiscs)} picked point(s)` }).toBe(wantDiscs);
-    return hit;
+  const canvas = await viewportOf(page).locator('canvas').first().boundingBox();
+  if (canvas === null) throw new Error('viewport canvas has no bounding box');
+  const margin = 12;
+  const inCanvas = ([x, y]: Point): boolean => x >= canvas.x + margin && x <= canvas.x + canvas.width - margin && y >= canvas.y + margin && y <= canvas.y + canvas.height - margin;
+  // Outer corners first, then the inner wall ends; only those whose pixel lies inside the (narrow) canvas.
+  const candidates = ([[0, 0], [8_000, 0], [8_000, 6_000], [0, 6_000], [4_000, 0], [4_000, 6_000], [0, 3_000], [8_000, 3_000]] as Point[]).filter((c) => inCanvas(pixelOf(c)));
+  const before = await discCount(page); // the project may already hold pinned measurements, which have discs too
+  const picked: Point[] = [];
+  const pick = async (wantNew: number): Promise<Point> => {
+    for (const candidate of candidates) {
+      const px = pixelOf(candidate);
+      if (picked.some((q) => Math.hypot(q[0] - px[0], q[1] - px[1]) < 60)) continue;
+      const hit = await hoverUntilSnap(page, 'Đỉnh', [px], radius, step);
+      if (hit === null) continue;
+      await page.mouse.click(hit[0], hit[1]);
+      await expect.poll(() => discCount(page), { message: `${String(wantNew)} newly picked point(s)` }).toBe(before + wantNew);
+      picked.push(px);
+      return hit;
+    }
+    throw new Error(`no visible model vertex made the snap chip say "Đỉnh" (${String(candidates.length)} candidates inside the canvas)`);
   };
-  const first = await pick([0, 0], 1);
+  const first = await pick(1);
   if (!complete) return first;
-  await pick([8_000, 0], 2);
+  await pick(2);
   await expect(pinButton(page)).toBeEnabled();
   return first;
 }
