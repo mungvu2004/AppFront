@@ -418,7 +418,9 @@ export const scopeRegion = (page: Page): Locator => region(page, EP.scope);
 export const preflightRegion = (page: Page): Locator => region(page, EP.preflight);
 export const scopeBox = (page: Page, floor: string): Locator => scopeRegion(page).getByRole('checkbox', { name: floor, exact: true });
 /** One floor of "Phạm vi": the bordered row holding its checkbox, its Badge and (unapproved) its caption (EPO:73-92). */
-export const scopeRow = (page: Page, floor: string): Locator => scopeRegion(page).locator('div.rounded.border').filter({ has: scopeBox(page, floor) });
+// `has` is matched INSIDE each row, so it must not repeat the region prefix that `scopeBox` carries.
+export const scopeRow = (page: Page, floor: string): Locator =>
+  scopeRegion(page).locator('div.rounded.border').filter({ has: page.getByRole('checkbox', { name: floor, exact: true }) });
 export const preflightRow = (page: Page, text: string | RegExp): Locator => preflightRegion(page).getByRole('listitem').filter({ hasText: text });
 export const optionsToggle = (page: Page): Locator => page.getByRole('button', { name: EP.options, exact: true });
 /** History body rows (the header row holds `columnheader`s). */
