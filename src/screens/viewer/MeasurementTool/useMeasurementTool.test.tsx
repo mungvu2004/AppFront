@@ -840,3 +840,25 @@ describe('useMeasurementTool — breadcrumb là lối ra của màn (25-A-003)',
     expect(onNavigate.mock.calls).toEqual([['/'], ['/projects/P-1/3d']]);
   });
 });
+
+describe('useMeasurementTool — bàn phím làm nổi hàng và xoá bằng Delete (25-E-015)', () => {
+  it('Tab tới "Ẩn Phép đo 1" rồi Delete gửi đúng một DELETE', async () => {
+    const registry = createShortcutRegistry({ isDev: false });
+    stubServer([]);
+
+    renderRealGateway({ registry });
+
+    const eye = await screen.findByRole('button', { name: /Ẩn Phép đo 1/iu });
+
+    act(() => {
+      eye.focus();
+    });
+    fireEvent.keyDown(eye, { key: 'Delete' });
+
+    await waitFor(() => {
+      const methods = vi.mocked(fetch).mock.calls.map(([, init]) => init?.method ?? 'GET');
+
+      expect(methods.filter((method) => method === 'DELETE')).toHaveLength(1);
+    });
+  });
+});

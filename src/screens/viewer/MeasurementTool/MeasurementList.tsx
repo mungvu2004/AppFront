@@ -106,6 +106,16 @@ function MeasurementRow({
         'transition-colors duration-fast motion-reduce:transition-none',
         isHighlighted && 'bg-bg-hover',
       )}
+      // Tiêu điểm vào nút của hàng cũng làm nổi hàng, như rê chuột: người dùng bàn
+      // phím Tab tới "Ẩn …" rồi nhấn Delete là xoá được (WCAG 2.1.1, 25-E-015).
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          onHighlight(null);
+        }
+      }}
+      onFocus={() => {
+        onHighlight(measurement.id);
+      }}
       onMouseEnter={() => {
         onHighlight(measurement.id);
       }}
