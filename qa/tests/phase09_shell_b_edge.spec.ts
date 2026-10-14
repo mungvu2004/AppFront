@@ -34,8 +34,8 @@ test.describe('phase09 shell B edge', () => {
   test('SCR-05/08 · FL-9P-05 · engineer · ghi trên dự án riêng', async ({ context, page }) => {
     test.setTimeout(320_000);
     const admin = await adminApi();
-    const pe = await roleUser(admin, 'engineer', 'shell-engineer');
-    const pv = await roleUser(admin, 'viewer', 'shell-viewer');
+    const pe = await roleUser(admin, 'engineer', 'shell-b');
+    const pv = await roleUser(admin, 'viewer', 'shell-b');
     const dp = await createProject(admin, 'p09-shell-dp');
     const created: string[] = [];
     let undo: (() => Promise<void>) | undefined;
@@ -147,7 +147,7 @@ test.describe('phase09 shell B edge', () => {
 
   test('SCR-05/Onboarding/Thông báo · FL-9P-06 · engineer · chưa có dự án', async ({ context, page }) => {
     const admin = await adminApi();
-    const pen = await roleUser(admin, 'engineer', 'shell-novice-e');
+    const pen = await roleUser(admin, 'engineer', 'shell-b-novice');
     const mp = mainProject();
     await signInRole(context, pen);
     const rec = recordResponses(page);
@@ -190,7 +190,7 @@ test.describe('phase09 shell B edge', () => {
 
   test('Vỏ · FL-9P-07 · ẩn danh · rồi đăng nhập viewer', async ({ page }) => {
     const admin = await adminApi();
-    const pv = await roleUser(admin, 'viewer', 'shell-anon'); // own slot: avoids racing asMember undo with FL-9P-01
+    const pv = await roleUser(admin, 'viewer', 'shell-b');
     const mp = mainProject();
     const undo = await asMember(admin, mp.projectId, pv);
     const rec = recordResponses(page);
@@ -249,7 +249,7 @@ test.describe('phase09 shell B edge', () => {
   test('SCR-05/08/F-11 · FL-9P-08 · admin · đối chứng và vai đổi giữa chừng', async ({ context, page }) => {
     test.setTimeout(180_000);
     const admin = await adminApi();
-    const flip = await roleUser(admin, 'admin', 'shell-flip');
+    const flip = await roleUser(admin, 'admin', 'shell-b-flip');
     const mp = mainProject();
     const undo = await asMember(admin, mp.projectId, flip);
     let flipped = false;
