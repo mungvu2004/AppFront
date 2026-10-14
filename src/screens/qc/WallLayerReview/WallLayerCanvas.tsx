@@ -37,11 +37,7 @@ import { useSelectionHalo } from '@/hooks/useSelectionHalo';
 import { WallLayerLegend } from './WallLayerLegend';
 import { WallHatchDefs, WallShapeFigure } from './WallLayerShapeFigure';
 import type { WallLayerCanvasViewProps, WallLayerRectPx } from './wallLayerHatch';
-import {
-  BACKGROUND_IMAGE_OPACITY,
-  toSvgPoints,
-  wallThicknessFillToken,
-} from './wallLayerHatch';
+import { BACKGROUND_IMAGE_OPACITY, toSvgPoints, wallThicknessFillToken } from './wallLayerHatch';
 
 /** Hợp đồng props của lớp canvas, mang ra đây cho nơi gọi khỏi phải biết hai đường nhập. */
 export type * from './wallLayerHatch';
@@ -413,7 +409,11 @@ export function WallLayerCanvas({
         onZoomOut={onZoomOut}
         zoomLevel={zoomPercent}
       />
-      <MiniMap onViewportChange={onMiniMapViewportChange} viewport={miniMapViewport}>
+      <MiniMap
+        isVisible={drawingSizePx !== null}
+        onViewportChange={onMiniMapViewportChange}
+        viewport={miniMapViewport}
+      >
         {viewBox === undefined ? null : (
           <svg aria-label={MINIMAP_LABEL} className="h-full w-full" role="img" viewBox={viewBox}>
             {shapes.map((shape) => (

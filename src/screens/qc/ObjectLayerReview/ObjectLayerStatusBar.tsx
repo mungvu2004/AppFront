@@ -59,7 +59,7 @@ export function ObjectLayerStatusBar({
   return (
     <div
       aria-label={STATUS_BAR_ARIA_LABEL}
-      className="flex h-8 shrink-0 select-none items-center justify-between gap-2 whitespace-nowrap border-t border-border-default bg-bg-surface px-4"
+      className="sticky bottom-0 z-10 flex h-8 shrink-0 select-none items-center justify-between gap-2 whitespace-nowrap border-t border-border-default bg-bg-surface px-4"
       role="status"
     >
       {/* Câu, không mono (BUG-612); một dòng, không gãy ở 375 (BUG-324). */}

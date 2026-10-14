@@ -1019,3 +1019,13 @@ describe('[G74 16-E-010] mở menu tường bằng bàn phím', () => {
     expect(await screen.findByRole('menu')).toBeInTheDocument();
   });
 });
+
+describe('G68 bộ đếm duyệt có vai trò để aria-label được đọc', () => {
+  it('bộ đếm "đã duyệt" lộ ra như một ảnh có tên', async () => {
+    renderState('partial');
+
+    const counter = await screen.findByRole('img', { name: /đã duyệt/ });
+
+    expect(counter).toBeTruthy();
+  });
+});

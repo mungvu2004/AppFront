@@ -60,6 +60,7 @@ function toToastMessage(notification: Notification): ToastMessage {
       ? `${notification.title}${JOINER}${notification.description}`
       : notification.title,
     state: 'attention',
+    ...(notification.action !== undefined ? { action: notification.action } : {}),
     ...(ticket !== undefined
       ? {
           onUndo: (): void => {

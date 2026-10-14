@@ -48,12 +48,14 @@ type FloorRowHandlers = Pick<
   | 'onFloorFieldCancel'
   | 'onReorderFloors'
   | 'onUploadDrawing'
+  | 'onOpenOverlay'
 >;
 
 const NEEDS_DRAWING_LABEL = 'Chưa có bản vẽ';
 /** Đuôi nhãn dòng khi chưa có bản vẽ: chưa có gì để kiểm nên không đọc "— đã kiểm" (BUG-263). */
 const NEEDS_DRAWING_ROW_SUFFIX = 'chưa có bản vẽ';
 const UPLOAD_LINK_LABEL = 'Tải lên';
+const OVERLAY_ACTION_LABEL = 'Đối chiếu lớp phủ';
 const COPY_FURNITURE_LABEL = 'Sao chép nội thất sang tầng mới';
 /** Ô nhập mét đọc như ô bảng bên cạnh, "4,0" chứ không "4" (BUG-306; `metreText` của hook). */
 const METRE_FRACTION_DIGITS = 1;
@@ -124,6 +126,7 @@ export interface FloorTableRowProps {
   readonly onFloorFieldCancel: FloorRowHandlers['onFloorFieldCancel'];
   readonly onReorderFloors: FloorRowHandlers['onReorderFloors'];
   readonly onUploadDrawing: FloorRowHandlers['onUploadDrawing'];
+  readonly onOpenOverlay?: FloorRowHandlers['onOpenOverlay'];
   readonly onOpenMenu: (event: MouseEvent, row: FloorRowVm) => void;
   readonly onCancelDuplicate: () => void;
   readonly onSetCopyFurniture: (value: boolean) => void;
@@ -166,6 +169,7 @@ export function FloorTableRow({
   onFloorFieldCancel,
   onReorderFloors,
   onUploadDrawing,
+  onOpenOverlay,
   onOpenMenu,
   onCancelDuplicate,
   onSetCopyFurniture,
@@ -396,9 +400,22 @@ export function FloorTableRow({
             </div>
           </Table.Cell>
 
-          {canEdit && (
+          {(canEdit || onOpenOverlay !== undefined) && (
             <Table.Cell className={cell}>
-              <IconButton
+              {onOpenOverlay !== undefined && row.hasDrawing && (
+                <Button
+                  aria-label={`${OVERLAY_ACTION_LABEL} tầng ${row.name}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onOpenOverlay(row.id);
+                  }}
+                  size="sm"
+                  variant="ghost"
+                >
+                  {OVERLAY_ACTION_LABEL}
+                </Button>
+              )}
+              {canEdit && <IconButton
                 aria-label={`Thao tác khác cho tầng ${row.name}`}
                 icon={<MoreVertical className="h-4 w-4" />}
                 onClick={(event) => {
@@ -407,7 +424,7 @@ export function FloorTableRow({
                 }}
                 size="sm"
                 tooltip={false}
-              />
+              />}
             </Table.Cell>
           )}
         </>

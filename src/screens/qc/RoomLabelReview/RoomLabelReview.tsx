@@ -212,6 +212,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
   const {
     areaCaption,
     backgroundImageAlt,
+    backgroundImageSizeMm,
     backgroundImageUrl,
     hoveredRoomId,
     isCollapsed,
@@ -268,6 +269,11 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
         <p className="text-[12px] text-text-muted">{SCREEN_BREADCRUMB}</p>
         <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
         <p className="text-[13px] text-text-secondary">{SCREEN_DESCRIPTION}</p>
+        {props.saveStatus != null && (
+          <p className="text-[12px] text-text-muted" data-testid="room-save-status">
+            {props.saveStatus}
+          </p>
+        )}
       </header>
 
       {props.saveBlock != null && (
@@ -298,6 +304,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
         >
           <RoomLabelCanvas
             backgroundImageAlt={backgroundImageAlt}
+            backgroundImageSizeMm={backgroundImageSizeMm}
             backgroundImageUrl={backgroundImageUrl}
             hoveredRoomId={hoveredRoomId}
             isInteractive={!isViewerRole}

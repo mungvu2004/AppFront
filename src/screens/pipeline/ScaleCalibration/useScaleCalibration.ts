@@ -100,6 +100,7 @@ import {
   type Millimetres,
 } from '@/domain/units/types';
 import { useAutosave, useFloorLayerAutosave } from '@/hooks/useAutosave';
+import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import { useFloorLayer } from '@/hooks/useFloorLayer';
 import { useFloorLayerReadFailure } from '../../qc/shared/floorLayerReadFailure';
 import { useProjectConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
@@ -211,6 +212,7 @@ const COPY = {
   applyCommitLabel: 'Áp dụng tỷ lệ',
   applyNoSpatial: 'Chưa nạp dữ liệu không gian của tầng này, nên chưa áp được tỷ lệ.',
   applyFailed: 'Chưa lưu được tỷ lệ lên máy chủ, tầng giữ tỷ lệ cũ.',
+  scaleConflict: 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất rồi áp lại tỷ lệ.',
   allFloorsReadFailed: 'Không tải được danh sách tầng để áp tỷ lệ.',
   allFloorsMessage:
     'Tỷ lệ sẽ được coi là do bạn chọn; các tầng này không nắn hay cắt lại bản vẽ được nữa, trừ khi tải bản vẽ mới.',
@@ -662,11 +664,30 @@ export function useScaleCalibration(
   const levelId: string = floorLayer.data?.level.id ?? floorId;
   /** `'unresolved'`: tỷ lệ trong `Level` là tỷ lệ tạm của pipeline, chưa ai chốt. */
   const isProvisional = floorLayer.scaleStatus === 'unresolved';
-  const { isFloorBlocked, saveBlock, saveScale } = useFloorLayerAutosave({
+  const { isFloorBlocked, reloadFloor, saveBlock: layerSaveBlock, saveScale } = useFloorLayerAutosave({
     projectId,
     floorId: levelId,
     ...(gateway.apiClient !== undefined ? { apiClient: gateway.apiClient } : {}),
   });
+  /* 409 của thân CHỈ tỷ lệ không khoá lớp nên bộ lưu không dựng dải; màn tự dựng dải "Tải lại",
+     không thì mọi lần áp sau lặp 409 mà không có lối ra (BUG-598). */
+  const [isScaleConflict, setScaleConflict] = useState(false);
+  const saveBlock = useMemo<FloorLayerSaveBlock | null>(
+    () =>
+      layerSaveBlock ??
+      (isScaleConflict
+        ? {
+            confirm: null,
+            kind: 'reload',
+            message: COPY.scaleConflict,
+            onReload: () => {
+              setScaleConflict(false);
+              void reloadFloor(levelId);
+            },
+          }
+        : null),
+    [isScaleConflict, layerSaveBlock, levelId, reloadFloor],
+  );
   const frame = useMemo(() => imageFrameOf(drawing), [drawing]);
 
   /* ---------------------------------------------------------------------- */
@@ -1266,11 +1287,13 @@ export function useScaleCalibration(
     rememberProvisional(levelId);
     void saveScale(levelId, ratio).then(
       () => {
+        setScaleConflict(false);
         commitSaved([levelId], ratio);
         setApplyOutcome('success');
         setApplying(false);
       },
       (error: unknown) => {
+        setScaleConflict(toAppError(error).kind === 'conflict');
         setApplyOutcome('failed');
         setApplyNotice(failureText(error));
         setApplying(false);
