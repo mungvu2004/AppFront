@@ -125,6 +125,9 @@ import { useProvisionalScaleNotice } from '../shared/provisionalScaleNotice';
 export const THICKNESS_SCREEN_TEXT = {
   emptyNotice:
     'Mọi đoạn tường đã ở đúng nhóm chuẩn, không còn gì để áp. Kéo một ngưỡng trên biểu đồ hoặc nới ô dung sai nếu bạn muốn gom thêm đoạn vào một nhóm khác.',
+  /* BUG-619: còn đoạn lệch quá dung sai thì "mọi đoạn đã đúng nhóm" là câu sai về dữ liệu. */
+  outOfToleranceNotice: (count: number): string =>
+    `${count} đoạn tường lệch quá dung sai, chưa thuộc nhóm chuẩn nào nên chưa có gì để áp. Nới ô dung sai hoặc gán nhóm tay cho từng đoạn ở bảng chi tiết.`,
   emptyNoMeasurementNotice:
     'Chưa có số đo độ dày nào cho công trình này. Sang lớp tường để dò lại các đoạn tường, rồi quay lại đây để chuẩn hoá độ dày.',
   viewerRoleNotice:
@@ -899,7 +902,9 @@ export function useThicknessStandardization(
     state === 'empty'
       ? allRows.length === 0
         ? THICKNESS_SCREEN_TEXT.emptyNoMeasurementNotice
-        : THICKNESS_SCREEN_TEXT.emptyNotice
+        : summary.exceedingToleranceCount > 0
+          ? THICKNESS_SCREEN_TEXT.outOfToleranceNotice(summary.exceedingToleranceCount)
+          : THICKNESS_SCREEN_TEXT.emptyNotice
       : state === 'success' && isAllStandard
         ? THICKNESS_SCREEN_TEXT.emptyNotice
         : null;

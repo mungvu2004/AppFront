@@ -325,6 +325,34 @@ describe('[NGHIEM-1] bảy trạng thái của A11', () => {
     }
   }, HEAVY_TEST_TIMEOUT_MS);
 
+  it('[BUG-637] nút bung khung xem trước nói việc làm; "Áp dụng" tắt khi không đoạn nào đổi', () => {
+    const noop = (): void => undefined;
+    const collapsed = renderState('collapsed');
+
+    expect(screen.getByRole('button', { name: 'Mở khung xem trước' })).toBeInTheDocument();
+    collapsed.unmount();
+
+    const blocked = THICKNESS_FIXTURE_WALLS.slice(0, 1).map((wall) => ({ wallId: wall.id })) as never;
+    const { unmount } = renderWithProviders(
+      <ThicknessApplyBar
+        canPreview
+        onApplyPreview={noop}
+        onCancelPreview={noop}
+        onChangeTolerance={noop}
+        onDismissReapplyWarning={noop}
+        onOpenPreview={noop}
+        onReapplyFilter={noop}
+        onUndo={noop}
+        preview={{ totalWalls: 1, groupCount: 0, unchangedWalls: blocked, sentence: '1 tường → 0 nhóm chuẩn.' }}
+        reapplyWarning={null}
+        toleranceMm={DEFAULT_TOLERANCE_MM}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: APPLY_LABEL })).toBeDisabled();
+    unmount();
+  });
+
   it('[BUG-412] chưa có đoạn nào: "Xem trước" tắt, khung xem trước không còn ô chú giải trắng mồ côi', () => {
     const noop = (): void => undefined;
     const { unmount } = renderWithProviders(

@@ -37,7 +37,7 @@
  * chỉ ghép `SegmentedControl` + `Button` đã có sẵn.
  */
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -152,6 +152,14 @@ export function ThicknessSegmentTable({
 }: ThicknessSegmentTableProps) {
   const [isPickingGroup, setIsPickingGroup] = useState(false);
   const [pendingGroupKey, setPendingGroupKey] = useState<ThicknessGroupKey>(DEFAULT_GROUP_KEY);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  /* "Đổi độ dày" rời dải hành động khi bảng chọn mở (BUG-620): focus sang lựa chọn đang bật, không rơi về body. */
+  useEffect(() => {
+    if (isPickingGroup) {
+      pickerRef.current?.querySelector<HTMLElement>('[aria-checked="true"], button')?.focus();
+    }
+  }, [isPickingGroup]);
 
   const selected = new Set(selectedWallIds);
   const flashing = new Set(flashingWallIds);
@@ -265,32 +273,38 @@ export function ThicknessSegmentTable({
       </Table.Root>
 
       {isPickingGroup && selected.size > 0 && (
+        /* Xuống dòng dưới 640 px: câu một dòng riêng, hai nút chia đều hàng cuối — không nút nào ra ngoài màn (BUG-620). */
         <div
-          className="absolute bottom-14 left-0 right-0 z-30 flex items-center gap-3 border-t border-border-default bg-bg-surface px-4 py-3"
+          className="absolute bottom-14 left-0 right-0 z-30 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border-default bg-bg-surface px-4 py-3"
+          ref={pickerRef}
           role="group"
           aria-label={CHOOSE_GROUP_LABEL}
         >
-          <span className="text-[13px] text-text-secondary">{chooseGroupPrompt(selected.size)}</span>
+          <span className="min-w-0 basis-full text-[13px] text-text-secondary sm:basis-auto">
+            {chooseGroupPrompt(selected.size)}
+          </span>
           <SegmentedControl
             aria-label={CHOOSE_GROUP_LABEL}
             onChange={setPendingGroupKey}
             options={GROUP_OPTIONS}
             value={pendingGroupKey}
           />
-          <div className="flex-1" />
-          <Button onClick={closeGroupPicker} size="sm" variant="ghost">
-            {CANCEL_LABEL}
-          </Button>
-          <Button onClick={handleApplyGroup} size="sm" variant="primary">
-            {APPLY_LABEL}
-          </Button>
+          <div className="flex w-full gap-2 sm:ml-auto sm:w-auto [&>*]:flex-1 sm:[&>*]:flex-none">
+            <Button onClick={closeGroupPicker} size="sm" variant="ghost">
+              {CANCEL_LABEL}
+            </Button>
+            <Button onClick={handleApplyGroup} size="sm" variant="primary">
+              {APPLY_LABEL}
+            </Button>
+          </div>
         </div>
       )}
 
       {isReadOnly ? null : (
         <TableActionBar
           entityName={ENTITY_NAME}
-          onChangeThickness={() => setIsPickingGroup(true)}
+          /* Bảng chọn đang mở đã là bước "đổi độ dày" — không lặp nút đó ngay bên dưới (BUG-620). */
+          onChangeThickness={isPickingGroup ? undefined : () => setIsPickingGroup(true)}
           onDeselect={handleDeselect}
           selectedCount={selected.size}
         />

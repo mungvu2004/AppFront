@@ -853,6 +853,19 @@ describe('Bảy trạng thái', () => {
     expect(mounted.result.current.emptyNotice ?? '').toContain('dung sai');
   });
 
+  it('[BUG-619] còn đoạn lệch quá dung sai: không nói "mọi đoạn đã ở đúng nhóm chuẩn"', async () => {
+    const [first, ...rest] = THICKNESS_SCENARIO_EMPTY.walls;
+    const mounted = await mountScenario({
+      ...THICKNESS_SCENARIO_EMPTY,
+      walls: [{ ...(first as Wall), thicknessMm: 160 }, ...rest],
+    });
+
+    expect(mounted.result.current.state).toBe('empty');
+    expect(mounted.result.current.summary.exceedingToleranceCount).toBe(1);
+    expect(mounted.result.current.emptyNotice).not.toContain('Mọi đoạn tường đã ở đúng nhóm chuẩn');
+    expect(mounted.result.current.emptyNotice).toContain('1 đoạn tường lệch quá dung sai');
+  });
+
   it('[BUG-421] mọi đoạn đã đúng nhóm: không còn dòng đề xuất "220 → 220" nào để tích', async () => {
     const mounted = await mountScenario(THICKNESS_SCENARIO_EMPTY);
 

@@ -203,7 +203,13 @@ export function ThicknessApplyBar({
             <Button onClick={cancelPreview} size="sm" variant="ghost">
               {CANCEL_LABEL}
             </Button>
-            <Button onClick={onApplyPreview} size="sm" variant="primary">
+            {/* Không đoạn nào đổi (mọi đoạn bị dung sai chặn): "Áp dụng" tắt, câu phía trên nói lý do (BUG-637). */}
+            <Button
+              disabled={preview.totalWalls === preview.unchangedWalls.length}
+              onClick={onApplyPreview}
+              size="sm"
+              variant="primary"
+            >
               {APPLY_LABEL}
             </Button>
           </div>

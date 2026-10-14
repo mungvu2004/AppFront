@@ -115,7 +115,8 @@ const ERROR_TITLE = 'Không đọc được lớp số đo độ dày';
 const FORBIDDEN_TITLE = 'Không có quyền sửa độ dày tường';
 const EMPTY_TITLE = 'Chưa có đoạn tường nào để chuẩn hoá';
 const COLLAPSE_PREVIEW_LABEL = 'Thu gọn khung xem trước';
-const EXPAND_PREVIEW_LABEL = 'Khung xem trước đang thu gọn';
+/* Nhãn nói việc nút làm, không tả trạng thái (BUG-637). */
+const EXPAND_PREVIEW_LABEL = 'Mở khung xem trước';
 
 /** Sáu dòng khung xương của cột trái lúc đang tải — đúng khuôn `RoomLabelReview`. */
 const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
