@@ -15,6 +15,9 @@ test.describe('SCR-40e dev routes b', () => {
     const landed: string[] = [];
     const visit = async (route: string): Promise<void> => {
       await page.goto(route);
+    };
+    // Recorded AFTER the landmark is asserted, so a late redirect to /login is seen.
+    const record = (): void => {
       landed.push(pathOf(page.url()));
     };
 
@@ -22,27 +25,32 @@ test.describe('SCR-40e dev routes b', () => {
       await visit(DE_ROUTE);
       await expect(page.getByRole('heading', { name: 'Data Entry Components', level: 1 })).toBeVisible(); // DataEntryDemo.tsx:23
       expect(pathOf(page.url())).toBe(DE_ROUTE);
+      record();
       await captureEvidence(page, 'E10_10E-A-001_smoke_data-entry-demo.png');
     });
     await test.step('[10E-A-011] mở /list-review-demo', async () => {
       await visit('/list-review-demo');
       // ⚑ N-1: useToast without Toast.Provider may land on RouteErrorScreen — correct behaviour is the demo.
       await expect.soft(page.getByText('States:', { exact: true })).toBeVisible(); // ListReviewDemo.tsx:64
+      record();
       await captureEvidence(page, 'E10_10E-A-011_smoke_list-review-demo.png');
     });
     await test.step('[10E-A-027] mở /shell-demo', async () => {
       await visit('/shell-demo');
       await expect.soft(page.getByRole('heading', { name: 'Canvas Area', level: 2 })).toBeVisible(); // ShellDemo.tsx:55
+      record();
       await captureEvidence(page, 'E10_10E-A-027_smoke_shell-demo.png');
     });
     await test.step('[10E-A-043] mở /demo/canvas-overlays', async () => {
       await visit('/demo/canvas-overlays');
       await expect.soft(page.getByRole('heading', { name: 'Canvas Overlays Demo', level: 1 })).toBeVisible(); // CanvasOverlaysDemo.tsx:87
+      record();
       await captureEvidence(page, 'E10_10E-A-043_smoke_canvas-overlays.png');
     });
     await test.step('[10E-A-054] mở /feedback-demo', async () => {
       await visit('/feedback-demo');
       await expect.soft(page.getByRole('button', { name: 'Test Undo Toast', exact: true })).toBeVisible(); // FeedbackDemo.tsx:59
+      record();
       await captureEvidence(page, 'E10_10E-A-054_smoke_feedback-demo.png');
     });
     await test.step('[10E-A-075] URL cuối mỗi lần = route, không /login', async () => {
