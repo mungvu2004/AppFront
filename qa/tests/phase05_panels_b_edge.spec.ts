@@ -112,10 +112,12 @@ test('SCR-23 · FL-23H-01 · rail một tab, mở lần đầu (chunk muộn, 0 
       await captureEvidence(page, 'E05_23H-A-003_panel-open.png', { caption: `region width ${width.toFixed(1)} px` });
     });
 
-    await test.step('[23H-A-004] Suspense fallback, then the panel body (section "Lịch sử chỉnh sửa")', async () => {
+    await test.step('[23H-A-004] Suspense fallback, then the panel body (data-testid history-panel)', async () => {
       // "Đang mở bảng…" may only flash (PVC:287); the mocked flow FL-23H-05 holds it. Here: the body arrives.
       await expect.soft(historyPanel(page), 'HP:133-149 data-testid history-panel').toBeVisible({ timeout: 15_000 });
-      await expect.soft(page.getByRole('region', { name: H.section, exact: true })).toBeVisible();
+      // At lg+ the body is an unnamed <section> inside the one region "Lịch sử thao tác" (HistoryPanel.tsx:97, FA).
+      expect.soft(await historyPanel(page).evaluate((el) => el.tagName), 'panel body is a <section>').toBe('SECTION');
+      await expect.soft(historyRegion(page).getByTestId(H.testId)).toBeVisible();
       await expect.soft(historyRegion(page).getByText(T.panelFallback, { exact: true })).toHaveCount(0);
       firstOpenJs = jsCalls(net.since(mark));
       await captureEvidence(page, 'E05_23H-A-004_panel-body.png');
@@ -202,7 +204,7 @@ test('SCR-23 · FL-23H-02 · phím và bộ lọc: Ctrl+H, chip, combobox ngư�
       const outer = await historyRegion(page).getAttribute('aria-label');
       const inner = await historyPanel(page).getAttribute('aria-label');
       // Landmark names in the panel cluster: the region itself + every named section/region inside it. Any fix is fine as long
-      // as one panel carries one name. Source today: region "Lịch sử thao tác" (PV:122) wraps section "Lịch sử chỉnh sửa" (HPCH:49).
+      // as one panel carries one name. Was: region "Lịch sử thao tác" (PV:122) wrapping section "Lịch sử chỉnh sửa"; FA dropped the inner name.
       const names = await historyRegion(page).evaluate((el) =>
         [el, ...el.querySelectorAll('section[aria-label], [role="region"][aria-label]')].map((n) => n.getAttribute('aria-label') ?? ''),
       );
