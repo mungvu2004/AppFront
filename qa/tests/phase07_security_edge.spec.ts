@@ -22,7 +22,7 @@ import { expect, test } from '@playwright/test';
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { waitForApi } from '../../e2e/fullstack/apiWatch';
 import { newApiContext, signedInApi } from './support/api';
-import { captureEvidence } from './support/evidence';
+import { RUN_ID, captureEvidence } from './support/evidence';
 import { ME_RE, PASSWORD_API, PW, heading, meApi, pwField, pwSubmit, recordWrites } from './support/p07/account';
 import {
   PASSWORD_RE,
@@ -351,7 +351,7 @@ test.describe('SCR-33 security edge', () => {
 
   test('SCR-33 · FL-33S-03 · wrong current: 422, retry in place, double submit, then success', async ({ browser }) => {
     test.setTimeout(Math.max(120_000, 2 * 100_000));
-    await withSecurityUser(browser, 'p07-security-3', async ({ user, context, page }) => {
+    await withSecurityUser(browser, `p07-security-3-${RUN_ID}-r${test.info().retry}`, async ({ user, context, page }) => {
       let changedTo: string | undefined;
       let nextPw = `Qa-${randomUUID()}`; // letters + digits, >= 8
       try {
@@ -479,7 +479,7 @@ test.describe('SCR-33 security edge', () => {
 
   test('SCR-33 · FL-33S-04 · happy path: success alert, fields cleared, session kept, old/new login, other session revoked, secret hygiene', async ({ browser }) => {
     test.setTimeout(Math.max(120_000, 2 * 100_000));
-    await withSecurityUser(browser, 'p07-security-4', async ({ user, page }) => {
+    await withSecurityUser(browser, `p07-security-4-${RUN_ID}-r${test.info().retry}`, async ({ user, page }) => {
       const oldPw = user.password;
       const newPw = `Qa-${randomUUID()}`;
       const wrongPw = `Wrong-${randomUUID()}`;

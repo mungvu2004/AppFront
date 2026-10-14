@@ -6,7 +6,7 @@
  *
  * ## Request budget per run (BE limits; pool users, never E2E_ADMIN)
  * - `POST /api/me/password` (`me_password` 5 / 900 s per user, counted before body validation, MR:225):
- *   FL-33S-05 spends the whole bucket (5 wrong + 6th 429 + 1 more 429 = 7 sent, 6 counted) on a FRESH user per run (slot with RUN_ID),
+ *   FL-33S-05 spends the whole bucket (5 wrong + 6th 429 + 1 more 429 = 7 sent, 6 counted) on a FRESH user per run (slot with RUN_ID + retry; FL-33S-06/07 too, a retry in the same RUN_ID would exceed 5 / 900 s),
  *   nothing to restore. FL-33S-06: 2 per user (change, restore) x 3 users. FL-33S-07: content user 4 (spaces, 256 chars, astral 422,
  *   restore), revoke user 2 (B change, restore; A's POST dies at 401 before the limiter).
  * - `POST /api/auth/login`: admin 1 per flow, each pool user 1 per session (+ restore: 1 login + 1 probe; FL-33S-07 login probes 3, one 401).
@@ -59,7 +59,7 @@ async function loginStatus(email: string, password: string): Promise<number> {
 test('SCR-33 · FL-33S-05 · 6th attempt in 900 s: real 429, lock 60 s, re-lock (page.clock)', async ({ browser }) => {
   test.setTimeout(Math.max(120_000, 2 * 90_000));
   const admin = await adminApi();
-  const user = await poolUser(admin, 'engineer', `p07-security-5-${RUN_ID}`); // fresh slot: the 5 / 900 s bucket cannot be restored
+  const user = await poolUser(admin, 'engineer', `p07-security-5-${RUN_ID}-r${test.info().retry}`); // fresh slot: the 5 / 900 s bucket cannot be restored
   const { context, page } = await newSession(browser, user);
   const writes = recordWrites(page);
   try {
@@ -172,9 +172,9 @@ test('SCR-33 · FL-33S-05 · 6th attempt in 900 s: real 429, lock 60 s, re-lock 
 test('SCR-33 · FL-33S-06 · roles: viewer (held request shows loading) / admin / engineer each change their own password', async ({ browser }) => {
   test.setTimeout(Math.max(120_000, 2 * 130_000));
   const admin = await adminApi();
-  const viewer = await poolUser(admin, 'viewer', 'p07-security-6v');
-  const second = await poolUser(admin, 'admin', 'p07-security-6a'); // a second admin, NOT E2E_ADMIN
-  const engineer = await poolUser(admin, 'engineer', 'p07-security-6e');
+  const viewer = await poolUser(admin, 'viewer', `p07-security-6v-${RUN_ID}-r${test.info().retry}`);
+  const second = await poolUser(admin, 'admin', `p07-security-6a-${RUN_ID}-r${test.info().retry}`); // a second admin, NOT E2E_ADMIN
+  const engineer = await poolUser(admin, 'engineer', `p07-security-6e-${RUN_ID}-r${test.info().retry}`);
   const current = { viewer: viewer.password, admin: second.password, engineer: engineer.password };
   const vs = await newSession(browser, viewer);
   const as = await newSession(browser, second);
@@ -251,8 +251,8 @@ async function hold0(page: import('@playwright/test').Page): Promise<void> {
 test('SCR-33 · FL-33S-07 · content edges (spaces, 256 chars, astral characters) and a session revoked elsewhere', async ({ browser }) => {
   test.setTimeout(Math.max(120_000, 2 * 150_000));
   const admin = await adminApi();
-  const user = await poolUser(admin, 'engineer', 'p07-security-7');
-  const revoked = await poolUser(admin, 'engineer', 'p07-security-7r');
+  const user = await poolUser(admin, 'engineer', `p07-security-7-${RUN_ID}-r${test.info().retry}`);
+  const revoked = await poolUser(admin, 'engineer', `p07-security-7r-${RUN_ID}-r${test.info().retry}`);
   const content = await newSession(browser, user);
   const sessionA = await newSession(browser, revoked); // page session A of the revoke user
   let currentContent = user.password;

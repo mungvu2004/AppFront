@@ -6,7 +6,7 @@
  * UAP useAccountPreferences.ts. BE: apps/api/me/avatar.py.
  *
  * Users: each flow has its OWN fresh pool engineer without an avatar (the avatar cannot be deleted), slots
- * `p07-profile-av-<runId>` (FL-33P-08) and `p07-profile-rl-<runId>` (FL-33P-09, spends its own avatar rate bucket).
+ * `p07-profile-av-<runId>-r<retry>` (FL-33P-08) and `p07-profile-rl-<runId>-r<retry>` (FL-33P-09, spends its own avatar rate bucket).
  * Both need a run id not used before (a slot already holding an avatar fails the "fresh user" precondition).
  * Nothing is mocked. Nothing edits the profile, so there is nothing to reset.
  *
@@ -62,7 +62,7 @@ const PUT_LINE = `PUT ${AVATAR_API}`;
 
 test('SCR-33 · FL-33P-08 · avatar: set, cancel, keyboard, replace, JPEG, persistence', async ({ browser }) => {
   test.setTimeout(180_000);
-  const s = await openP3Session(browser, `p07-profile-av-${RUN_ID}`);
+  const s = await openP3Session(browser, `p07-profile-av-${RUN_ID}-r${test.info().retry}`);
   const { page } = s;
   try {
     await page.clock.install();
@@ -236,7 +236,7 @@ test('SCR-33 · FL-33P-08 · avatar: set, cancel, keyboard, replace, JPEG, persi
 
 test('SCR-33 · FL-33P-09 · avatar rejects (local and server) and rate limit', async ({ browser }) => {
   test.setTimeout(180_000);
-  const s = await openP3Session(browser, `p07-profile-rl-${RUN_ID}`);
+  const s = await openP3Session(browser, `p07-profile-rl-${RUN_ID}-r${test.info().retry}`);
   const { page } = s;
   try {
     await page.clock.install();
