@@ -289,10 +289,11 @@ export async function restoreVia(
   projectId: string,
   floorId: string,
   versionId: string,
+  knownBase?: number,
 ): Promise<{ id: string; sequence: number; floorRevision: number }> {
-  const baseVersion = await layerRevision(api, projectId, floorId);
+  const baseVersion = knownBase ?? (await layerRevision(api, projectId, floorId));
   const res = await api.post(`${PROJECTS}/${projectId}/versions/${versionId}/restore`, { data: { baseVersion, body: { floorId } } });
-  expect([200, 201], `setup: POST restore ${versionId}: ${(await res.text()).slice(0, 200)}`).toContain(res.status());
+  expect(res.status(), `setup: POST restore ${versionId} (200 would be a replay): ${(await res.text()).slice(0, 200)}`).toBe(201);
   const summary = asRecord(await res.json(), 'N19');
   return { id: String(summary.id), sequence: Number(summary.sequence), floorRevision: Number(summary.floorRevision) };
 }
@@ -300,8 +301,8 @@ export async function restoreVia(
 /**
  * Grows a pipeline floor (v1 "before" empty, v2 "after" AI) to `total` versions with alternating restores: every target is the
  * "after" version made two restores earlier (v1 / v2 at first), so it is always among the newest and its content differs from the
- * current one (each restore writes a "before" and an "after"). Asserts the BE keeps the content of the 50 newest only
- * (snapshots.py:53). Returns every version, newest first (may exceed `total` by one).
+ * current one. The 1st restore adds a "before" + an "after"; from the 2nd on only an "after" (BE snapshots.py:243-244), so ~56 restores. Asserts the BE keeps the content of the 50 newest only
+ * (snapshots.py:53). Returns every version, newest first (loops on the real `sequence`).
  */
 export async function seedVersionLadder(api: APIRequestContext, projectId: string, floorId: string, total = 58): Promise<VersionItem[]> {
   const start = await listVersionsAll(api, projectId, floorId);
