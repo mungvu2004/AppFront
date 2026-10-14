@@ -86,15 +86,19 @@ function NodePreview({ selectedNode }: { readonly selectedNode: SpatialJsonNode 
   return (
     <div className="h-full overflow-auto rounded-[12px] bg-bg-sunken p-5">
       <code className="block font-mono text-[20px] leading-7 text-text-primary">{selectedNode.label}</code>
-      <code className="mt-2 block font-mono text-[13px] leading-5 text-text-muted">{selectedNode.id}</code>
+      {selectedNode.id !== selectedNode.label ? (
+        <code className="mt-2 block font-mono text-[13px] leading-5 text-text-muted">{selectedNode.id}</code>
+      ) : null}
 
       <dl className="mt-5 flex flex-col gap-3">
-        <div className="flex items-baseline gap-3">
-          <dt className="w-[120px] shrink-0 text-[13px] leading-[18px] text-text-secondary">Giá trị</dt>
-          <dd className={cn('font-mono text-[13px] leading-5', TONE_CLASS[selectedNode.tone])}>
-            <code>{selectedNode.valueText ?? '—'}</code>
-          </dd>
-        </div>
+        {selectedNode.valueText !== null ? (
+          <div className="flex items-baseline gap-3">
+            <dt className="w-[120px] shrink-0 text-[13px] leading-[18px] text-text-secondary">Giá trị</dt>
+            <dd className={cn('font-mono text-[13px] leading-5', TONE_CLASS[selectedNode.tone])}>
+              <code>{selectedNode.valueText}</code>
+            </dd>
+          </div>
+        ) : null}
 
         {selectedNode.childCount !== null ? (
           <div className="flex items-baseline gap-3">
@@ -141,8 +145,26 @@ export function SpatialJsonDetail({
             <button
               key={tab.id}
               type="button"
+              id={`sjd-tab-${tab.id}`}
               role="tab"
               aria-selected={isActive}
+              aria-controls="sjd-tabpanel"
+              tabIndex={isActive ? 0 : -1}
+              onKeyDown={(event) => {
+                const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+
+                if (step === 0) {
+                  return;
+                }
+
+                event.preventDefault();
+                const next = TAB_LABELS[(TAB_LABELS.indexOf(tab) + step + TAB_LABELS.length) % TAB_LABELS.length];
+
+                if (next !== undefined) {
+                  onChangeTab(next.id);
+                  document.getElementById(`sjd-tab-${next.id}`)?.focus();
+                }
+              }}
               className={cn(
                 'h-9 rounded-[8px] px-4 text-[14px] font-medium leading-5 transition-colors duration-fast',
                 isActive ? 'bg-accent-wash text-accent-active' : 'text-text-secondary hover:bg-bg-hover',
@@ -157,7 +179,7 @@ export function SpatialJsonDetail({
         })}
       </div>
 
-      <div className="min-h-0 flex-1">
+      <div id="sjd-tabpanel" role="tabpanel" aria-labelledby={`sjd-tab-${activeTabId}`} className="min-h-0 flex-1">
         {activeTabId === 'json' ? (
           <RawJson rawText={rawText} />
         ) : (

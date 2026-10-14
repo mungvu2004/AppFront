@@ -228,6 +228,7 @@ export function countEntities(graph: unknown): SpatialJsonCounts {
     dimensions: lengthOf('dimensions'),
     furniture: lengthOf('furniture'),
     levels: lengthOf('levels'),
+    notes: lengthOf('notes'),
     openings: lengthOf('openings'),
     rooms: lengthOf('rooms'),
     walls: lengthOf('walls'),
@@ -244,6 +245,7 @@ export function describeCounts(counts: SpatialJsonCounts): string {
     `${formatNumber(counts.furniture)} đồ đạc`,
     `${formatNumber(counts.axes)} trục`,
     `${formatNumber(counts.dimensions)} kích thước`,
+    `${formatNumber(counts.notes)} ghi chú`,
   ];
 
   return parts.join(' · ');
@@ -281,7 +283,7 @@ export function summariseValidity(issues: readonly SpatialJsonIssue[]): SpatialJ
   const isValid = issues.length === 0;
 
   const summary = isValid
-    ? 'Hợp lệ theo hợp đồng Spatial JSON — 0 lỗi.'
+    ? 'Hợp lệ — 0 lỗi.'
     : `${formatNumber(criticalCount)} lỗi nghiêm trọng · ${formatNumber(warningCount)} cảnh báo.`;
 
   return { criticalCount, isValid, issues, summary, warningCount };

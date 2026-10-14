@@ -181,9 +181,17 @@ export function SpatialJsonViewer({ actions, model }: SpatialJsonViewerProps) {
       {model.validity.issues.length > 0 ? (
         <ul className="mb-3 flex shrink-0 flex-col gap-1 px-5">
           {model.validity.issues.map((issue) => (
-            <li key={issue.id} className="flex items-baseline gap-3 rounded-[8px] bg-bg-sunken px-3 py-2">
-              <code className="shrink-0 font-mono text-[13px] leading-5 text-text-primary">{issue.path}</code>
-              <span className="text-[13px] leading-[18px] text-text-secondary">{issue.problem}</span>
+            <li key={issue.id}>
+              <button
+                type="button"
+                className="flex w-full items-baseline gap-3 rounded-[8px] bg-bg-sunken px-3 py-2 text-left hover:bg-bg-hover"
+                onClick={() => {
+                  actions.onSelectIssue(issue.path);
+                }}
+              >
+                <code className="shrink-0 font-mono text-[13px] leading-5 text-text-primary">{issue.path}</code>
+                <span className="text-[13px] leading-[18px] text-text-secondary">{issue.problem}</span>
+              </button>
             </li>
           ))}
         </ul>

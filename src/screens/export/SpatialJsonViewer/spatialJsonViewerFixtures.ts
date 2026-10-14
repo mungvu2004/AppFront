@@ -67,6 +67,7 @@ export const NOOP_ACTIONS: SpatialJsonViewerActions = {
   onPreviousMatch: () => undefined,
   onReopenFloors: () => undefined,
   onSearchChange: () => undefined,
+  onSelectIssue: () => undefined,
   onSelectNode: () => undefined,
   onToggleNode: () => undefined,
 };

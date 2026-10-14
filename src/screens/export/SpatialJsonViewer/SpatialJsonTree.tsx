@@ -29,7 +29,7 @@
  */
 
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -60,6 +60,11 @@ export function SpatialJsonTree({ nodes, onSelect, onToggle, selectedNodeId }: S
   const treeRef = useRef<HTMLDivElement>(null);
   // Roving tabindex: một điểm dừng Tab — hàng đang chọn, không thì hàng đầu (31-E-002).
   const tabStopId = nodes.some((node) => node.id === selectedNodeId) ? selectedNodeId : nodes[0]?.id;
+
+  // Chọn từ nơi khác (hàng lỗi, tìm kiếm) thì kéo hàng vào tầm nhìn (31-A-024).
+  useEffect(() => {
+    treeRef.current?.querySelector('[aria-selected="true"]')?.scrollIntoView?.({ block: 'nearest' });
+  }, [selectedNodeId]);
 
   /** ↑/↓/Home/End: chuyển focus giữa các hàng đang thấy (31-E-003). */
   const moveFocus = (from: HTMLElement, key: string): boolean => {
