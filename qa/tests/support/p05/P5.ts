@@ -294,6 +294,7 @@ export async function topView(page: Page): Promise<void> {
   await select.click();
   await page.getByRole('option', { name: 'Trên xuống', exact: true }).click();
   await expect(select).toHaveText('Trên xuống');
+  await settledCanvas(page); // the camera eases to the new view
 }
 
 /** Point-to-point mode with the rail tool "Đo (M)" pressed (key M only when it is not, M toggles). */
@@ -411,30 +412,32 @@ export async function clickablePoints(page: Page, points: readonly Point[]): Pro
 }
 
 /**
- * Starts a measurement draft by clicking model pixels until the pin button exists. `complete` also clicks a second,
- * distant point until the pin is enabled (a viewer's pin stays disabled: call with `complete: false`).
- * UNKNOWN — NEED VERIFICATION: canvas picks were never run against this build (no stack in S3); it throws when no click lands.
+ * Starts a measurement draft in the TOP view (call {@link topView} first) by clicking the pixels of two outer corners of the
+ * 8 x 6 m seed, computed from the model's pixel bounds (same method as P4 `measure.ts` targetPixels: the perimeter corners are
+ * symmetric under flips / a quarter turn). `complete` also enables the pin (a viewer's stays disabled: `complete: false`).
  */
 export async function makeDraft(page: Page, { complete }: { readonly complete: boolean }): Promise<Point> {
   await page.mouse.move(5, 5);
-  const points = await clickablePoints(page, await geometryPoints(await settledCanvas(page)));
+  const points = await geometryPoints(await settledCanvas(page));
+  if (points.length === 0) throw new Error('canvas shows only its background colour (no model pixels)');
+  const xs = points.map((p) => p[0]);
+  const ys = points.map((p) => p[1]);
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const swap = (x1 - x0) / (y1 - y0) < 1;
+  const scale = (x1 - x0) / (swap ? 6_220 : 8_220);
+  const [cx, cy] = [(x0 + x1) / 2, (y0 + y1) / 2];
+  const pixelOf = ([wx, wy]: Point): Point => (swap ? [cx + (wy - 3_000) * scale, cy + (wx - 4_000) * scale] : [cx + (wx - 4_000) * scale, cy + (wy - 3_000) * scale]);
+  const first = pixelOf([0, 0]);
   const pin = pinButton(page);
-  let first: Point | null = null;
-  for (const point of points) {
-    await page.mouse.click(point[0], point[1]);
-    if (await visibleWithin(pin, PICK_SETTLE_MS)) {
-      first = point;
-      break;
-    }
-  }
-  if (first === null) throw new Error(`UNKNOWN — NEED VERIFICATION: no canvas click produced a measurement draft (${String(points.length)} reachable model pixels)`);
+  await page.mouse.click(first[0], first[1]);
+  await expect(pin, 'a draft exists after the first pick').toBeVisible({ timeout: PICK_SETTLE_MS * 3 });
   if (!complete) return first;
-  const origin = first;
-  for (const [x, y] of points.filter((p) => Math.hypot(p[0] - origin[0], p[1] - origin[1]) >= 60).slice(0, 4)) {
+  for (const corner of [[8_000, 0], [8_000, 6_000], [0, 6_000]] as const) {
+    const [x, y] = pixelOf(corner);
     await page.mouse.click(x, y);
-    if ((await pin.click({ trial: true, timeout: PICK_SETTLE_MS }).then(() => true, () => false))) return first;
+    if (await pin.click({ trial: true, timeout: PICK_SETTLE_MS }).then(() => true, () => false)) return first;
   }
-  throw new Error('UNKNOWN — NEED VERIFICATION: no second canvas click enabled the pin button');
+  throw new Error('no second corner pick enabled the pin button');
 }
 
 // dup-of: measure.ts hoverUntilSnap
