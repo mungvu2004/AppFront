@@ -145,7 +145,9 @@ function ExportPanelHistory({ files, isLoading, canPersistHistory, onDownload }:
         <Table.Body>
           {files.map((file) => (
             <Table.Row key={file.id}>
-              <Table.Cell className="w-full max-w-0 truncate font-mono text-xs">{file.fileName}</Table.Cell>
+              <Table.Cell className="w-full max-w-0 truncate font-mono text-xs" title={file.fileName}>
+                {file.fileName}
+              </Table.Cell>
               <Table.Cell className="hidden text-xs text-text-secondary sm:table-cell">
                 {isLoading ? <SkeletonText className="h-3 w-16" /> : file.momentLabel}
               </Table.Cell>

@@ -216,6 +216,9 @@ function ToastViewport({ children }: { children: React.ReactNode }) {
       aria-live="polite"
       className={cn(
         'pointer-events-none fixed bottom-4 right-4 z-50 flex flex-col-reverse items-end gap-2',
+        // Màn có chân dính đáy khung nhìn (`data-sticky-footer`, cao tới ~85 px): toast đứng trên nó
+        // (29-F-010). Không áp khi tờ dưới đang mở hay dưới 640 px — hai chỗ đó toast đã lên mép trên.
+        'sm:[html:has([data-sticky-footer]):not([data-drawer=sheet])_&]:bottom-24',
         '[html[data-drawer=side]_&]:right-[calc(1rem+var(--drawer-inset))]',
         '[html[data-drawer=sheet]_&]:bottom-auto [html[data-drawer=sheet]_&]:top-4',
         'max-sm:bottom-auto max-sm:top-4',

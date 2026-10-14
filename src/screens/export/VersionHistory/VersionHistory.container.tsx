@@ -243,11 +243,15 @@ export function VersionHistoryRoute() {
     );
   }
 
+  // Khung `h-dvh`: không vỏ nào cấp chiều cao cho route này, thiếu nó thì `h-full` của màn ra
+  // auto và cột danh sách giãn hết chiều cao thay vì cuộn trong cột (QA-06b K1, khuôn BUG-520).
   return (
-    <Toast.Provider>
-      <ProjectSpatialGate projectId={projectId}>
-        <ProjectVersionHistory projectId={projectId} />
-      </ProjectSpatialGate>
-    </Toast.Provider>
+    <div className="h-dvh">
+      <Toast.Provider>
+        <ProjectSpatialGate projectId={projectId}>
+          <ProjectVersionHistory projectId={projectId} />
+        </ProjectSpatialGate>
+      </Toast.Provider>
+    </div>
   );
 }
