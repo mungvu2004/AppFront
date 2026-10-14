@@ -700,13 +700,14 @@ export function useViolationDetail(
     }
 
     const kind = readKindFromId(violation.entityId);
+    const code = displayCodeIn(graph, violation.entityId);
     const rows: ViolationAction[] = [];
 
     if (capabilities.canDeleteObject && kind === 'furniture') {
       rows.push({
         kind: 'deleteObject',
         label: 'Xoá đối tượng này',
-        description: `Gỡ ${ENTITY_KIND_LABELS.furniture} ${violation.entityId} khỏi bản vẽ; hoàn tác được trong tám giây.`,
+        description: `Gỡ ${ENTITY_KIND_LABELS.furniture} ${code} khỏi bản vẽ; hoàn tác được trong tám giây.`,
         affectedEntityIds: [violation.entityId],
       });
     }
@@ -715,7 +716,7 @@ export function useViolationDetail(
       rows.push({
         kind: 'renameRoom',
         label: 'Đặt tên phòng theo công năng',
-        description: `đặt tên phòng ${violation.entityId} thành "${proposedRoomName}"; hoàn tác được trong tám giây.`,
+        description: `Đặt tên phòng ${code} thành "${proposedRoomName}"; hoàn tác được trong tám giây.`,
         affectedEntityIds: [violation.entityId],
       });
     }
