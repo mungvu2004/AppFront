@@ -376,9 +376,9 @@ test('SCR-34/35/36/37 · FL-9A-04 · admin · positive reference + self guards',
       });
       expect.soft(res.status()).toBe(422);
       expect.soft(((await res.json()) as { code?: string }).code).toBe('USER_SELF_MODIFICATION');
-      expect
-        .soft(((await (await meApi.get('/api/me')).json()) as { role?: string }).role)
-        .toBe('admin');
+      // GET /api/me has no role (me/schemas.py:21); the role is read from #38 (users/schemas.py:20-39)
+      const list = (await (await admin.get('/api/users')).json()) as { users: { id: string; role: string }[] };
+      expect.soft(list.users.find((u) => u.id === selfUser.id)?.role).toBe('admin');
       await captureEvidence(page, '9A-G-008_admin-self-role-422.png');
     });
     await test.step('[9A-G-009] POST disable on self is rejected 422 USER_SELF_MODIFICATION', async () => {
