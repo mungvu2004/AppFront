@@ -9,7 +9,7 @@ import { seedMeasurement, waitScene, withOwnProject } from './support/p09/P9';
 
 test('SCR-25 · FL-9V-10 · engineer · [mocked response] xoá phép đo 403', async ({ browser }) => {
   test.setTimeout(300_000);
-  await withOwnProject(browser, 'engineer', 'viewer', 'p09-v10', async ({ page, admin, projectId }) => {
+  await withOwnProject(browser, 'engineer', 'viewer-mock', 'p09-v10', async ({ page, admin, projectId }) => {
     const name = `${TEST_DATA_PREFIX}do-403`;
     await seedMeasurement(admin, projectId, name);
     await test.step('[9V-B-020] xoá phép đo bị BE 403 (phản hồi giả)', async () => {
@@ -24,7 +24,7 @@ test('SCR-25 · FL-9V-10 · engineer · [mocked response] xoá phép đo 403', a
       await page.getByRole('button', { name: `Xoá ${name}`, exact: true }).click(); // MeasurementList.tsx:154
       await expect(page.getByText('Bạn không có quyền xoá phép đo trong dự án này')).toBeVisible(); // useMeasurementTool.ts:217,832-836
       expect(served).toBe(1);
-      await captureEvidence(page, 'E09_9V-B-020_mock403');
+      await captureEvidence(page, 'E09_9V-B-020_mock403.png');
     });
   });
 });

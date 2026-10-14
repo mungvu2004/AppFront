@@ -5,7 +5,7 @@ import { expect } from '@playwright/test';
 import type { APIRequestContext, Browser, BrowserContext, Page } from '@playwright/test';
 
 import { qcLayer, writeLayer } from '../layerSeed';
-import { createPipelineProject, deleteSeededProject, envDrawingPng, removeProjectMember } from '../phase03Seed';
+import { createPipelineProject, deleteSeededProject, envDrawingPng } from '../phase03Seed';
 import type { PoolUser } from '../phase03Seed';
 import { adminApi, asMember, DESKTOP, roleUser, signInRole, type Role } from './roles';
 
@@ -51,11 +51,6 @@ export async function withOwnProject(
   }
 }
 
-/** Ensures `user` is NOT a member of `projectId` (an error / non-member answer is fine), for FL-9V-09. */
-export async function ensureNotMember(admin: APIRequestContext, projectId: string, user: PoolUser): Promise<void> {
-  await removeProjectMember(admin, projectId, user.id);
-}
-
 /** #17 measurement through the admin API (BE measurements/schemas.py: id `^MS-[0-9]{4,15}$`). */
 export async function seedMeasurement(admin: APIRequestContext, projectId: string, name: string): Promise<string> {
   const id = `MS-${String(1000 + Math.floor(Math.random() * 8999))}`;
@@ -68,7 +63,7 @@ export async function seedMeasurement(admin: APIRequestContext, projectId: strin
 
 /** Admin API role change on a pool user (PATCH /api/users/{id}/role, BE users/router.py:85). */
 export async function setRole(admin: APIRequestContext, user: PoolUser, role: Role): Promise<void> {
-  const res = await admin.patch(`/api/users/${user.id}/role`, { data: { role } });
+  const res = await admin.patch(`/api/users/${user.id}/role`, { data: { role, userId: user.id } });
   expect(res.status(), `setRole ${role}: ${(await res.text()).slice(0, 200)}`).toBe(200);
 }
 
