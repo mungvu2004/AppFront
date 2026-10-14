@@ -560,7 +560,7 @@ export const groupRows = (panel: Locator, label: string): Promise<string[]> => g
 export const groupSubtotal = (panel: Locator, label: string): Locator => groupSection(panel, label).locator('h3 + span');
 export const panelTotal = (panel: Locator): Locator => panel.getByText(RA.total, { exact: true }).locator('xpath=following-sibling::div[1]');
 export const renameInput = (panel: Locator): Locator => panel.locator('section li input');
-export const renameBand = (panel: Locator): Locator => panel.getByText(/^Đã đổi tên thành "/u);
+export const renameBand = (panel: Locator): Locator => panel.getByText(/^Đã đổi tên thành /u); // no lone `"` in a text regex: it breaks the `>>` selector chain (run-051 T4)
 export const undoButton = (panel: Locator): Locator => panel.getByRole('button', { name: RA.undoRename, exact: true });
 export const expandToggle = (panel: Locator): Locator => panel.getByRole('button', { name: RA.fullTable, exact: true });
 
