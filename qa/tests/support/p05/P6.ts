@@ -631,3 +631,39 @@ export async function hitsCanvas(page: Page, fx: number, fy: number): Promise<bo
     { x: box.x + box.width * fx, y: box.y + box.height * fy },
   );
 }
+
+/**
+ * Bounding box (viewport px) of the model's own pixels in the middle band: everything that differs from the background
+ * sampled at the band's four corners. Waits for a settled frame first, so a camera still flying is not measured.
+ */
+export async function modelBox(page: Page): Promise<{ x: number; y: number; width: number; height: number }> {
+  const png = await settledShot(page);
+  const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const at = (x: number, y: number): number[] => [data[(y * info.width + x) * 4] ?? 0, data[(y * info.width + x) * 4 + 1] ?? 0, data[(y * info.width + x) * 4 + 2] ?? 0];
+  const corners = [at(2, 2), at(info.width - 3, 2), at(2, info.height - 3), at(info.width - 3, info.height - 3)];
+  const bg = [0, 1, 2].map((c) => corners.reduce((sum, p) => sum + (p[c] ?? 0), 0) / corners.length);
+  let [minX, minY, maxX, maxY, hits] = [info.width, info.height, -1, -1, 0];
+  for (let y = 0; y < info.height; y += 1) {
+    for (let x = 0; x < info.width; x += 1) {
+      const p = at(x, y);
+      if (Math.max(...[0, 1, 2].map((c) => Math.abs((p[c] ?? 0) - (bg[c] ?? 0)))) > 24) {
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+        hits += 1;
+      }
+    }
+  }
+  if (hits < 30) throw new Error('modelBox: no model pixels found in the middle band');
+  const size = page.viewportSize();
+  const top = Math.round((size?.height ?? 0) * 0.2);
+  return { x: minX, y: top + minY, width: maxX - minX + 1, height: maxY - minY + 1 };
+}
+
+/** Tap at a fraction of the model's pixel box (not of the canvas), so the tap lands on the model at any width. */
+export async function tapModel(page: Page, fx: number, fy: number): Promise<void> {
+  const box = await modelBox(page);
+  await page.touchscreen.tap(box.x + box.width * fx, box.y + box.height * fy);
+  await afterFrames(page);
+}
