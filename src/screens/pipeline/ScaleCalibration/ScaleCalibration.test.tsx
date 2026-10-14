@@ -1014,3 +1014,21 @@ describe('[G51a] nhãn đo trực tiếp cần cỡ khung ảnh', () => {
     expect(observed.some((target) => target.className.includes('origin-top-left'))).toBe(true);
   });
 });
+
+describe('[G57] hộp thoại "áp mọi tầng" đóng thì tiêu điểm về "Áp dụng tỷ lệ"', () => {
+  it('nút áp bị khoá lúc đọc mọi tầng (tiêu điểm rơi về body) vẫn được trả tiêu điểm khi Esc', async () => {
+    const scenario = scenarioFor('success');
+    const confirm = { title: 'Áp tỷ lệ cho 2 tầng?', message: 'Câu hỏi.', confirmLabel: 'Áp dụng', cancelLabel: 'Huỷ' };
+    const { rerender } = renderWithProviders(
+      <ScaleCalibration actions={scenario.actions} model={{ ...scenario.model, allFloorsConfirm: confirm }} />,
+    );
+    await act(async () => {
+      await clock.advance(20);
+    });
+    (document.activeElement as HTMLElement | null)?.blur();
+
+    rerender(<ScaleCalibration actions={scenario.actions} model={scenario.model} />);
+
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Áp dụng tỷ lệ' }));
+  });
+});
