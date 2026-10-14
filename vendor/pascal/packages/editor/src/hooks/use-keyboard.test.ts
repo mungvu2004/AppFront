@@ -20,6 +20,7 @@ import {
   blocksSnappingShortcut,
   canCycleSnappingModeShortcut,
   canRunGlobalRotationShortcut,
+  cancelEscape,
   isToolOwnedCanopyForm,
   isToolOwnedRotation,
   markToolCancelConsumed,
@@ -248,4 +249,19 @@ describe('history while drawing distribution runs', () => {
       }
     })
   }
+})
+
+// AppFront (QA-05c E1-B12): Esc is spent only when it closed something; an
+// idle press is left to the host page (collapse the 3D frame).
+describe('Escape claims the key only when it closed something', () => {
+  test('an armed tool is cancelled and the press is spent', () => {
+    useEditor.getState().armToolMode({ mode: 'build', tool: 'measurement' })
+    expect(cancelEscape()).toBe(true)
+    expect(useEditor.getState().mode).toBe('select')
+  })
+
+  test('an idle select tool leaves the press to the host', () => {
+    useEditor.getState().armToolMode({ mode: 'select' })
+    expect(cancelEscape()).toBe(false)
+  })
 })
