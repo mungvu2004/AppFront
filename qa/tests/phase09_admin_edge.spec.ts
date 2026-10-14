@@ -264,7 +264,7 @@ test('SCR-34/35/36/37 · FL-9A-03 · anonymous · four routes redirect to login'
   try {
     const gotoLogin = async (id: string, path: string, encoded: string): Promise<void> => {
       await page.goto(path);
-      await expect(page).toHaveURL(new RegExp(`/login\?next=${encoded}$`, 'u'));
+      await expect(page).toHaveURL(new RegExp(`/login\\?next=${encoded}$`, 'u'));
       await captureEvidence(page, `${id}_anon-login`);
     };
     await test.step('[9A-D-008] anonymous /admin/models redirects to login', async () => {
