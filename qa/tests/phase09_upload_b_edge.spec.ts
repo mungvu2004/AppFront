@@ -9,7 +9,9 @@ import { ROUTES } from '../../e2e/fixtures/routes';
 import { signInAdmin } from './support/auth';
 import { attachJson, captureEvidence } from './support/evidence';
 import { FOUR_CORNERS, expectLoginRedirect, openRole, statusCode, uploadRoutes } from './support/p09/P4';
-import { DESKTOP, adminApi, apiAs, asMember, gotoAs, mainProject, roleUser } from './support/p09/roles';
+import { GRAPH } from './support/p03/P10';
+import { PF } from './support/p03/P8';
+import { DESKTOP, adminApi, apiAs, mainProject, roleUser } from './support/p09/roles';
 import {
   addProjectMember,
   createDrawingProject,
@@ -28,7 +30,6 @@ const DROPZONE = 'floor-upload-dropzone';
 const CANCEL_RUN = 'Huỷ xử lý';
 const NO_RUN = 'Chưa có lượt xử lý nào để kể lại';
 const APPLY_SCALE = 'Áp dụng tỷ lệ';
-const NEED_MEASURE = 'Cần đo được vùng lệch trước khi xác nhận.'; // UOC:123
 const NEED_EDIT = 'Chỉ người có quyền sửa mới xác nhận được.';
 const USE_CAD = 'Dùng đường từ CAD';
 const USE_AI = 'Vẫn dùng AI';
@@ -36,9 +37,11 @@ const IMPORT_GEO = 'Nhập hình học';
 const TECH = 'Chi tiết kỹ thuật';
 const CONTINUE = 'Tiếp tục xử lý';
 const OTHER_DRAWING = 'Tải bản vẽ khác';
-const ANY_HEADING = /.+/u;
+const FAILED_ALERT = /không hoàn tất được/u; // failed-run alert of the pipeline screen
+const OVERLAY_REGION = 'Màn đối chiếu bản vẽ';
+const CONFIRM_MODEL = 'Xác nhận mô hình khớp bản vẽ';
 
-const ev = (page: Page, id: string, slug: string): Promise<unknown> => captureEvidence(page, `E09_${id}_${slug}`);
+const ev = (page: Page, id: string, slug: string): Promise<unknown> => captureEvidence(page, `E09_${id}_${slug}.png`);
 const btn = (page: Page, name: string) => page.getByRole('button', { name, exact: true });
 const unknown = (what: string): void => {
   test.info().annotations.push({ type: 'unknown', description: `UNKNOWN — NEED VERIFICATION: ${what}` });
@@ -49,7 +52,7 @@ const floorIds = async (api: APIRequestContext, projectId: string): Promise<stri
 test('SCR-09 · SCR-10 · SCR-11 · FL-9U-05 · engineer · engineer ghi tren du an rieng: tang + tai len + chat luong', async ({ browser }) => {
   test.setTimeout(240_000);
   const admin = await adminApi();
-  const engineer = await roleUser(admin, 'engineer', 'up-engineer');
+  const engineer = await roleUser(admin, 'engineer', 'up-b');
   const proj = await createDrawingProject(admin, 'p09-up-e', envDrawingPng(), ['Tầng 1', 'Tầng 2']);
   const { projectId } = proj;
   let session: Awaited<ReturnType<typeof openRole>> | undefined;
@@ -104,7 +107,7 @@ test('SCR-09 · SCR-10 · SCR-11 · FL-9U-05 · engineer · engineer ghi tren du
     });
 
     await test.step('[9U-D-035] engineer: "Tiếp tục xử lý" / "Tải bản vẽ khác" on quality', async () => {
-      await gotoAs(page, ROUTES.project.quality(projectId), ANY_HEADING);
+      await page.goto(ROUTES.project.quality(projectId));
       await expect.soft(page.getByText(CONTINUE, { exact: true }).first()).toBeVisible({ timeout: 20_000 });
       await expect.soft(page.getByText(OTHER_DRAWING, { exact: true }).first()).toBeVisible();
       unknown('9U-D-035 "Tải bản vẽ khác" → /upload navigation not clicked (control role unverified)');
@@ -128,7 +131,7 @@ test('SCR-09 · SCR-10 · SCR-11 · FL-9U-05 · engineer · engineer ghi tren du
 test('SCR-12 · SCR-13 · SCR-14 · SCR-15 · SCR-16 · FL-9U-06 · engineer · engineer: pipeline/do thi/ti le/doi chieu/CAD + non-member', async ({ browser }) => {
   test.setTimeout(240_000);
   const admin = await adminApi();
-  const engineer = await roleUser(admin, 'engineer', 'up-engineer');
+  const engineer = await roleUser(admin, 'engineer', 'up-b');
   const nm = await createProject(admin, 'p09-up-nm', 1); // NM: the engineer is NOT a member
   const pe = await createProject(admin, 'p09-up-pe', 1); // PE: never ran
   const pf = await createFailedRunProject(admin, 'p09-up-pf', 'FILE_CORRUPT'); // PF
@@ -158,32 +161,39 @@ test('SCR-12 · SCR-13 · SCR-14 · SCR-15 · SCR-16 · FL-9U-06 · engineer · 
     });
 
     await test.step('[9U-D-042] engineer: no "Huỷ xử lý" (cancelProcessing:false)', async () => {
-      await gotoAs(page, ROUTES.project.pipeline(pf.projectId), ANY_HEADING);
+      await page.goto(ROUTES.project.pipeline(pf.projectId));
+      await expect(page.getByRole('alert').filter({ hasText: FAILED_ALERT })).toBeVisible({ timeout: 45_000 });
+      // weak control: a failed run has no cancel for any role (UPS:870); kept as the cancelProcessing:false observation
       await expect.soft(btn(page, CANCEL_RUN)).toHaveCount(0);
       await ev(page, '9U-D-042', 'engineer_no_cancel');
     });
 
-    await test.step('[9U-D-047] engineer: same forbidden detail as viewer', async () => {
-      unknown('9U-D-047 exact forbidden sentence (UPG:540-548) not in catalog; asserting the admin-only "Chi tiết kỹ thuật" block is absent');
-      await expect.soft(page.getByText(TECH, { exact: true })).toHaveCount(0); // DETAIL_MODE_ROLES admin only (UPG:80)
+    await test.step('[9U-D-047] engineer: graph screen shows the forbidden line, no detail/switch', async () => {
+      await page.goto(ROUTES.project.pipelineGraph(pf.projectId));
+      await expect(page.getByRole('heading', { name: GRAPH.title }).first()).toBeVisible({ timeout: 30_000 });
+      await expect.soft(page.getByText(GRAPH.forbiddenLine, { exact: true })).toBeVisible(); // PGT forbiddenLine, DETAIL_MODE_ROLES admin only (UPG:80)
+      await expect.soft(btn(page, GRAPH.switch)).toHaveCount(0);
+      await expect.soft(page.getByText(GRAPH.detail, { exact: true })).toHaveCount(0);
       await ev(page, '9U-D-047', 'engineer_forbidden_detail');
     });
 
-    await test.step('[9U-D-048] engineer, project never ran: not "Chưa có lượt xử lý nào"', async () => {
-      await gotoAs(page, ROUTES.project.pipeline(pe.projectId), ANY_HEADING);
-      await expect.soft(page.getByText(NO_RUN, { exact: true })).toHaveCount(0); // forbidden precedes empty
+    await test.step('[9U-D-048] engineer, project never ran: forbidden line, not "Chưa có lượt xử lý nào"', async () => {
+      await page.goto(ROUTES.project.pipelineGraph(pe.projectId));
+      await expect(page.getByRole('heading', { name: GRAPH.title }).first()).toBeVisible({ timeout: 30_000 });
+      await expect.soft(page.getByText(GRAPH.forbiddenLine, { exact: true })).toBeVisible();
+      await expect.soft(page.getByText(NO_RUN, { exact: true })).toHaveCount(0); // forbidden precedes empty (UPG:540-548)
       await ev(page, '9U-D-048', 'engineer_forbidden_before_empty');
     });
 
-    await test.step('[9U-D-054] engineer: next-step actions on the failed run', async () => {
-      await gotoAs(page, ROUTES.project.pipeline(pf.projectId), ANY_HEADING);
-      unknown('9U-D-054 labels of the 3 next-step buttons (or supportRetryUnsupported sentence); count >= 1 button asserted');
-      expect.soft(await page.getByRole('button').count()).toBeGreaterThan(0);
+    await test.step('[9U-D-054] engineer: 3 next-step actions on the failed run', async () => {
+      await page.goto(ROUTES.project.pipeline(pf.projectId));
+      await expect(page.getByRole('alert').filter({ hasText: FAILED_ALERT })).toBeVisible({ timeout: 45_000 });
+      for (const name of [PF.lower, PF.upload, PF.skip]) await expect.soft(btn(page, name)).toBeVisible(); // PFT:58-60
       await ev(page, '9U-D-054', 'engineer_next_steps');
     });
 
     await test.step('[9U-D-060] engineer: "Áp dụng tỷ lệ" shown; PUT spatial/layer 200 on own project', async () => {
-      await gotoAs(page, ROUTES.project.scale(pe.projectId, peFloor), ANY_HEADING);
+      await page.goto(ROUTES.project.scale(pe.projectId, peFloor));
       await expect.soft(btn(page, APPLY_SCALE)).toBeVisible({ timeout: 20_000 });
       unknown('9U-D-060 baseVersion 0 for a fresh floor assumed');
       const res = await api!.put(`/api/projects/${pe.projectId}/floors/${peFloor}/spatial/layer`, {
@@ -195,9 +205,10 @@ test('SCR-12 · SCR-13 · SCR-14 · SCR-15 · SCR-16 · FL-9U-06 · engineer · 
     });
 
     await test.step('[9U-D-069] engineer: confirm not locked by role', async () => {
-      await gotoAs(page, ROUTES.project.overlay(pe.projectId, peFloor), ANY_HEADING);
+      await page.goto(ROUTES.project.overlay(pe.projectId, peFloor));
+      await expect(page.getByRole('region', { name: OVERLAY_REGION })).toBeVisible({ timeout: 30_000 });
+      await expect.soft(btn(page, CONFIRM_MODEL)).toBeVisible();
       await expect.soft(page.getByText(NEED_EDIT, { exact: true })).toHaveCount(0);
-      unknown(`9U-D-069 "${NEED_MEASURE}" is shown only without a graph; presence not asserted`);
       await ev(page, '9U-D-069', 'engineer_overlay');
     });
 
@@ -242,20 +253,22 @@ test('SCR-09..16 · FL-9U-07 · admin · admin doi chung duong 1 dong/man', asyn
     });
 
     await test.step('[9U-D-037] admin: quality action buttons', async () => {
-      await gotoAs(page, ROUTES.project.quality(main.projectId), ANY_HEADING);
+      await page.goto(ROUTES.project.quality(main.projectId));
       await expect.soft(page.getByText(CONTINUE, { exact: true }).first()).toBeVisible({ timeout: 20_000 });
       await expect.soft(page.getByText(OTHER_DRAWING, { exact: true }).first()).toBeVisible();
       await ev(page, '9U-D-037', 'admin_quality_actions');
     });
 
     await test.step('[9U-D-043] admin: pipeline loads, no forbidden', async () => {
-      await gotoAs(page, ROUTES.project.pipeline(main.projectId), ANY_HEADING);
+      await page.goto(ROUTES.project.pipeline(main.projectId));
+      await expect(page.getByRole('tablist').first()).toBeVisible({ timeout: 30_000 });
       await expect.soft(page.getByText(/không có quyền/iu)).toHaveCount(0);
       await ev(page, '9U-D-043', 'admin_pipeline');
     });
 
     await test.step('[9U-D-049] admin: detail block opens', async () => {
-      await gotoAs(page, ROUTES.project.pipeline(pf.projectId), ANY_HEADING);
+      await page.goto(ROUTES.project.pipeline(pf.projectId));
+      await expect(page.getByRole('alert').filter({ hasText: FAILED_ALERT })).toBeVisible({ timeout: 45_000 });
       await expect.soft(page.getByText(/không có quyền/iu)).toHaveCount(0);
       const toggle = page.getByText(TECH, { exact: true }).first();
       await expect.soft(toggle).toBeVisible({ timeout: 20_000 });
@@ -264,19 +277,20 @@ test('SCR-09..16 · FL-9U-07 · admin · admin doi chung duong 1 dong/man', asyn
     });
 
     await test.step('[9U-D-055] admin: next-step actions on the failed run', async () => {
-      unknown('9U-D-055 labels of the 3 next-step buttons; count >= 1 button asserted');
-      expect.soft(await page.getByRole('button').count()).toBeGreaterThan(0);
+      for (const name of [PF.lower, PF.upload, PF.skip]) await expect.soft(btn(page, name)).toBeVisible(); // PFT:58-60
       await ev(page, '9U-D-055', 'admin_next_steps');
     });
 
     await test.step('[9U-D-061] admin: "Áp dụng tỷ lệ" shown', async () => {
-      await gotoAs(page, ROUTES.project.scale(main.projectId, main.workFloorId), ANY_HEADING);
+      await page.goto(ROUTES.project.scale(main.projectId, main.workFloorId));
       await expect.soft(btn(page, APPLY_SCALE)).toBeVisible({ timeout: 20_000 });
       await ev(page, '9U-D-061', 'admin_scale');
     });
 
     await test.step('[9U-D-070] admin: confirm not locked by role', async () => {
-      await gotoAs(page, ROUTES.project.overlay(main.projectId, main.workFloorId), ANY_HEADING);
+      await page.goto(ROUTES.project.overlay(main.projectId, main.workFloorId));
+      await expect(page.getByRole('region', { name: OVERLAY_REGION })).toBeVisible({ timeout: 30_000 });
+      await expect.soft(btn(page, CONFIRM_MODEL)).toBeVisible();
       await expect.soft(page.getByText(NEED_EDIT, { exact: true })).toHaveCount(0);
       await ev(page, '9U-D-070', 'admin_overlay');
     });
@@ -350,9 +364,12 @@ test('SCR-09..16 · FL-9U-08 · an danh · an danh 8 route -> /login?next=', asy
 test('BE truc tiep · FL-9U-09 · viewer · viewer goi thang BE: floors / drawings / quality / spatial', async () => {
   test.setTimeout(120_000);
   const admin = await adminApi();
-  const { projectId, workFloorId } = mainProject();
-  const viewer = await roleUser(admin, 'viewer', 'up-viewer');
-  const undo = await asMember(admin, projectId, viewer);
+  // own throw-away project: the viewer never sends a write to the main chain project
+  const own = await createDrawingProject(admin, 'p09-up-be', envDrawingPng(), ['Tầng 1', 'Tầng 2']);
+  const { projectId } = own;
+  const workFloorId = own.floorId;
+  const viewer = await roleUser(admin, 'viewer', 'up-b');
+  await addProjectMember(admin, projectId, viewer.email);
   const api = await apiAs(viewer);
   const base = `/api/projects/${projectId}`;
   const floorBase = `${base}/floors/${workFloorId}`;
@@ -421,7 +438,7 @@ test('BE truc tiep · FL-9U-09 · viewer · viewer goi thang BE: floors / drawin
     });
   } finally {
     await api.dispose();
-    await undo();
+    await deleteSeededProject(admin, projectId);
     await admin.dispose();
   }
 });
