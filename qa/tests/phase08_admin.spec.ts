@@ -83,7 +83,7 @@ async function pickOption(combobox: Locator, option: string | RegExp): Promise<v
 test('SCR-34 · FL-M-34L-01 · open, search, category, sort, grid, detail + Esc', async () => {
   test.setTimeout(120_000);
   const rows = page.locator('tbody tr');
-  const search = page.getByLabel('tìm model', { exact: true });
+  const search = page.getByLabel(/^tìm model$/iu);
   let name = '';
   let group = '';
 
@@ -421,6 +421,7 @@ test('SCR-37 · FL-M-37U-01 · Read list + detail + matrix (admin chain)', async
 
   await test.step('[37U-A-012] "Trạng thái" = "Đang hoạt động": only active rows', async () => {
     await pickOption(status, 'Đang hoạt động');
+    await expect.soft(status).toContainText('Đang hoạt động');
     await expect.soft(peRow).toHaveCount(1);
     await expect.soft(page.locator('tbody tr').filter({ hasNotText: 'Đang hoạt động' })).toHaveCount(0);
     await captureEvidence(page, 'E08_37U-A-012_main');

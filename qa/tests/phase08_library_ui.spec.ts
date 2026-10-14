@@ -16,7 +16,7 @@ import { poolUser, signInPoolUser } from './support/phase03Seed';
 import { verifyUi } from './support/ui-verify';
 
 const LIBRARY_PATH = '**/api/library';
-const SEARCH = 'tìm model'; // ModelLibraryToolbar.tsx:17
+const SEARCH = /^tìm model$/iu; // ModelLibraryToolbar.tsx:17
 const CATEGORY = 'danh mục'; // ModelLibraryToolbar.tsx:19
 const NO_MATCH = 'Không tìm thấy model phù hợp.'; // ModelLibraryTable.tsx:31
 const DETAIL = 'Chi tiết model'; // ModelLibraryDetail.tsx:293
@@ -44,7 +44,7 @@ async function openLibrary(page: Page): Promise<void> {
 
 async function openReady(page: Page): Promise<void> {
   await openLibrary(page);
-  await expect(page.getByLabel(SEARCH, { exact: true })).toBeVisible();
+  await expect(page.getByLabel(SEARCH)).toBeVisible();
   await expect(rowNames(page).first().or(page.getByRole('list', { name: 'lưới model' }))).toBeVisible();
 }
 
@@ -59,11 +59,15 @@ test('SCR-34 · FL-34L-U1 · UI verify real states (default, no match, category 
   await test.step('[34L-C-017] ⚑ labels in sentence case (BUG-595)', async () => {
     await openReady(page);
     // ModelLibraryToolbar.tsx:17,19; ModelLibrarySummary.tsx:14; useModelLibrary.ts:107-108. Correct = first letter capital (rule A6).
-    await expect(page.getByLabel('Tìm model', { exact: true }), 'search label capital').toBeVisible();
-    await expect(page.getByRole('combobox', { name: 'Danh mục', exact: true }), 'category label capital').toBeVisible();
-    await expect(page.getByText('Model nặng', { exact: true }), 'heavy count label capital').toBeVisible();
-    await expect(page.getByText('Dung lượng', { exact: false }).first(), '"dung lượng" capital').toBeVisible();
-    await expect(page.getByText('Nhóm', { exact: true }).first(), '"nhóm" capital').toBeVisible();
+    await expect.soft(page.getByLabel('Tìm model', { exact: true }), 'search label capital').toBeVisible();
+    await expect.soft(page.getByRole('combobox', { name: 'Danh mục', exact: true }), 'category label capital').toBeVisible();
+    await expect.soft(page.getByText('Model nặng', { exact: true }), 'heavy count label capital').toBeVisible();
+    // Labels of the detail panel (useModelLibrary.ts:108-109 fieldFileSize / fieldGroup), not the table headers.
+    await rowNames(page).first().click();
+    const aside = page.locator(`aside[aria-label="${DETAIL}"]`);
+    await expect(aside).toBeVisible();
+    await expect.soft(aside.getByText('Dung lượng', { exact: true }), '"dung lượng" capital').toBeVisible();
+    await expect.soft(aside.getByText('Nhóm', { exact: true }), '"nhóm" capital').toBeVisible();
     await captureEvidence(page, 'U08_34L-C-017_copy_case');
   });
 
@@ -78,7 +82,7 @@ test('SCR-34 · FL-34L-U1 · UI verify real states (default, no match, category 
       'U08_34L-F-002_no_match',
       async (p) => {
         await openReady(p);
-        await p.getByLabel(SEARCH, { exact: true }).fill('zzz-khong-co-model');
+        await p.getByLabel(SEARCH).fill('zzz-khong-co-model');
         await expect(p.getByText(NO_MATCH, { exact: true })).toBeVisible();
       },
       DESKTOP_VIEWPORTS,
