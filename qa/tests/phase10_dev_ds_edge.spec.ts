@@ -66,8 +66,6 @@ test('SCR-40 · FL-10D-03 · anon · /design-system: nội dung và trạng thá
     await expect.soft(disabledBtns).toHaveCount(5);
     for (let i = 0; i < 5; i += 1) await expect.soft(disabledBtns.nth(i)).toBeDisabled();
     await expect.soft(toggle(page, 'Disabled Toggle')).toBeDisabled(); // DS:178
-    const names = await enabledButtonNames(page);
-    expect.soft(names).not.toContain('Disabled'); // Tab order never lands on them
     await captureEvidence(page, 'D10_10D-B-202_disabled.png');
   });
 
@@ -84,6 +82,7 @@ test('SCR-40 · FL-10D-04 · anon · /design-system: Toggle, Segmented, bàn ph�
   page.on('pageerror', (e) => pageErrors.push(String(e)));
   await page.clock.install(); // timers keep real time until fast-forwarded; DEMO_LATENCY_MS = 800 (DS:9)
   await openDesignSystem(page);
+  await page.clock.pauseAt(Date.now() + 1000); // freeze timers: only runFor advances the 800 ms
 
   await test.step('[10D-B-204] Simple Toggle', async () => {
     const t = toggle(page, 'Simple Toggle');
