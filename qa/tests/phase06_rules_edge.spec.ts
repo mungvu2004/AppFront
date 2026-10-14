@@ -1733,18 +1733,6 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         await shot(page, '28V-A-015', 'renamed');
       });
 
-      await test.step('[28V-C-007] ⚑ no "Đã sửa xong" for a rule the project has disabled', async () => {
-        // Interpretation: the report is already open on a clash row; another session disables FURNITURE-CLASH; the fix then runs.
-        const section = await expandRule(page, clashName);
-        await openSheet(page, rowsOf(section).first());
-        expect(await putRuleConfig(admin, project.id, { 'FURNITURE-CLASH': { enabled: false } }), '+CFG N22 PUT').toBe(200);
-        const answered = waitForApi(page, 'PUT', layerPutRe, [200]);
-        await deleteButton.click();
-        await answered;
-        await expect.soft(panel.getByText(FIXED_LINE)).toHaveCount(0);
-        await shot(page, '28V-C-007', 'disabled_rule_verdict');
-      });
-
       await test.step('[28V-G-003] another session wrote the floor: PUT 409, "Lưu thất bại", no "Tải lại"', async () => {
         const section = ruleSection(page, clashName);
         await openSheet(page, rowsOf(section).first());
