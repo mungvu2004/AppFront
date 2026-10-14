@@ -101,10 +101,10 @@ export interface PascalFrameProps {
    * Người dùng vừa hoàn tác hoặc làm lại (A8 — mọi thay đổi hoàn tác được,
    * kèm toast hoàn tác).
    *
-   * Chỉ cú nhảy THẬT của người dùng đi qua đây. Hai chỗ khác trong Pascal gọi
-   * thẳng `useScene.temporal.undo()` — `use-auto-save` lùi một lượt sửa bị
-   * `validateCommit` chặn, và bộ quản affordance chọn lùi một lượt thay thế
-   * hỏng — cả hai không phải việc người dùng bấm, nên không báo ra.
+   * Chỉ cú nhảy THẬT của người dùng đi qua đây. Bộ quản affordance chọn gọi
+   * thẳng `useScene.temporal.undo()` để lùi một lượt thay thế hỏng, còn
+   * `use-auto-save` trả lại cảnh trước một lượt sửa bị `validateCommit` chặn —
+   * cả hai không phải việc người dùng bấm, nên không báo ra.
    */
   readonly onHistoryJump: ((kind: PascalHistoryJump) => void) | undefined;
   /** Người dùng vừa xoá một phép đo — màn dựng toast có nút hoàn tác (#63). */
