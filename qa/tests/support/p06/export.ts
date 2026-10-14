@@ -708,11 +708,11 @@ export async function holdRoute(page: Page, matcher: RegExp, mode: 'hold' | 'fai
     }
     served += 1;
     if (mode === 'fail') {
-      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'qa-p06 export 500' }) });
+      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ code: 'INTERNAL', requestId: 'qa-mock' }) });
       return;
     }
     await gate;
-    await route.fallback();
+    await route.fallback().catch(() => undefined); // the document may be gone (verifyUi opens about:blank between widths)
   };
   await page.route('**/api/**', handler);
   return {

@@ -211,7 +211,7 @@ test.describe('SCR-30 Bảng xuất — mocked responses', () => {
       });
 
       await test.step('[30-E-016] the banner is announced', async () => {
-        await expect.soft(banner).toHaveAttribute('role', 'alert'); // InlineAlert.tsx:25
+        await expect.soft(page.getByRole('button', { name: EP.errorRetry, exact: true }).locator('xpath=ancestor::*[@role][1]')).toHaveAttribute('role', 'alert'); // InlineAlert.tsx:25
         await shot(page, '30-E-016', 'banner_role');
       });
 

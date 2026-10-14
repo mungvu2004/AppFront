@@ -206,9 +206,18 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
         await openExport(page, project.id, { dismiss: false });
         await expect.soft(exportButton(page)).toHaveAttribute('data-tour-anchor', 'exportResult'); // EPT:68
         await expect.soft(page.getByRole('button', { name: TOUR_SKIP_NAME, exact: true }).first(), 'EditorTour mounted on this route').toBeVisible({ timeout: TOUR_APPEAR_TIMEOUT_MS });
-        await exportButton(page).click({ force: true }); // lands on the tour backdrop, not on the button
+        // EditorTour.tsx:10-14,95-117: the backdrop is four panels around a real hole, and on /export the only live step is
+        // `exportResult`, so the hole IS the "Xuất" button: the point at its centre belongs to the button.
+        const hit = await exportButton(page).evaluate((el) => {
+          const r = el.getBoundingClientRect();
+          const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          return top !== null && el.contains(top);
+        });
+        expect.soft(hit, 'the centre of "Xuất" is inside the tour hole (reachable)').toBe(true);
+        // A click on the dark panel over a format card skips the tour (EditorTour.tsx:10-14) and does not reach the card.
+        await formatRadio(page, '.png').click({ force: true });
         await dismissTour(page);
-        expect.soft(flow.downloads.length, 'the first click was swallowed by the tour backdrop').toBe(before);
+        expect.soft(flow.downloads.length, 'skipping the tour exports nothing').toBe(before);
         await shot(page, '30-A-021', 'tour_anchor');
         const file = await downloadVia(page, () => exportButton(page).click());
         expect.soft(file.suggestedFilename()).toMatch(exportNameRe(fileSlug(project.name), 'glb', 'T0-T1'));
@@ -468,7 +477,7 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
 
       await test.step('[30-G-008] ⚑ telemetry beacon of the .glb export', async () => {
         // UEP:254: the gateway is built without a telemetry sender, so `track` is a no-op today. S5-confirm: VITE_TELEMETRY_ENABLED on.
-        await expect.poll(() => beacons().filter((e) => e.name === 'export.file').length, { message: 'an export.file event reaches /api/telemetry', timeout: 15_000 }).toBeGreaterThanOrEqual(1);
+        await expect.configure({ soft: true }).poll(() => beacons().filter((e) => e.name === 'export.file').length, { message: 'an export.file event reaches /api/telemetry', timeout: 15_000 }).toBeGreaterThanOrEqual(1);
         const events = beacons().filter((e) => e.name === 'export.file');
         expect.soft(events.length, 'one beacon for the .glb export').toBe(1);
         const event = events[0] ?? {};
@@ -560,7 +569,7 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
         const rowsBefore = await historyRows(page).count();
         const mark = flow.downloads.length;
         await exportButton(page).dblclick();
-        await expect.poll(() => historyRows(page).count(), { message: 'a new history row' }).toBeGreaterThan(rowsBefore);
+        await expect.configure({ soft: true }).poll(() => historyRows(page).count(), { message: 'a new history row (or the second click hit Huỷ)' }).toBeGreaterThan(rowsBefore);
         await nextFrames(page);
         expect.soft(flow.downloads.length - mark, 'downloads from one double click').toBe(1);
         await expect.soft(historyRows(page)).toHaveCount(rowsBefore + 1);
@@ -569,8 +578,9 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
 
       await test.step('[30-E-012] ⚑ completion is announced', async () => {
         // UEP:439-450 / EPC:32-42: the announcer / toast were removed — only a silent table row and the browser download UI.
-        const live = page.locator('[aria-live="polite"], [role="status"], [data-announcer]').filter({ hasText: /xuất/iu });
-        await expect.soft(live, 'a polite live region says the file is ready').not.toHaveCount(0);
+        const lastName = flow.downloads[flow.downloads.length - 1] ?? '';
+        const live = page.locator('[aria-live="polite"], [role="status"], [data-announcer]').filter({ hasText: lastName });
+        await expect.soft(live, 'a polite live region names the file just exported').not.toHaveCount(0);
         await shot(page, '30-E-012', 'announcement');
       });
 
@@ -725,12 +735,16 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
 
       await test.step('[30-C-015] ⚑ .json honours "Phạm vi"', async () => {
         await selectFormat(page, '.json');
-        await setBox(scopeBox(page, 'Tầng 2'), false);
-        const download = await downloadVia(page, () => exportButton(page).click());
-        const saved = await saveDownload(download, (n) => testInfo.outputPath(n), 'scope-');
-        const levels = arrayOf(readJsonFile(saved).data.levels).map((level) => level.name);
-        // UEP:663-665 / EPG:874-889 export the WHOLE graph while the scope card still shows for .json.
-        expect.soft(levels, 'levels listed in the file').toEqual(['Tầng 1']);
+        // A valid fix may also hide the scope block for .json (catalog C3:107): then there is nothing to uncheck.
+        const scopeShown = (await scopeBox(page, 'Tầng 2').count()) > 0;
+        if (scopeShown) {
+          await setBox(scopeBox(page, 'Tầng 2'), false);
+          const download = await downloadVia(page, () => exportButton(page).click());
+          const saved = await saveDownload(download, (n) => testInfo.outputPath(n), 'scope-');
+          const levels = arrayOf(readJsonFile(saved).data.levels).map((level) => level.name);
+          // UEP:663-665 / EPG:874-889 export the WHOLE graph while the scope card still shows for .json.
+          expect.soft(levels, 'levels listed in the file').toEqual(['Tầng 1']);
+        }
         await shot(page, '30-C-015', 'json_scope');
       });
 
@@ -777,16 +791,15 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
         await selectFormat(page, '.glb');
         const mark = flow.files.length;
         await exportButton(page).click();
-        const banner = page.getByRole('button', { name: EP.errorRetry, exact: true });
-        await expect
-          .poll(async () => flow.files.length > mark || (await banner.isVisible()), { message: '.glb on an empty floor: a download or the error banner', timeout: 30_000 })
-          .toBe(true);
+        // glb.worker.ts:352-420: an empty floor builds 0 parts and still encodes, so the outcome must be one valid file.
+        await expect.configure({ soft: true }).poll(() => flow.files.length, { message: '.glb on an empty floor ends in a download', timeout: 30_000 }).toBeGreaterThan(mark);
         await expect.soft(page.getByRole('progressbar')).toHaveCount(0);
+        await expect.soft(page.getByRole('button', { name: EP.errorRetry, exact: true }), 'no error banner').toHaveCount(0);
         const file = flow.files[flow.files.length - 1];
         if (flow.files.length > mark && file !== undefined) {
           expect.soft(readGlb(await saveDownload(file, (n) => testInfo.outputPath(n), 'empty-')).magic, 'a valid glTF').toBe('glTF');
         }
-        await shot(page, '30-B-033', 'no_layer_glb', flow.files.length > mark ? 'outcome: download' : 'outcome: error banner');
+        await shot(page, '30-B-033', 'no_layer_glb');
       });
     });
   });
@@ -896,6 +909,8 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
         const engineer = await poolUser(admin, 'engineer', 'p06-export-e');
         const outsider = await poolUser(admin, 'engineer', 'p06-export-n');
         const demotable = await poolUser(admin, 'engineer', 'p06-export-demote');
+        // A previous run may have left the slot demoted: start from engineer.
+        expect((await admin.patch(`/api/users/${demotable.id}/role`, { data: { userId: demotable.id, role: 'engineer' } })).status(), 'setup: PATCH role to engineer').toBe(200);
         await addProjectMember(admin, project.id, engineer.email);
         await addProjectMember(admin, project.id, demotable.email);
 
@@ -955,7 +970,11 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
           await shot(page, '30-D-006', 'anonymous');
         });
       } finally {
-        if (demotedId !== null) await admin.patch(`/api/users/${demotedId}/role`, { data: { userId: demotedId, role: 'engineer' } }); // restore the pool slot
+        if (demotedId !== null) {
+          const restored = await admin.patch(`/api/users/${demotedId}/role`, { data: { userId: demotedId, role: 'engineer' } }); // restore the pool slot
+          expect.soft(restored.status(), 'restore: PATCH role to engineer').toBe(200);
+          if (restored.status() !== 200) test.info().annotations.push({ type: 'cleanup', description: `pool user ${demotedId} left as viewer` });
+        }
         for (const item of opened) await item.close().catch(() => undefined);
         await admin.dispose();
       }
