@@ -233,11 +233,14 @@ function PascalViewerBody({
      dựng nó trong một hiệu ứng, nên nó về qua state sau một nhịp —
      `usePascalEdits` chịu được `null` và chỉ bỏ qua lượt ghi đến trước mốc ấy. */
   const [loadedScene, setLoadedScene] = useState<PascalScene | null>(null);
-  const { onSceneCommit, validateCommit } = usePascalEdits({
+  const { onSceneCommit, validateCommit, history } = usePascalEdits({
     spatial,
     loadedScene,
     readOnly: isReadOnly,
     onRejected,
+    /* Bước trên bảng lịch sử mang người đang đăng nhập — bảng đọc "tôi" từ cùng
+       phiên, nên bước của mình hiện là "Bạn" chứ không là một người lạ. */
+    ...(session.user?.id === undefined ? {} : { actorId: session.user.id }),
   });
 
   /* #25 "Lưu làm khuôn mẫu": cùng lời gọi `propertyTemplates.create` màn cũ dùng.
@@ -287,13 +290,13 @@ function PascalViewerBody({
           <Suspense fallback={<p className="p-3 text-sm text-text-muted">Đang mở bảng…</p>}>
             {/* Vỏ `panel` cố định: vùng bảng của `PascalViewer` tự làm tấm trượt dưới
                 `lg`, nên vỏ `sheet` riêng của bảng sẽ thoát khỏi vùng ấy (23H-F-002). */}
-            <LazyHistoryPanel layout="panel" />
+            <LazyHistoryPanel history={history} layout="panel" />
           </Suspense>
         ),
       },
       ...(extraPanels ?? []),
     ],
-    [extraPanels],
+    [extraPanels, history],
   );
 
   /* A12/#46 — Esc đóng lớp trên cùng, và khi một bảng phụ đang mở thì bảng ấy
