@@ -23,7 +23,7 @@ import { randomUUID } from 'node:crypto';
 import { expect, type APIRequestContext, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import sharp from 'sharp';
 
-import { dismissTour, TOUR_APPEAR_TIMEOUT_MS } from '../../../../e2e/fixtures/tour';
+import { dismissTour } from '../../../../e2e/fixtures/tour';
 import { watchApi, type ApiEntry } from '../../../../e2e/fullstack/apiWatch';
 import { readBaseUrl } from '../../../../e2e/fullstack/env';
 import { signedInApi } from '../api';
@@ -107,7 +107,9 @@ export const PASCAL = {
   shortcutsDialog: 'Phím tắt', // primitivesAndSidebar.ts:168
   snapping: (mode: string): string => `Bắt điểm: ${mode}`, // CH snapping
   gridStep: (value: string): string => `Lưới: ${value} m`, // CH gridStep (toFixedVi 2)
-  englishChrome: ['Select', 'Zone', 'Delete', 'Orbit Left', 'Orbit Right', 'Top View', 'Site', 'Settings', 'Expand panel'],
+  englishChrome: ['Select', 'Zone', 'Delete', 'Orbit Left', 'Orbit Right', 'Top View', 'Site', 'Settings', 'Expand panel', 'Collapse panel'],
+  /** panel-wrapper.tsx:369 inspector extension buttons `Open <title>` / `Close <title>`. */
+  englishChromePattern: /^(Open|Close) /u,
 } as const;
 
 export const PRESENCE = {
@@ -325,7 +327,7 @@ export async function summaryOf(page: Page): Promise<Record<string, string>> {
  */
 export async function openPascal(page: Page, url: string, { rendered = true }: { readonly rendered?: boolean } = {}): Promise<void> {
   await page.goto(url);
-  await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
+  await dismissTour(page); // /3d mounts no tour (EditorTourContainer only on ExportPanel / WallLayerReview / ViewerShell): count once, no wait
   if (rendered) await expect(caption(page)).toHaveText(PV.success, { timeout: PASCAL_RENDER_TIMEOUT_MS });
 }
 

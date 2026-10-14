@@ -28,7 +28,7 @@
 import { expect, test, type APIRequestContext, type Browser, type Page } from '@playwright/test';
 
 import { loginUrl, pathOf, ROUTES } from '../../e2e/fixtures/routes';
-import { dismissTour, TOUR_APPEAR_TIMEOUT_MS } from '../../e2e/fixtures/tour';
+import { dismissTour } from '../../e2e/fixtures/tour';
 import { waitForApi } from '../../e2e/fullstack/apiWatch';
 import { captureEvidence } from './support/evidence';
 import { createQcProject, qcLayer, writeLayer } from './support/layerSeed';
@@ -206,8 +206,10 @@ test.describe('SCR-23 Pascal viewer — real flows', () => {
 
       await test.step('[23-A-004] ⚑ a way back to the project / dashboard exists (BUG-487)', async () => {
         // PVT:151-155 "để rỗng/lỗi/cờ tắt không thành ngõ cụt"; source has no onLeave, no breadcrumb (PVC:396-404).
-        const out = page.getByRole('link', { name: /dự án|trang chủ|quay lại/iu }).or(page.getByRole('button', { name: /dự án|quay lại|về /iu }));
-        await expect.soft(out.first(), 'a link/button out of /3d').toBeVisible();
+        // Frame header only (outside `.pascal-root`): Pascal's Settings panel has "Sao chép ID dự án" / "Quay lại", not a way out.
+        const appFront = frame(page).locator(':scope > div').first();
+        const out = appFront.getByRole('link', { name: /dự án|trang chủ|quay lại/iu }).or(appFront.getByRole('button', { name: /dự án|quay lại|về /iu }));
+        await expect.soft(out.first(), 'a link/button out of /3d in the frame header').toBeVisible();
         await captureEvidence(page, 'E05_23-A-004_no-way-out.png');
       });
 
@@ -460,8 +462,10 @@ test.describe('SCR-23 Pascal viewer — real flows', () => {
 
       await test.step('[23-A-020] two renames inside 1 s → one PUT carrying the last name', async () => {
         const before = puts.length;
-        await renameRoom(page, 'Bếp A', 'Bếp B');
+        const firstAt = await renameRoom(page, 'Bếp A', 'Bếp B');
         const lastAt = await renameRoom(page, 'Bếp B', 'Bếp C');
+        // Plan premise "two renames inside 1 s": hard, so a slow machine fails the setup, not the oracle.
+        expect(lastAt - firstAt, 'premise: both Enters inside the 1 s Pascal debounce').toBeLessThan(1_000);
         const put = await nextPut(puts, before, 'PUT after two quick renames');
         await settleUntil(page, Math.max(lastAt, put.at)); // a second PUT would leave inside this window
         expect.soft(puts.length - before, 'one PUT for both renames (UAV:317, UAS:403-430)').toBe(1);
@@ -472,13 +476,16 @@ test.describe('SCR-23 Pascal viewer — real flows', () => {
       await test.step('[23-A-021] Ctrl+S flushes: PUT within 800 ms once dirty', async () => {
         await expect(saveLine(page)).toHaveText(SAVE.saved, { timeout: 15_000 });
         const before = puts.length;
-        await renameRoom(page, 'Bếp C', 'Bếp D');
+        const enterAt = await renameRoom(page, 'Bếp C', 'Bếp D');
         await expect.soft(saveLine(page)).toHaveText(DIRTY, { timeout: 5_000 }); // the store holds the Pascal commit
         await blurAll(page);
         const flushAt = Date.now();
         await page.keyboard.press('Control+s'); // RT:236-238 flushAutosaves
         const put = await nextPut(puts, before, 'PUT after Ctrl+S');
+        // The flushed PUT leaves after Ctrl+S and clearly before the unflushed autosave (Enter + 1,8 s) would.
+        expect.soft(put.at, 'PUT sent after Ctrl+S').toBeGreaterThanOrEqual(flushAt);
         expect.soft(put.at - flushAt).toBeLessThan(800);
+        expect.soft(put.at - enterAt, 'ahead of the 1 000 + 800 ms autosave window').toBeLessThan(SAVE_WINDOW_MS - 300);
         await captureEvidence(page, 'E05_23-A-021_ctrl-s.png', { caption: `t(PUT) − t(Ctrl+S) = ${String(put.at - flushAt)} ms` });
       });
 
@@ -498,6 +505,7 @@ test.describe('SCR-23 Pascal viewer — real flows', () => {
         await expect.soft(roomButton(page, 'Bếp C')).toBeVisible();
         const put = await nextPut(puts, before, 'PUT after Ctrl+Z');
         expect.soft(roomNamesOf(put)).toContain('Bếp C');
+        await expect.soft(toast(page, TOAST.undo), 'still ONE toast after the PUT (no second undo, RT:222-224)').toHaveCount(1);
         expect.soft(await trail(), 'editor never reloaded (UPV:476-484)').not.toContain(PV.loading);
         await captureEvidence(page, 'E05_23-A-022_undo-one-step.png');
       });
@@ -586,7 +594,11 @@ test.describe('SCR-23 Pascal viewer — real flows', () => {
 
       await test.step('[23-E-012] ⚑ inspector close button has an accessible name', async () => {
         // panel-wrapper.tsx:342-390 has no aria-label.
-        await expect.soft(pascalRoot(page).getByRole('button', { name: /^Đóng/u }).first()).toBeVisible();
+        // The inspector header is the row holding its h2 (panel-wrapper.tsx:309-342); onClose is its last button (:400-406).
+        const header = pascalRoot(page).locator('div.justify-between').filter({ has: page.locator(':scope > div > h2') }).first();
+        const close = header.locator(':scope > div:last-child > button').last();
+        await expect(close).toBeVisible();
+        await expect.soft(close).toHaveAccessibleName(/\S/u);
         await captureEvidence(page, 'E05_23-E-012_inspector-close-name.png');
       });
 
@@ -601,6 +613,8 @@ test.describe('SCR-23 Pascal viewer — real flows', () => {
           const hits = (await pascalRoot(page).getByText(label, { exact: true }).count()) + (await pascalRoot(page).getByRole('button', { name: label, exact: true }).count());
           if (hits > 0) found.push(label);
         }
+        const openClose = pascalRoot(page).getByRole('button', { name: PASCAL.englishChromePattern });
+        found.push(...(await openClose.evaluateAll((els) => els.map((el) => el.getAttribute('aria-label') ?? ''))));
         expect.soft(found, 'control-modes.tsx:30-46, icon-rail.tsx:33,39, panel-wrapper.tsx:390').toEqual([]);
         await captureEvidence(page, 'E05_23-E-013_english-chrome.png', { caption: `English labels found: ${found.join(', ') || 'none'}` });
       });
@@ -723,7 +737,7 @@ test.describe('SCR-23 Pascal viewer — real flows', () => {
         await page.keyboard.press('Control');
         await expect.soft(chip(PASCAL.gridStep('0,25'))).toBeVisible();
         await page.reload();
-        await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
+        await dismissTour(page);
         await expect(caption(page)).toHaveText(PV.success, { timeout: PASCAL_RENDER_TIMEOUT_MS });
         await armWall();
         await expect.soft(chip(PASCAL.gridStep('0,25'))).toBeVisible(); // use-editor.tsx:592 persisted
@@ -838,7 +852,7 @@ test.describe('SCR-23 Pascal viewer — real flows', () => {
 
       await test.step('[23-A-033] in-app switch to Q1 /3d → Q1 summary, room "Bếp", nothing of QX:furn', async () => {
         await spaGo(page, ROUTES.project.viewer(q1.projectId));
-        await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
+        await dismissTour(page);
         await expect.soft(caption(page)).toHaveText(PV.success, { timeout: PASCAL_RENDER_TIMEOUT_MS });
         expect.soft(await summaryOf(page)).toEqual(Q1_SUMMARY); // UPV:465-470, PS:426-428
         await ensureRoomPanel(page, 'Bếp');
@@ -900,6 +914,12 @@ test.describe('SCR-23 Pascal viewer — real flows', () => {
         // PF:191-192 "Vai chỉ xem vẫn đo được"; source: ToolManager not mounted when read-only (VE:870).
         await openPascal(page, `${ROUTES.project.viewer(q1.projectId)}?tool=measure`);
         await expect.soft(measureButton(page).first()).toHaveAttribute('aria-pressed', 'true');
+        const box = await canvasBox(page).boundingBox();
+        if (box === null) throw new Error('pascal-canvas has no box');
+        await page.mouse.click(box.x + box.width * 0.35, box.y + box.height * 0.75);
+        await page.mouse.click(box.x + box.width * 0.6, box.y + box.height * 0.75);
+        // UNKNOWN — NEED VERIFICATION: measurement label DOM, same assumption as [23-A-030].
+        await expect.soft(pascalRoot(page).getByText(/^\d+(,\d+)?\s?m$/u).first(), 'label after two ground clicks').toBeVisible();
         await captureEvidence(page, 'E05_23-D-007_viewer-measure.png');
       });
 
@@ -1034,7 +1054,8 @@ test.describe('SCR-24 exploded redirect — real flows', () => {
     test.setTimeout(budget(80));
     await withFlow(browser, async (f) => {
       const q2 = await createQcProject(layerApi(f.admin), 'v-24-01', ['Tầng 1', 'Tầng 2'], 2);
-      const projectId = q2[0]?.projectId ?? '';
+      const projectId = q2[0]?.projectId;
+      if (projectId === undefined) throw new Error('setup: createQcProject (Q2) returned no floor');
       f.own(projectId);
       const { page } = await f.open('admin');
       const viewer = ROUTES.project.viewer(projectId);
@@ -1075,7 +1096,7 @@ test.describe('SCR-24 exploded redirect — real flows', () => {
 
       await test.step('[24-A-007] reload keeps ?view=exploded and the mode', async () => {
         await page.reload();
-        await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
+        await dismissTour(page);
         await expect.soft(caption(page)).toHaveText(PV.success, { timeout: PASCAL_RENDER_TIMEOUT_MS });
         expect.soft(pathOf(page.url())).toBe(`${viewer}?view=exploded`); // PVC:167-168
         expect.soft(await levelModeOf(page)).toBe('exploded');
@@ -1102,6 +1123,10 @@ test.describe('SCR-24 exploded redirect — real flows', () => {
       await test.step('[24-A-006] ⚑ after leaving exploded, /3d opens stacked', async () => {
         // PF:219-223 never resets levelMode; it persists in localStorage, so every later /3d opens exploded.
         expect.soft(await levelModeOf(page)).not.toBe('exploded');
+        const now = await canvasOnlyPng(page);
+        const toStacked = await pixelDiffRatio(stacked, now);
+        const explodedGap = await pixelDiffRatio(stacked, exploded);
+        expect.soft(toStacked, `closer to stacked than the exploded shot is (${(explodedGap * 100).toFixed(1)} %)`).toBeLessThan(explodedGap);
         await captureEvidence(page, 'E05_24-A-006_stays-exploded.png');
       });
 
@@ -1116,7 +1141,11 @@ test.describe('SCR-24 exploded redirect — real flows', () => {
 
       await test.step('[24-A-003] ⚑ /3d/exploded?tool=measure#x keeps query and hash', async () => {
         await page.goto(`${viewer}/exploded?tool=measure#x`); // VR:33 drops both (VR:14-22 keeps them for /3d/pascal)
-        await softly.poll(() => pathOf(page.url())).toBe(`${viewer}?view=exploded&tool=measure#x`);
+        const parts = (): { path: string; hash: string; query: string[] } => {
+          const url = new URL(page.url());
+          return { path: url.pathname, hash: url.hash, query: [...url.searchParams.entries()].map(([k, val]) => `${k}=${val}`).sort() };
+        };
+        await softly.poll(parts).toEqual({ path: viewer, hash: '#x', query: ['tool=measure', 'view=exploded'] });
         await captureEvidence(page, 'E05_24-A-003_query-hash-dropped.png');
       });
     });
