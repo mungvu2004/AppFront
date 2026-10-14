@@ -68,7 +68,7 @@ test.describe('P08 SCR-34 library mocked edge', () => {
         state.gate = g.promise;
         await reload('hold');
         await expect(page.locator('[aria-busy="true"]').first()).toBeVisible(); // ML:61-83
-        await captureEvidence(page, 'E08_34L-B-001_loading');
+        await captureEvidence(page, 'E08_34L-B-001_loading.png');
         g.resolve();
         await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
       });
@@ -76,13 +76,13 @@ test.describe('P08 SCR-34 library mocked edge', () => {
         await reload('empty');
         await expect.soft(page.getByText('Chưa có model nào', { exact: true })).toBeVisible(); // ML:39-40,85-91
         await expect.soft(page.getByText('Thư viện chưa có model nào.', { exact: true })).toBeVisible();
-        await captureEvidence(page, 'E08_34L-B-002_empty');
+        await captureEvidence(page, 'E08_34L-B-002_empty.png');
       });
       await test.step('[34L-B-003] List 500: alert in place of the screen body', async () => {
         await reload('500');
         await expect.soft(alertOf(page)).toBeVisible(); // ML:93-99
         await expect.soft(page.getByRole('alert')).toBeVisible();
-        await captureEvidence(page, 'E08_34L-B-003_500');
+        await captureEvidence(page, 'E08_34L-B-003_500.png');
       });
       await test.step('[34L-B-004] ⚑ Read error offers a retry that refetches the list', async () => {
         const retryBtn = page.getByRole('button', { name: 'Thử lại', exact: true });
@@ -93,18 +93,18 @@ test.describe('P08 SCR-34 library mocked edge', () => {
           await retryBtn.click();
           expect.soft((await again).status(), 'retry refetches GET /api/library').toBe(200);
         }
-        await captureEvidence(page, 'E08_34L-B-004_retry');
+        await captureEvidence(page, 'E08_34L-B-004_retry.png');
       });
       await test.step('[34L-B-005] List network failure (aborted): alert, no toolbar', async () => {
         await reload('abort');
         await expect.soft(alertOf(page)).toBeVisible();
         await expect.soft(page.getByLabel('tìm model', { exact: true })).toHaveCount(0);
-        await captureEvidence(page, 'E08_34L-B-005_abort');
+        await captureEvidence(page, 'E08_34L-B-005_abort.png');
       });
       await test.step('[34L-B-006] Wrong shape fails FE decode: read error, not a crash', async () => {
         await reload('bad');
         await expect.soft(alertOf(page)).toBeVisible(); // client.ts:1086-1088 decodeList
-        await captureEvidence(page, 'E08_34L-B-006_badshape');
+        await captureEvidence(page, 'E08_34L-B-006_badshape.png');
       });
       const eUser = await poolUser(admin, 'engineer', 'p08-eng');
       await signInPoolUser(eng, eUser);
@@ -116,24 +116,24 @@ test.describe('P08 SCR-34 library mocked edge', () => {
         eState.mode = 'hold';
         await ePage.goto(ROUTES.library);
         await expect.soft(ePage.locator('[aria-busy="true"]').first()).toBeVisible(); // ML:61
-        await captureEvidence(ePage, 'E08_34L-B-031_engineer_loading');
+        await captureEvidence(ePage, 'E08_34L-B-031_engineer_loading.png');
         g.resolve();
       });
       await test.step('[34L-B-032] ⚑ Engineer, list read fails: error alert is shown', async () => {
         eState.mode = '500';
         await ePage.goto(ROUTES.library);
         await expect.soft(alertOf(ePage)).toBeVisible(); // UML:505-510 returns forbidden first
-        await captureEvidence(ePage, 'E08_34L-B-032_engineer_500');
+        await captureEvidence(ePage, 'E08_34L-B-032_engineer_500.png');
       });
       await test.step('[34L-G-004] List 403: read-error alert', async () => {
         await reload('403');
         await expect.soft(alertOf(page)).toBeVisible();
-        await captureEvidence(page, 'E08_34L-G-004_403');
+        await captureEvidence(page, 'E08_34L-G-004_403.png');
       });
       await test.step('[34L-G-005] List 429: read-error alert', async () => {
         await reload('429');
         await expect.soft(alertOf(page)).toBeVisible();
-        await captureEvidence(page, 'E08_34L-G-005_429');
+        await captureEvidence(page, 'E08_34L-G-005_429.png');
       });
       state.mode = 'real';
       await page.goto(ROUTES.library);
@@ -177,34 +177,34 @@ test.describe('P08 SCR-34 library mocked edge', () => {
     await test.step('[34L-B-014] Row without previewUrl: placeholder + retry button', async () => {
       await expect(row('QA preview-less model')).toBeVisible();
       await expect(retryBtn).toBeVisible(); // MLB:40,66-76
-      await captureEvidence(page, 'E08_34L-B-014_nopreview');
+      await captureEvidence(page, 'E08_34L-B-014_nopreview.png');
     });
     await test.step('[34L-B-015] Item over the triangle cap: "Nặng" badge in the row', async () => {
       await expect.soft(row('QA heavy model 900001').getByText('Nặng', { exact: true })).toBeVisible(); // MLB:244-248
       await expect.soft(row('QA heavy model 900000').getByText('Nặng', { exact: true })).toHaveCount(0);
-      await captureEvidence(page, 'E08_34L-B-015_heavy_badge');
+      await captureEvidence(page, 'E08_34L-B-015_heavy_badge.png');
     });
     await test.step('[34L-B-016] Heavy count figure is attention-coloured', async () => {
       await expect.soft(page.locator('[class*="text-state-attention-text"]').filter({ hasText: /\d/u }).first()).toBeVisible(); // MLS:42
-      await captureEvidence(page, 'E08_34L-B-016_heavy_figure');
+      await captureEvidence(page, 'E08_34L-B-016_heavy_figure.png');
     });
     await test.step('[34L-B-017] Detail of a heavy model: "Cảnh báo model nặng"', async () => {
       await row('QA heavy model 900001').getByRole('button').filter({ hasText: /\S/u }).first().click();
       const aside = page.locator('aside[aria-label="Chi tiết model"]');
       await expect.soft(aside.getByText('Cảnh báo model nặng', { exact: false })).toBeVisible(); // MLD:257-266
       await expect.soft(aside.getByText('Nặng', { exact: true }).first()).toBeVisible();
-      await captureEvidence(page, 'E08_34L-B-017_heavy_detail');
+      await captureEvidence(page, 'E08_34L-B-017_heavy_detail.png');
       await page.keyboard.press('Escape');
     });
     await test.step('[34L-C-009] Heavy count = rows over 900.000 triangles', async () => {
       const heavy = crafted.filter((c) => Number(c.triangleCount) > 900000).length;
       await expect.soft(page.getByText(String(heavy), { exact: true }).first()).toBeVisible(); // budget.ts:92-95
-      await captureEvidence(page, 'E08_34L-C-009_heavy_count');
+      await captureEvidence(page, 'E08_34L-C-009_heavy_count.png');
     });
     await test.step('[34L-E-011] Retry button has a per-row name; thumbnails decorative', async () => {
       await expect.soft(retryBtn).toHaveAttribute('aria-label', 'Thử tải lại ảnh xem trước của QA preview-less model'); // MLB:40,58,68
       await expect.soft(page.locator('table img').first()).toHaveAttribute('alt', '');
-      await captureEvidence(page, 'E08_34L-E-011_labels');
+      await captureEvidence(page, 'E08_34L-E-011_labels.png');
     });
     await test.step('[34L-G-009] Retry-preview click refetches list and detail', async () => {
       const l0 = listGets;
@@ -212,12 +212,12 @@ test.describe('P08 SCR-34 library mocked edge', () => {
       await retryBtn.click();
       await expect.poll(() => listGets - l0, { message: 'GET /api/library again' }).toBeGreaterThanOrEqual(1);
       await expect.poll(() => detailGets - d0, { message: 'GET /api/library/:id' }).toBeGreaterThanOrEqual(1); // UML:564-569
-      await captureEvidence(page, 'E08_34L-G-009_retry_refetch');
+      await captureEvidence(page, 'E08_34L-G-009_retry_refetch.png');
     });
     await test.step('[34L-G-010] Item without preview_url decodes to a placeholder row', async () => {
       await expect.soft(row('QA preview-less model')).toBeVisible();
       await expect.soft(page.getByRole('alert')).toHaveCount(0);
-      await captureEvidence(page, 'E08_34L-G-010_partial');
+      await captureEvidence(page, 'E08_34L-G-010_partial.png');
     });
   });
 
@@ -249,7 +249,7 @@ test.describe('P08 SCR-34 library mocked edge', () => {
       await first.click();
       await expect(aside).toBeVisible();
       await expect(retry).toBeVisible(); // MLD:118-142
-      await captureEvidence(page, 'E08_34L-B-025_glb_failed');
+      await captureEvidence(page, 'E08_34L-B-025_glb_failed.png');
     });
     await test.step('[34L-B-026] "Thử lại" reopens the same model and the preview loads', async () => {
       await page.unroute(GLB);
@@ -257,7 +257,7 @@ test.describe('P08 SCR-34 library mocked edge', () => {
       await expect.soft(retry).toHaveCount(0);
       await expect.soft(aside.locator('canvas')).toBeVisible();
       await expect.soft(aside.getByRole('button', { name: 'Đo lại từ tệp' })).toBeVisible(); // MLD:134
-      await captureEvidence(page, 'E08_34L-B-026_retry_ok');
+      await captureEvidence(page, 'E08_34L-B-026_retry_ok.png');
       await close.click();
     });
     await test.step('[34L-B-027] Detail panel shows the list item while GET :id is pending', async () => {
@@ -265,7 +265,7 @@ test.describe('P08 SCR-34 library mocked edge', () => {
       await detail('hold', g.promise);
       await first.click();
       await expect.soft(h2).toBeVisible(); // UML:422-428
-      await captureEvidence(page, 'E08_34L-B-027_pending');
+      await captureEvidence(page, 'E08_34L-B-027_pending.png');
       g.resolve();
       await page.unroute(DETAIL_RE);
       await close.click();
@@ -279,10 +279,10 @@ test.describe('P08 SCR-34 library mocked edge', () => {
       await close.click();
     };
     await test.step('[34L-G-006] Detail 404: panel keeps the list data', async () => {
-      await keepsListData('404', 'E08_34L-G-006_detail_404');
+      await keepsListData('404', 'E08_34L-G-006_detail_404.png');
     });
     await test.step('[34L-G-007] Detail 500: same fallback', async () => {
-      await keepsListData('500', 'E08_34L-G-007_detail_500');
+      await keepsListData('500', 'E08_34L-G-007_detail_500.png');
     });
     await test.step('[34L-G-008] Closing the detail while GET :id is in flight aborts it', async () => {
       const g = deferred();
@@ -293,7 +293,7 @@ test.describe('P08 SCR-34 library mocked edge', () => {
       await close.click(); // UML:344-354 signal
       await expect.soft(aborted, 'the in-flight GET :id was cancelled').resolves.toBeTruthy();
       await expect.soft(aside).toHaveCount(0);
-      await captureEvidence(page, 'E08_34L-G-008_inflight_close');
+      await captureEvidence(page, 'E08_34L-G-008_inflight_close.png');
       g.resolve();
       await page.unroute(DETAIL_RE);
     });

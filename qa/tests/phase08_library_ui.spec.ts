@@ -68,7 +68,7 @@ test('SCR-34 · FL-34L-U1 · UI verify real states (default, no match, category 
     await expect(aside).toBeVisible();
     await expect.soft(aside.getByText('Dung lượng', { exact: true }), '"dung lượng" capital').toBeVisible();
     await expect.soft(aside.getByText('Nhóm', { exact: true }), '"nhóm" capital').toBeVisible();
-    await captureEvidence(page, 'U08_34L-C-017_copy_case');
+    await captureEvidence(page, 'U08_34L-C-017_copy_case.png');
   });
 
   await test.step('[34L-F-001] default list at 4 viewports', async () => {

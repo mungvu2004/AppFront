@@ -132,7 +132,7 @@ test.describe('SCR-35 Training Jobs · mocked edge (second half)', () => {
       await expect.poll(() => metricsOf(wall).length).toBeGreaterThan(metricsBefore);
       await expect(section(page, 'Số đo').getByText('Chưa có số đo.')).toBeVisible();
       for (const name of ['Bước', 'Vòng', 'Tập', 'Loss', 'IoU', 'Lúc']) await expect(section(page, 'Số đo').getByRole('columnheader', { name, exact: true })).toBeVisible();
-      await captureEvidence(page, '35T-B-020_metrics_empty');
+      await captureEvidence(page, '35T-B-020_metrics_empty.png');
       await pick(opening, OPENING, 2);
       await expect(section(page, 'Số đo').getByRole('columnheader', { name: 'mAP50', exact: true })).toBeVisible();
       await pick(wall, WALL, 3);
@@ -249,7 +249,7 @@ test.describe('SCR-35 Training Jobs · mocked edge (second half)', () => {
       mock.jobBody[bad.id] = { ...bad, baseModel: 'yolov8n' }; // TrainingJobSchema refine baseModelMatchesFamily
       await pick(bad, WALL, 5);
       await expect(page.getByText(T.readFallback).first()).toBeVisible();
-      await captureEvidence(page, '35T-G-007_bad_job_body');
+      await captureEvidence(page, '35T-G-007_bad_job_body.png');
       expect(mock.unexpected, 'no POST and no unknown route').toEqual([]);
     });
   });
@@ -280,7 +280,7 @@ test.describe('SCR-35 Training Jobs · mocked edge (second half)', () => {
       await open(a, WALL, 2);
       const confirm = await requestCancel();
       await expect(cancelDialog(page).getByText(CANCEL_BODY)).toBeVisible();
-      await captureEvidence(page, '35T-A-015_cancel_dialog');
+      await captureEvidence(page, '35T-A-015_cancel_dialog.png');
       await confirm.click();
       await expect(cancelDialog(page)).toBeHidden();
       expect(mock.posts('cancel')).toHaveLength(1);
@@ -374,7 +374,7 @@ test.describe('SCR-35 Training Jobs · mocked edge (second half)', () => {
       const row = rowBtn(page, WALL, 1, e.epochs);
       await row.click();
       await expect(drawer).toBeVisible();
-      await captureEvidence(page, '35T-E-009_drawer_768');
+      await captureEvidence(page, '35T-E-009_drawer_768.png');
       await page.keyboard.press('Escape');
       await expect(drawer).toBeHidden();
       await expect.soft(row).toBeFocused();
@@ -413,7 +413,7 @@ test.describe('SCR-35 Training Jobs · mocked edge (second half)', () => {
       await expect(rowBtn(page, WALL, 0, 50)).toHaveAttribute('aria-pressed', 'true');
       await expect(toast(page, 'Đã xếp hàng lượt huấn luyện')).toBeVisible();
       await expect(toast(page, 'Lượt mới chạy khi máy huấn luyện rảnh.')).toBeVisible();
-      await captureEvidence(page, '35T-A-019_created');
+      await captureEvidence(page, '35T-A-019_created.png');
     });
 
     await test.step('[35T-G-003] wire: body {family,datasetVersionId,baseModel,epochs:50}, Idempotency-Key', async () => {
@@ -467,7 +467,7 @@ test.describe('SCR-35 Training Jobs · mocked edge (second half)', () => {
       await submit.click();
       await expect(submit).toBeEnabled({ timeout: 20_000 }); // abort is retried 3x by the http client (same key): wait for the end
       await expect.soft(createDialog(page).getByText(T.busy)).toBeVisible();
-      await captureEvidence(page, '35T-C-011_create_errors');
+      await captureEvidence(page, '35T-C-011_create_errors.png');
     });
 
     await test.step('[35T-C-012] same body after abort -> same key; changed epochs -> another key', async () => {
@@ -500,7 +500,7 @@ test.describe('SCR-35 Training Jobs · mocked edge (second half)', () => {
       await createDialog(page).getByRole('button', { name: SUBMIT, exact: true }).click();
       await expect(createDialog(page)).toBeHidden();
       await expect(page.getByText(FORBIDDEN, { exact: true })).toBeVisible();
-      await captureEvidence(page, '35T-C-013_forbidden');
+      await captureEvidence(page, '35T-C-013_forbidden.png');
       expect(mock.unexpected, 'no unknown route / undeclared POST').toEqual([]);
     });
   });
@@ -527,7 +527,7 @@ test.describe('SCR-35 Training Jobs · mocked edge (second half)', () => {
       await fail(wireError(422, 'DATASET_VERSION_NOT_READY'));
       await expect(dialog.getByText(T.versionNotReady)).toBeVisible();
       await expect.poll(() => mock.gets('versions').length, { message: 'versions re-read' }).toBeGreaterThan(before);
-      await captureEvidence(page, '35T-C-005_version_not_ready');
+      await captureEvidence(page, '35T-C-005_version_not_ready.png');
     });
 
     await test.step('[35T-C-006] 422 DATASET_FAMILY_MISMATCH', async () => {
@@ -565,7 +565,7 @@ test.describe('SCR-35 Training Jobs · mocked edge (second half)', () => {
     await test.step('[35T-E-010] field errors are announced with role="alert"', async () => {
       await fail(wireError(422, 'TRAINING_BASE_MODEL_MISMATCH'));
       await expect.soft(dialog.getByRole('alert').filter({ hasText: T.baseMismatch })).toBeVisible();
-      await captureEvidence(page, '35T-E-010_alert_roles');
+      await captureEvidence(page, '35T-E-010_alert_roles.png');
       expect(mock.unexpected, 'no unknown route / undeclared POST').toEqual([]);
     });
   });

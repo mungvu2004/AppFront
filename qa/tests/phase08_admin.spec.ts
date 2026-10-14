@@ -108,14 +108,14 @@ test('SCR-34 · FL-M-34L-01 · open, search, category, sort, grid, detail + Esc'
     await expect(rows.first(), 'environment: library has at least one model').toBeVisible();
     name = (await rows.first().locator('td').nth(1).innerText()).trim();
     group = (await rows.first().locator('td').nth(2).innerText()).trim();
-    await captureEvidence(page, 'E08_34L-A-001_main');
+    await captureEvidence(page, 'E08_34L-A-001_main.png');
   });
 
   await test.step('[34L-A-002] search narrows the rows', async () => {
     await search.fill(name);
     await expect.soft(rows.locator('td:nth-child(2)').getByRole('button', { name, exact: true })).toBeVisible();
     await expect.soft(search).toHaveAttribute('placeholder', 'Tìm theo tên model...');
-    await captureEvidence(page, 'E08_34L-A-002_main');
+    await captureEvidence(page, 'E08_34L-A-002_main.png');
     await search.fill('');
   });
 
@@ -125,7 +125,7 @@ test('SCR-34 · FL-M-34L-01 · open, search, category, sort, grid, detail + Esc'
     await expect
       .poll(async () => (await rows.locator('td:nth-child(3)').allInnerTexts()).every((t) => t.trim() === group), { message: `every row is in "${group}"` })
       .toBe(true);
-    await captureEvidence(page, 'E08_34L-A-003_main');
+    await captureEvidence(page, 'E08_34L-A-003_main.png');
     await pickOption(category, /^Tất cả \(\d+\)$/u);
   });
 
@@ -135,13 +135,13 @@ test('SCR-34 · FL-M-34L-01 · open, search, category, sort, grid, detail + Esc'
     await expect.soft(triangles).toHaveAttribute('aria-sort', 'ascending');
     await triangles.click();
     await expect.soft(triangles).toHaveAttribute('aria-sort', 'descending');
-    await captureEvidence(page, 'E08_34L-A-005_main');
+    await captureEvidence(page, 'E08_34L-A-005_main.png');
   });
 
   await test.step('[34L-A-006] "Lưới" replaces the table with the card grid', async () => {
     await page.getByRole('radiogroup', { name: 'Chế độ xem' }).getByRole('radio', { name: 'Lưới', exact: true }).click();
     await expect.soft(page.getByRole('list', { name: 'lưới model' })).toBeVisible();
-    await captureEvidence(page, 'E08_34L-A-006_main');
+    await captureEvidence(page, 'E08_34L-A-006_main.png');
   });
 
   const detail = page.locator('aside[aria-label="Chi tiết model"]');
@@ -149,13 +149,13 @@ test('SCR-34 · FL-M-34L-01 · open, search, category, sort, grid, detail + Esc'
     await page.getByRole('list', { name: 'lưới model' }).getByRole('listitem').first().click();
     await expect.soft(detail).toBeVisible();
     await expect.soft(detail.getByRole('heading', { level: 2 })).toBeVisible();
-    await captureEvidence(page, 'E08_34L-A-009_main');
+    await captureEvidence(page, 'E08_34L-A-009_main.png');
   });
 
   await test.step('[34L-A-010] Esc closes the detail panel', async () => {
     await page.keyboard.press('Escape');
     await expect.soft(detail).toHaveCount(0);
-    await captureEvidence(page, 'E08_34L-A-010_main');
+    await captureEvidence(page, 'E08_34L-A-010_main.png');
   });
 });
 
@@ -181,14 +181,14 @@ test('SCR-35 · FL-M-35T-01 · navigate, tabs, filters, open/close the form', as
     const nav = page.getByRole('navigation', { name: 'Đường dẫn trang' });
     await expect(nav.getByText('Quản trị', { exact: true })).toBeVisible();
     await expect(nav.getByText('Huấn luyện model', { exact: true })).toHaveAttribute('aria-current', 'page');
-    await captureEvidence(page, 'E08_35T-A-001_main');
+    await captureEvidence(page, 'E08_35T-A-001_main.png');
   });
 
   await test.step('[35T-D-001] admin sees tabs, filters and the create button', async () => {
     await expect.soft(jobsTab).toBeVisible();
     await expect.soft(datasetsTab).toBeVisible();
     await expect.soft(page.getByRole('button', { name: 'Tạo lượt huấn luyện', exact: true })).toBeVisible();
-    await captureEvidence(page, 'E08_35T-D-001_main');
+    await captureEvidence(page, 'E08_35T-D-001_main.png');
   });
 
   await test.step('[35T-A-003] tab "Bộ dữ liệu" then "Lượt huấn luyện"', async () => {
@@ -197,7 +197,7 @@ test('SCR-35 · FL-M-35T-01 · navigate, tabs, filters, open/close the form', as
     await expect.soft(datasetsTab).toHaveAttribute('aria-selected', 'true');
     await jobsTab.click();
     await expect.soft(jobsTab).toHaveAttribute('aria-selected', 'true');
-    await captureEvidence(page, 'E08_35T-A-003_main');
+    await captureEvidence(page, 'E08_35T-A-003_main.png');
   });
 
   await test.step('[35T-A-004] family filter "Tách lớp tường" sends ?family=wallSegmentation', async () => {
@@ -208,7 +208,7 @@ test('SCR-35 · FL-M-35T-01 · navigate, tabs, filters, open/close the form', as
     await page.getByRole('radiogroup', { name: 'Lọc theo họ' }).getByRole('radio', { name: 'Tách lớp tường', exact: true }).click();
     expect.soft((await read).response.status(), 'GET training-jobs?family=wallSegmentation').toBe(200);
     await expect.soft(emptyFiltered.or(page.locator('tbody tr').first())).toBeVisible();
-    await captureEvidence(page, 'E08_35T-A-004_main');
+    await captureEvidence(page, 'E08_35T-A-004_main.png');
   });
 
   await test.step('[35T-A-006] status filter "Đang huỷ" sends ?status=cancelling', async () => {
@@ -219,7 +219,7 @@ test('SCR-35 · FL-M-35T-01 · navigate, tabs, filters, open/close the form', as
     await pickOption(page.getByRole('combobox', { name: 'Lọc theo trạng thái', exact: true }), 'Đang huỷ');
     expect.soft((await read).response.status(), 'GET training-jobs?status=cancelling').toBe(200);
     await expect.soft(emptyFiltered.or(page.locator('tbody tr').first())).toBeVisible();
-    await captureEvidence(page, 'E08_35T-A-006_main');
+    await captureEvidence(page, 'E08_35T-A-006_main.png');
   });
 
   await test.step('[35T-A-009] "Tạo lượt huấn luyện" -> "Đóng": opens, closes, no POST', async () => {
@@ -232,7 +232,7 @@ test('SCR-35 · FL-M-35T-01 · navigate, tabs, filters, open/close the form', as
       await page.getByRole('button', { name: 'Tạo lượt huấn luyện', exact: true }).click();
       const dialog = page.getByRole('dialog', { name: 'Tạo lượt huấn luyện' });
       await expect.soft(dialog).toBeVisible();
-      await captureEvidence(page, 'E08_35T-A-009_main');
+      await captureEvidence(page, 'E08_35T-A-009_main.png');
       // "Đóng" exact: the header X is "Đóng hộp thoại". Never "Bắt đầu huấn luyện".
       await dialog.getByRole('button', { name: 'Đóng', exact: true }).click();
       await expect.soft(page.getByRole('dialog')).toHaveCount(0); // settled point before asserting "no POST"
@@ -310,32 +310,32 @@ test('SCR-36 · FL-M-36R-01 · Record, activate candidate, undo, mandatory resto
       const body = (await sent).postDataJSON() as { baseVersion: number; body: { versionId: string } };
       expect(body).toEqual({ baseVersion: family.revision, body: { versionId: candidate.id } });
       putBody = (await put).json as FamilyWire;
-      await captureEvidence(page, 'E08_36R-C-001_main');
+      await captureEvidence(page, 'E08_36R-C-001_main.png');
     });
 
     await test.step('[36R-A-011] PUT 200: candidate badge, no "Kích hoạt", card label = candidate', async () => {
       await expect.soft(versionRow(candidate.label)).toContainText(ACTIVE_BADGE);
       await expect.soft(versionRow(candidate.label).getByRole('button', { name: ACTIVATE_LABEL, exact: true })).toHaveCount(0);
       await expect.soft(activeCard()).toContainText(candidate.label);
-      await captureEvidence(page, 'E08_36R-A-011_main');
+      await captureEvidence(page, 'E08_36R-A-011_main.png');
     });
 
     await test.step('[36R-G-006] response: ModelFamily with activeVersionId = candidate, revision advanced', async () => {
       expect.soft(putBody.activeVersionId).toBe(candidate.id);
       expect.soft(putBody.revision).toBeGreaterThan(family.revision);
-      await captureEvidence(page, 'E08_36R-G-006_main');
+      await captureEvidence(page, 'E08_36R-G-006_main.png');
     });
 
     await test.step('[36R-A-012] dialog gone, focus on region "Đang dùng"', async () => {
       await expect.soft(page.getByRole('dialog')).toHaveCount(0);
       await expect.soft(activeCard()).toBeFocused();
-      await captureEvidence(page, 'E08_36R-A-012_main');
+      await captureEvidence(page, 'E08_36R-A-012_main.png');
     });
 
     await test.step('[36R-G-007] invalidation re-reads model-families and model-versions without reload', async () => {
       expect.soft((await refetch).response.status(), 'GET model-families re-read').toBe(200);
       await expect.soft(versionRow(candidate.label)).toContainText(ACTIVE_BADGE);
-      await captureEvidence(page, 'E08_36R-G-007_main');
+      await captureEvidence(page, 'E08_36R-G-007_main.png');
     });
 
     const toast = page.getByRole('status').filter({ hasText: 'Đã kích hoạt' });
@@ -343,12 +343,12 @@ test('SCR-36 · FL-M-36R-01 · Record, activate candidate, undo, mandatory resto
       await expect.soft(toast).toContainText('cho nhận diện cửa và đồ đạc');
       await expect.soft(toast).toContainText('Lượt xử lý mới dùng bản này ngay.');
       await expect.soft(toast.getByRole('button', { name: 'Hoàn tác' })).toBeVisible();
-      await captureEvidence(page, 'E08_36R-A-013_main');
+      await captureEvidence(page, 'E08_36R-A-013_main.png');
     });
 
     await test.step('[36R-E-011] toast sits inside role=status', async () => {
       await expect.soft(page.locator('[role="status"]', { hasText: 'Đã kích hoạt' })).toHaveCount(1);
-      await captureEvidence(page, 'E08_36R-E-011_main');
+      await captureEvidence(page, 'E08_36R-E-011_main.png');
     });
 
     await test.step('[36R-A-014] toast undo: PUT with the recorded id, "Đã hoàn tác lượt đổi model"', async () => {
@@ -358,7 +358,7 @@ test('SCR-36 · FL-M-36R-01 · Record, activate candidate, undo, mandatory resto
       expect.soft(body.activeVersionId ?? null).toBe(recordedId);
       await expect.soft(page.getByText('Đã hoàn tác lượt đổi model', { exact: true })).toBeVisible();
       await expect.soft(activeCard()).toContainText(original.label);
-      await captureEvidence(page, 'E08_36R-A-014_main');
+      await captureEvidence(page, 'E08_36R-A-014_main.png');
     });
   } finally {
     // Mandatory restore, even when a step failed after the PUT. Esc closes a dialog that would block the page (A12).
@@ -381,7 +381,7 @@ test('SCR-36 · FL-M-36R-01 · Record, activate candidate, undo, mandatory resto
     } finally {
       await check.dispose();
     }
-    await captureEvidence(page, 'E08_36R-A-015_main');
+    await captureEvidence(page, 'E08_36R-A-015_main.png');
   });
 });
 
@@ -407,20 +407,20 @@ test('SCR-37 · FL-M-37U-01 · Read list + detail + matrix (admin chain)', async
     await expect(page.getByRole('navigation', { name: 'Đường dẫn trang' }).getByText('Người dùng', { exact: true })).toBeVisible();
     await expect(page.locator('tbody tr').first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Xem ma trận quyền', exact: true })).toBeVisible();
-    await captureEvidence(page, 'E08_37U-A-001_main');
+    await captureEvidence(page, 'E08_37U-A-001_main.png');
   });
 
   await test.step('[37U-D-001] admin sees "Mời người dùng" and "Xem ma trận quyền"', async () => {
     await expect.soft(page.getByRole('button', { name: 'Mời người dùng', exact: true })).toBeVisible();
     await expect.soft(page.getByRole('button', { name: 'Xem ma trận quyền', exact: true })).toBeVisible();
-    await captureEvidence(page, 'E08_37U-D-001_main');
+    await captureEvidence(page, 'E08_37U-D-001_main.png');
   });
 
   await test.step('[37U-A-008] search the engineer by name: only its row', async () => {
     await search.fill(pe.name);
     await expect.soft(peRow).toHaveCount(1);
     await expect.soft(page.locator('tbody tr')).toHaveCount(1);
-    await captureEvidence(page, 'E08_37U-A-008_main');
+    await captureEvidence(page, 'E08_37U-A-008_main.png');
   });
 
   const role = page.getByRole('combobox', { name: 'Vai', exact: true });
@@ -430,7 +430,7 @@ test('SCR-37 · FL-M-37U-01 · Read list + detail + matrix (admin chain)', async
     await pickOption(role, 'Kỹ sư');
     await expect.soft(peRow).toHaveCount(1);
     await expect.soft(page.locator('tbody tr').filter({ hasText: readAdminCredentials().email })).toHaveCount(0);
-    await captureEvidence(page, 'E08_37U-A-011_main');
+    await captureEvidence(page, 'E08_37U-A-011_main.png');
   });
 
   await test.step('[37U-A-012] "Trạng thái" = "Đang hoạt động": only active rows', async () => {
@@ -438,19 +438,19 @@ test('SCR-37 · FL-M-37U-01 · Read list + detail + matrix (admin chain)', async
     await expect.soft(status).toContainText('Đang hoạt động');
     await expect.soft(peRow).toHaveCount(1);
     await expect.soft(page.locator('tbody tr').filter({ hasNotText: 'Đang hoạt động' })).toHaveCount(0);
-    await captureEvidence(page, 'E08_37U-A-012_main');
+    await captureEvidence(page, 'E08_37U-A-012_main.png');
   });
 
   await test.step('[37U-A-015] click the engineer name: "Chi tiết người dùng" panel', async () => {
     await peRow.locator('td').first().getByRole('button').click();
     await expect.soft(detail).toBeVisible();
-    await captureEvidence(page, 'E08_37U-A-015_main');
+    await captureEvidence(page, 'E08_37U-A-015_main.png');
   });
 
   await test.step('[37U-A-018] Esc closes the panel', async () => {
     await page.keyboard.press('Escape');
     await expect.soft(detail).toHaveCount(0);
-    await captureEvidence(page, 'E08_37U-A-018_main');
+    await captureEvidence(page, 'E08_37U-A-018_main.png');
   });
 
   await test.step('[37U-A-030] "Xem ma trận quyền" opens "Ma trận quyền theo vai trò"', async () => {
@@ -459,7 +459,7 @@ test('SCR-37 · FL-M-37U-01 · Read list + detail + matrix (admin chain)', async
     await page.getByRole('button', { name: 'Xem ma trận quyền', exact: true }).click();
     const matrix = page.getByRole('dialog', { name: 'Ma trận quyền theo vai trò' });
     await expect.soft(matrix).toBeVisible();
-    await captureEvidence(page, 'E08_37U-A-030_main');
+    await captureEvidence(page, 'E08_37U-A-030_main.png');
     await matrix.getByRole('button', { name: 'Đóng hộp thoại', exact: true }).click();
     await expect.soft(page.getByRole('dialog')).toHaveCount(0);
   });
@@ -475,12 +475,12 @@ test('SCR-37 · FL-M-37W-01 · Self-edit guard (main chain, read only)', async (
   await test.step('[37W-C-010] own row: no role select, blocked text', async () => {
     await expect(row).toContainText(SELF_ROLE_BLOCKED);
     await expect(row.getByRole('combobox')).toHaveCount(0);
-    await captureEvidence(page, 'E08_37W-C-010_main');
+    await captureEvidence(page, 'E08_37W-C-010_main.png');
   });
 
   await test.step('[37W-C-011] same row: no "Vô hiệu hoá", blocked text', async () => {
     await expect.soft(row).toContainText(SELF_DISABLE_BLOCKED);
     await expect.soft(row.getByRole('button', { name: 'Vô hiệu hoá', exact: true })).toHaveCount(0);
-    await captureEvidence(page, 'E08_37W-C-011_main');
+    await captureEvidence(page, 'E08_37W-C-011_main.png');
   });
 });

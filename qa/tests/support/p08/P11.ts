@@ -139,6 +139,6 @@ export async function patchRole(api: APIRequestContext, id: string, role: string
   expect(res.status(), `restore PATCH role ${role}`).toBe(200);
 }
 export async function enableApi(api: APIRequestContext, id: string): Promise<void> {
-  const res = await api.post(`${USERS}/${id}/enable`);
+  const res = await api.post(`${USERS}/${id}/enable`, { data: {} }); // EmptyBody required (users/router.py:104)
   expect(res.status(), 'restore POST enable').toBe(200);
 }

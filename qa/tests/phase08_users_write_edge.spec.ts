@@ -386,7 +386,7 @@ test.describe('E08 SCR-37 users write (edge)', () => {
       });
       await test.step('[37W-G-012] resend nguoi active -> 422', async () => {
         // UNKNOWN — NEED VERIFICATION: an active row has no resend control, so the 422 is taken by API (toast has no UI path).
-        const res = await x.e.api.post(`${INVITATIONS}/${pu10.id}/resend`);
+        const res = await x.e.api.post(`${INVITATIONS}/${pu10.id}/resend`, { data: {} }); // EmptyBody required (users/router.py:66)
         expect.soft(res.status()).toBe(422);
         expect.soft(JSON.stringify(await res.json())).toContain('USER_NOT_PENDING');
         await ev(page, '37W-G-012');

@@ -386,7 +386,8 @@ test.describe('SCR-35 training edge (real)', () => {
           await page.reload(); // certain mark after the first paint
           await expect(forbidden(page)).toBeVisible();
           // network mark: a later real round trip; any effect-fired query would have reached the listener before it
-          expect(await page.evaluate(() => fetch('/api/me').then((r) => r.status))).toBe(200);
+          // raw fetch carries no Bearer (src/lib/http/client.ts:32), so 401 is expected: only the completed round trip matters
+          expect([200, 401]).toContain(await page.evaluate(() => fetch('/api/me').then((r) => r.status)));
           expect.soft(reads.list(), 'no /api/admin/ml request for an engineer').toEqual([]);
           await captureEvidence(page, 'E08_35T-G-006_roles.png', { caption: 'engineer: 0 /api/admin/ml requests' });
         });
