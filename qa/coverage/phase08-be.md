@@ -1,6 +1,7 @@
 <!-- qa-sources fe=5fcaf502 be=dc510655 -->
 # Phase 08 - Backend coverage (ML admin, users, library)
 
+Deferred: `B08U-G-015` (PY-NEW `test_users_list_memberships_role_follows_role_change`, `catalog-late-be.txt`) is written at S6. A row with several pytest tests lists the first.
 Rows come from `F:/App/AppBack/backend/dieu-phoi/chay/QA-08/catalog-C6.md`, `catalog-C7.md` (B08*) and the user/library API rows of C4/C5. `api` rows: Playwright API specs `phase08_*_api.spec.ts`. `be` rows: AppBack pytest on branch `test/qa08-py`, id in the test docstring (`Catalog: <id>`).
 
 | row id | spec file | flow | layer |
