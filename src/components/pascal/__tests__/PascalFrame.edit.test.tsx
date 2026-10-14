@@ -135,6 +135,13 @@ describe('PascalFrame ở chế độ sửa', () => {
     expect(editorProps.current?.onCommitRejected).toBe(onCommitRejected);
   });
 
+  it('23-B-016 — máy không GPU ở chế độ sửa: editor báo lên màn để ra PASCAL-03', () => {
+    const onRendererUnavailable = vi.fn();
+    renderEdit({ onRendererUnavailable });
+
+    expect(editorProps.current?.onRendererUnavailable).toBe(onRendererUnavailable);
+  });
+
   it('không truyền phán quyết thì không dựng prop rỗng cho editor', () => {
     renderEdit();
 

@@ -91,12 +91,10 @@ export interface PascalFrameProps {
   /**
    * Máy không dựng được WebGPU lẫn WebGL.
    *
-   * Không có nó thì `<Viewer>` dựng thẻ dự phòng CỦA RIÊNG NÓ
-   * (`viewer/src/components/viewer/unsupported-gpu-fallback.tsx`): chữ tiếng
-   * Anh mời người dùng "open the editor", và màu viết cứng
-   * (nền hex fafafa, chữ neutral-900, nền trắng). Tức một màn hình vi phạm
-   * cả A6 lẫn A1, ở đúng cái trạng thái mà không bài kiểm nào của AppFront
-   * chạm tới — bài đơn vị giả lập `mount`, còn máy chạy e2e thì có GPU.
+   * Không có nó thì `<Viewer>` (cả cái nằm trong `<Editor>`) dựng thẻ dự phòng
+   * CỦA RIÊNG NÓ (`viewer/src/components/viewer/unsupported-gpu-fallback.tsx`):
+   * màu viết cứng (nền hex fafafa, chữ neutral-900), và báo "đã sẵn sàng" nên
+   * màn nói "Đã dựng xong" trên một khung không vẽ gì (23-B-016).
    */
   readonly onRendererUnavailable: (() => void) | undefined;
   /**
@@ -318,6 +316,9 @@ export function PascalFrame({
         {...(handleValidate === undefined ? {} : { validateCommit: handleValidate })}
         {...(onCommitRejected === undefined ? {} : { onCommitRejected })}
         {...(onSaveAsTemplate === undefined || readOnly ? {} : { onSaveAsTemplate })}
+        /* 23-B-016 — thiếu dòng này thì Viewer bên trong editor dựng thẻ của
+           Pascal và báo "xong", màn nói "Đã dựng xong" trên một khung không vẽ. */
+        {...(onRendererUnavailable === undefined ? {} : { onRendererUnavailable })}
       />
     );
   }
