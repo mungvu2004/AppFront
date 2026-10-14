@@ -4,6 +4,7 @@ import { Copy, X } from 'lucide-react'
 import { type RefObject, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { roomArea as vi } from '../../../i18n/regions/roomArea'
+import { getPascalRoot } from '../../../lib/pascal-root'
 import type {
   RoomAreaGrouping,
   RoomAreaSort,
@@ -56,14 +57,14 @@ export function RoomAreaFullTable({
       className="fixed inset-0 z-[100] flex flex-col bg-background text-foreground text-sm"
       role="dialog"
     >
-      <header className="flex items-center justify-between gap-3 border-border/60 border-b px-4 py-3">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-border/60 border-b px-4 py-3">
         <div>
           <h2 className="font-semibold text-base">{vi.title}</h2>
           <div className="text-muted-foreground text-xs">
             {vi.total} <span className="font-semibold tabular-nums">{table.totalText}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <label className="flex items-center gap-1.5 text-muted-foreground text-xs">
             {vi.groupBy}
             <select
@@ -205,5 +206,12 @@ export function RoomAreaFullPage({
   }, [onClose, returnFocusTo])
 
   if (typeof document === 'undefined') return null
-  return createPortal(<RoomAreaFullTable {...props} closeRef={closeRef} />, document.body)
+  // AppFront: into `.pascal-root`, where Pascal's scoped stylesheet applies —
+  // portalled to `document.body` the dialog renders unstyled and see-through
+  // over the host page (23R-B-016). `.pascal-root` contains layout, so
+  // `fixed inset-0` covers the editor frame.
+  return createPortal(
+    <RoomAreaFullTable {...props} closeRef={closeRef} />,
+    getPascalRoot() ?? document.body,
+  )
 }
