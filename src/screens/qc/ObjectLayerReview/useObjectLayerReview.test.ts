@@ -1538,3 +1538,16 @@ describe('đợt sửa P04 — SCR-17', () => {
     mounted.unmount();
   });
 });
+
+describe('[G32 17-C-009] ngưỡng tin cậy của dự án', () => {
+  it('dự án đặt 0,99 thì mọi mục chưa duyệt đều dưới ngưỡng, không cắt cố định 0,75', async () => {
+    const gateway = { ...createMockObjectLayerReviewGateway(), readConfidenceThreshold: () => Promise.resolve(0.99) };
+    const mounted = await mountSettled({ gateway });
+
+    await waitFor(() => {
+      expect(mounted.result.current.rows.length).toBeGreaterThan(OBJECT_LAYER_FIXTURE_LOW_CONFIDENCE);
+    });
+    expect(mounted.result.current.rows.every((row) => row.isLowConfidence)).toBe(true);
+    mounted.unmount();
+  });
+});
