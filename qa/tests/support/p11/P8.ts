@@ -80,3 +80,18 @@ export async function openVersions(page: Page, projectId: string, floorId: strin
   await page.goto(`/projects/${projectId}/versions?floorId=${floorId}`);
   await expect(versionList(page).getByRole('listitem').first()).toBeVisible();
 }
+
+/** POST restore of the version with `sequence` (N17 list), at the floor's current layer revision; expects 200. */
+export async function restoreViaApi(api: LayerApi, projectId: string, floorId: string, sequence: number): Promise<void> {
+  const list = await api.request.get(`/api/projects/${projectId}/versions?floorId=${encodeURIComponent(floorId)}`, { headers: api.headers });
+  expect(list.status(), 'setup: GET versions (N17)').toBe(200);
+  const items = ((await list.json()) as { items: { id: string; sequence: number }[] }).items;
+  const target = items.find((item) => item.sequence === sequence);
+  if (target === undefined) throw new Error(`setup: no version with sequence ${String(sequence)}`);
+  const { revision } = await readLayer(api, projectId, floorId);
+  const res = await api.request.post(`/api/projects/${projectId}/versions/${target.id}/restore`, {
+    headers: api.headers,
+    data: { baseVersion: revision, body: { floorId } }, // client.ts:1469
+  });
+  expect(res.status(), `setup: POST restore v${String(sequence)}: ${(await res.text()).slice(0, 200)}`).toBe(200);
+}

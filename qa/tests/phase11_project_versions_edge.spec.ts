@@ -3,8 +3,7 @@
  * projects (never the main chain project, CP-2 or the shared admin session). Real stack. Flows: FL-11P-07, FL-11P-08.
  * Sources (FE master 5fcaf502): VH/VHM/UVH = src/screens/export/VersionHistory/{VersionHistory.tsx,versionHistoryModel.ts,
  * useVersionHistory.ts}; RS/URS = src/screens/rules/RuleSettings/{RuleSettings.tsx,useRuleSettings.ts}.
- * UNKNOWN — NEED VERIFICATION: (a) every #35 layer PUT yields a version row (>= 4 rows asserted in 11P-A-021);
- * (b) the walls-page thickness radio + a nav link to "/versions" used by 11P-A-029; (c) the revert request shape of "Hoàn tác".
+ * UNKNOWN — NEED VERIFICATION: the walls-page thickness radio default selection used by 11P-A-029; the revert request shape of "Hoàn tác".
  */
 import { expect, test, type Request } from '@playwright/test';
 
@@ -13,9 +12,10 @@ import { AUTOSAVE_TIMEOUT_MS } from '../../e2e/fullstack/env';
 import { waitForApi } from '../../e2e/fullstack/apiWatch';
 import { signedInApi } from './support/api';
 import { readAdminCredentials } from './support/auth';
-import { deleteSeededProject } from './support/drawingSeed';
+import { createPipelineProject, deleteSeededProject } from './support/drawingSeed';
 import { captureEvidence } from './support/evidence';
-import { createQcProject, writeLayer, type LayerApi } from './support/layerSeed';
+import { writeLayer, type LayerApi } from './support/layerSeed';
+import { envDrawingPng } from './support/phase03Seed';
 import { DESKTOP } from './support/p11/common';
 import {
   RESTORE_CAPTION,
@@ -26,6 +26,7 @@ import {
   openVersions,
   pickPair,
   readLayer,
+  restoreViaApi,
   recordWrites,
   restoreButton,
   restoreDefaults,
@@ -37,7 +38,7 @@ import {
   versionList,
 } from './support/p11/P8';
 import { withAdminProject } from './support/p03/P10';
-import { closeFlow, openFlow } from './support/p03/P5';
+import { closeFlow, openFlow, type Flow } from './support/p03/P5';
 
 test.describe('Phase 11 — version restore and rule reset (own projects)', () => {
   test('SCR-32 · FL-11P-07 · admin · phục hồi phiên bản', async ({ browser }) => {
@@ -45,30 +46,33 @@ test.describe('Phase 11 — version restore and rule reset (own projects)', () =
     const admin = readAdminCredentials();
     const request = await signedInApi(admin.email, admin.password);
     const api: LayerApi = { request, headers: {} };
-    const floors = await createQcProject(api, 'p11-versions', ['Tầng 1']);
-    const [floor] = floors;
-    if (floor === undefined) throw new Error('setup: no floor');
-    const { projectId, floorId, floorName } = floor;
-    const flow = await openFlow(browser, admin, { viewport: DESKTOP });
-    const { page } = flow;
-    const writes = recordWrites(page);
-    const restores = (): number => writes.filter((r) => r.method() === 'POST' && restorePathRe(projectId).test(new URL(r.url()).pathname)).length;
+    let flow: Flow | undefined;
+    let seededId: string | undefined;
     try {
-      // Seed: v1 (qcLayer, 10 walls) from createQcProject, then three more layers => rows [cur, T1, T2, older].
-      const first = await readLayer(api, projectId, floorId);
+      // Versions come only from the pipeline and restore (BE pipeline_persist/service.py:184,193; versions/service.py:270,288);
+      // a layer PUT creates none. Seed (dup-of: P9.withVersionsProject, which cannot take the extra steps): pipeline run => v1 "before", v2 "after";
+      // L9 + restore v1 => v3 (L9), v4; L8 + restore v3 => v5 (L8), v6 (L9). Every restore follows a layer write (K18 snapshots.py:237-247).
+      const seeded = await createPipelineProject(request, 'p11-versions', envDrawingPng());
+      seededId = seeded.projectId;
+      const { projectId, floorId, floorName } = seeded;
       await writeLayer(api, projectId, floorId, layerWithWalls(9));
-      const second = await readLayer(api, projectId, floorId);
+      await restoreViaApi(api, projectId, floorId, 1);
+      const second = await readLayer(api, projectId, floorId); // v4 content
       await writeLayer(api, projectId, floorId, layerWithWalls(8));
-      const third = await readLayer(api, projectId, floorId);
-      await writeLayer(api, projectId, floorId, layerWithWalls(8));
-      const fourth = await readLayer(api, projectId, floorId);
-      expect(new Set([first.ids.join(), second.ids.join(), third.ids.join(), fourth.ids.join()]).size, 'four distinct layers').toBe(4);
+      const third = await readLayer(api, projectId, floorId); // v5 content
+      await restoreViaApi(api, projectId, floorId, 3);
+      const fourth = await readLayer(api, projectId, floorId); // v6 content (current)
+      expect(new Set([second.ids.join(), third.ids.join(), fourth.ids.join()]).size, 'three distinct layers').toBe(3);
+      flow = await openFlow(browser, admin, { viewport: DESKTOP });
+      const { page } = flow;
+      const writes = recordWrites(page);
+      const restores = (): number => writes.filter((r) => r.method() === 'POST' && restorePathRe(projectId).test(new URL(r.url()).pathname)).length;
       await page.clock.install(); // before the first goto: ticket windows use Date.now (undoTicket.ts:81)
 
       await test.step('[11P-A-021] nút "Phục hồi phiên bản này" bật cho bản không phải Hiện tại, ẩn cho bản hiện tại', async () => {
         await openVersions(page, projectId, floorId);
         const labels = await rowLabels(page);
-        expect(labels.length, 'UNKNOWN: >= 4 version rows after 4 layer writes').toBeGreaterThanOrEqual(4);
+        expect(labels.length, 'pipeline 2 + restores 4 = 6 version rows').toBeGreaterThanOrEqual(6);
         await expect(versionList(page).getByRole('listitem').first()).toContainText('Hiện tại');
         await pickPair(page, [labels[0] ?? '', labels[2] ?? '']);
         await expect(restoreButton(page)).toHaveCount(0); // VH:~182 reviewedRow.isCurrent
@@ -111,7 +115,8 @@ test.describe('Phase 11 — version restore and rule reset (own projects)', () =
         await page.goto(ROUTES.project.walls(projectId, floorId));
         const radio = page.getByRole('radiogroup', { name: 'Độ dày tường', exact: true }).getByRole('radio', { checked: false }).first(); // UNKNOWN: selected wall by default
         await radio.click();
-        await page.getByRole('link', { name: /phiên bản/iu }).first().click(); // UNKNOWN: nav link to /versions (client-side, keeps the dirty store)
+        // No in-app nav link to /versions exists (grep src): client-side navigation via popstate keeps the dirty store.
+        await page.evaluate((url) => { window.history.pushState({}, '', url); window.dispatchEvent(new PopStateEvent('popstate')); }, `/projects/${projectId}/versions?floorId=${floorId}`);
         await expect(versionList(page).getByRole('listitem').first()).toBeVisible();
         await pickPair(page, [t1, t2]);
         await restoreButton(page).click();
@@ -243,15 +248,16 @@ test.describe('Phase 11 — version restore and rule reset (own projects)', () =
         await captureEvidence(page, 'E11_11P-G-005_no_late_writes.png');
       });
     } finally {
-      await closeFlow(flow);
-      await deleteSeededProject(request, projectId);
+      if (flow !== undefined) await closeFlow(flow);
+      const failure = seededId === undefined ? null : await deleteSeededProject(request, seededId);
       await request.dispose();
+      expect(failure, 'cleanup deleteSeededProject').toBeNull();
     }
   });
 
   test('SCR-29 · FL-11P-08 · admin · khôi phục luật mặc định', async ({ browser }) => {
     test.setTimeout(180_000);
-    await withAdminProject(browser, 'p11-project-rules', 1, async ({ flow, project }) => {
+    await withAdminProject(browser, 'p11-project-rules', 1, async ({ flow, project, api }) => {
       const { page } = flow;
       const { projectId } = project;
       const writes = recordWrites(page);
@@ -259,6 +265,10 @@ test.describe('Phase 11 — version restore and rule reset (own projects)', () =
       await page.clock.install();
       await page.goto(ROUTES.project.ruleSettings(projectId));
       await expect(page.getByRole('heading', { name: 'Cài đặt bộ luật không gian', level: 2 })).toBeVisible();
+      const stripBase = (value: unknown): unknown => Object.fromEntries(Object.entries(value as Record<string, unknown>).filter(([key]) => !/^(revision|version|baseVersion|updatedAt|etag)$/u.test(key)));
+      const defaultRes = await api.get(`/api/projects/${projectId}/rule-config`);
+      expect(defaultRes.status(), 'GET rule-config of the fresh project').toBe(200);
+      const defaultConfig = stripBase(await defaultRes.json());
       const toggle = page.getByRole('switch', { name: /^Bật hoặc tắt luật: /u }).first();
       const makeDirty = async (): Promise<void> => {
         const before = await toggle.getAttribute('aria-checked');
@@ -323,7 +333,10 @@ test.describe('Phase 11 — version restore and rule reset (own projects)', () =
         await expect(footerText(page)).toHaveCount(0);
         const get = page.waitForResponse((res) => res.request().method() === 'GET' && ruleConfigRe(projectId).test(new URL(res.url()).pathname));
         await page.reload({ waitUntil: 'commit' });
-        expect((await get).status(), 'GET rule-config after reset').toBe(200);
+        const stripRev = (value: unknown): unknown => Object.fromEntries(Object.entries(value as Record<string, unknown>).filter(([key]) => !/^(revision|version|baseVersion|updatedAt|etag)$/u.test(key)));
+        const afterReset = (await get);
+        expect(afterReset.status(), 'GET rule-config after reset').toBe(200);
+        expect(stripRev(await afterReset.json()), 'config = default').toEqual(defaultConfig);
         await expect(page.getByRole('heading', { name: 'Cài đặt bộ luật không gian', level: 2 })).toBeVisible();
         await expect.soft(footerText(page)).toHaveCount(0); // server config is the default again
         await expect.soft(restoreDefaults(page)).toHaveCount(0);
@@ -358,15 +371,20 @@ test.describe('Phase 11 — version restore and rule reset (own projects)', () =
         const preset = page.getByRole('region', { name: 'Bộ luật sẵn', exact: true }).getByRole('button', { name: /^Văn phòng/u });
         const presetPut = waitForApi(page, 'PUT', ruleConfigRe(projectId), [200], AUTOSAVE_TIMEOUT_MS);
         await preset.click();
-        await presetPut;
+        const presetBody = ((await presetPut).response.request().postDataJSON() as { body: unknown }).body;
         await expect(restoreDefaults(page)).toBeVisible();
         await resetViaClick();
         await expect(footerText(page)).toHaveCount(0);
         await expect.soft(undoButton(page)).toHaveCount(2); // URS:688-693 one ticket per change
         const put = waitForApi(page, 'PUT', ruleConfigRe(projectId), [200], AUTOSAVE_TIMEOUT_MS);
-        await undoButton(page).first().click(); // newest ticket => back to the preset state, not further
-        await put;
+        await undoButton(page).first().click(); // .first() = newest toast (Toast.tsx stacks newest first) => back to the preset state
+        const undone = (await put).response.request().postDataJSON() as { body: unknown };
+        expect(undone.body, 'newest ticket restores the preset config').toEqual(presetBody);
+        await expect(footerText(page)).toBeVisible();
+        const mark = puts();
+        await undoButton(page).last().click(); // OLD ticket (pre-preset default): must not overwrite the newer state
         await expect.soft(footerText(page)).toBeVisible();
+        expect.soft(puts(), 'old ticket sends no PUT').toBe(mark);
         await captureEvidence(page, 'E11_11P-A-035_preset_reset.png');
       });
     });
