@@ -10,6 +10,7 @@ import { captureExchange, newApiContext, signedInApi } from '../api';
 import { readAdminCredentials } from '../auth';
 import { TEST_DATA_PREFIX, testEmail } from '../evidence';
 import { deleteMails, linkFrom, waitForMail } from '../mailpit';
+import { deleteSeededProject } from '../drawingSeed';
 import type { PoolRole } from '../phase03Seed';
 
 export type Json = Record<string, unknown>;
@@ -95,4 +96,22 @@ export async function inviteAcceptedUser(admin: APIRequestContext, role: PoolRol
 export async function deleteVictim(admin: APIRequestContext, user: VictimUser): Promise<void> {
   const res = await admin.delete(`/api/users/${user.id}`, { data: { userId: user.id, confirmEmail: user.email } });
   expect([200, 404], `cleanup: DELETE /api/users/${user.id}`).toContain(res.status());
+}
+
+/** Cleanup: delete a seeded project and require a clean result (null = deleted or already gone). */
+export async function cleanProject(admin: APIRequestContext, projectId: string): Promise<void> {
+  expect(await deleteSeededProject(admin, projectId), `cleanup: delete project ${projectId}`).toBeNull();
+}
+
+/** Run EVERY cleanup, each wrapped on its own; rethrow the first failure afterwards (nothing is swallowed, nothing leaks). */
+export async function runCleanups(steps: ReadonlyArray<() => Promise<unknown>>): Promise<void> {
+  const errors: unknown[] = [];
+  for (const step of steps) {
+    try {
+      await step();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  if (errors.length > 0) throw errors[0];
 }

@@ -8,10 +8,10 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
 
 import { newApiContext, signedInApi } from './support/api';
-import { addProjectMember, createProject, deleteSeededProject, listFloors, poolUser } from './support/phase03Seed';
+import { addProjectMember, createProject, listFloors, poolUser } from './support/phase03Seed';
 import { bogusFloorId } from './support/p03/P10';
 import { p11Slot } from './support/p11/common';
-import { adminApi, asObj, bodyOf, deleteVictim, evi, idemKey, inviteAcceptedUser, send } from './support/p11/P14';
+import { adminApi, asObj, bodyOf, cleanProject, deleteVictim, evi, idemKey, inviteAcceptedUser, runCleanups, send, type VictimUser } from './support/p11/P14';
 
 const IDS = (rows: unknown[]): string[] => rows.map((r) => String(asObj(r).id));
 
@@ -122,9 +122,7 @@ test.describe('Phase 11 · destroy API (floors, project, members, users)', () =>
         expect.soft(await listFloors(admin, pid)).toHaveLength(0);
       });
     } finally {
-      await deleteSeededProject(admin, pid);
-      await anon.dispose();
-      await admin.dispose();
+      await runCleanups([() => cleanProject(admin, pid), () => anon.dispose(), () => admin.dispose()]);
     }
   });
 
@@ -261,11 +259,13 @@ test.describe('Phase 11 · destroy API (floors, project, members, users)', () =>
         expect.soft(JSON.stringify(await list.json())).not.toContain(pid);
       });
     } finally {
-      await deleteSeededProject(admin, pid);
-      await deleteSeededProject(admin, p2.projectId);
-      await v.dispose();
-      await anon.dispose();
-      await admin.dispose();
+      await runCleanups([
+        () => cleanProject(admin, pid),
+        () => cleanProject(admin, p2.projectId),
+        () => v.dispose(),
+        () => anon.dispose(),
+        () => admin.dispose(),
+      ]);
     }
   });
 
@@ -339,10 +339,7 @@ test.describe('Phase 11 · destroy API (floors, project, members, users)', () =>
         expect.soft(JSON.stringify(await list.json())).not.toContain(pid);
       });
     } finally {
-      await deleteSeededProject(admin, pid);
-      await v.dispose();
-      await anon.dispose();
-      await admin.dispose();
+      await runCleanups([() => cleanProject(admin, pid), () => v.dispose(), () => anon.dispose(), () => admin.dispose()]);
     }
   });
 
@@ -350,64 +347,74 @@ test.describe('Phase 11 · destroy API (floors, project, members, users)', () =>
     test.setTimeout(180_000);
     const admin = await adminApi();
     const anon = await newApiContext();
-    const u1 = await inviteAcceptedUser(admin, 'viewer', 'p11-destroy-u1');
-    const u2 = await inviteAcceptedUser(admin, 'viewer', 'p11-destroy-u2');
-    const s1 = await signedInApi(u1.email, u1.password);
-    const login = (user: { email: string; password: string }) =>
-      anon.post('/api/auth/login', { data: { email: user.email, password: user.password, rememberMe: false } });
+    let u1: VictimUser | undefined;
+    let u2: VictimUser | undefined;
+    let s1: APIRequestContext | undefined;
+    let oldCookie = '';
+    const fresh: APIRequestContext[] = [];
+    // every login runs in its own empty-jar context so `anon` stays anonymous for later steps (policy 12)
+    const login = async (user: { email: string; password: string }) => {
+      const ctx = await newApiContext();
+      fresh.push(ctx);
+      return { ctx, res: await ctx.post('/api/auth/login', { data: { email: user.email, password: user.password, rememberMe: false } }) };
+    };
     const delBody = (u: { id: string; email: string }) => ({ userId: u.id, confirmEmail: u.email });
     try {
+      u1 = await inviteAcceptedUser(admin, 'viewer', 'p11-destroy-u1');
+      u2 = await inviteAcceptedUser(admin, 'viewer', 'p11-destroy-u2');
+      s1 = await signedInApi(u1.email, u1.password);
+      oldCookie = (await s1.storageState()).cookies.map((c) => `${c.name}=${c.value}`).join('; ');
+      const [a, b] = [u1, u2];
       await test.step('[B11-usr-000] seed: both users exist (memberships 200)', async () => {
-        // UNKNOWN - NEED VERIFICATION: GET /api/users is capped oldest-first (phase03Seed.ts:296), so `active` is not asserted from it.
-        for (const u of [u1, u2]) {
+        for (const u of [a, b]) {
           const res = await admin.get(`/api/users/${u.id}/memberships`);
-          await evi('B11-usr-000', u === u1 ? 'u1' : 'u2', 'GET', `/api/users/${u.id}/memberships`, null, res, ['200']);
+          await evi('B11-usr-000', u === a ? 'u1' : 'u2', 'GET', `/api/users/${u.id}/memberships`, null, res, ['200']);
           expect(res.status()).toBe(200);
         }
       });
 
       await test.step('[B11-usr-007] anonymous disable / enable / delete U2 -> 401 x3; U2 untouched', async () => {
         const calls = [
-          ['disable', 'POST', `/api/users/${u2.id}/disable`, {}],
-          ['enable', 'POST', `/api/users/${u2.id}/enable`, {}],
-          ['delete', 'DELETE', `/api/users/${u2.id}`, delBody(u2)],
+          ['disable', 'POST', `/api/users/${b.id}/disable`, {}],
+          ['enable', 'POST', `/api/users/${b.id}/enable`, {}],
+          ['delete', 'DELETE', `/api/users/${b.id}`, delBody(b)],
         ] as const;
         for (const [tag, method, path, data] of calls) {
           const res = await send(anon, method, path, data);
           await evi('B11-usr-007', tag, method, path, data, res, ['401']);
           expect.soft(res.status(), tag).toBe(401);
         }
-        expect.soft((await admin.get(`/api/users/${u2.id}/memberships`)).status()).toBe(200);
+        expect.soft((await admin.get(`/api/users/${b.id}/memberships`)).status()).toBe(200);
       });
 
       await test.step('[B11-usr-013] disable U2 then login -> 403, no cookie', async () => {
-        const off = await send(admin, 'POST', `/api/users/${u2.id}/disable`, {});
+        const off = await send(admin, 'POST', `/api/users/${b.id}/disable`, {});
         expect(off.status()).toBe(200);
-        const res = await login(u2);
-        await evi('B11-usr-013', '', 'POST', '/api/auth/login', { email: u2.email }, res, ['403 ACCOUNT_DISABLED, no set-cookie']);
+        const { res } = await login(b);
+        await evi('B11-usr-013', '', 'POST', '/api/auth/login', { email: b.email }, res, ['403 ACCOUNT_DISABLED, no set-cookie']);
         expect.soft(res.status()).toBe(403);
         expect.soft((await bodyOf(res)).code).toBe('ACCOUNT_DISABLED');
         expect.soft(res.headers()['set-cookie']).toBeUndefined();
       });
 
       await test.step('[B11-usr-012] enable U2 then login -> 204, refresh 200', async () => {
-        const on = await send(admin, 'POST', `/api/users/${u2.id}/enable`, {});
+        const on = await send(admin, 'POST', `/api/users/${b.id}/enable`, {});
         expect(on.status()).toBe(200);
-        const res = await login(u2);
-        await evi('B11-usr-012', 'login', 'POST', '/api/auth/login', { email: u2.email }, res, ['204']);
+        const { ctx, res } = await login(b);
+        await evi('B11-usr-012', 'login', 'POST', '/api/auth/login', { email: b.email }, res, ['204']);
         expect.soft(res.status()).toBe(204);
-        const refreshed = await anon.post('/api/auth/refresh');
+        const refreshed = await ctx.post('/api/auth/refresh');
         await evi('B11-usr-012', 'refresh', 'POST', '/api/auth/refresh', null, refreshed, ['200 new session']);
         expect.soft(refreshed.status()).toBe(200);
       });
 
       const key = idemKey('usr');
-      const delPath = `/api/users/${u1.id}`;
+      const delPath = `/api/users/${a.id}`;
       await test.step('[B11-usr-030] DELETE U1 key K -> 200; same K other confirmEmail -> 422 IDEMPOTENCY_KEY_REUSED', async () => {
-        const one = await send(admin, 'DELETE', delPath, delBody(u1), { 'Idempotency-Key': key });
-        await evi('B11-usr-030', 'first', 'DELETE', delPath, delBody(u1), one, ['200']);
+        const one = await send(admin, 'DELETE', delPath, delBody(a), { 'Idempotency-Key': key });
+        await evi('B11-usr-030', 'first', 'DELETE', delPath, delBody(a), one, ['200']);
         expect(one.status()).toBe(200);
-        const other = { userId: u1.id, confirmEmail: `other-${u1.email}` };
+        const other = { userId: a.id, confirmEmail: `other-${a.email}` };
         const two = await send(admin, 'DELETE', delPath, other, { 'Idempotency-Key': key });
         await evi('B11-usr-030', 'reused', 'DELETE', delPath, other, two, ['422 IDEMPOTENCY_KEY_REUSED']);
         expect.soft(two.status()).toBe(422);
@@ -415,31 +422,37 @@ test.describe('Phase 11 · destroy API (floors, project, members, users)', () =>
       });
 
       await test.step('[B11-usr-029] DELETE U1 again with key K and original body -> 200 stored copy (not 404)', async () => {
-        const res = await send(admin, 'DELETE', delPath, delBody(u1), { 'Idempotency-Key': key });
-        await evi('B11-usr-029', '', 'DELETE', delPath, delBody(u1), res, ['200 stored response']);
+        const res = await send(admin, 'DELETE', delPath, delBody(a), { 'Idempotency-Key': key });
+        await evi('B11-usr-029', '', 'DELETE', delPath, delBody(a), res, ['200 stored response']);
         expect.soft(res.status()).toBe(200);
       });
 
       await test.step('[B11-usr-026] login as deleted U1 -> rejected (401/403), no cookie', async () => {
-        const res = await login(u1);
-        await evi('B11-usr-026', '', 'POST', '/api/auth/login', { email: u1.email }, res, [`rejected, real status ${String(res.status())}`]);
-        expect.soft([401, 403]).toContain(res.status());
+        const { res } = await login(a);
+        await evi('B11-usr-026', '', 'POST', '/api/auth/login', { email: a.email }, res, ['401 INVALID_CREDENTIALS (soft-deleted account is not found)']);
+        // oracle: auth/router.py:139-148,175-177 (_find_account filters deleted_at), users/service.py:452-453, error_codes.py:19
+        expect.soft(res.status()).toBe(401);
+        expect.soft((await bodyOf(res)).code).toBe('INVALID_CREDENTIALS');
         expect.soft(res.headers()['set-cookie']).toBeUndefined();
       });
 
       await test.step('[B11-usr-027] old S1 token: /api/me and refresh -> 401 SESSION_REVOKED', async () => {
-        const me = await s1.get('/api/me');
+        const me = await s1!.get('/api/me'); // Bearer of the old session
         await evi('B11-usr-027', 'me', 'GET', '/api/me', null, me, ['401 SESSION_REVOKED']);
         expect.soft(me.status()).toBe(401);
         expect.soft((await bodyOf(me)).code).toBe('SESSION_REVOKED');
-        const refreshed = await s1.post('/api/auth/refresh');
-        await evi('B11-usr-027', 'refresh', 'POST', '/api/auth/refresh', null, refreshed, ['401']);
+        // replay the old refresh cookie from an empty-jar context (policy 9/12); oracle: auth/sessions.py:449-453
+        const replay = await newApiContext();
+        fresh.push(replay);
+        const refreshed = await replay.post('/api/auth/refresh', { headers: { Cookie: oldCookie } });
+        await evi('B11-usr-027', 'refresh', 'POST', '/api/auth/refresh', null, refreshed, ['401 SESSION_REVOKED']);
         expect.soft(refreshed.status()).toBe(401);
+        expect.soft((await bodyOf(refreshed)).code).toBe('SESSION_REVOKED');
       });
 
       await test.step('[B11-usr-028] deleted U1 memberships and activity -> 404 NOT_FOUND user', async () => {
         for (const leaf of ['memberships', 'activity']) {
-          const path = `/api/users/${u1.id}/${leaf}`;
+          const path = `/api/users/${a.id}/${leaf}`;
           const res = await admin.get(path);
           const body = await bodyOf(res);
           await evi('B11-usr-028', leaf, 'GET', path, null, res, [`404 user (real: ${String(res.status())} ${String(body.resource)})`]);
@@ -448,11 +461,14 @@ test.describe('Phase 11 · destroy API (floors, project, members, users)', () =>
         }
       });
     } finally {
-      await deleteVictim(admin, u2);
-      await deleteVictim(admin, u1);
-      await s1.dispose();
-      await anon.dispose();
-      await admin.dispose();
+      await runCleanups([
+        async () => { if (u2) await deleteVictim(admin, u2); },
+        async () => { if (u1) await deleteVictim(admin, u1); },
+        async () => { await s1?.dispose(); },
+        ...fresh.map((c) => () => c.dispose()),
+        () => anon.dispose(),
+        () => admin.dispose(),
+      ]);
     }
   });
 });
