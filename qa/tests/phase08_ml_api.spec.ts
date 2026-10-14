@@ -39,6 +39,7 @@ import {
 import { poolUser } from './support/phase03Seed';
 
 const ENV = 'environment: ';
+const DIM = 'dimensionReading'; // versionId:null on a non-wall family is still 422 (service.py:150-152)
 
 /** Every route of `routes` as `api`; each must answer `status`/`code` (401/403 error body). `hard` = bước H. */
 async function sweep(
@@ -193,8 +194,9 @@ test.describe('phase 08 · ML admin API · A', () => {
         expect.soft(sent.res.status()).toBe(200);
         const versions = itemsOf(sent.body);
         expect.soft(versions.length, `${ENV}model versions seeded`).toBeGreaterThan(0);
-        const keys = versions.map((v) => `${String(v.createdAt)}|${String(v.id)}`);
-        expect.soft(keys, 'createdAt,id descending').toEqual([...keys].sort().reverse());
+        // wire createdAt is cut to ms while the BE sorts on microseconds: assert time only, never the id tie-break
+        const times = versions.map((v) => Date.parse(String(v.createdAt)));
+        expect.soft(times, 'createdAt not increasing').toEqual([...times].sort((a, b) => b - a));
         for (const v of versions) {
           for (const key of ['weightsKey', 'pinnedName', 'evaluationAttempts', 'evaluationErrorCode']) expect.soft(v).not.toHaveProperty(key);
           expect.soft(v.metrics !== undefined, 'metrics present iff completed').toBe(v.evaluationStatus === 'completed');
@@ -256,7 +258,10 @@ test.describe('phase 08 · ML admin API · A', () => {
         expect(cursor, `${ENV}at least 2 model versions so page 1 has a nextCursor`).toMatch(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u);
         const p2 = await call(admin, 'B08M-G-018', 'page2', 'GET', versionsUrl(`limit=1&cursor=${enc(cursor)}`), undefined, ['page 2 first item = the 2nd newest row (tuple compare)']);
         expect(p2.res.status()).toBe(200);
-        expect(itemsOf(p2.body)[0]?.id).toBe(all[1]?.id);
+        const fresh = await readPage(admin, `${ML}/model-versions?limit=200`);
+        const at = fresh.findIndex((v) => v.id === itemsOf(p1.body)[0]?.id);
+        expect(at, 'page-1 row is in a fresh read').toBeGreaterThanOrEqual(0);
+        expect(itemsOf(p2.body)[0]?.id).toBe(fresh[at + 1]?.id);
       });
       await test.step('[B08M-G-019] limit >= row count: no nextCursor', async () => {
         // service.py:192-200
@@ -289,7 +294,7 @@ test.describe('phase 08 · ML admin API · A', () => {
         for (const v of itemsOf(sent.body)) expect.soft(v.family).toBe(family);
       });
       await test.step('[B08M-G-030] GET version deep-equals its list row', async () => {
-        const row = all[0];
+        const row = (await readPage(admin, `${ML}/model-versions?limit=200`))[0];
         expect(row, `${ENV}at least one model version`).toBeDefined();
         const sent = await call(admin, 'B08M-G-030', 'one', 'GET', `${ML}/model-versions/${String(row!.id)}`, undefined, ['200 body deep-equals its list row (service.py read_version)']);
         expect.soft(sent.res.status()).toBe(200);
@@ -305,7 +310,7 @@ test.describe('phase 08 · ML admin API · A', () => {
       });
       await test.step('[B08M-G-033] id with %00 -> 404 not 500', async () => {
         // flag: a NUL in a text bind param may make Postgres raise -> 500; correct behaviour is 404
-        const sent = await call(admin, 'B08M-G-033', 'nul', 'GET', `${ML}/model-versions/mdl_x%00`, undefined, ['404 NOT_FOUND "modelVersion"; NOT 500']);
+        const sent = await call(admin, 'B08M-G-033', 'nul', 'GET', `${ML}/model-versions/mdl_x%00`, undefined, ['404 NOT_FOUND "modelVersion"; NOT 500 (a non-JSON 400 would be the proxy, not the BE)']);
         expectError(sent, 404, 'NOT_FOUND', undefined, 'modelVersion');
       });
     } finally {
@@ -316,15 +321,17 @@ test.describe('phase 08 · ML admin API · A', () => {
   test('SCR-36 · FL-B08M-05 · N24 body-shape refusals, nothing written', async () => {
     const admin = await adminApi();
     try {
+      // Only the row of the family this flow PUTs to is compared: dimensionReading is activated by nobody else (FL-B08M-07 wall, main FL-M-36R-01 opening).
+      const rowOf = (items: Json[]): string => JSON.stringify(items.find((f) => f.family === DIM));
       const snapshot = async (id: string, slug: string): Promise<string> => {
-        const res = await call(admin, id, slug, 'GET', `${ML}/model-families`, undefined, ['GET families (revision, activeVersionId) for the nothing-written check']);
-        return JSON.stringify(itemsOf(res.body));
+        const res = await call(admin, id, slug, 'GET', `${ML}/model-families`, undefined, [`GET families: the ${DIM} row (revision, activeVersionId) for the nothing-written check`]);
+        return rowOf(itemsOf(res.body));
       };
-      const baseline = await readPage(admin, `${ML}/model-families`);
-      const before = JSON.stringify(baseline);
-      const revision = Number(baseline.find((f) => f.family === OPENING)?.revision);
+      const before = rowOf(await readPage(admin, `${ML}/model-families`));
+      const revision = Number((JSON.parse(before) as Json).revision);
+      expect(Number.isInteger(revision), `setup: ${DIM} revision`).toBe(true);
       const put = (id: string, slug: string, body: unknown, why: string, options: { raw?: string } = {}): Promise<Sent> =>
-        call(admin, id, slug, 'PUT', `${ML}/model-families/${OPENING}/active`, body, [why], options);
+        call(admin, id, slug, 'PUT', `${ML}/model-families/${DIM}/active`, body, [why], options);
       const invalid = (field: string, sent: Sent): void => void expectError(sent, 422, 'VALIDATION', field);
 
       await test.step('[B08M-G-040] no baseVersion -> 428', async () => {
