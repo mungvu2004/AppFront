@@ -10,6 +10,7 @@
 // Usage (from qa/, under the stack lock):
 //   node F:/App/qa-results/tools/stack-lock.mjs node tools/run-full.mjs --phase 04 --run-id run-50 [--workers 4]
 //        [--layers main,ui,api,edge] [--grep re] [--no-prev] [--no-build] [--history 6] [--watch] [--retries 1] [--check]
+//        [--dry-run]  (run-phase only prints the --grep it received; tools/check-grep-passthrough.mjs uses it)
 // Exit code = run-phase's. Never prunes images/volumes.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -37,7 +38,8 @@ const STAMP = join(F14, '.built-be');
 
 const sh = (cmd, cwd = SUITE) => spawnSync(cmd, { cwd, shell: true, encoding: 'utf8' });
 const out = (cmd, cwd) => sh(cmd, cwd).stdout.trim();
-const live = (cmd, cwd = SUITE) => spawnSync(cmd, { cwd, shell: true, stdio: 'inherit' }).status ?? 1;
+// No shell: cmd.exe would split a --grep regex at `|` (QA-06b run-063); an argv array reaches run-phase verbatim.
+const runPhase = (args) => spawnSync(process.execPath, ['tools/run-phase.mjs', ...args], { cwd: SUITE, stdio: 'inherit' }).status ?? 1;
 const say = (s) => console.log(`[run-full] ${s}`);
 
 /* 1. versions */
@@ -130,13 +132,14 @@ if (!existsSync(STATE) && Number(NN) > 2 && opt('layers', 'main').split(',').inc
 /* 3. run */
 const prev = String(Number(NN) - 1).padStart(2, '0');
 const layers = opt('layers', 'main,ui,api,edge');
-const extra = `${opt('grep', '') ? ` --grep "${opt('grep', '')}"` : ''} --layers ${layers}`;
+const extra = [...(opt('grep', '') ? ['--grep', opt('grep', '')] : []), '--layers', layers, ...(flag('dry-run') ? ['--dry-run'] : [])];
 if (!flag('no-prev') && layers.split(',').includes('main') && Number(NN) > 1) {
   say(`phase ${prev} main first (its .state project feeds phase ${NN} main)`);
-  if (live(`node tools/run-phase.mjs --phase ${prev} --run-id ${RUN_ID} --layers main --no-typecheck --no-watch`) !== 0) say(`phase ${prev} main red — phase ${NN} main may fail on state`);
+  if (runPhase(['--phase', prev, '--run-id', RUN_ID, '--layers', 'main', '--no-typecheck', '--no-watch']) !== 0) say(`phase ${prev} main red — phase ${NN} main may fail on state`);
 }
-const watch = flag('watch') ? '' : ' --no-watch';
-const code = live(`node tools/run-phase.mjs --phase ${NN} --run-id ${RUN_ID} --workers ${WORKERS} --retries ${opt('retries', '1')}${watch}${extra}`);
+const watch = flag('watch') ? [] : ['--no-watch'];
+const code = runPhase(['--phase', NN, '--run-id', RUN_ID, '--workers', WORKERS, '--retries', opt('retries', '1'), ...watch, ...extra]);
+if (flag('dry-run')) process.exit(code);
 
 /* 4. failures with history */
 const root = cfg.resultsDir;
