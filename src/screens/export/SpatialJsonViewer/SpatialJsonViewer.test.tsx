@@ -482,13 +482,13 @@ describe('useSpatialJsonViewer', () => {
     expect(result.current[0].state).toBe('forbidden');
   });
 
-  it('nút tải xuống chỉ có khi nơi gọi cấp đường sang S-34', () => {
+  it('nút tải xuống luôn có khi có dữ liệu — không cấp thì hook tự tải chữ thô (31-A-023)', () => {
     const withoutDownload = renderHook(() => useSpatialJsonViewer(baseOptions));
     const withDownload = renderHook(() =>
       useSpatialJsonViewer({ ...baseOptions, onDownload: () => undefined }),
     );
 
-    expect(withoutDownload.result.current[0].canDownload).toBe(false);
+    expect(withoutDownload.result.current[0].canDownload).toBe(true);
     expect(withDownload.result.current[0].canDownload).toBe(true);
   });
 

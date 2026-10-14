@@ -46,6 +46,7 @@ import {
   flattenJson,
   summariseValidity,
   toRawText,
+  valueAtPath,
   visibleNodes,
 } from './spatialJsonModel';
 import type {
@@ -209,10 +210,20 @@ export function useSpatialJsonViewer(options: UseSpatialJsonViewerOptions): UseS
     setExpandedIds(new Set<string>());
   }, []);
 
-  const onSearchChange = useCallback((query: string) => {
-    setSearchQuery(query);
-    setMatchIndex(0);
-  }, []);
+  const onSearchChange = useCallback(
+    (query: string) => {
+      setSearchQuery(query);
+      setMatchIndex(0);
+
+      // Bộ đếm "1 / N" phải nói về hàng đang chọn (31-C-006).
+      const first = findMatches(allNodes, query)[0];
+
+      if (first !== undefined) {
+        setSelectedNodeId(first);
+      }
+    },
+    [allNodes],
+  );
 
   const stepMatch = useCallback(
     (delta: number) => {
@@ -255,17 +266,33 @@ export function useSpatialJsonViewer(options: UseSpatialJsonViewerOptions): UseS
     });
   }, []);
 
+  /** Chép nhánh đang chọn; chưa chọn gì thì chép cả đồ thị. Không cấp `onCopy` thì ghi vào clipboard. */
   const onCopyBranch = useCallback(() => {
-    if (onCopy === undefined) {
-      return;
-    }
+    const branch = selectedNodeId === null ? undefined : valueAtPath(graph, selectedNodeId);
+    const text = branch === undefined ? rawText : toRawText(branch);
 
-    onCopy(rawText);
-  }, [onCopy, rawText]);
+    if (onCopy !== undefined) {
+      onCopy(text);
+    } else {
+      void navigator.clipboard?.writeText(text);
+    }
+  }, [graph, onCopy, rawText, selectedNodeId]);
+
+  /** Không cấp `onDownload` thì tải chính chữ thô thành tệp `.json` (31-A-023). */
+  const downloadRaw = useCallback(() => {
+    const url = URL.createObjectURL(new Blob([rawText], { type: 'application/json' }));
+    const anchor = document.createElement('a');
+
+    anchor.href = url;
+    anchor.download = 'spatial.json';
+    anchor.rel = 'noopener';
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }, [rawText]);
 
   const model: SpatialJsonViewerModel = {
     activeTabId,
-    canDownload: onDownload !== undefined,
+    canDownload: canView && graph !== null,
     counts,
     countsLabel: describeCounts(counts),
     errorMessage,
@@ -288,7 +315,7 @@ export function useSpatialJsonViewer(options: UseSpatialJsonViewerOptions): UseS
     onChangeViewMode: setViewMode,
     onCollapseAll,
     onCopyBranch,
-    onDownload: onDownload ?? null,
+    onDownload: onDownload ?? downloadRaw,
     onExpandAll,
     onNextMatch,
     onPreviousMatch,
