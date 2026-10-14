@@ -86,7 +86,7 @@ import {
 import type { Json } from './support/p06/data';
 
 const softly = expect.configure({ soft: true });
-const ev = (page: Page, id: string, slug: string): Promise<string> => captureEvidence(page, `E06d_${id}_${slug}`);
+const ev = (page: Page, id: string, slug: string): Promise<string> => captureEvidence(page, `E06d_${id}_${slug}.png`);
 const list = (value: unknown): Json[] => (Array.isArray(value) ? value.map((item) => item as Json) : []);
 const roleOfFocus = (page: Page): Promise<string | null> => page.evaluate(() => document.activeElement?.getAttribute('role') ?? null);
 

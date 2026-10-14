@@ -43,7 +43,7 @@ import {
 } from './support/p06/data';
 
 const softly = expect.configure({ soft: true });
-const ev = (page: Page, id: string, slug: string): Promise<string> => captureEvidence(page, `E06d_${id}_${slug}`);
+const ev = (page: Page, id: string, slug: string): Promise<string> => captureEvidence(page, `E06d_${id}_${slug}.png`);
 
 test.describe('E06d SCR-31 Spatial JSON Viewer [mocked response]', () => {
   test('SCR-31 · FL-31-09 · [mocked response] loading, issues, gate errors, notes-only — pairs FL-31-01 / FL-31-05', async ({ browser }) => {

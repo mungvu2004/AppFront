@@ -84,20 +84,20 @@ test.describe('E06d SCR-30S ShareDialog (flag off)', () => {
           // EPV:249-253 (`onShare !== null`), UEP:718-719, SLK:354
           await expect(page.getByRole('button', { name: SHARE.exportButton, exact: true })).toBeVisible();
           await expect(page.getByRole('button', { name: SHARE.button, exact: true })).toHaveCount(0);
-          await captureEvidence(page, 'E06d_30S-A-001_export_no_share_button');
+          await captureEvidence(page, 'E06d_30S-A-001_export_no_share_button.png');
         });
 
         await test.step('[30S-A-003] /export: no dialog "Chia sẻ bản vẽ" and no "Thu hồi liên kết này?" in the DOM', async () => {
           // EPC:160 `{SHARE_LINKS_SUPPORTED && <ShareDialogContainer/>}`
           await expect.soft(page.getByRole('dialog', { name: SHARE.dialog })).toHaveCount(0);
           await expect.soft(page.getByText(SHARE.revoke, { exact: true })).toHaveCount(0);
-          await captureEvidence(page, 'E06d_30S-A-003_export_no_dialog');
+          await captureEvidence(page, 'E06d_30S-A-003_export_no_dialog.png');
         });
 
         await test.step('[30S-G-001] /export load: no request to /api/projects/:id/share-links', async () => {
           // SDH:332, SLK:349-354; settle point = the format group and "Xuất" painted in openExport (N15 200 already read).
           expect.soft(shareLinkCalls(api), 'share-links calls on /export').toEqual([]);
-          await captureEvidence(page, 'E06d_30S-G-001_export_no_share_links');
+          await captureEvidence(page, 'E06d_30S-G-001_export_no_share_links.png');
         });
 
         await openVersions(page, project.id, floor.id, floor.name);
@@ -106,14 +106,14 @@ test.describe('E06d SCR-30S ShareDialog (flag off)', () => {
           // ShareDialogContainer is mounted only at ExportPanel.container.tsx:160; no ShareDialog import under VersionHistory/
           await expect.soft(page.getByRole('button', { name: SHARE.button, exact: true })).toHaveCount(0);
           await expect.soft(page.getByRole('dialog', { name: SHARE.dialog })).toHaveCount(0);
-          await captureEvidence(page, 'E06d_30S-A-002_versions_no_share');
+          await captureEvidence(page, 'E06d_30S-A-002_versions_no_share.png');
         });
 
         await test.step('[30S-G-002] /versions load: no request to /share-links', async () => {
           // as 30S-G-001; the settle point is the N17 200 + list painted in openVersions
           expect.soft(shareLinkCalls(api), 'share-links calls since /export and /versions').toEqual([]);
           expect.soft(api.some((entry) => versionsRe(project.id).test(entry.path)), 'N17 was read before the claim').toBe(true);
-          await captureEvidence(page, 'E06d_30S-G-002_versions_no_share_links');
+          await captureEvidence(page, 'E06d_30S-G-002_versions_no_share_links.png');
         });
 
         const member = await openPoolFlow(browser, viewer);
@@ -127,7 +127,7 @@ test.describe('E06d SCR-30S ShareDialog (flag off)', () => {
             await expect(member.page.getByRole('radiogroup', { name: SHARE.formats, exact: true })).toHaveCount(0);
             await expect(member.page.getByRole('button', { name: SHARE.button, exact: true })).toHaveCount(0);
             expect.soft(shareLinkCalls(member.api), 'share-links calls as the viewer').toEqual([]);
-            await captureEvidence(member.page, 'E06d_30S-D-001_viewer_export_no_share_button');
+            await captureEvidence(member.page, 'E06d_30S-D-001_viewer_export_no_share_button.png');
           });
         } finally {
           await member.context.close();
