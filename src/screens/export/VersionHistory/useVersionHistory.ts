@@ -472,9 +472,16 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
           undo: () => void sendLabel(versionId, previous, null),
         });
 
-        onToast?.({ message: label.trim().length === 0 ? 'Đã gỡ nhãn' : 'Đã gắn nhãn', onUndo: () => void ticket.undo() });
+        const isBlank = label.trim().length === 0;
+
+        // Bản chưa có nhãn mà gỡ nhãn: máy chủ không ghi gì, không báo "Đã gỡ nhãn" (C-046).
+        if (isBlank && previous.trim().length === 0) {
+          return;
+        }
+
+        onToast?.({ message: isBlank ? 'Đã gỡ nhãn' : 'Đã gắn nhãn', onUndo: () => void ticket.undo() });
       } catch (error) {
-        setBanner({ kind: 'error', notice: writeErrorNotice('label', error) });
+        setBanner({ kind: 'error', notice: writeErrorNotice('label', error, label) });
       }
     },
     [floorId, gateway, onToast, queryClient, ticketNow],
