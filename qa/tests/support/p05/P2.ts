@@ -210,8 +210,8 @@ export async function waitRendered(page: Page, text: string | RegExp = RENDERED)
 }
 
 /** Caption once it has left `loading` (any settled state). */
-export async function settledCaption(page: Page): Promise<string> {
-  await expect
+export async function settledCaption(page: Page, { soft = false }: { readonly soft?: boolean } = {}): Promise<string> {
+  await (soft ? expect.configure({ soft: true }) : expect)
     .poll(async () => ((await caption(page).count()) > 0 ? await caption(page).innerText() : ''), {
       message: 'Pascal screen left "Đang nạp khung dựng hình…"',
       timeout: PASCAL_RENDER_TIMEOUT_MS,
@@ -592,7 +592,7 @@ export const intersects = (a: Box, b: Box): boolean =>
 
 /**
  * WCAG contrast of each matched element's text against its first opaque ancestor background (min over elements;
- * `Infinity` when none). Colours are read as `rgb()`/`rgba()` from computed style.
+ * throws when nothing matches, so an empty locator can never pass). Colours are read as `rgb()`/`rgba()` from computed style.
  */
 export async function minContrast(target: Locator): Promise<number> {
   const ratios = await target.evaluateAll((els) => {
@@ -624,5 +624,6 @@ export async function minContrast(target: Locator): Promise<number> {
       return (a + 0.05) / (b + 0.05);
     });
   });
-  return ratios.length === 0 ? Number.POSITIVE_INFINITY : Math.min(...ratios);
+  if (ratios.length === 0) throw new Error('minContrast: no element matched (nothing to measure)');
+  return Math.min(...ratios);
 }

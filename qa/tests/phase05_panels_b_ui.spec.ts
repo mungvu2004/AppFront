@@ -121,7 +121,7 @@ test('SCR-23 · FL-23H-06 · bảng lịch sử ở 4 khổ', async ({ browser }
       await verifyUi(page, 'U05_23H-F-003_listbox', async (p) => {
         await openPanel(p);
         await actorCombo(p).click();
-        const listbox = historyRegion(p).getByRole('listbox').or(p.getByRole('listbox')).first();
+        const listbox = p.getByRole('listbox'); // portalled into document.body (Select.tsx:231,255)
         await expect(listbox).toBeVisible();
         found[vw(p)] = {
           list: inViewport(await listbox.boundingBox(), vw(p), vh(p)),
