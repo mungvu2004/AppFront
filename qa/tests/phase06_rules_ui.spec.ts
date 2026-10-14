@@ -277,12 +277,12 @@ test('SCR-28 · FL-28-U1 · UI verify of every report and sheet state (`verifyUi
       );
     });
 
-    await test.step('[28-F-006] R3 done state', async () => {
+    await test.step('[28-F-006] R3 warnings-only state (ready, no done panel)', async () => {
       await verifyUi(page, 'U06r_28-F-006_done', async (p) => {
         await openRules(p, r3);
-        await expect(p.getByText(RR.doneText, { exact: true })).toBeVisible();
-        await expect(p.getByText('Lượt chạy này không có vi phạm', { exact: true })).toBeVisible();
-        await expect(p.getByRole('button', { name: 'Sang bước xuất bản', exact: true })).toBeInViewport();
+        await expect(p.getByRole('radiogroup', { name: RR.levelFilter })).toBeVisible();
+        await expect(p.getByRole('button', { name: RR.confirm, exact: true })).toBeInViewport();
+        await expect(p.getByText(RR.doneText, { exact: true })).toHaveCount(0);
         expect(await hasHorizontalScroll(p)).toBe(false);
       });
     });

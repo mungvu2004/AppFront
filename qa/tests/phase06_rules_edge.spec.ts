@@ -682,46 +682,42 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
     });
   });
 
-  test('SCR-28 · FL-28-06 · Done state with warnings only', async ({ browser }) => {
+  test('SCR-28 · FL-28-06 · Warnings-only run is `ready`, not `done`', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page, api } = admin;
       const project = await createRuleProject(admin, 'rules-done', { shortWall: false }); // R3
       await openRules(page, project.id);
 
-      await test.step('[28-B-004] done: figure 0, footer enabled', async () => {
-        // S5-confirm: the R3 layer raises no critical finding (else the report is `ready`, not `done`).
+      await test.step('[28-B-004] zero critical: figure 0, filter bar, footer enabled', async () => {
+        // F6 (useRuleReport.ts:596): `done` only when violations + warnings are both 0; R3 still raises warnings -> `ready`.
         expect(await settledInt(summaryValue(page, 'Nghiêm trọng')), 'Nghiêm trọng').toBe(0);
         await expect(rerunButton(page)).toBeVisible();
+        await expect(levelFilter(page)).toBeVisible();
         await expect(confirmButton(page)).toBeEnabled();
-        await shot(page, '28-B-004', 'done');
+        await shot(page, '28-B-004', 'ready_no_critical');
       });
 
-      await test.step('[28-A-022] done panel', async () => {
-        await expect.soft(page.getByText('Không phát hiện vi phạm nào.', { exact: true })).toBeVisible();
-        const line = page.getByText(/^\d[\d.]* luật đã chạy trên bản vẽ này và không luật nào bắt được lỗi\.$/u);
-        await expect.soft(line).toBeVisible();
-        const n = Number(((await line.innerText()).match(/^(\d[\d.]*)/u)?.[1] ?? '').replace(/\./gu, ''));
-        expect.soft(n, 'N = Tổng').toBe(await settledInt(summaryValue(page, 'Tổng số kiểm tra')));
-        await expect.soft(page.getByText('Lượt chạy này không có vi phạm', { exact: true })).toBeVisible();
-        await shot(page, '28-A-022', 'done_panel');
+      await test.step('[28-A-022] no "done" panel while warnings exist', async () => {
+        await expect.soft(page.getByText('Không phát hiện vi phạm nào.', { exact: true })).toHaveCount(0);
+        await expect.soft(page.getByText(/^\d[\d.]* luật đã chạy trên bản vẽ này và không luật nào bắt được lỗi\.$/u)).toHaveCount(0);
+        await expect.soft(page.getByText('Lượt chạy này không có vi phạm', { exact: true })).toHaveCount(0);
+        await shot(page, '28-A-022', 'no_done_panel');
       });
 
       await test.step('[28-B-005] ⚑ warnings stay reachable', async () => {
         expect.soft(await settledInt(summaryValue(page, 'Cảnh báo')), 'Cảnh báo').toBeGreaterThan(0);
         await expect.soft(groupHeaders(page).first(), 'a warning/suggestion group is listed').toBeVisible();
+        await expect.soft(levelFilter(page), 'filter bar').toBeVisible();
         await shot(page, '28-B-005', 'warnings_reachable');
       });
 
       const mark = api.length;
-      await test.step('[28-A-023] "Sang bước xuất bản"', async () => {
-        await page.getByRole('button', { name: 'Sang bước xuất bản', exact: true }).click();
-        await expect.poll(() => pathOf(page)).toBe(ROUTES.project.export(project.id));
-        await shot(page, '28-A-023', 'to_export');
+      await test.step('[28-A-023] no "Sang bước xuất bản" shortcut outside the done panel', async () => {
+        await expect.soft(page.getByRole('button', { name: 'Sang bước xuất bản', exact: true })).toHaveCount(0);
+        await shot(page, '28-A-023', 'no_shortcut');
       });
 
-      await test.step('[28-A-024] Back, then "Xác nhận đã xử lý"', async () => {
-        await page.goBack();
-        await expect(reportHeading(page)).toBeVisible();
+      await test.step('[28-A-024] "Xác nhận đã xử lý" goes to export without writes', async () => {
         await confirmButton(page).click();
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.export(project.id));
         expect.soft(writesSince(api, mark), 'POST/PUT/DELETE').toEqual([]);
@@ -929,12 +925,15 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         });
 
         await test.step('[28-D-004] ⚑ viewer: no "Xác nhận đã xử lý"', async () => {
+          await expect(summaryValue(v.page, 'Tổng số kiểm tra')).toBeVisible(); // report is up: the absence is meaningful
           await expect.soft(confirmButton(v.page)).toHaveCount(0);
           await shot(v.page, '28-D-004', 'viewer_footer');
         });
 
         await test.step('[28V-D-003] ⚑ viewer: no fix options in the sheet', async () => {
           await openFirstRowOf(v.page, RULE_NAMES.furnitureClash);
+          // F6 (RuleReport.container.tsx:237): the sheet is up (title shown) before the absence is asserted.
+          await expect(sheetTitle(v.page)).toBeVisible();
           await expect.soft(sheet(v.page).getByRole('heading', { name: 'Lựa chọn xử lý', level: 3 })).toHaveCount(0);
           await expect.soft(sheet(v.page).getByRole('button', { name: DELETE_ACTION })).toHaveCount(0);
           await shot(v.page, '28V-D-003', 'viewer_sheet');
@@ -955,6 +954,10 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         });
 
         await test.step('[28V-D-004] after the 403: announcer and label', async () => {
+          if ((await sheet(v.page).getByRole('button', { name: DELETE_ACTION }).count()) === 0) {
+            test.info().annotations.push({ type: 'n/a', description: '28V-D-004: the viewer cannot trigger a save (28V-D-003 fixed)' });
+            return;
+          }
           await expect.soft(v.page.getByText(FORBIDDEN_MESSAGE).first()).toBeAttached();
           await expect.soft(sheet(v.page).getByText(SAVE_FAILED)).toBeVisible();
           await shot(v.page, '28V-D-004', 'viewer_forbidden');
@@ -1676,13 +1679,9 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
       await test.step('[28V-B-004] ⚑ after a fix the same action is not offered again', async () => {
         await openClash(-1);
         await fix(); // marker: PUT 200 answered
+        // F6 (useViolationDetail.ts:697, :1251): a deleted object is no longer offered, and "Đã sửa xong…" stays.
+        await expect.soft(panel.getByText(FIXED_LINE), 'fixed line stays').toBeVisible();
         await expect.soft(deleteButton, 'no second action').toHaveCount(0);
-        if ((await deleteButton.count()) > 0) {
-          // Today: the action stays. A second, separate click must then not end in the raw "Không tìm thấy…" error.
-          const settled = Promise.race([notFound.waitFor({ state: 'visible' }), waitForApi(page, 'PUT', layerPutRe, [200, 409, 403])]);
-          await deleteButton.click();
-          await settled;
-        }
         await expect.soft(notFound).toHaveCount(0);
         await shot(page, '28V-B-004', 'second_fix');
       });
