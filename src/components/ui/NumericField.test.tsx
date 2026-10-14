@@ -53,6 +53,17 @@ describe('NumericField', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Giá trị không nhỏ hơn 2 m.');
   });
 
+  it('refuses non-numeric text with a message (G61)', () => {
+    render(<NumericField value={50} unit="mm" aria-label="Dung sai" onChange={() => undefined} />);
+    const field = screen.getByRole('textbox', { name: 'Dung sai' });
+
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: 'abc' } });
+    fireEvent.blur(field);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Nhập một số.');
+  });
+
   it('keeps the refused text, not the stored value, when the field is focused again (BUG-198)', () => {
     render(<NumericField value={3} min={2} max={10} unit="m" aria-label="Chiều cao" onChange={() => undefined} />);
     const field = screen.getByRole('textbox', { name: 'Chiều cao' });

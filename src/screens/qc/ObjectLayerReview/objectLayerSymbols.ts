@@ -346,7 +346,7 @@ export const OBJECT_CANVAS_TEXT = {
   legendLabel: 'Chú giải màu lớp',
   nothingToDraw: 'Chưa có đối tượng nào để vẽ trên mặt bằng.',
   readOnlyNotice:
-    'Mặt bằng vẫn xem và phóng to được, nhưng không chọn hay sửa được đối tượng nào. Nhờ người có quyền sửa dự án duyệt giúp.',
+    'Mặt bằng vẫn xem và phóng to được, nhưng chỉ chọn xem được trong danh sách, không sửa được đối tượng nào. Nhờ người có quyền sửa dự án duyệt giúp.',
   orphanTitle: 'Chưa gắn vào tường nào',
 } as const;
 

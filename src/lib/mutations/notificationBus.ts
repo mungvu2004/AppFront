@@ -8,7 +8,14 @@ import { afterUndoWindow, combineUndoTickets, type UndoTicket } from './undoTick
 const DEFAULT_GROUP_WINDOW_MS = 5000;
 const DEFAULT_MAX_VISIBLE = 3;
 
+/** Optional button beside the message, e.g. a way out of a refusal (BUG-605). */
+export interface NotificationAction {
+  label: string;
+  onClick: () => void;
+}
+
 export interface NotificationInput {
+  action?: NotificationAction | undefined;
   description: string;
   title: string;
   type: string;
@@ -16,6 +23,7 @@ export interface NotificationInput {
 }
 
 export interface Notification {
+  action?: NotificationAction | undefined;
   createdAt: number;
   description: string;
   id: string;
@@ -175,6 +183,7 @@ export function createNotificationBus(options: CreateNotificationBusOptions = {}
       const groupLabel = undoableCount > 1 ? formatUndoGroupLabel(undoableCount) : undefined;
 
       upsertNotification(pending.notificationId, pending.firstAt, {
+        action: input.action,
         description: groupLabel ?? input.description,
         title: input.title,
         type: input.type,

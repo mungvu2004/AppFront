@@ -57,7 +57,7 @@ export function RoomLabelMergeDialog({
   onCancel,
 }: RoomLabelMergeDialogProps) {
   const options = candidates.map((candidate) => ({
-    label: `${candidate.codeLabel} · ${candidate.name}`,
+    label: `${candidate.codeLabel} · ${candidate.name.trim() === '' ? 'Chưa đặt tên' : candidate.name}`,
     value: candidate.id,
   }));
 

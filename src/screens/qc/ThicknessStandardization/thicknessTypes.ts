@@ -561,6 +561,8 @@ export interface ThicknessStandardizationProps {
   readonly viewerRoleNotice: string | null;
   /** Câu của trạng thái `empty`. `null` ở trạng thái khác. */
   readonly emptyNotice: string | null;
+  /** Lối sang lớp tường từ màn rỗng. Vắng khi container không cấp `onNavigate`. */
+  readonly onNavigateToWalls?: (() => void) | undefined;
   /** Lỗi của trạng thái `error`. `null` ở trạng thái khác. */
   readonly errorMessage: string | null;
 }

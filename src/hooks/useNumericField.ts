@@ -67,8 +67,9 @@ export function useNumericField({ value, onChange, min, max, unit, resetKey, fra
   // A sentence with the unit, not a bare operator: "Giá trị phải <= 10" told
   // nobody what was measured (BUG-160).
   const bound = (limit: number): string => `${formatNumber(limit)}${unit === undefined ? '' : ` ${unit}`}`;
-  const validate = (val: number | undefined): string | null => {
-    if (val === undefined) return null;
+  const validate = (val: number | undefined, text = ''): string | null => {
+    // G61: chữ không phải số thì nói ra, không im lặng (ô trống vẫn là "xoá giá trị").
+    if (val === undefined) return text.trim() === '' ? null : 'Nhập một số.';
     if (min !== undefined && val < min) return `Giá trị không nhỏ hơn ${bound(min)}.`;
     if (max !== undefined && val > max) return `Giá trị không quá ${bound(max)}.`;
     return null;
@@ -81,7 +82,7 @@ export function useNumericField({ value, onChange, min, max, unit, resetKey, fra
 
   const commit = useCallback((valStr: string) => {
     const parsed = parseNumber(valStr);
-    const err = validate(parsed);
+    const err = validate(parsed, valStr);
     setError(err);
 
     if (!err && parsed !== lastCommittedRef.current) {
@@ -119,7 +120,7 @@ export function useNumericField({ value, onChange, min, max, unit, resetKey, fra
     
     // Immediate validation feedback without committing
     const parsed = parseNumber(e.target.value);
-    setError(validate(parsed));
+    setError(validate(parsed, e.target.value));
   };
 
   const handleFocus = () => {

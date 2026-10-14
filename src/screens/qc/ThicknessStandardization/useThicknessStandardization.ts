@@ -56,6 +56,7 @@ import { useFloorLayer } from '@/hooks/useFloorLayer';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useShortcut } from '@/hooks/useShortcut';
+import { ROUTES } from '@/routes/paths';
 import { can } from '@/lib/auth/permissions';
 import type { Command } from '@/lib/commands/types';
 import { newestEntryId, undoIfNewest, type HistoryStack } from '@/lib/commands/history';
@@ -611,7 +612,9 @@ export function useThicknessStandardization(
 
   const onUndo = useCallback(() => {
     applyUndo();
-  }, [applyUndo]);
+    // G63: the bar's own "Hoàn tác" took the step back — its toast would sit over the bar.
+    notifications.withdraw(THICKNESS_NOTIFICATION_TYPE);
+  }, [applyUndo, notifications]);
 
   /**
    * Chạy CẢ LÔ như một lượt, rồi MỜI HOÀN TÁC (A8).
@@ -833,6 +836,12 @@ export function useThicknessStandardization(
     [options.shortcutRegistry],
   );
 
+  const { onNavigate } = options;
+  const onNavigateToWalls = useMemo(
+    () => (onNavigate === undefined ? undefined : () => onNavigate(ROUTES.project.walls(projectId, floorId))),
+    [floorId, onNavigate, projectId],
+  );
+
   const hasTopLayer = preview !== null || reapplyWarning !== null;
 
   /**
@@ -953,6 +962,7 @@ export function useThicknessStandardization(
     isViewerRole,
     viewerRoleNotice: isViewerRole ? THICKNESS_SCREEN_TEXT.viewerRoleNotice : null,
     emptyNotice,
+    onNavigateToWalls,
     errorMessage,
 
     selectedWallIds,

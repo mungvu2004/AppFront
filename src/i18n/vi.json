@@ -1634,7 +1634,7 @@
     },
     "canvas": {
       "nothingToDraw": "Chưa có đối tượng nào để vẽ trên mặt bằng.",
-      "readOnlyNotice": "Mặt bằng vẫn xem và phóng to được, nhưng không chọn hay sửa được đối tượng nào. Nhờ người có quyền sửa dự án duyệt giúp.",
+      "readOnlyNotice": "Mặt bằng vẫn xem và phóng to được, nhưng chỉ chọn xem được trong danh sách, không sửa được đối tượng nào. Nhờ người có quyền sửa dự án duyệt giúp.",
       "backgroundAlt": "Bản vẽ gốc của {{floorName}}, dùng làm nền để đối chiếu lớp đối tượng."
     },
     "attach": {

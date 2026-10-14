@@ -35,6 +35,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
+import { ProjectSpatialGate } from '@/components/feedback/ProjectSpatialGate';
 import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
@@ -153,5 +154,9 @@ export function OverlayComparisonRoute() {
     );
   }
 
-  return <OverlayComparisonContainer floorId={floorId} onNavigate={navigate} projectId={id} />;
+  return (
+    <ProjectSpatialGate projectId={id}>
+      <OverlayComparisonContainer floorId={floorId} onNavigate={navigate} projectId={id} />
+    </ProjectSpatialGate>
+  );
 }

@@ -95,13 +95,13 @@ import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { EntityId, Level, LevelId, Point, Wall, WallId } from '@/domain/spatial/types';
 import { millimetresPerPixel } from '@/domain/units/scale';
 import { useFloorLayerAutosave, type FloorLayerSaveBlock } from '@/hooks/useAutosave';
-import { useCountUp } from '@/hooks/useCountUp';
 import { useFloorLayer } from '@/hooks/useFloorLayer';
 import { useProjectConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
+import { formatNumber } from '@/lib/format/number';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
 import { createSelectionChannel } from '@/lib/selection/syncChannel';
@@ -1273,8 +1273,8 @@ export function useWallLayerReview(
   }, [floorLayer.scaleStatus, level, selectedWallId, wallById, wallCodes]);
 
   /* Bộ đếm chạy 12 → 13 ở nấc `standard` (260 ms) — xem ghi chú đầu file. */
-  const reviewedCount = useCountUp(counter.reviewed, { format: { fractionDigits: 0 } });
-  const progressLabel = reviewProgressLabel(reviewedCount.text, counter.total);
+  /* Nhãn đọc-màn-hình lấy số THẬT, không phải số đang đếm lên (G69) — đếm lên chỉ là hiệu ứng. */
+  const progressLabel = reviewProgressLabel(formatNumber(counter.reviewed, { fractionDigits: 0 }), counter.total);
 
   const state = deriveScreenState({ isViewerRole, isCollapsed, hasError, isLoading, counter });
 
