@@ -75,14 +75,16 @@ test('SCR-40e-1 · FL-10E-04 · anon · Select và Combobox', async ({ devPage: 
     await captureEvidence(page, 'E10_10E-C-007_combobox_empty.png');
   });
 
-  await test.step('[10E-A-008] xoá, chọn "Vách thạch cao" bằng Enter: trigger đổi', async () => {
-    // Highlight after a no-match filter is -1 (useCombobox.ts:68); after "thạch" (1 hit) one ArrowDown lands on index 0 either way.
+  await test.step('[10E-A-008] xoá, chọn bằng Enter một mục KHÁC giá trị đang có: trigger đổi', async () => {
+    // Combobox starts at "Vách thạch cao" (DataEntryDemo.tsx:20,69), so pick "Vách kính cường lực" (catalog says thạch cao: deviation, would be a false green).
+    // Highlight after a no-match filter is -1 (useCombobox.ts:68); with one hit one ArrowDown lands on index 0 either way.
     await comboSearch(page).fill('');
-    await comboSearch(page).fill('thạch');
+    await comboSearch(page).fill('kính');
     await expect.soft(page.getByRole('option')).toHaveCount(1);
     await page.keyboard.press('ArrowDown');
     await page.keyboard.press('Enter');
-    await expect.soft(combo).toContainText('Vách thạch cao');
+    await expect.soft(combo).toContainText('Vách kính cường lực');
+    await expect.soft(combo).not.toContainText('Vách thạch cao');
     await expect.soft(listbox).toBeHidden();
     await captureEvidence(page, 'E10_10E-A-008_combobox_pick.png');
   });
@@ -159,12 +161,12 @@ test('SCR-40e-2 · FL-10E-05 · anon · ListReviewDemo: tám trạng thái', asy
     const body = page.locator('body');
     const partialBefore = await body.innerText();
     await retry.click();
-    await expect.soft(body).toHaveText(partialBefore);
+    await expect.soft(body).toHaveText(partialBefore, { useInnerText: true });
     await stateButton(page, 'empty').click();
     await expect(page.getByRole('button', { name: 'Thêm mới' })).toBeVisible();
     const emptyBefore = await body.innerText();
     await page.getByRole('button', { name: 'Thêm mới' }).click();
-    await expect.soft(body).toHaveText(emptyBefore);
+    await expect.soft(body).toHaveText(emptyBefore, { useInnerText: true });
     expect.soft(consoleErrors).toEqual([]);
     await captureEvidence(page, 'E10_10E-A-026_list_noop_buttons.png');
   });

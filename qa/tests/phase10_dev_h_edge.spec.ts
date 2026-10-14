@@ -157,11 +157,17 @@ test('SCR-40e-4 · FL-10E-11 · anon · CanvasOverlaysDemo: phép đo và menu n
     await d.zoomIn.click();
     await expect(d.zoomPct).toHaveText('110%'); // the click landed
     // CanvasOverlaysDemo.tsx:105 onPointerDown + ZoomCluster has no stopPropagation -> a label appears today
-    await expect(d.label).toHaveCount(0);
+    await expect.soft(d.label).toHaveCount(0);
     await captureEvidence(page, 'E10_10E-A-053_canvas_overlay_click.png');
   });
 
   await test.step('[10E-A-046] click 1, move: label reads round(dist x 12) mm', async () => {
+    // N-4 may have left a measurement started by the zoom click: reload so the state machine is idle before P1
+    await page.goto(CANVAS_DEMO_PATH);
+    await expect(d.heading).toBeVisible();
+    const b = await d.canvas.boundingBox();
+    if (b === null) throw new Error('canvas has no box');
+    box = b;
     await d.canvas.click({ position: P1 });
     await moveTo(P2);
     await expect.soft(d.label).toHaveText(mmText); // useMeasurementLabel.ts:96
