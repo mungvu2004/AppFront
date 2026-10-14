@@ -115,3 +115,16 @@ export const userRow = (page: Page, email: string): Locator => page.getByRole('r
 
 /** The toast (`role=status`, TOAST:144) whose text contains `text`. */
 export const toastWith = (page: Page, text: string): Locator => page.getByRole('status').filter({ hasText: text });
+
+/** Runs every cleanup even if one throws (each wrapped), then rethrows the first error - nothing is swallowed. */
+export async function runCleanups(cleanups: ReadonlyArray<() => Promise<unknown>>): Promise<void> {
+  const errors: unknown[] = [];
+  for (const cleanup of cleanups) {
+    try {
+      await cleanup();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  if (errors.length > 0) throw errors[0];
+}
