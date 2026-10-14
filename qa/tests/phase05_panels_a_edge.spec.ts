@@ -771,7 +771,9 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
 
   /* ======================================================================== FL-23R-07 */
   test('SCR-23 · FL-23R-07 · RA1: đổi tên — các nhánh cạnh, phím, đặt đồ', async ({ browser }) => {
-    test.setTimeout(120_000);
+    // run-052: ~70 s of real work + up to 6 ⚑ steps that each spend a 15 s soft wait while their bug is open → 120 s ran out
+    // before the last step (23F-G-004). 2 × that estimate.
+    test.setTimeout(240_000);
     let s: AdminSession | undefined;
     try {
       s = await openAdminSession(browser);
@@ -1118,17 +1120,31 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
         await shot(page, '23F-D-001', 'engineer-library');
       });
 
-      await test.step('[23F-A-029] drag "Ghế ăn" over "ghế (3)" → row `border-primary`; drop → dialog "Thay thế tất cả 3 ghế?" (then "Huỷ")', async () => {
+      await test.step('[23F-A-029] drag "Ghế ăn" over "ghế (3)" → row `border-primary` (kept over its label, gone on leaving); drop → dialog "Thay thế tất cả 3 ghế?" (then "Huỷ")', async () => {
         const furniture = panelOf(page, FL.title);
         await chip(furniture, 'Ghế').click();
         const row = detectedRow(furniture, 'ghế (3)');
-        await tile(furniture, 'Ghế ăn').hover();
-        await page.mouse.down();
-        const box = await row.boundingBox();
-        if (box === null) throw new Error('"ghế (3)" row has no box');
-        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 5 });
-        await expect.soft(row).toHaveClass(classToken('border-primary'));
-        await page.mouse.up();
+        await expect(tile(furniture, 'Ghế ăn')).toBeVisible();
+        // BUG-649 → test error (FI): Chromium does not fire HTML5 `dragover` reliably for `page.mouse` drags, so the drag of the
+        // "Ghế ăn" tile is dispatched as the events the tile's `onDragStart` sets up (IC:76-79: CATALOG_DRAG_TYPE = item id).
+        const transfer = await page.evaluateHandle(() => {
+          const data = new DataTransfer();
+          data.setData('application/x-pascal-catalog-item', 'dining-chair');
+          return data;
+        });
+        await row.dispatchEvent('dragenter', { dataTransfer: transfer });
+        await row.dispatchEvent('dragover', { dataTransfer: transfer });
+        await expect.soft(row, 'highlighted while dragged over').toHaveClass(classToken('border-primary'));
+        // Moving onto the row's own label is not leaving the row (DFS onDragLeave keeps it when relatedTarget is a child).
+        const label = await row.locator('span').first().elementHandle();
+        await row.dispatchEvent('dragleave', { dataTransfer: transfer, relatedTarget: label });
+        await expect.soft(row, 'still highlighted over its own label').toHaveClass(classToken('border-primary'));
+        const outside = await furniture.locator('h2').elementHandle();
+        await row.dispatchEvent('dragleave', { dataTransfer: transfer, relatedTarget: outside });
+        await expect.soft(row, 'highlight gone after leaving the row').not.toHaveClass(classToken('border-primary'));
+        await row.dispatchEvent('dragenter', { dataTransfer: transfer });
+        await row.dispatchEvent('dragover', { dataTransfer: transfer });
+        await row.dispatchEvent('drop', { dataTransfer: transfer });
         const dialog = page.getByRole('dialog', { name: FL.previewTitle('ghế', 3), exact: true });
         await expect.soft(dialog).toBeVisible();
         await expect.soft(dialog.getByRole('listitem').first()).toHaveText(FL.previewRow('ghế', 1, 'Ghế ăn'));
