@@ -38,11 +38,13 @@ import {
 function Frame({
   caption,
   children,
+  headerSlotRef,
   onLeave,
   showCaption = false,
 }: {
   caption: string;
   children: React.ReactNode;
+  headerSlotRef?: React.Ref<HTMLDivElement> | undefined;
   onLeave?: (() => void) | undefined;
   showCaption?: boolean;
 }) {
@@ -53,6 +55,10 @@ function Frame({
     >
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-[16px] font-semibold text-text-primary">{PASCAL_VIEWER_TITLE}</h2>
+        {/* Khe thanh hiện diện: nằm ở đầu màn chứ không nổi trên canvas (23R-F-002). */}
+        {headerSlotRef !== undefined && (
+          <div ref={headerSlotRef} className="ml-auto flex" data-testid="pascal-header-slot" />
+        )}
         {onLeave !== undefined && (
           <Button onClick={onLeave} size="sm" variant="secondary">
             {PASCAL_LEAVE_LABEL}
@@ -155,6 +161,7 @@ export function PascalViewer({
   activePanel,
   onPanelChange,
   sceneOverlay,
+  headerSlotRef,
   onSaveReload,
 }: PascalViewerProps) {
   const { state, caption, summary, skipped, errorCode, saveLabel } = viewModel;
@@ -262,7 +269,7 @@ export function PascalViewer({
   const isBooting = state === 'loading';
 
   return (
-    <Frame caption={caption} onLeave={onLeave} showCaption>
+    <Frame caption={caption} headerSlotRef={headerSlotRef} onLeave={onLeave} showCaption>
       <div className="flex h-full min-h-0 flex-col gap-3">
         <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
           <div className="relative min-h-[12rem] min-w-0 flex-1">

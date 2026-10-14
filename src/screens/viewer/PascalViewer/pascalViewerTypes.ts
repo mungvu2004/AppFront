@@ -111,6 +111,8 @@ export interface PascalViewerProps {
   readonly onPanelChange?: ((panel: PascalSidePanelId | null) => void) | undefined;
   /** Lớp phủ DOM đè lên khung 3D (ghim cộng tác) — cùng ô `relative` với canvas. */
   readonly sceneOverlay?: React.ReactNode;
+  /** Khe ở đầu màn (cạnh tiêu đề) cho thanh hiện diện của lớp cộng tác (23R-F-002). */
+  readonly headerSlotRef?: React.Ref<HTMLDivElement> | undefined;
   /**
    * Tầng bị 409 (bản mới ở nơi khác): nút "Tải lại" cạnh câu lưu, như dải lưu
    * của màn QC (23-B-029). Vắng thì không có nút.
@@ -148,9 +150,13 @@ export const PASCAL_SAVE_LABELS: Readonly<Record<PascalSaveStatus, string>> = {
 };
 
 /** Câu trạng thái lưu; khi đã lưu thì kèm giờ: "Đã lưu lúc 14:32" (#24). */
-export const saveLabelOf = (status: PascalSaveStatus | null, savedAt: number | null): string | null => {
+export const saveLabelOf = (
+  status: PascalSaveStatus | null,
+  savedAt: number | null,
+): string | null => {
   if (status === null) return null;
-  if (status === 'saved' && savedAt !== null) return `${PASCAL_SAVE_LABELS.saved} lúc ${formatClockTime(savedAt)}`;
+  if (status === 'saved' && savedAt !== null)
+    return `${PASCAL_SAVE_LABELS.saved} lúc ${formatClockTime(savedAt)}`;
   return PASCAL_SAVE_LABELS[status];
 };
 

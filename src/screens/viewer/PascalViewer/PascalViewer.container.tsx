@@ -130,7 +130,8 @@ function PascalViewerBody({
   /* `/3d?tool=measure` (route đo cũ chuyển hướng về đây). Đọc thẳng URL một lần
      thay vì `useSearchParams`, để thân màn không bắt buộc nằm trong `<Router>`. */
   const initialTool = useMemo(
-    () => (new URLSearchParams(window.location.search).get('tool') === 'measure' ? 'measure' : undefined),
+    () =>
+      new URLSearchParams(window.location.search).get('tool') === 'measure' ? 'measure' : undefined,
     [],
   );
 
@@ -190,7 +191,8 @@ function PascalViewerBody({
   /* Câu lưu của màn lấy từ bộ tự lưu AppFront — lưu THẬT xong mới "Đã lưu lúc
      HH:MM". Trạng thái lưu nội bộ của editor Pascal không còn lên màn. */
   const saveLabel =
-    floorSave.saveBlock?.message ?? (indicator.state === 'saved' ? floorSave.label : indicator.label);
+    floorSave.saveBlock?.message ??
+    (indicator.state === 'saved' ? floorSave.label : indicator.label);
 
   useEffect(() => {
     if (indicator.state !== 'failed') return;
@@ -234,7 +236,15 @@ function PascalViewerBody({
     });
   }, []);
 
-  const { viewModel, canvasRef, sceneTarget, deleteNodes, loadedScene: viewerScene, onRetry, onExpand } = usePascalViewer({
+  const {
+    viewModel,
+    canvasRef,
+    sceneTarget,
+    deleteNodes,
+    loadedScene: viewerScene,
+    onRetry,
+    onExpand,
+  } = usePascalViewer({
     graph,
     mode: 'edit',
     readOnly: isReadOnly,
@@ -296,6 +306,8 @@ function PascalViewerBody({
   });
 
   const saveConfirm = floorSave.saveBlock?.confirm ?? null;
+  // Thanh hiện diện ra đầu màn: góc nào của canvas cũng có nút Pascal (23R-F-002, BUG-623).
+  const [presenceSlot, setPresenceSlot] = useState<HTMLDivElement | null>(null);
 
   return (
     <>
@@ -310,7 +322,10 @@ function PascalViewerBody({
         panels={panels}
         activePanel={activePanel}
         onPanelChange={setActivePanel}
-        sceneOverlay={<CollaborationLayerContainer scene={sceneTarget} />}
+        headerSlotRef={setPresenceSlot}
+        sceneOverlay={
+          <CollaborationLayerContainer presenceContainer={presenceSlot} scene={sceneTarget} />
+        }
       />
       {saveConfirm !== null && (
         <Suspense fallback={null}>
@@ -394,7 +409,9 @@ export function PascalViewerRoute() {
         <PascalViewerContainer
           graph={graph}
           projectId={projectId}
-          onLeave={projectId === undefined ? undefined : () => navigate(ROUTES.project.floors(projectId))}
+          onLeave={
+            projectId === undefined ? undefined : () => navigate(ROUTES.project.floors(projectId))
+          }
           onReprocess={
             projectId === undefined ? undefined : () => navigate(ROUTES.project.pipeline(projectId))
           }
