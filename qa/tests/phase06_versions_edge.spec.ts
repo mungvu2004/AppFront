@@ -631,7 +631,7 @@ test.describe('SCR-32 versions — AI project (PV)', () => {
 
         await test.step('[32-C-043] ⚑ a forbidden direction character is refused with a text that says why', async () => {
           await openDialog();
-          const sent = await sendWith('a‮b');
+          const sent = await sendWith('a\u202Eb');
           expect(sent.status, 'BE normalize_label: category Cf -> 422 VALIDATION label').toBe(422);
           const banner = page.getByRole('alert').filter({ hasText: VH.labelErrorTitle });
           await expect(banner).toBeVisible();
