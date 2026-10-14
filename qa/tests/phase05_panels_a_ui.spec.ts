@@ -1,7 +1,7 @@
 /**
  * Phase 5 — SCR-23 side panels "Diện tích phòng" + "Thư viện đồ đạc", dedicated UI verification (skill `qa-verify-ui`; QA-05c P3,
  * plan `flows-C2.md` "phase05_panels_a_ui.spec.ts": 5 flows, 13 steps). Each step is one visible state, re-opened and shot at
- * 1440 / 1024 / 768 / 375 by `verifyUi` (`U05_<row id>_<slug>_<width>.png` + `.json` metrics: horizontal scroll, off-screen
+ * 1920 / 1440 / 1024 / 768 by `verifyUi` (`U05_<row id>_<slug>_<width>.png` + `.json` metrics: horizontal scroll, off-screen
  * controls, broken images, clipped text, overlaps, small targets). On top of that each step measures its own subject against
  * its container — the Pascal canvas box the vendor sidebar lives in (PV:255-260) — because the sidebar is a fixed 432 px slot
  * (AS:48-54) clipped by that box's `overflow-hidden` at narrow widths (⚑ 23R-F-001 / 23F-F-001, "768/375").
@@ -84,9 +84,9 @@ async function verifyState(
   return { metrics, outside };
 }
 
-/** H steps: the state must at least open at 1440 (the rest is soft inside `verifyUi`). */
+/** H steps: the state must at least open at the first width (1920) (the rest is soft inside `verifyUi`). */
 const opensAt1440 = (check: StateCheck): void => {
-  expect(check.metrics[0]?.openError, 'the state opens at 1440').toBeUndefined();
+  expect(check.metrics[0]?.openError, 'the state opens at 1920').toBeUndefined();
 };
 
 test.describe('U05 SCR-23 side panels A — UI verify (QA-05c P3)', () => {
@@ -104,7 +104,7 @@ test.describe('U05 SCR-23 side panels A — UI verify (QA-05c P3)', () => {
       };
       let renames = 0;
 
-      await test.step('[23R-F-001] panel open, collapsed: no horizontal scroll, h2 + total inside the frame (⚑ 768/375)', async () => {
+      await test.step('[23R-F-001] panel open, collapsed: no horizontal scroll, h2 + total inside the frame (⚑ 768)', async () => {
         const check = await verifyState(page, 'U05_23R-F-001_collapsed', async (p) => {
           const panel = await openPanel(p);
           await expect(panel.getByText(RA.collapsedHint, { exact: true })).toBeVisible();
@@ -292,7 +292,7 @@ test.describe('U05 SCR-23 side panels A — UI verify (QA-05c P3)', () => {
         await expect(replaceButton(detectedRow(panel, 'ghế (3)'))).toBeEnabled();
       };
 
-      await test.step('[23F-F-001] grid "Tất cả": chips wrap, no horizontal scroll (⚑ 768/375)', async () => {
+      await test.step('[23F-F-001] grid "Tất cả": chips wrap, no horizontal scroll (⚑ 768)', async () => {
         const check = await verifyState(page, 'U05_23F-F-001_grid', async (p) => {
           const panel = await openLibrary(p);
           return { chips: chipGroup(panel), lastChip: chip(panel, 'Của tôi'), count: itemCount(panel) };

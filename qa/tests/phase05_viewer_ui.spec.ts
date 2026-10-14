@@ -1,6 +1,6 @@
 /**
  * Phase 5 — SCR-23 Pascal `/projects/:p/3d` (+ SCR-24 `/3d/exploded`), dedicated UI-verification flows (skill `qa-verify-ui`;
- * QA-05c `flows-C1.md` "phase05_viewer_ui.spec.ts"). Three flows; every step is one screen state at 1440 / 1024 / 768 / 375
+ * QA-05c `flows-C1.md` "phase05_viewer_ui.spec.ts"). Three flows; every step is one screen state at 1920 / 1920 / 1440 / 1024 / 768
  * through `support/ui-verify.ts` `verifyUi` (re-opens the state per width, measures horizontal scroll, controls off-screen,
  * broken images, clipped text, overlaps, small targets; shoots `U05_<row id>_<slug>_<width>.png` + `U05_<row id>_<slug>.json`).
  * Row-specific numbers (canvas height share, canvas width, contrast, overlap) are measured inside `open` per width and asserted
@@ -100,7 +100,7 @@ test('SCR-23 · FL-23-U1 · rendered states', async ({ browser }) => {
       for (const [w, r] of Object.entries(share)) expect.soft(r, `${w}: canvas height / viewport (PVC:389-394, B-V10-02)`).toBeGreaterThan(0.5);
     });
 
-    await test.step('[23-F-007] history panel open: no horizontal scroll, canvas width > 0 at 375', async () => {
+    await test.step('[23-F-007] history panel open: no horizontal scroll, canvas width > 0', async () => {
       const canvasWidth: Record<number, number> = {};
       await verifyUi(page, 'U05_23-F-007_history-open', async (p) => {
         await openPascal(p, pid);
@@ -108,7 +108,7 @@ test('SCR-23 · FL-23-U1 · rendered states', async ({ browser }) => {
         await expect(historyRegion(p)).toBeVisible();
         canvasWidth[widthOf(p)] = (await canvasBox(p).boundingBox())?.width ?? 0;
       });
-      // ⚑ suspected (catalog 23-F-007): rail + fixed 344 px column at 375 squeezes the canvas (PV:98-128).
+      // ⚑ suspected (catalog 23-F-007): rail + fixed 344 px column squeezes the canvas (PV:98-128).
       for (const [w, cw] of Object.entries(canvasWidth)) expect.soft(cw, `${w}: canvas width with the panel open`).toBeGreaterThan(0);
     });
 

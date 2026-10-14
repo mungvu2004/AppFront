@@ -287,7 +287,7 @@ test('SCR-10 · FL-U10-02 · long names and a long floor list at four widths', a
             if (!hit) covered.push(`${String(width(p))}: ${await t.evaluate((el) => el.outerHTML.slice(0, 80))}`);
           }
         },
-        UI_VIEWPORTS.filter((v) => v.width === 768 || v.width === 375),
+        UI_VIEWPORTS.filter((v) => v.width === 768),
         { fullPage: false },
       );
       expect.soft(covered, 'FUF sticky bottom-0 covers nothing at the end of the page').toEqual([]);

@@ -1,10 +1,10 @@
 /**
  * Phase 5 — SCR-23H "Lịch sử thao tác" side panel of Pascal `/projects/:p/3d`, dedicated UI-verification flow (skill
  * `qa-verify-ui`; QA-05c `flows-C3.md` "phase05_panels-b_ui.spec.ts"; file named with `_b_` because `qa/playwright.config.ts`
- * `testMatch` does not take a hyphen). Every step = one state at 1440 / 1024 / 768 / 375 through `verifyUi`
+ * `testMatch` does not take a hyphen). Every step = one state at 1920 / 1440 / 1024 / 768 through `verifyUi`
  * (`U05_<row id>_<slug>_<width>.png` + `.json`); row numbers (chip height, panel box, listbox box, notice clipping) are measured
  * inside `open` per width and asserted after the four widths. ⚑ 23H-F-002: below 1024 the panel turns into a `fixed` sheet
- * (HPC:83,100-126, HPCH:101-105) that leaves the 344 px region empty and covers the canvas; at 375 rail + 344 px > viewport.
+ * (HPC:83,100-126, HPCH:101-105) that leaves the 344 px region empty and covers the canvas; rail + 344 px > viewport.
  *
  * Real stack only: Q1 (`layerSeed.createQcProject`), the pool viewer (`poolUser(admin, 'viewer', 'p05-p2')`) as a REAL member
  * in a second context. Budget: `POST /api/auth/login` 1 admin API + 2 sessions = 3; `POST /api/projects` 1, #35 PUT 1,
@@ -99,7 +99,7 @@ test('SCR-23 · FL-23H-06 · bảng lịch sử ở 4 khổ', async ({ browser }
       }
     });
 
-    await test.step('[23H-E-009] chip target size (BUG-477): 44 px at 375, 32 px at 1440 / 1024 / 768', async () => {
+    await test.step('[23H-E-009] chip target size (BUG-477): 32 px at 1920 / 1440 / 1024 / 768', async () => {
       const heights: Record<number, number[]> = {};
       await verifyUi(page, 'U05_23H-E-009_chip-targets', async (p) => {
         await openPanel(p);

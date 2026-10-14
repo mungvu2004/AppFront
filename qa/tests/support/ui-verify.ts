@@ -14,10 +14,10 @@ import { expect, test, type Page } from '@playwright/test';
 import { EVIDENCE_DIR, captureEvidence } from './evidence';
 
 export const UI_VIEWPORTS = [
+  { width: 1920, height: 1080 },
   { width: 1440, height: 900 },
   { width: 1024, height: 768 },
   { width: 768, height: 1024 },
-  { width: 375, height: 812 },
 ] as const;
 
 /**

@@ -1,7 +1,7 @@
 /**
  * Phase 5 — SCR-25 Measurement tool, dedicated UI-verification flows (skill `qa-verify-ui`; QA-05c S3 pack P5, plan
  * `flows-C4.md` "phase05_measure_ui.spec.ts"). One test per flow, one `test.step('[<row id>] …')` per catalog row; each state is
- * shot at 1440 / 1024 / 768 / 375 by `verifyUi` (`U05m_<row id>_<slug>_<width>.png` + `.json`), extra measurements as soft expects.
+ * shot at 1920 / 1440 / 1024 / 768 by `verifyUi` (`U05m_<row id>_<slug>_<width>.png` + `.json`), extra measurements as soft expects.
  *
  * Source (FE master d50bb248): MTV src/screens/viewer/MeasurementTool/MeasurementTool.tsx (mode bar, invitation, pills, chip) ·
  * MTL …/MeasurementList.tsx · UMT …/useMeasurementTool.ts · VCH/VOV/VSR src/screens/viewer/ViewerShell/ (zoom cluster, ViewCube,
@@ -77,7 +77,7 @@ test.describe('SCR-25 measure — UI verify', () => {
       open = await openAdminPage(browser);
       const { page } = open;
 
-      await test.step('[25-F-001] model loaded, no record: mode bar clear of ViewCube + minimap, invitation on a surface, zoom targets >= 24 px (>= 44 at 375)', async () => {
+      await test.step('[25-F-001] model loaded, no record: mode bar clear of ViewCube + minimap, invitation on a surface, zoom targets >= 24 px (>= 44)', async () => {
         const rows: { width: number; bar: Box | null; cube: Box | null; map: Box | null; surface: string; zoom: number[] }[] = [];
         await verifyUi(page, 'U05m_25-F-001_model_loaded', async (p) => {
           await openMeasure(p, projectId);
