@@ -134,7 +134,7 @@ async function figuresOf(page: Page): Promise<Figures> {
     total: await settledInt(summaryValue(page, 'Tổng số kiểm tra')),
     passed: await settledInt(summaryValue(page, 'Đạt')),
     warnings: await settledInt(summaryValue(page, 'Cảnh báo')),
-    violations: await settledInt(summaryValue(page, 'Vi phạm')),
+    violations: await settledInt(summaryValue(page, 'Nghiêm trọng')),
   };
 }
 
@@ -267,18 +267,18 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         await shot(page, '28-C-002', 'passed');
       });
 
-      await test.step('[28-C-003] Vi phạm = headers starting "Nghiêm trọng ·"', async () => {
+      await test.step('[28-C-003] Nghiêm trọng = headers starting "Nghiêm trọng ·"', async () => {
         const infos = await headerInfos(page);
-        expect.soft(first.violations, 'Vi phạm').toBe(infos.filter((info) => info.severity === 'Nghiêm trọng').length);
+        expect.soft(first.violations, 'Nghiêm trọng').toBe(infos.filter((info) => info.severity === 'Nghiêm trọng').length);
         await shot(page, '28-C-003', 'violations');
       });
 
-      await test.step('[28-C-004] Cảnh báo = headers − Vi phạm', async () => {
+      await test.step('[28-C-004] Cảnh báo = headers − Nghiêm trọng', async () => {
         expect.soft(first.warnings, 'Cảnh báo').toBe(firstTitles.length - first.violations);
         await shot(page, '28-C-004', 'warnings');
       });
 
-      await test.step('[28-C-005] Tổng = Đạt + Cảnh báo + Vi phạm', async () => {
+      await test.step('[28-C-005] Tổng = Đạt + Cảnh báo + Nghiêm trọng', async () => {
         expect.soft(first.total, 'identity').toBe(first.passed + first.warnings + first.violations);
         await shot(page, '28-C-005', 'identity');
       });
@@ -475,9 +475,9 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
       await openRules(page, project.id);
       let passedNames: string[] = [];
 
-      await test.step('[28-A-026] radio "Vi phạm"', async () => {
-        await levelRadio(page, 'Vi phạm').click();
-        await expect(levelRadio(page, 'Vi phạm')).toHaveAttribute('aria-checked', 'true');
+      await test.step('[28-A-026] radio "Nghiêm trọng"', async () => {
+        await levelRadio(page, 'Nghiêm trọng').click();
+        await expect(levelRadio(page, 'Nghiêm trọng')).toHaveAttribute('aria-checked', 'true');
         const infos = await headerInfos(page);
         expect(infos.length, 'groups listed').toBeGreaterThan(0);
         expect(infos.every((info) => info.severity === 'Nghiêm trọng'), 'every header starts "Nghiêm trọng ·"').toBe(true);
@@ -557,9 +557,9 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         await shot(page, '28-C-011', 'building_scope_hidden');
       });
 
-      await test.step('[28-A-034] "Vi phạm" + "Hình học" + "Tầng 2" = the intersection', async () => {
+      await test.step('[28-A-034] "Nghiêm trọng" + "Hình học" + "Tầng 2" = the intersection', async () => {
         await pick(page, floorSelect(page), 'Tất cả các tầng');
-        await levelRadio(page, 'Vi phạm').click();
+        await levelRadio(page, 'Nghiêm trọng').click();
         await pick(page, groupSelect(page), 'Hình học');
         await pick(page, floorSelect(page), 'Tầng 2');
         await expandAll(page);
@@ -663,9 +663,9 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         await shot(page, '28-A-016', 'switch_row');
       });
 
-      await test.step('[28-A-025] footer stays disabled while Vi phạm > 0', async () => {
+      await test.step('[28-A-025] footer stays disabled while Nghiêm trọng > 0', async () => {
         const url = page.url();
-        expect.soft(await settledInt(summaryValue(page, 'Vi phạm')), 'Vi phạm').toBeGreaterThan(0);
+        expect.soft(await settledInt(summaryValue(page, 'Nghiêm trọng')), 'Nghiêm trọng').toBeGreaterThan(0);
         await expect.soft(confirmButton(page)).toBeDisabled();
         await confirmButton(page).click({ force: true });
         expect.soft(page.url(), 'URL unchanged').toBe(url);
@@ -690,7 +690,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
 
       await test.step('[28-B-004] done: figure 0, footer enabled', async () => {
         // S5-confirm: the R3 layer raises no critical finding (else the report is `ready`, not `done`).
-        expect(await settledInt(summaryValue(page, 'Vi phạm')), 'Vi phạm').toBe(0);
+        expect(await settledInt(summaryValue(page, 'Nghiêm trọng')), 'Nghiêm trọng').toBe(0);
         await expect(rerunButton(page)).toBeVisible();
         await expect(confirmButton(page)).toBeEnabled();
         await shot(page, '28-B-004', 'done');
@@ -835,7 +835,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         await reload();
         const info = await infoOf(page, RULE_NAMES.wallThickness);
         expect.soft(info?.severity, 'group header').toBe('Nghiêm trọng');
-        expect.soft(await settledInt(summaryValue(page, 'Vi phạm')), 'Vi phạm').toBe(base.violations + 1);
+        expect.soft(await settledInt(summaryValue(page, 'Nghiêm trọng')), 'Nghiêm trọng').toBe(base.violations + 1);
         await shot(page, '28-C-015', 'severity_critical');
       });
 
@@ -912,7 +912,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
           await openRules(page, project.id);
           await expect(reportHeading(page)).toBeVisible();
           expect(await settledInt(summaryValue(page, 'Tổng số kiểm tra'))).toBeGreaterThan(0);
-          for (const label of ['Đạt', 'Cảnh báo', 'Vi phạm']) await expect(summaryValue(page, label)).toBeVisible();
+          for (const label of ['Đạt', 'Cảnh báo', 'Nghiêm trọng']) await expect(summaryValue(page, label)).toBeVisible();
           await expect(confirmButton(page)).toBeVisible();
           await expect(levelFilter(page)).toBeVisible();
           await shot(page, '28-D-001', 'admin');
@@ -922,8 +922,8 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
           await openRules(v.page, project.id);
           await softly.poll(() => v.api.find((x) => x.method === 'GET' && ruleConfigRe(project.id).test(x.path))?.status).toBe(200);
           expect.soft(await settledInt(summaryValue(v.page, 'Tổng số kiểm tra')), 'Tổng').toBeGreaterThan(0);
-          await levelRadio(v.page, 'Vi phạm').click();
-          await expect.soft(levelRadio(v.page, 'Vi phạm')).toHaveAttribute('aria-checked', 'true');
+          await levelRadio(v.page, 'Nghiêm trọng').click();
+          await expect.soft(levelRadio(v.page, 'Nghiêm trọng')).toHaveAttribute('aria-checked', 'true');
           await levelRadio(v.page, 'Tất cả').click();
           await shot(v.page, '28-D-003', 'viewer_reads');
         });
@@ -1027,7 +1027,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
       await test.step('[28-E-004] arrow keys on the radiogroup', async () => {
         await levelRadio(page, 'Tất cả').focus();
         await page.keyboard.press('ArrowRight');
-        await expect.soft(levelRadio(page, 'Vi phạm')).toHaveAttribute('aria-checked', 'true');
+        await expect.soft(levelRadio(page, 'Nghiêm trọng')).toHaveAttribute('aria-checked', 'true');
         await page.keyboard.press('ArrowRight');
         await expect.soft(levelRadio(page, 'Cảnh báo')).toHaveAttribute('aria-checked', 'true');
         await page.keyboard.press('ArrowLeft');

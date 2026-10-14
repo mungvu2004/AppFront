@@ -797,13 +797,13 @@ test.describe('SCR-29 Rule Settings · edge (real stack)', () => {
       const dialog = dialogReload(page);
       let conflict!: ApiResult;
 
-      await test.step('[29-B-015] người khác ghi (WALL-LENGTH tắt, rev 1); mình tắt "Bề dày tường…": alert 409 + chỉ báo "Lưu thất bại…"', async () => {
+      await test.step('[29-B-015] người khác ghi (WALL-LENGTH tắt, rev 1); mình tắt "Bề dày tường…": alert 409 + chỉ báo "Chưa lưu — tải lại…"', async () => {
         await writeElsewhere(c.api, id, { [WALL_LENGTH.code]: { enabled: false } });
         const rejected = waitRulePut(page, id, undefined, [409]);
         await thickness.click();
         conflict = await rejected;
         await expect(page.getByText(RS.conflict, { exact: true })).toBeVisible();
-        await expect.soft(indicator(page)).toHaveText(RS.failed);
+        await expect.soft(indicator(page)).toHaveText(RS.conflictCaption);
         await expect.soft(heading(page)).toBeVisible(); // the screen did not swap to an error state
         await shot(page, '29-B-015', 'conflict_alert');
       });
@@ -815,25 +815,21 @@ test.describe('SCR-29 Rule Settings · edge (real stack)', () => {
         await shot(page, '29-G-004', 'conflict_body');
       });
 
-      await test.step('[29-C-020] ⚑ sửa lần hai sau xung đột: PUT dùng revision máy chủ, hoặc chỉ báo không hứa thử lại', async () => {
-        const next = waitRulePut(page, id, undefined, [200, 409]);
+      await test.step('[29-C-020] ⚑ sửa lần hai sau xung đột: không PUT lại bản cũ (đến khi "Tải lại"); chỉ báo không hứa thử lại', async () => {
+        const mark = c.sent.length;
         await ruleSwitch(page, ROOM_UNNAMED.name).click();
-        const second = await next;
+        await page.waitForTimeout(2_500); // fixed-wait-ok: negative check (no PUT) needs a window past the autosave debounce
         await settled(page);
         const label = await indicator(page).innerText();
-        // URS:566 sends the stale baseVersion again → a silent second 409 under "sẽ thử lưu lại" (a promise that cannot hold).
-        expect.soft(second.response.status() === 200 || !label.includes('sẽ thử lưu lại'), `second save → ${String(second.response.status())}, indicator "${label}"`).toBe(true);
+        // useRuleSettings.ts conflictRef: after a 409 nothing is sent until "Tải lại"; the caption is CONFLICT_CAPTION.
+        expect.soft(c.sent.length, 'no PUT after the 409 until reload').toBe(mark);
+        expect.soft(label, 'indicator after the second edit').toBe(RS.conflictCaption);
+        expect.soft(label).not.toContain('thử lưu lại');
+        await expect.soft(reloadButton).toBeVisible();
         await shot(page, '29-C-020', 'second_edit_after_409');
       });
 
       await test.step('[29-B-016] "Tải lại" với sửa dở: dialog "Tải lại bộ luật?" + thân + "Để sau" / "Bỏ thay đổi và tải lại"', async () => {
-        if ((await reloadButton.count()) === 0) {
-          // [29-C-020] found the bug fixed (second save went through): bring the conflict back so the dialog flow can run.
-          await writeElsewhere(c.api, id, { [WALL_LENGTH.code]: { enabled: false } });
-          const again = waitRulePut(page, id, undefined, [409]);
-          await thickness.click();
-          await again;
-        }
         await reloadButton.click();
         await expect(dialog).toBeVisible();
         await expect.soft(dialog.getByText(RS.reloadBody, { exact: true })).toBeVisible();
@@ -1146,14 +1142,11 @@ test.describe('SCR-29 Rule Settings · edge (real stack)', () => {
 
       await test.step('[29-C-028] ⚑ "Nghiêm trọng" ở cài đặt so với bộ lọc /rules: thống nhất hoặc có chú thích đối ứng', async () => {
         await openRules(page, id);
-        // On a project with no layer SCR-28 is `done` and draws no level filter (RuleReport.tsx:271); the word for the violating bucket is
-        // the strip label "Vi phạm" (RuleReportSummary.tsx:84, = RuleReportLabels.tsx:97; that module is a .tsx and is not imported here).
-        const violation: string = 'Vi phạm';
-        await expect.soft(page.getByText(violation, { exact: true }).first(), 'SCR-28 shows the violation bucket word').toBeVisible();
+        // SCR-28 strip label "Nghiêm trọng" (RuleReportSummary.tsx:84, RuleReportLabels.tsx:97); SCR-29 severity label (RuleSettingsRow.tsx:27).
+        const word: string = 'Nghiêm trọng';
+        await expect.soft(page.getByText(word, { exact: true }).first(), 'SCR-28 names the violating bucket "Nghiêm trọng"').toBeVisible();
         await openSettings(page, id);
-        // SCR-29 calls the top level "Nghiêm trọng" (RSR:280): the two screens must use one word, or SCR-29 must explain the correspondence.
-        const note = await page.getByRole('main').getByText(new RegExp(`(^|\s)${violation}(\s|$|[.,])`, 'u')).count();
-        expect.soft(violation === 'Nghiêm trọng' || note > 0, `SCR-28 says "${violation}", SCR-29 says "Nghiêm trọng" and has no note`).toBe(true);
+        await expect.soft(page.getByRole('main').getByText(word, { exact: true }).first(), 'SCR-29 uses the same word').toBeVisible();
         await shot(page, '29-C-028', 'severity_wording');
       });
 

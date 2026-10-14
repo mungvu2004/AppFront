@@ -120,10 +120,10 @@ test('SCR-28 · FL-28-U1 · UI verify of every report and sheet state (`verifyUi
       });
     });
 
-    await test.step('[28-F-003] radio "Vi phạm"', async () => {
+    await test.step('[28-F-003] radio "Nghiêm trọng"', async () => {
       await verifyUi(page, 'U06r_28-F-003_violations', async (p) => {
         await openRules(p, r1);
-        await levelFilter(p).getByRole('radio', { name: 'Vi phạm', exact: true }).click();
+        await levelFilter(p).getByRole('radio', { name: 'Nghiêm trọng', exact: true }).click();
         await expect(groupExpanders(p).first()).toBeVisible();
         for (const text of await groupExpanders(p).allInnerTexts()) expect(text, 'critical groups only').toContain('Nghiêm trọng');
         expect(await hasHorizontalScroll(p), 'legible without horizontal scroll').toBe(false);
@@ -143,7 +143,7 @@ test('SCR-28 · FL-28-U1 · UI verify of every report and sheet state (`verifyUi
     await test.step('[28-F-005] filters with no match', async () => {
       await verifyUi(page, 'U06r_28-F-005_no_match', async (p) => {
         await openRules(p, r1);
-        await levelFilter(p).getByRole('radio', { name: 'Vi phạm', exact: true }).click();
+        await levelFilter(p).getByRole('radio', { name: 'Nghiêm trọng', exact: true }).click();
         const group = p.getByRole('combobox', { name: 'Nhóm luật', exact: true });
         await group.click();
         await p.getByRole('option', { name: 'Cao độ tầng', exact: true }).click();
