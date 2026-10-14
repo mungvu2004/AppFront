@@ -675,7 +675,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
       });
 
       await test.step('[28-A-044] the whole journey wrote nothing', async () => {
-        await page.goBack();
+        // The journey never leaves the report (the sheet adds no history entry): goBack would land on about:blank.
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.rules(project.id));
         await expect(reportHeading(page)).toBeVisible();
         expect.soft(writesSince(api, mark), 'POST/PUT/DELETE since step 1').toEqual([]);
@@ -688,6 +688,9 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
     await withAdmin(browser, async (admin) => {
       const { page, api } = admin;
       const project = await createRuleProject(admin, 'rules-done', { shortWall: false }); // R3
+      // The seed geometry still trips three critical rules (door swing, escape distance, window on inner wall); switch them off
+      // so the run is "warnings only" (same approach as createCleanProject).
+      expect(await putRuleConfig(admin, project.id, { 'DOOR-SWING-BLOCKED': { enabled: false }, 'ESCAPE-DISTANCE': { enabled: false }, 'WINDOW-ON-INNER-WALL': { enabled: false } }), 'setup: PUT rule-config (R3)').toBeLessThan(300);
       await openRules(page, project.id);
 
       await test.step('[28-B-004] zero critical: figure 0, filter bar, footer enabled', async () => {
@@ -713,6 +716,9 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
     await withAdmin(browser, async (admin) => {
       const { page, api } = admin;
       const project = await createCleanProject(admin, 'rules-clean'); // R0
+      // R0 still trips DOOR-SWING-BLOCKED on the seed geometry: add it to the switched-off list (the PUT replaces the overrides).
+      const cleanOff = ['ROOM-NO-WINDOW', 'ESCAPE-DISTANCE', 'CORRIDOR-WIDTH', 'DOOR-BLOCKS-PATH', 'FIXTURE-OFF-WALL', 'ROOM-FURNITURE-MISMATCH', 'ROOM-NO-DOOR', 'WINDOW-ON-INNER-WALL', 'DOOR-SWING-BLOCKED'];
+      expect(await putRuleConfig(admin, project.id, Object.fromEntries(cleanOff.map((code) => [code, { enabled: false }]))), 'setup: PUT rule-config (R0+)').toBeLessThan(300);
       await openRules(page, project.id);
       const donePanel = page.getByText('Không phát hiện vi phạm nào.', { exact: true });
       const shortcut = page.getByRole('button', { name: 'Sang bước xuất bản', exact: true });
@@ -891,6 +897,11 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         await page.evaluate(() => {
           (window as unknown as { __p06marker?: number }).__p06marker = 1;
         });
+        // N21 is fresh for 30 s (cachePolicy.ts default staleTime) and a reconnect only refetches stale queries: age the page clock.
+        await page.evaluate(() => {
+          const now = Date.now.bind(Date);
+          Date.now = () => now() + 120_000;
+        });
         const reread = waitForApi(page, 'GET', ruleConfigRe(project.id), [200]);
         expect(await putRuleConfig(admin, project.id, { 'WALL-LENGTH': { enabled: false } }), '+X N22 PUT').toBe(200);
         await reconnect();
@@ -1044,7 +1055,8 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         const groupBox = at((x) => x.role === 'combobox', radio + 1);
         const floorBox = at((x) => x.role === 'combobox', groupBox + 1);
         const header = at((x) => x.expanded, floorBox + 1);
-        const confirm = at((x) => x.text === 'Xác nhận đã xử lý', header + 1);
+        // The seed has criticals, so the footer button is disabled and not a tab stop (28-A-025); only count it when enabled.
+        const confirm = (await confirmButton(page).isEnabled()) ? at((x) => x.text === 'Xác nhận đã xử lý', header + 1) : header;
         const order = [settings, rerun, radio, groupBox, floorBox, header, confirm];
         expect.soft(order.every((index) => index >= 0), `all stops reached: ${JSON.stringify(order)}`).toBe(true);
         expect.soft(order, 'ascending').toEqual([...order].sort((a, b) => a - b));
@@ -1127,7 +1139,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
           await page.setViewportSize({ width: 1440, height: 900 });
           await expect.soft(sheet(page)).toHaveClass(/right-0/u);
           await expandAll(page);
-          const scroller = page.locator('div.overflow-y-auto').first();
+          const scroller = page.locator('div.flex.h-full.flex-col.overflow-y-auto');
           const scrolled = await scroller.evaluate((element) => {
             element.scrollTop = 120;
             return element.scrollTop;
