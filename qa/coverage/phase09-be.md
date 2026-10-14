@@ -255,10 +255,10 @@ Quy ước: URL có tiền tố `/api`. Cổng chạy TRƯỚC guard 428/Pydanti
 
 | id | cat | case | expected | oracle | layer | status | existing | stack | data needs |
 |---|---|---|---|---|---|---|---|---|---|
-| B09-str-001 | authz | streams_open_progress: ẩn danh (không cookie/Bearer) GET /api/projects/{pid}/uploads/{uploadId}/progress (SSE) | 401 `UNAUTHENTICATED` (core/auth.py:77,87; protected_router) | không token -> AppError 401, thân không lộ dữ liệu | api | missing | - | real | không |
-| B09-str-002 | authz | streams_open_progress: không phải thành viên dự án (admin hệ thống) GET /api/projects/{pid}/uploads/{uploadId}/progress (SSE) | 404 `NOT_FOUND` resource `project` — không phải 403 (projects/access.py:91; K08) | không có dòng ProjectMembership -> 404 trước mọi kiểm quyền, kể cả admin | api | missing | - | real | dự án riêng + pool user |
-| B09-str-003 | authz+ | streams_open_progress: viewer thành viên đối chứng dương GET /api/projects/{pid}/uploads/{uploadId}/progress (SSE) | 200 (đọc cho mọi thành viên, require_project() không khoá quyền) | permission=None -> allowed | api | missing | - | real | dự án riêng + pool user |
-| B09-str-004 | authz | streams_open_notifications: ẩn danh GET /api/notifications (SSE) | 401 `UNAUTHENTICATED` (streams/router.py authenticate_stream) | không token | api | missing | - | real | không |
+| B09-str-001 | authz | streams_open_progress: ẩn danh (không cookie/Bearer) GET /api/streams/projects/{pid}/uploads/{uploadId}/progress (SSE) | 401 `UNAUTHENTICATED` (core/auth.py:77,87; protected_router) | không token -> AppError 401, thân không lộ dữ liệu | api | missing | - | real | không |
+| B09-str-002 | authz | streams_open_progress: không phải thành viên dự án (admin hệ thống) GET /api/streams/projects/{pid}/uploads/{uploadId}/progress (SSE) | 404 `NOT_FOUND` resource `project` — không phải 403 (projects/access.py:91; K08) | không có dòng ProjectMembership -> 404 trước mọi kiểm quyền, kể cả admin | api | missing | - | real | dự án riêng + pool user |
+| B09-str-003 | authz+ | streams_open_progress: viewer thành viên đối chứng dương GET /api/streams/projects/{pid}/uploads/{uploadId}/progress (SSE) | 200 (đọc cho mọi thành viên, require_project() không khoá quyền) | permission=None -> allowed | api | missing | - | real | dự án riêng + pool user |
+| B09-str-004 | authz | streams_open_notifications: ẩn danh GET /api/streams/notifications (SSE) | 401 `UNAUTHENTICATED` (streams/router.py authenticate_stream) | không token | api | missing | - | real | không |
 
 ## quality — files: `apps/api/quality/router.py`, tests `apps/api/quality/tests/`
 
