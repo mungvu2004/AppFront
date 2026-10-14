@@ -147,6 +147,7 @@ test.describe('phase09 shell B edge', () => {
 
   test('SCR-05/Onboarding/Thông báo · FL-9P-06 · engineer · chưa có dự án', async ({ context, page }) => {
     const admin = await adminApi();
+    try {
     const pen = await roleUser(admin, 'engineer', 'shell-b-novice');
     const mp = mainProject();
     await signInRole(context, pen);
@@ -304,7 +305,7 @@ test.describe('phase09 shell B edge', () => {
       try {
         if (flipped) {
           const back = await admin.patch(`/api/users/${flip.id}/role`, { data: { role: 'admin', userId: flip.id } });
-          if (back.status() !== 200) throw new Error(`restore flip role -> ${String(back.status())}`);
+          expect(back.status(), 'restore flip role').toBe(200);
         }
       } finally {
         await undo();
