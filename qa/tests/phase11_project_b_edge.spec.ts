@@ -208,7 +208,7 @@ test.describe('phase 11 · project edge B', () => {
             const gone = await keepApi.delete(projectPath(notif.projectId));
             expect(gone.status(), 'setup: DELETE notification project').toBe(200);
             await page.goto(ROUTES.notifications);
-            await expect(page).toHaveURL(//thong-bao$/u);
+            await expect(page).toHaveURL(/\/thong-bao$/u);
             await page.getByRole('button').filter({ hasText: 'Hệ thống AI đã xử lý xong bản vẽ' }).first().click(); // NotificationRow.tsx:109
             await expectMissingState(page, 'notification target', 'gate');
           } finally {
