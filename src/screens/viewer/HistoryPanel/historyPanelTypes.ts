@@ -370,5 +370,3 @@ export const HISTORY_PANEL_TEST_IDS = {
   stepLimitNotice: 'history-panel-step-limit-notice',
 } as const;
 
-/** Phím mở panel. `Ctrl+H` còn trống — đã kiểm cả registry lẫn bốn màn QC. */
-export const HISTORY_PANEL_SHORTCUT = 'mod+h';

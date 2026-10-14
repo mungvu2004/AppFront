@@ -1,5 +1,10 @@
-import type { AnyNode, AnyNodeId, DoorNode, WindowNode, ZoneNode } from '@pascal-app/core'
-import { deriveZoneQuantityReport, resolveAutoZonePolygon, reviewStateOf } from '@pascal-app/core'
+import type { AnyNode, AnyNodeId, DoorNode, WallNode, WindowNode, ZoneNode } from '@pascal-app/core'
+import {
+  deriveZoneQuantityReport,
+  detectSpacesForLevel,
+  resolveAutoZonePolygon,
+  reviewStateOf,
+} from '@pascal-app/core'
 import { formatNumberVi } from '../../i18n/format'
 import { roomArea as vi } from '../../i18n/regions/roomArea'
 
@@ -269,6 +274,24 @@ function levelOrderOf(scene: RoomAreaSceneInput): Map<string, number> {
     if (node.type === 'level') order.set(node.id, (node as { level?: number }).level ?? 0)
   }
   return order
+}
+
+/**
+ * Closed wall loops on the given levels (#83 "Kiểm tra khe hở tường").
+ * `detectSpacesForLevel` returns `{ rooms, spaces, ... }`, not an array — the
+ * panel used to read `.length` off that object, got `NaN`, and reported "no
+ * closed area" for every closed frame (AppFront 23R-B-002).
+ */
+export function closedRoomCount(scene: RoomAreaSceneInput, levelIds: readonly string[]): number {
+  const walls = Object.values(normalizeNodes(scene)).filter(
+    (node): node is WallNode => node.type === 'wall',
+  )
+  let rooms = 0
+  for (const id of levelIds) {
+    const levelWalls = walls.filter((wall) => wall.parentId === id)
+    if (levelWalls.length > 0) rooms += detectSpacesForLevel(id, levelWalls).rooms.length
+  }
+  return rooms
 }
 
 /** The whole panel model: grouped rows, subtotals, bands and the grand total. */

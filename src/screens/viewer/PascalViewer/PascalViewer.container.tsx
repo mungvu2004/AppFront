@@ -233,11 +233,14 @@ function PascalViewerBody({
      dựng nó trong một hiệu ứng, nên nó về qua state sau một nhịp —
      `usePascalEdits` chịu được `null` và chỉ bỏ qua lượt ghi đến trước mốc ấy. */
   const [loadedScene, setLoadedScene] = useState<PascalScene | null>(null);
-  const { onSceneCommit, validateCommit } = usePascalEdits({
+  const { onSceneCommit, validateCommit, history } = usePascalEdits({
     spatial,
     loadedScene,
     readOnly: isReadOnly,
     onRejected,
+    /* Bước trên bảng lịch sử mang người đang đăng nhập — bảng đọc "tôi" từ cùng
+       phiên, nên bước của mình hiện là "Bạn" chứ không là một người lạ. */
+    ...(session.user?.id === undefined ? {} : { actorId: session.user.id }),
   });
 
   /* #25 "Lưu làm khuôn mẫu": cùng lời gọi `propertyTemplates.create` màn cũ dùng.
@@ -284,16 +287,23 @@ function PascalViewerBody({
         id: 'history',
         label: PASCAL_SIDE_PANEL_LABELS.history,
         render: () => (
-          <Suspense fallback={<p className="p-3 text-sm text-text-muted">Đang mở bảng…</p>}>
-            {/* Vỏ `panel` cố định: vùng bảng của `PascalViewer` tự làm tấm trượt dưới
-                `lg`, nên vỏ `sheet` riêng của bảng sẽ thoát khỏi vùng ấy (23H-F-002). */}
-            <LazyHistoryPanel layout="panel" />
-          </Suspense>
+          /* Ranh giới riêng của cột bảng (23H-B-011): chunk bảng tải hỏng thì chỉ
+             cột này báo lỗi, màn 3D và khung dựng vẫn đứng. */
+          <ScreenErrorBoundary
+            renderFallback={(fallback) => <CrashFallback {...fallback} />}
+            screenId="pascal-viewer.history-panel"
+          >
+            <Suspense fallback={<p className="p-3 text-sm text-text-muted">Đang mở bảng…</p>}>
+              {/* Vỏ `panel` cố định: vùng bảng của `PascalViewer` tự làm tấm trượt dưới
+                  `lg`, nên vỏ `sheet` riêng của bảng sẽ thoát khỏi vùng ấy (23H-F-002). */}
+              <LazyHistoryPanel history={history} layout="panel" />
+            </Suspense>
+          </ScreenErrorBoundary>
         ),
       },
       ...(extraPanels ?? []),
     ],
-    [extraPanels],
+    [extraPanels, history],
   );
 
   /* A12/#46 — Esc đóng lớp trên cùng, và khi một bảng phụ đang mở thì bảng ấy
@@ -312,7 +322,8 @@ function PascalViewerBody({
   );
 
   /* #37 — phím của màn đi qua registry chung, nên lượt trùng phím nào cũng bị
-     `shortcutRegistry` báo ra thay vì im lặng đè lên nhau. */
+     `shortcutRegistry` báo ra thay vì im lặng đè lên nhau. Đây là chủ DUY NHẤT
+     của Ctrl+H: bảng lịch sử không tự đăng ký phím này nữa (23H-A-009). */
   useShortcut({
     id: 'pascalViewer.sidePanel.history',
     combo: 'Ctrl+H',

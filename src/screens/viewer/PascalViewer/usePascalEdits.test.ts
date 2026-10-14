@@ -108,6 +108,18 @@ describe('usePascalEdits', () => {
     expect(after !== undefined && 'thicknessMm' in after ? after.thicknessMm : null).toBe(330);
   });
 
+  it('23H-A-016 — lượt sửa đã vào kho thành một bước trên ngăn lịch sử trả ra cho bảng', async () => {
+    const { result } = mount();
+
+    expect(result.current.history.undoSteps()).toHaveLength(0);
+
+    await act(async () => {
+      await result.current.onSceneCommit(thickened());
+    });
+
+    expect(result.current.history.undoSteps()).toHaveLength(1);
+  });
+
   it('C2 — bức tường vừa sửa mất dấu xác minh', async () => {
     const { result } = mount();
     const wallId = Object.keys(SPATIAL.byId).find((id) => id.startsWith('W-'));
