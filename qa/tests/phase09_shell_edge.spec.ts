@@ -58,6 +58,7 @@ test.describe('phase09 shell edge', () => {
       await test.step('[9P-C-001] N outside inputs opens no create dialog', async () => {
         await page.locator('body').click({ position: { x: 5, y: 5 } });
         await page.keyboard.press('n'); // UPD:420 enabled: canCreate
+        await page.waitForLoadState('networkidle');
         await expect.soft(page.getByRole('dialog')).toHaveCount(0);
         await shot(page, '9P-C-001', 'key_n');
       });
@@ -74,7 +75,9 @@ test.describe('phase09 shell edge', () => {
         await shot(page, '9P-G-001', 'summaries');
       });
       await test.step('[9P-A-001] open MP card', async () => {
+        const loaded = page.waitForResponse((res) => new URL(res.url()).pathname === `/api/projects/${projectId}` && res.request().method() === 'GET');
         await page.getByRole('button', { name: `Mở ${projectName}`, exact: true }).click(); // PCT:166
+        expect((await loaded).status()).toBe(200);
         await expect.soft(page).toHaveURL(new RegExp(`/projects/${projectId}`, 'u'));
         await expect.soft(page.getByText(COPY.deniedTitle)).toHaveCount(0);
         await shot(page, '9P-A-001', 'open_card');
@@ -163,12 +166,14 @@ test.describe('phase09 shell edge', () => {
       });
       await test.step('[9P-D-201] tab Chung: no editable field, Ghi chú paragraph', async () => {
         await page.getByRole('tab', { name: COPY.tabGeneral }).click();
+        await expect(page.getByText('Ghi chú', { exact: true })).toBeVisible(); // anchor first
         await expect.soft(page.getByRole('textbox')).toHaveCount(0); // GT:71-78
-        await expect.soft(page.getByText('Ghi chú', { exact: true })).toBeVisible();
         await shot(page, '9P-D-201', 'tab_general');
       });
       await test.step('[9P-D-202] tab Đơn vị đo read-only', async () => {
         await page.getByRole('tab', { name: COPY.tabUnits }).click();
+        await expect(page.getByRole('tab', { name: COPY.tabUnits })).toHaveAttribute('aria-selected', 'true');
+        await expect(page.getByText('Ghi chú', { exact: true })).toHaveCount(0); // Chung panel gone
         await expect.soft(page.getByRole('textbox')).toHaveCount(0); // UnitsTab.tsx:50 isReadOnly
         await expect.soft(page.getByRole('spinbutton')).toHaveCount(0);
         await shot(page, '9P-D-202', 'tab_units');
@@ -210,14 +215,9 @@ test.describe('phase09 shell edge', () => {
         const listed = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/notifications' && r.request().method() === 'GET');
         await page.goto('/thong-bao');
         const body = (await (await listed).json()) as { id: string }[];
-        const hasInvite = body.some((n) => JSON.stringify(n).toLowerCase().includes('invite'));
-        if (hasInvite) {
-          await expect.soft(page.getByRole('button', { name: COPY.accept }).first()).toBeVisible(); // NG:182
-        } else {
-          // UNKNOWN — NEED VERIFICATION: seed does not produce an invite notification for PV; step skipped, report missing seed.
-          test.info().annotations.push({ type: 'skipped-seed', description: '9P-D-309: no invite notification seeded' });
-          expect.soft(Array.isArray(body)).toBe(true);
-        }
+        // asMember(201) emits the invite notification (notifications/invite_sinks.py:21)
+        expect(body.some((n) => JSON.stringify(n).toLowerCase().includes('invite')), 'invite notification seeded').toBe(true);
+        await expect.soft(page.getByRole('button', { name: COPY.accept }).first()).toBeVisible(); // NG:182
         await shot(page, '9P-D-309', 'notifications');
       });
       await test.step('[9P-G-301] GET notifications 200, POST read 204', async () => {
@@ -225,6 +225,7 @@ test.describe('phase09 shell edge', () => {
         const res = await api.get('/api/notifications');
         expect.soft(res.status()).toBe(200);
         const rows = (await res.json()) as { id: string }[];
+        expect(rows.length, 'seed: no notification to mark read').toBeGreaterThan(0);
         const mark = await api.post('/api/notifications/read', { data: { ids: rows.slice(0, 1).map((n) => n.id) } }); // router.py:30
         expect.soft(mark.status()).toBe(204);
         await shot(page, '9P-G-301', 'notifications_api');
@@ -250,9 +251,9 @@ test.describe('phase09 shell edge', () => {
       });
       await test.step('[9P-D-205] settings: no read-only line, add member, no danger tab', async () => {
         await gotoAs(page, `/projects/${projectId}/settings`, COPY.settingsH1);
-        await expect.soft(page.getByText(COPY.settingsReadOnly)).toHaveCount(0);
         await page.getByRole('tab', { name: COPY.tabMembers }).click();
-        await expect.soft(page.getByRole('button', { name: COPY.addMember })).toBeVisible(); // not clicked
+        await expect(page.getByRole('button', { name: COPY.addMember })).toBeVisible(); // anchor: role loaded; not clicked
+        await expect.soft(page.getByText(COPY.settingsReadOnly)).toHaveCount(0);
         await expect.soft(page.getByRole('tab', { name: COPY.tabDanger })).toHaveCount(0);
         await shot(page, '9P-D-205', 'eng_settings');
       });
@@ -265,7 +266,9 @@ test.describe('phase09 shell edge', () => {
         await spaGo(page, '/admin/models');
         await expect(page.getByRole('textbox', { name: COPY.librarySearch })).toBeVisible({ timeout: 15_000 });
         await expect.soft(page.getByText(COPY.libraryForbidden)).toHaveCount(0);
-        await expect.soft(page.getByText(COPY.libraryReadOnly)).toHaveCount(1); // useModelLibrary.ts:~103
+        await expect.soft(page.getByText(COPY.libraryReadOnly)).toHaveCount(1); // useModelLibrary.ts:592
+        // no manage actions (gate canManage, useModelLibrary.ts:507/592)
+        await expect.soft(page.getByRole('button', { name: /Tải lên|Xoá|Đổi tên|Sửa|Nhân bản/u })).toHaveCount(0);
         await shot(page, '9P-D-402', 'eng_library');
       });
     } finally {
