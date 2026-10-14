@@ -392,12 +392,13 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
 
       await test.step('[30-E-001] heading and regions', async () => {
         await expect.soft(page.getByRole('heading', { name: EP.title, level: 2 })).toBeVisible();
-        for (const name of [EP.scope, EP.preflight, EP.history]) await expect.soft(region(page, name), name).toBeVisible();
+        for (const name of [EP.preflight, EP.history]) await expect.soft(region(page, name), name).toBeVisible();
+        await expect.soft(region(page, EP.scope), 'no scope block for .json (ExportPanelOptions.tsx:221)').toHaveCount(0);
         await shot(page, '30-E-001', 'regions');
       });
 
       await test.step('[30-A-007] "Tải lại" re-delivers the file', async () => {
-        const again = await downloadVia(page, () => historyRegion(page).getByRole('button', { name: EP.redownload, exact: true }).click());
+        const again = await downloadVia(page, () => historyRegion(page).getByRole('button', { name: `${EP.redownload} ${first.name}`, exact: true }).click()); // F3 (E-014): aria-label "Tải lại <tên>"
         expect.soft(again.suggestedFilename()).toBe(first.name);
         await expect.soft(historyRows(page)).toHaveCount(1);
         await shot(page, '30-A-007', 'redownload');
@@ -420,7 +421,7 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
       });
 
       await test.step('[30-A-008] "Tải lại" on the older row delivers THAT file', async () => {
-        const again = await downloadVia(page, () => historyRows(page).nth(1).getByRole('button', { name: EP.redownload, exact: true }).click());
+        const again = await downloadVia(page, () => historyRows(page).nth(1).getByRole('button', { name: `${EP.redownload} ${first.name}`, exact: true }).click());
         expect.soft(again.suggestedFilename()).toBe(first.name);
         const saved = await saveDownload(again, (n) => testInfo.outputPath(n), 'again-');
         expect.soft(readJsonFile(saved).text.includes('"confidence"'), 'the older file still carries confidence').toBe(true);
@@ -476,7 +477,7 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
       });
 
       await test.step('[30-G-008] ⚑ telemetry beacon of the .glb export', async () => {
-        // UEP:254: the gateway is built without a telemetry sender, so `track` is a no-op today. S5-confirm resolved: not an env gap — createExportPanelGateway() is called without `telemetry`, so no beacon whatever VITE_TELEMETRY_ENABLED is.
+        // UEP:254 (F3): the gateway now has createTelemetrySender, which stays off unless the web image is built with VITE_TELEMETRY_ENABLED (lib/telemetry/sender.ts:82).
         await expect.configure({ soft: true }).poll(() => beacons().filter((e) => e.name === 'export.file').length, { message: 'an export.file event reaches /api/telemetry', timeout: 15_000 }).toBeGreaterThanOrEqual(1);
         const events = beacons().filter((e) => e.name === 'export.file');
         expect.soft(events.length, 'one beacon for the .glb export').toBe(1);
@@ -819,7 +820,7 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
       await test.step('[30-B-005] empty state', async () => {
         await openExport(page, project.id, { ready: () => emptyHeading });
         await expect(emptyHeading).toBeVisible();
-        await expect(page.getByText(EP.noFloor, { exact: true })).toBeVisible();
+        await expect(page.getByText(EP.emptyCaption, { exact: true })).toBeVisible();
         await shot(page, '30-B-005', 'zero_floors');
       });
 
