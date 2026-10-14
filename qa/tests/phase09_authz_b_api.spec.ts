@@ -2,7 +2,7 @@
  * Codes: BE access/deps.py:41-43 gate -> 403 FORBIDDEN; projects/access.py:99 -> 403 FORBIDDEN (member lacking permission). */
 import { expect, test } from '@playwright/test';
 
-import { FAKE_ID, expectDenied, expectOpen, seedMainViewer, seedViewerProject } from './support/p09/P13';
+import { FAKE_ID, expectDenied, expectOpen, probeStream, seedMainViewer, seedViewerProject } from './support/p09/P13';
 import { createProject, deleteSeededProject } from './support/phase03Seed';
 
 test('API · FL-B09-06 · viewer · ma trận quyền BE', async () => {
@@ -58,8 +58,9 @@ test('API · FL-B09-07 · viewer · ma trận quyền BE', async () => {
   test.setTimeout(120_000);
   const s = await seedViewerProject();
   const api = s.viewerApi;
-  const foreignId = (await createProject(s.admin, 'p09-authz-foreign', 0)).projectId; // viewer is NOT a member
+  let foreignId = '';
   try {
+    foreignId = (await createProject(s.admin, 'p09-authz-foreign', 0)).projectId; // viewer is NOT a member
     await test.step('[B09-mlr-013] ml_upload_version', async () => {
       await expectDenied(api, 'POST', `/api/admin/ml/model-versions`, { status: 403, code: 'FORBIDDEN', ev: 'B09-mlr-013_ml_upload_version', soft: false });
     });
@@ -107,7 +108,7 @@ test('API · FL-B09-07 · viewer · ma trận quyền BE', async () => {
         }
     });
   } finally {
-    await deleteSeededProject(s.admin, foreignId);
+    if (foreignId) await deleteSeededProject(s.admin, foreignId);
     await s.cleanup();
   }
 });
@@ -145,7 +146,8 @@ test('API · FL-B09-08 · viewer · ma trận quyền BE', async () => {
       await expectOpen(api, `/api/projects/${s.projectId}/drawings/uploads/${s.uploadId}/progress`, 'B09-drw-012_drawings_read_progress');
     });
     await test.step('[B09-str-003] streams_open_progress', async () => {
-      await expectOpen(api, `/api/projects/${s.projectId}/uploads/${FAKE_ID}/progress`, 'B09-str-003_streams_open_progress', { statuses: [200, 404] }); // lint-ok: SSE needs a live upload; fake id, asserts only not 401/403
+      const probe = await probeStream(api, `/api/streams/projects/${s.projectId}/uploads/${s.uploadId}/progress`); // streams/router.py:119-135
+      expect.soft(probe.status, 'viewer member opens the SSE route').toBe(200);
     });
     await test.step('[B09-qlt-003] quality_read_assessment', async () => {
       await expectOpen(api, `/api/projects/${s.projectId}/floors/${s.floorId}/quality`, 'B09-qlt-003_quality_read_assessment', { statuses: [200] });

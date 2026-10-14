@@ -5,6 +5,7 @@
  */
 import { expect, type APIRequestContext, type APIResponse } from '@playwright/test';
 
+import { apiBaseUrl } from '../api';
 import { attachJson } from '../evidence';
 import { addProjectMember, createProject, deleteSeededProject, removeProjectMember, type PoolUser } from '../phase03Seed';
 import { requireState } from '../state';
@@ -78,7 +79,7 @@ export async function seedViewerProject(): Promise<ViewerSeed> {
   };
   let viewer: PoolUser | undefined;
   try {
-    viewer = await roleUser(admin, 'viewer', 'authz');
+    viewer = await roleUser(admin, 'viewer', 'authz-b');
     await addProjectMember(admin, seeded.projectId, viewer.email);
     const viewerApi = await apiAs(viewer);
     const list = await admin.get(`/api/projects/${seeded.projectId}/versions`);
@@ -108,7 +109,7 @@ export async function seedMainViewer(): Promise<ViewerSeed & { uploadId: string 
   const admin = await adminApi();
   const { projectId, workFloorId } = mainProject();
   const uploadId = requireState((s) => s.checkpoints.uploadId, 'checkpoints.uploadId', 'Phase 3 (upload complete)');
-  const viewer = await roleUser(admin, 'viewer', 'authz');
+  const viewer = await roleUser(admin, 'viewer', 'authz-b');
   const undo = await asMember(admin, projectId, viewer);
   try {
     const viewerApi = await apiAs(viewer);
@@ -130,4 +131,27 @@ export async function firstId(ctx: APIRequestContext, listPath: string): Promise
   const body = (await res.json()) as { items?: { id?: string }[] } | { id?: string }[];
   const rows = Array.isArray(body) ? body : (body.items ?? []);
   return rows[0]?.id ?? null;
+}
+
+/** Valid-shaped ids (`<prefix>_<ULID>`, packages/core/ids.py:74-78) that match no row. */
+export const FAKE_UPLOAD_ID = 'upl_01ARZ3NDEKTSV4RRFFQ69G5FAV';
+
+/**
+ * GET an SSE route with the `appback_stream` cookie (auth/cookies.py:13-14, streams/sse.py:161-169) and read only
+ * status + error body, then drop the stream (Playwright's request would wait for the stream to end).
+ */
+export async function probeStream(ctx: APIRequestContext, path: string): Promise<{ status: number; code?: string; resource?: string }> {
+  const cookie = (await ctx.storageState()).cookies.find((c) => c.name === 'appback_stream');
+  expect(cookie, 'setup: signed-in context holds the appback_stream cookie').toBeTruthy();
+  const origin = new URL(apiBaseUrl()).origin;
+  const abort = new AbortController();
+  const res = await fetch(`${origin}${path}`, {
+    headers: { cookie: `appback_stream=${String(cookie?.value)}`, origin, accept: 'text/event-stream' },
+    signal: abort.signal,
+  });
+  const out: { status: number; code?: string; resource?: string } = { status: res.status };
+  if (res.status === 200) abort.abort();
+  else Object.assign(out, (await res.json()) as object);
+  await attachJson(`A09_probe_${path.split('/').pop() ?? 'stream'}_${String(res.status)}.json`, { path, ...out });
+  return out;
 }
