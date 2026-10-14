@@ -284,7 +284,7 @@ test.describe('U05 SCR-23 side panels A — UI verify (QA-05c P3)', () => {
       const openLibrary = async (p: Page): Promise<Locator> => {
         await openPascal(p, seeded.projectId);
         const panel = await openRailPanel(p, FL.title);
-        await expect(itemCount(panel)).toHaveText(FL.count(111));
+        await expect(itemCount(panel)).toHaveText(FL.count(101));
         return panel;
       };
       const pickChair = async (panel: Locator): Promise<void> => {
