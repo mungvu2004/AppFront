@@ -263,3 +263,4 @@ Sửa thêm thì thêm một dòng ở đây — đừng để người sau ph�
 | `vendor/pascal/packages/nodes/src/i18n/vi.test.ts` | thêm vào danh sách cho phép các từ tiếng Việt vốn không dấu (Khung, Ga-ra, Lan can, Xong…) và viết tắt APN | M2 |
 | `packages/core/src/architecture.test.ts` | Hạn 30 s cho bài quét toàn bộ nguồn `core` — hết 5 s mặc định khi `test:pascal` chạy 4 gói cùng lúc (qua khi chạy riêng 158 ms) | M2 |
 | `packages/editor/src/i18n/vi.test.ts` | Thêm "Xoay" (chữ đầu hoa) vào danh sách từ hợp lệ không dấu — nhãn `contextualHelp.cameraAction.Rotate` | M2 |
+| `vendor/pascal/packages/editor/src/components/editor/index.tsx`, `…/ui/panels/panel-wrapper.tsx` | bố cục V1: khung `.pascal-root` hẹp hơn 50rem thì xếp dọc (sidebar rộng hết khung, cao 45 %; viewer và lớp phủ nằm dưới) bằng container query, thay vì slot 432 px cố định bị khung cắt; trần cao panel nổi tính theo hộp lớp phủ (`100%`) thay vì `100cqh` (23R-F-001, B1) | QA-05c |

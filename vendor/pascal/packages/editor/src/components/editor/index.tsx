@@ -25,6 +25,7 @@ import {
   ViewerPresentations,
 } from '@pascal-app/viewer'
 import {
+  type CSSProperties,
   memo,
   Profiler,
   type ProfilerOnRenderCallback,
@@ -366,13 +367,21 @@ function SidebarSlot({ children }: { children: ReactNode }) {
   }, [setWidth, setIsCollapsed, setIsDragging])
 
   return (
-    // Outer: no overflow-hidden so the handle can extend into the gap
+    // Outer: no overflow-hidden so the handle can extend into the gap.
+    // AppFront: in a frame narrower than 50rem (`.pascal-root` is a size
+    // container) the layout stacks: the slot spans the frame and takes the top
+    // 45 % of it, so panels and viewer both stay inside the frame instead of a
+    // fixed 432 px slot being clipped by it.
     <div
-      className="relative h-full flex-shrink-0 rounded-xl"
-      style={{
-        width: isCollapsed ? 8 : width,
-        transition: isDragging ? 'none' : 'width 150ms ease',
-      }}
+      className={`relative h-full w-(--sidebar-slot-width) flex-shrink-0 rounded-xl @max-[50rem]:w-full ${
+        isCollapsed ? '@max-[50rem]:h-2' : '@max-[50rem]:h-[45%]'
+      }`}
+      style={
+        {
+          '--sidebar-slot-width': `${isCollapsed ? 8 : width}px`,
+          transition: isDragging ? 'none' : 'width 150ms ease',
+        } as CSSProperties
+      }
     >
       {/* Inner: overflow-hidden clips content to rounded corners */}
       <div className="h-full w-full overflow-hidden rounded-xl">
@@ -390,7 +399,7 @@ function SidebarSlot({ children }: { children: ReactNode }) {
       {/* Handle: extends into the gap, centered on the gap midpoint */}
       {!isCollapsed && (
         <div
-          className="group absolute inset-y-0 -right-3.5 z-10 flex w-4 cursor-col-resize items-stretch justify-center py-4"
+          className="group absolute inset-y-0 -right-3.5 z-10 flex w-4 cursor-col-resize items-stretch justify-center py-4 @max-[50rem]:hidden"
           onPointerDown={handleResizerDown}
         >
           <div className="w-px self-stretch rounded-full bg-transparent transition-colors group-hover:bg-neutral-300" />
@@ -402,20 +411,36 @@ function SidebarSlot({ children }: { children: ReactNode }) {
 
 // ── UI overlays: fixed, scoped to viewer area via transform containing block ──
 
-function ViewerOverlays({ left, children }: { left: number; children: ReactNode }) {
+// AppFront: in the stacked (narrow-frame) layout the viewer starts under the
+// sidebar slot: root padding 12 + slot (45 % of the padded height, or the 8 px
+// collapsed strip) + gap 12.
+function ViewerOverlays({
+  left,
+  sidebarCollapsed,
+  children,
+}: {
+  left: number
+  sidebarCollapsed: boolean
+  children: ReactNode
+}) {
   return (
     <div
-      className="pointer-events-none"
-      style={{
-        position: 'fixed',
-        top: 0,
-        right: 0,
-        bottom: 0,
-        left,
-        // Creates a containing block so position:fixed children are scoped here
-        transform: 'translateZ(0)',
-        zIndex: 30,
-      }}
+      className={`pointer-events-none top-0 left-(--viewer-overlay-left) @max-[50rem]:left-3 ${
+        sidebarCollapsed
+          ? '@max-[50rem]:top-8'
+          : '@max-[50rem]:top-[calc(24px_+_0.45_*_(100cqh_-_24px))]'
+      }`}
+      style={
+        {
+          '--viewer-overlay-left': `${left}px`,
+          position: 'fixed',
+          right: 0,
+          bottom: 0,
+          // Creates a containing block so position:fixed children are scoped here
+          transform: 'translateZ(0)',
+          zIndex: 30,
+        } as CSSProperties
+      }
     >
       {children}
     </div>
@@ -1742,7 +1767,7 @@ function EditorContent({
   const overlayLeft = LAYOUT_PADDING + (isSidebarCollapsed ? 8 : sidebarWidth) + LAYOUT_GAP
 
   return (
-    <div className="dark flex h-full w-full gap-3 bg-neutral-100 p-3 text-foreground">
+    <div className="dark flex h-full w-full gap-3 bg-neutral-100 p-3 text-foreground @max-[50rem]:flex-col">
       <FloorplanModeCoordinator />
       {visibleLoader && (
         <div className="fixed inset-0 z-60">
@@ -1780,7 +1805,7 @@ function EditorContent({
           <div className="relative flex-1 overflow-hidden rounded-xl">{viewerCanvas}</div>
 
           {/* Fixed UI overlays scoped to the viewer area */}
-          <ViewerOverlays left={overlayLeft}>
+          <ViewerOverlays left={overlayLeft} sidebarCollapsed={isSidebarCollapsed}>
             <div className="pointer-events-auto">
               <ActionMenu />
             </div>
