@@ -114,11 +114,11 @@ test.describe('A08 SCR-37 users write, mocked responses', () => {
         await mark.expectNew();
         await expect(field).toHaveValue(typed);
         await expect(rowOf(page, typed)).toHaveCount(0);
+        await expect.soft(toast(page, T.inviteFailed).last()).toContainText(/S/u);
+        await captureEvidence(page, 'E08_37W-G-002_users_write.png', { caption: '429: toast, text kept, row gone' });
         await page.clock.runFor(120_000); // fires every retry/backoff timer a client could use: the milestone for "no more POST"
         // ⚑ N8: the client must not resend on its own
         expect(posts.count(), 'POST /api/users/invitations after a 429').toBe(1);
-        await expect.soft(toast(page, T.inviteFailed).first()).toContainText(/\S/u);
-        await captureEvidence(page, 'E08_37W-G-002_users_write.png', { caption: `429, POST count ${String(posts.count())}` });
       });
 
       await test.step('[37W-B-007] after the failure: field keeps its text, no extra "Chờ chấp nhận" row', async () => {
@@ -189,6 +189,7 @@ test.describe('A08 SCR-37 users write, mocked responses', () => {
     await page.route(idRe('enable'), (route) => fail(route, next(enableHow)));
     const patches = requestLog(page, 'PATCH', idRe('role'));
     await signInAdmin(page, ROUTES.adminUsers);
+    await page.clock.install(); // markToast runs the fake clock; every later page.goto keeps it
     const select = (): Locator => rowOf(page, email).getByRole('combobox', { name: `Vai của ${name}`, exact: true });
     const change = async (to: string): Promise<void> => {
       const asked = page.waitForRequest((r) => r.method() === 'PATCH' && idRe('role').test(r.url()));
@@ -314,6 +315,7 @@ test.describe('A08 SCR-37 users write, mocked responses', () => {
     await page.route(DELETE_RE, (route) => (route.request().method() === 'DELETE' ? fail(route, how) : route.fallback()));
     const deletes = requestLog(page, 'DELETE', DELETE_RE);
     await signInAdmin(page, ROUTES.adminUsers);
+    await page.clock.install();
     const selfRow = rowOf(page, String(self.email));
     const dialogOf = (n: string): Locator => page.getByRole('dialog', { name: `Xoá hẳn ${n}?`, exact: true });
     try {

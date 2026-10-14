@@ -13,6 +13,7 @@
  * `adminApi()` = 1 API login (setup: own row + the shared read-only engineer `p08-eng` row for M2/M3).
  * ## Request budget
  * `POST /api/auth/login`: 3 flows x (1 UI + 1 API) + M1 extra 1 + M4 (1 UI + 0 API) = 8 (limit 120 / 60 s per IP).
+ * `POST /api/auth/refresh`: ~1 per page load (about 25 loads) + the real refresh the 401 of 37U-G-006 triggers.
  * `POST /api/users/invitations`: 0 (nothing is sent; the shared slot `p08-eng` exists or costs 1 from the admin seed).
  * Writes to the BE: none (every mutation-looking click is mocked or not reached).
  */
@@ -166,12 +167,14 @@ test.describe('A08 SCR-37 users read, mocked responses', () => {
     });
 
     await test.step('[37U-B-010] payload that makes the row builder throw -> ScreenErrorBoundary with retry', async () => {
-      // UNKNOWN — NEED VERIFICATION: no verified way to make buildRow (UMH:289) throw: formatTimestamp (datetime.ts:184-193) returns a
-      // placeholder for an unparsable date. Invalid-Date payload kept as the best attempt; the step is red if no boundary appears.
       mode = 'boom';
       await signInAdmin(page, ROUTES.adminUsers); // the 401 ended the session
-      await expect.soft(page.getByRole('button', { name: T.retry, exact: true })).toBeVisible({ timeout: 20_000 });
-      expect.soft(await page.getByRole('table').count(), 'frame collapsed, no table').toBe(0);
+      // zod (schemas/users.ts isoDateTimeSchema) rejects 31 February, so this payload ends in the READ-ERROR alert, not in the
+      // boundary. No payload that passes the schema and makes buildRow throw was found (formatTimestamp datetime.ts:184-193 and
+      // formatCalendarDate never throw): the boundary itself is NOT asserted. UNKNOWN — NEED VERIFICATION.
+      test.info().annotations.push({ type: 'UNKNOWN', description: '37U-B-010: ScreenErrorBoundary not reachable from a schema-valid payload' });
+      await expect.soft(alertOf(page), 'schema-invalid payload -> read-error alert').toBeVisible({ timeout: 20_000 });
+      expect.soft(await page.getByRole('table').count()).toBe(0);
       await captureEvidence(page, 'E08_37U-B-010_users.png');
     });
 
@@ -331,8 +334,14 @@ test.describe('A08 SCR-37 users read, mocked responses', () => {
 
       await test.step('[37U-G-005] memberships 404 -> error or panel closed, never the empty sentence (⚑)', async () => {
         memMode = '404';
+        const answered = page.waitForResponse((x) => detailRe('memberships').test(x.url()) && x.status() === 404);
         await openPeer();
+        await answered;
         await expect.soft(page.getByText(T.noMemberships)).toHaveCount(0);
+        await expect
+          .configure({ soft: true })
+          .poll(async () => (await panel.count()) === 0 || (await panel.getByRole('alert').count()) > 0, { message: 'error alert in the panel, or the panel closed' })
+          .toBe(true);
         await captureEvidence(page, 'E08_37U-G-005_users.png');
       });
 
