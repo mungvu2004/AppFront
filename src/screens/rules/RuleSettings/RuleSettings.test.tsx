@@ -936,6 +936,20 @@ describe('F-10 — useRuleSettings nối N21/N22', () => {
     expect(useStore.getState().ruleConfig.overrides).toEqual({ 'WALL-LENGTH': { enabled: false } });
   });
 
+  it('29-A-008: bật/tắt rồi hoàn tác về đúng bản đã lưu thì không gửi PUT', async () => {
+    const toasts: RuleSettingsToast[] = [];
+    const { result, replace } = setupHook({ onToast: (toast) => toasts.push(toast) });
+    await advance(0);
+
+    act(() => result.current.onToggleRule('WALL-THICKNESS', false));
+    act(() => {
+      toasts[0]?.undoTicket?.undo();
+    });
+    await advance(AFTER_DEBOUNCE_MS * 2);
+
+    expect(replace).not.toHaveBeenCalled();
+  });
+
   it('BUG-463: refetch nền mang revision mới hơn làm vé cũ hết hạn — "Hoàn tác" không ghi đè bản của người khác', async () => {
     const toasts: RuleSettingsToast[] = [];
     const onDiscardToasts = vi.fn();

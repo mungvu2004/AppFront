@@ -64,6 +64,7 @@ import {
   isDefaultConfig,
   resetConfig,
   resolveRules,
+  sameOverrides,
   setGroupEnabled,
   setRuleEnabled,
   setRuleSeverity,
@@ -435,7 +436,7 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
       persisted !== null &&
       persisted.projectId === projectId &&
       state.ruleConfigProjectId === projectId &&
-      state.ruleConfig !== persisted.config
+      !sameOverrides(state.ruleConfig, persisted.config)
     );
   }, [projectId]);
 
@@ -525,7 +526,7 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
 
       // Tháo khi lượt thường đang bay mà không sửa thêm: bản chụp CHÍNH là thân lượt ấy
       // vừa lưu xong — không gửi lần hai (revision sẽ tăng vô ích).
-      if (persisted !== null && persisted.projectId === pending.projectId && persisted.config === pending.config) {
+      if (persisted !== null && persisted.projectId === pending.projectId && sameOverrides(persisted.config, pending.config)) {
         flushRef.current.pending = null;
         return;
       }
