@@ -20,7 +20,7 @@
  * - Writes: 4 `POST /api/projects`, 3 uploads (#5/#6/#7), 3 #35 layer PUTs + one per state/viewport in FL-32-18 (≈ 20),
  *   ≈ 56 N19 restores (PM; the first adds 2 versions, the rest 1 each), 1 N20 label (FL-32-17), the restore/label clicks of FL-32-18 (≈ 8), 4 `DELETE /api/projects/:id`.
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 import { expect, test, type APIRequestContext, type Browser, type Locator, type Page, type Route } from '@playwright/test';
 
@@ -32,7 +32,7 @@ import { qcLayer, writeLayer, type LayerApi } from './support/layerSeed';
 import { LONG_FLOOR_NAME, createLongNameProject, drawingPathOrSkip, labelVia, listVersions } from './support/p06/P7';
 import { seedVersionLadder } from './support/p06/versions';
 import { addProjectMember, poolUser, signInPoolUser } from './support/phase03Seed';
-import { ADMIN_STORAGE_STATE_FILE } from './support/state';
+import { ADMIN_STATE_FILE as ADMIN_STORAGE_STATE_FILE } from './support/p06/adminState';
 import { UI_VIEWPORTS, verifyUi } from './support/ui-verify';
 import { VH, banner, diffTab, floorSelect, heading, toast, versionList, versionRow } from './support/p06/versionMocks';
 
@@ -46,7 +46,10 @@ const LABEL_60 = 'Bản gửi chủ đầu tư sau buổi họp ngày 14 tháng 
 
 /** One admin context from the stored session (rotated cookie written back); `body` runs all of a flow's states on its page. */
 async function withAdminPage(browser: Browser, body: (page: Page) => Promise<void>): Promise<void> {
-  const context = await browser.newContext({ baseURL: readBaseUrl(), storageState: ADMIN_STORAGE_STATE_FILE });
+  const context = await browser.newContext({
+    baseURL: readBaseUrl(),
+    ...(existsSync(ADMIN_STORAGE_STATE_FILE) ? { storageState: ADMIN_STORAGE_STATE_FILE } : {}),
+  });
   try {
     await ensureAdminSession(context, ADMIN_STORAGE_STATE_FILE);
     await body(await context.newPage());

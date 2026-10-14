@@ -29,7 +29,7 @@ import { createQcProject, deleteProject, layerApiOf, writeLayer } from '../layer
 import type { LayerApi } from '../layerSeed';
 import { signInPoolUser } from '../phase03Seed';
 import type { PoolUser } from '../phase03Seed';
-import { ADMIN_STORAGE_STATE_FILE } from '../state';
+import { ADMIN_STATE_FILE as ADMIN_STORAGE_STATE_FILE } from './adminState';
 import type { UiMetrics } from '../ui-verify';
 
 export type Json = Record<string, unknown>;

@@ -26,7 +26,7 @@ import { deleteProject, layerApiOf, layerPathOf, qcLayer, writeLayer } from '../
 import type { LayerApi, SeededFloor } from '../layerSeed';
 import { signInPoolUser } from '../phase03Seed';
 import type { PoolUser } from '../phase03Seed';
-import { ADMIN_STORAGE_STATE_FILE } from '../state';
+import { ADMIN_STATE_FILE as ADMIN_STORAGE_STATE_FILE } from './adminState';
 
 type Json = Record<string, unknown>;
 type Viewport = { readonly width: number; readonly height: number };
