@@ -187,6 +187,9 @@ test.describe('phase09 shell B edge', () => {
       await expect.soft(page.getByText('Không có thông báo mới', { exact: true })).toBeVisible(); // NC:64 empty title
       await captureEvidence(page, 'E09_9P-D-310_engineer_no_notifications.png');
     });
+    } finally {
+      await admin.dispose();
+    }
   });
 
   test('Vỏ · FL-9P-07 · ẩn danh · rồi đăng nhập viewer', async ({ page }) => {
