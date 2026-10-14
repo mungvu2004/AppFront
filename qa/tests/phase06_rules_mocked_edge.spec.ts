@@ -29,7 +29,7 @@ import {
   RR,
   RULE_NAME,
   VIEWPORT,
-  createRuleProject,
+  createRuleProjectFor,
   failGet,
   levelFilter,
   makeGate,
@@ -52,17 +52,18 @@ const WIDTHS = [
 
 let fixtureApi: APIRequestContext | undefined;
 let projectId = '';
+const created: string[] = [];
 
 test.beforeAll(async () => {
   const { email, password } = readAdminCredentials();
   fixtureApi = await signedInApi(email, password);
-  projectId = (await createRuleProject({ request: fixtureApi, headers: {} }, 'rules-mocked')).projectId;
+  projectId = (await createRuleProjectFor({ request: fixtureApi, headers: {} }, 'rules-mocked', {}, created)).projectId;
 });
 
 test.afterAll(async () => {
   try {
-    if (fixtureApi !== undefined && projectId !== '') {
-      const failed = await deleteSeededProject(fixtureApi, projectId);
+    for (const id of created) {
+      const failed = fixtureApi === undefined ? null : await deleteSeededProject(fixtureApi, id);
       if (failed !== null) test.info().annotations.push({ type: 'cleanup', description: failed });
     }
   } finally {
@@ -129,11 +130,10 @@ test('SCR-28 · FL-28-M1 · [mocked response] Rule config failure and recovery',
 
     await test.step('[28-G-005] wire: 500 answers then one 200, no spatial re-read', async () => {
       const configReads = api.filter((entry) => entry.method === 'GET' && ruleConfigRe(projectId).test(entry.path)).map((entry) => entry.status);
-      // S5-confirm: the HTTP ladder / react-query retry the 500 once or more, so "two" (plan) may be 2 + retries.
-      expect.soft(configReads.at(-1), 'last read is the 200').toBe(200);
-      expect.soft(configReads.slice(0, -1).length, 'at least one 500 before it').toBeGreaterThanOrEqual(1);
-      expect.soft(configReads.slice(0, -1).every((status) => status === 500), 'every earlier read is the mocked 500').toBe(true);
-      expect.soft(counter.served, 'mocked answers served').toBe(configReads.length - 1);
+      // retry.ts:3 RETRYABLE_STATUSES = 429/502/503/504, so a 500 is NOT retried: reads = the gate's one-shot N21 hydration
+      // (swallowed on error) + the report's own read (both 500), then the 200 of "Thử lại" (pinned exactly).
+      expect.soft(configReads, 'N21 reads: 500, 500, then the 200 of "Thử lại"').toEqual([500, 500, 200]); // S5-confirm: count of reads before the click
+      expect.soft(counter.served, 'mocked answers served').toBe(2);
       expect.soft(api.slice(afterErrorMark).filter((entry) => entry.method === 'GET' && spatialRe(projectId).test(entry.path)), 'no N15 re-read on retry').toEqual([]);
       await captureEvidence(page, 'E06r_28-G-005_wire.png');
     });
@@ -198,6 +198,7 @@ test('SCR-28 · FL-28-M2 · [mocked response] Model read and save failures', asy
     });
 
     await test.step('[28-B-015] N15 500 on a fresh load: gate alert with "Thử lại", click recovers', async () => {
+      await page.goto('about:blank'); // drop pending autosave retries of the former page before the routes change
       await page.unrouteAll({ behavior: 'ignoreErrors' });
       const failing = async (route: Route): Promise<void> => {
         if (isSpatialGet(route)) await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'qa-06b mocked 500' }) });
@@ -251,6 +252,7 @@ test('SCR-28 · FL-28-M2 · [mocked response] Model read and save failures', asy
     });
 
     await test.step('[28V-G-005] PUT layer 422 (unnamed room): the blocked message', async () => {
+      await page.goto('about:blank'); // drop pending autosave retries of the former page before the routes change
       await page.unrouteAll({ behavior: 'ignoreErrors' });
       let puts = 0;
       await page.route('**/api/projects/*/floors/*/spatial/layer', async (route) => {
@@ -269,6 +271,7 @@ test('SCR-28 · FL-28-M2 · [mocked response] Model read and save failures', asy
     });
 
     await test.step('[28V-G-006] PUT aborted: offline label, retry after 5 s', async () => {
+      await page.goto('about:blank'); // drop pending autosave retries of the former page before the routes change
       await page.unrouteAll({ behavior: 'ignoreErrors' });
       let attempts = 0;
       await page.route('**/api/projects/*/floors/*/spatial/layer', async (route) => {
@@ -283,7 +286,7 @@ test('SCR-28 · FL-28-M2 · [mocked response] Model read and save failures', asy
       await sheet.getByRole('button', { name: RR.deleteAction, exact: true }).click();
       await expect.poll(() => attempts).toBeGreaterThanOrEqual(1);
       // autosaveMessages.offline (vi.json autosave.offline), rendered by the sheet header's save label
-      await expect.soft(sheet.getByText(RR.offline)).toBeVisible();
+      await expect(sheet.getByText(RR.offline)).toBeVisible();
       const first = attempts;
       await page.clock.fastForward(5_000); // retry ladder 5 s / 15 s / 45 s (useAutosave.ts)
       await expect.poll(() => attempts, { message: 'the second attempt after 5 s' }).toBeGreaterThan(first);
@@ -292,7 +295,8 @@ test('SCR-28 · FL-28-M2 · [mocked response] Model read and save failures', asy
 
     await test.step('[28V-G-007] PUT 404 then 500: "Không lưu được thay đổi của tầng này."', async () => {
       for (const status of [404, 500] as const) {
-        await page.unrouteAll({ behavior: 'ignoreErrors' });
+        await page.goto('about:blank'); // drop pending autosave retries of the former page before the routes change
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
         let seen = 0;
         await page.route('**/api/projects/*/floors/*/spatial/layer', async (route) => {
           if (!isLayerPut(route)) {

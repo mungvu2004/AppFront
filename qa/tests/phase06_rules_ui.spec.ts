@@ -27,7 +27,7 @@ import {
   RR,
   RULE_NAME,
   VIEWPORT,
-  createRuleProject,
+  createRuleProjectFor,
   expandGroup,
   findingRows,
   groupExpanders,
@@ -54,10 +54,8 @@ const layerApi = (): { request: APIRequestContext; headers: Record<string, never
 test.beforeAll(async () => {
   const { email, password } = readAdminCredentials();
   admin = await signedInApi(email, password);
-  r1 = (await createRuleProject(layerApi(), 'rules-ui-r1')).projectId;
-  projects.push(r1);
-  r3 = (await createRuleProject(layerApi(), 'rules-ui-r3', { shortWall: false })).projectId;
-  projects.push(r3);
+  r1 = (await createRuleProjectFor(layerApi(), 'rules-ui-r1', {}, projects)).projectId;
+  r3 = (await createRuleProjectFor(layerApi(), 'rules-ui-r3', { shortWall: false }, projects)).projectId;
   m0 = (await createProject(api(), 'rules-ui-m0', 0)).projectId;
   projects.push(m0);
 });
@@ -77,9 +75,7 @@ test.afterAll(async () => {
 
 /** A fresh R1 project for a state that deletes a table; remembered for `afterAll`. */
 async function freshR1(): Promise<string> {
-  const id = (await createRuleProject(layerApi(), 'rules-ui-fix')).projectId;
-  projects.push(id);
-  return id;
+  return (await createRuleProjectFor(layerApi(), 'rules-ui-fix', {}, projects)).projectId;
 }
 
 /** Quick fix: click "Xoá đối tượng này" in the open sheet and wait for the autosave PUT to be answered 200. */
