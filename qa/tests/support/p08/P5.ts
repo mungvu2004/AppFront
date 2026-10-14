@@ -125,9 +125,9 @@ export interface Answer {
   readonly abort?: true;
 }
 export const ok = (body: unknown): Answer => ({ body, status: 200 });
-/** `{ code, message, requestId, ...extra }` (extra: `field`, `resource`); `Retry-After: 0` so the client's GET retries are immediate. */
+/** `{ code, requestId, ...extra }` (extra: `field`, `resource`); `Retry-After: 0` so the client's GET retries are immediate. */
 export const wireError = (status: number, code: string, extra: Record<string, string> = {}): Answer => ({
-  body: { code, message: `qa mocked ${code}`, requestId: `qa-${code.toLowerCase()}`, ...extra },
+  body: { code, requestId: `qa-${code.toLowerCase()}`, ...extra },
   headers: { 'Retry-After': '0' },
   status,
 });

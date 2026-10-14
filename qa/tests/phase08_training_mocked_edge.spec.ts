@@ -238,6 +238,7 @@ test.describe('E08 SCR-35 training jobs - mocked-response flows (QA-08 P5)', () 
         }
         const n1 = mock.count('GET', JOBS);
         await page.clock.fastForward(15_000);
+        await page.clock.fastForward(1_000); // past the 15 s tick, so a poll timer due now has fired before the mark
         // mark: the datasets-tab GET is answered after any list GET the fast-forward could have fired
         await openDatasetsTab(page);
         await expect.poll(() => mock.count('GET', /^datasets$/u)).toBeGreaterThan(0);
