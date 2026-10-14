@@ -106,6 +106,9 @@ test('SCR-23 · FL-23H-05 · [mocked response] Pascal đang nạp / lỗi và ch
       await openPascal(p, pid);
       const lost = await abortRoute(p, '**/*.js', { filter: (r) => appChunk(r.url()) });
       await historyTab(p).click();
+      // Mốc: the chunk request was really aborted and the Suspense fallback is gone (panel error or CrashFallback, PVC:126-138).
+      await expect.poll(() => lost.hits.length, { message: 'an app chunk was aborted' }).toBeGreaterThan(0);
+      await expect.soft(p.getByText(T.panelFallback, { exact: true }), 'the fallback settled').toHaveCount(0, { timeout: 15_000 });
       // Source today: no boundary around Suspense (PVC:284-289) → the screen boundary (PVC:350-353) swaps in CrashFallback.
       await expect.soft(p.getByRole('heading', { name: T.screen, exact: true }), 'heading "Mô hình 3D" stays').toBeVisible();
       await expect.soft(canvasBox(p)).toBeVisible();

@@ -181,13 +181,22 @@ test('SCR-23 · FL-23-16 · [mocked response] converter / root failures, no GPU,
       await expect(page.getByText(T.errorText('PASCAL-01'), { exact: true }), 'UPV:378-391 converter import failed').toBeVisible({
         timeout: PASCAL_RENDER_TIMEOUT_MS,
       });
+      let retried = 0;
+      const countRetry = (r: Request): void => {
+        if (/\/assets\/toPascal-[^/]+\.js$/u.test(new URL(r.url()).pathname)) retried += 1;
+      };
+      page.on('request', countRetry);
       await retryButton(page).click();
       const settled = await settledCaption(page);
+      page.off('request', countRetry);
+      // "Thử lại" must re-run the converter load (UPV:377-383 `attempt` in deps): no new request = the browser served the cached
+      // failed module, the retry cannot recover → red (soft).
+      expect.soft(retried, 'toPascal chunk requested again after "Thử lại"').toBeGreaterThan(0);
       // Accepted branch: Chrome may keep the failed module for that URL (e2e/pascal-viewer.spec.ts:745-751), so the retry can
       // land on PASCAL-01 again — but never stays on "đang nạp" (B-V10-04), and the error keeps its way out.
       expect.soft([T.rendered, T.partial, T.errorCaption], `after "Thử lại": "${settled}"`).toContain(settled);
       if (settled === T.errorCaption) {
-        test.info().annotations.push({ type: 'branch', description: '23-B-014: retry re-failed (browser module cache); not stuck' });
+        test.info().annotations.push({ type: retried === 0 ? 'bug' : 'branch', description: `23-B-014: retry re-failed (${String(retried)} new toPascal request); not stuck` });
         await expect.soft(retryButton(page)).toBeVisible();
       }
       await captureEvidence(page, 'E05_23-B-014_converter-retry.png', { caption: `${String(once.hits.length)} toPascal chunk aborted; after retry: ${settled}` });
@@ -218,7 +227,7 @@ test('SCR-23 · FL-23-16 · [mocked response] converter / root failures, no GPU,
       try {
         await disableWebGl(noGpu);
         await openPascal(noGpu, pid, { wait: false });
-        const settled = await settledCaption(noGpu);
+        const settled = await settledCaption(noGpu, { soft: true });
         // PV:186-200 expected; source today: edit mode never passes onRendererUnavailable (PF:301-321) → Pascal's own card.
         await expect.soft(noGpu.getByRole('heading', { name: T.noGpuTitle, exact: true })).toBeVisible();
         await expect.soft(noGpu.getByText(T.noGpuCode)).toBeVisible();

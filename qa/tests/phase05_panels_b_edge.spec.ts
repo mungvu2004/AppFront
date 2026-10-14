@@ -78,7 +78,8 @@ async function withQ1(browser: Browser, slug: string, body: (s: Session, floor: 
   }
 }
 
-const listbox = (page: Page) => historyRegion(page).getByRole('listbox');
+/** `Select` portals its listbox into `document.body` (src/components/ui/Select.tsx:231,255): page-wide, not inside the region. */
+const listbox = (page: Page) => page.getByRole('listbox');
 
 test('SCR-23 · FL-23H-01 · rail một tab, mở lần đầu (chunk muộn, 0 API), trạng thái rỗng, đóng bằng tab', async ({ browser }) => {
   test.setTimeout(Math.max(120_000, 2 * 35_000));
@@ -200,8 +201,12 @@ test('SCR-23 · FL-23H-02 · phím và bộ lọc: Ctrl+H, chip, combobox ngư�
     await test.step('[23H-E-002] ⚑ one name for one panel (outer region and inner section)', async () => {
       const outer = await historyRegion(page).getAttribute('aria-label');
       const inner = await historyPanel(page).getAttribute('aria-label');
-      // Source today: region "Lịch sử thao tác" (PV:122) wraps section "Lịch sử chỉnh sửa" (HPCH:49) — two nested landmarks.
-      expect.soft(inner, `outer "${outer ?? ''}" vs inner "${inner ?? ''}"`).toBe(outer);
+      // Landmark names in the panel cluster: the region itself + every named section/region inside it. Any fix is fine as long
+      // as one panel carries one name. Source today: region "Lịch sử thao tác" (PV:122) wraps section "Lịch sử chỉnh sửa" (HPCH:49).
+      const names = await historyRegion(page).evaluate((el) =>
+        [el, ...el.querySelectorAll('section[aria-label], [role="region"][aria-label]')].map((n) => n.getAttribute('aria-label') ?? ''),
+      );
+      expect.soft(new Set(names.filter((n) => n !== '')).size, `landmark names: ${JSON.stringify(names)}`).toBeLessThanOrEqual(1);
       await captureEvidence(page, 'E05_23H-E-002_two-names.png', { caption: `region "${outer ?? ''}" › section "${inner ?? ''}"` });
     });
 
@@ -284,6 +289,7 @@ test('SCR-23 · FL-23H-02 · phím và bộ lọc: Ctrl+H, chip, combobox ngư�
     });
 
     await test.step('[23H-A-014] Esc in the listbox closes only the listbox', async () => {
+      await expect(listbox(page), 'mốc: the listbox is open before Esc').toBeVisible();
       await page.keyboard.press('Escape');
       await expect.soft(listbox(page), 'USEL:51-57 stopPropagation (BUG-152)').toHaveCount(0);
       await expect.soft(historyRegion(page)).toBeVisible();
