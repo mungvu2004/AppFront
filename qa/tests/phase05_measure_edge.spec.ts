@@ -57,6 +57,7 @@ import {
   cornerPixels,
   discCount,
   distanceOf,
+  expectPicks,
   dialogs,
   dropButton,
   expectCanvasChanged,
@@ -218,9 +219,10 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
         await shot(page, '25-E-001', 'landmarks');
       });
 
-      await test.step('[25-A-002] breadcrumb: <project name> › "Mô hình 3D" (aria-current="page")', async () => {
+      await test.step('[25-A-002] breadcrumb: <project name> › "Mô hình 3D" › "Công cụ đo" (aria-current="page")', async () => {
         await expect.soft(crumbOf(page).getByText(projectName, { exact: true })).toBeVisible();
-        await expect.soft(crumbOf(page).locator('[aria-current="page"]')).toHaveText('Mô hình 3D');
+        await expect.soft(crumbOf(page).getByText('Mô hình 3D', { exact: true })).toBeVisible(); // FD: links to /projects/:id/3d
+        await expect.soft(crumbOf(page).locator('[aria-current="page"]')).toHaveText('Công cụ đo');
         await shot(page, '25-A-002', 'breadcrumb');
       });
 
@@ -445,7 +447,7 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
 
       await test.step('[25-C-044] initial zoom label "100%"', async () => {
         await openMeasure(page, projectId);
-        await expect(zoomReset()).toHaveAttribute('aria-label', 'Mức thu phóng 100%, bấm để về mức chuẩn');
+        await expect.soft(zoomReset()).toHaveAttribute('aria-label', 'Mức thu phóng 100%, bấm để về mức chuẩn');
         await shot(page, '25-C-044', 'zoom_initial');
       });
 
@@ -585,7 +587,7 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
       await test.step('[25-A-015] "Kéo màn (H)" + drag pans the camera', async () => {
         await openMeasure(page, projectId);
         await railTool(page, 'Kéo màn (H)').click();
-        await expect(railTool(page, 'Kéo màn (H)')).toHaveAttribute('aria-pressed', 'true');
+        await expect.soft(railTool(page, 'Kéo màn (H)')).toHaveAttribute('aria-pressed', 'true');
         await pointerAway(page);
         const before = await settledCanvas(page);
         await dragViewport(page, 120, 60);
@@ -642,7 +644,7 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
         await openMeasure(page, projectId);
         await topView(page);
         await startMeasuring(page);
-        await expect(railTool(page, MT.railMeasure)).toHaveAttribute('aria-pressed', 'true');
+        await expect.soft(railTool(page, MT.railMeasure)).toHaveAttribute('aria-pressed', 'true');
         await shot(page, '25-A-021', 'key_m');
       });
 
@@ -779,12 +781,13 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
         await openMeasure(page, projectId);
         await topView(page);
         await startMeasuring(page);
+        const discBase = await discCount(page);
         mid = await hoverUntilSnap(page, MT.midpoint);
-        await expect(snapChip(page)).toHaveText(MT.midpoint);
+        await expect.soft(snapChip(page)).toHaveText(MT.midpoint);
         await clickAt(page, mid);
         vertex = await hoverUntilSnap(page, MT.vertex, { avoid: [mid] });
         await clickAt(page, vertex);
-        await expect(pinButton(page)).toBeVisible();
+        await expectPicks(page, discBase, 2); // the pin button shows after one point (E2-B3): count the drawn picks instead
         await shot(page, '25-C-014', 'midpoint_pick');
       });
 
@@ -906,8 +909,10 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
     await withMeasureProject(browser, { slug: 'm25-07' }, async ({ page, projectId }) => {
       let corners: Point[] = [];
       const pickTwo = async (): Promise<void> => {
+        const base = await discCount(page);
         const a = await pickSnap(page, MT.vertex);
         await pickSnap(page, MT.vertex, { avoid: [a] });
+        await expectPicks(page, base, 2);
       };
       const pickCorner = async (index: number): Promise<Point> => {
         const corner = corners[index];
@@ -922,8 +927,8 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
         await topView(page);
         await startMeasuring(page);
         const group = page.getByRole('radiogroup', { name: MT.modes, exact: true });
-        await expect(group.getByRole('radio')).toHaveCount(4);
-        await expect(modeRadio(page, MODE.p2p)).toHaveAttribute('aria-checked', 'true');
+        await expect.soft(group.getByRole('radio')).toHaveCount(4);
+        await expect.soft(modeRadio(page, MODE.p2p)).toHaveAttribute('aria-checked', 'true');
         await shot(page, '25-A-022', 'modes');
       });
 
@@ -1021,8 +1026,10 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
         await topView(page);
         await startMeasuring(page);
         off = await offTargetPixel(page);
+        const discBase = await discCount(page);
         await clickAt(page, off);
         await pickSnap(page, MT.vertex, { avoid: [off] });
+        await expectPicks(page, discBase, 2);
         pinned = await pinNow(page, projectId);
         const p0 = sentPoints(pinned.sent)[0];
         if (p0 === undefined) throw new Error('POST has no first point');
@@ -1249,14 +1256,16 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
         await openMeasure(page, projectId);
         await topView(page);
         await startMeasuring(page);
+        const discBase = await discCount(page);
         const a = await hoverUntilSnap(page, MT.vertex);
         await clickAt(page, a);
         const b = await hoverUntilSnap(page, MT.vertex, { avoid: [a] });
         await clickAt(page, b);
-        pixels = [a, b];
+        await expectPicks(page, discBase, 2);
+        await expectPicks(page, discBase, 2);
         const sent = await pinNow(page, projectId);
         expect(sent.sent.id).toBe('MS-1235');
-        await expect(list(page).getByText(measureName(1235), { exact: true })).toBeVisible();
+        await expect.soft(list(page).getByText(measureName(1235), { exact: true })).toBeVisible();
         await shot(page, '25-C-009', 'thousands_name');
       });
 
@@ -1357,12 +1366,14 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
 
       await test.step('[25-C-029] id taken by another session: POST 409 -> GET #16 -> POST "MS-0005" 201, no toast', async () => {
         await topView(page);
+        const discBase = await discCount(page);
         await startMeasuring(page);
         const a = await hoverUntilSnap(page, MT.vertex);
         await clickAt(page, a);
         const b = await hoverUntilSnap(page, MT.vertex, { avoid: [a] });
         await clickAt(page, b);
         pixels = [a, b];
+        await expectPicks(page, discBase, 2);
         expect(await postMeasurement(admin, projectId, other('MS-0004', `${seedName('MS-0004')}-x`)), '+X POST MS-0004').toBe(201);
         const mark = api.length;
         const created = nextSent(page, 'POST', measurementsRe(projectId), [201]);
@@ -1421,7 +1432,7 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
 
       await test.step('[25-B-023] 100 records: "100 phép đo", the list scrolls inside the inspector', async () => {
         await openMeasure(page, projectId);
-        await expect(list(page).getByText('100 phép đo', { exact: true })).toBeVisible();
+        await expect.soft(list(page).getByText('100 phép đo', { exact: true })).toBeVisible();
         const scrolls = await list(page).evaluate((el) => {
           let node: HTMLElement | null = el.parentElement;
           while (node !== null && getComputedStyle(node).overflowY !== 'auto') node = node.parentElement;
@@ -1493,7 +1504,7 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
         await topView(page);
         await startMeasuring(page);
         await pickSnap(page, MT.vertex);
-        await expect(pinButton(page)).toBeVisible();
+        await expect.soft(pinButton(page)).toBeVisible();
         for (const [button, key] of [[pinButton(page), 'Enter'], [dropButton(page), 'Esc'], [toggleButton(page), 'M']] as const) {
           await expect.soft(kbdOf(button)).toHaveText(key);
         }
@@ -1598,8 +1609,10 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
         await topView(page);
         await startMeasuring(page);
         const base = await pills(page).count();
+        const discBase = await discCount(page);
         const a = await pickSnap(page, MT.vertex);
         await pickSnap(page, MT.vertex, { avoid: [a] });
+        await expectPicks(page, discBase, 2);
         await expect.soft(pills(page).nth(base)).toHaveText(/^[\d.]+,\d{2} m$/u);
         await expect.soft(pinButton(page)).toBeDisabled();
         await shot(page, '25-D-007', 'viewer_measures');
@@ -1643,9 +1656,11 @@ test.describe('SCR-25 Công cụ đo — real stack', () => {
           await openMeasure(page, projectId);
           await topView(page);
           await startMeasuring(page);
+          const discBase = await discCount(page);
           const a = await pickSnap(page, MT.vertex);
           const b = await pickSnap(page, MT.vertex, { avoid: [a] });
           pixels = [a, b];
+          await expectPicks(page, discBase, 2);
           const sent = await pinNow(page, projectId);
           expect(sent.status).toBe(201);
           const deleted = nextSent(page, 'DELETE', measurementRe(projectId), [204]);
