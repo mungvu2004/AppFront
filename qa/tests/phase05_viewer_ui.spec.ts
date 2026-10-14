@@ -46,6 +46,7 @@ import {
   nonBlankRatio,
   openPascal,
   openRoomPanel,
+  openViewerRoomPanel,
   openSession,
   pascalEditOnce,
   pascalRoot,
@@ -54,6 +55,7 @@ import {
   skippedBox,
   spatialPath,
   summary,
+  viewerRoomRow,
   type Box,
   type Session,
 } from './support/p05/P2';
@@ -278,8 +280,8 @@ test('SCR-23 · FL-23-U3 · empty, 404, exploded, viewer', async ({ browser }) =
     await test.step('[23-F-011] Q2 as viewer, room selected → read-only inspector notice', async () => {
       await verifyUi(viewerPage, 'U05_23-F-011_viewer-readonly', async (p) => {
         await openPascal(p, q2pid);
-        await openRoomPanel(p);
-        await roomRow(p, 'Bếp').click();
+        await openViewerRoomPanel(p); // viewer: rows carry readOnlyRename, not "Đổi tên phòng Bếp" (run-052)
+        await viewerRoomRow(p, 'Bếp').click();
         await expect(pascalRoot(p).getByText(T.viewerInspectorNotice, { exact: true }), 'panel-manager.tsx:288-290').toBeVisible();
       });
     });
