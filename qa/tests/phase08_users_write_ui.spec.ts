@@ -153,18 +153,24 @@ test.describe('SCR-37 users write UI', () => {
 
         await test.step('[37W-F-008] toast "Đã đổi vai" với "Vai mới không còn: …"', async () => {
           try {
+            await setRole('engineer');
+            let changed = false; // one real PATCH only: the first viewport changes the role, the others re-open the saved state
             await verifyDesktop(
               page,
               'U08_37W-F-008_users_write',
               async (p) => {
-                await setRole('engineer');
                 await openUsersList(p);
                 await p.getByLabel(U.search, { exact: true }).fill(pu1.email);
                 const select = userRow(p, pu1.email).getByRole('combobox', { name: `Vai của ${pu1.name}`, exact: true });
+                if (changed) {
+                  await expect(select).toContainText('Người xem');
+                  return;
+                }
                 await expect(select).toContainText('Kỹ sư');
                 const patched = p.waitForResponse((r) => r.request().method() === 'PATCH' && new URL(r.url()).pathname === `/api/users/${pu1.id}/role`);
                 await pickOption(p, select, 'Người xem');
                 expect.soft((await patched).status()).toBe(200);
+                changed = true;
                 const toast = p.getByRole('status').filter({ hasText: U.roleChanged });
                 await expect(toast).toBeVisible();
                 await expect.soft(toast).toContainText('Vai mới không còn:');
@@ -205,13 +211,16 @@ test.describe('SCR-37 users write UI', () => {
         await page.route('**/api/users*', async (route) => {
           if (route.request().method() !== 'GET' || !USERS_RE.test(new URL(route.request().url()).pathname)) return route.fallback();
           const real = await route.fetch();
-          const body = (await real.json()) as { users: { email: string }[] };
-          return route.fulfill({ response: real, json: { ...body, users: body.users.filter((u) => u.email === adminPool.email) } });
+          const body = (await real.json()) as { users: Record<string, unknown>[] };
+          // Another active admin (copy of the signed-in row with its own id/email/name) and NOT the own row: isSelf would win over lastAdmin.
+          const mine = body.users.find((u) => u.email === adminPool.email);
+          const other = { ...mine, id: 'mock-last-admin-0000', email: testEmail('p08-37w-lastadm'), name: 'Quản trị cuối (mock)' };
+          return route.fulfill({ response: real, json: { ...body, users: [other] } });
         });
         try {
           await verifyDesktop(page, 'U08_37W-F-007_users_write', async (p) => {
             await openUsersList(p);
-            const row = userRow(p, adminPool.email);
+            const row = p.locator('tbody tr, main li').filter({ hasText: 'Quản trị cuối (mock)' }).first();
             await expect(row).toBeVisible();
             await expect.soft(row.getByText(U.lastAdmin, { exact: true })).toBeVisible();
           });

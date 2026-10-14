@@ -124,7 +124,7 @@ test.describe('SCR-37 users UI', () => {
           await openUsersList(p);
           const w = p.viewportSize()?.width ?? 0;
           if (w !== 1440 && w !== 1024) return;
-          const offsets = await p.locator('tbody tr').evaluateAll((rows) =>
+          const offsets = await p.locator('tbody tr').filter({ hasNotText: lng.email }).evaluateAll((rows) => // long row excluded: it is taller
             rows
               .map((r) => {
                 const b = [...r.querySelectorAll('button')].find((x) => x.textContent?.trim() === 'Xoá');

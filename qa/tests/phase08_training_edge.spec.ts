@@ -385,6 +385,8 @@ test.describe('SCR-35 training edge (real)', () => {
         await asUser(engineer, async (page, reads) => {
           await page.reload(); // certain mark after the first paint
           await expect(forbidden(page)).toBeVisible();
+          // network mark: a later real round trip; any effect-fired query would have reached the listener before it
+          expect(await page.evaluate(() => fetch('/api/me').then((r) => r.status))).toBe(200);
           expect.soft(reads.list(), 'no /api/admin/ml request for an engineer').toEqual([]);
           await captureEvidence(page, 'E08_35T-G-006_roles.png', { caption: 'engineer: 0 /api/admin/ml requests' });
         });
