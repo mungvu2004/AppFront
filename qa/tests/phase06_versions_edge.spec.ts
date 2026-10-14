@@ -14,14 +14,14 @@
  *
  * Budget per run (QA stack, `--workers 4`): admin `POST /api/auth/login` ~2 per flow (API + browser) + 1 per pool page (FL-32-10: 4);
  * `POST /api/projects` 11 + 3 shared (each deleted); pipeline seeds `drawings_init` (60 / 600 s per user): PV 1 + PM 1 + PC 1 per worker + PR 1
- * + PX 1 + (FL-32-10 reuses PC) ≈ 5 per worker; N19 restores ≈ 28 (PM ladder) + 2 (PX) + 4 UI; N20 labels ≈ 6; `PUT …/spatial/layer` ≈ 6;
+ * + PX 1 + (FL-32-10 reuses PC) ≈ 5 per worker; N19 restores ≈ 56 (PM ladder; from the 2nd restore each adds only the "after" version, BE snapshots.py:243-244) + 2 (PX) + 4 UI; N20 labels ≈ 6; `PUT …/spatial/layer` ≈ 6;
  * pool users: 4 slots `p06-versions-{engineer,viewer,nonmember,demote}` (invited on first use only, `users_invite` 30 / 3600 s).
  */
 import { expect, test, type APIRequestContext, type Browser, type Page } from '@playwright/test';
 
 import { loginUrl } from '../../e2e/fixtures/routes';
 import { waitForApi, type ApiEntry } from '../../e2e/fullstack/apiWatch';
-import { PASCAL_RENDER_TIMEOUT_MS, readBaseUrl } from '../../e2e/fullstack/env';
+import { PASCAL_RENDER_TIMEOUT_MS, PIPELINE_TIMEOUT_MS, readBaseUrl } from '../../e2e/fullstack/env';
 import { initialsOf } from '../../src/lib/format/initials';
 import { attachJson, captureEvidence, TEST_DATA_PREFIX } from './support/evidence';
 import { qcLayer, writeLayer } from './support/layerSeed';
@@ -276,7 +276,7 @@ test.describe('SCR-32 versions — floors and project gate', () => {
 
 test.describe('SCR-32 versions — AI project (PV)', () => {
   test.skip(!HAS_PNG, ENV_SKIP);
-  const pv = useSeed<SeededDrawing>((admin) => createPipelineProject(admin, '32-pv', envDrawingPng()), 240_000);
+  const pv = useSeed<SeededDrawing>((admin) => createPipelineProject(admin, '32-pv', envDrawingPng()), PIPELINE_TIMEOUT_MS + 120_000);
 
   test('SCR-32 · FL-32-03 · AI project tour: rows, "Hiện tại", counts, sentences, colours', async ({ browser }) => {
     test.setTimeout(140_000);
@@ -617,13 +617,15 @@ test.describe('SCR-32 versions — AI project (PV)', () => {
         });
 
         await test.step('[32-C-046] ⚑ removing a label from a version that has none says nothing was removed', async () => {
+          await page.mouse.move(0, 0); // the pointer must not hold the toast (Toast.tsx:153)
           await expect(toast(page, VH.unlabeledToast)).toHaveCount(0, { timeout: 20_000 }); // the toast of the previous step is gone
           await openDialog();
           const mark = api.length;
           const sent = await sendWith('');
           expect(sent.status).toBe(200);
           await expect.poll(() => versionReads(api, projectId, mark).length).toBeGreaterThan(0); // milestone: the toast would be up by now
-          await expect.soft(toast(page, VH.unlabeledToast)).toHaveCount(0); // UVH:465-475: the server wrote nothing (service.py label unchanged)
+          // One read at the milestone (the toast lives 8 s, so a retrying toHaveCount(0) would pass after it left).
+          expect.soft(await toast(page, VH.unlabeledToast).count(), 'no "Đã gỡ nhãn" when nothing was removed').toBe(0); // UVH:465-475
           await ev(page, '32-C-046', 'no_label_removed_toast');
         });
 
@@ -661,7 +663,7 @@ test.describe('SCR-32 versions — many versions (PM)', () => {
       await deleteProjects(admin, [seeded.projectId], note);
       throw error;
     }
-  }, 360_000);
+  }, PIPELINE_TIMEOUT_MS + 300_000);
 
   test('SCR-32 · FL-32-06 · many versions: snapshot budget, pick rules, load more, retention rows', async ({ browser }) => {
     test.setTimeout(240_000);
@@ -887,7 +889,7 @@ test.describe('SCR-32 versions — restore on an own floor (PR)', () => {
   test.skip(!HAS_PNG, ENV_SKIP);
 
   test('SCR-32 · FL-32-08 · restore, toast, list refetch, undo once', async ({ browser }) => {
-    test.setTimeout(260_000);
+    test.setTimeout(PIPELINE_TIMEOUT_MS + 120_000);
     await withFlow(browser, async ({ admin, open, cleanup }) => {
       const { page, api } = open;
       const seeded = await createPipelineProject(admin, '32-pr', envDrawingPng());
@@ -935,6 +937,7 @@ test.describe('SCR-32 versions — restore on an own floor (PR)', () => {
         restoredToast = toast(page, VH.restoredToast('v2', floorName));
         await expect(restoredToast).toBeVisible(); // UVH:442-450
         await expect(restoredToast.getByRole('button', { name: TOAST_UNDO, exact: true })).toBeVisible();
+        await restoredToast.hover(); // hold the 8 s window while the next steps read
         await ev(page, '32-A-032', 'restored_toast');
       });
 
@@ -961,12 +964,12 @@ test.describe('SCR-32 versions — restore on an own floor (PR)', () => {
       await test.step('[32-E-012] "Hoàn tác" is keyboard reachable and hover pauses the 8 s window', async () => {
         const undo = restoredToast.getByRole('button', { name: TOAST_UNDO, exact: true });
         await undo.focus();
-        await expect(undo).toBeFocused();
-        await restoredToast.hover(); // Toast.tsx:131-132
+        await expect(undo).toBeFocused(); // keyboard reachable
+        await undo.evaluate((el) => (el as HTMLElement).blur()); // focus alone also holds the toast (Toast.tsx:80): drop it
+        await page.mouse.move(0, 0);
+        await restoredToast.hover(); // Toast.tsx:131-132: only hover holds it now
         await page.clock.runFor(10_000); // past the 8 s window
         await expect(restoredToast).toBeVisible();
-        // S5-confirm: the jump above also moved Date.now() 10 s; setSystemTime realigns it so the 8 s undo ticket is still active.
-        await page.clock.setSystemTime(Date.now());
         await ev(page, '32-E-012', 'toast_hover_pause');
       });
 
@@ -976,7 +979,7 @@ test.describe('SCR-32 versions — restore on an own floor (PR)', () => {
         const all = await listVersionsAll(admin, projectId, floorId);
         beforeId = must(all.find((item) => item.sequence === 3), 'v3 (the "before" of the restore)').id;
         const reverted = waitForApi(page, 'POST', restoreRe(projectId), [200, 201]);
-        await restoredToast.getByRole('button', { name: TOAST_UNDO, exact: true }).click(); // UVH:361-412
+        await restoredToast.getByRole('button', { name: TOAST_UNDO, exact: true }).dblclick(); // UVH:361-412; the 2nd click lands before the toast leaves (A-036)
         const { response } = await reverted;
         revertBody = response.request().postDataJSON();
         expect(new URL(response.url()).pathname).toBe(`/api/projects/${projectId}/versions/${beforeId}/restore`);
@@ -990,9 +993,7 @@ test.describe('SCR-32 versions — restore on an own floor (PR)', () => {
       });
 
       await test.step('[32-A-036] undo works once', async () => {
-        // milestone: "Đã hoàn tác lượt phục hồi" is up, so the revert finished; a ticket that is used answers a second click silently.
-        const again = restoredToast.getByRole('button', { name: TOAST_UNDO, exact: true });
-        if ((await again.count()) > 0) await again.click();
+        // milestone: "Đã hoàn tác lượt phục hồi" was seen in A-035 (revert finished) after a double click; the 2nd click must have sent nothing.
         const posts = api.filter((entry) => entry.method === 'POST' && restoreRe(projectId).test(entry.path));
         expect(posts, 'one restore + exactly one revert').toHaveLength(2); // UVH:359,371-375
         await ev(page, '32-A-036', 'undo_once');
@@ -1020,7 +1021,7 @@ test.describe('SCR-32 versions — two floors (PC)', () => {
       await deleteProjects(admin, [seeded.projectId], note);
       throw error;
     }
-  }, 300_000);
+  }, PIPELINE_TIMEOUT_MS + 120_000);
 
   test('SCR-32 · FL-32-09 · another writer: restore 409, banner, floor switch, reload', async ({ browser }) => {
     test.setTimeout(160_000);
@@ -1227,7 +1228,7 @@ test.describe('SCR-32 versions — after two restores (PX)', () => {
   test.skip(!HAS_PNG, ENV_SKIP);
 
   test('SCR-32 · FL-32-11 · after two restores: visual tab, identical pair, repeat restore', async ({ browser }) => {
-    test.setTimeout(320_000);
+    test.setTimeout(PIPELINE_TIMEOUT_MS + 120_000);
     await withFlow(browser, async ({ admin, open, cleanup }) => {
       const { page, api } = open;
       const seeded = await createPipelineProject(admin, '32-px', envDrawingPng());
@@ -1237,7 +1238,12 @@ test.describe('SCR-32 versions — after two restores (PX)', () => {
       const two = must((await listVersionsAll(admin, projectId, floorId)).find((item) => item.sequence === 2), 'v2');
       await restoreVia(admin, projectId, floorId, two.id); // v3 = qc ("before"), v4 = AI ("after")
       const three = must((await listVersionsAll(admin, projectId, floorId)).find((item) => item.sequence === 3), 'v3');
-      await restoreVia(admin, projectId, floorId, three.id); // v5 = AI ("before"), v6 = qc ("after", current)
+      await restoreVia(admin, projectId, floorId, three.id); // K18: the latest version is already at the floor revision, so only an "after" (qc, current) is added
+      // Real numbers from N17 (BE snapshots.py:243-244): cur = current qc, left = AI before it, same = older version holding the same qc content.
+      const px = await listVersionsAll(admin, projectId, floorId);
+      const curL = labelOf(must(px[0], 'current version'));
+      const leftL = labelOf(must(px[1], 'previous version'));
+      const sameL = labelOf(must(px[2], 'older version with the current content'));
       // Observes the "Trực quan" caption and skeleton as they change (a transient state cannot be awaited).
       await page.addInitScript(() => {
         const win = window as unknown as { __vhCaptions: string[]; __vhSkeleton: boolean };
@@ -1249,8 +1255,8 @@ test.describe('SCR-32 versions — after two restores (PX)', () => {
           if (document.querySelector('[aria-label="Đang dựng mô hình"]') !== null) win.__vhSkeleton = true;
         }).observe(document, { subtree: true, childList: true, characterData: true });
       });
-      const figure = page.getByRole('figure');
-      const captionRe = /^Đây là phiên bản v5; \d+ đối tượng đã đổi đang được tô sáng$/u;
+      const figure = tabPanel(page, DIFF_TABS.visual).locator('figure'); // CSS: the panel is `hidden` while another tab is open (VC:226-236)
+      const captionRe = new RegExp(`^Đây là phiên bản ${leftL}; \\d+ đối tượng đã đổi đang được tô sáng$`, 'u');
       const panelChanges = tabPanel(page, DIFF_TABS.changes);
 
       await test.step('[32-B-020] visual tab with a buildable older version: caption and canvas host', async () => {
@@ -1266,7 +1272,7 @@ test.describe('SCR-32 versions — after two restores (PX)', () => {
         const captions = await page.evaluate(() => (window as unknown as { __vhCaptions: string[] }).__vhCaptions);
         await attachJson('E06v_32-B-021_captions.json', { captions });
         expect.soft(lastOf(captions)).toMatch(captionRe);
-        expect.soft(captions.filter((text) => /Đây là mô hình hiện tại chứ không phải phiên bản v5/u.test(text)).length).toBeLessThanOrEqual(1);
+        expect.soft(captions.filter((text) => text.startsWith(`Đây là mô hình hiện tại chứ không phải phiên bản ${leftL}`)).length).toBeLessThanOrEqual(1);
         await ev(page, '32-B-021', 'caption_sequence');
       });
 
@@ -1310,8 +1316,8 @@ test.describe('SCR-32 versions — after two restores (PX)', () => {
       });
 
       await test.step('[32-B-016] two versions with identical content: empty state, zero counts', async () => {
-        await setBox(rowBox(page, 'v5'), false);
-        await setBox(rowBox(page, 'v3'), true); // v3 and v6 both hold the qc layer
+        await setBox(rowBox(page, leftL), false);
+        await setBox(rowBox(page, sameL), true); // the older qc version and the current one hold the same layer
         await expect(page.getByText(VH.noDiffTitle, { exact: true })).toBeVisible(); // VG:29-30,111-117
         await expect(page.getByText(VH.noDiffBody, { exact: true })).toBeVisible();
         await expect(page.getByRole('status').filter({ hasText: VH.noChangeStatus })).toHaveCount(1);
@@ -1326,18 +1332,18 @@ test.describe('SCR-32 versions — after two restores (PX)', () => {
       });
 
       await test.step('[32-A-037] restoring a version equal to the current content: unchanged toast, no undo', async () => {
-        await setBox(rowBox(page, 'v6'), false); // only v3 stays ticked: the footer acts on it (BUG-470)
+        await setBox(rowBox(page, curL), false); // only the older qc version stays ticked: the footer acts on it (BUG-470)
         const base = await layerRevision(admin, projectId, floorId);
         const mark = api.length;
         await button(page, VH.restore).click();
         const posted = waitForApi(page, 'POST', restoreRe(projectId), [200, 201]);
-        await page.getByRole('dialog', { name: VH.restoreTitle('v3', floorName) }).getByRole('button', { name: VH.restoreConfirm, exact: true }).click();
+        await page.getByRole('dialog', { name: VH.restoreTitle(sameL, floorName) }).getByRole('button', { name: VH.restoreConfirm, exact: true }).click();
         const { response, json } = await posted;
         expect(response.status()).toBe(201);
         expect(asRecord(json, 'N19').floorRevision, 'the existing row: floorRevision = base').toBe(base); // UVH:433-440, VHG:230
         const unchanged = toast(page, VH.unchangedToast);
         await expect(unchanged).toBeVisible();
-        await expect(unchanged.getByRole('button', { name: TOAST_UNDO, exact: true })).toHaveCount(0);
+        expect(await unchanged.getByRole('button', { name: TOAST_UNDO, exact: true }).count(), 'no undo on an unchanged restore').toBe(0); // one read: the toast lives 8 s
         await expect.poll(() => versionReads(api, projectId, mark).length).toBeGreaterThan(0); // list refetched
         await ev(page, '32-A-037', 'unchanged_toast');
       });
