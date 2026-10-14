@@ -33,7 +33,7 @@ export function Badge({ variant, children, noDot = false, className, ...props }:
   return (
     <span
       className={twMerge(
-        'inline-flex items-center h-[22px] px-2 rounded-[6px] text-[13px] font-medium leading-none gap-1.5',
+        'inline-flex items-center shrink-0 whitespace-nowrap h-[22px] px-2 rounded-[6px] text-[13px] font-medium leading-none gap-1.5',
         variantStyles[variant],
         className
       )}
