@@ -1081,6 +1081,27 @@ describe('F-10 — useRuleReport đọc cấu hình N21', () => {
     });
   });
 
+  it('28-C-014: luật bị tắt ở phiên khác không hiện dưới "Đã xử lý"', async () => {
+    const { result, queryClient } = setupReport({ read: async () => configRead(1) });
+
+    await waitFor(() => {
+      expect(openCountOf(result.current.groups, NOISY_RULE_CODE)).toBeGreaterThan(0);
+    });
+
+    act(() => {
+      queryClient.setQueryData(ruleSettingsQueryKey('P-F10'), {
+        revision: 2,
+        config: { overrides: { [NOISY_RULE_CODE]: { enabled: false } }, version: 0 },
+      });
+    });
+
+    await waitFor(() => {
+      expect(openCountOf(result.current.groups, NOISY_RULE_CODE)).toBe(0);
+    });
+    expect(result.current.resolvedRows.filter((row) => row.ruleCode === NOISY_RULE_CODE)).toHaveLength(0);
+    expect(ruleCodesOf(result.current.groups)).not.toContain(NOISY_RULE_CODE);
+  });
+
   it('canEdit: false không tắt truy vấn', async () => {
     const { result, read } = setupReport({ read: async () => configRead(1), canEdit: false });
 

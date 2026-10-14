@@ -443,9 +443,12 @@ export function useRuleReport(options: UseRuleReportOptions): RuleReportViewProp
     }
 
     const currentKeys = new Set(built.rows.map((row) => row.key));
+    // 28-C-014: hàng của luật không chạy ở lượt này (bị tắt ở phiên khác) biến mất
+    // vì cấu hình, không phải vì được sửa — không tính là "đã xử lý".
+    const ranRules = new Set<RuleCode>(run.ranRuleCodes);
 
     return previous.rows
-      .filter((row) => !currentKeys.has(row.key))
+      .filter((row) => !currentKeys.has(row.key) && ranRules.has(row.ruleCode))
       .map((row) => ({ ...row, resolved: true }));
   }, [built, projectId, run]);
 
