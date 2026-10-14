@@ -85,9 +85,10 @@ export const RS = {
   dirty: 'Có thay đổi chờ đồng bộ',
   saving: 'Đang lưu…',
   failed: 'Lưu thất bại. Hệ thống sẽ thử lưu lại ở lần chỉnh sửa tới.',
+  conflictCaption: 'Chưa lưu — tải lại để lấy bản mới nhất.', // useRuleSettings.ts CONFLICT_CAPTION (after a 409)
   offline: 'Ngoại tuyến — sẽ lưu khi có mạng',
   savedAt: /^Đã lưu lúc .+$/u,
-  terminal: /^(Chưa có thay đổi|Đã lưu .+|Lưu thất bại.+|Ngoại tuyến.+)$/u,
+  terminal: /^(Chưa có thay đổi|Đã lưu .+|Lưu thất bại.+|Chưa lưu — .+|Ngoại tuyến.+)$/u,
 } as const;
 
 /** Rule names = `Rule.name` (registry.ts / function/index.ts / geometry/index.ts). */
