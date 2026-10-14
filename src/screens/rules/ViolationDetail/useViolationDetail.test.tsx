@@ -118,3 +118,62 @@ describe('useViolationDetail — sửa nhanh đi qua saver lớp tầng (F-04x-1
     expect(clear).toHaveBeenCalledTimes(1);
   });
 });
+
+const SECOND = runRules(GRAPH, { registry: createDefaultRuleRegistry() }).violations.find(
+  (candidate) => candidate.ruleCode === 'FURNITURE-CLASH' && candidate.entityId !== VIOLATION.entityId,
+);
+
+function WiredPair({ seed }: { readonly seed: ViolationDetailGatewaySeed }) {
+  const props = useViolationDetail({
+    floorId: FLOOR_ID,
+    initialIndex: 0,
+    onClose: () => undefined,
+    projectId: PROJECT,
+    seed,
+    violations: [VIOLATION as NonNullable<typeof VIOLATION>, SECOND as NonNullable<typeof SECOND>],
+  });
+
+  return <ViolationDetail {...props} />;
+}
+
+describe('QA-06b F6 — kết quả sửa thuộc đúng vi phạm vừa sửa', () => {
+  beforeEach(() => {
+    __resetFloorLayerSavers();
+    __resetMockLayerState();
+  });
+
+  afterEach(() => {
+    cleanup();
+    __resetFloorLayerSavers();
+    vi.restoreAllMocks();
+  });
+
+  it('28V-B-004: đối tượng đã bị xoá thì không còn mời "Xoá đối tượng này" lần hai', async () => {
+    await mount({ apiClient: createMockApiClient() });
+    await quickFix();
+
+    expect(within(panel()).getByText(/^Đã sửa xong/u)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Xoá đối tượng này' })).toBeNull();
+  });
+
+  it('28V-C-004: sau khi tự sang vi phạm kế tiếp, câu "Đã sửa xong" không theo sang', async () => {
+    renderWithProviders(<WiredPair seed={{ apiClient: createMockApiClient() }} />);
+    await act(async () => {
+      useStore.getState().setSpatial(GRAPH, 'v-1', {
+        floorRevisions: Object.fromEntries(GRAPH.byKind.level.map((id) => [id, 0])),
+        projectId: PROJECT,
+      });
+      await vi.dynamicImportSettled();
+    });
+    await quickFix();
+    expect(within(panel()).getByText(/^Đã sửa xong/u)).toBeInTheDocument();
+
+    await waitFor(
+      () => {
+        expect(within(panel()).getByRole('heading', { level: 2 })).toHaveTextContent(SECOND?.message ?? '');
+      },
+      { timeout: 2000 },
+    );
+    expect(within(panel()).queryByText(/^Đã sửa xong/u)).toBeNull();
+  });
+});

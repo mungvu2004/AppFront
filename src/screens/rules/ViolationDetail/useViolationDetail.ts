@@ -690,7 +690,8 @@ export function useViolationDetail(
   }, [graph, violation]);
 
   const actions = useMemo<readonly ViolationAction[]>(() => {
-    if (violation === null || !capabilities.canEdit) {
+    // 28V-B-004: đối tượng đã rời bản vẽ (vừa xoá) thì không còn gì để sửa lần hai.
+    if (violation === null || !capabilities.canEdit || graph?.byId[violation.entityId] === undefined) {
       return EMPTY_ACTIONS;
     }
 
@@ -718,7 +719,7 @@ export function useViolationDetail(
     // Không có hàng "bỏ qua kèm lý do": `canDismiss` là `false`, và một hàng
     // không lưu được ở đâu là một lời hứa suông. Xem `./violationDetailGateway`.
     return rows.length === 0 ? EMPTY_ACTIONS : rows;
-  }, [capabilities, proposedRoomName, violation]);
+  }, [capabilities, graph, proposedRoomName, violation]);
 
   const previewEntityIds = useMemo<readonly string[] | null>(() => {
     if (hoveredAction === null) {
@@ -921,7 +922,14 @@ export function useViolationDetail(
   /* Mất hiệu lực khoá đọc, sau khi một lượt sửa đã đạt.                      */
   /* ---------------------------------------------------------------------- */
 
-  const resolved = mutation.data?.resolved === true;
+  // 28V-C-004: kết quả/lỗi của lượt sửa thuộc đúng vi phạm đã gửi, không theo sang
+  // vi phạm kế tiếp sau khi tự chuyển.
+  const isMutationOfCurrent =
+    violation !== null &&
+    mutation.variables?.entityId === violation.entityId &&
+    mutation.variables.ruleCode === violation.ruleCode;
+  const resolved = isMutationOfCurrent && mutation.data?.resolved === true;
+  const isMutationError = isMutationOfCurrent && mutation.isError;
 
   useEffect(() => {
     if (!resolved) {
@@ -1214,7 +1222,7 @@ export function useViolationDetail(
       return 'forbidden';
     }
 
-    if (mutation.isError) {
+    if (isMutationError) {
       return 'error';
     }
 
@@ -1232,7 +1240,9 @@ export function useViolationDetail(
 
     // Hai nguồn của "một phần", cả hai đều hợp lệ: không cách sửa nào bật được,
     // HOẶC không dựng được ngữ cảnh hình. Cả hai lần phần chữ đều đứng một mình.
-    if (actions.length === 0 || figureUnavailable) {
+    // Vừa sửa xong thì đối tượng có thể đã rời bản vẽ (28V-B-004) — câu "Đã sửa
+    // xong" vẫn phải hiện, nên lượt sửa đạt đứng trước "một phần".
+    if (!resolved && (actions.length === 0 || figureUnavailable)) {
       return 'partial';
     }
 
@@ -1242,8 +1252,9 @@ export function useViolationDetail(
     capabilities.canEdit,
     figureUnavailable,
     isCompact,
-    mutation.isError,
+    isMutationError,
     mutation.isPending,
+    resolved,
     spatialLoading,
     violation,
   ]);
@@ -1307,7 +1318,7 @@ export function useViolationDetail(
     isAdvancing,
     onCancelAdvance,
 
-    errorMessage: mutation.error?.reasons?.join(' ') ?? null,
+    errorMessage: isMutationError ? (mutation.error?.reasons?.join(' ') ?? null) : null,
     resolvedMessage: resolved ? resolvedMessageOf(rule?.name ?? null) : null,
 
     onClose,
