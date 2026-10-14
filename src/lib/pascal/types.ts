@@ -256,6 +256,10 @@ export interface PascalZoneNode extends PascalNodeCommon {
   readonly polygon: readonly PascalPoint2[];
   readonly spaceRole: 'room';
   readonly boundaryWallIds: readonly PascalNodeId[];
+  /** Công năng hiển thị (bảng "Diện tích phòng" nhóm theo nó); vắng thì Pascal để `''`. */
+  readonly occupancy?: string;
+  /** Chiều cao trần, mét; vắng thì Pascal mặc định 2,7. */
+  readonly ceilingHeight?: number;
 }
 
 /**

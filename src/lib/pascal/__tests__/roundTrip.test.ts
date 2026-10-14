@@ -20,6 +20,7 @@ import {
   SAMPLE_WALL_COUNT,
   SAMPLE_WINDOW_COUNT,
 } from '@/domain/spatial/__fixtures__/sampleBuilding';
+import { describeUsage } from '@/domain/rooms/classify';
 import type { Furniture, SpatialGraph } from '@/domain/spatial/types';
 
 import { BUILDING_NODE_ID, SITE_NODE_ID } from '../ids';
@@ -114,6 +115,20 @@ describe('toPascalScene — lượt đi', () => {
     // Bộ mẫu: cửa rộng 900 mm, mép trái cách đầu tường 300 mm, cao 2 200 mm,
     // bệ 0 → tâm ở 300 + 450 = 750 mm và 0 + 1 100 = 1 100 mm.
     expect(door?.type === 'door' ? door.position : null).toEqual([0.75, 1.1, 0]);
+  });
+
+  it('23R-A-014/020: zone mang công năng tiếng Việt và chiều cao trần bằng chiều cao tầng', () => {
+    const graph = createSampleBuilding();
+    const room = graph.rooms[0];
+    const level = graph.levels.find((item) => item.id === room?.levelId);
+    const zone = Object.values(scene.nodes).find(
+      (node) => node.type === 'zone' && node.name === room?.name,
+    );
+
+    expect(room).toBeDefined();
+    expect(level).toBeDefined();
+    expect(zone?.type === 'zone' ? zone.occupancy : null).toBe(describeUsage(room?.usage ?? null));
+    expect(zone?.type === 'zone' ? zone.ceilingHeight : null).toBe((level?.heightMm ?? 0) / 1000);
   });
 });
 
