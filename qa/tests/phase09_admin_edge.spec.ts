@@ -64,32 +64,32 @@ test('SCR-34/35/36/37 · FL-9A-01 · viewer · four admin screens read-only/forb
   await test.step('[9A-D-001] viewer sees the read-only library banner', async () => {
     await page.goto(ROUTES.adminModels);
     await expect(banner).toBeVisible({ timeout: 15_000 });
-    await captureEvidence(page, '9A-D-001_viewer-library');
+    await captureEvidence(page, '9A-D-001_viewer-library.png');
   });
   await test.step('[9A-B-001] deep link settles: no forbidden state', async () => {
     await settle(page);
     await expect.soft(forbiddenHeading).toHaveCount(0);
     await expect.soft(page.getByRole('textbox', { name: SEARCH_MODEL })).toBeVisible();
-    await captureEvidence(page, '9A-B-001_viewer-library-settled');
+    await captureEvidence(page, '9A-B-001_viewer-library-settled.png');
   });
   await test.step('[9A-D-002] search box and at least one item', async () => {
     await expect.soft(page.getByRole('textbox', { name: SEARCH_MODEL })).toBeVisible();
     await expect.soft(items.first()).toBeVisible();
-    await captureEvidence(page, '9A-D-002_viewer-library-items');
+    await captureEvidence(page, '9A-D-002_viewer-library-items.png');
   });
   await test.step('[9A-D-003] no write control in the toolbar', async () => {
     await expect.soft(page.getByRole('button', { name: WRITE_BUTTON })).toHaveCount(0);
-    await captureEvidence(page, '9A-D-003_viewer-library-toolbar');
+    await captureEvidence(page, '9A-D-003_viewer-library-toolbar.png');
   });
   await test.step('[9A-G-001] GET /api/library is 200', async () => {
     expect.soft(log.urls()).toContain('GET /api/library');
     expect.soft((await libraryRes).status()).toBe(200);
-    await captureEvidence(page, '9A-G-001_viewer-library-200');
+    await captureEvidence(page, '9A-G-001_viewer-library-200.png');
   });
   await test.step('[9A-E-001] banner is role=alert, focus stays outside it', async () => {
     await expect.soft(banner).toBeVisible();
     expect.soft(await focusInsideAlert(page)).toBe(false);
-    await captureEvidence(page, '9A-E-001_viewer-library-alert');
+    await captureEvidence(page, '9A-E-001_viewer-library-alert.png');
   });
   await test.step('[9A-D-004] Enter on the first item opens detail without write actions', async () => {
     await items.first().focus();
@@ -97,68 +97,68 @@ test('SCR-34/35/36/37 · FL-9A-01 · viewer · four admin screens read-only/forb
     const detail = page.getByLabel('Chi tiết model'); // ModelLibraryDetail.tsx:293
     await expect.soft(detail).toBeVisible();
     await expect.soft(detail.getByRole('button', { name: WRITE_BUTTON })).toHaveCount(0);
-    await captureEvidence(page, '9A-D-004_viewer-library-detail');
+    await captureEvidence(page, '9A-D-004_viewer-library-detail.png');
   });
 
+  const jobsMark = log.urls().length;
   await test.step('[9A-D-010] training jobs: forbidden heading', async () => {
     await page.goto(ROUTES.adminTrainingJobs);
     await expect(forbiddenHeading).toBeVisible({ timeout: 15_000 });
-    await captureEvidence(page, '9A-D-010_viewer-jobs-forbidden');
+    await captureEvidence(page, '9A-D-010_viewer-jobs-forbidden.png');
   });
-  const jobsMark = log.urls().length;
   await test.step('[9A-D-011] training jobs: body copy', async () => {
     await expect.soft(page.getByText(TRAINING_BODY, { exact: true })).toBeVisible();
-    await captureEvidence(page, '9A-D-011_viewer-jobs-body');
+    await captureEvidence(page, '9A-D-011_viewer-jobs-body.png');
   });
   await test.step('[9A-D-012] training jobs: no create button, tabs or filters', async () => {
     await expect.soft(page.getByRole('button', { name: CREATE_JOB })).toHaveCount(0);
     await expect.soft(page.getByRole('tablist')).toHaveCount(0);
     await expect.soft(page.getByRole('combobox')).toHaveCount(0);
-    await captureEvidence(page, '9A-D-012_viewer-jobs-no-actions');
+    await captureEvidence(page, '9A-D-012_viewer-jobs-no-actions.png');
   });
   await test.step('[9A-E-002] forbidden empty state: one heading, nothing focusable inside', async () => {
     await expect.soft(forbiddenHeading).toHaveCount(1);
     const box = page.getByRole('main').locator('div', { has: forbiddenHeading }).last();
     await expect.soft(box.getByRole('button')).toHaveCount(0);
     await expect.soft(box.getByRole('link')).toHaveCount(0);
-    await captureEvidence(page, '9A-E-002_viewer-jobs-empty-state');
+    await captureEvidence(page, '9A-E-002_viewer-jobs-empty-state.png');
   });
   await test.step('[9A-G-002] no /api/admin/ml/* request on training jobs', async () => {
     await settle(page);
     expect.soft(since(log.urls(), jobsMark, ML_API)).toEqual([]);
-    await captureEvidence(page, '9A-G-002_viewer-jobs-no-ml');
+    await captureEvidence(page, '9A-G-002_viewer-jobs-no-ml.png');
   });
 
+  const regMark = log.urls().length;
   await test.step('[9A-D-018] model registry: forbidden heading and body', async () => {
     await page.goto(ROUTES.adminTrainingModels);
     await expect(forbiddenHeading).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(REGISTRY_BODY, { exact: true })).toBeVisible();
-    await captureEvidence(page, '9A-D-018_viewer-registry-forbidden');
+    await captureEvidence(page, '9A-D-018_viewer-registry-forbidden.png');
   });
-  const regMark = log.urls().length;
   await test.step('[9A-D-019] model registry: no activate button or family select', async () => {
     await expect.soft(page.getByRole('button', { name: ACTIVATE })).toHaveCount(0);
     await expect.soft(page.getByRole('combobox')).toHaveCount(0);
-    await captureEvidence(page, '9A-D-019_viewer-registry-no-actions');
+    await captureEvidence(page, '9A-D-019_viewer-registry-no-actions.png');
   });
   await test.step('[9A-G-004] no /api/admin/ml/* request on model registry', async () => {
     await settle(page);
     expect.soft(since(log.urls(), regMark, ML_API)).toEqual([]);
-    await captureEvidence(page, '9A-G-004_viewer-registry-no-ml');
+    await captureEvidence(page, '9A-G-004_viewer-registry-no-ml.png');
   });
 
+  const usersMark = log.urls().length;
   await test.step('[9A-D-025] users: forbidden alert', async () => {
     await page.goto(ROUTES.adminUsers);
     await expect(page.getByRole('alert').filter({ hasText: USERS_ALERT })).toBeVisible({
       timeout: 15_000,
     });
-    await captureEvidence(page, '9A-D-025_viewer-users-forbidden');
+    await captureEvidence(page, '9A-D-025_viewer-users-forbidden.png');
   });
-  const usersMark = log.urls().length;
   await test.step('[9A-E-003] users alert: role=alert, focus outside', async () => {
     await expect.soft(page.getByRole('alert').filter({ hasText: USERS_ALERT })).toBeVisible();
     expect.soft(await focusInsideAlert(page)).toBe(false);
-    await captureEvidence(page, '9A-E-003_viewer-users-alert');
+    await captureEvidence(page, '9A-E-003_viewer-users-alert.png');
   });
   await test.step('[9A-D-026] users: permission matrix, 7 rows x 3 role columns', async () => {
     expect.soft(MATRIX_ROWS).toBe(7);
@@ -167,22 +167,22 @@ test('SCR-34/35/36/37 · FL-9A-01 · viewer · four admin screens read-only/forb
     await expect
       .soft(page.locator('li span[aria-hidden="true"]', { hasText: '✓' }))
       .toHaveCount(MATRIX_ALLOWED);
-    await captureEvidence(page, '9A-D-026_viewer-users-matrix');
+    await captureEvidence(page, '9A-D-026_viewer-users-matrix.png');
   });
   await test.step('[9A-D-027] users: no role select and no other pool user email', async () => {
     await expect.soft(roleSelect(page)).toHaveCount(0);
     await expect.soft(page.getByText('@example.test')).toHaveCount(0);
-    await captureEvidence(page, '9A-D-027_viewer-users-no-list');
+    await captureEvidence(page, '9A-D-027_viewer-users-no-list.png');
   });
   await test.step('[9A-D-028] users: no invite button or search', async () => {
     await expect.soft(page.getByRole('button', { name: INVITE })).toHaveCount(0);
     await expect.soft(page.getByRole('textbox', { name: SEARCH_USERS })).toHaveCount(0);
-    await captureEvidence(page, '9A-D-028_viewer-users-no-toolbar');
+    await captureEvidence(page, '9A-D-028_viewer-users-no-toolbar.png');
   });
   await test.step('[9A-G-006] no GET /api/users request', async () => {
     await settle(page);
     expect.soft(since(log.urls(), usersMark, USERS_API)).toEqual([]);
-    await captureEvidence(page, '9A-G-006_viewer-users-no-get');
+    await captureEvidence(page, '9A-G-006_viewer-users-no-get.png');
   });
 });
 
@@ -200,76 +200,76 @@ test('SCR-34/35/36/37 · FL-9A-02 · engineer · four admin screens', async ({ p
     await expect(page.getByRole('alert').filter({ hasText: LIBRARY_BANNER })).toBeVisible({
       timeout: 15_000,
     });
-    await captureEvidence(page, '9A-D-005_engineer-library');
+    await captureEvidence(page, '9A-D-005_engineer-library.png');
   });
   await test.step('[9A-D-006] library: search and a sample item visible', async () => {
     await expect.soft(page.getByRole('textbox', { name: SEARCH_MODEL })).toBeVisible();
     await expect.soft(page.getByRole('table').getByRole('button').first()).toBeVisible();
-    await captureEvidence(page, '9A-D-006_engineer-library-items');
+    await captureEvidence(page, '9A-D-006_engineer-library-items.png');
   });
   await test.step('[9A-G-011] GET /api/library is 200', async () => {
     expect.soft((await libraryRes).status()).toBe(200);
-    await captureEvidence(page, '9A-G-011_engineer-library-200');
+    await captureEvidence(page, '9A-G-011_engineer-library-200.png');
   });
 
+  const jobsMark = log.urls().length;
   await test.step('[9A-D-013] training jobs: forbidden heading and body', async () => {
     await page.goto(ROUTES.adminTrainingJobs);
     await expect(forbiddenHeading).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(TRAINING_BODY, { exact: true })).toBeVisible();
-    await captureEvidence(page, '9A-D-013_engineer-jobs-forbidden');
+    await captureEvidence(page, '9A-D-013_engineer-jobs-forbidden.png');
   });
-  const jobsMark = log.urls().length;
   await test.step('[9A-D-014] training jobs: no create button or tabs', async () => {
     await expect.soft(page.getByRole('button', { name: CREATE_JOB })).toHaveCount(0);
     await expect.soft(page.getByRole('tablist')).toHaveCount(0);
-    await captureEvidence(page, '9A-D-014_engineer-jobs-no-actions');
+    await captureEvidence(page, '9A-D-014_engineer-jobs-no-actions.png');
   });
   await test.step('[9A-G-003] no /api/admin/ml/* request on training jobs', async () => {
     await settle(page);
     expect.soft(since(log.urls(), jobsMark, ML_API)).toEqual([]);
-    await captureEvidence(page, '9A-G-003_engineer-jobs-no-ml');
+    await captureEvidence(page, '9A-G-003_engineer-jobs-no-ml.png');
   });
 
+  const regMark = log.urls().length;
   await test.step('[9A-D-020] model registry: forbidden heading and body', async () => {
     await page.goto(ROUTES.adminTrainingModels);
     await expect(forbiddenHeading).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(REGISTRY_BODY, { exact: true })).toBeVisible();
-    await captureEvidence(page, '9A-D-020_engineer-registry-forbidden');
+    await captureEvidence(page, '9A-D-020_engineer-registry-forbidden.png');
   });
-  const regMark = log.urls().length;
   await test.step('[9A-D-021] model registry: no activate button or family select', async () => {
     await expect.soft(page.getByRole('button', { name: ACTIVATE })).toHaveCount(0);
     await expect.soft(page.getByRole('combobox')).toHaveCount(0);
-    await captureEvidence(page, '9A-D-021_engineer-registry-no-actions');
+    await captureEvidence(page, '9A-D-021_engineer-registry-no-actions.png');
   });
   await test.step('[9A-G-005] no /api/admin/ml/* request on model registry', async () => {
     await settle(page);
     expect.soft(since(log.urls(), regMark, ML_API)).toEqual([]);
-    await captureEvidence(page, '9A-G-005_engineer-registry-no-ml');
+    await captureEvidence(page, '9A-G-005_engineer-registry-no-ml.png');
   });
 
+  const usersMark = log.urls().length;
   await test.step('[9A-D-029] users: forbidden alert', async () => {
     await page.goto(ROUTES.adminUsers);
     await expect(page.getByRole('alert').filter({ hasText: USERS_ALERT })).toBeVisible({
       timeout: 15_000,
     });
-    await captureEvidence(page, '9A-D-029_engineer-users-forbidden');
+    await captureEvidence(page, '9A-D-029_engineer-users-forbidden.png');
   });
-  const usersMark = log.urls().length;
   await test.step('[9A-D-030] users: permission matrix visible', async () => {
     await expect.soft(matrixRows(page)).toHaveCount(MATRIX_ROWS);
-    await captureEvidence(page, '9A-D-030_engineer-users-matrix');
+    await captureEvidence(page, '9A-D-030_engineer-users-matrix.png');
   });
   await test.step('[9A-D-031] users: no list rows and no invite button', async () => {
     await expect.soft(roleSelect(page)).toHaveCount(0);
     await expect.soft(page.getByRole('row')).toHaveCount(0);
     await expect.soft(page.getByRole('button', { name: INVITE })).toHaveCount(0);
-    await captureEvidence(page, '9A-D-031_engineer-users-no-list');
+    await captureEvidence(page, '9A-D-031_engineer-users-no-list.png');
   });
   await test.step('[9A-G-007] no GET /api/users request', async () => {
     await settle(page);
     expect.soft(since(log.urls(), usersMark, USERS_API)).toEqual([]);
-    await captureEvidence(page, '9A-G-007_engineer-users-no-get');
+    await captureEvidence(page, '9A-G-007_engineer-users-no-get.png');
   });
 });
 
@@ -282,7 +282,7 @@ test('SCR-34/35/36/37 · FL-9A-03 · anonymous · four routes redirect to login'
     const gotoLogin = async (id: string, path: string, encoded: string): Promise<void> => {
       await page.goto(path);
       await expect(page).toHaveURL(new RegExp(`/login\\?next=${encoded}$`, 'u'));
-      await captureEvidence(page, `${id}_anon-login`);
+      await captureEvidence(page, `${id}_anon-login.png`);
     };
     await test.step('[9A-D-008] anonymous /admin/models redirects to login', async () => {
       await gotoLogin('9A-D-008', '/admin/models', '%2Fadmin%2Fmodels');
@@ -319,7 +319,7 @@ test('SCR-34/35/36/37 · FL-9A-04 · admin · positive reference + self guards',
       timeout: 15_000,
     });
     await expect(page.getByText(LIBRARY_BANNER)).toHaveCount(0);
-    await captureEvidence(page, '9A-D-007_admin-library');
+    await captureEvidence(page, '9A-D-007_admin-library.png');
   });
   await test.step('[9A-D-015] training jobs: create button and tabs', async () => {
     await page.goto(ROUTES.adminTrainingJobs);
@@ -330,47 +330,41 @@ test('SCR-34/35/36/37 · FL-9A-04 · admin · positive reference + self guards',
       .soft(page.getByRole('tablist', { name: 'Phần của trang huấn luyện' }))
       .toBeVisible();
     await expect.soft(forbiddenHeading).toHaveCount(0);
-    await captureEvidence(page, '9A-D-015_admin-jobs');
+    await captureEvidence(page, '9A-D-015_admin-jobs.png');
   });
   await test.step('[9A-D-024] model registry: family select visible', async () => {
     await page.goto(ROUTES.adminTrainingModels);
-    // UNKNOWN — NEED VERIFICATION: family select accessible name (ModelRegistry.tsx); first combobox/button in main used
+    // ModelRegistry.tsx:188 SegmentedControl aria-label TEXT.familyPicker 'Họ model' (role=radiogroup)
     await expect
-      .soft(
-        page
-          .getByRole('main')
-          .getByRole('combobox')
-          .or(page.getByRole('main').getByRole('button'))
-          .first(),
-      )
+      .soft(page.getByRole('radiogroup', { name: 'Họ model' }))
       .toBeVisible({ timeout: 15_000 });
     await expect.soft(forbiddenHeading).toHaveCount(0);
-    await captureEvidence(page, '9A-D-024_admin-registry');
+    await captureEvidence(page, '9A-D-024_admin-registry.png');
   });
   await test.step('[9A-D-022] version table: activate button present (not clicked)', async () => {
     await expect.soft(page.getByRole('button', { name: ACTIVATE }).first()).toBeVisible();
-    await captureEvidence(page, '9A-D-022_admin-registry-activate');
+    await captureEvidence(page, '9A-D-022_admin-registry-activate.png');
   });
   await test.step('[9A-D-032] users: own row shows role reason, no role select', async () => {
     await page.goto(ROUTES.adminUsers);
     await expect(ownRow).toBeVisible({ timeout: 15_000 });
     await expect(ownRow.getByText(SELF_ROLE)).toBeVisible();
     await expect(roleSelect(page, me.name)).toHaveCount(0);
-    await captureEvidence(page, '9A-D-032_admin-self-role');
+    await captureEvidence(page, '9A-D-032_admin-self-role.png');
   });
   await test.step('[9A-D-033] users: own row shows disable reason', async () => {
     await expect.soft(ownRow.getByText(SELF_DISABLE)).toBeVisible();
-    await captureEvidence(page, '9A-D-033_admin-self-disable');
+    await captureEvidence(page, '9A-D-033_admin-self-disable.png');
   });
   await test.step('[9A-E-004] self-guard reasons are visible text, not only disabled controls', async () => {
     await expect.soft(ownRow.getByText(SELF_ROLE)).toBeVisible();
     await expect.soft(ownRow.getByText(SELF_DISABLE)).toBeVisible();
-    await captureEvidence(page, '9A-E-004_admin-self-text');
+    await captureEvidence(page, '9A-E-004_admin-self-text.png');
   });
   await test.step('[9A-D-034] other user row has an enabled role select (not changed)', async () => {
     await expect.soft(page.getByRole('row').filter({ hasText: other.email })).toBeVisible();
     await expect.soft(roleSelect(page, other.name)).toBeEnabled();
-    await captureEvidence(page, '9A-D-034_admin-other-role');
+    await captureEvidence(page, '9A-D-034_admin-other-role.png');
   });
   // own pool admin: if the BE guard breaks, only this user is demoted/disabled, never the shared admin
   const selfUser = await roleUser(admin, 'admin', 'admin-self');
@@ -378,23 +372,31 @@ test('SCR-34/35/36/37 · FL-9A-04 · admin · positive reference + self guards',
   try {
     await test.step('[9A-G-008] PATCH own role is rejected 422 USER_SELF_MODIFICATION', async () => {
       const res = await meApi.patch(`/api/users/${selfUser.id}/role`, {
-        data: { role: 'engineer' },
+        data: { role: 'engineer', userId: selfUser.id },
       });
       expect.soft(res.status()).toBe(422);
-      expect.soft(JSON.stringify(await res.json())).toContain('USER_SELF_MODIFICATION');
-      expect.soft(JSON.stringify(await (await meApi.get('/api/me')).json())).toContain('admin');
-      await captureEvidence(page, '9A-G-008_admin-self-role-422');
+      expect.soft(((await res.json()) as { code?: string }).code).toBe('USER_SELF_MODIFICATION');
+      expect
+        .soft(((await (await meApi.get('/api/me')).json()) as { role?: string }).role)
+        .toBe('admin');
+      await captureEvidence(page, '9A-G-008_admin-self-role-422.png');
     });
     await test.step('[9A-G-009] POST disable on self is rejected 422 USER_SELF_MODIFICATION', async () => {
-      const res = await meApi.post(`/api/users/${selfUser.id}/disable`);
+      const res = await meApi.post(`/api/users/${selfUser.id}/disable`, { data: {} });
       expect.soft(res.status()).toBe(422);
-      expect.soft(JSON.stringify(await res.json())).toContain('USER_SELF_MODIFICATION');
+      expect.soft(((await res.json()) as { code?: string }).code).toBe('USER_SELF_MODIFICATION');
       expect.soft((await meApi.get('/api/me')).status()).toBe(200);
-      await captureEvidence(page, '9A-G-009_admin-self-disable-422');
+      await captureEvidence(page, '9A-G-009_admin-self-disable-422.png');
     });
   } finally {
     // restore if a request slipped through (BE router: users/router.py PATCH role, POST enable)
-    await admin.patch(`/api/users/${selfUser.id}/role`, { data: { role: 'admin' } });
-    await admin.post(`/api/users/${selfUser.id}/enable`);
+    const roleBack = await admin.patch(`/api/users/${selfUser.id}/role`, {
+      data: { role: 'admin', userId: selfUser.id },
+    });
+    expect(roleBack.status()).toBe(200);
+    const enableBack = await admin.post(`/api/users/${selfUser.id}/enable`, { data: {} });
+    expect(enableBack.status()).toBe(200);
+    await meApi.dispose();
+    await admin.dispose();
   }
 });
