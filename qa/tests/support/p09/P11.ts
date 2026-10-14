@@ -27,9 +27,10 @@ export async function withRoleUi(
   const admin = await adminApi();
   const user = await roleUser(admin, role, slot);
   const { projectId, workFloorId } = mainProject();
-  const undo = member ? await asMember(admin, projectId, user) : async (): Promise<void> => {};
   const context = await browser.newContext();
+  let undo = async (): Promise<void> => {};
   try {
+    if (member) undo = await asMember(admin, projectId, user);
     await signInRole(context, user);
     await fn({ page: await context.newPage(), admin, user, projectId, floorId: workFloorId });
   } finally {

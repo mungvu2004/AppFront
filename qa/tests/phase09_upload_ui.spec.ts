@@ -1,5 +1,5 @@
 /** Phase 09 upload UI (P11): FL-9U-U1 viewer read-only layouts at four widths. */
-import { test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { openAt, uiState, withRoleUi } from './support/p09/P11';
@@ -7,7 +7,7 @@ import { addProjectMember, createFailedRunProject, deleteSeededProject } from '.
 
 test('giao diện · FL-9U-U1 · viewer · viewer bo cuc chi-doc o 4 kho', async ({ browser }) => {
   test.setTimeout(420_000);
-  await withRoleUi(browser, 'viewer', 'up', true, async ({ page, admin, user, projectId, floorId }) => {
+  await withRoleUi(browser, 'viewer', 'ui-up', true, async ({ page, admin, user, projectId, floorId }) => {
     const P = ROUTES.project;
     // Screen mapping follows catalog-C2 rows 9U-D-*: F-003/F-005/F-008/F-009 UNKNOWN — NEED VERIFICATION.
     await test.step('[9U-F-001] viewer upload_readonly 4 kho', async () => {
@@ -17,11 +17,10 @@ test('giao diện · FL-9U-U1 · viewer · viewer bo cuc chi-doc o 4 kho', async
       await uiState(page, '9U-F-002', 'floors_readonly', openAt(P.floors(projectId), (p) => p.getByRole('heading', { name: 'Không có quyền sửa tầng' })));
     });
     await test.step('[9U-F-003] viewer quality_forbidden 4 kho', async () => {
-      // UNKNOWN — NEED VERIFICATION: quality/pipeline forbidden sentence not in catalog; waits for a heading + blocked buttons absent.
-      await uiState(page, '9U-F-003', 'quality_forbidden', openAt(P.quality(projectId), (p) => p.getByRole('heading'), ['Tiếp tục xử lý', 'Tải bản vẽ khác']));
+      await uiState(page, '9U-F-003', 'quality_forbidden', openAt(P.quality(projectId), (p) => p.getByRole('heading', { name: 'Các tầng đã đo' }), ['Tiếp tục xử lý', 'Tải bản vẽ khác']));
     });
     await test.step('[9U-F-004] viewer pipeline_forbidden 4 kho', async () => {
-      await uiState(page, '9U-F-004', 'pipeline_forbidden', openAt(P.pipeline(projectId), (p) => p.getByRole('heading'), ['Huỷ xử lý']));
+      await uiState(page, '9U-F-004', 'pipeline_forbidden', openAt(P.pipeline(projectId), (p) => p.getByRole('list', { name: 'Các bước xử lý' }), ['Huỷ xử lý']));
     });
     await test.step('[9U-F-005] viewer graph_forbidden 4 kho', async () => {
       await uiState(page, '9U-F-005', 'graph_forbidden', openAt(P.pipelineGraph(projectId), (p) => p.getByText(/Chế độ chi tiết kỹ thuật chỉ mở cho vai quản trị/u)));
@@ -40,8 +39,11 @@ test('giao diện · FL-9U-U1 · viewer · viewer bo cuc chi-doc o 4 kho', async
         await uiState(page, '9U-F-008', 'overlay_readonly_notice', openAt(P.overlay(projectId, floorId), (p) => p.getByText('Bạn chỉ được xem; việc đổi căn chỉnh dành cho người có quyền sửa.')));
       });
       await test.step('[9U-F-009] viewer cad-confirm forbidden (PC)', async () => {
-        // UNKNOWN — NEED VERIFICATION: no CAD (.dxf) seed helper exists; the main-project floor stands in until createCadProject lands.
-        await uiState(page, '9U-F-009', 'cad_forbidden', openAt(P.cadConfirm(projectId, floorId), (p) => p.getByText(/Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý/u)));
+        // UNKNOWN — NEED VERIFICATION: no CAD (.dxf) seed. The main floor is a PNG: useCadBranchConfirm.ts:601-606 yields 'error'
+        // before the !canEdit check, so the forbidden sentence cannot show. N/A until createCadProject exists; no shot taken.
+        test.info().annotations.push({ type: 'n/a', description: '9U-F-009: needs a real .dxf seed (PC)' });
+        await page.goto(P.cadConfirm(projectId, floorId));
+        await expect(page).toHaveURL(/cad-confirm/u);
       });
     } finally {
       await deleteSeededProject(admin, pf.projectId);

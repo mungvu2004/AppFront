@@ -1,12 +1,13 @@
 /** Phase 09 shell UI (P11): FL-9P-U1 viewer + FL-9P-U2 non-member viewer, four widths via verifyUi. */
-import { test, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import { ROUTES, UNKNOWN_PATH } from '../../e2e/fixtures/routes';
+import { apiAs } from './support/p09/roles';
 import { openAt, uiState, withRoleUi } from './support/p09/P11';
 
 test('SCR-05 · FL-9P-U1 · viewer · bốn khổ', async ({ browser }) => {
   test.setTimeout(240_000);
-  await withRoleUi(browser, 'viewer', 'shell', true, async ({ page, projectId }) => {
+  await withRoleUi(browser, 'viewer', 'ui-shell', true, async ({ page, projectId }) => {
     await test.step('[9P-F-001] dashboard forbidden: dòng vai + danh sách', async () => {
       await uiState(page, '9P-F-001', 'dashboard_viewer', openAt(ROUTES.dashboard, (p) => p.getByText(/Vai người xem/u)), true);
     });
@@ -37,8 +38,14 @@ test('SCR-05 · FL-9P-U1 · viewer · bốn khổ', async ({ browser }) => {
 
 test('SCR-05 · FL-9P-U2 · viewer chưa thành viên · bốn khổ', async ({ browser }) => {
   test.setTimeout(120_000);
-  await withRoleUi(browser, 'viewer', 'shell-nm', false, async ({ page }) => {
+  await withRoleUi(browser, 'viewer', 'ui-shell-nm', false, async ({ page, user }) => {
     await test.step('[9P-F-002] / empty không nút tạo', async () => {
+      // precondition: no leftover membership from a crashed run
+      const summaries = await (await apiAs(user)).get('/api/project-summaries');
+      expect(summaries.status()).toBe(200);
+      const body = (await summaries.json()) as unknown;
+      const rows = Array.isArray(body) ? body : ((body as { items?: unknown[] }).items ?? []);
+      expect(rows, 'slot ui-shell-nm must belong to no project').toEqual([]);
       await uiState(page, '9P-F-002', 'dashboard_empty_viewer', openAt(ROUTES.dashboard, (p) => p.getByText('Chưa có dự án nào'), ['Dự án mới']), true);
     });
   });
