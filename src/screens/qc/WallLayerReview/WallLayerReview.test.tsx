@@ -963,3 +963,31 @@ describe('đợt sửa P04 — SCR-16', () => {
     });
   });
 });
+
+describe('[G74 16-E-010] mở menu tường bằng bàn phím', () => {
+  it('Shift+F10 hoặc phím ContextMenu trên một hàng danh sách mở đúng menu của tường đó', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      { x: 0, y: 0, top: 0, left: 0, right: 280, bottom: 800, width: 280, height: 800, toJSON: () => ({}) } as DOMRect,
+    );
+    renderState('partial');
+
+    const rows = await screen.findAllByRole('option');
+    const row = rows[0];
+
+    if (row === undefined) {
+      throw new Error('không có hàng tường nào');
+    }
+
+    row.focus();
+    fireEvent.keyDown(row, { key: 'F10', shiftKey: true });
+    expect(await screen.findByRole('menu')).toBeInTheDocument();
+
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+    await waitFor(() => {
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    });
+
+    fireEvent.keyDown(row, { key: 'ContextMenu' });
+    expect(await screen.findByRole('menu')).toBeInTheDocument();
+  });
+});
