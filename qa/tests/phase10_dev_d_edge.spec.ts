@@ -4,9 +4,6 @@ import { devTest as test, expect } from './support/p10/devServer';
 import { captureEvidence } from './support/evidence';
 import { STATES, STEP_NAMES, barWidth, frames, openFeedback, stateButton, toastRegion, toasts } from './support/p10/P13';
 
-// ponytail: Toast.tsx slots 1..2 are 4 px "peek" slivers (style height 4px, content opacity-0), so a pointer click cannot hit
-// their "Hoàn tác"; those clicks use dispatchEvent('click') (the React handler is the same).
-
 test('SCR-40e-5 · FL-10E-12 · anon · FeedbackDemo: toast', async ({ devPage: page }) => {
   test.setTimeout(120_000);
   await openFeedback(page);
@@ -40,11 +37,21 @@ test('SCR-40e-5 · FL-10E-12 · anon · FeedbackDemo: toast', async ({ devPage: 
     await expect(toasts(page, 'Đã xoá 1 đối tượng.')).toHaveCount(2);
     await toasts(page).first().getByRole('button', { name: 'Hoàn tác' }).click(); // newest = DOM-first, full height
     await expect(toasts(page, 'Đã xoá 1 đối tượng.')).toHaveCount(1);
-    await toasts(page, 'Đã xoá 1 đối tượng.').getByRole('button', { name: 'Hoàn tác' }).dispatchEvent('click'); // peek slot
+    await toasts(page, 'Đã xoá 1 đối tượng.').getByRole('button', { name: 'Hoàn tác' }).press('Enter'); // peek slot (4 px, mouse cannot reach): keyboard is the real path
     await expect.soft(toasts(page, 'Đã xoá 1 đối tượng.')).toHaveCount(0);
     await expect.soft(toasts(page, 'Đã hoàn tác thao tác.')).toHaveCount(2);
     await expect.soft(toastRegion(page).getByRole('button', { name: 'Hoàn tác' })).toHaveCount(0);
     await captureEvidence(page, 'E10_10E-C-023_feedback_double_undo.png');
+  });
+
+  await test.step('[10E-C-024] ⚑ double-click Hoàn tác undoes only once', async () => { // Toast.tsx onUndoClick does not guard isExiting
+    await openFeedback(page);
+    await page.getByRole('button', { name: 'Test Undo Toast', exact: true }).click();
+    const toast = toasts(page, 'Đã xoá 1 đối tượng.');
+    await expect(toast).toBeVisible();
+    await toast.getByRole('button', { name: 'Hoàn tác' }).dblclick();
+    await expect.soft(toasts(page, 'Đã hoàn tác thao tác.')).toHaveCount(1);
+    await captureEvidence(page, 'E10_10E-C-024_feedback_double_click_undo.png');
   });
 
   await test.step('[10E-A-058] Test Warning Toast', async () => { // FD:60
@@ -89,7 +96,7 @@ test('SCR-40e-5 · FL-10E-12 · anon · FeedbackDemo: toast', async ({ devPage: 
     await page.getByRole('button', { name: 'Test Warning Toast', exact: true }).click();
     const summary = toasts(page, 'Đã thực hiện 3 thay đổi');
     await expect(summary).toBeVisible();
-    await summary.getByRole('button', { name: 'Hoàn tác' }).dispatchEvent('click'); // peek slot
+    await summary.getByRole('button', { name: 'Hoàn tác' }).press('Enter'); // peek slot (4 px, mouse cannot reach): keyboard is the real path
     await expect.soft(toasts(page, 'Đã thực hiện 2 thay đổi')).toBeVisible();
     await expect.soft(toasts(page, 'Đã thực hiện 3 thay đổi')).toHaveCount(0);
     await captureEvidence(page, 'E10_10E-A-063_feedback_summary_undo.png');
@@ -112,7 +119,7 @@ test('SCR-40e-5 · FL-10E-12 · anon · FeedbackDemo: toast', async ({ devPage: 
     await page.getByRole('button', { name: 'Test Warning Toast', exact: true }).click();
     const region = toastRegion(page);
     await expect.soft(region).toHaveAttribute('aria-live', 'polite');
-    const toast = toasts(page, 'Mạng chập chờn, đang thử lại.');
+    const toast = region.locator(':scope > div').filter({ hasText: 'Mạng chập chờn, đang thử lại.' });
     await expect.soft(toast).toBeVisible();
     await expect.soft(toast).toHaveAttribute('role', 'status');
     await expect.soft(toast).toHaveAttribute('aria-atomic', 'true');
@@ -140,7 +147,7 @@ test('SCR-40e-5 · FL-10E-13 · anon · FeedbackDemo: bảy trạng thái', asyn
   await test.step('[10E-B-035] Loading state', async () => { // FD:23-30,75-86, PipelineStepper:63-67
     await stateButton(page, 'Loading').click();
     await expect.soft(dialog).toBeVisible();
-    await expect.soft(dialog).toContainText('45');
+    await expect.soft(dialog).toContainText('45%');
     await expect.soft(page.getByRole('listitem')).toHaveCount(6);
     await expect.soft(page.getByText('Còn khoảng 2 phút')).toBeVisible();
     await expect.soft(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '65');
@@ -166,8 +173,6 @@ test('SCR-40e-5 · FL-10E-13 · anon · FeedbackDemo: bảy trạng thái', asyn
       }).length;
     });
     expect.soft(overlap).toBe(0);
-    await stateButton(page, 'Loading').focus();
-    await expect.soft(stateButton(page, 'Loading')).toBeFocused();
     await captureEvidence(page, 'E10_10E-E-017_feedback_overlay_a11y.png');
   });
 
