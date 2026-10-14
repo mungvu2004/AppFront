@@ -4,7 +4,7 @@
  * Seeds are admin-owned own projects (the viewer is added to them; deleting the project drops the membership) so the main
  * chain project is never touched. The BE has no per-project role: the viewer is a viewer by account role.
  */
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { captureEvidence } from './support/evidence';
@@ -27,6 +27,16 @@ const OVERLAY_NOTICE = 'Bạn chỉ được xem; việc đổi căn chỉnh dà
 const OVERLAY_REASON = 'Chỉ người có quyền sửa mới xác nhận được.'; // UOC:122
 const CONFIRM = 'Xác nhận mô hình khớp bản vẽ';
 const QUALITY_ACK = 'Tôi đã đọc cảnh báo và vẫn muốn xử lý bản vẽ này'; // UIQ:145-147
+
+/** Waits a bounded window for any non-GET /api request, then asserts no recorded write (matching `only`) exists. */
+async function noWrites(page: Page, rec: { writes: string[] }, only?: string): Promise<void> {
+  // fixed-wait-ok: absence of a request can only be shown by waiting a bounded window
+  await expect(
+    page.waitForRequest((r) => r.method() !== 'GET' && r.url().includes('/api/'), { timeout: 2_000 }),
+  ).rejects.toThrow();
+  const re = only === undefined ? /./u : new RegExp(only, 'u');
+  expect.soft(rec.writes.filter((w) => re.test(w))).toEqual([]);
+}
 
 test('SCR-09 · FL-9U-01 · viewer · viewer doc: SCR-09 tang chi-doc', async ({ browser }) => {
   test.setTimeout(120_000);
@@ -85,7 +95,7 @@ test('SCR-09 · FL-9U-01 · viewer · viewer doc: SCR-09 tang chi-doc', async ({
       await page.keyboard.press('Control+z'); // UFM:1530 enabled:canEdit
       await expect.soft(floorRows(page)).toHaveCount(2);
       expect.soft(await labels()).toEqual(before);
-      expect.soft(rec.writes).toEqual([]);
+      await noWrites(page, rec);
       await captureEvidence(page, 'E09_9U-D-006_shortcuts_noop.png');
     });
 
@@ -97,7 +107,7 @@ test('SCR-09 · FL-9U-01 · viewer · viewer doc: SCR-09 tang chi-doc', async ({
 
     await test.step('[9U-D-008] viewer, 0-floor project: viewer-only empty sentence, no "Thêm tầng"', async () => {
       await page.goto(ROUTES.project.floors(empty.projectId));
-      await expect.soft(page.getByText(VIEWER_EMPTY, { exact: true })).toBeVisible(); // UFM:1755
+      await expect(page.getByText(VIEWER_EMPTY, { exact: true })).toBeVisible(); // UFM:1755
       await expect.soft(page.getByRole('button', { name: 'Thêm tầng', exact: true })).toHaveCount(0);
       await captureEvidence(page, 'E09_9U-D-008_viewer_empty.png');
     });
@@ -163,7 +173,7 @@ test('SCR-10 · SCR-11 · FL-9U-02 · viewer · viewer doc: tai len + kiem tra c
       await fireDrag(floorCard, 'dragenter', [file]);
       await fireDrag(floorCard, 'drop', [file]);
       await expect.soft(tray(page)).toHaveCount(0);
-      expect.soft(rec.writes.filter((w) => w.includes('/drawings/uploads'))).toEqual([]);
+      await noWrites(page, rec, "/drawings/uploads");
       await captureEvidence(page, 'E09_9U-D-023_drop_ignored.png');
     });
 
@@ -175,9 +185,9 @@ test('SCR-10 · SCR-11 · FL-9U-02 · viewer · viewer doc: tai len + kiem tra c
     });
 
     await test.step('[9U-D-030] viewer: quality page has no action footer', async () => {
+      const qualityRead = page.waitForResponse((r) => r.request().method() === 'GET' && //quality$/u.test(new URL(r.url()).pathname));
       await page.goto(ROUTES.project.quality(projectId!));
-      await expect(page.getByRole('main')).toBeVisible();
-      await expect(page.getByRole('heading').first()).toBeVisible();
+      expect((await qualityRead).status()).toBe(200);
       await expect.soft(page.getByRole('button', { name: 'Tiếp tục xử lý', exact: true })).toHaveCount(0); // UIQ:145-147
       await expect.soft(page.getByRole('button', { name: 'Tải bản vẽ khác', exact: true })).toHaveCount(0);
       await expect.soft(page.getByRole('checkbox', { name: QUALITY_ACK })).toHaveCount(0);
@@ -187,7 +197,7 @@ test('SCR-10 · SCR-11 · FL-9U-02 · viewer · viewer doc: tai len + kiem tra c
     await test.step('[9U-D-031] viewer: no corner pick, no "Làm thẳng", no corners/straighten POST', async () => {
       // UNKNOWN — NEED VERIFICATION: the fake-ML drawing is straight, so the straighten/corners controls may be absent for every role.
       await expect.soft(page.getByRole('button', { name: /Làm thẳng|Chọn góc thủ công|Gửi bốn góc/u })).toHaveCount(0); // UIQ:1146,1159,1192
-      expect.soft(rec.writes.filter((w) => /corners|straighten/u.test(w))).toEqual([]);
+      await noWrites(page, rec, "corners|straighten");
       await captureEvidence(page, 'E09_9U-D-031_no_corners.png');
     });
   } finally {
@@ -300,22 +310,24 @@ test('SCR-14 · SCR-15 · SCR-16 · FL-9U-04 · viewer · viewer doc: ti le + do
     await test.step('[9U-D-057] viewer, SCR-14: drawing visible, canvas not draggable, no request', async () => {
       await expect.soft(page.getByRole('img', { name: `Bản vẽ đã nắn của ${seeded.floorName}` })).toBeVisible();
       const canvas = page.getByRole('img', { name: 'Bản vẽ đã nắn, kéo để vẽ đường tham chiếu' }); // ScaleCalibrationCanvas.tsx:70
-      const box = await canvas.boundingBox();
-      if (box !== null) {
-        await page.mouse.move(box.x + 40, box.y + 40);
-        await page.mouse.down();
-        await page.mouse.move(box.x + 140, box.y + 90);
-        await page.mouse.up();
-      }
+      await expect(canvas).toBeVisible();
+      const box = (await canvas.boundingBox())!;
+      await page.mouse.move(box.x + 40, box.y + 40);
+      await page.mouse.down();
+      await page.mouse.move(box.x + 140, box.y + 90);
+      await page.mouse.up();
       await expect.soft(page.getByRole('slider', { name: /Đầu đoạn tham chiếu/u })).toHaveCount(0); // USC:1858 isInteractive=false
-      expect.soft(rec.writes).toEqual([]);
+      await noWrites(page, rec);
       await captureEvidence(page, 'E09_9U-D-057_canvas_readonly.png');
     });
 
     await test.step('[9U-D-058] viewer, SCR-14: no "Áp dụng tỷ lệ", method block not clickable', async () => {
       await expect.soft(button('Áp dụng tỷ lệ')).toHaveCount(0); // USC:212,1919
-      // SCP:92 (BUG-601); UNKNOWN — NEED VERIFICATION: role of the pointer-events-none wrapper
-      await expect.soft(page.getByRole('group', { name: 'Chọn cách xác định tỷ lệ' })).toHaveClass(/pointer-events-none/u);
+      // ScaleCalibrationPanel.tsx:147 radiogroup; SCP:165-168 section[aria-disabled] carries pointer-events-none (BUG-601)
+      const radios = page.getByRole('radiogroup', { name: 'Chọn cách xác định tỷ lệ' }).getByRole('radio');
+      await expect(radios.first()).toBeVisible();
+      for (const radio of await radios.all()) await expect.soft(radio).toBeDisabled();
+      await expect.soft(page.locator('section[aria-disabled="true"]').first()).toHaveClass(/pointer-events-none/u);
       await captureEvidence(page, 'E09_9U-D-058_no_apply.png');
     });
 
@@ -340,7 +352,7 @@ test('SCR-14 · SCR-15 · SCR-16 · FL-9U-04 · viewer · viewer doc: ti le + do
     await test.step('[9U-D-066] viewer, SCR-15: alignment locked, nudge sends no write', async () => {
       await expect.soft(page.getByRole('button', { name: /Khoá căn/u })).toBeDisabled(); // OCT:222 isAlignmentLocked UOC:1241
       await page.keyboard.press('ArrowRight');
-      expect.soft(rec.writes).toEqual([]);
+      await noWrites(page, rec);
       await captureEvidence(page, 'E09_9U-D-066_alignment_locked.png');
     });
 
@@ -371,7 +383,8 @@ test('SCR-14 · SCR-15 · SCR-16 · FL-9U-04 · viewer · viewer doc: ti le + do
     await test.step('[9U-D-075] viewer, SCR-16: clicking a disabled choice sends no write', async () => {
       await button(CAD.useCad).click({ force: true });
       await button(CAD.useAi).click({ force: true });
-      expect.soft(rec.writes).toEqual([]);
+      await expect.soft(button(CAD.useCad)).toBeDisabled();
+      await noWrites(page, rec);
       await captureEvidence(page, 'E09_9U-D-075_no_writes_on_click.png');
     });
   } finally {
