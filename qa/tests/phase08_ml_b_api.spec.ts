@@ -10,11 +10,12 @@
  *   puts it back in `finally`; the flow's own hard step G-064 restores first. Revision grows by 2 (not restorable).
  *   Never run in parallel with UI SCR-36 on the wall family.
  * - FL-B08M-08 stores nothing (every upload is refused); compared against the model-versions id list.
- * - FL-B08M-10 creates 3 datasets named `${TEST_DATA_PREFIX}b08m-${RUN_ID}-<1..3>` (no delete API: `qa/tools/cleanup.mjs` after the phase).
+ * - FL-B08M-07 adds 2 `MODEL_ACTIVATE` activity rows per run (not restorable).
+ * - FL-B08M-10 creates 3 datasets `${TEST_DATA_PREFIX}b08m-${RUN_ID}-<attempt>-<n>` PERMANENTLY (no delete API, cleanup.mjs has no dataset code): <= 3 per run, listed in the report.
  *
  * ## Real-backend budget per run of this file
  * - `POST /api/auth/login`: 1 admin (`adminApi`, 5 flows = 5 logins; limit 120 / 60 s on the QA stack, 30 BE default).
- * - No invitations (admin seed only; no pool user needed: every row of P14 is admin). Idempotency rows: 1 (FL-B08M-10, 24 h TTL).
+ * - No invitations (admin seed only; no pool user needed: every row of P14 is admin). Idempotency rows: 2 (FL-B08M-10 G-126, G-127, 24 h TTL).
  * - ~120 requests in total; no ML route of P14 has a rate limit.
  */
 import { randomUUID } from 'node:crypto';
@@ -178,6 +179,8 @@ test.describe('phase08 ML admin API B', () => {
       const idsOf = async (): Promise<string> => JSON.stringify((await readVersions(admin)).map((v) => v.id));
       const baseline = await idsOf();
       const weights = Buffer.concat([Buffer.from([0x08]), Buffer.from('qa08-onnx-junk')]);
+      // G-075..078 send zip bytes (never onnx-looking): if the BE regressed and accepted the metadata it still stops at 422 MODEL_FORMAT_UNSUPPORTED before storing
+      const pk = Buffer.from('PKqa08');
       const meta = (over: Json = {}): Json => ({
         checksumSha256: sha256(weights),
         family: WALL,
@@ -212,24 +215,24 @@ test.describe('phase08 ML admin API B', () => {
         expectError(await upload('B08M-G-074', 'metadata_17k', built, '422 VALIDATION field metadata (METADATA_MAX_BYTES)'), 422, 'VALIDATION', 'metadata');
       });
       await test.step('[B08M-G-075] metadata with unknown key x -> 422 field x', async () => {
-        const built = buildMlUpload({ metadata: meta({ x: 1 }), weights });
+        const built = buildMlUpload({ metadata: meta({ x: 1, checksumSha256: sha256(pk) }), weights: pk });
         expectError(await upload('B08M-G-075', 'unknown_key', built, '422 VALIDATION field x (C03)'), 422, 'VALIDATION', 'x');
       });
       await test.step('[B08M-G-076] checksumSha256 not 64 lowercase hex -> 422 field checksumSha256', async () => {
         for (const [slug, value] of [['short', 'abc'], ['upper', sha256(weights).toUpperCase()]] as const) {
-          const built = buildMlUpload({ metadata: meta({ checksumSha256: value }), weights });
+          const built = buildMlUpload({ metadata: meta({ checksumSha256: value }), weights: pk });
           expectError(await upload('B08M-G-076', `checksum_${slug}`, built, `422 VALIDATION field checksumSha256 (${slug})`), 422, 'VALIDATION', 'checksumSha256');
         }
       });
       await test.step('[B08M-G-077] family doors / weightsFormat pt -> 422 field family / weightsFormat', async () => {
-        const fam = buildMlUpload({ metadata: meta({ family: 'doors' }), weights });
+        const fam = buildMlUpload({ metadata: meta({ family: 'doors', checksumSha256: sha256(pk) }), weights: pk });
         expectError(await upload('B08M-G-077', 'family_doors', fam, '422 VALIDATION field family'), 422, 'VALIDATION', 'family');
-        const fmt = buildMlUpload({ metadata: meta({ weightsFormat: 'pt' }), weights });
+        const fmt = buildMlUpload({ metadata: meta({ weightsFormat: 'pt', checksumSha256: sha256(pk) }), weights: pk });
         expectError(await upload('B08M-G-077', 'format_pt', fmt, '422 VALIDATION field weightsFormat'), 422, 'VALIDATION', 'weightsFormat');
       });
       await test.step('[B08M-G-078] label empty / over the limit -> 422 field label', async () => {
         for (const [slug, label] of [['empty', ''], ['long', 'L'.repeat(81)]] as const) {
-          const built = buildMlUpload({ metadata: meta({ label }), weights });
+          const built = buildMlUpload({ metadata: meta({ label, checksumSha256: sha256(pk) }), weights: pk });
           expectError(await upload('B08M-G-078', `label_${slug}`, built, `422 VALIDATION field label (${slug}, max 80)`), 422, 'VALIDATION', 'label');
         }
       });
@@ -245,7 +248,7 @@ test.describe('phase08 ML admin API B', () => {
         expect.soft(await idsOf(), 'version list unchanged').toBe(baseline);
       });
       await test.step('[B08M-G-081] Content-Length 536870913 -> 413 PAYLOAD_TOO_LARGE', async () => {
-        const sent = await rawPost413(`${ML}/model-versions`, 536_870_913);
+        const sent = await rawPost413(`${ML}/model-versions`, 536_870_913); // limit + 1 (UPLOAD_BODY_LIMIT 536870912)
         expect(sent.status, '413 before the handler (middleware.py:218-233)').toBe(413);
         expect.soft((JSON.parse(sent.text) as Json).code).toBe('PAYLOAD_TOO_LARGE');
         expect.soft(await idsOf(), 'version list unchanged').toBe(baseline);
@@ -266,8 +269,9 @@ test.describe('phase08 ML admin API B', () => {
         expect(sent.res.status()).toBe(200);
         const rows = items(sent.body);
         for (const r of rows) expect.soft(Object.keys(r).sort()).toEqual(['createdAt', 'family', 'id', 'name']);
-        const keys = rows.map((r) => `${String(r.createdAt)}|${String(r.id)}`);
-        expect.soft(keys, 'newest first').toEqual([...keys].sort().reverse());
+        const ord = (r: Json): [number, string] => [Date.parse(String(r.createdAt)), String(r.id)];
+        const sorted = [...rows].sort((a, b) => ord(b)[0] - ord(a)[0] || (ord(b)[1] < ord(a)[1] ? -1 : 1));
+        expect.soft(rows.map((x) => x.id), 'newest first').toEqual(sorted.map((x) => x.id));
       });
       await test.step('[B08M-G-101] ?family=<each family> -> only that family', async () => {
         for (const family of FAMILIES) {
@@ -348,11 +352,12 @@ test.describe('phase08 ML admin API B', () => {
   test('SCR-34 · FL-B08M-10 · dataset create: 201, 409 name collisions, idempotency, paging', async () => {
     const admin = await adminApi();
     try {
-      const name = (n: number | string): string => `${TEST_DATA_PREFIX}b08m-${RUN_ID}-${n}`;
+      const attempt = Date.now().toString(36); // datasets cannot be deleted: a unique token per run keeps reruns/retries from 409
+      const name = (n: number | string): string => `${TEST_DATA_PREFIX}b08m-${RUN_ID}-${attempt}-${n}`;
       const post = (id: string, slug: string, body: Json, why: string, headers?: Record<string, string>) =>
         call(admin, id, slug, 'POST', `${ML}/datasets`, body, [why], headers ? { headers } : {});
       const n1 = name(1);
-      const n2 = `${name(2)}-Straße-é`; // NFC: U+00DF, U+00E9
+      const n2 = `${name('Straße-é-2')}`; // NFC: U+00DF, U+00E9
       const n3 = name(3);
       let first = '';
 
@@ -398,7 +403,8 @@ test.describe('phase08 ML admin API B', () => {
       });
       await test.step('[B08M-G-127] same Idempotency-Key, different body -> 422 IDEMPOTENCY_KEY_REUSED', async () => {
         const key = { 'Idempotency-Key': randomUUID() };
-        await post('B08M-G-127', 'idem_setup', { name: n3, family: OPENING }, 'setup: first use of the key (409, name taken)', key);
+        const setup = await post('B08M-G-127', 'idem_setup', { name: n3, family: OPENING }, 'setup: first use of the key (409, name taken)', key);
+        expect.soft(setup.res.status(), 'setup is refused (name taken), creates nothing').toBe(409);
         const sent = await post('B08M-G-127', 'idem_reused', { name: `${n3}-other`, family: OPENING }, '422 IDEMPOTENCY_KEY_REUSED', key);
         expectError(sent, 422, 'IDEMPOTENCY_KEY_REUSED');
       });
