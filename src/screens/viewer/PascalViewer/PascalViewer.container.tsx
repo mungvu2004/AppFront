@@ -245,12 +245,15 @@ function PascalViewerBody({
   const [loadedScene, setLoadedScene] = useState<PascalScene | null>(null);
   /* Lượt xoá hàng loạt cổng vừa chặn (editor đã trả đối tượng về) — chờ người dùng xác nhận. */
   const [massDelete, setMassDelete] = useState<PascalMassDeleteRequest | null>(null);
-  const { onSceneCommit, validateCommit, confirmMassDelete } = usePascalEdits({
+  const { onSceneCommit, validateCommit, confirmMassDelete, history } = usePascalEdits({
     spatial,
     loadedScene,
     readOnly: isReadOnly,
     onRejected,
     onMassDelete: setMassDelete,
+    /* Bước trên bảng lịch sử mang người đang đăng nhập — bảng đọc "tôi" từ cùng
+       phiên, nên bước của mình hiện là "Bạn" chứ không là một người lạ. */
+    ...(session.user?.id === undefined ? {} : { actorId: session.user.id }),
   });
 
   /* #25 "Lưu làm khuôn mẫu": cùng lời gọi `propertyTemplates.create` màn cũ dùng.
@@ -297,16 +300,23 @@ function PascalViewerBody({
         id: 'history',
         label: PASCAL_SIDE_PANEL_LABELS.history,
         render: () => (
-          <Suspense fallback={<p className="p-3 text-sm text-text-muted">Đang mở bảng…</p>}>
-            {/* Vỏ `panel` cố định: vùng bảng của `PascalViewer` tự làm tấm trượt dưới
-                `lg`, nên vỏ `sheet` riêng của bảng sẽ thoát khỏi vùng ấy (23H-F-002). */}
-            <LazyHistoryPanel layout="panel" />
-          </Suspense>
+          /* Ranh giới riêng của cột bảng (23H-B-011): chunk bảng tải hỏng thì chỉ
+             cột này báo lỗi, màn 3D và khung dựng vẫn đứng. */
+          <ScreenErrorBoundary
+            renderFallback={(fallback) => <CrashFallback {...fallback} />}
+            screenId="pascal-viewer.history-panel"
+          >
+            <Suspense fallback={<p className="p-3 text-sm text-text-muted">Đang mở bảng…</p>}>
+              {/* Vỏ `panel` cố định: vùng bảng của `PascalViewer` tự làm tấm trượt dưới
+                  `lg`, nên vỏ `sheet` riêng của bảng sẽ thoát khỏi vùng ấy (23H-F-002). */}
+              <LazyHistoryPanel history={history} layout="panel" />
+            </Suspense>
+          </ScreenErrorBoundary>
         ),
       },
       ...(extraPanels ?? []),
     ],
-    [extraPanels],
+    [extraPanels, history],
   );
 
   /* A12/#46 — Esc đóng lớp trên cùng, và khi một bảng phụ đang mở thì bảng ấy
@@ -325,7 +335,8 @@ function PascalViewerBody({
   );
 
   /* #37 — phím của màn đi qua registry chung, nên lượt trùng phím nào cũng bị
-     `shortcutRegistry` báo ra thay vì im lặng đè lên nhau. */
+     `shortcutRegistry` báo ra thay vì im lặng đè lên nhau. Đây là chủ DUY NHẤT
+     của Ctrl+H: bảng lịch sử không tự đăng ký phím này nữa (23H-A-009). */
   useShortcut({
     id: 'pascalViewer.sidePanel.history',
     combo: 'Ctrl+H',
@@ -439,11 +450,11 @@ export function PascalViewerRoute() {
   return (
     <div className="h-screen">
       <ProjectSpatialGate projectId={projectId}>
-        {/* Không còn `onLeave`: màn này LÀ `/3d` sau F-15, nên "về màn xem 3D"
-            sẽ trỏ về chính nó. Lối đi tiếp của trạng thái rỗng thì vẫn thật. */}
+        {/* Lối ra về quản lý tầng của dự án, để `/3d` không là ngõ cụt (BUG-487). */}
         <PascalViewerContainer
           graph={graph}
           projectId={projectId}
+          onLeave={projectId === undefined ? undefined : () => navigate(ROUTES.project.floors(projectId))}
           onReprocess={
             projectId === undefined ? undefined : () => navigate(ROUTES.project.pipeline(projectId))
           }

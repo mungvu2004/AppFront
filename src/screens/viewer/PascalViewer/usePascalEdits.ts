@@ -33,7 +33,7 @@ import {
   type DispatchDeps,
   type SpatialPort,
 } from '@/lib/commands/dispatch';
-import { createHistoryStack, NO_SELECTION } from '@/lib/commands/history';
+import { createHistoryStack, NO_SELECTION, type HistoryStack } from '@/lib/commands/history';
 import { diffScenes, isEmptyDiff } from '@/lib/pascal/diff';
 import { createPascalEditCommand, type PascalEditResult } from '@/lib/pascal/fromPascal';
 import { createChangeGate, type PascalCommit } from '@/lib/pascal/guard';
@@ -90,6 +90,12 @@ export interface UsePascalEditsResult {
   readonly validateCommit: (scene: PascalScene) => PascalCommitVerdict;
   /** Người dùng đã xác nhận xoá đúng các node này: lượt xoá kế tiếp của chúng được qua cổng. */
   readonly confirmMassDelete: (nodeIds: readonly string[]) => void;
+  /**
+   * Ngăn xếp lệnh của phiên — mỗi lượt sửa Pascal đã vào kho là một bước.
+   * Bảng "Lịch sử thao tác" đọc và nhảy trên CHÍNH ngăn này (23H-A-016); nhảy
+   * bước ghi lại kho, và cảnh mới về Pascal qua `setScene` như mọi đổi ngoài.
+   */
+  readonly history: HistoryStack;
 }
 
 /** Phần chênh thành lời khai của Pascal về những node đã đụng tới. */
@@ -278,5 +284,5 @@ export function usePascalEdits({
     [buildFor, deps, onRejected, readOnly],
   );
 
-  return { onSceneCommit, validateCommit, confirmMassDelete };
+  return { onSceneCommit, validateCommit, confirmMassDelete, history };
 }

@@ -59,7 +59,10 @@ export function DetectedFurnitureStrip({ readOnly }: { readOnly: boolean }) {
               dropTarget === group.assetId && 'border-primary bg-accent',
             )}
             key={group.assetId}
-            onDragLeave={() => setDropTarget(null)}
+            onDragLeave={(event) => {
+              // Crossing into the row's own label/button fires dragleave too; only leaving the row clears it.
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropTarget(null)
+            }}
             onDragOver={(event) => {
               if (!event.dataTransfer.types.includes(CATALOG_DRAG_TYPE)) return
               event.preventDefault()

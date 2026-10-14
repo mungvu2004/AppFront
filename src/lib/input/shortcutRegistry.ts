@@ -225,6 +225,8 @@ export interface ShortcutKeyEvent {
   readonly shiftKey?: boolean;
   /** True while a key auto-repeats; a repeat is not a second press. */
   readonly repeat?: boolean;
+  /** An earlier listener (a dialog, an embedded editor) already handled it. */
+  readonly defaultPrevented?: boolean;
   preventDefault?(): void;
 }
 
@@ -525,12 +527,24 @@ export function createShortcutRegistry(
 
     // A canvas-scope Enter (pin, confirm) must not swallow Enter on "Ẩn …",
     // "Thử lại" or a rail button: the focused control answers its own key.
-    if (MODIFIER_KEY_CODES.has(code) || isOwnActivation(code, event, target)) {
+    // A key an earlier listener already handled (a vendor dialog closing on
+    // Esc, Pascal's own Ctrl+Z) is not offered again: one press, one action
+    // (A12, QA-05c E1-B12 / E1-B13).
+    if (
+      MODIFIER_KEY_CODES.has(code) ||
+      isOwnActivation(code, event, target) ||
+      event.defaultPrevented === true
+    ) {
       return false;
     }
 
+    // Esc in a text field cancels the field (and may close the layer above via
+    // global); it never reaches the canvas, whose Esc drops a tool or collapses
+    // a view the user is not looking at (23-E-008).
+    const fromTextField = isTextEntryTarget(target);
+
     for (const scope of SCOPE_PRIORITY) {
-      if (!scopeIsActive(scope)) {
+      if (!scopeIsActive(scope) || (fromTextField && scope === 'canvas')) {
         continue;
       }
 

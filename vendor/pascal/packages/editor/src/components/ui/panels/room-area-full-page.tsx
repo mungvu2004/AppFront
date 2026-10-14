@@ -182,6 +182,23 @@ export function RoomAreaFullTable({
   )
 }
 
+const FOCUSABLE = 'button:not([disabled]), select:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+/** AppFront 23R-E-008: Tab / Shift+Tab wrap inside the modal instead of leaving it. */
+export function trapTab(event: Pick<KeyboardEvent, 'shiftKey' | 'preventDefault'>, dialog: HTMLElement | null) {
+  if (!dialog) return
+  const focusable = [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE)]
+  const first = focusable[0]
+  const last = focusable[focusable.length - 1]
+  if (!first || !last) return
+  const active = dialog.ownerDocument.activeElement
+  const outside = !dialog.contains(active)
+  if (event.shiftKey ? active === first || outside : active === last || outside) {
+    event.preventDefault()
+    ;(event.shiftKey ? last : first).focus()
+  }
+}
+
 export function RoomAreaFullPage({
   returnFocusTo,
   ...props
@@ -193,6 +210,10 @@ export function RoomAreaFullPage({
     const opener = returnFocusTo.current
     closeRef.current?.focus()
     const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Tab') {
+        trapTab(event, closeRef.current?.closest<HTMLElement>('[role="dialog"]') ?? null)
+        return
+      }
       if (event.key !== 'Escape') return
       // A12: Esc closes the top layer only — keep it from reaching tool shortcuts.
       event.stopPropagation()

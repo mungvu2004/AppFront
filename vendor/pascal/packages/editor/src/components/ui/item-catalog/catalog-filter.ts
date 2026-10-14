@@ -79,10 +79,25 @@ function matchesGroup(item: CatalogItem, group: FurnitureGroupId): boolean {
   return categories !== undefined && categories.includes(item.category ?? '')
 }
 
-function matchesSearch(item: CatalogItem, folded: string): boolean {
-  if (!folded) return true
-  if (foldDiacritics(item.name).includes(folded)) return true
-  return (item.tags ?? []).some((tag) => foldDiacritics(tag).includes(folded))
+const WORD_BREAK = /[^\p{L}\p{N}]+/gu
+
+/** Text as space-led words, so a needle matches only where a word starts ("ban" is not in "urban"). */
+function wordsOf(text: string, fold: boolean): string {
+  const lowered = fold ? foldDiacritics(text) : text.normalize('NFC').toLowerCase()
+  return ` ${lowered.replace(WORD_BREAK, ' ').trim()}`
+}
+
+/**
+ * Word-start match on the (Vietnamese) name or an (English) tag — QA-05c E1-B26.
+ *
+ * A query typed without tone marks is accent-blind ("ghe" finds "Ghế"); a query typed WITH
+ * them is taken as written ("bàn" finds "Bàn ăn", not "Bảng" nor the tag "urban").
+ */
+function matchesSearch(item: CatalogItem, query: string): boolean {
+  if (!query) return true
+  const fold = foldDiacritics(query) === query.normalize('NFC').toLowerCase()
+  const needle = wordsOf(query, fold)
+  return [item.name, ...(item.tags ?? [])].some((text) => wordsOf(text, fold).includes(needle))
 }
 
 /** The items a group chip plus a search box should show, in catalog order. */
@@ -91,8 +106,8 @@ export function filterFurnitureItems(
   options: { group?: FurnitureGroupId; search?: string } = {},
 ): CatalogItem[] {
   const group = options.group ?? 'all'
-  const folded = foldDiacritics((options.search ?? '').trim())
-  return items.filter((item) => matchesGroup(item, group) && matchesSearch(item, folded))
+  const query = (options.search ?? '').trim()
+  return items.filter((item) => matchesGroup(item, group) && matchesSearch(item, query))
 }
 
 /** How many items each chip would show, so a chip can carry its own count. */

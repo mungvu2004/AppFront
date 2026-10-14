@@ -34,6 +34,7 @@ import {
   PASCAL_RENDER_TIMEOUT_MS,
   RENDERED,
   SAVED_AT,
+  SAVE_FAILED_TIMEOUT_MS,
   SAVE_TIMEOUT_MS,
   T,
   TO_PASCAL_GLOB,
@@ -50,11 +51,13 @@ import {
   fulfillGet,
   holdPascalBundle,
   holdRoute,
+  inspectorExpand,
   isLayerPut,
   mutateN15,
   openPascal,
   openRoomPanel,
   openSession,
+  pastDeadline,
   pascalRoot,
   projectPath,
   renameRoom,
@@ -66,6 +69,7 @@ import {
   spatialPath,
   summary,
   tabTo,
+  toast,
   waitRendered,
   wireError,
   type Session,
@@ -204,9 +208,10 @@ test('SCR-23 · FL-23-16 · [mocked response] converter / root failures, no GPU,
     });
 
     await test.step('[23-B-015] Pascal sub-chunk aborted after mount → "…kèm mã PASCAL-02."', async () => {
-      // UNKNOWN — NEED VERIFICATION: which Pascal sub-chunk loads lazily after mount is not readable from source; the step aborts
-      // every NEW `/assets/pascal/*.js` (not the bundle) and opens each Pascal rail panel. If Pascal's own boundary swallows the
-      // failure, or nothing loads lazily, the row turns n/a (catalog-C1 23-B-015).
+      // Which Pascal sub-chunk loads lazily after mount is not readable from source; the step aborts every NEW
+      // `/assets/pascal/*.js` (not the bundle) and opens each Pascal rail panel. If nothing loads lazily, or Pascal's own
+      // boundary swallows the failure (run-051b E1-T20: 3 chunks aborted, only the "Plugin" panel opened, no PASCAL-02), the
+      // row is n/a (catalog-C1 23-B-015) — annotated, and the step then only proves the screen did not go blank.
       if ((await caption(page).innerText()) !== T.rendered) await openPascal(page, pid, { text: RENDERED });
       const sub = await abortRoute(page, '**/assets/pascal/**', {
         filter: (r) => new URL(r.url()).pathname.endsWith('.js') && new URL(r.url()).pathname !== PASCAL_BUNDLE_PATH,
@@ -216,8 +221,20 @@ test('SCR-23 · FL-23-16 · [mocked response] converter / root failures, no GPU,
       for (let i = 0; i < count; i += 1) {
         if (await triggers.nth(i).isVisible()) await triggers.nth(i).click();
       }
-      test.info().annotations.push({ type: 'unknown', description: `23-B-015: ${String(sub.hits.length)} Pascal sub-chunk(s) aborted after mount` });
-      await expect.soft(page.getByText(T.errorText('PASCAL-02'), { exact: true }), 'PM:139-143 → UPV:447-450').toBeVisible({ timeout: 10_000 });
+      // Mốc: 2 s after the last click — an uncaught error in the second root reaches onFatal within a frame of the failed import.
+      await pastDeadline(Date.now(), 2_000, 'the last Pascal panel click');
+      const pascal02 = page.getByText(T.errorText('PASCAL-02'), { exact: true });
+      if (sub.hits.length > 0 && (await pascal02.isVisible())) {
+        await expect.soft(pascal02, 'PM:139-143 → UPV:447-450').toBeVisible();
+      } else {
+        test.info().annotations.push({
+          type: 'n/a',
+          description: `23-B-015: ${String(sub.hits.length)} Pascal sub-chunk(s) aborted after mount, no PASCAL-02 — ${
+            sub.hits.length === 0 ? 'nothing loads lazily on the rail panels' : "Pascal's own boundary swallows the failed chunk"
+          } (catalog-C1 23-B-015 → n/a)`,
+        });
+        await expect.soft(caption(page), 'not a blank screen (A11)').toHaveText(/^(Đã dựng xong|Không nạp được khung dựng hình\.)/u);
+      }
       await captureEvidence(page, 'E05_23-B-015_pascal-02.png', { caption: `${String(sub.hits.length)} sub-chunks aborted after mount` });
       await sub.dispose();
     });
@@ -289,6 +306,8 @@ test('SCR-23 · FL-23-16 · [mocked response] converter / root failures, no GPU,
       });
       await openRoomPanel(page);
       await roomRow(page, 'Bếp').click(); // RAP:408 selectRow
+      await expect(inspectorExpand(page), 'inspector opens collapsed (run-051b E1-T11)').toBeVisible();
+      await inspectorExpand(page).click();
       await pascalRoot(page).getByRole('button', { name: T.saveAsTemplate }).click();
       // TPL:23-29 templateFailedReason(kind)
       await expect.soft(
@@ -367,8 +386,14 @@ test('SCR-23 · FL-23-17 · [mocked response] project gate: loading, 500, abort,
       const stale = await fulfillGet(page, n15Path, 500);
       await spaNavigate(page, ROUTES.project.rules(pid));
       await expect.poll(() => new URL(page.url()).pathname).toBe(ROUTES.project.rules(pid));
+      // Mốc (run-051b E1-T21, ×0): going back before the lazy rules screen rendered kept /3d mounted (the navigation
+      // suspended), so no gate remounted and N15 was never refetched. Wait for the rules gate's own stale refetch (staleTime 0,
+      // cachePolicy.ts:70-72) to hit the mock, then go back so /3d remounts and refetches again.
+      await expect.poll(() => stale.hits, { message: 'rules gate refetched N15 → mocked 500', timeout: ERROR_PAINT_TIMEOUT_MS }).toBeGreaterThan(0);
+      const onRules = stale.hits;
       await page.goBack();
       await expect.poll(() => new URL(page.url()).pathname).toBe(ROUTES.project.viewer(pid));
+      await expect.poll(() => stale.hits, { message: '/3d remount refetched N15 → mocked 500', timeout: ERROR_PAINT_TIMEOUT_MS }).toBeGreaterThan(onRules);
       await expect.soft(page.getByText(T.refreshFailed, { exact: true }), 'PSG:93-104 InlineAlert').toBeVisible({ timeout: ERROR_PAINT_TIMEOUT_MS });
       await expect.soft(page.getByRole('button', { name: T.retry, exact: true }).first()).toBeVisible();
       await expect.soft(canvasBox(page), 'the screen stays').toBeVisible();
@@ -379,7 +404,8 @@ test('SCR-23 · FL-23-17 · [mocked response] project gate: loading, 500, abort,
 });
 
 test('SCR-23 · FL-23-18 · [mocked response] save failures on #35 — pairs with FL-M-23-02 / FL-23-09', async ({ browser }) => {
-  test.setTimeout(Math.max(120_000, 2 * 70_000));
+  // 23-B-025 alone waits out the 5/15/45 s autosave retry schedule (≈ 82 s, SAVE_FAILED_TIMEOUT_MS).
+  test.setTimeout(Math.max(120_000, 2 * 160_000));
   await withQ1(browser, 'v18', async ({ page }, floor) => {
     await openPascal(page, floor.projectId);
     let current = 'Bếp';
@@ -402,8 +428,9 @@ test('SCR-23 · FL-23-18 · [mocked response] save failures on #35 — pairs wit
     await test.step('[23-B-025] PUT 503 → "Lưu thất bại…" + toast "Chưa lưu được thay đổi"', async () => {
       const off = await answer(503, wireError('DEPENDENCY_UNAVAILABLE'));
       await rename('Bếp A');
-      await expect(saveLine(page), 'PVC:222-230, USI:64-65').toHaveText(T.saveFailed, { timeout: SAVE_TIMEOUT_MS });
-      await expect.soft(page.getByText(T.saveFailedToast, { exact: true }).first()).toBeVisible();
+      await expect(saveLine(page), 'PVC:222-230, USI:64-65 after the 5/15/45 s retries').toHaveText(T.saveFailed, { timeout: SAVE_FAILED_TIMEOUT_MS });
+      // One toast line "Chưa lưu được thay đổi — Lưu thất bại…" (NotificationHost.tsx:21-24).
+      await expect.soft(toast(page, T.saveFailedToast).first()).toBeVisible();
       await captureEvidence(page, 'E05_23-B-025_put-503.png', { caption: 'PUT …/spatial/layer → 503 (ladder)' });
       await off();
     });

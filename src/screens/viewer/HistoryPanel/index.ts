@@ -31,8 +31,6 @@ export {
 export { HistoryPanel } from './HistoryPanel';
 
 export {
-  HISTORY_PANEL_SHORTCUT_DESCRIPTION,
-  HISTORY_PANEL_SHORTCUT_ID,
   useHistoryPanel,
   type UseHistoryPanelOptions,
 } from './useHistoryPanel';
@@ -51,7 +49,6 @@ export {
   HISTORY_CATEGORY_LABELS,
   HISTORY_CATEGORY_ORDER,
   HISTORY_MAX_STEPS,
-  HISTORY_PANEL_SHORTCUT,
   HISTORY_PANEL_TEST_IDS,
   HISTORY_SESSION_GAP_MS,
   HISTORY_UNDONE_ITEM_CLASS,

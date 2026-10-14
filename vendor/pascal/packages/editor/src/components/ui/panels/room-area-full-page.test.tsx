@@ -4,7 +4,7 @@ import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { RoomAreaTable } from '../../../lib/floorplan/room-area'
-import { RoomAreaFullPage, RoomAreaFullTable } from './room-area-full-page'
+import { RoomAreaFullPage, RoomAreaFullTable, trapTab } from './room-area-full-page'
 
 const row = {
   id: 'a',
@@ -88,5 +88,32 @@ describe('RoomAreaFullPage', () => {
       g.IS_REACT_ACT_ENVIRONMENT = saved.act
       void win.happyDOM.close()
     }
+  })
+})
+
+describe('trapTab', () => {
+  // AppFront 23R-E-008: Tab from the dialog's last control comes back to its first.
+  test('Tab on the last control wraps to the first, Shift+Tab on the first to the last', () => {
+    const win = new Window()
+    const doc = win.document as unknown as Document
+    doc.body.innerHTML =
+      '<div role="dialog"><button id="a">a</button><select id="b"></select><button id="c">c</button></div><button id="out">out</button>'
+    const dialog = doc.querySelector<HTMLElement>('[role="dialog"]')
+    const byId = (id: string) => doc.getElementById(id) as HTMLElement
+    let prevented = 0
+    const event = (shiftKey: boolean) => ({ shiftKey, preventDefault: () => void prevented++ })
+
+    byId('c').focus()
+    trapTab(event(false), dialog)
+    expect(doc.activeElement?.id).toBe('a')
+
+    trapTab(event(true), dialog)
+    expect(doc.activeElement?.id).toBe('c')
+
+    byId('b').focus()
+    trapTab(event(false), dialog)
+    expect(doc.activeElement?.id).toBe('b')
+    expect(prevented).toBe(2)
+    void win.happyDOM.close()
   })
 })

@@ -52,6 +52,7 @@ import {
   frameEntityInPascal,
   highlightPascalNodes,
   type PascalSceneCensus,
+  stackExplodedLevels,
 } from './pascalScene';
 
 /** Cái người gọi cầm về, đủ để sống trọn vòng đời mà không chạm vào Pascal. */
@@ -143,6 +144,8 @@ function injectPascalCss(): void {
  */
 export function mount(element: HTMLElement, options: PascalMountOptions): PascalMountHandle {
   injectPascalCss();
+  // Tách tầng chỉ theo URL của lượt mount này, không theo lượt trước (24-A-006).
+  if (options.explodeLevels !== true) stackExplodedLevels();
   element.classList.add(PASCAL_ROOT_CLASS);
   const root = createRoot(element, {
     onUncaughtError: (error: unknown) => {

@@ -46,7 +46,6 @@ import {
 /* Chuỗi tĩnh của màn.                                                         */
 /* -------------------------------------------------------------------------- */
 
-export const REGION_LABEL = 'Lịch sử chỉnh sửa';
 export const SHEET_REGION_LABEL = 'Tấm trượt lịch sử chỉnh sửa';
 export const TIMELINE_LABEL = 'Dòng thời gian các bước đã làm';
 export const CATEGORY_CHIPS_LABEL = 'Lọc theo loại việc';

@@ -47,7 +47,8 @@ export const SAVE_WINDOW_MS = 1_800;
 
 export const PV = {
   title: 'Mô hình 3D', // PVT PASCAL_VIEWER_TITLE
-  leave: 'Về màn xem 3D', // PVT PASCAL_LEAVE_LABEL
+  leave: 'Về quản lý tầng', // PVT:153 PASCAL_LEAVE_LABEL (FA round 2, BUG-487) → ROUTES.project.floors (PVC:413)
+  oldLeave: 'Về màn xem 3D', // pre-F-15 label; must not come back (23-A-003)
   reprocess: 'Xử lý lại bản vẽ', // PVT PASCAL_REPROCESS_LABEL
   loading: 'Đang nạp khung dựng hình…', // PVT:118
   emptyCaption: 'Bản vẽ chưa có đối tượng nào để dựng.', // PVT:119
@@ -102,6 +103,9 @@ export const PASCAL = {
   delete: 'Xoá', // controlsAndPanels.ts parametricInspector.delete
   saveTemplate: 'Lưu làm khuôn mẫu', // controlsAndPanels.ts:243
   selectItem: /^Chọn «/u, // FC:31 vi.select(name)
+  /** Measurement tool hint box while armed (V nodes/src/i18n/vi.ts:682-683) — shown for the viewer too (E1-T17). */
+  measureHintPlace: 'Đặt điểm đo',
+  measureHintFinish: 'Hoàn tất đo',
   /** MC:75-76 `aria-label="Đo: <kind>"` + `aria-pressed`; only inside the action menu, which read-only hides. */
   measure: /^Đo: /u,
   shortcutsDialog: 'Phím tắt', // primitivesAndSidebar.ts:168
@@ -110,6 +114,8 @@ export const PASCAL = {
   englishChrome: ['Select', 'Zone', 'Delete', 'Orbit Left', 'Orbit Right', 'Top View', 'Site', 'Settings', 'Expand panel', 'Collapse panel'],
   /** panel-wrapper.tsx:369 inspector extension buttons `Open <title>` / `Close <title>`. */
   englishChromePattern: /^(Open|Close) /u,
+  /** level-mode-action.tsx:23-28 `aria-label="Chế độ tầng: <Xếp tầng|Tách tầng>"` + `aria-pressed` (editorAndViewer.ts:127-128,161). */
+  levelMode: (mode: 'Xếp tầng' | 'Tách tầng'): string => `Chế độ tầng: ${mode}`,
 } as const;
 
 export const PRESENCE = {
@@ -397,6 +403,12 @@ export async function levelModeOf(page: Page): Promise<string | null> {
  * rail button inside `.pascal-root` is hovered until the tooltip text shows, then clicked (flows-C1 "Edit vehicle").
  */
 export async function openPascalPanel(page: Page, label: string): Promise<void> {
+  // FA round 2: rail buttons carry `aria-label` = panel label (icon-rail.tsx:61,104,136); the hover path stays as fallback.
+  const named = pascalRoot(page).getByRole('button', { name: label, exact: true });
+  if ((await named.count()) > 0) {
+    await named.first().click();
+    return;
+  }
   const rail = pascalRoot(page).locator('button.h-9.w-9');
   const tooltip = page.getByRole('tooltip').filter({ hasText: new RegExp(`^${label}$`, 'u') });
   const count = await rail.count();
@@ -436,12 +448,26 @@ export async function startRename(page: Page, from: string): Promise<Locator> {
   return input;
 }
 
-/** Rename `from` → `to` and press Enter (blur commits, RAP:395); returns the Enter time (ms) for timing rows. */
+/** Rename `from` → `to` and press Enter (blur commits, RAP:395); returns the time taken just BEFORE the Enter (E1-T19). */
 export async function renameRoom(page: Page, from: string, to: string): Promise<number> {
   const input = await startRename(page, from);
   await input.fill(to);
+  const enterAt = Date.now();
   await input.press('Enter');
-  return Date.now();
+  return enterAt;
+}
+
+/**
+ * Pascal opens the inspector card COLLAPSED (title + chevron only, run-051b E1-T11); its body (e.g. "Lưu làm khuôn mẫu") is
+ * hidden until the header toggle (`aria-expanded`, panel-wrapper.tsx:388-392) is clicked. Matched by `aria-expanded`, not by
+ * its English label, so the helper survives the 23-E-013 fix.
+ */
+export async function expandInspector(page: Page): Promise<void> {
+  const header = pascalRoot(page).locator('div.justify-between').filter({ has: page.locator(':scope > div > h2') }).first();
+  await expect(header).toBeVisible();
+  const toggle = header.locator('button[aria-expanded]').last();
+  if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 }
 
 /** pascalEditOnce: one rename, then the #35 PUT it causes (200). Returns that PUT. */
