@@ -304,7 +304,7 @@ export function ThicknessSegmentTable({
         <TableActionBar
           entityName={ENTITY_NAME}
           /* Bảng chọn đang mở đã là bước "đổi độ dày" — không lặp nút đó ngay bên dưới (BUG-620). */
-          onChangeThickness={isPickingGroup ? undefined : () => setIsPickingGroup(true)}
+          {...(isPickingGroup ? {} : { onChangeThickness: () => setIsPickingGroup(true) })}
           onDeselect={handleDeselect}
           selectedCount={selected.size}
         />
