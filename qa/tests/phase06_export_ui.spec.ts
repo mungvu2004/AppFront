@@ -212,25 +212,39 @@ test.describe('SCR-30 Bảng xuất — UI verify', () => {
         const floorName = floorOf(noLayer, 0).name;
 
         await test.step('[30-F-006] no-layer project: the long floor name and the Badge do not collide', async () => {
-          const seen = new Seen<{ lines: number; badgeHeight: number; overlap: boolean }>();
+          const seen = new Seen<{ lines: number; badgeHeight: number; badgeWrapped: boolean; overlap: boolean }>();
           await verifyUi(page, NAME('30-F-006', 'no_layer_long_names'), async (p) => {
             await openExport(p, noLayer.id);
             const row = scopeRow(p, floorName);
             const badge = row.getByText(EP.notApprovedBadge, { exact: true });
             const label = row.locator('label').first();
             const lines = await label.evaluate((el) => {
+              // Only the floor-name text nodes (not the checkbox box) count towards the line count.
+              const tops = new Set<number>();
+              const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+              for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+                if (!n.textContent?.trim()) continue;
+                const range = document.createRange();
+                range.selectNodeContents(n);
+                [...range.getClientRects()].forEach((r) => tops.add(Math.round(r.top)));
+              }
+              return tops.size;
+            });
+            // ⚑ 30-F-006 Badge nowrap (fix/qa06-f11): the Badge text must sit on one line (content not taller than one line box).
+            const badgeWrapped = await badge.evaluate((el) => {
               const range = document.createRange();
               range.selectNodeContents(el);
-              return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size;
+              return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size > 1 || el.scrollHeight > el.clientHeight;
             });
             const [a, b] = [await boxOf(label), await boxOf(badge)];
-            seen.record(p, { lines, badgeHeight: b.height, overlap: a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height });
+            seen.record(p, { lines, badgeHeight: b.height, badgeWrapped, overlap: a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height });
           });
           // Badge.tsx:36 fixes the height at 22 px without nowrap (BUG-458): a wrapped Badge or a 3-line name is the finding.
           seen.each((width, value) => {
             expect.soft(value.overlap, `${String(width)}: name and Badge do not overlap`).toBe(false);
             expect.soft(value.lines, `${String(width)}: floor name lines`).toBeLessThanOrEqual(2);
             expect.soft(value.badgeHeight, `${String(width)}: Badge stays on one line`).toBeLessThanOrEqual(26);
+            expect.soft(value.badgeWrapped, `${String(width)}: Badge text on one line`).toBe(false); // ⚑ 30-F-006 Badge nowrap (fix/qa06-f11)
           });
         });
 
@@ -256,7 +270,7 @@ test.describe('SCR-30 Bảng xuất — UI verify', () => {
             await openExport(p, empty.id, { ready: (q) => q.getByRole('heading', { name: EP.emptyTitle, level: 2 }) });
             seen.record(p, {
               icon: await p.locator('svg.lucide-folder-open').count(),
-              centred: (await p.getByText(EP.noFloor, { exact: true }).evaluate((el) => getComputedStyle(el).textAlign)) === 'center',
+              centred: (await p.getByText(EP.emptyCaption, { exact: true }).evaluate((el) => getComputedStyle(el).textAlign)) === 'center',
             });
           });
           seen.each((width, value) => {
