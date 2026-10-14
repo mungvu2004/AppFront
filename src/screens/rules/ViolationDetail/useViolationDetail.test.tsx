@@ -12,8 +12,9 @@ import { createHistoryStack } from '@/lib/commands/history';
 import { getAppAnnouncer } from '@/lib/input/announcer';
 import { LAYER_SAVE_MESSAGES } from '@/lib/autosave/spatialLayerSave';
 import { CLEAN_BUILDING_SCENARIO } from '@/lib/testing/fixtures';
-import { renderWithProviders } from '@/lib/testing/render';
+import { createTestQueryClient, renderWithProviders } from '@/lib/testing/render';
 import { useStore } from '@/store';
+import { ruleSettingsQueryKey } from '@/screens/rules/RuleSettings';
 
 import { ViolationDetail } from './ViolationDetail';
 import { useViolationDetail } from './useViolationDetail';
@@ -193,5 +194,25 @@ describe('QA-06b F6 — kết quả sửa thuộc đúng vi phạm vừa sửa',
 
     expect(useStore.getState().spatial?.byId[VIOLATION.entityId]).toBeDefined();
     expect(invalidate).toHaveBeenCalled();
+  });
+
+  it('28V-C-007: tấm trượt kiểm lại theo cấu hình dự án, không theo sổ mặc định', async () => {
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(ruleSettingsQueryKey(PROJECT), {
+      revision: 1,
+      config: { overrides: { 'FURNITURE-CLASH': { enabled: false } }, version: 0 },
+    });
+    renderWithProviders(<Wired seed={{ apiClient: createMockApiClient() }} />, { queryClient });
+    await act(async () => {
+      useStore.getState().setSpatial(GRAPH, 'v-1', {
+        floorRevisions: Object.fromEntries(GRAPH.byKind.level.map((id) => [id, 0])),
+        projectId: PROJECT,
+      });
+      await vi.dynamicImportSettled();
+    });
+    await quickFix();
+
+    // Luật bị tắt trong cấu hình dự án thì lượt kiểm lại không chạy nó — không báo "đã sửa xong".
+    expect(within(panel()).queryByText(/^Đã sửa xong/u)).toBeNull();
   });
 });

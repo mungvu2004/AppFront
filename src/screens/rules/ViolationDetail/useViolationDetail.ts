@@ -47,10 +47,10 @@
  * ngữ cảnh: phần chữ đứng một mình, không có khung vỡ nào được hiện.
  */
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { createDefaultRuleRegistry } from '@/domain/rules/defaults';
+import { EMPTY_RULE_CONFIG } from '@/domain/rules/config';
 import {
   RULE_GROUP_LABELS,
   RULE_SEVERITY_LABELS,
@@ -82,6 +82,8 @@ import { MOTION_DURATIONS_MS } from '@/lib/motion/tokens';
 import { applyInvalidation } from '@/lib/query/invalidation';
 import { useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { appNotificationBus } from '@/hooks/useNotifications';
+import { ruleSettingsQueryKey, type LoadedRuleConfig } from '@/screens/rules/RuleSettings';
+import { ruleRegistryFor } from '@/store/selectors';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { getAppAnnouncer } from '@/lib/input/announcer';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
@@ -595,10 +597,12 @@ export function useViolationDetail(
   );
   const capabilities = useMemo(() => gateway.readCapabilities(canEdit), [gateway, canEdit]);
 
-  // Một sổ đăng ký riêng cho lượt xem này, dựng đúng một lần: bộ mặc định đã tự
-  // tắt hai luật built-in bị nhóm chức năng thay thế, nên số luật là việc của
-  // domain chứ không phải của màn.
-  const registry: RuleRegistry = useMemo(() => createDefaultRuleRegistry(), []);
+  // 28V-C-007: cùng sổ luật và ngưỡng với báo cáo — cấu hình N21 mà báo cáo đã
+  // đọc vào cache (cùng khoá). Chỉ đọc cache, không gọi mạng: tấm trượt luôn mở
+  // trên báo cáo; cache trống thì rơi về bộ mặc định như báo cáo.
+  const configQuery = useQuery<LoadedRuleConfig>({ queryKey: ruleSettingsQueryKey(projectId), queryFn: skipToken });
+  const ruleConfig = configQuery.data?.config ?? EMPTY_RULE_CONFIG;
+  const registry: RuleRegistry = useMemo(() => ruleRegistryFor(ruleConfig), [ruleConfig]);
 
   const queryClient = useQueryClient();
   const graph = useStore((state) => state.spatial);
@@ -852,6 +856,7 @@ export function useViolationDetail(
 
       const rerun = runRules(after, {
         registry,
+        config: ruleConfig,
         changes: [{ entityId: variables.entityId }],
       });
 
@@ -864,7 +869,7 @@ export function useViolationDetail(
 
       return { resolved: ran && !stillFailing, description: built.data.description };
     },
-    [dispatchBundle, gateway.actorId, registry],
+    [dispatchBundle, gateway.actorId, registry, ruleConfig],
   );
 
   const mutation = useMutation<ApplyFixResult, ApplyFixError, ApplyFixVariables>({
