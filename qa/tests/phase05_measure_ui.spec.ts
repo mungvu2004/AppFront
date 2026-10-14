@@ -237,14 +237,14 @@ test.describe('SCR-25 measure — UI verify', () => {
       const vp = viewerOpen.page;
       const ap = adminOpen.page;
 
-      await test.step('[25-F-007] viewer: the three notices fit, the pin is disabled', async () => {
+      await test.step('[25-F-007] viewer: the two notices fit, the pin is disabled', async () => {
         const rows: { width: number; notices: number; inside: boolean; pin: boolean }[] = [];
         await verifyUi(
           vp,
           'U05m_25-F-007_viewer',
           async (p) => {
             await openMeasure(p, viewerProject);
-            await expect(p.getByText(MT.pinBlocked, { exact: true })).toHaveCount(2); // overlay (MTV) + list (MTL:226-228)
+            await expect(p.getByText(MT.pinBlocked, { exact: true })).toHaveCount(1); // overlay only (FD fix: the list no longer repeats it)
             await topView(p);
             await armMeasure(p);
             await makeDraft(p, { complete: false }); // UNKNOWN — NEED VERIFICATION
@@ -258,7 +258,7 @@ test.describe('SCR-25 measure — UI verify', () => {
           { fullPage: false },
         );
         for (const row of rows) {
-          expect.soft(row.notices, `${row.width}: three notices`).toBe(3); // VIN:82-89, MTV:265-269, MTL:226-228
+          expect.soft(row.notices, `${row.width}: two notices`).toBe(2); // VIN:82-89, MTV:265-269
           expect.soft(row.inside, `${row.width}: notices inside the width`).toBe(true);
           expect.soft(row.pin, `${row.width}: pin disabled for a viewer`).toBe(true);
         }

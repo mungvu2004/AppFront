@@ -55,7 +55,7 @@ export const MT = {
   deleteFailed: 'Chưa xoá được phép đo, hãy thử lại', // UMT:215
   undoFailed: 'Chưa hoàn tác được việc xoá phép đo', // UMT:218
   undo: 'Hoàn tác', // I18N common.undo
-  pinBlocked: 'Bạn chỉ có quyền xem dự án này, nên chưa ghim được phép đo. vẫn đo và đọc số bình thường.', // UMT:228
+  pinBlocked: 'Bạn chỉ có quyền xem dự án này, nên chưa ghim được phép đo. Vẫn đo và đọc số bình thường.', // UMT:228
   viewOnlyTitle: 'Chỉ xem', // VIN:84
   partialHint: 'Chuỗi đo chưa đóng. Chọn thêm điểm để đóng chuỗi, hoặc nhấn Esc để bỏ.', // MTV:86
   building: 'Đang dựng mô hình…', // UVS:208
@@ -198,7 +198,9 @@ const isRecord = (value: unknown): value is Json => typeof value === 'object' &&
 
 /** N15 answer with two axes added (BE v1 never sends any, spatialGraph.ts:78): vertical x = 2000, horizontal y = 3000. */
 export function withAxes(body: unknown): unknown {
-  const root = isRecord(body) && isRecord(body.data) ? body.data : body;
+  // N15 is `{floorRevisions, graph:{axes, levels, …}}` (spatialGraph.ts:121-130); an outer `data` wrapper is tolerated.
+  const outer = isRecord(body) && isRecord(body.data) ? body.data : body;
+  const root = isRecord(outer) && isRecord(outer.graph) ? outer.graph : outer;
   if (!isRecord(root)) return body;
   const levels = Array.isArray(root.levels) ? root.levels : [];
   const level = levels[0];
@@ -411,10 +413,15 @@ export async function clickablePoints(page: Page, points: readonly Point[]): Pro
   return out;
 }
 
+/** Measurement discs (one per picked point) in the tool overlay (P4 `discCount`). */
+export const discCount = (page: Page): Promise<number> =>
+  page.getByRole('region', { name: 'Lớp phủ công cụ đo', exact: true }).locator('svg circle.fill-accent').count();
+
 /**
- * Starts a measurement draft in the TOP view (call {@link topView} first) by clicking the pixels of two outer corners of the
- * 8 x 6 m seed, computed from the model's pixel bounds (same method as P4 `measure.ts` targetPixels: the perimeter corners are
- * symmetric under flips / a quarter turn). `complete` also enables the pin (a viewer's stays disabled: `complete: false`).
+ * Starts a measurement draft in the TOP view (call {@link topView} first): hovers near the pixel of two outer corners of the
+ * 8 x 6 m seed (from the model's pixel bounds, P4 `targetPixels` method) until the chip says "Đỉnh", clicks, and counts the
+ * discs (the pin button already shows after ONE point, E2-B3, so it proves nothing). `complete` picks a second corner and
+ * waits for the pin to be enabled (a viewer's stays disabled: `complete: false`).
  */
 export async function makeDraft(page: Page, { complete }: { readonly complete: boolean }): Promise<Point> {
   await page.mouse.move(5, 5);
@@ -427,17 +434,20 @@ export async function makeDraft(page: Page, { complete }: { readonly complete: b
   const scale = (x1 - x0) / (swap ? 6_220 : 8_220);
   const [cx, cy] = [(x0 + x1) / 2, (y0 + y1) / 2];
   const pixelOf = ([wx, wy]: Point): Point => (swap ? [cx + (wy - 3_000) * scale, cy + (wx - 4_000) * scale] : [cx + (wx - 4_000) * scale, cy + (wy - 3_000) * scale]);
-  const first = pixelOf([0, 0]);
-  const pin = pinButton(page);
-  await page.mouse.click(first[0], first[1]);
-  await expect(pin, 'a draft exists after the first pick').toBeVisible({ timeout: PICK_SETTLE_MS * 3 });
+  const radius = Math.max(12, scale * 110);
+  const step = Math.max(2, scale * 50);
+  const pick = async (corner: Point, wantDiscs: number): Promise<Point> => {
+    const hit = await hoverUntilSnap(page, 'Đỉnh', [pixelOf(corner)], radius, step);
+    if (hit === null) throw new Error(`no hover near the corner ${JSON.stringify(corner)} made the snap chip say "Đỉnh"`);
+    await page.mouse.click(hit[0], hit[1]);
+    await expect.poll(() => discCount(page), { message: `${String(wantDiscs)} picked point(s)` }).toBe(wantDiscs);
+    return hit;
+  };
+  const first = await pick([0, 0], 1);
   if (!complete) return first;
-  for (const corner of [[8_000, 0], [8_000, 6_000], [0, 6_000]] as const) {
-    const [x, y] = pixelOf(corner);
-    await page.mouse.click(x, y);
-    if (await pin.click({ trial: true, timeout: PICK_SETTLE_MS }).then(() => true, () => false)) return first;
-  }
-  throw new Error('no second corner pick enabled the pin button');
+  await pick([8_000, 0], 2);
+  await expect(pinButton(page)).toBeEnabled();
+  return first;
 }
 
 // dup-of: measure.ts hoverUntilSnap

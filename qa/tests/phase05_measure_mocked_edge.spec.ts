@@ -284,10 +284,10 @@ test.describe('SCR-25 measure — mocked responses', () => {
         await dropMocks();
       });
 
-      await test.step('[25-G-003] UNKNOWN — NEED VERIFICATION (which read is the 2nd): reload, GET /api/projects/:id -> 500 from the 2nd: crumb "Dự án"', async () => {
-        // UNKNOWN — NEED VERIFICATION: which of the two reads (gate / shell name) is the second is not fixed by source; the fallback
-        // `projectQuery.data ?? 'Dự án'` is the shell's (UVS:1072). Every request from the 2nd on fails so the ladder cannot heal it.
-        const project = await interceptApi(page, projectRe(projectId), 'GET', (route, n) => (n >= 2 ? failWith(500, 'INTERNAL_ERROR')(route) : route.fallback()));
+      await test.step('[25-G-003] UNKNOWN — NEED VERIFICATION (which read is the 2nd): reload, 1st GET /api/projects/:id -> 500: crumb "Dự án"', async () => {
+        // The 1st read is the shell's name read (it never throws: `readProjectName` answers null), the 2nd is the gate's own (E2-T2): only
+        // the 1st is failed, so the gate stays up and the crumb falls back (UVS:1072). UNKNOWN — NEED VERIFICATION of that order.
+        const project = await interceptApi(page, projectRe(projectId), 'GET', (route, n) => (n === 1 ? failWith(500, 'INTERNAL_ERROR')(route) : route.fallback()));
         mocks.push(project);
         await page.reload();
         await expect.soft(viewportOf(page)).toHaveAttribute('aria-busy', 'false', { timeout: SCENE_TIMEOUT_MS });
