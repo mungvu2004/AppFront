@@ -677,10 +677,12 @@ test.describe('SCR-29 Rule Settings · edge (real stack)', () => {
         // always fall in one group whatever the runner's pace (slowMo 0 or 400)
         await page.mouse.move(2, 2);
         await expect(toastRegion(page).getByRole('status')).toHaveCount(0, { timeout: 20_000 });
-        await page.evaluate((labels) => {
+        // one macrotask yield between clicks: React re-renders after each (a handler still on the old render would overwrite the previous toggle)
+        await page.evaluate(async (labels) => {
           for (const label of labels) {
             const sw = document.querySelector<HTMLElement>(`[role="switch"][aria-label="${label}"]`);
             if (sw?.getAttribute('aria-checked') === 'true') sw.click();
+            await new Promise((resolve) => setTimeout(resolve, 0)); // fixed-wait-ok: one macrotask so React re-renders between clicks
           }
         }, GROUPS.map((group) => groupSwitchName(group.label)));
         for (const group of GROUPS) await expect(groupSwitch(page, group.label), group.label).toHaveAttribute('aria-checked', 'false');
@@ -866,11 +868,9 @@ test.describe('SCR-29 Rule Settings · edge (real stack)', () => {
       });
 
       await test.step('[29-C-022] sửa mới rồi "Bỏ thay đổi và tải lại": GET 200; WALL-LENGTH tắt, mọi luật mình sửa về bật; alert mất', async () => {
-        // this edit still carries the old base → its 409 must land BEFORE the reload, or it would bring the conflict alert back after it
-        const late409 = waitRulePut(page, id, undefined, [409]);
+        // F2 29-C-020: after a 409 nothing is sent until the reload, so this fresh edit sends no PUT (no 409 to wait for)
         await ruleSwitch(page, WALL_OVERLAP.name).click(); // a fresh edit → a fresh undo toast, so [29-C-023] is not vacuous
         await expect(toast(page, `Tắt luật ${WALL_OVERLAP.name}.`).first()).toBeVisible();
-        await late409;
         await reloadButton.click();
         await expect(dialog).toBeVisible();
         const reread = waitForApi(page, 'GET', ruleConfigRe(id), [200]);

@@ -42,6 +42,7 @@ import {
   ok,
   openVersionsPage,
   pageOf,
+  snapshotBody,
   summaryOf,
   toast,
   versionIdOf,
@@ -348,9 +349,9 @@ test.describe('E06 SCR-32 version history — mocked-response flows (QA-06b P7)'
         // These two steps replace the same ids in phase06_pipeline.spec.ts (T4a removes those).
         await test.step('[32-B-018] visual tab: a left version whose scene cannot be built -> "Chưa xem trực quan được"', async () => {
           mock.setHistory(three);
-          // S5-confirm: `1e999` parses to Infinity in the page, so toPascalScene throws and convertScene reports `failed` (versionHistoryScene.ts:67-77).
-          mock.snapshot = (id, call) =>
-            id === v1 ? { raw: JSON.stringify(baseSnapshot(id, call).body).replace('"thicknessMm":220', '"thicknessMm":1e999') } : baseSnapshot(id, call);
+          // run-062e: a non-finite number never reaches the scene (the N18 wire read rejects it -> "Chưa tải được nội dung bản này" row, no tabs),
+          // so v1 holds an EMPTY layer instead, like the pipeline's "before" version (catalog 32-B-018, VHS:36-37)
+          mock.snapshot = (id, call) => (id === v1 ? { body: snapshotBody(id, []) } : baseSnapshot(id, call));
           await openVersionsPage(page, projectId);
           await expect(diffTab(page, 'Thay đổi')).toBeVisible();
           await page.getByRole('combobox', { name: VH.leftSelect, exact: true }).click();
@@ -586,7 +587,8 @@ test.describe('E06 SCR-32 version history — mocked-response flows (QA-06b P7)'
         };
         const undoWith = async (answer: Answer): Promise<void> => {
           await restoreThenArmUndo(answer);
-          await undoButton().click();
+          // dispatchEvent: run-062e showed the toast button "not stable" for the whole 30 s after the clock steps of 32-B-032
+          await undoButton().dispatchEvent('click');
         };
 
         await test.step('[32-B-031] reload after a write failed: banner "Chưa tải lại được tầng" with "Tải lại"', async () => {

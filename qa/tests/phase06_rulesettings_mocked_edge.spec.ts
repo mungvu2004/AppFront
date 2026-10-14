@@ -275,8 +275,10 @@ test.describe('SCR-29 Rule Settings · edge (mocked responses)', () => {
         mode = 'abort';
         await ruleSwitch(page, WALL_LENGTH.name).click();
         // the HTTP ladder retries a cut connection three times (≈ 4.5 s) before the error reaches the screen
-        await expect(page.getByRole('alert').filter({ hasText: 'Mất kết nối nên bộ luật chưa được lưu.' })).toBeVisible({ timeout: 45_000 });
-        expect.soft(aborted.length, 'the cut requests').toBeGreaterThan(0);
+        // F2 29-G-013 (useRuleSettings.ts shownProblem): a transient error that the autosave is still retrying shows NO alert; the
+        // connection sentence appears only once the retries run out (~2 min), so here: the cut requests happen and the alert stays hidden
+        await expect.poll(() => aborted.length, { timeout: 45_000 }).toBeGreaterThan(0);
+        await expect.soft(page.getByRole('alert').filter({ hasText: 'Mất kết nối nên bộ luật chưa được lưu.' })).toHaveCount(0);
         const first = JSON.parse(aborted[0] ?? '{}') as Record<string, unknown>;
         held = { baseVersion: first.baseVersion, body: asRecord(first.body, 'aborted body') };
         await shot(page, '29-G-012', 'put_aborted');
