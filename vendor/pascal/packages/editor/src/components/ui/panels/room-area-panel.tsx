@@ -18,6 +18,7 @@ import {
 import { roomAreaStateOf } from '../../../lib/floorplan/room-area-state'
 import { cn } from '../../../lib/utils'
 import { RoomAreaFullPage } from './room-area-full-page'
+import { createRenameScheduler } from './rename-scheduler'
 
 /**
  * "Diện tích phòng" — the room-area panel of AppFront F-15 W2-D (#71–86).
@@ -88,7 +89,8 @@ export function RoomAreaPanel() {
   const [gapReport, setGapReport] = useState<string | null>(null)
   const [fullPage, setFullPage] = useState(false)
   const fullPageButtonRef = useRef<HTMLButtonElement | null>(null)
-  const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const renameTimer = useRef(createRenameScheduler(RENAME_AUTOSAVE_MS)).current
+  const skipBlurCommit = useRef(false)
 
   const closeFullPage = useCallback(() => setFullPage(false), [])
   const levelNames = useMemo(() => levelNamesOf(nodes), [nodes])
@@ -109,12 +111,7 @@ export function RoomAreaPanel() {
     [nodes, grouping, sort, levelId],
   )
 
-  useEffect(
-    () => () => {
-      if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
-    },
-    [],
-  )
+  useEffect(() => renameTimer.cancel, [renameTimer])
 
   // #77: one click both selects the room and frames the camera on it, so the
   // table row and the 3D view never disagree about what is being looked at.
@@ -128,24 +125,22 @@ export function RoomAreaPanel() {
 
   const commitRename = useCallback(
     (id: string, previous: string, next: string) => {
+      renameTimer.cancel()
       const trimmed = next.trim()
       if (!trimmed || trimmed === previous) return
       updateNode(id, { name: trimmed } as Partial<AnyNode>)
       setPendingRename({ id, previous, next: trimmed })
     },
-    [updateNode],
+    [updateNode, renameTimer],
   )
 
   // A7: no save button — the edit lands 800 ms after the last keystroke, and
   // the editor's own autosave carries it to the host from there.
   const scheduleRename = useCallback(
     (id: string, previous: string, next: string) => {
-      if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
-      autosaveTimer.current = setTimeout(() => {
-        commitRename(id, previous, next)
-      }, RENAME_AUTOSAVE_MS)
+      renameTimer.schedule(() => commitRename(id, previous, next))
     },
-    [commitRename],
+    [commitRename, renameTimer],
   )
 
   // A8: every change is undoable, and the way back stays visible for 8 s.
@@ -156,10 +151,11 @@ export function RoomAreaPanel() {
   }, [pendingRename])
 
   const undoRename = useCallback(() => {
+    renameTimer.cancel()
     if (!pendingRename) return
     updateNode(pendingRename.id, { name: pendingRename.previous } as Partial<AnyNode>)
     setPendingRename(null)
-  }, [pendingRename, updateNode])
+  }, [pendingRename, updateNode, renameTimer])
 
   const copyTable = useCallback(() => {
     void navigator.clipboard?.writeText(roomAreaTableToText(table)).then(() => {
@@ -376,6 +372,10 @@ export function RoomAreaPanel() {
                             autoFocus
                             className="w-full rounded-sm border border-border bg-background px-1 py-0.5 text-sm"
                             onBlur={() => {
+                              if (skipBlurCommit.current) {
+                                skipBlurCommit.current = false
+                                return
+                              }
                               commitRename(row.id, row.name, draftName)
                               setEditingId(null)
                             }}
@@ -386,6 +386,8 @@ export function RoomAreaPanel() {
                             onKeyDown={(event) => {
                               if (event.key === 'Enter') event.currentTarget.blur()
                               if (event.key === 'Escape') {
+                                renameTimer.cancel()
+                                skipBlurCommit.current = true
                                 setDraftName(row.name)
                                 setEditingId(null)
                               }
@@ -401,6 +403,7 @@ export function RoomAreaPanel() {
                             onDoubleClick={(event) => {
                               event.stopPropagation()
                               if (readOnly) return
+                              skipBlurCommit.current = false
                               setDraftName(row.name)
                               setEditingId(row.id)
                             }}
