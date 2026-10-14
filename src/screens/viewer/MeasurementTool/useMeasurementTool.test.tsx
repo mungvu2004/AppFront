@@ -800,7 +800,7 @@ describe('useMeasurementTool — chế độ hai điểm dừng ở hai điểm 
     const { container } = renderHook({
       mountScene: sceneSpy().mount,
       pick: pickAtPointer,
-      projectToScreen: (point) => ({ x: point.x, y: point.z }),
+      projectToScreen: (point) => ({ x: point.x, y: point.z ?? 0 }),
     });
     const discs = (): number => container.querySelectorAll('circle.fill-accent').length;
 
