@@ -102,6 +102,17 @@ export const frameEntityInPascal = (entityId: string): boolean => {
 };
 
 /**
+ * Xoá node như nút "Xoá" của editor — một lượt ghi có lịch sử, đi qua `validateCommit`
+ * và tự lưu. Dùng sau khi người dùng xác nhận một lượt xoá hàng loạt (23-A-026).
+ */
+export const deletePascalNodes = (ids: readonly string[]): void => {
+  const nodes = useScene.getState().nodes;
+  const present = ids.filter((id) => id in nodes);
+
+  if (present.length > 0) useScene.getState().deleteNodes(present as never);
+};
+
+/**
  * Bỏ chế độ tách tầng còn nhớ từ lượt trước.
  *
  * `levelMode` của Pascal nằm trong `localStorage` (`viewer-preferences`), nên một

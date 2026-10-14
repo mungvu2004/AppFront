@@ -7,11 +7,11 @@
  * một tường qua đúng cửa `onSceneCommit` mà editor gọi, và đòi một lời gọi ghi.
  */
 
-import { act, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { __resetMockLayerState, createMockApiClient } from '@/api/__mocks__/client';
+import { __resetMockLayerState, createMockApiClient, simulateRemoteLayerEdit } from '@/api/__mocks__/client';
 import { createSampleBuilding } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { __resetFloorLayerSavers } from '@/hooks/useAutosave';
@@ -21,7 +21,7 @@ import type { PascalScene } from '@/lib/pascal/types';
 import { renderWithProviders } from '@/lib/testing/render';
 import { useStore } from '@/store';
 
-import { PascalViewerContainer, PASCAL_SAVE_FAILED_TITLE } from './PascalViewer.container';
+import { PascalViewerContainer, PASCAL_MASS_DELETE_TITLE, PASCAL_SAVE_FAILED_TITLE } from './PascalViewer.container';
 
 const PROJECT = 'P-1';
 const GRAPH = createSampleBuilding();
@@ -51,14 +51,19 @@ const tick = async (ms = 0): Promise<void> => {
 
 /** Gói vách ngăn giả; giữ lại `onSceneCommit` để bài kiểm đóng vai editor. */
 const stubMount = () => {
-  const handle: { commit: ((scene: PascalScene) => Promise<void>) | null } = { commit: null };
+  const handle: {
+    commit: ((scene: PascalScene) => Promise<void>) | null;
+    validate: ((scene: PascalScene) => { ok: boolean }) | null;
+    deleteNodes: ReturnType<typeof vi.fn>;
+  } = { commit: null, validate: null, deleteNodes: vi.fn() };
   const loadMount = () =>
     Promise.resolve({
       mount: (_element: HTMLElement, options: Record<string, unknown>) => {
         handle.commit = options['onSceneCommit'] as (scene: PascalScene) => Promise<void>;
+        handle.validate = options['validateCommit'] as (scene: PascalScene) => { ok: boolean };
         (options['onReadyChange'] as (ready: boolean) => void)(true);
 
-        return { dispose: () => undefined };
+        return { dispose: () => undefined, deleteNodes: handle.deleteNodes };
       },
     });
 
@@ -143,5 +148,44 @@ describe('PascalViewer — lượt sửa đi qua bộ tự lưu tầng', () => {
 
     expect(publish).toHaveBeenCalledWith(expect.objectContaining({ title: PASCAL_SAVE_FAILED_TITLE }));
     expect(saveCaption()).toMatch(/^Lưu thất bại/);
+  });
+
+  it('23-B-029 — 409 → nút "Tải lại"; còn sửa chưa lưu thì bấm mở hộp thoại A9', async () => {
+    const apiClient = createMockApiClient();
+    const bench = renderScreen(apiClient);
+
+    for (const levelId of SPATIAL.byKind.level) simulateRemoteLayerEdit(levelId);
+    await editWall(bench);
+    await tick(800);
+    await tick();
+
+    expect(screen.getByText(/vừa được sửa ở nơi khác/u)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Tải lại' }));
+    await tick();
+    await tick();
+
+    expect(screen.getByText('Bỏ thay đổi chưa lưu của tầng này?')).toBeInTheDocument();
+  });
+
+  it('23-A-026 — cổng chặn xoá hàng loạt → hộp xác nhận; "Xoá" cho editor xoá lại đúng các node ấy', async () => {
+    const bench = renderScreen(createMockApiClient());
+    await tick();
+    await tick();
+    const walls = Object.values(SCENE.nodes).filter((node) => node.type === 'wall').map((node) => node.id);
+    const gutted: PascalScene = {
+      nodes: Object.fromEntries(Object.entries(SCENE.nodes).filter(([, node]) => node.type !== 'wall')),
+      rootNodeIds: SCENE.rootNodeIds,
+    };
+
+    act(() => {
+      expect(bench.handle.validate?.(gutted).ok).toBe(false);
+    });
+    await tick();
+    await tick();
+
+    expect(screen.getByRole('dialog')).toHaveTextContent(PASCAL_MASS_DELETE_TITLE);
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá' }));
+
+    expect(bench.handle.deleteNodes).toHaveBeenCalledWith(expect.arrayContaining(walls));
   });
 });

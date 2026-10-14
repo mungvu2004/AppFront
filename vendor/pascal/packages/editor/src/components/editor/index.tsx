@@ -241,6 +241,12 @@ export interface EditorProps {
    * read `useScene(s => s.readOnly)` hide their edit affordances.
    */
   readOnly?: boolean
+  /**
+   * AppFront 23-B-016: the machine has neither WebGPU nor WebGL. Forwarded to
+   * the inner `<Viewer>`, which then renders nothing so the host shows its own
+   * card (PASCAL-03) instead of the viewer's fallback reporting "ready".
+   */
+  onRendererUnavailable?: () => void
 
   // Version preview
   previewScene?: SceneGraph
@@ -1088,6 +1094,7 @@ const ViewerCanvas = memo(function ViewerCanvas({
   floorplanSceneSlot,
   disablePostFx = false,
   immersive,
+  onRendererUnavailable,
 }: {
   isVersionPreviewMode: boolean
   isLoading: boolean
@@ -1103,6 +1110,7 @@ const ViewerCanvas = memo(function ViewerCanvas({
   floorplanSceneSlot?: ReactNode
   disablePostFx?: boolean
   immersive?: ViewerImmersiveSession
+  onRendererUnavailable?: () => void
 }) {
   const viewMode = useEditor((s) => s.viewMode)
   const floorplanPaneRatio = useEditor((s) => s.floorplanPaneRatio)
@@ -1231,6 +1239,7 @@ const ViewerCanvas = memo(function ViewerCanvas({
             // Other modes retain the viewer's configured background policy.
             transparent={presetIsolation === null ? undefined : true}
             onSceneReadyChange={onSceneReadyChange}
+            onRendererUnavailable={onRendererUnavailable}
             renderContext="editor"
             renderPaused={!show3d && !showLoader}
             sceneReadyKey={sceneReadyKey}
@@ -1335,6 +1344,7 @@ function EditorContent({
   validateCommit,
   onCommitRejected,
   readOnly = false,
+  onRendererUnavailable,
   previewScene,
   isVersionPreviewMode = false,
   isLoading = false,
@@ -1633,6 +1643,7 @@ function EditorContent({
       viewerSceneSlot={viewerSceneSlot}
       floorplanSceneSlot={floorplanSceneSlot}
       immersive={immersive}
+      onRendererUnavailable={onRendererUnavailable}
     />
   )
 
