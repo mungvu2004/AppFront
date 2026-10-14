@@ -251,6 +251,7 @@ test.describe('SCR-33 profile edge', () => {
       const gate = await holdMeReads(page);
       try {
         await test.step('[33P-B-001] loading: five skeleton blocks', async () => {
+          await page.goto('about:blank'); // force a full reload: same URL + new hash would be a fragment jump
           await page.goto(`${ROUTES.account}#account-notifications`);
           await gate.seen;
           await expect(heading(page)).toBeVisible();
@@ -461,6 +462,7 @@ test.describe('SCR-33 profile edge', () => {
           await expect.soft(page.getByText(EMAIL_REASON_LONG, { exact: true })).toBeVisible();
           await expect.soft(page.getByText(EMAIL_REASON_SHORT, { exact: true })).toHaveCount(0);
           await page.clock.runFor(1_000); // past the 800 ms debounce: a request would have gone out
+          await page.evaluate(() => 0); // round trip: any request event has been delivered
           expect.soft(writes.list().length, 'no request').toBe(before);
           await captureEvidence(page, 'E07_33P-A-031_email_reason.png');
         });
