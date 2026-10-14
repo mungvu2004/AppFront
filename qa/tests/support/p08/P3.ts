@@ -9,6 +9,7 @@ import { ROUTES } from '../../../../e2e/fixtures/routes';
 export const itemsOf = (json: unknown): Record<string, unknown>[] => (json as { items: Record<string, unknown>[] }).items;
 
 /** dup-of: flows-C1 craftedLibrary — copies of the first real item (previewless, 900000, 900001 triangles, 120-char name). */
+// dup-of: flows-C1 craftedLibrary craftedLibrary
 export function craftedLibrary(real: Record<string, unknown>[]): Record<string, unknown>[] {
   const first = real[0];
   if (first === undefined) throw new Error('environment: GET /api/library has no item to copy');
@@ -30,7 +31,8 @@ export const deferred = (): { promise: Promise<void>; resolve: () => void } => {
   return { promise, resolve };
 };
 
-/** dup-of: flows-C1 holdRoute — holds GET `urlRe` until `release()`, then answers from the real server. */
+// dup-of: flows-C1 holdRoute holdGet
+/** holds GET `urlRe` until `release()`, then answers from the real server. */
 export async function holdGet(page: Page, urlRe: RegExp): Promise<{ release: () => Promise<void> }> {
   const gate = deferred();
   const handler = async (route: Route): Promise<void> => {
@@ -116,7 +118,8 @@ export async function openRegistryWhere(page: Page, found: (p: Page) => Locator,
   throw new Error('unreachable');
 }
 
-/** dup-of: flows-C3 guardWrites — aborts PUT …/active, counts attempts. */
+// dup-of: flows-C3 guardWrites guardWrites
+/** aborts PUT …/active, counts attempts. */
 export async function guardWrites(page: Page): Promise<{ count: () => number }> {
   let n = 0;
   await page.route(/\/api\/admin\/ml\/model-families\/[^/]+\/active$/u, async (route) => {
@@ -125,4 +128,46 @@ export async function guardWrites(page: Page): Promise<{ count: () => number }> 
     return route.abort();
   });
   return { count: () => n };
+}
+
+/* ---------------------------------------------------------------- SCR-35 mock fixtures (TrainingJobSchema, adminMl.ts:370) */
+const ULID = (n: number): string => `01HZX${String(n).padStart(2, '0')}ABCDEFGHJKMNPQRSTV`.slice(0, 26).padEnd(26, 'A');
+const AT = '2026-10-14T08:00:00Z';
+export function jobFixture(n: number, status: 'running' | 'queued' | 'succeeded', epochs = 40): Record<string, unknown> {
+  return {
+    baseModel: 'mitB0',
+    createdAt: AT,
+    creatorId: 'system:pipeline',
+    datasetVersionId: `dsv_${ULID(n)}`,
+    epochs,
+    family: 'wallSegmentation',
+    id: `job_${ULID(n)}`,
+    status,
+    ...(status === 'queued' ? {} : { startedAt: AT, currentEpoch: 5 }),
+    ...(status === 'succeeded' ? { endedAt: '2026-10-14T08:30:00Z', resultModelVersionId: `mdl_${ULID(n)}` } : {}),
+  };
+}
+export const metricPoints = (n: number): Record<string, unknown>[] =>
+  Array.from({ length: n }, (_, i) => ({ epoch: i + 1, loss: 1 / (i + 1), recordedAt: AT, split: 'train', step: i }));
+export const logLines = (n: number): Record<string, unknown>[] =>
+  Array.from({ length: n }, (_, i) => ({ at: AT, level: 'info', message: `qa-p08 log line ${i + 1}`, seq: i }));
+
+/** Mocks list, :id, metrics, logs, cancel. Cancel answers 409 TRAINING_JOB_NOT_CANCELLABLE (trainingJobsGateway.ts:151). */
+export async function mockTraining(page: Page, state: { mode: 'ok' | '500'; jobs: Record<string, unknown>[]; cancels: number }): Promise<void> {
+  await page.route(/\/api\/admin\/ml\/training-jobs(\/.*)?(\?.*)?$/u, async (route) => {
+    const req = route.request();
+    const path = new URL(req.url()).pathname;
+    if (req.method() === 'POST' && path.endsWith('/cancel')) {
+      state.cancels += 1;
+      return route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ code: 'TRAINING_JOB_NOT_CANCELLABLE', detail: 'qa-p08 mocked 409' }) });
+    }
+    if (req.method() !== 'GET') return route.fallback();
+    if (state.mode === '500') return fail500(route);
+    if (path.endsWith('/metrics')) return route.fulfill({ json: { items: metricPoints(12), nextCursor: 'c1' } });
+    if (path.endsWith('/logs')) return route.fulfill({ json: { items: logLines(30), nextCursor: 'c1' } });
+    const id = path.split('/').pop();
+    const one = state.jobs.find((j) => j.id === id);
+    if (one !== undefined) return route.fulfill({ json: one });
+    return route.fulfill({ json: { items: state.jobs } });
+  });
 }
