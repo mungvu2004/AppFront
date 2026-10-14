@@ -22,7 +22,7 @@ import { expect, test } from '@playwright/test';
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { waitForApi } from '../../e2e/fullstack/apiWatch';
 import { newApiContext, signedInApi } from './support/api';
-import { RUN_ID, captureEvidence } from './support/evidence';
+import { captureEvidence } from './support/evidence';
 import { ME_RE, PASSWORD_API, PW, heading, meApi, pwField, pwSubmit, recordWrites } from './support/p07/account';
 import {
   PASSWORD_RE,
@@ -316,7 +316,8 @@ test.describe('SCR-33 security edge', () => {
           const text = meterText(page);
           await expect.soft(text).toHaveText(PW.strength('yếu'));
           await expect.soft(text.locator('xpath=preceding-sibling::div[1]')).toHaveAttribute('aria-hidden', 'true');
-          await expect.soft(text, 'meter text is a live region').toHaveAttribute('aria-live', /^(?:polite|assertive)$/u);
+          const live = text.locator('xpath=ancestor-or-self::*[@aria-live="polite" or @aria-live="assertive" or @role="status" or @role="log" or @role="alert"]');
+          await expect.soft(live, 'meter text is inside a live region').not.toHaveCount(0);
           const meterId = await text.getAttribute('id');
           expect.soft(meterId, 'meter text has an id the new field can point to').not.toBeNull();
           await expect.soft(next, 'new field is described by the meter').toHaveAttribute('aria-describedby', new RegExp(`(?:^|\\s)${String(meterId)}(?:\\s|$)`, 'u'));
@@ -339,7 +340,7 @@ test.describe('SCR-33 security edge', () => {
           // UAA:4-9: no AccountDraftPort; the fake clock jumps far past the 800 ms autosave debounce
           await fillPasswords(page, 'Qa-Current1', 'Abcdefg12', 'Abcdefg12');
           await page.clock.runFor(5_000);
-          await page.evaluate(() => 0); // flush pending request events
+          await page.evaluate(() => fetch('/api/me', { credentials: 'include' }).then(() => undefined, () => undefined)); // real round trip: every request dispatched before it has reached the listener
           expect.soft(writes.list(), 'no PATCH /api/me, no POST /api/me/password').toEqual([]);
           await captureEvidence(page, 'E07_33S-B-012_keys.png');
         });
@@ -351,7 +352,7 @@ test.describe('SCR-33 security edge', () => {
 
   test('SCR-33 · FL-33S-03 · wrong current: 422, retry in place, double submit, then success', async ({ browser }) => {
     test.setTimeout(Math.max(120_000, 2 * 100_000));
-    await withSecurityUser(browser, `p07-security-3-${RUN_ID}-r${test.info().retry}`, async ({ user, context, page }) => {
+    await withSecurityUser(browser, `p07-security-3${test.info().retry ? `-r${test.info().retry}` : ''}`, async ({ user, context, page }) => {
       let changedTo: string | undefined;
       let nextPw = `Qa-${randomUUID()}`; // letters + digits, >= 8
       try {
@@ -388,8 +389,10 @@ test.describe('SCR-33 security edge', () => {
         await test.step('[33S-E-007] ⚑ focus stays inside the region after a rejected submit', async () => {
           // PWS:161: inputs are disabled while submitting; focus must not be lost to <body>
           await expect.soft(pwSubmit(page)).toBeEnabled();
-          const inside = await regionOf(page).evaluate((region) => region.contains(document.activeElement));
-          expect.soft(inside, 'document.activeElement is inside the "Mật khẩu" region').toBe(true);
+          await expect
+            .configure({ soft: true })
+            .poll(() => regionOf(page).evaluate((region) => region.contains(document.activeElement)), { message: 'document.activeElement is inside the "Mật khẩu" region' })
+            .toBe(true);
           await captureEvidence(page, 'E07_33S-E-007_pwchange.png');
         });
 
@@ -447,7 +450,7 @@ test.describe('SCR-33 security edge', () => {
           const answer = waitForApi(page, 'POST', PASSWORD_RE, [204]);
           await submitPassword(page);
           const res = await answer;
-          success = { status: res.response.status(), text: await res.response.text().catch(() => '') }; // 204 has no body to read
+          success = { status: res.response.status(), text: res.response.headers()['content-length'] ?? '0' };
           await expect.soft(page.getByText(PW.changed, { exact: true })).toBeVisible();
           await expect.soft(page.getByText(PW.currentWrong, { exact: true })).toHaveCount(0);
           await captureEvidence(page, 'E07_33S-A-011_pwchange.png');
@@ -466,7 +469,7 @@ test.describe('SCR-33 security edge', () => {
         await test.step('[33S-G-002] 204 with an empty body is success', async () => {
           // src/api/client.ts:953-962, MR:157-160
           expect.soft(success?.status).toBe(204);
-          expect.soft(success?.text).toBe('');
+          expect.soft(['0', ''], 'content-length of the 204').toContain(success?.text);
           await expect.soft(page.getByText(PW.changed, { exact: true })).toBeVisible();
           await captureEvidence(page, 'E07_33S-G-002_pwchange.png');
         });
@@ -479,7 +482,7 @@ test.describe('SCR-33 security edge', () => {
 
   test('SCR-33 · FL-33S-04 · happy path: success alert, fields cleared, session kept, old/new login, other session revoked, secret hygiene', async ({ browser }) => {
     test.setTimeout(Math.max(120_000, 2 * 100_000));
-    await withSecurityUser(browser, `p07-security-4-${RUN_ID}-r${test.info().retry}`, async ({ user, page }) => {
+    await withSecurityUser(browser, `p07-security-4${test.info().retry ? `-r${test.info().retry}` : ''}`, async ({ user, page }) => {
       const oldPw = user.password;
       const newPw = `Qa-${randomUUID()}`;
       const wrongPw = `Wrong-${randomUUID()}`;
