@@ -48,8 +48,11 @@ export async function holdGet(page: Page, urlRe: RegExp): Promise<{ release: () 
   };
 }
 
-export const fail500 = (route: Route): Promise<void> =>
-  route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'qa-p08 mocked 500' }) });
+/** Error body per ApiErrorBodySchema (errors.ts:104, strict): { code, requestId }. */
+const CODES: Record<number, string> = { 403: 'FORBIDDEN', 404: 'NOT_FOUND', 429: 'RATE_LIMITED', 500: 'INTERNAL_ERROR' };
+export const failWith = (route: Route, status: 403 | 404 | 429 | 500): Promise<void> =>
+  route.fulfill({ status, contentType: 'application/json', body: JSON.stringify({ code: CODES[status], requestId: 'qa-p08-mock' }) });
+export const fail500 = (route: Route): Promise<void> => failWith(route, 500);
 
 /** GET answer = the real body passed through `edit`. */
 export async function fulfilEdited(route: Route, edit: (body: Record<string, unknown>) => void): Promise<void> {

@@ -9,14 +9,13 @@ import { expect, test, type Page, type Route } from '@playwright/test';
 import { signInAdmin } from './support/auth';
 import { captureEvidence } from './support/evidence';
 import { DESKTOP, ROUTES, adminApi } from './support/p08/admin';
-import { craftedLibrary, deferred, fail500, fulfilEdited, itemsOf, readJson } from './support/p08/P3';
+import { craftedLibrary, deferred, fail500, failWith, fulfilEdited, itemsOf, readJson } from './support/p08/P3';
 import { poolUser, signInPoolUser } from './support/phase03Seed';
 
 const LIST = /\/api\/library(\?.*)?$/u;
 const DETAIL_RE = /\/api\/library\/[^/?]+(\?.*)?$/u;
 const ALERT = 'Không tải được thư viện model';
-const err = (status: number) => (route: Route) =>
-  route.fulfill({ status, contentType: 'application/json', body: JSON.stringify({ detail: `qa-p08 mocked ${status}` }) });
+const err = (status: 403 | 404 | 429 | 500) => (route: Route) => failWith(route, status);
 
 type Mode = 'real' | 'hold' | 'empty' | '500' | 'abort' | 'bad' | '403' | '429';
 /** One persistent GET /api/library handler; `state.mode` picks the answer, `state.gate` holds it. */
@@ -241,7 +240,7 @@ test.describe('P08 SCR-34 library mocked edge', () => {
           await gate;
           return route.fallback();
         }
-        return err(Number(mode))(route);
+        return err(Number(mode) as 404 | 500)(route);
       });
     };
 
