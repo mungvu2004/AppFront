@@ -24,7 +24,7 @@
  */
 
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { AlertTriangle, Inbox } from 'lucide-react';
+import { AlertTriangle, Check, Inbox, XCircle } from 'lucide-react';
 import { useEffect, useRef, type CSSProperties } from 'react';
 
 import { wallStrokeToken } from '@/components/canvas/materialMap';
@@ -66,6 +66,13 @@ const STATUS_DOT_TOKEN: Readonly<Record<ViewStatusCode, string>> = {
   attention: 'bg-state-attention',
   violation: 'bg-state-violation',
   neutral: 'bg-text-muted',
+};
+
+const STATUS_ICON_TEXT: Readonly<Record<ViewStatusCode, string>> = {
+  verified: 'text-state-verified-text',
+  attention: 'text-state-attention-text',
+  violation: 'text-state-violation-text',
+  neutral: '',
 };
 
 const STATUS_DOT_LABEL: Readonly<Record<ViewStatusCode, string>> = {
@@ -195,8 +202,18 @@ function WallLayerListRow({
           <AlertTriangle aria-hidden="true" className="h-3.5 w-3.5" />
         </span>
       ) : (
-        <span className="relative ml-auto flex shrink-0 items-center" title={STATUS_DOT_LABEL[row.statusCode]}>
-          <span aria-hidden="true" className={cn('h-1.5 w-1.5 rounded-full', STATUS_DOT_TOKEN[row.statusCode])} />
+        /* Đã duyệt / vi phạm mang hình riêng, không chỉ khác màu chấm (BUG-638). */
+        <span
+          className={cn('relative ml-auto flex shrink-0 items-center', STATUS_ICON_TEXT[row.statusCode])}
+          title={STATUS_DOT_LABEL[row.statusCode]}
+        >
+          {row.statusCode === 'verified' ? (
+            <Check aria-hidden="true" className="h-3.5 w-3.5" />
+          ) : row.statusCode === 'violation' ? (
+            <XCircle aria-hidden="true" className="h-3.5 w-3.5" />
+          ) : (
+            <span aria-hidden="true" className={cn('h-1.5 w-1.5 rounded-full', STATUS_DOT_TOKEN[row.statusCode])} />
+          )}
         </span>
       )}
     </div>

@@ -33,6 +33,7 @@
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
+import type { ViewStatusCode } from '@/lib/viewmodel/types';
 
 import type {
   AxisGridManagerProps,
@@ -62,10 +63,11 @@ const STATUS_LABEL: Readonly<Record<FloorAlignStatus, string>> = {
   unalignable: 'Không căn được',
 };
 
-const STATUS_DOT_TOKEN: Readonly<Record<FloorAlignStatus, string>> = {
-  ok: 'bg-text-muted',
-  warning: 'bg-state-attention',
-  unalignable: 'bg-state-violation',
+/* "Trong dung sai" là trung tính: xanh "đã xác minh" chỉ dành cho việc người duyệt (A5). */
+const STATUS_BADGE_VARIANT: Readonly<Record<FloorAlignStatus, ViewStatusCode>> = {
+  ok: 'neutral',
+  warning: 'attention',
+  unalignable: 'violation',
 };
 
 function floorRowAriaLabel(floor: FloorAlignRowViewModel): string {
@@ -98,11 +100,10 @@ function FloorAlignRow({ floor, onHover }: FloorAlignRowProps) {
           {ROOT_FLOOR_LABEL}
         </Badge>
       ) : (
-        <span
-          aria-hidden="true"
-          className={cn('h-1.5 w-1.5 shrink-0 rounded-full', STATUS_DOT_TOKEN[floor.status])}
-          title={STATUS_LABEL[floor.status]}
-        />
+        /* Trạng thái bằng chữ, không chỉ một chấm màu (BUG-638, khuôn BUG-610). */
+        <Badge className="shrink-0" variant={STATUS_BADGE_VARIANT[floor.status]}>
+          {STATUS_LABEL[floor.status]}
+        </Badge>
       )}
     </div>
   );

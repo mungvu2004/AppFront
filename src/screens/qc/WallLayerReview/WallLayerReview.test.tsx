@@ -859,6 +859,22 @@ describe('đợt sửa P04 — SCR-16', () => {
     expect(panel?.className).not.toContain('h-[560px]');
   });
 
+  it('[BUG-621][BUG-639] dưới 1280 panel trái không cắt đáy; tên tầng dài có title', async () => {
+    renderState('partial');
+
+    const tree = await screen.findByRole('tree', { name: 'Cây lớp' });
+    const panel = tree.closest('.shadow-panel');
+    const listRegion = panel?.lastElementChild;
+
+    expect(panel?.className.split(' ')).not.toContain('overflow-hidden');
+    expect(listRegion?.className.split(' ')).not.toContain('flex-1');
+    expect(listRegion?.className.split(' ')).toContain('xl:flex-1');
+
+    for (const floorButton of within(screen.getByRole('navigation', { name: /tầng/iu })).getAllByRole('button')) {
+      expect(floorButton.querySelector('[title]')?.getAttribute('title')).toBe(floorButton.textContent);
+    }
+  });
+
   it('[BUG-396] hàng danh sách không tràn mép phải: không huy hiệu chữ 70 px, hàng cắt tràn', async () => {
     /* jsdom đo mọi khung 0 px nên danh sách ảo không dựng hàng nào; cho khung cuộn một chiều cao. */
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
@@ -874,6 +890,18 @@ describe('đợt sửa P04 — SCR-16', () => {
       expect(option).toHaveClass('overflow-hidden');
       expect(within(option).queryByText('Cần chú ý')).not.toBeInTheDocument();
     }
+  });
+
+  it('[BUG-638] tường đã duyệt mang hình riêng, không chỉ một chấm màu', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      { x: 0, y: 0, top: 0, left: 0, right: 280, bottom: 800, width: 280, height: 800, toJSON: () => ({}) } as DOMRect,
+    );
+    renderState('success');
+
+    const options = await screen.findAllByRole('option');
+    const status = options[0]?.querySelector('[title="Đã duyệt"]');
+
+    expect(status?.querySelector('svg')).not.toBeNull();
   });
 
   it('[BUG-614] bộ lọc panel trái: nhãn 13 px ngang cây lớp, có tiêu đề nhóm "Bộ lọc"', async () => {
