@@ -58,9 +58,11 @@ type PendingRename = { id: string; previous: string; next: string }
 
 function StatusDot({ status }: { status: RoomAreaStatus }) {
   return (
+    // AppFront 23R-E-005: `role="img"` — an `aria-label` on a role-less span is ignored.
     <span
       aria-label={STATUS_LABEL[status]}
       className={cn('inline-block size-2 shrink-0 rounded-full', STATUS_CLASS[status])}
+      role="img"
       title={STATUS_LABEL[status]}
     />
   )
@@ -197,6 +199,10 @@ export function RoomAreaPanel() {
           >
             <Copy className="size-4" />
           </button>
+          {/* AppFront 23R-E-004: the swapped `title` is never announced. */}
+          <span className="sr-only" role="status">
+            {copied ? vi.copied : ''}
+          </span>
           <button
             aria-label={vi.openFullPage}
             className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
