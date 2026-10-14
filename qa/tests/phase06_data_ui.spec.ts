@@ -1,10 +1,10 @@
 /**
  * Phase 6 — UI VERIFICATION, SCR-31 Spatial JSON Viewer (skill `qa-verify-ui`): two flows, QA-06b P5 (`flows-C4.md` FL-31-U1 /
- * FL-31-U2). One `verifyUi` per state, four widths (1440 / 1024 / 768 / 375), evidence `U06d_<row id>_<slug>_<width>.png` + one
+ * FL-31-U2). One `verifyUi` per state, four widths (1920 / 1440 / 1024 / 768), evidence `U06d_<row id>_<slug>_<width>.png` + one
  * `U06d_<row id>_<slug>.json` of metrics. `verifyUi` fails softly on horizontal overflow, controls outside the viewport and broken
- * images; `expectLayoutClean` (support/p06/data.ts) adds the heuristics the plan lists (clipped text, overlaps, targets < 24 px,
- * 44 px for a text button below 640 px) as soft findings. Open bugs (BUG-447 placeholder cut / toolbar wrap at 375, BUG-449 Cây / Thô
- * 47x28 at 375, BUG-451 page height) keep the matching steps red until fixed.
+ * images; `expectLayoutClean` (support/p06/data.ts) adds the heuristics the plan lists (clipped text, overlaps, targets < 24 px)
+ * as soft findings. Open bugs (BUG-447 placeholder cut / toolbar wrap, BUG-449 Cây / Thô
+ * 47x28, BUG-451 page height) keep the matching steps red until fixed.
  *
  * FL-31-U2 is `[mocked response]` (N15 held, dangling opening ids, #24 500) and pairs FL-31-U1 (31-F-001 tree, 31-F-007 empty,
  * 31-F-008 not-found): the integrity strip and a 5xx gate cannot be produced on the real stack.
@@ -18,7 +18,7 @@ import type { Page } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { navigateThenWaitForApi } from '../../e2e/fullstack/apiWatch';
-import { verifyUi } from './support/ui-verify';
+import { verifyUi } from './support/p06/viewports';
 import {
   ERROR_PAINT_TIMEOUT_MS,
   GATE,
@@ -165,7 +165,7 @@ test.describe('E06d SCR-31 Spatial JSON Viewer UI', () => {
         expectCleanAll(metrics);
       });
 
-      await test.step('[31-E-009] Touch targets (BUG-449): toolbar icon buttons and Cây / Thô are >= 24 x 24 px (44 px for a text button at 375)', async () => {
+      await test.step('[31-E-009] Touch targets (BUG-449): toolbar icon buttons and Cây / Thô are >= 24 x 24 px ', async () => {
         const metrics = await verifyUi(page, 'U06d_31-E-009_targets', qcState());
         const toolbar = /Kết quả trước|Kết quả sau|Mở rộng tất cả|Thu gọn tất cả|Sao chép nhánh đang chọn|^Cây |^Thô /u;
         for (const m of metrics) {

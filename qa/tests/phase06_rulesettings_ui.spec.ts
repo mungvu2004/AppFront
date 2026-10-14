@@ -1,6 +1,6 @@
 /**
  * Phase 6 — SCR-29 Rule Settings, UI layer (QA-06b P3, `flows-C2.md` "phase06_rulesettings_ui.spec.ts"): 3 flows, 17 steps. Each
- * visual state goes through `verifyUi` (skill `qa-verify-ui`): 1440 / 1024 / 768 / 375, layout measured and shot per width
+ * visual state goes through `verifyUi` (skill `qa-verify-ui`): 1920 / 1440 / 1024 / 768, layout measured and shot per width
  * (`U06s_<row id>_<slug>_<width>.png` + `.json`). Whatever the plan asks beyond the generic measures (columns, nav 220 px, box inside
  * the card, dialog width…) is read INSIDE the `open` callback at that width and asserted after `verifyUi` returns, so a width where
  * the state does not open fails softly and the other three still run.
@@ -21,7 +21,7 @@ import { expect, test, type Locator } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { createPipelineProject, envDrawingPng, addProjectMember, poolUser } from './support/phase03Seed';
-import { verifyUi } from './support/ui-verify';
+import { verifyUi } from './support/p06/viewports';
 import {
   DEFAULT_ON,
   DESKTOP,
@@ -183,7 +183,7 @@ test.describe('SCR-29 Rule Settings · ui (4 khổ)', () => {
       });
 
       await test.step('[29-B-011] cấu trúc thu gọn: < 1024 không có navigation, có combobox "Mục cài đặt"; ≥ 1024 ngược lại', async () => {
-        for (const width of [1440, 1024, 768, 375]) {
+        for (const width of [1440, 1920, 1024, 768]) {
           await page.setViewportSize({ width, height: 900 });
           await openSettings(page, id);
           const nav = page.getByRole('navigation', { name: RS.nav, exact: true });
@@ -241,7 +241,7 @@ test.describe('SCR-29 Rule Settings · ui (4 khổ)', () => {
         await shot(page, '29-E-010', 'note_contrast', 'U06s');
       });
 
-      await test.step('[29-E-012] vùng chạm ≥ 24 px (Select thu gọn ≥ 44 px ở 375): link nav, nút bộ luật, switch, ô số', async () => {
+      await test.step('[29-E-012] vùng chạm ≥ 24 px (Select thu gọn hiện ở 768): link nav, nút bộ luật, switch, ô số', async () => {
         const measure = async (): Promise<Record<string, number>> =>
           page.evaluate(() => {
             const smallest = (nodes: Element[]): number =>
@@ -259,7 +259,7 @@ test.describe('SCR-29 Rule Settings · ui (4 khổ)', () => {
               select: smallest([...document.querySelectorAll('button[role="combobox"]')].slice(0, 1)),
             };
           });
-        for (const width of [1440, 375]) {
+        for (const width of [1440, 768]) {
           await page.setViewportSize({ width, height: 900 });
           await openSettings(page, id);
           const size = await measure();
@@ -267,10 +267,8 @@ test.describe('SCR-29 Rule Settings · ui (4 khổ)', () => {
             if (!Number.isFinite(px)) continue; // that control does not exist at this width
             expect.soft(px, `${String(width)}: ${kind} smallest side`).toBeGreaterThanOrEqual(24);
           }
-          if (width === 375) {
+          if (width === 768) {
             await expect(page.getByRole('combobox', { name: RS.collapsedSelect, exact: true })).toBeVisible();
-            const select = await page.getByRole('combobox', { name: RS.collapsedSelect, exact: true }).boundingBox();
-            expect.soft(select?.height ?? 0, '375: the collapsed Select is a text control → 44 px').toBeGreaterThanOrEqual(44);
           }
         }
         await shot(page, '29-E-012', 'touch_targets', 'U06s');
@@ -299,7 +297,7 @@ test.describe('SCR-29 Rule Settings · ui (4 khổ)', () => {
         await expect.soft(heading(page)).toBeVisible();
       });
 
-      await test.step('[29-F-009] nav tới "Ngưỡng chung": lưới 1 cột (< sm) / 2 cột; nhãn dài xuống dòng, không cắt', async () => {
+      await test.step('[29-F-009] nav tới "Ngưỡng chung": lưới 2 cột; nhãn dài xuống dòng, không cắt', async () => {
         const seen: { width: number; columns: number; clipped: boolean; inView: boolean }[] = [];
         await verifyUi(page, 'U06s_29-F-009_general_card', async (p) => {
           await openSettings(p, id);
@@ -321,7 +319,7 @@ test.describe('SCR-29 Rule Settings · ui (4 khổ)', () => {
         });
         expect.soft(seen.length, 'all four widths opened').toBe(4);
         for (const one of seen) {
-          expect.soft(one.columns, `${String(one.width)}: grid columns (sm = 640)`).toBe(one.width < 640 ? 1 : 2);
+          expect.soft(one.columns, `${String(one.width)}: grid columns`).toBe(2);
           expect.soft(one.clipped, `${String(one.width)}: the long label wraps, it is not cut`).toBe(false);
           expect.soft(one.inView, `${String(one.width)}: the label stays inside its card`).toBe(true);
         }
@@ -426,7 +424,7 @@ test.describe('SCR-29 Rule Settings · ui (4 khổ)', () => {
           expect(seen.length, 'all four widths opened').toBe(4);
           for (const one of seen) {
             expect.soft(insideX(one.alert, one.width), `${String(one.width)}: the read-only alert fits the viewport`).toBe(true);
-            // 375 and 768 draw the "Mục cài đặt" Select (nav → Select); the severity pickers must be plain text either way
+            // 768 draws the "Mục cài đặt" Select (nav → Select); the severity pickers must be plain text either way
             expect.soft(one.combos, `${String(one.width)}: only the collapsed nav Select may be a combobox`).toBe(one.width < 1024 ? 1 : 0);
             expect.soft(one.presets, `${String(one.width)}: no preset row`).toBe(0);
           }

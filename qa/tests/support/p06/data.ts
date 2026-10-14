@@ -37,7 +37,6 @@ export type Json = Record<string, unknown>;
 export const DESKTOP = { width: 1440, height: 900 } as const;
 /** SJC:62 `NARROW_QUERY = '(width < 1024px)'`. */
 export const NARROW = { width: 768, height: 1024 } as const;
-export const PHONE = { width: 375, height: 812 } as const;
 export type Viewport = { readonly width: number; readonly height: number };
 
 /** react-query retries a failed read once and the HTTP ladder waits 300 + 900 + 2 700 ms before the error paints (lib/http/retry.ts:5). */

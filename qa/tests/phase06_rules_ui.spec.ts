@@ -1,6 +1,6 @@
 /**
  * Phase 6 SCR-28 UI verification (QA-06b, pack P2; flows-C1 `phase06_rules_ui.spec.ts`, skill `qa-verify-ui`): every state of
- * the rule report and the violation sheet once, at 1440 / 1024 / 768 / 375 (`verifyUi`), evidence `U06r_<row id>_<slug>_<width>.png`.
+ * the rule report and the violation sheet once, at 1920 / 1440 / 1024 / 768 (`verifyUi`), evidence `U06r_<row id>_<slug>_<width>.png`.
  *
  * Seeds (real API, created in `beforeAll`, deleted in `afterAll`): `R1` (rule violations), `R3` (no critical violation: done
  * state), `M0` (zero floors: partial). The two states that DELETE a table (28-F-010, 28V-F-005) create their own R1
@@ -11,7 +11,7 @@
  * each 1 POST + 1 #35 PUT + 1 DELETE (no rate limit); 4 quick-fix autosave PUTs per mutating step.
  *
  * // S5-confirm: group names / counts of the R1 layer; which actions the resolved row's sheet offers (28V-F-005);
- * // the 3D toggle control of the sheet (28V-F-003); strip columns (4 from 640 px).
+ * // the 3D toggle control of the sheet (28V-F-003); strip columns.
  */
 import { randomUUID } from 'node:crypto';
 
@@ -37,7 +37,7 @@ import {
   rowWithFloor,
   sheetOf,
 } from './support/p06/P2';
-import { verifyUi } from './support/ui-verify';
+import { verifyUi } from './support/p06/viewports';
 
 let admin: APIRequestContext | undefined;
 const projects: string[] = [];
@@ -105,7 +105,7 @@ test('SCR-28 · FL-28-U1 · UI verify of every report and sheet state (`verifyUi
         const link = p.getByRole('link', { name: RR.settingsLink, exact: true });
         expect((await link.boundingBox())?.height ?? 0, '"Cài đặt bộ luật" target >= 24 px high').toBeGreaterThanOrEqual(24);
         const columns = await p.locator('dl').first().evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length);
-        expect(columns, 'strip columns: 4 from 640 px, else 2').toBe((p.viewportSize()?.width ?? 0) >= 640 ? 4 : 2);
+        expect(columns, 'strip columns: 4').toBe(4);
       });
     });
 

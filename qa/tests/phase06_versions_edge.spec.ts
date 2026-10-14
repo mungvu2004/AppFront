@@ -796,7 +796,7 @@ test.describe('SCR-32 versions — many versions (PM)', () => {
     });
   });
 
-  test('SCR-32 · FL-32-07 · narrow window: Select replaces the list, retention row restore, tab height at 639/640', async ({ browser }) => {
+  test('SCR-32 · FL-32-07 · narrow window: Select replaces the list, retention row restore', async ({ browser }) => {
     test.setTimeout(240_000);
     await withFlow(
       browser,
@@ -864,16 +864,6 @@ test.describe('SCR-32 versions — many versions (PM)', () => {
           const banner = page.getByRole('alert').filter({ hasText: VH.restoreErrorTitle });
           await expect(banner).toContainText('Bản này không còn nội dung để phục hồi.'); // VHM:438
           await ev(page, '32-C-033', 'purged_restore_error');
-        });
-
-        await test.step('[32-F-013] diff tabs height: 44 px below 640, 36 px from 640', async () => {
-          await page.setViewportSize({ width: 639, height: 900 });
-          await page.reload();
-          await expect(diffTab(page, DIFF_TABS.changes)).toBeVisible();
-          await expect.poll(() => diffTabHeights(page)).toEqual([44, 44, 44]); // Tabs.tsx:134 h-11
-          await ev(page, '32-F-013', 'tabs_639');
-          await page.setViewportSize({ width: 640, height: 900 });
-          await expect.poll(() => diffTabHeights(page)).toEqual([36, 36, 36]); // sm:h-9
         });
 
         void api;

@@ -1,7 +1,7 @@
 /**
  * Phase 6 (QA-06b P7) — SCR-32 "Lịch sử phiên bản", dedicated UI-verification flows (skill `qa-verify-ui`): four flows
  * (FL-32-17..FL-32-20 of `flows-C5.md`), one `test()` per flow, one `test.step('[<row id>] …')` per state; every state runs
- * through `verifyUi` at 1440 / 1024 / 768 / 375 (`support/ui-verify.ts`: overflow, off-screen controls, broken images as soft
+ * through `verifyUi` at 1920 / 1440 / 1024 / 768 (`support/ui-verify.ts`: overflow, off-screen controls, broken images as soft
  * expects; clipped / overlapping / small targets as data in `<name>.json`) plus the measured claim of the row.
  * Evidence `U06v_<row id>_<slug>_<width>.png` + `U06v_<row id>_<slug>.json`.
  *
@@ -33,7 +33,7 @@ import { LONG_FLOOR_NAME, createLongNameProject, drawingPathOrSkip, labelVia, li
 import { seedVersionLadder } from './support/p06/versions';
 import { addProjectMember, poolUser, signInPoolUser } from './support/phase03Seed';
 import { ADMIN_STATE_FILE as ADMIN_STORAGE_STATE_FILE } from './support/p06/adminState';
-import { UI_VIEWPORTS, verifyUi } from './support/ui-verify';
+import { P06_VIEWPORTS, verifyUi } from './support/p06/viewports';
 import { VH, banner, diffTab, floorSelect, heading, toast, versionList, versionRow } from './support/p06/versionMocks';
 
 /** 4 widths × (load + diff / dialog / restore round trip). */
@@ -193,7 +193,7 @@ test.describe('U06v SCR-32 version history — PV (QA-06b P7)', () => {
         });
       });
 
-      await test.step('[32-F-005] label dialog open: fits the viewport (width 480 max) at 375', async () => {
+      await test.step('[32-F-005] label dialog open: fits the viewport (width 480 max)', async () => {
         await verifyUi(
           page,
           'U06v_32-F-005_label-dialog',
@@ -206,7 +206,7 @@ test.describe('U06v SCR-32 version history — PV (QA-06b P7)', () => {
             expect.soft(box.width, 'dialog width').toBeLessThanOrEqual(481); // VD:424-445 width 480
             expect.soft(withinWidth(p, box), 'dialog inside the viewport').toBe(true);
           },
-          UI_VIEWPORTS,
+          P06_VIEWPORTS,
           { fullPage: false },
         );
       });
@@ -277,7 +277,7 @@ test.describe('U06v SCR-32 version history — PU (QA-06b P7)', () => {
             await expect.soft(dialog.getByRole('button', { name: 'Để nguyên', exact: true })).toBeVisible();
             expect.soft(withinWidth(p, await boxOf(dialog)), 'dialog inside the viewport').toBe(true);
           },
-          UI_VIEWPORTS,
+          P06_VIEWPORTS,
           { fullPage: false },
         );
       });
@@ -311,7 +311,7 @@ test.describe('U06v SCR-32 version history — PU (QA-06b P7)', () => {
             await expect.soft(message.getByRole('button', { name: VH.undo, exact: true })).toBeVisible();
             expect.soft(withinWidth(p, await boxOf(message)), 'toast inside the viewport').toBe(true);
           },
-          UI_VIEWPORTS,
+          P06_VIEWPORTS,
           { fullPage: false },
         );
       });
@@ -510,7 +510,7 @@ test.describe('U06v SCR-32 version history — PM (QA-06b P7)', () => {
             expect.soft(box.y >= -1 && box.y + box.height <= (viewport?.height ?? 0) + 1, 'popup inside the viewport height').toBe(true);
             expect.soft(await popup.evaluate((el) => el.scrollHeight > el.clientHeight), 'long list scrolls').toBe(true);
           },
-          UI_VIEWPORTS,
+          P06_VIEWPORTS,
           { fullPage: false },
         );
       });

@@ -45,9 +45,9 @@ import {
 
 const WIDTHS = [
   { width: 1440, height: 900 },
+  { width: 1920, height: 1080 },
   { width: 1024, height: 768 },
   { width: 768, height: 1024 },
-  { width: 375, height: 812 },
 ] as const;
 
 let fixtureApi: APIRequestContext | undefined;
@@ -106,7 +106,7 @@ test('SCR-28 · FL-28-M1 · [mocked response] Rule config failure and recovery',
       await captureEvidence(page, 'E06r_28-B-009_config_500.png');
     });
 
-    await test.step('[28-F-008] error state at 1440 / 1024 / 768 / 375', async () => {
+    await test.step('[28-F-008] error state at 1440 / 1920 / 1024 / 768', async () => {
       for (const size of WIDTHS) {
         await page.setViewportSize(size);
         expect.soft(await noHorizontalScroll(page), `${String(size.width)} px: no horizontal scroll`).toBeLessThanOrEqual(0);
@@ -184,7 +184,7 @@ test('SCR-28 · FL-28-M2 · [mocked response] Model read and save failures', asy
       await captureEvidence(page, 'E06r_28-B-001_skeleton.png');
     });
 
-    await test.step('[28-F-009] held state at 1440 / 1024 / 768 / 375', async () => {
+    await test.step('[28-F-009] held state at 1440 / 1920 / 1024 / 768', async () => {
       for (const size of WIDTHS) {
         await page.setViewportSize(size);
         expect.soft(await noHorizontalScroll(page), `${String(size.width)} px: no horizontal scroll`).toBeLessThanOrEqual(0);

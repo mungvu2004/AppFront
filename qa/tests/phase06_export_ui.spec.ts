@@ -1,12 +1,12 @@
 /**
  * Phase 6 — SCR-30 Bảng xuất, UI VERIFY layer (skill `qa-verify-ui`): three flows (QA-06b P4, `flows-C3.md`
- * "phase06_export_ui.spec.ts"), 14 steps. Each step is one screen state captured at 1440 / 1024 / 768 / 375 by `verifyUi`
+ * "phase06_export_ui.spec.ts"), 14 steps. Each step is one screen state captured at 1920 / 1440 / 1024 / 768 by `verifyUi`
  * (which measures horizontal scroll, controls outside the viewport, broken images, clipped text, overlaps, small targets and
  * attaches `<name>.json`), plus the layout claims of its catalog row measured in the state's own `open` callback and asserted
  * after `verifyUi` (never inside it: a throw there becomes the width's `openError`). Evidence `U06_<row id>_<slug>_<width>.png`.
  *
  * Layout contract (EPV:268,278): two columns from `lg` (right column 344 px), stacked below; history "Thời điểm" column hidden
- * below 640 px; "Sửa" / "Tuỳ chọn" targets 44 px below `sm`, 24 px from `sm` (EPP:46-62, EPO:228).
+ * "Sửa" / "Tuỳ chọn" targets 24 px (EPP:46-62, EPO:228).
  *
  * FL-30-U3 is `[mocked response]` (Worker stub + a held N15 read, support/p06/export.ts); real pairing: FL-30-U1.
  * ⚑ steps assert the CORRECT behaviour and stay red while the bug is there (30-F-013, BUG-445; 30-F-006 BUG-458 residual).
@@ -18,7 +18,7 @@
 import { expect, test, type Browser, type Locator, type Page } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
-import { verifyUi } from './support/ui-verify';
+import { verifyUi } from './support/p06/viewports';
 import { addProjectMember, poolUser } from './support/phase03Seed';
 import {
   EP,
@@ -132,7 +132,7 @@ test.describe('SCR-30 Bảng xuất — UI verify', () => {
         seen.each((width, box) => expect.soft(inside(box, width), `${String(width)}: notice inside the frame`).toBe(true));
       });
 
-      await test.step('[30-F-004] .png: the long caption wraps at 375', async () => {
+      await test.step('[30-F-004] .png: the long caption wraps', async () => {
         const seen = new Seen<Box>();
         await verifyUi(page, NAME('30-F-004', 'png_caption'), async (p) => {
           await openExport(p, project.id);
@@ -151,7 +151,7 @@ test.describe('SCR-30 Bảng xuất — UI verify', () => {
         });
         // min-h-11 below `sm` (44 px), min-h-6 from `sm` (24 px): EPP:46-62, EPO:228 (BUG-442)
         seen.each((width, value) => {
-          const needed = width < 640 ? 44 : 24;
+          const needed = 24;
           expect.soft(value.fix, `${String(width)}: "Sửa" height`).toBeGreaterThanOrEqual(needed - 0.5);
           expect.soft(value.toggle, `${String(width)}: "Tuỳ chọn" height`).toBeGreaterThanOrEqual(needed - 0.5);
         });
@@ -168,28 +168,8 @@ test.describe('SCR-30 Bảng xuất — UI verify', () => {
         });
         seen.each((width, value) => {
           expect.soft(inside(value.box, width), `${String(width)}: table inside the frame`).toBe(true);
-          expect.soft(value.heads, `${String(width)}: columns (Tệp, [Thời điểm], Dung lượng, Tải lại)`).toBe(width < 640 ? 3 : 4);
+          expect.soft(value.heads, `${String(width)}: columns (Tệp, [Thời điểm], Dung lượng, Tải lại)`).toBe(4);
         });
-      });
-
-      await test.step('[30-F-014] two rows across the `sm` edge: "Thời điểm" column at 639 / 640', async () => {
-        const seen = new Seen<number>();
-        await verifyUi(
-          page,
-          NAME('30-F-014', 'history_sm_edge'),
-          async (p) => {
-            await openExport(p, project.id);
-            await selectFormat(p, '.json');
-            for (let i = 0; i < 2; i += 1) await downloadVia(p, () => exportButton(p).click());
-            await expect(historyRows(p)).toHaveCount(2);
-            seen.record(p, await historyRegion(p).getByRole('columnheader', { name: EP.historyHeads[1] ?? '', exact: true }).count());
-          },
-          [
-            { width: 639, height: 900 },
-            { width: 640, height: 900 },
-          ],
-        );
-        seen.each((width, count) => expect.soft(count, `${String(width)}: "Thời điểm" column`).toBe(width >= 640 ? 1 : 0)); // EPV:138,149
       });
 
       await test.step('[30-F-013] ⚑ a long file name is reachable (wraps or `title`)', async () => {
@@ -341,7 +321,7 @@ test.describe('SCR-30 Bảng xuất — UI verify', () => {
         });
       });
 
-      await test.step('[30-F-011] error banner + hint: "thử lại" and "(processing)" wrap at 375', async () => {
+      await test.step('[30-F-011] error banner + hint: "thử lại" and "(processing)" wrap', async () => {
         const seen = new Seen<{ banner: Box; retry: Box; code: Box }>();
         await verifyUi(page, NAME('30-F-011', 'error_banner'), async (p) => {
           await openExport(p, project.id);

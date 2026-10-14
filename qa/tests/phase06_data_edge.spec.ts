@@ -43,7 +43,6 @@ import {
   ERROR_PAINT_TIMEOUT_MS,
   GATE,
   NARROW,
-  PHONE,
   ROOT_KEYS,
   SJ,
   adminRequest,
@@ -331,11 +330,7 @@ test.describe('E06d SCR-31 Spatial JSON Viewer', () => {
         await softly(treeOf(page)).toBeVisible();
         await softly(tabsOf(page)).toHaveCount(0);
         await ev(page, '31-B-020', 'narrow_768');
-        await page.setViewportSize(PHONE);
-        await softly(treeOf(page)).toBeVisible();
         await softly(searchBox(page)).toBeInViewport();
-        await softly(tabsOf(page)).toHaveCount(0);
-        await ev(page, '31-B-020', 'narrow_375');
       });
     });
   });

@@ -27,7 +27,7 @@ import { expect, test, type Route } from '@playwright/test';
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { waitForApi } from '../../e2e/fullstack/apiWatch';
 import { RETRY_DELAYS_MS } from '../../src/lib/http/retry';
-import { verifyUi } from './support/ui-verify';
+import { verifyUi } from './support/p06/viewports';
 import {
   DESKTOP,
   DOOR_WIDTH,
