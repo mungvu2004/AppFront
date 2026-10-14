@@ -13,7 +13,8 @@ import { adminApi, apiAs, DESKTOP, gotoAs, roleUser, signInRole } from './suppor
 test.use({ viewport: DESKTOP });
 
 const FORBIDDEN_TITLE = 'Không có quyền truy cập';
-const LIBRARY_BANNER = 'Vai trò của bạn chỉ xem được thư viện, nên mọi hành động sửa danh mục không hiện'; // useModelLibrary.ts:102
+const LIBRARY_BANNER =
+  'Vai trò của bạn chỉ xem được thư viện, nên mọi hành động sửa danh mục không hiện'; // useModelLibrary.ts:102
 const TRAINING_BODY = 'Chỉ quản trị viên hệ thống xem được trang huấn luyện.'; // TrainingJobs.tsx:38
 const REGISTRY_BODY = 'Chỉ quản trị viên hệ thống xem được model AI.'; // ModelRegistry.tsx:38
 const USERS_ALERT =
@@ -32,7 +33,9 @@ const LOG_PATTERN = /^\/api\/(admin\/ml\/|users$|library)/u;
 
 // UserManagementTable.tsx:59 `Vai của <name>` (Select.Label sr-only)
 const roleSelect = (page: Page, name?: string) =>
-  page.getByRole('button', { name: new RegExp(name === undefined ? '^Vai của ' : `^Vai của ${name}`, 'u') });
+  page.getByRole('button', {
+    name: new RegExp(name === undefined ? '^Vai của ' : `^Vai của ${name}`, 'u'),
+  });
 
 // UserManagementPermissionMatrix.tsx: one <li> per permission row, 3 sr-only labels (one per role), allowed cells draw a check mark
 const MATRIX_ROWS = Object.keys(permissionMatrix).length;
@@ -41,9 +44,13 @@ const MATRIX_ALLOWED = Object.values(permissionMatrix).reduce(
   0,
 );
 const matrixRows = (page: Page) => page.locator('li').filter({ has: page.locator('.sr-only') });
-const focusInsideAlert = (page: Page) => page.evaluate(() => document.activeElement?.closest('[role="alert"]') != null);
+const focusInsideAlert = (page: Page) =>
+  page.evaluate(() => document.activeElement?.closest('[role="alert"]') != null);
 
-test('SCR-34/35/36/37 · FL-9A-01 · viewer · four admin screens read-only/forbidden', async ({ page, context }) => {
+test('SCR-34/35/36/37 · FL-9A-01 · viewer · four admin screens read-only/forbidden', async ({
+  page,
+  context,
+}) => {
   test.setTimeout(150_000);
   const admin = await adminApi();
   const viewer = await roleUser(admin, 'viewer', 'admin');
@@ -142,7 +149,9 @@ test('SCR-34/35/36/37 · FL-9A-01 · viewer · four admin screens read-only/forb
 
   await test.step('[9A-D-025] users: forbidden alert', async () => {
     await page.goto(ROUTES.adminUsers);
-    await expect(page.getByRole('alert').filter({ hasText: USERS_ALERT })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('alert').filter({ hasText: USERS_ALERT })).toBeVisible({
+      timeout: 15_000,
+    });
     await captureEvidence(page, '9A-D-025_viewer-users-forbidden');
   });
   const usersMark = log.urls().length;
@@ -155,7 +164,9 @@ test('SCR-34/35/36/37 · FL-9A-01 · viewer · four admin screens read-only/forb
     expect.soft(MATRIX_ROWS).toBe(7);
     await expect.soft(matrixRows(page)).toHaveCount(MATRIX_ROWS);
     await expect.soft(matrixRows(page).first().locator('.sr-only')).toHaveCount(3);
-    await expect.soft(page.locator('li span[aria-hidden="true"]', { hasText: '✓' })).toHaveCount(MATRIX_ALLOWED);
+    await expect
+      .soft(page.locator('li span[aria-hidden="true"]', { hasText: '✓' }))
+      .toHaveCount(MATRIX_ALLOWED);
     await captureEvidence(page, '9A-D-026_viewer-users-matrix');
   });
   await test.step('[9A-D-027] users: no role select and no other pool user email', async () => {
@@ -186,7 +197,9 @@ test('SCR-34/35/36/37 · FL-9A-02 · engineer · four admin screens', async ({ p
 
   await test.step('[9A-D-005] library: read-only banner', async () => {
     await page.goto(ROUTES.adminModels);
-    await expect(page.getByRole('alert').filter({ hasText: LIBRARY_BANNER })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('alert').filter({ hasText: LIBRARY_BANNER })).toBeVisible({
+      timeout: 15_000,
+    });
     await captureEvidence(page, '9A-D-005_engineer-library');
   });
   await test.step('[9A-D-006] library: search and a sample item visible', async () => {
@@ -237,7 +250,9 @@ test('SCR-34/35/36/37 · FL-9A-02 · engineer · four admin screens', async ({ p
 
   await test.step('[9A-D-029] users: forbidden alert', async () => {
     await page.goto(ROUTES.adminUsers);
-    await expect(page.getByRole('alert').filter({ hasText: USERS_ALERT })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('alert').filter({ hasText: USERS_ALERT })).toBeVisible({
+      timeout: 15_000,
+    });
     await captureEvidence(page, '9A-D-029_engineer-users-forbidden');
   });
   const usersMark = log.urls().length;
@@ -258,7 +273,9 @@ test('SCR-34/35/36/37 · FL-9A-02 · engineer · four admin screens', async ({ p
   });
 });
 
-test('SCR-34/35/36/37 · FL-9A-03 · anonymous · four routes redirect to login', async ({ browser }) => {
+test('SCR-34/35/36/37 · FL-9A-03 · anonymous · four routes redirect to login', async ({
+  browser,
+}) => {
   const context = await browser.newContext({ viewport: DESKTOP });
   const page = await context.newPage();
   try {
@@ -284,7 +301,10 @@ test('SCR-34/35/36/37 · FL-9A-03 · anonymous · four routes redirect to login'
   }
 });
 
-test('SCR-34/35/36/37 · FL-9A-04 · admin · positive reference + self guards', async ({ page, context }) => {
+test('SCR-34/35/36/37 · FL-9A-04 · admin · positive reference + self guards', async ({
+  page,
+  context,
+}) => {
   test.setTimeout(150_000);
   const admin = await adminApi();
   const me = await roleUser(admin, 'admin', 'admin');
@@ -295,21 +315,35 @@ test('SCR-34/35/36/37 · FL-9A-04 · admin · positive reference + self guards',
 
   await test.step('[9A-D-007] library: no read-only banner, list visible', async () => {
     await page.goto(ROUTES.adminModels);
-    await expect(page.getByRole('textbox', { name: SEARCH_MODEL })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('textbox', { name: SEARCH_MODEL })).toBeVisible({
+      timeout: 15_000,
+    });
     await expect(page.getByText(LIBRARY_BANNER)).toHaveCount(0);
     await captureEvidence(page, '9A-D-007_admin-library');
   });
   await test.step('[9A-D-015] training jobs: create button and tabs', async () => {
     await page.goto(ROUTES.adminTrainingJobs);
-    await expect.soft(page.getByRole('button', { name: CREATE_JOB })).toBeVisible({ timeout: 15_000 });
-    await expect.soft(page.getByRole('tablist', { name: 'Phần của trang huấn luyện' })).toBeVisible();
+    await expect
+      .soft(page.getByRole('button', { name: CREATE_JOB }))
+      .toBeVisible({ timeout: 15_000 });
+    await expect
+      .soft(page.getByRole('tablist', { name: 'Phần của trang huấn luyện' }))
+      .toBeVisible();
     await expect.soft(forbiddenHeading).toHaveCount(0);
     await captureEvidence(page, '9A-D-015_admin-jobs');
   });
   await test.step('[9A-D-024] model registry: family select visible', async () => {
     await page.goto(ROUTES.adminTrainingModels);
     // UNKNOWN — NEED VERIFICATION: family select accessible name (ModelRegistry.tsx); first combobox/button in main used
-    await expect.soft(page.getByRole('main').getByRole('combobox').or(page.getByRole('main').getByRole('button')).first()).toBeVisible({ timeout: 15_000 });
+    await expect
+      .soft(
+        page
+          .getByRole('main')
+          .getByRole('combobox')
+          .or(page.getByRole('main').getByRole('button'))
+          .first(),
+      )
+      .toBeVisible({ timeout: 15_000 });
     await expect.soft(forbiddenHeading).toHaveCount(0);
     await captureEvidence(page, '9A-D-024_admin-registry');
   });
@@ -338,19 +372,29 @@ test('SCR-34/35/36/37 · FL-9A-04 · admin · positive reference + self guards',
     await expect.soft(roleSelect(page, other.name)).toBeEnabled();
     await captureEvidence(page, '9A-D-034_admin-other-role');
   });
-  const meApi = await apiAs(me);
-  await test.step('[9A-G-008] PATCH own role is rejected 422 USER_SELF_MODIFICATION', async () => {
-    const res = await meApi.patch(`/api/users/${me.id}/role`, { data: { role: 'engineer' } });
-    expect.soft(res.status()).toBe(422);
-    expect.soft(JSON.stringify(await res.json())).toContain('USER_SELF_MODIFICATION');
-    expect.soft(JSON.stringify(await (await meApi.get('/api/me')).json())).toContain('admin');
-    await captureEvidence(page, '9A-G-008_admin-self-role-422');
-  });
-  await test.step('[9A-G-009] POST disable on self is rejected 422 USER_SELF_MODIFICATION', async () => {
-    const res = await meApi.post(`/api/users/${me.id}/disable`);
-    expect.soft(res.status()).toBe(422);
-    expect.soft(JSON.stringify(await res.json())).toContain('USER_SELF_MODIFICATION');
-    expect.soft((await meApi.get('/api/me')).status()).toBe(200);
-    await captureEvidence(page, '9A-G-009_admin-self-disable-422');
-  });
+  // own pool admin: if the BE guard breaks, only this user is demoted/disabled, never the shared admin
+  const selfUser = await roleUser(admin, 'admin', 'admin-self');
+  const meApi = await apiAs(selfUser);
+  try {
+    await test.step('[9A-G-008] PATCH own role is rejected 422 USER_SELF_MODIFICATION', async () => {
+      const res = await meApi.patch(`/api/users/${selfUser.id}/role`, {
+        data: { role: 'engineer' },
+      });
+      expect.soft(res.status()).toBe(422);
+      expect.soft(JSON.stringify(await res.json())).toContain('USER_SELF_MODIFICATION');
+      expect.soft(JSON.stringify(await (await meApi.get('/api/me')).json())).toContain('admin');
+      await captureEvidence(page, '9A-G-008_admin-self-role-422');
+    });
+    await test.step('[9A-G-009] POST disable on self is rejected 422 USER_SELF_MODIFICATION', async () => {
+      const res = await meApi.post(`/api/users/${selfUser.id}/disable`);
+      expect.soft(res.status()).toBe(422);
+      expect.soft(JSON.stringify(await res.json())).toContain('USER_SELF_MODIFICATION');
+      expect.soft((await meApi.get('/api/me')).status()).toBe(200);
+      await captureEvidence(page, '9A-G-009_admin-self-disable-422');
+    });
+  } finally {
+    // restore if a request slipped through (BE router: users/router.py PATCH role, POST enable)
+    await admin.patch(`/api/users/${selfUser.id}/role`, { data: { role: 'admin' } });
+    await admin.post(`/api/users/${selfUser.id}/enable`);
+  }
 });
