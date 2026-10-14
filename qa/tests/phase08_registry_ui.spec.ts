@@ -210,7 +210,7 @@ test.describe('P08 SCR-36 registry UI', () => {
         await btn.click();
         const d = p.getByRole('dialog', { name: /^Kích hoạt .+ cho .+\?$/u });
         await d.getByRole('button', { name: 'Kích hoạt', exact: true }).click(); // PUT answered by the mock (409)
-        await expect(p.getByRole('alert').first()).toBeVisible();
+        await expect(p.getByRole('alert').filter({ hasText: 'vừa được đổi ở nơi khác' }).first()).toBeVisible(); // conflictNotice, useModelRegistry.ts:174
       }, VPS, MODAL_SHOT);
       expect(state.puts, 'PUT answered by the mock').toBeGreaterThan(0);
     });

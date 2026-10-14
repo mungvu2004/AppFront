@@ -86,7 +86,14 @@ test.describe('P08 SCR-34 library mocked edge', () => {
         await captureEvidence(page, 'E08_34L-B-003_500');
       });
       await test.step('[34L-B-004] ⚑ Read error offers a retry that refetches the list', async () => {
-        await expect.soft(page.getByRole('button', { name: 'Thử lại', exact: true })).toBeVisible(); // UML:570-572 exists, ML:93-99 never renders it
+        const retryBtn = page.getByRole('button', { name: 'Thử lại', exact: true });
+        await expect.soft(retryBtn).toBeVisible(); // UML:570-572 exists, ML:93-99 never renders it
+        if ((await retryBtn.count()) > 0) {
+          state.mode = 'real';
+          const again = page.waitForResponse((r) => r.request().method() === 'GET' && LIST.test(r.url()));
+          await retryBtn.click();
+          expect.soft((await again).status(), 'retry refetches GET /api/library').toBe(200);
+        }
         await captureEvidence(page, 'E08_34L-B-004_retry');
       });
       await test.step('[34L-B-005] List network failure (aborted): alert, no toolbar', async () => {
