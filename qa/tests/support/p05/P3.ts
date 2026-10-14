@@ -26,7 +26,9 @@ import type { APIRequestContext, Browser, BrowserContext, Locator, Page, Request
 import { ROUTES } from '../../../../e2e/fixtures/routes';
 import { dismissTour } from '../../../../e2e/fixtures/tour';
 import { AUTOSAVE_TIMEOUT_MS, PASCAL_RENDER_TIMEOUT_MS, readBaseUrl } from '../../../../e2e/fullstack/env';
-import { ensureAdminSession } from '../auth';
+import { signedInApi } from '../api';
+import { ensureAdminSession, readAdminCredentials } from '../auth';
+import { deleteSeededProject } from '../drawingSeed';
 import { createQcProject, deleteProject, layerApiOf, layerPathOf, qcLayer, writeLayer, type LayerApi, type SeededFloor } from '../layerSeed';
 import { addProjectMember, poolUser, signInPoolUser, type PoolRole, type PoolUser } from '../phase03Seed';
 import { ADMIN_STORAGE_STATE_FILE } from '../state';
@@ -120,6 +122,10 @@ export const SAVE = {
   reload: 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.',
 } as const;
 
+/**
+ * Save-line text of a blocked floor: the SLS message, prefixed with the floor name ("Tầng 1: …", run-051b E1-T15).
+ */
+export const blockedLine = (message: string): RegExp => new RegExp(`(^|: )${escapeRegExp(message)}$`, 'u');
 /** useSaveIndicator "Đã lưu lúc HH:MM" (phase03_settings_edge SAVED_AT, phase04_qc_layers.spec.ts:1004). */
 export const SAVED_AT = /^Đã lưu lúc \d{1,2}:\d{2}$/u;
 /** pascalViewerTypes.ts caption once Pascal has built the scene (phase05_3d_viewer.spec.ts:76-77). */
@@ -267,12 +273,29 @@ export async function openAdminSession(browser: Browser, options: SessionOptions
 export async function closeAdminSession(session: AdminSession | undefined): Promise<void> {
   if (session === undefined) return;
   for (const id of session.projects) {
-    const problem = await deleteProject(session.api, id);
+    let problem = await deleteProject(session.api, id);
+    // run-051b E1-M1: the fixture Bearer can be dead by the end of a flow (401) — fall back to a fresh admin API login.
+    if (problem !== null) problem = await deleteWithAdminLogin(id);
     if (problem !== null) test.info().annotations.push({ type: 'cleanup', description: problem });
   }
   await session.admin.dispose().catch(() => undefined);
   await session.context.storageState({ path: ADMIN_STORAGE_STATE_FILE }).catch(() => undefined);
   await session.context.close().catch(() => undefined);
+}
+
+/** One admin API login (support/api.ts) + `deleteSeededProject`; returns the problem or null, never throws. */
+async function deleteWithAdminLogin(projectId: string): Promise<string | null> {
+  try {
+    const { email, password } = readAdminCredentials();
+    const admin = await signedInApi(email, password);
+    try {
+      return await deleteSeededProject(admin, projectId);
+    } finally {
+      await admin.dispose();
+    }
+  } catch (error) {
+    return `cleanup ${projectId}: ${String(error)}`;
+  }
 }
 
 /** Pool user of `role`/`slot` + N3 member of `projectId` + one browser login in a fresh context (no mocked session). */
@@ -460,12 +483,19 @@ export function floorOf(seeded: Seeded, name: string): SeededFloor {
   return floor;
 }
 
-/** +W2: one #35 PUT from the API that writes the floor's CURRENT layer back (new revision, same content). */
+/**
+ * +W2: one #35 PUT from the API on the floor's current layer with ONE real change (the last room's name + " W2"). An unchanged
+ * layer is not a write for the BE (`spatial_write/writer.py:340` `_unchanged`, no new revision — run-051b E1-T14).
+ */
 export async function touchLayer(api: LayerApi, projectId: string, floorId: string): Promise<void> {
   const read = await api.request.get(layerPathOf(projectId, floorId), { headers: api.headers });
   expect(read.status(), 'W2: GET N16').toBe(200);
   const layer = ((await read.json()) as Json).layer as Json;
-  await writeLayer(api, projectId, floorId, () => layer);
+  const rooms = (layer.rooms as Json[] | undefined) ?? [];
+  const last = rooms.at(-1);
+  if (last === undefined) throw new Error('W2: the floor has no room to change');
+  const changed = { ...layer, rooms: [...rooms.slice(0, -1), { ...last, name: `${String(last.name)} W2` }] };
+  await writeLayer(api, projectId, floorId, () => changed);
 }
 
 /* ---- screen ------------------------------------------------------------------------------------------------------- */
@@ -524,8 +554,9 @@ export const historyRegion = (page: Page): Locator => page.getByRole('region', {
 /** PV:279-282 — the save line (the frame caption has no `aria-live`). */
 export const saveLine = (page: Page): Locator =>
   page.getByRole('region', { name: PV.frame, exact: true }).locator('p[role="status"][aria-live="polite"]');
+/** NotificationHost joins "title — description" into one string (NotificationHost.tsx toToastMessage; run-051b E1-T9). */
 export const toast = (page: Page, title: string): Locator =>
-  page.getByRole('region', { name: PV.toasts, exact: true }).getByText(title, { exact: true });
+  page.getByRole('region', { name: PV.toasts, exact: true }).getByText(new RegExp(`^${escapeRegExp(title)}( — |$)`, 'u'));
 
 /** Clipboard text (context created with `clipboard: true`). */
 export const readClipboard = (page: Page): Promise<string> => page.evaluate(() => navigator.clipboard.readText());

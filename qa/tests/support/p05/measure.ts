@@ -781,8 +781,9 @@ export const discCount = (page: Page): Promise<number> => overlay(page).locator(
 
 /** A fresh draft: a click at each already-known pixel. */
 export async function makeDraft(page: Page, pixels: readonly Point[]): Promise<void> {
+  const base = await discCount(page);
   for (const pixel of pixels) await clickAt(page, pixel);
-  await expect(pinButton(page), "a real draft exists after the picks").toBeVisible();
+  await expectPicks(page, base, pixels.length); // the pin button shows after one point (E2-B3): count the drawn picks
 }
 
 /* ---- flow runner: one project per flow, deleted in finally ---- */
@@ -895,4 +896,14 @@ export async function hoverOffModel(page: Page): Promise<void> {
   if (box === null) throw new Error('viewport has no bounding box');
   const x = bounds.x > box.x + 60 ? bounds.x - 40 : box.x + 20;
   await page.mouse.move(x, bounds.y + bounds.height / 2);
+}
+
+/**
+ * Gate "the n-th pick landed": the pin button shows after ONE point (bug E2-B3), so it proves nothing. With the pointer off the
+ * model the draft holds exactly its picks (no live cursor point), so the endpoint discs of the overlay equal `base + n`;
+ * `base` = `discCount` read before the first pick.
+ */
+export async function expectPicks(page: Page, base: number, n: number): Promise<void> {
+  await hoverOffModel(page);
+  await expect.poll(() => discCount(page), { message: `${String(n)} picks drawn in the draft` }).toBe(base + n);
 }
