@@ -17,12 +17,10 @@ import {
   NOT_FOUND_PATH,
   NOT_FOUND_TITLE,
   RS,
-  VH,
   dialogOf,
   longSlug,
   openSettingsTab,
   ruleConfigApiRe,
-  withVersionsProject,
 } from './support/p11/P9';
 import { verifyUi } from './support/ui-verify';
 
@@ -75,7 +73,7 @@ test.describe('P11 project UI', () => {
       });
 
       await test.step('[11P-F-003] hộp "Gỡ {name} khỏi dự án?" 4 khổ', async () => {
-        const member = await poolUser(api, 'engineer', p11Slot('project-ui'));
+        const member = await poolUser(api, 'engineer', p11Slot('ui-project'));
         await addProjectMember(api, project.projectId, member.email);
         await verifyUi(
           page,
@@ -99,39 +97,13 @@ test.describe('P11 project UI', () => {
         }, DESKTOP_VIEWPORTS);
         for (const floor of project.floors) {
           const res = await api.delete(`/api/floors/${floor.id}`);
-          expect(res.status(), `setup: DELETE /api/floors/${floor.id}`).toBeLessThan(300);
+          expect(res.status(), `setup: DELETE /api/floors/${floor.id}`).toBe(200); // BE floors/router.py:38 FloorOut
         }
         await verifyUi(page, 'U11_11P-F-004_danger_tab_empty', async (p) => {
           await openSettingsTab(p, project.projectId, DANGER.tab);
           await expect(p.getByText(DANGER.emptyTitle, { exact: true })).toBeVisible(); // DZ:72
           await expect(p.getByText(DANGER.emptyText, { exact: true })).toBeVisible(); // DZ:73
         }, DESKTOP_VIEWPORTS);
-      });
-    });
-  });
-
-  test('SCR-32 · FL-11P-11 · admin · 4 khổ hộp phục hồi', async ({ browser }) => {
-    test.setTimeout(420_000);
-    await withVersionsProject(browser, 'p11-project-ui-v', async ({ flow, projectId, floorName }) => {
-      const { page } = flow;
-      await test.step('[11P-F-006] hộp phục hồi và hộp "…còn thay đổi chưa lưu được…" 4 khổ', async () => {
-        await verifyUi(
-          page,
-          'U11_11P-F-006_restore_dialog',
-          async (p) => {
-            await p.goto(ROUTES.project.versions(projectId));
-            const restore = p.getByRole('button', { name: VH.restore, exact: true }); // VHV:189
-            await expect(restore).toBeEnabled();
-            await restore.click();
-            await expect(p.getByRole('dialog').filter({ hasText: `của ${floorName}?` })).toBeVisible(); // VHM:539
-          },
-          DESKTOP_VIEWPORTS,
-          { fullPage: false },
-        );
-        // UNKNOWN — NEED VERIFICATION: the "còn thay đổi chưa lưu được" (discard, VHM:525) dialog needs a floor whose
-        // autosave flush fails while unsaved (UVH:322-340); no real-stack recipe is known, so only the restore dialog is shot.
-        test.info().annotations.push({ type: 'unknown', description: 'F-006 discard dialog: no real-stack way to make the floor dirty (UVH:334)' });
-        await captureEvidence(page, 'U11_11P-F-006_unknown_discard_note.png');
       });
     });
   });

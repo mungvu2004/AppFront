@@ -9,7 +9,10 @@ import { expect, test } from '@playwright/test';
 import type { Page, Route } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
+import { dismissTour, TOUR_APPEAR_TIMEOUT_MS } from '../../e2e/fixtures/tour';
 import { captureEvidence } from './support/evidence';
+import { DESKTOP_VIEWPORTS } from './support/p11/common';
+import { verifyUi } from './support/ui-verify';
 import { layerPathOf } from './support/layerSeed';
 import { addProjectMember, poolUser } from './support/phase03Seed';
 import { withAdminProject } from './support/p03/P10';
@@ -223,6 +226,59 @@ test.describe('P11 project mocked edge', () => {
         await expect.soft(page.getByText('Chưa lưu được bộ luật của dự án này.')).toBeVisible(); // ruleSettingsGateway.ts:311
         await expect.soft(page.getByText(/^Đã lưu/u)).toHaveCount(0); // never claims "saved" (SaveIndicator.tsx:38)
         await captureEvidence(page, 'E11_11P-B-015_reset_put_5xx.png');
+      });
+    });
+  });
+
+  test('SCR-32 · FL-11P-11 · admin · [mocked response] 4 khổ hộp phục hồi + hộp chưa lưu được', async ({ browser }) => {
+    test.setTimeout(420_000);
+    await withVersionsProject(browser, 'p11-project-ui-v', async ({ flow, projectId, floorId, floorName }) => {
+      const { page } = flow;
+      await test.step('[11P-F-006] hộp phục hồi và hộp "…còn thay đổi chưa lưu được…" 4 khổ', async () => {
+        await verifyUi(
+          page,
+          'U11_11P-F-006_restore_dialog',
+          async (p) => {
+            await p.goto(ROUTES.project.versions(projectId));
+            const restore = p.getByRole('button', { name: VH.restore, exact: true }); // VHV:189
+            await expect(restore).toBeEnabled();
+            await restore.click();
+            await expect(p.getByRole('dialog').filter({ hasText: `của ${floorName}?` })).toBeVisible(); // VHM:539
+          },
+          DESKTOP_VIEWPORTS,
+          { fullPage: false },
+        );
+        // Mock: every layer PUT answers 503, so approving a wall leaves the floor unsaved (UVH:322-340 flushFirst).
+        await page.route(
+          (url) => url.pathname === layerPathOf(projectId, floorId),
+          async (route) => {
+            if (route.request().method() === 'PUT') await route.fulfill(json(503, { detail: 'qa mocked layer 503' }));
+            else await route.continue();
+          },
+        );
+        await page.goto(ROUTES.project.walls(projectId, floorId));
+        await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
+        await page.getByRole('listbox', { name: 'Danh sách đoạn tường', exact: true }).getByRole('option').first().click(); // WL:58
+        const failed = page.waitForResponse((r) => r.request().method() === 'PUT' && r.status() === 503);
+        await page.getByRole('button', { name: 'Duyệt đoạn này', exact: true }).click(); // WI:49
+        await failed;
+        // Client-side navigation keeps the store (a goto would drop the unsaved floor): pushState + popstate.
+        await page.evaluate((path) => {
+          window.history.pushState({}, '', path);
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        }, ROUTES.project.versions(projectId));
+        const restore = page.getByRole('button', { name: VH.restore, exact: true });
+        await expect(restore).toBeEnabled();
+        await restore.click();
+        const discard = page.getByRole('dialog').filter({ hasText: 'còn thay đổi chưa lưu được' }); // VHM:525
+        await expect(discard).toBeVisible();
+        for (const vp of DESKTOP_VIEWPORTS) {
+          await page.setViewportSize(vp);
+          await expect(discard).toBeVisible();
+          const overflow = await discard.evaluate((el) => el.scrollWidth - el.clientWidth);
+          expect.soft(overflow, `${vp.width}: discard dialog does not overflow`).toBeLessThanOrEqual(0);
+          await captureEvidence(page, `U11_11P-F-006_discard_dialog_${vp.width}.png`, { fullPage: false });
+        }
       });
     });
   });
