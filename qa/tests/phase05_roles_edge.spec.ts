@@ -42,7 +42,7 @@ import {
   sheetRow,
   signInViaForm,
   tapWall,
-  textOf,
+  visibleWithin,
   writesSince,
 } from './support/p05/P5';
 
@@ -153,8 +153,6 @@ test.describe('SCR-27 / SCR-X5 — roles', () => {
         await openMobile(viewerPhone.page, projectId);
         await expect(notFound(viewerPhone.page)).toHaveCount(0);
         await expect(forbidden(viewerPhone.page)).toHaveCount(0);
-        await tapWall(viewerPhone.page);
-        viewerInvite = (await inviteText(viewerPhone.page).count()) > 0;
         await viewerPhone.page.keyboard.press('Escape');
         await captureEvidence(viewerPhone.page, 'E05_X5-D-001_viewer_three_routes.png');
       });
@@ -168,12 +166,14 @@ test.describe('SCR-27 / SCR-X5 — roles', () => {
       });
 
       await test.step('[X5-D-003] engineer, same routes: /3d not read-only and the mobile invite; the viewer had /3d read-only and no invite', async () => {
+        await tapWall(viewerPhone.page); // UNKNOWN — NEED VERIFICATION (tap geometry); a read, no write
+        viewerInvite = (await inviteText(viewerPhone.page).count()) > 0;
         const engineerDesktop = await openAs(browser, engineer);
         opens.push(engineerDesktop);
         const engineerPhone = await openAs(browser, engineer, PHONE, true);
         opens.push(engineerPhone);
         await openPascal(engineerDesktop.page, projectId);
-        const engineerEditable = (await pascalEditCue(engineerDesktop.page).count()) > 0; // C1 23-D cue
+        const engineerEditable = await visibleWithin(pascalEditCue(engineerDesktop.page), 15_000); // C1 23-D cue, waited for (the menu mounts after the caption)
         await openMobile(engineerPhone.page, projectId);
         await tapWall(engineerPhone.page);
         expect.soft(engineerEditable, 'engineer /3d is not read-only').toBe(true);
@@ -223,8 +223,8 @@ test.describe('SCR-27 / SCR-X5 — roles', () => {
           await who.page.setViewportSize(viewport);
           await who.page.goto(url);
           const alert = who.page.getByRole('alert').filter({ hasText: GATE.notFoundTitle });
-          await expect(alert).toBeVisible();
-          out.texts.push(await textOf(alert));
+          await expect.soft(alert).toBeVisible();
+          out.texts.push(await alert.first().textContent({ timeout: 2_000 }).then((t) => (t ?? '').replace(/\s+/gu, ' ').trim(), () => ''));
           out.backs.push(await alert.getByRole('button', { name: GATE.backToProjects, exact: true }).count());
         }
         out.statuses = who.api.slice(mark).filter((entry) => entry.method === 'GET' && entry.path === `/api/projects/${projectId}`).map((entry) => entry.status);
@@ -280,6 +280,7 @@ test.describe('SCR-27 / SCR-X5 — roles', () => {
       projectId = await seedWallOne(admin, 'x5-03');
       const dem = await poolUser(admin, 'engineer', 'p05-roles-demote');
       demoted = dem;
+      expect(await setUserRole(admin, dem, 'engineer'), 'setup: pool user starts as engineer (a stuck viewer slot would make #41 a no-op)').toBe(200);
       await addProjectMember(admin, projectId, dem.email);
       const routes = routesOf(projectId);
       const targets = [`/projects/${projectId}/3d?view=exploded`, routes.measure, routes.mobile];
@@ -336,7 +337,13 @@ test.describe('SCR-27 / SCR-X5 — roles', () => {
         await captureEvidence(phone.page, 'E05_X5-D-009_demoted_three_routes.png');
       });
     } finally {
-      if (demoted !== undefined) await setUserRole(admin, demoted, 'engineer'); // restore the pool user
+      if (demoted !== undefined) {
+        try {
+          expect.soft(await setUserRole(admin, demoted, 'engineer'), 'restore the pool user to engineer').toBe(200);
+        } catch (error) {
+          console.error(`restore role failed: ${String(error)}`);
+        }
+      }
       for (const open of opens) await closePage(open);
       if (projectId !== '') await deleteSeededProject(admin, projectId);
       await admin.dispose();

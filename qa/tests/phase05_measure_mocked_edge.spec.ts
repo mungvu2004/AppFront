@@ -93,9 +93,11 @@ test.describe('SCR-25 measure — mocked responses', () => {
         await dropMocks();
         const retry = alert.getByRole('button', { name: MT.retry, exact: true });
         // BUG-474 / BUG-495: a covered button is an app bug (minimap over the alert), not a missing refetch.
-        expect.soft(await trialClickBlocker(retry), '"Thử lại" in the load-error alert receives the click').toBeNull();
+        const blocker = await trialClickBlocker(retry);
+        expect.soft(blocker, '"Thử lại" in the load-error alert receives the click').toBeNull();
         const refetch = waitForApi(page, 'GET', measurementsRe(projectId), [200]);
-        await retry.click(); // UMT:886-890 refetch
+        if (blocker === null) await retry.click(); // UMT:886-890 refetch
+        else await retry.dispatchEvent('click'); // covered: the bug is reported above, the flow goes on
         await refetch;
         await expect.soft(alert).toHaveCount(0);
         await expect.soft(page.getByRole('button', { name: rowLabel(record.name) })).toHaveCount(1);
@@ -142,13 +144,13 @@ test.describe('SCR-25 measure — mocked responses', () => {
       const dropMocks = async (): Promise<void> => {
         for (const mock of mocks.splice(0)) await mock.off();
       };
-      await openMeasure(page, projectId);
-      await topView(page);
-      await armMeasure(page);
-      await makeDraft(page, { complete: true }); // UNKNOWN — NEED VERIFICATION: canvas picks were not run in S3
       const pin = pinButton(page);
 
       await test.step('[25-C-031] POST #17 -> 500, then aborted: toast "Chưa ghim được phép đo, hãy thử lại" both times; the pin button stays (draft kept)', async () => {
+        await openMeasure(page, projectId);
+        await topView(page);
+        await armMeasure(page);
+        await makeDraft(page, { complete: true }); // UNKNOWN — NEED VERIFICATION: canvas picks were not run in S3
         const post = await interceptApi(page, measurementsRe(projectId), 'POST', (route, n) => (n === 1 ? failWith(500, 'INTERNAL_ERROR')(route) : abortRoute(route)));
         mocks.push(post);
         await pin.click();
@@ -156,6 +158,8 @@ test.describe('SCR-25 measure — mocked responses', () => {
         await expect(pin).toBeVisible(); // draft points are dropped only after saveMeasurement succeeds (UMT:786-788)
         await expect(pin).toBeEnabled(); // the in-flight latch reopened
         await captureEvidence(page, 'E05m_25-C-031_pin_500.png');
+        // The first toast lives 8 s and the bus merges same-type toasts: wait it out, so the second one is a new toast.
+        await expect(toastWith(page, MT.pinFailed)).toHaveCount(0, { timeout: 15_000 });
         await pin.click();
         await expect.poll(() => post.calls(), { message: 'the second pin reached the network (aborted)' }).toBeGreaterThanOrEqual(2);
         await expect.soft(toastWith(page, MT.pinFailed).first()).toBeVisible({ timeout: 15_000 });
@@ -177,7 +181,7 @@ test.describe('SCR-25 measure — mocked responses', () => {
         );
         await expect(pin).toBeEnabled();
         await pin.click();
-        await expect(toastWith(page, MT.idTaken).first()).toBeVisible({ timeout: 15_000 }); // UMT:211, MTG:662-667 original error shown
+        await expect.soft(toastWith(page, MT.idTaken).first()).toBeVisible({ timeout: 15_000 }); // UMT:211, MTG:662-667 original error shown
         expect.soft(order.join(' '), 'POST -> re-read -> second POST, both refused').toMatch(/POST.*GET.*POST/u);
         await captureEvidence(page, 'E05m_25-C-030_id_taken_twice.png');
       });
@@ -187,7 +191,7 @@ test.describe('SCR-25 measure — mocked responses', () => {
         await page.getByRole('button', { name: MT.drop, exact: true }).click(); // leave the draft, it is not this step's subject
         mocks.push(await interceptApi(page, measurementRe(projectId), 'DELETE', failWith(500, 'INTERNAL_ERROR')));
         await page.getByRole('button', { name: `Xoá ${record.name}`, exact: true }).click();
-        await expect(toastWith(page, MT.deleteFailed).first()).toBeVisible({ timeout: 15_000 }); // UMT:215, MUT createOptimisticMutation restore
+        await expect.soft(toastWith(page, MT.deleteFailed).first()).toBeVisible({ timeout: 15_000 }); // UMT:215, MUT createOptimisticMutation restore
         await expect.soft(page.getByRole('button', { name: rowLabel(record.name) })).toHaveCount(1);
         await captureEvidence(page, 'E05m_25-C-035_delete_500.png');
       });
@@ -201,7 +205,7 @@ test.describe('SCR-25 measure — mocked responses', () => {
         await removed;
         await expect(toastWith(page, 'Hoàn tác xoá').first()).toBeVisible(); // the 8 s undo toast (A8)
         await page.getByRole('button', { name: MT.undo, exact: true }).click();
-        await expect(toastWith(page, MT.undoFailed).first()).toBeVisible({ timeout: 15_000 }); // UMT:218,370-376, MUT:189-200
+        await expect.soft(toastWith(page, MT.undoFailed).first()).toBeVisible({ timeout: 15_000 }); // UMT:218,370-376, MUT:189-200
         expect.soft(post.calls(), 'the undo POSTed, re-read and POSTed again').toBeGreaterThanOrEqual(2);
         await captureEvidence(page, 'E05m_25-C-037_undo_failed.png');
       });
@@ -247,7 +251,7 @@ test.describe('SCR-25 measure — mocked responses', () => {
       await test.step('[25-B-020] reload, N15 -> 500: alert "Có trục trặc" / "Hệ thống đã ghi nhận…" + retry, which recovers', async () => {
         mocks.push(await interceptApi(page, spatialRe(projectId), 'GET', failWith(500, 'INTERNAL_ERROR')));
         await page.reload();
-        await expect(gateAlert).toBeVisible({ timeout: ERROR_PAINT_TIMEOUT_MS }); // PSG:78-91
+        await expect.soft(gateAlert).toBeVisible({ timeout: ERROR_PAINT_TIMEOUT_MS }); // PSG:78-91
         await expect.soft(gateAlert).toContainText(GATE.unknownTitle);
         await captureEvidence(page, 'E05m_25-B-020_gate_500.png');
         await dropMocks();
@@ -274,20 +278,20 @@ test.describe('SCR-25 measure — mocked responses', () => {
         await expect(viewportOf(page)).toHaveCount(0); // the measure screen unmounted, the graph stays in the store
         await page.goBack();
         await expect(viewportOf(page)).toBeVisible();
-        await expect(page.getByText(MT.refreshFailed, { exact: true })).toBeVisible({ timeout: ERROR_PAINT_TIMEOUT_MS }); // PSG:93-104, UPS refreshFailed
+        await expect.soft(page.getByText(MT.refreshFailed, { exact: true })).toBeVisible({ timeout: ERROR_PAINT_TIMEOUT_MS }); // PSG:93-104, UPS refreshFailed
         await expect.soft(page.getByRole('button', { name: MT.retry, exact: true }).first()).toBeVisible();
         await captureEvidence(page, 'E05m_25-B-022_refetch_band.png');
         await dropMocks();
       });
 
-      await test.step('[25-G-003] reload, only the second GET /api/projects/:id -> 500: crumb "Dự án" (not the project name)', async () => {
+      await test.step('[25-G-003] UNKNOWN — NEED VERIFICATION (which read is the 2nd): reload, GET /api/projects/:id -> 500 from the 2nd: crumb "Dự án"', async () => {
         // UNKNOWN — NEED VERIFICATION: which of the two reads (gate / shell name) is the second is not fixed by source; the fallback
         // `projectQuery.data ?? 'Dự án'` is the shell's (UVS:1072). Every request from the 2nd on fails so the ladder cannot heal it.
         const project = await interceptApi(page, projectRe(projectId), 'GET', (route, n) => (n >= 2 ? failWith(500, 'INTERNAL_ERROR')(route) : route.fallback()));
         mocks.push(project);
         await page.reload();
-        await expect.poll(() => project.calls(), { message: 'both project reads happened' }).toBeGreaterThanOrEqual(2);
-        await settled();
+        await expect.soft(viewportOf(page)).toHaveAttribute('aria-busy', 'false', { timeout: SCENE_TIMEOUT_MS });
+        expect.soft(project.calls(), 'both project reads happened').toBeGreaterThanOrEqual(2);
         await expect.soft(page.getByRole('navigation', { name: 'Đường dẫn màn hình', exact: true })).toContainText('Dự án'); // UVS:1072, VSG:289
         await captureEvidence(page, 'E05m_25-G-003_crumb_fallback.png');
         await dropMocks();

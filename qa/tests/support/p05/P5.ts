@@ -20,7 +20,7 @@ import { readAdminCredentials } from '../auth';
 import { TEST_DATA_PREFIX } from '../evidence';
 import { createQcProject, writeLayer, type LayerApi } from '../layerSeed';
 import { createProject, signInPoolUser, type PoolUser } from '../phase03Seed';
-import { errorBody, escapeRegExp, type OpenPage } from '../p03/P4';
+import { escapeRegExp, type OpenPage } from '../p03/P4';
 
 export const DESKTOP = { width: 1440, height: 900 } as const;
 export const PHONE = { width: 375, height: 812 } as const;
@@ -178,8 +178,13 @@ export async function interceptApi(
   return { calls: () => n, off: () => page.unroute(match, handler) };
 }
 
+/** BE error body is flat `{code, requestId}` (core/errors.py:84); 500 is `INTERNAL`, a 409 on the id carries `field: "id"` (measurements/service.py:104). */
 export const failWith = (status: number, code: string) => (route: Route): Promise<void> =>
-  route.fulfill({ status, contentType: 'application/json', body: errorBody(code) });
+  route.fulfill({
+    status,
+    contentType: 'application/json',
+    body: JSON.stringify({ code: code === 'INTERNAL_ERROR' ? 'INTERNAL' : code, requestId: 'qa-p5-mock', ...(status === 409 ? { field: 'id' } : {}) }),
+  });
 export const abortRoute = (route: Route): Promise<void> => route.abort('failed');
 
 /** Fetches the real answer, lets `patch` change its JSON, fulfils with the result (a mock of the DATA, not the status). */
