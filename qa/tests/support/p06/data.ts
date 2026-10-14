@@ -6,7 +6,7 @@
  * - Copy + selectors of SCR-31 ({@link SJ}, {@link GATE}) and of the screens it is compared with.
  * - {@link openAdmin} / {@link closeAdmin} / {@link withAdmin}, {@link openPoolFlow}: one browser context per flow.
  * - Projects: {@link bareProject} (no layer), {@link qcProject} (`createQcProject`), {@link createBigLayerProject}
- *   (160 walls: > 1 000 tree nodes and > 600 raw lines, a 12.5 mm wall, a 70-character room name).
+ *   (160 walls: > 1 000 tree nodes and > 600 raw lines, a 70-character room name).
  * - The oracle {@link flattenOracle} re-implements `flattenJson` / `findMatches` / `describeCounts` (SJM:97-250) on the N15
  *   body the page read, so a test never trusts the screen's own model for what it checks.
  * - {@link mockData}: the `[mocked response]` seams of `phase06_data_mocked_edge` / `phase06_data_ui` (N15 held, a dangling
@@ -258,8 +258,6 @@ export async function qcProject(admin: Admin, slug: string): Promise<ProjectRef>
 
 /** Walls in the big layer: ~20 tree nodes each, so far more than 1 000 nodes and 600 raw lines. */
 export const BIG_WALLS = 160;
-/** One wall with a thickness that prints with decimals: `12.5` shows `12,50` (SJM:63-65). */
-export const ODD_THICKNESS_MM = 12.5;
 /** 70 characters, so the tree cuts it at 64 and appends "…" (SJM:35,57-61). */
 export const LONG_ROOM_NAME = Array.from({ length: 70 }, (_, i) => String.fromCharCode(65 + (i % 26))).join('');
 
@@ -276,7 +274,7 @@ export function bigLayer(levelId: string): Json {
     kind: i % 5 === 0 ? 'partition' : 'loadBearing',
     levelId,
     openingIds: [],
-    thicknessMm: i === 1 ? ODD_THICKNESS_MM : 220,
+    thicknessMm: 220, // mm are integers on the wire (FE spatial.ts:131 .int(), BE Mm = SafeInt)
   }));
   const room = (name: string, y0: number, y1: number): Json => ({
     ...ai(),
@@ -293,7 +291,7 @@ export function bigLayer(levelId: string): Json {
     usage: 'bedroom',
     wallIds: [],
   });
-  // S5-confirm: the BE accepts a 12.5 mm wall (PositiveMm > 0) and a 70-character room name (no max length found in spatial_write/).
+  // S5-confirm: the BE accepts a 70-character room name (no max length found in spatial_write/).
   return { walls, openings: [], rooms: [room(LONG_ROOM_NAME, 0, 2000), room('Bếp', 2000, 4000)], furniture: [] };
 }
 
@@ -476,7 +474,7 @@ export interface DataMock {
   n15Calls(): number;
 }
 
-const ERROR_BODY = (requestId: string): string => JSON.stringify({ code: 'INTERNAL', message: 'qa', requestId });
+const ERROR_BODY = (requestId: string): string => JSON.stringify({ code: 'INTERNAL', requestId });
 
 /** `graph` with `count` walls each listing an opening id that does not exist (SJM:268-270 integrity strip; integrity.ts:138). */
 export function withDanglingOpenings(body: Json, count: number): Json {

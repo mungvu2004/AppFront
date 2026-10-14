@@ -14,7 +14,7 @@
  *
  * ## Data (own `qa-<runId>-data-…` projects, deleted in `finally`; run-unique, safe with --workers 4)
  * - S-DATA-QC `createQcProject`: 8 walls + 2 partitions, rooms "Bếp" / "PHONG NGU 2", valid graph;
- * - S-DATA-BARE: a floor without a layer; S-DATA-BIG `createBigLayerProject` (support/p06/data.ts): 160 walls, a 12.5 mm wall, a 70-char room;
+ * - S-DATA-BARE: a floor without a layer; S-DATA-BIG `createBigLayerProject` (support/p06/data.ts): 160 walls, a 70-char room;
  * - pool users `p06-share-eng`, `p06-share-view`, `p06-share-out` (FL-31-07 only; members removed in `finally`).
  * What the screen shows is compared with the N15 body the page itself read (`n15Graph`) through the oracle in support/p06/data.ts.
  *
@@ -400,7 +400,11 @@ test.describe('E06d SCR-31 Spatial JSON Viewer', () => {
 
       await test.step('[31-C-006] ⚑ Typing a term selects the first match (counter 1 / N); the first "Kết quả sau" goes to 2 / N', async () => {
         // USJ:212-215,217-234 — selection changes only in stepMatch today, so nothing is selected after typing
+        // 31-A-012 left match #1 selected: select a row that is no match first, so only typing can select
         await search.fill('');
+        const outside = rootRow(page, 'building');
+        await outside.click();
+        await expect(outside).toHaveAttribute('aria-selected', 'true');
         await search.fill(STEP);
         await softly(label).toHaveText(`1 / ${stepTotal}`);
         await softly(hits.first(), 'the row counted as 1 / N is selected').toHaveAttribute('aria-selected', 'true');
@@ -623,7 +627,7 @@ test.describe('E06d SCR-31 Spatial JSON Viewer', () => {
             }
           });
         await softly.poll(read, { message: 'clipboard = selected branch', timeout: 5_000 }).toEqual(wall0);
-        await softly(page.getByRole('status'), 'feedback toast').toBeVisible({ timeout: 3_000 });
+        await softly(page.getByRole('status').filter({ hasText: /chép/iu }).first(), 'feedback toast').toBeVisible({ timeout: 3_000 });
         await ev(page, '31-A-022', 'copy_branch');
       });
 
@@ -767,7 +771,8 @@ test.describe('E06d SCR-31 Spatial JSON Viewer', () => {
         const before = await cutMessage(page).innerText();
         await toolbarButton(page, SJ.collapseAll).click();
         await expect(rowsOf(page)).toHaveCount(ROOT_KEYS.length);
-        const after = await cutMessage(page).innerText();
+        // no message left (advice dropped, or the raw view follows the tree) is the correct outcome too
+        const after = (await cutMessage(page).count()) === 0 ? '' : await cutMessage(page).innerText();
         softly(/Thu gọn bớt nhánh/u.test(after) && after === before, 'advice to collapse while collapsing changes nothing').toBe(false);
         await ev(page, '31-B-017', 'cut_advice');
       });
@@ -785,10 +790,10 @@ test.describe('E06d SCR-31 Spatial JSON Viewer', () => {
       });
 
       await test.step('[31-C-010] Scalar numbers: integers without decimals, others with 2 decimals (vi comma)', async () => {
-        // SJM:63-65 — a wall thickness 12.5 shows 12,50, 220 shows 220
-        await search.fill('12,50');
-        await softly(rowsOf(page).filter({ hasText: /thickness\w*\s*:\s*12,50/u })).toHaveCount(1);
-        await ev(page, '31-C-010', 'decimals_12_50');
+        // SJM:63-65 — mm are integers (FE .int(), BE SafeInt), so the decimal scalar is the confidence: 0.9 shows 0,90; 220 shows 220
+        await search.fill('0,90');
+        await softly(rowsOf(page).filter({ hasText: /confidence\s*:\s*0,90/u }).first()).toBeVisible();
+        await ev(page, '31-C-010', 'decimals_0_90');
         await search.fill('220');
         await softly(rowsOf(page).filter({ hasText: /thickness\w*\s*:\s*220(?!\d)/u }).first()).toBeVisible();
       });
