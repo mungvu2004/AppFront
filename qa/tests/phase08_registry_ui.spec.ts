@@ -165,8 +165,8 @@ test.describe('P08 SCR-36 registry UI', () => {
     await page.route(ACTIVE_PUT, async (route) => {
       if (route.request().method() !== 'PUT') return route.fallback();
       state.puts += 1;
-      // UNKNOWN — NEED VERIFICATION: exact 409 body (VersionConflictBodySchema); status 409 drives isConflictError (useModelRegistry.ts:488).
-      return route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ code: 'VERSION_CONFLICT', detail: 'qa-p08 mocked 409', remoteChanges: [] }) });
+      // body = VersionConflictBodySchema (errors.ts:234), remoteChanges [] (adminMl.ts:174)
+      return route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ code: 'VERSION_CONFLICT', currentVersion: 1, remoteChanges: [], requestId: 'req_qa_p08' }) });
     });
     const open = async (p: Page, mode: Mode): Promise<void> => {
       state.mode = mode;
@@ -200,7 +200,7 @@ test.describe('P08 SCR-36 registry UI', () => {
     await test.step('[36R-F-011] partial: notice above the table', async () => {
       await verifyUi(page, 'U08_36R-F-011_registry', async (p) => {
         await open(p, 'pending');
-        await expect(p.getByText(/Chờ đánh giá|đang chờ|chưa đánh giá/iu).first()).toBeVisible(); // partialNotice, useModelRegistry.ts:178
+        await expect(p.getByText('1 phiên bản đang chờ hoặc đang đánh giá; chỉ kích hoạt được bản đã đánh giá.', { exact: true })).toBeVisible(); // useModelRegistry.ts:178
       }, VPS);
     });
     await test.step('[36R-F-012] conflict notice + dialog with error and warning: stacked alerts, no overflow', async () => {
