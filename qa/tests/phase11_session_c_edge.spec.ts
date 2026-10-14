@@ -85,7 +85,7 @@ test.describe('SCR-38 / SCR-01 session edge (C)', () => {
       });
 
       await test.step('[11U-A-303] logout answered < 300 and lands on /login', async () => {
-        expect.soft(status, 'POST /api/auth/logout').toBeLessThan(300);
+        expect.soft(status, 'POST /api/auth/logout').toBe(204); // oracle: apps/api/auth/router.py:285
         expect.soft(pathname(a.url())).toBe(ROUTES.login);
         await captureEvidence(a, 'E11_11U-A-303_login.png');
       });
@@ -115,13 +115,20 @@ test.describe('SCR-38 / SCR-01 session edge (C)', () => {
       await test.step('[11U-A-311] Back from /login never shows protected content', async () => {
         await a.goBack();
         await a.goBack();
+        await expect.poll(() => pathOf(a.url())).toMatch(/^\/login(\?next=%2Fkhong-co-quyen)?$/u);
         await soft(a.getByText(DENIED, { exact: true })).toHaveCount(0);
-        await soft.poll(() => pathOf(a.url())).toMatch(/^\/login(\?next=%2Fkhong-co-quyen)?$/u);
         await captureEvidence(a, 'E11_11U-A-311_back.png');
       });
     } finally {
-      await context.close();
-      await api.dispose();
+      const errs: unknown[] = [];
+      for (const cleanup of [() => context.close(), () => api.dispose()]) {
+        try {
+          await cleanup();
+        } catch (e) {
+          errs.push(e);
+        }
+      }
+      if (errs.length > 0) throw errs[0];
     }
   });
 
@@ -168,8 +175,15 @@ test.describe('SCR-38 / SCR-01 session edge (C)', () => {
         await captureEvidence(page, 'E11_11U-A-305_from.png');
       });
     } finally {
-      await context.close();
-      await api.dispose();
+      const errs: unknown[] = [];
+      for (const cleanup of [() => context.close(), () => api.dispose()]) {
+        try {
+          await cleanup();
+        } catch (e) {
+          errs.push(e);
+        }
+      }
+      if (errs.length > 0) throw errs[0];
     }
   });
 });
