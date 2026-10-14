@@ -73,7 +73,8 @@ export async function seedMeasurement(
     id,
     name,
     remove: async () => {
-      await admin.delete(`/api/projects/${projectId}/measurements/${id}`);
+      const del = await admin.delete(`/api/projects/${projectId}/measurements/${id}`);
+      if (![200, 204].includes(del.status())) throw new Error(`seedMeasurement remove: ${String(del.status())}`);
     },
   };
 }
