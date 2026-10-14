@@ -21,7 +21,7 @@ import {
 } from './support/p09/P6';
 import { adminApi, apiAs, asMember, DESKTOP, recordWrites, roleUser, signInRole } from './support/p09/roles';
 
-const ev = (id: string, slug: string): string => `E09_${id}_${slug}`;
+const ev = (id: string, slug: string): string => `E09_${id}_${slug}.png`;
 const VIEWER_WALL = 'Bạn đang xem với vai người xem, nên không duyệt hay sửa được đoạn tường nào.';
 const WALL_LIST = 'Danh sách đoạn tường';
 const OBJECT_LIST = 'Danh sách đối tượng';
@@ -33,7 +33,7 @@ test.use({ viewport: DESKTOP });
 test('SCR-16..21 · FL-9Q-07 · engineer · sửa được trên dự án riêng', async ({ browser }) => {
   test.setTimeout(840_000);
   const admin = await adminApi();
-  const engineer = await roleUser(admin, 'engineer', 'qc-engineer');
+  const engineer = await roleUser(admin, 'engineer', 'qc-b');
   const qe = await seedQc(admin, 'p09-qe');
   const qn = await seedQc(admin, 'p09-qn');
   const undoMember = await asMember(admin, qe.projectId, engineer);
@@ -92,7 +92,8 @@ test('SCR-16..21 · FL-9Q-07 · engineer · sửa được trên dự án riêng
         page2.goto(ROUTES.project.walls(qn.projectId, qn.floorId), { waitUntil: 'commit' }),
       ]);
       expect.soft(read.status()).toBe(404);
-      // UNKNOWN — NEED VERIFICATION: exact error/NotFound copy (C1); here only that no wall data leaks after the 404 landed.
+      // UNKNOWN — NEED VERIFICATION: exact error/NotFound copy (C1); anchor = network idle after the 404, then no wall data.
+      await page2.waitForLoadState('networkidle');
       await expect.soft(page2.getByRole('listbox', { name: WALL_LIST, exact: true })).toHaveCount(0);
       await expect.soft(page2.getByRole('button', { name: 'Duyệt đoạn này', exact: true })).toHaveCount(0);
       await captureEvidence(page2, ev('9Q-A-012', 'nonmember_walls_404'));
@@ -134,32 +135,19 @@ test('SCR-16..21 · FL-9Q-07 · engineer · sửa được trên dự án riêng
     });
 
     await test.step('[9Q-C-006] engineer sửa giá trị một kích thước và duyệt', async () => {
-      // UNKNOWN — NEED VERIFICATION: flows say "PUT layer 200" but phase04 (BUG-577, F-08) shows dimension edits are local only
-      // (no PUT; dimensionOcrText.ts:110). Written to the code. qcLayer seeds no dimension strings, so rows may be empty.
+      // UNKNOWN — NEED VERIFICATION / DỞ: qcLayer seeds no dimension strings (OCR-only) and flows say "PUT 200" while
+      // dimensionOcrText.ts:110 (BUG-577, F-08) says edits are local. Soft red until a dimension seed exists.
       await page.goto(ROUTES.project.dimensions(qe.projectId, qe.floorId));
-      const empty = page.getByText('Chưa đọc được chuỗi kích thước nào', { exact: true });
-      await expect(dimRows.first().or(empty).first()).toBeVisible({ timeout: 15_000 });
-      if ((await dimRows.count()) > 0) {
-        const code = (await dimRows.first().getAttribute('aria-label')) ?? '';
-        const value = page.getByLabel(`Giá trị kích thước ${code}`, { exact: true });
-        await value.fill((await value.inputValue()).replace(/\D/gu, '') === '1234' ? '1235' : '1234');
-        await value.press('Enter'); // DimensionOcrRow.tsx: Enter = commit + approve
-        await expect(page.getByRole('button', { name: `Duyệt kích thước ${code}`, exact: true })).toHaveCount(0);
-      } else {
-        await expect.soft(empty, 'UNKNOWN: no dimension rows on the seeded floor').toBeVisible();
-      }
+      await expect(page.getByText('Chưa đọc được chuỗi kích thước nào', { exact: true }).or(dimRows.first()).first()).toBeVisible({ timeout: 15_000 });
+      test.info().annotations.push({ type: 'DỞ', description: '9Q-C-006: no dimension seed' });
+      expect.soft(await dimRows.count(), '9Q-C-006: dimension rows seeded').toBeGreaterThan(0);
       await captureEvidence(page, ev('9Q-C-006', 'engineer_dims_edit'));
     });
 
     await test.step('[9Q-C-007] engineer duyệt bàn phím: R bật, Enter duyệt, Esc thoát', async () => {
-      // UNKNOWN — NEED VERIFICATION: shortcut semantics of the dimension screen; only that the keys raise no alert.
-      if ((await dimRows.count()) > 0) {
-        await dimRows.first().focus();
-        await page.keyboard.press('r');
-        await page.keyboard.press('Enter');
-        await page.keyboard.press('Escape');
-      }
-      await expect.soft(page.getByRole('alert')).toHaveCount(0);
+      // UNKNOWN — NEED VERIFICATION / DỞ: shortcut semantics unverified and no dimension seed; not reported as pass.
+      test.info().annotations.push({ type: 'DỞ', description: '9Q-C-007: no dimension seed' });
+      expect.soft(await dimRows.count(), '9Q-C-007: dimension rows seeded').toBeGreaterThan(0);
       await captureEvidence(page, ev('9Q-C-007', 'engineer_dims_keys'));
     });
 
@@ -175,6 +163,7 @@ test('SCR-16..21 · FL-9Q-07 · engineer · sửa được trên dự án riêng
       await expect(
         page.getByText('Trục chỉ giữ trong phiên này — tải lại trang sẽ mất các thay đổi.', { exact: true }),
       ).toBeVisible(); // useAxisGridManager.ts:176; BUG-578
+      await page.waitForLoadState('networkidle');
       expect(rec.writes.slice(mark)).toEqual([]);
       await captureEvidence(page, ev('9Q-D-006', 'engineer_grids_session_only'));
     });
@@ -188,11 +177,10 @@ test('SCR-16..21 · FL-9Q-07 · engineer · sửa được trên dự án riêng
       await name.press('Enter');
       expect((await renamed).status(), 'PUT rename').toBe(200);
       const approve = page.getByRole('button', { name: 'Duyệt phòng này', exact: true });
-      if (await approve.isEnabled()) {
-        const put = waitLayerPut(page, qe);
-        await approve.click();
-        expect((await put).status(), 'PUT approve').toBe(200);
-      }
+      await expect(approve).toBeEnabled();
+      const put = waitLayerPut(page, qe);
+      await approve.click();
+      expect((await put).status(), 'PUT approve').toBe(200);
       await captureEvidence(page, ev('9Q-E-006', 'engineer_rooms_rename'));
     });
 
@@ -281,7 +269,7 @@ test('SCR-16..21 · FL-9Q-08 · ẩn danh · chuyển /login', async ({ browser 
 test('SCR-16..21 · FL-9Q-09 · admin · đối chứng dương', async ({ browser }) => {
   test.setTimeout(300_000);
   const admin = await adminApi();
-  const user = await roleUser(admin, 'admin', 'qc-admin');
+  const user = await roleUser(admin, 'admin', 'qc-b');
   const qa = await seedQc(admin, 'p09-qa');
   const undoMember = await asMember(admin, qa.projectId, user);
   const context = await browser.newContext({ viewport: DESKTOP });
@@ -298,19 +286,21 @@ test('SCR-16..21 · FL-9Q-09 · admin · đối chứng dương', async ({ brows
     await test.step('[9Q-B-009] admin đối chứng', async () => {
       await openLayerScreen(page, ROUTES.project.objects(qa.projectId, qa.floorId), qa, 'Lớp đối tượng');
       await expect(page.getByRole('button', { name: /^Chọn nhóm .+ \(phím .+\)$/u }).first()).toBeVisible();
-      await expect.soft(page.getByText(/vai người xem/u)).toHaveCount(0);
+      await expect.soft(page.getByText('Bạn đang xem — không sửa được lớp này.', { exact: true })).toHaveCount(0); // objectLayerReviewGateway.ts:1262
       await captureEvidence(page, ev('9Q-B-009', 'admin_objects'));
     });
     await test.step('[9Q-C-008] admin đối chứng', async () => {
       await page.goto(ROUTES.project.dimensions(qa.projectId, qa.floorId));
-      await expect(page.getByRole('main').first()).toBeVisible({ timeout: 15_000 });
-      await expect.soft(page.getByText(/vai người xem/u)).toHaveCount(0);
+      await expect(
+        page.getByText('Chưa đọc được chuỗi kích thước nào', { exact: true }).or(page.getByRole('group', { name: DIM_LIST, exact: true })).first(),
+      ).toBeVisible({ timeout: 15_000 });
+      await expect.soft(page.getByText('Không có quyền duyệt kích thước')).toHaveCount(0); // dimensionOcrText.ts:217
       await captureEvidence(page, ev('9Q-C-008', 'admin_dims'));
     });
     await test.step('[9Q-D-007] admin đối chứng', async () => {
       await page.goto(ROUTES.project.grids(qa.projectId, qa.floorId));
       await expect(page.getByRole('button', { name: 'Thêm trục ngang', exact: true })).toBeVisible({ timeout: 15_000 });
-      await expect.soft(page.getByText(/vai người xem/u)).toHaveCount(0);
+      await expect.soft(page.getByText('Không có quyền sửa trục')).toHaveCount(0);
       await captureEvidence(page, ev('9Q-D-007', 'admin_grids'));
     });
     await test.step('[9Q-E-008] admin đối chứng', async () => {
