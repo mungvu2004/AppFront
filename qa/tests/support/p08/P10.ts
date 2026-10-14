@@ -2,7 +2,7 @@
  * QA-08 P10 helpers (SCR-37 mocked users flows). Own helper file; no other spec imports it.
  * Exports: USERS_RE, USER_ID_RE, json, deferred, wireError, realUsers, requestLog.
  */
-import type { APIRequestContext, Page, Request, Route } from '@playwright/test';
+import { expect, type APIRequestContext, type Page, type Request, type Route } from '@playwright/test';
 
 export type Json = Record<string, unknown>;
 
@@ -41,4 +41,17 @@ export function requestLog(page: Page, method: string, re: RegExp): { readonly c
   };
   page.on('request', on);
   return { count: () => n, stop: () => page.off('request', on) };
+}
+
+/** Counts the toasts with `text` now; `expectNew()` then needs exactly one MORE (a stale toast never satisfies it). */
+export async function markToast(page: Page, text: string): Promise<{ readonly expectNew: (soft?: boolean) => Promise<void> }> {
+  const toasts = page.getByRole('status').filter({ hasText: text });
+  const before = await toasts.count();
+  return {
+    expectNew: async (soft = false) => {
+      const check = soft ? expect.soft(toasts, `new toast "${text}"`) : expect(toasts, `new toast "${text}"`);
+      await check.toHaveCount(before + 1);
+      await expect.soft(toasts.nth(before)).toBeVisible();
+    },
+  };
 }

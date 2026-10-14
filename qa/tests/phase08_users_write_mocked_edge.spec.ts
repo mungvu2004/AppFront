@@ -25,7 +25,7 @@ import { readAdminCredentials, signInAdmin } from './support/auth';
 import { captureEvidence, testEmail } from './support/evidence';
 import { poolUser } from './support/phase03Seed';
 import { DESKTOP } from './support/p08/admin';
-import { USERS_RE, json, realUsers, requestLog, wireError, type Json } from './support/p08/P10';
+import { USERS_RE, json, markToast, realUsers, requestLog, wireError, type Json } from './support/p08/P10';
 
 const T = {
   invite: 'Mời người dùng', // UMT:31
@@ -109,8 +109,9 @@ test.describe('A08 SCR-37 users write, mocked responses', () => {
       await test.step('[37W-G-002] 429 users_invite -> toast, text kept, optimistic row gone, ONE POST (N8: no client retry)', async () => {
         await page.getByRole('button', { name: T.invite, exact: true }).click();
         await field.fill(typed);
+        const mark = await markToast(page, T.inviteFailed);
         await sendAndSee();
-        await expect(toast(page, T.inviteFailed).first()).toBeVisible();
+        await mark.expectNew();
         await expect(field).toHaveValue(typed);
         await expect(rowOf(page, typed)).toHaveCount(0);
         await page.clock.runFor(120_000); // fires every retry/backoff timer a client could use: the milestone for "no more POST"
@@ -129,22 +130,25 @@ test.describe('A08 SCR-37 users write, mocked responses', () => {
 
       await test.step('[37W-G-003] 403 -> toast "Không gửi được lời mời"', async () => {
         how = { status: 403, code: 'FORBIDDEN' };
+        const mark = await markToast(page, T.inviteFailed);
         await sendAndSee();
-        await expect.soft(toast(page, T.inviteFailed).first()).toBeVisible();
+        await mark.expectNew(true);
         await captureEvidence(page, 'E08_37W-G-003_users_write.png');
       });
 
       await test.step('[37W-G-004] 500 -> toast "Không gửi được lời mời"', async () => {
         how = { status: 500, code: 'INTERNAL' };
+        const mark = await markToast(page, T.inviteFailed);
         await sendAndSee();
-        await expect.soft(toast(page, T.inviteFailed).first()).toBeVisible();
+        await mark.expectNew(true);
         await captureEvidence(page, 'E08_37W-G-004_users_write.png');
       });
 
       await test.step('[37W-G-005] network abort -> toast, field keeps its text', async () => {
         how = 'abort';
+        const mark = await markToast(page, T.inviteFailed);
         await sendAndSee();
-        await expect.soft(toast(page, T.inviteFailed).first()).toBeVisible();
+        await mark.expectNew(true);
         await expect.soft(field).toHaveValue(typed);
         await captureEvidence(page, 'E08_37W-G-005_users_write.png');
       });
@@ -153,11 +157,12 @@ test.describe('A08 SCR-37 users write, mocked responses', () => {
         how = { status: 422, code: 'VALIDATION' };
         const many = Array.from({ length: 51 }, (_, i) => `qa08m1-${String(i)}@example.test`).join('\n');
         await field.fill(many);
+        const mark = await markToast(page, T.inviteFailed);
         const asked = page.waitForRequest((r) => r.method() === 'POST' && INVITE_RE.test(r.url()));
         await send();
         const body = (await asked).postDataJSON() as { emails?: unknown };
         expect.soft(Array.isArray(body.emails) ? body.emails.length : -1, 'all 51 addresses were sent').toBe(51);
-        await expect.soft(toast(page, T.inviteFailed).first()).toBeVisible();
+        await mark.expectNew(true);
         await captureEvidence(page, 'E08_37W-C-009_users_write.png');
       });
     } finally {
@@ -195,8 +200,9 @@ test.describe('A08 SCR-37 users write, mocked responses', () => {
         await expect(select()).toContainText(T.engineer);
         for (const code of ['USER_SELF_MODIFICATION', 'USER_LAST_ADMIN']) {
           roleHow = [{ status: 422, code }];
+          const mark = await markToast(page, T.roleFailed);
           await change(T.viewer);
-          await expect(toast(page, T.roleFailed).first()).toBeVisible();
+          await mark.expectNew();
           await expect(select()).toContainText(T.engineer);
         }
         await captureEvidence(page, 'E08_37W-G-007_users_write.png');
@@ -212,21 +218,23 @@ test.describe('A08 SCR-37 users write, mocked responses', () => {
       await test.step('[37W-G-009] PATCH 403 / 500 / abort -> toast "Không đổi được vai"', async () => {
         for (const how of [{ status: 403, code: 'FORBIDDEN' }, { status: 500, code: 'INTERNAL' }, 'abort'] as const) {
           roleHow = [how];
+          const mark = await markToast(page, T.roleFailed);
           await change(T.viewer);
-          await expect.soft(toast(page, T.roleFailed).first()).toBeVisible();
+          await mark.expectNew(true);
           await expect.soft(select()).toContainText(T.engineer);
         }
         await captureEvidence(page, 'E08_37W-G-009_users_write.png');
       });
 
       await test.step('[37W-G-010] disable 422 / 404 / 500 / abort -> toast, badge unchanged', async () => {
-        // UNKNOWN — NEED VERIFICATION: "Vô hiệu hoá" assumed to act at once (no confirm dialog) - UMB row button
+        // UMB RowActions:152: the button calls onDisableUser at once (no confirm dialog)
         for (const how of [{ status: 422, code: 'USER_LAST_ADMIN' }, { status: 404, code: 'NOT_FOUND' }, { status: 500, code: 'INTERNAL' }, 'abort'] as const) {
           disableHow = [how];
+          const mark = await markToast(page, T.statusFailed);
           const asked = page.waitForRequest((r) => r.method() === 'POST' && idRe('disable').test(r.url()));
           await rowOf(page, email).getByRole('button', { name: T.disable, exact: true }).click();
           await asked;
-          await expect.soft(toast(page, T.statusFailed).first()).toBeVisible();
+          await mark.expectNew(true);
           await expect.soft(rowOf(page, email)).toContainText(T.active);
         }
         await captureEvidence(page, 'E08_37W-G-010_users_write.png');
@@ -245,10 +253,11 @@ test.describe('A08 SCR-37 users write, mocked responses', () => {
         await list;
         for (const how of [{ status: 404, code: 'NOT_FOUND' }, { status: 500, code: 'INTERNAL' }, 'abort'] as const) {
           enableHow = [how];
+          const mark = await markToast(page, T.statusFailed);
           const asked = page.waitForRequest((r) => r.method() === 'POST' && idRe('enable').test(r.url()));
           await rowOf(page, email).getByRole('button', { name: T.enable, exact: true }).click();
           await asked;
-          await expect.soft(toast(page, T.statusFailed).first()).toBeVisible();
+          await mark.expectNew(true);
           await expect.soft(rowOf(page, email).getByRole('button', { name: T.enable, exact: true })).toBeVisible();
         }
         await captureEvidence(page, 'E08_37W-G-011_users_write.png');
@@ -260,10 +269,11 @@ test.describe('A08 SCR-37 users write, mocked responses', () => {
         await page.goto(ROUTES.adminUsers); // real list again: peer is active
         await list;
         disableHow = [{ status: 403, code: 'FORBIDDEN' }];
+        const mark = await markToast(page, T.statusFailed);
         const asked = page.waitForRequest((r) => r.method() === 'POST' && idRe('disable').test(r.url()));
         await rowOf(page, email).getByRole('button', { name: T.disable, exact: true }).click();
         await asked;
-        await expect.soft(toast(page, T.statusFailed).first()).toBeVisible();
+        await mark.expectNew(true);
         await expect.soft(rowOf(page, email)).toContainText(T.active);
         await expect.soft(rowOf(page, email).getByRole('button', { name: T.disable, exact: true })).toBeVisible();
         await captureEvidence(page, 'E08_37W-D-005_users_write.png');
@@ -309,10 +319,13 @@ test.describe('A08 SCR-37 users write, mocked responses', () => {
     try {
       await test.step('[37W-C-012] last admin -> role / disable / delete blocked with the last-admin reason', async () => {
         await expect(selfRow).toBeVisible();
-        // UNKNOWN — NEED VERIFICATION: where UMH:289-337 renders the reason (title / helper text); the select is asserted by state
-        await expect(selfRow.getByRole('combobox').first()).toBeDisabled();
-        await expect.soft(page.getByText(T.lastAdmin).first()).toBeAttached();
-        await expect.soft(selfRow.getByRole('button', { name: T.disable, exact: true })).toBeDisabled();
+        // UMB RowActions:145-158 + UMH buildRow:289-337: on the OWN row the self reason takes precedence for role and disable
+        // (selfRoleBlocked / selfDisableBlocked); the last-admin sentence is the span that replaces the "Xoá" button.
+        await expect(selfRow.getByText(T.lastAdmin, { exact: true })).toBeVisible();
+        await expect(selfRow.getByRole('button', { name: T.remove, exact: true })).toHaveCount(0);
+        await expect.soft(selfRow.getByRole('button', { name: T.disable, exact: true })).toHaveCount(0);
+        await expect.soft(selfRow.getByText('Bạn không thể tự vô hiệu hoá tài khoản của mình', { exact: true })).toBeVisible();
+        await expect.soft(selfRow.getByText('Bạn không thể tự đổi vai của mình', { exact: true })).toBeVisible();
         await captureEvidence(page, 'E08_37W-C-012_users_write.png');
       });
 
@@ -323,10 +336,11 @@ test.describe('A08 SCR-37 users write, mocked responses', () => {
         await dialog.getByLabel(T.removeEmail, { exact: true }).fill(pendingEmail);
         for (const attempt of [{ status: 404, code: 'NOT_FOUND' }, { status: 403, code: 'FORBIDDEN' }, { status: 500, code: 'INTERNAL' }, 'abort'] as const) {
           how = attempt;
+          const mark = await markToast(page, T.removeFailed);
           const asked = page.waitForRequest((r) => r.method() === 'DELETE' && DELETE_RE.test(r.url()));
           await dialog.getByRole('button', { name: T.removeConfirm, exact: true }).click();
           await asked;
-          await expect.soft(toast(page, T.removeFailed).first()).toBeVisible();
+          await mark.expectNew(true);
           await expect.soft(rowOf(page, pendingEmail)).toHaveCount(1);
         }
         expect.soft(deletes.count()).toBe(4);
@@ -354,8 +368,9 @@ test.describe('A08 SCR-37 users write, mocked responses', () => {
           await own.click();
           const dialog = dialogOf(String(self.name));
           await dialog.getByLabel(T.removeEmail, { exact: true }).fill(String(self.email));
+          const mark = await markToast(page, T.removeFailed);
           await dialog.getByRole('button', { name: T.removeConfirm, exact: true }).click();
-          await expect.soft(toast(page, T.removeFailed).first()).toBeVisible();
+          await mark.expectNew(true);
         }
         await expect.soft(rowOf(page, String(self.email))).toHaveCount(1);
         await captureEvidence(page, 'E08_37W-G-015_users_write.png');
