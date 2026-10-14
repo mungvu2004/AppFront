@@ -122,3 +122,12 @@ export async function seedMainViewer(): Promise<ViewerSeed & { uploadId: string 
     throw error;
   }
 }
+
+/** First row id of an admin list endpoint (array or `{items}` body); null when the list is empty or not 200. */
+export async function firstId(ctx: APIRequestContext, listPath: string): Promise<string | null> {
+  const res = await ctx.get(listPath);
+  if (res.status() !== 200) return null;
+  const body = (await res.json()) as { items?: { id?: string }[] } | { id?: string }[];
+  const rows = Array.isArray(body) ? body : (body.items ?? []);
+  return rows[0]?.id ?? null;
+}
