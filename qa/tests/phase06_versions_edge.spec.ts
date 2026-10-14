@@ -710,7 +710,9 @@ test.describe('SCR-32 versions — many versions (PM)', () => {
       });
 
       await test.step('[32-A-009] ticking again rebuilds the pair ordered by sequence', async () => {
-        while ((await ticked.count()) > 0) await setBox(ticked.first(), false);
+        // by name: `ticked.first()` re-resolves to the OTHER ticked box once one is cleared, so the unchecked wait would never settle
+        const tickedNames = await ticked.evaluateAll((els) => els.map((el) => el.getAttribute('aria-label') ?? ''));
+        for (const name of tickedNames) await setBox(versionList(page).getByRole('checkbox', { name, exact: true }), false);
         await setBox(rowBox(page, labelOf(at(1))), true); // the newer one first
         await setBox(rowBox(page, labelOf(at(3))), true);
         await expect(leftSelect).toContainText(`${labelOf(at(3))} ·`); // VHP:413-427 older left
