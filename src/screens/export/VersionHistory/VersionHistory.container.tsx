@@ -191,7 +191,7 @@ export function VersionHistoryContainer(props: VersionHistoryContainerProps) {
  */
 function ProjectVersionHistory({ projectId }: { readonly projectId: string }) {
   const { addToast } = useToast();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const project = useStore((state) => state.project);
   const floors = useStore((state) => state.floors);
   const activeFloorId = useStore((state) => state.activeFloorId);
@@ -222,7 +222,11 @@ function ProjectVersionHistory({ projectId }: { readonly projectId: string }) {
   }
 
   return (
-    <VersionHistoryContainer projectId={projectId} floorId={floorId} floorOptions={floorOptions} onSelectFloor={setPicked} onToast={addToast} />
+    <VersionHistoryContainer projectId={projectId} floorId={floorId} floorOptions={floorOptions} onSelectFloor={(id) => {
+        setPicked(id);
+        // `?floorId=` là chỗ giữ tầng qua tải lại / liên kết sao chép (A-006).
+        setSearchParams((previous) => new URLSearchParams({ ...Object.fromEntries(previous), floorId: id }), { replace: true });
+      }} onToast={addToast} />
   );
 }
 
