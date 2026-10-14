@@ -63,6 +63,7 @@ function props(overrides: Partial<ProfileSectionProps> = {}): ProfileSectionProp
     flashedField: null,
     rowClassName: DENSITY_ROW_CLASS.comfortable,
     motionOff: false,
+    isStacked: false,
     ...overrides,
   };
 }
@@ -117,6 +118,25 @@ describe('trạng thái 1 — rỗng', () => {
     expect(initialsOf('Nguyễn Thu Hà', '')).toBe('NH');
     expect(initialsOf('Hà', '')).toBe('HÀ');
     expect(initialsOf('', '')).toBe('');
+  });
+});
+
+describe('BUG-497, BUG-502 — khổ hẹp: nhãn trên ô, thư dài không đẩy nút ra ngoài thẻ', () => {
+  it('isStacked thì mọi hàng xếp dọc, ô rộng hết thẻ', () => {
+    render(<ProfileSection {...props({ isStacked: true })} />);
+
+    for (const label of ['Họ tên', 'Chức danh', 'Thư điện tử', 'Điện thoại']) {
+      expect(rowOf(label)).toHaveClass('flex-col');
+    }
+  });
+
+  it('ô thư điện tử co được (min-w-0 flex-1) để nút "Đổi thư điện tử" ở lại trong hàng', () => {
+    render(<ProfileSection {...props({ email: `${'a'.repeat(120)}@congty.vn` })} />);
+
+    const button = screen.getByRole('button', { name: 'Đổi thư điện tử' });
+    const wrapper = button.previousElementSibling;
+
+    expect(wrapper).toHaveClass('min-w-0', 'flex-1');
   });
 });
 

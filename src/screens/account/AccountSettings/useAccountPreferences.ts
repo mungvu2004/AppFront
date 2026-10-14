@@ -66,6 +66,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import type { SelectOption } from '@/components/ui/Select';
+import { useBreakpoint } from '@/hooks/useAppShell';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useTheme } from '@/hooks/useTheme';
 import type { ApiResult } from '@/api/client';
@@ -146,6 +147,13 @@ export const DENSITY_ROW_CLASS: Readonly<Record<DensityChoice, string>> = {
   comfortable: 'min-h-[40px]',
   compact: 'min-h-[36px]',
 };
+
+/**
+ * Dưới mốc này hai khối xếp nhãn lên trên ô: cột 40/60 trong thẻ 375 px chỉ còn ~160 px cho ô
+ * và đẩy nút "Đổi thư điện tử", nhóm "Theo hệ thống" ra ngoài màn (BUG-497, BUG-502).
+ * Cùng mốc thu gọn của `RuleSettings`, `RuleReport`.
+ */
+export const ACCOUNT_STACKED_QUERY = '(width < 1024px)';
 
 const EMAIL_REASON_SHORT = 'Thư điện tử là tên đăng nhập nên chỉ đọc ở đây.';
 const EMAIL_REASON_LONG =
@@ -602,6 +610,7 @@ export function useAccountPreferences(
 
   const email = sessionUser?.email ?? '';
   const rowClassName = DENSITY_ROW_CLASS[values.density];
+  const isStacked = useBreakpoint(ACCOUNT_STACKED_QUERY);
 
   const profile: ProfileSectionProps = {
     avatarUrl: avatarUrlOverride ?? values.avatarUrl,
@@ -638,6 +647,7 @@ export function useAccountPreferences(
     flashedField: isProfileField(flashedField) ? flashedField : null,
     rowClassName,
     motionOff,
+    isStacked,
   };
 
   const appearance: AppearanceSectionProps = {
@@ -654,6 +664,7 @@ export function useAccountPreferences(
     flashedField: isAppearanceField(flashedField) ? flashedField : null,
     rowClassName,
     motionOff,
+    isStacked,
   };
 
   return { profile, appearance };

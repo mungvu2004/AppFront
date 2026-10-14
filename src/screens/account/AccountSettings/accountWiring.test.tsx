@@ -30,7 +30,12 @@ import {
 import { AvatarReplaceDialog } from './AvatarReplaceDialog';
 import { PasswordSection } from './PasswordSection';
 import { useAccountAuth, type AccountAuthModel } from './useAccountAuth';
-import { ACCOUNT_AUTOSAVE_DEBOUNCE_MS, ACCOUNT_LOCAL_ONLY_LABEL } from './useAccountSettings';
+import { ACCOUNT_STACKED_QUERY } from './useAccountPreferences';
+import {
+  ACCOUNT_AUTOSAVE_DEBOUNCE_MS,
+  ACCOUNT_FIELD_REJECTED_LABEL,
+  ACCOUNT_LOCAL_ONLY_LABEL,
+} from './useAccountSettings';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -175,6 +180,10 @@ describe('N12 422 — lỗi buộc vào đúng ô, không thử lại bằng l�
       screen.getByText('Họ tên cần từ 1 đến 120 ký tự, không chứa ký tự điều khiển.'),
     ).toBeTruthy();
     expect(announcer.announce.mock.calls.some((call) => call[1] === 'assertive')).toBe(true);
+    // BUG-503: lỗi nhập không phải lỗi hệ thống — chip và bộ đọc màn hình không hứa "thử lưu lại".
+    expect(screen.getByText(ACCOUNT_FIELD_REJECTED_LABEL)).toBeTruthy();
+    expect(screen.queryByText(/thử lưu lại/)).toBeNull();
+    expect(announcer.announce).toHaveBeenCalledWith(ACCOUNT_FIELD_REJECTED_LABEL, 'assertive');
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(60_000);
@@ -245,7 +254,7 @@ describe('N12 422 — lỗi buộc vào đúng ô, không thử lại bằng l�
 /* -------------------------------------------------------------------------- */
 
 describe('N14 — ảnh đại diện qua hộp thoại A9', () => {
-  it('PNG: bấm "Thay ảnh" mới gửi, thân không có tiền tố data:, ảnh mới và bộ đệm mang URL mới', async () => {
+  it('PNG: bấm "Đặt ảnh" mới gửi, thân không có tiền tố data:, ảnh mới và bộ đệm mang URL mới', async () => {
     const url = 'https://cdn.example.test/avatars/01J0NEW.png';
     const replaceAvatar = vi.fn(() => Promise.resolve({ ok: true as const, data: newMe(url) }));
     const { container, queryClient } = mount(settingsGateway({ replaceAvatar }));
@@ -257,9 +266,11 @@ describe('N14 — ảnh đại diện qua hộp thoại A9', () => {
 
     expect(within(dialog).getByText('Đặt ảnh đại diện?')).toBeTruthy();
     expect(within(dialog).getByText('Sau khi đặt chỉ thay được, không gỡ được.')).toBeTruthy();
+    // BUG-501: nhãn nút theo câu hỏi — chưa có ảnh thì không có gì để "thay".
+    expect(within(dialog).queryByRole('button', { name: 'Thay ảnh' })).toBeNull();
     expect(replaceAvatar).not.toHaveBeenCalled();
 
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Thay ảnh' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Đặt ảnh' }));
 
     await waitFor(() => {
       expect(replaceAvatar).toHaveBeenCalledWith({
@@ -290,6 +301,7 @@ describe('N14 — ảnh đại diện qua hộp thoại A9', () => {
 
     expect(within(dialog).getByText('Thay ảnh đại diện?')).toBeTruthy();
     expect(within(dialog).getByText('Ảnh cũ không khôi phục được.')).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'Thay ảnh' })).toBeTruthy();
   });
 
   it('"Huỷ" không gọi mạng', async () => {
@@ -432,7 +444,7 @@ describe('N14 — ảnh đại diện qua hộp thoại A9', () => {
     await loaded();
     pick(container, pngFile());
     fireEvent.click(
-      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Thay ảnh' }),
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Đặt ảnh' }),
     );
 
     expect(await screen.findByText(sentence)).toBeTruthy();
@@ -452,7 +464,7 @@ describe('N14 — ảnh đại diện qua hộp thoại A9', () => {
     await loaded();
     pick(container, pngFile());
     fireEvent.click(
-      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Thay ảnh' }),
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Đặt ảnh' }),
     );
     await screen.findByText('Đã thử nhiều lần. Hãy đợi vài phút rồi thử lại.');
 
@@ -479,7 +491,7 @@ describe('N14 — ảnh đại diện qua hộp thoại A9', () => {
     await loaded();
     pick(container, pngFile());
     fireEvent.click(
-      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Thay ảnh' }),
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Đặt ảnh' }),
     );
 
     await waitFor(() => {
@@ -498,17 +510,41 @@ describe('N14 — ảnh đại diện qua hộp thoại A9', () => {
     await loaded();
     pick(container, pngFile());
     fireEvent.click(
-      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Thay ảnh' }),
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Đặt ảnh' }),
     );
     await waitFor(() => {
       expect(replaceAvatar).toHaveBeenCalledTimes(1);
     });
 
     // Ngủ thật, không đồng hồ giả: debounce (nếu hồi quy làm ảnh lọt vào bản nháp) đã được xếp
-    // bằng `setTimeout` thật lúc bấm "Thay ảnh", cài đồng hồ giả lúc này sẽ không bắn nó.
+    // bằng `setTimeout` thật lúc bấm "Đặt ảnh", cài đồng hồ giả lúc này sẽ không bắn nó.
     await new Promise((resolve) => setTimeout(resolve, ACCOUNT_AUTOSAVE_DEBOUNCE_MS + 200));
 
     expect(save).not.toHaveBeenCalled();
+  });
+});
+
+describe('BUG-497, BUG-502 — route đo mốc khổ hẹp, hai khối xếp nhãn lên trên ô', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(window, 'matchMedia');
+  });
+
+  it.each([
+    [true, true],
+    [false, false],
+  ])('(width < 1024px) khớp = %s → hàng "Họ tên" xếp dọc = %s', async (matches, stacked) => {
+    window.matchMedia = ((query: string) => ({
+      matches: query === ACCOUNT_STACKED_QUERY ? matches : false,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    })) as unknown as typeof window.matchMedia;
+
+    mount(settingsGateway());
+    const field = await loaded();
+    const row = field.closest('div.flex.items-start');
+
+    expect(row?.classList.contains('flex-col')).toBe(stacked);
   });
 });
 

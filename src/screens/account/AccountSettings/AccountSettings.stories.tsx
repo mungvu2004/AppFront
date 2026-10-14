@@ -93,6 +93,7 @@ const base: AccountSettingsViewModel = {
       flashedField: null,
       rowClassName: DENSITY_ROW_CLASS.comfortable,
       motionOff: false,
+      isStacked: false,
     },
     appearance: {
       theme: 'light',
@@ -108,6 +109,7 @@ const base: AccountSettingsViewModel = {
       flashedField: null,
       rowClassName: DENSITY_ROW_CLASS.comfortable,
       motionOff: false,
+      isStacked: false,
     },
   },
   tables: {

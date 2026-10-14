@@ -108,6 +108,12 @@ export const ACCOUNT_AUTOSAVE_DEBOUNCE_MS = 800;
  */
 export const ACCOUNT_LOCAL_ONLY_LABEL = 'Chỉ giữ trong phiên này';
 
+/**
+ * Câu của chỉ báo lưu khi máy chủ từ chối một ô hồ sơ (422): gửi lại y nguyên không qua, nên
+ * không hứa "sẽ thử lưu lại" — chỉ ra việc cần làm, cùng câu `ProjectSettings` (BUG-503, BUG-300).
+ */
+export const ACCOUNT_FIELD_REJECTED_LABEL = 'Chưa lưu vì còn ô cần sửa';
+
 /** Câu lỗi của ô hồ sơ khi máy chủ trả 422 kèm `field`. */
 const PROFILE_FIELD_PROBLEMS: Readonly<Partial<Record<string, string>>> = {
   fullName: 'Họ tên cần từ 1 đến 120 ký tự, không chứa ký tự điều khiển.',
@@ -276,6 +282,7 @@ export function useAccountSettings(
   const indicator = useSaveIndicator(autosave, {
     ...(options.now !== undefined ? { now: options.now } : {}),
     announcer,
+    failedLabel: Object.keys(profileProblems).length > 0 ? ACCOUNT_FIELD_REJECTED_LABEL : null,
   });
 
   bridgeRef.current = {

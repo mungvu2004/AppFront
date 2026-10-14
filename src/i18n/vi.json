@@ -471,6 +471,7 @@
         "confirm": {
           "cancel": "Huỷ",
           "confirmReplace": "Thay ảnh",
+          "confirmSet": "Đặt ảnh",
           "previewAlt": "Ảnh đại diện mới",
           "setBody": "Sau khi đặt chỉ thay được, không gỡ được.",
           "setTitle": "Đặt ảnh đại diện?",

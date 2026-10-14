@@ -30,6 +30,19 @@ describe('FieldRow', () => {
     expect(label).not.toHaveClass('font-medium');
   });
 
+  it('stacks the label above a full-width value (isStacked, BUG-502)', () => {
+    const { rerender } = render(<FieldRow label="Họ tên"><span>An</span></FieldRow>);
+    expect(screen.getByText('Họ tên').parentElement).toHaveClass('w-[40%]');
+
+    rerender(<FieldRow label="Họ tên" isStacked><span>An</span></FieldRow>);
+    const label = screen.getByText('Họ tên').parentElement;
+    expect(label?.parentElement).toHaveClass('flex-col');
+    expect(label).toHaveClass('w-full');
+    expect(label).not.toHaveClass('w-[40%]', 'pt-[9px]');
+    expect(screen.getByText('An').parentElement).toHaveClass('w-full');
+    expect(screen.getByText('An').parentElement).not.toHaveClass('w-[60%]');
+  });
+
   it('renders dash for mixed value', () => {
     render(<FieldRow label="Độ dày" isMixed><span>ignored</span></FieldRow>);
     expect(screen.getByText('—')).toBeInTheDocument();

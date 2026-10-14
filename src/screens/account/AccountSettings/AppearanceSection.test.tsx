@@ -71,6 +71,7 @@ function props(overrides: Partial<AppearanceSectionProps> = {}): AppearanceSecti
     flashedField: null,
     rowClassName: DENSITY_ROW_CLASS.comfortable,
     motionOff: false,
+    isStacked: false,
     ...overrides,
   };
 }
@@ -89,6 +90,16 @@ function rowOf(label: string): HTMLElement {
 /* -------------------------------------------------------------------------- */
 /* View.                                                                       */
 /* -------------------------------------------------------------------------- */
+
+describe('BUG-497, BUG-502 — khổ hẹp: nhãn trên điều khiển', () => {
+  it('isStacked thì năm hàng xếp dọc, nhóm "Theo hệ thống" có cả bề rộng thẻ', () => {
+    render(<AppearanceSection {...props({ isStacked: true })} />);
+
+    for (const label of ['Chủ đề', 'Dùng nền tối cho khung nhìn 3D', 'Mật độ hiển thị']) {
+      expect(rowOf(label)).toHaveClass('flex-col');
+    }
+  });
+});
 
 describe('năm hàng của khối', () => {
   it('vẽ đủ năm nhãn, viết thường theo A6', () => {
