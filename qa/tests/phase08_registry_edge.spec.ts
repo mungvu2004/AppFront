@@ -49,7 +49,7 @@ test.describe('E08 SCR-36 registry (real)', () => {
   test.setTimeout(120_000);
 
   test('SCR-36 · FL-36R-01 · Open, header, wall state, table', async ({ browser }) => {
-    const { context, page, families, walls, reads } = await openRegistry(browser);
+    const { context, page, families, walls, reads, detailReads } = await openRegistry(browser);
     try {
       const wallActive = activeIdOf(families, 'wallSegmentation');
       const crumb = page.getByRole('navigation', { name: 'Đường dẫn trang', exact: true });
@@ -97,17 +97,16 @@ test.describe('E08 SCR-36 registry (real)', () => {
           const active = walls.find((v) => v.id === wallActive);
           expect.soft(active, 'environment: active wall version is in the first page').toBeDefined();
           await expect.soft(card).toContainText(str(active ?? {}, 'label'));
-          await expect.soft(card).toContainText(/IoU 0\.\d{3}/u); // UMR:246-253
+          await expect.soft(card).toContainText(/IoU \d,\d{3}/u); // UMR:246-253
           await expect.soft(card.getByRole('button', { name: REG.revert, exact: true })).toHaveCount(1);
         }
         await ev(page, '36R-B-001');
       });
-      await test.step('[36R-G-005] active version read', async () => {
+      await test.step('[36R-G-005] active version read (UI request)', async () => {
         if (wallActive === null) {
-          expect.soft(wallActive, 'no active wall -> no GET model-versions/:id (classic path)').toBeNull();
+          expect.soft(detailReads(), 'classic path: no GET model-versions/<id>').toEqual([]);
         } else {
-          const res = await page.request.get(`${VERSIONS}/${wallActive}`); // same wire the card read used (UMR:415-419)
-          expect.soft(res.status(), `GET model-versions/${wallActive}`).toBe(200);
+          await expect.poll(detailReads, { message: 'UI reads the active version (UMR:415-419)' }).toContain(`GET ${VERSIONS}/${wallActive}`);
         }
         await ev(page, '36R-G-005');
       });
@@ -126,14 +125,16 @@ test.describe('E08 SCR-36 registry (real)', () => {
           const row = versionRow(page, label);
           if (v.id !== wallActive) await expect.soft(row).toContainText(EVALUATION_LABEL[str(v, 'evaluationStatus')] ?? ''); // UMR:102-107
           const metric = (v.metrics as Json | undefined)?.iou;
-          if (typeof metric !== 'number') await expect.soft(row).toContainText('—');
+          const cell = row.locator('td').nth(3); // MRV:134 metric cell
+          if (typeof metric === 'number') await expect.soft(cell).toHaveText(`IoU ${metric.toFixed(3).replace('.', ',')}`);
+          else await expect.soft(cell).toHaveText('—');
         }
         await ev(page, '36R-B-006');
       });
       await test.step('[36R-B-007] active row', async () => {
         const active = walls.find((v) => v.id === wallActive);
         if (active === undefined) {
-          await expect.soft(page.getByRole('button', { name: REG.activate, exact: true }).first(), 'no active wall row on page 1').not.toHaveText(REG.active);
+          await expect.soft(page.locator('tbody').getByText(REG.active, { exact: true }), 'no active wall -> no "Đang dùng" row badge').toHaveCount(0);
         } else {
           const row = versionRow(page, str(active, 'label'));
           await expect.soft(row).toContainText(REG.active); // MRV:144-146
@@ -216,7 +217,7 @@ test.describe('E08 SCR-36 registry (real)', () => {
         if (activeIdOf(families, 'wallSegmentation') !== null) await expect.soft(revert, 'Tab 2 -> revert').toBeFocused();
         else await expect.soft(revert).toHaveCount(0);
         await page.keyboard.press('Tab');
-        await expect.soft(page.locator('tbody').locator('button:focus, a:focus').first(), 'Tab 3 -> first row control').toBeFocused();
+        await expect.soft(page.locator('tbody tr:first-child').locator(':focus'), 'Tab 3 -> first row control').toHaveCount(1);
         await expect.soft(activeCard(page), 'card is not a stop').not.toBeFocused();
         await ev(page, '36R-E-004');
       });
@@ -274,7 +275,7 @@ test.describe('E08 SCR-36 registry (real)', () => {
   });
 
   test('SCR-36 · FL-36R-03 · Version detail', async ({ browser }) => {
-    const { context, page, walls } = await openRegistry(browser);
+    const { context, page, walls, families } = await openRegistry(browser);
     try {
       let family: Family = 'wallSegmentation';
       let versions: Json[] = walls;
@@ -292,6 +293,7 @@ test.describe('E08 SCR-36 registry (real)', () => {
         await expect(aside).toContainText(REG.placeholder); // MRD:13-17
         await ev(page, '36R-B-017');
       });
+      const detailRec = recordRequests(page, (u) => u.pathname.startsWith(`${VERSIONS}/`));
       await test.step('[36R-A-007] click first label', async () => {
         await labelButton(page, label).click();
         await expect.soft(labelButton(page, label)).toHaveAttribute('aria-pressed', 'true'); // MRV:29-40
@@ -299,15 +301,16 @@ test.describe('E08 SCR-36 registry (real)', () => {
         await ev(page, '36R-A-007');
       });
       await test.step('[36R-G-004] detail read', async () => {
-        const res = await page.request.get(`${VERSIONS}/${id}`);
-        expect.soft(res.status(), `GET model-versions/${id}`).toBe(200); // UMR:421-425
+        const wasActive = first.id === activeIdOf(families, family);
+        if (wasActive) await expect.soft(aside.getByRole('heading', { level: 2, name: label, exact: true }), 'active version: detail may come from cache').toBeVisible();
+        else await expect.poll(detailRec.list, { message: 'UI reads the version (UMR:421-425)' }).toContain(`GET ${VERSIONS}/${id}`);
         await ev(page, '36R-G-004');
       });
       await test.step('[36R-B-018] detail fields', async () => {
         for (const f of REG.fields) await expect.soft(aside.locator('dt', { hasText: new RegExp(`^\\s*${f}\\s*$`, 'u') })).toBeVisible(); // MRD:78-98
         await ev(page, '36R-B-018');
       });
-      const seed = versions.find((v) => str(v, 'label') === 'Gốc' && str(v, 'createdBy') === 'system:pipeline');
+      const seed = versions.find((v) => str(v, 'label') === 'Gốc' && str(v, 'creatorId') === 'system:pipeline');
       await test.step('[36R-B-020] seed note (branch)', async () => {
         if (seed !== undefined) {
           await labelButton(page, 'Gốc').click();
@@ -381,6 +384,7 @@ test.describe('E08 SCR-36 registry (real)', () => {
       await test.step('[36R-E-007] dialog a11y', async () => {
         expect.soft(cand !== null, missing).toBe(true);
         if (cand === null) return;
+        await expect(dlg().locator(':focus')).toHaveCount(1); // focus trap armed (rAF)
         await expect.soft(dlg()).toHaveAttribute('aria-modal', 'true'); // Modal.tsx:210-212
         const inside = (): Promise<boolean> => dlg().evaluate((el) => el.contains(document.activeElement));
         for (let i = 0; i < 3; i += 1) {
@@ -406,6 +410,7 @@ test.describe('E08 SCR-36 registry (real)', () => {
         if (cand === null) return;
         await activate().click();
         await expect.soft(dlg()).toBeVisible();
+        await expect(dlg().locator(':focus')).toHaveCount(1); // focus trap armed (rAF)
         await page.keyboard.press('Escape'); // Modal.tsx:76-78
         await expect.soft(page.getByRole('dialog')).toHaveCount(0);
         await expect.soft(activate(), 'focus returns to the opener').toBeFocused();
@@ -449,7 +454,6 @@ test.describe('E08 SCR-36 registry (real)', () => {
       const rec = recordRequests(page, (u) => u.pathname.startsWith('/api/admin/ml'));
       await page.goto(REGISTRY_PATH);
       await expect(page.getByRole('heading', { name: REG.forbiddenTitle, exact: true })).toBeVisible(); // UMR:395-396, MR:172-178
-      await page.waitForLoadState('networkidle');
       rec.stop();
       return { page, reads: rec.list() };
     };
