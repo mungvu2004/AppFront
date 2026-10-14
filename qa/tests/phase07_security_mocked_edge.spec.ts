@@ -31,6 +31,7 @@ import {
   respond,
   restorePassword,
   settle,
+  slotOf,
   shot,
 } from './support/p07/P8';
 
@@ -38,11 +39,13 @@ test('SCR-33 · FL-33S-08 · [mocked response] 5xx / network / 429 / 422 VALIDAT
   test.setTimeout(Math.max(120_000, 2 * 100_000));
   const { email, password } = readAdminCredentials();
   const admin = await signedInApi(email, password);
-  const user = await poolUser(admin, 'engineer', 'p07-security-8');
+  const user = await poolUser(admin, 'engineer', slotOf('p07-security-8'));
   const { context, page } = await newSession(browser, user);
   let current = user.password;
+  let answers: Awaited<ReturnType<typeof designedAnswers>> | undefined;
   try {
-    const answers = await designedAnswers(page);
+    const routed = await designedAnswers(page);
+    answers = routed;
     await page.clock.install(); // the 60 s / 120 s locks are run forward, never waited
     await openSecurity(page);
     const unavailable = fieldError(page, COPY.unavailable);
@@ -52,7 +55,7 @@ test('SCR-33 · FL-33S-08 · [mocked response] 5xx / network / 429 / 422 VALIDAT
 
     await test.step('[33S-A-021] 5xx (503) on submit: unavailable alert, fields keep values, button enabled', async () => {
       await fillPasswords(page, current, next, next);
-      answers.once(respond(503, { code: 'DEPENDENCY_UNAVAILABLE' }));
+      routed.once(respond(503, { code: 'DEPENDENCY_UNAVAILABLE' }));
       await pwSubmit(page).click(); // UAA:441-442
       await expect.soft(unavailable).toBeVisible();
       await expect.soft(pwField(page, PW.current)).toHaveValue(current);
@@ -63,13 +66,13 @@ test('SCR-33 · FL-33S-08 · [mocked response] 5xx / network / 429 / 422 VALIDAT
     });
 
     await test.step('[33S-C-015] Client does not retry the POST on 5xx even with Retry-After', async () => {
-      const before = answers.hits();
-      answers.once(respond(503, { code: 'DEPENDENCY_UNAVAILABLE' }, { 'Retry-After': '5' }));
+      const before = routed.hits();
+      routed.once(respond(503, { code: 'DEPENDENCY_UNAVAILABLE' }, { 'Retry-After': '5' }));
       await pwSubmit(page).click(); // RT:34-35 POST without Idempotency-Key is not retryable
       await expect.soft(unavailable).toBeVisible();
       await page.clock.runFor(10_000); // past Retry-After
       await settle(page);
-      expect.soft(answers.hits() - before, 'exactly one request per submit').toBe(1);
+      expect.soft(routed.hits() - before, 'exactly one request per submit').toBe(1);
       await shot(page, 'C-015', 'mock');
     });
 
@@ -82,7 +85,7 @@ test('SCR-33 · FL-33S-08 · [mocked response] 5xx / network / 429 / 422 VALIDAT
     });
 
     await test.step('[33S-A-022] Network failure (request aborted) on submit: unavailable alert', async () => {
-      answers.once(abortRequest);
+      routed.once(abortRequest);
       await pwSubmit(page).click();
       await expect.soft(unavailable).toBeVisible(); // http network error -> AAG:191
       await shot(page, 'A-022', 'mock');
@@ -104,7 +107,7 @@ test('SCR-33 · FL-33S-08 · [mocked response] 5xx / network / 429 / 422 VALIDAT
     await test.step('[33S-C-013] Server 422 VALIDATION (not the wrong-current code) is mapped to "unavailable"', async () => {
       const again = freshPassword();
       await fillPasswords(page, current, again, again);
-      answers.once(respond(422, { code: 'VALIDATION', field: 'newPassword' }));
+      routed.once(respond(422, { code: 'VALIDATION', field: 'newPassword' }));
       await pwSubmit(page).click();
       await expect.soft(unavailable).toBeVisible(); // AAG:191
       await expect.soft(pwField(page, PW.current)).not.toHaveAttribute('aria-invalid', 'true');
@@ -113,8 +116,8 @@ test('SCR-33 · FL-33S-08 · [mocked response] 5xx / network / 429 / 422 VALIDAT
     });
 
     await test.step('[33S-C-012] 429 recognised by status alone (body without code): same alert and lock', async () => {
-      answers.once(respond(429, {}));
-      const before = answers.hits();
+      routed.once(respond(429, {}));
+      const before = routed.hits();
       await pwSubmit(page).click(); // AAG:179 wire.status === 429
       await expect.soft(limited).toBeVisible();
       await expect.soft(pwSubmit(page)).toBeDisabled();
@@ -125,11 +128,11 @@ test('SCR-33 · FL-33S-08 · [mocked response] 5xx / network / 429 / 422 VALIDAT
       await advanceTo(page, lockedAt, 62_000);
       await expect.soft(pwSubmit(page), 'open after 60 s').toBeEnabled();
       await expect.soft(limited).toHaveCount(0);
-      expect.soft(answers.hits() - before, 'one request, no client retry on 429').toBe(1);
+      expect.soft(routed.hits() - before, 'one request, no client retry on 429').toBe(1);
     });
 
     await test.step('[33S-C-011] Lock length is max(Retry-After, 60 s): Retry-After 120 opens at +120 s', async () => {
-      answers.once(respond(429, { code: 'RATE_LIMITED' }, { 'Retry-After': '120' }));
+      routed.once(respond(429, { code: 'RATE_LIMITED' }, { 'Retry-After': '120' }));
       await pwSubmit(page).click(); // UAA:208,430-436
       await expect.soft(limited).toBeVisible();
       const lockedAt = await pageNow(page);
@@ -141,8 +144,8 @@ test('SCR-33 · FL-33S-08 · [mocked response] 5xx / network / 429 / 422 VALIDAT
       await expect.soft(limited).toHaveCount(0);
     });
 
-    await answers.stop();
   } finally {
+    await answers?.stop().catch(() => undefined);
     await restorePassword(user, current);
     await context.close();
     await admin.dispose();

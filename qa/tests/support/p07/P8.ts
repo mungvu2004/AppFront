@@ -132,3 +132,6 @@ export async function designedAnswers(page: Page): Promise<{ once: (answer: Answ
   await page.route(matcher, handler);
   return { once: (answer) => void queue.push(answer), hits: () => hits, stop: () => page.unroute(matcher, handler) };
 }
+
+/** Fixed pool slot (these users only touch the 900 s me_password bucket); suffix only on a retry, so a retry gets a fresh bucket. */
+export const slotOf = (base: string): string => (test.info().retry ? `${base}-r${test.info().retry}` : base);
