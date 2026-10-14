@@ -413,6 +413,19 @@ export async function clickablePoints(page: Page, points: readonly Point[]): Pro
   return out;
 }
 
+/** World (mm) -> page pixel for the 8 x 6 m seed in the top view, from the model's pixel bounds (P4 `targetPixels` method; handles a quarter turn). */
+export function modelMapper(points: readonly Point[]): { pixelOf: (world: Point) => Point; scale: number } {
+  if (points.length === 0) throw new Error('canvas shows only its background colour (no model pixels)');
+  const xs = points.map((p) => p[0]);
+  const ys = points.map((p) => p[1]);
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const swap = (x1 - x0) / (y1 - y0) < 1;
+  const scale = (x1 - x0) / (swap ? 6_220 : 8_220);
+  const [cx, cy] = [(x0 + x1) / 2, (y0 + y1) / 2];
+  const pixelOf = ([wx, wy]: Point): Point => (swap ? [cx + (wy - 3_000) * scale, cy + (wx - 4_000) * scale] : [cx + (wx - 4_000) * scale, cy + (wy - 3_000) * scale]);
+  return { pixelOf, scale };
+}
+
 /** Measurement discs (one per picked point) in the tool overlay (P4 `discCount`). */
 export const discCount = (page: Page): Promise<number> =>
   page.getByRole('region', { name: 'Lớp phủ công cụ đo', exact: true }).locator('svg circle.fill-accent').count();
@@ -427,13 +440,7 @@ export async function makeDraft(page: Page, { complete }: { readonly complete: b
   await page.mouse.move(5, 5);
   const points = await geometryPoints(await settledCanvas(page));
   if (points.length === 0) throw new Error('canvas shows only its background colour (no model pixels)');
-  const xs = points.map((p) => p[0]);
-  const ys = points.map((p) => p[1]);
-  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
-  const swap = (x1 - x0) / (y1 - y0) < 1;
-  const scale = (x1 - x0) / (swap ? 6_220 : 8_220);
-  const [cx, cy] = [(x0 + x1) / 2, (y0 + y1) / 2];
-  const pixelOf = ([wx, wy]: Point): Point => (swap ? [cx + (wy - 3_000) * scale, cy + (wx - 4_000) * scale] : [cx + (wx - 4_000) * scale, cy + (wy - 3_000) * scale]);
+  const { pixelOf, scale } = modelMapper(points);
   const radius = Math.max(12, scale * 110);
   const step = Math.max(2, scale * 50);
   const canvas = await viewportOf(page).locator('canvas').first().boundingBox();

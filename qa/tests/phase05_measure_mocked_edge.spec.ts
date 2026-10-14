@@ -32,7 +32,6 @@ import {
   SCENE_TIMEOUT_MS,
   abortRoute,
   armMeasure,
-  clickablePoints,
   failWith,
   fulfillPatched,
   geometryPoints,
@@ -45,7 +44,8 @@ import {
   pinButton,
   projectRe,
   rowLabel,
-  screenGuesses,
+  modelMapper,
+  discCount,
   seedMeasurements,
   seedProject,
   seedR1,
@@ -305,25 +305,28 @@ test.describe('SCR-25 measure — mocked responses', () => {
         await armMeasure(page);
         await page.mouse.move(5, 5);
         const points = await geometryPoints(await settledCanvas(page));
-        // UNKNOWN — NEED VERIFICATION: screen position of model (2000, 3000) is inferred from the on-screen extent of the 8 x 6 m seed.
-        const hit = await hoverUntilSnap(page, 'Giao trục', screenGuesses(points, 2000, 3000));
+        // (2000,3000) -> pixel from the model's real pixel bounds, then a spiral hover until the chip says "Giao trục".
+        const { pixelOf, scale } = modelMapper(points);
+        const hit = await hoverUntilSnap(page, 'Giao trục', [pixelOf([2000, 3000])], Math.max(12, scale * 110), Math.max(2, scale * 50));
         expect.soft(hit, 'a hover near (2000,3000) reads "Giao trục"').not.toBeNull(); // MTG:248-269
         await captureEvidence(page, 'E05m_25-C-016_axis_snap.png');
         if (hit !== null) {
+          const before = await discCount(page);
           await page.mouse.click(hit[0], hit[1]);
-          const pin = pinButton(page);
-          await expect(pin).toBeVisible();
-          const others = (await clickablePoints(page, points)).filter((p) => Math.hypot(p[0] - hit[0], p[1] - hit[1]) >= 60);
-          for (const [x, y] of others.slice(0, 4)) {
-            await page.mouse.click(x, y);
-            if (await pin.click({ trial: true, timeout: 2_000 }).then(() => true, () => false)) break;
+          await expect.poll(() => discCount(page), { message: 'first point picked' }).toBe(before + 1);
+          // second point: a far outer corner of the model
+          const second = await hoverUntilSnap(page, 'Đỉnh', [pixelOf([8000, 6000])], Math.max(12, scale * 110), Math.max(2, scale * 50));
+          expect.soft(second, 'a vertex for the second point').not.toBeNull();
+          if (second !== null) {
+            await page.mouse.click(second[0], second[1]);
+            await expect.poll(() => discCount(page), { message: 'second point picked' }).toBe(before + 2);
+            const sent = page.waitForRequest((request) => request.method() === 'POST' && measurementsRe(projectId).test(new URL(request.url()).pathname));
+            await pinButton(page).click();
+            const body = (await sent).postDataJSON() as { points?: { x: number; y: number }[] };
+            const first = body.points?.[0];
+            expect.soft(Math.abs((first?.x ?? Number.NaN) - 2000), 'pinned x').toBeLessThanOrEqual(1);
+            expect.soft(Math.abs((first?.y ?? Number.NaN) - 3000), 'pinned y').toBeLessThanOrEqual(1);
           }
-          const sent = page.waitForRequest((request) => request.method() === 'POST' && measurementsRe(projectId).test(new URL(request.url()).pathname));
-          await pin.click();
-          const body = (await sent).postDataJSON() as { points?: { x: number; y: number }[] };
-          const first = body.points?.[0];
-          expect.soft(Math.abs((first?.x ?? Number.NaN) - 2000), 'pinned x').toBeLessThanOrEqual(1);
-          expect.soft(Math.abs((first?.y ?? Number.NaN) - 3000), 'pinned y').toBeLessThanOrEqual(1);
         }
         await dropMocks();
       });
