@@ -146,7 +146,7 @@ test.describe('phase 11 floors edge', () => {
         await expect(trayItem(page, 'nhat-ky-a.txt')).toHaveCount(0);
         const focus = await focusName(page); // FUT:39-48 removeAndKeepFocus
         expect.soft(focus, 'focus after removing a tray file').not.toBe('BODY');
-        expect.soft(focus).toMatch(/^BUTTON (Xoá bản vẽ nhat-ky-b\.txt|Chọn tệp)|^(DIV|SECTION|UL)/u);
+        expect.soft(focus).toBe('BUTTON Xoá bản vẽ nhat-ky-b.txt'); // FUT:39-48 next trash button
         await captureEvidence(page, 'E11_11F-A-004_floors.png', { caption: `focus: ${focus}` });
       });
 
@@ -189,6 +189,8 @@ test.describe('phase 11 floors edge', () => {
         await captureEvidence(page, 'E11_11F-A-008_floors.png');
       });
 
+      // ⚑ chờ chủ sản phẩm: catalog-C1 Notes (toast says removed, server copy stays)
+      test.info().annotations.push({ type: 'flag', description: 'catalog-C1:235 toast nói đã xoá, máy chủ còn' });
       await test.step('[11F-A-009] removing is local: reload shows the server drawing, no DELETE was sent', async () => {
         await page.reload();
         await openUpload(page, project.projectId, project.floors);
@@ -242,7 +244,7 @@ test.describe('phase 11 floors edge', () => {
       });
     } finally {
       await endMember(member);
-      await deleteSeededProject(admin, project.projectId);
+      expect(await deleteSeededProject(admin, project.projectId), 'cleanup').toBeNull();
       await admin.dispose();
     }
   });
@@ -312,7 +314,7 @@ test.describe('phase 11 floors edge', () => {
       });
     } finally {
       await endMember(member);
-      await deleteSeededProject(admin, seeded.projectId);
+      expect(await deleteSeededProject(admin, seeded.projectId), 'cleanup').toBeNull();
       await admin.dispose();
     }
   });
@@ -347,7 +349,7 @@ test.describe('phase 11 floors edge', () => {
       });
     } finally {
       await endMember(member);
-      await deleteSeededProject(admin, project.projectId);
+      expect(await deleteSeededProject(admin, project.projectId), 'cleanup').toBeNull();
       await admin.dispose();
     }
   });
