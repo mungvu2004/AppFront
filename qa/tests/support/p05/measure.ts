@@ -26,7 +26,7 @@ import { TEST_DATA_PREFIX } from '../evidence';
 import { createQcProject, deleteProject, type LayerApi, type SeededFloor } from '../layerSeed';
 import { DESKTOP, adminApi, closePage, openAdminPage, type OpenPage } from '../p03/P4';
 
-export { adminApi, closePage, openAdminPage, openPoolPage, DESKTOP, type OpenPage } from '../p03/P4';
+export { adminApi, closePage, holdFirst, openAdminPage, openPoolPage, DESKTOP, type OpenPage } from '../p03/P4';
 
 export type Json = Record<string, unknown>;
 export type Point = readonly [number, number];
@@ -580,7 +580,7 @@ export interface HoverOptions {
   /** Pixels already used; a candidate closer than `minDistPx` to any of them is skipped (a second, different vertex). */
   readonly avoid?: readonly Point[];
   readonly minDistPx?: number;
-  /** Only try the spiral around these pixels instead of every target of the kind. */
+  /** Only try the spiral around these pixels (no dense-scan fallback: a different target would be the wrong one). */
   readonly near?: readonly Point[];
 }
 
@@ -601,6 +601,7 @@ export async function hoverUntilSnap(page: Page, label: typeof MT.vertex | typeo
       if (apart(candidate) && (await hoverShows(page, candidate, label))) return candidate;
     }
   }
+  if (options.near !== undefined) throw new Error(`no hover near ${JSON.stringify(options.near)} made the snap chip say "${label}" (bounds ${JSON.stringify(bounds)})`);
   const dense = Math.max(4, Math.round(pxPerMm(bounds) * 100));
   for (let y = bounds.y; y <= bounds.y + bounds.height; y += dense) {
     for (let x = bounds.x; x <= bounds.x + bounds.width; x += dense) {
@@ -835,4 +836,58 @@ export async function withMeasureProject(browser: Browser, options: FlowOptions,
     await closePage(opened);
     await admin.dispose();
   }
+}
+
+/**
+ * Soft twin of `expectCanvasChanged`: records a soft failure when the canvas pixels do not change from `before` within
+ * `timeout` (the step goes red, the flow goes on); returns the settled new frame, or `before` when nothing changed.
+ */
+export async function canvasChanged(page: Page, before: CanvasShot, what: string, timeout = 15_000): Promise<CanvasShot> {
+  await expect
+    .configure({ soft: true })
+    .poll(async () => !(await canvasOnlyShot(page)).png.equals(before.png), {
+      message: `${what}: canvas pixels identical (the camera / scene did not change)`,
+      timeout,
+    })
+    .toBe(true);
+  return settledCanvas(page);
+}
+
+/** `expect` whose failures are soft: `softly.poll(fn).toBe(x)` records a failure and lets the flow go on. */
+export const softly = expect.configure({ soft: true });
+
+/**
+ * `count` clicks at `pixel` in one browser task (synthetic pointerdown / pointerup on the viewport, which is what React's
+ * `onPointerDown` / `onPointerUp` of the shell and the picker read: ViewerViewport.tsx:126-133). Used for the 201-point draft,
+ * where 201 real mouse clicks would only add run time. A real hover on the pixel first, so the snap chip is up to date.
+ */
+export async function clickMany(page: Page, [x, y]: Point, count: number): Promise<void> {
+  await page.mouse.move(x, y);
+  await page.evaluate(
+    ([px, py, n]) => {
+      const main = document.querySelector('main[aria-label="Khung nhìn mô hình"]');
+      if (main === null) throw new Error('viewport not found');
+      const init = { bubbles: true, cancelable: true, clientX: px, clientY: py, pointerId: 1, pointerType: 'mouse', isPrimary: true, button: 0 };
+      for (let i = 0; i < (n ?? 0); i += 1) {
+        main.dispatchEvent(new PointerEvent('pointerdown', { ...init, buttons: 1 }));
+        main.dispatchEvent(new PointerEvent('pointerup', { ...init, buttons: 0 }));
+      }
+    },
+    [x, y, count] as const,
+  );
+  await nextFrames(page);
+}
+
+/**
+ * Pointer INSIDE the viewport but off the model: the picker reports "nothing", the cursor point is dropped and the chip reads
+ * "Chưa bắt vào đâu" (UMT:626-628). `pointerAway` (page corner) does not do this: leaving the viewport sends no hover event,
+ * so the last cursor point would still be part of the live draft (livePicks, UMT:677-683).
+ */
+export async function hoverOffModel(page: Page): Promise<void> {
+  const bounds = await modelBounds(page);
+  const box = await viewport(page).boundingBox();
+  if (box === null) throw new Error('viewport has no bounding box');
+  const x = bounds.x > box.x + 60 ? bounds.x - 40 : box.x + 20;
+  await page.mouse.move(x, bounds.y + bounds.height / 2);
+  await expect.poll(() => chipText(page), { message: 'chip after hovering off the model' }).toBe(MT.chipSnapNone);
 }
