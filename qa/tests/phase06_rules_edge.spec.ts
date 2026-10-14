@@ -1452,6 +1452,15 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
     });
   });
 
+  // T (E4): the BE recomputes room.areaM2 from the outline on every layer write (writer.py W18), so the seed's `areaM2: 3` becomes 16 m2
+  // and ROOM-AREA-BELOW-MINIMUM never fires. Shrink the kitchen outline to 2000 x 1500 = 3 m2 (kitchen minimum 5 m2).
+  const smallKitchenLayer = (levelId: string, thinWalls = false): ReturnType<typeof ruleLayer> => {
+    const layer = ruleLayer(levelId, { thinWalls }) as { rooms: { outline: unknown }[] };
+    const kitchen = layer.rooms[0];
+    if (kitchen) kitchen.outline = [{ x: 0, y: 0 }, { x: 2000, y: 0 }, { x: 2000, y: 1500 }, { x: 0, y: 1500 }];
+    return layer;
+  };
+
   test('SCR-28 · FL-28V-03 · Quick fix: delete a clashing table, report moves it to "Đã xử lý"', async ({ browser }) => {
     await withAdmin(browser, async (admin) => {
       const { page } = admin;
@@ -1731,13 +1740,14 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
       const { page } = admin;
       const project = await createRuleProject(admin, 'rules-rename', { thinWalls: false });
       const floor = floorOf(project);
+      await writeLayer(admin.fx, project.id, floor.id, (levelId) => smallKitchenLayer(levelId));
       const puts = trackLayerPuts(page);
       await openRules(page, project.id);
       const panel = sheet(page);
       const clashName = RULE_NAMES.furnitureClash;
       const deleteButton = panel.getByRole('button', { name: DELETE_ACTION });
       const writeElsewhere = async (): Promise<void> => {
-        await writeLayer(admin.fx, project.id, floor.id, (levelId) => ruleLayer(levelId, { thinWalls: false })); // +X: another session replaces the layer
+        await writeLayer(admin.fx, project.id, floor.id, (levelId) => smallKitchenLayer(levelId)); // +X: another session replaces the layer
       };
 
       await test.step('[28V-A-012] ⚑ rename action copy', async () => {
@@ -1811,6 +1821,7 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         ],
         layered: 1,
       }); // R5: floor 2 has no walls
+      await writeLayer(admin.fx, project.id, floorOf(project).id, (levelId) => smallKitchenLayer(levelId, true));
       const puts = trackLayerPuts(page);
       await openRules(page, project.id);
       const panel = sheet(page);
