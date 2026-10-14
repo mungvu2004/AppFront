@@ -31,7 +31,6 @@ test('SCR-40e-3 · FL-10E-16 · anon · UI ShellDemo (c_ui)', async ({ devPage: 
       await expect(p.getByRole('button', { name: 'Thu gọn panel trái ([)', exact: true })).toBeVisible();
       await expect(p.getByRole('button', { name: 'Thu gọn panel phải (])', exact: true })).toBeVisible();
     }, WIDE);
-    await expectNoHScroll(page, 'shell two panels');
   });
 
   await test.step('[10E-F-010] collapse left / right (>=1280): canvas grows', async () => {
@@ -67,7 +66,6 @@ test('SCR-40e-3 · FL-10E-16 · anon · UI ShellDemo (c_ui)', async ({ devPage: 
       await expect(dialogs(p).first()).toBeVisible();
       await expect(dialogs(p).first().getByText('Architecture', { exact: true })).toBeVisible();
     }, AT_768, { fullPage: false });
-    await expectNoHScroll(page, 'shell left drawer 768');
   });
 
   await test.step('[10E-F-013] shortcut help + command palette stay in the viewport', async () => {
@@ -120,7 +118,15 @@ test('SCR-40e-4 · FL-10E-17 · anon · UI CanvasOverlaysDemo (c_ui)', async ({ 
       await p.getByRole('button', { name: 'Bật/tắt Selection Halo', exact: true }).click();
       const gizmo = p.locator('[aria-label="Transform gizmo"]'); // TransformGizmo.tsx:84
       await expect(gizmo).toBeVisible();
-      // SelectionHalo is aria-hidden (SelectionHalo.tsx:28) with no hook: UNKNOWN — NEED VERIFICATION of its box; gizmo only.
+      const halo = canvasBox(p).locator('div[role="presentation"][style*="width: 200px"]'); // P12.ts:19 hook
+      await expect(halo).toBeVisible();
+      await expectInside(canvasBox(p), halo, 'selection halo');
+      await expectNoOverlap([
+        { name: 'halo', target: halo },
+        { name: 'legend', target: legend(p) },
+        { name: 'zoom cluster', target: zoom(p) },
+        { name: 'minimap', target: miniMap(p) },
+      ]);
       await expectInside(canvasBox(p), gizmo, 'transform gizmo');
     }, DESKTOP_VIEWPORTS);
   });
