@@ -11,16 +11,11 @@
  * `src/App.tsx` dùng.
  */
 
-import { AlertCircle } from 'lucide-react';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
-import { EmptyState } from '@/components/feedback/EmptyState';
 import { ProjectSpatialGate } from '@/components/feedback/ProjectSpatialGate';
-import {
-  ScreenErrorBoundary,
-  type ScreenErrorFallback,
-} from '@/components/feedback/ScreenErrorBoundary';
+import { ScreenErrorBoundary } from '@/components/feedback/ScreenErrorBoundary';
 import type { ApiClient } from '@/api/client';
 import { denormalizeSpatial } from '@/domain/spatial/normalize';
 import type { SpatialGraph } from '@/domain/spatial/types';
@@ -49,6 +44,12 @@ import { useStore } from '@/store';
 
 import { PascalViewer } from './PascalViewer';
 import {
+  CrashFallback,
+  LazyFloorLayerSaveConfirm,
+  PascalHistoryPanelSlot,
+  PascalMassDeleteDialog,
+} from './PascalViewerOverlays';
+import {
   PASCAL_HISTORY_TOASTS,
   PASCAL_SIDE_PANEL_LABELS,
   type PascalSidePanel,
@@ -56,28 +57,6 @@ import {
 } from './pascalViewerTypes';
 import { usePascalEdits, type PascalMassDeleteRequest } from './usePascalEdits';
 import { usePascalViewer, type UsePascalViewerOptions } from './usePascalViewer';
-
-/*
- * Bảng lịch sử nạp muộn, và đó là một phép đo chứ không phải thói quen: ngân
- * sách `routeChunk` là 280 KiB, `HistoryPanel` là ~4 000 dòng, còn bảng chỉ
- * dựng khi người dùng mở nó. Nhập tĩnh là bắt mọi lượt mở `/3d` trả tiền cho
- * một bảng phần lớn phiên không ai bấm tới.
- */
-const LazyHistoryPanel = lazy(() =>
-  import('@/screens/viewer/HistoryPanel').then((module) => ({
-    default: module.HistoryPanelContainer,
-  })),
-);
-
-/* Hộp thoại A9 của 409 khi còn sửa chưa lưu — cùng hộp màn QC, nạp lười như ở đó
-   (`Modal` chỉ cần khi có xung đột, không phải mỗi lượt mở `/3d`). */
-const LazyFloorLayerSaveConfirm = lazy(() => import('@/screens/qc/WallLayerReview/FloorLayerSaveConfirm'));
-
-/* Hộp xác nhận xoá hàng loạt (A9, 23-A-026) — nạp lười cùng lý do trên. */
-const LazyModal = lazy(() => import('@/components/overlay/Modal').then((module) => ({ default: module.Modal })));
-
-/** Tiêu đề hộp xác nhận xoá hàng loạt; lý do của cổng đi vào thân hộp. */
-export const PASCAL_MASS_DELETE_TITLE = 'Xoá nhiều đối tượng khỏi tầng?';
 
 /** Loại thông báo của một lượt sửa bị chặn — toast gom theo loại. */
 export const PASCAL_REJECTED_NOTIFICATION_TYPE = 'pascal.edit.rejected';
@@ -130,22 +109,6 @@ export interface PascalViewerContainerProps {
   readonly projectId?: string | undefined;
   /** Chỉ dành cho test — mặc định bộ tự lưu dùng client của ứng dụng. */
   readonly apiClient?: Pick<ApiClient, 'spatial'> | undefined;
-}
-
-/** Thứ người dùng thấy thay cho màn đã sập. Chữ lấy thẳng từ `report.description`. */
-function CrashFallback({ report, retry }: ScreenErrorFallback) {
-  return (
-    <div className="flex h-full items-center justify-center bg-bg-app">
-      <EmptyState
-        icon={<AlertCircle aria-hidden="true" />}
-        title={report.description.title}
-        description={report.description.description}
-        {...(report.retryable
-          ? { action: { label: report.description.primaryButtonLabel, onClick: retry } }
-          : {})}
-      />
-    </div>
-  );
 }
 
 function PascalViewerBody({
@@ -299,20 +262,7 @@ function PascalViewerBody({
       {
         id: 'history',
         label: PASCAL_SIDE_PANEL_LABELS.history,
-        render: () => (
-          /* Ranh giới riêng của cột bảng (23H-B-011): chunk bảng tải hỏng thì chỉ
-             cột này báo lỗi, màn 3D và khung dựng vẫn đứng. */
-          <ScreenErrorBoundary
-            renderFallback={(fallback) => <CrashFallback {...fallback} />}
-            screenId="pascal-viewer.history-panel"
-          >
-            <Suspense fallback={<p className="p-3 text-sm text-text-muted">Đang mở bảng…</p>}>
-              {/* Vỏ `panel` cố định: vùng bảng của `PascalViewer` tự làm tấm trượt dưới
-                  `lg`, nên vỏ `sheet` riêng của bảng sẽ thoát khỏi vùng ấy (23H-F-002). */}
-              <LazyHistoryPanel history={history} layout="panel" />
-            </Suspense>
-          </ScreenErrorBoundary>
-        ),
+        render: () => <PascalHistoryPanelSlot history={history} />,
       },
       ...(extraPanels ?? []),
     ],
@@ -368,25 +318,15 @@ function PascalViewerBody({
         </Suspense>
       )}
       {massDelete !== null && (
-        <Suspense fallback={null}>
-          <LazyModal
-            isOpen
-            onClose={() => setMassDelete(null)}
-            primaryAction={{
-              label: 'Xoá',
-              onClick: () => {
-                setMassDelete(null);
-                confirmMassDelete(massDelete.nodeIds);
-                deleteNodes(massDelete.nodeIds);
-              },
-            }}
-            secondaryAction={{ label: 'Huỷ', onClick: () => setMassDelete(null) }}
-            title={PASCAL_MASS_DELETE_TITLE}
-          >
-            <p>{massDelete.reason}</p>
-            <p className="mt-2">Bấm "Xoá" để xoá thật; hoàn tác được bằng Ctrl+Z.</p>
-          </LazyModal>
-        </Suspense>
+        <PascalMassDeleteDialog
+          request={massDelete}
+          onClose={() => setMassDelete(null)}
+          onConfirm={(nodeIds) => {
+            setMassDelete(null);
+            confirmMassDelete(nodeIds);
+            deleteNodes(nodeIds);
+          }}
+        />
       )}
     </>
   );

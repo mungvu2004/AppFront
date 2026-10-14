@@ -21,7 +21,8 @@ import type { PascalScene } from '@/lib/pascal/types';
 import { renderWithProviders } from '@/lib/testing/render';
 import { useStore } from '@/store';
 
-import { PascalViewerContainer, PASCAL_MASS_DELETE_TITLE, PASCAL_SAVE_FAILED_TITLE } from './PascalViewer.container';
+import { PascalViewerContainer, PASCAL_SAVE_FAILED_TITLE } from './PascalViewer.container';
+import { PASCAL_MASS_DELETE_TITLE } from './PascalViewerOverlays';
 
 const PROJECT = 'P-1';
 const GRAPH = createSampleBuilding();
