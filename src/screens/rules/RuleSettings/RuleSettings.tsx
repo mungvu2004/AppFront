@@ -322,7 +322,7 @@ export function RuleSettings(props: RuleSettingsProps) {
       />
 
       {showRestoreDefaults && (
-        <footer className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-border-default bg-bg-surface px-6 py-3">
+        <footer data-sticky-footer="" className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-border-default bg-bg-surface px-6 py-3">
           <p className="text-sm text-text-secondary">Cấu hình đã khác mặc định.</p>
           <Button variant="secondary" onClick={props.onRestoreDefaults}>
             Khôi phục mặc định
