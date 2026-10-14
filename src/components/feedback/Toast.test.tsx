@@ -359,4 +359,19 @@ describe('Toast.Provider viewport', () => {
 
     expect(screen.getByRole('region', { name: 'Thông báo' })).toHaveClass('max-sm:bottom-auto', 'max-sm:top-4');
   });
+
+  // BUG-605: a refusal toast carries a way out.
+  it('renders an action button and calls its handler', () => {
+    const onClick = vi.fn();
+    render(
+      <Toast.Provider>
+        <Button onClick={() => undefined}>x</Button>
+        <Toast.Item index={0} onRemove={() => undefined} toast={{ id: 't', message: 'Chưa gộp được', action: { label: 'Sang lớp tường', onClick } }} />
+      </Toast.Provider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sang lớp tường' }));
+
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
 });

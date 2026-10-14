@@ -199,6 +199,7 @@ export function FloorManager(props: FloorManagerViewProps) {
               onToggleAutoElevation={props.onToggleAutoElevation}
               onToggleHiddenIn3d={props.onToggleHiddenIn3d}
               onUploadDrawing={props.onUploadDrawing}
+              onOpenOverlay={props.onOpenOverlay}
               rows={props.rows}
               state={state}
             />

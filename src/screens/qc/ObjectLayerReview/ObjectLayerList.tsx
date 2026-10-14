@@ -32,9 +32,11 @@
  */
 
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { useState } from 'react';
 
 import { Badge } from '@/components/ui/Badge';
 import { ConfidenceMeter } from '@/components/ui/ConfidenceMeter';
+import { Input } from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
 
 import type { ObjectLayerListViewProps } from './objectLayerSymbols';
@@ -49,6 +51,8 @@ const ORPHAN_BADGE = 'Chưa gắn vào tường nào';
 const ATTACH_ACTION = 'Gắn vào tường gần nhất';
 /** Nội thất không áp tường nào — chỗ đứng bình thường của nó, không phải việc phải làm. */
 const FREE_STANDING = 'Đứng tự do';
+const SEARCH_LABEL = 'Tìm mã';
+const SEARCH_PLACEHOLDER = 'Tìm mã, ví dụ D-007';
 const EMPTY_GROUP = 'Chưa có đối tượng nào trong nhóm này';
 const EXPAND_PREFIX = 'Mở nhóm ';
 const COLLAPSE_PREFIX = 'Gấp nhóm ';
@@ -256,8 +260,21 @@ export function ObjectLayerList({
   rows,
   selectedObjectId,
 }: ObjectLayerListViewProps) {
+  /* Ô tìm mã chỉ lọc dòng của danh sách — UI thuần, không đụng canvas hay bộ lọc của hook. */
+  const [codeQuery, setCodeQuery] = useState('');
+  const needle = codeQuery.trim().replace(/^#/, '').toLowerCase();
+  const shownRows =
+    needle === '' ? rows : rows.filter((row) => row.codeLabel.replace(/^#/, '').toLowerCase().includes(needle));
+
   return (
     <div aria-label={LIST_LABEL} className="flex flex-col gap-1" role="group">
+      <Input
+        aria-label={SEARCH_LABEL}
+        onChange={(event) => setCodeQuery(event.target.value)}
+        placeholder={SEARCH_PLACEHOLDER}
+        type="search"
+        value={codeQuery}
+      />
       {OBJECT_LAYER_IDS.map((layer) => (
         <ObjectLayerListGroup
           isCollapsed={collapsedGroups[layer]}
@@ -267,7 +284,7 @@ export function ObjectLayerList({
           onHover={onHover}
           onSelect={onSelect}
           onToggleGroupCollapsed={onToggleGroupCollapsed}
-          rows={rows.filter((row) => row.layer === layer)}
+          rows={shownRows.filter((row) => row.layer === layer)}
           selectedObjectId={selectedObjectId}
         />
       ))}

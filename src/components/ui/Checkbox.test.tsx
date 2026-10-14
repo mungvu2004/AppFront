@@ -52,3 +52,12 @@ describe('Checkbox', () => {
     expect(Array.from(focusable)).toEqual([screen.getByRole('checkbox')]);
   });
 });
+
+describe('Checkbox indeterminate (G64)', () => {
+  it('sets the DOM indeterminate flag and aria-checked mixed', () => {
+    render(<Checkbox label="Tất cả" indeterminate />);
+    const box = screen.getByRole('checkbox') as HTMLInputElement;
+    expect(box.indeterminate).toBe(true);
+    expect(box).toHaveAttribute('aria-checked', 'mixed');
+  });
+});

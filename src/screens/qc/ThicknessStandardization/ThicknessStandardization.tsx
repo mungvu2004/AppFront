@@ -113,6 +113,7 @@ const HISTOGRAM_SECTION_LABEL = 'Phân bố độ dày đo được';
 const TABLES_SECTION_LABEL = 'Bảng nhóm và bảng chi tiết từng đoạn';
 const ERROR_TITLE = 'Không đọc được lớp số đo độ dày';
 const FORBIDDEN_TITLE = 'Không có quyền sửa độ dày tường';
+const NAVIGATE_WALLS_LABEL = 'Sang lớp tường';
 const EMPTY_TITLE = 'Chưa có đoạn tường nào để chuẩn hoá';
 const COLLAPSE_PREVIEW_LABEL = 'Thu gọn khung xem trước';
 /* Nhãn nói việc nút làm, không tả trạng thái (BUG-637). */
@@ -140,6 +141,7 @@ const LINK_CLASS_NAME = cn(
 function ThicknessTablesColumn(props: ThicknessStandardizationViewProps & { readonly previewColumn: ReactNode }) {
   const {
     emptyNotice,
+    onNavigateToWalls,
     flashingWallIds,
     groupRows,
     hoveredGroup,
@@ -180,6 +182,9 @@ function ThicknessTablesColumn(props: ThicknessStandardizationViewProps & { read
       <div className="flex flex-col gap-4 lg:flex-row">
         <div className="flex min-w-0 flex-1 flex-col">
           <EmptyState
+            {...(onNavigateToWalls === undefined
+              ? {}
+              : { action: { label: NAVIGATE_WALLS_LABEL, onClick: onNavigateToWalls, variant: 'secondary' as const } })}
             description={emptyNotice ?? SCREEN_DESCRIPTION}
             icon={<Layers />}
             title={EMPTY_TITLE}

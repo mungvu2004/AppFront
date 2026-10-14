@@ -1,3 +1,4 @@
+import { Inbox } from 'lucide-react';
 import React from 'react';
 import { cn } from '../../lib/utils';
 import type { ButtonProps } from '../ui/Button';
@@ -38,7 +39,10 @@ export function EmptyState({
         aria-hidden="true"
       >
         {/* We assume the icon passed has size 32, strokeWidth 1.5, or we clone it to force it */}
-        {React.isValidElement(icon)
+        {/* BUG-338: a bare DOM element (a blank `<div>` circle) is an empty disc in the ring: use a glyph. */}
+        {React.isValidElement(icon) && typeof icon.type === 'string' ? (
+          <Inbox size={32} strokeWidth={1.5} className="text-text-muted" />
+        ) : React.isValidElement(icon)
           ? React.cloneElement(icon as React.ReactElement<{ size?: number; strokeWidth?: number; className?: string }>, {
               size: 32,
               strokeWidth: 1.5,
