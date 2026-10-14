@@ -739,7 +739,7 @@ test.describe('SCR-B06 phase-6 backend (rule-config N21 / N22, versions N17-N20 
       });
       await test.step('[B06-G-228] ZWJ emoji sequence label -> 200', async () => {
         // ⚑ U+200D is category Cf and is refused today (service.py:57,309); only bidi / control characters are meant to be refused.
-        const family = '\u{1F468}200D\u{1F469}200D\u{1F467}';
+        const family = '\u{1F468}\u200D\u{1F469}\u200D\u{1F467}';
         labelled(await patch('B06-G-228_zwj', { label: family }, '200: a ZWJ emoji sequence is a valid label'), family, 'ZWJ family emoji');
       });
     } finally {
