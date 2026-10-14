@@ -6,6 +6,8 @@ import { createDefaultRuleRegistry } from '@/domain/rules/defaults';
 import { runRules } from '@/domain/rules/runner';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
+import { appNotificationBus } from '@/hooks/useNotifications';
+import { QueryClient } from '@tanstack/react-query';
 import { createHistoryStack } from '@/lib/commands/history';
 import { getAppAnnouncer } from '@/lib/input/announcer';
 import { LAYER_SAVE_MESSAGES } from '@/lib/autosave/spatialLayerSave';
@@ -175,5 +177,21 @@ describe('QA-06b F6 — kết quả sửa thuộc đúng vi phạm vừa sửa',
       { timeout: 2000 },
     );
     expect(within(panel()).queryByText(/^Đã sửa xong/u)).toBeNull();
+  });
+
+  it('28V-C-005: hoàn tác từ toast làm mới báo cáo luật', async () => {
+    const publish = vi.spyOn(appNotificationBus, 'publish');
+    await mount({ apiClient: createMockApiClient() });
+    await quickFix();
+    const ticket = publish.mock.calls.at(-1)?.[0].undoTicket;
+    expect(ticket).toBeDefined();
+    const invalidate = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
+
+    await act(async () => {
+      ticket?.undo();
+    });
+
+    expect(useStore.getState().spatial?.byId[VIOLATION.entityId]).toBeDefined();
+    expect(invalidate).toHaveBeenCalled();
   });
 });

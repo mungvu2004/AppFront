@@ -785,7 +785,10 @@ export function useViolationDetail(
     }
 
     dispatchBundle.deps.spatial.applyPatches(transition.patches);
-  }, [dispatchBundle]);
+    // 28V-C-005: hoàn tác cũng làm báo cáo của màn cha cũ đi — cùng lệnh mất hiệu
+    // lực với lượt sửa đạt, để hàng vừa khôi phục quay lại nhóm luật của nó.
+    applyInvalidation(queryClient, 'rerunRules', { floorId, projectId });
+  }, [dispatchBundle, floorId, projectId, queryClient]);
 
   /* ---------------------------------------------------------------------- */
   /* Lượt sửa — mười hai bước của hợp đồng, không tắt bước nào.               */
