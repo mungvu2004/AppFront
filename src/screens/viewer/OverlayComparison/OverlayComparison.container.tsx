@@ -30,7 +30,7 @@
  */
 
 import { AlertCircle } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -40,6 +40,7 @@ import {
   ScreenErrorBoundary,
   type ScreenErrorFallback,
 } from '@/components/feedback/ScreenErrorBoundary';
+import { useProjectSpatial } from '@/hooks/useProjectSpatial';
 import { useSession } from '@/hooks/useSession';
 import type { ProjectRole } from '@/types/project';
 
@@ -138,6 +139,21 @@ export function OverlayComparisonContainer(props: OverlayComparisonContainerProp
  * Vai không đọc ở đây mà để container tự đọc `useSession()` — xem ghi chú "Vai
  * không phải một prop bắt buộc" ở trên. Route chỉ bắc hai tham số đường dẫn.
  */
+function OverlayGate({ children, projectId }: { readonly children: ReactNode; readonly projectId: string }) {
+  // Cổng thay cả màn bằng 404 trần nên vùng "Màn đối chiếu bản vẽ" mất (R-09): khi cổng thay màn, đặt lại vùng quanh nó.
+  // Hai lần useProjectSpatial dùng chung khoá truy vấn.
+  const { status } = useProjectSpatial({ projectId });
+  const gate = <ProjectSpatialGate projectId={projectId}>{children}</ProjectSpatialGate>;
+
+  return status === 'notFound' || status === 'error' ? (
+    <div aria-label="Màn đối chiếu bản vẽ" className="flex h-screen w-full" role="region">
+      {gate}
+    </div>
+  ) : (
+    gate
+  );
+}
+
 export function OverlayComparisonRoute() {
   const { floorId, projectId: id } = useParams<{ floorId: string; projectId: string }>();
   const navigate = useNavigate();
@@ -155,8 +171,8 @@ export function OverlayComparisonRoute() {
   }
 
   return (
-    <ProjectSpatialGate projectId={id}>
+    <OverlayGate projectId={id}>
       <OverlayComparisonContainer floorId={floorId} onNavigate={navigate} projectId={id} />
-    </ProjectSpatialGate>
+    </OverlayGate>
   );
 }

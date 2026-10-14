@@ -78,9 +78,9 @@ const WALL = {
   screen: 'Duyệt lớp tường', // WLR.tsx:SCREEN_ARIA_LABEL
   list: 'Danh sách đoạn tường', // WL:LIST_ARIA_LABEL
   rail: 'Công cụ lớp tường', // WTR:RAIL_ARIA_LABEL
-  select: 'chọn (phím V)', // WTR TOOLS select
-  measure: 'đo (phím M)', // WTR TOOLS measure
-  draw: 'vẽ tường (phím W)', // WTR TOOLS drawWall
+  select: 'Chọn (phím V)', // WTR TOOLS select
+  measure: 'Đo (phím M)', // WTR TOOLS measure
+  draw: 'Vẽ tường (phím W)', // WTR TOOLS drawWall
   split: 'Tách đoạn', // WTR TOOLS splitWall
   collapse: 'Thu gọn hai panel', // WTR:COLLAPSE_LABEL
   expand: 'Mở lại hai panel', // WTR:EXPAND_LABEL
@@ -207,7 +207,7 @@ const SCALE = {
   collapse: 'Thu gọn bảng', // SCP:COLLAPSE_LABEL
   expand: 'Bung bảng', // SCP:EXPAND_LABEL
   applyFailed:
-    'Chưa lưu được tỉ lệ lên máy chủ, tầng giữ tỉ lệ cũ. Tài khoản của bạn chưa có quyền xem hoặc thay đổi nội dung này. Liên hệ quản trị dự án.', // USC applyFailed + errors.forbidden
+    'Chưa lưu được tỷ lệ lên máy chủ, tầng giữ tỷ lệ cũ. Tài khoản của bạn chưa có quyền xem hoặc thay đổi nội dung này. Liên hệ quản trị dự án.', // USC applyFailed + errors.forbidden
   warpedTitle: 'Nắn ảnh thất bại nên bản vẽ có thể méo', // SC:ERROR_TITLE
 } as const;
 
@@ -662,7 +662,10 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
         for (const label of [ROOM.approve, ROOM.merge, ROOM.split]) {
           await expect.soft(inspector.getByRole('button', { name: label, exact: true })).toHaveCount(0);
         }
-        await expect.soft(inspector.getByText(ROOM.viewerNotice, { exact: true })).toBeVisible();
+        // BUG-636: the sentence lives in the banner above the list; the inspector only carries the "Chỉ xem" badge
+        // (RoomLabelInspector.tsx:158-165, VIEWER_BADGE_LABEL).
+        await expect.soft(inspector.getByText(ROOM.viewerNotice, { exact: true })).toHaveCount(0);
+        await expect.soft(inspector.getByText('Chỉ xem', { exact: true })).toBeVisible();
         await captureEvidence(page, ev('20-D-003', 'viewer_room_inspector'));
       });
 
@@ -971,7 +974,9 @@ test.describe('Phase 4 roles — real members on every QC screen', () => {
       await test.step('[22-D-003] viewer on a framed floor: forbidden notice + the toolbar read-only line', async () => {
         const state = page.locator(`[aria-label="${OVERLAY.notice}"]`);
         await expect.soft(state.getByText(OVERLAY.forbidden, { exact: true })).toBeVisible();
-        await expect.soft(page.getByText(OVERLAY.readOnlyLine, { exact: true })).toBeVisible();
+        // One viewer notice only (d3b2c765): OverlayComparison key `readOnlyNotice` (vi.json:2931) is unused, so the
+        // separate toolbar line is gone; the notice above is useOverlayComparison.ts:128 forbiddenNotice.
+        await expect.soft(page.getByText(OVERLAY.readOnlyLine, { exact: true })).toHaveCount(0);
         await captureEvidence(page, ev('22-D-003', 'viewer_overlay_forbidden'));
       });
 

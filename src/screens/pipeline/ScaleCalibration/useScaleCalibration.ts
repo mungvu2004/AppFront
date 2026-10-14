@@ -990,6 +990,8 @@ export function useScaleCalibration(
     }
 
     const at = toPixelPoint(currentFrame, point);
+    // Đường mới: kết quả áp cũ không còn nói về đường này, để lời nhắc "chưa đủ dữ liệu" lên lại (G58, 14-09).
+    setApplyOutcome(null);
     setNudgeTarget('end');
     setDrag({
       start: at,
@@ -1054,6 +1056,17 @@ export function useScaleCalibration(
         }
 
         const endpoint = session.movingEndpoint;
+
+        // Nhấp không kéo: hai đầu trùng nhau và con trỏ đứng yên -> không có đoạn, đừng bắt điểm sang chỗ khác (G52, 14-C-016).
+        if (
+          session.start.x === session.end.x &&
+          session.start.y === session.end.y &&
+          moving.x === session[endpoint].x &&
+          moving.y === session[endpoint].y
+        ) {
+          return { ...session, isDragging: false };
+        }
+
         const resolved = resolveEndpoint(
           session[otherEndpoint(endpoint)],
           grabbed(moving, session.grabOffset),
@@ -1641,6 +1654,11 @@ export function useScaleCalibration(
 
     if (query.isError) {
       return 'error';
+    }
+
+    // Vai xem không sửa được tỷ lệ dù ảnh méo: câu "không có quyền" đứng trước lời nhắc méo (G44, R-06).
+    if (!canEdit) {
+      return 'forbidden';
     }
 
     // Không tìm thấy khung chỉ là cảnh báo của BE (FRAME_NOT_FOUND, mức attention): người dùng vẫn

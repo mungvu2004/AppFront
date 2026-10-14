@@ -93,8 +93,8 @@ const TOUR_PREFIX = 'appfront:system-editor-tour-seen:';
 const TOUR_FIRST_TITLE = 'Chọn công cụ ở ray bên trái';
 const TOUR_SUMMARY_TITLE = 'Bấy nhiêu phím là đủ dùng';
 const TOUR_FINISH = 'Bắt đầu làm việc';
-const PROVISIONAL = 'Tỉ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỉ lệ.';
-const CALIBRATE = 'Hiệu chỉnh tỉ lệ';
+const PROVISIONAL = 'Tỷ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỷ lệ.';
+const CALIBRATE = 'Hiệu chỉnh tỷ lệ';
 
 /** Pool admin of this file + the env admin client (pool bookkeeping only). */
 async function ownerOf(slot: string): Promise<{ admin: APIRequestContext; pool: PoolUser; owner: APIRequestContext }> {
@@ -513,7 +513,7 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
       let scaleBefore: unknown;
       let wallsBefore: Json[] = [];
 
-      await test.step('[X4-A-018] The provisional banner on SCR-16: "Hiệu chỉnh tỉ lệ" opens SCR-14 of the same floor (SPA)', async () => {
+      await test.step('[X4-A-018] The provisional banner on SCR-16: "Hiệu chỉnh tỷ lệ" opens SCR-14 of the same floor (SPA)', async () => {
         await openWalls(page, onFloor.projectId, onFloor.floorId);
         await expect(bannerOf(page)).toBeVisible();
         await markShell(page);
@@ -762,14 +762,14 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
       const picker = (): Locator => page.getByRole('combobox', { name: 'Chọn tầng', exact: true });
       const layerGets = (): number => run!.flow.sent.filter((r) => r.method === 'GET' && /\/spatial\/layer$/u.test(r.path)).length;
 
-      await test.step('[X4-A-031] /3d "Đối chiếu bản vẽ" → SCR-22 (SPA) uses the store floors and graph: no N16 GET, every floor in "Chọn tầng"', async () => {
-        await page.goto(ROUTES.project.viewer(dm.projectId));
+      await test.step('[X4-A-031] SCR-16 (store holds graph + floors) → SCR-22 (SPA): no N16 GET, every floor in "Chọn tầng"', async () => {
+        // /3d is the Pascal viewer (no sibling nav, no spatial store; SCR-22 entry moved, 5fcaf502): fill the store on SCR-16, then hop client-side.
+        await page.goto(ROUTES.project.walls(dm.projectId, f1.id));
+        await expect.poll(layerGets, { message: 'SCR-16 reads N16' }).toBeGreaterThanOrEqual(1);
         await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
-        const link = page.getByRole('navigation', { name: 'Màn 3D khác', exact: true }).getByRole('button', { name: 'Đối chiếu bản vẽ', exact: true });
-        await expect(link).toBeVisible({ timeout: 60_000 });
         const before = layerGets();
         await markShell(page);
-        await link.click();
+        await spaGo(page, overlayOf(f1.id));
         await expect.poll(() => pathOf(page)).toBe(overlayOf(f1.id));
         await expect(page.getByLabel('Màn đối chiếu bản vẽ', { exact: true }).first()).toBeVisible({ timeout: 60_000 });
         expect.soft(await shellKept(page), 'a client-side route change').toBe(true);

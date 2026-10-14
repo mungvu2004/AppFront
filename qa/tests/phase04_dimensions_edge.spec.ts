@@ -41,7 +41,7 @@ import { markShell, shellKept, spaGo } from './support/p03/P11';
 import { DIM, canvasFrame, errorAlert, keyboardSection, note, openDims, panel, region } from './support/p04/P3';
 
 const SCALE_SCREEN = 'Màn hiệu chỉnh tỷ lệ'; // src/screens/pipeline/ScaleCalibration/ScaleCalibration.tsx:66
-const FLOOR_MISSING = 'Tầng này không còn tồn tại.'; // src/hooks/useFloorLayer.ts:31 (BUG-326 screen of SCR-16/17)
+const FLOOR_MISSING = 'Không mở được tầng này'; // src/screens/qc/shared/floorLayerReadFailure.ts:21 FLOOR_MISSING_TITLE (BUG-326 screen; the sentence 'Tầng này không còn tồn tại.' is only its description, :23)
 const PROJECT_NOT_FOUND = 'Không tìm thấy dự án này'; // ProjectSpatialGate.tsx:36
 const N16_PATH = /^\/api\/projects\/[^/]+\/floors\/[^/]+\/spatial\/layer$/u;
 const SLOT = 'p04-p3';

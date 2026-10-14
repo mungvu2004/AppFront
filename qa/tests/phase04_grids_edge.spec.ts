@@ -31,6 +31,7 @@ import { attachJson, captureEvidence } from './support/evidence';
 import { deleteSeededProject } from './support/phase03Seed';
 import { closeFlow, openFlow, recordAnnouncements, writesSince, type Flow } from './support/p03/P5';
 import { spaGo } from './support/p03/P11';
+import { leaveOnBeforeUnload } from './support/p04/P3';
 import {
   CANVAS_LABEL,
   axisGroup,
@@ -58,7 +59,7 @@ const V_GROUP = 'Trục dọc';
 const ADD_H = 'Thêm trục ngang';
 const ADD_V = 'Thêm trục dọc';
 const EMPTY_TITLE = 'Chưa có trục nào'; // AGV:96
-const EMPTY_NOTICE = 'Bạn có thể vẽ trục thủ công từ bản vẽ, hoặc cho hệ thống suy ra trục từ hình học tường bao.'; // UAG:AXIS_GRID_TEXT.emptyNotice
+const EMPTY_NOTICE = 'Chưa dò được trục nào từ tường bao của tầng này. Thêm trục bằng tay để bắt đầu.'; // useAxisGridManager.ts:163 AXIS_GRID_TEXT.emptyNotice (BUG-594)
 const DERIVE = 'Suy ra từ tường bao'; // AGV:97
 const CANVAS_EMPTY = 'Chưa có trục nào để hiện trên bản vẽ.'; // AGV:106
 const ORIGIN_UNAVAILABLE = 'Chưa có trục nào nên chưa tính được gốc toạ độ.'; // AGV:104
@@ -155,10 +156,11 @@ async function withFlow(
   let flow: Flow | undefined;
   try {
     flow = await openFlow(browser, readAdminCredentials());
+    leaveOnBeforeUnload(flow.page);
     const announced = await recordAnnouncements(flow.page);
     await body(flow, announced);
   } finally {
-    await closeFlow(flow as Flow);
+    if (flow !== undefined) await closeFlow(flow); // closeFlow(undefined) would throw and mask the body's error
     for (const built of builts) {
       const problem = await deleteSeededProject(adminApi, built.project.projectId);
       if (problem !== null) note(problem);
@@ -633,7 +635,8 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
         await openGrids(page, built, 0, true);
         await expect(page.getByText(EMPTY_TITLE, { exact: true })).toBeVisible(); // AGV:101-102,153-164
         await expect.soft(page.getByText(EMPTY_NOTICE, { exact: true })).toBeVisible();
-        await expect.soft(page.getByRole('button', { name: DERIVE, exact: true })).toBeVisible();
+        // BUG-594: the empty state no longer offers a derive button that never derived anything (AxisGridManager.tsx:109).
+        await expect.soft(page.getByRole('button', { name: DERIVE, exact: true })).toHaveCount(0);
         await ev(page, '19-B-002', 'empty-floor');
       });
 
@@ -653,9 +656,9 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
         await ev(page, '19-B-005', 'empty-panels');
       });
 
-      await test.step('[19-A-023] "Suy ra từ tường bao" on an empty floor does nothing', async () => {
+      await test.step('[19-A-023] an empty floor has no "Suy ra từ tường bao" button (BUG-594), nothing is written', async () => {
         const before = flow.sent.length;
-        await page.getByRole('button', { name: DERIVE, exact: true }).click(); // UAG:944-972
+        await expect.soft(page.getByRole('button', { name: DERIVE, exact: true })).toHaveCount(0); // useAxisGridManager.ts:984
         await expect.soft(page.getByText(EMPTY_TITLE, { exact: true })).toBeVisible();
         await expect.soft(page.getByRole('option')).toHaveCount(0);
         expect.soft(writesSince(flow, before)).toEqual([]);
@@ -794,11 +797,14 @@ test.describe('E04 SCR-19 axes — real-stack flows (QA-04c P4)', () => {
         await expect.poll(() => polygon.getAttribute('stroke')).not.toBe(strokeBefore);
       });
 
-      await test.step('[19-E-009] floor rows are listitems with full text names; the dot is aria-hidden with a title', async () => {
+      await test.step('[19-E-009] floor rows are listitems with full text names; the dot is aria-hidden, the status is visible text (BUG-638)', async () => {
         await expect.soft(page.getByRole('listitem', { name: /, lệch / })).toHaveCount(2); // AFL:69-73
-        const dot = floorRow(page, f2.name).locator('span[aria-hidden="true"]');
+        const row = floorRow(page, f2.name);
+        const dot = row.locator('span[aria-hidden="true"]');
         await expect.soft(dot).toHaveCount(1);
-        await expect.soft(dot).toHaveAttribute('title', /Trong dung sai|Cần chú ý|Không căn được/u);
+        // AxisGridFloorAlignList.tsx:60-64,103-107: the status is the Badge text and the row's aria-label tail, no dot title.
+        await expect.soft(row.getByText(/^(Trong ngưỡng|Cần chú ý|Không căn được)$/u)).toBeVisible();
+        await expect.soft(row).toHaveAttribute('aria-label', /, (Trong ngưỡng|Cần chú ý|Không căn được)$/u);
       });
 
       await test.step('[19-C-010] the base floor is labelled "Tầng gốc" and has no status dot', async () => {

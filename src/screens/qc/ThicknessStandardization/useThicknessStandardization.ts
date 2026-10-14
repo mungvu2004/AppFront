@@ -377,6 +377,7 @@ export function useThicknessStandardization(
 
   const graph = useStore((state) => state.spatial);
   const setSpatial = useStore((state) => state.setSpatial);
+  const loadedFloorCount = useStore((state) => Object.keys(state.floorMeta).length);
   const selectedIds = useStore((state) => state.selectedIds);
   const hoveredId = useStore((state) => state.hoveredId);
   const setSelection = useStore((state) => state.setSelection);
@@ -399,7 +400,17 @@ export function useThicknessStandardization(
     }
   }, [floorId, gateway, graph, projectId, setSpatial]);
 
-  const walls = useMemo(() => wallsOfGraph(graph), [graph]);
+  /*
+   * Kho giữ nhiều tầng khi người dùng nhảy SPA giữa các tầng (S-06): bảng, biểu đồ, xem trước và Áp dụng chỉ nhận
+   * tường của TẦNG NÀY (`levelId === floorId`, quy ước của các màn QC). Kho một tầng — kể cả đồ thị mẫu nhiều
+   * tầng của story/test — giữ nguyên mọi tường.
+   */
+  const walls = useMemo(() => {
+    const all = wallsOfGraph(graph);
+    const hasThisLevel = graph !== null && graph.byKind.level.some((id) => id === floorId);
+
+    return loadedFloorCount > 1 && hasThisLevel ? all.filter((wall) => wall.levelId === floorId) : all;
+  }, [floorId, graph, loadedFloorCount]);
   /* Nhãn tường tính trên mọi tường, nên không trùng dù mã BE hay mã A14 (B-V6-09). */
   const wallCodes = useMemo(() => displayCodesOf(walls.map((wall) => wall.id)), [walls]);
   const levels = useMemo(() => levelsOfGraph(graph), [graph]);

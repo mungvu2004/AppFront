@@ -650,17 +650,13 @@ describe('P04 cụm C — điều khiển chỉ hiện khi dùng được', () =
     expect(thicknessInStore(target.id)).toBe(330);
   }, HEAVY_TEST_TIMEOUT_MS);
 
-  it('[BUG-611] nhãn tóm tắt không in lại con số đứng ngay trên nó', async () => {
+  it('[BUG-611/340] mỗi ô tóm tắt chỉ có một con số', async () => {
     const { container } = await renderMain();
     const group = within(container).getByRole('group', { name: SUMMARY_GROUP_LABEL });
 
     for (const line of within(group).getAllByRole('status')) {
-      const visible = [...line.childNodes]
-        .filter((node) => !(node instanceof HTMLElement && node.classList.contains('sr-only')))
-        .map((node) => node.textContent ?? '')
-        .join('');
-
-      expect(visible).not.toMatch(/^\d/u);
+      // Mỗi ô có đúng MỘT con số (BUG-340): không số lớn aria-hidden cộng số sr-only.
+      expect((line.textContent ?? '').match(/[0-9]+/gu)).toHaveLength(1);
     }
 
     expect(group.querySelector('.text-state-verified-text')).toBeNull();

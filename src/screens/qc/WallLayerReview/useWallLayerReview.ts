@@ -111,7 +111,7 @@ import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { durationMs } from '@/lib/motion';
 import { shortcutForTool } from '@/lib/tools/shortcuts';
-import { newestEntryId, undoIfNewest } from '@/lib/commands/history';
+import { newestEntryId } from '@/lib/commands/history';
 import { createToolState, reduceTool, DEFAULT_TOOL_SETTINGS } from '@/lib/tools/toolMachine';
 import type {
   ToolContext,
@@ -341,8 +341,10 @@ export interface UseWallLayerReviewResult extends WallLayerReviewProps {
  * viết đúng một chỗ (R-71).
  */
 const WALL_DELETE_NOTIFICATION_TYPE = 'wallLayerReview.deleteWall';
-/** Toast "Hoàn tác" bị từ chối vì đã có bước mới hơn (BUG-579). */
+/** Toast "Hoàn tác" bị từ chối: bước đã rời lịch sử, hoặc một bước mới hơn sửa cùng tường (BUG-579). */
 const WALL_UNDO_REFUSED_NOTIFICATION_TYPE = 'wallLayerReview.undoRefused';
+const WALL_UNDO_REFUSED_TEXT =
+  'Chưa hoàn tác: một thay đổi sau đó đã sửa cùng tường. Dùng Ctrl+Z để hoàn tác lần lượt.';
 
 /** Ba cờ lọc lúc mở màn: chưa lọc gì. */
 const NO_FILTERS: WallLayerFilters = {
@@ -1054,15 +1056,24 @@ export function useWallLayerReview(
           wallCodes,
           now: gateway.now,
           undo: () => {
-            const refused = undoIfNewest(dispatchBundle.history, entryId, () => {
-              applyUndo();
-              /* Mục quay lại thì nháy nền — cờ do hook trả ra, view lo phần hiện. */
-              setFlashingWallId(wallId);
-            });
+            /* Own-step undo: this ticket takes back ITS delete, wherever it sits on the stack. */
+            const transition = entryId === null ? null : dispatchBundle.history.undoEntry(entryId);
 
-            if (refused !== null) {
-              notifications.publish({ type: WALL_UNDO_REFUSED_NOTIFICATION_TYPE, title: refused, description: '' });
+            if (transition === null) {
+              notifications.publish({
+                type: WALL_UNDO_REFUSED_NOTIFICATION_TYPE,
+                title: WALL_UNDO_REFUSED_TEXT,
+                description: '',
+              });
+
+              return;
             }
+
+            dispatchBundle.deps.spatial.applyPatches(transition.patches);
+            autosave.notifyChange();
+            invalidate();
+            /* Mục quay lại thì nháy nền — cờ do hook trả ra, view lo phần hiện. */
+            setFlashingWallId(wallId);
           },
         });
 
@@ -1088,7 +1099,7 @@ export function useWallLayerReview(
         });
       });
     },
-    [applyUndo, dispatchBundle, gateway, notifications, run, wallCodes],
+    [autosave, dispatchBundle, gateway, invalidate, notifications, run, wallCodes],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -1355,7 +1366,10 @@ export function useWallLayerReview(
    * thứ tự `objectLayerReview.closeTopLayer`. Chỉ bật khi có thứ để bỏ: một binding
    * thường trực ở phạm vi `canvas` sẽ nuốt `global.closeTopLayer`.
    */
-  const gestureInFlight = toolState.values.length > 0 || toolState.pending !== null;
+  const committedMeasurementRef = useRef(committedMeasurement);
+  committedMeasurementRef.current = committedMeasurement;
+  const gestureInFlight =
+    toolState.values.length > 0 || toolState.pending !== null || committedMeasurement !== null;
 
   useShortcut(
     {
@@ -1366,7 +1380,12 @@ export function useWallLayerReview(
       onTrigger: () => {
         const current = toolStateRef.current;
 
-        if (current.values.length > 0 || current.pending !== null) {
+        /* A committed measurement label is also a thing to drop: `cancel` clears it. */
+        if (
+          current.values.length > 0 ||
+          current.pending !== null ||
+          committedMeasurementRef.current !== null
+        ) {
           runToolEvent({ type: 'cancel' });
 
           return;
@@ -1563,15 +1582,31 @@ export function useWallLayerReview(
   }, []);
 
   /** Danh sách tầng cho khối điều hướng của panel trái (BC-05). */
-  const floors = useMemo(
-    () =>
-      levelsOf(graph).map((item) => ({
-        id: item.id,
-        label: item.name,
-        isCurrent: item.id === levelId,
-      })),
-    [graph, levelId],
-  );
+  /*
+   * The graph holds one floor's layer (N16 is per floor), so the floor list comes
+   * from the #30 read; gateways without `readFloors` (story, test) use graph levels.
+   */
+  const readFloors = gateway.readFloors;
+  const floorsQuery = useQuery({
+    queryKey: queryKeys.floor.list(projectId),
+    queryFn: ({ signal }) => (readFloors === undefined ? [] : readFloors({ projectId, signal })),
+    enabled: readFloors !== undefined,
+  });
+  const floors = useMemo(() => {
+    const listed = floorsQuery.data;
+
+    if (listed !== undefined && listed.length > 0) {
+      return [...listed]
+        .sort((first, second) => first.order - second.order)
+        .map((item) => ({ id: item.id, label: item.name, isCurrent: item.id === floorId }));
+    }
+
+    return levelsOf(graph).map((item) => ({
+      id: item.id,
+      label: item.name,
+      isCurrent: item.id === levelId,
+    }));
+  }, [floorsQuery.data, floorId, graph, levelId]);
 
   const drawingSizePx = useMemo<WallLayerSizePx | null>(
     () => drawingSizeOf(background ?? undefined, level),
@@ -1702,16 +1737,33 @@ export function useWallLayerReview(
     setViewCenter(toMillimetrePoint(centreOfBounds(fitAllBoundsPx), scaleOfLevel(level)));
   }, [fitAllBoundsPx, level, levelId, lockedFit, setViewCenter, setZoom]);
 
+  /*
+   * Surface the mini map draws: the drawing image, else the box hugging the walls
+   * (same fallback as the canvas `surface`), so a floor without a drawing still has
+   * a working mini map instead of a dead one (R46).
+   */
+  const miniMapSurfacePx = useMemo<WallLayerRectPx | null>(
+    () => (drawingSizePx === null ? contentBoundsPx : { x: 0, y: 0, ...drawingSizePx }),
+    [contentBoundsPx, drawingSizePx],
+  );
+
   /** Bản đồ nhỏ: kéo hoặc bấm một chỗ thì tâm nhìn đi theo. */
   const onMiniMapViewportChange = useCallback(
     (rect: WallLayerViewportRectPercent) => {
-      if (drawingSizePx === null) {
+      if (miniMapSurfacePx === null) {
         return;
       }
 
-      setViewCenter(miniMapCentreMm(rect, drawingSizePx, scaleOfLevel(level)));
+      setViewCenter(
+        miniMapCentreMm(
+          rect,
+          miniMapSurfacePx,
+          scaleOfLevel(level),
+          { x: miniMapSurfacePx.x, y: miniMapSurfacePx.y },
+        ),
+      );
     },
-    [drawingSizePx, level, setViewCenter],
+    [miniMapSurfacePx, level, setViewCenter],
   );
 
   /*
@@ -1719,9 +1771,17 @@ export function useWallLayerReview(
    * bản đồ đi theo thu phóng/vừa khung (BUG-403 nợ). Chưa đo khung hay chưa có ảnh → mặc định.
    */
   const miniMapViewport =
-    drawingSizePx === null || frameSizePx === null
+    miniMapSurfacePx === null || frameSizePx === null
       ? MINIMAP_INITIAL_VIEWPORT
-      : miniMapRectOf(visibleDrawingRect(viewport, frameSizePx), drawingSizePx);
+      : miniMapRectOf(
+          (({ x, y, width, height }) => ({
+            x: x - miniMapSurfacePx.x,
+            y: y - miniMapSurfacePx.y,
+            width,
+            height,
+          }))(visibleDrawingRect(viewport, frameSizePx)),
+          miniMapSurfacePx,
+        );
 
   /*
    * Phím `F` — phủ khắp vùng đang chọn.

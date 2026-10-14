@@ -67,7 +67,7 @@ const WARNING_TITLE = 'Áp dụng lại bộ lọc sẽ đổi tường đã duy
 const EXCLUDE_AND_REAPPLY = 'Loại tường đã duyệt ra rồi áp lại'; // TAB:61
 const APPLY_TO_ALL = 'Vẫn áp dụng cho tất cả'; // TAB:62
 const COLLAPSE = 'Thu gọn khung xem trước'; // TV:COLLAPSE_PREVIEW_LABEL
-const EXPANDED = 'Khung xem trước đang thu gọn'; // TV:EXPAND_PREVIEW_LABEL
+const EXPANDED = 'Mở khung xem trước'; // ThicknessStandardization.tsx:120 EXPAND_PREVIEW_LABEL (BUG-637: names the action)
 const TOASTS = 'Thông báo';
 const CHANGE_THICKNESS = 'Đổi độ dày'; // TableActionBar
 const PICKER = 'Chọn nhóm áp cho các đoạn đã chọn'; // TST:CHOOSE_GROUP_LABEL
@@ -481,7 +481,9 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         await expect.soft(region(page).getByText(ALL_STANDARD, { exact: true })).toBeVisible(); // UT:252-253,869-877
         await expect.soft(stat(page, STAT_LABELS.exceeding)).toHaveText(`0 ${STAT_LABELS.exceeding}`);
         const classes = await region(page).getByRole('group', { name: 'Tóm tắt chuẩn hoá độ dày tường' }).locator('span[aria-hidden="true"]').evaluateAll((nodes) => nodes.map((node) => node.className));
-        expect.soft(classes[2], '"Lệch quá dung sai" = 0 reads in the verified colour').toContain('text-state-verified-text'); // TSUM:62-69
+        // BUG-611 (ThicknessSummary.tsx:12,38): green means "a person approved it", so all four numbers stay text-text-primary.
+        expect.soft(classes[2], '"Lệch quá dung sai" = 0 stays in the neutral text colour').toContain('text-text-primary');
+        expect.soft(classes[2]).not.toContain('text-state-verified');
         await ev(page, '21-B-005', 'all-standard');
       });
 
@@ -505,7 +507,8 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
     await withFlow(browser, [built], async (flow) => {
       const { page } = flow;
       const groupLabelOf = async (index: number): Promise<string> =>
-        rowOfCode(page, wallCode(ids[index] as string, ids)).getByRole('radio', { checked: true }).innerText();
+        // BUG-637 row group is a Select now (ThicknessSegmentTable.tsx:231-251): the combobox text is the group label.
+        rowOfCode(page, wallCode(ids[index] as string, ids)).getByRole('combobox').innerText();
       const value = async (index: number): Promise<number> => Number(await slider(page, index).getAttribute('aria-valuenow'));
       const limit = async (index: number, which: 'min' | 'max'): Promise<number> => Number(await slider(page, index).getAttribute(`aria-value${which}`));
       const sliderGrip = async (index: number): Promise<{ x: number; y: number }> => {
@@ -821,15 +824,20 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
     await withFlow(browser, [built], async (flow) => {
       const { page } = flow;
       await openThickness(page, built);
-      const radios = (index: number): Locator => region(page).getByRole('radiogroup', { name: `Độ dày chuẩn hoá của đoạn ${wallCode(ids[index] as string, ids)}`, exact: true });
+      // The row group is a Select (combobox -> listbox -> option), ThicknessSegmentTable.tsx:231-251; label = groupSelectLabel.
+      const radios = (index: number): Locator => region(page).getByRole('combobox', { name: `Độ dày chuẩn hoá của đoạn ${wallCode(ids[index] as string, ids)}`, exact: true });
+      const pick = async (index: number, label: string): Promise<void> => {
+        await radios(index).click();
+        await page.getByRole('option', { name: label, exact: true }).click();
+      };
       const rowBox = (index: number): Locator => region(page).getByRole('checkbox', { name: `Chọn dòng ${ids[index] as string}`, exact: true });
       const toolbar = (count: number): Locator => region(page).getByRole('toolbar', { name: `Thanh hành động: đã chọn ${String(count)} tường`, exact: true });
       const picker = (): Locator => region(page).getByRole('group', { name: PICKER, exact: true });
 
       await test.step('[21-A-029] a row set to another group is a local override only: deviation, status and group table recompute', async () => {
         const from = flow.sent.length;
-        await radios(0).getByRole('radio', { name: '330 mm', exact: true }).click(); // TST:122,205-210; UT:692-694
-        await expect.soft(radios(0).getByRole('radio', { name: '330 mm', exact: true })).toHaveAttribute('aria-checked', 'true');
+        await pick(0, '330 mm'); // ThicknessSegmentTable.tsx:231-251; UT:692-694
+        await expect.soft(radios(0)).toHaveText('330 mm');
         const row = rowOfCode(page, wallCode(ids[0] as string, ids));
         await expect.soft(row).toContainText('130,0 mm'); // |200 - 330|
         await expect.soft(row).toContainText('Vi phạm');
@@ -837,15 +845,12 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         await ev(page, '21-A-029', 'row-override');
       });
 
-      await test.step('[21-E-005] row radiogroup "Độ dày chuẩn hoá của đoạn #…" with radios 110 / 220 / 330 / Cột BTCT; arrows move', async () => {
+      await test.step('[21-E-005] row group combobox "Độ dày chuẩn hoá của đoạn #…" opens a listbox with 110 / 220 / 330 / Cột BTCT (Select, not radios)', async () => {
         const group = radios(1);
-        await expect.soft(group.getByRole('radio')).toHaveText(['110 mm', '220 mm', '330 mm', 'Cột BTCT']);
-        const current = group.getByRole('radio', { checked: true });
-        await current.focus();
-        await page.keyboard.press('ArrowRight'); // TST:109-122
-        await expect.soft(group.getByRole('radio', { name: '330 mm', exact: true }), 'ArrowRight moves the selection').toHaveAttribute('aria-checked', 'true');
-        await page.keyboard.press('ArrowLeft');
-        await expect.soft(group.getByRole('radio', { name: '220 mm', exact: true })).toHaveAttribute('aria-checked', 'true');
+        await group.click(); // ThicknessSegmentTable.tsx:231-251; components/ui/Select.tsx:136,231,283
+        await expect.soft(page.getByRole('listbox').getByRole('option')).toHaveText(['110 mm', '220 mm', '330 mm', 'Cột BTCT']);
+        await page.keyboard.press('Escape');
+        await expect.soft(page.getByRole('listbox')).toHaveCount(0);
       });
 
       await test.step('[21-C-012] row overrides survive an apply (never reset)', async () => {
@@ -854,7 +859,7 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         const put = waitForPut(page, built.project.projectId, floorId);
         await button(page, APPLY).click();
         await put;
-        await expect.soft(radios(0).getByRole('radio', { name: '330 mm', exact: true })).toHaveAttribute('aria-checked', 'true'); // UT:692-694
+        await expect.soft(radios(0)).toHaveText('330 mm'); // UT:692-694
         await ev(page, '21-C-012', 'override-survives');
       });
 
@@ -998,7 +1003,7 @@ test.describe('E04 SCR-21 thickness — real-stack flows (QA-04c P4)', () => {
         await ev(page, '21-A-038', 'row-polygon-hover');
       });
 
-      await test.step('[21-A-040] "Thu gọn khung xem trước" -> "Khung xem trước đang thu gọn" restores', async () => {
+      await test.step('[21-A-040] "Thu gọn khung xem trước" -> "Mở khung xem trước" restores', async () => {
         await page.getByRole('button', { name: COLLAPSE, exact: true }).click(); // TV:116-117,246-271
         await expect.soft(page.locator('aside[aria-label="Mặt bằng xem trước theo nhóm độ dày"]')).toHaveCount(0);
         await page.getByRole('button', { name: EXPANDED, exact: true }).click();

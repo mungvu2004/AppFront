@@ -1581,7 +1581,7 @@ describe('tỷ lệ tạm (F-04x-2)', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('đợt sửa P04 — SCR-16 (hook)', () => {
-  it('[BUG-579] "Hoàn tác" trên toast xoá KHÔNG hoàn tác bước mới hơn (duyệt tường khác)', async () => {
+  it('[BUG-579] "Hoàn tác" trên toast xoá hoàn tác ĐÚNG bước xoá của nó, giữ nguyên bước mới hơn (duyệt tường khác)', async () => {
     const bus: NotificationBus = createNotificationBus();
     const mounted = await mountSettled({ notifications: bus });
     const deleted = wallAt(0);
@@ -1612,12 +1612,11 @@ describe('đợt sửa P04 — SCR-16 (hook)', () => {
       await Promise.resolve();
     });
 
-    /* Lượt duyệt vẫn còn, tường A vẫn đã xoá — và màn nói vì sao không có gì xảy ra. */
-    expect(mounted.result.current.panel.reviewCounter.reviewed).toBe(approvedBefore + 1);
-    expect(wallCount()).toBe(before - 1);
+    /* Own-step undo: tường A quay lại, lượt duyệt tường khác vẫn còn. */
     await waitFor(() => {
-      expect(bus.list().some((item) => item.title.startsWith('Chưa hoàn tác: đã có 1 thay đổi sau'))).toBe(true);
+      expect(wallCount()).toBe(before);
     });
+    expect(mounted.result.current.panel.reviewCounter.reviewed).toBe(approvedBefore + 1);
 
     mounted.unmount();
   });

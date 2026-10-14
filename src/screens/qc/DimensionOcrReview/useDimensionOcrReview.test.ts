@@ -237,6 +237,14 @@ describe('phép ghép thuần của màn Đọc kích thước OCR', () => {
     expect(derived).toEqual([...SEVEN_STATES]);
   });
 
+  it('[18-D-007] Người xem đang tải thấy khung chờ, xong mới thấy "forbidden"', () => {
+    const counter = dimensionOcrScenarioFor('success').reviewCounter;
+    const base = { isViewerRole: true, isCollapsed: false, hasError: false, hasPartialOcr: false, counter };
+
+    expect(deriveScreenState({ ...base, isLoading: true })).toBe('loading');
+    expect(deriveScreenState({ ...base, isLoading: false })).toBe('forbidden');
+  });
+
   it('OCR mới xong một phần giữ màn ở "một phần" dù 34/34 đã duyệt', () => {
     const done = dimensionOcrScenarioFor('success');
 

@@ -698,3 +698,19 @@ describe('undoIfNewest (BUG-579)', () => {
     expect(undoIfNewest(stack, entry, vi.fn())).toBe('Thay đổi này không còn trong lịch sử hoàn tác.');
   });
 });
+
+describe('undoEntry (R43, own-step undo)', () => {
+  it('takes back a middle step, leaves the newer step, and refuses a gone entry', () => {
+    const stack = createHistoryStack();
+
+    stack.push(pushOf([removeFurnitureCommand()]));
+    const first = newestEntryId(stack);
+    stack.push(pushOf([dragCommand({ fromMm: 220, toMm: 330, atMs: 60_000 })]));
+
+    const transition = stack.undoEntry(first as NonNullable<typeof first>);
+
+    expect(transition?.direction).toBe('undo');
+    expect(stack.undoSteps()).toHaveLength(1);
+    expect(stack.undoEntry(first as NonNullable<typeof first>)).toBeNull();
+  });
+});

@@ -87,7 +87,10 @@ test('SCR-17 · FL-17-M1 [mocked response] read failures, refetch error, backgro
     const url = ROUTES.project.objects(pid, fid);
     const n16 = await mockRoute(page, layerRe(pid, fid), 'GET');
     const background = await mockRoute(page, backgroundRe(pid, fid), 'GET');
-    const skeletonRows = page.locator('div.flex.items-center.gap-4.p-3:has(> .animate-pulse)');
+    // ObjectLayerReview.tsx:88-95 left list: four rows; :280-288 the counter card adds four more inside an aria-hidden block (BUG-618) = 8.
+    const rowSel = 'div.flex.items-center.gap-4.p-3:has(> .animate-pulse)';
+    const skeletonRows = page.locator(`${rowSel}:not([aria-hidden="true"] *)`);
+    const allSkeletonRows = page.locator(rowSel);
     const failureScreen = page.getByRole('alert').filter({ has: page.getByRole('button', { name: 'Thử lại', exact: true }) });
     let n16At500 = 0; // N16 hits before the 500 load of [17-B-010] (hits() counts every GET since the mock was installed)
 
@@ -97,6 +100,7 @@ test('SCR-17 · FL-17-M1 [mocked response] read failures, refetch error, backgro
       await page.goto(url, { waitUntil: 'commit' });
       await expect(screen(page)).toBeVisible();
       await expect(skeletonRows).toHaveCount(4);
+      await expect.soft(allSkeletonRows, 'list 4 + counter card 4').toHaveCount(8);
       await expect.soft(page.getByLabel('0/0 đối tượng đã duyệt', { exact: true })).toBeVisible();
       await expect.soft(page.getByText(OBJ.nothingToDraw, { exact: true })).toBeVisible();
       await ev(page, '17-B-001', 'loading_skeleton');

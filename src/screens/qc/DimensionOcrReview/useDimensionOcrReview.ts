@@ -257,7 +257,7 @@ export function deriveScreenState(input: {
   readonly hasPartialOcr: boolean;
   readonly counter: DimensionReviewCounter;
 }): DimensionOcrScreenState {
-  if (input.isViewerRole) {
+  if (input.isViewerRole && !input.isLoading) {
     return 'forbidden';
   }
 

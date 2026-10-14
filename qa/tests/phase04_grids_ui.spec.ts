@@ -231,8 +231,9 @@ test.describe('E04 SCR-19 axes — UI verify (QA-04c P4)', () => {
         });
       });
     } finally {
-      await closeFlow(admin as Flow);
-      await closeFlow(guest as Flow);
+      // a flow that never opened is undefined: closeFlow(undefined) would throw here and mask the real failure
+      if (admin !== undefined) await closeFlow(admin);
+      if (guest !== undefined) await closeFlow(guest);
       await deleteSeededProject(adminApi, built.project.projectId);
     }
   });

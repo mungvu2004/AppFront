@@ -38,6 +38,7 @@ import { PIPELINE_TIMEOUT_MS, readBaseUrl } from '../../e2e/fullstack/env';
 import { signedInApi } from './support/api';
 import { dashboardLoaded } from './support/auth';
 import { attachJson } from './support/evidence';
+import { putThreshold } from './support/p04/P3';
 import { createPipelineDrawingProject, deleteSeededProject, envDrawingPng, poolUser } from './support/phase03Seed';
 import { recordAnnouncements } from './support/p03/P5';
 import {
@@ -321,13 +322,18 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         const put = waitForLayerPut(page, seeded.project.projectId, floor.id);
         await approveButton(page).click();
         expect.soft((await put).response.status()).toBe(200);
-        // UW:859-868 nextUnreviewedWallId(walls, id): all walls of the level, not `rows`.
-        await expect.soft(inspector(page).getByText(code(5), { exact: true })).toBeVisible();
+        // BUG-581 (useWallLayerReview.ts:720-723, 914): the advance follows the FILTERED list and never jumps out of
+        // the active filter, so with nothing left in it the selection stays on the approved wall.
+        await expect.soft(inspector(page).getByText(code(3), { exact: true })).toBeVisible();
+        await expect.soft(inspector(page).getByText(code(5), { exact: true })).toHaveCount(0);
         await expect.soft(wallOption(page, code(5))).toHaveCount(0);
         await ev(page, '16-C-013', 'advance-to-hidden-row');
       });
 
       await test.step('[16-A-017] Auto-advance wraps to the first unreviewed wall above when none is left below', async () => {
+        // The "Chỉ hiện độ dày không chuẩn" filter is dropped so W5 is a row again: rows are W1, W5 (still unreviewed only).
+        await toggleCheckbox(page, WALL.onlyNonStandard);
+        await wallOption(page, code(5)).click();
         const put = waitForLayerPut(page, seeded.project.projectId, floor.id);
         await approveButton(page).click(); // W5: below it only the reviewed W6
         expect.soft((await put).response.status()).toBe(200);
@@ -337,7 +343,7 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
 
       await test.step('[16-A-020] Double click "Duyệt đoạn này" sends one PUT', async () => {
         // Both filters off: W1 is back in the list (the approve button reads `rows`, see the note at [16-A-019]).
-        await toggleCheckbox(page, WALL.onlyNonStandard);
+        // "Chỉ hiện độ dày không chuẩn" was already dropped in [16-A-017].
         await toggleCheckbox(page, WALL.onlyUnreviewed);
         await expect(wallRows(page)).toHaveCount(6);
         const mark = run!.puts.length;
@@ -625,6 +631,7 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         const byCode = (code: string): Json | undefined => sentWalls(sent).find((wall) => q1.codes.get(idOf(wall)) === code);
         expect.soft(putsSince(run!, mark), 'one PUT for three edits').toHaveLength(1);
         for (const code of rows.slice(0, 3)) expect.soft(byCode(code)?.thicknessMm, `${code} in the same PUT`).toBe(330);
+        await page.clock.resume(); // evidence waits for a real rAF; the paused clock would hang it (see 16-C-010)
         await ev(page, '16-C-011', 'coalesced-put');
       });
 
@@ -638,8 +645,8 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         expect.soft(await checkedThickness(page), 'after 100 undos the state is the first edit').toBe('110 mm');
         await page.keyboard.press('Control+z');
         expect.soft(await checkedThickness(page), 'a 101st undo reaches nothing (the original 200 mm is out of the history)').toBe('110 mm');
+        await page.clock.resume(); // evidence waits for a real rAF; the paused clock would hang it (see 16-C-010)
         await ev(page, '16-C-015', 'undo-cap-100');
-        await page.clock.resume();
       });
     } finally {
       await closeWallsRun(run);
@@ -858,8 +865,8 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await expect(wallRows(page)).toHaveCount(3);
         await expect(rail(page)).toBeVisible();
         await expect.soft(rail(page)).toHaveAttribute('aria-orientation', 'vertical');
-        await expect.soft(tool('chọn (phím V)')).toHaveAttribute('aria-pressed', 'true');
-        await expect.soft(tool('vẽ tường (phím W)')).toHaveAttribute('aria-pressed', 'false');
+        await expect.soft(tool('Chọn (phím V)')).toHaveAttribute('aria-pressed', 'true');
+        await expect.soft(tool('Vẽ tường (phím W)')).toHaveAttribute('aria-pressed', 'false');
         await ev(page, '16-E-004', 'rail-toolbar');
       });
 
@@ -878,12 +885,12 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await expect.soft(tool(/^Tách đoạn/u)).toHaveAttribute('aria-pressed', 'true');
         await ev(page, '16-E-015', 'split-shortcut-x');
         await page.keyboard.press('v');
-        await expect(tool('chọn (phím V)')).toHaveAttribute('aria-pressed', 'true');
+        await expect(tool('Chọn (phím V)')).toHaveAttribute('aria-pressed', 'true');
       });
 
       await test.step('[16-A-041] W key activates the draw tool', async () => {
         await page.keyboard.press('w');
-        await expect.soft(tool('vẽ tường (phím W)')).toHaveAttribute('aria-pressed', 'true');
+        await expect.soft(tool('Vẽ tường (phím W)')).toHaveAttribute('aria-pressed', 'true');
         await ev(page, '16-A-041', 'w-draw-tool');
       });
 
@@ -898,7 +905,7 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         const added = sentWalls(sent).filter((wall) => !seeded.ids.includes(String(wall.id)));
         expect.soft(added, 'one new wall in the PUT').toHaveLength(1);
         expect.soft(added[0]?.thicknessMm, 'new wall thickness').toBe(110);
-        await expect.soft(tool('vẽ tường (phím W)')).toHaveAttribute('aria-pressed', 'true');
+        await expect.soft(tool('Vẽ tường (phím W)')).toHaveAttribute('aria-pressed', 'true');
         await ev(page, '16-A-040', 'wall-drawn');
       });
 
@@ -1033,7 +1040,7 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await openWalls(page, seeded.project.projectId, floor.id);
         await expect(wallRows(page)).toHaveCount(5);
         await page.keyboard.press('m');
-        await expect(tool('đo (phím M)')).toHaveAttribute('aria-pressed', 'true');
+        await expect(tool('Đo (phím M)')).toHaveAttribute('aria-pressed', 'true');
         await clickAt(page, await gapPoint(page, code(0), code(2), 0.2));
         const away = await gapPoint(page, code(0), code(2), 0.8);
         await page.mouse.move(away.x, away.y);
@@ -1067,8 +1074,8 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
       await test.step('[16-A-050] V returns to the select tool', async () => {
         await page.keyboard.press('Escape');
         await page.keyboard.press('v');
-        await expect.soft(tool('chọn (phím V)')).toHaveAttribute('aria-pressed', 'true');
-        await expect.soft(tool('đo (phím M)')).toHaveAttribute('aria-pressed', 'false');
+        await expect.soft(tool('Chọn (phím V)')).toHaveAttribute('aria-pressed', 'true');
+        await expect.soft(tool('Đo (phím M)')).toHaveAttribute('aria-pressed', 'false');
         await ev(page, '16-A-050', 'v-select-tool');
       });
 
@@ -1265,10 +1272,7 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
       ]);
       projectId = seeded.project.projectId;
       // The backend default threshold is 0.75, so wall 2 (0.70) would be low: pin the documented 0.70 first.
-      const pinned = await api.put(`/api/projects/${seeded.project.projectId}/settings`, {
-        data: { buildingType: 'residential', lengthUnit: 'mm', snapToleranceMm: 50, confidenceThreshold: 0.7, defaultScaleMmPerPx: 1 },
-      });
-      expect(pinned.status(), `setup: PUT settings ${(await pinned.text()).slice(0, 200)}`).toBe(200);
+      await putThreshold(api, seeded.project.projectId, 0.7);
       const floor = floorOf(seeded.project);
       const code = (n: number): string => seeded.codes.get(seeded.ids[n] as string) as string;
       const codesIn = async (page: Page): Promise<string[]> => (await rowLabels(page)).map(codeOfLabel);
@@ -1357,10 +1361,7 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
       });
 
       await test.step('[16-A-058] The low-confidence filter uses the project threshold from Settings (BUG-354 fix)', async () => {
-        const saved = await api.put(`/api/projects/${seeded.project.projectId}/settings`, {
-          data: { buildingType: 'residential', lengthUnit: 'mm', snapToleranceMm: 50, confidenceThreshold: 0.9, defaultScaleMmPerPx: 1 },
-        });
-        expect(saved.status(), `setup: PUT settings ${(await saved.text()).slice(0, 200)}`).toBe(200);
+        await putThreshold(api, seeded.project.projectId, 0.9, 1); // revision 1 after the 0.70 pin above
         await openWalls(page, onFloor.projectId, onFloor.floorId);
         await toggleCheckbox(page, WALL.onlyLow);
         await expectRows(page, [0, 1, 2, 5, 6], 'rows below 0.90');
@@ -1749,16 +1750,16 @@ test.describe('E04 SCR-16 walls — real-stack flows (QA-04c P1)', () => {
         await ev(page, '16-E-001', 'region-names');
       });
 
-      await test.step('[16-B-014] Provisional scale: banner + "Hiệu chỉnh tỉ lệ"; the inspector length reads "Chưa có — tỉ lệ tạm"', async () => {
-        await expect.soft(page.getByText('Tỉ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỉ lệ.', { exact: true })).toBeVisible();
-        await expect.soft(page.getByRole('button', { name: 'Hiệu chỉnh tỉ lệ', exact: true })).toBeVisible();
+      await test.step('[16-B-014] Provisional scale: banner + "Hiệu chỉnh tỷ lệ"; the inspector length reads "Chưa có — tỷ lệ tạm"', async () => {
+        await expect.soft(page.getByText('Tỷ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỷ lệ.', { exact: true })).toBeVisible();
+        await expect.soft(page.getByRole('button', { name: 'Hiệu chỉnh tỷ lệ', exact: true })).toBeVisible();
         await wallRows(page).first().click();
-        await expect.soft(inspector(page).getByText('Chưa có — tỉ lệ tạm', { exact: true })).toBeVisible();
+        await expect.soft(inspector(page).getByText('Chưa có — tỷ lệ tạm', { exact: true })).toBeVisible();
         await ev(page, '16-B-014', 'provisional-banner');
       });
 
-      await test.step('[16-B-015] "Hiệu chỉnh tỉ lệ" opens the scale screen', async () => {
-        await page.getByRole('button', { name: 'Hiệu chỉnh tỉ lệ', exact: true }).click();
+      await test.step('[16-B-015] "Hiệu chỉnh tỷ lệ" opens the scale screen', async () => {
+        await page.getByRole('button', { name: 'Hiệu chỉnh tỷ lệ', exact: true }).click();
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.scale(d1.projectId, d1.floorId));
         await ev(page, '16-B-015', 'scale-screen');
       });

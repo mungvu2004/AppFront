@@ -47,7 +47,7 @@ import {
 } from './support/p04/P6';
 
 const step = (id: string, title: string, body: () => Promise<void>): Promise<void> => test.step(`[${id}] ${title}`, body);
-const dialogName = (n: number): string => `Áp tỉ lệ này cho ${String(n)} tầng có bản vẽ?`;
+const dialogName = (n: number): string => `Áp tỷ lệ này cho ${String(n)} tầng có bản vẽ?`;
 const apply = (page: Page) => btn(page, SCALE.apply);
 
 let owner: Owner;
@@ -263,7 +263,7 @@ test.describe('U04 UI verify — SCR-14 scale calibration (QA-04c P6)', () => {
           await drawStandard(p);
           await apply(p).click();
           await p.getByRole('dialog').getByRole('button', { name: SCALE.allFloors, exact: true }).click();
-          const report = panelOf(p).getByText(/^Đã áp tỉ lệ cho 1 tầng\. Bỏ qua vì chưa có bản vẽ: /u);
+          const report = panelOf(p).getByText(/^Đã áp tỷ lệ cho 1 tầng\. Bỏ qua vì chưa có bản vẽ: /u);
           await expect(report).toBeVisible({ timeout: 45_000 });
           const [box, panel] = [await report.boundingBox(), await panelOf(p).boundingBox()];
           if (box !== null && panel !== null) expect.soft(box.x + box.width, 'the report stays inside the panel').toBeLessThanOrEqual(panel.x + panel.width + 1);

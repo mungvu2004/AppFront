@@ -270,7 +270,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
         <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
         <p className="text-[13px] text-text-secondary">{SCREEN_DESCRIPTION}</p>
         {props.saveStatus != null && (
-          <p className="text-[12px] text-text-muted" data-testid="room-save-status">
+          <p className="text-[12px] text-text-muted" data-testid="room-save-status" role="status">
             {props.saveStatus}
           </p>
         )}

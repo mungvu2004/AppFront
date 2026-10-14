@@ -278,10 +278,10 @@ export async function routeDrawing(page: Page, png: Buffer, size = { widthMm: 16
 /* ---- settings --------------------------------------------------------------------------------- */
 
 /** N6 `PUT /api/projects/:p/settings` (BE project_settings/schemas.py:103-111) at revision 0 with `confidenceThreshold`. */
-export async function putThreshold(api: APIRequestContext, projectId: string, threshold: number): Promise<void> {
+export async function putThreshold(api: APIRequestContext, projectId: string, threshold: number, baseVersion = 0): Promise<void> {
   const res = await api.put(`/api/projects/${projectId}/settings`, {
     data: {
-      baseVersion: 0,
+      baseVersion,
       body: { buildingType: 'residential', lengthUnit: 'mm', snapToleranceMm: 50, confidenceThreshold: threshold, defaultScaleMmPerPx: 1 },
     },
   });
@@ -296,6 +296,18 @@ export const listGroup = (page: Page): Locator => page.getByRole('group', { name
 export const options = (page: Page): Locator => listGroup(page).getByRole('option');
 export const option = (page: Page, n: number): Locator => listGroup(page).getByRole('option', { name: dimCode(n), exact: true });
 export const field = (page: Page, n: number): Locator => page.getByRole('textbox', { name: `Giá trị kích thước ${dimCode(n)}`, exact: true });
+/**
+ * P5 `openFlow` registers a `dialog` listener that only records, so a `beforeunload` raised by a dirty previous step is never
+ * answered and the next `goto`/`reload` hangs for 30 s. Leave the page (accept) on `beforeunload`; other dialogs stay recorded only.
+ */
+export const leaveOnBeforeUnload = (page: Page): void => {
+  page.on('dialog', (dialog) => {
+    if (dialog.type() === 'beforeunload') void dialog.accept().catch(() => undefined);
+  });
+};
+
+/** Visible label of a `Button` (src/components/ui/Button.tsx:78-96 renders the children twice: a hidden sizing copy + the visible `span.absolute`): `toHaveText` on the button itself reads both. */
+export const buttonText = (button: Locator): Locator => button.locator('span.absolute');
 export const approveButton = (page: Page, n: number): Locator => page.getByRole('button', { name: `${DIM.approve} ${dimCode(n)}`, exact: true });
 export const compareBar = (page: Page): Locator => page.getByRole('group', { name: DIM.compareBar, exact: true });
 export const filterGroup = (page: Page): Locator => page.getByRole('radiogroup', { name: DIM.filter, exact: true });

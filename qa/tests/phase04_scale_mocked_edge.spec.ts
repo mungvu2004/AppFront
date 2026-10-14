@@ -216,7 +216,7 @@ test.describe('E04 SCR-14 scale calibration — mocked responses (QA-04c P6)', (
         await evidence(page, '14-G-010', 'settings-abort');
       });
 
-      await step('14-B-019', 'all floors: the floor list read fails → "Không tải được danh sách tầng để áp tỉ lệ."', async () => {
+      await step('14-B-019', 'all floors: the floor list read fails → "Không tải được danh sách tầng để áp tỷ lệ."', async () => {
         await page.unrouteAll({ behavior: 'ignoreErrors' });
         await page.route(re.floors, onGet((route) => fulfillError(route, 500, 'INTERNAL_ERROR')));
         await openScale(page, projectId, floorId);
@@ -228,7 +228,7 @@ test.describe('E04 SCR-14 scale calibration — mocked responses (QA-04c P6)', (
         await evidence(page, '14-B-019', 'list-fails');
       });
 
-      await step('14-G-012', 'all floors: #12 or N15 5xx → "Không tải được danh sách tầng để áp tỉ lệ."', async () => {
+      await step('14-G-012', 'all floors: #12 or N15 5xx → "Không tải được danh sách tầng để áp tỷ lệ."', async () => {
         await page.unrouteAll({ behavior: 'ignoreErrors' });
         await page.route(re.graph, onGet((route) => fulfillError(route, 503, 'SERVICE_UNAVAILABLE')));
         await openScale(page, projectId, floorId);

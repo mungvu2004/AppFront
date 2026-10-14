@@ -421,18 +421,18 @@ test.describe('A04 phase-4 spatial backend flows (settings N5, quality #30, #35 
       const n16Post1 = await readLayer(owner.api, 'be03_n16_after_first_run', pid, f1, '200 N16 after the first pipeline run');
       const n15Post1 = await readGraph(owner.api, 'be03_n15_after_first_run', pid, '200 N15 after the first run');
 
-      await test.step('[BE4-G-028] ⚑ human scale saved before any drawing, then drawing + pipeline: the pipeline scale wins (scaleStatus "unresolved", scale ≠ the human value)', async () => {
+      await test.step('[BE4-G-028] ⚑ human scale saved before any drawing, then drawing + pipeline: the human scale keeps its rank (scale_page_key NULL = no page evidence; writer.py:383-388, assemble.py:34-35, test_writer_scale.py:72)', async () => {
         // Hard: without the human write on a fresh floor the ⚑ checks below would prove nothing.
         expect(humanBeforeDrawing.res.status(), 'the human scale was saved before the drawing').toBe(200);
         expect(n16Fresh.revision, 'the floor was fresh (revision 0)').toBe(0);
-        expect.soft(scaleOf(n16Post1), 'the scale of the first drawing is the pipeline one, not the stale human value').not.toBe(HUMAN_1);
-        expect.soft(n16Post1.scaleStatus, 'a scale without evidence for this page stays provisional').toBe('unresolved');
+        expect.soft(scaleOf(n16Post1), 'a human scale saved with no drawing is not overwritten by the first pipeline run (documented rank rule K19)').toBe(HUMAN_1);
+        expect.soft(n16Post1, 'no page evidence to demote against, so no scaleStatus').not.toHaveProperty('scaleStatus');
       });
-      await test.step('[BE4-G-091] ⚑ scale saved on a floor without a drawing carries no page: N16 shows it (no scaleStatus) before the drawing, N15 shows the pipeline scale after', async () => {
+      await test.step('[BE4-G-091] ⚑ scale saved on a floor without a drawing carries no page: N16 shows it (no scaleStatus) before the drawing, N15 keeps the human scale after the first run', async () => {
         expect.soft(n16Human0, 'no drawing → no page to demote against').not.toHaveProperty('scaleStatus');
         expect.soft(scaleOf(n16Human0)).toBe(HUMAN_1);
         const level = objs(asJson(n15Post1.graph).levels, 'levels').find((l) => l.id === f1);
-        expect.soft(level?.scaleMillimetresPerPixel, 'N15 level scale after the run').not.toBe(HUMAN_1);
+        expect.soft(level?.scaleMillimetresPerPixel, 'N15 level scale after the run keeps the human value').toBe(HUMAN_1);
       });
 
       const rev1 = Number(n16Post1.revision);

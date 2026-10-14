@@ -465,6 +465,9 @@ export function useOverlayComparison(
       floors[0]
     )?.id ?? null;
 
+  const isRouteFloorUnknown =
+    storeFloors.length > 0 && !floors.some((floor) => floor.id === floorId || scanFloorIdOf(floor.id) === floorId);
+
   const canEdit = can('edit', 'layer', { roles });
   const role = ROLE_PRECEDENCE.find((candidate) => roles.includes(candidate)) ?? null;
 
@@ -497,7 +500,8 @@ export function useOverlayComparison(
         regions: regions.supported ? regions.value : EMPTY_REGIONS,
       };
     },
-    enabled: activeFloorId !== null,
+    // Tầng của route không có trong kho thì N16 không biết nó: không đọc ảnh (#30) của tầng khác thay nó (22-G-010).
+    enabled: activeFloorId !== null && !isRouteFloorUnknown,
   });
 
   const scans = query.data?.scans ?? EMPTY_SCANS;

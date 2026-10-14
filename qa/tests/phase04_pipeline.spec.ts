@@ -44,7 +44,7 @@
  *   inspector button exists for objects (`ObjectLayerInspector.tsx` header).
  * - Dimensions (F-08) and axes: no persistence path; the hooks still say "saved".
  * - Scale: "Áp cho mọi tầng" is a scope option; "Áp dụng tỷ lệ" then reads #12 floors + N15 graph and
- *   opens the A9 dialog "Áp tỉ lệ này cho N tầng có bản vẽ?" (`useScaleCalibration.ts` onApply).
+ *   opens the A9 dialog "Áp tỷ lệ này cho N tầng có bản vẽ?" (`useScaleCalibration.ts` onApply).
  * - Checkbox/Radio.Item are `sr-only` inputs under a drawn box: driven by focus + Space, the proven
  *   path of `e2e/v7/thickness-standardization.spec.ts`.
  */
@@ -842,7 +842,12 @@ test.describe('CP-6 on the CP-5 work floor', () => {
       await expect.soft(browseWalls, 'a finished run offers "Duyệt lớp tường" (ProcessingSummary)').toBeVisible();
       if (await browseWalls.isVisible()) {
         await browseWalls.click();
-        await expect.poll(() => pathnameOf(page)).toBe(ROUTES.project.walls(projectId, floorId));
+        // The summary leads to the FIRST finished floor of the project (useProcessingScreen.ts:1260-1275,
+        // `floorStatuses.indexOf('done')`), not to the work floor: assert the route shape, then CP-6 below
+        // reopens the work floor explicitly via openWalls().
+        await expect
+          .poll(() => pathnameOf(page))
+          .toMatch(new RegExp(`^/projects/${projectId}/floors/[^/]+/layers/walls$`, 'u'));
       }
     });
     const current = await openWalls();
@@ -1256,7 +1261,7 @@ test.describe('SCR-14 Scale Calibration', () => {
     await captureEvidence(page, '14_scale_applied.png');
   });
 
-  test('SCR-14 all floors: "Áp cho mọi tầng", then "Huỷ" in "Áp tỉ lệ này cho N tầng có bản vẽ?" → GET floors + spatial, NO PUT', async () => {
+  test('SCR-14 all floors: "Áp cho mọi tầng", then "Huỷ" in "Áp tỷ lệ này cho N tầng có bản vẽ?" → GET floors + spatial, NO PUT', async () => {
     await openScaleAndDraw();
     await scaleScope('Áp cho mọi tầng').click();
     await expect(scaleScope('Áp cho mọi tầng')).toHaveAttribute('aria-checked', 'true');
@@ -1270,8 +1275,8 @@ test.describe('SCR-14 Scale Calibration', () => {
       expect.soft((await floorsRead).response.status(), 'GET #12 …/floors').toBe(200);
       expect.soft((await graphRead).response.status(), 'GET N15 …/spatial').toBe(200);
     });
-    await test.step('[14-A-022] the A9 dialog "Áp tỉ lệ này cho N tầng có bản vẽ?" opens; "Huỷ" closes it with no PUT', async () => {
-      const dialog = page.getByRole('dialog', { name: /^Áp tỉ lệ này cho \d+ tầng có bản vẽ\?$/u });
+    await test.step('[14-A-022] the A9 dialog "Áp tỷ lệ này cho N tầng có bản vẽ?" opens; "Huỷ" closes it with no PUT', async () => {
+      const dialog = page.getByRole('dialog', { name: /^Áp tỷ lệ này cho \d+ tầng có bản vẽ\?$/u });
 
       await expect(dialog).toBeVisible();
       await dialog.getByRole('button', { name: 'Huỷ', exact: true }).click();

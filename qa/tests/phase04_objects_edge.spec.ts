@@ -633,8 +633,10 @@ test('SCR-17 · FL-17-03 inspector by kind, position slider, host-wall jump, fur
       await attachJson('E04_17-A-019_fit_viewbox.json', { fit });
     });
 
-    await test.step('[17-A-020] ⚑ After the host-wall jump the inspector shows the prompt, and the jumped-to wall is highlighted / shown', async () => {
-      await expect.soft(inspector(page).getByText(OBJ.inspectorEmpty, { exact: true })).toBeVisible();
+    await test.step('[17-A-020] ⚑ After the host-wall jump the inspector KEEPS the selected object (BUG-591) and the jumped-to wall is highlighted / shown', async () => {
+      // useObjectLayerReview.ts:1134-1141 onSelectHostWall keeps the selection and only sets flownWallId.
+      await expect.soft(inspector(page).getByText(OBJ.inspectorEmpty, { exact: true })).toHaveCount(0);
+      await expect.soft(inspector(page).getByRole('button', { name: /^#W-\d+$/u })).toBeVisible();
       const fills = await canvasGroup(page).locator('svg polygon').evaluateAll((nodes) => nodes.map((node) => `${node.getAttribute('fill') ?? ''}|${getComputedStyle(node).opacity}|${getComputedStyle(node).stroke}`));
       expect.soft(new Set(fills).size, 'one wall polygon looks different from the rest (highlighted)').toBeGreaterThan(1);
       await ev(page, '17-A-020', 'wall_not_highlighted');
@@ -849,14 +851,15 @@ test('SCR-17 · FL-17-04 context menus on door, window, furniture; delete and re
       await ev(page, '17-E-019', 'toast_a11y');
     });
 
-    await test.step('[17-C-037] After a delete the remaining codes re-rank (a later object may take the deleted code)', async () => {
+    await test.step('[17-C-037] After a delete the remaining codes stay put (BUG-592: no later object takes the deleted code)', async () => {
       await spaGo(page, ROUTES.project.objects(pid, floor2));
       await expect(allOptions(page)).toHaveCount(2);
       const before = await optionLabels(page);
       expect.soft(before).toEqual(['#D-001 — bình thường', '#D-002 — Đã duyệt']);
       await deleteViaMenu(page, '#D-001');
       await expect(allOptions(page)).toHaveCount(1);
-      expect.soft(await optionLabels(page), 'the reviewed door took the deleted code').toEqual(['#D-001 — Đã duyệt']);
+      // BUG-592 (domain/spatial/ids.ts:205-213 keepDisplayCodes): a shown code never moves to another object in a session.
+      expect.soft(await optionLabels(page), 'the reviewed door keeps its own code').toEqual(['#D-002 — Đã duyệt']);
       await ev(page, '17-C-037', 'rerank');
     });
   });
@@ -1452,10 +1455,11 @@ test('SCR-17 · FL-17-08 codes, row text, status, fixed 0,75 cut, filter trap, s
 
       await test.step('[17-B-004] Partial with low confidence: "N mục dưới ngưỡng tin cậy, đã lọc sẵn" + "Chỉ hiện mục dưới ngưỡng" aria-pressed="true"; list pre-filtered', async () => {
         await openObjects(page, pid, fid);
-        await expect.soft(page.getByText('1 mục dưới ngưỡng tin cậy, đã lọc sẵn', { exact: true })).toBeVisible();
+        await expect.soft(page.getByText('2 mục dưới ngưỡng tin cậy, đã lọc sẵn', { exact: true })).toBeVisible();
         await expect.soft(lowButton).toHaveAttribute('aria-pressed', 'true');
-        await expect.soft(allOptions(page)).toHaveCount(1);
+        await expect.soft(allOptions(page)).toHaveCount(2); // seed threshold 0,9: #D-002 (0,80) + #S-001 (0,60), as 17-C-009
         await expect.soft(optionOf(page, '#S-001')).toHaveCount(1);
+        await expect.soft(optionOf(page, '#D-002')).toHaveCount(1);
         await ev(page, '17-B-004', 'partial_notice');
       });
 
@@ -1466,11 +1470,12 @@ test('SCR-17 · FL-17-08 codes, row text, status, fixed 0,75 cut, filter trap, s
         await ev(page, '17-A-045', 'filter_off');
       });
 
-      await test.step('[17-A-046] "Chỉ hiện mục dưới ngưỡng" back on → only unreviewed objects < 0,75', async () => {
+      await test.step('[17-A-046] "Chỉ hiện mục dưới ngưỡng" back on → only unreviewed objects below the project threshold 0,9', async () => {
         await lowButton.click();
         await expect.soft(lowButton).toHaveAttribute('aria-pressed', 'true');
-        await expect.soft(allOptions(page)).toHaveCount(1);
+        await expect.soft(allOptions(page)).toHaveCount(2);
         await expect.soft(optionOf(page, '#S-001')).toHaveCount(1);
+        await expect.soft(optionOf(page, '#D-002')).toHaveCount(1);
         await ev(page, '17-A-046', 'filter_back_on');
       });
 
@@ -1615,12 +1620,13 @@ test('SCR-17 · FL-17-09 empty floors, manual add, entries, URL floor change, an
       await ev(page, '16-A-004', 'walls_screen_from_empty');
     });
 
-    await test.step('[17-B-002] Empty with walls: "Chưa nhận ra đối tượng nào" + the explanation + "Thêm thủ công"; same sentence in the status bar', async () => {
+    await test.step('[17-B-002] Empty with walls: "Chưa nhận ra đối tượng nào" + the explanation + "Thêm thủ công"; the status bar does not repeat it (BUG-422)', async () => {
       await openObjects(page, pid, oneWallFloor as string);
       await expect.soft(page.getByText(OBJ.emptyTitle, { exact: true })).toBeVisible();
       await expect.soft(page.getByText(OBJ.emptyExplanation, { exact: true }).first()).toBeVisible();
       await expect.soft(page.getByRole('button', { name: OBJ.addManually, exact: true })).toBeVisible();
-      await expect.soft(statusBar(page)).toContainText(OBJ.emptyExplanation);
+      await expect.soft(page.getByText(OBJ.emptyExplanation, { exact: true }), 'sentence appears once (ObjectLayerStatusBar.tsx:48, BUG-422)').toHaveCount(1);
+      await expect.soft(statusBar(page)).not.toContainText(OBJ.emptyExplanation);
       await ev(page, '17-B-002', 'empty_with_walls');
     });
 
@@ -1883,14 +1889,14 @@ test('SCR-17 · FL-17-11 drawing floor: background image, provisional banner →
       await ev(page, '17-G-001', 'background_read');
     });
 
-    await test.step('[17-B-017] Provisional scale: banner "Tỉ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỉ lệ." + "Hiệu chỉnh tỉ lệ"', async () => {
-      await expect.soft(page.getByText('Tỉ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỉ lệ.', { exact: true })).toBeVisible();
-      await expect.soft(page.getByRole('button', { name: 'Hiệu chỉnh tỉ lệ', exact: true })).toBeVisible();
+    await test.step('[17-B-017] Provisional scale: banner "Tỷ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỷ lệ." + "Hiệu chỉnh tỷ lệ"', async () => {
+      await expect.soft(page.getByText('Tỷ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỷ lệ.', { exact: true })).toBeVisible();
+      await expect.soft(page.getByRole('button', { name: 'Hiệu chỉnh tỷ lệ', exact: true })).toBeVisible();
       await ev(page, '17-B-017', 'provisional_scale_banner');
     });
 
-    await test.step('[17-A-051] Provisional-scale banner "Hiệu chỉnh tỉ lệ" → scale route of this floor', async () => {
-      await page.getByRole('button', { name: 'Hiệu chỉnh tỉ lệ', exact: true }).click();
+    await test.step('[17-A-051] Provisional-scale banner "Hiệu chỉnh tỷ lệ" → scale route of this floor', async () => {
+      await page.getByRole('button', { name: 'Hiệu chỉnh tỷ lệ', exact: true }).click();
       await expect.poll(() => pathOf(page)).toBe(ROUTES.project.scale(pid, fid));
       await ev(page, '17-A-051', 'banner_to_scale');
     });

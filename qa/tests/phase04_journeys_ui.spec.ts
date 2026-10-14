@@ -38,7 +38,7 @@ import { waitForApi } from '../../e2e/fullstack/apiWatch';
 import { layerRe } from './support/p04/P1';
 import { verifyUi } from './support/ui-verify';
 
-const PROVISIONAL = 'Tỉ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỉ lệ.';
+const PROVISIONAL = 'Tỷ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỷ lệ.';
 const banner = (page: Page): Locator => page.getByText(PROVISIONAL, { exact: true });
 
 test.describe('E04 journeys — UI verification flow (QA-04c P1)', () => {
@@ -63,7 +63,7 @@ test.describe('E04 journeys — UI verification flow (QA-04c P1)', () => {
           await openWalls(p, onFloor.projectId, onFloor.floorId, { tour: false });
           await dismissTour(p, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
           await expect(banner(p)).toBeVisible();
-          await expect(p.getByRole('button', { name: 'Hiệu chỉnh tỉ lệ', exact: true })).toBeVisible();
+          await expect(p.getByRole('button', { name: 'Hiệu chỉnh tỷ lệ', exact: true })).toBeVisible();
         });
       });
 

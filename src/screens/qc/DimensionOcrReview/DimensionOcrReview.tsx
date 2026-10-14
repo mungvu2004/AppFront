@@ -277,18 +277,13 @@ export function DimensionOcrReview({
             backgroundImageUrl={model.backgroundImageUrl}
             chains={model.chains}
             drawingSizePx={model.drawingSizePx}
+            emptyNotice={model.emptyNotice === null ? null : DIMENSION_OCR_TEXT.screen.canvasEmptyNotice}
             isInteractive={!model.isViewerRole}
             millimetresPerPixel={model.millimetresPerPixel}
             onSelect={model.onSelect}
             selectedDimensionId={model.selectedDimensionId}
             zoom={model.canvasZoom}
           />
-          {/* BUG-335: khung bản vẽ rỗng nói vì sao nó rỗng, như Duyệt đối tượng. */}
-          {model.emptyNotice === null ? null : (
-            <p className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 text-center text-[13px] text-text-secondary">
-              {DIMENSION_OCR_TEXT.screen.canvasEmptyNotice}
-            </p>
-          )}
         </section>
 
         {/* Nửa phải 40% — danh sách duyệt, dải đối chiếu dính đáy, cửa vào bàn phím. */}

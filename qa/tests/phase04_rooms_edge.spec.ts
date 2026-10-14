@@ -1120,7 +1120,8 @@ test('SCR-20 · FL-20-06 · "Chưa đặt tên" filter, open-loop gaps, rule not
       await expect.soft(gapsSection.getByText(formatLength(50), { exact: true })).toBeVisible();
       await expect.soft(gapsSection.getByText(ROOM.gapWalls, { exact: true })).toBeVisible();
       const shown = (await gapsSection.locator('code').allInnerTexts()).map((text) => text.trim()).sort();
-      expect.soft(shown).toEqual([gaps.walls.right as string, gaps.walls.top as string].sort());
+      const wallCodes = codesOf(Object.values(gaps.walls)); // gateway gapsOf shows `#W-nnn` display codes, not raw ids (roomLabelReviewGateway.ts:697)
+      expect.soft(shown).toEqual([wallCodes.get(gaps.walls.right as string) as string, wallCodes.get(gaps.walls.top as string) as string].sort());
       await captureEvidence(page, 'E04_20-A-043_gap-row.png');
       await gapsSection.getByRole('button', { name: ROOM.toWalls, exact: true }).click();
       await expect.soft(page).toHaveURL(new RegExp(`${ROUTES.project.walls(projectId, f1.id).replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}$`, 'u'));
@@ -1348,7 +1349,7 @@ test('SCR-20 · FL-20-08 · drawing floor: background, crop, provisional measure
       await captureEvidence(page, 'E04_20-B-006_background-size.png');
     });
 
-    await test.step('[20-B-009] provisional scale: the row area, the inspector area / perimeter and the total read "Chưa có — tỉ lệ tạm"', async () => {
+    await test.step('[20-B-009] provisional scale: the row area, the inspector area / perimeter and the total read "Chưa có — tỷ lệ tạm"', async () => {
       await expect.soft(optionOf(page, codeAi)).toHaveAccessibleName(new RegExp(` · ${ROOM.provisional} · `, 'u'));
       await expect.soft(page.locator('p').filter({ hasText: /^Tổng diện tích sàn/u })).toHaveText(`Tổng diện tích sàn ${ROOM.provisional} · 2 phòng`);
       await selectRoom(page, codeAi);

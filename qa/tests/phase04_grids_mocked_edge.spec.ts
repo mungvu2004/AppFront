@@ -46,7 +46,10 @@ test.afterAll(async () => {
 const region = (page: Page): Locator => page.getByRole('region', { name: SCREEN, exact: true });
 const listbox = (page: Page, name: string): Locator => page.getByRole('listbox', { name, exact: true });
 const failure = (page: Page): Locator => page.getByRole('alert').filter({ has: page.getByRole('button', { name: RETRY, exact: true }) });
-const skeletonRows = (page: Page): Locator => page.locator('div.flex.items-center.gap-4.p-3.w-full:has(> .animate-pulse)');
+const ROW = 'div.flex.items-center.gap-4.p-3.w-full:has(> .animate-pulse)';
+// AGV:171-175 left column: six rows; AGV:285-296 the right column adds two aria-hidden cards of three rows (BUG-618) = 12 in all.
+const skeletonRows = (page: Page): Locator => page.locator(`${ROW}:not([aria-hidden="true"] *)`);
+const allSkeletonRows = (page: Page): Locator => page.locator(ROW);
 
 test.describe('E04 SCR-19 axes — mocked-response flow (QA-04c P4)', () => {
   test('SCR-19 · FL-19-M1 · [mocked response] held read, 403, 500, abort, retry', async ({ browser }) => {
@@ -75,6 +78,7 @@ test.describe('E04 SCR-19 axes — mocked-response flow (QA-04c P4)', () => {
           await hold.seen;
           await expect(region(page)).toBeVisible();
           await expect(skeletonRows(page)).toHaveCount(6); // AGV:113-114,166-174; UAG:448
+          await expect.soft(allSkeletonRows(page), 'left column 6 + two right cards of 3 (AGV:285-296)').toHaveCount(12);
           await expect.soft(listbox(page, 'Trục ngang')).toHaveCount(0);
           await expect.soft(page.locator('svg[role="img"]')).toHaveCount(1); // canvas frame is drawn while loading
           await captureEvidence(page, 'E04_19-B-001_loading-skeleton.png');

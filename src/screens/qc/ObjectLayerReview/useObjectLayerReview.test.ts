@@ -1400,7 +1400,7 @@ describe('đợt sửa P04 — SCR-17', () => {
   const renderView = (model: ObjectLayerReviewModel, overrides: Partial<ObjectLayerReviewModel> = {}) =>
     render(createElement(ObjectLayerReview, { ...model, ...overrides }));
 
-  it('[BUG-579] "Hoàn tác" trên toast xoá KHÔNG hoàn tác bước mới hơn (duyệt đối tượng khác)', async () => {
+  it('[BUG-579] "Hoàn tác" trên toast xoá hoàn tác ĐÚNG bước xoá, giữ nguyên bước mới hơn (duyệt đối tượng khác)', async () => {
     const bus: NotificationBus = createNotificationBus();
     const mounted = await mountSettled({ notifications: bus });
 
@@ -1417,10 +1417,7 @@ describe('đợt sửa P04 — SCR-17', () => {
     });
 
     expect((entityInStore('D-006', 'door') as { reviewed: boolean }).reviewed).toBe(true);
-    expect(entityInStore('D-004', 'door')).toBeUndefined();
-    await waitFor(() => {
-      expect(bus.list().some((item) => item.title.startsWith('Chưa hoàn tác: đã có 1 thay đổi sau'))).toBe(true);
-    });
+    expect(entityInStore('D-004', 'door')).toBeDefined();
 
     mounted.unmount();
   });

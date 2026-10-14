@@ -83,6 +83,8 @@ import type { OverlayComparisonCanvasProps } from './types';
 const CANVAS_ARIA_LABEL = 'Khung đối chiếu bản vẽ và mô hình';
 const SOURCE_FRAME_ARIA_LABEL = 'Khung bản vẽ nguồn';
 const RESULT_FRAME_ARIA_LABEL = 'Khung mô hình sinh ra';
+/** Khung chồng lớp/trượt: tên riêng, không trùng nhóm gốc `CANVAS_ARIA_LABEL` lồng quanh nó (22-E-002). */
+const SINGLE_FRAME_ARIA_LABEL = 'Khung chồng lớp bản vẽ';
 
 /* -------------------------------------------------------------------------- */
 /* Hằng số hình học.                                                           */
@@ -379,7 +381,7 @@ export function OverlayComparisonCanvas({
           </>
         ) : (
           <ComparisonFrame
-            ariaLabel={CANVAS_ARIA_LABEL}
+            ariaLabel={SINGLE_FRAME_ARIA_LABEL}
             frameRef={(element) => {
               swipeFrameRef.current = element;
             }}

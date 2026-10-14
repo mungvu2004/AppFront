@@ -314,30 +314,31 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
     try {
       await openScale(page, floor.projectId, floor.floorId);
       const { w, h } = shared.size();
+      const edge = Math.max(w, h); // image drawn object-contain in a square frame: both axes scale by the long side (useScaleCalibration.ts imageFrameOf:349)
 
-      await step('14-C-001', 'horizontal 20 %→80 % at 50 %: px = 0,6·W; "5000" → r = 5000/px; computation "5.000 mm ÷ px = r mm/px"', async () => {
+      await step('14-C-001', 'horizontal 20 %→80 % at 50 %: px = 0,6·edge; "5000" → r = 5000/px; computation "5.000 mm ÷ px = r mm/px"', async () => {
         await dragLine(page, [0.2, 0.5], [0.8, 0.5]);
         const c = await typeLength(page, '5000');
         expect(c.numerator).toBe('5.000 mm'); // USC:349-367,681-704,1590-1598
         const px = numberOf(c.denominator);
-        expect.soft(approx(px, 0.6 * w), `${c.denominator} ≈ 0,6·${String(w)}`).toBe(true);
+        expect.soft(approx(px, 0.6 * edge), `${c.denominator} ≈ 0,6·${String(edge)}`).toBe(true);
         expect.soft(approx(numberOf(c.result), expectedRatio(5000, px), 0.002), `${c.result} ≈ 5000 / ${String(px)}`).toBe(true);
         await evidence(page, '14-C-001', 'horizontal-5000');
       });
 
-      await step('14-C-003', 'vertical line (x 50 %, y 20 %→80 %) uses H: px = 0,6·H', async () => {
+      await step('14-C-003', 'vertical line (x 50 %, y 20 %→80 %) uses the long side: px = 0,6·edge', async () => {
         await clearLine(page);
         await dragLine(page, [0.5, 0.2], [0.5, 0.8]);
         const c = await typeLength(page, '5000');
-        expect.soft(approx(numberOf(c.denominator), 0.6 * h), `${c.denominator} ≈ 0,6·${String(h)}`).toBe(true); // USC:349-354
+        expect.soft(approx(numberOf(c.denominator), 0.6 * edge), `${c.denominator} ≈ 0,6·${String(edge)}`).toBe(true); // USC:349-354
         await evidence(page, '14-C-003', 'vertical');
       });
 
-      await step('14-C-004', 'diagonal: px = hypot(Δx·W, Δy·H)', async () => {
+      await step('14-C-004', 'diagonal: px = hypot(Δx·edge, Δy·edge)', async () => {
         await clearLine(page);
         await dragLine(page, [0.2, 0.2], [0.8, 0.8]);
         const c = await typeLength(page, '5000');
-        expect.soft(approx(numberOf(c.denominator), Math.hypot(0.6 * w, 0.6 * h)), `${c.denominator} ≈ hypot`).toBe(true); // USC:365-367
+        expect.soft(approx(numberOf(c.denominator), Math.hypot(0.6 * edge, 0.6 * edge)), `${c.denominator} ≈ hypot`).toBe(true); // USC:365-367
         await evidence(page, '14-C-004', 'diagonal');
       });
 
@@ -896,7 +897,7 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await evidence(page, '14-G-008', 'n16-read');
       });
 
-      await step('14-B-012', 'after apply on a provisional floor the "Tỉ lệ tạm" banner goes', async () => {
+      await step('14-B-012', 'after apply on a provisional floor the "Tỷ lệ tạm" banner goes', async () => {
         await expect.soft(page.getByText(SCALE.provisional, { exact: true })).toHaveCount(0);
         await evidence(page, '14-B-012', 'banner-gone');
       });
@@ -1121,7 +1122,7 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
     const lastPut = (): { status: number; code?: string; json?: unknown } | undefined =>
       s.log.filter((e) => e.method === 'PUT' && layerRe(d1.projectId, d1.floorId).test(e.path)).at(-1);
     try {
-      await step('14-B-017', 'apply refused by a stale revision (layer written elsewhere after load) → 409 "Chưa lưu được tỉ lệ… Tải lại để xem phiên bản mới nhất."', async () => {
+      await step('14-B-017', 'apply refused by a stale revision (layer written elsewhere after load) → 409 "Chưa lưu được tỷ lệ… Tải lại để xem phiên bản mới nhất."', async () => {
         await openScale(page, d1.projectId, d1.floorId);
         await staleWrite(owner.api, d1);
         await drawStandard(page);
@@ -1146,7 +1147,7 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await evidence(page, '14-B-023', 'blocked-floor');
       });
 
-      await step('14-C-018', 'ratio over the BE bound (> 999999 mm/px) → PUT 422 → "Chưa lưu được tỉ lệ… Kiểm tra lại các trường được đánh dấu rồi thử lại."', async () => {
+      await step('14-C-018', 'ratio over the BE bound (> 999999 mm/px) → PUT 422 → "Chưa lưu được tỷ lệ… Kiểm tra lại các trường được đánh dấu rồi thử lại."', async () => {
         await page.reload(); // reload clears the blocked floor and takes the new revision
         await expect(canvasOf(page)).toBeVisible();
         await expect(btn(page, SCALE.remeasure)).toBeVisible();
@@ -1203,7 +1204,7 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
       expect(c.runs[1]?.outcome, 'setup: the crafted upload failed its run').toBe('failed');
       const [a0, a1] = [a.floors[0]!, a.floors[1]!];
       const putsA = (from: number): Sent[] => sent.slice(from).filter((r) => r.method === 'PUT' && /\/spatial\/layer$/u.test(r.path));
-      const dialogFor = (n: number): Locator => page.getByRole('dialog', { name: `Áp tỉ lệ này cho ${String(n)} tầng có bản vẽ?`, exact: true });
+      const dialogFor = (n: number): Locator => page.getByRole('dialog', { name: `Áp tỷ lệ này cho ${String(n)} tầng có bản vẽ?`, exact: true });
       const confirmAll = (): Locator => btn(page.getByRole('dialog'), SCALE.allFloors);
       const openAll = async (projectId: string, floorId: string, length = '5000'): Promise<void> => {
         await openScale(page, projectId, floorId);
@@ -1252,7 +1253,7 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         const mark = sent.length;
         await applyDisabled(page).click();
         await confirmAll().click();
-        await expect(panelOf(page).getByText('Đã áp tỉ lệ cho 2 tầng. Bỏ qua vì chưa có bản vẽ: Tầng 3, Tầng 4.', { exact: true })).toBeVisible();
+        await expect(panelOf(page).getByText('Đã áp tỷ lệ cho 2 tầng. Bỏ qua vì chưa có bản vẽ: Tầng 3, Tầng 4.', { exact: true })).toBeVisible();
         expect.soft(putsA(mark)).toHaveLength(2);
         await evidence(page, '14-A-024', 'all-floors-report');
       });
@@ -1274,11 +1275,11 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await evidence(page, '14-C-038', 'base-versions');
       });
 
-      await step('14-C-029', 'all floors with only the current floor drawn: N = 1, "Đã áp tỉ lệ cho 1 tầng." + the skipped list, state success', async () => {
+      await step('14-C-029', 'all floors with only the current floor drawn: N = 1, "Đã áp tỷ lệ cho 1 tầng." + the skipped list, state success', async () => {
         await openAll(b.projectId, b.floors[0]!.id);
         await expect(dialogFor(1)).toBeVisible();
         await confirmAll().click();
-        await expect(panelOf(page).getByText('Đã áp tỉ lệ cho 1 tầng. Bỏ qua vì chưa có bản vẽ: Tầng 2, Tầng 3, Tầng 4.', { exact: true })).toBeVisible(); // USC:226,1188
+        await expect(panelOf(page).getByText('Đã áp tỷ lệ cho 1 tầng. Bỏ qua vì chưa có bản vẽ: Tầng 2, Tầng 3, Tầng 4.', { exact: true })).toBeVisible(); // USC:226,1188
         await expect.soft(page.getByText(SCALE.successTitle, { exact: true })).toBeVisible();
         await evidence(page, '14-C-029', 'only-current-drawn');
       });
@@ -1312,7 +1313,7 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await expect(dialogFor(2)).toBeVisible(); // N15 revisions are read when the dialog opens …
         await staleWrite(owner.api, { projectId: a.projectId, floorId: a1.id }); // … so this write makes floor 2 stale
         await confirmAll().click();
-        await expect(panelOf(page).getByText('Đã áp tỉ lệ cho 1 tầng. Không lưu được tỉ lệ cho: Tầng 2. Bỏ qua vì chưa có bản vẽ: Tầng 3, Tầng 4.', { exact: true })).toBeVisible();
+        await expect(panelOf(page).getByText('Đã áp tỷ lệ cho 1 tầng. Không lưu được tỷ lệ cho: Tầng 2. Bỏ qua vì chưa có bản vẽ: Tầng 3, Tầng 4.', { exact: true })).toBeVisible();
         // The source gives these warped floors state `error`, not `partial` (USC state order: warped && no success → error): its title shows.
         await expect.soft(page.getByText(SCALE.warpedTitle, { exact: true }).first(), 'state error: the warped-drawing title (SC:72)').toBeVisible();
         note('state `partial` is outranked by `error` on these warped floors (USC state order: warped && no success → error); the report text is what is asserted');
@@ -1327,7 +1328,7 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await confirmAll().click();
         // The whole report (USC:221-233): floor 2 is re-read at the dialog and saved (a scale-only 409 never blocks), 3 / 4 skipped.
         await expect
-          .soft(panelOf(page).getByText('Đã áp tỉ lệ cho 2 tầng. Bỏ qua vì chưa có bản vẽ: Tầng 3, Tầng 4.', { exact: true }))
+          .soft(panelOf(page).getByText('Đã áp tỷ lệ cho 2 tầng. Bỏ qua vì chưa có bản vẽ: Tầng 3, Tầng 4.', { exact: true }))
           .toBeVisible();
         expect.soft(putsA(mark), '2 PUTs: both drawn floors are sent').toHaveLength(2);
         await evidence(page, '14-B-021', 'blocked-floor-report');

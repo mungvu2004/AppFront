@@ -631,7 +631,9 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
     {
       id: TOUR_SKIP_SHORTCUT_ID,
       combo: 'Escape',
-      scope: 'canvas',
+      // `sidePanel` outranks `canvas`, so a screen's own canvas Esc (clear selection,
+      // cancel gesture) cannot swallow the tour's Esc while it is open (R11c).
+      scope: 'sidePanel',
       preventDefault: false,
       description: 'Bỏ qua lớp hướng dẫn đang mở',
       onTrigger: (): void => {

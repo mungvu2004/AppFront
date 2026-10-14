@@ -66,7 +66,7 @@ export const SCALE = {
   goToUpload: 'Tải bản vẽ lên', // SC:78
   warpedTitle: 'Nắn ảnh thất bại nên bản vẽ có thể méo', // SC:72
   warpedBody: 'Tỷ lệ đo trên một bản vẽ méo sẽ sai theo. Quay lại bước tiền xử lý để nắn lại ảnh, rồi hiệu chỉnh tỷ lệ.', // USC COPY.warpingNotice
-  provisional: 'Tỉ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỉ lệ.', // lib/viewmodel/provisionalScale.ts
+  provisional: 'Tỷ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỷ lệ.', // lib/viewmodel/provisionalScale.ts
   emptyTitle: 'Chưa có chuỗi kích thước nào để đối chiếu', // SMD EMPTY_TITLE / SC:70
   emptyBody: 'Bản vẽ này không có chuỗi kích thước nào OCR đọc được. Vẽ một đường tham chiếu dọc cạnh đã biết, rồi nhập chiều dài thật của nó.', // USC COPY.emptyNotice
   partialTitle: 'Chưa đủ dữ liệu để chốt tỷ lệ', // SC:71
@@ -76,10 +76,10 @@ export const SCALE = {
   forbiddenTitle: 'Bạn không có quyền hiệu chỉnh tỷ lệ', // SC:74
   noDrawingTitle: 'Tầng này chưa có bản vẽ', // USC COPY.noDrawingTitle
   noDrawingBody: 'Chưa có bản vẽ nào được tải lên cho tầng này. Tải bản vẽ lên và chờ bước tiền xử lý xong rồi mới hiệu chỉnh tỷ lệ.', // USC COPY.noDrawingNotice
-  failed: 'Chưa lưu được tỉ lệ lên máy chủ, tầng giữ tỉ lệ cũ.', // USC COPY.applyFailed
+  failed: 'Chưa lưu được tỷ lệ lên máy chủ, tầng giữ tỷ lệ cũ.', // USC COPY.applyFailed
   noSpatial: 'Chưa nạp dữ liệu không gian của tầng này, nên chưa áp được tỷ lệ.', // USC COPY.applyNoSpatial
-  listFailed: 'Không tải được danh sách tầng để áp tỉ lệ.', // USC COPY.allFloorsReadFailed
-  undoProvisional: 'Đã đặt lại tỉ lệ cũ; tỉ lệ này nay được coi là tỉ lệ bạn chọn.', // USC COPY.undoProvisional
+  listFailed: 'Không tải được danh sách tầng để áp tỷ lệ.', // USC COPY.allFloorsReadFailed
+  undoProvisional: 'Đã đặt lại tỷ lệ cũ; tỷ lệ này nay được coi là tỷ lệ bạn chọn.', // USC COPY.undoProvisional
   undo: 'Hoàn tác', // undo toast action
   statusBar: 'Thanh trạng thái', // StatusBar
 } as const;

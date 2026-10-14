@@ -69,6 +69,8 @@ import {
   panel,
   progress,
   progressText,
+  buttonText,
+  leaveOnBeforeUnload,
   putThreshold,
   radio,
   region,
@@ -206,6 +208,7 @@ async function withSeed(
   let flow: Flow | undefined;
   try {
     flow = await openFlow(browser, readAdminCredentials());
+    leaveOnBeforeUnload(flow.page);
     await body(flow, floors);
   } finally {
     if (flow !== undefined) await closeFlow(flow);
@@ -324,7 +327,8 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
       });
 
       await test.step('[18-E-008] approve button named "Duyệt kích thước #M-002", visible text "Duyệt kích thước"', async () => {
-        await expect.soft(approveButton(page, 2)).toHaveText(DIM.approve);
+        await expect.soft(approveButton(page, 2)).toHaveAccessibleName(`${DIM.approve} ${dimCode(2)}`);
+        await expect.soft(buttonText(approveButton(page, 2))).toHaveText(DIM.approve);
         await ev(page, '18-E-008', 'approve_button_name');
       });
 
@@ -377,13 +381,14 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
         await ev(page, '18-A-010', 'enter_within_debounce');
       });
 
-      await test.step('[18-C-012] click into the selected row\'s field after a committed edit → draft cleared', async () => {
+      await test.step('[18-C-012] click into the selected row\'s field after a committed edit → draft kept (BUG-603)', async () => {
         await selectRow(page, 3);
         await field(page, 3).fill('2777');
         await expect(compareBar(page)).toHaveText(/2\.777 mm/u);
-        await field(page, 3).click(); // DR:281 row onClick → onSelect → setDraft(null) (UD:734-736)
-        await expect.soft(compareBar(page), 'the draft is gone: the bar reads the OCR value again').toHaveText(/chuỗi đọc được 2\.600 mm/u);
-        await ev(page, '18-C-012', 'field_click_drops_draft');
+        await field(page, 3).click(); // re-clicking the same field keeps the draft: useDimensionOcrReview.ts:706 (BUG-603)
+        await expect.soft(compareBar(page), 'the draft is kept: the bar still reads the typed value').toHaveText(/2\.777 mm/u);
+        await expect.soft(field(page, 3)).toHaveValue(fieldText(2_777));
+        await ev(page, '18-C-012', 'field_click_keeps_draft');
       });
 
       await test.step('[18-A-011] edit a reviewed row + Enter → override only; toast "Giá trị kích thước #M-001"', async () => {
@@ -634,7 +639,8 @@ test.describe('E04 SCR-18 dimension OCR review — mocked-response flows (QA-04c
       });
 
       await test.step('[18-E-014] section named by the caption, `dl` key legend, field auto-focused', async () => {
-        await expect.soft(keyboardSection(page).locator('dl dt')).toHaveCount(4);
+        // DimensionOcrKeyboardMode.tsx:61-65 KEY_LEGEND = Enter, Tab, Esc (BUG-583: no key the screen does not honour)
+        await expect.soft(keyboardSection(page).locator('dl dt')).toHaveCount(3);
         await expect.soft(field(page, 1)).toBeFocused();
         await ev(page, '18-E-014', 'keyboard_mode_a11y');
       });

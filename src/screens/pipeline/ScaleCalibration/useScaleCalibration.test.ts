@@ -591,6 +591,27 @@ describe('useScaleCalibration — áp dụng: PUT trước, commit sau (F-04x-2 
     expect(mounted.result.current.model.errorMessage).toBeNull();
   });
 
+  it('vẽ đường mới sau khi áp xong thì success nhường chỗ cho lời nhắc chưa đủ dữ liệu (G58, 14-09)', async () => {
+    const harness = await makeHarness();
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    await typeReference(mounted);
+
+    await act(async () => {
+      mounted.result.current.actions.onApply();
+    });
+    await settleAsync();
+    expect(mounted.result.current.model.state).toBe('success');
+
+    await act(async () => {
+      mounted.result.current.actions.onStartDrag({ x: 0.3, y: 0.3 });
+    });
+
+    expect(mounted.result.current.model.state).toBe('partial');
+    expect(mounted.result.current.model.successNotice).toBeNull();
+    expect(mounted.result.current.model.partialNotice).not.toBeNull();
+  });
+
   it('PUT 422 → kho giữ tỷ lệ cũ, không success, nói lý do', async () => {
     const harness = await makeHarness();
 
@@ -1397,7 +1418,8 @@ describe('useScaleCalibration — QA-04c SCR-14 (BUG-587, 596, 601, 607)', () =>
     const mounted = mountHook(harness.gateway, { roles: ['viewer'] });
     await settle(mounted);
 
-    expect(mounted.result.current.model.state).toBe('error');
+    // 14-D-008 (G44): vai xem trên tầng méo là `forbidden`, không phải `error` — `error` không được đứng trước `forbidden`.
+    expect(mounted.result.current.model.state).toBe('forbidden');
     expect(mounted.result.current.model.canvas.isInteractive).toBe(false);
     expect(mounted.result.current.model.panel.areActionsHidden).toBe(true);
   });

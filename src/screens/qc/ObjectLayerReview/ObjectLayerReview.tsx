@@ -165,6 +165,12 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
         </div>
       ) : null}
 
+      {model.filteredLabel === null ? null : (
+        <p aria-live="polite" className="px-2 text-[12px] tabular-nums text-text-secondary">
+          {model.filteredLabel}
+        </p>
+      )}
+
       <ObjectLayerList
         collapsedGroups={model.collapsedGroups}
         onAttachToNearestWall={model.onAttachToNearestWall}

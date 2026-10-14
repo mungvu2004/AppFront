@@ -107,9 +107,9 @@ export const ROOM = {
   cropHuman: 'Tên do người duyệt đặt nên không có ảnh cắt gốc để đối chiếu.', // RIF:49
   notices: 'Nhắc công năng', // RIF:50
   noticeLink: 'Xem luật không gian', // RIF:51
-  provisional: 'Chưa có — tỉ lệ tạm', // provisionalScale.ts:14
-  provisionalBanner: 'Tỉ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỉ lệ.', // provisionalScale.ts:16
-  toScale: 'Hiệu chỉnh tỉ lệ', // PSB:21
+  provisional: 'Chưa có — tỷ lệ tạm', // provisionalScale.ts:14
+  provisionalBanner: 'Tỷ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỷ lệ.', // provisionalScale.ts:16
+  toScale: 'Hiệu chỉnh tỷ lệ', // PSB:21
   conflict: 'Tầng này vừa được sửa ở nơi khác. Tải lại để xem bản mới nhất.', // vi.json floorLayerSave.reloadConflict
   reload: 'Tải lại', // FSB:37
   reloadFailed: 'Không tải lại được tầng này. Thử lại sau.', // vi.json floorLayerSave.reloadFailed
