@@ -94,7 +94,9 @@ test.describe('A08 SCR-37 users read, mocked responses', () => {
     await signInAdmin(page, ROUTES.adminUsers);
 
     await test.step('[37U-B-004] GET /api/users 500 -> alert + describeError description', async () => {
-      await expect(alertOf(page)).toBeVisible({ timeout: 20_000 }); // queryClient retries once before the error state
+      // cachePolicy.ts:81-84 retry.query = 1, but 5xx/429 belong to the HTTP client's own ladder (queryClient.ts shouldRetry, BUG-570):
+      // the number of GETs per failure is not fixed, hence the '>= 1' counts below
+      await expect(alertOf(page)).toBeVisible({ timeout: 20_000 });
       const text = (await alertOf(page).innerText()).replace(T.errorTitle, '').replace(T.retry, '').trim();
       expect(text.length, 'alert carries the describeError description').toBeGreaterThan(0);
       await captureEvidence(page, 'E08_37U-B-004_users.png');
@@ -164,7 +166,8 @@ test.describe('A08 SCR-37 users read, mocked responses', () => {
     });
 
     await test.step('[37U-B-010] payload that makes the row builder throw -> ScreenErrorBoundary with retry', async () => {
-      // UNKNOWN — NEED VERIFICATION: the Invalid Date payload is the assumed trigger of the hook/row throw (UMH row builder).
+      // UNKNOWN — NEED VERIFICATION: no verified way to make buildRow (UMH:289) throw: formatTimestamp (datetime.ts:184-193) returns a
+      // placeholder for an unparsable date. Invalid-Date payload kept as the best attempt; the step is red if no boundary appears.
       mode = 'boom';
       await signInAdmin(page, ROUTES.adminUsers); // the 401 ended the session
       await expect.soft(page.getByRole('button', { name: T.retry, exact: true })).toBeVisible({ timeout: 20_000 });
