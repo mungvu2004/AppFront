@@ -375,9 +375,17 @@ export function usePascalViewer({
     const echo = echoPending.current;
     echoPending.current = false;
 
-    import('@/lib/pascal/toPascal')
-      .then(({ toPascalScene }) => {
-        if (!cancelled) setResult({ ...toPascalScene(graph), echo });
+    // `diff` nạp cùng lượt: nhập tĩnh thì nó vào chunk của màn bản xem/di động.
+    Promise.all([import('@/lib/pascal/toPascal'), import('@/lib/pascal/diff')])
+      .then(([{ toPascalScene }, { diffScenes, isEmptyDiff }]) => {
+        if (cancelled) return;
+        const converted = toPascalScene(graph);
+        const previous = resultRef.current;
+        /* 23-C-001 — sau PUT 200 `replaceFloorLayer` thay kho bằng đúng lớp vừa
+           gửi: bản vẽ mới, nội dung y hệt, lúc cờ echo đã tắt. Cảnh không đổi
+           so với cảnh editor đang giữ thì không có gì để nạp lại. */
+        const unchanged = previous !== null && isEmptyDiff(diffScenes(previous.scene, converted.scene));
+        setResult({ ...converted, echo: echo || unchanged });
       })
       .catch(() => {
         if (!cancelled) setFailure('PASCAL-01');
