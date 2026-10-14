@@ -13,7 +13,8 @@ test('SCR-35 · FL-9A-05 · admin · demoted mid-session · forbidden lock', asy
   test.setTimeout(120_000);
   const admin = await adminApi();
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-  const flip = await roleUser(admin, 'admin', 'admin-flip'); // slot `p09-admin-flip-admin`
+  const flip = await roleUser(admin, 'admin', 'admin-b'); // slot `p09-admin-b-admin`
+  await setRole(admin, flip, 'admin'); // start as admin even if a killed run left it demoted
   const net: string[] = [];
   const forbidden = (page: import('@playwright/test').Page) =>
     page.getByRole('heading', { name: 'Không có quyền truy cập', exact: true });
@@ -26,7 +27,7 @@ test('SCR-35 · FL-9A-05 · admin · demoted mid-session · forbidden lock', asy
     });
     await test.step('[9A-D-017] admin hạ vai giữa phiên → màn khoá, không điều hướng', async () => {
       await page.goto(ROUTES.adminTrainingJobs);
-      await expect(page.getByRole('main')).toBeVisible({ timeout: 30_000 });
+      await expect(page.getByRole('button', { name: 'Tạo lượt huấn luyện' })).toBeVisible({ timeout: 30_000 }); // TrainingJobs.tsx:36 real admin content
       await expect(forbidden(page)).toHaveCount(0);
       await setRole(admin, flip, 'viewer');
       const before = page.url();
@@ -45,9 +46,14 @@ test('SCR-35 · FL-9A-05 · admin · demoted mid-session · forbidden lock', asy
       }
       expect(page.url()).toBe(before);
       const locked = net.length;
+      await page.evaluate(() => {
+        window.dispatchEvent(new Event('focus'));
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+      await page.waitForLoadState('networkidle');
       await expect(forbidden(page)).toBeVisible();
       expect(net.length, `new /api/admin/ml/* after lock: ${net.slice(locked).join(', ')}`).toBe(locked);
-      await captureEvidence(page, 'E09_9A-D-017_demoted_lock');
+      await captureEvidence(page, 'E09_9A-D-017_demoted_lock.png');
     });
   } finally {
     await setRole(admin, flip, 'admin');
