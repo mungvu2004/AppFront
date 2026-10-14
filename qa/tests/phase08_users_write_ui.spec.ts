@@ -2,7 +2,7 @@
  * Phase 08 SCR-37 User Management - write-screen UI flows FL-37W-U1..U3 (flows-C5). `verifyUi` at 1920/1440/1024/768.
  * Budget: 1 admin seed API login (pool), pool admin `p08-37W-adm` (Decision S2 #2): 1 API login + 3 UI sessions (1 per test),
  * 1 invitation sent through the UI in FL-37W-U2 (<= 12 per run), nothing sent in U1 (panel only filled).
- * State changes: PU1 = `p08-37W-1` (engineer -> viewer -> engineer, restored in `finally` via PATCH). Cleanup: DELETE the invitee.
+ * State changes: PU1 = `p08-37W-u1` (engineer -> viewer -> engineer, restored in `finally` via PATCH). Cleanup: DELETE the invitee.
  * FL-37W-U3 pairs with the real FL-37W-04/06 (step 1 real, step 2 [mocked response] list of one admin).
  */
 import { expect, test } from '@playwright/test';
@@ -11,6 +11,7 @@ import type { APIRequestContext, Page } from '@playwright/test';
 import { adminApi } from './support/p08/admin';
 import { asPoolUser, longEmail, openUsersList, pickOption, poolAdminApi, removeUser, userRow, verifyDesktop } from './support/p08/P4';
 import { testEmail } from './support/evidence';
+import { deleteMails, waitForMail } from './support/mailpit';
 import { poolUser, type PoolUser } from './support/phase03Seed';
 
 const U = {
@@ -42,7 +43,7 @@ test.describe('SCR-37 users write UI', () => {
       const made = await poolAdminApi(seed, 'p08-37W-adm');
       adminPool = made.user;
       adminPoolApi = made.api;
-      pu1 = await poolUser(seed, 'engineer', 'p08-37W-1');
+      pu1 = await poolUser(seed, 'engineer', `p08-37W-u1${test.info().retry ? `-r${test.info().retry}` : ''}`);
     } finally {
       await seed.dispose();
     }
@@ -110,6 +111,7 @@ test.describe('SCR-37 users write UI', () => {
     test.setTimeout(240_000);
     const email = longEmail('p08-37w-ui-inv');
     let invited: { id: string; email: string } | undefined;
+    const since = new Date(Date.now() - 5_000);
     try {
       await asPoolUser(browser, adminPool, async (page) => {
         await test.step('[37W-F-004] hàng "Chờ chấp nhận" sau mời', async () => {
@@ -176,6 +178,11 @@ test.describe('SCR-37 users write UI', () => {
       });
     } finally {
       if (invited !== undefined) await removeUser(adminPoolApi, invited);
+      try {
+        await deleteMails([(await waitForMail(email, since, 10_000)).id]);
+      } catch (error) {
+        test.info().annotations.push({ type: 'cleanup', description: `mailpit: ${String(error)}` });
+      }
     }
   });
 
