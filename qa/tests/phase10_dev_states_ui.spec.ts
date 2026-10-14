@@ -62,7 +62,11 @@ test('SCR-40 · FL-10D-10 · anon · UI states 4 khổ', async ({ devPage }) => 
     );
     for (const m of metrics) expect.soft(m.horizontalOverflowPx, m.viewport).toBeLessThanOrEqual(0);
     // rail = `w-10` (StateGallery.tsx:CollapsedRail) = 40 px; the page is still in the last viewport's collapsed state
-    const box = await devPage.locator('div.w-10.shrink-0').boundingBox();
+    const box = await devPage
+      .getByRole('button', { name: 'Mở rộng cây màn' })
+      .last()
+      .locator('xpath=ancestor::div[contains(@class,"w-10")][1]')
+      .boundingBox();
     expect.soft(box?.width).toBe(40);
   });
 
