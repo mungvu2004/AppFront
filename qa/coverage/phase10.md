@@ -736,3 +736,8 @@ Không phiên, mock client. Chữ chính: h1 "Data Entry Components"; ba h2: "Nu
 - ⚑ **N-5 ListReviewDemo**: hộp kiểm tiêu đề/hàng không có tên truy cập (LR:136,197; Table.tsx:307-333 có bản đúng nhưng không dùng); chuyển sang `empty/error/permission` không đặt lại dữ liệu (10E-B-021); "Thử lại" ở partial và "Thêm mới" ở empty không làm gì.
 - Phạm vi: `/demo`, `/design-system`, `/design-system/states` (C3) chỉ xuất hiện ở đây ở dòng prod NotFound A-066..A-068. BUG-LOG: không tìm thấy dòng `| 10 |` khớp màn này.
 
+
+## Dòng muộn (catalog-late, sau khoá)
+| id | cat | case | expected | oracle | layer | status | existing | stack | data needs | gói |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 10E-C-025 | logic | bấm đúp "Hoàn tác" trên toast xoá | chỉ hoàn tác MỘT lần (số hàng/ trạng thái quay về đúng một bước) | `onUndoClick` không chặn khi toast đang đóng (Toast.tsx) — ⚑ nghi hoàn tác 2 lần | edge | missing | — | dev | — | P13 (FL-10E-12) |
