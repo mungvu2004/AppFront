@@ -1368,7 +1368,7 @@ describe('[E2-B1] camera đóng khung lại khi mô hình về sau lượt rende
     const late = renderHook(
       ({ spatial }: { spatial: typeof VIEWER_FIXTURE_SPATIAL | null }) =>
         useViewerShell({ projectId: 'P-001', spatial }),
-      { wrapper, initialProps: { spatial: null } },
+      { wrapper, initialProps: { spatial: null as typeof VIEWER_FIXTURE_SPATIAL | null } },
     );
 
     late.rerender({ spatial: VIEWER_FIXTURE_SPATIAL });
