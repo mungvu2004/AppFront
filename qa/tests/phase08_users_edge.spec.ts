@@ -5,8 +5,8 @@
  * - Invitations (`users_invite` 30 / 3600 s per admin): sent ONLY by the file's own admin pool user `p08-37U-adm` (S2 decision 2):
  *   FL-01 1, FL-02 1, FL-05 1 = 3 per run (+3 per retry). Shared read-only users `p08-eng` / `p08-view` come from the pool (first fill
  *   of a slot = 1 invitation from the admin seed, once).
- * - Logins: admin seed UI 1 per admin test (4: FL-01, 02, 03, 05, 06 = 5) + pool admin API 1 per test (6) + pool engineer/viewer 1 per
- *   role test (FL-04: 2) => ~13 logins (LOGIN_IP_LIMIT 120 / 60 s); refresh: 1 per page load.
+ * - Logins: admin seed UI 1 in each of FL-01, 02, 03, 05, 06 (5) + pool admin API 1 per test (6) + pool engineer/viewer in FL-04 (2)
+ *   => ~13 logins (LOGIN_IP_LIMIT 120 / 60 s); refresh: 1 per page load.
  * - Reads only elsewhere; no project is deleted for good (FL-02 projects removed in `finally`).
  */
 import { expect, test } from '@playwright/test';
@@ -68,13 +68,31 @@ async function denied(browser: Browser, user: PoolUser): Promise<{ page: Page; g
   return { page, gets, close: () => context.close() };
 }
 
+/** Removes the invitee + its mails and disposes the seed; every step is guarded so one failure never skips the next. */
+async function cleanupInvitee(s: Awaited<ReturnType<typeof seed37U>>, id: string | undefined, email: string): Promise<void> {
+  try {
+    const failed = id === undefined ? null : await removeUser(s.admApi, id, email);
+    if (failed !== null) test.info().annotations.push({ type: 'cleanup', description: failed });
+  } catch (error) {
+    test.info().annotations.push({ type: 'cleanup', description: `removeUser: ${String(error)}` });
+  }
+  try {
+    await sweepMails(email);
+  } catch (error) {
+    test.info().annotations.push({ type: 'cleanup', description: `sweepMails: ${String(error)}` });
+  }
+  await s.dispose();
+}
+
 test.describe('SCR-37 users (read) edge', () => {
   test('SCR-37 · FL-37U-01 · Danh sách: cột, hàng, thứ tự, tìm kiếm, bộ lọc, tổng kết', async ({ page }) => {
     test.setTimeout(180_000);
     const s = await seed37U();
     const invEmail = testEmail('users-pend');
-    const inv = await inviteUser(s.admApi, invEmail);
+    let invitedId: string | undefined;
     try {
+      const inv = await inviteUser(s.admApi, invEmail);
+      invitedId = String(inv.id);
       const users = await openUsers(page);
       const peRow = userRow(page, s.pe.email);
       const peJson = users.find((u) => u.id === s.pe.id);
@@ -89,7 +107,7 @@ test.describe('SCR-37 users (read) edge', () => {
         await expect(nav).toContainText('Quản trị');
         await expect(nav).toContainText('Người dùng');
         // UM:60-67 gives aria-current to every item without href (both) — correct: only the last.
-        await expect.soft(nav.locator('[aria-current="page"]'), 'exactly one aria-current="page"').toHaveCount(1);
+        await expect(nav.locator('[aria-current="page"]'), 'exactly one aria-current="page"').toHaveCount(1);
         await captureEvidence(page, 'E08_37U-A-002_users.png');
       });
       await test.step('[37U-A-003] header row: 6 columns', async () => {
@@ -175,10 +193,7 @@ test.describe('SCR-37 users (read) edge', () => {
         await captureEvidence(page, 'E08_37U-C-012_users.png');
       });
     } finally {
-      const failed = await removeUser(s.admApi, String(inv.id), invEmail);
-      await sweepMails(invEmail);
-      await s.dispose();
-      if (failed !== null) test.info().annotations.push({ type: 'cleanup', description: failed });
+      await cleanupInvitee(s, invitedId, invEmail);
     }
   });
 
@@ -186,15 +201,17 @@ test.describe('SCR-37 users (read) edge', () => {
     test.setTimeout(180_000);
     const s = await seed37U();
     const invEmail = testEmail('users-pend');
-    const inv = await inviteUser(s.admApi, invEmail);
+    let invitedId: string | undefined;
     const projects: string[] = [];
     try {
+      const inv = await inviteUser(s.admApi, invEmail);
+      invitedId = String(inv.id);
       const small = await createProject(s.admApi, '37u-02');
       projects.push(small.projectId);
       await addProjectMember(s.admApi, small.projectId, s.pe.email);
-      const longName = `${TEST_DATA_PREFIX}37u-long-${'d'.repeat(120)}`.slice(0, 120);
+      const longName = `${TEST_DATA_PREFIX}37u-long-${'d'.repeat(80)}`.slice(0, 80);
       const created = await s.admApi.post('/api/projects', { data: { name: longName } });
-      expect(created.status(), `setup: POST /api/projects (120 chars): ${(await created.text()).slice(0, 200)}`).toBe(201);
+      expect(created.status(), `setup: POST /api/projects (80 chars = BE NAME_MAX): ${(await created.text()).slice(0, 200)}`).toBe(201);
       const longId = String(asRecord(await created.json(), 'POST /api/projects').id);
       projects.push(longId);
       await addProjectMember(s.admApi, longId, s.pe.email);
@@ -215,7 +232,7 @@ test.describe('SCR-37 users (read) edge', () => {
         peMemberCount = asList(await memberships, 'memberships').length;
         await activity;
         await expect(aside).toBeVisible();
-        await expect.soft(aside.getByRole('heading', { name: s.pe.name, exact: true })).toBeVisible();
+        await expect(aside.getByRole('heading', { name: s.pe.name, exact: true })).toBeVisible();
         await expect.soft(aside).toContainText(s.pe.email);
         await expect.soft(aside).toContainText(ROLE_LABEL.engineer);
         await expect.soft(aside).toContainText(STATUS_LABEL.active);
@@ -232,17 +249,18 @@ test.describe('SCR-37 users (read) edge', () => {
         await nameButton(admRow).click();
         await activity;
         await expect(aside.getByRole('heading', { name: s.adm.name, exact: true })).toBeVisible();
-        const items = region(USR.activity).getByRole('listitem');
-        await expect.soft(items.first()).toContainText(USR.invitedKind);
-        await expect.soft(items.first()).toContainText(TIMESTAMP_RE);
+        const inviteItem = region(USR.activity).getByRole('listitem').filter({ hasText: invEmail }).first();
+        await expect.soft(inviteItem).toContainText(USR.invitedKind);
+        await expect.soft(inviteItem).toContainText(TIMESTAMP_RE);
         await captureEvidence(page, 'E08_37U-A-022_users.png');
       });
       await test.step('[37U-A-026] activity subject is text, not a link', async () => {
-        await expect.soft(region(USR.activity).locator('a')).toHaveCount(0);
+        await expect.soft(region(USR.activity).getByRole('listitem').filter({ hasText: invEmail }).locator('a')).toHaveCount(0);
         await captureEvidence(page, 'E08_37U-A-026_users.png');
       });
       await test.step('[37U-A-027] ⚑ subject label is not a raw usr_ ULID', async () => {
-        const texts = await region(USR.activity).getByRole('listitem').allInnerTexts();
+        const texts = await region(USR.activity).getByRole('listitem').filter({ hasText: invEmail }).allInnerTexts();
+        expect(texts.length, 'the invitation item is listed').toBeGreaterThanOrEqual(1);
         for (const text of texts) expect.soft(text, 'BUG-084: raw usr_<ULID> shown').not.toMatch(/usr_[0-9A-Z]{20,}/u);
         await captureEvidence(page, 'E08_37U-A-027_users.png');
       });
@@ -274,11 +292,8 @@ test.describe('SCR-37 users (read) edge', () => {
       });
       await test.step('[37U-C-008] PE then INV in a row: panel holds INV data only', async () => {
         await nameButton(peRow).click();
-        const invMemberships = waitGet(page, `${USERS_PATH}/${String(inv.id)}/memberships`);
-        const invActivity = waitGet(page, `${USERS_PATH}/${String(inv.id)}/activity`);
+        // cached by react-query (staleTime) → no request to wait for; auto-wait on the DOM instead.
         await nameButton(invRow).click();
-        await invMemberships;
-        await invActivity;
         await expect.soft(aside.getByRole('heading', { name: invName, exact: true })).toBeVisible();
         await expect.soft(region(USR.memberships)).toContainText(USR.noMemberships);
         await expect.soft(region(USR.memberships)).not.toContainText(small.name);
@@ -297,7 +312,7 @@ test.describe('SCR-37 users (read) edge', () => {
         await expect.soft(page.getByRole('columnheader')).toHaveCount(6);
         await captureEvidence(page, 'E08_37U-A-017_users.png');
       });
-      await test.step('[37U-C-006] ⚑ 120-char project name readable (title = full name)', async () => {
+      await test.step('[37U-C-006] ⚑ 80-char (BE max) project name readable (title = full name)', async () => {
         await pickOption(page, page.getByRole('combobox', { name: USR.role, exact: true }), 'Tất cả');
         await nameButton(peRow).click();
         await expect(aside).toBeVisible();
@@ -308,11 +323,14 @@ test.describe('SCR-37 users (read) edge', () => {
         await captureEvidence(page, 'E08_37U-C-006_users.png');
       });
     } finally {
-      for (const id of projects) await deleteSeededProject(s.admApi, id);
-      const failed = await removeUser(s.admApi, String(inv.id), invEmail);
-      await sweepMails(invEmail);
-      await s.dispose();
-      if (failed !== null) test.info().annotations.push({ type: 'cleanup', description: failed });
+      for (const id of projects) {
+        try {
+          await deleteSeededProject(s.admApi, id);
+        } catch (error) {
+          test.info().annotations.push({ type: 'cleanup', description: `project ${id}: ${String(error)}` });
+        }
+      }
+      await cleanupInvitee(s, invitedId, invEmail);
     }
   });
 
@@ -436,8 +454,10 @@ test.describe('SCR-37 users (read) edge', () => {
     test.setTimeout(150_000);
     const s = await seed37U();
     const invEmail = testEmail('users-pend');
-    const inv = await inviteUser(s.admApi, invEmail);
+    let invitedId: string | undefined;
     try {
+      const inv = await inviteUser(s.admApi, invEmail);
+      invitedId = String(inv.id);
       const expiresAt = Date.parse(str(inv, 'inviteExpiresAt'));
       expect(Number.isNaN(expiresAt), 'environment: the invitation has inviteExpiresAt').toBe(false);
       const invitedAt = Date.now();
@@ -467,7 +487,7 @@ test.describe('SCR-37 users (read) edge', () => {
       });
       await test.step('[37U-A-033] last activity: relative text + absolute tooltip; never active = "Chưa hoạt động lần nào"', async () => {
         const before = await lastActive(peRow).innerText();
-        await page.clock.setFixedTime(new Date(Date.now() + 86_400_000));
+        await page.clock.setFixedTime(new Date(expiresAt + 60_000 + 86_400_000));
         const list = waitGet(page, USERS_PATH);
         await page.reload();
         await list;
@@ -491,10 +511,7 @@ test.describe('SCR-37 users (read) edge', () => {
         await expect.soft(drawer).toHaveCount(0);
       });
     } finally {
-      const failed = await removeUser(s.admApi, String(inv.id), invEmail);
-      await sweepMails(invEmail);
-      await s.dispose();
-      if (failed !== null) test.info().annotations.push({ type: 'cleanup', description: failed });
+      await cleanupInvitee(s, invitedId, invEmail);
     }
   });
 
@@ -517,9 +534,9 @@ test.describe('SCR-37 users (read) edge', () => {
       await test.step('[37U-G-001] open: exactly 1 GET /api/users, 0 memberships, 0 activity', async () => {
         await page.waitForLoadState('networkidle');
         const seen = gets.list();
-        expect.soft(seen.filter((p) => p === USERS_PATH)).toHaveLength(1);
-        expect.soft(seen.filter((p) => p.endsWith('/memberships'))).toHaveLength(0);
-        expect.soft(seen.filter((p) => p.endsWith('/activity'))).toHaveLength(0);
+        expect(seen.filter((p) => p === USERS_PATH)).toHaveLength(1);
+        expect(seen.filter((p) => p.endsWith('/memberships'))).toHaveLength(0);
+        expect(seen.filter((p) => p.endsWith('/activity'))).toHaveLength(0);
         await captureEvidence(page, 'E08_37U-G-001_users.png');
       });
       await test.step('[37U-E-012] ⚑ exactly one h1', async () => {
@@ -581,6 +598,7 @@ test.describe('SCR-37 users (read) edge', () => {
       });
       await test.step('[37U-E-006] Tab to PE name, Enter opens, Esc closes, focus back on the name button', async () => {
         const nameBtn = nameButton(peRow);
+        // focus() instead of Tab: Tab order is covered by 37U-E-001.
         await nameBtn.focus();
         await expect(nameBtn).toBeFocused();
         const memberships = waitGet(page, `${USERS_PATH}/${s.pe.id}/memberships`);
@@ -619,27 +637,23 @@ test.describe('SCR-37 users (read) edge', () => {
           await context.setOffline(false);
         }
       });
-      await test.step('[37U-B-007] fresh page offline → load error + "Thử lại"; online + retry → table', async () => {
+      await test.step('[37U-B-007] fresh page, users read aborted → load error + "Thử lại"; online + retry → table', async () => {
         const page2 = await context.newPage();
         try {
-          await page2.goto('/');
-          await context.setOffline(true);
-          await page2.evaluate((path) => {
-            window.history.pushState({}, '', path);
-            window.dispatchEvent(new PopStateEvent('popstate'));
-          }, ROUTES.users);
+          // route chunks are lazy: fail only the API read (offline would also cut the chunk).
+          await page2.route(/\/api\/users$/u, (route) => route.abort('internetdisconnected'));
+          await page2.goto(ROUTES.users);
           const alertTitle = page2.getByText(USR.errorTitle, { exact: true });
           await expect.soft(alertTitle).toBeVisible({ timeout: 30_000 });
           await expect.soft(page2.getByRole('button', { name: USR.retry, exact: true })).toBeVisible();
           await captureEvidence(page2, 'E08_37U-B-007_users.png');
-          await context.setOffline(false);
+          await page2.unroute(/\/api\/users$/u);
           const reread = waitGet(page2, USERS_PATH);
           await page2.getByRole('button', { name: USR.retry, exact: true }).click();
           await reread;
           await expect.soft(page2.getByRole('table')).toBeVisible();
           await attachJson('E08_37U-B-007_users.json', { usersReads: gets.list().length });
         } finally {
-          await context.setOffline(false);
           await page2.close();
         }
       });
