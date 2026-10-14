@@ -287,11 +287,18 @@ function PascalViewerBody({
         id: 'history',
         label: PASCAL_SIDE_PANEL_LABELS.history,
         render: () => (
-          <Suspense fallback={<p className="p-3 text-sm text-text-muted">Đang mở bảng…</p>}>
-            {/* Vỏ `panel` cố định: vùng bảng của `PascalViewer` tự làm tấm trượt dưới
-                `lg`, nên vỏ `sheet` riêng của bảng sẽ thoát khỏi vùng ấy (23H-F-002). */}
-            <LazyHistoryPanel history={history} layout="panel" />
-          </Suspense>
+          /* Ranh giới riêng của cột bảng (23H-B-011): chunk bảng tải hỏng thì chỉ
+             cột này báo lỗi, màn 3D và khung dựng vẫn đứng. */
+          <ScreenErrorBoundary
+            renderFallback={(fallback) => <CrashFallback {...fallback} />}
+            screenId="pascal-viewer.history-panel"
+          >
+            <Suspense fallback={<p className="p-3 text-sm text-text-muted">Đang mở bảng…</p>}>
+              {/* Vỏ `panel` cố định: vùng bảng của `PascalViewer` tự làm tấm trượt dưới
+                  `lg`, nên vỏ `sheet` riêng của bảng sẽ thoát khỏi vùng ấy (23H-F-002). */}
+              <LazyHistoryPanel history={history} layout="panel" />
+            </Suspense>
+          </ScreenErrorBoundary>
         ),
       },
       ...(extraPanels ?? []),
