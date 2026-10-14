@@ -1,17 +1,12 @@
 'use client'
 
-import {
-  type AnyNode,
-  detectSpacesForLevel,
-  emitter,
-  type WallNode,
-  useScene,
-} from '@pascal-app/core'
+import { type AnyNode, emitter, useScene } from '@pascal-app/core'
 import { useViewer } from '@pascal-app/viewer'
 import { Copy, ExternalLink, Maximize2, Minimize2, ScanSearch, Undo2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { roomArea as vi } from '../../../i18n/regions/roomArea'
 import {
+  closedRoomCount,
   levelNamesOf,
   type RoomAreaGrouping,
   type RoomAreaRow,
@@ -175,16 +170,7 @@ export function RoomAreaPanel() {
   // change, so the button answers the question the empty table raises — are the
   // walls closed at all — instead of re-running a sync that is already running.
   const checkWallGaps = useCallback(() => {
-    const walls = Object.values(nodes).filter(
-      (node): node is WallNode => node.type === 'wall',
-    )
-    const levelIds = levelId ? [levelId] : [...levelNames.keys()]
-    let rooms = 0
-    for (const id of levelIds) {
-      const levelWalls = walls.filter((wall) => wall.parentId === id)
-      if (levelWalls.length === 0) continue
-      rooms += detectSpacesForLevel(id, levelWalls).length
-    }
+    const rooms = closedRoomCount(nodes, levelId ? [levelId] : [...levelNames.keys()])
     setGapReport(rooms > 0 ? vi.gapsClosed(rooms) : vi.gapsOpen)
   }, [nodes, levelId, levelNames])
 

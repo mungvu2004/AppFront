@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import type { AnyNode } from '@pascal-app/core'
-import { roomAreaRows, roomAreaTable, roomAreaTableToText } from './room-area'
+import { closedRoomCount, roomAreaRows, roomAreaTable, roomAreaTableToText } from './room-area'
 
 function fixture(): Record<string, AnyNode> {
   const nodes: Record<string, AnyNode> = {}
@@ -260,5 +260,60 @@ describe('roomAreaTableToText', () => {
     expect(lines).toContain('101\tPhòng khách\tỞ\t24 m²')
     expect(lines.filter((line) => line.startsWith('Tổng phụ'))).toHaveLength(2)
     expect(lines.at(-1)).toBe('Tổng diện tích\t\t\t48 m²')
+  })
+})
+
+// AppFront 23R-B-002 (seed RA3, `qa/tests/support/p05/P3.ts` wallsOnly): an
+// 8 x 6 m frame of four 220 mm walls, the left side drawn bottom-up, exactly as
+// AppFront's `toPascalScene` hands it over (metres, `level_<id>` parent).
+describe('closedRoomCount', () => {
+  const frame = (closed: boolean): Record<string, AnyNode> => {
+    const sides: Array<[[number, number], [number, number]]> = [
+      [[0, 0], [8, 0]],
+      [[8, 0], [8, 6]],
+      [[0, 0], [0, 6]],
+      ...(closed ? [[[0, 6], [8, 6]] as [[number, number], [number, number]]] : []),
+    ]
+    const nodes: Record<string, AnyNode> = {
+      level_L1: {
+        object: 'node',
+        id: 'level_L1',
+        type: 'level',
+        name: 'Tầng 1',
+        level: 0,
+        parentId: null,
+        visible: true,
+        metadata: {},
+        children: sides.map((_, i) => `wall_W${i}`),
+      } as unknown as AnyNode,
+    }
+    sides.forEach(([start, end], i) => {
+      nodes[`wall_W${i}`] = {
+        object: 'node',
+        id: `wall_W${i}`,
+        type: 'wall',
+        parentId: 'level_L1',
+        visible: true,
+        metadata: {},
+        children: [],
+        start,
+        end,
+        thickness: 0.22,
+        height: 3,
+      } as unknown as AnyNode
+    })
+    return nodes
+  }
+
+  test('a closed four-wall frame is one closed area', () => {
+    expect(closedRoomCount(frame(true), ['level_L1'])).toBe(1)
+  })
+
+  test('the same frame with its top side missing has none', () => {
+    expect(closedRoomCount(frame(false), ['level_L1'])).toBe(0)
+  })
+
+  test('a level with no walls counts nothing', () => {
+    expect(closedRoomCount(frame(true), ['level_other'])).toBe(0)
   })
 })
