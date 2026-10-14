@@ -297,6 +297,17 @@ function isEmptyOverride(override: RuleOverride | undefined, code?: RuleCode): b
   );
 }
 
+/** Do two configs override the same things? Compares by value; `version` is ignored. */
+export function sameOverrides(a: RuleConfig, b: RuleConfig): boolean {
+  if (a === b) return true;
+  const live = (c: RuleConfig) =>
+    Object.entries(c.overrides)
+      .filter(([code, o]) => !isEmptyOverride(o, code))
+      .sort(([x], [y]) => (x < y ? -1 : 1))
+      .map(([code, o]) => [code, o.enabled, o.severity, Object.entries(o.thresholds ?? {}).sort()]);
+  return JSON.stringify(live(a)) === JSON.stringify(live(b));
+}
+
 /** Is the rule book still exactly as it ships? */
 export function isDefaultConfig(config: RuleConfig): boolean {
   return Object.entries(config.overrides).every(([code, o]) => isEmptyOverride(o, code));
