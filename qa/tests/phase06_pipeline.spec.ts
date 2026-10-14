@@ -6,8 +6,9 @@
  * except what the file order guarantees: one worker runs the file in order and FL-M-32-04 (restore, rewrites the floor's
  * layer) is the LAST test. FL-M-29-01 restores the default rule config at its end.
  *
- * Request budget (per worker; a failed test restarts the worker and `beforeAll` runs again): `POST /api/auth/login` 2
- * (`signedInApi` for fixtures + `signInAdmin`); `drawings_init` 1 (60 / 600 s per user); 1 project, 1 #35 PUT, 1 DELETE;
+ * Request budget (per worker; every failing test (e.g. flag 32-B-019 while its bug stands) restarts the worker and `beforeAll`
+ * runs again): `POST /api/auth/login` 2 (`signedInApi` for fixtures + `signInAdmin`), `drawings_init` 1 (60 / 600 s per user),
+ * one pipeline run (~70 s), 1 project, 1 #35 PUT, 1 DELETE, ALL repeated (1 + number of failing tests before the last one);
  * the tests themselves send PUT rule-config x3 (FL-M-29), PATCH label x2 and POST restore x1 (FL-M-32). No pool user.
  * Without `E2E_DRAWING_PNG` the whole file SKIPS with an "Environment:" reason.
  *
@@ -97,6 +98,8 @@ const shot = (prefix: string, id: string, slug: string): Promise<string> => capt
 /* ======================================================================= SCR-28 */
 
 test('SCR-28 · FL-M-28-01 · Report and sheet on the pipeline project (read-only)', async () => {
+  let opened: Locator | undefined;
+
   await test.step('[28-A-001] open /rules: heading and trail', async () => {
     await openRules(page, projectId);
     await expect(page.getByRole('heading', { name: RR.heading, level: 2 })).toBeVisible();
@@ -124,15 +127,17 @@ test('SCR-28 · FL-M-28-01 · Report and sheet on the pipeline project (read-onl
 
   await test.step('[28-A-007] first group header opens its table', async () => {
     const section = await expandGroup(page);
-    const header = groupExpanders(page).and(page.locator('[aria-expanded="true"]')).first();
-    await expect.soft(header).toHaveAttribute('aria-expanded', 'true');
+    opened = section;
+    await expect.soft(section.getByRole('heading', { level: 3 }).getByRole('button')).toHaveAttribute('aria-expanded', 'true');
     for (const name of RR.columns) await expect.soft(section.getByRole('columnheader', { name, exact: true })).toBeVisible();
     await expect.soft(section.getByRole('button', { name: RR.view, exact: true }).first()).toBeVisible();
     await shot('E06r', '28-A-007', 'group_open');
   });
 
   await test.step('[28V-A-001] row message opens the sheet', async () => {
-    const section = page.locator('section').filter({ has: groupExpanders(page).and(page.locator('[aria-expanded="true"]')).first() });
+    const section = opened;
+    expect(section, 'the group opened in [28-A-007]').toBeDefined();
+    if (section === undefined) return;
     const rows = rowWithFloor(page, section);
     await expect(rows.first()).toBeVisible(); // S5-confirm: the first group has a row with a floor
     await rows.first().getByRole('button').first().click();
@@ -195,6 +200,7 @@ test('SCR-29 · FL-M-29-01 · admin mở cài đặt trên dự án pipeline, t�
   });
 
   await test.step('[29-B-004] impact per rule equals the report item count', async () => {
+    await expect(page.getByText(/^Đang ảnh hưởng [d.]+ đối tượng$/u)).toHaveCount(25); // N15 applied: every row has its count
     const impacts = await page.evaluate(() =>
       [...document.querySelectorAll('p')]
         .map((p) => ({ match: /^Đang ảnh hưởng ([\d.]+) đối tượng$/u.exec(p.textContent?.trim() ?? ''), p }))
@@ -214,7 +220,7 @@ test('SCR-29 · FL-M-29-01 · admin mở cài đặt trên dự án pipeline, t�
       for (const impact of impacts.filter((item) => item.count > 0)) {
         const header = headers.find((text) => text.includes(impact.name));
         expect.soft(header, `report group for "${impact.name}"`).toBeDefined();
-        expect.soft(header ?? '', `"${impact.name}" counts ${String(impact.count)}`).toMatch(new RegExp(`${String(impact.count)} mục`, 'u'));
+        expect.soft(header ?? '', `"${impact.name}" counts ${String(impact.count)}`).toMatch(new RegExp(`(^|· )${String(impact.count)} mục`, 'u'));
       }
       // S5-confirm: a group header shows "<n> mục chưa xử lý" and nothing is resolved yet on this project
     } finally {
@@ -243,9 +249,9 @@ test('SCR-29 · FL-M-29-01 · admin mở cài đặt trên dự án pipeline, t�
   await test.step('[29-A-018] preset "Văn phòng"', async () => {
     const preset = page.getByRole('region', { name: 'Bộ luật sẵn', exact: true }).getByRole('button', { name: /^Văn phòng/u });
     const put = waitForApi(page, 'PUT', ruleConfigRe(projectId), [200], AUTOSAVE_TIMEOUT_MS);
-    await preset.click();
+    await preset.click(); // 29-A-003 switched WALL-THICKNESS off, so the preset flips it back too: diffPreset counts 4 (presets.ts:90-107, useRuleSettings.ts:1066)
     putBody(await put, 'PUT rule-config (preset)');
-    await expect.soft(toastRegion()).toContainText('Áp bộ luật văn phòng: 3 luật đã đổi.');
+    await expect.soft(toastRegion()).toContainText('Áp bộ luật văn phòng: 4 luật đã đổi.');
     await shot('E06s', '29-A-018', 'preset_office');
   });
 
@@ -271,6 +277,7 @@ const formatRadio = (extension: string): Locator =>
     .getByRole('radio', { name: new RegExp(`^${extension.replace('.', '\\.')}`, 'u') });
 
 test('SCR-30 · FL-M-30-01 · export the pipeline project: open, read, .json and .glb downloads', async ({}, testInfo) => {
+  test.setTimeout(PIPELINE_TIMEOUT_MS + 120_000); // the .glb download may wait up to PIPELINE_TIMEOUT_MS
   let openMark = 0;
   let jsonMark = 0;
 
@@ -452,7 +459,7 @@ function knownVersions(): { id: string; sequence: number }[] {
   return [...seen].map(([id, sequence]) => ({ id, sequence })).sort((a, b) => b.sequence - a.sequence);
 }
 const snapshotEntries = (): ApiEntry[] =>
-  api.filter((entry) => entry.method === 'GET' && new RegExp(`^/api/projects/${projectId}/versions/[^/]+/snapshot$`, 'u').test(entry.path) && entry.status === 200);
+  api.filter((entry) => entry.method === 'GET' && new RegExp(`^/api/projects/${projectId}/versions/[^/]+/snapshot$`, 'u').test(entry.path) && entry.status === 200 && entry.json !== undefined);
 
 test('SCR-32 · FL-M-32-01 · open the AI floor: requests, rows, default pair, counts, "Thay đổi"', async () => {
   let mark = 0;
@@ -480,6 +487,7 @@ test('SCR-32 · FL-M-32-01 · open the AI floor: requests, rows, default pair, c
   });
 
   await test.step('[32-G-003] N17 shape: descending, item keys', async () => {
+    await expect.poll(() => api.slice(mark).find(isFloorList)?.json !== undefined, { message: 'N17 body read' }).toBe(true);
     const body = asRecord(api.slice(mark).find(isFloorList)?.json, 'N17');
     const items = (Array.isArray(body.items) ? body.items : []).map((item) => asRecord(item, 'N17 item'));
     expect.soft(items.length, 'at least the pipeline before + after').toBeGreaterThanOrEqual(2);
@@ -509,6 +517,7 @@ test('SCR-32 · FL-M-32-01 · open the AI floor: requests, rows, default pair, c
 
   await test.step('[32-C-014] diff sentences are plain Vietnamese', async () => {
     const panel = page.getByRole('tabpanel', { name: 'Thay đổi', exact: true });
+    await expect(panel.locator('li').first()).toBeVisible();
     const sentences = await panel.locator('li').allInnerTexts();
     expect.soft(sentences.length, 'diff rows').toBeGreaterThan(0);
     // semantic.ts formatChange: "Thêm <nhãn> <mã>", "Xoá <nhãn> <mã>", "<Nhãn> <mã> <phrase> a → b", "<Nhãn> <mã> đổi <trường> từ a sang b"
@@ -519,6 +528,7 @@ test('SCR-32 · FL-M-32-01 · open the AI floor: requests, rows, default pair, c
   await test.step('[32-C-016] groups by kind with a heading and a count', async () => {
     const panel = page.getByRole('tabpanel', { name: 'Thay đổi', exact: true });
     const groups = panel.locator('section[aria-label$="thay đổi"]');
+    await expect(groups.first()).toBeVisible();
     expect.soft(await groups.count(), 'at least one group').toBeGreaterThan(0);
     for (const group of await groups.all()) {
       const label = (await group.getAttribute('aria-label')) ?? '';
@@ -531,15 +541,17 @@ test('SCR-32 · FL-M-32-01 · open the AI floor: requests, rows, default pair, c
   });
 
   await test.step('[32-C-017] totals chips and the status sentence', async () => {
-    const status = page.getByRole('status').filter({ hasText: /^Thêm [\d.]+, xoá [\d.]+, thay đổi [\d.]+$/u });
+    // the row dots of the version list print the same labels: scope everything to the compare region (COMPARE_LABEL)
+    const compare = page.getByRole('region', { name: 'Vùng so sánh hai phiên bản', exact: true });
+    const status = compare.getByRole('status').filter({ hasText: /^Thêm [\d.]+, xoá [\d.]+, thay đổi [\d.]+$/u });
     await expect(status).toHaveCount(1);
     const [, added, removed, changed] = /^Thêm ([\d.]+), xoá ([\d.]+), thay đổi ([\d.]+)$/u.exec((await status.innerText()).trim()) ?? [];
     expect.soft(added, 'status sentence parsed').toBeDefined();
-    await expect.soft(page.getByText(`+${String(added)}`, { exact: true })).toBeVisible(); // after the count-up
-    await expect.soft(page.getByText(`−${String(removed)}`, { exact: true })).toBeVisible(); // U+2212
-    await expect.soft(page.getByText(`~${String(changed)}`, { exact: true })).toBeVisible();
+    await expect.soft(compare.getByText(`+${String(added)}`, { exact: true })).toBeVisible(); // after the count-up
+    await expect.soft(compare.getByText(`−${String(removed)}`, { exact: true })).toBeVisible(); // U+2212
+    await expect.soft(compare.getByText(`~${String(changed)}`, { exact: true })).toBeVisible();
     const total = [added, removed, changed].reduce((sum, value) => sum + Number(String(value).replace(/\./gu, '')), 0);
-    await expect.soft(page.getByRole('tabpanel', { name: 'Thay đổi', exact: true }).locator('li')).toHaveCount(total);
+    await expect.soft(compare.getByRole('tabpanel', { name: 'Thay đổi', exact: true }).locator('li')).toHaveCount(total);
     await shot('E06v', '32-C-017', 'totals');
   });
 });
@@ -562,6 +574,7 @@ test('SCR-32 · FL-M-32-02 · tabs JSON / Trực quan, visual unavailable copy, 
   await test.step('[32-C-018] JSON tab: heading line per tone, one JSON line per entry', async () => {
     await diffTabs().getByRole('tab', { name: 'JSON', exact: true }).click();
     const panel = page.getByRole('tabpanel', { name: 'JSON', exact: true });
+    await expect(panel.locator('li').first()).toBeVisible();
     const lines = (await panel.locator('li').allInnerTexts()).map((text) => text.trim());
     expect.soft(lines.length).toBeGreaterThan(0);
     const headings = lines.filter((line) => line.startsWith('— '));
@@ -581,6 +594,7 @@ test('SCR-32 · FL-M-32-02 · tabs JSON / Trực quan, visual unavailable copy, 
 
   await test.step('[32-B-019] ⚑ the copy names the older version, not "the current model"', async () => {
     const panel = page.getByRole('tabpanel', { name: 'Trực quan', exact: true });
+    await expect(panel.getByText('Chưa xem trực quan được', { exact: true }), 'the unavailable state is on screen').toBeVisible();
     await expect.soft(panel, 'the failed scene is the left version v1').toContainText('v1');
     await expect.soft(panel.getByText(/Mô hình hiện tại/u), 'must not blame "Mô hình hiện tại"').toHaveCount(0);
     await shot('E06v', '32-B-019', 'visual_copy_names_old_version');
@@ -596,20 +610,6 @@ test('SCR-32 · FL-M-32-02 · tabs JSON / Trực quan, visual unavailable copy, 
     await shot('E06v', '32-A-008', 'untick_one');
   });
 
-  await test.step('[32-A-011] "Phiên bản gốc" Select changes the left version', async () => {
-    await page.getByRole('checkbox', { name: VH.checkbox('v1'), exact: true }).check();
-    const left = page.getByRole('combobox', { name: 'Phiên bản gốc', exact: true });
-    await expect(left).toBeVisible();
-    const listbox = await openSelect(left);
-    await listbox.getByRole('option', { name: /^v2 ·/u }).click();
-    await expect(listbox).toHaveCount(0);
-    // S5-confirm: picking the right-hand version on the left swaps so the older stays left (versionHistoryCompare.orderPair)
-    await expect.soft(left).toContainText(/^v1 ·/u);
-    await expect.soft(page.getByRole('combobox', { name: 'Phiên bản đối chiếu', exact: true })).toContainText(/^v2 ·/u);
-    await expect.soft(versionList().getByRole('checkbox', { checked: true })).toHaveCount(2);
-    await expect.soft(page.getByRole('status').filter({ hasText: /^Thêm [\d.]+, xoá [\d.]+, thay đổi [\d.]+$/u })).toHaveCount(1);
-    await shot('E06v', '32-A-011', 'left_select');
-  });
 });
 
 test('SCR-32 · FL-M-32-03 · label the newest version, toast, undo', async () => {
@@ -739,16 +739,15 @@ test('SCR-32 · FL-M-32-04 · restore the AI version (LAST test of the file)', a
     expect(new URL(response.url()).pathname).toBe(`/api/projects/${projectId}/versions/${targetId}/restore`);
     restoreEntryIndex = api.map((entry) => entry.method === 'POST' && restoreRe.test(entry.path)).lastIndexOf(true);
     const sent = asRecord(response.request().postDataJSON(), 'POST restore');
-    // S5-confirm: wire envelope — {baseVersion, body:{floorId}} (client.ts callPost) vs a bare {floorId} + header
-    const floorSent = sent.body === undefined ? sent.floorId : asRecord(sent.body, 'restore.body').floorId;
-    expect.soft(floorSent, 'body carries the floorId').toBe(floorId);
-    if (sent.baseVersion !== undefined) expect.soft(sent.baseVersion, 'baseVersion = floor revision').toBe(revision);
+    // client.ts:1469 always sends { baseVersion, body: { floorId } }; BE VersionRestoreIn requires base_version
+    expect.soft(sent, 'restore wire body').toEqual({ baseVersion: revision, body: { floorId } });
     await expect.soft(dialog(), 'dialog closes at once').toHaveCount(0);
     expect.soft(postsSince(mark).length, 'exactly one restore POST in the test').toBe(1);
     await shot('E06v', '32-A-031', 'restore_posted');
   });
 
   await test.step('[32-G-008] N19 summary of the "after" version', async () => {
+    await expect.poll(() => api[restoreEntryIndex]?.json !== undefined, { message: 'N19 body read' }).toBe(true);
     const entry = api[restoreEntryIndex];
     expect.soft(entry?.status).toBe(201);
     const summary = asRecord(entry?.json, 'N19 summary');
@@ -766,6 +765,27 @@ test('SCR-32 · FL-M-32-04 · restore the AI version (LAST test of the file)', a
       return active === null || active === document.body ? 'body' : `${active.tagName.toLowerCase()}:${active.getAttribute('aria-label') ?? active.textContent?.trim().slice(0, 40) ?? ''}`;
     });
     await shot('E06v', '32-A-033', 'new_rows');
+  });
+
+  // Moved from FL-M-32-02 (S4 review): with only v1 + v2 holding content the pair {v2, v2} never swaps (orderPair keeps equal
+  // pairs). After the restore v3 / v4 exist, so a newer-left pick is a real swap. Plan order deviates on purpose.
+  await test.step('[32-A-011] "Phiên bản gốc" Select: a newer left version swaps so the older stays left', async () => {
+    const left = page.getByRole('combobox', { name: 'Phiên bản gốc', exact: true });
+    const right = page.getByRole('combobox', { name: 'Phiên bản đối chiếu', exact: true });
+    const compare = page.getByRole('region', { name: 'Vùng so sánh hai phiên bản', exact: true });
+    await expect(left).toBeVisible();
+    const rightList = await openSelect(right);
+    await rightList.getByRole('option', { name: /^v2 ·/u }).click();
+    await expect(rightList).toHaveCount(0);
+    const leftList = await openSelect(left);
+    await leftList.getByRole('option', { name: /^v4 ·/u }).click();
+    await expect(leftList).toHaveCount(0);
+    // S5-confirm: the displayed pair is ordered (orderPair) once left (v4) is newer than right (v2)
+    await expect.soft(left).toContainText(/^v2 ·/u);
+    await expect.soft(right).toContainText(/^v4 ·/u);
+    await expect.soft(versionList().getByRole('checkbox', { checked: true })).toHaveCount(2);
+    await expect.soft(compare.getByRole('status').filter({ hasText: /^Thêm [\d.]+, xoá [\d.]+, thay đổi [\d.]+$/u })).toHaveCount(1);
+    await shot('E06v', '32-A-011', 'left_select');
   });
 
   await test.step('[32-A-034] walls equal the restored snapshot, no layer PUT follows', async () => {
