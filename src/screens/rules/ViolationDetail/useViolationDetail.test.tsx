@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { __resetMockLayerState, createMockApiClient, simulateRemoteLayerEdit } from '@/api/__mocks__/client';
 import { createDefaultRuleRegistry } from '@/domain/rules/defaults';
 import { runRules } from '@/domain/rules/runner';
-import { normalizeSpatial } from '@/domain/spatial/normalize';
+import { displayCodeIn, normalizeSpatial } from '@/domain/spatial/normalize';
 import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import { QueryClient } from '@tanstack/react-query';
@@ -151,6 +151,15 @@ describe('QA-06b F6 — kết quả sửa thuộc đúng vi phạm vừa sửa',
     cleanup();
     __resetFloorLayerSavers();
     vi.restoreAllMocks();
+  });
+
+  it('28V-A-011: mô tả hành động nêu mã hiển thị (#F-…), không nêu id thô', async () => {
+    await mount({ apiClient: createMockApiClient() });
+    const code = displayCodeIn(GRAPH, VIOLATION.entityId);
+
+    expect(code).toMatch(/^#F-/u);
+    expect(within(panel()).getByText(`Gỡ đồ đạc ${code} khỏi bản vẽ; hoàn tác được trong tám giây.`)).toBeInTheDocument();
+    expect(panel().textContent).not.toContain(VIOLATION.entityId);
   });
 
   it('28V-B-004: đối tượng đã bị xoá thì không còn mời "Xoá đối tượng này" lần hai', async () => {
