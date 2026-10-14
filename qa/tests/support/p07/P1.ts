@@ -48,7 +48,6 @@ export const fieldRow = (page: Page, label: string): Locator =>
   block(page, 'account-profile').locator('div.items-start', { has: page.locator('span', { hasText: new RegExp(`^${label}$`, 'u') }) }).first();
 
 /** Logs in through the form of `/login` (copy of `signInAdmin` with `user`'s credentials); 204 is asserted, the landing is the caller's check. */
-// dup-of: profile.ts signInPoolUserViaForm
 export async function signInViaForm(page: Page, user: PoolUser, loginPath: string): Promise<void> {
   await page.goto(loginPath);
   await page.getByLabel(EMAIL_LABEL, { exact: true }).fill(user.email);
@@ -62,7 +61,6 @@ export async function signInViaForm(page: Page, user: PoolUser, loginPath: strin
  * Holds EVERY `GET /api/me` until `release()` (the backend's own answer, fetched only after the gate opens).
  * `seen` resolves with the first held request; `dispose()` opens the gate and removes the route.
  */
-// dup-of: holdResponse in account.ts (that one holds only the first read)
 export async function holdMeReads(page: Page): Promise<{ readonly seen: Promise<Request>; release: () => void; dispose: () => Promise<void> }> {
   let open: () => void = () => undefined;
   const gate = new Promise<void>((resolve) => {

@@ -33,7 +33,6 @@ export interface SecurityRun {
 /** Region "Mật khẩu" (`<section aria-labelledby="account-password">`, AS:150-157). */
 export const regionOf = (page: Page): Locator => page.getByRole('region', { name: 'Mật khẩu', exact: true });
 
-// dup-of: security.ts openSecurity
 /** Opens `/tai-khoan` (fresh document) and waits until the three password fields are painted. */
 export async function openSecurity(page: Page): Promise<void> {
   const me = waitForApi(page, 'GET', ME_RE, [200]);
@@ -67,7 +66,6 @@ export async function withSecurityUser(
   }
 }
 
-// dup-of: security.ts fillPasswords
 /** Fills current / new / confirm (an empty string clears the field). */
 export async function fillPasswords(page: Page, current: string, next: string, confirm: string): Promise<void> {
   await pwField(page, PW.current).fill(current);
@@ -75,7 +73,6 @@ export async function fillPasswords(page: Page, current: string, next: string, c
   await pwField(page, PW.confirm).fill(confirm);
 }
 
-// dup-of: security.ts submitPassword
 /** Clicks "Đổi mật khẩu". */
 export async function submitPassword(page: Page): Promise<void> {
   await pwSubmit(page).click();
@@ -96,7 +93,6 @@ export const meterTones = (page: Page): Promise<string[]> =>
     .locator('xpath=preceding-sibling::div[1]/span')
     .evaluateAll((cells) => cells.map((cell) => [...cell.classList].find((name) => name.startsWith('bg-')) ?? ''));
 
-// dup-of: security.ts restorePassword
 /**
  * Puts the pool password back after a flow changed it to `changedTo` (undefined = never submitted a right one).
  * Signs in with `changedTo`, changes it back, probes a login with the original. When `changedTo` no longer signs in the

@@ -1,11 +1,9 @@
 /**
  * QA-07b pack P10 helpers — `phase07_me-b_api.spec.ts` (FL-A07-05..09: avatar, soft-deleted owner, password N13).
- * Own copy of the disposable-user machinery (invitation batch + claim) and the PNG builder; the coordinator merges the
- * duplicates in S4. Nothing here touches the shared pool users: avatars cannot be unset and the `me_avatar` /
+ * Disposable-user machinery (invitation batch + claim); `Cleanup`/`note` live in meUsers.ts, the PNG builder in png.ts. Nothing here touches the shared pool users: avatars cannot be unset and the `me_avatar` /
  * `me_password` windows (900 s) live in Redis per user id, so every flow here owns a user invited just for it.
  */
 import { randomUUID } from 'node:crypto';
-import { deflateSync } from 'node:zlib';
 
 import { expect, request, test, type APIRequestContext, type APIResponse } from '@playwright/test';
 
@@ -14,6 +12,10 @@ import { apiBaseUrl, captureExchange, newApiContext, signedInApi } from '../api'
 import { readAdminCredentials } from '../auth';
 import { TEST_DATA_PREFIX, testEmail } from '../evidence';
 import { deleteMails, linkFrom, waitForMail } from '../mailpit';
+import { Cleanup, note } from './meUsers';
+import { PNG_SIGNATURE, png } from './png';
+
+export { Cleanup, note, png };
 
 export const PREFIX = TEST_DATA_PREFIX;
 export const REFRESH = 'appback_refresh'; // BE auth/cookies.py:13
@@ -33,28 +35,6 @@ export const asJson = (value: unknown): Json => {
 const chk = (hard: boolean): typeof expect => (hard ? expect : (expect.soft as unknown as typeof expect));
 
 /* ------------------------------------------------------------------ cleanup / evidence */
-
-// dup-of: meUsers.ts Cleanup
-/** Runs registered cleanups in reverse order; a failing cleanup is annotated, never thrown over the test's error. */
-export class Cleanup {
-  private readonly steps: (() => Promise<unknown>)[] = [];
-  add(step: () => Promise<unknown>): void {
-    this.steps.push(step);
-  }
-  async run(): Promise<void> {
-    for (const step of this.steps.reverse()) {
-      try {
-        await step();
-      } catch (error) {
-        test.info().annotations.push({ type: 'cleanup', description: String(error) });
-      }
-    }
-  }
-}
-
-export const note = (description: string): void => {
-  test.info().annotations.push({ type: 'note', description });
-};
 
 /** The signed avatar URL query (MinIO presigned signature) is cut before anything is written to evidence. */
 function redactedView(res: APIResponse, text: string): APIResponse {
@@ -179,45 +159,6 @@ export function oversizedBody(fixed: Json, key: string): { body: Json; shown: Js
 
 /* ------------------------------------------------------------------ PNG builder (no dependency) */
 
-// dup-of: png.ts crc32/pngChunk/png/pngHeader/avatarBody
-const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
-  let c = n;
-  for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-  return c >>> 0;
-});
-
-function crc32(buf: Buffer): number {
-  let c = 0xffffffff;
-  for (const byte of buf) c = CRC_TABLE[(c ^ byte) & 0xff]! ^ (c >>> 8);
-  return (c ^ 0xffffffff) >>> 0;
-}
-
-function pngChunk(type: string, data: Buffer): Buffer {
-  const length = Buffer.alloc(4);
-  length.writeUInt32BE(data.length);
-  const typed = Buffer.concat([Buffer.from(type, 'ascii'), data]);
-  const crc = Buffer.alloc(4);
-  crc.writeUInt32BE(crc32(typed));
-  return Buffer.concat([length, typed, crc]);
-}
-
-const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-
-/** A real PNG: colorType 0 (gray) / 2 (RGB) / 6 (RGBA), every sample 0x80; gray may be 1-bit for huge sizes. */
-export function png(width: number, height: number, colorType: 0 | 2 | 6, bitDepth: 1 | 8 = 8): Buffer {
-  const channels = colorType === 0 ? 1 : colorType === 2 ? 3 : 4;
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(width, 0);
-  ihdr.writeUInt32BE(height, 4);
-  ihdr[8] = bitDepth;
-  ihdr[9] = colorType;
-  const row = Buffer.alloc(1 + Math.ceil((width * channels * bitDepth) / 8), 0x80);
-  row[0] = 0; // filter: none
-  const raw = Buffer.alloc(row.length * height);
-  for (let y = 0; y < height; y += 1) row.copy(raw, y * row.length);
-  return Buffer.concat([PNG_SIGNATURE, pngChunk('IHDR', ihdr), pngChunk('IDAT', deflateSync(raw, { level: 9 })), pngChunk('IEND', Buffer.alloc(0))]);
-}
-
 /** Assert the IHDR of a served PNG (PNG spec: IHDR right after the 8-byte signature). */
 export function expectPng(bytes: Buffer, want: { width: number; height: number; colorType: number }, hard = false): void {
   const e = chk(hard);
@@ -257,7 +198,6 @@ export async function fetchAvatar(url: string, id: string, slug: string, asserti
 
 /* ------------------------------------------------------------------ users: one invitation batch per worker */
 
-// dup-of: meUsers.ts inviteBatch / claim (port of the old spec batch() / claim())
 export const SLOTS = ['avatar', 'avatarrl', 'avatarb', 'deleted', 'pwrules', 'pwchange'] as const;
 export type Slot = (typeof SLOTS)[number];
 

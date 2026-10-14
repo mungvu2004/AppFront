@@ -1,10 +1,8 @@
 /**
  * QA-07b P9 helpers for `phase07_me_api.spec.ts` FL-A07-01..04 (GET / PATCH /api/me through the real API, no mocks).
- * Own copy on purpose (packs run in parallel); the coordinator merges duplicates in S4.
+ * `Cleanup`/`note` live in meUsers.ts, the PNG builder in png.ts (shared with P10).
  * `BE:` = `F:/App/AppBack` main dc510655, paths under `apps/api/`.
  */
-import { deflateSync } from 'node:zlib';
-
 import { expect, request, test, type APIRequestContext, type APIResponse } from '@playwright/test';
 
 import { MeSchema } from '../../../../src/api/schemas/me';
@@ -12,6 +10,10 @@ import { apiBaseUrl, captureExchange, newApiContext, signedInApi } from '../api'
 import { readAdminCredentials } from '../auth';
 import { TEST_DATA_PREFIX } from '../evidence';
 import { poolUser, type PoolRole, type PoolUser } from '../phase03Seed';
+import { Cleanup, note } from './meUsers';
+import { png } from './png';
+
+export { Cleanup, note, png };
 
 export type Json = Record<string, unknown>;
 
@@ -27,28 +29,6 @@ export function asJson(value: unknown): Json {
 /** Non-throwing view of a body (a non-JSON answer just fails the checks that follow). */
 export const errBody = (value: unknown): Json =>
   typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Json) : {};
-
-// dup-of: meUsers.ts Cleanup
-/** Runs registered cleanups in reverse order; a failing cleanup is annotated, never thrown over the test's error. */
-export class Cleanup {
-  private readonly steps: (() => Promise<unknown>)[] = [];
-  add(step: () => Promise<unknown>): void {
-    this.steps.push(step);
-  }
-  async run(): Promise<void> {
-    for (const step of this.steps.reverse()) {
-      try {
-        await step();
-      } catch (error) {
-        test.info().annotations.push({ type: 'cleanup', description: String(error) });
-      }
-    }
-  }
-}
-
-export const note = (description: string): void => {
-  test.info().annotations.push({ type: 'note', description });
-};
 
 /** A name of exactly `length` code points that starts with the run prefix (readable in the user list). */
 export const padded = (length: number, fill = 'A'): string => `${PREFIX}${fill.repeat(Math.max(0, length - PREFIX.length))}`.slice(0, length);
@@ -75,7 +55,6 @@ export interface CallOptions {
   readonly shown?: unknown;
 }
 
-// dup-of: meUsers.ts call
 /** One exchange + `A07_<name>.json` evidence (`name` = `<row id>_<slug>`). */
 export async function call(
   api: APIRequestContext,
@@ -98,7 +77,6 @@ export async function call(
   return { res, text, body: parsed };
 }
 
-// dup-of: meUsers.ts expectError
 /** W7 error body (BE core/errors.py:82-88): `code` + `requestId` (+ `field`); `field: null` = the key must be absent. */
 export function expectError(sent: Sent, status: number, code: string, field?: string | null, hard = false): Json {
   const check = hard ? expect : expect.soft;
@@ -116,7 +94,6 @@ export function expectError(sent: Sent, status: number, code: string, field?: st
   return body;
 }
 
-// dup-of: meUsers.ts expectMe
 /** MeSchema (BE me/schemas.py:21-29, W2: None keys absent): 200, exact keys, FE `MeSchema.strict()` decodes it. */
 export function expectMe(sent: Sent, expected: Json, hard = false): Json {
   const check = hard ? expect : expect.soft;
@@ -135,46 +112,6 @@ export function expectMe(sent: Sent, expected: Json, hard = false): Json {
   check(rest).toEqual(wantRest);
   if (wantAvatar !== undefined) check(typeof avatarUrl).toBe('string');
   return body;
-}
-
-/* ------------------------------------------------------------------ PNG builder (no dependency) */
-
-// dup-of: png.ts png
-const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
-  let c = n;
-  for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-  return c >>> 0;
-});
-
-function crc32(buf: Buffer): number {
-  let c = 0xffffffff;
-  for (const byte of buf) c = CRC_TABLE[(c ^ byte) & 0xff]! ^ (c >>> 8);
-  return (c ^ 0xffffffff) >>> 0;
-}
-
-function pngChunk(type: string, data: Buffer): Buffer {
-  const length = Buffer.alloc(4);
-  length.writeUInt32BE(data.length);
-  const typed = Buffer.concat([Buffer.from(type, 'ascii'), data]);
-  const crc = Buffer.alloc(4);
-  crc.writeUInt32BE(crc32(typed));
-  return Buffer.concat([length, typed, crc]);
-}
-
-/** A real PNG: colorType 0 (gray) / 2 (RGB) / 6 (RGBA), every sample 0x80. */
-export function png(width: number, height: number, colorType: 0 | 2 | 6 = 2): Buffer {
-  const channels = colorType === 0 ? 1 : colorType === 2 ? 3 : 4;
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(width, 0);
-  ihdr.writeUInt32BE(height, 4);
-  ihdr[8] = 8;
-  ihdr[9] = colorType;
-  const row = Buffer.alloc(1 + width * channels, 0x80);
-  row[0] = 0; // filter: none
-  const raw = Buffer.alloc(row.length * height);
-  for (let y = 0; y < height; y += 1) row.copy(raw, y * row.length);
-  const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-  return Buffer.concat([signature, pngChunk('IHDR', ihdr), pngChunk('IDAT', deflateSync(raw)), pngChunk('IEND', Buffer.alloc(0))]);
 }
 
 /* ------------------------------------------------------------------ users and sessions */

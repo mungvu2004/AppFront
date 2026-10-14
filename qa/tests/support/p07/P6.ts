@@ -73,7 +73,6 @@ export async function settle(page: Page): Promise<void> {
 }
 
 /** Every `/api/` request of ANY method from now on (session upkeep `POST /api/auth/refresh` excluded). */
-// dup-of: prefs.ts recordAll
 export function recordAll(page: Page): { readonly list: () => string[]; readonly stop: () => void } {
   const seen: string[] = [];
   const onRequest = (req: Request): void => {
@@ -87,7 +86,6 @@ export function recordAll(page: Page): { readonly list: () => string[]; readonly
 }
 
 /** Client-side navigation without a document load: `history.pushState` + `popstate` (react-router listens to it). */
-// dup-of: prefs.ts spaNavigate
 export async function spaNavigate(page: Page, path: string): Promise<void> {
   await page.evaluate((to) => {
     window.history.pushState({}, '', to);
