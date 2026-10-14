@@ -721,10 +721,9 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
         await shot(page, '23R-A-033', 'trimmed');
       });
 
-      await test.step('[23R-C-006] after a rename "Kho lạnh" reads "Máy đọc, chưa soát" (current C2 design — cần sản phẩm xác nhận)', async () => {
-        // The catalog row expected the sign-off kept (RV:61-72); the C2 design clears it on any real edit (fromPascal.ts:240-243
-        // `reviewed:false`; run-051b E1-T22). Asserts the current source design — CẦN SẢN PHẨM XÁC NHẬN "đổi tên có mất duyệt không".
-        await expect.soft(roomDot(panel, 'Kho lạnh')).toHaveAttribute('aria-label', RA.statusTrusted);
+      await test.step('[23R-C-006] a rename keeps the sign-off: "Kho lạnh" still "Người duyệt đã xác minh" (RV:61-72)', async () => {
+        // Decision QA-05c S6: a rename alone keeps the sign-off (catalog-C2, vendor NON_GEOMETRY_KEYS); checked again after reload (23R-A-038).
+        await expect.soft(roomDot(panel, 'Kho lạnh')).toHaveAttribute('aria-label', RA.statusReviewed);
         await shot(page, '23R-C-006', 'review-kept');
       });
 
@@ -751,6 +750,8 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
         await expand(panel);
         await expect.soft(roomButton(panel, 'Kho lạnh')).toBeVisible();
         await expect.soft(roomButton(panel, 'Phòng chữ L1')).toBeVisible();
+        // 23R-C-006 sign-off survives the round trip through the server too.
+        await expect.soft(roomDot(panel, 'Kho lạnh'), '"Kho lạnh" sign-off after reload').toHaveAttribute('aria-label', RA.statusReviewed);
         await shot(page, '23R-A-038', 'reloaded');
       });
 
