@@ -59,7 +59,11 @@ import {
 } from './support/p07/P2';
 
 const soft = expect.configure({ soft: true });
-const ev = (page: Parameters<typeof captureEvidence>[0], id: string, slug: string) => captureEvidence(page, `E07_${id}_${slug}.png`);
+/** Evidence always on a flowing clock (the rAF wait in captureEvidence never ends on a paused one). */
+const ev = async (page: Parameters<typeof captureEvidence>[0], id: string, slug: string): Promise<void> => {
+  await thaw(page);
+  await captureEvidence(page, `E07_${id}_${slug}.png`);
+};
 
 let admin: APIRequestContext;
 
@@ -86,14 +90,16 @@ test.describe('SCR-33 profile B', () => {
         await jobTitle.fill(base);
         await expect(chip).toHaveText(CHIP_DIRTY);
         expect(patches.length, 'nothing sent before the debounce').toBe(0);
-        await ev(page, '33P-B-015', 'chip-dirty');
         const saved = nextPatch(page);
         await page.clock.runFor(FLUSH_MS);
         await saved;
         await expect(chip).toHaveText(IND.saved);
+        // the dirty chip cannot be shot on a paused clock: the image shows the settled state after the assertions above
+        await ev(page, '33P-B-015', 'chip-dirty-then-saved');
       });
 
       await test.step('[33P-A-020] ten keystrokes 100 ms apart → ONE PATCH with the last value', async () => {
+        await freeze(page);
         const before = patches.length;
         await jobTitle.focus();
         await page.keyboard.press('End');
@@ -121,6 +127,7 @@ test.describe('SCR-33 profile B', () => {
       });
 
       await test.step('[33P-A-023] typing while the PATCH is held → text kept, 2nd PATCH has the full text', async () => {
+        await freeze(page);
         const first = nextPatch(page);
         await jobTitle.pressSequentially('xyz');
         const full = await jobTitle.inputValue();
@@ -135,6 +142,7 @@ test.describe('SCR-33 profile B', () => {
       });
 
       await test.step('[33P-A-019] "Họ tên" and "Điện thoại" 200 ms apart → ONE PATCH with both keys', async () => {
+        await freeze(page);
         const before = patches.length;
         const name = `${TEST_DATA_PREFIX}name4`;
         await box(page, 'Họ tên').fill(name);
@@ -149,6 +157,7 @@ test.describe('SCR-33 profile B', () => {
       });
 
       await test.step('[33P-A-021] a key every 700 ms for 6 s → a PATCH at the 5 s max wait, another after the last key', async () => {
+        await freeze(page);
         const before = patches.length;
         const start = await jobTitle.inputValue();
         await jobTitle.focus();
@@ -171,12 +180,14 @@ test.describe('SCR-33 profile B', () => {
       });
 
       await test.step('[33P-B-018] 90 s past the last save and a 30 s tick → "Đã lưu 1 phút trước"', async () => {
+        await freeze(page);
         await page.clock.runFor(95_000); // USI:29-30,52-56
         await expect.soft(chip).toHaveText('Đã lưu 1 phút trước');
         await ev(page, '33P-B-018', 'chip-ages');
       });
 
       await test.step('[33P-A-022] "Z" then the saved value back inside the window → no PATCH, chip back', async () => {
+        await freeze(page);
         const before = patches.length;
         const saved = await jobTitle.inputValue();
         await jobTitle.fill(`${saved}Z`);
@@ -189,16 +200,18 @@ test.describe('SCR-33 profile B', () => {
       });
 
       await test.step('[33P-A-024] Ctrl+S right after typing → PATCH before 800 ms (⚑ red until useFlushOnSave is wired)', async () => {
+        await freeze(page);
         const before = patches.length;
         await jobTitle.fill(`${await jobTitle.inputValue()}S`);
         await page.keyboard.press('Control+S');
         await soft.poll(() => patches.length, { timeout: 5_000, message: 'PATCH without advancing the clock' }).toBe(before + 1);
-        await ev(page, '33P-A-024', 'ctrl-s');
         await page.clock.runFor(FLUSH_MS); // let the pending autosave finish whatever happened
         await expect.soft(chip).toHaveText(IND.saved);
+        await ev(page, '33P-A-024', 'ctrl-s');
       });
 
       await test.step('[33P-A-025] type, SPA back to the dashboard inside 800 ms → the PATCH is still sent', async () => {
+        await thaw(page);
         await page.goto(ROUTES.dashboard);
         await page.getByRole('button', { name: 'Thông báo', exact: true }).click();
         await page
@@ -220,6 +233,7 @@ test.describe('SCR-33 profile B', () => {
       });
 
       await test.step('[33P-B-020] offline edit → "Ngoại tuyến — sẽ lưu khi có mạng", nothing sent', async () => {
+        await thaw(page);
         await openAccount(page);
         await freeze(page);
         const before = patches.length;
@@ -232,6 +246,7 @@ test.describe('SCR-33 profile B', () => {
       });
 
       await test.step('[33P-B-021] back online → the same PATCH lands within the 5 s recheck', async () => {
+        await freeze(page);
         const value = await jobTitle.inputValue();
         const landed = nextPatch(page);
         await context.setOffline(false);
@@ -305,7 +320,8 @@ test.describe('SCR-33 profile B', () => {
       });
 
       await test.step('[33P-E-007] announcer: assertive text equals the chip label (⚑ BUG-503)', async () => {
-        await expect.soft(announcerRegion(page, 'assertive')).toContainText(FIELD_REJECTED); // USI:127,133
+        await expect.soft(announcerRegion(page, 'assertive')).toHaveText(/^Chưa lưu vì còn ô cần sửa\s?$/u); // USI:127,133
+        await expect.soft(announcerRegion(page, 'assertive')).not.toContainText('thử lưu lại');
         await ev(page, '33P-E-007', 'announcer-assertive');
       });
 
@@ -324,11 +340,16 @@ test.describe('SCR-33 profile B', () => {
         await page.keyboard.type('A');
         await expect.soft(nameError).toHaveCount(0); // UAS:366-376
         soft(patches.length).toBe(before);
+        await fullName.fill(original); // back to the saved name, so thawing sends nothing
+        await page.clock.runFor(FLUSH_MS);
+        soft(patches.length).toBe(before);
         await ev(page, '33P-C-015', 'error-cleared');
       });
 
       await test.step('[33P-C-002] retype the saved name → no PATCH, no error', async () => {
+        await freeze(page);
         const before = patches.length;
+        await fullName.fill('Q');
         await fullName.fill(original);
         await page.clock.runFor(FLUSH_MS);
         await expect.soft(chip).toHaveText(IND.idle);
@@ -338,12 +359,14 @@ test.describe('SCR-33 profile B', () => {
       });
 
       await test.step('[33P-C-003] 121 characters → 422; 120 → 200', async () => {
+        await freeze(page);
         const rejected = nextPatch(page, [422]);
         await fullName.fill('N'.repeat(TEXT_MAX + 1));
         await page.clock.runFor(FLUSH_MS);
         await rejected;
         await expect.soft(nameError).toBeVisible();
         await ev(page, '33P-C-003', 'fullname-121');
+        await freeze(page);
         const ok = nextPatch(page);
         await fullName.fill('N'.repeat(TEXT_MAX));
         await page.clock.runFor(FLUSH_MS);
@@ -352,6 +375,7 @@ test.describe('SCR-33 profile B', () => {
       });
 
       await test.step('[33P-C-013] fix after a 422 → PATCH with the fixed value, error gone, chip saved', async () => {
+        await freeze(page);
         const rejected = nextPatch(page, [422]);
         await fullName.fill('');
         await page.clock.runFor(FLUSH_MS);
@@ -369,6 +393,7 @@ test.describe('SCR-33 profile B', () => {
       });
 
       await test.step('[33P-C-004] spaces only, then U+0007 → 422 field fullName, same copy', async () => {
+        await freeze(page);
         for (const [value, slug] of [['   ', 'spaces'], ['\u0007', 'bell']] as const) {
           const rejected = nextPatch(page, [422]);
           await fullName.fill(value);
@@ -380,11 +405,13 @@ test.describe('SCR-33 profile B', () => {
       });
 
       await test.step('[33P-C-005] "  An  " → 200, after reload the field shows "An"', async () => {
+        await freeze(page);
         const ok = nextPatch(page);
         await fullName.fill('  An  ');
         await page.clock.runFor(FLUSH_MS);
         await ok;
         await expect.soft(chip).toHaveText(IND.saved);
+        await thaw(page);
         await openAccount(page);
         await expect.soft(fullName).toHaveValue('An');
         await ev(page, '33P-C-005', 'trimmed-after-reload');
@@ -440,11 +467,11 @@ test.describe('SCR-33 profile B', () => {
           reached = await undoButton.evaluate((el) => el === document.activeElement);
         }
         soft(reached, 'Tab reaches "Hoàn tác"').toBe(true);
+        await thaw(page); // the focused toast keeps its window while time flows
         await ev(page, '33P-E-011', 'undo-by-keyboard');
         const restored = nextPatch(page);
         await page.keyboard.press('Enter');
         soft(bodyOf(await restored)).toEqual({ fullName: original });
-        await thaw(page);
         await expect.soft(fullName).toHaveValue(original);
       });
 
