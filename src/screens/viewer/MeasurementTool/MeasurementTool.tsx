@@ -50,7 +50,7 @@
  * {@link KeyAction}. Hai đường chung một hàm, nên chúng không thể lệch nhau về
  * sau. `Delete` đã có đường chuột sẵn ở mục "Phép đo" của panel phải.
  *
- * Nút ghim chỉ hiện khi có gì để ghim (`draft` khác `null`), và vô hiệu khi
+ * Nút ghim chỉ hiện khi có gì để ghim (`draftComplete`: đủ điểm), và vô hiệu khi
  * `canPin` là `false` — lúc ấy `pinBlockedCaption` ngay bên dưới nói ra vì sao,
  * vì một nút mờ đi mà không giải thích là một nút bắt người dùng đoán.
  */
@@ -195,7 +195,7 @@ export function MeasurementTool(props: MeasurementToolProps) {
               FLOATING_SURFACE,
             )}
           >
-            {props.draft !== null && (
+            {props.draft !== null && props.draftComplete && (
               <KeyAction
                 disabled={!props.canPin}
                 hint="Enter"

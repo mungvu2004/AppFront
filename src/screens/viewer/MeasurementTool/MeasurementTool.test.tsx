@@ -132,6 +132,7 @@ function buildProps(overrides: Partial<MeasurementToolProps> = {}): MeasurementT
     onModeChange: vi.fn(),
     snap: { kind: null, label: 'chưa bắt điểm nào' },
     draft: null,
+    draftComplete: true,
     measurements: [],
     countLabel: '0 phép đo',
     highlightedId: null,

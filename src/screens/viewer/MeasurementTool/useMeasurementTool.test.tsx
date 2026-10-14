@@ -573,7 +573,7 @@ function viewportSkeleton(): Element | null {
 }
 
 describe('useMeasurementTool — giữa hai lần chấm, khung nhìn không có lớp chặn chuột (NO-382)', () => {
-  it('chấm một điểm: khung nhìn không skeleton, nút ghim còn bấm được', async () => {
+  it('chấm một điểm: khung nhìn không skeleton, nút ghim chưa hiện (25-C-050)', async () => {
     renderHook({ mountScene: sceneSpy().mount, pick: pickAtPointer });
 
     await waitFor(() => {
@@ -588,7 +588,9 @@ describe('useMeasurementTool — giữa hai lần chấm, khung nhìn không có
     fireEvent(viewport, down);
     fireEvent.pointerUp(viewport);
 
-    expect(screen.getByRole('button', { name: /ghim/iu })).toBeEnabled();
+    // Một điểm chưa ghim được: nút ghim chưa hiện (25-C-050), nút Esc vẫn bấm được.
+    expect(screen.queryByRole('button', { name: /ghim/iu })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Bỏ phần đo dở (phím Esc)' })).toBeEnabled();
     expect(viewportSkeleton()).toBeNull();
     expect(screen.getByLabelText('Khung nhìn mô hình')).toHaveAttribute('aria-busy', 'false');
   });
