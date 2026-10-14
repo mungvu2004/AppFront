@@ -312,7 +312,8 @@ function PascalViewerBody({
   );
 
   /* #37 — phím của màn đi qua registry chung, nên lượt trùng phím nào cũng bị
-     `shortcutRegistry` báo ra thay vì im lặng đè lên nhau. */
+     `shortcutRegistry` báo ra thay vì im lặng đè lên nhau. Đây là chủ DUY NHẤT
+     của Ctrl+H: bảng lịch sử không tự đăng ký phím này nữa (23H-A-009). */
   useShortcut({
     id: 'pascalViewer.sidePanel.history',
     combo: 'Ctrl+H',
