@@ -100,6 +100,7 @@ export interface SpatialJsonCounts {
   readonly furniture: number;
   readonly axes: number;
   readonly dimensions: number;
+  readonly notes: number;
 }
 
 /** Toàn bộ thứ view cần để vẽ. Không hàm, không đối tượng miền. */
@@ -148,6 +149,8 @@ export interface SpatialJsonViewerActions {
   readonly onExpandAll: () => void;
   readonly onCollapseAll: () => void;
   readonly onSelectNode: (nodeId: string) => void;
+  /** Bấm một hàng lỗi: `path` là mã thực thể; chọn nút cây của nó và cuộn tới. */
+  readonly onSelectIssue: (path: string) => void;
   readonly onSearchChange: (query: string) => void;
   readonly onNextMatch: () => void;
   readonly onPreviousMatch: () => void;

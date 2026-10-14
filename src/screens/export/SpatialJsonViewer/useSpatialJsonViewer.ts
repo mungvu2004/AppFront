@@ -148,7 +148,7 @@ export function useSpatialJsonViewer(options: UseSpatialJsonViewerOptions): UseS
   );
 
   const entityCount =
-    counts.walls + counts.openings + counts.rooms + counts.furniture + counts.axes + counts.dimensions;
+    counts.walls + counts.openings + counts.rooms + counts.furniture + counts.axes + counts.dimensions + counts.notes;
 
   const state: SevenState = useMemo(() => {
     if (!canView) {
@@ -266,6 +266,19 @@ export function useSpatialJsonViewer(options: UseSpatialJsonViewerOptions): UseS
     });
   }, []);
 
+  /** `issue.path` là mã thực thể, không phải đường dẫn nút: tìm nút của thực thể rồi chọn (31-A-024). */
+  const onSelectIssue = useCallback(
+    (path: string) => {
+      const target = allNodes.find((node) => node.entityId === path) ?? allNodes.find((node) => node.id === path);
+
+      if (target !== undefined) {
+        setViewMode('tree');
+        onSelectNode(target.id);
+      }
+    },
+    [allNodes, onSelectNode],
+  );
+
   /** Chép nhánh đang chọn; chưa chọn gì thì chép cả đồ thị. Không cấp `onCopy` thì ghi vào clipboard. */
   const onCopyBranch = useCallback(() => {
     const branch = selectedNodeId === null ? undefined : valueAtPath(graph, selectedNodeId);
@@ -321,6 +334,7 @@ export function useSpatialJsonViewer(options: UseSpatialJsonViewerOptions): UseS
     onPreviousMatch,
     onReopenFloors,
     onSearchChange,
+    onSelectIssue,
     onSelectNode,
     onToggleNode,
   };
