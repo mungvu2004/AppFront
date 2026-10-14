@@ -132,6 +132,17 @@ export async function openSheetOnRow(page: Page, section: Locator, index = 0): P
   await rowWithFloor(page, section).nth(index).getByRole('button').first().click();
   const sheet = sheetOf(page);
   await expect(sheet).toBeVisible();
+  await expect(sheet.getByRole('heading', { level: 2 })).toBeVisible();
+  // the panel slides in (framer-motion): wait until two consecutive x readings agree before anything is measured
+  let last = Number.NaN;
+  await expect
+    .poll(async () => {
+      const x = (await sheet.boundingBox())?.x ?? Number.NaN;
+      const settled = x === last;
+      last = x;
+      return settled;
+    })
+    .toBe(true);
   return sheet;
 }
 
