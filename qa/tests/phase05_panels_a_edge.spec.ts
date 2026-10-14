@@ -283,7 +283,8 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
         expect.soft(lines[0]).toBe('Số phòng\tTên phòng\tCông năng\tDiện tích');
         expect.soft(lines[1]).toBe('Tầng 1');
         // Equal areas keep scene order, which the plan does not pin: compare the two room lines as a set.
-        expect.soft(lines.slice(2, 4).sort()).toEqual(['—\tBếp\t—\t16 m²', '—\tPHONG NGU 2\t—\t16 m²'].sort());
+        // FF round 2: toPascal writes `occupancy` = describeUsage(room.usage) (toPascal.ts:343, classify.ts:117-126).
+        expect.soft(lines.slice(2, 4).sort()).toEqual(['—\tBếp\tBếp\t16 m²', '—\tPHONG NGU 2\tPhòng ngủ\t16 m²'].sort());
         expect.soft(lines[4]).toBe('Tổng phụ\t\t\t32 m²');
         expect.soft(lines[5]).toBe('Tổng diện tích\t\t\t32 m²');
         await shot(page, '23R-A-040', 'copied', `clipboard: ${lines.join(' ⏎ ').replace(/\t/gu, '⇥')}`);
@@ -294,9 +295,10 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
         await shot(page, '23R-E-004', 'copied-status');
       });
 
-      await test.step('[23R-B-012] one occupancy band, title "Chưa đặt công năng · 100%" (RAM:217-242)', async () => {
-        await expect.soft(panel.locator('[title$="%"]')).toHaveCount(1);
-        await expect.soft(panel.locator(`[title="${RA.noOccupancy} · 100%"]`)).toHaveCount(1);
+      await test.step('[23R-B-012] occupancy bands: "Bếp · 50%" and "Phòng ngủ · 50%" (RAM:217-242; occupancy written since FF round 2)', async () => {
+        await expect.soft(panel.locator('[title$="%"]')).toHaveCount(2);
+        await expect.soft(panel.locator('[title="Bếp · 50%"]')).toHaveCount(1);
+        await expect.soft(panel.locator('[title="Phòng ngủ · 50%"]')).toHaveCount(1);
         await shot(page, '23R-B-012', 'band');
       });
 
@@ -519,10 +521,12 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
         await shot(page, '23R-A-044', 'groups-subtotals');
       });
 
-      await test.step('[23R-A-045] empty cells: "Số phòng" "—", "Công năng" "Chưa đặt công năng" (RAF:148-150)', async () => {
+      await test.step('[23R-A-045] cells: "Số phòng" "—" (no room number), "Công năng" "Phòng khách" (occupancy written since FF round 2; RAF:148-150)', async () => {
         const cells = fullRoomRows(dialog).first().locator('td');
         await expect.soft(cells.nth(0)).toHaveText('—');
-        await expect.soft(cells.nth(2)).toHaveText(RA.noOccupancy);
+        // First row of the default area sort = "Phòng khách" (livingRoom → describeUsage "Phòng khách").
+        await expect.soft(cells.nth(1)).toHaveText('Phòng khách');
+        await expect.soft(cells.nth(2)).toHaveText('Phòng khách');
         await shot(page, '23R-A-045', 'empty-cells');
       });
 
@@ -989,7 +993,7 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
         await shot(page, '23R-B-001', 'empty');
       });
 
-      await test.step('[23R-B-002] "Kiểm tra khe hở tường" on every floor → "Tìm thấy 1 vùng kín — mở lại bảng để xem" (RAP:177-189)', async () => {
+      await test.step('[23R-B-002] "Kiểm tra khe hở tường" on every floor → "Tìm thấy 1 vòng tường kín — vẽ vùng ở mục Vùng để có hàng diện tích" (RAP:177-189, RAV:55-56)', async () => {
         await detect().click();
         await expect.soft(panel.getByText(RA.gapsClosed(1), { exact: true })).toBeVisible();
         await shot(page, '23R-B-002', 'gaps-closed');
@@ -1002,13 +1006,14 @@ test.describe('E05 SCR-23 side panels A — Diện tích phòng / Thư viện đ
         await shot(page, '23R-B-003', 'gaps-open');
       });
 
-      await test.step('[23R-B-004] ⚑ follow the hint: "Mọi tầng", close and reopen the panel → at least 1 room row', async () => {
+      await test.step('[23R-B-004] the hint no longer promises rows: "Mọi tầng", close and reopen the panel → still empty (detection makes no zone)', async () => {
+        // FA round 2 (RAV:53-56): detection never creates zones, so the copy points to drawing a zone; reopening keeps the empty state.
         await combo(panel, RA.levelFilter).selectOption({ label: RA.allLevels });
         await siteButton(page).click();
         await expect(panelOf(page, RA.title)).toHaveCount(0);
         panel = await openRailPanel(page, RA.title);
-        await expect.soft(panel.getByText(RA.emptyTitle, { exact: true })).toHaveCount(0);
-        await softly.poll(async () => (await roomNames(panel)).length).toBeGreaterThan(0);
+        await expect.soft(panel.getByText(RA.emptyTitle, { exact: true })).toBeVisible();
+        expect.soft(await roomNames(panel), 'room rows after reopening').toEqual([]);
         await shot(page, '23R-B-004', 'reopened');
       });
     } finally {
