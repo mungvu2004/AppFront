@@ -44,15 +44,20 @@ export function requestLog(page: Page, method: string, re: RegExp): { readonly c
   return { count: () => n, stop: () => page.off('request', on) };
 }
 
-/** Counts the toasts with `text` now; `expectNew()` then needs exactly one MORE (a stale toast never satisfies it). */
+/**
+ * notificationBus folds toasts of one type inside 5 s into ONE toast whose title is the newest one (notificationBus.ts:8,
+ * :158-195; all write failures share type 'user.write-failed', useUserManagement.ts:638), and Toast removes itself after 8 s
+ * (Toast.tsx UNDO_WINDOW_MS). So "a new toast" is proven by clearing the old ones first: `markToast` runs the (installed) fake
+ * clock 8 s, asserts none is left, and `expectNew()` then needs the toast with `text` to show. Install `page.clock` first.
+ */
 export async function markToast(page: Page, text: string): Promise<{ readonly expectNew: (soft?: boolean) => Promise<void> }> {
   const toasts = page.getByRole('status').filter({ hasText: text });
-  const before = await toasts.count();
+  await page.clock.runFor(8_000);
+  await expect(toasts, 'previous toasts are gone before the action').toHaveCount(0);
   return {
     expectNew: async (soft = false) => {
-      const check = soft ? expect.soft(toasts, `new toast "${text}"`) : expect(toasts, `new toast "${text}"`);
-      await check.toHaveCount(before + 1);
-      await expect.soft(toasts.nth(before)).toBeVisible();
+      const check = soft ? expect.soft(toasts.last(), `toast "${text}"`) : expect(toasts.last(), `toast "${text}"`);
+      await check.toBeVisible();
     },
   };
 }
