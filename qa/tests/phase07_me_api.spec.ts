@@ -15,7 +15,7 @@
  *
  * ## Real-backend budget per run of this file
  * - `POST /api/auth/login` per IP (120 / 60 s on the QA stack, 30 BE default): 4 admin + 5 pool users = 9.
- * - `POST /api/auth/refresh`: 5 setup + FL-A07-02 G-022 1 + 3 restores (one per FL-A07-02..04) = 9 (20 / 60 s per session).
+ * - `POST /api/auth/refresh`: 5 setup + FL-A07-02 G-022 1 + 3 restores (one per FL-A07-02..04) + 4 `signedInApi` refreshes (login + refresh, support/api.ts:31-44) = 13; limit 300 / 60 s per session id (auth/settings.py:45-46) — `refresh_fail_limit` 20 counts failures only (settings.py:42-43).
  * - `POST /api/users/invitations` (30 / 3600 s per admin): 0 once the slots are filled; first run ever 5 (1 per slot).
  * - No rate limit on N11 / N12 (me/router.py:109,137: no `dependencies`): FL-A07-02 G-034 sends 12 PATCH + 12 GET,
  *   the whole file ~100 requests on /api/me. `me_avatar` / `me_password` are NOT counted: the two anonymous probes

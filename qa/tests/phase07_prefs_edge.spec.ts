@@ -456,8 +456,9 @@ test.describe('E07 SCR-33 preferences edge', () => {
       await test.step('[33R-B-007] row flash after a commit', async () => {
         await watchFlash(page);
         await grid.click(); // AP:193-197, UAP:448-470
-        await expect.poll(async () => (await flashes(page)).gained).toEqual([SHOW_GRID]);
-        await expect.poll(async () => (await flashes(page)).lost, { message: 'flash must end (~340 ms)' }).toEqual([SHOW_GRID]);
+        const softly = expect.configure({ soft: true }); // S step (flows-C2): a missing flash must not stop B-008/B-012
+        await softly.poll(async () => (await flashes(page)).gained).toEqual([SHOW_GRID]);
+        await softly.poll(async () => (await flashes(page)).lost, { message: 'flash must end (~340 ms)' }).toEqual([SHOW_GRID]);
         await ev(page, '33R-B-007', 'row_flash');
       });
 

@@ -1,5 +1,5 @@
 /**
- * QA-07b pack P10 helpers — `phase07_me-b_api.spec.ts` (FL-A07-05..09: avatar, soft-deleted owner, password N13).
+ * QA-07b pack P10 helpers — `phase07_me_b_api.spec.ts` (FL-A07-05..09: avatar, soft-deleted owner, password N13).
  * Disposable-user machinery (invitation batch + claim); `Cleanup`/`note` live in meUsers.ts, the PNG builder in png.ts. Nothing here touches the shared pool users: avatars cannot be unset and the `me_avatar` /
  * `me_password` windows (900 s) live in Redis per user id, so every flow here owns a user invited just for it.
  */

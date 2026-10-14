@@ -262,7 +262,7 @@ test('SCR-33 · FL-A07-07 · Soft-deleted owner: live Bearer on all four endpoin
     });
 
     await test.step('[B07-G-045] same Bearer: PATCH /api/me -> 401 SESSION_REVOKED', async () => {
-      const sent = await call(m.api, 'B07-G-045', 'patch_after_delete', 'PATCH', '/api/me', { jobTitle: 'ghost' }, ['401 SESSION_REVOKED, nothing written']);
+      const sent = await call(m.api, 'B07-G-045', 'patch_after_delete', 'PATCH', '/api/me', { jobTitle: 'ghost' }, ['401 SESSION_REVOKED']);
       expectError(sent, 401, 'SESSION_REVOKED');
     });
 
