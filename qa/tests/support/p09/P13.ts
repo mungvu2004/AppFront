@@ -7,7 +7,8 @@ import { expect, type APIRequestContext, type APIResponse } from '@playwright/te
 
 import { attachJson } from '../evidence';
 import { addProjectMember, createProject, deleteSeededProject, removeProjectMember, type PoolUser } from '../phase03Seed';
-import { adminApi, apiAs, roleUser } from './roles';
+import { requireState } from '../state';
+import { adminApi, apiAs, asMember, mainProject, roleUser } from './roles';
 
 export type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 /** Well-formed fake ULID/uuid for path ids that must not resolve (the gate runs before any lookup). */
@@ -95,6 +96,29 @@ export async function seedViewerProject(): Promise<ViewerSeed> {
     };
   } catch (error) {
     await cleanup(viewer);
+    throw error;
+  }
+}
+
+/**
+ * Positive reads on the main chain project (real floor / version / upload): viewer added as member, undo in cleanup.
+ * Hard-fails when the main chain has no version (no fake ids: 404 would prove nothing).
+ */
+export async function seedMainViewer(): Promise<ViewerSeed & { uploadId: string }> {
+  const admin = await adminApi();
+  const { projectId, workFloorId } = mainProject();
+  const uploadId = requireState((s) => s.checkpoints.uploadId, 'checkpoints.uploadId', 'Phase 3 (upload complete)');
+  const viewer = await roleUser(admin, 'viewer', 'authz');
+  const undo = await asMember(admin, projectId, viewer);
+  try {
+    const viewerApi = await apiAs(viewer);
+    const list = await admin.get(`/api/projects/${projectId}/versions`);
+    expect(list.status(), 'setup: GET versions on main project').toBe(200);
+    const versionId = ((await list.json()) as { items?: { id?: string }[] }).items?.[0]?.id;
+    expect(versionId, 'setup: main project has a version').toBeTruthy();
+    return { admin, viewer, viewerApi, projectId, floorId: workFloorId, versionId: String(versionId), uploadId, cleanup: undo };
+  } catch (error) {
+    await undo();
     throw error;
   }
 }

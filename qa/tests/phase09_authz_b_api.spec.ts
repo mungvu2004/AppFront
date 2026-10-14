@@ -2,7 +2,7 @@
  * Codes: BE access/deps.py:41-43 gate -> 403 FORBIDDEN; projects/access.py:99 -> 403 FORBIDDEN (member lacking permission). */
 import { expect, test } from '@playwright/test';
 
-import { FAKE_ID, expectDenied, expectOpen, seedViewerProject } from './support/p09/P13';
+import { FAKE_ID, expectDenied, expectOpen, seedMainViewer, seedViewerProject } from './support/p09/P13';
 import { createProject, deleteSeededProject } from './support/phase03Seed';
 
 test('API · FL-B09-06 · viewer · ma trận quyền BE', async () => {
@@ -114,7 +114,7 @@ test('API · FL-B09-07 · viewer · ma trận quyền BE', async () => {
 
 test('API · FL-B09-08 · viewer · ma trận quyền BE', async () => {
   test.setTimeout(120_000);
-  const s = await seedViewerProject();
+  const s = await seedMainViewer();
   const api = s.viewerApi;
   try {
     await test.step('[B09-set-003] settings_read_settings', async () => {
@@ -127,13 +127,13 @@ test('API · FL-B09-08 · viewer · ma trận quyền BE', async () => {
       await expectOpen(api, `/api/projects/${s.projectId}/floors`, 'B09-flr-003_floors_list_floors', { statuses: [200] });
     });
     await test.step('[B09-spr-003] spatial_read_floor', async () => {
-      await expectOpen(api, `/api/projects/${s.projectId}/floors/${s.floorId}/spatial`, 'B09-spr-003_spatial_read_floor', { statuses: [200, 404] });
+      await expectOpen(api, `/api/projects/${s.projectId}/floors/${s.floorId}/spatial`, 'B09-spr-003_spatial_read_floor', { statuses: [200] });
     });
     await test.step('[B09-spr-006] spatial_read_graph', async () => {
-      await expectOpen(api, `/api/projects/${s.projectId}/spatial`, 'B09-spr-006_spatial_read_graph', { statuses: [200, 404] });
+      await expectOpen(api, `/api/projects/${s.projectId}/spatial`, 'B09-spr-006_spatial_read_graph', { statuses: [200] });
     });
     await test.step('[B09-spr-009] spatial_read_layer', async () => {
-      await expectOpen(api, `/api/projects/${s.projectId}/floors/${s.floorId}/spatial/layer`, 'B09-spr-009_spatial_read_layer', { statuses: [200, 404] });
+      await expectOpen(api, `/api/projects/${s.projectId}/floors/${s.floorId}/spatial/layer`, 'B09-spr-009_spatial_read_layer', { statuses: [200] });
     });
     await test.step('[B09-drw-005] drawings_upload_chunk', async () => {
       await expectDenied(api, 'POST', `/api/projects/${s.projectId}/drawings/uploads/${FAKE_ID}/chunks`, { status: 403, code: 'FORBIDDEN', ev: 'B09-drw-005_drawings_upload_chunk' });
@@ -142,13 +142,13 @@ test('API · FL-B09-08 · viewer · ma trận quyền BE', async () => {
       await expectDenied(api, 'POST', `/api/projects/${s.projectId}/drawings/uploads/${FAKE_ID}/complete`, { status: 403, code: 'FORBIDDEN', ev: 'B09-drw-008_drawings_complete_upload' });
     });
     await test.step('[B09-drw-012] drawings_read_progress', async () => {
-      await expectOpen(api, `/api/projects/${s.projectId}/drawings/uploads/${FAKE_ID}/progress`, 'B09-drw-012_drawings_read_progress', { statuses: [200, 404] });
+      await expectOpen(api, `/api/projects/${s.projectId}/drawings/uploads/${s.uploadId}/progress`, 'B09-drw-012_drawings_read_progress');
     });
     await test.step('[B09-str-003] streams_open_progress', async () => {
-      await expectOpen(api, `/api/projects/${s.projectId}/uploads/${FAKE_ID}/progress`, 'B09-str-003_streams_open_progress', { statuses: [200, 404] });
+      await expectOpen(api, `/api/projects/${s.projectId}/uploads/${FAKE_ID}/progress`, 'B09-str-003_streams_open_progress', { statuses: [200, 404] }); // lint-ok: SSE needs a live upload; fake id, asserts only not 401/403
     });
     await test.step('[B09-qlt-003] quality_read_assessment', async () => {
-      await expectOpen(api, `/api/projects/${s.projectId}/floors/${s.floorId}/quality`, 'B09-qlt-003_quality_read_assessment', { statuses: [200, 404] });
+      await expectOpen(api, `/api/projects/${s.projectId}/floors/${s.floorId}/quality`, 'B09-qlt-003_quality_read_assessment', { statuses: [200] });
     });
     await test.step('[B09-tpl-003] templates_list_templates', async () => {
       await expectOpen(api, `/api/projects/${s.projectId}/property-templates`, 'B09-tpl-003_templates_list_templates', { statuses: [200] });
@@ -163,17 +163,17 @@ test('API · FL-B09-08 · viewer · ma trận quyền BE', async () => {
 
 test('API · FL-B09-09 · viewer · ma trận quyền BE', async () => {
   test.setTimeout(120_000);
-  const s = await seedViewerProject();
+  const s = await seedMainViewer();
   const api = s.viewerApi;
   try {
     await test.step('[B09-ver-003] versions_list_versions', async () => {
       await expectOpen(api, `/api/projects/${s.projectId}/versions`, 'B09-ver-003_versions_list_versions', { statuses: [200], soft: false });
     });
     await test.step('[B09-ver-006] versions_read_version', async () => {
-      await expectOpen(api, `/api/projects/${s.projectId}/versions/${s.versionId}`, 'B09-ver-006_versions_read_version', { statuses: [200, 404] });
+      await expectOpen(api, `/api/projects/${s.projectId}/versions/${s.versionId}`, 'B09-ver-006_versions_read_version', { statuses: [200] });
     });
     await test.step('[B09-ver-009] versions_read_snapshot', async () => {
-      await expectOpen(api, `/api/projects/${s.projectId}/versions/${s.versionId}/snapshot`, 'B09-ver-009_versions_read_snapshot', { statuses: [200, 404] });
+      await expectOpen(api, `/api/projects/${s.projectId}/versions/${s.versionId}/snapshot`, 'B09-ver-009_versions_read_snapshot', { statuses: [200] });
     });
   } finally {
     await s.cleanup();
