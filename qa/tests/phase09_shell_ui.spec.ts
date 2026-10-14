@@ -11,23 +11,23 @@ test('SCR-05 · FL-9P-U1 · viewer · bốn khổ', async ({ browser }) => {
       await uiState(page, '9P-F-001', 'dashboard_viewer', openAt(ROUTES.dashboard, (p) => p.getByText(/Vai người xem/u)), true);
     });
     await test.step('[9P-F-101] /onboarding một thẻ', async () => {
-      await uiState(page, '9P-F-101', 'onboarding_viewer', openAt(ROUTES.onboarding));
+      await uiState(page, '9P-F-101', 'onboarding_viewer', openAt(ROUTES.onboarding, (p) => p.getByText('Vai người xem chỉ duyệt được kết quả, không tạo dự án và không tải bản vẽ.')));
     });
     await test.step('[9P-F-201] settings chỉ-đọc: Chung và Thành viên', async () => {
       const tab =
         (name: string) =>
         async (p: Page): Promise<void> => {
-          await openAt(ROUTES.project.settings(projectId))(p);
+          await openAt(ROUTES.project.settings(projectId), (p) => p.getByText(/Vai hiện tại chỉ xem được cài đặt/u))(p);
           await p.getByRole('tab', { name }).click();
         };
       await uiState(page, '9P-F-201', 'settings_general', tab('Chung'));
       await uiState(page, '9P-F-201', 'settings_members', tab('Thành viên'));
     });
     await test.step('[9P-F-301] AccessDenied (viewer) + NotFound (chưa đăng nhập)', async () => {
-      await uiState(page, '9P-F-301', 'access_denied', openAt(ROUTES.accessDenied));
+      await uiState(page, '9P-F-301', 'access_denied', openAt(ROUTES.accessDenied, (p) => p.getByText(/Bạn chưa có quyền truy cập/u)));
       const anon = await browser.newContext();
       try {
-        await uiState(await anon.newPage(), '9P-F-301', 'not_found_anon', openAt(UNKNOWN_PATH));
+        await uiState(await anon.newPage(), '9P-F-301', 'not_found_anon', openAt(UNKNOWN_PATH, (p) => p.getByText(/Nội dung này có thể đã bị xoá, hoặc đường dẫn chưa đúng/u)));
       } finally {
         await anon.close();
       }
@@ -39,7 +39,7 @@ test('SCR-05 · FL-9P-U2 · viewer chưa thành viên · bốn khổ', async ({ 
   test.setTimeout(120_000);
   await withRoleUi(browser, 'viewer', 'shell-nm', false, async ({ page }) => {
     await test.step('[9P-F-002] / empty không nút tạo', async () => {
-      await uiState(page, '9P-F-002', 'dashboard_empty_viewer', openAt(ROUTES.dashboard), true);
+      await uiState(page, '9P-F-002', 'dashboard_empty_viewer', openAt(ROUTES.dashboard, (p) => p.getByText('Chưa có dự án nào'), ['Dự án mới']), true);
     });
   });
 });

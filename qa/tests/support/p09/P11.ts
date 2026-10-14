@@ -39,12 +39,14 @@ export async function withRoleUi(
   }
 }
 
-/** `goto(path)` then wait for the anchor (default `<main>`) before any layout measure. */
+/** `goto(path)`, wait for `anchor` (row's own text), then assert the named buttons are absent (only after the anchor). */
 export const openAt =
-  (path: string, anchor?: (p: Page) => ReturnType<Page['locator']>) =>
+  (path: string, anchor: (p: Page) => ReturnType<Page['locator']>, absentButtons: readonly string[] = []) =>
   async (p: Page): Promise<void> => {
     await p.goto(path);
-    await expect((anchor ? anchor(p) : p.getByRole('main')).first()).toBeVisible();
+    // Hard wait for the row's own read-only / forbidden text, so a loading / error / admin view never gets shot.
+    await expect(anchor(p).first()).toBeVisible();
+    for (const name of absentButtons) await expect(p.getByRole('button', { name, exact: true })).toHaveCount(0);
   };
 
 /**

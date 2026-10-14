@@ -11,36 +11,37 @@ test('giao diện · FL-9U-U1 · viewer · viewer bo cuc chi-doc o 4 kho', async
     const P = ROUTES.project;
     // Screen mapping follows catalog-C2 rows 9U-D-*: F-003/F-005/F-008/F-009 UNKNOWN — NEED VERIFICATION.
     await test.step('[9U-F-001] viewer upload_readonly 4 kho', async () => {
-      await uiState(page, '9U-F-001', 'upload_readonly', openAt(P.upload(projectId)), true);
+      await uiState(page, '9U-F-001', 'upload_readonly', openAt(P.upload(projectId), (p) => p.getByText(/Vai hiện tại chỉ được xem danh sách tệp/u)), true);
     });
     await test.step('[9U-F-002] viewer floors_readonly 4 kho', async () => {
-      await uiState(page, '9U-F-002', 'floors_readonly', openAt(P.floors(projectId)));
+      await uiState(page, '9U-F-002', 'floors_readonly', openAt(P.floors(projectId), (p) => p.getByRole('heading', { name: 'Không có quyền sửa tầng' })));
     });
     await test.step('[9U-F-003] viewer quality_forbidden 4 kho', async () => {
-      await uiState(page, '9U-F-003', 'quality_forbidden', openAt(P.quality(projectId)));
+      // UNKNOWN — NEED VERIFICATION: quality/pipeline forbidden sentence not in catalog; waits for a heading + blocked buttons absent.
+      await uiState(page, '9U-F-003', 'quality_forbidden', openAt(P.quality(projectId), (p) => p.getByRole('heading'), ['Tiếp tục xử lý', 'Tải bản vẽ khác']));
     });
     await test.step('[9U-F-004] viewer pipeline_forbidden 4 kho', async () => {
-      await uiState(page, '9U-F-004', 'pipeline_forbidden', openAt(P.pipeline(projectId)));
+      await uiState(page, '9U-F-004', 'pipeline_forbidden', openAt(P.pipeline(projectId), (p) => p.getByRole('heading'), ['Huỷ xử lý']));
     });
     await test.step('[9U-F-005] viewer graph_forbidden 4 kho', async () => {
-      await uiState(page, '9U-F-005', 'graph_forbidden', openAt(P.pipelineGraph(projectId)));
+      await uiState(page, '9U-F-005', 'graph_forbidden', openAt(P.pipelineGraph(projectId), (p) => p.getByText(/Chế độ chi tiết kỹ thuật chỉ mở cho vai quản trị/u)));
     });
     // PF: own project whose run FAILED (corrupt PNG); the viewer joins it; deleted in finally.
     const pf = await createFailedRunProject(admin, '9u-f-006', 'FILE_CORRUPT');
     try {
       await addProjectMember(admin, pf.projectId, user.email);
       await test.step('[9U-F-006] viewer lỗi-forbidden 4 khổ', async () => {
-        await uiState(page, '9U-F-006', 'failed_forbidden', openAt(P.pipeline(pf.projectId)));
+        await uiState(page, '9U-F-006', 'failed_forbidden', openAt(P.pipeline(pf.projectId), (p) => p.getByText(/Mã lỗi/u), ['Thử lại với ngưỡng thấp hơn', 'Tải lên bản vẽ rõ hơn', 'Bỏ qua tầng đó']));
       });
       await test.step('[9U-F-007] viewer scale forbidden (canvas + thông báo)', async () => {
-        await uiState(page, '9U-F-007', 'scale_forbidden', openAt(P.scale(projectId, floorId)));
+        await uiState(page, '9U-F-007', 'scale_forbidden', openAt(P.scale(projectId, floorId), (p) => p.getByRole('heading', { name: 'Bạn không có quyền hiệu chỉnh tỷ lệ' })));
       });
       await test.step('[9U-F-008] viewer bảng cảnh báo', async () => {
-        await uiState(page, '9U-F-008', 'quality_warnings', openAt(P.quality(projectId)));
+        await uiState(page, '9U-F-008', 'overlay_readonly_notice', openAt(P.overlay(projectId, floorId), (p) => p.getByText('Bạn chỉ được xem; việc đổi căn chỉnh dành cho người có quyền sửa.')));
       });
       await test.step('[9U-F-009] viewer cad-confirm forbidden (PC)', async () => {
         // UNKNOWN — NEED VERIFICATION: no CAD (.dxf) seed helper exists; the main-project floor stands in until createCadProject lands.
-        await uiState(page, '9U-F-009', 'cad_forbidden', openAt(P.cadConfirm(projectId, floorId)));
+        await uiState(page, '9U-F-009', 'cad_forbidden', openAt(P.cadConfirm(projectId, floorId), (p) => p.getByText(/Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý/u)));
       });
     } finally {
       await deleteSeededProject(admin, pf.projectId);

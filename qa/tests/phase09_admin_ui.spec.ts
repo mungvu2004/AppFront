@@ -8,7 +8,7 @@ test('SCR-34 · FL-9A-U1 · viewer · read-only layout', async ({ browser }) => 
   test.setTimeout(120_000);
   await withRoleUi(browser, 'viewer', 'admin', false, async ({ page }) => {
     await test.step('[9A-F-001] banner chỉ-xem 4 khổ', async () => {
-      await uiState(page, '9A-F-001', 'library_readonly', openAt(ROUTES.adminModels, (p) => p.getByRole('alert')));
+      await uiState(page, '9A-F-001', 'library_readonly', openAt(ROUTES.adminModels, (p) => p.getByText(/Vai trò của bạn chỉ xem được thư viện/u)));
     });
   });
 });
@@ -45,8 +45,8 @@ test('SCR-37 · FL-9A-U4 · viewer · forbidden alert + matrix layout', async ({
   test.setTimeout(120_000);
   await withRoleUi(browser, 'viewer', 'admin', false, async ({ page }) => {
     await test.step('[9A-F-004] cảnh báo + ma trận 4 khổ', async () => {
-      // UNKNOWN — NEED VERIFICATION: SCR-37 assumed to be the admin users screen (alert + role matrix).
-      await uiState(page, '9A-F-004', 'users_forbidden_matrix', openAt(ROUTES.adminUsers, (p) => p.getByRole('alert')));
+      // SCR-37 = ROUTES.adminUsers (router.tsx:392); alert text from useUserManagement.ts:141 (catalog 9A-D-025).
+      await uiState(page, '9A-F-004', 'users_forbidden_matrix', openAt(ROUTES.adminUsers, (p) => p.getByText(/Vai của bạn chưa quản lý được người dùng/u)));
     });
   });
 });
