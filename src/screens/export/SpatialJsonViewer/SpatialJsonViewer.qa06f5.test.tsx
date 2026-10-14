@@ -74,6 +74,16 @@ describe('31-A-023 tải xuống .json', () => {
   });
 });
 
+describe('31-B-006 trạng thái rỗng không có nút tải xuống', () => {
+  it('đồ thị không có thực thể nào thì canDownload = false', () => {
+    const empty = { ...GRAPH, walls: [], openings: [], rooms: [], furniture: [], axes: [], dimensions: [], notes: [] };
+    const { result } = renderHook(() => useSpatialJsonViewer({ ...baseOptions, graph: empty as typeof GRAPH }));
+
+    expect(result.current[0].state).toBe('empty');
+    expect(result.current[0].canDownload).toBe(false);
+  });
+});
+
 describe('31-C-006 bộ đếm kết quả', () => {
   it('gõ từ khoá chọn kết quả 1; "Kết quả sau" sang 2', () => {
     const { result } = renderHook(() => useSpatialJsonViewer(baseOptions));

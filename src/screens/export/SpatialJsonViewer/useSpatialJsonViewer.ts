@@ -305,7 +305,7 @@ export function useSpatialJsonViewer(options: UseSpatialJsonViewerOptions): UseS
 
   const model: SpatialJsonViewerModel = {
     activeTabId,
-    canDownload: canView && graph !== null,
+    canDownload: canView && graph !== null && state !== 'empty',
     counts,
     countsLabel: describeCounts(counts),
     errorMessage,
