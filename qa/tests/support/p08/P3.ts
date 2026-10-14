@@ -159,7 +159,7 @@ export async function mockTraining(page: Page, state: { mode: 'ok' | '500'; jobs
     const path = new URL(req.url()).pathname;
     if (req.method() === 'POST' && path.endsWith('/cancel')) {
       state.cancels += 1;
-      return route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ code: 'TRAINING_JOB_NOT_CANCELLABLE', detail: 'qa-p08 mocked 409' }) });
+      return route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ code: 'TRAINING_JOB_NOT_CANCELLABLE', requestId: 'qa-p08-mock' }) });
     }
     if (req.method() !== 'GET') return route.fallback();
     if (state.mode === '500') return fail500(route);
