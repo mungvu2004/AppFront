@@ -82,7 +82,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { createId, displayCodesOf, type EntityKind, type IdByKind } from '@/domain/spatial/ids';
+import {
+  createId,
+  displayCodesOf,
+  keepDisplayCodes,
+  sortByDisplayCode,
+  type EntityKind,
+  type IdByKind,
+} from '@/domain/spatial/ids';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { NormalizedSpatial } from '@/domain/spatial/normalize';
 import type { EntityId, Level, LevelId, Point, Wall, WallId } from '@/domain/spatial/types';
@@ -104,6 +111,7 @@ import { applyInvalidation } from '@/lib/query/invalidation';
 import { queryKeys } from '@/lib/query/queryKeys';
 import { durationMs } from '@/lib/motion';
 import { shortcutForTool } from '@/lib/tools/shortcuts';
+import { newestEntryId, undoIfNewest } from '@/lib/commands/history';
 import { createToolState, reduceTool, DEFAULT_TOOL_SETTINGS } from '@/lib/tools/toolMachine';
 import type {
   ToolContext,
@@ -213,7 +221,7 @@ export const WALL_LAYER_TEXT = {
     'Chưa phát hiện được đoạn tường nào ở tầng này. Bạn có thể vẽ tường thủ công bằng phím W, hoặc chạy lại với ngưỡng thấp hơn.',
   viewerRoleNotice:
     'Bạn đang xem với vai người xem, nên không duyệt hay sửa được đoạn tường nào. Nhờ người có quyền sửa dự án duyệt giúp.',
-  mergeLabel: 'nối đoạn',
+  mergeLabel: 'Nối đoạn',
   mergeDescription: 'Nối hai đoạn tường đang chọn thành một.',
   /** Nhãn ô đánh dấu bật/tắt tim tường (BC-17). */
   centrelinesLabel: 'Hiện tim tường',
@@ -333,6 +341,8 @@ export interface UseWallLayerReviewResult extends WallLayerReviewProps {
  * viết đúng một chỗ (R-71).
  */
 const WALL_DELETE_NOTIFICATION_TYPE = 'wallLayerReview.deleteWall';
+/** Toast "Hoàn tác" bị từ chối vì đã có bước mới hơn (BUG-579). */
+const WALL_UNDO_REFUSED_NOTIFICATION_TYPE = 'wallLayerReview.undoRefused';
 
 /** Ba cờ lọc lúc mở màn: chưa lọc gì. */
 const NO_FILTERS: WallLayerFilters = {
@@ -681,8 +691,34 @@ export function useWallLayerReview(
   const level = useMemo(() => levelOf(graph, options.levelId), [graph, options.levelId]);
   const levelId = level?.id ?? null;
   const walls = useMemo(() => wallsOfLevel(graph, levelId), [graph, levelId]);
-  /* Nhãn tường tính trên mọi tường của tầng, nên không trùng dù mã BE hay mã A14. */
-  const wallCodes = useMemo(() => displayCodesOf(walls.map((wall) => wall.id)), [walls]);
+  /*
+   * Nhãn tường tính trên mọi tường của tầng, nên không trùng dù mã BE hay mã A14 — và GIỮ
+   * nhãn đã hiện trong phiên (BUG-592): xoá #W-005 không làm #W-006 thành #W-005.
+   */
+  const shownWallCodesRef = useRef<{ readonly levelId: string | null; codes: ReadonlyMap<string, string> }>({
+    levelId: null,
+    codes: new Map(),
+  });
+  const wallCodes = useMemo(() => {
+    const shown = shownWallCodesRef.current;
+    const previous = shown.levelId === levelId ? shown.codes : new Map<string, string>();
+    const codes = keepDisplayCodes(previous, displayCodesOf(walls.map((wall) => wall.id)));
+
+    shownWallCodesRef.current = { levelId, codes };
+
+    return codes;
+  }, [levelId, walls]);
+
+  /* Ngưỡng của dự án, không hằng 0,70 (BUG-354, như FIX-1603). */
+  const confidenceThreshold = useProjectConfidenceThreshold(projectId, gateway.readConfidenceThreshold);
+  /*
+   * Danh sách đã lọc, xếp theo mã hiển thị (BUG-592). Đây cũng là thứ tự J/K và tự chuyển sau
+   * "Duyệt"/"Bỏ qua" đi theo, nên tự chuyển không nhảy ra khỏi bộ lọc đang bật (BUG-581).
+   */
+  const visibleWalls = useMemo(
+    () => sortByDisplayCode(applyWallFilters(walls, filters, confidenceThreshold), wallCodes),
+    [confidenceThreshold, filters, wallCodes, walls],
+  );
 
   /* ---------------------------------------------------------------------- */
   /* Cổng ghi — `dispatch` chạy qua `commit`, hoàn tác 100 bước của S-06.     */
@@ -846,13 +882,13 @@ export function useWallLayerReview(
       const current = useStore.getState().spatial;
 
       if (!canEdit || current === null) {
-        return;
+        return false;
       }
 
       const command = build(commandContextOf(current, gateway.actorId));
 
       if (command === null) {
-        return;
+        return false;
       }
 
       const result = await runWallCommand(command, dispatchBundle);
@@ -860,6 +896,8 @@ export function useWallLayerReview(
       if (result.ok) {
         invalidate();
       }
+
+      return result.ok;
     },
     [canEdit, dispatchBundle, gateway, invalidate],
   );
@@ -873,7 +911,7 @@ export function useWallLayerReview(
       }
 
       /* Tự chuyển mục: tìm tường chưa duyệt kế tiếp TRƯỚC khi tường này đổi cờ. */
-      const nextId = nextUnreviewedWallId(walls, wallId);
+      const nextId = nextUnreviewedWallId(visibleWalls, wallId);
 
       void run(() => buildApproveWallCommand(wall, gateway.actorId, wallCodes)).then(() => {
         if (nextId !== null && nextId !== wallId) {
@@ -881,18 +919,32 @@ export function useWallLayerReview(
         }
       });
     },
-    [gateway, onSelect, run, wallById, wallCodes, walls],
+    [gateway, onSelect, run, visibleWalls, wallById, wallCodes],
+  );
+
+  /* G74: hàng danh sách xin mở menu bằng phím — chọn tường, canvas mở menu của nó. */
+  const [menuRequest, setMenuRequest] = useState<{ readonly wallId: WallId; readonly seq: number } | null>(null);
+  const onOpenRowMenu = useCallback(
+    (wallId: WallId) => {
+      if (isViewerRole) {
+        return;
+      }
+
+      onSelect(wallId);
+      setMenuRequest((previous) => ({ wallId, seq: (previous?.seq ?? 0) + 1 }));
+    },
+    [isViewerRole, onSelect],
   );
 
   const onSkip = useCallback(
     (wallId: WallId) => {
-      const nextId = nextUnreviewedWallId(walls, wallId);
+      const nextId = nextUnreviewedWallId(visibleWalls, wallId);
 
       if (nextId !== null && nextId !== wallId) {
         onSelect(nextId);
       }
     },
-    [onSelect, walls],
+    [onSelect, visibleWalls],
   );
 
   const onChangeThickness = useCallback(
@@ -990,15 +1042,27 @@ export function useWallLayerReview(
         const result = buildDeleteWallCommand({ wallId }, context);
 
         return result.ok ? result.data : null;
-      }).then(() => {
+      }).then((deleted) => {
+        if (!deleted) {
+          return;
+        }
+
+        /* BUG-579: vé giữ đúng bước của lượt xoá này, không "bước trên cùng" lúc bấm. */
+        const entryId = newestEntryId(dispatchBundle.history);
         const ticket = createWallUndoTicket({
           wallId,
           wallCodes,
           now: gateway.now,
           undo: () => {
-            applyUndo();
-            /* Mục quay lại thì nháy nền — cờ do hook trả ra, view lo phần hiện. */
-            setFlashingWallId(wallId);
+            const refused = undoIfNewest(dispatchBundle.history, entryId, () => {
+              applyUndo();
+              /* Mục quay lại thì nháy nền — cờ do hook trả ra, view lo phần hiện. */
+              setFlashingWallId(wallId);
+            });
+
+            if (refused !== null) {
+              notifications.publish({ type: WALL_UNDO_REFUSED_NOTIFICATION_TYPE, title: refused, description: '' });
+            }
           },
         });
 
@@ -1024,7 +1088,7 @@ export function useWallLayerReview(
         });
       });
     },
-    [applyUndo, gateway, notifications, run, wallCodes],
+    [applyUndo, dispatchBundle, gateway, notifications, run, wallCodes],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -1184,13 +1248,6 @@ export function useWallLayerReview(
       total: walls.length,
     }),
     [walls],
-  );
-
-  /* Ngưỡng của dự án, không hằng 0,70 (BUG-354, như FIX-1603). */
-  const confidenceThreshold = useProjectConfidenceThreshold(projectId, gateway.readConfidenceThreshold);
-  const visibleWalls = useMemo(
-    () => applyWallFilters(walls, filters, confidenceThreshold),
-    [confidenceThreshold, filters, walls],
   );
 
   const rows = useMemo<readonly WallRowViewModel[]>(
@@ -1389,7 +1446,26 @@ export function useWallLayerReview(
       description: WALL_LAYER_TEXT.shortcutTool,
       onTrigger: () => activateTool('measure'),
     },
-    shortcutOptions,
+    /* Canvas người xem không nhận lượt bấm — công cụ đo không đo được gì (BUG-601). */
+    { ...shortcutOptions, enabled: canEdit },
+  );
+  const onRequestSplitRef = useRef<(wallId: WallId) => void>(() => undefined);
+  /* BUG-604: "Tách đoạn" có phím X như `TOOL_SHORTCUTS`; có tường đang chọn thì điền luôn bước đầu. */
+  useShortcut(
+    {
+      id: 'wallLayerReview.tool.splitWall',
+      combo: shortcutForTool('splitWall'),
+      scope: 'canvas',
+      description: WALL_LAYER_TEXT.shortcutTool,
+      onTrigger: () => {
+        if (selectedRef.current === null) {
+          activateTool('splitWall');
+        } else {
+          onRequestSplitRef.current(selectedRef.current);
+        }
+      },
+    },
+    { ...shortcutOptions, enabled: canEdit },
   );
 
   /* ---------------------------------------------------------------------- */
@@ -1397,7 +1473,7 @@ export function useWallLayerReview(
   /* ---------------------------------------------------------------------- */
 
   const selectedWallIds = useMemo(
-    () => selectedIds.filter((id) => walls.some((wall) => wall.id === id)),
+    () => selectedIds.flatMap((id) => walls.find((wall) => wall.id === id)?.id ?? []),
     [selectedIds, walls],
   );
   const mergePair = selectedWallIds.length === 2 ? selectedWallIds : null;
@@ -1717,14 +1793,17 @@ export function useWallLayerReview(
       cursorLabel: cursorLabelOf(pointerReading, scaleOfLevel(level)),
       scaleLabel: formatScaleLabel(level),
       saveLabel: saveIndicator.label,
+      saveFailed: saveIndicator.state === 'failed',
     }),
-    [level, pointerReading, saveIndicator.label],
+    [level, pointerReading, saveIndicator.label, saveIndicator.state],
   );
 
-  /** Menu chuột phải "Đổi độ dày": đưa tường vào thanh tra, nơi có ba lựa chọn. */
+  /** Menu chuột phải "Đổi độ dày": đưa tường vào thanh tra, và focus vào ba lựa chọn (BUG-604). */
+  const [thicknessFocusRequest, setThicknessFocusRequest] = useState(0);
   const onRequestThicknessChange = useCallback(
     (wallId: WallId) => {
       onSelect(wallId);
+      setThicknessFocusRequest((count) => count + 1);
     },
     [onSelect],
   );
@@ -1745,6 +1824,7 @@ export function useWallLayerReview(
     },
     [activateTool, onSelect, sendToolInput],
   );
+  onRequestSplitRef.current = onRequestSplit;
 
   const onToggleFilter = useCallback((filter: WallLayerFilterKey) => {
     setFilters((previous) => ({ ...previous, [filter]: !previous[filter] }));
@@ -1757,6 +1837,7 @@ export function useWallLayerReview(
     reviewProgressLabel: progressLabel,
     filters,
     thicknessChoices: WALL_LAYER_THICKNESS_CHOICES,
+    thicknessFocusRequest,
     selectedWallId,
     hoveredWallId: hoveredId as WallId | null,
     inspector,
@@ -1768,6 +1849,7 @@ export function useWallLayerReview(
     errorMessage,
     onApprove,
     onSkip,
+    onOpenRowMenu,
     onChangeThickness,
     onDelete,
     onSplit,
@@ -1809,6 +1891,8 @@ export function useWallLayerReview(
   const canvas: WallLayerCanvasViewProps = {
     shapes,
     selectedWallId,
+    selectedWallIds,
+    menuRequest,
     hoveredWallId: (hoveredId as WallId | null) ?? null,
     showCentrelines,
     millimetresPerPixel: level?.scaleMillimetresPerPixel ?? UNCALIBRATED_SCALE,

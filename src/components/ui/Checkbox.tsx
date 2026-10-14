@@ -3,12 +3,14 @@ import { motion } from '../motion';
 import { cn } from '../../lib/utils';
 import { durationSeconds } from '../../lib/motion';
 
-export interface CheckboxProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange'> {
+export interface CheckboxProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'size'> {
   checked?: boolean;
   indeterminate?: boolean;
   onChange?: (checked: boolean) => void;
   label?: string;
   error?: boolean;
+  /** `sm` = nhãn 13 px, ngang nav/cây lớp của panel bên (BUG-614). Mặc định `md` 15 px. */
+  size?: 'sm' | 'md';
 }
 
 export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Checkbox(
@@ -21,6 +23,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
     label,
     id,
     error,
+    size = 'md',
     className = '',
     ...props
   },
@@ -96,7 +99,13 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
       </div>
       
       {label && (
-        <span className={cn('ml-2 text-[15px] leading-[24px] select-none', disabled ? 'text-text-muted' : 'text-text-primary')}>
+        <span
+          className={cn(
+            'ml-2 select-none',
+            size === 'sm' ? 'text-[13px] leading-[20px]' : 'text-[15px] leading-[24px]',
+            disabled ? 'text-text-muted' : 'text-text-primary'
+          )}
+        >
           {label}
         </span>
       )}

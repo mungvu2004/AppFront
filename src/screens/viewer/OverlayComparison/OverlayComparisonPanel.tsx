@@ -51,9 +51,10 @@ const DEVIATION_LIST_LABEL = 'Danh sách vùng lệch';
 const HEADER_REFERENCE = 'Vị trí tham chiếu';
 const HEADER_DEVIATION = 'độ lệch';
 const HEADER_OBJECT = 'đối tượng';
-const MEASURING_NOTICE = 'Chưa đo được vùng lệch nào.';
 const NO_DEVIATIONS_NOTICE = 'Không có vùng lệch nào được ghi nhận.';
 const CONFIRM_BADGE_LABEL = 'Đã duyệt';
+/** Ba ô gạch ngang nổi hơn cả nhãn của chúng: chưa đo thì một dòng nói thẳng (BUG-331, AES-13). */
+const UNMEASURED_NOTICE = 'Chưa có số đo — cần căn ảnh quét vào mô hình trước.';
 
 /** Bốn lớp chung của mọi panel 344 trong repo — `HistoryPanel.chrome.tsx:91-92`. */
 const PANEL_CLASS =
@@ -93,8 +94,10 @@ function OverToleranceStat({ count, label }: { readonly count: number | null; re
       <span aria-hidden="true" className={METRIC_NUMBER_CLASS}>
         {displayText}
       </span>
+      {/* Nhãn không mang dấu giá trị: '— số vùng vượt ngưỡng' cũ thừa gạch (BUG-331). */}
       <p className="text-[13px] text-text-secondary" role="status">
-        {count === null ? '—' : count} {label}
+        {label}
+        {count === null ? null : <span className="sr-only">: {count}</span>}
       </p>
     </div>
   );
@@ -110,14 +113,22 @@ export function OverlayComparisonPanel({
   onSetToleranceMm,
   onSelectRegion,
   onConfirmMatch,
+  notice,
 }: OverlayComparisonPanelProps) {
+  const isUnmeasured = metrics.overToleranceCount === null;
+
   return (
     <div aria-label={PANEL_LABEL} className={PANEL_CLASS} role="region">
-      <div className="grid grid-cols-3 gap-2 px-4 pt-4">
-        <MetricStat label={metrics.labels.mean} valueText={metrics.meanText} />
-        <MetricStat label={metrics.labels.max} valueText={metrics.maxText} />
-        <OverToleranceStat count={metrics.overToleranceCount} label={metrics.labels.overTolerance} />
-      </div>
+      {notice === undefined ? null : <div className="px-4 pt-4">{notice}</div>}
+      {isUnmeasured ? (
+        <p className="px-4 pt-4 text-[13px] text-text-secondary">{UNMEASURED_NOTICE}</p>
+      ) : (
+        <div className="grid grid-cols-3 gap-2 px-4 pt-4">
+          <MetricStat label={metrics.labels.mean} valueText={metrics.meanText} />
+          <MetricStat label={metrics.labels.max} valueText={metrics.maxText} />
+          <OverToleranceStat count={metrics.overToleranceCount} label={metrics.labels.overTolerance} />
+        </div>
+      )}
 
       <div className="px-4 pt-4">
         <NumericField
@@ -136,9 +147,10 @@ export function OverlayComparisonPanel({
 
       <div className="min-h-0 flex-1 px-2 pt-3">
         {rows.length === 0 ? (
-          <p className="px-2 py-4 text-[13px] text-text-secondary">
-            {metrics.overToleranceCount === null ? MEASURING_NOTICE : NO_DEVIATIONS_NOTICE}
-          </p>
+          /* Chưa đo thì dòng trên đã nói; không lặp lần hai ở đây. */
+          isUnmeasured ? null : (
+            <p className="px-2 py-4 text-[13px] text-text-secondary">{NO_DEVIATIONS_NOTICE}</p>
+          )
         ) : (
           <Table.Root aria-label={DEVIATION_LIST_LABEL}>
             <Table.Header>
@@ -189,6 +201,9 @@ export function OverlayComparisonPanel({
         >
           {confirmation.buttonLabel}
         </Button>
+        {confirmation.disabledReason !== null && (
+          <p className="text-[12px] text-text-muted">{confirmation.disabledReason}</p>
+        )}
         {confirmation.confirmedNotice !== null && (
           <div className="flex items-start gap-2">
             <Badge className="shrink-0" variant="verified">{CONFIRM_BADGE_LABEL}</Badge>

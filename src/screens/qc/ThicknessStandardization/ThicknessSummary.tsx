@@ -6,21 +6,14 @@
  * chạm store/hook/mạng. Bốn số chạy khi đổi bằng `useCountUp` (bản React ở
  * `src/hooks/`, KHÔNG phải bản thuần `src/lib/motion/useCountUp.ts`).
  *
- * ## Vì sao "lệch quá dung sai" đổi màu khi về 0
+ * ## Vì sao không con số nào mang xanh "đã xác minh"
  *
- * `summary.exceedingToleranceCount === 0` là SỰ THẬT có thể đọc thẳng từ prop
- * duy nhất của component này — không cần biết `ThicknessScreenState` (kiểu đó
- * không có trong `ThicknessSummaryProps`). Ô này chuyển sang tông
- * `state-verified-text` khi về 0 VÀ còn đoạn để đếm (`segmentCount > 0`), để
- * tránh trường hợp rỗng (0/0) trông giống một cột mốc đã đạt. Đây KHÔNG phải
- * `Badge variant="verified"` hay bất kỳ tuyên bố "đã được người duyệt xác
- * nhận" nào cho một bức tường cụ thể (A5 chỉ cấm đúng việc đó) — chỉ là một
- * tông màu tích cực cho MỘT con số tổng hợp đã về 0, giống cách một bảng điều
- * khiển tô xanh dòng "còn 0 lỗi".
+ * Bốn số là kết quả máy đếm, không phải việc người duyệt xác nhận: A5 dành xanh đó cho người
+ * duyệt, nên cả bốn số dùng `text-text-primary` (BUG-611). Nhãn chỉ in chữ — con số đã đứng
+ * ngay trên nó; trình đọc màn hình nghe số qua phần `sr-only` (BUG-340).
  */
 
 import { useCountUp } from '@/hooks/useCountUp';
-import { cn } from '@/lib/utils';
 
 import {
   THICKNESS_SUMMARY_LABELS,
@@ -34,49 +27,41 @@ const COUNT_FORMAT = { fractionDigits: 0 };
 interface SummaryStatProps {
   readonly value: number;
   readonly label: string;
-  readonly isPositive: boolean;
 }
 
-function SummaryStat({ value, label, isPositive }: SummaryStatProps) {
+function SummaryStat({ value, label }: SummaryStatProps) {
   const { text } = useCountUp(value, { format: COUNT_FORMAT });
 
   return (
     <div className="flex flex-col gap-1">
-      <span
-        aria-hidden="true"
-        className={cn(
-          'font-mono text-[24px] font-semibold leading-none tabular-nums',
-          isPositive ? 'text-state-verified-text' : 'text-text-primary',
-        )}
-      >
+      <span aria-hidden="true" className="font-mono text-[24px] font-semibold leading-none tabular-nums text-text-primary">
         {text}
       </span>
       <p className="text-[13px] text-text-secondary" role="status">
-        {value} {label}
+        <span className="sr-only">{value} </span>
+        {label}
       </p>
     </div>
   );
 }
 
+const STAT_KEYS: readonly (keyof ThicknessSummaryData)[] = [
+  'segmentCount',
+  'normalizedCount',
+  'exceedingToleranceCount',
+  'concreteColumnCount',
+];
+
 export function ThicknessSummary({ summary }: ThicknessSummaryProps) {
-  const isFullyStandardized = summary.segmentCount > 0 && summary.exceedingToleranceCount === 0;
-
-  const stats: readonly { key: keyof ThicknessSummaryData; isPositive: boolean }[] = [
-    { key: 'segmentCount', isPositive: false },
-    { key: 'normalizedCount', isPositive: false },
-    { key: 'exceedingToleranceCount', isPositive: isFullyStandardized },
-    { key: 'concreteColumnCount', isPositive: false },
-  ];
-
   return (
-    <div aria-label={SUMMARY_GROUP_LABEL} className="flex flex-wrap items-start gap-6" role="group">
-      {stats.map((stat) => (
-        <SummaryStat
-          isPositive={stat.isPositive}
-          key={stat.key}
-          label={THICKNESS_SUMMARY_LABELS[stat.key]}
-          value={summary[stat.key]}
-        />
+    // Một thẻ như các khối khác của màn, bốn ô (hai ô dưới 640 px) — hàng số trơ là BUG-611.
+    <div
+      aria-label={SUMMARY_GROUP_LABEL}
+      className="grid grid-cols-2 gap-4 rounded-[12px] bg-bg-surface p-4 shadow-panel sm:grid-cols-4"
+      role="group"
+    >
+      {STAT_KEYS.map((key) => (
+        <SummaryStat key={key} label={THICKNESS_SUMMARY_LABELS[key]} value={summary[key]} />
       ))}
     </div>
   );

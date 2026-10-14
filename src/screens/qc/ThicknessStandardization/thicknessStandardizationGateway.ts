@@ -389,14 +389,24 @@ export function sortThresholds(thresholds: readonly number[]): ThicknessThreshol
   ];
 }
 
-/** Ba ngưỡng với ngưỡng thứ `index` nhận giá trị mới, rồi sắp lại tăng dần. */
+/**
+ * Ba ngưỡng với ngưỡng thứ `index` nhận giá trị mới, KẸP giữa hai ngưỡng kề (cách một bậc cột).
+ *
+ * Kéo qua ngưỡng bên cạnh từng sắp lại cả bộ, nên thanh đang kéo "đẩy" thanh kia đi và đổi nhãn
+ * giữa chừng (BUG-606). Kẹp thì thứ tự không bao giờ đảo, và hai đầu ngoài không có giới hạn ở đây
+ * — trục của biểu đồ giữ chúng.
+ */
 export function withThresholdAt(
   thresholds: ThicknessThresholds,
   index: number,
   thresholdMm: number,
 ): ThicknessThresholds {
+  const low = (thresholds[index - 1] ?? Number.NEGATIVE_INFINITY) + HISTOGRAM_BIN_MM;
+  const high = (thresholds[index + 1] ?? Number.POSITIVE_INFINITY) - HISTOGRAM_BIN_MM;
+  const clamped = Math.min(Math.max(thresholdMm, low), high);
+
   return sortThresholds(
-    thresholds.map((current, position) => (position === index ? thresholdMm : current)),
+    thresholds.map((current, position) => (position === index ? clamped : current)),
   );
 }
 
@@ -498,14 +508,6 @@ export interface ToSegmentRowOptions {
   readonly thresholds: ThicknessThresholds;
   readonly toleranceMm: number;
   readonly levels: ReadonlyMap<LevelId, Level>;
-  /**
-   * Nhóm do người duyệt tự chọn cho từng đoạn, đè lên gợi ý của M-05.
-   *
-   * Đây là một lượt SỬA GỢI Ý, không phải một lượt ghi: nó chỉ đổi dòng bảng,
-   * và chỉ tới lúc bấm áp mới thành lệnh. Vắng mặt thì mọi đoạn theo đúng
-   * {@link groupOfMeasurement}.
-   */
-  readonly groupOverrides?: ReadonlyMap<WallId, ThicknessGroup>;
   /** Nhãn người đọc của mọi tường (`displayCodesOf`, B-V6-09), không có dấu `#`. */
   readonly codes: ReadonlyMap<string, string>;
 }
@@ -518,9 +520,7 @@ const lengthLabel = (valueMm: number): string =>
 
 /** Một đoạn tường thành một dòng bảng, không còn phép tính nào cho view. */
 export function toSegmentRow(wall: Wall, options: ToSegmentRowOptions): ThicknessSegmentRow {
-  const group =
-    options.groupOverrides?.get(wall.id) ??
-    groupOfMeasurement(wall.thicknessMm, options.thresholds);
+  const group = groupOfMeasurement(wall.thicknessMm, options.thresholds);
   const deviationMm = deviationOf(wall.thicknessMm, group);
   const standardMm = standardValueOf(group);
   const exceedsTolerance = deviationMm > options.toleranceMm;

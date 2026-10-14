@@ -22,7 +22,7 @@
  *
  * | `state`     | vẽ ở đâu                                                             |
  * |-------------|----------------------------------------------------------------------|
- * | `empty`     | cột trái: `EmptyState` mang `emptyNotice`, nút "Suy ra từ tường bao"  |
+ * | `empty`     | cột trái: `EmptyState` mang `emptyNotice`, nút "Thêm trục ngang"      |
  * | `loading`   | cột trái: sáu dòng `Skeleton`; canvas vẫn vẽ khung rỗng của nó        |
  * | `partial`   | mặc định — danh sách trục cộng hai mục của cột phải                   |
  * | `error`     | cột trái: `InlineAlert` + nút "Thử lại"; canvas VẪN xem được          |
@@ -44,9 +44,12 @@
  * đọc `aria-live` mà hook đã phát lúc bị chặn.
  */
 
+import { Grid3x3 } from 'lucide-react';
+
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
+import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
@@ -85,6 +88,10 @@ export interface AxisGridManagerViewProps
   /** Toạ độ thô của canvas; container gắn nhãn `Pixels` trước khi vào hook. */
   readonly onAxisDrag: AxisGridCanvasProps['onAxisDrag'];
   readonly spacingMessage: string | null;
+  /** BUG-578: câu "chỉ giữ trong phiên" — `null` ở vai chỉ xem. */
+  readonly unsavedNotice: string | null;
+  /** BUG-594/601: vì sao "Căn chỉnh tự động" bị khoá; `null` khi bấm được. */
+  readonly autoAlignBlockedReason: string | null;
   /** Đọc lớp hỏng khi chưa có tài liệu → cả màn là một trạng thái lỗi (BUG-326). */
   readonly readFailure?: FloorLayerReadFailure | null | undefined;
 }
@@ -99,7 +106,8 @@ const SCREEN_DESCRIPTION =
   'Kiểm tra các trục nằm trùng khớp giữa các tầng và điều chỉnh khoảng cách nếu cần.';
 const CANVAS_SECTION_LABEL = 'Khung xem bản vẽ quản lý trục và gốc toạ độ';
 const EMPTY_TITLE = 'Chưa có trục nào';
-const EMPTY_ACTION_LABEL = 'Suy ra từ tường bao';
+/** BUG-594: nút làm được việc — "Suy ra từ tường bao" ở đây không bao giờ suy ra được gì. */
+const EMPTY_ACTION_LABEL = 'Thêm trục ngang';
 const ERROR_TITLE = 'Không tính được trục';
 const ERROR_ACTION_LABEL = 'Thử lại';
 const FORBIDDEN_TITLE = 'Không có quyền sửa trục';
@@ -112,13 +120,6 @@ const CANVAS_ERROR_NOTICE = 'Chưa vẽ được trục vì lớp trục của t
 
 /** Sáu dòng khung xương của cột trái lúc đang tải — hai nhóm trục, ba hàng mỗi nhóm. */
 const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
-
-/** Nút chữ của màn: cùng khuôn nút bung bảng của `DimensionOcrReview` (A1, A2). */
-const LINK_CLASS_NAME = cn(
-  'self-center rounded-[6px] px-1.5 py-0.5 text-[13px] text-accent',
-  'transition-colors duration-120 hover:bg-accent-wash',
-  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-);
 
 /** Khung chung của cột trái, để ba nhánh thay thế không mỗi chỗ một bề rộng. */
 const LEFT_COLUMN_CLASS_NAME =
@@ -137,6 +138,8 @@ function AxisGridLeftColumn({
   onRetry,
   onViewOnDrawing,
 }: AxisGridManagerViewProps) {
+  const isViewerRole = viewModel.isViewerRole;
+
   if (viewModel.errorMessage !== null) {
     return (
       <div className={LEFT_COLUMN_CLASS_NAME}>
@@ -154,9 +157,9 @@ function AxisGridLeftColumn({
     return (
       <div className={LEFT_COLUMN_CLASS_NAME}>
         <EmptyState
-          action={{ label: EMPTY_ACTION_LABEL, onClick: onRetry }}
+          {...(isViewerRole ? {} : { action: { label: EMPTY_ACTION_LABEL, onClick: () => onAxisAdd('horizontal') } })}
           description={viewModel.emptyNotice}
-          icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-bg-sunken" />}
+          icon={<Grid3x3 />}
           title={EMPTY_TITLE}
         />
       </div>
@@ -221,7 +224,9 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
   return (
     <div
       aria-label={SCREEN_TITLE}
-      className="flex h-full min-h-0 w-full flex-col bg-bg-app"
+      // Cao bằng khung nhìn: route nằm trong `ScreenMain` (display: contents) nên `h-full` không có chiều cao
+      // để bám, panel trục không bao giờ cuộn và cả trang dài ra (G20) — cùng cách SCR-16/17.
+      className="flex h-screen min-h-0 w-full flex-col bg-bg-app"
       role="region"
     >
       <header className="shrink-0 px-4 pb-1 pt-3">
@@ -229,6 +234,13 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
         <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
         <p className="text-[13px] text-text-secondary">{SCREEN_DESCRIPTION}</p>
       </header>
+
+      {/* BUG-578: nói thật, cố định — chưa có chỗ lưu lưới trục lên máy chủ. */}
+      {props.unsavedNotice === null ? null : (
+        <div className="shrink-0 px-4 pb-1">
+          <InlineAlert level="attention" message={props.unsavedNotice} role="note" />
+        </div>
+      )}
 
       {/* Câu chặn 100 mm — nói ra ngay, và không lật màn sang trạng thái lỗi. */}
       {spacingMessage === null ? null : (
@@ -267,9 +279,20 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
 
         {isCollapsed ? (
           <div className="flex shrink-0 items-start justify-end p-1">
-            <button className={LINK_CLASS_NAME} onClick={props.onToggleCollapsed} type="button">
+            <Button onClick={props.onToggleCollapsed} size="sm" type="button" variant="secondary">
               {EXPAND_PANEL_LABEL}
-            </button>
+            </Button>
+          </div>
+        ) : viewModel.state === 'loading' ? (
+          /* Đang tải: khung xương, không in "0 px / 0 mm" và danh sách tầng như dữ liệu thật (BUG-618). */
+          <div aria-hidden="true" className="flex w-[344px] shrink-0 flex-col gap-2 max-lg:w-full">
+            {[0, 1].map((card) => (
+              <div className="flex flex-col gap-2 rounded-[12px] bg-bg-surface p-5 shadow-panel" key={card}>
+                {SKELETON_ROWS.slice(0, 3).map((row) => (
+                  <Skeleton key={row} preset="table-row" />
+                ))}
+              </div>
+            ))}
           </div>
         ) : (
           <div className="flex h-full min-h-0 shrink-0 flex-col gap-2 overflow-y-auto max-lg:h-auto max-lg:overflow-visible">
@@ -279,6 +302,7 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
               unavailableNotice={hasNoAxis ? ORIGIN_UNAVAILABLE_NOTICE : null}
             />
             <AxisGridFloorAlignList
+              blockedReason={props.autoAlignBlockedReason}
               floors={viewModel.floors}
               onAutoAlign={props.onAutoAlign}
               onFloorRowHover={props.onFloorRowHover}

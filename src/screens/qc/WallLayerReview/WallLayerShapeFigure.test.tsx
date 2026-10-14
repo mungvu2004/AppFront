@@ -19,6 +19,7 @@ const SHAPE = {
   boundsPx: { x: 0, y: 0, width: 4000, height: 200 },
   attentionDotPx: { x: 2000, y: 100 },
   isLowConfidence: true,
+  isReviewed: false,
 } as unknown as WallLayerCanvasShape;
 
 /* Tầng chưa hiệu chỉnh vừa khung ở hệ số ~0,05: 1 px màn = 20 px bản vẽ (review-1 #3). */

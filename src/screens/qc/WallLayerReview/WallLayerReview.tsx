@@ -118,18 +118,26 @@ export function WallLayerReview({
   provisionalScaleNotice,
   readFailure,
 }: WallLayerReviewViewProps) {
-  const isCollapsed = panel.state === 'collapsed';
+  /*
+   * Cờ của vỏ màn, không `state`: ở vai người xem `forbidden` đứng trước `collapsed`, nên nút
+   * thu gọn đổi nhãn mà hai panel không thu (BUG-601).
+   */
+  const isCollapsed = toolRail.isCollapsed;
 
   if (readFailure != null) {
     return (
-      <div aria-label={SCREEN_ARIA_LABEL} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+      <div aria-label={SCREEN_ARIA_LABEL} className="flex h-screen min-h-0 w-full flex-col bg-bg-app" role="region">
         <FloorLayerReadFailureScreen failure={readFailure} />
       </div>
     );
   }
 
+  /*
+   * Cao bằng khung nhìn (BUG-324): route nằm trong `ScreenMain` (display: contents) nên `h-full`
+   * không có chiều cao nào để bám, và thanh trạng thái trôi lên giữa trang — cùng cách SCR-22.
+   */
   return (
-    <div aria-label={SCREEN_ARIA_LABEL} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+    <div aria-label={SCREEN_ARIA_LABEL} className="flex h-screen min-h-0 w-full flex-col bg-bg-app" role="region">
       {saveBlock != null && (
         <div className="px-2 pt-2">
           <FloorLayerSaveBanner saveBlock={saveBlock} />

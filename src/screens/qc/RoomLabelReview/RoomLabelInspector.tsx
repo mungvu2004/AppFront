@@ -69,6 +69,7 @@ export type RoomLabelInspectorExtras = Pick<
   | 'areaCaption'
   | 'mergeCandidates'
   | 'nameSuggestions'
+  | 'onNavigateToWalls'
   | 'splitPointMm'
   | 'usageOptions'
   | 'viewerRoleNotice'
@@ -86,8 +87,17 @@ const APPROVE_LABEL = 'Duyệt phòng này';
 const APPROVED_BADGE = 'Đã duyệt';
 const MERGE_LABEL = 'Gộp phòng';
 const SPLIT_LABEL = 'Tách phòng';
-const SPLIT_MISSING_POINT =
-  'Bấm lên ranh phòng trên bản vẽ để chọn điểm cắt, rồi quay lại đây để tách phòng.';
+/*
+ * Điểm cắt chỉ đến từ một đoạn tường chia phòng, không từ một cú bấm lên ranh (BUG-586): câu chỉ
+ * đúng đường, và nút ngay dưới đi tới đó — cũng là lối ra cho toast "Chưa gộp được… Sang lớp tường…"
+ * (BUG-605).
+ */
+const SPLIT_MISSING_POINT = 'Muốn tách phòng, sang lớp tường vẽ một đoạn tường chia phòng rồi quay lại.';
+const NAVIGATE_WALLS_LABEL = 'Sang lớp tường';
+/* Duyệt một phòng chưa tên không đổi được trạng thái của nó — nói ra, không im lặng (BUG-602). */
+const APPROVE_NEEDS_NAME = 'Đặt tên phòng trước khi duyệt.';
+const APPROVE_HINT_ID = 'room-label-approve-hint';
+const VIEWER_BADGE_LABEL = 'Chỉ xem';
 
 export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorViewProps) {
   const { room, isViewerRole, onRename, onChangeUsage, onMerge, onSplit, onApprove } = inspector;
@@ -102,7 +112,8 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
       </div>
 
       {room === null ? (
-        <p className="px-5 text-[13px] text-text-secondary">{EMPTY_MESSAGE}</p>
+        // `pb-5` như khối có phòng: câu không sát đáy thẻ (BUG-329).
+        <p className="px-5 pb-5 text-[13px] text-text-secondary">{EMPTY_MESSAGE}</p>
       ) : (
         <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-5 pb-5">
           <div className="flex items-center justify-between gap-2">
@@ -145,19 +156,28 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
 
           <div className="mt-auto flex flex-col gap-2 pt-2">
             {isViewerRole ? (
+              /* Câu đầy đủ đã ở băng cảnh báo đầu cột trái — ở đây chỉ một nhãn, không lặp đoạn văn (BUG-636). */
               extras.viewerRoleNotice !== null && (
-                <p className="text-[13px] text-text-secondary">{extras.viewerRoleNotice}</p>
+                <Badge className="self-start" variant="neutral">
+                  {VIEWER_BADGE_LABEL}
+                </Badge>
               )
             ) : (
               <>
                 <Button
-                  disabled={room.status === 'confirmed'}
+                  aria-describedby={room.status === 'unnamed' ? APPROVE_HINT_ID : undefined}
+                  disabled={room.status === 'confirmed' || room.status === 'unnamed'}
                   fullWidth
                   onClick={() => onApprove(room.id)}
                   variant="primary"
                 >
                   {APPROVE_LABEL}
                 </Button>
+                {room.status === 'unnamed' && (
+                  <p className="text-[13px] text-text-secondary" id={APPROVE_HINT_ID}>
+                    {APPROVE_NEEDS_NAME}
+                  </p>
+                )}
                 <Button
                   fullWidth
                   onClick={() => {
@@ -177,6 +197,9 @@ export function RoomLabelInspector({ inspector, extras }: RoomLabelInspectorView
                     {SPLIT_LABEL}
                   </Button>
                 )}
+                <Button fullWidth onClick={extras.onNavigateToWalls} size="sm" variant="ghost">
+                  {NAVIGATE_WALLS_LABEL}
+                </Button>
               </>
             )}
           </div>

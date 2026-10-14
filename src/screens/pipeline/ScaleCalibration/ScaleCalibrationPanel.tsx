@@ -25,13 +25,16 @@
  */
 
 import { clsx } from 'clsx';
+import { PanelRightOpen } from 'lucide-react';
 
 import { InlineAlert, type InlineAlertLevel } from '@/components/feedback/InlineAlert';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { Button } from '@/components/ui/Button';
 import { FieldRow } from '@/components/ui/FieldRow';
+import { IconButton } from '@/components/ui/IconButton';
 import { Kbd } from '@/components/ui/Kbd';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { MISSING_VALUE } from '@/lib/format/number';
 
 import { ScaleCalibrationMethodDimension } from './ScaleCalibrationMethodDimension';
 import { ScaleCalibrationMethodReference } from './ScaleCalibrationMethodReference';
@@ -54,6 +57,8 @@ const COMPUTATION_DIVIDER = '÷';
 const COMPUTATION_EQUALS = '=';
 const COMPUTATION_INCOMPLETE = 'Còn thiếu một vế, nên chưa ra được tỷ lệ.';
 const CROSS_CHECKS_TITLE = 'Kiểm chứng';
+const CROSS_CHECKS_UNAVAILABLE =
+  'Chưa đủ dữ liệu để kiểm chứng tỷ lệ: cần tỷ lệ đã đo và độ dày tường, bề rộng cửa hoặc phòng lớn nhất đọc được từ bản vẽ.';
 const CROSS_CHECKS_ARIA_LABEL = 'Ba đại lượng dẫn xuất để kiểm chứng tỷ lệ';
 const WARNING_ARIA_LABEL = 'Cảnh báo về tỷ lệ';
 const APPLY_PRIMARY = 'Áp dụng tỷ lệ';
@@ -65,6 +70,12 @@ const PANEL_CONTAINER_CLASSES = clsx(
   'lg:w-[344px] lg:flex-shrink-0 lg:border-t-0 lg:border-l',
 );
 
+/** Thu gọn thì cột co về 48 px chỉ còn nút "Bung bảng" — canvas `flex-1` rộng ra (BUG-609, như SCR-16). */
+const COLLAPSED_CONTAINER_CLASSES = clsx(
+  'flex w-full justify-end border-t border-border-default bg-bg-surface p-2',
+  'lg:w-12 lg:flex-shrink-0 lg:flex-col lg:items-center lg:justify-start lg:border-t-0 lg:border-l',
+);
+
 /** Cùng bảng ánh xạ mà `ScaleCalibrationMethodReference` dùng — cảnh báo ở màn này luôn `'attention'`. */
 function toAlertLevel(statusCode: ViewStatusCode): InlineAlertLevel {
   return statusCode === 'neutral' ? 'attention' : statusCode;
@@ -72,12 +83,26 @@ function toAlertLevel(statusCode: ViewStatusCode): InlineAlertLevel {
 
 export function ScaleCalibrationPanel({
   actions,
+  applyButtonRef,
   isCollapsed,
   panel,
   state,
 }: ScaleCalibrationPanelProps) {
-  const isForbidden = state === 'forbidden';
+  // Vai không sửa được tắt khối phương pháp ở MỌI trạng thái, không riêng `forbidden` (BUG-601).
+  const isForbidden = state === 'forbidden' || panel.areActionsHidden;
   const isLoading = state === 'loading';
+
+  if (isCollapsed) {
+    return (
+      <section aria-label={PANEL_ARIA_LABEL} className={COLLAPSED_CONTAINER_CLASSES}>
+        <IconButton
+          aria-label={EXPAND_LABEL}
+          icon={<PanelRightOpen size={16} />}
+          onClick={actions.onToggleCollapsed}
+        />
+      </section>
+    );
+  }
 
   return (
     <section aria-label={PANEL_ARIA_LABEL} className={PANEL_CONTAINER_CLASSES}>
@@ -91,162 +116,182 @@ export function ScaleCalibrationPanel({
           )}
         </div>
         <Button onClick={actions.onToggleCollapsed} size="sm" variant="ghost">
-          {isCollapsed ? EXPAND_LABEL : COLLAPSE_LABEL}
+          {COLLAPSE_LABEL}
         </Button>
       </header>
 
-      {!isCollapsed && (
-        <div className="flex flex-col gap-6 px-4 py-4">
-          <section aria-label={CURRENT_SCALE_TITLE} className="flex flex-col gap-1">
-            <h3 className="text-[13px] font-medium text-text-secondary">{CURRENT_SCALE_TITLE}</h3>
-            {isLoading ? (
-              <Skeleton preset="property-panel" />
-            ) : (
-              <>
-                <p
-                  className={clsx(
-                    'text-[20px] font-semibold text-text-primary',
-                    /* "Chưa có" ở phông mono 20 px có khoảng trắng rộng như hai dấu cách (BUG-411). */
-                    panel.isCurrentScaleKnown && 'font-mono tabular-nums',
-                  )}
-                >
-                  {panel.currentScaleLabel}
-                </p>
-                <p className="text-[13px] text-text-secondary">{panel.derivedLine}</p>
-              </>
-            )}
-          </section>
+      <div className="flex flex-col gap-6 px-4 py-4">
+        <section aria-label={CURRENT_SCALE_TITLE} className="flex flex-col gap-1">
+          <h3 className="text-[13px] font-medium text-text-secondary">{CURRENT_SCALE_TITLE}</h3>
+          {isLoading ? (
+            <Skeleton preset="property-panel" />
+          ) : (
+            <>
+              <p
+                className={clsx(
+                  'text-[20px] font-semibold text-text-primary',
+                  /* "Chưa có" ở phông mono 20 px có khoảng trắng rộng như hai dấu cách (BUG-411). */
+                  panel.isCurrentScaleKnown && 'font-mono tabular-nums',
+                )}
+              >
+                {panel.currentScaleLabel}
+              </p>
+              <p className="text-[13px] text-text-secondary">{panel.derivedLine}</p>
+            </>
+          )}
+        </section>
 
-          <section aria-label={METHOD_TITLE} className="flex flex-col gap-2">
-            <h3 className="text-[13px] font-medium text-text-secondary">{METHOD_TITLE}</h3>
+        <section aria-label={METHOD_TITLE} className="flex flex-col gap-2">
+          <h3 className="text-[13px] font-medium text-text-secondary">{METHOD_TITLE}</h3>
+          <SegmentedControl
+            aria-label={METHOD_ARIA_LABEL}
+            disabled={isForbidden}
+            isLoading={isLoading}
+            onChange={actions.onChangeMethod}
+            options={panel.methodOptions.map((option) => ({
+              disabled: option.isDisabled,
+              label: option.label,
+              value: option.value,
+            }))}
+            value={panel.method}
+          />
+          {!isLoading && panel.methodNotice && (
+            <p className="text-[13px] text-text-secondary">{panel.methodNotice}</p>
+          )}
+        </section>
+
+        {!isLoading && (
+          <>
+            <section
+              aria-disabled={isForbidden || panel.isMethodLocked}
+              className={clsx(
+                (isForbidden || panel.isMethodLocked) && 'pointer-events-none opacity-60',
+              )}
+            >
+              {panel.method === 'dimensionString' ? (
+                <ScaleCalibrationMethodDimension
+                  actions={{
+                    onHoverDimensionRow: actions.onHoverDimensionRow,
+                    onSelectDimensionRow: actions.onSelectDimensionRow,
+                  }}
+                  dimension={panel.dimension}
+                />
+              ) : (
+                <>
+                  <ScaleCalibrationMethodReference
+                    actions={{
+                      onChangeRealLength: actions.onChangeRealLength,
+                      onConfirmRealLength: actions.onConfirmRealLength,
+                      onNudgeEndpoint: actions.onNudgeEndpoint,
+                      onRemeasure: actions.onRemeasure,
+                    }}
+                    reference={panel.reference}
+                  />
+                  {panel.shortcutHints.length > 0 && (
+                    /* Dưới 640 px (màn chạm) không có bàn phím để bấm: ẩn danh sách phím (BUG-633). */
+                    <ul aria-label={SHORTCUTS_ARIA_LABEL} className="mt-3 flex flex-col gap-1.5 max-sm:hidden">
+                      {panel.shortcutHints.map((hint) => (
+                        <li
+                          className="flex items-center gap-2 text-[13px] text-text-secondary"
+                          key={hint.id}
+                        >
+                          <Kbd>{hint.comboLabel}</Kbd>
+                          <span>{hint.description}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              )}
+            </section>
+
+            <section aria-label={COMPUTATION_ARIA_LABEL} className="flex flex-col gap-1">
+              <h3 className="text-[13px] font-medium text-text-secondary">{COMPUTATION_TITLE}</h3>
+              <div className="flex flex-wrap items-baseline gap-2 font-mono text-[16px] text-text-primary">
+                <span>{panel.computation.numeratorLabel}</span>
+                <span aria-hidden="true">{COMPUTATION_DIVIDER}</span>
+                <span>{panel.computation.denominatorLabel}</span>
+                <span aria-hidden="true">{COMPUTATION_EQUALS}</span>
+                <span className="font-semibold">{panel.computation.resultLabel}</span>
+              </div>
+              {!panel.computation.isComplete && (
+                <p className="text-[12px] text-text-muted">{COMPUTATION_INCOMPLETE}</p>
+              )}
+            </section>
+
+            <section aria-label={CROSS_CHECKS_ARIA_LABEL} className="flex flex-col">
+              <h3 className="mb-1 text-[13px] font-medium text-text-secondary">
+                {CROSS_CHECKS_TITLE}
+              </h3>
+              {/* Ba dòng đều "—": nói ra là chưa đủ dữ liệu, không để ba gạch không lý do (BUG-631). */}
+              {panel.crossChecks.every((row) => row.valueLabel === MISSING_VALUE) ? (
+                <p className="text-[13px] text-text-muted">{CROSS_CHECKS_UNAVAILABLE}</p>
+              ) : panel.crossChecks.map((row, index) => (
+                <FieldRow
+                  isLast={index === panel.crossChecks.length - 1}
+                  isText
+                  key={row.id}
+                  label={row.label}
+                >
+                  <div className="flex flex-col gap-0.5">
+                    <span
+                      className={clsx(
+                        'font-mono text-[13px]',
+                        row.statusCode === 'attention'
+                          ? 'text-state-attention-text'
+                          : 'text-text-primary',
+                      )}
+                    >
+                      {row.valueLabel}
+                    </span>
+                    <span className="text-[12px] text-text-muted">{row.expectedRangeLabel}</span>
+                  </div>
+                </FieldRow>
+              ))}
+            </section>
+
+            {panel.warnings.length > 0 && (
+              <section aria-label={WARNING_ARIA_LABEL} className="flex flex-col gap-2">
+                {panel.warnings.map((notice, index) => (
+                  <InlineAlert
+                    key={`${notice.warning.kind}-${String(index)}`}
+                    level={toAlertLevel(notice.statusCode)}
+                    message={notice.message}
+                  />
+                ))}
+              </section>
+            )}
+          </>
+        )}
+
+        {!panel.areActionsHidden && (
+          <div className="flex flex-col gap-3 border-t border-border-default pt-4">
             <SegmentedControl
-              aria-label={METHOD_ARIA_LABEL}
-              disabled={isForbidden}
-              isLoading={isLoading}
-              onChange={actions.onChangeMethod}
-              options={panel.methodOptions.map((option) => ({
-                disabled: option.isDisabled,
+              aria-label={SCOPE_ARIA_LABEL}
+              onChange={actions.onChangeApplyScope}
+              options={panel.applyScopeOptions.map((option) => ({
                 label: option.label,
                 value: option.value,
               }))}
-              value={panel.method}
+              value={panel.applyScope}
             />
-            {!isLoading && panel.methodNotice && (
-              <p className="text-[13px] text-text-secondary">{panel.methodNotice}</p>
+            <Button
+              disabled={!panel.canApply}
+              fullWidth
+              loading={panel.isApplying}
+              onClick={actions.onApply}
+              ref={applyButtonRef}
+              variant="primary"
+            >
+              {panel.isApplying ? APPLY_APPLYING : APPLY_PRIMARY}
+            </Button>
+            {panel.applyBlockedNotice !== undefined && (
+              <InlineAlert level="attention" message={panel.applyBlockedNotice} />
             )}
-          </section>
-
-          {!isLoading && (
-            <>
-              <section
-                aria-disabled={isForbidden || panel.isMethodLocked}
-                className={clsx((isForbidden || panel.isMethodLocked) && 'pointer-events-none opacity-60')}
-              >
-                {panel.method === 'dimensionString' ? (
-                  <ScaleCalibrationMethodDimension
-                    actions={{
-                      onHoverDimensionRow: actions.onHoverDimensionRow,
-                      onSelectDimensionRow: actions.onSelectDimensionRow,
-                    }}
-                    dimension={panel.dimension}
-                  />
-                ) : (
-                  <>
-                    <ScaleCalibrationMethodReference
-                      actions={{
-                        onChangeRealLength: actions.onChangeRealLength,
-                        onConfirmRealLength: actions.onConfirmRealLength,
-                        onNudgeEndpoint: actions.onNudgeEndpoint,
-                        onRemeasure: actions.onRemeasure,
-                      }}
-                      reference={panel.reference}
-                    />
-                    {panel.shortcutHints.length > 0 && (
-                      <ul aria-label={SHORTCUTS_ARIA_LABEL} className="mt-3 flex flex-col gap-1.5">
-                        {panel.shortcutHints.map((hint) => (
-                          <li className="flex items-center gap-2 text-[13px] text-text-secondary" key={hint.id}>
-                            <Kbd>{hint.comboLabel}</Kbd>
-                            <span>{hint.description}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </>
-                )}
-              </section>
-
-              <section aria-label={COMPUTATION_ARIA_LABEL} className="flex flex-col gap-1">
-                <h3 className="text-[13px] font-medium text-text-secondary">{COMPUTATION_TITLE}</h3>
-                <div className="flex flex-wrap items-baseline gap-2 font-mono text-[16px] text-text-primary">
-                  <span>{panel.computation.numeratorLabel}</span>
-                  <span aria-hidden="true">{COMPUTATION_DIVIDER}</span>
-                  <span>{panel.computation.denominatorLabel}</span>
-                  <span aria-hidden="true">{COMPUTATION_EQUALS}</span>
-                  <span className="font-semibold">{panel.computation.resultLabel}</span>
-                </div>
-                {!panel.computation.isComplete && (
-                  <p className="text-[12px] text-text-muted">{COMPUTATION_INCOMPLETE}</p>
-                )}
-              </section>
-
-              <section aria-label={CROSS_CHECKS_ARIA_LABEL} className="flex flex-col">
-                <h3 className="mb-1 text-[13px] font-medium text-text-secondary">{CROSS_CHECKS_TITLE}</h3>
-                {panel.crossChecks.map((row, index) => (
-                  <FieldRow isLast={index === panel.crossChecks.length - 1} isText key={row.id} label={row.label}>
-                    <div className="flex flex-col gap-0.5">
-                      <span
-                        className={clsx(
-                          'font-mono text-[13px]',
-                          row.statusCode === 'attention' ? 'text-state-attention-text' : 'text-text-primary',
-                        )}
-                      >
-                        {row.valueLabel}
-                      </span>
-                      <span className="text-[12px] text-text-muted">{row.expectedRangeLabel}</span>
-                    </div>
-                  </FieldRow>
-                ))}
-              </section>
-
-              {panel.warnings.length > 0 && (
-                <section aria-label={WARNING_ARIA_LABEL} className="flex flex-col gap-2">
-                  {panel.warnings.map((notice, index) => (
-                    <InlineAlert
-                      key={`${notice.warning.kind}-${String(index)}`}
-                      level={toAlertLevel(notice.statusCode)}
-                      message={notice.message}
-                    />
-                  ))}
-                </section>
-              )}
-            </>
-          )}
-
-          {!panel.areActionsHidden && (
-            <div className="flex flex-col gap-3 border-t border-border-default pt-4">
-              <SegmentedControl
-                aria-label={SCOPE_ARIA_LABEL}
-                onChange={actions.onChangeApplyScope}
-                options={panel.applyScopeOptions.map((option) => ({ label: option.label, value: option.value }))}
-                value={panel.applyScope}
-              />
-              <Button
-                disabled={!panel.canApply}
-                fullWidth
-                loading={panel.isApplying}
-                onClick={actions.onApply}
-                variant="primary"
-              >
-                {panel.isApplying ? APPLY_APPLYING : APPLY_PRIMARY}
-              </Button>
-              {panel.applyBlockedNotice !== undefined && (
-                <InlineAlert level="attention" message={panel.applyBlockedNotice} />
-              )}
-              <p className="text-[12px] text-text-muted">{panel.recalculationCaption}</p>
-            </div>
-          )}
-        </div>
-      )}
+            <p className="text-[12px] text-text-muted">{panel.recalculationCaption}</p>
+          </div>
+        )}
+      </div>
     </section>
   );
 }

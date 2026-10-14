@@ -39,6 +39,7 @@ import type { Wall, WallId } from '@/domain/spatial/types';
 import { createHistoryStack, type HistoryStack } from '@/lib/commands/history';
 import { standardizeThickness } from '@/lib/geometry/standardize';
 import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
+import { createShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
@@ -75,6 +76,7 @@ import {
 import {
   DEFAULT_THICKNESS_THRESHOLDS,
   DEFAULT_TOLERANCE_MM,
+  HISTOGRAM_BIN_MM,
   type ThicknessThresholds,
 } from './thicknessTypes';
 import {
@@ -184,6 +186,7 @@ function mountHook(options: MountOptions = {}): Mounted {
         ...(options.forceCollapsed === undefined
           ? {}
           : { forceCollapsed: options.forceCollapsed }),
+        ...(options.shortcutRegistry === undefined ? {} : { shortcutRegistry: options.shortcutRegistry }),
       }),
     { wrapper },
   );
@@ -266,6 +269,13 @@ describe('phép ghép thuần của màn Chuẩn hoá độ dày tường', () =
     expect(isDefaultThresholds(dragged)).toBe(false);
   });
 
+  it('[BUG-606] kéo qua ngưỡng kề thì bị kẹp, không đẩy ngưỡng kia đi', () => {
+    const [low, mid, high] = DEFAULT_THICKNESS_THRESHOLDS;
+
+    expect(withThresholdAt(DEFAULT_THICKNESS_THRESHOLDS, 0, 400)).toEqual([mid - HISTOGRAM_BIN_MM, mid, high]);
+    expect(withThresholdAt(DEFAULT_THICKNESS_THRESHOLDS, 2, 0)).toEqual([low, mid, mid + HISTOGRAM_BIN_MM]);
+  });
+
   it('kéo ngưỡng đổi nhóm của số đo nằm giữa hai ngưỡng', () => {
     const dragged: ThicknessThresholds = withThresholdAt(DEFAULT_THICKNESS_THRESHOLDS, 0, 200);
 
@@ -300,6 +310,22 @@ describe('phép ghép thuần của màn Chuẩn hoá độ dày tường', () =
       deriveThicknessScreenState({ ...base, applicableCount: 0, hasApplied: true }),
     ).toBe('success');
     expect(deriveThicknessScreenState(base)).toBe('partial');
+  });
+
+  it('[BUG-601] vai người xem không che trạng thái tải, rỗng hay thu gọn', () => {
+    const viewer = {
+      isViewerRole: true,
+      isCollapsed: false,
+      hasError: false,
+      isLoading: false,
+      segmentCount: FIXTURE_SEGMENT_COUNT,
+      applicableCount: 1,
+      hasApplied: false,
+    } as const;
+
+    expect(deriveThicknessScreenState({ ...viewer, isLoading: true })).toBe('loading');
+    expect(deriveThicknessScreenState({ ...viewer, segmentCount: 0 })).toBe('empty');
+    expect(deriveThicknessScreenState({ ...viewer, isCollapsed: true })).toBe('collapsed');
   });
 
   it('bảng chi tiết mặc định đưa trường hợp tệ nhất lên đầu', async () => {
@@ -617,20 +643,44 @@ describe('áp chuẩn hoá', () => {
     expect(mounted.result.current.selectedWallIds).toHaveLength(0);
   });
 
-  it('sửa gợi ý nhóm của một hàng là thao tác thuần', async () => {
-    const mounted = await mountSettled();
+  it('[BUG-585] đổi nhóm trên một hàng là MỘT lượt ghi thật, kèm toast hoàn tác', async () => {
+    const notifications = createNotificationBus();
+    const mounted = await mountSettled({ notifications });
     const target = wallsOfMeasurement(195)[0] as Wall;
 
-    act(() => {
+    await act(async () => {
       mounted.result.current.onChangeNormalizedGroup(target.id, 330);
+      await Promise.resolve();
     });
 
-    const row = mounted.result.current.segmentRows.find((entry) => entry.wallId === target.id);
+    await waitFor(() => {
+      expect(mounted.history.undoSteps()).toHaveLength(1);
+    });
 
-    expect(row?.normalizedGroup).toBe(330);
-    expect(row?.deviationMm).toBe(deviationOf(195, 330));
-    expect(mounted.history.undoSteps()).toHaveLength(0);
+    expect(thicknessInStore(target.id)).toBe(330);
+    expect(notifications.list().some((entry) => entry.undoTicket !== undefined)).toBe(true);
+  });
+
+  it('[BUG-582] Mod+Z hoàn tác bằng ngăn xếp của chính màn, như nút "Hoàn tác"', async () => {
+    const shortcutRegistry = createShortcutRegistry();
+    const mounted = await mountSettled({ shortcutRegistry });
+    const target = wallsOfMeasurement(195)[0] as Wall;
+
+    await act(async () => {
+      mounted.result.current.onChangeNormalizedGroup(target.id, 330);
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(thicknessInStore(target.id)).toBe(330);
+    });
+
+    await act(async () => {
+      shortcutRegistry.handleKeyDown({ key: 'z', ctrlKey: true }, null);
+      await Promise.resolve();
+    });
+
     expect(thicknessInStore(target.id)).toBe(195);
+    expect(mounted.history.undoSteps()).toHaveLength(0);
   });
 });
 
@@ -671,8 +721,16 @@ describe('áp dụng lại bộ lọc', () => {
   it('chọn "loại chúng ra" thì tường đã duyệt giữ nguyên, tường còn lại vẫn đổi', async () => {
     const mounted = await mountSettled();
 
-    await act(async () => {
+    act(() => {
       mounted.result.current.onReapplyFilter(true);
+    });
+
+    /* BUG-593: đường áp lại cũng đi qua bảng xem trước — chưa ghi gì. */
+    expect(mounted.result.current.preview).not.toBeNull();
+    expect(mounted.history.undoSteps()).toHaveLength(0);
+
+    await act(async () => {
+      mounted.result.current.onApplyPreview();
       await Promise.resolve();
     });
 
@@ -711,16 +769,22 @@ describe('áp dụng lại bộ lọc', () => {
     expect(mounted.result.current.reapplyWarning).not.toBeNull();
     expect(mounted.history.undoSteps()).toHaveLength(0);
 
-    await act(async () => {
+    act(() => {
       mounted.result.current.onReapplyFilter(false);
+    });
+
+    expect(mounted.result.current.reapplyWarning).toBeNull();
+    expect(mounted.result.current.preview).not.toBeNull();
+    expect(mounted.history.undoSteps()).toHaveLength(0);
+
+    await act(async () => {
+      mounted.result.current.onApplyPreview();
       await Promise.resolve();
     });
 
     await waitFor(() => {
       expect(mounted.history.undoSteps()).toHaveLength(1);
     });
-
-    expect(mounted.result.current.reapplyWarning).toBeNull();
 
     for (const wall of REVIEWED_AND_CHANGEABLE) {
       expect(thicknessInStore(wall.id)).toBe(standardizeThickness(wall.thicknessMm).standardized);
@@ -787,6 +851,19 @@ describe('Bảy trạng thái', () => {
     expect(mounted.result.current.state).toBe('empty');
     expect(mounted.result.current.emptyNotice).not.toBeNull();
     expect(mounted.result.current.emptyNotice ?? '').toContain('dung sai');
+  });
+
+  it('[BUG-619] còn đoạn lệch quá dung sai: không nói "mọi đoạn đã ở đúng nhóm chuẩn"', async () => {
+    const [first, ...rest] = THICKNESS_SCENARIO_EMPTY.walls;
+    const mounted = await mountScenario({
+      ...THICKNESS_SCENARIO_EMPTY,
+      walls: [{ ...(first as Wall), thicknessMm: 160 }, ...rest],
+    });
+
+    expect(mounted.result.current.state).toBe('empty');
+    expect(mounted.result.current.summary.exceedingToleranceCount).toBe(1);
+    expect(mounted.result.current.emptyNotice).not.toContain('Mọi đoạn tường đã ở đúng nhóm chuẩn');
+    expect(mounted.result.current.emptyNotice).toContain('1 đoạn tường lệch quá dung sai');
   });
 
   it('[BUG-421] mọi đoạn đã đúng nhóm: không còn dòng đề xuất "220 → 220" nào để tích', async () => {

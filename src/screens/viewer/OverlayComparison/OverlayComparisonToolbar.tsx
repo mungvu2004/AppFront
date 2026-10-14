@@ -59,7 +59,6 @@ const FLOOR_NO_SCAN_SUFFIX = 'Không có ảnh bản vẽ gốc';
 const COMPARE_MODE_ARIA_LABEL = 'Kiểu đối chiếu';
 const SCAN_OPACITY_ARIA_LABEL = 'Độ mờ ảnh nguồn';
 const ALIGNMENT_LOCK_LABEL = 'Khoá căn';
-const READ_ONLY_NOTICE = 'Bạn không có quyền sửa, các điều khiển đang tắt.';
 
 /**
  * Viên thuốc chứa bốn cụm — dùng chung cho cả hai cách xếp (một hàng/hai hàng).
@@ -86,7 +85,7 @@ function FloorSelect({ floors, activeFloorId, canEdit, onSelectFloor }: FloorSel
 
   return (
     <Select.Root
-      className="w-[176px] shrink-0"
+      className="w-[264px] max-w-full shrink-0"
       disabled={!canEdit}
       onChange={(value) => onSelectFloor(value as LevelId)}
       options={options}
@@ -186,6 +185,7 @@ export function OverlayComparisonToolbar({
   scanOpacityPercent,
   scanOpacityText,
   isAlignmentLocked,
+  canLockAlignment = false,
   isStacked,
   canEdit,
   onSelectFloor,
@@ -225,19 +225,22 @@ export function OverlayComparisonToolbar({
           scanOpacityPercent={scanOpacityPercent}
           scanOpacityText={scanOpacityText}
         />
-        <div className="shrink-0 whitespace-nowrap">
-          <Toggle
-            checked={isAlignmentLocked}
-            disabled={!canEdit}
-            label={ALIGNMENT_LOCK_LABEL}
-            onChange={() => {
-              onToggleAlignmentLock();
-            }}
-          />
-        </div>
+        {/* Ẩn tới khi đặt được ảnh vào mô hình: bật/tắt mà không đổi gì là điều khiển chết (BUG-599). */}
+        {canLockAlignment && (
+          <div className="shrink-0 whitespace-nowrap">
+            <Toggle
+              checked={isAlignmentLocked}
+              disabled={!canEdit}
+              label={ALIGNMENT_LOCK_LABEL}
+              onChange={() => {
+                onToggleAlignmentLock();
+              }}
+            />
+          </div>
+        )}
       </div>
 
-      {!canEdit && <p className="text-[12px] leading-[16px] text-text-muted">{READ_ONLY_NOTICE}</p>}
+      {/* Vai người xem: lý do đã ở băng cảnh báo của màn — thanh công cụ không lặp câu thứ hai (BUG-636). */}
     </div>
   );
 }

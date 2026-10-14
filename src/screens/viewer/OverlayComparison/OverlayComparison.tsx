@@ -64,8 +64,13 @@
  * kiện cho quyền sửa.
  */
 
-import { InlineAlert, type InlineAlertLevel } from '@/components/feedback/InlineAlert';
+import { useRef } from 'react';
 
+import { ZoomCluster } from '@/components/canvas/ZoomCluster';
+import { InlineAlert, type InlineAlertLevel } from '@/components/feedback/InlineAlert';
+import { Button } from '@/components/ui/Button';
+
+import { FloorLayerReadFailureScreen } from '../../qc/shared/FloorLayerReadFailureScreen';
 import { OverlayComparisonCanvas } from './OverlayComparisonCanvas';
 import { OverlayComparisonPanel } from './OverlayComparisonPanel';
 import { OverlayComparisonToolbar } from './OverlayComparisonToolbar';
@@ -78,6 +83,9 @@ const NOTICE_REGION_ARIA_LABEL = 'Trạng thái của màn đối chiếu bản 
 const ERROR_LINK_LABEL = 'Sang màn hiệu chỉnh tỷ lệ';
 /** BUG-420: lối ra của tầng chưa có bản vẽ — cùng nhãn nút của màn Hiệu chỉnh tỷ lệ. */
 const UPLOAD_LINK_LABEL = 'Tải bản vẽ lên';
+const RETRY_LABEL = 'Thử lại';
+/** Bước nút +/− — số tương tác giao diện, như bước lăn chuột của canvas. */
+const ZOOM_BUTTON_STEP = 1.25;
 
 /** Nút chữ của liên kết lỗi: cùng khuôn `DimensionOcrReview.tsx` (A1, A2). */
 const ERROR_LINK_CLASS_NAME =
@@ -110,6 +118,49 @@ export function OverlayComparison({ actions, model }: OverlayComparisonProps) {
   const isStacked = model.state === 'collapsed';
   const isError = model.state === 'error';
   const noticeLevel = NOTICE_LEVELS[model.state];
+  const canvasRef = useRef<HTMLElement | null>(null);
+
+  /** +/− neo ở tâm khung đang thấy. */
+  const zoomAtCentre = (factor: number): void => {
+    const bounds = canvasRef.current?.getBoundingClientRect();
+    actions.zoomBy(factor, (bounds?.width ?? 0) / 2, (bounds?.height ?? 0) / 2);
+  };
+
+  const notice =
+    model.stateNotice === null ? undefined : (
+      <div aria-label={NOTICE_REGION_ARIA_LABEL} className="flex flex-col items-start gap-2" role="group">
+        {noticeLevel !== undefined ? (
+          <InlineAlert level={noticeLevel} message={model.stateNotice} />
+        ) : (
+          <p className={LOADING_NOTICE_CLASS_NAME} role="status">
+            {model.stateNotice}
+          </p>
+        )}
+        {model.canRetry && (
+          <Button onClick={actions.retry} size="sm" variant="secondary">
+            {RETRY_LABEL}
+          </Button>
+        )}
+        {isError && model.scaleFixHref !== null && (
+          <a className={ERROR_LINK_CLASS_NAME} href={model.scaleFixHref}>
+            {ERROR_LINK_LABEL}
+          </a>
+        )}
+        {model.uploadHref !== null && (
+          <a className={ERROR_LINK_CLASS_NAME} href={model.uploadHref}>
+            {UPLOAD_LINK_LABEL}
+          </a>
+        )}
+      </div>
+    );
+
+  if (model.readFailure != null) {
+    return (
+      <div aria-label={SCREEN_ARIA_LABEL} className="flex h-screen min-h-0 w-full flex-col bg-bg-app" role="region">
+        <FloorLayerReadFailureScreen failure={model.readFailure} />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -120,7 +171,13 @@ export function OverlayComparison({ actions, model }: OverlayComparisonProps) {
       className="relative flex h-screen min-h-0 w-full flex-col bg-bg-app lg:flex-row"
       role="region"
     >
-      <section aria-label={CANVAS_REGION_ARIA_LABEL} className="relative min-h-0 min-w-0 flex-1">
+      {/* Dưới 1024 thanh công cụ nằm TRÊN canvas (trong luồng), không đè ~45% khung vẽ ở 375 (BUG-634). */}
+      <section
+        aria-label={CANVAS_REGION_ARIA_LABEL}
+        className="relative flex min-h-0 min-w-0 flex-1 flex-col lg:block"
+        ref={canvasRef}
+      >
+        <div className="relative min-h-0 flex-1 lg:h-full">
         <OverlayComparisonCanvas
           compareMode={model.compareMode}
           geometry={model.geometry}
@@ -135,6 +192,7 @@ export function OverlayComparison({ actions, model }: OverlayComparisonProps) {
           swipePosition={model.swipePosition}
           viewport={model.viewport}
         />
+        </div>
 
         {/*
           `pointer-events-none` trên lớp bọc, `pointer-events-auto` trên từng
@@ -143,7 +201,7 @@ export function OverlayComparison({ actions, model }: OverlayComparisonProps) {
           hai bên rìa canvas — kéo khung nhìn, chọn vùng lệch — sẽ bị nó chặn dù
           không có gì để bấm ở đó.
         */}
-        <div className="pointer-events-none absolute inset-x-0 top-3 z-10 flex flex-col items-center gap-2 px-3">
+        <div className="pointer-events-none z-10 order-first flex flex-col items-center gap-2 px-3 py-2 lg:absolute lg:inset-x-0 lg:top-3 lg:order-none lg:py-0">
           <div className="pointer-events-auto max-w-full">
             <OverlayComparisonToolbar
               activeFloorId={model.activeFloorId}
@@ -151,6 +209,7 @@ export function OverlayComparison({ actions, model }: OverlayComparisonProps) {
               compareMode={model.compareMode}
               disabledCompareModes={model.disabledCompareModes}
               floors={model.floors}
+              canLockAlignment={model.canLockAlignment}
               isAlignmentLocked={model.isAlignmentLocked}
               isStacked={isStacked}
               onSelectFloor={actions.selectFloor}
@@ -161,32 +220,16 @@ export function OverlayComparison({ actions, model }: OverlayComparisonProps) {
               scanOpacityText={model.scanOpacityText}
             />
           </div>
-
-          {model.stateNotice !== null && (
-            <div
-              aria-label={NOTICE_REGION_ARIA_LABEL}
-              className="flex w-full max-w-[420px] flex-col items-center gap-2 pointer-events-auto"
-            >
-              {noticeLevel !== undefined ? (
-                <InlineAlert level={noticeLevel} message={model.stateNotice} />
-              ) : (
-                <p className={LOADING_NOTICE_CLASS_NAME} role="status">
-                  {model.stateNotice}
-                </p>
-              )}
-              {isError && model.scaleFixHref !== null && (
-                <a className={ERROR_LINK_CLASS_NAME} href={model.scaleFixHref}>
-                  {ERROR_LINK_LABEL}
-                </a>
-              )}
-              {model.uploadHref !== null && (
-                <a className={ERROR_LINK_CLASS_NAME} href={model.uploadHref}>
-                  {UPLOAD_LINK_LABEL}
-                </a>
-              )}
-            </div>
-          )}
         </div>
+
+        {/* Về được toàn cảnh mà không tải lại trang (BUG-599); 100% ở màn này chính là vừa khung. */}
+        <ZoomCluster
+          onFitToScreen={actions.fitView}
+          onResetZoom={actions.fitView}
+          onZoomIn={() => zoomAtCentre(ZOOM_BUTTON_STEP)}
+          onZoomOut={() => zoomAtCentre(1 / ZOOM_BUTTON_STEP)}
+          zoomLevel={model.zoomPercent}
+        />
       </section>
 
       <OverlayComparisonPanel
@@ -196,6 +239,7 @@ export function OverlayComparison({ actions, model }: OverlayComparisonProps) {
         onConfirmMatch={actions.confirmMatch}
         onSelectRegion={actions.selectRegion}
         onSetToleranceMm={actions.setToleranceMm}
+        {...(notice === undefined ? {} : { notice })}
         rows={model.rows}
         toleranceLabel={model.toleranceLabel}
         toleranceMm={model.toleranceMm}

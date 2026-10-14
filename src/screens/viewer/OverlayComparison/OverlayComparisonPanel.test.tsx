@@ -69,7 +69,7 @@ describe('OverlayComparisonPanel', () => {
 
     expect(within(metricsRegion as HTMLElement).getByText('8 mm')).toBeInTheDocument();
     expect(within(metricsRegion as HTMLElement).getByText('41 mm')).toBeInTheDocument();
-    expect(screen.getByRole('status').textContent).toBe('3 số vùng vượt ngưỡng');
+    expect(screen.getByRole('status').textContent).toBe('Số vùng vượt ngưỡng: 3');
 
     /* "Dung sai" (từ `toleranceLabel` đóng băng trong overlayComparisonScenarios.ts)
        là tiếng Việt đúng chính tả nhưng không âm tiết nào mang dấu — đúng "điểm
@@ -78,12 +78,26 @@ describe('OverlayComparisonPanel', () => {
     expectVietnamese(container, { allowWords: ['dung', 'sai'] });
   });
 
-  it('hiện dấu gạch ngang cho ca chưa đo được, không phải "0 mm"', () => {
+  it('chưa đo được: một dòng nói thẳng, không ba ô gạch ngang, không "0 mm" (BUG-331)', () => {
     renderWithProviders(<OverlayComparisonPanel {...panelPropsOf('empty')} />);
 
     expect(screen.queryByText('0 mm')).not.toBeInTheDocument();
-    expect(screen.getByRole('status').textContent).toBe('— số vùng vượt ngưỡng');
-    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText('Chưa có số đo — cần căn ảnh quét vào mô hình trước.')).toBeInTheDocument();
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.queryByText('—')).toBeNull();
+  });
+
+  it('nút xác nhận tắt thì có dòng lý do ngay dưới (BUG-599)', () => {
+    const props = panelPropsOf('empty');
+    renderWithProviders(
+      <OverlayComparisonPanel
+        {...props}
+        confirmation={{ ...props.confirmation, canConfirm: false, disabledReason: 'Cần đo được vùng lệch trước khi xác nhận.' }}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Xác nhận mô hình khớp bản vẽ' })).toBeDisabled();
+    expect(screen.getByText('Cần đo được vùng lệch trước khi xác nhận.')).toBeInTheDocument();
   });
 
   it('gọi onSetToleranceMm với số milimét khi đổi dung sai', () => {

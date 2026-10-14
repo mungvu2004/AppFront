@@ -37,6 +37,8 @@ import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createMockApiClient } from '@/api/__mocks__/client';
+import { PROJECT_NOT_FOUND_TITLE } from '@/components/feedback/ProjectSpatialGate';
+import { appShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createSampleBuilding, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Level, LevelId } from '@/domain/spatial/types';
@@ -291,6 +293,7 @@ interface MountOptions {
   readonly floorId?: LevelId;
   readonly roles?: readonly ProjectRole[];
   readonly forceCollapsed?: boolean;
+  readonly onNavigate?: (path: string) => void;
 }
 
 interface Mounted {
@@ -313,6 +316,7 @@ function mountHook(gateway: OverlayComparisonGateway, options: MountOptions = {}
         ...(options.forceCollapsed !== undefined
           ? { forceCollapsed: options.forceCollapsed }
           : {}),
+        ...(options.onNavigate !== undefined ? { onNavigate: options.onNavigate } : {}),
       }),
     { wrapper },
   );
@@ -725,8 +729,11 @@ describe('useOverlayComparison — cổng và định dạng', () => {
       });
     }
 
-    const [floor] = mounted.result.current.model.floors;
+    const { activeFloorId, floors } = mounted.result.current.model;
+    const floor = floors.find((option) => option.levelId === activeFloorId);
 
+    // Mở thẳng link: ô chọn tầng đủ mọi tầng của #12, không chỉ tầng của route (BUG-600).
+    expect(floors.length).toBeGreaterThan(1);
     expect(floor?.levelId).not.toBe('L1');
     expect(floor?.hasScan).toBe(true);
     // Lối sang màn tỷ lệ mang mã tầng API — route ấy đọc bản vẽ theo mã này.
@@ -777,5 +784,128 @@ describe('useOverlayComparison — cổng và định dạng', () => {
     expect(Object.keys(layers).sort()).toEqual(['deviation', 'geometry', 'scan']);
     expect(layers.geometry.opacity).toBeCloseTo(0.6);
     expect(layers.deviation.isVisible).toBe(true);
+  });
+});
+
+describe('useOverlayComparison — QA-04c SCR-22 (BUG-588, 599, 600, 608)', () => {
+  it('đang đọc tầng N16 là loading, không phải "chưa có tầng nào" (BUG-588)', async () => {
+    useStore.getState().setSpatial(null, null);
+    useStore.getState().setFloors([]);
+    const base = await makeGateway();
+    const gateway = withOverlayCapabilities(base, { readFloorLayer: () => new Promise(() => undefined) });
+    const mounted = mountHook(gateway);
+
+    await act(async () => {
+      await clock.advance(1);
+    });
+
+    expect(mounted.result.current.model.state).toBe('loading');
+    expect(mounted.result.current.model.stateNotice).not.toBe('Dự án này chưa có tầng nào để đối chiếu.');
+  });
+
+  it('đọc N16 hỏng là error có "Thử lại", và Thử lại đọc lại (BUG-588, BUG-608)', async () => {
+    useStore.getState().setSpatial(null, null);
+    useStore.getState().setFloors([]);
+    const base = await makeGateway();
+    const readFloorLayer = vi.fn(() => Promise.reject(new Error('500')));
+    const mounted = mountHook(withOverlayCapabilities(base, { readFloorLayer }));
+    await settle(mounted);
+    for (let turn = 0; turn < SETTLE_TURNS; turn += 1) {
+      await act(async () => {
+        await clock.advance(1000);
+      });
+    }
+
+    const model = mounted.result.current.model;
+    expect(model.state).toBe('error');
+    expect(model.canRetry).toBe(true);
+    expect(model.stateNotice).toBe('Không đọc được mô hình của tầng này nên chưa có gì để đối chiếu.');
+
+    const calls = readFloorLayer.mock.calls.length;
+    await act(async () => {
+      mounted.result.current.actions.retry();
+      await clock.advance(1);
+    });
+    expect(readFloorLayer.mock.calls.length).toBeGreaterThan(calls);
+  });
+
+  it('URL thắng kho, và đổi tầng là đổi URL (BUG-600)', async () => {
+    const onNavigate = vi.fn();
+    const gateway = await makeGateway({ regions: sampleRegions() });
+    // Kho đang mở FLOOR_WITH_SCAN (seedStore); route nói FLOOR_WARPED.
+    const mounted = mountHook(gateway, { floorId: FLOOR_WARPED, onNavigate });
+    await settle(mounted);
+
+    expect(mounted.result.current.model.activeFloorId).toBe(FLOOR_WARPED);
+
+    act(() => {
+      mounted.result.current.actions.selectFloor(FLOOR_WITHOUT_SCAN);
+    });
+    expect(onNavigate).toHaveBeenCalledWith(ROUTES.project.overlay(PROJECT_ID, FLOOR_WITHOUT_SCAN));
+  });
+
+  it('về toàn cảnh không mất cài đặt; nút xác nhận tắt có lý do; "Khoá căn" ẩn khi chưa có tác dụng (BUG-599)', async () => {
+    const mounted = mountHook(await makeGateway());
+    await settle(mounted);
+
+    act(() => {
+      mounted.result.current.actions.setScanOpacity(70);
+      mounted.result.current.actions.setViewport({ x: 120, y: -40, zoom: 2 });
+    });
+    act(() => {
+      mounted.result.current.actions.fitView();
+    });
+
+    const model = mounted.result.current.model;
+    expect(model.viewport).toEqual({ x: 0, y: 0, zoom: 1 });
+    expect(model.scanOpacityPercent).toBe(70);
+    expect(model.confirmation.canConfirm).toBe(false);
+    expect(model.confirmation.disabledReason).toBe('Cần đo được vùng lệch trước khi xác nhận.');
+    expect(model.canLockAlignment).toBe(false);
+  });
+});
+
+describe('[G45] người ngoài dự án mở thẳng SCR-22', () => {
+  it('N16 404 dự án: màn "Không tìm thấy dự án này", không câu lỗi đọc chung', async () => {
+    useStore.getState().setSpatial(null, null);
+    useStore.getState().setFloors([]);
+    const base = await makeGateway();
+    const notFound = { kind: 'http', raw: { resource: 'project' }, requestId: 'r', retryable: false, status: 404 };
+    const mounted = mountHook(withOverlayCapabilities(base, { readFloorLayer: () => Promise.reject(notFound) }));
+    await settle(mounted);
+    for (let turn = 0; turn < SETTLE_TURNS; turn += 1) {
+      await act(async () => {
+        await clock.advance(1000);
+      });
+    }
+
+    expect(mounted.result.current.model.readFailure?.title).toBe(PROJECT_NOT_FOUND_TITLE);
+  });
+});
+
+describe('[G36 22-E-016] khung đối chiếu đi được bằng bàn phím (A12)', () => {
+  it('"=" phóng to, "-" thu nhỏ, mũi tên dời khung nhìn', async () => {
+    const mounted = mountHook(await makeGateway());
+    await settle(mounted);
+    const press = async (key: string): Promise<void> => {
+      await act(async () => {
+        appShortcutRegistry.handleKeyDown({ key, ctrlKey: false }, null);
+        await Promise.resolve();
+      });
+    };
+    const start = mounted.result.current.model.viewport;
+
+    await press('=');
+    expect(mounted.result.current.model.viewport.zoom).toBeGreaterThan(start.zoom);
+
+    await press('-');
+    await press('-');
+    expect(mounted.result.current.model.viewport.zoom).toBeLessThan(start.zoom);
+
+    await press('ArrowLeft');
+    await press('ArrowDown');
+    const moved = mounted.result.current.model.viewport;
+    expect(moved.x).not.toBe(start.x);
+    expect(moved.y).not.toBe(start.y);
   });
 });

@@ -15,7 +15,8 @@
  * Nhờ vậy người đọc thấy ánh xạ "đoạn mi-li-mét này rơi vào nhóm nào" mà không
  * bị nhầm rằng cột nào cao hơn thì "quan trọng hơn". Nên bảng màu của file này
  * chỉ có đúng: `--text-muted` (cột), `--bg-sunken` (nền vùng vẽ), `--accent`
- * (ba đường ngưỡng — A2: màu nhấn dành cho thứ tương tác được), và ba xám tường
+ * (ba đường ngưỡng — A2: màu nhấn dành cho thứ tương tác được; nhãn chữ của
+ * chúng không bấm được nên là `--text-secondary`, BUG-611), và ba xám tường
  * lấy qua `wallStrokeToken` cho dải nền.
  *
  * ## Vì sao ba đường ngưỡng là `role="slider"` chứ không phải chuyện của chuột
@@ -39,6 +40,7 @@ import { clampProgress, durationSeconds } from '@/lib/motion';
 
 import {
   CONCRETE_COLUMN_GROUP,
+  DEFAULT_THICKNESS_THRESHOLDS,
   HISTOGRAM_BIN_MM,
   HISTOGRAM_HEIGHT_PX,
   THICKNESS_GROUPS_MM,
@@ -110,15 +112,16 @@ export function ThicknessHistogram({
   /**
    * Hai đầu trục x, mi-li-mét.
    *
-   * Gộp cả khoảng của cột LẪN ba ngưỡng: một ngưỡng kéo ra ngoài khoảng đo được
-   * vẫn phải nhìn thấy và nắm lại được, nếu không thì kéo quá tay một lần là
-   * mất luôn đường đó.
+   * Gộp khoảng của cột với ba ngưỡng MẶC ĐỊNH, không với ngưỡng đang kéo: trục
+   * khoá theo ngưỡng đang kéo thì mỗi lần Home lại hạ đầu trục, và ngưỡng trôi
+   * xuống không giới hạn (BUG-606). Trục cố định thì mọi ngưỡng bị kẹp trong nó,
+   * nên vẫn luôn nhìn thấy và nắm lại được.
    */
   const { minMm, maxMm, spanMm } = useMemo(() => {
     const padding = HISTOGRAM_BIN_MM * AXIS_PADDING_BINS;
     const first = bins[0];
     const last = bins[bins.length - 1];
-    const edges: number[] = [...thresholds];
+    const edges: number[] = [...DEFAULT_THICKNESS_THRESHOLDS];
 
     if (first !== undefined && last !== undefined) {
       edges.push(first.startMm, last.endMm);
@@ -128,7 +131,7 @@ export function ThicknessHistogram({
     const high = Math.max(...edges) + padding;
 
     return { minMm: low, maxMm: high, spanMm: Math.max(high - low, HISTOGRAM_BIN_MM) };
-  }, [bins, thresholds]);
+  }, [bins]);
 
   /** Một số đo mi-li-mét thành vị trí ngang, phần trăm bề rộng vùng vẽ. */
   const percentAt = useCallback(
@@ -279,7 +282,7 @@ export function ThicknessHistogram({
       }
 
       event.preventDefault();
-      onThresholdDrag(index, next);
+      onThresholdDrag(index, Math.min(Math.max(next, minMm), maxMm));
     },
     [maxMm, minMm, onThresholdDrag],
   );
@@ -308,7 +311,7 @@ export function ThicknessHistogram({
         {thresholds.map((value, index) => (
           <motion.span
             key={String(index)}
-            className="absolute top-0 -translate-x-1/2 whitespace-nowrap font-mono text-[11px] leading-4 tabular-nums text-accent"
+            className="absolute top-0 -translate-x-1/2 whitespace-nowrap font-mono text-[11px] leading-4 tabular-nums text-text-secondary"
             initial={false}
             animate={{ left: `${String(percentAt(value))}%` }}
             transition={{ duration: durationSeconds('standard') }}
@@ -392,8 +395,8 @@ export function ThicknessHistogram({
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
           >
-            {/* Vùng nắm rộng hơn nét vẽ — 1px là thứ không ai trỏ trúng. */}
-            <span aria-hidden="true" className="absolute inset-y-0 -left-2 w-4" />
+            {/* Vùng nắm 24 px quanh nét vẽ — 1px là thứ không ai trỏ trúng (BUG-325). */}
+            <span aria-hidden="true" className="absolute inset-y-0 -left-3 w-6" />
           </motion.div>
         ))}
       </div>

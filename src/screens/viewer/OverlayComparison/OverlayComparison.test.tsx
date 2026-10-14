@@ -116,6 +116,23 @@ describe('OverlayComparison — bảy trạng thái (A11, R-63)', () => {
     expect(rendered).toBe(7);
   });
 
+  it('[BUG-636] vai người xem: đúng MỘT câu nói vì sao chỉ được xem', () => {
+    renderWithProviders(<OverlayComparison {...scenarioFor('forbidden')} />);
+
+    expect(screen.getAllByText(/chỉ được xem|không có quyền sửa/u)).toHaveLength(1);
+  });
+
+  it('[BUG-634] dưới 1024 thanh công cụ nằm trong luồng phía trên canvas, chỉ nổi trên canvas từ lg', () => {
+    renderWithProviders(<OverlayComparison {...scenarioFor('success')} />);
+
+    const slot = screen.getByRole('toolbar', { name: 'Thanh công cụ đối chiếu bản vẽ' }).parentElement?.parentElement;
+    const classes = slot?.className.split(' ') ?? [];
+
+    expect(classes).not.toContain('absolute');
+    expect(classes).toContain('lg:absolute');
+    expect(classes).toContain('order-first');
+  });
+
   it('trạng thái lỗi mở lối sang màn hiệu chỉnh tỷ lệ bằng một liên kết thật (R-65)', () => {
     const scenario = scenarioFor('error');
 
@@ -202,6 +219,7 @@ describe('OverlayComparison — xác nhận là hành động của người (A5
         buttonLabel: success.confirmation.buttonLabel,
         canConfirm: true,
         confirmedNotice: null,
+        disabledReason: null,
         isConfirmed: false,
       },
     };
@@ -231,5 +249,30 @@ describe('OverlayComparison — xác nhận là hành động của người (A5
 
     expect(confirmMatch).toHaveBeenCalledTimes(1);
     expect(confirmMatch).toHaveBeenCalledWith();
+  });
+});
+
+describe('OverlayComparison — QA-04c SCR-22 (BUG-331, 599, 608)', () => {
+  it('lỗi đọc có "Thử lại"; câu trạng thái nằm ở đầu panel, không nổi giữa canvas', () => {
+    const base = scenarioFor('error');
+    const retry = vi.fn();
+    renderWithProviders(
+      <OverlayComparison actions={{ ...base.actions, retry }} model={{ ...base.model, canRetry: true }} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(retry).toHaveBeenCalledOnce();
+
+    const notice = screen.getByRole('group', { name: 'Trạng thái của màn đối chiếu bản vẽ' });
+    expect(screen.getByRole('region', { name: 'Kết quả đối chiếu bản vẽ và mô hình' })).toContainElement(notice);
+  });
+
+  it('nút "Vừa khung nhìn" về toàn cảnh mà không tải lại trang (BUG-599)', () => {
+    const base = scenarioFor('partial');
+    const fitView = vi.fn();
+    renderWithProviders(<OverlayComparison actions={{ ...base.actions, fitView }} model={base.model} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Vừa khung nhìn' }));
+    expect(fitView).toHaveBeenCalledOnce();
   });
 });

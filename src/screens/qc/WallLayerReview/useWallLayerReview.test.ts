@@ -1541,10 +1541,10 @@ describe('tự lưu — bộ lưu lớp chung (F-04x-1)', () => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* Tỉ lệ tạm (F-04x-2 [8].7).                                                  */
+/* Tỷ lệ tạm (F-04x-2 [8].7).                                                  */
 /* -------------------------------------------------------------------------- */
 
-describe('tỉ lệ tạm (F-04x-2)', () => {
+describe('tỷ lệ tạm (F-04x-2)', () => {
   it('tầng unresolved: có dải, chiều dài thanh tra là PROVISIONAL_MEASURE_TEXT', async () => {
     const mounted = await mountSettled({
       gateway: createMockWallLayerReviewGateway({ graph: FIXTURE_GRAPH, scaleStatus: 'unresolved' }),
@@ -1572,6 +1572,148 @@ describe('tỉ lệ tạm (F-04x-2)', () => {
     expect(mounted.result.current.provisionalScaleNotice).toBeNull();
     expect(mounted.result.current.panel.inspector?.lengthLabel).not.toBe(PROVISIONAL_MEASURE_TEXT);
     expect(mounted.result.current.panel.inspector?.lengthLabel).toMatch(/mm$/u);
+    mounted.unmount();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Đợt sửa P04 cụm A (SCR-16) — mỗi ca đỏ trước bản sửa.                        */
+/* -------------------------------------------------------------------------- */
+
+describe('đợt sửa P04 — SCR-16 (hook)', () => {
+  it('[BUG-579] "Hoàn tác" trên toast xoá KHÔNG hoàn tác bước mới hơn (duyệt tường khác)', async () => {
+    const bus: NotificationBus = createNotificationBus();
+    const mounted = await mountSettled({ notifications: bus });
+    const deleted = wallAt(0);
+    const before = wallCount();
+    const approvedBefore = mounted.result.current.panel.reviewCounter.reviewed;
+
+    await act(async () => {
+      mounted.result.current.panel.onDelete(deleted.id);
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(bus.list()).toHaveLength(1);
+    });
+
+    const ticket = bus.list()[0]?.undoTicket;
+    const other = FIXTURE_WALLS.find((wall) => !wall.reviewed && wall.id !== deleted.id) as Wall;
+
+    await act(async () => {
+      mounted.result.current.panel.onApprove(other.id);
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(mounted.result.current.panel.reviewCounter.reviewed).toBe(approvedBefore + 1);
+    });
+
+    await act(async () => {
+      ticket?.undo();
+      await Promise.resolve();
+    });
+
+    /* Lượt duyệt vẫn còn, tường A vẫn đã xoá — và màn nói vì sao không có gì xảy ra. */
+    expect(mounted.result.current.panel.reviewCounter.reviewed).toBe(approvedBefore + 1);
+    expect(wallCount()).toBe(before - 1);
+    await waitFor(() => {
+      expect(bus.list().some((item) => item.title.startsWith('Chưa hoàn tác: đã có 1 thay đổi sau'))).toBe(true);
+    });
+
+    mounted.unmount();
+  });
+
+  it('[BUG-581] tự chuyển sau "Duyệt" ở trong bộ lọc đang bật', async () => {
+    const mounted = await mountSettled();
+
+    await act(async () => {
+      mounted.result.current.panel.onToggleFilter('onlyLowConfidence');
+      await Promise.resolve();
+    });
+
+    const filtered = mounted.result.current.panel.rows.filter((row) => !row.isReviewed);
+
+    expect(filtered.length).toBeGreaterThan(1);
+
+    const first = filtered[0]?.id as WallId;
+    const reviewedBefore = mounted.result.current.panel.reviewCounter.reviewed;
+
+    await act(async () => {
+      mounted.result.current.panel.onSelect(first);
+      await Promise.resolve();
+    });
+    await act(async () => {
+      mounted.result.current.panel.onApprove(first);
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(mounted.result.current.panel.reviewCounter.reviewed).toBe(reviewedBefore + 1);
+    });
+
+    await waitFor(() => {
+      expect(mounted.result.current.panel.selectedWallId).toBe(filtered[1]?.id);
+    });
+
+    await act(async () => {
+      mounted.result.current.panel.onSkip(filtered[1]?.id as WallId);
+      await Promise.resolve();
+    });
+
+    const rowIds = mounted.result.current.panel.rows.map((row) => row.id);
+
+    expect(rowIds).toContain(mounted.result.current.panel.selectedWallId);
+
+    mounted.unmount();
+  });
+
+  it('[BUG-604] phím X bật "Tách đoạn" và điền luôn tường đang chọn', async () => {
+    const mounted = await mountSettled();
+
+    await act(async () => {
+      mounted.result.current.panel.onSelect(wallAt(0).id);
+      await Promise.resolve();
+    });
+    await pressKey(mounted.registry, shortcutForTool('splitWall'));
+
+    expect(mounted.result.current.toolRail.activeTool).toBe('splitWall');
+
+    mounted.unmount();
+  });
+
+  it('[BUG-601] vai Người xem: phím M không bật công cụ đo chết', async () => {
+    const mounted = await mountSettled({ roles: ['viewer'] });
+
+    await pressKey(mounted.registry, shortcutForTool('measure'));
+
+    expect(mounted.result.current.toolRail.activeTool).toBe('select');
+
+    mounted.unmount();
+  });
+
+  it('[BUG-616] thanh trạng thái báo cờ lưu thất bại riêng, không chỉ chuỗi', async () => {
+    const mounted = await mountSettled();
+
+    expect(mounted.result.current.statusBar.saveFailed).toBe(false);
+
+    mounted.unmount();
+  });
+});
+
+describe('[G73b] Ctrl-bấm chọn hai tường', () => {
+  it('canvas nhận CẢ hai tường đang chọn để tô viền, không chỉ tường chính', async () => {
+    const mounted = await mountSettled();
+
+    await act(async () => {
+      mounted.result.current.canvas.onSelect(wallAt(0).id);
+      await Promise.resolve();
+    });
+    await act(async () => {
+      mounted.result.current.canvas.onToggleSelect(wallAt(1).id);
+      await Promise.resolve();
+    });
+
+    expect([...(mounted.result.current.canvas.selectedWallIds ?? [])].sort()).toEqual(
+      [wallAt(0).id, wallAt(1).id].sort(),
+    );
     mounted.unmount();
   });
 });

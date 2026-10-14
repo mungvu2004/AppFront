@@ -245,7 +245,7 @@ describe('useFloorLayerAutosave — saveScale (F-04x-2 bước 5)', () => {
     expect(onFloor()).toEqual([]);
   });
 
-  it('reloadFloor: N16 vắng scaleStatus gỡ tỉ lệ tạm của tầng', async () => {
+  it('reloadFloor: N16 vắng scaleStatus gỡ tỷ lệ tạm của tầng', async () => {
     const { hook, readLayer } = mount();
     const document = await createMockApiClient().spatial.readLayer({ floorId: FLOOR, projectId: PROJECT });
 

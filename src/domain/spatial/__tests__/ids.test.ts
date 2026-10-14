@@ -8,7 +8,9 @@ import {
   ID_PREFIX_BY_KIND,
   isIdOfKind,
   isValidId,
+  keepDisplayCodes,
   readKindFromId,
+  sortByDisplayCode,
 } from '../ids';
 
 const ALL_KINDS = Object.keys(ID_PREFIX_BY_KIND) as EntityKind[];
@@ -263,5 +265,45 @@ describe('counterLabelOf', () => {
     for (const id of ['W-MISSING1AA', `W-03${'A'.repeat(23)}`, 'M-DIMN0000010', `W-0${'A'.repeat(16)}`]) {
       expect(counterLabelOf(id)).toBe(id);
     }
+  });
+});
+
+describe('keepDisplayCodes / sortByDisplayCode (BUG-592)', () => {
+  /* Mã kiểu BE: mốc thời gian đứng đầu, nên displayCodesOf đánh số theo thứ tự. */
+  const be = (n: number): string => `W-0${String(n).padStart(24, '0')}`;
+
+  it('xoá một tường không làm nhãn các tường sau nó lùi một', () => {
+    const ids = [1, 2, 3, 4, 5].map(be);
+    const shown = keepDisplayCodes(new Map(), displayCodesOf(ids));
+
+    expect(shown.get(be(4))).toBe('W-004');
+
+    const afterDelete = keepDisplayCodes(shown, displayCodesOf(ids.filter((id) => id !== be(2))));
+
+    expect(afterDelete.get(be(4))).toBe('W-004');
+    expect(afterDelete.get(be(5))).toBe('W-005');
+  });
+
+  it('thực thể mới không lấy lại nhãn đã dùng: số kế tiếp sau số lớn nhất', () => {
+    const ids = [1, 2, 3].map(be);
+    const shown = keepDisplayCodes(new Map(), displayCodesOf(ids));
+    const withNew = keepDisplayCodes(shown, displayCodesOf([be(1), be(3), be(9)]));
+
+    expect(withNew.get(be(9))).toBe('W-004');
+    expect(new Set(withNew.values()).size).toBe(withNew.size);
+  });
+
+  it('xếp theo nhãn, số theo giá trị (W-002 trước W-010)', () => {
+    const codes = new Map([
+      ['a', 'W-010'],
+      ['b', 'W-002'],
+      ['c', 'W-001'],
+    ]);
+
+    expect(sortByDisplayCode([{ id: 'a' }, { id: 'b' }, { id: 'c' }], codes).map((item) => item.id)).toEqual([
+      'c',
+      'b',
+      'a',
+    ]);
   });
 });

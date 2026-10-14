@@ -201,5 +201,55 @@ export const displayCodesOf = (ids: readonly string[]): ReadonlyMap<string, stri
   );
 };
 
+/**
+ * Nhãn mới (`next`, thường là `displayCodesOf` của danh sách hiện tại) mà KHÔNG đổi
+ * nhãn nào đã hiện (`previous`) — BUG-592. Ở nhánh đánh số theo thứ tự của
+ * {@link displayCodesOf}, xoá một thực thể làm mọi nhãn sau nó lùi một: `W-005`
+ * người khác vừa nhắc thành một tường khác. Thực thể đã có nhãn giữ nhãn ấy (cả khi
+ * đã bị xoá, để hoàn tác trả về đúng nhãn cũ); thực thể mới lấy nhãn của `next` nếu
+ * còn trống, không thì số kế tiếp sau số lớn nhất cùng tiền tố.
+ *
+ * ponytail: nhãn chỉ ổn định trong phiên — tải lại trang thì đánh số lại từ máy chủ.
+ * Đường nâng cấp: máy chủ cấp mã hiển thị.
+ */
+export function keepDisplayCodes(
+  previous: ReadonlyMap<string, string>,
+  next: ReadonlyMap<string, string>,
+): ReadonlyMap<string, string> {
+  const result = new Map(previous);
+  const taken = new Set(previous.values());
+
+  for (const [id, code] of next) {
+    if (result.has(id)) {
+      continue;
+    }
+
+    let label = code;
+
+    if (taken.has(label)) {
+      const prefix = code.slice(0, code.lastIndexOf('-') + 1);
+      const highest = [...taken]
+        .filter((other) => other.startsWith(prefix))
+        .reduce((max, other) => Math.max(max, Number(other.slice(prefix.length)) || 0), 0);
+
+      label = `${prefix}${String(highest + 1).padStart(DISPLAY_CODE_DIGITS, '0')}`;
+    }
+
+    taken.add(label);
+    result.set(id, label);
+  }
+
+  return result;
+}
+
+/** Bản sao xếp theo nhãn hiển thị (`W-002` trước `W-010`), mã thiếu nhãn xếp theo chính nó. */
+export const sortByDisplayCode = <T extends { readonly id: string }>(
+  items: readonly T[],
+  codes: ReadonlyMap<string, string>,
+): readonly T[] =>
+  [...items].sort((a, b) =>
+    (codes.get(a.id) ?? a.id).localeCompare(codes.get(b.id) ?? b.id, undefined, { numeric: true }),
+  );
+
 /** Checks whether a string is a valid id of any entity kind. */
 export const isValidId = (id: string): boolean => readKindFromId(id) !== null;

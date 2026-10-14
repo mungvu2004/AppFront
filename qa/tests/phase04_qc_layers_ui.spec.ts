@@ -34,7 +34,7 @@
  * (`verifyIn` guard):
  *   - selection, filters, "Thu gọn hai panel", "Thông số nâng cao", "Lọc theo loại", keyboard mode, "Thu gọn bảng" are view
  *     state; "Thêm trục ngang" is in memory only (F-08, `useAxisGridManager.ts` persistAxisGrid unsupported);
- *   - dialogs are opened and never confirmed: "Xem trước chuẩn hoá tên", "Gộp hai phòng", "Áp tỉ lệ này cho N tầng…"
+ *   - dialogs are opened and never confirmed: "Xem trước chuẩn hoá tên", "Gộp hai phòng", "Áp tỷ lệ này cho N tầng…"
  *     (only GET floors + GET spatial, phase04_qc_layers.spec.ts SCR-14 all-floors case), thickness "Xem trước" (the PUT
  *     is "Áp dụng", never clicked); the reference line is drawn and its length typed, "Áp dụng tỷ lệ" is not clicked
  *     for this-floor scope.
@@ -128,7 +128,7 @@ const SCALE_COMPUTATION = 'Phép tính ra tỷ lệ';
 const SCALE_SCOPE = 'Phạm vi áp tỷ lệ';
 const SCALE_ALL_FLOORS = 'Áp cho mọi tầng';
 const SCALE_APPLY = 'Áp dụng tỷ lệ';
-const SCALE_ALL_FLOORS_DIALOG = /^Áp tỉ lệ này cho \d+ tầng có bản vẽ\?$/u;
+const SCALE_ALL_FLOORS_DIALOG = /^Áp tỷ lệ này cho \d+ tầng có bản vẽ\?$/u;
 /* SCR-22: OverlayComparison.tsx, OverlayComparisonToolbar.tsx, OverlayComparisonPanel.tsx, useOverlayComparison.ts COPY. */
 const OVERLAY_SCREEN = 'Màn đối chiếu bản vẽ';
 const OVERLAY_TOOLBAR = 'Thanh công cụ đối chiếu bản vẽ';

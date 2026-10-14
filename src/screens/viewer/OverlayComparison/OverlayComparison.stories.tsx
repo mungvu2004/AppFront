@@ -44,6 +44,9 @@ const ACTIONS: OverlayComparisonActions = {
   setToleranceMm: NO_OP,
   selectRegion: NO_OP,
   setViewport: NO_OP,
+  zoomBy: NO_OP,
+  fitView: NO_OP,
+  retry: NO_OP,
   confirmMatch: NO_OP,
 };
 

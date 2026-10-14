@@ -24,7 +24,7 @@
  */
 
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Inbox } from 'lucide-react';
+import { AlertTriangle, Check, Inbox, XCircle } from 'lucide-react';
 import { useEffect, useRef, type CSSProperties } from 'react';
 
 import { wallStrokeToken } from '@/components/canvas/materialMap';
@@ -68,6 +68,13 @@ const STATUS_DOT_TOKEN: Readonly<Record<ViewStatusCode, string>> = {
   neutral: 'bg-text-muted',
 };
 
+const STATUS_ICON_TEXT: Readonly<Record<ViewStatusCode, string>> = {
+  verified: 'text-state-verified-text',
+  attention: 'text-state-attention-text',
+  violation: 'text-state-violation-text',
+  neutral: '',
+};
+
 const STATUS_DOT_LABEL: Readonly<Record<ViewStatusCode, string>> = {
   verified: 'Đã duyệt',
   attention: 'Cần chú ý',
@@ -100,6 +107,7 @@ interface WallLayerListRowProps {
   readonly onSelect: (wallId: WallRowViewModel['id']) => void;
   readonly onToggleSelect: (wallId: WallRowViewModel['id']) => void;
   readonly onHover: (wallId: WallRowViewModel['id'] | null) => void;
+  readonly onOpenMenu?: ((wallId: WallRowViewModel['id']) => void) | undefined;
   readonly style: CSSProperties;
 }
 
@@ -111,6 +119,7 @@ function WallLayerListRow({
   onSelect,
   onToggleSelect,
   onHover,
+  onOpenMenu,
   style,
 }: WallLayerListRowProps) {
   const showHatch = row.isLowConfidence && row.statusCode === 'attention';
@@ -131,7 +140,8 @@ function WallLayerListRow({
       aria-label={`${row.codeLabel} — ${STATUS_DOT_LABEL[row.statusCode]}`}
       aria-selected={isSelected}
       className={cn(
-        'absolute inset-x-0 top-0 flex h-10 cursor-pointer items-center gap-2 px-2 text-[13px] outline-none',
+        /* Một hàng vừa 240 px của panel 280 (mã 48 · độ dày ~75 · tin cậy 84 · dấu 14 · khe 4): không gì tràn mép phải (BUG-396). */
+        'absolute inset-x-0 top-0 flex h-10 cursor-pointer items-center gap-1 overflow-hidden px-2 text-[13px] outline-none',
         'transition-colors duration-120 hover:bg-bg-hover',
         'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent',
         isSelected && 'bg-bg-selected hover:bg-bg-selected',
@@ -150,6 +160,14 @@ function WallLayerListRow({
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           pick(event.ctrlKey || event.metaKey);
+
+          return;
+        }
+
+        /* Đường bàn phím tới menu chuột phải (G74 16-E-010, A12). */
+        if (onOpenMenu !== undefined && (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10'))) {
+          event.preventDefault();
+          onOpenMenu(row.id);
         }
       }}
       onMouseEnter={() => onHover(row.id)}
@@ -170,9 +188,9 @@ function WallLayerListRow({
         />
       )}
 
-      <span className="relative w-16 shrink-0 truncate font-mono text-text-primary">{row.codeLabel}</span>
+      <span className="relative w-12 shrink-0 truncate font-mono text-text-primary">{row.codeLabel}</span>
 
-      <Badge className="relative shrink-0 gap-1.5 font-mono" noDot variant="neutral">
+      <Badge className="relative shrink-0 gap-1 px-1.5 font-mono" noDot variant="neutral">
         <span
           aria-hidden="true"
           className="h-3 w-3 rounded-sm border border-border-default-50"
@@ -181,17 +199,31 @@ function WallLayerListRow({
         {row.thicknessLabel}
       </Badge>
 
-      <span className="relative shrink-0">
-        <ConfidenceMeter noTooltip value={row.confidence} />
+      <span className="relative min-w-0 shrink">
+        <ConfidenceMeter className="gap-1" noTooltip value={row.confidence} />
       </span>
 
+      {/*
+        Cần chú ý: biểu tượng + màu, không huy hiệu chữ — huy hiệu 70 px bị mép panel cắt đôi
+        (BUG-396). Tên trạng thái vẫn nằm ở `aria-label` của hàng và ở `title`.
+      */}
       {row.statusCode === 'attention' ? (
-        <Badge className="relative ml-auto shrink-0" variant="attention">
-          {ATTENTION_BADGE_LABEL}
-        </Badge>
+        <span className="relative ml-auto flex shrink-0 items-center text-state-attention-text" title={ATTENTION_BADGE_LABEL}>
+          <AlertTriangle aria-hidden="true" className="h-3.5 w-3.5" />
+        </span>
       ) : (
-        <span className="relative ml-auto flex shrink-0 items-center" title={STATUS_DOT_LABEL[row.statusCode]}>
-          <span aria-hidden="true" className={cn('h-1.5 w-1.5 rounded-full', STATUS_DOT_TOKEN[row.statusCode])} />
+        /* Đã duyệt / vi phạm mang hình riêng, không chỉ khác màu chấm (BUG-638). */
+        <span
+          className={cn('relative ml-auto flex shrink-0 items-center', STATUS_ICON_TEXT[row.statusCode])}
+          title={STATUS_DOT_LABEL[row.statusCode]}
+        >
+          {row.statusCode === 'verified' ? (
+            <Check aria-hidden="true" className="h-3.5 w-3.5" />
+          ) : row.statusCode === 'violation' ? (
+            <XCircle aria-hidden="true" className="h-3.5 w-3.5" />
+          ) : (
+            <span aria-hidden="true" className={cn('h-1.5 w-1.5 rounded-full', STATUS_DOT_TOKEN[row.statusCode])} />
+          )}
         </span>
       )}
     </div>
@@ -199,7 +231,7 @@ function WallLayerListRow({
 }
 
 export function WallLayerList({ panel, flashingWallId, onToggleSelect }: WallLayerListProps) {
-  const { rows, selectedWallId, hoveredWallId, onSelect, onHover, state, emptyNotice } = panel;
+  const { rows, selectedWallId, hoveredWallId, onSelect, onHover, onOpenRowMenu, state, emptyNotice } = panel;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const scrollParentRef = useRef<HTMLElement | null>(null);
 
@@ -288,6 +320,7 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect }: WallLay
             isSelected={row.id === selectedWallId}
             key={row.id}
             onHover={onHover}
+            onOpenMenu={onOpenRowMenu}
             onSelect={onSelect}
             onToggleSelect={onToggleSelect}
             row={row}

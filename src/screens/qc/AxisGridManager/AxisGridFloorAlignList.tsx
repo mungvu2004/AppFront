@@ -33,6 +33,7 @@
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
+import type { ViewStatusCode } from '@/lib/viewmodel/types';
 
 import type {
   AxisGridManagerProps,
@@ -47,6 +48,8 @@ export interface AxisGridFloorAlignListProps
   readonly warningBanner: AxisGridWarningBanner | null;
   /** Tầng chưa có trục (rỗng/lỗi): khoá nút căn, bỏ nhãn "Đã duyệt" và hàng 0 mm giả (BUG-330, BUG-336). */
   readonly unavailableNotice: string | null;
+  /** BUG-594/601: nút căn bấm vào không làm được gì (vai xem, một tầng, đã khớp) — khoá và nói vì sao. */
+  readonly blockedReason: string | null;
 }
 
 const PANEL_TITLE = 'Căn chỉnh giữa các tầng';
@@ -55,15 +58,16 @@ const ROOT_FLOOR_LABEL = 'Tầng gốc';
 const APPROVED_BADGE_LABEL = 'Đã duyệt';
 
 const STATUS_LABEL: Readonly<Record<FloorAlignStatus, string>> = {
-  ok: 'Trong dung sai',
+  ok: 'Trong ngưỡng',
   warning: 'Cần chú ý',
   unalignable: 'Không căn được',
 };
 
-const STATUS_DOT_TOKEN: Readonly<Record<FloorAlignStatus, string>> = {
-  ok: 'bg-text-muted',
-  warning: 'bg-state-attention',
-  unalignable: 'bg-state-violation',
+/* "Trong ngưỡng" là trung tính: xanh "đã xác minh" chỉ dành cho việc người duyệt (A5). */
+const STATUS_BADGE_VARIANT: Readonly<Record<FloorAlignStatus, ViewStatusCode>> = {
+  ok: 'neutral',
+  warning: 'attention',
+  unalignable: 'violation',
 };
 
 function floorRowAriaLabel(floor: FloorAlignRowViewModel): string {
@@ -96,11 +100,10 @@ function FloorAlignRow({ floor, onHover }: FloorAlignRowProps) {
           {ROOT_FLOOR_LABEL}
         </Badge>
       ) : (
-        <span
-          aria-hidden="true"
-          className={cn('h-1.5 w-1.5 shrink-0 rounded-full', STATUS_DOT_TOKEN[floor.status])}
-          title={STATUS_LABEL[floor.status]}
-        />
+        /* Trạng thái bằng chữ, không chỉ một chấm màu (BUG-638, khuôn BUG-610). */
+        <Badge className="shrink-0" variant={STATUS_BADGE_VARIANT[floor.status]}>
+          {STATUS_LABEL[floor.status]}
+        </Badge>
       )}
     </div>
   );
@@ -113,8 +116,11 @@ export function AxisGridFloorAlignList({
   onFloorRowHover,
   onViewFloorOnDrawing,
   unavailableNotice,
+  blockedReason,
 }: AxisGridFloorAlignListProps) {
   const isUnavailable = unavailableNotice !== null;
+  /* Tầng chưa có trục đã có câu riêng; không chép thêm câu khoá thứ hai. */
+  const shownBlockedReason = isUnavailable ? null : blockedReason;
   const isFullyAligned =
     !isUnavailable &&
     warningBanner === null &&
@@ -131,7 +137,7 @@ export function AxisGridFloorAlignList({
 
       <Button
         className="self-start"
-        disabled={isUnavailable}
+        disabled={isUnavailable || blockedReason !== null}
         onClick={() => onAutoAlign()}
         size="sm"
         variant="secondary"
@@ -140,6 +146,7 @@ export function AxisGridFloorAlignList({
       </Button>
 
       {isUnavailable && <p className="text-[13px] text-text-secondary">{unavailableNotice}</p>}
+      {shownBlockedReason !== null && <p className="text-[13px] text-text-secondary">{shownBlockedReason}</p>}
 
       {!isUnavailable && warningBanner !== null && (
         <div className="flex flex-col items-start gap-2 rounded-lg bg-state-attention-tint p-3" role="alert">

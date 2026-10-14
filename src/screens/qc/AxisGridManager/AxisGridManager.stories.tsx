@@ -70,6 +70,8 @@ export function scenarioArgsFor(state: SevenState): AxisGridManagerViewProps {
     ...IDLE_HANDLERS,
     viewModel: axisGridScenarioFor(state),
     spacingMessage: null,
+    unsavedNotice: null,
+    autoAlignBlockedReason: null,
   };
 }
 

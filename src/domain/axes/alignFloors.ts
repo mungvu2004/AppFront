@@ -470,7 +470,7 @@ function clearHeightIssues(floors: readonly FloorPlan[]): FloorIssue[] {
       severity: 'violation',
       amountMm: millimetres(Math.abs(height - limit)),
       message:
-        `Tầng ${floor.name} có chiều cao thông thuỷ ${metreText(height)} m, ` +
+        `${floorLabel(floor.name)} có chiều cao thông thuỷ ${metreText(height)} m, ` +
         `ngoài khoảng ${metreText(MIN_CLEAR_HEIGHT_MM)}–${metreText(MAX_CLEAR_HEIGHT_MM)} m ` +
         `(lệch ${millimetreText(Math.abs(height - limit))} mm).`,
     });
@@ -515,7 +515,7 @@ function overlapIssues(floors: readonly FloorPlan[]): FloorIssue[] {
       severity: 'violation',
       amountMm: millimetres(overlapMm),
       message:
-        `Tầng ${upper.name} bắt đầu ở cao độ ${metreText(upper.floorElevationMm)} m, ` +
+        `${floorLabel(upper.name)} bắt đầu ở cao độ ${metreText(upper.floorElevationMm)} m, ` +
         `thấp hơn trần tầng ${lower.name} ở ${metreText(ceiling)} m: ` +
         `hai tầng chồng lấn ${millimetreText(overlapMm)} mm.`,
     });
@@ -527,6 +527,14 @@ function overlapIssues(floors: readonly FloorPlan[]): FloorIssue[] {
 /* -------------------------------------------------------------------------- */
 /* Aligning the stack.                                                         */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * Tên tầng đứng đầu câu: tên đã là "Tầng 2" thì giữ nguyên, tên trần ("2", "Mái")
+ * thì thêm "Tầng " — không ra "Tầng Tầng 2" (BUG-628).
+ */
+function floorLabel(name: string): string {
+  return /^tầng\s/iu.test(name) ? name : `Tầng ${name}`;
+}
 
 /**
  * Put every floor onto the grid of the base floor.
@@ -610,7 +618,7 @@ export function alignFloors(
         severity: 'attention',
         amountMm: millimetres(0),
         message:
-          `Tầng ${floor.name} chỉ khớp được ${String(best.matched)} trục với tầng chuẩn ` +
+          `${floorLabel(floor.name)} chỉ khớp được ${String(best.matched)} trục với tầng chuẩn ` +
           `${base.name}, chưa đủ căn cứ để chồng tầng.`,
       });
       continue;
@@ -624,7 +632,7 @@ export function alignFloors(
         severity: 'attention',
         amountMm: millimetres(best.maxResidualMm),
         message:
-          `Tầng ${floor.name} còn lệch ${millimetreText(best.maxResidualMm)} mm so với tầng chuẩn ` +
+          `${floorLabel(floor.name)} còn lệch ${millimetreText(best.maxResidualMm)} mm so với tầng chuẩn ` +
           `${base.name}, vượt ngưỡng ${millimetreText(thresholdMm)} mm.`,
       });
     }
