@@ -318,7 +318,8 @@ export function DimensionOcrReview({
               <p className="border-t border-border-default px-3 py-2 text-[12px] text-text-muted">
                 {model.viewerRoleNotice}
               </p>
-            ) : (
+            ) : !model.keyboardReview.isActive && (model.state === 'loading' || model.state === 'error') ? null : (
+              /* Đang tải hay đọc lỗi: chưa có gì để duyệt, không mời "bật duyệt bàn phím" (BUG-630). Màn rỗng giữ nút (BUG-334). */
               <div className="border-t border-border-default px-3 py-2">
                 <DimensionOcrKeyboardMode
                   isActive={model.keyboardReview.isActive}
