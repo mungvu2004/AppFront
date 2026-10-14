@@ -191,10 +191,6 @@ function RuleSettingsMain({ props, activeSection, onSelectSection, sentenceByCod
         <InlineAlert level="violation" message={model.disableAllWarning} />
       )}
 
-      {model.status === 'partial' && (
-        <p className="text-xs text-text-secondary">Đang tải thêm dữ liệu bộ luật…</p>
-      )}
-
       {capabilities.canApplyPreset && model.presets.length > 0 && (
         <RuleSettingsPresetsRow presets={model.presets} onApplyPreset={props.onApplyPreset} />
       )}

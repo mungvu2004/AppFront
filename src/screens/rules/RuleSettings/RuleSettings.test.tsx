@@ -537,6 +537,14 @@ describe('2.(b).7 — áp bộ luật sẵn "nhà xưởng": số luật đổi 
     expect(onApplyPreset).toHaveBeenCalledWith('industrial');
   });
 
+  it('29-B-009: trạng thái partial không nói "đang tải thêm dữ liệu"', async () => {
+    const RuleSettingsView = await loadRuleSettingsView();
+
+    render(<RuleSettingsView {...buildRuleSettingsProps({ status: 'partial' })} />);
+
+    expect(screen.queryByText(/Đang tải thêm dữ liệu/u)).toBeNull();
+  });
+
   it('trước khi áp thì không có nút khôi phục mặc định; sau khi áp (isDefault=false) thì có, và bấm được', async () => {
     const RuleSettingsView = await loadRuleSettingsView();
     const beforeProps = buildRuleSettingsProps({ status: 'ready' });
@@ -812,6 +820,53 @@ describe('F-10 — useRuleSettings nối N21/N22', () => {
     expect(result.current.model.saveState).toBe('error');
     expect(result.current.model.status).not.toBe('error');
     expect(resolveConflict).not.toHaveBeenCalled();
+  });
+
+  it('29-C-016: áp bộ luật 0 thay đổi không PUT và không bắn toast hoàn tác', async () => {
+    const onToast = vi.fn();
+    const { result, replace } = setupHook({ onToast });
+    await advance(0);
+
+    act(() => result.current.onApplyPreset('residential'));
+    await advance(AFTER_DEBOUNCE_MS);
+
+    expect(replace).not.toHaveBeenCalled();
+    expect(onToast).not.toHaveBeenCalled();
+  });
+
+  it('29-C-020: sau 409, sửa tiếp không PUT lại bản cũ và chữ không hứa thử lưu lại', async () => {
+    const { result, replace } = setupHook({
+      replace: async () => ({ ok: false, error: wireError(409, 'VERSION_CONFLICT', { remoteChanges: [] }) }),
+    });
+    await advance(0);
+
+    act(() => result.current.onToggleRule('WALL-THICKNESS', false));
+    await advance(AFTER_DEBOUNCE_MS);
+    act(() => result.current.onToggleRule('DOOR-WIDTH', false));
+    await advance(AFTER_DEBOUNCE_MS);
+
+    expect(replace).toHaveBeenCalledTimes(1);
+    expect(result.current.model.saveProblem?.offerReload).toBe(true);
+    expect(result.current.model.saveCaption).not.toMatch(/thử lưu lại/u);
+  });
+
+  it('29-G-013: 503 đang tự thử lại không hiện cảnh báo; hết thử lại mới hiện', async () => {
+    const { result, replace } = setupHook({
+      replace: async () => ({ ok: false, error: wireError(503, 'DEPENDENCY_UNAVAILABLE') }),
+    });
+    await advance(0);
+
+    act(() => result.current.onToggleRule('WALL-THICKNESS', false));
+    await advance(AFTER_DEBOUNCE_MS);
+
+    expect(replace).toHaveBeenCalledTimes(1);
+    expect(result.current.model.saveState).not.toBe('error');
+    expect(result.current.model.saveProblem).toBeNull();
+
+    await advance(120_000);
+
+    expect(result.current.model.saveState).toBe('error');
+    expect(result.current.model.saveProblem).not.toBeNull();
   });
 
   it('422 RULE_GENERAL_NOT_TOGGLEABLE → câu gắn thẻ ngưỡng chung', async () => {

@@ -242,6 +242,9 @@ const IMPACT_UNKNOWN_CAPTION = 'Chưa có dữ liệu để đánh giá';
  * quả thật không phải "bạn sẽ mất phần kiểm tra", mà là mô hình sẽ **báo sạch
  * lỗi** trong khi chưa có gì được kiểm. Đó mới là thứ làm người ta xuất nhầm.
  */
+/** Nhãn lưu sau 409: không hứa tự thử lại, vì chỉ tải lại mới gỡ được (29-C-020). */
+const CONFLICT_CAPTION = 'Chưa lưu — tải lại để lấy bản mới nhất.';
+
 const DISABLE_ALL_WARNING =
   'Mọi luật đều đang tắt: lượt kiểm tra sẽ không soi gì nữa và mô hình báo sạch lỗi dù chưa được kiểm lần nào.';
 
@@ -405,6 +408,10 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
 
   const [thresholdErrors, setThresholdErrors] = useState<Readonly<Record<string, string>>>({});
   const [saveProblem, setSaveProblem] = useState<RuleConfigSaveProblem | null>(null);
+  // Lỗi tạm (503…) còn đang tự thử lại thì chưa phải "lưu hỏng": chưa báo (29-G-013).
+  const [saveProblemTransient, setSaveProblemTransient] = useState(false);
+  // Sau 409 bản của máy chủ đã đi trước `baseVersion` của ta: không gửi lại cho tới khi tải lại (29-C-020).
+  const conflictRef = useRef<unknown>(null);
   const [reloadConfirmOpen, setReloadConfirmOpen] = useState(false);
 
   /* ---------------------------------------------------------------------- */
@@ -572,6 +579,10 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
         // Đọc TRƯỚC `await` đầu tiên: lượt nạp hay lượt lưu khác có thể nâng nó giữa chừng.
         const baseVersion = useStore.getState().ruleConfigRevision;
 
+        if (conflictRef.current !== null) {
+          throw conflictRef.current;
+        }
+
         try {
           const saved = await gateway.update({ projectId, baseVersion, config: changes });
           // Hook đã sang dự án khác giữa chừng thì mốc và dải lỗi thuộc dự án mới, không ghi đè.
@@ -580,13 +591,21 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
           if (stillHere) {
             lastPersistedRef.current = { projectId, config: changes };
             setSaveProblem(null);
+            setSaveProblemTransient(false);
           }
 
           useStore.getState().setRuleConfigRevision(projectId, saved.revision);
           queryClient.setQueryData(ruleSettingsQueryKey(projectId), saved);
         } catch (error) {
           if (useStore.getState().ruleConfigProjectId === projectId) {
-            setSaveProblem(describeRuleConfigSaveError(error));
+            const problem = describeRuleConfigSaveError(error);
+
+            if (problem.offerReload) {
+              conflictRef.current = error;
+            }
+
+            setSaveProblem(problem);
+            setSaveProblemTransient(isTransientWireError(error));
           }
 
           // Lỗi GỐC: `createAutosave` đọc nó để chọn thử lại hay dừng (R2).
@@ -638,6 +657,7 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
     if (result.isSuccess) {
       // `hydrate` làm vé hoàn tác của thay đổi vừa bỏ hết hạn và gỡ toast của chúng (BUG-463).
       hydrate(result.data);
+      conflictRef.current = null;
       setSaveProblem(null);
       // Xoá trạng thái `failed` của lượt lưu cũ: không còn gì để gửi.
       void autosave.saveNow();
@@ -826,6 +846,7 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
 
   const hasThresholdProblem = Object.keys(thresholdErrors).length > 0;
   const saveState = toSaveIndicatorState(indicator.state);
+  const shownProblem = saveProblemTransient && saveState !== 'error' ? null : saveProblem;
 
   /**
    * Bậc thang bảy trạng thái của A11, chạy đúng một lần theo thứ tự này:
@@ -903,12 +924,13 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
       presets,
       isDefault: isDefaultConfig(config),
       saveState,
-      saveCaption: indicator.label,
+      saveCaption:
+        saveState === 'error' && saveProblem?.offerReload === true ? CONFLICT_CAPTION : indicator.label,
       totalRuleCount,
       enabledRuleCount,
       disableAllWarning: enabledRuleCount === 0 ? DISABLE_ALL_WARNING : null,
       errorMessage,
-      saveProblem,
+      saveProblem: shownProblem,
       reloadConfirmOpen,
     }),
     [
@@ -921,6 +943,7 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
       presets,
       reloadConfirmOpen,
       saveProblem,
+      shownProblem,
       saveState,
       status,
       totalRuleCount,
@@ -1064,6 +1087,12 @@ export function useRuleSettings(options: UseRuleSettingsOptions): RuleSettingsPr
       }
 
       const diff = diffPreset(config, preset);
+
+      // 0 thay đổi thì không có gì để ghi, để hoàn tác hay để báo (29-C-016).
+      if (diff.changedRuleCount === 0) {
+        return;
+      }
+
       const label = `Áp bộ luật ${preset.label.toLocaleLowerCase('vi')}`;
 
       applyConfig(
