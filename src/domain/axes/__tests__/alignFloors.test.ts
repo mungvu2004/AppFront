@@ -402,6 +402,8 @@ describe('a floor with nothing to align by', () => {
 
     expect(issue?.kind).toBe('unalignable');
     expect(issue?.message).toContain('Tầng 2');
+    /* BUG-628: tên tầng đã có chữ "Tầng" — không lặp thành "Tầng Tầng 2". */
+    expect(issue?.message).not.toContain('Tầng Tầng');
     expect(issue?.message).toContain('0 trục');
   });
 

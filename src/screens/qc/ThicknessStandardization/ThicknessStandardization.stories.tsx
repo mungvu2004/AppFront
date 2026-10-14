@@ -187,9 +187,9 @@ export const SaveBlocked: Story = {
   },
 };
 
-/** Dải "Tỉ lệ tạm" — tầng chưa hiệu chỉnh tỉ lệ (N16 `scaleStatus: 'unresolved'`, F-04x-2). */
+/** Dải "Tỷ lệ tạm" — tầng chưa hiệu chỉnh tỷ lệ (N16 `scaleStatus: 'unresolved'`, F-04x-2). */
 export const ProvisionalScale: Story = {
-  name: 'Tỉ lệ tạm',
+  name: 'Tỷ lệ tạm',
   args: {
     ...scenarioArgsFor('partial'),
     gateway: createMockThicknessStandardizationGateway({

@@ -1070,6 +1070,7 @@ export function toCanvasShapes(
        */
       attentionDotPx: centreOfBounds(bounds),
       isLowConfidence: isLowConfidence(wall, threshold),
+      isReviewed: wall.reviewed,
     });
   }
 

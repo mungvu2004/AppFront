@@ -95,7 +95,7 @@ export function WallThicknessLegend({
         )}
         role="alert"
       >
-        <span className="font-mono text-xs text-state-violation-text leading-none">
+        <span className="text-xs text-state-violation-text leading-none">
           Không tải được chú giải
         </span>
       </div>
@@ -111,7 +111,7 @@ export function WallThicknessLegend({
           className
         )}
       >
-        <span className="font-mono text-xs text-text-muted leading-none">
+        <span className="text-xs text-text-muted leading-none">
           Chưa có dữ liệu tường
         </span>
       </div>

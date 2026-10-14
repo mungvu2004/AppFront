@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { applyPatch } from '@/domain/spatial/applyPatch';
 import { normalizeSpatial, type NormalizedSpatial } from '@/domain/spatial/normalize';
@@ -10,6 +10,8 @@ import {
   createHistoryStack,
   MAX_HISTORY_STEPS,
   NO_SELECTION,
+  newestEntryId,
+  undoIfNewest,
   type HistoryPushInput,
   type SelectionSnapshot,
 } from '@/lib/commands/history';
@@ -652,5 +654,47 @@ describe('mergeCommands', () => {
     );
 
     expect(folded).toEqual(replayed);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* BUG-579 — a toast's "Hoàn tác" takes back its own step only.                */
+/* -------------------------------------------------------------------------- */
+
+describe('undoIfNewest (BUG-579)', () => {
+  it("undoes the toast's step while it is on top, and refuses once a newer step exists", () => {
+    const stack = createHistoryStack();
+    const undo = vi.fn(() => {
+      stack.undo();
+    });
+
+    stack.push(pushOf([removeFurnitureCommand()]));
+    const deleteEntry = newestEntryId(stack);
+
+    expect(deleteEntry).not.toBeNull();
+    expect(undoIfNewest(stack, deleteEntry, undo)).toBeNull();
+    expect(undo).toHaveBeenCalledTimes(1);
+
+    stack.push(pushOf([removeFurnitureCommand()]));
+    const second = newestEntryId(stack);
+
+    stack.push(pushOf([dragCommand({ fromMm: 220, toMm: 330, atMs: 60_000 })]));
+
+    const refused = undoIfNewest(stack, second, undo);
+
+    expect(refused).toBe('Chưa hoàn tác: đã có 1 thay đổi sau thay đổi này. Dùng Ctrl+Z để hoàn tác lần lượt.');
+    expect(undo).toHaveBeenCalledTimes(1);
+    expect(stack.undoSteps()).toHaveLength(2);
+  });
+
+  it('refuses a step that is no longer on the stack', () => {
+    const stack = createHistoryStack();
+
+    stack.push(pushOf([removeFurnitureCommand()]));
+    const entry = newestEntryId(stack);
+
+    stack.clear();
+
+    expect(undoIfNewest(stack, entry, vi.fn())).toBe('Thay đổi này không còn trong lịch sử hoàn tác.');
   });
 });

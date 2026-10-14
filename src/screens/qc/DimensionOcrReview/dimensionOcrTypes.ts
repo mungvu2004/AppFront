@@ -213,6 +213,21 @@ export interface DimensionOcrCanvasProps {
   /** `false` ở trạng thái `forbidden`: xem/phóng to được, chọn thì không. */
   readonly isInteractive: boolean;
   readonly onSelect: (dimensionId: string | null) => void;
+  /** Khổ bản vẽ (px) — `viewBox` của lớp chuỗi, để chuỗi khớp ảnh nền (G13). `null` khi chưa có. */
+  readonly drawingSizePx: { readonly width: number; readonly height: number } | null;
+  /** Cụm thu phóng nối thật vào lớp bản vẽ (G07). */
+  readonly zoom: DimensionCanvasZoom;
+}
+
+/** Thu phóng của khung bản vẽ (G07) — hook giữ mức, view chỉ áp `scale`. */
+export interface DimensionCanvasZoom {
+  /** Mức phần trăm cho nhãn của cụm, ví dụ 110. */
+  readonly percent: number;
+  /** Hệ số `scale()` của lớp bản vẽ, ví dụ 1,1. */
+  readonly scale: number;
+  readonly onZoomIn: () => void;
+  readonly onZoomOut: () => void;
+  readonly onReset: () => void;
 }
 
 /** Mọi thứ view danh sách nhận. */

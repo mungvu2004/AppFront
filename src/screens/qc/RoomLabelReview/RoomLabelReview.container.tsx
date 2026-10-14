@@ -61,6 +61,7 @@
  * (A7/E.10). Không ai được bịa một endpoint để lấp chỗ đó.
  */
 
+import { AlertCircle } from 'lucide-react';
 import { useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -120,7 +121,7 @@ function RoomLabelReviewCrashFallback({ report, retry }: ScreenErrorFallback) {
     <div className="absolute inset-0 flex items-center justify-center bg-bg-app">
       <EmptyState
         description={report.description.description}
-        icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-state-violation-tint" />}
+        icon={<AlertCircle />}
         title={report.description.title}
         {...(report.retryable
           ? { action: { label: report.description.primaryButtonLabel, onClick: retry } }

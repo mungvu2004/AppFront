@@ -40,14 +40,13 @@
  * `MOTION_DURATIONS_MS`. Không con số thời lượng nào viết ở màn (R-71). Đặc tả
  * gốc ghi 240 ms; thang chuyển động không có nấc đó, nên theo luật (QĐ-2).
  *
- * ## Tự lưu (D-07, A7) — không có nút lưu
+ * ## Không có gì được lưu lên máy chủ — và màn NÓI RA điều đó (BUG-577)
  *
- * `useAutosave` giữ bộ đếm 800 ms (hằng `AUTOSAVE_DEBOUNCE_MS` của chính nó,
- * A7), và khi nó điểm thì `Autosave` của `createAutosave` chạy `saveNow()` —
- * nên chỉ có ĐÚNG MỘT bộ đếm, không phải hai như cảnh báo ở
- * `useAccountPreferences.ts`. `useSaveIndicator` đọc máy trạng thái đó và nói
- * kết quả ra cho trình đọc màn hình. Bước `sync` của `dispatch` chỉ đánh dấu
- * bẩn; lượt gửi thật xảy ra 800 ms sau thao tác cuối.
+ * Chưa có endpoint ghi lớp kích thước (`DIMENSION_OCR_MISSING_ENDPOINTS`, F-08),
+ * nên màn KHÔNG dựng bộ tự lưu: một bộ tự lưu ở đây chỉ chạy tới nhánh
+ * `supported: false` rồi báo "Đã lưu lúc HH:mm" cho trình đọc màn hình — nói dối.
+ * Thay vào đó: `unsavedNotice` hiện cố định trên màn, và `beforeunload` hỏi
+ * trước khi rời trang khi ngăn xếp hoàn tác còn bước (`useLeaveWarning`).
  *
  * ## Bàn phím (A12, R-54, I-01)
  *
@@ -71,19 +70,19 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { displayCodesOf } from '@/domain/spatial/ids';
 import type { Dimension, Level } from '@/domain/spatial/types';
-import { useAutosave } from '@/hooks/useAutosave';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import { useCountUp } from '@/hooks/useCountUp';
+import { useFloorLayer } from '@/hooks/useFloorLayer';
+import { useZoomCluster } from '@/hooks/useZoomCluster';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import { useProjectConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
-import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useShortcut } from '@/hooks/useShortcut';
-import { createAutosave, type Autosave } from '@/lib/autosave/createAutosave';
 import { can } from '@/lib/auth/permissions';
+import { readWireError } from '@/lib/errors/wireError';
 import type { Command } from '@/lib/commands/types';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import type { NotificationBus } from '@/lib/mutations/notificationBus';
@@ -97,7 +96,6 @@ import {
   buildApproveDimensionCommand,
   buildOverrideDimensionCommand,
   createDimensionOcrDispatchDeps,
-  createDimensionOcrMutation,
   createDimensionOcrReviewGateway,
   createDimensionUndoTicket,
   deviationOf,
@@ -105,6 +103,7 @@ import {
   dimensionsOf,
   wallsOfGraph,
   drawingSizePxOf,
+  type DimensionDrawingSizePx,
   formatDeviation,
   hostWallOf,
   implausibleDimensionIds,
@@ -124,10 +123,12 @@ import {
   type DimensionOcrDispatchDeps,
   type DimensionOcrGraphPort,
   type DimensionOcrReviewGateway,
-  type DimensionWriteVariables,
 } from './dimensionOcrReviewGateway';
 import { DIMENSION_OCR_TEXT } from './dimensionOcrText';
+import { useFloorLayerReadFailure, type FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
+import { useLeaveWarning } from '../shared/useLeaveWarning';
 import type {
+  DimensionCanvasZoom,
   DimensionCompareViewModel,
   DimensionFilterId,
   DimensionOcrModel,
@@ -152,6 +153,8 @@ export interface UseDimensionOcrReviewOptions {
   readonly forceCollapsed?: boolean;
   /** Bus thông báo — chỗ toast hoàn tác của A8 đi ra. */
   readonly notifications?: NotificationBus;
+  /** Lối ra của màn "không mở được tầng này" (G09). */
+  readonly onNavigate?: (path: string) => void;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -200,9 +203,17 @@ export interface DimensionOcrKeyboardReviewModel {
 
 /** Mọi thứ hook trả về: hợp đồng T3, mở rộng đúng bốn nhóm của QĐ-7. */
 export interface DimensionOcrReviewModel extends DimensionOcrModel {
+  /** Câu "chưa lưu lên máy chủ" (BUG-577). `null` ở vai chỉ xem — vai đó không sửa gì. */
+  readonly unsavedNotice: string | null;
   readonly rows: readonly DimensionOcrRowModel[];
   readonly compare: DimensionOcrCompareModel | null;
   readonly keyboardReview: DimensionOcrKeyboardReviewModel;
+  /** Lượt đọc N16 hỏng khi chưa có tài liệu — cả màn thay bằng một lối ra (G09, BUG-326). */
+  readonly readFailure: FloorLayerReadFailure | null;
+  /** Khổ bản vẽ (px) — `viewBox` của lớp chuỗi (G13). */
+  readonly drawingSizePx: DimensionDrawingSizePx | null;
+  /** Cụm thu phóng nối vào lớp bản vẽ (G07). */
+  readonly canvasZoom: DimensionCanvasZoom;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -213,6 +224,8 @@ export interface DimensionOcrReviewModel extends DimensionOcrModel {
 const EDIT_NOTIFICATION_TYPE = 'dimensionOcrReview.editDimension';
 
 const NO_DIMENSIONS: readonly Dimension[] = [];
+/** Mức thu phóng phần trăm ứng với `scale(1)`. */
+const FULL_ZOOM_PERCENT = 100;
 const NO_OVERRIDES: ReadonlyMap<string, number> = new Map<string, number>();
 
 /** Số người duyệt đang gõ dở, chưa thành lệnh. */
@@ -364,7 +377,17 @@ export function useDimensionOcrReview(
   const [ownCollapsed, setOwnCollapsed] = useState(false);
   const [isKeyboardReviewMode, setKeyboardReviewMode] = useState(false);
   const [selectedDimensionId, setSelectedDimensionId] = useState<string | null>(null);
-  const [draft, setDraft] = useState<DimensionDraft | null>(null);
+  const [draft, setDraftState] = useState<DimensionDraft | null>(null);
+  /*
+   * Bản nháp đọc ĐỒNG BỘ (BUG-580): Enter làm ô nhập mất tiêu điểm — `NumericField`
+   * chốt số qua `onEdit` — rồi gọi duyệt NGAY trong cùng lượt xử lý sự kiện, trước
+   * khi React kịp render lại. Đọc `draft` của closure lúc đó là đọc số cũ.
+   */
+  const draftRef = useRef<DimensionDraft | null>(null);
+  const setDraft = useCallback((next: DimensionDraft | null) => {
+    draftRef.current = next;
+    setDraftState(next);
+  }, []);
 
   const isCollapsed = options.forceCollapsed ?? ownCollapsed;
 
@@ -381,10 +404,11 @@ export function useDimensionOcrReview(
     queryFn: ({ signal }) => gateway.readBackground({ floorId, projectId, signal }),
   });
 
-  const dimensionLayerQuery = useQuery({
-    queryKey: queryKeys.space.byFloor(floorId),
-    queryFn: ({ signal }) => gateway.readDimensionLayer({ floorId, projectId, signal }),
-  });
+  /* N16 của tầng URL — `useFloorLayer` quyết định nó vào kho thế nào (G08, như SCR-16/17). */
+  const floorLayer = useFloorLayer({ floorId, projectId, read: gateway.readLayer });
+  const failure = useFloorLayerReadFailure(floorLayer, projectId, options.onNavigate);
+  /* Chỉ 404 (tầng/dự án không còn) thay cả màn; lỗi khác giữ canvas + "Thử lại" (A11). */
+  const readFailure = readWireError(floorLayer.error)?.status === 404 ? failure : null;
 
   /*
    * Tiến độ OCR, khoá RIÊNG.
@@ -415,38 +439,33 @@ export function useDimensionOcrReview(
   const setSelection = useStore((state) => state.setSelection);
 
   /*
-   * Nạp đồ thị của tầng vào kho một lần, nếu kho còn trống. Cổng thật đọc kho nên
-   * `graph.read()` là `null` ở đây; nguồn khi ấy là lượt đọc N16 của
-   * `dimensionLayerQuery` (B-V6-01) — trước đó màn đợi một cái kho không ai nạp.
+   * Cổng giả (story, test) cắm đồ thị bộ mẫu vào kho còn trống, revision 0 khớp
+   * N16 giả. Cổng thật đọc kho nên `graph.read()` là `null` ở đây; kho khi ấy do
+   * `useFloorLayer` nạp từ N16.
    */
-  const loaded = dimensionLayerQuery.data ?? null;
-
   useEffect(() => {
     if (graph !== null) {
       return;
     }
 
-    const seed = gateway.graph.read() ?? loaded;
+    const seed = gateway.graph.read();
 
     if (seed !== null) {
-      setSpatial(seed, null, { floorRevisions: {}, projectId });
+      setSpatial(seed, null, { floorRevisions: { [floorId]: 0 }, projectId });
     }
-  }, [gateway, graph, loaded, projectId, setSpatial]);
+  }, [floorId, gateway, graph, projectId, setSpatial]);
 
   const level = useMemo<Level | null>(() => levelOfGraph(graph, floorId), [floorId, graph]);
-  const hasError = dimensionLayerQuery.isError;
+  const hasError = floorLayer.error !== null;
 
-  // Truy vấn duy nhất làm nên trạng thái lỗi — khuôn `useAxisGridManager` (B-V6-45).
-  const refetchDimensionLayer = dimensionLayerQuery.refetch;
-  const onRetry = useCallback(() => {
-    void refetchDimensionLayer();
-  }, [refetchDimensionLayer]);
-  const isLoading = dimensionLayerQuery.isPending || graph === null;
+  // Lượt đọc duy nhất làm nên trạng thái lỗi — khuôn `useAxisGridManager` (B-V6-45).
+  const onRetry = floorLayer.refetch;
+  const isLoading = floorLayer.isPending || graph === null;
   const hasPartialOcr = ocrProgressQuery.data?.isComplete === false;
 
   const dimensions = useMemo<readonly Dimension[]>(
-    () => (hasError ? NO_DIMENSIONS : dimensionsOf(graph)),
-    [graph, hasError],
+    () => (hasError ? NO_DIMENSIONS : dimensionsOf(graph, level)),
+    [graph, hasError, level],
   );
 
   /* Mã hiển thị tính trên cả tầng — hàng và khoá tra cứu luôn là mã thực thể. */
@@ -480,19 +499,6 @@ export function useDimensionOcrReview(
   const storePort = useMemo<DimensionOcrGraphPort>(
     () => ({ read: () => useStore.getState().spatial }),
     [],
-  );
-
-
-  /**
-   * Lượt ghi đang chờ gửi đi — bước `sync` của `dispatch` đặt nó.
-   *
-   * Khác màn S-13: ở đây bước `sync` KHÔNG gửi ngay, nó chỉ đánh dấu bẩn. A7
-   * nói hệ thống lưu 800 ms sau thao tác cuối, nên lượt gửi thật do bộ đếm của
-   * `useAutosave` châm ngòi.
-   */
-  const pendingWriteRef = useRef<DimensionWriteVariables | null>(null);
-  const persistRef = useRef<(variables: DimensionWriteVariables) => Promise<void>>(() =>
-    Promise.resolve(),
   );
 
   const dispatchBundle = useMemo<DimensionOcrDispatchDeps>(
@@ -540,67 +546,8 @@ export function useDimensionOcrReview(
     applyUndo();
   }, [applyUndo]);
 
-  /* ---------------------------------------------------------------------- */
-  /* D-04 — lượt ghi lạc quan, xếp hàng theo từng chuỗi kích thước.           */
-  /* ---------------------------------------------------------------------- */
-
-  /*
-   * `applyOptimistic` để trống có chủ đích: thay đổi ĐÃ được áp vào kho bởi
-   * `dispatch` ngay khi người duyệt bấm, và đó chính là "lạc quan" theo nghĩa
-   * của D-04. Việc còn lại của mutation là chụp ảnh cache, gỡ ra khi lượt gửi
-   * hỏng (`rollback` chạy trên ngăn xếp hoàn tác của S-06) và dọn khoá đã cũ.
-   */
-  const persistMutation = useMutation(
-    createDimensionOcrMutation(queryClient, {
-      gateway,
-      applyOptimistic: () => undefined,
-      rollback: () => {
-        applyUndo();
-      },
-      affectedKeys: (variables) => [queryKeys.space.byFloor(variables.floorId)],
-      afterSuccess: (variables) => {
-        applyInvalidation(queryClient, 'editDimension', {
-          floorId: variables.floorId,
-          projectId: variables.projectId,
-        });
-      },
-    }),
-  );
-
-  persistRef.current = async (variables) => {
-    await persistMutation.mutateAsync(variables);
-  };
-
-  /* ---------------------------------------------------------------------- */
-  /* Tự lưu (D-07, A7) — 800 ms sau thao tác cuối, nói ra cho trình đọc.      */
-  /* ---------------------------------------------------------------------- */
-
-  /*
-   * MỘT bộ đếm, không hai. `createAutosave` ở đây chỉ đóng vai MÁY TRẠNG THÁI
-   * (`dirty → saving → saved/failed/offline`) mà `useSaveIndicator` đọc để nói
-   * ra cho trình đọc màn hình; bộ đếm 800 ms là của `useAutosave`, và nó gọi
-   * `saveNow()` — đường đi bỏ qua debounce của `createAutosave`, nên hai cơ chế
-   * không bao giờ cùng chạy đồng hồ (cảnh báo ở `useAccountPreferences.ts`).
-   */
-  const autosave = useMemo<Autosave>(
-    () =>
-      createAutosave<DimensionWriteVariables>({
-        getChanges: () => pendingWriteRef.current ?? undefined,
-        save: async (variables) => {
-          pendingWriteRef.current = null;
-          await persistRef.current(variables);
-        },
-      }),
-    [],
-  );
-
-  useSaveIndicator(autosave);
-
-  const onAutosave = useCallback(async () => {
-    await autosave.saveNow();
-  }, [autosave]);
-
-  useAutosave(onAutosave);
+  /* BUG-577: ngăn xếp còn bước là còn việc chỉ sống trong trang này — hỏi trước khi rời. */
+  useLeaveWarning(dispatchBundle.history.canUndo());
 
   /* ---------------------------------------------------------------------- */
   /* Lệnh — mọi hàm sửa đi qua đây, và tắt hẳn ở vai Người xem.               */
@@ -624,8 +571,6 @@ export function useDimensionOcrReview(
       if (!canEdit || commands.length === 0) {
         return;
       }
-
-      pendingWriteRef.current = { dimensionId: displayId, projectId, floorId };
 
       const result = await runDimensionTransaction(commands, dispatchBundle, label);
 
@@ -652,7 +597,7 @@ export function useDimensionOcrReview(
         }),
       });
     },
-    [applyUndo, canEdit, dispatchBundle, floorId, gateway, invalidate, notifications, projectId],
+    [applyUndo, canEdit, dispatchBundle, gateway, invalidate, notifications],
   );
 
   /** Số người duyệt vừa gõ vào một hàng — chưa thành lệnh, nhưng đối chiếu chạy lại NGAY. */
@@ -665,12 +610,12 @@ export function useDimensionOcrReview(
       setSelectedDimensionId(dimensionId);
       setDraft({ dimensionId, valueMm });
     },
-    [canEdit],
+    [canEdit, setDraft],
   );
 
   const onCancelEdit = useCallback(() => {
     setDraft(null);
-  }, []);
+  }, [setDraft]);
 
   /**
    * Lưu số đang gõ (nếu có) và duyệt chuỗi, rồi sang chuỗi chưa duyệt kế tiếp.
@@ -686,8 +631,9 @@ export function useDimensionOcrReview(
         return;
       }
 
+      const pending = draftRef.current;
       const pendingValue =
-        draft !== null && draft.dimensionId === displayId ? draft.valueMm : null;
+        pending !== null && pending.dimensionId === displayId ? pending.valueMm : null;
       const commands: Command[] = [];
       let staged: Dimension = dimension;
 
@@ -711,7 +657,7 @@ export function useDimensionOcrReview(
 
       void runBlock(displayId, commands, label);
     },
-    [canEdit, dimensionById, displayCodes, draft, gateway, runBlock],
+    [canEdit, dimensionById, displayCodes, gateway, runBlock, setDraft],
   );
 
   const onApprove = useCallback(
@@ -731,9 +677,26 @@ export function useDimensionOcrReview(
     [background, level],
   );
 
+  /* G07: cụm thu phóng có chủ — mức sống ở đây, khung bản vẽ áp `scale`. */
+  const zoomCluster = useZoomCluster();
+  const canvasZoom = useMemo<DimensionCanvasZoom>(
+    () => ({
+      percent: zoomCluster.zoomLevel,
+      scale: zoomCluster.zoomLevel / FULL_ZOOM_PERCENT,
+      onZoomIn: zoomCluster.zoomIn,
+      onZoomOut: zoomCluster.zoomOut,
+      onReset: zoomCluster.resetZoom,
+    }),
+    [zoomCluster.resetZoom, zoomCluster.zoomIn, zoomCluster.zoomLevel, zoomCluster.zoomOut],
+  );
+
   const onSelect = useCallback(
     (dimensionId: string | null) => {
-      setDraft(null);
+      /* BUG-603: bấm lại vào chính hàng (hay ô) đang sửa giữ nguyên bản nháp; chỉ đổi hàng mới bỏ nó. */
+      if (draftRef.current?.dimensionId !== dimensionId) {
+        setDraft(null);
+      }
+
       setSelectedDimensionId(dimensionId);
 
       if (dimensionId === null) {
@@ -758,7 +721,7 @@ export function useDimensionOcrReview(
 
       flyToBounds(toContentBounds(chain.boundsPx), drawingSize.width, drawingSize.height);
     },
-    [dimensionById, drawingSize, flyToBounds, scale, setSelection],
+    [dimensionById, drawingSize, flyToBounds, scale, setDraft, setSelection],
   );
 
   const onFilterChange = useCallback((filter: DimensionFilterId) => {
@@ -906,10 +869,10 @@ export function useDimensionOcrReview(
 
   const selectedIdRef = useRef(selectedDimensionId);
   selectedIdRef.current = selectedDimensionId;
+  const isKeyboardModeRef = useRef(isKeyboardReviewMode);
+  isKeyboardModeRef.current = isKeyboardReviewMode;
   const approveRef = useRef(approveDimension);
   approveRef.current = approveDimension;
-  const draftRef = useRef(draft);
-  draftRef.current = draft;
 
   /*
    * Enter — lưu số đang gõ, duyệt chuỗi, nhảy sang chuỗi chưa duyệt kế tiếp.
@@ -937,10 +900,11 @@ export function useDimensionOcrReview(
   /*
    * A12 — Esc bỏ sửa, rồi mới đóng lớp trên cùng.
    *
-   * Lớp trên cùng của màn này là dải đối chiếu của chuỗi đang chọn, và nó mở
-   * đúng khi có chuỗi được chọn. `enabled` tắt đăng ký khi không có gì để đóng,
-   * nên lúc đó phím rơi xuống handler `global` của `shortcutRegistry` — lời hứa
-   * A12 không bị màn này lấy mất trong bất kỳ trạng thái nào.
+   * Lớp trên cùng là chế độ duyệt bàn phím khi nó bật (ô nhập ở đó nuốt phím R,
+   * nên Esc là lối tắt nó — BUG-583), không thì dải đối chiếu của chuỗi đang
+   * chọn. `enabled` tắt đăng ký khi không có gì để đóng, nên lúc đó phím rơi
+   * xuống handler `global` của `shortcutRegistry` — lời hứa A12 không bị màn
+   * này lấy mất trong bất kỳ trạng thái nào.
    */
   useShortcut(
     {
@@ -955,10 +919,16 @@ export function useDimensionOcrReview(
           return;
         }
 
+        if (isKeyboardModeRef.current) {
+          setKeyboardReviewMode(false);
+
+          return;
+        }
+
         onSelect(null);
       },
     },
-    { ...shortcutOptions, enabled: selectedDimensionId !== null },
+    { ...shortcutOptions, enabled: selectedDimensionId !== null || isKeyboardReviewMode },
   );
 
   useShortcut(
@@ -968,6 +938,18 @@ export function useDimensionOcrReview(
       scope: 'canvas',
       description: DIMENSION_OCR_TEXT.keyboard.keys.r.description,
       onTrigger: onToggleKeyboardMode,
+    },
+    { ...shortcutOptions, enabled: canEdit },
+  );
+
+  /* BUG-582: Mod+Z đi vào ngăn xếp của chính màn, như SCR-16/17/19 — không rơi xuống undo toàn cục. */
+  useShortcut(
+    {
+      id: 'dimensionOcrReview.undo',
+      combo: 'Mod+Z',
+      scope: 'canvas',
+      description: DIMENSION_OCR_TEXT.keyboard.keys.undo.description,
+      onTrigger: onUndo,
     },
     { ...shortcutOptions, enabled: canEdit },
   );
@@ -997,6 +979,7 @@ export function useDimensionOcrReview(
 
   return {
     state,
+    unsavedNotice: canEdit ? DIMENSION_OCR_TEXT.screen.unsavedNotice : null,
     rows,
     chains,
     reviewCounter,
@@ -1031,5 +1014,8 @@ export function useDimensionOcrReview(
     onRetry,
 
     keyboardReview,
+    readFailure,
+    drawingSizePx: drawingSize,
+    canvasZoom,
   };
 }

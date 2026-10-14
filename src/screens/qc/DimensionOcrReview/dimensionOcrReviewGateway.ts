@@ -72,6 +72,7 @@
  */
 
 import { readFloorLayerGraph } from '@/api/floorLayerGraph';
+import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
 import type { QueryClient, UseMutationOptions } from '@tanstack/react-query';
 
 import type { ApiClient } from '@/api/client';
@@ -134,6 +135,7 @@ import {
   WALL_LAYER_FIXTURE_WALLS,
 } from '../WallLayerReview/wallLayerReviewFixture';
 import { DIMENSION_OCR_FIXTURE_DIMENSIONS } from './dimensionOcrFixture';
+import { mockFloorLayerDocument } from '../shared/mockFloorLayerDocument';
 import {
   approveButtonAriaLabel,
   DIMENSION_OCR_TEXT,
@@ -326,9 +328,8 @@ const NO_DIMENSIONS: readonly Dimension[] = [];
  * Tầng đang duyệt: tầng `levelId` của URL khi đồ thị có nó, không thì tầng đầu —
  * cùng lý do với `levelOfGraph` của lớp đối tượng (kho cả dự án, B-V12-01).
  *
- * B-V6-70 (mở, chưa sửa): màn kích thước vẫn rơi về tầng đầu khi URL chỉ tầng
- * không có trong đồ thị, và `dimensionsOf` không lọc theo tầng. Lớp đối tượng đã
- * bỏ đường rơi này (B-V6-40).
+ * Tầng URL vắng khỏi kho thì `useFloorLayer` nạp nó trước (G08), nên đường rơi về
+ * tầng đầu chỉ còn cho cổng giả; `dimensionsOf` lọc theo tầng (G14).
  */
 export function levelOfGraph(graph: NormalizedSpatial | null, levelId?: string): Level | null {
   if (graph === null) {
@@ -340,9 +341,11 @@ export function levelOfGraph(graph: NormalizedSpatial | null, levelId?: string):
   return levels.find((level) => level.id === levelId) ?? levels[0] ?? null;
 }
 
-/** Mọi chuỗi kích thước của đồ thị, đúng thứ tự gốc của bộ mẫu. */
-export const dimensionsOf = (graph: NormalizedSpatial | null): readonly Dimension[] =>
-  graph === null ? NO_DIMENSIONS : entitiesOfKind(graph, 'dimension');
+/** Chuỗi kích thước của MỘT tầng (kho giữ cả dự án — G14), đúng thứ tự gốc của bộ mẫu. */
+export const dimensionsOf = (graph: NormalizedSpatial | null, level: Level | null): readonly Dimension[] =>
+  graph === null || level === null
+    ? NO_DIMENSIONS
+    : entitiesOfKind(graph, 'dimension').filter((dimension) => dimension.levelId === level.id);
 
 /** Mọi tường của đồ thị — nguồn của bảng mã hiển thị. */
 export const wallsOfGraph = (graph: NormalizedSpatial | null): readonly GraphWall[] =>
@@ -1038,6 +1041,8 @@ export interface DimensionOcrReviewGateway {
   readonly readDimensionLayer: (
     input: ReadDimensionLayerInput,
   ) => Promise<NormalizedSpatial | null>;
+  /** N16 thô của tầng URL — nguồn của `useFloorLayer` (G08: không đọc nhầm tầng kho đang giữ). */
+  readonly readLayer: (input: ReadDimensionLayerInput) => Promise<FloorLayerDocument>;
   /** Tiến độ OCR, đọc riêng — xem {@link DimensionOcrProgress}. */
   readonly readOcrProgress: (input: ReadDimensionLayerInput) => Promise<DimensionOcrProgress>;
   /** Đồ thị đang sửa — nơi `commit` vừa ghi vào. */
@@ -1108,6 +1113,17 @@ export function createDimensionOcrReviewGateway(
     },
 
     readDimensionLayer: async (input) => graph.read() ?? readFloorLayerGraph(apiClient.spatial, input),
+    readLayer: async ({ floorId, projectId, signal }) => {
+      const result = await apiClient.spatial.readLayer(
+        signal === undefined ? { floorId, projectId } : { floorId, projectId, signal },
+      );
+
+      if (!result.ok) {
+        throw result.error;
+      }
+
+      return result.data;
+    },
     readOcrProgress: () => Promise.resolve({ isComplete: true }),
 
     graph,
@@ -1180,6 +1196,14 @@ export function createMockDimensionOcrReviewGateway(
       }
 
       return Promise.resolve(readGraph());
+    },
+
+    readLayer: ({ floorId }) => {
+      if (seed.failReadDimensionLayer === true) {
+        return Promise.reject(new Error(DIMENSION_OCR_TEXT.states.error.description));
+      }
+
+      return mockFloorLayerDocument(readGraph(), floorId);
     },
 
     readOcrProgress: () => Promise.resolve({ isComplete: seed.partialOcr !== true }),

@@ -47,7 +47,6 @@
 
 import type { ApiClient, ApiResult } from '@/api/client';
 import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
-import { toAppError } from '@/lib/errors';
 import { createAppApiClient } from '@/api/appClient';
 import { createMockApiClient } from '@/api/__mocks__/client';
 import { ENDPOINTS } from '@/api/endpoints';
@@ -296,17 +295,20 @@ export function createScaleCalibrationGateway(
       const floor = result.data.floors.find((entry) => entry.floorId === floorId);
 
       if (floor === undefined) {
-        // Lượt đọc trả về mọi tầng của dự án, nên không thấy tầng đang mở nghĩa
-        // là đường dẫn trỏ vào một tầng không thuộc dự án này. Nói ra bằng lỗi
-        // hợp đồng chứ không dựng một bản ghi rỗng giả vờ là dữ liệu. `toAppError`
-        // dựng lỗi để mã và câu chữ đi qua đúng bảng của `src/lib/errors`.
+        // Lượt đánh giá chỉ liệt kê tầng ĐÃ có bản vẽ (tầng lạ thì máy chủ đã 404 `floor`
+        // ở chính đường dẫn), nên vắng tầng đang mở nghĩa là tầng này chưa có bản vẽ.
+        // Nói đúng câu đó bằng cùng hình 404 `upload` mà dự án chưa tải gì nhận (G02,
+        // BUG-337) — không một "Có trục trặc / UNKNOWN" chung chung.
         return {
           ok: false,
-          error: toAppError(
-            new Error(
-              `${ENDPOINTS.quality.assess(projectId, floorId)} không trả về tầng ${floorId}.`,
-            ),
-          ),
+          error: {
+            code: 'NOT_FOUND',
+            kind: 'http',
+            raw: { code: 'NOT_FOUND', resource: 'upload' },
+            requestId: `${ENDPOINTS.quality.assess(projectId, floorId)}#${floorId}`,
+            retryable: false,
+            status: 404,
+          },
         };
       }
 

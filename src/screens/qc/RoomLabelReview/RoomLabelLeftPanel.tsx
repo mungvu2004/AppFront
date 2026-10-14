@@ -53,6 +53,9 @@ const GAP_WALLS_LABEL = 'Tường liên quan';
 const CHECK_GAPS_LABEL = 'Kiểm tra lại vòng hở';
 const NAVIGATE_WALLS_LABEL = 'Xem tại lớp tường';
 const NORMALIZE_LABEL = 'Chuẩn hoá tên';
+/* BUG-641: không tên nào cần chuẩn hoá thì nút tắt và nói vì sao, không mở hộp thoại chỉ để nói "không có gì". */
+const NOTHING_TO_NORMALIZE = 'Mọi tên phòng đã đúng kiểu câu, chưa có gì để chuẩn hoá.';
+const NORMALIZE_HINT_ID = 'room-label-normalize-hint';
 
 interface RoomLabelGapRowProps {
   readonly gap: RoomLabelGapViewModel;
@@ -68,14 +71,14 @@ function RoomLabelGapRow({ gap, onNavigateToWalls }: RoomLabelGapRowProps) {
       </p>
       <p className="flex flex-wrap items-center gap-1 text-[12px] text-text-secondary">
         <span>{GAP_WALLS_LABEL}</span>
-        {gap.wallIds.map((wallId) => (
+        {gap.wallIds.map((wallId, index) => (
           /*
            * Mã tường nằm trong `<code>`: `expectVietnamese` bỏ qua hẳn nội
            * dung thẻ đó (đúng chỗ cho một mã kỹ thuật), và thẻ này cũng nói
            * đúng bản chất chuỗi — một định danh, không phải câu người đọc.
            */
-          <code className="rounded-[4px] bg-bg-sunken px-1 font-mono text-text-primary" key={wallId}>
-            {wallId}
+          <code className="rounded-[4px] bg-bg-sunken px-1 font-mono text-text-primary" key={wallId} title={wallId}>
+            {gap.wallCodeLabels[index] ?? wallId}
           </code>
         ))}
       </p>
@@ -87,7 +90,8 @@ function RoomLabelGapRow({ gap, onNavigateToWalls }: RoomLabelGapRowProps) {
 }
 
 export function RoomLabelLeftPanel({ panel, list, emptyListNotice }: RoomLabelLeftPanelViewProps) {
-  const { summary, gaps, showOnlyUnnamed, onToggleUnnamedFilter, onOpenNormalizePreview } = panel;
+  const { summary, gaps, showOnlyUnnamed, onToggleUnnamedFilter, onOpenNormalizePreview, hasNamesToNormalize = true } =
+    panel;
 
   return (
     <div className="flex h-full w-[280px] shrink-0 flex-col overflow-hidden rounded-[12px] bg-bg-surface shadow-panel max-lg:w-full">
@@ -130,16 +134,35 @@ export function RoomLabelLeftPanel({ panel, list, emptyListNotice }: RoomLabelLe
               ))}
             </ul>
           )}
-          <Button fullWidth onClick={panel.onCheckWallGaps} size="sm" variant="ghost">
+          {/* Hành động phụ của khối vòng hở là nút chữ, không thêm một nút rộng khác kiểu (BUG-615). */}
+          <button
+            className="inline-flex min-h-6 w-fit items-center rounded-[4px] text-[13px] text-accent underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+            onClick={panel.onCheckWallGaps}
+            type="button"
+          >
             {CHECK_GAPS_LABEL}
-          </Button>
+          </button>
         </section>
 
         {/* Vai Người xem: KHÔNG hộp thoại, chỉ ẩn nút thao tác hàng loạt. */}
         {!panel.isViewerRole && (
-          <Button fullWidth onClick={onOpenNormalizePreview} variant="secondary">
-            {NORMALIZE_LABEL}
-          </Button>
+          <>
+            <Button
+              aria-describedby={hasNamesToNormalize ? undefined : NORMALIZE_HINT_ID}
+              disabled={!hasNamesToNormalize}
+              fullWidth
+              onClick={onOpenNormalizePreview}
+              size="sm"
+              variant="secondary"
+            >
+              {NORMALIZE_LABEL}
+            </Button>
+            {hasNamesToNormalize ? null : (
+              <p className="text-[13px] text-text-secondary" id={NORMALIZE_HINT_ID}>
+                {NOTHING_TO_NORMALIZE}
+              </p>
+            )}
+          </>
         )}
       </div>
 

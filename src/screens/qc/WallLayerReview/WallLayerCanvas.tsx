@@ -53,6 +53,8 @@ export type * from './wallLayerHatch';
  */
 type WallId = NonNullable<WallLayerCanvasViewProps['selectedWallId']>;
 
+const NO_SELECTED_WALLS: readonly WallId[] = [];
+
 /* Chuỗi tiếng Việt tĩnh — khớp `i18n.fragment.json` của màn (A6). */
 
 const MENU_LABELS = {
@@ -107,6 +109,8 @@ export function WallLayerCanvas({
   onZoomIn,
   onZoomOut,
   selectedWallId,
+  selectedWallIds = NO_SELECTED_WALLS,
+  menuRequest,
   shapes,
   showCentrelines,
   state,
@@ -219,16 +223,15 @@ export function WallLayerCanvas({
     onPointerMove(null);
   }, [onPointerMove]);
 
-  const handleOpenMenu = useCallback(
-    (event: ReactMouseEvent<SVGGElement>, wallId: WallId) => {
-      event.preventDefault();
-      onSelect(wallId);
-
+  const openWallMenu = useCallback(
+    (x: number, y: number, wallId: WallId) => {
+      /* Tường đã duyệt: "Duyệt" không làm gì, nên không đưa nó ra (BUG-604). */
+      const isReviewed = shapes.find((shape) => shape.id === wallId)?.isReviewed ?? false;
       const groups: ContextMenuGroup[] = [
         {
           id: 'wall',
           items: [
-            { id: 'approve', label: MENU_LABELS.approve, action: () => onApprove(wallId) },
+            ...(isReviewed ? [] : [{ id: 'approve', label: MENU_LABELS.approve, action: () => onApprove(wallId) }]),
             {
               id: 'thickness',
               label: MENU_LABELS.changeThickness,
@@ -245,10 +248,31 @@ export function WallLayerCanvas({
         },
       ];
 
-      openMenu(event.clientX, event.clientY, groups);
+      openMenu(x, y, groups);
     },
-    [onApprove, onDelete, onRequestSplit, onRequestThicknessChange, onSelect, openMenu],
+    [onApprove, onDelete, onRequestSplit, onRequestThicknessChange, openMenu, shapes],
   );
+
+  const handleOpenMenu = useCallback(
+    (event: ReactMouseEvent<SVGGElement>, wallId: WallId) => {
+      event.preventDefault();
+      onSelect(wallId);
+      openWallMenu(event.clientX, event.clientY, wallId);
+    },
+    [onSelect, openWallMenu],
+  );
+
+  /* G74: menu mở từ bàn phím (danh sách) neo ở giữa khung — không có toạ độ con trỏ nào để neo. */
+  const lastMenuSeqRef = useRef(0);
+  useEffect(() => {
+    if (menuRequest == null || menuRequest.seq === lastMenuSeqRef.current) {
+      return;
+    }
+
+    lastMenuSeqRef.current = menuRequest.seq;
+    const { left = 0, top = 0, width = 0, height = 0 } = frameRef.current?.getBoundingClientRect() ?? {};
+    openWallMenu(left + width / 2, top + height / 2, menuRequest.wallId);
+  }, [menuRequest, openWallMenu]);
 
   /** Khung của lớp vẽ: ảnh bản vẽ nếu đã có, không thì vừa đủ ôm hết tường. */
   const surface = useMemo<WallLayerRectPx | null>(() => {
@@ -338,7 +362,7 @@ export function WallLayerCanvas({
                   <WallShapeFigure
                     isHovered={shape.id === hoveredWallId}
                     isInteractive={isInteractive}
-                    isSelected={shape.id === selectedWallId}
+                    isSelected={shape.id === selectedWallId || selectedWallIds.includes(shape.id)}
                     key={shape.id}
                     onHover={onHover}
                     onOpenMenu={handleOpenMenu}

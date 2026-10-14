@@ -1,5 +1,5 @@
 /**
- * Dải "tỉ lệ tạm" của màn một tầng (F-04x-2 bước 4) — dùng chung cho bốn màn QC,
+ * Dải "tỷ lệ tạm" của màn một tầng (F-04x-2 bước 4) — dùng chung cho bốn màn QC,
  * cùng khuôn `FloorLayerSaveBanner`: hook màn dựng `{ message, onCalibrate }`, view vẽ.
  */
 import { useMemo } from 'react';
@@ -12,7 +12,7 @@ export interface ProvisionalScaleNotice {
   readonly onCalibrate: () => void;
 }
 
-/** `null` khi tầng không ở tỉ lệ tạm; `onCalibrate` mở màn Hiệu chỉnh tỉ lệ của tầng. */
+/** `null` khi tầng không ở tỷ lệ tạm; `onCalibrate` mở màn Hiệu chỉnh tỷ lệ của tầng. */
 export function useProvisionalScaleNotice(
   scaleStatus: 'unresolved' | undefined,
   projectId: string,

@@ -147,7 +147,7 @@ describe('OverlayComparisonToolbar', () => {
 
   it('canEdit === false tắt MỌI điều khiển, và nói ra được vì sao', () => {
     const { container } = renderWithProviders(
-      <OverlayComparisonToolbar {...toolbarPropsOf('forbidden')} />,
+      <OverlayComparisonToolbar {...toolbarPropsOf('forbidden')} canLockAlignment />,
     );
 
     /* Bốn cụm điều khiển của thanh, kiểm từng cái một: một cụm quên `disabled`
@@ -159,11 +159,8 @@ describe('OverlayComparisonToolbar', () => {
       expect(compareModeButton(label)).toBeDisabled();
     }
 
-    /* "Nói ra được vì sao": lý do là văn bản trong cây, không phải một ô xám
-       không giải thích gì. */
-    expect(
-      screen.getByText('Bạn không có quyền sửa, các điều khiển đang tắt.'),
-    ).toBeInTheDocument();
+    /* BUG-636: lý do nằm ở băng cảnh báo của màn (OverlayComparison.test), thanh công cụ không lặp câu. */
+    expect(screen.queryByText('Bạn không có quyền sửa, các điều khiển đang tắt.')).toBeNull();
 
     expectVietnamese(container);
   });
@@ -188,5 +185,11 @@ describe('OverlayComparisonToolbar', () => {
        soát này chạy thật. */
     expectAccessible(container);
     expectVietnamese(container);
+  });
+
+  it('ẩn "Khoá căn" khi cổng chưa đặt được ảnh vào mô hình — không điều khiển chết (BUG-599)', () => {
+    renderWithProviders(<OverlayComparisonToolbar {...toolbarPropsOf('partial')} />);
+
+    expect(screen.queryByLabelText('Khoá căn')).toBeNull();
   });
 });

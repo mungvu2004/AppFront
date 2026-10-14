@@ -28,6 +28,8 @@ import type { LevelId } from '@/domain/spatial/types';
 import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
 import { spatialLayerOf } from '@/lib/autosave/spatialLayerSave';
 import type { HttpError } from '@/lib/http/types';
+import { readWireError } from '@/lib/errors/wireError';
+import { PROJECT_NOT_FOUND_TITLE } from '@/components/feedback/ProjectSpatialGate';
 import {
   createScale,
   millimetresPerPixel,
@@ -42,6 +44,7 @@ import { RETRY_SCHEDULE_MS } from '@/lib/autosave/retrySchedule';
 // Nạp tĩnh các module còn lại mà ống lưu theo tầng `import()` lười (`useAutosave.ts`; `spatialLayerSave`
 // đã nhập ở trên), để `settleAsync` chỉ cần chờ chúng một lần.
 import '@/lib/query/invalidation';
+import { queryKeys } from '@/lib/query/queryKeys';
 import '@/api/appClient';
 import { formatLength } from '@/lib/format/measure';
 import { formatNumber } from '@/lib/format/number';
@@ -92,7 +95,7 @@ const REFERENCE_SCALE: Scale = createScale({
 const IMPLAUSIBLE_RATIO: MillimetresPerPixel = millimetresPerPixel(250);
 const REFERENCE_WALL_WIDTH: Pixels = pixels(12);
 
-/** Tỉ lệ tạm của pipeline cho tầng `unresolved`: đoạn 400 px dài 4.000 mm. */
+/** Tỷ lệ tạm của pipeline cho tầng `unresolved`: đoạn 400 px dài 4.000 mm. */
 const PROVISIONAL_REAL_LENGTH = millimetres(4000);
 const PROVISIONAL_RATIO: MillimetresPerPixel = createScale({
   pixelLength: REFERENCE_PIXEL_LENGTH,
@@ -321,6 +324,7 @@ async function makeHarness(options: HarnessOptions = {}): Promise<Harness> {
 interface MountOptions {
   readonly roles?: readonly ProjectRole[];
   readonly forceCollapsed?: boolean;
+  readonly queryClient?: ReturnType<typeof createTestQueryClient>;
 }
 
 interface Mounted {
@@ -329,7 +333,7 @@ interface Mounted {
 }
 
 function mountHook(gateway: ScaleCalibrationGateway, options: MountOptions = {}): Mounted {
-  const queryClient = createTestQueryClient();
+  const queryClient = options.queryClient ?? createTestQueryClient();
   const wrapper = ({ children }: { children: ReactNode }): ReactNode =>
     createElement(QueryClientProvider, { client: queryClient }, children);
 
@@ -446,6 +450,22 @@ function imageWidthPxOf(mounted: Mounted): number {
 /* -------------------------------------------------------------------------- */
 
 describe('useScaleCalibration — tỷ lệ do M-02 tính', () => {
+  it('G25: ảnh nền của màn QC (hình khác) trong đệm không làm canvas trắng khi vào bằng SPA', async () => {
+    const harness = await makeHarness();
+    const queryClient = createTestQueryClient();
+    queryClient.setQueryData(queryKeys.drawing.byFloor(FLOOR_ID), {
+      imageUrl: 'qc-background.png',
+      imageAlt: 'Bản vẽ gốc',
+      widthMm: 1000,
+      heightMm: 1000,
+    });
+    const mounted = mountHook(harness.gateway, { queryClient });
+    await settle(mounted);
+
+    expect(mounted.result.current.model.canvas.imageUrl).not.toBeNull();
+    expect(mounted.result.current.model.canvas.imageUrl).not.toBe('qc-background.png');
+  });
+
   it('kéo đoạn 400 px rồi nhập 4800 mm cho ra 12 mm/px, và hiện đủ phép tính', async () => {
     const harness = await makeHarness();
     const mounted = mountHook(harness.gateway);
@@ -571,7 +591,7 @@ describe('useScaleCalibration — áp dụng: PUT trước, commit sau (F-04x-2 
     expect(mounted.result.current.model.errorMessage).toBeNull();
   });
 
-  it('PUT 422 → kho giữ tỉ lệ cũ, không success, nói lý do', async () => {
+  it('PUT 422 → kho giữ tỷ lệ cũ, không success, nói lý do', async () => {
     const harness = await makeHarness();
 
     harness.writeLayer.mockResolvedValueOnce({
@@ -587,7 +607,7 @@ describe('useScaleCalibration — áp dụng: PUT trước, commit sau (F-04x-2 
     expect(storedRatio()).toBeUndefined();
     expect(mounted.result.current.model.state).toBe('partial');
     expect(mounted.result.current.model.panel.statusCode).not.toBe('verified');
-    expect(mounted.result.current.model.panel.applyBlockedNotice).toContain('Chưa lưu được tỉ lệ lên máy chủ');
+    expect(mounted.result.current.model.panel.applyBlockedNotice).toContain('Chưa lưu được tỷ lệ lên máy chủ');
   });
 
   it('sửa đồ thị khác sau khi áp không sinh PUT tỉ lệ', async () => {
@@ -659,8 +679,8 @@ describe('useScaleCalibration — áp dụng: PUT trước, commit sau (F-04x-2 
   });
 });
 
-describe('useScaleCalibration — tầng tỉ lệ tạm (scaleStatus unresolved)', () => {
-  /** N16 của tầng mang tỉ lệ tạm; kho rỗng nên `useFloorLayer` nạp đúng tài liệu ấy. */
+describe('useScaleCalibration — tầng tỷ lệ tạm (scaleStatus unresolved)', () => {
+  /** N16 của tầng mang tỷ lệ tạm; kho rỗng nên `useFloorLayer` nạp đúng tài liệu ấy. */
   async function mountProvisional(): Promise<{ harness: Harness; mounted: Mounted }> {
     useStore.getState().setSpatial(null, null);
     simulateProvisionalScale(FLOOR_ID, PROVISIONAL_RATIO);
@@ -673,13 +693,13 @@ describe('useScaleCalibration — tầng tỉ lệ tạm (scaleStatus unresolved
     return { harness, mounted };
   }
 
-  it('storedRatio null: nhãn "Chưa có", dải tỉ lệ tạm; áp đúng tỉ lệ tạm → một PUT, dải mất', async () => {
+  it('storedRatio null: nhãn "Chưa có", dải tỷ lệ tạm; áp đúng tỷ lệ tạm → một PUT, dải mất', async () => {
     const { harness, mounted } = await mountProvisional();
 
     expect(useStore.getState().floorMeta[FLOOR_ID]?.scaleStatus).toBe('unresolved');
     expect(mounted.result.current.model.panel.currentScaleLabel).toBe('Chưa có'); // A6
     expect(mounted.result.current.model.provisionalScaleNotice).toBe(
-      'Tỉ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỉ lệ.',
+      'Tỷ lệ tạm — số đo chưa tin được, hãy hiệu chỉnh tỷ lệ.',
     );
 
     await typeReference(mounted, PROVISIONAL_REAL_LENGTH);
@@ -692,7 +712,7 @@ describe('useScaleCalibration — tầng tỉ lệ tạm (scaleStatus unresolved
     expect(mounted.result.current.model.state).toBe('success');
   });
 
-  it('hoàn tác trên tầng từng tỉ lệ tạm → một PUT tỉ lệ cũ, kèm câu của bước 5', async () => {
+  it('hoàn tác trên tầng từng tỷ lệ tạm → một PUT tỷ lệ cũ, kèm câu của bước 5', async () => {
     const { harness, mounted } = await mountProvisional();
 
     await typeReference(mounted);
@@ -710,7 +730,7 @@ describe('useScaleCalibration — tầng tỉ lệ tạm (scaleStatus unresolved
     expect(harness.writeLayer).toHaveBeenCalledTimes(2);
     expect(harness.writeLayer.mock.calls[1]?.[0].body).toEqual({ scaleMillimetresPerPixel: PROVISIONAL_RATIO });
     expect(mounted.result.current.model.panel.applyBlockedNotice).toBe(
-      'Đã đặt lại tỉ lệ cũ; tỉ lệ này nay được coi là tỉ lệ bạn chọn.',
+      'Đã đặt lại tỷ lệ cũ; tỷ lệ này nay được coi là tỷ lệ bạn chọn.',
     );
   });
 });
@@ -744,9 +764,9 @@ describe('useScaleCalibration — áp mọi tầng (A9)', () => {
     const before = mounted.result.current.model.state;
 
     expect(mounted.result.current.model.allFloorsConfirm).toEqual({
-      title: 'Áp tỉ lệ này cho 3 tầng có bản vẽ?',
+      title: 'Áp tỷ lệ này cho 3 tầng có bản vẽ?',
       message:
-        'Tỉ lệ sẽ được coi là do bạn chọn; các tầng này không nắn hay cắt lại bản vẽ được nữa, trừ khi tải bản vẽ mới.',
+        'Tỷ lệ sẽ được coi là do bạn chọn; các tầng này không nắn hay cắt lại bản vẽ được nữa, trừ khi tải bản vẽ mới.',
       confirmLabel: 'Áp cho mọi tầng',
       cancelLabel: 'Huỷ',
     });
@@ -812,8 +832,8 @@ describe('useScaleCalibration — áp mọi tầng (A9)', () => {
 
     const notice = mounted.result.current.model.panel.applyBlockedNotice ?? '';
 
-    expect(notice).toContain('Đã áp tỉ lệ cho 1 tầng.');
-    expect(notice).toContain('Không lưu được tỉ lệ cho: Tầng 2.');
+    expect(notice).toContain('Đã áp tỷ lệ cho 1 tầng.');
+    expect(notice).toContain('Không lưu được tỷ lệ cho: Tầng 2.');
     expect(notice).toContain('Chưa gửi vì tầng đang bị khoá lưu: Tầng 3.');
     expect(notice).toContain('Bỏ qua vì chưa có bản vẽ: Mái.');
     expect(mounted.result.current.model.state).not.toBe('success');
@@ -1224,7 +1244,7 @@ describe('useScaleCalibration — review-1 F3 (P2-4, P2-5, Nit-3)', () => {
     await settleAsync();
   }
 
-  it('P2-4: áp, gỡ màn, gắn lại, Ctrl+Z → đúng một PUT tỉ lệ cũ', async () => {
+  it('P2-4: áp, gỡ màn, gắn lại, Ctrl+Z → đúng một PUT tỷ lệ cũ', async () => {
     const before = storedRatio();
     const harness = await makeHarness();
     const first = await mountAndApply(harness);
@@ -1306,5 +1326,195 @@ describe('useScaleCalibration — review-1 F3 (P2-4, P2-5, Nit-3)', () => {
       );
       expect(target.revision).toBeDefined();
     });
+  });
+});
+
+describe('useScaleCalibration — QA-04c SCR-14 (BUG-587, 596, 601, 607)', () => {
+  it('kéo tay cầm đầu đoạn dời ĐÚNG đầu đó, đầu cuối đứng yên (BUG-587)', async () => {
+    const harness = await makeHarness();
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    await dragReferenceLine(mounted);
+
+    const before = mounted.result.current.model.canvas.referenceLine;
+    const moved: ImageRatioPoint = { x: 0.05, y: 0.05 };
+
+    await act(async () => {
+      // Nhấn ĐÚNG tâm tay cầm đầu đoạn, rồi kéo tới `moved`.
+      mounted.result.current.actions.onStartDrag(before?.start ?? moved, 'start');
+    });
+    await act(async () => {
+      mounted.result.current.actions.onMoveDrag(moved, { isAxisLocked: false });
+    });
+    await act(async () => {
+      mounted.result.current.actions.onEndDrag(moved);
+    });
+
+    const after = mounted.result.current.model.canvas.referenceLine;
+    expect(after?.end).toEqual(before?.end);
+    expect(after?.start.x).toBeCloseTo(moved.x, 6);
+    expect(after?.start.y).toBeCloseTo(moved.y, 6);
+  });
+
+  it('đoạn dài 0 px nói vì sao chưa áp được (BUG-607)', async () => {
+    const harness = await makeHarness();
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+
+    await act(async () => {
+      mounted.result.current.actions.onStartDrag({ x: 0.5, y: 0.5 });
+    });
+    await act(async () => {
+      mounted.result.current.actions.onEndDrag({ x: 0.5, y: 0.5 });
+    });
+
+    expect(mounted.result.current.model.panel.canApply).toBe(false);
+    expect(mounted.result.current.model.panel.reference.tooShortNotice).toMatch(/^Đoạn quá ngắn/u);
+  });
+
+  it('vừa khung đưa khung nhìn về toàn cảnh sau khi phóng (BUG-596)', async () => {
+    const harness = await makeHarness();
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+
+    await act(async () => {
+      mounted.result.current.actions.onCanvasSizeChange(800, 800);
+    });
+    await act(async () => {
+      mounted.result.current.actions.onZoomIn();
+    });
+    expect(mounted.result.current.model.canvas.zoomPercent).toBe(125);
+    expect(mounted.result.current.model.canvas.miniMapViewport.width).toBeCloseTo(80, 6);
+
+    await act(async () => {
+      mounted.result.current.actions.onFitView();
+    });
+    expect(mounted.result.current.model.canvas.viewport).toEqual({ x: 0, y: 0, zoom: 1 });
+  });
+
+  it('người xem ở tầng lỗi vẫn không có điều khiển sửa (BUG-601)', async () => {
+    const harness = await makeHarness({ sourceFloorId: WARPED_MOCK_FLOOR_ID });
+    const mounted = mountHook(harness.gateway, { roles: ['viewer'] });
+    await settle(mounted);
+
+    expect(mounted.result.current.model.state).toBe('error');
+    expect(mounted.result.current.model.canvas.isInteractive).toBe(false);
+    expect(mounted.result.current.model.panel.areActionsHidden).toBe(true);
+  });
+});
+
+describe('[G02] tầng chưa có bản vẽ trong dự án đã có bản vẽ ở tầng khác', () => {
+  it('lượt đánh giá không có tầng này thì đọc ra 404 `upload` — màn "Tầng này chưa có bản vẽ", không UNKNOWN', async () => {
+    const client = createMockApiClient();
+    const assess = await client.quality.assess({ floorId: FLOOR_ID, projectId: PROJECT_ID });
+
+    if (!assess.ok) {
+      throw new Error('bộ mẫu không đánh giá được tầng.');
+    }
+
+    vi.spyOn(client.quality, 'assess').mockResolvedValue({
+      ok: true,
+      data: { ...assess.data, floors: assess.data.floors.filter((floor) => floor.floorId !== 'L-BARE') },
+    });
+
+    const read = await createScaleCalibrationGateway(client).readFloorDrawing({ floorId: 'L-BARE', projectId: PROJECT_ID });
+
+    expect(read.ok).toBe(false);
+    expect(read.ok ? null : readWireError(read.error)).toEqual(expect.objectContaining({ status: 404, resource: 'upload' }));
+  });
+});
+
+describe('[G45] người ngoài dự án mở thẳng SCR-14', () => {
+  it('404 dự án: màn "Không tìm thấy dự án này" có lối về danh sách, không "Mã lỗi: NOT_FOUND"', async () => {
+    const harness = await makeHarness();
+    const notFound: HttpError = {
+      code: 'NOT_FOUND',
+      kind: 'http',
+      raw: { code: 'NOT_FOUND', resource: 'project' },
+      requestId: 'r',
+      retryable: false,
+      status: 404,
+    };
+    const mounted = mountHook({
+      ...harness.gateway,
+      readFloorDrawing: async () => ({ ok: false, error: notFound }),
+      readLayer: () => Promise.reject(notFound),
+    });
+    await settle(mounted);
+
+    await act(async () => {
+      await clock.advance(1);
+    });
+
+    expect(mounted.result.current.model.readFailure?.title).toBe(PROJECT_NOT_FOUND_TITLE);
+  });
+});
+
+describe('[G51b] bấm tay cầm rồi thả tại chỗ không dời đầu đoạn', () => {
+  it('nhấn lệch tâm tay cầm 24 px rồi thả, không kéo: đầu đoạn đứng yên', async () => {
+    const harness = await makeHarness();
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    await dragReferenceLine(mounted);
+
+    const before = mounted.result.current.model.canvas.referenceLine;
+    const pressed: ImageRatioPoint = { x: (before?.end.x ?? 0) + 0.004, y: (before?.end.y ?? 0) + 0.004 };
+
+    await act(async () => {
+      mounted.result.current.actions.onStartDrag(pressed, 'end');
+    });
+    await act(async () => {
+      mounted.result.current.actions.onEndDrag(pressed);
+    });
+
+    expect(mounted.result.current.model.canvas.referenceLine?.end).toEqual(before?.end);
+    expect(mounted.result.current.model.panel.computation.denominatorLabel).toBe('400 px');
+  });
+});
+
+describe('[G52 14-C-016] chưa có chuỗi kích thước nào', () => {
+  it('gõ chiều dài trước khi kéo đoạn thì vế tử đã là số vừa gõ', async () => {
+    const harness = await makeHarness();
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+
+    await act(async () => {
+      mounted.result.current.actions.onChangeRealLength('5000');
+    });
+
+    expect(mounted.result.current.model.panel.computation.numeratorLabel).toBe('5.000 mm');
+  });
+});
+
+describe('[G52 14-C-026] bản vẽ không vuông trong khung vuông', () => {
+  it('cùng 0,6 khung theo ngang và theo dọc là cùng một số pixel ảnh (ảnh object-contain)', async () => {
+    const harness = await makeHarness();
+    const base = harness.gateway;
+    const gateway: ScaleCalibrationGateway = {
+      ...base,
+      readFloorDrawing: async (input) => {
+        const read = await base.readFloorDrawing(input);
+
+        return read.ok ? { ok: true, data: { ...read.data, widthPx: pixels(1600), heightPx: pixels(1200) } } : read;
+      },
+    };
+    const mounted = mountHook(gateway);
+    await settle(mounted);
+
+    const lengthOf = async (end: ImageRatioPoint): Promise<string> => {
+      await act(async () => {
+        mounted.result.current.actions.onStartDrag({ x: 0.2, y: 0.2 });
+      });
+      await act(async () => {
+        mounted.result.current.actions.onEndDrag(end);
+      });
+
+      return mounted.result.current.model.panel.computation.denominatorLabel;
+    };
+
+    const across = await lengthOf({ x: 0.8, y: 0.2 });
+    const up = await lengthOf({ x: 0.2, y: 0.8 });
+
+    expect(up).toBe(across);
   });
 });

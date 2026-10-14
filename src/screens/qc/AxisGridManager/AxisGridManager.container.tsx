@@ -55,6 +55,7 @@
  */
 
 import { useCallback, useMemo } from 'react';
+import { AlertCircle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -117,7 +118,7 @@ function AxisGridManagerCrashFallback({ report, retry }: ScreenErrorFallback) {
     <div className="absolute inset-0 flex items-center justify-center bg-bg-app">
       <EmptyState
         description={report.description.description}
-        icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-state-violation-tint" />}
+        icon={<AlertCircle />}
         title={report.description.title}
         {...(report.retryable
           ? { action: { label: report.description.primaryButtonLabel, onClick: retry } }
@@ -181,6 +182,8 @@ function WiredAxisGridManager(props: AxisGridManagerContainerProps) {
       onViewOnDrawing={result.onViewOnDrawing}
       readFailure={result.readFailure}
       spacingMessage={result.spacingMessage}
+      unsavedNotice={result.unsavedNotice}
+      autoAlignBlockedReason={result.autoAlignBlockedReason}
       viewModel={result.viewModel}
     />
   );

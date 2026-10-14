@@ -16,7 +16,7 @@
  *   không còn con số nào phải làm tròn, chia, hay đổi đơn vị.
  * - **R-60 — view thuần.** View chỉ được `import type` từ `src/domain`, không
  *   gọi hàm ở đó. Nên mọi giá trị view *tạo ra* (toạ độ con trỏ, điểm kéo) đi
- *   ra ngoài dưới dạng **tỉ lệ 0..1 của khung ảnh** ({@link ImageRatioPoint}) —
+ *   ra ngoài dưới dạng **tỷ lệ 0..1 của khung ảnh** ({@link ImageRatioPoint}) —
  *   thứ view đọc thẳng từ sự kiện DOM — còn mọi giá trị view *nhận vào* mà là
  *   một phép đo thì mang nhãn đơn vị của `src/domain/units` ({@link Pixels},
  *   {@link Millimetres}, {@link MillimetresPerPixel}). View không bao giờ phải
@@ -51,6 +51,8 @@
  * điều phối viên trước.
  */
 
+import type { RefObject } from 'react';
+
 import type {
   ManualCalibrationReason,
   MillimetresPerPixel,
@@ -61,6 +63,8 @@ import type {
 } from '@/domain/units/scale';
 import type { SnapTargetKind } from '@/domain/units/snap';
 import type { Millimetres } from '@/domain/units/types';
+import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
+import type { FloorLayerReadFailure } from '../../qc/shared/floorLayerReadFailure';
 import type { ViewportState } from '@/hooks/useCanvasViewport';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
 import type { ProjectRole } from '@/types/project';
@@ -120,11 +124,11 @@ export type ScaleReferenceStep = 'draw' | 'enterLength' | 'result';
 /* -------------------------------------------------------------------------- */
 
 /**
- * Một điểm trên khung ảnh, theo tỉ lệ `0..1` của khung.
+ * Một điểm trên khung ảnh, theo tỷ lệ `0..1` của khung.
  *
  * Cùng lý lẽ `InputQualityRegion`: view chỉ nhân với kích thước đã render, nên
  * nó không cần biết ảnh gốc là 3000×3000 px và không phải quy đổi gì. Chiều đi
- * ngược lại cũng vậy — view báo vị trí con trỏ dưới dạng tỉ lệ, hook mới gắn
+ * ngược lại cũng vậy — view báo vị trí con trỏ dưới dạng tỷ lệ, hook mới gắn
  * nhãn {@link Pixels}, vì view không import được `pixels()` (R-60).
  */
 export interface ImageRatioPoint {
@@ -132,7 +136,7 @@ export interface ImageRatioPoint {
   readonly y: number;
 }
 
-/** Hộp bao trên khung ảnh, theo tỉ lệ `0..1`. Dùng để bay khung nhìn tới. */
+/** Hộp bao trên khung ảnh, theo tỷ lệ `0..1`. Dùng để bay khung nhìn tới. */
 export interface ImageRatioBox {
   readonly min: ImageRatioPoint;
   readonly max: ImageRatioPoint;
@@ -267,6 +271,8 @@ export interface ScaleReferenceMethodViewModel {
   readonly inlineWarning: ScaleWarningNotice | null;
   /** `false` khi chưa có đoạn nào để đo lại. Phím `R`. */
   readonly canRemeasure: boolean;
+  /** Đoạn dài 0 px: vì sao "Áp dụng" tắt và làm gì tiếp (BUG-607). `null` khi đoạn đo được. */
+  readonly tooShortNotice: string | null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -431,9 +437,13 @@ export interface ScaleCanvasViewModel {
   readonly referenceLine: ReferenceLineDraft | null;
   /** Số pixel chữ đều vẽ cạnh đoạn khi đang kéo. `null` khi không kéo. */
   readonly liveLengthLabel: string | null;
-  /** `false` ở trạng thái `forbidden`: canvas xem được, kéo thì không. */
+  /** `false` khi vai không sửa được (mọi trạng thái, không riêng `forbidden`): xem được, kéo thì không. */
   readonly isInteractive: boolean;
   readonly isImageLoading: boolean;
+  /** Mức thu phóng theo phần trăm cho `ZoomCluster` — số nguyên, hook làm tròn. */
+  readonly zoomPercent: number;
+  /** Vùng đang thấy trên bản đồ nhỏ, phần trăm khung ảnh (BUG-596). */
+  readonly miniMapViewport: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -469,14 +479,14 @@ export interface ScalePanelViewModel {
   readonly canApply: boolean;
   /**
    * Lượt áp hay hoàn tác gần nhất cần nói gì: không áp được và vì sao (B-V5-01), PUT
-   * hỏng, báo cáo "áp mọi tầng", hay tỉ lệ cũ được đặt lại. Vắng khi không có gì để nói.
+   * hỏng, báo cáo "áp mọi tầng", hay tỷ lệ cũ được đặt lại. Vắng khi không có gì để nói.
    */
   readonly applyBlockedNotice?: string;
   readonly isApplying: boolean;
   /**
-   * `true` đúng khi và chỉ khi màn ở `'forbidden'`: nút "áp dụng tỷ lệ" và ô
-   * chọn phạm vi biến mất hẳn, không phải mờ đi — cùng lý lẽ
-   * `InputQualityFooterModel.areActionsHidden`.
+   * `true` khi vai không sửa được, ở MỌI trạng thái (BUG-601 — tầng lỗi/chưa bản vẽ trước đây vẫn
+   * mời người xem bấm rồi nhận 403): nút "áp dụng tỷ lệ" và ô chọn phạm vi biến mất hẳn, không
+   * phải mờ đi — cùng lý lẽ `InputQualityFooterModel.areActionsHidden`.
    */
   readonly areActionsHidden: boolean;
   /** Caption cảnh báo đổi tỷ lệ sẽ tính lại mọi kích thước dẫn xuất. */
@@ -534,8 +544,9 @@ export interface ScaleStatusBarViewModel {
  *    `panel.method === 'referenceLine'` và mục `'dimensionString'` bị khoá.
  * 4. `state === 'partial'` ⟺ (`panel.computation.isComplete === false` khi đã có
  *    `panel.reference.draft`) HOẶC có ít nhất một hàng `isLowConfidence`.
- * 5. `state === 'forbidden'` ⟺ `canvas.isInteractive === false` ⟺
- *    `panel.areActionsHidden === true`.
+ * 5. `state === 'forbidden'` ⟹ `canvas.isInteractive === false` ⟺
+ *    `panel.areActionsHidden === true` (một chiều: vai không sửa được tắt chúng cả khi `error`
+ *    đứng trước — BUG-601).
  * 6. `state === 'collapsed'` ⟹ `isPanelCollapsed === true` (một chiều: panel thu gọn được cả
  *    khi `error`/`forbidden` đứng trước — BUG-322).
  * 7. `state === 'success'` ⟺ `panel.statusCode === 'verified'`.
@@ -572,15 +583,19 @@ export interface ScaleCalibrationViewModel {
   readonly forbiddenNotice: string | null;
   /** Câu của trạng thái `'success'`. `null` ở trạng thái khác. */
   readonly successNotice: string | null;
-  /** Dải "tỉ lệ tạm" khi tầng `scaleStatus: 'unresolved'` (F-04x-2). Vắng khi tỉ lệ đã chốt. */
+  /** Dải "tỷ lệ tạm" khi tầng `scaleStatus: 'unresolved'` (F-04x-2). Vắng khi tỷ lệ đã chốt. */
   readonly provisionalScaleNotice?: string;
   /** Hộp thoại A9 trước "Áp cho mọi tầng". Vắng khi không mở. */
   readonly allFloorsConfirm?: ScaleAllFloorsConfirm;
+  /** Dải xung đột/khoá lưu của bộ lưu lớp chung, có "Tải lại" (BUG-598). Vắng khi tầng lưu được. */
+  readonly saveBlock?: FloorLayerSaveBlock | null;
+  /** Lượt đọc N16 404 (dự án/tầng không mở được) — cả màn thay bằng một lối ra (G45). */
+  readonly readFailure?: FloorLayerReadFailure | null;
 }
 
-/** Câu của hộp thoại hỏi trước khi áp tỉ lệ cho mọi tầng có bản vẽ (A9). */
+/** Câu của hộp thoại hỏi trước khi áp tỷ lệ cho mọi tầng có bản vẽ (A9). */
 export interface ScaleAllFloorsConfirm {
-  /** Ví dụ `"Áp tỉ lệ này cho 3 tầng có bản vẽ?"`. */
+  /** Ví dụ `"Áp tỷ lệ này cho 3 tầng có bản vẽ?"`. */
   readonly title: string;
   readonly message: string;
   readonly confirmLabel: string;
@@ -594,7 +609,7 @@ export interface ScaleAllFloorsConfirm {
 /**
  * Mọi hàm view gọi. Không hàm nào trả về gì: view bắn sự kiện, hook quyết định.
  *
- * Mọi toạ độ đi VÀO đây là {@link ImageRatioPoint} (tỉ lệ `0..1` của khung ảnh),
+ * Mọi toạ độ đi VÀO đây là {@link ImageRatioPoint} (tỷ lệ `0..1` của khung ảnh),
  * không phải pixel — xem ghi chú R-60 ở đầu file.
  */
 export interface ScaleCalibrationActions {
@@ -608,7 +623,11 @@ export interface ScaleCalibrationActions {
   readonly onHoverDimensionRow: (rowId: string | null) => void;
 
   /* -- Phương pháp 2: đoạn tham chiếu -------------------------------------- */
-  readonly onStartDrag: (point: ImageRatioPoint) => void;
+  /**
+   * Nhấn chuột trên canvas: đoạn mới từ `point`. Có `endpoint` (nhấn lên tay cầm) thì kéo ĐÚNG đầu
+   * đó, đầu kia đứng yên (BUG-587).
+   */
+  readonly onStartDrag: (point: ImageRatioPoint, endpoint?: ReferenceLineEndpoint) => void;
   /** Mỗi lần con trỏ dịch khi đang kéo. Số pixel và tỷ lệ chạy số 120 ms. */
   readonly onMoveDrag: (point: ImageRatioPoint, modifiers: ScalePointerModifiers) => void;
   readonly onEndDrag: (point: ImageRatioPoint) => void;
@@ -635,6 +654,13 @@ export interface ScaleCalibrationActions {
   readonly onPan: (dx: number, dy: number) => void;
   /** Lăn chuột hoặc nút thu phóng. `focus` là điểm neo, `null` thì neo vào tâm. */
   readonly onZoom: (nextZoom: number, focus: ImageRatioPoint | null) => void;
+  /** Ba nút của `ZoomCluster` và phím `F` (BUG-596). Neo vào tâm khung. */
+  readonly onZoomIn: () => void;
+  readonly onZoomOut: () => void;
+  /** Về toàn cảnh — cả bản vẽ vừa khung. */
+  readonly onFitView: () => void;
+  /** Bấm/kéo trên bản đồ nhỏ: khung nhìn đi theo vùng đó. */
+  readonly onMiniMapViewportChange: (rect: ScaleCanvasViewModel['miniMapViewport']) => void;
   /** Con trỏ dịch trên canvas, để thanh trạng thái đổi toạ độ. `null` khi rời canvas. */
   readonly onMoveCursor: (point: ImageRatioPoint | null) => void;
   /**
@@ -658,7 +684,7 @@ export interface ScaleCalibrationActions {
   /** Áp tỷ lệ. Sinh toast có Hoàn tác (A8) và cho nhãn kích thước chạy số 260 ms. */
   readonly onApply: () => void;
   readonly onChangeApplyScope: (scope: ScaleApplyScope) => void;
-  /** Đồng ý ở hộp thoại A9: gửi tỉ lệ cho từng tầng có bản vẽ, nối tiếp. */
+  /** Đồng ý ở hộp thoại A9: gửi tỷ lệ cho từng tầng có bản vẽ, nối tiếp. */
   readonly onConfirmAllFloors: () => void;
   /** Huỷ hộp thoại A9: không gửi gì, màn giữ trạng thái trước. */
   readonly onCancelAllFloors: () => void;
@@ -691,19 +717,26 @@ export interface ScaleCalibrationCanvasProps {
     ScaleCalibrationActions,
     | 'onCancelDrag'
     | 'onEndDrag'
+    | 'onFitView'
     | 'onHoverDimensionRow'
+    | 'onMiniMapViewportChange'
     | 'onMoveCursor'
     | 'onMoveDrag'
+    | 'onNudgeEndpoint'
     | 'onPan'
     | 'onSelectDimensionRow'
     | 'onStartDrag'
     | 'onZoom'
+    | 'onZoomIn'
+    | 'onZoomOut'
   >;
 }
 
 /** Props của `ScaleCalibrationPanel` — panel phải 344px, dưới 1024px xếp dưới bản vẽ. */
 export interface ScaleCalibrationPanelProps {
   readonly panel: ScalePanelViewModel;
+  /** Nút "Áp dụng tỷ lệ" — hộp thoại A9 trả tiêu điểm về đây khi đóng (G57). */
+  readonly applyButtonRef?: RefObject<HTMLButtonElement | null>;
   readonly state: ScaleCalibrationState;
   readonly isCollapsed: boolean;
   readonly prefersReducedMotion: boolean;

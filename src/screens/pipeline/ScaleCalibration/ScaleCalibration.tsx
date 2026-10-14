@@ -59,6 +59,9 @@ import { Modal } from '@/components/overlay/Modal';
 import { StatusBar } from '@/components/shell/StatusBar';
 import { Button } from '@/components/ui/Button';
 
+import { FloorLayerReadFailureScreen } from '../../qc/shared/FloorLayerReadFailureScreen';
+import { FloorLayerSaveBanner } from '../../qc/WallLayerReview/FloorLayerSaveBanner';
+
 import { ScaleCalibrationCanvas } from './ScaleCalibrationCanvas';
 import { ScaleCalibrationPanel } from './ScaleCalibrationPanel';
 import type { ScaleCalibrationProps, ScaleCalibrationState, ScaleCalibrationViewModel } from './types';
@@ -133,6 +136,7 @@ function messageFor(model: ScaleCalibrationViewModel): string | null {
 export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
   const { onCanvasSizeChange } = actions;
   const canvasHostRef = useRef<HTMLDivElement | null>(null);
+  const applyButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     const host = canvasHostRef.current;
@@ -179,6 +183,14 @@ export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
   const noticeLevel = NOTICE_LEVELS[model.state];
   const isError = model.state === 'error';
 
+  if (model.readFailure != null) {
+    return (
+      <div aria-label={SCREEN_ARIA_LABEL} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+        <FloorLayerReadFailureScreen failure={model.readFailure} />
+      </div>
+    );
+  }
+
   return (
     <div
       aria-label={SCREEN_ARIA_LABEL}
@@ -187,6 +199,8 @@ export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
     >
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row lg:items-stretch">
         <div className="flex min-w-0 flex-1 flex-col gap-3 p-3">
+          {/* Xung đột 409 / tầng khoá lưu: có "Tải lại", không thì mọi lượt áp sau hỏng im lặng (BUG-598). */}
+          <FloorLayerSaveBanner saveBlock={model.saveBlock ?? null} />
           {model.provisionalScaleNotice !== undefined && (
             <InlineAlert level="attention" message={model.provisionalScaleNotice} />
           )}
@@ -235,6 +249,7 @@ export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
 
         <ScaleCalibrationPanel
           actions={actions}
+          applyButtonRef={applyButtonRef}
           isCollapsed={model.isPanelCollapsed}
           panel={model.panel}
           prefersReducedMotion={model.prefersReducedMotion}
@@ -249,6 +264,7 @@ export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
           isOpen
           onClose={actions.onCancelAllFloors}
           primaryAction={{ label: model.allFloorsConfirm.confirmLabel, onClick: actions.onConfirmAllFloors }}
+          returnFocusRef={applyButtonRef}
           secondaryAction={{ label: model.allFloorsConfirm.cancelLabel, onClick: actions.onCancelAllFloors }}
           title={model.allFloorsConfirm.title}
         >

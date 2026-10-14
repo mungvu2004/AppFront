@@ -15,6 +15,10 @@
  * CHUỖI ĐÃ ĐỊNH DẠNG SẴN (A15) — view chỉ hiển thị.
  */
 
+import { AlertCircle } from 'lucide-react';
+
+import { cn } from '@/lib/utils';
+
 export interface WallLayerStatusBarProps {
   /** Toạ độ con trỏ, đã định dạng sẵn — ví dụ "X: 124,50 · Y: 89,12". */
   readonly cursorLabel: string;
@@ -22,22 +26,35 @@ export interface WallLayerStatusBarProps {
   readonly scaleLabel: string;
   /** Trạng thái lưu, đã định dạng sẵn — ví dụ "Đã lưu lúc 14:32". */
   readonly saveLabel: string;
+  /** Lượt lưu gần nhất thất bại — nhãn đổi sang màu vi phạm kèm biểu tượng (BUG-616). */
+  readonly saveFailed: boolean;
 }
 
 const STATUS_BAR_ARIA_LABEL = 'Thanh trạng thái';
 
-export function WallLayerStatusBar({ cursorLabel, scaleLabel, saveLabel }: WallLayerStatusBarProps) {
+export function WallLayerStatusBar({ cursorLabel, scaleLabel, saveLabel, saveFailed }: WallLayerStatusBarProps) {
   return (
     <div
       aria-label={STATUS_BAR_ARIA_LABEL}
-      className="flex h-8 shrink-0 select-none items-center justify-between border-t border-border-default bg-bg-surface px-4"
+      className="flex h-8 shrink-0 select-none items-center justify-between gap-3 whitespace-nowrap border-t border-border-default bg-bg-surface px-4"
       role="status"
     >
-      <span className="font-mono text-[12px] leading-none tabular-nums text-text-secondary">
+      {/*
+        Sans + tabular-nums, không mono: nhãn này cũng là câu ("Chưa rê chuột lên bản vẽ") — BUG-612.
+        Dưới 640 chỉ giữ trạng thái lưu, hai mục kia không gãy thành nhiều dòng (BUG-324).
+      */}
+      <span className="hidden min-w-0 truncate text-[12px] leading-none tabular-nums text-text-secondary sm:block">
         {cursorLabel}
       </span>
-      <span className="text-[12px] tabular-nums text-text-secondary">{scaleLabel}</span>
-      <span aria-live="polite" className="text-[12px] text-text-muted">
+      <span className="hidden min-w-0 truncate text-[12px] tabular-nums text-text-secondary sm:block">{scaleLabel}</span>
+      <span
+        aria-live="polite"
+        className={cn(
+          'flex min-w-0 items-center gap-1 truncate text-[12px]',
+          saveFailed ? 'text-state-violation-text' : 'text-text-muted',
+        )}
+      >
+        {saveFailed && <AlertCircle aria-hidden="true" className="h-3 w-3 shrink-0" />}
         {saveLabel}
       </span>
     </div>

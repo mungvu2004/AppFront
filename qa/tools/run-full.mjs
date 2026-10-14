@@ -77,6 +77,32 @@ if (!flag('no-build')) {
   }
 }
 
+/* 1b. env preflight (QA-04 run-041: 3 invalid runs = 1h15): login locks left by an earlier run, admin missing on a rebuilt
+ *     stack, .state project absent from a fresh DB. Fails in seconds instead of after a full run. */
+if (!flag('no-build')) {
+  sh(`docker exec f14-redis-broker-1 sh -c "redis-cli -n 2 --scan --pattern 'auth:login:*' | xargs -r redis-cli -n 2 del; redis-cli -n 2 --scan --pattern 'rl:auth_login_ip:*' | xargs -r redis-cli -n 2 del"`);
+  const secrets = Object.fromEntries(
+    readFileSync(cfg.env.secretsFile, 'utf8').split(/\r?\n/u).map((l) => l.replace(/^export\s+/u, '').match(/^([A-Z0-9_]+)=(.*)$/u)).filter(Boolean)
+      .map((m) => [m[1], m[2].replace(/^["']|["']$/gu, '')]),
+  );
+  const base = cfg.env.vars.E2E_FULLSTACK_BASE_URL;
+  const post = (path, init = {}) => fetch(`${base}${path}`, { method: 'POST', ...init, headers: { Origin: base, 'Content-Type': 'application/json', ...(init.headers ?? {}) } });
+  const fail = (why) => { say(`preflight: ${why}`); process.exit(2); };
+  const login = await post('/api/auth/login', { body: JSON.stringify({ email: secrets.E2E_ADMIN_EMAIL, password: secrets.E2E_ADMIN_PASSWORD, rememberMe: false }) });
+  if (login.status !== 204) {
+    fail(`admin login ${login.status} (401 = admin missing on a rebuilt stack: run "chuoi.sh seed" create-admin step; 429 = login lock)`);
+  }
+  const cookie = login.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
+  const token = (await (await post('/api/auth/refresh', { headers: { Cookie: cookie } })).json().catch(() => ({}))).accessToken;
+  const stateFile = join(SUITE, 'tests', '.state', 'runtime-session.json');
+  if (token && existsSync(stateFile) && Number(NN) > 2) {
+    const id = JSON.parse(readFileSync(stateFile, 'utf8')).project?.projectId;
+    const r = id ? await fetch(`${base}/api/projects/${id}`, { headers: { Authorization: `Bearer ${token}` } }) : null;
+    if (!r || r.status !== 200) fail(`.state project ${id ?? '?'} → ${r?.status ?? 'none'}: stale state from another stack; rebuild with run-phase --phase 01..${String(Number(NN) - 1).padStart(2, '0')} --layers main`);
+  }
+  say('preflight: admin login 204, login locks cleared, .state project reachable');
+}
+
 if (flag('check')) {
   say('--check: versions ok, no run');
   process.exit(0);

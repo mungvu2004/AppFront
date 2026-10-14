@@ -19,7 +19,7 @@
 
 import { createElement, type ReactNode } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
+import { act, cleanup, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { __resetMockLayerState, createMockApiClient, simulateRemoteLayerEdit } from '@/api/__mocks__/client';
@@ -55,6 +55,7 @@ import {
   useObjectLayerReview,
   type UseObjectLayerReviewOptions,
 } from './useObjectLayerReview';
+import { ObjectLayerReview } from './ObjectLayerReview';
 import {
   attachOrphanToNearestWall,
   buildAddOpeningCommand,
@@ -785,17 +786,22 @@ describe('bàn phím và vùng chọn', () => {
     mounted.unmount();
   });
 
-  it('bấm liên kết tường chủ chọn tường đó (R-07 bay khung nhìn tới)', async () => {
+  it('[BUG-591] "Tường chứa nó" GIỮ đối tượng trong thanh tra và tô tường chủ (R-07 bay khung nhìn tới)', async () => {
     const mounted = await mountSettled();
     const hostWallId = (
       OBJECT_LAYER_SEED.find((entry) => entry.displayId === 'D-007') as { hostWallId: string }
     ).hostWallId;
 
+    await run(() => mounted.result.current.onSelect('D-007'));
     await run(() => mounted.result.current.onSelectHostWall(hostWallId as `W-${string}`));
 
-    await waitFor(() => {
-      expect(useStore.getState().selectedIds).toEqual([hostWallId]);
-    });
+    expect(mounted.result.current.selectedObjectId).toBe('D-007');
+    expect(mounted.result.current.inspector?.id).toBe('D-007');
+    expect(mounted.result.current.highlightedWallId).toBe(hostWallId);
+
+    /* Chọn thứ khác thì thôi tô. */
+    await run(() => mounted.result.current.onSelect('D-001'));
+    await waitFor(() => expect(mounted.result.current.highlightedWallId).toBeNull());
 
     mounted.unmount();
   });
@@ -835,9 +841,8 @@ describe('vai trò và vỏ màn', () => {
     });
 
     expect(mounted.result.current.state).toBe('forbidden');
-    expect(mounted.result.current.viewerRoleNotice).toBe(
-      'Bạn không có quyền xem lớp đối tượng của dự án này',
-    );
+    /* BUG-601: người xem VẪN xem được lớp — câu cũ "không có quyền xem" là sai. */
+    expect(mounted.result.current.viewerRoleNotice).toBe('Bạn đang xem — không sửa được lớp này.');
 
     await run(() => mounted.result.current.onApprove('D-004'));
 
@@ -1360,8 +1365,8 @@ describe('tầng của URL không có trong đồ thị (B-V6-40)', () => {
   });
 });
 
-describe('tỉ lệ tạm (F-04x-2)', () => {
-  it('tầng unresolved: hook trả dải, "Hiệu chỉnh tỉ lệ" mở màn tỉ lệ của tầng', async () => {
+describe('tỷ lệ tạm (F-04x-2)', () => {
+  it('tầng unresolved: hook trả dải, "Hiệu chỉnh tỷ lệ" mở màn tỉ lệ của tầng', async () => {
     const onNavigate = vi.fn();
     const mounted = await mountSettled({
       gateway: createMockObjectLayerReviewGateway({ scaleStatus: 'unresolved' }),
@@ -1382,6 +1387,167 @@ describe('tỉ lệ tạm (F-04x-2)', () => {
     const mounted = await mountSettled();
 
     expect(mounted.result.current.provisionalScaleNotice).toBeNull();
+    mounted.unmount();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Đợt sửa P04 cụm A (SCR-17) — mỗi ca đỏ trước bản sửa.                        */
+/* -------------------------------------------------------------------------- */
+
+describe('đợt sửa P04 — SCR-17', () => {
+  /** View thuần dựng từ mô hình của hook, đổi vài trường — mục D: view test được chỉ từ props. */
+  const renderView = (model: ObjectLayerReviewModel, overrides: Partial<ObjectLayerReviewModel> = {}) =>
+    render(createElement(ObjectLayerReview, { ...model, ...overrides }));
+
+  it('[BUG-579] "Hoàn tác" trên toast xoá KHÔNG hoàn tác bước mới hơn (duyệt đối tượng khác)', async () => {
+    const bus: NotificationBus = createNotificationBus();
+    const mounted = await mountSettled({ notifications: bus });
+
+    await run(() => mounted.result.current.onDelete('D-004'));
+    await waitFor(() => expect(bus.list()).toHaveLength(1));
+
+    const ticket = bus.list()[0]?.undoTicket;
+
+    await run(() => mounted.result.current.onApprove('D-006'));
+    await waitFor(() => expect((entityInStore('D-006', 'door') as { reviewed: boolean }).reviewed).toBe(true));
+
+    await run(() => {
+      ticket?.undo();
+    });
+
+    expect((entityInStore('D-006', 'door') as { reviewed: boolean }).reviewed).toBe(true);
+    expect(entityInStore('D-004', 'door')).toBeUndefined();
+    await waitFor(() => {
+      expect(bus.list().some((item) => item.title.startsWith('Chưa hoàn tác: đã có 1 thay đổi sau'))).toBe(true);
+    });
+
+    mounted.unmount();
+  });
+
+  it('[BUG-589] Delete và Backspace xoá đối tượng đang chọn; thanh tra có nút "Xoá đối tượng"', async () => {
+    const mounted = await mountSettled();
+
+    await run(() => mounted.result.current.onSelect('D-004'));
+    await pressKey(mounted.registry, 'Delete');
+    await waitFor(() => expect(entityInStore('D-004', 'door')).toBeUndefined());
+
+    await run(() => mounted.result.current.onSelect('D-006'));
+    await pressKey(mounted.registry, 'Backspace');
+    await waitFor(() => expect(entityInStore('D-006', 'door')).toBeUndefined());
+
+    await run(() => mounted.result.current.onSelect('D-007'));
+    const onDelete = vi.fn();
+
+    renderView(mounted.result.current, { onDelete });
+    screen.getByRole('button', { name: 'Xoá đối tượng' }).click();
+    expect(onDelete).toHaveBeenCalledWith('D-007');
+
+    mounted.unmount();
+  });
+
+  it('[BUG-590] đổi lỗ mở sang loại nội thất bị từ chối CÓ lời; ô loại chỉ liệt kê loại lỗ mở', async () => {
+    const bus: NotificationBus = createNotificationBus();
+    const mounted = await mountSettled({ notifications: bus });
+
+    await run(() => mounted.result.current.onChangeSubtype('D-004', 'sofa'));
+    await waitFor(() => {
+      expect(bus.list().map((item) => item.title)).toContain('Chỉ đổi được loại giữa cửa đơn, cửa đôi và cửa sổ.');
+    });
+
+    /* Chip của loại không có trên tầng bị tắt, chip có dữ liệu thì bấm được. */
+    expect(mounted.result.current.availableSubtypes.has('otherFurniture')).toBe(false);
+    renderView(mounted.result.current);
+    expect(screen.getByRole('button', { name: 'Nội thất khác' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Sofa' })).toBeEnabled();
+
+    mounted.unmount();
+  });
+
+  it('[BUG-590] nội thất: không đưa ô loại, radio hướng mở hay ô thanh công cụ chết', async () => {
+    const mounted = await mountSettled();
+
+    await run(() => mounted.result.current.onSelect('F-002'));
+    renderView(mounted.result.current, { activeLayer: 'furniture' });
+
+    expect(screen.queryByRole('combobox', { name: 'Loại đối tượng' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Đổi thành/u })).not.toBeInTheDocument();
+
+    mounted.unmount();
+  });
+
+  it('[BUG-584] bộ lọc dưới ngưỡng còn bật mà danh sách rỗng: còn nút tắt và "Hiện tất cả"', async () => {
+    const mounted = await mountSettled();
+    const onToggleLowConfidenceOnly = vi.fn();
+
+    renderView(mounted.result.current, {
+      partialNotice: null,
+      isLowConfidenceOnly: true,
+      rows: [],
+      onToggleLowConfidenceOnly,
+    });
+
+    expect(screen.getByRole('button', { name: 'Chỉ hiện mục dưới ngưỡng' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Đã duyệt hết mục dưới ngưỡng.')).toBeInTheDocument();
+    screen.getByRole('button', { name: 'Hiện tất cả' }).click();
+    expect(onToggleLowConfidenceOnly).toHaveBeenCalledTimes(1);
+
+    mounted.unmount();
+  });
+
+  it('[BUG-601] vai Người xem: không "Hoàn tác", không "Thêm thủ công", thu gọn thu thật', async () => {
+    const mounted = await mountSettled({ roles: ['viewer'] });
+
+    expect(mounted.result.current.state).toBe('forbidden');
+
+    const { unmount } = renderView(mounted.result.current, { isCollapsed: true });
+
+    expect(screen.queryByRole('button', { name: 'Hoàn tác' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tree', { name: 'Cây lớp' })).not.toBeInTheDocument();
+    unmount();
+
+    renderView(mounted.result.current, { emptyNotice: 'Chưa có gì.', onOpenWallLayer: null });
+    expect(screen.queryByRole('button', { name: 'Thêm thủ công' })).not.toBeInTheDocument();
+
+    mounted.unmount();
+  });
+
+  it('[BUG-422][BUG-612] thanh trạng thái không lặp câu rỗng, và không mono cho câu', async () => {
+    const mounted = await mountSettled();
+
+    renderView(mounted.result.current, { emptyNotice: 'Tầng này chưa có đoạn tường nào.' });
+
+    const bar = screen.getByRole('status', { name: 'Thanh trạng thái' });
+
+    expect(within(bar).queryByText('Tầng này chưa có đoạn tường nào.')).not.toBeInTheDocument();
+    expect(within(bar).getByText(mounted.result.current.reviewProgressLabel)).not.toHaveClass('font-mono');
+
+    mounted.unmount();
+  });
+
+  it('[BUG-324][BUG-395][BUG-329] màn cao bằng khung nhìn, panel trái không khoá 560 px, thẻ trống có đệm dưới', async () => {
+    const mounted = await mountSettled();
+
+    renderView(mounted.result.current, { inspector: null });
+
+    expect(screen.getByRole('region', { name: 'Lớp đối tượng' })).toHaveClass('h-screen');
+    expect(document.body.innerHTML).not.toContain('h-[560px]');
+    expect(screen.getByText(/Chọn một đối tượng trên bản vẽ/u)).toHaveClass('pb-5');
+
+    mounted.unmount();
+  });
+});
+
+describe('[G32 17-C-009] ngưỡng tin cậy của dự án', () => {
+  it('dự án đặt 0,99 thì mọi mục chưa duyệt đều dưới ngưỡng, không cắt cố định 0,75', async () => {
+    const gateway = { ...createMockObjectLayerReviewGateway(), readConfidenceThreshold: () => Promise.resolve(0.99) };
+    const mounted = await mountSettled({ gateway });
+
+    await waitFor(() => {
+      expect(mounted.result.current.rows.length).toBeGreaterThan(OBJECT_LAYER_FIXTURE_LOW_CONFIDENCE);
+    });
+    expect(mounted.result.current.rows.every((row) => row.isLowConfidence)).toBe(true);
     mounted.unmount();
   });
 });

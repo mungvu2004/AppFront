@@ -161,6 +161,7 @@ import { createColoringMode, type ColoringMode, type PaintSubject } from '@/lib/
 import { createLookupScale, type ColorTokenName } from '@/lib/coloring/scales';
 import { wallBearing } from '@/domain/walls/edit';
 import type { MeasurementState } from '@/hooks/useMeasurementLabel';
+import { readProjectConfidenceThreshold, type ReadConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
 import { boxAround } from '@/lib/input/dragDrop';
 import { formatLength } from '@/lib/format/measure';
 import { formatNumber } from '@/lib/format/number';
@@ -298,9 +299,14 @@ const FURNITURE_SWING: SwingDirection = 'fixed';
  */
 export const OBJECT_LAYER_CONFIDENCE_THRESHOLD = 0.75;
 
-/** Đối tượng này có dưới ngưỡng "cần chú ý" của màn không? */
-export const isLowConfidenceObject = (confidence: number): boolean =>
-  confidence < OBJECT_LAYER_CONFIDENCE_THRESHOLD;
+/**
+ * Đối tượng này có dưới ngưỡng "cần chú ý" không? Ngưỡng là của DỰ ÁN (N5) khi đọc được —
+ * 0,75 ở trên là mặc định khi chưa có (G32 17-C-009, như BUG-354 ở các màn khác).
+ */
+export const isLowConfidenceObject = (
+  confidence: number,
+  threshold: number = OBJECT_LAYER_CONFIDENCE_THRESHOLD,
+): boolean => confidence < threshold;
 
 /**
  * Nhãn người đọc của một mã tường: `W-000014WALL` → `W-014`.
@@ -1252,7 +1258,14 @@ export const OBJECT_LAYER_TEXT = {
     'Nhận diện nội thất phụ thuộc kiểu vẽ của bản gốc, nên bản vẽ ít ký hiệu quy ước có thể không ra kết quả nào.',
   emptyAction: 'Thêm thủ công',
   furnitureAttention: 'Nhận diện nội thất lỗi, cửa vẫn xong',
-  forbidden: 'Bạn không có quyền xem lớp đối tượng của dự án này',
+  /* Người xem VẪN xem được lớp; câu cũ "không có quyền xem" là sai (BUG-601). */
+  forbidden: 'Bạn đang xem — không sửa được lớp này.',
+  subtypeRefused: 'Chỉ đổi được loại giữa cửa đơn, cửa đôi và cửa sổ.',
+  subtypeNeedsWall: 'Gắn đối tượng vào tường trước rồi mới đổi loại.',
+  lowConfidenceDone: 'Đã duyệt hết mục dưới ngưỡng.',
+  showAll: 'Hiện tất cả',
+  deleteAction: 'Xoá đối tượng',
+  shortcutDelete: 'Xoá đối tượng đang chọn',
   unattachedBadge: 'Chưa gắn vào tường nào',
   attachNearestAction: 'Gắn vào tường gần nhất',
   errorMessage: 'Không tải được lớp đối tượng của tầng.',
@@ -1572,8 +1585,9 @@ export const reviewCounterOf = (objects: readonly ReviewObject[]): ObjectReviewC
 /** Những đối tượng dưới ngưỡng tin cậy và chưa duyệt — nhánh (a) của trạng thái một phần. */
 export const lowConfidenceObjectsOf = (
   objects: readonly ReviewObject[],
+  threshold: number = OBJECT_LAYER_CONFIDENCE_THRESHOLD,
 ): readonly ReviewObject[] =>
-  objects.filter((object) => !object.reviewed && isLowConfidenceObject(object.confidence));
+  objects.filter((object) => !object.reviewed && isLowConfidenceObject(object.confidence, threshold));
 
 /* -------------------------------------------------------------------------- */
 /* Viewmodel — một dòng danh sách, một thanh tra, một hình tường nền.           */
@@ -1583,6 +1597,7 @@ export const lowConfidenceObjectsOf = (
 export function toObjectRow(
   object: ReviewObject,
   wallCodes?: ReadonlyMap<string, string>,
+  threshold: number = OBJECT_LAYER_CONFIDENCE_THRESHOLD,
 ): ObjectListRowViewModel {
   const attached = isOrphanObject(object) ? null : object;
   const isOrphan = isUnattachedOpening(object);
@@ -1600,7 +1615,7 @@ export function toObjectRow(
       isOrphan,
     ),
     isReviewed: object.reviewed,
-    isLowConfidence: isLowConfidenceObject(object.confidence),
+    isLowConfidence: isLowConfidenceObject(object.confidence, threshold),
     isOrphan,
   };
 }
@@ -1733,6 +1748,8 @@ export interface ObjectLayerReviewGateway {
   readonly actorId: string;
   /** Mốc giờ hiện tại. Tiêm được để test không phụ thuộc đồng hồ thật. */
   readonly now: () => number;
+  /** Ngưỡng tin cậy của dự án (N5). Vắng → 0,75 của đặc tả (G32). */
+  readonly readConfidenceThreshold?: ReadConfidenceThreshold;
 }
 
 export interface CreateObjectLayerReviewGatewayOptions {
@@ -1816,6 +1833,7 @@ export function createObjectLayerReviewGateway(
 
     actorId: options.actorId ?? OBJECT_LAYER_DEFAULT_ACTOR_ID,
     now: options.now ?? ((): number => Date.now()),
+    readConfidenceThreshold: (input) => readProjectConfidenceThreshold(apiClient.projectSettings, input),
   };
 }
 

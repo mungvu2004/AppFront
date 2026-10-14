@@ -267,11 +267,17 @@ export interface WallLayerCanvasShape extends WallShapeViewModel {
   readonly attentionDotPx: PointPx;
   /** Cổng bật gạch chéo; ngưỡng sống ở `materialMap.isLowConfidence`. */
   readonly isLowConfidence: boolean;
+  /** Đã duyệt — menu chuột phải không đưa "Duyệt" chết (BUG-604). */
+  readonly isReviewed: boolean;
 }
 
 /** Mọi thứ view canvas nhận. Thuần cộng thêm lên `WallLayerCanvasProps`. */
 export interface WallLayerCanvasViewProps extends WallLayerCanvasProps {
   readonly shapes: readonly WallLayerCanvasShape[];
+  /** Mọi tường đang chọn (Ctrl-bấm để nối đoạn) — canvas tô viền cả nhóm, không chỉ tường chính (G73b). */
+  readonly selectedWallIds?: readonly WallId[];
+  /** Lượt mở menu bằng bàn phím từ danh sách — `seq` đổi mỗi lượt để mở lại cùng tường (G74). */
+  readonly menuRequest?: { readonly wallId: WallId; readonly seq: number } | null;
   readonly state: WallLayerScreenState;
   /** `aria-label` của khung, có số liệu — ví dụ `"Mặt bằng tầng 1 — 48 tường"`. */
   readonly canvasLabel: string;

@@ -698,7 +698,7 @@ test.describe('SCR-16 Wall Layer Review (own screen load)', () => {
     await test.step('[16-A-045] "nối đoạn" merges two collinear walls sharing an endpoint → PUT with one wall fewer', async () => {
       await wallList().getByRole('option').first().click();
       await expect(
-        wallRail().getByRole('button', { name: 'nối đoạn — Chọn hai đoạn tường để gộp', exact: true }),
+        wallRail().getByRole('button', { name: 'Nối đoạn — Chọn hai đoạn tường để gộp', exact: true }),
       ).toBeDisabled();
 
       if (pair === null) {
@@ -714,7 +714,7 @@ test.describe('SCR-16 Wall Layer Review (own screen load)', () => {
 
       await (await revealWallOption(codeA)).click();
       await (await revealWallOption(codeB)).click({ modifiers: ['Control'] });
-      const merge = wallRail().getByRole('button', { name: 'nối đoạn', exact: true });
+      const merge = wallRail().getByRole('button', { name: 'Nối đoạn', exact: true });
 
       await expect(merge).toBeEnabled();
       const put = waitForLayerPut((body) => wallsOf(body, '#35').length === current.length - 1);
@@ -1290,7 +1290,7 @@ test.describe('SCR-14 Scale Calibration', () => {
 test.describe('SCR-22 Overlay Comparison', () => {
   useOwnDrawingFloor('m04-overlay');
 
-  test('SCR-22 swipe: "Kiểu đối chiếu" → "Trượt"; divider slider + arrows; "Độ mờ ảnh nguồn" → divider moves, "Chưa đo được vùng lệch nào."', async () => {
+  test('SCR-22 swipe: "Kiểu đối chiếu" → "Trượt"; divider slider + arrows; "Độ mờ ảnh nguồn" → divider moves, "Chưa có số đo — cần căn ảnh quét vào mô hình trước."', async () => {
     const qualityRead = waitForApi(page, 'GET', new RegExp(`^/api/projects/${projectId}/floors/${floorId}/quality$`, 'u'), ANY_STATUS);
 
     qualityRead.catch(() => undefined);
@@ -1353,7 +1353,7 @@ test.describe('SCR-22 Overlay Comparison', () => {
       await expect(opacity).not.toHaveAttribute('aria-valuenow', opacityStart);
       expect.soft(Number(await opacity.getAttribute('aria-valuenow')), 'arrow moves by 1').toBe(Number(opacityStart) + step);
 
-      await expect(page.getByText('Chưa đo được vùng lệch nào.', { exact: true })).toBeVisible();
+      await expect(page.getByText('Chưa có số đo — cần căn ảnh quét vào mô hình trước.', { exact: true })).toBeVisible();
     });
     await captureEvidence(page, '22_overlay_swipe.png');
   });

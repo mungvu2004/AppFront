@@ -11,12 +11,9 @@
  * ## R-73 — nhận đủ props để mở được mà không phải viết thêm logic
  *
  * `projectId` và `floorId` là bắt buộc — không có chúng thì không biết phải
- * đối chiếu bản vẽ nào (cùng lý lẽ `ScaleCalibrationContainerProps`). Không có
- * callback "rời màn" nào khác cần khai: {@link OverlayComparisonActions} không
- * có hành động điều hướng nào, và lối ra duy nhất của màn —
- * `model.scaleFixHref` — đã là một chuỗi dựng sẵn từ hook (dùng `ROUTES.project.scale`
- * bên trong nó), view chỉ đặt thẳng vào `href` (R-65), nên container không cần
- * một `onNavigate` để bắc `useNavigate` vào đâu cả.
+ * đối chiếu bản vẽ nào (cùng lý lẽ `ScaleCalibrationContainerProps`). Lối ra
+ * `model.scaleFixHref` là chuỗi dựng sẵn từ hook (R-65). `onNavigate` chỉ có một
+ * việc: "Chọn tầng" đổi URL, vì URL là nguồn sự thật của tầng đang xem (BUG-600).
  *
  * ## Vai không phải một prop bắt buộc — cùng khuôn `HistoryPanel.container.tsx`
  *
@@ -34,7 +31,7 @@
 
 import { AlertCircle } from 'lucide-react';
 import { useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -71,6 +68,8 @@ export interface OverlayComparisonContainerProps {
   readonly forceState?: OverlayComparisonState;
   /** Cổng thay thế, cho bài kiểm. Vắng mặt thì hook dựng cổng THẬT. */
   readonly gateway?: OverlayComparisonGateway;
+  /** Đổi tầng = đổi URL (BUG-600). Route bắc `navigate` của router vào đây. */
+  readonly onNavigate?: (path: string) => void;
 }
 
 /** Cùng khuôn `HistoryPanelCrashFallback` — R-62, chữ từ `report.description`. */
@@ -109,6 +108,7 @@ function WiredOverlayComparison(props: OverlayComparisonContainerProps) {
     ...roleOption,
     ...(props.forceState === undefined ? {} : { forceState: props.forceState }),
     ...(props.gateway === undefined ? {} : { gateway: props.gateway }),
+    ...(props.onNavigate === undefined ? {} : { onNavigate: props.onNavigate }),
   });
 
   return <OverlayComparison actions={actions} model={model} />;
@@ -139,6 +139,7 @@ export function OverlayComparisonContainer(props: OverlayComparisonContainerProp
  */
 export function OverlayComparisonRoute() {
   const { floorId, projectId: id } = useParams<{ floorId: string; projectId: string }>();
+  const navigate = useNavigate();
 
   if (id === undefined || id.length === 0 || floorId === undefined || floorId.length === 0) {
     return (
@@ -152,5 +153,5 @@ export function OverlayComparisonRoute() {
     );
   }
 
-  return <OverlayComparisonContainer floorId={floorId} projectId={id} />;
+  return <OverlayComparisonContainer floorId={floorId} onNavigate={navigate} projectId={id} />;
 }

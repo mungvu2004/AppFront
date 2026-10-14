@@ -43,7 +43,13 @@ function acceptCheckboxLabel(measuredMm: number, wallCount: number, suggestedGro
   return `Đồng ý chuẩn hoá ${wallCount} tường ${measuredMm} mm về ${lowerFirst(THICKNESS_GROUP_LABELS[suggestedGroup])}`;
 }
 
-export function ThicknessGroupTable({ rows, hoveredGroup, onHoverGroup, onToggleAccepted }: ThicknessGroupTableProps) {
+export function ThicknessGroupTable({
+  rows,
+  hoveredGroup,
+  onHoverGroup,
+  onToggleAccepted,
+  isReadOnly = false,
+}: ThicknessGroupTableProps) {
   return (
     <Table.Root>
       <Table.Header>
@@ -51,12 +57,12 @@ export function ThicknessGroupTable({ rows, hoveredGroup, onHoverGroup, onToggle
           <Table.Head className="whitespace-normal">{HEADER_MEASURED}</Table.Head>
           <Table.Head>{HEADER_WALL_COUNT}</Table.Head>
           <Table.Head className="whitespace-normal">{HEADER_SUGGESTED_GROUP}</Table.Head>
-          <Table.Head>{HEADER_ACCEPTED}</Table.Head>
+          {isReadOnly ? null : <Table.Head>{HEADER_ACCEPTED}</Table.Head>}
         </Table.Row>
       </Table.Header>
       <Table.Body>
         {rows.length === 0 ? (
-          <Table.Empty colSpan={4} message={EMPTY_MESSAGE} />
+          <Table.Empty colSpan={isReadOnly ? 3 : 4} message={EMPTY_MESSAGE} />
         ) : (
           rows.map((row) => (
             <Table.Row
@@ -70,13 +76,15 @@ export function ThicknessGroupTable({ rows, hoveredGroup, onHoverGroup, onToggle
               <Table.Cell className="font-mono tabular-nums">{row.measuredMm} mm</Table.Cell>
               <Table.Cell className="font-mono tabular-nums">{row.wallCount}</Table.Cell>
               <Table.Cell>{THICKNESS_GROUP_LABELS[row.suggestedGroup]}</Table.Cell>
-              <Table.Cell>
-                <Checkbox
-                  aria-label={acceptCheckboxLabel(row.measuredMm, row.wallCount, row.suggestedGroup)}
-                  checked={row.accepted}
-                  onChange={(accepted) => onToggleAccepted(row.measuredMm, accepted)}
-                />
-              </Table.Cell>
+              {isReadOnly ? null : (
+                <Table.Cell>
+                  <Checkbox
+                    aria-label={acceptCheckboxLabel(row.measuredMm, row.wallCount, row.suggestedGroup)}
+                    checked={row.accepted}
+                    onChange={(accepted) => onToggleAccepted(row.measuredMm, accepted)}
+                  />
+                </Table.Cell>
+              )}
             </Table.Row>
           ))
         )}

@@ -11,7 +11,7 @@
  * Tỷ lệ là thứ màn này tồn tại để tìm, nên nó là thứ màn này TUYỆT ĐỐI không
  * được tự tính. `4800` và `400` đi vào `createScale` của `src/domain/units/scale`
  * (M-02), `12 mm/px` đi ra. Cùng lý lẽ đó áp cho mọi phép chia khác: quy một
- * toạ độ pixel về tỉ lệ `0..1` của khung ảnh cũng là một phép đổi đơn vị, và nó
+ * toạ độ pixel về tỷ lệ `0..1` của khung ảnh cũng là một phép đổi đơn vị, và nó
  * đi qua {@link frameScaleOf} — một `Scale` thật, dựng bằng chính `createScale`,
  * trong đó "một khung ảnh" đóng vai đơn vị lớn và "một pixel ảnh" đóng vai đơn
  * vị nhỏ. Không có ký tự `/` làm phép chia ở bất kỳ đâu trong file này.
@@ -101,6 +101,7 @@ import {
 } from '@/domain/units/types';
 import { useAutosave, useFloorLayerAutosave } from '@/hooks/useAutosave';
 import { useFloorLayer } from '@/hooks/useFloorLayer';
+import { useFloorLayerReadFailure } from '../../qc/shared/floorLayerReadFailure';
 import { useProjectConfidenceThreshold } from '@/hooks/useProjectConfidenceThreshold';
 import { useCanvasViewport } from '@/hooks/useCanvasViewport';
 import { useCountUp } from '@/hooks/useCountUp';
@@ -178,6 +179,9 @@ const COPY = {
   realLengthPlaceholder: '4800',
   realLengthNoHint: 'Không có chuỗi kích thước nào gần đoạn này để gợi ý.',
   realLengthInvalid: 'Chiều dài thật phải là một số lớn hơn 0, ví dụ 4800.',
+  referenceTooShort:
+    'Đoạn quá ngắn — kéo giữa hai đầu một kích thước đã biết, hoặc dời đầu cuối bằng phím mũi tên.',
+  shortcutFitView: 'Vừa khung',
   crossCheckWallThickness: 'Độ dày tường điển hình',
   crossCheckDoorWidth: 'Bề rộng cửa đi điển hình',
   crossCheckLargestRoomArea: 'Diện tích phòng lớn nhất',
@@ -206,25 +210,25 @@ const COPY = {
   successNotice: 'Mọi kích thước dẫn xuất đã được tính lại theo tỷ lệ mới.',
   applyCommitLabel: 'Áp dụng tỷ lệ',
   applyNoSpatial: 'Chưa nạp dữ liệu không gian của tầng này, nên chưa áp được tỷ lệ.',
-  applyFailed: 'Chưa lưu được tỉ lệ lên máy chủ, tầng giữ tỉ lệ cũ.',
-  allFloorsReadFailed: 'Không tải được danh sách tầng để áp tỉ lệ.',
+  applyFailed: 'Chưa lưu được tỷ lệ lên máy chủ, tầng giữ tỷ lệ cũ.',
+  allFloorsReadFailed: 'Không tải được danh sách tầng để áp tỷ lệ.',
   allFloorsMessage:
-    'Tỉ lệ sẽ được coi là do bạn chọn; các tầng này không nắn hay cắt lại bản vẽ được nữa, trừ khi tải bản vẽ mới.',
+    'Tỷ lệ sẽ được coi là do bạn chọn; các tầng này không nắn hay cắt lại bản vẽ được nữa, trừ khi tải bản vẽ mới.',
   allFloorsConfirm: 'Áp cho mọi tầng',
   allFloorsCancel: 'Huỷ',
-  undoProvisional: 'Đã đặt lại tỉ lệ cũ; tỉ lệ này nay được coi là tỉ lệ bạn chọn.',
+  undoProvisional: 'Đã đặt lại tỷ lệ cũ; tỷ lệ này nay được coi là tỷ lệ bạn chọn.',
 } as const;
 
-/** Ví dụ `"Áp tỉ lệ này cho 3 tầng có bản vẽ?"`. */
-const allFloorsTitle = (count: string): string => `Áp tỉ lệ này cho ${count} tầng có bản vẽ?`;
+/** Ví dụ `"Áp tỷ lệ này cho 3 tầng có bản vẽ?"`. */
+const allFloorsTitle = (count: string): string => `Áp tỷ lệ này cho ${count} tầng có bản vẽ?`;
 
 /** Báo cáo một lượt "áp mọi tầng": mỗi nhóm một câu, nhóm rỗng thì không nói. */
 function allFloorsReport(report: AllFloorsReport): string {
   const names = (floors: readonly string[]): string => floors.join(', ');
 
   return [
-    report.saved.length > 0 ? `Đã áp tỉ lệ cho ${formatNumber(report.saved.length)} tầng.` : null,
-    report.failed.length > 0 ? `Không lưu được tỉ lệ cho: ${names(report.failed)}.` : null,
+    report.saved.length > 0 ? `Đã áp tỷ lệ cho ${formatNumber(report.saved.length)} tầng.` : null,
+    report.failed.length > 0 ? `Không lưu được tỷ lệ cho: ${names(report.failed)}.` : null,
     report.blocked.length > 0 ? `Chưa gửi vì tầng đang bị khoá lưu: ${names(report.blocked)}.` : null,
     report.skipped.length > 0 ? `Bỏ qua vì chưa có bản vẽ: ${names(report.skipped)}.` : null,
   ]
@@ -310,7 +314,7 @@ const EMPTY_SNAP_TARGETS: readonly ScaleRawSnapTarget[] = [];
  *
  * Ảnh rộng `widthPx` pixel và rộng đúng một khung. Đó chính là hình dạng
  * `createScale` nhận: một chiều dài pixel cùng chiều dài thật nó ứng với. Nên
- * `pixelsToMillimetres` ở đây đọc là "pixel ảnh → tỉ lệ `0..1` của khung", và
+ * `pixelsToMillimetres` ở đây đọc là "pixel ảnh → tỷ lệ `0..1` của khung", và
  * `millimetresToPixels` đọc là chiều ngược lại. Phép chia nằm trong M-02, không
  * nằm ở màn — đúng luật màn này tồn tại để giữ.
  */
@@ -318,12 +322,21 @@ function frameScaleOf(edgePx: Pixels): Scale {
   return createScale({ pixelLength: edgePx, realLength: millimetres(ONE_IMAGE_FRAME) });
 }
 
-/** Hai cạnh ảnh, đã thành hai phép đổi. `null` khi tầng chưa được đo. */
+/**
+ * Ảnh trong khung vuông, đã thành MỘT phép đổi cho cả hai trục. `null` khi tầng chưa được đo.
+ *
+ * Ảnh vẽ `object-contain` trong khung `aspect-square`: cạnh dài phủ kín khung, cạnh ngắn
+ * nằm giữa với hai dải trống. Đổi riêng từng trục theo cạnh của nó (như trước) là kéo giãn
+ * ảnh không vuông: cùng 0,6 khung ra 960 px theo ngang mà 720 px theo dọc (G52 14-C-026).
+ */
 interface ImageFrame {
   readonly widthPx: Pixels;
   readonly heightPx: Pixels;
-  readonly acrossScale: Scale;
-  readonly upScale: Scale;
+  /** Khung ↔ pixel ảnh, theo cạnh dài — chung hai trục. */
+  readonly edgeScale: Scale;
+  /** Dải trống trước ảnh trên mỗi trục, pixel ảnh. */
+  readonly insetX: Pixels;
+  readonly insetY: Pixels;
 }
 
 function imageFrameOf(drawing: ScaleDrawingSnapshot | null): ImageFrame | null {
@@ -331,11 +344,14 @@ function imageFrameOf(drawing: ScaleDrawingSnapshot | null): ImageFrame | null {
     return null;
   }
 
+  const edge = pixels(Math.max(drawing.widthPx, drawing.heightPx));
+
   return {
     widthPx: drawing.widthPx,
     heightPx: drawing.heightPx,
-    acrossScale: frameScaleOf(drawing.widthPx),
-    upScale: frameScaleOf(drawing.heightPx),
+    edgeScale: frameScaleOf(edge),
+    insetX: pixels((edge - drawing.widthPx) / 2),
+    insetY: pixels((edge - drawing.heightPx) / 2),
   };
 }
 
@@ -345,19 +361,19 @@ interface PixelPoint {
   readonly y: Pixels;
 }
 
-/** Tỉ lệ `0..1` của khung → pixel ảnh. Chỉ có phép nhân. */
+/** Tỷ lệ `0..1` của khung → pixel ảnh. Chỉ có phép nhân. */
 function toPixelPoint(frame: ImageFrame, point: ImageRatioPoint): PixelPoint {
   return {
-    x: frame.acrossScale.millimetresToPixels(millimetres(point.x)),
-    y: frame.upScale.millimetresToPixels(millimetres(point.y)),
+    x: pixels(frame.edgeScale.millimetresToPixels(millimetres(point.x)) - frame.insetX),
+    y: pixels(frame.edgeScale.millimetresToPixels(millimetres(point.y)) - frame.insetY),
   };
 }
 
-/** Pixel ảnh → tỉ lệ `0..1` của khung. Phép chia do M-02 làm. */
+/** Pixel ảnh → tỷ lệ `0..1` của khung. Phép chia do M-02 làm. */
 function toRatioPoint(frame: ImageFrame, point: PixelPoint): ImageRatioPoint {
   return {
-    x: frame.acrossScale.pixelsToMillimetres(point.x),
-    y: frame.upScale.pixelsToMillimetres(point.y),
+    x: frame.edgeScale.pixelsToMillimetres(pixels(point.x + frame.insetX)),
+    y: frame.edgeScale.pixelsToMillimetres(pixels(point.y + frame.insetY)),
   };
 }
 
@@ -409,9 +425,9 @@ const SMALLEST_ROOM_MINIMUM_M2 = Math.min(
 /**
  * Đoạn tham chiếu, giữ theo PIXEL ẢNH.
  *
- * Pixel là đơn vị đoạn này được đo bằng, nên nó là đơn vị đúng để giữ; tỉ lệ
+ * Pixel là đơn vị đoạn này được đo bằng, nên nó là đơn vị đúng để giữ; tỷ lệ
  * `0..1` mà view cần chỉ được dựng ra ở bước cuối, một lần, cho một khung ảnh
- * đã biết. Giữ theo tỉ lệ thì mỗi lần đo lại phải nhân ngược, và một tầng chưa
+ * đã biết. Giữ theo tỷ lệ thì mỗi lần đo lại phải nhân ngược, và một tầng chưa
  * đo được độ phân giải sẽ khiến cả phiên kéo mất nghĩa giữa chừng.
  */
 interface DragSession {
@@ -421,6 +437,50 @@ interface DragSession {
   readonly isAxisLocked: boolean;
   readonly snappedKind: ReferenceLineDraft['snappedKind'];
   readonly snappedEndpoint: ReferenceLineEndpoint | null;
+  /** Đầu đang đi theo con trỏ — `end` khi vẽ mới, đầu của tay cầm khi kéo tay cầm (BUG-587). */
+  readonly movingEndpoint: ReferenceLineEndpoint;
+  /**
+   * Lệch từ con trỏ tới tâm đầu đoạn lúc nhấn tay cầm (G51b): tay cầm 24 px, nên nhấn lệch
+   * tâm rồi thả mà dời đầu đoạn tới con trỏ là vẽ ra một đoạn vài px. Vẽ mới thì 0.
+   */
+  readonly grabOffset: PixelPoint;
+}
+
+const NO_GRAB_OFFSET: PixelPoint = { x: pixels(0), y: pixels(0) };
+
+/** Điểm con trỏ cộng lệch lúc nhấn tay cầm — đầu đoạn đi theo đúng quãng con trỏ đi. */
+const grabbed = (moving: PixelPoint, offset: PixelPoint): PixelPoint => ({
+  x: pixels(moving.x + offset.x),
+  y: pixels(moving.y + offset.y),
+});
+
+/** Đầu kia của một đoạn. */
+const otherEndpoint = (endpoint: ReferenceLineEndpoint): ReferenceLineEndpoint =>
+  endpoint === 'start' ? 'end' : 'start';
+
+/** Bước nút "Phóng to"/"Thu nhỏ" — số tương tác giao diện, không phải tỷ lệ mm/px. */
+const ZOOM_BUTTON_STEP = 1.25;
+/** Phần trăm đầy đủ: `zoom` 1 là 100% của `ZoomCluster`, cả khung ảnh là 100% của bản đồ nhỏ. */
+const FULL_PERCENT = 100;
+
+/**
+ * Vùng đang thấy của khung, phần trăm khung ảnh — phép ngược của `translate(x, y) scale(zoom)`
+ * mà canvas đặt lên lớp ảnh. Chưa đo khung thì cả ảnh.
+ */
+function miniMapViewportOf(
+  viewport: { readonly x: number; readonly y: number; readonly zoom: number },
+  size: { readonly width: number; readonly height: number },
+): { readonly x: number; readonly y: number; readonly width: number; readonly height: number } {
+  if (size.width <= 0 || size.height <= 0) {
+    return { x: 0, y: 0, width: FULL_PERCENT, height: FULL_PERCENT };
+  }
+
+  return {
+    x: (-viewport.x / (size.width * viewport.zoom)) * FULL_PERCENT,
+    y: (-viewport.y / (size.height * viewport.zoom)) * FULL_PERCENT,
+    width: FULL_PERCENT / viewport.zoom,
+    height: FULL_PERCENT / viewport.zoom,
+  };
 }
 
 /** Đầu đoạn phím mũi tên đang nhích. */
@@ -503,9 +563,9 @@ function useResolvedGateway(injected?: ScaleCalibrationGateway): ScaleCalibratio
  */
 interface RatioMarks {
   scope: string;
-  /** Tỉ lệ máy chủ đã nhận gần nhất, theo `Level`. */
+  /** Tỷ lệ máy chủ đã nhận gần nhất, theo `Level`. */
   readonly saved: Map<string, number>;
-  /** Tầng từng ở tỉ lệ tạm, kèm tỉ lệ tạm ấy — hoàn tác về nó thì phải nói ra (bước 5). */
+  /** Tầng từng ở tỷ lệ tạm, kèm tỷ lệ tạm ấy — hoàn tác về nó thì phải nói ra (bước 5). */
   readonly provisionalBefore: Map<string, number>;
 }
 
@@ -534,6 +594,9 @@ export function __resetScaleRatioMarks(): void {
 /* Hook.                                                                        */
 /* -------------------------------------------------------------------------- */
 
+/** Hậu tố khoá đệm bản ghi hiệu chỉnh — xem ghi chú ở `useQuery` của hook. */
+const SCALE_CALIBRATION_QUERY_SCOPE = 'scaleCalibration';
+
 /** `(options) => UseScaleCalibrationResult` cho `ScaleCalibration.container.tsx`. */
 export function useScaleCalibration(
   options: UseScaleCalibrationHookOptions,
@@ -549,8 +612,13 @@ export function useScaleCalibration(
   /* Trạng thái máy chủ (R-64) — một khoá đệm cho bản vẽ của tầng.           */
   /* ---------------------------------------------------------------------- */
 
+  /*
+   * Hậu tố riêng (G25): các màn QC giữ ẢNH NỀN dưới đúng `drawing.byFloor(floorId)`
+   * với hình khác; vào bằng SPA trong `staleTime` thì màn này đọc nhầm hình ấy và canvas
+   * trắng. Nối hậu tố như `CAD_INSPECTION_QUERY_SCOPE` — vẫn mất hiệu lực theo tiền tố.
+   */
   const query = useQuery({
-    queryKey: queryKeys.drawing.byFloor(floorId),
+    queryKey: [...queryKeys.drawing.byFloor(floorId), SCALE_CALIBRATION_QUERY_SCOPE],
     queryFn: async (): Promise<ScaleCalibrationRecord> => {
       const drawing = await gateway.readFloorDrawing({ floorId, projectId });
 
@@ -592,9 +660,9 @@ export function useScaleCalibration(
   /* Gạch "độ tin cậy thấp" theo ngưỡng của dự án, không hằng 0,70 (BUG-354, như FIX-1603). */
   const confidenceThreshold = useProjectConfidenceThreshold(projectId, gateway.readConfidenceThreshold);
   const levelId: string = floorLayer.data?.level.id ?? floorId;
-  /** `'unresolved'`: tỉ lệ trong `Level` là tỉ lệ tạm của pipeline, chưa ai chốt. */
+  /** `'unresolved'`: tỷ lệ trong `Level` là tỷ lệ tạm của pipeline, chưa ai chốt. */
   const isProvisional = floorLayer.scaleStatus === 'unresolved';
-  const { isFloorBlocked, saveScale } = useFloorLayerAutosave({
+  const { isFloorBlocked, saveBlock, saveScale } = useFloorLayerAutosave({
     projectId,
     floorId: levelId,
     ...(gateway.apiClient !== undefined ? { apiClient: gateway.apiClient } : {}),
@@ -623,7 +691,7 @@ export function useScaleCalibration(
   const [isApplying, setApplying] = useState(false);
   /** Câu của lượt áp/hoàn tác gần nhất — `applyBlockedNotice` của panel. */
   const [applyNotice, setApplyNotice] = useState<string | null>(null);
-  /** Hộp thoại A9 đang mở cho "áp mọi tầng": tỉ lệ và danh sách đích đã đọc. */
+  /** Hộp thoại A9 đang mở cho "áp mọi tầng": tỷ lệ và danh sách đích đã đọc. */
   const [allFloors, setAllFloors] = useState<{
     readonly ratio: MillimetresPerPixel;
     readonly targets: readonly ScaleFloorTarget[];
@@ -636,7 +704,7 @@ export function useScaleCalibration(
   /* ---------------------------------------------------------------------- */
 
   const levelRatio = useStore((state) => levelIn(state.spatial, levelId)?.scaleMillimetresPerPixel ?? null);
-  /** Tầng tỉ lệ tạm coi như chưa hiệu chỉnh (`spatialLayer.ts`); tỉ lệ tạm chỉ còn nuôi `workingRatio`. */
+  /** Tầng tỷ lệ tạm coi như chưa hiệu chỉnh (`spatialLayer.ts`); tỷ lệ tạm chỉ còn nuôi `workingRatio`. */
   const storedRatio = isProvisional ? null : levelRatio;
   const provisionalRatio = isProvisional ? levelRatio : null;
 
@@ -687,10 +755,12 @@ export function useScaleCalibration(
    * Hai vế đang xét: hàng đã chọn thắng, vì chọn một chuỗi kích thước là một
    * câu trả lời dứt khoát; đoạn vẽ tay chỉ nói lên điều gì khi đã có chiều dài.
    */
+  /* Không có chuỗi kích thước thì chỉ còn đoạn tham chiếu — cùng luật `effectiveMethod` của panel (G52 14-C-016). */
+  const computedMethod: ScaleCalibrationMethod = rawRows.length === 0 ? 'referenceLine' : method;
   const numerator: Millimetres | null =
-    method === 'dimensionString' ? (selectedRow?.realLength ?? null) : typedLength;
+    computedMethod === 'dimensionString' ? (selectedRow?.realLength ?? null) : typedLength;
   const denominator: Pixels | null =
-    method === 'dimensionString' ? (selectedRow?.pixelLength ?? null) : draftPixelLength;
+    computedMethod === 'dimensionString' ? (selectedRow?.pixelLength ?? null) : draftPixelLength;
 
   /** Tỷ lệ đang đề nghị — do M-02 tính, không do màn chia. */
   const proposedScale = useMemo<Scale | null>(() => {
@@ -718,9 +788,9 @@ export function useScaleCalibration(
 
   /**
    * Nhánh hoàn tác (F-04x-2 bước 5): `useAutosave` gọi lại sau mỗi sửa có lịch sử; chỉ
-   * tầng có tỉ lệ `Level` khác tỉ lệ máy chủ nhận gần nhất (mốc cấp module) mới sinh
-   * PUT — sửa đồ thị khác không sinh PUT tỉ lệ. Hỏng thì ném lỗi gốc cho engine. Gửi
-   * là hạ `success`: kết quả cũ không còn nói về tỉ lệ đang có.
+   * tầng có tỷ lệ `Level` khác tỷ lệ máy chủ nhận gần nhất (mốc cấp module) mới sinh
+   * PUT — sửa đồ thị khác không sinh PUT tỷ lệ. Hỏng thì ném lỗi gốc cho engine. Gửi
+   * là hạ `success`: kết quả cũ không còn nói về tỷ lệ đang có.
    */
   const handleSave = useCallback(async (): Promise<void> => {
     const marks = ratioMarksFor(projectIdRef.current);
@@ -871,15 +941,34 @@ export function useScaleCalibration(
     [flyToBounds],
   );
 
-  const onStartDrag = useCallback((point: ImageRatioPoint) => {
+  const onStartDrag = useCallback((point: ImageRatioPoint, endpoint?: ReferenceLineEndpoint) => {
     const currentFrame = frameRef.current;
 
     if (currentFrame === null) {
       return;
     }
 
-    const at = toPixelPoint(currentFrame, point);
     setMethod('referenceLine');
+
+    // Nhấn lên tay cầm: kéo đúng đầu đó, đầu kia đứng yên — không vẽ lại cả đoạn (BUG-587).
+    if (endpoint !== undefined) {
+      const pressed = toPixelPoint(currentFrame, point);
+
+      setNudgeTarget(endpoint);
+      setDrag((session) =>
+        session === null
+          ? session
+          : {
+              ...session,
+              isDragging: true,
+              movingEndpoint: endpoint,
+              grabOffset: { x: pixels(session[endpoint].x - pressed.x), y: pixels(session[endpoint].y - pressed.y) },
+            },
+      );
+      return;
+    }
+
+    const at = toPixelPoint(currentFrame, point);
     setNudgeTarget('end');
     setDrag({
       start: at,
@@ -888,6 +977,8 @@ export function useScaleCalibration(
       isAxisLocked: false,
       snappedKind: null,
       snappedEndpoint: null,
+      movingEndpoint: 'end',
+      grabOffset: NO_GRAB_OFFSET,
     });
   }, []);
 
@@ -906,15 +997,20 @@ export function useScaleCalibration(
           return session;
         }
 
-        const resolved = resolveEndpoint(session.start, moving, modifiers.isAxisLocked);
+        const endpoint = session.movingEndpoint;
+        const resolved = resolveEndpoint(
+          session[otherEndpoint(endpoint)],
+          grabbed(moving, session.grabOffset),
+          modifiers.isAxisLocked,
+        );
 
         return {
           ...session,
-          end: resolved.point,
+          [endpoint]: resolved.point,
           isDragging: true,
           isAxisLocked: modifiers.isAxisLocked,
           snappedKind: resolved.kind,
-          snappedEndpoint: resolved.kind === null ? null : 'end',
+          snappedEndpoint: resolved.kind === null ? null : endpoint,
         };
       });
     },
@@ -936,14 +1032,19 @@ export function useScaleCalibration(
           return session;
         }
 
-        const resolved = resolveEndpoint(session.start, moving, session.isAxisLocked);
+        const endpoint = session.movingEndpoint;
+        const resolved = resolveEndpoint(
+          session[otherEndpoint(endpoint)],
+          grabbed(moving, session.grabOffset),
+          session.isAxisLocked,
+        );
 
         return {
           ...session,
-          end: resolved.point,
+          [endpoint]: resolved.point,
           isDragging: false,
           snappedKind: resolved.kind,
-          snappedEndpoint: resolved.kind === null ? null : 'end',
+          snappedEndpoint: resolved.kind === null ? null : endpoint,
         };
       });
     },
@@ -1020,6 +1121,38 @@ export function useScaleCalibration(
     [zoomTo],
   );
 
+  /** Phóng quanh TÂM khung (pixel CSS của khung, cùng hệ với `viewport.x/y`). */
+  const zoomAroundCentre = useCallback(
+    (factor: number) => {
+      const size = canvasSizeRef.current;
+      zoomTo(viewportRef.current.zoom * factor, size.width / 2, size.height / 2);
+    },
+    [zoomTo],
+  );
+
+  const onZoomIn = useCallback(() => zoomAroundCentre(ZOOM_BUTTON_STEP), [zoomAroundCentre]);
+  const onZoomOut = useCallback(() => zoomAroundCentre(1 / ZOOM_BUTTON_STEP), [zoomAroundCentre]);
+
+  /** Về toàn cảnh: khung vuông khớp ảnh vuông ở `zoom` 1, gốc (0; 0) — không cần đo gì thêm. */
+  const onFitView = useCallback(() => {
+    const current = viewportRef.current;
+    zoomTo(1);
+    pan(-current.x, -current.y);
+  }, [pan, zoomTo]);
+
+  /** Bản đồ nhỏ báo vùng (phần trăm khung ảnh): gốc khung nhìn đi theo góc trên trái của vùng. */
+  const onMiniMapViewportChange = useCallback(
+    (rect: { readonly x: number; readonly y: number }) => {
+      const current = viewportRef.current;
+      const size = canvasSizeRef.current;
+      pan(
+        (-rect.x / FULL_PERCENT) * size.width * current.zoom - current.x,
+        (-rect.y / FULL_PERCENT) * size.height * current.zoom - current.y,
+      );
+    },
+    [pan],
+  );
+
   const onMoveCursor = useCallback((point: ImageRatioPoint | null) => {
     // `null` giữ nguyên điểm cuối cùng biết được: thanh trạng thái nói toạ độ
     // con trỏ vừa rời khỏi, không nháy về gốc toạ độ.
@@ -1063,9 +1196,9 @@ export function useScaleCalibration(
   proposedRatioRef.current = proposedRatio;
 
   /**
-   * Đã gửi xong: ghi tỉ lệ vào kho bằng MỘT `commit` (một bước hoàn tác, toast A8) cho
+   * Đã gửi xong: ghi tỷ lệ vào kho bằng MỘT `commit` (một bước hoàn tác, toast A8) cho
    * những tầng máy chủ đã nhận. Mốc của nhánh hoàn tác đặt TRƯỚC `commit`, để lượt
-   * `handleSave` mà chính `commit` này hẹn không gửi lại tỉ lệ vừa lưu.
+   * `handleSave` mà chính `commit` này hẹn không gửi lại tỷ lệ vừa lưu.
    */
   const commitSaved = useCallback((levelIds: readonly string[], ratio: MillimetresPerPixel) => {
     const spatial = useStore.getState().spatial;
@@ -1086,7 +1219,7 @@ export function useScaleCalibration(
     }
   }, []);
 
-  /** Ghi nhớ tỉ lệ tạm của tầng trước khi gửi — hoàn tác về nó thì nói câu của bước 5. */
+  /** Ghi nhớ tỷ lệ tạm của tầng trước khi gửi — hoàn tác về nó thì nói câu của bước 5. */
   const rememberProvisional = useCallback((id: string) => {
     const ratio = levelIn(useStore.getState().spatial, id)?.scaleMillimetresPerPixel;
 
@@ -1098,7 +1231,7 @@ export function useScaleCalibration(
   const applyScopeRef = useRef(applyScope);
   applyScopeRef.current = applyScope;
 
-  /** "Áp": PUT trước, `commit` sau — kho chỉ đổi tỉ lệ khi máy chủ đã nhận (A5). */
+  /** "Áp": PUT trước, `commit` sau — kho chỉ đổi tỷ lệ khi máy chủ đã nhận (A5). */
   const onApply = useCallback(() => {
     const ratio = proposedRatioRef.current;
 
@@ -1225,6 +1358,13 @@ export function useScaleCalibration(
     scope: 'canvas',
     description: COPY.shortcutRemeasure,
     onTrigger: onRemeasure,
+  });
+  useShortcut({
+    id: 'scaleCalibration.fitView',
+    combo: 'F',
+    scope: 'canvas',
+    description: COPY.shortcutFitView,
+    onTrigger: onFitView,
   });
   useShortcut({
     id: 'scaleCalibration.confirm',
@@ -1519,6 +1659,10 @@ export function useScaleCalibration(
     rows.length,
   ]);
 
+  /* 404 dự án/tầng (người ngoài dự án, tầng đã xoá): cả màn là một lối ra, không "Mã lỗi: NOT_FOUND" (G45). */
+  const floorLayerFailure = useFloorLayerReadFailure(floorLayer, projectId, navigate);
+  const readFailure = readWireError(floorLayer.error)?.status === 404 ? floorLayerFailure : null;
+
   const errorDescription = useMemo(() => {
     if (state !== 'error') {
       return null;
@@ -1687,8 +1831,11 @@ export function useScaleCalibration(
           draftForView === null || !draftForView.isDragging
             ? null
             : pixelLabel(draftForView.pixelLength),
-        isInteractive: state !== 'forbidden',
+        // Theo vai, không theo trạng thái: tầng lỗi/chưa bản vẽ đứng trước `forbidden` (BUG-601).
+        isInteractive: canEdit,
         isImageLoading: state === 'loading',
+        zoomPercent: Math.round(viewport.zoom * FULL_PERCENT),
+        miniMapViewport: miniMapViewportOf(viewport, canvasSize),
       },
       panel: {
         currentScaleLabel,
@@ -1733,6 +1880,10 @@ export function useScaleCalibration(
           // GÕ vì `realLengthText` là thứ nuôi `proposedRatio`, không đợi rời ô.
           inlineWarning: warnings[0] ?? null,
           canRemeasure: draftForView !== null,
+          tooShortNotice:
+            draftForView !== null && !draftForView.isDragging && draftForView.pixelLength <= 0
+              ? COPY.referenceTooShort
+              : null,
         },
         computation,
         crossChecks,
@@ -1742,7 +1893,7 @@ export function useScaleCalibration(
         canApply,
         ...(applyNotice !== null ? { applyBlockedNotice: applyNotice } : {}),
         isApplying,
-        areActionsHidden: state === 'forbidden',
+        areActionsHidden: !canEdit,
         recalculationCaption: COPY.recalculationCaption,
         statusCode: state === 'success' ? 'verified' : 'neutral',
         /* Tầng chưa có bản vẽ: không có gì để kéo hay đo — quy trình mờ đi, bảng phím ẩn (BUG-411). */
@@ -1772,6 +1923,8 @@ export function useScaleCalibration(
       forbiddenNotice: state === 'forbidden' ? COPY.forbiddenNotice : null,
       successNotice: state === 'success' ? COPY.successNotice : null,
       ...(provisionalNotice !== null ? { provisionalScaleNotice: provisionalNotice.message } : {}),
+      saveBlock,
+      readFailure,
       ...(allFloors !== null
         ? {
             allFloorsConfirm: {
@@ -1787,6 +1940,10 @@ export function useScaleCalibration(
     activeStep,
     allFloors,
     applyNotice,
+    canEdit,
+    canvasSize,
+    saveBlock,
+    readFailure,
     isApplying,
     provisionalNotice,
     aiInference,
@@ -1840,6 +1997,10 @@ export function useScaleCalibration(
       onRemeasure,
       onPan,
       onZoom,
+      onZoomIn,
+      onZoomOut,
+      onFitView,
+      onMiniMapViewportChange,
       onMoveCursor,
       onCanvasSizeChange,
       onApply,
@@ -1862,9 +2023,11 @@ export function useScaleCalibration(
       onChangeRealLength,
       onConfirmRealLength,
       onEndDrag,
+      onFitView,
       onGoToPreprocessing,
       onGoToUpload,
       onHoverDimensionRow,
+      onMiniMapViewportChange,
       onMoveCursor,
       onMoveDrag,
       onNudgeEndpoint,
@@ -1875,6 +2038,8 @@ export function useScaleCalibration(
       onStartDrag,
       onToggleCollapsed,
       onZoom,
+      onZoomIn,
+      onZoomOut,
     ],
   );
 

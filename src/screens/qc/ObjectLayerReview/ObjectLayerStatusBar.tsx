@@ -38,7 +38,6 @@ const EXPAND_LABEL = 'Mở lại hai panel';
 
 export function ObjectLayerStatusBar({
   reviewProgressLabel,
-  emptyNotice,
   errorMessage,
   viewerRoleNotice,
   furnitureAttentionNotice,
@@ -46,30 +45,35 @@ export function ObjectLayerStatusBar({
   onToggleCollapsed,
   onUndo,
 }: ObjectLayerStatusBarProps) {
-  const notice = errorMessage ?? furnitureAttentionNotice ?? emptyNotice ?? viewerRoleNotice;
+  /* Câu rỗng đã ở trạng thái rỗng của panel: không lặp lần thứ hai ở đây (BUG-422). */
+  const notice = errorMessage ?? furnitureAttentionNotice ?? viewerRoleNotice;
+  const isViewer = viewerRoleNotice !== null;
 
   const noticeTone =
     errorMessage !== null
       ? 'text-state-violation-text'
-      : furnitureAttentionNotice !== null || emptyNotice !== null
+      : furnitureAttentionNotice !== null
         ? 'text-state-attention-text'
         : 'text-text-secondary';
 
   return (
     <div
       aria-label={STATUS_BAR_ARIA_LABEL}
-      className="flex h-8 shrink-0 select-none items-center justify-between border-t border-border-default bg-bg-surface px-4"
+      className="flex h-8 shrink-0 select-none items-center justify-between gap-2 whitespace-nowrap border-t border-border-default bg-bg-surface px-4"
       role="status"
     >
-      <span aria-live="polite" className="font-mono text-[12px] leading-none tabular-nums text-text-secondary">
+      {/* Câu, không mono (BUG-612); một dòng, không gãy ở 375 (BUG-324). */}
+      <span aria-live="polite" className="shrink-0 text-[12px] leading-none tabular-nums text-text-secondary">
         {reviewProgressLabel}
       </span>
 
       {notice !== null && (
-        <span className={cn('truncate px-2 text-[12px]', noticeTone)}>{notice}</span>
+        <span className={cn('hidden min-w-0 truncate px-2 text-[12px] sm:block', noticeTone)}>{notice}</span>
       )}
 
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
+        {/* Người xem không hoàn tác được gì: không đưa nút chết (BUG-601). */}
+        {isViewer ? null : (
         <button
           className="inline-flex h-6 items-center rounded px-1.5 text-[12px] font-medium text-text-secondary outline-none hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
           onClick={onUndo}
@@ -77,6 +81,7 @@ export function ObjectLayerStatusBar({
         >
           {UNDO_LABEL}
         </button>
+        )}
         <IconButton
           aria-label={isCollapsed ? EXPAND_LABEL : COLLAPSE_LABEL}
           icon={

@@ -69,6 +69,10 @@ const EMPTY_TITLE = 'Chưa nhận ra đối tượng nào';
 const EMPTY_ACTION = 'Thêm thủ công';
 const OPEN_WALL_LAYER_ACTION = 'Sang duyệt tường';
 const LOW_CONFIDENCE_FILTER = 'Chỉ hiện mục dưới ngưỡng';
+const LOW_CONFIDENCE_DONE = 'Đã duyệt hết mục dưới ngưỡng.';
+const SHOW_ALL = 'Hiện tất cả';
+/* Chưa có số đếm thật thì không in "0/0 đối tượng đã duyệt" (BUG-618). */
+const LOADING_PROGRESS_LABEL = 'Đang đọc lớp đối tượng…';
 
 /** Số dòng khung xương của panel trái lúc đang tải — một dòng cho mỗi nhóm, cộng một. */
 const SKELETON_ROWS = [0, 1, 2, 3];
@@ -92,13 +96,17 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
   }
 
   if (model.emptyNotice !== null) {
+    /* Người xem không thêm được gì: không đưa nút "Thêm thủ công" chết (BUG-601). */
+    const action =
+      model.onOpenWallLayer !== null
+        ? { label: OPEN_WALL_LAYER_ACTION, onClick: model.onOpenWallLayer }
+        : model.isViewerRole
+          ? null
+          : { label: EMPTY_ACTION, onClick: model.onAddManually };
+
     return (
       <EmptyState
-        action={
-          model.onOpenWallLayer === null
-            ? { label: EMPTY_ACTION, onClick: model.onAddManually }
-            : { label: OPEN_WALL_LAYER_ACTION, onClick: model.onOpenWallLayer }
-        }
+        {...(action === null ? {} : { action })}
         description={model.emptyNotice}
         icon={<div aria-hidden="true" className="h-8 w-8 rounded-full bg-bg-sunken" />}
         title={EMPTY_TITLE}
@@ -117,9 +125,15 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
         sẵn, và người duyệt phải BỎ được bộ lọc đó — một bộ lọc bật sẵn mà không
         tắt được là một danh sách thiếu mục mà không ai giải thích.
       */}
-      {model.partialNotice === null ? null : (
+      {/*
+        BUG-584: còn bộ lọc bật thì nút tắt nó còn — duyệt hết mục dưới ngưỡng làm câu báo biến
+        mất, và bản cũ ẩn luôn nút, để lại danh sách rỗng không lối ra.
+      */}
+      {model.partialNotice === null && !model.isLowConfidenceOnly ? null : (
         <div className="flex flex-col gap-1 px-2">
-          <p className="text-[12px] text-state-attention-text">{model.partialNotice}</p>
+          {model.partialNotice === null ? null : (
+            <p className="text-[12px] text-state-attention-text">{model.partialNotice}</p>
+          )}
           <button
             aria-pressed={model.isLowConfidenceOnly}
             className={cn(
@@ -137,6 +151,19 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
           </button>
         </div>
       )}
+
+      {model.isLowConfidenceOnly && model.rows.length === 0 ? (
+        <div className="flex items-center justify-between gap-2 px-2 py-2">
+          <p className="text-[13px] text-text-secondary">{LOW_CONFIDENCE_DONE}</p>
+          <button
+            className="inline-flex h-8 shrink-0 items-center rounded px-2 text-[13px] font-medium text-accent outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+            onClick={model.onToggleLowConfidenceOnly}
+            type="button"
+          >
+            {SHOW_ALL}
+          </button>
+        </div>
+      ) : null}
 
       <ObjectLayerList
         collapsedGroups={model.collapsedGroups}
@@ -174,8 +201,10 @@ function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewM
       backgroundImageUrl={model.backgroundImageUrl}
       dragMeasurement={model.dragMeasurement}
       haloRectPx={model.haloRectPx}
+      highlightedWallId={model.highlightedWallId}
       hoveredObjectId={model.hoveredObjectId}
       isInteractive={!model.isViewerRole}
+      isLoading={model.state === 'loading'}
       layerVisibility={model.layerVisibility}
       millimetresPerPixel={model.millimetresPerPixel}
       objects={model.objects}
@@ -194,11 +223,12 @@ function ObjectLayerCanvasRegion({ model }: { readonly model: ObjectLayerReviewM
 }
 
 export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
-  const isCollapsed = model.state === 'collapsed';
+  /* Đọc cờ của vỏ màn, không `state`: ở vai người xem `forbidden` đứng trước `collapsed`, và nút thu gọn đổi nhãn mà panel không thu (BUG-601). */
+  const isCollapsed = model.isCollapsed;
 
   if (model.readFailure != null) {
     return (
-      <div aria-label={SCREEN_ARIA_LABEL} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+      <div aria-label={SCREEN_ARIA_LABEL} className="flex h-screen min-h-0 w-full flex-col bg-bg-app" role="region">
         <FloorLayerReadFailureScreen failure={model.readFailure} />
       </div>
     );
@@ -207,7 +237,9 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
   return (
     <div
       aria-label={SCREEN_ARIA_LABEL}
-      className="flex h-full min-h-0 w-full flex-col bg-bg-app"
+      // Cao bằng khung nhìn: route nằm trong `ScreenMain` (display: contents) nên `h-full` không có chiều cao
+      // để bám, và thanh trạng thái trôi lên giữa trang (BUG-324) — cùng cách SCR-22 (OverlayComparison).
+      className="flex h-screen min-h-0 w-full flex-col bg-bg-app"
       role="region"
     >
       {model.saveBlock != null && (
@@ -246,18 +278,29 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
         )}
 
         {isCollapsed ? null : (
-          <div className="order-1 flex h-[560px] w-full shrink-0 flex-col gap-2 overflow-y-auto xl:order-none xl:h-full xl:w-[280px]">
+          /* Dưới 1280 panel cao theo nội dung, vùng ngoài cuộn — không nén danh sách còn ~3 hàng (BUG-395). */
+          <div className="order-1 flex w-full shrink-0 flex-col gap-2 xl:order-none xl:h-full xl:w-[280px] xl:overflow-y-auto">
             <div className="shrink-0">
+              {/* Đang tải: khung xương thay bộ đếm "0/0" và "Tổng 0" như thể dữ liệu thật (BUG-618). */}
+              {model.state === 'loading' ? (
+                <div aria-hidden="true" className="flex flex-col gap-2 rounded-[12px] bg-bg-surface px-5 py-4 shadow-panel">
+                  {SKELETON_ROWS.map((row) => (
+                    <Skeleton key={row} preset="table-row" />
+                  ))}
+                </div>
+              ) : (
               <ObjectLayerLeftPanel
                 counts={model.counts}
                 furnitureAttentionNotice={model.furnitureAttentionNotice}
                 layerVisibility={model.layerVisibility}
                 onToggleLayer={model.onToggleLayer}
                 onToggleSubtypeFilter={model.onToggleSubtypeFilter}
+                availableSubtypes={model.availableSubtypes}
                 reviewCounter={model.reviewCounter}
                 reviewProgressLabel={model.reviewProgressLabel}
                 subtypeFilters={model.subtypeFilters}
               />
+              )}
             </div>
 
             <div className="shrink-0 rounded-[12px] bg-bg-surface px-3 py-3 shadow-panel">
@@ -296,7 +339,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
         onToggleCollapsed={model.onToggleCollapsed}
         onUndo={model.onUndo}
         reviewCounter={model.reviewCounter}
-        reviewProgressLabel={model.reviewProgressLabel}
+        reviewProgressLabel={model.state === 'loading' ? LOADING_PROGRESS_LABEL : model.reviewProgressLabel}
         state={model.state}
         viewerRoleNotice={model.viewerRoleNotice}
       />
