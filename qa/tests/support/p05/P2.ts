@@ -523,8 +523,16 @@ export const activeLabel = (page: Page): Promise<string> =>
 /* ---------------------------------------------------------------- pixels, boxes, contrast */
 
 // dup-of: viewer.ts canvasOnlyShot
-/** Screenshot of the Pascal canvas only: the box (Pascal chrome) and its overlay siblings hidden via CSSOM, canvases visible. */
+/**
+ * Screenshot of the Pascal canvas only: the box (Pascal chrome) and its overlay siblings hidden via CSSOM, canvases visible.
+ * Shot with `page.screenshot({ clip })` of the canvas box measured BEFORE hiding — a `locator.screenshot` of the hidden box
+ * waits for "element is visible" until timeout (run-051 T1: 23-B-033, 24-F-001).
+ */
 export async function canvasOnlyShot(page: Page): Promise<Buffer> {
+  const canvas = canvasBox(page).locator('canvas').first();
+  await expect(canvas, 'Pascal <canvas> present').toBeVisible();
+  const clip = await canvas.boundingBox();
+  if (clip === null || clip.width < 1 || clip.height < 1) throw new Error('Pascal <canvas> has no box');
   const handle = await canvasBox(page).elementHandle();
   if (handle === null) throw new Error('pascal-canvas box not found');
   const toggle = (on: boolean): Promise<void> =>
@@ -537,7 +545,7 @@ export async function canvasOnlyShot(page: Page): Promise<Buffer> {
     }, on);
   await toggle(true);
   try {
-    return await canvasBox(page).screenshot();
+    return await page.screenshot({ clip, animations: 'disabled' });
   } finally {
     await toggle(false);
     await handle.dispose();

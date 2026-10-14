@@ -229,7 +229,8 @@ test('SCR-23 · FL-23-U2 · [mocked response] loading / partial / error / gate e
 });
 
 test('SCR-23 · FL-23-U3 · empty, 404, exploded, viewer', async ({ browser }) => {
-  test.setTimeout(Math.max(120_000, 2 * 80_000));
+  // 4 states × 4 widths; exploded renders + pixel poll up to 60 s per width (run-051: 160 s was not enough).
+  test.setTimeout(Math.max(120_000, 2 * 200_000));
   const p0 = await createProject(admin, 'u05-u3-p0', 1);
   const q2 = await createQcProject(api, 'u05-u3-q2', ['Tầng 1', 'Tầng 2'], 2).catch(async (error: unknown) => {
     await cleanupProjects(api, [p0.projectId]);
