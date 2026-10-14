@@ -199,7 +199,7 @@ const SCENE_FAILED_MESSAGE = 'Chưa dựng được mô hình để đo. Bấm t
 
 /** Trạng thái 6: có quyền xem, không có quyền ghim. */
 const PIN_BLOCKED_CAPTION =
-  'Bạn chỉ có quyền xem dự án này, nên chưa ghim được phép đo. vẫn đo và đọc số bình thường.';
+  'Bạn chỉ có quyền xem dự án này, nên chưa ghim được phép đo. Vẫn đo và đọc số bình thường.';
 
 /** Câu của toast hoàn tác — cửa sổ tám giây do chính vé mang (`UNDO_WINDOW_MS`). */
 const DELETE_NOTIFICATION_TYPE = 'measurementTool.deleteMeasurement';
@@ -1054,7 +1054,6 @@ export function useMeasurementTool(options: UseMeasurementToolOptions): ViewerSh
       unit: toolProps.unit,
       onUnitChange: toolProps.onUnitChange,
       canPin: toolProps.canPin,
-      pinBlockedCaption: toolProps.pinBlockedCaption,
       collapsed: toolProps.collapsed,
       onToggleCollapsed: toolProps.onToggleCollapsed,
     }),

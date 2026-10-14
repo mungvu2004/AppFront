@@ -75,7 +75,6 @@ export interface MeasurementListProps
     | 'unit'
     | 'onUnitChange'
     | 'canPin'
-    | 'pinBlockedCaption'
     | 'collapsed'
     | 'onToggleCollapsed'
   > {}
@@ -173,7 +172,6 @@ export function MeasurementList({
   unit,
   onUnitChange,
   canPin,
-  pinBlockedCaption,
   collapsed,
   onToggleCollapsed,
 }: MeasurementListProps) {
@@ -222,10 +220,6 @@ export function MeasurementList({
           value={unit}
         />
       </div>
-
-      {!canPin && pinBlockedCaption !== null && (
-        <p className="px-2 text-[12px] text-text-secondary">{pinBlockedCaption}</p>
-      )}
 
       {measurements.length === 0 ? (
         <p className="px-2 text-[13px] text-text-secondary">{EMPTY_HINT}</p>

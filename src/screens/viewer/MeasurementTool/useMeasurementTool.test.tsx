@@ -518,6 +518,17 @@ describe('useMeasurementTool — vai chỉ xem không xoá được phép đo (B
 
     expect(methods).not.toContain('DELETE');
   });
+  it('câu báo chỉ xem nói MỘT lần, câu thứ hai viết hoa chữ đầu (25-D-005)', async () => {
+    stubServer([]);
+
+    renderRealGateway({ roles: ['viewer'] });
+    await screen.findByRole('button', { name: /Ẩn Phép đo 1/iu });
+
+    const notices = screen.getAllByText(/Bạn chỉ có quyền xem dự án này/u);
+
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toHaveTextContent(/nên chưa ghim được phép đo\. Vẫn đo/u);
+  });
 });
 
 describe('useMeasurementTool — hoàn tác xoá qua cổng thật', () => {
