@@ -14,6 +14,7 @@ import {
   NF_RECENT,
   NF_TITLE,
   NOT_FOUND_PATH,
+  nextFrame,
   openNotFound,
   routeProjects,
   wireProject,
@@ -27,6 +28,9 @@ const h2 = (page: Page, name: string) => page.getByRole('heading', { name, exact
 const recentHeading = (page: Page) => page.getByRole('heading', { name: NF_RECENT, exact: true, level: 3 });
 // Recent list links: NotFound.tsx renders them in a list inside <main>.
 const recentLinks = (page: Page) => page.getByRole('main').getByRole('list').getByRole('link');
+/** Registered BEFORE the goto: resolves once the app has received the mocked list response. */
+const projectsResponse = (page: Page, status: number) =>
+  page.waitForResponse((r) => /\/api\/projects$/u.test(new URL(r.url()).pathname) && r.status() === status);
 const FLOORS_HREF = /^\/projects\/[^/]+\/floors$/u;
 const TWO_PROJECTS = [
   wireProject('p10-mock-1', 'P10 mock một', '2026-05-02T10:00:00.000Z'),
@@ -50,8 +54,11 @@ test('SCR-39 · FL-10N-04 · admin · trạng thái danh sách [mocked response]
 
   await test.step('[10N-B-003] mock [] → không danh sách, vẫn 2 nút', async () => {
     const mock = await routeProjects(page, (route) => route.fulfill({ status: 200, json: [] }));
+    const answered = projectsResponse(page, 200);
     await openNotFound(page);
-    await expect.poll(mock.served, { message: 'mocked GET served' }).toBeGreaterThan(0);
+    await answered;
+    await nextFrame(page);
+    await nextFrame(page);
     await expect.soft(recentHeading(page)).toHaveCount(0);
     await expect.soft(page.getByRole('main').getByRole('list')).toHaveCount(0);
     await expect.soft(page.getByRole('button', { name: NF_DASHBOARD, exact: true })).toBeVisible();
@@ -96,8 +103,12 @@ test('SCR-39 · FL-10N-04 · admin · trạng thái danh sách [mocked response]
 
   await test.step('[10N-B-006] 500 → vẫn "Không tìm thấy trang này", không danh sách', async () => {
     const mock = await routeProjects(page, (route) => route.fulfill({ status: 500, json: {} }));
+    const answered = projectsResponse(page, 500);
     await openNotFound(page);
-    await expect.poll(mock.served, { message: 'mocked GET served' }).toBeGreaterThan(0);
+    await answered;
+    await nextFrame(page);
+    await nextFrame(page);
+    await expect.soft(h2(page, NF_OFFLINE_TITLE)).toHaveCount(0);
     await expect.soft(h2(page, NF_TITLE)).toBeVisible();
     await expect.soft(recentHeading(page)).toHaveCount(0);
     await captureEvidence(page, 'N10_10N-B-006_error500.png');
@@ -115,8 +126,9 @@ test('SCR-39 · FL-10N-06 · admin · bố cục empty + offline 4 khổ [mocked
       page,
       'N10_10N-F-002_empty',
       async (p) => {
+        const n0 = mock.served();
         await openNotFound(p);
-        await expect.poll(mock.served, { message: 'mocked GET served' }).toBeGreaterThan(0);
+        await expect.poll(mock.served, { message: 'mocked GET served' }).toBeGreaterThan(n0);
       },
       DESKTOP_VIEWPORTS,
     );

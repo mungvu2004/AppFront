@@ -30,6 +30,7 @@ test('SCR-41 · FL-10K-01 · admin · NotFound: mở/đóng bằng mọi đườ
   await signInAdmin(page);
 
   const requests = recordApiRequests(page);
+  let afterSettled = 0;
   const helpChunks: string[] = [];
   const helpStatuses: number[] = [];
   page.on('request', (request) => {
@@ -51,6 +52,7 @@ test('SCR-41 · FL-10K-01 · admin · NotFound: mở/đóng bằng mọi đườ
     await test.step('[10K-B-001] NotFound hiện, chưa có hộp thoại Phím tắt', async () => {
       await openNotFound(page);
       await expect(help(page)).toHaveCount(0);
+      afterSettled = requests.sent.length; // policy 7: only requests after the settled NotFound count
       await captureEvidence(page, 'K10_10K-B-001_notfound_closed.png');
     });
 
@@ -136,9 +138,8 @@ test('SCR-41 · FL-10K-01 · admin · NotFound: mở/đóng bằng mọi đườ
 
     await test.step('[10K-G-001] không request /api nào do bảng gây ra', async () => {
       await nextFrame(page);
-      // NotFound's own recent-projects read (GET /api/projects) is the page's, not the help's: allowed.
-      const allowed = new Set(['POST /api/auth/refresh', 'GET /api/me', 'GET /api/projects']);
-      expect.soft(requests.sent.filter((line) => !allowed.has(line)), 'unexpected /api requests').toEqual([]);
+      const allowed = new Set(['POST /api/auth/refresh', 'GET /api/me']);
+      expect.soft(requests.sent.slice(afterSettled).filter((line) => !allowed.has(line)), 'unexpected /api requests').toEqual([]);
       await captureEvidence(page, 'K10_10K-G-001_no_api.png');
     });
   } finally {
