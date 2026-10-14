@@ -584,6 +584,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         await expect.soft(floorSelect(page)).toContainText('Tầng 2');
         await floorSelect(page).click();
         await expect.soft(page.getByRole('option', { name: 'Tầng 2', exact: true })).toBeVisible();
+        await expect.soft(page.getByRole('option', { name: 'Tầng 1', exact: true }), 'the floor list is kept, not rebuilt from the empty result').toBeVisible();
         await shot(page, '28-C-012', 'floor_survives');
         await page.keyboard.press('Escape');
       });
@@ -1402,7 +1403,7 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         await shot(page, '28V-E-004', 'icon_names');
       });
 
-      const opener = rowMessage(rowsOf(clash).first());
+      const opener = rowsOf(clash).first().locator('button[data-row-key]'); // F9: RowMessage keeps data-row-key; focus returns to it
       await test.step('[28V-E-007] Tab order inside the sheet', async () => {
         await expandRule(page, RULE_NAMES.furnitureClash);
         await opener.click();
@@ -1445,7 +1446,7 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
       });
 
       await test.step('[28V-E-008] ⚑ focus returns to the row that opened the sheet', async () => {
-        await expect.soft(opener).toBeFocused();
+        await expect.soft(opener, 'focus is on button[data-row-key] of the opened row').toBeFocused();
         await shot(page, '28V-E-008', 'focus_back');
       });
     });
@@ -1499,8 +1500,8 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
 
       const seenBanner = await watchText(page, ADVANCE_BANNER);
       const seenKeep = await watchText(page, KEEP_BUTTON);
-      // Window BEFORE the PUT: after it versionId changes, the report query key changes and the sheet unmounts (URR:399-400, 531-537).
-      // Record, inside the page, whether the sheet ever showed the next row's title and whether "Đã sửa xong" was still on it.
+      // F9: keepPreviousData - after the PUT versionId changes but the sheet does NOT unmount and "Đã xử lý" shows as soon as the report re-runs.
+      // The in-page recorder is kept (it also proves the transient order); post-PUT state is asserted directly below. Record whether the sheet ever showed the next row's title and whether "Đã sửa xong" was still on it.
       await page.evaluate(
         ([next, line]) => {
           const w = window as unknown as { __p06next?: { reached: boolean; stale: boolean } };
@@ -1552,6 +1553,7 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         expect.soft(await seenKeep(), `button "${KEEP_BUTTON}"`).toBe(true);
         // S5-confirm: "the next row" is the old second clash row; recorded in the window before the PUT (see above).
         expect.soft(await page.evaluate(() => (window as unknown as { __p06next?: { reached: boolean } }).__p06next?.reached), 'sheet reached the next row').toBe(true);
+        await expect.soft(panel, 'the sheet did not unmount after the save (F9)').toBeVisible();
         await shot(page, '28V-A-016', 'advanced');
       });
 
@@ -1559,10 +1561,12 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         const seen = await page.evaluate(() => (window as unknown as { __p06next?: { reached: boolean; stale: boolean } }).__p06next);
         expect(seen?.reached, 'marker: the sheet showed the next row title').toBe(true);
         expect.soft(seen?.stale, '"Đã sửa xong…" still on the next violation').toBe(false);
+        await expect.soft(panel.getByText(FIXED_LINE)).toHaveCount(0);
         await shot(page, '28V-C-004', 'stale_resolved_line');
       });
 
       await test.step('[28-A-037] report: "Đã xử lý" 1 mục, header " · 1 đã xử lý"', async () => {
+        await expect.soft(panel, 'sheet still open while the group shows (F9)').toBeVisible();
         await expect.soft(resolvedHeader(page)).toContainText('1 mục');
         const info = await infoOf(page, clashName);
         expect.soft(info?.resolved, 'đã xử lý').toBe(1);
@@ -1591,7 +1595,6 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         const row = rowsOf(resolvedSection).first();
         const message = (await rowMessage(row).innerText()).trim();
         await rowMessage(row).click();
-        // Likely red: RuleReport.container opens only rows of `groups` (resolved rows are not in `allRows`).
         await expect.soft(sheetTitle(page)).toHaveText(message);
         await shot(page, '28-A-040', 'resolved_row_sheet');
       });
