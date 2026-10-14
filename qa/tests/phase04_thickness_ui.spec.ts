@@ -156,8 +156,8 @@ test.describe('E04 SCR-21 thickness — UI verify (QA-04c P4)', () => {
       await test.step('[21-F-006] the reapply warning', async () => {
         await verifyUi(page, 'U04_21-F-006_reapply-warning', async (p) => {
           await openFloor(p, built, 2);
-          await button(p, 'Áp dụng lại bộ lọc').click();
-          await expect(region(p).getByText('Áp dụng lại bộ lọc sẽ đổi tường đã duyệt', { exact: true })).toBeVisible();
+          await button(p, 'Áp lại cho mọi tường lệch nhóm').click(); // ThicknessApplyBar.tsx:55 REAPPLY_FILTER_LABEL
+          await expect(region(p).getByText('Áp lại cho mọi tường lệch nhóm sẽ đổi tường đã duyệt', { exact: true })).toBeVisible(); // ThicknessApplyBar.tsx:64
         });
       });
 

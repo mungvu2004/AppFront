@@ -243,7 +243,8 @@ export function deriveThicknessScreenState(input: {
   readonly hasApplied: boolean;
 }): ThicknessScreenState {
   /* Vai trò KHÔNG đứng trước thu gọn/hỏng/tải/rỗng (BUG-601): người xem lúc đang tải vẫn phải thấy khung xương. */
-  if (input.isCollapsed) {
+  /* 21-B-009: thu gọn lúc đang tải vẫn là khung xương (cột phải của nhánh loading tự lo nút bung lại). */
+  if (input.isCollapsed && !input.isLoading) {
     return 'collapsed';
   }
 
@@ -871,7 +872,8 @@ export function useThicknessStandardization(
     {
       id: 'thicknessStandardization.closeTopLayer',
       combo: 'Escape',
-      scope: 'canvas',
+      /* sidePanel, not canvas: the registry skips canvas for any INPUT target, and the "Đồng ý" checkbox is an INPUT (21-E-007). */
+      scope: 'sidePanel',
       description: THICKNESS_SCREEN_TEXT.escapeShortcut,
       onTrigger: () => {
         if (preview !== null) {

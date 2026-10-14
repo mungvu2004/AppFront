@@ -152,7 +152,8 @@ test.describe('E04 SCR-21 thickness — mocked-response flow (QA-04c P4)', () =>
         } finally {
           await stop();
         }
-        await button(page, 'Hoàn tác').click();
+        // the toast sits over the screen's own "Hoàn tác" (pointer interception): press the toast's undo, same action
+        await toasts(page).getByRole('button', { name: 'Hoàn tác', exact: true }).first().click();
         stop = await answer('PUT', (route) => route.abort('failed'));
         try {
           await apply();

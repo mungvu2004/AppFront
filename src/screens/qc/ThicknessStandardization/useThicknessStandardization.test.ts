@@ -328,6 +328,21 @@ describe('phép ghép thuần của màn Chuẩn hoá độ dày tường', () =
     expect(deriveThicknessScreenState({ ...viewer, isCollapsed: true })).toBe('collapsed');
   });
 
+  it('[21-B-009] thu gọn lúc đang tải vẫn là khung xương, không thành "chưa có đoạn tường"', () => {
+    const base = {
+      isViewerRole: false,
+      isCollapsed: true,
+      hasError: false,
+      isLoading: true,
+      segmentCount: 0,
+      applicableCount: 0,
+      hasApplied: false,
+    } as const;
+
+    expect(deriveThicknessScreenState(base)).toBe('loading');
+    expect(deriveThicknessScreenState({ ...base, isLoading: false, segmentCount: FIXTURE_SEGMENT_COUNT })).toBe('collapsed');
+  });
+
   it('bảng chi tiết mặc định đưa trường hợp tệ nhất lên đầu', async () => {
     const mounted = await mountSettled();
     const rows = mounted.result.current.segmentRows;
@@ -851,10 +866,37 @@ describe('áp dụng lại bộ lọc', () => {
       expect(thicknessInStore(wall.id)).toBe(standardizeThickness(wall.thicknessMm).standardized);
     }
   });
+
+  it('[21-E-007] Esc đóng bảng xem trước rồi cảnh báo, kể cả khi tiêu điểm đang ở ô tích (INPUT)', async () => {
+    const shortcutRegistry = createShortcutRegistry();
+    const mounted = await mountSettled({ shortcutRegistry });
+    const checkbox = { tagName: 'INPUT', isContentEditable: false } as unknown as Parameters<
+      typeof shortcutRegistry.handleKeyDown
+    >[1];
+
+    acceptAndPreview(mounted, [195]);
+    expect(mounted.result.current.preview).not.toBeNull();
+
+    act(() => {
+      mounted.result.current.onReapplyFilter(false);
+    });
+    expect(mounted.result.current.reapplyWarning).not.toBeNull();
+
+    act(() => {
+      shortcutRegistry.handleKeyDown({ key: 'Escape' }, checkbox);
+    });
+    expect(mounted.result.current.preview).toBeNull();
+    expect(mounted.result.current.reapplyWarning).not.toBeNull();
+
+    act(() => {
+      shortcutRegistry.handleKeyDown({ key: 'Escape' }, checkbox);
+    });
+    expect(mounted.result.current.reapplyWarning).toBeNull();
+  });
 });
 
 /* -------------------------------------------------------------------------- */
-/* 6. Bảy trạng thái (A11/R-63).                                               */
+/* 6. Bảy trạng thái (A11/R-63).                                             */
 /* -------------------------------------------------------------------------- */
 
 describe('Bảy trạng thái', () => {
