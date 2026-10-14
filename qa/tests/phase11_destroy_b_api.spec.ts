@@ -11,7 +11,6 @@ import { expect, test, type APIRequestContext } from '@playwright/test';
 
 import { newApiContext, signedInApi } from './support/api';
 import { readAdminCredentials } from './support/auth';
-import { attachJson } from './support/evidence';
 import { layerPathOf, qcLayer, writeLayer } from './support/layerSeed';
 import { p11Slot } from './support/p11/common';
 import {
@@ -47,6 +46,23 @@ async function adminApi(): Promise<APIRequestContext> {
   const { email, password } = readAdminCredentials();
   return signedInApi(email, password);
 }
+
+/** Runs every cleanup even when one throws; rethrows the first error afterwards (nothing swallowed, nothing leaked). */
+async function runCleanups(steps: ReadonlyArray<() => Promise<unknown>>): Promise<void> {
+  const errors: unknown[] = [];
+  for (const step of steps) {
+    try {
+      await step();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  if (errors.length > 0) throw errors[0];
+}
+
+const dropProject = async (admin: APIRequestContext, projectId: string): Promise<void> => {
+  if (projectId) expect(await deleteSeededProject(admin, projectId), 'cleanup: delete project').toBeNull();
+};
 
 const idsOf = (list: unknown, key: string): string[] => asArray(list, key).map((row) => String(asJson(row, key).id));
 
@@ -99,9 +115,7 @@ test.describe('phase 11 · destroy B (API)', () => {
         expect.soft(idsOf(list.body, 'list')).toContain('MS-0001');
       });
     } finally {
-      if (projectId) await deleteSeededProject(admin, projectId);
-      await anon.dispose();
-      await admin.dispose();
+      await runCleanups([() => dropProject(admin, projectId), () => anon.dispose(), () => admin.dispose()]);
     }
   });
 
@@ -151,9 +165,7 @@ test.describe('phase 11 · destroy B (API)', () => {
         expectError(await call(admin, 'B11-qlt-013_straighten', 'POST', qPath('/straighten'), {}, ['404 floor (quality/service straighten, test C08)']), 404, 'NOT_FOUND', 'floor');
       });
     } finally {
-      if (projectId) await deleteSeededProject(admin, projectId);
-      await anon.dispose();
-      await admin.dispose();
+      await runCleanups([() => dropProject(admin, projectId), () => anon.dispose(), () => admin.dispose()]);
     }
   });
 
@@ -247,9 +259,7 @@ test.describe('phase 11 · destroy B (API)', () => {
         expect.soft(await revisionOf('B11-set-001_after3', f3, '200 floor 3 kept its write'), 'floor 3 not rolled back').toBeGreaterThan(r3);
       });
     } finally {
-      if (projectId) await deleteSeededProject(admin, projectId);
-      await anon.dispose();
-      await admin.dispose();
+      await runCleanups([() => dropProject(admin, projectId), () => anon.dispose(), () => admin.dispose()]);
     }
   });
 
@@ -295,12 +305,10 @@ test.describe('phase 11 · destroy B (API)', () => {
           await replay.dispose();
         }
       });
-      await test.step('[B11-out-007] S1 GET /api/me with the old access token → record real behaviour', async () => {
-        // UNKNOWN — NEED VERIFICATION: 401 SESSION_REVOKED (verifier checks the session) or 200 until the token expires.
-        const sent = await call(s1, 'B11-out-007_me', 'GET', '/api/me', undefined, ['401 SESSION_REVOKED or 200 until expiry (auth/verifier.py)']);
-        const verdict = sent.res.status() === 401 ? String(asJson(sent.body).code) : sent.res.status() === 200 ? 'VALID_UNTIL_EXPIRY' : `status ${String(sent.res.status())}`;
-        await attachJson('B11-out-007_verdict.json', { status: sent.res.status(), verdict });
-        expect(['SESSION_REVOKED', 'VALID_UNTIL_EXPIRY']).toContain(verdict);
+      await test.step('[B11-out-007] S1 GET /api/me with the old access token → 401 SESSION_REVOKED', async () => {
+        // oracle: BE auth/sessions.py:158-162,239-263,575-578,605-620 (logout revokes the session; the verifier re-checks it)
+        const sent = await call(s1, 'B11-out-007_me', 'GET', '/api/me', undefined, ['401 SESSION_REVOKED']);
+        expectError(sent, 401, 'SESSION_REVOKED');
       });
       await test.step('[B11-out-011] S2 logout twice with the same Idempotency-Key → 204 + 204', async () => {
         const key = newKey();
@@ -314,21 +322,25 @@ test.describe('phase 11 · destroy B (API)', () => {
         expect(off.res.status(), 'disable').toBe(200);
         for (const [name, ctx] of [['t1', t1], ['t2', t2]] as const) {
           expectError(await call(ctx, `B11-out-009_me_${name}`, 'GET', '/api/me', undefined, ['401 SESSION_REVOKED']), 401, 'SESSION_REVOKED');
-          const ref = await call(ctx, `B11-out-009_refresh_${name}`, 'POST', '/api/auth/refresh', undefined, ['401']);
-          expect.soft(ref.res.status(), `${name} refresh`).toBe(401);
+          const ref = await call(ctx, `B11-out-009_refresh_${name}`, 'POST', '/api/auth/refresh', undefined, ['401 SESSION_REVOKED']);
+          expectError(ref, 401, 'SESSION_REVOKED'); // oracle: auth/sessions.py:449-453
         }
         const anon = await newApiContext();
         try {
           const login = await call(anon, 'B11-out-009_login', 'POST', '/api/auth/login', { email: victim?.email, password: victim?.password, rememberMe: false }, ['403 disabled account']);
-          expect.soft(login.res.status(), 'login').toBe(403);
+          expectError(login, 403, 'ACCOUNT_DISABLED'); // oracle: auth/router.py:178-179
         } finally {
           await anon.dispose();
         }
       });
     } finally {
-      if (victim) await deleteInvitedUser(admin, victim);
-      for (const ctx of sessions) await ctx.dispose();
-      await admin.dispose();
+      await runCleanups([
+        async () => {
+          if (victim) await deleteInvitedUser(admin, victim);
+        },
+        ...sessions.map((ctx) => () => ctx.dispose()),
+        () => admin.dispose(),
+      ]);
     }
   });
 });
