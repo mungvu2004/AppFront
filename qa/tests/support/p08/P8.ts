@@ -153,7 +153,12 @@ export async function openMocked(browser: Browser, viewport = { width: 1440, hei
     const url = new URL(req.url());
     mock.log.push(`${req.method()} ${url.pathname}${url.search}`);
     if (req.method() === 'PUT') {
-      const body = (req.postDataJSON() ?? {}) as Json;
+      let body: Json = {};
+      try {
+        body = (req.postDataJSON() ?? {}) as Json;
+      } catch {
+        body = {};
+      }
       const nth = mock.puts.length;
       mock.puts.push(body);
       if (mock.put !== null) return send(route, await mock.put(body, nth));
