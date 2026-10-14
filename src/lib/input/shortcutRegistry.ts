@@ -342,6 +342,22 @@ const MODIFIER_KEY_CODES: ReadonlySet<ShortcutCode> = new Set([
   'OS',
 ]);
 
+/** Elements whose own activation key is a lone Enter or Space (A12, QA-05c 25-E-011). */
+const ACTIVATABLE_TAGS: ReadonlySet<string> = new Set(['BUTTON', 'A', 'SUMMARY']);
+
+/** A lone Enter/Space on a focused button or link is that control's click, never a binding's. */
+const isOwnActivation = (
+  code: ShortcutCode,
+  event: ShortcutKeyEvent,
+  target: ShortcutTarget | null,
+): boolean =>
+  (code === 'ENTER' || code === 'SPACE') &&
+  event.ctrlKey !== true &&
+  event.metaKey !== true &&
+  event.altKey !== true &&
+  target !== null &&
+  ACTIVATABLE_TAGS.has(target.tagName.toUpperCase());
+
 /**
  * Whether Shift may be ignored when matching this combo.
  *
@@ -507,7 +523,9 @@ export function createShortcutRegistry(
       return false;
     }
 
-    if (MODIFIER_KEY_CODES.has(code)) {
+    // A canvas-scope Enter (pin, confirm) must not swallow Enter on "Ẩn …",
+    // "Thử lại" or a rail button: the focused control answers its own key.
+    if (MODIFIER_KEY_CODES.has(code) || isOwnActivation(code, event, target)) {
       return false;
     }
 
