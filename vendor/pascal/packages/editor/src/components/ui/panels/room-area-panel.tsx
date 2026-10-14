@@ -1,17 +1,12 @@
 'use client'
 
-import {
-  type AnyNode,
-  detectSpacesForLevel,
-  emitter,
-  type WallNode,
-  useScene,
-} from '@pascal-app/core'
+import { type AnyNode, emitter, useScene } from '@pascal-app/core'
 import { useViewer } from '@pascal-app/viewer'
 import { Copy, ExternalLink, Maximize2, Minimize2, ScanSearch, Undo2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { roomArea as vi } from '../../../i18n/regions/roomArea'
 import {
+  closedRoomCount,
   levelNamesOf,
   type RoomAreaGrouping,
   type RoomAreaRow,
@@ -23,6 +18,7 @@ import {
 import { roomAreaStateOf } from '../../../lib/floorplan/room-area-state'
 import { cn } from '../../../lib/utils'
 import { RoomAreaFullPage } from './room-area-full-page'
+import { createRenameScheduler } from './rename-scheduler'
 
 /**
  * "Diện tích phòng" — the room-area panel of AppFront F-15 W2-D (#71–86).
@@ -63,9 +59,11 @@ type PendingRename = { id: string; previous: string; next: string }
 
 function StatusDot({ status }: { status: RoomAreaStatus }) {
   return (
+    // AppFront 23R-E-005: `role="img"` — an `aria-label` on a role-less span is ignored.
     <span
       aria-label={STATUS_LABEL[status]}
       className={cn('inline-block size-2 shrink-0 rounded-full', STATUS_CLASS[status])}
+      role="img"
       title={STATUS_LABEL[status]}
     />
   )
@@ -91,7 +89,8 @@ export function RoomAreaPanel() {
   const [gapReport, setGapReport] = useState<string | null>(null)
   const [fullPage, setFullPage] = useState(false)
   const fullPageButtonRef = useRef<HTMLButtonElement | null>(null)
-  const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const renameTimer = useRef(createRenameScheduler(RENAME_AUTOSAVE_MS)).current
+  const skipBlurCommit = useRef(false)
 
   const closeFullPage = useCallback(() => setFullPage(false), [])
   const levelNames = useMemo(() => levelNamesOf(nodes), [nodes])
@@ -112,12 +111,7 @@ export function RoomAreaPanel() {
     [nodes, grouping, sort, levelId],
   )
 
-  useEffect(
-    () => () => {
-      if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
-    },
-    [],
-  )
+  useEffect(() => renameTimer.cancel, [renameTimer])
 
   // #77: one click both selects the room and frames the camera on it, so the
   // table row and the 3D view never disagree about what is being looked at.
@@ -131,24 +125,22 @@ export function RoomAreaPanel() {
 
   const commitRename = useCallback(
     (id: string, previous: string, next: string) => {
+      renameTimer.cancel()
       const trimmed = next.trim()
       if (!trimmed || trimmed === previous) return
       updateNode(id, { name: trimmed } as Partial<AnyNode>)
       setPendingRename({ id, previous, next: trimmed })
     },
-    [updateNode],
+    [updateNode, renameTimer],
   )
 
   // A7: no save button — the edit lands 800 ms after the last keystroke, and
   // the editor's own autosave carries it to the host from there.
   const scheduleRename = useCallback(
     (id: string, previous: string, next: string) => {
-      if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
-      autosaveTimer.current = setTimeout(() => {
-        commitRename(id, previous, next)
-      }, RENAME_AUTOSAVE_MS)
+      renameTimer.schedule(() => commitRename(id, previous, next))
     },
-    [commitRename],
+    [commitRename, renameTimer],
   )
 
   // A8: every change is undoable, and the way back stays visible for 8 s.
@@ -159,10 +151,11 @@ export function RoomAreaPanel() {
   }, [pendingRename])
 
   const undoRename = useCallback(() => {
+    renameTimer.cancel()
     if (!pendingRename) return
     updateNode(pendingRename.id, { name: pendingRename.previous } as Partial<AnyNode>)
     setPendingRename(null)
-  }, [pendingRename, updateNode])
+  }, [pendingRename, updateNode, renameTimer])
 
   const copyTable = useCallback(() => {
     void navigator.clipboard?.writeText(roomAreaTableToText(table)).then(() => {
@@ -175,16 +168,7 @@ export function RoomAreaPanel() {
   // change, so the button answers the question the empty table raises — are the
   // walls closed at all — instead of re-running a sync that is already running.
   const checkWallGaps = useCallback(() => {
-    const walls = Object.values(nodes).filter(
-      (node): node is WallNode => node.type === 'wall',
-    )
-    const levelIds = levelId ? [levelId] : [...levelNames.keys()]
-    let rooms = 0
-    for (const id of levelIds) {
-      const levelWalls = walls.filter((wall) => wall.parentId === id)
-      if (levelWalls.length === 0) continue
-      rooms += detectSpacesForLevel(id, levelWalls).length
-    }
+    const rooms = closedRoomCount(nodes, levelId ? [levelId] : [...levelNames.keys()])
     setGapReport(rooms > 0 ? vi.gapsClosed(rooms) : vi.gapsOpen)
   }, [nodes, levelId, levelNames])
 
@@ -211,6 +195,10 @@ export function RoomAreaPanel() {
           >
             <Copy className="size-4" />
           </button>
+          {/* AppFront 23R-E-004: the swapped `title` is never announced. */}
+          <span className="sr-only" role="status">
+            {copied ? vi.copied : ''}
+          </span>
           <button
             aria-label={vi.openFullPage}
             className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -384,6 +372,10 @@ export function RoomAreaPanel() {
                             autoFocus
                             className="w-full rounded-sm border border-border bg-background px-1 py-0.5 text-sm"
                             onBlur={() => {
+                              if (skipBlurCommit.current) {
+                                skipBlurCommit.current = false
+                                return
+                              }
                               commitRename(row.id, row.name, draftName)
                               setEditingId(null)
                             }}
@@ -394,6 +386,8 @@ export function RoomAreaPanel() {
                             onKeyDown={(event) => {
                               if (event.key === 'Enter') event.currentTarget.blur()
                               if (event.key === 'Escape') {
+                                renameTimer.cancel()
+                                skipBlurCommit.current = true
                                 setDraftName(row.name)
                                 setEditingId(null)
                               }
@@ -409,6 +403,7 @@ export function RoomAreaPanel() {
                             onDoubleClick={(event) => {
                               event.stopPropagation()
                               if (readOnly) return
+                              skipBlurCommit.current = false
                               setDraftName(row.name)
                               setEditingId(row.id)
                             }}

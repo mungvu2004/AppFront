@@ -158,6 +158,7 @@ export const editorAndViewer = {
     edgeStrong: 'Đậm',
     edgeStrongDetail: 'Đường viền rõ, đậm nét',
     levels: (label: string) => `Tầng: ${label}`,
+    levelMode: (label: string) => `Chế độ tầng: ${label}`,
     walls: (label: string) => `Tường: ${label}`,
     walkthrough: (state: string) => `Đi bộ ảo: ${state}`,
     orbitLeft: 'Xoay trái',

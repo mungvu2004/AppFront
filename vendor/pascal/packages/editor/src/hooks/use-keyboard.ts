@@ -150,6 +150,38 @@ export const cancelActiveTool = () => {
   return _toolCancelConsumed
 }
 
+/**
+ * Escape's editor half. True when it closed something — a reference-scale
+ * measurement, an armed tool, or a tool's mid-action — so the key is spent;
+ * false for an idle press (select tool, nothing in flight), which the host
+ * page may use for its own layer. (AppFront, QA-05c E1-B12)
+ */
+/**
+ * AppFront #23 (A12): `?` opens the shortcuts table from anywhere. The key is
+ * NOT claimed (no `preventDefault`): the v1 layout AppFront mounts has no
+ * `KeyboardShortcutsDialogHost`, so the host registry's own `?` must still run
+ * and open its "Phim tat" dialog (QA-05c 23-E-009).
+ */
+export const openShortcutsFromKey = (e: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey'>): boolean => {
+  if (e.key !== '?' || e.metaKey || e.ctrlKey || e.altKey) return false
+  useShortcutsDialog.getState().setOpen(true)
+  return true
+}
+
+export const cancelEscape = (): boolean => {
+  // An in-flight reference-scale measurement swallows Escape whole:
+  // cancel the flow but keep the reference selected and its panel open.
+  if (useEditor.getState().referenceScaleActiveGuideId) {
+    guideEmitter.emit('guide:cancel-reference-scale')
+    return true
+  }
+
+  const armed = useEditor.getState().mode !== 'select'
+  // Only switch to select mode if no tool had an active mid-action to cancel.
+  // (e.g. mid-wall draw or mid-slab polygon should only cancel the action, not exit the tool)
+  return cancelActiveTool() || armed
+}
+
 // ⌘Z pressed mid-interaction (moving a node, drawing a wall, mid-placement…)
 // reads as "abort this action", not history undo — behave exactly like Escape
 // and report whether anything was in flight so the undo/redo arms know to
@@ -395,26 +427,12 @@ export const useKeyboard = ({
         }
       }
 
-      // AppFront #23 (A12): `?` opens the shortcuts table from anywhere.
-      if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        e.preventDefault()
-        useShortcutsDialog.getState().setOpen(true)
-        return
-      }
+      if (openShortcutsFromKey(e)) return
 
       if (e.key === 'Escape') {
-        e.preventDefault()
-
-        // An in-flight reference-scale measurement swallows Escape whole:
-        // cancel the flow but keep the reference selected and its panel open.
-        if (useEditor.getState().referenceScaleActiveGuideId) {
-          guideEmitter.emit('guide:cancel-reference-scale')
-          return
-        }
-
-        // Only switch to select mode if no tool had an active mid-action to cancel.
-        // (e.g. mid-wall draw or mid-slab polygon should only cancel the action, not exit the tool)
-        cancelActiveTool()
+        // AppFront (QA-05c E1-B12): claim Esc only when it closed something, so
+        // the host's own Esc (collapse the 3D frame) waits for an idle press.
+        if (cancelEscape()) e.preventDefault()
       } else if (e.key === '1' && !e.metaKey && !e.ctrlKey) {
         e.preventDefault()
         useEditor.getState().setPhase('site')
@@ -817,12 +835,16 @@ export const useKeyboard = ({
       }
     }
 
+    // AppFront (QA-05c E1-B12/B13): `document`, not `window`, so this runs
+    // BEFORE the host's shortcut registry on `window`; the registry skips every
+    // key this handler `preventDefault`s (Ctrl+Z, a spent Esc) instead of
+    // running its own undo / collapse on the same press.
     window.addEventListener('keydown', handleSessionGroupKeyDown, true)
-    window.addEventListener('keydown', handleKeyDown)
+    document.addEventListener('keydown', handleKeyDown)
     window.addEventListener('keyup', handleKeyUp)
     return () => {
       window.removeEventListener('keydown', handleSessionGroupKeyDown, true)
-      window.removeEventListener('keydown', handleKeyDown)
+      document.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
   }, [disabled, isVersionPreviewMode])

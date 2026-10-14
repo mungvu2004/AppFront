@@ -109,7 +109,7 @@ for (const layer of LAYERS) {
     continue;
   }
   mkdirSync(dir, { recursive: true });
-  // Playwright's CLI under node, no shell: `npx` + `shell: true` let cmd.exe split a --grep regex at `|`.
+  // Playwright's CLI under node, no shell: `npx` + `shell: true` let cmd.exe split a --grep regex at `|` (QA-05c, QA-06b).
   const args = [createRequire(join(SUITE, '..', 'package.json')).resolve('@playwright/test/cli'), 'test', ...files, ...(WATCH ? ['--headed'] : []), ...(GREP ? ['--grep', GREP] : []), '--workers', String(layer === 'main' ? 1 : WORKERS), '--retries', String(RETRIES)];
   const t0 = Date.now();
   const log = createWriteStream(join(dir, 'run.log'));

@@ -15,9 +15,11 @@ import { EVIDENCE_DIR, captureEvidence } from './evidence';
 
 export const UI_VIEWPORTS = [
   { width: 1440, height: 900 },
+  // Wide desktop (Full HD, > 19"): the layout must use or cap the extra width. Index 0 stays 1440 (specs read
+  // UI_VIEWPORTS[0]). No 375: the web targets desktop + tablet only (user, 2026-10-14).
+  { width: 1920, height: 1080 },
   { width: 1024, height: 768 },
   { width: 768, height: 1024 },
-  { width: 375, height: 812 },
 ] as const;
 
 /**

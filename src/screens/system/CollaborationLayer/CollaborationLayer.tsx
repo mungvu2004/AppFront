@@ -44,6 +44,7 @@
  */
 
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Users } from 'lucide-react';
 
 import { AnimatePresence, motion } from '@/components/motion';
@@ -240,6 +241,7 @@ export function CollaborationLayer({
   onDeferConflict,
   onFrameComment,
   presenceAnchorClassName = DEFAULT_PRESENCE_ANCHOR,
+  presenceContainer,
 }: CollaborationLayerProps) {
   const [isRosterOpen, setRosterOpen] = useState(false);
 
@@ -279,6 +281,87 @@ export function CollaborationLayer({
 
   const showLockStrip = capabilities.locks && locks.length > 0;
 
+  /* Ngoài lớp phủ (`presenceContainer`) thanh hiện diện vào khe của màn chủ, nằm trong dòng
+     chảy: danh sách mở tại chỗ, không nổi đè nút của canvas (23R-F-002, BUG-623). `null` = khe
+     chưa gắn, chưa vẽ gì. */
+  const inHeader = presenceContainer !== undefined;
+
+  /*
+   * Khung này `pointer-events-none`, CON của nó mới `pointer-events-auto`.
+   *
+   * Nó rộng 280 px nhưng thứ nhìn thấy được chỉ là một nút tròn ~36 px nép
+   * mép phải (`items-end`). Để `pointer-events-auto` ở khung là dựng một
+   * vùng nuốt chuột rộng 280 px mà **không có gì hiện ra ở đó** — người
+   * dùng bấm vào mô hình và không có gì xảy ra, không một dấu hiệu nào nói
+   * vì sao. Lỗi ấy vô hình đúng theo nghĩa đen.
+   */
+  const presenceBar = (
+    <div
+      className={
+        inHeader
+          ? 'flex w-[280px] max-w-full flex-col items-end gap-2'
+          : cn(
+              'pointer-events-none absolute flex w-[280px] flex-col items-end gap-2',
+              presenceAnchorClassName,
+            )
+      }
+      style={inHeader ? undefined : { zIndex: Z_INDEX.panel }}
+    >
+      <button
+        type="button"
+        aria-expanded={isRosterOpen}
+        aria-label={ROSTER_TOGGLE_LABEL}
+        className="pointer-events-auto flex items-center gap-2 rounded-full bg-bg-surface px-1 py-1 shadow-rest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
+        onClick={() => setRosterOpen((open) => !open)}
+      >
+        {isCollapsed ? (
+          <Badge variant="neutral" noDot>
+            <Users
+              aria-hidden="true"
+              className="mr-1"
+              size={PRESENCE_LOCK_ICON_SIZE_PX}
+              strokeWidth={PRESENCE_ICON_STROKE}
+            />
+            {`${visibleCollaborators.length} người`}
+          </Badge>
+        ) : (
+          <PresenceAvatars collaborators={visibleCollaborators} />
+        )}
+      </button>
+
+      {captions.length > 0 && (
+        <div
+          role="status"
+          className="pointer-events-auto flex flex-col items-end gap-0.5 text-right"
+        >
+          {captions.map((caption) => (
+            <p key={caption} className="text-[11px] leading-tight text-text-secondary">
+              {caption}
+            </p>
+          ))}
+        </div>
+      )}
+
+      <AnimatePresence>
+        {isRosterOpen && (
+          <PresenceRoster
+            collaborators={visibleCollaborators}
+            canGoTo={capabilities.presence}
+            onGoToCollaborator={onGoToCollaborator}
+          />
+        )}
+      </AnimatePresence>
+
+      {showLockStrip && (
+        <LockStrip
+          locks={locks}
+          canRequestAccess={capabilities.requestAccess}
+          onRequestEditAccess={onRequestEditAccess}
+        />
+      )}
+    </div>
+  );
+
   return (
     <div className="pointer-events-none absolute inset-0">
       <PresenceOverlay
@@ -308,72 +391,9 @@ export function CollaborationLayer({
         />
       )}
 
-      {/*
-        Khung này `pointer-events-none`, CON của nó mới `pointer-events-auto`.
-
-        Nó rộng 280 px nhưng thứ nhìn thấy được chỉ là một nút tròn ~36 px nép
-        mép phải (`items-end`). Để `pointer-events-auto` ở khung là dựng một
-        vùng nuốt chuột rộng 280 px mà **không có gì hiện ra ở đó** — người
-        dùng bấm vào mô hình và không có gì xảy ra, không một dấu hiệu nào nói
-        vì sao. Lỗi ấy vô hình đúng theo nghĩa đen.
-      */}
-      <div
-        className={cn(
-          'pointer-events-none absolute flex w-[280px] flex-col items-end gap-2',
-          presenceAnchorClassName,
-        )}
-        style={{ zIndex: Z_INDEX.panel }}
-      >
-        <button
-          type="button"
-          aria-expanded={isRosterOpen}
-          aria-label={ROSTER_TOGGLE_LABEL}
-          className="pointer-events-auto flex items-center gap-2 rounded-full bg-bg-surface px-1 py-1 shadow-rest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
-          onClick={() => setRosterOpen((open) => !open)}
-        >
-          {isCollapsed ? (
-            <Badge variant="neutral" noDot>
-              <Users
-                aria-hidden="true"
-                className="mr-1"
-                size={PRESENCE_LOCK_ICON_SIZE_PX}
-                strokeWidth={PRESENCE_ICON_STROKE}
-              />
-              {`${visibleCollaborators.length} người`}
-            </Badge>
-          ) : (
-            <PresenceAvatars collaborators={visibleCollaborators} />
-          )}
-        </button>
-
-        {captions.length > 0 && (
-          <div role="status" className="pointer-events-auto flex flex-col items-end gap-0.5 text-right">
-            {captions.map((caption) => (
-              <p key={caption} className="text-[11px] leading-tight text-text-secondary">
-                {caption}
-              </p>
-            ))}
-          </div>
-        )}
-
-        <AnimatePresence>
-          {isRosterOpen && (
-            <PresenceRoster
-              collaborators={visibleCollaborators}
-              canGoTo={capabilities.presence}
-              onGoToCollaborator={onGoToCollaborator}
-            />
-          )}
-        </AnimatePresence>
-
-        {showLockStrip && (
-          <LockStrip
-            locks={locks}
-            canRequestAccess={capabilities.requestAccess}
-            onRequestEditAccess={onRequestEditAccess}
-          />
-        )}
-      </div>
+      {inHeader
+        ? presenceContainer !== null && createPortal(presenceBar, presenceContainer)
+        : presenceBar}
     </div>
   );
 }

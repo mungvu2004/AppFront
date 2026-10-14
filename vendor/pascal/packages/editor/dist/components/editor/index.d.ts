@@ -76,6 +76,8 @@ export interface EditorProps {
      * read `useScene(s => s.readOnly)` hide their edit affordances.
      */
     readOnly?: boolean;
+    /** AppFront 23-B-016: no WebGPU/WebGL — forwarded to the inner `<Viewer>`. */
+    onRendererUnavailable?: () => void;
     previewScene?: SceneGraph;
     isVersionPreviewMode?: boolean;
     isLoading?: boolean;

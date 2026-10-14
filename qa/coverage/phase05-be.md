@@ -1,137 +1,138 @@
-<!-- qa-sources be=2ee030c5 -->
-# Phase 05 — Backend coverage (3D viewer: measurements #16/#17/#18, spatial graph N15, layer N16/#35)
+<!-- qa-sources fe=d50bb248 be=dc510655 -->
+# Phase 05 - Backend coverage (AppBack behind the Pascal 3D screens), group B05-G
 
-Source read: `F:/App/AppBack` (qa.config `backendSourceRoot`), HEAD `2ee030c5` (= `versionCheck.apiBuiltCommit`). Every
-`file:line` is under `apps/api/` unless it starts with `packages/` or `deploy/`.
-API spec: `qa/tests/phase05_3d_viewer_api.spec.ts` — **8 tests** (`--list`), evidence prefix `A05_` (142 JSON exchanges; the
-bulk "limits" case writes two summary JSONs). Author run `run-25-author` (`node tools/run-phase.mjs --phase 05 --run-id
-run-25-author --layers api --no-watch --grep "A05 ·"`): **8 passed / 8**, evidence ok,
-`F:/App/qa-results/run-25-author/phase05-api/results.json`.
-UI specs of the phase: main `phase05_3d_viewer.spec.ts`, ui `phase05_3d_viewer_ui.spec.ts`, edge
-`phase05_3d_viewer_edge.spec.ts` (4 `[mocked response]` tests, paired below — BUG-391).
-Endpoints called by the phase's screens (FE `src/api/endpoints.ts:157-161` `measurements.*`, `:251-265` `spatial.*`;
-SCR-23 load = N15, SCR-23 vertex edit = #35, SCR-24 exploded = N15, SCR-25 pin / delete / undo = #17 / #18 / #17, list = #16):
+Source: AppBack `main` `dc510655` (pytest docstrings merged there); FE specs on `qa/phase05`. Plan, catalog and reverse index:
+`F:/App/AppBack/backend/dieu-phoi/chay/QA-05c/` - `catalog-C6.md` (117 rows, 9 n/a, 108 needed), `flows-C6.md` (flow steps, `PY-*`,
+reverse index), `flows-C4.md` (the 7 measurement `25-G-*` pytest rows), `coverage-ids.txt`. This file only indexes; it does not copy rows.
+All `file:line` were read from the specs and from `git grep` on `main`.
 
-| # | Method + path | BE handler |
-|---|---|---|
-| #16 | `GET /api/projects/:p/measurements` | measurements/router.py:24-27 → service.py:76-84 |
-| #17 | `POST /api/projects/:p/measurements` | measurements/router.py:30-38 → service.py:108-138 |
-| #18 | `DELETE /api/projects/:p/measurements/:m` | measurements/router.py:41-44 → service.py:141-155 |
-| N15 | `GET /api/projects/:p/spatial` | spatial_read/router.py:65-68 → graph.py:153-208 |
-| N16 | `GET /api/projects/:p/floors/:f/spatial/layer` | spatial_read/router.py:71-87 |
-| #35 | `PUT /api/projects/:p/floors/:f/spatial/layer` | spatial_write/router.py:45-67 → writer.py:196-241 |
+Screens served: `/projects/:p/3d`, `/projects/:p/3d/measure`, `/m/du-an/:p`; all sit behind `ProjectSpatialGate`.
+Statuses: **api** = step in an API spec on the real stack, **PY** = pytest whose docstring carries `Hàng catalog: [<id>]`,
+**n/a** = catalog row with no test (negative source fact, unreachable, or owned by another phase; reason in `catalog-C6.md`).
 
-Status words: **pass** (asserted by a test that passed in `run-25-author`) · **covered** (another spec / the BE pytest
-asserts it) · **not covered** (reason given) · **unpairable**.
-Test names shortened: "anon", "create", "same-id", "rules", "roles", "race", "idem", "limits".
+Test keys:
+- **A5** `qa/tests/phase05_3d_viewer_api.spec.ts` - kept measurement suite, 8 tests `FL-A5-01..08` (titles still contain `A05 ·`).
+- **BE5** `qa/tests/phase05_3d_api.spec.ts` - new, 4 tests `FL-BE5-01..04` (gate reads, #35 from 3D, other 3D writes, static resources).
+- **PY** AppBack pytest, PY table below. Evidence prefix `A05_<row id>_<slug>` (one JSON exchange per step).
+- No mocks in this layer. UI mocks that need a 5xx on N15 / #16 are paired in `phase05.md` (not producible on the stack).
 
-## Shared rules (#16 / #17 / #18)
+## Endpoints called by the phase-05 screens
 
-| Rule / branch | BE source | Covering test (api / ui) | Status |
+| E | Method + path | BE handler | Screens |
 |---|---|---|---|
-| Protected: no Bearer → 401 `UNAUTHENTICATED` before the body / path ids are read (truncated JSON still 401) | core/routing.py:129-136,264 | anon (3 routes + truncated POST) | pass |
-| #17 body ceiling = default 1 MiB (no `route_options`): exactly 1 048 576 bytes → reaches auth (401); +1 → 413 `PAYLOAD_TOO_LARGE` before auth (nginx allows 8m, the app middleware cuts) | core/routing.py:46,64; core/middleware.py:217-236; deploy/nginx/snippets/app_locations.conf:3 | anon | pass |
-| Project gate `require_project`: malformed `prj_` id → 404 `resource:"project"` without a query; missing / soft-deleted / not a member → 404 project; member without the key → 403 `FORBIDDEN` (no `resource`); 404 beats 403 | projects/access.py:28-33,45-86 | roles (malformed / missing / deleted × 3 routes, viewer non-member × 3, engineer non-member), rules (malformed + missing project with an invalid body) | pass |
-| Keys: #16 any member (`require_project()`); #17 / #18 `layer.edit` (admin / engineer yes, viewer no) | router.py:21,24,30-44; packages/domain/permissions/matrix.py:47 | roles (viewer #16 200, #17 / #18 403; engineer #17 201, #18 204) ; ui main SCR-25 runs as admin | pass |
-| Order: auth → body ceiling → JSON parse 400 → project gate (endpoint param dependency) → W21 guard → idempotency guard → Pydantic 422 → service | core/routing.py:1-18,138-185,221-226 | roles (viewer: invalid body, W21 mismatch, malformed measurement id → all 403), rules (404 project beats 422), idem (bad key → 422 `idempotencyKey` with a valid body) | pass |
-| No rate limit on #16 / #17 / #18 | grep `rate_limit(` in measurements/ → none; nginx: no `limit_req` on /api/ | — | covered (source read; budget in the spec header) |
-| Idempotency `auto` on #17 / #18 (protected, not versioned, not GET): key `^[A-Za-z0-9_-]{8,128}$` else 422 `VALIDATION` `field:"idempotencyKey"`; same key + same request → stored response replayed (201 / 204), handler not run; same key + other body or other path → 422 `IDEMPOTENCY_KEY_REUSED`; in-flight → 503 `IDEMPOTENCY_IN_PROGRESS` | core/routing.py:164-185,221-226; core/idempotency.py:79-96,198-239; packages/db/models/idempotency.py:35 | idem (bad key, 201 replay vs keyless 200, other body, other project, DELETE 204 replay vs keyless 404) | pass (503 in-flight: not covered — needs two requests inside one 30 s lease; BE pytest core/tests) |
-| FE sends NO `Idempotency-Key` on #17 / #18 (only PUT or `idempotent: true`) | FE src/lib/http/client.ts:399-405 | — | observation (the 200-on-resubmit path is the FE's real retry semantics) |
+| E1 | `GET /api/projects/:p` (#24) | projects/router.py:49 | all |
+| E2 | `GET /api/projects/:p/spatial` (N15) | spatial_read/router.py:65-68 -> graph.py | all |
+| E3 | `GET /api/projects/:p/rule-config` (N21) | rules/router.py:21-26 | all (errors swallowed) |
+| E4 | `PUT /api/projects/:p/floors/:f/spatial/layer` (#35) | spatial_write/router.py:45-67 -> writer.py | /3d edit |
+| E5 | `GET /api/projects/:p/floors/:f/spatial/layer` (N16) | spatial_read/router.py:71-87 | /3d reload after a 409 |
+| E6-E8 | `GET / POST / DELETE /api/projects/:p/measurements[/:m]` (#16 / #17 / #18) | measurements/router.py:24-44 -> service.py | /3d/measure |
+| E9 | `POST /api/projects/:p/property-templates` (#29) | templates/router.py:25-30 | /3d "Luu lam khuon mau" |
+| E10 | `GET /api/feature-flags` (#9) | telemetry/router.py:34-39 | global |
+| E11 | static `/assets/pascal/*`, `/draco/*`, `/basis/*`, `/pascal/material/**`, `HEAD /`, deep links | deploy/nginx/snippets/app_locations.conf, web.Dockerfile | all |
+| E12-E14 | presence / SSE / history / library | none called (E12-E13 negative facts, E14 admin screens only) | - |
 
-## GET /api/projects/:p/measurements (#16) — router.py:24-27, service.py:76-84
+## Endpoint x rule (summary)
 
-| Rule / branch | BE source | Covering test (api / ui) | Status |
+Per-id owner = reverse index in `flows-C6.md` (`grep "B05-G-0xx"`). "api steps" lists the owning flow and how many ids it holds.
+
+| Group | Endpoint / rule family | Catalog rows | needed | n/a | api steps | PY only |
+|---|---|---|---|---|---|---|
+| B05-G-001..013 | shared gate: auth, body ceiling, project gate, roles, #24 | 13 | 12 | 1 | FL-A5-01 2, FL-BE5-01 6, FL-BE5-02 1 | 3 |
+| B05-G-020..028 | N15 `GET /spatial` | 9 | 8 | 1 | FL-BE5-01 3 | 5 |
+| B05-G-030..033 | N21 `GET /rule-config` | 4 | 4 | 0 | FL-BE5-01 1 | 3 |
+| B05-G-040..062 | #35 `PUT .../spatial/layer` and N16 reload | 23 | 23 | 0 | FL-BE5-02 8 | 15 |
+| B05-G-070..076 | #16 list measurements | 7 | 7 | 0 | FL-A5-02 4, FL-A5-03 1, FL-A5-05 1, FL-A5-08 1 | 0 |
+| B05-G-080..101 | #17 create measurement | 22 | 22 | 0 | FL-A5-02 3, FL-A5-03 3, FL-A5-04 4, FL-A5-05 2, FL-A5-06 1, FL-A5-07 1, FL-A5-08 4, FL-BE5-03 4 | 0 |
+| B05-G-110..117 | #18 delete measurement | 8 | 8 | 0 | FL-A5-03 2, FL-A5-05 3, FL-A5-07 1 | 2 |
+| B05-G-120..126 | #29 `POST /property-templates` | 7 | 7 | 0 | FL-BE5-03 2 | 5 |
+| B05-G-130..133 | #9 `GET /feature-flags` | 4 | 2 | 2 | - | 2 |
+| B05-G-140..152 | static Pascal resources, headers, web image | 13 | 13 | 0 | FL-BE5-04 11 | 2 |
+| B05-G-160..166 | negative facts (no presence / SSE / history / version endpoint) | 7 | 2 | 5 | FL-BE5-02 2 | 0 |
+
+Totals: 117 catalog rows, 9 n/a, 108 needed = 71 api steps + 37 PY-only rows.
+n/a ids: `B05-G-009`, `B05-G-028`, `B05-G-132`, `B05-G-133`, `B05-G-160`, `B05-G-161`, `B05-G-164`, `B05-G-165`, `B05-G-166`.
+
+## FL-A5 and FL-BE5 (API specs)
+
+| Flow | Test (file:line) | Steps | Title |
 |---|---|---|---|
-| 200 bare array (no envelope); fresh project → `[]` | router.py:24-27 | create | pass |
-| Item = `{id, name, mode, points, rawValueMm}` only — no `createdBy`, `updatedAt`, `bodySha256` (K01); absent `z` stays absent (W2); FE `MeasurementRecordSchema` (strict) decodes every item | schemas.py:1-5,50-55,78-85; service.py:63-73; FE src/api/schemas/measurements.ts:51-97 | create, same-id, limits (1 000 items, 0 undecodable) ; ui main SCR-25 list | pass |
-| Order `(char_length(id), id COLLATE "C")` = numeric order (`MS-0002 < MS-9999 < MS-10000 < MS-123456789012345`) | service.py:78-82 | create (4 ids), limits (MS-9001..MS-10000) | pass |
-| `LIMIT MEASUREMENTS_MAX` (1 000) | service.py:82; settings.py:18 | limits (1 000 returned at the cap) | pass |
-| Per project: another project's records never listed | service.py:80 | same-id (project 2 sees only its own MS-0001) | pass |
-| Read never touches the project (`updatedAt` kept) | service.py:76-84 (no touch) | create | pass |
+| FL-BE5-01 | `phase05_3d_api.spec.ts:36` | 10 | gate reads behind /3d, /3d/measure, /m/du-an: anonymous, roles, contract decode, non-member |
+| FL-BE5-02 | `phase05_3d_api.spec.ts:136` | 11 | 3D autosave #35: base from N15, conflict with a QC writer, "Tải lại", storey move, audit, demotion |
+| FL-BE5-03 | `phase05_3d_api.spec.ts:306` | 6 | writes of the 3D tools besides the layer: pin retry / undo across two sessions, 3D pick values, "Lưu... |
+| FL-BE5-04 | `phase05_3d_api.spec.ts:400` | 11 | static Pascal resources and headers of the web image (no auth) |
+| FL-A5-01 | `phase05_3d_viewer_api.spec.ts:323` | 3 | wrap A05 · anonymous: #16 / #17 / #18 → 401 UNAUTHENTICATED before the body is read (also truncated ... |
+| FL-A5-02 | `phase05_3d_viewer_api.spec.ts:371` | 8 | wrap A05 · create + list: fresh project → #16 []; #17 → 201 for each mode, the stored record is the ... |
+| FL-A5-03 | `phase05_3d_viewer_api.spec.ts:462` | 8 | wrap A05 · same id / delete / undo: repeat of the stored body → 200 same record without a touch (als... |
+| FL-A5-04 | `phase05_3d_viewer_api.spec.ts:561` | 5 | wrap A05 · #17 body rules → 422 VALIDATION with field (id MS-<4..15 digits> string, name 1..120 afte... |
+| FL-A5-05 | `phase05_3d_viewer_api.spec.ts:651` | 8 | wrap A05 · roles: viewer member → #16 200 but #17 / #18 → 403 FORBIDDEN (before Pydantic, W21 and th... |
+| FL-A5-06 | `phase05_3d_viewer_api.spec.ts:768` | 2 | wrap A05 · concurrency (C14): two parallel #17 with one id and one body → {201, 200}, same record; o... |
+| FL-A5-07 | `phase05_3d_viewer_api.spec.ts:809` | 3 | wrap A05 · Idempotency-Key on #17 / #18 (route idempotency "auto"): malformed key → 422 field idempo... |
+| FL-A5-08 | `phase05_3d_viewer_api.spec.ts:863` | 6 | wrap A05 · limits: 200 points per record (201 → 422 field points); 20 000 points per project → next ... |
 
-## POST /api/projects/:p/measurements (#17) — router.py:30-38, schemas.py:58-75, service.py:108-138
+Steps per flow (id@line):
 
-| Rule / branch | BE source | Covering test (api / ui) | Status |
-|---|---|---|---|
-| Truncated JSON → 400 `MALFORMED_JSON` (no `field`) | core/errors.py:170-174 | rules | pass |
-| W21: body `projectId` ≠ path → 422 `PATH_BODY_MISMATCH` `field:"projectId"`; equal value → passes W21, then 422 `VALIDATION` `field:"projectId"` (extra key) | core/routing.py:138-151; core/wire.py:46,115-118 | rules | pass |
-| Strict keys at every depth (`extra="forbid"`): top-level `createdBy` → `field:"createdBy"`; point key `w` → `points.0.w` | core/wire.py:46,115-118; schemas.py:32-55 | rules | pass |
-| Body root not an object (`[]`) → 422 `VALIDATION` without `field` | core/errors.py:136-183 | rules | pass |
-| `id` string `^MS-[0-9]{4,15}$` (`MS-123`, 16 digits, `ms-1234`, number 1234, missing → `field:"id"`); 15 digits accepted | schemas.py:25-29,61; packages/core/ids.py:37,97-99 | rules, create (MS-123456789012345) | pass |
-| `name` = `nfc(strip)`, 1..120 chars after it, no Cc, no bidi override (`""`, `"   "`, 121 chars, U+0007, U+202E, `null` → `field:"name"`); LRM U+200E allowed; stored trimmed + NFC | text.py:12-27; packages/core/text.py:6-45 | rules, create (NFD + spaces → "Phòng khách", 120 chars, LRM) | pass |
-| `mode` ∈ {pointToPoint, perpendicular, height, floorArea} (`area` → `field:"mode"`) | schemas.py:16,63 | rules, create (all four) | pass |
-| `points` count: floorArea 3..200, other modes 2..200 (`[]`, 1 point, floorArea 2, 201 → `field:"points"`); 200 accepted | schemas.py:21-22,67-75; settings.py:19 | rules, create (floorArea 3), limits (100 × 200) | pass |
-| Point `x` / `y` / `z`: strict finite float — integer accepted; string, bool, `NaN`, `1e400` → `points.0.x`; missing `y` → `points.0.y`; `z: null` → `points.0` (NullFreeModel); absent `z` stays absent, `z: 0` kept | schemas.py:18-19,32-55 | rules, create | pass |
-| `rawValueMm` strict finite float ≥ 0 (−1, `"1000"`, `Infinity`, missing → `field:"rawValueMm"`) | schemas.py:65 | rules, create (4000 integer accepted) | pass |
-| Pydantic `populate_by_name=True`: snake keys (`raw_value_mm`) are also accepted on the wire | core/wire.py:46 | — | not covered (gap 3) |
-| Rejected bodies write nothing and do not touch the project | core/routing.py:16-17 (exception → rollback) | rules (list `[]`, `updatedAt` kept) | pass |
-| New id → 201 normalised record (`-0.0` → 0, floats, name NFC); response = what #16 returns | service.py:30-54,108-138 | create (4 modes), same-id ; ui main SCR-25 "Ghim phép đo" | pass |
-| Same id + same normalised body (SHA-256 of canonical JSON) → 200 the stored record, nothing written, no `touch_project`; also spaces / NFD name, `-0.0`, `1000.0` | router.py:34-38; service.py:43-60,101-105,122-123 | same-id (exact + raw normalised variant, `updatedAt` kept), race, limits (repeat at both caps → 200) | pass |
-| Same id + other body → 409 `MEASUREMENT_ID_TAKEN` `field:"id"`; never an upsert (stored record unchanged) | service.py:101-105; errors.py:5-6 | same-id, race ; FE retries once with a fresh id (measurementToolGateway.ts:651-667) | pass |
-| Id unique per project (PK project_id + measurement_id): the same id in another project → 201 | service.py:115-121; packages/db/models/measurements.py:31-32 | same-id | pass |
-| C14 concurrency: advisory lock `measurements:<project>` then `SELECT … FOR UPDATE`: two parallel same id + same body → {201, 200}; same id + different body → {201, 409} | service.py:114-121; cases.toml:5-8 | race | pass |
-| Caps after the lock, after the existing-id lookup: `count ≥ MEASUREMENTS_MAX` (1 000) or `total points + new > MEASUREMENT_POINTS_TOTAL_MAX` (20 000) → 422 `MEASUREMENT_LIMIT_REACHED` (no `field`); inclusive (1 000th record and exactly 20 000 points accepted); a delete frees room | service.py:87-98,124; settings.py:18-20; errors.py:8-9 | limits | pass |
-| Side effect: `touch_project` → `ProjectOut.updatedAt` on a real create | service.py:137; projects/summaries.py:177 | create (bumped), same-id (kept on a 200) | pass |
-| Undo of a delete = re-POST of the identical record → 201 (hard delete left nothing) | router.py:34; service.py:141-155 | same-id ; ui main SCR-25 "Xoá {name}" then "Hoàn tác" | pass |
+- FL-BE5-01: B05-G-002@50, B05-G-005@105, B05-G-006@113, B05-G-007@72, B05-G-011@67, B05-G-013@123, B05-G-020@80, B05-G-021@86, B05-G-027@94, B05-G-032@99
+- FL-BE5-02: B05-G-008@280, B05-G-040@156, B05-G-041@165, B05-G-042@184, B05-G-043@204, B05-G-044@219, B05-G-052@238, B05-G-060@227, B05-G-062@273, B05-G-162@258, B05-G-163@267
+- FL-BE5-03: B05-G-086@324, B05-G-087@334, B05-G-088@346, B05-G-089@353, B05-G-120@373, B05-G-121@387
+- FL-BE5-04: B05-G-140@407, B05-G-141@419, B05-G-142@432, B05-G-144@441, B05-G-145@447, B05-G-146@458, B05-G-147@466, B05-G-148@476, B05-G-149@487, B05-G-150@500, B05-G-151@507
+- FL-A5-01: 25-G-018@355, B05-G-001@335, B05-G-003@344
+- FL-A5-02: 25-G-021@447, B05-G-070@386, B05-G-071@426, B05-G-072@433, B05-G-074@442, B05-G-080@391, B05-G-081@407, B05-G-082@437
+- FL-A5-03: 25-G-014@538, 25-G-015@548, B05-G-073@500, B05-G-083@475, B05-G-084@491, B05-G-085@531, B05-G-110@507, B05-G-111@518
+- FL-A5-04: 25-G-017@637, B05-G-090@573, B05-G-091@616, B05-G-092@623, B05-G-093@628
+- FL-A5-05: 25-G-012@692, 25-G-013@731, B05-G-076@707, B05-G-094@678, B05-G-095@740, B05-G-112@686, B05-G-113@718, B05-G-114@753
+- FL-A5-06: 25-G-020@796, B05-G-096@775
+- FL-A5-07: 25-G-019@850, B05-G-097@819, B05-G-116@840
+- FL-A5-08: 25-G-016@930, B05-G-075@915, B05-G-098@876, B05-G-099@881, B05-G-100@906, B05-G-101@897
 
-## DELETE /api/projects/:p/measurements/:m (#18) — router.py:41-44, service.py:141-155
+## PY - pytest with row ids in the docstring (AppBack `main` dc510655)
 
-| Rule / branch | BE source | Covering test (api / ui) | Status |
-|---|---|---|---|
-| Hard delete → 204 empty body; gone from #16 | router.py:41-44; service.py:146-152 | same-id, roles, idem, limits ; ui main SCR-25 delete (waits 200/204) | pass |
-| Malformed id (`MS-12`, `nope`, 16 digits) → 404 `resource:"measurement"` before the lock / query | service.py:143-144 | same-id | pass |
-| Id not in THIS project (never existed, already deleted, other project's) → 404 measurement | service.py:146-154 | same-id (again, foreign MS-0003), idem (keyless after delete) | pass |
-| No owner rule: any `layer.edit` member deletes any record of the project | service.py:141-155 (no `created_by` filter) | roles (engineer deletes the admin's record → 204) | pass |
-| Side effect: `touch_project` on a real delete | service.py:155 | same-id (`updatedAt` bumped) | pass |
-| Viewer → 403 before the id check | router.py:21,42 | roles (valid id and `nope` → 403) | pass |
+| Row id | pytest (file:line, function) |
+|---|---|
+| `25-G-022` | `apps/api/measurements/tests/test_routes_create.py:441` `test_measurements_create_record__touch_project` |
+| `25-G-023` | `apps/api/measurements/tests/test_routes_read_delete.py:110` `test_measurements_list_records__numeric_id_order` |
+| `25-G-024` | `apps/api/measurements/tests/test_routes_create.py:421` `test_measurements_create_record__points_max_setting` |
+| `25-G-025` | `apps/api/measurements/tests/test_units.py:20` `test_clean_label__trims_and_composes` |
+| `25-G-026` | `apps/api/measurements/tests/test_routes_create.py:261` `test_measurements_create_record__negative_zero_equals_zero` |
+| `25-G-027` | `apps/api/measurements/tests/test_routes_read_delete.py:233` `test_measurements_delete_record__other_project_id_not_deletable` |
+| `25-G-028` | `apps/api/measurements/tests/test_routes_create.py:227` `test_measurements_create_record__id_reuse_after_delete` |
+| `B05-G-004` | `apps/api/spatial_write/tests/test_large.py:161` `test_spatial_write_layer_rejects_a_body_over_eight_mebibytes` |
+| `B05-G-010` | `apps/api/projects/tests/test_routes_read.py:111` `test_projects_read_project__C01` |
+| `B05-G-012` | `apps/api/spatial_read/tests/test_routes_graph.py:180` `test_spatial_read_graph_level_matches_floors_list` |
+| `B05-G-022` | `apps/api/spatial_read/tests/test_routes_graph.py:71` `test_spatial_read_graph__C01_empty_project` |
+| `B05-G-023` | `apps/api/spatial_read/tests/test_routes_graph.py:129` `test_spatial_read_graph_skips_soft_deleted_floor` |
+| `B05-G-024` | `apps/api/spatial_read/tests/test_routes_graph.py:203` `test_spatial_read_graph_building_reviewed_when_every_level_is` |
+| `B05-G-025` | `apps/api/spatial_read/tests/test_routes_graph.py:146` `test_spatial_read_graph_query_count_is_flat` |
+| `B05-G-026` | `apps/api/spatial_read/tests/test_routes_graph.py:250` `test_spatial_read_graph_when_floor_vanishes_mid_request` |
+| `B05-G-030` | `apps/api/rules/tests/test_routes_read.py:23` `test_rules_read_config__C01` |
+| `B05-G-031` | `apps/api/rules/tests/test_routes_read.py:43` `test_rules_read_config__C06` |
+| `B05-G-033` | `apps/api/rules/tests/test_routes_read.py:75` `test_rules_read_config__stale_entries_filtered` |
+| `B05-G-045` | `apps/api/spatial_write/tests/test_routes_errors.py:54` `test_spatial_write_layer_rejects_base_version_above_current` |
+| `B05-G-046` | `apps/api/spatial_write/tests/test_routes.py:272` `test_spatial_write_layer__C09b` |
+| `B05-G-047` | `apps/api/spatial_write/tests/test_routes.py:254` `test_spatial_write_layer__C09_missing` |
+| `B05-G-048` | `apps/api/spatial_write/tests/test_routes.py:173` `test_spatial_write_layer__C07` |
+| `B05-G-049` | `apps/api/spatial_write/tests/test_routes.py:154` `test_spatial_write_layer__C06` |
+| `B05-G-050` | `apps/api/spatial_write/tests/test_routes.py:194` `test_spatial_write_layer__C08` |
+| `B05-G-051` | `apps/api/spatial_write/tests/test_routes_errors.py:92` `test_spatial_write_layer_rejects_wall_of_other_level` |
+| `B05-G-053` | `apps/api/spatial_write/tests/test_routes_errors.py:117` `test_spatial_write_layer_rejects_broken_integrity` |
+| `B05-G-054` | `apps/api/spatial_write/tests/test_routes.py:113` `test_spatial_write_layer__C02` |
+| `B05-G-055` | `packages/domain/spatial/tests/test_model.py:162` `test_broken_constraint_is_rejected` |
+| `B05-G-056` | `apps/api/spatial_write/tests/test_routes_errors.py:73` `test_spatial_write_layer_rejects_ai_reviewed_entity` |
+| `B05-G-057` | `apps/api/spatial_write/tests/test_writer.py:271` `test_spatial_write_layer_recomputes_room_area` |
+| `B05-G-058` | `apps/api/spatial_write/tests/test_routes_errors.py:195` `test_spatial_write_layer_ignores_the_idempotency_key` |
+| `B05-G-059` | `apps/api/spatial_write/tests/test_routes.py:345` `test_spatial_write_layer__C14` |
+| `B05-G-061` | `apps/api/spatial_read/tests/test_routes_layer.py:37` `test_spatial_read_layer__C01` |
+| `B05-G-115` | `apps/api/measurements/tests/test_routes_create.py:227` `test_measurements_create_record__id_reuse_after_delete` |
+| `B05-G-117` | `apps/api/measurements/tests/test_routes_create.py:468` `test_measurements_create_record__second_session_and_project_cascade` |
+| `B05-G-122` | `apps/api/templates/tests/test_routes.py:314` `test_templates_create_template__no_dedupe` |
+| `B05-G-123` | `apps/api/templates/tests/test_routes.py:263` `test_templates_create_template__C07` |
+| `B05-G-124` | `apps/api/templates/tests/test_routes.py:251` `test_templates_create_template__C06` |
+| `B05-G-125` | `apps/api/templates/tests/test_routes.py:95` `test_templates_list_templates__C15` |
+| `B05-G-126` | `apps/api/templates/tests/test_routes.py:366` `test_templates_create_template__touch_project` |
+| `B05-G-130` | `apps/api/telemetry/tests/test_feature_flags_route.py:56` `test_telemetry_read_feature_flags__C01` |
+| `B05-G-131` | `apps/api/telemetry/tests/test_feature_flags_route.py:101` `test_missing_authorization_is_401` |
+| `B05-G-143` | `deploy/tests/test_nginx.py:389` `test_nginx_draco_and_assets_return_404_when_missing` |
+| `B05-G-145` | `deploy/tests/test_nginx.py:399` `test_nginx_pascal_static_prefixes_return_404_when_missing` |
+| `B05-G-146` | `deploy/tests/test_nginx.py:399` `test_nginx_pascal_static_prefixes_return_404_when_missing` |
+| `B05-G-152` | `deploy/tests/test_dockerfiles.py:288` `test_dockerfile_web_has_draco_build_and_wasm_check` |
 
-## N15 / N16 / #35 (SCR-23 load + vertex edit, SCR-24 exploded) — unchanged since phase 4
-
-`git diff bf83f815 2ee030c5 -- apps/api/spatial_read apps/api/spatial_write apps/api/floors apps/api/projects apps/api/core
-packages` touches only `packages/vision/preprocess/pdf.py` (not on these routes), so every row of
-`qa/coverage/phase04-be.md` (sections N16, #35, N15) still holds and is covered by `phase04_qc_layers_api.spec.ts`
-(9/9 in `run-20-author`). Phase-5-specific use of them:
-
-| Rule / branch | BE source | Covering test (api / ui) | Status |
-|---|---|---|---|
-| N15 graph: levels in floor order, entity lists concatenated, `floorRevisions` per floor; FE `SpatialGraphDocumentSchema` decodes it (what SCR-23 / SCR-24 render) | spatial_read/graph.py:153-208 | phase04 api reads, write, scale ; ui main SCR-23 load waits `GET …/spatial` | covered (phase04 api) |
-| SCR-23 vertex edit = a #35 write of a moved wall centreline at the current base → 200 `{revision, layer}`; same rules as any #35 write (W21, 428, Pydantic, A5, integrity, versioning 409) | spatial_write/router.py:45-67; writer.py:196-648 | phase04 api write, versions, rules, domain ; ui main SCR-23 "Sửa hình học tường" → `PUT …/spatial/layer` | covered (phase04 api) |
-| N16 layer read after a 3D write | spatial_read/router.py:71-87 | phase04 api write (N16 = response) | covered (phase04 api) |
-| Phase-4 gaps 1-6 (503 after 3 lost races, `scaleStatus: "unresolved"`, restore-window expiry, dimensions on #35, `remoteChanges` truncation, whitespace-only room name) | see phase04-be.md "Gaps" | — | not covered (unchanged; not phase-5 work) |
-
-## Mock pairing (every `[mocked response]` test of the phase's UI specs)
-
-| UI test (by title: line numbers drift, BUG-496) | Endpoint + faked response | Pairing |
-|---|---|---|
-| `phase05_3d_viewer_edge.spec.ts` "E05 · SCR-23 [mocked response] GET …/spatial 500 → gate error" | N15 `GET /api/projects/:p/spatial` → 500 | unpairable: 5xx — N15 has no 5xx branch a healthy stack reaches (graph.py:67 `load_documents`; only a corrupt `floor_documents` row → `DocumentCorruptError`, spatial_read/documents.py, written straight into the DB); its 200 / 404 / 401 answers are asserted for real (phase04 api reads, roles, anon) |
-| `phase05_3d_viewer_edge.spec.ts` "E05 · SCR-25 [mocked response] GET measurements 500 → …" | #16 `GET /api/projects/:p/measurements` → 500 | unpairable: 5xx — #16 has no error branch past the project gate (service.py:76-84 is one SELECT); its 200 / 404 / 401 answers are asserted for real (create, roles, anon) |
-| `phase05_3d_viewer_edge.spec.ts` "E05 · SCR-26 [mocked response] pascal-mount.js network loss → …" | static `/assets/pascal/pascal-mount.js` → aborted (network) | unpairable: network loss of a static asset, not an API route |
-| `phase05_3d_viewer_edge.spec.ts` "E05 · SCR-26 [mocked response] flag "scene.pascal-viewer" off → …" | #9 `GET /api/feature-flags` → real body with `scene.pascal-viewer: false` | unpairable: feature flag — stack-wide env `FEATURE_FLAGS` (CP-0 sets it `true` for every role; turning it off breaks every other Pascal test). The off / per-role resolution is BE pytest `telemetry/tests/test_feature_flags_route.py` (telemetry/router.py:32-38, flags.py:53-60) |
-| `phase05_3d_viewer.spec.ts`, `phase05_3d_viewer_ui.spec.ts` | — | 0 `page.route` / `[mocked response]` (grep; ui header: "No faked response") |
-
-## Contract notes (FE ↔ BE)
-
-- FE `MeasurementRecordSchema.id = /^MS-\d{4,}$/` (src/api/schemas/measurements.ts:81) has no upper bound; BE accepts
-  4..15 digits (packages/core/ids.py:37) and answers 422 `field:"id"` for 16+. FE comment (measurements.ts:17-19) says its
-  generator never exceeds `Number.MAX_SAFE_INTEGER`, so this is not reachable in normal use. Observation, not filed.
-- FE comment (measurements.ts:75-76) says the point list has "no upper bound"; BE caps it at 200 per record and 20 000
-  per project (settings.py:19-20). A long `floorArea` chain of > 200 clicks gets 422 `field:"points"`; the FE gateway
-  rethrows non-409 errors (measurementToolGateway.ts:652-656). Observation for the FE review (UNKNOWN - NEED
-  VERIFICATION whether the screen caps the chain).
-- Every 200 / 201 body the tests saw decoded with the FE zod `MeasurementRecordSchema`.
-
-## Findings
-
-None: all 8 API tests passed in `run-25-author` (no app failure, no test bug left).
-
-## Gaps
-
-1. 503 `IDEMPOTENCY_IN_PROGRESS` (needs a second keyed request inside the first one's 30 s lease while it still runs —
-   not producible from outside without slowing the handler; framework-level, BE pytest `core/tests`).
-2. `MEASUREMENT_POINTS_MAX` / caps changed by settings (BE pytest `test_measurements_create_record__points_max_setting`
-   monkeypatches env; the QA stack runs the defaults, asserted here).
-3. Snake-case wire keys (`raw_value_mm`, `populate_by_name=True`, core/wire.py:46) are accepted by every `WireRequest`;
-   not asserted (framework-wide behaviour, not a phase-5 rule) — UNKNOWN - NEED VERIFICATION whether this is intended.
-4. Measurement rows of a soft-deleted project stay in the DB until the project row is purged (FK cascade only on the
-   hard delete, packages/db/models/measurements.py:31); the API only shows 404 project. The purge job is not reachable
-   from this layer.
+46 docstring tags (46 distinct ids). Rows whose pytest only partly proves them keep a flow step (`was:` in `flows-C6.md`).

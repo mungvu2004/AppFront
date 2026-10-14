@@ -50,7 +50,10 @@ export const roomArea = {
   emptyTitle: "Chưa có phòng nào đo được",
   emptyBody: "Phòng chỉ hiện ở đây khi đường bao tường đã kín.",
   detectSpaces: "Kiểm tra khe hở tường",
-  gapsClosed: (rooms: number) => `Tìm thấy ${rooms} vùng kín — mở lại bảng để xem`,
+  // AppFront 23R-B-004: detection never creates zones, so the hint must not
+  // promise rows — it says what was found and how to get an area row.
+  gapsClosed: (rooms: number) =>
+    `Tìm thấy ${rooms} vòng tường kín — vẽ vùng ở mục Vùng để có hàng diện tích`,
   gapsOpen: "Chưa có vùng nào kín — còn khe hở giữa các tường",
 
   renameLabel: (name: string) => `Đổi tên phòng ${name}`,

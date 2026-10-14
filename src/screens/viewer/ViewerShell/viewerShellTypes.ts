@@ -231,6 +231,17 @@ export interface ViewerSceneFrame {
   readonly polarRad: number;
   /** Khoảng cách khuôn hình, mét. */
   readonly distanceM: number;
+  /**
+   * Mức thu phóng so với khuôn chuẩn của vỏ (1 = vừa khung, 2 = lại gần gấp đôi).
+   * Cảnh tự đóng khung hộp lưới THẬT của nó rồi chia cho số này, nên không phải
+   * tin `distanceM` — thứ vỏ tính theo footprint (BUG-650). Thiếu = dùng `distanceM`.
+   */
+  readonly zoom?: number;
+  /**
+   * Điểm ngắm của bộ điều khiển trừ tâm hộp của vỏ, mét [x, y, z] — vết kéo màn.
+   * Thiếu = ngắm đúng tâm hộp (BUG-650).
+   */
+  readonly panOffsetM?: readonly [number, number, number];
   /** Camera có đang ở phép chiếu trực giao không. */
   readonly isOrthographic: boolean;
   /** Mã những tầng đang hiện. */

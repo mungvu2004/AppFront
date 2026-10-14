@@ -41,7 +41,12 @@ export function spatialLayerOf(graph: NormalizedSpatial, floorId: LevelId): Spat
     } else if (isEntityOfKind('room', entity)) {
       rooms.push(entity);
     } else if (isEntityOfKind('furniture', entity)) {
-      furniture.push(entity);
+      /* eslint-disable-next-line @typescript-eslint/no-unused-vars -- `model` (mẫu Pascal đã chọn)
+         chỉ sống trong đồ thị phía máy khách: hợp đồng #35 không có trường ấy (`FurnitureSchema`
+         strict, BE `extra="forbid"`), mang nó đi là chặn lưu cả tầng (23F-G-003). */
+      const { model: _, ...wire } = entity;
+
+      furniture.push(wire);
     }
   }
 

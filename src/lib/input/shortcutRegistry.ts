@@ -225,7 +225,7 @@ export interface ShortcutKeyEvent {
   readonly shiftKey?: boolean;
   /** True while a key auto-repeats; a repeat is not a second press. */
   readonly repeat?: boolean;
-  /** True when the focused widget already answered the key (a radio group's arrows). */
+  /** An earlier listener (a dialog, an embedded editor, a radio group's arrows) already handled it. */
   readonly defaultPrevented?: boolean;
   preventDefault?(): void;
 }
@@ -533,19 +533,26 @@ export function createShortcutRegistry(
       return false;
     }
 
-    if (MODIFIER_KEY_CODES.has(code)) {
+    // A canvas-scope Enter (pin, confirm) must not swallow Enter on "Ẩn …",
+    // "Thử lại" or a rail button: the focused control answers its own key.
+    // A key an earlier listener already handled (a vendor dialog closing on
+    // Esc, Pascal's own Ctrl+Z) is not offered again: one press, one action
+    // (A12, QA-05c E1-B12 / E1-B13).
+    if (
+      MODIFIER_KEY_CODES.has(code) ||
+      isControlActivation(event, code, target) ||
+      event.defaultPrevented === true
+    ) {
       return false;
     }
 
-    // The focused control answers first: a widget that already handled the key
-    // (arrows inside a radio group) or a lone Enter/Space on a button keeps it.
-    // Escape still falls through — A12's close-top-layer promise (BUG-597).
-    if (code !== 'ESCAPE' && (event.defaultPrevented === true || isControlActivation(event, code, target))) {
-      return false;
-    }
+    // Esc in a text field cancels the field (and may close the layer above via
+    // global); it never reaches the canvas, whose Esc drops a tool or collapses
+    // a view the user is not looking at (23-E-008).
+    const fromTextField = isTextEntryTarget(target);
 
     for (const scope of SCOPE_PRIORITY) {
-      if (!scopeIsActive(scope)) {
+      if (!scopeIsActive(scope) || (fromTextField && scope === 'canvas')) {
         continue;
       }
 
