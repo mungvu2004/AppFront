@@ -110,7 +110,8 @@ export function DimensionOcrKeyboardMode({
         <Button className="shrink-0" onClick={onToggle} size="sm" type="button" variant="ghost">
           {DIMENSION_OCR_TEXT.keyboard.toggleOnLabel}
         </Button>
-        <span className="flex items-center gap-1.5 text-[12px] text-text-muted">
+        {/* Màn chạm (dưới 640 px) không có phím R để bấm: ẩn câu nhắc phím (BUG-633). */}
+        <span className="flex items-center gap-1.5 text-[12px] text-text-muted max-sm:hidden">
           {DIMENSION_OCR_TEXT.keyboard.shortcutHint}
           <Kbd>{DIMENSION_OCR_TEXT.keyboard.keys.r.label}</Kbd>
         </span>

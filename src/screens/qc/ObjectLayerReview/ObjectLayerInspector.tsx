@@ -78,9 +78,9 @@ import { ConfidenceMeter } from '@/components/ui/ConfidenceMeter';
 import { FieldRow } from '@/components/ui/FieldRow';
 import { Radio } from '@/components/ui/Radio';
 import { Select } from '@/components/ui/Select';
-import { Slider } from '@/components/ui/Slider';
 import { cn } from '@/lib/utils';
 
+import { ObjectLayerPositionField } from './ObjectLayerPositionField';
 import {
   OBJECT_SUBTYPES,
   OBJECT_SUBTYPE_LABELS,
@@ -177,9 +177,6 @@ const WIDTH_LABEL = 'Chiều rộng';
 const HEIGHT_LABEL = 'Chiều cao';
 const SILL_HEIGHT_LABEL = 'Cao độ bệ cửa';
 const HOST_WALL_LABEL = 'Tường chứa nó';
-const POSITION_LABEL = 'Vị trí trên tường';
-const POSITION_START_CAPTION = 'Cách đầu tường';
-const POSITION_END_CAPTION = 'Cách cuối tường';
 const SWING_LABEL = 'Hướng mở';
 const CONFIDENCE_LABEL = 'Độ tin cậy';
 const UNATTACHED_BADGE = 'Chưa gắn vào tường nào';
@@ -333,37 +330,7 @@ function ObjectInspectorBody({
           )}
         </FieldRow>
 
-        {inspector.relativePosition !== null &&
-          inspector.distanceToStartLabel !== null &&
-          inspector.distanceToEndLabel !== null && (
-            <FieldRow label={POSITION_LABEL}>
-              <div className="flex flex-col gap-1">
-              {isViewerRole ? (
-                <div className="flex h-9 items-center justify-between font-mono text-[13px] tabular-nums text-text-secondary">
-                  <span>{inspector.distanceToStartLabel}</span>
-                  <span>{inspector.distanceToEndLabel}</span>
-                </div>
-              ) : (
-                <div className="flex h-9 items-center rounded-lg focus-within:ring-2 focus-within:ring-accent focus-within:ring-offset-2">
-                  <Slider
-                    aria-label={POSITION_LABEL}
-                    endLabels={[inspector.distanceToStartLabel, inspector.distanceToEndLabel]}
-                    max={1}
-                    min={0}
-                    onChange={(value) => onDragPosition(inspector.id, value)}
-                    step={0.01}
-                    value={inspector.relativePosition}
-                  />
-                </div>
-              )}
-              {/* Hai số ở hai đầu là khoảng cách tới ĐẦU nào của tường — nói ra, không để đoán (BUG-640). */}
-              <p className="flex justify-between text-[12px] text-text-muted">
-                <span>{POSITION_START_CAPTION}</span>
-                <span>{POSITION_END_CAPTION}</span>
-              </p>
-              </div>
-            </FieldRow>
-          )}
+        <ObjectLayerPositionField inspector={inspector} isViewerRole={isViewerRole} onDragPosition={onDragPosition} />
 
         {isFurniture ? null : (
         <FieldRow label={SWING_LABEL}>

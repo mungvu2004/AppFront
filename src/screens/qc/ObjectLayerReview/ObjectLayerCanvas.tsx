@@ -32,11 +32,9 @@ import { cn } from '@/lib/utils';
 
 import {
   HOST_WALL_HIGHLIGHT_TOKEN,
-  OBJECT_CANVAS_COLOR_COUNT_TEST_ID,
   OBJECT_CANVAS_FRAME_CLASSES,
   OBJECT_CANVAS_READ_ONLY_ID,
   OBJECT_CANVAS_TEXT,
-  OBJECT_LAYER_COLOR_TOKENS,
   SYMBOL_STROKE_WIDTH_PX,
   SYMBOL_WASH_OPACITY,
   WALL_IDLE_TOKEN,
@@ -44,11 +42,10 @@ import {
   buildObjectSymbol,
   objectLayerColorToken,
   selectionHandleRects,
-  visibleDataColorTokens,
   type ObjectLayerCanvasViewProps,
   type ObjectPlacementViewModel,
 } from './objectLayerSymbols';
-import { OBJECT_LAYER_IDS, OBJECT_LAYER_LABELS } from './objectLayerTypes';
+import { ObjectLayerCanvasLegend } from './ObjectLayerCanvasLegend';
 
 /** Hợp đồng props của lớp canvas, mang ra đây cho nơi gọi khỏi phải biết hai đường nhập. */
 export type * from './objectLayerSymbols';
@@ -268,7 +265,6 @@ export function ObjectLayerCanvas({
     [onApprove, onAttachToNearestWall, onChangeSubtype, onDelete, onSelect, openMenu, placements],
   );
 
-  const dataColors = visibleDataColorTokens(layerVisibility);
   /* Thứ tự trong LỚP cho độ so le 24 ms (0/24/48… trong lớp vừa bật) — một phép đếm, không phải hình học. */
   const layerCursor: Record<string, number> = { door: 0, window: 0, furniture: 0 };
   const layerIndexById = new Map<string, number>();
@@ -399,35 +395,7 @@ export function ObjectLayerCanvas({
         </p>
       ) : null}
 
-      {/*
-        Chú giải ba màu dữ liệu cộng tổng số đối tượng. Tổng lấy từ chính mảng
-        `placements` chứ không từ một con số truyền riêng, nên "21 ở cả bốn nơi"
-        không thể lệch: canvas đếm đúng cái nó vẽ.
-      */}
-      <div
-        aria-label={OBJECT_CANVAS_TEXT.legendLabel}
-        className="absolute bottom-4 left-4 flex flex-wrap items-center gap-3 whitespace-nowrap rounded-[8px] bg-bg-surface-90 px-3 py-2 shadow-panel"
-      >
-        {OBJECT_LAYER_IDS.filter((layer) => layerVisibility[layer]).map((layer) => (
-          <span className="flex items-center gap-1.5 text-[12px] text-text-secondary" key={layer}>
-            <span
-              aria-hidden="true"
-              className="h-3 w-3 rounded-sm border border-border-default-50"
-              style={{ backgroundColor: OBJECT_LAYER_COLOR_TOKENS[layer] }}
-            />
-            {OBJECT_LAYER_LABELS[layer]}
-          </span>
-        ))}
-        {isLoading ? null : (
-          <span className="text-[12px] tabular-nums text-text-primary">
-            {placements.length}
-            <span className="text-text-secondary">{OBJECT_CANVAS_TEXT.objectCountSuffix}</span>
-          </span>
-        )}
-        <span className="sr-only" data-testid={OBJECT_CANVAS_COLOR_COUNT_TEST_ID}>
-          {dataColors.length}
-        </span>
-      </div>
+      <ObjectLayerCanvasLegend count={isLoading ? null : placements.length} layerVisibility={layerVisibility} />
 
       <ContextMenu
         groups={menu.groups}

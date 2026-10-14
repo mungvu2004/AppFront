@@ -27,7 +27,6 @@ import { clsx } from 'clsx';
 import { InlineAlert, type InlineAlertLevel } from '@/components/feedback/InlineAlert';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Kbd } from '@/components/ui/Kbd';
 
 import type { ScaleCalibrationMethodReferenceProps, ScaleReferenceStep } from './types';
 import type { ViewStatusCode } from '@/lib/viewmodel/types';
@@ -87,16 +86,7 @@ export function ScaleCalibrationMethodReference({ actions, reference }: ScaleCal
           {reference.livePixelLengthLabel ?? MISSING_VALUE}
         </p>
         {reference.tooShortNotice !== null && <InlineAlert level="attention" message={reference.tooShortNotice} />}
-        <div className="flex flex-wrap items-center gap-2">
-          <Kbd>Esc</Kbd>
-          <Kbd>Shift</Kbd>
-          <Kbd>R</Kbd>
-          <Kbd>Enter</Kbd>
-          <Kbd>↑</Kbd>
-          <Kbd>↓</Kbd>
-          <Kbd>←</Kbd>
-          <Kbd>→</Kbd>
-        </div>
+        {/* Hàng phím trần không lời đã bỏ: danh sách "Phím tắt" có mô tả ngay dưới phương pháp (BUG-632). */}
         <Button
           disabled={!reference.canRemeasure}
           onClick={actions.onRemeasure}

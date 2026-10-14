@@ -34,6 +34,7 @@ import { FieldRow } from '@/components/ui/FieldRow';
 import { IconButton } from '@/components/ui/IconButton';
 import { Kbd } from '@/components/ui/Kbd';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { MISSING_VALUE } from '@/lib/format/number';
 
 import { ScaleCalibrationMethodDimension } from './ScaleCalibrationMethodDimension';
 import { ScaleCalibrationMethodReference } from './ScaleCalibrationMethodReference';
@@ -56,6 +57,8 @@ const COMPUTATION_DIVIDER = '÷';
 const COMPUTATION_EQUALS = '=';
 const COMPUTATION_INCOMPLETE = 'Còn thiếu một vế, nên chưa ra được tỷ lệ.';
 const CROSS_CHECKS_TITLE = 'Kiểm chứng';
+const CROSS_CHECKS_UNAVAILABLE =
+  'Chưa đủ dữ liệu để kiểm chứng tỷ lệ: cần tỷ lệ đã đo và độ dày tường, bề rộng cửa hoặc phòng lớn nhất đọc được từ bản vẽ.';
 const CROSS_CHECKS_ARIA_LABEL = 'Ba đại lượng dẫn xuất để kiểm chứng tỷ lệ';
 const WARNING_ARIA_LABEL = 'Cảnh báo về tỷ lệ';
 const APPLY_PRIMARY = 'Áp dụng tỷ lệ';
@@ -184,7 +187,8 @@ export function ScaleCalibrationPanel({
                     reference={panel.reference}
                   />
                   {panel.shortcutHints.length > 0 && (
-                    <ul aria-label={SHORTCUTS_ARIA_LABEL} className="mt-3 flex flex-col gap-1.5">
+                    /* Dưới 640 px (màn chạm) không có bàn phím để bấm: ẩn danh sách phím (BUG-633). */
+                    <ul aria-label={SHORTCUTS_ARIA_LABEL} className="mt-3 flex flex-col gap-1.5 max-sm:hidden">
                       {panel.shortcutHints.map((hint) => (
                         <li
                           className="flex items-center gap-2 text-[13px] text-text-secondary"
@@ -218,7 +222,10 @@ export function ScaleCalibrationPanel({
               <h3 className="mb-1 text-[13px] font-medium text-text-secondary">
                 {CROSS_CHECKS_TITLE}
               </h3>
-              {panel.crossChecks.map((row, index) => (
+              {/* Ba dòng đều "—": nói ra là chưa đủ dữ liệu, không để ba gạch không lý do (BUG-631). */}
+              {panel.crossChecks.every((row) => row.valueLabel === MISSING_VALUE) ? (
+                <p className="text-[13px] text-text-muted">{CROSS_CHECKS_UNAVAILABLE}</p>
+              ) : panel.crossChecks.map((row, index) => (
                 <FieldRow
                   isLast={index === panel.crossChecks.length - 1}
                   isText

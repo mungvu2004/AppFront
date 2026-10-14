@@ -10,7 +10,7 @@ import { useStore } from '@/store';
 
 import { DimensionOcrReviewContainer } from './DimensionOcrReview.container';
 import { scenarioArgsFor } from './DimensionOcrReview.stories';
-import { keyboardModeToggleLabel } from './dimensionOcrText';
+import { DIMENSION_OCR_TEXT, keyboardModeToggleLabel } from './dimensionOcrText';
 
 function renderState(state: Parameters<typeof scenarioArgsFor>[0]) {
   const store = useStore.getState();
@@ -39,5 +39,13 @@ describe('DimensionOcrReview — cửa vào duyệt bàn phím', () => {
     renderState('partial');
 
     await waitFor(() => expect(screen.getAllByText(new RegExp(keyboardModeToggleLabel, 'u')).length).toBeGreaterThan(0));
+  });
+
+  it('[BUG-633] câu nhắc phím R ẩn dưới 640 px (màn chạm)', async () => {
+    renderState('partial');
+
+    const hint = await screen.findByText(DIMENSION_OCR_TEXT.keyboard.shortcutHint);
+
+    expect(hint.closest('span')).toHaveClass('max-sm:hidden');
   });
 });
