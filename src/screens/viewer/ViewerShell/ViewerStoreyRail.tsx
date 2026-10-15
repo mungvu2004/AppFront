@@ -54,11 +54,12 @@ export function ViewerStoreyRail({
 }: ViewerStoreyRailProps) {
   return (
     <div
-      aria-label="Tầng"
       /* Dưới `md` ray nằm ngang dưới ray công cụ: tầng bên trái, thanh tách bên phải. */
       className="flex w-[56px] shrink-0 flex-col items-center gap-1 py-2 max-md:w-full max-md:flex-row max-md:gap-3 max-md:px-3"
     >
+      {/* Tên nằm trên chính `listbox` — trên `div` không vai trò thì không ai đọc (25-E-003). */}
       <ul
+        aria-label="Tầng"
         className="flex w-full flex-col items-center gap-1 max-md:min-w-0 max-md:flex-1 max-md:flex-row max-md:overflow-x-auto"
         role="listbox"
         aria-multiselectable

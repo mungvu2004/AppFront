@@ -223,10 +223,13 @@ export function ViewerShell(props: ViewerShellProps) {
         <div
           aria-hidden={isCollapsed}
           className={cn(
-            'shrink-0 overflow-hidden',
+            /* `flex flex-col`: panel (`flex-1`) cao bằng bọc này, tức bằng dòng ba cột. */
+            'flex shrink-0 flex-col overflow-hidden',
             /* `!w-full` thắng `width` nội tuyến: dưới `lg` panel trải hết dòng của nó. */
+            /* `invisible` gỡ cả tiêu điểm lẫn hình của nội dung đã kẹp ra ngoài khung
+               (25-F-006); `visibility` đổi ở CUỐI transition nên vẫn trượt mượt. */
             isCollapsed
-              ? 'py-0 pr-0 opacity-0'
+              ? 'invisible py-0 pr-0 opacity-0'
               : 'px-3 pb-3 opacity-100 max-lg:!w-full lg:py-3 lg:pl-0',
             frame.reducedMotion
               ? 'transition-none'

@@ -61,10 +61,11 @@ import { cn } from '@/lib/utils';
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
+import { QcScreenFrame } from '../shared/QcScreenFrame';
 
 import { RoomLabelCanvas } from './RoomLabelCanvas';
 import { RoomLabelInspector } from './RoomLabelInspector';
-import { RoomLabelLeftPanel } from './RoomLabelLeftPanel';
+import { RoomLabelGapsSection, RoomLabelLeftPanel } from './RoomLabelLeftPanel';
 import { RoomLabelNormalizePreview } from './RoomLabelNormalizePreview';
 import type { RoomLabelReviewProps } from './roomLabelTypes';
 
@@ -152,11 +153,20 @@ function RoomLabelLeftColumn(props: RoomLabelReviewViewProps) {
   if (emptyNotice !== null && !showOnlyUnnamed) {
     return (
       <div className={LEFT_COLUMN_CLASS_NAME}>
+        {viewerRoleNotice === null ? null : (
+          <InlineAlert level="attention" message={viewerRoleNotice} title={FORBIDDEN_TITLE} />
+        )}
         <EmptyState
           action={{ label: EMPTY_ACTION_LABEL, onClick: onCheckWallGaps }}
           description={emptyNotice}
           icon={<LayoutGrid />}
           title={EMPTY_TITLE}
+        />
+        {/* 20-D-007: rỗng vì vòng hở thì phải còn lối "Xem tại lớp tường". */}
+        <RoomLabelGapsSection
+          gaps={gaps}
+          onNavigateToWalls={onNavigateToWalls}
+          unclosedRoomCount={summary.unclosedRoomCount}
         />
       </div>
     );
@@ -251,26 +261,20 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
 
   if (props.readFailure != null) {
     return (
-      <div aria-label={SCREEN_TITLE} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+      <QcScreenFrame label={SCREEN_TITLE}>
         <FloorLayerReadFailureScreen failure={props.readFailure} />
-      </div>
+      </QcScreenFrame>
     );
   }
 
   return (
-    <div
-      aria-label={SCREEN_TITLE}
-      // Cao bằng khung nhìn như SCR-16/17 (BUG-324/329): route nằm trong `ScreenMain` (display: contents)
-      // nên `h-full` không có chiều cao, và thanh tra kéo trang dài theo nội dung thay vì tự cuộn.
-      className="flex h-screen min-h-0 w-full flex-col bg-bg-app"
-      role="region"
-    >
+    <QcScreenFrame label={SCREEN_TITLE}>
       <header className="shrink-0 px-4 pb-1 pt-3">
         <p className="text-[12px] text-text-muted">{SCREEN_BREADCRUMB}</p>
         <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
         <p className="text-[13px] text-text-secondary">{SCREEN_DESCRIPTION}</p>
         {props.saveStatus != null && (
-          <p className="text-[12px] text-text-muted" data-testid="room-save-status">
+          <p className="text-[12px] text-text-muted" data-testid="room-save-status" role="status">
             {props.saveStatus}
           </p>
         )}
@@ -358,6 +362,6 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
         onCancel={onCancelNormalize}
         preview={normalizePreview}
       />
-    </div>
+    </QcScreenFrame>
   );
 }

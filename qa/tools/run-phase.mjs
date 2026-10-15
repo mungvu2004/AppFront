@@ -11,6 +11,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { createWriteStream, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const SUITE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -28,9 +29,17 @@ const RUN_ID = opt('run-id', cfg.defaults.runId);
 const TAG = opt('tag', `phase${NN}`);
 const LAYERS = opt('layers', 'main,ui,api,edge').split(',').filter(Boolean);
 const GREP = opt('grep', '');
+// --dry-run: print the --grep as received and stop (tools/check-grep-passthrough.mjs).
+if (flag('dry-run')) {
+  console.log(`DRY_GREP=${JSON.stringify(GREP)}`);
+  process.exit(0);
+}
 const WORKERS = Math.max(1, Number(opt('workers', '1')) || 1);
 // --retries N: Playwright retries for failing tests; a test red then green is reported "flaky", not passed.
 const RETRIES = Math.max(0, Number(opt('retries', '0')) || 0);
+// --repeat N: run every selected test N times (Playwright --repeat-each): a "fixed" stack case must be green N times in a row,
+// one green after a red proved nothing for timing-dependent flows (phase 04: FL-X-02 / FL-16-09 red R1, green RR, red RF).
+const REPEAT = Math.max(1, Number(opt('repeat', '1')) || 1);
 const WATCH = flag('no-watch') ? false : flag('watch') || cfg.defaults.watch !== false;
 const fill = (s) => s.replaceAll('{resultsDir}', cfg.resultsDir).replaceAll('{runId}', RUN_ID);
 
@@ -103,11 +112,12 @@ for (const layer of LAYERS) {
     continue;
   }
   mkdirSync(dir, { recursive: true });
-  const args = ['playwright', 'test', ...files, ...(WATCH ? ['--headed'] : []), ...(GREP ? ['--grep', GREP] : []), '--workers', String(layer === 'main' ? 1 : WORKERS), '--retries', String(RETRIES)];
+  // Playwright's CLI under node, no shell: `npx` + `shell: true` let cmd.exe split a --grep regex at `|` (QA-05c, QA-06b).
+  const args = [createRequire(join(SUITE, '..', 'package.json')).resolve('@playwright/test/cli'), 'test', ...files, ...(WATCH ? ['--headed'] : []), ...(GREP ? ['--grep', GREP] : []), '--workers', String(layer === 'main' ? 1 : WORKERS), '--retries', String(RETRIES), ...(REPEAT > 1 ? ['--repeat-each', String(REPEAT)] : [])];
   const t0 = Date.now();
   const log = createWriteStream(join(dir, 'run.log'));
   const code = await new Promise((done) => {
-    const p = spawn('npx', args, { cwd: SUITE, shell: true, env: { ...env, E2E_RESULTS_DIR: cfg.resultsDir, E2E_RUN_ID: RUN_ID, E2E_TAG: tag } });
+    const p = spawn(process.execPath, args, { cwd: SUITE, env: { ...env, E2E_RESULTS_DIR: cfg.resultsDir, E2E_RUN_ID: RUN_ID, E2E_TAG: tag } });
     for (const s of [p.stdout, p.stderr]) s.on('data', (d) => (process.stdout.write(d), log.write(d)));
     p.on('close', done);
   });

@@ -230,17 +230,33 @@ const changeBetween = <K extends EntityKind>(
   if (sameValue(from, settled)) {
     /* Hình học không đổi, chỉ `reviewed` đổi: đó là cú bấm "Duyệt"/"Bỏ qua"
        của panel "Kiểm duyệt" — hành động của người (A5), nên đi qua nguyên
-       văn. `confidence` và `source` vẫn lấy từ "trước". */
+       văn. `confidence` lấy từ "trước". "Duyệt" thì `source` thành `human`
+       như duyệt ở màn QC: `{ source: 'ai', reviewed: true }` bị zod
+       `humanOnlyReview` và BE `REVIEW_BY_AI_FORBIDDEN` chặn, tầng kẹt không lưu
+       được (catalog-C6 ⚑3). Panel vendor vẫn giữ `ai`; biên giới này sửa. */
     return to.reviewed === from.reviewed
       ? null
-      : asChange(changeForUpdate(kind, from, { ...settled, reviewed: to.reviewed }));
+      : asChange(
+          changeForUpdate(kind, from, {
+            ...settled,
+            reviewed: to.reviewed,
+            ...(to.reviewed ? { source: 'human' as const } : {}),
+          }),
+        );
   }
 
   /* C2 — lượt sửa này là thật, nên dấu xác minh KHÔNG sống sót qua nó. Đặt
      `reviewed` sau phép so chứ không trong `withReviewOfPrevious`: so trước
      thì một bức tường đã duyệt mà không ai đụng tới cũng thành "đã đổi", và
      lượt nạp lại sinh ra một lệnh từ hư không. */
-  return asChange(changeForUpdate(kind, from, { ...settled, reviewed: false }));
+  /* 23R-C-006 — tên không phải hình học: cùng định nghĩa với
+     `NON_GEOMETRY_KEYS` của vendor (`core/src/schema/review.ts`). Lượt sửa chỉ
+     đổi `name` thì dấu xác minh sống sót, như panel Pascal vẫn hiển thị. */
+  const nameOnly = sameValue({ ...from, name: undefined }, { ...settled, name: undefined });
+
+  return asChange(
+    changeForUpdate(kind, from, nameOnly ? settled : { ...settled, reviewed: false }),
+  );
 };
 
 /** Câu mô tả cho nhật ký hoạt động: đếm theo việc, rồi đếm theo loại. */

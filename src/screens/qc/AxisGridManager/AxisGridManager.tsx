@@ -53,6 +53,7 @@ import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
+import { QcScreenFrame } from '../shared/QcScreenFrame';
 import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 
 import { AxisGridCanvas, type AxisGridCanvasProps } from './AxisGridCanvas';
@@ -215,20 +216,14 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
 
   if (props.readFailure != null) {
     return (
-      <div aria-label={SCREEN_TITLE} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+      <QcScreenFrame label={SCREEN_TITLE}>
         <FloorLayerReadFailureScreen failure={props.readFailure} />
-      </div>
+      </QcScreenFrame>
     );
   }
 
   return (
-    <div
-      aria-label={SCREEN_TITLE}
-      // Cao bằng khung nhìn: route nằm trong `ScreenMain` (display: contents) nên `h-full` không có chiều cao
-      // để bám, panel trục không bao giờ cuộn và cả trang dài ra (G20) — cùng cách SCR-16/17.
-      className="flex h-screen min-h-0 w-full flex-col bg-bg-app"
-      role="region"
-    >
+    <QcScreenFrame label={SCREEN_TITLE}>
       <header className="shrink-0 px-4 pb-1 pt-3">
         <p className="text-[12px] text-text-muted">{SCREEN_BREADCRUMB}</p>
         <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
@@ -313,6 +308,6 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
           </div>
         )}
       </div>
-    </div>
+    </QcScreenFrame>
   );
 }

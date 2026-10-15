@@ -250,6 +250,12 @@ describe('[NGHIEM-2] tổng số đối tượng trên màn đã ráp', () => {
     expect(screen.queryByText(/0\/0/u)).toBeNull();
     expect(screen.queryByText(/^Tổng 0/u)).toBeNull();
   });
+
+  it('[17-F-015] đang tải: bốn dòng khung xương cho bộ đếm cộng bốn dòng cho danh sách', () => {
+    const { container } = renderState('loading');
+
+    expect(container.querySelectorAll('div.flex.items-center.gap-4.p-3:has(> .animate-pulse)')).toHaveLength(8);
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -286,11 +292,12 @@ describe('[NGHIEM-3] thu gọn và không có quyền', () => {
     expect(screen.getByLabelText(LEGEND_LABEL)).toBeInTheDocument();
   });
 
-  it('trạng thái không có quyền: xem được, chỉ mất nút sửa — KHÔNG khoá mờ cả màn', () => {
+  it('trạng thái không có quyền: xem được, chỉ mất nút sửa — KHÔNG khoá mờ cả màn', async () => {
     renderState('forbidden');
 
+    /* Người xem đang tải thấy khung chờ trước (17-D-010); cây lớp có khi dữ liệu tới. */
+    expect(await screen.findByRole('tree', { name: LAYER_TREE_LABEL })).toBeInTheDocument();
     expect(screen.getByRole('status', { name: STATUS_BAR_LABEL })).toBeInTheDocument();
-    expect(screen.getByRole('tree', { name: LAYER_TREE_LABEL })).toBeInTheDocument();
     expect(screen.getByLabelText(LEGEND_LABEL)).toBeInTheDocument();
   });
 

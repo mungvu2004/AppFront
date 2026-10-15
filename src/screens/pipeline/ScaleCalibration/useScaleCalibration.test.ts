@@ -53,6 +53,9 @@ import { createTestQueryClient } from '@/lib/testing/render';
 import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
 import { expectSentenceCaseStrings } from '@/lib/testing/expectSentenceCase';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
+import { appNotificationBus } from '@/hooks/useNotifications';
+import type { Notification } from '@/lib/mutations/notificationBus';
+import { appShortcutRegistry, registerGlobalShortcuts } from '@/lib/input/shortcutRegistry';
 import { useStore } from '@/store';
 import { commit } from '@/store/commit';
 import type { ProjectRole } from '@/types/project';
@@ -254,6 +257,8 @@ interface HarnessOptions {
   readonly sourceFloorId?: string;
   readonly rows?: readonly ScaleRawDimensionString[];
   readonly referenceWallWidthPx?: Pixels;
+  /** Thay khổ ảnh của bộ mẫu — ảnh không vuông có dải trống trong khung vuông. */
+  readonly drawingSize?: { readonly widthPx: Pixels; readonly heightPx: Pixels };
 }
 
 interface Harness {
@@ -303,7 +308,7 @@ async function makeHarness(options: HarnessOptions = {}): Promise<Harness> {
       dimensionStrings: options.rows !== undefined,
       referenceWallWidth: options.referenceWallWidthPx !== undefined,
     },
-    readFloorDrawing: async () => ({ ok: true, data: drawing }),
+    readFloorDrawing: async () => ({ ok: true, data: { ...drawing, ...options.drawingSize } }),
     readDimensionStrings: async () =>
       options.rows === undefined
         ? base.readDimensionStrings({ floorId: FLOOR_ID, projectId: PROJECT_ID })
@@ -466,6 +471,23 @@ describe('useScaleCalibration — tỷ lệ do M-02 tính', () => {
     expect(mounted.result.current.model.canvas.imageUrl).not.toBe('qc-background.png');
   });
 
+  it('14-C-019: tỷ lệ rất nhỏ (0,1 mm trên 400 px) không bị làm tròn thành "0 mm/px" hay "1:0"', async () => {
+    const harness = await makeHarness();
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    await dragReferenceLine(mounted);
+    await act(async () => {
+      mounted.result.current.actions.onChangeRealLength('0,1');
+    });
+
+    const { model } = mounted.result.current;
+
+    expect(model.panel.computation.resultLabel).not.toMatch(/^0 mm\/px$/u);
+    expect(model.panel.computation.resultLabel).toMatch(/[1-9]/u);
+    expect(model.statusBar.scaleDensity).not.toMatch(/^0 mm\/px$/u);
+    expect(model.statusBar.scaleRatio).not.toBe('1:0');
+  });
+
   it('kéo đoạn 400 px rồi nhập 4800 mm cho ra 12 mm/px, và hiện đủ phép tính', async () => {
     const harness = await makeHarness();
     const mounted = mountHook(harness.gateway);
@@ -589,6 +611,27 @@ describe('useScaleCalibration — áp dụng: PUT trước, commit sau (F-04x-2 
     expect(mounted.result.current.model.state).toBe('success');
     expect(mounted.result.current.model.successNotice).not.toBeNull();
     expect(mounted.result.current.model.errorMessage).toBeNull();
+  });
+
+  it('vẽ đường mới sau khi áp xong thì success nhường chỗ cho lời nhắc chưa đủ dữ liệu (G58, 14-09)', async () => {
+    const harness = await makeHarness();
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    await typeReference(mounted);
+
+    await act(async () => {
+      mounted.result.current.actions.onApply();
+    });
+    await settleAsync();
+    expect(mounted.result.current.model.state).toBe('success');
+
+    await act(async () => {
+      mounted.result.current.actions.onStartDrag({ x: 0.3, y: 0.3 });
+    });
+
+    expect(mounted.result.current.model.state).toBe('partial');
+    expect(mounted.result.current.model.successNotice).toBeNull();
+    expect(mounted.result.current.model.partialNotice).not.toBeNull();
   });
 
   it('PUT 422 → kho giữ tỷ lệ cũ, không success, nói lý do', async () => {
@@ -1268,6 +1311,135 @@ describe('useScaleCalibration — review-1 F3 (P2-4, P2-5, Nit-3)', () => {
     expect(harness.writeLayer.mock.calls[1]?.[0].body).toEqual({ scaleMillimetresPerPixel: before });
   });
 
+  it('áp, hoàn tác, áp lại, Ctrl+Z → PUT thứ tư mang tỷ lệ cũ (14-A-028)', async () => {
+    const before = storedRatio();
+    const harness = await makeHarness();
+    const mounted = await mountAndApply(harness);
+
+    await act(async () => {
+      await clock.advance(RETRY_SCHEDULE_MS[0]);
+    });
+    await settleAsync();
+    await undoAndSend();
+    expect(harness.writeLayer).toHaveBeenCalledTimes(2);
+
+    await applyNow(mounted);
+    await act(async () => {
+      await clock.advance(RETRY_SCHEDULE_MS[0]);
+    });
+    await settleAsync();
+    expect(harness.writeLayer).toHaveBeenCalledTimes(3);
+    await undoAndSend();
+
+    expect(harness.writeLayer).toHaveBeenCalledTimes(4);
+    expect(harness.writeLayer.mock.calls[3]?.[0].body).toEqual({ scaleMillimetresPerPixel: before });
+  });
+
+  it('như người dùng thật: hoàn tác lần đầu bằng toast, áp lại, Ctrl+Z → vẫn PUT tỷ lệ cũ (14-A-028, BUG-724)', async () => {
+    const before = storedRatio();
+    const harness = await makeHarness();
+    let toast: Notification | undefined;
+    const unsubscribe = appNotificationBus.subscribe((all) => {
+      toast = all.find((n) => n.title === 'Áp dụng tỷ lệ') ?? toast;
+    });
+    const mounted = await mountAndApply(harness);
+
+    await act(async () => {
+      await clock.advance(RETRY_SCHEDULE_MS[0]);
+    });
+    await settleAsync();
+    await act(async () => {
+      toast?.undoTicket?.undo();
+    });
+    await act(async () => {
+      await clock.advance(RETRY_SCHEDULE_MS[0]);
+    });
+    await settleAsync();
+    expect(harness.writeLayer).toHaveBeenCalledTimes(2);
+
+    await applyNow(mounted);
+    await act(async () => {
+      await clock.advance(RETRY_SCHEDULE_MS[0]);
+    });
+    await settleAsync();
+    unsubscribe();
+    expect(harness.writeLayer).toHaveBeenCalledTimes(3);
+    await undoAndSend();
+
+    expect(harness.writeLayer).toHaveBeenCalledTimes(4);
+    expect(harness.writeLayer.mock.calls[3]?.[0].body).toEqual({ scaleMillimetresPerPixel: before });
+  });
+
+  it('ảnh 1600×1200: đầu đoạn bắt lưới 50 mm theo pixel ẢNH — khung vuông, dải trống 200 px trên/dưới (14-C-025, BUG-723)', async () => {
+    const harness = await makeHarness({ drawingSize: { widthPx: pixels(1600), heightPx: pixels(1200) } });
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    await settleAsync();
+    const ratio = storedRatio() ?? Number.NaN;
+    const end: ImageRatioPoint = { x: 0.7213, y: 0.4347 };
+
+    await act(async () => {
+      mounted.result.current.actions.onStartDrag({ x: 0.2, y: 0.5 });
+    });
+    await act(async () => {
+      mounted.result.current.actions.onMoveDrag(end, { isAxisLocked: false });
+    });
+    await act(async () => {
+      mounted.result.current.actions.onEndDrag(end);
+    });
+
+    const snapped = mounted.result.current.model.canvas.referenceLine?.end ?? { x: Number.NaN, y: Number.NaN };
+    const offGrid = (mm: number): number => Math.abs(mm / 50 - Math.round(mm / 50));
+    // Handle ratios are of the SQUARE frame (long side 1600, `imageFrameOf`): image px = ratio · 1600 − inset, and
+    // the 1200 px side sits in a 200 px band. `y · h · r` (the old 14-C-025 formula) is off the grid by 0.25 here.
+    expect(offGrid(snapped.x * 1600 * ratio)).toBeLessThan(1e-6);
+    expect(offGrid((snapped.y * 1600 - 200) * ratio)).toBeLessThan(1e-6);
+  });
+
+  it('Ctrl+Z giữa lúc saveScale đang chờ → hoàn tác chính lần áp ấy: màn và máy chủ cùng về tỷ lệ cũ (BUG-725)', async () => {
+    const before = storedRatio();
+    const harness = await makeHarness();
+    const disposeGlobal = registerGlobalShortcuts(appShortcutRegistry, {
+      undo: () => {
+        useStore.temporal.getState().undo();
+      },
+      redo: () => undefined,
+      save: () => undefined,
+      openSearch: () => undefined,
+      openShortcutHelp: () => undefined,
+      closeTopLayer: () => undefined,
+    });
+    const mounted = await mountAndApply(harness);
+
+    await act(async () => {
+      await clock.advance(RETRY_SCHEDULE_MS[0]);
+    });
+    await settleAsync();
+    await undoAndSend();
+    expect(harness.writeLayer).toHaveBeenCalledTimes(2);
+
+    const pending = deferredWrite();
+    harness.writeLayer.mockReturnValueOnce(pending.promise);
+    await applyNow(mounted);
+    expect(harness.writeLayer).toHaveBeenCalledTimes(3);
+    expect(mounted.result.current.model.panel.isApplying).toBe(true);
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }));
+    });
+    pending.resolve(savedLayer(FLOOR_ID, 3));
+    await settleAsync();
+    await act(async () => {
+      await clock.advance(RETRY_SCHEDULE_MS[0]);
+    });
+    await settleAsync();
+    disposeGlobal();
+
+    const puts = harness.writeLayer.mock.calls.map(([input]) => input.body.scaleMillimetresPerPixel);
+    expect(storedRatio()).toBe(before);
+    expect(puts.at(-1)).toBe(before);
+  });
+
   it('P2-4: mốc khoá theo dự án — dự án khác thì Ctrl+Z không gửi tỉ lệ', async () => {
     const harness = await makeHarness();
     const first = await mountAndApply(harness);
@@ -1397,7 +1569,8 @@ describe('useScaleCalibration — QA-04c SCR-14 (BUG-587, 596, 601, 607)', () =>
     const mounted = mountHook(harness.gateway, { roles: ['viewer'] });
     await settle(mounted);
 
-    expect(mounted.result.current.model.state).toBe('error');
+    // 14-D-008 (G44): vai xem trên tầng méo là `forbidden`, không phải `error` — `error` không được đứng trước `forbidden`.
+    expect(mounted.result.current.model.state).toBe('forbidden');
     expect(mounted.result.current.model.canvas.isInteractive).toBe(false);
     expect(mounted.result.current.model.panel.areActionsHidden).toBe(true);
   });
@@ -1516,5 +1689,34 @@ describe('[G52 14-C-026] bản vẽ không vuông trong khung vuông', () => {
     const up = await lengthOf({ x: 0.2, y: 0.8 });
 
     expect(up).toBe(across);
+  });
+});
+
+describe('[14-A-026] toast "Hoàn tác" sau khi áp tỉ lệ (A8) đi qua bus thông báo của phiên', () => {
+  it('áp xong thì bus có thông báo "Áp dụng tỷ lệ" mang vé hoàn tác; bấm vé thì tỉ lệ cũ quay lại', async () => {
+    const harness = await makeHarness();
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    await typeReference(mounted);
+    const before = storedRatio();
+    // Capture on publish: the fake clock inside `settleAsync` may run the 8 s window out before we look.
+    let toast: Notification | undefined;
+    const unsubscribe = appNotificationBus.subscribe((all) => {
+      toast = all.find((n) => n.title === 'Áp dụng tỷ lệ') ?? toast;
+    });
+
+    await act(async () => {
+      mounted.result.current.actions.onApply();
+    });
+    await settleAsync();
+    unsubscribe();
+
+    expect(toast?.undoTicket).toBeDefined();
+    expect(storedRatio()).toBeCloseTo(REFERENCE_SCALE.millimetresPerPixel, 6);
+
+    await act(async () => {
+      toast?.undoTicket?.undo();
+    });
+    expect(storedRatio()).toBe(before);
   });
 });

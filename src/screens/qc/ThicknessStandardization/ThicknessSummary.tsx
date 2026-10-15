@@ -9,8 +9,8 @@
  * ## Vì sao không con số nào mang xanh "đã xác minh"
  *
  * Bốn số là kết quả máy đếm, không phải việc người duyệt xác nhận: A5 dành xanh đó cho người
- * duyệt, nên cả bốn số dùng `text-text-primary` (BUG-611). Nhãn chỉ in chữ — con số đã đứng
- * ngay trên nó; trình đọc màn hình nghe số qua phần `sr-only` (BUG-340).
+ * duyệt, nên cả bốn số dùng `text-text-primary` (BUG-611). Con số nằm CHÍNH TRONG câu trạng thái:
+ * một con số duy nhất trong cây truy cập, không số lớn aria-hidden cộng số sr-only (BUG-340).
  */
 
 import { useCountUp } from '@/hooks/useCountUp';
@@ -33,15 +33,10 @@ function SummaryStat({ value, label }: SummaryStatProps) {
   const { text } = useCountUp(value, { format: COUNT_FORMAT });
 
   return (
-    <div className="flex flex-col gap-1">
-      <span aria-hidden="true" className="font-mono text-[24px] font-semibold leading-none tabular-nums text-text-primary">
-        {text}
-      </span>
-      <p className="text-[13px] text-text-secondary" role="status">
-        <span className="sr-only">{value} </span>
-        {label}
-      </p>
-    </div>
+    <p className="flex flex-col gap-1 text-[13px] text-text-secondary" role="status">
+      <span className="font-mono text-[24px] font-semibold leading-none tabular-nums text-text-primary">{text}</span>{' '}
+      <span>{label}</span>
+    </p>
   );
 }
 

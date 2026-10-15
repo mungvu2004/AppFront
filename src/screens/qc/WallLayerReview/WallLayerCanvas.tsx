@@ -410,7 +410,7 @@ export function WallLayerCanvas({
         zoomLevel={zoomPercent}
       />
       <MiniMap
-        isVisible={drawingSizePx !== null}
+        isVisible={surface !== null}
         onViewportChange={onMiniMapViewportChange}
         viewport={miniMapViewport}
       >

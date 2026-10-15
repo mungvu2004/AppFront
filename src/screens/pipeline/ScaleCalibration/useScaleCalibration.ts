@@ -100,6 +100,8 @@ import {
   type Millimetres,
 } from '@/domain/units/types';
 import { useAutosave, useFloorLayerAutosave } from '@/hooks/useAutosave';
+import { appNotificationBus } from '@/hooks/useNotifications';
+import { createUndoTicket } from '@/lib/mutations/undoTicket';
 import type { FloorLayerSaveBlock } from '@/hooks/useAutosave';
 import { useFloorLayer } from '@/hooks/useFloorLayer';
 import { useFloorLayerReadFailure } from '../../qc/shared/floorLayerReadFailure';
@@ -111,7 +113,12 @@ import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
 import { describeError, toAppError } from '@/lib/errors';
 import { readWireError } from '@/lib/errors/wireError';
-import { formatArea, formatDrawingScaleRatio, formatLength, formatScaleDensity } from '@/lib/format/measure';
+import {
+  formatArea,
+  formatDrawingScaleRatio as formatDrawingScaleRatioBase,
+  formatLength,
+  formatScaleDensity as formatScaleDensityBase,
+} from '@/lib/format/measure';
 import { formatNumber, formatPercent, MISSING_VALUE } from '@/lib/format/number';
 import { formatCombo, keyCapLabels, parseCombo } from '@/lib/input/shortcutRegistry';
 import { MODIFIER_SHORTCUTS } from '@/lib/tools/shortcuts';
@@ -190,6 +197,7 @@ const COPY = {
   scopeAllFloors: 'Áp cho mọi tầng',
   scopeThisFloor: 'Chỉ áp cho tầng này',
   shortcutCancelDrag: 'Huỷ đoạn đang kéo',
+  shortcutUndoApplying: 'Hoàn tác lần áp đang gửi',
   shortcutRemeasure: 'Đo lại',
   shortcutConfirm: 'Xác nhận',
   shortcutNudgeFine: 'Nhích đầu đoạn một pixel',
@@ -254,6 +262,16 @@ function levelIn(spatial: NormalizedSpatial | null, levelId: string): Level | nu
 
 /** Câu người đọc của một lượt PUT hỏng. */
 const failureText = (error: unknown): string => `${COPY.applyFailed} ${describeError(toAppError(error)).description}`;
+
+/** Tỷ lệ dưới 1 mm/px vẫn phải đọc được (0,1 mm trên 400 px = 0,00025), không làm tròn về "0 mm/px" (14-C-019). */
+const formatScaleDensity = (value: number): string =>
+  formatScaleDensityBase(value, value > 0 && value < 1 ? { maxFractionDigits: 6 } : {});
+
+/** "1:0" là vô nghĩa: tỷ lệ nguyên đồ làm tròn về 0 thì coi như chưa có (14-C-019). */
+const formatDrawingScaleRatio = (value: number, shortEdgePx: number): string => {
+  const label = formatDrawingScaleRatioBase(value, shortEdgePx);
+  return label === '1:0' ? MISSING_VALUE : label;
+};
 
 /** Ví dụ `"1 pixel = 12 mm · bản vẽ ở tỷ lệ khoảng 1:100"`. */
 const derivedLine = (millimetresLabel: string, ratioLabel: string): string =>
@@ -990,6 +1008,8 @@ export function useScaleCalibration(
     }
 
     const at = toPixelPoint(currentFrame, point);
+    // Đường mới: kết quả áp cũ không còn nói về đường này, để lời nhắc "chưa đủ dữ liệu" lên lại (G58, 14-09).
+    setApplyOutcome(null);
     setNudgeTarget('end');
     setDrag({
       start: at,
@@ -1054,6 +1074,17 @@ export function useScaleCalibration(
         }
 
         const endpoint = session.movingEndpoint;
+
+        // Nhấp không kéo: hai đầu trùng nhau và con trỏ đứng yên -> không có đoạn, đừng bắt điểm sang chỗ khác (G52, 14-C-016).
+        if (
+          session.start.x === session.end.x &&
+          session.start.y === session.end.y &&
+          moving.x === session[endpoint].x &&
+          moving.y === session[endpoint].y
+        ) {
+          return { ...session, isDragging: false };
+        }
+
         const resolved = resolveEndpoint(
           session[otherEndpoint(endpoint)],
           grabbed(moving, session.grabOffset),
@@ -1076,6 +1107,29 @@ export function useScaleCalibration(
     setDrag((session) => (session === null || !session.isDragging ? session : null));
   }, []);
 
+  /*
+   * Đang kéo đoạn thì Esc luôn huỷ kéo, kể cả khi tiêu điểm ở "Chiều dài thật" (14-E-004, QD-004). Bộ phím tắt giữ luật
+   * "một phím, một hành động" của phase 05 (ô nhập đã xử lý Esc thì không chuyển tiếp), nên màn tự nghe ở pha capture,
+   * chỉ trong lúc kéo.
+   */
+  const isDragging = drag?.isDragging === true;
+
+  useEffect(() => {
+    if (!isDragging) {
+      return undefined;
+    }
+
+    const cancelOnEscape = (event: globalThis.KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        onCancelDrag();
+      }
+    };
+
+    window.addEventListener('keydown', cancelOnEscape, { capture: true });
+
+    return () => window.removeEventListener('keydown', cancelOnEscape, { capture: true });
+  }, [isDragging, onCancelDrag]);
+
   const onNudgeEndpoint = useCallback(
     (endpoint: ReferenceLineEndpoint, direction: NudgeDirection, step: NudgeStep) => {
       const distance = NUDGE_PX[step];
@@ -1088,10 +1142,20 @@ export function useScaleCalibration(
           return session;
         }
 
-        const moved: PixelPoint = {
+        let moved: PixelPoint = {
           x: pixels(session[endpoint].x + acrossStep),
           y: pixels(session[endpoint].y + upStep),
         };
+        const currentFrame = frameRef.current;
+
+        // Nhích không được đẩy đầu đoạn ra ngoài ảnh (14-C-023): kẹp qua tỷ lệ 0..1 của khung.
+        if (currentFrame !== null) {
+          const ratio = toRatioPoint(currentFrame, moved);
+          moved = toPixelPoint(currentFrame, {
+            x: Math.min(1, Math.max(0, ratio.x)),
+            y: Math.min(1, Math.max(0, ratio.y)),
+          });
+        }
 
         return { ...session, [endpoint]: moved, isDragging: false };
       });
@@ -1216,6 +1280,9 @@ export function useScaleCalibration(
   const proposedRatioRef = useRef(proposedRatio);
   proposedRatioRef.current = proposedRatio;
 
+  /** Ctrl+Z bấm khi lượt áp còn đang gửi (BUG-725) — `commitSaved` hoàn tác chính lượt ấy. */
+  const undoWhileApplyingRef = useRef(false);
+
   /**
    * Đã gửi xong: ghi tỷ lệ vào kho bằng MỘT `commit` (một bước hoàn tác, toast A8) cho
    * những tầng máy chủ đã nhận. Mốc của nhánh hoàn tác đặt TRƯỚC `commit`, để lượt
@@ -1235,8 +1302,27 @@ export function useScaleCalibration(
       }
     }
 
+    const undoRequested = undoWhileApplyingRef.current;
+    undoWhileApplyingRef.current = false;
+
     if (patches.length > 0) {
-      commit(patches, COPY.applyCommitLabel);
+      const { undo } = commit(patches, COPY.applyCommitLabel);
+
+      // BUG-725: Ctrl+Z pressed while this apply was in flight undoes THIS apply; the undo's autosave sends the
+      // compensating PUT, so screen and server agree.
+      if (undoRequested) {
+        undo();
+        return;
+      }
+
+      // A8: the toast "Hoàn tác" of the real route tree is `NotificationHost` (main.tsx), which draws the session
+      // bus only; `Toast.Provider`'s `useUndoableToast` bridge is not mounted there (14-A-026), so publish it here.
+      appNotificationBus.publish({
+        type: 'scale-applied',
+        title: COPY.applyCommitLabel,
+        description: '',
+        undoTicket: createUndoTicket({ description: COPY.applyCommitLabel, undo }),
+      });
     }
   }, []);
 
@@ -1268,6 +1354,7 @@ export function useScaleCalibration(
     }
 
     setApplyNotice(null);
+    undoWhileApplyingRef.current = false;
     setApplying(true);
 
     if (applyScopeRef.current === 'allFloors') {
@@ -1314,6 +1401,7 @@ export function useScaleCalibration(
     const { ratio, targets } = allFloors;
 
     setAllFloors(null);
+    undoWhileApplyingRef.current = false;
     setApplying(true);
 
     void (async () => {
@@ -1375,6 +1463,20 @@ export function useScaleCalibration(
     description: COPY.shortcutCancelDrag,
     onTrigger: onCancelDrag,
   });
+  // BUG-725: while an apply is in flight, Ctrl+Z belongs to that apply (canvas scope outranks `global.undo`, which
+  // would otherwise undo an older step and leave screen and server on different ratios).
+  useShortcut(
+    {
+      id: 'scaleCalibration.undoApplying',
+      combo: 'Ctrl+Z',
+      scope: 'canvas',
+      description: COPY.shortcutUndoApplying,
+      onTrigger: () => {
+        undoWhileApplyingRef.current = true;
+      },
+    },
+    { enabled: isApplying },
+  );
   useShortcut({
     id: 'scaleCalibration.remeasure',
     combo: 'R',
@@ -1641,6 +1743,11 @@ export function useScaleCalibration(
 
     if (query.isError) {
       return 'error';
+    }
+
+    // Vai xem không sửa được tỷ lệ dù ảnh méo: câu "không có quyền" đứng trước lời nhắc méo (G44, R-06).
+    if (!canEdit) {
+      return 'forbidden';
     }
 
     // Không tìm thấy khung chỉ là cảnh báo của BE (FRAME_NOT_FOUND, mức attention): người dùng vẫn

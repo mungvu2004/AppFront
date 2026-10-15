@@ -182,6 +182,7 @@ export function DimensionOcrCanvas({
   backgroundImageUrl,
   chains,
   drawingSizePx,
+  emptyNotice,
   isInteractive,
   onSelect,
   zoom,
@@ -232,6 +233,12 @@ export function DimensionOcrCanvas({
         onZoomOut={zoom.onZoomOut}
         zoomLevel={zoom.percent}
       />
+
+      {emptyNotice == null ? null : (
+        <p className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 text-center text-[13px] text-text-secondary">
+          {emptyNotice}
+        </p>
+      )}
 
       {isInteractive ? null : (
         <p className="sr-only" id={CANVAS_READ_ONLY_NOTICE_ID}>

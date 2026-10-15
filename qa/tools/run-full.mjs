@@ -10,6 +10,7 @@
 // Usage (from qa/, under the stack lock):
 //   node F:/App/qa-results/tools/stack-lock.mjs node tools/run-full.mjs --phase 04 --run-id run-50 [--workers 4]
 //        [--layers main,ui,api,edge] [--grep re] [--no-prev] [--no-build] [--history 6] [--watch] [--retries 1] [--check]
+//        [--dry-run]  (run-phase only prints the --grep it received; tools/check-grep-passthrough.mjs uses it)
 // Exit code = run-phase's. Never prunes images/volumes.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -37,7 +38,8 @@ const STAMP = join(F14, '.built-be');
 
 const sh = (cmd, cwd = SUITE) => spawnSync(cmd, { cwd, shell: true, encoding: 'utf8' });
 const out = (cmd, cwd) => sh(cmd, cwd).stdout.trim();
-const live = (cmd, cwd = SUITE) => spawnSync(cmd, { cwd, shell: true, stdio: 'inherit' }).status ?? 1;
+// No shell: cmd.exe would split a --grep regex at `|` (QA-06b run-063); an argv array reaches run-phase verbatim.
+const runPhase = (args) => spawnSync(process.execPath, ['tools/run-phase.mjs', ...args], { cwd: SUITE, stdio: 'inherit' }).status ?? 1;
 const say = (s) => console.log(`[run-full] ${s}`);
 
 /* 1. versions */
@@ -55,8 +57,8 @@ if (!flag('no-build')) {
   const builtBe = existsSync(STAMP) ? readFileSync(STAMP, 'utf8').trim() : '';
   const label = out(`docker inspect ${cfg.versionCheck.webImage} --format "{{index .Config.Labels \\"${cfg.versionCheck.webRevisionLabel}\\"}}"`);
   const head = out('git rev-parse --short HEAD', REPO);
-  // Same app tree as HEAD outside qa/ → the image is current even if its label is an older commit.
-  const webOk = label !== '' && sh(`git diff --quiet ${label} HEAD -- . ":(exclude)qa"`, REPO).status === 0;
+  // Same app tree as HEAD outside qa/, e2e/ and unit tests → the image is current even if its label is an older commit.
+  const webOk = label !== '' && sh(`git diff --quiet ${label} HEAD -- . ":(exclude)qa" ":(exclude)e2e" ":(glob,exclude)**/*.test.ts" ":(glob,exclude)**/*.test.tsx" ":(glob,exclude)**/__tests__/**"`, REPO).status === 0;
   // Only image inputs count: a docs/DEBT-only commit on main does not need a rebuild.
   const beOk = builtBe !== '' && sh(`git diff --quiet ${builtBe} origin/main -- apps packages deploy pyproject.toml uv.lock`, BE_SRC).status === 0;
   say(`web image ${label || '?'} (HEAD ${head}) ${webOk ? 'current' : 'STALE'}; api/worker ${builtBe || '?'} vs ${beMain} ${beOk ? 'current' : 'STALE'}`);
@@ -75,6 +77,32 @@ if (!flag('no-build')) {
     say(`health ${health}: bring the stack up (${cfg.env.bringUp})`);
     process.exit(1);
   }
+}
+
+/* 1b. env preflight (QA-04 run-041: 3 invalid runs = 1h15): login locks left by an earlier run, admin missing on a rebuilt
+ *     stack, .state project absent from a fresh DB. Fails in seconds instead of after a full run. */
+if (!flag('no-build')) {
+  sh(`docker exec f14-redis-broker-1 sh -c "redis-cli -n 2 --scan --pattern 'auth:login:*' | xargs -r redis-cli -n 2 del; redis-cli -n 2 --scan --pattern 'rl:auth_login_ip:*' | xargs -r redis-cli -n 2 del"`);
+  const secrets = Object.fromEntries(
+    readFileSync(cfg.env.secretsFile, 'utf8').split(/\r?\n/u).map((l) => l.replace(/^export\s+/u, '').match(/^([A-Z0-9_]+)=(.*)$/u)).filter(Boolean)
+      .map((m) => [m[1], m[2].replace(/^["']|["']$/gu, '')]),
+  );
+  const base = cfg.env.vars.E2E_FULLSTACK_BASE_URL;
+  const post = (path, init = {}) => fetch(`${base}${path}`, { method: 'POST', ...init, headers: { Origin: base, 'Content-Type': 'application/json', ...(init.headers ?? {}) } });
+  const fail = (why) => { say(`preflight: ${why}`); process.exit(2); };
+  const login = await post('/api/auth/login', { body: JSON.stringify({ email: secrets.E2E_ADMIN_EMAIL, password: secrets.E2E_ADMIN_PASSWORD, rememberMe: false }) });
+  if (login.status !== 204) {
+    fail(`admin login ${login.status} (401 = admin missing on a rebuilt stack: run "chuoi.sh seed" create-admin step; 429 = login lock)`);
+  }
+  const cookie = login.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
+  const token = (await (await post('/api/auth/refresh', { headers: { Cookie: cookie } })).json().catch(() => ({}))).accessToken;
+  const stateFile = join(SUITE, 'tests', '.state', 'runtime-session.json');
+  if (token && existsSync(stateFile) && Number(NN) > 2) {
+    const id = JSON.parse(readFileSync(stateFile, 'utf8')).project?.projectId;
+    const r = id ? await fetch(`${base}/api/projects/${id}`, { headers: { Authorization: `Bearer ${token}` } }) : null;
+    if (!r || r.status !== 200) fail(`.state project ${id ?? '?'} → ${r?.status ?? 'none'}: stale state from another stack; rebuild with run-phase --phase 01..${String(Number(NN) - 1).padStart(2, '0')} --layers main`);
+  }
+  say('preflight: admin login 204, login locks cleared, .state project reachable');
 }
 
 if (flag('check')) {
@@ -104,13 +132,20 @@ if (!existsSync(STATE) && Number(NN) > 2 && opt('layers', 'main').split(',').inc
 /* 3. run */
 const prev = String(Number(NN) - 1).padStart(2, '0');
 const layers = opt('layers', 'main,ui,api,edge');
-const extra = `${opt('grep', '') ? ` --grep "${opt('grep', '')}"` : ''} --layers ${layers}`;
+const extra = [...(opt('grep', '') ? ['--grep', opt('grep', '')] : []), ...(opt('repeat', '') ? ['--repeat', opt('repeat', '')] : []), '--layers', layers, ...(flag('dry-run') ? ['--dry-run'] : [])];
 if (!flag('no-prev') && layers.split(',').includes('main') && Number(NN) > 1) {
-  say(`phase ${prev} main first (its .state project feeds phase ${NN} main)`);
-  if (live(`node tools/run-phase.mjs --phase ${prev} --run-id ${RUN_ID} --layers main --no-typecheck --no-watch`) !== 0) say(`phase ${prev} main red — phase ${NN} main may fail on state`);
+  // Replay the WHOLE chain 01..NN-1: phase 02 creates a fresh .state project. Replaying only NN-1 reused the project of an
+  // earlier run, so every replay piled up floors/drawings and the fixed counts of NN-1 main went red (phase 04 RF 2026-10-15).
+  for (let p = 1; p <= Number(prev); p += 1) {
+    const id = String(p).padStart(2, '0');
+    say(`phase ${id} main (chain to a fresh .state project for phase ${NN} main)`);
+    sh(`docker exec f14-redis-broker-1 sh -c "redis-cli -n 2 --scan --pattern 'auth:login:*' | xargs -r redis-cli -n 2 del; redis-cli -n 2 --scan --pattern 'rl:auth_login_ip:*' | xargs -r redis-cli -n 2 del"`);
+    if (runPhase(['--phase', id, '--run-id', RUN_ID, '--layers', 'main', '--no-typecheck', '--no-watch']) !== 0) say(`phase ${id} main red — phase ${NN} main may fail on state`);
+  }
 }
-const watch = flag('watch') ? '' : ' --no-watch';
-const code = live(`node tools/run-phase.mjs --phase ${NN} --run-id ${RUN_ID} --workers ${WORKERS} --retries ${opt('retries', '1')}${watch}${extra}`);
+const watch = flag('watch') ? [] : ['--no-watch'];
+const code = runPhase(['--phase', NN, '--run-id', RUN_ID, '--workers', WORKERS, '--retries', opt('retries', '1'), ...watch, ...extra]);
+if (flag('dry-run')) process.exit(code);
 
 /* 4. failures with history */
 const root = cfg.resultsDir;

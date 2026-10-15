@@ -57,8 +57,9 @@ export function ZoomCluster({
     /* Wrapper vô hình mở rộng hover area */
     <div
       className={cn(
-        'absolute bottom-4 right-4 z-20 pointer-events-none',
-        'p-[40px] -m-[40px]', // ghost padding để hover dễ hơn
+        'absolute bottom-0 right-0 z-20 pointer-events-none',
+        // Ghost padding để hover dễ hơn; phải/dưới chỉ 16px (đúng lề): -m-[40px] cũ đẩy hộp 24px ra ngoài khung -> cuộn ngang ở 768.
+        'pl-[40px] pt-[40px] pr-4 pb-4',
         'group',
         className
       )}

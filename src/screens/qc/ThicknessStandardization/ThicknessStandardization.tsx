@@ -69,6 +69,7 @@ import { cn } from '@/lib/utils';
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
+import { QcScreenFrame } from '../shared/QcScreenFrame';
 
 import { ThicknessApplyBar } from './ThicknessApplyBar';
 import { ThicknessGroupTable } from './ThicknessGroupTable';
@@ -316,18 +317,14 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
   /* Đọc lớp hỏng khi chưa có tài liệu: một trạng thái lỗi, một lối ra (BUG-326). */
   if (props.readFailure != null) {
     return (
-      <div aria-label={SCREEN_TITLE} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+      <QcScreenFrame label={SCREEN_TITLE}>
         <FloorLayerReadFailureScreen failure={props.readFailure} />
-      </div>
+      </QcScreenFrame>
     );
   }
 
   return (
-    <div
-      aria-label={SCREEN_TITLE}
-      className="h-full min-h-0 w-full overflow-y-auto bg-bg-app"
-      role="region"
-    >
+    <QcScreenFrame label={SCREEN_TITLE} scroll>
       <div className="flex w-full flex-col gap-4 p-2">
         <header className="shrink-0 px-2 pt-1">
           <p className="text-[12px] text-text-muted">{SCREEN_BREADCRUMB}</p>
@@ -393,6 +390,6 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
           </div>
         )}
       </div>
-    </div>
+    </QcScreenFrame>
   );
 }

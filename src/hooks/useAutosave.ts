@@ -224,7 +224,9 @@ const loadPipes = () =>
     import('@/lib/query/invalidation'),
   ]).then(([save, commitModule, invalidation]) => ({
     applyInvalidation: invalidation.applyInvalidation,
+    changedDimensionLevelIds: save.changedDimensionLevelIds,
     changedLevelIds: save.changedLevelIds,
+    dimensionsOf: save.dimensionsOf,
     createFloorLayerSaver: save.createFloorLayerSaver,
     applyFloorLayerRead: commitModule.applyFloorLayerRead,
     replaceFloorLayer: commitModule.replaceFloorLayer,
@@ -285,9 +287,13 @@ const bump = (target: SaverBook): void => {
 const spatialApiOf = async (target: SaverBook): Promise<SpatialClient> =>
   (target.api ??= (await import('@/api/appClient')).createAppApiClient());
 
-const markChanged = (target: SaverBook, floorIds: readonly string[]): void => {
+const markChanged = (
+  target: SaverBook,
+  floorIds: readonly string[],
+  dimensionFloorIds: readonly string[] = [],
+): void => {
   if (target.saver && floorIds.length > 0) {
-    target.saver.markDirty(floorIds);
+    target.saver.markDirty(floorIds, dimensionFloorIds);
     target.engine.notifyChange();
   }
 };
@@ -330,6 +336,12 @@ const attachSaver = (target: SaverBook, loaded: Pipes): void => {
 
       return spatial && level?.id === floorId && 'order' in level ? loaded.spatialLayerOf(spatial, level.id) : null;
     },
+    readDimensions(floorId) {
+      const spatial = target.disposed ? null : (source()?.spatial ?? null);
+      const level = spatial?.byId[floorId];
+
+      return spatial && level?.id === floorId && 'order' in level ? loaded.dimensionsOf(spatial, level.id) : null;
+    },
     // Không chặn theo `disposed`: lượt xả lúc đổi dự án chạy SAU `dispose()`, và base 0 là 409 chắc.
     readRevision: (floorId) => source()?.floorMeta[floorId]?.revision ?? null,
     writeLayer: async (input) => (await spatialApiOf(target)).spatial.writeLayer(input),
@@ -342,7 +354,7 @@ const attachSaver = (target: SaverBook, loaded: Pipes): void => {
   const { spatial } = useStore.getState();
 
   if (opened && spatial && opened !== spatial && owns()) {
-    markChanged(target, loaded.changedLevelIds(opened, spatial));
+    markChanged(target, loaded.changedLevelIds(opened, spatial), loaded.changedDimensionLevelIds(opened, spatial));
   }
 };
 
@@ -428,7 +440,11 @@ function openBook(projectId: string): SaverBook {
       }
 
       if (created.saver && pipes) {
-        markChanged(created, pipes.changedLevelIds(previous.spatial, state.spatial));
+        markChanged(
+          created,
+          pipes.changedLevelIds(previous.spatial, state.spatial),
+          pipes.changedDimensionLevelIds(previous.spatial, state.spatial),
+        );
       } else {
         created.engine.notifyChange();
       }

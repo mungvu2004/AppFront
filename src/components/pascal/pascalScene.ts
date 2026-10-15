@@ -101,6 +101,30 @@ export const frameEntityInPascal = (entityId: string): boolean => {
   return true;
 };
 
+/**
+ * Xoá node như nút "Xoá" của editor — một lượt ghi có lịch sử, đi qua `validateCommit`
+ * và tự lưu. Dùng sau khi người dùng xác nhận một lượt xoá hàng loạt (23-A-026).
+ */
+export const deletePascalNodes = (ids: readonly string[]): void => {
+  const nodes = useScene.getState().nodes;
+  const present = ids.filter((id) => id in nodes);
+
+  if (present.length > 0) useScene.getState().deleteNodes(present as never);
+};
+
+/**
+ * Bỏ chế độ tách tầng còn nhớ từ lượt trước.
+ *
+ * `levelMode` của Pascal nằm trong `localStorage` (`viewer-preferences`), nên một
+ * lần mở `?view=exploded` làm mọi `/3d` về sau cũng tách (24-A-006). Chỉ `exploded`
+ * — chế độ AppFront tự đặt — bị trả về; `solo`/`manual` là người dùng chọn trong Pascal.
+ */
+export const stackExplodedLevels = (): void => {
+  const viewer = useViewer.getState();
+
+  if (viewer.levelMode === 'exploded') viewer.setLevelMode('stacked');
+};
+
 /** Trả store về rỗng. Dùng khi rời màn, để cảnh cũ không sống sót sang lượt sau. */
 export const clearPascalScene = (): void => {
   useScene.getState().unloadScene();

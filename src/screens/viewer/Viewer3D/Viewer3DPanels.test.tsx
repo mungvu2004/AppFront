@@ -51,6 +51,7 @@ import {
  */
 import '@/screens/viewer/FurnitureLibraryPanel';
 import '@/screens/viewer/HistoryPanel';
+import { HISTORY_PANEL_TEST_IDS } from '@/screens/viewer/HistoryPanel/historyPanelTypes';
 import '@/screens/viewer/RoomAreaPanel';
 
 /** `window.matchMedia` thật của môi trường, trả lại nguyên vẹn sau mỗi lượt. */
@@ -222,7 +223,7 @@ describe('[VP-2] ba bảng phụ bật/tắt được', () => {
     fireEvent.click(screen.getByRole('button', { name: VIEWER_3D_HISTORY_PANEL_LABEL }));
 
     await waitFor(() => {
-      expect(screen.getByRole('region', { name: 'Lịch sử chỉnh sửa' })).toBeInTheDocument();
+      expect(screen.getByTestId(HISTORY_PANEL_TEST_IDS.root)).toBeInTheDocument();
     }, LAZY_WAIT);
   });
 
@@ -237,7 +238,7 @@ describe('[VP-2] ba bảng phụ bật/tắt được', () => {
     fireEvent.click(screen.getByRole('button', { name: VIEWER_3D_HISTORY_PANEL_LABEL }));
 
     await waitFor(() => {
-      expect(screen.getByRole('region', { name: 'Lịch sử chỉnh sửa' })).toBeInTheDocument();
+      expect(screen.getByTestId(HISTORY_PANEL_TEST_IDS.root)).toBeInTheDocument();
     }, LAZY_WAIT);
     expect(screen.queryByRole('region', { name: /diện tích phòng/i })).toBeNull();
   });
@@ -261,14 +262,14 @@ describe('[VP-3] A12 — Esc đóng lớp trên cùng', () => {
     renderPanels({ initialPanelId: 'history', onTogglePanel });
 
     await waitFor(() => {
-      expect(screen.getByRole('region', { name: 'Lịch sử chỉnh sửa' })).toBeInTheDocument();
+      expect(screen.getByTestId(HISTORY_PANEL_TEST_IDS.root)).toBeInTheDocument();
     }, LAZY_WAIT);
 
     fireEvent.keyDown(window, { key: 'Escape' });
 
     expect(onTogglePanel).toHaveBeenCalledWith(null);
     await waitFor(() => {
-      expect(screen.queryByRole('region', { name: 'Lịch sử chỉnh sửa' })).toBeNull();
+      expect(screen.queryByTestId(HISTORY_PANEL_TEST_IDS.root)).toBeNull();
     }, LAZY_WAIT);
   });
 

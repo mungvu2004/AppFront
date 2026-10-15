@@ -13,7 +13,7 @@
  *    thứ hai, nên `findOverlaps()` không còn kể tên nó nữa.
  */
 
-import { act, createEvent, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, createEvent, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { Group, Object3D, PerspectiveCamera, Vector3 } from 'three';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -27,6 +27,7 @@ import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import {
   createViewerShellFixtureGateway,
   ViewerShell,
+  VIEWER_EMPTY_SPATIAL,
   VIEWER_FIXTURE_SPATIAL,
 } from '@/screens/viewer/ViewerShell';
 
@@ -258,8 +259,8 @@ const pickAtPointer: NonNullable<UseMeasurementToolOptions['pick']> = (pointer) 
   point: new Vector3(pointer.x / 1000, 0, pointer.y / 1000),
 });
 
-/** Bật công cụ đo rồi chấm hai điểm — đủ để có bản nháp mang nút "ghim". */
-function measureTwoPoints(): void {
+/** Bật công cụ đo rồi chấm hai điểm (hoặc `xs`) — đủ để có bản nháp mang nút "ghim". */
+function measureTwoPoints(xs: readonly number[] = [1000, 3000]): void {
   fireEvent.click(screen.getByRole('button', { name: /\(M\)/u }));
 
   const viewport = screen.getByLabelText('Khung nhìn mô hình');
@@ -272,7 +273,7 @@ function measureTwoPoints(): void {
     fireEvent(viewport, event);
   };
 
-  [1000, 3000].forEach((x) => {
+  xs.forEach((x) => {
     press('pointerDown', x);
     press('pointerUp', x);
   });
@@ -518,6 +519,17 @@ describe('useMeasurementTool — vai chỉ xem không xoá được phép đo (B
 
     expect(methods).not.toContain('DELETE');
   });
+  it('câu báo chỉ xem nói MỘT lần, câu thứ hai viết hoa chữ đầu (25-D-005)', async () => {
+    stubServer([]);
+
+    renderRealGateway({ roles: ['viewer'] });
+    await screen.findByRole('button', { name: /Ẩn Phép đo 1/iu });
+
+    const notices = screen.getAllByText(/Bạn chỉ có quyền xem dự án này/u);
+
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toHaveTextContent(/nên chưa ghim được phép đo\. Vẫn đo/u);
+  });
 });
 
 describe('useMeasurementTool — hoàn tác xoá qua cổng thật', () => {
@@ -562,7 +574,7 @@ function viewportSkeleton(): Element | null {
 }
 
 describe('useMeasurementTool — giữa hai lần chấm, khung nhìn không có lớp chặn chuột (NO-382)', () => {
-  it('chấm một điểm: khung nhìn không skeleton, nút ghim còn bấm được', async () => {
+  it('chấm một điểm: khung nhìn không skeleton, nút ghim chưa hiện (25-C-050)', async () => {
     renderHook({ mountScene: sceneSpy().mount, pick: pickAtPointer });
 
     await waitFor(() => {
@@ -577,7 +589,9 @@ describe('useMeasurementTool — giữa hai lần chấm, khung nhìn không có
     fireEvent(viewport, down);
     fireEvent.pointerUp(viewport);
 
-    expect(screen.getByRole('button', { name: /ghim/iu })).toBeEnabled();
+    // Một điểm chưa ghim được: nút ghim chưa hiện (25-C-050), nút Esc vẫn bấm được.
+    expect(screen.queryByRole('button', { name: /ghim/iu })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Bỏ phần đo dở (phím Esc)' })).toBeEnabled();
     expect(viewportSkeleton()).toBeNull();
     expect(screen.getByLabelText('Khung nhìn mô hình')).toHaveAttribute('aria-busy', 'false');
   });
@@ -781,5 +795,82 @@ describe('useMeasurementTool — cổng ném đồng bộ không kẹt chốt gh
 
     fireEvent.click(screen.getByRole('button', { name: /ghim/iu }));
     expect(calls).toBe(2);
+  });
+});
+
+describe('useMeasurementTool — chế độ hai điểm dừng ở hai điểm (25-C-022, 25-C-023)', () => {
+  it('cú chấm thứ ba không vẽ thêm đĩa nào, và câu nhắc nói ghim / Esc', () => {
+    const { container } = renderHook({
+      mountScene: sceneSpy().mount,
+      pick: pickAtPointer,
+      projectToScreen: (point) => ({ x: point.x, y: point.z ?? 0 }),
+    });
+    const discs = (): number => container.querySelectorAll('circle.fill-accent').length;
+
+    measureTwoPoints();
+    const two = discs();
+    expect(two).toBeGreaterThan(0);
+    const viewport = screen.getByLabelText('Khung nhìn mô hình');
+    const down = createEvent.pointerDown(viewport);
+    Object.defineProperty(down, 'clientX', { value: 5000 });
+    Object.defineProperty(down, 'clientY', { value: 0 });
+    fireEvent(viewport, down);
+    fireEvent.pointerUp(viewport);
+
+    expect(discs()).toBe(two);
+    expect(screen.queryByText(/Chọn thêm điểm/u)).toBeNull();
+    expect(screen.getByText(/Nhấn Enter để ghim phép đo, hoặc nhấn Esc để bỏ\./u)).toBeInTheDocument();
+  });
+});
+
+describe('useMeasurementTool — breadcrumb là lối ra của màn (25-A-003)', () => {
+  it('mắt xích dự án và "Mô hình 3D" bấm được, mắt xích cuối là tên màn', async () => {
+    const onNavigate = vi.fn();
+
+    renderHook({ mountScene: sceneSpy().mount, onNavigate });
+
+    const crumbs = within(screen.getByRole('navigation', { name: 'Đường dẫn màn hình' }));
+
+    await waitFor(() => {
+      expect(crumbs.getAllByRole('button')).toHaveLength(2);
+    });
+    expect(crumbs.getByText('Công cụ đo')).toHaveAttribute('aria-current', 'page');
+
+    const [project, viewer] = crumbs.getAllByRole('button');
+
+    fireEvent.click(project as HTMLElement);
+    fireEvent.click(viewer as HTMLElement);
+    expect(onNavigate.mock.calls).toEqual([['/'], ['/projects/P-1/3d']]);
+  });
+});
+
+describe('useMeasurementTool — bàn phím làm nổi hàng và xoá bằng Delete (25-E-015)', () => {
+  it('Tab tới "Ẩn Phép đo 1" rồi Delete gửi đúng một DELETE', async () => {
+    const registry = createShortcutRegistry({ isDev: false });
+    stubServer([]);
+
+    renderRealGateway({ registry });
+
+    const eye = await screen.findByRole('button', { name: /Ẩn Phép đo 1/iu });
+
+    act(() => {
+      eye.focus();
+    });
+    fireEvent.keyDown(eye, { key: 'Delete' });
+
+    await waitFor(() => {
+      const methods = vi.mocked(fetch).mock.calls.map(([, init]) => init?.method ?? 'GET');
+
+      expect(methods.filter((method) => method === 'DELETE')).toHaveLength(1);
+    });
+  });
+});
+
+describe('useMeasurementTool — dự án 0 tầng không mời đo (25-B-017)', () => {
+  it('nói chưa có mô hình, không còn câu "Nhấn M rồi chọn hai điểm"', async () => {
+    renderHook({ mountScene: sceneSpy().mount, spatial: VIEWER_EMPTY_SPATIAL });
+
+    expect(await screen.findByText(/Chưa có mô hình để đo/u)).toBeInTheDocument();
+    expect(screen.queryByText(/Nhấn M rồi chọn hai điểm/u)).toBeNull();
   });
 });

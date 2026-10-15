@@ -29,5 +29,7 @@ describe('AxisGridFloorAlignList', () => {
 
     expect(screen.getByText('Cần chú ý')).toBeVisible();
     expect(screen.getByText('Không căn được')).toBeVisible();
+    /* G11: the aria-hidden dot carries the status as its title. */
+    expect(document.querySelector('span[aria-hidden="true"][title="Cần chú ý"]')).not.toBeNull();
   });
 });

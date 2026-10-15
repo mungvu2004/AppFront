@@ -26,8 +26,10 @@
  *    `previewEntity(ảnh chụp before)` rồi `frameEntities` (R-07); ra thì
  *    `discardPreview()`. Cả hai đi qua cổng, nên hook không chạm `previewEdit`
  *    hay `ViewerSceneHandle` một lần nào.
- * 6. **`Ctrl+H` mở/đóng panel** (I-01, `HISTORY_PANEL_SHORTCUT`), đăng ký qua
- *    `shortcutRegistry`.
+ * 6. **`Ctrl+H` thuộc màn chủ, không thuộc panel.** Panel từng tự đăng ký
+ *    `mod+h` ở phạm vi `sidePanel`, thắng binding `canvas` của màn nên lần bấm
+ *    thứ hai chỉ gập nội dung chứ không đóng bảng (23H-A-009). Màn chủ
+ *    (`PascalViewer.container.tsx`) giữ phím ấy.
  *
  * ## Vì sao KHÔNG đăng ký `Mod+Z`
  *
@@ -56,7 +58,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { EntityId } from '@/domain/spatial/types';
-import { useShortcut } from '@/hooks/useShortcut';
 import { durationMs } from '@/lib/motion/tokens';
 import { prefersReducedMotion } from '@/lib/motion/reducedMotion';
 import { useStore } from '@/store';
@@ -69,7 +70,6 @@ import type {
 } from './historyPanelGateway';
 import { createHistoryPanelGateway, JUMP_INTERRUPTED_REASON } from './historyPanelGateway';
 import {
-  HISTORY_PANEL_SHORTCUT,
   type HistoryCategoryFilter,
   type HistoryFilters,
   type HistoryPanelState,
@@ -95,11 +95,6 @@ import {
 /* Hằng số của màn.                                                            */
 /* -------------------------------------------------------------------------- */
 
-/** Mã đăng ký của phím tắt — nói RÕ nơi binding sống, để cảnh báo trùng đọc được. */
-export const HISTORY_PANEL_SHORTCUT_ID = 'historyPanel.toggle';
-
-/** Câu mô tả phím tắt trên màn trợ giúp. Viết thường, kiểu câu (A6). */
-export const HISTORY_PANEL_SHORTCUT_DESCRIPTION = 'Mở hoặc đóng bảng lịch sử';
 
 /** Bộ lọc lúc mở panel: mọi loại việc, mọi người. */
 const DEFAULT_FILTERS: HistoryFilters = { category: 'all', actorId: null };
@@ -376,16 +371,6 @@ export function useHistoryPanel(options: UseHistoryPanelOptions = {}): UseHistor
   const onToggleCollapse = useCallback(() => {
     setIsCollapsed((current) => !current);
   }, []);
-
-  /* ---- `Ctrl+H` (I-01) ---------------------------------------------------- */
-
-  useShortcut({
-    id: HISTORY_PANEL_SHORTCUT_ID,
-    combo: HISTORY_PANEL_SHORTCUT,
-    scope: 'sidePanel',
-    description: HISTORY_PANEL_SHORTCUT_DESCRIPTION,
-    onTrigger: onToggleCollapse,
-  });
 
   /* ---- Tải thêm và thử lại ------------------------------------------------ */
 

@@ -103,6 +103,8 @@ export type FloorLayerDocument = z.infer<typeof FloorLayerDocumentSchema>;
  */
 export const FloorLayerWriteBodySchema = z
   .object({
+    /** Thay CẢ danh sách kích thước đã lưu (`[]` xoá hết); vắng = không đụng. `reviewed` chỉ khi `source === 'human'`. */
+    dimensions: z.array(DimensionSchema).optional(),
     layer: SpatialLayerSchema.optional(),
     scaleMillimetresPerPixel: scaleMillimetresPerPixelSchema.optional(),
   })
@@ -118,7 +120,8 @@ export const FloorLayerWriteBodySchema = z
      * refine này tồn tại để chặn. Một vòng mạng, một `baseVersion` bị tiêu, một
      * `revision` mới, không đổi gì.
      */
-    (body) => body.layer !== undefined || body.scaleMillimetresPerPixel !== undefined,
+    (body) =>
+      body.layer !== undefined || body.scaleMillimetresPerPixel !== undefined || body.dimensions !== undefined,
     { path: [] },
   );
 

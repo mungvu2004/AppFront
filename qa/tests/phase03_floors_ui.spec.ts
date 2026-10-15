@@ -127,7 +127,6 @@ test.describe('SCR-09 floors — UI verify', () => {
           const expand = page.getByRole('button', { name: EXPAND, exact: true });
           const box = await expand.boundingBox();
           sizes.push({ viewport: vp.width, control: EXPAND, width: Math.round(box?.width ?? 0), height: Math.round(box?.height ?? 0), threshold: textMin });
-          if (vp.width === 375) await captureEvidence(page, 'U03_09-E-015_targets_collapsed_375.png', { fullPage: true });
         }
         await page.setViewportSize(UI_VIEWPORTS[0]);
         await attachJson('U03_09-E-015_targets.json', { sizes });

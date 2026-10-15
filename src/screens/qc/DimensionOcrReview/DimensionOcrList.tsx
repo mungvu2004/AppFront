@@ -59,6 +59,8 @@ export interface DimensionOcrListViewProps extends DimensionOcrListProps {
    * ngưỡng — view chỉ hiển thị ([CẤM TUYỆT ĐỐI], A15).
    */
   readonly outlierNotice: { readonly dimensionId: string; readonly message: string } | null;
+  /** "N mục dưới ngưỡng tin cậy, đã lọc sẵn" khi bộ lọc "cần xem" là mặc định (18-B-011); `null` khi người dùng tự chọn. */
+  readonly presetNotice?: string | null;
 }
 
 /** Nhãn ba lựa chọn lọc, lấy nguyên từ T4 — không gõ câu tiếng Việt mới ở đây. */
@@ -88,6 +90,7 @@ export function DimensionOcrList({
   onApprove,
   onCancelEdit,
   outlierNotice,
+  presetNotice = null,
 }: DimensionOcrListViewProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -156,6 +159,10 @@ export function DimensionOcrList({
             value={activeFilter}
           />
         </div>
+
+        {presetNotice === null ? null : (
+          <p className="px-3 pt-2 text-[12px] text-text-muted">{presetNotice}</p>
+        )}
 
         {rows.length === 0 && activeFilter !== 'all' ? (
           /* Bộ lọc không còn hàng nào: nói ra và cho lối về "Tất cả", không để danh sách trắng (BUG-629). */

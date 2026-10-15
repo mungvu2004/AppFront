@@ -101,7 +101,7 @@ function FloorAlignRow({ floor, onHover }: FloorAlignRowProps) {
         </Badge>
       ) : (
         /* Trạng thái bằng chữ, không chỉ một chấm màu (BUG-638, khuôn BUG-610). */
-        <Badge className="shrink-0" variant={STATUS_BADGE_VARIANT[floor.status]}>
+        <Badge className="shrink-0" dotTitle={STATUS_LABEL[floor.status]} variant={STATUS_BADGE_VARIANT[floor.status]}>
           {STATUS_LABEL[floor.status]}
         </Badge>
       )}
