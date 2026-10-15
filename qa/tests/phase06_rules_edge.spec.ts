@@ -1616,15 +1616,39 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
       await test.step('[28V-A-016] the banner shows, then the sheet moves to the next violation', async () => {
         expect.soft(await seenBanner(), `banner "${ADVANCE_BANNER}"`).toBe(true);
         expect.soft(await seenKeep(), `button "${KEEP_BUTTON}"`).toBe(true);
+        /** Sheet entity/title and the report's key -> message map, read in ONE evaluate (p06-rr: two separate reads straddled a re-render). */
+        const sheetVsRows = (): Promise<{ entity: string | null; title: string; rows: [string, string][] }> =>
+          page.evaluate(() => {
+            const aside = document.querySelector('aside[aria-label="Chi tiết vi phạm"]');
+            return {
+              entity: aside?.getAttribute('data-entity-id') ?? null,
+              title: (aside?.querySelector('h2')?.textContent ?? '').trim(),
+              rows: Array.from(document.querySelectorAll('button[data-row-key]')).map((b) => [b.getAttribute('data-row-key') ?? '', (b.textContent ?? '').trim().slice(0, 90)]),
+            };
+          });
         await snap(page, 'E06r_28V-03_advance-state.json', {
           titleBeforeFix: clashMessages[1] ?? '',
           nextKey,
           nextRecorder: await page.evaluate(() => (window as unknown as { __p06next?: unknown }).__p06next ?? null),
+          sheetVsRows: await sheetVsRows(),
         });
         // S5-confirm: "the next row" is the old second clash row, by entity id (its display code is renumbered after the deletion).
         await expect.soft(panel, 'the sheet did not unmount after the save (F9)').toBeVisible();
         await expect.soft(panel, 'sheet on the entity that was next at click time').toHaveAttribute('data-entity-id', nextEntity);
-        await expect.soft(sheetTitle(page), "title = the next row's CURRENT message").toHaveText((await page.locator(`button[data-row-key="${nextKey}"]`).first().innerText()).trim());
+        await softly
+          .poll(
+            async () => {
+              const m = await sheetVsRows();
+              const row = m.rows.filter(([key]) => key === nextKey).map(([, text]) => text);
+              return { entity: m.entity, title: m.title, row };
+            },
+            { message: "title = the next row's CURRENT message (same evaluate)" },
+          )
+          .toEqual(expect.objectContaining({ entity: nextEntity, row: expect.arrayContaining([expect.any(String)]) }));
+        {
+          const m = await sheetVsRows();
+          expect.soft(m.rows.filter(([key]) => key === nextKey).map(([, text]) => text), `next row message(s) vs sheet title "${m.title}"`).toContain(m.title);
+        }
         await expect.soft(deleteButton, 'live entity: the action is offered').toBeVisible();
         await shot(page, '28V-A-016', 'advanced');
       });
@@ -1677,6 +1701,9 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         await expect(panel).toHaveCount(0);
         await page.getByRole('link', { name: 'Cài đặt bộ luật', exact: true }).click();
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.ruleSettings(project.id));
+        // The settings route is lazy: until its chunk renders, the router keeps the report mounted (transition), so a Back
+        // right after the URL change never left the screen and the session state survived (p06-rr: "Đã xử lý" count 1).
+        await expect(page.getByRole('heading', { name: 'Cài đặt bộ luật không gian', level: 2 })).toBeVisible(); // RuleSettings.tsx:263
         await page.goBack();
         await expect(reportHeading(page)).toBeVisible();
         await expect.soft(resolvedHeader(page)).toHaveCount(0);
@@ -1816,7 +1843,11 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
       const notFound = panel.getByText(/^Không tìm thấy đồ đạc .+ trong bản vẽ\.$/u);
       await test.step('[28V-B-004] ⚑ after a fix the same action is not offered again', async () => {
         await openClash(-1);
+        // The last OPEN row is still followed by the group's resolved rows, so the sheet would auto-advance into them (p06-rr:
+        // "fixed line stays" red, E06r_28V-04_fix4-after.json on a resolved row); keep it on the fixed row (28V-A-017) to check that row.
+        const keepHere = await armKeep(page);
         await fix(); // marker: PUT 200 answered
+        await keepHere.disarm();
         // F6 (useViolationDetail.ts:697, :1251): a deleted object is no longer offered, and "Đã sửa xong…" stays.
         await expect.soft(panel.getByText(FIXED_LINE), 'fixed line stays').toBeVisible();
         await expect.soft(deleteButton, 'no second action').toHaveCount(0);
