@@ -885,6 +885,37 @@ describe('QA-04c SCR-19', () => {
     }
   });
 
+  it('[19-A-011, BUG-722] xoá lần hai: toast gọi trục bằng nhãn đang hiện trên hàng, không bằng nhãn cũ trong kho', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['Date', 'setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame', 'performance'] });
+    const notifications = createNotificationBus();
+    const mounted = await mountSettled({ notifications });
+    const firstGroupRows = () => mounted.result.current.viewModel.groups.find((group) => group.rows.length > 0)?.rows ?? [];
+    const titles: string[] = [];
+    const shown: string[] = [];
+
+    for (let step = 0; step < 2; step += 1) {
+      const target = firstGroupRows()[0];
+
+      expect(target).toBeDefined();
+      shown.push(`Đã xoá trục ${target?.label ?? ''}.`);
+      await act(async () => {
+        mounted.result.current.onAxisRemove(target?.id ?? '');
+        await Promise.resolve();
+      });
+      await waitFor(() => {
+        expect(notifications.list()).toHaveLength(1);
+      });
+      titles.push(notifications.list()[0]?.title ?? '');
+      await act(async () => {
+        vi.advanceTimersByTime(9000); // UNDO_WINDOW_MS = 8000; same-type toasts merge within 5 s
+        await Promise.resolve();
+      });
+    }
+
+    // the rows relabel after the first delete (labelAxes), so the second click is on a row that SHOWS the first label again
+    expect(titles).toEqual(shown);
+  });
+
   it('[BUG-594] kéo một trục của bản xem trước: có tác dụng ngay, một bước hoàn tác', async () => {
     const mounted = await mountSettled({ floorId: sampleLevelId(0), gateway: previewGateway() });
     const target = rowsOf(mounted)[0];

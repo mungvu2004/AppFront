@@ -823,7 +823,8 @@ export function useAxisGridManager(
   const onAxisRemove = useCallback(
     (axisId: string) => {
       const axis = axisByRowId.get(axisId);
-      const label = axis?.label ?? labelledAxes.find((item) => axisRowId(item.axis.direction, item.label) === axisId)?.label;
+      // The label the row SHOWS (labelAxes relabels after a delete); the stored entity may still carry its old one (BUG-722).
+      const label = labelledAxes.find((item) => axisRowId(item.axis.direction, item.label) === axisId)?.label ?? axis?.label;
 
       if (label === undefined) {
         return;
