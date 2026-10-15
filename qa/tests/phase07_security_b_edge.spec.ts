@@ -159,6 +159,10 @@ test('SCR-33 · FL-33S-05 · 6th attempt in 900 s: real 429, lock 60 s, re-lock 
     await test.step('[33S-A-017] While locked, the fields stay editable and keep their values', async () => {
       const current = pwField(page, PW.current);
       await lockSnapshot(page, 'E07_33S-A-017_beforeType.json', writes.list(), realLockedAt); // caret + active element BEFORE the key
+      // RR evidence (beforeType: active = the status DIV, current.selStart 45; afterType: selStart 1, value "x"+wrong): pressSequentially on a field that is
+      // NOT focused makes Playwright reset the caret to 0 first. A user clicks into the field and presses End, so do the same: the x then lands at the end.
+      await current.click();
+      await current.press('End');
       await current.pressSequentially('x'); // UAA:379,653-658 isLocked gates submit only
       await lockSnapshot(page, 'E07_33S-A-017_afterType.json', writes.list(), realLockedAt); // selStart/selEnd/length AFTER: where did the x land
       await expect.soft(current).toHaveValue(`${wrong}x`);

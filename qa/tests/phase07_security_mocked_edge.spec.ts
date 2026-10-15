@@ -133,16 +133,18 @@ test('SCR-33 · FL-33S-08 · [mocked response] 5xx / network / 429 / 422 VALIDAT
       expect.soft(routed.hits() - before, 'one request, no client retry on 429').toBe(1);
     });
 
-    await test.step('[33S-C-011] Lock length is max(Retry-After, 900 s) (Q5): Retry-After 1000 opens at +1000 s', async () => {
+    // QA-07 S' decision: the HTTP client caps Retry-After at 120 s (src/lib/http/retry.ts:7 MAX_RETRY_AFTER_DELAY_MS) and the
+    // real BE sends 1..10 s (W9), so the lock is max(capped Retry-After, 900 s) = 900 s even for a mocked Retry-After 1000.
+    await test.step('[33S-C-011] Lock length is max(capped Retry-After, 900 s) (Q5): Retry-After 1000 still opens at +900 s', async () => {
       routed.once(respond(429, { code: 'RATE_LIMITED' }, { 'Retry-After': '1000' }));
       await pwSubmit(page).click(); // UAA:208,430-436
       await expect.soft(limited).toBeVisible();
       const lockedAt = await pageNow(page);
       await shot(page, 'C-011', 'mock');
-      await advanceTo(page, lockedAt, 998_000);
-      await expect.soft(pwSubmit(page), 'still locked at +998 s').toBeDisabled();
-      await advanceTo(page, lockedAt, 1_002_000);
-      await expect.soft(pwSubmit(page), 'open at +1000 s').toBeEnabled();
+      await advanceTo(page, lockedAt, 898_000);
+      await expect.soft(pwSubmit(page), 'still locked at +898 s').toBeDisabled();
+      await advanceTo(page, lockedAt, 902_000);
+      await expect.soft(pwSubmit(page), 'open at +900 s (Retry-After 1000 capped to 120 s)').toBeEnabled();
       await expect.soft(limited).toHaveCount(0);
     });
 

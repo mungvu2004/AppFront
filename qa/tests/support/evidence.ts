@@ -27,6 +27,25 @@ export function testEmail(slug: string): string {
   return `${TEST_DATA_PREFIX}${slug}-${unique}@${TEST_EMAIL_DOMAIN}`;
 }
 
+/**
+ * `--repeat-each` copies of one test run in parallel (RR: 4 workers): same evidence file (EBUSY), same pool user (429 buckets).
+ * `''` for copy 0 (RF and R1 keep today's names), `-rep<N>` for copy N > 0.
+ */
+export const repSuffix = (): string => {
+  const index = test.info().repeatEachIndex;
+  return index > 0 ? `-rep${String(index)}` : '';
+};
+/** `slot` + `-rep<N>`; a slot that already carries it (it went through another helper) is left alone. */
+export const repSlot = (slot: string): string => {
+  const suffix = repSuffix();
+  return suffix === '' || slot.endsWith(suffix) ? slot : `${slot}${suffix}`;
+};
+/** `<id>_<slug>.png` / `.json` → `<id>_<slug>-rep<N>.png` for copy N > 0. */
+export const repName = (name: string): string => {
+  const suffix = repSuffix();
+  return suffix === '' ? name : name.replace(/(\.[a-z]+)$/u, `${suffix}$1`);
+};
+
 const EVIDENCE_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]*\.png$/u;
 const JSON_EVIDENCE_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]*\.json$/u;
 const takenThisProcess = new Set<string>();
@@ -187,6 +206,7 @@ export async function captureEvidence(
   if (!EVIDENCE_NAME.test(name)) {
     throw new Error(`Evidence name "${name}" does not match the Master Matrix pattern (<id>_<slug>.png)`);
   }
+  name = repName(name); // repeat copy N > 0 shoots its own file (the pattern still holds: `-rep<N>` is [A-Za-z0-9_-])
   if (takenThisProcess.has(name)) {
     throw new Error(`Evidence "${name}" was already captured by another step in this run`);
   }

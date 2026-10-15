@@ -19,6 +19,7 @@ import type { APIRequestContext, APIResponse, BrowserContext, Locator, Page, Req
 import { ROUTES } from '../../../../e2e/fixtures/routes';
 import { waitForApi } from '../../../../e2e/fullstack/apiWatch';
 import { apiBaseUrl } from '../api';
+import { repSlot } from '../evidence';
 import { poolUser, signInPoolUser, type PoolRole, type PoolUser } from '../phase03Seed';
 
 /* ---------------------------------------------------------------- viewports */
@@ -249,7 +250,7 @@ export function accessTokenOf(json: unknown): string {
 }
 
 /** A pool user for `slot` (wraps `poolUser`; invites only on first use of the slot). */
-export const accountUser = (admin: APIRequestContext, slot: string, role: PoolRole = 'engineer'): Promise<PoolUser> => poolUser(admin, role, slot);
+export const accountUser = (admin: APIRequestContext, slot: string, role: PoolRole = 'engineer'): Promise<PoolUser> => poolUser(admin, role, repSlot(slot));
 
 /** Signs `user` in through the API inside `context` (wraps `signInPoolUser`; 1 login). */
 export const signInAccount = (context: BrowserContext, user: PoolUser): Promise<void> => signInPoolUser(context, user);

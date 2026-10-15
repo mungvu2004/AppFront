@@ -19,7 +19,7 @@ import { expect, test, type Locator, type Page, type Response } from '@playwrigh
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { waitForApi } from '../../e2e/fullstack/apiWatch';
-import { TEST_DATA_PREFIX } from './support/evidence';
+import { TEST_DATA_PREFIX, repSlot } from './support/evidence';
 import { signedInApi } from './support/api';
 import { poolUser } from './support/phase03Seed';
 import {
@@ -92,8 +92,8 @@ async function frame(page: Page): Promise<{ readonly vw: number; readonly vh: nu
 test('SCR-33 · FL-33P-U1 · page states: default, loading, e-mail reason, language list, save success, offline', async ({ browser }) => {
   test.setTimeout(Math.max(120_000, 2 * 100_000));
   const admin = await adminApi();
-  const viewer = await poolUser(admin, 'viewer', 'p07-profile-ui-v'); // PV (own slot: FL-33P-01 edits p07-profile-1 in parallel)
-  const editor = await poolUser(admin, 'engineer', 'p07-profile-ui'); // U-ui
+  const viewer = await poolUser(admin, 'viewer', repSlot('p07-profile-ui-v')); // PV (own slot: FL-33P-01 edits p07-profile-1 in parallel)
+  const editor = await poolUser(admin, 'engineer', repSlot('p07-profile-ui')); // U-ui
   await admin.dispose();
   const ro = await openUserSession(browser, viewer);
   const rw = await openUserSession(browser, editor);
@@ -244,7 +244,7 @@ test('SCR-33 · FL-33P-U1 · page states: default, loading, e-mail reason, langu
 test('SCR-33 · FL-33P-U2 · avatar states', async ({ browser }) => {
   test.setTimeout(Math.max(120_000, 2 * 90_000));
   const admin = await adminApi();
-  const user = await poolUser(admin, 'engineer', `p07-profile-uiav-${RUN}-r${test.info().retry}`); // FA: no avatar yet; retry needs a fresh user (avatar and bucket stay)
+  const user = await poolUser(admin, 'engineer', repSlot(`p07-profile-uiav-${RUN}-r${test.info().retry}`)); // FA: no avatar yet; retry needs a fresh user (avatar and bucket stay)
   await admin.dispose();
   const { context, page } = await openUserSession(browser, user);
   const api = await signedInApi(user.email, user.password);
@@ -390,7 +390,7 @@ test('SCR-33 · FL-33P-U3 · [mocked response] only in step 3 · long data, fiel
     throw new Error(`long data: name ${String(LONG_NAME.length)}, title ${String(LONG_JOB_TITLE.length)}, phone ${String(LONG_PHONE.length)}`);
   }
   const admin = await adminApi();
-  const user = await poolUser(admin, 'engineer', `p07-profile-long-${'x'.repeat(30)}`); // FL: e-mail local part ~60 chars
+  const user = await poolUser(admin, 'engineer', repSlot(`p07-profile-long-${'x'.repeat(30)}`)); // FL: e-mail local part ~60 chars
   await admin.dispose();
   const { context, page } = await openUserSession(browser, user);
   const api = await signedInApi(user.email, user.password);

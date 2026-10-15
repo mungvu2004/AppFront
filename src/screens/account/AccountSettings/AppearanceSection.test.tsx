@@ -101,6 +101,23 @@ describe('BUG-497, BUG-502 — khổ hẹp: nhãn trên điều khiển', () => 
   });
 });
 
+describe('BUG-499, 33R-F-004 — công tắc cùng tâm với nhãn', () => {
+  const SWITCHES = ['Dùng nền tối cho khung nhìn 3D', 'Giảm chuyển động', 'Hiện lưới 100 mm'];
+
+  // jsdom không đo được bố cục: số đo thật (dy <= 4 px) ở e2e/qa07/prefs.vite.spec.ts; đây chỉ giữ lớp `pt-2`.
+  it('cạnh nhau thì cả ba công tắc hạ xuống 8 px (pt-2), xếp dọc thì không', () => {
+    const { rerender } = render(<AppearanceSection {...props()} />);
+    for (const name of SWITCHES) {
+      expect(screen.getByRole('switch', { name }).parentElement).toHaveClass('pt-2');
+    }
+
+    rerender(<AppearanceSection {...props({ isStacked: true })} />);
+    for (const name of SWITCHES) {
+      expect(screen.getByRole('switch', { name }).parentElement).not.toHaveClass('pt-2');
+    }
+  });
+});
+
 describe('năm hàng của khối', () => {
   it('vẽ đủ năm nhãn, viết thường theo A6', () => {
     render(<AppearanceSection {...props()} />);

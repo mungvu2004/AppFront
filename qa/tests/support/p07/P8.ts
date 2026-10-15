@@ -11,7 +11,7 @@ import type { Browser, BrowserContext, Page, Route } from '@playwright/test';
 import { ROUTES } from '../../../../e2e/fixtures/routes';
 import { waitForApi } from '../../../../e2e/fullstack/apiWatch';
 import { apiBaseUrl, newApiContext, signedInApi } from '../api';
-import { captureEvidence } from '../evidence';
+import { captureEvidence, repSlot } from '../evidence';
 import { signInPoolUser, type PoolUser } from '../phase03Seed';
 import { DESKTOP, ME_RE, PASSWORD_API, PW, pwField, pwSubmit } from './account';
 
@@ -134,4 +134,4 @@ export async function designedAnswers(page: Page): Promise<{ once: (answer: Answ
 }
 
 /** Fixed pool slot (these users only touch the 900 s me_password bucket); suffix only on a retry, so a retry gets a fresh bucket. */
-export const slotOf = (base: string): string => (test.info().retry ? `${base}-r${test.info().retry}` : base);
+export const slotOf = (base: string): string => repSlot(test.info().retry ? `${base}-r${test.info().retry}` : base); // -rep<N>: parallel --repeat-each copies need their own user

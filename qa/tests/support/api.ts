@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import { request, test, type APIRequestContext, type APIResponse } from '@playwright/test';
 
-import { EVIDENCE_DIR } from './evidence';
+import { EVIDENCE_DIR, repName } from './evidence';
 
 /**
  * API layer (skill `qa-api-test`): talk to the real backend without a browser.
@@ -100,6 +100,7 @@ export async function captureExchange(
     capturedAt: new Date().toISOString(),
   };
   mkdirSync(EVIDENCE_DIR, { recursive: true });
+  name = repName(name); // --repeat-each copy N > 0 writes its own file (parallel copies would hit EBUSY)
   const path = join(EVIDENCE_DIR, name);
   writeFileSync(path, `${JSON.stringify(record, null, 2)}\n`);
   await test.info().attach(name, { path, contentType: 'application/json' });

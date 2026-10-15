@@ -8,7 +8,7 @@ import { expect, request, test, type APIRequestContext, type APIResponse } from 
 import { MeSchema } from '../../../../src/api/schemas/me';
 import { apiBaseUrl, captureExchange, newApiContext, signedInApi } from '../api';
 import { readAdminCredentials } from '../auth';
-import { TEST_DATA_PREFIX } from '../evidence';
+import { TEST_DATA_PREFIX, repSlot } from '../evidence';
 import { poolUser, type PoolRole, type PoolUser } from '../phase03Seed';
 import { Cleanup, note } from './meUsers';
 import { png } from './png';
@@ -135,7 +135,7 @@ export interface Session {
 
 /** Pool user `slot` signed in for real: `POST /api/auth/login` (204) + `POST /api/auth/refresh` (200, access token). 1 login. */
 export async function poolSession(admin: APIRequestContext, role: PoolRole, slot: string, cleanup: Cleanup): Promise<Session> {
-  const user = await poolUser(admin, role, slot);
+  const user = await poolUser(admin, role, repSlot(slot));
   const anon = await newApiContext();
   cleanup.add(() => anon.dispose());
   const login = await anon.post('/api/auth/login', { data: { email: user.email, password: user.password, rememberMe: false } });
