@@ -78,7 +78,7 @@ import {
   type OverlayScanSnapshot,
   type OverlayToleranceEvaluation,
 } from './overlayComparisonGateway';
-import { floorLayerReadFailureOf } from '../../qc/shared/floorLayerReadFailure';
+import { floorLayerReadFailureOf, floorMissingFailureOf } from '../../qc/shared/floorLayerReadFailure';
 import type {
   CompareModeId,
   ConfirmationViewModel,
@@ -670,22 +670,26 @@ export function useOverlayComparison(
   const hasLayerReadFailed = storeSpatial === null && layerQuery.isError;
   /* N16 404 (người ngoài dự án, tầng đã xoá): cả màn là một lối ra, không câu lỗi đọc chung (G45). */
   const refetchLayer = layerQuery.refetch;
+  /* Kho đã nạp (N15 của cổng về trước N16) mà không có tầng của route: cùng màn "tầng không còn" như N16 404,
+     không lặng lẽ rơi về tầng đầu của kho — câu trả lời không được phụ thuộc lượt đọc nào về trước (X4-A-036, BUG-326). */
   const readFailure = useMemo(
     () =>
-      hasLayerReadFailed && readWireError(layerQuery.error)?.status === 404
-        ? floorLayerReadFailureOf(
-            {
-              data: undefined,
-              error: layerQuery.error,
-              refetch: () => {
-                void refetchLayer();
+      isRouteFloorUnknown
+        ? floorMissingFailureOf(projectId, (path) => onNavigateRef.current?.(path))
+        : hasLayerReadFailed && readWireError(layerQuery.error)?.status === 404
+          ? floorLayerReadFailureOf(
+              {
+                data: undefined,
+                error: layerQuery.error,
+                refetch: () => {
+                  void refetchLayer();
+                },
               },
-            },
-            projectId,
-            (path) => onNavigateRef.current?.(path),
-          )
-        : null,
-    [hasLayerReadFailed, layerQuery.error, projectId, refetchLayer],
+              projectId,
+              (path) => onNavigateRef.current?.(path),
+            )
+          : null,
+    [hasLayerReadFailed, isRouteFloorUnknown, layerQuery.error, projectId, refetchLayer],
   );
 
   const state = useMemo<OverlayComparisonState>(() => {

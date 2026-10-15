@@ -38,6 +38,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createMockApiClient } from '@/api/__mocks__/client';
 import { PROJECT_NOT_FOUND_TITLE } from '@/components/feedback/ProjectSpatialGate';
+import { FLOOR_MISSING_TITLE } from '@/screens/qc/shared/floorLayerReadFailure';
 import { appShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createSampleBuilding, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
@@ -937,6 +938,15 @@ describe('[G45] người ngoài dự án mở thẳng SCR-22', () => {
     }
 
     expect(mounted.result.current.model.readFailure?.title).toBe(PROJECT_NOT_FOUND_TITLE);
+  });
+});
+
+describe('[X4-A-036 / BUG-326] mã tầng của route không có trong kho', () => {
+  it('kho đã có đồ thị (N15 về trước N16): vẫn là màn "Không mở được tầng này", không rơi về tầng đầu của kho', async () => {
+    const mounted = mountHook(await makeGateway(), { floorId: 'L-QAXMISSING' as LevelId });
+    await settle(mounted);
+
+    expect(mounted.result.current.model.readFailure?.title).toBe(FLOOR_MISSING_TITLE);
   });
 });
 
