@@ -471,7 +471,18 @@ export async function setBox(box: Locator, checked: boolean): Promise<void> {
 export async function downloadVia(page: Page, action: () => Promise<unknown>): Promise<Download> {
   const waiting = page.waitForEvent('download');
   await action();
-  return waiting;
+  const download = await waiting;
+  await relockPause(page);
+  return download;
+}
+
+/**
+ * useExportPanel.ts `EXPORT_RELOCK_MS` (250 ms, 30-C-029): after a run ends (done / cancelled / failed) a click on "Xuất" is
+ * ignored for a short guard window. The DOM shows no sign of it, so a test that clicks "Xuất" right after a run ended
+ * waits it out first (BUG-716 round: 4 reds, all this cause).
+ */
+export async function relockPause(page: Page): Promise<void> {
+  await page.waitForTimeout(350); // fixed-wait-ok: no DOM signal for the 250 ms re-export guard (EXPORT_RELOCK_MS)
 }
 
 /** Saves a download under `dir/name` and returns the path. */

@@ -310,6 +310,12 @@ test.describe('E06 SCR-32 version history — mocked-response flows (QA-06b P7)'
             if (/webgl/iu.test(String(args[0])) && sessionStorage.getItem('qa-no-webgl') === '1') return null;
             return Reflect.apply(original, this, args) as never;
           } as typeof original;
+          // the Pascal viewer tries WebGPU first: hide navigator.gpu too while the flag is set (as support/p05/viewer.ts disableWebGl)
+          const gpu = (navigator as unknown as { gpu?: unknown }).gpu;
+          Object.defineProperty(Navigator.prototype, 'gpu', {
+            get: () => (sessionStorage.getItem('qa-no-webgl') === '1' ? undefined : gpu),
+            configurable: true,
+          });
         });
         const baseSnapshot = mock.snapshot;
         const v1 = versionIdOf(1);
@@ -647,7 +653,7 @@ test.describe('E06 SCR-32 version history — mocked-response flows (QA-06b P7)'
 
         await test.step('[32-C-040] undo error, other code: fallback banner and a retry toast whose "Hoàn tác" retries', async () => {
           await restoreThenArmUndo(wireError(500, 'SOMETHING_NEW')); // the retry (second undo POST) falls through to the success answer
-          await undoButton().click();
+          await undoButton().dispatchEvent('click'); // as undoWith: r1 showed the toast button "not stable" / behind the closing dialog overlay for 30 s
           await expectNotice(VH.undoErrorTitle, 'Máy chủ chưa nhận lượt hoàn tác. Thử lại sau ít phút.'); // VHM:413, 423
           const retryToast = toast(page, VH.undoRetryToast); // UVH:396-403
           await expect.soft(retryToast).toBeVisible();

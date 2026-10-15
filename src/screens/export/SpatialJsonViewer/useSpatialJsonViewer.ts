@@ -88,6 +88,9 @@ export interface UseSpatialJsonViewerOptions {
 /** Câu của bộ đếm khi ô tìm kiếm không khớp hàng nào. */
 const NO_MATCH_LABEL = 'Không tìm thấy kết quả';
 
+/** Phản hồi sau khi chép nhánh (31-A-022). */
+const COPIED_NOTICE = 'Đã chép nhánh vào bộ nhớ tạm';
+
 /** Mô hình và hành động của S-36. */
 export type UseSpatialJsonViewerResult = readonly [SpatialJsonViewerModel, SpatialJsonViewerActions];
 
@@ -112,6 +115,7 @@ export function useSpatialJsonViewer(options: UseSpatialJsonViewerOptions): UseS
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [activeTabId, setActiveTabId] = useState<SpatialJsonTabId>('json');
   const [viewMode, setViewMode] = useState<SpatialJsonViewMode>('tree');
+  const [copyNotice, setCopyNotice] = useState<string | null>(null);
 
   const allNodes = useMemo(() => flattenJson(graph), [graph]);
   const rawText = useMemo(() => (graph === null ? '' : toRawText(graph)), [graph]);
@@ -286,8 +290,12 @@ export function useSpatialJsonViewer(options: UseSpatialJsonViewerOptions): UseS
 
     if (onCopy !== undefined) {
       onCopy(text);
+      setCopyNotice(COPIED_NOTICE);
     } else {
-      void navigator.clipboard?.writeText(text);
+      // Route không có Toast.Provider (BUG-719): phản hồi nằm ngay trong màn, chỉ báo khi ghi thành công.
+      void navigator.clipboard?.writeText(text).then(() => {
+        setCopyNotice(COPIED_NOTICE);
+      }, () => undefined);
     }
   }, [graph, onCopy, rawText, selectedNodeId]);
 
@@ -306,6 +314,7 @@ export function useSpatialJsonViewer(options: UseSpatialJsonViewerOptions): UseS
   const model: SpatialJsonViewerModel = {
     activeTabId,
     canDownload: canView && graph !== null && state !== 'empty',
+    copyNotice,
     counts,
     countsLabel: describeCounts(counts),
     errorMessage,

@@ -510,8 +510,9 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
 
   const actions = useMemo(
     (): VersionHistoryActions => ({
-      selectLeftVersion: (versionId) => setPickedPair((previous) => ({ ...(previous ?? pair), left: versionId })),
-      selectRightVersion: (versionId) => setPickedPair((previous) => ({ ...(previous ?? pair), right: versionId })),
+      // `pair` đã xếp theo sequence (bản cũ trái): ô "gốc"/"đối chiếu" nói về hai bên HIỂN THỊ, không về thứ tự đã tích.
+      selectLeftVersion: (versionId) => setPickedPair({ ...pair, left: versionId }),
+      selectRightVersion: (versionId) => setPickedPair({ ...pair, right: versionId }),
       toggleCompareSelection: (versionId) => setPickedPair((previous) => togglePick(previous ?? pair, versionId)),
       setTab: setActiveTab,
       hoverDiffRow: setHoveredEntityId,

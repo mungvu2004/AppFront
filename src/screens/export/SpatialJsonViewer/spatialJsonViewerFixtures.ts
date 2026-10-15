@@ -96,6 +96,7 @@ export function buildSpatialJsonViewerModel(state: SevenState): SpatialJsonViewe
   return {
     activeTabId: 'json',
     canDownload: true,
+    copyNotice: null,
     counts,
     countsLabel: describeCounts(counts),
     errorMessage:

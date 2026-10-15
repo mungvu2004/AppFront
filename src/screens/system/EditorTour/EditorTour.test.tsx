@@ -423,6 +423,28 @@ describe('B-V2-01 — neo của màn chủ xuất hiện muộn thì tour vẫn 
     });
     late.remove();
   });
+
+  it('[30-A-021] neo đổi chỗ sau khi hiện (nội dung màn chủ nạp muộn) ⇒ vùng neo đi theo neo, không đứng ở chỗ cũ', async () => {
+    const rect = { top: 10, left: 10, width: 40, height: 20 };
+    const resolveAnchor = (id: string) => (id === 'reviewWall' ? { ...rect } : null);
+
+    mountTour({ registry: createShortcutRegistry(), resolveAnchor, forcedState: 'partial', hasModel: true, hostId: 'viewer-shell' });
+    await waitFor(() => {
+      expect(tourProps().steps[0]?.anchorRect).toEqual({ top: 10, left: 10, width: 40, height: 20 });
+    });
+
+    rect.top = 300;
+    const extra = document.createElement('div');
+    await act(async () => {
+      document.body.append(extra);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(tourProps().steps[0]?.anchorRect?.top).toBe(300);
+    });
+    extra.remove();
+  });
 });
 
 /* -------------------------------------------------------------------------- */

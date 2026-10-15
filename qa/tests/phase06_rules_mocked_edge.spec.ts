@@ -296,11 +296,16 @@ test('SCR-28 · FL-28-M2 · [mocked response] Model read and save failures', asy
       const sheet = await openRuleSheet(page, projectId, RULE_NAME.furnitureClash);
       await sheet.getByRole('button', { name: RR.deleteAction, exact: true }).click();
       await expect.poll(() => attempts).toBeGreaterThanOrEqual(1);
+      // createAutosave.ts:167,182: the "offline" state needs navigator.onLine === false; an aborted fetch alone is a transient
+      // error (state "dirty", retry in 5 s). So the browser goes offline after the first abort and the 5 s retry sees it.
+      await context.setOffline(true);
+      await page.clock.fastForward(5_000); // retry ladder 5 s / 15 s / 45 s (useAutosave.ts)
       // autosaveMessages.offline (vi.json autosave.offline), rendered by the sheet header's save label
       await expect(sheet.getByText(RR.offline)).toBeVisible();
+      await context.setOffline(false);
       const first = attempts;
-      await page.clock.fastForward(5_000); // retry ladder 5 s / 15 s / 45 s (useAutosave.ts)
-      await expect.poll(() => attempts, { message: 'the second attempt after 5 s' }).toBeGreaterThan(first);
+      await page.clock.fastForward(5_000); // offline re-check every 5 s (createAutosave.ts OFFLINE_RECHECK_MS)
+      await expect.poll(() => attempts, { message: 'the next attempt after back online' }).toBeGreaterThan(first);
       await captureEvidence(page, 'E06r_28V-G-006_offline_retry.png');
     });
 

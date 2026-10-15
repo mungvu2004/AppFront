@@ -560,7 +560,10 @@ class ApplyFixError extends Error {
  * Tên luật chỉ có mặt khi sổ đăng ký biết mã ấy — không có tên thì câu ngắn đi
  * một vế chứ không để lại một chỗ trống.
  */
-const resolvedMessageOf = (ruleName: string | null): string =>
+const violationKeyOf = (item: Violation | undefined): string =>
+  item === undefined ? '' : `${item.ruleCode}|${item.entityId}`;
+
+const resolvedMessageOf =(ruleName: string | null): string =>
   ruleName === null
     ? 'Đã sửa xong; lượt chạy lại không còn báo lỗi trên đối tượng này.'
     : `Đã sửa xong; luật ${ruleName} chạy lại và không còn báo lỗi trên đối tượng này.`;
@@ -620,14 +623,37 @@ export function useViolationDetail(
   // Màn cha mở một vi phạm khác trên CÙNG một tấm trượt: đi theo nó. So bằng
   // `initialIndex` chứ không bằng `index`, nên một lượt duyệt `J`/`K` của người
   // dùng không bị kéo ngược về chỗ cũ mỗi lần cha render lại.
-  const openedAtRef = useRef(initialIndex);
+  //
+  // 28V-A-016: cha giữ HÀNG MỞ LÚC ĐẦU, nên khi báo cáo chạy lại và sắp xếp lại
+  // (hàng vừa xử lý xuống cuối), `initialIndex` đổi dù cha không mở hàng nào khác.
+  // Phân biệt bằng khoá của hàng: khoá đổi → cha mở hàng khác; khoá giữ → chỉ là
+  // sắp xếp lại, tấm trượt đi theo vi phạm nó đang hiển thị.
+  const openedKeyRef = useRef(violationKeyOf(violations[initialIndex]));
+  const shownKeyRef = useRef(violationKeyOf(violations[initialIndex]));
+
+  // Khai báo TRƯỚC hiệu ứng bên dưới: cùng một lượt commit mà `index` đổi (J/K, tự
+  // chuyển) thì khoá đã mới trước khi hiệu ứng tìm lại vị trí chạy.
+  useEffect(() => {
+    shownKeyRef.current = violationKeyOf(violations[index]);
+    // Chỉ khi `index` đổi: đổi danh sách thì giữ khoá cũ để tìm lại vị trí mới.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
 
   useEffect(() => {
-    if (openedAtRef.current !== initialIndex) {
-      openedAtRef.current = initialIndex;
+    const openedKey = violationKeyOf(violations[initialIndex]);
+
+    if (openedKeyRef.current !== openedKey) {
+      openedKeyRef.current = openedKey;
       setIndex(initialIndex);
+      return;
     }
-  }, [initialIndex]);
+
+    const moved = violations.findIndex((item) => violationKeyOf(item) === shownKeyRef.current);
+
+    if (moved !== -1) {
+      setIndex(moved);
+    }
+  }, [initialIndex, violations]);
 
   const violation = violations[index] ?? null;
   const rule = violation === null ? null : registry.get(violation.ruleCode);

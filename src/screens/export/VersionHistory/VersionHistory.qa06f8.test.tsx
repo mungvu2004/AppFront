@@ -101,6 +101,29 @@ describe('QA-06b F8 — màn Phiên bản', () => {
     expect(document.activeElement?.closest('.sticky')).not.toBeNull();
   });
 
+  it('32-A-012: chọn "Phiên bản đối chiếu" đổi bản bên phải HIỂN THỊ, dù cặp được tích theo thứ tự ngược', async () => {
+    const server = createVersionsServerFake();
+    const api = createApiClient(server.http);
+    const gateway = createVersionHistoryGateway({ apiClient: api, floorId: WIRE_FLOOR_ID, projectId: WIRE_PROJECT_ID });
+    const client = createTestQueryClient();
+    const { result } = renderHook(
+      () => useVersionHistory({ apiClient: api, canRestore: true, floorId: WIRE_FLOOR_ID, gateway, projectId: WIRE_PROJECT_ID }),
+      { wrapper: ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider> },
+    );
+    await waitFor(() => expect(result.current[0].compare.rightVersionId).toBe(WIRE_VERSION_IDS.v3));
+    const toggle = (id: string) => act(() => result.current[1].toggleCompareSelection(id));
+    toggle(WIRE_VERSION_IDS.v2);
+    toggle(WIRE_VERSION_IDS.v3);
+    toggle(WIRE_VERSION_IDS.v3); // bản mới tích TRƯỚC, bản cũ tích sau: cặp lưu ngược thứ tự
+    toggle(WIRE_VERSION_IDS.v1);
+    await waitFor(() => expect(result.current[0].compare.leftVersionId).toBe(WIRE_VERSION_IDS.v1));
+
+    act(() => result.current[1].selectRightVersion(WIRE_VERSION_IDS.v2));
+
+    expect(result.current[0].compare.leftVersionId).toBe(WIRE_VERSION_IDS.v1);
+    expect(result.current[0].compare.rightVersionId).toBe(WIRE_VERSION_IDS.v2);
+  });
+
   it('32-C-046: gỡ nhãn ở bản chưa có nhãn không bật toast "Đã gỡ nhãn"; bản có nhãn thì có', async () => {
     const server = createVersionsServerFake();
     const api = createApiClient(server.http);

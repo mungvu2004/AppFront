@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -189,6 +190,43 @@ describe('QA-06b F6 — kết quả sửa thuộc đúng vi phạm vừa sửa',
       { timeout: 2000 },
     );
     expect(within(panel()).queryByText(/^Đã sửa xong/u)).toBeNull();
+  });
+
+  it('28V-A-016: báo cáo sắp xếp lại sau lượt sửa thì tấm trượt vẫn ở vi phạm đã chuyển tới', async () => {
+    const first = VIOLATION as NonNullable<typeof VIOLATION>;
+    const second = SECOND as NonNullable<typeof SECOND>;
+    // Cha giữ hàng mở lúc đầu (như RuleReport.container): đổi thứ tự chỉ đổi `initialIndex`.
+    function Reorderable() {
+      const [reordered, setReordered] = useState(false);
+      const list = reordered ? [second, first] : [first, second];
+      const props = useViolationDetail({
+        floorId: FLOOR_ID,
+        initialIndex: list.indexOf(first),
+        onClose: () => undefined,
+        projectId: PROJECT,
+        canEdit: true,
+        seed: { apiClient: createMockApiClient() },
+        violations: list,
+      });
+      return (
+        <>
+          <button onClick={() => setReordered(true)} type="button">
+            sắp lại
+          </button>
+          <ViolationDetail {...props} />
+        </>
+      );
+    }
+    renderWithProviders(<Reorderable />);
+    await act(async () => {
+      await vi.dynamicImportSettled();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Vi phạm kế tiếp' }));
+    expect(within(panel()).getByRole('heading', { level: 2 })).toHaveTextContent(second.message);
+
+    fireEvent.click(screen.getByRole('button', { name: 'sắp lại' }));
+
+    expect(within(panel()).getByRole('heading', { level: 2 })).toHaveTextContent(second.message);
   });
 
   it('28V-C-005: hoàn tác từ toast làm mới báo cáo luật', async () => {

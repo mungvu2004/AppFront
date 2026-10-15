@@ -260,6 +260,8 @@ test.describe('SCR-29 Rule Settings · edge (mocked responses)', () => {
         return route.fallback();
       });
       await openSettings(page, id);
+      // the app announcer keeps a hidden role="alert" region on every page (announcer.ts): count the screen's own alerts only
+      const screenAlerts = () => page.getByRole('alert').and(page.locator(':not([data-announcer])'));
       let duringRetry = -1;
       let held: { baseVersion: unknown; body: Record<string, unknown> } = { baseVersion: undefined, body: {} };
 
@@ -309,7 +311,7 @@ test.describe('SCR-29 Rule Settings · edge (mocked responses)', () => {
         await ruleSwitch(page, DOOR_WIDTH.name).click();
         await expect.poll(() => served503, { timeout: 30_000 }).toBe(RETRY_DELAYS_MS.length + 1);
         await expect(indicator(page)).toHaveText(RS.dirty);
-        duringRetry = await page.getByRole('alert').count();
+        duringRetry = await screenAlerts().count();
         await shot(page, '29-B-018', 'transient_dirty');
         expect((await ok).response.status()).toBe(200); // the 5 s retry reaches the real server
         await expect.soft(indicator(page)).toHaveText(RS.savedAt);
@@ -318,7 +320,7 @@ test.describe('SCR-29 Rule Settings · edge (mocked responses)', () => {
       await test.step('[29-G-013] cùng lượt 503: không alert lỗi vĩnh viễn trong lúc thử lại', async () => {
         // URS:589 sets the save problem for every error, a transient one included → the screen says "Chưa lưu được bộ luật…" while it retries.
         expect.soft(duringRetry, 'alerts on screen while the autosave was retrying').toBe(0);
-        await expect.soft(page.getByRole('alert')).toHaveCount(0);
+        await expect.soft(screenAlerts()).toHaveCount(0);
         await shot(page, '29-G-013', 'no_permanent_alert');
       });
     });

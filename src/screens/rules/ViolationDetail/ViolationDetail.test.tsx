@@ -614,6 +614,12 @@ describe('trạng thái 7 "Thu gọn": canvas nhỏ vắng mặt', () => {
 
     expect(screen.getByText(/Chưa có cách sửa tự động nào cho vi phạm này/u)).toBeInTheDocument();
   });
+
+  it('[28V-A-014] state=collapsed sau lượt sửa đạt: câu "Đã sửa xong" vẫn hiện', () => {
+    renderView({ ...loadedProps(SUCCESS_ARGS), state: 'collapsed', resolvedMessage: 'Đã sửa xong; luật X chạy lại.' });
+
+    expect(screen.getByText('Đã sửa xong; luật X chạy lại.')).toBeInTheDocument();
+  });
 });
 
 /* ==========================================================================

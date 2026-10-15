@@ -141,6 +141,8 @@ export interface SpatialJsonViewerModel {
   readonly forbiddenMessage: string | null;
   /** Nút "Tải xuống .json" chỉ hiện khi nơi gọi cấp đường sang S-34. */
   readonly canDownload: boolean;
+  /** Dòng phản hồi sau "Sao chép nhánh"; `null` khi chưa chép. */
+  readonly copyNotice: string | null;
 }
 
 /** Mọi thứ người dùng bấm được. Không hành động nào sửa dữ liệu. */

@@ -47,6 +47,7 @@ import {
   preflightRow,
   projectRe,
   region,
+  relockPause,
   ruleConfigRe,
   scopeBox,
   seedQc,
@@ -140,6 +141,7 @@ test.describe('SCR-30 Bảng xuất — mocked responses', () => {
         const afterCancel = await focusInfo(page);
         expect.soft(afterCancel.inside, `focus after "Huỷ" is inside the panel (was <${afterCancel.tag}>)`).toBe(true);
         await shot(page, '30-E-013', 'focus_after_swap', `after Xuất: <${focusAfterExport.tag}> · after Huỷ: <${afterCancel.tag}>`);
+        await relockPause(page); // the run just ended: "Xuất" is guarded for 250 ms
         await exportButton(page).click(); // a new stalled run for the next steps
         await expect(footer(page).getByRole('progressbar')).toBeVisible();
       });
@@ -158,6 +160,7 @@ test.describe('SCR-30 Bảng xuất — mocked responses', () => {
       });
 
       await test.step('[30-A-018] after "Huỷ", "Xuất" runs a fresh export to the end', async () => {
+        await relockPause(page); // "Huỷ" just ended the run
         await setGlbWorkerMode(page, 'real'); // the next Worker is the real one
         const download = await downloadVia(page, () => exportButton(page).click());
         expect.soft(download.suggestedFilename()).toMatch(exportNameRe(fileSlug(project.name), 'glb', 'T0'));

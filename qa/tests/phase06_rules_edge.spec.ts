@@ -1139,10 +1139,14 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
           await page.setViewportSize({ width: 1440, height: 900 });
           await expect.soft(sheet(page)).toHaveClass(/right-0/u);
           await expandAll(page);
-          const scroller = page.locator('div.flex.h-full.flex-col.overflow-y-auto');
-          const scrolled = await scroller.evaluate((element) => {
-            element.scrollTop = 120;
-            return element.scrollTop;
+          // The report's own box (RuleReport.tsx:282) only scrolls when its ancestors give it a height; under ScreenMain
+          // (`display: contents`, router.tsx) the document scrolls instead. Scroll the nearest box that really overflows.
+          const scrolled = await reportHeading(page).evaluate((heading) => {
+            let box: Element | null = heading.parentElement;
+            while (box !== null && !(box.scrollHeight > box.clientHeight + 120 && /auto|scroll/u.test(getComputedStyle(box).overflowY))) box = box.parentElement;
+            const target = box ?? document.scrollingElement ?? document.documentElement;
+            target.scrollTop = 120;
+            return target.scrollTop;
           });
           expect.soft(scrolled, 'report scrollTop').toBeGreaterThan(0);
           const other = rowMessage(rowsOf(ruleSection(page, RULE_NAMES.wallThickness)).first());
@@ -1189,7 +1193,7 @@ async function armKeep(page: Page): Promise<{ kept: () => Promise<boolean>; disa
     const w = window as unknown as { __p06keep?: { kept: boolean; observer: MutationObserver } };
     const state = { kept: false, observer: new MutationObserver(() => undefined) };
     state.observer = new MutationObserver(() => {
-      const button = Array.from(document.querySelectorAll('button')).find((item) => item.textContent === label);
+      const button = Array.from(document.querySelectorAll('button')).find((item) => (item.textContent ?? '').includes(label)); // the button may carry an icon / extra text: match like watchText
       if (button !== undefined) {
         state.kept = true;
         button.click();
@@ -1621,6 +1625,9 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
       });
 
       await test.step('[28-A-041] settings and Back drop the resolved section', async () => {
+        // The open sheet (aside, absolute) covers the link in the header: close it first (Escape closes, 28V-A-021).
+        await page.keyboard.press('Escape');
+        await expect(panel).toHaveCount(0);
         await page.getByRole('link', { name: 'Cài đặt bộ luật', exact: true }).click();
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.ruleSettings(project.id));
         await page.goBack();
@@ -1786,8 +1793,7 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
       });
 
       await test.step('[28V-G-003] another session wrote the floor: PUT 409, "Lưu thất bại", no "Tải lại"', async () => {
-        const section = ruleSection(page, clashName);
-        await openSheet(page, rowsOf(section).first());
+        await openFirstRowOf(page, clashName); // the group is collapsed after the rename step: expand it first
         await writeElsewhere();
         const answered = waitForApi(page, 'PUT', layerPutRe, [409]);
         await deleteButton.click();

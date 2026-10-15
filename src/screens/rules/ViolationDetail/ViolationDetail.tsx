@@ -206,7 +206,7 @@ function ViolationDetailNotices({ hasActions, props }: NoticesProps) {
         <InlineAlert level="violation" message={props.errorMessage} />
       ) : null}
 
-      {props.state === 'success' && props.resolvedMessage !== null ? (
+      {(props.state === 'success' || props.state === 'collapsed') && props.resolvedMessage !== null ? (
         <p className="rounded-[8px] bg-bg-sunken p-3 text-sm text-text-secondary">
           {props.resolvedMessage}
         </p>

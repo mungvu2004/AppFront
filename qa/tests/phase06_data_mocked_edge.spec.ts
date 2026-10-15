@@ -153,6 +153,8 @@ test.describe('E06d SCR-31 Spatial JSON Viewer [mocked response]', () => {
       const failedRefetch = waitForApi(page, 'GET', spatialRe(project.id), [500]);
       await spaNavigate(page, versionsPath);
       await expect.poll(() => new URL(page.url()).pathname).toBe(versionsPath);
+      // spaNavigate only changes the URL (lazy route + Suspense): wait until the data screen is really unmounted, else the hop back never remounts the gate and N15 is not read again
+      await expect(page.getByRole('textbox', { name: SJ.search, exact: true })).toHaveCount(0);
       await spaNavigate(page, ROUTES.project.data(project.id)); // S5-confirm: remounting the gate refetches N15 (staleTime 0, UPS:98-102)
       await failedRefetch;
       const refreshAlert = page.getByText(SJ.refreshFailed, { exact: true });

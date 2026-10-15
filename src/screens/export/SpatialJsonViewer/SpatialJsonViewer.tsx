@@ -170,6 +170,12 @@ export function SpatialJsonViewer({ actions, model }: SpatialJsonViewerProps) {
         />
       </header>
 
+      {model.copyNotice === null ? null : (
+        <p role="status" className="shrink-0 px-5 pb-2 text-[13px] leading-[18px] text-text-secondary">
+          {model.copyNotice}
+        </p>
+      )}
+
       {/* Chưa có dữ liệu thì chưa có gì để kiểm: "hợp lệ — 0 lỗi" lúc ấy là nói thừa (B-V12-07). */}
       {model.state === 'empty' || model.state === 'loading' ? null : (
         <div className="flex shrink-0 items-center gap-2 px-5 pb-3">
