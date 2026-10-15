@@ -197,6 +197,7 @@ const COPY = {
   scopeAllFloors: 'Áp cho mọi tầng',
   scopeThisFloor: 'Chỉ áp cho tầng này',
   shortcutCancelDrag: 'Huỷ đoạn đang kéo',
+  shortcutUndoApplying: 'Hoàn tác lần áp đang gửi',
   shortcutRemeasure: 'Đo lại',
   shortcutConfirm: 'Xác nhận',
   shortcutNudgeFine: 'Nhích đầu đoạn một pixel',
@@ -1279,6 +1280,9 @@ export function useScaleCalibration(
   const proposedRatioRef = useRef(proposedRatio);
   proposedRatioRef.current = proposedRatio;
 
+  /** Ctrl+Z bấm khi lượt áp còn đang gửi (BUG-725) — `commitSaved` hoàn tác chính lượt ấy. */
+  const undoWhileApplyingRef = useRef(false);
+
   /**
    * Đã gửi xong: ghi tỷ lệ vào kho bằng MỘT `commit` (một bước hoàn tác, toast A8) cho
    * những tầng máy chủ đã nhận. Mốc của nhánh hoàn tác đặt TRƯỚC `commit`, để lượt
@@ -1298,8 +1302,18 @@ export function useScaleCalibration(
       }
     }
 
+    const undoRequested = undoWhileApplyingRef.current;
+    undoWhileApplyingRef.current = false;
+
     if (patches.length > 0) {
       const { undo } = commit(patches, COPY.applyCommitLabel);
+
+      // BUG-725: Ctrl+Z pressed while this apply was in flight undoes THIS apply; the undo's autosave sends the
+      // compensating PUT, so screen and server agree.
+      if (undoRequested) {
+        undo();
+        return;
+      }
 
       // A8: the toast "Hoàn tác" of the real route tree is `NotificationHost` (main.tsx), which draws the session
       // bus only; `Toast.Provider`'s `useUndoableToast` bridge is not mounted there (14-A-026), so publish it here.
@@ -1340,6 +1354,7 @@ export function useScaleCalibration(
     }
 
     setApplyNotice(null);
+    undoWhileApplyingRef.current = false;
     setApplying(true);
 
     if (applyScopeRef.current === 'allFloors') {
@@ -1386,6 +1401,7 @@ export function useScaleCalibration(
     const { ratio, targets } = allFloors;
 
     setAllFloors(null);
+    undoWhileApplyingRef.current = false;
     setApplying(true);
 
     void (async () => {
@@ -1447,6 +1463,20 @@ export function useScaleCalibration(
     description: COPY.shortcutCancelDrag,
     onTrigger: onCancelDrag,
   });
+  // BUG-725: while an apply is in flight, Ctrl+Z belongs to that apply (canvas scope outranks `global.undo`, which
+  // would otherwise undo an older step and leave screen and server on different ratios).
+  useShortcut(
+    {
+      id: 'scaleCalibration.undoApplying',
+      combo: 'Ctrl+Z',
+      scope: 'canvas',
+      description: COPY.shortcutUndoApplying,
+      onTrigger: () => {
+        undoWhileApplyingRef.current = true;
+      },
+    },
+    { enabled: isApplying },
+  );
   useShortcut({
     id: 'scaleCalibration.remeasure',
     combo: 'R',
