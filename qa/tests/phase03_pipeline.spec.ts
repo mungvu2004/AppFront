@@ -343,10 +343,8 @@ test.describe('SCR-09 Floor Manager', () => {
   });
 
   test('SCR-09 middle row <tr> Alt+ArrowUp → PATCH /api/floors/reorder; Mod+Z restores', async () => {
-    // The .state project is reused across runs (each replay of "Thêm tầng" adds two floors): count the rows that are there,
-    // a fresh chain has 6 (phase 04 RF 2026-10-15 replayed it with 10).
     const before = await floorRowNames(page);
-    expect(before.length, 'floor rows (a middle row needs 3+)').toBeGreaterThanOrEqual(6);
+    expect(before).toHaveLength(6);
     const middleIndex = 2;
     const middleName = before[middleIndex];
     const aboveName = before[middleIndex - 1];
@@ -357,7 +355,7 @@ test.describe('SCR-09 Floor Manager', () => {
     await page.keyboard.press('Alt+ArrowUp');
     const { response } = await first;
     const floorIds = asRecord(response.request().postDataJSON() as unknown, 'PATCH reorder request').floorIds;
-    expect(Array.isArray(floorIds) ? floorIds.length : -1, 'reorder body floorIds = every floor row').toBe(before.length);
+    expect(Array.isArray(floorIds) ? floorIds.length : -1, 'reorder body floorIds').toBe(6);
     const swapped = [...before];
     swapped[middleIndex - 1] = middleName;
     swapped[middleIndex] = aboveName;
