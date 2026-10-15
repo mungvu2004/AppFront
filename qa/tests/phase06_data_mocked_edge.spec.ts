@@ -41,6 +41,7 @@ import {
   validityLine,
   withAdmin,
 } from './support/p06/data';
+import { heading as versionsHeading } from './support/p06/versionMocks';
 
 const softly = expect.configure({ soft: true });
 const ev = (page: Page, id: string, slug: string): Promise<string> => captureEvidence(page, `E06d_${id}_${slug}.png`);
@@ -155,6 +156,8 @@ test.describe('E06d SCR-31 Spatial JSON Viewer [mocked response]', () => {
       await expect.poll(() => new URL(page.url()).pathname).toBe(versionsPath);
       // spaNavigate only changes the URL (lazy route + Suspense): wait until the data screen is really unmounted, else the hop back never remounts the gate and N15 is not read again
       await expect(page.getByRole('textbox', { name: SJ.search, exact: true })).toHaveCount(0);
+      // BUG-727 rr evidence: the data screen was found hidden (Suspense), not unmounted -> the hop back reused it, zero requests. Count 0 also holds for a hidden tree, so wait for the versions heading = the route really replaced
+      await expect(versionsHeading(page)).toBeVisible();
       // BUG-727 evidence round: every /api request since the mark + the URL / mounted screen around the hop (attached even when the wait below times out)
       const sinceMark: string[] = [];
       const onRequest = (request: { method(): string; url(): string }): void => {

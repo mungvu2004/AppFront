@@ -924,3 +924,30 @@ describe('NO-208 — vị trí chip do màn chủ truyền', () => {
     expect(chipWrapper()?.className).not.toContain('bottom-[16px]');
   });
 });
+
+describe('BUG-716: the card plus its dots row must not cover the anchor (placement top)', () => {
+  it('[30-A-021] frame bottom sits GAP above the anchor, dots row included', () => {
+    const anchor: TourRect = { top: 848, left: 1354, width: 61, height: 36 };
+    const SECTION_H = 200;
+    const DOTS_H = 32; // 24px row + 8px margin
+    const original = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function mocked(this: Element): DOMRect {
+      const height =
+        this.tagName === 'SECTION' ? SECTION_H : this.querySelector('section') !== null ? SECTION_H + DOTS_H : 0;
+      return { top: 0, left: 0, right: 320, bottom: height, width: 320, height, x: 0, y: 0, toJSON: noop } as DOMRect;
+    };
+    window.innerHeight = 900;
+    window.innerWidth = 1440;
+    try {
+      const step: TourStepView = { ...buildStep('exportResult'), anchorRect: anchor, placement: 'top' };
+      const { container } = render(
+        <EditorTour {...baseProps({ steps: [step], activeIndex: 0, cutout: anchor })} />,
+      );
+      const frame = container.querySelector('section')?.parentElement as HTMLElement;
+      const bottom = Number.parseFloat(frame.style.top) + SECTION_H + DOTS_H;
+      expect(bottom).toBeLessThanOrEqual(anchor.top);
+    } finally {
+      Element.prototype.getBoundingClientRect = original;
+    }
+  });
+});

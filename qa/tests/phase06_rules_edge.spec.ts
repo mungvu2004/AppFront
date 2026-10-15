@@ -1702,6 +1702,9 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
       let fixNo = 0;
       const fix = async (): Promise<void> => {
         fixNo += 1;
+        // notificationBus.ts:8 (DEFAULT_GROUP_WINDOW_MS = 5000, :83-84): toasts of one type published inside 5 s fold into ONE toast whose
+        // "Hoàn tác" undoes every grouped change. One fix per toast is what 28V-A-023/C-006 mean, so jump the clock past the group window.
+        if (fixNo > 1) await page.clock.fastForward(5_100);
         await snap(page, `E06r_28V-04_fix${String(fixNo)}-before.json`, { putLog: puts.map((p) => ({ ...p })), furniture: await furnitureCount() });
         const answered = waitForApi(page, 'PUT', layerPutRe, [200]);
         await deleteButton.click();
@@ -1737,7 +1740,7 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
       await test.step('[28V-A-023] "Hoàn tác" in the toast brings the table back', async () => {
         await snap(page, 'E06r_28V-04_undo-before.json', { afterFix, putLog: puts.map((p) => ({ ...p })), furniture: await furnitureCount() });
         const answered = waitForApi(page, 'PUT', layerPutRe, [200, 409, 422]);
-        await undoButton.last().click();
+        await undoButton.first().click(); // NotificationHost.tsx: newest toast first (reverse order)
         const undoAnswer = await answered;
         await snap(page, 'E06r_28V-04_undo-after.json', {
           afterFix,
@@ -1947,7 +1950,7 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         await shot(page, '28V-B-003', 'no_figure');
       });
 
-      await test.step('[28V-C-008] the save uses the floor chosen in the shell, else the own floor of the row', async () => {
+      await test.step('[28V-C-008] the save goes to the floor of the edited object; the chosen floor only feeds the sheet floor', async () => {
         await openSheet(page, rowsOf(await expandRule(page, RULE_NAMES.furnitureClash)).first());
         let answered = waitForApi(page, 'PUT', layerPutRe, [200]);
         await panel.getByRole('button', { name: DELETE_ACTION }).click();
@@ -1985,7 +1988,11 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
           putLog: puts.map((p) => ({ ...p })),
         });
         expect.soft(puts.length, 'a PUT went out').toBeGreaterThan(before);
-        expect.soft(puts.at(-1)?.path, 'a floor chosen in the shell: the save uses it').toBe(layerPathOf(project.id, floorOf(project, 1).id));
+        // Expectation changed (QA-06 v3 decision, BUG-731): the PUT goes to the floor of the EDITED object (useAutosave.ts:440-447
+        // changedLevelIds); the clashing table of the first row is on Tầng 1 (RR png E06r_28V-C-008_floor_source), so writing it into
+        // the chosen Tầng 2 would be wrong data. The chosen floor feeds the sheet floor (block label, rerun) - vitest
+        // projectHydration.test.ts [28V-C-008] keeps it across the hop.
+        expect.soft(puts.at(-1)?.path, 'another floor chosen in the shell: the save still goes to the floor of the edited object').toBe(layerPathOf(project.id, floorOf(project).id));
         await shot(page, '28V-C-008', 'floor_source');
       });
     });

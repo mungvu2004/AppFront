@@ -142,7 +142,9 @@ export function EditorTour(props: EditorTourProps) {
   } = props;
 
   const titleId = useId();
-  const cardRef = useRef<HTMLElement | null>(null);
+  /* Ref của KHUNG (thẻ + hàng chấm), không phải riêng thẻ: hàng chấm cao thêm 32px
+     dưới thẻ, đo thiếu thì thẻ đặt "trên" neo lại đè lên neo (BUG-716). */
+  const cardRef = useRef<HTMLDivElement | null>(null);
 
   /* Đo lại chiều cao thẻ: trạng thái thuần trình bày, không phải dữ liệu máy
      chủ. Thẻ đứng trên neo thì phải biết mình cao bao nhiêu mới đặt được mép. */
@@ -274,9 +276,8 @@ export function EditorTour(props: EditorTourProps) {
       )}
 
       {showsCard && (
-        <div className="fixed" style={framePosition}>
+        <div ref={cardRef} className="fixed" style={framePosition}>
           <section
-            ref={cardRef}
             aria-labelledby={titleId}
             className={`pointer-events-auto relative border-border-default bg-bg-surface p-[20px] shadow-float ${cardShape}`}
             style={cardStyle}

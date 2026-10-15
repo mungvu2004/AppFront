@@ -785,8 +785,24 @@ export function useViolationDetail(
     projectId,
     ...(gateway.apiClient !== undefined ? { apiClient: gateway.apiClient } : {}),
   });
-  const saveIndicator = useSaveIndicator(autosave);
   const blockMessage = saveBlock?.message ?? null;
+  /* BUG-732: vùng assertive chỉ giữ MỘT câu. Khi tầng bị chặn, câu "Lưu thất bại…" chung của chỉ báo
+     (cùng lượt, cùng ms) đè mất câu của ống; chip vẫn hiện nhãn chung, còn trình đọc chỉ nghe câu của ống. */
+  const blockMessageRef = useRef(blockMessage);
+
+  blockMessageRef.current = blockMessage;
+
+  const indicatorAnnouncer = useMemo(
+    () => ({
+      announce: (message: string, urgency?: 'polite' | 'assertive'): void => {
+        if (urgency === 'assertive' && blockMessageRef.current !== null) return;
+        getAppAnnouncer().announce(message, urgency);
+      },
+      destroy: (): void => undefined,
+    }),
+    [],
+  );
+  const saveIndicator = useSaveIndicator(autosave, { announcer: indicatorAnnouncer });
 
   useEffect(() => {
     if (blockMessage !== null) {
@@ -933,6 +949,9 @@ export function useViolationDetail(
   });
 
   const { mutate } = mutation;
+  const nextKeyRef = useRef('');
+  const latestViolationsRef = useRef(violations);
+  latestViolationsRef.current = violations;
 
   const onAction = useCallback(
     (kind: ViolationActionKind): void => {
@@ -944,13 +963,16 @@ export function useViolationDetail(
         return;
       }
 
+      // 28V-A-016: "kế tiếp" là hàng đứng sau hàng này LÚC BẤM. Sau lượt sửa báo cáo đẩy
+      // hàng đã xử lý xuống cuối nhóm, nên `index + 1` lúc ấy không còn là hàng đó.
+      nextKeyRef.current = violationKeyOf(violations[index + 1]);
       mutate({
         kind,
         entityId: violation.entityId,
         ruleCode: violation.ruleCode,
       });
     },
-    [actions, capabilities.canEdit, mutate, violation],
+    [actions, capabilities.canEdit, index, mutate, violation, violations],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -1009,13 +1031,13 @@ export function useViolationDetail(
   const submittedAt = mutation.submittedAt;
 
   useEffect(() => {
-    if (!resolved || !hasNext || advancedForRef.current === submittedAt) {
+    if (!resolved || nextKeyRef.current === '' || advancedForRef.current === submittedAt) {
       return;
     }
 
     advancedForRef.current = submittedAt;
     setIsAdvancing(true);
-  }, [hasNext, resolved, submittedAt]);
+  }, [resolved, submittedAt]);
 
   useEffect(() => {
     if (!isAdvancing) {
@@ -1026,7 +1048,9 @@ export function useViolationDetail(
     // của "màn hình vừa đổi thành cái khác" — đúng việc đang xảy ra ở đây.
     const timer = window.setTimeout(() => {
       setIsAdvancing(false);
-      setIndex((current) => Math.min(violations.length - 1, current + 1));
+      // Sang hàng đã ghi lúc bấm (theo khoá, không theo vị trí đã bị sắp xếp lại).
+      const target = latestViolationsRef.current.findIndex((item) => violationKeyOf(item) === nextKeyRef.current);
+      setIndex((current) => (target === -1 ? Math.min(violations.length - 1, current + 1) : target));
     }, MOTION_DURATIONS_MS.slow);
 
     return (): void => {
