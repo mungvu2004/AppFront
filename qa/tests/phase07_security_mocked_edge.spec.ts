@@ -123,24 +123,26 @@ test('SCR-33 · FL-33S-08 · [mocked response] 5xx / network / 429 / 422 VALIDAT
       await expect.soft(pwSubmit(page)).toBeDisabled();
       const lockedAt = await pageNow(page);
       await shot(page, 'C-012', 'mock');
-      await advanceTo(page, lockedAt, 58_000);
-      await expect.soft(pwSubmit(page), 'locked at +58 s').toBeDisabled();
       await advanceTo(page, lockedAt, 62_000);
-      await expect.soft(pwSubmit(page), 'open after 60 s').toBeEnabled();
+      await expect.soft(pwSubmit(page), 'locked at +62 s (Q5: lock is the 900 s BE window)').toBeDisabled();
+      await advanceTo(page, lockedAt, 898_000);
+      await expect.soft(pwSubmit(page), 'locked at +898 s').toBeDisabled();
+      await advanceTo(page, lockedAt, 902_000);
+      await expect.soft(pwSubmit(page), 'open after 900 s').toBeEnabled();
       await expect.soft(limited).toHaveCount(0);
       expect.soft(routed.hits() - before, 'one request, no client retry on 429').toBe(1);
     });
 
-    await test.step('[33S-C-011] Lock length is max(Retry-After, 60 s): Retry-After 120 opens at +120 s', async () => {
-      routed.once(respond(429, { code: 'RATE_LIMITED' }, { 'Retry-After': '120' }));
+    await test.step('[33S-C-011] Lock length is max(Retry-After, 900 s) (Q5): Retry-After 1000 opens at +1000 s', async () => {
+      routed.once(respond(429, { code: 'RATE_LIMITED' }, { 'Retry-After': '1000' }));
       await pwSubmit(page).click(); // UAA:208,430-436
       await expect.soft(limited).toBeVisible();
       const lockedAt = await pageNow(page);
       await shot(page, 'C-011', 'mock');
-      await advanceTo(page, lockedAt, 118_000);
-      await expect.soft(pwSubmit(page), 'still locked at +118 s').toBeDisabled();
-      await advanceTo(page, lockedAt, 122_000);
-      await expect.soft(pwSubmit(page), 'open at +120 s').toBeEnabled();
+      await advanceTo(page, lockedAt, 998_000);
+      await expect.soft(pwSubmit(page), 'still locked at +998 s').toBeDisabled();
+      await advanceTo(page, lockedAt, 1_002_000);
+      await expect.soft(pwSubmit(page), 'open at +1000 s').toBeEnabled();
       await expect.soft(limited).toHaveCount(0);
     });
 

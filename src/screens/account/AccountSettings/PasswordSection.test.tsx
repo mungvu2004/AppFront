@@ -403,3 +403,103 @@ describe('useAccountAuth — phần mật khẩu', () => {
     expect(changePassword).not.toHaveBeenCalled();
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* Phase 07 — BUG-P07-010 / 011 / 012.                                         */
+/* -------------------------------------------------------------------------- */
+
+describe('[33S-C-010] độ dài tính theo code point như BE', () => {
+  const TWO_EMOJI = '\u{1F600}\u{1F600}';
+
+  it('"Aaa1" + 2 emoji (6 code point, 8 đơn vị UTF-16) bị từ chối là quá ngắn', () => {
+    expect(newPasswordProblemOf(`Aaa1${TWO_EMOJI}`)).toBe('Mật khẩu cần ít nhất 8 ký tự.');
+    expect(passwordStrengthOf(`Aaa1${TWO_EMOJI}`)).toBe('weak');
+  });
+
+  it('"Aaa1" + 4 emoji (đúng 8 code point) được nhận', () => {
+    expect(newPasswordProblemOf(`Aaa1${TWO_EMOJI}${TWO_EMOJI}`)).toBeNull();
+  });
+});
+
+describe('[33S-E-006] thanh sức mạnh đọc được không cần màu', () => {
+  it('chữ "Độ mạnh" có aria-live polite, ô mới trỏ tới nó, ba ô màu aria-hidden', () => {
+    renderWithProviders(
+      <PasswordSection {...baseProps({ newPassword: 'matkhau1', strength: 'fair' })} />,
+    );
+
+    const text = screen.getByText('Độ mạnh: khá');
+    const input = screen.getByLabelText('Mật khẩu mới');
+
+    expect(text.getAttribute('aria-live')).toBe('polite');
+    expect(text.id).not.toBe('');
+    expect((input.getAttribute('aria-describedby') ?? '').split(' ')).toContain(text.id);
+    const cells = text.parentElement?.querySelector('[aria-hidden="true"]');
+
+    expect(cells?.children).toHaveLength(3);
+  });
+
+  it('không có thanh thì ô mới không trỏ tới id nào', () => {
+    renderWithProviders(<PasswordSection {...baseProps()} />);
+
+    expect(screen.getByLabelText('Mật khẩu mới').getAttribute('aria-describedby')).toBeNull();
+  });
+});
+
+describe('[33S-E-007] focus sau khi gửi không rơi về <body>', () => {
+  function Harness({ gateway }: { readonly gateway: AccountAuthGateway }) {
+    const { password } = useAccountAuth({ gateway });
+
+    return <PasswordSection {...password} />;
+  }
+
+  async function fillAndSubmit(): Promise<void> {
+    fireEvent.change(screen.getByLabelText('Mật khẩu hiện tại'), { target: { value: 'cu-12345' } });
+    fireEvent.change(screen.getByLabelText('Mật khẩu mới'), { target: { value: 'moi-12345' } });
+    fireEvent.change(screen.getByLabelText('Nhắc lại mật khẩu mới'), {
+      target: { value: 'moi-12345' },
+    });
+    screen.getByLabelText('Nhắc lại mật khẩu mới').focus();
+    await act(async () => {
+      fireEvent.submit(screen.getByLabelText('Mật khẩu mới').closest('form') as HTMLFormElement);
+      await Promise.resolve();
+    });
+  }
+
+  it('422 sai mật khẩu hiện tại: focus ở ô có lỗi', async () => {
+    renderWithProviders(
+      <Harness
+        gateway={fakeGateway({
+          changePassword: () =>
+            Promise.resolve({ ok: false, error: { reason: 'wrong-current-password' } }),
+        })}
+      />,
+    );
+    await waitFor(() => {
+      expect(screen.getByLabelText('Mật khẩu hiện tại')).toBeTruthy();
+    });
+
+    await fillAndSubmit();
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByLabelText('Mật khẩu hiện tại'));
+    });
+    expect(document.activeElement).not.toBe(document.body);
+  });
+
+  it('thành công: focus ở dải báo thành công', async () => {
+    renderWithProviders(<Harness gateway={fakeGateway()} />);
+    await waitFor(() => {
+      expect(screen.getByLabelText('Mật khẩu hiện tại')).toBeTruthy();
+    });
+
+    await fillAndSubmit();
+
+    const alert = await screen.findByText(
+      'Đã đổi mật khẩu. Các phiên đăng nhập khác đã bị đăng xuất.',
+    );
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(alert.closest('[role="alert"]'));
+    });
+  });
+});

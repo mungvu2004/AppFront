@@ -12,6 +12,8 @@ import { QueryClient } from '@tanstack/react-query';
 import type { ApiClient } from '@/api/client';
 import { createMockApiClient } from '@/api/__mocks__/client';
 import type { Me } from '@/api/schemas/me';
+import { flushAutosaves } from '@/hooks/useAutosave';
+import viMessages from '@/i18n/vi.json';
 import type { HttpError } from '@/lib/http';
 import type { Announcer } from '@/lib/input/announcer';
 import { createNotificationBus } from '@/lib/mutations/notificationBus';
@@ -35,6 +37,7 @@ import {
   ACCOUNT_AUTOSAVE_DEBOUNCE_MS,
   ACCOUNT_FIELD_REJECTED_LABEL,
   ACCOUNT_LOCAL_ONLY_LABEL,
+  ACCOUNT_SAVED_UNDO_TITLE,
 } from './useAccountSettings';
 
 afterEach(() => {
@@ -690,7 +693,7 @@ describe('N13 — đổi mật khẩu', () => {
     });
   });
 
-  it('rate-limited, 9 giây: formProblem không có chữ số, nút khoá 60 giây rồi mở lại', async () => {
+  it('[33S-A-019] rate-limited, 9 giây: formProblem không có chữ số, nút khoá 900 giây (Q5) rồi mở lại', async () => {
     const model = renderAuth(
       authGateway({ changePassword: failure({ reason: 'rate-limited', retryAfterSeconds: 9 }) }),
     );
@@ -704,8 +707,14 @@ describe('N13 — đổi mật khẩu', () => {
     expect(model.read().password.formProblem).not.toMatch(/\d/);
     expect(model.read().password.canSubmit).toBe(false);
 
+    // Còn khoá ở mốc 60 s cũ (BUG-P07-009): cửa sổ BE là 900 s.
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(59_999);
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(model.read().password.canSubmit).toBe(false);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(839_999);
     });
     expect(model.read().password.canSubmit).toBe(false);
 
@@ -716,18 +725,44 @@ describe('N13 — đổi mật khẩu', () => {
     expect(model.read().password.formProblem).toBeNull();
   });
 
-  it('retryAfterSeconds lớn hơn 60 thì khoá theo số đó', async () => {
+  it('[33S-A-020] retryAfterSeconds lớn hơn 900 thì khoá theo số đó', async () => {
     const model = renderAuth(
-      authGateway({ changePassword: failure({ reason: 'rate-limited', retryAfterSeconds: 90 }) }),
+      authGateway({ changePassword: failure({ reason: 'rate-limited', retryAfterSeconds: 1000 }) }),
     );
 
     vi.useFakeTimers();
     await submitPassword(model);
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(60_000);
+      await vi.advanceTimersByTimeAsync(900_000);
+    });
+    expect(model.read().password.canSubmit).toBe(false);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100_000);
+    });
+    expect(model.read().password.canSubmit).toBe(true);
+  });
+
+  it('[33S-G-005] 401: không hiện câu "Thử lại sau ít phút", không khoá, không đánh dấu "có thể đã đổi"', async () => {
+    const changePassword = vi
+      .fn<AccountAuthGateway['changePassword']>()
+      .mockImplementationOnce(failure({ reason: 'unauthorized' }))
+      .mockImplementationOnce(failure({ reason: 'wrong-current-password' }));
+    const model = renderAuth(authGateway({ changePassword }));
+
+    await submitPassword(model);
+
+    expect(model.read().password.formProblem).toBeNull();
+    expect(model.read().password.canSubmit).toBe(true);
+
+    await act(async () => {
+      model.read().password.onSubmit();
+      await Promise.resolve();
     });
 
-    expect(model.read().password.canSubmit).toBe(false);
+    await waitFor(() => {
+      expect(model.read().password.currentPasswordProblem).toBe('Mật khẩu hiện tại không đúng.');
+    });
   });
 
   it('unavailable: câu riêng của đổi mật khẩu, không rơi sang câu của khối phiên', async () => {
@@ -919,3 +954,105 @@ describe('BUG-178 — địa chỉ có neo cuộn tới thẻ và đặt tiêu �
   });
 });
 
+
+/* -------------------------------------------------------------------------- */
+/* QA phase 07 — SCR-33 trang: Ctrl+S, toast chỉ-cục-bộ, khung chờ, ký tự điều khiển. */
+/* -------------------------------------------------------------------------- */
+
+function mountWithBus(gateway: AccountSettingsGateway) {
+  const notifications = createNotificationBus();
+  const titles: string[] = [];
+
+  notifications.subscribe((list) => {
+    for (const entry of list) {
+      titles.push(entry.title);
+    }
+  });
+  renderWithProviders(
+    <AccountSettingsContainer
+      gateway={gateway}
+      authGateway={authGateway()}
+      notifications={notifications}
+    />,
+  );
+
+  return titles;
+}
+
+describe('SCR-33 QA phase 07', () => {
+  it('[33P-A-024] Ctrl+S xả tự lưu ngay, không chờ hết debounce', async () => {
+    const save = vi.fn(() => Promise.resolve(newMe('https://cdn.example.test/k.png')));
+
+    mount(settingsGateway({ save }));
+    const field = await loaded();
+
+    vi.useFakeTimers();
+
+    act(() => {
+      fireEvent.change(field, { target: { value: 'Bình' } });
+    });
+    expect(save).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await flushAutosaves();
+    });
+    // Chưa trôi một mili-giây nào của ACCOUNT_AUTOSAVE_DEBOUNCE_MS.
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it('[33P-B-024] lượt lưu chỉ-cục-bộ không bật toast "Đã lưu cài đặt tài khoản."; lưu lên máy chủ thì có', async () => {
+    const save = vi.fn(() => Promise.resolve(newMe('https://cdn.example.test/l.png')));
+    const titles = mountWithBus(settingsGateway({ save }));
+    const field = await loaded();
+
+    vi.useFakeTimers();
+
+    act(() => {
+      fireEvent.click(screen.getByRole('switch', { name: 'Hiện lưới 100 mm' }));
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ACCOUNT_AUTOSAVE_DEBOUNCE_MS);
+    });
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByText(ACCOUNT_LOCAL_ONLY_LABEL).length).toBeGreaterThan(0);
+    expect(titles).not.toContain(ACCOUNT_SAVED_UNDO_TITLE);
+
+    act(() => {
+      fireEvent.change(field, { target: { value: 'Bình' } });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ACCOUNT_AUTOSAVE_DEBOUNCE_MS);
+    });
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(titles).toContain(ACCOUNT_SAVED_UNDO_TITLE);
+  });
+
+  it('[33P-B-002] khung xương lúc tải báo aria-busy="true"', () => {
+    mount(settingsGateway({ read: () => new Promise<AccountDraft>(() => undefined) }));
+
+    expect(document.querySelector('section[aria-busy="true"]')).not.toBeNull();
+  });
+
+  it.each([['\u0007'], ['\u202E']])(
+    '[33P-C-010] điện thoại 422 vì ký tự điều khiển (%j) nói đúng nguyên nhân, không nói "tối đa 32"',
+    async (bad) => {
+      const save = vi
+        .fn<(draft: AccountDraft) => Promise<Me | null>>()
+        .mockRejectedValueOnce(wireHttpError(422, 'VALIDATION', 'phone'));
+
+      mount(settingsGateway({ save }));
+      await loaded();
+
+      vi.useFakeTimers();
+
+      act(() => {
+        fireEvent.change(screen.getByLabelText('Điện thoại'), { target: { value: `0912${bad}` } });
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(ACCOUNT_AUTOSAVE_DEBOUNCE_MS);
+      });
+      expect(screen.getByText(viMessages.account.profile.fieldProblems.phoneControl)).toBeTruthy();
+      expect(screen.queryByText(viMessages.account.profile.fieldProblems.phone)).toBeNull();
+    },
+  );
+});

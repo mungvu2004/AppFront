@@ -560,6 +560,41 @@ describe('R5 — chủ đề ba nhánh trên một store hai nhánh', () => {
     ]);
   });
 
+  it('[33R-A-017] Hoàn tác lần đổi chủ đề ĐẦU TIÊN: radio và <html> về chủ đề trước đó', () => {
+    useStore.getState().setTheme('light');
+
+    const { port } = createPort();
+    const { rerender } = renderWithProviders(<Probe port={port} />);
+
+    act(() => model().appearance.onThemeChange('dark'));
+    expect(model().appearance.theme).toBe('dark');
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+
+    // "Hoàn tác" của useAccountSettings trả về bản đã lưu TRƯỚC lần đổi: không có appearance.theme.
+    rerender(<Probe port={createPort({ ...EMPTY_ACCOUNT_DRAFT }).port} />);
+
+    expect(model().appearance.theme).toBe('light');
+    expect(useStore.getState().theme).toBe('light');
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+  });
+
+  // Hàng kề của sửa BUG-P07-007: lần đổi SAU lần đầu hoàn tác về bản đã lưu có `theme` (Notes 1: "Later theme changes undo correctly").
+  it('[33R-A-017] lần đổi thứ hai rồi Hoàn tác: về chủ đề của bản đã lưu, không về chủ đề đầu phiên', () => {
+    const { port } = createPort();
+    const { rerender } = renderWithProviders(<Probe port={port} />);
+
+    act(() => model().appearance.onThemeChange('dark'));
+    rerender(<Probe port={createPort({ ...EMPTY_ACCOUNT_DRAFT, appearance: { theme: 'dark' } }).port} />);
+    act(() => model().appearance.onThemeChange('light'));
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+
+    rerender(<Probe port={createPort({ ...EMPTY_ACCOUNT_DRAFT, appearance: { theme: 'dark' } }).port} />);
+
+    expect(model().appearance.theme).toBe('dark');
+    expect(useStore.getState().theme).toBe('dark');
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+  });
+
   it('"Theo hệ thống" đọc prefers-color-scheme ngay lượt render đầu', () => {
     stubMatchMedia({ '(prefers-color-scheme: dark)': true });
 

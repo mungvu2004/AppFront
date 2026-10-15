@@ -17,9 +17,13 @@ export function useTheme() {
   }, [setTheme]);
 
   // Sync to DOM and localStorage
+  // Đọc store tại chỗ chứ không dùng `theme` của lượt render: ở lượt mount, effect trên vừa
+  // `setTheme(stored)` mà `theme` còn là giá trị cũ — ghi nó sẽ đè khoá đã lưu (StrictMode
+  // chạy effect hai lần nên đọc lại đúng giá trị bị đè).
   useEffect(() => {
-    localStorage.setItem(THEME_KEY, theme);
-    if (theme === 'dark') {
+    const current = useStore.getState().theme;
+    localStorage.setItem(THEME_KEY, current);
+    if (current === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
@@ -31,4 +35,13 @@ export function useTheme() {
   };
 
   return { theme, toggle };
+}
+
+/**
+ * Gắn ở gốc app (`main.tsx`): áp chủ đề đã lưu lên `<html>` ở MỌI route khi tải đầy đủ, không
+ * chỉ khi `/tai-khoan` đang mount (BUG-P07-006, 33R-A-024).
+ */
+export function ThemeSync(): null {
+  useTheme();
+  return null;
 }

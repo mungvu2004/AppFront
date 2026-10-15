@@ -49,6 +49,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { SaveState } from '@/components/feedback/SaveIndicator';
+import { useFlushOnSave } from '@/hooks/useAutosave';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import type { AutosaveState } from '@/lib/autosave/createAutosave';
@@ -121,7 +122,13 @@ const PROFILE_FIELD_PROBLEMS: Readonly<Partial<Record<string, string>>> = {
   phone: 'Số điện thoại tối đa 32 ký tự.',
 };
 
-type ProfileProblems = Readonly<Partial<Record<ProfileFieldKey, string>>>;
+const PHONE_CONTROL_PROBLEM =
+  'Số điện thoại không được chứa ký tự điều khiển hoặc ký tự đảo chiều chữ.';
+
+/** Cc + ký tự đảo chiều chữ: đúng tập BE từ chối (BEs:67-80). */
+const HAS_CONTROL_CHAR = /[\p{Cc}‪-‮⁦-⁩‎‏؜]/u;
+
+type ProfileProblems =Readonly<Partial<Record<ProfileFieldKey, string>>>;
 
 /** Câu của toast hoàn tác sau một lượt tự lưu (A8). */
 export const ACCOUNT_SAVED_UNDO_TITLE = 'Đã lưu cài đặt tài khoản.';
@@ -264,6 +271,9 @@ export function useAccountSettings(
     }),
   );
 
+  // Ctrl+S (`flushAutosaves`) chỉ thấy engine đã vào sổ; bảng Phím tắt của trang hứa "Lưu ngay" (33P-A-024).
+  useFlushOnSave(autosave);
+
   // Bọc bộ đọc màn hình: câu "đã lưu" của lượt chỉ-giữ-trong-phiên thành câu thật. Câu lỗi
   // (`assertive`) đi qua nguyên vẹn.
   const [announcer] = useState<Announcer>(() => {
@@ -308,7 +318,15 @@ export function useAccountSettings(
       } catch (error) {
         const wire = readWireError(error);
         const field = wire?.field;
-        const problem = field === undefined ? undefined : PROFILE_FIELD_PROBLEMS[field];
+        // 422 điện thoại vì ký tự điều khiển/đảo chiều: nói đúng nguyên nhân, không "tối đa 32" (33P-C-010).
+        const problem =
+          field === 'phone' &&
+          typeof changes.profile.phone === 'string' &&
+          HAS_CONTROL_CHAR.test(changes.profile.phone)
+            ? PHONE_CONTROL_PROBLEM
+            : field === undefined
+              ? undefined
+              : PROFILE_FIELD_PROBLEMS[field];
 
         // 422 của một ô hồ sơ: lỗi buộc vào đúng ô, rồi ném lại để chỉ báo lưu báo lỗi.
         // `createAutosave` không thử lại 4xx, nên lỗi ô không bị lịch tự lưu gõ lại.
@@ -336,7 +354,8 @@ export function useAccountSettings(
             : profileDraftOf(serverProfile),
       }));
 
-      if (isRestore || previous === null) {
+      // Lượt chỉ-giữ-trong-phiên: chip đã nói thật, không thêm toast "Đã lưu" (33P-B-024).
+      if (isRestore || previous === null || isLocalOnly) {
         return;
       }
 

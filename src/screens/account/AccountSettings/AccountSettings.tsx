@@ -76,7 +76,10 @@ interface AccountBlockProps {
  */
 function AccountBlock({ id, title, description, isLoading, tone, children }: AccountBlockProps) {
   return (
-    <section aria-labelledby={id} className={tone === 'danger' ? DANGER_BLOCK_CLASS : BLOCK_CLASS}>
+    <section
+      aria-labelledby={id}
+      aria-busy={isLoading ? true : undefined}
+      className={tone === 'danger' ? DANGER_BLOCK_CLASS : BLOCK_CLASS}>
       <div className="flex flex-col gap-1">
         <h2 id={id} className="text-[15px] font-semibold text-text-primary">
           {title}

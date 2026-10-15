@@ -144,10 +144,13 @@ test('SCR-33 · FL-33S-05 · 6th attempt in 900 s: real 429, lock 60 s, re-lock 
       await shot(page, 'A-018', 'ratelimit');
     });
 
-    await test.step('[33S-A-019] After 60 s the lock lifts (fake clock)', async () => {
-      await advanceTo(page, lockedAt, 58_000);
-      await expect.soft(pwSubmit(page), 'still locked at +58 s').toBeDisabled();
-      await advanceTo(page, lockedAt, 62_000); // UAA:430-436
+    await test.step('[33S-A-019] After the 900 s BE window the lock lifts (fake clock; Q5, was 60 s)', async () => {
+      // QA-07 questions.md Q5: BE clamps Retry-After to 1..10 s (W9), so FE locks max(Retry-After, 900 s) from the 429 (UAA PASSWORD_LOCK_MIN_SECONDS).
+      await advanceTo(page, lockedAt, 62_000);
+      await expect.soft(pwSubmit(page), 'still locked at +62 s (old 60 s lift is gone)').toBeDisabled();
+      await advanceTo(page, lockedAt, 898_000);
+      await expect.soft(pwSubmit(page), 'still locked at +898 s').toBeDisabled();
+      await advanceTo(page, lockedAt, 902_000); // UAA:208,430-436
       await expect.soft(alert).toHaveCount(0);
       await expect.soft(pwSubmit(page)).toBeEnabled();
       await expect.soft(pwField(page, PW.next)).toHaveValue(next);

@@ -559,6 +559,19 @@ describe('SessionBootstrap', () => {
     expect(screenMounts).toBe(0);
   });
 
+  it('[33P-A-007] giữ #hash trong next= để sau đăng nhập về đúng khối', async () => {
+    const server = createFakeServer(null);
+    await configureAppSession({ fetchImpl: server.fetchImpl });
+
+    renderAt('/tai-khoan#account-notifications');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('man-dang-nhap')).toHaveTextContent(
+        '/login?next=%2Ftai-khoan%23account-notifications',
+      );
+    });
+  });
+
   it('vẽ màn con trên /login/reset-password kể cả khi đã đăng nhập', async () => {
     const server = createFakeServer('u1');
     await configureAppSession({ fetchImpl: server.fetchImpl });

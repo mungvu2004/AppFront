@@ -403,7 +403,7 @@ export function SessionBootstrap({ children }: { children: ReactNode }) {
   return (
     <SessionGate
       isPublic={matchesPublicRoute(location.pathname)}
-      loginHref={`${ROUTES.login}?next=${encodeURIComponent(location.pathname + location.search)}`}
+      loginHref={`${ROUTES.login}?next=${encodeURIComponent(location.pathname + location.search + location.hash)}`}
       onRetry={onRetry}
       pathname={location.pathname}
       sessionEnded={sessionEnded.current}

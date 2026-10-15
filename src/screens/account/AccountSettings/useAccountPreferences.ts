@@ -379,6 +379,10 @@ export function useAccountPreferences(
   // Chủ đề mặc định là của store (đã đọc từ `localStorage['app-theme-mode']`), không phải 'light':
   // bộ nhớ trống mà mặc định 'light' thì vào màn là ghi đè chủ đề người dùng đang dùng.
   const storeTheme = useStore((state) => state.theme);
+  // Chủ đề đang dùng TRƯỚC lần đổi chủ đề đầu tiên của phiên: "Hoàn tác" trả về bản đã lưu
+  // không có `theme`, và nếu lúc ấy rơi về `storeTheme` (đã là chủ đề mới) thì hoàn tác
+  // không làm gì (BUG-P07-007, 33R-A-017).
+  const [preEditTheme, setPreEditTheme] = useState<ThemeChoice | null>(null);
 
   const base = useMemo<PreferenceValues>(() => {
     const avatarUrl = savedProfile?.['avatarUrl'];
@@ -389,13 +393,13 @@ export function useAccountPreferences(
       phone: readText(savedProfile, 'phone', ''),
       language: readText(savedProfile, 'language', 'vi'),
       avatarUrl: typeof avatarUrl === 'string' && avatarUrl !== '' ? avatarUrl : null,
-      theme: readChoice(savedAppearance, 'theme', THEME_CHOICES, storeTheme),
+      theme: readChoice(savedAppearance, 'theme', THEME_CHOICES, preEditTheme ?? storeTheme),
       viewportDark: readFlag(savedAppearance, 'viewportDark', false),
       reducedMotion: readFlag(savedAppearance, 'reducedMotion', false),
       showGrid: readFlag(savedAppearance, 'showGrid', true),
       density: readChoice(savedAppearance, 'density', DENSITY_CHOICES, 'comfortable'),
     };
-  }, [savedAppearance, savedProfile, sessionUser, storeTheme]);
+  }, [preEditTheme, savedAppearance, savedProfile, sessionUser, storeTheme]);
 
   // `null` nghĩa là người dùng chưa sửa gì trong lượt này, nên bản đã lưu vẫn là
   // sự thật. Sửa lần đầu thì lấy `base` làm điểm xuất phát — không dùng
@@ -460,6 +464,10 @@ export function useAccountPreferences(
       value: PreferenceValues[keyof PreferenceValues],
       flashKey: AppearanceFieldKey | ProfileFieldKey | null,
     ): void => {
+      if (key === 'theme') {
+        setPreEditTheme((pinned) => pinned ?? base.theme);
+      }
+
       setEdits((current) => ({ ...(current ?? base), [key]: value }));
       port.stage(section, { [key]: value });
 
@@ -487,7 +495,8 @@ export function useAccountPreferences(
   const resolvedTheme = resolveTheme(values.theme, systemPrefersDark);
 
   // Chưa sửa gì và bộ nhớ chưa có chủ đề nào thì store vẫn là sự thật: không ghi đè nó.
-  const hasThemeChoice = edits !== null || savedAppearance?.['theme'] !== undefined;
+  const hasThemeChoice =
+    edits !== null || savedAppearance?.['theme'] !== undefined || preEditTheme !== null;
 
   useEffect(() => {
     if (hasThemeChoice) {

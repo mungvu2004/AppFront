@@ -499,7 +499,8 @@
       "fieldProblems": {
         "fullName": "Họ tên cần từ 1 đến 120 ký tự, không chứa ký tự điều khiển.",
         "jobTitle": "Chức danh tối đa 120 ký tự, không chứa ký tự điều khiển.",
-        "phone": "Số điện thoại tối đa 32 ký tự."
+        "phone": "Số điện thoại tối đa 32 ký tự.",
+        "phoneControl": "Số điện thoại không được chứa ký tự điều khiển hoặc ký tự đảo chiều chữ."
       },
       "jobTitlePlaceholder": "Chưa đặt",
       "localOnly": "Chỉ giữ trong phiên này",
