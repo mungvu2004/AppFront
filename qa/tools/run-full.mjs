@@ -134,8 +134,14 @@ const prev = String(Number(NN) - 1).padStart(2, '0');
 const layers = opt('layers', 'main,ui,api,edge');
 const extra = [...(opt('grep', '') ? ['--grep', opt('grep', '')] : []), '--layers', layers, ...(flag('dry-run') ? ['--dry-run'] : [])];
 if (!flag('no-prev') && layers.split(',').includes('main') && Number(NN) > 1) {
-  say(`phase ${prev} main first (its .state project feeds phase ${NN} main)`);
-  if (runPhase(['--phase', prev, '--run-id', RUN_ID, '--layers', 'main', '--no-typecheck', '--no-watch']) !== 0) say(`phase ${prev} main red — phase ${NN} main may fail on state`);
+  // Replay the WHOLE chain 01..NN-1: phase 02 creates a fresh .state project. Replaying only NN-1 reused the project of an
+  // earlier run, so every replay piled up floors/drawings and the fixed counts of NN-1 main went red (phase 04 RF 2026-10-15).
+  for (let p = 1; p <= Number(prev); p += 1) {
+    const id = String(p).padStart(2, '0');
+    say(`phase ${id} main (chain to a fresh .state project for phase ${NN} main)`);
+    sh(`docker exec f14-redis-broker-1 sh -c "redis-cli -n 2 --scan --pattern 'auth:login:*' | xargs -r redis-cli -n 2 del; redis-cli -n 2 --scan --pattern 'rl:auth_login_ip:*' | xargs -r redis-cli -n 2 del"`);
+    if (runPhase(['--phase', id, '--run-id', RUN_ID, '--layers', 'main', '--no-typecheck', '--no-watch']) !== 0) say(`phase ${id} main red — phase ${NN} main may fail on state`);
+  }
 }
 const watch = flag('watch') ? [] : ['--no-watch'];
 const code = runPhase(['--phase', NN, '--run-id', RUN_ID, '--workers', WORKERS, '--retries', opt('retries', '1'), ...watch, ...extra]);
