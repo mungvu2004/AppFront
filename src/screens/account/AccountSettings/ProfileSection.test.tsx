@@ -270,7 +270,7 @@ describe('mật độ hiển thị đổi chiều cao dòng', () => {
     cleanup();
 
     render(<ProfileSection {...props({ rowClassName: DENSITY_ROW_CLASS.compact })} />);
-    expect(rowOf('Họ tên').className).toContain('min-h-9');
+    expect(rowOf('Họ tên').className).toMatch(/\bmin-h-9\b/u); // word boundary: `min-h-96` must not pass
   });
 });
 

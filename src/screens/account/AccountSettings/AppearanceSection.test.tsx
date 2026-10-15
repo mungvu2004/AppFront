@@ -189,8 +189,8 @@ describe('mật độ hiển thị đổi chiều cao dòng giữa 40 và 36', (
   it('lớp ấy tới được từng hàng', () => {
     render(<AppearanceSection {...props({ rowClassName: DENSITY_ROW_CLASS.compact })} />);
 
-    expect(rowOf('Chủ đề').className).toContain('min-h-9');
-    expect(rowOf('Mật độ hiển thị').className).toContain('min-h-9');
+    expect(rowOf('Chủ đề').className).toMatch(/\bmin-h-9\b/u); // word boundary: `min-h-96` must not pass
+    expect(rowOf('Mật độ hiển thị').className).toMatch(/\bmin-h-9\b/u);
   });
 
   it('bấm một mức thì báo lên hook', () => {

@@ -381,6 +381,7 @@ export async function dragAxis(page: Page, label: string, direction: 'vertical' 
 
 /** The value text of a FieldRow ("Lệch X (mm)") on the origin panel. */
 export async function fieldText(page: Page, label: string): Promise<string> {
-  const row = page.getByText(label, { exact: true }).locator('xpath=ancestor::div[contains(@class,"min-h-[36px]")][1]');
+  // FieldRow.tsx:64 — `min-h-9` (36 px) since b6de5043 replaced `min-h-[36px]`; exact token so `min-h-96` cannot match (review 2026-10-15-fix-qa06-debt P1).
+  const row = page.getByText(label, { exact: true }).locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " min-h-9 ")][1]');
   return (await row.innerText()).replace(label, '').replace(/\s+/gu, ' ').trim();
 }
