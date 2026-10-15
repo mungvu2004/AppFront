@@ -139,6 +139,12 @@ export interface UseViolationDetailOptions {
   /** Tầng đang mở ở vỏ — khoá mất-hiệu-lực của `rerunRules` cần nó. */
   readonly floorId: string;
   readonly onClose: () => void;
+  /**
+   * Vi phạm ĐANG hiển thị đổi (tự chuyển 28V-A-016, `J`/`K`): màn cha cập nhật hàng đang chọn
+   * và `initialIndex` theo nó. Không có thì bấm lại hàng đã mở tấm lúc đầu không đổi gì — khoá
+   * của cha vẫn là hàng ấy (28-A-040, BUG-728 RF).
+   */
+  readonly onShownChange?: (violation: Violation) => void;
   /** Trạng thái 6: container truyền xuống quyền của người dùng. */
   readonly canEdit?: boolean;
   /** Trạng thái 7: vỏ ứng dụng báo đang thu gọn. */
@@ -588,6 +594,7 @@ export function useViolationDetail(
     projectId,
     floorId,
     onClose,
+    onShownChange,
     canEdit = false,
     isCompact = false,
     seed,
@@ -657,6 +664,16 @@ export function useViolationDetail(
 
   const violation = violations[index] ?? null;
   const rule = violation === null ? null : registry.get(violation.ruleCode);
+
+  // 28-A-040: báo cho cha vi phạm đang hiển thị; qua ref để cha đưa một hàm mới mỗi lượt render
+  // mà hiệu ứng vẫn chỉ chạy khi vi phạm đổi. Chỉ báo khi khoá khớp `shownKeyRef`: ở lượt render
+  // danh sách vừa đổi mà `index` chưa được tìm lại (hiệu ứng ở trên chưa chạy), `violations[index]`
+  // là một vi phạm khác — báo nó đi là cha nhảy sang nhầm hàng.
+  const onShownChangeRef = useRef(onShownChange);
+  onShownChangeRef.current = onShownChange;
+  useEffect(() => {
+    if (violation !== null && violationKeyOf(violation) === shownKeyRef.current) onShownChangeRef.current?.(violation);
+  }, [violation]);
 
   const hasPrevious = index > 0;
   const hasNext = index < violations.length - 1;

@@ -145,6 +145,7 @@ async function pick(page: Page, combobox: Locator, option: string): Promise<void
   await combobox.click();
   await page.getByRole('option', { name: option, exact: true }).click();
   await expect(combobox).toContainText(option);
+  await expect(page.getByRole('option'), 'listbox closed').toHaveCount(0); // the list leaves with a motion; the next select must not read its options (p06-rf FL-28-03)
 }
 
 /** Radio "Tất cả" + both selects back to "all". */
@@ -566,6 +567,7 @@ test.describe('SCR-28 Rule Report (edge, real)', () => {
         const options = (await page.getByRole('option').allInnerTexts()).map((text) => text.trim());
         expect.soft(options).toEqual(['Tất cả nhóm luật', 'Hình học', 'Lưu thông', 'Diện tích', 'Ghi chú', 'Cao độ tầng']);
         await page.getByRole('option', { name: 'Hình học', exact: true }).click();
+        await expect(page.getByRole('option'), 'listbox closed').toHaveCount(0); // p06-rf FL-28-03: 28-A-033 read these options too
         const infos = await headerInfos(page);
         expect.soft(infos.length).toBeGreaterThan(0);
         for (const info of infos) expect.soft(info.groupLabel).toBe('Hình học');

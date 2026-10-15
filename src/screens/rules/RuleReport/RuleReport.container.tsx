@@ -200,6 +200,16 @@ function WiredRuleReport(props: WiredRuleReportProps) {
           onClose={() => {
             setOpenRowKey(null);
           }}
+          onShownChange={(shown) => {
+            // 28-A-040: hàng đang chọn đi theo tấm (tự chuyển 28V-A-016, J/K). Giữ khoá cũ thì bấm lại
+            // hàng đã mở tấm lúc đầu không đổi `initialIndex` và tấm đứng yên (BUG-728 RF p06-rf).
+            // `returnFocusKey` không đổi: đóng tấm vẫn trả tiêu điểm về hàng đã bấm (28V-E-008).
+            const key = allRows.find((row) => row.entityId === shown.entityId && row.ruleCode === shown.ruleCode)?.key;
+            if (key !== undefined && key !== openRowKey) {
+              viewProps.onSelectRow(key);
+              setOpenRowKey(key);
+            }
+          }}
           projectId={props.projectId}
           violations={allRows.map(toViolation)}
           {...(props.canEdit !== undefined ? { canEdit: props.canEdit } : {})}

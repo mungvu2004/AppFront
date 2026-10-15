@@ -746,6 +746,8 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
         await link.click({ modifiers: ['ControlOrMeta'] }); // EPP:46-55 returns early on a modifier key
         const tab = await opened;
         await tab.waitForLoadState('domcontentloaded');
+        // p06-rf (DEBT 2026-10-15): the popup's first `url()` can still be empty right after `domcontentloaded` → `new URL('')` threw.
+        await expect.poll(() => tab.url(), { message: 'the new tab has navigated' }).toMatch(/^https?:/u);
         expect.soft(href, 'the row href').toBe(ROUTES.project.floors(project.id));
         expect.soft(pathOf(tab), 'the new page opens at the href').toBe(href);
         expect.soft(pathOf(page), 'the current page stays on /export').toBe(ROUTES.project.export(project.id));
