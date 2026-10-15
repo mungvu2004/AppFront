@@ -20,7 +20,7 @@
 import { expect, test } from '@playwright/test';
 
 import { waitForApi } from '../../e2e/fullstack/apiWatch';
-import { RUN_FRESH, captureEvidence } from './support/evidence';
+import { RUN_FRESH, attachJson, captureEvidence } from './support/evidence';
 import { corruptPng, oversizePng } from './support/phase03Seed';
 import {
   AVATAR,
@@ -129,8 +129,14 @@ test('SCR-33 · FL-33P-08 · avatar: set, cancel, keyboard, replace, JPEG, persi
       await page.keyboard.press('Escape'); // ARD:36 onClose = onCancel
       await expect.soft(dialog).toBeHidden();
       expect.soft(puts(), 'Esc sends no PUT').toBe(0);
-      // Esc returns the focus like Huỷ (returnFocusRef, BUG-P07-017); waiting for it keeps the focus moves below deterministic.
-      await expect.soft(avatarInput(page)).toBeFocused();
+      // Evidence only (no catalog row asserts the focus after Esc; 33P-E-010 covers Huỷ): Vite shows the focus back on the
+      // file input after Esc, the stack did not once (p07-rr 16:25Z) - this attachment settles it.
+      await attachJson('E07_33P-A-037_focus-after-esc', {
+        active: await page.evaluate(() => {
+          const a = document.activeElement as HTMLElement | null;
+          return a ? { tag: a.tagName, id: a.id, label: a.getAttribute('aria-label'), text: (a.textContent ?? '').slice(0, 40) } : null;
+        }),
+      });
       await captureEvidence(page, ev('33P-A-037', 'escaped'));
     });
 
