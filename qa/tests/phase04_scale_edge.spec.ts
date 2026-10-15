@@ -962,8 +962,17 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
           if (path.startsWith('/api/')) traffic.push(`${String(Date.now() - t0)}ms ${request.method()} ${path}`);
         };
         page.on('request', logRequest);
+        // The apply commits to the store only once the server accepted it (A5, useScaleCalibration onApply): wait for the
+        // PUT's answer and the new ratio on screen. BUG-724 diagnostic: Ctrl+Z went out 18 ms after the PUT was SENT, before
+        // its answer, so it undid an older step and nothing was sent (vitest, which awaits the answer, was always green).
+        const reapplied = page.waitForResponse(
+          (r) => r.request().method() === 'PUT' && /\/spatial\/layer$/u.test(new URL(r.url()).pathname),
+          { timeout: 15_000 },
+        );
         await applyDisabled(page).click();
+        expect((await reapplied).status(), 're-apply accepted').toBe(200);
         await expect.poll(() => putOf().length).toBe(3);
+        await expect(statusBar(page)).toContainText(ratioLabel(r1));
         await page.mouse.move(2, 2); // off the toast
         // The shortcut registry ignores Mod+Z while a text field has focus (shortcutRegistry.ts isTyping); the real-length input kept focus from the earlier steps. A user clicks away first: leave the field, then press.
         const focusedBefore = await page.evaluate(() => {
@@ -985,8 +994,15 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await attachJson('E04_14-A-028_ctrl-z.json', { focusedBefore, barBefore, pressedAt, bars, traffic, puts: putOf().length });
         await expect.poll(() => putOf().length, `Ctrl+Z PUT (focus was ${focusedBefore})`).toBe(4);
         expect.soft(putRatio(putOf()[3])).toBeCloseTo(r0, 5);
+        // Same A5 race before leaving: the apply must be committed (server answered) before the hop and the Ctrl+Z after it.
+        const appliedAgain = page.waitForResponse(
+          (r) => r.request().method() === 'PUT' && /\/spatial\/layer$/u.test(new URL(r.url()).pathname),
+          { timeout: 15_000 },
+        );
         await applyDisabled(page).click();
+        expect((await appliedAgain).status(), 'apply before leaving accepted').toBe(200);
         await expect.poll(() => putOf().length).toBe(5);
+        await expect(statusBar(page)).toContainText(ratioLabel(r1));
         const scalePath = new URL(page.url()).pathname;
         await spaNavigate(page, ROUTES.project.quality(d1.projectId));
         await expect.poll(() => pathOf(page)).toBe(ROUTES.project.quality(d1.projectId));
