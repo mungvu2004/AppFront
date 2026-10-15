@@ -26,7 +26,7 @@ type Story = StoryObj;
 function SampleContent() {
   return (
     <>
-      <h3 className="text-[15px] font-medium leading-[20px] text-text-primary">Đối tượng cửa sổ #12</h3>
+      <h3 className="text-[15px] font-medium leading-5 text-text-primary">Đối tượng cửa sổ #12</h3>
       <p className="text-[13px] leading-[18px] text-text-secondary">Rộng 1200 mm, cao 1400 mm.</p>
       <Button variant="secondary" size="sm" fullWidth>
         Đưa vào khung hình
@@ -38,7 +38,7 @@ function SampleContent() {
 function LongContentSample() {
   return (
     <>
-      <h3 className="text-[15px] font-medium leading-[20px] text-text-primary">Lịch sử 6 lần sửa</h3>
+      <h3 className="text-[15px] font-medium leading-5 text-text-primary">Lịch sử 6 lần sửa</h3>
       <ul className="flex flex-col gap-1 text-[13px] leading-[18px] text-text-secondary">
         {Array.from({ length: 6 }, (_, index) => (
           <li key={index}>Lần sửa thứ {index + 1} lúc 14:3{index} — đổi kích thước tường.</li>

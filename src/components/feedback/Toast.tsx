@@ -145,7 +145,7 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
         aria-live="polite"
         aria-atomic="true"
         className={cn(
-          'relative w-[320px] bg-bg-surface shadow-float rounded-xl overflow-hidden pointer-events-auto transition-all duration-340 animate-toast-enter',
+          'relative w-80 bg-bg-surface shadow-float rounded-xl overflow-hidden pointer-events-auto transition-all duration-340 animate-toast-enter',
           isExiting && 'opacity-0 !h-0 !my-0 !py-0'
         )}
         style={{
@@ -190,7 +190,7 @@ const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(
         </div>
 
         {/* 2px countdown bar */}
-        <div className="absolute bottom-0 left-0 h-[2px] bg-bg-sunken w-full" aria-hidden="true">
+        <div className="absolute bottom-0 left-0 h-0.5 bg-bg-sunken w-full" aria-hidden="true">
           <div className="h-full bg-accent transition-none" style={{ width: `${progress}%` }} />
         </div>
       </div>

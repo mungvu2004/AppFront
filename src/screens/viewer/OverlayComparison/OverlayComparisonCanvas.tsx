@@ -35,7 +35,7 @@
  * | Việc | Thời lượng | Cách làm |
  * |---|---|---|
  * | kéo đường chia đôi | không hoạt cảnh | `transitionProperty` bỏ `clip-path` trong lúc kéo |
- * | tay cầm 4px → 6px khi trỏ chuột | `instant` 120 ms | `group-hover:w-[6px]`, xem file đường chia đôi |
+ * | tay cầm 4px → 6px khi trỏ chuột | `instant` 120 ms | `group-hover:w-1.5`, xem file đường chia đôi |
  * | đổi kiểu đối chiếu, hoà tan | `slow` 340 ms | {@link CanvasDissolve} gắn lại theo `key={compareMode}` |
  * | bay tới vùng lệch được chọn | `slow` 340 ms | transition trên `transform` của mặt phẳng |
  * | vùng mới vượt ngưỡng | ba nhịp rồi tĩnh | `hasJustCrossedTolerance`, xem file lớp |
@@ -102,7 +102,7 @@ const MAX_ZOOM = 8;
 const MIDDLE_MOUSE_BUTTON = 1;
 
 const FRAME_CLASSES =
-  'relative h-full min-w-0 flex-1 overflow-hidden rounded-[12px] border border-border-default bg-canvas-2d';
+  'relative h-full min-w-0 flex-1 overflow-hidden rounded-xl border border-border-default bg-canvas-2d';
 
 function clampZoom(value: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));

@@ -53,7 +53,7 @@ const WAITING_IMAGE_LABEL = 'Đang chờ ảnh xem trước…';
 const GEOMETRY_VIEWBOX = '0 0 100 100';
 
 const FRAME_CLASSES =
-  'relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-[16px] border border-border-default bg-bg-sunken';
+  'relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-2xl border border-border-default bg-bg-sunken';
 
 /* -------------------------------------------------------------------------- */
 /* Panel.                                                                      */

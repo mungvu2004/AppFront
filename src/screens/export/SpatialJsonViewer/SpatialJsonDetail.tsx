@@ -48,7 +48,7 @@ function RawJson({ rawText }: { readonly rawText: string }) {
   const hiddenCount = lines.length - shown.length;
 
   return (
-    <div className="h-full overflow-auto rounded-[12px] bg-bg-sunken p-5">
+    <div className="h-full overflow-auto rounded-xl bg-bg-sunken p-5">
       <pre className="font-mono text-[13px] leading-5 text-text-primary">
         {/* Chỉ số dòng là khoá ổn định ở đây (R-24): chữ thô được dựng lại trọn vẹn
             mỗi lần dữ liệu đổi, không có dòng nào chèn vào giữa hai dòng cũ. */}
@@ -75,7 +75,7 @@ function RawJson({ rawText }: { readonly rawText: string }) {
 function NodePreview({ selectedNode }: { readonly selectedNode: SpatialJsonNode | null }) {
   if (selectedNode === null) {
     return (
-      <div className="flex h-full items-center justify-center rounded-[12px] bg-bg-sunken p-5">
+      <div className="flex h-full items-center justify-center rounded-xl bg-bg-sunken p-5">
         <p className="max-w-[40ch] text-center text-[15px] leading-6 text-text-secondary">
           Chọn một nút ở cây bên trái để xem chi tiết của nó.
         </p>
@@ -84,7 +84,7 @@ function NodePreview({ selectedNode }: { readonly selectedNode: SpatialJsonNode 
   }
 
   return (
-    <div className="h-full overflow-auto rounded-[12px] bg-bg-sunken p-5">
+    <div className="h-full overflow-auto rounded-xl bg-bg-sunken p-5">
       <code className="block font-mono text-[20px] leading-7 text-text-primary">{selectedNode.label}</code>
       {selectedNode.id !== selectedNode.label ? (
         <code className="mt-2 block font-mono text-[13px] leading-5 text-text-muted">{selectedNode.id}</code>
@@ -166,7 +166,7 @@ export function SpatialJsonDetail({
                 }
               }}
               className={cn(
-                'h-9 rounded-[8px] px-4 text-[14px] font-medium leading-5 transition-colors duration-fast',
+                'h-9 rounded-lg px-4 text-[14px] font-medium leading-5 transition-colors duration-fast',
                 isActive ? 'bg-accent-wash text-accent-active' : 'text-text-secondary hover:bg-bg-hover',
               )}
               onClick={() => {

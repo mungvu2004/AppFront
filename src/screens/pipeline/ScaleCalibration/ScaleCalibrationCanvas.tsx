@@ -73,7 +73,7 @@ const EDGE_TOLERANCE_PX = 1;
 const FRAME_CENTRE: ImageRatioPoint = { x: 0.5, y: 0.5 };
 
 const FRAME_CLASSES =
-  'relative aspect-square w-full overflow-hidden rounded-[16px] border border-border-default bg-canvas-2d';
+  'relative aspect-square w-full overflow-hidden rounded-2xl border border-border-default bg-canvas-2d';
 
 function clampRatio(value: number): number {
   return Math.min(1, Math.max(0, value));

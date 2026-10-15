@@ -165,7 +165,7 @@ export function ThicknessApplyBar({
       )}
 
       {preview !== null && (
-        <div className="flex flex-col gap-3 rounded-[8px] border border-border-default bg-bg-sunken p-3">
+        <div className="flex flex-col gap-3 rounded-lg border border-border-default bg-bg-sunken p-3">
           <p className="text-[14px] text-text-primary">{preview.sentence}</p>
 
           {preview.unchangedWalls.length > 0 && (

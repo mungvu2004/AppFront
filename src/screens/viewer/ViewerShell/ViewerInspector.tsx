@@ -56,7 +56,7 @@ export function ViewerInspector({
       className={cn(
         /* `min-h-0 flex-1`: từ `lg` panel cao đúng bằng dòng ba cột, để vùng cuộn
            bên trong có chiều cao thật — thiếu nó 100 phép đo bị cắt ở hàng 10 (25-B-023). */
-        'flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[12px] lg:w-[344px]',
+        'flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl lg:w-[344px]',
         'bg-bg-surface shadow-panel',
       )}
     >
@@ -105,7 +105,7 @@ export function ViewerInspector({
             icon={
               <div
                 aria-hidden="true"
-                className="h-8 w-8 rounded-[8px] border border-border-default"
+                className="h-8 w-8 rounded-lg border border-border-default"
               />
             }
             title="Chưa chọn đối tượng"

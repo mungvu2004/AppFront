@@ -244,7 +244,7 @@ export function HistoryItemRow({
         />
 
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <p className="text-[15px] leading-[20px] text-text-primary">
+          <p className="text-[15px] leading-5 text-text-primary">
             {item.label}
             <span className="sr-only">
               {` ${CATEGORY_HINT[item.category]}`}

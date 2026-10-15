@@ -149,7 +149,7 @@ function ModalRoot({
               }}
               // `max-w-full`: at 375 px the dialog is the 343 px the `p-4` frame leaves, whatever the
               // content's min-content width — not only when flex shrink happens to allow it (nợ B #4).
-              className="relative bg-bg-surface rounded-[16px] shadow-modal pointer-events-auto flex flex-col max-h-[90vh] max-w-full outline-none"
+              className="relative bg-bg-surface rounded-2xl shadow-modal pointer-events-auto flex flex-col max-h-[90vh] max-w-full outline-none"
               style={{ width: `${width}px` }}
             >
               {children}

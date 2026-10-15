@@ -69,7 +69,7 @@ const BACKGROUND_IMAGE_OPACITY = 0.3;
 
 /** Khung canvas: tối thiểu 640 từ 1280px, bo 16, thụt 12; dưới 1280 tối thiểu 60vh (như FIX-1506), dưới 1024 tối thiểu 320 (FIX-1528) — BUG-317. */
 const CANVAS_FRAME_CLASSES =
-  'relative h-full min-h-[320px] w-full overflow-hidden rounded-[16px] border border-border-default bg-canvas-2d p-3 lg:min-h-[60vh] xl:min-h-[640px]';
+  'relative h-full min-h-80 w-full overflow-hidden rounded-2xl border border-border-default bg-canvas-2d p-3 lg:min-h-[60vh] xl:min-h-[640px]';
 
 const CANVAS_READ_ONLY_NOTICE_ID = 'dimension-ocr-canvas-read-only';
 

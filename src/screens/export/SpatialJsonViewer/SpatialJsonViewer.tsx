@@ -190,7 +190,7 @@ export function SpatialJsonViewer({ actions, model }: SpatialJsonViewerProps) {
             <li key={issue.id}>
               <button
                 type="button"
-                className="flex w-full items-baseline gap-3 rounded-[8px] bg-bg-sunken px-3 py-2 text-left hover:bg-bg-hover"
+                className="flex w-full items-baseline gap-3 rounded-lg bg-bg-sunken px-3 py-2 text-left hover:bg-bg-hover"
                 onClick={() => {
                   actions.onSelectIssue(issue.path);
                 }}
@@ -214,7 +214,7 @@ export function SpatialJsonViewer({ actions, model }: SpatialJsonViewerProps) {
         {isRawOnly ? null : (
           <section
             aria-label="Cấu trúc dự án"
-            className={`min-h-0 overflow-auto rounded-[12px] bg-bg-surface ${
+            className={`min-h-0 overflow-auto rounded-xl bg-bg-surface ${
               model.isNarrow || isEmpty ? 'flex-1' : 'w-[400px] shrink-0'
             }`}
           >

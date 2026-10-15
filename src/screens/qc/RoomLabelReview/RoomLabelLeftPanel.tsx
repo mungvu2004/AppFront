@@ -64,7 +64,7 @@ interface RoomLabelGapRowProps {
 
 function RoomLabelGapRow({ gap, onNavigateToWalls }: RoomLabelGapRowProps) {
   return (
-    <li className="flex flex-col gap-1.5 rounded-[8px] bg-state-attention-tint px-2.5 py-2">
+    <li className="flex flex-col gap-1.5 rounded-lg bg-state-attention-tint px-2.5 py-2">
       <p className="flex items-center gap-2 text-[13px] text-state-attention-text">
         <Unlink aria-hidden="true" className="h-4 w-4 shrink-0" />
         <span className="font-mono tabular-nums">{gap.gapText}</span>
@@ -77,7 +77,7 @@ function RoomLabelGapRow({ gap, onNavigateToWalls }: RoomLabelGapRowProps) {
            * dung thẻ đó (đúng chỗ cho một mã kỹ thuật), và thẻ này cũng nói
            * đúng bản chất chuỗi — một định danh, không phải câu người đọc.
            */
-          <code className="rounded-[4px] bg-bg-sunken px-1 font-mono text-text-primary" key={wallId} title={wallId}>
+          <code className="rounded bg-bg-sunken px-1 font-mono text-text-primary" key={wallId} title={wallId}>
             {gap.wallCodeLabels[index] ?? wallId}
           </code>
         ))}
@@ -121,7 +121,7 @@ export function RoomLabelGapsSection({
       {/* Hành động phụ của khối vòng hở là nút chữ, không thêm một nút rộng khác kiểu (BUG-615). */}
       {onCheckWallGaps === undefined ? null : (
         <button
-          className="inline-flex min-h-6 w-fit items-center rounded-[4px] text-[13px] text-accent underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+          className="inline-flex min-h-6 w-fit items-center rounded text-[13px] text-accent underline-offset-2 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
           onClick={onCheckWallGaps}
           type="button"
         >
@@ -137,7 +137,7 @@ export function RoomLabelLeftPanel({ panel, list, emptyListNotice }: RoomLabelLe
     panel;
 
   return (
-    <div className="flex h-full w-[280px] shrink-0 flex-col overflow-hidden rounded-[12px] bg-bg-surface shadow-panel max-lg:w-full">
+    <div className="flex h-full w-[280px] shrink-0 flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel max-lg:w-full">
       <div className="flex shrink-0 flex-col gap-3 px-5 pb-3 pt-4">
         <p className="text-[13px] text-text-primary">
           <span>{SUMMARY_PREFIX} </span>

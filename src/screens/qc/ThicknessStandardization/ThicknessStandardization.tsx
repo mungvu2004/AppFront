@@ -125,7 +125,7 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
 
 /** Nút chữ của màn: cùng khuôn nút bung bảng của `RoomLabelReview` (A1, A2). */
 const LINK_CLASS_NAME = cn(
-  'self-start rounded-[6px] px-1.5 py-1 text-[13px] text-accent',
+  'self-start rounded-md px-1.5 py-1 text-[13px] text-accent',
   'transition-colors duration-120 hover:bg-accent-wash',
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
 );
@@ -199,7 +199,7 @@ function ThicknessTablesColumn(props: ThicknessStandardizationViewProps & { read
   return (
     <>
       {emptyNotice === null ? null : (
-        <p className="rounded-[8px] bg-bg-sunken p-3 text-[13px] text-text-secondary">
+        <p className="rounded-lg bg-bg-sunken p-3 text-[13px] text-text-secondary">
           {emptyNotice}
         </p>
       )}
@@ -266,7 +266,7 @@ function ThicknessPreviewColumn(props: ThicknessStandardizationViewProps) {
   return (
     // 320 = `THICKNESS_PREVIEW_CANVAS_WIDTH_PX`: cạnh bảng nhóm từ 1024 (BUG-405), dưới đó xếp dưới
     // bảng; dưới 768 rộng hết thẻ, canvas tự co (BUG-332).
-    <div className="flex w-full shrink-0 flex-col gap-1.5 md:w-[320px]">
+    <div className="flex w-full shrink-0 flex-col gap-1.5 md:w-80">
       <ThicknessPreviewCanvas
         hoveredBinWallIds={hoveredBinIndex === null ? undefined : bins[hoveredBinIndex]?.wallIds}
         hoveredGroup={hoveredGroup}
@@ -346,7 +346,7 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
 
         <section
           aria-label={HISTOGRAM_SECTION_LABEL}
-          className="rounded-[12px] bg-bg-surface p-4 shadow-panel"
+          className="rounded-xl bg-bg-surface p-4 shadow-panel"
         >
           <ThicknessHistogram
             bins={bins}
@@ -363,7 +363,7 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
 
         <section
           aria-label={TABLES_SECTION_LABEL}
-          className="flex min-h-0 flex-col gap-4 rounded-[12px] bg-bg-surface p-4 shadow-panel"
+          className="flex min-h-0 flex-col gap-4 rounded-xl bg-bg-surface p-4 shadow-panel"
         >
           <ThicknessTablesColumn {...props} previewColumn={<ThicknessPreviewColumn {...props} />} />
         </section>
@@ -373,7 +373,7 @@ export function ThicknessStandardization(props: ThicknessStandardizationViewProp
          * không riêng bảng nào. Vắng mặt hẳn ở vai Người xem — xem đầu file.
          */}
         {isViewerRole ? null : (
-          <div className="overflow-hidden rounded-[12px] bg-bg-surface shadow-panel">
+          <div className="overflow-hidden rounded-xl bg-bg-surface shadow-panel">
             <ThicknessApplyBar
               canPreview={props.segmentRows.length > 0}
               onApplyPreview={onApplyPreview}

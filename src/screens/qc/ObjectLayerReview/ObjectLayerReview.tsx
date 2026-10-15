@@ -259,7 +259,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
       */}
       <div className="relative flex min-h-0 flex-1 flex-wrap content-start gap-2 overflow-y-auto p-2 xl:flex-nowrap xl:overflow-visible">
         {isCollapsed ? (
-          <div className="absolute left-4 top-4 z-10 rounded-[12px] bg-bg-surface shadow-panel">
+          <div className="absolute left-4 top-4 z-10 rounded-xl bg-bg-surface shadow-panel">
             <ObjectLayerToolRail
               activeLayer={model.activeLayer}
               activeSubtype={model.activeSubtype}
@@ -284,7 +284,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
             <div className="shrink-0">
               {/* Đang tải: khung xương thay bộ đếm "0/0" và "Tổng 0" như thể dữ liệu thật (BUG-618). */}
               {model.state === 'loading' ? (
-                <div aria-hidden="true" className="flex flex-col gap-2 rounded-[12px] bg-bg-surface px-5 py-4 shadow-panel">
+                <div aria-hidden="true" className="flex flex-col gap-2 rounded-xl bg-bg-surface px-5 py-4 shadow-panel">
                   {SKELETON_ROWS.map((row) => (
                     <Skeleton key={row} preset="table-row" />
                   ))}
@@ -304,7 +304,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
               )}
             </div>
 
-            <div className="shrink-0 rounded-[12px] bg-bg-surface px-3 py-3 shadow-panel">
+            <div className="shrink-0 rounded-xl bg-bg-surface px-3 py-3 shadow-panel">
               <ObjectLayerListRegion model={model} />
             </div>
           </div>
@@ -312,7 +312,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
 
         <section
           aria-label={CANVAS_REGION_LABEL}
-          className="relative h-[60vh] min-h-[320px] min-w-0 flex-1 overflow-hidden rounded-[16px] bg-bg-sunken xl:h-auto xl:min-h-0"
+          className="relative h-[60vh] min-h-80 min-w-0 flex-1 overflow-hidden rounded-2xl bg-bg-sunken xl:h-auto xl:min-h-0"
         >
           <ObjectLayerCanvasRegion model={model} />
         </section>

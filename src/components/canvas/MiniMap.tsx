@@ -79,7 +79,7 @@ export function MiniMap({
         className={cn(
           'relative overflow-hidden',
           // Viền hairline
-          'border border-border-default rounded-[8px]',
+          'border border-border-default rounded-lg',
           // Nền nhẹ
           'bg-bg-sunken',
           isDragging ? 'cursor-grabbing' : 'cursor-pointer'

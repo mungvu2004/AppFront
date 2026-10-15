@@ -103,11 +103,11 @@ export function CadImportOptions({ actions, model }: CadImportOptionsProps) {
 
   return (
     <details
-      className="w-full rounded-[12px] border border-border-default bg-bg-surface"
+      className="w-full rounded-xl border border-border-default bg-bg-surface"
       onToggle={handleToggle}
       open={isExpanded}
     >
-      <summary className="cursor-pointer select-none rounded-[12px] px-3 py-2 text-[14px] font-medium text-text-secondary transition-colors duration-120 hover:bg-bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-reduce:transition-none">
+      <summary className="cursor-pointer select-none rounded-xl px-3 py-2 text-[14px] font-medium text-text-secondary transition-colors duration-120 hover:bg-bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-reduce:transition-none">
         {ADVANCED_OPTIONS_LABEL}
       </summary>
 

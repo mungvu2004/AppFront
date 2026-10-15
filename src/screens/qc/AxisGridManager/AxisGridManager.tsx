@@ -124,7 +124,7 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
 
 /** Khung chung của cột trái, để ba nhánh thay thế không mỗi chỗ một bề rộng. */
 const LEFT_COLUMN_CLASS_NAME =
-  'flex h-full w-[280px] shrink-0 flex-col gap-3 overflow-y-auto rounded-[12px] bg-bg-surface p-4 shadow-panel max-lg:h-auto max-lg:w-full';
+  'flex h-full w-[280px] shrink-0 flex-col gap-3 overflow-y-auto rounded-xl bg-bg-surface p-4 shadow-panel max-lg:h-auto max-lg:w-full';
 
 /* -------------------------------------------------------------------------- */
 /* Cột trái — bốn nhánh loại trừ nhau, nhánh cuối là danh sách trục thật.      */
@@ -256,7 +256,7 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
 
         <section
           aria-label={CANVAS_SECTION_LABEL}
-          className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-[16px] bg-bg-sunken max-lg:h-[360px] max-lg:flex-none"
+          className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-2xl bg-bg-sunken max-lg:h-[360px] max-lg:flex-none"
         >
           <AxisGridCanvas
             canvas={viewModel.canvas}
@@ -282,7 +282,7 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
           /* Đang tải: khung xương, không in "0 px / 0 mm" và danh sách tầng như dữ liệu thật (BUG-618). */
           <div aria-hidden="true" className="flex w-[344px] shrink-0 flex-col gap-2 max-lg:w-full">
             {[0, 1].map((card) => (
-              <div className="flex flex-col gap-2 rounded-[12px] bg-bg-surface p-5 shadow-panel" key={card}>
+              <div className="flex flex-col gap-2 rounded-xl bg-bg-surface p-5 shadow-panel" key={card}>
                 {SKELETON_ROWS.slice(0, 3).map((row) => (
                   <Skeleton key={row} preset="table-row" />
                 ))}

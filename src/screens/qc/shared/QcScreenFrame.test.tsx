@@ -30,6 +30,6 @@ describe('QcScreenFrame (BUG-324, BUG-329, BUG-413)', () => {
     const canvas = screen.getByLabelText('Khung bản vẽ');
 
     expect(canvas.className).toContain('bg-bg-sunken');
-    expect(canvas.className).toContain('rounded-[16px]');
+    expect(canvas.className).toContain('rounded-2xl');
   });
 });

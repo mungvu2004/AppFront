@@ -149,9 +149,9 @@ function MeasurementRow({
         aria-label={measurement.visible ? `Ẩn ${measurement.name}` : `Hiện ${measurement.name}`}
         icon={
           measurement.visible ? (
-            <Eye aria-hidden="true" className="h-[16px] w-[16px]" />
+            <Eye aria-hidden="true" className="h-4 w-4" />
           ) : (
-            <EyeOff aria-hidden="true" className="h-[16px] w-[16px]" />
+            <EyeOff aria-hidden="true" className="h-4 w-4" />
           )
         }
         isActive={!measurement.visible}
@@ -164,7 +164,7 @@ function MeasurementRow({
       {canDelete && (
         <IconButton
           aria-label={`Xoá ${measurement.name}`}
-          icon={<Trash2 aria-hidden="true" className="h-[16px] w-[16px]" />}
+          icon={<Trash2 aria-hidden="true" className="h-4 w-4" />}
           onClick={() => {
             onDelete(measurement.id);
           }}
@@ -221,7 +221,7 @@ export function MeasurementList({
         </div>
         <IconButton
           aria-label={COLLAPSE_BUTTON_LABEL}
-          icon={<ChevronDown aria-hidden="true" className="h-[16px] w-[16px]" />}
+          icon={<ChevronDown aria-hidden="true" className="h-4 w-4" />}
           onClick={onToggleCollapsed}
           size="sm"
         />

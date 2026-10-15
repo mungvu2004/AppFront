@@ -139,7 +139,7 @@ export function FloorSectionCut({
   return (
     <section
       aria-label={SECTION_ARIA_LABEL}
-      className="flex h-full min-h-0 w-full flex-col gap-2 rounded-[12px] bg-bg-surface p-3"
+      className="flex h-full min-h-0 w-full flex-col gap-2 rounded-xl bg-bg-surface p-3"
     >
       <header className="flex shrink-0 items-start justify-between gap-2">
         <div>
@@ -150,7 +150,7 @@ export function FloorSectionCut({
         <button
           aria-label={COLLAPSE_LABEL}
           className={cn(
-            'inline-flex min-h-11 shrink-0 items-center rounded-[6px] px-1.5 text-[12px] text-text-secondary sm:min-h-6',
+            'inline-flex min-h-11 shrink-0 items-center rounded-md px-1.5 text-[12px] text-text-secondary sm:min-h-6',
             'transition-colors duration-120 hover:bg-bg-hover hover:text-text-primary',
             'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
           )}
@@ -162,11 +162,11 @@ export function FloorSectionCut({
       </header>
 
       {state === 'loading' ? (
-        <div aria-hidden="true" className="min-h-0 flex-1 animate-pulse motion-reduce:animate-none rounded-[8px] bg-border-default" />
+        <div aria-hidden="true" className="min-h-0 flex-1 animate-pulse motion-reduce:animate-none rounded-lg bg-border-default" />
       ) : (
         <div className="flex min-h-0 flex-1 gap-1">
           <ElevationScale ticks={elevationTicks} />
-          <div className="flex min-h-0 flex-1 flex-col-reverse overflow-hidden rounded-[8px] border border-border-default">
+          <div className="flex min-h-0 flex-1 flex-col-reverse overflow-hidden rounded-lg border border-border-default">
             {bands.map((band) => (
               <Fragment key={band.levelId}>
                 {/* Khoảng hở dưới dải (cao độ ghi đè), cùng cột flex nên dải đứng đúng cao độ (BUG-357). */}

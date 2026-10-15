@@ -89,13 +89,13 @@ const ZOOM_BUTTON_STEP = 1.25;
 
 /** Nút chữ của liên kết lỗi: cùng khuôn `DimensionOcrReview.tsx` (A1, A2). */
 const ERROR_LINK_CLASS_NAME =
-  'self-center rounded-[6px] px-1.5 py-0.5 text-[13px] text-accent ' +
+  'self-center rounded-md px-1.5 py-0.5 text-[13px] text-accent ' +
   'transition-colors duration-120 hover:bg-accent-wash ' +
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
 
 /** Chữ thường của trạng thái đang tải: không có màu nào trong ba màu A4 phù hợp. */
 const LOADING_NOTICE_CLASS_NAME =
-  'rounded-[8px] bg-bg-surface px-3 py-2 text-center text-[13px] text-text-secondary shadow-overlay';
+  'rounded-lg bg-bg-surface px-3 py-2 text-center text-[13px] text-text-secondary shadow-overlay';
 
 /**
  * Mức màu của khối thông báo nổi, đúng ba màu của A4.

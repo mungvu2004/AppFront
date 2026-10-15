@@ -91,7 +91,7 @@ export function SpatialJsonTree({ nodes, onSelect, onToggle, selectedNodeId }: S
             aria-selected={isSelected}
             {...(node.isExpandable ? { 'aria-expanded': node.isExpanded } : {})}
             className={cn(
-              'flex h-6 cursor-pointer items-center gap-1 rounded-[6px] pr-3 text-[13px] leading-5',
+              'flex h-6 cursor-pointer items-center gap-1 rounded-md pr-3 text-[13px] leading-5',
               'transition-colors duration-fast',
               isSelected ? 'bg-bg-selected' : node.isMatch ? 'bg-bg-flash' : 'hover:bg-bg-hover',
             )}
@@ -132,7 +132,7 @@ export function SpatialJsonTree({ nodes, onSelect, onToggle, selectedNodeId }: S
             {node.isExpandable ? (
               <span
                 aria-hidden="true"
-                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] text-text-muted"
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-text-muted"
                 onClick={(event) => {
                   event.stopPropagation();
                   onToggle(node.id);

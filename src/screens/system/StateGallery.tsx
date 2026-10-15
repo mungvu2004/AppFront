@@ -83,7 +83,7 @@ export function StateGallery() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {emptyStates.map((state) => (
-              <div key={state.id} className="h-[240px] border border-border-default rounded-xl bg-bg-surface overflow-hidden">
+              <div key={state.id} className="h-60 border border-border-default rounded-xl bg-bg-surface overflow-hidden">
                 <EmptyState
                   icon={state.icon}
                   title={`${state.id}. ${state.title}`}

@@ -119,7 +119,7 @@ export function DimensionOcrCrop({ crop, isMagnified = false }: DimensionOcrCrop
     <div
       aria-label={crop.alt}
       className={cn(
-        'shrink-0 overflow-hidden rounded-[8px] border border-border-default bg-bg-sunken',
+        'shrink-0 overflow-hidden rounded-lg border border-border-default bg-bg-sunken',
         'h-[var(--dim-crop-h)] w-[var(--dim-crop-h)] xl:w-[var(--dim-crop-w)]',
       )}
       role="img"
@@ -168,7 +168,7 @@ export function DimensionOcrOutlierNotice({ message }: DimensionOcrOutlierNotice
 
   return (
     <p
-      className="rounded-[6px] bg-state-attention-tint px-2 py-1 text-[13px] text-state-attention-text"
+      className="rounded-md bg-state-attention-tint px-2 py-1 text-[13px] text-state-attention-text"
       role="status"
     >
       {message}
@@ -258,7 +258,7 @@ export function DimensionValueField({
       <NumericField
         aria-label={`${DIMENSION_OCR_TEXT.row.inputAriaLabelPrefix}${row.codeLabel}`}
         autoFocus={hasAutoFocus && fieldKey === 0}
-        className="text-right font-mono text-[16px] leading-[24px]"
+        className="text-right font-mono text-[16px] leading-6"
         disabled={isViewerRole}
         key={fieldKey}
         onChange={(next) => {
@@ -296,7 +296,7 @@ export function DimensionOcrRow({
       aria-label={row.codeLabel}
       aria-selected={isSelected}
       className={cn(
-        'flex cursor-pointer gap-4 rounded-[12px] border bg-bg-surface p-4 outline-none',
+        'flex cursor-pointer gap-4 rounded-xl border bg-bg-surface p-4 outline-none',
         'transition-colors duration-120 hover:bg-bg-hover',
         'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
         STATUS_BORDER_TOKEN[row.statusCode],
@@ -330,7 +330,7 @@ export function DimensionOcrRow({
 
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-[16px] leading-[24px] text-text-primary">
+          <span className="font-mono text-[16px] leading-6 text-text-primary">
             {row.codeLabel}
           </span>
           {/* BUG-610: trạng thái bằng chữ, không chấm trơn không nhãn. */}

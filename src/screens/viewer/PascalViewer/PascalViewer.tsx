@@ -51,7 +51,7 @@ function Frame({
   return (
     <section
       aria-label={PASCAL_VIEWER_TITLE}
-      className="flex h-full min-h-[24rem] flex-col gap-3 bg-bg-app p-4"
+      className="flex h-full min-h-96 flex-col gap-3 bg-bg-app p-4"
     >
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-[16px] font-semibold text-text-primary">{PASCAL_VIEWER_TITLE}</h2>
@@ -136,7 +136,7 @@ function SidePanelColumn({
         <div
           aria-label={open.label}
           className={
-            'fixed inset-x-0 bottom-0 z-10 flex max-h-[70vh] w-full flex-col overflow-y-auto rounded-t-[16px] ' +
+            'fixed inset-x-0 bottom-0 z-10 flex max-h-[70vh] w-full flex-col overflow-y-auto rounded-t-2xl ' +
             'border-t border-border-default bg-bg-surface shadow-overlay ' +
             'lg:static lg:z-auto lg:max-h-none lg:min-h-0 lg:w-[344px] lg:shrink-0 lg:rounded-md ' +
             'lg:border lg:shadow-none transition-[width] duration-standard motion-reduce:transition-none'
@@ -272,7 +272,7 @@ export function PascalViewer({
     <Frame caption={caption} headerSlotRef={headerSlotRef} onLeave={onLeave} showCaption>
       <div className="flex h-full min-h-0 flex-col gap-3">
         <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
-          <div className="relative min-h-[12rem] min-w-0 flex-1">
+          <div className="relative min-h-48 min-w-0 flex-1">
             {/* `contain:layout`: hộp `fixed` của Pascal neo vào khung này; `container-type:size`: `cqh`/`cqw` trong vendor đo khung chứ không đo viewport. */}
             <div
               ref={canvasRef}

@@ -55,7 +55,7 @@ export function ViewerStoreyRail({
   return (
     <div
       /* Dưới `md` ray nằm ngang dưới ray công cụ: tầng bên trái, thanh tách bên phải. */
-      className="flex w-[56px] shrink-0 flex-col items-center gap-1 py-2 max-md:w-full max-md:flex-row max-md:gap-3 max-md:px-3"
+      className="flex w-14 shrink-0 flex-col items-center gap-1 py-2 max-md:w-full max-md:flex-row max-md:gap-3 max-md:px-3"
     >
       {/* Tên nằm trên chính `listbox` — trên `div` không vai trò thì không ai đọc (25-E-003). */}
       <ul
@@ -72,7 +72,7 @@ export function ViewerStoreyRail({
                 aria-label={`${storey.name}, cao độ ${storey.elevationLabel}`}
                 aria-selected={storey.isActive}
                 className={cn(
-                  'flex h-8 w-10 items-center justify-center rounded-[8px] text-[12px] font-medium max-sm:h-11 max-sm:w-11',
+                  'flex h-8 w-10 items-center justify-center rounded-lg text-[12px] font-medium max-sm:h-11 max-sm:w-11',
                   'transition-colors duration-120',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app',
                   storey.isActive
@@ -95,7 +95,7 @@ export function ViewerStoreyRail({
                 }
                 aria-pressed={storey.isVisible}
                 className={cn(
-                  'mt-0.5 flex h-6 w-6 items-center justify-center rounded-[6px]',
+                  'mt-0.5 flex h-6 w-6 items-center justify-center rounded-md',
                   'text-text-muted transition-colors duration-120 hover:bg-bg-hover',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app',
                 )}

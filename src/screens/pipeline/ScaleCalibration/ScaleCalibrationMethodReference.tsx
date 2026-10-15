@@ -104,7 +104,7 @@ export function ScaleCalibrationMethodReference({ actions, reference }: ScaleCal
           title={STEP_ENTER_LENGTH_TITLE}
         />
         <Input
-          className="text-right font-mono text-[13px] leading-[20px]"
+          className="text-right font-mono text-[13px] leading-5"
           inputMode="decimal"
           label={REAL_LENGTH_LABEL}
           error={reference.realLengthError ?? undefined}

@@ -234,7 +234,7 @@ export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
 
           <section
             aria-label={CANVAS_REGION_ARIA_LABEL}
-            className="min-h-0 flex-1 overflow-hidden rounded-[16px] bg-bg-sunken"
+            className="min-h-0 flex-1 overflow-hidden rounded-2xl bg-bg-sunken"
             ref={canvasHostRef}
           >
             <ScaleCalibrationCanvas

@@ -147,7 +147,7 @@ export function WallGeometryEditorOverlay({
       {dimensionChain.segments.map((segment) => (
         <span
           className={cn(
-            'pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-[4px] bg-bg-surface px-1 font-mono text-[11px] text-text-primary shadow-panel',
+            'pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded bg-bg-surface px-1 font-mono text-[11px] text-text-primary shadow-panel',
             segment.isLive && 'text-accent',
           )}
           key={segment.id}

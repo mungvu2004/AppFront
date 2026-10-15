@@ -133,7 +133,7 @@ const TabsTab = forwardRef<HTMLButtonElement, TabsTabProps>(
           // 44 px dưới `sm` (vùng chạm), 36 px từ `sm` như cũ.
           'relative h-11 sm:h-9 px-4 flex items-center justify-center gap-1.5 text-[14px] font-medium',
           'transition-colors duration-120 outline-none',
-          'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 rounded-[4px]',
+          'focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 rounded',
           isActive ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary',
           className
         )}
@@ -155,7 +155,7 @@ const TabsTab = forwardRef<HTMLButtonElement, TabsTabProps>(
         {isActive && (
           <motion.div
             layoutId={`tab-indicator-${groupId}`}
-            className="absolute bottom-[-1px] left-0 right-0 h-[2px] bg-accent"
+            className="absolute bottom-[-1px] left-0 right-0 h-0.5 bg-accent"
             transition={{ type: 'tween', ease: EASE.standard, duration: durationSeconds('fast') }}
           />
         )}

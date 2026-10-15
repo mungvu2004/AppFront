@@ -99,14 +99,14 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
 
 /** Nút chữ của màn: cùng khuôn nút bung bảng của `AxisGridManager` (A1, A2). */
 const LINK_CLASS_NAME = cn(
-  'self-center rounded-[6px] px-1.5 py-0.5 text-[13px] text-accent',
+  'self-center rounded-md px-1.5 py-0.5 text-[13px] text-accent',
   'transition-colors duration-120 hover:bg-accent-wash',
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
 );
 
 /** Khung chung của cột trái, để bốn nhánh thay thế không mỗi chỗ một bề rộng. */
 const LEFT_COLUMN_CLASS_NAME =
-  'flex h-full w-[280px] shrink-0 flex-col gap-3 overflow-y-auto rounded-[12px] bg-bg-surface p-4 shadow-panel max-lg:h-auto max-lg:w-full';
+  'flex h-full w-[280px] shrink-0 flex-col gap-3 overflow-y-auto rounded-xl bg-bg-surface p-4 shadow-panel max-lg:h-auto max-lg:w-full';
 
 /* -------------------------------------------------------------------------- */
 /* Cột trái — bốn nhánh loại trừ nhau, nhánh cuối là panel phòng thật.         */
@@ -304,7 +304,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
 
         <section
           aria-label={CANVAS_SECTION_LABEL}
-          className="min-h-0 min-w-0 flex-1 overflow-hidden rounded-[16px] bg-bg-sunken max-lg:h-[360px] max-lg:flex-none"
+          className="min-h-0 min-w-0 flex-1 overflow-hidden rounded-2xl bg-bg-sunken max-lg:h-[360px] max-lg:flex-none"
         >
           <RoomLabelCanvas
             backgroundImageAlt={backgroundImageAlt}

@@ -135,7 +135,7 @@ export function DimensionOcrKeyboardMode({
           {/* MỘT ảnh cắt. [CẤM TUYỆT ĐỐI]: số đọc được không bao giờ đứng một mình. */}
           <KeyboardModeCrop key={row.id} row={row} />
 
-          <span className="font-mono text-[16px] leading-[24px] text-text-primary">
+          <span className="font-mono text-[16px] leading-6 text-text-primary">
             {row.codeLabel}
           </span>
 

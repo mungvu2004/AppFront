@@ -302,7 +302,7 @@ export function DimensionOcrReview({
             aria-label={PANEL_ARIA_LABEL}
             className={cn(
               'flex min-h-0 min-w-0 flex-col overflow-hidden lg:w-[40%]',
-              'rounded-[16px] border border-border-default bg-bg-surface',
+              'rounded-2xl border border-border-default bg-bg-surface',
             )}
           >
             <div className="min-h-0 flex-1 overflow-hidden">

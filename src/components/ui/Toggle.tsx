@@ -133,7 +133,7 @@ export function Toggle(props: ToggleProps) {
         {label && (
           <span
             id={`${toggleId}-label`}
-            className="text-[14px] font-medium leading-[20px] text-text-primary select-none cursor-default"
+            className="text-[14px] font-medium leading-5 text-text-primary select-none cursor-default"
           >
             {label}
           </span>

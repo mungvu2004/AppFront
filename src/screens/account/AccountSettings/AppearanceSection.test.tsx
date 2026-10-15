@@ -179,17 +179,18 @@ describe('mật độ hiển thị đổi chiều cao dòng giữa 40 và 36', (
   it('hai bảng khớp nhau, nên con số nghiệm thu và lớp Tailwind không lệch được', () => {
     expect(DENSITY_ROW_HEIGHT_PX.comfortable).toBe(40);
     expect(DENSITY_ROW_HEIGHT_PX.compact).toBe(36);
+    // Lớp thang Tailwind: min-h-N = N x 4px.
     expect(DENSITY_ROW_CLASS.comfortable).toBe(
-      `min-h-[${String(DENSITY_ROW_HEIGHT_PX.comfortable)}px]`,
+      `min-h-${String(DENSITY_ROW_HEIGHT_PX.comfortable / 4)}`,
     );
-    expect(DENSITY_ROW_CLASS.compact).toBe(`min-h-[${String(DENSITY_ROW_HEIGHT_PX.compact)}px]`);
+    expect(DENSITY_ROW_CLASS.compact).toBe(`min-h-${String(DENSITY_ROW_HEIGHT_PX.compact / 4)}`);
   });
 
   it('lớp ấy tới được từng hàng', () => {
     render(<AppearanceSection {...props({ rowClassName: DENSITY_ROW_CLASS.compact })} />);
 
-    expect(rowOf('Chủ đề').className).toContain('min-h-[36px]');
-    expect(rowOf('Mật độ hiển thị').className).toContain('min-h-[36px]');
+    expect(rowOf('Chủ đề').className).toContain('min-h-9');
+    expect(rowOf('Mật độ hiển thị').className).toContain('min-h-9');
   });
 
   it('bấm một mức thì báo lên hook', () => {

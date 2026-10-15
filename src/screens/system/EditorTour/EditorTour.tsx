@@ -119,7 +119,7 @@ function backdropPanels(
  * Giữa cạnh dưới (B-V2-05): đo cả ba màn chủ ở 1280×720 và 1440×900, chỗ này không đè
  * điều khiển nào. Bài: e2e/v2v3/tour-chip.spec.ts.
  */
-const DEFAULT_CHIP_ANCHOR = 'bottom-[16px] left-1/2 -translate-x-1/2';
+const DEFAULT_CHIP_ANCHOR = 'bottom-4 left-1/2 -translate-x-1/2';
 
 export function EditorTour(props: EditorTourProps) {
   const {
@@ -241,8 +241,8 @@ export function EditorTour(props: EditorTourProps) {
           };
 
   const cardShape = isCollapsed
-    ? 'w-full rounded-t-[12px] border-t'
-    : 'w-[320px] rounded-[12px] border';
+    ? 'w-full rounded-t-xl border-t'
+    : 'w-80 rounded-xl border';
 
   return (
     <div className="pointer-events-none fixed inset-0 z-40">
@@ -263,7 +263,7 @@ export function EditorTour(props: EditorTourProps) {
           ))}
           <div
             aria-hidden="true"
-            className="pointer-events-none fixed rounded-[6px] border-2 border-accent"
+            className="pointer-events-none fixed rounded-md border-2 border-accent"
             style={{
               top: cutout.top,
               left: cutout.left,
@@ -279,7 +279,7 @@ export function EditorTour(props: EditorTourProps) {
         <div ref={cardRef} className="fixed" style={framePosition}>
           <section
             aria-labelledby={titleId}
-            className={`pointer-events-auto relative border-border-default bg-bg-surface p-[20px] shadow-float ${cardShape}`}
+            className={`pointer-events-auto relative border-border-default bg-bg-surface p-5 shadow-float ${cardShape}`}
             style={cardStyle}
           >
             {anchor !== null && !isCollapsed && (
@@ -295,11 +295,11 @@ export function EditorTour(props: EditorTourProps) {
                 <h3 id={titleId} className="text-[15px] font-medium text-text-primary">
                   Chưa có gì trên khung vẽ
                 </h3>
-                <p className="mt-[8px] text-[13px] leading-relaxed text-text-secondary">
+                <p className="mt-2 text-[13px] leading-relaxed text-text-secondary">
                   Lớp chỉ dẫn cần một mặt bằng đang mở thì mới trỏ vào đâu được. Mở bộ mẫu
                   rồi quay lại đây.
                 </p>
-                <div className="mt-[20px] flex items-center justify-between">
+                <div className="mt-5 flex items-center justify-between">
                   <Button variant="ghost" size="sm" onClick={onSkip}>
                     Bỏ qua hướng dẫn
                   </Button>
@@ -313,7 +313,7 @@ export function EditorTour(props: EditorTourProps) {
                 <h3 id={titleId} className="text-[15px] font-medium text-text-primary">
                   Bấy nhiêu phím là đủ dùng
                 </h3>
-                <ul className="mt-[12px] flex flex-col gap-[8px]">
+                <ul className="mt-3 flex flex-col gap-2">
                   {summary.map((row) => (
                     <li key={row.id} className="flex items-center justify-between gap-3">
                       <span className="text-[13px] text-text-secondary">{row.label}</span>
@@ -321,7 +321,7 @@ export function EditorTour(props: EditorTourProps) {
                     </li>
                   ))}
                 </ul>
-                <div className="mt-[20px] flex justify-end">
+                <div className="mt-5 flex justify-end">
                   <Button variant="primary" size="sm" onClick={onFinish}>
                     Bắt đầu làm việc
                   </Button>
@@ -333,19 +333,19 @@ export function EditorTour(props: EditorTourProps) {
                   <p className="font-mono text-[13px] text-text-muted">
                     {activeIndex + 1} / {steps.length}
                   </p>
-                  <h3 id={titleId} className="mt-[8px] text-[15px] font-medium text-text-primary">
+                  <h3 id={titleId} className="mt-2 text-[15px] font-medium text-text-primary">
                     {step.title}
                   </h3>
-                  <p className="mt-[8px] text-[13px] leading-relaxed text-text-secondary">
+                  <p className="mt-2 text-[13px] leading-relaxed text-text-secondary">
                     {step.body}
                   </p>
                   {step.combo !== null && (
-                    <p className="mt-[12px] flex items-center gap-[8px] text-[13px] text-text-secondary">
+                    <p className="mt-3 flex items-center gap-2 text-[13px] text-text-secondary">
                       <Kbd>{step.combo}</Kbd>
                       {step.comboDescription !== null && <span>{step.comboDescription}</span>}
                     </p>
                   )}
-                  <div className="mt-[20px] flex items-center justify-between">
+                  <div className="mt-5 flex items-center justify-between">
                     <Button variant="ghost" size="sm" onClick={onSkip}>
                       Bỏ qua hướng dẫn
                     </Button>
@@ -362,7 +362,7 @@ export function EditorTour(props: EditorTourProps) {
             <div
               role="group"
               aria-label="Tiến độ hướng dẫn"
-              className="pointer-events-auto mt-[8px] flex justify-center"
+              className="pointer-events-auto mt-2 flex justify-center"
             >
               {steps.map((dot, index) => (
                 <button
@@ -377,7 +377,7 @@ export function EditorTour(props: EditorTourProps) {
                 >
                   <span
                     aria-hidden="true"
-                    className={`h-[6px] w-[6px] rounded-full ${
+                    className={`h-1.5 w-1.5 rounded-full ${
                       index === activeIndex ? 'bg-accent' : 'bg-text-muted'
                     }`}
                   />

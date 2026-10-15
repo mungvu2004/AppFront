@@ -35,7 +35,7 @@ export function ModelLibraryToolbar({ model, actions }: ModelLibraryToolbarProps
   return (
     <div className="flex flex-wrap items-end gap-4">
       <Input
-        className="w-[240px]"
+        className="w-60"
         label={SEARCH_LABEL}
         onChange={(event) => actions.setSearchText(event.target.value)}
         placeholder={SEARCH_PLACEHOLDER}

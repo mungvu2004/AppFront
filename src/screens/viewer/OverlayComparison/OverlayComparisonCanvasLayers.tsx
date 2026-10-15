@@ -302,7 +302,7 @@ export function DeviationLayer({
           }`}
           aria-pressed={mark.isSelected}
           className={cn(
-            'absolute rounded-[4px] bg-transparent p-0',
+            'absolute rounded bg-transparent p-0',
             'focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent',
             mark.isOverTolerance ? 'border border-state-attention' : 'border-0',
             mark.isSelected ? 'outline outline-2 outline-accent' : undefined,

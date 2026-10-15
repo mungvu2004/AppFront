@@ -903,7 +903,7 @@ describe('NO-208 — vị trí chip do màn chủ truyền', () => {
       />,
     );
 
-    expect(chipWrapper()?.className).toContain('bottom-[16px] left-1/2 -translate-x-1/2');
+    expect(chipWrapper()?.className).toContain('bottom-4 left-1/2 -translate-x-1/2');
   });
 
   it('theo chipAnchorClassName của màn chủ, và bỏ góc mặc định', () => {
@@ -915,13 +915,13 @@ describe('NO-208 — vị trí chip do màn chủ truyền', () => {
           activeIndex: -1,
           cutout: null,
           isSkipChipVisible: true,
-          chipAnchorClassName: 'right-[16px] top-[16px]',
+          chipAnchorClassName: 'right-4 top-4',
         })}
       />,
     );
 
-    expect(chipWrapper()?.className).toContain('right-[16px] top-[16px]');
-    expect(chipWrapper()?.className).not.toContain('bottom-[16px]');
+    expect(chipWrapper()?.className).toContain('right-4 top-4');
+    expect(chipWrapper()?.className).not.toContain('bottom-4');
   });
 });
 

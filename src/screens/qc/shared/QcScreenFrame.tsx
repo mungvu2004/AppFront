@@ -39,7 +39,7 @@ export function QcCanvasFrame({ label, children, className }: QcCanvasFrameProps
   return (
     <section
       aria-label={label}
-      className={cn('min-h-0 min-w-0 overflow-hidden rounded-[16px] bg-bg-sunken', className)}
+      className={cn('min-h-0 min-w-0 overflow-hidden rounded-2xl bg-bg-sunken', className)}
     >
       {children}
     </section>

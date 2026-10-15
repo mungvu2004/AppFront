@@ -73,7 +73,7 @@ const AXIS_TRANSITION_CLASSES = 'transition-colors duration-180 motion-reduce:tr
 
 /** Khung canvas: tối thiểu 640 từ 1280px, bo 16, thụt 12; dưới 1280 tối thiểu 60vh (như FIX-1506), dưới 1024 lấp vùng 360 px — BUG-317, BUG-404. */
 const CANVAS_FRAME_CLASSES =
-  'relative h-full min-h-[320px] w-full overflow-hidden rounded-[16px] border border-border-default p-3 lg:min-h-[60vh] xl:min-h-[640px]';
+  'relative h-full min-h-80 w-full overflow-hidden rounded-2xl border border-border-default p-3 lg:min-h-[60vh] xl:min-h-[640px]';
 /** BUG-413: khung chưa có trục cùng nền chìm với khung bản vẽ trống của SCR-18/20; có trục thì là giấy vẽ. */
 const CANVAS_EMPTY_BG = 'bg-bg-sunken';
 const CANVAS_DRAWING_BG = 'bg-canvas-2d';

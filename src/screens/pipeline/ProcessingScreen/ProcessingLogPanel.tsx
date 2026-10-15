@@ -89,7 +89,7 @@ export function ProcessingLogPanel({
       ) : (
         <div
           aria-live="polite"
-          className="max-h-[420px] overflow-y-auto rounded-[8px] border border-border-default bg-bg-sunken p-2 font-mono text-[13px] text-text-primary"
+          className="max-h-[420px] overflow-y-auto rounded-lg border border-border-default bg-bg-sunken p-2 font-mono text-[13px] text-text-primary"
           ref={scrollRef}
           role="log"
           tabIndex={0}

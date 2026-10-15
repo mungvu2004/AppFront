@@ -49,7 +49,7 @@ export const ReadOnly: Story = {
   args: {
     label: 'Diện tích',
     isReadOnly: true,
-    children: <span className="flex h-[36px] items-center text-[14px] text-text-primary">248,60 m²</span>,
+    children: <span className="flex h-9 items-center text-[14px] text-text-primary">248,60 m²</span>,
   },
 };
 
@@ -75,7 +75,7 @@ export const Stacked: Story = {
         <NumericField value={3.2} unit="m" />
       </FieldRow>
       <FieldRow label="Diện tích" isLast>
-        <span className="flex h-[36px] items-center text-[14px] font-mono text-text-primary">248,60 m²</span>
+        <span className="flex h-9 items-center text-[14px] font-mono text-text-primary">248,60 m²</span>
       </FieldRow>
     </div>
   ),

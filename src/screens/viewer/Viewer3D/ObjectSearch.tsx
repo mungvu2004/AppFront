@@ -175,11 +175,11 @@ export function ObjectSearch({
 
   return (
     <div className="pointer-events-none absolute inset-x-0 top-2 z-10 flex justify-center">
-      <div className="pointer-events-auto w-[320px] max-w-full">
+      <div className="pointer-events-auto w-80 max-w-full">
         {!isOpen && (
           <button
             className={cn(
-              'mx-auto flex items-center rounded-[8px] px-3 py-1.5 max-sm:min-h-11',
+              'mx-auto flex items-center rounded-lg px-3 py-1.5 max-sm:min-h-11',
               'border border-border-default bg-bg-surface shadow-float',
               'text-[13px] leading-none text-text-primary',
               'transition-colors duration-120 hover:bg-bg-hover',
@@ -206,7 +206,7 @@ export function ObjectSearch({
               aria-expanded="true"
               aria-label={SEARCH_INPUT_LABEL}
               className={cn(
-                'w-full rounded-[6px] px-2 py-1.5',
+                'w-full rounded-md px-2 py-1.5',
                 'border border-border-default bg-bg-sunken',
                 'text-[13px] leading-none text-text-primary placeholder:text-text-secondary',
                 FOCUS_RING,
@@ -231,7 +231,7 @@ export function ObjectSearch({
                 <li
                   aria-selected={room.id === selectedRoomId}
                   className={cn(
-                    'flex cursor-pointer items-baseline justify-between gap-3 rounded-[6px] px-2 py-1.5',
+                    'flex cursor-pointer items-baseline justify-between gap-3 rounded-md px-2 py-1.5',
                     'text-[13px] leading-none transition-colors duration-120',
                     room.id === activeOption?.id
                       ? 'bg-accent-wash text-text-primary'

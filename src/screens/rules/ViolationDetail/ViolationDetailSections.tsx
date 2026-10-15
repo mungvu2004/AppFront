@@ -104,7 +104,7 @@ export function ViolationRuleSection({ diagram, ruleSentence }: RuleSentenceProp
         Luật
       </h3>
 
-      <div className="flex items-start gap-3 rounded-[12px] bg-bg-sunken p-3">
+      <div className="flex items-start gap-3 rounded-xl bg-bg-sunken p-3">
         {diagram}
         <p className="text-sm text-text-primary">{ruleSentence}</p>
       </div>
@@ -273,7 +273,7 @@ export function ViolationActionsSection({
       <ul className="flex flex-col gap-2">
         {allowed.map((action) => (
           <li
-            className="flex flex-col gap-0.5 rounded-[8px] border border-border-default bg-bg-surface p-3 transition-colors duration-120 hover:border-accent"
+            className="flex flex-col gap-0.5 rounded-lg border border-border-default bg-bg-surface p-3 transition-colors duration-120 hover:border-accent"
             key={action.kind}
             onMouseEnter={() => {
               onActionHover(action.kind);

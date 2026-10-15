@@ -19,7 +19,7 @@ export function Skeleton({ preset, className, ...props }: SkeletonProps) {
   // "đang tải" phải nói bằng chữ/ARIA ở nơi gọi (`role="status"`, `aria-busy`). Một khối xám 3:1
   // (`border-control`) đọc ra như nội dung bị vô hiệu hoá. Ngưỡng ở đây: ngang đường kẻ hairline
   // của hệ thống, tức nhận ra được nhưng lùi sau nội dung thật.
-  const baseClass = 'bg-border-default rounded-[8px] animate-pulse motion-reduce:animate-none';
+  const baseClass = 'bg-border-default rounded-lg animate-pulse motion-reduce:animate-none';
 
   switch (preset) {
     case 'table-row':

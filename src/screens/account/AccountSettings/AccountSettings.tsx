@@ -54,7 +54,7 @@ import type { AccountSettingsViewModel } from './useAccountSettings';
  * (R-68). Bảy lần lặp lại đoạn `className` này thì lần thứ tám sẽ lệch, nên nó
  * là một hằng, và hằng thì không xuất ra khỏi file.
  */
-const BLOCK_CLASS = 'flex flex-col gap-3 rounded-[12px] bg-bg-surface p-5';
+const BLOCK_CLASS = 'flex flex-col gap-3 rounded-xl bg-bg-surface p-5';
 
 /** Vùng nguy hiểm mang thêm viền, để mắt phân biệt được trước khi kịp đọc chữ. */
 const DANGER_BLOCK_CLASS = `${BLOCK_CLASS} border border-danger-border`;

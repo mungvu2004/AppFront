@@ -67,13 +67,13 @@ function CoverageSummary({ coverage }: { readonly coverage: GalleryCoverage }) {
     <dl className="flex items-center gap-5">
       <div className="flex items-baseline gap-1.5">
         <dt className="text-[13px] leading-[18px] text-text-secondary">{COVERAGE_LABEL}</dt>
-        <dd className="text-[14px] font-semibold leading-[20px] text-text-primary">
+        <dd className="text-[14px] font-semibold leading-5 text-text-primary">
           {coverage.presentCount}/{coverage.totalCount}
         </dd>
       </div>
       <div className="flex items-baseline gap-1.5">
         <dt className="text-[13px] leading-[18px] text-text-secondary">{SCREEN_COUNT_LABEL}</dt>
-        <dd className="text-[14px] font-semibold leading-[20px] text-text-primary">{coverage.screenCount}</dd>
+        <dd className="text-[14px] font-semibold leading-5 text-text-primary">{coverage.screenCount}</dd>
       </div>
     </dl>
   );
@@ -101,8 +101,8 @@ function LoadingFrames() {
     <div aria-label={LOADING_LABEL} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" role="status">
       {LOADING_FRAME_IDS.map((frameId) => (
         <div className="flex flex-col gap-1.5" key={frameId}>
-          <div className="h-4 w-24 rounded-[4px] bg-border-default animate-pulse motion-reduce:animate-none" />
-          <div className="h-[148px] rounded-[8px] bg-border-default animate-pulse motion-reduce:animate-none" />
+          <div className="h-4 w-24 rounded bg-border-default animate-pulse motion-reduce:animate-none" />
+          <div className="h-[148px] rounded-lg bg-border-default animate-pulse motion-reduce:animate-none" />
         </div>
       ))}
     </div>
@@ -149,7 +149,7 @@ function RightPane({ state, selectedScreen, isSpacingGridVisible, errorMessage, 
         <InlineAlert level="attention" message={PARTIAL_MESSAGE} title={PARTIAL_TITLE} />
       )}
       {state === 'success' && (
-        <p className="text-[14px] leading-[20px] text-text-secondary" role="status">
+        <p className="text-[14px] leading-5 text-text-secondary" role="status">
           {SUCCESS_MESSAGE}
         </p>
       )}

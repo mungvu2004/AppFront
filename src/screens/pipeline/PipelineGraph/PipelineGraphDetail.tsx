@@ -177,7 +177,7 @@ function GraphNode({
     <button
       aria-pressed={node.isSelected}
       className={clsx(
-        'flex flex-col gap-1.5 rounded-[12px] bg-bg-surface p-4 text-left',
+        'flex flex-col gap-1.5 rounded-xl bg-bg-surface p-4 text-left',
         'transition-opacity duration-180 ease-enter',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
         isAbsolute ? 'absolute' : 'relative w-full',
@@ -262,7 +262,7 @@ function GraphZoomControls({
   return (
     <div
       aria-label={PIPELINE_GRAPH_TEXT.zoomResetLabel}
-      className="absolute bottom-3 right-3 flex items-center gap-1 rounded-[12px] border border-border-default bg-bg-surface px-2 py-1.5 shadow-float"
+      className="absolute bottom-3 right-3 flex items-center gap-1 rounded-xl border border-border-default bg-bg-surface px-2 py-1.5 shadow-float"
       role="group"
     >
       <IconButton
@@ -363,7 +363,7 @@ export function PipelineGraphDetail(props: PipelineGraphDetailProps) {
       ) : (
         <div
           aria-label={PIPELINE_GRAPH_TEXT.detailGraphAriaLabel}
-          className="relative flex-1 overflow-hidden rounded-[12px] border border-border-default bg-bg-sunken"
+          className="relative flex-1 overflow-hidden rounded-xl border border-border-default bg-bg-sunken"
           onPointerDown={(event) => {
             dragOrigin.current = { x: event.clientX, y: event.clientY };
           }}

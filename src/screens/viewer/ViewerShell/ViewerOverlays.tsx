@@ -99,7 +99,7 @@ export function ViewerElevationScale({ storeys }: ViewerElevationScaleProps) {
   return (
     <ol
       aria-label="Cao độ tầng"
-      className="flex flex-col-reverse justify-between gap-2 rounded-[6px] bg-bg-surface-90 px-1.5 py-1 text-[10px] tabular-nums text-text-secondary"
+      className="flex flex-col-reverse justify-between gap-2 rounded-md bg-bg-surface-90 px-1.5 py-1 text-[10px] tabular-nums text-text-secondary"
     >
       {storeys.map((storey) => (
         <li className="flex items-center gap-1 whitespace-nowrap" key={storey.id}>
@@ -167,7 +167,7 @@ export function ViewerPerfChip({ perf }: ViewerPerfChipProps) {
   return (
     <span
       className={cn(
-        'rounded-[6px] border border-border-default bg-bg-surface-90 px-2 py-1',
+        'rounded-md border border-border-default bg-bg-surface-90 px-2 py-1',
         'text-[10px] tabular-nums leading-none text-text-muted',
       )}
     >

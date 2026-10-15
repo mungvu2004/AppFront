@@ -56,7 +56,7 @@ export function ThicknessField({
 
       {/* Caption: AI original value for reference */}
       {aiOriginalMm !== undefined && !isLoading && (
-        <p className="text-[12px] leading-[16px] text-text-muted">
+        <p className="text-[12px] leading-4 text-text-muted">
           Giá trị AI gốc:{' '}
           <span className="font-mono">{formatLength(aiOriginalMm, { unit: 'mm' })}</span>
         </p>
@@ -64,7 +64,7 @@ export function ThicknessField({
 
       {/* Error caption */}
       {error && !isLoading && (
-        <p className="text-[12px] leading-[16px] text-state-violation-text">
+        <p className="text-[12px] leading-4 text-state-violation-text">
           {error}
         </p>
       )}

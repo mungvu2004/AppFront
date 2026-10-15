@@ -52,7 +52,7 @@ export function ThicknessSummary({ summary }: ThicknessSummaryProps) {
     // Một thẻ như các khối khác của màn, bốn ô (hai ô dưới 640 px) — hàng số trơ là BUG-611.
     <div
       aria-label={SUMMARY_GROUP_LABEL}
-      className="grid grid-cols-2 gap-4 rounded-[12px] bg-bg-surface p-4 shadow-panel sm:grid-cols-4"
+      className="grid grid-cols-2 gap-4 rounded-xl bg-bg-surface p-4 shadow-panel sm:grid-cols-4"
       role="group"
     >
       {STAT_KEYS.map((key) => (

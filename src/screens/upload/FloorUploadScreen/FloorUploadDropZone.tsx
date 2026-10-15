@@ -42,7 +42,7 @@ export const CHOOSE_FILE_BUTTON_ID = 'floor-upload-choose-file';
  * thuộc `isDragActive`, nên không có nhánh nào đổi được nó.
  */
 const ZONE_BOX_CLASSES =
-  'flex min-h-[180px] w-full flex-col items-center justify-center gap-3 rounded-[16px] ' +
+  'flex min-h-[180px] w-full flex-col items-center justify-center gap-3 rounded-2xl ' +
   'border-2 border-dashed px-6 py-4 text-center transition-colors duration-instant';
 
 export interface FloorUploadDropZoneProps {

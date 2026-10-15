@@ -121,7 +121,7 @@ function StatusCell({ actions, row }: StatusCellProps) {
         // Link chữ, nhưng vùng chạm 44 px dưới 640 và 24 px từ đó — như link chữ của màn đăng nhập (BUG-077, BUG-041).
         <button
           className={cn(
-            'inline-flex min-h-[44px] items-center text-left text-[13px] font-medium text-accent hover:underline sm:min-h-6',
+            'inline-flex min-h-11 items-center text-left text-[13px] font-medium text-accent hover:underline sm:min-h-6',
             FOCUS_RING,
           )}
           onClick={() => actions.onResendInvite(row.id)}
@@ -190,7 +190,7 @@ function UserManagementCardList({ actions, roleOptions, rows }: UserListProps) {
       {rows.map((row) => (
         <li
           className={cn(
-            'flex flex-col gap-3 rounded-[8px] border border-border-default p-3',
+            'flex flex-col gap-3 rounded-lg border border-border-default p-3',
             row.justChanged && 'bg-bg-flash duration-340',
           )}
           key={row.id}

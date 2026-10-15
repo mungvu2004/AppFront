@@ -47,7 +47,7 @@ export function ZoomCluster({
   if (!isVisible) return null;
 
   const btnBase = cn(
-    'flex items-center justify-center w-7 h-7 rounded-[8px]',
+    'flex items-center justify-center w-7 h-7 rounded-lg',
     'text-text-secondary hover:text-text-primary hover:bg-bg-hover',
     'transition-colors duration-120',
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
@@ -58,15 +58,15 @@ export function ZoomCluster({
     <div
       className={cn(
         'absolute bottom-0 right-0 z-20 pointer-events-none',
-        // Ghost padding để hover dễ hơn; phải/dưới chỉ 16px (đúng lề): -m-[40px] cũ đẩy hộp 24px ra ngoài khung -> cuộn ngang ở 768.
-        'pl-[40px] pt-[40px] pr-4 pb-4',
+        // Ghost padding để hover dễ hơn; phải/dưới chỉ 16px (đúng lề): -m-10 cũ đẩy hộp 24px ra ngoài khung -> cuộn ngang ở 768.
+        'pl-10 pt-10 pr-4 pb-4',
         'group',
         className
       )}
     >
       <div
         className={cn(
-          'flex items-center bg-bg-surface rounded-[12px] shadow-float px-2 py-1.5 gap-0.5',
+          'flex items-center bg-bg-surface rounded-xl shadow-float px-2 py-1.5 gap-0.5',
           'pointer-events-auto',
           // Mờ 60% khi không hover
           'opacity-60 group-hover:opacity-100 transition-opacity duration-180'
@@ -90,7 +90,7 @@ export function ZoomCluster({
           id="zoom-reset-btn"
           onClick={resetZoom}
           className={cn(
-            'min-w-[52px] h-7 px-1 rounded-[8px]',
+            'min-w-[52px] h-7 px-1 rounded-lg',
             'font-mono text-sm text-text-primary',
             'hover:bg-bg-hover transition-colors duration-120',
             'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'

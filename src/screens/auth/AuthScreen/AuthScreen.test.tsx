@@ -341,7 +341,7 @@ describe('AuthScreenView — a strip never pushes the form down (BUG-008)', () =
   });
 
   it('gives the text actions a 44 px target under 640 and 24 px from sm, without a bigger font (BUG-041)', () => {
-    const TARGET = ['inline-flex', 'items-center', 'min-h-[44px]', 'sm:min-h-6'];
+    const TARGET = ['inline-flex', 'items-center', 'min-h-11', 'sm:min-h-6'];
     const { rerender } = render(<AuthScreenView {...baseProps()} />);
     expect(screen.getByRole('button', { name: AUTH_MESSAGES.actions.forgotPassword })).toHaveClass(...TARGET, 'text-[13px]');
 
