@@ -113,7 +113,8 @@ test.describe('U04 UI verify — SCR-22 overlay flows (QA-04c P7)', () => {
           }
         });
         note(`22-F-004: ${seen.join(' | ')}`);
-        expect.soft(seen).toEqual(['1440: two frames', '1024: swipe fallback', '768: swipe fallback', '375: swipe fallback']);
+        // Widths follow UI_VIEWPORTS (support/ui-verify.ts:16-23: 1440, 1920, 1024, 768; no 375, desktop + tablet only, user 2026-10-14).
+        expect.soft(seen).toEqual(['1440: two frames', '1920: two frames', '1024: swipe fallback', '768: swipe fallback']);
       });
 
       await test.step('[22-F-011] ⚑ below 1024 the panel sits under the canvas (max 45 % height) and the canvas is not 0 px (QA-04 B-3)', async () => {
