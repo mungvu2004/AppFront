@@ -5,6 +5,7 @@
  */
 
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { QueryClient } from '@tanstack/react-query';
@@ -109,11 +110,17 @@ function fakeAnnouncer(): Announcer & { readonly announce: ReturnType<typeof vi.
   return { announce: vi.fn(), destroy: vi.fn() };
 }
 
+/** Đầu trang có `<Link>` về bảng điều khiển (33P-A-010): màn đầy đủ cần một bộ định tuyến. */
+const renderScreen = (
+  ui: Parameters<typeof renderWithProviders>[0],
+  options?: Parameters<typeof renderWithProviders>[1],
+) => renderWithProviders(<MemoryRouter>{ui}</MemoryRouter>, options);
+
 function mount(
   gateway: AccountSettingsGateway,
   options: { readonly announcer?: Announcer; readonly auth?: AccountAuthGateway } = {},
 ) {
-  const view = renderWithProviders(
+  const view = renderScreen(
     <AccountSettingsContainer
       gateway={gateway}
       authGateway={options.auth ?? authGateway()}
@@ -896,7 +903,7 @@ describe('vào lại màn khi bộ đệm còn tươi', () => {
       me: { ...createMockApiClient().me, readProfile, updateProfile },
     };
     const open = () =>
-      renderWithProviders(
+      renderScreen(
         <AccountSettingsContainer
           gateway={createAccountSettingsGateway({ apiClient })}
           authGateway={authGateway()}
@@ -968,7 +975,7 @@ function mountWithBus(gateway: AccountSettingsGateway) {
       titles.push(entry.title);
     }
   });
-  renderWithProviders(
+  renderScreen(
     <AccountSettingsContainer
       gateway={gateway}
       authGateway={authGateway()}

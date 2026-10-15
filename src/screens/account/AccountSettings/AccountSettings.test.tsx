@@ -13,7 +13,8 @@
 
 import { readFileSync } from 'node:fs';
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render as renderRaw, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { NotificationHost } from '@/components/feedback/NotificationHost';
@@ -29,7 +30,7 @@ import { expectNoRawColor } from '@/lib/testing/expectNoRawColor';
 import { expectSevenStates } from '@/lib/testing/expectSevenStates';
 import { expectVietnamese } from '@/lib/testing/expectVietnamese';
 import { installFakeClock, type FakeClock } from '@/lib/testing/fakeClock';
-import { renderWithProviders } from '@/lib/testing/render';
+import { renderWithProviders as renderBare } from '@/lib/testing/render';
 import {
   SEVEN_STATES,
   createSevenStateScenarios,
@@ -82,6 +83,11 @@ vi.mock('./useAccountPreferences', async () => {
     },
   };
 });
+
+/** Đầu trang có `<Link>` về bảng điều khiển (33P-A-010), nên mọi lần vẽ màn cần một bộ định tuyến. */
+const renderWithProviders = (ui: Parameters<typeof renderBare>[0]) =>
+  renderBare(<MemoryRouter>{ui}</MemoryRouter>);
+const render = (ui: Parameters<typeof renderRaw>[0]) => renderRaw(<MemoryRouter>{ui}</MemoryRouter>);
 
 beforeEach(() => {
   mockCapturedPort = null;
@@ -145,6 +151,22 @@ describe('khung của màn', () => {
 
     // A7: chỉ báo lưu nói ra được, và nó là `role="status"`.
     expect(screen.getAllByRole('status').length).toBeGreaterThan(0);
+  });
+
+  it('[33P-A-010] đầu trang có liên kết thật về bảng điều khiển, đứng trước h1, với bàn phím tới được', async () => {
+    const { gateway } = createRecordingGateway();
+
+    renderWithProviders(<AccountSettingsContainer gateway={gateway} />);
+
+    const exit = await screen.findByRole('link', { name: viMessages.account.backToDashboard });
+    const h1 = screen.getByRole('heading', { level: 1, name: 'Cài đặt tài khoản' });
+
+    expect(exit.getAttribute('href')).toBe(ROUTES.dashboard);
+    expect(exit.getAttribute('href')).toBe('/');
+    expect(exit.tabIndex).toBeGreaterThanOrEqual(0);
+    // Liên kết nằm trong <header> cùng h1 và đứng trước nó trong thứ tự đọc/Tab.
+    expect(exit.closest('header')).toBe(h1.closest('header'));
+    expect(exit.compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('chuỗi hiển thị là tiếng Việt có dấu, và cây render tiếp cận được', async () => {

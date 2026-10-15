@@ -51,6 +51,7 @@ import {
 } from './support/p07/P1';
 
 const DESKTOP = { width: 1440, height: 900 } as const;
+const BACK_TO_DASHBOARD = 'Về bảng điều khiển'; // vi.json:432 account.backToDashboard
 const softly = expect.configure({ soft: true });
 
 /** Admin API context for the pool seed, disposed after `body`. */
@@ -137,13 +138,11 @@ test.describe('SCR-33 profile edge', () => {
           await captureEvidence(page, 'E07_33P-A-009_no_save_button.png');
         });
 
-        await test.step('[33P-A-010] a way out of the page (flag)', async () => {
-          // ⚑ source has none: ScreenMain is a bare <main> (SM:15-17), the header holds h1 + chip only (AS:102-111).
-          const exit = page
-            .locator(`a[href="${ROUTES.dashboard}"]`)
-            .or(page.getByRole('link', { name: /dự án|trang chủ|quay lại|trở về/iu }))
-            .or(page.getByRole('button', { name: /dự án|trang chủ|quay lại|trở về/iu }));
-          await expect.soft(exit.first(), 'a link or button back to the app').toBeVisible();
+        await test.step('[33P-A-010] a way out of the page', async () => {
+          // Q1 = YES (2026-10-15): the page header holds a router <Link> to the dashboard, before the h1 (AS:107-113).
+          const exit = accountHeader(page).getByRole('link', { name: BACK_TO_DASHBOARD, exact: true });
+          await expect.soft(exit, 'a link back to the dashboard in the page header').toBeVisible();
+          await expect.soft(exit).toHaveAttribute('href', ROUTES.dashboard);
           await captureEvidence(page, 'E07_33P-A-010_way_out.png');
         });
 
