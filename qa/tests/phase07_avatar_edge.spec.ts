@@ -137,6 +137,8 @@ test('SCR-33 · FL-33P-08 · avatar: set, cancel, keyboard, replace, JPEG, persi
           return a ? { tag: a.tagName, id: a.id, label: a.getAttribute('aria-label'), text: (a.textContent ?? '').slice(0, 40) } : null;
         }),
       });
+      // That attachment showed BODY (p07-rr 16:36Z) -> fixed in ProfileSection.tsx (focus owed until the input re-enables).
+      await expect.soft(avatarInput(page), 'focus back on "Đổi ảnh" after Esc').toBeFocused();
       await captureEvidence(page, ev('33P-A-037', 'escaped'));
     });
 

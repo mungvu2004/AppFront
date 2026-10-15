@@ -193,6 +193,29 @@ describe('ảnh đại diện: 56, bo tròn, lớp phủ "Đổi ảnh"', () => 
     expect(onAvatarFileSelected).toHaveBeenCalledWith(file);
   });
 
+  // Stack p07-rr 16:36Z (E07_33P-A-037_focus-after-esc.json): sau Esc focus ở BODY. Trường hợp ô đang khoá đúng lúc
+  // hộp thoại đóng: trả focus về ô "nơi đã mở" bị khoá thì vô hiệu, focus rơi về <body>; ô mở lại thì phải nhận focus.
+  it('[33P-A-037] hộp thoại đóng lúc ô "Đổi ảnh" còn khoá: ô mở lại thì nhận focus, không để ở <body>', async () => {
+    const open: Partial<ProfileSectionProps> = {
+      avatarReplace: { ...props().avatarReplace, isOpen: true, previewUrl: 'data:image/png;base64,AA' },
+    };
+    const view = render(<ProfileSection {...props(open)} />);
+    const input = screen.getByLabelText('Đổi ảnh');
+    await waitFor(() => {
+      expect(document.activeElement?.closest('[role="dialog"]')).not.toBeNull();
+    });
+
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    view.rerender(<ProfileSection {...props({ isAvatarUploading: true })} />);
+    (document.activeElement as HTMLElement | null)?.blur();
+    expect(document.activeElement).toBe(document.body);
+    view.rerender(<ProfileSection {...props({})} />);
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(input);
+    });
+  });
+
   it.each(['Huỷ', 'Esc'] as const)('[33P-E-010] chọn ảnh (ô khoá lúc đọc tệp, mất focus) rồi %s thì focus về ô "Đổi ảnh"', async (way) => {
     const open: Partial<ProfileSectionProps> = {
       avatarReplace: { ...props().avatarReplace, isOpen: true, previewUrl: 'data:image/png;base64,AA' },

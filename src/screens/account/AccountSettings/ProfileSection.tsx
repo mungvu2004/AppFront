@@ -33,7 +33,7 @@
  * Đây là lỗi của `FieldRow`, và `src/components/**` là thư mục màn này không sửa.
  */
 
-import { useId, useRef } from 'react';
+import { useEffect, useId, useRef } from 'react';
 
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
@@ -115,6 +115,24 @@ export function ProfileSection(props: ProfileSectionProps) {
   const { motionOff, rowClassName } = props;
   const avatarInputId = useId();
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const isDialogOpen = props.avatarReplace.isOpen;
+  const isAvatarInputDisabled = props.isAvatarUploading === true || props.isAvatarLocked === true;
+  const wasDialogOpen = useRef(false);
+  const owesAvatarFocus = useRef(false);
+
+  // Đóng hộp thoại ảnh lúc ô "Đổi ảnh" còn khoá: bẫy focus trả về ô khoá là vô hiệu, focus nằm ở <body>
+  // (stack p07-rr, sau Esc). Ô mở lại thì nhận focus — chỉ khi focus vẫn ở <body>, không giật focus của ai.
+  useEffect(() => {
+    if (wasDialogOpen.current && !isDialogOpen) owesAvatarFocus.current = true;
+    wasDialogOpen.current = isDialogOpen;
+    if (!owesAvatarFocus.current || isDialogOpen || isAvatarInputDisabled) return;
+    const frame = requestAnimationFrame(() => {
+      owesAvatarFocus.current = false;
+      const active = document.activeElement;
+      if (active === null || active === document.body) avatarInputRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isDialogOpen, isAvatarInputDisabled]);
 
   // `duration-260`, không phải `duration-standard`: hai tên cùng giá trị, nhưng
   // `tailwind-merge` chỉ đè được nhóm `duration` khi tên là một con số. Xem chú
