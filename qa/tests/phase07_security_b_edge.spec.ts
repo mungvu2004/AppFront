@@ -12,7 +12,7 @@
  * - `POST /api/auth/login`: admin 1 per flow, each pool user 1 per session (+ restore: 1 login + 1 probe; FL-33S-07 login probes 3, one 401).
  * - `POST /api/users/invitations`: at most 1 per pool slot when empty (FL-33S-05 slot is new every run).
  */
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import { waitForApi } from '../../e2e/fullstack/apiWatch';
 import { newApiContext, signedInApi } from './support/api';
@@ -55,6 +55,27 @@ async function loginStatus(email: string, password: string): Promise<number> {
   }
 }
 
+/**
+ * Evidence snapshot for FL-33S-05 (lengths and caret only, never a password VALUE). Attached BEFORE the expect that may fail,
+ * so the numbers survive the failure. `realMs` = test-process clock; `pageMs` = the faked page clock.
+ */
+async function lockSnapshot(page: Page, name: string, writes: string[], realT0: number): Promise<void> {
+  const state = await page.evaluate(() => {
+    const el = document.activeElement as HTMLInputElement | null;
+    const cur = document.querySelector<HTMLInputElement>('input[autocomplete="current-password"]');
+    const submit = document.querySelector<HTMLButtonElement>('form button[type="submit"]');
+    return {
+      pageMs: Date.now(),
+      active: el === null ? null : { tag: el.tagName, id: el.id, status: el.hasAttribute('data-password-status'), autocomplete: el.getAttribute('autocomplete') },
+      current: cur === null ? null : { length: cur.value.length, selStart: cur.selectionStart, selEnd: cur.selectionEnd, disabled: cur.disabled },
+      submitDisabled: submit?.disabled ?? null,
+      statusBlocks: document.querySelectorAll('[data-password-status]').length,
+      path: location.pathname,
+    };
+  });
+  await attachJson(name, { ...state, realMs: Date.now(), realSinceLockMs: realT0 === 0 ? null : Date.now() - realT0, writesSoFar: writes });
+}
+
 /* ================================================================= FL-33S-05 */
 
 test('SCR-33 · FL-33S-05 · 6th attempt in 900 s: real 429, lock 60 s, re-lock (page.clock)', async ({ browser }) => {
@@ -68,6 +89,7 @@ test('SCR-33 · FL-33S-05 · 6th attempt in 900 s: real 429, lock 60 s, re-lock 
     const next = freshPassword();
     let retryAfter: string | undefined;
     let lockedAt = 0;
+    let realLockedAt = 0;
     const alert = fieldError(page, COPY.rateLimited);
 
     await page.clock.install(); // lock = max(Retry-After, 60) s (UAA:208,430-436): the clock is run forward, never waited
@@ -90,6 +112,8 @@ test('SCR-33 · FL-33S-05 · 6th attempt in 900 s: real 429, lock 60 s, re-lock 
       await expect(alert).toBeVisible();
       await expect(pwSubmit(page)).toBeDisabled();
       lockedAt = await pageNow(page);
+      realLockedAt = Date.now();
+      await lockSnapshot(page, 'E07_33S-A-016_after429.json', writes.list(), realLockedAt);
       await shot(page, 'A-016', 'ratelimit');
     });
 
@@ -127,7 +151,9 @@ test('SCR-33 · FL-33S-05 · 6th attempt in 900 s: real 429, lock 60 s, re-lock 
 
     await test.step('[33S-A-017] While locked, the fields stay editable and keep their values', async () => {
       const current = pwField(page, PW.current);
+      await lockSnapshot(page, 'E07_33S-A-017_beforeType.json', writes.list(), realLockedAt); // caret + active element BEFORE the key
       await current.pressSequentially('x'); // UAA:379,653-658 isLocked gates submit only
+      await lockSnapshot(page, 'E07_33S-A-017_afterType.json', writes.list(), realLockedAt); // selStart/selEnd/length AFTER: where did the x land
       await expect.soft(current).toHaveValue(`${wrong}x`);
       await expect.soft(pwField(page, PW.next)).toHaveValue(next);
       await expect.soft(pwField(page, PW.confirm)).toHaveValue(next);
@@ -160,10 +186,13 @@ test('SCR-33 · FL-33S-05 · 6th attempt in 900 s: real 429, lock 60 s, re-lock 
     await test.step('[33S-A-020] ⚑ After the BE answered 429 the button stays locked until the BE window ends, or the next POST is not 429', async () => {
       // Correct behaviour (decided in S4 review): the FE lock must respect the BE window (900 s, MR:45-46). Today it re-opens at +60 s
       // (UAA:208,430-436) and the next POST is a real 429 again -> red until fixed.
+      await lockSnapshot(page, 'E07_33S-A-020_beforeClick.json', writes.list(), realLockedAt); // pageMs vs lockedAt+900 s, realSinceLockMs = BE window really elapsed
       if (await pwSubmit(page).isEnabled()) {
         const answered = waitForApi(page, 'POST', PWD_RE, [204, 422, 429]);
         await pwSubmit(page).click();
         const res = await answered;
+        await attachJson('E07_33S-A-020_answer.json', { status: res.response.status(), retryAfter: res.response.headers()['retry-after'] ?? null, realSinceLockMs: Date.now() - realLockedAt, fakeSinceLockMs: (await pageNow(page)) - lockedAt });
+        await lockSnapshot(page, 'E07_33S-A-020_afterClick.json', writes.list(), realLockedAt);
         expect.soft(res.response.status(), 'a re-opened button must not meet 429 again').not.toBe(429);
       } else {
         await expect.soft(pwSubmit(page)).toBeDisabled();

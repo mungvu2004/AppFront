@@ -19,12 +19,12 @@
  * Source short names: UAS useAccountSettings.ts, CA src/lib/autosave/createAutosave.ts, USI src/hooks/useSaveIndicator.ts,
  * TST src/components/feedback/Toast.tsx, INP src/components/ui/Input.tsx, BEs apps/api/me/schemas.py.
  */
-import { expect, test, type APIRequestContext } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { readAdminCredentials } from './support/auth';
 import { signedInApi } from './support/api';
-import { TEST_DATA_PREFIX, captureEvidence } from './support/evidence';
+import { TEST_DATA_PREFIX, attachJson, captureEvidence } from './support/evidence';
 import {
   IND,
   PHONE_MAX,
@@ -75,6 +75,28 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   await admin.dispose();
 });
+
+/**
+ * Evidence for FL-33P-06 (R1 red at A-030): what the undo toast is doing when the 9 s clock run does not remove it.
+ * Attached BEFORE the expect, so it survives the failure. `hover` / `hasFocus` tell a hover- or focus-held window
+ * (the mouse stays where the last "Hoàn tác" click was) from a real timer bug.
+ */
+async function attachToastSnapshot(page: Page, tag: string, patchCount: number): Promise<void> {
+  const toasts = await undoToast(page).evaluateAll((els) =>
+    els.map((el) => {
+      const r = el.getBoundingClientRect();
+      return {
+        text: (el.textContent ?? '').trim(),
+        ariaLive: el.getAttribute('aria-live'),
+        hover: el.matches(':hover'),
+        hasFocus: el.contains(document.activeElement),
+        rect: { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) },
+      };
+    }),
+  );
+  const clockNow = await page.evaluate(() => Date.now());
+  await attachJson(`E07-33P-A-030_toast-${tag}.json`, { tag, patchCount, clockNow, toastCount: toasts.length, toasts, url: page.url() });
+}
 
 test.describe('SCR-33 profile B', () => {
   test('SCR-33 · FL-33P-04 · autosave timing, offline, session deleted', async ({ browser }) => {
@@ -268,6 +290,8 @@ test.describe('SCR-33 profile B', () => {
           new MutationObserver(() => sink(el.textContent ?? '')).observe(el, { subtree: true, childList: true, characterData: true });
         });
         const del = await admin.delete(`/api/users/${flow.user.id}`);
+        // Evidence for the R1 red (DELETE not ok): status + body, attached before the expect.
+        await attachJson('E07-33P-D-004_delete-user.json', { status: del.status(), statusText: del.statusText(), body: (await del.text()).slice(0, 600), url: del.url() });
         expect(del.ok(), 'setup: DELETE /api/users/:id').toBe(true);
         flow.deleted = true;
         const rejected = nextPatch(page, [401]);
@@ -476,10 +500,13 @@ test.describe('SCR-33 profile B', () => {
       });
 
       await test.step('[33P-A-030] save A, wait past the 5 s group window, save B, undo → back to A', async () => {
+        await attachToastSnapshot(page, 'before-save-a', patches.length);
         const savedA = nextPatch(page);
         await fullName.fill(name('A'));
         await savedA;
+        await attachToastSnapshot(page, 'after-save-a', patches.length);
         await page.clock.runFor(TOAST_GONE_MS); // > 5 s: a new toast, and the first has left (TST 8 s)
+        await attachToastSnapshot(page, 'after-clock-run', patches.length);
         await expect(undoToast(page)).toHaveCount(0);
         const savedB = nextPatch(page);
         await fullName.fill(name('B'));
