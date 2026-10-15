@@ -26,6 +26,8 @@ import { OV, alertWith, noticeRegion, noticeText, ownerApi, screenRegion, seedD1
 
 const QUALITY = /^\/api\/projects\/[^/]+\/floors\/[^/]+\/quality$/u;
 const LAYER = /^\/api\/projects\/[^/]+\/floors\/[^/]+\/spatial\/layer$/u;
+/** N15 (endpoints.ts:255): ProjectSpatialGate fills the store from it on its own (OverlayComparison.container.tsx:145-155). */
+const GRAPH = /^\/api\/projects\/[^/]+\/spatial$/u;
 const REFRESH = '/api/auth/refresh';
 const RETRY_CONTROL = /thử lại|tải lại/iu;
 
@@ -98,14 +100,19 @@ test.describe('SCR-22 overlay — mocked-response flow (QA-04c P7)', () => {
       });
 
       await test.step('[22-B-002] ⚑ [mock] N16 in flight (store empty): a loading state, not "Dự án này chưa có tầng nào…"', async () => {
+        // "Store empty" is made, not hoped for: the gate's N15 fills the store on its own. A fast N15 (idle stack) made this
+        // red 3/3 (RF 2026-10-15, --repeat 3, also on the R1 app 84591e0a); a loaded stack at R1 hid it.
+        const graphHold = await holdFirst(page, GRAPH);
         const hold = await holdFirst(page, LAYER);
         await page.goto(ROUTES.project.overlay(projectId, floorId));
         await hold.seen;
+        await graphHold.seen;
         await expect(screenRegion(page)).toBeVisible();
         await expect(toolbar(page)).toBeVisible();
         await ev(page, '22-B-002', 'n16_in_flight');
         await expect.soft(page.getByText(OV.noFloor, { exact: true }), 'N16 has not answered: the project is not "empty"').toHaveCount(0);
         await expect.soft(page.getByText(OV.loading, { exact: true })).toBeVisible();
+        await graphHold.release();
         await hold.release();
         await expect(alertWith(page, OV.frameMissing)).toBeVisible();
         await reset(page);
@@ -268,19 +275,26 @@ test.describe('SCR-22 overlay — mocked-response flow (QA-04c P7)', () => {
         await page.goto('about:blank');
         const q0 = qualityGets();
         const l0 = layerGets();
+        // N16 is the only floor source only while the gate's N15 has not filled the store: hold N15 during the checks.
+        const graphHold = await holdFirst(page, GRAPH);
         await page.goto(ROUTES.project.overlay(projectId, floorId));
+        await graphHold.seen;
         await expect(noticeRegion(page)).toBeVisible({ timeout: 30_000 });
         await expect.soft(page.getByText(OV.noFloor, { exact: true }), 'N16 500 is not "the project has no floors"').toHaveCount(0);
         await expect.soft(page.getByRole('alert').filter({ hasNotText: OV.noFloor }).first(), 'N16 500: a read-error alert').toBeVisible();
         expect.soft(qualityGets() - q0, 'no #30 call when N16 gave no floor').toBe(0);
         note(`22-G-009: N16 requests ${String(layerGets() - l0)}, notice "${(await noticeText(page)) ?? ''}"`);
         await ev(page, '22-G-009', 'n16_500');
+        await graphHold.release();
         await reset(page);
         await onGet(page, LAYER, (route) => route.abort('failed'));
+        const graphHold2 = await holdFirst(page, GRAPH);
         await page.goto(ROUTES.project.overlay(projectId, floorId));
+        await graphHold2.seen;
         await expect(noticeRegion(page)).toBeVisible({ timeout: 30_000 });
         await expect.soft(page.getByText(OV.noFloor, { exact: true }), 'N16 abort is not "the project has no floors"').toHaveCount(0);
         await expect.soft(page.getByRole('alert').filter({ hasNotText: OV.noFloor }).first(), 'N16 abort: a read-error alert').toBeVisible();
+        await graphHold2.release();
         await reset(page);
       });
 
