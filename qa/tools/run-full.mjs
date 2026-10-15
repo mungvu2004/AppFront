@@ -71,6 +71,18 @@ if (!flag('no-build')) {
       process.exit(1);
     }
     writeFileSync(STAMP, `${beMain}\n`);
+  } else {
+    // A prebuilt tag (prebuild.sh) leaves the old container running: compare the running image with the tag, not only the label
+    // (phase 06 RR ran the S fixes against the R1 web image).
+    const stale = [['f14-web-1', 'appback-web:f14'], ['f14-api-1', 'appback-api:f14'], ['f14-worker-1', 'appback-worker:f14']]
+      .filter(([c, tag]) => out(`docker inspect ${c} --format "{{.Image}}"`) !== out(`docker image inspect ${tag} --format "{{.Id}}"`));
+    if (stale.length) {
+      say(`containers older than their tags: ${stale.map(([c]) => c).join(', ')} → chuoi.sh up`);
+      if (spawnSync('bash', ['-c', 'bash chuoi.sh up'], { cwd: F14, stdio: 'inherit' }).status !== 0) {
+        say('build/up failed');
+        process.exit(1);
+      }
+    }
   }
   const health = out(`curl -s -o /dev/null -w "%{http_code}" ${cfg.env.healthUrl}`);
   if (health !== '200') {
