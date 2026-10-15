@@ -55,6 +55,7 @@ import { expectSentenceCaseStrings } from '@/lib/testing/expectSentenceCase';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
 import { appNotificationBus } from '@/hooks/useNotifications';
 import type { Notification } from '@/lib/mutations/notificationBus';
+import { appShortcutRegistry, registerGlobalShortcuts } from '@/lib/input/shortcutRegistry';
 import { useStore } from '@/store';
 import { commit } from '@/store/commit';
 import type { ProjectRole } from '@/types/project';
@@ -256,6 +257,8 @@ interface HarnessOptions {
   readonly sourceFloorId?: string;
   readonly rows?: readonly ScaleRawDimensionString[];
   readonly referenceWallWidthPx?: Pixels;
+  /** Thay khổ ảnh của bộ mẫu — ảnh không vuông có dải trống trong khung vuông. */
+  readonly drawingSize?: { readonly widthPx: Pixels; readonly heightPx: Pixels };
 }
 
 interface Harness {
@@ -305,7 +308,7 @@ async function makeHarness(options: HarnessOptions = {}): Promise<Harness> {
       dimensionStrings: options.rows !== undefined,
       referenceWallWidth: options.referenceWallWidthPx !== undefined,
     },
-    readFloorDrawing: async () => ({ ok: true, data: drawing }),
+    readFloorDrawing: async () => ({ ok: true, data: { ...drawing, ...options.drawingSize } }),
     readDimensionStrings: async () =>
       options.rows === undefined
         ? base.readDimensionStrings({ floorId: FLOOR_ID, projectId: PROJECT_ID })
@@ -1365,6 +1368,76 @@ describe('useScaleCalibration — review-1 F3 (P2-4, P2-5, Nit-3)', () => {
 
     expect(harness.writeLayer).toHaveBeenCalledTimes(4);
     expect(harness.writeLayer.mock.calls[3]?.[0].body).toEqual({ scaleMillimetresPerPixel: before });
+  });
+
+  it('ảnh 1600×1200: đầu đoạn bắt lưới 50 mm theo pixel ẢNH — khung vuông, dải trống 200 px trên/dưới (14-C-025, BUG-723)', async () => {
+    const harness = await makeHarness({ drawingSize: { widthPx: pixels(1600), heightPx: pixels(1200) } });
+    const mounted = mountHook(harness.gateway);
+    await settle(mounted);
+    await settleAsync();
+    const ratio = storedRatio() ?? Number.NaN;
+    const end: ImageRatioPoint = { x: 0.7213, y: 0.4347 };
+
+    await act(async () => {
+      mounted.result.current.actions.onStartDrag({ x: 0.2, y: 0.5 });
+    });
+    await act(async () => {
+      mounted.result.current.actions.onMoveDrag(end, { isAxisLocked: false });
+    });
+    await act(async () => {
+      mounted.result.current.actions.onEndDrag(end);
+    });
+
+    const snapped = mounted.result.current.model.canvas.referenceLine?.end ?? { x: Number.NaN, y: Number.NaN };
+    const offGrid = (mm: number): number => Math.abs(mm / 50 - Math.round(mm / 50));
+    // Handle ratios are of the SQUARE frame (long side 1600, `imageFrameOf`): image px = ratio · 1600 − inset, and
+    // the 1200 px side sits in a 200 px band. `y · h · r` (the old 14-C-025 formula) is off the grid by 0.25 here.
+    expect(offGrid(snapped.x * 1600 * ratio)).toBeLessThan(1e-6);
+    expect(offGrid((snapped.y * 1600 - 200) * ratio)).toBeLessThan(1e-6);
+  });
+
+  it('Ctrl+Z giữa lúc saveScale đang chờ → hoàn tác chính lần áp ấy: màn và máy chủ cùng về tỷ lệ cũ (BUG-725)', async () => {
+    const before = storedRatio();
+    const harness = await makeHarness();
+    const disposeGlobal = registerGlobalShortcuts(appShortcutRegistry, {
+      undo: () => {
+        useStore.temporal.getState().undo();
+      },
+      redo: () => undefined,
+      save: () => undefined,
+      openSearch: () => undefined,
+      openShortcutHelp: () => undefined,
+      closeTopLayer: () => undefined,
+    });
+    const mounted = await mountAndApply(harness);
+
+    await act(async () => {
+      await clock.advance(RETRY_SCHEDULE_MS[0]);
+    });
+    await settleAsync();
+    await undoAndSend();
+    expect(harness.writeLayer).toHaveBeenCalledTimes(2);
+
+    const pending = deferredWrite();
+    harness.writeLayer.mockReturnValueOnce(pending.promise);
+    await applyNow(mounted);
+    expect(harness.writeLayer).toHaveBeenCalledTimes(3);
+    expect(mounted.result.current.model.panel.isApplying).toBe(true);
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }));
+    });
+    pending.resolve(savedLayer(FLOOR_ID, 3));
+    await settleAsync();
+    await act(async () => {
+      await clock.advance(RETRY_SCHEDULE_MS[0]);
+    });
+    await settleAsync();
+    disposeGlobal();
+
+    const puts = harness.writeLayer.mock.calls.map(([input]) => input.body.scaleMillimetresPerPixel);
+    expect(storedRatio()).toBe(before);
+    expect(puts.at(-1)).toBe(before);
   });
 
   it('P2-4: mốc khoá theo dự án — dự án khác thì Ctrl+Z không gửi tỉ lệ', async () => {

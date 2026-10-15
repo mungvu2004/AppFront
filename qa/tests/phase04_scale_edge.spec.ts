@@ -562,7 +562,9 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         await lengthField(page).fill('');
         await dragLine(page, [0.2, 0.5], [0.7213, 0.4347]);
         const end = await handleAt(handleEnd(page));
-        const mm = [end.x * w * r0, end.y * h * r0];
+        // Handle ratios are of the square frame (long side, image centred: USC imageFrameOf/toPixelPoint), not of w and h (BUG-723).
+        const edge = Math.max(w, h);
+        const mm = [(end.x * edge - (edge - w) / 2) * r0, (end.y * edge - (edge - h) / 2) * r0];
         for (const value of mm) {
           const off = Math.abs(value / 50 - Math.round(value / 50));
           expect.soft(off, `end ${value.toFixed(2)} mm on the 50 mm grid`).toBeLessThan(0.02); // USC:707,751-815
