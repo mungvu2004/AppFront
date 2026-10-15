@@ -11,6 +11,8 @@
  * `Modal.Root` (A12) và có nghĩa là huỷ — không gửi gì.
  */
 
+import type { RefObject } from 'react';
+
 import { Modal } from '@/components/overlay/Modal';
 import { Button } from '@/components/ui/Button';
 
@@ -24,6 +26,11 @@ export interface AvatarReplaceDialogProps {
   readonly isSending: boolean;
   readonly onConfirm: () => void;
   readonly onCancel: () => void;
+  /**
+   * Nơi trả focus khi đóng. Ô chọn tệp bị khoá lúc đọc tệp nên mất focus về <body>, khi hộp thoại mở
+   * thì không còn "nơi đã mở" để trả về (33P-E-010); không có ref này focus nhảy tới phần tử đầu trang.
+   */
+  readonly returnFocusRef?: RefObject<HTMLElement | null>;
 }
 
 export function AvatarReplaceDialog(props: AvatarReplaceDialogProps) {
@@ -35,7 +42,12 @@ export function AvatarReplaceDialog(props: AvatarReplaceDialogProps) {
   const confirmLabel = props.hasExistingAvatar ? 'Thay ảnh' : 'Đặt ảnh';
 
   return (
-    <Modal.Root isOpen={props.isOpen} onClose={props.onCancel} width={480}>
+    <Modal.Root
+      isOpen={props.isOpen}
+      onClose={props.onCancel}
+      width={480}
+      {...(props.returnFocusRef ? { returnFocusRef: props.returnFocusRef } : {})}
+    >
       <Modal.Header>{title}</Modal.Header>
       <Modal.Body>
         <div className="flex flex-col items-center gap-4 pb-2">

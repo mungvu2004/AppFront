@@ -3,12 +3,18 @@
 //   node tools/check-pool-file.mjs --old    -> the pre-fix writePool (write the pool read earlier, bare rename); expected RED
 // (1) 4 processes each add 50 distinct slots to one file -> all 200 slots survive, no process crashes.
 // (2) 429 fallback: first inviter 429 RATE_LIMITED, next one 201 -> 201; all 429 -> stops after 5 alternatives.
+// (3) stale pool password: login 401 -> one re-invite -> login 204 with the fresh user; 500 and "no slot" are not refreshed.
+//     --old uses the pre-fix pool login (one login, status taken as is) and is RED on (3).
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { inviteWithFallback, mergeWriteJsonFile } from '../tests/support/poolFile.ts';
+import { inviteWithFallback, loginOrRefresh as newLoginOrRefresh, mergeWriteJsonFile } from '../tests/support/poolFile.ts';
+
+// Pre-fix signInPoolUser: one login, whatever it answers is final (401 -> "expected 204 received 401").
+const oldLoginOrRefresh = async (user, login) => ({ status: await login(user), user });
+const loginOrRefresh = process.argv.includes('--old') ? oldLoginOrRefresh : newLoginOrRefresh;
 
 const TMP = fileURLToPath(new URL('../test-results', import.meta.url)); // F:, never C:
 const OLD = process.argv.includes('--old');
@@ -70,6 +76,22 @@ if (got.status !== 429 || calls.length !== 6) failures.push(`fallback cap: ${got
 calls.length = 0;
 got = await inviteWithFallback(stub('seed', { status: 400, text: 'bad' }), [stub('adminA', created)]);
 if (got.status !== 400 || calls.length !== 1) failures.push(`fallback only on 429: ${got.status} after ${calls.length} calls`);
+
+const stale = { id: 'u1', password: 'old' };
+const fresh = { id: 'u2', password: 'new' };
+const loginAs = (answers) => async (who) => answers[who.password];
+let refreshed = 0;
+const refresh = async () => (refreshed += 1, fresh);
+let out = await loginOrRefresh(stale, loginAs({ old: 401, new: 204 }), refresh);
+if (out.status !== 204 || out.user !== fresh || refreshed !== 1) failures.push(`stale 401: ${out.status}, refreshed ${refreshed}x (want 204 after 1 re-invite)`);
+refreshed = 0;
+out = await loginOrRefresh(stale, loginAs({ old: 500, new: 204 }), refresh);
+if (out.status !== 500 || refreshed !== 0) failures.push(`non-401 must not refresh: ${out.status}, refreshed ${refreshed}x`);
+out = await loginOrRefresh(stale, loginAs({ old: 401, new: 204 }), null);
+if (out.status !== 401) failures.push(`no slot: ${out.status} (want 401 unchanged)`);
+refreshed = 0;
+out = await loginOrRefresh(stale, loginAs({ old: 401, new: 401 }), refresh);
+if (out.status !== 401 || refreshed !== 1) failures.push(`fresh user still 401: ${out.status}, refreshed ${refreshed}x (want 401 after exactly 1 re-invite)`);
 
 if (failures.length) {
   console.error(`check-pool-file${OLD ? ' --old' : ''}: RED - ${failures.join(' | ')}`);

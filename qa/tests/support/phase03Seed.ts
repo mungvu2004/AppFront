@@ -41,7 +41,8 @@ import { apiBaseUrl, newApiContext, signedInApi } from './api';
 import { createDrawingProject, deleteSeededProject, type SeededDrawing } from './drawingSeed';
 import { TEST_DATA_PREFIX, testEmail } from './evidence';
 import { deleteMails, linkFrom, waitForMail } from './mailpit';
-import { inviteWithFallback, mergeWriteJsonFile, readJsonFile, type Answer } from './poolFile';
+import { readAdminCredentials } from './auth';
+import { inviteWithFallback, loginOrRefresh, mergeWriteJsonFile, readJsonFile, type Answer } from './poolFile';
 
 export {
   createDrawingProject,
@@ -368,11 +369,33 @@ export async function poolUser(admin: APIRequestContext, role: PoolRole, slot = 
 
 /** Browser session of `user` in `context`: one `POST /api/auth/login` through the context's own cookie jar. */
 export async function signInPoolUser(context: BrowserContext, user: PoolUser): Promise<void> {
-  const res = await context.request.post('/api/auth/login', {
-    data: { email: user.email, password: user.password, rememberMe: false },
-    headers: { Origin: apiBaseUrl() },
-  });
-  expect(res.status(), `setup: POST /api/auth/login as pool ${user.role}`).toBe(204);
+  const login = async (who: PoolUser): Promise<number> =>
+    (
+      await context.request.post('/api/auth/login', {
+        data: { email: who.email, password: who.password, rememberMe: false },
+        headers: { Origin: apiBaseUrl() },
+      })
+    ).status();
+  // 401 for a cached slot = stale password (RF p07: a password flow changed it, restore failed) -> fresh user for the slot.
+  const key = user.id === '' ? undefined : Object.keys(readPool()).find((k) => readPool()[k]?.id === user.id);
+  const refresh =
+    key === undefined
+      ? null
+      : async (): Promise<PoolUser> => {
+          const { email, password } = readAdminCredentials();
+          const admin = await signedInApi(email, password);
+          try {
+            const fresh = await inviteAndAccept(admin, user.role, key.slice(key.indexOf(':') + 1));
+            writePool({ [key]: fresh });
+            return fresh;
+          } finally {
+            await admin.dispose();
+          }
+        };
+  const done = await loginOrRefresh(user, login, refresh);
+  expect(done.status, `setup: POST /api/auth/login as pool ${user.role}`).toBe(204);
+  // The caller keeps using its `user` object (e.g. its password as the "old" one): make it the fresh one.
+  if (done.user !== user) Object.assign(user, done.user);
 }
 
 /** N3 `POST /api/projects/:id/members {email}` → 201 (BE project_members/router.py:42-70); no project role exists. */

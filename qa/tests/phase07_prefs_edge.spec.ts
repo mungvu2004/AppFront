@@ -95,18 +95,18 @@ test.describe('E07 SCR-33 preferences edge', () => {
         await themeRadio(page, 'system').click(); // UAP:327-333
         await checked(themeRadio(page, 'system'));
         await notDark(page);
-        await expect.poll(() => readStoredTheme(page)).toBe('light'); // resolved, not 'system'
+        await expect.poll(() => readStoredTheme(page)).toBe('system'); // questions.md Q2 (p07-s 1eaae306): the choice is stored, not the resolved value
         await ev(page, '33R-A-003', 'theme_system_os_light');
       });
 
       await test.step('[33R-A-005] OS flips while "Theo hệ thống" is selected', async () => {
         await osScheme(page, 'dark'); // UAP:310-324,361-365
         await expect.soft(html(page)).toHaveClass(DARK_CLASS);
-        await expect.poll(() => readStoredTheme(page)).toBe('dark');
+        await expect.poll(() => readStoredTheme(page)).toBe('system'); // Q2: stays 'system' through the flip, only <html> follows the OS
         await ev(page, '33R-A-005', 'theme_system_os_flip');
         await osScheme(page, 'light');
         await notDark(page);
-        await expect.poll(() => readStoredTheme(page)).toBe('light');
+        await expect.poll(() => readStoredTheme(page)).toBe('system');
         await checked(themeRadio(page, 'system'));
       });
 
@@ -128,7 +128,7 @@ test.describe('E07 SCR-33 preferences edge', () => {
         await themeRadio(page, 'light').click(); // OS is dark since the previous step
         await themeRadio(page, 'system').click();
         await expect.soft(html(page)).toHaveClass(DARK_CLASS);
-        await expect.poll(() => readStoredTheme(page)).toBe('dark');
+        await expect.poll(() => readStoredTheme(page)).toBe('system'); // Q2
         await checked(themeRadio(page, 'system'));
         await ev(page, '33R-A-004', 'theme_system_os_dark');
       });

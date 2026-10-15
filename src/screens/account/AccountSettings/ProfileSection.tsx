@@ -33,7 +33,7 @@
  * Đây là lỗi của `FieldRow`, và `src/components/**` là thư mục màn này không sửa.
  */
 
-import { useId } from 'react';
+import { useId, useRef } from 'react';
 
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
@@ -114,6 +114,7 @@ export interface ProfileSectionProps {
 export function ProfileSection(props: ProfileSectionProps) {
   const { motionOff, rowClassName } = props;
   const avatarInputId = useId();
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // `duration-260`, không phải `duration-standard`: hai tên cùng giá trị, nhưng
   // `tailwind-merge` chỉ đè được nhóm `duration` khi tên là một con số. Xem chú
@@ -134,6 +135,7 @@ export function ProfileSection(props: ProfileSectionProps) {
           />
           <input
             id={avatarInputId}
+            ref={avatarInputRef}
             type="file"
             accept="image/png,image/jpeg"
             disabled={props.isAvatarUploading || props.isAvatarLocked}
@@ -175,7 +177,7 @@ export function ProfileSection(props: ProfileSectionProps) {
         </p>
       )}
 
-      <AvatarReplaceDialog {...props.avatarReplace} />
+      <AvatarReplaceDialog {...props.avatarReplace} returnFocusRef={avatarInputRef} />
 
       <div className="flex flex-col">
         <FieldRow isStacked={props.isStacked} label="Họ tên" className={rowClass} flash={flashOf('fullName')}>

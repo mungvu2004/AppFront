@@ -9,7 +9,7 @@
  * đúng hai trạng thái thuộc khối này — **1 rỗng** và **nửa của 3 một phần**.
  */
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { initialsOf } from '@/lib/format/initials';
@@ -191,6 +191,41 @@ describe('ảnh đại diện: 56, bo tròn, lớp phủ "Đổi ảnh"', () => 
     fireEvent.change(input, { target: { files: [file] } });
 
     expect(onAvatarFileSelected).toHaveBeenCalledWith(file);
+  });
+
+  it.each(['Huỷ', 'Esc'] as const)('[33P-E-010] chọn ảnh (ô khoá lúc đọc tệp, mất focus) rồi %s thì focus về ô "Đổi ảnh"', async (way) => {
+    const open: Partial<ProfileSectionProps> = {
+      avatarReplace: { ...props().avatarReplace, isOpen: true, previewUrl: 'data:image/png;base64,AA' },
+    };
+    // Như AccountSettings.tsx: liên kết "Về bảng điều khiển" đứng trước khối, là phần tử focus được đầu tiên của trang.
+    const page = (p: Partial<ProfileSectionProps>) => (
+      <>
+        <a href="/">Về bảng điều khiển</a>
+        <ProfileSection {...props(p)} />
+      </>
+    );
+    const view = render(page({}));
+    const input = screen.getByLabelText('Đổi ảnh');
+
+    input.focus();
+    // Hook đọc tệp: ô bị khoá, trình duyệt bỏ focus của ô bị khoá về <body> (jsdom không tự làm).
+    (input as HTMLInputElement).blur(); // jsdom bỏ qua blur() của ô đã khoá, nên bỏ focus trước khi khoá
+    view.rerender(page({ isAvatarUploading: true }));
+    // Đọc xong: ô mở lại và hộp thoại mở cùng lượt.
+    view.rerender(page(open));
+    await waitFor(() => {
+      expect(document.activeElement?.closest('[role="dialog"]')).not.toBeNull();
+    });
+
+    expect(screen.getByRole('dialog').getAttribute('aria-modal')).toBe('true'); // [33P-E-009]
+    if (way === 'Huỷ') {
+      fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
+    } else {
+      fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' }); // [33P-A-037]
+    }
+    view.rerender(page({}));
+
+    expect(document.activeElement).toBe(input);
   });
 });
 

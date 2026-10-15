@@ -151,7 +151,8 @@ test.describe('SCR-33 profile edge', () => {
           await expect.soft(page.getByRole('heading', { level: 1 })).toHaveCount(1);
           await expect.soft(heading(page)).toBeVisible();
           await expect.soft(page.locator('section[aria-labelledby]')).toHaveCount(BLOCKS.length);
-          for (const b of BLOCKS) await expect.soft(page.getByRole('region', { name: b.title, exact: true })).toBeVisible();
+          // Scoped to <main>: the toast stack is also role=region "Thông báo" (aria-live) and shares the notifications block's name.
+          for (const b of BLOCKS) await expect.soft(page.locator('main').getByRole('region', { name: b.title, exact: true })).toBeVisible();
           await captureEvidence(page, 'E07_33P-E-001_landmarks.png');
         });
 

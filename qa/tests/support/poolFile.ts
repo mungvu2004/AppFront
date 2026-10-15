@@ -67,6 +67,22 @@ export function mergeWriteJsonFile<T extends object>(file: string, changes: T): 
   });
 }
 
+/**
+ * `login(user)` once; a 401 means the cached pool password is stale (a password flow changed it and its restore failed),
+ * so `refresh()` makes a fresh user for the slot and `login` runs again with it. Any other status is returned as is.
+ * `refresh` is `null` when the user has no pool slot (nothing to replace): the 401 is returned unchanged.
+ */
+export async function loginOrRefresh<U>(
+  user: U,
+  login: (who: U) => Promise<number>,
+  refresh: (() => Promise<U>) | null,
+): Promise<{ status: number; user: U }> {
+  const status = await login(user);
+  if (status !== 401 || refresh === null) return { status, user };
+  const fresh = await refresh();
+  return { status: await login(fresh), user: fresh };
+}
+
 export interface Answer {
   readonly status: number;
   readonly text: string;
