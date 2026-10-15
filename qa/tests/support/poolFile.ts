@@ -10,8 +10,17 @@ const sleepSync = (ms: number): void => {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 };
 
+/** Reads the pool; a torn read (a writer's in-place fallback below is mid-write) is retried, not trusted. */
 export function readJsonFile<T extends object>(file: string): T {
-  return existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as T) : ({} as T);
+  for (let attempt = 1; ; attempt += 1) {
+    if (!existsSync(file)) return {} as T;
+    try {
+      return JSON.parse(readFileSync(file, 'utf8')) as T;
+    } catch (error) {
+      if (!(error instanceof SyntaxError) || attempt >= 20) throw error;
+      sleepSync(25 + Math.floor(Math.random() * 50));
+    }
+  }
 }
 
 /** `renameSync` with up to 10 tries, 50-200 ms apart, on EPERM/EBUSY/EACCES; removes `from` before the final throw. */
@@ -62,8 +71,17 @@ export function mergeWriteJsonFile<T extends object>(file: string, changes: T): 
   mkdirSync(dirname(file), { recursive: true });
   withLock(file, () => {
     const tmp = `${file}.${String(process.pid)}.tmp`;
-    writeFileSync(tmp, `${JSON.stringify({ ...readJsonFile<T>(file), ...changes }, null, 2)}\n`, 'utf8');
-    renameWithRetry(tmp, file);
+    const text = `${JSON.stringify({ ...readJsonFile<T>(file), ...changes }, null, 2)}\n`;
+    writeFileSync(tmp, text, 'utf8');
+    try {
+      renameWithRetry(tmp, file);
+    } catch (error) {
+      // phase 07 p07-rr 16:33Z: EPERM outlived 10 tries (a scanner holding the target). We hold the lock, so no other
+      // writer races us: write in place (readers retry a torn read in readJsonFile).
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== 'EPERM' && code !== 'EBUSY' && code !== 'EACCES') throw error;
+      writeFileSync(file, text, 'utf8');
+    }
   });
 }
 
