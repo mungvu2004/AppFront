@@ -255,6 +255,17 @@ describe('loadProjectGraph', () => {
     expect(useStore.getState().spatialProjectId).toBe('project-2');
   });
 
+  it('[28V-C-008] tầng đã chọn ở vỏ trước khi cổng nạp kho lần đầu → giữ; tầng không thuộc N15 → null', () => {
+    useStore.getState().setActiveFloor(second);
+    expect(loadProjectGraph({ document: base, project: PROJECT, roles: [] })).toBe('hydrated');
+    expect(useStore.getState().activeFloorId).toBe(second);
+
+    useStore.getState().setSpatial(null, null);
+    useStore.getState().setActiveFloor('L-khong-co' as LevelId);
+    loadProjectGraph({ document: base, project: PROJECT, roles: [] });
+    expect(useStore.getState().activeFloorId).toBeNull();
+  });
+
   it('cùng dự án mà kho chưa có `project` (màn QC nạp) → làm mới, thay toà nhà, đặt dự án và vai, giữ tầng đang xem', () => {
     hydrate();
     useStore.setState({ activeFloorId: second, floors: [], project: null, userRoles: [] });

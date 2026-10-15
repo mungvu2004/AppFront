@@ -351,29 +351,10 @@ test.describe('E06 SCR-32 version history — mocked-response flows (QA-06b P7)'
           reset();
         });
 
-        // The real-seed pipeline file cannot reach the unavailable state (the BE never stores a non-finite graph), so it is mocked here.
-        // These two steps replace the same ids in phase06_pipeline.spec.ts (T4a removes those).
-        await test.step('[32-B-018] visual tab: a left version whose scene cannot be built -> "Chưa xem trực quan được"', async () => {
-          mock.setHistory(three);
-          // run-062e: a non-finite number never reaches the scene (the N18 wire read rejects it -> "Chưa tải được nội dung bản này" row, no tabs),
-          // so v1 holds an EMPTY layer instead, like the pipeline's "before" version (catalog 32-B-018, VHS:36-37)
-          mock.snapshot = (id, call) => (id === v1 ? { body: snapshotBody(id, []) } : baseSnapshot(id, call));
-          await openVersionsPage(page, projectId);
-          await expect(diffTab(page, 'Thay đổi')).toBeVisible();
-          await page.getByRole('combobox', { name: VH.leftSelect, exact: true }).click();
-          await page.getByRole('option', { name: /^v1 · /u }).click();
-          await diffTab(page, 'Trực quan').click();
-          await expect.soft(page.getByText('Chưa xem trực quan được', { exact: true })).toBeVisible(); // VV:30
-          await captureEvidence(page, 'E06v_32-B-018_visual-unavailable.png');
-        });
-
-        await test.step('[32-B-019] ⚑ the unavailable copy names the older version, not "the current model"', async () => {
-          await expect.soft(page.getByText(/^Phiên bản v1 chưa dựng được thành cảnh/u)).toBeVisible(); // versionHistoryScene.ts:114
-          await expect.soft(page.getByText(/Mô hình hiện tại/u)).toHaveCount(0);
-          await captureEvidence(page, 'E06v_32-B-019_unavailable-names-version.png');
-          mock.snapshot = baseSnapshot;
-          reset();
-        });
+        // 32-B-018/019 -> n/a on the stack (QA-06 v3 decision 2026-10-15, timeline 09:2xZ): no snapshot the server can send reaches the
+        // "unavailable" scene (a non-finite number fails the N18 wire read; an empty layer still converts, toPascal.ts:707 always has
+        // the SITE root). The defensive branch (versionHistoryScene.ts:110-115) is proven in vitest: VersionHistoryF4.test.tsx (32-B-019)
+        // and VersionVisualDiff.test.tsx.
 
         await test.step('[32-B-027] N18 reports the version purged although the list said it had content: retention row, no error text', async () => {
           mock.snapshot = (id, call) => (id === v1 ? wireError(422, 'VERSION_SNAPSHOT_PURGED') : baseSnapshot(id, call));
@@ -593,8 +574,7 @@ test.describe('E06 SCR-32 version history — mocked-response flows (QA-06b P7)'
         };
         const undoWith = async (answer: Answer): Promise<void> => {
           await restoreThenArmUndo(answer);
-          // dispatchEvent: run-062e showed the toast button "not stable" for the whole 30 s after the clock steps of 32-B-032
-          await undoButton().dispatchEvent('click');
+          await undoButton().click(); // real click on purpose (BUG-P06 32-C-040: a fading-out Modal veil used to intercept pointer events; Modal.exit.test.tsx)
         };
 
         await test.step('[32-B-031] reload after a write failed: banner "Chưa tải lại được tầng" with "Tải lại"', async () => {
@@ -653,7 +633,7 @@ test.describe('E06 SCR-32 version history — mocked-response flows (QA-06b P7)'
 
         await test.step('[32-C-040] undo error, other code: fallback banner and a retry toast whose "Hoàn tác" retries', async () => {
           await restoreThenArmUndo(wireError(500, 'SOMETHING_NEW')); // the retry (second undo POST) falls through to the success answer
-          await undoButton().dispatchEvent('click'); // as undoWith: r1 showed the toast button "not stable" / behind the closing dialog overlay for 30 s
+          await undoButton().click(); // real click: the closing restore dialog must not cover the toast (BUG-P06 32-C-040, Modal.exit.test.tsx)
           await expectNotice(VH.undoErrorTitle, 'Máy chủ chưa nhận lượt hoàn tác. Thử lại sau ít phút.'); // VHM:413, 423
           const retryToast = toast(page, VH.undoRetryToast); // UVH:396-403
           await expect.soft(retryToast).toBeVisible();

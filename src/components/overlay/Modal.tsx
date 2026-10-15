@@ -96,21 +96,24 @@ function ModalRoot({
   );
 
   // Animation variants — slide lên 8px + fade, đúng spec
+  // `pointerEvents` flips at once with the variant: a veil/panel that is only fading out (exit) must not
+  // catch clicks meant for what is behind it, e.g. the toast "Hoàn tác" after a restore (BUG-P06 32-C-040).
   const overlayVariants = {
     hidden:  { opacity: 0 },
     visible: { opacity: 1 },
+    exit:    { opacity: 0, pointerEvents: 'none' as const },
   };
 
   const modalVariants = prefersReducedMotion
     ? {
         hidden:  { opacity: 0 },
         visible: { opacity: 1 },
-        exit:    { opacity: 0 },
+        exit:    { opacity: 0, pointerEvents: 'none' as const },
       }
     : {
         hidden:  { opacity: 0, y: 8 },
         visible: { opacity: 1, y: 0 },
-        exit:    { opacity: 0, y: 8 },
+        exit:    { opacity: 0, y: 8, pointerEvents: 'none' as const },
       };
 
   return (
@@ -123,7 +126,7 @@ function ModalRoot({
           >
             {/* Lớp phủ */}
             <motion.div
-              initial="hidden" animate="visible" exit="hidden"
+              initial="hidden" animate="visible" exit="exit"
               variants={overlayVariants}
               transition={{ duration: DURATION.default, ease: EASE.out }}
               className="absolute inset-0 bg-bg-overlay pointer-events-auto"

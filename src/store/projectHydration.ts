@@ -30,9 +30,13 @@ const byOrder = (levels: readonly Level[]): Level[] => [...levels].sort((a, b) =
 /** Opens a project from scratch: project, floors, roles, graph; history emptied by `setSpatial`. */
 export function hydrateProject({ document, project, roles }: ProjectHydrationInput): void {
   const state = useStore.getState();
+  const floors = byOrder(document.graph.levels);
+  /* Tầng chọn ở vỏ trước khi cổng nạp kho (vd. OverlayComparison) vẫn là tầng đang mở nếu N15 có nó. */
+  const kept = floors.find((level) => level.id === state.activeFloorId)?.id ?? null;
 
   state.setProject(project);
-  state.setFloors(byOrder(document.graph.levels));
+  state.setActiveFloor(kept);
+  state.setFloors(floors);
   state.setUserRoles(roles);
   state.setSpatial(normalizeSpatial(document.graph), null, {
     floorRevisions: revisionsOf(document),
