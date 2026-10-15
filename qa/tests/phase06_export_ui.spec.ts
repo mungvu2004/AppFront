@@ -232,9 +232,16 @@ test.describe('SCR-30 Bảng xuất — UI verify', () => {
             });
             // ⚑ 30-F-006 Badge nowrap (fix/qa06-f11): the Badge text must sit on one line (content not taller than one line box).
             const badgeWrapped = await badge.evaluate((el) => {
-              const range = document.createRange();
-              range.selectNodeContents(el);
-              return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size > 1 || el.scrollHeight > el.clientHeight;
+              // Text nodes only: selectNodeContents(el) also returns the 6 px status dot's rect, whose top differs from the text's (false "2 lines").
+              const tops = new Set<number>();
+              const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+              for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+                if (!n.textContent?.trim()) continue;
+                const range = document.createRange();
+                range.selectNodeContents(n);
+                [...range.getClientRects()].forEach((r) => tops.add(Math.round(r.top)));
+              }
+              return tops.size > 1 || el.scrollHeight > el.clientHeight;
             });
             const [a, b] = [await boxOf(label), await boxOf(badge)];
             seen.record(p, { lines, badgeHeight: b.height, badgeWrapped, overlap: a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height });

@@ -608,6 +608,12 @@ describe('trạng thái 7 "Thu gọn": canvas nhỏ vắng mặt', () => {
 
     expect(container.querySelector('canvas')).toBeNull();
   });
+
+  it('[28V-F-006] state=collapsed mà không có cách sửa nào: câu giải thích vẫn hiện', () => {
+    renderView({ ...loadedProps(PARTIAL_ARGS), state: 'collapsed' });
+
+    expect(screen.getByText(/Chưa có cách sửa tự động nào cho vi phạm này/u)).toBeInTheDocument();
+  });
 });
 
 /* ==========================================================================

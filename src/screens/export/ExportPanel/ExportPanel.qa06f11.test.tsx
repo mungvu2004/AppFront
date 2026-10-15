@@ -31,4 +31,21 @@ describe('QA-06b F11 — 30-F-006', () => {
     expect(label).toHaveClass('min-w-0');
     expect(label.closest('label')).toHaveClass('min-w-0');
   });
+
+  // 30-F-006 (BUG-458): tên dài không bị ép 3 dòng cạnh Badge - hàng được xuống dòng, Badge xuống dưới tên.
+  it('hàng phạm vi flex-wrap: Badge xuống dưới khi tên dài', () => {
+    render(
+      <ExportPanelOptions
+        floors={[{ id: 'f1', name: LONG_NAME, order: 1, isSelected: false, isApproved: false }]}
+        options={DEFAULT_OPTIONS}
+        capabilities={FIXED_EXPORT_CAPABILITIES}
+        selectedFormatId="glb"
+        onToggleFloor={vi.fn()}
+        onChangeOptions={vi.fn()}
+        onToggleOptionsExpanded={vi.fn()}
+      />,
+    );
+    const row = screen.getByText(LONG_NAME).closest('label')?.parentElement;
+    expect(row).toHaveClass('flex-wrap');
+  });
 });

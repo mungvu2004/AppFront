@@ -15,7 +15,7 @@
  */
 import { randomUUID } from 'node:crypto';
 
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { ACTION_TIMEOUT_MS, NAVIGATION_TIMEOUT_MS, readBaseUrl } from '../../e2e/fullstack/env';
@@ -89,6 +89,12 @@ const hasHorizontalScroll = (page: Page): Promise<boolean> =>
   page.evaluate(() => (document.scrollingElement ?? document.documentElement).scrollWidth > window.innerWidth);
 
 const wide = (page: Page): boolean => (page.viewportSize()?.width ?? 0) >= 1024;
+
+/**
+ * The own "Đã xử lý" group at the foot of the list. A plain `hasText: 'Đã xử lý'` also matches a rule group whose summary
+ * says "· 2 đã xử lý" (QA-06b F13: resolved rows stay), so match the title at the start of the button.
+ */
+const resolvedGroupExpander = (page: Page): Locator => groupExpanders(page).filter({ hasText: /^\s*Đã xử lý/u }).first();
 
 /** The sheet closes by itself after a quick fix on some widths: close it only if it is still open. */
 async function closeSheetIfOpen(page: Page): Promise<void> {
@@ -315,7 +321,7 @@ test('SCR-28 · FL-28-U1c · UI verify of quick fix and resolved section (`verif
         await openRuleSheet(p, project, RULE_NAME.furnitureClash);
         await deleteFromSheet(p);
         await closeSheetIfOpen(p);
-        const resolved = groupExpanders(p).filter({ hasText: RR.resolved }).first();
+        const resolved = resolvedGroupExpander(p);
         await expect(resolved).toBeVisible();
         if ((await resolved.getAttribute('aria-expanded')) !== 'true') await resolved.click();
         await expect(resolved).toHaveAttribute('aria-expanded', 'true');
@@ -333,7 +339,7 @@ test('SCR-28 · FL-28-U1c · UI verify of quick fix and resolved section (`verif
           await openRuleSheet(p, project, RULE_NAME.furnitureClash);
           await deleteFromSheet(p);
           await closeSheetIfOpen(p);
-          const resolved = groupExpanders(p).filter({ hasText: RR.resolved }).first();
+          const resolved = resolvedGroupExpander(p);
           if ((await resolved.getAttribute('aria-expanded')) !== 'true') await resolved.click();
           const section = p.locator('section').filter({ has: resolved });
           const sheet = await (async () => {

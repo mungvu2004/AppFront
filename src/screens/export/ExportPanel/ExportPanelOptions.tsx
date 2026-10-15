@@ -71,7 +71,7 @@ function ExportPanelScope({ floors, onToggleFloor }: ExportPanelScopeProps) {
       <div className="flex flex-col gap-2">
         {sortedFloors.map((floor) => (
           <div key={floor.id} className="flex flex-col gap-1 rounded border border-border-default p-2">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
               <Checkbox
                 label={floor.name}
                 checked={floor.isSelected}

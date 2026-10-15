@@ -212,7 +212,7 @@ function ViolationDetailNotices({ hasActions, props }: NoticesProps) {
         </p>
       ) : null}
 
-      {props.state === 'partial' && !hasActions ? (
+      {(props.state === 'partial' || props.state === 'collapsed') && !hasActions ? (
         <p className="text-sm text-text-secondary">
           Chưa có cách sửa tự động nào cho vi phạm này. Phần căn cứ ở trên đủ để sửa tay trên
           Bản vẽ.
