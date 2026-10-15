@@ -19,6 +19,7 @@ import {
   NOTIFICATION_DEFAULTS,
   REFRESH_API,
   SHORTCUTS,
+  UNDO,
   accountUser,
   block,
   cellName,
@@ -109,8 +110,22 @@ export const cell = (page: Page, event: string, channel: ChannelKey): Locator =>
 
 /** Clicks the VISIBLE box: the input is `sr-only`, the `<label htmlFor>` around the 18 px box is the click target (Checkbox.tsx). */
 export async function clickCell(page: Page, event: string, channel: ChannelKey): Promise<void> {
-  await notificationsBlock(page).locator('label').filter({ has: cell(page, event, channel) }).click();
+  // `has` is matched INSIDE each label, so it must be a page-rooted locator: `cell()` starts at the section and resolved 0 (R1/E: FL-33R-05/06).
+  const checkbox = page.getByRole('checkbox', { name: cellName(event, CHANNELS[channel]), exact: true });
+  await notificationsBlock(page).locator('label').filter({ has: checkbox }).click();
 }
+
+/* ---------------------------------------------------------------- undo toast of a LOCAL-ONLY change (QD-07-1) */
+
+/** QD-07-1 (QA-07/questions.md:13): a local-only change shows this text next to "Hoàn tác"; server saves keep "Đã lưu cài đặt tài khoản.". */
+export const LOCAL_ONLY_TOAST = 'Đã đổi cài đặt, chỉ giữ trong phiên này.';
+
+/**
+ * Every undo toast, whatever its text: a live region (not the hidden announcer) that holds the "Hoàn tác" button (Toast.tsx:120,149).
+ * Never keyed on "Đã lưu cài đặt tài khoản.": a local-only change shows LOCAL_ONLY_TOAST instead.
+ */
+export const undoRegion = (page: Page): Locator =>
+  page.getByRole('status').filter({ has: page.getByRole('button', { name: UNDO, exact: true }) });
 
 /** The ten cell names in reading order: event 1 inApp, event 1 email, event 2 inApp, ... (UAT:117-143, NS:146-165). */
 export const MATRIX_CELL_NAMES: readonly string[] = NOTIFICATION_DEFAULTS.flatMap((event) => [

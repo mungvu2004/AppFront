@@ -15,7 +15,7 @@
  * Source: src/screens/account/AccountSettings/* (AS AccountSettings.tsx, PS ProfileSection.tsx, ARD AvatarReplaceDialog.tsx,
  * UAP useAccountPreferences.ts, UAS useAccountSettings.ts), FieldRow / Modal / Toast under src/components.
  */
-import { expect, test, type Page, type Response } from '@playwright/test';
+import { expect, test, type Locator, type Page, type Response } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { waitForApi } from '../../e2e/fullstack/apiWatch';
@@ -76,6 +76,10 @@ import {
 import { verifyUi } from './support/ui-verify';
 
 const profileCard = (page: Page) => block(page, 'account-profile');
+/** Modal.Footer buttons only: the footer is the parent of "Huỷ" (ARD:52). The header close button (Modal.tsx:186, icon only, text '') is not in it. */
+const footerButtons = (dialog: Locator) => dialog.getByRole('button', { name: AVATAR.cancel, exact: true }).locator('..').getByRole('button');
+/** The profile-row avatar: the wrapper of the file input (PS:127,135). `getByRole('img').first()` lands on the dialog preview while the avatar is initials. */
+const profileAvatar = (page: Page) => avatarInput(page).locator('..');
 
 /** `rect` of the profile card and the viewport it sits in, for the per-width record. */
 async function frame(page: Page): Promise<{ readonly vw: number; readonly vh: number; readonly card: Box }> {
@@ -260,7 +264,7 @@ test('SCR-33 · FL-33P-U2 · avatar states', async ({ browser }) => {
           vw: (await viewportOf(p)).w,
           dialog: await stableRect(dialog),
           preview: await stableRect(preview),
-          buttons: (await dialog.getByRole('button').allInnerTexts()).map((t) => t.trim()),
+          buttons: (await footerButtons(dialog).allInnerTexts()).map((t) => t.trim()),
         });
       }, FOUR, { fullPage: false });
       for (const m of seen) {
@@ -303,7 +307,7 @@ test('SCR-33 · FL-33P-U2 · avatar states', async ({ browser }) => {
           seen.push({
             vw: (await viewportOf(p)).w,
             status: await rect(status),
-            avatar: await rect(profileCard(p).getByRole('img').first()),
+            avatar: await rect(profileAvatar(p)),
             confirmDisabled: await dialog.getByRole('button').last().isDisabled(),
           });
         }, FOUR, { fullPage: false });
@@ -332,7 +336,7 @@ test('SCR-33 · FL-33P-U2 · avatar states', async ({ browser }) => {
         seen.push({
           vw: (await viewportOf(p)).w,
           warning: await dialog.getByText(AVATAR.replaceWarning, { exact: true }).count(),
-          buttons: (await dialog.getByRole('button').allInnerTexts()).map((t) => t.trim()),
+          buttons: (await footerButtons(dialog).allInnerTexts()).map((t) => t.trim()),
         });
       }, FOUR, { fullPage: false });
       for (const m of seen) {
@@ -359,7 +363,7 @@ test('SCR-33 · FL-33P-U2 · avatar states', async ({ browser }) => {
           vw: (await viewportOf(p)).w,
           alert: await rect(alert),
           card: await rect(profileCard(p)),
-          avatar: await rect(profileCard(p).getByRole('img').first()),
+          avatar: await rect(profileAvatar(p)),
           disabled: await avatarInput(p).isDisabled(),
         });
       }, FOUR);

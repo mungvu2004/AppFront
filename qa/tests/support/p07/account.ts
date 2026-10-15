@@ -67,6 +67,7 @@ export const PROBLEM = {
   fullName: 'Họ tên cần từ 1 đến 120 ký tự, không chứa ký tự điều khiển.', // UAS:113
   jobTitle: 'Chức danh tối đa 120 ký tự, không chứa ký tự điều khiển.', // UAS:114
   phone: 'Số điện thoại tối đa 32 ký tự.', // UAS:115
+  phoneControl: 'Số điện thoại không được chứa ký tự điều khiển hoặc ký tự đảo chiều chữ.', // vi.json:503 (BUG-P07-005, 004add26)
 } as const;
 export const PLACEHOLDER = 'Chưa đặt'; // UAP:155,158
 export const EMAIL_REASON_SHORT = 'Thư điện tử là tên đăng nhập nên chỉ đọc ở đây.'; // UAP:150

@@ -6,7 +6,7 @@
  *
  * ## Request budget per run (BE limits; pool users, never E2E_ADMIN)
  * - `POST /api/me/password` (`me_password` 5 / 900 s per user, counted before body validation, MR:225):
- *   FL-33S-05 spends the whole bucket (5 wrong + 6th 429 + 1 more 429 = 7 sent, 6 counted) on a FRESH user per run (fixed slot, suffix `-r<retry>` only on a retry: a retry inside 900 s would exceed 5 / 900 s; FL-33S-06/07 use the same rule),
+ *   FL-33S-05 spends the bucket (5 wrong + 6th 429 = 6 sent) on a FRESH user per attempt (slot = base + process stamp + repeat-each index, + `-r<retry>`: a run inside 900 s of an earlier one would meet the full bucket, p07-rr); FL-33S-06/07 keep the fixed slot + `-r<retry>` rule,
  *   nothing to restore. FL-33S-06: 2 per user (change, restore) x 3 users. FL-33S-07: content user 4 (spaces, 256 chars, astral 422,
  *   restore), revoke user 2 (B change, restore; A's POST dies at 401 before the limiter).
  * - `POST /api/auth/login`: admin 1 per flow, each pool user 1 per session (+ restore: 1 login + 1 probe; FL-33S-07 login probes 3, one 401).
@@ -38,6 +38,8 @@ import {
 } from './support/p07/P8';
 
 const CHANGED = PW.changed;
+/** Per worker process: a rerun never meets the me_password bucket an earlier run spent. */
+const RUN_STAMP = Date.now().toString(36);
 
 /** Admin API (pool invitations only). */
 async function adminApi(): Promise<Awaited<ReturnType<typeof signedInApi>>> {
@@ -81,7 +83,10 @@ async function lockSnapshot(page: Page, name: string, writes: string[], realT0: 
 test('SCR-33 · FL-33S-05 · 6th attempt in 900 s: real 429, lock 60 s, re-lock (page.clock)', async ({ browser }) => {
   test.setTimeout(Math.max(120_000, 2 * 90_000));
   const admin = await adminApi();
-  const user = await poolUser(admin, 'engineer', slotOf('p07-security-5')); // the 5 / 900 s bucket cannot be restored; a rerun after > 15 min finds it expired
+  // The 5 / 900 s bucket cannot be restored. RR 14 min after R1 reused the R1 user (same fixed slot): its bucket was still full, the very first wrong
+  // submit was a real 429 and waitForApi([422]) timed out after 30 s (test 32.5 s, screenshot = rate-limit alert). So this spend-all flow takes a
+  // fresh slot per attempt: process stamp + repeat-each index (+ `-r<retry>` from slotOf). Cost: 1 invitation per attempt.
+  const user = await poolUser(admin, 'engineer', `${slotOf('p07-security-5')}-${RUN_STAMP}-e${String(test.info().repeatEachIndex)}`);
   const { context, page } = await newSession(browser, user);
   const writes = recordWrites(page);
   try {
@@ -90,6 +95,7 @@ test('SCR-33 · FL-33S-05 · 6th attempt in 900 s: real 429, lock 60 s, re-lock 
     let retryAfter: string | undefined;
     let lockedAt = 0;
     let realLockedAt = 0;
+    let sentAtLock = 0;
     const alert = fieldError(page, COPY.rateLimited);
 
     await page.clock.install(); // lock = max(Retry-After, 60) s (UAA:208,430-436): the clock is run forward, never waited
@@ -113,6 +119,7 @@ test('SCR-33 · FL-33S-05 · 6th attempt in 900 s: real 429, lock 60 s, re-lock 
       await expect(pwSubmit(page)).toBeDisabled();
       lockedAt = await pageNow(page);
       realLockedAt = Date.now();
+      sentAtLock = writes.list().length;
       await lockSnapshot(page, 'E07_33S-A-016_after429.json', writes.list(), realLockedAt);
       await shot(page, 'A-016', 'ratelimit');
     });
@@ -170,34 +177,30 @@ test('SCR-33 · FL-33S-05 · 6th attempt in 900 s: real 429, lock 60 s, re-lock 
       await shot(page, 'A-018', 'ratelimit');
     });
 
-    await test.step('[33S-A-019] After the 900 s BE window the lock lifts (fake clock; Q5, was 60 s)', async () => {
-      // QA-07 questions.md Q5: BE clamps Retry-After to 1..10 s (W9), so FE locks max(Retry-After, 900 s) from the 429 (UAA PASSWORD_LOCK_MIN_SECONDS).
+    // Order note: the fake clock only runs forward, so the "still locked" checks (A-020, up to +899 s) run BEFORE the lift check (A-019, +902 s).
+    await test.step('[33S-A-020] After the BE answered 429 the button stays locked for the whole 900 s window and nothing is sent while locked', async () => {
+      // QA-07 questions.md Q5: BE clamps Retry-After to 1..10 s (W9), so the FE locks max(Retry-After, 900 s) from the 429 (UAA PASSWORD_LOCK_MIN_SECONDS).
+      // Settled at E (p07-r1/p07-rr): page.clock cannot age the REAL 900 s BE window (the test runs ~20 s real), so a POST after fake +902 s meets the
+      // real 429 whatever the FE does. The observable correct behaviour is the lock itself (Q5: 900 s) and that no POST goes out while it holds; no re-POST here.
+      await lockSnapshot(page, 'E07_33S-A-020_beforeClick.json', writes.list(), realLockedAt);
       await advanceTo(page, lockedAt, 62_000);
       await expect.soft(pwSubmit(page), 'still locked at +62 s (old 60 s lift is gone)').toBeDisabled();
       await advanceTo(page, lockedAt, 898_000);
       await expect.soft(pwSubmit(page), 'still locked at +898 s').toBeDisabled();
+      await advanceTo(page, lockedAt, 899_000);
+      await expect.soft(pwSubmit(page), 'still locked at fake +899 s (Q5 lock = 900 s)').toBeDisabled();
+      await expect.soft(alert).toBeVisible();
+      expect.soft(writes.list().length, 'no POST sent while locked').toBe(sentAtLock);
+      await lockSnapshot(page, 'E07_33S-A-020_at899.json', writes.list(), realLockedAt);
+      await shot(page, 'A-020', 'ratelimit');
+    });
+
+    await test.step('[33S-A-019] After the 900 s BE window the lock lifts (fake clock; Q5, was 60 s)', async () => {
       await advanceTo(page, lockedAt, 902_000); // UAA:208,430-436
       await expect.soft(alert).toHaveCount(0);
       await expect.soft(pwSubmit(page)).toBeEnabled();
       await expect.soft(pwField(page, PW.next)).toHaveValue(next);
       await shot(page, 'A-019', 'ratelimit');
-    });
-
-    await test.step('[33S-A-020] ⚑ After the BE answered 429 the button stays locked until the BE window ends, or the next POST is not 429', async () => {
-      // Correct behaviour (decided in S4 review): the FE lock must respect the BE window (900 s, MR:45-46). Today it re-opens at +60 s
-      // (UAA:208,430-436) and the next POST is a real 429 again -> red until fixed.
-      await lockSnapshot(page, 'E07_33S-A-020_beforeClick.json', writes.list(), realLockedAt); // pageMs vs lockedAt+900 s, realSinceLockMs = BE window really elapsed
-      if (await pwSubmit(page).isEnabled()) {
-        const answered = waitForApi(page, 'POST', PWD_RE, [204, 422, 429]);
-        await pwSubmit(page).click();
-        const res = await answered;
-        await attachJson('E07_33S-A-020_answer.json', { status: res.response.status(), retryAfter: res.response.headers()['retry-after'] ?? null, realSinceLockMs: Date.now() - realLockedAt, fakeSinceLockMs: (await pageNow(page)) - lockedAt });
-        await lockSnapshot(page, 'E07_33S-A-020_afterClick.json', writes.list(), realLockedAt);
-        expect.soft(res.response.status(), 'a re-opened button must not meet 429 again').not.toBe(429);
-      } else {
-        await expect.soft(pwSubmit(page)).toBeDisabled();
-      }
-      await shot(page, 'A-020', 'ratelimit');
     });
   } finally {
     writes.stop();

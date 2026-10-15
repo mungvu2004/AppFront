@@ -289,7 +289,8 @@ test.describe('SCR-33 profile B', () => {
           const sink = (window as unknown as { __p2Chip: (t: string) => void }).__p2Chip;
           new MutationObserver(() => sink(el.textContent ?? '')).observe(el, { subtree: true, childList: true, characterData: true });
         });
-        const del = await admin.delete(`/api/users/${flow.user.id}`);
+        // D evidence: the bodyless DELETE answered 422 VALIDATION {count:1}; AppBack users/schemas.py:71-75 (DeleteUserBody) needs {userId, confirmEmail}.
+        const del = await admin.delete(`/api/users/${flow.user.id}`, { data: { userId: flow.user.id, confirmEmail: flow.user.email } });
         // Evidence for the R1 red (DELETE not ok): status + body, attached before the expect.
         await attachJson('E07-33P-D-004_delete-user.json', { status: del.status(), statusText: del.statusText(), body: (await del.text()).slice(0, 600), url: del.url() });
         expect(del.ok(), 'setup: DELETE /api/users/:id').toBe(true);
@@ -504,6 +505,8 @@ test.describe('SCR-33 profile B', () => {
         const savedA = nextPatch(page);
         await fullName.fill(name('A'));
         await savedA;
+        // D evidence (after-clock-run.json): hover=true, hasFocus=false - the mouse rests where the toast appears, so the toast pauses on hover.
+        await page.mouse.move(0, 0);
         await attachToastSnapshot(page, 'after-save-a', patches.length);
         await page.clock.runFor(TOAST_GONE_MS); // > 5 s: a new toast, and the first has left (TST 8 s)
         await attachToastSnapshot(page, 'after-clock-run', patches.length);
@@ -673,7 +676,8 @@ test.describe('SCR-33 profile B', () => {
           const res = await answered;
           soft(res.response.status()).toBe(422);
           soft(JSON.stringify(res.json)).toContain('"field":"phone"');
-          await expect.soft(fieldError(page, PROBLEM.phone)).toBeVisible();
+          // BUG-P07-005 (004add26): a 422 for a control character now reads the control-character message, not "tối đa 32 ký tự" (vi.json:503).
+          await expect.soft(fieldError(page, PROBLEM.phoneControl)).toBeVisible();
         }
         await ev(page, '33P-C-010', 'phone-control-chars');
       });

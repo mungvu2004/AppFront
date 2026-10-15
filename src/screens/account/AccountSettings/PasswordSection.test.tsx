@@ -10,6 +10,7 @@
  */
 
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { MIN_PASSWORD_LENGTH } from '@/api/schemas';
@@ -484,6 +485,33 @@ describe('[33S-E-007] focus sau khi gửi không rơi về <body>', () => {
       expect(document.activeElement).toBe(screen.getByLabelText('Mật khẩu hiện tại'));
     });
     expect(document.activeElement).not.toBe(document.body);
+  });
+
+  it('[33S-A-017] focus về ô có lỗi thì con trỏ ở cuối: gõ tiếp nối vào đuôi, không chèn vào đầu', async () => {
+    renderWithProviders(
+      <Harness
+        gateway={fakeGateway({
+          changePassword: () =>
+            Promise.resolve({ ok: false, error: { reason: 'wrong-current-password' } }),
+        })}
+      />,
+    );
+    await waitFor(() => {
+      expect(screen.getByLabelText('Mật khẩu hiện tại')).toBeTruthy();
+    });
+    const current = screen.getByLabelText<HTMLInputElement>('Mật khẩu hiện tại');
+
+    fireEvent.change(current, { target: { value: 'cu-12345' } });
+    // Chromium để con trỏ ở 0 khi focus() lại một ô vừa được bật lại sau `disabled` (E: 'xWrong-..').
+    current.setSelectionRange(0, 0);
+    await fillAndSubmit();
+    await waitFor(() => {
+      expect(document.activeElement).toBe(current);
+    });
+
+    expect([current.selectionStart, current.selectionEnd]).toEqual([8, 8]);
+    await userEvent.setup({ delay: null }).keyboard('x');
+    expect(current.value).toBe('cu-12345x');
   });
 
   it('thành công: focus ở dải báo thành công', async () => {

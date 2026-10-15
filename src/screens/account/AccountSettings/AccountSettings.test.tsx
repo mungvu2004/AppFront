@@ -17,6 +17,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { NotificationHost } from '@/components/feedback/NotificationHost';
+import viMessages from '@/i18n/vi.json';
+import { useStore } from '@/store';
 import { createNotificationBus } from '@/lib/mutations/notificationBus';
 import { CONTRAST_MINIMUM_BODY, checkContrast, parsePalette } from '@/lib/coloring/legend';
 import type { ColorTokenName } from '@/lib/coloring/scales';
@@ -49,6 +51,7 @@ import {
 import { NOTIFICATION_CHANNELS, buildShortcutRows } from './useAccountTables';
 import {
   ACCOUNT_AUTOSAVE_DEBOUNCE_MS,
+  ACCOUNT_SAVED_UNDO_TITLE,
   toSaveState,
   type AccountSettingsViewModel,
 } from './useAccountSettings';
@@ -371,6 +374,53 @@ describe('B-V12b-03 — sửa hồ sơ có toast "Hoàn tác", và hoàn tác gh
     await advance(ACCOUNT_AUTOSAVE_DEBOUNCE_MS);
 
     expect(undoButtons()).toHaveLength(1);
+  });
+
+  // QD-07-1: lượt chỉ-giữ-trong-phiên có toast "Hoàn tác" với câu riêng (không nói "Đã lưu").
+  async function mountEmpty() {
+    const { gateway } = createRecordingGateway();
+    const bus = createNotificationBus({ now: () => Date.now() });
+
+    renderWithProviders(
+      <>
+        <AccountSettingsContainer gateway={gateway} notifications={bus} />
+        <NotificationHost bus={bus} />
+      </>,
+    );
+    await advanceUntil(() => screen.queryByRole('switch', { name: 'Hiện lưới 100 mm' }) !== null);
+  }
+
+  it('[33R-A-016] đổi công tắc "Hiện lưới 100 mm" có toast riêng và Hoàn tác trả công tắc về cũ', async () => {
+    await mountEmpty();
+    const grid = (): HTMLElement => screen.getByRole('switch', { name: 'Hiện lưới 100 mm' });
+
+    expect(grid()).toBeChecked();
+    fireEvent.click(grid());
+    expect(grid()).not.toBeChecked();
+    await advance(ACCOUNT_AUTOSAVE_DEBOUNCE_MS);
+
+    expect(screen.getByText(viMessages.account.savedLocalToast)).toBeInTheDocument();
+    expect(screen.queryByText(ACCOUNT_SAVED_UNDO_TITLE)).toBeNull();
+    expect(undoButtons()).toHaveLength(1);
+
+    fireEvent.click(undoButtons()[0] as HTMLElement);
+    await advance(0);
+    expect(grid()).toBeChecked();
+  });
+
+  it('[33R-A-017] Hoàn tác lần đổi chủ đề đầu tiên trả radio và <html> về chủ đề trước đó', async () => {
+    useStore.getState().setTheme('light');
+    await mountEmpty();
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Tối' }));
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    await advance(ACCOUNT_AUTOSAVE_DEBOUNCE_MS);
+    expect(screen.getByText(viMessages.account.savedLocalToast)).toBeInTheDocument();
+
+    fireEvent.click(undoButtons()[0] as HTMLElement);
+    await advance(0);
+    expect(screen.getByRole('radio', { name: 'Sáng' })).toBeChecked();
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
   });
 });
 

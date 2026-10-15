@@ -148,11 +148,18 @@ export function PasswordSection(props: PasswordSectionProps) {
 
     const form = formRef.current;
 
-    (
+    const target =
       form?.querySelector<HTMLElement>('[aria-invalid="true"]') ??
       form?.querySelector<HTMLElement>('[data-password-status]') ??
-      form?.querySelector<HTMLElement>('input')
-    )?.focus();
+      form?.querySelector<HTMLElement>('input');
+
+    target?.focus();
+
+    // `focus()` trên ô vừa bật lại sau `disabled` để con trỏ ở 0, nên gõ tiếp bị chèn
+    // vào đầu mật khẩu (BUG-P07-012 / 33S-A-017): đặt con trỏ ở cuối.
+    if (target instanceof HTMLInputElement) {
+      target.setSelectionRange(target.value.length, target.value.length);
+    }
   }, [props.isSubmitting]);
 
   // Trạng thái 6. Đứng trước mọi thứ khác: khi công ty giữ mật khẩu thì màn này

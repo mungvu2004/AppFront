@@ -50,6 +50,7 @@ import {
   undoToast,
 } from './support/p07/account';
 import {
+  LOCAL_ONLY_TOAST,
   MATRIX_CELL_NAMES,
   activeLabel,
   asPrefsUser,
@@ -64,6 +65,7 @@ import {
   settle,
   shortcuts,
   spaNavigate,
+  undoRegion,
 } from './support/p07/P6';
 
 /** I18N autosave.dirty (src/i18n/vi.json:68): the chip while a change waits for the debounce. */
@@ -79,9 +81,12 @@ const SELECT_ALL = process.platform === 'darwin' ? 'Meta+a' : 'Control+a';
 
 const html = (page: import('@playwright/test').Page): import('@playwright/test').Locator => page.locator('html');
 
-/** The newest (first, full-size) undo toast's "Hoàn tác" button; older ones are folded into 4 px strips (Toast.tsx). */
+/**
+ * The newest (first, full-size) undo toast's "Hoàn tác" button; older ones are folded into 4 px strips (Toast.tsx).
+ * Found by role inside the toast region, never by the server text: a local-only change shows LOCAL_ONLY_TOAST (QD-07-1).
+ */
 const undoButton = (page: import('@playwright/test').Page): import('@playwright/test').Locator =>
-  undoToast(page).first().getByRole('button', { name: UNDO, exact: true });
+  undoRegion(page).first().getByRole('button', { name: UNDO, exact: true });
 
 test.describe('E07 SCR-33 preferences B', () => {
   test('SCR-33 · FL-33R-05 · persistence: session memory, reload, app-wide scope', async ({ browser }) => {
@@ -259,10 +264,12 @@ test.describe('E07 SCR-33 preferences B', () => {
           await expect(toggle(page, VIEWPORT_DARK)).toHaveAttribute('aria-checked', 'true');
           await settle(page);
           expect(writes.list(), 'a viewer click sends nothing').toEqual([]);
+          // QD-07-1: a local-only change shows the truthful text, not "Đã lưu cài đặt tài khoản." (33P-B-024)
+          await expect.soft(undoRegion(page).first()).toContainText(LOCAL_ONLY_TOAST);
           await captureEvidence(page, 'E07_33R-D-001_viewer_prefs_enabled.png');
           await undoButton(page).click();
           await expect(toggle(page, VIEWPORT_DARK)).toHaveAttribute('aria-checked', 'false');
-          await expect(undoToast(page)).toHaveCount(0);
+          await expect(undoRegion(page)).toHaveCount(0);
         });
 
         const appearance = page.locator('section[aria-labelledby="account-appearance"]');
@@ -283,7 +290,7 @@ test.describe('E07 SCR-33 preferences B', () => {
         });
 
         await test.step('[33R-A-017] ⚑ "Hoàn tác" after the first theme change brings "Sáng" back', async () => {
-          await expect(undoToast(page).first()).toBeVisible();
+          await expect(undoRegion(page).first()).toBeVisible();
           await undoButton(page).click();
           // today red: base.theme falls back to the live store theme (UAP:384), so radio and class stay "Tối"
           await expect.soft(themeRadio(page, 'light')).toHaveAttribute('aria-checked', 'true');
@@ -292,10 +299,11 @@ test.describe('E07 SCR-33 preferences B', () => {
         });
 
         await test.step('[33R-A-016] "Hoàn tác" after "Hiện lưới 100 mm" off puts the switch back, no write', async () => {
-          await expect(undoToast(page)).toHaveCount(0); // the toast of the previous step is gone, its group closed
+          await expect(undoRegion(page)).toHaveCount(0); // the toast of the previous step is gone, its group closed
           await toggle(page, SHOW_GRID).click();
           await expect(toggle(page, SHOW_GRID)).toHaveAttribute('aria-checked', 'false');
-          await expect(undoToast(page).first()).toBeVisible();
+          await expect(undoRegion(page).first()).toBeVisible();
+          await expect.soft(undoRegion(page).first()).toContainText(LOCAL_ONLY_TOAST); // QD-07-1
           await undoButton(page).click(); // UAS:336-347
           await expect.soft(toggle(page, SHOW_GRID)).toHaveAttribute('aria-checked', 'true');
           await settle(page);

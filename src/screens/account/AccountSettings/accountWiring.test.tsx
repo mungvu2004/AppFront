@@ -1016,6 +1016,8 @@ describe('SCR-33 QA phase 07', () => {
     expect(save).toHaveBeenCalledTimes(1);
     expect(screen.getAllByText(ACCOUNT_LOCAL_ONLY_LABEL).length).toBeGreaterThan(0);
     expect(titles).not.toContain(ACCOUNT_SAVED_UNDO_TITLE);
+    // QD-07-1: vẫn có toast hoàn tác, nhưng câu là của lượt chỉ-giữ-trong-phiên.
+    expect(titles).toContain(viMessages.account.savedLocalToast);
 
     act(() => {
       fireEvent.change(field, { target: { value: 'Bình' } });

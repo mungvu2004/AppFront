@@ -224,13 +224,50 @@ describe('typing guard', () => {
 
       registerGlobalShortcuts(registry, handlers);
 
-      const event = keyEvent('s', { ctrlKey: true });
+      const event = keyEvent('z', { ctrlKey: true });
 
       expect(registry.handleKeyDown(event, { tagName })).toBe(false);
-      expect(handlers.save).not.toHaveBeenCalled();
+      expect(handlers.undo).not.toHaveBeenCalled();
       expect(event.preventDefault).not.toHaveBeenCalled();
     },
   );
+
+  // BUG-P07-001 / 33P-A-024: Ctrl+S has no text-editing meaning, so "Lưu ngay" must run from a field.
+  it.each([
+    ['INPUT', { ctrlKey: true }],
+    ['TEXTAREA', { ctrlKey: true }],
+    ['SELECT', { ctrlKey: true }],
+    ['INPUT', { metaKey: true }],
+  ])('Mod+S reaches the save handler while the focus is in a %s (%j)', (tagName, flags) => {
+    const registry = devRegistry();
+    const handlers = globalHandlers();
+
+    registerGlobalShortcuts(registry, handlers);
+
+    const event = keyEvent('s', flags);
+
+    expect(registry.handleKeyDown(event, { tagName })).toBe(true);
+    expect(handlers.save).toHaveBeenCalledTimes(1);
+    // The browser's "save page" default stays prevented.
+    expect(event.preventDefault).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['plain S', {}],
+    ['Ctrl+Shift+S', { ctrlKey: true, shiftKey: true }],
+    ['Ctrl+Alt+S', { ctrlKey: true, altKey: true }],
+  ])('%s stays blocked while typing', (_name, flags) => {
+    const registry = devRegistry();
+    const handlers = globalHandlers();
+
+    registerGlobalShortcuts(registry, handlers);
+
+    const event = keyEvent('s', flags);
+
+    expect(registry.handleKeyDown(event, { tagName: 'INPUT' })).toBe(false);
+    expect(handlers.save).not.toHaveBeenCalled();
+    expect(event.preventDefault).not.toHaveBeenCalled();
+  });
 
   it.each([['radio'], ['checkbox'], ['button']])(
     'Mod+Z still undoes while an <input type=%s> has the focus (17-E-017)',
@@ -309,10 +346,10 @@ describe('typing guard', () => {
 
     registerGlobalShortcuts(registry, handlers);
 
-    const event = keyEvent('s', { ctrlKey: true });
+    const event = keyEvent('z', { ctrlKey: true });
 
     expect(registry.handleKeyDown(event, { tagName: 'TEXTAREA' })).toBe(false);
-    expect(handlers.save).not.toHaveBeenCalled();
+    expect(handlers.undo).not.toHaveBeenCalled();
     expect(event.preventDefault).not.toHaveBeenCalled();
   });
 });

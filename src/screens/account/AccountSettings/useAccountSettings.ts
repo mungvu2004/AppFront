@@ -133,6 +133,9 @@ type ProfileProblems =Readonly<Partial<Record<ProfileFieldKey, string>>>;
 /** Câu của toast hoàn tác sau một lượt tự lưu (A8). */
 export const ACCOUNT_SAVED_UNDO_TITLE = 'Đã lưu cài đặt tài khoản.';
 
+/** Câu của toast hoàn tác sau lượt chỉ-giữ-trong-phiên: không nói "đã lưu" (33P-B-024, QD-07-1). */
+export const ACCOUNT_LOCAL_SAVED_UNDO_TITLE = 'Đã đổi cài đặt, chỉ giữ trong phiên này.';
+
 /** Cách gọi hook trong test và story. Sản phẩm gọi `useAccountSettings()` không tham số. */
 export interface UseAccountSettingsOptions {
   /** Nguồn dữ liệu. Mặc định là cổng thật của ứng dụng. */
@@ -354,13 +357,14 @@ export function useAccountSettings(
             : profileDraftOf(serverProfile),
       }));
 
-      // Lượt chỉ-giữ-trong-phiên: chip đã nói thật, không thêm toast "Đã lưu" (33P-B-024).
-      if (isRestore || previous === null || isLocalOnly) {
+      if (isRestore || previous === null) {
         return;
       }
 
+      // Lượt chỉ-giữ-trong-phiên vẫn có "Hoàn tác" (33R-A-016/017, QD-07-1) nhưng không nói "Đã lưu" (33P-B-024).
+      const title = isLocalOnly ? ACCOUNT_LOCAL_SAVED_UNDO_TITLE : ACCOUNT_SAVED_UNDO_TITLE;
       const undoTicket = createUndoTicket({
-        description: ACCOUNT_SAVED_UNDO_TITLE,
+        description: title,
         ...(options.now !== undefined ? { now: options.now } : {}),
         undo: () => {
           restoringRef.current = previous;
@@ -373,7 +377,7 @@ export function useAccountSettings(
 
       notifications.publish({
         type: 'account-settings',
-        title: ACCOUNT_SAVED_UNDO_TITLE,
+        title,
         description: '',
         undoTicket,
       });

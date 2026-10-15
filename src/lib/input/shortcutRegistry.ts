@@ -543,7 +543,15 @@ export function createShortcutRegistry(
     // Typing disables every binding — except Escape, which must reach the
     // global close-top-layer handler from inside a text field exactly as it
     // falls through a modal dialog's own key-swallowing (invariant A12).
-    if (isTyping(event, target) && code !== 'ESCAPE') {
+    // Mod+S is the other exception: it has no text-editing meaning, and "Lưu
+    // ngay" must flush a field being typed in (BUG-P07-001, 33P-A-024).
+    const isSaveCombo =
+      code === 'S' &&
+      (event.ctrlKey === true || event.metaKey === true) &&
+      event.shiftKey !== true &&
+      event.altKey !== true;
+
+    if (isTyping(event, target) && code !== 'ESCAPE' && !isSaveCombo) {
       return false;
     }
 
