@@ -105,9 +105,9 @@ export function ViewerStoreyRail({
                 type="button"
               >
                 {storey.isVisible ? (
-                  <Eye aria-hidden="true" className="h-[14px] w-[14px]" />
+                  <Eye aria-hidden="true" className="h-3.5 w-3.5" />
                 ) : (
-                  <EyeOff aria-hidden="true" className="h-[14px] w-[14px]" />
+                  <EyeOff aria-hidden="true" className="h-3.5 w-3.5" />
                 )}
               </button>
             </div>

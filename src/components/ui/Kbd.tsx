@@ -15,7 +15,7 @@ export function Kbd({ children, className = '' }: KbdProps) {
     <kbd
       className={cn(
         'inline-flex items-center justify-center',
-        'h-[20px] min-w-[20px] px-1',
+        'h-5 min-w-[20px] px-1',
         'rounded-[6px]',
         'bg-bg-sunken',
         'border border-border-default',

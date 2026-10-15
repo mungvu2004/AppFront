@@ -285,7 +285,7 @@ export function EditorTour(props: EditorTourProps) {
             {anchor !== null && !isCollapsed && (
               <span
                 aria-hidden="true"
-                className={`absolute h-[8px] w-[8px] rotate-45 border-border-default bg-bg-surface ${ARROW_EDGES[placement]}`}
+                className={`absolute h-2 w-2 rotate-45 border-border-default bg-bg-surface ${ARROW_EDGES[placement]}`}
                 style={arrowStyle}
               />
             )}
@@ -315,7 +315,7 @@ export function EditorTour(props: EditorTourProps) {
                 </h3>
                 <ul className="mt-[12px] flex flex-col gap-[8px]">
                   {summary.map((row) => (
-                    <li key={row.id} className="flex items-center justify-between gap-[12px]">
+                    <li key={row.id} className="flex items-center justify-between gap-3">
                       <span className="text-[13px] text-text-secondary">{row.label}</span>
                       <Kbd>{row.combo}</Kbd>
                     </li>

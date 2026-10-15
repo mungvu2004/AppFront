@@ -135,7 +135,7 @@ export function ReferenceHandle({ endpoint, onGrab, onNudge, point, zoom }: Refe
       }}
       type="button"
     >
-      <span aria-hidden="true" className="h-[10px] w-[10px] rounded-full border-2 border-accent bg-white" />
+      <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full border-2 border-accent bg-white" />
     </button>
   );
 }
