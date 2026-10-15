@@ -126,6 +126,9 @@ test('SCR-33 · FL-33P-08 · avatar: set, cancel, keyboard, replace, JPEG, persi
     await test.step('[33P-A-037] pick again, Esc closes the dialog, no PUT', async () => {
       await pickAvatar(page, tinyPng('p3-esc.png'));
       await expect(dialog).toBeVisible();
+      // Wait for the focus trap (it activates one frame after the dialog shows, Modal.tsx rAF): an Esc sent in that first
+      // frame was lost on the stack (p07-rr 16:56Z: focus on "Đóng hộp thoại", dialog still open 15 s later; BUG-P07-021).
+      await expect(dialog.getByRole('button', { name: 'Đóng hộp thoại' })).toBeFocused();
       await page.keyboard.press('Escape'); // ARD:36 onClose = onCancel
       await expect.soft(dialog).toBeHidden();
       expect.soft(puts(), 'Esc sends no PUT').toBe(0);
