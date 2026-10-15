@@ -225,6 +225,9 @@ test.describe('SCR-29 Rule Settings · edge (real stack)', () => {
       await recordUi(page);
       await openSettings(page, id);
       const sw = ruleSwitch(page, WALL_THICKNESS.name);
+      // The layout's own N21 read (useProjectSpatial, after the spatial graph hydrates) can land after the screen's GET:
+      // let the open settle so only a read caused by the save is counted (BUG-718).
+      await page.waitForLoadState('networkidle');
       const logBeforeFirstPut = c.log.length;
       let put1!: ApiResult;
       let put2!: ApiResult;

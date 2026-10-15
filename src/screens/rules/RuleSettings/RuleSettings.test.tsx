@@ -950,6 +950,18 @@ describe('F-10 — useRuleSettings nối N21/N22', () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
+  it('29-G-003 (BUG-718): sau PUT thành công cache được ghi bằng setQueryData, không GET rule-config thêm', async () => {
+    const { result, read, replace } = setupHook();
+    await advance(0);
+    expect(read).toHaveBeenCalledTimes(1);
+
+    act(() => result.current.onToggleRule('WALL-THICKNESS', false));
+    await advance(AFTER_DEBOUNCE_MS * 2);
+
+    expect(replace).toHaveBeenCalledTimes(1);
+    expect(read).toHaveBeenCalledTimes(1);
+  });
+
   it('BUG-463: refetch nền mang revision mới hơn làm vé cũ hết hạn — "Hoàn tác" không ghi đè bản của người khác', async () => {
     const toasts: RuleSettingsToast[] = [];
     const onDiscardToasts = vi.fn();
