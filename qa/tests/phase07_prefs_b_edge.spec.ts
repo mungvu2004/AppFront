@@ -136,20 +136,24 @@ test.describe('E07 SCR-33 preferences B', () => {
         await captureEvidence(page, 'E07_33R-A-022_reload_defaults.png');
       });
 
-      await test.step('[33R-C-001] "Theo hệ thống" under an OS dark scheme is not remembered: the reload shows "Tối"', async () => {
-        // start from a stored LIGHT value so the final "dark" can only come from the click on "Theo hệ thống"
+      await test.step('[33R-C-001] "Theo hệ thống" is remembered (questions.md Q2 = YES): stored "system", the reload shows "Theo hệ thống", <html> follows the OS live', async () => {
+        // start from a stored LIGHT value so "system" can only come from the click on "Theo hệ thống"
         await themeRadio(page, 'light').click();
         await expect.poll(() => readStoredTheme(page)).toBe('light');
         await page.emulateMedia({ colorScheme: 'dark' });
         await themeRadio(page, 'system').click();
-        await expect.poll(() => readStoredTheme(page)).toBe('dark'); // UAP:479-488: the resolved value is what is stored
+        await expect.poll(() => readStoredTheme(page)).toBe('system'); // Q2: the choice itself is stored, not the resolved value
         await page.reload();
         await expect(box(page, 'Chức danh')).toBeVisible();
-        // UAP:37-45,384: the store only keeps the resolved light/dark value
-        await expect.soft(themeRadio(page, 'dark')).toHaveAttribute('aria-checked', 'true');
+        await expect.soft(themeRadio(page, 'system')).toHaveAttribute('aria-checked', 'true');
+        await expect.soft(themeRadio(page, 'dark')).toHaveAttribute('aria-checked', 'false');
         await expect.soft(html(page)).toHaveClass(DARK_CLASS);
-        await expect.soft(themeRadio(page, 'system')).toHaveAttribute('aria-checked', 'false');
-        await captureEvidence(page, 'E07_33R-C-001_system_not_remembered.png');
+        expect.soft(await readStoredTheme(page)).toBe('system');
+        await captureEvidence(page, 'E07_33R-C-001_system_remembered.png');
+        // live OS change while the page is open
+        await page.emulateMedia({ colorScheme: 'light' });
+        await expect.soft(html(page)).not.toHaveClass(DARK_CLASS);
+        await expect.soft(themeRadio(page, 'system')).toHaveAttribute('aria-checked', 'true');
       });
     });
   });

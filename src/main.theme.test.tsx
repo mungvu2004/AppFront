@@ -32,4 +32,25 @@ describe('[33R-A-024] chủ đề đã lưu áp ở gốc app khi tải đầy �
     });
     expect(window.localStorage.getItem('app-theme-mode')).toBe('dark');
   });
+
+  // Q2 (questions.md, 2026-10-15 = YES): ThemeSync áp cùng cách giải 'system' ở mọi route.
+  it('[33R-C-001] app-theme-mode=system + hệ điều hành tối thì <html> tối, khoá vẫn là "system"', async () => {
+    vi.resetModules();
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(prefers-color-scheme: dark)',
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+    window.localStorage.setItem('app-theme-mode', 'system');
+    document.body.innerHTML = '<div id="root"></div>';
+
+    await import('./main');
+
+    await waitFor(() => {
+      expect(document.documentElement.classList.contains('dark')).toBe(true);
+    });
+    expect(window.localStorage.getItem('app-theme-mode')).toBe('system');
+    vi.unstubAllGlobals();
+  });
 });

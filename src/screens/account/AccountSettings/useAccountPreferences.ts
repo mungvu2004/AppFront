@@ -38,9 +38,9 @@
  *
  * `useTheme()` cho đúng `{theme, toggle}`, và `toggle` không diễn đạt nổi một
  * điều khiển ba nhánh. `ThemeMode` cũng chỉ có `'light' | 'dark'`. Nên theo R5:
- * lựa chọn ba nhánh sống ở MÀN, `'system'` giải ra bằng `matchMedia` ngay tại
- * đây, rồi kết quả hai nhánh hạ xuống store bằng **action** `setTheme` — một
- * action không phải `set()`, nên `local/no-direct-set` không cản. `useTheme()`
+ * lựa chọn ba nhánh (kể cả `'system'`) được giữ nguyên ở store (`themeChoice`, ghi ra
+ * `app-theme-mode`, Q2 / 33R-C-001) bằng **action** `setThemeChoice`, store tự giải ra
+ * light/dark — một action không phải `set()`, nên `local/no-direct-set` không cản. `useTheme()`
  * vẫn được gọi, vì chính effect của nó là thứ gắn lớp `dark` lên `<html>` và
  * ghi `localStorage`.
  *
@@ -378,7 +378,8 @@ export function useAccountPreferences(
   const sessionUser = session.user;
   // Chủ đề mặc định là của store (đã đọc từ `localStorage['app-theme-mode']`), không phải 'light':
   // bộ nhớ trống mà mặc định 'light' thì vào màn là ghi đè chủ đề người dùng đang dùng.
-  const storeTheme = useStore((state) => state.theme);
+  // Là LỰA CHỌN (có thể 'system'), không phải chủ đề đã giải: tải lại phải còn "Theo hệ thống" (Q2, 33R-C-001).
+  const storeTheme = useStore((state) => state.themeChoice);
   // Chủ đề đang dùng TRƯỚC lần đổi chủ đề đầu tiên của phiên: "Hoàn tác" trả về bản đã lưu
   // không có `theme`, và nếu lúc ấy rơi về `storeTheme` (đã là chủ đề mới) thì hoàn tác
   // không làm gì (BUG-P07-007, 33R-A-017).
@@ -491,8 +492,7 @@ export function useAccountPreferences(
   // `localStorage['app-theme-mode']`. Giá trị trả về không dùng — `toggle` chỉ
   // lật hai nhánh, mà điều khiển ở đây có ba.
   useTheme();
-  const setTheme = useStore((state) => state.setTheme);
-  const resolvedTheme = resolveTheme(values.theme, systemPrefersDark);
+  const setThemeChoice = useStore((state) => state.setThemeChoice);
 
   // Chưa sửa gì và bộ nhớ chưa có chủ đề nào thì store vẫn là sự thật: không ghi đè nó.
   const hasThemeChoice =
@@ -500,9 +500,10 @@ export function useAccountPreferences(
 
   useEffect(() => {
     if (hasThemeChoice) {
-      setTheme(resolvedTheme);
+      // Lưu NGUYÊN lựa chọn ('system' giữ là 'system'); store tự giải ra light/dark.
+      setThemeChoice(values.theme, systemPrefersDark);
     }
-  }, [hasThemeChoice, resolvedTheme, setTheme]);
+  }, [hasThemeChoice, values.theme, systemPrefersDark, setThemeChoice]);
 
   /* ---- Giảm chuyển động ------------------------------------------------ */
 

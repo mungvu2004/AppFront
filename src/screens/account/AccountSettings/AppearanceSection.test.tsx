@@ -609,6 +609,27 @@ describe('R5 — chủ đề ba nhánh trên một store hai nhánh', () => {
     expect(model().appearance.theme).toBe('system');
     expect(useStore.getState().theme).toBe('dark');
   });
+
+  // Q2 (questions.md, 2026-10-15 = YES), 33R-C-001: chọn "Theo hệ thống" rồi tải lại vẫn thấy "Theo hệ thống".
+  it('[33R-C-001] chọn "Theo hệ thống" (OS tối) rồi tải lại: khoá lưu "system", radio vẫn là "Theo hệ thống", <html> tối', () => {
+    stubMatchMedia({ '(prefers-color-scheme: dark)': true });
+    useStore.getState().setTheme('light');
+    const first = renderWithProviders(<Probe port={createPort().port} />);
+
+    act(() => model().appearance.onThemeChange('system'));
+    expect(window.localStorage.getItem('app-theme-mode')).toBe('system');
+
+    // Tải lại: cây mới, store về mặc định, bản nháp trống — chỉ còn khoá `app-theme-mode`.
+    first.unmount();
+    document.documentElement.classList.remove('dark');
+    useStore.getState().setThemeChoice('light', false);
+    renderWithProviders(<Probe port={createPort({ ...EMPTY_ACCOUNT_DRAFT }).port} />);
+
+    expect(model().appearance.theme).toBe('system');
+    expect(useStore.getState().theme).toBe('dark');
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    expect(window.localStorage.getItem('app-theme-mode')).toBe('system');
+  });
 });
 
 describe('giảm chuyển động, và nó với tới đâu', () => {

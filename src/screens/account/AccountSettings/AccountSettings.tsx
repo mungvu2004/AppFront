@@ -32,10 +32,13 @@
  */
 
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
 import { InlineAlert } from '@/components/feedback/InlineAlert';
 import { SaveIndicator } from '@/components/feedback/SaveIndicator';
 import { Skeleton } from '@/components/feedback/Skeleton';
+import viMessages from '@/i18n/vi.json';
+import { ROUTES } from '@/routes/paths';
 
 import { AppearanceSection } from './AppearanceSection';
 import { DangerZone } from './DangerZone';
@@ -104,6 +107,12 @@ export function AccountSettings({ vm }: AccountSettingsProps) {
       <div className="mx-auto flex w-full max-w-[720px] flex-col gap-6 p-8">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex min-w-0 flex-col gap-1">
+            {/* 33P-A-010: lối ra khỏi trang. Route này nằm ngoài khung ứng dụng nên không có gì khác dẫn về. */}
+            <Link
+              to={ROUTES.dashboard}
+              className="w-fit rounded text-[13px] text-text-secondary underline hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app">
+              {viMessages.account.backToDashboard}
+            </Link>
             <h1 className="text-[20px] font-semibold text-text-primary">Cài đặt tài khoản</h1>
             <p className="text-[13px] text-text-secondary">
               Hồ sơ, giao diện, thông báo, phím tắt và mật khẩu.

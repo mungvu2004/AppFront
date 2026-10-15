@@ -429,6 +429,7 @@
   "account": {
     "title": "Cài đặt tài khoản",
     "description": "Hồ sơ, giao diện, thông báo, phím tắt và mật khẩu.",
+    "backToDashboard": "Về bảng điều khiển",
     "savedLocalToast": "Đã đổi cài đặt, chỉ giữ trong phiên này.",
     "sections": {
       "profile": "Hồ sơ",
