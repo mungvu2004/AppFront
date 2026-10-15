@@ -5,6 +5,12 @@ import { expect, test, type Page } from '@playwright/test';
 
 /** `<E2E_RESULTS_DIR>/<E2E_RUN_ID>/evidence/` — same root as the reports in `playwright.config.ts`. */
 export const RUN_ID = process.env.E2E_RUN_ID ?? 'run-01';
+/**
+ * Slot part for users whose state can never be restored (avatar set, rate bucket spent): `RUN_ID` alone is reused by
+ * every round of a phase (fixed folder names pNN-rr, pNN-rf), so a second rerun met the avatar of the first
+ * (phase 07, p07-rr after RF). The process stamp makes it fresh per invocation; one invitation per such test and run.
+ */
+export const RUN_FRESH = `${RUN_ID}-${Date.now().toString(36)}`;
 export const EVIDENCE_DIR = join(process.env.E2E_RESULTS_DIR ?? 'F:/App/qa-results', RUN_ID, 'evidence');
 
 /** `qa.config.json` `rules` — the run's test-data prefix and mail domain (Mailpit catches that domain). */

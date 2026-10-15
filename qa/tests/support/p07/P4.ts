@@ -18,7 +18,7 @@ import type { APIRequestContext, Browser, BrowserContext, Locator, Page, Route }
 import { readBaseUrl } from '../../../../e2e/fullstack/env';
 import { signedInApi } from '../api';
 import { ensureAdminSession, readAdminCredentials } from '../auth';
-import { RUN_ID } from '../evidence';
+import { RUN_FRESH } from '../evidence';
 import { signInPoolUser, type PoolUser } from '../phase03Seed';
 import { ADMIN_STORAGE_STATE_FILE } from '../state';
 import { AVATAR_API, DESKTOP, DESKTOP_VIEWPORTS, TINY_PNG, block, pwField, pwSubmit, PW } from './account';
@@ -31,8 +31,8 @@ export const FOUR = DESKTOP_VIEWPORTS;
 /** Evidence/`verifyUi` name `U07_<row id>_<slug>` (the `_<width>.png` and `.json` suffixes are added by `verifyUi`). */
 export const U = (rowId: string, slug: string): string => `U07_${rowId}_${slug}`;
 
-/** `RUN_ID` re-exported for slots that must be fresh per run (`p07-profile-uiav-<runId>`). */
-export const RUN = RUN_ID;
+/** `RUN_FRESH` (run id + process stamp) for slots that must be fresh per invocation (`p07-profile-uiav-<runId>-<stamp>`). */
+export const RUN = RUN_FRESH;
 
 /* ---------------------------------------------------------------- sessions */
 

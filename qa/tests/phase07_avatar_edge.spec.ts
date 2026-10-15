@@ -20,7 +20,7 @@
 import { expect, test } from '@playwright/test';
 
 import { waitForApi } from '../../e2e/fullstack/apiWatch';
-import { RUN_ID, captureEvidence } from './support/evidence';
+import { RUN_FRESH, captureEvidence } from './support/evidence';
 import { corruptPng, oversizePng } from './support/phase03Seed';
 import {
   AVATAR,
@@ -64,7 +64,7 @@ const PUT_LINE = `PUT ${AVATAR_API}`;
 
 test('SCR-33 · FL-33P-08 · avatar: set, cancel, keyboard, replace, JPEG, persistence', async ({ browser }) => {
   test.setTimeout(180_000);
-  const s = await openP3Session(browser, `p07-profile-av-${RUN_ID}-r${test.info().retry}`);
+  const s = await openP3Session(browser, `p07-profile-av-${RUN_FRESH}-r${test.info().retry}`);
   const { page } = s;
   try {
     await page.clock.install();
@@ -240,7 +240,7 @@ test('SCR-33 · FL-33P-08 · avatar: set, cancel, keyboard, replace, JPEG, persi
 
 test('SCR-33 · FL-33P-09 · avatar rejects (local and server) and rate limit', async ({ browser }) => {
   test.setTimeout(180_000);
-  const s = await openP3Session(browser, `p07-profile-rl-${RUN_ID}-r${test.info().retry}`);
+  const s = await openP3Session(browser, `p07-profile-rl-${RUN_FRESH}-r${test.info().retry}`);
   const { page } = s;
   try {
     await page.clock.install();
