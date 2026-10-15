@@ -50,7 +50,7 @@ function ModelPreviewThumb({
   readonly sizeClassName: string;
 }) {
   const boxClassName = cn(
-    'flex shrink-0 items-center justify-center overflow-hidden rounded-[6px] bg-bg-sunken text-text-tertiary',
+    'flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-bg-sunken text-text-tertiary',
     sizeClassName,
   );
 
@@ -102,7 +102,7 @@ function ModelLibraryCardList({ actions, rows }: RowLayoutProps) {
   return (
     <ul className="flex flex-col gap-2">
       {rows.map((row) => (
-        <li className="flex flex-col gap-2 rounded-[8px] border border-border-default p-3" key={row.id}>
+        <li className="flex flex-col gap-2 rounded-lg border border-border-default p-3" key={row.id}>
           <div className="flex items-center gap-3">
             <ModelPreviewThumb onRetry={actions.retryPreviewImage} row={row} sizeClassName="h-10 w-10" />
             <button
@@ -152,7 +152,7 @@ function ModelLibraryGrid({ actions, rows }: RowLayoutProps) {
         <div
           aria-label={row.name}
           className={cn(
-            'flex cursor-pointer flex-col gap-2 rounded-[8px] border border-border-default bg-bg-surface p-3',
+            'flex cursor-pointer flex-col gap-2 rounded-lg border border-border-default bg-bg-surface p-3',
             'transition-colors duration-120 hover:bg-bg-hover',
             FOCUS_RING,
           )}

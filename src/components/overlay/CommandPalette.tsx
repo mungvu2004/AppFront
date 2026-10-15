@@ -154,7 +154,7 @@ export function CommandPalette({ commands = DEFAULT_COMMANDS }: CommandPalettePr
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
-            className="relative w-full max-w-[560px] bg-bg-surface rounded-[16px] shadow-modal pointer-events-auto flex flex-col overflow-hidden"
+            className="relative w-full max-w-[560px] bg-bg-surface rounded-2xl shadow-modal pointer-events-auto flex flex-col overflow-hidden"
             onKeyDown={handleKeyDown}
           >
             <h2 id={titleId} className="sr-only">Tìm kiếm lệnh và điều hướng</h2>
@@ -220,7 +220,7 @@ export function CommandPalette({ commands = DEFAULT_COMMANDS }: CommandPalettePr
                             onClick={() => { item.onSelect(); close(); }}
                             onMouseEnter={() => setSelectedIndex(flatIdx)}
                             className={cn(
-                              'w-full text-left px-3 py-2 rounded-[8px]',
+                              'w-full text-left px-3 py-2 rounded-lg',
                               'text-[13px] text-text-primary',
                               'flex items-center justify-between gap-3',
                               'transition-colors duration-120',

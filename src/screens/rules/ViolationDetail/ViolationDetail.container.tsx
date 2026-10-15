@@ -68,6 +68,8 @@ export interface ViolationDetailContainerProps {
   /** Vỏ ngoài báo màn đang ở chế độ thu gọn. Chuyển thẳng xuống hook, quyết định trạng thái 7. */
   readonly isCompact?: boolean;
   readonly onClose: () => void;
+  /** Vi phạm đang hiển thị đổi (tự chuyển, `J`/`K`) — cha đi theo; xem `useViolationDetail`. */
+  readonly onShownChange?: (violation: Violation) => void;
 }
 
 /**
@@ -112,6 +114,7 @@ function WiredViolationDetail(props: WiredViolationDetailProps) {
     projectId: props.projectId,
     floorId: props.floorId,
     onClose: props.onClose,
+    ...(props.onShownChange !== undefined ? { onShownChange: props.onShownChange } : {}),
     ...(props.canEdit !== undefined ? { canEdit: props.canEdit } : {}),
     ...(props.isCompact !== undefined ? { isCompact: props.isCompact } : {}),
   });

@@ -232,6 +232,14 @@ function WallLayerListRow({
 
 export function WallLayerList({ panel, flashingWallId, onToggleSelect }: WallLayerListProps) {
   const { rows, selectedWallId, hoveredWallId, onSelect, onHover, onOpenRowMenu, state, emptyNotice } = panel;
+  // Vai Người xem luôn ở `forbidden`; "đang tải" của họ đọc từ dữ liệu (bất biến 7), không từ vai (16-D-008).
+  const isLoadingList =
+    state === 'loading' ||
+    (panel.isViewerRole &&
+      rows.length === 0 &&
+      panel.reviewCounter.total === 0 &&
+      emptyNotice === null &&
+      panel.errorMessage === null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const scrollParentRef = useRef<HTMLElement | null>(null);
 
@@ -266,7 +274,7 @@ export function WallLayerList({ panel, flashingWallId, onToggleSelect }: WallLay
   // dưới đang vẽ — nếu chỉ gắn ở nhánh danh sách ảo hoá, màn mount lần đầu ở
   // `loading`, `empty` hay `error` thì `containerRef.current` không bao giờ
   // được gán và ảo hoá im lặng hỏng ngay khi `rows` có dữ liệu sau đó.
-  if (state === 'loading') {
+  if (isLoadingList) {
     return (
       <div aria-label={LIST_ARIA_LABEL} className="flex flex-col" ref={containerRef} role="status">
         {Array.from({ length: LOADING_SKELETON_ROWS }, (_, index) => (

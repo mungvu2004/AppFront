@@ -26,6 +26,7 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { __resetMockLayerState, createMockApiClient, simulateRemoteLayerEdit } from '@/api/__mocks__/client';
+import { FloorLayerWriteSchema } from '@/api/schemas/spatialLayer';
 import { sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Level, Point, Wall, WallId } from '@/domain/spatial/types';
@@ -1013,6 +1014,41 @@ describe('công cụ đã nối dây', () => {
     mounted.unmount();
   });
 
+  /* [16-A-040] Hai cú bấm (toạ độ mm LẺ, như chuột thật) vẽ một tường dày 110 mm và ĐẨY đúng một PUT hợp lệ (QA p04 rr3). */
+  it('[16-A-040] vẽ tường: hai điểm → một PUT chứa tường mới dày 110 mm, công cụ vẽ vẫn bật', async () => {
+    const apiClient = createMockApiClient();
+    const writeLayer = vi.spyOn(apiClient.spatial, 'writeLayer');
+    const gateway = createMockWallLayerReviewGateway({ apiClient, graph: FIXTURE_GRAPH });
+    const mounted = await mountSettled({ gateway });
+    const before = wallCount();
+
+    await pressKey(mounted.registry, shortcutForTool('drawWall'));
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 20000.4, y: 20000.6 }));
+      await Promise.resolve();
+    });
+    await act(async () => {
+      mounted.result.current.canvas.onCanvasPoint(asCanvasPoint({ x: 22400.7, y: 20000.3 }));
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(wallCount()).toBe(before + 1);
+    });
+    await act(async () => {
+      await flushAutosaves();
+    });
+
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+    const sent = writeLayer.mock.calls[0]?.[0] as unknown as { body: { layer: { walls: { id: string; thicknessMm: number }[] } } };
+    const parsed = FloorLayerWriteSchema.safeParse({ baseVersion: (sent as unknown as { baseVersion: number }).baseVersion, body: sent.body });
+    expect(parsed.success ? [] : parsed.error.issues, 'PUT body passes the write schema').toEqual([]);
+    expect(sent.body.layer.walls).toHaveLength(before + 1);
+    expect(sent.body.layer.walls.filter((w) => w.thicknessMm === 110).length).toBeGreaterThanOrEqual(1);
+    expect(mounted.result.current.toolRail.activeTool).toBe('drawWall');
+
+    mounted.unmount();
+  });
+
   it('tách đoạn: chọn tường rồi bấm điểm cắt thì một tường thành hai', async () => {
     const mounted = await mountSettled();
     const target = wallAt(0);
@@ -1581,7 +1617,7 @@ describe('tỷ lệ tạm (F-04x-2)', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('đợt sửa P04 — SCR-16 (hook)', () => {
-  it('[BUG-579] "Hoàn tác" trên toast xoá KHÔNG hoàn tác bước mới hơn (duyệt tường khác)', async () => {
+  it('[BUG-579] "Hoàn tác" trên toast xoá hoàn tác ĐÚNG bước xoá của nó, giữ nguyên bước mới hơn (duyệt tường khác)', async () => {
     const bus: NotificationBus = createNotificationBus();
     const mounted = await mountSettled({ notifications: bus });
     const deleted = wallAt(0);
@@ -1612,12 +1648,11 @@ describe('đợt sửa P04 — SCR-16 (hook)', () => {
       await Promise.resolve();
     });
 
-    /* Lượt duyệt vẫn còn, tường A vẫn đã xoá — và màn nói vì sao không có gì xảy ra. */
-    expect(mounted.result.current.panel.reviewCounter.reviewed).toBe(approvedBefore + 1);
-    expect(wallCount()).toBe(before - 1);
+    /* Own-step undo: tường A quay lại, lượt duyệt tường khác vẫn còn. */
     await waitFor(() => {
-      expect(bus.list().some((item) => item.title.startsWith('Chưa hoàn tác: đã có 1 thay đổi sau'))).toBe(true);
+      expect(wallCount()).toBe(before);
     });
+    expect(mounted.result.current.panel.reviewCounter.reviewed).toBe(approvedBefore + 1);
 
     mounted.unmount();
   });
@@ -1714,6 +1749,42 @@ describe('[G73b] Ctrl-bấm chọn hai tường', () => {
     expect([...(mounted.result.current.canvas.selectedWallIds ?? [])].sort()).toEqual(
       [wallAt(0).id, wallAt(1).id].sort(),
     );
+    mounted.unmount();
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* [16-D-008] Người xem trên tầng RỖNG: danh sách đọc rỗng/đang tải từ dữ liệu. */
+/* -------------------------------------------------------------------------- */
+
+describe('[16-D-008] vai Người xem trên tầng rỗng', () => {
+  const EMPTY_GRAPH = normalizeSpatial({
+    building: WALL_LAYER_FIXTURE_BUILDING,
+    levels: [FIXTURE_LEVEL],
+    walls: [],
+    openings: [],
+    furniture: [],
+    rooms: [],
+    axes: [],
+    dimensions: [],
+    notes: [],
+  });
+
+  it('đang tải: chưa có emptyNotice; tải xong: emptyNotice có, state vẫn forbidden', async () => {
+    const mounted = mountHook({
+      roles: ['viewer'],
+      gateway: createMockWallLayerReviewGateway({ graph: EMPTY_GRAPH }),
+    });
+
+    expect(mounted.result.current.panel.state).toBe('forbidden');
+    expect(mounted.result.current.panel.emptyNotice).toBeNull();
+
+    await waitFor(() => {
+      expect(mounted.result.current.panel.emptyNotice).not.toBeNull();
+    });
+
+    expect(mounted.result.current.panel.state).toBe('forbidden');
+    expect(mounted.result.current.panel.rows).toHaveLength(0);
     mounted.unmount();
   });
 });

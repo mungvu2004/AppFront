@@ -237,6 +237,14 @@ const entityInStore = (displayId: string, layer: 'door' | 'window' | 'furniture'
 /* -------------------------------------------------------------------------- */
 
 describe('phép ghép thuần của màn Lớp đối tượng', () => {
+  it('[17-D-010] Người xem đang tải thấy khung chờ, xong mới thấy "forbidden"', () => {
+    const counter = objectLayerScenarioFor('success').reviewCounter;
+    const base = { isViewerRole: true, isCollapsed: false, hasError: false, hasFurnitureAttention: false, counter };
+
+    expect(deriveScreenState({ ...base, isLoading: true })).toBe('loading');
+    expect(deriveScreenState({ ...base, isLoading: false })).toBe('forbidden');
+  });
+
   it('bảy trạng thái dẫn xuất đúng, đủ và không thừa nhánh nào', () => {
     const derived = OBJECT_LAYER_REVIEW_SCENARIOS.map((scenario) =>
       deriveScreenState({
@@ -475,6 +483,55 @@ describe('[NGHIEM-1] D-06 gộp lệnh trong cửa sổ 400 ms', () => {
     expect(mounted.result.current.undoStepCount).toBe(0);
 
     mounted.unmount();
+  });
+});
+
+describe('Mod+Z và danh sách (17-E-017 / 17-A-031)', () => {
+  const undoWithFocusIn = async (build: () => HTMLElement): Promise<number> => {
+    const mounted = await mountSettled();
+
+    await run(() => mounted.result.current.onChangeSubtype('S-003', 'singleDoor'));
+    await waitFor(() => {
+      expect(mounted.result.current.undoStepCount).toBe(1);
+    });
+
+    const holder = build();
+
+    document.body.append(holder);
+    (holder.querySelector('[tabindex]') as HTMLElement).focus();
+    await pressKey(mounted.registry, 'z', { ctrlKey: true });
+
+    const left = mounted.result.current.undoStepCount;
+
+    holder.remove();
+    mounted.unmount();
+
+    return left;
+  };
+  const listboxWith = (id: string | null): HTMLElement => {
+    const box = document.createElement('div');
+
+    box.setAttribute('role', 'listbox');
+
+    if (id !== null) {
+      box.id = id;
+    }
+
+    const option = document.createElement('div');
+
+    option.setAttribute('role', 'option');
+    option.tabIndex = 0;
+    box.append(option);
+
+    return box;
+  };
+
+  it('tiêu điểm trên một dòng của danh sách đối tượng: Mod+Z vẫn hoàn tác', async () => {
+    expect(await undoWithFocusIn(() => listboxWith('object-layer-group-door'))).toBe(0);
+  });
+
+  it('tiêu điểm trong danh sách loại đang mở: Mod+Z không hoàn tác', async () => {
+    expect(await undoWithFocusIn(() => listboxWith(null))).toBe(1);
   });
 });
 
@@ -729,6 +786,19 @@ describe('bàn phím và vùng chọn', () => {
 
     await pressKey(mounted.registry, 'D');
     expect(mounted.result.current.activeLayer).toBe('door');
+
+    mounted.unmount();
+  });
+
+  it('nhóm chọn tay theo đối tượng vừa chọn: chọn đồ nội thất sau W thì nhóm là nội thất', async () => {
+    const mounted = await mountSettled();
+
+    await run(() => mounted.result.current.onSelect('D-004'));
+    await pressKey(mounted.registry, 'W');
+    expect(mounted.result.current.activeLayer).toBe('window');
+
+    await run(() => mounted.result.current.onSelect('F-002'));
+    expect(mounted.result.current.activeLayer).toBe('furniture');
 
     mounted.unmount();
   });
@@ -1400,7 +1470,7 @@ describe('đợt sửa P04 — SCR-17', () => {
   const renderView = (model: ObjectLayerReviewModel, overrides: Partial<ObjectLayerReviewModel> = {}) =>
     render(createElement(ObjectLayerReview, { ...model, ...overrides }));
 
-  it('[BUG-579] "Hoàn tác" trên toast xoá KHÔNG hoàn tác bước mới hơn (duyệt đối tượng khác)', async () => {
+  it('[BUG-579] "Hoàn tác" trên toast xoá hoàn tác ĐÚNG bước xoá, giữ nguyên bước mới hơn (duyệt đối tượng khác)', async () => {
     const bus: NotificationBus = createNotificationBus();
     const mounted = await mountSettled({ notifications: bus });
 
@@ -1417,10 +1487,7 @@ describe('đợt sửa P04 — SCR-17', () => {
     });
 
     expect((entityInStore('D-006', 'door') as { reviewed: boolean }).reviewed).toBe(true);
-    expect(entityInStore('D-004', 'door')).toBeUndefined();
-    await waitFor(() => {
-      expect(bus.list().some((item) => item.title.startsWith('Chưa hoàn tác: đã có 1 thay đổi sau'))).toBe(true);
-    });
+    expect(entityInStore('D-004', 'door')).toBeDefined();
 
     mounted.unmount();
   });
@@ -1460,6 +1527,18 @@ describe('đợt sửa P04 — SCR-17', () => {
     renderView(mounted.result.current);
     expect(screen.getByRole('button', { name: 'Nội thất khác' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Sofa' })).toBeEnabled();
+
+    mounted.unmount();
+  });
+
+  it('[17-C-021] [BUG-590] đổi loại bị luật M-08 mức critical chặn thì nêu lý do của M-08', async () => {
+    const bus: NotificationBus = createNotificationBus();
+    const mounted = await mountSettled({ notifications: bus });
+
+    await run(() => mounted.result.current.onChangeSubtype('D-004', 'window'));
+    await waitFor(() => {
+      expect(bus.list().some((item) => /cao hơn tường/u.test(item.title))).toBe(true);
+    });
 
     mounted.unmount();
   });

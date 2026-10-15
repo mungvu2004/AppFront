@@ -138,7 +138,7 @@ function ConnectionStrip({ onRetry }: { onRetry: () => void }) {
         if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
         cameFrom.current = event.relatedTarget instanceof HTMLElement ? event.relatedTarget : null;
       }}
-      className="fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center gap-2 rounded-[8px] border border-state-attention bg-state-attention-tint py-1 pl-3 pr-1 shadow-float"
+      className="fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center gap-2 rounded-lg border border-state-attention bg-state-attention-tint py-1 pl-3 pr-1 shadow-float"
     >
       <WifiOff aria-hidden="true" className="shrink-0 text-state-attention" size={16} />
       <p role="alert" className="min-w-0 flex-1 text-[13px] leading-[18px] text-state-attention-text">
@@ -222,7 +222,7 @@ export function PendingShell({ label }: { label: string }) {
       <Skeleton preset="canvas" className="w-full max-w-3xl border-border-control bg-bg-surface" />
       <p
         aria-hidden="true"
-        className="flex animate-dropdown-open items-center gap-2 text-[14px] leading-[20px] text-text-secondary motion-reduce:[animation-timing-function:step-start]"
+        className="flex animate-dropdown-open items-center gap-2 text-[14px] leading-5 text-text-secondary motion-reduce:[animation-timing-function:step-start]"
         style={LABEL_REVEAL_STYLE}
       >
         <Loader2 className="h-4 w-4 shrink-0 animate-spin motion-reduce:animate-none" strokeWidth={2} />

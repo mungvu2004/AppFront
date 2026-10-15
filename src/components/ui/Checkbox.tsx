@@ -54,12 +54,12 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
     <label
       htmlFor={internalId}
       className={cn(
-        'group/checkbox flex items-center min-h-[32px] cursor-pointer outline-none',
+        'group/checkbox flex min-w-0 items-center min-h-8 cursor-pointer outline-none',
         disabled && 'opacity-50 cursor-not-allowed',
         className
       )}
     >
-      <div className="relative flex items-center justify-center">
+      <div className="relative flex shrink-0 items-center justify-center">
         <input
           ref={setRefs}
           aria-checked={indeterminate ? 'mixed' : undefined}
@@ -78,7 +78,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
             cử chỉ nhấn, khung vẽ thành điểm dừng Tab thứ hai không tên (BUG-012). Ô input ẩn đã nhận focus. */}
         <div
           className={cn(
-            'w-[18px] h-[18px] rounded-[6px] border-[1.5px] flex items-center justify-center transition duration-120 motion-reduce:transition-none',
+            'w-[18px] h-[18px] rounded-md border-[1.5px] flex items-center justify-center transition duration-120 motion-reduce:transition-none',
             'peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-2',
             checked || indeterminate ? 'bg-accent border-accent' : 'border-border-control bg-bg-surface',
             error && 'border-state-violation',
@@ -86,7 +86,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
           )}
         >
           {indeterminate ? (
-            <div className="w-[10px] h-[2px] bg-white rounded-full" />
+            <div className="w-2.5 h-0.5 bg-white rounded-full" />
           ) : (
             <svg
               width="14"
@@ -113,8 +113,8 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
       {label && (
         <span
           className={cn(
-            'ml-2 select-none',
-            size === 'sm' ? 'text-[13px] leading-[20px]' : 'text-[15px] leading-[24px]',
+            'ml-2 min-w-0 select-none',
+            size === 'sm' ? 'text-[13px] leading-5' : 'text-[15px] leading-6',
             disabled ? 'text-text-muted' : 'text-text-primary'
           )}
         >

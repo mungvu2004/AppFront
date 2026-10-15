@@ -146,7 +146,7 @@ export function InputQualityGateView({ actions, model }: InputQualityGateViewPro
       <div className="flex flex-col gap-6">
         {model.writeError !== null && (
           <div
-            className="rounded-[8px] outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2"
+            className="rounded-lg outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2"
             ref={writeErrorRef}
             tabIndex={-1}
           >

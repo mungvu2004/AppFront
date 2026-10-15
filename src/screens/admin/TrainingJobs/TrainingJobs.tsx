@@ -39,7 +39,7 @@ const TEXT = {
   detailPanel: 'Chi tiết lượt huấn luyện',
 } as const;
 
-const PANEL = 'rounded-[12px] border border-border-default bg-bg-surface p-5';
+const PANEL = 'rounded-xl border border-border-default bg-bg-surface p-5';
 
 function Header({ model }: { readonly model: TrainingJobsViewModel }) {
   return (

@@ -73,7 +73,7 @@ const AXIS_TRANSITION_CLASSES = 'transition-colors duration-180 motion-reduce:tr
 
 /** Khung canvas: tối thiểu 640 từ 1280px, bo 16, thụt 12; dưới 1280 tối thiểu 60vh (như FIX-1506), dưới 1024 lấp vùng 360 px — BUG-317, BUG-404. */
 const CANVAS_FRAME_CLASSES =
-  'relative h-full min-h-[320px] w-full overflow-hidden rounded-[16px] border border-border-default p-3 lg:min-h-[60vh] xl:min-h-[640px]';
+  'relative h-full min-h-80 w-full overflow-hidden rounded-2xl border border-border-default p-3 lg:min-h-[60vh] xl:min-h-[640px]';
 /** BUG-413: khung chưa có trục cùng nền chìm với khung bản vẽ trống của SCR-18/20; có trục thì là giấy vẽ. */
 const CANVAS_EMPTY_BG = 'bg-bg-sunken';
 const CANVAS_DRAWING_BG = 'bg-canvas-2d';
@@ -182,6 +182,9 @@ export interface AxisGridCanvasProps {
   readonly onAxisDrag: (axisId: string, coordinatePx: number) => void;
 }
 
+/** Dưới ngưỡng này (đơn vị svg) một lượt bấm trên trục không phải là kéo (G09). */
+const DRAG_THRESHOLD_PX = 2;
+
 export function AxisGridCanvas({ canvas, isInteractive, onAxisDrag, onAxisSelect, viewerRoleNotice }: AxisGridCanvasProps) {
   const [draggingAxisId, setDraggingAxisId] = useState<string | null>(null);
   const [dragCoordinatePx, setDragCoordinatePx] = useState<number | null>(null);
@@ -189,6 +192,7 @@ export function AxisGridCanvas({ canvas, isInteractive, onAxisDrag, onAxisSelect
   const svgRef = useRef<SVGSVGElement | null>(null);
   /* Lượt bấm bắt đầu trên một trục: pointer capture đẩy `click` sau đó về svg (G16). */
   const axisPressRef = useRef(false);
+  const pressPointerRef = useRef<{ x: number; y: number } | null>(null);
   const visibleAxes = canvas.axes.filter((axis) => axis.isVisible);
 
   useEffect(() => {
@@ -233,6 +237,11 @@ export function AxisGridCanvas({ canvas, isInteractive, onAxisDrag, onAxisSelect
     (event: ReactPointerEvent<SVGGElement>, axisId: string) => {
       onAxisSelect(axisId);
       axisPressRef.current = true;
+      /* G09: nhớ toạ độ con trỏ lúc bấm — pointermove chỉ tính là kéo khi lệch đủ ngưỡng. */
+      const svg = event.currentTarget.ownerSVGElement;
+      const matrix = svg?.getScreenCTM?.();
+      const pressed = matrix ? new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse()) : null;
+      pressPointerRef.current = pressed === null ? null : { x: pressed.x, y: pressed.y };
       setDraggingAxisId(axisId);
       event.currentTarget.ownerSVGElement?.setPointerCapture?.(event.pointerId);
     },
@@ -257,7 +266,18 @@ export function AxisGridCanvas({ canvas, isInteractive, onAxisDrag, onAxisSelect
         return;
       }
 
-      setDragCoordinatePx(axis.direction === 'horizontal' ? reading.y : reading.x);
+      const coordinate = axis.direction === 'horizontal' ? reading.y : reading.x;
+      const pressed = pressPointerRef.current;
+
+      if (pressed !== null) {
+        const origin = axis.direction === 'horizontal' ? pressed.y : pressed.x;
+
+        if (Math.abs(coordinate - origin) < DRAG_THRESHOLD_PX) {
+          return;
+        }
+      }
+
+      setDragCoordinatePx(coordinate);
     },
     [draggingAxisId, readPointer, visibleAxes],
   );

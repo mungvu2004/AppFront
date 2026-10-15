@@ -53,7 +53,9 @@ import { Button } from '@/components/ui/Button';
 import { getButtonStyles } from '@/components/ui/buttonVariants';
 import { cn } from '@/lib/utils';
 
+import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
+import { QC_BODY_CLASS, QcCanvasFrame, QcScreenFrame } from '../shared/QcScreenFrame';
 import { DIMENSION_OCR_TEXT } from './dimensionOcrText';
 import { DimensionOcrCanvas } from './DimensionOcrCanvas';
 import { DimensionOcrCompareBar } from './DimensionOcrCompareBar';
@@ -99,15 +101,24 @@ function DimensionOcrHeader() {
   );
 }
 
-/** BUG-577: câu nói thật, cố định trên màn — chưa có chỗ lưu lớp kích thước lên máy chủ. */
-function DimensionOcrUnsavedNotice({ notice }: { readonly notice: string | null }) {
-  if (notice === null) {
+/** BUG-577: trạng thái lưu thật + dải khối lưu (409 "Tải lại"…), thay câu "chưa lưu" cố định. */
+function DimensionOcrSaveStatus({ model }: { readonly model: DimensionOcrReviewModel }) {
+  if (model.saveLabel === null && model.saveBlock === null) {
     return null;
   }
 
   return (
     <div className="shrink-0 px-4 pb-1">
-      <InlineAlert level="attention" message={notice} role="note" />
+      {model.saveLabel !== null && (
+        <p
+          className="text-[12px] text-text-muted"
+          data-save-state={model.saveState ?? undefined}
+          data-testid="dimension-ocr-save-status"
+        >
+          {model.saveLabel}
+        </p>
+      )}
+      <FloorLayerSaveBanner saveBlock={model.saveBlock} />
     </div>
   );
 }
@@ -202,6 +213,7 @@ function DimensionOcrPanelBody({ model, scaleCalibrationHref }: DimensionOcrPane
       onFilterChange={model.onFilterChange}
       onSelect={model.onSelect}
       outlierNotice={outlierNoticeOf(model)}
+      presetNotice={model.presetNotice ?? null}
       reviewCounter={model.reviewCounter}
       reviewProgressLabel={model.reviewProgressLabel}
       rows={model.rows}
@@ -220,9 +232,9 @@ export function DimensionOcrReview({
 }: DimensionOcrReviewViewProps) {
   if (model.readFailure != null) {
     return (
-      <div aria-label={SCREEN_ARIA_LABEL} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+      <QcScreenFrame label={SCREEN_ARIA_LABEL}>
         <FloorLayerReadFailureScreen failure={model.readFailure} />
-      </div>
+      </QcScreenFrame>
     );
   }
 
@@ -232,13 +244,9 @@ export function DimensionOcrReview({
   */
   if (model.keyboardReview.isActive && model.keyboardReview.row !== null) {
     return (
-      <div
-        aria-label={SCREEN_ARIA_LABEL}
-        className="flex h-full min-h-0 w-full flex-col bg-bg-app"
-        role="region"
-      >
-        <DimensionOcrUnsavedNotice notice={model.unsavedNotice} />
-        <div className="mx-auto flex h-full min-h-0 w-full max-w-[1440px] flex-col p-2">
+      <QcScreenFrame label={SCREEN_ARIA_LABEL}>
+        <DimensionOcrSaveStatus model={model} />
+        <div className={cn('flex min-h-0 w-full flex-1 flex-col', QC_BODY_CLASS)}>
           <DimensionOcrKeyboardMode
             isActive
             onApprove={model.keyboardReview.onApprove}
@@ -249,26 +257,22 @@ export function DimensionOcrReview({
             row={model.keyboardReview.row}
           />
         </div>
-      </div>
+      </QcScreenFrame>
     );
   }
 
   const isCollapsed = model.state === 'collapsed';
 
   return (
-    <div
-      aria-label={SCREEN_ARIA_LABEL}
-      className="flex h-full min-h-0 w-full flex-col bg-bg-app"
-      role="region"
-    >
+    <QcScreenFrame label={SCREEN_ARIA_LABEL}>
       <DimensionOcrHeader />
-      <DimensionOcrUnsavedNotice notice={model.unsavedNotice} />
-      <div className="mx-auto flex min-h-0 w-full max-w-[1440px] flex-1 flex-col gap-2 p-2 lg:flex-row">
+      <DimensionOcrSaveStatus model={model} />
+      <div className={cn('flex min-h-0 w-full flex-1 flex-col lg:flex-row', QC_BODY_CLASS)}>
         {/* Nửa trái 60% — bản vẽ gốc. Bung ra cả khung khi bảng duyệt thu gọn. */}
-        <section
-          aria-label={DIMENSION_OCR_TEXT.screen.canvasAriaLabel}
+        <QcCanvasFrame
+          label={DIMENSION_OCR_TEXT.screen.canvasAriaLabel}
           className={cn(
-            'relative flex min-h-0 min-w-0 flex-col max-lg:shrink-0',
+            'relative flex flex-col max-lg:shrink-0',
             isCollapsed ? 'lg:w-full' : 'lg:w-[60%]',
           )}
         >
@@ -277,19 +281,14 @@ export function DimensionOcrReview({
             backgroundImageUrl={model.backgroundImageUrl}
             chains={model.chains}
             drawingSizePx={model.drawingSizePx}
+            emptyNotice={model.emptyNotice === null ? null : DIMENSION_OCR_TEXT.screen.canvasEmptyNotice}
             isInteractive={!model.isViewerRole}
             millimetresPerPixel={model.millimetresPerPixel}
             onSelect={model.onSelect}
             selectedDimensionId={model.selectedDimensionId}
             zoom={model.canvasZoom}
           />
-          {/* BUG-335: khung bản vẽ rỗng nói vì sao nó rỗng, như Duyệt đối tượng. */}
-          {model.emptyNotice === null ? null : (
-            <p className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 text-center text-[13px] text-text-secondary">
-              {DIMENSION_OCR_TEXT.screen.canvasEmptyNotice}
-            </p>
-          )}
-        </section>
+        </QcCanvasFrame>
 
         {/* Nửa phải 40% — danh sách duyệt, dải đối chiếu dính đáy, cửa vào bàn phím. */}
         {isCollapsed ? (
@@ -303,12 +302,19 @@ export function DimensionOcrReview({
             aria-label={PANEL_ARIA_LABEL}
             className={cn(
               'flex min-h-0 min-w-0 flex-col overflow-hidden lg:w-[40%]',
-              'rounded-[16px] border border-border-default bg-bg-surface',
+              'rounded-2xl border border-border-default bg-bg-surface',
             )}
           >
             <div className="min-h-0 flex-1 overflow-hidden">
               <DimensionOcrPanelBody model={model} scaleCalibrationHref={scaleCalibrationHref} />
             </div>
+
+            {model.state === 'success' ? (
+              <div className="border-t border-border-default px-3 py-2" role="status">
+                <p className="text-[13px] font-medium text-text-primary">{DIMENSION_OCR_TEXT.states.done.title}</p>
+                <p className="text-[12px] text-text-muted">{DIMENSION_OCR_TEXT.states.done.description}</p>
+              </div>
+            ) : null}
 
             {/*
               Dải đối chiếu dính đáy. Nó tự trả `null` khi chưa chọn chuỗi nào,
@@ -326,9 +332,10 @@ export function DimensionOcrReview({
 
             {/* Cửa vào chế độ duyệt bàn phím — vai Người xem không có gì để duyệt. */}
             {model.isViewerRole ? (
-              <p className="border-t border-border-default px-3 py-2 text-[12px] text-text-muted">
-                {model.viewerRoleNotice}
-              </p>
+              <div className="border-t border-border-default px-3 py-2 text-[12px] text-text-muted">
+                <p className="font-medium text-text-secondary">{DIMENSION_OCR_TEXT.states.forbidden.title}</p>
+                <p>{model.viewerRoleNotice}</p>
+              </div>
             ) : !model.keyboardReview.isActive && (model.state === 'loading' || model.state === 'error') ? null : (
               /* Đang tải hay đọc lỗi: chưa có gì để duyệt, không mời "bật duyệt bàn phím" (BUG-630). Màn rỗng giữ nút (BUG-334). */
               <div className="border-t border-border-default px-3 py-2">
@@ -346,6 +353,6 @@ export function DimensionOcrReview({
           </aside>
         )}
       </div>
-    </div>
+    </QcScreenFrame>
   );
 }

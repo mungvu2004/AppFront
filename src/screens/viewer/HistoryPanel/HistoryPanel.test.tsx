@@ -376,3 +376,28 @@ describe('[BUG-477] chip lọc loại việc đủ vùng chạm', () => {
     }
   });
 });
+
+describe('[23H-F-002] vỏ panel rộng hết chỗ chứa dưới lg', () => {
+  it('panel đặt trong tấm trượt của màn chủ không để hở dải trống', () => {
+    const { getByTestId } = render(<HistoryPanel {...propsOf('success')} layout="panel" />);
+
+    expect(getByTestId(HISTORY_PANEL_TEST_IDS.root)).toHaveClass('w-full', 'lg:w-[344px]');
+    expect(getByTestId(HISTORY_PANEL_TEST_IDS.root)).not.toHaveClass('w-[344px]');
+  });
+});
+
+describe('[23H-D-003] vai xem, 0 bước: thân panel nói ra là chưa có bước', () => {
+  it('forbidden mà không có nhóm nào thì dựng thân rỗng dùng chung', () => {
+    const { getByTestId } = render(<HistoryPanel {...propsOf('forbidden')} groups={[]} />);
+
+    expect(getByTestId(HISTORY_PANEL_TEST_IDS.root)).toHaveTextContent('Chưa có bước nào');
+  });
+});
+
+describe('[23H-E-002] một bảng, một tên', () => {
+  it('vỏ panel không tự đặt tên vùng thứ hai — màn chủ đã đặt tên vùng bảng', () => {
+    const { getByTestId } = render(<HistoryPanel {...propsOf('success')} layout="panel" />);
+
+    expect(getByTestId(HISTORY_PANEL_TEST_IDS.root)).not.toHaveAttribute('aria-label');
+  });
+});

@@ -96,7 +96,7 @@ function ObjectLayerTreeRow({ layer, count, isVisible, onToggle }: ObjectLayerTr
         aria-label={label}
         aria-selected={false}
         className={cn(
-          'flex min-w-0 flex-1 items-center gap-2 rounded-[8px] px-2 py-1.5 text-left text-[13px]',
+          'flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px]',
           'transition-colors duration-120',
           'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
           isVisible ? 'text-text-primary' : 'text-text-muted',
@@ -118,7 +118,7 @@ function ObjectLayerTreeRow({ layer, count, isVisible, onToggle }: ObjectLayerTr
         aria-label={`${isVisible ? HIDE_LAYER_PREFIX : SHOW_LAYER_PREFIX}${lowerFirst(label)}`}
         aria-pressed={isVisible}
         className={cn(
-          'shrink-0 rounded-[8px] p-1.5 text-text-secondary',
+          'shrink-0 rounded-lg p-1.5 text-text-secondary',
           'transition-colors duration-120 hover:bg-bg-hover hover:text-text-primary',
           'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
         )}
@@ -165,7 +165,7 @@ export function ObjectLayerLeftPanel({
   const isComplete = reviewCounter.total > 0 && reviewCounter.reviewed === reviewCounter.total;
 
   return (
-    <div className="flex h-full w-full shrink-0 flex-col gap-4 overflow-y-auto rounded-[12px] bg-bg-surface px-5 py-4 shadow-panel">
+    <div className="flex h-full w-full shrink-0 flex-col gap-4 overflow-y-auto rounded-xl bg-bg-surface px-5 py-4 shadow-panel">
       {/*
         Bộ đếm duyệt. Câu "9/21 đối tượng đã duyệt" đã ghép sẵn ở hook
         (`reviewProgressLabel`, A15) và làm `aria-label` cho trình đọc màn hình,
@@ -242,7 +242,7 @@ export function ObjectLayerLeftPanel({
         {OBJECT_SUBTYPES.map((subtype: ObjectSubtype) => {
           const isOn = subtypeFilters.has(subtype);
           /* Loại không có mặt trên tầng: chip lọc ra danh sách rỗng, nên tắt kèm lý do (BUG-590). Chip đang bật vẫn tắt được. */
-          const isEmpty = !availableSubtypes.has(subtype) && !isOn;
+          const isEmpty = !isOn && !availableSubtypes.has(subtype);
 
           return (
             <button

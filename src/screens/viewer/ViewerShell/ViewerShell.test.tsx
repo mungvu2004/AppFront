@@ -467,6 +467,9 @@ describe('[VS-8] panel phải trượt vào', () => {
     expect(wrapper).toHaveAttribute('aria-hidden', 'true');
     expect(wrapper.style.width).toBe('0px');
     expect(wrapper.className).toContain('opacity-0');
+    // `aria-hidden` không gỡ tiêu điểm: nút bên trong (ví dụ "Mở mục Phép đo, …")
+    // vẫn Tab tới được ở ngoài khung nhìn. `visibility: hidden` gỡ cả hai (25-F-006).
+    expect(wrapper.className.split(' ')).toContain('invisible');
 
     console.log(
       `[VIEWER-SHELL][VS-8] thu gọn → width=${wrapper.style.width}, aria-hidden=${wrapper.getAttribute('aria-hidden') ?? ''}`,
@@ -485,6 +488,7 @@ describe('[VS-8] panel phải trượt vào', () => {
     expect(wrapper.style.width).toBe(`${String(VIEWER_LAYOUT.inspectorPx)}px`);
     expect(wrapper.className).toContain('duration-standard');
     expect(wrapper.className).not.toContain('transition-none');
+    expect(wrapper.className.split(' ')).not.toContain('invisible');
 
     console.log(
       `[VIEWER-SHELL][VS-8] mở → width=${wrapper.style.width}, class="${wrapper.className}"`,
@@ -1348,5 +1352,52 @@ describe('[BUG-486] chưa có hình thì không vẽ điều khiển khung nhìn
 
   it('shellDataOf: đồ thị trống thì hasModel = false', () => {
     expect(shellDataOf(null).hasModel).toBe(false);
+  });
+});
+
+describe('[E2-B1] camera đóng khung lại khi mô hình về sau lượt render rỗng (BUG-582)', () => {
+  it('đồ thị null rồi mới có: nhãn thu phóng về mức chuẩn, khoảng cách bằng màn mở thẳng với đồ thị', () => {
+    const queryClient = createTestQueryClient();
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+    const direct = renderHook(
+      () => useViewerShell({ projectId: 'P-001', spatial: VIEWER_FIXTURE_SPATIAL }),
+      { wrapper },
+    );
+    const late = renderHook(
+      ({ spatial }: { spatial: typeof VIEWER_FIXTURE_SPATIAL | null }) =>
+        useViewerShell({ projectId: 'P-001', spatial }),
+      { wrapper, initialProps: { spatial: null as typeof VIEWER_FIXTURE_SPATIAL | null } },
+    );
+
+    late.rerender({ spatial: VIEWER_FIXTURE_SPATIAL });
+
+    expect(late.result.current.zoomLabel).toBe(direct.result.current.zoomLabel);
+    expect(late.result.current.zoomLabel).toBe('100%');
+    expect(late.result.current.frame.distanceM).toBeCloseTo(direct.result.current.frame.distanceM, 6);
+
+    // Kéo độ tách KHÔNG dựng lại camera (khoá là hộp mô hình, không tính độ tách).
+    act(() => {
+      late.result.current.onViewportWheel(-1);
+    });
+    const zoomed = late.result.current.frame.distanceM;
+    act(() => {
+      late.result.current.onSeparationChange(0.5);
+    });
+    expect(late.result.current.frame.distanceM).toBe(zoomed);
+
+    direct.unmount();
+    late.unmount();
+  });
+});
+
+describe('[E2-B6] ray tầng có tên truy cập', () => {
+  it('listbox tầng mang tên "Tầng" (25-E-003)', () => {
+    const { unmount } = renderState('success');
+
+    expect(screen.getByRole('listbox', { name: 'Tầng' })).toBeInTheDocument();
+
+    unmount();
   });
 });

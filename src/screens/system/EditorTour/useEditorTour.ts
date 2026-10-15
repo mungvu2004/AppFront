@@ -516,7 +516,15 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
   // DOM đổi chỗ khác không vẽ lại lớp phủ.
   useSyncExternalStore(
     subscribeDom,
-    () => TOUR_STEPS.map((step) => (resolveAnchor(step.id) === null ? '0' : '1')).join(''),
+    // Có/không từng neo VÀ chỗ đứng của nó (làm tròn): nội dung màn chủ nạp muộn đẩy neo đi
+    // thì lỗ sáng phải đi theo (30-A-021), không đứng ở chỗ đo lúc dựng.
+    () =>
+      TOUR_STEPS.map((step) => {
+        const rect = resolveAnchor(step.id);
+        return rect === null
+          ? '0'
+          : `1@${Math.round(rect.top)},${Math.round(rect.left)},${Math.round(rect.width)},${Math.round(rect.height)}`;
+      }).join('|'),
     SERVER_VIEWPORT_KEY,
   );
 
@@ -631,7 +639,9 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
     {
       id: TOUR_SKIP_SHORTCUT_ID,
       combo: 'Escape',
-      scope: 'canvas',
+      // `sidePanel` outranks `canvas`, so a screen's own canvas Esc (clear selection,
+      // cancel gesture) cannot swallow the tour's Esc while it is open (R11c).
+      scope: 'sidePanel',
       preventDefault: false,
       description: 'Bỏ qua lớp hướng dẫn đang mở',
       onTrigger: (): void => {
@@ -703,7 +713,8 @@ export function useEditorTour(options: UseEditorTourOptions = {}): UseEditorTour
     },
     onReopen: (): void => {
       setHasSkipped(false);
-      setActiveStepId(null);
+      // Resume at the stopped step; only a completed run restarts from step 1.
+      if (phase === 'finished') setActiveStepId(null);
       setPhase('running');
     },
     onOpenSampleProject: (): void => {

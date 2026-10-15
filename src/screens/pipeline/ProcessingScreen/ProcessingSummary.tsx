@@ -25,13 +25,13 @@ export function ProcessingSummary({ summary }: ProcessingSummaryProps) {
   return (
     <section
       aria-label={SUMMARY_ARIA_LABEL}
-      className="flex flex-col gap-4 rounded-[12px] border border-border-default bg-bg-surface p-4"
+      className="flex flex-col gap-4 rounded-xl border border-border-default bg-bg-surface p-4"
     >
       {metrics.length > 0 ? (
         <ul className="flex flex-wrap gap-2">
           {metrics.map((metric) => (
             <li
-              className="rounded-[8px] bg-bg-sunken px-3 py-1.5 text-[14px] font-medium text-text-primary"
+              className="rounded-lg bg-bg-sunken px-3 py-1.5 text-[14px] font-medium text-text-primary"
               key={metric}
             >
               {metric}

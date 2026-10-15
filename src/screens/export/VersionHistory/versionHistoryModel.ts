@@ -186,7 +186,6 @@ export function buildVersionRows(context: BuildRowsContext): readonly VersionRow
     const metadata = entry.version;
     const summary = summaries.get(metadata.id);
     const isMetadataOnly = purgedIds.has(metadata.id);
-    const isLoaded = entry.kind === 'full';
     const authorName = summary?.creatorName ?? metadata.creatorName ?? metadata.creatorId;
     const isSelectedForCompare = metadata.id === leftVersionId || metadata.id === rightVersionId;
     const previous = entry.kind === 'full' ? previousFullVersion(history, index) : null;
@@ -219,8 +218,8 @@ export function buildVersionRows(context: BuildRowsContext): readonly VersionRow
         retentionNotice: isMetadataOnly ? RETENTION_NOTICE : null,
         ...(failedIds?.has(metadata.id) === true ? { snapshotError: SNAPSHOT_FAILED_NOTICE } : {}),
         isSelectedForCompare,
-        // Hàng chưa nạp N18 chưa so được; chọn nó ở ô so sánh sẽ nạp nó.
-        isPickable: isLoaded && (isSelectedForCompare || pickedCount < 2),
+        // Bản còn nội dung nào cũng tích được: tích là nạp nó (B-025). Bản hết nội dung/nạp hỏng thì không.
+        isPickable: isSelectedForCompare || (!isMetadataOnly && failedIds?.has(metadata.id) !== true && pickedCount < 2),
       },
     };
   });
@@ -449,18 +448,28 @@ const WRITE_ERROR_SENTENCES: Readonly<Record<VersionWriteOperation, Readonly<Rec
   },
 };
 
+/** Nhãn đã vừa trần mà máy chủ vẫn 422 `VALIDATION`: lý do còn lại là ký tự cấm (điều khiển, đảo chiều). */
+const LABEL_BAD_CHARS = 'Nhãn chứa ký tự không cho phép (ký tự điều khiển hoặc đảo chiều).';
+const LABEL_MAX_UNITS = 60;
+
 const codeOf = (error: unknown): string | undefined =>
   typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'
     ? error.code
     : undefined;
 
 /** Lỗi ghi (đã qua `toAppError`, R1: đọc `code` thẳng) thành dải "Đã hiểu". */
-export function writeErrorNotice(operation: VersionWriteOperation, error: unknown): ConflictNoticeModel {
+export function writeErrorNotice(
+  operation: VersionWriteOperation,
+  error: unknown,
+  submittedLabel?: string,
+): ConflictNoticeModel {
   const code = codeOf(error);
+  const isBadChars =
+    operation === 'label' && code === 'VALIDATION' && submittedLabel !== undefined && submittedLabel.length <= LABEL_MAX_UNITS;
 
   return {
     actorName: WRITE_ERROR_TITLES[operation],
-    message: (code === undefined ? undefined : WRITE_ERROR_SENTENCES[operation][code]) ?? WRITE_ERROR_FALLBACK[operation],
+    message: (isBadChars ? LABEL_BAD_CHARS : code === undefined ? undefined : WRITE_ERROR_SENTENCES[operation][code]) ?? WRITE_ERROR_FALLBACK[operation],
     detail: null,
     dismissLabel: 'Đã hiểu',
   };

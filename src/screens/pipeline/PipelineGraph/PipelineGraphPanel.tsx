@@ -76,7 +76,7 @@ function RerunConfirm({
   return (
     <div
       aria-label={warning.title}
-      className="flex flex-col gap-2 rounded-[8px] border border-danger-border bg-danger-tint p-3"
+      className="flex flex-col gap-2 rounded-lg border border-danger-border bg-danger-tint p-3"
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
           onDismissRerun();
@@ -111,7 +111,7 @@ export function PipelineGraphPanel(props: PipelineGraphPanelProps) {
   return (
     <aside
       aria-label={PIPELINE_GRAPH_TEXT.detailPanelAriaLabel}
-      className="flex w-full flex-col gap-4 rounded-[12px] border border-border-default bg-bg-surface p-4 lg:w-[344px] lg:shrink-0"
+      className="flex w-full flex-col gap-4 rounded-xl border border-border-default bg-bg-surface p-4 lg:w-[344px] lg:shrink-0"
     >
       <h2 className="text-[15px] font-medium text-text-primary">{panel.title}</h2>
 
@@ -158,7 +158,7 @@ export function PipelineGraphPanel(props: PipelineGraphPanelProps) {
         <PanelSection title={PIPELINE_GRAPH_TEXT.panelThumbnailHeader}>
           <img
             alt={panel.thumbnail.alt}
-            className="max-h-[160px] w-full rounded-[8px] border border-border-default bg-bg-sunken object-contain"
+            className="max-h-40 w-full rounded-lg border border-border-default bg-bg-sunken object-contain"
             src={panel.thumbnail.url}
           />
         </PanelSection>
@@ -196,7 +196,7 @@ export function PipelineGraphPanel(props: PipelineGraphPanelProps) {
 
         <pre
           className={clsx(
-            'max-h-[200px] overflow-auto rounded-[8px] bg-bg-sunken p-3',
+            'max-h-[200px] overflow-auto rounded-lg bg-bg-sunken p-3',
             'font-mono text-[13px] text-text-secondary',
           )}
           hidden={!panel.isLogOpen}

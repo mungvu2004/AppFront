@@ -141,7 +141,7 @@ function DetailMemberships({
         <ul className="flex flex-col gap-3">
           {memberships.map((membership) => (
             <li
-              className="flex flex-col gap-2 rounded-[8px] border border-border-default p-3"
+              className="flex flex-col gap-2 rounded-lg border border-border-default p-3"
               key={membership.projectId}
             >
               <span className="truncate text-[14px] text-text-primary">
@@ -229,7 +229,7 @@ function DetailRemoveSection({ onOpenRemove }: RemoveSectionProps) {
   return (
     <section
       aria-label="Xoá người dùng"
-      className="flex flex-col items-start gap-2 rounded-[8px] border border-border-default p-3"
+      className="flex flex-col items-start gap-2 rounded-lg border border-border-default p-3"
     >
       <p className="text-[13px] text-text-secondary">Xoá hẳn người dùng này khỏi hệ thống.</p>
       <Button onClick={onOpenRemove} size="sm" variant="danger">

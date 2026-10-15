@@ -181,7 +181,7 @@ export function Tooltip({ label, kbd, children, disabled = false, side = 'top' }
             transition={{ duration: durationSeconds('instant') }}
           >
             {/* Tooltip body */}
-            <div className="relative flex items-center gap-1.5 bg-text-primary text-white rounded-[6px] shadow-overlay px-2.5 py-1.5 whitespace-nowrap">
+            <div className="relative flex items-center gap-1.5 bg-text-primary text-white rounded-md shadow-overlay px-2.5 py-1.5 whitespace-nowrap">
               <span className="text-[13px] leading-[18px]">{label}</span>
               {kbd && <Kbd className="bg-white-10 border-white-20 text-white">{kbd}</Kbd>}
               {/* Arrow */}

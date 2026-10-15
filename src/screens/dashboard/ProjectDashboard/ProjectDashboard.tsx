@@ -146,7 +146,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           onScroll={(event) => event.currentTarget.toggleAttribute('data-scrolled', event.currentTarget.scrollLeft > 0)}
           // The browser's own clear (×) button gets its 8 px gap from globals.css (BUG-117).
           className="pl-0 data-[scrolled]:[mask-image:linear-gradient(to_right,transparent,black_12px)]"
-          wrapperClassName="order-last w-full max-w-full sm:order-none sm:w-[320px]"
+          wrapperClassName="order-last w-full max-w-full sm:order-none sm:w-80"
         />
         <div className="ml-auto flex items-center gap-3">
           {props.notificationBell}

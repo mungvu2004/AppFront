@@ -42,6 +42,7 @@ import { cn } from '@/lib/utils';
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
+import { QcScreenFrame } from '../shared/QcScreenFrame';
 
 import { ObjectLayerCanvas } from './ObjectLayerCanvas';
 import { ObjectLayerInspector } from './ObjectLayerInspector';
@@ -165,6 +166,12 @@ function ObjectLayerListRegion({ model }: { readonly model: ObjectLayerReviewMod
         </div>
       ) : null}
 
+      {model.filteredLabel === null ? null : (
+        <p aria-live="polite" className="px-2 text-[12px] tabular-nums text-text-secondary">
+          {model.filteredLabel}
+        </p>
+      )}
+
       <ObjectLayerList
         collapsedGroups={model.collapsedGroups}
         onAttachToNearestWall={model.onAttachToNearestWall}
@@ -228,20 +235,14 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
 
   if (model.readFailure != null) {
     return (
-      <div aria-label={SCREEN_ARIA_LABEL} className="flex h-screen min-h-0 w-full flex-col bg-bg-app" role="region">
+      <QcScreenFrame label={SCREEN_ARIA_LABEL}>
         <FloorLayerReadFailureScreen failure={model.readFailure} />
-      </div>
+      </QcScreenFrame>
     );
   }
 
   return (
-    <div
-      aria-label={SCREEN_ARIA_LABEL}
-      // Cao bằng khung nhìn: route nằm trong `ScreenMain` (display: contents) nên `h-full` không có chiều cao
-      // để bám, và thanh trạng thái trôi lên giữa trang (BUG-324) — cùng cách SCR-22 (OverlayComparison).
-      className="flex h-screen min-h-0 w-full flex-col bg-bg-app"
-      role="region"
-    >
+    <QcScreenFrame label={SCREEN_ARIA_LABEL}>
       {model.saveBlock != null && (
         <div className="px-2 pt-2">
           <FloorLayerSaveBanner saveBlock={model.saveBlock} />
@@ -258,7 +259,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
       */}
       <div className="relative flex min-h-0 flex-1 flex-wrap content-start gap-2 overflow-y-auto p-2 xl:flex-nowrap xl:overflow-visible">
         {isCollapsed ? (
-          <div className="absolute left-4 top-4 z-10 rounded-[12px] bg-bg-surface shadow-panel">
+          <div className="absolute left-4 top-4 z-10 rounded-xl bg-bg-surface shadow-panel">
             <ObjectLayerToolRail
               activeLayer={model.activeLayer}
               activeSubtype={model.activeSubtype}
@@ -283,7 +284,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
             <div className="shrink-0">
               {/* Đang tải: khung xương thay bộ đếm "0/0" và "Tổng 0" như thể dữ liệu thật (BUG-618). */}
               {model.state === 'loading' ? (
-                <div aria-hidden="true" className="flex flex-col gap-2 rounded-[12px] bg-bg-surface px-5 py-4 shadow-panel">
+                <div aria-hidden="true" className="flex flex-col gap-2 rounded-xl bg-bg-surface px-5 py-4 shadow-panel">
                   {SKELETON_ROWS.map((row) => (
                     <Skeleton key={row} preset="table-row" />
                   ))}
@@ -303,7 +304,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
               )}
             </div>
 
-            <div className="shrink-0 rounded-[12px] bg-bg-surface px-3 py-3 shadow-panel">
+            <div className="shrink-0 rounded-xl bg-bg-surface px-3 py-3 shadow-panel">
               <ObjectLayerListRegion model={model} />
             </div>
           </div>
@@ -311,7 +312,7 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
 
         <section
           aria-label={CANVAS_REGION_LABEL}
-          className="relative h-[60vh] min-h-[320px] min-w-0 flex-1 overflow-hidden rounded-[16px] bg-bg-sunken xl:h-auto xl:min-h-0"
+          className="relative h-[60vh] min-h-80 min-w-0 flex-1 overflow-hidden rounded-2xl bg-bg-sunken xl:h-auto xl:min-h-0"
         >
           <ObjectLayerCanvasRegion model={model} />
         </section>
@@ -343,6 +344,6 @@ export function ObjectLayerReview(model: ObjectLayerReviewViewProps) {
         state={model.state}
         viewerRoleNotice={model.viewerRoleNotice}
       />
-    </div>
+    </QcScreenFrame>
   );
 }

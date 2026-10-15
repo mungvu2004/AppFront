@@ -138,7 +138,7 @@ function WallLayerTreeRow({
       aria-label={label}
       aria-selected={isCurrent}
       className={cn(
-        'flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-left text-[13px]',
+        'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px]',
         'transition-colors duration-120',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
         isCurrent
@@ -174,7 +174,7 @@ function WallLayerTreeRow({
         aria-label={visibility.isVisible ? HIDE_WALL_LAYER_LABEL : SHOW_WALL_LAYER_LABEL}
         aria-pressed={visibility.isVisible}
         className={cn(
-          'shrink-0 rounded-[8px] p-1.5 text-text-secondary',
+          'shrink-0 rounded-lg p-1.5 text-text-secondary',
           'transition-colors duration-120 hover:bg-bg-hover hover:text-text-primary',
           'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
         )}
@@ -215,7 +215,7 @@ function WallLayerFloorNav({
         <button
           aria-current={floor.isCurrent ? 'page' : undefined}
           className={cn(
-            'flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-left text-[13px]',
+            'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px]',
             'transition-colors duration-120',
             'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
             floor.isCurrent
@@ -276,7 +276,7 @@ export function WallLayerLeftPanel({
 
   return (
     /* Dưới 1280 panel cao theo nội dung và vùng ngoài cuộn — không nén danh sách còn ~3 hàng (BUG-395). */
-    <div className="order-1 flex w-full shrink-0 flex-col rounded-[12px] bg-bg-surface shadow-panel xl:order-none xl:h-full xl:w-[280px] xl:overflow-hidden">
+    <div className="order-1 flex w-full shrink-0 flex-col rounded-xl bg-bg-surface shadow-panel xl:order-none xl:h-full xl:w-[280px] xl:overflow-hidden">
       <div className="flex shrink-0 flex-col gap-4 px-5 pb-3 pt-4">
         <div aria-label={reviewProgressLabel} className="flex flex-col gap-1.5" role="img">
           <p className="text-[13px] text-text-primary">

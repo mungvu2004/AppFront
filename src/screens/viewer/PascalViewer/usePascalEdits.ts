@@ -33,7 +33,7 @@ import {
   type DispatchDeps,
   type SpatialPort,
 } from '@/lib/commands/dispatch';
-import { createHistoryStack, NO_SELECTION } from '@/lib/commands/history';
+import { createHistoryStack, NO_SELECTION, type HistoryStack } from '@/lib/commands/history';
 import { diffScenes, isEmptyDiff } from '@/lib/pascal/diff';
 import { createPascalEditCommand, type PascalEditResult } from '@/lib/pascal/fromPascal';
 import { createChangeGate, type PascalCommit } from '@/lib/pascal/guard';
@@ -66,7 +66,21 @@ export interface UsePascalEditsOptions {
   readonly readOnly: boolean;
   /** Nói ra lý do một lượt sửa bị chặn. Màn hình quyết định hiện bằng cách nào. */
   readonly onRejected: (reason: string) => void;
+  /**
+   * Cổng chặn một lượt xoá hàng loạt (`PASCAL_MASS_DELETE`): màn mở hộp xác nhận
+   * (A9, `guard.ts`). Editor đã lùi lượt xoá; xác nhận thì gọi
+   * `confirmMassDelete(nodeIds)` rồi cho editor xoá lại đúng các node ấy.
+   */
+  readonly onMassDelete?: (request: PascalMassDeleteRequest) => void;
   readonly actorId?: string;
+}
+
+/** Một lượt xoá hàng loạt chờ người dùng xác nhận. */
+export interface PascalMassDeleteRequest {
+  /** Mã node Pascal bị xoá, kể cả con cháu. */
+  readonly nodeIds: readonly string[];
+  /** Câu tiếng Việt của cổng: "Thay đổi này xoá … nên phải được xác nhận trước." */
+  readonly reason: string;
 }
 
 export interface UsePascalEditsResult {
@@ -74,6 +88,14 @@ export interface UsePascalEditsResult {
   readonly onSceneCommit: (scene: PascalScene) => Promise<boolean>;
   /** Truyền cho khung nhúng: phán quyết 6A, chạy trước khi lượt sửa vào lịch sử. */
   readonly validateCommit: (scene: PascalScene) => PascalCommitVerdict;
+  /** Người dùng đã xác nhận xoá đúng các node này: lượt xoá kế tiếp của chúng được qua cổng. */
+  readonly confirmMassDelete: (nodeIds: readonly string[]) => void;
+  /**
+   * Ngăn xếp lệnh của phiên — mỗi lượt sửa Pascal đã vào kho là một bước.
+   * Bảng "Lịch sử thao tác" đọc và nhảy trên CHÍNH ngăn này (23H-A-016); nhảy
+   * bước ghi lại kho, và cảnh mới về Pascal qua `setScene` như mọi đổi ngoài.
+   */
+  readonly history: HistoryStack;
 }
 
 /** Phần chênh thành lời khai của Pascal về những node đã đụng tới. */
@@ -97,6 +119,7 @@ export function usePascalEdits({
   loadedScene,
   readOnly,
   onRejected,
+  onMassDelete,
   actorId = PASCAL_DEFAULT_ACTOR_ID,
 }: UsePascalEditsOptions): UsePascalEditsResult {
   /** Cảnh máy chủ đang giữ. Mốc "trước" của lượt sửa kế tiếp. */
@@ -118,7 +141,14 @@ export function usePascalEdits({
    * lượt sửa, nên dựng lệnh hai lần là dựng thừa — và `toSpatialGraph` chạy
    * trên cả cây, không phải phép tính rẻ.
    */
-  const lastVerdict = useRef<{ scene: PascalScene; result: PascalEditResult | null } | null>(null);
+  const lastVerdict = useRef<{
+    scene: PascalScene;
+    result: PascalEditResult | null;
+    /** Lượt này là xoá hàng loạt bị cổng chặn — các node bị xoá. */
+    massDelete: readonly string[] | null;
+  } | null>(null);
+  /** Node người dùng đã xác nhận xoá; sống tới khi lượt xoá ấy vào kho. */
+  const confirmedRemoval = useRef<ReadonlySet<string> | null>(null);
 
   const label = useRef('');
   const history = useMemo(() => createHistoryStack(), []);
@@ -167,7 +197,14 @@ export function usePascalEdits({
       // trạng thái "đã nạp" — không có đường nào khác để nó biết điều đó.
       if (!gate.hasLoaded()) gate.acknowledgeLoad();
 
-      const verdict = gate.admit(pascalCommit, previous);
+      const removed = pascalCommit.removedNodeIds ?? [];
+      const confirmed = confirmedRemoval.current;
+      const gateVerdict = gate.admit(pascalCommit, previous);
+      const massDelete = !gateVerdict.admitted && gateVerdict.code === 'PASCAL_MASS_DELETE';
+      const verdict =
+        massDelete && confirmed !== null && removed.every((nodeId) => confirmed.has(nodeId))
+          ? ({ admitted: true } as const)
+          : gateVerdict;
 
       const result: PascalEditResult = verdict.admitted
         ? createPascalEditCommand({
@@ -179,7 +216,7 @@ export function usePascalEdits({
           })
         : { ok: false, error: { type: 'pascal.edit', code: 'PASCAL_UNKNOWN_NODE', reasons: [verdict.reason] } };
 
-      lastVerdict.current = { scene, result };
+      lastVerdict.current = { scene, result, massDelete: massDelete && !verdict.admitted ? removed : null };
 
       return result;
     },
@@ -198,10 +235,20 @@ export function usePascalEdits({
         return { ok: true };
       }
 
-      return { ok: false, message: built.error.reasons[0] ?? PASCAL_REJECTED_FALLBACK };
+      const message = built.error.reasons[0] ?? PASCAL_REJECTED_FALLBACK;
+      const massDelete = lastVerdict.current?.massDelete ?? null;
+
+      // 23-A-026 — A9: lượt xoá lớn hỏi trước (GD:27-30), không chỉ toast.
+      if (massDelete !== null) onMassDelete?.({ nodeIds: massDelete, reason: message });
+
+      return { ok: false, message };
     },
-    [buildFor, readOnly],
+    [buildFor, onMassDelete, readOnly],
   );
+
+  const confirmMassDelete = useCallback((nodeIds: readonly string[]) => {
+    confirmedRemoval.current = new Set(nodeIds);
+  }, []);
 
   const onSceneCommit = useCallback(
     async (scene: PascalScene): Promise<boolean> => {
@@ -230,11 +277,12 @@ export function usePascalEdits({
       }
 
       savedScene.current = scene;
+      confirmedRemoval.current = null;
 
       return true;
     },
     [buildFor, deps, onRejected, readOnly],
   );
 
-  return { onSceneCommit, validateCommit };
+  return { onSceneCommit, validateCommit, confirmMassDelete, history };
 }

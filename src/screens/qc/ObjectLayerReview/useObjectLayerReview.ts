@@ -66,7 +66,7 @@ import { useProjectConfidenceThreshold } from '@/hooks/useProjectConfidenceThres
 import { useSaveIndicator } from '@/hooks/useSaveIndicator';
 import { useShortcut } from '@/hooks/useShortcut';
 import { can } from '@/lib/auth/permissions';
-import { newestEntryId, undoIfNewest } from '@/lib/commands/history';
+import { newestEntryId } from '@/lib/commands/history';
 import type { Command } from '@/lib/commands/types';
 import type { CommandContext } from '@/lib/commands/business/shared';
 import type { ShortcutRegistry } from '@/lib/input/shortcutRegistry';
@@ -111,6 +111,7 @@ import {
   OBJECT_LAYER_CONFIDENCE_THRESHOLD,
   layerTreeTotalLabel,
   levelOfGraph,
+  filteredCountLabel,
   lowConfidenceNotice,
   lowConfidenceObjectsOf,
   millimetresPerPixelOf,
@@ -196,6 +197,8 @@ export interface UseObjectLayerReviewOptions {
 const DELETE_NOTIFICATION_TYPE = 'objectLayerReview.deleteObject';
 /** Toast "Hoàn tác" bị từ chối vì đã có bước mới hơn (BUG-579). */
 const UNDO_REFUSED_NOTIFICATION_TYPE = 'objectLayerReview.undoRefused';
+const UNDO_REFUSED_TEXT =
+  'Chưa hoàn tác: một thay đổi sau đó đã sửa cùng đối tượng. Dùng Ctrl+Z để hoàn tác lần lượt.';
 /** Lệnh sửa bị từ chối — câu lý do thay cho im lặng (BUG-590). */
 const REFUSED_NOTIFICATION_TYPE = 'objectLayerReview.refused';
 
@@ -239,7 +242,8 @@ export function deriveScreenState(input: {
   readonly hasFurnitureAttention: boolean;
   readonly counter: ObjectReviewCounter;
 }): ObjectLayerScreenState {
-  if (input.isViewerRole) {
+  /* Người xem đang tải vẫn thấy khung chờ, không phải nhóm rỗng giả (17-D-010). */
+  if (input.isViewerRole && !input.isLoading) {
     return 'forbidden';
   }
 
@@ -345,7 +349,7 @@ export function useObjectLayerReview(
   const [collapsedGroups, setCollapsedGroups] = useState<ObjectLayerVisibility>(NO_GROUPS_COLLAPSED);
   const [ownCollapsed, setOwnCollapsed] = useState(false);
   const [hoveredObjectId, setHoveredObjectId] = useState<string | null>(null);
-  const [activeLayerOverride, setActiveLayerOverride] = useState<ObjectLayerId | null>(null);
+  const [activeLayerOverride, setActiveLayerOverride] = useState<{ layer: ObjectLayerId; forId: string | null } | null>(null);
   /**
    * Đối tượng đang được kéo dọc tường.
    *
@@ -778,7 +782,12 @@ export function useObjectLayerReview(
     (objectId: string, subtype: ObjectSubtype) => {
       const object = objectById(objectId);
 
-      if (object === null || object.subtype === subtype) {
+      if (object === null) {
+        return;
+      }
+
+      if (object.subtype === subtype) {
+        refuse(OBJECT_LAYER_TEXT.subtypeSame);
         return;
       }
 
@@ -809,6 +818,11 @@ export function useObjectLayerReview(
           subtype,
           actorId: context.actorId,
         });
+
+        /* Luật M-08 mức critical chặn lệnh thì nói lý do, không im lặng (BUG-590, 17-C-021). */
+        if (!built.ok) {
+          refuse(built.error.reasons.join(' '));
+        }
 
         return built.ok ? built.data : null;
       });
@@ -960,11 +974,18 @@ export function useObjectLayerReview(
           displayId: object.id,
           now: gateway.now,
           undo: () => {
-            const refused = undoIfNewest(dispatchBundle.history, entryId, applyUndo);
+            /* Own-step undo: lấy lại ĐÚNG bước xoá của vé, dù có bước mới hơn phía trên. */
+            const transition = entryId === null ? null : dispatchBundle.history.undoEntry(entryId);
 
-            if (refused !== null) {
-              notifications.publish({ type: UNDO_REFUSED_NOTIFICATION_TYPE, title: refused, description: '' });
+            if (transition === null) {
+              notifications.publish({ type: UNDO_REFUSED_NOTIFICATION_TYPE, title: UNDO_REFUSED_TEXT, description: '' });
+
+              return;
             }
+
+            dispatchBundle.deps.spatial.applyPatches(transition.patches);
+            autosave.notifyChange();
+            invalidate(object.layer);
           },
         });
 
@@ -980,7 +1001,7 @@ export function useObjectLayerReview(
         });
       });
     },
-    [applyUndo, dispatchBundle, gateway, notifications, objectById, runSingle],
+    [autosave, dispatchBundle, gateway, invalidate, notifications, objectById, runSingle],
   );
 
   /* ---------------------------------------------------------------------- */
@@ -1217,12 +1238,26 @@ export function useObjectLayerReview(
   /* ---------------------------------------------------------------------- */
 
   const selectedObject = selectedObjectId === null ? null : objectById(selectedObjectId);
-  const activeLayer = activeLayerOverride ?? selectedObject?.layer ?? null;
+  /* Nhóm chọn tay chỉ có hiệu lực với đối tượng đang chọn lúc bấm; đổi đối tượng là hết, không chờ effect. */
+  const activeLayer =
+    (activeLayerOverride !== null && activeLayerOverride.forId === selectedObjectId
+      ? activeLayerOverride.layer
+      : null) ??
+    selectedObject?.layer ??
+    null;
   const activeSubtype = selectedObject?.subtype ?? null;
 
+  const selectedObjectIdForLayerRef = useRef(selectedObjectId);
+  selectedObjectIdForLayerRef.current = selectedObjectId;
+
   const onSelectLayer = useCallback((layer: ObjectLayerId) => {
-    setActiveLayerOverride(layer);
+    setActiveLayerOverride({ layer, forId: selectedObjectIdForLayerRef.current });
   }, []);
+
+  /* Chọn đối tượng khác thì nhóm loại theo đối tượng đó, không giữ nhóm chọn tay của đối tượng trước. */
+  useEffect(() => {
+    setActiveLayerOverride(null);
+  }, [selectedObjectId]);
 
   const selectedObjectIdRef = useRef(selectedObjectId);
   selectedObjectIdRef.current = selectedObjectId;
@@ -1321,7 +1356,21 @@ export function useObjectLayerReview(
       combo: 'Mod+Z',
       scope: 'canvas',
       description: OBJECT_LAYER_TEXT.shortcutUndo,
-      onTrigger: onUndo,
+      onTrigger: () => {
+        /* Danh sách loại đang mở thì phím thuộc về nó, không hoàn tác ngầm bên dưới (17-E-017). */
+        const focused = document.activeElement;
+
+        /* Nhóm danh sách đối tượng (`object-layer-group-*`) cũng là listbox nhưng không phải danh sách loại: ở đó Mod+Z vẫn hoàn tác. */
+        const typeListboxOpen =
+          focused?.closest('[role="listbox"]:not([id^="object-layer-group-"])') != null ||
+          (focused?.getAttribute('aria-haspopup') != null && focused.getAttribute('aria-expanded') === 'true');
+
+        if (typeListboxOpen) {
+          return;
+        }
+
+        onUndo();
+      },
     },
     { ...shortcutOptions, enabled: canEdit },
   );
@@ -1470,7 +1519,7 @@ export function useObjectLayerReview(
 
   const tokens = useMemo(() => dataLayerTokens(layerVisibility), [layerVisibility]);
   /* Tầng đã đọc xong mà không có đoạn tường nào: không có chỗ đặt cửa (BUG-422). */
-  const hasNoWall = level !== null && solidWalls.length === 0;
+  const hasNoWall = !isLoading && !hasError && graphWalls.length === 0;
   const { onNavigate } = options;
 
   /*
@@ -1512,6 +1561,8 @@ export function useObjectLayerReview(
     isCompact: isCollapsed,
     isCollapsed,
     isViewerRole,
+    filteredLabel:
+      visibleObjects.length < objects.length ? filteredCountLabel(visibleObjects.length, objects.length) : null,
     viewerRoleNotice: isViewerRole ? OBJECT_LAYER_TEXT.forbidden : null,
     emptyNotice:
       reviewCounter.total === 0 && !isLoading && !hasError

@@ -50,7 +50,7 @@ const PANEL_ID = 'pipeline-failure-technical-details';
 const LOG_ARIA_LABEL = 'Nhật ký kỹ thuật';
 
 /** Chữ đều trên nền chìm — đúng `--bg-sunken`, không phải một nền mới. */
-const LOG_CLASSES = 'max-h-[240px] overflow-auto rounded-[8px] bg-bg-sunken p-3 font-mono text-[12px]';
+const LOG_CLASSES = 'max-h-60 overflow-auto rounded-lg bg-bg-sunken p-3 font-mono text-[12px]';
 
 export interface PipelineFailureDetailsProps {
   readonly details: PipelineFailureTechnicalDetails;

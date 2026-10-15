@@ -29,6 +29,7 @@
  */
 
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -56,8 +57,29 @@ export interface SpatialJsonTreeProps {
 }
 
 export function SpatialJsonTree({ nodes, onSelect, onToggle, selectedNodeId }: SpatialJsonTreeProps) {
+  const treeRef = useRef<HTMLDivElement>(null);
+  // Roving tabindex: một điểm dừng Tab — hàng đang chọn, không thì hàng đầu (31-E-002).
+  const tabStopId = nodes.some((node) => node.id === selectedNodeId) ? selectedNodeId : nodes[0]?.id;
+
+  // Chọn từ nơi khác (hàng lỗi, tìm kiếm) thì kéo hàng vào tầm nhìn (31-A-024).
+  useEffect(() => {
+    treeRef.current?.querySelector('[aria-selected="true"]')?.scrollIntoView?.({ block: 'nearest' });
+  }, [selectedNodeId]);
+
+  /** ↑/↓/Home/End: chuyển focus giữa các hàng đang thấy (31-E-003). */
+  const moveFocus = (from: HTMLElement, key: string): boolean => {
+    const rows = Array.from(treeRef.current?.querySelectorAll<HTMLElement>('[role="treeitem"]') ?? []);
+    const at = rows.indexOf(from);
+    const target =
+      key === 'ArrowDown' ? rows[at + 1] : key === 'ArrowUp' ? rows[at - 1] : key === 'Home' ? rows[0] : rows[rows.length - 1];
+
+    target?.focus();
+
+    return true;
+  };
+
   return (
-    <div role="tree" aria-label="Cấu trúc dữ liệu không gian" className="py-2">
+    <div ref={treeRef} role="tree" aria-label="Cấu trúc dữ liệu không gian" className="py-2">
       {nodes.map((node) => {
         const isSelected = node.id === selectedNodeId;
 
@@ -69,7 +91,7 @@ export function SpatialJsonTree({ nodes, onSelect, onToggle, selectedNodeId }: S
             aria-selected={isSelected}
             {...(node.isExpandable ? { 'aria-expanded': node.isExpanded } : {})}
             className={cn(
-              'flex h-6 cursor-pointer items-center gap-1 rounded-[6px] pr-3 text-[13px] leading-5',
+              'flex h-6 cursor-pointer items-center gap-1 rounded-md pr-3 text-[13px] leading-5',
               'transition-colors duration-fast',
               isSelected ? 'bg-bg-selected' : node.isMatch ? 'bg-bg-flash' : 'hover:bg-bg-hover',
             )}
@@ -78,6 +100,12 @@ export function SpatialJsonTree({ nodes, onSelect, onToggle, selectedNodeId }: S
               onSelect(node.id);
             }}
             onKeyDown={(event) => {
+              if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+                event.preventDefault();
+                moveFocus(event.currentTarget, event.key);
+                return;
+              }
+
               if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
                 onSelect(node.id);
@@ -99,12 +127,12 @@ export function SpatialJsonTree({ nodes, onSelect, onToggle, selectedNodeId }: S
                 onToggle(node.id);
               }
             }}
-            tabIndex={0}
+            tabIndex={node.id === tabStopId ? 0 : -1}
           >
             {node.isExpandable ? (
               <span
                 aria-hidden="true"
-                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] text-text-muted"
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-text-muted"
                 onClick={(event) => {
                   event.stopPropagation();
                   onToggle(node.id);

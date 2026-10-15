@@ -132,7 +132,7 @@ function OverviewBlock({
   return (
     <div
       className={clsx(
-        'flex flex-col justify-center gap-1 rounded-[12px] bg-bg-surface p-4',
+        'flex flex-col justify-center gap-1 rounded-xl bg-bg-surface p-4',
         isAbsolute ? 'absolute' : 'relative w-full',
         hasFailed
           ? 'border-2 border-state-violation'
@@ -190,7 +190,7 @@ function SwitchBranchAction({
   return (
     <div
       aria-label={action.warningTitle}
-      className="flex flex-col gap-2 rounded-[8px] border border-danger-border bg-danger-tint p-3"
+      className="flex flex-col gap-2 rounded-lg border border-danger-border bg-danger-tint p-3"
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
           onDismissSwitchBranch();
@@ -272,7 +272,7 @@ function EvidenceList({ overview }: Pick<PipelineGraphOverviewProps, 'overview'>
             className="flex flex-col gap-0.5 border-b border-border-default py-2 last:border-b-0 sm:flex-row sm:items-baseline sm:gap-3"
             key={row.id}
           >
-            <span className="min-w-[96px] text-[13px] text-text-primary">{row.floorLabel}</span>
+            <span className="min-w-24 text-[13px] text-text-primary">{row.floorLabel}</span>
             <span className="text-[13px] text-text-secondary">{row.sentence}</span>
           </li>
         ))}

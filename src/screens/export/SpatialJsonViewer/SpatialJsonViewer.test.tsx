@@ -179,6 +179,7 @@ describe('bộ mẫu chuẩn, đo từ chính fixture', () => {
     const counts = countEntities(GRAPH);
 
     expect(counts).toEqual({
+      notes: GRAPH.notes.length,
       axes: SAMPLE_AXIS_COUNT,
       dimensions: SAMPLE_DIMENSION_COUNT,
       furniture: SAMPLE_FURNITURE_COUNT,
@@ -482,13 +483,13 @@ describe('useSpatialJsonViewer', () => {
     expect(result.current[0].state).toBe('forbidden');
   });
 
-  it('nút tải xuống chỉ có khi nơi gọi cấp đường sang S-34', () => {
+  it('nút tải xuống luôn có khi có dữ liệu — không cấp thì hook tự tải chữ thô (31-A-023)', () => {
     const withoutDownload = renderHook(() => useSpatialJsonViewer(baseOptions));
     const withDownload = renderHook(() =>
       useSpatialJsonViewer({ ...baseOptions, onDownload: () => undefined }),
     );
 
-    expect(withoutDownload.result.current[0].canDownload).toBe(false);
+    expect(withoutDownload.result.current[0].canDownload).toBe(true);
     expect(withDownload.result.current[0].canDownload).toBe(true);
   });
 
@@ -582,13 +583,13 @@ describe('B-V12-07 / B-V12-08 — dải hợp lệ và số dòng ẩn', () => {
   it('B-V12-07: "empty" không hiện dải "Hợp lệ … 0 lỗi" — chưa có gì để kiểm', () => {
     renderWithProviders(<SpatialJsonViewer {...buildSpatialJsonViewerProps('empty')} />);
 
-    expect(screen.queryByText(/Hợp lệ theo hợp đồng Spatial JSON/u)).toBeNull();
+    expect(screen.queryByText(/Hợp lệ — 0 lỗi/u)).toBeNull();
   });
 
   it('B-V12-07: có dữ liệu thì dải hợp lệ vẫn hiện', () => {
     renderWithProviders(<SpatialJsonViewer {...buildSpatialJsonViewerProps('success')} />);
 
-    expect(screen.getByText(/Hợp lệ theo hợp đồng Spatial JSON|lỗi nghiêm trọng/u)).toBeTruthy();
+    expect(screen.getByText(/Hợp lệ — 0 lỗi|lỗi nghiêm trọng/u)).toBeTruthy();
   });
 
   it('B-V12-08: số dòng còn ẩn của chữ thô có dấu nhóm nghìn như mọi số khác trên màn', () => {

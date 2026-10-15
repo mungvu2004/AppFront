@@ -236,7 +236,7 @@ function StepCard({ card, delaySeconds }: StepCardProps) {
         <p className="text-[13px] leading-relaxed text-text-secondary">{card.sentence}</p>
       </div>
       {/* Chừa sẵn chỗ cho câu "cần … trước": thẻ khoá và thẻ mở có nút và tiêu đề cùng hàng (BUG-128). */}
-      <div className="flex min-h-[56px] shrink-0 flex-col gap-1.5">
+      <div className="flex min-h-14 shrink-0 flex-col gap-1.5">
         <Button
           variant={card.isPrimary ? 'primary' : 'secondary'}
           size="sm"

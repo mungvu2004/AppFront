@@ -117,7 +117,7 @@ function StrengthMeter({ level }: { readonly level: PasswordStrengthLevel }) {
               // `motion-reduce:transition-none` là nửa còn lại của lời hứa giảm
               // chuyển động: khối phiên tắt hoạt cảnh qua prop `reducedMotion`,
               // còn ô màu này tắt bằng chính CSS, vì nó không có prop nào.
-              'h-[4px] flex-1 rounded-full transition-colors duration-180 motion-reduce:transition-none',
+              'h-1 flex-1 rounded-full transition-colors duration-180 motion-reduce:transition-none',
               slot < rung.steps ? rung.tone : 'bg-bg-sunken',
             )}
           />

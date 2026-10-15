@@ -27,7 +27,7 @@ const TEXT = {
 } as const;
 
 const HEADERS = ['Số thứ tự', 'Trạng thái', 'Nguồn', 'Huấn luyện / kiểm định / kiểm tra', 'Ngày tạo', 'Ghi chú'] as const;
-const PANEL = 'rounded-[12px] border border-border-default bg-bg-surface p-5';
+const PANEL = 'rounded-xl border border-border-default bg-bg-surface p-5';
 const FOCUS_RING =
   'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 
@@ -90,7 +90,7 @@ function Body({ actions, model }: TrainingJobsProps) {
             <li key={dataset.value}>
               <button
                 aria-pressed={dataset.isSelected}
-                className={cn('w-full rounded-[8px] px-3 py-2 text-left text-text-primary', FOCUS_RING, dataset.isSelected && 'bg-bg-selected')}
+                className={cn('w-full rounded-lg px-3 py-2 text-left text-text-primary', FOCUS_RING, dataset.isSelected && 'bg-bg-selected')}
                 onClick={() => actions.onSelectDataset(dataset.value)}
                 type="button"
               >

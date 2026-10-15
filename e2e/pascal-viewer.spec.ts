@@ -84,7 +84,8 @@ const SCREEN_REGION_NAME = 'Mô hình 3D';
  * `role="status"` thứ hai cho dòng tự lưu ("Đã lưu", `PascalViewer.tsx:207`), nên
  * `getByRole('status')` trần là hai phần tử và Playwright từ chối ở chế độ strict.
  */
-const caption = (page: Page) => page.getByRole('status').first();
+// `p`: chú thích hiện diện (`div role=status`) giờ ở khe đầu màn, đứng trước (23R-F-002).
+const caption = (page: Page) => page.locator('p[role="status"]').first();
 
 /** Khung nhìn của mọi bài — cùng cỡ các số đo trong tệp này. */
 const VIEWPORT = { width: 1440, height: 900 } as const;

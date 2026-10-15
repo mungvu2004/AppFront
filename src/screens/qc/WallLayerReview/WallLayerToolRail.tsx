@@ -123,7 +123,7 @@ export function WallLayerToolRail({
     <div
       aria-label={RAIL_ARIA_LABEL}
       aria-orientation="vertical"
-      className="flex w-[56px] shrink-0 flex-col items-center gap-1 py-2"
+      className="flex w-14 shrink-0 flex-col items-center gap-1 py-2"
       role="toolbar"
     >
       {TOOLS.map((tool) => {
@@ -139,7 +139,7 @@ export function WallLayerToolRail({
             {isActive && (
               <span
                 aria-hidden="true"
-                className="absolute inset-y-1 left-0 w-[2px] rounded-full bg-accent"
+                className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-accent"
               />
             )}
             <Tooltip {...(tool.kbd !== undefined ? { kbd: tool.kbd } : {})} label={tool.label}>

@@ -58,8 +58,10 @@ import { InlineAlert, type InlineAlertLevel } from '@/components/feedback/Inline
 import { Modal } from '@/components/overlay/Modal';
 import { StatusBar } from '@/components/shell/StatusBar';
 import { Button } from '@/components/ui/Button';
+import { cn } from '@/lib/utils';
 
 import { FloorLayerReadFailureScreen } from '../../qc/shared/FloorLayerReadFailureScreen';
+import { QC_BODY_CLASS, QcScreenFrame } from '../../qc/shared/QcScreenFrame';
 import { FloorLayerSaveBanner } from '../../qc/WallLayerReview/FloorLayerSaveBanner';
 
 import { ScaleCalibrationCanvas } from './ScaleCalibrationCanvas';
@@ -185,20 +187,16 @@ export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
 
   if (model.readFailure != null) {
     return (
-      <div aria-label={SCREEN_ARIA_LABEL} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+      <QcScreenFrame label={SCREEN_ARIA_LABEL}>
         <FloorLayerReadFailureScreen failure={model.readFailure} />
-      </div>
+      </QcScreenFrame>
     );
   }
 
   return (
-    <div
-      aria-label={SCREEN_ARIA_LABEL}
-      className="flex h-full min-h-0 w-full flex-col bg-bg-app"
-      role="region"
-    >
+    <QcScreenFrame label={SCREEN_ARIA_LABEL}>
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row lg:items-stretch">
-        <div className="flex min-w-0 flex-1 flex-col gap-3 p-3">
+        <div className={cn('flex min-w-0 flex-1 flex-col', QC_BODY_CLASS)}>
           {/* Xung đột 409 / tầng khoá lưu: có "Tải lại", không thì mọi lượt áp sau hỏng im lặng (BUG-598). */}
           <FloorLayerSaveBanner saveBlock={model.saveBlock ?? null} />
           {model.provisionalScaleNotice !== undefined && (
@@ -236,7 +234,7 @@ export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
 
           <section
             aria-label={CANVAS_REGION_ARIA_LABEL}
-            className="min-h-0 flex-1"
+            className="min-h-0 flex-1 overflow-hidden rounded-2xl bg-bg-sunken"
             ref={canvasHostRef}
           >
             <ScaleCalibrationCanvas
@@ -271,6 +269,6 @@ export function ScaleCalibration({ actions, model }: ScaleCalibrationProps) {
           {model.allFloorsConfirm.message}
         </Modal>
       )}
-    </div>
+    </QcScreenFrame>
   );
 }

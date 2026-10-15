@@ -283,14 +283,14 @@ describe('giảm chuyển động', () => {
 });
 
 describe('mật độ hiển thị đổi chiều cao dòng', () => {
-  it('lớp hook truyền xuống thắng min-h-[36px] mà FieldRow khai sẵn', () => {
+  it('lớp hook truyền xuống thắng min-h-9 mà FieldRow khai sẵn', () => {
     render(<ProfileSection {...props({ rowClassName: DENSITY_ROW_CLASS.comfortable })} />);
-    expect(rowOf('Họ tên').className).toContain('min-h-[40px]');
+    expect(rowOf('Họ tên').className).toContain('min-h-10');
 
     cleanup();
 
     render(<ProfileSection {...props({ rowClassName: DENSITY_ROW_CLASS.compact })} />);
-    expect(rowOf('Họ tên').className).toContain('min-h-[36px]');
+    expect(rowOf('Họ tên').className).toContain('min-h-9');
   });
 });
 

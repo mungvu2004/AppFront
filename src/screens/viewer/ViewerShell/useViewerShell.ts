@@ -496,10 +496,20 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
     setCameraTick((tick) => tick + 1);
   }, []);
 
-  if (directorRef.current === null) {
-    const initial = viewpointForPreset('perspective', extent, PRESET_SETTINGS.defaultAspect);
+  /* Hộp của MÔ HÌNH (không tính độ tách): đổi thì dựng lại camera đúng khuôn.
+     Lượt render đầu còn đồ thị rỗng (đang nạp) nên hộp là UNIT_EXTENT; camera dựng
+     một lần từ hộp ấy thì giới hạn khoảng cách của chế độ orbit kẹp nó sát mô hình
+     thật — mở màn ở 511–723 % (BUG-582, E2-B1). Kéo độ tách không đổi khoá này. */
+  const modelExtent = extentOf(data, footprint, 0);
+  const modelKey = [...modelExtent.centre.toArray(), ...modelExtent.sizeM.toArray()].join(',');
+  const framedKeyRef = useRef<string | null>(null);
+
+  if (directorRef.current === null || framedKeyRef.current !== modelKey) {
+    framedKeyRef.current = modelKey;
+    const mode = MODE_BY_PRESET[activePresetId];
+    const initial = viewpointForPreset(activePresetId, extent, PRESET_SETTINGS.defaultAspect);
     directorRef.current = new CameraDirector(
-      createCameraMode('orbit', initial, { extent }),
+      createCameraMode(mode, initial, { extent }),
       { extent },
       { reducedMotion },
     );
@@ -906,11 +916,28 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
 
   const viewpoint = director.viewpoint();
 
+  /** Khuôn chuẩn chia khoảng cách đang đứng; xem {@link zoomLabel}. */
+  const zoomRatio = useMemo(() => {
+    const framed = createCameraMode(
+      MODE_BY_PRESET[activePresetId],
+      viewpointForPreset(activePresetId, extent, PRESET_SETTINGS.defaultAspect),
+      { extent },
+    ).viewpoint();
+
+    return viewpoint.distanceM <= 0 ? 1 : framed.distanceM / viewpoint.distanceM;
+  }, [activePresetId, extent, viewpoint.distanceM]);
+
+  const panX = viewpoint.target.x - extent.centre.x;
+  const panY = viewpoint.target.y - extent.centre.y;
+  const panZ = viewpoint.target.z - extent.centre.z;
+
   const frame = useMemo(
     () => ({
       azimuthRad: viewpoint.azimuthRad,
       polarRad: viewpoint.polarRad,
       distanceM: viewpoint.distanceM,
+      zoom: zoomRatio,
+      panOffsetM: [panX, panY, panZ] as const,
       isOrthographic,
       visibleStoreyIds,
       separation,
@@ -928,6 +955,10 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
       viewpoint.azimuthRad,
       viewpoint.polarRad,
       viewpoint.distanceM,
+      zoomRatio,
+      panX,
+      panY,
+      panZ,
       isOrthographic,
       visibleStoreyIds,
       separation,
@@ -1008,16 +1039,12 @@ export function useViewerShell(options: UseViewerShellOptions): ViewerShellProps
    * đứng đúng chỗ khuôn thì là mức chuẩn, lại gần thì lớn hơn.
    * `formatPercent` của `src/lib/format/number` lo phần chữ, nên view không có
    * phép chia hay `toFixed` nào — thứ `local/no-raw-number` cấm.
+   *
+   * Khuôn chuẩn đi qua chính chế độ camera (giới hạn khoảng cách của nó), vì
+   * camera đóng khung cũng bị kẹp như thế: không kẹp thì màn vừa mở đã ghi
+   * "112,6%" thay vì 100% (25-C-044).
    */
-  const zoomLabel = useMemo(() => {
-    const framed = viewpointForPreset(activePresetId, extent, PRESET_SETTINGS.defaultAspect);
-
-    if (viewpoint.distanceM <= 0) {
-      return formatPercent(1);
-    }
-
-    return formatPercent(framed.distanceM / viewpoint.distanceM);
-  }, [activePresetId, extent, viewpoint.distanceM]);
+  const zoomLabel = useMemo(() => formatPercent(zoomRatio), [zoomRatio]);
 
   const hoverLabel = useMemo(() => {
     if (hoveredId === null || spatial === null) {

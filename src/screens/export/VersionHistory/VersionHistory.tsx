@@ -18,7 +18,7 @@
  *    hay riêng `CompareModel`. Chọn `CompareModel` vì tên gọi khớp phạm vi của component.
  */
 import { AlertTriangle, History, Lock } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InlineAlert } from '@/components/feedback/InlineAlert';
@@ -37,10 +37,30 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
   const reviewedVersionId = model.compare.rightVersionId ?? model.compare.leftVersionId;
   const reviewedRow = model.rows.find((row) => row.id === reviewedVersionId) ?? null;
   const [isLabelOpen, setIsLabelOpen] = useState(false);
+  const footerRef = useRef<HTMLDivElement>(null);
+  const awaitingRestoreFocus = useRef(false);
+
+  // E-014: sau khi xác nhận phục hồi, nút "Phục hồi phiên bản này" rời DOM kéo theo tiêu điểm về `body`;
+  // đưa tiêu điểm sang một điều khiển của thanh chân màn (hoặc chính thanh) khi hộp xác nhận đã đóng.
+  useEffect(() => {
+    const footer = footerRef.current;
+    const lost = document.activeElement === null || document.activeElement === document.body;
+
+    if (awaitingRestoreFocus.current && !model.restoreConfirm.isOpen && lost && footer !== null) {
+      awaitingRestoreFocus.current = false;
+      (footer.querySelector<HTMLElement>('button') ?? footer).focus();
+    }
+  });
 
   // Tiêu đề trang (h1) ở mọi trạng thái, như các màn có h1 sẵn (BUG-454).
   // Ô "Tầng" đứng trên mọi nhánh trả sớm (trừ `forbidden`): đổi tầng được cả khi tầng này rỗng/lỗi.
   // Rộng tới 672 (không phải 320): tên tầng dài 65 ký tự không bị cắt ở khổ rộng (BUG-455).
+  const loadMore = model.canLoadMoreVersions && (
+    <Button variant="ghost" onClick={actions.loadMoreVersions}>
+      Xem thêm phiên bản
+    </Button>
+  );
+
   const withHeader = (content: ReactNode) => (
     <div className="flex h-full flex-col gap-3">
       <h1 className="px-4 pt-4 text-[20px] font-semibold text-text-primary">Lịch sử phiên bản</h1>
@@ -120,7 +140,9 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
         {model.isNarrow ? (
           <Select
             label="Phiên bản"
-            options={model.rows.map((row) => ({ label: `${row.label} — ${row.description}`, value: row.id }))}
+            options={model.rows
+              .filter((row) => !row.isMetadataOnly)
+              .map((row) => ({ label: `${row.label} — ${row.description}`, value: row.id }))}
             {...(reviewedVersionId !== null ? { value: reviewedVersionId } : {})}
             onChange={actions.selectRightVersion}
           />
@@ -131,22 +153,19 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
               onToggleCompareSelection={actions.toggleCompareSelection}
               onRetrySnapshot={actions.retrySnapshot}
             />
-            {model.canLoadMoreVersions && (
-              <Button variant="ghost" onClick={actions.loadMoreVersions}>
-                Xem thêm phiên bản
-              </Button>
-            )}
+            {loadMore}
           </div>
         )}
+        {model.isNarrow && loadMore}
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <VersionCompare model={model.compare} actions={actions} />
         </div>
       </div>
 
-      {/* Dính đáy: diff dài thì trang cuộn, thanh phục hồi vẫn trong khung. Dưới `lg` ghi chú nằm trên
-          nút (xếp chồng), nhóm nút xuống dòng thay vì đẩy trang cuộn ngang (BUG-437). */}
-      <div className="sticky bottom-0 flex flex-col gap-3 border-t border-border-default bg-bg-app pt-3 lg:flex-row lg:items-center">
+      {/* Chân màn cố định dưới khung chiều cao (vùng so sánh tự cuộn, F1); thanh phục hồi luôn trong khung.
+          Dưới `lg` ghi chú nằm trên nút (xếp chồng), nhóm nút xuống dòng thay vì đẩy trang cuộn ngang (BUG-437). */}
+      <div ref={footerRef} tabIndex={-1} data-sticky-footer="" className="sticky bottom-0 flex flex-col gap-3 border-t border-border-default bg-bg-app pt-3 lg:flex-row lg:items-center">
         <div className="flex flex-1 flex-col gap-1">
           <p className="text-[13px] text-text-secondary">{model.restoreCaption}</p>
           {model.canRestore && reviewedVersionId === null && (
@@ -176,7 +195,7 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
               Gắn nhãn phiên bản này
             </Button>
           )}
-          {model.canRestore && reviewedRow?.isCurrent !== true && (
+          {model.canRestore && reviewedRow?.isCurrent !== true && reviewedRow?.isMetadataOnly !== true && (
             <Button
               variant="secondary"
               disabled={reviewedVersionId === null}
@@ -204,7 +223,13 @@ export function VersionHistory({ model, actions }: VersionHistoryProps) {
           <Button variant="ghost" onClick={actions.cancelRestore}>
             {model.restoreConfirm.cancelLabel}
           </Button>
-          <Button variant="primary" onClick={actions.confirmRestore}>
+          <Button
+            variant="primary"
+            onClick={() => {
+              awaitingRestoreFocus.current = true;
+              actions.confirmRestore();
+            }}
+          >
             {model.restoreConfirm.confirmLabel}
           </Button>
         </Modal.Footer>

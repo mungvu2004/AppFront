@@ -61,10 +61,11 @@ import { cn } from '@/lib/utils';
 import { FloorLayerSaveBanner } from '../WallLayerReview/FloorLayerSaveBanner';
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
 import { ProvisionalScaleBanner } from '../shared/ProvisionalScaleBanner';
+import { QcScreenFrame } from '../shared/QcScreenFrame';
 
 import { RoomLabelCanvas } from './RoomLabelCanvas';
 import { RoomLabelInspector } from './RoomLabelInspector';
-import { RoomLabelLeftPanel } from './RoomLabelLeftPanel';
+import { RoomLabelGapsSection, RoomLabelLeftPanel } from './RoomLabelLeftPanel';
 import { RoomLabelNormalizePreview } from './RoomLabelNormalizePreview';
 import type { RoomLabelReviewProps } from './roomLabelTypes';
 
@@ -98,14 +99,14 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
 
 /** Nút chữ của màn: cùng khuôn nút bung bảng của `AxisGridManager` (A1, A2). */
 const LINK_CLASS_NAME = cn(
-  'self-center rounded-[6px] px-1.5 py-0.5 text-[13px] text-accent',
+  'self-center rounded-md px-1.5 py-0.5 text-[13px] text-accent',
   'transition-colors duration-120 hover:bg-accent-wash',
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
 );
 
 /** Khung chung của cột trái, để bốn nhánh thay thế không mỗi chỗ một bề rộng. */
 const LEFT_COLUMN_CLASS_NAME =
-  'flex h-full w-[280px] shrink-0 flex-col gap-3 overflow-y-auto rounded-[12px] bg-bg-surface p-4 shadow-panel max-lg:h-auto max-lg:w-full';
+  'flex h-full w-[280px] shrink-0 flex-col gap-3 overflow-y-auto rounded-xl bg-bg-surface p-4 shadow-panel max-lg:h-auto max-lg:w-full';
 
 /* -------------------------------------------------------------------------- */
 /* Cột trái — bốn nhánh loại trừ nhau, nhánh cuối là panel phòng thật.         */
@@ -152,11 +153,20 @@ function RoomLabelLeftColumn(props: RoomLabelReviewViewProps) {
   if (emptyNotice !== null && !showOnlyUnnamed) {
     return (
       <div className={LEFT_COLUMN_CLASS_NAME}>
+        {viewerRoleNotice === null ? null : (
+          <InlineAlert level="attention" message={viewerRoleNotice} title={FORBIDDEN_TITLE} />
+        )}
         <EmptyState
           action={{ label: EMPTY_ACTION_LABEL, onClick: onCheckWallGaps }}
           description={emptyNotice}
           icon={<LayoutGrid />}
           title={EMPTY_TITLE}
+        />
+        {/* 20-D-007: rỗng vì vòng hở thì phải còn lối "Xem tại lớp tường". */}
+        <RoomLabelGapsSection
+          gaps={gaps}
+          onNavigateToWalls={onNavigateToWalls}
+          unclosedRoomCount={summary.unclosedRoomCount}
         />
       </div>
     );
@@ -251,26 +261,20 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
 
   if (props.readFailure != null) {
     return (
-      <div aria-label={SCREEN_TITLE} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+      <QcScreenFrame label={SCREEN_TITLE}>
         <FloorLayerReadFailureScreen failure={props.readFailure} />
-      </div>
+      </QcScreenFrame>
     );
   }
 
   return (
-    <div
-      aria-label={SCREEN_TITLE}
-      // Cao bằng khung nhìn như SCR-16/17 (BUG-324/329): route nằm trong `ScreenMain` (display: contents)
-      // nên `h-full` không có chiều cao, và thanh tra kéo trang dài theo nội dung thay vì tự cuộn.
-      className="flex h-screen min-h-0 w-full flex-col bg-bg-app"
-      role="region"
-    >
+    <QcScreenFrame label={SCREEN_TITLE}>
       <header className="shrink-0 px-4 pb-1 pt-3">
         <p className="text-[12px] text-text-muted">{SCREEN_BREADCRUMB}</p>
         <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
         <p className="text-[13px] text-text-secondary">{SCREEN_DESCRIPTION}</p>
         {props.saveStatus != null && (
-          <p className="text-[12px] text-text-muted" data-testid="room-save-status">
+          <p className="text-[12px] text-text-muted" data-testid="room-save-status" role="status">
             {props.saveStatus}
           </p>
         )}
@@ -300,7 +304,7 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
 
         <section
           aria-label={CANVAS_SECTION_LABEL}
-          className="min-h-0 min-w-0 flex-1 overflow-hidden rounded-[16px] bg-bg-sunken max-lg:h-[360px] max-lg:flex-none"
+          className="min-h-0 min-w-0 flex-1 overflow-hidden rounded-2xl bg-bg-sunken max-lg:h-[360px] max-lg:flex-none"
         >
           <RoomLabelCanvas
             backgroundImageAlt={backgroundImageAlt}
@@ -358,6 +362,6 @@ export function RoomLabelReview(props: RoomLabelReviewViewProps) {
         onCancel={onCancelNormalize}
         preview={normalizePreview}
       />
-    </div>
+    </QcScreenFrame>
   );
 }

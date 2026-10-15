@@ -190,7 +190,7 @@ export function CadLayerMappingPanel({ actions, model }: CadLayerMappingPanelPro
         {PHASE_2_PANEL_TITLE}
       </h2>
 
-      <Table.Root className="rounded-[12px] border border-border-default">
+      <Table.Root className="rounded-xl border border-border-default">
         <Table.Header>
           <tr>
             <Table.Head>{LAYER_NAME_COLUMN}</Table.Head>

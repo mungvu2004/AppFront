@@ -144,8 +144,8 @@ export const DENSITY_ROW_HEIGHT_PX: Readonly<Record<DensityChoice, number>> = {
  * nhau; `AppearanceSection.test.tsx` soát đúng điều đó nên chúng không lệch được.
  */
 export const DENSITY_ROW_CLASS: Readonly<Record<DensityChoice, string>> = {
-  comfortable: 'min-h-[40px]',
-  compact: 'min-h-[36px]',
+  comfortable: 'min-h-10',
+  compact: 'min-h-9',
 };
 
 /**

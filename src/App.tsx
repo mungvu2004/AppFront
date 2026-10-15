@@ -65,7 +65,7 @@ export function App() {
     // import về `@/components/motion` chỉ dựng cái cửa để chỗ này với tới.
     <MotionProvider>
       <div className="flex h-screen w-screen overflow-hidden bg-bg-app text-text-primary font-sans">
-        <div className="w-[240px] border-r border-border-default bg-bg-surface flex flex-col shrink-0">
+        <div className="w-60 border-r border-border-default bg-bg-surface flex flex-col shrink-0">
           <div className="p-4 border-b border-border-default">
             <h1 className="text-[14px] font-semibold">Demo App</h1>
           </div>
@@ -73,7 +73,7 @@ export function App() {
             {Object.entries(screens).map(([id, screen]) => (
               <button
                 key={id}
-                className={`w-full text-left px-2 py-1.5 rounded-[6px] text-[14px] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface ${
+                className={`w-full text-left px-2 py-1.5 rounded-md text-[14px] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface ${
                   activeScreen === id ? 'bg-bg-selected font-medium text-text-primary' : 'text-text-secondary hover:bg-bg-hover'
                 }`}
                 onClick={() => setActiveScreen(id as ScreenId)}

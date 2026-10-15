@@ -46,7 +46,6 @@ import {
 /* Chuỗi tĩnh của màn.                                                         */
 /* -------------------------------------------------------------------------- */
 
-export const REGION_LABEL = 'Lịch sử chỉnh sửa';
 export const SHEET_REGION_LABEL = 'Tấm trượt lịch sử chỉnh sửa';
 export const TIMELINE_LABEL = 'Dòng thời gian các bước đã làm';
 export const CATEGORY_CHIPS_LABEL = 'Lọc theo loại việc';
@@ -86,10 +85,12 @@ const SKELETON_ROW_COUNT = 6;
  *
  * Bốn lớp bắt buộc chung của mọi panel 344 trong repo — `w-[344px]`, cột flex
  * cao hết khung, `overflow-hidden rounded-xl`, `bg-bg-surface` — chép đúng
- * `RoomAreaPanel.chrome.tsx:116-117` và `PropertyInspector.tsx:84-86`.
+ * `RoomAreaPanel.chrome.tsx:116-117` và `PropertyInspector.tsx:84-86`. Dưới `lg`
+ * panel rộng hết chỗ chứa nó — màn chủ (`PascalViewer`) đặt nó trong tấm trượt
+ * rộng hết màn, và 344 px cố định trong đó để hở một dải trống bên phải.
  */
 export const PANEL_CLASS =
-  'flex h-full min-h-0 w-[344px] flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel';
+  'flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl bg-bg-surface shadow-panel lg:w-[344px]';
 
 /**
  * Tấm trượt đáy dưới 1024px.
@@ -100,7 +101,7 @@ export const PANEL_CLASS =
  */
 export const SHEET_CLASS =
   'fixed inset-x-0 bottom-0 z-10 flex max-h-[70vh] w-full flex-col overflow-hidden ' +
-  'rounded-t-[16px] border-t border-border-default bg-bg-surface shadow-overlay ' +
+  'rounded-t-2xl border-t border-border-default bg-bg-surface shadow-overlay ' +
   'lg:static lg:z-auto lg:h-full lg:min-h-0 lg:w-[344px] lg:max-h-none lg:flex-shrink-0 ' +
   'lg:rounded-xl lg:border-0 lg:shadow-panel';
 
@@ -146,7 +147,7 @@ export function HistoryCategoryChips({
             aria-pressed={isActive}
             className={cn(
               // 44 px dưới 640 (chạm ngón tay), 32 px từ 640 — trên trần 24 px của WCAG 2.5.8 (BUG-477).
-              'h-11 rounded-[6px] px-2 text-[13px] leading-none sm:h-8',
+              'h-11 rounded-md px-2 text-[13px] leading-none sm:h-8',
               'transition-colors duration-fast motion-reduce:transition-none',
               isActive
                 ? 'bg-bg-selected text-accent-active'
@@ -247,12 +248,12 @@ export const SPINE_CLASS = 'pointer-events-none absolute bottom-0 left-[11px] to
 /**
  * Chấm 8px trên song lưng.
  *
- * `left-[8px]` đặt tâm chấm trùng song lưng ở `left-[11px]`: 8 + 8/2 = 12, lệch
- * nửa pixel của chính nét vẽ. `top-[14px]` đưa chấm vào giữa dòng đầu của một
+ * `left-2` đặt tâm chấm trùng song lưng ở `left-[11px]`: 8 + 8/2 = 12, lệch
+ * nửa pixel của chính nét vẽ. `top-3.5` đưa chấm vào giữa dòng đầu của một
  * mục cao 36.
  */
 export const DOT_BASE_CLASS =
-  'pointer-events-none absolute left-[8px] top-[14px] h-2 w-2 rounded-full';
+  'pointer-events-none absolute left-2 top-3.5 h-2 w-2 rounded-full';
 
 /**
  * Khung xương lúc chờ: đúng hình dạng DÒNG THỜI GIAN sẽ hiện ra.
@@ -271,7 +272,7 @@ export function HistoryPanelSkeleton() {
       data-testid={HISTORY_PANEL_TEST_IDS.skeleton}
     >
       <div className="px-4 pb-3 pt-4">
-        <div className="h-11 w-40 animate-pulse rounded-[6px] bg-border-default motion-reduce:animate-none sm:h-8" />
+        <div className="h-11 w-40 animate-pulse rounded-md bg-border-default motion-reduce:animate-none sm:h-8" />
         <div className="mt-2 h-9 w-full animate-pulse rounded-lg bg-border-default motion-reduce:animate-none" />
       </div>
       <div className="relative flex flex-col gap-1 pl-6 pr-2">

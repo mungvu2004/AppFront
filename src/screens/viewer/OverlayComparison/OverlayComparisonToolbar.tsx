@@ -134,7 +134,7 @@ function CompareModeCluster({
         value={compareMode}
       />
       {disabledModes.map((mode) => (
-        <p className="max-w-[220px] text-[12px] leading-[16px] text-text-muted" key={mode}>
+        <p className="max-w-[220px] text-[12px] leading-4 text-text-muted" key={mode}>
           {COMPARE_MODE_LABELS[mode]} — {disabledCompareModes[mode]}
         </p>
       ))}
@@ -154,7 +154,7 @@ function ScanOpacityCluster({
   onSetScanOpacity,
 }: ScanOpacityClusterProps) {
   return (
-    <div className="flex w-[176px] shrink-0 items-center gap-2">
+    <div className="flex w-44 shrink-0 items-center gap-2">
       <Slider
         aria-label={SCAN_OPACITY_ARIA_LABEL}
         max={100}

@@ -52,9 +52,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { denormalizeSpatial } from '@/domain/spatial/normalize';
 import type { Level } from '@/domain/spatial/types';
+import { ENDPOINTS } from '@/api/endpoints';
 import { describeError, toAppError } from '@/lib/errors';
 import { DEFAULT_EXPORT_OPTIONS, EXPORT_CANCELLED_MESSAGE } from '@/lib/export/exportGlb';
 import { SHARE_LINKS_SUPPORTED } from '@/lib/export/shareLink';
+import { createUuid } from '@/lib/http/ids';
+import { createBeaconTransport, createTelemetrySender } from '@/lib/telemetry/sender';
 import { formatFileSize } from '@/lib/format/bytes';
 import { formatTimestamp } from '@/lib/format/datetime';
 import { formatNumber, MISSING_VALUE } from '@/lib/format/number';
@@ -191,6 +194,9 @@ const EMPTY_SNAPSHOT: ExportRunSnapshot = Object.freeze({
   files: Object.freeze([]),
 });
 
+/** Khoang chan nhap lai sau khi mot luot xuat ket thuc (ms). */
+const EXPORT_RELOCK_MS = 250;
+
 const EMPTY_FLOORS: readonly Level[] = Object.freeze([]);
 
 /* -------------------------------------------------------------------------- */
@@ -251,7 +257,14 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
 
   const injectedGateway = options.gateway;
   const gateway = useMemo<ExportPanelGateway>(
-    () => injectedGateway ?? createExportPanelGateway(),
+    () =>
+      injectedGateway ??
+      createExportPanelGateway({
+        telemetry: createTelemetrySender({
+          transport: createBeaconTransport({ url: ENDPOINTS.telemetry }),
+          sessionId: createUuid(),
+        }),
+      }),
     [injectedGateway],
   );
   const capabilities = useMemo<ExportPanelCapabilities>(
@@ -389,6 +402,10 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
   /* ---------------------------------------------------------------------- */
 
   const startedAtRef = useRef<number>(0);
+  // Khoa dong bo chong nhap doi (30-C-029): dat ngay khi bam, khong cho state React;
+  // mo lai sau khi luot xuat ket thuc cong mot khoang ngan, vi .json xong tuc thi
+  // nen lan nhap thu hai co the den sau khi luot dau da xong.
+  const exportLockRef = useRef(false);
 
   const exportMutation = useMutation<ExportedFile, Error, ExportFormatId>({
     mutationFn: async (formatId) => {
@@ -436,6 +453,12 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
       return Promise.reject(new Error(`Không xuất được định dạng ${formatId}.`));
     },
 
+    onSettled: () => {
+      setTimeout(() => {
+        exportLockRef.current = false;
+      }, EXPORT_RELOCK_MS);
+    },
+
     onSuccess: (file, formatId) => {
       // Lời màn đã hứa (`DESTINATION_CAPTION`): xuất xong là tệp về thư mục tải xuống.
       // Nút ở hàng là "tải lại" — lượt tải đầu là việc của đây (B-V12-05).
@@ -462,6 +485,22 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
 
   const exportError = exportMutation.error;
 
+  // "Góc nhìn hiện tại:" theo tầng đang mở, tên người đọc được (30-C-026); đọc mỗi lượt
+  // vì store nạp sau lần dựng đầu.
+  // Chua co tang dang chon (mo /export truc tiep) thi roi ve tang dau theo `order`.
+  const activeFloorName =
+    (
+      floors.find((level) => level.id === activeFloorId) ??
+      floors.reduce<(typeof floors)[number] | undefined>(
+        (first, level) => (first === undefined || level.order < first.order ? level : first),
+        undefined,
+      )
+    )?.name ?? MISSING_VALUE;
+  const optionsViewLive = useMemo<ExportOptionsView>(
+    () => ({ ...optionsView, image: { ...optionsView.image, viewId: activeFloorName } }),
+    [optionsView, activeFloorName],
+  );
+
   /**
    * Lỗi thật của màn.
    *
@@ -478,7 +517,9 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     const appError = toAppError(exportError);
 
     return {
-      message: describeError(appError).description || ERROR_FALLBACK,
+      // Lỗi worker được xếp vào `processing` (câu của pipeline AI, `{{step}}` bị nuốt):
+      // với màn Xuất, câu đúng là câu về việc xuất.
+      message: (appError.kind === 'processing' ? '' : describeError(appError).description) || ERROR_FALLBACK,
       code: appError.code.toLowerCase(),
       hint: ERROR_HINT,
     };
@@ -665,7 +706,7 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     // còn Spatial JSON lấy cả đồ thị nên nó không phụ thuộc lựa chọn tầng.
     // View không dựng hành động xuất trong cả ba cảnh; đây là lớp chặn thứ
     // hai, không phải nơi báo lỗi.
-    if (!canExport || !canExportSelected) {
+    if (exportLockRef.current || !canExport || !canExportSelected || exportMutation.isPending || spatialLoading) {
       return;
     }
 
@@ -673,8 +714,9 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
       return;
     }
 
+    exportLockRef.current = true;
     exportMutation.mutate(selectedFormatId);
-  }, [canExport, canExportSelected, exportMutation, selectedFormatId, selectedLevels.length]);
+  }, [canExport, canExportSelected, exportMutation, selectedFormatId, selectedLevels.length, spatialLoading]);
 
   const onCancel = useCallback((): void => {
     gateway.cancel(projectId);
@@ -723,7 +765,7 @@ export function useExportPanel(options: UseExportPanelOptions): ExportPanelProps
     capabilities,
     formats,
     floors: floorChoices,
-    options: optionsView,
+    options: optionsViewLive,
     preflight,
     exportedFiles,
     progress,

@@ -77,7 +77,7 @@ const FORBIDDEN_NOTICE_TITLE = 'Không có quyền sửa tầng';
 const UNSUPPORTED_NOTICES_TITLE = 'Một số thay đổi chưa được lưu';
 
 const EXPAND_BUTTON_CLASS_NAME = cn(
-  'inline-flex min-h-11 items-center self-start rounded-[6px] px-1.5 text-[13px] text-accent sm:min-h-6',
+  'inline-flex min-h-11 items-center self-start rounded-md px-1.5 text-[13px] text-accent sm:min-h-6',
   'transition-colors duration-120 hover:bg-accent-wash',
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
 );

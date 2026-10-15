@@ -30,7 +30,7 @@
  */
 
 import { createElement, type ReactNode } from 'react';
-import { QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -166,10 +166,10 @@ interface Mounted {
   readonly unmount: () => void;
 }
 
-type MountOptions = Partial<UseThicknessStandardizationOptions>;
+type MountOptions = Partial<UseThicknessStandardizationOptions> & { readonly queryClient?: QueryClient };
 
 function mountHook(options: MountOptions = {}): Mounted {
-  const queryClient = createTestQueryClient();
+  const queryClient = options.queryClient ?? createTestQueryClient();
   const history = options.history ?? createHistoryStack();
   const wrapper = ({ children }: { children: ReactNode }): ReactNode =>
     createElement(QueryClientProvider, { client: queryClient }, children);
@@ -326,6 +326,21 @@ describe('phép ghép thuần của màn Chuẩn hoá độ dày tường', () =
     expect(deriveThicknessScreenState({ ...viewer, isLoading: true })).toBe('loading');
     expect(deriveThicknessScreenState({ ...viewer, segmentCount: 0 })).toBe('empty');
     expect(deriveThicknessScreenState({ ...viewer, isCollapsed: true })).toBe('collapsed');
+  });
+
+  it('[21-B-009] thu gọn lúc đang tải vẫn là khung xương, không thành "chưa có đoạn tường"', () => {
+    const base = {
+      isViewerRole: false,
+      isCollapsed: true,
+      hasError: false,
+      isLoading: true,
+      segmentCount: 0,
+      applicableCount: 0,
+      hasApplied: false,
+    } as const;
+
+    expect(deriveThicknessScreenState(base)).toBe('loading');
+    expect(deriveThicknessScreenState({ ...base, isLoading: false, segmentCount: FIXTURE_SEGMENT_COUNT })).toBe('collapsed');
   });
 
   it('bảng chi tiết mặc định đưa trường hợp tệ nhất lên đầu', async () => {
@@ -661,6 +676,67 @@ describe('áp chuẩn hoá', () => {
     expect(notifications.list().some((entry) => entry.undoTicket !== undefined)).toBe(true);
   });
 
+  it('[21-C-010] BUG-579: hai lượt áp cách nhau quá cửa sổ gộp → toast CŨ bị từ chối, không ghi; trong cửa sổ gộp chỉ còn MỘT toast', async () => {
+    let nowMs = 1_000_000;
+    const notifications = createNotificationBus({ now: () => nowMs });
+    const mounted = await mountSettled({ notifications, gateway: createMockThicknessStandardizationGateway({ now: () => nowMs }) });
+    const first = wallsOfMeasurement(195)[0] as Wall;
+    const second = wallsOfMeasurement(100)[0] as Wall;
+    const assign = async (wall: Wall): Promise<void> => {
+      await act(async () => {
+        mounted.result.current.onChangeNormalizedGroup(wall.id, 330);
+        await Promise.resolve();
+      });
+    };
+
+    await assign(first);
+    await waitFor(() => expect(mounted.history.undoSteps()).toHaveLength(1));
+    /* Trong cửa sổ gộp 5 s: hai lượt áp = MỘT toast (không có toast "cũ" riêng để bấm). */
+    nowMs += 1_000;
+    await assign(second);
+    await waitFor(() => expect(mounted.history.undoSteps()).toHaveLength(2));
+    expect(notifications.list().filter((entry) => entry.undoTicket !== undefined)).toHaveLength(1);
+
+    /* Lượt thứ ba sau cửa sổ gộp (vé còn trong 8 s): toast riêng; bấm toast của lượt đầu → từ chối. */
+    nowMs += 5_000;
+    await assign(wallsOfMeasurement(315)[0] as Wall);
+    await waitFor(() => expect(mounted.history.undoSteps()).toHaveLength(3));
+    const list = notifications.list().filter((entry) => entry.undoTicket !== undefined);
+    expect(list).toHaveLength(2);
+
+    act(() => {
+      list[0]?.undoTicket?.undo();
+    });
+
+    expect(mounted.history.undoSteps()).toHaveLength(3);
+    expect(thicknessInStore(first.id)).toBe(330);
+    expect(notifications.list().some((entry) => /^Chưa hoàn tác: đã có \d+ thay đổi sau thay đổi này\. Dùng Ctrl\+Z để hoàn tác lần lượt\.$/u.test(entry.title))).toBe(true);
+  });
+
+  it('[21-B-007] quay lại màn sau staleTime, lượt đọc lại hỏng → báo lỗi lên, các hàng cũ giữ nguyên', async () => {
+    const queryClient = createTestQueryClient();
+    const first = await mountSettled({ queryClient });
+    const rowCount = first.result.current.segmentRows.length;
+
+    expect(rowCount).toBeGreaterThan(0);
+    expect(first.result.current.errorMessage).toBeNull();
+    first.unmount();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(Date.now() + 31_000);
+      const base = createMockThicknessStandardizationGateway();
+      const readLayer = vi.fn(() => Promise.reject(new Error('boom')));
+      const again = mountHook({ queryClient, gateway: { ...base, readLayer } });
+
+      await waitFor(() => expect(again.result.current.errorMessage).not.toBeNull());
+      expect(readLayer).toHaveBeenCalledTimes(1);
+      expect(again.result.current.state).toBe('error');
+      expect(again.result.current.segmentRows).toHaveLength(rowCount);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('[BUG-582] Mod+Z hoàn tác bằng ngăn xếp của chính màn, như nút "Hoàn tác"', async () => {
     const shortcutRegistry = createShortcutRegistry();
     const mounted = await mountSettled({ shortcutRegistry });
@@ -790,10 +866,37 @@ describe('áp dụng lại bộ lọc', () => {
       expect(thicknessInStore(wall.id)).toBe(standardizeThickness(wall.thicknessMm).standardized);
     }
   });
+
+  it('[21-E-007] Esc đóng bảng xem trước rồi cảnh báo, kể cả khi tiêu điểm đang ở ô tích (INPUT)', async () => {
+    const shortcutRegistry = createShortcutRegistry();
+    const mounted = await mountSettled({ shortcutRegistry });
+    const checkbox = { tagName: 'INPUT', isContentEditable: false } as unknown as Parameters<
+      typeof shortcutRegistry.handleKeyDown
+    >[1];
+
+    acceptAndPreview(mounted, [195]);
+    expect(mounted.result.current.preview).not.toBeNull();
+
+    act(() => {
+      mounted.result.current.onReapplyFilter(false);
+    });
+    expect(mounted.result.current.reapplyWarning).not.toBeNull();
+
+    act(() => {
+      shortcutRegistry.handleKeyDown({ key: 'Escape' }, checkbox);
+    });
+    expect(mounted.result.current.preview).toBeNull();
+    expect(mounted.result.current.reapplyWarning).not.toBeNull();
+
+    act(() => {
+      shortcutRegistry.handleKeyDown({ key: 'Escape' }, checkbox);
+    });
+    expect(mounted.result.current.reapplyWarning).toBeNull();
+  });
 });
 
 /* -------------------------------------------------------------------------- */
-/* 6. Bảy trạng thái (A11/R-63).                                               */
+/* 6. Bảy trạng thái (A11/R-63).                                             */
 /* -------------------------------------------------------------------------- */
 
 describe('Bảy trạng thái', () => {

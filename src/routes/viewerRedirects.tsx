@@ -23,14 +23,21 @@ export function PascalViewerRedirect() {
   );
 }
 
-/** `/3d/exploded` cũ → `/3d?view=exploded`: tách tầng nay là chế độ của Pascal (F-15 W2-C2). */
+/**
+ * `/3d/exploded` cũ → `/3d?view=exploded`: tách tầng nay là chế độ của Pascal (F-15 W2-C2).
+ * Query và hash cũ đi theo như ở `/3d/pascal` (24-A-003), `view` ghi đè.
+ */
 export function ExplodedViewRedirect() {
   const { projectId } = useParams<{ projectId: string }>();
+  const { search, hash } = useLocation();
+  const query = new URLSearchParams(search);
+
+  query.set('view', 'exploded');
 
   return (
     <Navigate
       replace
-      to={`${ROUTE_PATTERNS.projectViewer.replace(':projectId', projectId ?? '')}?view=exploded`}
+      to={`${ROUTE_PATTERNS.projectViewer.replace(':projectId', projectId ?? '')}?${query.toString()}${hash}`}
     />
   );
 }

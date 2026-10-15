@@ -86,7 +86,7 @@ function FloorAlignRow({ floor, onHover }: FloorAlignRowProps) {
     <div
       aria-label={floorRowAriaLabel(floor)}
       className={cn(
-        'flex h-10 items-center gap-2 rounded-[8px] px-2 text-[13px] transition-colors duration-120',
+        'flex h-10 items-center gap-2 rounded-lg px-2 text-[13px] transition-colors duration-120',
         floor.isHovered && 'bg-bg-hover',
       )}
       onMouseEnter={() => onHover(floor.levelId)}
@@ -101,7 +101,7 @@ function FloorAlignRow({ floor, onHover }: FloorAlignRowProps) {
         </Badge>
       ) : (
         /* Trạng thái bằng chữ, không chỉ một chấm màu (BUG-638, khuôn BUG-610). */
-        <Badge className="shrink-0" variant={STATUS_BADGE_VARIANT[floor.status]}>
+        <Badge className="shrink-0" dotTitle={STATUS_LABEL[floor.status]} variant={STATUS_BADGE_VARIANT[floor.status]}>
           {STATUS_LABEL[floor.status]}
         </Badge>
       )}
@@ -129,7 +129,7 @@ export function AxisGridFloorAlignList({
     floors.every((floor) => floor.status === 'ok');
 
   return (
-    <div className="flex w-[344px] shrink-0 flex-col gap-3 rounded-[12px] bg-bg-surface p-5 shadow-panel max-lg:w-full">
+    <div className="flex w-[344px] shrink-0 flex-col gap-3 rounded-xl bg-bg-surface p-5 shadow-panel max-lg:w-full">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-[16px] font-semibold text-text-primary">{PANEL_TITLE}</h3>
         {isFullyAligned && <Badge variant="neutral">{APPROVED_BADGE_LABEL}</Badge>}

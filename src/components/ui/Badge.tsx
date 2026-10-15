@@ -13,6 +13,8 @@ interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   children: React.ReactNode;
   /** Suppress the leading dot indicator */
   noDot?: boolean;
+  /** Tooltip text of the leading dot (the dot itself is aria-hidden) */
+  dotTitle?: string;
 }
 
 const variantStyles: Record<BadgeVariant, string> = {
@@ -29,11 +31,11 @@ const dotStyles: Record<BadgeVariant, string> = {
   neutral:   'bg-text-muted',
 };
 
-export function Badge({ variant, children, noDot = false, className, ...props }: BadgeProps) {
+export function Badge({ variant, children, noDot = false, dotTitle, className, ...props }: BadgeProps) {
   return (
     <span
       className={twMerge(
-        'inline-flex items-center h-[22px] px-2 rounded-[6px] text-[13px] font-medium leading-none gap-1.5',
+        'inline-flex items-center shrink-0 whitespace-nowrap h-[22px] px-2 rounded-md text-[13px] font-medium leading-none gap-1.5',
         variantStyles[variant],
         className
       )}
@@ -43,6 +45,7 @@ export function Badge({ variant, children, noDot = false, className, ...props }:
         <span
           className={clsx('w-1.5 h-1.5 rounded-full shrink-0', dotStyles[variant])}
           aria-hidden="true"
+          title={dotTitle}
         />
       )}
       {children}

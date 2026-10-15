@@ -1020,6 +1020,22 @@ const ruleCodesOf = (groups: readonly { readonly ruleCode: RuleCode }[]): RuleCo
   groups.map((group) => group.ruleCode);
 
 describe('F-10 — useRuleReport đọc cấu hình N21', () => {
+  it('28-B-005: 0 luật critical nhưng còn cảnh báo → không phải `done`, nhóm cảnh báo vẫn liệt kê', async () => {
+    const sample = runRules(normalizeSpatial(createSampleBuilding()), { registry: createDefaultRuleRegistry() });
+    const criticalCodes = [...new Set(sample.violations.filter((v) => v.severity === 'critical').map((v) => v.ruleCode))];
+    const overrides = Object.fromEntries(criticalCodes.map((code) => [code, { enabled: false }]));
+    const { result } = setupReport({ read: async () => configRead(1, overrides) });
+
+    await waitFor(() => {
+      expect(result.current.summary.evaluated).toBeGreaterThan(0);
+    });
+
+    expect(result.current.summary.violations).toBe(0);
+    expect(result.current.summary.warnings).toBeGreaterThan(0);
+    expect(result.current.status).toBe('ready');
+    expect(result.current.groups.length).toBeGreaterThan(0);
+  });
+
   it('N21 tắt một luật → luật đó vắng khỏi kết quả', async () => {
     const { result } = setupReport({ read: async () => configRead(1, { [NOISY_RULE_CODE]: { enabled: false } }) });
 
@@ -1063,6 +1079,43 @@ describe('F-10 — useRuleReport đọc cấu hình N21', () => {
     await waitFor(() => {
       expect(openCountOf(result.current.groups, NOISY_RULE_CODE)).toBe(0);
     });
+  });
+
+  it('28-C-014: luật bị tắt ở phiên khác không hiện dưới "Đã xử lý"', async () => {
+    const { result, queryClient } = setupReport({ read: async () => configRead(1) });
+
+    await waitFor(() => {
+      expect(openCountOf(result.current.groups, NOISY_RULE_CODE)).toBeGreaterThan(0);
+    });
+
+    act(() => {
+      queryClient.setQueryData(ruleSettingsQueryKey('P-F10'), {
+        revision: 2,
+        config: { overrides: { [NOISY_RULE_CODE]: { enabled: false } }, version: 0 },
+      });
+    });
+
+    await waitFor(() => {
+      expect(openCountOf(result.current.groups, NOISY_RULE_CODE)).toBe(0);
+    });
+    expect(result.current.resolvedRows.filter((row) => row.ruleCode === NOISY_RULE_CODE)).toHaveLength(0);
+    expect(ruleCodesOf(result.current.groups)).not.toContain(NOISY_RULE_CODE);
+  });
+
+  it('versionId đổi sau một lượt sửa → khoá query đổi nhưng nhóm không biến mất giữa chừng', async () => {
+    const { result } = setupReport({ read: async () => configRead(1) });
+
+    await waitFor(() => {
+      expect(openCountOf(result.current.groups, NOISY_RULE_CODE)).toBeGreaterThan(0);
+    });
+    const before = result.current.groups.length;
+
+    act(() => {
+      useStore.getState().setVersionId('v-sau-khi-luu');
+    });
+
+    expect(result.current.groups.length).toBe(before);
+    expect(result.current.status).not.toBe('loading');
   });
 
   it('canEdit: false không tắt truy vấn', async () => {
@@ -1112,5 +1165,51 @@ describe('F-10 — useRuleReport đọc cấu hình N21', () => {
     const { result } = setupReport({ read: () => new Promise<RuleConfigReadResult>(() => undefined) });
 
     expect(result.current.status).toBe('loading');
+  });
+});
+
+describe('QA-06b F10 #1 — viewer đi qua đủ trạng thái, chỉ khoá hành động', () => {
+  it('viewer + N21 đang chờ → `loading` (không phải `forbidden`)', () => {
+    const { result } = setupReport({ read: () => new Promise<RuleConfigReadResult>(() => undefined), canEdit: false });
+
+    expect(result.current.status).toBe('loading');
+    expect(result.current.capabilities.canEdit).toBe(false);
+  });
+
+  it('viewer + N21 lỗi → `error` (lỗi không bị nuốt)', async () => {
+    const error: HttpError = { kind: 'http', status: 503, code: 'DEPENDENCY_UNAVAILABLE', raw: {}, requestId: 'req-f10v', retryable: true };
+    const { result } = setupReport({ read: async () => ({ ok: false, error }), canEdit: false });
+
+    await waitFor(() => {
+      expect(result.current.status).toBe('error');
+    });
+  });
+
+  it('viewer + chưa có mô hình → `empty`', async () => {
+    const { result } = setupReport({ read: async () => configRead(1), canEdit: false });
+
+    act(() => {
+      useStore.getState().setSpatial(null, null);
+    });
+
+    await waitFor(() => {
+      expect(result.current.status).toBe('empty');
+    });
+  });
+
+  it('viewer + có vi phạm → `ready`, capabilities.canEdit vẫn false', async () => {
+    const { result } = setupReport({ read: async () => configRead(1), canEdit: false });
+
+    await waitFor(() => {
+      expect(result.current.status).toBe('ready');
+    });
+    expect(result.current.summary.violations).toBeGreaterThan(0);
+    expect(result.current.capabilities.canEdit).toBe(false);
+  });
+
+  it('không truyền canEdit → mặc định an toàn: không quyền sửa (#6)', () => {
+    const { result } = setupReport({ read: () => new Promise<RuleConfigReadResult>(() => undefined) });
+
+    expect(result.current.capabilities.canEdit).toBe(false);
   });
 });

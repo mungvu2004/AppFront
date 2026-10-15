@@ -174,7 +174,7 @@ export function RoomLabelCanvas({
       {contentBounds === null ? (
         <div
           aria-label={ROOM_LABEL_CANVAS_COPY.waitingFrameLabel}
-          className="absolute inset-3 rounded-[12px] bg-bg-sunken"
+          className="absolute inset-3 rounded-xl bg-bg-sunken"
           role="img"
         />
       ) : (
@@ -319,7 +319,7 @@ function RoomLabelCanvasSelectButton({
     <button
       aria-label={label}
       aria-pressed={isSelected}
-      className="absolute rounded-[4px] border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:pointer-events-none disabled:cursor-default"
+      className="absolute rounded border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:pointer-events-none disabled:cursor-default"
       disabled={!isInteractive}
       onBlur={() => onHover(null)}
       onClick={() => onSelect(roomId)}
