@@ -149,7 +149,9 @@ async function selectedCode(page: Page): Promise<string> {
 async function selectByKeys(page: Page, index: number, expectedCode: string): Promise<void> {
   await page.keyboard.press('Escape');
   for (let i = 0; i <= index; i += 1) await page.keyboard.press('j');
-  await expect(inspector(page).getByText(expectedCode, { exact: true })).toBeVisible();
+  // Up to 351 queued key presses on a 350-row virtualised list: the app drains them well past 15 s on a loaded stack
+  // (RF 2026-10-15, #W-350 not shown; green 3/3 when idle).
+  await expect(inspector(page).getByText(expectedCode, { exact: true })).toBeVisible({ timeout: 60_000 });
 }
 
 /** Runs the page clock past the 8 s undo window and the 5 s grouping window: no toast is left, no group is open. */

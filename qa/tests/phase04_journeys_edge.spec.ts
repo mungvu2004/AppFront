@@ -465,6 +465,9 @@ test.describe('E04 journeys — real-stack flows (QA-04c P1)', () => {
         const read = async (route: string, region: Locator): Promise<string> => {
           await page.goto(route);
           await expect(region).toBeVisible({ timeout: 30_000 });
+          // The overlay region exists while it still loads: read the settled answer, not the "Đang tải …" frame (RF 2026-10-15
+          // read "Đang tải ảnh bản vẽ gốc." under a loaded stack; green when idle).
+          await expect(region).not.toContainText(/Đang tải/u, { timeout: 30_000 });
           return ((await region.innerText()) ?? '').replace(/\s+/gu, ' ').trim();
         };
         answers.walls = await read(ROUTES.project.walls(q2.projectId, missing), page.getByRole('alert').filter({ hasText: 'Tầng này không còn tồn tại.' }));
