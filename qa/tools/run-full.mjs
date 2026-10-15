@@ -97,7 +97,9 @@ if (!flag('no-build')) {
   const cookie = login.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
   const token = (await (await post('/api/auth/refresh', { headers: { Cookie: cookie } })).json().catch(() => ({}))).accessToken;
   const stateFile = join(SUITE, 'tests', '.state', 'runtime-session.json');
-  if (token && existsSync(stateFile) && Number(NN) > 2) {
+  // A run that replays the main chain 01..NN-1 (step 3) makes a fresh .state project itself: only a run that reuses .state needs it alive.
+  const replaysChain = !flag('no-prev') && opt('layers', 'main,ui,api,edge').split(',').includes('main');
+  if (token && existsSync(stateFile) && Number(NN) > 2 && !replaysChain) {
     const id = JSON.parse(readFileSync(stateFile, 'utf8')).project?.projectId;
     const r = id ? await fetch(`${base}/api/projects/${id}`, { headers: { Authorization: `Bearer ${token}` } }) : null;
     if (!r || r.status !== 200) fail(`.state project ${id ?? '?'} → ${r?.status ?? 'none'}: stale state from another stack; rebuild with run-phase --phase 01..${String(Number(NN) - 1).padStart(2, '0')} --layers main`);
