@@ -1332,6 +1332,41 @@ describe('useScaleCalibration — review-1 F3 (P2-4, P2-5, Nit-3)', () => {
     expect(harness.writeLayer.mock.calls[3]?.[0].body).toEqual({ scaleMillimetresPerPixel: before });
   });
 
+  it('như người dùng thật: hoàn tác lần đầu bằng toast, áp lại, Ctrl+Z → vẫn PUT tỷ lệ cũ (14-A-028, BUG-724)', async () => {
+    const before = storedRatio();
+    const harness = await makeHarness();
+    let toast: Notification | undefined;
+    const unsubscribe = appNotificationBus.subscribe((all) => {
+      toast = all.find((n) => n.title === 'Áp dụng tỷ lệ') ?? toast;
+    });
+    const mounted = await mountAndApply(harness);
+
+    await act(async () => {
+      await clock.advance(RETRY_SCHEDULE_MS[0]);
+    });
+    await settleAsync();
+    await act(async () => {
+      toast?.undoTicket?.undo();
+    });
+    await act(async () => {
+      await clock.advance(RETRY_SCHEDULE_MS[0]);
+    });
+    await settleAsync();
+    expect(harness.writeLayer).toHaveBeenCalledTimes(2);
+
+    await applyNow(mounted);
+    await act(async () => {
+      await clock.advance(RETRY_SCHEDULE_MS[0]);
+    });
+    await settleAsync();
+    unsubscribe();
+    expect(harness.writeLayer).toHaveBeenCalledTimes(3);
+    await undoAndSend();
+
+    expect(harness.writeLayer).toHaveBeenCalledTimes(4);
+    expect(harness.writeLayer.mock.calls[3]?.[0].body).toEqual({ scaleMillimetresPerPixel: before });
+  });
+
   it('P2-4: mốc khoá theo dự án — dự án khác thì Ctrl+Z không gửi tỉ lệ', async () => {
     const harness = await makeHarness();
     const first = await mountAndApply(harness);

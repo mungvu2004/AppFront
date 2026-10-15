@@ -964,7 +964,11 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
           el?.blur();
           return tag;
         });
+        // BUG-724 evidence: did Ctrl+Z revert the ratio on screen (save path) or not at all (key/history path)?
+        const barBefore = await statusBar(page).innerText();
         await page.keyboard.press(undoKey);
+        await page.waitForTimeout(1_500); // fixed-wait-ok: let an undo render before the evidence read
+        await attachJson('E04_14-A-028_ctrl-z.json', { focusedBefore, barBefore, barAfter: await statusBar(page).innerText(), puts: putOf().length });
         await expect.poll(() => putOf().length, `Ctrl+Z PUT (focus was ${focusedBefore})`).toBe(4);
         expect.soft(putRatio(putOf()[3])).toBeCloseTo(r0, 5);
         await applyDisabled(page).click();
