@@ -331,10 +331,14 @@ test('SCR-28 · FL-28-U1c · UI verify of quick fix and resolved section (`verif
       });
     });
 
-    await test.step('[28V-F-005] reopen the resolved row, click the action again: error inside the panel', async () => {
+    await test.step('[28V-F-005] reopen the resolved row: no second action, no alert (the InlineAlert error state at 4 sizes: e2e/qa06/rules.vite.spec.ts [28V-F-005])', async () => {
+      // BUG-726: a resolved row's sheet no longer offers the action (F6, useViolationDetail.ts actions), so "click it again" cannot reach
+      // the error state on the stack; the InlineAlert needs a REFUSED domain command, which the Vite spec provokes with the real 28V-B-004
+      // race (the object leaves the drawing in the same instant the action fires). What the stack proves at 4 sizes: the reopened
+      // resolved row's sheet is the partial state (28V-F-006 line), with no action and no alert.
       await verifyUi(
         page,
-        'U06r_28V-F-005_error',
+        'U06r_28V-F-005_resolved_sheet',
         async (p) => {
           const project = await freshR1();
           await openRuleSheet(p, project, RULE_NAME.furnitureClash);
@@ -343,23 +347,16 @@ test('SCR-28 · FL-28-U1c · UI verify of quick fix and resolved section (`verif
           const resolved = resolvedGroupExpander(p);
           if ((await resolved.getAttribute('aria-expanded')) !== 'true') await resolved.click();
           const section = p.locator('section').filter({ has: resolved });
-          const sheet = await (async () => {
-            await rowWithFloor(p, section).first().getByRole('button').first().click();
-            return sheetOf(p);
-          })();
+          await rowWithFloor(p, section).first().getByRole('button').first().click();
+          const sheet = sheetOf(p);
           await expect(sheet).toBeVisible();
-          // EVIDENCE (BUG-726): what the reopened resolved row's sheet offers right before the click that gives up.
           await attachJson(`U06r_28V-F-005_sheet_${String(p.viewportSize()?.width ?? 0)}.json`, {
-            groupTitles: await groupExpanders(p).allInnerTexts(),
-            resolvedGroupPresent: await resolvedGroupExpander(p).isVisible(),
-            sheetVisible: await sheet.isVisible(),
             sheetButtons: await sheet.getByRole('button').evaluateAll((els) => els.map((el) => el.getAttribute('aria-label') ?? el.textContent ?? '')),
-            deleteActionCount: await sheet.getByRole('button', { name: RR.deleteAction, exact: true }).count(),
             sheetText: (await sheet.innerText()).slice(0, 600),
           });
-          // S5-confirm: the resolved row's sheet still offers the action; running it on the gone entity fails
-          await sheet.getByRole('button', { name: RR.deleteAction, exact: true }).click();
-          await expect(sheet.getByRole('alert'), 'InlineAlert inside the panel').toBeVisible();
+          await expect(sheet.getByRole('button', { name: RR.deleteAction, exact: true }), 'no second action on a resolved row (F6)').toHaveCount(0);
+          await expect(sheet.getByText(RR.noAutoFix), 'partial state: the explanation line (28V-F-006)').toBeVisible();
+          await expect(sheet.getByRole('alert'), 'no error state').toHaveCount(0);
         },
         undefined,
         { fullPage: false },

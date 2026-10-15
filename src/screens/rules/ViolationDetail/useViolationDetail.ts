@@ -915,6 +915,11 @@ export function useViolationDetail(
     [dispatchBundle, gateway.actorId, registry, ruleConfig],
   );
 
+  // BUG-729: vé hoàn tác bấm xong thì lượt sửa không còn được áp, nên `mutation.data`
+  // (dòng "Đã sửa xong", `resolved`) phải về không — ref vì vé được tạo trong chính
+  // `onSuccess` của mutation, trước khi `mutation.reset` tồn tại.
+  const resetMutationRef = useRef<() => void>(() => undefined);
+
   const mutation = useMutation<ApplyFixResult, ApplyFixError, ApplyFixVariables>({
     mutationFn: applyFix,
     onSuccess: (result) => {
@@ -928,7 +933,10 @@ export function useViolationDetail(
       const ticket = createUndoTicket({
         description: result.description,
         now: gateway.now,
-        undo: applyUndo,
+        undo: () => {
+          applyUndo();
+          resetMutationRef.current();
+        },
       });
 
       notifications.publish({
@@ -949,6 +957,7 @@ export function useViolationDetail(
   });
 
   const { mutate } = mutation;
+  resetMutationRef.current = mutation.reset;
   const nextKeyRef = useRef('');
   const latestViolationsRef = useRef(violations);
   latestViolationsRef.current = violations;
@@ -1369,6 +1378,7 @@ export function useViolationDetail(
 
     ruleCode: violation?.ruleCode ?? null,
     levelId,
+    entityId: violation?.entityId ?? null,
 
     onPrevious,
     onNext,

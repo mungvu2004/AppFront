@@ -1556,21 +1556,26 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
 
       const seenBanner = await watchText(page, ADVANCE_BANNER);
       const seenKeep = await watchText(page, KEEP_BUTTON);
+      const seenFixed = await watchText(page, 'Đã sửa xong'); // transient: the sheet moves on after the `slow` motion duration (28V-A-016)
       // F9: keepPreviousData - after the PUT versionId changes but the sheet does NOT unmount and "Đã xử lý" shows as soon as the report re-runs.
-      // The in-page recorder is kept (it also proves the transient order); post-PUT state is asserted directly below. Record whether the sheet ever showed the next row's title and whether "Đã sửa xong" was still on it.
+      // BUG-728 (p06-rf E06r_28V-03_after-put.json): the report RENUMBERS display codes after a deletion (#F-002 -> #F-001), so the next
+      // row's title is not knowable before the fix; the sheet is identified by `data-entity-id` (stable). The recorder notes whether the
+      // sheet ever showed the next entity and whether "Đã sửa xong" was still on it at that moment (28V-C-004).
+      const nextKey = (await rowMessage(rowsOf(clashSection).nth(1)).getAttribute('data-row-key')) ?? ''; // `<ruleCode>:<entityId>` (useRuleReport buildRows)
+      const nextEntity = nextKey.slice(nextKey.indexOf(':') + 1);
       await page.evaluate(
-        ([next, line]) => {
+        ([entity, line]) => {
           const w = window as unknown as { __p06next?: { reached: boolean; stale: boolean } };
           const state: { reached: boolean; stale: boolean } = { reached: false, stale: false };
           w.__p06next = state;
           new MutationObserver(() => {
             const aside = document.querySelector('aside[aria-label="Chi tiết vi phạm"]');
-            if (aside?.querySelector('h2')?.textContent !== next) return;
+            if (aside?.getAttribute('data-entity-id') !== entity) return;
             state.reached = true;
             if ((aside.textContent ?? '').includes(line)) state.stale = true;
-          }).observe(document.body, { characterData: true, childList: true, subtree: true });
+          }).observe(document.body, { attributes: true, characterData: true, childList: true, subtree: true });
         },
-        [clashMessages[1] ?? '', 'Đã sửa xong'] as const,
+        [nextEntity, 'Đã sửa xong'] as const,
       );
       await test.step('[28V-A-014] "Xoá đối tượng này": toast "Hoàn tác" and the resolved line', async () => {
         const layer = await readFloorLayer(admin, project.id, floor.id);
@@ -1581,8 +1586,9 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         await deleteButton.click();
         await answered;
         await snap(page, 'E06r_28V-03_after-put.json', { putsSeen: puts.length });
-        await expect.soft(panel.getByText(FIXED_LINE)).toBeVisible();
         await expect.soft(undoButton.first()).toBeVisible();
+        // BUG-728 (p06-rf): with a next row the line lives only until the advance (slow motion duration), so a watcher, not toBeVisible.
+        await softly.poll(seenFixed, { message: 'resolved line "Đã sửa xong…" shown on the fixed row (transient)' }).toBe(true);
         await shot(page, '28V-A-014', 'fixed');
       });
 
@@ -1611,18 +1617,21 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         expect.soft(await seenBanner(), `banner "${ADVANCE_BANNER}"`).toBe(true);
         expect.soft(await seenKeep(), `button "${KEEP_BUTTON}"`).toBe(true);
         await snap(page, 'E06r_28V-03_advance-state.json', {
-          expectedNextTitle: clashMessages[1] ?? '',
+          titleBeforeFix: clashMessages[1] ?? '',
+          nextKey,
           nextRecorder: await page.evaluate(() => (window as unknown as { __p06next?: unknown }).__p06next ?? null),
         });
-        // S5-confirm: "the next row" is the old second clash row; recorded in the window before the PUT (see above).
-        expect.soft(await page.evaluate(() => (window as unknown as { __p06next?: { reached: boolean } }).__p06next?.reached), 'sheet reached the next row').toBe(true);
+        // S5-confirm: "the next row" is the old second clash row, by entity id (its display code is renumbered after the deletion).
         await expect.soft(panel, 'the sheet did not unmount after the save (F9)').toBeVisible();
+        await expect.soft(panel, 'sheet on the entity that was next at click time').toHaveAttribute('data-entity-id', nextEntity);
+        await expect.soft(sheetTitle(page), "title = the next row's CURRENT message").toHaveText((await page.locator(`button[data-row-key="${nextKey}"]`).first().innerText()).trim());
+        await expect.soft(deleteButton, 'live entity: the action is offered').toBeVisible();
         await shot(page, '28V-A-016', 'advanced');
       });
 
       await test.step('[28V-C-004] ⚑ the next violation has no "Đã sửa xong…" line', async () => {
         const seen = await page.evaluate(() => (window as unknown as { __p06next?: { reached: boolean; stale: boolean } }).__p06next);
-        expect(seen?.reached, 'marker: the sheet showed the next row title').toBe(true);
+        expect(seen?.reached, 'marker: the sheet showed the next entity').toBe(true);
         expect.soft(seen?.stale, '"Đã sửa xong…" still on the next violation').toBe(false);
         await expect.soft(panel.getByText(FIXED_LINE)).toHaveCount(0);
         await shot(page, '28V-C-004', 'stale_resolved_line');
@@ -1690,14 +1699,26 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
       const deleteButton = panel.getByRole('button', { name: DELETE_ACTION });
       const undoButton = page.getByRole('button', { name: UNDO, exact: true });
       const furnitureCount = async (): Promise<number> => (await readFloorLayer(admin, project.id, floor.id)).furnitureIds.length;
-      const openClash = async (index: number): Promise<void> => {
+      /** Keys listed under "Đã xử lý" (a resolved row is ALSO appended to its rule group - p06-rf E06r_28V-04_fix1-after.json). */
+      const resolvedKeys = async (): Promise<Set<string>> =>
+        new Set(
+          (await resolvedHeader(page).count()) === 0
+            ? []
+            : await page.locator('section').filter({ has: resolvedHeader(page) }).locator('button[data-row-key]').evaluateAll((els) => els.map((el) => el.getAttribute('data-row-key') ?? '')),
+        );
+      /** Opens the `index`-th OPEN clash row (-1 = the last open one) and returns its key: after any fix `rows.last()` is the appended resolved row (BUG-729 RF: fix 4 opened it and found no action). */
+      const openClash = async (index: number): Promise<string> => {
         const section = await expandRule(page, clashName);
         if (index < 0) {
           // hasNext must be false: the clash group has to be the last group of the report (else ROOM-UNNAMED etc. follow).
           expect((await headerInfos(page)).at(-1)?.ruleName, 'last group of the report').toBe(clashName);
         }
-        const rows = rowsOf(section);
-        await openSheet(page, index < 0 ? rows.last() : rows.nth(index));
+        const resolved = await resolvedKeys();
+        const keys = (await rowsOf(section).locator('button[data-row-key]').evaluateAll((els) => els.map((el) => el.getAttribute('data-row-key') ?? ''))).filter((key) => key !== '' && !resolved.has(key));
+        const key = (index < 0 ? keys.at(-1) : keys[index]) ?? '';
+        expect(key, `open clash row ${String(index)} (open ${String(keys.length)}, resolved ${String(resolved.size)})`).not.toBe('');
+        await openSheet(page, page.locator(`button[data-row-key="${key}"]`).first());
+        return key;
       };
       let fixNo = 0;
       const fix = async (): Promise<void> => {
@@ -1706,9 +1727,11 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         // "Hoàn tác" undoes every grouped change. One fix per toast is what 28V-A-023/C-006 mean, so jump the clock past the group window.
         if (fixNo > 1) await page.clock.fastForward(5_100);
         await snap(page, `E06r_28V-04_fix${String(fixNo)}-before.json`, { putLog: puts.map((p) => ({ ...p })), furniture: await furnitureCount() });
-        const answered = waitForApi(page, 'PUT', layerPutRe, [200]);
+        const putsBefore = puts.length;
         await deleteButton.click();
-        await answered;
+        // BUG-729 RF: `waitForApi` missed fix 3's PUT (status 200 in `trackLayerPuts`) and timed out at 30 s; wait on the log, which never missed one.
+        await expect.poll(() => puts.length, { message: `PUT …/spatial/layer of fix ${String(fixNo)}`, timeout: 30_000 }).toBe(putsBefore + 1);
+        expect.soft(puts.at(-1)?.status, `fix ${String(fixNo)} answered`).toBe(200);
         await snap(page, `E06r_28V-04_fix${String(fixNo)}-after.json`, { putLog: puts.map((p) => ({ ...p })), furniture: await furnitureCount() });
       };
       const seenBanner = await watchText(page, ADVANCE_BANNER);
@@ -1724,9 +1747,10 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
 
       const keep = await armKeep(page);
       let afterFix = -1;
+      let undoneKey = '';
       await test.step('[28V-A-017] fix a row that has a next one: banner, "Giữ lại màn này" keeps the sheet', async () => {
         // Deviation from the plan text ("the second table's row"): after the last row is gone the first row is the one with a next.
-        await openClash(0);
+        undoneKey = await openClash(0);
         await fix();
         expect.soft(await seenBanner(), 'banner').toBe(true);
         expect.soft(await keep.kept(), `"${KEEP_BUTTON}" clicked`).toBe(true);
@@ -1751,6 +1775,8 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         });
         await softly.poll(furnitureCount).toBe(afterFix + 1);
         await expect.soft(deleteButton).toBeVisible();
+        // BUG-729 (p06-rf E06r_28V-04_undo-after.json: sheetHasFixedLine true next to the action): the undone fix leaves no resolved line.
+        await expect.soft(panel.getByText(FIXED_LINE), 'no "Đã sửa xong" after the undo').toHaveCount(0);
         await shot(page, '28V-A-023', 'undone');
       });
 
@@ -1765,7 +1791,11 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
       await test.step('[28V-C-005] ⚑ the report lists the undone row as open again', async () => {
         await snap(page, 'E06r_28V-04_report-after-undo.json', { startOpen, info: await infoOf(page, clashName), furniture: await furnitureCount(), putLog: puts.map((p) => ({ ...p })) });
         await softly.poll(async () => (await infoOf(page, clashName))?.open).toBe(startOpen - 1);
-        await expect.soft(resolvedHeader(page), 'nothing is "Đã xử lý" after the undo').toHaveCount(0);
+        // Catalog 28V-C-005: "Đã xử lý" no longer lists THE UNDONE ROW; fix 1 (the last row, never undone - own toast, 5.1 s apart)
+        // legitimately stays resolved (BUG-729 RF E06r_28V-04_report-after-undo.json: open 2, resolved 1).
+        expect.soft((await infoOf(page, clashName))?.resolved, 'only fix 1 stays "đã xử lý"').toBe(1);
+        expect.soft((await resolvedKeys()).has(undoneKey), 'the undone row is no longer under "Đã xử lý"').toBe(false);
+        await expect.soft(page.locator(`button[data-row-key="${undoneKey}"]`).first(), 'the undone row is listed again').toBeVisible();
         await shot(page, '28V-C-005', 'report_after_undo');
       });
 

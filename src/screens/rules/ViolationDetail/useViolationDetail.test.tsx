@@ -331,6 +331,10 @@ describe('QA-06b F6 — kết quả sửa thuộc đúng vi phạm vừa sửa',
 
     expect(useStore.getState().spatial?.byId[VIOLATION.entityId]).toBeDefined();
     expect(invalidate).toHaveBeenCalled();
+    // BUG-729 (p06-rf E06r_28V-04_undo-after.json: sheetHasFixedLine true + action offered): the fix is undone,
+    // so the sheet is back to "ready" — no "Đã sửa xong" line next to the action it offers again.
+    expect(within(panel()).queryByText(/^Đã sửa xong/u)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Xoá đối tượng này' })).toBeInTheDocument();
   });
 
   it('28V-C-007: tấm trượt kiểm lại theo cấu hình dự án, không theo sổ mặc định', async () => {
