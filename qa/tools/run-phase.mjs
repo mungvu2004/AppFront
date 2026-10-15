@@ -37,6 +37,9 @@ if (flag('dry-run')) {
 const WORKERS = Math.max(1, Number(opt('workers', '1')) || 1);
 // --retries N: Playwright retries for failing tests; a test red then green is reported "flaky", not passed.
 const RETRIES = Math.max(0, Number(opt('retries', '0')) || 0);
+// --repeat N: run every selected test N times (Playwright --repeat-each): a "fixed" stack case must be green N times in a row,
+// one green after a red proved nothing for timing-dependent flows (phase 04: FL-X-02 / FL-16-09 red R1, green RR, red RF).
+const REPEAT = Math.max(1, Number(opt('repeat', '1')) || 1);
 const WATCH = flag('no-watch') ? false : flag('watch') || cfg.defaults.watch !== false;
 const fill = (s) => s.replaceAll('{resultsDir}', cfg.resultsDir).replaceAll('{runId}', RUN_ID);
 
@@ -110,7 +113,7 @@ for (const layer of LAYERS) {
   }
   mkdirSync(dir, { recursive: true });
   // Playwright's CLI under node, no shell: `npx` + `shell: true` let cmd.exe split a --grep regex at `|` (QA-05c, QA-06b).
-  const args = [createRequire(join(SUITE, '..', 'package.json')).resolve('@playwright/test/cli'), 'test', ...files, ...(WATCH ? ['--headed'] : []), ...(GREP ? ['--grep', GREP] : []), '--workers', String(layer === 'main' ? 1 : WORKERS), '--retries', String(RETRIES)];
+  const args = [createRequire(join(SUITE, '..', 'package.json')).resolve('@playwright/test/cli'), 'test', ...files, ...(WATCH ? ['--headed'] : []), ...(GREP ? ['--grep', GREP] : []), '--workers', String(layer === 'main' ? 1 : WORKERS), '--retries', String(RETRIES), ...(REPEAT > 1 ? ['--repeat-each', String(REPEAT)] : [])];
   const t0 = Date.now();
   const log = createWriteStream(join(dir, 'run.log'));
   const code = await new Promise((done) => {

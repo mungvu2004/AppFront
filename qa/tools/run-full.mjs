@@ -132,7 +132,7 @@ if (!existsSync(STATE) && Number(NN) > 2 && opt('layers', 'main').split(',').inc
 /* 3. run */
 const prev = String(Number(NN) - 1).padStart(2, '0');
 const layers = opt('layers', 'main,ui,api,edge');
-const extra = [...(opt('grep', '') ? ['--grep', opt('grep', '')] : []), '--layers', layers, ...(flag('dry-run') ? ['--dry-run'] : [])];
+const extra = [...(opt('grep', '') ? ['--grep', opt('grep', '')] : []), ...(opt('repeat', '') ? ['--repeat', opt('repeat', '')] : []), '--layers', layers, ...(flag('dry-run') ? ['--dry-run'] : [])];
 if (!flag('no-prev') && layers.split(',').includes('main') && Number(NN) > 1) {
   // Replay the WHOLE chain 01..NN-1: phase 02 creates a fresh .state project. Replaying only NN-1 reused the project of an
   // earlier run, so every replay piled up floors/drawings and the fixed counts of NN-1 main went red (phase 04 RF 2026-10-15).
