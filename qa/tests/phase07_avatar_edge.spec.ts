@@ -129,10 +129,14 @@ test('SCR-33 · FL-33P-08 · avatar: set, cancel, keyboard, replace, JPEG, persi
       await page.keyboard.press('Escape'); // ARD:36 onClose = onCancel
       await expect.soft(dialog).toBeHidden();
       expect.soft(puts(), 'Esc sends no PUT').toBe(0);
+      // Esc returns the focus like Huỷ (returnFocusRef, BUG-P07-017); waiting for it keeps the focus moves below deterministic.
+      await expect.soft(avatarInput(page)).toBeFocused();
       await captureEvidence(page, ev('33P-A-037', 'escaped'));
     });
 
-    await test.step('[33P-E-004] Tab to the file input + Enter: overlay "Đổi ảnh" with ring, a filechooser opens', async () => {
+    // The chooser half of 33P-E-004 (Enter opens one single-file chooser) runs in e2e/qa07/avatar.vite.spec.ts: on the
+    // stack one --repeat copy waited 30 s for "filechooser" with the focus already green (BUG-P07-019, qa-phase v4 rule 7).
+    await test.step('[33P-E-004] Tab to the file input: overlay "Đổi ảnh" with ring (chooser: avatar.vite.spec.ts)', async () => {
       await box(page, 'Họ tên').focus();
       await page.keyboard.press('Shift+Tab'); // the file input is the focusable just before the first field (PS:133-160)
       await expect.soft(avatarInput(page)).toBeFocused();
@@ -140,9 +144,6 @@ test('SCR-33 · FL-33P-08 · avatar: set, cancel, keyboard, replace, JPEG, persi
       await expect.soft(overlay).toHaveCSS('opacity', '1'); // PS:150 peer-focus-visible:opacity-100
       await expect.soft(overlay).not.toHaveCSS('box-shadow', 'none'); // PS:151 peer-focus-visible:ring-2
       await captureEvidence(page, ev('33P-E-004', 'overlay-focus-ring'));
-      const chooser = page.waitForEvent('filechooser');
-      await page.keyboard.press('Enter');
-      expect.soft((await chooser).isMultiple(), 'a single-file chooser opened').toBe(false);
     });
 
     await test.step('[33P-B-029] confirm with the PUT held: status line, input and "Huỷ" disabled, Esc does not close', async () => {
