@@ -1004,6 +1004,25 @@ describe('ScaleCalibration — QA-04c SCR-14', () => {
     mounted.unmount();
   });
 
+  it('đang kéo đoạn, tiêu điểm ở "Chiều dài thật": Esc vẫn huỷ đoạn (14-E-004, QD-004)', async () => {
+    measureFrame();
+    const harness = await makeHarness();
+    const mounted = mountScreen(harness.gateway);
+    await settle(mounted);
+    const frame = screen.getByRole('group', { name: CANVAS_ARIA_LABEL });
+
+    fireEvent.pointerDown(frame, { button: 0, clientX: 160, clientY: 320, pointerId: 1 });
+    fireEvent.pointerMove(frame, { clientX: 400, clientY: 320, pointerId: 1 });
+    expect(handle('Cuối')).toBeInTheDocument();
+    const field = screen.getByLabelText(new RegExp(REAL_LENGTH_LABEL, 'u'));
+    field.focus();
+    fireEvent.keyDown(field, { key: 'Escape', code: 'Escape' });
+
+    expect(screen.queryByRole('button', { name: /^Cuối đoạn tham chiếu/u })).toBeNull();
+
+    mounted.unmount();
+  });
+
   it('kéo tới đúng mép ảnh (lệch dưới 1px do làm tròn) thì đoạn không bị huỷ (14-C-023)', async () => {
     measureFrame();
     const harness = await makeHarness();

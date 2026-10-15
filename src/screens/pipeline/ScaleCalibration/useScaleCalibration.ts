@@ -1106,6 +1106,29 @@ export function useScaleCalibration(
     setDrag((session) => (session === null || !session.isDragging ? session : null));
   }, []);
 
+  /*
+   * Đang kéo đoạn thì Esc luôn huỷ kéo, kể cả khi tiêu điểm ở "Chiều dài thật" (14-E-004, QD-004). Bộ phím tắt giữ luật
+   * "một phím, một hành động" của phase 05 (ô nhập đã xử lý Esc thì không chuyển tiếp), nên màn tự nghe ở pha capture,
+   * chỉ trong lúc kéo.
+   */
+  const isDragging = drag?.isDragging === true;
+
+  useEffect(() => {
+    if (!isDragging) {
+      return undefined;
+    }
+
+    const cancelOnEscape = (event: globalThis.KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        onCancelDrag();
+      }
+    };
+
+    window.addEventListener('keydown', cancelOnEscape, { capture: true });
+
+    return () => window.removeEventListener('keydown', cancelOnEscape, { capture: true });
+  }, [isDragging, onCancelDrag]);
+
   const onNudgeEndpoint = useCallback(
     (endpoint: ReferenceLineEndpoint, direction: NudgeDirection, step: NudgeStep) => {
       const distance = NUDGE_PX[step];
