@@ -23,7 +23,7 @@ import { ACTION_TIMEOUT_MS, NAVIGATION_TIMEOUT_MS, readBaseUrl } from '../../e2e
 import { signedInApi } from './support/api';
 import { readAdminCredentials, signInAdmin } from './support/auth';
 import { deleteSeededProject } from './support/drawingSeed';
-import { captureEvidence } from './support/evidence';
+import { attachJson, captureEvidence } from './support/evidence';
 import {
   ERROR_PAINT_TIMEOUT_MS,
   RR,
@@ -323,9 +323,37 @@ test('SCR-28 · FL-28-M2 · [mocked response] Model read and save failures', asy
           await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify({ detail: `qa-06b mocked ${String(status)}` }) });
         });
         const sheet = await openRuleSheet(page, projectId, RULE_NAME.furnitureClash);
+        // EVIDENCE (BUG-732): timeline of every role="alert" text from before the click, to see whether the block message
+        // was ever announced and when it was replaced or removed.
+        await page.evaluate(() => {
+          const w = window as unknown as { __qaAlertLog?: { t: number; alerts: string[] }[] };
+          w.__qaAlertLog = [];
+          const t0 = performance.now();
+          const snap = (): void => {
+            const alerts = [...document.querySelectorAll('[role="alert"]')].map((el) => `${el.getAttribute('data-announcer') ?? 'no-announcer'}:${el.textContent ?? ''}`);
+            const last = w.__qaAlertLog?.at(-1);
+            if (last === undefined || JSON.stringify(last.alerts) !== JSON.stringify(alerts)) w.__qaAlertLog?.push({ t: Math.round(performance.now() - t0), alerts });
+          };
+          new MutationObserver(snap).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true });
+          snap();
+        });
         await sheet.getByRole('button', { name: RR.deleteAction, exact: true }).click();
         await expect.poll(() => seen, { message: `the autosave PUT reached the ${String(status)} mock` }).toBeGreaterThanOrEqual(1);
+        await attachJson(`E06r_28V-G-007_after_put_${String(status)}.json`, {
+          mockedPutStatus: status,
+          putsSeen: seen,
+          alertTimeline: await page.evaluate(() => (window as unknown as { __qaAlertLog?: unknown }).__qaAlertLog ?? null),
+          alertsNow: await page.getByRole('alert').evaluateAll((els) => els.map((el) => ({ announcer: el.getAttribute('data-announcer'), text: el.textContent ?? '' }))),
+          saveLabelInSheet: await sheet.getByText(/Lưu thất bại|Đang lưu|Có thay đổi chờ đồng bộ|Ngoại tuyến|Đã lưu/u).allInnerTexts(),
+          sheetVisible: await sheetOf(page).isVisible(),
+        });
         await expect.soft(page.getByRole('alert').filter({ hasText: RR.saveUnknown }), `after PUT ${String(status)}`).toHaveCount(1);
+        await attachJson(`E06r_28V-G-007_late_${String(status)}.json`, {
+          mockedPutStatus: status,
+          putsSeen: seen,
+          alertTimeline: await page.evaluate(() => (window as unknown as { __qaAlertLog?: unknown }).__qaAlertLog ?? null),
+          saveLabelInSheet: await sheetOf(page).getByText(/Lưu thất bại|Đang lưu|Có thay đổi chờ đồng bộ|Ngoại tuyến|Đã lưu/u).allInnerTexts(),
+        });
         await captureEvidence(page, `E06r_28V-G-007_save_${String(status)}.png`);
         await expect(sheetOf(page)).toBeVisible();
       }

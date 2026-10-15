@@ -658,8 +658,11 @@ test.describe('E06 SCR-32 version history — mocked-response flows (QA-06b P7)'
           await captureEvidence(page, 'E06v_32-C-041_label-forbidden.png');
         });
 
-        await test.step('[32-C-042] label error VALIDATION: "Nhãn dài tối đa 60 ký tự."', async () => {
-          await labelStep(wireError(422, 'VALIDATION', { field: 'label' }), VH.labelErrorTitle, 'Nhãn dài tối đa 60 ký tự.'); // VHM:448
+        // Expectation changed (QA-06 v3, BUG-733): a label within 60 (the dialog caps it, VersionLabelDialog maxLength) that gets 422
+        // VALIDATION can only be a forbidden character, so the sentence is the 32-C-043 fix (F4, versionHistoryModel.ts:451-473);
+        // "Nhãn dài tối đa 60 ký tự." stays only for a label over 60 (vitest VersionHistoryF4.test.tsx 32-C-043).
+        await test.step('[32-C-042] label error VALIDATION on a label within 60: the forbidden-character sentence', async () => {
+          await labelStep(wireError(422, 'VALIDATION', { field: 'label' }), VH.labelErrorTitle, 'Nhãn chứa ký tự không cho phép (ký tự điều khiển hoặc đảo chiều).'); // VHM:452
           await captureEvidence(page, 'E06v_32-C-042_label-validation.png');
         });
 

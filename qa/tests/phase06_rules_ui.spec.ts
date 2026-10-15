@@ -20,6 +20,7 @@ import { expect, test, type APIRequestContext, type Locator, type Page } from '@
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { ACTION_TIMEOUT_MS, NAVIGATION_TIMEOUT_MS, readBaseUrl } from '../../e2e/fullstack/env';
 import { signedInApi } from './support/api';
+import { attachJson } from './support/evidence';
 import { readAdminCredentials, signInAdmin } from './support/auth';
 import { createProject } from './support/phase03Seed';
 import { deleteSeededProject } from './support/drawingSeed';
@@ -347,6 +348,15 @@ test('SCR-28 · FL-28-U1c · UI verify of quick fix and resolved section (`verif
             return sheetOf(p);
           })();
           await expect(sheet).toBeVisible();
+          // EVIDENCE (BUG-726): what the reopened resolved row's sheet offers right before the click that gives up.
+          await attachJson(`U06r_28V-F-005_sheet_${String(p.viewportSize()?.width ?? 0)}.json`, {
+            groupTitles: await groupExpanders(p).allInnerTexts(),
+            resolvedGroupPresent: await resolvedGroupExpander(p).isVisible(),
+            sheetVisible: await sheet.isVisible(),
+            sheetButtons: await sheet.getByRole('button').evaluateAll((els) => els.map((el) => el.getAttribute('aria-label') ?? el.textContent ?? '')),
+            deleteActionCount: await sheet.getByRole('button', { name: RR.deleteAction, exact: true }).count(),
+            sheetText: (await sheet.innerText()).slice(0, 600),
+          });
           // S5-confirm: the resolved row's sheet still offers the action; running it on the gone entity fails
           await sheet.getByRole('button', { name: RR.deleteAction, exact: true }).click();
           await expect(sheet.getByRole('alert'), 'InlineAlert inside the panel').toBeVisible();

@@ -35,6 +35,7 @@ import type { ApiEntry } from '../../e2e/fullstack/apiWatch';
 import { readBaseUrl } from '../../e2e/fullstack/env';
 import { attachJson, captureEvidence } from './support/evidence';
 import { layerPathOf, writeLayer } from './support/layerSeed';
+import { recordAnnouncements } from './support/p03/P5';
 import { addProjectMember, poolUser } from './support/phase03Seed';
 import {
   AT_1024,
@@ -168,6 +169,36 @@ async function hasFocusRing(page: Page, locator: Locator): Promise<boolean> {
 async function infoOf(page: Page, ruleName: string | RegExp): Promise<HeaderInfo | undefined> {
   const infos = await headerInfos(page);
   return infos.find((info) => (typeof ruleName === 'string' ? info.ruleName === ruleName : ruleName.test(info.ruleName)));
+}
+
+/**
+ * EVIDENCE (round 2 diagnostic): DOM facts of the report + sheet at this instant, attached as JSON. Call it BEFORE the expect that may fail.
+ * rows: every report row with its text, selection attributes and the id of the panel that holds it; announcer: texts of every `[data-announcer]` node.
+ */
+async function snap(page: Page, name: string, extra: Record<string, unknown> = {}): Promise<void> {
+  const dom = await page.evaluate(() => {
+    const clean = (text: string | null | undefined): string => (text ?? '').replace(/\s+/gu, ' ').trim();
+    const aside = document.querySelector('aside[aria-label="Chi tiết vi phạm"]');
+    return {
+      url: `${location.pathname}${location.search}`,
+      sheetTitle: clean(aside?.querySelector('h2')?.textContent),
+      sheetHeader: clean(aside?.querySelector('header')?.textContent).slice(0, 300),
+      sheetFooter: clean(aside?.textContent).slice(-160),
+      sheetHasFixedLine: clean(aside?.textContent).includes('Đã sửa xong'),
+      undoButtons: Array.from(document.querySelectorAll('button')).filter((b) => clean(b.textContent) === 'Hoàn tác').length,
+      rows: Array.from(document.querySelectorAll('tbody tr, ul > li'))
+        .filter((row) => row.querySelector('code') !== null)
+        .map((row) => ({
+          text: clean(row.textContent).slice(0, 140),
+          code: clean(row.querySelector('code')?.textContent),
+          selected: row.getAttribute('aria-selected') ?? row.getAttribute('aria-current') ?? row.getAttribute('data-selected') ?? row.getAttribute('data-state'),
+          panel: row.closest('[id]')?.id ?? null,
+        })),
+      announcer: Array.from(document.querySelectorAll('[data-announcer]')).map((node) => clean(node.textContent)),
+      alerts: Array.from(document.querySelectorAll('[role="alert"],[role="status"]')).map((node) => clean(node.textContent)).filter((text) => text !== ''),
+    };
+  });
+  await attachJson(name, { ...dom, ...extra });
 }
 
 /** Messages of every open row in report order (expands every group first). */
@@ -1545,8 +1576,11 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         const layer = await readFloorLayer(admin, project.id, floor.id);
         revisionBefore = layer.revision;
         furnitureBefore = layer.furnitureIds.length;
+        await snap(page, 'E06r_28V-03_before-fix.json', { clashMessages, code, before, revisionBefore, furnitureBefore });
         answered = waitForApi(page, 'PUT', layerPutRe, [200]);
         await deleteButton.click();
+        await answered;
+        await snap(page, 'E06r_28V-03_after-put.json', { putsSeen: puts.length });
         await expect.soft(panel.getByText(FIXED_LINE)).toBeVisible();
         await expect.soft(undoButton.first()).toBeVisible();
         await shot(page, '28V-A-014', 'fixed');
@@ -1576,6 +1610,10 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
       await test.step('[28V-A-016] the banner shows, then the sheet moves to the next violation', async () => {
         expect.soft(await seenBanner(), `banner "${ADVANCE_BANNER}"`).toBe(true);
         expect.soft(await seenKeep(), `button "${KEEP_BUTTON}"`).toBe(true);
+        await snap(page, 'E06r_28V-03_advance-state.json', {
+          expectedNextTitle: clashMessages[1] ?? '',
+          nextRecorder: await page.evaluate(() => (window as unknown as { __p06next?: unknown }).__p06next ?? null),
+        });
         // S5-confirm: "the next row" is the old second clash row; recorded in the window before the PUT (see above).
         expect.soft(await page.evaluate(() => (window as unknown as { __p06next?: { reached: boolean } }).__p06next?.reached), 'sheet reached the next row').toBe(true);
         await expect.soft(panel, 'the sheet did not unmount after the save (F9)').toBeVisible();
@@ -1661,10 +1699,14 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         const rows = rowsOf(section);
         await openSheet(page, index < 0 ? rows.last() : rows.nth(index));
       };
+      let fixNo = 0;
       const fix = async (): Promise<void> => {
+        fixNo += 1;
+        await snap(page, `E06r_28V-04_fix${String(fixNo)}-before.json`, { putLog: puts.map((p) => ({ ...p })), furniture: await furnitureCount() });
         const answered = waitForApi(page, 'PUT', layerPutRe, [200]);
         await deleteButton.click();
         await answered;
+        await snap(page, `E06r_28V-04_fix${String(fixNo)}-after.json`, { putLog: puts.map((p) => ({ ...p })), furniture: await furnitureCount() });
       };
       const seenBanner = await watchText(page, ADVANCE_BANNER);
       expect(startOpen, 'clash rows').toBe(3);
@@ -1693,9 +1735,17 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
       });
 
       await test.step('[28V-A-023] "Hoàn tác" in the toast brings the table back', async () => {
-        const answered = waitForApi(page, 'PUT', layerPutRe, [200]);
+        await snap(page, 'E06r_28V-04_undo-before.json', { afterFix, putLog: puts.map((p) => ({ ...p })), furniture: await furnitureCount() });
+        const answered = waitForApi(page, 'PUT', layerPutRe, [200, 409, 422]);
         await undoButton.last().click();
-        await answered;
+        const undoAnswer = await answered;
+        await snap(page, 'E06r_28V-04_undo-after.json', {
+          afterFix,
+          undoStatus: undoAnswer.response.status(),
+          undoBody: (await undoAnswer.response.text().catch(() => '')).slice(0, 300),
+          putLog: puts.map((p) => ({ ...p })),
+          furniture: await furnitureCount(),
+        });
         await softly.poll(furnitureCount).toBe(afterFix + 1);
         await expect.soft(deleteButton).toBeVisible();
         await shot(page, '28V-A-023', 'undone');
@@ -1710,6 +1760,7 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
       });
 
       await test.step('[28V-C-005] ⚑ the report lists the undone row as open again', async () => {
+        await snap(page, 'E06r_28V-04_report-after-undo.json', { startOpen, info: await infoOf(page, clashName), furniture: await furnitureCount(), putLog: puts.map((p) => ({ ...p })) });
         await softly.poll(async () => (await infoOf(page, clashName))?.open).toBe(startOpen - 1);
         await expect.soft(resolvedHeader(page), 'nothing is "Đã xử lý" after the undo').toHaveCount(0);
         await shot(page, '28V-C-005', 'report_after_undo');
@@ -1747,7 +1798,9 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
       });
 
       await test.step('[28V-A-024] after 8 s the toast "Hoàn tác" is gone', async () => {
+        await snap(page, 'E06r_28V-04_window-before.json', { putLog: puts.map((p) => ({ ...p })) });
         await page.clock.fastForward(8_100);
+        await snap(page, 'E06r_28V-04_window-after.json', { toastTexts: await page.getByRole('status').allInnerTexts() });
         await expect.soft(undoButton).toHaveCount(0);
         await shot(page, '28V-A-024', 'window_over');
       });
@@ -1761,6 +1814,7 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
       const floor = floorOf(project);
       await writeLayer(admin.fx, project.id, floor.id, (levelId) => smallKitchenLayer(levelId));
       const puts = trackLayerPuts(page);
+      const announcedTexts = await recordAnnouncements(page); // EVIDENCE: every text the announcer wrote (init script: survives the reload in E-005)
       await openRules(page, project.id);
       const panel = sheet(page);
       const clashName = RULE_NAMES.furnitureClash;
@@ -1797,6 +1851,13 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         await writeElsewhere();
         const answered = waitForApi(page, 'PUT', layerPutRe, [409]);
         await deleteButton.click();
+        const conflict = await answered;
+        await snap(page, 'E06r_28V-05_g003-after.json', {
+          status: conflict.response.status(),
+          body: (await conflict.response.text().catch(() => '')).slice(0, 400),
+          announcedSoFar: await announcedTexts(),
+          putLog: puts.map((p) => ({ ...p })),
+        });
         expect.soft((await answered).response.status(), 'PUT …/spatial/layer').toBe(409);
         expect.soft(puts.at(-1)?.status).toBe(409);
         await expect.soft(panel.getByText(SAVE_FAILED)).toBeVisible();
@@ -1821,8 +1882,14 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
       await test.step('[28V-E-009] the conflict is announced', async () => {
         await writeElsewhere();
         const answered = waitForApi(page, 'PUT', layerPutRe, [409]);
+        await snap(page, 'E06r_28V-05_e009-before.json', { announcedSoFar: await announcedTexts(), deleteVisible: await deleteButton.isVisible() });
         await deleteButton.click();
-        await answered;
+        const conflict = await answered;
+        await snap(page, 'E06r_28V-05_e009-after.json', {
+          status: conflict.response.status(),
+          announcedSoFar: await announcedTexts(),
+          putLog: puts.map((p) => ({ ...p })),
+        });
         await expect.soft(page.getByText(RELOAD_MESSAGE).first()).toBeAttached();
         await shot(page, '28V-E-009', 'announcer');
       });
@@ -1891,6 +1958,10 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         await page.goto(ROUTES.project.overlay(project.id, floorOf(project).id));
         await page.getByRole('combobox', { name: 'Chọn tầng' }).click();
         await page.getByRole('option', { name: /Tầng 2/u }).click();
+        await snap(page, 'E06r_28V-06_overlay-after-pick.json', {
+          floorIds: project.floors.map((f) => ({ name: f.name, id: f.id })),
+          comboText: await page.getByRole('combobox', { name: 'Chọn tầng' }).innerText(),
+        });
         await page.evaluate((url) => {
           window.history.pushState({}, '', url);
           window.dispatchEvent(new PopStateEvent('popstate'));
@@ -1898,9 +1969,21 @@ test.describe('SCR-28V Violation sheet (edge, real)', () => {
         await expect(reportHeading(page)).toBeVisible();
         await openSheet(page, rowsOf(await expandRule(page, RULE_NAMES.furnitureClash)).first());
         const before = puts.length;
+        await snap(page, 'E06r_28V-06_sheet-before-save.json', {
+          floorIds: project.floors.map((f) => ({ name: f.name, id: f.id })),
+          floorSelectText: await floorSelect(page).innerText(),
+          putPathsSoFar: puts.map((p) => p.path),
+        });
         answered = waitForApi(page, 'PUT', layerPutRe, [200, 403, 404, 409]);
         await panel.getByRole('button', { name: DELETE_ACTION }).click();
-        await answered;
+        const second = await answered;
+        await snap(page, 'E06r_28V-06_after-save.json', {
+          putUrl: second.response.url(),
+          putStatus: second.response.status(),
+          putBodyHead: (second.response.request().postData() ?? '').slice(0, 200),
+          expectedPath: layerPathOf(project.id, floorOf(project, 1).id),
+          putLog: puts.map((p) => ({ ...p })),
+        });
         expect.soft(puts.length, 'a PUT went out').toBeGreaterThan(before);
         expect.soft(puts.at(-1)?.path, 'a floor chosen in the shell: the save uses it').toBe(layerPathOf(project.id, floorOf(project, 1).id));
         await shot(page, '28V-C-008', 'floor_source');

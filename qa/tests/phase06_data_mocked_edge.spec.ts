@@ -23,7 +23,7 @@ import type { Page } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { navigateThenWaitForApi, waitForApi } from '../../e2e/fullstack/apiWatch';
-import { captureEvidence } from './support/evidence';
+import { attachJson, captureEvidence } from './support/evidence';
 import {
   ERROR_PAINT_TIMEOUT_MS,
   SJ,
@@ -155,8 +155,33 @@ test.describe('E06d SCR-31 Spatial JSON Viewer [mocked response]', () => {
       await expect.poll(() => new URL(page.url()).pathname).toBe(versionsPath);
       // spaNavigate only changes the URL (lazy route + Suspense): wait until the data screen is really unmounted, else the hop back never remounts the gate and N15 is not read again
       await expect(page.getByRole('textbox', { name: SJ.search, exact: true })).toHaveCount(0);
+      // BUG-727 evidence round: every /api request since the mark + the URL / mounted screen around the hop (attached even when the wait below times out)
+      const sinceMark: string[] = [];
+      const onRequest = (request: { method(): string; url(): string }): void => {
+        const path = new URL(request.url()).pathname;
+        if (path.startsWith('/api/')) sinceMark.push(`${request.method()} ${path} @${String(Date.now() - markedAt)}ms`);
+      };
+      const markedAt = Date.now();
+      page.on('request', onRequest);
+      const urlBeforeHop = new URL(page.url()).pathname;
+      const mountedBeforeHop = await page.getByRole('textbox', { name: SJ.search, exact: true }).count();
       await spaNavigate(page, ROUTES.project.data(project.id)); // S5-confirm: remounting the gate refetches N15 (staleTime 0, UPS:98-102)
-      await failedRefetch;
+      try {
+        await failedRefetch;
+      } finally {
+        page.off('request', onRequest);
+        await attachJson('31-B-015_hop_back_requests.json', {
+          urlOnVersions: versionsPath,
+          urlBeforeHopBack: urlBeforeHop,
+          dataScreenMountedBeforeHopBack: mountedBeforeHop,
+          urlAfterHopBack: new URL(page.url()).pathname,
+          dataScreenMountedAfter: await page.getByRole('textbox', { name: SJ.search, exact: true }).count(),
+          treeMountedAfter: await treeOf(page).count(),
+          n15CallsAtRoute: mock.n15Calls(),
+          apiRequestsSinceMark: sinceMark,
+          spatialResponsesSeen: api.filter((e) => spatialRe(project.id).test(e.path)).map((e) => `${e.method} ${String(e.status)}`),
+        });
+      }
       const refreshAlert = page.getByText(SJ.refreshFailed, { exact: true });
       await expect(refreshAlert).toBeVisible({ timeout: ERROR_PAINT_TIMEOUT_MS });
 

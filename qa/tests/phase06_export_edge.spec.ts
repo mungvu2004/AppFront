@@ -208,12 +208,34 @@ test.describe('SCR-30 Bảng xuất — edge (real stack)', () => {
         await expect.soft(page.getByRole('button', { name: TOUR_SKIP_NAME, exact: true }).first(), 'EditorTour mounted on this route').toBeVisible({ timeout: TOUR_APPEAR_TIMEOUT_MS });
         // EditorTour.tsx:10-14,95-117: the backdrop is four panels around a real hole, and on /export the only live step is
         // `exportResult`, so the hole IS the "Xuất" button: the point at its centre belongs to the button.
+        // BUG-716 evidence only (assertion below unchanged): hole/panels/hit at the moment of the check, again once the hole transition has settled.
+        const probe = (): Promise<Record<string, unknown>> => page.evaluate(() => {
+          const btn = [...document.querySelectorAll('[data-tour-anchor]')].find((n) => n.getAttribute('data-tour-anchor') === 'exportResult') ?? null;
+          const box = (el: Element | null) => { if (el === null) return null; const r = el.getBoundingClientRect(); return { top: r.top, left: r.left, width: r.width, height: r.height }; };
+          const describe = (el: Element | null) => (el === null ? null : `${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ''}.${String(el.getAttribute('class') ?? '').slice(0, 80)}`);
+          const b = btn === null ? null : btn.getBoundingClientRect();
+          const cx = b === null ? 0 : b.left + b.width / 2;
+          const cy = b === null ? 0 : b.top + b.height / 2;
+          const root = document.querySelector('.pointer-events-none.fixed.inset-0.z-40');
+          const panels = root === null ? [] : [...root.querySelectorAll(':scope > div[aria-hidden="true"]')].map((p) => ({ cls: String(p.getAttribute('class') ?? '').slice(0, 60), box: box(p), transition: getComputedStyle(p).transitionProperty }));
+          const top = document.elementFromPoint(cx, cy);
+          return {
+            anchorSelector: '[data-tour-anchor="exportResult"]', buttonFound: btn !== null, xuatBox: box(btn), centre: { x: cx, y: cy },
+            tourRootFound: root !== null, holeAndPanels: panels, runningAnimations: document.getAnimations().length,
+            elementAtCentre: describe(top), elementAtCentreBox: box(top), centreHitIsButton: btn !== null && top !== null && btn.contains(top),
+            viewport: { w: window.innerWidth, h: window.innerHeight }, scroll: { x: window.scrollX, y: window.scrollY },
+            tourText: root === null ? null : (root.textContent ?? '').slice(0, 160),
+          };
+        });
+        await attachJson('30-A-021_tour_hole_at_check.json', { moment: 'at the check', ...(await probe()) });
         const hit = await exportButton(page).evaluate((el) => {
           const r = el.getBoundingClientRect();
           const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
           return top !== null && el.contains(top);
         });
         expect.soft(hit, 'the centre of "Xuất" is inside the tour hole (reachable)').toBe(true);
+        await expect.poll(() => page.evaluate(() => document.getAnimations().length), { timeout: 3000, message: 'hole transition ended' }).toBe(0);
+        await attachJson('30-A-021_tour_hole_settled.json', { moment: 'after the hole transition ended', ...(await probe()) });
         // A click on the dark panel over a format card skips the tour (EditorTour.tsx:10-14) and does not reach the card.
         await formatRadio(page, '.png').click({ force: true });
         await dismissTour(page);
