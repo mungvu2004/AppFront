@@ -26,7 +26,7 @@
  *
  * Pairing: BE tests for the scale write live in `phase04_qc_layers_api.spec.ts` "A04 · scale: …" (FL-A4-07).
  */
-import { expect, test, type Locator, type Page, type Route } from '@playwright/test';
+import { expect, test, type Locator, type Page, type Request, type Route } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { attachJson, captureEvidence } from './support/evidence';
@@ -954,6 +954,14 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
       });
 
       await step('14-A-028', 'Ctrl+Z after apply = the toast undo; after leaving and returning to the screen it still sends the PUT', async () => {
+        // BUG-724 evidence: every API request with its time, from the re-apply to 3 s after Ctrl+Z (N15 refetch race?).
+        const t0 = Date.now();
+        const traffic: string[] = [];
+        const logRequest = (request: Request): void => {
+          const path = new URL(request.url()).pathname;
+          if (path.startsWith('/api/')) traffic.push(`${String(Date.now() - t0)}ms ${request.method()} ${path}`);
+        };
+        page.on('request', logRequest);
         await applyDisabled(page).click();
         await expect.poll(() => putOf().length).toBe(3);
         await page.mouse.move(2, 2); // off the toast
@@ -966,9 +974,15 @@ test.describe('E04 SCR-14 scale calibration — real stack (QA-04c P6)', () => {
         });
         // BUG-724 evidence: did Ctrl+Z revert the ratio on screen (save path) or not at all (key/history path)?
         const barBefore = await statusBar(page).innerText();
+        const pressedAt = Date.now() - t0;
         await page.keyboard.press(undoKey);
-        await page.waitForTimeout(1_500); // fixed-wait-ok: let an undo render before the evidence read
-        await attachJson('E04_14-A-028_ctrl-z.json', { focusedBefore, barBefore, barAfter: await statusBar(page).innerText(), puts: putOf().length });
+        const bars: string[] = [];
+        for (const wait of [500, 1_000, 1_500]) {
+          await page.waitForTimeout(wait); // fixed-wait-ok: evidence samples at 0.5 / 1.5 / 3 s after Ctrl+Z
+          bars.push(`${String(Date.now() - t0)}ms ${(await statusBar(page).innerText()).replace(/\s+/gu, ' ')}`);
+        }
+        page.off('request', logRequest);
+        await attachJson('E04_14-A-028_ctrl-z.json', { focusedBefore, barBefore, pressedAt, bars, traffic, puts: putOf().length });
         await expect.poll(() => putOf().length, `Ctrl+Z PUT (focus was ${focusedBefore})`).toBe(4);
         expect.soft(putRatio(putOf()[3])).toBeCloseTo(r0, 5);
         await applyDisabled(page).click();
