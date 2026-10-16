@@ -6,10 +6,21 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { permissionMatrix } from '../../src/lib/auth/permissions';
-import { PERMISSION_MATRIX_ROWS } from '../../src/screens/admin/UserManagement/userManagementGateway';
 import { captureEvidence } from './support/evidence';
 import { recordRequests, settle, since } from './support/p09/P10';
 import { attachAdminSnap } from './support/p09/adminSnap';
+
+// Keys of the 7 rows the screen draws (userManagementGateway.ts:171 PERMISSION_MATRIX_ROWS). Copied, not imported: that module
+// pulls src/i18n/vi.json, which Playwright on Node 24 cannot load without an import attribute (0 tests collected, p09-rr D2).
+const PERMISSION_MATRIX_ROWS = [
+  { key: 'floor.upload' },
+  { key: 'layer.edit' },
+  { key: 'qc.approve' },
+  { key: 'ruleset.edit' },
+  { key: 'model.export' },
+  { key: 'share.create' },
+  { key: 'user.manage' },
+] as const;
 import { adminApi, apiAs, DESKTOP, gotoAs, roleUser, signInRole } from './support/p09/roles';
 
 test.use({ viewport: DESKTOP });
