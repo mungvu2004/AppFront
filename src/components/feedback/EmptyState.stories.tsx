@@ -9,7 +9,7 @@ const meta = {
   tags: ['autodocs'],
   decorators: [
     (Story) => (
-      <div className="h-[400px] bg-bg-surface flex flex-col justify-center border border-border-default rounded-[8px]">
+      <div className="h-[400px] bg-bg-surface flex flex-col justify-center border border-border-default rounded-lg">
         <Story />
       </div>
     ),

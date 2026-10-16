@@ -124,7 +124,7 @@ const EMPTY_NOTICE =
   'Tệp CAD không có lớp nào được đặt tên, nên không có lớp nào để ánh xạ và chưa nhập được hình học. Hãy chọn "Vẫn dùng AI".';
 
 const FORBIDDEN_NOTICE =
-  'Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. liên hệ quản trị viên để được cấp quyền.';
+  'Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. Liên hệ quản trị viên để được cấp quyền.';
 
 const SUCCESS_NOTICE = 'Đã nhập xong hình học từ tệp CAD.';
 
@@ -157,11 +157,7 @@ function dialogFor(state: SevenState): CadBranchConfirmDialogViewModel {
     isRememberChoiceChecked: false,
     canRememberChoice: true,
     isCadChoiceDisabled: isBlocked,
-    cadChoiceDisabledReason: isBlocked
-      ? state === 'forbidden'
-        ? FORBIDDEN_NOTICE
-        : ERROR_MESSAGE
-      : null,
+    cadChoiceDisabledReason: state === 'error' ? ERROR_MESSAGE : null,
   };
 }
 

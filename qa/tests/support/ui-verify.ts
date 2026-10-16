@@ -11,13 +11,15 @@ import { join } from 'node:path';
 
 import { expect, test, type Page } from '@playwright/test';
 
-import { EVIDENCE_DIR, captureEvidence } from './evidence';
+import { EVIDENCE_DIR, captureEvidence, repSuffix } from './evidence';
 
 export const UI_VIEWPORTS = [
   { width: 1440, height: 900 },
+  // Wide desktop (Full HD, > 19"): the layout must use or cap the extra width. Index 0 stays 1440 (specs read
+  // UI_VIEWPORTS[0]). No 375: the web targets desktop + tablet only (user, 2026-10-14).
+  { width: 1920, height: 1080 },
   { width: 1024, height: 768 },
   { width: 768, height: 1024 },
-  { width: 375, height: 812 },
 ] as const;
 
 /**
@@ -160,8 +162,10 @@ export async function verifyUi(
       await open(page);
     } catch (error) {
       if (test.info().expectedStatus === 'skipped') throw error;
-      // First line of the message, without the ANSI colours Playwright puts in it.
-      openError = (error instanceof Error ? error.message : String(error)).replace(/\u001b\[[0-9;]*m/gu, '').split('\n')[0];
+      // First line plus the `Locator:` line (which element timed out) and the URL, without the ANSI colours Playwright puts in it.
+      // RR phase 08: first line alone ("Timed out ... toBeVisible") hid which locator failed in 6 cases.
+      const lines = (error instanceof Error ? error.message : String(error)).replace(/\u001b\[[0-9;]*m/gu, '').split('\n');
+      openError = [lines[0], lines.find((l) => l.startsWith('Locator:')), `url=${page.url()}`].filter(Boolean).join(' | ');
     }
     // Web fonts change line breaks; measure after they settle.
     await page.evaluate(() => document.fonts.ready.then(() => undefined));
@@ -174,8 +178,8 @@ export async function verifyUi(
   }
   // Next to the images, so the reviewer reads one small file instead of decoding results.json.
   mkdirSync(EVIDENCE_DIR, { recursive: true });
-  writeFileSync(join(EVIDENCE_DIR, `${name}.json`), JSON.stringify(all, null, 2));
-  await test.info().attach(`${name}.json`, { body: JSON.stringify(all, null, 2), contentType: 'application/json' });
+  writeFileSync(join(EVIDENCE_DIR, `${name}${repSuffix()}.json`), JSON.stringify(all, null, 2));
+  await test.info().attach(`${name}${repSuffix()}.json`,{ body: JSON.stringify(all, null, 2), contentType: 'application/json' });
   for (const m of all) {
     expect.soft(m.openError, `${m.viewport}: the state did not open`).toBeUndefined();
     expect.soft(m.horizontalOverflowPx, `${m.viewport}: page scrolls horizontally`).toBe(0);

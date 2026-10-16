@@ -212,6 +212,12 @@ export interface ViolationDetailViewProps {
   /* -- Chân (khối 8) -- */
   readonly ruleCode: RuleCode | null;
   readonly levelId: LevelId | null;
+  /**
+   * Mã đối tượng của vi phạm ĐANG hiển thị — tấm ghi nó ra `data-entity-id`. Sau lượt sửa,
+   * báo cáo đánh lại mã hiển thị (`#F-002` → `#F-001`) nên chữ tiêu đề không còn nói tấm đang
+   * ở hàng nào; mã đối tượng thì không đổi (BUG-728, 28V-A-016).
+   */
+  readonly entityId?: string | null;
 
   /* -- Điều hướng, không đóng tấm trượt -- */
   readonly onPrevious: () => void;

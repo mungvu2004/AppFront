@@ -18,8 +18,8 @@
  *
  * ## Bậc thang bảy trạng thái
  *
- * `loading` (phiên chưa rõ) → `forbidden` → `loading` → `error` → `collapsed` → `empty` (tab
- * đang mở rỗng, không lọc) → `partial` (có lượt chưa kết thúc) → `success`.
+ * `loading` (phiên chưa rõ) → `forbidden` → `loading` → `error` → `empty` (tab đang mở
+ * rỗng, không lọc) → `partial` (có lượt chưa kết thúc) → `collapsed` (màn hẹp) → `success`.
  */
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -360,6 +360,7 @@ interface CreateVariables {
 }
 
 const NO_DATASETS: readonly Dataset[] = [];
+const OFFLINE_READ_ERROR = { kind: 'network', raw: null, requestId: '', retryable: true };
 
 const versionsOf = (data: readonly DatasetVersion[] | undefined): readonly DatasetVersion[] => data ?? [];
 
@@ -390,9 +391,12 @@ export function useTrainingJobs({
   const [formVersionId, setFormVersionId] = useState<string | null>(null);
   const [formBaseModel, setFormBaseModel] = useState<string | null>(null);
   const [formEpochs, setFormEpochs] = useState<number | undefined>(DEFAULT_TRAINING_EPOCHS);
+  /** `null` = không có chữ đang gõ; `undefined` = ô rỗng/chữ. */
+  const [epochsTyped, setEpochsTyped] = useState<number | undefined | null>(null);
   const [formErrors, setFormErrors] = useState<CreateFieldErrors>(NO_FIELD_ERRORS);
   /** Khoá N33 + thân chờ gửi lại: ở hook, không ở biểu mẫu, để sống qua đóng/mở. */
   const pendingCreateRef = useRef<CreateAttempt | null>(null);
+  const createInFlightRef = useRef(false);
 
   const [datasetFamily, setDatasetFamily] = useState<DatasetFamilyId>('wallSegmentation');
   const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(null);
@@ -563,7 +567,11 @@ export function useTrainingJobs({
   const isSilentCursorRetry = isCursorInvalidError(jobsQuery.error) && !cursorRetried;
   const jobsReadError = jobsQuery.data === undefined ? jobsQuery.error : null;
   const loadMoreError = jobsQuery.isFetchNextPageError && !isSilentCursorRetry ? jobsQuery.error : null;
-  const tabReadError = activeTab === 'jobs' ? jobsReadError : tabDatasetsQuery.error;
+  // Mất mạng lúc mở: TanStack (`networkMode: 'online'`) TẠM DỪNG lượt đọc chứ không báo lỗi, màn
+  // sẽ đứng ở "trống" (35T-B-041, cùng gốc BUG-551). Coi như mất kết nối: câu "Máy chủ đang bận".
+  const tabQuery = activeTab === 'jobs' ? jobsQuery : tabDatasetsQuery;
+  const pausedReadError = tabQuery.isPending && tabQuery.fetchStatus === 'paused' ? OFFLINE_READ_ERROR : null;
+  const tabReadError = (activeTab === 'jobs' ? jobsReadError : tabDatasetsQuery.error) ?? pausedReadError;
   const isForbiddenByServer = [jobsQuery.error, jobQuery.error, tabDatasetsQuery.error].some(isForbiddenError);
 
   // 403 giữa chừng: chốt `forbidden` và tắt MỌI truy vấn (`enabled`), không hỏi tiếp sau màn
@@ -580,10 +588,10 @@ export function useTrainingJobs({
     if (!isAdmin || writeForbidden || isForbiddenByServer) return 'forbidden';
     if (isTabLoading) return 'loading';
     if (tabReadError !== null) return 'error';
-    if (isNarrow) return 'collapsed';
     if (isTabEmpty) return 'empty';
+    if (activeTab === 'jobs' && activeCount > 0) return 'partial';
 
-    return activeTab === 'jobs' && activeCount > 0 ? 'partial' : 'success';
+    return isNarrow ? 'collapsed' : 'success';
   }, [
     isSessionUnknown,
     isAdmin,
@@ -599,9 +607,21 @@ export function useTrainingJobs({
 
   /* ---- Tạo -------------------------------------------------------------- */
 
+  // 403 của MỘT lần ghi: chỉ đóng hộp + báo lỗi, vẫn xem được (35T-C-013). 403 khi đọc mới khoá trang.
+  const notifyWriteForbidden = (): void => {
+    gateway.notify({
+      description: TRAINING_ERROR_TEXT.writeForbidden,
+      title: TRAINING_ERROR_TEXT.writeForbiddenTitle,
+      type: 'trainingJobs.writeForbidden',
+    });
+  };
+
   const createMutation = useMutation({
     mutationFn: (variables: CreateVariables) =>
       gateway.createJob({ body: variables.body, idempotencyKey: variables.key }),
+    onSettled: () => {
+      createInFlightRef.current = false;
+    },
     onError: (error, variables) => {
       if (isResponseLost(error)) {
         // Không biết máy chủ đã nhận chưa: giữ khoá, và đọc lại danh sách ngay.
@@ -614,7 +634,7 @@ export function useTrainingJobs({
 
       if (isForbiddenError(error)) {
         setFormOpen(false);
-        setWriteForbidden(true);
+        notifyWriteForbidden();
         return;
       }
 
@@ -632,6 +652,7 @@ export function useTrainingJobs({
       setFormOpen(false);
       setFormErrors(NO_FIELD_ERRORS);
       setFormEpochs(DEFAULT_TRAINING_EPOCHS);
+      setEpochsTyped(null);
       setActiveTab('jobs');
       setSelectedJobId(job.id);
       setDetailNotice(null);
@@ -643,20 +664,25 @@ export function useTrainingJobs({
     },
   });
 
+  // Số đang gõ (chưa chốt, hoặc bị ô từ chối) thắng số đã chốt: nếu không, "0" + Enter/bấm gửi vẫn gửi số cũ.
+  const epochsNow = epochsTyped === null ? formEpochs : epochsTyped;
   const epochsValid =
-    formEpochs !== undefined &&
-    Number.isInteger(formEpochs) &&
-    formEpochs >= TRAINING_EPOCHS_MIN &&
-    formEpochs <= TRAINING_EPOCHS_MAX;
+    epochsNow !== undefined &&
+    Number.isInteger(epochsNow) &&
+    epochsNow >= TRAINING_EPOCHS_MIN &&
+    epochsNow <= TRAINING_EPOCHS_MAX;
   const canSubmit =
     effectiveVersionId !== null && effectiveBaseModel !== null && epochsValid && !createMutation.isPending;
 
   const onSubmitForm = useCallback((): void => {
-    if (!canSubmit || effectiveVersionId === null || effectiveBaseModel === null || formEpochs === undefined) return;
+    if (!canSubmit || effectiveVersionId === null || effectiveBaseModel === null || epochsNow === undefined) return;
     if (effectiveDatasetId === null) return;
 
-    const body = buildCreateBody(formFamily, effectiveBaseModel, effectiveVersionId, formEpochs);
+    const body = buildCreateBody(formFamily, effectiveBaseModel, effectiveVersionId, epochsNow);
     if (body === null) return;
+    // 35T-A-021: nhấp đúp dùng cùng một handler, `isPending` trễ một lượt render -> ref đổi ngay.
+    if (createInFlightRef.current) return;
+    createInFlightRef.current = true;
     const attempt = nextCreateAttempt(pendingCreateRef.current, body, gateway.createKey);
 
     pendingCreateRef.current = attempt;
@@ -667,7 +693,7 @@ export function useTrainingJobs({
     effectiveVersionId,
     effectiveBaseModel,
     effectiveDatasetId,
-    formEpochs,
+    epochsNow,
     formFamily,
     gateway,
     createMutation,
@@ -681,7 +707,7 @@ export function useTrainingJobs({
     onError: (error, jobId) => {
       if (isForbiddenError(error)) {
         setCancelOpen(false);
-        setWriteForbidden(true);
+        notifyWriteForbidden();
         return;
       }
 
@@ -891,7 +917,10 @@ export function useTrainingJobs({
         setCancelOpen(false);
         setCancelError(null);
       },
-      onCloseForm: () => setFormOpen(false),
+      onCloseForm: () => {
+        setEpochsTyped(null);
+        setFormOpen(false);
+      },
       onConfirmCancel,
       onFilterFamily: (value) => {
         setCursorRetried(false);
@@ -908,8 +937,10 @@ export function useTrainingJobs({
       onFormDataset,
       onFormEpochs: (value) => {
         setFormEpochs(value);
+        setEpochsTyped(null);
         setFormErrors(NO_FIELD_ERRORS);
       },
+      onTypeEpochs: setEpochsTyped,
       onFormFamily,
       onFormVersion: (value) => {
         setFormVersionId(value);
@@ -917,6 +948,7 @@ export function useTrainingJobs({
       },
       onLoadMore,
       onOpenForm: () => {
+        setEpochsTyped(null);
         setFormErrors(NO_FIELD_ERRORS);
         setFormOpen(true);
       },

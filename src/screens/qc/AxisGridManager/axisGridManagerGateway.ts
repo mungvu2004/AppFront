@@ -863,12 +863,11 @@ export function buildAutoAlignCommand(input: BuildAutoAlignInput): Command | nul
     for (const axis of axesOfLevel(input.graph, alignment.levelId)) {
       changes.push(changeForUpdate('axis', axis, withFloorTransform(axis, alignment.transform)));
     }
-
-    for (const wall of wallsOfLevel(input.graph, alignment.levelId)) {
-      changes.push(
-        changeForUpdate('wall', wall, wallWithFloorTransform(wall, alignment.transform)),
-      );
-    }
+    /*
+     * G12 (QA-04 FL-19-07): CHỈ trục. Tường là dữ liệu mà autosave ghi
+     * (`changedLevelIds`, spatialLayerSave.ts); căn lưới không được lặng lẽ
+     * PUT tường đã dời của tầng khác.
+     */
   }
 
   if (changes.length === 0) {
@@ -938,7 +937,12 @@ export interface CreateAxisGridDispatchOptions {
 export function createAxisGridDispatchDeps(
   options: CreateAxisGridDispatchOptions,
 ): AxisGridDispatchDeps {
-  const history = options.history ?? createHistoryStack();
+  /*
+   * BUG-595/G10: canvas đã gộp một lần kéo thành MỘT lệnh lúc thả chuột, nên
+   * ngăn xếp KHÔNG được gộp thêm các lệnh cùng trục kế tiếp — nếu không một
+   * Ctrl+Z hoàn tác cả chuỗi lần kéo, không chỉ lần cuối.
+   */
+  const history = options.history ?? createHistoryStack({ mergeWindowMs: 0 });
   let label = '';
 
   const deps: DispatchDeps = {

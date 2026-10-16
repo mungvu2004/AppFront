@@ -118,7 +118,7 @@ const withSaveStrip = (saveBlock: FloorLayerSaveBlock): NonNullable<Story['rende
         <div className="min-w-0 flex-1">
           <Viewer3D {...args} />
         </div>
-        <aside aria-label="Panel thuộc tính" className="w-[320px] border-l border-border-default bg-bg-surface">
+        <aside aria-label="Panel thuộc tính" className="w-80 border-l border-border-default bg-bg-surface">
           <Viewer3DSaveStrip saveBlock={saveBlock} />
         </aside>
       </div>

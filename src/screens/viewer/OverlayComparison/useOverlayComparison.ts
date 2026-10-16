@@ -78,7 +78,7 @@ import {
   type OverlayScanSnapshot,
   type OverlayToleranceEvaluation,
 } from './overlayComparisonGateway';
-import { floorLayerReadFailureOf } from '../../qc/shared/floorLayerReadFailure';
+import { floorLayerReadFailureOf, floorMissingFailureOf } from '../../qc/shared/floorLayerReadFailure';
 import type {
   CompareModeId,
   ConfirmationViewModel,
@@ -457,6 +457,10 @@ export function useOverlayComparison(
    * rồi tầng của route, rồi tầng của kho. Back/Forward đổi route nên lựa chọn cũ hết hiệu lực.
    */
   const [picked, setPicked] = useState<{ readonly route: string; readonly levelId: LevelId } | null>(null);
+  // Route đổi (kể cả Back/Forward) thì lựa chọn cũ hết hạn, nếu không Back về route cũ sẽ khớp lại `picked.route`.
+  useEffect(() => {
+    setPicked(null);
+  }, [floorId]);
   const activeFloorId: LevelId | null =
     (
       (picked?.route === floorId ? floors.find((floor) => floor.id === picked.levelId) : undefined) ??
@@ -464,6 +468,9 @@ export function useOverlayComparison(
       floors.find((floor) => floor.id === storeActiveFloorId) ??
       floors[0]
     )?.id ?? null;
+
+  const isRouteFloorUnknown =
+    storeFloors.length > 0 && !floors.some((floor) => floor.id === floorId || scanFloorIdOf(floor.id) === floorId);
 
   const canEdit = can('edit', 'layer', { roles });
   const role = ROLE_PRECEDENCE.find((candidate) => roles.includes(candidate)) ?? null;
@@ -473,7 +480,9 @@ export function useOverlayComparison(
   /* ---------------------------------------------------------------------- */
 
   const query = useQuery({
-    queryKey: queryKeys.quality.assessment(activeFloorId ?? ''),
+    // Khoá riêng: SCR-11 ghi một ImageQualityAssessment vào `assessment(floorId)`, hình dạng khác `{scans, regions}` (X4-A-024).
+    // Vẫn nằm dưới tiền tố `assessment(floorId)`, nên làm mất hiệu lực theo tiền tố vẫn tới được.
+    queryKey: [...queryKeys.quality.assessment(activeFloorId ?? ''), 'overlay'] as const,
     queryFn: async (): Promise<OverlayComparisonRecord> => {
       const readFloorId = activeFloorId === null ? floorId : scanFloorIdOf(activeFloorId);
       const scans = await gateway.readFloorScans({ floorId: readFloorId, projectId });
@@ -497,7 +506,9 @@ export function useOverlayComparison(
         regions: regions.supported ? regions.value : EMPTY_REGIONS,
       };
     },
-    enabled: activeFloorId !== null,
+    // Tầng của route không có trong kho thì N16 không biết nó: không đọc ảnh (#30) của tầng khác thay nó (22-G-010).
+    // Kho chưa có đồ thị thì N16 là nguồn tầng: chưa đọc xong / hỏng thì không gọi #30 (22-G-009, BUG-588).
+    enabled: activeFloorId !== null && !isRouteFloorUnknown && (storeSpatial !== null || layerQuery.isSuccess),
   });
 
   const scans = query.data?.scans ?? EMPTY_SCANS;
@@ -617,14 +628,18 @@ export function useOverlayComparison(
   const hasScaleConflict = useMemo(() => {
     const ratios = new Set<number>();
 
+    // Chỉ tầng đã có bản vẽ mới có tỷ lệ để căn: tầng trống không tạo xung đột (R27).
     for (const floor of floors) {
-      if (floor.scaleMillimetresPerPixel !== undefined) {
+      if (
+        floor.scaleMillimetresPerPixel !== undefined &&
+        floorOptions.some((option) => option.levelId === floor.id && option.hasScan)
+      ) {
         ratios.add(floor.scaleMillimetresPerPixel);
       }
     }
 
     return ratios.size > 1;
-  }, [floors]);
+  }, [floorOptions, floors]);
 
   /* ---------------------------------------------------------------------- */
   /* Đo: một lời gọi cổng, không một phép tính nào ở đây (R-61).             */
@@ -655,22 +670,26 @@ export function useOverlayComparison(
   const hasLayerReadFailed = storeSpatial === null && layerQuery.isError;
   /* N16 404 (người ngoài dự án, tầng đã xoá): cả màn là một lối ra, không câu lỗi đọc chung (G45). */
   const refetchLayer = layerQuery.refetch;
+  /* Kho đã nạp (N15 của cổng về trước N16) mà không có tầng của route: cùng màn "tầng không còn" như N16 404,
+     không lặng lẽ rơi về tầng đầu của kho — câu trả lời không được phụ thuộc lượt đọc nào về trước (X4-A-036, BUG-326). */
   const readFailure = useMemo(
     () =>
-      hasLayerReadFailed && readWireError(layerQuery.error)?.status === 404
-        ? floorLayerReadFailureOf(
-            {
-              data: undefined,
-              error: layerQuery.error,
-              refetch: () => {
-                void refetchLayer();
+      isRouteFloorUnknown
+        ? floorMissingFailureOf(projectId, (path) => onNavigateRef.current?.(path))
+        : hasLayerReadFailed && readWireError(layerQuery.error)?.status === 404
+          ? floorLayerReadFailureOf(
+              {
+                data: undefined,
+                error: layerQuery.error,
+                refetch: () => {
+                  void refetchLayer();
+                },
               },
-            },
-            projectId,
-            (path) => onNavigateRef.current?.(path),
-          )
-        : null,
-    [hasLayerReadFailed, layerQuery.error, projectId, refetchLayer],
+              projectId,
+              (path) => onNavigateRef.current?.(path),
+            )
+          : null,
+    [hasLayerReadFailed, isRouteFloorUnknown, layerQuery.error, projectId, refetchLayer],
   );
 
   const state = useMemo<OverlayComparisonState>(() => {
@@ -678,8 +697,13 @@ export function useOverlayComparison(
       return 'loading';
     }
 
-    if (hasReadFailed || hasLayerReadFailed || isFrameMissing || hasScaleConflict) {
+    if (hasReadFailed || hasLayerReadFailed) {
       return 'error';
+    }
+
+    // Q4b (9U-D-063): lỗi NỘI DUNG (thiếu khung, lệch tỷ lệ) chỉ người có quyền sửa chữa được; vai chỉ xem thấy câu chỉ-đọc.
+    if (isFrameMissing || hasScaleConflict) {
+      return canEdit ? 'error' : 'forbidden';
     }
 
     if (activeFloorId === null || !activeHasScan) {

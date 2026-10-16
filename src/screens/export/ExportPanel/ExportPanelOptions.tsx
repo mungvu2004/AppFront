@@ -71,7 +71,7 @@ function ExportPanelScope({ floors, onToggleFloor }: ExportPanelScopeProps) {
       <div className="flex flex-col gap-2">
         {sortedFloors.map((floor) => (
           <div key={floor.id} className="flex flex-col gap-1 rounded border border-border-default p-2">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
               <Checkbox
                 label={floor.name}
                 checked={floor.isSelected}
@@ -217,9 +217,16 @@ export function ExportPanelOptions({
 }: ExportPanelOptionsProps) {
   return (
     <div className="flex flex-col gap-4 rounded-lg border border-border-default bg-bg-surface p-4">
-      <ExportPanelScope floors={floors} onToggleFloor={onToggleFloor} />
+      {/* Spatial JSON lấy cả đồ thị nên không có phạm vi theo tầng (30-C-015). */}
+      {selectedFormatId !== 'spatial-json' && <ExportPanelScope floors={floors} onToggleFloor={onToggleFloor} />}
 
-      <div className="flex flex-col gap-2 border-t border-border-default pt-3">
+      <div
+        className={
+          selectedFormatId === 'spatial-json'
+            ? 'flex flex-col gap-2'
+            : 'flex flex-col gap-2 border-t border-border-default pt-3'
+        }
+      >
         <button
           type="button"
           aria-expanded={options.isExpanded}

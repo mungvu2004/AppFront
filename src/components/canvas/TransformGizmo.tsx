@@ -174,7 +174,7 @@ export function TransformGizmo({
         <div
           className={cn(
             'absolute pointer-events-none',
-            'bg-bg-surface border border-border-default rounded-[6px]',
+            'bg-bg-surface border border-border-default rounded-md',
             'px-2 py-1 shadow-panel',
             'whitespace-nowrap'
           )}

@@ -170,4 +170,5 @@ export const TRAINING_JOBS_ACTIONS: TrainingJobsActions = {
   onSelectJob: noop,
   onSelectTab: noop,
   onSubmitForm: noop,
+  onTypeEpochs: noop,
 };

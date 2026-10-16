@@ -40,6 +40,7 @@ const EMPTY_TITLE = 'Chưa có model nào';
 const EMPTY_DESCRIPTION = 'Thư viện chưa có model nào.';
 const ERROR_TITLE = 'Không tải được thư viện model';
 const GENERIC_ERROR_MESSAGE = 'Đã có lỗi xảy ra.';
+const RETRY_LABEL = 'Thử lại';
 const LOADING_ROW_COUNT = 10;
 const COLUMN_COUNT = 6;
 const PREVIEW_HEADER = 'Ảnh xem trước';
@@ -52,6 +53,7 @@ function ModelLibraryShell({ children }: { readonly children: ReactNode }) {
         <span aria-hidden="true"> › </span>
         <span className="text-text-primary">{BREADCRUMB_CURRENT}</span>
       </nav>
+      <h1 className="text-[20px] font-semibold text-text-primary">{BREADCRUMB_CURRENT}</h1>
       {children}
     </div>
   );
@@ -93,7 +95,12 @@ export function ModelLibrary({ actions, model }: ModelLibraryProps) {
   if (model.state === 'error') {
     return (
       <ModelLibraryShell>
-        <InlineAlert level="violation" message={model.errorMessage ?? GENERIC_ERROR_MESSAGE} title={ERROR_TITLE} />
+        <InlineAlert
+          action={{ label: RETRY_LABEL, onClick: actions.retryLoad }}
+          level="violation"
+          message={model.errorMessage ?? GENERIC_ERROR_MESSAGE}
+          title={ERROR_TITLE}
+        />
       </ModelLibraryShell>
     );
   }

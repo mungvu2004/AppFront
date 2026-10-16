@@ -13,7 +13,7 @@ file is the reference.
 
 API spec: `qa/tests/phase04_qc_layers_api.spec.ts` — **12 tests** (`--list`), evidence prefix `A04_` (JSON exchanges; big
 bodies write a summary JSON). The 9 older tests passed in `run-20-author`; the 3 new "gaps" tests ran in `run-22-author`
-(results below). UI specs of the phase: main `phase04_qc_layers.spec.ts`, ui `phase04_qc_layers_ui.spec.ts`, edge
+(results below). UI specs of the phase: main `phase04_pipeline.spec.ts`, ui `phase04_qc_layers_ui.spec.ts`, edge
 `phase04_qc_layers_edge.spec.ts` (1 `[mocked response]` test of 30).
 
 Endpoints called by the phase's screens (FE `src/api/endpoints.ts` `spatial.floor|graph|layer`, `floors.list`; SCR-14
@@ -152,7 +152,7 @@ candidate checks (A5 → levelId → integrity) 422 → base check 422 / C09b / 
 | UI test | Endpoint + faked response | Pairing |
 |---|---|---|
 | `phase04_qc_layers_edge.spec.ts` "E04 · SCR-16 [mocked response] GET …/spatial/layer 500 → read-failure screen with "Thử lại", screen not blank" | N16 `GET …/floors/:f/spatial/layer` → 500 | unpairable: no API path produces a 500 on N16 for a healthy stack — the only BE branch is a corrupt `floor_documents` row (`schema_version` mismatch / undecodable jsonb → `DocumentCorruptError`, spatial_read/documents.py:83-111), reachable only by writing the DB directly; the 404 / 403 / 401 / 200 answers of N16 are asserted for real (reads, roles, anon) |
-| `phase04_qc_layers.spec.ts` | — | 0 `page.route` / `[mocked response]` |
+| `phase04_pipeline.spec.ts` | — | 0 `page.route` / `[mocked response]` |
 | `phase04_qc_layers_ui.spec.ts` | — | 0 (header: "No faked response") |
 
 Mocked share of the phase's UI tests: 1 / (main + ui + edge) — far under `rules.maxMockedShare` 0.35.

@@ -81,6 +81,7 @@ const base: ProjectDashboardViewProps = {
   state: 'success',
   canCreate: true,
   canDelete: true,
+  canDeleteProject: true,
   canDuplicate: false,
   errorMessage: null,
   canRetry: true,

@@ -53,7 +53,7 @@ describe('resetUserScopedState — danh sách GIỮ', () => {
    */
   it('giữ nguyên MỌI khoá của ba slice view/ui/tool, không chỉ vài khoá đại diện', () => {
     const keys = machineScopedKeys();
-    expect(keys).toHaveLength(14);
+    expect(keys).toHaveLength(15); // 14 + `themeChoice` (Q2, 33R-C-001)
 
     const store = useStore.getState() as unknown as Record<string, unknown>;
     const before = Object.fromEntries(keys.map((key) => [key, store[key]]));

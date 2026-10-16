@@ -56,7 +56,7 @@ function ScreenRow({ screen, coverage, isSelected, onSelectScreen }: ScreenRowPr
       <button
         aria-current={isSelected ? 'true' : undefined}
         className={[
-          'flex w-full flex-col gap-1 rounded-[6px] px-2 py-1.5 text-left',
+          'flex w-full flex-col gap-1 rounded-md px-2 py-1.5 text-left',
           'transition-colors duration-120 hover:bg-bg-hover',
           'outline-none focus-visible:ring-2 focus-visible:ring-accent',
           'focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface',
@@ -68,7 +68,7 @@ function ScreenRow({ screen, coverage, isSelected, onSelectScreen }: ScreenRowPr
         type="button"
       >
         <span className="flex w-full items-center gap-2">
-          <span className="min-w-0 flex-1 truncate text-[14px] leading-[20px] text-text-primary">
+          <span className="min-w-0 flex-1 truncate text-[14px] leading-5 text-text-primary">
             {screen.label}
           </span>
           <Badge noDot variant={isComplete ? 'neutral' : 'attention'}>
@@ -112,7 +112,7 @@ export function StateGalleryTree({
 
       <nav aria-label={TREE_NAV_LABEL} className="min-h-0 flex-1 overflow-y-auto">
         {screens.length === 0 ? (
-          <p className="px-2 py-1.5 text-[14px] leading-[20px] text-text-secondary">{TREE_NO_MATCH}</p>
+          <p className="px-2 py-1.5 text-[14px] leading-5 text-text-secondary">{TREE_NO_MATCH}</p>
         ) : (
           <ul className="flex flex-col gap-3">
             {groups.map((group) => {

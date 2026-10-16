@@ -187,7 +187,7 @@ function hasAdequateHitTarget(element: Element): boolean {
   }
 
   for (let ancestor: Element | null = element; ancestor !== null; ancestor = ancestor.parentElement) {
-    if (ancestor.classList.contains('min-h-[44px]') || ancestor.classList.contains('min-w-[44px]')) {
+    if (ancestor.classList.contains('min-h-11') || ancestor.classList.contains('min-w-11')) {
       return true;
     }
   }
@@ -196,7 +196,7 @@ function hasAdequateHitTarget(element: Element): boolean {
 }
 
 describe('MobileViewer — vùng bấm >= 44px, ở mức suy ra được từ jsdom (A9/đặc tả "Vùng bấm không dưới 44px")', () => {
-  it('mọi nút chỉ mang icon (không chữ, có aria-label) đạt size="lg" hoặc được bọc trong khung min-h-[44px]/min-w-[44px]', () => {
+  it('mọi nút chỉ mang icon (không chữ, có aria-label) đạt size="lg" hoặc được bọc trong khung min-h-11/min-w-11', () => {
     const { container } = renderMobileViewer(mobileViewerScenarioFor('success'));
 
     const iconOnlyButtons = Array.from(container.querySelectorAll('button')).filter(
@@ -210,7 +210,7 @@ describe('MobileViewer — vùng bấm >= 44px, ở mức suy ra được từ j
     for (const button of iconOnlyButtons) {
       expect(
         hasAdequateHitTarget(button),
-        `nút "${button.getAttribute('aria-label') ?? ''}" (class="${button.className}") không đạt 44px — dùng size="lg" hoặc bọc min-h-[44px] min-w-[44px]`,
+        `nút "${button.getAttribute('aria-label') ?? ''}" (class="${button.className}") không đạt 44px — dùng size="lg" hoặc bọc min-h-11 min-w-11`,
       ).toBe(true);
     }
   });

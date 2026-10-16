@@ -40,7 +40,7 @@ const TEXT = {
   detailPanel: 'Chi tiết phiên bản',
 } as const;
 
-const PANEL = 'rounded-[12px] border border-border-default bg-bg-surface p-5';
+const PANEL = 'rounded-xl border border-border-default bg-bg-surface p-5';
 const FOCUS_RING =
   'outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface';
 

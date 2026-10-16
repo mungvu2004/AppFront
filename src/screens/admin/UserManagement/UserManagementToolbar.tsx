@@ -57,7 +57,7 @@ export function UserManagementToolbar({ actions, invite, searchRef, summary, too
         <div className="flex flex-wrap items-end gap-4">
           <Input
             ref={searchRef}
-            className="w-[240px]"
+            className="w-60"
             label={SEARCH_LABEL}
             onChange={(event) => actions.onSearchChange(event.target.value)}
             placeholder={SEARCH_PLACEHOLDER}
@@ -110,11 +110,16 @@ export function UserManagementToolbar({ actions, invite, searchRef, summary, too
       </dl>
 
       {invite.isOpen && (
-        <div className="flex flex-col gap-3 rounded-[8px] border border-border-default p-4">
+        <div className="flex flex-col gap-3 rounded-lg border border-border-default p-4">
           <Textarea
+            autoFocus
             hint={invite.hintLabel}
             label={INVITE_EMAILS_LABEL}
             onChange={(event) => actions.onInviteEmailsChange(event.target.value)}
+            // Esc khi đang gõ giữ khối mời (37W-E-003); Esc ngoài ô mới đóng — sổ phím nhận Esc ở window.
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') event.stopPropagation();
+            }}
             placeholder={INVITE_EMAILS_PLACEHOLDER}
             value={invite.rawEmails}
             {...(invite.errorLabel !== null ? { error: invite.errorLabel } : {})}

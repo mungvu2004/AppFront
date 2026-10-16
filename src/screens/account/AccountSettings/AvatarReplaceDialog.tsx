@@ -11,6 +11,8 @@
  * `Modal.Root` (A12) và có nghĩa là huỷ — không gửi gì.
  */
 
+import type { RefObject } from 'react';
+
 import { Modal } from '@/components/overlay/Modal';
 import { Button } from '@/components/ui/Button';
 
@@ -24,6 +26,11 @@ export interface AvatarReplaceDialogProps {
   readonly isSending: boolean;
   readonly onConfirm: () => void;
   readonly onCancel: () => void;
+  /**
+   * Nơi trả focus khi đóng. Ô chọn tệp bị khoá lúc đọc tệp nên mất focus về <body>, khi hộp thoại mở
+   * thì không còn "nơi đã mở" để trả về (33P-E-010); không có ref này focus nhảy tới phần tử đầu trang.
+   */
+  readonly returnFocusRef?: RefObject<HTMLElement | null>;
 }
 
 export function AvatarReplaceDialog(props: AvatarReplaceDialogProps) {
@@ -31,9 +38,16 @@ export function AvatarReplaceDialog(props: AvatarReplaceDialogProps) {
   const warning = props.hasExistingAvatar
     ? 'Ảnh cũ không khôi phục được.'
     : 'Sau khi đặt chỉ thay được, không gỡ được.';
+  // Nhãn nút theo đúng câu hỏi: chưa có ảnh thì "Đặt ảnh", không "Thay ảnh" (BUG-501).
+  const confirmLabel = props.hasExistingAvatar ? 'Thay ảnh' : 'Đặt ảnh';
 
   return (
-    <Modal.Root isOpen={props.isOpen} onClose={props.onCancel} width={480}>
+    <Modal.Root
+      isOpen={props.isOpen}
+      onClose={props.onCancel}
+      width={480}
+      {...(props.returnFocusRef ? { returnFocusRef: props.returnFocusRef } : {})}
+    >
       <Modal.Header>{title}</Modal.Header>
       <Modal.Body>
         <div className="flex flex-col items-center gap-4 pb-2">
@@ -52,7 +66,7 @@ export function AvatarReplaceDialog(props: AvatarReplaceDialogProps) {
           Huỷ
         </Button>
         <Button variant="primary" onClick={props.onConfirm} loading={props.isSending}>
-          Thay ảnh
+          {confirmLabel}
         </Button>
       </Modal.Footer>
     </Modal.Root>

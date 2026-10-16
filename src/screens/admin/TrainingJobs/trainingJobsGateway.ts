@@ -132,6 +132,8 @@ export const TRAINING_ERROR_TEXT = {
   datasetNotFound: 'Không tìm thấy bộ dữ liệu này.',
   busy: 'Máy chủ đang bận. Thử lại sau ít phút.',
   readFallback: 'Không đọc được dữ liệu huấn luyện.',
+  writeForbiddenTitle: 'Không thực hiện được',
+  writeForbidden: 'Bạn không có quyền thực hiện thao tác này.',
   writeFallback: 'Chưa gửi được yêu cầu. Thử lại sau.',
 } as const;
 

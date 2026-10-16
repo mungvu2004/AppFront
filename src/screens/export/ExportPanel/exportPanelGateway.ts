@@ -69,6 +69,7 @@ import {
   type SpatialEntity,
 } from '@/domain/spatial/normalize';
 import type { Furniture, Level, LevelId, SpatialGraph } from '@/domain/spatial/types';
+import { MAX_WALL_THICKNESS_MM, MIN_WALL_THICKNESS_MM } from '@/domain/walls/types';
 import { can } from '@/lib/auth/permissions';
 import * as glbModule from '@/lib/export/exportGlb';
 import type {
@@ -535,7 +536,13 @@ export async function toExportFloors(
 
     floors.push({
       level: { ...built.level, name: level.name, order: level.order },
-      walls: built.walls,
+      // Preflight không bao giờ chặn "Xuất" (30-C-023): một tường mỏng hơn mức hình học
+      // dựng được (luật WALL-THICKNESS chỉ báo, không xoá) không được làm hỏng cả tệp —
+      // đưa bề dày về khoảng dựng được thay vì ném RangeError từ `assertUsableWall`.
+      walls: built.walls.map((wall) => ({
+        ...wall,
+        thicknessMm: Math.min(Math.max(wall.thicknessMm, MIN_WALL_THICKNESS_MM), MAX_WALL_THICKNESS_MM) as typeof wall.thicknessMm,
+      })),
       rooms: built.rooms,
       openings: built.openings ?? [],
       furniture: furnitureOnLevel(graph, level.id),

@@ -52,12 +52,12 @@ export function FurnitureReplaceAllDialog({ preview }: FurnitureReplaceAllDialog
     <Modal.Root isOpen onClose={preview.onCancel} width={480}>
       <Modal.Header>{preview.groupLabel}</Modal.Header>
       <Modal.Body>
-        <p className="mb-3 text-[14px] leading-[20px] text-text-secondary">{PREVIEW_HINT}</p>
+        <p className="mb-3 text-[14px] leading-5 text-text-secondary">{PREVIEW_HINT}</p>
         <ul aria-label={ITEM_LIST_LABEL} className="flex flex-col gap-1">
           {preview.items.map((item) => (
             <li
               key={item.id}
-              className="rounded-lg bg-bg-sunken px-3 py-2 text-[14px] leading-[20px] text-text-primary"
+              className="rounded-lg bg-bg-sunken px-3 py-2 text-[14px] leading-5 text-text-primary"
             >
               {item.description}
             </li>

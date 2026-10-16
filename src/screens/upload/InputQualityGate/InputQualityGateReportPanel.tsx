@@ -104,7 +104,7 @@ function MetricRow({ metric, onHoverRegion }: MetricRowProps) {
     <li>
       <div
         className={clsx(
-          'flex items-center gap-3 rounded-[8px] border border-transparent px-2 py-1.5 outline-none transition-colors duration-fast',
+          'flex items-center gap-3 rounded-lg border border-transparent px-2 py-1.5 outline-none transition-colors duration-fast',
           isLinked && clsx('hover:border-accent focus-within:border-accent', FOCUS_RING_CLASSES),
         )}
         {...(isLinked
@@ -162,7 +162,7 @@ function FindingListItem({
   return (
     <motion.li className="overflow-hidden" layout transition={{ duration: durationSeconds('standard') }}>
       {finding.isResolved ? (
-        <div className="flex items-center gap-2 rounded-[12px] bg-bg-surface px-4 py-2">
+        <div className="flex items-center gap-2 rounded-xl bg-bg-surface px-4 py-2">
           <Check aria-hidden="true" className={clsx('h-4 w-4 shrink-0', STATUS_TEXT_TOKEN[finding.statusCode])} />
           <span className="text-[13px] text-text-secondary">
             {finding.title} — {RESOLVED_SUFFIX}
@@ -171,7 +171,7 @@ function FindingListItem({
       ) : (
         <div
           className={clsx(
-            'flex flex-col gap-3 rounded-[12px] border border-transparent bg-bg-surface p-4 outline-none',
+            'flex flex-col gap-3 rounded-xl border border-transparent bg-bg-surface p-4 outline-none',
             'transition-colors duration-fast hover:border-accent focus-within:border-accent',
             FOCUS_RING_CLASSES,
           )}
@@ -290,7 +290,7 @@ export function InputQualityGateReportPanel({
       {partialNotice !== null && <InlineAlert level="attention" message={partialNotice} />}
 
       {passNotice !== null ? (
-        <div className="flex items-center gap-3 rounded-[12px] border border-border-default bg-bg-surface p-4">
+        <div className="flex items-center gap-3 rounded-xl border border-border-default bg-bg-surface p-4">
           <CheckCircle2 aria-hidden="true" className="h-5 w-5 shrink-0 text-text-secondary" />
           <p className="text-[14px] text-text-primary">{passNotice}</p>
         </div>

@@ -65,7 +65,7 @@ export function PasswordResetView(props: PasswordResetViewProps) {
     >
       {state === 'collapsed' ? (
         <div className="flex flex-col gap-4">
-          <p className="text-[14px] leading-[20px] text-text-secondary">
+          <p className="text-[14px] leading-5 text-text-secondary">
             {AUTH_MESSAGES.notices.collapsedRecovery}
           </p>
           <Button size="lg" fullWidth onClick={expand}>

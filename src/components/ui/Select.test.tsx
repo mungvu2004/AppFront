@@ -83,4 +83,19 @@ describe('Select', () => {
     expect(list.style.bottom).toBe('64px');
     expect(list.style.maxHeight).toBe('300px');
   });
+
+  it('returns focus to the trigger BEFORE onChange, so an onChange that scrolls/focuses elsewhere is not undone (29-F-009)', () => {
+    let triggerFocusedAtChange = false;
+    render(
+      <Select
+        options={options}
+        onChange={() => {
+          triggerFocusedAtChange = document.activeElement === screen.getByRole('combobox');
+        }}
+      />,
+    );
+    fireEvent.click(screen.getByRole('combobox'));
+    fireEvent.click(screen.getByRole('option', { name: 'Tầng 3' }));
+    expect(triggerFocusedAtChange).toBe(true);
+  });
 });

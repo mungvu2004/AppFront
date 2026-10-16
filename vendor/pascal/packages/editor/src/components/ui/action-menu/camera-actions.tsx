@@ -4,6 +4,7 @@ import { emitter } from '@pascal-app/core'
 import Image from 'next/image'
 import useEditor from '../../../store/use-editor'
 import { ActionButton } from './action-button'
+import { LevelModeAction } from './level-mode-action'
 
 export function CameraActions({ hideOrbit = false }: { hideOrbit?: boolean }) {
   // Orbit stays useful in 2D-only (it spins the synced floorplan view), but
@@ -61,6 +62,8 @@ export function CameraActions({ hideOrbit = false }: { hideOrbit?: boolean }) {
           </ActionButton>
         </>
       )}
+
+      {!is2dOnly && <LevelModeAction />}
 
       {/* Top View */}
       {!is2dOnly && (

@@ -206,13 +206,13 @@ function ViolationDetailNotices({ hasActions, props }: NoticesProps) {
         <InlineAlert level="violation" message={props.errorMessage} />
       ) : null}
 
-      {props.state === 'success' && props.resolvedMessage !== null ? (
-        <p className="rounded-[8px] bg-bg-sunken p-3 text-sm text-text-secondary">
+      {(props.state === 'success' || props.state === 'collapsed') && props.resolvedMessage !== null ? (
+        <p className="rounded-lg bg-bg-sunken p-3 text-sm text-text-secondary">
           {props.resolvedMessage}
         </p>
       ) : null}
 
-      {props.state === 'partial' && !hasActions ? (
+      {(props.state === 'partial' || props.state === 'collapsed') && !hasActions ? (
         <p className="text-sm text-text-secondary">
           Chưa có cách sửa tự động nào cho vi phạm này. Phần căn cứ ở trên đủ để sửa tay trên
           Bản vẽ.
@@ -220,7 +220,7 @@ function ViolationDetailNotices({ hasActions, props }: NoticesProps) {
       ) : null}
 
       {props.isAdvancing ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-[8px] bg-bg-sunken p-3">
+        <div className="flex flex-wrap items-center gap-3 rounded-lg bg-bg-sunken p-3">
           <p className="text-[13px] text-text-secondary">Sắp chuyển sang vi phạm kế tiếp.</p>
           <Button onClick={props.onCancelAdvance} size="sm" variant="secondary">
             Giữ lại màn này
@@ -355,6 +355,7 @@ export function ViolationDetail(props: ViolationDetailViewProps) {
       tabIndex={-1}
       animate={{ opacity: 1, x: 0, y: 0 }}
       aria-label="Chi tiết vi phạm"
+      data-entity-id={props.entityId ?? undefined}
       className={cn(PANEL_BASE, isCollapsed ? PANEL_BOTTOM : PANEL_SIDE)}
       initial={isCollapsed ? { opacity: 0, y: '100%' } : { opacity: 0, x: '100%' }}
       transition={{ duration: durationSeconds('standard'), ease: EASE.default }}

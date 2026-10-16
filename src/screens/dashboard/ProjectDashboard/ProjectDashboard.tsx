@@ -103,7 +103,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
   const showSidebar = !isCollapsed && state !== 'loading' && state !== 'error';
 
   const openMenuFor = (project: ProjectCardModel, x: number, y: number): void =>
-    contextMenu.openMenu(x, y, projectMenuGroups(project, props, props.canDelete, props.canDuplicate));
+    contextMenu.openMenu(x, y, projectMenuGroups(project, props, props.canDelete, props.canDuplicate, props.canDeleteProject));
 
   const renderProjectGrid = (): ReactElement => (
     <div role="list" aria-label="Danh sách dự án" className={GRID_COLUMNS_CLASS}>
@@ -146,7 +146,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           onScroll={(event) => event.currentTarget.toggleAttribute('data-scrolled', event.currentTarget.scrollLeft > 0)}
           // The browser's own clear (×) button gets its 8 px gap from globals.css (BUG-117).
           className="pl-0 data-[scrolled]:[mask-image:linear-gradient(to_right,transparent,black_12px)]"
-          wrapperClassName="order-last w-full max-w-full sm:order-none sm:w-[320px]"
+          wrapperClassName="order-last w-full max-w-full sm:order-none sm:w-80"
         />
         <div className="ml-auto flex items-center gap-3">
           {props.notificationBell}
@@ -195,7 +195,7 @@ export function ProjectDashboardView(props: ProjectDashboardViewProps) {
           </div>
         </div>
 
-        {state === 'forbidden' && (
+        {(state === 'forbidden' || (isCollapsed && !props.canCreate)) && (
           <p className="flex items-center gap-2 text-[13px] text-text-secondary">
             <Lock size={14} aria-hidden="true" />
             Vai người xem: chỉ có thể mở dự án, không tạo hoặc xoá được.

@@ -43,7 +43,7 @@ export const NumericField = forwardRef<HTMLInputElement, NumericFieldProps>(
           isReadOnly={isReadOnly}
           isLoading={isLoading}
           suffix={unit}
-          className={cn('font-mono text-[13px] leading-[20px] text-right', className)}
+          className={cn('font-mono text-[13px] leading-5 text-right', className)}
           {...props}
         />
       </div>

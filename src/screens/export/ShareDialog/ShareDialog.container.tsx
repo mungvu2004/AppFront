@@ -67,7 +67,7 @@ const NO_MEMBERS: readonly MemberRowModel[] = Object.freeze([]);
 function ShareDialogCrashFallback({ report, retry }: ScreenErrorFallback) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay">
-      <div className="w-[480px] max-w-full rounded-[16px] bg-bg-surface p-6 shadow-modal">
+      <div className="w-[480px] max-w-full rounded-2xl bg-bg-surface p-6 shadow-modal">
         <EmptyState
           icon={<div className="h-8 w-8 rounded-full bg-state-violation-tint" aria-hidden="true" />}
           title={report.description.title}

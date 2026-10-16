@@ -147,7 +147,7 @@ const PanelRoot = forwardRef<HTMLDivElement, PanelRootProps>(
     <div
       ref={ref}
       className={cn(
-        'bg-bg-surface rounded-[12px] shadow-panel overflow-hidden flex flex-col',
+        'bg-bg-surface rounded-xl shadow-panel overflow-hidden flex flex-col',
         className
       )}
       {...props}

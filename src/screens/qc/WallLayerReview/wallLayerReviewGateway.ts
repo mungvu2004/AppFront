@@ -247,6 +247,11 @@ export interface WallLayerReviewGateway {
   readonly readLayer: (input: ReadBackgroundInput) => Promise<FloorLayerDocument>;
   /** Đồ thị đang sửa — nơi `commit` vừa ghi vào. */
   readonly graph: WallLayerGraphPort;
+  /** Project floor list (#30) for the floor nav. Absent: the graph's own levels are used. */
+  readonly readFloors?: (input: {
+    readonly projectId: string;
+    readonly signal?: AbortSignal;
+  }) => Promise<readonly { readonly id: string; readonly name: string; readonly order: number }[]>;
   /** Client của bộ lưu lớp (`useFloorLayerAutosave`). Vắng thì hook dùng client chung. */
   readonly apiClient?: ApiClient;
   /** Mã tường mới. Cùng cửa với `ToolContext.nextId` của `toolMachine`. */
@@ -362,6 +367,18 @@ export function createWallLayerReviewGateway(
     readLayer: async ({ floorId, projectId, signal }) => {
       const result = await apiClient.spatial.readLayer(
         signal === undefined ? { floorId, projectId } : { floorId, projectId, signal },
+      );
+
+      if (!result.ok) {
+        throw result.error;
+      }
+
+      return result.data;
+    },
+
+    readFloors: async ({ projectId, signal }) => {
+      const result = await apiClient.floors.list(
+        signal === undefined ? { projectId } : { projectId, signal },
       );
 
       if (!result.ok) {
@@ -953,6 +970,7 @@ export function miniMapCentreMm(
   rect: WallLayerViewportRectPercent,
   drawingSizePx: WallLayerSizePx,
   scale: Scale,
+  origin: Point = { x: 0, y: 0 },
 ): Point {
   /*
    * Phép chia dưới đây KHÔNG phải quy đổi đơn vị đo, nên nó không thuộc về
@@ -964,8 +982,8 @@ export function miniMapCentreMm(
    * `src/domain/units/scale.ts`, đúng chỗ luật chỉ tới.
    */
   const centrePx: Point = {
-    x: ((rect.x + rect.width / HALF) / MINIMAP_VIEWPORT_SPAN) * drawingSizePx.width,
-    y: ((rect.y + rect.height / HALF) / MINIMAP_VIEWPORT_SPAN) * drawingSizePx.height,
+    x: origin.x + ((rect.x + rect.width / HALF) / MINIMAP_VIEWPORT_SPAN) * drawingSizePx.width,
+    y: origin.y + ((rect.y + rect.height / HALF) / MINIMAP_VIEWPORT_SPAN) * drawingSizePx.height,
   };
 
   return toMillimetrePoint(centrePx, scale);

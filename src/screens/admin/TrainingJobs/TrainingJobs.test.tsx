@@ -4,6 +4,7 @@
  */
 
 import { cleanup, fireEvent, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { expectAccessible } from '@/lib/testing/expectAccessible';
@@ -53,6 +54,7 @@ function buildActions(): TrainingJobsActions {
     onSelectJob: vi.fn(),
     onSelectTab: vi.fn(),
     onSubmitForm: vi.fn(),
+    onTypeEpochs: vi.fn(),
   };
 }
 
@@ -289,5 +291,57 @@ describe('Hộp thoại A9 và biểu mẫu', () => {
     const dialog = screen.getByRole('dialog', { name: 'Tạo lượt huấn luyện' });
     expect(within(dialog).getByText('Bộ dữ liệu này chưa có phiên bản sẵn sàng.')).toBeInTheDocument();
     expect(within(dialog).getByRole('button', { name: 'Bắt đầu huấn luyện' })).toBeDisabled();
+  });
+
+  it('Enter trong ô số vòng gửi ĐÚNG một lần; bấm ô chọn họ không gửi gì', async () => {
+    const actions = buildActions();
+    renderView({
+      ...TRAINING_JOBS_SCENARIO_SUCCESS,
+      form: {
+        baseModel: 'mitB0',
+        baseModelError: null,
+        baseModels: [
+          { label: 'mitB0', value: 'mitB0' },
+          { label: 'mitB1', value: 'mitB1' },
+        ],
+        canSubmit: true,
+        datasetId: null,
+        datasets: [],
+        epochs: 50,
+        epochsError: null,
+        epochsMax: 300,
+        epochsMin: 1,
+        families: [{ label: 'Tách lớp tường', value: 'wallSegmentation' }],
+        family: 'wallSegmentation',
+        formError: null,
+        isLoadingOptions: false,
+        isSubmitting: false,
+        versionError: null,
+        versionId: null,
+        versions: [],
+      },
+    }, actions);
+    const dialog = screen.getByRole('dialog', { name: 'Tạo lượt huấn luyện' });
+    await userEvent.click(within(dialog).getAllByRole('radio')[0]!);
+    expect(actions.onSubmitForm).not.toHaveBeenCalled();
+    const input = within(dialog).getByRole('textbox');
+    await userEvent.type(input, '{Enter}');
+    expect(actions.onSubmitForm).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Phase 08 — BUG-P08-009 · 35T-B-014: panel chi tiết khi chưa chọn lượt (>= 1024)', () => {
+  it('[35T-B-014] detail=null → aside hiện câu hướng dẫn', () => {
+    renderView({ ...TRAINING_JOBS_SCENARIO_SUCCESS, detail: null });
+
+    const panel = screen.getByRole('complementary', { name: 'Chi tiết lượt huấn luyện' });
+    expect(within(panel).getByText('Chọn một lượt để xem chi tiết.')).toBeInTheDocument();
+  });
+
+  it('[35T-B-014] màn hẹp, detail=null → không aside, không Drawer mở', () => {
+    renderView({ ...TRAINING_JOBS_SCENARIO_COLLAPSED, detail: null });
+
+    expect(screen.queryByRole('complementary', { name: 'Chi tiết lượt huấn luyện' })).toBeNull();
+    expect(screen.queryByText('Chọn một lượt để xem chi tiết.')).toBeNull();
   });
 });

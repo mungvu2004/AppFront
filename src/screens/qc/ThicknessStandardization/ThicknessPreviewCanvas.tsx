@@ -122,7 +122,7 @@ export function ThicknessPreviewCanvas({
     >
       {/* Co theo bề rộng có được (tối đa 320) và giữ tỉ lệ khung: ở 375 không tràn khỏi thẻ (BUG-332). */}
       <div
-        className="relative w-full overflow-hidden rounded-[12px] border border-border-default bg-canvas-2d"
+        className="relative w-full overflow-hidden rounded-xl border border-border-default bg-canvas-2d"
         style={{
           aspectRatio: `${String(THICKNESS_PREVIEW_CANVAS_WIDTH_PX)} / ${String(THICKNESS_PREVIEW_CANVAS_HEIGHT_PX)}`,
         }}
@@ -187,7 +187,7 @@ export function ThicknessPreviewCanvas({
         {legend.length === 0 ? null : (
           <ul
             aria-label={LEGEND_LABEL}
-            className="absolute bottom-3 left-3 flex flex-col gap-1 rounded-[8px] bg-bg-surface p-2 shadow-float"
+            className="absolute bottom-3 left-3 flex flex-col gap-1 rounded-lg bg-bg-surface p-2 shadow-float"
           >
             {legend.map((entry) => (
               <li key={String(entry.group)} className="flex items-center gap-2">

@@ -20,16 +20,17 @@
 import { createElement, type ReactNode } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
+import type { SpatialApi } from '@/api/client';
 
-import { createMockApiClient } from '@/api/__mocks__/client';
+import { __resetMockLayerState, createMockApiClient, simulateRemoteLayerEdit } from '@/api/__mocks__/client';
+import { __resetFloorLayerSavers, flushAutosaves } from '@/hooks/useAutosave';
 import { FLOOR_LAYER_BUILDING } from '@/api/floorLayerGraph';
 import type { FloorLayerDocument } from '@/api/schemas/spatialLayer';
 import { sampleDimensionId, sampleLevelId } from '@/domain/spatial/__fixtures__/sampleBuilding';
 import { normalizeSpatial } from '@/domain/spatial/normalize';
 import type { Dimension, Level } from '@/domain/spatial/types';
 import { spatialLayerOf } from '@/lib/autosave/spatialLayerSave';
-import { getAppAnnouncer } from '@/lib/input/announcer';
 import { createShortcutRegistry, type ShortcutRegistry } from '@/lib/input/shortcutRegistry';
 import { createNotificationBus, type NotificationBus } from '@/lib/mutations/notificationBus';
 import { createTestQueryClient } from '@/lib/testing/render';
@@ -74,7 +75,6 @@ import {
   DIMENSION_OCR_REVIEW_SCENARIOS,
   dimensionOcrScenarioFor,
 } from './dimensionOcrReviewScenarios';
-import { DIMENSION_OCR_TEXT } from './dimensionOcrText';
 import {
   applyDimensionFilters,
   deriveScreenState,
@@ -135,6 +135,8 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  __resetFloorLayerSavers();
+  __resetMockLayerState();
   /* Kho dùng chung giữa các bài kiểm: trả nó về rỗng qua ĐÚNG hành động công khai. */
   const store = useStore.getState();
 
@@ -237,6 +239,14 @@ describe('phép ghép thuần của màn Đọc kích thước OCR', () => {
     expect(derived).toEqual([...SEVEN_STATES]);
   });
 
+  it('[18-D-007] Người xem đang tải thấy khung chờ, xong mới thấy "forbidden"', () => {
+    const counter = dimensionOcrScenarioFor('success').reviewCounter;
+    const base = { isViewerRole: true, isCollapsed: false, hasError: false, hasPartialOcr: false, counter };
+
+    expect(deriveScreenState({ ...base, isLoading: true })).toBe('loading');
+    expect(deriveScreenState({ ...base, isLoading: false })).toBe('forbidden');
+  });
+
   it('OCR mới xong một phần giữ màn ở "một phần" dù 34/34 đã duyệt', () => {
     const done = dimensionOcrScenarioFor('success');
 
@@ -291,10 +301,10 @@ describe('phép ghép thuần của màn Đọc kích thước OCR', () => {
   it('bản kê nợ endpoint chỉ mang việc thật sự chưa có đường', () => {
     const gateway = createDimensionOcrReviewGateway({ apiClient: createMockApiClient() });
 
-    expect([...DIMENSION_OCR_MISSING_CAPABILITIES]).toEqual(['persistDimensionLayer']);
-    expect(gateway.supports.persistDimensionLayer).toBe(false);
+    expect([...DIMENSION_OCR_MISSING_CAPABILITIES]).toEqual([]);
+    expect(gateway.supports.persistDimensionLayer).toBe(true);
     expect(gateway.supports.readDimensionLayer).toBe(true);
-    expect(DIMENSION_OCR_MISSING_ENDPOINTS.persistDimensionLayer).toContain('FloorWriteBody');
+    expect(DIMENSION_OCR_MISSING_ENDPOINTS.persistDimensionLayer).toContain('body.dimensions');
   });
 });
 
@@ -923,21 +933,20 @@ describe('QA-04c SCR-18', () => {
     mounted.unmount();
   });
 
-  it('[BUG-577] không bao giờ nói "Đã lưu"; nói thật là chưa lưu, và hỏi trước khi rời trang', async () => {
-    const announcer = getAppAnnouncer();
-    const spoken = vi.spyOn(announcer, 'announce');
-    const mounted = await mountSettled();
-    const leave = (): boolean => {
-      const event = new Event('beforeunload', { cancelable: true });
+  /** Cổng mẫu + client giả có `writeLayer` bị rình — đúng đường tự lưu chung của tường/đối tượng. */
+  const mountSaving = async (): Promise<{ mounted: Mounted; writeLayer: MockInstance<SpatialApi['writeLayer']> }> => {
+    const apiClient = createMockApiClient();
+    const writeLayer = vi.spyOn(apiClient.spatial, 'writeLayer');
+    const mounted = await mountSettled({ gateway: createMockDimensionOcrReviewGateway({ apiClient }) });
 
-      window.dispatchEvent(event);
+    return { mounted, writeLayer };
+  };
 
-      return event.defaultPrevented;
-    };
+  it('[BUG-577] sửa → PUT thân mang dimensions (đã duyệt do người), nhãn "Đã lưu" chỉ sau khi máy chủ nhận', async () => {
+    const { mounted, writeLayer } = await mountSaving();
 
-    expect(mounted.result.current.unsavedNotice).toBe(DIMENSION_OCR_TEXT.screen.unsavedNotice);
-    expect(DIMENSION_OCR_TEXT.keyboard.keys.enter.description).not.toMatch(/lưu/iu);
-    expect(leave()).toBe(false);
+    expect(mounted.result.current.saveBlock).toBeNull();
+    expect(mounted.result.current.saveLabel).not.toBeNull();
 
     await run(() => {
       mounted.result.current.onApprove(UNREVIEWED_ID);
@@ -945,23 +954,67 @@ describe('QA-04c SCR-18', () => {
     await waitFor(() => {
       expect(entityInStore(UNREVIEWED_ID)?.reviewed).toBe(true);
     });
-    /* Quá cửa sổ 800 ms của A7: một bộ tự lưu giả sẽ nói "Đã lưu lúc …" ở đây. */
+    expect(writeLayer).not.toHaveBeenCalled();
+
     await act(async () => {
-      await new Promise((resolve) => {
-        setTimeout(resolve, 1000);
-      });
+      await flushAutosaves();
     });
 
-    expect(spoken.mock.calls.map(([message]) => message).join(' | ')).not.toMatch(/Đã lưu/u);
-    expect(leave()).toBe(true);
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+
+    const sent = writeLayer.mock.calls[0]?.[0] as { body: { dimensions?: Dimension[]; layer?: unknown } };
+    const approved = sent.body.dimensions?.find((dimension) => dimension.id === dimensionEntityIdOf(UNREVIEWED_ID));
+
+    expect(sent.body.layer).toBeDefined();
+    expect(approved).toMatchObject({ reviewed: true, source: 'human' });
+    await waitFor(() => {
+      expect(mounted.result.current.saveState).toBe('saved');
+    });
 
     mounted.unmount();
   });
 
-  it('[BUG-577] vai người xem không sửa gì nên không có câu "chưa lưu"', async () => {
+  it('[BUG-577] kích thước do AI không bao giờ được gửi reviewed:true', async () => {
+    const { mounted, writeLayer } = await mountSaving();
+
+    await run(() => {
+      mounted.result.current.onApprove(UNREVIEWED_ID);
+    });
+    await act(async () => {
+      await flushAutosaves();
+    });
+
+    expect(writeLayer).toHaveBeenCalledTimes(1);
+
+    const dimensions = (writeLayer.mock.calls[0]?.[0] as { body: { dimensions?: Dimension[] } }).body.dimensions ?? [];
+
+    expect(dimensions.length).toBeGreaterThan(0);
+    expect(dimensions.filter((dimension) => dimension.source === 'ai' && dimension.reviewed)).toEqual([]);
+
+    mounted.unmount();
+  });
+
+  it('[BUG-577] 409 → khối "Tải lại" như các lớp khác, không báo đã lưu', async () => {
+    const { mounted } = await mountSaving();
+
+    simulateRemoteLayerEdit(FLOOR_ID);
+    await run(() => {
+      mounted.result.current.onApprove(UNREVIEWED_ID);
+    });
+    await act(async () => {
+      await flushAutosaves().catch(() => undefined);
+    });
+    await waitFor(() => {
+      expect(mounted.result.current.saveBlock?.kind).toBe('reload');
+    });
+
+    mounted.unmount();
+  });
+
+  it('[BUG-577] vai người xem không sửa gì nên không có nhãn lưu', async () => {
     const mounted = await mountSettled({ roles: ['viewer'] });
 
-    expect(mounted.result.current.unsavedNotice).toBeNull();
+    expect(mounted.result.current.saveLabel).toBeNull();
 
     mounted.unmount();
   });

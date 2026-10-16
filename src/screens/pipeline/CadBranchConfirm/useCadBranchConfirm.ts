@@ -117,7 +117,7 @@ const COPY = {
   importUnsupported: 'Bản này chưa nhập được hình học từ tệp CAD. Hãy chọn "Vẫn dùng AI".',
   importNoMapped: 'Gán vai trò cho ít nhất một lớp để nhập hình học.',
   forbiddenNotice:
-    'Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. liên hệ quản trị viên để được cấp quyền.',
+    'Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. Liên hệ quản trị viên để được cấp quyền.',
   successNotice: 'Đã nhập xong hình học từ tệp CAD.',
   workingNotice: 'Chọn vai trò cho từng lớp, xem trước cập nhật ngay khi bạn đổi.',
   unitWarning:
@@ -896,11 +896,9 @@ export function useCadBranchConfirm(
         isRememberChoiceChecked: canRememberChoice && isRememberChecked,
         canRememberChoice,
         isCadChoiceDisabled,
-        cadChoiceDisabledReason: isCadChoiceDisabled
-          ? (state === 'forbidden'
-              ? COPY.forbiddenNotice
-              : (failure?.sentence ?? null))
-          : null,
+        // Không quyền: câu đầy đủ đã ở băng trạng thái, hộp thoại không lặp lại (BUG-P09-014).
+        cadChoiceDisabledReason:
+          isCadChoiceDisabled && state !== 'forbidden' ? (failure?.sentence ?? null) : null,
       },
       mapping: isStageTwoOpen ? { layers, roleOptions, hoveredLayerId } : null,
       preview: isStageTwoOpen

@@ -383,3 +383,48 @@ describe('Table.Root scroll hint', () => {
     }
   });
 });
+
+// ── Keyboard sort (QA-08 BUG-P08-004, 34L-E-005) ─────────────────────────────
+
+describe('Table.Head sortable is keyboard operable', () => {
+  function renderSortable(onSort: (key: string) => void) {
+    return render(
+      <Table.Root onSort={onSort}>
+        <Table.Header>
+          <tr>
+            <Table.Head sortKey="a">Cột A</Table.Head>
+            <Table.Head>Không sắp xếp</Table.Head>
+          </tr>
+        </Table.Header>
+        <Table.Body />
+      </Table.Root>,
+    );
+  }
+
+  it('sortable head is focusable (tabIndex 0); plain head is not', () => {
+    renderSortable(vi.fn());
+
+    expect(screen.getByRole('columnheader', { name: 'Cột A' }).getAttribute('tabindex')).toBe('0');
+    expect(screen.getByRole('columnheader', { name: 'Không sắp xếp' }).hasAttribute('tabindex')).toBe(false);
+  });
+
+  it.each(['Enter', ' '])('key %j calls onSort with the column key once', (key) => {
+    const onSort = vi.fn();
+    renderSortable(onSort);
+
+    fireEvent.keyDown(screen.getByRole('columnheader', { name: 'Cột A' }), { key });
+
+    expect(onSort).toHaveBeenCalledTimes(1);
+    expect(onSort).toHaveBeenCalledWith('a');
+  });
+
+  it('other keys and plain heads do not sort', () => {
+    const onSort = vi.fn();
+    renderSortable(onSort);
+
+    fireEvent.keyDown(screen.getByRole('columnheader', { name: 'Cột A' }), { key: 'a' });
+    fireEvent.keyDown(screen.getByRole('columnheader', { name: 'Không sắp xếp' }), { key: 'Enter' });
+
+    expect(onSort).not.toHaveBeenCalled();
+  });
+});

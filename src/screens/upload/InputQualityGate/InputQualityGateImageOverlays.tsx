@@ -156,7 +156,7 @@ export function ImageRegionLayer({
           <button
             aria-label={region.label}
             className={clsx(
-              'absolute rounded-[4px] transition-opacity ease-in-out',
+              'absolute rounded transition-opacity ease-in-out',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
               // Chỉ viền, không nền: tint đặc của token che bản vẽ mà người duyệt phải nhìn
               // (vùng RESOLUTION_TOO_LOW phủ cả ảnh, BUG-537).

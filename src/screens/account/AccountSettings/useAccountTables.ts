@@ -368,10 +368,11 @@ export function useAccountTables(port: AccountDraftPort): AccountTablesModel {
       return allRows;
     }
 
+    // Chỉ chữ người dùng THẤY: mô tả + mặt phím. Không lọc trên `row.combo` — tên nội
+    // bộ ("Mod+Z", "ESCAPE") không hiện ở ô nào (BUG-P07-008, 33R-C-005).
     return allRows.filter(
       (row) =>
         foldForSearch(row.description).includes(needle) ||
-        foldForSearch(row.combo).includes(needle) ||
         foldForSearch(row.keys.join('+')).includes(needle),
     );
   }, [allRows, query]);

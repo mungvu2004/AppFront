@@ -19,7 +19,7 @@ function Kbd({ children }: KbdProps) {
     <kbd
       className={cn(
         'ml-auto font-mono text-[11px] text-text-muted leading-none',
-        'px-1 py-0.5 rounded-[4px] bg-bg-sunken border border-border-default',
+        'px-1 py-0.5 rounded bg-bg-sunken border border-border-default',
         'shrink-0'
       )}
     >
@@ -143,7 +143,7 @@ const ContextMenuRoot = forwardRef<HTMLDivElement, ContextMenuRootProps>(
         tabIndex={-1}
         className={cn(
           'fixed z-[9999] bg-bg-surface py-1 outline-none',
-          'rounded-[12px] shadow-float',
+          'rounded-xl shadow-float',
           'animate-dropdown-open', // 120ms từ tailwind config
           className
         )}

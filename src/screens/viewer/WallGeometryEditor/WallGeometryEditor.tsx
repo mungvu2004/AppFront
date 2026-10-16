@@ -114,7 +114,7 @@ function ContentBody({
         )}
 
         {content.dimensionChain.totalLabel !== null && (
-          <span className="pointer-events-none absolute bottom-3 left-3 rounded-[4px] bg-bg-surface px-2 py-1 font-mono text-[11px] text-text-secondary shadow-panel">
+          <span className="pointer-events-none absolute bottom-3 left-3 rounded bg-bg-surface px-2 py-1 font-mono text-[11px] text-text-secondary shadow-panel">
             {TEXT.dimensionChain.total(content.dimensionChain.totalLabel)}
           </span>
         )}
@@ -185,7 +185,7 @@ export function WallGeometryEditor({
           <span className="truncate text-[14px] font-medium text-text-primary">{state.summaryLabel}</span>
           <span className="text-[13px] text-text-secondary">{state.notice}</span>
         </div>
-        <button className={`shrink-0 rounded-[6px] px-2 py-1 text-[13px] font-medium text-accent hover:bg-bg-hover ${BUTTON_FOCUS_CLASS}`} onClick={state.onExit} type="button">
+        <button className={`shrink-0 rounded-md px-2 py-1 text-[13px] font-medium text-accent hover:bg-bg-hover ${BUTTON_FOCUS_CLASS}`} onClick={state.onExit} type="button">
           {TEXT.states.collapsed.exit}
         </button>
       </div>

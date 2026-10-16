@@ -17,6 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { formatNumber } from '@/lib/format/number';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
+import { expectSentenceCaseStrings } from '@/lib/testing/expectSentenceCase';
 import { ROUTES } from '@/routes/paths';
 import type { ProjectRole } from '@/types/project';
 
@@ -271,6 +272,12 @@ describe('useCadBranchConfirm — bảy trạng thái', () => {
     expect(mounted.result.current.model.state).toBe(state);
   });
 
+  it('[9U-D-072] câu không có quyền viết hoa đầu mỗi câu (luật A6)', async () => {
+    const forbidden = await mountInState('forbidden');
+
+    expectSentenceCaseStrings([forbidden.result.current.model.forbiddenNotice ?? '']);
+  });
+
   it('mỗi câu của một trạng thái chỉ có mặt ở đúng trạng thái đó', async () => {
     const empty = await mountInState('empty');
     const forbidden = await mountInState('forbidden');
@@ -404,6 +411,14 @@ describe('useCadBranchConfirm — người dùng luôn quay về nhánh AI đư�
     });
 
     expect(mounted.result.current.resolvedBranch).toBe('ai');
+  });
+
+  it('[BUG-P09-014] không có quyền: khoá nhánh CAD nhưng lý do chỉ ở băng trạng thái, không lặp trong hộp thoại', async () => {
+    const mounted = await mountInState('forbidden');
+
+    expect(mounted.result.current.model.dialog.isCadChoiceDisabled).toBe(true);
+    expect(mounted.result.current.model.dialog.cadChoiceDisabledReason).toBeNull();
+    expect(mounted.result.current.model.forbiddenNotice).not.toBeNull();
   });
 
   it('trạng thái Lỗi khoá nhánh CAD và nói rõ vì sao, nhưng vẫn để lại nhánh AI', async () => {

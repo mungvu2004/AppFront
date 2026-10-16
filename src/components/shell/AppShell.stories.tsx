@@ -25,7 +25,7 @@ type Story = StoryObj<typeof AppShell>;
 // ── Placeholder panels ────────────────────────────────────────────────────────
 
 const LeftContent = () => (
-  <div className="h-full w-full bg-bg-surface rounded-[12px] flex flex-col">
+  <div className="h-full w-full bg-bg-surface rounded-xl flex flex-col">
     <div className="px-5 h-14 flex items-center border-b border-border-default shrink-0">
       <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">Lớp bản vẽ</span>
     </div>
@@ -43,7 +43,7 @@ const LeftContent = () => (
 );
 
 const RightContent = () => (
-  <div className="h-full w-full bg-bg-surface rounded-[12px] flex flex-col">
+  <div className="h-full w-full bg-bg-surface rounded-xl flex flex-col">
     <div className="px-5 h-14 flex items-center border-b border-border-default shrink-0">
       <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">Thuộc tính</span>
     </div>

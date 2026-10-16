@@ -1,6 +1,6 @@
 /**
  * Own spatial layer for the phase-4 QC and phase-5 3D screens (BUG-346 / BUG-323). Instead of Phase 3's CP-5 work floor
- * (run-22: CP-5 recorded, GET …/spatial/layer 404, so every layer case timed out), `phase04_qc_layers{,_ui}.spec.ts` and
+ * (run-22: CP-5 recorded, GET …/spatial/layer 404, so every layer case timed out), `phase04_pipeline.spec.ts`, `phase04_qc_layers_ui.spec.ts` and
  * `phase05_3d_viewer{,_ui}.spec.ts` create a run-unique `qa-<runId>-…` project through the real API, write its layer through
  * #35 (`PUT /api/projects/:p/floors/:f/spatial/layer`; a fresh floor takes `baseVersion` = its N16 `revision`, 0 —
  * BE spatial_write/writer.py:311-327, the path `phase04_qc_layers_api.spec.ts` and `_edge.spec.ts` already use) and delete

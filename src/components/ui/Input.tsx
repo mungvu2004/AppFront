@@ -51,7 +51,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="mb-2 text-[14px] font-medium leading-[20px] text-text-secondary"
+            className="mb-2 text-[14px] font-medium leading-5 text-text-secondary"
           >
             {label}
           </label>
@@ -111,7 +111,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           <div className="mt-1.5 flex items-start">
             {error ? (
               <>
-                <span className="mt-[6px] mr-2 h-[6px] w-[6px] flex-shrink-0 rounded-full bg-state-violation" aria-hidden="true" />
+                <span className="mt-1.5 mr-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-state-violation" aria-hidden="true" />
                 {/* `pretty`, không `balance`: balance thu cả câu về ~210 px trong ô 360 px và ngắt "Kiểm / tra" (BUG-073);
                     pretty lấp đầy bề rộng ô, chỉ tránh một từ lẻ ở dòng cuối (BUG-057). Firefox chưa có: ngắt thường. */}
                 <p id={`${inputId}-error`} role="alert" className="text-pretty text-[13px] leading-[18px] text-state-violation-text">{error}</p>

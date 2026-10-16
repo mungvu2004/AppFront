@@ -776,7 +776,7 @@ describe('rê lên dòng bảng làm sáng dải lát cắt (BUG-519)', () => {
 describe('khung bảng có chiều cao xác định (BUG-520)', () => {
   it('vùng nội dung là cột flex lấp phần còn lại, nên khung bảng tự cuộn thay vì kéo dài trang', () => {
     renderWithProviders(<FloorManager {...scenarioArgsFor('partial')} />);
-    const frame = screen.getByRole('table').closest('[class~="rounded-[8px]"]');
+    const frame = screen.getByRole('table').closest('[class~="rounded-lg"]');
     const content = frame?.closest('[class~="max-w-[1120px]"][class~="flex-1"]');
 
     expect(frame).toHaveClass('min-h-0', 'flex-1', 'overflow-auto');

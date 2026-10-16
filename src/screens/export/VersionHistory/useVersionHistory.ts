@@ -472,9 +472,16 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
           undo: () => void sendLabel(versionId, previous, null),
         });
 
-        onToast?.({ message: label.trim().length === 0 ? 'Đã gỡ nhãn' : 'Đã gắn nhãn', onUndo: () => void ticket.undo() });
+        const isBlank = label.trim().length === 0;
+
+        // Bản chưa có nhãn mà gỡ nhãn: máy chủ không ghi gì, không báo "Đã gỡ nhãn" (C-046).
+        if (isBlank && previous.trim().length === 0) {
+          return;
+        }
+
+        onToast?.({ message: isBlank ? 'Đã gỡ nhãn' : 'Đã gắn nhãn', onUndo: () => void ticket.undo() });
       } catch (error) {
-        setBanner({ kind: 'error', notice: writeErrorNotice('label', error) });
+        setBanner({ kind: 'error', notice: writeErrorNotice('label', error, label) });
       }
     },
     [floorId, gateway, onToast, queryClient, ticketNow],
@@ -503,8 +510,10 @@ export function useVersionHistory(options: UseVersionHistoryOptions): VersionHis
 
   const actions = useMemo(
     (): VersionHistoryActions => ({
-      selectLeftVersion: (versionId) => setPickedPair((previous) => ({ ...(previous ?? pair), left: versionId })),
-      selectRightVersion: (versionId) => setPickedPair((previous) => ({ ...(previous ?? pair), right: versionId })),
+      // `pair` đã xếp theo sequence (bản cũ trái): ô "gốc"/"đối chiếu" nói về hai bên HIỂN THỊ, không về thứ tự đã tích.
+      // Chọn đúng bản đang ở bên kia thì hoán đổi hai bên (không thành cặp trùng {v, v}).
+      selectLeftVersion: (versionId) => setPickedPair({ left: versionId, right: versionId === pair.right ? pair.left : pair.right }),
+      selectRightVersion: (versionId) => setPickedPair({ left: versionId === pair.left ? pair.right : pair.left, right: versionId }),
       toggleCompareSelection: (versionId) => setPickedPair((previous) => togglePick(previous ?? pair, versionId)),
       setTab: setActiveTab,
       hoverDiffRow: setHoveredEntityId,

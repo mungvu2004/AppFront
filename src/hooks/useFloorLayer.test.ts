@@ -11,6 +11,7 @@ import type { Level, LevelId, SpatialGraph, Wall, WallId } from '@/domain/spatia
 import { millimetresPerPixel } from '@/domain/units/scale';
 import { setAuthenticatedSession } from '@/lib/auth/state';
 import { spatialLayerOf } from '@/lib/autosave/spatialLayerSave';
+import { createQueryClient } from '@/lib/query/queryClient';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { useStore } from '@/store';
 import { commit } from '@/store/commit';
@@ -279,6 +280,48 @@ describe('useFloorLayer — N16 một tầng vào kho theo revision', () => {
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.errorMessage).not.toBe(FLOOR_NOT_FOUND_MESSAGE);
     expect(result.current.errorMessage?.length).toBeGreaterThan(0);
+  });
+
+  it('QA p04 FL-16-M1: quay lại màn sau staleTime, lượt đọc lại hỏng → error lên, dữ liệu cũ giữ', async () => {
+    const queryClient = createTestQueryClient();
+    const wrapper = ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client: queryClient }, children);
+    const first = renderHook(() => useFloorLayer({ floorId: FLOOR, projectId: PROJECT, read: () => Promise.resolve(documentOf(FLOOR, 4)) }), { wrapper });
+
+    await waitFor(() => expect(first.result.current.data).toBeDefined());
+    first.unmount();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(Date.now() + 31_000);
+      const read = vi.fn(() => Promise.reject(new Error('boom')));
+      const again = renderHook(() => useFloorLayer({ floorId: FLOOR, projectId: PROJECT, read }), { wrapper });
+
+      await waitFor(() => expect(again.result.current.error).not.toBeNull());
+      expect(read).toHaveBeenCalledTimes(1);
+      expect(again.result.current.errorMessage?.length).toBeGreaterThan(0);
+      expect(again.result.current.data).toBeDefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('QA p04 FL-16-M1 (client thật): hết staleTime mà màn còn gắn (Suspense chỉ ẩn) thì không đọc lại; tháo rồi gắn lại thì đọc lại', async () => {
+    const queryClient = createQueryClient();
+    const wrapper = ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client: queryClient }, children);
+    const read = vi.fn(() => Promise.resolve(documentOf(FLOOR, 4)));
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      const mounted = renderHook(() => useFloorLayer({ floorId: FLOOR, projectId: PROJECT, read }), { wrapper });
+
+      await waitFor(() => expect(mounted.result.current.data).toBeDefined());
+      vi.setSystemTime(Date.now() + 62_000);
+      mounted.rerender();
+      expect(read).toHaveBeenCalledTimes(1);
+      mounted.unmount();
+      renderHook(() => useFloorLayer({ floorId: FLOOR, projectId: PROJECT, read }), { wrapper });
+      await waitFor(() => expect(read).toHaveBeenCalledTimes(2));
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('nạp và thay tầng không sinh PUT (saver thật)', async () => {

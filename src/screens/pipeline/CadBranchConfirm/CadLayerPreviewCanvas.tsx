@@ -249,9 +249,9 @@ export function CadLayerPreviewCanvas({ actions, model }: CadLayerPreviewCanvasP
   const hasHighlight = hoveredLayerId !== null || hoveredEntityId !== null;
 
   return (
-    // `min-h-[320px]`: không có hình (bản build thật chưa đọc được thực thể) thì khung vẫn là một
+    // `min-h-80`: không có hình (bản build thật chưa đọc được thực thể) thì khung vẫn là một
     // khung, không xẹp thành đường kẻ (BUG-564).
-    <div className="relative h-full min-h-[320px] w-full flex-1 overflow-hidden rounded-[16px] border border-border-default bg-canvas-2d">
+    <div className="relative h-full min-h-80 w-full flex-1 overflow-hidden rounded-2xl border border-border-default bg-canvas-2d">
       {isLoading ? (
         <Skeleton className="absolute inset-0" preset="canvas" />
       ) : hasDrawableExtent ? (
@@ -289,7 +289,7 @@ export function CadLayerPreviewCanvas({ actions, model }: CadLayerPreviewCanvasP
         <ul
           className={cn(
             'absolute bottom-3 left-3 z-10 flex flex-col gap-1',
-            'rounded-[12px] bg-bg-surface p-3 shadow-float',
+            'rounded-xl bg-bg-surface p-3 shadow-float',
           )}
         >
           {wallThicknessLegend.map((entry) => (

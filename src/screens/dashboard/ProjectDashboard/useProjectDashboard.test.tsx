@@ -112,6 +112,19 @@ function dash() {
 
 const names = (): string[] => dash().model.rows.map((row) => row.name);
 
+describe('useProjectDashboard delete rule', () => {
+  // [9P-C-003] rename needs project.settings.edit (engineer ok); delete is admin-only like the settings danger zone.
+  it.each([
+    ['engineer', true, false],
+    ['admin', true, true],
+    ['viewer', false, false],
+  ] as const)('[9P-C-003] %s: canDelete=%s canDeleteProject=%s', (role, canDelete, canDeleteProject) => {
+    mount({ role, fetchList: () => new Promise(() => undefined) });
+
+    expect([dash().model.canDelete, dash().model.canDeleteProject]).toEqual([canDelete, canDeleteProject]);
+  });
+});
+
 describe('useProjectDashboard states', () => {
   it('does not say forbidden for a viewer while the list is still loading', () => {
     mount({ role: 'viewer', fetchList: () => new Promise(() => undefined) });

@@ -5,13 +5,14 @@ import type { ProjectCardModel, ProjectDashboardActions } from './useProjectDash
 /**
  * The right-click / "..." menu of one project. "Nhân bản" is built only when
  * `canDuplicate` (it has no backend contract, R4): not drawn rather than drawn dead (A2).
- * Rename shares `canDelete` — both need `project.settings.edit`.
+ * Rename needs `project.settings.edit` (`canEdit`); "Xoá" is admin-only (`canDeleteProject`, BE projects/access.py:95).
  */
 export function projectMenuGroups(
   project: ProjectCardModel,
   actions: Pick<ProjectDashboardActions, 'openProject' | 'startRename' | 'requestDelete' | 'duplicateProject'>,
   canEdit: boolean,
   canDuplicate: boolean,
+  canDeleteProject: boolean,
 ): ContextMenuGroup[] {
   return [
     {
@@ -22,7 +23,7 @@ export function projectMenuGroups(
           ? [{ id: 'duplicate', label: 'Nhân bản', action: () => actions.duplicateProject(project.id) }]
           : []),
         { id: 'rename', label: 'Đổi tên', isDisabled: !canEdit, action: () => actions.startRename(project.id) },
-        { id: 'delete', label: 'Xoá', isDestructive: true, isDisabled: !canEdit, action: () => actions.requestDelete(project.id) },
+        { id: 'delete', label: 'Xoá', isDestructive: true, isDisabled: !canDeleteProject, action: () => actions.requestDelete(project.id) },
       ],
     },
   ];

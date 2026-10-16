@@ -134,7 +134,7 @@ export function VersionList({ groups, onToggleCompareSelection, onRetrySnapshot 
     .join('; ');
 
   return (
-    <nav aria-label="Danh sách phiên bản" className="flex h-full flex-col overflow-y-auto">
+    <nav aria-label="Danh sách phiên bản" className="flex min-h-0 flex-1 flex-col overflow-y-auto">
       <p role="status" aria-live="polite" aria-label={SNAPSHOT_STATUS_LABEL} className="sr-only">
         {failures}
       </p>

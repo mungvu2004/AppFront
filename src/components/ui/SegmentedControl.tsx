@@ -65,6 +65,7 @@ const SegmentedItem = React.forwardRef<HTMLButtonElement, SegmentedItemProps>(
   ({ value, swatch, isActive = false, layoutId, children, className, ...props }, ref) => (
     <button
       ref={ref}
+      type="button"
       data-value={value}
       role="radio"
       aria-checked={isActive}
@@ -125,18 +126,26 @@ export const SegmentedControl = Object.assign(
     const containerRef = useRef<HTMLDivElement>(null);
 
     // Keyboard: ArrowLeft / ArrowRight navigate between segments
+    // Roving tabindex: one tab stop — the selected radio, else the first enabled one.
+    const selected = options.find((o) => o.value === currentValue);
+    const tabStopValue = selected && !selected.disabled ? selected.value : options.find((o) => !o.disabled)?.value;
+
     const handleKeyDown = (e: React.KeyboardEvent) => {
-      const activeIndex = options.findIndex((o) => o.value === currentValue);
-      let nextIndex = -1;
-      if (e.key === 'ArrowRight') nextIndex = (activeIndex + 1) % options.length;
-      else if (e.key === 'ArrowLeft') nextIndex = (activeIndex - 1 + options.length) % options.length;
-      if (nextIndex !== -1) {
-        e.preventDefault();
+      const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+      if (step === 0 || options.length === 0) return;
+      e.preventDefault();
+      // Relative to the FOCUSED radio (fallback: the selected one), skipping disabled options.
+      const btns = containerRef.current?.querySelectorAll<HTMLButtonElement>('button');
+      const focusedIndex = btns ? Array.from(btns).findIndex((b) => b === document.activeElement) : -1;
+      const fromIndex = focusedIndex !== -1 ? focusedIndex : options.findIndex((o) => o.value === currentValue);
+      for (let i = 1; i <= options.length; i += 1) {
+        const nextIndex = (fromIndex + step * i + options.length * i) % options.length;
         const opt = options[nextIndex];
-        if (opt && !opt.disabled) handleChange(opt.value, opt.disabled);
-        // Move focus to the button
-        const btns = containerRef.current?.querySelectorAll<HTMLButtonElement>('button');
-        btns?.[nextIndex]?.focus();
+        if (opt && !opt.disabled) {
+          handleChange(opt.value, opt.disabled);
+          btns?.[nextIndex]?.focus();
+          return;
+        }
       }
     };
 
@@ -159,6 +168,7 @@ export const SegmentedControl = Object.assign(
               value={option.value}
               swatch={option.swatch}
               isActive={isActive}
+              tabIndex={option.value === tabStopValue ? 0 : -1}
               layoutId={`thumb-${layoutId}`}
               disabled={disabled || option.disabled}
               onClick={() => handleChange(option.value, option.disabled)}

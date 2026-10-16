@@ -1,16 +1,13 @@
 /**
- * Phase 8: Admin, Track A (E2E-TEST-PLAN.md v2, §4 Phase 8): SCR-34 → SCR-35 → SCR-36 → SCR-37.
+ * Phase 8 main chain (serial, one shared signed-in admin page): FL-M-34L-01, FL-M-35T-01, FL-M-36R-01, FL-M-37U-01, FL-M-37W-01.
+ * Admin from CP-1 (`E2E_ADMIN_EMAIL` / `E2E_ADMIN_PASSWORD`); runtime-session.json (`.state`) keeps the R2 record so a
+ * crashed run restores the opening family on the next run, as `e2e/fullstack/chain.fullstack.ts` step 10 does.
  *
- * Compose build at `E2E_FULLSTACK_BASE_URL`, admin from CP-1 (`E2E_ADMIN_EMAIL` / `E2E_ADMIN_PASSWORD`),
- * one shared signed-in page. No project state is needed.
+ * Global state: only FL-M-36R-01 activates a version (family openingAndFurnitureDetection); it records BEFORE and restores in `finally`.
+ * Never clicked: "Bắt đầu huấn luyện", "Quay về đường cổ điển", "Gửi lời mời".
  *
- * SCR-36 changes GLOBAL state (rule R2): it records `openingAndFurnitureDetection.activeVersionId`
- * in `runtime-session.json` BEFORE activating, and restores it in a `finally` of the same test,
- * the same way `e2e/fullstack/chain.fullstack.ts` step 10 does. A run that crashed with
- * `registry.pendingRestore = true` restores the recorded version first on the next run.
- *
- * Never clicked here: "Bắt đầu huấn luyện" (opt-in), "Quay về đường cổ điển" (sends versionId:null),
- * "Gửi lời mời" (sends real email), any toast "Hoàn tác".
+ * Request budget: 1 admin login + 1 adminApi login (beforeAll) + 2 adminApi logins (36R, 37U); 0-6 invitations from the admin
+ * seed the first time the 6 SHARED_SLOTS are filled (none afterwards).
  */
 import { expect, test, type BrowserContext, type Locator, type Page } from '@playwright/test';
 
@@ -19,45 +16,29 @@ import { navigateThenWaitForApi, waitForApi, waitForApiWhere } from '../../e2e/f
 import { readBaseUrl } from '../../e2e/fullstack/env';
 import { readAdminCredentials, signInAdmin } from './support/auth';
 import { captureEvidence } from './support/evidence';
-import { readState, requireState, updateState } from './support/state';
+import { adminApi, recordActiveVersions, restoreActiveVersions } from './support/p08/admin';
+import { poolUser } from './support/p08/pool';
+import { readState, updateState } from './support/state';
 
 test.describe.configure({ mode: 'serial' });
 
 const VIEWPORT = { width: 1440, height: 900 } as const;
-
-/* ---- SCR-34 copy: ModelLibraryToolbar.tsx, ModelLibraryTable.tsx, ModelLibrary.tsx, ModelLibraryDetail.tsx ---- */
 const LIBRARY_LIST_PATH = /^\/api\/library$/u;
-const LIBRARY_EMPTY_TITLE = 'Chưa có model nào';
-const LIBRARY_ALL_OPTION = /^Tất cả \(\d+\)$/u;
-
-/* ---- SCR-35 copy: TrainingJobs.tsx, TrainingJobForm.tsx, TrainingJobDetail.tsx, useTrainingJobs.ts ---- */
 const TRAINING_JOBS_PATH = '/api/admin/ml/training-jobs';
-const TRAINING_EMPTY_TITLE = 'Chưa có lượt huấn luyện';
-const TRAINING_FORM_TITLE = 'Tạo lượt huấn luyện';
-
-/* ---- SCR-36: endpoints.ts adminMl, schemas/adminMl.ts, useModelRegistry.ts, ModelRegistry*.tsx ---- */
 const FAMILIES_PATH = /^\/api\/admin\/ml\/model-families$/u;
 const OPENING_FAMILY = 'openingAndFurnitureDetection';
-const WALL_FAMILY = 'wallSegmentation';
 const OPENING_FAMILY_LABEL = 'Nhận diện cửa và đồ đạc';
-const WALL_FAMILY_LABEL = 'Tách lớp tường';
 const OPENING_ACTIVE_PATH = new RegExp(`^/api/admin/ml/model-families/${OPENING_FAMILY}/active$`, 'u');
 const ACTIVATE_LABEL = 'Kích hoạt';
 const ACTIVE_BADGE = 'Đang dùng';
-const REVERT_LABEL = 'Quay về đường cổ điển';
-const BLOCKED_NOT_EVALUATED = 'Chỉ kích hoạt được bản đã đánh giá.';
-const BLOCKED_FORMAT = 'Chỉ kích hoạt được bản định dạng onnx.';
-
-/* ---- SCR-37 copy: UserManagement*.tsx, useUserManagement.ts, userManagementGateway.ts ---- */
 const USERS_LIST_PATH = /^\/api\/users$/u;
-const USERS_EMPTY_TITLE = 'Chưa có người dùng nào khác';
 const SELF_ROLE_BLOCKED = 'Bạn không thể tự đổi vai của mình';
 const SELF_DISABLE_BLOCKED = 'Bạn không thể tự vô hiệu hoá tài khoản của mình';
 
-/* ---- Wire shapes (schemas/adminMl.ts: ModelFamilySchema, ModelVersionSchema), read minimally ---- */
 interface FamilyWire {
   readonly family: string;
   readonly activeVersionId?: string;
+  readonly revision: number;
 }
 interface VersionWire {
   readonly id: string;
@@ -71,16 +52,13 @@ const itemsOf = (json: unknown, what: string): unknown[] => {
   if (!Array.isArray(items)) throw new Error(`${what}: body has no "items" array`);
   return items;
 };
-
-const familyRecord = (json: unknown, family: string): FamilyWire => {
-  const record = (itemsOf(json, 'GET model-families') as FamilyWire[]).find((item) => item.family === family);
-  if (record === undefined) throw new Error(`GET model-families: no family ${family}`);
-  return record;
-};
+/** Pool users read by several files (read-only) or acting as invite admins; filled once here (QA-08 packs.md S2). */
+const SHARED_SLOTS = [
+  ['engineer', 'p08-eng'], ['viewer', 'p08-view'],
+  ['admin', 'p08-37U-adm'], ['admin', 'p08-37W-adm'], ['admin', 'p08-B08U-adm1'], ['admin', 'p08-B08U-adm2'],
+] as const;
 
 const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-
-/* ---- Shared signed-in page (one login for the whole phase) ---- */
 
 let context: BrowserContext;
 let page: Page;
@@ -89,99 +67,109 @@ test.beforeAll(async ({ browser }) => {
   context = await browser.newContext({ baseURL: readBaseUrl(), viewport: VIEWPORT });
   page = await context.newPage();
   await signInAdmin(page);
-  // Trace starts AFTER sign-in: a trace records `fill` values, so starting earlier writes the admin
-  // password into the zip in clear text (same rule as chain.fullstack.ts).
+  // Warm the pool slots that several phase 08 files share (S2 decisions 1-2): the main layer runs alone with 1 worker
+  // before ui/api/edge (tools/run-phase.mjs), so their first fill (one invitation each) never races across 4 workers.
+  const seed = await adminApi();
+  try {
+    for (const [role, slot] of SHARED_SLOTS) await poolUser(seed, role, slot);
+  } finally {
+    await seed.dispose();
+  }
+  // Trace starts AFTER sign-in: a trace records `fill` values (admin password), same rule as chain.fullstack.ts.
   await context.tracing.start({ screenshots: true, snapshots: true });
 });
 
 test.afterAll(async ({}, testInfo) => {
-  await context.tracing.stop({ path: testInfo.outputPath('phase08-trace.zip') }).catch(() => undefined);
+  await context.tracing.stop({ path: testInfo.outputPath('phase08-trace.zip') });
   await context.close();
 });
 
 /** Opens a custom `Select` (button role=combobox, portaled listbox) and picks one option. */
 async function pickOption(combobox: Locator, option: string | RegExp): Promise<void> {
   await combobox.click();
-  await page
-    .getByRole('option', typeof option === 'string' ? { name: option, exact: true } : { name: option })
-    .click();
+  await page.getByRole('option', typeof option === 'string' ? { name: option, exact: true } : { name: option }).click();
 }
 
 /* -------------------------------------------------------------------------- */
-/* SCR-34 Model Library                                                       */
+/* SCR-34                                                                     */
 /* -------------------------------------------------------------------------- */
 
-test.describe('SCR-34 Model Library (/admin/models)', () => {
-  test('SCR-34 search, category, sort "Số tam giác" (before Lưới), grid, detail + Esc, no write controls', async () => {
-    await navigateThenWaitForApi(
-      page,
-      () => page.goto(ROUTES.adminModels, { waitUntil: 'commit' }),
-      'GET',
-      LIBRARY_LIST_PATH,
-      [200],
-    );
-    const search = page.getByLabel('tìm model', { exact: true });
-    const empty = page.getByText(LIBRARY_EMPTY_TITLE, { exact: true });
+test('SCR-34 · FL-M-34L-01 · open, search, category, sort, grid, detail + Esc', async () => {
+  test.setTimeout(120_000);
+  const rows = page.locator('tbody tr');
+  const search = page.getByLabel(/^tìm model$/iu);
+  let name = '';
+  let group = '';
 
-    await expect(search.or(empty)).toBeVisible();
-    test.skip(await empty.isVisible(), 'environment: library is empty ("Chưa có model nào"), nothing to browse');
+  await test.step('[34L-A-001] open /admin/models: breadcrumb, toolbar, table', async () => {
+    await navigateThenWaitForApi(page, () => page.goto(ROUTES.adminModels, { waitUntil: 'commit' }), 'GET', LIBRARY_LIST_PATH, [200]);
+    await expect(page.getByRole('navigation', { name: 'Đường dẫn trang' }).getByText('Thư viện model', { exact: true })).toBeVisible();
+    await expect(search).toBeVisible();
+    await expect(rows.first(), 'environment: library has at least one model').toBeVisible();
+    name = (await rows.first().locator('td').nth(1).innerText()).trim();
+    group = (await rows.first().locator('td').nth(2).innerText()).trim();
+    await captureEvidence(page, 'E08_34L-A-001_main.png');
+  });
 
-    // Admin: `canManage` → no read-only alert; `canUploadModel` is false → no upload control (G7).
-    await expect(page.getByText('Vai trò của bạn chỉ xem được thư viện', { exact: false })).toHaveCount(0);
-
-    const rows = page.locator('tbody tr');
-    const firstRow = rows.first();
-    const name = (await firstRow.locator('td').nth(1).innerText()).trim();
-    const group = (await firstRow.locator('td').nth(2).innerText()).trim();
-
-    // "tìm model"
+  await test.step('[34L-A-002] search narrows the rows', async () => {
     await search.fill(name);
-    await expect(rows.locator('td:nth-child(2)').getByRole('button', { name, exact: true })).toBeVisible();
+    await expect.soft(rows.locator('td:nth-child(2)').getByRole('button', { name, exact: true })).toBeVisible();
+    await expect.soft(search).toHaveAttribute('placeholder', 'Tìm theo tên model...');
+    await captureEvidence(page, 'E08_34L-A-002_main.png');
     await search.fill('');
+  });
 
-    // "danh mục"
-    const category = page.getByRole('combobox', { name: 'danh mục', exact: true });
+  await test.step('[34L-A-003] category narrows the rows, options read "<label> (<count>)"', async () => {
+    const category = page.getByRole('combobox', { name: 'Danh mục', exact: true });
     await pickOption(category, new RegExp(`^${escapeRegExp(group)} \\(\\d+\\)$`, 'u'));
     await expect
-      .poll(
-        async () => (await rows.locator('td:nth-child(3)').allInnerTexts()).every((text) => text.trim() === group),
-        { message: `every row is in "${group}"` },
-      )
+      .poll(async () => (await rows.locator('td:nth-child(3)').allInnerTexts()).every((t) => t.trim() === group), { message: `every row is in "${group}"` })
       .toBe(true);
-    await pickOption(category, LIBRARY_ALL_OPTION);
+    await captureEvidence(page, 'E08_34L-A-003_main.png');
+    await pickOption(category, /^Tất cả \(\d+\)$/u);
+  });
 
-    // Sort BEFORE switching to Lưới (the grid has no headers).
+  await test.step('[34L-A-005] "Số tam giác": ascending, then descending', async () => {
     const triangles = page.getByRole('columnheader', { name: 'Số tam giác', exact: true });
-    await expect(triangles).toHaveAttribute('aria-sort', 'none');
     await triangles.click();
-    await expect(triangles).toHaveAttribute('aria-sort', 'ascending');
+    await expect.soft(triangles).toHaveAttribute('aria-sort', 'ascending');
+    await triangles.click();
+    await expect.soft(triangles).toHaveAttribute('aria-sort', 'descending');
+    await captureEvidence(page, 'E08_34L-A-005_main.png');
+  });
 
-    // "Lưới"
+  await test.step('[34L-A-006] "Lưới" replaces the table with the card grid', async () => {
     await page.getByRole('radiogroup', { name: 'Chế độ xem' }).getByRole('radio', { name: 'Lưới', exact: true }).click();
-    const grid = page.getByRole('list', { name: 'lưới model' });
-    await expect(grid).toBeVisible();
+    await expect.soft(page.getByRole('list', { name: 'lưới model' })).toBeVisible();
+    await captureEvidence(page, 'E08_34L-A-006_main.png');
+  });
 
-    // name → "Chi tiết model"
-    await grid.getByRole('listitem', { name, exact: true }).click();
-    const detail = page.locator('aside[aria-label="Chi tiết model"]');
-    await expect(detail).toBeVisible();
-    await expect(detail.getByRole('heading', { name, exact: true })).toBeVisible();
+  const detail = page.locator('aside[aria-label="Chi tiết model"]');
+  await test.step('[34L-A-009] click a grid card: detail panel opens', async () => {
+    await page.getByRole('list', { name: 'lưới model' }).getByRole('listitem').first().click();
+    await expect.soft(detail).toBeVisible();
+    await expect.soft(detail.getByRole('heading', { level: 2 })).toBeVisible();
+    await captureEvidence(page, 'E08_34L-A-009_main.png');
+  });
 
-    // No write controls anywhere on the screen (G7: every ModelLibrary write is off).
-    await expect(page.getByRole('button', { name: /tải lên|xoá|sửa|lưu/iu })).toHaveCount(0);
-    await captureEvidence(page, '34_library_browse.png');
-
+  await test.step('[34L-A-010] Esc closes the detail panel', async () => {
     await page.keyboard.press('Escape');
-    await expect(detail).toHaveCount(0);
+    await expect.soft(detail).toHaveCount(0);
+    await captureEvidence(page, 'E08_34L-A-010_main.png');
   });
 });
 
 /* -------------------------------------------------------------------------- */
-/* SCR-35 Training Jobs                                                       */
+/* SCR-35                                                                     */
 /* -------------------------------------------------------------------------- */
 
-test.describe('SCR-35 Training Jobs (/admin/training/jobs)', () => {
-  test('SCR-35 tabs, status filter, row → "Chi tiết lượt huấn luyện" with "Số đo" and "Nhật ký"', async () => {
+test('SCR-35 · FL-M-35T-01 · navigate, tabs, filters, open/close the form', async () => {
+  test.setTimeout(120_000);
+  const jobsTab = page.getByRole('tab', { name: 'Lượt huấn luyện', exact: true });
+  const datasetsTab = page.getByRole('tab', { name: 'Bộ dữ liệu', exact: true });
+  const emptyFiltered = page.getByText('Không có lượt nào khớp bộ lọc.', { exact: true });
+
+  await test.step('[35T-A-001] open /admin/training/jobs: h1 and breadcrumb', async () => {
     await navigateThenWaitForApi(
       page,
       () => page.goto(ROUTES.adminTrainingJobs, { waitUntil: 'commit' }),
@@ -189,368 +177,313 @@ test.describe('SCR-35 Training Jobs (/admin/training/jobs)', () => {
       new RegExp(`^${TRAINING_JOBS_PATH}$`, 'u'),
       [200],
     );
-
-    const jobsTab = page.getByRole('tab', { name: 'Lượt huấn luyện', exact: true });
-    const datasetsTab = page.getByRole('tab', { name: 'Bộ dữ liệu', exact: true });
-    await expect(jobsTab).toHaveAttribute('aria-selected', 'true');
-    await datasetsTab.click();
-    await expect(datasetsTab).toHaveAttribute('aria-selected', 'true');
-    await jobsTab.click();
-    await expect(jobsTab).toHaveAttribute('aria-selected', 'true');
-
-    // Status filter: refetches N32 with `status` (useTrainingJobs.ts jobFilter, adminMlJobsClient.listPage).
-    const statusFilter = page.getByRole('combobox', { name: 'Lọc theo trạng thái', exact: true });
-    const filtered = waitForApiWhere(page, (response) => {
-      const url = new URL(response.url());
-      return (
-        response.request().method() === 'GET' &&
-        url.pathname === TRAINING_JOBS_PATH &&
-        url.searchParams.get('status') === 'succeeded' &&
-        response.status() === 200
-      );
-    });
-    await pickOption(statusFilter, 'Xong');
-    await filtered;
-    await expect(statusFilter).toContainText('Xong');
-    await pickOption(statusFilter, 'Tất cả');
-    await expect(statusFilter).toContainText('Tất cả');
-
-    const empty = page.getByText(TRAINING_EMPTY_TITLE, { exact: true });
-    const openButtons = page.locator('tbody tr button[aria-pressed]');
-    await expect(empty.or(openButtons.first())).toBeVisible();
-
-    if (await empty.isVisible()) {
-      await captureEvidence(page, '35_training_browse.png');
-      test.skip(true, 'environment: no training jobs, so the detail panel cannot be opened (tabs + filter passed)');
-      return;
-    }
-
-    await openButtons.first().click();
-    const detail = page.locator('aside[aria-label="Chi tiết lượt huấn luyện"]');
-    await expect(detail).toBeVisible();
-    await expect(detail.getByRole('region', { name: 'Số đo', exact: true })).toBeVisible();
-    await expect(detail.getByRole('region', { name: 'Nhật ký', exact: true })).toBeVisible();
-    await captureEvidence(page, '35_training_browse.png');
+    await expect(page.getByRole('heading', { level: 1, name: 'Huấn luyện model AI', exact: true })).toBeVisible();
+    const nav = page.getByRole('navigation', { name: 'Đường dẫn trang' });
+    await expect(nav.getByText('Quản trị', { exact: true })).toBeVisible();
+    await expect(nav.getByText('Huấn luyện model', { exact: true })).toHaveAttribute('aria-current', 'page');
+    await captureEvidence(page, 'E08_35T-A-001_main.png');
   });
 
-  test('SCR-35 "Tạo lượt huấn luyện" → "Đóng": dialog opens and closes, no POST', async () => {
+  await test.step('[35T-D-001] admin sees tabs, filters and the create button', async () => {
+    await expect.soft(jobsTab).toBeVisible();
+    await expect.soft(datasetsTab).toBeVisible();
+    await expect.soft(page.getByRole('button', { name: 'Tạo lượt huấn luyện', exact: true })).toBeVisible();
+    await captureEvidence(page, 'E08_35T-D-001_main.png');
+  });
+
+  await test.step('[35T-A-003] tab "Bộ dữ liệu" then "Lượt huấn luyện"', async () => {
+    await expect.soft(page.getByRole('tablist', { name: 'Phần của trang huấn luyện' })).toBeVisible();
+    await datasetsTab.click();
+    await expect.soft(datasetsTab).toHaveAttribute('aria-selected', 'true');
+    await jobsTab.click();
+    await expect.soft(jobsTab).toHaveAttribute('aria-selected', 'true');
+    await captureEvidence(page, 'E08_35T-A-003_main.png');
+  });
+
+  await test.step('[35T-A-004] family filter "Tách lớp tường" sends ?family=wallSegmentation', async () => {
+    const read = waitForApiWhere(
+      page,
+      (r) => r.request().method() === 'GET' && new URL(r.url()).pathname === TRAINING_JOBS_PATH && new URL(r.url()).searchParams.get('family') === 'wallSegmentation',
+    );
+    await page.getByRole('radiogroup', { name: 'Lọc theo họ' }).getByRole('radio', { name: 'Tách lớp tường', exact: true }).click();
+    expect.soft((await read).response.status(), 'GET training-jobs?family=wallSegmentation').toBe(200);
+    await expect.soft(emptyFiltered.or(page.locator('tbody tr').first())).toBeVisible();
+    await captureEvidence(page, 'E08_35T-A-004_main.png');
+  });
+
+  await test.step('[35T-A-006] status filter "Đang huỷ" sends ?status=cancelling', async () => {
+    const read = waitForApiWhere(
+      page,
+      (r) => r.request().method() === 'GET' && new URL(r.url()).pathname === TRAINING_JOBS_PATH && new URL(r.url()).searchParams.get('status') === 'cancelling',
+    );
+    await pickOption(page.getByRole('combobox', { name: 'Lọc theo trạng thái', exact: true }), 'Đang huỷ');
+    expect.soft((await read).response.status(), 'GET training-jobs?status=cancelling').toBe(200);
+    await expect.soft(emptyFiltered.or(page.locator('tbody tr').first())).toBeVisible();
+    await captureEvidence(page, 'E08_35T-A-006_main.png');
+  });
+
+  await test.step('[35T-A-009] "Tạo lượt huấn luyện" -> "Đóng": opens, closes, no POST', async () => {
     const posts: string[] = [];
-    const onRequest = (request: { method(): string; url(): string }): void => {
-      if (request.method() === 'POST' && new URL(request.url()).pathname.startsWith('/api/')) posts.push(request.url());
+    const onRequest = (r: { method(): string; url(): string }): void => {
+      if (r.method() === 'POST' && new URL(r.url()).pathname.startsWith('/api/')) posts.push(r.url());
     };
     page.on('request', onRequest);
-
     try {
-      await page.getByRole('button', { name: TRAINING_FORM_TITLE, exact: true }).click();
-      const dialog = page.getByRole('dialog', { name: TRAINING_FORM_TITLE });
-      await expect(dialog).toBeVisible();
-      await expect(dialog.getByRole('button', { name: 'Bắt đầu huấn luyện', exact: true })).toBeVisible();
-
-      // "Đóng" exact: the header X is "Đóng hộp thoại" (Modal.tsx). Never "Bắt đầu huấn luyện".
+      await page.getByRole('button', { name: 'Tạo lượt huấn luyện', exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: 'Tạo lượt huấn luyện' });
+      await expect.soft(dialog).toBeVisible();
+      await captureEvidence(page, 'E08_35T-A-009_main.png');
+      // "Đóng" exact: the header X is "Đóng hộp thoại". Never "Bắt đầu huấn luyện".
       await dialog.getByRole('button', { name: 'Đóng', exact: true }).click();
-      await expect(page.getByRole('dialog')).toHaveCount(0);
-      await captureEvidence(page, '35_training_dialog_cancel.png');
+      await expect.soft(page.getByRole('dialog')).toHaveCount(0); // settled point before asserting "no POST"
     } finally {
       page.off('request', onRequest);
     }
-    expect(posts, 'no POST while opening/closing the form').toEqual([]);
+    expect.soft(posts, 'no POST while opening/closing the form').toEqual([]);
   });
 });
 
 /* -------------------------------------------------------------------------- */
-/* SCR-36 Model Registry                                                      */
+/* SCR-36                                                                     */
 /* -------------------------------------------------------------------------- */
 
-/** The version row (chain step 10): a table row holding the label button. */
-const versionRow = (label: string): Locator =>
-  page.getByRole('row').filter({ has: page.getByRole('button', { name: label, exact: true }) });
-
-/** `ActiveCard` (ModelRegistry.tsx): `<section aria-label="Đang dùng">`. */
+const versionRow = (label: string): Locator => page.getByRole('row').filter({ has: page.getByRole('button', { name: label, exact: true }) });
 const activeCard = (): Locator => page.getByRole('region', { name: ACTIVE_BADGE, exact: true });
 
-/** Opens the registry and selects the opening family; returns its N23 record and N25 page. */
 async function openOpeningFamily(): Promise<{ readonly family: FamilyWire; readonly versions: VersionWire[] }> {
-  const familiesRead = await navigateThenWaitForApi(
-    page,
-    () => page.goto(ROUTES.adminTrainingModels, { waitUntil: 'commit' }),
-    'GET',
-    FAMILIES_PATH,
-    [200],
-  );
-  const family = familyRecord(familiesRead.json, OPENING_FAMILY);
+  const read = await navigateThenWaitForApi(page, () => page.goto(ROUTES.adminTrainingModels, { waitUntil: 'commit' }), 'GET', FAMILIES_PATH, [200]);
+  const family = (itemsOf(read.json, 'GET model-families') as FamilyWire[]).find((f) => f.family === OPENING_FAMILY);
+  if (family === undefined) throw new Error(`GET model-families: no family ${OPENING_FAMILY}`);
   const picker = page.getByRole('radiogroup', { name: 'Họ model' });
   await expect(picker).toBeVisible();
-
-  // Registered BEFORE the click (chain step 10). The screen opens on walls, so this is a fresh read.
   const versionsRead = waitForApiWhere(
     page,
-    (response) =>
-      response.request().method() === 'GET' &&
-      new URL(response.url()).pathname === '/api/admin/ml/model-versions' &&
-      response.url().includes(OPENING_FAMILY) &&
-      response.status() === 200,
+    (r) =>
+      r.request().method() === 'GET' &&
+      new URL(r.url()).pathname === '/api/admin/ml/model-versions' &&
+      r.url().includes(OPENING_FAMILY) &&
+      r.status() === 200,
   );
   await picker.getByRole('radio', { name: OPENING_FAMILY_LABEL, exact: true }).click();
   const versions = itemsOf((await versionsRead).json, 'GET model-versions') as VersionWire[];
-  await expect(picker.getByRole('radio', { name: OPENING_FAMILY_LABEL, exact: true })).toHaveAttribute(
-    'aria-checked',
-    'true',
-  );
-
+  await expect(picker.getByRole('radio', { name: OPENING_FAMILY_LABEL, exact: true })).toHaveAttribute('aria-checked', 'true');
   return { family, versions };
 }
 
-/** Row "Kích hoạt" → dialog "Kích hoạt" → N24 200. Returns the PUT body (ModelFamily). */
-async function activateViaUi(label: string): Promise<FamilyWire> {
-  const put = waitForApi(page, 'PUT', OPENING_ACTIVE_PATH, [200]);
-  await versionRow(label).getByRole('button', { name: ACTIVATE_LABEL, exact: true }).click();
-  await page.getByRole('dialog').getByRole('button', { name: ACTIVATE_LABEL, exact: true }).click();
-  return (await put).json as FamilyWire;
-}
-
-test.describe('SCR-36 Model Registry (/admin/training/models)', () => {
-  test('SCR-36 record active version, activate a candidate in "Nhận diện cửa và đồ đạc", restore in finally', async () => {
-    const { family, versions } = await openOpeningFamily();
-    let activeId: string | null = family.activeVersionId ?? null;
-
-    // R2 resume: a crashed run left the opening family switched. Restore the recorded version first.
+test('SCR-36 · FL-M-36R-01 · Record, activate candidate, undo, mandatory restore', async () => {
+  test.setTimeout(240_000);
+  const api = await adminApi();
+  const snapshot: Record<string, string | null> = { ...(await recordActiveVersions(api, [OPENING_FAMILY])) }; // BEFORE anything else (R2)
+  let switched = false;
+  try {
+    // R2 resume of a crashed run: restore the recorded version first.
     const previous = readState().registry;
-    if (previous.pendingRestore && previous.family === OPENING_FAMILY) {
-      const recorded = previous.originalActiveVersionId;
-      if (recorded === null) {
-        throw new Error(
-          'runtime-session.json: registry.pendingRestore=true with no recorded original version; ' +
-            `restore ${OPENING_FAMILY} by hand, then set pendingRestore=false`,
-        );
-      }
-      if (activeId !== recorded) {
-        const recordedRow = versions.find((version) => version.id === recorded);
-        if (recordedRow === undefined) throw new Error(`resume: recorded version ${recorded} is not on the first page`);
-        const body = await activateViaUi(recordedRow.label);
-        expect(body.activeVersionId, 'resume restore of the recorded version').toBe(recorded);
-        await expect(page.getByRole('dialog')).toHaveCount(0);
-        activeId = recorded;
-      }
-      updateState((draft) => {
-        draft.registry.pendingRestore = false;
-      });
+    if (previous.pendingRestore && previous.family === OPENING_FAMILY && previous.originalActiveVersionId !== null) {
+      await restoreActiveVersions(api, { ...snapshot, [OPENING_FAMILY]: previous.originalActiveVersionId });
+      snapshot[OPENING_FAMILY] = previous.originalActiveVersionId; // the dirty value read above must not be restored in finally
     }
-
-    // Record BEFORE any change (R2).
-    updateState((draft) => {
-      draft.registry.family = OPENING_FAMILY;
-      draft.registry.originalActiveVersionId = activeId;
-      draft.registry.pendingRestore = false;
+    const { family, versions } = await openOpeningFamily();
+    const recordedId = family.activeVersionId ?? null;
+    updateState((d) => {
+      d.registry.family = OPENING_FAMILY;
+      d.registry.originalActiveVersionId = recordedId;
+      d.registry.pendingRestore = false;
+    });
+    const original = versions.find((v) => v.id === recordedId);
+    const candidate = versions.find((v) => v.id !== recordedId && v.evaluationStatus === 'completed' && v.weightsFormat === 'onnx');
+    expect(candidate, `environment: CP-8 candidate (second evaluated onnx version) exists in ${OPENING_FAMILY}`).toBeDefined();
+    expect(original, `environment: active version ${String(recordedId)} is on the first page`).toBeDefined();
+    if (candidate === undefined || original === undefined) return;
+    updateState((d) => {
+      d.registry.pendingRestore = true;
     });
 
-    const candidate = versions.find(
-      (version) =>
-        version.id !== activeId && version.evaluationStatus === 'completed' && version.weightsFormat === 'onnx',
-    );
-
-    if (candidate === undefined) {
-      // CP-8 missing: assert the disabled-reason copy on every blocked row, then skip the activation.
-      const blocked = versions.filter((version) => version.id !== activeId);
-      for (const version of blocked) {
-        const row = versionRow(version.label);
-        await expect(row.getByRole('button', { name: ACTIVATE_LABEL, exact: true })).toBeDisabled();
-        await expect(row).toContainText(
-          version.evaluationStatus !== 'completed' ? BLOCKED_NOT_EVALUATED : BLOCKED_FORMAT,
-        );
-      }
-      test.skip(
-        true,
-        `environment: CP-8 missing, ${OPENING_FAMILY} has no second evaluated onnx version ` +
-          `(${String(blocked.length)} blocked row(s) checked); see e2e/fullstack/README.md precondition 7`,
-      );
-      return;
-    }
-
-    // Check BEFORE changing anything (chain step 10): the original must be re-activatable via the UI.
-    const original = versions.find((version) => version.id === activeId);
-    if (original === undefined || original.evaluationStatus !== 'completed' || original.weightsFormat !== 'onnx') {
-      throw new Error(
-        `${OPENING_FAMILY}: the active version (${String(activeId)}) is missing or not onnx + completed, so it ` +
-          'cannot be re-activated from the UI; refusing to switch (see e2e/fullstack/README.md precondition 6)',
-      );
-    }
-
-    updateState((draft) => {
-      draft.registry.pendingRestore = true;
-    });
-
-    let switched = false;
-    let firstError: unknown = null;
-
-    try {
-      const body = await activateViaUi(candidate.label);
+    let putBody: FamilyWire = family;
+    // Registered BEFORE the click: the invalidation re-read follows the PUT at once.
+    const refetch = waitForApiWhere(page, (r) => r.request().method() === 'GET' && FAMILIES_PATH.test(new URL(r.url()).pathname) && r.status() === 200);
+    await test.step('[36R-C-001] pick candidate, open dialog, confirm: PUT body {baseVersion, versionId}', async () => {
+      const put = waitForApi(page, 'PUT', OPENING_ACTIVE_PATH, [200]);
+      const sent = page.waitForRequest((r) => r.method() === 'PUT' && OPENING_ACTIVE_PATH.test(new URL(r.url()).pathname));
+      await versionRow(candidate.label).getByRole('button', { name: ACTIVATE_LABEL, exact: true }).click();
+      await page.getByRole('dialog').getByRole('button', { name: ACTIVATE_LABEL, exact: true }).click();
       switched = true;
-      expect(body.activeVersionId).toBe(candidate.id);
-      await expect(page.getByRole('dialog')).toHaveCount(0);
-
-      // "Đang dùng" moved: badge on the candidate row, the old row gets its "Kích hoạt" back, card shows the label.
-      await expect(versionRow(candidate.label)).toContainText(ACTIVE_BADGE);
-      await expect(versionRow(candidate.label).getByRole('button', { name: ACTIVATE_LABEL, exact: true })).toHaveCount(0);
-      await expect(versionRow(original.label).getByRole('button', { name: ACTIVATE_LABEL, exact: true })).toBeEnabled();
-      await expect(activeCard()).toContainText(candidate.label);
-      await captureEvidence(page, '36_registry_activated.png');
-    } catch (error) {
-      firstError = error;
-      throw error;
-    } finally {
-      // Mandatory restore through the same UI button, even when the steps above failed after N24.
-      if (switched) {
-        try {
-          // A dialog still open blocks the click; Esc closes the top layer (A12), as the chain does.
-          if ((await page.getByRole('dialog').count()) > 0) await page.keyboard.press('Escape');
-          const restored = await activateViaUi(original.label);
-          expect(restored.activeVersionId, 'restore PUT body').toBe(original.id);
-          await expect(page.getByRole('dialog')).toHaveCount(0);
-          updateState((draft) => {
-            draft.registry.pendingRestore = false;
-          });
-        } catch (restoreError) {
-          // Leave pendingRestore=true so the next run restores first.
-          // eslint-disable-next-line no-unsafe-finally
-          throw new Error(
-            `RESTORE FAILED: ${OPENING_FAMILY} is still on ${candidate.id}, original ${original.id}; ` +
-              `registry.pendingRestore stays true. ${String(restoreError)}` +
-              (firstError === null ? '' : ` | original error: ${String(firstError)}`),
-          );
-        }
-      }
-    }
-  });
-
-  test('SCR-36 restored: active version equals the recorded id (mandatory restore)', async () => {
-    const family = requireState((state) => state.registry.family, 'registry.family', 'Phase 8 SCR-36 activation row');
-    expect(family).toBe(OPENING_FAMILY);
-    const recorded = readState().registry.originalActiveVersionId;
-
-    const { family: record, versions } = await openOpeningFamily();
-    expect(record.activeVersionId ?? null, 'GET model-families after restore').toBe(recorded);
-
-    if (recorded !== null) {
-      const original = versions.find((version) => version.id === recorded);
-      if (original === undefined) throw new Error(`recorded version ${recorded} is not on the first page`);
-      await expect(versionRow(original.label)).toContainText(ACTIVE_BADGE);
-      await expect(activeCard()).toContainText(original.label);
-    }
-
-    updateState((draft) => {
-      draft.registry.pendingRestore = false;
+      const body = (await sent).postDataJSON() as { baseVersion: number; body: { versionId: string } };
+      expect(body).toEqual({ baseVersion: family.revision, body: { versionId: candidate.id } });
+      putBody = (await put).json as FamilyWire;
+      await captureEvidence(page, 'E08_36R-C-001_main.png');
     });
-    await captureEvidence(page, '36_registry_restored.png');
-  });
 
-  test('SCR-36 "Quay về đường cổ điển" visible only for walls (assert only, never clicked)', async () => {
-    const familiesRead = await navigateThenWaitForApi(
-      page,
-      () => page.goto(ROUTES.adminTrainingModels, { waitUntil: 'commit' }),
-      'GET',
-      FAMILIES_PATH,
-      [200],
-    );
-    const walls = familyRecord(familiesRead.json, WALL_FAMILY);
-    const picker = page.getByRole('radiogroup', { name: 'Họ model' });
-    const revert = page.getByRole('button', { name: REVERT_LABEL, exact: true });
+    await test.step('[36R-A-011] PUT 200: candidate badge, no "Kích hoạt", card label = candidate', async () => {
+      await expect.soft(versionRow(candidate.label)).toContainText(ACTIVE_BADGE);
+      await expect.soft(versionRow(candidate.label).getByRole('button', { name: ACTIVATE_LABEL, exact: true })).toHaveCount(0);
+      await expect.soft(activeCard()).toContainText(candidate.label);
+      await captureEvidence(page, 'E08_36R-A-011_main.png');
+    });
 
-    await picker.getByRole('radio', { name: OPENING_FAMILY_LABEL, exact: true }).click();
-    await expect(activeCard()).toBeVisible();
-    await expect(revert).toHaveCount(0);
+    await test.step('[36R-G-006] response: ModelFamily with activeVersionId = candidate, revision advanced', async () => {
+      expect.soft(putBody.activeVersionId).toBe(candidate.id);
+      expect.soft(putBody.revision).toBeGreaterThan(family.revision);
+      await captureEvidence(page, 'E08_36R-G-006_main.png');
+    });
 
-    await picker.getByRole('radio', { name: WALL_FAMILY_LABEL, exact: true }).click();
-    await expect(picker.getByRole('radio', { name: WALL_FAMILY_LABEL, exact: true })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
-    await expect(activeCard()).toBeVisible();
+    await test.step('[36R-A-012] dialog gone, focus on region "Đang dùng"', async () => {
+      await expect.soft(page.getByRole('dialog')).toHaveCount(0);
+      await expect.soft(activeCard()).toBeFocused();
+      await captureEvidence(page, 'E08_36R-A-012_main.png');
+    });
 
-    // `buildActiveCard`: canRevert = walls AND an active version exists.
-    test.skip(
-      walls.activeVersionId === undefined,
-      'environment: walls family already on the classic path (no active version), so the revert button is hidden',
-    );
-    await expect(activeCard().getByRole('button', { name: REVERT_LABEL, exact: true })).toBeVisible();
-    await captureEvidence(page, '36_registry_classic_visible.png');
+    await test.step('[36R-G-007] invalidation re-reads model-families and model-versions without reload', async () => {
+      expect.soft((await refetch).response.status(), 'GET model-families re-read').toBe(200);
+      await expect.soft(versionRow(candidate.label)).toContainText(ACTIVE_BADGE);
+      await captureEvidence(page, 'E08_36R-G-007_main.png');
+    });
+
+    const toast = page.getByRole('status').filter({ hasText: 'Đã kích hoạt' });
+    await test.step('[36R-A-013] toast "Đã kích hoạt {label} cho nhận diện cửa và đồ đạc" + undo action', async () => {
+      await expect.soft(toast).toContainText('cho nhận diện cửa và đồ đạc');
+      await expect.soft(toast).toContainText('Lượt xử lý mới dùng bản này ngay.');
+      await expect.soft(toast.getByRole('button', { name: 'Hoàn tác' })).toBeVisible();
+      await captureEvidence(page, 'E08_36R-A-013_main.png');
+    });
+
+    await test.step('[36R-E-011] toast sits inside role=status', async () => {
+      await expect.soft(page.locator('[role="status"]', { hasText: 'Đã kích hoạt' })).toHaveCount(1);
+      await captureEvidence(page, 'E08_36R-E-011_main.png');
+    });
+
+    await test.step('[36R-A-014] toast undo: PUT with the recorded id, "Đã hoàn tác lượt đổi model"', async () => {
+      const put = waitForApi(page, 'PUT', OPENING_ACTIVE_PATH, [200]);
+      await toast.getByRole('button', { name: 'Hoàn tác' }).click();
+      const body = (await put).json as FamilyWire;
+      expect.soft(body.activeVersionId ?? null).toBe(recordedId);
+      // Toast.tsx:171 renders 'title — description' in one span: match by substring inside role=status (announcer excluded).
+      const undone = page.locator('[role="status"]:not([data-announcer])').filter({ hasText: 'Đã hoàn tác lượt đổi model' }); // useModelRegistry.ts:137
+      await expect.soft(undone).toContainText('Đã hoàn tác lượt đổi model');
+      await expect.soft(undone).toContainText(`Đã kích hoạt ${original.label} cho nhận diện cửa và đồ đạc`); // catalog 36R-A-014
+      await expect.soft(activeCard()).toContainText(original.label);
+      await captureEvidence(page, 'E08_36R-A-014_main.png');
+    });
+  } finally {
+    // Mandatory restore, even when a step failed after the PUT. Esc closes a dialog that would block the page (A12).
+    try {
+      if (switched && (await page.getByRole('dialog').count()) > 0) await page.keyboard.press('Escape');
+      await restoreActiveVersions(api, snapshot);
+      updateState((d) => {
+        d.registry.pendingRestore = false;
+      });
+    } finally {
+      await api.dispose();
+    }
+  }
+
+  await test.step('[36R-A-015] restore verified: GET model-families activeVersionId equals the recorded id', async () => {
+    const check = await adminApi();
+    try {
+      const after = await recordActiveVersions(check, [OPENING_FAMILY]);
+      expect(after[OPENING_FAMILY], 'active version after restore').toBe(snapshot[OPENING_FAMILY]);
+    } finally {
+      await check.dispose();
+    }
+    await captureEvidence(page, 'E08_36R-A-015_main.png');
   });
 });
 
 /* -------------------------------------------------------------------------- */
-/* SCR-37 User Management                                                     */
+/* SCR-37                                                                     */
 /* -------------------------------------------------------------------------- */
 
-test.describe('SCR-37 User Management (/admin/users)', () => {
-  const ownRow = (): Locator => page.locator('tbody tr').filter({ hasText: readAdminCredentials().email });
-  const usersEmpty = (): Locator => page.getByText(USERS_EMPTY_TITLE, { exact: true });
+test('SCR-37 · FL-M-37U-01 · Read list + detail + matrix (admin chain)', async () => {
+  test.setTimeout(120_000);
+  const admin = await adminApi();
+  let pe: Awaited<ReturnType<typeof poolUser>>;
+  try {
+    pe = await poolUser(admin, 'engineer', 'p08-eng'); // shared read-only engineer (S2 decision 1)
+  } finally {
+    await admin.dispose();
+  }
+  const search = page.getByLabel('Tìm người dùng', { exact: true });
+  const peRow = page.locator('tbody tr').filter({ hasText: pe.email });
+  const detail = page.locator('aside[aria-label="Chi tiết người dùng"]');
 
-  test('SCR-37 search, "Vai" / "Trạng thái", permission matrix, row → "Chi tiết người dùng" + Esc', async () => {
-    const { email } = readAdminCredentials();
-    await navigateThenWaitForApi(
-      page,
-      () => page.goto(ROUTES.adminUsers, { waitUntil: 'commit' }),
-      'GET',
-      USERS_LIST_PATH,
-      [200],
-    );
-    const search = page.getByLabel('Tìm người dùng', { exact: true });
-    await expect(search).toBeVisible();
+  await test.step('[37U-A-001] open /admin/users: table, breadcrumb, "Xem ma trận quyền"', async () => {
+    await navigateThenWaitForApi(page, () => page.goto(ROUTES.adminUsers, { waitUntil: 'commit' }), 'GET', USERS_LIST_PATH, [200]);
+    await expect(page.getByRole('navigation', { name: 'Đường dẫn trang' }).getByText('Người dùng', { exact: true })).toBeVisible();
+    await expect(page.locator('tbody tr').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Xem ma trận quyền', exact: true })).toBeVisible();
+    await captureEvidence(page, 'E08_37U-A-001_main.png');
+  });
 
-    // "Xem ma trận quyền", then close.
-    await page.getByRole('button', { name: 'Xem ma trận quyền', exact: true }).click();
-    const matrix = page.getByRole('dialog', { name: 'Ma trận quyền theo vai trò' });
-    await expect(matrix).toBeVisible();
-    await matrix.getByRole('button', { name: 'Đóng hộp thoại', exact: true }).click();
-    await expect(page.getByRole('dialog')).toHaveCount(0);
+  await test.step('[37U-D-001] admin sees "Mời người dùng" and "Xem ma trận quyền"', async () => {
+    await expect.soft(page.getByRole('button', { name: 'Mời người dùng', exact: true })).toBeVisible();
+    await expect.soft(page.getByRole('button', { name: 'Xem ma trận quyền', exact: true })).toBeVisible();
+    await captureEvidence(page, 'E08_37U-D-001_main.png');
+  });
 
-    // `state === 'empty'` when the list holds only the signed-in admin: no table, no rows.
-    test.skip(
-      await usersEmpty().isVisible(),
-      'environment: only the signed-in admin exists ("Chưa có người dùng nào khác"), no rows to browse',
-    );
+  await test.step('[37U-A-008] search the engineer by name: only its row', async () => {
+    await search.fill(pe.name);
+    await expect.soft(peRow).toHaveCount(1);
+    await expect.soft(page.locator('tbody tr')).toHaveCount(1);
+    await captureEvidence(page, 'E08_37U-A-008_main.png');
+  });
 
-    // Filters (client-side, endpoints.ts users docblock). The admin's own row survives both.
-    await search.fill(email);
-    await expect(ownRow()).toHaveCount(1);
+  const role = page.getByRole('combobox', { name: 'Vai', exact: true });
+  const status = page.getByRole('combobox', { name: 'Trạng thái', exact: true });
+  await test.step('[37U-A-011] "Vai" = "Kỹ sư": only engineer rows', async () => {
     await search.fill('');
+    await pickOption(role, 'Kỹ sư');
+    await expect.soft(peRow).toHaveCount(1);
+    await expect.soft(page.locator('tbody tr').filter({ hasText: readAdminCredentials().email })).toHaveCount(0);
+    await captureEvidence(page, 'E08_37U-A-011_main.png');
+  });
 
-    const role = page.getByRole('combobox', { name: 'Vai', exact: true });
-    const status = page.getByRole('combobox', { name: 'Trạng thái', exact: true });
-    await pickOption(role, 'Quản trị'); // ROLE_LABELS (BUG-081, A6)
+  await test.step('[37U-A-012] "Trạng thái" = "Đang hoạt động": only active rows', async () => {
     await pickOption(status, 'Đang hoạt động');
-    await expect(ownRow()).toHaveCount(1);
-    await expect(page.locator('tbody tr').filter({ hasNotText: 'Đang hoạt động' })).toHaveCount(0);
+    await expect.soft(status).toContainText('Đang hoạt động');
+    await expect.soft(peRow).toHaveCount(1);
+    await expect.soft(page.locator('tbody tr').filter({ hasNotText: 'Đang hoạt động' })).toHaveCount(0);
+    await captureEvidence(page, 'E08_37U-A-012_main.png');
+  });
 
-    // row name → "Chi tiết người dùng"
-    await ownRow().locator('td').first().getByRole('button').click();
-    const detail = page.locator('aside[aria-label="Chi tiết người dùng"]');
-    await expect(detail).toBeVisible();
-    await captureEvidence(page, '37_users_browse.png');
+  await test.step('[37U-A-015] click the engineer name: "Chi tiết người dùng" panel', async () => {
+    await peRow.locator('td').first().getByRole('button').click();
+    await expect.soft(detail).toBeVisible();
+    await captureEvidence(page, 'E08_37U-A-015_main.png');
+  });
 
+  await test.step('[37U-A-018] Esc closes the panel', async () => {
     await page.keyboard.press('Escape');
-    await expect(detail).toHaveCount(0);
+    await expect.soft(detail).toHaveCount(0);
+    await captureEvidence(page, 'E08_37U-A-018_main.png');
+  });
 
+  await test.step('[37U-A-030] "Xem ma trận quyền" opens "Ma trận quyền theo vai trò"', async () => {
     await pickOption(role, 'Tất cả');
     await pickOption(status, 'Tất cả');
+    await page.getByRole('button', { name: 'Xem ma trận quyền', exact: true }).click();
+    const matrix = page.getByRole('dialog', { name: 'Ma trận quyền theo vai trò' });
+    await expect.soft(matrix).toBeVisible();
+    await captureEvidence(page, 'E08_37U-A-030_main.png');
+    await matrix.getByRole('button', { name: 'Đóng hộp thoại', exact: true }).click();
+    await expect.soft(page.getByRole('dialog')).toHaveCount(0);
   });
+});
 
-  test('SCR-37 own row: inline self-guard text replaces role select and "Vô hiệu hoá"', async () => {
-    const { email } = readAdminCredentials();
-    await expect(page.getByLabel('Tìm người dùng', { exact: true })).toBeVisible();
-    test.skip(await usersEmpty().isVisible(), 'environment: only the signed-in admin exists, its row is not rendered');
+test('SCR-37 · FL-M-37W-01 · Self-edit guard (main chain, read only)', async () => {
+  test.setTimeout(60_000);
+  const { email } = readAdminCredentials();
+  const row = page.locator('tbody tr').filter({ hasText: email });
+  await page.getByLabel('Tìm người dùng', { exact: true }).fill(email);
+  await expect(row, 'own admin row').toHaveCount(1);
 
-    await page.getByLabel('Tìm người dùng', { exact: true }).fill(email);
-    const row = ownRow();
-    await expect(row).toHaveCount(1);
+  await test.step('[37W-C-010] own row: no role select, blocked text', async () => {
     await expect(row).toContainText(SELF_ROLE_BLOCKED);
-    await expect(row).toContainText(SELF_DISABLE_BLOCKED);
     await expect(row.getByRole('combobox')).toHaveCount(0);
-    await expect(row.getByRole('button', { name: 'Vô hiệu hoá', exact: true })).toHaveCount(0);
-    await captureEvidence(page, '37_users_self_guard.png');
-    await page.getByLabel('Tìm người dùng', { exact: true }).fill('');
+    await captureEvidence(page, 'E08_37W-C-010_main.png');
   });
 
-  test('SCR-37 "Mời người dùng" → "Gửi lời mời" (opt-in)', () => {
-    test.skip(true, 'opt-in: sends real email (POST /users/invitations); needs a mail sink and explicit approval');
+  await test.step('[37W-C-011] same row: no "Vô hiệu hoá", blocked text', async () => {
+    await expect.soft(row).toContainText(SELF_DISABLE_BLOCKED);
+    await expect.soft(row.getByRole('button', { name: 'Vô hiệu hoá', exact: true })).toHaveCount(0);
+    await captureEvidence(page, 'E08_37W-C-011_main.png');
   });
 });

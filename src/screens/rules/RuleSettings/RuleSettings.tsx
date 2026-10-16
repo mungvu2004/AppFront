@@ -191,10 +191,6 @@ function RuleSettingsMain({ props, activeSection, onSelectSection, sentenceByCod
         <InlineAlert level="violation" message={model.disableAllWarning} />
       )}
 
-      {model.status === 'partial' && (
-        <p className="text-xs text-text-secondary">Đang tải thêm dữ liệu bộ luật…</p>
-      )}
-
       {capabilities.canApplyPreset && model.presets.length > 0 && (
         <RuleSettingsPresetsRow presets={model.presets} onApplyPreset={props.onApplyPreset} />
       )}
@@ -322,7 +318,7 @@ export function RuleSettings(props: RuleSettingsProps) {
       />
 
       {showRestoreDefaults && (
-        <footer className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-border-default bg-bg-surface px-6 py-3">
+        <footer data-sticky-footer="" className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-border-default bg-bg-surface px-6 py-3">
           <p className="text-sm text-text-secondary">Cấu hình đã khác mặc định.</p>
           <Button variant="secondary" onClick={props.onRestoreDefaults}>
             Khôi phục mặc định

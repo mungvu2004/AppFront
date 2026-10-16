@@ -53,6 +53,7 @@ import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 
 import { FloorLayerReadFailureScreen } from '../shared/FloorLayerReadFailureScreen';
+import { QcScreenFrame } from '../shared/QcScreenFrame';
 import type { FloorLayerReadFailure } from '../shared/floorLayerReadFailure';
 
 import { AxisGridCanvas, type AxisGridCanvasProps } from './AxisGridCanvas';
@@ -123,7 +124,7 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4, 5];
 
 /** Khung chung của cột trái, để ba nhánh thay thế không mỗi chỗ một bề rộng. */
 const LEFT_COLUMN_CLASS_NAME =
-  'flex h-full w-[280px] shrink-0 flex-col gap-3 overflow-y-auto rounded-[12px] bg-bg-surface p-4 shadow-panel max-lg:h-auto max-lg:w-full';
+  'flex h-full w-[280px] shrink-0 flex-col gap-3 overflow-y-auto rounded-xl bg-bg-surface p-4 shadow-panel max-lg:h-auto max-lg:w-full';
 
 /* -------------------------------------------------------------------------- */
 /* Cột trái — bốn nhánh loại trừ nhau, nhánh cuối là danh sách trục thật.      */
@@ -215,20 +216,14 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
 
   if (props.readFailure != null) {
     return (
-      <div aria-label={SCREEN_TITLE} className="flex h-full min-h-0 w-full flex-col bg-bg-app" role="region">
+      <QcScreenFrame label={SCREEN_TITLE}>
         <FloorLayerReadFailureScreen failure={props.readFailure} />
-      </div>
+      </QcScreenFrame>
     );
   }
 
   return (
-    <div
-      aria-label={SCREEN_TITLE}
-      // Cao bằng khung nhìn: route nằm trong `ScreenMain` (display: contents) nên `h-full` không có chiều cao
-      // để bám, panel trục không bao giờ cuộn và cả trang dài ra (G20) — cùng cách SCR-16/17.
-      className="flex h-screen min-h-0 w-full flex-col bg-bg-app"
-      role="region"
-    >
+    <QcScreenFrame label={SCREEN_TITLE}>
       <header className="shrink-0 px-4 pb-1 pt-3">
         <p className="text-[12px] text-text-muted">{SCREEN_BREADCRUMB}</p>
         <h2 className="text-[18px] font-semibold text-text-primary">{SCREEN_TITLE}</h2>
@@ -261,7 +256,7 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
 
         <section
           aria-label={CANVAS_SECTION_LABEL}
-          className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-[16px] bg-bg-sunken max-lg:h-[360px] max-lg:flex-none"
+          className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-2xl bg-bg-sunken max-lg:h-[360px] max-lg:flex-none"
         >
           <AxisGridCanvas
             canvas={viewModel.canvas}
@@ -287,7 +282,7 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
           /* Đang tải: khung xương, không in "0 px / 0 mm" và danh sách tầng như dữ liệu thật (BUG-618). */
           <div aria-hidden="true" className="flex w-[344px] shrink-0 flex-col gap-2 max-lg:w-full">
             {[0, 1].map((card) => (
-              <div className="flex flex-col gap-2 rounded-[12px] bg-bg-surface p-5 shadow-panel" key={card}>
+              <div className="flex flex-col gap-2 rounded-xl bg-bg-surface p-5 shadow-panel" key={card}>
                 {SKELETON_ROWS.slice(0, 3).map((row) => (
                   <Skeleton key={row} preset="table-row" />
                 ))}
@@ -313,6 +308,6 @@ export function AxisGridManager(props: AxisGridManagerViewProps) {
           </div>
         )}
       </div>
-    </div>
+    </QcScreenFrame>
   );
 }

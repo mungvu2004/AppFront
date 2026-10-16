@@ -29,6 +29,8 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
     const btn = (
       <button
         ref={ref}
+        // Default `button`: inside a <form> an untyped button submits it (32-A-024). Pass type="submit" to opt in.
+        type="button"
         disabled={isDisabled}
         aria-label={ariaLabel}
         // `isActive` là trạng thái bật/tắt: nói nó ra cho trình đọc màn hình, không

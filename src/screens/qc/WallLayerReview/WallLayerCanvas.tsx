@@ -71,7 +71,7 @@ const FORBIDDEN_DESCRIPTION_ID = 'wall-layer-canvas-forbidden';
  * bản vẽ 60vh — tối thiểu 640 ở đó đẩy thanh thu phóng ra ngoài vùng nhìn (BUG-317).
  */
 const FRAME_CLASSES =
-  'relative h-full min-h-[320px] w-full overflow-hidden rounded-[16px] border border-border-default bg-canvas-2d p-3 xl:min-h-[640px]';
+  'relative h-full min-h-80 w-full overflow-hidden rounded-2xl border border-border-default bg-canvas-2d p-3 xl:min-h-[640px]';
 
 /* Canvas. */
 
@@ -311,7 +311,7 @@ export function WallLayerCanvas({
           {surface === null ? (
             <div
               aria-label={WAITING_FRAME_LABEL}
-              className="absolute inset-3 rounded-[12px] bg-bg-sunken"
+              className="absolute inset-3 rounded-xl bg-bg-sunken"
               role="img"
             />
           ) : (
@@ -410,7 +410,7 @@ export function WallLayerCanvas({
         zoomLevel={zoomPercent}
       />
       <MiniMap
-        isVisible={drawingSizePx !== null}
+        isVisible={surface !== null}
         onViewportChange={onMiniMapViewportChange}
         viewport={miniMapViewport}
       >

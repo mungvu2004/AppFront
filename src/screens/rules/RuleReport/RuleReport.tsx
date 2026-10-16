@@ -300,7 +300,8 @@ export function RuleReport(props: RuleReportViewProps) {
             )}
             {/* `empty` = chưa có mô hình: một lượt chạy chỉ rơi vào `error` (B-V12-02).
                 `error` có sẵn "Thử lại" trong thân — hai nút chạy lại là thừa (BUG-465). */}
-            {status === 'empty' || status === 'error' ? null : (
+            {/* Người xem (không `canEdit`) không chạy lại — gỡ nút như nút xác nhận (9V-C-030, Q2). */}
+            {status === 'empty' || status === 'error' || !capabilities.canEdit ? null : (
               <Button variant="secondary" loading={isRunning} onClick={props.onRerun}>
                 Chạy kiểm tra lại
               </Button>

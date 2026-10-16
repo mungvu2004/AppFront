@@ -73,7 +73,7 @@ const RadioItem = forwardRef<HTMLInputElement, RadioItemProps>(
       <label
         htmlFor={internalId}
         className={cn(
-          'group/radio flex items-start min-h-[32px] cursor-pointer outline-none',
+          'group/radio flex items-start min-h-8 cursor-pointer outline-none',
           isDisabled && 'opacity-50 cursor-not-allowed',
           className
         )}
@@ -105,7 +105,7 @@ const RadioItem = forwardRef<HTMLInputElement, RadioItemProps>(
             )}
           >
             <motion.div
-              className="w-[6px] h-[6px] rounded-full bg-accent"
+              className="w-1.5 h-1.5 rounded-full bg-accent"
               initial={{ scale: 0 }}
               animate={{ scale: isChecked ? 1 : 0 }}
               transition={{ duration: durationSeconds('instant'), ease: 'easeOut' }}
@@ -116,7 +116,7 @@ const RadioItem = forwardRef<HTMLInputElement, RadioItemProps>(
         {(label || description) && (
           <div className="ml-2 flex flex-col">
             {label && (
-              <span className={cn('text-[15px] leading-[24px] select-none', isDisabled ? 'text-text-muted' : 'text-text-primary')}>
+              <span className={cn('text-[15px] leading-6 select-none', isDisabled ? 'text-text-muted' : 'text-text-primary')}>
                 {label}
               </span>
             )}
@@ -139,7 +139,7 @@ const RadioLabel = forwardRef<HTMLSpanElement, React.HTMLAttributes<HTMLSpanElem
   ({ children, className, ...props }, ref) => (
     <span
       ref={ref}
-      className={cn('text-[15px] leading-[24px] select-none text-text-primary', className)}
+      className={cn('text-[15px] leading-6 select-none text-text-primary', className)}
       {...props}
     >
       {children}
@@ -171,7 +171,7 @@ function IconRadioGroup({ value, onChange, options, disabled = false, className 
           disabled={disabled}
           onClick={() => onChange(opt.value)}
           className={cn(
-            'w-[36px] h-[36px] flex items-center justify-center rounded-[8px] transition-colors duration-120',
+            'w-9 h-9 flex items-center justify-center rounded-lg transition-colors duration-120',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2',
             disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-bg-hover',
             value === opt.value ? 'bg-accent-wash text-accent' : 'text-text-secondary'

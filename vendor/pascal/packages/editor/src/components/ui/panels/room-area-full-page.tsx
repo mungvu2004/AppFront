@@ -4,6 +4,7 @@ import { Copy, X } from 'lucide-react'
 import { type RefObject, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { roomArea as vi } from '../../../i18n/regions/roomArea'
+import { getPascalRoot } from '../../../lib/pascal-root'
 import type {
   RoomAreaGrouping,
   RoomAreaSort,
@@ -56,14 +57,14 @@ export function RoomAreaFullTable({
       className="fixed inset-0 z-[100] flex flex-col bg-background text-foreground text-sm"
       role="dialog"
     >
-      <header className="flex items-center justify-between gap-3 border-border/60 border-b px-4 py-3">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-border/60 border-b px-4 py-3">
         <div>
           <h2 className="font-semibold text-base">{vi.title}</h2>
           <div className="text-muted-foreground text-xs">
             {vi.total} <span className="font-semibold tabular-nums">{table.totalText}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <label className="flex items-center gap-1.5 text-muted-foreground text-xs">
             {vi.groupBy}
             <select
@@ -181,6 +182,23 @@ export function RoomAreaFullTable({
   )
 }
 
+const FOCUSABLE = 'button:not([disabled]), select:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+/** AppFront 23R-E-008: Tab / Shift+Tab wrap inside the modal instead of leaving it. */
+export function trapTab(event: Pick<KeyboardEvent, 'shiftKey' | 'preventDefault'>, dialog: HTMLElement | null) {
+  if (!dialog) return
+  const focusable = [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE)]
+  const first = focusable[0]
+  const last = focusable[focusable.length - 1]
+  if (!first || !last) return
+  const active = dialog.ownerDocument.activeElement
+  const outside = !dialog.contains(active)
+  if (event.shiftKey ? active === first || outside : active === last || outside) {
+    event.preventDefault()
+    ;(event.shiftKey ? last : first).focus()
+  }
+}
+
 export function RoomAreaFullPage({
   returnFocusTo,
   ...props
@@ -192,6 +210,10 @@ export function RoomAreaFullPage({
     const opener = returnFocusTo.current
     closeRef.current?.focus()
     const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Tab') {
+        trapTab(event, closeRef.current?.closest<HTMLElement>('[role="dialog"]') ?? null)
+        return
+      }
       if (event.key !== 'Escape') return
       // A12: Esc closes the top layer only — keep it from reaching tool shortcuts.
       event.stopPropagation()
@@ -205,5 +227,12 @@ export function RoomAreaFullPage({
   }, [onClose, returnFocusTo])
 
   if (typeof document === 'undefined') return null
-  return createPortal(<RoomAreaFullTable {...props} closeRef={closeRef} />, document.body)
+  // AppFront: into `.pascal-root`, where Pascal's scoped stylesheet applies —
+  // portalled to `document.body` the dialog renders unstyled and see-through
+  // over the host page (23R-B-016). `.pascal-root` contains layout, so
+  // `fixed inset-0` covers the editor frame.
+  return createPortal(
+    <RoomAreaFullTable {...props} closeRef={closeRef} />,
+    getPascalRoot() ?? document.body,
+  )
 }

@@ -93,11 +93,35 @@ describe('[#45] ba bảng phụ loại trừ nhau', () => {
     expect(screen.queryByText('Nội dung bảng diện tích phòng')).not.toBeInTheDocument();
   });
 
-  it('cột bảng rộng đúng 344 px', () => {
+  it('cột bảng rộng đúng 344 px từ lg', () => {
     renderPanels('rooms');
 
     expect(screen.getByRole('region', { name: PASCAL_SIDE_PANEL_LABELS.rooms })).toHaveClass(
-      'w-[344px]',
+      'lg:static',
+      'lg:w-[344px]',
+    );
+  });
+
+  /* 23-F-007, 23H-F-002: dưới lg, cột 344 px + hàng tab làm trang 375 cuộn ngang
+     và bóp khung dựng; vùng bảng phải là tấm trượt đáy rộng hết màn, hàng tab lên
+     trên khung dựng. */
+  it('dưới lg vùng bảng là tấm trượt đáy rộng hết màn, hàng tab lên trên khung', () => {
+    renderPanels('history');
+
+    expect(screen.getByRole('region', { name: PASCAL_SIDE_PANEL_LABELS.history })).toHaveClass(
+      'fixed',
+      'inset-x-0',
+      'bottom-0',
+      'w-full',
+      'max-h-[70vh]',
+      'overflow-y-auto',
+    );
+    expect(screen.getByRole('group', { name: 'Bảng phụ' }).parentElement).toHaveClass(
+      'max-lg:order-first',
+    );
+    expect(screen.getByTestId('pascal-canvas').parentElement?.parentElement).toHaveClass(
+      'flex-col',
+      'lg:flex-row',
     );
   });
 

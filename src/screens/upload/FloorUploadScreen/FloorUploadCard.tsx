@@ -46,7 +46,7 @@ const LABEL_DISMISS = 'Đóng';
 
 /** Lớp dùng chung của một mục trong bảng tuỳ chọn. */
 const MENU_ITEM_CLASSES =
-  'flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-left text-[13px] ' +
+  'flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] ' +
   'hover:bg-bg-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2';
 
 export interface FloorUploadCardProps {
@@ -61,7 +61,7 @@ export interface FloorUploadCardProps {
 /** Chip "Bản vẽ CAD" — hiện theo cờ của hook, thẻ không bao giờ tự đọc đuôi tệp. */
 function CadPill() {
   return (
-    <span className="inline-flex h-[22px] items-center rounded-[6px] bg-bg-sunken px-2 text-[12px] text-text-secondary">
+    <span className="inline-flex h-[22px] items-center rounded-md bg-bg-sunken px-2 text-[12px] text-text-secondary">
       {LABEL_CAD_PILL}
     </span>
   );
@@ -117,7 +117,7 @@ function CardMenu({
       />
 
       {isOpen && (
-        <div className="absolute right-0 top-full z-10 mt-1 flex min-w-[180px] flex-col rounded-[8px] border border-border-default bg-bg-surface p-1">
+        <div className="absolute right-0 top-full z-10 mt-1 flex min-w-[180px] flex-col rounded-lg border border-border-default bg-bg-surface p-1">
           {row.canCancelUpload && (
             <button
               className={clsx(MENU_ITEM_CLASSES, 'text-text-primary')}
@@ -169,7 +169,7 @@ function ProgressRail({ row }: { row: FloorUploadRowModel }) {
     <>
       <div
         aria-hidden="true"
-        className="absolute inset-x-0 bottom-0 h-[2px] overflow-hidden rounded-b-[12px] bg-bg-sunken"
+        className="absolute inset-x-0 bottom-0 h-0.5 overflow-hidden rounded-b-xl bg-bg-sunken"
       >
         <div
           className="h-full bg-accent transition-[width] duration-instant"
@@ -217,9 +217,9 @@ export function FloorUploadCard({
   return (
     <li
       className={clsx(
-        'animate-panel-rise motion-reduce:animate-none relative rounded-[12px] border border-border-default bg-bg-surface p-5',
+        'animate-panel-rise motion-reduce:animate-none relative rounded-xl border border-border-default bg-bg-surface p-5',
         isMenuOpen && 'z-30',
-        isCollapsed ? 'flex flex-col gap-3' : 'flex min-h-[96px] flex-row flex-wrap items-center gap-4',
+        isCollapsed ? 'flex flex-col gap-3' : 'flex min-h-24 flex-row flex-wrap items-center gap-4',
       )}
       data-floor-id={row.floorId}
       ref={cardRef}
@@ -232,13 +232,13 @@ export function FloorUploadCard({
           squeezing the floor name to "Tầng t…" and the subtitle to five lines (BUG-261). */}
       <div className={clsx('flex min-w-0 flex-1 flex-wrap items-center gap-4', isCollapsed && 'w-full')}>
         <motion.div
-          className="flex h-[72px] w-[96px] shrink-0 items-center justify-center rounded-[8px] bg-bg-sunken"
+          className="flex h-[72px] w-24 shrink-0 items-center justify-center rounded-lg bg-bg-sunken"
           {...(file === null ? {} : { layoutId: `floor-upload-thumb-${file.id}` })}
         >
           <SheetGlyph />
         </motion.div>
 
-        <div className="flex min-w-[96px] flex-1 flex-col gap-1">
+        <div className="flex min-w-24 flex-1 flex-col gap-1">
           <h3 className="truncate text-[15px] font-medium text-text-primary">{row.name}</h3>
           <p className="text-[13px] text-text-muted">
             {LABEL_ELEVATION} {row.elevationLabel} · {LABEL_HEIGHT} {row.storeyHeightLabel}
