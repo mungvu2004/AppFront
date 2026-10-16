@@ -17,6 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { formatNumber } from '@/lib/format/number';
 import { createTestQueryClient } from '@/lib/testing/render';
 import { SEVEN_STATES } from '@/lib/testing/sevenStateScenarios';
+import { expectSentenceCaseStrings } from '@/lib/testing/expectSentenceCase';
 import { ROUTES } from '@/routes/paths';
 import type { ProjectRole } from '@/types/project';
 
@@ -269,6 +270,12 @@ describe('useCadBranchConfirm — bảy trạng thái', () => {
     const mounted = await mountInState(state as CadBranchConfirmState);
 
     expect(mounted.result.current.model.state).toBe(state);
+  });
+
+  it('[9U-D-072] câu không có quyền viết hoa đầu mỗi câu (luật A6)', async () => {
+    const forbidden = await mountInState('forbidden');
+
+    expectSentenceCaseStrings([forbidden.result.current.model.forbiddenNotice ?? '']);
   });
 
   it('mỗi câu của một trạng thái chỉ có mặt ở đúng trạng thái đó', async () => {

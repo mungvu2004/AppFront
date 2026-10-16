@@ -624,7 +624,7 @@ Mã seed: PE du an rieng cho engineer · PV0 du an 0 tang · PF du an co lan cha
 
 | id | cat | case | expected (exact copy · file:line) | oracle | layer | status | existing | stack | data needs |
 |---|---|---|---|---|---|---|---|---|---|
-| 9U-D-072 | D | viewer: tieu de forbidden + cau giai thich | heading "Không có quyền xử lý CAD" (CB:97) + "Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. liên hệ quản trị viên để được cấp quyền." (UCB:119) | canEdit=can(edit,layer,viewer)=false -> forbidden (UCB:606) | ui | missing | - | real | PC: du an co ban ve CAD (helper moi) |
+| 9U-D-072 | D | viewer: tieu de forbidden + cau giai thich | heading "Không có quyền xử lý CAD" (CB:97) + "Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. Liên hệ quản trị viên để được cấp quyền." (UCB:119) | canEdit=can(edit,layer,viewer)=false -> forbidden (UCB:606) | ui | missing | - | real | PC: du an co ban ve CAD (helper moi) |
 | 9U-D-073 | D | viewer: 2 lua chon "Dùng đường từ CAD" / "Vẫn dùng AI" khoa | disabled (isCadChoiceDisabled UCB:680; CBT:84,87) | forbidden | ui | missing | - | real | PC |
 | 9U-D-074 | D | viewer: khong mo buoc 2 / khong "Nhập hình học" | "Nhập hình học" (CBT:156) khong bat duoc (UCB:932); stage hai khong mo (CB:425) | state!=forbidden | ui | missing | - | real | PC |
 | 9U-D-075 | D | viewer: khong request ghi khi bam lua chon | recordWrites rong | canEdit false | edge | missing | - | real | PC |

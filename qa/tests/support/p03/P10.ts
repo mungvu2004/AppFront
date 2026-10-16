@@ -98,7 +98,7 @@ export const CAD = {
   inspectionMissing:
     'Bản này chưa đọc được lớp của tệp CAD, nên chưa ánh xạ và nhập được hình học. Hãy chọn "Vẫn dùng AI".', // UCB:112-113
   forbiddenNotice:
-    'Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. liên hệ quản trị viên để được cấp quyền.', // UCB:118-119
+    'Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. Liên hệ quản trị viên để được cấp quyền.', // UCB:118-119
   importUnsupported: 'Bản này chưa nhập được hình học từ tệp CAD. Hãy chọn "Vẫn dùng AI".', // UCB:116
   importButton: 'Nhập hình học', // CBT IMPORT_BUTTON_LABEL
   importReasonId: 'cad-import-disabled-reason', // CB IMPORT_REASON_ID

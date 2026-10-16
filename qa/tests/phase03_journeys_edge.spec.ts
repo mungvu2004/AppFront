@@ -133,7 +133,7 @@ const CAD = {
   forbiddenTitle: 'Không có quyền xử lý CAD', // CB:90
   /** UCB:119 — lowercase "liên hệ" after a full stop is the source copy (flow-plan s1315x note); asserted as is. */
   forbiddenSentence:
-    'Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. liên hệ quản trị viên để được cấp quyền.',
+    'Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. Liên hệ quản trị viên để được cấp quyền.',
   errorTitle: 'Không thể đọc tệp CAD', // CB:88
 } as const;
 const READ_ONLY = {

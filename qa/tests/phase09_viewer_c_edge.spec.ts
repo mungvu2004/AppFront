@@ -77,9 +77,17 @@ test.describe('phase 09 viewer edge (real stack)', () => {
       await test.step('[9V-G-001] gắn nhãn phiên bản rồi gỡ', async () => {
         await page.goto(ROUTES.project.versions(projectId));
         const tag = page.getByRole('button', { name: 'Gắn nhãn phiên bản này' }); // VHV:173
-        // a version must be reviewed first (VersionHistory.tsx:174 needs reviewedRow): tick the oldest row (not current)
-        const oldest = page.getByRole('navigation', { name: 'Danh sách phiên bản' }).getByRole('listitem').last();
+        // a version must be reviewed first (VersionHistory.tsx:37-38: reviewed = compare right ?? left). The two newest come
+        // preselected as the compare pair (versionHistoryCompare.ts:85) and a third tick is refused (p09-rr: oldest stayed
+        // unchecked), so clear the pair first, then tick the oldest row (not current) so it alone is reviewed.
+        const list = page.getByRole('navigation', { name: 'Danh sách phiên bản' });
+        const oldest = list.getByRole('listitem').last();
         await expect(oldest).toBeVisible({ timeout: 30_000 });
+        const checked = list.getByRole('checkbox', { checked: true });
+        for (let n = await checked.count(); n > 0; n -= 1) {
+          await checked.first().locator('xpath=ancestor::label[1]').click();
+          await expect(checked).toHaveCount(n - 1);
+        }
         await oldest.getByRole('checkbox').locator('xpath=ancestor::label[1]').click();
         await expect(oldest.getByRole('checkbox')).toBeChecked();
         await expect(tag.first()).toBeVisible();

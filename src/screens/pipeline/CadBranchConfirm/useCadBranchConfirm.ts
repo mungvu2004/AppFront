@@ -117,7 +117,7 @@ const COPY = {
   importUnsupported: 'Bản này chưa nhập được hình học từ tệp CAD. Hãy chọn "Vẫn dùng AI".',
   importNoMapped: 'Gán vai trò cho ít nhất một lớp để nhập hình học.',
   forbiddenNotice:
-    'Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. liên hệ quản trị viên để được cấp quyền.',
+    'Bạn không có quyền chỉnh sửa lớp của dự án này, nên không chốt được nhánh xử lý. Liên hệ quản trị viên để được cấp quyền.',
   successNotice: 'Đã nhập xong hình học từ tệp CAD.',
   workingNotice: 'Chọn vai trò cho từng lớp, xem trước cập nhật ngay khi bạn đổi.',
   unitWarning:
