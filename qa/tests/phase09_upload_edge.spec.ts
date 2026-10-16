@@ -390,9 +390,11 @@ test('SCR-14 · SCR-15 · SCR-16 · FL-9U-04 · viewer · viewer doc: ti le + do
       await captureEvidence(page, 'E09_9U-D-072_cad_forbidden.png');
     });
 
-    await test.step('[9U-D-073] viewer, SCR-16: both choices disabled', async () => {
-      await expect.soft(button(CAD.useCad)).toBeDisabled(); // UCB:680, CBT:84,87
-      await expect.soft(button(CAD.useAi)).toBeDisabled();
+    await test.step('[9U-D-073] viewer, SCR-16: CAD choice disabled, AI fallback stays open', async () => {
+      await expect.soft(button(CAD.useCad)).toBeDisabled(); // UCB:680 isCadChoiceDisabled = error || forbidden
+      // By design the AI branch is never blocked (useCadBranchConfirm.ts:699-700, "người dùng luôn phải quay về nhánh AI được")
+      // and it writes nothing (setProcessingBranch has no endpoint, :717-720) - p09-rr showed it enabled for the viewer.
+      await expect.soft(button(CAD.useAi)).toBeEnabled();
       await captureEvidence(page, 'E09_9U-D-073_choices_disabled.png');
     });
 
@@ -402,10 +404,12 @@ test('SCR-14 · SCR-15 · SCR-16 · FL-9U-04 · viewer · viewer doc: ti le + do
       await captureEvidence(page, 'E09_9U-D-074_no_stage_two.png');
     });
 
-    await test.step('[9U-D-075] viewer, SCR-16: clicking a disabled choice sends no write', async () => {
+    await test.step('[9U-D-075] viewer, SCR-16: neither choice sends a write', async () => {
       await button(CAD.useCad).click({ force: true });
-      await button(CAD.useAi).click({ force: true });
       await expect.soft(button(CAD.useCad)).toBeDisabled();
+      await noWrites(page, rec);
+      // AI last: it navigates to the pipeline (UCB:721) and has no endpoint to write to (UCB:717-720).
+      await button(CAD.useAi).click();
       await noWrites(page, rec);
       await captureEvidence(page, 'E09_9U-D-075_no_writes_on_click.png');
     });
