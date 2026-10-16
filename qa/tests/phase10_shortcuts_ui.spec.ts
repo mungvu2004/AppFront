@@ -15,7 +15,6 @@ import { verifyUi } from './support/ui-verify';
 
 const FLOORS_TITLE = 'Quản lý tầng'; // FloorManager.tsx:70 (h2)
 const NOT_FOUND_TITLE = 'Không tìm thấy trang này'; // useNotFound.ts:98 (h2)
-const VIEWPORT_NAME = 'Khung nhìn mô hình'; // phase05_3d_viewer.spec.ts:45
 const SCENE_TIMEOUT_MS = 60_000;
 
 const floorsHeading = (page: Page) => page.getByRole('heading', { level: 2, name: FLOORS_TITLE, exact: true });
@@ -84,21 +83,21 @@ test('SCR-41 · FL-10K-U3 · admin · help trên /3d dài 1024/768', async ({ pa
   const projectId = requireState((s) => s.project.projectId, 'project.projectId', 'Phase 2');
 
   await signInAdmin(page);
-  await test.step('[10K-F-003] long help (canvas group) on /3d: scrolls inside the box, close button stays in view', async () => {
+  await test.step('[10K-F-003] help on /3d (Pascal canvas group): box stays within 80vh, close button stays in view', async () => {
     await verifyUi(
       page,
       'K10U_10K-F-003_help_3d',
       async (p) => {
         await p.goto(ROUTES.project.viewer(projectId));
         await dismissTour(p, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
-        await expect(p.getByRole('main', { name: VIEWPORT_NAME })).toHaveAttribute('aria-busy', 'false', { timeout: SCENE_TIMEOUT_MS });
+        await expect(p.getByRole('region', { name: 'Mô hình 3D', exact: true })).toBeVisible({ timeout: SCENE_TIMEOUT_MS }); // /3d is PascalViewer (router.tsx:382, PascalViewer.tsx:53)
         await p.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
         await p.keyboard.press('?');
         await expectHelpFits(p);
-        // GSH:158 max-h 80vh: the long canvas list must scroll inside the box at 1024x768 and 768x1024 (taller viewports may fit it)
-        const scrolls = await helpDialog(p).evaluate((el) => el.scrollHeight > el.clientHeight);
+        // GSH:158 max-h 80vh: the box never outgrows 80% of the viewport (a long list scrolls inside it)
+        const box = await helpDialog(p).evaluate((el) => ({ height: el.getBoundingClientRect().height, view: window.innerHeight }));
 
-        expect.soft(scrolls || (p.viewportSize()?.height ?? 0) > 1000, 'help scrolls inside its box').toBe(true);
+        expect.soft(box.height, 'help box height <= 80vh').toBeLessThanOrEqual(box.view * 0.8 + 1);
       },
       DESKTOP_VIEWPORTS,
       { fullPage: false },

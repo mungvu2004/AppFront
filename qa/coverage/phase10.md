@@ -119,7 +119,7 @@ Bảng thật đọc registry sống `appShortcutRegistry.listShortcuts()`, ch�
 | 10K-B-006 | content | hàng 'Mở bảng phím tắt' = ? | SR:768 | Kbd '?' | ui | missing | — | real | MP |
 | 10K-B-007 | content | hàng 'Đóng lớp trên cùng' = Esc (nhãn 'Esc', không 'ESCAPE') | SR:778, KEY_CAP_LABELS SR:193-202 | Kbd 'Esc' | ui | missing | — | real | MP |
 | 10K-B-008 | content | trên NotFound (không `:projectId`) nhóm 'Toàn cục' chỉ 2 hàng 'Mở bảng phím tắt', 'Đóng lớp trên cùng'; KHÔNG 'Hoàn tác thao tác gần nhất', 'Làm lại thao tác vừa hoàn tác', 'Lưu ngay thay vì chờ tự lưu' (BUG-085) | GSH:73-89 | đúng 2 `<dt>` | ui | missing | — | real | admin |
-| 10K-B-009 | content | trên `/projects/<MP>/3d` thêm nhóm 'Khung nhìn 3D' (hàng 'Mở ô tìm đối tượng' Ctrl + F); Ctrl+F không ở nhóm 'Toàn cục' | GSH:55-60 · ObjectSearch.tsx:116-118 | h3 'Khung nhìn 3D' + h3 'Toàn cục' | ui | missing | — | real | MP, WebGL |
+| 10K-B-009 | content | trên `/projects/<MP>/3d` (PascalViewer, router.tsx:382) nhóm 'Khung nhìn 3D' có hàng 'Mở hoặc đóng bảng lịch sử thao tác' Ctrl + H; không còn hàng 'Mở ô tìm đối tượng' (Ctrl+F bỏ, docs/pascal/05-dung-man-pascal.md §7) | GSH:55-60 · PascalViewer.container.tsx:300-306 | h3 'Khung nhìn 3D' + h3 'Toàn cục' | ui | missing | — | real | MP, WebGL |
 | 10K-B-010 | content | chân bảng | 'Nhấn ? hoặc Esc để đóng' (hai Kbd) · GSH:241-243 | text có 'Nhấn', 'để đóng' | ui | missing | — | real | admin |
 
 ### C Validation/logic
@@ -133,7 +133,7 @@ Bảng thật đọc registry sống `appShortcutRegistry.listShortcuts()`, ch�
 | 10K-C-006 | modal | bảng mở nuốt phím khác: `n` trên dashboard không mở wizard | tầng `dialog` modal · SR:596-612 | dialog tạo dự án count 0 | edge | missing | — | real | admin |
 | 10K-C-007 | layer | Esc khi bảng mở đóng CHỈ bảng, lớp dưới còn | A12 · GSH:21-31 | panel 'quên mật khẩu' còn | edge | covered | phase01 #54 | real | anon |
 | 10K-C-008 | layer | Esc khi không có lớp: `closeDialog` không lỗi, trang đứng yên | `global.closeTopLayer` · RT:320 | URL/h1 giữ, 0 lỗi console | edge | missing | — | real | admin |
-| 10K-C-009 | cleanup | điều hướng (history.back) khi bảng đang mở: trạng thái bảng xác định | `isHelpOpen` trong `UndoShortcuts` bọc mọi route · RT:300-309 | ⚑ nghi: bảng vẫn mở trên màn mới | edge | missing | — | real | MP |
+| 10K-C-009 | cleanup | điều hướng (history.back) khi bảng đang mở: trạng thái bảng xác định | `isHelpOpen` trong `UndoShortcuts` bọc mọi route · RT:300-309 | bảng đóng khi đường dẫn đổi (router.tsx UndoShortcuts effect trên pathname; vitest router.test.tsx 10K-C-009) | edge | missing | — | real | MP |
 
 ### D Roles
 | id | cat | case | expected | oracle | layer | status | existing | stack | data needs |
@@ -157,7 +157,7 @@ Bảng thật đọc registry sống `appShortcutRegistry.listShortcuts()`, ch�
 |---|---|---|---|---|---|---|---|---|---|
 | 10K-F-001 | layout | bảng mở trên `/floors` 4 khổ | `max-w-[480px] max-h-[80vh]` · GSH:158 | không tràn ngang | ui | missing | — | real | MP |
 | 10K-F-002 | layout | bảng mở trên NotFound (2 hàng) 4 khổ | như trên | căn giữa | ui | missing | — | real | admin |
-| 10K-F-003 | layout | bảng dài (3D) 1024/768 cuộn trong hộp, tiêu đề dính `sticky top-0` | GSH:158,184 | nút X còn thấy | ui | missing | — | real | MP, WebGL |
+| 10K-F-003 | layout | bảng trên /3d (Pascal) 1024/768 cao <= 80vh, nút X còn thấy, tiêu đề dính `sticky top-0` | GSH:158,184 | nút X còn thấy | ui | missing | — | real | MP, WebGL |
 | 10K-F-004 | mobile | 375 | ngoài phạm vi: mobile | — | — | n/a | — | n/a | — |
 
 ### G API/BE

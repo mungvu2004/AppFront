@@ -152,23 +152,21 @@ test('SCR-41 · FL-10K-04 · admin · /projects/<MP>/3d: nhóm canvas động', 
   const projectId = requireState((s) => s.project.projectId, 'project.projectId', 'Phase 2 (SCR-05 create)');
   await signInAdmin(page);
 
-  await test.step('[10K-B-009] trên /3d bảng có nhóm "Khung nhìn 3D" với Ctrl + F', async () => {
+  // F-15 replaced the old viewer: /3d is PascalViewer (router.tsx:382). The canvas group is now Pascal's own
+  // 'canvas' bindings (PascalViewer.container.tsx:300 Ctrl+H); Ctrl+F object search was dropped (docs/pascal/05-dung-man-pascal.md section 7).
+  await test.step('[10K-B-009] trên /3d bảng có nhóm "Khung nhìn 3D" với Ctrl + H; không còn Ctrl + F tìm đối tượng', async () => {
     await page.goto(ROUTES.project.viewer(projectId));
-    // phase05 helpers: viewport main named 'Khung nhìn mô hình', busy flag clears when the scene is drawn.
-    const viewport = page.getByRole('main', { name: 'Khung nhìn mô hình', exact: true });
-    await expect(viewport).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Mô hình 3D', exact: true })).toBeVisible({ timeout: 60_000 }); // PASCAL_VIEWER_TITLE, PascalViewer.tsx:53
     await dismissTour(page, { waitMs: TOUR_APPEAR_TIMEOUT_MS });
-    await expect(viewport).toHaveAttribute('aria-busy', 'false', { timeout: 60_000 });
-
-    await page.getByRole('toolbar', { name: 'Công cụ khung nhìn', exact: true }).getByRole('button').first().focus();
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await page.keyboard.press('?');
     await expect(help(page)).toBeVisible();
 
     const canvas = group(page, 'Khung nhìn 3D');
-    const searchRow = canvas.locator('div').filter({ has: page.locator('dt', { hasText: 'Mở ô tìm đối tượng' }) }).last();
-    await expect(canvas.locator('dt', { hasText: 'Mở ô tìm đối tượng' })).toHaveCount(1);
-    await expect(searchRow.locator('kbd')).toHaveText(['Ctrl', 'F']);
-    await expect(group(page, 'Toàn cục').getByText('Mở ô tìm đối tượng', { exact: true })).toHaveCount(0);
+    const historyRow = canvas.locator('div').filter({ has: page.locator('dt', { hasText: 'Mở hoặc đóng bảng lịch sử thao tác' }) }).last();
+    await expect(canvas.locator('dt', { hasText: 'Mở hoặc đóng bảng lịch sử thao tác' })).toHaveCount(1);
+    await expect(historyRow.locator('kbd')).toHaveText(['Ctrl', 'H']);
+    await expect(help(page).getByText('Mở ô tìm đối tượng', { exact: true })).toHaveCount(0);
     await captureEvidence(page, 'K10_10K-B-009_canvas_group.png');
 
     await page.keyboard.press('Escape');
