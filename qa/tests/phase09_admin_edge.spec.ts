@@ -45,7 +45,7 @@ const WRITE_BUTTON = /tải lên|sửa|chỉnh|xoá|xóa/iu;
 const LOG_PATTERN = /^\/api\/(admin\/ml\/|users$|library)/u;
 
 // UserManagementTable.tsx:59 `Vai của <name>` (Select.Label sr-only)
-const roleSelect = (page: Page, name?: string) =>
+const roleSelect = (page: Pick<Page, 'getByRole'>, name?: string) =>
   page.getByRole('button', {
     name: new RegExp(name === undefined ? '^Vai của ' : `^Vai của ${name}`, 'u'),
   });
@@ -388,8 +388,10 @@ test('SCR-34/35/36/37 · FL-9A-04 · admin · positive reference + self guards',
     await captureEvidence(page, '9A-E-004_admin-self-text.png');
   });
   await test.step('[9A-D-034] other user row has an enabled role select (not changed)', async () => {
-    await expect.soft(page.getByRole('row').filter({ hasText: other.email })).toBeVisible();
-    await expect.soft(roleSelect(page, other.name)).toBeEnabled();
+    // RR: pool name carries the R1 run id, the row shows the BE name -> find the select inside the row found by e-mail
+    const otherRow = page.getByRole('row').filter({ hasText: other.email });
+    await expect.soft(otherRow).toBeVisible();
+    await expect.soft(roleSelect(otherRow)).toBeEnabled();
     await captureEvidence(page, '9A-D-034_admin-other-role.png');
   });
   // own pool admin: if the BE guard breaks, only this user is demoted/disabled, never the shared admin

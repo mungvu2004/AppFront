@@ -52,7 +52,7 @@ test('SCR-35 · FL-9A-05 · admin · demoted mid-session · forbidden lock', asy
         window.dispatchEvent(new Event('focus'));
         document.dispatchEvent(new Event('visibilitychange'));
       });
-      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(2_000); // fixed-wait-ok: absence of a refetch has no signal; window lets a focus refetch fire if the lock broke
       await expect(forbidden(page)).toBeVisible();
       expect(net.length, `new /api/admin/ml/* after lock: ${net.slice(locked).join(', ')}`).toBe(locked);
       await captureEvidence(page, 'E09_9A-D-017_demoted_lock.png');

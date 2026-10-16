@@ -3,7 +3,8 @@ import { expect, test } from '@playwright/test';
 
 import { ROUTES } from '../../e2e/fixtures/routes';
 import { openAt, uiState, withRoleUi } from './support/p09/P11';
-import { addProjectMember, createFailedRunProject, createPipelineDrawingProject, deleteSeededProject, envDrawingPng } from './support/phase03Seed';
+import { GRAPH } from './support/p03/P10';
+import { addProjectMember, createFailedRunProject, deleteSeededProject } from './support/phase03Seed';
 
 test('giao diện · FL-9U-U1 · viewer · viewer bo cuc chi-doc o 4 kho', async ({ browser }) => {
   test.setTimeout(420_000);
@@ -23,15 +24,16 @@ test('giao diện · FL-9U-U1 · viewer · viewer bo cuc chi-doc o 4 kho', async
       await uiState(page, '9U-F-004', 'pipeline_forbidden', openAt(P.pipeline(projectId), // At 768 the list sits inside <details>; anchor on its summary there (ProcessingScreen.tsx:200-212, BUG-294).
 (p) => p.getByRole('list', { name: 'Các bước xử lý' }).or(p.getByText('Xem tất cả các bước', { exact: true })), ['Huỷ xử lý']));
     });
-    // PG: own project with a FINISHED run; the main project has no run, so its graph shows the empty line, not the forbidden one (R1 shot U09_9U-F-005).
-    const pg = await createPipelineDrawingProject(admin, '9u-f-005', envDrawingPng());
+    // 9U-F-005: the real route passes no `run` and the gateway answers branchReport unsupported (PipelineGraph.container.tsx:140-146,
+    // pipelineGraphGateway.ts:364), so EVERY role gets the empty state; questions.md Q4 (F9U-4, usePipelineGraph.ts:545-547): empty wins over forbidden.
+    // RR deciding value (U09-9U-F-005 shot @1920): title "Chưa có lượt xử lý nào để kể lại", no forbidden line. Forbidden copy is vitest-only (PipelineGraph.test.tsx:121).
     // PF: own project whose run FAILED (corrupt PNG); the viewer joins it; deleted in finally.
     const pf = await createFailedRunProject(admin, '9u-f-006', 'FILE_CORRUPT');
     try {
-      await addProjectMember(admin, pg.projectId, user.email);
       await addProjectMember(admin, pf.projectId, user.email);
-      await test.step('[9U-F-005] viewer graph_forbidden 4 kho', async () => {
-        await uiState(page, '9U-F-005', 'graph_forbidden', openAt(P.pipelineGraph(pg.projectId), (p) => p.getByText(/Chế độ chi tiết kỹ thuật chỉ mở cho vai quản trị/u)));
+      await test.step('[9U-F-005] viewer graph_empty (empty before forbidden, Q4) 4 kho', async () => {
+        await uiState(page, '9U-F-005', 'graph_forbidden', openAt(P.pipelineGraph(projectId), (p) => p.getByText(GRAPH.emptyTitle, { exact: true })));
+        await expect.soft(page.getByText(GRAPH.forbiddenLine, { exact: true })).toHaveCount(0);
       });
       await test.step('[9U-F-006] viewer lỗi-forbidden 4 khổ', async () => {
         await uiState(page, '9U-F-006', 'failed_forbidden', openAt(P.pipeline(pf.projectId), (p) => p.getByRole('alert').filter({ hasText: /không hoàn tất được/u }), ['Thử lại với ngưỡng thấp hơn', 'Tải lên bản vẽ rõ hơn', 'Bỏ qua tầng đó']));
@@ -50,7 +52,6 @@ test('giao diện · FL-9U-U1 · viewer · viewer bo cuc chi-doc o 4 kho', async
         await expect(page).toHaveURL(/cad-confirm/u);
       });
     } finally {
-      await deleteSeededProject(admin, pg.projectId);
       await deleteSeededProject(admin, pf.projectId);
     }
   });

@@ -26,7 +26,8 @@ test('SCR-25..32 · FL-9V-U1 · viewer · verifyUi 4 khổ trạng thái chỉ �
       await uiState(page, '9V-E-060', 'export_forbidden', openAt(P.export(projectId), (p) => p.getByRole('heading', { name: 'Không có quyền xuất bản vẽ' })));
     });
     await test.step('[9V-F-060] viewer json_viewer 4 kho', async () => {
-      await uiState(page, '9V-F-060', 'json_viewer', openAt(P.data(projectId), (p) => p.getByText(/"name"/u)));
+      // 768 opens the tree tab (key as <code>name</code>, SpatialJsonTree.tsx:151); wider widths show the raw pane (`"name"`).
+      await uiState(page, '9V-F-060', 'json_viewer', openAt(P.data(projectId), (p) => p.getByText(/"name"|^name$/u)));
     });
     await test.step('[9V-G-060] viewer versions_readonly 4 kho', async () => {
       await uiState(page, '9V-G-060', 'versions_readonly', openAt(P.versions(projectId), (p) => p.getByText(/Vai trò của bạn trên dự án này chỉ đọc được lịch sử/u)));

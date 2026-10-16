@@ -248,10 +248,13 @@ test('SCR-12 · SCR-13 · FL-9U-03 · viewer · viewer doc: tien trinh + do thi 
       await captureEvidence(page, 'E09_9U-D-041_progress_get_only.png');
     });
 
-    await test.step('[9U-D-045] viewer, graph: overview only with the explanation line', async () => {
+    await test.step('[9U-D-045] viewer, graph: overview only, empty state wins over the forbidden line', async () => {
+      // The real route passes no `run` and the gateway answers branchReport unsupported (pipelineGraphGateway.ts:364), so the
+      // graph is empty for every role; questions.md Q4 (usePipelineGraph.ts:545-547): empty before forbidden. Same deciding
+      // value as FL-9U-U1 in p09-rr (title "Chưa có lượt xử lý nào để kể lại", no forbidden line). Forbidden copy: vitest PipelineGraph.test.tsx.
       await page.goto(ROUTES.project.pipelineGraph(projectId!));
-      await expect(page.getByRole('heading', { name: GRAPH.title }).first()).toBeVisible();
-      await expect.soft(page.getByText(GRAPH.forbiddenLine, { exact: true })).toBeVisible(); // PGT:211, PGR:85
+      await expect(page.getByText(GRAPH.emptyTitle, { exact: true })).toBeVisible();
+      await expect.soft(page.getByText(GRAPH.forbiddenLine, { exact: true })).toHaveCount(0);
       await captureEvidence(page, 'E09_9U-D-045_overview_only.png');
     });
 

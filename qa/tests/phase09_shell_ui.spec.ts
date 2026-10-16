@@ -19,7 +19,15 @@ test('SCR-05 · FL-9P-U1 · viewer · bốn khổ', async ({ browser }) => {
         (name: string) =>
         async (p: Page): Promise<void> => {
           await openAt(ROUTES.project.settings(projectId), (p) => p.getByText(/Vai hiện tại chỉ xem được cài đặt/u))(p);
-          await p.getByRole('tab', { name }).click();
+          // Narrow widths (768) collapse the tab list into the 'Nhóm cài đặt' combobox (ProjectSettings.tsx:114, test :479); vi.json:304.
+          const tabBtn = p.getByRole('tab', { name });
+          if (await tabBtn.count()) {
+            await tabBtn.click();
+          } else {
+            await p.getByRole('combobox', { name: 'Nhóm cài đặt' }).click();
+            await p.getByRole('option', { name }).click();
+          }
+          await expect(p.getByText(/Vai hiện tại chỉ xem được cài đặt/u).first()).toBeVisible();
         };
       await uiState(page, '9P-F-201', 'settings_general', tab('Chung'));
       await uiState(page, '9P-F-201', 'settings_members', tab('Thành viên'));
