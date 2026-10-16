@@ -32,9 +32,10 @@ const RUN_ID = opt('run-id', cfg.defaults.runId);
 const TAG = opt('tag', `phase${NN}`);
 const LAYERS = opt('layers', 'main,ui,api,edge').split(',').filter(Boolean);
 const GREP = opt('grep', '');
-// --dry-run: print the --grep as received and stop (tools/check-grep-passthrough.mjs).
+// --dry-run: print the --grep and --layers as received and stop (tools/check-grep-passthrough.mjs).
 if (flag('dry-run')) {
   console.log(`DRY_GREP=${JSON.stringify(GREP)}`);
+  console.log(`DRY_LAYERS=${LAYERS.join(',')}`);
   process.exit(0);
 }
 const WORKERS = Math.max(1, Number(opt('workers', '1')) || 1);

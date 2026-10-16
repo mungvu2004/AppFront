@@ -149,13 +149,19 @@ if (!existsSync(STATE) && Number(NN) > 2 && opt('layers', 'main').split(',').inc
 
 /* 3. run */
 const prev = String(Number(NN) - 1).padStart(2, '0');
-const layers = opt('layers', 'main,ui,api,edge');
+// Default layers = the ones this phase has spec files for: run-phase calls a named layer with no spec EMPTY (= red), so a
+// phase with no main/api specs (phase 10) exited 1 with 0 failing (p10-r1). An explicit --layers keeps the typo check.
+const layerOf = (f) => f.match(/_(api|edge|ui)\.spec\.ts$/u)?.[1] ?? 'main';
+const layersOf = (id) => new Set(readdirSync(join(SUITE, 'tests')).filter((f) => f.startsWith(`phase${id}_`) && f.endsWith('.spec.ts')).map(layerOf));
+const layers = opt('layers', ['main', 'ui', 'api', 'edge'].filter((l) => layersOf(NN).has(l)).join(','));
 const extra = [...(opt('grep', '') ? ['--grep', opt('grep', '')] : []), ...(opt('repeat', '') ? ['--repeat', opt('repeat', '')] : []), '--layers', layers, ...['dry-run', 'allow-empty'].filter(flag).map((f) => `--${f}`)];
-if (!flag('no-prev') && layers.split(',').includes('main') && Number(NN) > 1) {
+// A full run (no --layers) replays the chain even when phase NN has no main spec: its other layers read the .state project.
+if (!flag('no-prev') && (!opt('layers', '') || layers.split(',').includes('main')) && Number(NN) > 1) {
   // Replay the WHOLE chain 01..NN-1: phase 02 creates a fresh .state project. Replaying only NN-1 reused the project of an
   // earlier run, so every replay piled up floors/drawings and the fixed counts of NN-1 main went red (phase 04 RF 2026-10-15).
   for (let p = 1; p <= Number(prev); p += 1) {
     const id = String(p).padStart(2, '0');
+    if (!layersOf(id).has('main')) continue; // phase 09 has no main spec: its replay was an EMPTY layer, logged as "main red"
     say(`phase ${id} main (chain to a fresh .state project for phase ${NN} main)`);
     sh(`docker exec f14-redis-broker-1 sh -c "redis-cli -n 2 --scan --pattern 'auth:login:*' | xargs -r redis-cli -n 2 del; redis-cli -n 2 --scan --pattern 'rl:auth_login_ip:*' | xargs -r redis-cli -n 2 del; redis-cli -n 2 --scan --pattern 'rl:members_add:*' | xargs -r redis-cli -n 2 del"`);
     if (runPhase(['--phase', id, '--run-id', RUN_ID, '--layers', 'main', '--no-typecheck', '--no-watch']) !== 0) say(`phase ${id} main red — phase ${NN} main may fail on state`);
